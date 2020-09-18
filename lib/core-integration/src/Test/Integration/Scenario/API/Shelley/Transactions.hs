@@ -580,7 +580,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
 
         basePayload <- mkTxPayload ctx wb amt fixturePassphrase
 
-        let txMeta = [json|{ "1": "hello" }|]
+        let txMeta = [json|{ "1": { "string": "hello" } }|]
         let expected = TxMetadata $ Map.singleton 1 $ TxMetaText "hello"
         let payload = addTxMetadata txMeta basePayload
 
@@ -651,7 +651,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
 
         basePayload <- mkTxPayload ctx wb amt fixturePassphrase
 
-        let txMeta = [json|{ "1": #{T.replicate 65 "a"} }|]
+        let txMeta = [json|{ "1": { "string": #{T.replicate 65 "a"} } }|]
         let payload = addTxMetadata txMeta basePayload
 
         r <- request @(ApiTransaction n) ctx
@@ -671,7 +671,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         let txMeta = Aeson.object
                 [ (toText @Int i, bytes)
                 | i <- [0..127] ]
-            bytes = Aeson.String ("0x" <> T.replicate 64 "a")
+            bytes = [json|{ "bytes": #{T.replicate 64 "a"} }|]
         let payload = addTxMetadata txMeta basePayload
 
         r <- request @(ApiTransaction n) ctx
@@ -686,7 +686,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
 
         payload <- mkTxPayload ctx wb amt fixturePassphrase
 
-        let txMeta = [json|{ "1": "hello" }|]
+        let txMeta = [json|{ "1": { "string": "hello" } }|]
         let payloadWithMetadata = addTxMetadata txMeta payload
 
         ra <- request @ApiFee ctx
@@ -714,7 +714,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
 
         basePayload <- mkTxPayload ctx wb amt fixturePassphrase
 
-        let txMeta = [json|{ "1": #{T.replicate 65 "a"} }|]
+        let txMeta = [json|{ "1": { "string": #{T.replicate 65 "a"} } }|]
         let payload = addTxMetadata txMeta basePayload
 
         r <- request @ApiFee ctx
@@ -734,7 +734,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         let txMeta = Aeson.object
                 [ (toText @Int i, bytes)
                 | i <- [0..127] ]
-            bytes = Aeson.String ("0x" <> T.replicate 64 "a")
+            bytes = [json|{ "bytes": #{T.replicate 64 "a"} }|]
         let payload = addTxMetadata txMeta basePayload
         print payload
         r <- request @ApiFee ctx
