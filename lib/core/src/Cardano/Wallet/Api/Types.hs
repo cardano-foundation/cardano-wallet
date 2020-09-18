@@ -1257,10 +1257,10 @@ instance
 instance FromJSON (ApiT TxMetadata) where
     parseJSON = fmap ApiT
         . either (fail . displayError) pure
-        . metadataFromJson TxMetadataJsonDetailedSchema
+        . metadataFromJson TxMetadataJsonNoSchema
 
 instance ToJSON (ApiT TxMetadata) where
-    toJSON = metadataToJson TxMetadataJsonDetailedSchema . getApiT
+    toJSON = metadataToJson TxMetadataJsonNoSchema . getApiT
 
 instance FromJSON ApiTxMetadata where
     parseJSON Aeson.Null = pure $ ApiTxMetadata Nothing
