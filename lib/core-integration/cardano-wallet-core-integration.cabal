@@ -65,7 +65,6 @@ library
     , retry
     , say
     , scrypt
-    , shelley-spec-ledger
     , stm
     , template-haskell
     , temporary

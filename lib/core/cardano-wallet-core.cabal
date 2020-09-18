@@ -86,7 +86,6 @@ library
     , servant
     , servant-client
     , servant-server
-    , shelley-spec-ledger
     , split
     , statistics
     , stm
@@ -238,7 +237,6 @@ test-suite unit
     , servant
     , servant-server
     , servant-swagger
-    , shelley-spec-ledger
     , stm
     , swagger2
     , temporary
