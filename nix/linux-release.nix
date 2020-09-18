@@ -21,7 +21,7 @@ let
 in pkgs.stdenv.mkDerivation {
   inherit name;
   buildInputs = with pkgs.buildPackages; [ gnutar gzip binutils ];
-  checkInputs = [ pkgs.buildPackages.ruby ];
+  checkInputs = with pkgs.buildPackages; [ ruby gnugrep glibc.bin ];
   doCheck = true;
   phases = [ "buildPhase" "checkPhase" ];
   tarname = "${name}-linux64.tar.gz";

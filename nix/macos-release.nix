@@ -20,8 +20,19 @@ let
 
 in pkgs.stdenv.mkDerivation {
   inherit name;
-  buildInputs = with pkgs.buildPackages; [ gnutar gzip binutils ];
-  checkInputs = [ pkgs.buildPackages.ruby ];
+  buildInputs = with pkgs.buildPackages; [
+    gnutar
+    gzip
+    binutils
+    commonLib.haskell-nix-extra-packages.haskellBuildUtils.package
+    nix
+  ];
+  checkInputs = with pkgs.buildPackages; [
+    ruby
+    gnugrep
+    gnused
+    darwin.cctools
+  ];
   doCheck = true;
   phases = [ "buildPhase" "checkPhase" ];
   tarname = "${name}-macos64.tar.gz";
@@ -29,6 +40,7 @@ in pkgs.stdenv.mkDerivation {
     mkdir $name
     cp -nR ${concatMapStringsSep " " (exe: "${exe}/bin/*") exes} $name
     chmod -R 755 $name
+    ( cd $name; rewrite-libs . `ls -1 | grep -Fv .dylib` )
 
     mkdir -p $out/nix-support
     tar -czf $out/$tarname $name

@@ -183,20 +183,18 @@ let
   # Release distribution jobs - these all have a Hydra download link.
 
   # Which exes should be put in the release archive.
-  releaseContents = rec {
+  releaseContents = {
     jormungandr = [
       "cardano-wallet-jormungandr"
-      "jormungandr"
-      "jormungandr-cli"
     ];
-    cardanoNodeCommon = [
+    shelley = [
+      "cardano-wallet"
       "bech32"
       "cardano-address"
       "cardano-cli"
       "cardano-node"
       "cardano-tx"
     ];
-    shelley = [ "cardano-wallet" ] ++ cardanoNodeCommon;
   };
 
   # function to take a list of jobs by name from a jobset.
