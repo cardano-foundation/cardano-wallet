@@ -137,6 +137,7 @@ import Cardano.Wallet.Primitive.Types
     , PoolOwner (..)
     , SlotId (..)
     , SlotInEpoch (..)
+    , SlotNo (..)
     , SortOrder (..)
     , StakePoolMetadata (..)
     , StakePoolTicker
@@ -776,6 +777,7 @@ spec = do
                     { slotNumber = slotNumber (x :: ApiBlockReference)
                     , epochNumber = epochNumber (x :: ApiBlockReference)
                     , height = height (x :: ApiBlockReference)
+                    , slot = slot (x :: ApiBlockReference)
                     }
             in
                 x' === x .&&. show x' === show x
@@ -784,6 +786,7 @@ spec = do
                 x' = ApiNetworkTip
                     { slotNumber = slotNumber (x :: ApiNetworkTip)
                     , epochNumber = epochNumber (x :: ApiNetworkTip)
+                    , slot = slot (x :: ApiNetworkTip)
                     }
             in
                 x' === x .&&. show x' === show x
@@ -1212,6 +1215,10 @@ instance Arbitrary (Quantity "slot" Word32) where
     shrink (Quantity 0) = []
     shrink _ = [Quantity 0]
     arbitrary = Quantity . fromIntegral <$> (arbitrary @Word32)
+
+instance Arbitrary SlotNo where
+    shrink = fmap SlotNo . shrink . unSlotNo
+    arbitrary = SlotNo <$> arbitrary
 
 instance Arbitrary (Hash "Genesis") where
     arbitrary = Hash . B8.pack <$> replicateM 32 arbitrary

@@ -33,7 +33,7 @@ import Data.Maybe
 import Data.Time.Clock
     ( getCurrentTime )
 import Test.Hspec
-    ( SpecWith, describe, pendingWith, shouldBe )
+    ( SpecWith, describe, pendingWith, shouldBe, shouldNotBe )
 import Test.Hspec.Extra
     ( it )
 import Test.Integration.Framework.DSL
@@ -67,6 +67,7 @@ spec = describe "COMMON_NETWORK" $ do
             (epochStartTime <$> nextEpoch i) .> Just now
             verify r
                 [ expectField (#syncProgress . #getApiT) (`shouldBe` Ready)
+                , expectField (#nodeTip . #slot . #getApiT) (`shouldNotBe` 0)
                 ]
 
             let Just currentEpochNum = getApiT . (view #epochNumber) <$> (i ^. #networkTip)
@@ -89,6 +90,8 @@ spec = describe "COMMON_NETWORK" $ do
                         getFromResponse (#nodeTip . #slotNumber . #getApiT) sync
                 let blockHeight =
                         getFromResponse (#nodeTip . #height) sync
+                let absSlot =
+                        getFromResponse (#nodeTip . #slot) sync
 
                 res <- request @ApiByronWallet ctx
                     (Link.getWallet @'Byron w) Default Empty
@@ -97,6 +100,7 @@ spec = describe "COMMON_NETWORK" $ do
                     , expectField (#tip . #epochNumber . #getApiT) (`shouldBe` epochNum)
                     , expectField (#tip . #slotNumber  . #getApiT) (`shouldBe` slotNum)
                     , expectField (#tip . #height) (`shouldBe` blockHeight)
+                    , expectField (#tip . #slot) (`shouldBe` absSlot)
                     ]
 
     it "NETWORK_CLOCK - Can query network clock" $ \ctx -> do
