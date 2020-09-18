@@ -1571,17 +1571,17 @@ instance ToSchema ByronWalletPutPassphraseData where
 
 instance ToSchema (PostTransactionData t) where
     declareNamedSchema _ = do
-        addDefinition transactionMetadatumSchema
+        addDefinition transactionMetadataValueSchema
         declareSchemaForDefinition "ApiPostTransactionData"
 
 instance ToSchema (PostTransactionFeeData t) where
     declareNamedSchema _ = do
-        addDefinition transactionMetadatumSchema
+        addDefinition transactionMetadataValueSchema
         declareSchemaForDefinition "ApiPostTransactionFeeData"
 
 instance ToSchema (ApiTransaction t) where
     declareNamedSchema _ = do
-        addDefinition transactionMetadatumSchema
+        addDefinition transactionMetadataValueSchema
         declareSchemaForDefinition "ApiTransaction"
 
 instance ToSchema ApiUtxoStatistics where
@@ -1617,11 +1617,11 @@ instance ToSchema ApiPostRandomAddressData where
 -- switched to a library that supports OpenAPI 3.0, we can remove this empty
 -- schema and use instead something like:
 --
---     addDefinition =<< declareSchemaForDefinition "TransactionMetadatum"
+--     addDefinition =<< declareSchemaForDefinition "TransactionMetadataValue"
 --
-transactionMetadatumSchema :: NamedSchema
-transactionMetadatumSchema =
-    NamedSchema (Just "TransactionMetadatum") $ mempty
+transactionMetadataValueSchema :: NamedSchema
+transactionMetadataValueSchema =
+    NamedSchema (Just "TransactionMetadataValue") $ mempty
         & additionalProperties ?~ AdditionalPropertiesAllowed True
 
 -- | Utility function to provide an ad-hoc 'ToSchema' instance for a definition:
