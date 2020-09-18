@@ -121,6 +121,7 @@ import Test.QuickCheck
     , Property
     , checkCoverage
     , choose
+    , conjoin
     , counterexample
     , cover
     , elements
@@ -128,6 +129,7 @@ import Test.QuickCheck
     , label
     , property
     , suchThat
+    , (.&&.)
     , (===)
     , (==>)
     )
@@ -342,9 +344,6 @@ properties = do
 
         it "There's at least (min h edgeSize) checkpoints" $ \_ ->
             property prop_sparseCheckpointMinimum
-
-        it "There's no checkpoint older than k (+/- 100)" $ \_ ->
-            property prop_sparseCheckpointNoOlderThanK
 
         it "∀ cfg. sparseCheckpoints (cfg { edgeSize = 0 }) ⊆ sparseCheckpoints cfg" $ \_ ->
             property prop_sparseCheckpointEdgeSize0
@@ -922,34 +921,6 @@ prop_sparseCheckpointMinimum (GenSparseCheckpointsArgs cfg h) = prop
       where
         e = fromIntegral $ edgeSize cfg
 
--- | Check that sparseCheckpoints always return checkpoints that can cover
--- rollbacks up to `k` in the past. This means that, if the current block height
--- is #3000, and `k=2160`, we should be able to rollback to #840. Since we make
--- checkpoints every gapSize blocks, it means that block #800 should be in the list.
---
--- Note 1:
---   The initial checkpoint at #0 will always be present.
---
--- Note 2:
---   The property only holds for value of 'edgeSize' that are smaller than k
-prop_sparseCheckpointNoOlderThanK
-    :: GenSparseCheckpointsArgs
-    -> Property
-prop_sparseCheckpointNoOlderThanK (GenSparseCheckpointsArgs cfg h) =
-    (fromIntegral (edgeSize cfg) <= epochStability cfg) ==> prop
-    & counterexample ("Checkpoints: " <> show ((\cp -> (age cp, cp)) <$> cps))
-    & counterexample ("h=" <> show h)
-  where
-    cps = sparseCheckpoints cfg (Quantity h)
-
-    prop :: Property
-    prop = property $ flip all cps $ \cp ->
-        cp == 0 || (age cp - int (gapSize cfg) <= int (epochStability cfg))
-
-    age :: Word32 -> Int
-    age cp = int h - int cp
-
-
 -- | This property checks that, the checkpoints kept for an edge size of 0 are
 -- included in the list with a non-null edge size, all else equals.
 prop_sparseCheckpointEdgeSize0
@@ -990,20 +961,51 @@ prop_sparseCheckpointEdgeSize0 (GenSparseCheckpointsArgs cfg h) = prop
 prop_checkpointsEventuallyEqual
     :: GenSparseCheckpointsArgs
     -> Property
-prop_checkpointsEventuallyEqual args@(GenSparseCheckpointsArgs cfg h) = prop
-    & counterexample ("h=" <> show h)
-  where
-    prop :: Property
-    prop = forAll (genBatches args) $ \(Batches batches) ->
+prop_checkpointsEventuallyEqual args@(GenSparseCheckpointsArgs cfg h) =
+    h > epochStability cfg ==> forAll (genBatches args) $ \(Batches batches) ->
         let
             tip =
                 Quantity $ last $ mconcat batches
             emptyDB =
                 SparseCheckpointsDB []
-            SparseCheckpointsDB db =
-                L.foldr (\batch -> prune . step batch) emptyDB batches
+            dbs =
+                L.scanl (\db batch -> prune $ step batch db) emptyDB batches
         in
-            db === sparseCheckpoints cfg tip
+            ( prop_eventuallyReachesExpectedTip tip dbs
+              .&&.
+              prop_canNeverRollbackMoreThanKPlusGap tip dbs
+            )
+  where
+    prop_eventuallyReachesExpectedTip
+        :: Quantity "block" Word32
+        -> [SparseCheckpointsDB]
+        -> Property
+    prop_eventuallyReachesExpectedTip tip dbs =
+        last dbs === SparseCheckpointsDB (sparseCheckpoints cfg tip)
+
+    prop_canNeverRollbackMoreThanKPlusGap
+        :: Quantity "block" Word32
+        -> [SparseCheckpointsDB]
+        -> Property
+    prop_canNeverRollbackMoreThanKPlusGap (Quantity tip) dbs =
+        conjoin (forEachStep <$> L.tail dbs)
+      where
+        forEachStep (SparseCheckpointsDB db) =
+            let
+                -- db' contains all the _stable checkpoints_ in the database,
+                -- i.e. those that are in the interval [0; network tip - k)
+                --
+                -- So, if we are asked to rollback for a full k, we'll end up
+                -- rolling back to the closest checkpoint from that interval.
+                db' = filter (< (tip - epochStability cfg)) db
+                farthestRollback = last db - last db'
+            in
+                property
+                    (farthestRollback <= epochStability cfg + gapSize cfg)
+                & counterexample
+                    ("database: " <> show db)
+                & counterexample
+                    ("stable checkpoints: " <> show db')
 
     step :: [Word32] -> SparseCheckpointsDB -> SparseCheckpointsDB
     step cps (SparseCheckpointsDB db) =
@@ -1027,10 +1029,7 @@ prop_checkpointsEventuallyEqual args@(GenSparseCheckpointsArgs cfg h) = prop
 
 newtype Batches = Batches [[Word32]] deriving Show
 
-newtype SparseCheckpointsDB = SparseCheckpointsDB [Word32] deriving Show
-
-int :: Integral a => a -> Int
-int = fromIntegral
+newtype SparseCheckpointsDB = SparseCheckpointsDB [Word32] deriving (Show, Eq)
 
 pp :: ProtocolParameters
 pp = dummyProtocolParameters
