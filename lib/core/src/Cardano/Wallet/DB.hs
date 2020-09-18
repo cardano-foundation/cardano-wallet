@@ -1,6 +1,8 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
 
@@ -20,6 +22,9 @@ module Cardano.Wallet.DB
 
       -- * Checkpoints
     , sparseCheckpoints
+    , SparseCheckpointsConfig (..)
+    , defaultSparseCheckpointsConfig
+    , gapSize
 
       -- * Errors
     , ErrRemovePendingTx (..)
@@ -59,7 +64,7 @@ import Control.Monad.Trans.Except
 import Data.Quantity
     ( Quantity (..) )
 import Data.Word
-    ( Word32, Word64 )
+    ( Word32, Word64, Word8 )
 import Numeric.Natural
     ( Natural )
 
@@ -381,27 +386,66 @@ cleanDB DBLayer{..} = atomically $
 -- Therefore, we need to keep the very first checkpoint in the database, no
 -- matter what.
 sparseCheckpoints
-    :: Quantity "block" Word32
-        -- ^ Epoch Stability, i.e. how far we can rollback
+    :: SparseCheckpointsConfig
+        -- ^ Parameters for the function.
     -> Quantity "block" Word32
         -- ^ A given block height
     -> [Word32]
         -- ^ The list of checkpoint heights that should be kept in DB.
-sparseCheckpoints epochStability blkH =
+sparseCheckpoints cfg blkH  =
     let
-        gapsSize = 100
-        edgeSize = 10
-
-        k = getQuantity epochStability
+        SparseCheckpointsConfig{edgeSize,epochStability} = cfg
+        g = gapSize cfg
         h = getQuantity blkH
+        e = fromIntegral edgeSize
+
         minH =
-            let x = if h < k then 0 else h - k
-            in gapsSize * (x `div` gapsSize)
+            let x = if h < epochStability + g then 0 else h - epochStability - g
+            in g * (x `div` g)
 
         initial   = 0
-        longTerm  = [minH,minH+gapsSize..h]
-        shortTerm = if h < edgeSize
+        longTerm  = [minH,minH+g..h]
+        shortTerm = if h < e
             then [0..h]
-            else [h-edgeSize,h-edgeSize+1..h]
+            else [h-e,h-e+1..h]
     in
-        L.sort $ L.nub $ initial : (longTerm ++ shortTerm)
+        L.sort (L.nub $ initial : (longTerm ++ shortTerm))
+
+-- | Captures the configuration for the `sparseCheckpoints` function.
+--
+-- NOTE: large values of 'edgeSize' aren't recommended as they would mean
+-- storing many unnecessary checkpoints. In Ouroboros Praos, there's a
+-- reasonable probability for small forks of a few blocks so it makes sense to
+-- maintain a small part that is denser near the edge.
+data SparseCheckpointsConfig = SparseCheckpointsConfig
+    { edgeSize :: Word8
+    , epochStability :: Word32
+    } deriving Show
+
+-- | A sensible default to use in production. See also 'SparseCheckpointsConfig'
+defaultSparseCheckpointsConfig :: Quantity "block" Word32 -> SparseCheckpointsConfig
+defaultSparseCheckpointsConfig (Quantity epochStability) =
+    SparseCheckpointsConfig
+        { edgeSize = 5
+        , epochStability
+        }
+
+-- | A reasonable gap size used internally in 'sparseCheckpoints'.
+--
+-- 'Reasonable' means that it's not _too frequent_ and it's not too large. A
+-- value that is too small in front of k would require generating much more
+-- checkpoints than necessary.
+--
+-- A value that is larger than `k` may have dramatic consequences in case of
+-- deep rollbacks.
+--
+-- As a middle ground, we current choose `k / 3`, which is justified by:
+--
+-- - The current speed of the network layer (several thousands blocks per seconds)
+-- - The current value of k = 2160
+--
+-- So, `k / 3` = 720, which should remain around a second of time needed to catch
+-- up in case of large rollbacks.
+gapSize :: SparseCheckpointsConfig -> Word32
+gapSize SparseCheckpointsConfig{epochStability} =
+    epochStability `div` 3

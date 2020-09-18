@@ -262,7 +262,7 @@ prop_moreOutputsMeansLessInputs
     -> Property
 prop_moreOutputsMeansLessInputs net size nOuts
     = withMaxSuccess 1000
-    $ within 100000
+    $ within 300000
     $ nOuts < maxBound ==>
         _estimateMaxNumberOfInputs @k net size Nothing nOuts
         >=
@@ -277,7 +277,7 @@ prop_lessOutputsMeansMoreInputs
     -> Property
 prop_lessOutputsMeansMoreInputs net size nOuts
     = withMaxSuccess 1000
-    $ within 100000
+    $ within 300000
     $ nOuts > minBound ==>
         _estimateMaxNumberOfInputs @k net size Nothing (nOuts - 1)
         >=
@@ -292,7 +292,7 @@ prop_biggerMaxSizeMeansMoreInputs
     -> Property
 prop_biggerMaxSizeMeansMoreInputs net (Quantity size) nOuts
     = withMaxSuccess 1000
-    $ within 100000
+    $ within 300000
     $ size < maxBound `div` 2 ==>
         _estimateMaxNumberOfInputs @k net (Quantity size) Nothing nOuts
         <=
