@@ -58,7 +58,6 @@ import Test.QuickCheck
     , elements
     , frequency
     , listOf
-    , listOf1
     , property
     , shuffle
     , sublistOf
@@ -66,6 +65,8 @@ import Test.QuickCheck
     )
 import Test.QuickCheck.Monadic
     ( assert, monadicIO, monitor, run )
+import Test.Utils.FilePath
+    ( PathElement (..) )
 import Test.Utils.Paths
     ( getTestData )
 import Test.Utils.StaticServer
@@ -361,11 +362,6 @@ instance Arbitrary StakePoolTicker where
 instance Arbitrary PoolOwner where
     arbitrary = PoolOwner . B8.pack <$> vectorOf 32 c
         where c = elements ['a'..'z']
-
-newtype PathElement = PathElement FilePath deriving (Show, Eq)
-
-instance Arbitrary PathElement where
-    arbitrary = PathElement <$> listOf1 (elements ['a'..'z'])
 
 {-------------------------------------------------------------------------------
                                      Utils
