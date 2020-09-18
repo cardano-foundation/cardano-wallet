@@ -1627,12 +1627,14 @@ getNetworkInformation st nl = do
     -- May be unavailible if the node is still syncing.
     networkTipInfo :: UTCTime -> MaybeT IO (ApiNetworkTip, ApiEpochInfo)
     networkTipInfo now = handle handlePastHorizonException $ do
-        networkTip <- lift . ti . toSlotId =<< MaybeT (ti $ ongoingSlotAt now)
+        networkTipSlot <- MaybeT (ti $ ongoingSlotAt now)
+        networkTip <- lift $ ti $ toSlotId networkTipSlot
         let curEpoch = networkTip ^. #epochNumber
         nextEpochStart <- lift $ ti $ endTimeOfEpoch curEpoch
         let tip = ApiNetworkTip
                 (ApiT $ networkTip ^. #epochNumber)
                 (ApiT $ networkTip ^. #slotNumber)
+                (ApiT networkTipSlot)
         let nextEpoch = ApiEpochInfo
                 (ApiT $ unsafeEpochSucc curEpoch)
                 (nextEpochStart)
@@ -1829,6 +1831,7 @@ mkApiTransaction ti txid ins outs ws (meta, timestamp) txMeta setTimeReference =
                     { epochNumber = ApiT $ slotId ^. #epochNumber
                     , slotNumber = ApiT $ slotId ^. #slotNumber
                     , height = natural (meta ^. #blockHeight)
+                    , slot = ApiT $ meta ^. #slotNo
                     }
 
     toAddressAmount :: TxOut -> AddressAmount (ApiT Address, Proxy n)
@@ -1868,6 +1871,7 @@ mkApiBlockReference ti tip = do
         { epochNumber = ApiT $ slotId ^. #epochNumber
         , slotNumber = ApiT $ slotId ^. #slotNumber
         , height = natural $ tip ^. #blockHeight
+        , slot = ApiT $ slotNo tip
         }
 
 getWalletTip
