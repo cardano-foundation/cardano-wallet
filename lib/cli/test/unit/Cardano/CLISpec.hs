@@ -41,7 +41,7 @@ import Cardano.Wallet.Api.Client
 import Cardano.Wallet.Api.Types
     ( ApiT (..), ApiTxMetadata (..) )
 import Cardano.Wallet.Primitive.Types
-    ( TxMetadata (..) )
+    ( TxMetadata (..), TxMetadataValue (..) )
 import Control.Concurrent
     ( forkFinally )
 import Control.Concurrent.MVar
@@ -99,7 +99,6 @@ import Test.Text.Roundtrip
 import qualified Data.Map as Map
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
-import qualified Shelley.Spec.Ledger.MetaData as MD
 
 spec :: Spec
 spec = do
@@ -669,7 +668,7 @@ spec = do
     describe "Tx Metadata JSON option" $ do
         let parse arg = execParserPure defaultPrefs
                 (info metadataOption mempty) ["--metadata", arg]
-        let md = ApiT (TxMetadata (MD.MetaData (Map.singleton 42 (MD.S "hi"))))
+        let md = ApiT (TxMetadata (Map.singleton 42 (TxMetaText "hi")))
         let ok ex (Success res) = ex == getApiTxMetadata res
             ok _ _ = False
         let err (Failure _) = True
