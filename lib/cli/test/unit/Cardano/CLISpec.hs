@@ -41,7 +41,7 @@ import Cardano.Wallet.Api.Client
 import Cardano.Wallet.Api.Types
     ( ApiT (..), ApiTxMetadata (..) )
 import Cardano.Wallet.Primitive.Types
-    ( TxMetadata (..), TxMetadataValue (..) )
+    ( PoolMetadataSource, TxMetadata (..), TxMetadataValue (..) )
 import Control.Concurrent
     ( forkFinally )
 import Control.Concurrent.MVar
@@ -54,8 +54,6 @@ import Data.Text
     ( Text )
 import Data.Text.Class
     ( FromText (..), TextDecodingError (..), toText )
-import Network.URI
-    ( parseURI )
 import Options.Applicative
     ( ParserInfo
     , ParserPrefs
@@ -652,8 +650,9 @@ spec = do
 
     describe "SMASH URL option" $ do
         let parse arg = execParserPure defaultPrefs
-                (info smashURLOption mempty) ["--smash-url", arg]
-        let ok arg (Success url) = Just url == parseURI arg
+                (info smashURLOption mempty) ["--pool-metadata-fetching", arg]
+        let ok arg (Success url) = Right url == fromText @PoolMetadataSource
+                (T.pack arg)
             ok _ _ = False
         let err _ (Failure _) = True
             err _ _ = False

@@ -277,6 +277,34 @@ x-walletName: &walletName
   minLength: 1
   example: Alan's Wallet
 
+x-poolMetadataSource: &poolMetadataSource
+  description: |
+    Pool metadata source. This sets the metadata fetching strategy.
+
+    Possible values are
+      * null -> no fetching
+      * direct -> direct fetching
+      * uri -> use SMASH server
+  oneOf:
+    - type: string
+      enum:
+        - none
+        - direct
+    - title: URI
+      type: string
+      format: uri
+      example: https://smash.cardano-mainnet.iohk.io/
+
+x-settings: &settings
+  description: Settings
+  type: object
+  required:
+    - pool_metadata_source
+  properties:
+    pool_metadata_source:
+      <<: *poolMetadataSource
+      description: How to fetch pool metadata
+
 x-walletMnemonicSentence: &walletMnemonicSentence
   description: A list of mnemonic words
   type: array
@@ -1445,6 +1473,11 @@ components:
       properties:
         name: *walletName
 
+    ApiSettingsPutData: &ApiSettingsPutData
+      type: object
+      properties:
+        settings: *settings
+
     ApiWalletPutPassphraseData: &ApiWalletPutPassphraseData
       type: object
       required:
@@ -1593,6 +1626,12 @@ components:
                     $ref: "#/components/schemas/TransactionMetadataValue"
                   v:
                     $ref: "#/components/schemas/TransactionMetadataValue"
+    ApiGetSettings: &ApiGetSettings
+      type: object
+      required:
+        - pool_metadata_source
+      properties:
+        pool_metadata_source: *poolMetadataSource
 
 #############################################################################
 #                                                                           #
@@ -2149,6 +2188,23 @@ x-responsesInspectAddress: &responsesInspectAddress
     content:
       application/json:
         schema: *ApiAddressInspect
+
+x-responsesPutSettings: &responsesPutSettings
+  <<: *responsesErr400
+  <<: *responsesErr403
+  <<: *responsesErr405
+  204:
+    description: No Content
+
+x-responsesGetSettings: &responsesGetSettings
+  <<: *responsesErr400
+  <<: *responsesErr403
+  <<: *responsesErr405
+  200:
+    description: Ok
+    content:
+      application/json:
+        schema: *ApiGetSettings
 
 #############################################################################
 #                                                                           #
@@ -2940,3 +2996,29 @@ paths:
       parameters:
         - *parametersAddressId
       responses: *responsesInspectAddress
+
+  /settings:
+    put:
+      operationId: putSettings
+      tags: ["Settings"]
+      summary: Settings
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+
+        Overwrite current settings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: *ApiSettingsPutData
+      responses: *responsesPutSettings
+
+    get:
+      operationId: getSettings
+      tags: ["Settings"]
+      summary: Settings
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+
+        Return the current settings.
+      responses: *responsesGetSettings

@@ -40,6 +40,7 @@ import Cardano.Wallet.Primitive.Types
     , FeePolicy
     , Hash (..)
     , PoolId
+    , PoolMetadataSource
     , PoolOwner (..)
     , StakeKeyCertificate (..)
     , StakePoolMetadataHash (..)
@@ -630,4 +631,16 @@ instance PersistField AddressState where
     fromPersistValue = fromPersistValueFromText
 
 instance PersistFieldSql AddressState where
+    sqlType _ = sqlType (Proxy @Text)
+
+
+----------------------------------------------------------------------------
+-- Settings
+
+
+instance PersistField PoolMetadataSource where
+    toPersistValue = toPersistValue . toText
+    fromPersistValue = fromPersistValueFromText
+
+instance PersistFieldSql PoolMetadataSource where
     sqlType _ = sqlType (Proxy @Text)

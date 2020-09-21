@@ -82,6 +82,10 @@ module Cardano.Wallet.Api.Link
       -- * Proxy
     , postExternalTransaction
 
+      -- * Settings
+    , putSettings
+    , getSettings
+
     , PostWallet
     , Discriminate
     ) where
@@ -503,6 +507,20 @@ postExternalTransaction
     :: (Method, Text)
 postExternalTransaction =
     endpoint @Api.PostExternalTransaction id
+
+--
+-- Settings
+--
+
+putSettings
+    :: (Method, Text)
+putSettings =
+    endpoint @Api.PutSettings id
+
+getSettings
+    :: (Method, Text)
+getSettings =
+    endpoint @Api.GetSettings id
 
 --
 -- Internals

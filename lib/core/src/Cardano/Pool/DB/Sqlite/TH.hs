@@ -49,6 +49,11 @@ share
     ]
     [persistLowerCase|
 
+Settings sql=settings
+    settingsPoolMetadataSource       W.PoolMetadataSource   sql=metadata_source
+
+    deriving Show Generic
+
 -- A unique, but arbitrary, value for this particular device
 ArbitrarySeed sql=arbitrary_seed
     seedSeed                    StdGen       sql=seed

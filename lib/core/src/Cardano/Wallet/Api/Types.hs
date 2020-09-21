@@ -60,6 +60,7 @@ module Cardano.Wallet.Api.Types
     , WalletBalance (..)
     , WalletPostData (..)
     , WalletPutData (..)
+    , SettingsPutData (..)
     , WalletPutPassphraseData (..)
     , PostTransactionData (..)
     , PostTransactionFeeData (..)
@@ -281,6 +282,7 @@ import Web.HttpApiData
 
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet.Primitive.AddressDerivation as AD
+import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Types as Aeson
 import qualified Data.ByteString.Lazy as BL
@@ -288,6 +290,7 @@ import qualified Data.HashMap.Strict as HM
 import qualified Data.Map as Map
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
+
 
 {-------------------------------------------------------------------------------
                                Styles of Wallets
@@ -532,6 +535,10 @@ data AccountPostData = AccountPostData
 
 newtype WalletPutData = WalletPutData
     { name :: (Maybe (ApiT WalletName))
+    } deriving (Eq, Generic, Show)
+
+newtype SettingsPutData = SettingsPutData
+    { settings :: (ApiT W.Settings)
     } deriving (Eq, Generic, Show)
 
 data WalletPutPassphraseData = WalletPutPassphraseData
@@ -1149,6 +1156,11 @@ instance FromJSON WalletPutData where
 instance ToJSON  WalletPutData where
     toJSON = genericToJSON defaultRecordTypeOptions
 
+instance FromJSON SettingsPutData where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance ToJSON  SettingsPutData where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
 instance FromJSON WalletPutPassphraseData where
     parseJSON = genericParseJSON defaultRecordTypeOptions
 instance ToJSON  WalletPutPassphraseData where
@@ -1247,6 +1259,11 @@ instance FromJSON (ApiT WalletName) where
     parseJSON = parseJSON >=> eitherToParser . bimap ShowFmt ApiT . fromText
 instance ToJSON (ApiT WalletName) where
     toJSON = toJSON . toText . getApiT
+
+instance FromJSON (ApiT W.Settings) where
+    parseJSON = fmap ApiT . genericParseJSON defaultRecordTypeOptions
+instance ToJSON (ApiT W.Settings) where
+    toJSON = genericToJSON defaultRecordTypeOptions . getApiT
 
 instance FromJSON ApiWalletPassphraseInfo where
     parseJSON = genericParseJSON defaultRecordTypeOptions

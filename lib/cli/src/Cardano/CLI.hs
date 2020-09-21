@@ -165,7 +165,14 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncTolerance (..) )
 import Cardano.Wallet.Primitive.Types
-    ( AddressState, Coin (..), Hash, SortOrder, WalletId, WalletName )
+    ( AddressState
+    , Coin (..)
+    , Hash
+    , PoolMetadataSource (..)
+    , SortOrder
+    , WalletId
+    , WalletName
+    )
 import Cardano.Wallet.Version
     ( gitRevision, showFullVersion, version )
 import Control.Applicative
@@ -175,7 +182,7 @@ import Control.Arrow
 import Control.Exception
     ( bracket, catch )
 import Control.Monad
-    ( join, unless, void, when, (>=>) )
+    ( join, unless, void, when )
 import Control.Tracer
     ( Tracer, traceWith )
 import Data.Aeson
@@ -210,8 +217,6 @@ import Network.HTTP.Client
     , newManager
     , responseTimeoutNone
     )
-import Network.URI
-    ( URI (..), parseAbsoluteURI )
 import Options.Applicative
     ( ArgumentFields
     , CommandFields
@@ -1311,19 +1316,19 @@ tlsOption = TlsConfiguration
         <> help "The RSA Server key which signed the x.509 server certificate."
 
 smashURLOption
-    :: Parser URI
+    :: Parser PoolMetadataSource
 smashURLOption = option (eitherReader reader) $ mempty
-    <> long "smash-url"
-    <> metavar "URL"
-    <> help "Optional HTTP(S) address of a \
-            \Stakepool Metadata Aggregation Server."
+    <> long "pool-metadata-fetching"
+    <> metavar "STRATEGY"
+    <> value FetchNone
+    <> showDefaultWith showT
+    <> help "Pool Metadata fetching strategy. This setting will persist across restarts. Possible values: \
+            \ none, \
+            \ direct, \
+            \ <SMASH-URL>."
   where
-    reader :: String -> Either String URI
-    reader = maybe (Left err) Right . (parseAbsoluteURI >=> isHttp)
-
-    isHttp uri
-        | uriScheme uri `elem` ["http:", "https:"] = Just uri
-        | otherwise = Nothing
+    reader :: String -> Either String PoolMetadataSource
+    reader = left (const err) . fromTextS @PoolMetadataSource
 
     err :: String
     err =

@@ -64,6 +64,7 @@ import Cardano.Wallet.Api.Types
     , PostExternalTransactionData
     , PostTransactionData
     , PostTransactionFeeData
+    , SettingsPutData (..)
     , SomeByronWalletPostData
     , WalletOrAccountPostData
     , WalletPutData
@@ -998,6 +999,17 @@ instance Malformed (BodyParam ApiPostRandomAddressData) where
             { "address_index": 0
             }|]
           , "Error in $: parsing Cardano.Wallet.Api.Types.ApiPostRandomAddressData(ApiPostRandomAddressData) failed, key 'passphrase' not found"
+          )
+        ]
+
+instance Malformed (BodyParam SettingsPutData) where
+    malformed = first (BodyParam . Aeson.encode) <$>
+        [ ( [aesonQQ|
+            { "settings": {
+                          "pool_metadata_source": "not_a_uri"
+                          }
+            }|]
+          , "Error in $.settings['pool_metadata_source']: Could not parse URI: not_a_uri"
           )
         ]
 

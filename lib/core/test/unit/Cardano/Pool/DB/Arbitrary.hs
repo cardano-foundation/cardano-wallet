@@ -29,12 +29,16 @@ import Cardano.Wallet.Primitive.Types
     , Hash (..)
     , PoolCertificate (..)
     , PoolId (..)
+    , PoolMetadataSource (..)
+    , PoolMetadataSource (..)
     , PoolOwner (..)
     , PoolRegistrationCertificate (..)
     , PoolRetirementCertificate (..)
+    , Settings (..)
     , SlotInEpoch (..)
     , SlotNo (..)
     , SlotNo (..)
+    , SmashServer
     , StakePoolMetadata (..)
     , StakePoolMetadataHash (..)
     , StakePoolMetadataUrl (..)
@@ -50,6 +54,8 @@ import Data.Function
     ( (&) )
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
+import Data.Maybe
+    ( fromJust )
 import Data.Ord
     ( Down (..) )
 import Data.Quantity
@@ -60,6 +66,8 @@ import Data.Word
     ( Word32, Word64 )
 import Data.Word.Odd
     ( Word31 )
+import Network.URI
+    ( URI, parseURI )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
@@ -69,13 +77,14 @@ import Test.QuickCheck
     , choose
     , elements
     , frequency
-    , genericShrink
     , oneof
     , shrinkIntegral
     , shuffle
     , vector
     , vectorOf
     )
+import Test.QuickCheck.Arbitrary.Generic
+    ( genericArbitrary, genericShrink )
 
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
@@ -371,3 +380,21 @@ instance Arbitrary StakePoolsFixture where
         appendPair pools pairs slot = do
             pool <- elements pools
             return $ (pool,slot):pairs
+
+instance Arbitrary URI where
+    arbitrary = elements
+        [fromJust (parseURI "https://my.little.friend")
+        ,fromJust (parseURI "http://its-friday.com:8000")]
+
+instance Arbitrary SmashServer where
+    shrink = genericShrink
+    arbitrary = genericArbitrary
+
+instance Arbitrary PoolMetadataSource where
+    shrink = genericShrink
+    arbitrary = genericArbitrary
+
+instance Arbitrary Settings where
+    shrink = genericShrink
+    arbitrary = genericArbitrary
+

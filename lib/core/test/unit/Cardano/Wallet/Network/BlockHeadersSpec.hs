@@ -406,7 +406,7 @@ instance Arbitrary TestCase where
         k <- arbitrary
         let genesis = BlockHeader (SlotNo 0) (Quantity 0) (Hash "genesis") (Hash "void")
         base  <- genChain k "base" (headerHash genesis)
-        let nextHash = maybe (headerHash genesis) headerHash (chainTip base)
+        let nextHash = (headerHash . fromMaybe genesis) (chainTip base)
         local <- genChain k "local" nextHash
         node  <- genChain k "node" nextHash
         let baseTip = chainEnd base

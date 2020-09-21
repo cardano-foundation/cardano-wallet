@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE DataKinds #-}
@@ -19,6 +21,7 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE ViewPatterns #-}
 
 -- |
 -- Copyright: © 2018-2020 IOHK
@@ -173,6 +176,14 @@ module Cardano.Wallet.Primitive.Types
     , invariant
     , distance
     , hashFromText
+
+    -- * Settings
+    , Settings(..)
+    , SmashServer
+    , unSmashServer
+    , PoolMetadataSource( .. )
+    , defaultSettings
+    , unsafeToPMS
     ) where
 
 import Prelude
@@ -184,7 +195,7 @@ import Cardano.Slotting.Slot
 import Cardano.Wallet.Orphans
     ()
 import Control.Arrow
-    ( left )
+    ( left, right )
 import Control.DeepSeq
     ( NFData (..) )
 import Control.Monad
@@ -263,6 +274,8 @@ import GHC.Stack
     ( HasCallStack )
 import GHC.TypeLits
     ( KnownNat, KnownSymbol, Symbol, natVal, symbolVal )
+import Network.URI
+    ( URI, parseAbsoluteURI, uriScheme, uriToString )
 import Numeric.Natural
     ( Natural )
 import System.Random
@@ -1870,3 +1883,61 @@ invariant msg a predicate =
 distance :: (Ord a, Num a) => a -> a -> a
 distance a b =
     if a < b then b - a else a - b
+
+
+-- | A SMASH server is either an absolute http or https url.
+--
+-- Don't export SmashServer constructor, use @fromText@ instance instead.
+newtype SmashServer = SmashServer { unSmashServer :: URI }
+    deriving (Show, Generic, Eq)
+
+instance ToText SmashServer where
+    toText (SmashServer uri) = T.pack $ uriToString id uri ""
+
+instance FromText SmashServer where
+    fromText (T.unpack -> uri) =
+        case (parseAbsoluteURI >=> isHttp) uri of
+            Nothing -> Left $ TextDecodingError ("Could not parse URI: " <> uri)
+            Just uri' -> Right $ SmashServer uri'
+      where
+        isHttp uri'
+            | uriScheme uri' `elem` ["http:", "https:"] = Just uri'
+            | otherwise = Nothing
+
+-- | Source of Stake Pool Metadata aggregation.
+data PoolMetadataSource
+    = FetchNone
+    | FetchDirect
+    | FetchSMASH SmashServer
+    deriving (Show, Generic, Eq)
+
+instance ToText PoolMetadataSource where
+    toText FetchNone = (T.pack "none")
+    toText FetchDirect = (T.pack "direct")
+    toText (FetchSMASH (SmashServer uri)) = T.pack $ uriToString id uri ""
+
+instance FromText PoolMetadataSource where
+    fromText "none" = Right FetchNone
+    fromText "direct" = Right FetchDirect
+    fromText uri = right FetchSMASH . fromText @SmashServer $ uri
+
+unsafeToPMS :: URI -> PoolMetadataSource
+unsafeToPMS = FetchSMASH . SmashServer
+
+-- | Wallet application settings. These are stored at runtime and
+-- potentially mutable.
+{-# HLINT ignore Settings "Use newtype instead of data" #-}
+data Settings = Settings {
+    poolMetadataSource :: PoolMetadataSource
+} deriving (Show, Generic, Eq)
+
+defaultSettings :: Settings
+defaultSettings = Settings {
+    poolMetadataSource = FetchNone
+}
+
+instance FromJSON PoolMetadataSource where
+    parseJSON = parseJSON >=> either (fail . show . ShowFmt) pure . fromText
+
+instance ToJSON PoolMetadataSource where
+    toJSON = toJSON . toText

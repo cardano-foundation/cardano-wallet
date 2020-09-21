@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DuplicateRecordFields #-}
@@ -10,6 +12,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE ViewPatterns #-}
 
 -- |
 -- Copyright: © 2020 IOHK
@@ -37,7 +40,13 @@ import Cardano.BM.Data.Tracer
 import Cardano.Pool.DB
     ( DBLayer (..), ErrPointAlreadyExists (..), readPoolLifeCycleStatus )
 import Cardano.Pool.Metadata
-    ( StakePoolMetadataFetchLog )
+    ( StakePoolMetadataFetchLog
+    , defaultManagerSettings
+    , fetchFromRemote
+    , identityUrlBuilder
+    , newManager
+    , registryUrlBuilder
+    )
 import Cardano.Wallet
     ( ErrListPools (..) )
 import Cardano.Wallet.Api.Types
@@ -71,16 +80,18 @@ import Cardano.Wallet.Primitive.Types
     , PoolCertificate (..)
     , PoolId
     , PoolLifeCycleStatus (..)
+    , PoolMetadataSource (..)
     , PoolRegistrationCertificate (..)
     , PoolRetirementCertificate (..)
     , ProtocolParameters (..)
+    , Settings (..)
     , SlotLength (..)
     , SlotNo (..)
     , StakePoolMetadata
     , StakePoolMetadataHash
-    , StakePoolMetadataUrl
     , getPoolRegistrationCertificate
     , getPoolRetirementCertificate
+    , unSmashServer
     )
 import Cardano.Wallet.Shelley.Compatibility
     ( Shelley
@@ -97,7 +108,7 @@ import Cardano.Wallet.Unsafe
 import Control.Concurrent
     ( threadDelay )
 import Control.Exception
-    ( SomeException (..), try )
+    ( SomeException (..), bracket, mask_, try )
 import Control.Monad
     ( forM, forM_, forever, void, when, (<=<) )
 import Control.Monad.IO.Class
@@ -138,6 +149,8 @@ import Data.Word
     ( Word64 )
 import Fmt
     ( fixedF, pretty )
+import GHC.Conc
+    ( TVar, ThreadId, killThread, newTVarIO, readTVarIO, writeTVar )
 import GHC.Generics
     ( Generic )
 import Ouroboros.Consensus.Cardano.Block
@@ -151,6 +164,7 @@ import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Merge.Strict as Map
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
+import qualified GHC.Conc as STM
 
 --
 -- Stake Pool Layer
@@ -176,19 +190,28 @@ data StakePoolLayer = StakePoolLayer
         -- Exclude all pools that retired in or before this epoch.
         -> Coin
         -> ExceptT ErrListPools IO [Api.ApiStakePool]
+
+    , putSettings :: Settings -> IO ()
+
+    , getSettings :: IO Settings
     }
 
 newStakePoolLayer
     :: forall sc. ()
     => NetworkLayer IO (IO Shelley) (CardanoBlock sc)
     -> DBLayer IO
-    -> StakePoolLayer
-newStakePoolLayer nl db@DBLayer {..} =
-        StakePoolLayer
-            { getPoolLifeCycleStatus = _getPoolLifeCycleStatus
-            , knownPools = _knownPools
-            , listStakePools = _listPools
-            }
+    -> IO ThreadId
+    -> IO StakePoolLayer
+newStakePoolLayer nl db@DBLayer {..} worker = do
+    tid <- worker
+    tvTid <- newTVarIO tid
+    pure $ StakePoolLayer
+        { getPoolLifeCycleStatus = _getPoolLifeCycleStatus
+        , knownPools = _knownPools
+        , listStakePools = _listPools
+        , putSettings = _putSettings tvTid
+        , getSettings = _getSettings
+        }
   where
     _getPoolLifeCycleStatus
         :: PoolId -> IO PoolLifeCycleStatus
@@ -199,6 +222,41 @@ newStakePoolLayer nl db@DBLayer {..} =
         :: IO (Set PoolId)
     _knownPools =
         Set.fromList <$> liftIO (atomically listRegisteredPools)
+
+    -- In order to apply the settings, we have to restart the
+    -- metadata sync thread as well to avoid race conditions.
+    {- HLINT ignore "Use const" -}
+    _putSettings :: TVar ThreadId -> Settings -> IO ()
+    _putSettings tvTid settings = do
+        bracket
+            killSyncThread
+            (\_ -> restartSyncThread)
+            (\_ -> atomically (gcMetadata >> writeSettings))
+      where
+        -- kill syncing thread, so we can apply the settings cleanly
+        killSyncThread = do
+            tid <- readTVarIO tvTid
+            killThread tid
+
+        -- clean up metadata table if the new sync settings suggests so
+        gcMetadata = do
+            oldSettings <- readSettings
+            case (poolMetadataSource oldSettings, poolMetadataSource settings) of
+                (_, FetchNone) -> -- this is necessary if it's e.g. the first time
+                                  -- we start the server with the new feature
+                                  -- and the database has still stuff in it
+                    delPoolMetadata
+                (old, new)
+                    | old /= new -> delPoolMetadata
+                _ -> pure ()
+
+        writeSettings = putSettings settings
+
+        restartSyncThread = do
+            tid <- worker
+            STM.atomically $ writeTVar tvTid tid
+
+    _getSettings = liftIO $ atomically readSettings
 
     _listPools
         :: EpochNo
@@ -621,30 +679,41 @@ monitorStakePools tr gp nl DBLayer{..} =
                 liftIO $ traceWith tr $ MsgStakePoolRetirement cert
                 putPoolRetirement publicationTime cert
 
+
+-- | Worker thread that monitors pool metadata and syncs it to the database.
 monitorMetadata
     :: Tracer IO StakePoolLog
     -> GenesisParameters
-    -> (   PoolId
-        -> StakePoolMetadataUrl
-        -> StakePoolMetadataHash
-        -> IO (Maybe StakePoolMetadata)
-       )
     -> DBLayer IO
     -> IO ()
-monitorMetadata tr gp fetchMetadata DBLayer{..} = forever $ do
-    refs <- atomically (unfetchedPoolMetadataRefs 100)
-    successes <- fmap catMaybes $ forM refs $ \(pid, url, hash) -> do
-        fetchMetadata pid url hash >>= \case
-            Nothing -> Nothing <$ do
-                atomically $ putFetchAttempt (url, hash)
+monitorMetadata tr gp DBLayer{..} = do
+    settings <- atomically readSettings
+    manager <- newManager defaultManagerSettings
+    let fetcher fetchStrategies = fetchFromRemote trFetch fetchStrategies manager
+    forever $ do
+        (refs, successes) <- case poolMetadataSource settings of
+            FetchNone -> pure ([], [])
+            FetchDirect -> fetchThem $ fetcher [identityUrlBuilder]
+            FetchSMASH (unSmashServer -> uri) -> fetchThem $ fetcher [registryUrlBuilder uri]
 
-            Just meta -> Just hash <$ do
-                atomically $ putPoolMetadata hash meta
-
-    when (null refs || null successes) $ do
-        traceWith tr $ MsgFetchTakeBreak blockFrequency
-        threadDelay blockFrequency
+        when (null refs || null successes) $ do
+            traceWith tr $ MsgFetchTakeBreak blockFrequency
+            threadDelay blockFrequency
   where
+    trFetch = contramap MsgFetchPoolMetadata tr
+    -- We mask this entire section just in case, although the database
+    -- operations runs masked anyway. Unfortunately we cannot run
+    -- @fetchMetadata@ from within atomically, so here we go.
+    fetchThem fetchMetadata = mask_ $ do
+        refs <- atomically (unfetchedPoolMetadataRefs 100)
+        successes <- fmap catMaybes $ forM refs $ \(pid, url, hash) -> do
+            fetchMetadata pid url hash >>= \case
+                Nothing -> Nothing <$ do
+                    atomically $ putFetchAttempt (url, hash)
+
+                Just meta -> Just hash <$ do
+                    atomically $ putPoolMetadata hash meta
+        pure (refs, successes)
     -- NOTE
     -- If there's no metadata, we typically need not to retry sooner than the
     -- next block. So waiting for a delay that is roughly the same order of

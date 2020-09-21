@@ -46,7 +46,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..) )
 import Cardano.Wallet.Primitive.Types
-    ( walletNameMaxLength, walletNameMinLength )
+    ( PoolMetadataSource, Settings, walletNameMaxLength, walletNameMinLength )
 import Control.Monad
     ( forM_ )
 import Data.Generics.Internal.VL.Lens
@@ -60,7 +60,7 @@ import Data.Quantity
 import Data.Text
     ( Text )
 import Data.Text.Class
-    ( toText )
+    ( fromText, toText )
 import Data.Word
     ( Word32, Word64 )
 import Test.Hspec
@@ -1263,3 +1263,22 @@ spec = describe "SHELLEY_WALLETS" $ do
                     , expectField (#tip . #slotNumber  . #getApiT) (`shouldBe` slotNum)
                     , expectField (#tip . #height) (`shouldBe` blockHeight)
                     ]
+
+    it "SETTINGS_01 - Can put and read settings" $ \ctx -> do
+        let uri = "http://smash.it"
+            payload = Json [json| {
+                "settings": {
+                    "pool_metadata_source": #{uri}
+                     }
+                } |]
+        r <- request @(ApiT Settings) ctx Link.putSettings Default
+            payload
+        expectResponseCode @IO HTTP.status204 r
+        eventually "The settings are applied" $ do
+            r2 <- request @(ApiT Settings) ctx Link.getSettings Default Empty
+            verify r2
+                [ expectResponseCode @IO HTTP.status200
+                , expectField (#getApiT . #poolMetadataSource)
+                    (`shouldBe` (either (const (error "no")) id $ fromText
+                        @PoolMetadataSource uri))
+                ]
