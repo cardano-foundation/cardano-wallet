@@ -462,19 +462,26 @@ monitorStakePools
     -> NetworkLayer IO t (CardanoBlock StandardCrypto)
     -> DBLayer IO
     -> IO ()
-monitorStakePools tr gp nl db@DBLayer{..} = do
-    latestGarbageCollectionEpochRef <- mkLatestGarbageCollectionEpochRef
-    let forwardHandler = forward latestGarbageCollectionEpochRef
-    cursor <- initCursor
-    traceWith tr $ MsgStartMonitoring cursor
-    follow nl (contramap MsgFollow tr) cursor forwardHandler getHeader >>= \case
-        FollowInterrupted -> traceWith tr MsgHaltMonitoring
-        FollowFailure -> traceWith tr MsgCrashMonitoring
-        FollowRollback point -> do
-            traceWith tr $ MsgRollingBackTo point
-            liftIO . atomically $ rollbackTo point
-            monitorStakePools tr gp nl db
+monitorStakePools tr gp nl DBLayer{..} =
+    monitor =<< mkLatestGarbageCollectionEpochRef
   where
+    monitor latestGarbageCollectionEpochRef = loop
+      where
+        loop = do
+            cursor <- initCursor
+            traceWith tr $ MsgStartMonitoring cursor
+            let followTrace = contramap MsgFollow tr
+            let forwardHandler = forward latestGarbageCollectionEpochRef
+            follow nl followTrace cursor forwardHandler getHeader >>= \case
+                FollowInterrupted ->
+                    traceWith tr MsgHaltMonitoring
+                FollowFailure ->
+                    traceWith tr MsgCrashMonitoring
+                FollowRollback point -> do
+                    traceWith tr $ MsgRollingBackTo point
+                    liftIO . atomically $ rollbackTo point
+                    loop
+
     GenesisParameters
         { getGenesisBlockHash
         , getEpochStability
