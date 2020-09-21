@@ -75,7 +75,6 @@ test-suite unit
     , network-uri
     , optparse-applicative
     , QuickCheck
-    , shelley-spec-ledger
     , temporary
     , text
     , text-class
