@@ -98,14 +98,10 @@ import Test.Hspec.Extra
     ( aroundAll )
 import Test.Integration.Faucet
     ( genRewardAccounts, mirMnemonics, shelleyIntegrationTestFunds )
+import Test.Integration.Framework.Context
+    ( Context (..) )
 import Test.Integration.Framework.DSL
-    ( Context (..)
-    , Headers (..)
-    , KnownCommand (..)
-    , Payload (..)
-    , request
-    , unsafeRequest
-    )
+    ( Headers (..), KnownCommand (..), Payload (..), request, unsafeRequest )
 
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Data.Aeson as Aeson

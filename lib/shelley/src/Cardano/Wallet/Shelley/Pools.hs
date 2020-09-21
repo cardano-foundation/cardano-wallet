@@ -96,7 +96,7 @@ import Control.Concurrent
 import Control.Exception
     ( try )
 import Control.Monad
-    ( forM, forM_, forever, unless, void, when, (<=<) )
+    ( forM, forM_, forever, void, when, (<=<) )
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Except

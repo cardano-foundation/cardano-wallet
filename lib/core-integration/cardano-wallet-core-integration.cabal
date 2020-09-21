@@ -75,6 +75,7 @@ library
       src
   exposed-modules:
       Test.Integration.Faucet
+      Test.Integration.Framework.Context
       Test.Integration.Framework.DSL
       Test.Integration.Framework.Request
       Test.Integration.Framework.TestData
