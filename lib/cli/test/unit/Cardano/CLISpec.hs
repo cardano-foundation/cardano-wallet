@@ -675,9 +675,9 @@ spec = do
             err _ = False
         mapM_
             (\(desc, arg, tst) -> it desc (parse arg `shouldSatisfy` tst))
-            [ ("valid", "{ \"42\": \"hi\" }", ok (Just md))
+            [ ("valid", "{ \"42\": { \"string\": \"hi\" } }", ok (Just md))
             , ("malformed", "testing", err)
-            , ("malformed trailling", "{ \"0\": \"\" } arstneio", err)
+            , ("malformed trailling", "{ \"0\": { \"string\": \"\" } } arstneio", err)
             , ("invalid", "{ \"json\": true }", err)
             , ("null 1", "{ \"0\": null }", err)
             , ("null 2", "null", ok Nothing)
