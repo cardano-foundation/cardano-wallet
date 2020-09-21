@@ -822,17 +822,38 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
     it "STAKE_POOLS_GARBAGE_COLLECTION_01 - \
         \retired pools are garbage collected on schedule and not before" $
         \ctx -> do
-            -- First wait until a few garbage collection cycles have completed.
+
+            -- The retirement epoch of the only test pool that is configured
+            -- to retire within the lifetime of an integration test run.
+            -- See 'testPoolConfigs' for the source of this value.
             --
-            -- If this test case is run in isolation, this initial waiting
-            -- stage will require a few minutes to complete. However, this
-            -- initial stage is important as it allows the test case to be
-            -- run in isolation, if necessary.
+            let testPoolRetirementEpoch = 3
+
+            -- The last epoch for which we will look for an associated pool
+            -- garbage collection event. It corresponds to an arbitrary point
+            -- in time just a few epochs after the garbage collection of the
+            -- test pool.
             --
-            -- If this test case is run at the end of a long integration test
-            -- run, it should run very quickly without much additional delay.
+            -- Even though our test pool is configured to retire at the start
+            -- of epoch 3, it should only actually be removed from the database
+            -- during epoch 5. This is because the garbage collector is
+            -- designed to wait two epochs after a pool retires before actually
+            -- removing that pool, in order to avoid any issues with rollback.
             --
-            forM_ [1 .. 8] $ \epochNo -> do
+            -- See 'garbageCollectPools' for more information.
+            --
+            let lastGarbageCollectionEpoch = 8
+
+            -- First wait until garbage has been collected for the last epoch
+            -- of interest.
+            --
+            -- If this test case is executed as part of a long integration test
+            -- run, this stage should complete very quickly, without any delay.
+            --
+            -- If this test case is run in isolation, this initial stage will
+            -- require a few minutes to complete.
+            --
+            forM_ [1 .. lastGarbageCollectionEpoch] $ \epochNo -> do
                 let stateDescription = mconcat
                         [ "Garbage has been collected for epoch "
                         , show epochNo
@@ -853,14 +874,13 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
             let [event] = events &
                     filter (not . null . poolGarbageCollectionCertificates)
 
-            -- Check that the deleted pool was deleted at the correct epoch:
-            let expectedRetirementEpoch = 3
+            -- Check that the removed pool was removed at the correct epoch:
             view #retirementEpoch certificate
-                `shouldBe` expectedRetirementEpoch
+                `shouldBe` testPoolRetirementEpoch
             poolGarbageCollectionEpochNo event
-                `shouldBe` expectedRetirementEpoch
+                `shouldBe` testPoolRetirementEpoch
 
-            -- Check that the deleted pool was one of the test pools:
+            -- Check that the removed pool was one of the test pools:
             view #poolId certificate
                 `shouldSatisfy` (`Set.member` testClusterPoolIds)
 
