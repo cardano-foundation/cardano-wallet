@@ -117,7 +117,6 @@ import qualified Test.Integration.Scenario.API.Byron.Wallets as ByronWallets
 import qualified Test.Integration.Scenario.API.Network as Network
 import qualified Test.Integration.Scenario.API.Shelley.Addresses as Addresses
 import qualified Test.Integration.Scenario.API.Shelley.HWWallets as HWWallets
-import qualified Test.Integration.Scenario.API.Shelley.Transactions as Transactions
 import qualified Test.Integration.Scenario.API.Shelley.Wallets as Wallets
 import qualified Test.Integration.Scenario.CLI.Miscellaneous as MiscellaneousCLI
 import qualified Test.Integration.Scenario.CLI.Network as NetworkCLI
@@ -142,7 +141,6 @@ main = withUtf8Encoding $ withLogging Nothing Info $ \(_, tr) -> do
 
         describe "API Specifications" $ specWithServer @n tr $ do
             withCtxOnly $ Addresses.spec @n
-            withCtxOnly $ Transactions.spec @n
             withCtxOnly $ Wallets.spec @n
             withCtxOnly $ ByronWallets.spec @n
             withCtxOnly $ ByronTransactions.spec @n
@@ -191,10 +189,10 @@ specWithServer tr = aroundAll withContext . after (tearDown . thd3)
         let setupContext wAddr nPort np = do
                 let baseUrl = "http://" <> T.pack (show wAddr) <> "/"
                 logInfo tr baseUrl
-                let sixtySeconds = 60*1000*1000 -- 60s in microseconds
+                let fiveMinutes = 300*1000*1000 -- 5min in microseconds
                 manager <- (baseUrl,) <$> newManager (defaultManagerSettings
                     { managerResponseTimeout =
-                        responseTimeoutMicro sixtySeconds
+                        responseTimeoutMicro fiveMinutes
                     })
                 let feePolicy = getFeePolicy
                         $ txParameters
