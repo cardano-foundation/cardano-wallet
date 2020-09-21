@@ -25,7 +25,12 @@ import Cardano.Wallet.Api.Types
     , getApiT
     )
 import Cardano.Wallet.Primitive.Types
-    ( Direction (..), SortOrder (..), TxMetadata (..), TxStatus (..) )
+    ( Direction (..)
+    , SortOrder (..)
+    , TxMetadata (..)
+    , TxMetadataValue (..)
+    , TxStatus (..)
+    )
 import Control.Monad
     ( forM_, join )
 import Data.Generics.Internal.VL.Lens
@@ -102,7 +107,6 @@ import Test.Integration.Framework.TestData
 
 import qualified Data.Map as Map
 import qualified Data.Text as T
-import qualified Shelley.Spec.Ledger.MetaData as MD
 
 spec :: forall n t.
     ( KnownCommand t
@@ -306,7 +310,8 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
         (wSrc, wDest) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
         let amt = 10_000_000
         let md = Just "{ \"1\": \"hello\" }"
-        let expected = Just (ApiT (TxMetadata (MD.MetaData (Map.singleton 1 (MD.S "hello")))))
+        let expected = Just $ ApiT $ TxMetadata $
+                Map.singleton 1 (TxMetaText "hello")
 
         args <- postTxArgs ctx wSrc wDest amt md
         Stdout feeOut <- postTransactionFeeViaCLI @t ctx args
