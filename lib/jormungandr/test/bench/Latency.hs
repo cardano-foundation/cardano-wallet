@@ -403,5 +403,7 @@ benchWithJormServer tracers action = withConfig $ \jmCfg -> do
                     , _networkParameters = np
                     , _feeEstimator = \_ -> error "feeEstimator not available"
                     , _target = Proxy
+                    , _poolGarbageCollectionEvents =
+                        error "poolGarbageCollectionEvents not available"
                     }
         throwIO $ ProcessHasExited "Server has unexpectedly exited" res

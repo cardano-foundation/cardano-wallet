@@ -206,6 +206,8 @@ specWithServer tr = aroundAll withContext . after (tearDown . thd3)
                     , _feeEstimator = mkFeeEstimator feePolicy
                     , _networkParameters = np
                     , _target = Proxy
+                    , _poolGarbageCollectionEvents = error
+                        "poolGarbageCollectionEvents not available."
                     })
         race
             (takeMVar ctx >>= action)

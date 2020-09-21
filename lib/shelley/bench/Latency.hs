@@ -363,6 +363,8 @@ withShelleyServer tracers action = do
                 , _feeEstimator = \_ -> error "feeEstimator not available"
                 , _networkParameters = np
                 , _target = Proxy
+                , _poolGarbageCollectionEvents =
+                    error "poolGarbageCollectionEvents not available"
                 }
     race_ (takeMVar ctx >>= action) (withServer setupContext)
 

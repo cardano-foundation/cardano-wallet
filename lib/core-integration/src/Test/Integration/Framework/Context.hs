@@ -3,6 +3,7 @@
 
 module Test.Integration.Framework.Context
     ( Context (..)
+    , PoolGarbageCollectionEvent (..)
     , TxDescription (..)
     ) where
 
@@ -11,9 +12,11 @@ import Prelude
 import Cardano.CLI
     ( Port (..) )
 import Cardano.Wallet.Primitive.Types
-    ( NetworkParameters )
+    ( EpochNo, NetworkParameters, PoolRetirementCertificate )
 import Cardano.Wallet.Transaction
     ( DelegationAction )
+import Data.IORef
+    ( IORef )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Text
@@ -48,8 +51,25 @@ data Context t = Context
         -- ^ Blockchain parameters for the underlying chain.
     , _target
         :: Proxy t
+    , _poolGarbageCollectionEvents
+        :: IORef [PoolGarbageCollectionEvent]
+        -- ^ The complete list of pool garbage collection events.
+        -- Most recent events are stored at the head of the list.
     }
     deriving Generic
+
+-- | Records the parameters and return value of a single call to the
+--   'removeRetiredPools' operation of 'Pool.DB.DBLayer'.
+--
+data PoolGarbageCollectionEvent = PoolGarbageCollectionEvent
+    { poolGarbageCollectionEpochNo
+        :: EpochNo
+        -- ^ The epoch number parameter.
+    , poolGarbageCollectionCertificates
+        :: [PoolRetirementCertificate]
+        -- ^ The pools that were removed from the database.
+    }
+    deriving (Eq, Show)
 
 -- | Describe a transaction in terms of its inputs and outputs.
 data TxDescription

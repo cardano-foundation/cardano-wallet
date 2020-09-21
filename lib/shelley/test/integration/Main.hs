@@ -2,6 +2,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NumericUnderscores #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
@@ -72,8 +73,12 @@ import Control.Exception
     ( throwIO )
 import Control.Monad
     ( forM_, void )
+import Control.Monad.IO.Class
+    ( liftIO )
 import Control.Tracer
     ( Tracer (..), contramap, traceWith )
+import Data.IORef
+    ( IORef, atomicModifyIORef', newIORef )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Text
@@ -99,10 +104,12 @@ import Test.Hspec.Extra
 import Test.Integration.Faucet
     ( genRewardAccounts, mirMnemonics, shelleyIntegrationTestFunds )
 import Test.Integration.Framework.Context
-    ( Context (..) )
+    ( Context (..), PoolGarbageCollectionEvent (..) )
 import Test.Integration.Framework.DSL
     ( Headers (..), KnownCommand (..), Payload (..), request, unsafeRequest )
 
+import qualified Cardano.Pool.DB as Pool
+import qualified Cardano.Pool.DB.Sqlite as Pool
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Data.Aeson as Aeson
 import qualified Data.Text as T
@@ -181,6 +188,9 @@ specWithServer (tr, tracers) = aroundAll withContext . after tearDown
     withContext :: (Context Shelley -> IO ()) -> IO ()
     withContext action = bracketTracer' tr "withContext" $ do
         ctx <- newEmptyMVar
+        poolGarbageCollectionEvents <- newIORef []
+        let dbEventRecorder =
+                recordPoolGarbageCollectionEvents poolGarbageCollectionEvents
         let setupContext np wAddr = bracketTracer' tr "setupContext" $ do
                 let baseUrl = "http://" <> T.pack (show wAddr) <> "/"
                 traceWith tr $ MsgBaseUrl baseUrl
@@ -190,6 +200,7 @@ specWithServer (tr, tracers) = aroundAll withContext . after tearDown
                         responseTimeoutMicro fiveMinutes
                     })
                 faucet <- initFaucet
+
                 putMVar ctx $ Context
                     { _cleanup = pure ()
                     , _manager = manager
@@ -198,13 +209,37 @@ specWithServer (tr, tracers) = aroundAll withContext . after tearDown
                     , _feeEstimator = error "feeEstimator: unused in shelley specs"
                     , _networkParameters = np
                     , _target = Proxy
+                    , _poolGarbageCollectionEvents = poolGarbageCollectionEvents
                     }
-
         let action' = bracketTracer' tr "spec" . action
-        race (takeMVar ctx >>= action') (withServer setupContext) >>=
-            either pure (throwIO . ProcessHasExited "integration")
+        race
+            (takeMVar ctx >>= action')
+            (withServer dbEventRecorder setupContext) >>=
+            (either pure (throwIO . ProcessHasExited "integration"))
 
-    withServer action = bracketTracer' tr "withServer" $ do
+    -- A decorator for the pool database that records all calls to the
+    -- 'removeRetiredPools' operation.
+    --
+    -- The parameters and return value of each call are recorded by appending
+    -- a 'PoolGarbageCollectionEvent' value to the start of the given log.
+    --
+    recordPoolGarbageCollectionEvents
+        :: IORef [PoolGarbageCollectionEvent]
+        -> Pool.DBDecorator IO
+    recordPoolGarbageCollectionEvents eventsRef = Pool.DBDecorator decorate
+      where
+        decorate Pool.DBLayer {..} =
+            Pool.DBLayer {removeRetiredPools = removeRetiredPoolsDecorated, ..}
+          where
+            removeRetiredPoolsDecorated epochNo = do
+                certificates <- removeRetiredPools epochNo
+                let event = PoolGarbageCollectionEvent epochNo certificates
+                liftIO $ do
+                    traceWith tr $ MsgPoolGarbageCollectionEvent event
+                    atomicModifyIORef' eventsRef ((, ()) . (event :))
+                pure certificates
+
+    withServer dbDecorator action = bracketTracer' tr "withServer" $ do
         minSev <- nodeMinSeverityFromEnv
         testPoolConfigs' <- poolConfigsFromEnv
         withSystemTempDir tr' "test" $ \dir ->
@@ -215,7 +250,7 @@ specWithServer (tr, tracers) = aroundAll withContext . after tearDown
                 dir
                 onByron
                 (afterFork dir)
-                (onClusterStart action dir)
+                (onClusterStart action dir dbDecorator)
 
     tr' = contramap MsgCluster tr
     onByron _ = pure ()
@@ -228,7 +263,8 @@ specWithServer (tr, tracers) = aroundAll withContext . after tearDown
                 concatMap genRewardAccounts mirMnemonics
         moveInstantaneousRewardsTo stdoutTextTracer dir rewards
 
-    onClusterStart action dir (RunningNode socketPath block0 (gp, vData)) = do
+    onClusterStart
+        action dir dbDecorator (RunningNode socketPath block0 (gp, vData)) = do
         -- NOTE: We may want to keep a wallet running across the fork, but
         -- having three callbacks like this might not work well for that.
         withTempDir tr' dir "wallets" $ \db -> do
@@ -237,7 +273,7 @@ specWithServer (tr, tracers) = aroundAll withContext . after tearDown
                 tracers
                 (SyncTolerance 10)
                 (Just db)
-                Nothing
+                (Just dbDecorator)
                 "127.0.0.1"
                 ListenOnRandomPort
                 Nothing
@@ -267,6 +303,7 @@ data TestsLog
     = MsgBracket Text BracketLog
     | MsgBaseUrl Text
     | MsgCluster ClusterLog
+    | MsgPoolGarbageCollectionEvent PoolGarbageCollectionEvent
     deriving (Show)
 
 instance ToText TestsLog where
@@ -274,6 +311,17 @@ instance ToText TestsLog where
         MsgBracket name b -> name <> ": " <> toText b
         MsgBaseUrl txt -> txt
         MsgCluster msg -> toText msg
+        MsgPoolGarbageCollectionEvent e -> mconcat
+            [ "Intercepted pool garbage collection event for epoch "
+            , toText (poolGarbageCollectionEpochNo e)
+            , ". "
+            , case poolGarbageCollectionCertificates e of
+                [] -> "No pools were removed from the database."
+                ps -> mconcat
+                    [ "The following pools were removed from the database: "
+                    , T.unwords (T.pack . show <$> ps)
+                    ]
+            ]
 
 instance HasPrivacyAnnotation TestsLog
 instance HasSeverityAnnotation TestsLog where
@@ -281,6 +329,7 @@ instance HasSeverityAnnotation TestsLog where
         MsgBracket _ _ -> Debug
         MsgBaseUrl _ -> Notice
         MsgCluster msg -> getSeverityAnnotation msg
+        MsgPoolGarbageCollectionEvent _ -> Notice
 
 withTracers
     :: ((Tracer IO TestsLog, Tracers IO) -> IO a)
