@@ -43,10 +43,14 @@ import Cardano.Wallet.Primitive.Types
     )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex, unsafeMkPercentage )
+import Control.Monad
+    ( forM_ )
 import Data.Function
     ( (&) )
 import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
+import Data.IORef
+    ( readIORef )
 import Data.List
     ( sortOn )
 import Data.Maybe
@@ -67,9 +71,10 @@ import Test.Hspec
     ( SpecWith, describe, pendingWith, shouldBe, shouldSatisfy )
 import Test.Hspec.Extra
     ( it )
+import Test.Integration.Framework.Context
+    ( Context (..), PoolGarbageCollectionEvent (..) )
 import Test.Integration.Framework.DSL
-    ( Context (..)
-    , Headers (..)
+    ( Headers (..)
     , Payload (..)
     , delegating
     , delegationFee
@@ -813,6 +818,56 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
             , expectListField 2
                 (#metrics . #nonMyopicMemberRewards) (`shouldBe` Quantity 0)
             ]
+
+    it "STAKE_POOLS_GARBAGE_COLLECTION_01 - \
+        \retired pools are garbage collected on schedule and not before" $
+        \ctx -> do
+            -- First wait until a few garbage collection cycles have completed.
+            --
+            -- If this test case is run in isolation, this initial waiting
+            -- stage will require a few minutes to complete. However, this
+            -- initial stage is important as it allows the test case to be
+            -- run in isolation, if necessary.
+            --
+            -- If this test case is run at the end of a long integration test
+            -- run, it should run very quickly without much additional delay.
+            --
+            forM_ [1 .. 8] $ \epochNo -> do
+                let stateDescription = mconcat
+                        [ "Garbage has been collected for epoch "
+                        , show epochNo
+                        , "."
+                        ]
+                -- It's important that we wait incrementally, as an individual
+                -- call to 'eventually' must complete within a fairly short
+                -- period of time.
+                eventually stateDescription $ do
+                    events <- readIORef (view #_poolGarbageCollectionEvents ctx)
+                    length events `shouldSatisfy` (>= epochNo)
+
+            -- Check that exactly one pool was garbage collected, and no more:
+            events <- readIORef (view #_poolGarbageCollectionEvents ctx)
+            let certificates = poolGarbageCollectionCertificates =<< events
+            certificates `shouldSatisfy` ((== 1) . length)
+            let [certificate] = certificates
+            let [event] = events &
+                    filter (not . null . poolGarbageCollectionCertificates)
+
+            -- Check that the deleted pool was deleted at the correct epoch:
+            let expectedRetirementEpoch = 3
+            view #retirementEpoch certificate
+                `shouldBe` expectedRetirementEpoch
+            poolGarbageCollectionEpochNo event
+                `shouldBe` expectedRetirementEpoch
+
+            -- Check that the deleted pool was one of the test pools:
+            view #poolId certificate
+                `shouldSatisfy` (`Set.member` testClusterPoolIds)
+
+            -- Check that garbage collection occurred exactly once per epoch:
+            let epochs = poolGarbageCollectionEpochNo <$> events
+            (reverse epochs `zip` [1 ..]) `shouldSatisfy` all (uncurry (==))
+
   where
     arbitraryStake :: Maybe Coin
     arbitraryStake = Just $ ada 10_000_000_000
