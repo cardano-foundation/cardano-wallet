@@ -1,5 +1,6 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
@@ -303,7 +304,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
 
     it "TRANSMETA_CREATE_01 - Transaction with metadata via CLI" $ \ctx -> do
         (wSrc, wDest) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
-        let amt = 100000
+        let amt = 10_000_000
         let md = Just "{ \"1\": \"hello\" }"
         let expected = Just (ApiT (TxMetadata (MD.MetaData (Map.singleton 1 (MD.S "hello")))))
 
