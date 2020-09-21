@@ -9,7 +9,6 @@ packages:
 - lib/test-utils
 - lib/jormungandr
 - lib/shelley
-- ../cardano-transactions
 
 extra-deps:
 # Miscellaneous
@@ -54,8 +53,8 @@ extra-deps:
 
 # Not strictly a dependency at present, but building it here to get
 # access to the cardano-tx cli.
-#- git: https://github.com/input-output-hk/cardano-transactions
-#  commit: a68107c1682c3fd119c7e83f5adcbba2c37e1744
+- git: https://github.com/input-output-hk/cardano-transactions
+  commit: db40318bbccbfb40b15e541433402fd81a1ec4e5
 
 flags:
   # Avoid a system library which causes difficulty with cross-compilation

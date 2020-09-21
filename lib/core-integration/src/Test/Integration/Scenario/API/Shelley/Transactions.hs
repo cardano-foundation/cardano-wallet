@@ -2490,7 +2490,8 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         -> CardanoTransactions.SignKey CardanoTransactions.Shelley
     unsafeMkByronSignKey str1 str2 =
         let (Just addr) = fromBase58 str1
-        in fromJust $ CardanoTransactions.mkByronSignKey addr (unsafeB16 str2)
+            (Just addrAttr) = CardanoTransactions.mkAddrAttributes addr
+        in fromJust $ CardanoTransactions.mkByronSignKey addrAttr (unsafeB16 str2)
 
     constructTxFromCardanoTransactions fee txid txix out1 addr1 out2 addr2 wit =
         CardanoTransactions.empty (initTx fee)
