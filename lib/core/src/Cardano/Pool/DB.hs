@@ -31,6 +31,7 @@ import Cardano.Wallet.Primitive.Types
     , PoolLifeCycleStatus (..)
     , PoolRegistrationCertificate
     , PoolRetirementCertificate
+    , Settings
     , SlotNo (..)
     , StakePoolMetadata
     , StakePoolMetadataHash
@@ -191,6 +192,10 @@ data DBLayer m = forall stm. (MonadFail stm, MonadIO stm) => DBLayer
         -> stm ()
         -- ^ Store metadata fetched from a remote server.
 
+    , removePoolMetadata
+        :: stm ()
+        -- ^ Delete all pool metadata.
+
     , readPoolMetadata
         :: stm (Map StakePoolMetadataHash StakePoolMetadata)
 
@@ -234,6 +239,15 @@ data DBLayer m = forall stm. (MonadFail stm, MonadIO stm) => DBLayer
         -> stm [BlockHeader]
         -- ^ List headers, usually stored during syncing.
         -- Returns all headers if limit is <= 0.
+
+    , readSettings
+        :: stm Settings
+        -- ^ Get the settings.
+
+    , putSettings
+        :: Settings
+        -> stm ()
+        -- ^ Modify the settings.
 
     , cleanDB
         :: stm ()

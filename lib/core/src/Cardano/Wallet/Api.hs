@@ -53,6 +53,11 @@ module Cardano.Wallet.Api
         , MigrateShelleyWallet
         , GetShelleyWalletMigrationInfo
 
+    -- * Settings
+    , Settings
+    , PutSettings
+    , GetSettings
+
     -- * Byron
     , ByronWallets
         , DeleteByronWallet
@@ -133,6 +138,7 @@ import Cardano.Wallet.Api.Types
     , PostExternalTransactionData
     , PostTransactionDataT
     , PostTransactionFeeDataT
+    , SettingsPutData
     , SomeByronWalletPostData
     , WalletOrAccountPostData
     , WalletPutData
@@ -190,6 +196,8 @@ import Servant.API.Verbs
     , PutNoContent
     )
 
+import qualified Cardano.Wallet.Primitive.Types as W
+
 type ApiV2 n apiPool = "v2" :> Api n apiPool
 
 -- | The full cardano-wallet API.
@@ -209,6 +217,7 @@ type Api n apiPool =
     :<|> ByronMigrations n
     :<|> Network
     :<|> Proxy_
+    :<|> Settings
 
 {-------------------------------------------------------------------------------
                                   Wallets
@@ -417,6 +426,19 @@ type DelegationFee = "wallets"
     :> Capture "walletId" (ApiT WalletId)
     :> "delegation-fees"
     :> Get '[JSON] ApiFee
+
+{-------------------------------------------------------------------------------
+                                  Settings
+-------------------------------------------------------------------------------}
+
+type Settings = PutSettings :<|> GetSettings
+
+type PutSettings = "settings"
+    :> ReqBody '[JSON] SettingsPutData
+    :> PutNoContent
+
+type GetSettings = "settings"
+    :> Get '[JSON] (ApiT W.Settings)
 
 {-------------------------------------------------------------------------------
                                  Byron Wallets

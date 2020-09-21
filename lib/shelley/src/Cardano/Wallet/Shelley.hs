@@ -52,20 +52,15 @@ import Cardano.BM.Data.Severity
 import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..), filterSeverity )
 import Cardano.BM.Trace
-    ( Trace, appendName )
+    ( Trace, appendName, nullTracer )
 import Cardano.DB.Sqlite
     ( DBLog )
+import Cardano.Pool.DB
+    ( DBLayer (..) )
 import Cardano.Pool.DB.Log
     ( PoolDbLog )
-import Cardano.Pool.Metadata
-    ( defaultManagerSettings
-    , fetchFromRemote
-    , identityUrlBuilder
-    , newManager
-    , registryUrlBuilder
-    )
 import Cardano.Wallet
-    ( WalletLog )
+    ( WalletLog (..) )
 import Cardano.Wallet.Api
     ( ApiLayer, ApiV2 )
 import Cardano.Wallet.Api.Server
@@ -114,6 +109,7 @@ import Cardano.Wallet.Primitive.Types
     , GenesisParameters (..)
     , NetworkParameters (..)
     , ProtocolParameters (..)
+    , Settings (..)
     , WalletId
     )
 import Cardano.Wallet.Registry
@@ -126,7 +122,7 @@ import Cardano.Wallet.Shelley.Network
     ( NetworkLayerLog, withNetworkLayer )
 import Cardano.Wallet.Shelley.Pools
     ( StakePoolLayer (..)
-    , StakePoolLog (..)
+    , StakePoolLog
     , monitorMetadata
     , monitorStakePools
     , newStakePoolLayer
@@ -140,9 +136,9 @@ import Control.Applicative
 import Control.Concurrent
     ( forkFinally )
 import Control.Monad
-    ( void )
+    ( forM_, void )
 import Control.Tracer
-    ( Tracer (..), contramap, nullTracer, traceWith )
+    ( Tracer, contramap, traceWith )
 import Data.Function
     ( (&) )
 import Data.Maybe
@@ -158,15 +154,13 @@ import GHC.Generics
 import GHC.TypeLits
     ( KnownNat, natVal )
 import Network.Ntp
-    ( NtpClient (..), NtpTrace (..), withWalletNtpClient )
+    ( NtpClient (..), NtpTrace, withWalletNtpClient )
 import Network.Socket
     ( SockAddr, Socket, getSocketName )
-import Network.URI
-    ( URI )
 import Network.Wai.Handler.Warp
     ( setBeforeMainLoop )
 import Network.Wai.Middleware.Logging
-    ( ApiLog )
+    ( ApiLog (..) )
 import Ouroboros.Network.CodecCBORTerm
     ( CodecCBORTerm )
 import Ouroboros.Network.NodeToClient
@@ -246,8 +240,8 @@ serveWallet
     -- ^ HTTP API Server port.
     -> Maybe TlsConfiguration
     -- ^ An optional TLS configuration
-    -> Maybe URI
-    -- ^ An optional base URI for a pool metadata proxy
+    -> Maybe Settings
+    -- ^ Settings to be set at application start, will be written into DB.
     -> FilePath
     -- ^ Socket for communicating with the node
     -> Block
@@ -272,7 +266,7 @@ serveWallet
   hostPref
   listen
   tlsConfig
-  smashURL
+  settings
   socketPath
   block0
   (np, vData)
@@ -336,11 +330,11 @@ serveWallet
         -> IO ()
     startServer _proxy socket byron icarus shelley spl ntp = do
         sockAddr <- getSocketName socket
-        let settings = Warp.defaultSettings & setBeforeMainLoop
+        let serverSettings = Warp.defaultSettings & setBeforeMainLoop
                 (beforeMainLoop sockAddr)
         let application = Server.serve (Proxy @(ApiV2 n ApiStakePool)) $
                 server byron icarus shelley spl ntp
-        Server.start settings apiServerTracer tlsConfig socket application
+        Server.start serverSettings apiServerTracer tlsConfig socket application
 
     withPoolsMonitoring
         :: Maybe FilePath
@@ -354,21 +348,15 @@ serveWallet
                 poolsDbTracer
                 (Pool.defaultFilePath <$> dir)
                 (timeInterpreter nl)
-                $ \db -> do
-            let spl = newStakePoolLayer nl db
+                $ \db@DBLayer{..} -> do
+
+            forM_ settings $ atomically . putSettings
             void $ forkFinally (monitorStakePools tr gp nl db) onExit
-            fetch <- fetchFromRemote trFetch fetchStrategies
-                <$> newManager defaultManagerSettings
-            void $ forkFinally (monitorMetadata tr gp fetch db) onExit
+            spl <- newStakePoolLayer nl db $ forkFinally (monitorMetadata tr gp db) onExit
             action spl
       where
         tr = contramap (MsgFromWorker mempty) poolsEngineTracer
-        trFetch = contramap MsgFetchPoolMetadata tr
         onExit = defaultWorkerAfter poolsEngineTracer
-        fetchStrategies = pure $ maybe
-            identityUrlBuilder
-            registryUrlBuilder
-            smashURL
 
     apiLayer
         :: forall s k.

@@ -43,6 +43,7 @@ import Cardano.Wallet.Api
     , CoinSelections
     , Network
     , Proxy_
+    , Settings
     , ShelleyMigrations
     , StakePools
     , Transactions
@@ -118,7 +119,7 @@ import Fmt
 import Network.Ntp
     ( NtpClient )
 import Servant
-    ( (:<|>) (..), Handler, Server, err501, err503, throwError )
+    ( (:<|>) (..), Handler (..), Server, err501, err503, throwError )
 import Type.Reflection
     ( Typeable )
 
@@ -153,6 +154,7 @@ server byron icarus jormungandr spl ntp =
     :<|> byronMigrations
     :<|> network
     :<|> proxy
+    :<|> settingS
   where
     wallets :: Server Wallets
     wallets = deleteWallet jormungandr
@@ -284,6 +286,9 @@ server byron icarus jormungandr spl ntp =
 
     proxy :: Server Proxy_
     proxy = postExternalTransaction jormungandr
+
+    settingS :: Server Settings
+    settingS = (\_ -> throwError err501) :<|> throwError err501
 
 
 --------------------------------------------------------------------------------
