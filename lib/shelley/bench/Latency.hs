@@ -393,6 +393,7 @@ withShelleyServer tracers action = do
                 tracers
                 (SyncTolerance 10)
                 (Just db)
+                Nothing
                 "127.0.0.1"
                 ListenOnRandomPort
                 Nothing

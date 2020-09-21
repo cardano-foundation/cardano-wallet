@@ -145,6 +145,8 @@ import Control.Tracer
     ( Tracer (..), contramap, nullTracer, traceWith )
 import Data.Function
     ( (&) )
+import Data.Maybe
+    ( fromMaybe )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Text
@@ -236,6 +238,8 @@ serveWallet
     -- ^ A time tolerance within we consider being synced
     -> Maybe FilePath
     -- ^ Database folder filepath
+    -> Maybe (Pool.DBDecorator IO)
+    -- ^ An optional decorator that can be used to monitor pool DB operations.
     -> HostPreference
     -- ^ Which host to bind.
     -> Listen
@@ -264,6 +268,7 @@ serveWallet
   Tracers{..}
   sTolerance
   databaseDir
+  mPoolDatabaseDecorator
   hostPref
   listen
   tlsConfig
@@ -279,6 +284,8 @@ serveWallet
         Left e -> handleApiServerStartupError e
         Right (_, socket) -> serveApp socket
   where
+    poolDatabaseDecorator = fromMaybe Pool.undecoratedDB mPoolDatabaseDecorator
+
     serveApp socket = withIOManager $ \io -> do
         withNetworkLayer networkTracer np socketPath vData $ \nl -> do
             withWalletNtpClient io ntpClientTracer $ \ntpClient -> do
@@ -342,7 +349,8 @@ serveWallet
         -> (StakePoolLayer -> IO a)
         -> IO a
     withPoolsMonitoring dir gp nl action =
-        Pool.withDBLayer
+        Pool.withDecoratedDBLayer
+                poolDatabaseDecorator
                 poolsDbTracer
                 (Pool.defaultFilePath <$> dir)
                 (timeInterpreter nl)

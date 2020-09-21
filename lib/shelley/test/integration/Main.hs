@@ -237,6 +237,7 @@ specWithServer (tr, tracers) = aroundAll withContext . after tearDown
                 tracers
                 (SyncTolerance 10)
                 (Just db)
+                Nothing
                 "127.0.0.1"
                 ListenOnRandomPort
                 Nothing
