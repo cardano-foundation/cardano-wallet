@@ -60,7 +60,7 @@ import Cardano.Wallet.Primitive.Slotting
     ( TimeInterpreter, mkTimeInterpreter )
 import Cardano.Wallet.Shelley.Compatibility
     ( Shelley
-    , TPraosStandardCrypto
+    , StandardCrypto
     , fromCardanoHash
     , fromChainHash
     , fromNonMyopicMemberRewards
@@ -181,12 +181,8 @@ import Ouroboros.Consensus.Network.NodeToClient
     ( ClientCodecs, Codecs' (..), DefaultCodecs, clientCodecs, defaultCodecs )
 import Ouroboros.Consensus.Node.NetworkProtocolVersion
     ( HasNetworkProtocolVersion (..), SupportedNetworkProtocolVersion (..) )
-import Ouroboros.Consensus.Shelley.Ledger
-    ( Crypto )
 import Ouroboros.Consensus.Shelley.Ledger.Config
     ( CodecConfig (..) )
-import Ouroboros.Consensus.Shelley.Protocol
-    ( TPraosCrypto )
 import Ouroboros.Network.Block
     ( Point
     , SlotNo (..)
@@ -253,6 +249,7 @@ import Ouroboros.Network.Protocol.LocalTxSubmission.Type
 import System.IO.Error
     ( isDoesNotExistError )
 
+import qualified Cardano.Ledger.Shelley as SL
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Codec.CBOR.Term as CBOR
 import qualified Data.Map as Map
@@ -272,13 +269,13 @@ import qualified Shelley.Spec.Ledger.LedgerState as SL
 -- stateful and the node's keep track of the associated connection's cursor.
 data instance Cursor (m Shelley) = Cursor
     (Async ())
-    (Point (CardanoBlock TPraosStandardCrypto))
-    (TQueue m (ChainSyncCmd (CardanoBlock TPraosStandardCrypto) m))
+    (Point (CardanoBlock StandardCrypto))
+    (TQueue m (ChainSyncCmd (CardanoBlock StandardCrypto) m))
 
 -- | Create an instance of the network layer
 withNetworkLayer
-    :: forall sc a. (HasCallStack, sc ~ TPraosStandardCrypto)
-    => Tracer IO (NetworkLayerLog sc)
+    :: HasCallStack
+    => Tracer IO NetworkLayerLog
         -- ^ Logging of network layer startup
     -> W.NetworkParameters
         -- ^ Initial blockchain parameters
@@ -286,7 +283,7 @@ withNetworkLayer
         -- ^ Socket for communicating with the node
     -> (NodeToClientVersionData, CodecCBORTerm Text NodeToClientVersionData)
         -- ^ Codecs for the node's client
-    -> (NetworkLayer IO (IO Shelley) (CardanoBlock sc) -> IO a)
+    -> (NetworkLayer IO (IO Shelley) (CardanoBlock StandardCrypto) -> IO a)
         -- ^ Callback function with the network layer
     -> IO a
 withNetworkLayer tr np addrInfo versionData action = do
@@ -349,12 +346,12 @@ withNetworkLayer tr np addrInfo versionData action = do
     connectNodeTipClient
         :: HasCallStack
         => RetryHandlers
-        -> IO ( Chan (Tip (CardanoBlock TPraosStandardCrypto))
+        -> IO ( Chan (Tip (CardanoBlock StandardCrypto))
               , TVar IO W.ProtocolParameters
-              , TMVar IO (CardanoInterpreter TPraosStandardCrypto)
+              , TMVar IO (CardanoInterpreter StandardCrypto)
               , TQueue IO (LocalTxSubmissionCmd
-                  (GenTx (CardanoBlock TPraosStandardCrypto))
-                  (CardanoApplyTxErr TPraosStandardCrypto)
+                  (GenTx (CardanoBlock StandardCrypto))
+                  (CardanoApplyTxErr StandardCrypto)
                   IO)
               )
     connectNodeTipClient handlers = do
@@ -374,7 +371,7 @@ withNetworkLayer tr np addrInfo versionData action = do
         :: HasCallStack
         => RetryHandlers
         -> IO (TQueue IO
-                (LocalStateQueryCmd (CardanoBlock TPraosStandardCrypto) IO))
+                (LocalStateQueryCmd (CardanoBlock StandardCrypto) IO))
     connectDelegationRewardsClient handlers = do
         cmdQ <- atomically newTQueue
         let cl = mkDelegationRewardsClient tr cfg cmdQ
@@ -529,11 +526,11 @@ type NetworkClient m = OuroborosApplication
 -- | Construct a network client with the given communication channel, for the
 -- purposes of syncing blocks to a single wallet.
 mkWalletClient
-    :: (MonadThrow m, MonadST m, MonadTimer m, MonadAsync m, Crypto sc, TPraosCrypto sc)
+    :: (MonadThrow m, MonadST m, MonadTimer m, MonadAsync m)
     => Tracer m (ChainSyncLog Text Text)
     -> W.GenesisParameters
         -- ^ Static blockchain parameters
-    -> TQueue m (ChainSyncCmd (CardanoBlock sc) m)
+    -> TQueue m (ChainSyncCmd (CardanoBlock StandardCrypto) m)
         -- ^ Communication channel with the ChainSync client
     -> m (NetworkClient m)
 mkWalletClient tr gp chainSyncQ = do
@@ -569,11 +566,11 @@ mkWalletClient tr gp chainSyncQ = do
 -- | Construct a network client with the given communication channel, for the
 -- purposes of querying delegations and rewards.
 mkDelegationRewardsClient
-    :: forall sc m. (MonadThrow m, MonadST m, MonadTimer m, TPraosCrypto sc)
-    => Tracer m (NetworkLayerLog sc)
+    :: forall m. (MonadThrow m, MonadST m, MonadTimer m)
+    => Tracer m NetworkLayerLog
         -- ^ Base trace for underlying protocols
-    -> CodecConfig (CardanoBlock sc)
-    -> TQueue m (LocalStateQueryCmd (CardanoBlock sc) m)
+    -> CodecConfig (CardanoBlock StandardCrypto)
+    -> TQueue m (LocalStateQueryCmd (CardanoBlock StandardCrypto) m)
         -- ^ Communication channel with the LocalStateQuery client
     -> NetworkClient m
 mkDelegationRewardsClient tr cfg queryRewardQ =
@@ -603,26 +600,26 @@ mkDelegationRewardsClient tr cfg queryRewardQ =
 nodeToClientVersion :: NodeToClientVersion
 nodeToClientVersion = NodeToClientV_3
 
-codecVersion :: forall sc. TPraosCrypto sc => BlockNodeToClientVersion (CardanoBlock sc)
+codecVersion :: BlockNodeToClientVersion (CardanoBlock StandardCrypto)
 codecVersion = verMap ! nodeToClientVersion
-    where verMap = supportedNodeToClientVersions (Proxy @(CardanoBlock sc))
+    where verMap = supportedNodeToClientVersions (Proxy @(CardanoBlock StandardCrypto))
 
-codecConfig :: W.GenesisParameters -> CodecConfig (CardanoBlock sc)
+codecConfig :: W.GenesisParameters -> CodecConfig (CardanoBlock c)
 codecConfig gp = CardanoCodecConfig (byronCodecConfig gp) ShelleyCodecConfig
 
 -- | A group of codecs which will deserialise block data.
 codecs
-    :: forall m sc. (MonadST m, TPraosCrypto sc)
-    => CodecConfig (CardanoBlock sc)
-    -> ClientCodecs (CardanoBlock sc) m
+    :: MonadST m
+    => CodecConfig (CardanoBlock StandardCrypto)
+    -> ClientCodecs (CardanoBlock StandardCrypto) m
 codecs cfg = clientCodecs cfg codecVersion
 
 -- | A group of codecs which won't deserialise block data. Often only the block
 -- headers are needed. It's more efficient and easier not to deserialise.
 serialisedCodecs
-    :: forall m sc. (MonadST m, TPraosCrypto sc)
-    => CodecConfig (CardanoBlock sc)
-    -> DefaultCodecs (CardanoBlock sc) m
+    :: MonadST m
+    => CodecConfig (CardanoBlock StandardCrypto)
+    -> DefaultCodecs (CardanoBlock StandardCrypto) m
 serialisedCodecs cfg = defaultCodecs cfg codecVersion
 
 {-------------------------------------------------------------------------------
@@ -639,22 +636,22 @@ type CardanoInterpreter sc = Interpreter (CardanoEras sc)
 --  * Tracking the latest protocol parameters state.
 --  * Querying the history interpreter as necessary.
 mkTipSyncClient
-    :: forall sc m. (HasCallStack, MonadIO m, MonadThrow m, MonadST m, MonadTimer m, TPraosCrypto sc)
-    => Tracer m (NetworkLayerLog sc)
+    :: forall m. (HasCallStack, MonadIO m, MonadThrow m, MonadST m, MonadTimer m)
+    => Tracer m NetworkLayerLog
         -- ^ Base trace for underlying protocols
     -> W.NetworkParameters
         -- ^ Initial blockchain parameters
     -> TQueue m
         (LocalTxSubmissionCmd
-            (GenTx (CardanoBlock sc))
-            (CardanoApplyTxErr sc)
+            (GenTx (CardanoBlock StandardCrypto))
+            (CardanoApplyTxErr StandardCrypto)
             m)
         -- ^ Communication channel with the LocalTxSubmission client
-    -> (Tip (CardanoBlock sc) -> m ())
+    -> (Tip (CardanoBlock StandardCrypto) -> m ())
         -- ^ Notifier callback for when tip changes
     -> (W.ProtocolParameters -> m ())
         -- ^ Notifier callback for when parameters for tip change.
-    -> (CardanoInterpreter sc -> m ())
+    -> (CardanoInterpreter StandardCrypto -> m ())
         -- ^ Notifier callback for when time interpreter is updated.
     -> m (NetworkClient m)
 mkTipSyncClient tr np localTxSubmissionQ onTipUpdate onPParamsUpdate onInterpreterUpdate = do
@@ -667,7 +664,7 @@ mkTipSyncClient tr np localTxSubmissionQ onTipUpdate onPParamsUpdate onInterpret
 
     let
         queryLocalState
-            :: Point (CardanoBlock sc)
+            :: Point (CardanoBlock StandardCrypto)
             -> m ()
         queryLocalState pt = do
             mb <- timeQryAndLog "GetEraStart" tr $ localStateQueryQ `send`
@@ -697,7 +694,7 @@ mkTipSyncClient tr np localTxSubmissionQ onTipUpdate onPParamsUpdate onInterpret
         handleParamsUpdate
             :: (Maybe Bound -> p -> W.ProtocolParameters)
             -> (Maybe Bound)
-            -> (Either (MismatchEraInfo (CardanoEras sc)) p)
+            -> (Either (MismatchEraInfo (CardanoEras StandardCrypto)) p)
             -> m ()
         handleParamsUpdate convert boundM = \case
             Right ls -> do
@@ -706,7 +703,7 @@ mkTipSyncClient tr np localTxSubmissionQ onTipUpdate onPParamsUpdate onInterpret
                 traceWith tr $ MsgLocalStateQueryEraMismatch mismatch
 
         queryInterpreter
-            :: Point (CardanoBlock sc)
+            :: Point (CardanoBlock StandardCrypto)
             -> m ()
         queryInterpreter pt = do
             res <- localStateQueryQ `send` CmdQueryLocalState pt (QueryHardFork GetInterpreter)
@@ -722,7 +719,7 @@ mkTipSyncClient tr np localTxSubmissionQ onTipUpdate onPParamsUpdate onInterpret
              } = W.genesisParameters np
         cfg = codecConfig gp
 
-    onTipUpdate' <- debounce @(Tip (CardanoBlock sc)) @m $ \tip' -> do
+    onTipUpdate' <- debounce @(Tip (CardanoBlock StandardCrypto)) @m $ \tip' -> do
         let tip = castTip tip'
         traceWith tr $ MsgNodeTip $
             fromTip getGenesisBlockHash tip
@@ -780,19 +777,19 @@ data Observer m key value = Observer
     }
 
 newRewardBalanceFetcher
-    :: forall sc. Tracer IO (NetworkLayerLog sc)
+    :: Tracer IO NetworkLayerLog
     -> W.GenesisParameters
     -- ^ Used to convert tips for logging
-    -> TQueue IO (LocalStateQueryCmd (CardanoBlock sc) IO)
+    -> TQueue IO (LocalStateQueryCmd (CardanoBlock StandardCrypto) IO)
     -> IO ( Observer IO W.ChimericAccount W.Coin
-          , Tip (CardanoBlock sc) -> IO ()
+          , Tip (CardanoBlock StandardCrypto) -> IO ()
             -- Call on tip-change to refresh
           )
 newRewardBalanceFetcher tr gp queryRewardQ =
     newObserver (contramap MsgObserverLog tr) fetch
   where
     fetch
-        :: Tip (CardanoBlock sc)
+        :: Tip (CardanoBlock StandardCrypto)
         -> Set W.ChimericAccount
         -> IO (Maybe (Map W.ChimericAccount W.Coin))
     fetch tip accounts = do
@@ -932,7 +929,7 @@ timeQryAndLog
     :: MonadIO m
     => String
     -- ^ Label to identify the query
-    -> Tracer m (NetworkLayerLog sc)
+    -> Tracer m NetworkLayerLog
     -- ^ Tracer to which the measurement will be logged
     -> m a
     -- ^ The action that submits the query.
@@ -957,7 +954,7 @@ doNothingProtocol =
 --
 -- >>> connectClient (mkWalletClient tr gp queue) mainnetVersionData addrInfo
 connectClient
-    :: Tracer IO (NetworkLayerLog sc)
+    :: Tracer IO NetworkLayerLog
     -> RetryHandlers
     -> NetworkClient IO
     -> (NodeToClientVersionData, CodecCBORTerm Text NodeToClientVersionData)
@@ -983,7 +980,7 @@ connectClient tr handlers client (vData, vCodec) addr = withIOManager $ \iocp ->
 type RetryHandlers = [RetryStatus -> Handler IO Bool]
 
 -- | Handlers that are retrying on every connection lost.
-retryOnConnectionLost :: Tracer IO (NetworkLayerLog sc) -> RetryHandlers
+retryOnConnectionLost :: Tracer IO NetworkLayerLog -> RetryHandlers
 retryOnConnectionLost tr =
     [ const $ Handler $ handleIOException tr' True
     , const $ Handler $ handleMuxError tr' True
@@ -992,7 +989,7 @@ retryOnConnectionLost tr =
     tr' = contramap MsgConnectionLost tr
 
 -- | Handlers that are failing if the connection is lost
-failOnConnectionLost :: Tracer IO (NetworkLayerLog sc) -> RetryHandlers
+failOnConnectionLost :: Tracer IO NetworkLayerLog -> RetryHandlers
 failOnConnectionLost tr =
     [ const $ Handler $ handleIOException tr' False
     , const $ Handler $ handleMuxError tr' False
@@ -1054,51 +1051,51 @@ handleMuxError tr onResourceVanished = pure . errorType >=> \case
                                     Logging
 -------------------------------------------------------------------------------}
 
-data NetworkLayerLog sc where
-    MsgCouldntConnect :: Int -> NetworkLayerLog sc
-    MsgConnectionLost :: Maybe IOException -> NetworkLayerLog sc
+data NetworkLayerLog where
+    MsgCouldntConnect :: Int -> NetworkLayerLog
+    MsgConnectionLost :: Maybe IOException -> NetworkLayerLog
     MsgTxSubmission
         :: (TraceSendRecv
-            (LocalTxSubmission (GenTx (CardanoBlock sc)) (CardanoApplyTxErr sc)))
-        -> NetworkLayerLog sc
+            (LocalTxSubmission (GenTx (CardanoBlock StandardCrypto)) (CardanoApplyTxErr StandardCrypto)))
+        -> NetworkLayerLog
     MsgLocalStateQuery
         :: QueryClientName
         -> (TraceSendRecv
-            (LocalStateQuery (CardanoBlock sc) (Query (CardanoBlock sc))))
-        -> NetworkLayerLog sc
+            (LocalStateQuery (CardanoBlock StandardCrypto) (Query (CardanoBlock StandardCrypto))))
+        -> NetworkLayerLog
     MsgHandshakeTracer ::
-      (WithMuxBearer (ConnectionId LocalAddress) HandshakeTrace) -> NetworkLayerLog sc
-    MsgFindIntersection :: [W.BlockHeader] -> NetworkLayerLog sc
-    MsgIntersectionFound :: (W.Hash "BlockHeader") -> NetworkLayerLog sc
-    MsgFindIntersectionTimeout :: NetworkLayerLog sc
-    MsgPostTx :: CardanoGenTx sc -> NetworkLayerLog sc
-    MsgPostSealedTx :: W.SealedTx -> NetworkLayerLog sc
-    MsgNodeTip :: W.BlockHeader -> NetworkLayerLog sc
-    MsgProtocolParameters :: W.ProtocolParameters -> NetworkLayerLog sc
-    MsgLocalStateQueryError :: QueryClientName -> String -> NetworkLayerLog sc
-    MsgLocalStateQueryEraMismatch :: MismatchEraInfo (CardanoEras sc) -> NetworkLayerLog sc
+      (WithMuxBearer (ConnectionId LocalAddress) HandshakeTrace) -> NetworkLayerLog
+    MsgFindIntersection :: [W.BlockHeader] -> NetworkLayerLog
+    MsgIntersectionFound :: (W.Hash "BlockHeader") -> NetworkLayerLog
+    MsgFindIntersectionTimeout :: NetworkLayerLog
+    MsgPostTx :: CardanoGenTx StandardCrypto -> NetworkLayerLog
+    MsgPostSealedTx :: W.SealedTx -> NetworkLayerLog
+    MsgNodeTip :: W.BlockHeader -> NetworkLayerLog
+    MsgProtocolParameters :: W.ProtocolParameters -> NetworkLayerLog
+    MsgLocalStateQueryError :: QueryClientName -> String -> NetworkLayerLog
+    MsgLocalStateQueryEraMismatch :: MismatchEraInfo (CardanoEras StandardCrypto) -> NetworkLayerLog
     MsgGetRewardAccountBalance
         :: W.BlockHeader
         -> Set W.ChimericAccount
-        -> NetworkLayerLog sc
+        -> NetworkLayerLog
     MsgAccountDelegationAndRewards
-        :: (Map (SL.Credential 'SL.Staking sc) (SL.KeyHash 'SL.StakePool sc))
-        -> SL.RewardAccounts sc
-        -> NetworkLayerLog sc
-    MsgDestroyCursor :: ThreadId -> NetworkLayerLog sc
-    MsgWillQueryRewardsForStake :: W.Coin -> NetworkLayerLog sc
-    MsgFetchedNodePoolLsqData :: Maybe NodePoolLsqData -> NetworkLayerLog sc
-    MsgFetchedNodePoolLsqDataSummary :: Int -> Int -> NetworkLayerLog sc
+        :: (Map (SL.Credential 'SL.Staking (SL.Shelley StandardCrypto)) (SL.KeyHash 'SL.StakePool (SL.Shelley StandardCrypto)))
+        -> SL.RewardAccounts (SL.Shelley StandardCrypto)
+        -> NetworkLayerLog
+    MsgDestroyCursor :: ThreadId -> NetworkLayerLog
+    MsgWillQueryRewardsForStake :: W.Coin -> NetworkLayerLog
+    MsgFetchedNodePoolLsqData :: Maybe NodePoolLsqData -> NetworkLayerLog
+    MsgFetchedNodePoolLsqDataSummary :: Int -> Int -> NetworkLayerLog
       -- ^ Number of pools in stake distribution, and rewards map,
       -- respectively.
-    MsgWatcherUpdate :: W.BlockHeader -> BracketLog -> NetworkLayerLog sc
-    MsgChainSyncCmd :: (ChainSyncLog Text Text) -> NetworkLayerLog sc
-    MsgInterpreter :: CardanoInterpreter sc -> NetworkLayerLog sc
-    MsgInterpreterPastHorizon :: PastHorizonException -> NetworkLayerLog sc
-    MsgQueryTime :: String -> NominalDiffTime -> NetworkLayerLog sc
+    MsgWatcherUpdate :: W.BlockHeader -> BracketLog -> NetworkLayerLog
+    MsgChainSyncCmd :: (ChainSyncLog Text Text) -> NetworkLayerLog
+    MsgInterpreter :: CardanoInterpreter StandardCrypto -> NetworkLayerLog
+    MsgInterpreterPastHorizon :: PastHorizonException -> NetworkLayerLog
+    MsgQueryTime :: String -> NominalDiffTime -> NetworkLayerLog
     MsgObserverLog
         :: ObserverLog W.ChimericAccount W.Coin
-        -> NetworkLayerLog sc
+        -> NetworkLayerLog
 
 data QueryClientName
     = TipSyncClient
@@ -1107,7 +1104,7 @@ data QueryClientName
 
 type HandshakeTrace = TraceSendRecv (Handshake NodeToClientVersion CBOR.Term)
 
-instance TPraosCrypto sc => ToText (NetworkLayerLog sc) where
+instance ToText NetworkLayerLog where
     toText = \case
         MsgCouldntConnect n -> T.unwords
             [ "Couldn't connect to node (x" <> toText (n + 1) <> ")."
@@ -1116,7 +1113,7 @@ instance TPraosCrypto sc => ToText (NetworkLayerLog sc) where
         MsgConnectionLost Nothing  ->
             "Connection lost with the node."
         MsgConnectionLost (Just e) -> T.unwords
-            [ toText @(NetworkLayerLog sc) (MsgConnectionLost Nothing)
+            [ toText (MsgConnectionLost Nothing)
             , T.pack (show e)
             ]
         MsgTxSubmission msg ->
@@ -1196,8 +1193,8 @@ instance TPraosCrypto sc => ToText (NetworkLayerLog sc) where
 
         MsgObserverLog msg -> toText msg
 
-instance HasPrivacyAnnotation (NetworkLayerLog b)
-instance HasSeverityAnnotation (NetworkLayerLog b) where
+instance HasPrivacyAnnotation NetworkLayerLog
+instance HasSeverityAnnotation NetworkLayerLog where
     getSeverityAnnotation = \case
         MsgCouldntConnect 0                -> Debug
         MsgCouldntConnect 1                -> Notice

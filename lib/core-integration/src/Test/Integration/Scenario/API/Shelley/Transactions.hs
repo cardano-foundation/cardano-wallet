@@ -43,6 +43,7 @@ import Cardano.Wallet.Primitive.Types
     , Hash (..)
     , SortOrder (..)
     , TxMetadata (..)
+    , TxMetadataValue (..)
     , TxStatus (..)
     , WalletId
     )
@@ -144,7 +145,6 @@ import qualified Data.ByteString as BS
 import qualified Data.Map as Map
 import qualified Data.Text as T
 import qualified Network.HTTP.Types.Status as HTTP
-import qualified Shelley.Spec.Ledger.MetaData as MD
 
 data TestCase a = TestCase
     { query :: T.Text
@@ -580,10 +580,8 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
 
         basePayload <- mkTxPayload ctx wb amt fixturePassphrase
 
-        let txMeta = [json|{
-                "1": "hello"
-            }|]
-        let expected = TxMetadata (MD.MetaData (Map.singleton 1 (MD.S "hello")))
+        let txMeta = [json|{ "1": "hello" }|]
+        let expected = TxMetadata $ Map.singleton 1 $ TxMetaText "hello"
         let payload = addTxMetadata txMeta basePayload
 
         ra <- request @(ApiTransaction n) ctx
@@ -653,7 +651,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
 
         basePayload <- mkTxPayload ctx wb amt fixturePassphrase
 
-        let txMeta = Aeson.object ["1" .= T.replicate 65 "a"]
+        let txMeta = [json|{ "1": #{T.replicate 65 "a"} }|]
         let payload = addTxMetadata txMeta basePayload
 
         r <- request @(ApiTransaction n) ctx
@@ -671,8 +669,9 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         -- This will encode to at least 8k of CBOR. The max tx size for the
         -- integration tests cluster is 4k.
         let txMeta = Aeson.object
-                [ (toText @Int i, Aeson.String (T.replicate 64 "a"))
+                [ (toText @Int i, bytes)
                 | i <- [0..127] ]
+            bytes = Aeson.String ("0x" <> T.replicate 64 "a")
         let payload = addTxMetadata txMeta basePayload
 
         r <- request @(ApiTransaction n) ctx
@@ -715,7 +714,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
 
         basePayload <- mkTxPayload ctx wb amt fixturePassphrase
 
-        let txMeta = Aeson.object ["1" .= T.replicate 65 "a"]
+        let txMeta = [json|{ "1": #{T.replicate 65 "a"} }|]
         let payload = addTxMetadata txMeta basePayload
 
         r <- request @ApiFee ctx
@@ -733,8 +732,9 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         -- This will encode to at least 8k of CBOR. The max tx size for the
         -- integration tests cluster is 4k.
         let txMeta = Aeson.object
-                [ (toText @Int i, Aeson.String (T.replicate 64 "a"))
+                [ (toText @Int i, bytes)
                 | i <- [0..127] ]
+            bytes = Aeson.String ("0x" <> T.replicate 64 "a")
         let payload = addTxMetadata txMeta basePayload
         print payload
         r <- request @ApiFee ctx

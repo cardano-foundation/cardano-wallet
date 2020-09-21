@@ -50,6 +50,7 @@ import Cardano.Wallet.Primitive.Types
     , Hash (..)
     , TxIn (..)
     , TxMetadata (..)
+    , TxMetadataValue (..)
     , TxOut (..)
     , TxParameters (..)
     , UTxO (..)
@@ -116,7 +117,6 @@ import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
-import qualified Shelley.Spec.Ledger.MetaData as MD
 
 spec :: Spec
 spec = do
@@ -379,11 +379,13 @@ instance Arbitrary TxOut where
         TxOut addr <$> arbitrary
 
 instance Arbitrary TxMetadata where
-    arbitrary = TxMetadata . MD.MetaData <$> arbitrary
-    shrink (TxMetadata (MD.MetaData md)) = TxMetadata . MD.MetaData <$> shrink md
+    arbitrary = TxMetadata <$> arbitrary
+    shrink (TxMetadata md) = TxMetadata <$> shrink md
 
-instance Arbitrary MD.MetaDatum where
-    arbitrary = MD.I <$> arbitrary
+instance Arbitrary TxMetadataValue where
+    -- Note: test generation at the integration level is very simple. More
+    -- detailed metadata tests are done at unit level.
+    arbitrary = TxMetaNumber <$> arbitrary
 
 instance Arbitrary UTxO where
     arbitrary = do

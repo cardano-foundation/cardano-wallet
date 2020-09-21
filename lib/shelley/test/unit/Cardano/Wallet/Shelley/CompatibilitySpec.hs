@@ -19,6 +19,8 @@ import Cardano.Address.Derivation
     ( XPrv, XPub )
 import Cardano.Crypto.Hash.Class
     ( digest )
+import Cardano.Ledger.Crypto
+    ( Crypto (..) )
 import Cardano.Mnemonic
     ( ConsistentEntropy
     , EntropySize
@@ -51,7 +53,7 @@ import Cardano.Wallet.Primitive.Types
     )
 import Cardano.Wallet.Shelley.Compatibility
     ( CardanoBlock
-    , TPraosStandardCrypto
+    , StandardCrypto
     , decentralizationLevelFromPParams
     , fromTip
     , interval0
@@ -86,8 +88,6 @@ import Data.Word
     ( Word64 )
 import GHC.TypeLits
     ( natVal )
-import Ouroboros.Consensus.Shelley.Protocol.Crypto
-    ( Crypto (..) )
 import Ouroboros.Network.Block
     ( BlockNo (..), Point, SlotNo (..), Tip (..), getTipPoint )
 import Test.Hspec
@@ -110,6 +110,7 @@ import Test.QuickCheck
     , (===)
     )
 
+import qualified Cardano.Ledger.Shelley as SL
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Byron as Byron
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Shelley
 import qualified Cardano.Wallet.Primitive.Types as W
@@ -125,7 +126,7 @@ spec = do
     describe "Conversions" $
         it "toPoint' . fromTip' == getTipPoint" $ property $ \gh tip -> do
             let fromTip' = fromTip gh
-            let toPoint' = toPoint gh :: W.BlockHeader -> Point (CardanoBlock TPraosStandardCrypto)
+            let toPoint' = toPoint gh :: W.BlockHeader -> Point (CardanoBlock StandardCrypto)
             toPoint' (fromTip' tip) === (getTipPoint tip)
 
     describe "Shelley StakeAddress" $ do
@@ -142,7 +143,7 @@ spec = do
     describe "Shelley Addresses" $ do
         prop "(Mainnet) can be deserialised by shelley ledger spec" $ \k -> do
             let Address addr = paymentAddress @'Mainnet @ShelleyKey k
-            case SL.deserialiseAddr @TPraosStandardCrypto addr of
+            case SL.deserialiseAddr @(SL.Shelley StandardCrypto) addr of
                 Just _ -> property True
                 Nothing -> property False
 
@@ -170,7 +171,7 @@ spec = do
 
     describe "decentralizationLevelFromPParams" $ do
 
-        let mkDecentralizationParam :: SL.UnitInterval -> SL.PParams
+        let mkDecentralizationParam :: SL.UnitInterval -> SL.PParams (SL.Shelley c)
             mkDecentralizationParam i = SL.emptyPParams { SL._d = i }
 
         let testCases :: [(Ratio Word64, Text)]
@@ -234,7 +235,7 @@ instance Arbitrary (Hash "BlockHeader") where
 instance Arbitrary ChimericAccount where
     arbitrary = ChimericAccount . BS.pack <$> vector 28
 
-instance Arbitrary (Tip (CardanoBlock TPraosStandardCrypto)) where
+instance Arbitrary (Tip (CardanoBlock StandardCrypto)) where
     arbitrary = frequency
         [ (10, return TipGenesis)
         , (90, arbitraryTip)
@@ -244,7 +245,7 @@ instance Arbitrary (Tip (CardanoBlock TPraosStandardCrypto)) where
             n <- choose (0, 100)
             hash <- toCardanoHash
                 . Hash
-                . digest (Proxy @(HASH TPraosStandardCrypto))
+                . digest (Proxy @(HASH StandardCrypto))
                 . BS.pack <$> vector 5
             return $ Tip (SlotNo n) hash (BlockNo n)
 

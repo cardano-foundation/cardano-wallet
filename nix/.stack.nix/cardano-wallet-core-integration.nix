@@ -65,7 +65,6 @@
           (hsPkgs."retry" or (errorHandler.buildDepError "retry"))
           (hsPkgs."say" or (errorHandler.buildDepError "say"))
           (hsPkgs."scrypt" or (errorHandler.buildDepError "scrypt"))
-          (hsPkgs."shelley-spec-ledger" or (errorHandler.buildDepError "shelley-spec-ledger"))
           (hsPkgs."stm" or (errorHandler.buildDepError "stm"))
           (hsPkgs."template-haskell" or (errorHandler.buildDepError "template-haskell"))
           (hsPkgs."temporary" or (errorHandler.buildDepError "temporary"))

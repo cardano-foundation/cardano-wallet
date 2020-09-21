@@ -584,7 +584,7 @@ x-transactionMetadata: &transactionMetadata
   type: object
   nullable: true
   additionalProperties:
-    $ref: "#/components/schemas/TransactionMetadatum"
+    $ref: "#/components/schemas/TransactionMetadataValue"
   # Note: propertyNames pattern not supported in current OpenAPI version.
   # propertyNames:
   #   pattern: '^[0-9]+$'
@@ -1398,18 +1398,18 @@ components:
         passphrase: *lenientPassphrase
         address_index: *addressIndex
 
-    TransactionMetadatum: &TransactionMetadatum
+    TransactionMetadataValue: &TransactionMetadataValue
       oneOf:
         - type: string
         - type: number
         - title: list
           type: array
           items:
-            $ref: "#/components/schemas/TransactionMetadatum"
+            $ref: "#/components/schemas/TransactionMetadataValue"
         - title: map
           type: object
           additionalProperties:
-            $ref: "#/components/schemas/TransactionMetadatum"
+            $ref: "#/components/schemas/TransactionMetadataValue"
 
 #############################################################################
 #                                                                           #

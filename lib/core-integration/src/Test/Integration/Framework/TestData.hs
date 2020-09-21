@@ -346,7 +346,7 @@ errMsg400WronglyEncodedTxPayload =
 
 errMsg400TxMetadataStringTooLong :: String
 errMsg400TxMetadataStringTooLong =
-    "Error in $.metadata: JSON string or bytestring is longer than 64 bytes"
+    "Text string metadata value must consist of at most 64 UTF8 bytes"
 
 errMsg400TxTooLarge :: String
 errMsg400TxTooLarge =

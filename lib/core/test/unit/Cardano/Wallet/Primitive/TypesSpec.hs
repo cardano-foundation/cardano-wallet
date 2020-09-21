@@ -81,6 +81,7 @@ import Cardano.Wallet.Primitive.Types
     , TxIn (..)
     , TxMeta (..)
     , TxMetadata (..)
+    , TxMetadataValue (..)
     , TxOut (..)
     , TxStatus (..)
     , UTxO (..)
@@ -204,7 +205,6 @@ import qualified Data.Map
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
-import qualified Shelley.Spec.Ledger.MetaData as MD
 
 spec :: Spec
 spec = do
@@ -266,14 +266,14 @@ spec = do
             "+13.371442 in ledger since 140#1" === pretty @_ @Text txMeta
 
         it "TxMetadata" $ do
-            let md = TxMetadata $ MD.MetaData $ Data.Map.fromList
-                    [ (1, MD.I 1)
-                    , (2, MD.S "cześć")
-                    , (3, MD.B (BS.pack [222,173,190,239]))
-                    , (10, MD.List [ MD.S "a", MD.I 65 ])
-                    , (20, MD.Map
-                        [ ( MD.S "key", MD.List [MD.S "v0", MD.S "v1"] )
-                        , ( MD.I 0, MD.S "value" ) ])
+            let md = TxMetadata $ Data.Map.fromList
+                    [ (1, TxMetaNumber 1)
+                    , (2, TxMetaText "cześć")
+                    , (3, TxMetaBytes (BS.pack [222,173,190,239]))
+                    , (10, TxMetaList [ TxMetaText "a", TxMetaNumber 65 ])
+                    , (20, TxMetaMap
+                        [ ( TxMetaText "key", TxMetaList [TxMetaText "v0", TxMetaText "v1"] )
+                        , ( TxMetaNumber 0, TxMetaText "value" ) ])
                     ]
             pretty md `shouldBe` unlines
                 [ "element 1: 1"

@@ -90,7 +90,7 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Shelley
     ( SomeNetworkDiscriminant (..) )
 import Cardano.Wallet.Shelley.Compatibility
-    ( NodeVersionData )
+    ( NodeVersionData, StandardShelley )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex, unsafeRunExceptT )
 import Control.Arrow
@@ -151,8 +151,6 @@ import Options.Applicative
     ( Parser, flag', help, long, metavar, (<|>) )
 import Ouroboros.Consensus.Shelley.Node
     ( sgNetworkMagic )
-import Ouroboros.Consensus.Shelley.Protocol
-    ( TPraosStandardCrypto )
 import Ouroboros.Network.Magic
     ( NetworkMagic (..) )
 import Ouroboros.Network.NodeToClient
@@ -824,7 +822,7 @@ genConfig dir severity systemStart = do
     ----
     -- Parameters
     shelleyGenesis <- Yaml.decodeFileThrow
-        @_ @(ShelleyGenesis TPraosStandardCrypto) shelleyGenesisFile
+        @_ @(ShelleyGenesis StandardShelley) shelleyGenesisFile
     let networkMagic = sgNetworkMagic shelleyGenesis
     let shelleyParams = fst $ Shelley.fromGenesisData shelleyGenesis []
     let versionData =

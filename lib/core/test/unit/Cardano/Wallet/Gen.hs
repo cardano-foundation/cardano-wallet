@@ -27,9 +27,11 @@ import Prelude
 import Cardano.Address.Derivation
     ( xpubFromBytes )
 import Cardano.Api.MetaData
-    ( jsonToMetadata )
-import Cardano.Api.Typed
-    ( TxMetadata (..) )
+    ( TxMetadata (..)
+    , TxMetadataJsonSchema (..)
+    , TxMetadataValue (..)
+    , metadataFromJson
+    )
 import Cardano.Mnemonic
     ( ConsistentEntropy, EntropySize, Mnemonic, entropyToMnemonic )
 import Cardano.Wallet.Primitive.Types
@@ -62,8 +64,6 @@ import Data.Word
     ( Word, Word32 )
 import GHC.TypeLits
     ( natVal )
-import Shelley.Spec.Ledger.MetaData
-    ( MetaData, MetaDatum )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
@@ -91,7 +91,6 @@ import qualified Data.HashMap.Strict as HM
 import qualified Data.Map as Map
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
-import qualified Shelley.Spec.Ledger.MetaData as MD
 
 -- | Generates an arbitrary mnemonic of a size according to the type parameter.
 --
@@ -214,28 +213,25 @@ genTxMetadata = do
     d <- scale (`mod` maxBreadth) $ listOf1 (sizedMetadataValue maxDepth)
     i <- vectorOf @Word (length d) arbitrary
     let json = toJSON $ HM.fromList $ zip i d
-    case jsonToMetadata json of
+    case metadataFromJson TxMetadataJsonNoSchema json of
         Left e -> fail $ show e <> ": " <> show (Aeson.encode json)
         Right metadata -> pure metadata
 
 shrinkTxMetadata :: TxMetadata -> [TxMetadata]
-shrinkTxMetadata (TxMetadata m) = TxMetadata <$> shrinkMetaData m
-
-shrinkMetaData :: MetaData -> [MetaData]
-shrinkMetaData (MD.MetaData m) = MD.MetaData . Map.fromList
-    <$> shrinkList shrinkMetaDataEntry (Map.toList m)
+shrinkTxMetadata (TxMetadata m) = TxMetadata . Map.fromList
+    <$> shrinkList shrinkTxMetadataEntry (Map.toList m)
   where
-    shrinkMetaDataEntry (k, v) = (k,) <$> shrinkMetaDatum v
+    shrinkTxMetadataEntry (k, v) = (k,) <$> shrinkTxMetadataValue v
 
-shrinkMetaDatum :: MetaDatum -> [MetaDatum]
-shrinkMetaDatum (MD.Map xs) =
-    MD.Map . sortOn fst . nubOn fst <$> shrinkList shrinkPair xs
+shrinkTxMetadataValue :: TxMetadataValue -> [TxMetadataValue]
+shrinkTxMetadataValue (TxMetaMap xs) =
+    TxMetaMap . sortOn fst . nubOn fst <$> shrinkList shrinkPair xs
   where
     shrinkPair (k,v) =
-        ((k,) <$> shrinkMetaDatum v) ++
-        ((,v) <$> shrinkMetaDatum k)
-shrinkMetaDatum (MD.List xs) =
-    MD.List <$> filter (not . null) (shrinkList shrinkMetaDatum xs)
-shrinkMetaDatum (MD.I i) = MD.I <$> shrink i
-shrinkMetaDatum (MD.B b) = MD.B <$> shrinkByteString b
-shrinkMetaDatum (MD.S s) = MD.S <$> shrinkText s
+        ((k,) <$> shrinkTxMetadataValue v) ++
+        ((,v) <$> shrinkTxMetadataValue k)
+shrinkTxMetadataValue (TxMetaList xs) =
+    TxMetaList <$> filter (not . null) (shrinkList shrinkTxMetadataValue xs)
+shrinkTxMetadataValue (TxMetaNumber i) = TxMetaNumber <$> shrink i
+shrinkTxMetadataValue (TxMetaBytes b) = TxMetaBytes <$> shrinkByteString b
+shrinkTxMetadataValue (TxMetaText s) = TxMetaText <$> shrinkText s
