@@ -589,11 +589,11 @@ x-transactionMetadata: &transactionMetadata
   # propertyNames:
   #   pattern: '^[0-9]+$'
   example:
-    0: "cardano"
-    1: 14
-    2: "0x2512a00e9653fe49a44a5886202e24d77eeb998f"
-    3: [14, 42, 1337]
-    4: { "key": "value", "14": 42 }
+    0: { "string": "cardano" }
+    1: { "int": 14 }
+    2: { "bytes": "2512a00e9653fe49a44a5886202e24d77eeb998f" }
+    3: { "list": [14, 42, 1337] }
+    4: { "map": [{ "k": "key", "v": "value"}, { "k": "14", "v": 42 }] }
 
 x-stakePoolApparentPerformance: &stakePoolApparentPerformance
   description: |
@@ -1400,16 +1400,57 @@ components:
 
     TransactionMetadataValue: &TransactionMetadataValue
       oneOf:
-        - type: string
-        - type: number
-        - title: list
-          type: array
-          items:
-            $ref: "#/components/schemas/TransactionMetadataValue"
-        - title: map
+        - title: String
           type: object
-          additionalProperties:
-            $ref: "#/components/schemas/TransactionMetadataValue"
+          required:
+            - string
+          properties:
+            string:
+              type: string
+              maxLength: 64
+
+        - title: Int
+          type: object
+          required:
+            - int
+          properties:
+            int:
+              type: integer
+
+        - title: ByteString
+          type: object
+          required:
+            - bytes
+          properties:
+            bytes:
+              type: string
+              pattern: "^[0-9a-fA-F]$"
+              maxLength: 128
+
+        - title: List
+          type: object
+          required:
+            - list
+          properties:
+            list:
+              type: array
+              items:
+                $ref: "#/components/schemas/TransactionMetadataValue"
+
+        - title: Map
+          type: object
+          required:
+            - map
+          properties:
+            map:
+              type: array
+              items:
+                type: object
+                properties:
+                  k:
+                    $ref: "#/components/schemas/TransactionMetadataValue"
+                  v:
+                    $ref: "#/components/schemas/TransactionMetadataValue"
 
 #############################################################################
 #                                                                           #
