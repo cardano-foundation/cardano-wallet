@@ -28,6 +28,7 @@ import Cardano.CLI
     , cmdWalletCreate
     , hGetLine
     , hGetSensitiveLine
+    , metadataOption
     , smashURLOption
     )
 import Cardano.Wallet.Api.Client
@@ -37,6 +38,10 @@ import Cardano.Wallet.Api.Client
     , transactionClient
     , walletClient
     )
+import Cardano.Wallet.Api.Types
+    ( ApiT (..), ApiTxMetadata (..) )
+import Cardano.Wallet.Primitive.Types
+    ( TxMetadata (..), TxMetadataValue (..) )
 import Control.Concurrent
     ( forkFinally )
 import Control.Concurrent.MVar
@@ -91,6 +96,7 @@ import Test.QuickCheck
 import Test.Text.Roundtrip
     ( textRoundtrip )
 
+import qualified Data.Map as Map
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
 
@@ -262,7 +268,7 @@ spec = do
 
         ["transaction", "create", "--help"] `shouldShowUsage`
             [ "Usage:  transaction create [--port INT] WALLET_ID"
-            , "                           --payment PAYMENT"
+            , "                           --payment PAYMENT [--metadata JSON]"
             , "  Create and submit a new transaction."
             , ""
             , "Available options:"
@@ -272,10 +278,15 @@ spec = do
             , "  --payment PAYMENT        address to send to and amount to send"
             , "                           separated by @, e.g."
             , "                           '<amount>@<address>'"
+            , "  --metadata JSON          Application-specific transaction"
+            , "                           metadata as a JSON object. The value"
+            , "                           must match the schema defined in the"
+            , "                           cardano-wallet OpenAPI specification."
             ]
 
         ["transaction", "fees", "--help"] `shouldShowUsage`
             [ "Usage:  transaction fees [--port INT] WALLET_ID --payment PAYMENT"
+            , "                         [--metadata JSON]"
             , "  Estimate fees for a transaction."
             , ""
             , "Available options:"
@@ -285,6 +296,10 @@ spec = do
             , "  --payment PAYMENT        address to send to and amount to send"
             , "                           separated by @, e.g."
             , "                           '<amount>@<address>'"
+            , "  --metadata JSON          Application-specific transaction"
+            , "                           metadata as a JSON object. The value"
+            , "                           must match the schema defined in the"
+            , "                           cardano-wallet OpenAPI specification."
             ]
 
         ["transaction", "list", "--help"] `shouldShowUsage`
@@ -648,6 +663,25 @@ spec = do
             , ( "https", "https://iohkdev.io", ok )
             , ( "not http(s)", "gopher://iohk.io", err )
             , ( "relative", "/home/user", err )
+            ]
+
+    describe "Tx Metadata JSON option" $ do
+        let parse arg = execParserPure defaultPrefs
+                (info metadataOption mempty) ["--metadata", arg]
+        let md = ApiT (TxMetadata (Map.singleton 42 (TxMetaText "hi")))
+        let ok ex (Success res) = ex == getApiTxMetadata res
+            ok _ _ = False
+        let err (Failure _) = True
+            err _ = False
+        mapM_
+            (\(desc, arg, tst) -> it desc (parse arg `shouldSatisfy` tst))
+            [ ("valid", "{ \"42\": { \"string\": \"hi\" } }", ok (Just md))
+            , ("malformed", "testing", err)
+            , ("malformed trailling", "{ \"0\": { \"string\": \"\" } } arstneio", err)
+            , ("invalid", "{ \"json\": true }", err)
+            , ("null 1", "{ \"0\": null }", err)
+            , ("null 2", "null", ok Nothing)
+            , ("null 3", "{ }", ok (Just (ApiT mempty)))
             ]
 
   where
