@@ -16,7 +16,7 @@ The top level is a map from metadata keys to metadata values.
 
 Simple types:
 
- * Integers in the range -(2<sup>64</sup> - 1) to 2<sup>64</sup - 1
+ * Integers in the range -(2<sup>64</sup> - 1) to 2<sup>64</sup> - 1
  * Strings (UTF-8 encoded)
  * Bytestrings
 
@@ -31,7 +31,7 @@ Note that lists and maps need not necessarily contain the type of metadata value
 
  - Strings may be at most 64 bytes long when UTF-8 encoded.
  - Unencoded bytestrings may be at most 64 bytes long.
- - There are no limits to the number of metadata values, apart from the protocol limits for transaction size.
+ - There are no limits to the number of metadata values, apart from the protocol limit on transaction size.
 
 ### Examples
 
@@ -60,8 +60,6 @@ Available options:
                            the cardano-wallet OpenAPI specification.
 ```
 
-
-> `cardano-wallet transaction create [--port=INT] WALLET_ID [--metadata=JSON] --payment=PAYMENT...`
 
 ### References
 
