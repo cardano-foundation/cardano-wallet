@@ -569,17 +569,33 @@ x-transactionMetadata: &transactionMetadata
 
     1. All top-level keys must be integers between `0` and `2^64 - 1`.
 
-    2. Strings must be at most 64 characters
+    2. Each metadata value is tagged with its type.
 
-    3. Bytestrings may be encoded as hex-encoded strings prefix with `0x`
+    3. Strings must be at most 64 bytes when UTF-8 encoded.
 
-    Metadata aren't stored as JSON on the Cardano blockchain but stored using
-    another structured encoding called CBOR which is better suited for binary
-    encoding. JSON can be fully expressed in CBOR but the reciprocal isn't
-    true. So, in order to leverage some of the CBOR optimization, we rely on
-    conventions from JSON. In particular, strings starting with `0x` and that
-    are otherwise encoded as base16 will be decoded and stored as plain byte
-    strings on-chain (saving space and therefore, lowering fees).
+    4. Bytestrings are hex-encoded, with a maximum length of 64 bytes.
+
+    Metadata aren't stored as JSON on the Cardano blockchain but are
+    instead stored using a compact binary encoding (CBOR).
+
+    The binary encoding of metadata values supports three simple types:
+
+    * Integers in the range `-2^32` to `2^32 - 1`.
+    * Strings (UTF-8 encoded)
+    * Bytestrings
+
+    And two compound types:
+
+    * Lists of metadata values
+    * Mappings from metadata values to metadata values
+
+    It is possible to transform any JSON object into this schema.
+
+    However, if your application uses floating point values, they will
+    need to be converted somehow, according to your
+    requirements. Likewise for `null` or `bool` values. When reading
+    metadata from chain, be aware that integers may exceed the
+    javascript numeric range, and may need special "bigint" parsing.
 
   type: object
   nullable: true
