@@ -67,7 +67,7 @@ spec = describe "COMMON_NETWORK" $ do
             (epochStartTime <$> nextEpoch i) .> Just now
             verify r
                 [ expectField (#syncProgress . #getApiT) (`shouldBe` Ready)
-                , expectField (#nodeTip . #slot . #getApiT) (`shouldNotBe` 0)
+                , expectField (#nodeTip . #absoluteSlotNumber . #getApiT) (`shouldNotBe` 0)
                 ]
 
             let Just currentEpochNum = getApiT . (view #epochNumber) <$> (i ^. #networkTip)
@@ -91,7 +91,7 @@ spec = describe "COMMON_NETWORK" $ do
                 let blockHeight =
                         getFromResponse (#nodeTip . #height) sync
                 let absSlot =
-                        getFromResponse (#nodeTip . #slot) sync
+                        getFromResponse (#nodeTip . #absoluteSlotNumber) sync
 
                 res <- request @ApiByronWallet ctx
                     (Link.getWallet @'Byron w) Default Empty
@@ -100,7 +100,7 @@ spec = describe "COMMON_NETWORK" $ do
                     , expectField (#tip . #epochNumber . #getApiT) (`shouldBe` epochNum)
                     , expectField (#tip . #slotNumber  . #getApiT) (`shouldBe` slotNum)
                     , expectField (#tip . #height) (`shouldBe` blockHeight)
-                    , expectField (#tip . #slot) (`shouldBe` absSlot)
+                    , expectField (#tip . #absoluteSlotNumber) (`shouldBe` absSlot)
                     ]
 
     it "NETWORK_CLOCK - Can query network clock" $ \ctx -> do

@@ -1831,7 +1831,7 @@ mkApiTransaction ti txid ins outs ws (meta, timestamp) txMeta setTimeReference =
                     { epochNumber = ApiT $ slotId ^. #epochNumber
                     , slotNumber = ApiT $ slotId ^. #slotNumber
                     , height = natural (meta ^. #blockHeight)
-                    , slot = ApiT $ meta ^. #slotNo
+                    , absoluteSlotNumber = ApiT $ meta ^. #slotNo
                     }
 
     toAddressAmount :: TxOut -> AddressAmount (ApiT Address, Proxy n)
@@ -1871,7 +1871,7 @@ mkApiBlockReference ti tip = do
         { epochNumber = ApiT $ slotId ^. #epochNumber
         , slotNumber = ApiT $ slotId ^. #slotNumber
         , height = natural $ tip ^. #blockHeight
-        , slot = ApiT $ slotNo tip
+        , absoluteSlotNumber = ApiT $ slotNo tip
         }
 
 getWalletTip

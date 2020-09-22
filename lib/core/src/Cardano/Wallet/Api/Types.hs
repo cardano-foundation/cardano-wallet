@@ -615,13 +615,13 @@ data ApiBlockReference = ApiBlockReference
     { epochNumber :: !(ApiT EpochNo)
     , slotNumber :: !(ApiT SlotInEpoch)
     , height :: !(Quantity "block" Natural)
-    , slot :: !(ApiT SlotNo)
+    , absoluteSlotNumber :: !(ApiT SlotNo)
     } deriving (Eq, Generic, Show)
 
 data ApiNetworkTip = ApiNetworkTip
     { epochNumber :: !(ApiT EpochNo)
     , slotNumber :: !(ApiT SlotInEpoch)
-    , slot :: !(ApiT SlotNo)
+    , absoluteSlotNumber :: !(ApiT SlotNo)
     } deriving (Eq, Generic, Show)
 
 data ApiNetworkInformation = ApiNetworkInformation

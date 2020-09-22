@@ -777,7 +777,7 @@ spec = do
                     { slotNumber = slotNumber (x :: ApiBlockReference)
                     , epochNumber = epochNumber (x :: ApiBlockReference)
                     , height = height (x :: ApiBlockReference)
-                    , slot = slot (x :: ApiBlockReference)
+                    , absoluteSlotNumber = absoluteSlotNumber (x :: ApiBlockReference)
                     }
             in
                 x' === x .&&. show x' === show x
@@ -786,7 +786,7 @@ spec = do
                 x' = ApiNetworkTip
                     { slotNumber = slotNumber (x :: ApiNetworkTip)
                     , epochNumber = epochNumber (x :: ApiNetworkTip)
-                    , slot = slot (x :: ApiNetworkTip)
+                    , absoluteSlotNumber = absoluteSlotNumber (x :: ApiNetworkTip)
                     }
             in
                 x' === x .&&. show x' === show x
