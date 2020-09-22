@@ -11,15 +11,32 @@ libraries for the build to succeed.
 
 # Cabal 
 
-Download [Cabal](https://www.haskell.org/cabal/download.html) to build this project. 
+Download [Cabal](https://www.haskell.org/cabal/download.html) to build this project. Currently recommended version: 3.2.0.0
 
+1. Update your `cabal` index (this may take a while):
 
-1. Run [stack2cabal](http://hackage.haskell.org/package/stack2cabal)
-2. Disable tests and benchmarks of local packages
+   ```console
+   cabal update
+   ```
+
+2. Install `stack2cabal`
+
+   ```console
+   cabal install --install-method=copy --overwrite-policy=always stack2cabal
+   ```
+
+3. Run `stack2cabal` to convert the dependency list from `stack` into a suitable format for `cabal`. 
+
+   ```console
+   stack2cabal stack.yaml
+   ```
+ 
+4. Disable tests and benchmarks of local packages
    (those specified via source-repository-package...
    this won't be needed with cabal-3.4 anymore, because it won't treat
    them as local anymore)
-3. Hackage packages in `packages` in `cardano-1.19.x.yaml` or `extra-deps`
+
+5. Hackage packages in `packages` in `cardano-1.19.x.yaml` or `extra-deps`
    in `stack.yaml`, which are specified as git repositories might
    have different versions than the stack resolver. `stack2cabal`
    cannot pick these up, so these must be adjusted manually (or deleted) in
