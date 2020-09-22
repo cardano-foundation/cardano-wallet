@@ -1668,22 +1668,7 @@ instance PersistState (Rnd.RndState t) where
         pendingAddresses <- lift $ selectRndStatePending wid
         pure $ Rnd.RndState
             { hdPassphrase = pwd
-            , accountIndex =
-                -- FIXME
-                -- In the early days when Daedalus Flight was shipped, the
-                -- wallet backend was generating addresses indexes across the
-                -- whole domain which was causing a great deal of issues with
-                -- the legacy cardano-sl:wallet ...
-                --
-                -- We later changed that to instead use "hardened indexes". Yet,
-                -- for the few wallets which were already created, we revert
-                -- this dynamically by replacing the index here.
-                --
-                -- This ugly hack could / should be removed eventually, in a few
-                -- releases from 2020-04-06.
-                if ix == 0
-                then minBound
-                else W.Index ix
+            , accountIndex = W.Index ix
             , addresses = addresses
             , pendingAddresses = pendingAddresses
             , gen = gen

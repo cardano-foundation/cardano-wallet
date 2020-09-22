@@ -54,7 +54,7 @@ import Cardano.Wallet.DB
     , cleanDB
     )
 import Cardano.Wallet.DB.Arbitrary
-    ( InitialCheckpoint (..), KeyValPairs (..) )
+    ( KeyValPairs (..) )
 import Cardano.Wallet.DB.Properties
     ( properties, withDB )
 import Cardano.Wallet.DB.Sqlite
@@ -79,8 +79,6 @@ import Cardano.Wallet.Logging
     ( trMessageText )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
-    , DerivationType (..)
-    , Index (..)
     , NetworkDiscriminant (..)
     , Passphrase (..)
     , PersistPrivateKey
@@ -106,7 +104,6 @@ import Cardano.Wallet.Primitive.Model
     , currentTip
     , getState
     , initWallet
-    , updateState
     )
 import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
@@ -208,7 +205,7 @@ import Test.Hspec
     , xit
     )
 import Test.QuickCheck
-    ( Property, arbitrary, generate, property, (==>) )
+    ( Property, generate, property, (==>) )
 import Test.QuickCheck.Monadic
     ( monadicIO )
 import Test.Utils.Paths
@@ -245,32 +242,9 @@ sqliteSpecSeq = withDB newMemoryDBLayer $ do
 
 sqliteSpecRnd :: Spec
 sqliteSpecRnd = withDB newMemoryDBLayer $ do
-    describe "Sqlite (RndState)" $ do
-        it "insertState . selectState (regression account index)"
-            testRegressionInsertSelectRndState
     describe "Sqlite State machine (RndState)" $ do
         it "Sequential state machine tests"
             (prop_sequential :: TestDBRnd -> Property)
-
-testRegressionInsertSelectRndState
-    :: DBLayer IO (RndState 'Mainnet) ByronKey
-    -> IO ()
-testRegressionInsertSelectRndState db = do
-    -- NOTE Abusing the index type here, for the sake of testing.
-    old  <- (\s -> s { accountIndex = Index 0 }) <$> generate arbitraryRndState
-    wid  <- generate arbitrary
-    cp   <- getInitialCheckpoint <$> generate arbitrary
-    meta <- generate arbitrary
-
-    new <- db & \DBLayer{..} -> atomically $ do
-        unsafeRunExceptT $ initializeWallet wid cp meta mempty pp
-        unsafeRunExceptT $ putCheckpoint wid (updateState old cp)
-        (fmap getState) <$> readCheckpoint wid
-
-    (accountIndex <$> new) `shouldBe` Just (minBound :: Index 'Hardened 'AccountK)
-
-  where
-    arbitraryRndState = arbitrary @(RndState 'Mainnet)
 
 testMigrationPassphraseScheme
     :: forall s k. (k ~ ShelleyKey, s ~ SeqState 'Mainnet k)
