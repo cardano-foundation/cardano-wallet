@@ -28,6 +28,7 @@ cardano-wallet
    About-Address-Derivation
    About-Address-Format---Byron
    About-Coin-Selection
+   About-Cardano-Wallet-CLI
    About-Transactions-Lifecycle
    About-UTxO
    Code-Review-Guidelines
