@@ -580,7 +580,7 @@ x-transactionMetadata: &transactionMetadata
 
     The binary encoding of metadata values supports three simple types:
 
-    * Integers in the range `-2^32` to `2^32 - 1`.
+    * Integers in the range `-(2^64 - 1)` to `2^64 - 1`
     * Strings (UTF-8 encoded)
     * Bytestrings
 
