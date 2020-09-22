@@ -75,7 +75,7 @@ x-blockId: &blockId
 
 x-absoluteSlot: &absoluteSlot
   type: integer
-  description: The number of slots since genesis of the blockchain.
+  description: The 0-based slot index starting from genesis of the blockchain.
   minimum: 0
   example: 8086
 
