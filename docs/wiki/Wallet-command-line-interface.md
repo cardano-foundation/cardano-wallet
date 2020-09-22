@@ -367,7 +367,7 @@ $ cardano-wallet wallet delete 2512a00e9653fe49a44a5886202e24d77eeb998f
 
 ## transaction create
 
-> `cardano-wallet transaction create [--port=INT] WALLET_ID --payment=PAYMENT...`
+> `cardano-wallet transaction create [--port=INT] WALLET_ID [--metadata=JSON] --payment=PAYMENT...`
 
 Creates and submits a new transaction:
 
@@ -379,11 +379,13 @@ $ cardano-wallet transaction create 2512a00e9653fe49a44a5886202e24d77eeb998f \
 
 This creates a transaction that sends 22 lovelace to `Ae2tdPwUPEZ...nRtbfw6EHRv1D` and 5 lovelace to `Ae2tdPwUPEZ7...pVwEPhKwseVvf` from wallet with id 2512a00e9653fe49a44a5886202e24d77eeb998f.
 
+For more information about the `--metadata` option, see [TxMetadata](./TxMetadata).
+
 <p align=right><a href="#">top :arrow_heading_up:</a></p>
 
 ## transaction fees
 
-> `cardano-wallet transaction fees [--port=INT] WALLET_ID --payment=PAYMENT...`
+> `cardano-wallet transaction fees [--port=INT] WALLET_ID [--metadata=JSON] --payment=PAYMENT...`
 
 Estimates fee for a given transaction:
 
