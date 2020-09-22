@@ -898,12 +898,18 @@ mkBlockHeader block = TH.BlockHeader
     }
 
 fromBlockHeaders :: TH.BlockHeader -> BlockHeader
-fromBlockHeaders TH.BlockHeader { blockSlot, blockHeight, blockHeaderHash
-        , blockParentHash } =
+fromBlockHeaders h =
     BlockHeader blockSlot
         (Quantity blockHeight)
         (getBlockId blockHeaderHash)
         (getBlockId blockParentHash)
+  where
+    TH.BlockHeader
+        { blockSlot
+        , blockHeight
+        , blockHeaderHash
+        , blockParentHash
+        } = h
 
 mkStakeDistribution
     :: EpochNo

@@ -67,7 +67,6 @@ import Cardano.Wallet.Primitive.Types
     , Coin (..)
     , EpochNo (..)
     , GenesisParameters (..)
-    , Hash (..)
     , PoolCertificate (..)
     , PoolId
     , PoolLifeCycleStatus (..)
@@ -93,7 +92,7 @@ import Cardano.Wallet.Shelley.Compatibility
 import Cardano.Wallet.Shelley.Network
     ( NodePoolLsqData (..) )
 import Cardano.Wallet.Unsafe
-    ( unsafeFromHex, unsafeMkPercentage )
+    ( unsafeMkPercentage )
 import Control.Concurrent
     ( threadDelay )
 import Control.Exception
@@ -504,9 +503,7 @@ monitorStakePools tr gp nl DBLayer{..} =
     mkLatestGarbageCollectionEpochRef = newIORef minBound
 
     initCursor :: IO [BlockHeader]
-    initCursor = do
-        fromDB <- atomically $ listHeaders (max 100 k)
-        pure (lastByronBlock:fromDB)
+    initCursor = atomically $ listHeaders (max 100 k)
       where k = fromIntegral $ getQuantity getEpochStability
 
     getHeader :: CardanoBlock StandardCrypto -> BlockHeader
@@ -522,7 +519,8 @@ monitorStakePools tr gp nl DBLayer{..} =
         pure Continue
       where
         forAllBlocks = \case
-            BlockByron _ -> pure ()
+            BlockByron _ -> do
+                pure ()
             BlockShelley blk -> do
                 let (slot, certificates) = poolCertsFromShelleyBlock blk
                 let header = toShelleyBlockHeader getGenesisBlockHash blk
@@ -734,20 +732,3 @@ instance ToText StakePoolLog where
             , "back to it in about "
             , pretty (fixedF 1 (toRational delay / 1000000)), "s"
             ]
-
--- | The very last block header of the Byron era, just before the transition
---   to Shelley.
---
--- This is hard-coded for mainnet and will do nothing for other networks.
---
--- TODO: query cardano-node for hard fork block (not yet possible).
--- https://jira.iohk.io/browse/CAD-1850
---
-lastByronBlock :: BlockHeader
-lastByronBlock = BlockHeader
-    (SlotNo 4492799)
-    (Quantity 4490510)
-    (Hash $ unsafeFromHex
-        "f8084c61b6a238acec985b59310b6ecec49c0ab8352249afd7268da5cff2a457")
-    (Hash $ unsafeFromHex
-        "aa83acbf5904c0edfe4d79b3689d3d00fcfc553cf360fd2229b98d464c28e9de")
