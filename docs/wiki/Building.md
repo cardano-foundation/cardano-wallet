@@ -19,24 +19,28 @@ Download [Cabal](https://www.haskell.org/cabal/download.html) to build this proj
    cabal update
    ```
 
-2. Install `stack2cabal`
+2. Build the project
+
+   ```console
+   cabal install cardano-wallet --install-method=copy --installdir=/usr/local/bin
+   ```
+
+### Syncing `stack` and `cabal` dependencies
+
+1. Install `stack2cabal`
 
    ```console
    cabal install --install-method=copy --overwrite-policy=always stack2cabal
    ```
 
-3. Run `stack2cabal` to convert the dependency list from `stack` into a suitable format for `cabal`. 
-
-   ```console
-   stack2cabal stack.yaml
-   ```
+2. Run `stack2cabal` to convert the dependencies list from `stack` into a suitable format for `cabal`. 
  
-4. Disable tests and benchmarks of local packages
+3. Disable tests and benchmarks of local packages
    (those specified via source-repository-package...
    this won't be needed with cabal-3.4 anymore, because it won't treat
    them as local anymore)
 
-5. Hackage packages in `packages` in `cardano-1.19.x.yaml` or `extra-deps`
+4. Hackage packages in `packages` in `cardano-1.19.x.yaml` or `extra-deps`
    in `stack.yaml`, which are specified as git repositories might
    have different versions than the stack resolver. `stack2cabal`
    cannot pick these up, so these must be adjusted manually (or deleted) in
