@@ -723,12 +723,26 @@ x-stakePoolMargin: &stakePoolMargin
 
       May be omitted if the wallet hasn't found the pool's registration cerificate yet.
 
+x-jormungandrStakePoolSaturation: &jormungandrStakePoolSaturation
+  type: number
+  minimum: 0
+  description: |
+    Saturation-level of the pool based on the desired number of pools aimed by the network.
+    A value above `1` indicates that the pool is saturated.
+  example: 0.74
+
 x-stakePoolSaturation: &stakePoolSaturation
   type: number
   minimum: 0
   description: |
     Saturation-level of the pool based on the desired number of pools aimed by the network.
     A value above `1` indicates that the pool is saturated.
+
+    The `non_myopic_member_rewards` take oversaturation into account, as specified by the [specs](https://hydra.iohk.io/job/Cardano/cardano-ledger-specs/delegationDesignSpec/latest/download-by-type/doc-pdf/delegation_design_spec).
+
+    The saturation is based on the live `relative_stake`. The saturation at the end of epoch e,
+    will affect the rewards paid out at the end of epoch e+3.
+
   example: 0.74
 
 x-stakePoolDesirability: &stakePoolDesirability
@@ -760,11 +774,15 @@ x-stakePoolMetrics: &stakePoolMetrics
     non_myopic_member_rewards: *nonMyopicMemberRewards
     relative_stake:
       <<: *percentage
-      description: The pools stake compared to the stake of all pools.
+      description: |
+        The live pool stake relative to the *total* stake.
+
+        For more details, see the section "Relative Stake: Active vs Total" in
+        [Design Specification for Delegation and Incentives in Cardano](https://hydra.iohk.io/job/Cardano/cardano-ledger-specs/delegationDesignSpec/latest/download-by-type/doc-pdf/delegation_design_spec).
     saturation: *stakePoolSaturation
     produced_blocks:
       <<: *numberOfBlocks
-      description: Number of blocks produced by a given stake pool
+      description: Number of blocks produced by a given stake pool in its lifetime.
 
 x-jormungandrStakePoolMetrics: &jormungandrStakePoolMetrics
   type: object
@@ -968,7 +986,7 @@ components:
         cost: *jormungandrStakePoolCost
         margin: *jormungandrStakePoolMargin
         metadata: *jormungandrStakePoolMetadata
-        saturation: *stakePoolSaturation
+        saturation: *jormungandrStakePoolSaturation
         desirability: *stakePoolDesirability
 
     ApiFee: &ApiFee
