@@ -175,7 +175,7 @@ synced from the beginning of the first era.
 ```
 cardano-wallet serve \
   --testnet testnet-byron-genesis.json \
-  --node-socket state-node-testnet/node.socket \
+  --node-socket PATH_TO_CARDANO_NODE_SOCKET \
   --database ./wallets-testnet
 ```
 
