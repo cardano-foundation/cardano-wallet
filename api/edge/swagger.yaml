@@ -27,6 +27,7 @@ x-date: &date
 
 x-slotNumber: &slotNumber
   type: integer
+  description: The slot index within an epoch.
   minimum: 0
   example: 1337
 
@@ -51,6 +52,7 @@ x-numberOfSeconds: &numberOfSeconds
 
 x-epochNumber: &epochNumber
   type: integer
+  description: An epoch is a time period which is divided into slots.
   minimum: 0
   example: 14
 
@@ -70,6 +72,12 @@ x-blockId: &blockId
   maxLength: 64
   minLength: 64
   example: 3c07030e36bfffe67e2e2ec09e5293d384637cd2f004356ef320f3fe6c52041a
+
+x-absoluteSlot: &absoluteSlot
+  type: integer
+  description: The 0-based slot index starting from genesis of the blockchain.
+  minimum: 0
+  example: 8086
 
 x-numberOfSlots: &numberOfSlots
   type: object
@@ -108,10 +116,12 @@ x-blockReference: &blockReference
     - slot_number
     - epoch_number
     - height
+    - absolute_slot_number
   properties:
     slot_number: *slotNumber
     epoch_number: *epochNumber
     height: *numberOfBlocks
+    absolute_slot_number: *absoluteSlot
 
 x-genesisBlock: &genesisBlock
   description: A reference to a particular block.
@@ -910,9 +920,11 @@ components:
       required:
         - slot_number
         - epoch_number
+        - absolute_slot_number
       properties:
         slot_number: *slotNumber
         epoch_number: *epochNumber
+        absolute_slot_number: *absoluteSlot
 
     ApiNetworkInformation: &ApiNetworkInformation
       type: object
