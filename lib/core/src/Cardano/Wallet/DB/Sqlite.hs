@@ -128,6 +128,8 @@ import Data.Either
     ( isRight )
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
+import Data.IORef
+    ( modifyIORef', newIORef, readIORef )
 import Data.List
     ( nub, sortOn, unzip3 )
 import Data.List.Split
@@ -598,6 +600,61 @@ newDBLayer trace defaultFieldValues mDatabaseFile timeInterpreter = do
             migrateAll
             trace
             mDatabaseFile
+
+    -- NOTE1
+    -- We cache the latest checkpoint for read operation such that we prevent
+    -- needless marshalling and unmarshalling with the database. Many handlers
+    -- dealing with the database are actually in the form of:
+    --
+    --   - read latest CP
+    --   - write latest CP
+    --
+    -- When chaining them, we end up paying the cost of unmarshalling data from
+    -- the database one extra time. That doesn't matter much for small wallets
+    -- because the time needed to unmarshall data is relatively negligible. For
+    -- large wallets however, this has a massive performance impact.
+    --
+    -- Instead, the cache now retains the Haskell data-types in-memory to
+    -- short-circuit the most frequent database lookups.
+    --
+    -- NOTE2
+    -- We use an IORef here without fearing race-conditions because every
+    -- database query can only be run within calls to `atomically` which
+    -- enforces that there's only a single thread executing a given
+    -- `SqlPersistT`.
+    cache <- newIORef Map.empty
+
+    let readCache :: W.WalletId -> SqlPersistT IO (Maybe (W.Wallet s))
+        readCache wid = Map.lookup wid <$> liftIO (readIORef cache)
+
+    let clearCache :: W.WalletId -> SqlPersistT IO ()
+        clearCache wid = liftIO $ modifyIORef' cache $ Map.delete wid
+
+    let writeCache :: W.WalletId -> W.Wallet s -> SqlPersistT IO ()
+        writeCache wid cp = liftIO $ modifyIORef' cache $ Map.alter alter wid
+          where
+            tip = cp ^. #currentTip . #blockHeight
+            alter = \case
+                Just old | tip < old ^. #currentTip .  #blockHeight -> Just old
+                _ -> Just cp
+
+    let selectLatestCheckpoint
+            :: W.WalletId
+            -> SqlPersistT IO (Maybe (W.Wallet s))
+        selectLatestCheckpoint wid = do
+            readCache wid >>= maybe fromDatabase (pure . Just)
+          where
+            fromDatabase = do
+                mcp <- fmap entityVal <$> selectFirst
+                    [ CheckpointWalletId ==. wid ]
+                    [ LimitTo 1, Desc CheckpointSlot ]
+                case mcp of
+                    Nothing -> pure Nothing
+                    Just cp -> do
+                        utxo <- selectUTxO cp
+                        s <- selectState (checkpointId cp)
+                        pure (checkpointFromEntity @s cp utxo <$> s)
+
     return (ctx, DBLayer
 
         {-----------------------------------------------------------------------
@@ -608,7 +665,7 @@ newDBLayer trace defaultFieldValues mDatabaseFile timeInterpreter = do
             res <- handleConstraint (ErrWalletAlreadyExists wid) $
                 insert_ (mkWalletEntity wid meta)
             when (isRight res) $ do
-                insertCheckpoint wid cp
+                insertCheckpoint wid cp <* writeCache wid cp
                 let (metas, txins, txouts, ws) = mkTxHistory wid txs
                 putTxs metas txins txouts ws
                 insert_ (mkProtocolParametersEntity wid pp)
@@ -620,6 +677,7 @@ newDBLayer trace defaultFieldValues mDatabaseFile timeInterpreter = do
                 Just _  -> Right <$> do
                     deleteCascadeWhere [WalId ==. wid]
                     deleteLooseTransactions
+                    clearCache wid
 
         , listWallets =
             map (PrimaryKey . unWalletKey) <$> selectKeysList [] [Asc WalId]
@@ -631,15 +689,10 @@ newDBLayer trace defaultFieldValues mDatabaseFile timeInterpreter = do
         , putCheckpoint = \(PrimaryKey wid) cp -> ExceptT $ do
             selectWallet wid >>= \case
                 Nothing -> pure $ Left $ ErrNoSuchWallet wid
-                Just _  -> Right <$> insertCheckpoint wid cp
+                Just _  -> Right <$> (insertCheckpoint wid cp <* writeCache wid cp)
 
         , readCheckpoint = \(PrimaryKey wid) -> do
-            selectLatestCheckpoint wid >>= \case
-                Nothing -> pure Nothing
-                Just cp -> do
-                    utxo <- selectUTxO cp
-                    s <- selectState (checkpointId cp)
-                    pure (checkpointFromEntity @s cp utxo <$> s)
+            selectLatestCheckpoint wid
 
         , listCheckpoints = \(PrimaryKey wid) -> do
             map (blockHeaderFromEntity . entityVal) <$> selectList
@@ -648,7 +701,7 @@ newDBLayer trace defaultFieldValues mDatabaseFile timeInterpreter = do
 
         , rollbackTo = \(PrimaryKey wid) requestedPoint -> ExceptT $ do
             findNearestPoint wid requestedPoint >>= \case
-                Nothing -> selectLatestCheckpoint wid >>= \case
+                Nothing -> selectWallet wid >>= \case
                     Nothing ->
                         pure $ Left $ ErrNoSuchWallet wid
                     Just _  ->
@@ -674,6 +727,7 @@ newDBLayer trace defaultFieldValues mDatabaseFile timeInterpreter = do
                     deleteStakeKeyCerts wid
                         [ StakeKeyCertSlot >. nearestPoint
                         ]
+                    clearCache wid
                     pure (Right nearestPoint)
 
         , prune = \(PrimaryKey wid) -> ExceptT $ do
@@ -700,7 +754,7 @@ newDBLayer trace defaultFieldValues mDatabaseFile timeInterpreter = do
                 Nothing -> pure Nothing
                 Just cp -> do
                     currentEpoch <- liftIO $
-                        timeInterpreter (epochOf $ cp ^. #checkpointSlot)
+                        timeInterpreter (epochOf $ cp ^. #currentTip . #slotNo)
                     readWalletDelegation timeInterpreter wid currentEpoch
                         >>= readWalletMetadata wid
 
@@ -749,12 +803,14 @@ newDBLayer trace defaultFieldValues mDatabaseFile timeInterpreter = do
                     pure $ Right ()
 
         , readTxHistory = \(PrimaryKey wid) minWithdrawal order range status -> do
-            selectTxHistory
-                timeInterpreter wid minWithdrawal order $ catMaybes
-                [ (TxMetaSlot >=.) <$> W.inclusiveLowerBound range
-                , (TxMetaSlot <=.) <$> W.inclusiveUpperBound range
-                , (TxMetaStatus ==.) <$> status
-                ]
+            selectLatestCheckpoint wid >>= \case
+                Nothing -> pure []
+                Just cp -> selectTxHistory cp
+                    timeInterpreter wid minWithdrawal order $ catMaybes
+                    [ (TxMetaSlot >=.) <$> W.inclusiveLowerBound range
+                    , (TxMetaSlot <=.) <$> W.inclusiveUpperBound range
+                    , (TxMetaStatus ==.) <$> status
+                    ]
 
         , removePendingTx = \(PrimaryKey wid) tid -> ExceptT $ do
             let errNoSuchWallet =
@@ -776,10 +832,10 @@ newDBLayer trace defaultFieldValues mDatabaseFile timeInterpreter = do
                         _ -> pure errNoMorePending
 
         , getTx = \(PrimaryKey wid) tid -> ExceptT $ do
-            selectWallet wid >>= \case
+            selectLatestCheckpoint wid >>= \case
                 Nothing -> pure $ Left $ ErrNoSuchWallet wid
-                Just _ -> do
-                    metas <- selectTxHistory
+                Just cp -> do
+                    metas <- selectTxHistory cp
                         timeInterpreter wid Nothing W.Descending
                             [ TxMetaTxId ==. TxId tid ]
                     case metas of
@@ -1226,11 +1282,11 @@ deleteCheckpoints wid filters = do
 -- | Prune checkpoints in the database to keep it tidy
 pruneCheckpoints
     :: W.WalletId
-    -> Checkpoint
+    -> W.Wallet s
     -> SqlPersistT IO ()
 pruneCheckpoints wid cp = do
-    let height = Quantity $ fromIntegral $ checkpointBlockHeight cp
-    let epochStability = Quantity $ checkpointEpochStability cp
+    let height = cp ^. #currentTip . #blockHeight
+    let epochStability = cp ^. #blockchainParameters . #getEpochStability
     let cfg = defaultSparseCheckpointsConfig epochStability
     let cps = sparseCheckpoints cfg height
     deleteCheckpoints wid [ CheckpointBlockHeight /<-. cps ]
@@ -1300,14 +1356,6 @@ deleteDelegationCertificates
     -> SqlPersistT IO ()
 deleteDelegationCertificates wid filters = do
     deleteCascadeWhere ((CertWalletId ==. wid) : filters)
-
-selectLatestCheckpoint
-    :: W.WalletId
-    -> SqlPersistT IO (Maybe Checkpoint)
-selectLatestCheckpoint wid = fmap entityVal <$>
-    selectFirst
-        [ CheckpointWalletId ==. wid
-        ] [ LimitTo 1, Desc CheckpointSlot ]
 
 selectUTxO
     :: Checkpoint
@@ -1379,40 +1427,37 @@ combineChunked :: [a] -> ([a] -> SqlPersistT IO [b]) -> SqlPersistT IO [b]
 combineChunked xs f = concatMapM f $ chunksOf chunkSize xs
 
 selectTxHistory
-    :: TimeInterpreter IO
+    :: W.Wallet s
+    -> TimeInterpreter IO
     -> W.WalletId
     -> Maybe (Quantity "lovelace" Natural)
     -> W.SortOrder
     -> [Filter TxMeta]
     -> SqlPersistT IO [W.TransactionInfo]
-selectTxHistory ti wid minWithdrawal order conditions = do
-    selectLatestCheckpoint wid >>= \case
-        Nothing -> pure []
-        Just cp -> do
-            let txMetaFilter = (TxMetaWalletId ==. wid):conditions
-            metas <- case minWithdrawal of
-                Nothing -> fmap entityVal <$> selectList txMetaFilter sortOpt
-                Just inf -> do
-                    let coin = W.Coin $ fromIntegral $ getQuantity inf
-                    txids <- fmap (txWithdrawalTxId . entityVal)
-                        <$> selectList [ TxWithdrawalAmount >=. coin ] []
-                    ms <- combineChunked (nub txids) (\chunk -> selectList
-                      ((TxMetaTxId <-. chunk):txMetaFilter) [])
-                    let sortTxId = case order of
-                            W.Ascending -> sortOn (Down . txMetaTxId)
-                            W.Descending -> sortOn txMetaTxId
-                    let sortSlot = case order of
-                            W.Ascending -> sortOn txMetaSlot
-                            W.Descending -> sortOn (Down . txMetaSlot)
-                    pure $ sortSlot $ sortTxId $ fmap entityVal ms
+selectTxHistory cp ti wid minWithdrawal order conditions = do
+    let txMetaFilter = (TxMetaWalletId ==. wid):conditions
+    metas <- case minWithdrawal of
+        Nothing -> fmap entityVal <$> selectList txMetaFilter sortOpt
+        Just inf -> do
+            let coin = W.Coin $ fromIntegral $ getQuantity inf
+            txids <- fmap (txWithdrawalTxId . entityVal)
+                <$> selectList [ TxWithdrawalAmount >=. coin ] []
+            ms <- combineChunked (nub txids) (\chunk -> selectList
+              ((TxMetaTxId <-. chunk):txMetaFilter) [])
+            let sortTxId = case order of
+                    W.Ascending -> sortOn (Down . txMetaTxId)
+                    W.Descending -> sortOn txMetaTxId
+            let sortSlot = case order of
+                    W.Ascending -> sortOn txMetaSlot
+                    W.Descending -> sortOn (Down . txMetaSlot)
+            pure $ sortSlot $ sortTxId $ fmap entityVal ms
 
-            let txids = map txMetaTxId metas
-            (ins, outs, ws) <- selectTxs txids
+    let txids = map txMetaTxId metas
+    (ins, outs, ws) <- selectTxs txids
 
-            let wal = checkpointFromEntity cp [] ()
-            let tip = W.currentTip wal
+    let tip = W.currentTip cp
 
-            liftIO $ txHistoryFromEntity ti tip metas ins outs ws
+    liftIO $ txHistoryFromEntity ti tip metas ins outs ws
   where
     -- Note: there are sorted indices on these columns.
     -- The secondary sort by TxId is to make the ordering stable
