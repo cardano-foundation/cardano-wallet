@@ -54,7 +54,7 @@ extra-deps:
 # Not strictly a dependency at present, but building it here to get
 # access to the cardano-tx cli.
 - git: https://github.com/input-output-hk/cardano-transactions
-  commit: db40318bbccbfb40b15e541433402fd81a1ec4e5
+  commit: 218cdc2dfea34b0261f96c96c7b937d620a8780e
 
 flags:
   # Avoid a system library which causes difficulty with cross-compilation
