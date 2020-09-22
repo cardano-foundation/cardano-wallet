@@ -26,6 +26,9 @@
 module Cardano.Pool.DB.Sqlite
     ( newDBLayer
     , withDBLayer
+    , withDecoratedDBLayer
+    , DBDecorator (..)
+    , undecoratedDB
     , defaultFilePath
     , DatabaseView (..)
     ) where
@@ -153,16 +156,49 @@ defaultFilePath = (</> "stake-pools.sqlite")
 -- library.
 withDBLayer
     :: Tracer IO PoolDbLog
+    -- ^ Logging object.
+    -> Maybe FilePath
+    -- ^ Database file location, or 'Nothing' for in-memory database.
+    -> TimeInterpreter IO
+    -- ^ The time interpreter object.
+    -> (DBLayer IO -> IO a)
+    -- ^ Action to run.
+    -> IO a
+withDBLayer = withDecoratedDBLayer undecoratedDB
+
+-- | A decorator for the database layer, useful for instrumenting or monitoring
+--   calls to database operations.
+newtype DBDecorator a =
+    DBDecorator { decorateDBLayer :: DBLayer a -> DBLayer a }
+
+-- | The identity decorator.
+--
+-- Equivalent to an undecorated database.
+--
+undecoratedDB :: DBDecorator a
+undecoratedDB = DBDecorator id
+
+-- | Runs an action with a connection to the SQLite database.
+--
+-- This function has the same behaviour as 'withDBLayer', but provides a way
+-- to decorate the created 'DBLayer' object with a 'DBDecorator', useful for
+-- instrumenting or monitoring calls to database operations.
+--
+withDecoratedDBLayer
+    :: DBDecorator IO
+       -- ^ The database decorator.
+    -> Tracer IO PoolDbLog
        -- ^ Logging object
     -> Maybe FilePath
        -- ^ Database file location, or Nothing for in-memory database
     -> TimeInterpreter IO
+       -- ^ The time interpreter object.
     -> (DBLayer IO -> IO a)
        -- ^ Action to run.
     -> IO a
-withDBLayer trace fp timeInterpreter action = do
+withDecoratedDBLayer dbDecorator trace fp timeInterpreter action = do
     traceWith trace (MsgGeneric $ MsgWillOpenDB fp)
-    bracket before after (action . snd)
+    bracket before after (action . decorateDBLayer dbDecorator . snd)
   where
     before = newDBLayer trace fp timeInterpreter
     after = destroyDBLayer . fst

@@ -308,12 +308,12 @@ import Test.Hspec.Expectations.Lifted
     ( shouldBe, shouldContain, shouldSatisfy )
 import Test.Integration.Faucet
     ( nextTxBuilder, nextWallet )
+import Test.Integration.Framework.Context
+    ( Context (..), TxDescription (..) )
 import Test.Integration.Framework.Request
-    ( Context (..)
-    , Headers (..)
+    ( Headers (..)
     , Payload (..)
     , RequestException (..)
-    , TxDescription (..)
     , request
     , unsafeRequest
     )

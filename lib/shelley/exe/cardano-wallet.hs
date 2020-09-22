@@ -227,6 +227,7 @@ cmdServe = command "serve" $ info (helper <*> helper' <*> cmd) $ mempty
                     tracers
                     sTolerance
                     databaseDir
+                    Nothing
                     host
                     listen
                     tlsConfig

@@ -1,5 +1,4 @@
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
@@ -15,18 +14,10 @@ module Test.Integration.Framework.Request
     , Headers(..)
     , Payload(..)
     , RequestException(..)
-    , Context(..)
-    , TxDescription(..)
     ) where
 
 import Prelude
 
-import Cardano.CLI
-    ( Port (..) )
-import Cardano.Wallet.Primitive.Types
-    ( NetworkParameters )
-import Cardano.Wallet.Transaction
-    ( DelegationAction )
 import Control.Monad.Catch
     ( Exception (..), MonadCatch (..), throwM )
 import Control.Monad.IO.Class
@@ -39,12 +30,8 @@ import Data.Generics.Internal.VL.Lens
     ( (^.) )
 import Data.Generics.Product.Typed
     ( HasType, typed )
-import Data.Proxy
-    ( Proxy (..) )
 import Data.Text
     ( Text )
-import GHC.Generics
-    ( Generic )
 import Network.HTTP.Client
     ( HttpException (..)
     , HttpExceptionContent
@@ -64,50 +51,14 @@ import Network.HTTP.Types.Method
     ( Method )
 import Network.HTTP.Types.Status
     ( status500 )
-import Numeric.Natural
-    ( Natural )
-import Test.Integration.Faucet
-    ( Faucet )
+import Test.Integration.Framework.Context
+    ( Context )
 
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString.Lazy.Char8 as BL8
 import qualified Data.Text as T
 import qualified Network.HTTP.Client as HTTP
 import qualified Network.HTTP.Types.Status as HTTP
-
-
--- | Running Context for our integration test
-data Context t = Context
-    { _cleanup
-        :: IO ()
-        -- ^ Cleanup action for the context
-    , _manager
-        :: (Text, Manager)
-        -- ^ The underlying BaseUrl and Manager used by the Wallet Client
-    , _walletPort
-        :: Port "wallet"
-        -- ^ Server TCP port
-    , _faucet
-        :: Faucet
-        -- ^ A 'Faucet' handle in to have access to funded wallets in
-        -- integration tests.
-    , _feeEstimator :: TxDescription -> (Natural, Natural)
-        -- ^ A fee estimator for the integration tests
-    , _networkParameters :: NetworkParameters
-        -- ^ Blockchain parameters for the underlying chain
-    , _target
-        :: Proxy t
-    } deriving Generic
-
--- | Describe a transaction in terms of its inputs and outputs
-data TxDescription
-    = DelegDescription DelegationAction
-    | PaymentDescription
-        { nInputs :: Int
-        , nOutputs :: Int
-        , nChanges :: Int
-        }
-    deriving (Show)
 
 -- | The result when 'request' fails.
 data RequestException
