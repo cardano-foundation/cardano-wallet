@@ -35,7 +35,7 @@ Note that lists and maps need not necessarily contain the same type of metadata 
 
 ### Examples
 
-This is a transaction metadata which contains three values.
+This is a transaction metadata which contains four values.
 
 ```json
 {
@@ -58,13 +58,14 @@ This is a transaction metadata which contains three values.
         }
       }
     ]
-  }
+  },
+  "8": { "bytestring": "48656c6c6f2c2043617264616e6f21" }
 }
 ```
 
 ### Sample code: Converting from JavaScript objects
 
-Use a function like this to translate JavaScript objects into metadata JSON format. If your application requires a more precise mapping, it can be modified to suit.
+Use a function like this to translate arbitrary JavaScript values into metadata JSON format. If your application requires a more precise mapping, it can be modified to suit. Note that this code does not validate strings for length.
 
 ```javascript
 #!/usr/bin/env node
