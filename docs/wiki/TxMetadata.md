@@ -30,7 +30,7 @@ Simple types:
 
     `{ "bytes": HEX-STRING }`
 
-    The value must be base16-encoded.
+    The value must be base16-encoded (a hex string).
 
 Compound types:
 
