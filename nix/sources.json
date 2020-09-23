@@ -17,10 +17,10 @@
         "homepage": "https://input-output-hk.github.io/haskell.nix",
         "owner": "input-output-hk",
         "repo": "haskell.nix",
-        "rev": "ce74990b9b8bc6c6161625c361529931bfb0e155",
-        "sha256": "1124cmpzp6a08kjamsvqvmxq1pfbimzy4s3ywlmhbq7ssjfjl6hi",
+        "rev": "d12d2588284950beca6ceceeae4d0fdce2d86ba9",
+        "sha256": "0hgihcwy5w8df534dpjyglxz57n131mw7ivppzw8gk528ny7nnyh",
         "type": "tarball",
-        "url": "https://github.com/input-output-hk/haskell.nix/archive/ce74990b9b8bc6c6161625c361529931bfb0e155.tar.gz",
+        "url": "https://github.com/input-output-hk/haskell.nix/archive/d12d2588284950beca6ceceeae4d0fdce2d86ba9.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "iohk-nix": {
@@ -33,19 +33,6 @@
         "sha256": "0r6x6gnbb63c70h14l8fmv34cql2kzvsdabgm8bixvinlghpm1w1",
         "type": "tarball",
         "url": "https://github.com/input-output-hk/iohk-nix/archive/b22d8da9dd38c971ad40d9ad2d1a60cce53995fb.tar.gz",
-        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
-    },
-    "sphinxcontrib-haddock": {
-        "branch": "master",
-        "builtin": false,
-        "description": "Tools for using Haddock with Sphinx",
-        "homepage": null,
-        "owner": "michaelpj",
-        "repo": "sphinxcontrib-haddock",
-        "rev": "f3956b3256962b2d27d5a4e96edb7951acf5de34",
-        "sha256": "0mlxa5zzgdka0c6sj7pp4cfvc8rcrd8g2z2113vp614l43g17miv",
-        "type": "tarball",
-        "url": "https://github.com/michaelpj/sphinxcontrib-haddock/archive/f3956b3256962b2d27d5a4e96edb7951acf5de34.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "niv": {
@@ -70,6 +57,19 @@
         "sha256": "01z13axll5g5yl00lz9adr2jw2bs12g9skhbb1vxy8p7fjjbhhhm",
         "type": "tarball",
         "url": "https://github.com/NixOS/nixpkgs/archive/a8f81dc037a5977414a356dd068f2621b3c89b60.tar.gz",
+        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
+    },
+    "sphinxcontrib-haddock": {
+        "branch": "master",
+        "builtin": false,
+        "description": "Tools for using Haddock with Sphinx",
+        "homepage": null,
+        "owner": "michaelpj",
+        "repo": "sphinxcontrib-haddock",
+        "rev": "f3956b3256962b2d27d5a4e96edb7951acf5de34",
+        "sha256": "0mlxa5zzgdka0c6sj7pp4cfvc8rcrd8g2z2113vp614l43g17miv",
+        "type": "tarball",
+        "url": "https://github.com/michaelpj/sphinxcontrib-haddock/archive/f3956b3256962b2d27d5a4e96edb7951acf5de34.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     }
 }

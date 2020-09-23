@@ -24,6 +24,7 @@ mkShell rec {
       openssl
       libsodium
       pkgconfig
+      stack
     ] ++ lib.optional (stdenv.hostPlatform.libc == "glibc") glibcLocales ++
     (lib.optionals (!stdenv.isDarwin) [ git systemd.dev ]) ++
     (lib.optionals stdenv.isDarwin (with darwin.apple_sdk.frameworks; [ Cocoa CoreServices libcxx libiconv ]));
