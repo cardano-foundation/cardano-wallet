@@ -16,16 +16,16 @@ The top level is a map from metadata keys to metadata values.
 
 Simple types:
 
- * Integers in the range -(2<sup>64</sup> - 1) to 2<sup>64</sup> - 1
- * Strings (UTF-8 encoded)
- * Bytestrings
+ * _Integers_ in the range -(2<sup>64</sup> - 1) to 2<sup>64</sup> - 1
+ * _Strings_ (UTF-8 encoded)
+ * _Bytestrings_
 
 Compound types:
 
- * Lists of metadata values
- * Mappings from metadata values to metadata values
+ * Lists of _metadata values_
+ * Mappings from _metadata values_ to _metadata values_
  
-Note that lists and maps need not necessarily contain the type of metadata value in each element.
+Note that lists and maps need not necessarily contain the same type of metadata value in each element.
 
 ### Limits
 
@@ -35,8 +35,87 @@ Note that lists and maps need not necessarily contain the type of metadata value
 
 ### Examples
 
+This is a transaction metadata which contains three values.
 
-### Converting from JSON
+```json
+{
+  "64": {"string": "some text"},
+  "32": {"int": 42},
+  "16": {
+    "map": [
+      {
+        "k": {"string": "numbers"},
+        "v": {"list": [{"int": 1}, {"int": 2}, {"int": 4}, {"int": 8}]}
+      },
+      {
+        "k": {"string": "alphabet"},
+        "v": {
+          "map": [
+            {"k": {"string": "A"}, "v": {"int": 65}},
+            {"k": {"string": "B"}, "v": {"int": 66}},
+            {"k": {"string": "C"}, "v": {"int": 67}}
+          ]
+        }
+      }
+    ]
+  }
+}
+```
+
+### Sample code: Converting from JavaScript objects
+
+Use a function like this to translate JavaScript objects into metadata JSON format. If your application requires a more precise mapping, it can be modified to suit.
+
+```javascript
+#!/usr/bin/env node
+
+function txMetadataValueFromJS(jsVal) {
+  if (Array.isArray(jsVal)) {
+    // compound type - List
+    // (note that sparse arrays are not representable in JSON)
+    return { list: jsVal.map(txMetadataValueFromJS) };
+  } else if (typeof(jsVal) === 'object') {
+    if (jsVal !== null ) {
+      // compound type - Map with String keys
+      return { map: Object.keys(jsVal).map(key => {
+        return { k: { string: key }, v: txMetadataValueFromJS(jsVal[key]) };
+      }) };
+    } else {
+      // null: convert to simple type - String
+      return { string: 'null' };
+    }
+  } else if (Number.isInteger(jsVal)) {
+    // simple type - Int
+    return { int: jsVal };
+  } else if (typeof(jsVal) === 'string') {
+    // simple type - String
+    return { string: jsVal };
+  } else {
+    // anything else: convert to simple type - String.
+    // e.g. undefined, true, false, NaN, Infinity.
+    // Some of these can't be represented in JSON anyway.
+    // Floating point numbers: note there can be loss of precision when
+    // representing floats as decimal numbers
+    return { string: '' + jsVal };
+  }
+}
+
+// Get a JSON objects from stdin, one per line.
+const jsVals = require('fs')
+  .readFileSync(0, { encoding: 'utf8' })
+  .toString()
+  .split(/\r?\n/)
+  .filter(line => !!line)
+  .map(JSON.parse);
+
+// Convert to transaction metadata JSON form
+const txMetadataValues = jsVals.map(txMetadataValueFromJS);
+const txMetadata = txMetadataValues
+  .reduce((ob, val, i) => { ob['' + i] = val; return ob; }, {});
+
+// Pretty-print JSON to stdout
+console.log(JSON.stringify(txMetadata));
+```
 
 
 ### CLI
