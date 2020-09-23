@@ -66,8 +66,6 @@ let
       (lib.optionalAttrs coverage {
         # Enable Haskell Program Coverage for all local libraries and test suites.
         packages.cardano-wallet.components.library.doCoverage = true;
-        packages.cardano-wallet.components.tests.unit.doCoverage = true;
-        packages.cardano-wallet.components.tests.integration.doCoverage = true;
         packages.cardano-wallet-cli.components.library.doCoverage = true;
         packages.cardano-wallet-core-integration.components.library.doCoverage = true;
         packages.cardano-wallet-core.components.library.doCoverage = true;
@@ -325,7 +323,9 @@ let
     };
 
 in
-  pkgSet.config.hsPkgs // {
-    _config = pkgSet.config;
-    _roots = haskell.roots pkgSet.config.ghc;
-  }
+haskell.addProjectAndPackageAttrs {
+  pkg-set = pkgSet;
+  inherit (pkgSet.config) hsPkgs;
+  _config = pkgSet.config;
+  _roots = haskell.roots pkgSet.config.ghc;
+}
