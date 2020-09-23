@@ -59,7 +59,7 @@ This is a transaction metadata which contains four values.
       }
     ]
   },
-  "8": { "bytestring": "48656c6c6f2c2043617264616e6f21" }
+  "8": { "bytes": "48656c6c6f2c2043617264616e6f21" }
 }
 ```
 
@@ -101,7 +101,7 @@ function txMetadataValueFromJS(jsVal) {
   }
 }
 
-// Get a JSON objects from stdin, one per line.
+// Get JSON objects from stdin, one per line.
 const jsVals = require('fs')
   .readFileSync(0, { encoding: 'utf8' })
   .toString()
@@ -114,7 +114,7 @@ const txMetadataValues = jsVals.map(txMetadataValueFromJS);
 const txMetadata = txMetadataValues
   .reduce((ob, val, i) => { ob['' + i] = val; return ob; }, {});
 
-// Pretty-print JSON to stdout
+// Print JSON to stdout
 console.log(JSON.stringify(txMetadata));
 ```
 
