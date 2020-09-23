@@ -1,4 +1,42 @@
+# Overview
+
 The CLI is a proxy to the wallet server, which is required for most commands. Commands are turned into corresponding API calls, and submitted to an up-and-running server. Some commands do not require an active server and can be run "offline". (e.g. 'recovery-phrase generate')
+
+The wallet command-line interface (abbrev. CLI) is a tool that provides a convenient way of using the cardano-wallet HTTP Application Programming Interface (abbrev. API). The wallet API is an HTTP service used to manage wallets, make payments, and update wallet data such as addresses and keys, for instance. The wallet CLI can start the wallet server, or run a number of commands on a running server, and supports most functions of the API itself. 
+
+The intended audience of the CLI are users who run a wallet API server outside of Daedalus and work with the cardano-wallet API directly - these include application developers, stake pool operators, and exchanges.
+
+CLI commands allow you to make and track changes while maintaining the wallet API. The wallet CLI converts commands into corresponding API calls, submits them to a running server and display the server's responses in a readable way into the terminal.  
+
+# Pre-Requisites
+
+- Install [cardano-node](https://github.com/input-output-hk/cardano-node/releases) by following instruction on the release notes.
+
+- Download the `byronGenesis.json` initial configuration file from [Cardano configurations](https://hydra.iohk.io/job/Cardano/cardano-node/cardano-deployment/latest-finished/download/1/index.html). 
+
+# How to Run
+
+You can explore the wallet CLI with:
+
+```console
+$ cardano-wallet --help
+```
+
+Then, you can use a list of commands for various purposes, such as:
+
+-   list, create, update, or delete wallets
+-   create, submit, forget, or track fees in regards to transactions
+-   list, create, and import wallet addresses
+-   view network information and parameters
+-   manage private and public keys
+
+Each sub-command will also provide some additional help when passed `--help`. For example: 
+
+```console
+$ cardano-wallet transaction --help
+```
+
+# Commands
 
 <!--
 ATTENTION:
@@ -80,8 +118,6 @@ Available COMMANDS:
 
 Serve API that listens for commands/actions. Before launching user should start [`cardano-node`](https://github.com/input-output-hk/cardano-node).
 
-### Invocation
-
 > ```
 > cardano-wallet serve
 >
@@ -116,68 +152,36 @@ Serve API that listens for commands/actions. Before launching user should start 
 >
 > ```
 
-##### example on mainnet
+### Minimal Arguments
 
-1. Build `cardano-node` with mainnet configuration:
+In order to start the wallet server, you'll need to provide _at least_ the path to cardano-node's socket and a target network. That socket is automatically created when starting a cardano-node and it exists so long as the node remains running.  
 
-   ```
-   git clone https://github.com/input-output-hk/cardano-node.git
-   cd cardano-node
-   nix-build -A scripts.mainnet.node -o mainnet-node-local
-   ```
+We also recommend to pass a `--database` option pointing to a directory on the file-system; without this option, the wallet will maintain a state in-memory which will vanish once stopped. 
 
-2. Start `cardano-node` for mainnet. This will create a directory called `./state-node-mainnet`.
+#### example on Mainnet
 
-   ```
-   ./mainnet-node-local
-   ```
+```
+cardano-wallet serve \
+  --mainnet \
+  --node-socket PATH_TO_CARDANO_NODE_SOCKET \
+  --database ./wallets-mainnet
+```
 
-3. Start `cardano-wallet` (in another terminal).
+#### example on Testnet
 
-   ```
-   cardano-wallet serve \
-       --mainnet \
-       --node-socket state-node-mainnet/node.socket \
-       --database ./wallets-mainnet
-   ```
-
-##### example on testnet
-
-Note that for testnets, a _byron_ genesis file is required, even
-though the network is in the shelley era. This is because the chain is
+Note that for testnets, a _byron_ genesis file is required (see [pre-requisites](#pre-requisites)), even though the network is in the shelley era. This is because the chain is
 synced from the beginning of the first era.
 
-1. Download byronGenesis for testnet from [Cardano Configurations](https://hydra.iohk.io/job/Cardano/iohk-nix/cardano-deployment/latest/download/1/index.html).
+```
+cardano-wallet serve \
+  --testnet testnet-byron-genesis.json \
+  --node-socket PATH_TO_CARDANO_NODE_SOCKET \
+  --database ./wallets-testnet
+```
 
-2. Build `cardano-node` with testnet configuration:
+### Logging options for serve
 
-   ```
-   git clone https://github.com/input-output-hk/cardano-node.git
-   cd cardano-node
-   nix-build -A scripts.testnet.node -o testnet-node-local
-   ```
-
-3. Start `cardano-node` for testnet. This will create a directory called `./state-node-testnet`.
-
-   ```
-   ./testnet-node-local
-   ```
-
-4. Start `cardano-wallet` (in another terminal).
-
-   ```
-   cardano-wallet serve \
-       --testnet testnet-byron-genesis.json \
-       --node-socket state-node-testnet/node.socket \
-       --database ./wallets-testnet
-   ```
-
-<p align=right><a href="#">top :arrow_heading_up:</a></p>
-
-## Logging options for serve
-
-`serve` accepts extra command-line arguments for
-logging (also called "tracing"). Use `--help-tracing` to show the
+`serve` accepts extra command-line arguments for logging (also called "tracing"). Use `--help-tracing` to show the
 options, the tracer names, and the possible log levels.
 
 > `cardano-wallet serve --help-tracing`
@@ -205,7 +209,7 @@ The possible tracers are:
   network        About network communication with the node.
 ```
 
-##### example
+#### example
 
 Use these options to enable debug-level tracing for certain components
 of the wallet. For example, to log all database queries for the wallet
@@ -214,6 +218,8 @@ databases, use:
 ```
 $ cardano-wallet serve --trace-wallet-db=debug ...
 ```
+
+<p align=right><a href="#">top :arrow_heading_up:</a></p>
 
 ## recovery-phrase generate
 
