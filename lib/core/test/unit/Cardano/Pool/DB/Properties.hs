@@ -845,10 +845,22 @@ prop_removePools
     -> [PoolCertificate]
     -> Property
 prop_removePools
-    DBLayer {..} certificates =
-        monadicIO (setup >> prop)
+    DBLayer {..} certificates = checkCoverage
+        $ cover 8 (notNull poolsToRemove && notNull poolsToRetain)
+            "remove some pools and retain some pools"
+        $ cover 2 (null poolsToRemove)
+            "remove no pools"
+        $ cover 2 (null poolsToRetain)
+            "retain no pools"
+        $ cover 8 (notNull metadataToRetain)
+            "retain some metadata"
+        $ cover 2 (null metadataToRetain)
+            "retain no metadata"
+        $ monadicIO (setup >> prop)
   where
     setup = run $ atomically cleanDB
+
+    notNull = not . null
 
     prop = do
         -- Firstly, publish an arbitrary set of pool certificates:
