@@ -42,6 +42,8 @@ import Cardano.Wallet.Primitive.Types
     , PoolRegistrationCertificate (..)
     , PoolRetirementCertificate (..)
     , SlotNo (..)
+    , StakePoolMetadata (..)
+    , StakePoolTicker (..)
     , getPoolCertificatePoolId
     , getPoolRetirementCertificate
     )
@@ -820,27 +822,67 @@ prop_rollbackRetirement DBLayer{..} certificates =
 -- 1. We only remove data relating to the specified pools.
 -- 2. We do not remove data relating to other pools.
 --
+-- Strictly speaking, when removing pools, we should also be able to remove any
+-- pool metadata that becomes unreachable as a result.
+--
+-- However, this is tricky to get right, since it's possible for more than one
+-- pool to share the same metadata hash.
+--
+-- For example, if two pools p and q issue registration certificates that share
+-- the same metadata hash h, and then we garbage collect pool p, we have to be
+-- careful to not remove the metadata corresponding to h in order to preserve
+-- the metadata for pool q.
+--
+-- One possible solution would be to remove metadata entries only when we can
+-- show that they are no longer reachable: when metadata entries are no longer
+-- referenced by any pool.
+--
+-- However, for the moment, we adopt the principle of never removing metadata.
+-- We can revise this decision in future if the metadata table grows too large.
+--
 prop_removePools
     :: DBLayer IO
     -> [PoolCertificate]
     -> Property
 prop_removePools
-    db@DBLayer {..} certificates =
-        monadicIO (setup >> prop)
+    DBLayer {..} certificates = checkCoverage
+        $ cover 8 (notNull poolsToRemove && notNull poolsToRetain)
+            "remove some pools and retain some pools"
+        $ cover 2 (null poolsToRemove)
+            "remove no pools"
+        $ cover 2 (null poolsToRetain)
+            "retain no pools"
+        $ cover 8 (notNull metadataToRetain)
+            "retain some metadata"
+        $ cover 2 (null metadataToRetain)
+            "retain no metadata"
+        $ monadicIO (setup >> prop)
   where
     setup = run $ atomically cleanDB
 
+    notNull = not . null
+
     prop = do
         -- Firstly, publish an arbitrary set of pool certificates:
-        run $ mapM_ (uncurry $ putPoolCertificate db) certificatePublications
-        -- Next, read the latest certificates for all pools:
+        run $ atomically $ forM_ certificatePublications $ \case
+            (publicationTime, Registration cert) -> do
+                -- In the case of a pool registration, we also add an
+                -- accompanying mock entry to the metadata table.
+                putPoolRegistration publicationTime cert
+                forM_ (view #poolMetadata cert) $ \(_, metadataHash) ->
+                    putPoolMetadata metadataHash mockPoolMetadata
+            (publicationTime, Retirement cert) ->
+                putPoolRetirement publicationTime cert
+        -- Next, read the latest certificates and metadata for all pools:
         poolIdsWithRegCertsAtStart <- run poolIdsWithRegCerts
         poolIdsWithRetCertsAtStart <- run poolIdsWithRetCerts
+        poolMetadataAtStart <- Map.keysSet <$> run (atomically readPoolMetadata)
         -- Next, remove a subset of the pools:
         run $ atomically $ removePools $ Set.toList poolsToRemove
-        -- Finally, see which certificates remain:
+        -- Finally, see which certificates and metadata remain:
         poolIdsWithRegCertsAtEnd <- run poolIdsWithRegCerts
         poolIdsWithRetCertsAtEnd <- run poolIdsWithRetCerts
+        poolMetadataAtEnd <- Map.keysSet <$> run (atomically readPoolMetadata)
         monitor $ counterexample $ T.unpack $ T.unlines
             [ "All pools: "
             , T.unlines (toText <$> Set.toList pools)
@@ -863,6 +905,11 @@ prop_removePools
         assertWith "difference rule for retirements" $
             poolIdsWithRetCertsAtStart `Set.difference` poolsToRemove
                 == poolIdsWithRetCertsAtEnd
+        -- For the moment, we never delete any metadata.
+        assertWith "equality rule #1 for metadata" $
+            poolMetadataAtEnd == poolMetadataAtStart
+        assertWith "equality rule #2 for metadata" $
+            poolMetadataAtEnd == metadataToRetain
 
     -- The complete set of all pools.
     pools = Set.fromList $ getPoolCertificatePoolId <$> certificates
@@ -872,6 +919,19 @@ prop_removePools
         & Set.toList
         & L.splitAt (length pools `div` 2)
         & bimap Set.fromList Set.fromList
+
+    -- For the moment, we never delete any metadata.
+    metadataToRetain = certificates
+        & mapMaybe toRegistrationCertificate
+        & mapMaybe (view #poolMetadata)
+        & fmap snd
+        & Set.fromList
+
+    toRegistrationCertificate
+        :: PoolCertificate -> Maybe PoolRegistrationCertificate
+    toRegistrationCertificate = \case
+        Registration c -> Just c
+        Retirement _ -> Nothing
 
     certificatePublications
         :: [(CertificatePublicationTime, PoolCertificate)]
@@ -885,6 +945,13 @@ prop_removePools
     poolIdsWithRetCerts =
         fmap (Set.fromList . fmap (view #poolId . snd) . catMaybes)
             <$> atomically $ mapM readPoolRetirement $ Set.toList pools
+
+    mockPoolMetadata = StakePoolMetadata
+        { ticker = StakePoolTicker "MOCK"
+        , name = "MOCK"
+        , description = Nothing
+        , homepage = "http://mock.pool/"
+        }
 
 prop_listRegisteredPools
     :: DBLayer IO
