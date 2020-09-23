@@ -385,7 +385,7 @@ $ cardano-wallet transaction create 2512a00e9653fe49a44a5886202e24d77eeb998f \
 
 This creates a transaction that sends 22 lovelace to `Ae2tdPwUPEZ...nRtbfw6EHRv1D` and 5 lovelace to `Ae2tdPwUPEZ7...pVwEPhKwseVvf` from wallet with id 2512a00e9653fe49a44a5886202e24d77eeb998f.
 
-For more information about the `--metadata` option, see [TxMetadata](./TxMetadata).
+For more information about the `--metadata` option, see [TxMetadata](https://github.com/input-output-hk/cardano-wallet/wiki/TxMetadata).
 
 <p align=right><a href="#">top :arrow_heading_up:</a></p>
 
