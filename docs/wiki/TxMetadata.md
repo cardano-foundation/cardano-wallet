@@ -8,23 +8,40 @@ The full JSON schema is specified in the [cardano-wallet OpenAPI Specification](
 
 ### Structure
 
-The top level is a map from metadata keys to metadata values.
+The top level is a JSON object mapping from metadata keys to metadata values.
 
 **Metadata keys** are integers in the range 0 to 2<sup>64</sup> - 1.
 
 **Metadata values** are one of three simple types or two compound types.
 
+Every metadata value is tagged with its type, using a JSON object.
+
 Simple types:
 
  * _Integers_ in the range -(2<sup>64</sup> - 1) to 2<sup>64</sup> - 1
+
+    `{ "int": NUMBER }`
+
  * _Strings_ (UTF-8 encoded)
+
+    `{ "string": STRING }`
+
  * _Bytestrings_
+
+    `{ "bytes": HEX-STRING }`
+
+    The value must be base16-encoded.
 
 Compound types:
 
  * Lists of _metadata values_
+
+   `{ "list": [ METADATA-VALUE, ... ] }`
+
  * Mappings from _metadata values_ to _metadata values_
- 
+
+   `{ "map": [{ "k": METADATA-VALUE, "v": METADATA-VALUE }, ... ] }`
+
 Note that lists and maps need not necessarily contain the same type of metadata value in each element.
 
 ### Limits
