@@ -481,6 +481,7 @@ newDBLayer trace fp timeInterpreter = do
             deleteWhere [ PoolProductionSlot >. point ]
             deleteWhere [ PoolRegistrationSlot >. point ]
             deleteWhere [ PoolRetirementSlot >. point ]
+            deleteWhere [ BlockSlot >. point ]
             -- TODO: remove dangling metadata no longer attached to a pool
 
         removePools = mapM_ $ \pool -> do
