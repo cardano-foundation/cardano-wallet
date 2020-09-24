@@ -299,6 +299,7 @@ spec = do
     describe
         "can perform roundtrip JSON serialization & deserialization, \
         \and match existing golden files" $ do
+            jsonRoundtripAndGolden $ Proxy @(ApiAddress ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @ApiEpochInfo
             jsonRoundtripAndGolden $ Proxy @(ApiSelectCoinsData ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @(ApiCoinSelection ('Testnet 0))
