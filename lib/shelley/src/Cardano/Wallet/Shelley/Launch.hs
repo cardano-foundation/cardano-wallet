@@ -29,6 +29,7 @@ module Cardano.Wallet.Shelley.Launch
     , NodeParams (..)
     , singleNodeParams
     , PoolConfig (..)
+    , defaultPoolConfigs
     , RunningNode (..)
 
       -- * Faucets
@@ -43,6 +44,12 @@ module Cardano.Wallet.Shelley.Launch
     , parseGenesisData
     , withTempDir
     , withSystemTempDir
+    , minSeverityFromEnv
+    , nodeMinSeverityFromEnv
+    , walletMinSeverityFromEnv
+    , testMinSeverityFromEnv
+    , testLogDirFromEnv
+    , walletListenFromEnv
 
     -- * Logging
     , ClusterLog (..)
@@ -67,7 +74,7 @@ import Cardano.BM.Data.Tracer
 import Cardano.Chain.Genesis
     ( GenesisData (..), readGenesisData )
 import Cardano.CLI
-    ( optionT )
+    ( optionT, parseLoggingSeverity )
 import Cardano.Launcher
     ( LauncherLog, ProcessHasExited (..) )
 import Cardano.Launcher.Node
@@ -76,6 +83,8 @@ import Cardano.Launcher.Node
     , NodePort (..)
     , withCardanoNode
     )
+import Cardano.Wallet.Api.Server
+    ( Listen (..) )
 import Cardano.Wallet.Logging
     ( BracketLog, bracketTracer )
 import Cardano.Wallet.Network.Ports
@@ -147,13 +156,15 @@ import Data.Proxy
 import Data.Text
     ( Text )
 import Data.Text.Class
-    ( ToText (..) )
+    ( ToText (..), fromText )
 import Data.Time.Clock
     ( NominalDiffTime, UTCTime, addUTCTime, getCurrentTime )
 import Data.Time.Clock.POSIX
     ( posixSecondsToUTCTime, utcTimeToPOSIXSeconds )
 import GHC.TypeLits
     ( KnownNat, Nat, SomeNat (..), someNatVal )
+import Network.Socket
+    ( SockAddr )
 import Options.Applicative
     ( Parser, flag', help, long, metavar, (<|>) )
 import Ouroboros.Consensus.Shelley.Node
@@ -163,11 +174,11 @@ import Ouroboros.Network.Magic
 import Ouroboros.Network.NodeToClient
     ( NodeToClientVersionData (..), nodeToClientCodecCBORTerm )
 import System.Directory
-    ( copyFile, createDirectory, createDirectoryIfMissing )
+    ( copyFile, createDirectory, createDirectoryIfMissing, makeAbsolute )
 import System.Environment
     ( lookupEnv, setEnv )
 import System.Exit
-    ( ExitCode (..) )
+    ( ExitCode (..), die )
 import System.FilePath
     ( (</>) )
 import System.IO.Temp
@@ -316,6 +327,44 @@ parseGenesisData = \case
             , block0
             )
 
+minSeverityFromEnv :: Severity -> String -> IO Severity
+minSeverityFromEnv def var = lookupEnv var >>= \case
+    Nothing -> pure def
+    Just "" -> pure def
+    Just arg -> either die pure (parseLoggingSeverity arg)
+
+-- Allow configuring @cardano-node@ log level with the
+-- @CARDANO_NODE_TRACING_MIN_SEVERITY@ environment variable.
+nodeMinSeverityFromEnv :: IO Severity
+nodeMinSeverityFromEnv =
+    minSeverityFromEnv Info "CARDANO_NODE_TRACING_MIN_SEVERITY"
+
+-- Allow configuring integration tests and wallet log level with
+-- @CARDANO_WALLET_TRACING_MIN_SEVERITY@ environment variable.
+walletMinSeverityFromEnv :: IO Severity
+walletMinSeverityFromEnv =
+    minSeverityFromEnv Critical "CARDANO_WALLET_TRACING_MIN_SEVERITY"
+
+-- Allow configuring integration tests and wallet log level with
+-- @TESTS_TRACING_MIN_SEVERITY@ environment variable.
+testMinSeverityFromEnv :: IO Severity
+testMinSeverityFromEnv =
+    minSeverityFromEnv Notice "TESTS_TRACING_MIN_SEVERITY"
+
+-- | Allow configuring which port the wallet server listen to in an integration
+-- setup.
+walletListenFromEnv :: IO Listen
+walletListenFromEnv = lookupEnv "CARDANO_WALLET_PORT" >>= \case
+    Nothing -> pure ListenOnRandomPort
+    Just x  -> case fromText (T.pack x) of
+        Right port -> pure $ ListenOnPort port
+        Left e -> die (show e)
+
+-- | Directory for extra logging. Buildkite will set this environment variable
+-- and upload logs in it automatically.
+testLogDirFromEnv :: IO (Maybe FilePath)
+testLogDirFromEnv = traverse makeAbsolute =<< lookupEnv "TESTS_LOGDIR"
+
 -- NOTE
 -- Fixture wallets we use in integration tests comes from "initialFunds"
 -- referenced in the genesis file. As of today, initial funds are declared as a
@@ -394,6 +443,19 @@ newtype PoolConfig = PoolConfig
       -- certificate will be published after the pool is initially registered.
     }
     deriving (Eq, Show)
+
+
+defaultPoolConfigs :: [PoolConfig]
+defaultPoolConfigs =
+    [ -- This pool should never retire:
+      PoolConfig {retirementEpoch = Nothing}
+      -- This pool should retire almost immediately:
+    , PoolConfig {retirementEpoch = Just 3}
+      -- This pool should retire, but not within the duration of a test run:
+    , PoolConfig {retirementEpoch = Just 100_000}
+      -- This pool should retire, but not within the duration of a test run:
+    , PoolConfig {retirementEpoch = Just 1_000_000}
+    ]
 
 data RunningNode = RunningNode
     FilePath
@@ -1601,6 +1663,7 @@ data ClusterLog
     | MsgDebug Text
     | MsgGenOperatorKeyPair FilePath
     | MsgCLI [String]
+    | MsgListenAddress SockAddr
     deriving (Show)
 
 instance ToText ClusterLog where
@@ -1648,6 +1711,8 @@ instance ToText ClusterLog where
         MsgGenOperatorKeyPair dir ->
             "Generating stake pool operator key pair in " <> T.pack dir
         MsgCLI args -> T.pack $ unwords ("cardano-cli":args)
+        MsgListenAddress addr ->
+            "Wallet backend server listening on " <> T.pack (show addr)
       where
         indent = T.unlines . map ("  " <>) . T.lines . T.pack
 
@@ -1675,6 +1740,7 @@ instance HasSeverityAnnotation ClusterLog where
         MsgDebug _ -> Debug
         MsgGenOperatorKeyPair _ -> Debug
         MsgCLI _ -> Debug
+        MsgListenAddress _ -> Info
 
 bracketTracer' :: Tracer IO ClusterLog -> Text -> IO a -> IO a
 bracketTracer' tr name = bracketTracer (contramap (MsgBracket name) tr)

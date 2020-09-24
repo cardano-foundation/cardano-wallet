@@ -1,7 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
@@ -22,7 +21,7 @@ import Cardano.BM.Data.Tracer
 import Cardano.BM.Trace
     ( appendName )
 import Cardano.CLI
-    ( LogOutput (..), Port (..), parseLoggingSeverity, withLogging )
+    ( LogOutput (..), Port (..), withLogging )
 import Cardano.Launcher
     ( ProcessHasExited (..) )
 import Cardano.Startup
@@ -56,9 +55,14 @@ import Cardano.Wallet.Shelley.Launch
     ( ClusterLog
     , PoolConfig (..)
     , RunningNode (..)
+    , defaultPoolConfigs
     , moveInstantaneousRewardsTo
+    , nodeMinSeverityFromEnv
     , oneMillionAda
     , sendFaucetFundsTo
+    , testLogDirFromEnv
+    , testMinSeverityFromEnv
+    , walletMinSeverityFromEnv
     , withCluster
     , withSystemTempDir
     , withTempDir
@@ -91,12 +95,8 @@ import Network.HTTP.Client
     , newManager
     , responseTimeoutMicro
     )
-import System.Directory
-    ( makeAbsolute )
 import System.Environment
     ( lookupEnv )
-import System.Exit
-    ( die )
 import System.FilePath
     ( (</>) )
 import System.IO
@@ -171,18 +171,6 @@ main = withUtf8Encoding $ withTracers $ \tracers -> do
                 PortCLI.spec @t
                 NetworkCLI.spec @t
 
-testPoolConfigs :: [PoolConfig]
-testPoolConfigs =
-    [ -- This pool should never retire:
-      PoolConfig {retirementEpoch = Nothing}
-      -- This pool should retire almost immediately:
-    , PoolConfig {retirementEpoch = Just 3}
-      -- This pool should retire, but not within the duration of a test run:
-    , PoolConfig {retirementEpoch = Just 100_000}
-      -- This pool should retire, but not within the duration of a test run:
-    , PoolConfig {retirementEpoch = Just 1_000_000}
-    ]
-
 specWithServer
     :: (Tracer IO TestsLog, Tracers IO)
     -> SpecWith (Context Shelley)
@@ -245,13 +233,13 @@ specWithServer (tr, tracers) = aroundAll withContext . after tearDown
 
     withServer dbDecorator action = bracketTracer' tr "withServer" $ do
         minSev <- nodeMinSeverityFromEnv
-        testPoolConfigs' <- poolConfigsFromEnv
+        testPoolConfigs <- poolConfigsFromEnv
         withSystemTempDir tr' "test" $ \dir -> do
             extraLogDir <- (fmap (,Info)) <$> testLogDirFromEnv
             withCluster
                 tr'
                 minSev
-                testPoolConfigs'
+                testPoolConfigs
                 dir
                 extraLogDir
                 onByron
@@ -366,37 +354,8 @@ withTracers action = do
 bracketTracer' :: Tracer IO TestsLog -> Text -> IO a -> IO a
 bracketTracer' tr name = bracketTracer (contramap (MsgBracket name) tr)
 
--- Allow configuring @cardano-node@ log level with the
--- @CARDANO_NODE_TRACING_MIN_SEVERITY@ environment variable.
-nodeMinSeverityFromEnv :: IO Severity
-nodeMinSeverityFromEnv =
-    minSeverityFromEnv Info "CARDANO_NODE_TRACING_MIN_SEVERITY"
-
--- Allow configuring wallet log level with
--- @CARDANO_WALLET_TRACING_MIN_SEVERITY@ environment variable.
-walletMinSeverityFromEnv :: IO Severity
-walletMinSeverityFromEnv =
-    minSeverityFromEnv Critical "CARDANO_WALLET_TRACING_MIN_SEVERITY"
-
--- Allow configuring integration tests and wallet log level with
--- @CARDANO_TEST_TRACING_MIN_SEVERITY@ environment variable.
-testMinSeverityFromEnv :: IO Severity
-testMinSeverityFromEnv =
-    minSeverityFromEnv Notice "CARDANO_TEST_TRACING_MIN_SEVERITY"
-
-minSeverityFromEnv :: Severity -> String -> IO Severity
-minSeverityFromEnv def var = lookupEnv var >>= \case
-    Nothing -> pure def
-    Just "" -> pure def
-    Just arg -> either die pure (parseLoggingSeverity arg)
-
 poolConfigsFromEnv :: IO [PoolConfig]
 poolConfigsFromEnv = lookupEnv "NO_POOLS" >>= \case
-    Nothing -> pure testPoolConfigs
-    Just "" -> pure testPoolConfigs
+    Nothing -> pure defaultPoolConfigs
+    Just "" -> pure defaultPoolConfigs
     Just _ -> pure []
-
--- | Directory for extra logging. Buildkite will set this environment variable
--- and upload logs in it automatically.
-testLogDirFromEnv :: IO (Maybe FilePath)
-testLogDirFromEnv = traverse makeAbsolute =<< lookupEnv "TESTS_LOGDIR"

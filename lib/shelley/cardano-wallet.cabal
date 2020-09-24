@@ -128,6 +128,32 @@ executable cardano-wallet
   main-is:
     cardano-wallet.hs
 
+executable shelley-test-cluster
+  default-language:
+      Haskell2010
+  default-extensions:
+      NoImplicitPrelude
+      OverloadedStrings
+  ghc-options:
+      -threaded -rtsopts
+      -Wall
+  if (flag(release))
+    ghc-options: -O2 -Werror
+  build-depends:
+      base
+    , cardano-wallet-cli
+    , cardano-wallet-core
+    , cardano-wallet-core-integration
+    , cardano-wallet-launcher
+    , cardano-wallet
+    , contra-tracer
+    , iohk-monitoring
+    , text
+  hs-source-dirs:
+      exe
+  main-is:
+      shelley-test-cluster.hs
+
 test-suite unit
   default-language:
       Haskell2010
