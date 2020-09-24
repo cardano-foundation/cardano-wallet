@@ -43,6 +43,9 @@ import Cardano.Wallet.Api.Types
     , AddressAmount (..)
     , ApiAccountPublicKey (..)
     , ApiAddress (..)
+    , ApiAddressDerivationPath (..)
+    , ApiAddressDerivationSegment (..)
+    , ApiAddressDerivationType (..)
     , ApiBlockReference (..)
     , ApiByronWallet (..)
     , ApiByronWalletBalance (..)
@@ -58,6 +61,7 @@ import Cardano.Wallet.Api.Types
     , ApiNtpStatus (..)
     , ApiPostRandomAddressData
     , ApiPutAddressesData (..)
+    , ApiRelativeAddressIndex (..)
     , ApiSelectCoinsData (..)
     , ApiStakePool (..)
     , ApiStakePoolMetrics (..)
@@ -300,6 +304,10 @@ spec = do
         "can perform roundtrip JSON serialization & deserialization, \
         \and match existing golden files" $ do
             jsonRoundtripAndGolden $ Proxy @(ApiAddress ('Testnet 0))
+            jsonRoundtripAndGolden $ Proxy @ApiAddressDerivationPath
+            jsonRoundtripAndGolden $ Proxy @ApiAddressDerivationSegment
+            jsonRoundtripAndGolden $ Proxy @ApiAddressDerivationType
+            jsonRoundtripAndGolden $ Proxy @ApiRelativeAddressIndex
             jsonRoundtripAndGolden $ Proxy @ApiEpochInfo
             jsonRoundtripAndGolden $ Proxy @(ApiSelectCoinsData ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @(ApiCoinSelection ('Testnet 0))
@@ -440,6 +448,27 @@ spec = do
             Aeson.parseEither parseJSON [aesonQQ|
                 ["toilet", "toilet", "toilet"]
             |] `shouldBe` (Left @String @(ApiMnemonicT '[12]) msg)
+
+
+        it "ApiRelativeAddressIndex (too small)" $ do
+            let message = mconcat
+                  [ "Error in $: "
+                  , "\"A relative address index must be a natural number "
+                  , "between 0 and 2147483647.\""
+                  ]
+            let value = pred $ toInteger $ unApiRelativeAddressIndex minBound
+            Aeson.parseEither parseJSON [aesonQQ|#{value}|]
+                `shouldBe` Left @String @ApiRelativeAddressIndex message
+
+        it "ApiRelativeAddressIndex (too large)" $ do
+            let message = mconcat
+                  [ "Error in $: "
+                  , "\"A relative address index must be a natural number "
+                  , "between 0 and 2147483647.\""
+                  ]
+            let value = succ $ toInteger $ unApiRelativeAddressIndex maxBound
+            Aeson.parseEither parseJSON [aesonQQ|#{value}|]
+                `shouldBe` Left @String @ApiRelativeAddressIndex message
 
         it "ApiT AddressPoolGap (too small)" $ do
             let msg = "Error in $: An address pool gap must be a natural number between "
@@ -868,6 +897,22 @@ instance Arbitrary (ApiAddress t) where
     arbitrary = ApiAddress
         <$> fmap (, Proxy @t) arbitrary
         <*> arbitrary
+
+instance Arbitrary ApiAddressDerivationPath where
+    arbitrary = ApiAddressDerivationPath <$> arbitrary
+    shrink = genericShrink
+
+instance Arbitrary ApiAddressDerivationSegment where
+    arbitrary = ApiAddressDerivationSegment <$> arbitrary <*> arbitrary
+    shrink = genericShrink
+
+instance Arbitrary ApiAddressDerivationType where
+    arbitrary = arbitraryBoundedEnum
+    shrink = genericShrink
+
+instance Arbitrary ApiRelativeAddressIndex where
+    arbitrary = arbitraryBoundedEnum
+    shrink = genericShrink
 
 instance Arbitrary ApiEpochInfo where
     arbitrary = ApiEpochInfo <$> arbitrary <*> genUniformTime

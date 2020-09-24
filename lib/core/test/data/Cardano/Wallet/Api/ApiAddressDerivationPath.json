@@ -1,0 +1,697 @@
+{
+    "seed": -176155923881836647,
+    "samples": [
+        [
+            {
+                "derivation_index": 15652,
+                "derivation_type": "soft"
+            },
+            {
+                "derivation_index": 16266,
+                "derivation_type": "hardened"
+            },
+            {
+                "derivation_index": 15291,
+                "derivation_type": "soft"
+            },
+            {
+                "derivation_index": 16742,
+                "derivation_type": "hardened"
+            },
+            {
+                "derivation_index": 17896,
+                "derivation_type": "hardened"
+            },
+            {
+                "derivation_index": 30655,
+                "derivation_type": "hardened"
+            },
+            {
+                "derivation_index": 17383,
+                "derivation_type": "hardened"
+            },
+            {
+                "derivation_index": 18245,
+                "derivation_type": "hardened"
+            },
+            {
+                "derivation_index": 5168,
+                "derivation_type": "hardened"
+            }
+        ],
+        [
+            {
+                "derivation_index": 3951,
+                "derivation_type": "soft"
+            },
+            {
+                "derivation_index": 20747,
+                "derivation_type": "hardened"
+            },
+            {
+                "derivation_index": 15056,
+                "derivation_type": "hardened"
+            },
+            {
+                "derivation_index": 4424,
+                "derivation_type": "soft"
+            },
+            {
+                "derivation_index": 4442,
+                "derivation_type": "soft"
+            },
+            {
+                "derivation_index": 18035,
+                "derivation_type": "hardened"
+            },
+            {
+                "derivation_index": 11174,
+                "derivation_type": "hardened"
+            },
+            {
+                "derivation_index": 7492,
+                "derivation_type": "hardened"
+            },
+            {
+                "derivation_index": 17745,
+                "derivation_type": "soft"
+            },
+            {
+                "derivation_index": 6583,
+                "derivation_type": "hardened"
+            },
+            {
+                "derivation_index": 14135,
+                "derivation_type": "hardened"
+            },
+            {
+                "derivation_index": 13952,
+                "derivation_type": "soft"
+            },
+            {
+                "derivation_index": 30087,
+                "derivation_type": "soft"
+            },
+            {
+                "derivation_index": 24919,
+                "derivation_type": "soft"
+            },
+            {
+                "derivation_index": 11779,
+                "derivation_type": "soft"
+            },
+            {
+                "derivation_index": 19363,
+                "derivation_type": "soft"
+            },
+            {
+                "derivation_index": 5944,
+                "derivation_type": "hardened"
+            },
+            {
+                "derivation_index": 5256,
+                "derivation_type": "soft"
+            },
+            {
+                "derivation_index": 19934,
+                "derivation_type": "hardened"
+            },
+            {
+                "derivation_index": 12006,
+                "derivation_type": "soft"
+            }
+        ],
+        [
+            {
+                "derivation_index": 487,
+                "derivation_type": "soft"
+            },
+            {
+                "derivation_index": 13348,
+                "derivation_type": "soft"
+            },
+            {
+                "derivation_index": 557,
+                "derivation_type": "soft"
+            },
+            {
+                "derivation_index": 14844,
+                "derivation_type": "soft"
+            },
+            {
+                "derivation_index": 6580,
+                "derivation_type": "hardened"
+            },
+            {
+                "derivation_index": 10857,
+                "derivation_type": "hardened"
+            },
+            {
+                "derivation_index": 25312,
+                "derivation_type": "soft"
+            },
+            {
+                "derivation_index": 21569,
+                "derivation_type": "soft"
+            },
+            {
+                "derivation_index": 14615,
+                "derivation_type": "hardened"
+            }
+        ],
+        [
+            {
+                "derivation_index": 9523,
+                "derivation_type": "soft"
+            },
+            {
+                "derivation_index": 25599,
+                "derivation_type": "soft"
+            },
+            {
+                "derivation_index": 16440,
+                "derivation_type": "soft"
+            },
+            {
+                "derivation_index": 17036,
+                "derivation_type": "hardened"
+            },
+            {
+                "derivation_index": 23,
+                "derivation_type": "hardened"
+            },
+            {
+                "derivation_index": 3979,
+                "derivation_type": "soft"
+            },
+            {
+                "derivation_index": 7632,
+                "derivation_type": "hardened"
+            },
+            {
+                "derivation_index": 8064,
+                "derivation_type": "soft"
+            },
+            {
+                "derivation_index": 3355,
+                "derivation_type": "soft"
+            },
+            {
+                "derivation_index": 22295,
+                "derivation_type": "hardened"
+            },
+            {
+                "derivation_index": 3351,
+                "derivation_type": "soft"
+            },
+            {
+                "derivation_index": 17514,
+                "derivation_type": "hardened"
+            },
+            {
+                "derivation_index": 9194,
+                "derivation_type": "soft"
+            },
+            {
+                "derivation_index": 30919,
+                "derivation_type": "hardened"
+            },
+            {
+                "derivation_index": 15120,
+                "derivation_type": "soft"
+            },
+            {
+                "derivation_index": 14585,
+                "derivation_type": "hardened"
+            },
+            {
+                "derivation_index": 817,
+                "derivation_type": "hardened"
+            },
+            {
+                "derivation_index": 10511,
+                "derivation_type": "soft"
+            },
+            {
+                "derivation_index": 25923,
+                "derivation_type": "soft"
+            },
+            {
+                "derivation_index": 28904,
+                "derivation_type": "hardened"
+            },
+            {
+                "derivation_index": 28726,
+                "derivation_type": "soft"
+            }
+        ],
+        [
+            {
+                "derivation_index": 18888,
+                "derivation_type": "soft"
+            },
+            {
+                "derivation_index": 8602,
+                "derivation_type": "hardened"
+            },
+            {
+                "derivation_index": 6719,
+                "derivation_type": "hardened"
+            },
+            {
+                "derivation_index": 29096,
+                "derivation_type": "hardened"
+            },
+            {
+                "derivation_index": 15096,
+                "derivation_type": "soft"
+            },
+            {
+                "derivation_index": 26478,
+                "derivation_type": "soft"
+            },
+            {
+                "derivation_index": 17987,
+                "derivation_type": "soft"
+            },
+            {
+                "derivation_index": 19895,
+                "derivation_type": "hardened"
+            },
+            {
+                "derivation_index": 19274,
+                "derivation_type": "hardened"
+            },
+            {
+                "derivation_index": 3899,
+                "derivation_type": "hardened"
+            },
+            {
+                "derivation_index": 12544,
+                "derivation_type": "soft"
+            },
+            {
+                "derivation_index": 15515,
+                "derivation_type": "soft"
+            },
+            {
+                "derivation_index": 19346,
+                "derivation_type": "hardened"
+            },
+            {
+                "derivation_index": 14408,
+                "derivation_type": "hardened"
+            },
+            {
+                "derivation_index": 12851,
+                "derivation_type": "hardened"
+            },
+            {
+                "derivation_index": 5764,
+                "derivation_type": "hardened"
+            }
+        ],
+        [
+            {
+                "derivation_index": 14607,
+                "derivation_type": "soft"
+            },
+            {
+                "derivation_index": 1078,
+                "derivation_type": "soft"
+            },
+            {
+                "derivation_index": 21900,
+                "derivation_type": "soft"
+            },
+            {
+                "derivation_index": 994,
+                "derivation_type": "hardened"
+            },
+            {
+                "derivation_index": 12195,
+                "derivation_type": "hardened"
+            },
+            {
+                "derivation_index": 29935,
+                "derivation_type": "soft"
+            },
+            {
+                "derivation_index": 26675,
+                "derivation_type": "hardened"
+            },
+            {
+                "derivation_index": 11989,
+                "derivation_type": "hardened"
+            },
+            {
+                "derivation_index": 14242,
+                "derivation_type": "soft"
+            },
+            {
+                "derivation_index": 17437,
+                "derivation_type": "soft"
+            },
+            {
+                "derivation_index": 5480,
+                "derivation_type": "hardened"
+            },
+            {
+                "derivation_index": 18580,
+                "derivation_type": "soft"
+            },
+            {
+                "derivation_index": 12971,
+                "derivation_type": "hardened"
+            },
+            {
+                "derivation_index": 32573,
+                "derivation_type": "hardened"
+            },
+            {
+                "derivation_index": 11596,
+                "derivation_type": "hardened"
+            },
+            {
+                "derivation_index": 13892,
+                "derivation_type": "hardened"
+            },
+            {
+                "derivation_index": 10411,
+                "derivation_type": "soft"
+            },
+            {
+                "derivation_index": 11103,
+                "derivation_type": "hardened"
+            },
+            {
+                "derivation_index": 10443,
+                "derivation_type": "hardened"
+            },
+            {
+                "derivation_index": 23833,
+                "derivation_type": "hardened"
+            },
+            {
+                "derivation_index": 24433,
+                "derivation_type": "hardened"
+            },
+            {
+                "derivation_index": 2415,
+                "derivation_type": "hardened"
+            },
+            {
+                "derivation_index": 32404,
+                "derivation_type": "hardened"
+            },
+            {
+                "derivation_index": 5278,
+                "derivation_type": "soft"
+            },
+            {
+                "derivation_index": 10290,
+                "derivation_type": "soft"
+            },
+            {
+                "derivation_index": 26764,
+                "derivation_type": "soft"
+            },
+            {
+                "derivation_index": 18996,
+                "derivation_type": "hardened"
+            },
+            {
+                "derivation_index": 19333,
+                "derivation_type": "soft"
+            },
+            {
+                "derivation_index": 31996,
+                "derivation_type": "hardened"
+            }
+        ],
+        [
+            {
+                "derivation_index": 10702,
+                "derivation_type": "soft"
+            },
+            {
+                "derivation_index": 20761,
+                "derivation_type": "soft"
+            },
+            {
+                "derivation_index": 32174,
+                "derivation_type": "soft"
+            },
+            {
+                "derivation_index": 996,
+                "derivation_type": "soft"
+            },
+            {
+                "derivation_index": 2640,
+                "derivation_type": "soft"
+            },
+            {
+                "derivation_index": 28917,
+                "derivation_type": "hardened"
+            },
+            {
+                "derivation_index": 8897,
+                "derivation_type": "soft"
+            },
+            {
+                "derivation_index": 24595,
+                "derivation_type": "soft"
+            },
+            {
+                "derivation_index": 11628,
+                "derivation_type": "hardened"
+            },
+            {
+                "derivation_index": 850,
+                "derivation_type": "soft"
+            },
+            {
+                "derivation_index": 9013,
+                "derivation_type": "hardened"
+            },
+            {
+                "derivation_index": 31078,
+                "derivation_type": "hardened"
+            },
+            {
+                "derivation_index": 26734,
+                "derivation_type": "hardened"
+            },
+            {
+                "derivation_index": 32761,
+                "derivation_type": "hardened"
+            },
+            {
+                "derivation_index": 2876,
+                "derivation_type": "soft"
+            },
+            {
+                "derivation_index": 25297,
+                "derivation_type": "hardened"
+            },
+            {
+                "derivation_index": 22349,
+                "derivation_type": "soft"
+            },
+            {
+                "derivation_index": 5065,
+                "derivation_type": "hardened"
+            }
+        ],
+        [
+            {
+                "derivation_index": 18505,
+                "derivation_type": "soft"
+            },
+            {
+                "derivation_index": 7943,
+                "derivation_type": "soft"
+            },
+            {
+                "derivation_index": 14511,
+                "derivation_type": "hardened"
+            },
+            {
+                "derivation_index": 20530,
+                "derivation_type": "soft"
+            },
+            {
+                "derivation_index": 9474,
+                "derivation_type": "soft"
+            },
+            {
+                "derivation_index": 26421,
+                "derivation_type": "soft"
+            },
+            {
+                "derivation_index": 4004,
+                "derivation_type": "hardened"
+            },
+            {
+                "derivation_index": 19256,
+                "derivation_type": "soft"
+            },
+            {
+                "derivation_index": 2047,
+                "derivation_type": "hardened"
+            },
+            {
+                "derivation_index": 18397,
+                "derivation_type": "soft"
+            },
+            {
+                "derivation_index": 17531,
+                "derivation_type": "hardened"
+            },
+            {
+                "derivation_index": 28411,
+                "derivation_type": "hardened"
+            },
+            {
+                "derivation_index": 1533,
+                "derivation_type": "hardened"
+            },
+            {
+                "derivation_index": 9350,
+                "derivation_type": "soft"
+            },
+            {
+                "derivation_index": 19848,
+                "derivation_type": "soft"
+            },
+            {
+                "derivation_index": 8223,
+                "derivation_type": "soft"
+            },
+            {
+                "derivation_index": 1099,
+                "derivation_type": "hardened"
+            },
+            {
+                "derivation_index": 13051,
+                "derivation_type": "soft"
+            }
+        ],
+        [
+            {
+                "derivation_index": 1671,
+                "derivation_type": "hardened"
+            },
+            {
+                "derivation_index": 11112,
+                "derivation_type": "hardened"
+            },
+            {
+                "derivation_index": 9398,
+                "derivation_type": "hardened"
+            },
+            {
+                "derivation_index": 14696,
+                "derivation_type": "hardened"
+            },
+            {
+                "derivation_index": 22926,
+                "derivation_type": "hardened"
+            },
+            {
+                "derivation_index": 17314,
+                "derivation_type": "hardened"
+            },
+            {
+                "derivation_index": 13105,
+                "derivation_type": "soft"
+            },
+            {
+                "derivation_index": 12373,
+                "derivation_type": "soft"
+            },
+            {
+                "derivation_index": 20781,
+                "derivation_type": "hardened"
+            },
+            {
+                "derivation_index": 30401,
+                "derivation_type": "hardened"
+            },
+            {
+                "derivation_index": 22774,
+                "derivation_type": "soft"
+            },
+            {
+                "derivation_index": 13067,
+                "derivation_type": "soft"
+            }
+        ],
+        [
+            {
+                "derivation_index": 30409,
+                "derivation_type": "soft"
+            },
+            {
+                "derivation_index": 2827,
+                "derivation_type": "soft"
+            },
+            {
+                "derivation_index": 17985,
+                "derivation_type": "hardened"
+            },
+            {
+                "derivation_index": 14847,
+                "derivation_type": "hardened"
+            },
+            {
+                "derivation_index": 16116,
+                "derivation_type": "hardened"
+            },
+            {
+                "derivation_index": 8392,
+                "derivation_type": "soft"
+            },
+            {
+                "derivation_index": 7251,
+                "derivation_type": "soft"
+            },
+            {
+                "derivation_index": 25,
+                "derivation_type": "hardened"
+            },
+            {
+                "derivation_index": 22483,
+                "derivation_type": "hardened"
+            },
+            {
+                "derivation_index": 32338,
+                "derivation_type": "soft"
+            },
+            {
+                "derivation_index": 17112,
+                "derivation_type": "hardened"
+            },
+            {
+                "derivation_index": 23607,
+                "derivation_type": "hardened"
+            },
+            {
+                "derivation_index": 208,
+                "derivation_type": "soft"
+            },
+            {
+                "derivation_index": 22058,
+                "derivation_type": "soft"
+            },
+            {
+                "derivation_index": 11297,
+                "derivation_type": "soft"
+            },
+            {
+                "derivation_index": 14206,
+                "derivation_type": "soft"
+            }
+        ]
+    ]
+}
