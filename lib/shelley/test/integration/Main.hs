@@ -339,7 +339,7 @@ instance HasSeverityAnnotation TestsLog where
         MsgSettingUpFacuet -> Notice
         MsgBaseUrl _ -> Notice
         MsgCluster msg -> getSeverityAnnotation msg
-        MsgPoolGarbageCollectionEvent _ -> Notice
+        MsgPoolGarbageCollectionEvent _ -> Info
 
 withTracers
     :: ((Tracer IO TestsLog, Tracers IO) -> IO a)
