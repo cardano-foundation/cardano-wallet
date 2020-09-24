@@ -892,7 +892,8 @@ x-delegationTarget: &delegationTarget
 x-addressIndex: &addressIndex
   type: number
   minimum: 0
-  maximum: 4294967296 # 2 ^ 32, whole range (soft and hard) for random addresses.
+  # 2 ^ 32 - 1, whole range (soft and hard) for random addresses:
+  maximum: 4294967295
   description: |
     An optional address derivation index. Leave out to get an address
     with a randomly generated index.
