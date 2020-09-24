@@ -4,7 +4,7 @@ The metadata hash is part of the transaction body, so is covered by all transact
 
 The cardano-wallet API server uses a JSON representation of transaction metadata, isomorphic to the binary encoding on chain.
 
-The full JSON schema is specified in the [cardano-wallet OpenAPI Specification](https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/postTransaction).
+The full JSON schema is specified in the [cardano-wallet OpenAPI Specification](https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/postTransaction) / [`swagger.yaml`](https://github.com/input-output-hk/cardano-wallet/search?l=YAML&q=TransactionMetadataValue).
 
 ### Structure
 
