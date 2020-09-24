@@ -355,9 +355,27 @@ instance PersistField TxMetadata where
         Aeson.encode .
         metadataToJson TxMetadataJsonDetailedSchema
     fromPersistValue =
-        (left (T.pack . displayError) . metadataFromJson TxMetadataJsonDetailedSchema) <=<
+        (left (T.pack . displayError) . metadataFromJsonWithFallback) <=<
         (left T.pack . Aeson.eitherDecode . BL.fromStrict . encodeUtf8) <=<
         fromPersistValue
+      where
+        -- FIXME
+        -- Because of time constraints, we have had two consecutives releases
+        -- of cardano-wallet which ended up using different conversions method
+        -- for metadata to/from JSON.
+        -- As a result, some users' databases contain metadata using the direct
+        -- JSON conversion while we now expect the detailed schema variant.
+        --
+        -- We do therefore fallback when deserializing data do the direct
+        -- conversion (which will then be serialized back using the detailed
+        -- schema). We can remove that fallback after some time has passed since
+        -- release v2020-09-22.
+        metadataFromJsonWithFallback json =
+            case metadataFromJson TxMetadataJsonDetailedSchema json of
+                Right meta -> Right meta
+                Left e -> case metadataFromJson TxMetadataJsonNoSchema json of
+                    Right meta -> Right meta
+                    Left{} -> Left e
 
 instance PersistFieldSql TxMetadata where
     sqlType _ = sqlType (Proxy @Text)
