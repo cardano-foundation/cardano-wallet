@@ -123,6 +123,16 @@ x-blockReference: &blockReference
     height: *numberOfBlocks
     absolute_slot_number: *absoluteSlot
 
+x-slotReference: &slotReference
+  description: A reference to a particular time slot.
+  type: object
+  required:
+    - absolute_slot_number
+    - time
+  properties:
+    absolute_slot_number: *absoluteSlot
+    time: *date
+
 x-genesisBlock: &genesisBlock
   description: A reference to a particular block.
   type: object
@@ -444,6 +454,14 @@ x-transactionInsertedAt: &transactionInsertedAt
     time: *date
     block: *blockReference
 
+x-transactionExpiresAt: &transactionExpiresAt
+  description: |
+    <span style="position: relative; left: 35px; top: -21px; vertical-align: middle; background-color: rgba(142, 142, 220, 0.05); color: rgba(50, 50, 159, 0.9); margin: 0 5px; padding: 0 5px; border: 1px solid rgba(50, 50, 159, 0.1); line-height: 20px; font-size: 13px; border-radius: 2px;">
+    <strong>if:</strong> status == pending OR status == expired
+    </span><br/>
+    Absolute time and slot at which the pending transaction TTL will expire.
+  <<: *slotReference
+
 x-transactionPendingSince: &transactionPendingSince
   description: |
     <span style="position: relative; left: 35px; top: -21px; vertical-align: middle; background-color: rgba(142, 142, 220, 0.05); color: rgba(50, 50, 159, 0.9); margin: 0 5px; padding: 0 5px; border: 1px solid rgba(50, 50, 159, 0.1); line-height: 20px; font-size: 13px; border-radius: 2px;">
@@ -580,9 +598,11 @@ x-transactionStatus: &transactionStatus
     Current transaction status.
 
       ```
-             *---------*
-             |         |
-      -------> PENDING <----------------*
+             *---------*          *-----------*
+             |         |---------->  EXPIRED  |
+             |         |  (ttl)   *-----------*
+      -------> PENDING |
+             |         <----------------*
              |         |                |
              *---------*            (rollback)
                   |                     |
@@ -596,6 +616,7 @@ x-transactionStatus: &transactionStatus
   enum:
     - pending
     - in_ledger
+    - expired
 
 x-transactionMetadata: &transactionMetadata
   description: |
@@ -1180,6 +1201,7 @@ components:
         id: *transactionId
         amount: *transactionAmount
         inserted_at: *transactionInsertedAt
+        expires_at: *transactionExpiresAt
         pending_since: *transactionPendingSince
         depth: *transactionDepth
         direction: *transactionDirection
