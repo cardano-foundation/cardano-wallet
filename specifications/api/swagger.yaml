@@ -950,9 +950,8 @@ components:
     ApiAddressInspect: &ApiAddressInspect
         type: object
         required:
-          - address_style
-          - stake_reference
-          - network_tag
+        - address_style
+        - stake_reference
         properties:
           address_style:
             type: string
@@ -967,26 +966,24 @@ components:
             - by value
             - by pointer
           network_tag:
-            description: Can only be null for 'Icarus' and 'Byron' styles.
-            oneOf:
-            - type: integer
-              minimum: 0
-            - type: 'null'
+            description: Can be null for 'Icarus' and 'Byron' styles.
+            type: integer
+            minimum: 0
           spending_key_hash:
             type: string
             format: base16
-            minimum_length: '56'
-            maximum_length: '56'
+            minLength: 56
+            maxLength: 56
           stake_key_hash:
             type: string
             format: base16
-            minimum_length: '56'
-            maximum_length: '56'
+            minLength: 56
+            maxLength: 56
           script_hash:
             type: string
             format: base16
-            minimum_length: '64'
-            maximum_length: '64'
+            minLength: 64
+            maxLength: 64
           pointer:
             type: object
             additionalProperties: false
@@ -2152,7 +2149,6 @@ x-responsesInspectAddress: &responsesInspectAddress
     content:
       application/json:
         schema: *ApiAddressInspect
-
 
 #############################################################################
 #                                                                           #

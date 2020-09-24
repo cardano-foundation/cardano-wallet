@@ -56,6 +56,7 @@ import Cardano.Wallet.Shelley.Compatibility
     , StandardCrypto
     , decentralizationLevelFromPParams
     , fromTip
+    , inspectAddress
     , interval0
     , interval1
     , invertUnitInterval
@@ -74,6 +75,8 @@ import Data.ByteString
     ( ByteString )
 import Data.ByteString.Base58
     ( bitcoinAlphabet, encodeBase58 )
+import Data.Either
+    ( isLeft, isRight )
 import Data.Function
     ( (&) )
 import Data.Proxy
@@ -91,7 +94,7 @@ import GHC.TypeLits
 import Ouroboros.Network.Block
     ( BlockNo (..), Point, SlotNo (..), Tip (..), getTipPoint )
 import Test.Hspec
-    ( Spec, describe, it, shouldBe )
+    ( Spec, describe, it, shouldBe, shouldSatisfy )
 import Test.Hspec.QuickCheck
     ( prop )
 import Test.QuickCheck
@@ -225,6 +228,68 @@ spec = do
             it "invertUnitInterval half == half" $
                 let half = SL.truncateUnitInterval (1 % 2) in
                 invertUnitInterval half `shouldBe` half
+
+    describe "InspectAddr" $ do
+        -- Cases below are taken straight from cardano-addresses. We don't go in
+        -- depth with testing here because this is already tested on
+        -- cardano-addresses.
+        let matrix =
+                [ ( "Byron (1)"
+                  , "37btjrVyb4KEgoGCHJ7XFaJRLBRiVuvcrQWPpp4HeaxdTxhKwQjXHNKL43\
+                    \NhXaQNa862BmxSFXZFKqPqbxRc3kCUeTRMwjJevFeCKokBG7A7num5Wh"
+                  , isRight
+                  )
+                , ( "Byron (2)"
+                  , "DdzFFzCqrht5csm2GKhnVrjzKpVHHQFNXUDhAFDyLWVY5w8ZsJRP2uhwZ\
+                    \q2CEAVzDZXYXa4GvggqYEegQsdKAKikFfrrCoHheLH2Jskr"
+                  , isRight
+                  )
+                , ( "Icarus"
+                  , "Ae2tdPwUPEYz6ExfbWubiXPB6daUuhJxikMEb4eXRp5oKZBKZwrbJ2k7EZe"
+                  , isRight
+                  )
+                , ( "Shelley (base)"
+                  , "addr1vpu5vlrf4xkxv2qpwngf6cjhtw542ayty80v8dyr49rf5eg0yu80w"
+                  , isRight
+                  )
+                , ( "Shelley (stake by value)"
+                  , "addr1qdu5vlrf4xkxv2qpwngf6cjhtw542ayty80v8dyr49rf5ew\
+                    \vxwdrt70qlcpeeagscasafhffqsxy36t90ldv06wqrk2q5ggg4z"
+                  , isRight
+                  )
+                , ( "Shelley (stake by pointer)"
+                  , "addr1gw2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzer5ph3wczvf2x4v58t"
+                  , isRight
+                  )
+                , ( "Shelley (reward by key)"
+                  , "stake1upshvetj09hxjcm9v9jxgunjv4ehxmr0d3hkcmmvdakx7mqcjv83c"
+                  , isRight
+                  )
+                , ( "Shelley (reward by script)"
+                  , "stake17pshvetj09hxjcm9v9jxgunjv4ehxmr0d3hkcmmvdakx7mrgdp5xscfm7jc"
+                  , isRight
+                  )
+                , ( "Shelley (testnet 1)"
+                  , "addr_test1qpwr8l57ceql23ylyprl6qgct239lxph8clwxy5w8r4qdz8ct9uut5a\
+                    \hmxqkgwy9ecn5carsv39frsgsq09u70wmqwhqjqcjqs"
+                  , isRight
+                  )
+                , ( "Shelley (testnet 2)"
+                  , "stake_test1uru9j7w96wmanqty8zzuuf6vw3cxgj53cygq8j708hds8tsntl0j7"
+                  , isRight
+                  )
+                , ( "Malformed (1)"
+                  , "💩"
+                  , isLeft
+                  )
+                , ( "Malformed (2)"
+                  , "79467c69a9ac66280174d09d62575ba955748b21dec3b483a9469a65"
+                  , isLeft
+                  )
+                ]
+
+        forM_ matrix $ \(title, addr, predicate) ->
+            it title $ inspectAddress addr `shouldSatisfy` predicate
 
 instance Arbitrary (Hash "Genesis") where
     arbitrary = Hash . BS.pack <$> vector 32

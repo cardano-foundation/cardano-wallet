@@ -106,6 +106,8 @@ import Cardano.Wallet
     ( WalletLayer (..), WalletLog )
 import Cardano.Wallet.Api.Types
     ( ApiAddressIdT
+    , ApiAddressInspect
+    , ApiAddressInspectData
     , ApiAddressT
     , ApiByronWallet
     , ApiCoinSelectionT
@@ -164,8 +166,6 @@ import Data.Generics.Labels
     ()
 import Data.Generics.Product.Typed
     ( HasType, typed )
-import Data.Text
-    ( Text )
 import GHC.Generics
     ( Generic )
 import Servant.API
@@ -189,8 +189,6 @@ import Servant.API.Verbs
     , PutAccepted
     , PutNoContent
     )
-
-import qualified Data.Aeson as Aeson
 
 type ApiV2 n apiPool = "v2" :> Api n apiPool
 
@@ -285,8 +283,8 @@ type ListAddresses n = "wallets"
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/inspectAddress
 type InspectAddress = "addresses"
-    :> Capture "addressId" Text
-    :> Get '[JSON] Aeson.Value
+    :> Capture "addressId" ApiAddressInspectData
+    :> Get '[JSON] ApiAddressInspect
 
 {-------------------------------------------------------------------------------
                                Coin Selections

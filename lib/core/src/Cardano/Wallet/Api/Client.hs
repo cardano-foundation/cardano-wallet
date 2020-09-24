@@ -58,6 +58,8 @@ import Cardano.Wallet.Api
     )
 import Cardano.Wallet.Api.Types
     ( ApiAddressIdT
+    , ApiAddressInspect (..)
+    , ApiAddressInspectData (..)
     , ApiAddressT
     , ApiByronWallet
     , ApiCoinSelectionT
@@ -319,7 +321,10 @@ addressClient =
     in
         AddressClient
             { listAddresses = _listAddresses
-            , inspectAddress = _inspectAddress
+            , inspectAddress =
+                fmap unApiAddressInspect
+                . _inspectAddress
+                . ApiAddressInspectData
             , postRandomAddress = \_ _ -> fail "feature unavailable."
             , putRandomAddress  = \_ _ -> fail "feature unavailable."
             , putRandomAddresses = \_ _ -> fail "feature unavailable."
@@ -341,7 +346,10 @@ byronAddressClient =
     in
         AddressClient
             { listAddresses = _listAddresses
-            , inspectAddress = _inspectAddress
+            , inspectAddress =
+                fmap unApiAddressInspect
+                . _inspectAddress
+                . ApiAddressInspectData
             , postRandomAddress = _postRandomAddress
             , putRandomAddress = _putRandomAddress
             , putRandomAddresses = _putRandomAddresses

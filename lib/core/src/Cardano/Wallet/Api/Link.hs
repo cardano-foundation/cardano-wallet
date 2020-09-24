@@ -53,6 +53,7 @@ module Cardano.Wallet.Api.Link
     , putRandomAddresses
     , listAddresses
     , listAddresses'
+    , inspectAddress
 
       -- * CoinSelections
     , selectCoins
@@ -88,7 +89,8 @@ module Cardano.Wallet.Api.Link
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiPoolId (..)
+    ( ApiAddressInspectData (..)
+    , ApiPoolId (..)
     , ApiT (..)
     , ApiTxId (ApiTxId)
     , Iso8601Time
@@ -298,6 +300,12 @@ listAddresses' w mstate = discriminate @style
     (endpoint @(Api.ListByronAddresses Net) (\mk -> mk wid (ApiT <$> mstate)))
   where
     wid = w ^. typed @(ApiT WalletId)
+
+inspectAddress
+    :: ApiAddressInspectData
+    -> (Method, Text)
+inspectAddress addr =
+    endpoint @Api.InspectAddress (addr &)
 
 --
 -- Coin Selections

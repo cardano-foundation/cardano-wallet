@@ -61,6 +61,7 @@ import Test.Integration.Framework.TestData
     ( errMsg404NoWallet )
 
 import qualified Cardano.Wallet.Api.Link as Link
+import qualified Data.Aeson as Aeson
 import qualified Data.Text as T
 import qualified Network.HTTP.Types.Status as HTTP
 
@@ -224,3 +225,13 @@ spec = describe "SHELLEY_ADDRESSES" $ do
             (Link.listAddresses @'Shelley w) Default Empty
         expectResponseCode @IO HTTP.status404 r
         expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
+
+    it "ADDRESS_INSPECT_01 - Address inspect OK" $ \ctx -> do
+        let str = "Ae2tdPwUPEYz6ExfbWubiXPB6daUuhJxikMEb4eXRp5oKZBKZwrbJ2k7EZe"
+        r <- request @Aeson.Value ctx (Link.inspectAddress str) Default Empty
+        expectResponseCode @IO HTTP.status200 r
+
+    it "ADDRESS_INSPECT_02 - Address inspect KO" $ \ctx -> do
+        let str = "patate"
+        r <- request @Aeson.Value ctx (Link.inspectAddress str) Default Empty
+        expectResponseCode @IO HTTP.status400 r

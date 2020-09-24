@@ -46,6 +46,7 @@ import Cardano.Wallet.Api.Types
     , ApiAddressDerivationPath (..)
     , ApiAddressDerivationSegment (..)
     , ApiAddressDerivationType (..)
+    , ApiAddressInspect (..)
     , ApiBlockReference (..)
     , ApiByronWallet (..)
     , ApiByronWalletBalance (..)
@@ -173,7 +174,7 @@ import Control.Monad.IO.Class
 import Crypto.Hash
     ( hash )
 import Data.Aeson
-    ( FromJSON (..), ToJSON (..) )
+    ( FromJSON (..), ToJSON (..), (.=) )
 import Data.Aeson.QQ
     ( aesonQQ )
 import Data.Char
@@ -1456,6 +1457,15 @@ instance Arbitrary ApiPostRandomAddressData where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
+instance Arbitrary ApiAddressInspect where
+    arbitrary = do
+        style <- elements [ "Byron", "Icarus", "Shelley" ]
+        stake <- elements [ "none", "by value", "by pointer" ]
+        pure $ ApiAddressInspect $ Aeson.object
+            [ "address_style" .= Aeson.String style
+            , "stake_reference" .= Aeson.String stake
+            ]
+
 {-------------------------------------------------------------------------------
                    Specification / Servant-Swagger Machinery
 
@@ -1510,6 +1520,9 @@ specification =
 
 instance ToSchema (ApiAddress t) where
     declareNamedSchema _ = declareSchemaForDefinition "ApiAddress"
+
+instance ToSchema ApiAddressInspect where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiAddressInspect"
 
 instance ToSchema (ApiPutAddressesData t) where
     declareNamedSchema _ = declareSchemaForDefinition "ApiPutAddressesData"

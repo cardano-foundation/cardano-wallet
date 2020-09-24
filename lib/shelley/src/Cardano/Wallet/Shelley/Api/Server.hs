@@ -88,7 +88,9 @@ import Cardano.Wallet.Api.Server
     , withLegacyLayer'
     )
 import Cardano.Wallet.Api.Types
-    ( ApiErrorCode (..)
+    ( ApiAddressInspect (..)
+    , ApiAddressInspectData (..)
+    , ApiErrorCode (..)
     , ApiStakePool
     , ApiT (..)
     , SomeByronWalletPostData (..)
@@ -176,10 +178,14 @@ server byron icarus shelley spl ntp =
 
     addresses :: Server (Addresses n)
     addresses = listAddresses shelley (normalizeDelegationAddress @_ @ShelleyKey @n)
-        :<|> (Handler . withExceptT toServerError . except . inspectAddress)
+        :<|> (handler ApiAddressInspect . inspectAddress . unApiAddressInspectData)
       where
         toServerError :: TextDecodingError -> ServerError
         toServerError = apiError err400 BadRequest . T.pack . getTextDecodingError
+
+        handler :: (a -> result) -> Either TextDecodingError a -> Handler result
+        handler transform =
+            Handler . withExceptT toServerError . except . fmap transform
 
     coinSelections :: Server (CoinSelections n)
     coinSelections = selectCoins shelley (delegationAddress @n)
