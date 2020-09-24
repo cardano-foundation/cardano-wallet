@@ -2063,7 +2063,7 @@ instance LiftHandler ErrWalletNotResponding where
     handler = \case
         ErrWalletNotResponding wid ->
             apiError err500 WalletNotResponding $ T.unwords
-                [ "That's embarassing. My associated worker for", toText wid
+                [ "That's embarrassing. My associated worker for", toText wid
                 , "is no longer responding. This is not something that is supposed"
                 , "to happen. The worker must have left a trace in the logs of"
                 , "severity 'Error' when it died which might explain the cause."
@@ -2086,7 +2086,7 @@ instance LiftHandler ErrCreateWallet where
         ErrCreateWalletAlreadyExists e -> handler e
         ErrCreateWalletFailedToCreateWorker ->
             apiError err500 UnexpectedError $ mconcat
-                [ "That's embarassing. Your wallet looks good, but I couldn't "
+                [ "That's embarrassing. Your wallet looks good, but I couldn't "
                 , "open a new database to store its data. This is unexpected "
                 , "and likely not your fault. Perhaps, check your filesystem's "
                 , "permissions or available space?"
@@ -2211,7 +2211,7 @@ instance LiftHandler ErrMkTx where
     handler = \case
         ErrKeyNotFoundForAddress addr ->
             apiError err500 KeyNotFoundForAddress $ mconcat
-                [ "That's embarassing. I couldn't sign the given transaction: "
+                [ "That's embarrassing. I couldn't sign the given transaction: "
                 , "I haven't found the corresponding private key for a known "
                 , "input address I should keep track of: ", showT addr, ". "
                 , "Retrying may work, but something really went wrong..."
