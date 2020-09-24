@@ -164,8 +164,8 @@ server byron icarus jormungandr spl ntp =
         :<|> getUTxOsStatistics jormungandr
 
     addresses :: Server (Addresses n)
-    addresses = listAddresses jormungandr
-        (normalizeDelegationAddress @_ @JormungandrKey @n)
+    addresses = listAddresses jormungandr (normalizeDelegationAddress @_ @JormungandrKey @n)
+        :<|> (\_ -> throwError err501)
 
     coinSelections :: Server (CoinSelections n)
     coinSelections = selectCoins jormungandr (delegationAddress @n)

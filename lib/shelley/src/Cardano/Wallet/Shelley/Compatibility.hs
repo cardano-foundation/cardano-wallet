@@ -88,6 +88,7 @@ module Cardano.Wallet.Shelley.Compatibility
     , decentralizationLevelFromPParams
 
       -- * Utilities
+    , inspectAddress
     , invertUnitInterval
     , interval0
     , interval1
@@ -95,8 +96,12 @@ module Cardano.Wallet.Shelley.Compatibility
 
 import Prelude
 
+import Cardano.Address
+    ( unsafeMkAddress )
 import Cardano.Address.Derivation
     ( XPub, xpubPublicKey )
+import Cardano.Address.Style.Shelley
+    ( inspectShelleyAddress )
 import Cardano.Api.Shelley.Genesis
     ( ShelleyGenesis (..) )
 import Cardano.Api.Typed
@@ -133,7 +138,7 @@ import Control.Applicative
 import Control.Arrow
     ( left )
 import Control.Monad
-    ( when )
+    ( when, (>=>) )
 import Crypto.Hash.Utils
     ( blake2b224 )
 import Data.Bifunctor
@@ -226,6 +231,7 @@ import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Codec.Binary.Bech32 as Bech32
 import qualified Codec.Binary.Bech32.TH as Bech32
 import qualified Codec.CBOR.Decoding as CBOR
+import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString.Short as SBS
@@ -1004,6 +1010,35 @@ instance DecodeAddress 'Mainnet where
 instance DecodeAddress ('Testnet pm) where
     decodeAddress = _decodeAddress SL.Testnet
 
+decodeBytes :: Text -> Either TextDecodingError ByteString
+decodeBytes t =
+    case tryBase16 t <|> tryBech32 t <|> tryBase58 t of
+        Just bytes ->
+            Right bytes
+        _ ->
+            Left $ TextDecodingError
+                "Unrecognized address encoding: must be either bech32, base58 or base16"
+
+-- | Attempt decoding an 'Address' using a Bech32 encoding.
+tryBech32 :: Text -> Maybe ByteString
+tryBech32 text = do
+    (_, dp) <- either (const Nothing) Just (Bech32.decodeLenient text)
+    dataPartToBytes dp
+
+-- | Attempt decoding a legacy 'Address' using a Base58 encoding.
+tryBase58 :: Text -> Maybe ByteString
+tryBase58 text =
+    decodeBase58 bitcoinAlphabet (T.encodeUtf8 text)
+
+-- | Attempt decoding an 'Address' using Base16 encoding
+tryBase16 :: Text -> Maybe ByteString
+tryBase16 text =
+    either (const Nothing) Just $ convertFromBase Base16 (T.encodeUtf8 text)
+
+errMalformedAddress :: TextDecodingError
+errMalformedAddress = TextDecodingError
+    "Unable to decode address: not a well-formed Shelley nor Byron address."
+
 -- Note that for 'Byron', we always assume no discrimination. In
 -- practice, there is one discrimination for 'Shelley' addresses, and one for
 -- 'Byron' addresses. Yet, on Mainnet, 'Byron' addresses have no explicit
@@ -1012,30 +1047,9 @@ _decodeAddress
     :: SL.Network
     -> Text
     -> Either TextDecodingError W.Address
-_decodeAddress serverNetwork text =
-    case tryBase16 <|> tryBech32 <|> tryBase58 of
-        Just bytes ->
-            decodeShelleyAddress @StandardCrypto bytes
-        _ ->
-            Left $ TextDecodingError
-                "Unrecognized address encoding: must be either bech32, base58 or base16"
+_decodeAddress serverNetwork =
+    decodeBytes >=> decodeShelleyAddress @StandardCrypto
   where
-    -- | Attempt decoding an 'Address' using a Bech32 encoding.
-    tryBech32 :: Maybe ByteString
-    tryBech32 = do
-        (_, dp) <- either (const Nothing) Just (Bech32.decodeLenient text)
-        dataPartToBytes dp
-
-    -- | Attempt decoding a legacy 'Address' using a Base58 encoding.
-    tryBase58 :: Maybe ByteString
-    tryBase58 =
-        decodeBase58 bitcoinAlphabet (T.encodeUtf8 text)
-
-    -- | Attempt decoding an 'Address' using Base16 encoding
-    tryBase16 :: Maybe ByteString
-    tryBase16 =
-        either (const Nothing) Just $ convertFromBase Base16 (T.encodeUtf8 text)
-
     decodeShelleyAddress :: forall c. (SL.Crypto c) => ByteString -> Either TextDecodingError W.Address
     decodeShelleyAddress bytes = do
         case SL.deserialiseAddr @(SL.Shelley c) bytes of
@@ -1047,14 +1061,26 @@ _decodeAddress serverNetwork text =
                 guardNetwork (toNetwork (Byron.addrNetworkMagic addr)) serverNetwork
                 pure (W.Address bytes)
 
-            Nothing -> Left $ TextDecodingError
-                "Unable to decode address: not a well-formed Shelley nor Byron address."
+            Nothing -> Left errMalformedAddress
 
       where
         toNetwork :: Byron.NetworkMagic -> SL.Network
         toNetwork = \case
             Byron.NetworkMainOrStage -> SL.Mainnet
             Byron.NetworkTestnet{}   -> SL.Testnet
+
+-- FIXME: 'cardano-addresses' currently gives us an opaque 'Value'. It'd be
+-- nicer to model this as a proper Haskell type and to serialize in due times.
+inspectAddress
+    :: Text
+    -> Either TextDecodingError Aeson.Value
+inspectAddress =
+    decodeBytes >=> inspect
+  where
+    inspect :: ByteString -> Either TextDecodingError Aeson.Value
+    inspect = maybe (Left errMalformedAddress) Right
+        . inspectShelleyAddress
+        . unsafeMkAddress
 
 toHDPayloadAddress :: W.Address -> Maybe Byron.HDAddressPayload
 toHDPayloadAddress (W.Address addr) = do

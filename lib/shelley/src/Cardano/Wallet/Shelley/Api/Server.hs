@@ -105,12 +105,14 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( SeqState )
+import Cardano.Wallet.Shelley.Compatibility
+    ( inspectAddress )
 import Cardano.Wallet.Shelley.Pools
     ( StakePoolLayer (..) )
 import Control.Applicative
     ( liftA2 )
 import Control.Monad.Trans.Except
-    ( throwE )
+    ( except, throwE, withExceptT )
 import Data.Coerce
     ( coerce )
 import Data.Generics.Internal.VL.Lens
@@ -119,14 +121,20 @@ import Data.Generics.Labels
     ()
 import Data.List
     ( sortOn )
+import Data.Text.Class
+    ( TextDecodingError (..) )
 import Fmt
     ( Buildable )
 import Network.Ntp
     ( NtpClient )
 import Servant
     ( (:<|>) (..), Handler (..), Server, err400 )
+import Servant.Server
+    ( ServerError (..) )
 import Type.Reflection
     ( Typeable )
+
+import qualified Data.Text as T
 
 server
     :: forall t n.
@@ -167,8 +175,11 @@ server byron icarus shelley spl ntp =
         :<|> getUTxOsStatistics shelley
 
     addresses :: Server (Addresses n)
-    addresses = listAddresses shelley
-        (normalizeDelegationAddress @_ @ShelleyKey @n)
+    addresses = listAddresses shelley (normalizeDelegationAddress @_ @ShelleyKey @n)
+        :<|> (Handler . withExceptT toServerError . except . inspectAddress)
+      where
+        toServerError :: TextDecodingError -> ServerError
+        toServerError = apiError err400 BadRequest . T.pack . getTextDecodingError
 
     coinSelections :: Server (CoinSelections n)
     coinSelections = selectCoins shelley (delegationAddress @n)

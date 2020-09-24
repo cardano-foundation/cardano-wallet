@@ -314,7 +314,12 @@ import Control.Concurrent
 import Control.Concurrent.Async
     ( race_ )
 import Control.Exception
-    ( IOException, bracket, throwIO, try, tryJust )
+    ( IOException
+    , bracket
+    , throwIO
+    , try
+    , tryJust
+    )
 import Control.Monad
     ( forM, forever, void, when, (>=>) )
 import Control.Monad.Catch
@@ -1194,7 +1199,6 @@ listAddresses ctx normalize (ApiT wid) stateFilter = do
         Just (ApiT s) -> (== s) . snd
     coerceAddress (a, s) = ApiAddress (ApiT a, Proxy @n) (ApiT s)
 
-
 {-------------------------------------------------------------------------------
                                     Transactions
 -------------------------------------------------------------------------------}
@@ -1998,6 +2002,9 @@ apiError err code message = err
         ]
     }
 
+newtype ErrMalformedAddress = ErrMalformedAddress String
+    deriving (Eq, Show)
+
 data ErrUnexpectedPoolIdPlaceholder = ErrUnexpectedPoolIdPlaceholder
     deriving (Eq, Show)
 
@@ -2512,6 +2519,10 @@ instance LiftHandler ErrListPools where
     handler = \case
         ErrListPoolsNetworkError e -> handler e
         ErrListPoolsPastHorizonException e -> handler e
+
+instance LiftHandler ErrMalformedAddress where
+    handler = \case
+        ErrMalformedAddress e -> apiError err400 BadRequest (T.pack e)
 
 instance LiftHandler (Request, ServerError) where
     handler (req, err@(ServerError code _ body headers))
