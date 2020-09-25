@@ -1095,7 +1095,7 @@ sendFaucetFundsTo
     -> [(String, Coin)]
     -> IO ()
 sendFaucetFundsTo tr dir allTargets = do
-    forM_ (group 20 allTargets) sendBatch
+    forM_ (group 80 allTargets) sendBatch
   where
     sendBatch targets = do
         (faucetInput, faucetPrv) <- takeFaucet
