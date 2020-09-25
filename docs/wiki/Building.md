@@ -34,7 +34,13 @@ Download [Cabal](https://www.haskell.org/cabal/download.html) to build this proj
 3. Disable tests and benchmarks of local packages
    (those specified via source-repository-package...
    this won't be needed with cabal-3.4 anymore, because it won't treat
-   them as local anymore)
+   them as local anymore), e.g.
+
+    ```
+    package ouroboros-network
+      tests: False
+      benchmarks: False
+    ```
 
 4. Hackage packages in `packages` in `cardano-1.19.x.yaml` or `extra-deps`
    in `stack.yaml`, which are specified as git repositories might
