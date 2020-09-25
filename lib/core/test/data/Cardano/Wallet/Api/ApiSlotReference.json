@@ -1,0 +1,45 @@
+{
+    "seed": -7345331722963020563,
+    "samples": [
+        {
+            "time": "1874-08-19T08:37:41Z",
+            "absolute_slot_number": 14490878
+        },
+        {
+            "time": "1868-10-26T16:25:56.388468010449Z",
+            "absolute_slot_number": 5727321
+        },
+        {
+            "time": "1881-06-20T08:33:30Z",
+            "absolute_slot_number": 14662098
+        },
+        {
+            "time": "1895-09-06T06:00:00Z",
+            "absolute_slot_number": 14173193
+        },
+        {
+            "time": "1880-12-14T12:30:05Z",
+            "absolute_slot_number": 7293993
+        },
+        {
+            "time": "1888-07-06T01:21:19Z",
+            "absolute_slot_number": 1630214
+        },
+        {
+            "time": "1860-05-13T10:00:00Z",
+            "absolute_slot_number": 3275140
+        },
+        {
+            "time": "1908-10-11T16:19:48Z",
+            "absolute_slot_number": 14924467
+        },
+        {
+            "time": "1896-02-24T23:00:00Z",
+            "absolute_slot_number": 14051444
+        },
+        {
+            "time": "1863-03-20T13:50:09Z",
+            "absolute_slot_number": 1636469
+        }
+    ]
+}

@@ -64,6 +64,7 @@ import Cardano.Wallet.Api.Types
     , ApiPutAddressesData (..)
     , ApiRelativeAddressIndex (..)
     , ApiSelectCoinsData (..)
+    , ApiSlotReference (..)
     , ApiStakePool (..)
     , ApiStakePoolMetrics (..)
     , ApiT (..)
@@ -322,6 +323,7 @@ spec = do
             jsonRoundtripAndGolden $ Proxy @ApiTimeReference
             jsonRoundtripAndGolden $ Proxy @ApiNetworkTip
             jsonRoundtripAndGolden $ Proxy @ApiBlockReference
+            jsonRoundtripAndGolden $ Proxy @ApiSlotReference
             jsonRoundtripAndGolden $ Proxy @ApiNetworkInformation
             jsonRoundtripAndGolden $ Proxy @ApiNetworkParameters
             jsonRoundtripAndGolden $ Proxy @ApiNetworkClock
@@ -1277,8 +1279,8 @@ instance Arbitrary ApiBlockReference where
     shrink = genericShrink
 
 instance Arbitrary ApiSlotReference where
-    arbitrary = genericArbitrary
-    shrink = genericShrink
+    arbitrary = ApiSlotReference <$> genUniformTime <*> arbitrary
+    shrink (ApiSlotReference t sl) = ApiSlotReference t <$> shrink sl
 
 instance Arbitrary ApiNetworkTip where
     arbitrary = genericArbitrary
@@ -1402,14 +1404,17 @@ instance Arbitrary (ApiTransaction t) where
     arbitrary = do
         txStatus <- arbitrary
         txInsertedAt <- case txStatus of
-            (ApiT Pending) -> pure Nothing
-            (ApiT InLedger) -> arbitrary
-            (ApiT Expired) -> pure Nothing
+            ApiT Pending -> pure Nothing
+            ApiT InLedger -> arbitrary
+            ApiT Expired -> pure Nothing
         txPendingSince <- case txStatus of
-            (ApiT Pending) -> arbitrary
-            (ApiT InLedger) -> pure Nothing
-            (ApiT Expired) -> arbitrary
-        let txExpiresAt = txInsertedAt
+            ApiT Pending -> arbitrary
+            ApiT InLedger -> pure Nothing
+            ApiT Expired -> arbitrary
+        txExpiresAt <- case txStatus of
+            ApiT Pending -> arbitrary
+            ApiT InLedger -> pure Nothing
+            ApiT Expired -> Just <$> arbitrary
 
         ApiTransaction
             <$> arbitrary

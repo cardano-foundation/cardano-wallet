@@ -167,6 +167,7 @@ import Cardano.Wallet.Api.Types
     , ApiNetworkInformation
     , ApiNetworkParameters (..)
     , ApiT (..)
+    , ApiTimeReference (..)
     , ApiTransaction
     , ApiTxId (ApiTxId)
     , ApiUtxoStatistics (..)
@@ -180,7 +181,6 @@ import Cardano.Wallet.Api.Types
     , Iso8601Time (..)
     , WalletStyle (..)
     , insertedAt
-    , time
     )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( AccountingStyle (..)
