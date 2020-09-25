@@ -327,10 +327,24 @@ parseGenesisData = \case
             , block0
             )
 
+-- | Returns the shelley test data path, which is usually relative to the
+-- package sources, but can be overridden by the @SHELLEY_TEST_DATA@ environment
+-- variable.
+getShelleyTestDataPath :: IO FilePath
+getShelleyTestDataPath = fromMaybe source <$> lookupEnvNonEmpty var
+  where
+    source = $(getTestData) </> "cardano-node-shelley"
+    var = "SHELLEY_TEST_DATA"
+
+lookupEnvNonEmpty :: String -> IO (Maybe String)
+lookupEnvNonEmpty = fmap nonEmpty . lookupEnv
+  where
+    nonEmpty (Just "") = Nothing
+    nonEmpty m = m
+
 minSeverityFromEnv :: Severity -> String -> IO Severity
-minSeverityFromEnv def var = lookupEnv var >>= \case
+minSeverityFromEnv def var = lookupEnvNonEmpty var >>= \case
     Nothing -> pure def
-    Just "" -> pure def
     Just arg -> either die pure (parseLoggingSeverity arg)
 
 -- Allow configuring @cardano-node@ log level with the
@@ -605,6 +619,7 @@ withBFTNode
 withBFTNode tr baseDir params action =
     bracketTracer' tr "withBFTNode" $ do
         createDirectoryIfMissing False dir
+        source <- getShelleyTestDataPath
 
         [bftCert, bftPrv, vrfPrv, kesPrv, opCert] <- forM
             [ "bft-leader" <> ".byron.cert"
@@ -637,9 +652,6 @@ withBFTNode tr baseDir params action =
         withCardanoNodeProcess tr name cfg $ \(CardanoNodeConn socket) -> do
             action socket block0 (networkParams, versionData)
   where
-    source :: FilePath
-    source = $(getTestData) </> "cardano-node-shelley"
-
     name = "bft"
     dir = baseDir </> name
     NodeParams severity systemStart (port, peers) logDir = params
@@ -806,6 +818,7 @@ updateVersion tr tmpDir = do
     let updatePath = tmpDir </> "update-proposal"
     let votePath = tmpDir </> "update-vote"
     let network = "--mainnet"
+    source <- getShelleyTestDataPath
     void $ cli tr
         [ "byron", "create-update-proposal"
         , "--filepath", updatePath
@@ -838,9 +851,6 @@ updateVersion tr tmpDir = do
         , network
         , "--filepath", votePath
         ]
-  where
-    source :: FilePath
-    source = $(getTestData) </> "cardano-node-shelley"
 
 withCardanoNodeProcess
     :: Tracer IO ClusterLog
@@ -866,6 +876,7 @@ genConfig
 genConfig dir severity mExtraLogFile systemStart = do
     let startTime = round @_ @Int . utcTimeToPOSIXSeconds $ systemStart
     let systemStart' = posixSecondsToUTCTime . fromRational . toRational $ startTime
+    source <- getShelleyTestDataPath
 
     let fileScribe (path, sev) = ScribeDefinition
                 { scName = path
@@ -937,9 +948,6 @@ genConfig dir severity mExtraLogFile systemStart = do
         , versionData
         )
   where
-    source :: FilePath
-    source = $(getTestData) </> "cardano-node-shelley"
-
     shelleyGenesisFile :: FilePath
     shelleyGenesisFile = dir </> "shelley-genesis.json"
 
@@ -1212,14 +1220,12 @@ moveInstantaneousRewardsTo tr dir targets = do
         , "--out-file", file
         ] ++ concatMap (\x -> ["--certificate-file", x]) (mconcat certs)
 
+    testData <- getShelleyTestDataPath
     let bftPrv = testData </> "bft-leader" <> ".skey"
 
     tx <- signTx tr dir file [faucetPrv, bftPrv]
     submitTx tr "MIR certificates" tx
   where
-    testData :: FilePath
-    testData = $(getTestData) </> "cardano-node-shelley"
-
     mkVerificationKey
         :: (XPub, Coin)
         -> IO (String, FilePath, Coin)
@@ -1368,6 +1374,7 @@ waitUntilRegistered tr name opPub = do
 takeFaucet :: IO (String, String)
 takeFaucet = do
     i <- modifyMVar faucetIndex (\i -> pure (i+1, i))
+    source <- getShelleyTestDataPath
     let basename = source </> "faucet-addrs" </> "faucet" <> show i
     base58Addr <- BS.readFile $ basename <> ".addr"
     let addr = fromMaybe (error $ "decodeBase58 failed for " ++ show base58Addr)
@@ -1379,9 +1386,6 @@ takeFaucet = do
     let txin = B8.unpack (hex $ blake2b256 addr) <> "#0"
     let signingKey = basename <> ".shelley.key"
     pure (txin, signingKey)
-  where
-    source :: FilePath
-    source = $(getTestData) </> "cardano-node-shelley"
 
 -- | List of faucets also referenced in the shelley 'genesis.yaml'
 faucetIndex :: MVar Int
