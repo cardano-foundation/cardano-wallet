@@ -4,41 +4,27 @@ The metadata hash is part of the transaction body, so is covered by all transact
 
 The cardano-wallet API server uses a JSON representation of transaction metadata, isomorphic to the binary encoding on chain.
 
-### Structure
+## Metadata structure on chain
 
-The top level is a JSON object mapping from metadata keys to metadata values.
+The **top level** is a map from metadata keys to metadata values.
 
 **Metadata keys** are integers in the range 0 to 2<sup>64</sup> - 1.
 
 **Metadata values** are one of three simple types or two compound types.
 
-Every metadata value is tagged with its type, using a JSON object.
-
 Simple types:
 
  * _Integers_ in the range -(2<sup>64</sup> - 1) to 2<sup>64</sup> - 1
 
-    `{ "int": NUMBER }`
-
  * _Strings_ (UTF-8 encoded)
 
-    `{ "string": STRING }`
-
  * _Bytestrings_
-
-    `{ "bytes": HEX-STRING }`
-
-    The value must be base16-encoded (a hex string).
 
 Compound types:
 
  * Lists of _metadata values_
 
-   `{ "list": [ METADATA-VALUE, ... ] }`
-
  * Mappings from _metadata values_ to _metadata values_
-
-   `{ "map": [{ "k": METADATA-VALUE, "v": METADATA-VALUE }, ... ] }`
 
 Note that lists and maps need not necessarily contain the same type of metadata value in each element.
 
@@ -48,7 +34,37 @@ Note that lists and maps need not necessarily contain the same type of metadata 
  - Unencoded bytestrings may be at most 64 bytes long.
  - There are no limits to the number of metadata values, apart from the protocol limit on transaction size.
 
-### Examples
+## JSON representation in cardano-wallet
+
+The **top level** is a JSON object mapping **metadata keys** as
+decimal number strings to JSON objects for metadata values.
+
+Every **metadata value** is tagged with its type, using a JSON object,
+like this:
+
+ * _Integers_
+
+    `{ "int": NUMBER }`
+
+ * _Strings_
+
+    `{ "string": STRING }`
+
+ * _Bytestrings_
+
+    `{ "bytes": HEX-STRING }`
+
+    The value must be base16-encoded (a hex string).
+
+ * Lists of _metadata values_
+
+   `{ "list": [ METADATA-VALUE, ... ] }`
+
+ * Mappings from _metadata values_ to _metadata values_
+
+   `{ "map": [{ "k": METADATA-VALUE, "v": METADATA-VALUE }, ... ] }`
+
+## Examples
 
 This is a transaction metadata which contains four values.
 
@@ -78,7 +94,7 @@ This is a transaction metadata which contains four values.
 }
 ```
 
-### Sample code: Converting from JavaScript objects
+## Sample code: Converting from JavaScript objects
 
 Use a function like this to translate arbitrary JavaScript values into metadata JSON format. If your application requires a more precise mapping, it can be modified to suit. Note that this code does not validate strings for length.
 
@@ -134,7 +150,7 @@ console.log(JSON.stringify(txMetadata));
 ```
 
 
-### CLI
+## CLI
 
 Metadata can be provided when creating transactions through the [Wallet CLI](./Wallet-command-line-interface).
 
@@ -156,7 +172,7 @@ Available options:
 ```
 
 
-### References
+## References
 
 For a detailed explanation of the metadata design, and information about the transaction format, consult the following specifications.
 
