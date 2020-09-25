@@ -892,10 +892,43 @@ x-delegationTarget: &delegationTarget
 x-addressIndex: &addressIndex
   type: number
   minimum: 0
-  maximum: 4294967296 # 2 ^ 32, whole range (soft and hard) for random addresses.
+  # 2 ^ 32 - 1, whole range (soft and hard) for random addresses:
+  maximum: 4294967295
   description: |
-    An optional address derivation index. Leave out to get an address
-    with a randomly generated index.
+    An address derivation index.
+
+x-relativeAddressIndex: &relativeAddressIndex
+  type: number
+  minimum: 0
+  # 2 ^ 31 - 1
+  maximum: 2147483647
+  description: |
+    A relative address derivation index.
+
+x-addressDerivationType: &addressDerivationType
+  type: string
+  description: |
+    The type of derivation used in an address derivation path.
+  enum:
+    - hardened
+    - soft
+
+x-addressDerivationSegment: &addressDerivationSegment
+  description: An individual segment within an address derivation path.
+  type: object
+  required:
+    derivation_index
+    derivation_type
+  properties:
+    derivation_index: *relativeAddressIndex
+    derivation_type: *addressDerivationType
+
+x-addressDerivationPath: &addressDerivationPath
+  description: A path for deriving an address.
+  type: array
+  minItems: 1
+  items:
+    type: addressDerivationSegment
 
 #############################################################################
 #                                                                           #
