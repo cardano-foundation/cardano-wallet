@@ -62,7 +62,7 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex, unsafeMkMnemonic )
 import Control.Concurrent.MVar
-    ( MVar, putMVar, takeMVar )
+    ( MVar, modifyMVar )
 import Control.Monad
     ( forM_, replicateM )
 import Data.ByteArray.Encoding
@@ -71,8 +71,6 @@ import Data.ByteString
     ( ByteString )
 import Data.ByteString.Base58
     ( bitcoinAlphabet, encodeBase58 )
-import Data.Functor
-    ( (<$) )
 import Data.Text
     ( Text )
 import GHC.TypeLits
@@ -94,48 +92,42 @@ data Faucet = Faucet
     , txBuilder :: MVar [(Address, Coin) -> IO ByteString]
     }
 
--- | Get a raw transaction builder. It constructs and sign a transaction via an
--- private key that is owned "externally". Returns a bytes string ready to be
--- sent to a node.
-nextTxBuilder :: Faucet -> IO ((Address, Coin) -> IO ByteString)
-nextTxBuilder (Faucet _ _ _ _ mvar) =
-    takeMVar mvar >>= \case
-        [] -> fail "nextTxBuilder: Awe crap! No more faucet tx builder available!"
-        (h:q) -> h <$ putMVar mvar q
-
 -- | Get the next faucet wallet. Requires the 'initFaucet' to be called in order
 -- to get a hand on a 'Faucet'.
 class NextWallet (scheme :: Symbol) where
     type MnemonicSize scheme :: Nat
     nextWallet :: Faucet -> IO (Mnemonic (MnemonicSize scheme))
 
+takeNext :: MVar [a] -> IO a
+takeNext mvar = do
+    result <- modifyMVar mvar $ \case
+        [] -> pure ([], Nothing)
+        (h:q) -> pure (q, Just h)
+    case result of
+        Nothing -> fail "No more faucet wallet available in MVar!"
+        Just a  -> pure a
+
 instance NextWallet "shelley" where
     type MnemonicSize "shelley" = 15
-    nextWallet (Faucet mvar _ _ _ _) = do
-        takeMVar mvar >>= \case
-            [] -> fail "nextWallet: Awe crap! No more faucet shelley wallet available!"
-            (h:q) -> h <$ putMVar mvar q
+    nextWallet (Faucet mvar _ _ _ _) = takeNext mvar
 
 instance NextWallet "icarus" where
     type MnemonicSize "icarus" = 15
-    nextWallet (Faucet _ mvar _ _ _) = do
-        takeMVar mvar >>= \case
-            [] -> fail "nextWallet: Awe crap! No more faucet icarus wallet available!"
-            (h:q) -> h <$ putMVar mvar q
+    nextWallet (Faucet _ mvar _ _ _) = takeNext mvar
 
 instance NextWallet "random" where
     type MnemonicSize "random" = 12
-    nextWallet (Faucet _ _ mvar _ _) = do
-        takeMVar mvar >>= \case
-            [] -> fail "nextWallet: Awe crap! No more faucet random wallet available!"
-            (h:q) -> h <$ putMVar mvar q
+    nextWallet (Faucet _ _ mvar _ _) = takeNext mvar
 
 instance NextWallet "reward" where
     type MnemonicSize "reward" = 24
-    nextWallet (Faucet _ _ _ mvar _) = do
-        takeMVar mvar >>= \case
-            [] -> fail "nextWallet: Awe crap! No more faucet reward wallet available!"
-            (h:q) -> h <$ putMVar mvar q
+    nextWallet (Faucet _ _ _ mvar _) = takeNext mvar
+
+-- | Get a raw transaction builder. It constructs and sign a transaction via an
+-- private key that is owned "externally". Returns a bytes string ready to be
+-- sent to a node.
+nextTxBuilder :: Faucet -> IO ((Address, Coin) -> IO ByteString)
+nextTxBuilder (Faucet _ _ _ _ mvar) = takeNext mvar
 
 seqMnemonics :: [Mnemonic 15]
 seqMnemonics = unsafeMkMnemonic <$>
