@@ -123,7 +123,6 @@ import qualified Test.Integration.Scenario.CLI.Network as NetworkCLI
 import qualified Test.Integration.Scenario.CLI.Port as PortCLI
 import qualified Test.Integration.Scenario.CLI.Shelley.Addresses as AddressesCLI
 import qualified Test.Integration.Scenario.CLI.Shelley.HWWallets as HWWalletsCLI
-import qualified Test.Integration.Scenario.CLI.Shelley.Transactions as TransactionsCLI
 import qualified Test.Integration.Scenario.CLI.Shelley.Wallets as WalletsCLI
 
 -- | Define the actual executable name for the bridge CLI
@@ -147,14 +146,13 @@ main = withUtf8Encoding $ withLogging Nothing Info $ \(_, tr) -> do
             withCtxOnly $ ByronMigrations.spec @n
             withCtxOnly $ HWWallets.spec @n
             withCtxOnly $ TransactionsApiJormungandr.spec @n @t
-            withCtxOnly $ TransactionsCliJormungandr.spec @n @t
             withCtxOnly Network.spec
             withCtxOnly NetworkJormungandr.spec
             StakePoolsApiJormungandr.spec @n
 
         describe "CLI Specifications" $ specWithServer @n tr $ do
             withCtxOnly $ AddressesCLI.spec @n @t
-            withCtxOnly $ TransactionsCLI.spec @n @t
+            withCtxOnly $ TransactionsCliJormungandr.spec @n @t
             withCtxOnly $ WalletsCLI.spec @n @t
             withCtxOnly $ HWWalletsCLI.spec @n @t
             withCtxOnly $ PortCLI.spec @t
