@@ -134,8 +134,10 @@ import System.FilePath
 import System.Random
     ( newStdGen )
 
-import Cardano.Pool.DB.Sqlite.TH
+import Cardano.Pool.DB.Sqlite.TH hiding
+    ( BlockHeader, blockHeight )
 
+import qualified Cardano.Pool.DB.Sqlite.TH as TH
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
 import qualified Database.Sqlite as Sqlite
@@ -479,6 +481,7 @@ newDBLayer trace fp timeInterpreter = do
             deleteWhere [ PoolProductionSlot >. point ]
             deleteWhere [ PoolRegistrationSlot >. point ]
             deleteWhere [ PoolRetirementSlot >. point ]
+            deleteWhere [ BlockSlot >. point ]
             -- TODO: remove dangling metadata no longer attached to a pool
 
         removePools = mapM_ $ \pool -> do
@@ -526,6 +529,7 @@ newDBLayer trace fp timeInterpreter = do
             deleteWhere ([] :: [Filter StakeDistribution])
             deleteWhere ([] :: [Filter PoolMetadata])
             deleteWhere ([] :: [Filter PoolMetadataFetchAttempts])
+            deleteWhere ([] :: [Filter TH.BlockHeader])
 
         atomically :: forall a. (SqlPersistT IO a -> IO a)
         atomically = runQuery
@@ -589,6 +593,17 @@ newDBLayer trace fp timeInterpreter = do
                 let cert = PoolRetirementCertificate {poolId, retirementEpoch}
                 let cpt = CertificatePublicationTime {slotNo, slotInternalIndex}
                 pure (cpt, cert)
+
+        putHeader point =
+            let record = mkBlockHeader point
+                key = TH.blockHeight record
+            in repsert (BlockHeaderKey key) record
+
+        listHeaders k = do
+            reverse . fmap (fromBlockHeaders . entityVal) <$> selectList [ ]
+                [ Desc BlockHeight
+                , LimitTo k
+                ]
 
 -- | Defines a raw SQL query, runnable with 'runRawQuery'.
 --
@@ -872,6 +887,30 @@ fromPoolProduction (PoolProduction pool slot headerH parentH height) =
         , parentHeaderHash = getBlockId parentH
         }
     )
+
+mkBlockHeader
+    :: BlockHeader
+    -> TH.BlockHeader
+mkBlockHeader block = TH.BlockHeader
+    { blockSlot = view #slotNo block
+    , blockHeaderHash = BlockId (headerHash block)
+    , blockParentHash = BlockId (parentHeaderHash block)
+    , TH.blockHeight = getQuantity (blockHeight block)
+    }
+
+fromBlockHeaders :: TH.BlockHeader -> BlockHeader
+fromBlockHeaders h =
+    BlockHeader blockSlot
+        (Quantity blockHeight)
+        (getBlockId blockHeaderHash)
+        (getBlockId blockParentHash)
+  where
+    TH.BlockHeader
+        { blockSlot
+        , blockHeight
+        , blockHeaderHash
+        , blockParentHash
+        } = h
 
 mkStakeDistribution
     :: EpochNo

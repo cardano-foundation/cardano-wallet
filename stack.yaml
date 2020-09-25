@@ -77,3 +77,6 @@ ghc-options: {"$locals": -ddump-to-file -ddump-hi}
 
 nix:
   shell-file: nix/stack-shell.nix
+  # Disabling the pure nix-shell allows environment variables to be
+  # passed down to tests. We need this for integration tests.
+  pure: false

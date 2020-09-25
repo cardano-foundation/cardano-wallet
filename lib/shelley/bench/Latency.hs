@@ -377,6 +377,7 @@ withShelleyServer tracers action = do
                 Error
                 []
                 dir
+                Nothing
                 onByron
                 (afterFork dir)
                 (onClusterStart act dir)

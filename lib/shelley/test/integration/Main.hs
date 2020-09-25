@@ -22,7 +22,7 @@ import Cardano.BM.Data.Tracer
 import Cardano.BM.Trace
     ( appendName )
 import Cardano.CLI
-    ( Port (..), parseLoggingSeverity, withLogging )
+    ( LogOutput (..), Port (..), parseLoggingSeverity, withLogging )
 import Cardano.Launcher
     ( ProcessHasExited (..) )
 import Cardano.Startup
@@ -32,7 +32,7 @@ import Cardano.Wallet.Api.Server
 import Cardano.Wallet.Api.Types
     ( ApiByronWallet, ApiWallet, EncodeAddress (..), WalletStyle (..) )
 import Cardano.Wallet.Logging
-    ( BracketLog (..), bracketTracer, stdoutTextTracer, trMessageText )
+    ( BracketLog (..), bracketTracer, trMessageText )
 import Cardano.Wallet.Network.Ports
     ( unsafePortNumber )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -91,10 +91,14 @@ import Network.HTTP.Client
     , newManager
     , responseTimeoutMicro
     )
+import System.Directory
+    ( makeAbsolute )
 import System.Environment
     ( lookupEnv )
 import System.Exit
     ( die )
+import System.FilePath
+    ( (</>) )
 import System.IO
     ( BufferMode (..), hSetBuffering, stdout )
 import Test.Hspec
@@ -242,12 +246,14 @@ specWithServer (tr, tracers) = aroundAll withContext . after tearDown
     withServer dbDecorator action = bracketTracer' tr "withServer" $ do
         minSev <- nodeMinSeverityFromEnv
         testPoolConfigs' <- poolConfigsFromEnv
-        withSystemTempDir tr' "test" $ \dir ->
+        withSystemTempDir tr' "test" $ \dir -> do
+            extraLogDir <- (fmap (,Info)) <$> testLogDirFromEnv
             withCluster
                 tr'
                 minSev
                 testPoolConfigs'
                 dir
+                extraLogDir
                 onByron
                 (afterFork dir)
                 (onClusterStart action dir dbDecorator)
@@ -255,13 +261,14 @@ specWithServer (tr, tracers) = aroundAll withContext . after tearDown
     tr' = contramap MsgCluster tr
     onByron _ = pure ()
     afterFork dir _ = do
+        traceWith tr MsgSettingUpFaucet
         let encodeAddr = T.unpack . encodeAddress @'Mainnet
         let addresses = map (first encodeAddr) shelleyIntegrationTestFunds
-        sendFaucetFundsTo stdoutTextTracer dir addresses
+        sendFaucetFundsTo tr' dir addresses
 
         let rewards = (,Coin $ fromIntegral oneMillionAda) <$>
                 concatMap genRewardAccounts mirMnemonics
-        moveInstantaneousRewardsTo stdoutTextTracer dir rewards
+        moveInstantaneousRewardsTo tr' dir rewards
 
     onClusterStart
         action dir dbDecorator (RunningNode socketPath block0 (gp, vData)) = do
@@ -302,6 +309,7 @@ specWithServer (tr, tracers) = aroundAll withContext . after tearDown
 data TestsLog
     = MsgBracket Text BracketLog
     | MsgBaseUrl Text
+    | MsgSettingUpFaucet
     | MsgCluster ClusterLog
     | MsgPoolGarbageCollectionEvent PoolGarbageCollectionEvent
     deriving (Show)
@@ -310,6 +318,7 @@ instance ToText TestsLog where
     toText = \case
         MsgBracket name b -> name <> ": " <> toText b
         MsgBaseUrl txt -> txt
+        MsgSettingUpFaucet -> "Setting up faucet..."
         MsgCluster msg -> toText msg
         MsgPoolGarbageCollectionEvent e -> mconcat
             [ "Intercepted pool garbage collection event for epoch "
@@ -327,19 +336,32 @@ instance HasPrivacyAnnotation TestsLog
 instance HasSeverityAnnotation TestsLog where
     getSeverityAnnotation = \case
         MsgBracket _ _ -> Debug
+        MsgSettingUpFaucet -> Notice
         MsgBaseUrl _ -> Notice
         MsgCluster msg -> getSeverityAnnotation msg
-        MsgPoolGarbageCollectionEvent _ -> Notice
+        MsgPoolGarbageCollectionEvent _ -> Info
 
 withTracers
     :: ((Tracer IO TestsLog, Tracers IO) -> IO a)
     -> IO a
 withTracers action = do
-    minSeverity <- walletMinSeverityFromEnv
-    withLogging Nothing minSeverity $ \(_, tr) -> do
-        let trTests = appendName "integration" tr
-        let tracers = setupTracers (tracerSeverities (Just Info)) tr
-        action (trMessageText trTests, tracers)
+    walletMinSeverity <- walletMinSeverityFromEnv
+    testMinSeverity <- testMinSeverityFromEnv
+
+    let extraOutput name = (maybe [] (\f -> [LogToFile (f </> name) Info]))
+            <$> testLogDirFromEnv
+
+    walletLogOutputs <- ([LogToStdout walletMinSeverity] ++) <$>
+        extraOutput "wallet.log"
+    testLogOutputs <- ([LogToStdout testMinSeverity] ++) <$>
+        extraOutput "test.log"
+
+    withLogging walletLogOutputs $ \(_, walTr) -> do
+        withLogging testLogOutputs $ \(_, testTr) -> do
+            let trTests = appendName "integration" testTr
+            let tracers = setupTracers
+                    (tracerSeverities (Just Info)) walTr
+            action (trMessageText trTests, tracers)
 
 bracketTracer' :: Tracer IO TestsLog -> Text -> IO a -> IO a
 bracketTracer' tr name = bracketTracer (contramap (MsgBracket name) tr)
@@ -348,13 +370,19 @@ bracketTracer' tr name = bracketTracer (contramap (MsgBracket name) tr)
 -- @CARDANO_NODE_TRACING_MIN_SEVERITY@ environment variable.
 nodeMinSeverityFromEnv :: IO Severity
 nodeMinSeverityFromEnv =
-    minSeverityFromEnv Error "CARDANO_NODE_TRACING_MIN_SEVERITY"
+    minSeverityFromEnv Info "CARDANO_NODE_TRACING_MIN_SEVERITY"
 
--- Allow configuring integration tests and wallet log level with
+-- Allow configuring wallet log level with
 -- @CARDANO_WALLET_TRACING_MIN_SEVERITY@ environment variable.
 walletMinSeverityFromEnv :: IO Severity
 walletMinSeverityFromEnv =
-    minSeverityFromEnv Info "CARDANO_WALLET_TRACING_MIN_SEVERITY"
+    minSeverityFromEnv Critical "CARDANO_WALLET_TRACING_MIN_SEVERITY"
+
+-- Allow configuring integration tests and wallet log level with
+-- @CARDANO_TEST_TRACING_MIN_SEVERITY@ environment variable.
+testMinSeverityFromEnv :: IO Severity
+testMinSeverityFromEnv =
+    minSeverityFromEnv Notice "CARDANO_TEST_TRACING_MIN_SEVERITY"
 
 minSeverityFromEnv :: Severity -> String -> IO Severity
 minSeverityFromEnv def var = lookupEnv var >>= \case
@@ -367,3 +395,8 @@ poolConfigsFromEnv = lookupEnv "NO_POOLS" >>= \case
     Nothing -> pure testPoolConfigs
     Just "" -> pure testPoolConfigs
     Just _ -> pure []
+
+-- | Directory for extra logging. Buildkite will set this environment variable
+-- and upload logs in it automatically.
+testLogDirFromEnv :: IO (Maybe FilePath)
+testLogDirFromEnv = traverse makeAbsolute =<< lookupEnv "TESTS_LOGDIR"

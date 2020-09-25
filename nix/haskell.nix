@@ -75,19 +75,32 @@ let
 
           # cardano-node socket path becomes too long otherwise
           unit.preCheck = lib.optionalString stdenv.isDarwin "export TMPDIR=/tmp";
-          integration.preCheck = lib.optionalString stdenv.isDarwin ''
-              export TMPDIR=/tmp
-            '' + ''
-              # Variables picked up by integration tests
-              export CARDANO_WALLET_TRACING_MIN_SEVERITY=info
-              export CARDANO_NODE_TRACING_MIN_SEVERITY=notice
+          integration.preCheck = ''
+            # Variables picked up by integration tests
+            export CARDANO_WALLET_TRACING_MIN_SEVERITY=info
+            export CARDANO_NODE_TRACING_MIN_SEVERITY=notice
 
-              # Causes integration tests to be re-run whenever the git revision
-              # changes, even if everything else is identical.
-              # Since these tests tend to fail a lot, we don't want
-              # to cache false failures.
-              echo "Git revision is ${toString gitrev}"
-            '';
+            # Integration tests will place logs here
+            export TESTS_LOGDIR=$(mktemp -d)/logs
+
+            # Causes integration tests to be re-run whenever the git revision
+            # changes, even if everything else is identical.
+            # Since these tests tend to fail a lot, we don't want
+            # to cache false failures.
+            echo "Git revision is ${toString gitrev}"
+          '' + lib.optionalString stdenv.isDarwin ''
+            export TMPDIR=/tmp
+          '';
+
+          integration.postCheck = ''
+            # fixme: There needs to be some Haskell.nix changes to
+            # permit getting build products from failed builds.
+            if [ -n "$TESTS_LOGDIR" && -f $out/nix-support/failed ]; then
+              logfile=$out/cardano-wallet-integration-logs.tar.gz
+              ${buildPackages.gnutar}/bin/tar -C $(dirname $TESTS_LOGDIR) -czvf $logfile $TESTS_LOGDIR
+              echo "file none $logfile" >> $out/nix-support/hydra-build-products
+            fi
+          '';
 
           # provide cardano-node & cardano-cli to tests
           unit.build-tools = [ pkgs.cardano-node pkgs.cardano-cli ];

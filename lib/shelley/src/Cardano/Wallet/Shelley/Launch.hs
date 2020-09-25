@@ -4,6 +4,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE NumericUnderscores #-}
+{-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TemplateHaskell #-}
@@ -53,6 +54,12 @@ import Cardano.Address.Derivation
     ( XPub, xpubPublicKey )
 import Cardano.Api.Shelley.Genesis
     ( ShelleyGenesis (..) )
+import Cardano.BM.Data.Output
+    ( ScribeDefinition (..)
+    , ScribeFormat (..)
+    , ScribeKind (..)
+    , ScribePrivacy (..)
+    )
 import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
@@ -413,6 +420,7 @@ withCluster
     -- ^ The configurations of pools to spawn.
     -> FilePath
     -- ^ Parent state directory for cluster
+    -> Maybe (FilePath, Severity)
     -> (RunningNode -> IO ())
     -- ^ Action to run when Byron is up
     -> (RunningNode -> IO ())
@@ -422,17 +430,18 @@ withCluster
     -> (RunningNode -> IO a)
     -- ^ Action to run when stake pools are running
     -> IO a
-withCluster tr severity poolConfigs dir onByron onFork onClusterStart =
+withCluster tr severity poolConfigs dir logFile onByron onFork onClusterStart =
     bracketTracer' tr "withCluster" $ do
+        traceWith tr $ MsgStartingCluster dir
         let poolCount = length poolConfigs
         (port0:ports) <- randomUnusedTCPPorts (poolCount + 2)
         systemStart <- addUTCTime 1 <$> getCurrentTime
-        let bftCfg = NodeParams severity systemStart (head $ rotate ports)
+        let bftCfg = NodeParams severity systemStart (head $ rotate ports) logFile
         withBFTNode tr dir bftCfg $ \bftSocket block0 params -> do
             let runningBftNode = RunningNode bftSocket block0 params
             waitForSocket tr bftSocket *> onByron runningBftNode
 
-            traceWith tr MsgForkCartouche
+            traceWith tr MsgWaitingForFork
             updateVersion tr dir
             waitForHardFork bftSocket (fst params) 1 *> onFork runningBftNode
 
@@ -464,13 +473,13 @@ withCluster tr severity poolConfigs dir onByron onFork onClusterStart =
                 \(idx, poolConfig, (port, peers)) -> do
                     link =<< async (handle onException $ do
                         let spCfg =
-                                NodeParams severity systemStart (port, peers)
+                                NodeParams severity systemStart (port, peers) logFile
                         withStakePool
                             tr dir idx spCfg (pledgeOf idx) poolConfig $ do
                                 writeChan waitGroup $ Right port
                                 readChan doneGroup)
 
-            traceWith tr MsgClusterCartouche
+            traceWith tr $ MsgRegisteringStakePools poolCount
             group <- waitAll
             if length (filter isRight group) /= poolCount then do
                 cancelAll
@@ -479,7 +488,7 @@ withCluster tr severity poolConfigs dir onByron onFork onClusterStart =
                     ("cluster didn't start correctly: " <> errors)
                     (ExitFailure 1)
             else do
-                let cfg = NodeParams severity systemStart (port0, ports)
+                let cfg = NodeParams severity systemStart (port0, ports) logFile
                 withRelayNode tr dir cfg $ \socket -> do
                     let runningRelay = RunningNode socket block0 params
                     onClusterStart runningRelay `finally` cancelAll
@@ -504,15 +513,21 @@ waitForHardFork _socket np epoch = threadDelay (ceiling (1e6 * delay))
 
 -- | Configuration parameters which update the @node.config@ test data file.
 data NodeParams = NodeParams
-    { minSeverity :: Severity -- ^ Minimum logging severity
-    , systemStart :: UTCTime -- ^ Genesis block start time
-    , nodePeers :: (Int, [Int]) -- ^ A list of ports used by peers and this node
+    { minSeverity :: Severity
+      -- ^ Minimum logging severity
+    , systemStart :: UTCTime
+      -- ^ Genesis block start time
+    , nodePeers :: (Int, [Int])
+      -- ^ A list of ports used by peers and this node
+    , extraLogFile :: Maybe (FilePath, Severity)
+      -- ^ The node will always log to "cardano-node.log" relative to the
+      -- config. This option can be set for an additional output.
     } deriving (Show)
 
-singleNodeParams :: Severity -> IO NodeParams
-singleNodeParams severity = do
+singleNodeParams :: Severity -> Maybe (FilePath, Severity) -> IO NodeParams
+singleNodeParams severity extraLogFile = do
     systemStart <- getCurrentTime
-    pure $ NodeParams severity systemStart (0, [])
+    pure $ NodeParams severity systemStart (0, []) extraLogFile
 
 withBFTNode
     :: Tracer IO ClusterLog
@@ -538,8 +553,9 @@ withBFTNode tr baseDir params action =
             ]
             (\f -> copyFile (source </> f) (dir </> f) $> (dir </> f))
 
+        let extraLogFile = (fmap (first (</> (name ++ ".log"))) logDir)
         (config, block0, networkParams, versionData)
-            <- genConfig dir severity systemStart
+            <- genConfig dir severity extraLogFile systemStart
         topology <- genTopology dir peers
 
         let cfg = CardanoNodeConfig
@@ -564,7 +580,7 @@ withBFTNode tr baseDir params action =
 
     name = "bft"
     dir = baseDir </> name
-    NodeParams severity systemStart (port, peers) = params
+    NodeParams severity systemStart (port, peers) logDir = params
 
 -- | Launches a @cardano-node@ with the given configuration which will not forge
 -- blocks, but has every other cluster node as its peer. Any transactions
@@ -580,11 +596,13 @@ withRelayNode
     -> (FilePath -> IO a)
     -- ^ Callback function with socket path
     -> IO a
-withRelayNode tr baseDir (NodeParams severity systemStart (port, peers)) act =
+withRelayNode tr baseDir (NodeParams severity systemStart (port, peers) logDir) act =
     bracketTracer' tr "withRelayNode" $ do
         createDirectory dir
 
-        (config, _, _, _) <- genConfig dir severity systemStart
+        let extraLogFile = (fmap (first (</> (name ++ ".log"))) logDir)
+        (config, _, _, _) <-
+            genConfig dir severity extraLogFile systemStart
         topology <- genTopology dir peers
 
         let cfg = CardanoNodeConfig
@@ -630,7 +648,7 @@ setupStakePoolData
     -- ^ Optional retirement epoch.
     -> IO (CardanoNodeConfig, FilePath, FilePath)
 setupStakePoolData tr dir name params url pledgeAmt mRetirementEpoch = do
-    let NodeParams severity systemStart (port, peers) = params
+    let NodeParams severity systemStart (port, peers) logDir = params
 
     (opPrv, opPub, opCount, metadata) <- genOperatorKeyPair tr dir
     (vrfPrv, vrfPub) <- genVrfKeyPair tr dir
@@ -645,7 +663,8 @@ setupStakePoolData tr dir name params url pledgeAmt mRetirementEpoch = do
     dlgCert <- issueDlgCert tr dir stakePub opPub
     opCert <- issueOpCert tr dir kesPub opPrv opCount
 
-    (config, _, _, _) <- genConfig dir severity systemStart
+    let extraLogFile = (fmap (first (</> (name ++ ".log"))) logDir)
+    (config, _, _, _) <- genConfig dir severity extraLogFile systemStart
     topology <- genTopology dir peers
 
     -- In order to get a working stake pool we need to.
@@ -777,12 +796,29 @@ genConfig
     -- ^ A top-level directory where to put the configuration.
     -> Severity
     -- ^ Minimum severity level for logging
+    -> Maybe (FilePath, Severity)
+    -- ^ Optional /extra/ logging output
     -> UTCTime
     -- ^ Genesis block start time
     -> IO (FilePath, Block, NetworkParameters, NodeVersionData)
-genConfig dir severity systemStart = do
+genConfig dir severity mExtraLogFile systemStart = do
     let startTime = round @_ @Int . utcTimeToPOSIXSeconds $ systemStart
     let systemStart' = posixSecondsToUTCTime . fromRational . toRational $ startTime
+
+    let fileScribe (path, sev) = ScribeDefinition
+                { scName = path
+                , scFormat = ScText
+                , scKind = FileSK
+                , scMinSev = sev
+                , scMaxSev = Critical
+                , scPrivacy = ScPublic
+                , scRotation = Nothing
+                }
+
+    let scribes = catMaybes
+            [ Just $ fileScribe ("cardano-node.log", severity)
+            , fileScribe . first T.pack <$> mExtraLogFile
+            ]
 
     ----
     -- Configuration
@@ -790,6 +826,7 @@ genConfig dir severity systemStart = do
         >>= withAddedKey "ShelleyGenesisFile" shelleyGenesisFile
         >>= withAddedKey "ByronGenesisFile" byronGenesisFile
         >>= withAddedKey "minSeverity" Debug
+        >>= withScribes scribes
         >>= withObject (addMinSeverityStdout severity)
         >>= Yaml.encodeFile (dir </> "node.config")
 
@@ -805,6 +842,7 @@ genConfig dir severity systemStart = do
     Yaml.decodeFileThrow @_ @Aeson.Value (source </> "shelley-genesis.yaml")
         >>= withObject (pure . updateSystemStart systemStart')
         >>= Aeson.encodeFile shelleyGenesisFile
+
 
     ----
     -- Initial Funds.
@@ -845,6 +883,11 @@ genConfig dir severity systemStart = do
 
     byronGenesisFile :: FilePath
     byronGenesisFile = dir </> "byron-genesis.json"
+
+    withScribes scribes =
+        withAddedKey "setupScribes" scribes
+        >=> withAddedKey "defaultScribes"
+            (map (\s -> [toJSON $ scKind s, toJSON $ scName s]) scribes)
 
     -- we need to specify genesis file location every run in tmp
     withAddedKey k v = withObject (pure . HM.insert k (toJSON v))
@@ -1052,7 +1095,7 @@ sendFaucetFundsTo
     -> [(String, Coin)]
     -> IO ()
 sendFaucetFundsTo tr dir allTargets = do
-    forM_ (group 20 allTargets) sendBatch
+    forM_ (group 80 allTargets) sendBatch
   where
     sendBatch targets = do
         (faucetInput, faucetPrv) <- takeFaucet
@@ -1500,37 +1543,6 @@ timeout t (title, action) = do
         Left _  -> fail ("Waited too long for: " <> title)
         Right a -> pure a
 
--- | A little notice shown in the logs when setting up the cluster.
-forkCartouche :: Text
-forkCartouche = T.unlines
-    [ ""
-    , "########################################################################"
-    , "#                                                                      #"
-    , "#         Transition from byron to shelley has been triggered.         #"
-    , "#                                                                      #"
-    , "#           This may take roughly 60s. Please be patient...            #"
-    , "#                                                                      #"
-    , "########################################################################"
-    ]
-
--- | A little notice shown in the logs when setting up the cluster.
-clusterCartouche :: Text
-clusterCartouche = T.unlines
-    [ ""
-    , "########################################################################"
-    , "#                                                                      #"
-    , "#  ⚠                             NOTICE                             ⚠  #"
-    , "#                                                                      #"
-    , "#    Cluster is booting. Stake pools are being registered on chain.    #"
-    , "#                                                                      #"
-    , "#    This may take roughly 60s, after which pools will become active   #"
-    , "#    and will start producing blocks. Please be even more patient...   #"
-    , "#                                                                      #"
-    , "#  ⚠                             NOTICE                             ⚠  #"
-    , "#                                                                      #"
-    , "########################################################################"
-    ]
-
 -- | Hash a ByteString using blake2b_256 and encode it in base16
 blake2b256S :: ByteString -> String
 blake2b256S =
@@ -1574,8 +1586,9 @@ withSystemTempDir tr name action = do
 -------------------------------------------------------------------------------}
 
 data ClusterLog
-    = MsgClusterCartouche
-    | MsgForkCartouche
+    = MsgRegisteringStakePools Int -- ^ How many pools
+    | MsgWaitingForFork
+    | MsgStartingCluster FilePath
     | MsgLauncher String LauncherLog
     | MsgStartedStaticServer String FilePath
     | MsgTempNoCleanup FilePath
@@ -1592,8 +1605,20 @@ data ClusterLog
 
 instance ToText ClusterLog where
     toText = \case
-        MsgClusterCartouche -> clusterCartouche
-        MsgForkCartouche -> forkCartouche
+        MsgStartingCluster dir ->
+            "Configuring cluster in " <> T.pack dir
+        MsgWaitingForFork ->
+            "Transitioning from Byron to Shelley... Please wait 20s..."
+        MsgRegisteringStakePools 0 -> mconcat
+                [ "Not registering any stake pools due to "
+                , "NO_POOLS=1. Some tests may fail."
+                ]
+        MsgRegisteringStakePools n -> mconcat
+                [ T.pack (show n)
+                , " stake pools are being registered on chain... "
+                , "Please wait 60s until active... "
+                , "Can be skipped using NO_POOLS=1."
+                ]
         MsgLauncher name msg ->
             T.pack name <> " " <> toText msg
         MsgStartedStaticServer baseUrl fp ->
@@ -1629,19 +1654,24 @@ instance ToText ClusterLog where
 instance HasPrivacyAnnotation ClusterLog
 instance HasSeverityAnnotation ClusterLog where
     getSeverityAnnotation = \case
-        MsgClusterCartouche -> Warning
-        MsgForkCartouche -> Warning
-        MsgLauncher _ msg -> getSeverityAnnotation msg
+        MsgStartingCluster _ -> Notice
+        MsgRegisteringStakePools _ -> Notice
+        MsgWaitingForFork -> Notice
+        MsgLauncher _ _ -> Info
         MsgStartedStaticServer _ _ -> Info
         MsgTempNoCleanup _ -> Notice
         MsgBracket _ _ -> Debug
         MsgCLIStatus _ ExitSuccess _ _-> Debug
         MsgCLIStatus _ (ExitFailure _) _ _-> Error
         MsgCLIRetry _ -> Info
-        MsgCLIRetryResult{} -> Warning
+        MsgCLIRetryResult{} -> Info
+        -- NOTE: ^ Some failures are expected, so for cleaner logs we use Info,
+        -- instead of Warning.
         MsgSocketIsReady _ -> Info
         MsgStakeDistribution _ ExitSuccess _ _-> Info
-        MsgStakeDistribution _ (ExitFailure _) _ _-> Warning
+        MsgStakeDistribution _ (ExitFailure _) _ _-> Info
+        -- NOTE: ^ Some failures are expected, so for cleaner logs we use Info,
+        -- instead of Warning.
         MsgDebug _ -> Debug
         MsgGenOperatorKeyPair _ -> Debug
         MsgCLI _ -> Debug

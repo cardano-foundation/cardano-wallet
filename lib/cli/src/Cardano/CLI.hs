@@ -58,6 +58,7 @@ module Cardano.CLI
 
     -- * Option parsers for configuring tracing
     , LoggingOptions (..)
+    , LogOutput (..)
     , helperTracing
     , loggingOptions
     , loggingSeverities
@@ -100,6 +101,13 @@ import Cardano.BM.Backend.Switchboard
     ( Switchboard )
 import Cardano.BM.Configuration.Static
     ( defaultConfigStdout )
+import Cardano.BM.Data.Output
+    ( ScribeDefinition (..)
+    , ScribeFormat (..)
+    , ScribeId
+    , ScribeKind (..)
+    , ScribePrivacy (..)
+    )
 import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
@@ -1488,34 +1496,61 @@ data Verbosity
         -- ^ Include more information in the log output.
     deriving (Eq, Show)
 
+data LogOutput
+    = LogToStdout Severity
+    | LogToFile FilePath Severity
+    deriving (Eq, Show)
+
+
+mkScribe :: LogOutput -> ScribeDefinition
+mkScribe (LogToStdout sev) = ScribeDefinition
+    { scName = "text"
+    , scFormat = ScText
+    , scKind = StdoutSK
+    , scMinSev = sev
+    , scMaxSev = Critical
+    , scPrivacy = ScPublic
+    , scRotation = Nothing
+    }
+mkScribe (LogToFile path sev) = ScribeDefinition
+    { scName = T.pack path
+    , scFormat = ScText
+    , scKind = FileSK
+    , scMinSev = sev
+    , scMaxSev = Critical
+    , scPrivacy = ScPublic
+    , scRotation = Nothing
+    }
+
+mkScribeId :: LogOutput -> ScribeId
+mkScribeId (LogToStdout _) = "StdoutSK::text"
+mkScribeId (LogToFile file _) = T.pack $ "FileSK::" <> file
+
+
 -- | Initialize logging at the specified minimum 'Severity' level.
 initTracer
-    :: Maybe FilePath
-    -> Severity
+    :: [LogOutput]
     -> IO (Switchboard Text, (CM.Configuration, Trace IO Text))
-initTracer configFile minSeverity = do
-    let defaultConfig = do
-            c <- defaultConfigStdout
-            CM.setMinSeverity c minSeverity
-            CM.setSetupBackends c [CM.KatipBK, CM.AggregationBK]
-            pure c
-    cfg <- maybe defaultConfig CM.setup configFile
+initTracer outputs = do
+    cfg <- do
+        c <- defaultConfigStdout
+        CM.setSetupBackends c [CM.KatipBK, CM.AggregationBK]
+        CM.setSetupScribes c $ map mkScribe outputs
+        CM.setDefaultScribes c $ map mkScribeId outputs
+        pure c
     (tr, sb) <- setupTrace_ cfg "cardano-wallet"
     pure (sb, (cfg, tr))
 
 -- | Run an action with logging available and configured. When the action is
 -- finished (normally or otherwise), log messages are flushed.
 withLogging
-    :: Maybe FilePath
-    -- ^ Configuration file - uses default otherwise.
-    -> Severity
-    -- ^ Minimum severity level to log
+    :: [LogOutput]
     -> ((CM.Configuration, Trace IO Text) -> IO a)
     -- ^ The action to run with logging configured.
     -> IO a
-withLogging configFile minSeverity action = bracket before after (action . snd)
+withLogging outputs action = bracket before after (action . snd)
   where
-    before = initTracer configFile minSeverity
+    before = initTracer outputs
     after (sb, (_, tr)) = do
         logDebug (appendName "main" tr) "Logging shutdown."
         shutdown sb

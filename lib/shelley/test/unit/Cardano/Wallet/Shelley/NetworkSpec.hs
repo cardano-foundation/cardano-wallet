@@ -226,7 +226,7 @@ withTestNode
     -> (NetworkParameters -> FilePath -> NodeVersionData -> IO a)
     -> IO a
 withTestNode tr action = do
-    cfg <- singleNodeParams Error
+    cfg <- singleNodeParams Error Nothing
     withSystemTempDir tr "network-spec" $ \dir ->
         withBFTNode tr dir cfg $ \sock _block0 (np, vData) ->
             action np sock vData

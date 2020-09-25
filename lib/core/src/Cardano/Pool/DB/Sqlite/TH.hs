@@ -66,6 +66,16 @@ PoolProduction sql=pool_production
     Primary poolProductionSlot
     deriving Show Generic
 
+-- A block header
+BlockHeader sql=block_headers
+    blockSlot           SlotNo       sql=slot
+    blockHeaderHash     W.BlockId    sql=header_hash
+    blockParentHash     W.BlockId    sql=parent_header_hash
+    blockHeight         Word32       sql=block_height
+
+    Primary blockHeight
+    deriving Show Generic
+
 -- Stake distribution for each stake pool
 StakeDistribution sql=stake_distribution
     stakeDistributionPoolId     W.PoolId     sql=pool_id
