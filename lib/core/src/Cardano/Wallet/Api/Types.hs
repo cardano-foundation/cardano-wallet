@@ -8,6 +8,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedLabels #-}
@@ -41,6 +42,10 @@ module Cardano.Wallet.Api.Types
 
     -- * API Types
     , ApiAddress (..)
+    , ApiAddressDerivationPath (..)
+    , ApiAddressDerivationSegment (..)
+    , ApiAddressDerivationType (..)
+    , ApiRelativeAddressIndex (..)
     , ApiEpochInfo (..)
     , ApiSelectCoinsData (..)
     , ApiCoinSelection (..)
@@ -142,7 +147,6 @@ import Cardano.Mnemonic
     )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
-    , DerivationType (..)
     , Index (..)
     , NetworkDiscriminant (..)
     , Passphrase (..)
@@ -198,7 +202,7 @@ import Control.Applicative
 import Control.Arrow
     ( left )
 import Control.Monad
-    ( guard, (>=>) )
+    ( guard, (<=<), (>=>) )
 import Data.Aeson
     ( FromJSON (..)
     , SumEncoding (..)
@@ -272,6 +276,7 @@ import Web.HttpApiData
     ( FromHttpApiData (..), ToHttpApiData (..) )
 
 import qualified Cardano.Crypto.Wallet as CC
+import qualified Cardano.Wallet.Primitive.AddressDerivation as AD
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Types as Aeson
 import qualified Data.ByteString.Lazy as BL
@@ -356,6 +361,33 @@ data ApiAddress (n :: NetworkDiscriminant) = ApiAddress
     { id :: !(ApiT Address, Proxy n)
     , state :: !(ApiT AddressState)
     } deriving (Eq, Generic, Show)
+
+newtype ApiAddressDerivationPath = ApiAddressDerivationPath
+    { unApiAddressDerivationPath :: NonEmpty ApiAddressDerivationSegment
+    } deriving (Eq, Generic, Show)
+
+data ApiAddressDerivationSegment = ApiAddressDerivationSegment
+    { derivationIndex :: !ApiRelativeAddressIndex
+    , derivationType :: !ApiAddressDerivationType
+    } deriving (Eq, Generic, Show)
+
+-- | Represents a type of address derivation.
+--
+-- Note that the values of this type are a strict subset of those provided
+-- by 'DerivationType' from 'Cardano.Wallet.Primitive.AddressDerivation'.
+--
+data ApiAddressDerivationType
+    = Hardened
+    | Soft
+    deriving (Bounded, Enum, Eq, Generic, Show)
+
+-- | Represents a relative address index.
+--
+-- The range of this type is exactly half that of a 'Word32'.
+--
+newtype ApiRelativeAddressIndex = ApiRelativeAddressIndex
+    { unApiRelativeAddressIndex :: Word31
+    } deriving (Bounded, Enum, Eq, Generic, Show)
 
 data ApiEpochInfo = ApiEpochInfo
     { epochNumber :: !(ApiT EpochNo)
@@ -648,7 +680,7 @@ newtype ApiNetworkClock = ApiNetworkClock
 
 data ApiPostRandomAddressData = ApiPostRandomAddressData
     { passphrase :: !(ApiT (Passphrase "lenient"))
-    , addressIndex :: !(Maybe (ApiT (Index 'Hardened 'AddressK)))
+    , addressIndex :: !(Maybe (ApiT (Index 'AD.Hardened 'AddressK)))
     } deriving (Eq, Generic, Show)
 
 data ApiWalletMigrationPostData (n :: NetworkDiscriminant) (s :: Symbol) =
@@ -902,6 +934,45 @@ instance DecodeAddress n => FromJSON (ApiAddress n) where
     parseJSON = genericParseJSON defaultRecordTypeOptions
 instance EncodeAddress n => ToJSON (ApiAddress n) where
     toJSON = genericToJSON defaultRecordTypeOptions
+
+instance ToJSON ApiAddressDerivationPath where
+    toJSON = toJSON . unApiAddressDerivationPath
+instance FromJSON ApiAddressDerivationPath where
+    parseJSON = fmap ApiAddressDerivationPath . parseJSON
+
+instance ToJSON ApiAddressDerivationSegment where
+    toJSON = genericToJSON defaultRecordTypeOptions
+instance FromJSON ApiAddressDerivationSegment where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+
+instance ToJSON (ApiAddressDerivationType) where
+    toJSON = genericToJSON defaultSumTypeOptions
+instance FromJSON (ApiAddressDerivationType) where
+    parseJSON = genericParseJSON defaultSumTypeOptions
+
+instance ToJSON ApiRelativeAddressIndex where
+    toJSON = toJSON . fromEnum
+instance FromJSON ApiRelativeAddressIndex where
+    parseJSON = eitherToParser . integerToIndex <=< parseJSON
+      where
+        integerToIndex :: Integer -> Either String ApiRelativeAddressIndex
+        integerToIndex i
+            | i < minIntegerBound = Left errorMessage
+            | i > maxIntegerBound = Left errorMessage
+            | otherwise = Right
+                $ ApiRelativeAddressIndex
+                $ fromIntegral i
+
+        minIntegerBound = toInteger $ unApiRelativeAddressIndex minBound
+        maxIntegerBound = toInteger $ unApiRelativeAddressIndex maxBound
+
+        errorMessage = mconcat
+            [ "A relative address index must be a natural number between "
+            , show minIntegerBound
+            , " and "
+            , show maxIntegerBound
+            , "."
+            ]
 
 instance FromJSON ApiEpochInfo where
     parseJSON = genericParseJSON defaultRecordTypeOptions
