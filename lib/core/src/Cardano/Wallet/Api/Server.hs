@@ -1194,7 +1194,6 @@ listAddresses ctx normalize (ApiT wid) stateFilter = do
         Just (ApiT s) -> (== s) . snd
     coerceAddress (a, s) = ApiAddress (ApiT a, Proxy @n) (ApiT s)
 
-
 {-------------------------------------------------------------------------------
                                     Transactions
 -------------------------------------------------------------------------------}

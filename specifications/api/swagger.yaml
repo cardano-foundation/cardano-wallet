@@ -947,6 +947,69 @@ components:
         id: *addressId
         state: *addressState
 
+    ApiAddressInspect: &ApiAddressInspect
+        type: object
+        required:
+        - address_style
+        - stake_reference
+        properties:
+          address_style:
+            type: string
+            enum:
+            - Shelley
+            - Icarus
+            - Byron
+          stake_reference:
+            type: string
+            enum:
+            - none
+            - by value
+            - by pointer
+          network_tag:
+            description: Can be null for 'Icarus' and 'Byron' styles.
+            type: integer
+            minimum: 0
+          spending_key_hash:
+            type: string
+            format: base16
+            minLength: 56
+            maxLength: 56
+          stake_key_hash:
+            type: string
+            format: base16
+            minLength: 56
+            maxLength: 56
+          script_hash:
+            type: string
+            format: base16
+            minLength: 64
+            maxLength: 64
+          pointer:
+            type: object
+            additionalProperties: false
+            required:
+            - slot_num
+            - transaction_index
+            - output_index
+            properties:
+              slot_num:
+                type: integer
+                minimum: 0
+              transaction_index:
+                type: integer
+                minimum: 0
+              output_index:
+                type: integer
+                minimum: 0
+          address_root:
+            description: Only for 'Icarus' and 'Byron' styles.
+            type: string
+            format: base16
+          derivation_path:
+            description: Only for 'Byron' style.
+            type: string
+            format: base16
+
     ApiNetworkTip: &ApiNetworkTip
       description: A network tip
       type: object
@@ -2077,6 +2140,16 @@ x-responsesPutRandomAddresses: &responsesPutRandomAddresses
   204:
     description: No Content
 
+x-responsesInspectAddress: &responsesInspectAddress
+  <<: *responsesErr400
+  <<: *responsesErr405
+  <<: *responsesErr415
+  200:
+    description: Ok
+    content:
+      application/json:
+        schema: *ApiAddressInspect
+
 #############################################################################
 #                                                                           #
 #                                  PATHS                                    #
@@ -2853,3 +2926,16 @@ paths:
           application/octet-stream:
             schema: *signedTransactionBlob
       responses: *responsesPostExternalTransaction
+
+  /addresses/{addressId}:
+    get:
+      operationId: inspectAddress
+      tags: ["Addresses", "Byron Addresses"]
+      summary: Inspect Address
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+
+        Give useful information about the structure of a given address.
+      parameters:
+        - *parametersAddressId
+      responses: *responsesInspectAddress

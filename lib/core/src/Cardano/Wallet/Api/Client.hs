@@ -58,6 +58,8 @@ import Cardano.Wallet.Api
     )
 import Cardano.Wallet.Api.Types
     ( ApiAddressIdT
+    , ApiAddressInspect (..)
+    , ApiAddressInspectData (..)
     , ApiAddressT
     , ApiByronWallet
     , ApiCoinSelectionT
@@ -168,6 +170,9 @@ data AddressClient = AddressClient
         :: ApiT WalletId
         -> Maybe (ApiT AddressState)
         -> ClientM [Aeson.Value]
+    , inspectAddress
+        :: Text
+        -> ClientM Aeson.Value
     , postRandomAddress
         :: ApiT WalletId
         -> ApiPostRandomAddressData
@@ -311,21 +316,28 @@ addressClient
 addressClient =
     let
         _listAddresses
+            :<|> _inspectAddress
             = client (Proxy @("v2" :> Addresses Aeson.Value))
     in
         AddressClient
             { listAddresses = _listAddresses
+            , inspectAddress =
+                fmap unApiAddressInspect
+                . _inspectAddress
+                . ApiAddressInspectData
             , postRandomAddress = \_ _ -> fail "feature unavailable."
             , putRandomAddress  = \_ _ -> fail "feature unavailable."
             , putRandomAddresses = \_ _ -> fail "feature unavailable."
             }
-
 
 -- | Produces an 'AddressClient n' working against the /wallets API
 byronAddressClient
     :: AddressClient
 byronAddressClient =
     let
+        _ :<|> _inspectAddress
+            = client (Proxy @("v2" :> Addresses Aeson.Value))
+
         _postRandomAddress
             :<|> _putRandomAddress
             :<|> _putRandomAddresses
@@ -334,6 +346,10 @@ byronAddressClient =
     in
         AddressClient
             { listAddresses = _listAddresses
+            , inspectAddress =
+                fmap unApiAddressInspect
+                . _inspectAddress
+                . ApiAddressInspectData
             , postRandomAddress = _postRandomAddress
             , putRandomAddress = _putRandomAddress
             , putRandomAddresses = _putRandomAddresses

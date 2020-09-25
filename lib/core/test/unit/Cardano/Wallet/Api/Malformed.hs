@@ -50,7 +50,8 @@ module Cardano.Wallet.Api.Malformed
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiNetworkTip
+    ( ApiAddressInspectData
+    , ApiNetworkTip
     , ApiPoolId
     , ApiPostRandomAddressData
     , ApiPutAddressesData
@@ -169,6 +170,14 @@ instance Wellformed (PathParam (ApiT Address, Proxy ('Testnet 0))) where
         "FHnt4NL7yPY7JbfJYSadQVSGJG7EKkN4kpVJMhJ8CN3uDNymGnJuuwcHmyP4ouZ"]
 
 instance Malformed (PathParam (ApiT Address, Proxy ('Testnet 0))) where
+    malformed = []
+
+instance Wellformed (PathParam ApiAddressInspectData) where
+    wellformed = PathParam <$>
+        [ "Ae2tdPwUPEYz6ExfbWubiXPB6daUuhJxikMEb4eXRp5oKZBKZwrbJ2k7EZe"
+        ]
+
+instance Malformed (PathParam ApiAddressInspectData) where
     malformed = []
 
 --

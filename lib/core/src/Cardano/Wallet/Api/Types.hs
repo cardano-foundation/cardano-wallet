@@ -72,6 +72,8 @@ module Cardano.Wallet.Api.Types
     , ApiTxInput (..)
     , ApiTxMetadata (..)
     , AddressAmount (..)
+    , ApiAddressInspect (..)
+    , ApiAddressInspectData (..)
     , ApiErrorCode (..)
     , ApiNetworkInformation (..)
     , ApiNtpStatus (..)
@@ -244,6 +246,8 @@ import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
     ( Percentage, Quantity (..) )
+import Data.String
+    ( IsString )
 import Data.Text
     ( Text, split )
 import Data.Text.Class
@@ -637,6 +641,15 @@ data AddressAmount addr = AddressAmount
     { address :: !addr
     , amount :: !(Quantity "lovelace" Natural)
     } deriving (Eq, Generic, Show)
+
+newtype ApiAddressInspect = ApiAddressInspect
+    { unApiAddressInspect :: Aeson.Value }
+    deriving (Eq, Generic, Show)
+
+newtype ApiAddressInspectData = ApiAddressInspectData
+    { unApiAddressInspectData :: Text }
+    deriving (Eq, Generic, Show)
+    deriving newtype (IsString)
 
 data ApiTimeReference = ApiTimeReference
     { time :: !UTCTime
@@ -1530,6 +1543,12 @@ instance ToJSON ApiWalletDiscovery where
     toJSON = genericToJSON $ Aeson.defaultOptions
         { constructorTagModifier = drop 1 . dropWhile (/= '_') . camelTo2 '_' }
 
+instance ToJSON ApiAddressInspect where
+    toJSON = unApiAddressInspect
+
+instance FromJSON ApiAddressInspect where
+    parseJSON = pure . ApiAddressInspect
+
 {-------------------------------------------------------------------------------
                              FromText/ToText instances
 -------------------------------------------------------------------------------}
@@ -1590,6 +1609,12 @@ instance ToHttpApiData ApiPoolId where
     toUrlPiece = \case
         ApiPoolIdPlaceholder -> "*"
         ApiPoolId pid -> encodePoolIdBech32 pid
+
+instance FromHttpApiData ApiAddressInspectData where
+    parseUrlPiece = pure . ApiAddressInspectData
+
+instance ToHttpApiData ApiAddressInspectData where
+    toUrlPiece = unApiAddressInspectData
 
 {-------------------------------------------------------------------------------
                                 Aeson Options

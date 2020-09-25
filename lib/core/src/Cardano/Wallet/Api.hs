@@ -31,6 +31,7 @@ module Cardano.Wallet.Api
 
     , Addresses
         , ListAddresses
+        , InspectAddress
 
     , CoinSelections
         , SelectCoins
@@ -105,6 +106,8 @@ import Cardano.Wallet
     ( WalletLayer (..), WalletLog )
 import Cardano.Wallet.Api.Types
     ( ApiAddressIdT
+    , ApiAddressInspect
+    , ApiAddressInspectData
     , ApiAddressT
     , ApiByronWallet
     , ApiCoinSelectionT
@@ -269,6 +272,7 @@ type GetUTxOsStatistics = "wallets"
 
 type Addresses n =
     ListAddresses n
+    :<|> InspectAddress
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/listAddresses
 type ListAddresses n = "wallets"
@@ -276,6 +280,11 @@ type ListAddresses n = "wallets"
     :> "addresses"
     :> QueryParam "state" (ApiT AddressState)
     :> Get '[JSON] [ApiAddressT n]
+
+-- | https://input-output-hk.github.io/cardano-wallet/api/#operation/inspectAddress
+type InspectAddress = "addresses"
+    :> Capture "addressId" ApiAddressInspectData
+    :> Get '[JSON] ApiAddressInspect
 
 {-------------------------------------------------------------------------------
                                Coin Selections
