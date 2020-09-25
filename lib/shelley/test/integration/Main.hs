@@ -261,7 +261,7 @@ specWithServer (tr, tracers) = aroundAll withContext . after tearDown
     tr' = contramap MsgCluster tr
     onByron _ = pure ()
     afterFork dir _ = do
-        traceWith tr MsgSettingUpFacuet
+        traceWith tr MsgSettingUpFaucet
         let encodeAddr = T.unpack . encodeAddress @'Mainnet
         let addresses = map (first encodeAddr) shelleyIntegrationTestFunds
         sendFaucetFundsTo tr' dir addresses
@@ -309,7 +309,7 @@ specWithServer (tr, tracers) = aroundAll withContext . after tearDown
 data TestsLog
     = MsgBracket Text BracketLog
     | MsgBaseUrl Text
-    | MsgSettingUpFacuet
+    | MsgSettingUpFaucet
     | MsgCluster ClusterLog
     | MsgPoolGarbageCollectionEvent PoolGarbageCollectionEvent
     deriving (Show)
@@ -318,7 +318,7 @@ instance ToText TestsLog where
     toText = \case
         MsgBracket name b -> name <> ": " <> toText b
         MsgBaseUrl txt -> txt
-        MsgSettingUpFacuet -> "Setting up faucet..."
+        MsgSettingUpFaucet -> "Setting up faucet..."
         MsgCluster msg -> toText msg
         MsgPoolGarbageCollectionEvent e -> mconcat
             [ "Intercepted pool garbage collection event for epoch "
@@ -336,7 +336,7 @@ instance HasPrivacyAnnotation TestsLog
 instance HasSeverityAnnotation TestsLog where
     getSeverityAnnotation = \case
         MsgBracket _ _ -> Debug
-        MsgSettingUpFacuet -> Notice
+        MsgSettingUpFaucet -> Notice
         MsgBaseUrl _ -> Notice
         MsgCluster msg -> getSeverityAnnotation msg
         MsgPoolGarbageCollectionEvent _ -> Info
