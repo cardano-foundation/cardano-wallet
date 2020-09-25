@@ -2176,6 +2176,7 @@ x-tagGroups:
 
   - name: Miscellaneous
     tags:
+    - Utils
     - Network
     - Proxy
 
@@ -2930,7 +2931,7 @@ paths:
   /addresses/{addressId}:
     get:
       operationId: inspectAddress
-      tags: ["Addresses", "Byron Addresses"]
+      tags: ["Utils"]
       summary: Inspect Address
       description: |
         <p align="right">status: <strong>stable</strong></p>
