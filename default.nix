@@ -97,10 +97,10 @@ let
     tools = {
       cabal = "3.2.0.0";
       ghcid = "0.8.7";
-      ghcide = "0.2.0";
-      hlint = "3.1.6";
+      ghcide = "0.4.0";
+      hlint = "3.2";
       lentil = "1.3.2.0";
-      stylish-haskell = "0.11.0.0";
+      stylish-haskell = "0.11.0.3";
       weeder = "1.0.9";
     };
     CARDANO_NODE_CONFIGS = cardano-node.deployments;
