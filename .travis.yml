@@ -62,12 +62,18 @@ jobs:
     - "tar xzf cardano-wallet-20*-linux64.tar.gz"
     - "mv cardano-wallet-20*/ cardano-wallet-linux64"
     - "./cardano-wallet-linux64/cardano-wallet version | grep -q $TRAVIS_COMMIT"
+    - "mkdir -p auto-completion auto-completion/bash auto-completion/zsh auto-completion/fish"
+    - "./cardano-wallet-linux64/cardano-wallet --bash-completion-script cardano-wallet > auto-completion/bash/cardano-wallet.sh"
+    - "./cardano-wallet-linux64/cardano-wallet --zsh-completion-script  cardano-wallet > auto-completion/zsh/_cardano-wallet"
+    - "./cardano-wallet-linux64/cardano-wallet --fish-completion-script cardano-wallet > auto-completion/fish/cardano-wallet.fish"
+    - "cp -r auto-completion cardano-wallet-linux64"
     - "tar czf cardano-wallet-$TRAVIS_TAG-linux64.tar.gz cardano-wallet-linux64"
     - "rm -rf cardano-wallet-linux64 cardano-wallet-20*-linux64.tar.gz"
 
     # Unpack and rename stuff for the MacOS archive
     - "tar xzf cardano-wallet-20*-macos64.tar.gz"
     - "mv cardano-wallet-20*/ cardano-wallet-macos64"
+    - "cp -r auto-completion cardano-wallet-macos64"
     - "tar czf cardano-wallet-$TRAVIS_TAG-macos64.tar.gz cardano-wallet-macos64"
     - "rm -rf cardano-wallet-macos64 cardano-wallet-20*-macos64.tar.gz"
 
@@ -84,6 +90,10 @@ jobs:
     - "tar xzf cardano-wallet-jormungandr-*-linux64.tar.gz"
     - "mv cardano-wallet-jormungandr-*/ cardano-wallet-jormungandr-linux64"
     - "mv cardano-wallet-jormungandr-linux64/cardano-wallet-jormungandr cardano-wallet-jormungandr-linux64/cardano-wallet"
+    - "./cardano-wallet-jormungandr-linux64/cardano-wallet --bash-completion-script cardano-wallet > auto-completion/bash/cardano-wallet.sh"
+    - "./cardano-wallet-jormungandr-linux64/cardano-wallet --zsh-completion-script  cardano-wallet > auto-completion/zsh/_cardano-wallet"
+    - "./cardano-wallet-jormungandr-linux64/cardano-wallet --fish-completion-script cardano-wallet > auto-completion/fish/cardano-wallet.fish"
+    - "cp -r auto-completion cardano-wallet-jormungandr-linux64"
     - "./cardano-wallet-jormungandr-linux64/cardano-wallet version | grep -q $TRAVIS_COMMIT"
     - "tar czf cardano-wallet-itn-$TRAVIS_TAG-linux64.tar.gz cardano-wallet-jormungandr-linux64"
     - "rm -rf cardano-wallet-jormungandr-linux64 cardano-wallet-jormungandr-*-linux64.tar.gz"
@@ -92,6 +102,7 @@ jobs:
     - "tar xzf cardano-wallet-jormungandr-*-macos64.tar.gz"
     - "mv cardano-wallet-jormungandr-*/ cardano-wallet-jormungandr-macos64"
     - "mv cardano-wallet-jormungandr-macos64/cardano-wallet-jormungandr cardano-wallet-jormungandr-macos64/cardano-wallet"
+    - "cp -r auto-completion cardano-wallet-jormungandr-macos64"
     - "tar czf cardano-wallet-itn-$TRAVIS_TAG-macos64.tar.gz cardano-wallet-jormungandr-macos64"
     - "rm -rf cardano-wallet-jormungandr-macos64 cardano-wallet-jormungandr-*-macos64.tar.gz"
 
