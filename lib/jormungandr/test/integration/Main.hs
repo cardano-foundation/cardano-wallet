@@ -103,6 +103,7 @@ import Type.Reflection
 import qualified Cardano.Pool.Jormungandr.MetricsSpec as MetricsSpec
 import qualified Cardano.Wallet.Jormungandr.NetworkSpec as NetworkLayer
 import qualified Data.Text as T
+import qualified Test.Integration.Jormungandr.Scenario.API.Addresses as AddressesJormungandr
 import qualified Test.Integration.Jormungandr.Scenario.API.Network as NetworkJormungandr
 import qualified Test.Integration.Jormungandr.Scenario.API.StakePools as StakePoolsApiJormungandr
 import qualified Test.Integration.Jormungandr.Scenario.API.Transactions as TransactionsApiJormungandr
@@ -115,7 +116,6 @@ import qualified Test.Integration.Scenario.API.Byron.Migrations as ByronMigratio
 import qualified Test.Integration.Scenario.API.Byron.Transactions as ByronTransactions
 import qualified Test.Integration.Scenario.API.Byron.Wallets as ByronWallets
 import qualified Test.Integration.Scenario.API.Network as Network
-import qualified Test.Integration.Scenario.API.Shelley.Addresses as Addresses
 import qualified Test.Integration.Scenario.API.Shelley.HWWallets as HWWallets
 import qualified Test.Integration.Scenario.API.Shelley.Wallets as Wallets
 import qualified Test.Integration.Scenario.CLI.Miscellaneous as MiscellaneousCLI
@@ -139,7 +139,7 @@ main = withUtf8Encoding $ withLogging [LogToStdout Info] $ \(_, tr) -> do
             describe "Stake Pool Metrics" MetricsSpec.spec
 
         describe "API Specifications" $ specWithServer @n tr $ do
-            withCtxOnly $ Addresses.spec @n
+            withCtxOnly $ AddressesJormungandr.spec @n
             withCtxOnly $ Wallets.spec @n
             withCtxOnly $ ByronWallets.spec @n
             withCtxOnly $ ByronTransactions.spec @n
