@@ -32,6 +32,8 @@ import Cardano.Wallet.Primitive.Types
     ( Direction (..), FeePolicy (..), PoolId (..), TxStatus (..) )
 import Cardano.Wallet.Transaction
     ( DelegationAction (..) )
+import Control.Monad.IO.Class
+    ( liftIO )
 import Data.Functor.Identity
     ( Identity (..) )
 import Data.Generics.Internal.VL.Lens
@@ -54,6 +56,7 @@ import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)
     , Payload (..)
+    , ResourceT
     , TxDescription (..)
     , delegating
     , delegationFee
@@ -82,6 +85,8 @@ import Test.Integration.Framework.DSL
     , quitStakePool
     , request
     , restoreWalletFromPubKey
+    , runResourceT
+    , runResourceT
     , unsafeRequest
     , verify
     , waitAllTxsInLedger
@@ -115,22 +120,22 @@ spec :: forall n t.
     ) => SpecWith (Port "node", FeePolicy, Context t)
 spec = do
     describe "HW_WALLETS_02,03 - Delegation with restored HW Wallets" $ do
-        it "HW_WALLETS_03 - Cannot join SP" $ \(_,_,ctx) -> do
+        it "HW_WALLETS_03 - Cannot join SP" $ \(_,_,ctx) -> runResourceT @IO $ do
             (w, mnemonics) <- fixtureWalletWithMnemonics ctx
             let pubKey = pubKeyFromMnemonics mnemonics
             r <- request @ApiWallet ctx (Link.deleteWallet @'Shelley w) Default Empty
-            expectResponseCode @IO HTTP.status204 r
+            expectResponseCode HTTP.status204 r
 
             wk <- restoreWalletFromPubKey @ApiWallet @'Shelley ctx pubKey "Wallet from pubkey"
             -- cannot join stake pool
-            (_, p:_) <- eventually "Stake pools are listed" $
+            (_, p:_) <- liftIO $ eventually "Stake pools are listed" $
                 unsafeRequest @[ApiStakePool] ctx Link.listJormungandrStakePools Empty
             rJoin <- joinStakePool @n ctx (p ^. #id) (wk, fixturePassphrase)
-            expectResponseCode @IO HTTP.status403 rJoin
+            expectResponseCode HTTP.status403 rJoin
             expectErrorMessage (errMsg403NoRootKey $ wk ^. walletId) rJoin
 
         it "HW_WALLETS_02 - Restoration from account public key preserves delegation\
-            \ but I cannot quit" $ \(_,_,ctx) -> do
+            \ but I cannot quit" $ \(_,_,ctx) -> runResourceT @IO $ do
             -- create wallet and get acc pub key from mnemonics
             (w, mnemonics) <- fixtureWalletWithMnemonics ctx
             let accPub = pubKeyFromMnemonics mnemonics
@@ -143,7 +148,7 @@ spec = do
             (_, p:_) <- eventually "Stake pools are listed" $
                 unsafeRequest @[ApiStakePool] ctx Link.listJormungandrStakePools Empty
             r <- joinStakePool @n ctx (p ^. #id) (w, fixturePassphrase)
-            expectResponseCode @IO HTTP.status202 r
+            expectResponseCode HTTP.status202 r
             waitAllTxsInLedger @n ctx w
             let expectedDelegation =
                     [ expectField #delegation
@@ -158,7 +163,7 @@ spec = do
             -- delete wallet
             rDel <-
                 request @ApiWallet ctx (Link.deleteWallet @'Shelley w) Default Empty
-            expectResponseCode @IO HTTP.status204 rDel
+            expectResponseCode HTTP.status204 rDel
 
             -- restore from pub key and make sure delegation preserved
             wRestored <- restoreWalletFromPubKey @ApiWallet @'Shelley ctx accPub "Wallet from pubkey"
@@ -167,11 +172,11 @@ spec = do
 
             -- cannot quit stake pool
             rQuit <- quitStakePool @n ctx (wRestored, fixturePassphrase)
-            expectResponseCode @IO HTTP.status403 rQuit
+            expectResponseCode HTTP.status403 rQuit
             expectErrorMessage (errMsg403NoRootKey $ wRestored ^. walletId) rQuit
 
-    it "STAKE_POOLS_LIST_01 - List stake pools" $ \(_,_,ctx) -> do
-        eventually "Listing stake pools shows expected information" $ do
+    it "STAKE_POOLS_LIST_01 - List stake pools" $ \(_,_,ctx) -> runResourceT @IO $ do
+        liftIO $ eventually "Listing stake pools shows expected information" $ do
             r <- request @[ApiStakePool] ctx Link.listJormungandrStakePools Default Empty
             expectResponseCode HTTP.status200 r
             verify r
@@ -227,7 +232,7 @@ spec = do
                     #saturation (.>= 0)
                 ]
 
-    it "STAKE_POOLS_LIST_02 - May fail on epoch boundaries" $ \(_,_,ctx) -> do
+    it "STAKE_POOLS_LIST_02 - May fail on epoch boundaries" $ \(_,_,ctx) -> runResourceT @IO $ do
         -- We should be able to catch the stake-pool data in an un-synced state
         -- when we enter into a new epoch. The results should then be
         -- unavailible.
@@ -235,7 +240,7 @@ spec = do
         -- This might take a few tries (epoch changes), so it is only feasible
         -- to test with very short epochs.
         let ms = 1000
-        eventuallyUsingDelay (50*ms) 100
+        liftIO $ eventuallyUsingDelay (50*ms) 100
             "Shows error when listing stake pools on epoch boundaries"
             $ do
             r <- request @[ApiStakePool] ctx Link.listJormungandrStakePools Default Empty
@@ -274,7 +279,7 @@ spec = do
         let (Just poolC) = find ((== ApiT poolIdC) . view #id) pools'
         fmap (view #owner . getApiT) (poolC ^. #metadata) `shouldBe` Just poolCOwner
 
-    it "STAKE_POOLS_JOIN_01 - Can join a stakepool" $ \(_,_,ctx) -> do
+    it "STAKE_POOLS_JOIN_01 - Can join a stakepool" $ \(_,_,ctx) -> runResourceT @IO $ do
         w <- fixtureWallet ctx
         (_, p:_) <- eventually "Stake pools are listed" $
             unsafeRequest @[ApiStakePool] ctx Link.listJormungandrStakePools Empty
@@ -296,7 +301,7 @@ spec = do
                     (#status . #getApiT) (`shouldBe` InLedger)
                 ]
 
-    it "STAKE_POOLS_JOIN_01 - Controlled stake increases when joining" $ \(_,_,ctx) -> do
+    it "STAKE_POOLS_JOIN_01 - Controlled stake increases when joining" $ \(_,_,ctx) -> runResourceT @IO $ do
         w <- fixtureWallet ctx
         (_, Right (p:_)) <- eventually "Stake pools are listed" $
             request @[ApiStakePool] ctx Link.listJormungandrStakePools Default Empty
@@ -330,9 +335,9 @@ spec = do
                     -- tests may take effect.
                 ]
 
-    it "STAKE_POOLS_JOIN_04 - Rewards accumulate and stop" $ \(_,_,ctx) -> do
+    it "STAKE_POOLS_JOIN_04 - Rewards accumulate and stop" $ \(_,_,ctx) -> runResourceT @IO $ do
 
-        pendingWith "https://github.com/input-output-hk/cardano-wallet/issues/2140"
+        liftIO $ pendingWith "https://github.com/input-output-hk/cardano-wallet/issues/2140"
 
         w <- fixtureWallet ctx
         (_, p:_) <- eventually "Stake pools are listed" $
@@ -367,9 +372,9 @@ spec = do
             ]
 
     it "STAKE_POOLS_JOIN_04 -\
-        \Delegate, stop in the next epoch, and still earn rewards" $ \(_,_,ctx) -> do
+        \Delegate, stop in the next epoch, and still earn rewards" $ \(_,_,ctx) -> runResourceT @IO $ do
 
-        pendingWith "https://github.com/input-output-hk/cardano-wallet/issues/2140"
+        liftIO $ pendingWith "https://github.com/input-output-hk/cardano-wallet/issues/2140"
 
         w <- fixtureWallet ctx
         (_, p1:_) <- eventually "Stake pools are listed" $
@@ -405,7 +410,7 @@ spec = do
 
     describe "STAKE_POOLS_JOIN_01x - Fee boundary values" $ do
         it "STAKE_POOLS_JOIN_01x - \
-            \I can join if I have just the right amount" $ \(_,_,ctx) -> do
+            \I can join if I have just the right amount" $ \(_,_,ctx) -> runResourceT @IO $ do
             (_, p:_) <- eventually "Stake pools are listed" $
                 unsafeRequest @[ApiStakePool] ctx Link.listJormungandrStakePools Empty
             let (fee, _) = ctx ^. #_feeEstimator $ DelegDescription (Join dummyPool)
@@ -417,7 +422,7 @@ spec = do
                 ]
 
         it "STAKE_POOLS_JOIN_01x - \
-            \I cannot join if I have not enough fee to cover" $ \(_,_,ctx) -> do
+            \I cannot join if I have not enough fee to cover" $ \(_,_,ctx) -> runResourceT @IO $ do
             (_, p:_) <- eventually "Stake pools are listed" $
                 unsafeRequest @[ApiStakePool] ctx Link.listJormungandrStakePools Empty
             let (fee, _) = ctx ^. #_feeEstimator $ DelegDescription (Join dummyPool)
@@ -426,7 +431,7 @@ spec = do
             expectResponseCode HTTP.status403 r
             expectErrorMessage (errMsg403DelegationFee 1) r
 
-        it "STAKE_POOLS_JOIN_01x - I cannot join stake-pool with 0 balance" $ \(_,_,ctx) -> do
+        it "STAKE_POOLS_JOIN_01x - I cannot join stake-pool with 0 balance" $ \(_,_,ctx) -> runResourceT @IO $ do
             (_, p:_) <- eventually "Stake pools are listed" $
                 unsafeRequest @[ApiStakePool] ctx Link.listJormungandrStakePools Empty
             w <- emptyWallet ctx
@@ -437,7 +442,7 @@ spec = do
 
     describe "STAKE_POOLS_QUIT_01x - Fee boundary values" $ do
         it "STAKE_POOLS_QUIT_01x - \
-            \I can quit if I have enough to cover fee" $ \(_,_,ctx) -> do
+            \I can quit if I have enough to cover fee" $ \(_,_,ctx) -> runResourceT @IO $ do
             let (_, feeJoin) = ctx ^. #_feeEstimator $ DelegDescription (Join dummyPool)
             let (feeQuit, _) = ctx ^. #_feeEstimator $ DelegDescription Quit
             let initBalance = [feeJoin + feeQuit + 3]
@@ -455,7 +460,7 @@ spec = do
                     ]
 
         it "STAKE_POOLS_QUIT_01x - \
-            \I cannot quit if I have not enough fee to cover" $ \(_,_,ctx) -> do
+            \I cannot quit if I have not enough fee to cover" $ \(_,_,ctx) -> runResourceT @IO $ do
             let (_, feeJoin) = ctx ^. #_feeEstimator $ DelegDescription (Join dummyPool)
             let (feeQuit, _) = ctx ^. #_feeEstimator $ DelegDescription Quit
             let initBalance = [feeJoin+1]
@@ -466,7 +471,7 @@ spec = do
                 , expectErrorMessage (errMsg403DelegationFee (feeQuit - 1))
                 ]
 
-    it "STAKE_POOLS_JOIN_01 - I cannot rejoin the same stake-pool" $ \(_,_,ctx) -> do
+    it "STAKE_POOLS_JOIN_01 - I cannot rejoin the same stake-pool" $ \(_,_,ctx) -> runResourceT @IO $ do
         let (_, feeJoin) = ctx ^. #_feeEstimator $ DelegDescription (Join dummyPool)
         (w, p) <- joinStakePoolWithWalletBalance @n ctx [10*feeJoin]
 
@@ -476,7 +481,7 @@ spec = do
         let poolId = toText $ getApiT $ p ^. #id
         expectErrorMessage (errMsg403PoolAlreadyJoined poolId) r
 
-    it "STAKE_POOLS_JOIN_01 - Cannot join non-existent stakepool" $ \(_,_,ctx) -> do
+    it "STAKE_POOLS_JOIN_01 - Cannot join non-existent stakepool" $ \(_,_,ctx) -> runResourceT @IO $ do
         let poolIdAbsent = PoolId $ BS.pack $ replicate 32 0
         w <- emptyWallet ctx
         r <- joinStakePool @n ctx (ApiT poolIdAbsent) (w, fixturePassphrase)
@@ -484,7 +489,7 @@ spec = do
         expectErrorMessage (errMsg404NoSuchPool (toText poolIdAbsent)) r
 
     it "STAKE_POOLS_JOIN_01 - \
-        \ If a wallet joins a stake pool, others are not affected" $ \(_,_,ctx) -> do
+        \ If a wallet joins a stake pool, others are not affected" $ \(_,_,ctx) -> runResourceT @IO $ do
         (wA, wB) <- (,) <$> fixtureWallet ctx <*> fixtureWallet ctx
         (_, p:_) <- eventually "Stake pools are listed" $
             unsafeRequest @[ApiStakePool] ctx Link.listJormungandrStakePools Empty
@@ -522,7 +527,7 @@ spec = do
             ]
 
     describe "STAKE_POOLS_JOIN_02 - Passphrase must be correct to join" $ do
-        let verifyIt ctx wallet pass expectations = do
+        let verifyIt ctx wallet pass expectations = runResourceT @IO $ do
                 (_, p:_) <- eventually "Stake pools are listed" $ do
                     unsafeRequest @[ApiStakePool] ctx Link.listJormungandrStakePools Empty
                 w <- wallet ctx
@@ -569,7 +574,7 @@ spec = do
                 "passphrase is too long: expected at most 255 characters"
         let passTooLong = replicate (pMax + 1) '1'
 
-        let verifyIt ctx doStakePool pass expec = do
+        let verifyIt ctx doStakePool pass expec = runResourceT @IO $ do
                 (_, p:_) <- eventually "Stake pools are listed" $ do
                     unsafeRequest @[ApiStakePool] ctx Link.listJormungandrStakePools Empty
                 w <- emptyWallet ctx
@@ -584,7 +589,7 @@ spec = do
             verifyIt ctx (\_ _ -> quitStakePool @n ctx) passTooLong tooLongMsg
 
     describe "STAKE_POOLS_JOIN/QUIT_02 - Passphrase must be text" $ do
-        let verifyIt ctx sPoolEndp = do
+        let verifyIt ctx sPoolEndp = runResourceT @IO $ do
                 (_, p:_) <- eventually "Stake pools are listed" $
                     unsafeRequest @[ApiStakePool] ctx Link.listJormungandrStakePools Empty
                 w <- emptyWallet ctx
@@ -598,7 +603,7 @@ spec = do
         it "Quit" $ \(_,_,ctx) -> do
             verifyIt ctx (const Link.quitStakePool)
 
-    it "STAKE_POOLS_JOIN_03 - Byron wallet cannot join stake pool" $ \(_,_,ctx) -> do
+    it "STAKE_POOLS_JOIN_03 - Byron wallet cannot join stake pool" $ \(_,_,ctx) -> runResourceT @IO $ do
         (_, p:_) <- eventually "Stake pools are listed" $
             unsafeRequest @[ApiStakePool] ctx Link.listJormungandrStakePools Empty
         w <- emptyRandomWallet ctx
@@ -611,7 +616,7 @@ spec = do
     -- 1/ We are in Jörmungandr scenario were fees can be known exactly
     -- 2/ Fixture wallets are made of homogeneous UTxOs (all equal to the same
     -- value) and therefore, the random selection has no influence.
-    it "STAKE_POOLS_ESTIMATE_FEE_01 - fee matches eventual cost" $ \(_,_,ctx) -> do
+    it "STAKE_POOLS_ESTIMATE_FEE_01 - fee matches eventual cost" $ \(_,_,ctx) -> runResourceT @IO $ do
         (_, p:_) <- eventually "Stake pools are listed" $
             unsafeRequest @[ApiStakePool] ctx Link.listJormungandrStakePools Empty
         w <- fixtureWallet ctx
@@ -624,8 +629,8 @@ spec = do
             [ expectField #amount (`shouldBe` fee)
             ]
 
-    it "STAKE_POOLS_ESTIMATE_FEE_01x - edge-case fee in-between coeff" $ \(_,_,ctx) -> do
-        pendingWith
+    it "STAKE_POOLS_ESTIMATE_FEE_01x - edge-case fee in-between coeff" $ \(_,_,ctx) -> runResourceT @IO $ do
+        liftIO $ pendingWith
             "This is currently testing two different things. On one hand \
             \the fee estimator from the integration tests, and on the other \
             \hand, the fee estimation from the API. These are not quite aligned \
@@ -641,7 +646,7 @@ spec = do
             ]
 
     it "STAKE_POOLS_ESTIMATE_FEE_02 - \
-        \empty wallet cannot estimate fee" $ \(_,_,ctx) -> do
+        \empty wallet cannot estimate fee" $ \(_,_,ctx) -> runResourceT @IO $ do
         w <- emptyWallet ctx
         let (fee, _) = ctx ^. #_feeEstimator $ DelegDescription (Join dummyPool)
         delegationFee ctx w >>= flip verify
@@ -649,7 +654,7 @@ spec = do
             , expectErrorMessage $ errMsg403DelegationFee fee
             ]
 
-    it "STAKE_POOLS_ESTIMATE_FEE_03 - can't use byron wallets" $ \(_,_,ctx) -> do
+    it "STAKE_POOLS_ESTIMATE_FEE_03 - can't use byron wallets" $ \(_,_,ctx) -> runResourceT @IO $ do
         w <- fixtureRandomWallet ctx
         let ep = Link.getDelegationFee w
         r <- request @(ApiTransaction n) ctx ep Default Empty
@@ -659,7 +664,7 @@ spec = do
             ]
 
     describe "STAKE_POOLS_JOIN/QUIT_05 - Bad request" $ do
-        let verifyIt ctx sPoolEndp = do
+        let verifyIt ctx sPoolEndp = runResourceT @IO $ do
                 w <- emptyWallet ctx
                 let payload = NonJson  "{ passphrase: Secure Passphrase }"
                 r <- request @(ApiTransaction n) ctx
@@ -671,23 +676,23 @@ spec = do
         it "Quit" $ \(_,_,ctx) -> do
             verifyIt ctx (const Link.quitStakePool)
 
-    it "STAKE_POOLS_QUIT_01 - Quiting before even joining" $ \(_,_,ctx) -> do
+    it "STAKE_POOLS_QUIT_01 - Quiting before even joining" $ \(_,_,ctx) -> runResourceT @IO $ do
         w <- emptyWallet ctx
 
         r <- quitStakePool @n ctx (w, "Secure Passprase")
         expectResponseCode HTTP.status403 r
         expectErrorMessage errMsg403NotDelegating r
 
-    it "STAKE_POOLS_QUIT_02 - Passphrase must be correct to quit" $ \(_,_,ctx) -> do
+    it "STAKE_POOLS_QUIT_02 - Passphrase must be correct to quit" $ \(_,_,ctx) -> runResourceT @IO $ do
         (w, _) <- joinStakePoolWithFixtureWallet @n ctx
 
         r <- quitStakePool @n ctx (w, "Incorrect Passphrase")
         expectResponseCode HTTP.status403 r
         expectErrorMessage errMsg403WrongPass r
 
-    it "STAKE_POOL_NEXT_01 - Can join/re-join another but cannot quit stake pool" $ \(_,_,ctx) -> do
+    it "STAKE_POOL_NEXT_01 - Can join/re-join another but cannot quit stake pool" $ \(_,_,ctx) -> runResourceT @IO $ do
 
-        pendingWith "https://github.com/input-output-hk/cardano-wallet/issues/2140"
+        liftIO $ pendingWith "https://github.com/input-output-hk/cardano-wallet/issues/2140"
 
         (_, p1:p2:_) <- eventually "Stake pools are listed" $
             unsafeRequest @[ApiStakePool] ctx Link.listJormungandrStakePools Empty
@@ -744,14 +749,14 @@ spec = do
 
 
     it "STAKE_POOL_NEXT_02/STAKE_POOLS_QUIT_01 - Cannot quit when active: not_delegating"
-        $ \(_,_,ctx) -> do
+        $ \(_,_,ctx) -> runResourceT @IO $ do
         w <- emptyWallet ctx
         r <- quitStakePool @n ctx (w, "Secure Passprase")
         expectResponseCode HTTP.status403 r
         expectErrorMessage errMsg403NotDelegating r
 
     it "STAKE_POOL_NEXT_02 - Override join with join in the same epoch =>\
-        \ delegating to the last one in the end" $ \(_,_,ctx) -> do
+        \ delegating to the last one in the end" $ \(_,_,ctx) -> runResourceT @IO $ do
         (_, p1:p2:_) <- eventually "Stake pools are listed" $
             unsafeRequest @[ApiStakePool] ctx Link.listJormungandrStakePools Empty
         w <- fixtureWallet ctx
@@ -783,8 +788,8 @@ spec = do
 
     it "STAKE_POOL_NEXT_03 - Join 2 in two subsequent epochs => delegating to 1st in epoch X + 2\
         \ and 2nd in epoch X + 3"
-        $ \(_,_,ctx) -> do
-        (_, p1:p2:_) <- eventually "Stake pools are listed" $
+        $ \(_,_,ctx) -> runResourceT @IO $ do
+        (_, p1:p2:_) <- liftIO $ eventually "Stake pools are listed" $
             unsafeRequest @[ApiStakePool] ctx Link.listJormungandrStakePools Empty
         w <- fixtureWallet ctx
 
@@ -851,7 +856,7 @@ joinStakePoolWithWalletBalance
         )
     => (Context t)
     -> [Natural]
-    -> IO (ApiWallet, ApiStakePool)
+    -> ResourceT IO (ApiWallet, ApiStakePool)
 joinStakePoolWithWalletBalance ctx balance = do
     w <- fixtureWalletWith @n ctx balance
     (_, p:_) <- eventually "Stake pools are listed in joinStakePoolWithWalletBalance" $
@@ -873,7 +878,7 @@ joinStakePoolWithFixtureWallet
         , DecodeStakeAddress n
         )
     => (Context t)
-    -> IO (ApiWallet, ApiStakePool)
+    -> ResourceT IO (ApiWallet, ApiStakePool)
 joinStakePoolWithFixtureWallet ctx = do
     w <- fixtureWallet ctx
     (_, p:_) <- eventually "Stake pools are listed in joinStakePoolWithFixtureWallet" $
@@ -881,7 +886,7 @@ joinStakePoolWithFixtureWallet ctx = do
     r <- joinStakePool @n ctx (p ^. #id) (w, fixturePassphrase)
     expectResponseCode HTTP.status202 r
     -- Verify the certificate was discovered
-    eventually "Tx in ledger in joinStakePoolWithFixtureWallet" $ do
+    liftIO $ eventually "Tx in ledger in joinStakePoolWithFixtureWallet" $ do
         let ep = Link.listTransactions @'Shelley w
         request @[ApiTransaction n] ctx ep Default Empty >>= flip verify
             [ expectListField 0 (#direction . #getApiT) (`shouldBe` Outgoing)

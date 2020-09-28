@@ -67,6 +67,7 @@
           (hsPkgs."memory" or (errorHandler.buildDepError "memory"))
           (hsPkgs."optparse-applicative" or (errorHandler.buildDepError "optparse-applicative"))
           (hsPkgs."process" or (errorHandler.buildDepError "process"))
+          (hsPkgs."resourcet" or (errorHandler.buildDepError "resourcet"))
           (hsPkgs."retry" or (errorHandler.buildDepError "retry"))
           (hsPkgs."say" or (errorHandler.buildDepError "say"))
           (hsPkgs."scrypt" or (errorHandler.buildDepError "scrypt"))

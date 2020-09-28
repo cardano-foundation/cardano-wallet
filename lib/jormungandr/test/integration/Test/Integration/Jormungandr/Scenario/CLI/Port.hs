@@ -42,7 +42,7 @@ spec = do
                 ]
         forM_ tests $ \(cmd, opt, port) -> let args = [cmd, opt, show port] in
             it (unwords args) $ \_ -> do
-                (exit, Stdout (_ :: String), Stderr err) <- cardanoWalletCLI @t args
+                (exit, Stdout (_ :: String), Stderr err) <- cardanoWalletCLI @t @_ @IO args
                 exit `shouldBe` ExitFailure 1
                 err `shouldContain`
                     (  "expected a TCP port number between "

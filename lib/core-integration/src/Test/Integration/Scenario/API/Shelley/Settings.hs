@@ -34,6 +34,10 @@ import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey )
 import Cardano.Wallet.Primitive.Types
     ( Coin (..), PoolMetadataSource (..), Settings )
+import Control.Monad.Catch
+    ( MonadCatch )
+import Control.Monad.IO.Class
+    ( MonadIO )
 import Data.Generics.Internal.VL.Lens
     ( view )
 import Data.Maybe
@@ -78,7 +82,7 @@ spec = describe "SHELLEY_SETTINGS" $ do
         eventually "The settings are applied" $ do
             r2 <- request @(ApiT Settings) ctx Link.getSettings Default Empty
             verify r2
-                [ expectResponseCode @IO HTTP.status200
+                [ expectResponseCode HTTP.status200
                 , expectField (#getApiT . #poolMetadataSource)
                     (`shouldBe` (either (const (error "no")) id $ fromText
                         @PoolMetadataSource uri))
@@ -108,10 +112,10 @@ spec = describe "SHELLEY_SETTINGS" $ do
             getMetadata >>= (`shouldSatisfy` all isNothing)
 
 
-updateMetadataSource :: Context t -> Text -> IO ()
+updateMetadataSource :: (MonadIO m, MonadCatch m) => Context t -> Text -> m ()
 updateMetadataSource ctx t = do
     r <- request @(ApiT Settings) ctx Link.putSettings Default payload
-    expectResponseCode @IO HTTP.status204 r
+    expectResponseCode HTTP.status204 r
  where
    payload = Json [json| {
        "settings": {
@@ -119,10 +123,14 @@ updateMetadataSource ctx t = do
             }
        } |]
 
-verifyMetadataSource :: Context t -> PoolMetadataSource -> IO ()
+verifyMetadataSource
+    :: (MonadIO m, MonadCatch m)
+    => Context t
+    -> PoolMetadataSource
+    -> m ()
 verifyMetadataSource ctx s = do
     r <- request @(ApiT Settings) ctx Link.getSettings Default Empty
-    expectResponseCode @IO HTTP.status200 r
+    expectResponseCode HTTP.status200 r
     expectField (#getApiT . #poolMetadataSource) (`shouldBe` s) r
 
 arbitraryStake :: Maybe Coin

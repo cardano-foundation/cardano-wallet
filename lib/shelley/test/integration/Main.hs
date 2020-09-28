@@ -97,7 +97,7 @@ import System.FilePath
 import System.IO
     ( BufferMode (..), hSetBuffering, stdout )
 import Test.Hspec
-    ( Spec, SpecWith, after, describe, hspec, parallel )
+    ( Spec, SpecWith, describe, hspec, parallel )
 import Test.Hspec.Extra
     ( aroundAll )
 import Test.Integration.Faucet
@@ -105,7 +105,7 @@ import Test.Integration.Faucet
 import Test.Integration.Framework.Context
     ( Context (..), PoolGarbageCollectionEvent (..) )
 import Test.Integration.Framework.DSL
-    ( KnownCommand (..), deleteAllWallets )
+    ( KnownCommand (..) )
 
 import qualified Cardano.Pool.DB as Pool
 import qualified Cardano.Pool.DB.Sqlite as Pool
@@ -174,7 +174,7 @@ specWithServer
     :: (Tracer IO TestsLog, Tracers IO)
     -> SpecWith (Context Shelley)
     -> Spec
-specWithServer (tr, tracers) = aroundAll withContext . after tearDown
+specWithServer (tr, tracers) = aroundAll withContext
   where
     withContext :: (Context Shelley -> IO ()) -> IO ()
     withContext action = bracketTracer' tr "withContext" $ do
@@ -276,11 +276,6 @@ specWithServer (tr, tracers) = aroundAll withContext . after tearDown
                 block0
                 (gp, vData)
                 (action gp)
-
-    -- | teardown after each test (currently only deleting all wallets)
-    tearDown :: Context t -> IO ()
-    tearDown ctx = bracketTracer' tr "tearDown" $ do
-        deleteAllWallets ctx
 
 {-------------------------------------------------------------------------------
                                     Logging

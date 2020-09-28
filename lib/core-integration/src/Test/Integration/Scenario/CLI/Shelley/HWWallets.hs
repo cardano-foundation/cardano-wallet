@@ -29,6 +29,8 @@ import Cardano.Wallet.Primitive.Types
     ( AddressState (..) )
 import Control.Monad
     ( forM_ )
+import Control.Monad.Trans.Resource
+    ( ResourceT, runResourceT )
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
 import Data.Proxy
@@ -92,7 +94,7 @@ spec :: forall n t.
     ) => SpecWith (Context t)
 spec = describe "SHELLEY_CLI_HW_WALLETS" $ do
 
-    it "HW_WALLETS_01x - Restoration from account public key preserves funds" $ \ctx -> do
+    it "HW_WALLETS_01x - Restoration from account public key preserves funds" $ \ctx -> runResourceT $ do
         wSrc <- fixtureWallet ctx
 
         -- create a wallet
@@ -156,7 +158,7 @@ spec = describe "SHELLEY_CLI_HW_WALLETS" $ do
                 ]
 
     describe "HW_WALLETS_03 - Cannot do operations requiring private key" $ do
-        it "Cannot send tx" $ \ctx -> do
+        it "Cannot send tx" $ \ctx -> runResourceT $ do
             -- create wallet from pubKey with funds
             (w, mnemonics) <- fixtureWalletWithMnemonics ctx
             let pubKey = T.unpack $ pubKeyFromMnemonics mnemonics
@@ -185,7 +187,7 @@ spec = describe "SHELLEY_CLI_HW_WALLETS" $ do
             out `shouldBe` ""
             c `shouldBe` ExitFailure 1
 
-        it "Cannot update pass" $ \ctx -> do
+        it "Cannot update pass" $ \ctx -> runResourceT $ do
             w <- emptyWalletFromPubKeyViaCLI ctx restoredWalletName
 
             let pass = "cardano-wallet"
@@ -198,7 +200,7 @@ spec = describe "SHELLEY_CLI_HW_WALLETS" $ do
             exitCode `shouldBe` ExitFailure 1
 
     describe "HW_WALLETS_04 - Can manage HW wallet the same way as others" $ do
-        it "Can update name" $ \ctx -> do
+        it "Can update name" $ \ctx -> runResourceT $ do
             w <- emptyWalletFromPubKeyViaCLI ctx restoredWalletName
 
             -- can update wallet name
@@ -212,7 +214,7 @@ spec = describe "SHELLEY_CLI_HW_WALLETS" $ do
             expectCliField
                 (#name . #getApiT . #getWalletName) (`shouldBe` n) j
 
-        it "Can get tx fee" $ \ctx -> do
+        it "Can get tx fee" $ \ctx -> runResourceT $ do
             -- create wallet from pubKey with funds
             (w, mnemonics) <- fixtureWalletWithMnemonics ctx
             let pubKey = T.unpack $ pubKeyFromMnemonics mnemonics
@@ -243,7 +245,7 @@ spec = describe "SHELLEY_CLI_HW_WALLETS" $ do
                 ]
             code `shouldBe` ExitSuccess
 
-        it "Can delete" $ \ctx -> do
+        it "Can delete" $ \ctx -> runResourceT $ do
             w <- emptyWalletFromPubKeyViaCLI ctx restoredWalletName
             (Exit cd, Stdout od, Stderr ed) <-
                 deleteWalletViaCLI @t ctx $ T.unpack (w ^. walletId)
@@ -251,7 +253,7 @@ spec = describe "SHELLEY_CLI_HW_WALLETS" $ do
             ed `shouldContain` cmdOk
             od `shouldBe` "\n"
 
-        it "Can see utxo" $ \ctx -> do
+        it "Can see utxo" $ \ctx -> runResourceT $ do
             w <- emptyWalletFromPubKeyViaCLI ctx restoredWalletName
             (Exit c, Stdout o, Stderr e) <-
                 getWalletUtxoStatisticsViaCLI @t ctx $ T.unpack (w ^. walletId)
@@ -260,7 +262,7 @@ spec = describe "SHELLEY_CLI_HW_WALLETS" $ do
             utxoStats <- expectValidJSON (Proxy @ApiUtxoStatistics) o
             expectWalletUTxO [] (Right utxoStats)
 
-        it "Can list addresses" $ \ctx -> do
+        it "Can list addresses" $ \ctx -> runResourceT $ do
             w <- emptyWalletFromPubKeyViaCLI ctx restoredWalletName
 
             let g = fromIntegral $ getAddressPoolGap defaultAddressPoolGap
@@ -274,7 +276,7 @@ spec = describe "SHELLEY_CLI_HW_WALLETS" $ do
                 expectCliListField
                     addrNum (#state . #getApiT) (`shouldBe` Unused) json
 
-        it "Can have address pool gap" $ \ctx -> do
+        it "Can have address pool gap" $ \ctx -> runResourceT $ do
             Stdout m <- generateMnemonicsViaCLI @t []
             let accXPub = pubKeyFromMnemonics' (words m)
             let addrPoolGap = 55 -- arbitrary but known
@@ -292,7 +294,7 @@ spec = describe "SHELLEY_CLI_HW_WALLETS" $ do
                     (#addressPoolGap . #getApiT . #getAddressPoolGap)
                     (`shouldBe` addrPoolGap) j
 
-        it "Can list transactions" $ \ctx -> do
+        it "Can list transactions" $ \ctx -> runResourceT $ do
             w <- emptyWalletFromPubKeyViaCLI ctx restoredWalletName
 
             (Exit code, Stdout out, Stderr err) <-
@@ -303,7 +305,7 @@ spec = describe "SHELLEY_CLI_HW_WALLETS" $ do
             code `shouldBe` ExitSuccess
 
     describe "HW_WALLETS_05 - Wallet from pubKey is available" $ do
-        it "The same account and mnemonic wallet can live side-by-side" $ \ctx -> do
+        it "The same account and mnemonic wallet can live side-by-side" $ \ctx -> runResourceT $ do
             Stdout m <- generateMnemonicsViaCLI @t []
             let pubKeyWalName = "pub key wallet"
             let mnemonicWalName = "mnemonic wallet"
@@ -337,12 +339,12 @@ spec = describe "SHELLEY_CLI_HW_WALLETS" $ do
 
     describe "HW_WALLETS_06 - Test parameters" $ do
         describe "Wallet names valid" $ do
-            forM_ walletNames $ \(title, n) -> it title $ \ctx -> do
+            forM_ walletNames $ \(title, n) -> it title $ \ctx -> runResourceT $ do
                 j <- emptyWalletFromPubKeyViaCLI ctx n
                 expectCliField
                     (#name . #getApiT . #getWalletName) (`shouldBe` T.pack n) j
         describe "Wallet names invalid" $ do
-            forM_ walletNamesInvalid $ \(name, expects) -> it expects $ \ctx -> do
+            forM_ walletNamesInvalid $ \(name, expects) -> it expects $ \ctx -> runResourceT $ do
                 Stdout m <- generateMnemonicsViaCLI @t []
                 let accXPub = pubKeyFromMnemonics' (words m)
                 (Exit c, Stdout o, Stderr e) <-
@@ -352,7 +354,7 @@ spec = describe "SHELLEY_CLI_HW_WALLETS" $ do
                 o `shouldBe` mempty
         describe "Pub Key invalid" $ do
             let pubKeysInvalid = ["", "1", replicate 128 'ś', replicate 129 '1']
-            forM_ pubKeysInvalid $ \key -> it ("Pub key: " ++ key) $ \ctx -> do
+            forM_ pubKeysInvalid $ \key -> it ("Pub key: " ++ key) $ \ctx -> runResourceT $ do
                 (Exit c, Stdout o, Stderr e) <-
                     createWalletFromPublicKeyViaCLI @t ctx [restoredWalletName, key]
                 c `shouldBe` ExitFailure 1
@@ -365,7 +367,7 @@ spec = describe "SHELLEY_CLI_HW_WALLETS" $ do
             let addrPoolMax = fromIntegral @_ @Int $ getAddressPoolGap maxBound
 
             let poolGapsInvalid = [-1, 0, addrPoolMin - 1, addrPoolMax + 1]
-            forM_ poolGapsInvalid $ \pGap -> it ("Pool gap: " ++ show pGap) $ \ctx -> do
+            forM_ poolGapsInvalid $ \pGap -> it ("Pool gap: " ++ show pGap) $ \ctx -> runResourceT $ do
                 Stdout m <- generateMnemonicsViaCLI @t []
                 let accXPub = pubKeyFromMnemonics' (words m)
                 (Exit c, Stdout o, Stderr e) <-
@@ -383,7 +385,7 @@ emptyWalletFromPubKeyViaCLI
     :: forall t. (KnownCommand t)
     => Context t
     -> String
-    -> IO ApiWallet
+    -> ResourceT IO ApiWallet
 emptyWalletFromPubKeyViaCLI ctx name = do
     Stdout m <- generateMnemonicsViaCLI @t []
     let accXPub = pubKeyFromMnemonics' (words m)

@@ -58,6 +58,8 @@ import Cardano.Wallet.Transaction
     ( TransactionLayer (..) )
 import Control.Monad
     ( forM_ )
+import Control.Monad.IO.Class
+    ( liftIO )
 import Data.ByteArray.Encoding
     ( Base (Base16, Base64), convertFromBase, convertToBase )
 import Data.Generics.Internal.VL.Lens
@@ -81,6 +83,7 @@ import Test.Integration.Framework.DSL as DSL
     , Headers (..)
     , MnemonicLength (..)
     , Payload (..)
+    , ResourceT
     , TxDescription (..)
     , between
     , emptyRandomWallet
@@ -103,7 +106,9 @@ import Test.Integration.Framework.DSL as DSL
     , json
     , listAddresses
     , listAllTransactions
+    , postWallet
     , request
+    , runResourceT
     , unsafeRequest
     , verify
     , walletId
@@ -140,7 +145,7 @@ spec :: forall n t.
     , DelegationAddress n JormungandrKey
     ) => SpecWith (Context t)
 spec = do
-    it "TRANS_CREATE_01 - Single Output Transaction" $ \ctx -> do
+    it "TRANS_CREATE_01 - Single Output Transaction" $ \ctx -> runResourceT @IO $ do
         (wa, wb) <- (,) <$> fixtureWallet ctx <*> fixtureWallet ctx
         let amt = (1 :: Natural)
 
@@ -199,7 +204,7 @@ spec = do
                 (#balance . #getApiT . #available)
                 (`shouldBe` Quantity (faucetAmt - maxFee - amt)) ra2
 
-    it "TRANS_CREATE_02 - Multiple Output Tx to single wallet" $ \ctx -> do
+    it "TRANS_CREATE_02 - Multiple Output Tx to single wallet" $ \ctx -> runResourceT @IO $ do
         wSrc <- fixtureWallet ctx
         wDest <- emptyWallet ctx
         addrs <- listAddresses @n ctx wDest
@@ -261,7 +266,7 @@ spec = do
                         (`shouldBe` Quantity (2*amt))
                 ]
 
-    it "TRANS_CREATE_04 - Can't cover fee" $ \ctx -> do
+    it "TRANS_CREATE_04 - Can't cover fee" $ \ctx -> runResourceT @IO $ do
         wDest <- fixtureWallet ctx
 
         let amt = (1 :: Natural)
@@ -290,7 +295,7 @@ spec = do
             , expectErrorMessage errMsg403Fee
             ]
 
-    it "TRANS_CREATE_04 - Not enough money" $ \ctx -> do
+    it "TRANS_CREATE_04 - Not enough money" $ \ctx -> runResourceT @IO $ do
         let (srcAmt, reqAmt) = (1, 1_000_000)
         wSrc <- fixtureWalletWith @n ctx [srcAmt]
         wDest <- emptyWallet ctx
@@ -315,24 +320,24 @@ spec = do
             , expectErrorMessage $ errMsg403NotEnoughMoney srcAmt reqAmt
             ]
 
-    it "TRANS_CREATE_09 - 0 amount transaction is accepted on single output tx" $ \ctx -> do
+    it "TRANS_CREATE_09 - 0 amount transaction is accepted on single output tx" $ \ctx -> runResourceT @IO $ do
         (wSrc, payload) <- fixtureZeroAmtSingle ctx
         r <- request @(ApiTransaction n) ctx
             (Link.createTransaction @'Shelley wSrc) Default payload
         expectResponseCode HTTP.status202 r
 
-    it "TRANS_CREATE_09 - 0 amount transaction is accepted on multi-output tx" $ \ctx -> do
+    it "TRANS_CREATE_09 - 0 amount transaction is accepted on multi-output tx" $ \ctx -> runResourceT @IO $ do
         (wSrc, payload) <- fixtureZeroAmtMulti ctx
         r <- request @(ApiTransaction n) ctx
             (Link.createTransaction @'Shelley wSrc) Default payload
         expectResponseCode HTTP.status202 r
 
-    it "TRANS_CREATE_10 - 'account' outputs" $ \ctx -> do
+    it "TRANS_CREATE_10 - 'account' outputs" $ \ctx -> runResourceT @IO $ do
         (wSrc, wDest) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
         addrs <- listAddresses @n ctx wDest
 
         let hrp = [Bech32.humanReadablePart|addr|]
-        bytes <- generate (vector 32)
+        bytes <- liftIO $ generate (vector 32)
         let (utxoAmt, utxoAddr) =
                 ( 14 :: Natural
                 , (addrs !! 1) ^. #id
@@ -394,30 +399,31 @@ spec = do
                 ]
 
     it "TRANS_ESTIMATE_09 - \
-        \a fee can be estimated for a tx with an output of amount 0 (single)" $ \ctx -> do
+        \a fee can be estimated for a tx with an output of amount 0 (single)" $ \ctx -> runResourceT @IO $ do
         (wSrc, payload) <- fixtureZeroAmtSingle ctx
         r <- request @ApiFee ctx
             (Link.getTransactionFee @'Shelley wSrc) Default payload
         expectResponseCode HTTP.status202 r
 
     it "TRANS_ESTIMATE_09 - \
-        \a fee can be estimated for a tx with an output of amount 0 (multi)" $ \ctx -> do
+        \a fee can be estimated for a tx with an output of amount 0 (multi)" $ \ctx -> runResourceT @IO $ do
         (wSrc, payload) <- fixtureZeroAmtMulti ctx
         r <- request @ApiFee ctx
             (Link.getTransactionFee @'Shelley wSrc) Default payload
         expectResponseCode HTTP.status202 r
 
-    it "TRANS_LIST_?? - List transactions of a fixture wallet" $ \ctx -> do
+    it "TRANS_LIST_?? - List transactions of a fixture wallet" $ \ctx -> runResourceT @IO $ do
         txs <- fixtureWallet ctx >>= listAllTransactions @n ctx
-        length txs `shouldBe` 10
-        txs `shouldSatisfy` all (null . view #inputs)
+        liftIO $ do
+            length txs `shouldBe` 10
+            txs `shouldSatisfy` all (null . view #inputs)
 
     it "TRANS_EXTERNAL_CREATE_01x - \
-        \single output tx signed via jcli" $ \ctx -> do
+        \single output tx signed via jcli" $ \ctx -> runResourceT @IO $ do
         w <- emptyWallet ctx
         addr:_ <- listAddresses @n ctx w
         let amt = 1234
-        payload <- fixtureRawTx ctx (getApiT $ fst $ addr ^. #id, amt)
+        payload <- liftIO $ fixtureRawTx ctx (getApiT $ fst $ addr ^. #id, amt)
         let headers = Headers
                         [ ("Content-Type", "application/octet-stream")
                         , ("Accept", "application/json")]
@@ -437,14 +443,14 @@ spec = do
         let txDeleteTest05
                 :: (HasType (ApiT WalletId) wal)
                 => String
-                -> (Context t -> IO wal)
+                -> (Context t -> ResourceT IO wal)
                 -> SpecWith (Context t)
-            txDeleteTest05 title eWallet = it title $ \ctx -> do
+            txDeleteTest05 title eWallet = it title $ \ctx -> runResourceT $ do
                 -- post external tx
                 wal <- emptyWallet ctx
                 addr:_ <- listAddresses @n ctx wal
                 let amt = 1234
-                payload <- fixtureRawTx ctx (getApiT $ fst $ addr ^. #id, amt)
+                payload <- liftIO $ fixtureRawTx ctx (getApiT $ fst $ addr ^. #id, amt)
                 let headers = Headers
                                 [ ("Content-Type", "application/octet-stream")
                                 , ("Accept", "application/json")]
@@ -456,8 +462,8 @@ spec = do
                 w <- eWallet ctx
                 let ep = "v2/" <> T.pack title <> "/" <> w ^. walletId
                         <> "/transactions/" <> txid
-                ra <- request @ApiTxId @IO ctx ("DELETE", ep) Default Empty
-                expectResponseCode @IO HTTP.status404 ra
+                ra <- request @ApiTxId ctx ("DELETE", ep) Default Empty
+                expectResponseCode HTTP.status404 ra
                 expectErrorMessage (errMsg404CannotFindTx txid) ra
 
                 -- tx eventually gets into ledger (funds are on the target wallet)
@@ -473,7 +479,7 @@ spec = do
         txDeleteTest05 "byron-wallets" emptyRandomWallet
 
     it "TRANS_EXTERNAL_CREATE_01api - proper single output transaction and \
-       \proper binary format" $ \ctx -> do
+       \proper binary format" $ \ctx -> runResourceT $ do
         let toSend = 1 :: Natural
         (ExternalTxFixture wSrc wDest fee bin _) <-
                 fixtureExternalTx @n ctx toSend
@@ -481,7 +487,7 @@ spec = do
         let encodedSignedTx = T.decodeUtf8 $ convertToBase baseOk bin
         let payload = NonJson . BL.fromStrict . toRawBytes baseOk
         let headers = Headers [ ("Content-Type", "application/octet-stream") ]
-        (initTotal, initAvailable) <- getWalletBalance ctx wDest
+        (initTotal, initAvailable) <- liftIO $ getWalletBalance ctx wDest
 
         r <- request
             @ApiTxId ctx Link.postExternalTransaction headers (payload encodedSignedTx)
@@ -511,7 +517,7 @@ spec = do
                 ]
 
     it "TRANS_EXTERNAL_CREATE_02 - proper single output transaction and \
-       \improper binary format" $ \ctx -> do
+       \improper binary format" $ \ctx -> runResourceT $ do
         let toSend = 1 :: Natural
         (ExternalTxFixture _ _ _ bin _) <-
                 fixtureExternalTx @n ctx toSend
@@ -527,7 +533,7 @@ spec = do
             ]
 
     it "TRANS_EXTERNAL_CREATE_03 - proper single output transaction and \
-       \wrong binary format" $ \ctx -> do
+       \wrong binary format" $ \ctx -> runResourceT @IO $ do
         let toSend = 1 :: Natural
         (ExternalTxFixture _ _ _ bin _) <- fixtureExternalTx @n ctx toSend
         let payload = NonJson $ BL.fromStrict $ ("\NUL\NUL"<>) $ getSealedTx bin
@@ -538,7 +544,7 @@ spec = do
             , expectResponseCode HTTP.status400
             ]
 
-    it "TRANS_EXTERNAL_CREATE_03 - empty payload" $ \ctx -> do
+    it "TRANS_EXTERNAL_CREATE_03 - empty payload" $ \ctx -> runResourceT @IO $ do
         _ <- emptyWallet ctx
         let headers = Headers [ ("Content-Type", "application/octet-stream") ]
         r <- request @ApiTxId ctx Link.postExternalTransaction headers Empty
@@ -547,8 +553,8 @@ spec = do
             , expectResponseCode HTTP.status400
             ]
 
-    it "BYRON_MIGRATE_07x - migrate to inaproppriate addresses" $ \ctx -> do
-        pendingWith "Pending due to\
+    it "BYRON_MIGRATE_07x - migrate to inaproppriate addresses" $ \ctx -> runResourceT @IO $ do
+        liftIO $ pendingWith "Pending due to\
             \ https://github.com/input-output-hk/cardano-wallet/issues/1658#issuecomment-632137152"
         let addrsInvalid :: [Text] =
                 [ "DdzFFzCqrhtCNjPk5Lei7E1FxnoqMoAYtJ8VjAWbFmDb614nNBWBwv3kt6QHJa59cGezzf6piMWsbK7sWRB5sv325QqWdRuusMqqLdMt"
@@ -564,7 +570,7 @@ spec = do
                     , addresses: [#{addr}]
                     }|])
             verify r
-                [ expectResponseCode @IO HTTP.status400
+                [ expectResponseCode HTTP.status400
                 , expectErrorMessage
                     "Improper address. Make sure you are using valid Jörmungandr address."
                 ]
@@ -633,26 +639,25 @@ data ExternalTxFixture = ExternalTxFixture
 -- Most of this could be replaced with simple calls of the derivation primitives
 -- in AddressDerivation.
 fixtureExternalTx
-    :: forall n t.
+    :: forall n t .
         ( DecodeAddress n
         , DecodeStakeAddress n
         , DelegationAddress n JormungandrKey
         )
     => (Context t)
     -> Natural
-    -> IO ExternalTxFixture
+    -> ResourceT IO ExternalTxFixture
 fixtureExternalTx ctx toSend = do
     -- we use faucet wallet as wSrc
-    mnemonicFaucet <- mnemonicToText <$> nextWallet @"shelley" (_faucet ctx)
+    mnemonicFaucet <- liftIO $ mnemonicToText <$> nextWallet @"shelley" (_faucet ctx)
     let restoreFaucetWallet = Json [json| {
             "name": "Faucet Wallet",
             "mnemonic_sentence": #{mnemonicFaucet},
             "passphrase": #{fixturePassphrase}
             } |]
-    r0 <- request
-        @ApiWallet ctx ("POST", "v2/wallets") Default restoreFaucetWallet
+    r0 <- postWallet ctx restoreFaucetWallet
     verify r0
-        [ expectResponseCode @IO HTTP.status201
+        [ expectResponseCode HTTP.status201
         , expectField
             (#name . #getApiT . #getWalletName) (`shouldBe` "Faucet Wallet")
         ]
@@ -669,7 +674,7 @@ fixtureExternalTx ctx toSend = do
     let (Just keysAddrChng) = isOwned st' (rootXPrv, pwd) addrChng
 
     -- we create destination empty wallet
-    mnemonics15 <- genMnemonics M15
+    mnemonics15 <- liftIO $ genMnemonics M15
     let createWallet = Json [json| {
             "name": "Destination Wallet",
             "mnemonic_sentence": #{mnemonics15},
@@ -713,7 +718,7 @@ fixtureExternalTx ctx toSend = do
                 , TxOut addrChng (Coin (fromIntegral $ amt - toSend - fee))
                 ]
             }
-    tl <- newTransactionLayer <$> getBlock0H
+    tl <- liftIO $ newTransactionLayer <$> getBlock0H
     let rewardAcnt = error "rewardAcnt unused"
     let expSlot = error "expiry slot not needed in jormungandr mkStdTx"
     let (Right (tx, bin)) = mkStdTx tl rewardAcnt keystore expSlot Nothing cs

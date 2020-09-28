@@ -186,7 +186,7 @@ spec = do
                         , "--genesis-block-hash"
                         , hash
                         ]
-                (Exit c, Stdout o, Stderr e) <- cardanoWalletCLI @t args
+                (Exit c, Stdout o, Stderr e) <- cardanoWalletCLI @t @_ @IO args
                 c `shouldBe` ExitFailure 1
                 o `shouldBe` mempty
                 e `shouldContain`
@@ -199,7 +199,7 @@ spec = do
                     , "--genesis-block-hash"
                     , replicate 37 '1'
                     ]
-            (Exit c, Stdout o, Stderr e) <- cardanoWalletCLI @t args
+            (Exit c, Stdout o, Stderr e) <- cardanoWalletCLI @t @_ @IO args
             c `shouldBe` ExitFailure 1
             o `shouldBe` mempty
             e `shouldContain`

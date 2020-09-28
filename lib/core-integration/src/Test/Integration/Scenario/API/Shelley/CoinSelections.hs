@@ -68,6 +68,7 @@ import Test.Integration.Framework.DSL
     , listAddresses
     , minUTxOValue
     , request
+    , runResourceT
     , selectCoins
     , verify
     , walletId
@@ -92,7 +93,7 @@ spec = describe "SHELLEY_COIN_SELECTION" $ do
 
     it "WALLETS_COIN_SELECTION_01 - \
         \A singleton payment is included in the coin selection output." $
-        \ctx -> do
+        \ctx -> runResourceT $ do
             source <- fixtureWallet ctx
             target <- emptyWallet ctx
             targetAddress : _ <- fmap (view #id) <$> listAddresses @n ctx target
@@ -125,7 +126,7 @@ spec = describe "SHELLEY_COIN_SELECTION" $ do
 
     it "WALLETS_COIN_SELECTION_02 - \
         \Multiple payments are all included in the coin selection output." $
-        \ctx -> do
+        \ctx -> runResourceT $ do
             let paymentCount = 10
             source <- fixtureWallet ctx
             target <- emptyWallet ctx
@@ -146,18 +147,18 @@ spec = describe "SHELLEY_COIN_SELECTION" $ do
                 ]
 
     it "WALLETS_COIN_SELECTION_03 - \
-        \Deleted wallet is not available for selection" $ \ctx -> do
+        \Deleted wallet is not available for selection" $ \ctx -> runResourceT $ do
         w <- emptyWallet ctx
         (addr:_) <- fmap (view #id) <$> listAddresses @n ctx w
         let payments = NE.fromList [ AddressAmount addr (Quantity minUTxOValue) ]
         _ <- request @ApiWallet ctx (Link.deleteWallet @'Shelley w) Default Empty
         selectCoins @_ @'Shelley ctx w payments >>= flip verify
-            [ expectResponseCode @IO HTTP.status404
+            [ expectResponseCode HTTP.status404
             , expectErrorMessage (errMsg404NoWallet $ w ^. walletId)
             ]
 
     it "WALLETS_COIN_SELECTION_03 - \
-        \Wrong selection method (not 'random')" $ \ctx -> do
+        \Wrong selection method (not 'random')" $ \ctx -> runResourceT $ do
         w <- fixtureWallet ctx
         (addr:_) <- fmap (view #id) <$> listAddresses @n ctx w
         let payments = NE.fromList [ AddressAmount addr (Quantity minUTxOValue) ]
@@ -169,13 +170,13 @@ spec = describe "SHELLEY_COIN_SELECTION" $ do
                 ]
         forM_ endpoints $ \endpoint -> do
             r <- request @(ApiCoinSelection n) ctx endpoint Default payload
-            verify r [ expectResponseCode @IO HTTP.status404 ]
+            verify r [ expectResponseCode HTTP.status404 ]
 
     describe "WALLETS_COIN_SELECTION_04 - HTTP headers" $ do
         let matrix =
                 [ ( "No HTTP headers -> 415"
                   , None
-                  , [ expectResponseCode @IO HTTP.status415
+                  , [ expectResponseCode HTTP.status415
                     , expectErrorMessage errMsg415
                     ]
                   )
@@ -184,28 +185,28 @@ spec = describe "SHELLEY_COIN_SELECTION" $ do
                         [ ("Content-Type", "application/json")
                         , ("Accept", "text/plain")
                         ]
-                  , [ expectResponseCode @IO HTTP.status406
+                  , [ expectResponseCode HTTP.status406
                     , expectErrorMessage errMsg406
                     ]
                   )
                 , ( "No Accept -> 200"
                   , Headers [ ("Content-Type", "application/json") ]
-                  , [ expectResponseCode @IO HTTP.status200 ]
+                  , [ expectResponseCode HTTP.status200 ]
                   )
                 , ( "No Content-Type -> 415"
                   , Headers [ ("Accept", "application/json") ]
-                  , [ expectResponseCode @IO HTTP.status415
+                  , [ expectResponseCode HTTP.status415
                     , expectErrorMessage errMsg415
                     ]
                   )
                 , ( "Content-Type: text/plain -> 415"
                   , Headers [ ("Content-Type", "text/plain") ]
-                  , [ expectResponseCode @IO HTTP.status415
+                  , [ expectResponseCode HTTP.status415
                     , expectErrorMessage errMsg415
                     ]
                   )
                 ]
-        forM_ matrix $ \(title, headers, expectations) -> it title $ \ctx -> do
+        forM_ matrix $ \(title, headers, expectations) -> it title $ \ctx -> runResourceT $ do
             w <- fixtureWallet ctx
             (addr:_) <- fmap (view #id) <$> listAddresses @n ctx w
             let payments = NE.fromList [ AddressAmount addr (Quantity minUTxOValue) ]
@@ -216,7 +217,7 @@ spec = describe "SHELLEY_COIN_SELECTION" $ do
 
     it "WALLETS_COIN_SELECTION_05 - \
         \No change when payment fee eats leftovers due to minUTxOValue" $
-        \ctx -> do
+        \ctx -> runResourceT $ do
             source  <- fixtureWalletWith @n ctx [minUTxOValue, minUTxOValue]
             eventually "Source wallet balance is as expected" $ do
                 rGet <- request @ApiWallet ctx

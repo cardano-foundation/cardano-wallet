@@ -40,6 +40,10 @@ import Control.Concurrent
     ( threadDelay )
 import Control.Monad
     ( forM_ )
+import Control.Monad.IO.Class
+    ( liftIO )
+import Control.Monad.Trans.Resource
+    ( runResourceT )
 import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
 import Data.Maybe
@@ -72,9 +76,10 @@ import Test.Integration.Framework.DSL
     , json
     , listAddresses
     , oneSecond
+    , postWallet
     , randomAddresses
     , request
-    , unsafeRequest
+    , unsafeResponse
     , verify
     , walletId
     , (.>)
@@ -103,24 +108,24 @@ spec :: forall n t.
 spec = describe "SHELLEY_MIGRATIONS" $ do
     it "SHELLEY_CALCULATE_01 - \
         \for non-empty wallet calculated fee is > zero."
-        $ \ctx -> do
+        $ \ctx -> runResourceT $ do
             w <- fixtureWallet ctx
             let ep = Link.getMigrationInfo @'Shelley w
             r <- request @ApiWalletMigrationInfo ctx ep Default Empty
-            verify r
-                [ expectResponseCode @IO HTTP.status200
+            liftIO $ verify r
+                [ expectResponseCode HTTP.status200
                 , expectField (#migrationCost . #getQuantity)
                     (.> 0)
                 ]
 
     it "SHELLEY_CALCULATE_02 - \
         \Cannot calculate fee for empty wallet."
-        $ \ctx -> do
+        $ \ctx -> runResourceT $ do
             w <- emptyWallet ctx
             let ep = Link.getMigrationInfo @'Shelley w
             r <- request @ApiWalletMigrationInfo ctx ep Default Empty
-            verify r
-                [ expectResponseCode @IO HTTP.status403
+            liftIO $ verify r
+                [ expectResponseCode HTTP.status403
                 , expectErrorMessage (errMsg403NothingToMigrate $ w ^. walletId)
                 ]
 
@@ -131,11 +136,11 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                 ] $ \(walType, byronWallet) -> do
 
                 it ("Cannot calculate Shelley migration using wallet: " ++ walType)
-                    $ \ctx -> do
+                    $ \ctx -> runResourceT $ do
                     w <- byronWallet ctx
                     let ep = Link.getMigrationInfo @'Shelley w
                     r <- request @ApiWalletMigrationInfo ctx ep Default Empty
-                    expectResponseCode @IO HTTP.status404 r
+                    expectResponseCode HTTP.status404 r
                     expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
 
     describe "SHELLEY_MIGRATE_01 - \
@@ -148,7 +153,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
               testAddressCycling 10
 
     Hspec.it "SHELLEY_MIGRATE_01_big_wallet - \
-        \ migrate a big wallet requiring more than one tx" $ \ctx -> do
+        \ migrate a big wallet requiring more than one tx" $ \ctx -> runResourceT @IO $ do
 
         -- NOTE
         -- Special mnemonic for which 200 shelley funds are attached to in the
@@ -166,8 +171,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                 "mnemonic_sentence": #{mnemonics},
                 "passphrase": #{fixturePassphrase}
                 } |]
-        (_, wOld) <- unsafeRequest @ApiWallet ctx
-            (Link.postWallet @'Shelley) payloadRestore
+        wOld <- unsafeResponse <$> postWallet ctx payloadRestore
         originalBalance <- eventually "wallet balance greater than 0" $ do
             r <- request @ApiWallet ctx
                 (Link.getWallet @'Shelley wOld)
@@ -184,8 +188,8 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
             (Link.getMigrationInfo @'Shelley wOld)
             Default
             Empty
-        verify rFee
-            [ expectResponseCode @IO HTTP.status200
+        liftIO $ verify rFee
+            [ expectResponseCode HTTP.status200
             , expectField #migrationCost (.> Quantity 0)
             ]
         let expectedFee = getFromResponse (#migrationCost . #getQuantity) rFee
@@ -201,11 +205,11 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                     { passphrase: #{fixturePassphrase}
                     , addresses: [#{addr1}]
                     }|]
-        request @[ApiTransaction n] ctx
+        liftIO $ request @[ApiTransaction n] ctx
             (Link.migrateWallet @'Shelley wOld)
             Default
             payloadMigrate >>= flip verify
-            [ expectResponseCode @IO HTTP.status202
+            [ expectResponseCode HTTP.status202
             , expectField id ((`shouldBe` 15) . length)
             ]
 
@@ -225,10 +229,10 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                 ]
 
         -- #2238 quick fix to reduce likelihood of rollback.
-        threadDelay $ 10 * oneSecond
+        liftIO $ threadDelay $ 10 * oneSecond
 
         -- Analyze the target wallet UTxO distribution
-        request @ApiUtxoStatistics ctx (Link.getUTxOsStatistics @'Shelley wNew)
+        liftIO $ request @ApiUtxoStatistics ctx (Link.getUTxOsStatistics @'Shelley wNew)
             Default
             Empty >>= flip verify
             [ expectField
@@ -238,7 +242,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
 
     it "SHELLEY_MIGRATE_02 - \
         \migrating an empty wallet should fail."
-        $ \ctx ->  do
+        $ \ctx -> runResourceT $ do
             sourceWallet <- emptyWallet ctx
             targetWallet <- emptyWallet ctx
             addrs <- listAddresses @n ctx targetWallet
@@ -251,14 +255,14 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
             let ep = Link.migrateWallet @'Shelley sourceWallet
             r <- request @[ApiTransaction n] ctx ep Default payload
             let srcId = sourceWallet ^. walletId
-            verify r
-                [ expectResponseCode @IO HTTP.status403
+            liftIO $ verify r
+                [ expectResponseCode HTTP.status403
                 , expectErrorMessage (errMsg403NothingToMigrate srcId)
                 ]
 
     Hspec.it "SHELLEY_MIGRATE_02 - \
         \migrating wallet with 'dust' (that complies with minUTxOValue) should pass."
-        $ \ctx -> do
+        $ \ctx -> runResourceT @IO $ do
             -- NOTE
             -- Special mnemonic for which wallet has dust
             -- (10 utxo with 43 ADA)
@@ -271,8 +275,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                     "mnemonic_sentence": #{mnemonics},
                     "passphrase": #{fixturePassphrase}
                     } |]
-            (_, sourceWallet) <- unsafeRequest @ApiWallet ctx
-                (Link.postWallet @'Shelley) payloadRestore
+            sourceWallet <- unsafeResponse <$> postWallet ctx payloadRestore
             originalBalance <- eventually "wallet balance greater than 0" $ do
                 rg <- request @ApiWallet ctx
                     (Link.getWallet @'Shelley sourceWallet)
@@ -287,8 +290,8 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
             -- Calculate the expected migration fee:
             r0 <- request @ApiWalletMigrationInfo ctx
                 (Link.getMigrationInfo @'Shelley sourceWallet) Default Empty
-            verify r0
-                [ expectResponseCode @IO HTTP.status200
+            liftIO $ verify r0
+                [ expectResponseCode HTTP.status200
                 , expectField #migrationCost (.> Quantity 0)
                 ]
             let expectedFee = getFromResponse (#migrationCost . #getQuantity) r0
@@ -303,8 +306,8 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                         }|]
             let ep = Link.migrateWallet @'Shelley sourceWallet
             r <- request @[ApiTransaction n] ctx ep Default payload
-            verify r
-                [ expectResponseCode @IO HTTP.status202 ]
+            liftIO $ verify r
+                [ expectResponseCode HTTP.status202 ]
 
             -- Check that funds become available in the target wallet:
             let expectedBalance = originalBalance - expectedFee
@@ -323,15 +326,15 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
 
     it "SHELLEY_MIGRATE_03 - \
         \actual fee for migration is the same as the predicted fee."
-        $ \ctx -> do
+        $ \ctx -> runResourceT $ do
             -- Restore a Shelley wallet with funds.
             sourceWallet <- fixtureWallet ctx
 
             -- Request a migration fee prediction.
             let ep0 = (Link.getMigrationInfo @'Shelley sourceWallet)
             r0 <- request @ApiWalletMigrationInfo ctx ep0 Default Empty
-            verify r0
-                [ expectResponseCode @IO HTTP.status200
+            liftIO $ verify r0
+                [ expectResponseCode HTTP.status200
                 , expectField #migrationCost (.> Quantity 0)
                 ]
 
@@ -347,7 +350,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
             let ep1 = Link.migrateWallet @'Shelley sourceWallet
             r1 <- request @[ApiTransaction n] ctx ep1 Default payload
             verify r1
-                [ expectResponseCode @IO HTTP.status202
+                [ expectResponseCode HTTP.status202
                 , expectField id (`shouldSatisfy` (not . null))
                 ]
 
@@ -356,9 +359,9 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                     <$> getFromResponse id r1
             let predictedFee =
                     getFromResponse (#migrationCost . #getQuantity) r0
-            actualFee `shouldBe` predictedFee
+            liftIO $ actualFee `shouldBe` predictedFee
 
-    it "SHELLEY_MIGRATE_04 - migration fails with a wrong passphrase" $ \ctx -> do
+    it "SHELLEY_MIGRATE_04 - migration fails with a wrong passphrase" $ \ctx -> runResourceT $ do
         -- Restore a Shelley wallet with funds, to act as a source wallet:
         sourceWallet <- fixtureWallet ctx
 
@@ -374,21 +377,21 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                 , addresses: [#{addr1}]
                 }|])
         verify r0
-            [ expectResponseCode @IO HTTP.status403
+            [ expectResponseCode HTTP.status403
             , expectErrorMessage errMsg403WrongPass
             ]
 
 
-    it "SHELLEY_MIGRATE_05 - I could migrate to any valid address" $ \ctx -> do
+    it "SHELLEY_MIGRATE_05 - I could migrate to any valid address" $ \ctx -> runResourceT $ do
       --shelley address
       wShelley <- emptyWallet ctx
       addrs <- listAddresses @n ctx wShelley
       let addrShelley = (addrs !! 1) ^. #id
       --icarus address
-      addrIcarus <- encodeAddress @n . head . icarusAddresses @n
+      addrIcarus <- liftIO $ encodeAddress @n . head . icarusAddresses @n
           . entropyToMnemonic @15 <$> genEntropy
       --byron address
-      addrByron <- encodeAddress @n . head . randomAddresses @n
+      addrByron <- liftIO $ encodeAddress @n . head . randomAddresses @n
           . entropyToMnemonic @12 <$> genEntropy
 
       sWallet <- emptyWallet ctx
@@ -400,18 +403,18 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
               , addresses: [#{addrShelley}, #{addrIcarus}, #{addrByron}]
               }|])
       verify r
-          [ expectResponseCode @IO HTTP.status403
+          [ expectResponseCode HTTP.status403
           , expectErrorMessage
               (errMsg403NothingToMigrate (sWallet ^. walletId))
           ]
 
-    it "SHELLEY_MIGRATE_07 - invalid payload, parser error" $ \ctx -> do
+    it "SHELLEY_MIGRATE_07 - invalid payload, parser error" $ \ctx -> runResourceT $ do
       sourceWallet <- emptyWallet ctx
       r <- request @[ApiTransaction n] ctx
           (Link.migrateWallet @'Shelley sourceWallet)
           Default
           (NonJson "{passphrase:,}")
-      expectResponseCode @IO HTTP.status400 r
+      expectResponseCode HTTP.status400 r
       expectErrorMessage errMsg400ParseError r
   where
     -- Compute the fee associated with an API transaction.
@@ -431,7 +434,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
 
     testAddressCycling addrNum =
         it ("Migration from Shelley wallet to " ++ show addrNum ++ " addresses")
-            $ \ctx -> do
+            $ \ctx -> runResourceT $ do
             -- Restore a Shelley wallet with funds, to act as a source wallet:
             sourceWallet <- fixtureWallet ctx
             let originalBalance =
@@ -449,7 +452,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
             r0 <- request @ApiWalletMigrationInfo ctx
                 (Link.getMigrationInfo @'Shelley sourceWallet) Default Empty
             verify r0
-                [ expectResponseCode @IO HTTP.status200
+                [ expectResponseCode HTTP.status200
                 , expectField #migrationCost (.> Quantity 0)
                 ]
             let expectedFee = getFromResponse (#migrationCost . #getQuantity) r0
@@ -463,7 +466,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                     , addresses: #{addrIds}
                     }|])
             verify r1
-                [ expectResponseCode @IO HTTP.status202
+                [ expectResponseCode HTTP.status202
                 , expectField id (`shouldSatisfy` (not . null))
                 ]
 
