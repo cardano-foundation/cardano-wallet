@@ -22,7 +22,7 @@ import Control.Concurrent.Async
 import Control.Concurrent.MVar
     ( MVar, newEmptyMVar, putMVar, takeMVar )
 import Control.Exception
-    ( SomeException, catch, throwIO )
+    ( SomeException, throwIO, try )
 import Test.Hspec
     ( ActionWith
     , HasCallStack
@@ -104,9 +104,17 @@ aroundAll acquire =
 -- | A drop-in replacement for 'it' that'll automatically retry a scenario once
 -- if it fails, to cope with potentially flaky tests.
 it :: HasCallStack => String -> ActionWith ctx -> SpecWith ctx
-it title action =
-    specify title $ \ctx ->
-        action ctx `catch` (\(_ :: SomeException) -> action ctx)
+it title action = specify title $ \ctx -> do
+   res1 <- try $ action ctx
+   case res1 of
+       Right r1 -> return r1
+       Left (e1 :: SomeException) -> do
+           res2 <- try $ action ctx
+           case res2 of
+               -- If the second try fails, return the first error. The
+               -- second error might not be helpful.
+               Left (_e2 :: SomeException) -> throwIO e1
+               Right r2 -> return r2
 
 -- | Some helper to help readability on the thread synchronization above.
 await :: MVar () -> IO ()
