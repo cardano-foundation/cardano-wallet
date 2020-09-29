@@ -352,21 +352,23 @@ spec = describe "SHELLEY_HW_WALLETS" $ do
             -- create mnemonic wallet
             let mnemonicWalletName = "Mnemonic wallet"
             let payldCrt = payloadWith mnemonicWalletName mnemonics
-            r <- postWallet ctx payldCrt
-            expectResponseCode HTTP.status201 r
+            r1' <- postWallet ctx payldCrt
+            expectResponseCode HTTP.status201 r1'
 
             -- create from account public key
             let accXPub = pubKeyFromMnemonics mnemonics
-            _ <- restoreWalletFromPubKey @ApiWallet @'Shelley ctx accXPub restoredWalletName
+            r2' <- restoreWalletFromPubKey @ApiWallet @'Shelley ctx accXPub restoredWalletName
+
+            r1 <- request @ApiWallet ctx (Link.getWallet @'Shelley (getFromResponse id r1')) Default Empty
+            r2 <- request @ApiWallet ctx (Link.getWallet @'Shelley r2') Default Empty
 
             -- both wallets are available
-            rl <- request @[ApiWallet] ctx
-                (Link.listWallets @'Shelley) Default Empty
-            verify rl
-                [ expectListField 0
-                    (#name . #getApiT . #getWalletName)
+            liftIO $ verify r1
+                [ expectField (#name . #getApiT . #getWalletName)
                     (`shouldBe` mnemonicWalletName)
-                , expectListField 1
+                ]
+            liftIO $ verify r2
+                [ expectField
                     (#name . #getApiT . #getWalletName)
                     (`shouldBe` restoredWalletName)
                 ]
