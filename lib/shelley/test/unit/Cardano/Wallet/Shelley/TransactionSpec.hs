@@ -32,6 +32,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , PassphraseMaxLength (..)
     , PassphraseMinLength (..)
     , PassphraseScheme (..)
+    , hex
     , preparePassphrase
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
@@ -75,6 +76,8 @@ import Control.Monad.Trans.Except
     ( catchE, runExceptT, withExceptT )
 import Data.Function
     ( on, (&) )
+import Data.Maybe
+    ( fromJust )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -180,11 +183,11 @@ spec = do
     it "regression #1740 - fee estimation at the boundaries" $ do
         let utxo = UTxO $ Map.fromList
                 [ ( TxIn dummyTxId 0
-                  , TxOut dummyAddress (Coin 5000000)
+                  , TxOut (dummyAddress 0) (Coin 5000000)
                   )
                 ]
         let recipients = NE.fromList
-                [ TxOut dummyAddress (Coin 4834720)
+                [ TxOut (dummyAddress 0) (Coin 4834720)
                 ]
 
         let wdrl = Quantity 0
@@ -197,6 +200,169 @@ spec = do
         res <- runExceptT $ estimateFeeForCoinSelection selectCoins
 
         res `shouldBe` Right (FeeEstimation 165413 165413)
+
+    describe "tx binary calculations - Byron witnesses - mainnet" $ do
+        let slotNo = SlotNo 7750
+            md = Nothing
+            calculateBinary utxo outs pairs = toBase16 (Cardano.serialiseToCBOR ledgerTx)
+              where
+                  toBase16 = T.decodeUtf8 . hex
+                  ledgerTx = Cardano.makeSignedTransaction addrWits unsigned
+                  mkByronWitness' unsignedTx (_, (TxOut addr _)) =
+                      mkByronWitness unsignedTx Cardano.Mainnet addr
+                  addrWits = zipWith (mkByronWitness' unsigned) inps pairs
+                  unsigned = mkUnsignedTx slotNo cs md mempty []
+                  cs = mempty { CS.inputs = inps, CS.outputs = outs }
+                  inps = Map.toList $ getUTxO utxo
+        it "1 input, 2 outputs" $ do
+            let pairs = [dummyWit 0]
+            let amtInp = 10000000
+            let amtFee = 129700
+            let amtOut = 2000000
+            let amtChange = amtInp - amtOut - amtFee
+            let utxo = UTxO $ Map.fromList
+                    [ ( TxIn dummyTxId 0
+                      , TxOut (dummyAddress 0) (Coin amtInp)
+                      )
+                    ]
+            let outs =
+                    [ TxOut (dummyAddress 1) (Coin amtOut)
+                    , TxOut (dummyAddress 2) (Coin amtChange)
+                    ]
+            calculateBinary utxo outs pairs `shouldBe`
+                "83a40081825820000000000000000000000000000000000000000000000000\
+                \00000000000000000001828258390101010101010101010101010101010101\
+                \01010101010101010101010101010101010101010101010101010101010101\
+                \0101010101010101011a001e84808258390102020202020202020202020202\
+                \02020202020202020202020202020202020202020202020202020202020202\
+                \0202020202020202020202021a0078175c021a0001faa403191e46a1028184\
+                \58200100000000000000000000000000000000000000000000000000000000\
+                \0000005840d7af60ae33d2af351411c1445c79590526990bfa73cbb3732b54\
+                \ef322daa142e6884023410f8be3c16e9bd52076f2bb36bf38dfe034a9f0465\
+                \8e9f56197ab80f582000000000000000000000000000000000000000000000\
+                \0000000000000000000041a0f6"
+
+        it "2 inputs, 3 outputs" $ do
+            let pairs = [dummyWit 0, dummyWit 1]
+            let amtInp = 10000000
+            let amtFee = 135200
+            let amtOut = 6000000
+            let amtChange = 2*amtInp - 2*amtOut - amtFee
+            let utxo = UTxO $ Map.fromList
+                    [ ( TxIn dummyTxId 0
+                      , TxOut (dummyAddress 0) (Coin amtInp)
+                      )
+                    , ( TxIn dummyTxId 1
+                      , TxOut (dummyAddress 1) (Coin amtInp)
+                      )
+                    ]
+            let outs =
+                    [ TxOut (dummyAddress 2) (Coin amtOut)
+                    , TxOut (dummyAddress 3) (Coin amtOut)
+                    , TxOut (dummyAddress 4) (Coin amtChange)
+                    ]
+            calculateBinary utxo outs pairs `shouldBe`
+                "83a40082825820000000000000000000000000000000000000000000000000\
+                \00000000000000000082582000000000000000000000000000000000000000\
+                \00000000000000000000000000010183825839010202020202020202020202\
+                \02020202020202020202020202020202020202020202020202020202020202\
+                \02020202020202020202020202021a005b8d80825839010303030303030303\
+                \03030303030303030303030303030303030303030303030303030303030303\
+                \03030303030303030303030303030303031a005b8d80825839010404040404\
+                \04040404040404040404040404040404040404040404040404040404040404\
+                \04040404040404040404040404040404040404041a007801e0021a00021020\
+                \03191e46a10282845820010000000000000000000000000000000000000000\
+                \00000000000000000000005840e8e769ecd0f3c538f0a5a574a1c881775f08\
+                \6d6f4c845b81be9b78955728bffa7efa54297c6a5d73337bd6280205b1759c\
+                \13f79d4c93f29871fc51b78aeba80e58200000000000000000000000000000\
+                \00000000000000000000000000000000000041a0845820130ae82201d7072e\
+                \6fbfc0a1884fb54636554d14945b799125cf7ce38d477f5158405835ff78c6\
+                \fc5e4466a179ca659fa85c99b8a3fba083f3f3f42ba360d479c64ef169914b\
+                \52ade49b19a7208fd63a6e67a19c406b4826608fdc5307025506c307582001\
+                \01010101010101010101010101010101010101010101010101010101010101\
+                \41a0f6"
+
+    describe "tx binary calculations - Byron witnesses - testnet" $ do
+        let slotNo = SlotNo 7750
+            md = Nothing
+            calculateBinary utxo outs pairs = toBase16 (Cardano.serialiseToCBOR ledgerTx)
+              where
+                  toBase16 = T.decodeUtf8 . hex
+                  ledgerTx = Cardano.makeSignedTransaction addrWits unsigned
+                  net = Cardano.Testnet (Cardano.NetworkMagic 0)
+                  mkByronWitness' unsignedTx (_, (TxOut addr _)) =
+                      mkByronWitness unsignedTx net addr
+                  addrWits = zipWith (mkByronWitness' unsigned) inps pairs
+                  unsigned = mkUnsignedTx slotNo cs md mempty []
+                  cs = mempty { CS.inputs = inps, CS.outputs = outs }
+                  inps = Map.toList $ getUTxO utxo
+        it "1 input, 2 outputs" $ do
+            let pairs = [dummyWit 0]
+            let amtInp = 10000000
+            let amtFee = 129700
+            let amtOut = 2000000
+            let amtChange = amtInp - amtOut - amtFee
+            let utxo = UTxO $ Map.fromList
+                    [ ( TxIn dummyTxId 0
+                      , TxOut (dummyAddress 0) (Coin amtInp)
+                      )
+                    ]
+            let outs =
+                    [ TxOut (dummyAddress 1) (Coin amtOut)
+                    , TxOut (dummyAddress 2) (Coin amtChange)
+                    ]
+            calculateBinary utxo outs pairs `shouldBe`
+                "83a40081825820000000000000000000000000000000000000000000000000\
+                \00000000000000000001828258390101010101010101010101010101010101\
+                \01010101010101010101010101010101010101010101010101010101010101\
+                \0101010101010101011a001e84808258390102020202020202020202020202\
+                \02020202020202020202020202020202020202020202020202020202020202\
+                \0202020202020202020202021a0078175c021a0001faa403191e46a1028184\
+                \58200100000000000000000000000000000000000000000000000000000000\
+                \0000005840d7af60ae33d2af351411c1445c79590526990bfa73cbb3732b54\
+                \ef322daa142e6884023410f8be3c16e9bd52076f2bb36bf38dfe034a9f0465\
+                \8e9f56197ab80f582000000000000000000000000000000000000000000000\
+                \0000000000000000000044a1024100f6"
+
+        it "2 inputs, 3 outputs" $ do
+            let pairs = [dummyWit 0, dummyWit 1]
+            let amtInp = 10000000
+            let amtFee = 135200
+            let amtOut = 6000000
+            let amtChange = 2*amtInp - 2*amtOut - amtFee
+            let utxo = UTxO $ Map.fromList
+                    [ ( TxIn dummyTxId 0
+                      , TxOut (dummyAddress 0) (Coin amtInp)
+                      )
+                    , ( TxIn dummyTxId 1
+                      , TxOut (dummyAddress 1) (Coin amtInp)
+                      )
+                    ]
+            let outs =
+                    [ TxOut (dummyAddress 2) (Coin amtOut)
+                    , TxOut (dummyAddress 3) (Coin amtOut)
+                    , TxOut (dummyAddress 4) (Coin amtChange)
+                    ]
+            calculateBinary utxo outs pairs `shouldBe`
+                "83a40082825820000000000000000000000000000000000000000000000000\
+                \00000000000000000082582000000000000000000000000000000000000000\
+                \00000000000000000000000000010183825839010202020202020202020202\
+                \02020202020202020202020202020202020202020202020202020202020202\
+                \02020202020202020202020202021a005b8d80825839010303030303030303\
+                \03030303030303030303030303030303030303030303030303030303030303\
+                \03030303030303030303030303030303031a005b8d80825839010404040404\
+                \04040404040404040404040404040404040404040404040404040404040404\
+                \04040404040404040404040404040404040404041a007801e0021a00021020\
+                \03191e46a10282845820130ae82201d7072e6fbfc0a1884fb54636554d1494\
+                \5b799125cf7ce38d477f5158405835ff78c6fc5e4466a179ca659fa85c99b8\
+                \a3fba083f3f3f42ba360d479c64ef169914b52ade49b19a7208fd63a6e67a1\
+                \9c406b4826608fdc5307025506c30758200101010101010101010101010101\
+                \01010101010101010101010101010101010144a10241008458200100000000\
+                \0000000000000000000000000000000000000000000000000000005840e8e7\
+                \69ecd0f3c538f0a5a574a1c881775f086d6f4c845b81be9b78955728bffa7e\
+                \fa54297c6a5d73337bd6280205b1759c13f79d4c93f29871fc51b78aeba80e\
+                \58200000000000000000000000000000000000000000000000000000000000\
+                \00000044a1024100f6"
 
 newtype GivenNumOutputs = GivenNumOutputs Word8 deriving Num
 newtype ExpectedNumInputs = ExpectedNumInputs Word8 deriving Num
@@ -437,8 +603,13 @@ instance Arbitrary (Quantity "byte" Word16) where
         | size <= 1 = []
         | otherwise = Quantity <$> shrink size
 
-dummyAddress :: Address
-dummyAddress = Address $ BS.pack $ 1 : replicate 64 0
+dummyAddress :: Word8 -> Address
+dummyAddress b =
+    Address $ BS.pack $ 1 : replicate 64 b
+
+dummyWit :: Word8 -> (XPrv, Passphrase "encryption")
+dummyWit b =
+    (fromJust $ xprvFromBytes $ BS.pack $ replicate 96 b, mempty)
 
 dummyTxId :: Hash "Tx"
 dummyTxId = Hash $ BS.pack $ replicate 32 0
