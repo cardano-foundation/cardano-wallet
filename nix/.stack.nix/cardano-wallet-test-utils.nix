@@ -52,5 +52,20 @@
           ];
         buildable = true;
         };
+      tests = {
+        "unit" = {
+          depends = [
+            (hsPkgs."base" or (errorHandler.buildDepError "base"))
+            (hsPkgs."hspec" or (errorHandler.buildDepError "hspec"))
+            (hsPkgs."silently" or (errorHandler.buildDepError "silently"))
+            (hsPkgs."hspec-core" or (errorHandler.buildDepError "hspec-core"))
+            (hsPkgs."cardano-wallet-test-utils" or (errorHandler.buildDepError "cardano-wallet-test-utils"))
+            ];
+          build-tools = [
+            (hsPkgs.buildPackages.hspec-discover or (pkgs.buildPackages.hspec-discover or (errorHandler.buildToolDepError "hspec-discover")))
+            ];
+          buildable = true;
+          };
+        };
       };
     } // rec { src = (pkgs.lib).mkDefault ../.././lib/test-utils; }
