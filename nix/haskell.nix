@@ -31,7 +31,7 @@ let
   filterSubDir = subDir:
     haskell.haskellLib.cleanSourceWith { inherit src subDir; };
 
-  pkgSet = haskell.mkStackPkgSet {
+  pkg-set = haskell.mkStackPkgSet {
     inherit stack-pkgs;
     modules = [
       # Add source filtering to local packages
@@ -322,10 +322,20 @@ let
       '';
     };
 
+  proj = haskell.addProjectAndPackageAttrs {
+    inherit pkg-set;
+    inherit (pkg-set.config) hsPkgs;
+  };
+
 in
-haskell.addProjectAndPackageAttrs {
-  pkg-set = pkgSet;
-  inherit (pkgSet.config) hsPkgs;
-  _config = pkgSet.config;
-  _roots = haskell.roots pkgSet.config.ghc;
-}
+  proj.hsPkgs // {
+    _config = proj.pkg-set.config;
+    #_roots = haskell.roots proj.pkg-set.config.ghc;
+    testCoverageReport = proj.projectCoverageReport.overrideAttrs (old: {
+      buildCommand = old.buildCommand + ''
+        mkdir -p $out/nix-support
+        echo "report coverage $out/share/hpc/vanilla/html/all/hpc_index.html" >> $out/nix-support/hydra-build-products
+        echo "report coverage-per-package $out/share/hpc/vanilla/html/index.html" >> $out/nix-support/hydra-build-products
+      '';
+    });
+  }

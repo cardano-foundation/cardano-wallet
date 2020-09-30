@@ -75,7 +75,7 @@ let
 
   # Creates a development environment for Cabal builds or ghci
   # sessions, with various build tools included.
-  mkShell = name: hsPkgs: hsPkgs.shellFor {
+  mkShell = name: hp: hp.shellFor {
     inherit name;
     packages = ps: attrValues (selectProjectPackages ps);
     buildInputs = (with self; [
@@ -150,12 +150,8 @@ let
     tests = collectComponents "tests" isProjectPackage coveredHaskellPackages;
     # `checks` are the result of executing the tests.
     checks = pkgs.recurseIntoAttrs (getPackageChecks (selectProjectPackages coveredHaskellPackages));
-    # Combined coverage report
-    # fixme: haskell.nix needs to support using `checks` attrset from
-    # above, otherwise we will be running unnecessary test suites.
-    # testCoverageReport = pkgs.haskell-nix.haskellLib.projectCoverageReport {
-    #   packages = selectProjectPackages coveredHaskellPackages;
-    # };
+    # Combined project coverage report
+    inherit (coveredHaskellPackages) testCoverageReport;
     # `benchmarks` are only built, not run.
     benchmarks = collectComponents "benchmarks" isProjectPackage haskellPackages;
 
