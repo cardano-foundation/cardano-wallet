@@ -156,9 +156,9 @@ let
         setup_completion
       '';
     };
-    stackShell = import ./nix/stack-shell.nix {
-      walletPackages = self;
-    };
+    cabalShell = import ./nix/cabal-shell.nix { inherit pkgs; walletPackages = self; };
+    stackShell = import ./nix/stack-shell.nix { inherit pkgs; walletPackages = self; };
+
     # This is the ./nix/regenerate.sh script. Put it here so that it's
     # built and cached on CI.
     inherit stackNixRegenerate;

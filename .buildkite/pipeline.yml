@@ -31,11 +31,11 @@ steps:
     agents:
       system: x86_64-linux
 
-  - label: 'Check Cabal Configure (cabal.project)'
+  - label: 'Check Cabal Configure'
     command:
-      - cabal v2-update
-      - cabal v2-configure --enable-tests --enable-benchmarks
-      - cabal v2-configure -frelease --enable-tests --enable-benchmarks
+      - 'nix-shell nix/cabal-shell.nix --run "cabal v2-update"'
+      - 'nix-shell nix/cabal-shell.nix --run "cabal v2-configure --enable-tests --enable-benchmarks"'
+      - 'nix-shell nix/cabal-shell.nix --run "cabal v2-configure -frelease --enable-tests --enable-benchmarks"'
     agents:
       system: x86_64-linux
 
