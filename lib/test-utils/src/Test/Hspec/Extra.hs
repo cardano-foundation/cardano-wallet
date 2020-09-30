@@ -13,16 +13,19 @@
 module Test.Hspec.Extra
     ( aroundAll
     , it
+    , itWithCustomTimeout
     ) where
 
 import Prelude
 
+import Control.Concurrent
+    ( threadDelay )
 import Control.Concurrent.Async
-    ( async, race, wait )
+    ( AsyncCancelled, async, race, wait )
 import Control.Concurrent.MVar
     ( MVar, newEmptyMVar, putMVar, takeMVar )
 import Control.Exception
-    ( SomeException, throwIO, try )
+    ( SomeException, catch, throwIO )
 import Test.Hspec
     ( ActionWith
     , HasCallStack
@@ -31,6 +34,7 @@ import Test.Hspec
     , afterAll
     , beforeAll
     , beforeWith
+    , expectationFailure
     , specify
     )
 
@@ -103,18 +107,34 @@ aroundAll acquire =
 
 -- | A drop-in replacement for 'it' that'll automatically retry a scenario once
 -- if it fails, to cope with potentially flaky tests.
+--
+-- It also has a timeout of 10 minutes.
 it :: HasCallStack => String -> ActionWith ctx -> SpecWith ctx
-it title action = specify title $ \ctx -> do
-   res1 <- try $ action ctx
-   case res1 of
-       Right r1 -> return r1
-       Left (e1 :: SomeException) -> do
-           res2 <- try $ action ctx
-           case res2 of
-               -- If the second try fails, return the first error. The
-               -- second error might not be helpful.
-               Left (_e2 :: SomeException) -> throwIO e1
-               Right r2 -> return r2
+it = itWithCustomTimeout (10*minute)
+  where
+    minute = 60
+
+-- | Like @it@ but with a custom timeout, which makes it realistic to test.
+itWithCustomTimeout
+    :: HasCallStack
+    => Int -- ^ Timeout in seconds.
+    -> String
+    -> ActionWith ctx
+    -> SpecWith ctx
+itWithCustomTimeout sec title action = specify title $ \ctx -> timeout sec $ do
+    action ctx
+        `catch` (\(_ :: AsyncCancelled) -> return ())
+        `catch` (\(e :: SomeException)  -> action ctx
+        `catch` (\(_ :: SomeException)  -> throwIO e))
+  where
+    timeout t act =
+        race (threadDelay (micro t)) act >>= \case
+            Right () ->
+                return ()
+            Left () ->
+                expectationFailure $  "timed out in " <> show t <> " seconds"
+      where
+        micro = (* 1000) . (* 1000)
 
 -- | Some helper to help readability on the thread synchronization above.
 await :: MVar () -> IO ()
