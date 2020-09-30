@@ -1,0 +1,24 @@
+--------------------------------------------------------------------------------
+-- Cabal project file for the cabal+nix build.
+--
+-- The advantage of building with this method is that the correct
+-- versions of all build and test dependencies are set up for you in the
+-- nix-shell environment.
+--
+-- All dependencies have been built on Hydra and are transparently
+-- downloaded from the IOHK cache.
+--
+-- You do not need to build Haskell package dependencies because they are
+-- all provided. That's why there are no source-repository-package
+-- entries in this file.
+--
+-- The Haskell package set is automatically generated from stack.yaml.
+--
+-- To build, run "nix-shell", then:
+--
+--     cabal build --project-file=cabal-nix.project --enable-tests --enable-benchmarks all
+--
+--------------------------------------------------------------------------------
+
+packages:
+  lib/*/*.cabal

@@ -116,7 +116,7 @@ let
     ) ds);
 
   # Remove build jobs for which cross compiling does not make sense.
-  filterJobsCross = filterAttrs (n: _: !(elem n ["dockerImage" "shell" "stackShell" "stackNixRegenerate"]));
+  filterJobsCross = filterAttrs (n: _: !(elem n ["dockerImage" "shell" "stackShell" "cabalShell" "stackNixRegenerate"]));
 
   # Remove cardano-node integration tests for Windows because
   # ouroboros-network doesn't work under wine.

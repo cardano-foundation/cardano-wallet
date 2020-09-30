@@ -1,2 +1,515 @@
+index-state: 2020-09-15T00:00:00Z
+
+with-compiler: ghc-8.6.5
+
 packages:
-  lib/*/*.cabal
+    lib/core/
+  , lib/core-integration/
+  , lib/cli/
+  , lib/launcher/
+  , lib/text-class/
+  , lib/test-utils/
+  , lib/jormungandr/
+  , lib/shelley/
+
+source-repository-package
+    type: git
+    location: https://github.com/input-output-hk/persistent
+    tag: 107787ecc4c8a112375493cd66574f788f950fce
+    subdir: persistent
+
+source-repository-package
+    type: git
+    location: https://github.com/input-output-hk/persistent
+    tag: 107787ecc4c8a112375493cd66574f788f950fce
+    subdir: persistent-sqlite
+
+source-repository-package
+    type: git
+    location: https://github.com/input-output-hk/persistent
+    tag: 107787ecc4c8a112375493cd66574f788f950fce
+    subdir: persistent-template
+
+source-repository-package
+    type: git
+    location: https://github.com/input-output-hk/cardano-addresses
+    tag: 9a64226fd749513ad0ed2e43e663f7132c92faa7
+    subdir: command-line
+
+source-repository-package
+    type: git
+    location: https://github.com/input-output-hk/cardano-addresses
+    tag: 9a64226fd749513ad0ed2e43e663f7132c92faa7
+    subdir: core
+
+source-repository-package
+    type: git
+    location: https://github.com/input-output-hk/cardano-transactions
+    tag: 218cdc2dfea34b0261f96c96c7b937d620a8780e
+
+source-repository-package
+    type: git
+    location: https://github.com/input-output-hk/cardano-base
+    tag: 13f44ad35d2762dbf98b3d3be56b7ba2adf515f4
+    subdir: binary
+
+source-repository-package
+    type: git
+    location: https://github.com/input-output-hk/cardano-base
+    tag: 13f44ad35d2762dbf98b3d3be56b7ba2adf515f4
+    subdir: binary/test
+
+source-repository-package
+    type: git
+    location: https://github.com/input-output-hk/cardano-base
+    tag: 13f44ad35d2762dbf98b3d3be56b7ba2adf515f4
+    subdir: cardano-crypto-class
+
+source-repository-package
+    type: git
+    location: https://github.com/input-output-hk/cardano-base
+    tag: 13f44ad35d2762dbf98b3d3be56b7ba2adf515f4
+    subdir: slotting
+
+source-repository-package
+    type: git
+    location: https://github.com/input-output-hk/cardano-base
+    tag: 13f44ad35d2762dbf98b3d3be56b7ba2adf515f4
+    subdir: cardano-crypto-praos
+
+source-repository-package
+    type: git
+    location: https://github.com/input-output-hk/cardano-crypto
+    tag: 2547ad1e80aeabca2899951601079408becbc92c
+
+source-repository-package
+    type: git
+    location: https://github.com/input-output-hk/cardano-ledger-specs
+    tag: 4edcdab87510b2657c62bcf14035817ce6e23455
+    subdir: semantics/executable-spec
+
+source-repository-package
+    type: git
+    location: https://github.com/input-output-hk/cardano-ledger-specs
+    tag: 4edcdab87510b2657c62bcf14035817ce6e23455
+    subdir: semantics/small-steps-test
+
+source-repository-package
+    type: git
+    location: https://github.com/input-output-hk/cardano-ledger-specs
+    tag: 4edcdab87510b2657c62bcf14035817ce6e23455
+    subdir: byron/ledger/executable-spec
+
+source-repository-package
+    type: git
+    location: https://github.com/input-output-hk/cardano-ledger-specs
+    tag: 4edcdab87510b2657c62bcf14035817ce6e23455
+    subdir: byron/ledger/impl
+
+source-repository-package
+    type: git
+    location: https://github.com/input-output-hk/cardano-ledger-specs
+    tag: 4edcdab87510b2657c62bcf14035817ce6e23455
+    subdir: byron/crypto
+
+source-repository-package
+    type: git
+    location: https://github.com/input-output-hk/cardano-ledger-specs
+    tag: 4edcdab87510b2657c62bcf14035817ce6e23455
+    subdir: byron/ledger/impl/test
+
+source-repository-package
+    type: git
+    location: https://github.com/input-output-hk/cardano-ledger-specs
+    tag: 4edcdab87510b2657c62bcf14035817ce6e23455
+    subdir: byron/crypto/test
+
+source-repository-package
+    type: git
+    location: https://github.com/input-output-hk/cardano-ledger-specs
+    tag: 4edcdab87510b2657c62bcf14035817ce6e23455
+    subdir: byron/chain/executable-spec
+
+source-repository-package
+    type: git
+    location: https://github.com/input-output-hk/cardano-ledger-specs
+    tag: 4edcdab87510b2657c62bcf14035817ce6e23455
+    subdir: shelley/chain-and-ledger/dependencies/non-integer
+
+source-repository-package
+    type: git
+    location: https://github.com/input-output-hk/cardano-ledger-specs
+    tag: 4edcdab87510b2657c62bcf14035817ce6e23455
+    subdir: shelley/chain-and-ledger/executable-spec
+
+source-repository-package
+    type: git
+    location: https://github.com/input-output-hk/cardano-ledger-specs
+    tag: 4edcdab87510b2657c62bcf14035817ce6e23455
+    subdir: shelley/chain-and-ledger/shelley-spec-ledger-test
+
+source-repository-package
+    type: git
+    location: https://github.com/input-output-hk/cardano-node
+    tag: 1f2f51164b53b9b775c03ac9f1e23e7b70c74b05
+    subdir: cardano-api
+
+source-repository-package
+    type: git
+    location: https://github.com/input-output-hk/cardano-node
+    tag: 1f2f51164b53b9b775c03ac9f1e23e7b70c74b05
+    subdir: cardano-cli
+
+source-repository-package
+    type: git
+    location: https://github.com/input-output-hk/cardano-node
+    tag: 1f2f51164b53b9b775c03ac9f1e23e7b70c74b05
+    subdir: cardano-config
+
+source-repository-package
+    type: git
+    location: https://github.com/input-output-hk/cardano-node
+    tag: 1f2f51164b53b9b775c03ac9f1e23e7b70c74b05
+    subdir: cardano-node
+
+source-repository-package
+    type: git
+    location: https://github.com/input-output-hk/cardano-node
+    tag: 1f2f51164b53b9b775c03ac9f1e23e7b70c74b05
+    subdir: hedgehog-extras
+
+source-repository-package
+    type: git
+    location: https://github.com/input-output-hk/cardano-prelude
+    tag: 0c5b0a6619fadf22f4d62a12154e181a6d035c1c
+    subdir: .
+
+source-repository-package
+    type: git
+    location: https://github.com/input-output-hk/cardano-prelude
+    tag: 0c5b0a6619fadf22f4d62a12154e181a6d035c1c
+    subdir: test
+
+source-repository-package
+    type: git
+    location: https://github.com/input-output-hk/cardano-sl-x509
+    tag: 43a036c5bbe68ca2e9cbe611eab7982e2348fe49
+
+source-repository-package
+    type: git
+    location: https://github.com/input-output-hk/goblins
+    tag: cde90a2b27f79187ca8310b6549331e59595e7ba
+
+source-repository-package
+    type: git
+    location: https://github.com/input-output-hk/iohk-monitoring-framework
+    tag: 743f266cfe5fff11d18602faf510f22a544ea295
+    subdir: contra-tracer
+
+source-repository-package
+    type: git
+    location: https://github.com/input-output-hk/iohk-monitoring-framework
+    tag: 743f266cfe5fff11d18602faf510f22a544ea295
+    subdir: iohk-monitoring
+
+source-repository-package
+    type: git
+    location: https://github.com/input-output-hk/iohk-monitoring-framework
+    tag: 743f266cfe5fff11d18602faf510f22a544ea295
+    subdir: plugins/backend-aggregation
+
+source-repository-package
+    type: git
+    location: https://github.com/input-output-hk/iohk-monitoring-framework
+    tag: 743f266cfe5fff11d18602faf510f22a544ea295
+    subdir: plugins/backend-ekg
+
+source-repository-package
+    type: git
+    location: https://github.com/input-output-hk/iohk-monitoring-framework
+    tag: 743f266cfe5fff11d18602faf510f22a544ea295
+    subdir: plugins/backend-monitoring
+
+source-repository-package
+    type: git
+    location: https://github.com/input-output-hk/iohk-monitoring-framework
+    tag: 743f266cfe5fff11d18602faf510f22a544ea295
+    subdir: plugins/scribe-systemd
+
+source-repository-package
+    type: git
+    location: https://github.com/input-output-hk/iohk-monitoring-framework
+    tag: 743f266cfe5fff11d18602faf510f22a544ea295
+    subdir: tracer-transformers
+
+source-repository-package
+    type: git
+    location: https://github.com/input-output-hk/iohk-monitoring-framework
+    tag: 743f266cfe5fff11d18602faf510f22a544ea295
+    subdir: plugins/backend-trace-forwarder
+
+source-repository-package
+    type: git
+    location: https://github.com/input-output-hk/ouroboros-network
+    tag: f56e5d7ad2ebf5f8750f13a430bb93f8036f5e9d
+    subdir: io-sim
+
+source-repository-package
+    type: git
+    location: https://github.com/input-output-hk/ouroboros-network
+    tag: f56e5d7ad2ebf5f8750f13a430bb93f8036f5e9d
+    subdir: io-sim-classes
+
+source-repository-package
+    type: git
+    location: https://github.com/input-output-hk/ouroboros-network
+    tag: f56e5d7ad2ebf5f8750f13a430bb93f8036f5e9d
+    subdir: network-mux
+
+source-repository-package
+    type: git
+    location: https://github.com/input-output-hk/ouroboros-network
+    tag: f56e5d7ad2ebf5f8750f13a430bb93f8036f5e9d
+    subdir: ntp-client
+
+source-repository-package
+    type: git
+    location: https://github.com/input-output-hk/ouroboros-network
+    tag: f56e5d7ad2ebf5f8750f13a430bb93f8036f5e9d
+    subdir: ouroboros-network
+
+source-repository-package
+    type: git
+    location: https://github.com/input-output-hk/ouroboros-network
+    tag: f56e5d7ad2ebf5f8750f13a430bb93f8036f5e9d
+    subdir: ouroboros-consensus
+
+source-repository-package
+    type: git
+    location: https://github.com/input-output-hk/ouroboros-network
+    tag: f56e5d7ad2ebf5f8750f13a430bb93f8036f5e9d
+    subdir: ouroboros-consensus-byron
+
+source-repository-package
+    type: git
+    location: https://github.com/input-output-hk/ouroboros-network
+    tag: f56e5d7ad2ebf5f8750f13a430bb93f8036f5e9d
+    subdir: ouroboros-consensus-cardano
+
+source-repository-package
+    type: git
+    location: https://github.com/input-output-hk/ouroboros-network
+    tag: f56e5d7ad2ebf5f8750f13a430bb93f8036f5e9d
+    subdir: ouroboros-consensus-shelley
+
+source-repository-package
+    type: git
+    location: https://github.com/input-output-hk/ouroboros-network
+    tag: f56e5d7ad2ebf5f8750f13a430bb93f8036f5e9d
+    subdir: typed-protocols
+
+source-repository-package
+    type: git
+    location: https://github.com/input-output-hk/ouroboros-network
+    tag: f56e5d7ad2ebf5f8750f13a430bb93f8036f5e9d
+    subdir: typed-protocols-examples
+
+source-repository-package
+    type: git
+    location: https://github.com/input-output-hk/ouroboros-network
+    tag: f56e5d7ad2ebf5f8750f13a430bb93f8036f5e9d
+    subdir: ouroboros-network-framework
+
+source-repository-package
+    type: git
+    location: https://github.com/input-output-hk/ouroboros-network
+    tag: f56e5d7ad2ebf5f8750f13a430bb93f8036f5e9d
+    subdir: Win32-network
+
+source-repository-package
+    type: git
+    location: https://github.com/snoyberg/http-client.git
+    tag: 1a75bdfca014723dd5d40760fad854b3f0f37156
+    subdir: http-client
+
+allow-older: *
+allow-newer: *
+
+package cardano-crypto
+  tests: False
+  benchmarks: False
+
+package contra-tracer
+  tests: False
+  benchmarks: False
+
+package iohk-monitoring
+  tests: False
+  benchmarks: False
+
+package zip
+  tests: False
+  benchmarks: False
+  flags: +disable-bzip2
+
+package cardano-crypto-praos
+  tests: False
+  benchmarks: False
+  flags: -external-libsodium-vrf
+
+package byron-spec-ledger
+  tests: False
+  benchmarks: False
+
+package ouroboros-consensus-cardano
+  tests: False
+  benchmarks: False
+
+package small-steps
+  tests: False
+  benchmarks: False
+
+package small-steps-test
+  tests: False
+  benchmarks: False
+
+package ouroboros-consensus
+  tests: False
+  benchmarks: False
+
+package ouroboros-consensus-byron
+  tests: False
+  benchmarks: False
+
+package ouroboros-consensus-shelley
+  tests: False
+  benchmarks: False
+
+package ouroboros-consensus-mock
+  tests: False
+  benchmarks: False
+
+package cborg
+  tests: False
+  benchmarks: False
+
+package http-client
+  tests: False
+  benchmarks: False
+
+package goblins
+  tests: False
+  benchmarks: False
+
+package io-sim
+  tests: False
+  benchmarks: False
+
+package io-sim-classes
+  tests: False
+  benchmarks: False
+
+package shelley-spec-non-integral
+  tests: False
+  benchmarks: False
+
+package network-mux
+  tests: False
+  benchmarks: False
+
+package typed-protocols
+  tests: False
+  benchmarks: False
+
+package typed-protocols-examples
+  tests: False
+  benchmarks: False
+
+package cardano-prelude
+  tests: False
+  benchmarks: False
+
+package cardano-binary
+  tests: False
+  benchmarks: False
+
+package cardano-sl-x509
+  tests: False
+  benchmarks: False
+
+package cardano-crypto-class
+  tests: False
+  benchmarks: False
+
+package cardano-crypto-wrapper
+  tests: False
+  benchmarks: False
+
+package ouroboros-network-framework
+  tests: False
+  benchmarks: False
+
+package ouroboros-network
+  tests: False
+  benchmarks: False
+
+package byron-spec-chain
+  tests: False
+  benchmarks: False
+
+package cardano-addresses
+  tests: False
+  benchmarks: False
+
+package cardano-api
+  tests: False
+  benchmarks: False
+
+package cardano-cli
+  tests: False
+  benchmarks: False
+
+package cardano-crypto
+  tests: False
+  benchmarks: False
+
+package cardano-ledger
+  tests: False
+  benchmarks: False
+
+package cardano-node
+  tests: False
+  benchmarks: False
+
+package cardano-transactions
+  tests: False
+  benchmarks: False
+
+package lobemo-backend-monitoring
+  tests: False
+  benchmarks: False
+
+package ntp-client
+  tests: False
+  benchmarks: False
+
+package ouroboros-consensus-test-infra
+  tests: False
+  benchmarks: False
+
+package persistent
+  tests: False
+  benchmarks: False
+
+package persistent-sqlite
+  tests: False
+  benchmarks: False
+
+package persistent-template
+  tests: False
+  benchmarks: False
+
+package shelley-spec-ledger-test
+  tests: False
+  benchmarks: False
+
