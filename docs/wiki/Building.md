@@ -125,28 +125,29 @@ Then add and commit the files that it creates.
 Alternatively, wait for Buildkite to run this same command, and apply
 the patch that it produces.
 
-### iohk-nix pin
+### Haskell.nix and iohk-nix pins
 
-The Nix build also depends on the
+The Nix build also depends on the [Haskell.nix](https://github.com/input-output-hk/haskell.nix) build infrastructure and the
 [iohk-nix](https://github.com/input-output-hk/iohk-nix) library of
-common code. It may be necessary to update `iohk-nix` when moving to a
-new Haskell LTS version.
+common code. It may be necessary to update `haskell.nix` and/or `iohk-nix` when moving to a
+new Haskell LTS version or adding Hackage dependencies.
 
-To update iohk-nix, run the following command:
+To update these to the latest version, run the following command in a `nix-shell`:
 
 ```
-./nix/update-iohk-nix.sh
+niv update haskell.nix
+niv update iohk-nix
 ```
 
 Then commit the updated
-[iohk-nix-src.json](https://github.com/input-output-hk/cardano-wallet/blob/master/nix/iohk-nix-src.json)
+[sources.json](https://github.com/input-output-hk/cardano-wallet/blob/master/nix/sources.json)
 file.
 
 
-### Cabal build with Nix
+### Cabal+Nix build
 
-Use the Cabal build if you want to develop with incremental builds,
-and have it automatically download all dependencies.
+Use the Cabal+Nix build if you want to develop with incremental
+builds, but also have it automatically download all dependencies.
 
 If you run `nix-shell`, it will start a
 [development environment](https://input-output-hk.github.io/haskell.nix/user-guide/development/)
@@ -155,21 +156,16 @@ for `cardano-wallet`. This will contain:
 - a GHC configured with a package database containing all Haskell package dependencies;
 - system library dependencies;
 - a Hoogle index and `hoogle` command for searching documentation;
-- development tools such as `hlint`, `stylish-haskell`, and `weeder`;
+- development tools such as `ghcide`, `hlint`, `stylish-haskell`, and `weeder`;
 - the `sqlite3` command; and
 - the node backend `jormungandr`, and `jcli`.
 - the Byron Reboot/Shelley node backend `cardano-node`
 
 Inside this shell you can use `cabal new-build` and `ghci` for development.
 
-```
-nix-shell --run "cabal new-build --enable-tests --enable-benchmarks all"
-```
+You must always specify the `--project file` [`cabal-nix.project`](https://github.com/input-output-hk/cardano-wallet/blob/master/cabal-nix.project) argument when running Cabal.
 
-### Release build
-
-Enable the `release` Cabal flag to disallow compiler warnings and get build optimization:
-
-```
-cabal new-configure -frelease --enable-tests --enable-benchmarks
+```console
+$ nix-shell
+[nix-shell:~/iohk/cardano-wallet]$ cabal build --project-file=cabal-nix.project --enable-tests --enable-benchmarks all"
 ```
