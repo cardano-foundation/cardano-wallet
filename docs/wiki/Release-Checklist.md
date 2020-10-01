@@ -47,9 +47,12 @@ This will bump the version in .cabal and .nix files and generate release notes. 
 
 ## Create the release notes
 
-- [ ] Verify all PRs since the last release have a corresponding milestone (hint: we can filter PR by merge date on github using `merged:>yyyy-mm-dd` filter and find bare PRs with the `no:milestone` filter).
 
 - [ ] Write release notes in the [release page](https://github.com/input-output-hk/cardano-wallet/releases) using the previously generated release notes. Fill in the empty sections.
+
+- [ ] Remove items that are irrelevant to users (e.g. pure refactoring, improved testing)
+
+- [ ] Make sure the items that the script put in the "Unclassified" section are moved to an appropriate section (or removed).
 
 ## Verify release artifacts
 
