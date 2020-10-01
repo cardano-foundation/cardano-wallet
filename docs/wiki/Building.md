@@ -163,9 +163,13 @@ for `cardano-wallet`. This will contain:
 
 Inside this shell you can use `cabal new-build` and `ghci` for development.
 
-You must always specify the `--project file` [`cabal-nix.project`](https://github.com/input-output-hk/cardano-wallet/blob/master/cabal-nix.project) argument when running Cabal.
+You must always provide [`cabal-nix.project`](https://github.com/input-output-hk/cardano-wallet/blob/master/cabal-nix.project) as the `--project file` argument when running Cabal.
 
 ```console
 $ nix-shell
-[nix-shell:~/iohk/cardano-wallet]$ cabal build --project-file=cabal-nix.project --enable-tests --enable-benchmarks all"
+
+[nix-shell:~/iohk/cardano-wallet]$ cabal build \
+    --project-file=cabal-nix.project \
+    --enable-tests --enable-benchmarks \
+    all
 ```
