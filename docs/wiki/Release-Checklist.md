@@ -29,7 +29,7 @@ $ git checkout -b your-name/bump-release/YYYY-MM-DD
 
 > :warning: We use a slightly different notation between `.cabal` and git tags! Git tags follows the following format: `vYYYY-MM-DD` (notice the `v` and hyphens) whereas cabal version are written as: `YYYY.MM.DD`.
 
-- [ ] In the from the **root** of the repository, run:
+- [ ] From the **root** of the repository, run:
 
 ```bash
 export GITHUB_API_TOKEN=<A GITHUB API TOKEN>
