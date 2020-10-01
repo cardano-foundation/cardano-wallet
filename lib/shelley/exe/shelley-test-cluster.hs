@@ -12,7 +12,7 @@ import Prelude
 import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.CLI
-    ( LogOutput (..), withLogging )
+    ( LogOutput (..), withLoggingNamed )
 import Cardano.Startup
     ( withUtf8Encoding )
 import Cardano.Wallet.Api.Types
@@ -199,12 +199,12 @@ main = do
             ]
 
     withUtf8Encoding
-        $ withLogging walletLogs
-        $ \(_, trWallet) -> withLogging' clusterLogs
-        $ \(_, trCluster) -> withSystemTempDir trCluster "shelleyCluster"
-        $ \dir -> withTempDir trCluster dir "wallets"
+        $ withLoggingNamed "cardano-wallet" walletLogs
+        $ \(_, trWallet) -> withLoggingNamed "test-cluster" clusterLogs
+        $ \(_, trCluster) -> withSystemTempDir (trMessageText trCluster) "testCluster"
+        $ \dir -> withTempDir (trMessageText trCluster) dir "wallets"
         $ \db -> withCluster
-            trCluster
+            (trMessageText trCluster)
             nodeMinSeverity
             defaultPoolConfigs
             dir
@@ -213,9 +213,6 @@ main = do
             (whenShelley dir)
             (whenReady trWallet trCluster db)
   where
-    withLogging' outs action = withLogging outs $ \(cfg, tr) ->
-        action (cfg, trMessageText tr)
-
     whenByron _ = pure ()
 
     whenShelley dir _ = do
@@ -242,4 +239,4 @@ main = do
             socketPath
             block0
             (gp, vData)
-            (traceWith trCluster . MsgListenAddress)
+            (traceWith (trMessageText trCluster) . MsgListenAddress)
