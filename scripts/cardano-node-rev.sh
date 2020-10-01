@@ -11,10 +11,8 @@ set -euo pipefail
 echo "Reading cardano-node branch/tag and revision from nix/sources.json"
 jq -r '.["cardano-node"] | .branch, .rev' < `dirname $0`/../nix/sources.json
 
-echo
-echo "Your cardano-node is `type -p cardano-node`"
-cardano-node version
-
-echo
-echo "Your cardano-cli is `type -p cardano-cli`"
-cardano-cli version
+for prog in cardano-node cardano-cli cardano-address; do
+  echo
+  echo "Your $prog is `type -p $prog`"
+  $prog --version
+done
