@@ -63,7 +63,7 @@ Available COMMANDS:
     <a href="#wallet-get">get</a>                    Fetch a particular wallet
     <a href="#wallet-utxo">utxo</a>                   Get a wallet's UTxO distribution
     update
-      <a href="#wallet-update-passphrase">passphrase</a>            Update a wallet's master passphrase
+      <a href="#wallet-update-passphrase">passphrase</a>           Update a wallet's master passphrase
       <a href="#wallet-update-name">name</a>                 Update a wallet's name
     <a href="#wallet-delete">delete</a>                 Forget a wallet and its metadata
   transaction
@@ -72,6 +72,7 @@ Available COMMANDS:
     <a href="#transaction-list">list</a>                   List the transactions associated with a wallet
     <a href="#transaction-submit">submit</a>                 Submit an externally-signed transaction
     <a href="#transaction-forget">forget</a>                 Forget a pending transaction with specified id
+    <a href="#transaction-get">get</a>                    Get a transaction with specified id
   address
     <a href="#address-list">list</a>                   List all known addresses of a wallet
     <a href="#address-create">create</a>                 Create a new random address.
@@ -85,6 +86,8 @@ Available COMMANDS:
     <a href="#key-child">child</a>                  Derive child keys from a parent public or private key
     <a href="#key-public">public</a>                 Get the public counterpart of a private key
     <a href="#key-inspect">inspect</a>                Show information about a key
+  stake-pool
+    <a href="#stake-pool-list">list</a>                   List all known stake pools
   <a href="#version">version</a>                  Show the program's current version
 </pre>
 
@@ -448,6 +451,18 @@ $ cardano-wallet transaction forget 2512a00e9653fe49a44a5886202e24d77eeb998f 3e6
 
 <p align=right><a href="#">top :arrow_heading_up:</a></p>
 
+## transaction get
+
+> `cardano-wallet transaction get [--port INT] WALLET_ID TRANSACTION_ID`
+
+Get a transaction with the specified id:
+
+```
+$ cardano-wallet transaction get 2512a00e9653fe49a44a5886202e24d77eeb998f 3e6ec12da4414aa0781ff8afa9717ae53ee8cb4aa55d622f65bc62619a4f7b12
+```
+
+<p align=right><a href="#">top :arrow_heading_up:</a></p>
+
 ## address list
 
 > `cardano-wallet address list [--port=INT] WALLET_ID [--state=STRING]`
@@ -614,6 +629,20 @@ xpub1le8gm0m5cesjzzjqlza4476yncp0yk2jve7cce8ejk9cxjjdama24hudzqkrxy4daxwmlfq6ync
 
 <p align=right><a href="#">top :arrow_heading_up:</a></p>
 
+## stake-pool list
+
+> ```
+> Usage: cardano-wallet stake-pool list [--port INT] [--stake STAKE]
+>   List all known stake pools.
+> 
+> Available options:
+>   -h,--help                Show this help text
+>   --port INT               port used for serving the wallet API. (default: 8090)
+>   --stake STAKE            The stake you intend to delegate, which affects the
+>                            rewards and the ranking of pools.
+> ```
+
+<p align=right><a href="#">top :arrow_heading_up:</a></p>
 
 ## version
 
