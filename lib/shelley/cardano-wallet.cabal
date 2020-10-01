@@ -149,6 +149,7 @@ executable shelley-test-cluster
     , contra-tracer
     , iohk-monitoring
     , text
+    , text-class
   hs-source-dirs:
       exe
   main-is:

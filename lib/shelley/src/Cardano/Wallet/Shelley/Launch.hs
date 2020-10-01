@@ -163,8 +163,6 @@ import Data.Time.Clock.POSIX
     ( posixSecondsToUTCTime, utcTimeToPOSIXSeconds )
 import GHC.TypeLits
     ( KnownNat, Nat, SomeNat (..), someNatVal )
-import Network.Socket
-    ( SockAddr )
 import Options.Applicative
     ( Parser, flag', help, long, metavar, (<|>) )
 import Ouroboros.Consensus.Shelley.Node
@@ -1667,7 +1665,6 @@ data ClusterLog
     | MsgDebug Text
     | MsgGenOperatorKeyPair FilePath
     | MsgCLI [String]
-    | MsgListenAddress SockAddr
     deriving (Show)
 
 instance ToText ClusterLog where
@@ -1715,8 +1712,6 @@ instance ToText ClusterLog where
         MsgGenOperatorKeyPair dir ->
             "Generating stake pool operator key pair in " <> T.pack dir
         MsgCLI args -> T.pack $ unwords ("cardano-cli":args)
-        MsgListenAddress addr ->
-            "Wallet backend server listening on " <> T.pack (show addr)
       where
         indent = T.unlines . map ("  " <>) . T.lines . T.pack
 
@@ -1744,7 +1739,6 @@ instance HasSeverityAnnotation ClusterLog where
         MsgDebug _ -> Debug
         MsgGenOperatorKeyPair _ -> Debug
         MsgCLI _ -> Debug
-        MsgListenAddress _ -> Info
 
 bracketTracer' :: Tracer IO ClusterLog -> Text -> IO a -> IO a
 bracketTracer' tr name = bracketTracer (contramap (MsgBracket name) tr)

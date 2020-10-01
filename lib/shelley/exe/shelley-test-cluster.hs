@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
@@ -11,6 +12,8 @@ import Prelude
 
 import Cardano.BM.Data.Severity
     ( Severity (..) )
+import Cardano.BM.Data.Tracer
+    ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.CLI
     ( LogOutput (..), withLoggingNamed )
 import Cardano.Startup
@@ -18,7 +21,7 @@ import Cardano.Startup
 import Cardano.Wallet.Api.Types
     ( EncodeAddress (..) )
 import Cardano.Wallet.Logging
-    ( stdoutTextTracer, trMessageText )
+    ( trMessageText )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.SyncProgress
@@ -53,9 +56,13 @@ import Control.Arrow
 import Control.Monad
     ( void )
 import Control.Tracer
-    ( traceWith )
+    ( contramap, traceWith )
 import Data.Proxy
     ( Proxy (..) )
+import Data.Text
+    ( Text )
+import Data.Text.Class
+    ( ToText (..) )
 import System.IO
     ( BufferMode (..), hSetBuffering, stdout )
 import Test.Integration.Faucet
@@ -204,24 +211,26 @@ main = do
         $ \(_, trCluster) -> withSystemTempDir (trMessageText trCluster) "testCluster"
         $ \dir -> withTempDir (trMessageText trCluster) dir "wallets"
         $ \db -> withCluster
-            (trMessageText trCluster)
+            (contramap MsgCluster $ trMessageText trCluster)
             nodeMinSeverity
             defaultPoolConfigs
             dir
             Nothing
             whenByron
-            (whenShelley dir)
-            (whenReady trWallet trCluster db)
+            (whenShelley dir (trMessageText trCluster))
+            (whenReady trWallet (trMessageText trCluster) db)
   where
     whenByron _ = pure ()
 
-    whenShelley dir _ = do
+    whenShelley dir trCluster _ = do
+        traceWith trCluster MsgSettingUpFaucet
+        let trCluster' = contramap MsgCluster trCluster
         let encodeAddr = T.unpack . encodeAddress @'Mainnet
         let addresses = map (first encodeAddr) shelleyIntegrationTestFunds
         let accts = concatMap genRewardAccounts mirMnemonics
         let rewards = (,Coin $ fromIntegral oneMillionAda) <$> accts
-        sendFaucetFundsTo stdoutTextTracer dir addresses
-        moveInstantaneousRewardsTo stdoutTextTracer dir rewards
+        sendFaucetFundsTo trCluster' dir addresses
+        moveInstantaneousRewardsTo trCluster' dir rewards
 
     whenReady tr trCluster db (RunningNode socketPath block0 (gp, vData)) = do
         let tracers = setupTracers (tracerSeverities (Just Info)) tr
@@ -239,4 +248,26 @@ main = do
             socketPath
             block0
             (gp, vData)
-            (traceWith (trMessageText trCluster) . MsgListenAddress)
+            (traceWith trCluster . MsgBaseUrl . T.pack . show)
+
+-- Logging
+
+data TestsLog
+    = MsgBaseUrl Text
+    | MsgSettingUpFaucet
+    | MsgCluster ClusterLog
+    deriving (Show)
+
+instance ToText TestsLog where
+    toText = \case
+        MsgBaseUrl addr ->
+            "Wallet backend server listening on " <> T.pack (show addr)
+        MsgSettingUpFaucet -> "Setting up faucet..."
+        MsgCluster msg -> toText msg
+
+instance HasPrivacyAnnotation TestsLog
+instance HasSeverityAnnotation TestsLog where
+    getSeverityAnnotation = \case
+        MsgSettingUpFaucet -> Notice
+        MsgBaseUrl _ -> Notice
+        MsgCluster msg -> getSeverityAnnotation msg
