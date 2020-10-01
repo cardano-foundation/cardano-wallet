@@ -54,6 +54,8 @@ This will bump the version in .cabal and .nix files and generate release notes. 
 
 - [ ] Make sure the items that the script put in the "Unclassified" section are moved to an appropriate section (or removed).
 
+- [ ] You may want to polish the language of the PR titles to make it sound like actual release notes.
+
 ## Verify release artifacts
 
 - [ ] Verify that the documentations have been correctly exported on [gh-pages](https://github.com/input-output-hk/cardano-wallet/tree/gh-pages)
