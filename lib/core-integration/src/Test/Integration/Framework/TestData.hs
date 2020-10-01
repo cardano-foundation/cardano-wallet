@@ -75,6 +75,7 @@ module Test.Integration.Framework.TestData
     , errMsg404MinUTxOValue
     , errMsg400TxTooLarge
     , errMsg403CouldntIdentifyAddrAsMine
+    , errMsg503PastHorizon
     ) where
 
 import Prelude
@@ -442,3 +443,6 @@ errMsg403CouldntIdentifyAddrAsMine :: String
 errMsg403CouldntIdentifyAddrAsMine = "I \
     \couldn't identify this address as one of mine. It likely belongs to another wallet and I \
     \will therefore not import it."
+
+errMsg503PastHorizon :: String
+errMsg503PastHorizon = "Tried to convert something that is past the horizon"

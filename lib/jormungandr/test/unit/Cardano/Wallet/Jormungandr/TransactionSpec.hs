@@ -62,8 +62,6 @@ import Data.Proxy
     ( Proxy (..) )
 import Data.Text.Class
     ( toText )
-import Data.Tuple.Extra
-    ( snd3 )
 import Test.Hspec
     ( HasCallStack, Spec, SpecWith, describe, it, shouldBe )
 import Test.QuickCheck
@@ -511,7 +509,7 @@ goldenTestStdTx tl keystore inps outs bytes' = it title $ do
     let cs = mempty { inputs = inps, outputs = outs }
     let rewardAcnt = error "unused"
     let tx = mkStdTx tl rewardAcnt keystore (SlotNo 0) Nothing cs
-    let bytes = hex . getSealedTx . snd3 <$> tx
+    let bytes = hex . getSealedTx . snd <$> tx
     bytes `shouldBe` Right bytes'
   where
     title = "golden test mkStdTx: " <> show inps <> show outs
@@ -533,7 +531,7 @@ goldenTestDelegationCertTx tl keystore pool (accountXPrv, pass) inputs outputs b
             keystore
             (SlotNo 0)
             (mempty { inputs, outputs })
-    let sealed = getSealedTx . snd3 <$> res
+    let sealed = getSealedTx . snd <$> res
     sealed `shouldBe` Right (unsafeFromHex bytes')
     & counterexample ("poolId = " <> showHex (getPoolId pool))
   where
