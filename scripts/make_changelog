@@ -31,7 +31,7 @@ for i in $(seq 0 $I); do
   LABEL=$(echo $LABELS | jq -r ".[$i]")
   case $LABEL in
   "null")
-      echo "## Unclassified"
+    echo "## Unclassified (Move user-facing items to correct section. Delete the rest)"
       ;;
   "ADDING FEATURE")
       echo "## New Features"
