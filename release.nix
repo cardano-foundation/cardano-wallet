@@ -129,12 +129,13 @@ let
   # ouroboros-network doesn't work under wine.
   filterJobsWindows = let
       f = path: value: if (isCardanoNodeIntegration path) then {} else value;
-      isCardanoNodeIntegration = path: elem path
-        (map (x: ["checks" "cardano-wallet-${x}" "integration"]) ["shelley"]);
+      isCardanoNodeIntegration = path:
+         path == ["checks" "cardano-wallet" "integration"];
     in
       js: mapAttrsRecursive f (filterJobsCross js);
 
-  # Don't run tests on linux native, because they are also run for linux musl.
+  # Filters jobs for non-cross builds after platform mapping.
+  # 1. Don't run tests on linux native, because they are also run for linux musl.
   filterMappedNative = let
     removeLinuxNativeChecks = path: value:
       if (head path == "checks" && builtins.typeOf value == "list")
@@ -142,13 +143,17 @@ let
         else value;
   in mapAttrsRecursive removeLinuxNativeChecks;
 
-  # Build profiled packages for the master branch, so that they are cached.
-  # But don't make profiled builds for PRs because this is a waste of time.
+  # Filters the derivations from default.nix for non-cross builds.
+  # 1. Build profiled packages for the master branch, so that they are cached.
+  #    But don't make profiled builds for PRs because this is a waste of time.
+  # 2. Remove the test coverage report - only generate that for Linux musl.
   filterJobsNative = let
     removeProfiledBuildForPRs = if (pr == null)
       then id
       else filterAttrs (n: _: n != "shell-prof");
-  in removeProfiledBuildForPRs;
+    removeCoverageReport = filterAttrs (n: _: n != "testCoverageReport");
+  in
+    drvs: removeCoverageReport (removeProfiledBuildForPRs drvs);
 
   ############################################################################
   # This aggregate job is what IOHK Hydra uses to update the CI status
