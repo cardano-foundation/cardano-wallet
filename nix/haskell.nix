@@ -77,7 +77,6 @@ let
           unit.preCheck = lib.optionalString stdenv.isDarwin "export TMPDIR=/tmp";
           integration.preCheck = ''
             # Variables picked up by integration tests
-            export CARDANO_WALLET_TRACING_MIN_SEVERITY=info
             export CARDANO_NODE_TRACING_MIN_SEVERITY=notice
 
             # Integration tests will place logs here
