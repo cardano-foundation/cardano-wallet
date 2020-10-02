@@ -2,6 +2,8 @@ module Test.Hspec.ExtraSpec where
 
 import Prelude
 
+import Control.Concurrent
+    ( threadDelay )
 import Data.IORef
     ( IORef, newIORef, readIORef, writeIORef )
 import Data.List
@@ -18,6 +20,7 @@ import Test.Hspec
     , expectationFailure
     , it
     , shouldBe
+    , shouldContain
     )
 import Test.Hspec.Core.Runner
     ( defaultConfig, runSpec )
@@ -52,6 +55,14 @@ spec = do
                     let noRetry = expectationFailure "test can't be retried"
                     outcomes <- newIORef [failure, noRetry]
                     (dynamically outcomes) `shouldMatchHSpecIt` failure
+        it "can time out" $ do
+            let micro = (1000*1000 *)
+            let timeout = do
+                    threadDelay (micro 10)
+                    expectationFailure "should have timed out"
+            res <- run (Extra.itWithCustomTimeout 2) timeout
+            res `shouldContain` "timed out in 2 seconds"
+
   where
     -- | lhs `shouldMatchHSpecIt` rhs asserts that the output of running
     -- (Extra.it "" lhs) and (Hspec.it "" rhs) are equal. Modulo random seed-
@@ -61,17 +72,17 @@ spec = do
         extraRes <- run Extra.it extraTest
         hspecRes <- run it hspecTest
         extraRes `shouldBe` hspecRes
-      where
-        run
-            :: (String -> ActionWith () -> SpecWith ()) -- ^ it version
-            -> IO () -- ^ test body
-            -> IO String -- ^ hspec output
-        run anyIt prop = fmap stripTime
-            $ capture_
-            $ flip runSpec defaultConfig
-            $ beforeAll (return ())
-            $ anyIt "<test spec>" (const prop)
 
+    run
+        :: (String -> ActionWith () -> SpecWith ()) -- ^ it version
+        -> IO () -- ^ test body
+        -> IO String -- ^ hspec output
+    run anyIt prop = fmap stripTime
+        $ capture_
+        $ flip runSpec defaultConfig
+        $ beforeAll (return ())
+        $ anyIt "<test spec>" (const prop)
+      where
         -- | Remove time and seed such that we can compare the captured stdout
         -- of two different hspec runs.
         stripTime :: String -> String
