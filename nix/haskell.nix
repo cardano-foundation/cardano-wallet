@@ -331,11 +331,5 @@ in
   proj.hsPkgs // {
     _config = proj.pkg-set.config;
     #_roots = haskell.roots proj.pkg-set.config.ghc;
-    testCoverageReport = proj.projectCoverageReport.overrideAttrs (old: {
-      buildCommand = old.buildCommand + ''
-        mkdir -p $out/nix-support
-        echo "report coverage $out/share/hpc/vanilla/html/all/hpc_index.html" >> $out/nix-support/hydra-build-products
-        echo "report coverage-per-package $out/share/hpc/vanilla/html/index.html" >> $out/nix-support/hydra-build-products
-      '';
-    });
+    testCoverageReport = proj.projectCoverageReport;
   }
