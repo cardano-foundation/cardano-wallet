@@ -266,7 +266,7 @@ spec = do
                   , isRight
                   )
                 , ( "Shelley (reward by script)"
-                  , "stake17pshvetj09hxjcm9v9jxgunjv4ehxmr0d3hkcmmvdakx7mrgdp5xscfm7jc"
+                  , "stake17pshvetj09hxjcm9v9jxgunjv4ehxmr0d3hkcmmvdakx7mq36s8xc"
                   , isRight
                   )
                 , ( "Shelley (testnet 1)"
