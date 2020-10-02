@@ -60,3 +60,31 @@ library
       Test.Utils.Time
       Test.Utils.Trace
       Test.Utils.Windows
+
+test-suite unit
+  default-language:
+      Haskell2010
+  default-extensions:
+      NoImplicitPrelude
+      OverloadedStrings
+  ghc-options:
+      -threaded -rtsopts
+      -Wall
+  if (flag(release))
+    ghc-options: -O2 -Werror
+  build-depends:
+      base
+    , hspec
+    , silently
+    , hspec-core
+    , cardano-wallet-test-utils
+  build-tools:
+      hspec-discover
+  type:
+     exitcode-stdio-1.0
+  hs-source-dirs:
+      test
+  main-is:
+      Main.hs
+  other-modules:
+      Test.Hspec.ExtraSpec
