@@ -98,4 +98,4 @@ This will bump the version in .cabal and .nix files and generate release notes. 
 
 - [ ] Update the "Compatibility Matrix" in the README.md (keep info about last 3 versions of `cardano-wallet`).
 
-- [ ] Add the release to the [automated migration tests](https://github.com/input-output-hk/cardano-wallet/blob/master/nix/migration-tests.nix#L44-L61) (keep only the last 3 versions). See the header of the file as to how to generate the SHA256 hashes.
+- [ ] Add the release to the [automated migration tests](https://github.com/input-output-hk/cardano-wallet/blob/master/nix/migration-tests.nix#L44-L61) (keep only the last 10 versions). See the header of the file as to how to generate the SHA256 hashes.
