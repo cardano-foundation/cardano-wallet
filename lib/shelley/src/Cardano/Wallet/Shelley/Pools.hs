@@ -8,6 +8,7 @@
 {-# LANGUAGE Rank2Types #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
 -- |
@@ -96,7 +97,7 @@ import Cardano.Wallet.Unsafe
 import Control.Concurrent
     ( threadDelay )
 import Control.Exception
-    ( try )
+    ( SomeException (..), try )
 import Control.Monad
     ( forM, forM_, forever, void, when, (<=<) )
 import Control.Monad.IO.Class
@@ -580,22 +581,25 @@ monitorStakePools tr gp nl DBLayer{..} =
     -- it should be safe to garbage collect that pool.
     --
     garbageCollectPools currentSlot latestGarbageCollectionEpochRef = do
-        currentEpoch <- liftIO $ timeInterpreter nl (epochOf currentSlot)
-        let subtractTwoEpochs = epochPred <=< epochPred
-        forM_ (subtractTwoEpochs currentEpoch) $ \latestRetirementEpoch -> do
-            latestGarbageCollectionEpoch <-
-                liftIO $ readIORef latestGarbageCollectionEpochRef
-            -- Only perform garbage collection once per epoch:
-            when (latestRetirementEpoch > latestGarbageCollectionEpoch) $ do
-                liftIO $ do
-                    writeIORef
-                        latestGarbageCollectionEpochRef
-                        latestRetirementEpoch
-                    traceWith tr $
-                        MsgStakePoolGarbageCollection $
-                        PoolGarbageCollectionInfo
-                            {currentEpoch, latestRetirementEpoch}
-                void $ removeRetiredPools latestRetirementEpoch
+        -- #2196: We need the try. Arguably we shouldn't need it.
+        liftIO (try @SomeException (timeInterpreter nl (epochOf currentSlot))) >>= \case
+            Left _ -> return ()
+            Right currentEpoch -> do
+                let subtractTwoEpochs = epochPred <=< epochPred
+                forM_ (subtractTwoEpochs currentEpoch) $ \latestRetirementEpoch -> do
+                    latestGarbageCollectionEpoch <-
+                        liftIO $ readIORef latestGarbageCollectionEpochRef
+                    -- Only perform garbage collection once per epoch:
+                    when (latestRetirementEpoch > latestGarbageCollectionEpoch) $ do
+                        liftIO $ do
+                            writeIORef
+                                latestGarbageCollectionEpochRef
+                                latestRetirementEpoch
+                            traceWith tr $
+                                MsgStakePoolGarbageCollection $
+                                PoolGarbageCollectionInfo
+                                    {currentEpoch, latestRetirementEpoch}
+                        void $ removeRetiredPools latestRetirementEpoch
 
     -- For each pool certificate in the given list, add an entry to the
     -- database that associates the certificate with the specified slot
