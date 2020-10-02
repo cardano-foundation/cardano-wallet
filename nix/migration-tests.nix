@@ -36,12 +36,6 @@ let
 
   # List of git revisions to test against.
   releases = [
-    { rev = "v2020-03-11";
-      sha256 = "05ijr9nbc9qngw2xsgmwdacnlq70mjgr4innkaw2d4c3sa29x3ai"; }
-    { rev = "v2020-03-16";
-      sha256 = "15gbghal6s1b9jdns117fllhz81ahz7hjhikp6lr09zim8jsisjc"; }
-    { rev = "v2020-04-01";
-      sha256 = "0hjdz4bbhq7g9cc1hfxpnwypd42n3rx0ci91n8i7ahnjhv93bhhy"; }
     { rev = "v2020-04-07";
       sha256 = "10m91l6r4ghhqddk5c0a4ffjl0z3h4nmk7cjhz2b0jhxdkmz6qg5"; }
     { rev = "v2020-04-28";
@@ -56,6 +50,12 @@ let
       sha256 = "1mnnlg1x3y9cf3sqmxpqjdiwlay58pdci4cjxfvlwlyqqlsy5d1i"; }
     { rev = "v2020-08-03";
       sha256 = "1bh6mwlzc77x7ka2kihfbdgg1lwvrdb26280kvdznwxcf4nbjgmk"; }
+    { rev = "v2020-09-11";
+      sha256 = "0755ggsgnlg6p0pnnrcjnbwbfg61faiyjnzng3vsva2nvg3sxn20"; }
+    { rev = "v2020-09-22";
+      sha256 = "1nfzfdv03nz2bhin2jflxsmh597vkjifb76jsdg0384x89gi0a10"; }
+    { rev = "v2020-09-30";
+      sha256 = "19vmyq0m67ih295z1y8ng2rdn85mi0rvw26k711lbxsqri7fmyvz"; }
   ];
 
   # Download the sources for a release.
