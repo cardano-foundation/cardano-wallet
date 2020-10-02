@@ -264,6 +264,8 @@ import qualified Shelley.Spec.Ledger.Keys as SL
 import qualified Shelley.Spec.Ledger.LedgerState as SL
 
 {- HLINT ignore "Use readTVarIO" -}
+{- HLINT ignore "Use newTVarIO" -}
+{- HLINT ignore "Use newEmptyTMVarIO" -}
 
 -- | Network layer cursor for Shelley. Mostly useless since the protocol itself is
 -- stateful and the node's keep track of the associated connection's cursor.
