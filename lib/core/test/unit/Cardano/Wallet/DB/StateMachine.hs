@@ -229,7 +229,7 @@ import qualified Test.QuickCheck as QC
 import qualified Test.StateMachine.Types as QSM
 import qualified Test.StateMachine.Types.Rank2 as Rank2
 
-{-# ANN module ("HLint: ignore Unused LANGUAGE pragma" :: String) #-}
+{- HLINT ignore "Unused LANGUAGE pragma" -}
 
 {-------------------------------------------------------------------------------
   Mock implementation
@@ -569,7 +569,7 @@ lockstep m@(Model _ ws) c (At resp) = Event
   Generator
 -------------------------------------------------------------------------------}
 
-{-# ANN generator ("HLint: ignore Use ++" :: String) #-}
+{- HLINT ignore generator "Use ++" -}
 generator
     :: forall s. (Arbitrary (Wallet s), GenState s)
     => Model s Symbolic

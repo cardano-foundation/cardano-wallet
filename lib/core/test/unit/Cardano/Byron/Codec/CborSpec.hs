@@ -58,7 +58,7 @@ import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
 
-{-# ANN spec ("HLint: ignore Use head" :: String) #-}
+{- HLINT ignore spec "Use head" -}
 
 spec :: Spec
 spec = do

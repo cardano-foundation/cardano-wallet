@@ -197,7 +197,7 @@ maxNumberOfOutputs = 254
 -------------------------------------------------------------------------------}
 
 -- Do-notation is favoured over applicative syntax for readability:
-{-# ANN module ("HLint: ignore Use <$>" :: String) #-}
+{- HLINT ignore "Use <$>" -}
 
 data BlockHeader = BlockHeader
     { version :: Word16

@@ -528,7 +528,7 @@ benchmarksSeq _ w wid wname restoreTime = do
         , walletOverview
         }
 
-{-# ANN bench_restoration ("HLint: ignore Use camelCase" :: String) #-}
+{- HLINT ignore bench_restoration "Use camelCase" -}
 bench_restoration
     :: forall (n :: NetworkDiscriminant) (k :: Depth -> * -> *) s t results.
         ( IsOurs s Address

@@ -84,7 +84,7 @@ import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Test.QuickCheck.Monadic as QC
 
-{-# ANN module ("HLint: ignore Use <$>" :: String) #-}
+{- HLINT ignore "Use <$>" -}
 
 spec :: Spec
 spec = do

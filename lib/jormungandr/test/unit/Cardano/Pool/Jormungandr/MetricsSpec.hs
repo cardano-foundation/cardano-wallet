@@ -8,7 +8,6 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
-{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 
 module Cardano.Pool.Jormungandr.MetricsSpec
     ( spec
@@ -177,7 +176,7 @@ prop_combineIsLeftBiased mStake_ mProd_ mPerf_ =
     mStake = Map.mapKeys getLowEntropy mStake_
     mProd  = Map.mapKeys getLowEntropy mProd_
     mPerf  = Map.mapKeys getLowEntropy mPerf_
-{-# HLINT ignore prop_combineIsLeftBiased "Use ||" #-}
+{- HLINT ignore prop_combineIsLeftBiased "Use ||" -}
 
 -- | A list of chunks of blocks to be served up by the mock network layer.
 newtype RegistrationsTest = RegistrationsTest
