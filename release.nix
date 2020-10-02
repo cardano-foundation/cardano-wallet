@@ -41,7 +41,7 @@
 , projectArgs ? {
     config = { allowUnfree = false; inHydra = true; };
     gitrev = cardano-wallet.rev;
-    inherit pr;
+    inherit pr sourcesOverride;
   }
 
 # The systems that the jobset will be built for.
