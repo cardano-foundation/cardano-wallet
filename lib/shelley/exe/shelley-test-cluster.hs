@@ -39,10 +39,10 @@ import Cardano.Wallet.Shelley.Compatibility
 import Cardano.Wallet.Shelley.Launch
     ( ClusterLog (..)
     , RunningNode (..)
-    , defaultPoolConfigs
     , moveInstantaneousRewardsTo
     , nodeMinSeverityFromEnv
     , oneMillionAda
+    , poolConfigsFromEnv
     , sendFaucetFundsTo
     , testMinSeverityFromEnv
     , walletListenFromEnv
@@ -205,6 +205,7 @@ main = do
             [ LogToStdout clusterMinSeverity
             ]
 
+    poolConfigs <- poolConfigsFromEnv
     withUtf8Encoding
         $ withLoggingNamed "cardano-wallet" walletLogs
         $ \(_, trWallet) -> withLoggingNamed "test-cluster" clusterLogs
@@ -213,7 +214,7 @@ main = do
         $ \db -> withCluster
             (contramap MsgCluster $ trMessageText trCluster)
             nodeMinSeverity
-            defaultPoolConfigs
+            poolConfigs
             dir
             Nothing
             whenByron

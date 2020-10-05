@@ -30,6 +30,7 @@ module Cardano.Wallet.Shelley.Launch
     , singleNodeParams
     , PoolConfig (..)
     , defaultPoolConfigs
+    , poolConfigsFromEnv
     , RunningNode (..)
 
       -- * Faucets
@@ -468,6 +469,12 @@ defaultPoolConfigs =
       -- This pool should retire, but not within the duration of a test run:
     , PoolConfig {retirementEpoch = Just 1_000_000}
     ]
+
+poolConfigsFromEnv :: IO [PoolConfig]
+poolConfigsFromEnv = lookupEnv "NO_POOLS" >>= \case
+    Nothing -> pure defaultPoolConfigs
+    Just "" -> pure defaultPoolConfigs
+    Just _ -> pure []
 
 data RunningNode = RunningNode
     FilePath

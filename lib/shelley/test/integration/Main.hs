@@ -53,12 +53,11 @@ import Cardano.Wallet.Shelley.Faucet
     ( initFaucet )
 import Cardano.Wallet.Shelley.Launch
     ( ClusterLog
-    , PoolConfig (..)
     , RunningNode (..)
-    , defaultPoolConfigs
     , moveInstantaneousRewardsTo
     , nodeMinSeverityFromEnv
     , oneMillionAda
+    , poolConfigsFromEnv
     , sendFaucetFundsTo
     , testLogDirFromEnv
     , testMinSeverityFromEnv
@@ -95,8 +94,6 @@ import Network.HTTP.Client
     , newManager
     , responseTimeoutMicro
     )
-import System.Environment
-    ( lookupEnv )
 import System.FilePath
     ( (</>) )
 import System.IO
@@ -353,9 +350,3 @@ withTracers action = do
 
 bracketTracer' :: Tracer IO TestsLog -> Text -> IO a -> IO a
 bracketTracer' tr name = bracketTracer (contramap (MsgBracket name) tr)
-
-poolConfigsFromEnv :: IO [PoolConfig]
-poolConfigsFromEnv = lookupEnv "NO_POOLS" >>= \case
-    Nothing -> pure defaultPoolConfigs
-    Just "" -> pure defaultPoolConfigs
-    Just _ -> pure []
