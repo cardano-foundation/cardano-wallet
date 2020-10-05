@@ -100,6 +100,8 @@ import Data.Maybe
     ( fromMaybe )
 import Data.Proxy
     ( Proxy (..) )
+import Data.Void
+    ( Void )
 import Data.Word
     ( Word32 )
 import GHC.Generics
@@ -415,7 +417,8 @@ instance PaymentAddress n IcarusKey
         err = ErrInvalidAddress (proxy, k) Proxy
 
 instance IsOurs (SeqState n IcarusKey) ChimericAccount where
-    isOurs _account state = (False, state)
+    type DerivationPath (SeqState n IcarusKey) ChimericAccount = Void
+    isOurs _account state = (Nothing, state)
 
 {-------------------------------------------------------------------------------
                           Storing and retrieving keys

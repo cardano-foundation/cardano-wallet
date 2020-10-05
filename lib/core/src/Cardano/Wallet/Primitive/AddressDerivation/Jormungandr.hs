@@ -77,6 +77,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , deriveRewardAccount
     , fromHex
     , hex
+    , mutableAccount
     , networkDiscriminantVal
     )
 import Cardano.Wallet.Primitive.AddressDiscovery
@@ -88,7 +89,7 @@ import Cardano.Wallet.Primitive.Types
 import Control.DeepSeq
     ( NFData (..) )
 import Control.Monad
-    ( when, (<=<) )
+    ( guard, when, (<=<) )
 import Crypto.Hash
     ( Digest, HashAlgorithm, hash )
 import Data.Binary.Put
@@ -436,8 +437,17 @@ instance MkKeyFingerprint JormungandrKey (Proxy (n :: NetworkDiscriminant), Jorm
 
 instance IsOurs (SeqState n JormungandrKey) ChimericAccount
   where
+    type DerivationPath (SeqState n JormungandrKey) ChimericAccount =
+         DerivationPath (SeqState n JormungandrKey) Address
     isOurs account state =
-        (account == ourAccount, state)
+        let
+            purpose :: Index 'Hardened 'PurposeK
+            coinType :: Index 'Hardened 'CoinTypeK
+            accountIx :: Index 'Hardened 'AccountK
+            (purpose, coinType, accountIx) = undefined -- TODO: have this in the seq state
+            path = (purpose, coinType, accountIx, mutableAccount, minBound)
+        in
+            (guard (account == ourAccount) *> Just path, state)
       where
         ourAccount = toChimericAccount $ rewardAccountKey state
 

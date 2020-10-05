@@ -28,7 +28,7 @@
 module Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( -- * Types
       ByronKey(..)
-    , DerivationPath
+    , DerivationPathFrom
 
       -- * Generation
     , unsafeGenerateKeyFromSeed
@@ -117,26 +117,26 @@ import qualified Data.ByteString.Char8 as B8
 data ByronKey (depth :: Depth) key = ByronKey
     { getKey :: key
     -- ^ The raw private or public key.
-    , derivationPath :: DerivationPath depth
+    , derivationPath :: DerivationPathFrom depth
     -- ^ The address derivation indices for the level of this key.
     , payloadPassphrase :: Passphrase "addr-derivation-payload"
     -- ^ Used for encryption of payload containing address derivation path.
     } deriving stock (Generic)
 
-instance (NFData key, NFData (DerivationPath depth)) => NFData (ByronKey depth key)
-deriving instance (Show key, Show (DerivationPath depth)) => Show (ByronKey depth key)
-deriving instance (Eq key, Eq (DerivationPath depth)) => Eq (ByronKey depth key)
+instance (NFData key, NFData (DerivationPathFrom depth)) => NFData (ByronKey depth key)
+deriving instance (Show key, Show (DerivationPathFrom depth)) => Show (ByronKey depth key)
+deriving instance (Eq key, Eq (DerivationPathFrom depth)) => Eq (ByronKey depth key)
 
 -- | The hierarchical derivation indices for a given level/depth.
-type family DerivationPath (depth :: Depth) :: * where
+type family DerivationPathFrom (depth :: Depth) :: * where
     -- The root key is generated from the seed.
-    DerivationPath 'RootK =
+    DerivationPathFrom 'RootK =
         ()
     -- The account key is generated from the root key and account index.
-    DerivationPath 'AccountK =
+    DerivationPathFrom 'AccountK =
         Index 'WholeDomain 'AccountK
     -- The address key is generated from the account key and address index.
-    DerivationPath 'AddressK =
+    DerivationPathFrom 'AddressK =
         (Index 'WholeDomain 'AccountK, Index 'WholeDomain 'AddressK)
 
 instance WalletKey ByronKey where
@@ -224,7 +224,7 @@ generateKeyFromSeed = unsafeGenerateKeyFromSeed ()
 -- testing, in practice, seeds are used to represent root keys, and one should
 -- use 'generateKeyFromSeed'.
 unsafeGenerateKeyFromSeed
-    :: DerivationPath depth
+    :: DerivationPathFrom depth
     -> SomeMnemonic
     -> Passphrase "encryption"
     -> ByronKey depth XPrv
@@ -278,7 +278,7 @@ mkByronKeyFromMasterKey
 mkByronKeyFromMasterKey = unsafeMkByronKeyFromMasterKey ()
 
 unsafeMkByronKeyFromMasterKey
-    :: DerivationPath depth
+    :: DerivationPathFrom depth
     -> XPrv
     -> ByronKey depth XPrv
 unsafeMkByronKeyFromMasterKey derivationPath masterKey = ByronKey

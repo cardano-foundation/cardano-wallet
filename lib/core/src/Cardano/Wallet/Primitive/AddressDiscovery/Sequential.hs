@@ -82,6 +82,8 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , SoftDerivation (..)
     , WalletKey (..)
     , deriveRewardAccount
+    , utxoExternal
+    , utxoInternal
     )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( CompareDiscovery (..)
@@ -106,8 +108,6 @@ import Data.Function
     ( (&) )
 import Data.Map.Strict
     ( Map )
-import Data.Maybe
-    ( isJust )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Text.Class
@@ -551,6 +551,13 @@ data SeqState (n :: NetworkDiscriminant) k = SeqState
         -- (cf: 'PendingIxs')
     , rewardAccountKey :: k 'AddressK XPub
         -- ^ Reward account public key associated with this wallet
+--    , derivationPath ::
+--        ( Index 'Hardened 'PurposeK
+--        , Index 'Hardened 'CoinTypeK
+--        , Index 'Hardened 'AccountK
+--        )
+--        -- ^ Derivation path from a root key up to the internal account
+--
     }
     deriving stock (Generic)
 
@@ -632,15 +639,37 @@ instance
     ( SoftDerivation k
     , MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
     , MkKeyFingerprint k Address
-    ) => IsOurs (SeqState n k) Address where
+    ) => IsOurs (SeqState n k) Address
+  where
+    type DerivationPath (SeqState n k) Address =
+        ( Index 'Hardened 'PurposeK
+        , Index 'Hardened 'CoinTypeK
+        , Index 'Hardened 'AccountK
+        , Index 'Soft 'RoleK
+        , Index 'Soft 'AddressK
+        )
     isOurs addr (SeqState !s1 !s2 !ixs !rpk) =
         let
+            purpose :: Index 'Hardened 'PurposeK
+            coinType :: Index 'Hardened 'CoinTypeK
+            accountIx :: Index 'Hardened 'AccountK
+            (purpose, coinType, accountIx) = undefined -- TODO: have this in the seq state
+
             (internal, !s1') = lookupAddress @n (const Used) addr s1
             (external, !s2') = lookupAddress @n (const Used) addr s2
+
             !ixs' = case internal of
                 Nothing -> ixs
                 Just ix -> updatePendingIxs ix ixs
-            ours = isJust (internal <|> external)
+
+            ours = case (external, internal) of
+                (Just addrIx, _) ->
+                    Just (purpose, coinType, accountIx, utxoExternal, addrIx)
+
+                (_, Just addrIx) ->
+                    Just (purpose, coinType, accountIx, utxoInternal, addrIx)
+
+                _ -> Nothing
         in
             (ixs' `deepseq` ours `deepseq` ours, SeqState s1' s2' ixs' rpk)
 
@@ -666,7 +695,8 @@ instance
             (addr, SeqState intPool extPool pending' rpk)
 
 instance
-    ( SoftDerivation k
+    ( IsOurs (SeqState n k) Address
+    , SoftDerivation k
     , MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
     , MkKeyFingerprint k Address
     , AddressIndexDerivationType k ~ 'Soft
@@ -785,6 +815,7 @@ instance
     , KnownNat p
     ) => IsOurs (SeqAnyState n k p) Address
   where
+    type DerivationPath (SeqAnyState n k p) Address = ()
     isOurs (Address bytes) st@(SeqAnyState inner)
         | crc32 bytes < p =
             let
@@ -792,9 +823,9 @@ instance
                 ix = toEnum (edge - fromEnum (gap $ externalPool inner))
                 pool' = extendAddressPool @n ix (externalPool inner)
             in
-                (True, SeqAnyState (inner { externalPool = pool' }))
+                (Just (), SeqAnyState (inner { externalPool = pool' }))
         | otherwise =
-            (False, st)
+            (Nothing, st)
       where
         p = floor (double sup * double (natVal (Proxy @p)) / 1000)
           where
@@ -805,7 +836,9 @@ instance
 
 instance IsOurs (SeqAnyState n k p) ChimericAccount
   where
-    isOurs _account state = (False, state)
+    type DerivationPath (SeqAnyState n k p) ChimericAccount =
+         DerivationPath (SeqAnyState n k p) Address
+    isOurs _account state = (Nothing, state)
 
 instance
     ( SoftDerivation k

@@ -63,7 +63,7 @@ import Cardano.Wallet.Primitive.AddressDerivation.Byron
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( CompareDiscovery (..)
     , GenChange (..)
-    , IsOurs (..)
+    , IsOurs (isOurs)
     , IsOwned (..)
     , KnownAddresses (..)
     )
@@ -79,12 +79,12 @@ import Data.Digest.CRC32
     ( crc32 )
 import Data.Map
     ( Map )
-import Data.Maybe
-    ( isJust )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Set
     ( Set )
+import Data.Void
+    ( Void )
 import Data.Word
     ( Word32 )
 import Fmt
@@ -96,6 +96,7 @@ import GHC.TypeLits
 import System.Random
     ( RandomGen, StdGen, mkStdGen, randomR )
 
+import qualified Cardano.Wallet.Primitive.AddressDiscovery as AddressDiscovery
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
@@ -202,14 +203,16 @@ instance RndStateLike (RndState n) where
 -- decoded as a Byron HD random address, and where the wallet key can be used
 -- to decrypt the address derivation path.
 instance IsOurs (RndState n) Address where
+    type DerivationPath (RndState n) Address = DerivationPath
     isOurs addr st =
-        (isJust path, maybe id (addDiscoveredAddress addr Used) path st)
+        (path, maybe id (addDiscoveredAddress addr Used) path st)
       where
         path = addressToPath addr (hdPassphrase st)
 
 instance IsOurs (RndState n) ChimericAccount where
     -- Chimeric accounts are not supported, so always return 'False'.
-    isOurs _account state = (False, state)
+    type DerivationPath (RndState n) ChimericAccount = Void
+    isOurs _account state = (Nothing, state)
 
 instance IsOwned (RndState n) ByronKey where
     isOwned st (key, pwd) addr =
@@ -368,12 +371,13 @@ instance RndStateLike (RndAnyState n p) where
         second RndAnyState $ withRNG inner action
 
 instance KnownNat p => IsOurs (RndAnyState n p) Address where
+    type DerivationPath (RndAnyState n p) Address = ()
     isOurs addr@(Address bytes) st@(RndAnyState inner) =
         case isOurs addr inner of
-            (True, inner') ->
-                (True, RndAnyState inner')
+            (Just{}, inner') ->
+                (Just (), RndAnyState inner')
 
-            (False, _) | crc32 bytes < p ->
+            (Nothing, _) | crc32 bytes < p ->
                 let
                     (path, gen') = findUnusedPath
                         (gen inner) (accountIndex inner) (unavailablePaths inner)
@@ -381,10 +385,10 @@ instance KnownNat p => IsOurs (RndAnyState n p) Address where
                     inner' = addDiscoveredAddress
                         addr Used path (inner { gen = gen' })
                 in
-                (True, RndAnyState inner')
+                (Just (), RndAnyState inner')
 
-            (False, _) ->
-                (False, st)
+            (Nothing, _) ->
+                (Nothing, st)
       where
         p = floor (double (maxBound :: Word32) * double (natVal (Proxy @p)) / 1000)
 
@@ -392,7 +396,8 @@ instance KnownNat p => IsOurs (RndAnyState n p) Address where
         double = fromIntegral
 
 instance IsOurs (RndAnyState n p) ChimericAccount where
-    isOurs _account state = (False, state)
+    type DerivationPath (RndAnyState n p) ChimericAccount = Void
+    isOurs _account state = (Nothing, state)
 
 instance KnownNat p => IsOwned (RndAnyState n p) ByronKey where
     isOwned _ _ _ = Nothing

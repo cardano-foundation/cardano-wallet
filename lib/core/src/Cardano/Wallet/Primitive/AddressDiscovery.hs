@@ -55,10 +55,11 @@ import Cardano.Wallet.Primitive.Types
 -- same time, and this little abstraction can buy us this without introducing
 -- too much overhead.
 class IsOurs s entity where
+    type DerivationPath s entity :: *
     isOurs
         :: entity
         -> s
-        -> (Bool, s)
+        -> (Maybe (DerivationPath s entity), s)
         -- ^ Checks whether an entity is ours or not.
 
 -- | More powerful than 'isOurs', this abstractions offer the underlying state

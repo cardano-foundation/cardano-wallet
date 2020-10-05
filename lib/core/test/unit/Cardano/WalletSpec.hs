@@ -783,10 +783,12 @@ instance Arbitrary DummyState where
     arbitrary = return (DummyState mempty)
 
 instance IsOurs DummyState Address where
-    isOurs _ s = (True, s)
+    type DerivationPath DummyState Address = ()
+    isOurs _ s = (Just (), s)
 
 instance IsOurs DummyState ChimericAccount where
-    isOurs _ s = (False, s)
+    type DerivationPath DummyState ChimericAccount = ()
+    isOurs _ s = (Nothing, s)
 
 instance IsOwned DummyState JormungandrKey where
     isOwned (DummyState m) (rootK, pwd) addr = do

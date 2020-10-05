@@ -69,6 +69,8 @@ import Cardano.Wallet.Primitive.Types
     ( Address (..), AddressState (..), ShowFmt (..) )
 import Cardano.Wallet.Unsafe
     ( someDummyMnemonic )
+import Control.Arrow
+    ( first )
 import Control.Monad
     ( forM, forM_, unless )
 import Control.Monad.IO.Class
@@ -403,7 +405,7 @@ prop_lookupDiscovered
     :: (SeqState 'Mainnet JormungandrKey, Address)
     -> Property
 prop_lookupDiscovered (s0, addr) =
-    let (ours, s) = isOurs addr s0 in ours ==> prop s
+    let (ours, s) = isOurs addr s0 in isJust ours ==> prop s
   where
     mw = someDummyMnemonic (Proxy @12)
     key = Jormungandr.unsafeGenerateKeyFromSeed (mw, Nothing) mempty
@@ -421,7 +423,7 @@ prop_compareKnownUnknown
     -> Property
 prop_compareKnownUnknown (s, ShowFmt known, ShowFmt addr) =
     case (fst $ isOurs known s, fst $ isOurs addr s) of
-        (True, False) -> cover 10 True "known-unknown" $ prop LT
+        (Just{}, Nothing) -> cover 10 True "known-unknown" $ prop LT
         _ -> property True
   where
     prop ordering = compareDiscovery s known addr === ordering
@@ -446,7 +448,7 @@ prop_knownAddressesAreOurs
     :: SeqState 'Mainnet JormungandrKey
     -> Property
 prop_knownAddressesAreOurs s =
-    map (\x -> (ShowFmt x, fst (isOurs x s))) (fst <$> knownAddresses s)
+    map (\x -> (ShowFmt x, isJust $ fst $ isOurs x s)) (fst <$> knownAddresses s)
     ===
     map (\x -> (ShowFmt x, True)) (fst <$> knownAddresses s)
 
@@ -490,7 +492,7 @@ prop_oursAreUsed
 prop_oursAreUsed s =
     let
         (addr, status) = head $ knownAddresses s
-        (True, s') = isOurs addr s
+        (True, s') = first isJust $ isOurs addr s
         (addr', status') = head $ knownAddresses s'
     in
         (status' == Used .&&. addr === addr')

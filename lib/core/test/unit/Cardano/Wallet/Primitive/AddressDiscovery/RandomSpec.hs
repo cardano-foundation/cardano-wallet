@@ -55,6 +55,8 @@ import Data.Function
     ( (&) )
 import Data.List
     ( find )
+import Data.Maybe
+    ( isJust, isNothing )
 import Data.Word
     ( Word32 )
 import System.Random
@@ -225,7 +227,7 @@ arbitraryMnemonic = either (error . show) id $ mkSomeMnemonic @'[12]
 
 checkIsOurs :: GoldenTest -> Expectation
 checkIsOurs GoldenTest{..} = do
-    fst (isOurs addr' rndState) `shouldBe` expected
+    isJust (fst $ isOurs addr' rndState) `shouldBe` expected
   where
     Right addr' = Address <$> convertFromBase Base16 addr
     (_, rndState) = rndStateFromMnem arbitraryMnemonic
@@ -279,7 +281,7 @@ prop_derivedKeysAreOurs
     -> Index 'WholeDomain 'AddressK
     -> Property
 prop_derivedKeysAreOurs rnd@(Rnd st _ _) (Rnd st' _ _) addrIx =
-    fst (isOurs addr st) .&&. not (fst (isOurs addr st'))
+    isJust (fst $ isOurs addr st) .&&. isNothing (fst $ isOurs addr st')
   where
     addr = mkAddress rnd addrIx
 
@@ -302,7 +304,7 @@ prop_changeAddressesBelongToUs
     -> Rnd
     -> Property
 prop_changeAddressesBelongToUs (Rnd st rk pwd) (Rnd st' _ _) =
-    fst (isOurs addr st) .&&. not (fst (isOurs addr st'))
+    isJust (fst $ isOurs addr st) .&&. isNothing (fst $ isOurs addr st')
   where
     (addr, _) = genChange (rk, pwd) st
 

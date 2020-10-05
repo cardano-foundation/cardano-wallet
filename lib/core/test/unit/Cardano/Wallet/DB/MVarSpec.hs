@@ -5,6 +5,7 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeFamilies #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
@@ -53,4 +54,5 @@ instance Arbitrary DummyStateMVar where
 deriving instance NFData DummyStateMVar
 
 instance IsOurs DummyStateMVar Address where
-    isOurs _ num = (True, num)
+    type DerivationPath DummyStateMVar Address = ()
+    isOurs _ num = (Just (), num)

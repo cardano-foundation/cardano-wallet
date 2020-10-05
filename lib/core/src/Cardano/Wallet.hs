@@ -1805,15 +1805,15 @@ mkTxMeta interpretTime blockHeader wState tx cs expiry =
 
     ourCoins :: TxOut -> Maybe Natural
     ourCoins (TxOut addr (Coin val)) =
-        if fst (isOurs addr wState)
-        then Just (fromIntegral val)
-        else Nothing
+        case fst (isOurs addr wState) of
+            Just{}  -> Just (fromIntegral val)
+            Nothing -> Nothing
 
     ourWithdrawal :: (ChimericAccount, Coin) -> Maybe Natural
     ourWithdrawal (acct, (Coin val)) =
-        if fst (isOurs acct wState)
-        then Just (fromIntegral val)
-        else Nothing
+        case fst (isOurs acct wState) of
+            Just{}  -> Just (fromIntegral val)
+            Nothing -> Nothing
 
 -- | Broadcast a (signed) transaction to the network.
 submitTx

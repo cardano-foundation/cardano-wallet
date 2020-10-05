@@ -62,11 +62,13 @@ import Cardano.Wallet.Primitive.Types
 import Control.DeepSeq
     ( NFData (..) )
 import Control.Monad
-    ( foldM )
+    ( foldM, guard )
 import Control.Monad.Trans.State.Strict
     ( State, evalState, runState, state )
 import Data.Foldable
     ( fold )
+import Data.Functor
+    ( ($>) )
 import Data.Generics.Internal.VL.Lens
     ( view )
 import Data.Generics.Labels
@@ -316,7 +318,9 @@ txOutsOurs txs =
     pick :: (Tx, TxOut) -> State s (Maybe (Tx, TxOut))
     pick (tx, out) = do
         predicate <- state $ isOurs (address out)
-        return $ if predicate then Just (tx, out) else Nothing
+        return $ case predicate of
+            Just{}  -> Just (tx, out)
+            Nothing -> Nothing
     forMaybe :: Monad m => [a] -> (a -> m (Maybe b)) -> m [b]
     forMaybe xs = fmap catMaybes . for xs
 
@@ -363,14 +367,16 @@ instance Semigroup WalletState where
             (\_ -> ours == ours')
 
 instance IsOurs WalletState Address where
+    type DerivationPath WalletState Address = ()
     isOurs addr s@(WalletState ours discovered) =
         if (ShowFmt addr) `elem` ours then
-            (True, WalletState ours (Set.insert (ShowFmt addr) discovered))
+            (Just (), WalletState ours (Set.insert (ShowFmt addr) discovered))
         else
-            (False, s)
+            (Nothing, s)
 
 instance IsOurs WalletState ChimericAccount where
-    isOurs account s = (account == ourChimericAccount, s)
+    type DerivationPath WalletState ChimericAccount = ()
+    isOurs account s = (guard (account == ourChimericAccount) $> (), s)
 
 instance Arbitrary WalletState where
     shrink = genericShrink
