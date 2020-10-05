@@ -36,7 +36,7 @@ DATA=$(echo $QUERY \
   | tr -d '\n' \
   | tr -d '\t' \
   | jq -aRs '{query: .}' \
-  | http post https://api.github.com/graphql Authorization:"bearer $GITHUB_API_TOKEN" \
+  | curl -s https://api.github.com/graphql -X POST -H "Authorization: bearer $GITHUB_API_TOKEN" --data-binary @- \
   | jq '
       .data.repository.pullRequests.edges
       | map (.node.comments.edges)
