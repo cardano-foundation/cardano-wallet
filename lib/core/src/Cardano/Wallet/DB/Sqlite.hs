@@ -627,16 +627,18 @@ newDBLayer trace defaultFieldValues mDatabaseFile timeInterpreter = do
     let readCache :: W.WalletId -> SqlPersistT IO (Maybe (W.Wallet s))
         readCache wid = Map.lookup wid <$> liftIO (readIORef cache)
 
-    let clearCache :: W.WalletId -> SqlPersistT IO ()
-        clearCache wid = liftIO $ modifyIORef' cache $ Map.delete wid
-
-    let writeCache :: W.WalletId -> W.Wallet s -> SqlPersistT IO ()
-        writeCache wid cp = liftIO $ modifyIORef' cache $ Map.alter alter wid
-          where
-            tip = cp ^. #currentTip . #blockHeight
-            alter = \case
-                Just old | tip < old ^. #currentTip .  #blockHeight -> Just old
-                _ -> Just cp
+    let writeCache :: W.WalletId -> Maybe (W.Wallet s) -> SqlPersistT IO ()
+        writeCache wid = \case
+            Nothing ->
+                liftIO $ modifyIORef' cache $ Map.delete wid
+            Just cp -> do
+                let tip = cp ^. #currentTip . #blockHeight
+                let alter = \case
+                        Just old | tip < old ^. #currentTip .  #blockHeight ->
+                            Just old
+                        _ ->
+                            Just cp
+                liftIO $ modifyIORef' cache $ Map.alter alter wid
 
     let selectLatestCheckpoint
             :: W.WalletId
@@ -655,6 +657,11 @@ newDBLayer trace defaultFieldValues mDatabaseFile timeInterpreter = do
                         s <- selectState (checkpointId cp)
                         pure (checkpointFromEntity @s cp utxo <$> s)
 
+    let invalidateCache :: W.WalletId -> SqlPersistT IO ()
+        invalidateCache wid = do
+            writeCache wid Nothing
+            selectLatestCheckpoint wid >>= writeCache wid
+
     return (ctx, DBLayer
 
         {-----------------------------------------------------------------------
@@ -665,7 +672,7 @@ newDBLayer trace defaultFieldValues mDatabaseFile timeInterpreter = do
             res <- handleConstraint (ErrWalletAlreadyExists wid) $
                 insert_ (mkWalletEntity wid meta)
             when (isRight res) $ do
-                insertCheckpoint wid cp <* writeCache wid cp
+                insertCheckpoint wid cp <* writeCache wid (Just cp)
                 let (metas, txins, txouts, ws) = mkTxHistory wid txs
                 putTxs metas txins txouts ws
                 insert_ (mkProtocolParametersEntity wid pp)
@@ -677,7 +684,7 @@ newDBLayer trace defaultFieldValues mDatabaseFile timeInterpreter = do
                 Just _  -> Right <$> do
                     deleteCascadeWhere [WalId ==. wid]
                     deleteLooseTransactions
-                    clearCache wid
+                    invalidateCache wid
 
         , listWallets =
             map (PrimaryKey . unWalletKey) <$> selectKeysList [] [Asc WalId]
@@ -688,8 +695,10 @@ newDBLayer trace defaultFieldValues mDatabaseFile timeInterpreter = do
 
         , putCheckpoint = \(PrimaryKey wid) cp -> ExceptT $ do
             selectWallet wid >>= \case
-                Nothing -> pure $ Left $ ErrNoSuchWallet wid
-                Just _  -> Right <$> (insertCheckpoint wid cp <* writeCache wid cp)
+                Nothing ->
+                    pure $ Left $ ErrNoSuchWallet wid
+                Just _  ->
+                    Right <$> (insertCheckpoint wid cp <* writeCache wid (Just cp))
 
         , readCheckpoint = \(PrimaryKey wid) -> do
             selectLatestCheckpoint wid
@@ -727,7 +736,7 @@ newDBLayer trace defaultFieldValues mDatabaseFile timeInterpreter = do
                     deleteStakeKeyCerts wid
                         [ StakeKeyCertSlot >. nearestPoint
                         ]
-                    clearCache wid
+                    invalidateCache wid
                     pure (Right nearestPoint)
 
         , prune = \(PrimaryKey wid) -> ExceptT $ do
