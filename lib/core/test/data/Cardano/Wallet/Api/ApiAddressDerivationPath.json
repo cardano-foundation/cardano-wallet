@@ -1,697 +1,221 @@
 {
-    "seed": -176155923881836647,
+    "seed": 2453672272451951742,
     "samples": [
         [
-            {
-                "derivation_index": 15652,
-                "derivation_type": "soft"
-            },
-            {
-                "derivation_index": 16266,
-                "derivation_type": "hardened"
-            },
-            {
-                "derivation_index": 15291,
-                "derivation_type": "soft"
-            },
-            {
-                "derivation_index": 16742,
-                "derivation_type": "hardened"
-            },
-            {
-                "derivation_index": 17896,
-                "derivation_type": "hardened"
-            },
-            {
-                "derivation_index": 30655,
-                "derivation_type": "hardened"
-            },
-            {
-                "derivation_index": 17383,
-                "derivation_type": "hardened"
-            },
-            {
-                "derivation_index": 18245,
-                "derivation_type": "hardened"
-            },
-            {
-                "derivation_index": 5168,
-                "derivation_type": "hardened"
-            }
+            "666587165",
+            "1359030679H",
+            "1798243549H",
+            "49570321H",
+            "1464041277",
+            "1317282788H",
+            "752057091",
+            "147901444",
+            "667312224",
+            "2078344037H",
+            "294943034",
+            "1799077546",
+            "840879791H",
+            "281322944H",
+            "1483580270H",
+            "2076907717H",
+            "298365862",
+            "1680746759",
+            "1930021112",
+            "622816136",
+            "715841756H",
+            "701404648H"
         ],
         [
-            {
-                "derivation_index": 3951,
-                "derivation_type": "soft"
-            },
-            {
-                "derivation_index": 20747,
-                "derivation_type": "hardened"
-            },
-            {
-                "derivation_index": 15056,
-                "derivation_type": "hardened"
-            },
-            {
-                "derivation_index": 4424,
-                "derivation_type": "soft"
-            },
-            {
-                "derivation_index": 4442,
-                "derivation_type": "soft"
-            },
-            {
-                "derivation_index": 18035,
-                "derivation_type": "hardened"
-            },
-            {
-                "derivation_index": 11174,
-                "derivation_type": "hardened"
-            },
-            {
-                "derivation_index": 7492,
-                "derivation_type": "hardened"
-            },
-            {
-                "derivation_index": 17745,
-                "derivation_type": "soft"
-            },
-            {
-                "derivation_index": 6583,
-                "derivation_type": "hardened"
-            },
-            {
-                "derivation_index": 14135,
-                "derivation_type": "hardened"
-            },
-            {
-                "derivation_index": 13952,
-                "derivation_type": "soft"
-            },
-            {
-                "derivation_index": 30087,
-                "derivation_type": "soft"
-            },
-            {
-                "derivation_index": 24919,
-                "derivation_type": "soft"
-            },
-            {
-                "derivation_index": 11779,
-                "derivation_type": "soft"
-            },
-            {
-                "derivation_index": 19363,
-                "derivation_type": "soft"
-            },
-            {
-                "derivation_index": 5944,
-                "derivation_type": "hardened"
-            },
-            {
-                "derivation_index": 5256,
-                "derivation_type": "soft"
-            },
-            {
-                "derivation_index": 19934,
-                "derivation_type": "hardened"
-            },
-            {
-                "derivation_index": 12006,
-                "derivation_type": "soft"
-            }
+            "1120465846",
+            "900845289H",
+            "409689366H",
+            "1978699718",
+            "1977370396",
+            "1969939304",
+            "1237879111",
+            "1218341290",
+            "1878064905H",
+            "418535227",
+            "4344800H",
+            "1338484974H",
+            "1719623875H",
+            "774130948",
+            "807723520"
         ],
         [
-            {
-                "derivation_index": 487,
-                "derivation_type": "soft"
-            },
-            {
-                "derivation_index": 13348,
-                "derivation_type": "soft"
-            },
-            {
-                "derivation_index": 557,
-                "derivation_type": "soft"
-            },
-            {
-                "derivation_index": 14844,
-                "derivation_type": "soft"
-            },
-            {
-                "derivation_index": 6580,
-                "derivation_type": "hardened"
-            },
-            {
-                "derivation_index": 10857,
-                "derivation_type": "hardened"
-            },
-            {
-                "derivation_index": 25312,
-                "derivation_type": "soft"
-            },
-            {
-                "derivation_index": 21569,
-                "derivation_type": "soft"
-            },
-            {
-                "derivation_index": 14615,
-                "derivation_type": "hardened"
-            }
+            "220344814H",
+            "1669228719H",
+            "652206598",
+            "140021551H",
+            "2096962369H",
+            "62998410",
+            "829037574",
+            "450510147H",
+            "6984553",
+            "436756371H",
+            "394034265",
+            "189378070H",
+            "1204312973H",
+            "2108649549",
+            "1993526766H",
+            "547059486",
+            "1653231656H"
         ],
         [
-            {
-                "derivation_index": 9523,
-                "derivation_type": "soft"
-            },
-            {
-                "derivation_index": 25599,
-                "derivation_type": "soft"
-            },
-            {
-                "derivation_index": 16440,
-                "derivation_type": "soft"
-            },
-            {
-                "derivation_index": 17036,
-                "derivation_type": "hardened"
-            },
-            {
-                "derivation_index": 23,
-                "derivation_type": "hardened"
-            },
-            {
-                "derivation_index": 3979,
-                "derivation_type": "soft"
-            },
-            {
-                "derivation_index": 7632,
-                "derivation_type": "hardened"
-            },
-            {
-                "derivation_index": 8064,
-                "derivation_type": "soft"
-            },
-            {
-                "derivation_index": 3355,
-                "derivation_type": "soft"
-            },
-            {
-                "derivation_index": 22295,
-                "derivation_type": "hardened"
-            },
-            {
-                "derivation_index": 3351,
-                "derivation_type": "soft"
-            },
-            {
-                "derivation_index": 17514,
-                "derivation_type": "hardened"
-            },
-            {
-                "derivation_index": 9194,
-                "derivation_type": "soft"
-            },
-            {
-                "derivation_index": 30919,
-                "derivation_type": "hardened"
-            },
-            {
-                "derivation_index": 15120,
-                "derivation_type": "soft"
-            },
-            {
-                "derivation_index": 14585,
-                "derivation_type": "hardened"
-            },
-            {
-                "derivation_index": 817,
-                "derivation_type": "hardened"
-            },
-            {
-                "derivation_index": 10511,
-                "derivation_type": "soft"
-            },
-            {
-                "derivation_index": 25923,
-                "derivation_type": "soft"
-            },
-            {
-                "derivation_index": 28904,
-                "derivation_type": "hardened"
-            },
-            {
-                "derivation_index": 28726,
-                "derivation_type": "soft"
-            }
+            "5756598",
+            "1450052606",
+            "328612720",
+            "660632278",
+            "2081075074",
+            "1969198928H",
+            "1892752480",
+            "758842516",
+            "1743703303",
+            "1713595441",
+            "1841229258",
+            "549454582H",
+            "1537343407",
+            "317440731",
+            "614874181",
+            "154347780H",
+            "1823421556H",
+            "2106677000",
+            "1570259628H",
+            "918898287",
+            "2094121548H",
+            "1356189977",
+            "1055235100H",
+            "299852864",
+            "1423981442",
+            "1556099542",
+            "906062462",
+            "847996014",
+            "724245856",
+            "1865801181"
         ],
         [
-            {
-                "derivation_index": 18888,
-                "derivation_type": "soft"
-            },
-            {
-                "derivation_index": 8602,
-                "derivation_type": "hardened"
-            },
-            {
-                "derivation_index": 6719,
-                "derivation_type": "hardened"
-            },
-            {
-                "derivation_index": 29096,
-                "derivation_type": "hardened"
-            },
-            {
-                "derivation_index": 15096,
-                "derivation_type": "soft"
-            },
-            {
-                "derivation_index": 26478,
-                "derivation_type": "soft"
-            },
-            {
-                "derivation_index": 17987,
-                "derivation_type": "soft"
-            },
-            {
-                "derivation_index": 19895,
-                "derivation_type": "hardened"
-            },
-            {
-                "derivation_index": 19274,
-                "derivation_type": "hardened"
-            },
-            {
-                "derivation_index": 3899,
-                "derivation_type": "hardened"
-            },
-            {
-                "derivation_index": 12544,
-                "derivation_type": "soft"
-            },
-            {
-                "derivation_index": 15515,
-                "derivation_type": "soft"
-            },
-            {
-                "derivation_index": 19346,
-                "derivation_type": "hardened"
-            },
-            {
-                "derivation_index": 14408,
-                "derivation_type": "hardened"
-            },
-            {
-                "derivation_index": 12851,
-                "derivation_type": "hardened"
-            },
-            {
-                "derivation_index": 5764,
-                "derivation_type": "hardened"
-            }
+            "744642568H",
+            "991984351",
+            "1161244574H",
+            "787368365",
+            "544851160",
+            "1486748736H",
+            "874849871H",
+            "1514164216",
+            "212618640",
+            "737292798H",
+            "1507763168",
+            "2110582449H",
+            "549327274H",
+            "1843785711",
+            "863760448H",
+            "1561302082H",
+            "592295228",
+            "135833091H",
+            "776084343H",
+            "1628297002",
+            "1681949541",
+            "1461662497",
+            "1279981630",
+            "1919275233",
+            "1349009402",
+            "1716379507",
+            "1062481222H",
+            "1405612989H"
         ],
         [
-            {
-                "derivation_index": 14607,
-                "derivation_type": "soft"
-            },
-            {
-                "derivation_index": 1078,
-                "derivation_type": "soft"
-            },
-            {
-                "derivation_index": 21900,
-                "derivation_type": "soft"
-            },
-            {
-                "derivation_index": 994,
-                "derivation_type": "hardened"
-            },
-            {
-                "derivation_index": 12195,
-                "derivation_type": "hardened"
-            },
-            {
-                "derivation_index": 29935,
-                "derivation_type": "soft"
-            },
-            {
-                "derivation_index": 26675,
-                "derivation_type": "hardened"
-            },
-            {
-                "derivation_index": 11989,
-                "derivation_type": "hardened"
-            },
-            {
-                "derivation_index": 14242,
-                "derivation_type": "soft"
-            },
-            {
-                "derivation_index": 17437,
-                "derivation_type": "soft"
-            },
-            {
-                "derivation_index": 5480,
-                "derivation_type": "hardened"
-            },
-            {
-                "derivation_index": 18580,
-                "derivation_type": "soft"
-            },
-            {
-                "derivation_index": 12971,
-                "derivation_type": "hardened"
-            },
-            {
-                "derivation_index": 32573,
-                "derivation_type": "hardened"
-            },
-            {
-                "derivation_index": 11596,
-                "derivation_type": "hardened"
-            },
-            {
-                "derivation_index": 13892,
-                "derivation_type": "hardened"
-            },
-            {
-                "derivation_index": 10411,
-                "derivation_type": "soft"
-            },
-            {
-                "derivation_index": 11103,
-                "derivation_type": "hardened"
-            },
-            {
-                "derivation_index": 10443,
-                "derivation_type": "hardened"
-            },
-            {
-                "derivation_index": 23833,
-                "derivation_type": "hardened"
-            },
-            {
-                "derivation_index": 24433,
-                "derivation_type": "hardened"
-            },
-            {
-                "derivation_index": 2415,
-                "derivation_type": "hardened"
-            },
-            {
-                "derivation_index": 32404,
-                "derivation_type": "hardened"
-            },
-            {
-                "derivation_index": 5278,
-                "derivation_type": "soft"
-            },
-            {
-                "derivation_index": 10290,
-                "derivation_type": "soft"
-            },
-            {
-                "derivation_index": 26764,
-                "derivation_type": "soft"
-            },
-            {
-                "derivation_index": 18996,
-                "derivation_type": "hardened"
-            },
-            {
-                "derivation_index": 19333,
-                "derivation_type": "soft"
-            },
-            {
-                "derivation_index": 31996,
-                "derivation_type": "hardened"
-            }
+            "1286367190",
+            "1408686181H",
+            "2130712582",
+            "1943058370H",
+            "594721855H",
+            "2137976182H",
+            "1277201816H",
+            "64065798H",
+            "997922167",
+            "1692929269H",
+            "949883107H",
+            "345887445",
+            "1670305263",
+            "743013424",
+            "1758285166H",
+            "1557658219",
+            "531163201",
+            "1679435020H",
+            "241896544H",
+            "574560818",
+            "1777861530",
+            "157869575",
+            "2065159655",
+            "2037028085",
+            "1424615927H"
         ],
         [
-            {
-                "derivation_index": 10702,
-                "derivation_type": "soft"
-            },
-            {
-                "derivation_index": 20761,
-                "derivation_type": "soft"
-            },
-            {
-                "derivation_index": 32174,
-                "derivation_type": "soft"
-            },
-            {
-                "derivation_index": 996,
-                "derivation_type": "soft"
-            },
-            {
-                "derivation_index": 2640,
-                "derivation_type": "soft"
-            },
-            {
-                "derivation_index": 28917,
-                "derivation_type": "hardened"
-            },
-            {
-                "derivation_index": 8897,
-                "derivation_type": "soft"
-            },
-            {
-                "derivation_index": 24595,
-                "derivation_type": "soft"
-            },
-            {
-                "derivation_index": 11628,
-                "derivation_type": "hardened"
-            },
-            {
-                "derivation_index": 850,
-                "derivation_type": "soft"
-            },
-            {
-                "derivation_index": 9013,
-                "derivation_type": "hardened"
-            },
-            {
-                "derivation_index": 31078,
-                "derivation_type": "hardened"
-            },
-            {
-                "derivation_index": 26734,
-                "derivation_type": "hardened"
-            },
-            {
-                "derivation_index": 32761,
-                "derivation_type": "hardened"
-            },
-            {
-                "derivation_index": 2876,
-                "derivation_type": "soft"
-            },
-            {
-                "derivation_index": 25297,
-                "derivation_type": "hardened"
-            },
-            {
-                "derivation_index": 22349,
-                "derivation_type": "soft"
-            },
-            {
-                "derivation_index": 5065,
-                "derivation_type": "hardened"
-            }
+            "749647453H",
+            "1099364669",
+            "1583698903",
+            "764121793H",
+            "1370170189",
+            "1299429951",
+            "451166027H",
+            "1383285838",
+            "826185980",
+            "1138906841",
+            "78190606H",
+            "1494443359",
+            "1275257712H",
+            "2128772909",
+            "237134234H",
+            "2130408147H",
+            "128541851",
+            "778583603H",
+            "2031156017",
+            "1842408902H",
+            "583814238H",
+            "722524153H",
+            "1353825121",
+            "419410152",
+            "2086577147H",
+            "1535175840",
+            "66560388H",
+            "603930321",
+            "72639973",
+            "1908847430"
         ],
         [
-            {
-                "derivation_index": 18505,
-                "derivation_type": "soft"
-            },
-            {
-                "derivation_index": 7943,
-                "derivation_type": "soft"
-            },
-            {
-                "derivation_index": 14511,
-                "derivation_type": "hardened"
-            },
-            {
-                "derivation_index": 20530,
-                "derivation_type": "soft"
-            },
-            {
-                "derivation_index": 9474,
-                "derivation_type": "soft"
-            },
-            {
-                "derivation_index": 26421,
-                "derivation_type": "soft"
-            },
-            {
-                "derivation_index": 4004,
-                "derivation_type": "hardened"
-            },
-            {
-                "derivation_index": 19256,
-                "derivation_type": "soft"
-            },
-            {
-                "derivation_index": 2047,
-                "derivation_type": "hardened"
-            },
-            {
-                "derivation_index": 18397,
-                "derivation_type": "soft"
-            },
-            {
-                "derivation_index": 17531,
-                "derivation_type": "hardened"
-            },
-            {
-                "derivation_index": 28411,
-                "derivation_type": "hardened"
-            },
-            {
-                "derivation_index": 1533,
-                "derivation_type": "hardened"
-            },
-            {
-                "derivation_index": 9350,
-                "derivation_type": "soft"
-            },
-            {
-                "derivation_index": 19848,
-                "derivation_type": "soft"
-            },
-            {
-                "derivation_index": 8223,
-                "derivation_type": "soft"
-            },
-            {
-                "derivation_index": 1099,
-                "derivation_type": "hardened"
-            },
-            {
-                "derivation_index": 13051,
-                "derivation_type": "soft"
-            }
+            "1744492721",
+            "1911426640H",
+            "456020075",
+            "1779129788",
+            "16851663",
+            "557959505",
+            "1160380857H",
+            "1184090320",
+            "558975526",
+            "1724999748H",
+            "325955667H",
+            "1456977023H",
+            "2053908374H",
+            "65657194H",
+            "882256910H",
+            "1572143076H",
+            "1401901564",
+            "280378626",
+            "420344080H",
+            "2002341602H"
         ],
         [
-            {
-                "derivation_index": 1671,
-                "derivation_type": "hardened"
-            },
-            {
-                "derivation_index": 11112,
-                "derivation_type": "hardened"
-            },
-            {
-                "derivation_index": 9398,
-                "derivation_type": "hardened"
-            },
-            {
-                "derivation_index": 14696,
-                "derivation_type": "hardened"
-            },
-            {
-                "derivation_index": 22926,
-                "derivation_type": "hardened"
-            },
-            {
-                "derivation_index": 17314,
-                "derivation_type": "hardened"
-            },
-            {
-                "derivation_index": 13105,
-                "derivation_type": "soft"
-            },
-            {
-                "derivation_index": 12373,
-                "derivation_type": "soft"
-            },
-            {
-                "derivation_index": 20781,
-                "derivation_type": "hardened"
-            },
-            {
-                "derivation_index": 30401,
-                "derivation_type": "hardened"
-            },
-            {
-                "derivation_index": 22774,
-                "derivation_type": "soft"
-            },
-            {
-                "derivation_index": 13067,
-                "derivation_type": "soft"
-            }
+            "1626840370H",
+            "63737014H",
+            "1206937288",
+            "1828425496H",
+            "1000005464H",
+            "664161890",
+            "1746193974",
+            "501661611"
         ],
         [
-            {
-                "derivation_index": 30409,
-                "derivation_type": "soft"
-            },
-            {
-                "derivation_index": 2827,
-                "derivation_type": "soft"
-            },
-            {
-                "derivation_index": 17985,
-                "derivation_type": "hardened"
-            },
-            {
-                "derivation_index": 14847,
-                "derivation_type": "hardened"
-            },
-            {
-                "derivation_index": 16116,
-                "derivation_type": "hardened"
-            },
-            {
-                "derivation_index": 8392,
-                "derivation_type": "soft"
-            },
-            {
-                "derivation_index": 7251,
-                "derivation_type": "soft"
-            },
-            {
-                "derivation_index": 25,
-                "derivation_type": "hardened"
-            },
-            {
-                "derivation_index": 22483,
-                "derivation_type": "hardened"
-            },
-            {
-                "derivation_index": 32338,
-                "derivation_type": "soft"
-            },
-            {
-                "derivation_index": 17112,
-                "derivation_type": "hardened"
-            },
-            {
-                "derivation_index": 23607,
-                "derivation_type": "hardened"
-            },
-            {
-                "derivation_index": 208,
-                "derivation_type": "soft"
-            },
-            {
-                "derivation_index": 22058,
-                "derivation_type": "soft"
-            },
-            {
-                "derivation_index": 11297,
-                "derivation_type": "soft"
-            },
-            {
-                "derivation_index": 14206,
-                "derivation_type": "soft"
-            }
+            "1341296565H"
         ]
     ]
 }

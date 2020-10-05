@@ -232,6 +232,8 @@ import Data.ByteString
     ( ByteString )
 import Data.Either.Extra
     ( maybeToEither )
+import Data.Foldable
+    ( asum )
 import Data.Function
     ( (&) )
 import Data.Generics.Internal.VL.Lens
@@ -246,6 +248,8 @@ import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
     ( Percentage, Quantity (..) )
+import Data.Scientific
+    ( Scientific, toBoundedInteger )
 import Data.String
     ( IsString )
 import Data.Text
@@ -274,6 +278,8 @@ import GHC.TypeLits
     ( Nat, Symbol )
 import Numeric.Natural
     ( Natural )
+import Safe
+    ( readMay )
 import Servant.API
     ( MimeRender (..), MimeUnrender (..), OctetStream )
 import Web.HttpApiData
@@ -954,9 +960,40 @@ instance FromJSON ApiAddressDerivationPath where
     parseJSON = fmap ApiAddressDerivationPath . parseJSON
 
 instance ToJSON ApiAddressDerivationSegment where
-    toJSON = genericToJSON defaultRecordTypeOptions
+    toJSON (ApiAddressDerivationSegment (ApiRelativeAddressIndex ix) typ)
+        | typ == Hardened = toJSON (show ix <> "H")
+        | otherwise = toJSON (show ix)
 instance FromJSON ApiAddressDerivationSegment where
-    parseJSON = genericParseJSON defaultRecordTypeOptions
+    parseJSON value = asum
+        [ parseJSON value >>= parseAsScientific
+        , parseJSON value >>= parseAsText
+        ]
+      where
+        parseAsText :: Text -> Aeson.Parser ApiAddressDerivationSegment
+        parseAsText txt =
+            if "H" `T.isSuffixOf` txt then do
+                path <- castNumber (T.init txt) >>= parseAsScientific
+                pure $ path { derivationType = Hardened }
+            else
+                castNumber txt >>= parseAsScientific
+
+        parseAsScientific :: Scientific -> Aeson.Parser ApiAddressDerivationSegment
+        parseAsScientific x =
+            case toBoundedInteger x of
+                Nothing -> fail "expected an unsigned int31"
+                Just ix -> pure ApiAddressDerivationSegment
+                    { derivationIndex = ApiRelativeAddressIndex ix
+                    , derivationType = Soft
+                    }
+
+        castNumber :: Text -> Aeson.Parser Scientific
+        castNumber txt =
+            case readMay (T.unpack txt) of
+                Nothing ->
+                    fail "expected a number as string with an optional 'H' \
+                         \suffix (e.g. \"1815H\" or \"44\""
+                Just s ->
+                    pure s
 
 instance ToJSON (ApiAddressDerivationType) where
     toJSON = genericToJSON defaultSumTypeOptions
