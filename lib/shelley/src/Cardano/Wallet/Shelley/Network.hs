@@ -1040,12 +1040,13 @@ handleMuxError tr onResourceVanished = pure . errorType >=> \case
     MuxInitiatorOnly -> pure False
     MuxSDUReadTimeout -> pure False
     MuxSDUWriteTimeout -> pure False
-    MuxShutdown -> pure False
+    MuxShutdown _ -> pure False -- fixme: #2212 consider cases
     MuxIOException e ->
         handleIOException tr onResourceVanished e
     MuxBearerClosed -> do
         traceWith tr Nothing
         pure onResourceVanished
+    MuxCleanShutdown -> pure False
 
 {-------------------------------------------------------------------------------
                                     Logging
