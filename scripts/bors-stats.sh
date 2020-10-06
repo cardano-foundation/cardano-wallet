@@ -96,7 +96,7 @@ echo $DATA | jq -r \ '
       def reset: colors.reset;
       def title_map_data: '"$TITLEMAP"';
       def round: . + 0.5 | floor;
-      def show_comment: (if .succeded then colors.green else colors.red end) + (.createdAt | fromdate | strftime("%d %b %H:%m")) + " "
+      def show_comment: (if .succeded then colors.green else colors.red end) + (.createdAt | fromdate | strftime("%d %b %H:%M")) + " "
         + colors.yellow + (.tags | join(", ")) + " "
         + colors.blue + .url + colors.reset+"\n"
         + (if (.succeded | not) and (.tags | length) == 0 then .bodyText+"\n\n" else "" end); # only show full text of unclassified failures
