@@ -60,6 +60,27 @@ DATA=$(echo $QUERY \
         )
       ')
 
+echo $DATA | jq 'map(.tags) | flatten | unique'
+
+TITLEQUERY=$(cat <<-END
+query {
+repository(name: "cardano-wallet", owner: "input-output-hk") {
+	issues(labels: ["Test failure"], last: 100) { edges { node {
+    number,
+    title
+	}}}
+}
+}
+END)
+
+# Get a map from issue number to title
+TITLEMAP=$(echo $TITLEQUERY \
+  | jq -aRs '{query: .}' \
+  | curl -s https://api.github.com/graphql -X POST -H "Authorization: bearer $GITHUB_API_TOKEN" --data-binary @- \
+  | jq '.data.repository.issues.edges | map (.node) | INDEX(.number) | with_entries({key: ("#" + .key), value: .value.title})')
+
+
+
 # Show the data in a nice way, and with some added summaries.
 echo $DATA | jq -r \ '
       def colors: # https://stackoverflow.com/a/57298714
@@ -74,6 +95,9 @@ echo $DATA | jq -r \ '
        "white": "\u001b[37m",
        "reset": "\u001b[0m",
       };
+      def bold: "\u001b[1m";
+      def reset: colors.reset;
+      def title_map_data: '"$TITLEMAP"';
       def round: . + 0.5 | floor;
       def show_comment: (if .succeded then colors.green else colors.red end) + (.createdAt | fromdate | strftime("%d %b %H:%m")) + " "
         + colors.yellow + (.tags | join(", ")) + " "
@@ -85,14 +109,17 @@ echo $DATA | jq -r \ '
         | reduce .[] as $x ( {runs: [], succeded: 0, total: 0, failed: 0};
              .runs += [$x] | .total += 1 | if $x.succeded then .succeded += 1 else .failed += 1 end
           );
+
+      def lookup_title: . as $number | if (title_map_data | has($number)) then title_map_data[$number] else "" end;
       def show_breakdown_by_tag: .
         | exclude_expected | map(select(.succeded == false)) |  group_by(.tags)
         | map({count: length, tags: .[0].tags, example_url: .[0].url})
         | sort_by(.count)
         | reverse
         | .[]
-        | colors.yellow + (.tags | join(", ")) + colors.reset + " => "
-          + (.count | tostring) + " times (e.g. " + colors.blue + .example_url + colors.reset + ")";
+        | bold + (.count | tostring) + reset + " times "
+          + colors.yellow + (.tags | join(", ")) + colors.reset
+          + " " + (.tags | .[0] | if . == null then "" else lookup_title end);
       def show_summary: "succeded: " + (.succeded | tostring) +
           ", failed: " + (.failed | tostring) + " (" + (100 * .failed / .total | round | tostring) + "%)" +
           ", total: " + (.total | tostring) + "\nexcluding #expected failures";
