@@ -4,7 +4,7 @@
 
 # TODO: Add option to output raw JSON.
 # TODO: Add option to specify how many PRs to fetch
-# TODO: Parse attributes from comments to allow categorization
+# TODO: Break down statistics for each tag, so we easily see how prevalent each failure is.
 # TODO: Link to create an issue from an uncategorized failure with pre-filled information
 
 set -euo pipefail
@@ -53,6 +53,9 @@ DATA=$(echo $QUERY \
           | select(.bodyText | contains("Merge conflict") | not)
           | select(.bodyText | contains("Already running a review") | not)
           | . + {succeded: (.bodyText | contains("Build succeeded"))}
+
+          # Extract lines starting with # as tags. Mostly for linking to issues.
+          | . + {tags: (.bodyText | split("\n") | map (select(startswith("#"))) )}
         )
       ')
 
@@ -70,8 +73,9 @@ echo $DATA | jq -r \ '
        "reset": "\u001b[0m",
       };
       .[] | (if .succeded then colors.green else colors.red end) + (.createdAt | fromdate | strftime("%d %b %H:%m")) + " "
+      + colors.yellow + (.tags | join(", ")) + " "
       + colors.blue + .url + colors.reset+"\n"
-      + (if .succeded then "" else .bodyText+"\n\n" end)'
+      + (if (.succeded | not) and (.tags | length) == 0 then .bodyText+"\n\n" else "" end)' # only show full text of unclassified failures
 
 AGGREGATED_DATA=$(echo $DATA | jq '. | reduce .[] as $x ( {runs: [], succeded: 0, total: 0, failed: 0};
       .runs += [$x] | .total += 1 | if $x.succeded then .succeded += 1 else .failed += 1 end
