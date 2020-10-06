@@ -88,6 +88,8 @@ echo $DATA | jq -r \ '
       def show_breakdown_by_tag: .
         | exclude_expected | map(select(.succeded == false)) |  group_by(.tags)
         | map({count: length, tags: .[0].tags, example_url: .[0].url})
+        | sort_by(.count)
+        | reverse
         | .[]
         | colors.yellow + (.tags | join(", ")) + colors.reset + " => "
           + (.count | tostring) + " times (e.g. " + colors.blue + .example_url + colors.reset + ")";
