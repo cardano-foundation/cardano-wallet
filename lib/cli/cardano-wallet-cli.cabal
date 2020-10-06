@@ -43,7 +43,6 @@ library
     , fmt
     , http-client
     , iohk-monitoring
-    , network-uri
     , servant-client
     , servant-client-core
     , text
@@ -72,7 +71,6 @@ test-suite unit
     , containers
     , filepath
     , hspec
-    , network-uri
     , optparse-applicative
     , QuickCheck
     , temporary
