@@ -73,6 +73,7 @@ module Cardano.CLI
 
     -- * Logging
     , withLogging
+    , withLoggingNamed
 
     -- * ANSI Terminal Helpers
     , putErrLn
@@ -101,6 +102,8 @@ import Cardano.BM.Backend.Switchboard
     ( Switchboard )
 import Cardano.BM.Configuration.Static
     ( defaultConfigStdout )
+import Cardano.BM.Data.LogItem
+    ( LoggerName )
 import Cardano.BM.Data.Output
     ( ScribeDefinition (..)
     , ScribeFormat (..)
@@ -1529,28 +1532,38 @@ mkScribeId (LogToFile file _) = T.pack $ "FileSK::" <> file
 
 -- | Initialize logging at the specified minimum 'Severity' level.
 initTracer
-    :: [LogOutput]
+    :: LoggerName
+    -> [LogOutput]
     -> IO (Switchboard Text, (CM.Configuration, Trace IO Text))
-initTracer outputs = do
+initTracer loggerName outputs = do
     cfg <- do
         c <- defaultConfigStdout
         CM.setSetupBackends c [CM.KatipBK, CM.AggregationBK]
         CM.setSetupScribes c $ map mkScribe outputs
         CM.setDefaultScribes c $ map mkScribeId outputs
         pure c
-    (tr, sb) <- setupTrace_ cfg "cardano-wallet"
+    (tr, sb) <- setupTrace_ cfg loggerName
     pure (sb, (cfg, tr))
 
--- | Run an action with logging available and configured. When the action is
--- finished (normally or otherwise), log messages are flushed.
+-- | See 'withLoggingNamed'
 withLogging
     :: [LogOutput]
     -> ((CM.Configuration, Trace IO Text) -> IO a)
+    -> IO a
+withLogging =
+    withLoggingNamed "cardano-wallet"
+
+-- | Run an action with logging available and configured. When the action is
+-- finished (normally or otherwise), log messages are flushed.
+withLoggingNamed
+    :: LoggerName
+    -> [LogOutput]
+    -> ((CM.Configuration, Trace IO Text) -> IO a)
     -- ^ The action to run with logging configured.
     -> IO a
-withLogging outputs action = bracket before after (action . snd)
+withLoggingNamed loggerName outputs action = bracket before after (action . snd)
   where
-    before = initTracer outputs
+    before = initTracer loggerName outputs
     after (sb, (_, tr)) = do
         logDebug (appendName "main" tr) "Logging shutdown."
         shutdown sb

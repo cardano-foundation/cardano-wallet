@@ -139,6 +139,23 @@ let
           };
 
 
+        packages.cardano-wallet.components.exes.shelley-test-cluster = let
+          testData = src + /lib/shelley/test/data/cardano-node-shelley;
+        in
+          if (stdenv.hostPlatform.isWindows) then {
+            postInstall = ''
+              mkdir -p $out/bin/test/data
+              cp -Rv ${testData} $out/bin/test/data
+            '' + libSodiumPostInstall;
+          } else {
+            build-tools = [ pkgs.makeWrapper ];
+            postInstall = ''
+              wrapProgram $out/bin/shelley-test-cluster \
+                --set SHELLEY_TEST_DATA ${testData} \
+                --prefix PATH : ${lib.makeBinPath [pkgs.cardano-node pkgs.cardano-cli]}
+            '';
+          };
+
         # Make sure that libsodium DLLs for all windows executables,
         # and add shell completions for main executables.
         packages.cardano-wallet.components.exes.cardano-wallet.postInstall = optparseCompletionPostInstall + libSodiumPostInstall;
