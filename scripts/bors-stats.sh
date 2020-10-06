@@ -77,11 +77,12 @@ echo $DATA | jq -r \ '
       + colors.blue + .url + colors.reset+"\n"
       + (if (.succeded | not) and (.tags | length) == 0 then .bodyText+"\n\n" else "" end)' # only show full text of unclassified failures
 
-AGGREGATED_DATA=$(echo $DATA | jq '. | reduce .[] as $x ( {runs: [], succeded: 0, total: 0, failed: 0};
+AGGREGATED_DATA=$(echo $DATA | jq 'def filter_expected: map(select(any(.tags[]; . == "#expected") | not));
+      . | filter_expected | reduce .[] as $x ( {runs: [], succeded: 0, total: 0, failed: 0};
       .runs += [$x] | .total += 1 | if $x.succeded then .succeded += 1 else .failed += 1 end
       )')
 echo $AGGREGATED_DATA | jq -r '
   def round: . + 0.5 | floor;
   "succeded: " + (.succeded | tostring) +
   ", failed: " + (.failed | tostring) + " (" + (100 * .failed / .total | round | tostring) + "%)" +
-  ", total: " + (.total | tostring)'
+  ", total: " + (.total | tostring) + "\nexcluding #expected failures"'
