@@ -154,7 +154,16 @@ console.log(JSON.stringify(txMetadata));
 
 Metadata can be provided when creating transactions through the [Wallet CLI](./Wallet-command-line-interface).
 
-The JSON is provided directly as a command-line argument. Ensure it is single-quoted so that the shell does not try to interpret the JSON syntax. If using the bash shell, you can insert the contents of a file on the command-line using `--metadata $(<tx-meta.json)`.
+The JSON is provided directly as a command-line argument. 
+ - On Linux/MacOS JSON metadata can be put inside single quotes: 
+```
+--metadata '{ "0":{ "string":"cardano" } }'
+```
+ - On Windows it can be put in double quotes with double quotes inside JSON metadata escaped:
+```
+--metadata "{ \"0\":{ \"string\":\"cardano\" } }"
+```
+
 
 ```
 Usage: cardano-wallet transaction create [--port INT] WALLET_ID
