@@ -60,6 +60,7 @@ DATA=$(echo $QUERY \
         )
       ')
 
+# Show the data in a nice way, and with some added summaries.
 echo $DATA | jq -r \ '
       def colors: # https://stackoverflow.com/a/57298714
        {
@@ -73,26 +74,29 @@ echo $DATA | jq -r \ '
        "white": "\u001b[37m",
        "reset": "\u001b[0m",
       };
-      .[] | (if .succeded then colors.green else colors.red end) + (.createdAt | fromdate | strftime("%d %b %H:%m")) + " "
-      + colors.yellow + (.tags | join(", ")) + " "
-      + colors.blue + .url + colors.reset+"\n"
-      + (if (.succeded | not) and (.tags | length) == 0 then .bodyText+"\n\n" else "" end)' # only show full text of unclassified failures
-
-AGGREGATED_DATA=$(echo $DATA | jq 'def filter_expected: map(select(any(.tags[]; . == "#expected") | not));
-      . | filter_expected | reduce .[] as $x ( {runs: [], succeded: 0, total: 0, failed: 0};
-      .runs += [$x] | .total += 1 | if $x.succeded then .succeded += 1 else .failed += 1 end
-      )')
-echo $AGGREGATED_DATA | jq -r '
-  def round: . + 0.5 | floor;
-  "succeded: " + (.succeded | tostring) +
-  ", failed: " + (.failed | tostring) + " (" + (100 * .failed / .total | round | tostring) + "%)" +
-  ", total: " + (.total | tostring) + "\nexcluding #expected failures"'
-
-echo ""
-echo "Broken down:"
-
-echo $DATA | jq -r 'def yellow: "\u001b[33m"; def reset: "\u001b[0m"; def filter_expected: map(select(any(.tags[]; . == "#expected") | not)); def blue: "\u001b[34m";
-  . | filter_expected | map(select(.succeded == false)) |  group_by(.tags)
-  | map({count: length, tags: .[0].tags, example_url: .[0].url})
-  | .[] | yellow + (.tags | join(", ")) + reset + " => " + (.count | tostring) + " times (e.g. " + blue + .example_url + reset + ")"'
-
+      def round: . + 0.5 | floor;
+      def show_comment: (if .succeded then colors.green else colors.red end) + (.createdAt | fromdate | strftime("%d %b %H:%m")) + " "
+        + colors.yellow + (.tags | join(", ")) + " "
+        + colors.blue + .url + colors.reset+"\n"
+        + (if (.succeded | not) and (.tags | length) == 0 then .bodyText+"\n\n" else "" end); # only show full text of unclassified failures
+      def exclude_expected: map(select(any(.tags[]; . == "#expected") | not));
+      def aggregate_summary: .
+        | exclude_expected
+        | reduce .[] as $x ( {runs: [], succeded: 0, total: 0, failed: 0};
+             .runs += [$x] | .total += 1 | if $x.succeded then .succeded += 1 else .failed += 1 end
+          );
+      def show_breakdown_by_tag: .
+        | exclude_expected | map(select(.succeded == false)) |  group_by(.tags)
+        | map({count: length, tags: .[0].tags, example_url: .[0].url})
+        | .[]
+        | colors.yellow + (.tags | join(", ")) + colors.reset + " => "
+          + (.count | tostring) + " times (e.g. " + colors.blue + .example_url + colors.reset + ")";
+      def show_summary: "succeded: " + (.succeded | tostring) +
+          ", failed: " + (.failed | tostring) + " (" + (100 * .failed / .total | round | tostring) + "%)" +
+          ", total: " + (.total | tostring) + "\nexcluding #expected failures";
+      . | map(show_comment)
+          + [(. | aggregate_summary | show_summary)]
+          + [""]
+          + ["Broken down by tags/issues:"]
+          + [. | show_breakdown_by_tag]
+        | join ("\n")'
