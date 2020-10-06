@@ -14,10 +14,13 @@ set -euo pipefail
 
 # See https://developer.github.com/v4/explorer/
 # to experiment with queries.
+
+# Note: the latest bors comments may not nececarily be in the latest PRs. Fetching more than we need,
+# and later sorting by comment date should work decently though.
 QUERY=$(cat <<-END
 query {
 repository(name: "cardano-wallet", owner: "input-output-hk") {
-	pullRequests(last: 20) { edges { node {
+	pullRequests(last: 40) { edges { node {
 		comments(first: 100) { edges { node {
 			bodyText,
       createdAt,
@@ -42,11 +45,13 @@ DATA=$(echo $QUERY \
       | map (.node.comments.edges)
       | flatten
       | map (.node)
+      | sort_by (.createdAt)
       | map (
           select(.author.login == "iohk-bors")
           | select(.bodyText | contains("try") | not)
           | select(.bodyText | contains("Canceled") | not)
           | select(.bodyText | contains("Merge conflict") | not)
+          | select(.bodyText | contains("Already running a review") | not)
           | . + {succeded: (.bodyText | contains("Build succeeded"))}
         )
       ')
