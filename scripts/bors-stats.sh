@@ -96,9 +96,10 @@ echo $DATA | jq -r \ '
       def reset: colors.reset;
       def title_map_data: '"$TITLEMAP"';
       def round: . + 0.5 | floor;
+      def url: colors.blue + . + reset;
       def show_comment: (if .succeded then colors.green else colors.red end) + (.createdAt | fromdate | strftime("%d %b %H:%M")) + " "
         + colors.yellow + (.tags | join(", ")) + " "
-        + colors.blue + .url + colors.reset+"\n"
+        + (.url | url) +"\n"
         + (if (.succeded | not) and (.tags | length) == 0 then .bodyText+"\n\n" else "" end); # only show full text of unclassified failures
       def exclude_expected: map(select(any(.tags[]; . == "#expected") | not));
       def aggregate_summary: .
@@ -116,7 +117,7 @@ echo $DATA | jq -r \ '
         | .[]
         | bold + (.count | tostring) + reset + " times "
           + colors.yellow + (.tags | join(", ")) + colors.reset
-          + " " + (.tags | .[0] | if . == null then "" else (lookup_issue | bold + .title + reset + " | " + colors.blue + .url + reset) end);
+          + " " + (.tags | .[0] | if . == null then "" else (lookup_issue | bold + .title + reset + " | " + (.url | url)) end);
       def show_summary: "succeded: " + (.succeded | tostring) +
           ", failed: " + (.failed | tostring) + " (" + (100 * .failed / .total | round | tostring) + "%)" +
           ", total: " + (.total | tostring) + "\nexcluding #expected failures";
