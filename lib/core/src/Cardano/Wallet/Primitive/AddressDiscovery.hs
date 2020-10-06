@@ -60,7 +60,7 @@ class IsOurs s entity where
         :: entity
         -> s
         -> (Maybe (DerivationPath s entity), s)
-        -- ^ Checks whether an entity is ours or not.
+        -- ^ Returns derivation path if the entity is ours, otherwise Nothing.
 
 -- | More powerful than 'isOurs', this abstractions offer the underlying state
 -- the ability to find / compute the address private key corresponding to a

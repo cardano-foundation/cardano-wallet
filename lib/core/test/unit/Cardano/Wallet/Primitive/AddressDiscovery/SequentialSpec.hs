@@ -49,11 +49,13 @@ import Cardano.Wallet.Primitive.AddressDiscovery
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPool
     , AddressPoolGap (..)
+    , DerivationPrefix (..)
     , MkAddressPoolGapError (..)
     , SeqState (..)
     , accountPubKey
     , accountingStyle
     , addresses
+    , coinTypeAda
     , defaultAddressPoolGap
     , emptyPendingIxs
     , gap
@@ -63,6 +65,8 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     , mkSeqStateFromAccountXPub
     , mkSeqStateFromRootXPrv
     , mkUnboundedAddressPoolGap
+    , purposeCIP1852
+    , purposeCIP1852
     , shrinkPool
     )
 import Cardano.Wallet.Primitive.Types
@@ -359,7 +363,7 @@ prop_genChangeGapFromRootXPrv g =
   where
     mw = someDummyMnemonic (Proxy @12)
     key = Jormungandr.unsafeGenerateKeyFromSeed (mw, Nothing) mempty
-    s0 = mkSeqStateFromRootXPrv (key, mempty) g
+    s0 = mkSeqStateFromRootXPrv (key, mempty) purposeCIP1852 g
     prop =
         length (fst $ changeAddresses [] s0) === fromEnum g
 
@@ -375,7 +379,7 @@ prop_genChangeGapFromAccountXPub g =
     rootXPrv = Jormungandr.unsafeGenerateKeyFromSeed (mw, Nothing) mempty
     accIx = toEnum 0x80000000
     accXPub = publicKey $ deriveAccountPrivateKey mempty rootXPrv accIx
-    s0 = mkSeqStateFromAccountXPub accXPub g
+    s0 = mkSeqStateFromAccountXPub accXPub purposeCIP1852 g
     prop =
         length (fst $ changeAddresses [] s0) === fromEnum g
 
@@ -468,7 +472,7 @@ prop_changeIsOnlyKnownAfterGeneration
 prop_changeIsOnlyKnownAfterGeneration (intPool, extPool) =
     let
         s0 :: SeqState 'Mainnet JormungandrKey
-        s0 = SeqState intPool extPool emptyPendingIxs rewardAccount
+        s0 = SeqState intPool extPool emptyPendingIxs rewardAccount defaultPrefix
         addrs0 = fst <$> knownAddresses s0
         (change, s1) = genChange (\k _ -> paymentAddress @'Mainnet k) s0
         addrs1 = fst <$> knownAddresses s1
@@ -611,6 +615,13 @@ unsafeMkAddressPoolGap g = case (mkAddressPoolGap $ fromIntegral g) of
     Right a -> a
     Left _ -> error $ "unsafeMkAddressPoolGap: bad argument: " <> show g
 
+defaultPrefix :: DerivationPrefix
+defaultPrefix = DerivationPrefix
+    ( purposeCIP1852
+    , coinTypeAda
+    , minBound
+    )
+
 {-------------------------------------------------------------------------------
                                 Arbitrary Instances
 -------------------------------------------------------------------------------}
@@ -675,12 +686,12 @@ instance
         return $ mkAddressPool @'Mainnet ourAccount g (zip addrs statuses)
 
 instance Arbitrary (SeqState 'Mainnet JormungandrKey) where
-    shrink (SeqState intPool extPool ixs rwd) =
-        (\(i, e) -> SeqState i e ixs rwd) <$> shrink (intPool, extPool)
+    shrink (SeqState intPool extPool ixs rwd prefix) =
+        (\(i, e) -> SeqState i e ixs rwd prefix) <$> shrink (intPool, extPool)
     arbitrary = do
         intPool <- arbitrary
         extPool <- arbitrary
-        return $ SeqState intPool extPool emptyPendingIxs rewardAccount
+        return $ SeqState intPool extPool emptyPendingIxs rewardAccount defaultPrefix
 
 -- | Wrapper to encapsulate accounting style proxies that are so-to-speak,
 -- different types in order to easily map over them and avoid duplicating

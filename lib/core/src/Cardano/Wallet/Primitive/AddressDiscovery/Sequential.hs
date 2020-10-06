@@ -55,6 +55,10 @@ module Cardano.Wallet.Primitive.AddressDiscovery.Sequential
 
     -- ** State
     , SeqState (..)
+    , DerivationPrefix (..)
+    , purposeBIP44
+    , purposeCIP1852
+    , coinTypeAda
     , mkSeqStateFromRootXPrv
     , mkSeqStateFromAccountXPub
 
@@ -72,7 +76,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , Depth (..)
     , DerivationType (..)
     , HardDerivation (..)
-    , Index
+    , Index (..)
     , KeyFingerprint (..)
     , MkKeyFingerprint (..)
     , NetworkDiscriminant (..)
@@ -551,13 +555,8 @@ data SeqState (n :: NetworkDiscriminant) k = SeqState
         -- (cf: 'PendingIxs')
     , rewardAccountKey :: k 'AddressK XPub
         -- ^ Reward account public key associated with this wallet
---    , derivationPath ::
---        ( Index 'Hardened 'PurposeK
---        , Index 'Hardened 'CoinTypeK
---        , Index 'Hardened 'AccountK
---        )
---        -- ^ Derivation path from a root key up to the internal account
---
+    , derivationPrefix :: DerivationPrefix
+        -- ^ Derivation path prefix from a root key up to the internal account
     }
     deriving stock (Generic)
 
@@ -575,12 +574,88 @@ instance
     => NFData (SeqState n k)
 
 instance PersistPublicKey (k 'AccountK) => Buildable (SeqState n k) where
-    build (SeqState intP extP chgs _) = "SeqState:\n"
+    build (SeqState intP extP chgs _ path) = "SeqState:\n"
+        <> indentF 4 ("Derivation prefix: " <> build (toText path))
         <> indentF 4 (build intP)
         <> indentF 4 (build extP)
         <> indentF 4 ("Change indexes: " <> indentF 4 chgsF)
       where
         chgsF = blockListF' "-" build (pendingIxsToList chgs)
+
+-- | Each 'SeqState' is like a bucket of addresses associated with an 'account'.
+-- An 'account' corresponds to a subset of an HD tree as defined in BIP-0039.
+--
+-- cardano-wallet implements two similar HD schemes on top of BIP-0039 that are:
+--
+-- - BIP-0044 (for so-called Icarus wallets)
+-- - CIP-1815 (for so-called Shelley and Jormungandr wallets)
+--
+-- Both scheme works by considering 5 levels of derivation from an initial root
+-- key (see also 'Depth' from Cardano.Wallet.Primitive.AddressDerivation). A
+-- SeqState keeps track of indexes from the two last levels of a derivation
+-- branch. The 'DerivationPrefix' defines the first three indexes chosen for
+-- this particular 'SeqState'.
+newtype DerivationPrefix = DerivationPrefix
+    ( Index 'Hardened 'PurposeK
+    , Index 'Hardened 'CoinTypeK
+    , Index 'Hardened 'AccountK
+    ) deriving (Show, Generic, Eq, Ord)
+
+instance NFData DerivationPrefix
+
+instance ToText DerivationPrefix where
+    toText (DerivationPrefix (purpose, coinType, account))
+        = T.intercalate "/"
+        $ map (T.pack . show)
+        [getIndex purpose, getIndex coinType, getIndex account]
+
+instance FromText DerivationPrefix where
+    fromText txt =
+        DerivationPrefix <$> case T.splitOn "/" txt of
+            [purposeT, coinTypeT, accountT] -> (,,)
+                <$> fromText purposeT
+                <*> fromText coinTypeT
+                <*> fromText accountT
+            _ ->
+                Left $ TextDecodingError "expected exactly 3 derivation paths"
+
+
+-- | Purpose is a constant set to 44' (or 0x8000002C) following the original
+-- BIP-44 specification.
+--
+-- It indicates that the subtree of this node is used according to this
+-- specification.
+--
+-- Hardened derivation is used at this level.
+purposeBIP44 :: Index 'Hardened 'PurposeK
+purposeBIP44 = toEnum 0x8000002C
+
+-- | Purpose is a constant set to 1852' (or 0x8000073c) following the BIP-44
+-- extension for Cardano:
+--
+-- https://github.com/input-output-hk/implementation-decisions/blob/e2d1bed5e617f0907bc5e12cf1c3f3302a4a7c42/text/1852-hd-chimeric.md
+--
+-- It indicates that the subtree of this node is used according to this
+-- specification.
+--
+-- Hardened derivation is used at this level.
+purposeCIP1852 :: Index 'Hardened 'PurposeK
+purposeCIP1852 = toEnum 0x8000073c
+
+-- | One master node (seed) can be used for unlimited number of independent
+-- cryptocoins such as Bitcoin, Litecoin or Namecoin. However, sharing the
+-- same space for various cryptocoins has some disadvantages.
+--
+-- This level creates a separate subtree for every cryptocoin, avoiding reusing
+-- addresses across cryptocoins and improving privacy issues.
+--
+-- Coin type is a constant, set for each cryptocoin. For Cardano this constant
+-- is set to 1815' (or 0x80000717). 1815 is the birthyear of our beloved Ada
+-- Lovelace.
+--
+-- Hardened derivation is used at this level.
+coinTypeAda :: Index 'Hardened 'CoinTypeK
+coinTypeAda = toEnum 0x80000717
 
 -- | Construct a Sequential state for a wallet from root private key and password.
 mkSeqStateFromRootXPrv
@@ -592,9 +667,10 @@ mkSeqStateFromRootXPrv
         , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
         )
     => (k 'RootK XPrv, Passphrase "encryption")
+    -> Index 'Hardened 'PurposeK
     -> AddressPoolGap
     -> SeqState n k
-mkSeqStateFromRootXPrv (rootXPrv, pwd) g =
+mkSeqStateFromRootXPrv (rootXPrv, pwd) purpose g =
     let
         accXPrv =
             deriveAccountPrivateKey pwd rootXPrv minBound
@@ -604,8 +680,10 @@ mkSeqStateFromRootXPrv (rootXPrv, pwd) g =
             mkAddressPool @n (publicKey accXPrv) g []
         intPool =
             mkAddressPool @n (publicKey accXPrv) g []
+        prefix =
+            DerivationPrefix ( purpose, coinTypeAda, minBound )
     in
-        SeqState intPool extPool emptyPendingIxs rewardXPub
+        SeqState intPool extPool emptyPendingIxs rewardXPub prefix
 
 -- | Construct a Sequential state for a wallet from public account key.
 mkSeqStateFromAccountXPub
@@ -615,9 +693,10 @@ mkSeqStateFromAccountXPub
         , MkKeyFingerprint k Address
         )
     => k 'AccountK XPub
+    -> Index 'Hardened 'PurposeK
     -> AddressPoolGap
     -> SeqState n k
-mkSeqStateFromAccountXPub accXPub g =
+mkSeqStateFromAccountXPub accXPub purpose g =
     let
         -- This matches the reward address for "normal wallets". The accountXPub
         -- is the first account, minBound being the first Soft index
@@ -627,8 +706,10 @@ mkSeqStateFromAccountXPub accXPub g =
             mkAddressPool @n accXPub g []
         intPool =
             mkAddressPool @n accXPub g []
+        prefix =
+            DerivationPrefix ( purpose, coinTypeAda, minBound )
     in
-        SeqState intPool extPool emptyPendingIxs rewardXPub
+        SeqState intPool extPool emptyPendingIxs rewardXPub prefix
 
 -- NOTE
 -- We have to scan both the internal and external chain. Note that, the
@@ -648,13 +729,9 @@ instance
         , Index 'Soft 'RoleK
         , Index 'Soft 'AddressK
         )
-    isOurs addr (SeqState !s1 !s2 !ixs !rpk) =
+    isOurs addr (SeqState !s1 !s2 !ixs !rpk !prefix) =
         let
-            purpose :: Index 'Hardened 'PurposeK
-            coinType :: Index 'Hardened 'CoinTypeK
-            accountIx :: Index 'Hardened 'AccountK
-            (purpose, coinType, accountIx) = undefined -- TODO: have this in the seq state
-
+            DerivationPrefix (purpose, coinType, accountIx) = prefix
             (internal, !s1') = lookupAddress @n (const Used) addr s1
             (external, !s2') = lookupAddress @n (const Used) addr s2
 
@@ -671,7 +748,7 @@ instance
 
                 _ -> Nothing
         in
-            (ixs' `deepseq` ours `deepseq` ours, SeqState s1' s2' ixs' rpk)
+            (ixs' `deepseq` ours `deepseq` ours, SeqState s1' s2' ixs' rpk prefix)
 
 instance
     ( SoftDerivation k
@@ -685,14 +762,14 @@ instance
     type ArgGenChange (SeqState n k) =
         (k 'AddressK XPub -> k 'AddressK XPub -> Address)
 
-    genChange mkAddress (SeqState intPool extPool pending rpk) =
+    genChange mkAddress (SeqState intPool extPool pending rpk path) =
         let
             (ix, pending') = nextChangeIndex intPool pending
             accountXPub = accountPubKey intPool
             addressXPub = deriveAddressPublicKey accountXPub UTxOInternal ix
             addr = mkAddress addressXPub rpk
         in
-            (addr, SeqState intPool extPool pending' rpk)
+            (addr, SeqState intPool extPool pending' rpk path)
 
 instance
     ( IsOurs (SeqState n k) Address
@@ -702,7 +779,7 @@ instance
     , AddressIndexDerivationType k ~ 'Soft
     )
     => IsOwned (SeqState n k) k where
-    isOwned (SeqState !s1 !s2 _ _) (rootPrv, pwd) addr =
+    isOwned (SeqState !s1 !s2 _ _ _) (rootPrv, pwd) addr =
         let
             xPrv1 = lookupAndDeriveXPrv s1
             xPrv2 = lookupAndDeriveXPrv s2
@@ -728,7 +805,7 @@ instance
     , MkKeyFingerprint k Address
     , SoftDerivation k
     ) => CompareDiscovery (SeqState n k) where
-    compareDiscovery (SeqState !s1 !s2 _ _) a1 a2 =
+    compareDiscovery (SeqState !s1 !s2 _ _ _) a1 a2 =
         case (ix a1 s1 <|> ix a1 s2, ix a2 s1 <|> ix a2 s2) of
             (Nothing, Nothing) -> EQ
             (Nothing, Just _)  -> GT
@@ -803,10 +880,11 @@ mkSeqAnyState
         , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
         )
     => (k 'RootK XPrv, Passphrase "encryption")
+    -> Index 'Hardened 'PurposeK
     -> AddressPoolGap
     -> SeqAnyState n k p
-mkSeqAnyState credentials poolGap = SeqAnyState
-    { innerState = mkSeqStateFromRootXPrv credentials poolGap
+mkSeqAnyState credentials purpose poolGap = SeqAnyState
+    { innerState = mkSeqStateFromRootXPrv credentials purpose poolGap
     }
 
 instance

@@ -29,7 +29,11 @@ import Cardano.Slotting.Slot
 import Cardano.Wallet.Primitive.AddressDerivation
     ( AccountingStyle (..), Passphrase (..), PassphraseScheme (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
-    ( AddressPoolGap (..), getAddressPoolGap, mkAddressPoolGap )
+    ( AddressPoolGap (..)
+    , DerivationPrefix
+    , getAddressPoolGap
+    , mkAddressPoolGap
+    )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , AddressState (..)
@@ -633,9 +637,8 @@ instance PersistField AddressState where
 instance PersistFieldSql AddressState where
     sqlType _ = sqlType (Proxy @Text)
 
-
 ----------------------------------------------------------------------------
--- Settings
+-- PoolMetadataSource
 
 
 instance PersistField PoolMetadataSource where
@@ -643,4 +646,14 @@ instance PersistField PoolMetadataSource where
     fromPersistValue = fromPersistValueFromText
 
 instance PersistFieldSql PoolMetadataSource where
+    sqlType _ = sqlType (Proxy @Text)
+
+----------------------------------------------------------------------------
+-- DerivationPrefix
+
+instance PersistField DerivationPrefix where
+    toPersistValue = toPersistValue . toText
+    fromPersistValue = fromPersistValueFromText
+
+instance PersistFieldSql DerivationPrefix where
     sqlType _ = sqlType (Proxy @Text)

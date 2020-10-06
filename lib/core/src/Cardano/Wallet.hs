@@ -248,6 +248,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     , defaultAddressPoolGap
     , mkSeqStateFromRootXPrv
     , mkUnboundedAddressPoolGap
+    , purposeBIP44
     , shrinkPool
     )
 import Cardano.Wallet.Primitive.CoinSelection
@@ -604,7 +605,7 @@ createIcarusWallet
     -> (k 'RootK XPrv, Passphrase "encryption")
     -> ExceptT ErrWalletAlreadyExists IO WalletId
 createIcarusWallet ctx wid wname credentials = db & \DBLayer{..} -> do
-    let s = mkSeqStateFromRootXPrv @n credentials $
+    let s = mkSeqStateFromRootXPrv @n credentials purposeBIP44 $
             mkUnboundedAddressPoolGap 10000
     let (hist, cp) = initWallet block0 gp s
     let addrs = map address . concatMap (view #outputs . fst) $ hist
@@ -614,6 +615,7 @@ createIcarusWallet ctx wid wname credentials = db & \DBLayer{..} -> do
             (shrinkPool @n (liftPaymentAddress @n) addrs g (Seq.externalPool s))
             (Seq.pendingChangeIxs s)
             (Seq.rewardAccountKey s)
+            (Seq.derivationPrefix s)
     now <- lift getCurrentTime
     let meta = WalletMetadata
             { name = wname

@@ -95,7 +95,11 @@ import Cardano.Wallet.Primitive.AddressDiscovery
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
-    ( SeqState (..), defaultAddressPoolGap, mkSeqStateFromRootXPrv )
+    ( SeqState (..)
+    , defaultAddressPoolGap
+    , mkSeqStateFromRootXPrv
+    , purposeCIP1852
+    )
 import Cardano.Wallet.Primitive.Model
     ( FilteredBlock (..)
     , Wallet
@@ -807,7 +811,7 @@ testCp :: Wallet (SeqState 'Mainnet JormungandrKey)
 testCp = snd $ initWallet block0 dummyGenesisParameters initDummyState
   where
     initDummyState :: SeqState 'Mainnet JormungandrKey
-    initDummyState = mkSeqStateFromRootXPrv (xprv, mempty) defaultAddressPoolGap
+    initDummyState = mkSeqStateFromRootXPrv (xprv, mempty) purposeCIP1852 defaultAddressPoolGap
       where
         mw = SomeMnemonic . unsafePerformIO . generate $ genMnemonic @15
         xprv = generateKeyFromSeed (mw, Nothing) mempty
@@ -865,7 +869,7 @@ testCpSeq :: Wallet (SeqState 'Mainnet JormungandrKey)
 testCpSeq = snd $ initWallet block0 dummyGenesisParameters initDummyStateSeq
 
 initDummyStateSeq :: SeqState 'Mainnet JormungandrKey
-initDummyStateSeq = mkSeqStateFromRootXPrv (xprv, mempty) defaultAddressPoolGap
+initDummyStateSeq = mkSeqStateFromRootXPrv (xprv, mempty) purposeCIP1852 defaultAddressPoolGap
   where
       mw = SomeMnemonic $ unsafePerformIO (generate $ genMnemonic @15)
       xprv = Seq.generateKeyFromSeed (mw, Nothing) mempty

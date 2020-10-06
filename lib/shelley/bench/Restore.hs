@@ -86,7 +86,12 @@ import Cardano.Wallet.Primitive.AddressDiscovery
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndAnyState, mkRndAnyState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
-    ( AddressPoolGap, SeqAnyState (..), mkAddressPoolGap, mkSeqAnyState )
+    ( AddressPoolGap
+    , SeqAnyState (..)
+    , mkAddressPoolGap
+    , mkSeqAnyState
+    , purposeCIP1852
+    )
 import Cardano.Wallet.Primitive.Model
     ( Wallet, currentTip, getState, totalUTxO )
 import Cardano.Wallet.Primitive.Slotting
@@ -324,7 +329,7 @@ cardanoRestoreBench tr c socketFile = do
         -> (ShelleyKey 'RootK XPrv, Passphrase "encryption")
         -> AddressPoolGap
         -> SeqAnyState n ShelleyKey p
-    mkSeqAnyState' _ = mkSeqAnyState @p @n
+    mkSeqAnyState' _ credentials = mkSeqAnyState @p @n credentials purposeCIP1852
 
     networkDescription :: forall n. (NetworkDiscriminantVal n) => Proxy n -> Text
     networkDescription _ = networkDiscriminantVal @n

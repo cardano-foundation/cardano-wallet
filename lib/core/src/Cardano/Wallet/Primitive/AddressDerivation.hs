@@ -145,12 +145,9 @@ import qualified Data.Text.Encoding as T
                                 HD Hierarchy
 -------------------------------------------------------------------------------}
 
--- | Key Depth in the derivation path, according to BIP-0039 / BIP-0044
+-- | Key Depth in the derivation path, according to BIP-0044 / CIP-1852
 --
--- @m | purpose' | cointype' | account' | change | address@
---
--- We do not manipulate purpose, cointype and change paths directly, so they are
--- left out of the sum type.
+-- @m | purpose' | cointype' | account' | role | address@
 data Depth = RootK | PurposeK | CoinTypeK | AccountK | RoleK | AddressK
 
 -- | Marker for addresses type engaged. We want to handle three cases here.

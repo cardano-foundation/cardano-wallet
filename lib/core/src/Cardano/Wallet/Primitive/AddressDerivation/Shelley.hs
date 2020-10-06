@@ -5,6 +5,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE RoleAnnotations #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
@@ -23,7 +24,6 @@ module Cardano.Wallet.Primitive.AddressDerivation.Shelley
 
     -- * Constants
     , minSeedLengthBytes
-
 
     -- * Generation and derivation
     , generateKeyFromSeed
@@ -79,7 +79,12 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( IsOurs (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
-    ( SeqState, rewardAccountKey )
+    ( DerivationPrefix (..)
+    , SeqState (..)
+    , coinTypeAda
+    , purposeCIP1852
+    , rewardAccountKey
+    )
 import Cardano.Wallet.Primitive.Types
     ( Address (..), Hash (..), invariant )
 import Control.DeepSeq
@@ -104,8 +109,6 @@ import Data.Proxy
     ( Proxy (..) )
 import Data.Text.Class
     ( TextDecodingError (..) )
-import Data.Word
-    ( Word32 )
 import GHC.Generics
     ( Generic )
 
@@ -130,33 +133,6 @@ newtype ShelleyKey (depth :: Depth) key =
     deriving stock (Generic, Show, Eq)
 
 instance (NFData key) => NFData (ShelleyKey depth key)
-
--- | Purpose is a constant set to 1852' (or 0x8000073c) following the BIP-44
--- extension for Cardano:
---
--- https://github.com/input-output-hk/implementation-decisions/blob/e2d1bed5e617f0907bc5e12cf1c3f3302a4a7c42/text/1852-hd-chimeric.md
---
--- It indicates that the subtree of this node is used according to this
--- specification.
---
--- Hardened derivation is used at this level.
-purposeIndex :: Word32
-purposeIndex = 0x8000073c
-
--- | One master node (seed) can be used for unlimited number of independent
--- cryptocoins such as Bitcoin, Litecoin or Namecoin. However, sharing the
--- same space for various cryptocoins has some disadvantages.
---
--- This level creates a separate subtree for every cryptocoin, avoiding reusing
--- addresses across cryptocoins and improving privacy issues.
---
--- Coin type is a constant, set for each cryptocoin. For Cardano this constant
--- is set to 1815' (or 0x80000717). 1815 is the birthyear of our beloved Ada
--- Lovelace.
---
--- Hardened derivation is used at this level.
-coinTypeIndex :: Word32
-coinTypeIndex = 0x80000717
 
 -- | The minimum seed length for 'generateKeyFromSeed' and
 -- 'unsafeGenerateKeyFromSeed'.
@@ -198,9 +174,9 @@ instance HardDerivation ShelleyKey where
             (Passphrase pwd) (ShelleyKey rootXPrv) (Index accIx) =
         let
             purposeXPrv = -- lvl1 derivation; hardened derivation of purpose'
-                deriveXPrv DerivationScheme2 pwd rootXPrv purposeIndex
+                deriveXPrv DerivationScheme2 pwd rootXPrv (getIndex purposeCIP1852)
             coinTypeXPrv = -- lvl2 derivation; hardened derivation of coin_type'
-                deriveXPrv DerivationScheme2 pwd purposeXPrv coinTypeIndex
+                deriveXPrv DerivationScheme2 pwd purposeXPrv (getIndex coinTypeAda)
             acctXPrv = -- lvl3 derivation; hardened derivation of account' index
                 deriveXPrv DerivationScheme2 pwd coinTypeXPrv accIx
         in
@@ -353,12 +329,9 @@ instance IsOurs (SeqState n ShelleyKey) ChimericAccount
   where
     type DerivationPath (SeqState n ShelleyKey) ChimericAccount =
          DerivationPath (SeqState n ShelleyKey) Address
-    isOurs account state =
+    isOurs account state@SeqState{derivationPrefix} =
         let
-            purpose :: Index 'Hardened 'PurposeK
-            coinType :: Index 'Hardened 'CoinTypeK
-            accountIx :: Index 'Hardened 'AccountK
-            (purpose, coinType, accountIx) = undefined -- TODO: have this in the seq state
+            DerivationPrefix (purpose, coinType, accountIx) = derivationPrefix
             path = (purpose, coinType, accountIx, mutableAccount, minBound)
         in
             (guard (account == ourAccount) *> Just path, state)
