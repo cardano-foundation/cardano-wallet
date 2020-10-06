@@ -1089,160 +1089,286 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 (#balance . #getApiT . #available)
                 (`shouldBe` Quantity outChange) r''
 
-    describe "TRANS_EXTERNAL_03 - Single Output Transaction with Byron witness" $
+    describe "TRANS_EXTERNAL_03 - Single Output Transaction with Byron witness" $ do
         it "Byron wallet" $ \ctx -> do
 
-        wFaucet <- fixtureRandomWallet ctx
+            wFaucet <- fixtureRandomWallet ctx
 
-        let byronMnemonics =
-               [ "ghost", "casino", "minor", "vast", "filter", "flip"
-               , "polar", "alarm", "purchase", "curtain", "dry", "wisdom"]
-        wByron <- emptyByronWalletWith ctx "random"
-                  ("Random Wallet", byronMnemonics, fixturePassphrase)
+            let byronMnemonics =
+                   [ "ghost", "casino", "minor", "vast", "filter", "flip"
+                   , "polar", "alarm", "purchase", "curtain", "dry", "wisdom"]
+            wByron <- emptyByronWalletWith ctx "random"
+                      ("Random Wallet", byronMnemonics, fixturePassphrase)
 
-        -- 1. wByron: recovery-phrase-src.prv
-        --- --> ghost casino minor vast filter flip polar alarm purchase curtain dry wisdom
-        -- 2. prv root key:
-        --- $ cat recovery-phrase-src.prv | cardano-address key from-recovery-phrase Byron > root-src.prv
-        --- --> xprv1wqk3jtxymg2mjst56sede5a53n8wlpnjkmptywyhyxxycrv2letemsd6ulamrexmgq4427g2wl80exune2c035fa08hen44at825u9nrcyl27za26waa2vgztmvl39esu6ucsa9m8r742czjnqhgyzcd8cea3fw5
-        -- 3. cat root-src.prv | cardano-address key public > root-src.pub
-        --- --> xpub1alff7qkyshud2kstclddrnf582zags6hfc4wl5qpxn7gx6r65kuk8sf74u9645am65csyhkelztnpe4e3p6tkw8a24s99xpwsg9s60s36nlzc
-        -- 4. create child address (for 2147483662-2^31=2147483662-2147483648=14)
-        --- $ cat root-src.prv | cardano-address key child --legacy 0H/14H --base16
-        let wit =
-                "c323bec83ccf2e39ee42d499acd5ee7ade10e822270b4479f8e98c8c8e8abf\
-                \0842dc7de2c0e69e52982743c73a75ea06ef87c80b94d380c83a9a99060488\
-                \438f06c552df3d16013201a44025f79b7eae1cd697b3fb173f31110b97935c\
-                \6ba600"
+            -- 1. wByron: recovery-phrase-src.prv
+            --- --> ghost casino minor vast filter flip polar alarm purchase curtain dry wisdom
+            -- 2. prv root key:
+            --- $ cat recovery-phrase-src.prv | cardano-address key from-recovery-phrase Byron > root-src.prv
+            --- --> xprv1wqk3jtxymg2mjst56sede5a53n8wlpnjkmptywyhyxxycrv2letemsd6ulamrexmgq4427g2wl80exune2c035fa08hen44at825u9nrcyl27za26waa2vgztmvl39esu6ucsa9m8r742czjnqhgyzcd8cea3fw5
+            -- 3. cat root-src.prv | cardano-address key public > root-src.pub
+            --- --> xpub1alff7qkyshud2kstclddrnf582zags6hfc4wl5qpxn7gx6r65kuk8sf74u9645am65csyhkelztnpe4e3p6tkw8a24s99xpwsg9s60s36nlzc
+            -- 4. create child address (for 2147483662-2^31=2147483662-2147483648=14)
+            --- $ cat root-src.prv | cardano-address key child --legacy 0H/14H --base16
+            let wit =
+                    "c323bec83ccf2e39ee42d499acd5ee7ade10e822270b4479f8e98c8c8e8abf\
+                    \0842dc7de2c0e69e52982743c73a75ea06ef87c80b94d380c83a9a99060488\
+                    \438f06c552df3d16013201a44025f79b7eae1cd697b3fb173f31110b97935c\
+                    \6ba600"
 
-        -- 5. produce address
-        --- $ cat root-src.prv | cardano-address key child --legacy 0H/14H \
-        --- | cardano-address key public | cardano-address address bootstrap \
-        --- | xpub1alff7qkyshud2kstclddrnf582zags6hfc4wl5qpxn7gx6r65kuk8sf74u9645am65csyhkelztnpe4e3p6tkw8a24s99xpwsg9s60s36nlzc \
-        --- --path 0H/14H --network-tag 764824073
-        let addrInp =
-                "DdzFFzCqrhsfRTAFKYtEMjB1vy5fTth3QEitVbMBuk5r9Um6Uf2bWYj8cSYfba\
-                \d9MLKokM2Y5FhybrJqCgUDVPNPkgG6oa33VLQ6jugc"
+            -- 5. produce address
+            --- $ cat root-src.prv | cardano-address key child --legacy 0H/14H \
+            --- | cardano-address key public | cardano-address address bootstrap \
+            --- | xpub1alff7qkyshud2kstclddrnf582zags6hfc4wl5qpxn7gx6r65kuk8sf74u9645am65csyhkelztnpe4e3p6tkw8a24s99xpwsg9s60s36nlzc \
+            --- --path 0H/14H --network-tag 764824073
+            let addrInp =
+                    "DdzFFzCqrhsfRTAFKYtEMjB1vy5fTth3QEitVbMBuk5r9Um6Uf2bWYj8cSYfba\
+                    \d9MLKokM2Y5FhybrJqCgUDVPNPkgG6oa33VLQ6jugc"
 
-        -- 6. change address
-        --- $ cat root-src.prv | cardano-address key child --legacy 0H/15H \
-        --- | cardano-address key public | cardano-address address bootstrap \
-        --- | xpub1alff7qkyshud2kstclddrnf582zags6hfc4wl5qpxn7gx6r65kuk8sf74u9645am65csyhkelztnpe4e3p6tkw8a24s99xpwsg9s60s36nlzc \
-        --- --path 0H/15H --network-tag 764824073
-        let addrChange =
-                "DdzFFzCqrht3xS8ySv9t4MVM1euWvcC6WbzPZKkr6WqE7zcW8nSS9A3eGvcrMK\
-                \vANGF6auayauFQjazrQtC7T8hx9CvXKq4U3qS2ApAC"
+            -- 6. change address
+            --- $ cat root-src.prv | cardano-address key child --legacy 0H/15H \
+            --- | cardano-address key public | cardano-address address bootstrap \
+            --- | xpub1alff7qkyshud2kstclddrnf582zags6hfc4wl5qpxn7gx6r65kuk8sf74u9645am65csyhkelztnpe4e3p6tkw8a24s99xpwsg9s60s36nlzc \
+            --- --path 0H/15H --network-tag 764824073
+            let addrChange =
+                    "DdzFFzCqrht3xS8ySv9t4MVM1euWvcC6WbzPZKkr6WqE7zcW8nSS9A3eGvcrMK\
+                    \vANGF6auayauFQjazrQtC7T8hx9CvXKq4U3qS2ApAC"
 
-        let payload1 = Json [json|
-                { "passphrase": #{fixturePassphrase}
-                , "address_index": 2147483662
+            let payload1 = Json [json|
+                    { "passphrase": #{fixturePassphrase}
+                    , "address_index": 2147483662
+                    }|]
+            r1 <- request @(ApiAddress n) ctx (Link.postRandomAddress wByron) Default payload1
+            expectResponseCode @IO HTTP.status201 r1
+            let destination = getFromResponse #id r1
+            let amtSrc = (10_000_000 :: Natural)
+            let payload2 = Json [json|{
+                    "payments": [{
+                        "address": #{destination},
+                        "amount": {
+                            "quantity": #{amtSrc},
+                            "unit": "lovelace"
+                        }
+                    }],
+                    "passphrase": #{fixturePassphrase}
                 }|]
-        r1 <- request @(ApiAddress n) ctx (Link.postRandomAddress wByron) Default payload1
-        expectResponseCode @IO HTTP.status201 r1
-        let destination = getFromResponse #id r1
-        let amtSrc = (10_000_000 :: Natural)
-        let payload2 = Json [json|{
-                "payments": [{
-                    "address": #{destination},
-                    "amount": {
-                        "quantity": #{amtSrc},
-                        "unit": "lovelace"
-                    }
-                }],
-                "passphrase": #{fixturePassphrase}
-            }|]
-        r2 <- request @(ApiTransaction n) ctx
-            (Link.createTransaction @'Byron wFaucet) Default payload2
-        expectResponseCode HTTP.status202 r2
+            r2 <- request @(ApiTransaction n) ctx
+                (Link.createTransaction @'Byron wFaucet) Default payload2
+            expectResponseCode HTTP.status202 r2
 
-        let (Hash txid) = getApiT $ getFromResponse #id r2
-        let txix = case getFromResponse #outputs r2 of
-                [(AddressAmount _ (Quantity out1)), (AddressAmount _ (Quantity out2))]
-                    | out1 == amtSrc -> 0
-                    | out2 == amtSrc -> 1
-                    | otherwise -> error "this should not happen"
-                _ -> error "this should not happen"
+            let (Hash txid) = getApiT $ getFromResponse #id r2
+            let txix = case getFromResponse #outputs r2 of
+                    [(AddressAmount _ (Quantity out1)), (AddressAmount _ (Quantity out2))]
+                        | out1 == amtSrc -> 0
+                        | out2 == amtSrc -> 1
+                        | otherwise -> error "this should not happen"
+                    _ -> error "this should not happen"
 
-        eventually "wByron received money" $ do
-            r' <- request @ApiByronWallet ctx
-                (Link.getWallet @'Byron wByron) Default Empty
-            expectField
-                (#balance . #available)
-                (`shouldBe` Quantity amtSrc) r'
+            eventually "wByron received money" $ do
+                r' <- request @ApiByronWallet ctx
+                    (Link.getWallet @'Byron wByron) Default Empty
+                expectField
+                    (#balance . #available)
+                    (`shouldBe` Quantity amtSrc) r'
 
-        let shelleyMnemonics =
-              [ "broken", "pass", "shrug", "pause", "crush"
-              , "caught", "honey", "lonely", "dose", "rabbit"
-              , "olympic", "honey", "hair", "panther", "stage"] :: [Text]
-        -- 1. recovery-phrase-dest.prv
-        -- --> broken pass shrug pause crush caught honey lonely dose rabbit olympic honey hair panther stage
-        -- 2. corresponding root key:
-        --- $ cat recovery-phrase-dest.prv | cardano-address key from-recovery-phrase Shelley > root-dest.prv
-        -- --> xprv1cqnvuzmz796zgfmuuu8fq9rdufqsv0ar0sr9x0nee932snhw7f9w7qfyxz525c2f8d5uzyv38hru6c5ad8hz38eltrseu8s3ela226745sge3xtgsfjkhyzrz0dkjelz8hksgjtk73fzkrp4jgjns0569q9pz6js
-        -- 3. staking private key:
-        --- $ cat root-dest.prv | cardano-address key child 1852H/1815H/0H/2/0 > stake-dest.prv
-        -- --> xprv1pzgx4cds2qu6qcstnqx8srnfn99xu6356nktr4npdpjwse0w7f9y77kec8vc7sl8zvqh43lzq6e9rgudgh2rz87aupyx0ncrwfsnzredmntfg0u2v9v3dar75vsw0eyxphmz70fsx99l8r4586weg77xyuu8t0sg
-        -- 4. delegation address (index 1 and for network tag 1):
-        --- $ cat root-dest.prv \
-        --- | cardano-address key child 1852H/1815H/0H/0/1 \
-        --- | cardano-address key public \
-        --- | cardano-address address payment --network-tag 1 \
-        --- | cardano-address address delegation $(cat stake-dest.prv | cardano-address key public)
-        let addrOut =
-                "addr1q8zrclx9djykejekxdr2yec20c0vn9gl2clykc9ktsegm9k89d93kzpx8\
-                \gf9y35hfmgkx68avmaucem9lzg0lucpex8qxqqqy8"
+            let shelleyMnemonics =
+                  [ "broken", "pass", "shrug", "pause", "crush"
+                  , "caught", "honey", "lonely", "dose", "rabbit"
+                  , "olympic", "honey", "hair", "panther", "stage"] :: [Text]
+            -- 1. recovery-phrase-dest.prv
+            -- --> broken pass shrug pause crush caught honey lonely dose rabbit olympic honey hair panther stage
+            -- 2. corresponding root key:
+            --- $ cat recovery-phrase-dest.prv | cardano-address key from-recovery-phrase Shelley > root-dest.prv
+            -- --> xprv1cqnvuzmz796zgfmuuu8fq9rdufqsv0ar0sr9x0nee932snhw7f9w7qfyxz525c2f8d5uzyv38hru6c5ad8hz38eltrseu8s3ela226745sge3xtgsfjkhyzrz0dkjelz8hksgjtk73fzkrp4jgjns0569q9pz6js
+            -- 3. staking private key:
+            --- $ cat root-dest.prv | cardano-address key child 1852H/1815H/0H/2/0 > stake-dest.prv
+            -- --> xprv1pzgx4cds2qu6qcstnqx8srnfn99xu6356nktr4npdpjwse0w7f9y77kec8vc7sl8zvqh43lzq6e9rgudgh2rz87aupyx0ncrwfsnzredmntfg0u2v9v3dar75vsw0eyxphmz70fsx99l8r4586weg77xyuu8t0sg
+            -- 4. delegation address (index 1 and for network tag 1):
+            --- $ cat root-dest.prv \
+            --- | cardano-address key child 1852H/1815H/0H/0/1 \
+            --- | cardano-address key public \
+            --- | cardano-address address payment --network-tag 1 \
+            --- | cardano-address address delegation $(cat stake-dest.prv | cardano-address key public)
+            let addrOut =
+                    "addr1q8zrclx9djykejekxdr2yec20c0vn9gl2clykc9ktsegm9k89d93kzpx8\
+                    \gf9y35hfmgkx68avmaucem9lzg0lucpex8qxqqqy8"
 
-        let walletPostData = Json [json| {
-                "name": "empty Shelley wallet",
-                "mnemonic_sentence": #{shelleyMnemonics},
-                "passphrase": #{fixturePassphrase}
-                } |]
-        r3 <- request @ApiWallet ctx (Link.postWallet @'Shelley) Default walletPostData
-        expectResponseCode @IO HTTP.status201 r3
-        let wShelley = getFromResponse Prelude.id r3
+            let walletPostData = Json [json| {
+                    "name": "empty Shelley wallet",
+                    "mnemonic_sentence": #{shelleyMnemonics},
+                    "passphrase": #{fixturePassphrase}
+                    } |]
+            r3 <- request @ApiWallet ctx (Link.postWallet @'Shelley) Default walletPostData
+            expectResponseCode @IO HTTP.status201 r3
+            let wShelley = getFromResponse Prelude.id r3
 
-        addrs <- listAddresses @n ctx wShelley
-        let amtDest = (1_000_000 :: Natural)
-        let destination1 = (addrs !! 1) ^. #id
-        let payload3 = Json [json|{
-                "payments": [{
-                    "address": #{destination1},
-                    "amount": {
-                        "quantity": #{amtDest},
-                        "unit": "lovelace"
-                    }
-                }]
-            }|]
+            addrs <- listAddresses @n ctx wShelley
+            let amtDest = (1_000_000 :: Natural)
+            let destination1 = (addrs !! 1) ^. #id
+            let payload3 = Json [json|{
+                    "payments": [{
+                        "address": #{destination1},
+                        "amount": {
+                            "quantity": #{amtDest},
+                            "unit": "lovelace"
+                        }
+                    }]
+                }|]
 
-        rFeeEst <- request @ApiFee ctx
-            (Link.getTransactionFee @'Byron wByron) Default payload3
-        expectResponseCode @IO HTTP.status202 rFeeEst
-        let (Quantity feeEstMin) = getFromResponse #estimatedMin rFeeEst
+            rFeeEst <- request @ApiFee ctx
+                (Link.getTransactionFee @'Byron wByron) Default payload3
+            expectResponseCode @IO HTTP.status202 rFeeEst
+            let (Quantity feeEstMin) = getFromResponse #estimatedMin rFeeEst
 
-        let outChange = amtSrc - feeEstMin - amtDest
+            let outChange = amtSrc - feeEstMin - amtDest
 
-        let (Right blob) = constructTxByronWitsFromCardanoTransactions
-                (fromIntegral feeEstMin) txid txix outChange addrChange amtDest addrOut addrInp wit
-        let baseOk = Base64
-        let encodedSignedTx = T.decodeUtf8 $ convertToBase baseOk blob
-        let payloadExt = NonJson . BL.fromStrict . toRawBytes baseOk
-        let headers = Headers [ ("Content-Type", "application/octet-stream") ]
-        r4 <- request
-            @ApiTxId ctx Link.postExternalTransaction headers (payloadExt encodedSignedTx)
-        expectResponseCode HTTP.status202 r4
+            let (Right blob) = constructTxByronWitsFromCardanoTransactions
+                    (fromIntegral feeEstMin) txid txix outChange addrChange amtDest addrOut addrInp wit
+            let baseOk = Base64
+            let encodedSignedTx = T.decodeUtf8 $ convertToBase baseOk blob
+            let payloadExt = NonJson . BL.fromStrict . toRawBytes baseOk
+            let headers = Headers [ ("Content-Type", "application/octet-stream") ]
+            r4 <- request
+                @ApiTxId ctx Link.postExternalTransaction headers (payloadExt encodedSignedTx)
+            expectResponseCode HTTP.status202 r4
 
-        eventually "wByron and wShelley balances are as expected" $ do
-            r' <- request @ApiWallet ctx
-                (Link.getWallet @'Shelley wShelley) Default Empty
-            expectField
-                (#balance . #getApiT . #available)
-                (`shouldBe` Quantity amtDest) r'
+            eventually "wByron and wShelley balances are as expected" $ do
+                r' <- request @ApiWallet ctx
+                    (Link.getWallet @'Shelley wShelley) Default Empty
+                expectField
+                    (#balance . #getApiT . #available)
+                    (`shouldBe` Quantity amtDest) r'
 
-            r'' <- request @ApiByronWallet ctx
-                (Link.getWallet @'Byron wByron) Default Empty
-            expectField
-                (#balance . #available)
-                (`shouldBe` Quantity outChange) r''
+                r'' <- request @ApiByronWallet ctx
+                    (Link.getWallet @'Byron wByron) Default Empty
+                expectField
+                    (#balance . #available)
+                    (`shouldBe` Quantity outChange) r''
+
+        it "Icarus wallet" $ \ctx -> do
+            -- Prepare src wIcarus wallet for external transaction
+            wFaucet <- fixtureWallet ctx
+
+            let byronMnemonics =
+                   ["theme", "book", "settle", "across", "rhythm", "year"
+                   , "riot", "primary", "day", "sudden", "nest", "develop"
+                   , "purpose", "check", "stove"]
+            wIcarus <- emptyByronWalletWith ctx "icarus"
+                      ("Icarus Wallet", byronMnemonics, fixturePassphrase)
+
+            -- 1. wIcarus: recovery-phrase-src.prv
+            --- --> theme book settle across rhythm year riot primary day sudden nest develop purpose check stove
+            -- 2. prv root key:
+            --  $ cat recovery-phrase-src.prv \
+            --  | cardano-address key from-recovery-phrase Icarus > root-src.prv
+            --- --> xprv1wrl6ezlqxfhpwtg0dxwszhtkaew3k8vvnd5g0nrth7cjwjsy39xgn550wugnpl5pxyp22h6ncslnyhcnsjn9n6rzjvz9hjr4pl7azvztutj034ugd4cwu39gpn428etwrhha2pewqvjs9l3xrsgupz4u5gek8cr5
+            -- 3. pub root key:
+            --  $ cat root-src.prv \
+            --  | cardano-address key public > root-src.pub
+            --- --> xpub1hhdt9d94ea4hl2h7r4mszcpuxgwqqs5um6fm0zjl7qauf89j8m0yhchylrtcsmtsaez2sr8250jku80065rjuqe9qtlzv8q3cz9tegskgq8hf
+            -- 4. create address
+            --- $ cat root-src.prv | cardano-address key child 44H/1815H/0H/0/0 --base16
+            let wit =
+                    "981b4c73ed9b2d75a54271e8e166ac053fe9cfb49bf250ea288beadb54\
+                    \04894cc2139a332c8b8141fb14acd3bfcfd4c0af55abfbf12b83a11f24\
+                    \2a71d5a4a9a010723b6c2ab4b18feffe6931140d1d2ecfeb6a28ea6f0e\
+                    \c9fe6a5e9ac4838fd0"
+
+            let link = Link.listAddresses @'Byron wIcarus
+            (_, addrs) <- unsafeRequest @[ApiAddress n] ctx link Empty
+
+            -- 5. produce address
+            --  $ cat root-src.prv \
+            --  | cardano-address key child 44H/1815H/0H/0/0 \
+            --  | cardano-address key public \
+            --  | cardano-address address bootstrap --network-tag mainnet
+            --  Ae2tdPwUPEZBruS2sSxNUsH3pL6K2PDFJhocE7PswF2pno7JUcirBNakCTA
+            let addrInp = encodeAddress @n (getApiT $ fst $ addrs !! 0 ^. #id)
+
+            -- 6. change address
+            --  $ cat root-src.prv \
+            --  | cardano-address key child 44H/1815H/0H/0/1 \
+            --  | cardano-address key public \
+            --  | cardano-address address bootstrap --network-tag mainnet
+            -- Ae2tdPwUPEZHC3SC8Vbss8AXg7TNKBK1BfAbJRXDFfkgivH8RawguHBoebZ
+            let addrChange = encodeAddress @n (getApiT $ fst $ addrs !! 1 ^. #id)
+
+            -- send inital transaction to wIcarus src wallet from faucet wallet
+            let amtSrc = (10_000_000 :: Natural)
+            let payload = Json [json|{
+                    "payments": [{
+                        "address": #{addrInp},
+                        "amount": {
+                            "quantity": #{amtSrc},
+                            "unit": "lovelace"
+                        }
+                    }],
+                    "passphrase": #{fixturePassphrase}
+                }|]
+            r2 <- request @(ApiTransaction n) ctx
+                (Link.createTransaction @'Shelley wFaucet) Default payload
+            expectResponseCode HTTP.status202 r2
+
+            let (Hash txid) = getApiT $ getFromResponse #id r2
+            let txix = case getFromResponse #outputs r2 of
+                    [(AddressAmount _ (Quantity out1)), (AddressAmount _ (Quantity out2))]
+                        | out1 == amtSrc -> 0
+                        | out2 == amtSrc -> 1
+                        | otherwise -> error "this should not happen"
+                    _ -> error "this should not happen"
+
+            eventually "wIcarus received money" $ do
+                r' <- request @ApiByronWallet ctx
+                    (Link.getWallet @'Byron wIcarus) Default Empty
+                expectField
+                    (#balance . #available)
+                    (`shouldBe` Quantity amtSrc) r'
+
+            -- Create Shelley destination wallet for external tx
+            wShelley <- emptyWallet ctx
+
+            -- Estimate fee for external transaction
+            let amtDest = (1_000_000 :: Natural)
+            addr <- listAddresses @n ctx wShelley
+            let addrDest = encodeAddress @n (getApiT $ fst $ addr !! 1 ^. #id)
+            let payload3 = Json [json|{
+                    "payments": [{
+                        "address": #{addrDest},
+                        "amount": {
+                            "quantity": #{amtDest},
+                            "unit": "lovelace"
+                        }
+                    }]
+                }|]
+
+            rFeeEst <- request @ApiFee ctx
+                (Link.getTransactionFee @'Byron wIcarus) Default payload3
+            expectResponseCode @IO HTTP.status202 rFeeEst
+            let (Quantity feeEstMin) = getFromResponse #estimatedMin rFeeEst
+            let outChange = amtSrc - feeEstMin - amtDest
+
+            -- Construct tx blob and post external tx from icarus to shelley wallet
+            let (Right blob) = constructTxByronWitsFromCardanoTransactions
+                    (fromIntegral feeEstMin) txid txix outChange addrChange amtDest addrDest addrInp wit
+            let baseOk = Base64
+            let encodedSignedTx = T.decodeUtf8 $ convertToBase baseOk blob
+            let payloadExt = NonJson . BL.fromStrict . toRawBytes baseOk
+            let headers = Headers [ ("Content-Type", "application/octet-stream") ]
+            r4 <- request
+                @ApiTxId ctx Link.postExternalTransaction headers (payloadExt encodedSignedTx)
+            expectResponseCode HTTP.status202 r4
+
+            eventually "wIcarus and wShelley balances are as expected" $ do
+                r' <- request @ApiWallet ctx
+                    (Link.getWallet @'Shelley wShelley) Default Empty
+                expectField
+                    (#balance . #getApiT . #available)
+                    (`shouldBe` Quantity amtDest) r'
+
+                r'' <- request @ApiByronWallet ctx
+                    (Link.getWallet @'Byron wIcarus) Default Empty
+                expectField
+                    (#balance . #available)
+                    (`shouldBe` Quantity outChange) r''
 
     describe "TRANS_ESTIMATE_08 - Bad payload" $ do
         let matrix =
