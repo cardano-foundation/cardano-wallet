@@ -51,6 +51,7 @@ DATA=$(echo $QUERY \
           | select(.bodyText | contains("try") | not)
           | select(.bodyText | contains("Canceled") | not)
           | select(.bodyText | contains("Merge conflict") | not)
+          | select(.bodyText | contains("This PR was included in a batch that successfully built, but then failed to merge into master (it was a non-fast-forward update). It will be automatically retried.") | not)
           | select(.bodyText | contains("Already running a review") | not)
           | . + {succeded: (.bodyText | contains("Build succeeded"))}
 
