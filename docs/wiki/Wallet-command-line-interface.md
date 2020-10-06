@@ -383,7 +383,8 @@ Creates and submits a new transaction:
 ```
 $ cardano-wallet transaction create 2512a00e9653fe49a44a5886202e24d77eeb998f \
     --payment 22@Ae2tdPwUPEZ...nRtbfw6EHRv1D \
-    --payment 5@Ae2tdPwUPEZ7...pVwEPhKwseVvf
+    --payment 5@Ae2tdPwUPEZ7...pVwEPhKwseVvf \
+    --metadata '{ "0":{ "string":"cardano" } }'
 ```
 
 This creates a transaction that sends 22 lovelace to `Ae2tdPwUPEZ...nRtbfw6EHRv1D` and 5 lovelace to `Ae2tdPwUPEZ7...pVwEPhKwseVvf` from wallet with id 2512a00e9653fe49a44a5886202e24d77eeb998f.
@@ -401,7 +402,8 @@ Estimates fee for a given transaction:
 ```
 $ cardano-wallet transaction fees 2512a00e9653fe49a44a5886202e24d77eeb998f \
     --payment 22@Ae2tdPwUPEZ...nRtbfw6EHRv1D \
-    --payment 5@Ae2tdPwUPEZ7...pVwEPhKwseVvf
+    --payment 5@Ae2tdPwUPEZ7...pVwEPhKwseVvf \
+    --metadata '{ "0":{ "string":"cardano" } }'
 ```
 
 This estimates fees for a transaction that sends 22 lovelace to `Ae2tdPwUPEZ...nRtbfw6EHRv1D` and 5 lovelace to `Ae2tdPwUPEZ7...pVwEPhKwseVvf` from wallet with id 2512a00e9653fe49a44a5886202e24d77eeb998f.
