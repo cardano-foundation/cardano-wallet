@@ -60,13 +60,12 @@ DATA=$(echo $QUERY \
         )
       ')
 
-echo $DATA | jq 'map(.tags) | flatten | unique'
-
 TITLEQUERY=$(cat <<-END
 query {
 repository(name: "cardano-wallet", owner: "input-output-hk") {
 	issues(labels: ["Test failure"], last: 100) { edges { node {
     number,
+    url,
     title
 	}}}
 }
@@ -77,9 +76,7 @@ END)
 TITLEMAP=$(echo $TITLEQUERY \
   | jq -aRs '{query: .}' \
   | curl -s https://api.github.com/graphql -X POST -H "Authorization: bearer $GITHUB_API_TOKEN" --data-binary @- \
-  | jq '.data.repository.issues.edges | map (.node) | INDEX(.number) | with_entries({key: ("#" + .key), value: .value.title})')
-
-
+  | jq '.data.repository.issues.edges | map (.node) | INDEX(.number) | with_entries({key: ("#" + .key), value: .value})')
 
 # Show the data in a nice way, and with some added summaries.
 echo $DATA | jq -r \ '
@@ -110,7 +107,7 @@ echo $DATA | jq -r \ '
              .runs += [$x] | .total += 1 | if $x.succeded then .succeded += 1 else .failed += 1 end
           );
 
-      def lookup_title: . as $number | if (title_map_data | has($number)) then title_map_data[$number] else "" end;
+      def lookup_issue: . as $number | if (title_map_data | has($number)) then title_map_data[$number] else "" end;
       def show_breakdown_by_tag: .
         | exclude_expected | map(select(.succeded == false)) |  group_by(.tags)
         | map({count: length, tags: .[0].tags, example_url: .[0].url})
@@ -119,7 +116,7 @@ echo $DATA | jq -r \ '
         | .[]
         | bold + (.count | tostring) + reset + " times "
           + colors.yellow + (.tags | join(", ")) + colors.reset
-          + " " + (.tags | .[0] | if . == null then "" else lookup_title end);
+          + " " + (.tags | .[0] | if . == null then "" else (lookup_issue | bold + .title + reset + " | " + colors.blue + .url + reset) end);
       def show_summary: "succeded: " + (.succeded | tostring) +
           ", failed: " + (.failed | tostring) + " (" + (100 * .failed / .total | round | tostring) + "%)" +
           ", total: " + (.total | tostring) + "\nexcluding #expected failures";
