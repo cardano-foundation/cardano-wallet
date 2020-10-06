@@ -4,7 +4,7 @@
 
 # TODO: Add option to output raw JSON.
 # TODO: Add option to specify how many PRs to fetch
-# TODO: Break down statistics for each tag, so we easily see how prevalent each failure is.
+# TODO: Compute range of occurance rate for each tag, with one value including unclassified failures, and the other excluding.
 # TODO: Link to create an issue from an uncategorized failure with pre-filled information
 
 set -euo pipefail
@@ -87,3 +87,12 @@ echo $AGGREGATED_DATA | jq -r '
   "succeded: " + (.succeded | tostring) +
   ", failed: " + (.failed | tostring) + " (" + (100 * .failed / .total | round | tostring) + "%)" +
   ", total: " + (.total | tostring) + "\nexcluding #expected failures"'
+
+echo ""
+echo "Broken down:"
+
+echo $DATA | jq -r 'def yellow: "\u001b[33m"; def reset: "\u001b[0m"; def filter_expected: map(select(any(.tags[]; . == "#expected") | not)); def blue: "\u001b[34m";
+  . | filter_expected | map(select(.succeded == false)) |  group_by(.tags)
+  | map({count: length, tags: .[0].tags, example_url: .[0].url})
+  | .[] | yellow + (.tags | join(", ")) + reset + " => " + (.count | tostring) + " times (e.g. " + blue + .example_url + reset + ")"'
+
