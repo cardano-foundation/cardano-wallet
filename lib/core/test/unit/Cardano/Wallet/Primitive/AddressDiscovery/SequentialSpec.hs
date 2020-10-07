@@ -26,7 +26,9 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( AccountingStyle (..)
     , DelegationAddress (..)
     , Depth (..)
+    , DerivationType (..)
     , HardDerivation (..)
+    , Index
     , KeyFingerprint
     , MkKeyFingerprint (..)
     , NetworkDiscriminant (..)
@@ -103,7 +105,6 @@ import Test.QuickCheck
     , Positive (..)
     , Property
     , arbitraryBoundedEnum
-    , arbitraryBoundedEnum
     , checkCoverage
     , choose
     , classify
@@ -143,6 +144,9 @@ spec = do
             (checkCoverage prop_mkAddressPoolGap)
         it "defaultAddressPoolGap is valid"
             (property prop_defaultValid)
+
+    describe "DerivationPrefix" $ do
+        textRoundtrip (Proxy @DerivationPrefix)
 
     let styles =
             [ Style (Proxy @'UTxOExternal)
@@ -639,6 +643,16 @@ instance Arbitrary AccountingStyle where
 instance Arbitrary AddressState where
     shrink _ = []
     arbitrary = genericArbitrary
+
+instance Arbitrary DerivationPrefix where
+    arbitrary = fmap DerivationPrefix $ (,,)
+        <$> arbitrary
+        <*> arbitrary
+        <*> arbitrary
+
+instance Arbitrary (Index 'Hardened depth) where
+    shrink _ = []
+    arbitrary = arbitraryBoundedEnum
 
 -- | In this context, Arbitrary addresses are either some known addresses
 -- derived from "our account key", or they just are some arbitrary addresses
