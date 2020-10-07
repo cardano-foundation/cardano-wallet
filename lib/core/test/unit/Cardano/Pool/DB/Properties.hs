@@ -45,9 +45,11 @@ import Cardano.Wallet.Primitive.Types
     , PoolLifeCycleStatus (..)
     , PoolRegistrationCertificate (..)
     , PoolRetirementCertificate (..)
+    , Settings
     , SlotNo (..)
     , StakePoolMetadata (..)
     , StakePoolTicker (..)
+    , defaultSettings
     , getPoolCertificatePoolId
     , getPoolRetirementCertificate
     )
@@ -213,6 +215,8 @@ properties = do
             (property . const prop_MultiPoolCertificateSequence_coverage)
         it "forM putHeader headers >> listHeaders == headers"
             (property . prop_putHeaderListHeader)
+        it "modSettings . readSettings == id"
+            (property . prop_modSettingsReadSettings)
 
 {-------------------------------------------------------------------------------
                                     Properties
@@ -1407,6 +1411,24 @@ prop_putHeaderListHeader DBLayer{..} headers (NonNegative k) =
         | n <= 0 = id
         -- this emulates persistent [LimitTo n, Desc ...]
         | otherwise = reverse . take n . reverse
+
+-- | read . put == pure
+prop_modSettingsReadSettings
+    :: DBLayer IO
+    -> Settings
+    -> Property
+prop_modSettingsReadSettings DBLayer{..} settings = do
+    monadicIO (setup >> prop)
+  where
+    setup = run $ atomically cleanDB
+    prop = do
+        defSettings <- run $ atomically readSettings
+        assertWith "Reading settings from empty table returns default settings"
+            (defSettings == defaultSettings)
+        run $ atomically $ putSettings settings
+        modSettings' <- run $ atomically readSettings
+        assertWith "Modifying settings and reading afterwards works"
+            (modSettings' == settings)
 
 descSlotsPerPool :: Map PoolId [BlockHeader] -> Expectation
 descSlotsPerPool pools = do

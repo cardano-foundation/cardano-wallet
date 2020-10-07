@@ -38,6 +38,7 @@ import Cardano.Wallet.Api
     , CoinSelections
     , Network
     , Proxy_
+    , Settings
     , ShelleyMigrations
     , StakePools
     , Transactions
@@ -93,6 +94,7 @@ import Cardano.Wallet.Api.Types
     , ApiErrorCode (..)
     , ApiStakePool
     , ApiT (..)
+    , SettingsPutData (..)
     , SomeByronWalletPostData (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -113,6 +115,8 @@ import Cardano.Wallet.Shelley.Pools
     ( StakePoolLayer (..) )
 import Control.Applicative
     ( liftA2 )
+import Control.Monad.IO.Class
+    ( liftIO )
 import Control.Monad.Trans.Except
     ( except, throwE, withExceptT )
 import Data.Coerce
@@ -130,7 +134,7 @@ import Fmt
 import Network.Ntp
     ( NtpClient )
 import Servant
-    ( (:<|>) (..), Handler (..), Server, err400 )
+    ( (:<|>) (..), Handler (..), NoContent (..), Server, err400 )
 import Servant.Server
     ( ServerError (..) )
 import Type.Reflection
@@ -166,6 +170,7 @@ server byron icarus shelley spl ntp =
     :<|> byronMigrations
     :<|> network
     :<|> proxy
+    :<|> settingS
   where
     wallets :: Server Wallets
     wallets = deleteWallet shelley
@@ -340,3 +345,13 @@ server byron icarus shelley spl ntp =
 
     proxy :: Server Proxy_
     proxy = postExternalTransaction icarus
+
+    settingS :: Server Settings
+    settingS = putSettings' :<|> getSettings'
+      where
+        putSettings' (SettingsPutData (ApiT settings'))
+            = Handler $ do
+                liftIO $ putSettings spl settings'
+                pure NoContent
+        getSettings'
+            = Handler $ fmap ApiT $ liftIO $ getSettings spl

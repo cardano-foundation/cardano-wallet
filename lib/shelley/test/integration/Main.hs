@@ -124,6 +124,7 @@ import qualified Test.Integration.Scenario.API.Shelley.Addresses as Addresses
 import qualified Test.Integration.Scenario.API.Shelley.HWWallets as HWWallets
 import qualified Test.Integration.Scenario.API.Shelley.Migrations as Migrations
 import qualified Test.Integration.Scenario.API.Shelley.Network as Network_
+import qualified Test.Integration.Scenario.API.Shelley.Settings as Settings
 import qualified Test.Integration.Scenario.API.Shelley.StakePools as StakePools
 import qualified Test.Integration.Scenario.API.Shelley.Transactions as Transactions
 import qualified Test.Integration.Scenario.API.Shelley.Wallets as Wallets
@@ -160,6 +161,7 @@ main = withUtf8Encoding $ withTracers $ \tracers -> do
                 StakePools.spec @n
                 ByronTransactions.spec @n
                 ByronHWWallets.spec @n
+                Settings.spec @n
             describe "CLI Specifications" $ do
                 AddressesCLI.spec @n
                 TransactionsCLI.spec @n

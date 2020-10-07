@@ -226,6 +226,7 @@ test-suite unit
     , lens
     , memory
     , network
+    , network-uri
     , persistent
     , OddWord
     , QuickCheck

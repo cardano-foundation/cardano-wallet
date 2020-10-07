@@ -8,6 +8,8 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
+{- HLINT ignore "Unused LANGUAGE pragma" -}
+
 module Cardano.Wallet.Jormungandr.TransactionSpec
     ( spec
     ) where

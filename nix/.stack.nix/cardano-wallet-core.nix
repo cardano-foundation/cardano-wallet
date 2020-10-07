@@ -148,6 +148,7 @@
             (hsPkgs."lens" or (errorHandler.buildDepError "lens"))
             (hsPkgs."memory" or (errorHandler.buildDepError "memory"))
             (hsPkgs."network" or (errorHandler.buildDepError "network"))
+            (hsPkgs."network-uri" or (errorHandler.buildDepError "network-uri"))
             (hsPkgs."persistent" or (errorHandler.buildDepError "persistent"))
             (hsPkgs."OddWord" or (errorHandler.buildDepError "OddWord"))
             (hsPkgs."QuickCheck" or (errorHandler.buildDepError "QuickCheck"))

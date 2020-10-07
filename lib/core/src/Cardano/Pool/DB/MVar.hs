@@ -25,6 +25,7 @@ import Cardano.Pool.DB.Model
     , PoolErr (..)
     , emptyPoolDatabase
     , mCleanDatabase
+    , mCleanPoolMetadata
     , mListHeaders
     , mListPoolLifeCycleData
     , mListRegisteredPools
@@ -35,6 +36,7 @@ import Cardano.Pool.DB.Model
     , mPutPoolProduction
     , mPutPoolRegistration
     , mPutPoolRetirement
+    , mPutSettings
     , mPutStakeDistribution
     , mReadCursor
     , mReadPoolLifeCycleStatus
@@ -42,6 +44,7 @@ import Cardano.Pool.DB.Model
     , mReadPoolProduction
     , mReadPoolRegistration
     , mReadPoolRetirement
+    , mReadSettings
     , mReadStakeDistribution
     , mReadSystemSeed
     , mReadTotalProduction
@@ -134,6 +137,9 @@ newDBLayer timeInterpreter = do
         putPoolMetadata a0 a1 =
             void $ alterPoolDB (const Nothing) db (mPutPoolMetadata a0 a1)
 
+        removePoolMetadata =
+            void $ alterPoolDB (const Nothing) db mCleanPoolMetadata
+
         readSystemSeed =
             modifyMVar db (fmap swap . mReadSystemSeed)
 
@@ -148,11 +154,16 @@ newDBLayer timeInterpreter = do
                 . alterPoolDB (const Nothing) db
                 . mRemoveRetiredPools
 
-        putHeader point =
-            void . alterPoolDB (const Nothing) db . mPutHeader $ point
+        putHeader =
+            void . alterPoolDB (const Nothing) db . mPutHeader
 
         listHeaders =
             readPoolDB db . mListHeaders
+
+        readSettings = readPoolDB db mReadSettings
+
+        putSettings =
+            void . alterPoolDB (const Nothing) db . mPutSettings
 
         cleanDB =
             void $ alterPoolDB (const Nothing) db mCleanDatabase

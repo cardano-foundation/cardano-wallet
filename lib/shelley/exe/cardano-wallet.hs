@@ -80,6 +80,8 @@ import Cardano.Wallet.Logging
     ( trMessage, transformTextTrace )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncTolerance )
+import Cardano.Wallet.Primitive.Types
+    ( PoolMetadataSource (..), Settings (..) )
 import Cardano.Wallet.Shelley
     ( TracerSeverities
     , Tracers
@@ -113,8 +115,6 @@ import Data.Text.Class
     ( ToText (..) )
 import Network.Socket
     ( SockAddr )
-import Network.URI
-    ( URI )
 import Options.Applicative
     ( CommandFields
     , Mod
@@ -175,7 +175,7 @@ data ServeArgs = ServeArgs
     , _database :: Maybe FilePath
     , _syncTolerance :: SyncTolerance
     , _enableShutdownHandler :: Bool
-    , _smashURL :: Maybe URI
+    , _smashOpt :: Maybe PoolMetadataSource
     , _logging :: LoggingOptions TracerSeverities
     } deriving (Show)
 
@@ -232,7 +232,7 @@ cmdServe = command "serve" $ info (helper <*> helper' <*> cmd) $ mempty
                     host
                     listen
                     tlsConfig
-                    smashURL
+                    (fmap Settings smashURL)
                     nodeSocket
                     block0
                     (gp, vData)

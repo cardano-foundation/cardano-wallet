@@ -2,6 +2,7 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE RankNTypes #-}
 
+{- HLINT ignore "Unused LANGUAGE pragma" -}
 
 -- |
 -- Copyright: © 2018-2020 IOHK

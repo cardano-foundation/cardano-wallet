@@ -97,6 +97,7 @@ import Cardano.Wallet.Api.Types
     , PostExternalTransactionData (..)
     , PostTransactionData (..)
     , PostTransactionFeeData (..)
+    , SettingsPutData (..)
     , SomeByronWalletPostData (..)
     , WalletBalance (..)
     , WalletOrAccountPostData (..)
@@ -139,10 +140,13 @@ import Cardano.Wallet.Primitive.Types
     , Hash (..)
     , HistogramBar (..)
     , PoolId (..)
+    , PoolMetadataSource
     , PoolOwner (..)
+    , Settings
     , SlotId (..)
     , SlotInEpoch (..)
     , SlotNo (..)
+    , SmashServer
     , SortOrder (..)
     , StakePoolMetadata (..)
     , StakePoolTicker
@@ -190,7 +194,7 @@ import Data.List
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Maybe
-    ( fromMaybe )
+    ( fromJust, fromMaybe )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -223,6 +227,8 @@ import Data.Word.Odd
     ( Word31 )
 import GHC.TypeLits
     ( KnownSymbol, natVal, symbolVal )
+import Network.URI
+    ( URI, parseURI )
 import Numeric.Natural
     ( Natural )
 import Servant
@@ -347,6 +353,7 @@ spec = do
             jsonRoundtripAndGolden $ Proxy @SomeByronWalletPostData
             jsonRoundtripAndGolden $ Proxy @ByronWalletFromXPrvPostData
             jsonRoundtripAndGolden $ Proxy @WalletPutData
+            jsonRoundtripAndGolden $ Proxy @SettingsPutData
             jsonRoundtripAndGolden $ Proxy @WalletPutPassphraseData
             jsonRoundtripAndGolden $ Proxy @ByronWalletPutPassphraseData
             jsonRoundtripAndGolden $ Proxy @(ApiT (Hash "Tx"))
@@ -720,6 +727,13 @@ spec = do
                     }
             in
                 x' === x .&&. show x' === show x
+        it "SettingsPutData" $ property $ \x ->
+            let
+                x' = SettingsPutData
+                    { settings = settings (x :: SettingsPutData)
+                    }
+            in
+                x' === x .&&. show x' === show x
         it "WalletPutPassphraseData" $ property $ \x ->
             let
                 x' = WalletPutPassphraseData
@@ -1045,6 +1059,27 @@ instance Arbitrary (ByronWalletPostData '[12,15,18,21,24]) where
     shrink = genericShrink
 
 instance Arbitrary WalletPutData where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
+
+instance Arbitrary PoolMetadataSource where
+    shrink = genericShrink
+    arbitrary = genericArbitrary
+
+instance Arbitrary SmashServer where
+    shrink = genericShrink
+    arbitrary = genericArbitrary
+
+instance Arbitrary URI where
+    arbitrary = elements
+        [fromJust (parseURI "https://my.little.friend")
+        ,fromJust (parseURI "http://its-friday.com:8000")]
+
+instance Arbitrary Settings where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
+
+instance Arbitrary SettingsPutData where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
@@ -1626,6 +1661,12 @@ instance ToSchema SomeByronWalletPostData where
 
 instance ToSchema WalletPutData where
     declareNamedSchema _ = declareSchemaForDefinition "ApiWalletPutData"
+
+instance ToSchema SettingsPutData where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiSettingsPutData"
+
+instance ToSchema (ApiT Settings) where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiGetSettings"
 
 instance ToSchema WalletPutPassphraseData where
     declareNamedSchema _ =

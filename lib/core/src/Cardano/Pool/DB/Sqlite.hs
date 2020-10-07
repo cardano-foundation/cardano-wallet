@@ -67,6 +67,7 @@ import Cardano.Wallet.Primitive.Types
     , PoolRetirementCertificate (..)
     , StakePoolMetadata (..)
     , StakePoolMetadataHash
+    , defaultSettings
     )
 import Cardano.Wallet.Unsafe
     ( unsafeMkPercentage )
@@ -138,6 +139,7 @@ import Cardano.Pool.DB.Sqlite.TH hiding
     ( BlockHeader, blockHeight )
 
 import qualified Cardano.Pool.DB.Sqlite.TH as TH
+import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
 import qualified Database.Sqlite as Sqlite
@@ -398,6 +400,9 @@ newDBLayer trace fp timeInterpreter = do
                 (PoolMetadata hash name ticker description homepage)
             deleteWhere [ PoolFetchAttemptsMetadataHash ==. hash ]
 
+        removePoolMetadata =
+            deleteWhere ([] :: [Filter PoolMetadata])
+
         readPoolMetadata = do
             Map.fromList . map (fromPoolMeta . entityVal)
                 <$> selectList [] []
@@ -521,6 +526,21 @@ newDBLayer trace fp timeInterpreter = do
                 Just seed ->
                     return $ seedSeed $ entityVal seed
 
+        readSettings = do
+            l <- selectList
+                []
+                -- only ever read the first row
+                [Asc SettingsId, LimitTo 1]
+            case l of
+                [] -> pure defaultSettings
+                (x:_) -> pure . fromSettings . entityVal $ x
+
+        putSettings =
+            repsert
+                -- only ever write the first row
+                (SettingsKey 1)
+            . toSettings
+
         cleanDB = do
             deleteWhere ([] :: [Filter PoolProduction])
             deleteWhere ([] :: [Filter PoolOwner])
@@ -530,6 +550,7 @@ newDBLayer trace fp timeInterpreter = do
             deleteWhere ([] :: [Filter PoolMetadata])
             deleteWhere ([] :: [Filter PoolMetadataFetchAttempts])
             deleteWhere ([] :: [Filter TH.BlockHeader])
+            deleteWhere ([] :: [Filter Settings])
 
         atomically :: forall a. (SqlPersistT IO a -> IO a)
         atomically = runQuery
@@ -941,3 +962,14 @@ fromPoolMeta meta = (poolMetadataHash meta,) $
         , description = poolMetadataDescription meta
         , homepage = poolMetadataHomepage meta
         }
+
+fromSettings
+    :: Settings
+    -> W.Settings
+fromSettings (Settings pms) = W.Settings pms
+
+toSettings
+    :: W.Settings
+    -> Settings
+toSettings (W.Settings pms) = Settings pms
+

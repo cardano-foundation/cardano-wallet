@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE DataKinds #-}
@@ -34,6 +36,7 @@ module Cardano.Pool.DB.Model
     , PoolErr (..)
     -- * Model pool database functions
     , mCleanDatabase
+    , mCleanPoolMetadata
     , mPutPoolProduction
     , mPutHeader
     , mListHeaders
@@ -58,6 +61,8 @@ module Cardano.Pool.DB.Model
     , mReadCursor
     , mRemovePools
     , mRemoveRetiredPools
+    , mReadSettings
+    , mPutSettings
     ) where
 
 import Prelude
@@ -75,10 +80,12 @@ import Cardano.Wallet.Primitive.Types
     , PoolOwner (..)
     , PoolRegistrationCertificate (..)
     , PoolRetirementCertificate (..)
+    , Settings
     , SlotNo (..)
     , StakePoolMetadata
     , StakePoolMetadataHash
     , StakePoolMetadataUrl
+    , defaultSettings
     )
 import Control.Monad.Trans.Class
     ( lift )
@@ -147,6 +154,8 @@ data PoolDatabase = PoolDatabase
 
     , blockHeaders :: [BlockHeader]
     -- ^ Store headers during syncing
+
+    , settings :: Settings
     } deriving (Generic, Show, Eq)
 
 data SystemSeed
@@ -164,7 +173,7 @@ instance Eq SystemSeed where
 emptyPoolDatabase :: PoolDatabase
 emptyPoolDatabase =
     PoolDatabase mempty mempty mempty mempty mempty mempty mempty NotSeededYet
-        mempty
+        mempty defaultSettings
 
 {-------------------------------------------------------------------------------
                                   Model Operation Types
@@ -181,6 +190,11 @@ newtype PoolErr = PointAlreadyExists BlockHeader
 
 mCleanDatabase :: ModelOp ()
 mCleanDatabase = State.put emptyPoolDatabase
+
+mCleanPoolMetadata :: ModelOp ()
+mCleanPoolMetadata =
+    modify #metadata
+        $ const mempty
 
 mPutPoolProduction :: BlockHeader -> PoolId -> ModelOp ()
 mPutPoolProduction point poolId = getPoints >>= \points -> if
@@ -429,6 +443,19 @@ mListHeaders :: Int -> ModelOp [BlockHeader]
 mListHeaders k
     | k > 0 = reverse . take k <$> get #blockHeaders
     | otherwise = reverse <$> get #blockHeaders
+
+mReadSettings
+    :: ModelOp Settings
+mReadSettings = get #settings
+
+-- `const` isn't more readable than lambdas. Our language is based on
+-- lambda calculus and we shouldn't feel ashamed to use them. They also
+-- have different strictness properties.
+{-# HLINT ignore mPutSettings "Use const" #-}
+mPutSettings
+    :: Settings
+    -> ModelOp ()
+mPutSettings s = modify #settings (\_ -> s)
 
 --------------------------------------------------------------------------------
 -- Utilities

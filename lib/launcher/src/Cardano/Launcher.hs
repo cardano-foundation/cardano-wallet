@@ -4,6 +4,8 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 
+{- HLINT ignore "Unused LANGUAGE pragma" -}
+
 -- |
 -- Copyright: © 2018-2020 IOHK
 -- License: Apache-2.0
