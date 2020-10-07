@@ -617,6 +617,7 @@ withBenchDBLayer
         , IsOurs s ChimericAccount
         , IsOurs s Address
         , PersistPrivateKey (k 'RootK)
+        , WalletKey k
         )
     => TimeInterpreter IO
     -> (DBLayer IO s k -> IO a)

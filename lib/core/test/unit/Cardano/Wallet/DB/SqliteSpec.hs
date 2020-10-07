@@ -1,3 +1,4 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleContexts #-}
@@ -79,13 +80,18 @@ import Cardano.Wallet.Logging
     ( trMessageText )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
+    , DerivationType (..)
+    , Index
     , NetworkDiscriminant (..)
     , Passphrase (..)
     , PersistPrivateKey
+    , WalletKey
     , encryptPassphrase
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey (..) )
+import Cardano.Wallet.Primitive.AddressDerivation.Icarus
+    ( IcarusKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Jormungandr
     ( JormungandrKey (..), generateKeyFromSeed )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
@@ -95,9 +101,12 @@ import Cardano.Wallet.Primitive.AddressDiscovery
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
-    ( SeqState (..)
+    ( DerivationPrefix (..)
+    , SeqState (..)
+    , coinTypeAda
     , defaultAddressPoolGap
     , mkSeqStateFromRootXPrv
+    , purposeBIP44
     , purposeCIP1852
     )
 import Cardano.Wallet.Primitive.Model
@@ -237,6 +246,22 @@ spec = do
         it "'migrate' db with no passphrase scheme set."
             testMigrationPassphraseScheme
 
+        it "'migrate' db with no 'derivation_prefix' for seq state (Icarus)" $
+            testMigrationSeqStateDerivationPrefix @IcarusKey
+                "icarusDerivationPrefix-v2020-10-07.sqlite"
+                ( purposeBIP44
+                , coinTypeAda
+                , minBound
+                )
+
+        it "'migrate' db with no 'derivation_prefix' for seq state (Shelley)" $
+            testMigrationSeqStateDerivationPrefix @ShelleyKey
+                "shelleyDerivationPrefix-v2020-10-07.sqlite"
+                ( purposeCIP1852
+                , coinTypeAda
+                , minBound
+                )
+
 sqliteSpecSeq :: Spec
 sqliteSpecSeq = withDB newMemoryDBLayer $ do
     describe "Sqlite" properties
@@ -249,6 +274,43 @@ sqliteSpecRnd = withDB newMemoryDBLayer $ do
     describe "Sqlite State machine (RndState)" $ do
         it "Sequential state machine tests"
             (prop_sequential :: TestDBRnd -> Property)
+
+testMigrationSeqStateDerivationPrefix
+    :: forall k s.
+        ( s ~ SeqState 'Mainnet k
+        , WalletKey k
+        , PersistState s
+        , PersistPrivateKey (k 'RootK)
+        )
+    => String
+    -> ( Index 'Hardened 'PurposeK
+       , Index 'Hardened 'CoinTypeK
+       , Index 'Hardened 'AccountK
+       )
+    -> IO ()
+testMigrationSeqStateDerivationPrefix dbName prefix = do
+    let orig = $(getTestData) </> dbName
+    withSystemTempDirectory "migration-db" $ \dir -> do
+        let path = dir </> "db.sqlite"
+        let ti = dummyTimeInterpreter
+        copyFile orig path
+        (logs, Just cp) <- captureLogging $ \tr -> do
+            withDBLayer @s @k tr defaultFieldValues (Just path) ti
+                $ \(_ctx, db) -> db & \DBLayer{..} -> atomically
+                $ do
+                    [wid] <- listWallets
+                    readCheckpoint wid
+        let migrationMsg = filter isMsgManualMigration logs
+        length migrationMsg `shouldBe` 1
+        derivationPrefix (getState cp) `shouldBe` DerivationPrefix prefix
+  where
+    isMsgManualMigration :: DBLog -> Bool
+    isMsgManualMigration = \case
+        MsgManualMigrationNeeded field _ ->
+            fieldName field ==
+                unDBName (fieldDB $ persistFieldDef DB.SeqStateDerivationPrefix)
+        _ ->
+            False
 
 testMigrationPassphraseScheme
     :: forall s k. (k ~ ShelleyKey, s ~ SeqState 'Mainnet k)
@@ -346,6 +408,7 @@ loggingSpec = withLoggingDB @(SeqState 'Mainnet JormungandrKey) @JormungandrKey 
 newMemoryDBLayer
     ::  ( PersistState s
         , PersistPrivateKey (k 'RootK)
+        , WalletKey k
         )
     => IO (DBLayer IO s k)
 newMemoryDBLayer = snd . snd <$> newMemoryDBLayer'
@@ -353,6 +416,7 @@ newMemoryDBLayer = snd . snd <$> newMemoryDBLayer'
 newMemoryDBLayer'
     ::  ( PersistState s
         , PersistPrivateKey (k 'RootK)
+        , WalletKey k
         )
     => IO (TVar [DBLog], (SqliteContext, DBLayer IO s k))
 newMemoryDBLayer' = do
@@ -365,6 +429,7 @@ newMemoryDBLayer' = do
 withLoggingDB
     ::  ( PersistState s
         , PersistPrivateKey (k 'RootK)
+        , WalletKey k
         )
     => SpecWith (IO [DBLog], DBLayer IO s k)
     -> Spec

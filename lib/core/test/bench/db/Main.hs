@@ -578,6 +578,7 @@ withDB
     :: forall s k.
         ( PersistState s
         , PersistPrivateKey (k 'RootK)
+        , WalletKey k
         )
     => Tracer IO DBLog
     -> (DBLayer IO s k -> Benchmark)
@@ -588,6 +589,7 @@ setupDB
     :: forall s k.
         ( PersistState s
         , PersistPrivateKey (k 'RootK)
+        , WalletKey k
         )
     => Tracer IO DBLog
     -> IO (FilePath, SqliteContext, DBLayer IO s k)
