@@ -27,7 +27,7 @@ Download [Cabal](https://www.haskell.org/cabal/download.html) to build this proj
 
 ### Syncing `stack` and `cabal` dependencies
 
-1. Install [stack2cabal](hackage.haskell.org/package/stack2cabal)
+1. Install [stack2cabal](https://hackage.haskell.org/package/stack2cabal)
 
 2. Run `stack2cabal -p now` to convert the dependencies list from `stack` into a suitable format for `cabal`. 
  
