@@ -65,7 +65,7 @@ module Cardano.Wallet.Api.Types
     , PostTransactionData (..)
     , PostTransactionFeeData (..)
     , PostExternalTransactionData (..)
-    , ApiTimeReference (..)
+    , ApiTimeReferenceWithBlock (..)
     , ApiTransaction (..)
     , ApiWithdrawalPostData (..)
     , ApiFee (..)
@@ -612,8 +612,8 @@ newtype ApiTxId = ApiTxId
 data ApiTransaction (n :: NetworkDiscriminant) = ApiTransaction
     { id :: !(ApiT (Hash "Tx"))
     , amount :: !(Quantity "lovelace" Natural)
-    , insertedAt :: !(Maybe ApiTimeReference)
-    , pendingSince :: !(Maybe ApiTimeReference)
+    , insertedAt :: !(Maybe ApiTimeReferenceWithBlock)
+    , pendingSince :: !(Maybe ApiTimeReferenceWithBlock)
     , expiresAt :: !(Maybe ApiSlotReference)
     , depth :: !(Maybe (Quantity "block" Natural))
     , direction :: !(ApiT Direction)
@@ -660,7 +660,7 @@ newtype ApiAddressInspectData = ApiAddressInspectData
     deriving (Eq, Generic, Show)
     deriving newtype (IsString)
 
-data ApiTimeReference = ApiTimeReference
+data ApiTimeReferenceWithBlock = ApiTimeReferenceWithBlock
     { time :: !UTCTime
     , block :: !ApiBlockReference
     } deriving (Eq, Generic, Show)
@@ -1314,9 +1314,9 @@ instance DecodeAddress t => FromJSON (PostTransactionFeeData t) where
 instance EncodeAddress t => ToJSON (PostTransactionFeeData t) where
     toJSON = genericToJSON defaultRecordTypeOptions
 
-instance FromJSON ApiTimeReference where
+instance FromJSON ApiTimeReferenceWithBlock where
     parseJSON = genericParseJSON defaultRecordTypeOptions
-instance ToJSON ApiTimeReference where
+instance ToJSON ApiTimeReferenceWithBlock where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 instance FromJSON ApiBlockReference where

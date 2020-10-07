@@ -68,7 +68,7 @@ import Cardano.Wallet.Api.Types
     , ApiStakePool (..)
     , ApiStakePoolMetrics (..)
     , ApiT (..)
-    , ApiTimeReference (..)
+    , ApiTimeReferenceWithBlock (..)
     , ApiTransaction (..)
     , ApiTxId (..)
     , ApiTxInput (..)
@@ -320,7 +320,7 @@ spec = do
             jsonRoundtripAndGolden $ Proxy @(ApiSelectCoinsData ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @(ApiCoinSelection ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @(ApiCoinSelectionInput ('Testnet 0))
-            jsonRoundtripAndGolden $ Proxy @ApiTimeReference
+            jsonRoundtripAndGolden $ Proxy @ApiTimeReferenceWithBlock
             jsonRoundtripAndGolden $ Proxy @ApiNetworkTip
             jsonRoundtripAndGolden $ Proxy @ApiBlockReference
             jsonRoundtripAndGolden $ Proxy @ApiSlotReference
@@ -811,11 +811,11 @@ spec = do
                     }
             in
                 x' === x .&&. show x' === show x
-        it "ApiTimeReference" $ property $ \x ->
+        it "ApiTimeReferenceWithBlock" $ property $ \x ->
             let
-                x' = ApiTimeReference
-                    { time = time (x :: ApiTimeReference)
-                    , block = block (x :: ApiTimeReference)
+                x' = ApiTimeReferenceWithBlock
+                    { time = time (x :: ApiTimeReferenceWithBlock)
+                    , block = block (x :: ApiTimeReferenceWithBlock)
                     }
             in
                 x' === x .&&. show x' === show x
@@ -1270,9 +1270,9 @@ instance
             , (5, pure $ ApiMnemonicT y)
             ]
 
-instance Arbitrary ApiTimeReference where
-    arbitrary = ApiTimeReference <$> genUniformTime <*> arbitrary
-    shrink (ApiTimeReference t b) = ApiTimeReference t <$> shrink b
+instance Arbitrary ApiTimeReferenceWithBlock where
+    arbitrary = ApiTimeReferenceWithBlock <$> genUniformTime <*> arbitrary
+    shrink (ApiTimeReferenceWithBlock t b) = ApiTimeReferenceWithBlock t <$> shrink b
 
 instance Arbitrary ApiBlockReference where
     arbitrary = genericArbitrary

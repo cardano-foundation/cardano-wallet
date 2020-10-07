@@ -178,7 +178,7 @@ import Cardano.Wallet.Api.Types
     , ApiSelectCoinsData (..)
     , ApiSlotReference (..)
     , ApiT (..)
-    , ApiTimeReference (..)
+    , ApiTimeReferenceWithBlock (..)
     , ApiTransaction (..)
     , ApiTxId (..)
     , ApiTxInput (..)
@@ -1800,7 +1800,7 @@ mkApiTransaction
     -> Map ChimericAccount Coin
     -> (W.TxMeta, UTCTime)
     -> Maybe W.TxMetadata
-    -> Lens' (ApiTransaction n) (Maybe ApiTimeReference)
+    -> Lens' (ApiTransaction n) (Maybe ApiTimeReferenceWithBlock)
     -> m (ApiTransaction n)
 mkApiTransaction ti txid ins outs ws (meta, timestamp) txMeta setTimeReference = do
     timeRef <- timeReference
@@ -1823,7 +1823,7 @@ mkApiTransaction ti txid ins outs ws (meta, timestamp) txMeta setTimeReference =
         , metadata = apiTxMetadata txMeta
         }
 
-    timeReference :: m ApiTimeReference
+    timeReference :: m ApiTimeReferenceWithBlock
     timeReference = do
         slotId <- ti (toSlotId $ meta ^. #slotNo)
         -- TODO: We get passed the timestamp, but still have to do additional
@@ -1832,7 +1832,7 @@ mkApiTransaction ti txid ins outs ws (meta, timestamp) txMeta setTimeReference =
         --  SlotNo -> UTCTime
         -- conversions in the same place.
         return $
-            ApiTimeReference
+            ApiTimeReferenceWithBlock
                 timestamp
                 ApiBlockReference
                     { epochNumber = ApiT $ slotId ^. #epochNumber

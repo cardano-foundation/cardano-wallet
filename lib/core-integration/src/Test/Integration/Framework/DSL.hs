@@ -167,7 +167,7 @@ import Cardano.Wallet.Api.Types
     , ApiNetworkInformation
     , ApiNetworkParameters (..)
     , ApiT (..)
-    , ApiTimeReference (..)
+    , ApiTimeReferenceWithBlock (..)
     , ApiTransaction
     , ApiTxId (ApiTxId)
     , ApiUtxoStatistics (..)
