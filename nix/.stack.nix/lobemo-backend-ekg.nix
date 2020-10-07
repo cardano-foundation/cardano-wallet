@@ -27,12 +27,12 @@
       "library" = {
         depends = [
           (hsPkgs."base" or (errorHandler.buildDepError "base"))
-          (hsPkgs."iohk-monitoring" or (errorHandler.buildDepError "iohk-monitoring"))
           (hsPkgs."aeson" or (errorHandler.buildDepError "aeson"))
           (hsPkgs."async" or (errorHandler.buildDepError "async"))
           (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
           (hsPkgs."ekg" or (errorHandler.buildDepError "ekg"))
           (hsPkgs."ekg-core" or (errorHandler.buildDepError "ekg-core"))
+          (hsPkgs."iohk-monitoring" or (errorHandler.buildDepError "iohk-monitoring"))
           (hsPkgs."safe-exceptions" or (errorHandler.buildDepError "safe-exceptions"))
           (hsPkgs."snap-core" or (errorHandler.buildDepError "snap-core"))
           (hsPkgs."snap-server" or (errorHandler.buildDepError "snap-server"))
@@ -47,8 +47,8 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/iohk-monitoring-framework";
-      rev = "743f266cfe5fff11d18602faf510f22a544ea295";
-      sha256 = "0q1d642xqy4mlr7szc5w8mwfs5pb4wdlgw1l6qkq0yyrjk1b9pxd";
+      rev = "d4bb653fcef181befe3883490c66faed46b6197d";
+      sha256 = "0j859gyrcsdnnw3yflp8l70fvddlpca4x8y2l6kqzn0a9s1qvcb3";
       });
     postUnpack = "sourceRoot+=/plugins/backend-ekg; echo source root reset to \$sourceRoot";
     }

@@ -11,7 +11,7 @@
     flags = {};
     package = {
       specVersion = "2.4";
-      identifier = { name = "hedgehog-extras"; version = "1.19.1"; };
+      identifier = { name = "hedgehog-extras"; version = "0.1.0.0"; };
       license = "Apache-2.0";
       copyright = "";
       maintainer = "operations@iohk.io";
@@ -35,13 +35,17 @@
           (hsPkgs."exceptions" or (errorHandler.buildDepError "exceptions"))
           (hsPkgs."hedgehog" or (errorHandler.buildDepError "hedgehog"))
           (hsPkgs."mmorph" or (errorHandler.buildDepError "mmorph"))
+          (hsPkgs."mtl" or (errorHandler.buildDepError "mtl"))
           (hsPkgs."network" or (errorHandler.buildDepError "network"))
+          (hsPkgs."filepath" or (errorHandler.buildDepError "filepath"))
           (hsPkgs."process" or (errorHandler.buildDepError "process"))
           (hsPkgs."random" or (errorHandler.buildDepError "random"))
           (hsPkgs."resourcet" or (errorHandler.buildDepError "resourcet"))
+          (hsPkgs."stm" or (errorHandler.buildDepError "stm"))
           (hsPkgs."temporary" or (errorHandler.buildDepError "temporary"))
           (hsPkgs."text" or (errorHandler.buildDepError "text"))
           (hsPkgs."time" or (errorHandler.buildDepError "time"))
+          (hsPkgs."transformers" or (errorHandler.buildDepError "transformers"))
           (hsPkgs."unliftio" or (errorHandler.buildDepError "unliftio"))
           (hsPkgs."unordered-containers" or (errorHandler.buildDepError "unordered-containers"))
           (hsPkgs."Win32-network" or (errorHandler.buildDepError "Win32-network"))
@@ -52,8 +56,8 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/cardano-node";
-      rev = "1f2f51164b53b9b775c03ac9f1e23e7b70c74b05";
-      sha256 = "0ql57bhisnhs2dr2vdk8s4rwnff818lzvqw3l2780q16f20yypdg";
+      rev = "a819311473563cb2ab3cd91543cf0f63facdf43e";
+      sha256 = "1zj780z3j11rwbvazg79ja5110cgvskzdls81ms0dv3qy7lw4iyr";
       });
     postUnpack = "sourceRoot+=/hedgehog-extras; echo source root reset to \$sourceRoot";
     }
