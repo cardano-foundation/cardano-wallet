@@ -27,9 +27,9 @@ Download [Cabal](https://www.haskell.org/cabal/download.html) to build this proj
 
 ### Syncing `stack` and `cabal` dependencies
 
-1. Install [stack2cabal](https://github.com/hasufell/stack2cabal/releases)
+1. Install [stack2cabal](hackage.haskell.org/package/stack2cabal)
 
-2. Run `stack2cabal` to convert the dependencies list from `stack` into a suitable format for `cabal`. 
+2. Run `stack2cabal -p now` to convert the dependencies list from `stack` into a suitable format for `cabal`. 
  
 3. Disable tests and benchmarks of local packages
    (those specified via source-repository-package...
@@ -41,12 +41,6 @@ Download [Cabal](https://www.haskell.org/cabal/download.html) to build this proj
       tests: False
       benchmarks: False
     ```
-
-4. Hackage packages in `packages` in `cardano-1.19.x.yaml` or `extra-deps`
-   in `stack.yaml`, which are specified as git repositories might
-   have different versions than the stack resolver. `stack2cabal`
-   cannot pick these up, so these must be adjusted manually (or deleted) in
-   `cabal.project.freeze` (at the time of writing: http-client and persistent).
 
 # Nix 
 
