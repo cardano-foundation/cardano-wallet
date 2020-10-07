@@ -8,6 +8,9 @@ charset = utf-8
 trim_trailing_whitespace = true
 insert_final_newline = true
 
+[stack.yaml]
+trim_trailing_whitespace = false
+
 [Makefile]
 indent_style = tab
 indent_size = 8
