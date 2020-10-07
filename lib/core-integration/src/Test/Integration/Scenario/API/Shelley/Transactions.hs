@@ -43,7 +43,6 @@ import Cardano.Wallet.Primitive.AddressDerivation.Icarus
 import Cardano.Wallet.Primitive.Types
     ( Direction (..)
     , Hash (..)
-    , SlotNo (SlotNo)
     , SortOrder (..)
     , TxMetadata (..)
     , TxMetadataValue (..)
@@ -95,6 +94,7 @@ import Test.Integration.Framework.DSL
     , Headers (..)
     , Payload (..)
     , between
+    , defaultTxTTL
     , emptyByronWalletWith
     , emptyRandomWallet
     , emptyWallet
@@ -619,7 +619,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         let sl = sinceBlock ^. #absoluteSlotNumber . #getApiT
 
         -- The expected expiry slot (adds the hardcoded default ttl)
-        let ttl = sl + SlotNo 7200
+        let ttl = sl + defaultTxTTL
 
         (view #absoluteSlotNumber <$> (apiTx ^. #expiresAt))
             `shouldBe` Just (ApiT ttl)
