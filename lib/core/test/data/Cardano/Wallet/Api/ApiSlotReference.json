@@ -1,45 +1,65 @@
 {
-    "seed": -7345331722963020563,
+    "seed": -9079225969550630887,
     "samples": [
         {
-            "time": "1874-08-19T08:37:41Z",
-            "absolute_slot_number": 14490878
+            "time": "1894-01-30T00:00:00Z",
+            "epoch_number": 26779,
+            "absolute_slot_number": 7348338,
+            "slot_number": 23880
         },
         {
-            "time": "1868-10-26T16:25:56.388468010449Z",
-            "absolute_slot_number": 5727321
+            "time": "1868-05-26T03:50:01.668832474215Z",
+            "epoch_number": 1216,
+            "absolute_slot_number": 13209260,
+            "slot_number": 7310
         },
         {
-            "time": "1881-06-20T08:33:30Z",
-            "absolute_slot_number": 14662098
+            "time": "1895-01-12T17:36:15.32538801477Z",
+            "epoch_number": 1365,
+            "absolute_slot_number": 423602,
+            "slot_number": 21935
         },
         {
-            "time": "1895-09-06T06:00:00Z",
-            "absolute_slot_number": 14173193
+            "time": "1890-06-03T20:00:00Z",
+            "epoch_number": 30513,
+            "absolute_slot_number": 2544019,
+            "slot_number": 4022
         },
         {
-            "time": "1880-12-14T12:30:05Z",
-            "absolute_slot_number": 7293993
+            "time": "1882-03-19T16:27:22Z",
+            "epoch_number": 23451,
+            "absolute_slot_number": 1803132,
+            "slot_number": 13544
         },
         {
-            "time": "1888-07-06T01:21:19Z",
-            "absolute_slot_number": 1630214
+            "time": "1899-12-17T18:00:00Z",
+            "epoch_number": 17618,
+            "absolute_slot_number": 6247813,
+            "slot_number": 1834
         },
         {
-            "time": "1860-05-13T10:00:00Z",
-            "absolute_slot_number": 3275140
+            "time": "1888-01-28T21:02:46Z",
+            "epoch_number": 93,
+            "absolute_slot_number": 9302138,
+            "slot_number": 22345
         },
         {
-            "time": "1908-10-11T16:19:48Z",
-            "absolute_slot_number": 14924467
+            "time": "1886-10-24T23:57:28Z",
+            "epoch_number": 17697,
+            "absolute_slot_number": 4580428,
+            "slot_number": 24443
         },
         {
-            "time": "1896-02-24T23:00:00Z",
-            "absolute_slot_number": 14051444
+            "time": "1861-01-30T12:02:15.531054663549Z",
+            "epoch_number": 6022,
+            "absolute_slot_number": 14799562,
+            "slot_number": 16935
         },
         {
-            "time": "1863-03-20T13:50:09Z",
-            "absolute_slot_number": 1636469
+            "time": "1860-06-27T20:02:00Z",
+            "epoch_number": 12471,
+            "absolute_slot_number": 15733548,
+            "slot_number": 21590
         }
     ]
 }

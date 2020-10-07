@@ -1845,9 +1845,12 @@ mkApiTransaction ti txid ins outs ws (meta, timestamp) txMeta setTimeReference =
     expirySlotReference = case meta ^. #expiry of
         Just expirySlot -> do
             expiryTimestamp <- ti (startTime expirySlot)
+            slotId <- ti (toSlotId expirySlot)
             pure $ Just $ ApiSlotReference
                 { time = expiryTimestamp
                 , absoluteSlotNumber = ApiT expirySlot
+                , epochNumber = ApiT $ slotId ^. #epochNumber
+                , slotNumber = ApiT $ slotId ^. #slotNumber
                 }
         Nothing -> pure Nothing
 

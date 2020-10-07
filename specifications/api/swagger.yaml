@@ -128,9 +128,13 @@ x-slotReference: &slotReference
   type: object
   required:
     - absolute_slot_number
+    - slot_number
+    - epoch_number
     - time
   properties:
     absolute_slot_number: *absoluteSlot
+    slot_number: *slotNumber
+    epoch_number: *epochNumber
     time: *date
 
 x-genesisBlock: &genesisBlock

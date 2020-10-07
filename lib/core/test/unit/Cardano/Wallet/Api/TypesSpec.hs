@@ -833,6 +833,8 @@ spec = do
             let
                 x' = ApiSlotReference
                     { absoluteSlotNumber = absoluteSlotNumber (x :: ApiSlotReference)
+                    , slotNumber = slotNumber (x :: ApiSlotReference)
+                    , epochNumber = epochNumber (x :: ApiSlotReference)
                     , time = time (x :: ApiSlotReference)
                     }
             in
@@ -1279,8 +1281,11 @@ instance Arbitrary ApiBlockReference where
     shrink = genericShrink
 
 instance Arbitrary ApiSlotReference where
-    arbitrary = ApiSlotReference <$> genUniformTime <*> arbitrary
-    shrink (ApiSlotReference t sl) = ApiSlotReference t <$> shrink sl
+    arbitrary = ApiSlotReference
+        <$> genUniformTime <*> arbitrary <*> arbitrary <*> arbitrary
+    shrink (ApiSlotReference t sl e s) =
+        [ ApiSlotReference t sl' e' s'
+        | (sl', e', s') <- shrink (sl, e, s) ]
 
 instance Arbitrary ApiNetworkTip where
     arbitrary = genericArbitrary

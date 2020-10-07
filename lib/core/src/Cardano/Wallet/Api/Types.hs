@@ -675,6 +675,8 @@ data ApiBlockReference = ApiBlockReference
 data ApiSlotReference = ApiSlotReference
     { time :: !UTCTime
     , absoluteSlotNumber :: !(ApiT SlotNo)
+    , epochNumber :: !(ApiT EpochNo)
+    , slotNumber :: !(ApiT SlotInEpoch)
     } deriving (Eq, Generic, Show)
 
 data ApiNetworkTip = ApiNetworkTip
