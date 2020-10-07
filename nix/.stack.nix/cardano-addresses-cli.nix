@@ -11,7 +11,7 @@
     flags = { release = false; };
     package = {
       specVersion = "1.12";
-      identifier = { name = "cardano-addresses-cli"; version = "2.0.0"; };
+      identifier = { name = "cardano-addresses-cli"; version = "2.1.0"; };
       license = "Apache-2.0";
       copyright = "2020 IOHK";
       maintainer = "operations@iohk.io";
@@ -60,6 +60,7 @@
         "unit" = {
           depends = [
             (hsPkgs."QuickCheck" or (errorHandler.buildDepError "QuickCheck"))
+            (hsPkgs."aeson" or (errorHandler.buildDepError "aeson"))
             (hsPkgs."base" or (errorHandler.buildDepError "base"))
             (hsPkgs."bech32" or (errorHandler.buildDepError "bech32"))
             (hsPkgs."bech32-th" or (errorHandler.buildDepError "bech32-th"))
@@ -67,6 +68,7 @@
             (hsPkgs."cardano-addresses" or (errorHandler.buildDepError "cardano-addresses"))
             (hsPkgs."cardano-addresses-cli" or (errorHandler.buildDepError "cardano-addresses-cli"))
             (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
+            (hsPkgs."hjsonschema" or (errorHandler.buildDepError "hjsonschema"))
             (hsPkgs."hspec" or (errorHandler.buildDepError "hspec"))
             (hsPkgs."memory" or (errorHandler.buildDepError "memory"))
             (hsPkgs."process" or (errorHandler.buildDepError "process"))
@@ -84,8 +86,8 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/cardano-addresses";
-      rev = "9a64226fd749513ad0ed2e43e663f7132c92faa7";
-      sha256 = "117sc7yrrylwxn6i3njhxrz3p8ss8xiaj9m4za1n3hvxfsfqjbzj";
+      rev = "e0ab4587266430a08734e1aec1c29d261a9a3b70";
+      sha256 = "1kj1n6890crjaasgzjivnc3skv3pq4gln9daysla14y6z75jxd72";
       });
     postUnpack = "sourceRoot+=/command-line; echo source root reset to \$sourceRoot";
     }) // { cabal-generator = "hpack"; }
