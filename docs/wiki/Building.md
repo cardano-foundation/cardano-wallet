@@ -30,17 +30,6 @@ Download [Cabal](https://www.haskell.org/cabal/download.html) to build this proj
 1. Install [stack2cabal](https://hackage.haskell.org/package/stack2cabal)
 
 2. Run `stack2cabal -p now` to convert the dependencies list from `stack` into a suitable format for `cabal`. 
- 
-3. Disable tests and benchmarks of local packages
-   (those specified via source-repository-package...
-   this won't be needed with cabal-3.4 anymore, because it won't treat
-   them as local anymore), e.g.
-
-    ```
-    package ouroboros-network
-      tests: False
-      benchmarks: False
-    ```
 
 # Nix 
 
