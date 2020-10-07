@@ -821,11 +821,11 @@ newDBLayer trace defaultFieldValues mDatabaseFile timeInterpreter = do
                     , (TxMetaStatus ==.) <$> status
                     ]
 
-        , updatePendingTx = \(PrimaryKey wid) tip -> ExceptT $ do
+        , updatePendingTxForExpiry = \(PrimaryKey wid) tip -> ExceptT $ do
             selectWallet wid >>= \case
                 Nothing -> pure $ Left $ ErrNoSuchWallet wid
                 Just _ -> do
-                  updatePendingTxQuery wid tip
+                  updatePendingTxForExpiryQuery wid tip
                   pure $ Right ()
 
         , removePendingTx = \(PrimaryKey wid) tid -> ExceptT $ do
@@ -1504,11 +1504,11 @@ deletePendingTx wid tid = do
 -- Mutates all pending transaction entries which have exceeded their TTL so that
 -- their status becomes expired. Transaction expiry is not something which can
 -- be rolled back.
-updatePendingTxQuery
+updatePendingTxForExpiryQuery
     :: W.WalletId
     -> W.SlotNo
     -> SqlPersistT IO ()
-updatePendingTxQuery wid tip =
+updatePendingTxForExpiryQuery wid tip =
     updateWhere isExpired [TxMetaStatus =. W.Expired]
   where
     isExpired =

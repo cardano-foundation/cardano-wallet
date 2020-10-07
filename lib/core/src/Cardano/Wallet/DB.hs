@@ -245,7 +245,7 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         --
         -- If the wallet doesn't exist, this operation returns an error.
 
-    , updatePendingTx
+    , updatePendingTxForExpiry
         :: PrimaryKey WalletId
         -> SlotNo
         -> ExceptT ErrNoSuchWallet stm ()

@@ -451,7 +451,7 @@ runIO db@DBLayer{..} = fmap Resp . go
         RemovePendingTx wid tid -> catchCannotRemovePendingTx Unit $
             mapExceptT atomically $ removePendingTx (PrimaryKey wid) tid
         UpdatePendingTx wid sl -> catchNoSuchWallet Unit $
-            mapExceptT atomically $ updatePendingTx (PrimaryKey wid) sl
+            mapExceptT atomically $ updatePendingTxForExpiry (PrimaryKey wid) sl
         PutPrivateKey wid pk -> catchNoSuchWallet Unit $
             mapExceptT atomically $ putPrivateKey (PrimaryKey wid) (fromMockPrivKey pk)
         ReadPrivateKey wid -> Right . PrivateKey . fmap toMockPrivKey <$>

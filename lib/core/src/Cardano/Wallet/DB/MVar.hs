@@ -175,7 +175,7 @@ newDBLayer timeInterpreter = do
                                        Pending Tx
         -----------------------------------------------------------------------}
 
-        , updatePendingTx = \pk tip -> ExceptT $ do
+        , updatePendingTxForExpiry = \pk tip -> ExceptT $ do
             alterDB errNoSuchWallet db (mUpdatePendingTx pk tip)
 
         , removePendingTx = \pk tid -> ExceptT $ do
