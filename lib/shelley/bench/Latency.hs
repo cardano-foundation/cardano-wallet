@@ -43,7 +43,7 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.LatencyBenchShared
     ( LogCaptureFunc, fmtResult, fmtTitle, measureApiLogs, withLatencyLogging )
 import Cardano.Wallet.Logging
-    ( stdoutTextTracer, trMessage )
+    ( trMessage )
 import Cardano.Wallet.Network.Ports
     ( unsafePortNumber )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -384,7 +384,7 @@ withShelleyServer tracers action = do
     afterFork dir _ = do
         let encodeAddr = T.unpack . encodeAddress @'Mainnet
         let addresses = map (first encodeAddr) shelleyIntegrationTestFunds
-        sendFaucetFundsTo stdoutTextTracer dir addresses
+        sendFaucetFundsTo nullTracer dir addresses
 
     onClusterStart act dir (RunningNode socketPath block0 (gp, vData)) = do
         -- NOTE: We may want to keep a wallet running across the fork, but
