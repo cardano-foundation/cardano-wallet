@@ -159,6 +159,8 @@ import Cardano.Wallet.Api.Types
     , AddressAmount (..)
     , ApiAccountPublicKey (..)
     , ApiAddress (..)
+    , ApiBlockInfo (..)
+    , ApiBlockReference (..)
     , ApiBlockReference (..)
     , ApiByronWallet (..)
     , ApiByronWalletBalance (..)
@@ -171,14 +173,13 @@ import Cardano.Wallet.Api.Types
     , ApiNetworkClock (..)
     , ApiNetworkInformation
     , ApiNetworkParameters (..)
-    , ApiNetworkTip (..)
     , ApiPoolId (..)
     , ApiPostRandomAddressData (..)
     , ApiPutAddressesData (..)
     , ApiSelectCoinsData (..)
+    , ApiSlotId (..)
     , ApiSlotReference (..)
     , ApiT (..)
-    , ApiTimeReferenceWithBlock (..)
     , ApiTransaction (..)
     , ApiTxId (..)
     , ApiTxInput (..)
@@ -287,6 +288,8 @@ import Cardano.Wallet.Primitive.Types
     , PassphraseScheme (..)
     , PoolId
     , PoolLifeCycleStatus (..)
+    , SlotId
+    , SlotNo
     , SortOrder (..)
     , TransactionInfo (TransactionInfo)
     , Tx (..)
@@ -1614,7 +1617,7 @@ getNetworkInformation
 getNetworkInformation st nl = do
     now <- liftIO getCurrentTime
     nodeTip <-  liftHandler (NW.currentNodeTip nl)
-    apiNodeTip <- liftIO $ mkApiBlockReference ti nodeTip
+    apiNodeTip <- liftIO $ makeApiBlockReferenceFromHeader ti nodeTip
     nowInfo <- liftIO $ runMaybeT $ networkTipInfo now
     progress <- handle (\(_ :: PastHorizonException) -> pure NotResponding)
         $ liftIO (syncProgress st ti nodeTip now)
@@ -1630,16 +1633,12 @@ getNetworkInformation st nl = do
 
     -- (network tip, next epoch)
     -- May be unavailible if the node is still syncing.
-    networkTipInfo :: UTCTime -> MaybeT IO (ApiNetworkTip, ApiEpochInfo)
+    networkTipInfo :: UTCTime -> MaybeT IO (ApiSlotReference, ApiEpochInfo)
     networkTipInfo now = handle handlePastHorizonException $ do
         networkTipSlot <- MaybeT (ti $ ongoingSlotAt now)
-        networkTip <- lift $ ti $ toSlotId networkTipSlot
-        let curEpoch = networkTip ^. #epochNumber
+        tip <- lift $ makeApiSlotReference ti networkTipSlot
+        let curEpoch = tip ^. #slotId . #epochNumber . #getApiT
         nextEpochStart <- lift $ ti $ endTimeOfEpoch curEpoch
-        let tip = ApiNetworkTip
-                (ApiT $ networkTip ^. #epochNumber)
-                (ApiT $ networkTip ^. #slotNumber)
-                (ApiT networkTipSlot)
         let nextEpoch = ApiEpochInfo
                 (ApiT $ unsafeEpochSucc curEpoch)
                 (nextEpochStart)
@@ -1647,7 +1646,7 @@ getNetworkInformation st nl = do
       where
         handlePastHorizonException
             :: PastHorizonException
-            -> MaybeT IO (ApiNetworkTip, ApiEpochInfo)
+            -> MaybeT IO (ApiSlotReference, ApiEpochInfo)
         handlePastHorizonException _ =
             MaybeT (pure Nothing)
 
@@ -1800,11 +1799,13 @@ mkApiTransaction
     -> Map ChimericAccount Coin
     -> (W.TxMeta, UTCTime)
     -> Maybe W.TxMetadata
-    -> Lens' (ApiTransaction n) (Maybe ApiTimeReferenceWithBlock)
+    -> Lens' (ApiTransaction n) (Maybe ApiBlockReference)
     -> m (ApiTransaction n)
 mkApiTransaction ti txid ins outs ws (meta, timestamp) txMeta setTimeReference = do
-    timeRef <- timeReference
-    expRef <- expirySlotReference
+    timeRef <- (#time .~ timestamp) <$> makeApiBlockReference ti
+        (meta ^. #slotNo)
+        (natural $ meta ^. #blockHeight)
+    expRef <- traverse (makeApiSlotReference ti) (meta ^. #expiry)
     return $ tx & setTimeReference .~ Just timeRef & #expiresAt .~ expRef
   where
     tx :: ApiTransaction n
@@ -1820,46 +1821,12 @@ mkApiTransaction ti txid ins outs ws (meta, timestamp) txMeta setTimeReference =
         , outputs = toAddressAmount <$> outs
         , withdrawals = mkApiWithdrawal @n <$> Map.toList ws
         , status = ApiT (meta ^. #status)
-        , metadata = apiTxMetadata txMeta
+        , metadata = ApiTxMetadata $ ApiT <$> txMeta
         }
-
-    timeReference :: m ApiTimeReferenceWithBlock
-    timeReference = do
-        slotId <- ti (toSlotId $ meta ^. #slotNo)
-        -- TODO: We get passed the timestamp, but still have to do additional
-        -- time-conversions here. We should probably do both
-        --  SlotNo -> SlotId
-        --  SlotNo -> UTCTime
-        -- conversions in the same place.
-        return $
-            ApiTimeReferenceWithBlock
-                timestamp
-                ApiBlockReference
-                    { epochNumber = ApiT $ slotId ^. #epochNumber
-                    , slotNumber = ApiT $ slotId ^. #slotNumber
-                    , height = natural (meta ^. #blockHeight)
-                    , absoluteSlotNumber = ApiT $ meta ^. #slotNo
-                    }
-
-    expirySlotReference :: m (Maybe ApiSlotReference)
-    expirySlotReference = case meta ^. #expiry of
-        Just expirySlot -> do
-            expiryTimestamp <- ti (startTime expirySlot)
-            slotId <- ti (toSlotId expirySlot)
-            pure $ Just $ ApiSlotReference
-                { time = expiryTimestamp
-                , absoluteSlotNumber = ApiT expirySlot
-                , epochNumber = ApiT $ slotId ^. #epochNumber
-                , slotNumber = ApiT $ slotId ^. #slotNumber
-                }
-        Nothing -> pure Nothing
 
     toAddressAmount :: TxOut -> AddressAmount (ApiT Address, Proxy n)
     toAddressAmount (TxOut addr c) =
         AddressAmount (ApiT addr, Proxy @n) (mkApiCoin c)
-
-    apiTxMetadata :: Maybe W.TxMetadata -> ApiTxMetadata
-    apiTxMetadata = ApiTxMetadata . fmap ApiT
 
 mkApiCoin
     :: Coin
@@ -1880,26 +1847,51 @@ coerceCoin (AddressAmount (ApiT addr, _) (Quantity c)) =
 natural :: Quantity q Word32 -> Quantity q Natural
 natural = Quantity . fromIntegral . getQuantity
 
-mkApiBlockReference
+apiSlotId :: SlotId -> ApiSlotId
+apiSlotId slotId = ApiSlotId
+   (ApiT $ slotId ^. #epochNumber)
+   (ApiT $ slotId ^. #slotNumber)
+
+makeApiBlockReference
+    :: Monad m
+    => TimeInterpreter m
+    -> SlotNo
+    -> Quantity "block" Natural
+    -> m ApiBlockReference
+makeApiBlockReference ti sl height = do
+    slotId <- ti (toSlotId sl)
+    slotTime <- ti (startTime sl)
+    return $ ApiBlockReference
+        { absoluteSlotNumber = ApiT sl
+        , slotId = apiSlotId slotId
+        , time = slotTime
+        , block = ApiBlockInfo { height }
+        }
+
+makeApiBlockReferenceFromHeader
     :: Monad m
     => TimeInterpreter m
     -> BlockHeader
     -> m ApiBlockReference
-mkApiBlockReference ti tip = do
-    slotId <- ti (toSlotId $ slotNo tip)
-    return $ ApiBlockReference
-        { epochNumber = ApiT $ slotId ^. #epochNumber
-        , slotNumber = ApiT $ slotId ^. #slotNumber
-        , height = natural $ tip ^. #blockHeight
-        , absoluteSlotNumber = ApiT $ slotNo tip
-        }
+makeApiBlockReferenceFromHeader ti tip =
+    makeApiBlockReference ti (tip ^. #slotNo) (natural $ tip ^. #blockHeight)
+
+makeApiSlotReference
+    :: Monad m
+    => TimeInterpreter m
+    -> SlotNo
+    -> m ApiSlotReference
+makeApiSlotReference ti sl =
+    ApiSlotReference (ApiT sl)
+        <$> (fmap apiSlotId $ ti $ toSlotId sl)
+        <*> ti (startTime sl)
 
 getWalletTip
     :: Monad m
     => TimeInterpreter m
     -> Wallet s
     -> m ApiBlockReference
-getWalletTip ti wallet = mkApiBlockReference ti (currentTip wallet)
+getWalletTip ti = makeApiBlockReferenceFromHeader ti . currentTip
 
 {-------------------------------------------------------------------------------
                                 Api Layer
@@ -2028,7 +2020,7 @@ data ErrCreateWallet
         -- ^ Somehow, we couldn't create a worker or open a db connection
     deriving (Eq, Show)
 
-newtype ErrRejectedTip = ErrRejectedTip ApiNetworkTip
+newtype ErrRejectedTip = ErrRejectedTip ApiSlotReference
     deriving (Eq, Show)
 
 -- | Small helper to easy show things to Text

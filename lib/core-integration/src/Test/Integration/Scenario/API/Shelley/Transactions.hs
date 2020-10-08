@@ -25,7 +25,6 @@ import Cardano.Wallet.Api.Types
     , ApiByronWallet
     , ApiFee (..)
     , ApiT (..)
-    , ApiTimeReferenceWithBlock (..)
     , ApiTransaction
     , ApiTxId (..)
     , ApiWallet
@@ -615,8 +614,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
 
         -- Get insertion slot and out of response.
         let (_, Right apiTx) = r
-        let (Just (ApiTimeReferenceWithBlock _ sinceBlock)) = apiTx ^. #pendingSince
-        let sl = sinceBlock ^. #absoluteSlotNumber . #getApiT
+        let Just sl = view (#absoluteSlotNumber . #getApiT) <$> apiTx ^. #pendingSince
 
         -- The expected expiry slot (adds the hardcoded default ttl)
         let ttl = sl + defaultTxTTL

@@ -51,11 +51,11 @@ import Prelude
 
 import Cardano.Wallet.Api.Types
     ( ApiAddressInspectData
-    , ApiNetworkTip
     , ApiPoolId
     , ApiPostRandomAddressData
     , ApiPutAddressesData
     , ApiSelectCoinsData
+    , ApiSlotReference
     , ApiT (..)
     , ApiTxId
     , ApiWalletMigrationPostData
@@ -937,12 +937,12 @@ instance Malformed (BodyParam (ApiPutAddressesData ('Testnet pm))) where
             ]
          jsonValid = first (BodyParam . Aeson.encode) <$> putAddressesDataCases
 
-instance Malformed (BodyParam ApiNetworkTip) where
+instance Malformed (BodyParam ApiSlotReference) where
     malformed = jsonValid ++ jsonInvalid
      where
          jsonInvalid = first BodyParam <$>
-            [ ("1020344", "Error in $: parsing Cardano.Wallet.Api.Types.ApiNetworkTip(ApiNetworkTip) failed, expected Object, but encountered Number")
-            , ("\"1020344\"", "Error in $: parsing Cardano.Wallet.Api.Types.ApiNetworkTip(ApiNetworkTip) failed, expected Object, but encountered String")
+            [ ("1020344", "Error in $: parsing Cardano.Wallet.Api.Types.ApiSlotReference(ApiSlotReference) failed, expected Object, but encountered Number")
+            , ("\"1020344\"", "Error in $: parsing Cardano.Wallet.Api.Types.ApiSlotReference(ApiSlotReference) failed, expected Object, but encountered String")
             , ("{\"slot_number : \"random\"}", msgJsonInvalid)
             , ("\"slot_number : \"random\"}", "trailing junk after valid JSON: endOfInput")
             ]
@@ -974,12 +974,12 @@ instance Malformed (BodyParam ApiNetworkTip) where
             , ( [aesonQQ|
                 { "slot_number": 0
                 }|]
-              , "Error in $: parsing Cardano.Wallet.Api.Types.ApiNetworkTip(ApiNetworkTip) failed, key 'epoch_number' not found"
+              , "Error in $: parsing Cardano.Wallet.Api.Types.ApiSlotReference(ApiSlotReference) failed, key 'epoch_number' not found"
               )
             , ( [aesonQQ|
                 { "epoch_number": 0
                 }|]
-              , "Error in $: parsing Cardano.Wallet.Api.Types.ApiNetworkTip(ApiNetworkTip) failed, key 'slot_number' not found"
+              , "Error in $: parsing Cardano.Wallet.Api.Types.ApiSlotReference(ApiSlotReference) failed, key 'slot_number' not found"
               )
             ]
 

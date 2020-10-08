@@ -163,6 +163,7 @@ import Cardano.Mnemonic
 import Cardano.Wallet.Api.Types
     ( AddressAmount
     , ApiAddress
+    , ApiBlockReference (..)
     , ApiByronWallet
     , ApiCoinSelection
     , ApiEpochInfo (ApiEpochInfo)
@@ -170,7 +171,6 @@ import Cardano.Wallet.Api.Types
     , ApiNetworkInformation
     , ApiNetworkParameters (..)
     , ApiT (..)
-    , ApiTimeReferenceWithBlock (..)
     , ApiTransaction
     , ApiTxId (ApiTxId)
     , ApiUtxoStatistics (..)
@@ -587,10 +587,10 @@ waitForNextEpoch
     :: Context t
     -> IO ()
 waitForNextEpoch ctx = do
-    epoch <- getFromResponse (#nodeTip . #epochNumber) <$>
+    epoch <- getFromResponse (#nodeTip . #slotId . #epochNumber) <$>
         request @ApiNetworkInformation ctx Link.getNetworkInfo Default Empty
     eventually "waitForNextEpoch: goes to next epoch" $ do
-        epoch' <- getFromResponse (#nodeTip . #epochNumber) <$>
+        epoch' <- getFromResponse (#nodeTip . #slotId . #epochNumber) <$>
             request @ApiNetworkInformation ctx Link.getNetworkInfo Default Empty
         unless (getApiT epoch' > getApiT epoch) $ fail "not yet"
 
@@ -1801,7 +1801,7 @@ getSlotParams ctx = do
     r1 <- request @ApiNetworkInformation ctx
           Link.getNetworkInfo Default Empty
     let ApiT currentEpoch =
-             view #epochNumber
+             view (#slotId . #epochNumber)
             $ fromMaybe (error "getSlotParams: tip is Nothing")
             $ getFromResponse #networkTip r1
 

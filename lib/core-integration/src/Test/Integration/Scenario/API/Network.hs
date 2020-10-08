@@ -17,7 +17,6 @@ import Cardano.Wallet.Api.Types
     , NtpSyncingStatus (..)
     , WalletStyle (..)
     , epochStartTime
-    , getApiT
     , nextEpoch
     )
 import Cardano.Wallet.Primitive.SyncProgress
@@ -28,8 +27,6 @@ import Control.Monad.IO.Class
     ( liftIO )
 import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
-import Data.Maybe
-    ( fromJust )
 import Data.Time.Clock
     ( getCurrentTime )
 import Test.Hspec
@@ -70,9 +67,10 @@ spec = describe "COMMON_NETWORK" $ do
                 , expectField (#nodeTip . #absoluteSlotNumber . #getApiT) (`shouldNotBe` 0)
                 ]
 
-            let Just currentEpochNum = getApiT . (view #epochNumber) <$> (i ^. #networkTip)
-            let nextEpochNum = view (#epochNumber . #getApiT)
-                    $ fromJust $ getFromResponse #nextEpoch r
+            let Just currentEpochNum =
+                    view (#slotId . #epochNumber . #getApiT) <$> (i ^. #networkTip)
+            let Just nextEpochNum =
+                    view (#epochNumber . #getApiT) <$> getFromResponse #nextEpoch r
             nextEpochNum `shouldBe` currentEpochNum + 1
 
     it "NETWORK_BYRON - Byron wallet has the same tip as network/information" $
@@ -85,11 +83,11 @@ spec = describe "COMMON_NETWORK" $ do
                 expectField (#syncProgress . #getApiT) (`shouldBe` Ready) sync
 
                 let epochNum =
-                        getFromResponse (#nodeTip . #epochNumber . #getApiT) sync
+                        getFromResponse (#nodeTip . #slotId . #epochNumber . #getApiT) sync
                 let slotNum =
-                        getFromResponse (#nodeTip . #slotNumber . #getApiT) sync
+                        getFromResponse (#nodeTip . #slotId . #slotNumber . #getApiT) sync
                 let blockHeight =
-                        getFromResponse (#nodeTip . #height) sync
+                        getFromResponse (#nodeTip . #block . #height) sync
                 let absSlot =
                         getFromResponse (#nodeTip . #absoluteSlotNumber) sync
 
@@ -97,9 +95,9 @@ spec = describe "COMMON_NETWORK" $ do
                     (Link.getWallet @'Byron w) Default Empty
                 verify res
                     [ expectField (#state . #getApiT) (`shouldBe` Ready)
-                    , expectField (#tip . #epochNumber . #getApiT) (`shouldBe` epochNum)
-                    , expectField (#tip . #slotNumber  . #getApiT) (`shouldBe` slotNum)
-                    , expectField (#tip . #height) (`shouldBe` blockHeight)
+                    , expectField (#tip . #slotId . #epochNumber . #getApiT) (`shouldBe` epochNum)
+                    , expectField (#tip . #slotId . #slotNumber  . #getApiT) (`shouldBe` slotNum)
+                    , expectField (#tip . #block . #height) (`shouldBe` blockHeight)
                     , expectField (#tip . #absoluteSlotNumber) (`shouldBe` absSlot)
                     ]
 

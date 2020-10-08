@@ -47,6 +47,7 @@ import Cardano.Wallet.Api.Types
     , ApiAddressDerivationSegment (..)
     , ApiAddressDerivationType (..)
     , ApiAddressInspect (..)
+    , ApiBlockInfo (..)
     , ApiBlockReference (..)
     , ApiByronWallet (..)
     , ApiByronWalletBalance (..)
@@ -58,17 +59,16 @@ import Cardano.Wallet.Api.Types
     , ApiNetworkClock (..)
     , ApiNetworkInformation (..)
     , ApiNetworkParameters (..)
-    , ApiNetworkTip (..)
     , ApiNtpStatus (..)
     , ApiPostRandomAddressData
     , ApiPutAddressesData (..)
     , ApiRelativeAddressIndex (..)
     , ApiSelectCoinsData (..)
+    , ApiSlotId (..)
     , ApiSlotReference (..)
     , ApiStakePool (..)
     , ApiStakePoolMetrics (..)
     , ApiT (..)
-    , ApiTimeReferenceWithBlock (..)
     , ApiTransaction (..)
     , ApiTxId (..)
     , ApiTxInput (..)
@@ -320,8 +320,6 @@ spec = do
             jsonRoundtripAndGolden $ Proxy @(ApiSelectCoinsData ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @(ApiCoinSelection ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @(ApiCoinSelectionInput ('Testnet 0))
-            jsonRoundtripAndGolden $ Proxy @ApiTimeReferenceWithBlock
-            jsonRoundtripAndGolden $ Proxy @ApiNetworkTip
             jsonRoundtripAndGolden $ Proxy @ApiBlockReference
             jsonRoundtripAndGolden $ Proxy @ApiSlotReference
             jsonRoundtripAndGolden $ Proxy @ApiNetworkInformation
@@ -811,21 +809,13 @@ spec = do
                     }
             in
                 x' === x .&&. show x' === show x
-        it "ApiTimeReferenceWithBlock" $ property $ \x ->
-            let
-                x' = ApiTimeReferenceWithBlock
-                    { time = time (x :: ApiTimeReferenceWithBlock)
-                    , block = block (x :: ApiTimeReferenceWithBlock)
-                    }
-            in
-                x' === x .&&. show x' === show x
         it "ApiBlockReference" $ property $ \x ->
             let
                 x' = ApiBlockReference
-                    { slotNumber = slotNumber (x :: ApiBlockReference)
-                    , epochNumber = epochNumber (x :: ApiBlockReference)
-                    , height = height (x :: ApiBlockReference)
-                    , absoluteSlotNumber = absoluteSlotNumber (x :: ApiBlockReference)
+                    { absoluteSlotNumber = absoluteSlotNumber (x :: ApiBlockReference)
+                    , slotId = slotId (x :: ApiBlockReference)
+                    , time = time (x :: ApiBlockReference)
+                    , block = block (x :: ApiBlockReference)
                     }
             in
                 x' === x .&&. show x' === show x
@@ -833,18 +823,8 @@ spec = do
             let
                 x' = ApiSlotReference
                     { absoluteSlotNumber = absoluteSlotNumber (x :: ApiSlotReference)
-                    , slotNumber = slotNumber (x :: ApiSlotReference)
-                    , epochNumber = epochNumber (x :: ApiSlotReference)
+                    , slotId = slotId (x :: ApiSlotReference)
                     , time = time (x :: ApiSlotReference)
-                    }
-            in
-                x' === x .&&. show x' === show x
-        it "ApiNetworkTip" $ property $ \x ->
-            let
-                x' = ApiNetworkTip
-                    { slotNumber = slotNumber (x :: ApiNetworkTip)
-                    , epochNumber = epochNumber (x :: ApiNetworkTip)
-                    , absoluteSlotNumber = absoluteSlotNumber (x :: ApiNetworkTip)
                     }
             in
                 x' === x .&&. show x' === show x
@@ -1272,22 +1252,24 @@ instance
             , (5, pure $ ApiMnemonicT y)
             ]
 
-instance Arbitrary ApiTimeReferenceWithBlock where
-    arbitrary = ApiTimeReferenceWithBlock <$> genUniformTime <*> arbitrary
-    shrink (ApiTimeReferenceWithBlock t b) = ApiTimeReferenceWithBlock t <$> shrink b
-
 instance Arbitrary ApiBlockReference where
+    arbitrary = ApiBlockReference
+        <$> arbitrary <*> arbitrary <*> genUniformTime <*> arbitrary
+    shrink (ApiBlockReference sln sli t bh) =
+        [ ApiBlockReference sln' sli' t bh'
+        | (sln', sli', bh') <- shrink (sln, sli, bh) ]
+
+instance Arbitrary ApiBlockInfo where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
 instance Arbitrary ApiSlotReference where
-    arbitrary = ApiSlotReference
-        <$> genUniformTime <*> arbitrary <*> arbitrary <*> arbitrary
-    shrink (ApiSlotReference t sl e s) =
-        [ ApiSlotReference t sl' e' s'
-        | (sl', e', s') <- shrink (sl, e, s) ]
+    arbitrary = ApiSlotReference <$> arbitrary <*> arbitrary <*> genUniformTime
+    shrink (ApiSlotReference sln sli t) =
+        [ ApiSlotReference sln' sli' t
+        | (sln', sli') <- shrink (sln, sli) ]
 
-instance Arbitrary ApiNetworkTip where
+instance Arbitrary ApiSlotId where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
@@ -1731,8 +1713,11 @@ instance ToSchema ApiNetworkClock where
 instance ToSchema ApiNetworkParameters where
     declareNamedSchema _ = declareSchemaForDefinition "ApiNetworkParameters"
 
-instance ToSchema ApiNetworkTip where
-    declareNamedSchema _ = declareSchemaForDefinition "ApiNetworkTip"
+instance ToSchema ApiSlotReference where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiSlotReference"
+
+instance ToSchema ApiBlockReference where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiBlockReference"
 
 instance ToSchema ApiWalletDelegationStatus where
     declareNamedSchema _ = declareSchemaForDefinition "ApiWalletDelegationStatus"
