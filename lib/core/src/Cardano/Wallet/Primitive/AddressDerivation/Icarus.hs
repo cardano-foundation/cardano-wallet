@@ -100,8 +100,6 @@ import Data.Maybe
     ( fromMaybe )
 import Data.Proxy
     ( Proxy (..) )
-import Data.Void
-    ( Void )
 import GHC.Generics
     ( Generic )
 import GHC.TypeLits
@@ -390,7 +388,6 @@ instance PaymentAddress n IcarusKey
         err = ErrInvalidAddress (proxy, k) Proxy
 
 instance IsOurs (SeqState n IcarusKey) ChimericAccount where
-    type DerivationPath (SeqState n IcarusKey) ChimericAccount = Void
     isOurs _account state = (Nothing, state)
 
 {-------------------------------------------------------------------------------

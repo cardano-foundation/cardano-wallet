@@ -97,7 +97,12 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     , KnownAddresses (..)
     )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..), AddressState (..), ChimericAccount (..), invariant )
+    ( Address (..)
+    , AddressState (..)
+    , ChimericAccount (..)
+    , DerivationIndex (..)
+    , invariant
+    )
 import Control.Applicative
     ( (<|>) )
 import Control.DeepSeq
@@ -110,6 +115,8 @@ import Data.Digest.CRC32
     ( crc32 )
 import Data.Function
     ( (&) )
+import Data.List.NonEmpty
+    ( NonEmpty (..) )
 import Data.Map.Strict
     ( Map )
 import Data.Proxy
@@ -132,6 +139,7 @@ import GHC.TypeLits
     ( KnownNat, Nat, natVal )
 
 import qualified Data.List as L
+import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
@@ -722,13 +730,6 @@ instance
     , MkKeyFingerprint k Address
     ) => IsOurs (SeqState n k) Address
   where
-    type DerivationPath (SeqState n k) Address =
-        ( Index 'Hardened 'PurposeK
-        , Index 'Hardened 'CoinTypeK
-        , Index 'Hardened 'AccountK
-        , Index 'Soft 'RoleK
-        , Index 'Soft 'AddressK
-        )
     isOurs addr (SeqState !s1 !s2 !ixs !rpk !prefix) =
         let
             DerivationPrefix (purpose, coinType, accountIx) = prefix
@@ -740,11 +741,21 @@ instance
                 Just ix -> updatePendingIxs ix ixs
 
             ours = case (external, internal) of
-                (Just addrIx, _) ->
-                    Just (purpose, coinType, accountIx, utxoExternal, addrIx)
+                (Just addrIx, _) -> Just $ NE.fromList
+                    [ DerivationIndex $ getIndex purpose
+                    , DerivationIndex $ getIndex coinType
+                    , DerivationIndex $ getIndex accountIx
+                    , DerivationIndex $ getIndex utxoExternal
+                    , DerivationIndex $ getIndex addrIx
+                    ]
 
-                (_, Just addrIx) ->
-                    Just (purpose, coinType, accountIx, utxoInternal, addrIx)
+                (_, Just addrIx) -> Just $ NE.fromList
+                    [ DerivationIndex $ getIndex purpose
+                    , DerivationIndex $ getIndex coinType
+                    , DerivationIndex $ getIndex accountIx
+                    , DerivationIndex $ getIndex utxoInternal
+                    , DerivationIndex $ getIndex addrIx
+                    ]
 
                 _ -> Nothing
         in
@@ -893,15 +904,15 @@ instance
     , KnownNat p
     ) => IsOurs (SeqAnyState n k p) Address
   where
-    type DerivationPath (SeqAnyState n k p) Address = ()
     isOurs (Address bytes) st@(SeqAnyState inner)
         | crc32 bytes < p =
             let
                 edge = Map.size (indexedKeys $ externalPool inner)
                 ix = toEnum (edge - fromEnum (gap $ externalPool inner))
                 pool' = extendAddressPool @n ix (externalPool inner)
+                path = DerivationIndex (getIndex ix) :| []
             in
-                (Just (), SeqAnyState (inner { externalPool = pool' }))
+                (Just path, SeqAnyState (inner { externalPool = pool' }))
         | otherwise =
             (Nothing, st)
       where
@@ -914,8 +925,6 @@ instance
 
 instance IsOurs (SeqAnyState n k p) ChimericAccount
   where
-    type DerivationPath (SeqAnyState n k p) ChimericAccount =
-         DerivationPath (SeqAnyState n k p) Address
     isOurs _account state = (Nothing, state)
 
 instance

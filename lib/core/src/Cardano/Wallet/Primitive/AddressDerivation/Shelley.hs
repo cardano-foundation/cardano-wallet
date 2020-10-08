@@ -86,7 +86,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     , rewardAccountKey
     )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..), Hash (..), invariant )
+    ( Address (..), DerivationIndex (..), Hash (..), invariant )
 import Control.DeepSeq
     ( NFData (..) )
 import Control.Monad
@@ -115,6 +115,7 @@ import GHC.Generics
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
+import qualified Data.List.NonEmpty as NE
 
 {-------------------------------------------------------------------------------
                             Sequential Derivation
@@ -327,12 +328,16 @@ instance MkKeyFingerprint ShelleyKey (Proxy (n :: NetworkDiscriminant), ShelleyK
 
 instance IsOurs (SeqState n ShelleyKey) ChimericAccount
   where
-    type DerivationPath (SeqState n ShelleyKey) ChimericAccount =
-         DerivationPath (SeqState n ShelleyKey) Address
     isOurs account state@SeqState{derivationPrefix} =
         let
             DerivationPrefix (purpose, coinType, accountIx) = derivationPrefix
-            path = (purpose, coinType, accountIx, mutableAccount, minBound)
+            path = NE.fromList
+                [ DerivationIndex $ getIndex purpose
+                , DerivationIndex $ getIndex coinType
+                , DerivationIndex $ getIndex accountIx
+                , DerivationIndex $ getIndex mutableAccount
+                , DerivationIndex $ getIndex @'Soft minBound
+                ]
         in
             (guard (account == ourAccount) *> Just path, state)
       where

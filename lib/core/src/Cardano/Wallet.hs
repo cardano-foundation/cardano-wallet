@@ -292,6 +292,7 @@ import Cardano.Wallet.Primitive.Types
     , ChimericAccount (..)
     , Coin (..)
     , DelegationCertificate (..)
+    , DerivationIndex
     , Direction (..)
     , FeePolicy (LinearFee)
     , GenesisParameters (..)
@@ -307,8 +308,10 @@ import Cardano.Wallet.Primitive.Types
     , SortOrder (..)
     , TransactionInfo (..)
     , Tx
+    , TxIn
     , TxMeta (..)
     , TxMetadata
+    , TxOut (..)
     , TxOut (..)
     , TxStatus (..)
     , UTxO (..)
@@ -1626,7 +1629,7 @@ signTx
     -> WalletId
     -> Passphrase "raw"
     -> Maybe TxMetadata
-    -> UnsignedTx
+    -> UnsignedTx (TxIn, TxOut)
     -> ExceptT ErrSignPayment IO (Tx, TxMeta, UTCTime, SealedTx)
 signTx ctx wid pwd md (UnsignedTx inpsNE outsNE) = db & \DBLayer{..} -> do
     withRootKey @_ @s ctx wid pwd ErrSignPaymentWithRootKey $ \xprv scheme -> do
@@ -1662,6 +1665,7 @@ selectCoinsExternal
         , HasLogger WalletLog ctx
         , HasTransactionLayer t k ctx
         , e ~ ErrValidateSelection t
+        , IsOurs s Address
         )
     => ctx
     -> WalletId
@@ -1669,22 +1673,49 @@ selectCoinsExternal
     -> NonEmpty TxOut
     -> Quantity "lovelace" Word64
     -> Maybe TxMetadata
-    -> ExceptT (ErrSelectCoinsExternal e) IO UnsignedTx
+    -> ExceptT
+        (ErrSelectCoinsExternal e)
+        IO
+        (UnsignedTx (TxIn, TxOut, NonEmpty DerivationIndex))
 selectCoinsExternal ctx wid argGenChange payments withdrawal md = do
     cs <- withExceptT ErrSelectCoinsExternalUnableToMakeSelection $
         selectCoinsForPayment @ctx @s @t @k @e ctx wid payments withdrawal md
-    cs' <- db & \DBLayer{..} ->
+    (cs', s') <- db & \DBLayer{..} ->
         withExceptT ErrSelectCoinsExternalNoSuchWallet $
             mapExceptT atomically $ do
                 cp <- withNoSuchWallet wid $ readCheckpoint $ PrimaryKey wid
                 (cs', s') <- assignChangeAddresses argGenChange cs (getState cp)
                 putCheckpoint (PrimaryKey wid) (updateState s' cp)
-                pure cs'
+                pure (cs', s')
     UnsignedTx
-        <$> ensureNonEmpty (inputs cs') ErrSelectCoinsExternalUnableToAssignInputs
-        <*> ensureNonEmpty (outputs cs') ErrSelectCoinsExternalUnableToAssignOutputs
+        <$> (fullyQualifiedInputs s' cs' >>= flip ensureNonEmpty
+                ErrSelectCoinsExternalUnableToAssignInputs)
+        <*> ensureNonEmpty (outputs cs')
+                ErrSelectCoinsExternalUnableToAssignOutputs
   where
     db = ctx ^. dbLayer @s @k
+
+    fullyQualifiedInputs
+        :: s
+        -> CoinSelection
+        -> ExceptT
+            (ErrSelectCoinsExternal e)
+            IO
+            [(TxIn, TxOut, NonEmpty DerivationIndex)]
+    fullyQualifiedInputs s cs =
+        traverse withDerivationPath (inputs cs)
+      where
+        withDerivationPath
+            :: (TxIn, TxOut)
+            -> ExceptT
+                (ErrSelectCoinsExternal e)
+                IO
+                (TxIn, TxOut, NonEmpty DerivationIndex)
+        withDerivationPath (txin, txout) = do
+            case fst $ isOurs (address txout) s of
+                Nothing -> throwE $ ErrSelectCoinsExternalUnableToAssignInputs wid
+                Just path -> pure (txin, txout, path)
+
     ensureNonEmpty
         :: forall a. [a]
         -> (WalletId -> ErrSelectCoinsExternal e)

@@ -78,6 +78,7 @@ import Cardano.Wallet.Primitive.Types
     , BlockHeader (BlockHeader)
     , ChimericAccount (..)
     , Coin (..)
+    , DerivationIndex (..)
     , Direction (..)
     , EpochNo (..)
     , Hash (..)
@@ -130,6 +131,8 @@ import Data.Either
     ( isLeft, isRight )
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
+import Data.List.NonEmpty
+    ( NonEmpty (..) )
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
@@ -783,11 +786,9 @@ instance Arbitrary DummyState where
     arbitrary = return (DummyState mempty)
 
 instance IsOurs DummyState Address where
-    type DerivationPath DummyState Address = ()
-    isOurs _ s = (Just (), s)
+    isOurs _ s = (Just (DerivationIndex 0 :| []), s)
 
 instance IsOurs DummyState ChimericAccount where
-    type DerivationPath DummyState ChimericAccount = ()
     isOurs _ s = (Nothing, s)
 
 instance IsOwned DummyState JormungandrKey where

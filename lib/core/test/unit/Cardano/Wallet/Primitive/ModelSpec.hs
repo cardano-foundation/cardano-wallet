@@ -40,6 +40,7 @@ import Cardano.Wallet.Primitive.Types
     , BlockHeader (..)
     , ChimericAccount (..)
     , Coin (..)
+    , DerivationIndex (..)
     , Direction (..)
     , Dom (..)
     , EpochLength (..)
@@ -73,6 +74,10 @@ import Data.Generics.Internal.VL.Lens
     ( view )
 import Data.Generics.Labels
     ()
+import Data.List
+    ( elemIndex )
+import Data.List.NonEmpty
+    ( NonEmpty (..) )
 import Data.Maybe
     ( catMaybes )
 import Data.Quantity
@@ -367,16 +372,19 @@ instance Semigroup WalletState where
             (\_ -> ours == ours')
 
 instance IsOurs WalletState Address where
-    type DerivationPath WalletState Address = ()
     isOurs addr s@(WalletState ours discovered) =
-        if (ShowFmt addr) `elem` ours then
-            (Just (), WalletState ours (Set.insert (ShowFmt addr) discovered))
-        else
-            (Nothing, s)
+        case ShowFmt addr `elemIndex` Set.toList ours of
+            Just ix ->
+                let path = DerivationIndex (fromIntegral ix) :| []
+                in (Just path, WalletState ours (Set.insert (ShowFmt addr) discovered))
+            Nothing ->
+                (Nothing, s)
 
 instance IsOurs WalletState ChimericAccount where
-    type DerivationPath WalletState ChimericAccount = ()
-    isOurs account s = (guard (account == ourChimericAccount) $> (), s)
+    isOurs account s =
+        ( guard (account == ourChimericAccount) $> (DerivationIndex 0 :| [])
+        , s
+        )
 
 instance Arbitrary WalletState where
     shrink = genericShrink

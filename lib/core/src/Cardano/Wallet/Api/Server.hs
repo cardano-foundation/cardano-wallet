@@ -166,6 +166,8 @@ import Cardano.Wallet.Api.Types
     , ApiByronWalletBalance (..)
     , ApiCoinSelection (..)
     , ApiCoinSelectionInput (..)
+    , ApiDerivationPath (..)
+    , ApiDerivationSegment (..)
     , ApiEpochInfo (ApiEpochInfo)
     , ApiErrorCode (..)
     , ApiFee (..)
@@ -176,6 +178,7 @@ import Cardano.Wallet.Api.Types
     , ApiPoolId (..)
     , ApiPostRandomAddressData (..)
     , ApiPutAddressesData (..)
+    , ApiRelativeDerivationIndex (..)
     , ApiSelectCoinsData (..)
     , ApiSlotId (..)
     , ApiSlotReference (..)
@@ -284,6 +287,7 @@ import Cardano.Wallet.Primitive.Types
     , Block
     , BlockHeader (..)
     , Coin (..)
+    , DerivationIndex (..)
     , Hash (..)
     , NetworkParameters (..)
     , PassphraseScheme (..)
@@ -350,6 +354,8 @@ import Data.Generics.Labels
     ()
 import Data.List
     ( isInfixOf, isSubsequenceOf, sortOn )
+import Data.List.NonEmpty
+    ( NonEmpty )
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
@@ -1108,6 +1114,7 @@ selectCoins
         , s ~ SeqState n k
         , SoftDerivation k
         , ctx ~ ApiLayer s t k
+        , IsOurs s Address
         )
     => ctx
     -> ArgGenChange s
@@ -1575,7 +1582,7 @@ assignMigrationAddresses
     -- ^ Target addresses
     -> [CoinSelection]
     -- ^ Migration data for the source wallet.
-    -> [UnsignedTx]
+    -> [UnsignedTx (TxIn, TxOut)]
 assignMigrationAddresses addrs selections =
     fst $ foldr accumulate ([], cycle addrs) selections
   where
@@ -1583,7 +1590,7 @@ assignMigrationAddresses addrs selections =
         (\addrsSelected -> makeTx sel addrsSelected : txs)
         (splitAt (length $ change sel) addrsAvailable)
 
-    makeTx :: CoinSelection -> [Address] -> UnsignedTx
+    makeTx :: CoinSelection -> [Address] -> UnsignedTx (TxIn, TxOut)
     makeTx sel addrsSelected = UnsignedTx
         (NE.fromList (sel ^. #inputs))
         (NE.fromList (zipWith TxOut addrsSelected (sel ^. #change)))
@@ -1772,7 +1779,10 @@ rndStateChange ctx (ApiT wid) pwd =
             pure (xprv, preparePassphrase scheme pwd)
 
 -- | Makes an 'ApiCoinSelection' from the given 'UnsignedTx'.
-mkApiCoinSelection :: forall n. UnsignedTx -> ApiCoinSelection n
+mkApiCoinSelection
+    :: forall n. ()
+    => UnsignedTx (TxIn, TxOut, NonEmpty DerivationIndex)
+    -> ApiCoinSelection n
 mkApiCoinSelection (UnsignedTx inputs outputs) =
     ApiCoinSelection
         (mkApiCoinSelectionInput <$> inputs)
@@ -1782,14 +1792,38 @@ mkApiCoinSelection (UnsignedTx inputs outputs) =
     mkAddressAmount (TxOut addr (Coin c)) =
         AddressAmount (ApiT addr, Proxy @n) (Quantity $ fromIntegral c)
 
-    mkApiCoinSelectionInput :: (TxIn, TxOut) -> ApiCoinSelectionInput n
-    mkApiCoinSelectionInput (TxIn txid index, TxOut addr (Coin c)) =
+    mkApiCoinSelectionInput
+        :: (TxIn, TxOut, NonEmpty DerivationIndex)
+        -> ApiCoinSelectionInput n
+    mkApiCoinSelectionInput (TxIn txid index, TxOut addr (Coin c), path) =
         ApiCoinSelectionInput
             { id = ApiT txid
             , index = index
             , address = (ApiT addr, Proxy @n)
             , amount = Quantity $ fromIntegral c
+            , derivationPath = ApiDerivationPath $ mkApiDerivationSegment <$> path
             }
+
+    mkApiDerivationSegment
+        :: DerivationIndex
+        -> ApiDerivationSegment
+    mkApiDerivationSegment (DerivationIndex ix)
+        | ix >= hardenedThreshold =
+            ApiDerivationSegment
+                { derivationIndex =
+                    ApiRelativeDerivationIndex $ fromIntegral (ix - hardenedThreshold)
+                , derivationType =
+                    Api.Hardened
+                }
+        | otherwise =
+            ApiDerivationSegment
+                { derivationIndex =
+                    ApiRelativeDerivationIndex $ fromIntegral ix
+                , derivationType =
+                    Api.Soft
+                }
+      where
+        hardenedThreshold = getIndex @'Hardened minBound
 
 mkApiTransaction
     :: forall n m. Monad m

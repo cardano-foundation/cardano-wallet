@@ -42,10 +42,10 @@ module Cardano.Wallet.Api.Types
 
     -- * API Types
     , ApiAddress (..)
-    , ApiAddressDerivationPath (..)
-    , ApiAddressDerivationSegment (..)
-    , ApiAddressDerivationType (..)
-    , ApiRelativeAddressIndex (..)
+    , ApiDerivationPath (..)
+    , ApiDerivationSegment (..)
+    , ApiDerivationType (..)
+    , ApiRelativeDerivationIndex (..)
     , ApiEpochInfo (..)
     , ApiSelectCoinsData (..)
     , ApiCoinSelection (..)
@@ -376,13 +376,13 @@ data ApiAddress (n :: NetworkDiscriminant) = ApiAddress
     , state :: !(ApiT AddressState)
     } deriving (Eq, Generic, Show)
 
-newtype ApiAddressDerivationPath = ApiAddressDerivationPath
-    { unApiAddressDerivationPath :: NonEmpty ApiAddressDerivationSegment
+newtype ApiDerivationPath = ApiDerivationPath
+    { unApiDerivationPath :: NonEmpty ApiDerivationSegment
     } deriving (Eq, Generic, Show)
 
-data ApiAddressDerivationSegment = ApiAddressDerivationSegment
-    { derivationIndex :: !ApiRelativeAddressIndex
-    , derivationType :: !ApiAddressDerivationType
+data ApiDerivationSegment = ApiDerivationSegment
+    { derivationIndex :: !ApiRelativeDerivationIndex
+    , derivationType :: !ApiDerivationType
     } deriving (Eq, Generic, Show)
 
 -- | Represents a type of address derivation.
@@ -390,7 +390,7 @@ data ApiAddressDerivationSegment = ApiAddressDerivationSegment
 -- Note that the values of this type are a strict subset of those provided
 -- by 'DerivationType' from 'Cardano.Wallet.Primitive.AddressDerivation'.
 --
-data ApiAddressDerivationType
+data ApiDerivationType
     = Hardened
     | Soft
     deriving (Bounded, Enum, Eq, Generic, Show)
@@ -399,8 +399,8 @@ data ApiAddressDerivationType
 --
 -- The range of this type is exactly half that of a 'Word32'.
 --
-newtype ApiRelativeAddressIndex = ApiRelativeAddressIndex
-    { unApiRelativeAddressIndex :: Word31
+newtype ApiRelativeDerivationIndex = ApiRelativeDerivationIndex
+    { unApiRelativeDerivationIndex :: Word31
     } deriving (Bounded, Enum, Eq, Generic, Show)
 
 data ApiEpochInfo = ApiEpochInfo
@@ -421,6 +421,7 @@ data ApiCoinSelectionInput (n :: NetworkDiscriminant) = ApiCoinSelectionInput
     { id :: !(ApiT (Hash "Tx"))
     , index :: !Word32
     , address :: !(ApiT Address, Proxy n)
+    , derivationPath :: ApiDerivationPath
     , amount :: !(Quantity "lovelace" Natural)
     } deriving (Eq, Generic, Show)
 
@@ -975,22 +976,22 @@ instance DecodeAddress n => FromJSON (ApiAddress n) where
 instance EncodeAddress n => ToJSON (ApiAddress n) where
     toJSON = genericToJSON defaultRecordTypeOptions
 
-instance ToJSON ApiAddressDerivationPath where
-    toJSON = toJSON . unApiAddressDerivationPath
-instance FromJSON ApiAddressDerivationPath where
-    parseJSON = fmap ApiAddressDerivationPath . parseJSON
+instance ToJSON ApiDerivationPath where
+    toJSON = toJSON . unApiDerivationPath
+instance FromJSON ApiDerivationPath where
+    parseJSON = fmap ApiDerivationPath . parseJSON
 
-instance ToJSON ApiAddressDerivationSegment where
-    toJSON (ApiAddressDerivationSegment (ApiRelativeAddressIndex ix) typ)
+instance ToJSON ApiDerivationSegment where
+    toJSON (ApiDerivationSegment (ApiRelativeDerivationIndex ix) typ)
         | typ == Hardened = toJSON (show ix <> "H")
         | otherwise = toJSON (show ix)
-instance FromJSON ApiAddressDerivationSegment where
+instance FromJSON ApiDerivationSegment where
     parseJSON value = asum
         [ parseJSON value >>= parseAsScientific
         , parseJSON value >>= parseAsText
         ]
       where
-        parseAsText :: Text -> Aeson.Parser ApiAddressDerivationSegment
+        parseAsText :: Text -> Aeson.Parser ApiDerivationSegment
         parseAsText txt =
             if "H" `T.isSuffixOf` txt then do
                 path <- castNumber (T.init txt) >>= parseAsScientific
@@ -998,12 +999,12 @@ instance FromJSON ApiAddressDerivationSegment where
             else
                 castNumber txt >>= parseAsScientific
 
-        parseAsScientific :: Scientific -> Aeson.Parser ApiAddressDerivationSegment
+        parseAsScientific :: Scientific -> Aeson.Parser ApiDerivationSegment
         parseAsScientific x =
             case toBoundedInteger x of
                 Nothing -> fail "expected an unsigned int31"
-                Just ix -> pure ApiAddressDerivationSegment
-                    { derivationIndex = ApiRelativeAddressIndex ix
+                Just ix -> pure ApiDerivationSegment
+                    { derivationIndex = ApiRelativeDerivationIndex ix
                     , derivationType = Soft
                     }
 
@@ -1016,26 +1017,26 @@ instance FromJSON ApiAddressDerivationSegment where
                 Just s ->
                     pure s
 
-instance ToJSON (ApiAddressDerivationType) where
+instance ToJSON (ApiDerivationType) where
     toJSON = genericToJSON defaultSumTypeOptions
-instance FromJSON (ApiAddressDerivationType) where
+instance FromJSON (ApiDerivationType) where
     parseJSON = genericParseJSON defaultSumTypeOptions
 
-instance ToJSON ApiRelativeAddressIndex where
+instance ToJSON ApiRelativeDerivationIndex where
     toJSON = toJSON . fromEnum
-instance FromJSON ApiRelativeAddressIndex where
+instance FromJSON ApiRelativeDerivationIndex where
     parseJSON = eitherToParser . integerToIndex <=< parseJSON
       where
-        integerToIndex :: Integer -> Either String ApiRelativeAddressIndex
+        integerToIndex :: Integer -> Either String ApiRelativeDerivationIndex
         integerToIndex i
             | i < minIntegerBound = Left errorMessage
             | i > maxIntegerBound = Left errorMessage
             | otherwise = Right
-                $ ApiRelativeAddressIndex
+                $ ApiRelativeDerivationIndex
                 $ fromIntegral i
 
-        minIntegerBound = toInteger $ unApiRelativeAddressIndex minBound
-        maxIntegerBound = toInteger $ unApiRelativeAddressIndex maxBound
+        minIntegerBound = toInteger $ unApiRelativeDerivationIndex minBound
+        maxIntegerBound = toInteger $ unApiRelativeDerivationIndex maxBound
 
         errorMessage = mconcat
             [ "A relative address index must be a natural number between "

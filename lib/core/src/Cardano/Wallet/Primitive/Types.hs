@@ -61,6 +61,7 @@ module Cardano.Wallet.Primitive.Types
     -- * Address
     , Address (..)
     , AddressState (..)
+    , DerivationIndex (..)
 
     -- * Delegation and stake pools
     , CertificatePublicationTime (..)
@@ -965,9 +966,9 @@ instance ToText TxStatus where
 --
 -- See 'Tx' for a signed transaction.
 --
-data UnsignedTx = UnsignedTx
+data UnsignedTx input = UnsignedTx
     { unsignedInputs
-        :: NonEmpty (TxIn, TxOut)
+        :: NonEmpty input
     , unsignedOutputs
         :: NonEmpty TxOut
     }
@@ -1167,6 +1168,13 @@ instance Buildable AddressState where
     build = build . toText
 
 instance NFData AddressState
+
+-- | A thin wrapper around derivation indexes.
+newtype DerivationIndex
+    = DerivationIndex Word32
+    deriving (Show, Eq, Ord, Generic)
+
+instance NFData DerivationIndex
 
 {-------------------------------------------------------------------------------
                                      Coin

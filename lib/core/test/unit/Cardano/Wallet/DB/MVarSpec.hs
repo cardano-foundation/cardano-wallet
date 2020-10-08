@@ -54,5 +54,4 @@ instance Arbitrary DummyStateMVar where
 deriving instance NFData DummyStateMVar
 
 instance IsOurs DummyStateMVar Address where
-    type DerivationPath DummyStateMVar Address = ()
-    isOurs _ num = (Just (), num)
+    isOurs _ num = (Nothing, num)
