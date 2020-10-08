@@ -75,7 +75,7 @@ module Test.Integration.Framework.DSL
     , listAddresses
     , listTransactions
     , listAllTransactions
-    , tearDown
+    , deleteAllWallets
     , fixtureRawTx
     , fixtureRandomWallet
     , fixtureRandomWalletMws
@@ -1369,9 +1369,9 @@ listTransactions ctx wallet mStart mEnd mOrder = do
         (Iso8601Time <$> mEnd)
         mOrder
 
--- | teardown after each test (currently only deleting all wallets)
-tearDown :: Context t -> IO ()
-tearDown ctx = do
+-- | Delete all wallets
+deleteAllWallets :: Context t -> IO ()
+deleteAllWallets ctx = do
     resp <- request @[ApiWallet] ctx ("GET", "v2/wallets") Default Empty
     forM_ (wallets (snd resp)) $ \wal -> do
         let endpoint = "v2/wallets" </> wal ^. walletId
