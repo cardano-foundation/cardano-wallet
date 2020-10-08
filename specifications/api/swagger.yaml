@@ -573,6 +573,17 @@ x-transactionWithdrawals: &transactionWithdrawals
       stake_address: *stakeAddress
       amount: *amount
 
+x-derivationSegment: &derivationSegment
+  description: An individual segment within a derivation path.
+  type: string
+  example: 1852H
+
+x-derivationPath: &derivationPath
+  description: A path for deriving a child key from a parent key.
+  type: array
+  minItems: 1
+  items: *derivationSegment
+
 x-transactionResolvedInputs: &transactionResolvedInputs
   description: A list of transaction inputs
   type: array
@@ -584,10 +595,12 @@ x-transactionResolvedInputs: &transactionResolvedInputs
       - index
       - address
       - amount
+      - derivation_path
     properties:
       address: *addressId
       amount: *transactionAmount
       id: *transactionId
+      derivation_path: *derivationPath
       index:
         type: integer
         minimum: 0
@@ -949,39 +962,6 @@ x-addressIndex: &addressIndex
   maximum: 4294967295
   description: |
     An address derivation index.
-
-x-relativeAddressIndex: &relativeAddressIndex
-  type: number
-  minimum: 0
-  # 2 ^ 31 - 1
-  maximum: 2147483647
-  description: |
-    A relative address derivation index.
-
-x-addressDerivationType: &addressDerivationType
-  type: string
-  description: |
-    The type of derivation used in an address derivation path.
-  enum:
-    - hardened
-    - soft
-
-x-addressDerivationSegment: &addressDerivationSegment
-  description: An individual segment within an address derivation path.
-  type: object
-  required:
-    derivation_index
-    derivation_type
-  properties:
-    derivation_index: *relativeAddressIndex
-    derivation_type: *addressDerivationType
-
-x-addressDerivationPath: &addressDerivationPath
-  description: A path for deriving an address.
-  type: array
-  minItems: 1
-  items:
-    type: addressDerivationSegment
 
 #############################################################################
 #                                                                           #
