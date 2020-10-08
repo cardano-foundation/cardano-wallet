@@ -106,6 +106,7 @@ import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)
     , Payload (..)
+    , deleteAllWallets
     , eventually
     , expectField
     , expectResponseCode
@@ -277,6 +278,7 @@ walletApiBench capture ctx = do
         return r
 
     runScenario scenario = do
+        deleteAllWallets ctx
         (wal1, wal2) <- scenario
 
         t1 <- measureApiLogs capture

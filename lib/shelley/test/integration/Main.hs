@@ -29,7 +29,7 @@ import Cardano.Startup
 import Cardano.Wallet.Api.Server
     ( Listen (..) )
 import Cardano.Wallet.Api.Types
-    ( ApiByronWallet, ApiWallet, EncodeAddress (..), WalletStyle (..) )
+    ( EncodeAddress (..) )
 import Cardano.Wallet.Logging
     ( BracketLog (..), bracketTracer, trMessageText )
 import Cardano.Wallet.Network.Ports
@@ -74,8 +74,6 @@ import Control.Concurrent.MVar
     ( newEmptyMVar, putMVar, takeMVar )
 import Control.Exception
     ( throwIO )
-import Control.Monad
-    ( forM_, void )
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Tracer
@@ -107,18 +105,10 @@ import Test.Integration.Faucet
 import Test.Integration.Framework.Context
     ( Context (..), PoolGarbageCollectionEvent (..) )
 import Test.Integration.Framework.DSL
-    ( Headers (..)
-    , KnownCommand (..)
-    , Payload (..)
-    , deleteAllWallets
-    , request
-    , unsafeRequest
-    )
+    ( KnownCommand (..), deleteAllWallets )
 
 import qualified Cardano.Pool.DB as Pool
 import qualified Cardano.Pool.DB.Sqlite as Pool
-import qualified Cardano.Wallet.Api.Link as Link
-import qualified Data.Aeson as Aeson
 import qualified Data.Text as T
 import qualified Test.Integration.Scenario.API.Byron.Addresses as ByronAddresses
 import qualified Test.Integration.Scenario.API.Byron.HWWallets as ByronHWWallets
