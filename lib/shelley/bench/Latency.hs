@@ -151,11 +151,8 @@ walletApiBench capture ctx = do
     fmtTitle "Latencies for 10 fixture wallets scenario"
     runScenario (nFixtureWallet 10)
 
-    {-- PENDING: We currently have a limited amount of available fixture
-       wallets, so we can't just run a benchmark with 100 wallets in parallel.
-    fmtTitle "Latencies for 100 fixture wallets scenario"
+    fmtTitle "Latencies for 100 fixture wallets"
     runScenario (nFixtureWallet 100)
-    --}
 
     fmtTitle "Latencies for 2 fixture wallets with 10 txs scenario"
     runScenario (nFixtureWalletWithTxs 2 10)
