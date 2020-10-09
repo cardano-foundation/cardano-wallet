@@ -60,6 +60,8 @@ import Data.Aeson
     ( ToJSON (..) )
 import Data.Functor
     ( (<&>) )
+import Data.Maybe
+    ( fromMaybe )
 import Data.Text
     ( Text )
 import Fmt
@@ -118,9 +120,13 @@ execBenchWithNode networkConfig action = do
     (_logCfg, tr) <- initBenchmarkLogging Info
     installSignalHandlers (return ())
 
-    void $ withNetworkConfiguration args $ \nodeConfig ->
-        withCardanoNode (trMessageText tr) nodeConfig $ \cp ->
-            action tr (networkConfig args) (nodeSocketFile cp)
+    case argUseAlreadyRunningNodeSocketPath args of
+        Just socket ->
+            action tr (networkConfig args) socket
+        Nothing -> do
+            void $ withNetworkConfiguration args $ \nodeConfig ->
+                withCardanoNode (trMessageText tr) nodeConfig $ \cp ->
+                    action tr (networkConfig args) (nodeSocketFile cp)
 
 withNetworkConfiguration :: RestoreBenchArgs -> (CardanoNodeConfig -> IO a) -> IO a
 withNetworkConfiguration args action = do
@@ -158,6 +164,7 @@ data RestoreBenchArgs = RestoreBenchArgs
     { argNetworkName :: String
     , argConfigsDir :: FilePath
     , argNodeDatabaseDir :: Maybe FilePath
+    , argUseAlreadyRunningNodeSocketPath :: Maybe FilePath
     } deriving (Show, Eq)
 
 restoreBenchArgsParser
@@ -184,6 +191,13 @@ restoreBenchArgsParser envNetwork envConfigsDir envNodeDatabaseDir = RestoreBenc
           <> envDefault "NODE_DB" envNodeDatabaseDir
           <> help "Directory to put cardano-node state. Defaults to $NODE_DB, \
               \falls back to temporary directory"))
+    <*> optional (strOption
+        ( long "running-node"
+          <> metavar "SOCKET"
+          <> envDefault "CARDANO_NODE_SOCKET" envNodeDatabaseDir
+          <> help "Path to the socket of an already running cardano-node. \
+                  \Also set by $CARDANO_NODE_SOCKET. If not set, cardano-node \
+              \will automatically be started."))
   where
     envDefault :: HasValue f => String -> Maybe a -> Mod f a
     envDefault name env = showDefaultWith (const ('$':name))
