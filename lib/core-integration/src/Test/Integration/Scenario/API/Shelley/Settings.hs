@@ -51,6 +51,7 @@ import Test.Integration.Framework.DSL
     , Headers (..)
     , Payload (..)
     , eventually
+    , eventuallyUsingDelay
     , expectField
     , expectResponseCode
     , json
@@ -88,17 +89,19 @@ spec = describe "SHELLEY_SETTINGS" $ do
             toDirect = "direct"
             getMetadata = fmap (view #metadata) . snd <$> unsafeRequest
                 @[ApiStakePool] ctx (Link.listStakePools arbitraryStake) Empty
+            delay = 500 * 1000
+            timeout = 120
 
         updateMetadataSource ctx toNone
-        eventually "1. There is no metadata" $
+        eventuallyUsingDelay delay timeout "1. There is no metadata" $
             getMetadata >>= (`shouldSatisfy` all isNothing)
 
         updateMetadataSource ctx toDirect
-        eventually "2. There is metadata" $
+        eventuallyUsingDelay delay timeout "2. There is metadata" $
             getMetadata >>= (`shouldSatisfy` all isJust)
 
         updateMetadataSource ctx toNone
-        eventually "3. There is no metadata" $
+        eventuallyUsingDelay delay timeout "3. There is no metadata" $
             getMetadata >>= (`shouldSatisfy` all isNothing)
 
 
