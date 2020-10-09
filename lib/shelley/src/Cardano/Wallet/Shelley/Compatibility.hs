@@ -266,11 +266,11 @@ mainnetNetworkParameters = W.NetworkParameters
         , getSlotLength =
             W.SlotLength 20
         , getEpochLength =
-            W.EpochLength 21600
+            W.EpochLength 432000
         , getEpochStability =
             Quantity 2160
         , getActiveSlotCoefficient =
-            W.ActiveSlotCoefficient 1.0
+            W.ActiveSlotCoefficient 0.05
         }
     , protocolParameters = W.ProtocolParameters
         { decentralizationLevel =
