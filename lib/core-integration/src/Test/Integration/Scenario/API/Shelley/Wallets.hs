@@ -23,6 +23,7 @@ import Cardano.Wallet.Api.Types
     , ApiAddress
     , ApiByronWallet
     , ApiCoinSelection
+    , ApiCoinSelectionInput (derivationPath)
     , ApiNetworkInformation
     , ApiT (..)
     , ApiTransaction
@@ -34,7 +35,12 @@ import Cardano.Wallet.Api.Types
     , WalletStyle (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( PassphraseMaxLength (..), PassphraseMinLength (..), PaymentAddress )
+    ( DerivationType (..)
+    , Index (..)
+    , PassphraseMaxLength (..)
+    , PassphraseMinLength (..)
+    , PaymentAddress
+    )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
@@ -42,15 +48,17 @@ import Cardano.Wallet.Primitive.AddressDerivation.Icarus
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
-    ( AddressPoolGap (..) )
+    ( AddressPoolGap (..), coinTypeAda, purposeCIP1852 )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..) )
 import Cardano.Wallet.Primitive.Types
-    ( walletNameMaxLength, walletNameMinLength )
+    ( DerivationIndex (..), walletNameMaxLength, walletNameMinLength )
 import Control.Monad
     ( forM_ )
 import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
+import Data.List
+    ( isPrefixOf )
 import Data.List.NonEmpty
     ( NonEmpty ((:|)) )
 import Data.Proxy
@@ -915,9 +923,18 @@ spec = describe "SHELLEY_WALLETS" $ do
             targetAddress : _ <- fmap (view #id) <$> listAddresses @n ctx target
             let amount = Quantity minUTxOValue
             let payment = AddressAmount targetAddress amount
+            let hasValidDerivationPath input =
+                    ( length (derivationPath input) == 5 )
+                    &&
+                    ( [ ApiT $ DerivationIndex $ getIndex purposeCIP1852
+                      , ApiT $ DerivationIndex $ getIndex coinTypeAda
+                      , ApiT $ DerivationIndex $ getIndex @'Hardened minBound
+                      ] `isPrefixOf` NE.toList (derivationPath input)
+                    )
             selectCoins @_ @'Shelley ctx source (payment :| []) >>= flip verify
                 [ expectResponseCode HTTP.status200
                 , expectField #inputs (`shouldSatisfy` (not . null))
+                , expectField #inputs (`shouldSatisfy` all hasValidDerivationPath)
                 , expectField #outputs (`shouldSatisfy` ((> 1) . length))
                 , expectField #outputs (`shouldSatisfy` (payment `elem`))
                 ]
