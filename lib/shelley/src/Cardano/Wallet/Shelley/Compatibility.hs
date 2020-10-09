@@ -264,7 +264,7 @@ mainnetNetworkParameters = W.NetworkParameters
         , getGenesisBlockDate =
             W.StartTime $ posixSecondsToUTCTime 1506203091
         , getSlotLength =
-            W.SlotLength 20
+            W.SlotLength 1
         , getEpochLength =
             W.EpochLength 432000
         , getEpochStability =
