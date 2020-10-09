@@ -1883,7 +1883,7 @@ makeApiSlotReference
     -> m ApiSlotReference
 makeApiSlotReference ti sl =
     ApiSlotReference (ApiT sl)
-        <$> (fmap apiSlotId $ ti $ toSlotId sl)
+        <$> fmap apiSlotId (ti $ toSlotId sl)
         <*> ti (startTime sl)
 
 getWalletTip
