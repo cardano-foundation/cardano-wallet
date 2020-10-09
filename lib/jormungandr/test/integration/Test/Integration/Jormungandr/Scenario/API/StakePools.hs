@@ -826,7 +826,7 @@ spec = do
         --  active: delegating to p1, next: delegating to p2
         eventually "Delegating to p1 and about to delegate to p2" $ do
             request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
-                [ expectField (#tip . #epochNumber . #getApiT)
+                [ expectField (#tip . #slotId . #epochNumber . #getApiT)
                     (`shouldBe` currentEpoch + 3)
                 , expectField #delegation
                     (`shouldBe` delegating (p1 ^. #id)

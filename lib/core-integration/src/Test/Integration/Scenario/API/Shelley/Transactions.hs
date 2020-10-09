@@ -34,7 +34,6 @@ import Cardano.Wallet.Api.Types
     , WalletStyle (..)
     , insertedAt
     , pendingSince
-    , time
     )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( PaymentAddress )
@@ -94,6 +93,7 @@ import Test.Integration.Framework.DSL
     , Headers (..)
     , Payload (..)
     , between
+    , defaultTxTTL
     , emptyByronWalletWith
     , emptyRandomWallet
     , emptyWallet
@@ -592,6 +592,35 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             expectField
                 (#balance . #available)
                 (`shouldBe` Quantity (faucetAmt - feeEstMax - amt)) ra2
+
+    it "TRANS_CREATE_10 - Pending transaction expiry" $ \ctx -> do
+        (wa, wb) <- (,) <$> fixtureWallet ctx <*> fixtureWallet ctx
+        let amt = minUTxOValue :: Natural
+
+        payload <- mkTxPayload ctx wb amt fixturePassphrase
+
+        r <- request @(ApiTransaction n) ctx
+            (Link.createTransaction @'Shelley wa) Default payload
+
+        verify r
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
+            , expectField (#status . #getApiT) (`shouldBe` Pending)
+            , expectField #expiresAt (`shouldSatisfy` isJust)
+            ]
+
+        -- This stuff would be easier with Control.Lens...
+
+        -- Get insertion slot and out of response.
+        let (_, Right apiTx) = r
+        let Just sl = view (#absoluteSlotNumber . #getApiT) <$> apiTx ^. #pendingSince
+
+        -- The expected expiry slot (adds the hardcoded default ttl)
+        let ttl = sl + defaultTxTTL
+
+        (view #absoluteSlotNumber <$> (apiTx ^. #expiresAt))
+            `shouldBe` Just (ApiT ttl)
 
     it "TRANSMETA_CREATE_01 - Transaction with metadata" $ \ctx -> do
         (wa, wb) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
@@ -1520,7 +1549,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 , replicate 10 (2 * minUTxOValue)
                 ]
         txs <- listAllTransactions @n ctx w
-        let [Just t2, Just t1] = fmap (fmap time . insertedAt) txs
+        let [Just t2, Just t1] = fmap (fmap (view #time) . insertedAt) txs
         let matrix :: [TestCase [ApiTransaction n]] =
                 [ TestCase -- 1
                     { query = toQueryString
@@ -2538,7 +2567,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         :: [ApiTransaction n]
         -> UTCTime
     unsafeGetTransactionTime txs =
-        case fmap time . insertedAt <$> txs of
+        case fmap (view #time) . insertedAt <$> txs of
             (Just t):_ -> t
             _ -> error "Expected at least one transaction with a time."
 

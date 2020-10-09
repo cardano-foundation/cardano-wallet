@@ -34,6 +34,8 @@ module Cardano.Wallet.Shelley.Compatibility
     , mainnetVersionData
     , testnetVersionData
 
+    , mainnetNetworkParameters
+
       -- * Genesis
     , emptyGenesis
     , genesisTip
@@ -130,7 +132,7 @@ import Cardano.Wallet.Primitive.Types
     , PoolRetirementCertificate (..)
     )
 import Cardano.Wallet.Unsafe
-    ( unsafeDeserialiseCbor, unsafeMkPercentage )
+    ( unsafeDeserialiseCbor, unsafeFromHex, unsafeMkPercentage )
 import Codec.Binary.Bech32
     ( dataPartFromBytes, dataPartToBytes )
 import Control.Applicative
@@ -175,6 +177,8 @@ import Data.Text
     ( Text )
 import Data.Text.Class
     ( TextDecodingError (..) )
+import Data.Time.Clock.POSIX
+    ( posixSecondsToUTCTime )
 import Data.Type.Equality
     ( testEquality )
 import Data.Word
@@ -252,8 +256,43 @@ import qualified Shelley.Spec.Ledger.UTxO as SL
 --
 -- Chain Parameters
 
+mainnetNetworkParameters :: W.NetworkParameters
+mainnetNetworkParameters = W.NetworkParameters
+    { genesisParameters = W.GenesisParameters
+        { getGenesisBlockHash = W.Hash $ unsafeFromHex
+            "5f20df933584822601f9e3f8c024eb5eb252fe8cefb24d1317dc3d432e940ebb"
+        , getGenesisBlockDate =
+            W.StartTime $ posixSecondsToUTCTime 1506203091
+        , getSlotLength =
+            W.SlotLength 1
+        , getEpochLength =
+            W.EpochLength 432000
+        , getEpochStability =
+            Quantity 2160
+        , getActiveSlotCoefficient =
+            W.ActiveSlotCoefficient 0.05
+        }
+    , protocolParameters = W.ProtocolParameters
+        { decentralizationLevel =
+            minBound
+        , txParameters = W.TxParameters
+            { getFeePolicy =
+                W.LinearFee (Quantity 155381) (Quantity 44) (Quantity 0)
+            , getTxMaxSize =
+                Quantity 4096
+            }
+        , desiredNumberOfStakePools = 0
+        , minimumUTxOvalue = W.Coin 0
+        , hardforkEpochNo = Nothing
+        }
+    }
+
+--------------------------------------------------------------------------------
+--
+-- Genesis
+
 -- NOTE
--- For MainNet and TestNet, we can get away with empty genesis blocks with
+-- For Mainnet and Testnet, we can get away with empty genesis blocks with
 -- the following assumption:
 --
 -- - Users won't ever restore a wallet that has genesis UTxO.
@@ -276,11 +315,6 @@ emptyGenesis gp = W.Block
         }
     }
 
---------------------------------------------------------------------------------
---
--- Genesis
-
-
 genesisTip :: Tip (CardanoBlock sc)
 genesisTip = legacyTip genesisPoint genesisBlockNo
   where
@@ -290,7 +324,6 @@ genesisTip = legacyTip genesisPoint genesisBlockNo
     -- ('genesisBlockNo' is the block number of the first block on the chain).
     -- Usage of this function should be phased out.
     genesisBlockNo = BlockNo 0
-
 
 --------------------------------------------------------------------------------
 --

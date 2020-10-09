@@ -87,15 +87,20 @@ PrivateKey                             sql=private_key
 -- TxMeta is specific to a wallet because multiple wallets may have the same
 -- transaction with different metadata values. The associated inputs and outputs
 -- of the transaction are in the TxIn and TxOut tables.
+--
+-- Transactions with status=Pending have an expiry slot.
+-- If not accepted on the chain before the expiry slot they
+-- will be removed from the pending set and get status=Expired.
 TxMeta
-    txMetaTxId         TxId               sql=tx_id
-    txMetaWalletId     W.WalletId         sql=wallet_id
-    txMetaStatus       W.TxStatus         sql=status
-    txMetaDirection    W.Direction        sql=direction
-    txMetaSlot         SlotNo             sql=slot
-    txMetaBlockHeight  Word32             sql=block_height
-    txMetaAmount       Natural            sql=amount
-    txMetaData         W.TxMetadata Maybe sql=data
+    txMetaTxId              TxId                sql=tx_id
+    txMetaWalletId          W.WalletId          sql=wallet_id
+    txMetaStatus            W.TxStatus          sql=status
+    txMetaDirection         W.Direction         sql=direction
+    txMetaSlot              SlotNo              sql=slot
+    txMetaBlockHeight       Word32              sql=block_height
+    txMetaAmount            Natural             sql=amount
+    txMetaData              W.TxMetadata Maybe  sql=data
+    txMetaSlotExpires       SlotNo Maybe        sql=slot_expires
 
     Primary txMetaTxId txMetaWalletId
     Foreign Wallet fk_wallet_tx_meta txMetaWalletId ! ON DELETE CASCADE

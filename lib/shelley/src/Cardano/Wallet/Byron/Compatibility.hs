@@ -27,10 +27,7 @@ module Cardano.Wallet.Byron.Compatibility
     , mainnetVersionData
     , testnetVersionData
 
-    , mainnetNetworkParameters
-
       -- * Genesis
-    , emptyGenesis
     , genesisTip
     , genesisBlockFromTxOuts
 
@@ -88,7 +85,7 @@ import Cardano.Crypto.ProtocolMagic
 import Cardano.Wallet.Primitive.Slotting
     ( flatSlot, fromFlatSlot )
 import Cardano.Wallet.Unsafe
-    ( unsafeDeserialiseCbor, unsafeFromHex )
+    ( unsafeDeserialiseCbor )
 import Crypto.Hash.Utils
     ( blake2b256 )
 import Data.Coerce
@@ -97,8 +94,6 @@ import Data.Quantity
     ( Quantity (..) )
 import Data.Text
     ( Text )
-import Data.Time.Clock.POSIX
-    ( posixSecondsToUTCTime )
 import Data.Word
     ( Word16, Word32 )
 import GHC.Stack
@@ -150,68 +145,7 @@ type NodeVersionData =
 
 --------------------------------------------------------------------------------
 --
--- Chain Parameters
-
-
-mainnetNetworkParameters :: W.NetworkParameters
-mainnetNetworkParameters = W.NetworkParameters
-    { genesisParameters = W.GenesisParameters
-        { getGenesisBlockHash = W.Hash $ unsafeFromHex
-            "5f20df933584822601f9e3f8c024eb5eb252fe8cefb24d1317dc3d432e940ebb"
-        , getGenesisBlockDate =
-            W.StartTime $ posixSecondsToUTCTime 1506203091
-        , getSlotLength =
-            W.SlotLength 20
-        , getEpochLength =
-            W.EpochLength 21600
-        , getEpochStability =
-            Quantity 2160
-        , getActiveSlotCoefficient =
-            W.ActiveSlotCoefficient 1.0
-        }
-    , protocolParameters = W.ProtocolParameters
-        { decentralizationLevel =
-            minBound
-        , txParameters = W.TxParameters
-            { getFeePolicy =
-                W.LinearFee (Quantity 155381) (Quantity 43.946) (Quantity 0)
-            , getTxMaxSize =
-                Quantity 4096
-            }
-        , desiredNumberOfStakePools = 0
-        , minimumUTxOvalue = W.Coin 0
-        , hardforkEpochNo = Nothing
-        }
-    }
-
--- NOTE
--- For MainNet and TestNet, we can get away with empty genesis blocks with
--- the following assumption:
---
--- - Users won't ever restore a wallet that has genesis UTxO.
---
--- This assumption is _true_ for any user using HD wallets (sequential or
--- random) which means, any user of cardano-wallet.
-emptyGenesis :: W.GenesisParameters -> W.Block
-emptyGenesis gp = W.Block
-    { transactions = []
-    , delegations  = []
-    , header = W.BlockHeader
-        { slotNo =
-            W.SlotNo 0
-        , blockHeight =
-            Quantity 0
-        , headerHash =
-            coerce $ W.getGenesisBlockHash gp
-        , parentHeaderHash =
-            W.Hash (BS.replicate 32 0)
-        }
-    }
-
---------------------------------------------------------------------------------
---
 -- Genesis
-
 
 genesisTip :: Tip ByronBlock
 genesisTip = legacyTip genesisPoint genesisBlockNo

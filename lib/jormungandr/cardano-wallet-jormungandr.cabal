@@ -155,6 +155,7 @@ test-suite unit
     , contra-tracer
     , deepseq
     , directory
+    , extra
     , filepath
     , file-embed
     , fmt

@@ -65,7 +65,6 @@ module Cardano.Wallet.Api.Types
     , PostTransactionData (..)
     , PostTransactionFeeData (..)
     , PostExternalTransactionData (..)
-    , ApiTimeReference (..)
     , ApiTransaction (..)
     , ApiWithdrawalPostData (..)
     , ApiFee (..)
@@ -80,8 +79,10 @@ module Cardano.Wallet.Api.Types
     , ApiNtpStatus (..)
     , NtpSyncingStatus (..)
     , ApiNetworkClock (..)
+    , ApiSlotReference (..)
+    , ApiSlotId (..)
     , ApiBlockReference (..)
-    , ApiNetworkTip (..)
+    , ApiBlockInfo (..)
     , Iso8601Time (..)
     , MinWithdrawal (..)
     , ApiNetworkParameters (..)
@@ -589,20 +590,28 @@ data ApiNetworkParameters = ApiNetworkParameters
 toApiNetworkParameters
     :: NetworkParameters
     -> (ApiNetworkParameters, Maybe EpochNo)
-toApiNetworkParameters (NetworkParameters gp pp) = (ApiNetworkParameters
-    (ApiT $ getGenesisBlockHash gp)
-    (ApiT $ getGenesisBlockDate gp)
-    (Quantity $ unSlotLength $ getSlotLength gp)
-    (Quantity $ unEpochLength $ getEpochLength gp)
-    (getEpochStability gp)
-    (Quantity
-        $ (*100)
-        $ unActiveSlotCoefficient
-        $ getActiveSlotCoefficient gp)
-    (Quantity $ unDecentralizationLevel $ view #decentralizationLevel pp)
-    (view #desiredNumberOfStakePools pp)
-    (Quantity $ fromIntegral $ getCoin $ view #minimumUTxOvalue pp)
-    Nothing, view #hardforkEpochNo pp)
+toApiNetworkParameters (NetworkParameters gp pp) = (np, view #hardforkEpochNo pp)
+  where
+    np = ApiNetworkParameters
+        { genesisBlockHash = ApiT $ getGenesisBlockHash gp
+        , blockchainStartTime = ApiT $ getGenesisBlockDate gp
+        , slotLength = Quantity $ unSlotLength $ getSlotLength gp
+        , epochLength = Quantity $ unEpochLength $ getEpochLength gp
+        , epochStability = getEpochStability gp
+        , activeSlotCoefficient = Quantity
+            $ (*100)
+            $ unActiveSlotCoefficient
+            $ getActiveSlotCoefficient gp
+        , decentralizationLevel = Quantity
+            $ unDecentralizationLevel
+            $ view #decentralizationLevel pp
+        , desiredPoolNumber = view #desiredNumberOfStakePools pp
+        , minimumUtxoValue = Quantity
+            $ fromIntegral
+            $ getCoin
+            $ view #minimumUTxOvalue pp
+        , hardforkAt = Nothing
+        }
 
 newtype ApiTxId = ApiTxId
     { id :: ApiT (Hash "Tx")
@@ -611,8 +620,9 @@ newtype ApiTxId = ApiTxId
 data ApiTransaction (n :: NetworkDiscriminant) = ApiTransaction
     { id :: !(ApiT (Hash "Tx"))
     , amount :: !(Quantity "lovelace" Natural)
-    , insertedAt :: !(Maybe ApiTimeReference)
-    , pendingSince :: !(Maybe ApiTimeReference)
+    , insertedAt :: !(Maybe ApiBlockReference)
+    , pendingSince :: !(Maybe ApiBlockReference)
+    , expiresAt :: !(Maybe ApiSlotReference)
     , depth :: !(Maybe (Quantity "block" Natural))
     , direction :: !(ApiT Direction)
     , inputs :: ![ApiTxInput n]
@@ -658,29 +668,33 @@ newtype ApiAddressInspectData = ApiAddressInspectData
     deriving (Eq, Generic, Show)
     deriving newtype (IsString)
 
-data ApiTimeReference = ApiTimeReference
-    { time :: !UTCTime
-    , block :: !ApiBlockReference
+data ApiSlotReference = ApiSlotReference
+    { absoluteSlotNumber :: !(ApiT SlotNo)
+    , slotId :: !ApiSlotId
+    , time :: !UTCTime
+    } deriving (Eq, Generic, Show)
+
+data ApiSlotId = ApiSlotId
+    { epochNumber :: !(ApiT EpochNo)
+    , slotNumber :: !(ApiT SlotInEpoch)
     } deriving (Eq, Generic, Show)
 
 data ApiBlockReference = ApiBlockReference
-    { epochNumber :: !(ApiT EpochNo)
-    , slotNumber :: !(ApiT SlotInEpoch)
-    , height :: !(Quantity "block" Natural)
-    , absoluteSlotNumber :: !(ApiT SlotNo)
+    { absoluteSlotNumber :: !(ApiT SlotNo)
+    , slotId :: !ApiSlotId
+    , time :: !UTCTime
+    , block :: !ApiBlockInfo
     } deriving (Eq, Generic, Show)
 
-data ApiNetworkTip = ApiNetworkTip
-    { epochNumber :: !(ApiT EpochNo)
-    , slotNumber :: !(ApiT SlotInEpoch)
-    , absoluteSlotNumber :: !(ApiT SlotNo)
+newtype ApiBlockInfo = ApiBlockInfo
+    { height :: Quantity "block" Natural
     } deriving (Eq, Generic, Show)
 
 data ApiNetworkInformation = ApiNetworkInformation
     { syncProgress :: !(ApiT SyncProgress)
     , nextEpoch :: !(Maybe ApiEpochInfo)
     , nodeTip :: !ApiBlockReference
-    , networkTip :: !(Maybe ApiNetworkTip)
+    , networkTip :: !(Maybe ApiSlotReference)
     } deriving (Eq, Generic, Show)
 
 data NtpSyncingStatus =
@@ -1307,14 +1321,39 @@ instance DecodeAddress t => FromJSON (PostTransactionFeeData t) where
 instance EncodeAddress t => ToJSON (PostTransactionFeeData t) where
     toJSON = genericToJSON defaultRecordTypeOptions
 
-instance FromJSON ApiTimeReference where
+-- Note: These custom JSON instances are for compatibility with the existing API
+-- schema. At some point, we can switch to the generic instances.
+instance FromJSON ApiSlotReference where
+    parseJSON = withObject "SlotReference" $ \o ->
+        ApiSlotReference
+        <$> o .: "absolute_slot_number"
+        <*> parseJSON (Aeson.Object o)
+        <*> o .: "time"
+instance ToJSON ApiSlotReference where
+    toJSON (ApiSlotReference sln sli t) =
+        let Aeson.Object rest = toJSON sli
+        in Aeson.Object ("absolute_slot_number" .= sln <> "time" .= t <> rest)
+
+instance FromJSON ApiSlotId where
     parseJSON = genericParseJSON defaultRecordTypeOptions
-instance ToJSON ApiTimeReference where
+instance ToJSON ApiSlotId where
     toJSON = genericToJSON defaultRecordTypeOptions
 
+-- Note: These custom JSON instances are for compatibility with the existing API
+-- schema. At some point, we can switch to the generic instances.
+-- A BlockReference is just a SlotReference with the block height included.
 instance FromJSON ApiBlockReference where
-    parseJSON = genericParseJSON defaultRecordTypeOptions
+    parseJSON v = do
+        ApiSlotReference sln sli t <- parseJSON v
+        ApiBlockReference sln sli t <$> parseJSON v
 instance ToJSON ApiBlockReference where
+    toJSON (ApiBlockReference sln sli t (ApiBlockInfo bh)) =
+        let Aeson.Object rest = toJSON (ApiSlotReference sln sli t)
+        in Aeson.Object ("height" .= bh <> rest)
+
+instance FromJSON ApiBlockInfo where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance ToJSON ApiBlockInfo where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 instance FromJSON (ApiT EpochNo) where
@@ -1331,11 +1370,6 @@ instance FromJSON (ApiT SlotNo) where
     parseJSON = fmap (ApiT . SlotNo) . parseJSON
 instance ToJSON (ApiT SlotNo) where
     toJSON (ApiT (SlotNo sn)) = toJSON sn
-
-instance FromJSON ApiNetworkTip where
-    parseJSON = genericParseJSON defaultRecordTypeOptions
-instance ToJSON ApiNetworkTip where
-    toJSON = genericToJSON defaultRecordTypeOptions
 
 instance FromJSON a => FromJSON (AddressAmount a) where
     parseJSON bytes = do

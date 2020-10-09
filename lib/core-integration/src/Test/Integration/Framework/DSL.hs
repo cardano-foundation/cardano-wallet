@@ -49,6 +49,10 @@ module Test.Integration.Framework.DSL
     -- * Lens
     , walletId
 
+    -- * Constants
+    , minUTxOValue
+    , defaultTxTTL
+
     -- * Helpers
     , (</>)
     , (!!)
@@ -110,7 +114,6 @@ module Test.Integration.Framework.DSL
     , rootPrvKeyFromMnemonics
     , unsafeGetTransactionTime
     , getTxId
-    , minUTxOValue
 
     -- * Delegation helpers
     , mkEpochInfo
@@ -160,6 +163,7 @@ import Cardano.Mnemonic
 import Cardano.Wallet.Api.Types
     ( AddressAmount
     , ApiAddress
+    , ApiBlockReference (..)
     , ApiByronWallet
     , ApiCoinSelection
     , ApiEpochInfo (ApiEpochInfo)
@@ -180,7 +184,6 @@ import Cardano.Wallet.Api.Types
     , Iso8601Time (..)
     , WalletStyle (..)
     , insertedAt
-    , time
     )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( AccountingStyle (..)
@@ -215,6 +218,7 @@ import Cardano.Wallet.Primitive.Types
     , HistogramBar (..)
     , PoolId (..)
     , SlotLength (..)
+    , SlotNo (..)
     , SortOrder (..)
     , TxIn (..)
     , TxOut (..)
@@ -522,11 +526,20 @@ walletId =
     _set (s, v) = set typed (ApiT $ WalletId (unsafeCreateDigest v)) s
 
 --
--- Helpers
+-- Constants
 --
+
+-- | Min UTxO parameter for the test cluster.
 minUTxOValue :: Natural
 minUTxOValue = 1_000_000
 
+-- | Wallet server's chosen transaction TTL value (in slots) when none is given.
+defaultTxTTL :: SlotNo
+defaultTxTTL = 7200
+
+--
+-- Helpers
+--
 data MnemonicLength = M9 | M12 | M15 | M18 | M21 | M24 deriving (Show)
 
 genMnemonics :: MnemonicLength -> IO [Text]
@@ -574,10 +587,10 @@ waitForNextEpoch
     :: Context t
     -> IO ()
 waitForNextEpoch ctx = do
-    epoch <- getFromResponse (#nodeTip . #epochNumber) <$>
+    epoch <- getFromResponse (#nodeTip . #slotId . #epochNumber) <$>
         request @ApiNetworkInformation ctx Link.getNetworkInfo Default Empty
     eventually "waitForNextEpoch: goes to next epoch" $ do
-        epoch' <- getFromResponse (#nodeTip . #epochNumber) <$>
+        epoch' <- getFromResponse (#nodeTip . #slotId . #epochNumber) <$>
             request @ApiNetworkInformation ctx Link.getNetworkInfo Default Empty
         unless (getApiT epoch' > getApiT epoch) $ fail "not yet"
 
@@ -1788,7 +1801,7 @@ getSlotParams ctx = do
     r1 <- request @ApiNetworkInformation ctx
           Link.getNetworkInfo Default Empty
     let ApiT currentEpoch =
-             view #epochNumber
+             view (#slotId . #epochNumber)
             $ fromMaybe (error "getSlotParams: tip is Nothing")
             $ getFromResponse #networkTip r1
 

@@ -27,7 +27,7 @@ x-date: &date
 
 x-slotNumber: &slotNumber
   type: integer
-  description: The slot index within an epoch.
+  description: The zero-based slot index within an epoch.
   minimum: 0
   example: 1337
 
@@ -110,18 +110,44 @@ x-numberOfBlocks: &numberOfBlocks
       example: "block"
 
 x-blockReference: &blockReference
-  description: A reference to a particular block.
+  description: A reference to a particular time slot, and the block height at that point.
   type: object
   required:
+    - absolute_slot_number
     - slot_number
     - epoch_number
+    - time
     - height
-    - absolute_slot_number
   properties:
+    absolute_slot_number: *absoluteSlot
     slot_number: *slotNumber
     epoch_number: *epochNumber
+    time: *date
     height: *numberOfBlocks
+
+x-slotId: &slotId
+  description: A slot identifier, given by epoch number and local slot index.
+  type: object
+  required:
+    - epoch_number
+    - slot_number
+  properties:
+    epoch_number: *epochNumber
+    slot_number: *slotNumber
+
+x-slotReference: &slotReference
+  description: A reference to a particular time slot.
+  type: object
+  required:
+    - absolute_slot_number
+    - slot_number
+    - epoch_number
+    - time
+  properties:
     absolute_slot_number: *absoluteSlot
+    epoch_number: *epochNumber
+    slot_number: *slotNumber
+    time: *date
 
 x-genesisBlock: &genesisBlock
   description: A reference to a particular block.
@@ -436,13 +462,15 @@ x-transactionInsertedAt: &transactionInsertedAt
     <strong>if:</strong> status == in_ledger
     </span><br/>
     Absolute time at which the transaction was inserted in a block.
-  type: object
-  required:
-    - block
-    - time
-  properties:
-    time: *date
-    block: *blockReference
+  <<: *blockReference
+
+x-transactionExpiresAt: &transactionExpiresAt
+  description: |
+    <span style="position: relative; left: 35px; top: -21px; vertical-align: middle; background-color: rgba(142, 142, 220, 0.05); color: rgba(50, 50, 159, 0.9); margin: 0 5px; padding: 0 5px; border: 1px solid rgba(50, 50, 159, 0.1); line-height: 20px; font-size: 13px; border-radius: 2px;">
+    <strong>if:</strong> status == pending OR status == expired
+    </span><br/>
+    Absolute time and slot at which the pending transaction TTL will expire.
+  <<: *slotReference
 
 x-transactionPendingSince: &transactionPendingSince
   description: |
@@ -450,13 +478,7 @@ x-transactionPendingSince: &transactionPendingSince
     <strong>if:</strong> status == pending
     </span><br/>
     The point in time at which a transaction became pending.
-  type: object
-  required:
-    - block
-    - time
-  properties:
-    time: *date
-    block: *blockReference
+  <<: *blockReference
 
 x-transactionDepth: &transactionDepth
   description: |
@@ -580,9 +602,11 @@ x-transactionStatus: &transactionStatus
     Current transaction status.
 
       ```
-             *---------*
-             |         |
-      -------> PENDING <----------------*
+             *---------*          *-----------*
+             |         |---------->  EXPIRED  |
+             |         |  (ttl)   *-----------*
+      -------> PENDING |
+             |         <----------------*
              |         |                |
              *---------*            (rollback)
                   |                     |
@@ -596,6 +620,7 @@ x-transactionStatus: &transactionStatus
   enum:
     - pending
     - in_ledger
+    - expired
 
 x-transactionMetadata: &transactionMetadata
   description: |
@@ -1039,16 +1064,8 @@ components:
             format: base16
 
     ApiNetworkTip: &ApiNetworkTip
-      description: A network tip
-      type: object
-      required:
-        - slot_number
-        - epoch_number
-        - absolute_slot_number
-      properties:
-        slot_number: *slotNumber
-        epoch_number: *epochNumber
-        absolute_slot_number: *absoluteSlot
+      <<: *slotReference
+      description: The time slot corresponding the network tip.
 
     ApiNetworkInformation: &ApiNetworkInformation
       type: object
@@ -1180,6 +1197,7 @@ components:
         id: *transactionId
         amount: *transactionAmount
         inserted_at: *transactionInsertedAt
+        expires_at: *transactionExpiresAt
         pending_since: *transactionPendingSince
         depth: *transactionDepth
         direction: *transactionDirection

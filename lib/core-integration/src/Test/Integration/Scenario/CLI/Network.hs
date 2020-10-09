@@ -109,4 +109,4 @@ spec = describe "COMMON_CLI_NETWORK" $ do
 
       currentEpochNo :: ApiNetworkInformation -> EpochNo
       currentEpochNo netInfo =
-          (fromJust (netInfo ^. #networkTip)) ^. #epochNumber . #getApiT
+          (fromJust (netInfo ^. #networkTip)) ^. #slotId . #epochNumber . #getApiT

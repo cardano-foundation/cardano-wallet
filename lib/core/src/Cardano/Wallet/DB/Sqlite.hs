@@ -821,6 +821,13 @@ newDBLayer trace defaultFieldValues mDatabaseFile timeInterpreter = do
                     , (TxMetaStatus ==.) <$> status
                     ]
 
+        , updatePendingTxForExpiry = \(PrimaryKey wid) tip -> ExceptT $ do
+            selectWallet wid >>= \case
+                Nothing -> pure $ Left $ ErrNoSuchWallet wid
+                Just _ -> do
+                  updatePendingTxForExpiryQuery wid tip
+                  pure $ Right ()
+
         , removePendingTx = \(PrimaryKey wid) tid -> ExceptT $ do
             let errNoSuchWallet =
                     Left $ ErrRemovePendingTxNoSuchWallet $ ErrNoSuchWallet wid
@@ -1167,6 +1174,7 @@ mkTxMetaEntity wid txid meta derived = TxMeta
     , txMetaSlot = derived ^. #slotNo
     , txMetaBlockHeight = getQuantity (derived ^. #blockHeight)
     , txMetaAmount = getQuantity (derived ^. #amount)
+    , txMetaSlotExpires = derived ^. #expiry
     , txMetaData = meta
     }
 
@@ -1231,6 +1239,7 @@ txHistoryFromEntity ti tip metas ins outs ws =
         , W.slotNo = txMetaSlot m
         , W.blockHeight = Quantity (txMetaBlockHeight m)
         , W.amount = Quantity (txMetaAmount m)
+        , W.expiry = txMetaSlotExpires m
         }
 
 mkProtocolParametersEntity
@@ -1491,6 +1500,21 @@ deletePendingTx wid tid = do
     deleteWhere
         [ TxMetaWalletId ==. wid, TxMetaTxId ==. tid
         , TxMetaStatus ==. W.Pending ]
+
+-- Mutates all pending transaction entries which have exceeded their TTL so that
+-- their status becomes expired. Transaction expiry is not something which can
+-- be rolled back.
+updatePendingTxForExpiryQuery
+    :: W.WalletId
+    -> W.SlotNo
+    -> SqlPersistT IO ()
+updatePendingTxForExpiryQuery wid tip =
+    updateWhere isExpired [TxMetaStatus =. W.Expired]
+  where
+    isExpired =
+        [ TxMetaWalletId ==. wid
+        , TxMetaStatus ==. W.Pending
+        , TxMetaSlotExpires >=. Just tip ]
 
 selectPrivateKey
     :: (MonadIO m, PersistPrivateKey (k 'RootK))

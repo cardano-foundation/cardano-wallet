@@ -47,6 +47,7 @@ import Cardano.Wallet.Api.Types
     , ApiAddressDerivationSegment (..)
     , ApiAddressDerivationType (..)
     , ApiAddressInspect (..)
+    , ApiBlockInfo (..)
     , ApiBlockReference (..)
     , ApiByronWallet (..)
     , ApiByronWalletBalance (..)
@@ -58,16 +59,16 @@ import Cardano.Wallet.Api.Types
     , ApiNetworkClock (..)
     , ApiNetworkInformation (..)
     , ApiNetworkParameters (..)
-    , ApiNetworkTip (..)
     , ApiNtpStatus (..)
     , ApiPostRandomAddressData
     , ApiPutAddressesData (..)
     , ApiRelativeAddressIndex (..)
     , ApiSelectCoinsData (..)
+    , ApiSlotId (..)
+    , ApiSlotReference (..)
     , ApiStakePool (..)
     , ApiStakePoolMetrics (..)
     , ApiT (..)
-    , ApiTimeReference (..)
     , ApiTransaction (..)
     , ApiTxId (..)
     , ApiTxInput (..)
@@ -319,9 +320,8 @@ spec = do
             jsonRoundtripAndGolden $ Proxy @(ApiSelectCoinsData ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @(ApiCoinSelection ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @(ApiCoinSelectionInput ('Testnet 0))
-            jsonRoundtripAndGolden $ Proxy @ApiTimeReference
-            jsonRoundtripAndGolden $ Proxy @ApiNetworkTip
             jsonRoundtripAndGolden $ Proxy @ApiBlockReference
+            jsonRoundtripAndGolden $ Proxy @ApiSlotReference
             jsonRoundtripAndGolden $ Proxy @ApiNetworkInformation
             jsonRoundtripAndGolden $ Proxy @ApiNetworkParameters
             jsonRoundtripAndGolden $ Proxy @ApiNetworkClock
@@ -783,6 +783,7 @@ spec = do
                     , amount = amount (x :: ApiTransaction ('Testnet 0))
                     , insertedAt = insertedAt (x :: ApiTransaction ('Testnet 0))
                     , pendingSince = pendingSince (x :: ApiTransaction ('Testnet 0))
+                    , expiresAt = expiresAt (x :: ApiTransaction ('Testnet 0))
                     , depth = depth (x :: ApiTransaction ('Testnet 0))
                     , direction = direction (x :: ApiTransaction ('Testnet 0))
                     , inputs = inputs (x :: ApiTransaction ('Testnet 0))
@@ -808,30 +809,22 @@ spec = do
                     }
             in
                 x' === x .&&. show x' === show x
-        it "ApiTimeReference" $ property $ \x ->
-            let
-                x' = ApiTimeReference
-                    { time = time (x :: ApiTimeReference)
-                    , block = block (x :: ApiTimeReference)
-                    }
-            in
-                x' === x .&&. show x' === show x
         it "ApiBlockReference" $ property $ \x ->
             let
                 x' = ApiBlockReference
-                    { slotNumber = slotNumber (x :: ApiBlockReference)
-                    , epochNumber = epochNumber (x :: ApiBlockReference)
-                    , height = height (x :: ApiBlockReference)
-                    , absoluteSlotNumber = absoluteSlotNumber (x :: ApiBlockReference)
+                    { absoluteSlotNumber = absoluteSlotNumber (x :: ApiBlockReference)
+                    , slotId = slotId (x :: ApiBlockReference)
+                    , time = time (x :: ApiBlockReference)
+                    , block = block (x :: ApiBlockReference)
                     }
             in
                 x' === x .&&. show x' === show x
-        it "ApiNetworkTip" $ property $ \x ->
+        it "ApiSlotReference" $ property $ \x ->
             let
-                x' = ApiNetworkTip
-                    { slotNumber = slotNumber (x :: ApiNetworkTip)
-                    , epochNumber = epochNumber (x :: ApiNetworkTip)
-                    , absoluteSlotNumber = absoluteSlotNumber (x :: ApiNetworkTip)
+                x' = ApiSlotReference
+                    { absoluteSlotNumber = absoluteSlotNumber (x :: ApiSlotReference)
+                    , slotId = slotId (x :: ApiSlotReference)
+                    , time = time (x :: ApiSlotReference)
                     }
             in
                 x' === x .&&. show x' === show x
@@ -1259,15 +1252,24 @@ instance
             , (5, pure $ ApiMnemonicT y)
             ]
 
-instance Arbitrary ApiTimeReference where
-    arbitrary = ApiTimeReference <$> genUniformTime <*> arbitrary
-    shrink (ApiTimeReference t b) = ApiTimeReference t <$> shrink b
-
 instance Arbitrary ApiBlockReference where
+    arbitrary = ApiBlockReference
+        <$> arbitrary <*> arbitrary <*> genUniformTime <*> arbitrary
+    shrink (ApiBlockReference sln sli t bh) =
+        [ ApiBlockReference sln' sli' t bh'
+        | (sln', sli', bh') <- shrink (sln, sli, bh) ]
+
+instance Arbitrary ApiBlockInfo where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
-instance Arbitrary ApiNetworkTip where
+instance Arbitrary ApiSlotReference where
+    arbitrary = ApiSlotReference <$> arbitrary <*> arbitrary <*> genUniformTime
+    shrink (ApiSlotReference sln sli t) =
+        [ ApiSlotReference sln' sli' t
+        | (sln', sli') <- shrink (sln, sli) ]
+
+instance Arbitrary ApiSlotId where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
@@ -1389,16 +1391,24 @@ instance Arbitrary (ApiTransaction t) where
     arbitrary = do
         txStatus <- arbitrary
         txInsertedAt <- case txStatus of
-            (ApiT Pending) -> pure Nothing
-            (ApiT InLedger) -> arbitrary
+            ApiT Pending -> pure Nothing
+            ApiT InLedger -> arbitrary
+            ApiT Expired -> pure Nothing
         txPendingSince <- case txStatus of
-            (ApiT Pending) -> arbitrary
-            (ApiT InLedger) -> pure Nothing
+            ApiT Pending -> arbitrary
+            ApiT InLedger -> pure Nothing
+            ApiT Expired -> arbitrary
+        txExpiresAt <- case txStatus of
+            ApiT Pending -> arbitrary
+            ApiT InLedger -> pure Nothing
+            ApiT Expired -> Just <$> arbitrary
+
         ApiTransaction
             <$> arbitrary
             <*> arbitrary
             <*> pure txInsertedAt
             <*> pure txPendingSince
+            <*> pure txExpiresAt
             <*> arbitrary
             <*> arbitrary
             <*> genInputs
@@ -1703,8 +1713,11 @@ instance ToSchema ApiNetworkClock where
 instance ToSchema ApiNetworkParameters where
     declareNamedSchema _ = declareSchemaForDefinition "ApiNetworkParameters"
 
-instance ToSchema ApiNetworkTip where
-    declareNamedSchema _ = declareSchemaForDefinition "ApiNetworkTip"
+instance ToSchema ApiSlotReference where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiSlotReference"
+
+instance ToSchema ApiBlockReference where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiBlockReference"
 
 instance ToSchema ApiWalletDelegationStatus where
     declareNamedSchema _ = declareSchemaForDefinition "ApiWalletDelegationStatus"

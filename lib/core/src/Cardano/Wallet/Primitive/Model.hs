@@ -385,6 +385,7 @@ prefilterBlock b u0 = runState $ do
         , slotNo = b ^. #header . #slotNo
         , blockHeight = b ^. #header . #blockHeight
         , amount = Quantity amt
+        , expiry = Nothing
         }
     applyTx
         :: (IsOurs s Address, IsOurs s ChimericAccount)

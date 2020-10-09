@@ -1249,17 +1249,17 @@ spec = describe "SHELLEY_WALLETS" $ do
                 expectField (#syncProgress . #getApiT) (`shouldBe` Ready) sync
 
                 let epochNum =
-                        getFromResponse (#nodeTip . #epochNumber . #getApiT) sync
+                        getFromResponse (#nodeTip . #slotId . #epochNumber . #getApiT) sync
                 let slotNum =
-                        getFromResponse (#nodeTip . #slotNumber . #getApiT) sync
+                        getFromResponse (#nodeTip . #slotId . #slotNumber . #getApiT) sync
                 let blockHeight =
-                        getFromResponse (#nodeTip . #height) sync
+                        getFromResponse (#nodeTip . #block . #height) sync
 
                 res <- request @ApiWallet ctx
                     (Link.getWallet @'Shelley w) Default Empty
                 verify res
                     [ expectField (#state . #getApiT) (`shouldBe` Ready)
-                    , expectField (#tip . #epochNumber . #getApiT) (`shouldBe` epochNum)
-                    , expectField (#tip . #slotNumber  . #getApiT) (`shouldBe` slotNum)
-                    , expectField (#tip . #height) (`shouldBe` blockHeight)
+                    , expectField (#tip . #slotId . #epochNumber . #getApiT) (`shouldBe` epochNum)
+                    , expectField (#tip . #slotId . #slotNumber  . #getApiT) (`shouldBe` slotNum)
+                    , expectField (#tip . #block . #height) (`shouldBe` blockHeight)
                     ]

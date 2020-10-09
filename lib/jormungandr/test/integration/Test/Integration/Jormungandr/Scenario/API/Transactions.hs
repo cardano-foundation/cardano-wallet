@@ -659,7 +659,7 @@ fixtureExternalTx ctx toSend = do
     let wSrc = getFromResponse Prelude.id r0
     -- we take input by lookking at transactions of the faucet wallet
     txsSrc <- listAllTransactions @n ctx wSrc
-    let (ApiTransaction (ApiT theTxId) _ _ _ _ _ _ outs _ _ _):_ = reverse txsSrc
+    let (ApiTransaction (ApiT theTxId) _ _ _ _ _ _ _ outs _ _ _):_ = reverse txsSrc
     let (AddressAmount ((ApiT addrSrc),_) (Quantity amt)):_ = outs
     let (rootXPrv, pwd, st) = getSeqState mnemonicFaucet fixturePassphrase
     -- we create change address
@@ -716,7 +716,7 @@ fixtureExternalTx ctx toSend = do
     tl <- newTransactionLayer <$> getBlock0H
     let rewardAcnt = error "rewardAcnt unused"
     let curSlot = error "current slot not needed in jormungandr mkStdTx"
-    let (Right (tx, bin)) = mkStdTx tl rewardAcnt keystore curSlot Nothing cs
+    let (Right (tx, bin, _)) = mkStdTx tl rewardAcnt keystore curSlot Nothing cs
 
     return ExternalTxFixture
         { srcWallet = wSrc

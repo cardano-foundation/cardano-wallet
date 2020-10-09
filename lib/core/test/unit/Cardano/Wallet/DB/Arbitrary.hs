@@ -404,12 +404,14 @@ instance Arbitrary TxOut where
         <*> arbitrary
 
 instance Arbitrary TxMeta where
-    arbitrary = TxMeta
-        <$> arbitrary
-        <*> elements [Incoming, Outgoing]
-        <*> arbitrary
-        <*> fmap Quantity arbitrary
-        <*> fmap (Quantity . fromIntegral) (arbitrary @Word32)
+    arbitrary = do
+        st <- arbitrary
+        TxMeta st
+            <$> elements [Incoming, Outgoing]
+            <*> arbitrary
+            <*> fmap Quantity arbitrary
+            <*> fmap (Quantity . fromIntegral) (arbitrary @Word32)
+            <*> (if st == Pending then Just <$> arbitrary else pure Nothing)
 
 instance Arbitrary TxStatus where
     arbitrary = elements [Pending, InLedger]
