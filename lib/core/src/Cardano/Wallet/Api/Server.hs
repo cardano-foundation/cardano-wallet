@@ -49,6 +49,8 @@ module Cardano.Wallet.Api.Server
     , getUTxOsStatistics
     , getWallet
     , joinStakePool
+    , selectCoinsJoinStakePool
+    , selectCoinsQuitStakePool
     , listAddresses
     , listTransactions
     , getTransaction
@@ -176,7 +178,7 @@ import Cardano.Wallet.Api.Types
     , ApiPoolId (..)
     , ApiPostRandomAddressData (..)
     , ApiPutAddressesData (..)
-    , ApiSelectCoinsData (..)
+    , ApiSelectCoinsPayments
     , ApiSlotId (..)
     , ApiSlotReference (..)
     , ApiT (..)
@@ -310,7 +312,7 @@ import Cardano.Wallet.Registry
     , workerResource
     )
 import Cardano.Wallet.Transaction
-    ( TransactionLayer )
+    ( DelegationAction (..), TransactionLayer )
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
 import Control.Arrow
@@ -352,7 +354,7 @@ import Data.Generics.Labels
 import Data.List
     ( isInfixOf, isSubsequenceOf, sortOn )
 import Data.List.NonEmpty
-    ( NonEmpty )
+    ( NonEmpty (..) )
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
@@ -1116,10 +1118,10 @@ selectCoins
     => ctx
     -> ArgGenChange s
     -> ApiT WalletId
-    -> ApiSelectCoinsData n
+    -> ApiSelectCoinsPayments n
     -> Handler (ApiCoinSelection n)
 selectCoins ctx gen (ApiT wid) body =
-    fmap mkApiCoinSelection
+    fmap (mkApiCoinSelection Nothing)
     $ withWorkerCtx ctx wid liftE liftE
     $ \wrk -> do
         -- TODO:
@@ -1127,6 +1129,50 @@ selectCoins ctx gen (ApiT wid) body =
         let withdrawal = Quantity 0
         let outs = coerceCoin <$> body ^. #payments
         liftHandler $ W.selectCoinsExternal @_ @s @t @k wrk wid gen outs withdrawal Nothing
+
+selectCoinsJoinStakePool
+    :: forall ctx s t n k.
+        ( s ~ SeqState n k
+        , ctx ~ ApiLayer s t k
+        , SoftDerivation k
+        , MkKeyFingerprint k Address
+        , MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
+        )
+    => ctx
+    -> IO (Set PoolId)
+       -- ^ Known pools
+       -- We could maybe replace this with a @IO (PoolId -> Bool)@
+    -> (PoolId -> IO PoolLifeCycleStatus)
+    -> PoolId
+    -> WalletId
+    -> Handler (Api.ApiCoinSelection n)
+selectCoinsJoinStakePool ctx knownPools getPoolStatus pid wid = do
+    poolStatus <- liftIO (getPoolStatus pid)
+    pools <- liftIO knownPools
+    curEpoch <- getCurrentEpoch ctx
+
+    (utx, action, spath) <- withWorkerCtx ctx wid liftE liftE $
+        \wrk -> liftHandler $
+            W.joinStakePoolUnsigned
+                @_ @s @t @k wrk
+                curEpoch pools pid poolStatus wid
+    pure $ mkApiCoinSelection (Just (action, spath)) utx
+
+selectCoinsQuitStakePool
+    :: forall ctx s t n k.
+        ( s ~ SeqState n k
+        , ctx ~ ApiLayer s t k
+        , SoftDerivation k
+        , MkKeyFingerprint k Address
+        , MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
+        )
+    => ctx
+    -> ApiT WalletId
+    -> Handler (Api.ApiCoinSelection n)
+selectCoinsQuitStakePool ctx (ApiT wid) = do
+    (utx, action, spath) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
+        W.quitStakePoolUnsigned @_ @s @t @k wrk wid
+    pure $ mkApiCoinSelection (Just (action, spath)) utx
 
 {-------------------------------------------------------------------------------
                                     Addresses
@@ -1393,7 +1439,7 @@ joinStakePool
         , IsOurs s ChimericAccount
         , IsOwned s k
         , GenChange s
-        , HardDerivation k
+        , SoftDerivation k
         , AddressIndexDerivationType k ~ 'Soft
         , WalletKey k
         , ctx ~ ApiLayer s t k
@@ -1458,9 +1504,9 @@ quitStakePool
         , IsOwned s k
         , GenChange s
         , HasNetworkLayer t ctx
-        , HardDerivation k
         , AddressIndexDerivationType k ~ 'Soft
         , WalletKey k
+        , SoftDerivation k
         , ctx ~ ApiLayer s t k
         )
     => ctx
@@ -1778,13 +1824,27 @@ rndStateChange ctx (ApiT wid) pwd =
 -- | Makes an 'ApiCoinSelection' from the given 'UnsignedTx'.
 mkApiCoinSelection
     :: forall n. ()
-    => UnsignedTx (TxIn, TxOut, NonEmpty DerivationIndex)
+    => Maybe (DelegationAction, [DerivationIndex])
+    -> UnsignedTx (TxIn, TxOut, NonEmpty DerivationIndex)
     -> ApiCoinSelection n
-mkApiCoinSelection (UnsignedTx inputs outputs) =
+mkApiCoinSelection mcerts (UnsignedTx inputs outputs) =
     ApiCoinSelection
         (mkApiCoinSelectionInput <$> inputs)
         (mkAddressAmount <$> outputs)
+        (fmap (uncurry mkCertificates) mcerts)
   where
+    mkCertificates :: DelegationAction -> [DerivationIndex] -> [Api.ApiCertificate]
+    mkCertificates action (s:sx) =
+        let apiStakePath = ApiT <$> (s:|sx)
+        in case action of
+            Join pid -> [Api.JoinPool apiStakePath (ApiT pid)]
+            RegisterKeyAndJoin pid ->
+                [ Api.RegisterRewardAccount apiStakePath
+                , Api.JoinPool apiStakePath (ApiT pid)
+                ]
+            Quit-> [Api.QuitPool apiStakePath]
+    mkCertificates _ _ = []
+
     mkAddressAmount :: TxOut -> AddressAmount (ApiT Address, Proxy n)
     mkAddressAmount (TxOut addr (Coin c)) =
         AddressAmount (ApiT addr, Proxy @n) (Quantity $ fromIntegral c)
@@ -2137,18 +2197,8 @@ instance Buildable e => LiftHandler (ErrSelectCoinsExternal e) where
             handler e
         ErrSelectCoinsExternalUnableToMakeSelection e ->
             handler e
-        ErrSelectCoinsExternalUnableToAssignInputs wid ->
-            apiError err500 UnexpectedError $ mconcat
-                [ "I was unable to assign inputs while generating a coin "
-                , "selection for the specified wallet: "
-                , toText wid
-                ]
-        ErrSelectCoinsExternalUnableToAssignOutputs wid ->
-            apiError err500 UnexpectedError $ mconcat
-                [ "I was unable to assign outputs while generating a coin "
-                , "selection for the specified wallet: "
-                , toText wid
-                ]
+        ErrSelectCoinsExternalUnableToAssignInputs e -> handler e
+        ErrSelectCoinsExternalUnableToAssignOutputs e -> handler e
 
 instance Buildable e => LiftHandler (ErrCoinSelection e) where
     handler = \case
@@ -2413,6 +2463,8 @@ instance LiftHandler ErrSelectForDelegation where
                 [ "I'm unable to select enough coins to pay for a "
                 , "delegation certificate. I need: ", showT cost, " Lovelace."
                 ]
+        ErrSelectForDelegationUnableToAssignInputs e -> handler e
+        ErrSelectForDelegationUnableToAssignOutputs e -> handler e
 
 instance LiftHandler ErrSignDelegation where
     handler = \case
@@ -2447,6 +2499,8 @@ instance LiftHandler ErrJoinStakePool where
                     [ "I couldn't find any stake pool with the given id: "
                     , toText pid
                     ]
+        ErrJoinStakePoolUnableToAssignInputs e -> handler e
+        ErrJoinStakePoolUnableToAssignOutputs e -> handler e
 
 instance LiftHandler ErrFetchRewards where
     handler = \case
@@ -2483,6 +2537,8 @@ instance LiftHandler ErrQuitStakePool where
                     , "account! Make sure to withdraw your ", pretty rewards
                     , " lovelace first."
                     ]
+        ErrQuitStakePoolUnableToAssignInputs e -> handler e
+        ErrQuitStakePoolUnableToAssignOutputs e -> handler e
 
 instance LiftHandler ErrCreateRandomAddress where
     handler = \case

@@ -48,6 +48,10 @@ import Data.Text
     ( Text )
 import Data.Text.Read
     ( decimal, signed )
+import Data.Word
+    ( Word32, Word64 )
+import Data.Word.Odd
+    ( Word31 )
 import Fmt
     ( Buildable )
 import GHC.Generics
@@ -59,6 +63,11 @@ import Text.Read
 
 import qualified Data.Char as C
 import qualified Data.Text as T
+import qualified Data.Text.Lazy as T
+    ( toStrict )
+import qualified Data.Text.Lazy.Builder as B
+import qualified Data.Text.Lazy.Builder.Int as B
+import qualified Data.Text.Lazy.Builder.RealFloat as B
 import qualified Text.Casing as Casing
 
 -- | Defines a textual encoding for a type.
@@ -103,7 +112,7 @@ instance FromText Int where
                 <> "."
 
 instance ToText Int where
-    toText = T.pack . show
+    toText = intToText
 
 instance FromText Natural where
     fromText t = do
@@ -114,7 +123,7 @@ instance FromText Natural where
         err = TextDecodingError "Expecting natural number"
 
 instance ToText Natural where
-    toText = T.pack . show
+    toText = intToText
 
 instance FromText Integer where
     fromText t = do
@@ -125,7 +134,7 @@ instance FromText Integer where
         err = TextDecodingError "Expecting integer"
 
 instance ToText Integer where
-    toText = T.pack . show
+    toText = intToText
 
 instance FromText Double where
     fromText = first (const err) . readEither . T.unpack
@@ -133,7 +142,22 @@ instance FromText Double where
         err = TextDecodingError "Expecting floating number"
 
 instance ToText Double where
-    toText = T.pack . show
+    toText = realFloatToText
+
+instance ToText Word64 where
+    toText = intToText
+
+instance ToText Word32 where
+    toText = intToText
+
+instance ToText Word31 where
+    toText = intToText
+
+realFloatToText :: RealFloat a => a -> T.Text
+realFloatToText = T.toStrict . B.toLazyText . B.realFloat
+
+intToText :: Integral a => a -> T.Text
+intToText = T.toStrict . B.toLazyText . B.decimal
 
 -- | Decode the specified text with a 'Maybe' result type.
 fromTextMaybe :: FromText a => Text -> Maybe a

@@ -42,8 +42,12 @@ module Cardano.Wallet.Api.Types
 
     -- * API Types
     , ApiAddress (..)
+    , ApiRelativeDerivationIndex (..)
+    , ApiCertificate (..)
     , ApiEpochInfo (..)
     , ApiSelectCoinsData (..)
+    , ApiSelectCoinsPayments (..)
+    , ApiSelectCoinsAction (..)
     , ApiCoinSelection (..)
     , ApiCoinSelectionInput (..)
     , ApiStakePool (..)
@@ -199,6 +203,8 @@ import Cardano.Wallet.Primitive.Types
     , txMetadataIsNull
     , unsafeEpochNo
     )
+import Cardano.Wallet.Transaction
+    ( DelegationAction (..) )
 import Control.Applicative
     ( optional, (<|>) )
 import Control.Arrow
@@ -209,7 +215,7 @@ import Data.Aeson
     ( FromJSON (..)
     , SumEncoding (..)
     , ToJSON (..)
-    , Value (Object)
+    , Value (Object, String)
     , camelTo2
     , constructorTagModifier
     , fieldLabelModifier
@@ -372,18 +378,49 @@ data ApiAddress (n :: NetworkDiscriminant) = ApiAddress
     , state :: !(ApiT AddressState)
     } deriving (Eq, Generic, Show)
 
+-- | Represents a relative address index.
+--
+-- The range of this type is exactly half that of a 'Word32'.
+--
+newtype ApiRelativeDerivationIndex = ApiRelativeDerivationIndex
+    { unApiRelativeDerivationIndex :: Word31
+    } deriving (Bounded, Enum, Eq, Generic, Show)
+
 data ApiEpochInfo = ApiEpochInfo
     { epochNumber :: !(ApiT EpochNo)
     , epochStartTime :: !UTCTime
     } deriving (Eq, Generic, Show)
 
-newtype ApiSelectCoinsData (n :: NetworkDiscriminant) = ApiSelectCoinsData
+data ApiSelectCoinsData (n :: NetworkDiscriminant)
+    = ApiSelectForPayment (ApiSelectCoinsPayments n)
+    | ApiSelectForAction ApiSelectCoinsAction
+    deriving (Eq, Generic, Show)
+
+newtype ApiSelectCoinsPayments (n :: NetworkDiscriminant) = ApiSelectCoinsPayments
     { payments :: NonEmpty (AddressAmount (ApiT Address, Proxy n))
     } deriving (Eq, Generic, Show)
+
+newtype ApiSelectCoinsAction = ApiSelectCoinsAction
+    { delegation_action :: ApiT DelegationAction
+    } deriving (Eq, Generic, Show)
+
+data ApiCertificate
+    = RegisterRewardAccount
+        { reward_account_path :: NonEmpty (ApiT DerivationIndex)
+        }
+    | JoinPool
+        { reward_account_path :: NonEmpty (ApiT DerivationIndex)
+        , pool :: ApiT PoolId
+        }
+    | QuitPool
+        { reward_account_path :: NonEmpty (ApiT DerivationIndex)
+        }
+    deriving (Eq, Generic, Show)
 
 data ApiCoinSelection (n :: NetworkDiscriminant) = ApiCoinSelection
     { inputs :: !(NonEmpty (ApiCoinSelectionInput n))
     , outputs :: !(NonEmpty (AddressAmount (ApiT Address, Proxy n)))
+    , certificates :: Maybe [ApiCertificate]
     } deriving (Eq, Generic, Show)
 
 data ApiCoinSelectionInput (n :: NetworkDiscriminant) = ApiCoinSelectionInput
@@ -693,6 +730,7 @@ data ApiPostRandomAddressData = ApiPostRandomAddressData
     , addressIndex :: !(Maybe (ApiT (Index 'AD.Hardened 'AddressK)))
     } deriving (Eq, Generic, Show)
 
+
 data ApiWalletMigrationPostData (n :: NetworkDiscriminant) (s :: Symbol) =
     ApiWalletMigrationPostData
     { passphrase :: !(ApiT (Passphrase s))
@@ -991,15 +1029,68 @@ instance FromJSON ApiEpochInfo where
 instance ToJSON ApiEpochInfo where
     toJSON = genericToJSON defaultRecordTypeOptions
 
-instance DecodeAddress n => FromJSON (ApiSelectCoinsData n) where
+instance FromJSON ApiSelectCoinsAction where
     parseJSON = genericParseJSON defaultRecordTypeOptions
-instance EncodeAddress n => ToJSON (ApiSelectCoinsData n) where
+instance ToJSON ApiSelectCoinsAction where
     toJSON = genericToJSON defaultRecordTypeOptions
+
+instance DecodeAddress n => FromJSON (ApiSelectCoinsPayments n) where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance EncodeAddress n => ToJSON (ApiSelectCoinsPayments n) where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+instance DecodeAddress n => FromJSON (ApiSelectCoinsData n) where
+    parseJSON = withObject "DelegationAction" $ \o -> do
+        p <- o .:? "payments"
+        a <- o .:? "delegation_action"
+        case (p, a) of
+            (Just _, Just _) -> fail "Specified both payments and action, pick one"
+            (Nothing, Just v) ->
+                pure $ ApiSelectForAction $ ApiSelectCoinsAction v
+            (Just v, Nothing) ->
+                pure $ ApiSelectForPayment $ ApiSelectCoinsPayments v
+            _ -> fail "No valid parse"
+instance EncodeAddress n => ToJSON (ApiSelectCoinsData n) where
+    toJSON (ApiSelectForPayment v) = toJSON v
+    toJSON (ApiSelectForAction v) = toJSON v
 
 instance DecodeAddress n => FromJSON (ApiCoinSelection n) where
     parseJSON = genericParseJSON defaultRecordTypeOptions
 instance EncodeAddress n => ToJSON (ApiCoinSelection n) where
     toJSON = genericToJSON defaultRecordTypeOptions
+
+apiCertificateOptions :: Aeson.Options
+apiCertificateOptions = Aeson.defaultOptions
+      { constructorTagModifier = camelTo2 '_'
+      , tagSingleConstructors = True
+      , fieldLabelModifier = camelTo2 '_' . dropWhile (== '_')
+      , omitNothingFields = True
+      , sumEncoding = TaggedObject
+          {
+            tagFieldName = "delegation_type"
+          , contentsFieldName = "contents"
+          }
+      }
+
+instance FromJSON ApiCertificate where
+    parseJSON = genericParseJSON apiCertificateOptions
+
+instance ToJSON ApiCertificate where
+    toJSON = genericToJSON apiCertificateOptions
+
+instance FromJSON (ApiT DelegationAction) where
+    parseJSON = withObject "DelegationAction" $ \o ->
+        o .: "action" >>= \case
+            "join" -> do
+                pid <- o .: "pool"
+                pure (ApiT $ Join (getApiT pid))
+            "quit" -> pure $ ApiT Quit
+            val -> fail ("Unexpeced action value: " <> T.unpack val)
+
+instance ToJSON (ApiT DelegationAction) where
+    toJSON (ApiT (RegisterKeyAndJoin _)) = error "RegisterKeyAndJoin not valid"
+    toJSON (ApiT (Join pid)) = object [ "action" .= String "join", "pool" .= (ApiT pid) ]
+    toJSON (ApiT Quit) = object [ "action" .= String "quit" ]
 
 instance DecodeAddress n => FromJSON (ApiCoinSelectionInput n) where
     parseJSON = genericParseJSON defaultRecordTypeOptions

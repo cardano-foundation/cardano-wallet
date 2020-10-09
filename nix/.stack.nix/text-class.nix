@@ -32,6 +32,7 @@
           (hsPkgs."fmt" or (errorHandler.buildDepError "fmt"))
           (hsPkgs."text" or (errorHandler.buildDepError "text"))
           (hsPkgs."hspec" or (errorHandler.buildDepError "hspec"))
+          (hsPkgs."OddWord" or (errorHandler.buildDepError "OddWord"))
           (hsPkgs."QuickCheck" or (errorHandler.buildDepError "QuickCheck"))
           ];
         buildable = true;

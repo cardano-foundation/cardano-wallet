@@ -74,6 +74,7 @@ import Cardano.Crypto.Wallet
 import Cardano.Wallet.Primitive.AddressDerivation
     ( AccountingStyle (..)
     , Depth (..)
+    , DerivationPrefix (..)
     , DerivationType (..)
     , HardDerivation (..)
     , Index (..)
@@ -589,44 +590,6 @@ instance PersistPublicKey (k 'AccountK) => Buildable (SeqState n k) where
         <> indentF 4 ("Change indexes: " <> indentF 4 chgsF)
       where
         chgsF = blockListF' "-" build (pendingIxsToList chgs)
-
--- | Each 'SeqState' is like a bucket of addresses associated with an 'account'.
--- An 'account' corresponds to a subset of an HD tree as defined in BIP-0039.
---
--- cardano-wallet implements two similar HD schemes on top of BIP-0039 that are:
---
--- - BIP-0044 (for so-called Icarus wallets)
--- - CIP-1815 (for so-called Shelley and Jormungandr wallets)
---
--- Both scheme works by considering 5 levels of derivation from an initial root
--- key (see also 'Depth' from Cardano.Wallet.Primitive.AddressDerivation). A
--- SeqState keeps track of indexes from the two last levels of a derivation
--- branch. The 'DerivationPrefix' defines the first three indexes chosen for
--- this particular 'SeqState'.
-newtype DerivationPrefix = DerivationPrefix
-    ( Index 'Hardened 'PurposeK
-    , Index 'Hardened 'CoinTypeK
-    , Index 'Hardened 'AccountK
-    ) deriving (Show, Generic, Eq, Ord)
-
-instance NFData DerivationPrefix
-
-instance ToText DerivationPrefix where
-    toText (DerivationPrefix (purpose, coinType, account))
-        = T.intercalate "/"
-        $ map (T.pack . show)
-        [getIndex purpose, getIndex coinType, getIndex account]
-
-instance FromText DerivationPrefix where
-    fromText txt =
-        DerivationPrefix <$> case T.splitOn "/" txt of
-            [purposeT, coinTypeT, accountT] -> (,,)
-                <$> fromText purposeT
-                <*> fromText coinTypeT
-                <*> fromText accountT
-            _ ->
-                Left $ TextDecodingError "expected exactly 3 derivation paths"
-
 
 -- | Purpose is a constant set to 44' (or 0x8000002C) following the original
 -- BIP-44 specification.

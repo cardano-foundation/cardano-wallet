@@ -109,6 +109,8 @@ import qualified Cardano.Api.Typed as Cardano
 import qualified Cardano.Chain.Common as Byron
 import qualified Cardano.Crypto as CC
 import qualified Cardano.Crypto.Hash.Class as Crypto
+import Cardano.Crypto.Wallet
+    ( XPub )
 import qualified Cardano.Crypto.Wallet as Crypto.HD
 import qualified Cardano.Wallet.Primitive.CoinSelection as CS
 import qualified Data.ByteArray as BA
@@ -172,25 +174,40 @@ instance TxWitnessTagFor IcarusKey where
 instance TxWitnessTagFor ByronKey where
     txWitnessTagFor = TxWitnessByronUTxO Byron
 
+
+-- | Returns a tuple of unsigned transactions and withdrawals.
+mkTxUnsigned
+    :: Cardano.NetworkId
+    -> [Cardano.Certificate]
+    -> Maybe Cardano.TxMetadata
+    -> SlotNo
+    -- ^ Time to Live
+    -> XPrv
+    -- ^ Reward account
+    -> CoinSelection
+    -> (Cardano.TxBody Cardano.Shelley, [(Cardano.StakeAddress, Cardano.Lovelace)])
+mkTxUnsigned networkId certs md timeToLive rewardAcnt cs =
+    let wdrls = mkWithdrawals
+            networkId
+            (toChimericAccountRaw . toXPub $ rewardAcnt)
+            (withdrawal cs)
+        unsigned = mkUnsignedTx timeToLive cs md wdrls certs
+    in (unsigned, wdrls)
+
 mkTx
     :: forall k. (TxWitnessTagFor k, WalletKey k)
     => Cardano.NetworkId
     -> TxPayload Cardano.Shelley
     -> SlotNo
-    -- ^ Tip of chain, for calculating TTL
+    -- ^ Time to Live
     -> (XPrv, Passphrase "encryption")
     -- ^ Reward account
     -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
     -> CoinSelection
     -> Either ErrMkTx (Tx, SealedTx, SlotNo)
 mkTx networkId (TxPayload md certs mkExtraWits) tip (rewardAcnt, pwdAcnt) keyFrom cs = do
-    let wdrls = mkWithdrawals
-            networkId
-            (toChimericAccountRaw . toXPub $ rewardAcnt)
-            (withdrawal cs)
-
     let timeToLive = defaultTTL tip
-    let unsigned = mkUnsignedTx timeToLive cs md wdrls certs
+    let (unsigned, wdrls) = mkTxUnsigned networkId certs md timeToLive rewardAcnt cs
 
     wits <- case (txWitnessTagFor @k) of
         TxWitnessShelleyUTxO -> do
@@ -265,19 +282,17 @@ newTransactionLayer networkId = TransactionLayer
     _mkDelegationJoinTx poolId acc@(accXPrv, pwd') keyFrom tip cs = do
         let accXPub = toXPub accXPrv
         let certs =
-                if deposit cs > 0 then
-                    [ toStakeKeyRegCert  accXPub
-                    , toStakePoolDlgCert accXPub poolId
-                    ]
-                else
-                    [ toStakePoolDlgCert accXPub poolId ]
+                if deposit cs > 0
+                then mkDelegationCertificates (RegisterKeyAndJoin poolId) accXPub
+                else mkDelegationCertificates (Join poolId) accXPub
 
         let mkWits unsigned =
                 [ mkShelleyWitness unsigned (accXPrv, pwd')
                 ]
 
         let payload = TxPayload Nothing certs mkWits
-        mkTx networkId payload tip acc keyFrom cs
+        let ttl = defaultTTL tip
+        mkTx networkId payload ttl acc keyFrom cs
 
     _mkDelegationQuitTx
         :: (XPrv, Passphrase "encryption")
@@ -298,7 +313,24 @@ newTransactionLayer networkId = TransactionLayer
                 ]
 
         let payload = TxPayload Nothing certs mkWits
-        mkTx networkId payload tip acc keyFrom cs
+        let ttl = defaultTTL tip
+        mkTx networkId payload ttl acc keyFrom cs
+
+mkDelegationCertificates
+    :: DelegationAction
+        -- Pool Id to which we're planning to delegate
+    -> XPub
+        -- Reward account public key
+    -> [Cardano.Certificate]
+mkDelegationCertificates da accXPub =
+    case da of
+       Join poolId ->
+               [ toStakePoolDlgCert accXPub poolId ]
+       RegisterKeyAndJoin poolId ->
+               [ toStakeKeyRegCert  accXPub
+               , toStakePoolDlgCert accXPub poolId
+               ]
+       Quit -> [toStakeKeyDeregCert accXPub]
 
 _estimateMaxNumberOfInputs
     :: forall k. TxWitnessTagFor k
