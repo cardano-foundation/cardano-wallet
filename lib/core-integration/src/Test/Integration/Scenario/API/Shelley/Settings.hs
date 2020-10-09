@@ -33,7 +33,7 @@ import Cardano.Wallet.Primitive.AddressDerivation.Icarus
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey )
 import Cardano.Wallet.Primitive.Types
-    ( Coin (..), PoolMetadataSource, Settings )
+    ( Coin (..), PoolMetadataSource (..), Settings )
 import Data.Generics.Internal.VL.Lens
     ( view )
 import Data.Maybe
@@ -93,14 +93,17 @@ spec = describe "SHELLEY_SETTINGS" $ do
             timeout = 120
 
         updateMetadataSource ctx toNone
+        verifyMetadataSource ctx FetchNone
         eventuallyUsingDelay delay timeout "1. There is no metadata" $
             getMetadata >>= (`shouldSatisfy` all isNothing)
 
         updateMetadataSource ctx toDirect
+        verifyMetadataSource ctx FetchDirect
         eventuallyUsingDelay delay timeout "2. There is metadata" $
             getMetadata >>= (`shouldSatisfy` all isJust)
 
         updateMetadataSource ctx toNone
+        verifyMetadataSource ctx FetchNone
         eventuallyUsingDelay delay timeout "3. There is no metadata" $
             getMetadata >>= (`shouldSatisfy` all isNothing)
 
@@ -115,6 +118,12 @@ updateMetadataSource ctx t = do
            "pool_metadata_source": #{t}
             }
        } |]
+
+verifyMetadataSource :: Context t -> PoolMetadataSource -> IO ()
+verifyMetadataSource ctx s = do
+    r <- request @(ApiT Settings) ctx Link.getSettings Default Empty
+    expectResponseCode @IO HTTP.status200 r
+    expectField (#getApiT . #poolMetadataSource) (`shouldBe` s) r
 
 arbitraryStake :: Maybe Coin
 arbitraryStake = Just $ ada 10_000
