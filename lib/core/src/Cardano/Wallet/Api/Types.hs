@@ -589,20 +589,28 @@ data ApiNetworkParameters = ApiNetworkParameters
 toApiNetworkParameters
     :: NetworkParameters
     -> (ApiNetworkParameters, Maybe EpochNo)
-toApiNetworkParameters (NetworkParameters gp pp) = (ApiNetworkParameters
-    (ApiT $ getGenesisBlockHash gp)
-    (ApiT $ getGenesisBlockDate gp)
-    (Quantity $ unSlotLength $ getSlotLength gp)
-    (Quantity $ unEpochLength $ getEpochLength gp)
-    (getEpochStability gp)
-    (Quantity
-        $ (*100)
-        $ unActiveSlotCoefficient
-        $ getActiveSlotCoefficient gp)
-    (Quantity $ unDecentralizationLevel $ view #decentralizationLevel pp)
-    (view #desiredNumberOfStakePools pp)
-    (Quantity $ fromIntegral $ getCoin $ view #minimumUTxOvalue pp)
-    Nothing, view #hardforkEpochNo pp)
+toApiNetworkParameters (NetworkParameters gp pp) = (np, view #hardforkEpochNo pp)
+  where
+    np = ApiNetworkParameters
+        { genesisBlockHash = ApiT $ getGenesisBlockHash gp
+        , blockchainStartTime = ApiT $ getGenesisBlockDate gp
+        , slotLength = Quantity $ unSlotLength $ getSlotLength gp
+        , epochLength = Quantity $ unEpochLength $ getEpochLength gp
+        , epochStability = getEpochStability gp
+        , activeSlotCoefficient = Quantity
+            $ (*100)
+            $ unActiveSlotCoefficient
+            $ getActiveSlotCoefficient gp
+        , decentralizationLevel = Quantity
+            $ unDecentralizationLevel
+            $ view #decentralizationLevel pp
+        , desiredPoolNumber = view #desiredNumberOfStakePools pp
+        , minimumUtxoValue = Quantity
+            $ fromIntegral
+            $ getCoin
+            $ view #minimumUTxOvalue pp
+        , hardforkAt = Nothing
+        }
 
 newtype ApiTxId = ApiTxId
     { id :: ApiT (Hash "Tx")
