@@ -277,7 +277,7 @@ mainnetNetworkParameters = W.NetworkParameters
             minBound
         , txParameters = W.TxParameters
             { getFeePolicy =
-                W.LinearFee (Quantity 155381) (Quantity 43.946) (Quantity 0)
+                W.LinearFee (Quantity 155381) (Quantity 44) (Quantity 0)
             , getTxMaxSize =
                 Quantity 4096
             }
