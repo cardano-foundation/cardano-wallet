@@ -41,7 +41,7 @@ import Cardano.Wallet.Primitive.AddressDerivation.Jormungandr
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( GenChange (..), IsOwned (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
-    ( defaultAddressPoolGap, mkSeqStateFromRootXPrv )
+    ( defaultAddressPoolGap, mkSeqStateFromRootXPrv, purposeCIP1852 )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..) )
 import Cardano.Wallet.Primitive.Types
@@ -732,7 +732,7 @@ fixtureExternalTx ctx toSend = do
               rootXPrv = generateKeyFromSeed (seed, Nothing) pwd
           in (rootXPrv
              , pwd
-             , mkSeqStateFromRootXPrv @n (rootXPrv, pwd) defaultAddressPoolGap
+             , mkSeqStateFromRootXPrv @n (rootXPrv, pwd) purposeCIP1852 defaultAddressPoolGap
              )
 
 getWalletBalance :: Context t -> ApiWallet -> IO (Natural, Natural)

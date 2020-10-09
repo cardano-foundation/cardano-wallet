@@ -166,8 +166,6 @@ import Cardano.Wallet.Api.Types
     , ApiByronWalletBalance (..)
     , ApiCoinSelection (..)
     , ApiCoinSelectionInput (..)
-    , ApiDerivationPath (..)
-    , ApiDerivationSegment (..)
     , ApiEpochInfo (ApiEpochInfo)
     , ApiErrorCode (..)
     , ApiFee (..)
@@ -178,7 +176,6 @@ import Cardano.Wallet.Api.Types
     , ApiPoolId (..)
     , ApiPostRandomAddressData (..)
     , ApiPutAddressesData (..)
-    , ApiRelativeDerivationIndex (..)
     , ApiSelectCoinsData (..)
     , ApiSlotId (..)
     , ApiSlotReference (..)
@@ -1801,29 +1798,8 @@ mkApiCoinSelection (UnsignedTx inputs outputs) =
             , index = index
             , address = (ApiT addr, Proxy @n)
             , amount = Quantity $ fromIntegral c
-            , derivationPath = ApiDerivationPath $ mkApiDerivationSegment <$> path
+            , derivationPath = ApiT <$> path
             }
-
-    mkApiDerivationSegment
-        :: DerivationIndex
-        -> ApiDerivationSegment
-    mkApiDerivationSegment (DerivationIndex ix)
-        | ix >= hardenedThreshold =
-            ApiDerivationSegment
-                { derivationIndex =
-                    ApiRelativeDerivationIndex $ fromIntegral (ix - hardenedThreshold)
-                , derivationType =
-                    Api.Hardened
-                }
-        | otherwise =
-            ApiDerivationSegment
-                { derivationIndex =
-                    ApiRelativeDerivationIndex $ fromIntegral ix
-                , derivationType =
-                    Api.Soft
-                }
-      where
-        hardenedThreshold = getIndex @'Hardened minBound
 
 mkApiTransaction
     :: forall n m. Monad m

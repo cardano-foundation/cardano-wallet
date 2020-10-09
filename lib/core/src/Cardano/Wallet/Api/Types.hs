@@ -42,10 +42,6 @@ module Cardano.Wallet.Api.Types
 
     -- * API Types
     , ApiAddress (..)
-    , ApiDerivationPath (..)
-    , ApiDerivationSegment (..)
-    , ApiDerivationType (..)
-    , ApiRelativeDerivationIndex (..)
     , ApiEpochInfo (..)
     , ApiSelectCoinsData (..)
     , ApiCoinSelection (..)
@@ -151,6 +147,7 @@ import Cardano.Mnemonic
     )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
+    , DerivationType (..)
     , Index (..)
     , NetworkDiscriminant (..)
     , Passphrase (..)
@@ -174,6 +171,7 @@ import Cardano.Wallet.Primitive.Types
     , ChimericAccount (..)
     , Coin (..)
     , DecentralizationLevel (..)
+    , DerivationIndex (..)
     , Direction (..)
     , EpochLength (..)
     , EpochNo (..)
@@ -206,7 +204,7 @@ import Control.Applicative
 import Control.Arrow
     ( left )
 import Control.Monad
-    ( guard, (<=<), (>=>) )
+    ( guard, (>=>) )
 import Data.Aeson
     ( FromJSON (..)
     , SumEncoding (..)
@@ -234,8 +232,6 @@ import Data.ByteString
     ( ByteString )
 import Data.Either.Extra
     ( maybeToEither )
-import Data.Foldable
-    ( asum )
 import Data.Function
     ( (&) )
 import Data.Generics.Internal.VL.Lens
@@ -376,33 +372,6 @@ data ApiAddress (n :: NetworkDiscriminant) = ApiAddress
     , state :: !(ApiT AddressState)
     } deriving (Eq, Generic, Show)
 
-newtype ApiDerivationPath = ApiDerivationPath
-    { unApiDerivationPath :: NonEmpty ApiDerivationSegment
-    } deriving (Eq, Generic, Show)
-
-data ApiDerivationSegment = ApiDerivationSegment
-    { derivationIndex :: !ApiRelativeDerivationIndex
-    , derivationType :: !ApiDerivationType
-    } deriving (Eq, Generic, Show)
-
--- | Represents a type of address derivation.
---
--- Note that the values of this type are a strict subset of those provided
--- by 'DerivationType' from 'Cardano.Wallet.Primitive.AddressDerivation'.
---
-data ApiDerivationType
-    = Hardened
-    | Soft
-    deriving (Bounded, Enum, Eq, Generic, Show)
-
--- | Represents a relative address index.
---
--- The range of this type is exactly half that of a 'Word32'.
---
-newtype ApiRelativeDerivationIndex = ApiRelativeDerivationIndex
-    { unApiRelativeDerivationIndex :: Word31
-    } deriving (Bounded, Enum, Eq, Generic, Show)
-
 data ApiEpochInfo = ApiEpochInfo
     { epochNumber :: !(ApiT EpochNo)
     , epochStartTime :: !UTCTime
@@ -421,7 +390,7 @@ data ApiCoinSelectionInput (n :: NetworkDiscriminant) = ApiCoinSelectionInput
     { id :: !(ApiT (Hash "Tx"))
     , index :: !Word32
     , address :: !(ApiT Address, Proxy n)
-    , derivationPath :: ApiDerivationPath
+    , derivationPath :: NonEmpty (ApiT DerivationIndex)
     , amount :: !(Quantity "lovelace" Natural)
     } deriving (Eq, Generic, Show)
 
@@ -976,37 +945,37 @@ instance DecodeAddress n => FromJSON (ApiAddress n) where
 instance EncodeAddress n => ToJSON (ApiAddress n) where
     toJSON = genericToJSON defaultRecordTypeOptions
 
-instance ToJSON ApiDerivationPath where
-    toJSON = toJSON . unApiDerivationPath
-instance FromJSON ApiDerivationPath where
-    parseJSON = fmap ApiDerivationPath . parseJSON
-
-instance ToJSON ApiDerivationSegment where
-    toJSON (ApiDerivationSegment (ApiRelativeDerivationIndex ix) typ)
-        | typ == Hardened = toJSON (show ix <> "H")
+instance ToJSON (ApiT DerivationIndex) where
+    toJSON (ApiT (DerivationIndex ix))
+        | ix >= firstHardened = toJSON (show (ix - firstHardened) <> "H")
         | otherwise = toJSON (show ix)
-instance FromJSON ApiDerivationSegment where
-    parseJSON value = asum
-        [ parseJSON value >>= parseAsScientific
-        , parseJSON value >>= parseAsText
-        ]
       where
-        parseAsText :: Text -> Aeson.Parser ApiDerivationSegment
+        firstHardened = getIndex @'Hardened minBound
+
+instance FromJSON (ApiT DerivationIndex) where
+    parseJSON value = ApiT <$> (parseJSON value >>= parseAsText)
+      where
+        firstHardened = getIndex @'Hardened minBound
+
+        parseAsText :: Text -> Aeson.Parser DerivationIndex
         parseAsText txt =
             if "H" `T.isSuffixOf` txt then do
-                path <- castNumber (T.init txt) >>= parseAsScientific
-                pure $ path { derivationType = Hardened }
+                DerivationIndex ix <- castNumber (T.init txt) >>= parseAsScientific
+                pure $ DerivationIndex $ ix + firstHardened
             else
                 castNumber txt >>= parseAsScientific
 
-        parseAsScientific :: Scientific -> Aeson.Parser ApiDerivationSegment
+        parseAsScientific :: Scientific -> Aeson.Parser DerivationIndex
         parseAsScientific x =
             case toBoundedInteger x of
-                Nothing -> fail "expected an unsigned int31"
-                Just ix -> pure ApiDerivationSegment
-                    { derivationIndex = ApiRelativeDerivationIndex ix
-                    , derivationType = Soft
-                    }
+                Just ix | ix < firstHardened -> pure $ DerivationIndex ix
+                _ -> fail $ mconcat
+                    [ "A derivation index must be a natural number between "
+                    , show (getIndex @'Soft minBound)
+                    , " and "
+                    , show (getIndex @'Soft maxBound)
+                    , "."
+                    ]
 
         castNumber :: Text -> Aeson.Parser Scientific
         castNumber txt =
@@ -1016,35 +985,6 @@ instance FromJSON ApiDerivationSegment where
                          \suffix (e.g. \"1815H\" or \"44\""
                 Just s ->
                     pure s
-
-instance ToJSON (ApiDerivationType) where
-    toJSON = genericToJSON defaultSumTypeOptions
-instance FromJSON (ApiDerivationType) where
-    parseJSON = genericParseJSON defaultSumTypeOptions
-
-instance ToJSON ApiRelativeDerivationIndex where
-    toJSON = toJSON . fromEnum
-instance FromJSON ApiRelativeDerivationIndex where
-    parseJSON = eitherToParser . integerToIndex <=< parseJSON
-      where
-        integerToIndex :: Integer -> Either String ApiRelativeDerivationIndex
-        integerToIndex i
-            | i < minIntegerBound = Left errorMessage
-            | i > maxIntegerBound = Left errorMessage
-            | otherwise = Right
-                $ ApiRelativeDerivationIndex
-                $ fromIntegral i
-
-        minIntegerBound = toInteger $ unApiRelativeDerivationIndex minBound
-        maxIntegerBound = toInteger $ unApiRelativeDerivationIndex maxBound
-
-        errorMessage = mconcat
-            [ "A relative address index must be a natural number between "
-            , show minIntegerBound
-            , " and "
-            , show maxIntegerBound
-            , "."
-            ]
 
 instance FromJSON ApiEpochInfo where
     parseJSON = genericParseJSON defaultRecordTypeOptions

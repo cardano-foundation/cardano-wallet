@@ -50,9 +50,6 @@ import Cardano.Wallet.Api.Types
     , ApiByronWalletBalance (..)
     , ApiCoinSelection (..)
     , ApiCoinSelectionInput (..)
-    , ApiDerivationPath (..)
-    , ApiDerivationSegment (..)
-    , ApiDerivationType (..)
     , ApiEpochInfo (..)
     , ApiFee (..)
     , ApiMnemonicT (..)
@@ -62,7 +59,6 @@ import Cardano.Wallet.Api.Types
     , ApiNtpStatus (..)
     , ApiPostRandomAddressData
     , ApiPutAddressesData (..)
-    , ApiRelativeDerivationIndex (..)
     , ApiSelectCoinsData (..)
     , ApiSlotId (..)
     , ApiSlotReference (..)
@@ -114,7 +110,9 @@ import Cardano.Wallet.Gen
     , shrinkTxMetadata
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( HardDerivation (..)
+    ( DerivationType (..)
+    , HardDerivation (..)
+    , Index (..)
     , NetworkDiscriminant (..)
     , Passphrase (..)
     , PassphraseMaxLength (..)
@@ -136,6 +134,7 @@ import Cardano.Wallet.Primitive.Types
     , AddressState (..)
     , ChimericAccount (..)
     , Coin (..)
+    , DerivationIndex (..)
     , Direction (..)
     , EpochNo (..)
     , Hash (..)
@@ -312,10 +311,7 @@ spec = do
         "can perform roundtrip JSON serialization & deserialization, \
         \and match existing golden files" $ do
             jsonRoundtripAndGolden $ Proxy @(ApiAddress ('Testnet 0))
-            jsonRoundtripAndGolden $ Proxy @ApiDerivationPath
-            jsonRoundtripAndGolden $ Proxy @ApiDerivationSegment
-            jsonRoundtripAndGolden $ Proxy @ApiDerivationType
-            jsonRoundtripAndGolden $ Proxy @ApiRelativeDerivationIndex
+            jsonRoundtripAndGolden $ Proxy @(ApiT DerivationIndex)
             jsonRoundtripAndGolden $ Proxy @ApiEpochInfo
             jsonRoundtripAndGolden $ Proxy @(ApiSelectCoinsData ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @(ApiCoinSelection ('Testnet 0))
@@ -458,25 +454,25 @@ spec = do
             |] `shouldBe` (Left @String @(ApiMnemonicT '[12]) msg)
 
 
-        it "ApiRelativeDerivationIndex (too small)" $ do
+        it "ApiT DerivationIndex (too small)" $ do
             let message = mconcat
                   [ "Error in $: "
-                  , "\"A relative address index must be a natural number "
-                  , "between 0 and 2147483647.\""
+                  , "A derivation index must be a natural number "
+                  , "between 0 and 2147483647."
                   ]
-            let value = pred $ toInteger $ unApiRelativeDerivationIndex minBound
+            let value = show $ pred $ toInteger $ getIndex @'Soft minBound
             Aeson.parseEither parseJSON [aesonQQ|#{value}|]
-                `shouldBe` Left @String @ApiRelativeDerivationIndex message
+                `shouldBe` Left @String @(ApiT DerivationIndex) message
 
-        it "ApiRelativeDerivationIndex (too large)" $ do
+        it "ApiT DerivationIndex (too large)" $ do
             let message = mconcat
                   [ "Error in $: "
-                  , "\"A relative address index must be a natural number "
-                  , "between 0 and 2147483647.\""
+                  , "A derivation index must be a natural number "
+                  , "between 0 and 2147483647."
                   ]
-            let value = succ $ toInteger $ unApiRelativeDerivationIndex maxBound
+            let value = show $ succ $ toInteger $ getIndex @'Soft maxBound
             Aeson.parseEither parseJSON [aesonQQ|#{value}|]
-                `shouldBe` Left @String @ApiRelativeDerivationIndex message
+                `shouldBe` Left @String @(ApiT DerivationIndex) message
 
         it "ApiT AddressPoolGap (too small)" $ do
             let msg = "Error in $: An address pool gap must be a natural number between "
@@ -907,20 +903,8 @@ instance Arbitrary (ApiAddress t) where
         <$> fmap (, Proxy @t) arbitrary
         <*> arbitrary
 
-instance Arbitrary ApiDerivationPath where
-    arbitrary = ApiDerivationPath <$> arbitrary
-    shrink = genericShrink
-
-instance Arbitrary ApiDerivationSegment where
-    arbitrary = ApiDerivationSegment <$> arbitrary <*> arbitrary
-    shrink = genericShrink
-
-instance Arbitrary ApiDerivationType where
-    arbitrary = arbitraryBoundedEnum
-    shrink = genericShrink
-
-instance Arbitrary ApiRelativeDerivationIndex where
-    arbitrary = arbitraryBoundedEnum
+instance Arbitrary DerivationIndex where
+    arbitrary = DerivationIndex <$> arbitrary
     shrink = genericShrink
 
 instance Arbitrary ApiEpochInfo where
