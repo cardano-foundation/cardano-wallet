@@ -136,7 +136,7 @@ withNetworkConfiguration args action = do
     withNodeDir $ \dir -> action CardanoNodeConfig
         { nodeDir          = dir
         , nodeConfigFile   = networkDir </> "configuration.json"
-        , nodeDatabaseDir  = "db"
+        , nodeDatabaseDir  = fromMaybe "db" (argNodeDatabaseDir args)
         , nodeDlgCertFile  = Nothing
         , nodeSignKeyFile  = Nothing
         , nodeTopologyFile = networkDir </> "topology.json"
