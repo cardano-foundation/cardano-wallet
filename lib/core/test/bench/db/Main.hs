@@ -84,11 +84,14 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( DerivationPath, RndState (..), mkRndState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPool
+    , DerivationPrefix (..)
     , SeqState (..)
+    , coinTypeAda
     , defaultAddressPoolGap
     , emptyPendingIxs
     , mkAddressPool
     , mkSeqStateFromRootXPrv
+    , purposeCIP1852
     )
 import Cardano.Wallet.Primitive.Model
     ( Wallet, initWallet, unsafeInitWallet )
@@ -319,6 +322,7 @@ bgroupWriteSeqState db = bgroup "SeqState"
                     (mkPool a i)
                     emptyPendingIxs
                     rewardAccount
+                    defaultPrefix
             | i <- [1..n]
             ]
 
@@ -574,6 +578,7 @@ withDB
     :: forall s k.
         ( PersistState s
         , PersistPrivateKey (k 'RootK)
+        , WalletKey k
         )
     => Tracer IO DBLog
     -> (DBLayer IO s k -> Benchmark)
@@ -584,6 +589,7 @@ setupDB
     :: forall s k.
         ( PersistState s
         , PersistPrivateKey (k 'RootK)
+        , WalletKey k
         )
     => Tracer IO DBLog
     -> IO (FilePath, SqliteContext, DBLayer IO s k)
@@ -749,7 +755,7 @@ testCpByron = snd $ initWallet block0 dummyGenesisParameters initDummyRndState
 {-# NOINLINE initDummySeqState #-}
 initDummySeqState :: SeqState 'Mainnet JormungandrKey
 initDummySeqState =
-    mkSeqStateFromRootXPrv (xprv, mempty) defaultAddressPoolGap
+    mkSeqStateFromRootXPrv (xprv, mempty) purposeCIP1852 defaultAddressPoolGap
   where
     mnemonic = unsafePerformIO
         $ SomeMnemonic . entropyToMnemonic @15
@@ -778,6 +784,13 @@ testWid = WalletId (hash ("test" :: ByteString))
 
 testPk :: PrimaryKey WalletId
 testPk = PrimaryKey testWid
+
+defaultPrefix :: DerivationPrefix
+defaultPrefix = DerivationPrefix
+    ( purposeCIP1852
+    , coinTypeAda
+    , minBound
+    )
 
 ourAccount :: JormungandrKey 'AccountK XPub
 ourAccount = publicKey $ unsafeGenerateKeyFromSeed (seed, Nothing) mempty

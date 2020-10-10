@@ -102,6 +102,12 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , SoftDerivation (..)
     , WalletKey (..)
     )
+import Cardano.Wallet.Primitive.AddressDerivation.Icarus
+    ( IcarusKey )
+import Cardano.Wallet.Primitive.AddressDerivation.Jormungandr
+    ( JormungandrKey )
+import Cardano.Wallet.Primitive.AddressDerivation.Shelley
+    ( ShelleyKey )
 import Cardano.Wallet.Primitive.Slotting
     ( TimeInterpreter, epochOf, firstSlotInEpoch, startTime )
 import Control.Concurrent.MVar
@@ -211,6 +217,7 @@ withDBLayer
     :: forall s k a.
         ( PersistState s
         , PersistPrivateKey (k 'RootK)
+        , WalletKey k
         )
     => Tracer IO DBLog
        -- ^ Logging object
@@ -336,10 +343,12 @@ data SqlColumnStatus
 --   startup.
 --
 migrateManually
-    :: Tracer IO DBLog
+    :: WalletKey k
+    => Tracer IO DBLog
+    -> Proxy k
     -> DefaultFieldValues
     -> ManualMigration
-migrateManually tr defaultFieldValues =
+migrateManually tr proxy defaultFieldValues =
     ManualMigration $ \conn -> do
         assignDefaultPassphraseScheme conn
 
@@ -360,6 +369,8 @@ migrateManually tr defaultFieldValues =
         removeOldTxParametersTable conn
 
         addAddressStateIfMissing conn
+
+        addSeqStateDerivationPrefixIfMissing conn
   where
     -- NOTE
     -- Wallets created before the 'PassphraseScheme' was introduced have no
@@ -507,6 +518,35 @@ migrateManually tr defaultFieldValues =
             _ <- Sqlite.step query
             Sqlite.finalize query
 
+    addSeqStateDerivationPrefixIfMissing :: Sqlite.Connection -> IO ()
+    addSeqStateDerivationPrefixIfMissing conn
+        | isIcarusDatabase = do
+            addColumn_ conn True (DBField SeqStateDerivationPrefix) icarusPrefix
+
+        | isShelleyDatabase = do
+            addColumn_ conn True (DBField SeqStateDerivationPrefix) shelleyPrefix
+
+        | isJormungandrDatabase = do
+            addColumn_ conn True (DBField SeqStateDerivationPrefix) jormungandrPrefix
+
+        | otherwise =
+            return ()
+      where
+        isIcarusDatabase =
+            keyTypeDescriptor proxy == keyTypeDescriptor (Proxy @IcarusKey)
+        icarusPrefix = T.pack $ show $ toText
+            $ Seq.DerivationPrefix (Seq.purposeBIP44, Seq.coinTypeAda, minBound)
+
+        isShelleyDatabase =
+            keyTypeDescriptor proxy == keyTypeDescriptor (Proxy @ShelleyKey)
+        shelleyPrefix = T.pack $ show $ toText
+            $ Seq.DerivationPrefix (Seq.purposeCIP1852, Seq.coinTypeAda, minBound)
+
+        isJormungandrDatabase =
+            keyTypeDescriptor proxy == keyTypeDescriptor (Proxy @JormungandrKey)
+        jormungandrPrefix =
+            shelleyPrefix
+
     -- | Determines whether a field is present in its parent table.
     isFieldPresent :: Sqlite.Connection -> DBField -> IO SqlColumnStatus
     isFieldPresent conn field = do
@@ -583,6 +623,7 @@ newDBLayer
     :: forall s k.
         ( PersistState s
         , PersistPrivateKey (k 'RootK)
+        , WalletKey k
         )
     => Tracer IO DBLog
        -- ^ Logging object
@@ -596,7 +637,7 @@ newDBLayer trace defaultFieldValues mDatabaseFile timeInterpreter = do
     ctx@SqliteContext{runQuery} <-
         either throwIO pure =<<
         startSqliteBackend
-            (migrateManually trace defaultFieldValues)
+            (migrateManually trace (Proxy @k) defaultFieldValues)
             migrateAll
             trace
             mDatabaseFile
@@ -1601,6 +1642,7 @@ instance
             , seqStateInternalGap = iGap
             , seqStateAccountXPub = serializeXPub accountXPub
             , seqStateRewardXPub = serializeXPub (Seq.rewardAccountKey st)
+            , seqStateDerivationPrefix = Seq.derivationPrefix st
             }
         insertAddressPool @n wid sl intPool
         insertAddressPool @n wid sl extPool
@@ -1611,13 +1653,13 @@ instance
 
     selectState (wid, sl) = runMaybeT $ do
         st <- MaybeT $ selectFirst [SeqStateWalletId ==. wid] []
-        let SeqState _ eGap iGap accountBytes rewardBytes = entityVal st
+        let SeqState _ eGap iGap accountBytes rewardBytes prefix = entityVal st
         let accountXPub = unsafeDeserializeXPub accountBytes
         let rewardXPub = unsafeDeserializeXPub rewardBytes
         intPool <- lift $ selectAddressPool @n wid sl iGap accountXPub
         extPool <- lift $ selectAddressPool @n wid sl eGap accountXPub
         pendingChangeIxs <- lift $ selectSeqStatePendingIxs wid
-        pure $ Seq.SeqState intPool extPool pendingChangeIxs rewardXPub
+        pure $ Seq.SeqState intPool extPool pendingChangeIxs rewardXPub prefix
 
 insertAddressPool
     :: forall n k c. (PaymentAddress n k, Typeable c)

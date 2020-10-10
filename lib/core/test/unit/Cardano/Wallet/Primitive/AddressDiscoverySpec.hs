@@ -38,6 +38,8 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( mkRndState )
 import Control.Monad
     ( replicateM )
+import Data.Maybe
+    ( isJust, isNothing )
 import Data.Proxy
     ( Proxy (..) )
 import Test.Hspec
@@ -81,8 +83,8 @@ prop_derivedKeysAreOurs
     -> ByronKey 'RootK XPrv
     -> Property
 prop_derivedKeysAreOurs seed encPwd accIx addrIx rk' =
-    resPos .&&. addr `elem` (fst <$> knownAddresses stPos') .&&.
-    not resNeg .&&. addr `notElem` (fst <$> knownAddresses stNeg')
+    isJust resPos .&&. addr `elem` (fst <$> knownAddresses stPos') .&&.
+    isNothing resNeg .&&. addr `notElem` (fst <$> knownAddresses stNeg')
   where
     (resPos, stPos') = isOurs addr (mkRndState @n rootXPrv 0)
     (resNeg, stNeg') = isOurs addr (mkRndState @n rk' 0)

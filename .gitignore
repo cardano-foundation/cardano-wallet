@@ -28,3 +28,6 @@ cabal.sandbox.config
 ### Nix ###
 result*
 .stack-to-nix.cache
+
+### auto-generated faulty JSON golden tests ###
+*.faulty.json

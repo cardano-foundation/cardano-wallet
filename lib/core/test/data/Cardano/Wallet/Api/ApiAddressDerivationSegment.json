@@ -1,45 +1,15 @@
 {
-    "seed": 2918394954490276671,
+    "seed": 4093926663681590444,
     "samples": [
-        {
-            "derivation_index": 18641,
-            "derivation_type": "soft"
-        },
-        {
-            "derivation_index": 937,
-            "derivation_type": "hardened"
-        },
-        {
-            "derivation_index": 18048,
-            "derivation_type": "soft"
-        },
-        {
-            "derivation_index": 13275,
-            "derivation_type": "soft"
-        },
-        {
-            "derivation_index": 24220,
-            "derivation_type": "soft"
-        },
-        {
-            "derivation_index": 23068,
-            "derivation_type": "hardened"
-        },
-        {
-            "derivation_index": 16593,
-            "derivation_type": "hardened"
-        },
-        {
-            "derivation_index": 14337,
-            "derivation_type": "soft"
-        },
-        {
-            "derivation_index": 5088,
-            "derivation_type": "soft"
-        },
-        {
-            "derivation_index": 21706,
-            "derivation_type": "soft"
-        }
+        "73694104",
+        "359965862",
+        "1782207101H",
+        "722856414H",
+        "915114417H",
+        "1451716877H",
+        "1723494398H",
+        "1607171056H",
+        "1759974484",
+        "2129205663H"
     ]
 }

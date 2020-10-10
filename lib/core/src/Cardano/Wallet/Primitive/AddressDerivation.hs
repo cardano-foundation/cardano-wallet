@@ -35,6 +35,9 @@ module Cardano.Wallet.Primitive.AddressDerivation
       Depth (..)
     , Index (..)
     , AccountingStyle (..)
+    , utxoExternal
+    , utxoInternal
+    , mutableAccount
     , DerivationType (..)
     , HardDerivation (..)
     , SoftDerivation (..)
@@ -142,13 +145,10 @@ import qualified Data.Text.Encoding as T
                                 HD Hierarchy
 -------------------------------------------------------------------------------}
 
--- | Key Depth in the derivation path, according to BIP-0039 / BIP-0044
+-- | Key Depth in the derivation path, according to BIP-0044 / CIP-1852
 --
--- @m | purpose' | cointype' | account' | change | address@
---
--- We do not manipulate purpose, cointype and change paths directly, so they are
--- left out of the sum type.
-data Depth = RootK | AccountK | AddressK
+-- @m | purpose' | cointype' | account' | role | address@
+data Depth = RootK | PurposeK | CoinTypeK | AccountK | RoleK | AddressK
 
 -- | Marker for addresses type engaged. We want to handle three cases here.
 -- The first two are pertinent to UTxO accounting
@@ -158,6 +158,8 @@ data Depth = RootK | AccountK | AddressK
 -- (b) internal change is for addresses used to handle the change of a
 --     the transaction within a given wallet
 -- (c) the addresses for a reward (chimeric) account
+--
+-- FIXME: rename this to 'Role' or 'HDRole'
 data AccountingStyle
     = UTxOExternal
     | UTxOInternal
@@ -185,6 +187,21 @@ instance ToText AccountingStyle where
 
 instance FromText AccountingStyle where
     fromText = fromTextToBoundedEnum SnakeLowerCase
+
+-- | smart-constructor for getting a derivation index that refers to external
+-- utxo.
+utxoExternal :: Index 'Soft 'RoleK
+utxoExternal = toEnum $ fromEnum UTxOExternal
+
+-- | smart-constructor for getting a derivation index that refers to internal
+-- utxo.
+utxoInternal :: Index 'Soft 'RoleK
+utxoInternal = toEnum $ fromEnum UTxOInternal
+
+-- | smart-constructor for getting a derivation index that refers to stake
+-- key level (a.k.a mutable account)
+mutableAccount :: Index 'Soft 'RoleK
+mutableAccount = toEnum $ fromEnum MutableAccount
 
 -- | A derivation index, with phantom-types to disambiguate derivation type.
 --

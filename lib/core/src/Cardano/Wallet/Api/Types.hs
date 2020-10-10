@@ -42,10 +42,6 @@ module Cardano.Wallet.Api.Types
 
     -- * API Types
     , ApiAddress (..)
-    , ApiAddressDerivationPath (..)
-    , ApiAddressDerivationSegment (..)
-    , ApiAddressDerivationType (..)
-    , ApiRelativeAddressIndex (..)
     , ApiEpochInfo (..)
     , ApiSelectCoinsData (..)
     , ApiCoinSelection (..)
@@ -151,6 +147,7 @@ import Cardano.Mnemonic
     )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
+    , DerivationType (..)
     , Index (..)
     , NetworkDiscriminant (..)
     , Passphrase (..)
@@ -174,6 +171,7 @@ import Cardano.Wallet.Primitive.Types
     , ChimericAccount (..)
     , Coin (..)
     , DecentralizationLevel (..)
+    , DerivationIndex (..)
     , Direction (..)
     , EpochLength (..)
     , EpochNo (..)
@@ -206,7 +204,7 @@ import Control.Applicative
 import Control.Arrow
     ( left )
 import Control.Monad
-    ( guard, (<=<), (>=>) )
+    ( guard, (>=>) )
 import Data.Aeson
     ( FromJSON (..)
     , SumEncoding (..)
@@ -248,6 +246,8 @@ import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
     ( Percentage, Quantity (..) )
+import Data.Scientific
+    ( Scientific, toBoundedInteger )
 import Data.String
     ( IsString )
 import Data.Text
@@ -276,6 +276,8 @@ import GHC.TypeLits
     ( Nat, Symbol )
 import Numeric.Natural
     ( Natural )
+import Safe
+    ( readMay )
 import Servant.API
     ( MimeRender (..), MimeUnrender (..), OctetStream )
 import Web.HttpApiData
@@ -370,33 +372,6 @@ data ApiAddress (n :: NetworkDiscriminant) = ApiAddress
     , state :: !(ApiT AddressState)
     } deriving (Eq, Generic, Show)
 
-newtype ApiAddressDerivationPath = ApiAddressDerivationPath
-    { unApiAddressDerivationPath :: NonEmpty ApiAddressDerivationSegment
-    } deriving (Eq, Generic, Show)
-
-data ApiAddressDerivationSegment = ApiAddressDerivationSegment
-    { derivationIndex :: !ApiRelativeAddressIndex
-    , derivationType :: !ApiAddressDerivationType
-    } deriving (Eq, Generic, Show)
-
--- | Represents a type of address derivation.
---
--- Note that the values of this type are a strict subset of those provided
--- by 'DerivationType' from 'Cardano.Wallet.Primitive.AddressDerivation'.
---
-data ApiAddressDerivationType
-    = Hardened
-    | Soft
-    deriving (Bounded, Enum, Eq, Generic, Show)
-
--- | Represents a relative address index.
---
--- The range of this type is exactly half that of a 'Word32'.
---
-newtype ApiRelativeAddressIndex = ApiRelativeAddressIndex
-    { unApiRelativeAddressIndex :: Word31
-    } deriving (Bounded, Enum, Eq, Generic, Show)
-
 data ApiEpochInfo = ApiEpochInfo
     { epochNumber :: !(ApiT EpochNo)
     , epochStartTime :: !UTCTime
@@ -415,6 +390,7 @@ data ApiCoinSelectionInput (n :: NetworkDiscriminant) = ApiCoinSelectionInput
     { id :: !(ApiT (Hash "Tx"))
     , index :: !Word32
     , address :: !(ApiT Address, Proxy n)
+    , derivationPath :: NonEmpty (ApiT DerivationIndex)
     , amount :: !(Quantity "lovelace" Natural)
     } deriving (Eq, Generic, Show)
 
@@ -969,44 +945,46 @@ instance DecodeAddress n => FromJSON (ApiAddress n) where
 instance EncodeAddress n => ToJSON (ApiAddress n) where
     toJSON = genericToJSON defaultRecordTypeOptions
 
-instance ToJSON ApiAddressDerivationPath where
-    toJSON = toJSON . unApiAddressDerivationPath
-instance FromJSON ApiAddressDerivationPath where
-    parseJSON = fmap ApiAddressDerivationPath . parseJSON
-
-instance ToJSON ApiAddressDerivationSegment where
-    toJSON = genericToJSON defaultRecordTypeOptions
-instance FromJSON ApiAddressDerivationSegment where
-    parseJSON = genericParseJSON defaultRecordTypeOptions
-
-instance ToJSON (ApiAddressDerivationType) where
-    toJSON = genericToJSON defaultSumTypeOptions
-instance FromJSON (ApiAddressDerivationType) where
-    parseJSON = genericParseJSON defaultSumTypeOptions
-
-instance ToJSON ApiRelativeAddressIndex where
-    toJSON = toJSON . fromEnum
-instance FromJSON ApiRelativeAddressIndex where
-    parseJSON = eitherToParser . integerToIndex <=< parseJSON
+instance ToJSON (ApiT DerivationIndex) where
+    toJSON (ApiT (DerivationIndex ix))
+        | ix >= firstHardened = toJSON (show (ix - firstHardened) <> "H")
+        | otherwise = toJSON (show ix)
       where
-        integerToIndex :: Integer -> Either String ApiRelativeAddressIndex
-        integerToIndex i
-            | i < minIntegerBound = Left errorMessage
-            | i > maxIntegerBound = Left errorMessage
-            | otherwise = Right
-                $ ApiRelativeAddressIndex
-                $ fromIntegral i
+        firstHardened = getIndex @'Hardened minBound
 
-        minIntegerBound = toInteger $ unApiRelativeAddressIndex minBound
-        maxIntegerBound = toInteger $ unApiRelativeAddressIndex maxBound
+instance FromJSON (ApiT DerivationIndex) where
+    parseJSON value = ApiT <$> (parseJSON value >>= parseAsText)
+      where
+        firstHardened = getIndex @'Hardened minBound
 
-        errorMessage = mconcat
-            [ "A relative address index must be a natural number between "
-            , show minIntegerBound
-            , " and "
-            , show maxIntegerBound
-            , "."
-            ]
+        parseAsText :: Text -> Aeson.Parser DerivationIndex
+        parseAsText txt =
+            if "H" `T.isSuffixOf` txt then do
+                DerivationIndex ix <- castNumber (T.init txt) >>= parseAsScientific
+                pure $ DerivationIndex $ ix + firstHardened
+            else
+                castNumber txt >>= parseAsScientific
+
+        parseAsScientific :: Scientific -> Aeson.Parser DerivationIndex
+        parseAsScientific x =
+            case toBoundedInteger x of
+                Just ix | ix < firstHardened -> pure $ DerivationIndex ix
+                _ -> fail $ mconcat
+                    [ "A derivation index must be a natural number between "
+                    , show (getIndex @'Soft minBound)
+                    , " and "
+                    , show (getIndex @'Soft maxBound)
+                    , "."
+                    ]
+
+        castNumber :: Text -> Aeson.Parser Scientific
+        castNumber txt =
+            case readMay (T.unpack txt) of
+                Nothing ->
+                    fail "expected a number as string with an optional 'H' \
+                         \suffix (e.g. \"1815H\" or \"44\""
+                Just s ->
+                    pure s
 
 instance FromJSON ApiEpochInfo where
     parseJSON = genericParseJSON defaultRecordTypeOptions

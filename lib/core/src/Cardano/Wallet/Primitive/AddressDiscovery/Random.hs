@@ -63,12 +63,12 @@ import Cardano.Wallet.Primitive.AddressDerivation.Byron
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( CompareDiscovery (..)
     , GenChange (..)
-    , IsOurs (..)
+    , IsOurs (isOurs)
     , IsOwned (..)
     , KnownAddresses (..)
     )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..), AddressState (..), ChimericAccount )
+    ( Address (..), AddressState (..), ChimericAccount, DerivationIndex (..) )
 import Control.Arrow
     ( second )
 import Control.DeepSeq
@@ -77,10 +77,10 @@ import Control.Monad
     ( join )
 import Data.Digest.CRC32
     ( crc32 )
+import Data.List.NonEmpty
+    ( NonEmpty (..) )
 import Data.Map
     ( Map )
-import Data.Maybe
-    ( isJust )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Set
@@ -96,6 +96,7 @@ import GHC.TypeLits
 import System.Random
     ( RandomGen, StdGen, mkStdGen, randomR )
 
+import qualified Data.List.NonEmpty as NE
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
@@ -203,13 +204,14 @@ instance RndStateLike (RndState n) where
 -- to decrypt the address derivation path.
 instance IsOurs (RndState n) Address where
     isOurs addr st =
-        (isJust path, maybe id (addDiscoveredAddress addr Used) path st)
+        ( toDerivationIndexes <$> path
+        , maybe id (addDiscoveredAddress addr Used) path st
+        )
       where
         path = addressToPath addr (hdPassphrase st)
 
 instance IsOurs (RndState n) ChimericAccount where
-    -- Chimeric accounts are not supported, so always return 'False'.
-    isOurs _account state = (False, state)
+    isOurs _account state = (Nothing, state)
 
 instance IsOwned (RndState n) ByronKey where
     isOwned st (key, pwd) addr =
@@ -223,6 +225,12 @@ addressToPath
 addressToPath (Address addr) pwd = do
     payload <- deserialiseCbor decodeAddressPayload addr
     join $ deserialiseCbor (decodeAddressDerivationPath pwd) payload
+
+toDerivationIndexes :: DerivationPath -> NonEmpty DerivationIndex
+toDerivationIndexes (acctIx, addrIx) = NE.fromList
+    [ DerivationIndex $ getIndex acctIx
+    , DerivationIndex $ getIndex addrIx
+    ]
 
 -- | Initialize the HD random address discovery state from a root key and RNG
 -- seed.
@@ -370,10 +378,10 @@ instance RndStateLike (RndAnyState n p) where
 instance KnownNat p => IsOurs (RndAnyState n p) Address where
     isOurs addr@(Address bytes) st@(RndAnyState inner) =
         case isOurs addr inner of
-            (True, inner') ->
-                (True, RndAnyState inner')
+            (Just path, inner') ->
+                (Just path, RndAnyState inner')
 
-            (False, _) | crc32 bytes < p ->
+            (Nothing, _) | crc32 bytes < p ->
                 let
                     (path, gen') = findUnusedPath
                         (gen inner) (accountIndex inner) (unavailablePaths inner)
@@ -381,10 +389,10 @@ instance KnownNat p => IsOurs (RndAnyState n p) Address where
                     inner' = addDiscoveredAddress
                         addr Used path (inner { gen = gen' })
                 in
-                (True, RndAnyState inner')
+                (Just (toDerivationIndexes path), RndAnyState inner')
 
-            (False, _) ->
-                (False, st)
+            (Nothing, _) ->
+                (Nothing, st)
       where
         p = floor (double (maxBound :: Word32) * double (natVal (Proxy @p)) / 1000)
 
@@ -392,7 +400,7 @@ instance KnownNat p => IsOurs (RndAnyState n p) Address where
         double = fromIntegral
 
 instance IsOurs (RndAnyState n p) ChimericAccount where
-    isOurs _account state = (False, state)
+    isOurs _account state = (Nothing, state)
 
 instance KnownNat p => IsOwned (RndAnyState n p) ByronKey where
     isOwned _ _ _ = Nothing

@@ -61,7 +61,13 @@ import Cardano.Wallet.Primitive.AddressDiscovery
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
-    ( AddressPool, SeqState (..), mkAddressPool )
+    ( AddressPool
+    , DerivationPrefix (..)
+    , SeqState (..)
+    , coinTypeAda
+    , mkAddressPool
+    , purposeCIP1852
+    )
 import Cardano.Wallet.Primitive.Model
     ( Wallet
     , blockchainParameters
@@ -448,23 +454,15 @@ instance (Ord a, Arbitrary a) => Arbitrary (Range a) where
 instance Arbitrary Address where
     arbitrary = Address . B8.pack <$> vector addrSingleSize
 
-instance Arbitrary (Index 'Soft 'AddressK) where
+instance Arbitrary (Index 'Soft depth) where
     shrink _ = []
     arbitrary = arbitraryBoundedEnum
 
-instance Arbitrary (Index 'Hardened 'AccountK) where
+instance Arbitrary (Index 'Hardened depth) where
     shrink _ = []
     arbitrary = arbitraryBoundedEnum
 
-instance Arbitrary (Index 'WholeDomain 'AccountK) where
-    shrink _ = []
-    arbitrary = arbitraryBoundedEnum
-
-instance Arbitrary (Index 'Hardened 'AddressK) where
-    shrink _ = []
-    arbitrary = arbitraryBoundedEnum
-
-instance Arbitrary (Index 'WholeDomain 'AddressK) where
+instance Arbitrary (Index 'WholeDomain depth) where
     shrink _ = []
     arbitrary = arbitraryBoundedEnum
 
@@ -473,13 +471,21 @@ instance Arbitrary (Index 'WholeDomain 'AddressK) where
 -------------------------------------------------------------------------------}
 
 instance Arbitrary (SeqState 'Mainnet JormungandrKey) where
-    shrink (SeqState intPool extPool ixs rwd) =
-        (\(i, e, x) -> SeqState i e x rwd) <$> shrink (intPool, extPool, ixs)
+    shrink (SeqState intPool extPool ixs rwd prefix) =
+        (\(i, e, x) -> SeqState i e x rwd prefix) <$> shrink (intPool, extPool, ixs)
     arbitrary = SeqState
         <$> arbitrary
         <*> arbitrary
         <*> arbitrary
         <*> pure arbitraryRewardAccount
+        <*> pure defaultSeqStatePrefix
+
+defaultSeqStatePrefix :: DerivationPrefix
+defaultSeqStatePrefix = DerivationPrefix
+    ( purposeCIP1852
+    , coinTypeAda
+    , minBound
+    )
 
 instance Arbitrary (JormungandrKey 'RootK XPrv) where
     shrink _ = []

@@ -96,7 +96,7 @@ import Data.Generics.Labels
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Maybe
-    ( catMaybes )
+    ( catMaybes, isJust )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Set
@@ -304,7 +304,7 @@ totalBalance pending (Quantity rewards) wallet@(Wallet _ _ s _) =
         else rewards
   where
     hasPendingWithdrawals =
-        anyS (anyM (\acct _ -> fst (isOurs acct s)) . withdrawals)
+        anyS (anyM (\acct _ -> isJust $ fst (isOurs acct s)) . withdrawals)
       where
         anyS predicate = not . Set.null . Set.filter predicate
         anyM predicate = not . Map.null . Map.filterWithKey predicate
@@ -368,16 +368,16 @@ prefilterBlock b u0 = runState $ do
         -> State s (Maybe DelegationCertificate)
     ourDelegation cert =
         state (isOurs $ dlgCertAccount cert) <&> \case
-            False -> Nothing
-            True -> Just cert
+            Nothing -> Nothing
+            Just{}  -> Just cert
     ourWithdrawal
         :: IsOurs s ChimericAccount
         => (ChimericAccount, Coin)
         -> State s (Maybe (ChimericAccount, Coin))
     ourWithdrawal (acct, amt) =
         state (isOurs acct) <&> \case
-            False -> Nothing
-            True  -> Just (acct, amt)
+            Nothing -> Nothing
+            Just{}  -> Just (acct, amt)
     mkTxMeta :: Natural -> Direction -> TxMeta
     mkTxMeta amt dir = TxMeta
         { status = InLedger
@@ -443,7 +443,6 @@ utxoOurs tx = runState $ toUtxo <$> forM (zip [0..] (outputs tx)) filterOut
   where
     toUtxo = UTxO . Map.fromList . catMaybes
     filterOut (ix, out) = do
-        predicate <- state $ isOurs $ address out
-        return $ if predicate
-            then Just (TxIn (txId tx) ix, out)
-            else Nothing
+        state (isOurs $ address out) <&> \case
+            Just{}  -> Just (TxIn (txId tx) ix, out)
+            Nothing -> Nothing

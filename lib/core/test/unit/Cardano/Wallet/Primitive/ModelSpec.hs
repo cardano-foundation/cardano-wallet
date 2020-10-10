@@ -40,6 +40,7 @@ import Cardano.Wallet.Primitive.Types
     , BlockHeader (..)
     , ChimericAccount (..)
     , Coin (..)
+    , DerivationIndex (..)
     , Direction (..)
     , Dom (..)
     , EpochLength (..)
@@ -62,15 +63,21 @@ import Cardano.Wallet.Primitive.Types
 import Control.DeepSeq
     ( NFData (..) )
 import Control.Monad
-    ( foldM )
+    ( foldM, guard )
 import Control.Monad.Trans.State.Strict
     ( State, evalState, runState, state )
 import Data.Foldable
     ( fold )
+import Data.Functor
+    ( ($>) )
 import Data.Generics.Internal.VL.Lens
     ( view )
 import Data.Generics.Labels
     ()
+import Data.List
+    ( elemIndex )
+import Data.List.NonEmpty
+    ( NonEmpty (..) )
 import Data.Maybe
     ( catMaybes )
 import Data.Quantity
@@ -316,7 +323,9 @@ txOutsOurs txs =
     pick :: (Tx, TxOut) -> State s (Maybe (Tx, TxOut))
     pick (tx, out) = do
         predicate <- state $ isOurs (address out)
-        return $ if predicate then Just (tx, out) else Nothing
+        return $ case predicate of
+            Just{}  -> Just (tx, out)
+            Nothing -> Nothing
     forMaybe :: Monad m => [a] -> (a -> m (Maybe b)) -> m [b]
     forMaybe xs = fmap catMaybes . for xs
 
@@ -364,13 +373,18 @@ instance Semigroup WalletState where
 
 instance IsOurs WalletState Address where
     isOurs addr s@(WalletState ours discovered) =
-        if (ShowFmt addr) `elem` ours then
-            (True, WalletState ours (Set.insert (ShowFmt addr) discovered))
-        else
-            (False, s)
+        case ShowFmt addr `elemIndex` Set.toList ours of
+            Just ix ->
+                let path = DerivationIndex (fromIntegral ix) :| []
+                in (Just path, WalletState ours (Set.insert (ShowFmt addr) discovered))
+            Nothing ->
+                (Nothing, s)
 
 instance IsOurs WalletState ChimericAccount where
-    isOurs account s = (account == ourChimericAccount, s)
+    isOurs account s =
+        ( guard (account == ourChimericAccount) $> (DerivationIndex 0 :| [])
+        , s
+        )
 
 instance Arbitrary WalletState where
     shrink = genericShrink

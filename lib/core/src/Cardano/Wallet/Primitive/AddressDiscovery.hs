@@ -34,7 +34,9 @@ import Cardano.Crypto.Wallet
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..), Passphrase (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..), AddressState (..) )
+    ( Address (..), AddressState (..), DerivationIndex (..) )
+import Data.List.NonEmpty
+    ( NonEmpty )
 
 -- | Checks whether or not a given entity belongs to us.
 --
@@ -58,8 +60,8 @@ class IsOurs s entity where
     isOurs
         :: entity
         -> s
-        -> (Bool, s)
-        -- ^ Checks whether an entity is ours or not.
+        -> (Maybe (NonEmpty DerivationIndex), s)
+        -- ^ Returns derivation path if the entity is ours, otherwise Nothing.
 
 -- | More powerful than 'isOurs', this abstractions offer the underlying state
 -- the ability to find / compute the address private key corresponding to a

@@ -43,9 +43,6 @@ import Cardano.Wallet.Api.Types
     , AddressAmount (..)
     , ApiAccountPublicKey (..)
     , ApiAddress (..)
-    , ApiAddressDerivationPath (..)
-    , ApiAddressDerivationSegment (..)
-    , ApiAddressDerivationType (..)
     , ApiAddressInspect (..)
     , ApiBlockInfo (..)
     , ApiBlockReference (..)
@@ -62,7 +59,6 @@ import Cardano.Wallet.Api.Types
     , ApiNtpStatus (..)
     , ApiPostRandomAddressData
     , ApiPutAddressesData (..)
-    , ApiRelativeAddressIndex (..)
     , ApiSelectCoinsData (..)
     , ApiSlotId (..)
     , ApiSlotReference (..)
@@ -114,7 +110,9 @@ import Cardano.Wallet.Gen
     , shrinkTxMetadata
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( HardDerivation (..)
+    ( DerivationType (..)
+    , HardDerivation (..)
+    , Index (..)
     , NetworkDiscriminant (..)
     , Passphrase (..)
     , PassphraseMaxLength (..)
@@ -136,6 +134,7 @@ import Cardano.Wallet.Primitive.Types
     , AddressState (..)
     , ChimericAccount (..)
     , Coin (..)
+    , DerivationIndex (..)
     , Direction (..)
     , EpochNo (..)
     , Hash (..)
@@ -312,10 +311,7 @@ spec = do
         "can perform roundtrip JSON serialization & deserialization, \
         \and match existing golden files" $ do
             jsonRoundtripAndGolden $ Proxy @(ApiAddress ('Testnet 0))
-            jsonRoundtripAndGolden $ Proxy @ApiAddressDerivationPath
-            jsonRoundtripAndGolden $ Proxy @ApiAddressDerivationSegment
-            jsonRoundtripAndGolden $ Proxy @ApiAddressDerivationType
-            jsonRoundtripAndGolden $ Proxy @ApiRelativeAddressIndex
+            jsonRoundtripAndGolden $ Proxy @(ApiT DerivationIndex)
             jsonRoundtripAndGolden $ Proxy @ApiEpochInfo
             jsonRoundtripAndGolden $ Proxy @(ApiSelectCoinsData ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @(ApiCoinSelection ('Testnet 0))
@@ -458,25 +454,25 @@ spec = do
             |] `shouldBe` (Left @String @(ApiMnemonicT '[12]) msg)
 
 
-        it "ApiRelativeAddressIndex (too small)" $ do
+        it "ApiT DerivationIndex (too small)" $ do
             let message = mconcat
                   [ "Error in $: "
-                  , "\"A relative address index must be a natural number "
-                  , "between 0 and 2147483647.\""
+                  , "A derivation index must be a natural number "
+                  , "between 0 and 2147483647."
                   ]
-            let value = pred $ toInteger $ unApiRelativeAddressIndex minBound
+            let value = show $ pred $ toInteger $ getIndex @'Soft minBound
             Aeson.parseEither parseJSON [aesonQQ|#{value}|]
-                `shouldBe` Left @String @ApiRelativeAddressIndex message
+                `shouldBe` Left @String @(ApiT DerivationIndex) message
 
-        it "ApiRelativeAddressIndex (too large)" $ do
+        it "ApiT DerivationIndex (too large)" $ do
             let message = mconcat
                   [ "Error in $: "
-                  , "\"A relative address index must be a natural number "
-                  , "between 0 and 2147483647.\""
+                  , "A derivation index must be a natural number "
+                  , "between 0 and 2147483647."
                   ]
-            let value = succ $ toInteger $ unApiRelativeAddressIndex maxBound
+            let value = show $ succ $ toInteger $ getIndex @'Soft maxBound
             Aeson.parseEither parseJSON [aesonQQ|#{value}|]
-                `shouldBe` Left @String @ApiRelativeAddressIndex message
+                `shouldBe` Left @String @(ApiT DerivationIndex) message
 
         it "ApiT AddressPoolGap (too small)" $ do
             let msg = "Error in $: An address pool gap must be a natural number between "
@@ -626,6 +622,7 @@ spec = do
                     , index = index (x :: ApiCoinSelectionInput ('Testnet 0))
                     , address = address (x :: ApiCoinSelectionInput ('Testnet 0))
                     , amount = amount (x :: ApiCoinSelectionInput ('Testnet 0))
+                    , derivationPath = derivationPath (x :: ApiCoinSelectionInput ('Testnet 0))
                     }
             in
                 x' === x .&&. show x' === show x
@@ -906,20 +903,8 @@ instance Arbitrary (ApiAddress t) where
         <$> fmap (, Proxy @t) arbitrary
         <*> arbitrary
 
-instance Arbitrary ApiAddressDerivationPath where
-    arbitrary = ApiAddressDerivationPath <$> arbitrary
-    shrink = genericShrink
-
-instance Arbitrary ApiAddressDerivationSegment where
-    arbitrary = ApiAddressDerivationSegment <$> arbitrary <*> arbitrary
-    shrink = genericShrink
-
-instance Arbitrary ApiAddressDerivationType where
-    arbitrary = arbitraryBoundedEnum
-    shrink = genericShrink
-
-instance Arbitrary ApiRelativeAddressIndex where
-    arbitrary = arbitraryBoundedEnum
+instance Arbitrary DerivationIndex where
+    arbitrary = DerivationIndex <$> arbitrary
     shrink = genericShrink
 
 instance Arbitrary ApiEpochInfo where
@@ -939,6 +924,7 @@ instance Arbitrary (ApiCoinSelectionInput n) where
         <$> arbitrary
         <*> arbitrary
         <*> fmap (, Proxy @n) arbitrary
+        <*> arbitrary
         <*> arbitrary
     shrink _ = []
 

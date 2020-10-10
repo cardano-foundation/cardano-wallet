@@ -259,6 +259,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     , defaultAddressPoolGap
     , mkSeqStateFromAccountXPub
     , mkSeqStateFromRootXPrv
+    , purposeCIP1852
     )
 import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..), changeBalance, inputBalance )
@@ -283,6 +284,7 @@ import Cardano.Wallet.Primitive.Types
     , Block
     , BlockHeader (..)
     , Coin (..)
+    , DerivationIndex (..)
     , Hash (..)
     , NetworkParameters (..)
     , PassphraseScheme (..)
@@ -349,6 +351,8 @@ import Data.Generics.Labels
     ()
 import Data.List
     ( isInfixOf, isSubsequenceOf, sortOn )
+import Data.List.NonEmpty
+    ( NonEmpty )
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
@@ -602,7 +606,7 @@ postShelleyWallet
     -> WalletPostData
     -> Handler ApiWallet
 postShelleyWallet ctx generateKey body = do
-    let state = mkSeqStateFromRootXPrv (rootXPrv, pwd) g
+    let state = mkSeqStateFromRootXPrv (rootXPrv, pwd) purposeCIP1852 g
     void $ liftHandler $ initWorker @_ @s @k ctx wid
         (\wrk -> W.createWallet  @(WorkerCtx ctx) @s @k wrk wid wName state)
         (\wrk -> W.restoreWallet @(WorkerCtx ctx) @s @t @k wrk wid)
@@ -638,7 +642,7 @@ postAccountWallet
     -> AccountPostData
     -> Handler w
 postAccountWallet ctx mkWallet liftKey coworker body = do
-    let state = mkSeqStateFromAccountXPub (liftKey accXPub) g
+    let state = mkSeqStateFromAccountXPub (liftKey accXPub) purposeCIP1852 g
     void $ liftHandler $ initWorker @_ @s @k ctx wid
         (\wrk -> W.createWallet  @(WorkerCtx ctx) @s @k wrk wid wName state)
         (\wrk -> W.restoreWallet @(WorkerCtx ctx) @s @t @k wrk wid)
@@ -1107,6 +1111,7 @@ selectCoins
         , s ~ SeqState n k
         , SoftDerivation k
         , ctx ~ ApiLayer s t k
+        , IsOurs s Address
         )
     => ctx
     -> ArgGenChange s
@@ -1574,7 +1579,7 @@ assignMigrationAddresses
     -- ^ Target addresses
     -> [CoinSelection]
     -- ^ Migration data for the source wallet.
-    -> [UnsignedTx]
+    -> [UnsignedTx (TxIn, TxOut)]
 assignMigrationAddresses addrs selections =
     fst $ foldr accumulate ([], cycle addrs) selections
   where
@@ -1582,7 +1587,7 @@ assignMigrationAddresses addrs selections =
         (\addrsSelected -> makeTx sel addrsSelected : txs)
         (splitAt (length $ change sel) addrsAvailable)
 
-    makeTx :: CoinSelection -> [Address] -> UnsignedTx
+    makeTx :: CoinSelection -> [Address] -> UnsignedTx (TxIn, TxOut)
     makeTx sel addrsSelected = UnsignedTx
         (NE.fromList (sel ^. #inputs))
         (NE.fromList (zipWith TxOut addrsSelected (sel ^. #change)))
@@ -1771,7 +1776,10 @@ rndStateChange ctx (ApiT wid) pwd =
             pure (xprv, preparePassphrase scheme pwd)
 
 -- | Makes an 'ApiCoinSelection' from the given 'UnsignedTx'.
-mkApiCoinSelection :: forall n. UnsignedTx -> ApiCoinSelection n
+mkApiCoinSelection
+    :: forall n. ()
+    => UnsignedTx (TxIn, TxOut, NonEmpty DerivationIndex)
+    -> ApiCoinSelection n
 mkApiCoinSelection (UnsignedTx inputs outputs) =
     ApiCoinSelection
         (mkApiCoinSelectionInput <$> inputs)
@@ -1781,13 +1789,16 @@ mkApiCoinSelection (UnsignedTx inputs outputs) =
     mkAddressAmount (TxOut addr (Coin c)) =
         AddressAmount (ApiT addr, Proxy @n) (Quantity $ fromIntegral c)
 
-    mkApiCoinSelectionInput :: (TxIn, TxOut) -> ApiCoinSelectionInput n
-    mkApiCoinSelectionInput (TxIn txid index, TxOut addr (Coin c)) =
+    mkApiCoinSelectionInput
+        :: (TxIn, TxOut, NonEmpty DerivationIndex)
+        -> ApiCoinSelectionInput n
+    mkApiCoinSelectionInput (TxIn txid index, TxOut addr (Coin c), path) =
         ApiCoinSelectionInput
             { id = ApiT txid
             , index = index
             , address = (ApiT addr, Proxy @n)
             , amount = Quantity $ fromIntegral c
+            , derivationPath = ApiT <$> path
             }
 
 mkApiTransaction
