@@ -43,7 +43,7 @@
 
 module Cardano.Wallet
     (
-    -- * Developement
+    -- * Development
     -- $Development
 
     -- * WalletLayer
