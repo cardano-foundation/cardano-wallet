@@ -43,7 +43,7 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.LatencyBenchShared
     ( LogCaptureFunc, fmtResult, fmtTitle, measureApiLogs, withLatencyLogging )
 import Cardano.Wallet.Logging
-    ( stdoutTextTracer, trMessage )
+    ( trMessage )
 import Cardano.Wallet.Network.Ports
     ( unsafePortNumber )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -106,6 +106,7 @@ import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)
     , Payload (..)
+    , deleteAllWallets
     , eventually
     , expectField
     , expectResponseCode
@@ -151,11 +152,8 @@ walletApiBench capture ctx = do
     fmtTitle "Latencies for 10 fixture wallets scenario"
     runScenario (nFixtureWallet 10)
 
-    {-- PENDING: We currently have a limited amount of available fixture
-       wallets, so we can't just run a benchmark with 100 wallets in parallel.
-    fmtTitle "Latencies for 100 fixture wallets scenario"
+    fmtTitle "Latencies for 100 fixture wallets"
     runScenario (nFixtureWallet 100)
-    --}
 
     fmtTitle "Latencies for 2 fixture wallets with 10 txs scenario"
     runScenario (nFixtureWalletWithTxs 2 10)
@@ -280,6 +278,7 @@ walletApiBench capture ctx = do
         return r
 
     runScenario scenario = do
+        deleteAllWallets ctx
         (wal1, wal2) <- scenario
 
         t1 <- measureApiLogs capture
@@ -385,7 +384,7 @@ withShelleyServer tracers action = do
     afterFork dir _ = do
         let encodeAddr = T.unpack . encodeAddress @'Mainnet
         let addresses = map (first encodeAddr) shelleyIntegrationTestFunds
-        sendFaucetFundsTo stdoutTextTracer dir addresses
+        sendFaucetFundsTo nullTracer dir addresses
 
     onClusterStart act dir (RunningNode socketPath block0 (gp, vData)) = do
         -- NOTE: We may want to keep a wallet running across the fork, but

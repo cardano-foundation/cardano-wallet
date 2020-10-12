@@ -92,7 +92,7 @@ import Test.Hspec
 import Test.Hspec.Extra
     ( aroundAll )
 import Test.Integration.Framework.DSL
-    ( Context (..), KnownCommand (..), TxDescription (..), tearDown )
+    ( Context (..), KnownCommand (..), TxDescription (..), deleteAllWallets )
 import Test.Utils.Paths
     ( getTestData )
 import Test.Utils.StaticServer
@@ -180,7 +180,7 @@ specWithServer
     => Trace IO Text
     -> SpecWith (Port "node", FeePolicy, Context Jormungandr)
     -> Spec
-specWithServer tr = aroundAll withContext . after (tearDown . thd3)
+specWithServer tr = aroundAll withContext . after (deleteAllWallets . thd3)
   where
     withContext action = do
         ctx <- newEmptyMVar

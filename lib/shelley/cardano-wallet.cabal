@@ -216,7 +216,6 @@ test-suite integration
     ghc-options: -O2 -Werror
   build-depends:
       base
-    , aeson
     , async
     , cardano-api
     , cardano-wallet-cli
