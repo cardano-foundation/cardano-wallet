@@ -9,8 +9,7 @@ copyright:           2018-2020 IOHK
 license:             Apache-2.0
 category:            Web
 build-type:          Simple
-extra-source-files:  README.md
-                     specifications/api/swagger.yaml
+extra-source-files:  specifications/api/swagger.yaml
 cabal-version:       >=1.10
 
 flag release
