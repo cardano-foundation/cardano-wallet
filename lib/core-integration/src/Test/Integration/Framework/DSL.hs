@@ -683,16 +683,16 @@ expectationFailure' msg = do
 -- has been retried enough.
 --
 -- It is like 'eventuallyUsingDelay', but with the default delay of 500 ms
--- and timeout of 100s between retries.
+-- and timeout of 120s between retries.
 -- NOTE
--- This __100s__ is mostly justified by the parameters in the shelley
+-- This __120s__ is mostly justified by the parameters in the shelley
 -- genesis. The longest action we have two wait for are about 2 epochs,
 -- which corresponds to 80s with the current parameters. Using something
 -- much longer than that isn't really useful (in particular, this doesn't
 -- depend on the host machine running the test, because the protocol moves
 -- forward at the same speed regardless...)
 eventually :: String -> IO a -> IO a
-eventually = eventuallyUsingDelay (500 * ms) 100
+eventually = eventuallyUsingDelay (500 * ms) 120
   where
     ms = 1000
 
