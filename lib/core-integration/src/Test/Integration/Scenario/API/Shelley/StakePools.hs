@@ -579,17 +579,23 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                     . find (isNothing . getRetirementEpoch)
                     $ nonRetiredPools
 
-            let isValidCerts (Just (RegisterRewardAccount{}:|[JoinPool{}])) = True
-                isValidCerts _ = False
+            let isValidCerts (Just (RegisterRewardAccount{}:|[JoinPool{}])) =
+                    True
+                isValidCerts _ =
+                    False
 
             -- Join Pool
             w <- fixtureWallet ctx
-            joinStakePoolUnsigned @n @'Shelley ctx w nonRetiringPoolId >>= \o -> do
+            joinStakePoolUnsigned
+                @n @'Shelley ctx w nonRetiringPoolId >>= \o -> do
                 verify o
                     [ expectResponseCode HTTP.status200
-                    , expectField #inputs (`shouldSatisfy` (not . null))
-                    , expectField #outputs (`shouldSatisfy` (not . null))
-                    , expectField #certificates (`shouldSatisfy` isValidCerts)
+                    , expectField #inputs
+                        (`shouldSatisfy` (not . null))
+                    , expectField #outputs
+                        (`shouldSatisfy` (not . null))
+                    , expectField #certificates
+                        (`shouldSatisfy` isValidCerts)
                     ]
 
     describe "STAKE_POOLS_JOIN_UNSIGNED_02"
@@ -616,20 +622,24 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
             joinStakePoolUnsigned @n @'Shelley ctx w retiringPoolId >>= \o -> do
                 verify o
                     [ expectResponseCode HTTP.status200
-                    , expectField #inputs (`shouldSatisfy` (not . null))
-                    , expectField #outputs (`shouldSatisfy` (not . null))
-                    , expectField #certificates (`shouldSatisfy` (not . null))
+                    , expectField #inputs
+                        (`shouldSatisfy` (not . null))
+                    , expectField #outputs
+                        (`shouldSatisfy` (not . null))
+                    , expectField #certificates
+                        (`shouldSatisfy` (not . null))
                     ]
 
     describe "STAKE_POOLS_JOIN_UNSIGNED_03"
         $ it "Cannot join a pool that's retired" $ \ctx -> do
-            nonRetiredPoolIds <- eventually "One of the pools should retire." $ do
-                response <- listPools ctx arbitraryStake
-                verify response [ expectListSize 3 ]
-                getFromResponse Prelude.id response
-                    & fmap (view (#id . #getApiT))
-                    & Set.fromList
-                    & pure
+            nonRetiredPoolIds <-
+                eventually "One of the pools should retire." $ do
+                    response <- listPools ctx arbitraryStake
+                    verify response [ expectListSize 3 ]
+                    getFromResponse Prelude.id response
+                        & fmap (view (#id . #getApiT))
+                        & Set.fromList
+                        & pure
             let reportError = error $ unlines
                     [ "Unable to find a retired pool ID."
                     , "Test cluster pools:"
@@ -640,7 +650,8 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
             let retiredPoolIds =
                     testClusterPoolIds `Set.difference` nonRetiredPoolIds
             let retiredPoolId =
-                    fromMaybe reportError $ listToMaybe $ Set.toList retiredPoolIds
+                    fromMaybe reportError $ listToMaybe $
+                        Set.toList retiredPoolIds
             w <- fixtureWallet ctx
             r <- joinStakePoolUnsigned @n @'Shelley ctx w (ApiT retiredPoolId)
             expectResponseCode HTTP.status404 r
@@ -651,16 +662,19 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
             (Right non_existing_pool_id) <- pure $ decodePoolIdBech32
                 "pool1y25deq9kldy9y9gfvrpw8zt05zsrfx84zjhugaxrx9ftvwdpua2"
             w <- fixtureWallet ctx
-            r <- joinStakePoolUnsigned @n @'Shelley ctx w (ApiT non_existing_pool_id)
+            r <- joinStakePoolUnsigned
+                @n @'Shelley ctx w (ApiT non_existing_pool_id)
             expectResponseCode HTTP.status404 r
-            expectErrorMessage (errMsg404NoSuchPool (toText non_existing_pool_id)) r
+            expectErrorMessage
+                (errMsg404NoSuchPool (toText non_existing_pool_id)) r
 
     describe "STAKE_POOLS_QUIT_UNSIGNED_01"
         $ it "Join/quit when already joined a pool" $ \ctx -> do
             w <- fixtureWallet ctx
 
-            pool1:pool2:_ <- map (view #id) . snd <$> unsafeRequest @[ApiStakePool]
-                ctx (Link.listStakePools arbitraryStake) Empty
+            pool1:pool2:_ <-
+                map (view #id) . snd <$> unsafeRequest @[ApiStakePool]
+                    ctx (Link.listStakePools arbitraryStake) Empty
 
             joinStakePool @n ctx pool1 (w, fixturePassphrase) >>= flip verify
                 [ expectResponseCode HTTP.status202
@@ -688,8 +702,10 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
             joinStakePoolUnsigned @n @'Shelley ctx w pool2 >>= \o -> do
                 verify o
                     [ expectResponseCode HTTP.status200
-                    , expectField #inputs (`shouldSatisfy` (not . null))
-                    , expectField #certificates (`shouldSatisfy` isValidCertsJoin)
+                    , expectField #inputs
+                        (`shouldSatisfy` (not . null))
+                    , expectField #certificates
+                        (`shouldSatisfy` isValidCertsJoin)
                     ]
 
             -- Can quit pool
@@ -698,10 +714,14 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
             quitStakePoolUnsigned @n @'Shelley ctx w >>= \o -> do
                 verify o
                     [ expectResponseCode HTTP.status200
-                    , expectField #inputs (`shouldSatisfy` (not . null))
-                    , expectField #outputs (`shouldSatisfy` (not . null))
-                    , expectField #certificates (`shouldSatisfy` ((==1) . length))
-                    , expectField #certificates (`shouldSatisfy` isValidCertsQuit)
+                    , expectField #inputs
+                        (`shouldSatisfy` (not . null))
+                    , expectField #outputs
+                        (`shouldSatisfy` (not . null))
+                    , expectField #certificates
+                        (`shouldSatisfy` ((== 1) . length))
+                    , expectField #certificates
+                        (`shouldSatisfy` isValidCertsQuit)
                     ]
 
     describe "STAKE_POOLS_QUIT_UNSIGNED_02"
@@ -710,8 +730,11 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
 
             quitStakePoolUnsigned @n @'Shelley ctx w >>= \r -> do
                 expectResponseCode HTTP.status403 r
-                expectErrorMessage "It seems that you're trying to retire from delegation although you're not even delegating, nor won't be in an immediate future" r
-
+                flip expectErrorMessage r $ mconcat
+                    [ "It seems that you're trying to retire from delegation "
+                    , "although you're not even delegating, "
+                    , "nor won't be in an immediate future"
+                    ]
 
     describe "STAKE_POOLS_JOIN_01x - Fee boundary values" $ do
         it "STAKE_POOLS_JOIN_01x - \

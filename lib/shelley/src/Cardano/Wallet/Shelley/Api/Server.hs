@@ -206,8 +206,10 @@ server byron icarus shelley spl ntp =
     {-# HLINT ignore "Redundant lambda" #-}
     coinSelections :: Server (CoinSelections n)
     coinSelections = (\wid ascd -> case ascd of
-        (ApiSelectForPayment ascp) -> selectCoins shelley (delegationAddress @n) wid ascp
-        (ApiSelectForDelegation (ApiSelectCoinsAction (ApiT action))) -> case action of
+        (ApiSelectForPayment ascp) ->
+            selectCoins shelley (delegationAddress @n) wid ascp
+        (ApiSelectForDelegation (ApiSelectCoinsAction (ApiT action))) ->
+            case action of
                 Join pid -> selectCoinsForJoin @_ @()
                     shelley
                     (knownPools spl)

@@ -1273,22 +1273,22 @@ selectCoinsForPayment
     -> Maybe TxMetadata
     -> ExceptT (ErrSelectForPayment e) IO CoinSelection
 selectCoinsForPayment ctx wid recipients withdrawal md = do
-    (utxo, pending, txp, minUtxo) <- withExceptT ErrSelectForPaymentNoSuchWallet $
-        selectCoinsSetup @ctx @s @k ctx wid
+    (utxo, pending, txp, minUtxo) <-
+        withExceptT ErrSelectForPaymentNoSuchWallet $
+            selectCoinsSetup @ctx @s @k ctx wid
 
     let pendingWithdrawal = Set.lookupMin $ Set.filter hasWithdrawal pending
     when (withdrawal /= Quantity 0 && isJust pendingWithdrawal) $ throwE $
         ErrSelectForPaymentAlreadyWithdrawing (fromJust pendingWithdrawal)
 
-    cs <-
-        selectCoinsForPaymentFromUTxO @ctx @t @k @e ctx utxo txp minUtxo recipients withdrawal md
+    cs <- selectCoinsForPaymentFromUTxO
+        @ctx @t @k @e ctx utxo txp minUtxo recipients withdrawal md
     withExceptT ErrSelectForPaymentMinimumUTxOValue $ except $
         guardCoinSelection minUtxo cs
     pure cs
   where
     hasWithdrawal :: Tx -> Bool
     hasWithdrawal = not . null . withdrawals
-
 
 -- | Retrieve wallet data which is needed for all types of coin selections.
 selectCoinsSetup
@@ -1511,7 +1511,8 @@ estimateFeeForPayment ctx wid recipients withdrawal md = do
     (utxo, _, txp, minUtxo) <- withExceptT ErrSelectForPaymentNoSuchWallet $
         selectCoinsSetup @ctx @s @k ctx wid
 
-    let selectCoins = selectCoinsForPaymentFromUTxO @ctx @t @k @e ctx utxo txp minUtxo recipients withdrawal md
+    let selectCoins = selectCoinsForPaymentFromUTxO
+            @ctx @t @k @e ctx utxo txp minUtxo recipients withdrawal md
 
     cs <- selectCoins `catchE` handleNotSuccessfulCoinSelection
     withExceptT ErrSelectForPaymentMinimumUTxOValue $ except $
@@ -1639,14 +1640,16 @@ signTx ctx wid pwd md (UnsignedTx inpsNE outs) = db & \DBLayer{..} -> do
         let pwdP = preparePassphrase scheme pwd
         nodeTip <- withExceptT ErrSignPaymentNetwork $ currentNodeTip nl
         mapExceptT atomically $ do
-            cp <- withExceptT ErrSignPaymentNoSuchWallet $ withNoSuchWallet wid $
-                readCheckpoint (PrimaryKey wid)
+            cp <- withExceptT ErrSignPaymentNoSuchWallet
+                $ withNoSuchWallet wid
+                $ readCheckpoint (PrimaryKey wid)
 
             let cs = mempty { inputs = inps, outputs = outs }
             let keyFrom = isOwned (getState cp) (xprv, pwdP)
             let rewardAcnt = getRawKey $ deriveRewardAccount @k pwdP xprv
-            (tx, sealedTx, txExp) <- withExceptT ErrSignPaymentMkTx $ ExceptT $
-                pure $ mkStdTx tl (rewardAcnt, pwdP) keyFrom (nodeTip ^. #slotNo) md cs
+            (tx, sealedTx, txExp) <- withExceptT ErrSignPaymentMkTx $
+                ExceptT $ pure $ mkStdTx
+                    tl (rewardAcnt, pwdP) keyFrom (nodeTip ^. #slotNo) md cs
 
             (time, meta) <- liftIO $
                 mkTxMeta ti (currentTip cp) (getState cp) tx cs txExp

@@ -293,10 +293,12 @@ spec = describe "SHELLEY_HW_WALLETS" $ do
         it "Can get coin selection" $ \ctx -> do
             (w, mnemonics) <- fixtureWalletWithMnemonics ctx
             let pubKey = pubKeyFromMnemonics mnemonics
-            r <- request @ApiWallet ctx (Link.deleteWallet @'Shelley w) Default Empty
+            r <- request
+                @ApiWallet ctx (Link.deleteWallet @'Shelley w) Default Empty
             expectResponseCode @IO HTTP.status204 r
 
-            source <- restoreWalletFromPubKey @ApiWallet @'Shelley ctx pubKey restoredWalletName
+            source <- restoreWalletFromPubKey
+                @ApiWallet @'Shelley ctx pubKey restoredWalletName
             target <- emptyWallet ctx
             targetAddress : _ <- fmap (view #id) <$> listAddresses @n ctx target
 

@@ -933,10 +933,14 @@ spec = describe "SHELLEY_WALLETS" $ do
                     )
             selectCoins @_ @'Shelley ctx source (payment :| []) >>= flip verify
                 [ expectResponseCode HTTP.status200
-                , expectField #inputs (`shouldSatisfy` (not . null))
-                , expectField #inputs (`shouldSatisfy` all hasValidDerivationPath)
-                , expectField #outputs (`shouldSatisfy` ((> 1) . length))
-                , expectField #outputs (`shouldSatisfy` (payment `elem`))
+                , expectField #inputs
+                    (`shouldSatisfy` (not . null))
+                , expectField #inputs
+                    (`shouldSatisfy` all hasValidDerivationPath)
+                , expectField #outputs
+                    (`shouldSatisfy` ((> 1) . length))
+                , expectField #outputs
+                    (`shouldSatisfy` (payment `elem`))
                 ]
 
     let satisfy = flip shouldSatisfy

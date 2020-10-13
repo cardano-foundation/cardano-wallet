@@ -1131,7 +1131,8 @@ selectCoins ctx genChange (ApiT wid) body =
         liftHandler
             $ W.selectCoinsExternal @_ @s @k wrk wid genChange
             $ withExceptT ErrSelectCoinsExternalForPayment
-            $ W.selectCoinsForPayment @_ @s @t @k wrk wid outs withdrawal Nothing
+            $ W.selectCoinsForPayment
+                @_ @s @t @k wrk wid outs withdrawal Nothing
 
 selectCoinsForJoin
     :: forall ctx e s t n k.

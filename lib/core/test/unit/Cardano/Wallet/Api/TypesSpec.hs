@@ -626,11 +626,16 @@ spec = do
         it "ApiCoinSelectionInput" $ property $ \x ->
             let
                 x' = ApiCoinSelectionInput
-                    { id = id (x :: ApiCoinSelectionInput ('Testnet 0))
-                    , index = index (x :: ApiCoinSelectionInput ('Testnet 0))
-                    , address = address (x :: ApiCoinSelectionInput ('Testnet 0))
-                    , amount = amount (x :: ApiCoinSelectionInput ('Testnet 0))
-                    , derivationPath = derivationPath (x :: ApiCoinSelectionInput ('Testnet 0))
+                    { id = id
+                        (x :: ApiCoinSelectionInput ('Testnet 0))
+                    , index = index
+                        (x :: ApiCoinSelectionInput ('Testnet 0))
+                    , address = address
+                        (x :: ApiCoinSelectionInput ('Testnet 0))
+                    , amount = amount
+                        (x :: ApiCoinSelectionInput ('Testnet 0))
+                    , derivationPath = derivationPath
+                        (x :: ApiCoinSelectionInput ('Testnet 0))
                     }
             in
                 x' === x .&&. show x' === show x

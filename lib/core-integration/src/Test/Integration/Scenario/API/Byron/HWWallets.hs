@@ -313,10 +313,12 @@ spec = describe "BYRON_HW_WALLETS" $ do
         it "Can get coin selection" $ \ctx -> do
             (w, mnemonics) <- fixtureIcarusWalletMws ctx
             let pubKey = pubKeyFromMnemonics mnemonics
-            r <- request @ApiByronWallet ctx (Link.deleteWallet @'Byron w) Default Empty
+            r <- request
+                @ApiByronWallet ctx (Link.deleteWallet @'Byron w) Default Empty
             expectResponseCode @IO HTTP.status204 r
 
-            source <- restoreWalletFromPubKey @ApiByronWallet @'Byron ctx pubKey restoredWalletName
+            source <- restoreWalletFromPubKey
+                @ApiByronWallet @'Byron ctx pubKey restoredWalletName
             let [addr] = take 1 $ icarusAddresses @n mnemonics
 
             let amount = Quantity minUTxOValue
