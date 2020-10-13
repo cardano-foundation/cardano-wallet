@@ -28,6 +28,7 @@ import Cardano.Wallet.Api.Types
     , ApiT (..)
     , ApiTransaction
     , ApiUtxoStatistics
+    , ApiVerificationKeyHash
     , ApiWallet
     , DecodeAddress
     , DecodeStakeAddress
@@ -1126,6 +1127,24 @@ spec = describe "SHELLEY_WALLETS" $ do
             w <- emptyWallet ctx
             r <- request @ApiUtxoStatistics ctx (Link.getUTxOsStatistics @'Shelley w) headers Empty
             verify r expectations
+
+    describe "WALLETS_GET_KEY_01 - can get verification key hash for valid indices" $ do
+        let indices = fmap (ApiT . DerivationIndex) [ 0, 100, 2147483647 ]
+        forM_ indices $ \index -> it (show index) $ \ctx -> do
+
+            m <- genMnemonics M15
+            let payload = Json [json| {
+                    "name": "Wallet",
+                    "mnemonic_sentence": #{m},
+                    "passphrase": #{fixturePassphrase}
+                    } |]
+            r <- request @ApiWallet ctx (Link.postWallet @'Shelley) Default payload
+            verify r [ expectResponseCode @IO HTTP.status201 ]
+            let apiWal = getFromResponse id r
+
+            let link = Link.getWalletKey (apiWal ^. id) index
+            rGet <- request @ApiVerificationKeyHash ctx link Default Empty
+            verify rGet [ expectResponseCode @IO HTTP.status200 ]
 
     it "BYRON_WALLETS_UTXO -\
         \ Cannot show Byron wal utxo with shelley ep (404)" $ \ctx -> do
