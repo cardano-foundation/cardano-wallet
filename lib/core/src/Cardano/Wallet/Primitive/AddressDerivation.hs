@@ -146,6 +146,8 @@ import qualified Codec.CBOR.Write as CBOR
 import qualified Crypto.Scrypt as Scrypt
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
+import Data.List.NonEmpty
+    ( NonEmpty (..) )
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 
@@ -212,13 +214,13 @@ mutableAccount :: Index 'Soft 'RoleK
 mutableAccount = toEnum $ fromEnum MutableAccount
 
 zeroAccount :: Index 'Soft 'AddressK
-zeroAccount = toEnum 0
+zeroAccount = minBound
 
 -- | Full path to the stake key. There's only one.
-stakePath :: DerivationPrefix -> [DerivationIndex]
+stakePath :: DerivationPrefix -> NonEmpty DerivationIndex
 stakePath (DerivationPrefix (purpose, coin, acc)) =
-    [fromIndex purpose
-    , fromIndex coin
+    (fromIndex purpose) :| [
+      fromIndex coin
     , fromIndex acc
     , fromIndex mutableAccount
     , fromIndex zeroAccount]

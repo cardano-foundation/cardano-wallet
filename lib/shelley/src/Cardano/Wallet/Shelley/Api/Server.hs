@@ -207,7 +207,7 @@ server byron icarus shelley spl ntp =
     coinSelections :: Server (CoinSelections n)
     coinSelections = (\wid ascd -> case ascd of
         (ApiSelectForPayment ascp) -> selectCoins shelley (delegationAddress @n) wid ascp
-        (ApiSelectForAction (ApiSelectCoinsAction (ApiT action))) -> case action of
+        (ApiSelectForDelegation (ApiSelectCoinsAction (ApiT action))) -> case action of
                 Join pid -> selectCoinsJoinStakePool
                     shelley
                     (knownPools spl)

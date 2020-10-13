@@ -183,7 +183,7 @@ server byron icarus jormungandr spl ntp =
         \wid ascd -> case ascd of
                 (ApiSelectForPayment ascp) ->
                     selectCoins jormungandr (delegationAddress @n) wid ascp
-                (ApiSelectForAction _) ->
+                (ApiSelectForDelegation _) ->
                     throwError err501
 
     transactions :: Server (Transactions n)

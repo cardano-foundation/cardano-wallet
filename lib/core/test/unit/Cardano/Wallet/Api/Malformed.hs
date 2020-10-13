@@ -857,19 +857,19 @@ instance Malformed (BodyParam (ApiSelectCoinsData ('Testnet pm))) where
          jsonValid = (first (BodyParam . Aeson.encode) <$> paymentCases) <> jsonValidAction
          jsonValidAction = first (BodyParam . Aeson.encode) <$>
             [ ( [aesonQQ| { "action": "join" }|]
-              , "Error in $: No valid parse"
+              , "Error in $: No valid parse for ApiSelectCoinsAction or ApiSelectCoinsAction"
               )
             , ( [aesonQQ| { "action": "" }|]
-              , "Error in $: No valid parse"
+              , "Error in $: No valid parse for ApiSelectCoinsAction or ApiSelectCoinsAction"
               )
             , ( [aesonQQ| { "action": "join", "pool": "" }|]
-              , "Error in $: No valid parse"
+              , "Error in $: No valid parse for ApiSelectCoinsAction or ApiSelectCoinsAction"
               )
             , ( [aesonQQ| { "action": "join", "pool": "1" }|]
-              , "Error in $: No valid parse"
+              , "Error in $: No valid parse for ApiSelectCoinsAction or ApiSelectCoinsAction"
               )
             , ( [aesonQQ| { "pool": "pool1wqaz0q0zhtxlgn0ewssevn2mrtm30fgh2g7hr7z9rj5856457mm" }|]
-              , "Error in $: No valid parse"
+              , "Error in $: No valid parse for ApiSelectCoinsAction or ApiSelectCoinsAction"
               )
             ]
 

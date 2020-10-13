@@ -46,8 +46,8 @@ import Data.Text
     ( Text )
 import Data.Word
     ( Word16, Word8 )
-
 import GHC.Generics
+    ( Generic )
 
 data TransactionLayer t k = TransactionLayer
     { mkStdTx

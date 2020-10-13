@@ -1693,17 +1693,17 @@ selectCoinsExternal ctx wid argGenChange payments withdrawal md = do
                 pure (cs', s')
     UnsignedTx
         <$> (fullyQualifiedInputs s' cs'
-                (ErrSelectCoinsExternalUnableToAssignInputs $ ErrNoSuchWallet wid))
+                (ErrSelectCoinsExternalUnableToAssignInputs cs'))
         <*> ensureNonEmpty (outputs cs')
-                (ErrSelectCoinsExternalUnableToAssignOutputs $ ErrNoSuchWallet wid)
+                (ErrSelectCoinsExternalUnableToAssignOutputs cs')
   where
     db = ctx ^. dbLayer @s @k
 
 data ErrSelectCoinsExternal e
     = ErrSelectCoinsExternalNoSuchWallet ErrNoSuchWallet
     | ErrSelectCoinsExternalUnableToMakeSelection (ErrSelectForPayment e)
-    | ErrSelectCoinsExternalUnableToAssignInputs ErrNoSuchWallet
-    | ErrSelectCoinsExternalUnableToAssignOutputs ErrNoSuchWallet
+    | ErrSelectCoinsExternalUnableToAssignInputs CoinSelection
+    | ErrSelectCoinsExternalUnableToAssignOutputs CoinSelection
     deriving (Eq, Show)
 
 signDelegation
@@ -1965,7 +1965,7 @@ joinStakePoolUnsigned
     -> PoolId
     -> PoolLifeCycleStatus
     -> WalletId
-    -> ExceptT ErrJoinStakePool IO (UnsignedTx (TxIn, TxOut, NonEmpty DerivationIndex), DelegationAction, [DerivationIndex])
+    -> ExceptT ErrJoinStakePool IO (UnsignedTx (TxIn, TxOut, NonEmpty DerivationIndex), DelegationAction, NonEmpty DerivationIndex)
 joinStakePoolUnsigned ctx currentEpoch knownPools pid poolStatus wid =
     db & \DBLayer{..} -> do
         (wal, _, _) <- withExceptT
@@ -1976,9 +1976,9 @@ joinStakePoolUnsigned ctx currentEpoch knownPools pid poolStatus wid =
 
         utx <- UnsignedTx
             <$> (fullyQualifiedInputs (getState wal) cs
-                    (ErrJoinStakePoolUnableToAssignInputs $ ErrNoSuchWallet wid))
+                    (ErrJoinStakePoolUnableToAssignInputs cs))
             <*> ensureNonEmpty (outputs cs)
-                    (ErrJoinStakePoolUnableToAssignOutputs $ ErrNoSuchWallet wid)
+                    (ErrJoinStakePoolUnableToAssignOutputs cs)
         pure (utx, action, sPath)
   where
     db = ctx ^. dbLayer @s @k
@@ -1996,7 +1996,7 @@ joinStakePoolUnsigned'
     -> PoolId
     -> PoolLifeCycleStatus
     -> WalletId
-    -> ExceptT ErrJoinStakePool IO (CoinSelection, DelegationAction, [DerivationIndex])
+    -> ExceptT ErrJoinStakePool IO (CoinSelection, DelegationAction, NonEmpty DerivationIndex)
 joinStakePoolUnsigned' ctx currentEpoch knownPools pid poolStatus wid =
     db & \DBLayer{..} -> do
         (isKeyReg, walMeta) <- mapExceptT atomically
@@ -2089,7 +2089,7 @@ quitStakePoolUnsigned
     -> WalletId
     -> ExceptT ErrQuitStakePool IO
         (UnsignedTx (TxIn, TxOut, NonEmpty DerivationIndex),
-            DelegationAction, [DerivationIndex])
+            DelegationAction, NonEmpty DerivationIndex)
 quitStakePoolUnsigned ctx wid = db & \DBLayer{..} -> do
     (wal, _, _) <- withExceptT
         ErrQuitStakePoolNoSuchWallet (readWallet @ctx @s @k ctx wid)
@@ -2097,9 +2097,9 @@ quitStakePoolUnsigned ctx wid = db & \DBLayer{..} -> do
 
     utx <- UnsignedTx
         <$> (fullyQualifiedInputs (getState wal) cs
-                (ErrQuitStakePoolUnableToAssignInputs $ ErrNoSuchWallet wid))
+                (ErrQuitStakePoolUnableToAssignInputs cs))
         <*> ensureNonEmpty (outputs cs)
-                (ErrQuitStakePoolUnableToAssignOutputs $ ErrNoSuchWallet wid)
+                (ErrQuitStakePoolUnableToAssignOutputs cs)
     pure (utx, action, sPath)
   where
     db = ctx ^. dbLayer @s @k
@@ -2113,7 +2113,7 @@ quitStakePoolUnsigned'
         )
     => ctx
     -> WalletId
-    -> ExceptT ErrQuitStakePool IO (CoinSelection, DelegationAction, [DerivationIndex])
+    -> ExceptT ErrQuitStakePool IO (CoinSelection, DelegationAction, NonEmpty DerivationIndex)
 quitStakePoolUnsigned' ctx wid = db & \DBLayer{..} -> do
     walMeta <- mapExceptT atomically $ withExceptT ErrQuitStakePoolNoSuchWallet $
         withNoSuchWallet wid $ readWalletMeta (PrimaryKey wid)
@@ -2450,8 +2450,8 @@ data ErrJoinStakePool
     | ErrJoinStakePoolSignDelegation ErrSignDelegation
     | ErrJoinStakePoolSubmitTx ErrSubmitTx
     | ErrJoinStakePoolCannotJoin ErrCannotJoin
-    | ErrJoinStakePoolUnableToAssignInputs ErrNoSuchWallet
-    | ErrJoinStakePoolUnableToAssignOutputs ErrNoSuchWallet
+    | ErrJoinStakePoolUnableToAssignInputs CoinSelection
+    | ErrJoinStakePoolUnableToAssignOutputs CoinSelection
     deriving (Generic, Eq, Show)
 
 data ErrQuitStakePool
@@ -2460,8 +2460,8 @@ data ErrQuitStakePool
     | ErrQuitStakePoolSignDelegation ErrSignDelegation
     | ErrQuitStakePoolSubmitTx ErrSubmitTx
     | ErrQuitStakePoolCannotQuit ErrCannotQuit
-    | ErrQuitStakePoolUnableToAssignInputs ErrNoSuchWallet
-    | ErrQuitStakePoolUnableToAssignOutputs ErrNoSuchWallet
+    | ErrQuitStakePoolUnableToAssignInputs CoinSelection
+    | ErrQuitStakePoolUnableToAssignOutputs CoinSelection
     deriving (Generic, Eq, Show)
 
 -- | Errors that can occur when fetching the reward balance of a wallet
@@ -2607,19 +2607,13 @@ fullyQualifiedInputs
     => s
     -> CoinSelection
     -> e
-    -> ExceptT
-        e
-        IO
-        (NonEmpty (TxIn, TxOut, NonEmpty DerivationIndex))
+    -> ExceptT e IO (NonEmpty (TxIn, TxOut, NonEmpty DerivationIndex))
 fullyQualifiedInputs s cs e =
     traverse withDerivationPath (inputs cs) >>= flip ensureNonEmpty e
   where
     withDerivationPath
         :: (TxIn, TxOut)
-        -> ExceptT
-            e
-            IO
-            (TxIn, TxOut, NonEmpty DerivationIndex)
+        -> ExceptT e IO (TxIn, TxOut, NonEmpty DerivationIndex)
     withDerivationPath (txin, txout) = do
         case fst $ isOurs (address txout) s of
             Nothing -> throwE e

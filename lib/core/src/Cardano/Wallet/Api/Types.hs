@@ -42,7 +42,6 @@ module Cardano.Wallet.Api.Types
 
     -- * API Types
     , ApiAddress (..)
-    , ApiRelativeDerivationIndex (..)
     , ApiCertificate (..)
     , ApiEpochInfo (..)
     , ApiSelectCoinsData (..)
@@ -378,14 +377,6 @@ data ApiAddress (n :: NetworkDiscriminant) = ApiAddress
     , state :: !(ApiT AddressState)
     } deriving (Eq, Generic, Show)
 
--- | Represents a relative address index.
---
--- The range of this type is exactly half that of a 'Word32'.
---
-newtype ApiRelativeDerivationIndex = ApiRelativeDerivationIndex
-    { unApiRelativeDerivationIndex :: Word31
-    } deriving (Bounded, Enum, Eq, Generic, Show)
-
 data ApiEpochInfo = ApiEpochInfo
     { epochNumber :: !(ApiT EpochNo)
     , epochStartTime :: !UTCTime
@@ -393,7 +384,7 @@ data ApiEpochInfo = ApiEpochInfo
 
 data ApiSelectCoinsData (n :: NetworkDiscriminant)
     = ApiSelectForPayment (ApiSelectCoinsPayments n)
-    | ApiSelectForAction ApiSelectCoinsAction
+    | ApiSelectForDelegation ApiSelectCoinsAction
     deriving (Eq, Generic, Show)
 
 newtype ApiSelectCoinsPayments (n :: NetworkDiscriminant) = ApiSelectCoinsPayments
@@ -401,26 +392,26 @@ newtype ApiSelectCoinsPayments (n :: NetworkDiscriminant) = ApiSelectCoinsPaymen
     } deriving (Eq, Generic, Show)
 
 newtype ApiSelectCoinsAction = ApiSelectCoinsAction
-    { delegation_action :: ApiT DelegationAction
+    { delegationAction :: ApiT DelegationAction
     } deriving (Eq, Generic, Show)
 
 data ApiCertificate
     = RegisterRewardAccount
-        { reward_account_path :: NonEmpty (ApiT DerivationIndex)
+        { rewardAccountPath :: NonEmpty (ApiT DerivationIndex)
         }
     | JoinPool
-        { reward_account_path :: NonEmpty (ApiT DerivationIndex)
+        { rewardAccountPath :: NonEmpty (ApiT DerivationIndex)
         , pool :: ApiT PoolId
         }
     | QuitPool
-        { reward_account_path :: NonEmpty (ApiT DerivationIndex)
+        { rewardAccountPath :: NonEmpty (ApiT DerivationIndex)
         }
     deriving (Eq, Generic, Show)
 
 data ApiCoinSelection (n :: NetworkDiscriminant) = ApiCoinSelection
     { inputs :: !(NonEmpty (ApiCoinSelectionInput n))
     , outputs :: !(NonEmpty (AddressAmount (ApiT Address, Proxy n)))
-    , certificates :: Maybe [ApiCertificate]
+    , certificates :: Maybe (NonEmpty ApiCertificate)
     } deriving (Eq, Generic, Show)
 
 data ApiCoinSelectionInput (n :: NetworkDiscriminant) = ApiCoinSelectionInput
@@ -797,6 +788,7 @@ data ApiErrorCode
     | AlreadyWithdrawing
     | WithdrawalNotWorth
     | PastHorizon
+    | UnableToAssignInputOutput
     deriving (Eq, Generic, Show)
 
 -- | Defines a point in time that can be formatted as and parsed from an
@@ -1046,13 +1038,13 @@ instance DecodeAddress n => FromJSON (ApiSelectCoinsData n) where
         case (p, a) of
             (Just _, Just _) -> fail "Specified both payments and action, pick one"
             (Nothing, Just v) ->
-                pure $ ApiSelectForAction $ ApiSelectCoinsAction v
+                pure $ ApiSelectForDelegation $ ApiSelectCoinsAction v
             (Just v, Nothing) ->
                 pure $ ApiSelectForPayment $ ApiSelectCoinsPayments v
-            _ -> fail "No valid parse"
+            _ -> fail "No valid parse for ApiSelectCoinsAction or ApiSelectCoinsAction"
 instance EncodeAddress n => ToJSON (ApiSelectCoinsData n) where
     toJSON (ApiSelectForPayment v) = toJSON v
-    toJSON (ApiSelectForAction v) = toJSON v
+    toJSON (ApiSelectForDelegation v) = toJSON v
 
 instance DecodeAddress n => FromJSON (ApiCoinSelection n) where
     parseJSON = genericParseJSON defaultRecordTypeOptions
@@ -1067,8 +1059,8 @@ apiCertificateOptions = Aeson.defaultOptions
       , omitNothingFields = True
       , sumEncoding = TaggedObject
           {
-            tagFieldName = "delegation_type"
-          , contentsFieldName = "contents"
+            tagFieldName = "certificate_type"
+          , contentsFieldName = "details"
           }
       }
 
@@ -1085,7 +1077,7 @@ instance FromJSON (ApiT DelegationAction) where
                 pid <- o .: "pool"
                 pure (ApiT $ Join (getApiT pid))
             "quit" -> pure $ ApiT Quit
-            val -> fail ("Unexpeced action value: " <> T.unpack val)
+            val -> fail ("Unexpeced action value \"" <> T.unpack val <> "\". Valid values are: \"quit\" and \"join\".")
 
 instance ToJSON (ApiT DelegationAction) where
     toJSON (ApiT (RegisterKeyAndJoin _)) = error "RegisterKeyAndJoin not valid"

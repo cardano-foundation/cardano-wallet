@@ -1824,7 +1824,7 @@ rndStateChange ctx (ApiT wid) pwd =
 -- | Makes an 'ApiCoinSelection' from the given 'UnsignedTx'.
 mkApiCoinSelection
     :: forall n. ()
-    => Maybe (DelegationAction, [DerivationIndex])
+    => Maybe (DelegationAction, NonEmpty DerivationIndex)
     -> UnsignedTx (TxIn, TxOut, NonEmpty DerivationIndex)
     -> ApiCoinSelection n
 mkApiCoinSelection mcerts (UnsignedTx inputs outputs) =
@@ -1833,17 +1833,18 @@ mkApiCoinSelection mcerts (UnsignedTx inputs outputs) =
         (mkAddressAmount <$> outputs)
         (fmap (uncurry mkCertificates) mcerts)
   where
-    mkCertificates :: DelegationAction -> [DerivationIndex] -> [Api.ApiCertificate]
-    mkCertificates action (s:sx) =
-        let apiStakePath = ApiT <$> (s:|sx)
+    mkCertificates
+        :: DelegationAction
+        -> NonEmpty DerivationIndex
+        -> NonEmpty Api.ApiCertificate
+    mkCertificates action xs =
+        let apiStakePath = ApiT <$> xs
         in case action of
-            Join pid -> [Api.JoinPool apiStakePath (ApiT pid)]
+            Join pid -> Api.JoinPool apiStakePath (ApiT pid) :| []
             RegisterKeyAndJoin pid ->
-                [ Api.RegisterRewardAccount apiStakePath
-                , Api.JoinPool apiStakePath (ApiT pid)
-                ]
-            Quit-> [Api.QuitPool apiStakePath]
-    mkCertificates _ _ = []
+                Api.RegisterRewardAccount apiStakePath :|
+                    [Api.JoinPool apiStakePath (ApiT pid)]
+            Quit-> Api.QuitPool apiStakePath :| []
 
     mkAddressAmount :: TxOut -> AddressAmount (ApiT Address, Proxy n)
     mkAddressAmount (TxOut addr (Coin c)) =
@@ -2197,8 +2198,14 @@ instance Buildable e => LiftHandler (ErrSelectCoinsExternal e) where
             handler e
         ErrSelectCoinsExternalUnableToMakeSelection e ->
             handler e
-        ErrSelectCoinsExternalUnableToAssignInputs e -> handler e
-        ErrSelectCoinsExternalUnableToAssignOutputs e -> handler e
+        ErrSelectCoinsExternalUnableToAssignInputs e ->
+            apiError err403 UnableToAssignInputOutput $ mconcat
+                [ "Unable to assign inputs from coin selection: "
+                , pretty e]
+        ErrSelectCoinsExternalUnableToAssignOutputs e ->
+            apiError err403 UnableToAssignInputOutput $ mconcat
+                [ "Unable to assign outputs from coin selection: "
+                , pretty e]
 
 instance Buildable e => LiftHandler (ErrCoinSelection e) where
     handler = \case
@@ -2499,8 +2506,14 @@ instance LiftHandler ErrJoinStakePool where
                     [ "I couldn't find any stake pool with the given id: "
                     , toText pid
                     ]
-        ErrJoinStakePoolUnableToAssignInputs e -> handler e
-        ErrJoinStakePoolUnableToAssignOutputs e -> handler e
+        ErrJoinStakePoolUnableToAssignInputs e ->
+            apiError err403 UnableToAssignInputOutput $ mconcat
+                [ "Unable to assign inputs from coin selection: "
+                , pretty e]
+        ErrJoinStakePoolUnableToAssignOutputs  e ->
+            apiError err403 UnableToAssignInputOutput $ mconcat
+                [ "Unable to assign outputs from coin selection: "
+                , pretty e]
 
 instance LiftHandler ErrFetchRewards where
     handler = \case
@@ -2537,8 +2550,14 @@ instance LiftHandler ErrQuitStakePool where
                     , "account! Make sure to withdraw your ", pretty rewards
                     , " lovelace first."
                     ]
-        ErrQuitStakePoolUnableToAssignInputs e -> handler e
-        ErrQuitStakePoolUnableToAssignOutputs e -> handler e
+        ErrQuitStakePoolUnableToAssignInputs e ->
+            apiError err403 UnableToAssignInputOutput $ mconcat
+                [ "Unable to assign inputs from coin selection: "
+                , pretty e]
+        ErrQuitStakePoolUnableToAssignOutputs e ->
+            apiError err403 UnableToAssignInputOutput $ mconcat
+                [ "Unable to assign outputs from coin selection: "
+                , pretty e]
 
 instance LiftHandler ErrCreateRandomAddress where
     handler = \case

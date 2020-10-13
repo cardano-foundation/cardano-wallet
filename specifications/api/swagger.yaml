@@ -554,10 +554,10 @@ x-certificate: &certificate
     Only for 'join_pool' the 'pool' property is required.
   type: object
   required:
-    - delegation_type
+    - certificate_type
     - reward_account_path
   properties:
-    delegation_type:
+    certificate_type:
       type: string
       enum: ["join_pool", "quit_pool", "register_reward_account"]
     pool:
@@ -1140,6 +1140,9 @@ components:
       oneOf:
         - <<: *ApiSelectCoinsPayments
         - <<: *ApiSelectCoinsAction
+
+    ApiByronSelectCoinsData: &ApiByronSelectCoinsData
+        <<: *ApiSelectCoinsPayments
 
     ApiCoinSelection: &ApiCoinSelection
       type: object
@@ -2944,7 +2947,7 @@ paths:
         required: true
         content:
           application/json:
-            schema: *ApiSelectCoinsData
+            schema: *ApiByronSelectCoinsData
       responses: *responsesSelectCoins
 
   /byron-wallets/{walletId}/migrations:
