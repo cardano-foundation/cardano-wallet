@@ -267,7 +267,7 @@ mUpdatePendingTx wid currentTip = alterModel wid $ \wal ->
   where
     setExpired :: TxMeta -> TxMeta
     setExpired txMeta
-        | expiry txMeta >= Just currentTip = txMeta { status = Expired }
+        | expiry txMeta <= Just currentTip = txMeta { status = Expired }
         | otherwise = txMeta
 
 mRemovePendingTx :: Ord wid => wid -> (Hash "Tx") -> ModelOp wid s xprv ()

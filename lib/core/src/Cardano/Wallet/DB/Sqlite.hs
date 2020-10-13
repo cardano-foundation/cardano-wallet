@@ -1554,7 +1554,7 @@ updatePendingTxForExpiryQuery wid tip =
     isExpired =
         [ TxMetaWalletId ==. wid
         , TxMetaStatus ==. W.Pending
-        , TxMetaSlotExpires >=. Just tip ]
+        , TxMetaSlotExpires <=. Just tip ]
 
 selectPrivateKey
     :: (MonadIO m, PersistPrivateKey (k 'RootK))
