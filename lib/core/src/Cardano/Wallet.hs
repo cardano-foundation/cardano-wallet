@@ -2007,10 +2007,11 @@ joinStakePoolUnsigned'
     -> ExceptT ErrJoinStakePool IO (CoinSelection, DelegationAction, NonEmpty DerivationIndex)
 joinStakePoolUnsigned' ctx currentEpoch knownPools pid poolStatus wid =
     db & \DBLayer{..} -> do
-        (isKeyReg, walMeta) <- mapExceptT atomically
+        (wal, walMeta, _) <- withExceptT
+            ErrJoinStakePoolNoSuchWallet (readWallet @ctx @s @k ctx wid)
+        isKeyReg <- mapExceptT atomically
             $ withExceptT ErrJoinStakePoolNoSuchWallet
-            $ (,) <$> isStakeKeyRegistered (PrimaryKey wid)
-                  <*> withNoSuchWallet wid (readWalletMeta (PrimaryKey wid))
+            $ isStakeKeyRegistered (PrimaryKey wid)
 
         let mRetirementEpoch = view #retirementEpoch <$>
                 W.getPoolRetirementCertificate poolStatus
@@ -2026,11 +2027,7 @@ joinStakePoolUnsigned' ctx currentEpoch knownPools pid poolStatus wid =
         cs <- withExceptT ErrJoinStakePoolSelectCoin $
             selectCoinsForDelegation @ctx @s @t @k ctx wid action
 
-        cp <- mapExceptT atomically
-            $ withExceptT ErrJoinStakePoolNoSuchWallet
-            $ withNoSuchWallet wid
-            $ readCheckpoint (PrimaryKey wid)
-        let s = getState cp
+        let s = getState wal
             dprefix = Seq.derivationPrefix s
             sPath = stakePath dprefix
 
