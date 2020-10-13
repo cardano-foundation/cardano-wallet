@@ -39,6 +39,7 @@
           (hsPkgs."cryptonite" or (errorHandler.buildDepError "cryptonite"))
           (hsPkgs."deepseq" or (errorHandler.buildDepError "deepseq"))
           (hsPkgs."digest" or (errorHandler.buildDepError "digest"))
+          (hsPkgs."either" or (errorHandler.buildDepError "either"))
           (hsPkgs."exceptions" or (errorHandler.buildDepError "exceptions"))
           (hsPkgs."extra" or (errorHandler.buildDepError "extra"))
           (hsPkgs."fmt" or (errorHandler.buildDepError "fmt"))
@@ -71,8 +72,8 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/cardano-addresses";
-      rev = "e0ab4587266430a08734e1aec1c29d261a9a3b70";
-      sha256 = "1kj1n6890crjaasgzjivnc3skv3pq4gln9daysla14y6z75jxd72";
+      rev = "02fb4ec7db7c55334ab2216c94cf70b209a33885";
+      sha256 = "1hvwk1iz6c01xlngzz6y2r7b9mhaql6ns1z04pqip8ak46npj9i2";
       });
     postUnpack = "sourceRoot+=/core; echo source root reset to \$sourceRoot";
     }) // { cabal-generator = "hpack"; }
