@@ -1965,8 +1965,9 @@ joinStakePoolUnsigned
     -> PoolId
     -> PoolLifeCycleStatus
     -> WalletId
+    -> ArgGenChange s
     -> ExceptT ErrJoinStakePool IO (UnsignedTx (TxIn, TxOut, NonEmpty DerivationIndex), DelegationAction, NonEmpty DerivationIndex)
-joinStakePoolUnsigned ctx currentEpoch knownPools pid poolStatus wid =
+joinStakePoolUnsigned ctx currentEpoch knownPools pid poolStatus wid argGenChange =
     db & \DBLayer{..} -> do
         (wal, _, _) <- withExceptT
             ErrJoinStakePoolNoSuchWallet (readWallet @ctx @s @k ctx wid)
@@ -1974,11 +1975,18 @@ joinStakePoolUnsigned ctx currentEpoch knownPools pid poolStatus wid =
             joinStakePoolUnsigned' @ctx @s @t @k @n
                 ctx currentEpoch knownPools pid poolStatus wid
 
+        coinSel' <- mapExceptT atomically $ do
+            (coinSel', s') <- assignChangeAddresses argGenChange cs (getState wal)
+
+            withExceptT ErrJoinStakePoolNoSuchWallet $
+                putCheckpoint (PrimaryKey wid) (updateState s' wal)
+            pure coinSel'
+
         utx <- UnsignedTx
-            <$> (fullyQualifiedInputs (getState wal) cs
-                    (ErrJoinStakePoolUnableToAssignInputs cs))
-            <*> ensureNonEmpty (outputs cs)
-                    (ErrJoinStakePoolUnableToAssignOutputs cs)
+            <$> (fullyQualifiedInputs (getState wal) coinSel'
+                    (ErrJoinStakePoolUnableToAssignInputs coinSel'))
+            <*> ensureNonEmpty (outputs coinSel')
+                    (ErrJoinStakePoolUnableToAssignOutputs coinSel')
         pure (utx, action, sPath)
   where
     db = ctx ^. dbLayer @s @k

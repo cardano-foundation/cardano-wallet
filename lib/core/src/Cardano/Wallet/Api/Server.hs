@@ -1135,7 +1135,7 @@ selectCoinsJoinStakePool
         ( s ~ SeqState n k
         , ctx ~ ApiLayer s t k
         , SoftDerivation k
-        , MkKeyFingerprint k Address
+        , DelegationAddress n k
         , MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
         )
     => ctx
@@ -1155,7 +1155,7 @@ selectCoinsJoinStakePool ctx knownPools getPoolStatus pid wid = do
         \wrk -> liftHandler $
             W.joinStakePoolUnsigned
                 @_ @s @t @k wrk
-                curEpoch pools pid poolStatus wid
+                curEpoch pools pid poolStatus wid (delegationAddress @n)
     pure $ mkApiCoinSelection (Just (action, spath)) utx
 
 selectCoinsQuitStakePool
