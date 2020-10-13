@@ -265,6 +265,7 @@ import Test.QuickCheck
     , Gen
     , InfiniteList (..)
     , applyArbitrary2
+    , applyArbitrary4
     , arbitraryBoundedEnum
     , arbitraryPrintableChar
     , arbitrarySizedBoundedIntegral
@@ -619,9 +620,14 @@ spec = do
         it "ApiCoinSelection" $ property $ \x ->
             let
                 x' = ApiCoinSelection
-                    { inputs = inputs (x :: ApiCoinSelection ('Testnet 0))
-                    , outputs = outputs (x :: ApiCoinSelection ('Testnet 0))
-                    , certificates = certificates (x :: ApiCoinSelection ('Testnet 0))
+                    { inputs = inputs
+                        (x :: ApiCoinSelection ('Testnet 0))
+                    , outputs = outputs
+                        (x :: ApiCoinSelection ('Testnet 0))
+                    , change = change
+                        (x :: ApiCoinSelection ('Testnet 0))
+                    , certificates = certificates
+                        (x :: ApiCoinSelection ('Testnet 0))
                     }
             in
                 x' === x .&&. show x' === show x
@@ -966,7 +972,7 @@ instance Arbitrary ApiCertificate where
     shrink = genericShrink
 
 instance Arbitrary (ApiCoinSelection n) where
-    arbitrary = ApiCoinSelection <$> arbitrary <*> arbitrary <*> arbitrary
+    arbitrary = applyArbitrary4 ApiCoinSelection
     shrink = genericShrink
 
 instance Arbitrary (ApiCoinSelectionChange n) where

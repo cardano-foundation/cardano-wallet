@@ -1695,7 +1695,7 @@ assignMigrationAddresses addrs selections =
   where
     accumulate sel (txs, addrsAvailable) = first
         (\addrsSelected -> makeTx sel addrsSelected : txs)
-        (splitAt (length $ change sel) addrsAvailable)
+        (splitAt (length $ view #change sel) addrsAvailable)
 
     makeTx :: CoinSelection -> [Address] -> UnsignedTx (TxIn, TxOut)
     makeTx sel addrsSelected = UnsignedTx
@@ -1895,6 +1895,7 @@ mkApiCoinSelection mcerts (UnsignedTx inputs outputs) =
     ApiCoinSelection
         (mkApiCoinSelectionInput <$> inputs)
         (mkAddressAmount <$> outputs)
+        []
         (fmap (uncurry mkCertificates) mcerts)
   where
     mkCertificates
