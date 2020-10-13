@@ -276,9 +276,9 @@ parseGenesisData = \case
     MainnetConfig -> do
         pure
             ( SomeNetworkDiscriminant $ Proxy @'Mainnet
-            , Shelley.mainnetNetworkParameters
+            , Byron.mainnetNetworkParameters
             , Byron.mainnetVersionData
-            , Shelley.emptyGenesis (genesisParameters Shelley.mainnetNetworkParameters)
+            , Byron.emptyGenesis (genesisParameters Byron.mainnetNetworkParameters)
             )
 
     TestnetConfig byronGenesisFile -> do
