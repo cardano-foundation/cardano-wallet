@@ -1861,10 +1861,10 @@ x-parametersIndex: &parametersIndex
   required: true
   schema:
     type: integer
-    # 2 ^ 31 minimum soft index
-    minimum: 2147483648
-    # 2 ^ 32 - 1, maximum soft index
-    maximum: 4294967295
+    # minimum soft index
+    minimum: 0
+    # 2 ^ 31 - 1, maximum soft index
+    maximum: 2147483647
 
 x-parametersForceNtpCheck: &parametersForceNtpCheck
   in: query

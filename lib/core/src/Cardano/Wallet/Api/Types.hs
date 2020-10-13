@@ -757,7 +757,7 @@ data ApiWalletSignData = ApiWalletSignData
     } deriving (Eq, Generic, Show)
 
 newtype ApiVerificationKeyHash = ApiVerificationKeyHash
-    { unApiVerificationKeyHash :: ApiT (Hash "ScriptKey")
+    { verificationKeyHash :: ApiT (Hash "ScriptKey")
     } deriving (Eq, Generic, Show)
 
 -- | Error codes returned by the API, in the form of snake_cased strings

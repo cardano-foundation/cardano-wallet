@@ -75,6 +75,7 @@ import Cardano.Wallet.Api.Types
     , ApiTxInput (..)
     , ApiTxMetadata (..)
     , ApiUtxoStatistics (..)
+    , ApiVerificationKeyHash (..)
     , ApiWallet (..)
     , ApiWalletDelegation (..)
     , ApiWalletDelegationNext (..)
@@ -354,6 +355,7 @@ spec = do
             jsonRoundtripAndGolden $ Proxy @ApiFee
             jsonRoundtripAndGolden $ Proxy @ApiStakePoolMetrics
             jsonRoundtripAndGolden $ Proxy @ApiTxId
+            jsonRoundtripAndGolden $ Proxy @ApiVerificationKeyHash
             jsonRoundtripAndGolden $ Proxy @(PostTransactionData ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @(PostTransactionFeeData ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @WalletPostData
@@ -527,6 +529,13 @@ spec = do
             Aeson.parseEither parseJSON [aesonQQ|
                 "invalid-id"
             |] `shouldBe` (Left @String @(ApiT WalletId) msg)
+
+        it "ApiT (Hash \"ScriptKey\")" $ do
+            let msg = "Error in $: Invalid scriptKey hash: \
+                    \expecting a hex-encoded value that is 28 bytes in length."
+            Aeson.parseEither parseJSON [aesonQQ|
+                "-----"
+            |] `shouldBe` (Left @String @(ApiT (Hash "ScriptKey")) msg)
 
         it "AddressAmount (too small)" $ do
             let msg = "Error in $.amount.quantity: parsing Natural failed, \
@@ -1385,6 +1394,13 @@ instance Arbitrary (Quantity "percent" Double) where
     shrink (Quantity 0.0) = []
     shrink _ = [Quantity 0.0]
     arbitrary = Quantity <$> choose (0,100)
+
+instance Arbitrary ApiVerificationKeyHash where
+    arbitrary =
+        ApiVerificationKeyHash . ApiT . Hash . B8.pack <$> replicateM 28 arbitrary
+
+instance ToSchema ApiVerificationKeyHash where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiVerificationKeyHash"
 
 instance Arbitrary ApiNetworkParameters where
     arbitrary = genericArbitrary

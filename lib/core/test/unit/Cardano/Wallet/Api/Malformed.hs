@@ -74,7 +74,7 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.Primitive.AddressDerivation
     ( AccountingStyle (..), DerivationIndex (..), NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Address, WalletId, walletNameMaxLength )
+    ( Address, DerivationIndex, WalletId, walletNameMaxLength )
 import Control.Arrow
     ( first )
 import Data.Aeson.QQ
@@ -151,6 +151,22 @@ instance Malformed (PathParam ApiTxId) where
         ]
       where
         msg = "Invalid tx hash: expecting a hex-encoded value that is 32 bytes in length."
+
+instance Wellformed (PathParam (ApiT DerivationIndex)) where
+    wellformed = PathParam <$>
+        [ "0"
+        , "1000"
+        , "2147483647"
+        ]
+
+instance Malformed (PathParam (ApiT DerivationIndex)) where
+    malformed = first PathParam <$>
+        [ ("-1",msg)
+        , ("4.3",msg)
+        , ("something",msg)
+        ]
+      where
+        msg = "Expecting natural number"
 
 instance Wellformed (PathParam ApiPoolId) where
     wellformed = PathParam <$>
