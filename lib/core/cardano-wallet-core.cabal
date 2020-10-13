@@ -1,5 +1,5 @@
 name:                cardano-wallet-core
-version:             2020.9.30
+version:             2020.10.13
 synopsis:            The Wallet Backend for a Cardano node.
 description:         Please see README.md
 homepage:            https://github.com/input-output-hk/cardano-wallet
@@ -9,7 +9,7 @@ copyright:           2018-2020 IOHK
 license:             Apache-2.0
 category:            Web
 build-type:          Simple
-extra-source-files:  README.md
+extra-source-files:  specifications/api/swagger.yaml
 cabal-version:       >=1.10
 
 flag release

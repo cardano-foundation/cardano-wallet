@@ -1,5 +1,5 @@
 name:                cardano-wallet-jormungandr
-version:             2020.9.30
+version:             2020.10.13
 synopsis:            Wallet backend protocol-specific bits implemented using Jörmungandr
 description:         Please see README.md
 homepage:            https://github.com/input-output-hk/cardano-wallet
@@ -10,6 +10,7 @@ license:             Apache-2.0
 category:            Web
 build-type:          Simple
 extra-source-files:  README.md
+                     specifications/api/swagger.yaml
 cabal-version:       >=1.10
 
 flag release

@@ -1,1 +1,0 @@
-# Cardano Wallet Core
