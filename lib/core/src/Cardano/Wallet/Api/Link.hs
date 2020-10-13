@@ -48,6 +48,9 @@ module Cardano.Wallet.Api.Link
     , getMigrationInfo
     , migrateWallet
 
+     -- * WalletKeys
+    , getWalletKey
+
       -- * Addresses
     , postRandomAddress
     , putRandomAddresses
@@ -104,7 +107,14 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Types
-    ( AddressState, Coin (..), Hash, PoolId, SortOrder, WalletId (..) )
+    ( AddressState
+    , Coin (..)
+    , DerivationIndex
+    , Hash
+    , PoolId
+    , SortOrder
+    , WalletId (..)
+    )
 import Data.Function
     ( (&) )
 import Data.Generics.Internal.VL.Lens
@@ -252,6 +262,22 @@ getMigrationInfo
 getMigrationInfo w = discriminate @style
     (endpoint @Api.GetShelleyWalletMigrationInfo (wid &))
     (endpoint @Api.GetByronWalletMigrationInfo (wid &))
+  where
+    wid = w ^. typed @(ApiT WalletId)
+
+--
+-- WalletKeys
+--
+
+getWalletKey
+    :: forall w.
+        ( HasType (ApiT WalletId) w
+        )
+    => w
+    -> ApiT DerivationIndex
+    -> (Method, Text)
+getWalletKey w index =
+    endpoint @Api.GetWalletKey (\mk -> mk wid index)
   where
     wid = w ^. typed @(ApiT WalletId)
 
