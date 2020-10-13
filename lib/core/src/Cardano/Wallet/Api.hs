@@ -30,6 +30,9 @@ module Cardano.Wallet.Api
         , GetUTxOsStatistics
         , SignMetadata
 
+    , WalletKeys
+        , GetWalletKey
+
     , Addresses
         , ListAddresses
         , InspectAddress
@@ -129,6 +132,7 @@ import Cardano.Wallet.Api.Types
     , ApiTransactionT
     , ApiTxId
     , ApiUtxoStatistics
+    , ApiVerificationKeyHash
     , ApiWallet
     , ApiWalletMigrationInfo
     , ApiWalletMigrationPostDataT
@@ -158,6 +162,7 @@ import Cardano.Wallet.Primitive.Types
     ( AddressState
     , Block
     , Coin (..)
+    , DerivationIndex
     , NetworkParameters
     , SortOrder (..)
     , WalletId (..)
@@ -209,6 +214,7 @@ type ApiV2 n apiPool = "v2" :> Api n apiPool
 -- The API used in cardano-wallet-jormungandr may differ from this one.
 type Api n apiPool =
          Wallets
+    :<|> WalletKeys
     :<|> Addresses n
     :<|> CoinSelections n
     :<|> Transactions n
@@ -286,6 +292,22 @@ type SignMetadata = "wallets"
     :> "signatures"
     :> ReqBody '[JSON] ApiWalletSignData
     :> Post '[OctetStream] ByteString
+
+{-------------------------------------------------------------------------------
+                                  Wallet Keys
+  See also: https://input-output-hk.github.io/cardano-wallet/api/#tag/WalletKeys
+-------------------------------------------------------------------------------}
+
+type WalletKeys =
+    GetWalletKey
+
+-- | https://input-output-hk.github.io/cardano-wallet/api/#operation/getWalletKey
+type GetWalletKey = "wallets"
+    :> Capture "walletId" (ApiT WalletId)
+    :> "keys"
+    :> "script"
+    :> Capture "index" (ApiT DerivationIndex)
+    :> Get '[JSON] ApiVerificationKeyHash
 
 {-------------------------------------------------------------------------------
                                   Addresses

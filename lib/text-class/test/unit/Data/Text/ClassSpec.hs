@@ -28,6 +28,8 @@ import Data.Text.Class
     , fromTextToBoundedEnum
     , toTextFromBoundedEnum
     )
+import Data.Word
+    ( Word32 )
 import GHC.Generics
     ( Generic )
 import Numeric.Natural
@@ -111,6 +113,7 @@ spec = do
         textRoundtrip $ Proxy @Natural
         textRoundtrip $ Proxy @Int
         textRoundtrip $ Proxy @Text
+        textRoundtrip $ Proxy @Word32
 
     describe "BoundedEnum" $ do
         it "fromTextToBoundedEnum s (toTextFromBoundedEnum s a) == Right a" $

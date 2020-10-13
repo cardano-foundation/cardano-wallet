@@ -149,6 +149,7 @@ server
     -> Server (Api n ApiStakePool)
 server byron icarus jormungandr spl ntp =
          wallets
+    :<|> (\ _ _ -> throwError err501)
     :<|> addresses
     :<|> coinSelections
     :<|> transactions

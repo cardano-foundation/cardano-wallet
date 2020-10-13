@@ -1193,6 +1193,31 @@ instance Buildable AddressState where
 
 instance NFData AddressState
 
+-- | A thin wrapper around derivation indexes. This can be used to represent
+-- derivation path as homogeneous lists of 'DerivationIndex'. This is slightly
+-- more convenient than having to carry heterogeneous lists of 'Index depth type'
+-- and works fine because:
+--
+-- 1. The 'depth' matters not because what the depth captures is actually the
+--    position of the index in that list. It makes sense to carry at the type
+--    level when manipulating standalone indexes to avoid mistakes, but when
+--    treating them as a part of a list it is redundant.
+--
+-- 2. The derivationType is captured by representing indexes as plain Word32.
+--    The Soft / Hardened notation is for easing human-readability but in the
+--    end, a soft index is simply a value < 2^31, whereas a "hardened" index is
+--    simply a value >= 2^31. Therefore, instead of representing indexes as
+--    derivationType + relative index within 0 and 2^31, we can represent them
+--    as just an index between 0 and 2^32, which is what DerivationIndex does.
+newtype DerivationIndex
+    = DerivationIndex Word32
+    deriving (Show, Eq, Ord, Generic)
+
+instance NFData DerivationIndex
+
+instance FromText DerivationIndex where
+    fromText = fmap DerivationIndex . fromText
+
 {-------------------------------------------------------------------------------
                                      Coin
 -------------------------------------------------------------------------------}
@@ -1850,6 +1875,7 @@ instance FromText (Hash "Genesis")         where fromText = hashFromText 32
 instance FromText (Hash "Block")           where fromText = hashFromText 32
 instance FromText (Hash "BlockHeader")     where fromText = hashFromText 32
 instance FromText (Hash "ChimericAccount") where fromText = hashFromText 28
+instance FromText (Hash "ScriptKey")       where fromText = hashFromText 28
 
 hashFromText
     :: forall t. (KnownSymbol t)

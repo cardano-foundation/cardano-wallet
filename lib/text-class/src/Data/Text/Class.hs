@@ -35,7 +35,7 @@ module Data.Text.Class
 import Prelude
 
 import Control.Monad
-    ( unless )
+    ( unless, (<=<) )
 import Data.Bifunctor
     ( first )
 import Data.List
@@ -64,7 +64,6 @@ import Text.Read
 import qualified Data.Char as C
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as T
-    ( toStrict )
 import qualified Data.Text.Lazy.Builder as B
 import qualified Data.Text.Lazy.Builder.Int as B
 import qualified Data.Text.Lazy.Builder.RealFloat as B
@@ -124,6 +123,16 @@ instance FromText Natural where
 
 instance ToText Natural where
     toText = intToText
+
+instance FromText Word32 where
+    fromText =
+        validate <=< (fmap fromIntegral . fromText @Natural)
+      where
+        validate x
+            | (x >= (minBound @Word32)) && (x <= (maxBound @Word32))  =
+                return x
+            | otherwise =
+                Left $ TextDecodingError "Word32 is out of bounds"
 
 instance FromText Integer where
     fromText t = do
