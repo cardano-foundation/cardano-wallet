@@ -239,8 +239,6 @@ import Control.Exception
     ( Exception (..), SomeException (..), catch, throwIO )
 import Control.Monad
     ( forM_, join, unless, void )
-import Control.Monad.Fail
-    ( MonadFail (..) )
 import Control.Monad.IO.Class
     ( MonadIO, liftIO )
 import Control.Retry
@@ -289,8 +287,7 @@ import Network.HTTP.Types.Method
     ( Method )
 import Numeric.Natural
     ( Natural )
-import Prelude hiding
-    ( fail )
+import Prelude
 import System.Command
     ( CmdResult, Stderr, Stdout (..), command )
 import System.Directory
@@ -351,7 +348,7 @@ import qualified Network.HTTP.Types.Status as HTTP
 
 -- | Expect an error response, without any further assumptions.
 expectError
-    :: (HasCallStack, MonadIO m, MonadFail m, Show a)
+    :: (HasCallStack, MonadIO m, Show a)
     => (s, Either RequestException a)
     -> m ()
 expectError (_, res) = case res of
@@ -360,22 +357,22 @@ expectError (_, res) = case res of
 
 -- | Expect an error response, without any further assumptions.
 expectErrorMessage
-    :: (HasCallStack, MonadIO m, MonadFail m, Show a)
+    :: (HasCallStack, MonadIO m, Show a)
     => String
     -> (s, Either RequestException a)
     -> m ()
-expectErrorMessage want (_, res) = case res of
+expectErrorMessage want (_, res) = liftIO $ case res of
     Left (DecodeFailure msg)  ->
         BL8.unpack msg `shouldContain` want
     Left (ClientError _)  ->
-        fail "expectErrorMessage: asserting ClientError not supported yet"
+        expectationFailure "expectErrorMessage: asserting ClientError not supported yet"
     Left (HttpException _) ->
-        fail "expectErrorMessage: asserting HttpException not supported yet"
+        expectationFailure "expectErrorMessage: asserting HttpException not supported yet"
     Right a -> wantedErrorButSuccess a
 
 -- | Expect a successful response, without any further assumptions.
 expectSuccess
-    :: (HasCallStack, MonadIO m, MonadFail m)
+    :: (HasCallStack, MonadIO m)
     => (s, Either RequestException a)
     -> m ()
 expectSuccess (_, res) = case res of
@@ -399,7 +396,7 @@ expectResponseCode want (got, a) =
             ]
 
 expectField
-    :: (HasCallStack, MonadIO m, MonadFail m, Show a)
+    :: (HasCallStack, MonadIO m, Show a)
     => Lens' s a
     -> (a -> Expectation)
     -> (HTTP.Status, Either RequestException s)
@@ -411,35 +408,35 @@ expectField getter predicate (_, res) = case res of
         liftIO $ predicate a
 
 expectListField
-    :: (HasCallStack, MonadIO m, MonadFail m, Show a)
+    :: (HasCallStack, MonadIO m, Show a)
     => Int
     -> Lens' s a
     -> (a -> Expectation)
     -> (HTTP.Status, Either RequestException [s])
     -> m ()
-expectListField i getter predicate (c, res) = case res of
+expectListField i getter predicate (c, res) = liftIO $ case res of
     Left e -> wantedSuccessButError e
     Right xs
         | length xs > i ->
             expectField getter predicate (c, Right (xs !! i))
-        | otherwise -> fail $
+        | otherwise -> expectationFailure $
             "expectListField: trying to access the #" <> show i <>
             " element from a list but there's none! "
 
 -- | Expects data list returned by the API to be of certain length
 expectListSize
-    :: (HasCallStack, MonadIO m, MonadFail m, Foldable xs)
+    :: (HasCallStack, MonadIO m, Foldable xs)
     => Int
     -> (HTTP.Status, Either RequestException (xs a))
     -> m ()
-expectListSize l (_, res) = case res of
+expectListSize l (_, res) = liftIO $ case res of
     Left e   -> wantedSuccessButError e
     Right xs -> length (toList xs) `shouldBe` l
 
 -- | Expects wallet UTxO statistics from the request to be equal to
 -- pre-calculated statistics.
 expectWalletUTxO
-    :: (HasCallStack, MonadIO m, MonadFail m)
+    :: (HasCallStack, MonadIO m)
     => [Word64]
     -> Either RequestException ApiUtxoStatistics
     -> m ()
@@ -465,17 +462,18 @@ expectWalletUTxO coins = \case
 -- | Expects a given string to be a valid JSON output corresponding to some
 -- given data-type 'a'. Returns this type if successful.
 expectValidJSON
-    :: forall m a. (HasCallStack, MonadFail m, FromJSON a)
+    :: forall m a. (HasCallStack, FromJSON a, MonadIO m)
     => Proxy a
     -> String
     -> m a
-expectValidJSON _ str =
+expectValidJSON _ str = liftIO $
     case Aeson.eitherDecode @a (BL.fromStrict $ T.encodeUtf8 $ T.pack str) of
-        Left e -> fail $ "expected valid JSON but failed decoding: " <> show e
+        Left e ->
+            expectationFailure' $ "expected valid JSON but failed decoding: " <> show e
         Right a -> return a
 
 expectCliListField
-    :: (HasCallStack, MonadIO m, MonadFail m, Show a)
+    :: (HasCallStack, MonadIO m, Show a)
     => Int
     -> Lens' s a
     -> (a -> Expectation)
@@ -483,12 +481,12 @@ expectCliListField
     -> m ()
 expectCliListField i getter predicate xs
         | length xs > i = expectCliField getter predicate (xs !! i)
-        | otherwise = fail $
+        | otherwise = liftIO . expectationFailure $
             "expectCliListField: trying to access the #" <> show i <>
             " element from a list but there's none! "
 
 expectCliField
-    :: (HasCallStack, MonadIO m, MonadFail m, Show a)
+    :: (HasCallStack, MonadIO m, Show a)
     => Lens' s a
     -> (a -> Expectation)
     -> s
@@ -594,14 +592,14 @@ waitForNextEpoch ctx = do
     eventually "waitForNextEpoch: goes to next epoch" $ do
         epoch' <- getFromResponse (#nodeTip . #slotId . #epochNumber) <$>
             request @ApiNetworkInformation ctx Link.getNetworkInfo Default Empty
-        unless (getApiT epoch' > getApiT epoch) $ fail "not yet"
+        unless (getApiT epoch' > getApiT epoch) $ expectationFailure "not yet"
 
 between :: (Ord a, Show a) => (a, a) -> a -> Expectation
 between (min', max') x
     | min' <= x && x <= max'
         = return ()
     | otherwise
-        = fail $ mconcat
+        = expectationFailure $ mconcat
             [ show x
             , " ∉ ["
             , show min'
@@ -614,7 +612,7 @@ x .> bound
     | x > bound
         = return ()
     | otherwise
-        = fail $ mconcat
+        = expectationFailure $ mconcat
             [ show x
             , " does not satisfy (> "
             , show bound
@@ -626,19 +624,20 @@ x .< bound
     | x < bound
         = return ()
     | otherwise
-        = fail $ mconcat
+        = expectationFailure $ mconcat
             [ show x
             , " does not satisfy (< "
             , show bound
             , ")"
             ]
 
+
 (.>=) :: (Ord a, Show a) => a -> a -> Expectation
 a .>= b
     | a >= b
         = return ()
     | otherwise
-        = fail $ mconcat
+        = expectationFailure $ mconcat
             [ show a
             , " does not satisfy (>= "
             , show b
@@ -650,12 +649,19 @@ a .<= b
     | a <= b
         = return ()
     | otherwise
-        = fail $ mconcat
+        = expectationFailure $ mconcat
             [ show a
             , " does not satisfy (<= "
             , show b
             , ")"
             ]
+
+-- | Like @expectationFailure@, but with a @IO a@ return type instead of @IO
+-- ()@.
+expectationFailure' :: HasCallStack => String -> IO a
+expectationFailure' msg = do
+    expectationFailure msg
+    fail "expectationFailure': impossible"
 
 -- Retry the given action a couple of time until it doesn't throw, or until it
 -- has been retried enough.
@@ -692,8 +698,8 @@ eventuallyUsingDelay delay desc io = do
             let msg = "Waited longer than 90s (more than 2 epochs) to resolve action: " ++ show desc ++ "."
             case fromException @HUnitFailure =<< lastError of
                 Just lastError' -> throwIO $ appendFailureReason msg lastError'
-                Nothing -> do
-                    fail $ mconcat
+                Nothing ->
+                    expectationFailure' $ mconcat
                         [ msg
                         , " Error condition: "
                         , show lastError
@@ -914,7 +920,8 @@ fixtureWalletWithMnemonics ctx = do
     (_, w) <- unsafeRequest @ApiWallet ctx
         (Link.postWallet @'Shelley) payload
     race (threadDelay sixtySeconds) (checkBalance w) >>= \case
-        Left _ -> fail "fixtureWallet: waited too long for initial transaction"
+        Left _ ->
+            expectationFailure' "fixtureWallet: waited too long for initial transaction"
         Right a -> return (a, mnemonics)
   where
     sixtySeconds = 60*oneSecond
@@ -1048,7 +1055,7 @@ fixtureLegacyWallet ctx style mnemonics = do
         (Link.postWallet @'Byron) payload
     race (threadDelay sixtySeconds) (checkBalance w) >>= \case
         Left _ ->
-            fail "fixtureByronWallet: waited too long for initial transaction"
+            expectationFailure' "fixtureByronWallet: waited too long for initial transaction"
         Right a ->
             return a
   where
@@ -1426,18 +1433,22 @@ unsafeCreateDigest s = fromMaybe
     (digestFromByteString $ B8.pack $ T.unpack s)
 
 wantedSuccessButError
-    :: (MonadFail m, Show e)
+    :: (MonadIO m, Show e)
     => e
-    -> m void
-wantedSuccessButError =
-    fail . ("expected a successful response but got an error: " <>) . show
+    -> m ()
+wantedSuccessButError = liftIO
+    . expectationFailure
+    . ("expected a successful response but got an error: " <>)
+    . show
 
 wantedErrorButSuccess
-    :: (MonadFail m, Show a)
+    :: (MonadIO m, Show a)
     => a
-    -> m void
-wantedErrorButSuccess =
-    fail . ("expected an error but got a successful response: " <>) . show
+    -> m ()
+wantedErrorButSuccess = liftIO
+    .  expectationFailure
+    . ("expected an error but got a successful response: " <>)
+    . show
 
 -- | Apply 'a' to all actions in sequence
 verify :: Show a => a -> [a -> IO ()] -> IO ()
