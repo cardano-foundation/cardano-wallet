@@ -236,7 +236,7 @@ import Control.Concurrent
 import Control.Concurrent.Async
     ( async, race, wait )
 import Control.Exception
-    ( SomeException (..), catch )
+    ( Exception (..), SomeException (..), catch, throwIO )
 import Control.Monad
     ( forM_, join, unless, void )
 import Control.Monad.Fail
@@ -310,6 +310,8 @@ import Test.Hspec
     ( Expectation, HasCallStack, expectationFailure )
 import Test.Hspec.Expectations.Lifted
     ( shouldBe, shouldContain, shouldSatisfy )
+import Test.HUnit.Lang
+    ( FailureReason (..), HUnitFailure (..) )
 import Test.Integration.Faucet
     ( nextTxBuilder, nextWallet )
 import Test.Integration.Framework.Context
@@ -687,13 +689,15 @@ eventuallyUsingDelay delay desc io = do
     case winner of
         Left () -> do
             lastError <- readIORef lastErrorRef
-            fail $ mconcat
-                [ "Waited longer than 90s (more than 2 epochs) for an action to resolve. "
-                , "Action: "
-                , show desc
-                , ". Error condition: "
-                , show lastError
-                ]
+            let msg = "Waited longer than 90s (more than 2 epochs) to resolve action: " ++ show desc ++ "."
+            case fromException @HUnitFailure =<< lastError of
+                Just lastError' -> throwIO $ appendFailureReason msg lastError'
+                Nothing -> do
+                    fail $ mconcat
+                        [ msg
+                        , " Error condition: "
+                        , show lastError
+                        ]
         Right a ->
             return a
   where
@@ -1436,8 +1440,36 @@ wantedErrorButSuccess =
     fail . ("expected an error but got a successful response: " <>) . show
 
 -- | Apply 'a' to all actions in sequence
-verify :: (Monad m) => a -> [a -> m ()] -> m ()
-verify a = mapM_ (a &)
+verify :: Show a => a -> [a -> IO ()] -> IO ()
+verify a = counterexample msg . mapM_ (a &)
+  where
+    msg = "While verifying " ++ show a
+
+-- | Can be used to add context to a @HUnitFailure@.
+--
+-- >>> counterexample (show reponse) (0 `shouldBe` 3)
+-- >>>  (Status {statusCode = 200, statusMessage = "OK"},Right [])
+-- >>>        expected: 3
+-- >>>         but got: 0
+counterexample :: String -> IO a -> IO a
+counterexample msg = (`catch` (throwIO . appendFailureReason msg))
+
+appendFailureReason :: String -> HUnitFailure -> HUnitFailure
+appendFailureReason message = wrap
+  where
+    wrap :: HUnitFailure -> HUnitFailure
+    wrap (HUnitFailure mloc reason) =
+        HUnitFailure mloc (addMessageTo reason)
+
+    addMessageTo :: FailureReason -> FailureReason
+    addMessageTo (Reason reason) = Reason $ reason ++ "\n" ++ message
+    addMessageTo (ExpectedButGot preface expected actual) =
+      ExpectedButGot newPreface expected actual
+      where
+      newPreface =
+        case preface of
+        Nothing -> Just message
+        Just existingMessage -> Just $ existingMessage ++ "\n" ++ message
 
 --
 -- Manipulating endpoints
