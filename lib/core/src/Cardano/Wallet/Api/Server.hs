@@ -76,6 +76,7 @@ module Cardano.Wallet.Api.Server
     , selectCoinsForJoin
     , selectCoinsForQuit
     , signMetadata
+    , getWalletKeyHash
 
     -- * Internals
     , LiftHandler(..)
@@ -98,8 +99,12 @@ import Prelude
 
 import Cardano.Address.Derivation
     ( XPrv, XPub )
+import Cardano.Address.Style.Shelley
+    ( deriveMultisigPublicKey, hashKey, liftXPub )
 import Cardano.Mnemonic
     ( SomeMnemonic )
+import Cardano.Script
+    ( KeyHash (..) )
 import Cardano.Wallet
     ( ErrAdjustForFee (..)
     , ErrCannotJoin (..)
@@ -191,6 +196,7 @@ import Cardano.Wallet.Api.Types
     , ApiTxInput (..)
     , ApiTxMetadata (..)
     , ApiUtxoStatistics (..)
+    , ApiVerificationKeyHash (..)
     , ApiWallet (..)
     , ApiWalletDelegation (..)
     , ApiWalletDelegationNext (..)
@@ -444,6 +450,7 @@ import qualified Cardano.Wallet.Api.Types as Api
 import qualified Cardano.Wallet.Network as NW
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Byron as Byron
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Icarus as Icarus
+import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Shelley
 import qualified Cardano.Wallet.Primitive.Slotting as S
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Registry as Registry
@@ -1114,6 +1121,26 @@ getUTxOsStatistics ctx (ApiT wid) = do
     stats <- withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
         W.listUtxoStatistics wrk wid
     return $ toApiUtxoStatistics stats
+
+getWalletKeyHash
+    :: forall ctx s t k n.
+        ( s ~ SeqState n k
+        , ctx ~ ApiLayer s t k
+        , k ~ ShelleyKey
+        )
+    => ctx
+    -> ApiT WalletId
+    -> ApiT DerivationIndex
+    -> Handler ApiVerificationKeyHash
+getWalletKeyHash ctx (ApiT wid) (ApiT (DerivationIndex index)) =
+    withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk -> do
+        (cp, _, _) <- liftHandler $ W.readWallet @_ @s @k wrk wid
+        let accPub = getState cp ^. #externalPool . #accountPubKey
+        let (KeyHash bytes) =
+                hashKey $ deriveMultisigPublicKey
+                (liftXPub $ Shelley.getKey accPub)
+                (toEnum $ fromInteger $ toInteger index)
+        pure $ ApiVerificationKeyHash $ ApiT $ Hash bytes
 
 {-------------------------------------------------------------------------------
                                   Coin Selections
