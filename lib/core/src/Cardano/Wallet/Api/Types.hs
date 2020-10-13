@@ -48,6 +48,7 @@ module Cardano.Wallet.Api.Types
     , ApiSelectCoinsPayments (..)
     , ApiSelectCoinsAction (..)
     , ApiCoinSelection (..)
+    , ApiCoinSelectionChange (..)
     , ApiCoinSelectionInput (..)
     , ApiStakePool (..)
     , ApiStakePoolMetrics (..)
@@ -412,6 +413,12 @@ data ApiCoinSelection (n :: NetworkDiscriminant) = ApiCoinSelection
     { inputs :: !(NonEmpty (ApiCoinSelectionInput n))
     , outputs :: ![AddressAmount (ApiT Address, Proxy n)]
     , certificates :: Maybe (NonEmpty ApiCertificate)
+    } deriving (Eq, Generic, Show)
+
+data ApiCoinSelectionChange (n :: NetworkDiscriminant) = ApiCoinSelectionChange
+    { address :: !(ApiT Address, Proxy n)
+    , amount :: !(Quantity "lovelace" Natural)
+    , derivationPath :: NonEmpty (ApiT DerivationIndex)
     } deriving (Eq, Generic, Show)
 
 data ApiCoinSelectionInput (n :: NetworkDiscriminant) = ApiCoinSelectionInput
@@ -1084,6 +1091,11 @@ instance ToJSON (ApiT DelegationAction) where
         [ "action" .= String "register_key_and_join", "pool" .= (ApiT pid) ]
     toJSON (ApiT (Join pid)) = object [ "action" .= String "join", "pool" .= (ApiT pid) ]
     toJSON (ApiT Quit) = object [ "action" .= String "quit" ]
+
+instance DecodeAddress n => FromJSON (ApiCoinSelectionChange n) where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance EncodeAddress n => ToJSON (ApiCoinSelectionChange n) where
+    toJSON = genericToJSON defaultRecordTypeOptions
 
 instance DecodeAddress n => FromJSON (ApiCoinSelectionInput n) where
     parseJSON = genericParseJSON defaultRecordTypeOptions

@@ -50,6 +50,7 @@ import Cardano.Wallet.Api.Types
     , ApiByronWalletBalance (..)
     , ApiCertificate (..)
     , ApiCoinSelection (..)
+    , ApiCoinSelectionChange (..)
     , ApiCoinSelectionInput (..)
     , ApiEpochInfo (..)
     , ApiFee (..)
@@ -322,6 +323,7 @@ spec = do
             jsonRoundtripAndGolden $ Proxy @ApiEpochInfo
             jsonRoundtripAndGolden $ Proxy @(ApiSelectCoinsData ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @(ApiCoinSelection ('Testnet 0))
+            jsonRoundtripAndGolden $ Proxy @(ApiCoinSelectionChange ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @(ApiCoinSelectionInput ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @ApiBlockReference
             jsonRoundtripAndGolden $ Proxy @ApiSlotReference
@@ -620,6 +622,18 @@ spec = do
                     { inputs = inputs (x :: ApiCoinSelection ('Testnet 0))
                     , outputs = outputs (x :: ApiCoinSelection ('Testnet 0))
                     , certificates = certificates (x :: ApiCoinSelection ('Testnet 0))
+                    }
+            in
+                x' === x .&&. show x' === show x
+        it "ApiCoinSelectionChange" $ property $ \x ->
+            let
+                x' = ApiCoinSelectionChange
+                    { address = address
+                        (x :: ApiCoinSelectionChange ('Testnet 0))
+                    , amount = amount
+                        (x :: ApiCoinSelectionChange ('Testnet 0))
+                    , derivationPath = derivationPath
+                        (x :: ApiCoinSelectionChange ('Testnet 0))
                     }
             in
                 x' === x .&&. show x' === show x
@@ -954,6 +968,13 @@ instance Arbitrary ApiCertificate where
 instance Arbitrary (ApiCoinSelection n) where
     arbitrary = ApiCoinSelection <$> arbitrary <*> arbitrary <*> arbitrary
     shrink = genericShrink
+
+instance Arbitrary (ApiCoinSelectionChange n) where
+    arbitrary = ApiCoinSelectionChange
+        <$> fmap (, Proxy @n) arbitrary
+        <*> arbitrary
+        <*> arbitrary
+    shrink _ = []
 
 instance Arbitrary (ApiCoinSelectionInput n) where
     arbitrary = ApiCoinSelectionInput
