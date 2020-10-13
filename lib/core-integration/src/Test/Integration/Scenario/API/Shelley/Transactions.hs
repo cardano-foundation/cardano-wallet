@@ -48,6 +48,8 @@ import Cardano.Wallet.Primitive.Types
     , TxStatus (..)
     , WalletId
     )
+import Control.Concurrent
+    ( threadDelay )
 import Control.Monad
     ( forM_ )
 import Data.Aeson
@@ -118,6 +120,7 @@ import Test.Integration.Framework.DSL
     , listAllTransactions
     , listTransactions
     , minUTxOValue
+    , oneSecond
     , request
     , rewardWallet
     , toQueryString
@@ -858,6 +861,9 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 (#balance . #getApiT . #available)
                 (`shouldBe` Quantity (faucetAmt - feeMin - amtSrc)) r''
 
+        -- #2238 quick fix to reduce likelihood of rollback.
+        threadDelay $ 10 * oneSecond
+
         let amtDest = (2_000_000 :: Natural)
 
         let mnemonicsDest =
@@ -1022,6 +1028,9 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             expectField
                 (#balance . #getApiT . #available)
                 (`shouldBe` Quantity (faucetAmt - feeMin - amtSrc)) r''
+
+        -- #2238 quick fix to reduce likelihood of rollback.
+        threadDelay $ 10 * oneSecond
 
         let amtDest = (7_000_000 :: Natural)
 
@@ -1199,6 +1208,9 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                     (#balance . #available)
                     (`shouldBe` Quantity amtSrc) r'
 
+            -- #2232 quick fix to reduce likelihood of rollback.
+            threadDelay $ 10 * oneSecond
+
             let shelleyMnemonics =
                   [ "broken", "pass", "shrug", "pause", "crush"
                   , "caught", "honey", "lonely", "dose", "rabbit"
@@ -1351,6 +1363,9 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 expectField
                     (#balance . #available)
                     (`shouldBe` Quantity amtSrc) r'
+
+            -- #2232 quick fix to reduce likelihood of rollback.
+            threadDelay $ 10 * oneSecond
 
             -- Create Shelley destination wallet for external tx
             wShelley <- emptyWallet ctx
