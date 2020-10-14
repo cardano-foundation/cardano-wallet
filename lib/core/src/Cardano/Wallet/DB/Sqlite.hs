@@ -132,7 +132,7 @@ import Data.Coerce
 import Data.Either
     ( isRight )
 import Data.Generics.Internal.VL.Lens
-    ( (^.) )
+    ( view, (^.) )
 import Data.IORef
     ( modifyIORef', newIORef, readIORef )
 import Data.List
@@ -1176,7 +1176,7 @@ mkTxInputsOutputs tx =
     mkTxOut tid (ix, txOut) = TxOut
         { txOutputTxId = TxId tid
         , txOutputIndex = ix
-        , txOutputAddress = W.address txOut
+        , txOutputAddress = view #address txOut
         , txOutputAmount = W.coin txOut
         }
     ordered f = fmap (zip [0..] . f)

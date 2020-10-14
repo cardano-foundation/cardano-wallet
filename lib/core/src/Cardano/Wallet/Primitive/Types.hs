@@ -41,6 +41,7 @@ module Cardano.Wallet.Primitive.Types
 
     -- * Tx
     , Tx (..)
+    , TxChange (..)
     , TxIn(..)
     , TxOut(..)
     , TxMeta(..)
@@ -911,6 +912,15 @@ data TxOut = TxOut
         :: !Coin
     } deriving (Show, Generic, Eq, Ord)
 
+data TxChange derivationPath = TxChange
+    { address
+        :: !Address
+    , amount
+        :: !Coin
+    , derivationPath
+        :: derivationPath
+    } deriving (Show, Generic, Eq, Ord)
+
 instance NFData TxOut
 
 instance Buildable TxOut where
@@ -921,7 +931,7 @@ instance Buildable TxOut where
         <> "..."
         <> suffixF 8 addrF
       where
-        addrF = build $ address txout
+        addrF = build $ view #address txout
 
 instance Buildable (TxIn, TxOut) where
     build (txin, txout) = build txin <> " ==> " <> build txout
@@ -966,7 +976,7 @@ instance ToText TxStatus where
 --
 -- See 'Tx' for a signed transaction.
 --
-data UnsignedTx input = UnsignedTx
+data UnsignedTx input output change = UnsignedTx
     { unsignedInputs
         :: NonEmpty input
         -- Inputs are *necessarily* non-empty because Cardano requires at least
@@ -983,6 +993,8 @@ data UnsignedTx input = UnsignedTx
         -- depending on which input(s) get selected to fuel the transaction, it
         -- may or may not include a change output should its value be less than
         -- the minimal UTxO value set by the network.
+    , unsignedChange
+        :: [change]
     }
     deriving (Eq, Show)
 

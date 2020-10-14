@@ -1685,11 +1685,15 @@ migrateWallet ctx (ApiT wid) migrateData = do
 -- the number of addresses in the specified address list, addresses will be
 -- recycled in order of their appearance in the original list.
 assignMigrationAddresses
-    :: [Address]
+    :: forall input output change .
+        ( input ~ (TxIn, TxOut)
+        , output ~ TxOut
+        )
+    => [Address]
     -- ^ Target addresses
     -> [CoinSelection]
     -- ^ Migration data for the source wallet.
-    -> [UnsignedTx (TxIn, TxOut)]
+    -> [UnsignedTx input output change]
 assignMigrationAddresses addrs selections =
     fst $ foldr accumulate ([], cycle addrs) selections
   where
@@ -1697,10 +1701,11 @@ assignMigrationAddresses addrs selections =
         (\addrsSelected -> makeTx sel addrsSelected : txs)
         (splitAt (length $ view #change sel) addrsAvailable)
 
-    makeTx :: CoinSelection -> [Address] -> UnsignedTx (TxIn, TxOut)
+    makeTx :: CoinSelection -> [Address] -> UnsignedTx input output change
     makeTx sel addrsSelected = UnsignedTx
         (NE.fromList (sel ^. #inputs))
         (zipWith TxOut addrsSelected (sel ^. #change))
+        []
 
 {-------------------------------------------------------------------------------
                                     Network
@@ -1887,11 +1892,14 @@ rndStateChange ctx (ApiT wid) pwd =
 
 -- | Makes an 'ApiCoinSelection' from the given 'UnsignedTx'.
 mkApiCoinSelection
-    :: forall n. ()
+    :: forall n input output change.
+        ( input ~ (TxIn, TxOut, NonEmpty DerivationIndex)
+        , output ~ TxOut
+        )
     => Maybe (DelegationAction, NonEmpty DerivationIndex)
-    -> UnsignedTx (TxIn, TxOut, NonEmpty DerivationIndex)
+    -> UnsignedTx input output change
     -> ApiCoinSelection n
-mkApiCoinSelection mcerts (UnsignedTx inputs outputs) =
+mkApiCoinSelection mcerts (UnsignedTx inputs outputs _) =
     ApiCoinSelection
         (mkApiCoinSelectionInput <$> inputs)
         (mkAddressAmount <$> outputs)
@@ -1919,13 +1927,11 @@ mkApiCoinSelection mcerts (UnsignedTx inputs outputs) =
       where
         apiStakePath = ApiT <$> xs
 
-    mkAddressAmount :: TxOut -> AddressAmount (ApiT Address, Proxy n)
+    mkAddressAmount :: output -> AddressAmount (ApiT Address, Proxy n)
     mkAddressAmount (TxOut addr (Coin c)) =
         AddressAmount (ApiT addr, Proxy @n) (Quantity $ fromIntegral c)
 
-    mkApiCoinSelectionInput
-        :: (TxIn, TxOut, NonEmpty DerivationIndex)
-        -> ApiCoinSelectionInput n
+    mkApiCoinSelectionInput :: input -> ApiCoinSelectionInput n
     mkApiCoinSelectionInput (TxIn txid index, TxOut addr (Coin c), path) =
         ApiCoinSelectionInput
             { id = ApiT txid

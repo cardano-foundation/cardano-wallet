@@ -144,7 +144,7 @@ prop_coinValuesPreserved (CoinSelectionsSetup cs addrs) = do
             sum . map (\(_, TxOut _ (Coin c)) -> c)
     let selsCoinValue =
             sum $ getCoinValueFromInp . inputs . getCS <$> cs
-    let getCoinValueFromTxOut (UnsignedTx _ txouts) =
+    let getCoinValueFromTxOut (UnsignedTx _ txouts _) =
             sum $ map (\(TxOut _ (Coin c)) -> c) txouts
     let txsCoinValue =
             sum . map getCoinValueFromTxOut
@@ -163,7 +163,7 @@ prop_coinValuesPreservedPerTx f (CoinSelectionsSetup cs addrs) = do
     let getCoinValueFromInp =
             f . map (\(_, TxOut _ (Coin c)) -> c)
     let selsCoinValue = getCoinValueFromInp . inputs . getCS <$> cs
-    let getCoinValueFromTxOut (UnsignedTx _ txouts) =
+    let getCoinValueFromTxOut (UnsignedTx _ txouts _) =
             f $ map (\(TxOut _ (Coin c)) -> c) txouts
     let txsCoinValue = map getCoinValueFromTxOut
     txsCoinValue (assignMigrationAddresses addrs sels) === selsCoinValue
@@ -176,7 +176,7 @@ prop_allInputsAreUsed
 prop_allInputsAreUsed (CoinSelectionsSetup cs addrs) = do
     let sels = getCS <$> cs
     let csInps = Set.fromList $ concatMap inputs sels
-    let getInpsFromTx (UnsignedTx inp _) = NE.toList inp
+    let getInpsFromTx (UnsignedTx inp _ _) = NE.toList inp
     let txsCoinValue = Set.fromList . concatMap getInpsFromTx
     txsCoinValue (assignMigrationAddresses addrs sels) === csInps
 
@@ -189,7 +189,7 @@ prop_allInputsAreUsedPerTx
 prop_allInputsAreUsedPerTx (CoinSelectionsSetup cs addrs) = do
     let sels = getCS <$> cs
     let csInps = Set.fromList . inputs <$> sels
-    let getInpsFromTx (UnsignedTx inp _) = NE.toList inp
+    let getInpsFromTx (UnsignedTx inp _ _) = NE.toList inp
     let txsCoinValue = map (Set.fromList . getInpsFromTx)
     txsCoinValue (assignMigrationAddresses addrs sels) === csInps
 
@@ -201,7 +201,7 @@ prop_fairAddressesRecycled
     -> Property
 prop_fairAddressesRecycled (CoinSelectionsSetup cs addrs) = do
     let sels = getCS <$> cs
-    let getAllAddrPerTx (UnsignedTx _ txouts) =
+    let getAllAddrPerTx (UnsignedTx _ txouts _) =
             map (\(TxOut addr _) -> addr) txouts
     let getAllAddrCounts =
             Map.elems .

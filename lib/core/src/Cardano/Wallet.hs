@@ -1619,7 +1619,7 @@ signPayment ctx wid argGenChange mkRewardAccount pwd md cs = db & \DBLayer{..} -
 
 -- | Very much like 'signPayment', but doesn't not generate change addresses.
 signTx
-    :: forall ctx s t k.
+    :: forall ctx s t k input output change.
         ( HasTransactionLayer t k ctx
         , HasDBLayer s k ctx
         , HasNetworkLayer t ctx
@@ -1628,14 +1628,16 @@ signTx
         , HardDerivation k
         , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
         , WalletKey k
+        , input ~ (TxIn, TxOut)
+        , output ~ TxOut
         )
     => ctx
     -> WalletId
     -> Passphrase "raw"
     -> Maybe TxMetadata
-    -> UnsignedTx (TxIn, TxOut)
+    -> UnsignedTx input output change
     -> ExceptT ErrSignPayment IO (Tx, TxMeta, UTCTime, SealedTx)
-signTx ctx wid pwd md (UnsignedTx inpsNE outs) = db & \DBLayer{..} -> do
+signTx ctx wid pwd md (UnsignedTx inpsNE outs _change) = db & \DBLayer{..} ->
     withRootKey @_ @s ctx wid pwd ErrSignPaymentWithRootKey $ \xprv scheme -> do
         let pwdP = preparePassphrase scheme pwd
         nodeTip <- withExceptT ErrSignPaymentNetwork $ currentNodeTip nl
@@ -1664,20 +1666,20 @@ signTx ctx wid pwd md (UnsignedTx inpsNE outs) = db & \DBLayer{..} -> do
 
 -- | Makes a fully-resolved coin selection for the given set of payments.
 selectCoinsExternal
-    :: forall ctx s k e resolvedInput.
+    :: forall ctx s k e input output change.
         ( GenChange s
         , HasDBLayer s k ctx
         , IsOurs s Address
-        , resolvedInput ~ (TxIn, TxOut, NonEmpty DerivationIndex)
+        , input ~ (TxIn, TxOut, NonEmpty DerivationIndex)
+        , output ~ TxOut
         )
     => ctx
     -> WalletId
     -> ArgGenChange s
     -> ExceptT (ErrSelectCoinsExternal e) IO CoinSelection
-    -> ExceptT (ErrSelectCoinsExternal e) IO (UnsignedTx resolvedInput)
+    -> ExceptT (ErrSelectCoinsExternal e) IO (UnsignedTx input output change)
 selectCoinsExternal ctx wid argGenChange selectCoins = do
     cs <- selectCoins
-
     (cs', s') <- db & \DBLayer{..} ->
         withExceptT ErrSelectCoinsExternalNoSuchWallet $
             mapExceptT atomically $ do
@@ -1685,11 +1687,11 @@ selectCoinsExternal ctx wid argGenChange selectCoins = do
                 (cs', s') <- assignChangeAddresses argGenChange cs (getState cp)
                 putCheckpoint (PrimaryKey wid) (updateState s' cp)
                 pure (cs', s')
-
     UnsignedTx
         <$> (fullyQualifiedInputs s' cs'
                 (ErrSelectCoinsExternalUnableToAssignInputs cs'))
         <*> pure (outputs cs')
+        <*> pure []
   where
     db = ctx ^. dbLayer @s @k
 
