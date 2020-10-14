@@ -35,11 +35,11 @@ import Cardano.Wallet.Primitive.Fee
 import Cardano.Wallet.Primitive.Types
     ( Coin (..)
     , Direction (..)
-    , EpochNo (..)
     , PoolId (..)
     , StakePoolMetadata (..)
     , StakePoolTicker (..)
     , TxStatus (..)
+    , decodePoolIdBech32
     )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex, unsafeMkPercentage )
@@ -52,9 +52,9 @@ import Data.Generics.Internal.VL.Lens
 import Data.IORef
     ( readIORef )
 import Data.List
-    ( sortOn )
+    ( find, sortOn )
 import Data.Maybe
-    ( fromMaybe, listToMaybe, mapMaybe )
+    ( fromMaybe, isJust, isNothing, listToMaybe, mapMaybe )
 import Data.Ord
     ( Down (..) )
 import Data.Quantity
@@ -89,13 +89,16 @@ import Test.Integration.Framework.DSL
     , fixtureWallet
     , fixtureWalletWith
     , getFromResponse
+    , getRetirementEpoch
     , getSlotParams
     , joinStakePool
+    , joinStakePoolUnsigned
     , json
     , listAddresses
     , minUTxOValue
     , notDelegating
     , quitStakePool
+    , quitStakePoolUnsigned
     , request
     , unsafeRequest
     , verify
@@ -552,6 +555,137 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                 , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
                 ]
 
+    describe "STAKE_POOLS_JOIN_UNSIGNED_01" $ do
+        it "Can join a pool that's not retiring" $ \ctx -> do
+            nonRetiredPools <- eventually "One of the pools should retire." $ do
+                response <- listPools ctx arbitraryStake
+
+                verify response [ expectListSize 3 ]
+
+                pure $ getFromResponse Prelude.id response
+
+            let reportError = error $ unlines
+                    [ "Unable to find a non-retiring pool ID."
+                    , "Test cluster pools:"
+                    , unlines (showT <$> Set.toList testClusterPoolIds)
+                    , "Non-retired pools:"
+                    , unlines (show <$> nonRetiredPools)
+                    ]
+
+            let nonRetiringPoolId = (view #id) . fromMaybe reportError
+                    . find (isNothing . getRetirementEpoch)
+                    $ nonRetiredPools
+
+            -- Join Pool
+            w <- fixtureWallet ctx
+            joinStakePoolUnsigned @n @'Shelley ctx w nonRetiringPoolId >>= \o -> do
+                verify o
+                    [ expectResponseCode HTTP.status200
+                    , expectField #inputs (`shouldSatisfy` (not . null))
+                    , expectField #outputs (`shouldSatisfy` (not . null))
+                    , expectField #certificates (`shouldSatisfy` (not . null))
+                    ]
+
+    describe "STAKE_POOLS_JOIN_UNSIGNED_02"
+        $ it "Can join a pool that's retiring" $ \ctx -> do
+            nonRetiredPools <- eventually "One of the pools should retire." $ do
+                response <- listPools ctx arbitraryStake
+
+                verify response [ expectListSize 3 ]
+
+                pure $ getFromResponse Prelude.id response
+            let reportError = error $ unlines
+                    [ "Unable to find a retiring pool ID."
+                    , "Test cluster pools:"
+                    , unlines (showT <$> Set.toList testClusterPoolIds)
+                    , "Non-retired pools:"
+                    , unlines (show <$> nonRetiredPools)
+                    ]
+
+            let retiringPoolId = (view #id) . fromMaybe reportError
+                    . find (isJust . getRetirementEpoch)
+                    $ nonRetiredPools
+            -- Join Pool
+            w <- fixtureWallet ctx
+            joinStakePoolUnsigned @n @'Shelley ctx w retiringPoolId >>= \o -> do
+                verify o
+                    [ expectResponseCode HTTP.status200
+                    , expectField #inputs (`shouldSatisfy` (not . null))
+                    , expectField #outputs (`shouldSatisfy` (not . null))
+                    , expectField #certificates (`shouldSatisfy` (not . null))
+                    ]
+
+    describe "STAKE_POOLS_JOIN_UNSIGNED_03"
+        $ it "Cannot join a pool that's retired" $ \ctx -> do
+            nonRetiredPoolIds <- eventually "One of the pools should retire." $ do
+                response <- listPools ctx arbitraryStake
+                verify response [ expectListSize 3 ]
+                getFromResponse Prelude.id response
+                    & fmap (view (#id . #getApiT))
+                    & Set.fromList
+                    & pure
+            let reportError = error $ unlines
+                    [ "Unable to find a retired pool ID."
+                    , "Test cluster pools:"
+                    , unlines (showT <$> Set.toList testClusterPoolIds)
+                    , "Non-retired pools:"
+                    , unlines (showT <$> Set.toList nonRetiredPoolIds)
+                    ]
+            let retiredPoolIds =
+                    testClusterPoolIds `Set.difference` nonRetiredPoolIds
+            let retiredPoolId =
+                    fromMaybe reportError $ listToMaybe $ Set.toList retiredPoolIds
+            w <- fixtureWallet ctx
+            r <- joinStakePoolUnsigned @n @'Shelley ctx w (ApiT retiredPoolId)
+            expectResponseCode HTTP.status404 r
+            expectErrorMessage (errMsg404NoSuchPool (toText retiredPoolId)) r
+
+    describe "STAKE_POOLS_JOIN_UNSIGNED_04"
+        $ it "Cannot join a pool that's never existed" $ \ctx -> do
+            (Right non_existing_pool_id) <- pure $ decodePoolIdBech32
+                "pool1y25deq9kldy9y9gfvrpw8zt05zsrfx84zjhugaxrx9ftvwdpua2"
+            w <- fixtureWallet ctx
+            r <- joinStakePoolUnsigned @n @'Shelley ctx w (ApiT non_existing_pool_id)
+            expectResponseCode HTTP.status404 r
+            expectErrorMessage (errMsg404NoSuchPool (toText non_existing_pool_id)) r
+
+    describe "STAKE_POOLS_QUIT_UNSIGNED_01"
+        $ it "Can quit a joined pool" $ \ctx -> do
+            w <- fixtureWallet ctx
+
+            pool:_ <- map (view #id) . snd <$> unsafeRequest @[ApiStakePool]
+                ctx (Link.listStakePools arbitraryStake) Empty
+
+            joinStakePool @n ctx pool (w, fixturePassphrase) >>= flip verify
+                [ expectResponseCode HTTP.status202
+                , expectField (#status . #getApiT) (`shouldBe` Pending)
+                , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
+                ]
+
+            eventually "Wallet is delegating to p1" $ do
+                request @ApiWallet ctx (Link.getWallet @'Shelley w)
+                    Default Empty >>= flip verify
+                    [ expectField #delegation (`shouldBe` delegating pool [])
+                    ]
+
+            -- Quit Pool
+            quitStakePoolUnsigned @n @'Shelley ctx w >>= \o -> do
+                verify o
+                    [ expectResponseCode HTTP.status200
+                    , expectField #inputs (`shouldSatisfy` (not . null))
+                    , expectField #outputs (`shouldSatisfy` (not . null))
+                    , expectField #certificates (`shouldSatisfy` (not . null))
+                    ]
+
+    describe "STAKE_POOLS_QUIT_UNSIGNED_02"
+        $ it "Cannot quit if not delegating" $ \ctx -> do
+            w <- fixtureWallet ctx
+
+            quitStakePoolUnsigned @n @'Shelley ctx w >>= \r -> do
+                expectResponseCode HTTP.status403 r
+                expectErrorMessage "It seems that you're trying to retire from delegation although you're not even delegating, nor won't be in an immediate future" r
+
+
     describe "STAKE_POOLS_JOIN_01x - Fee boundary values" $ do
         it "STAKE_POOLS_JOIN_01x - \
             \I can join if I have just the right amount" $ \ctx -> do
@@ -687,12 +821,6 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
             eventually "pools have the correct retirement information" $ do
                 response <- listPools ctx arbitraryStake
                 expectResponseCode HTTP.status200 response
-
-                let getRetirementEpoch :: ApiStakePool -> Maybe EpochNo
-                    getRetirementEpoch =
-                        fmap (view (#epochNumber . #getApiT))
-                        .
-                        view #retirement
 
                 let actualRetirementEpochs =
                         getFromResponse Prelude.id response
