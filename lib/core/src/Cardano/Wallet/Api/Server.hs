@@ -1163,7 +1163,7 @@ selectCoinsQuitStakePool
         ( s ~ SeqState n k
         , ctx ~ ApiLayer s t k
         , SoftDerivation k
-        , MkKeyFingerprint k Address
+        , DelegationAddress n k
         , MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
         )
     => ctx
@@ -1171,7 +1171,7 @@ selectCoinsQuitStakePool
     -> Handler (Api.ApiCoinSelection n)
 selectCoinsQuitStakePool ctx (ApiT wid) = do
     (utx, action, spath) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
-        W.quitStakePoolUnsigned @_ @s @t @k wrk wid
+        W.quitStakePoolUnsigned @_ @s @t @k wrk wid (delegationAddress @n)
     pure $ mkApiCoinSelection (Just (action, spath)) utx
 
 {-------------------------------------------------------------------------------

@@ -2092,19 +2092,27 @@ quitStakePoolUnsigned
         )
     => ctx
     -> WalletId
+    -> ArgGenChange s
     -> ExceptT ErrQuitStakePool IO
         (UnsignedTx (TxIn, TxOut, NonEmpty DerivationIndex),
             DelegationAction, NonEmpty DerivationIndex)
-quitStakePoolUnsigned ctx wid = db & \DBLayer{..} -> do
+quitStakePoolUnsigned ctx wid argGenChange = db & \DBLayer{..} -> do
     (wal, _, _) <- withExceptT
         ErrQuitStakePoolNoSuchWallet (readWallet @ctx @s @k ctx wid)
     (cs, action, sPath) <- quitStakePoolUnsigned' @ctx @s @t @k @n ctx wid
 
+    coinSel' <- mapExceptT atomically $ do
+        (coinSel', s') <- assignChangeAddresses argGenChange cs (getState wal)
+
+        withExceptT ErrQuitStakePoolNoSuchWallet $
+            putCheckpoint (PrimaryKey wid) (updateState s' wal)
+        pure coinSel'
+
     utx <- UnsignedTx
-        <$> (fullyQualifiedInputs (getState wal) cs
-                (ErrQuitStakePoolUnableToAssignInputs cs))
-        <*> ensureNonEmpty (outputs cs)
-                (ErrQuitStakePoolUnableToAssignOutputs cs)
+        <$> (fullyQualifiedInputs (getState wal) coinSel'
+                (ErrQuitStakePoolUnableToAssignInputs coinSel'))
+        <*> ensureNonEmpty (outputs coinSel')
+                (ErrQuitStakePoolUnableToAssignOutputs coinSel')
     pure (utx, action, sPath)
   where
     db = ctx ^. dbLayer @s @k
