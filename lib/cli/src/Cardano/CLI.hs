@@ -53,7 +53,7 @@ module Cardano.CLI
     , stateDirOption
     , syncToleranceOption
     , tlsOption
-    , smashURLOption
+    , poolMetadataSourceOption
     , metadataOption
 
     -- * Option parsers for configuring tracing
@@ -1318,15 +1318,16 @@ tlsOption = TlsConfiguration
         <> metavar "FILE"
         <> help "The RSA Server key which signed the x.509 server certificate."
 
-smashURLOption
+poolMetadataSourceOption
     :: Parser PoolMetadataSource
-smashURLOption = option (eitherReader reader) $ mempty
+poolMetadataSourceOption = option (eitherReader reader) $ mempty
     <> long "pool-metadata-fetching"
-    <> metavar "STRATEGY"
-    <> help "Pool Metadata fetching strategy. This setting will persist across restarts. Possible values: \
-            \ none, \
-            \ direct, \
-            \ <SMASH-URL>."
+    <> metavar "( none | direct | SMASH-URL )"
+    <> help ("Stake pool metadata fetching strategy. "
+            <> "Provide a URL to specify a SMASH metadata proxy server, "
+            <> "use \"direct\" to fetch directly from the registered pool URLs,"
+            <> " or \"none\" to completely disable stake pool metadata. "
+            <> "This setting will persist across restarts.")
   where
     reader :: String -> Either String PoolMetadataSource
     reader = left (const err) . fromTextS @PoolMetadataSource
