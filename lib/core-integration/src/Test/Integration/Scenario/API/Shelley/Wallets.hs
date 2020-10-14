@@ -28,7 +28,7 @@ import Cardano.Wallet.Api.Types
     , ApiT (..)
     , ApiTransaction
     , ApiUtxoStatistics
-    , ApiVerificationKeyHash
+    , ApiVerificationKeyHash (..)
     , ApiWallet
     , DecodeAddress
     , DecodeStakeAddress
@@ -42,6 +42,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , PassphraseMaxLength (..)
     , PassphraseMinLength (..)
     , PaymentAddress
+    , hex
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )
@@ -54,7 +55,11 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..) )
 import Cardano.Wallet.Primitive.Types
-    ( walletNameMaxLength, walletNameMinLength )
+    ( DerivationIndex (..)
+    , Hash (..)
+    , walletNameMaxLength
+    , walletNameMinLength
+    )
 import Control.Monad
     ( forM_ )
 import Data.Generics.Internal.VL.Lens
@@ -97,6 +102,7 @@ import Test.Integration.Framework.DSL
     , fixtureWallet
     , genMnemonics
     , getFromResponse
+    , getWalletKey
     , json
     , listAddresses
     , minUTxOValue
@@ -129,6 +135,7 @@ import qualified Cardano.Wallet.Api.Link as Link
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
 import qualified Network.HTTP.Types.Status as HTTP
 
 spec :: forall n t.
@@ -172,10 +179,6 @@ spec = describe "SHELLEY_WALLETS" $ do
 
     describe "OWASP_INJECTION_CREATE_WALLET_01 - \
              \SQL injection when creating a wallet" $  do
-        let mnemonics =
-                [ "pulp", "ten", "light", "rhythm", "replace"
-                , "vessel", "slow", "drift", "kingdom", "amazing"
-                , "negative", "join", "auction", "ugly", "symptom"] :: [Text]
         let matrix =
                 [ ( "new wallet\",'',''); DROP TABLE \"wallet\"; --"
                   , "new wallet\",'',''); DROP TABLE \"wallet\"; --"
@@ -187,7 +190,7 @@ spec = describe "SHELLEY_WALLETS" $ do
         forM_ matrix $ \(nameIn, nameOut) -> it nameIn $ \ctx -> do
             let payload = Json [json| {
                     "name": #{nameIn},
-                    "mnemonic_sentence": #{mnemonics},
+                    "mnemonic_sentence": #{explicitMnemonics},
                     "passphrase": "12345678910"
                     } |]
             let postWallet = Link.postWallet @'Shelley
@@ -1129,7 +1132,7 @@ spec = describe "SHELLEY_WALLETS" $ do
             verify r expectations
 
     describe "WALLETS_GET_KEY_01 - can get verification key hash for valid indices" $ do
-        let indices = fmap (ApiT . DerivationIndex) [ 0, 100, 2147483647 ]
+        let indices = [ 0, 100, 2147483647 ]
         forM_ indices $ \index -> it (show index) $ \ctx -> do
 
             m <- genMnemonics M15
@@ -1142,9 +1145,34 @@ spec = describe "SHELLEY_WALLETS" $ do
             verify r [ expectResponseCode @IO HTTP.status201 ]
             let apiWal = getFromResponse id r
 
-            let link = Link.getWalletKey (apiWal ^. id) index
+            let link = Link.getWalletKey (apiWal ^. id) (ApiT $ DerivationIndex index)
             rGet <- request @ApiVerificationKeyHash ctx link Default Empty
             verify rGet [ expectResponseCode @IO HTTP.status200 ]
+
+    describe "WALLETS_GET_KEY_02 - golden tests for verification key hashes" $ do
+    --- $ cat recovery-phrase.txt
+    -- pulp ten light rhythm replace vessel slow drift kingdom amazing negative join auction ugly symptom
+    --- $ cat recovery-phrase.txt | cardano-address key from-recovery-phrase Shelley > root.prv
+    --- $ cat root.prv \
+    --- > | cardano-address key child 1852H/1815H/0H/3/INDEX \
+    --- > | cardano-address key public \
+    --- > | cardano-address key hash --base16
+        let matrix = [ (0, "6b36aac60b70e47a7ed365e20d1a2ad9466c244b5d90227f0f4ecdcf")
+                      , (100, "99d083e217fe70e113ea57f40214c6a3ad44e2ebbe2e1fc3ac07a988")
+                      , (2147483647, "f9e4aab174b83f711a0e243cfee407cd0f24ac9fbf48f899ac660143") ]
+        forM_ matrix $ \(index, keyHash) -> it (show index) $ \ctx -> do
+            let payload = Json [json| {
+                    "name": "Wallet",
+                    "mnemonic_sentence": #{explicitMnemonics},
+                    "passphrase": #{fixturePassphrase}
+                    } |]
+            r <- request @ApiWallet ctx (Link.postWallet @'Shelley) Default payload
+            verify r [ expectResponseCode @IO HTTP.status201 ]
+            let apiWal = getFromResponse id r
+
+            (ApiVerificationKeyHash (ApiT (Hash h))) <-
+                getWalletKey ctx (apiWal ^. id) (ApiT $ DerivationIndex index)
+            T.decodeUtf8 (hex h) `shouldBe` keyHash
 
     it "BYRON_WALLETS_UTXO -\
         \ Cannot show Byron wal utxo with shelley ep (404)" $ \ctx -> do
@@ -1308,3 +1336,9 @@ spec = describe "SHELLEY_WALLETS" $ do
                     , expectField (#tip . #slotId . #slotNumber  . #getApiT) (`shouldBe` slotNum)
                     , expectField (#tip . #block . #height) (`shouldBe` blockHeight)
                     ]
+
+  where
+    explicitMnemonics =
+        [ "pulp", "ten", "light", "rhythm", "replace"
+        , "vessel", "slow", "drift", "kingdom", "amazing"
+        , "negative", "join", "auction", "ugly", "symptom"] :: [Text]
