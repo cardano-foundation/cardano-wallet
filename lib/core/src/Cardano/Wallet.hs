@@ -346,7 +346,7 @@ import Control.DeepSeq
 import Control.Exception
     ( Exception, try )
 import Control.Monad
-    ( forM, forM_, replicateM, unless, when )
+    ( forM_, replicateM, unless, when )
 import Control.Monad.IO.Class
     ( MonadIO, liftIO )
 import Control.Monad.Trans.Class
@@ -363,7 +363,7 @@ import Control.Monad.Trans.Except
 import Control.Monad.Trans.Maybe
     ( MaybeT (..), maybeToExceptT )
 import Control.Monad.Trans.State.Strict
-    ( runStateT, state )
+    ( StateT, runStateT, state )
 import Control.Tracer
     ( Tracer, contramap, traceWith )
 import Data.ByteString
@@ -1554,7 +1554,7 @@ handleNotSuccessfulCoinSelection _ =
 -- | Augments the given outputs with new outputs. These new outputs corresponds
 -- to change outputs to which new addresses are being assigned to. This updates
 -- the wallet state as it needs to keep track of new pending change addresses.
-assignChangeAddresses
+assignChangeAddressesForSelection
     :: forall s m.
         ( GenChange s
         , MonadIO m
@@ -1563,12 +1563,17 @@ assignChangeAddresses
     -> CoinSelection
     -> s
     -> m (CoinSelection, s)
-assignChangeAddresses argGenChange cs = runStateT $ do
-    chgsOuts <- forM (change cs) $ \c -> do
-        addr <- state (genChange argGenChange)
-        pure $ TxOut addr c
-    outs' <- liftIO $ shuffle (outputs cs ++ chgsOuts)
+assignChangeAddressesForSelection argGenChange cs = runStateT $ do
+    chgOuts <- assignChangeAddresses argGenChange (change cs)
+    outs' <- liftIO $ shuffle (outputs cs ++ chgOuts)
     pure $ cs { change = [], outputs = outs' }
+
+-- | Assigns addresses to the given change values.
+assignChangeAddresses
+    :: forall s m. (GenChange s, Monad m)
+    => ArgGenChange s -> [Coin] -> StateT s m [TxOut]
+assignChangeAddresses argGenChange =
+    mapM $ \coin -> flip TxOut coin <$> state (genChange argGenChange)
 
 -- | Produce witnesses and construct a transaction from a given
 -- selection. Requires the encryption passphrase in order to decrypt
@@ -1599,7 +1604,8 @@ signPayment ctx wid argGenChange mkRewardAccount pwd md cs = db & \DBLayer{..} -
         mapExceptT atomically $ do
             cp <- withExceptT ErrSignPaymentNoSuchWallet $ withNoSuchWallet wid $
                 readCheckpoint (PrimaryKey wid)
-            (cs', s') <- assignChangeAddresses argGenChange cs (getState cp)
+            (cs', s') <- assignChangeAddressesForSelection
+                argGenChange cs (getState cp)
             withExceptT ErrSignPaymentNoSuchWallet $
                 putCheckpoint (PrimaryKey wid) (updateState s' cp)
 
@@ -1684,7 +1690,8 @@ selectCoinsExternal ctx wid argGenChange selectCoins = do
         withExceptT ErrSelectCoinsExternalNoSuchWallet $
             mapExceptT atomically $ do
                 cp <- withNoSuchWallet wid $ readCheckpoint $ PrimaryKey wid
-                (cs', s') <- assignChangeAddresses argGenChange cs (getState cp)
+                (cs', s') <- assignChangeAddressesForSelection
+                    argGenChange cs (getState cp)
                 putCheckpoint (PrimaryKey wid) (updateState s' cp)
                 pure (cs', s')
     UnsignedTx
@@ -1728,7 +1735,8 @@ signDelegation ctx wid argGenChange pwd coinSel action = db & \DBLayer{..} -> do
         mapExceptT atomically $ do
             cp <- withExceptT ErrSignDelegationNoSuchWallet $ withNoSuchWallet wid $
                 readCheckpoint (PrimaryKey wid)
-            (coinSel', s') <- assignChangeAddresses argGenChange coinSel (getState cp)
+            (coinSel', s') <- assignChangeAddressesForSelection
+                argGenChange coinSel (getState cp)
 
             withExceptT ErrSignDelegationNoSuchWallet $
                 putCheckpoint (PrimaryKey wid) (updateState s' cp)
