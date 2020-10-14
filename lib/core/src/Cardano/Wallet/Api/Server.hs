@@ -2298,6 +2298,11 @@ instance Buildable e => LiftHandler (ErrSelectCoinsExternal e) where
                 [ "I'm unable to assign inputs from coin selection: "
                 , pretty e
                 ]
+        ErrSelectCoinsExternalUnableToAssignChange e ->
+            apiError err500 UnexpectedError $ mconcat
+                [ "I was unable to assign change from the coin selection: "
+                , pretty e
+                ]
 
 instance Buildable e => LiftHandler (ErrCoinSelection e) where
     handler = \case

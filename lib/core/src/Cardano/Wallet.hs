@@ -309,6 +309,7 @@ import Cardano.Wallet.Primitive.Types
     , SortOrder (..)
     , TransactionInfo (..)
     , Tx
+    , TxChange (..)
     , TxIn
     , TxMeta (..)
     , TxMetadata
@@ -612,7 +613,7 @@ createIcarusWallet ctx wid wname credentials = db & \DBLayer{..} -> do
     let s = mkSeqStateFromRootXPrv @n credentials purposeBIP44 $
             mkUnboundedAddressPoolGap 10000
     let (hist, cp) = initWallet block0 gp s
-    let addrs = map address . concatMap (view #outputs . fst) $ hist
+    let addrs = map (view #address) . concatMap (view #outputs . fst) $ hist
     let g  = defaultAddressPoolGap
     let s' = Seq.SeqState
             (shrinkPool @n (liftPaymentAddress @n) addrs g (Seq.internalPool s))
@@ -1672,40 +1673,69 @@ signTx ctx wid pwd md (UnsignedTx inpsNE outs _change) = db & \DBLayer{..} ->
 
 -- | Makes a fully-resolved coin selection for the given set of payments.
 selectCoinsExternal
-    :: forall ctx s k e input output change.
+    :: forall ctx s k e error input output change.
         ( GenChange s
         , HasDBLayer s k ctx
         , IsOurs s Address
         , input ~ (TxIn, TxOut, NonEmpty DerivationIndex)
         , output ~ TxOut
+        , change ~ TxChange (NonEmpty DerivationIndex)
+        , error ~ ErrSelectCoinsExternal e
         )
     => ctx
     -> WalletId
     -> ArgGenChange s
-    -> ExceptT (ErrSelectCoinsExternal e) IO CoinSelection
-    -> ExceptT (ErrSelectCoinsExternal e) IO (UnsignedTx input output change)
+    -> ExceptT error IO CoinSelection
+    -> ExceptT error IO (UnsignedTx input output change)
 selectCoinsExternal ctx wid argGenChange selectCoins = do
     cs <- selectCoins
-    (cs', s') <- db & \DBLayer{..} ->
+    (changeOutputs, s) <- db & \DBLayer{..} ->
         withExceptT ErrSelectCoinsExternalNoSuchWallet $
             mapExceptT atomically $ do
                 cp <- withNoSuchWallet wid $ readCheckpoint $ PrimaryKey wid
-                (cs', s') <- assignChangeAddressesForSelection
-                    argGenChange cs (getState cp)
-                putCheckpoint (PrimaryKey wid) (updateState s' cp)
-                pure (cs', s')
+                (changeOutputs, s) <- flip runStateT (getState cp) $
+                    assignChangeAddresses argGenChange (change cs)
+                putCheckpoint (PrimaryKey wid) (updateState s cp)
+                pure (changeOutputs, s)
     UnsignedTx
-        <$> (fullyQualifiedInputs s' cs'
-                (ErrSelectCoinsExternalUnableToAssignInputs cs'))
-        <*> pure (outputs cs')
-        <*> pure []
+        <$> fullyQualifiedInputs s (inputs cs)
+                (ErrSelectCoinsExternalUnableToAssignInputs cs)
+        <*> pure (outputs cs)
+        <*> fullyQualifiedChange s changeOutputs
+                (ErrSelectCoinsExternalUnableToAssignChange cs)
   where
     db = ctx ^. dbLayer @s @k
+
+    fullyQualifiedInputs
+        :: s -> [(TxIn, TxOut)] -> error -> ExceptT error IO (NonEmpty input)
+    fullyQualifiedInputs s inputs e =
+        traverse withDerivationPath inputs >>= flip ensureNonEmpty e
+      where
+        withDerivationPath :: (TxIn, TxOut) -> ExceptT error IO input
+        withDerivationPath (txin, txout) = do
+            case fst $ isOurs (view #address txout) s of
+                Nothing -> throwE e
+                Just path -> pure (txin, txout, path)
+
+    fullyQualifiedChange
+        :: s -> [TxOut] -> error -> ExceptT error IO [change]
+    fullyQualifiedChange s txouts e = traverse withDerivationPath txouts
+      where
+        withDerivationPath :: TxOut -> ExceptT error IO change
+        withDerivationPath txout =
+            case fst $ isOurs (view #address txout) s of
+                Nothing -> throwE e
+                Just derivationPath -> pure $ TxChange
+                    { address = view #address txout
+                    , amount = view #coin txout
+                    , derivationPath
+                    }
 
 data ErrSelectCoinsExternal e
     = ErrSelectCoinsExternalNoSuchWallet ErrNoSuchWallet
     | ErrSelectCoinsExternalForPayment (ErrSelectForPayment e)
     | ErrSelectCoinsExternalForDelegation ErrSelectForDelegation
+    | ErrSelectCoinsExternalUnableToAssignChange CoinSelection
     | ErrSelectCoinsExternalUnableToAssignInputs CoinSelection
     deriving (Eq, Show)
 
@@ -2439,24 +2469,6 @@ guardCoinSelection minUtxoValue cs@CoinSelection{outputs, change} = do
             filter (< minUtxoValue) (outputCoins ++ change)
     unless (L.null invalidTxOuts) $
         Left (ErrUTxOTooSmall (getCoin minUtxoValue) (getCoin <$> invalidTxOuts))
-
-fullyQualifiedInputs
-    :: forall s e.
-        (IsOurs s Address)
-    => s
-    -> CoinSelection
-    -> e
-    -> ExceptT e IO (NonEmpty (TxIn, TxOut, NonEmpty DerivationIndex))
-fullyQualifiedInputs s cs e =
-    traverse withDerivationPath (inputs cs) >>= flip ensureNonEmpty e
-  where
-    withDerivationPath
-        :: (TxIn, TxOut)
-        -> ExceptT e IO (TxIn, TxOut, NonEmpty DerivationIndex)
-    withDerivationPath (txin, txout) = do
-        case fst $ isOurs (address txout) s of
-            Nothing -> throwE e
-            Just path -> pure (txin, txout, path)
 
 ensureNonEmpty
     :: forall a e.
