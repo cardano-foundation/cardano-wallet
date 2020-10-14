@@ -167,6 +167,7 @@ import Cardano.Wallet.Api.Types
     , ApiByronWallet (..)
     , ApiByronWalletBalance (..)
     , ApiCoinSelection (..)
+    , ApiCoinSelectionChange (..)
     , ApiCoinSelectionInput (..)
     , ApiEpochInfo (ApiEpochInfo)
     , ApiErrorCode (..)
@@ -297,6 +298,7 @@ import Cardano.Wallet.Primitive.Types
     , SortOrder (..)
     , TransactionInfo (TransactionInfo)
     , Tx (..)
+    , TxChange (..)
     , TxIn (..)
     , TxOut (..)
     , TxStatus (..)
@@ -1895,15 +1897,16 @@ mkApiCoinSelection
     :: forall n input output change.
         ( input ~ (TxIn, TxOut, NonEmpty DerivationIndex)
         , output ~ TxOut
+        , change ~ TxChange (NonEmpty DerivationIndex)
         )
     => Maybe (DelegationAction, NonEmpty DerivationIndex)
     -> UnsignedTx input output change
     -> ApiCoinSelection n
-mkApiCoinSelection mcerts (UnsignedTx inputs outputs _) =
+mkApiCoinSelection mcerts (UnsignedTx inputs outputs change) =
     ApiCoinSelection
         (mkApiCoinSelectionInput <$> inputs)
         (mkAddressAmount <$> outputs)
-        []
+        (mkApiCoinSelectionChange <$> change)
         (fmap (uncurry mkCertificates) mcerts)
   where
     mkCertificates
@@ -1939,6 +1942,17 @@ mkApiCoinSelection mcerts (UnsignedTx inputs outputs _) =
             , address = (ApiT addr, Proxy @n)
             , amount = Quantity $ fromIntegral c
             , derivationPath = ApiT <$> path
+            }
+
+    mkApiCoinSelectionChange :: change -> ApiCoinSelectionChange n
+    mkApiCoinSelectionChange txChange =
+        ApiCoinSelectionChange
+            { address =
+                (ApiT $ view #address txChange, Proxy @n)
+            , amount =
+                Quantity $ fromIntegral $ getCoin $ view #amount txChange
+            , derivationPath =
+                ApiT <$> view #derivationPath txChange
             }
 
 mkApiTransaction
