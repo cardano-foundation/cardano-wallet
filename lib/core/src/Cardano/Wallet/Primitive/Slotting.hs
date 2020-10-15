@@ -28,6 +28,8 @@ module Cardano.Wallet.Primitive.Slotting
     , ongoingSlotAt
     , ceilingSlotAt
     , endTimeOfEpoch
+    , querySlotLength
+    , queryEpochLength
 
     -- ** Running queries
     , TimeInterpreter
@@ -66,12 +68,12 @@ import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
     , EpochLength (..)
     , EpochNo (..)
-    , GenesisParameters (..)
     , Range (..)
     , SlotId (..)
     , SlotInEpoch (..)
     , SlotLength (..)
     , SlotNo (..)
+    , SlottingParameters (..)
     , StartTime (..)
     , unsafeEpochNo
     , wholeRange
@@ -246,6 +248,22 @@ slotAtTimeDetailed t = do
         Just relTime -> fmap Just $ HardForkQry $ HF.wallclockToSlot relTime
         Nothing -> return Nothing
 
+querySlotLength :: SlotNo -> Qry SlotLength
+querySlotLength sl =
+    fmap (SlotLength . Cardano.getSlotLength) $
+    HardForkQry $
+    HF.qryFromExpr $
+    HF.ESlotLength $
+    HF.ELit sl
+
+queryEpochLength :: SlotNo -> Qry EpochLength
+queryEpochLength sl = fmap toEpochLength $ HardForkQry $ do
+    (e, _, _) <- HF.slotToEpoch sl
+    HF.epochToSize e
+  where
+    -- converting up from Word32 to Word64
+    toEpochLength = EpochLength . fromIntegral . Cardano.unEpochSize
+
 -- A @TimeInterpreter@ is a way for the wallet to run things of type @Qry a@.
 --
 -- NOTE:
@@ -265,13 +283,14 @@ type TimeInterpreter m = forall a. Qry a -> m a
 -- a 'PastHorizonException' if they do.
 singleEraInterpreter
     :: HasCallStack
-    => GenesisParameters
+    => StartTime
+    -> SlottingParameters
     -> TimeInterpreter Identity
-singleEraInterpreter gp = mkTimeInterpreterI (mkInterpreter summary)
+singleEraInterpreter genesisBlockTime sp = mkTimeInterpreterI (mkInterpreter summary)
   where
     summary = neverForksSummary sz len
-    sz = Cardano.EpochSize $ fromIntegral $ unEpochLength $ gp ^. #getEpochLength
-    len = Cardano.mkSlotLength $ unSlotLength $ gp ^. #getSlotLength
+    sz = Cardano.EpochSize $ fromIntegral $ unEpochLength $ sp ^. #getEpochLength
+    len = Cardano.mkSlotLength $ unSlotLength $ sp ^. #getSlotLength
 
     mkTimeInterpreterI
         :: HasCallStack
@@ -279,7 +298,7 @@ singleEraInterpreter gp = mkTimeInterpreterI (mkInterpreter summary)
         -> TimeInterpreter Identity
     mkTimeInterpreterI int q = neverFails $ runQuery start int q
       where
-        start = coerce (gp ^. #getGenesisBlockDate)
+        start = coerce genesisBlockTime
 
         neverFails = either bomb pure
         bomb x = error $ "singleEraInterpreter: the impossible happened: " <> show x
@@ -349,12 +368,12 @@ data SlotParameters = SlotParameters
         :: ActiveSlotCoefficient
     } deriving (Eq, Generic, Show)
 
-slotParams :: GenesisParameters -> SlotParameters
-slotParams gp = SlotParameters
-    (gp ^. #getEpochLength)
-    (gp ^. #getSlotLength)
-    (gp ^. #getGenesisBlockDate)
-    (gp ^. #getActiveSlotCoefficient)
+slotParams :: StartTime -> SlottingParameters -> SlotParameters
+slotParams t0 sp = SlotParameters
+    (sp ^. #getEpochLength)
+    (sp ^. #getSlotLength)
+    t0
+    (sp ^. #getActiveSlotCoefficient)
 
 -- | Calculate the time at which an epoch begins.
 epochStartTime :: SlotParameters -> EpochNo -> UTCTime

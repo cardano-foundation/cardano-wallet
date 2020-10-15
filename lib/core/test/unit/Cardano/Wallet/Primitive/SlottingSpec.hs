@@ -32,12 +32,11 @@ import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient
     , EpochLength (..)
     , EpochNo (..)
-    , GenesisParameters (..)
     , Hash (..)
     , Range (..)
     , SlotId (..)
-    , SlotId (epochNumber)
     , SlotLength (..)
+    , SlottingParameters (..)
     , StartTime (..)
     )
 import Data.Functor.Identity
@@ -68,45 +67,45 @@ spec = do
                 $ property $ legacySlottingTest slotStartTime startTime
 
             it "slotRangeFromTimeRange and slotRangeFromTimeRange'"
-                $ withMaxSuccess 10000 $ property $ \gp timeRange -> do
+                $ withMaxSuccess 10000 $ property $ \t0 sp timeRange -> do
                     -- NOTE: The old impementation breaks for large times /
                     -- slotNos. After only generating SlotLengths of 1s or
                     -- bigger, it should hopefully always work.
-                    let sp = slotParams gp
-                    let res = runIdentity $ singleEraInterpreter gp
+                    let res = runIdentity $ singleEraInterpreter t0 sp
                             (slotRangeFromTimeRange timeRange)
 
-                    let legacy = slotRangeFromTimeRange' sp timeRange
+                    let legacy = slotRangeFromTimeRange' (slotParams t0 sp) timeRange
 
-                    let res' = fmap (fromFlatSlot (getEpochLength gp)
-                            . unSlotNo) <$> res
+                    let el = getEpochLength sp
+                    let res' = fmap (fromFlatSlot el . unSlotNo) <$> res
                     res' === legacy
 
             it "(firstSlotInEpoch e) vs (SlotId e 0) "
-                $ withMaxSuccess 10000 $ property $ \gp e -> do
-                    let res = runIdentity $ singleEraInterpreter gp
+                $ withMaxSuccess 10000 $ property $ \t0 sp e -> do
+                    let res = runIdentity $ singleEraInterpreter t0 sp
                             (firstSlotInEpoch e)
-                    let legacy = SlotNo $ flatSlot (getEpochLength gp) $ SlotId e 0
+                    let legacy = SlotNo $ flatSlot (getEpochLength sp) $ SlotId e 0
 
                     res === legacy
 
         it "endTimeOfEpoch e == (startTime =<< firstSlotInEpoch (e + 1)) \
            \ (always true useing singleEraInterpreter)"
-            $ withMaxSuccess 10000 $ property $ \gp e -> do
-                let run = runIdentity . singleEraInterpreter gp
+            $ withMaxSuccess 10000 $ property $ \t0 sp e -> do
+                let run = runIdentity . singleEraInterpreter t0 sp
                 run (endTimeOfEpoch e)
                     === run (startTime =<< firstSlotInEpoch (e + 1))
 legacySlottingTest
     :: (Eq a, Show a)
     => (SlotParameters -> SlotId -> a)
     -> (SlotNo -> Qry a)
-    -> GenesisParameters
+    -> StartTime
+    -> SlottingParameters
     -> SlotNo
     -> Property
-legacySlottingTest legacyImpl newImpl gp slotNo = withMaxSuccess 10000 $ do
-    let res = runIdentity $ singleEraInterpreter gp (newImpl slotNo)
-    let legacy = legacyImpl (slotParams gp) $ fromFlatSlot
-            (getEpochLength gp)
+legacySlottingTest legacyImpl newImpl t0 sp slotNo = withMaxSuccess 10000 $ do
+    let res = runIdentity $ singleEraInterpreter t0 sp (newImpl slotNo)
+    let legacy = legacyImpl (slotParams t0 sp) $ fromFlatSlot
+            (getEpochLength sp)
             (unSlotNo slotNo)
     res === legacy
 
@@ -120,7 +119,7 @@ instance Arbitrary EpochNo where
     arbitrary = EpochNo . fromIntegral <$> (arbitrary @Word32)
     shrink _ = []
 
-instance Arbitrary GenesisParameters where
+instance Arbitrary SlottingParameters where
     arbitrary = genericArbitrary
     shrink = genericShrink
 

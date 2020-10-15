@@ -138,6 +138,7 @@ import Cardano.Wallet.Primitive.Types
     , PoolId
     , ProtocolParameters (..)
     , SlotNo (..)
+    , SlottingParameters (..)
     )
 import Control.Concurrent.MVar.Lifted
     ( MVar, modifyMVar, newMVar, readMVar )
@@ -338,7 +339,9 @@ mkRawNetworkLayer np batchSize st tipNotify j = NetworkLayer
         _getAccountBalance
 
     , timeInterpreter =
-        pure . runIdentity . singleEraInterpreter (genesisParameters np)
+        pure . runIdentity . singleEraInterpreter
+        (getGenesisBlockDate (genesisParameters np))
+        (slottingParameters np)
 
     , watchNodeTip =
         _watchNodeTip
@@ -358,7 +361,7 @@ mkRawNetworkLayer np batchSize st tipNotify j = NetworkLayer
     genesis :: Hash "Genesis"
     genesis = getGenesisBlockHash $ genesisParameters np
 
-    el :: EpochLength = getEpochLength $ genesisParameters np
+    el :: EpochLength = getEpochLength $ slottingParameters np
 
     _currentNodeTip :: ExceptT ErrCurrentNodeTip m BlockHeader
     _currentNodeTip = modifyMVar st $ \bs -> do

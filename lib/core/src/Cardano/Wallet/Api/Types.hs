@@ -201,6 +201,7 @@ import Cardano.Wallet.Primitive.Types
     , SlotInEpoch (..)
     , SlotLength (..)
     , SlotNo (..)
+    , SlottingParameters (..)
     , StakePoolMetadata
     , StartTime (..)
     , TxIn (..)
@@ -676,18 +677,18 @@ data ApiNetworkParameters = ApiNetworkParameters
 toApiNetworkParameters
     :: NetworkParameters
     -> (ApiNetworkParameters, Maybe EpochNo)
-toApiNetworkParameters (NetworkParameters gp pp) = (np, view #hardforkEpochNo pp)
+toApiNetworkParameters (NetworkParameters gp sp pp) = (np, view #hardforkEpochNo pp)
   where
     np = ApiNetworkParameters
         { genesisBlockHash = ApiT $ getGenesisBlockHash gp
         , blockchainStartTime = ApiT $ getGenesisBlockDate gp
-        , slotLength = Quantity $ unSlotLength $ getSlotLength gp
-        , epochLength = Quantity $ unEpochLength $ getEpochLength gp
+        , slotLength = Quantity $ unSlotLength $ getSlotLength sp
+        , epochLength = Quantity $ unEpochLength $ getEpochLength sp
         , epochStability = getEpochStability gp
         , activeSlotCoefficient = Quantity
             $ (*100)
             $ unActiveSlotCoefficient
-            $ getActiveSlotCoefficient gp
+            $ getActiveSlotCoefficient sp
         , decentralizationLevel = Quantity
             $ unDecentralizationLevel
             $ view #decentralizationLevel pp

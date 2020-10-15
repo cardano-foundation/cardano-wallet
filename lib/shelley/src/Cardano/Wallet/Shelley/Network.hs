@@ -337,7 +337,8 @@ withNetworkLayer tr np addrInfo versionData action = do
         { getGenesisBlockHash
         , getGenesisBlockDate
         } = W.genesisParameters np
-    cfg = codecConfig gp
+    sp = W.slottingParameters np
+    cfg = codecConfig sp
 
     -- Put if empty, replace if not empty.
     repsertTMVar var x = do
@@ -383,7 +384,7 @@ withNetworkLayer tr np addrInfo versionData action = do
     _initCursor :: HasCallStack => [W.BlockHeader] -> IO (Cursor (IO Shelley))
     _initCursor headers = do
         chainSyncQ <- atomically newTQueue
-        client <- mkWalletClient (contramap MsgChainSyncCmd tr) gp chainSyncQ
+        client <- mkWalletClient (contramap MsgChainSyncCmd tr) cfg gp chainSyncQ
         let handlers = failOnConnectionLost tr
         thread <- async (connectClient tr handlers client versionData addrInfo)
         link thread
@@ -530,12 +531,13 @@ type NetworkClient m = OuroborosApplication
 mkWalletClient
     :: (MonadThrow m, MonadST m, MonadTimer m, MonadAsync m)
     => Tracer m (ChainSyncLog Text Text)
+    -> CodecConfig (CardanoBlock StandardCrypto)
     -> W.GenesisParameters
         -- ^ Static blockchain parameters
     -> TQueue m (ChainSyncCmd (CardanoBlock StandardCrypto) m)
         -- ^ Communication channel with the ChainSync client
     -> m (NetworkClient m)
-mkWalletClient tr gp chainSyncQ = do
+mkWalletClient tr cfg gp chainSyncQ = do
     stash <- atomically newTQueue
     pure $ nodeToClientProtocols (const $ return $ NodeToClientProtocols
         { localChainSyncProtocol =
@@ -563,7 +565,6 @@ mkWalletClient tr gp chainSyncQ = do
             , pretty $ fromCardanoHash $ Point.blockPointHash blk
             , ")"
             ]
-    cfg = codecConfig gp
 
 -- | Construct a network client with the given communication channel, for the
 -- purposes of querying delegations and rewards.
@@ -606,8 +607,8 @@ codecVersion :: BlockNodeToClientVersion (CardanoBlock StandardCrypto)
 codecVersion = verMap ! nodeToClientVersion
     where verMap = supportedNodeToClientVersions (Proxy @(CardanoBlock StandardCrypto))
 
-codecConfig :: W.GenesisParameters -> CodecConfig (CardanoBlock c)
-codecConfig gp = CardanoCodecConfig (byronCodecConfig gp) ShelleyCodecConfig
+codecConfig :: W.SlottingParameters -> CodecConfig (CardanoBlock c)
+codecConfig sp = CardanoCodecConfig (byronCodecConfig sp) ShelleyCodecConfig
 
 -- | A group of codecs which will deserialise block data.
 codecs
@@ -716,10 +717,10 @@ mkTipSyncClient tr np localTxSubmissionQ onTipUpdate onPParamsUpdate onInterpret
                     traceWith tr $ MsgInterpreter interpreter
                     onInterpreterUpdate interpreter
 
-        gp@W.GenesisParameters
+        W.GenesisParameters
              { getGenesisBlockHash
              } = W.genesisParameters np
-        cfg = codecConfig gp
+        cfg = codecConfig (W.slottingParameters np)
 
     onTipUpdate' <- debounce @(Tip (CardanoBlock StandardCrypto)) @m $ \tip' -> do
         let tip = castTip tip'

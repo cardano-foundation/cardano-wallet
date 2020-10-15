@@ -576,12 +576,14 @@ fromGenesisData g initialFunds =
             { getGenesisBlockHash = dummyGenesisHash
             , getGenesisBlockDate =
                 W.StartTime . sgSystemStart $ g
-            , getSlotLength =
+            , getEpochStability =
+                Quantity . fromIntegral . sgSecurityParam $ g
+            }
+        , slottingParameters = W.SlottingParameters
+            { getSlotLength =
                 W.SlotLength $ sgSlotLength g
             , getEpochLength =
                 W.EpochLength . fromIntegral . unEpochSize . sgEpochLength $ g
-            , getEpochStability =
-                Quantity . fromIntegral . sgSecurityParam $ g
             , getActiveSlotCoefficient =
                 W.ActiveSlotCoefficient . fromRational . sgActiveSlotsCoeff $ g
             }

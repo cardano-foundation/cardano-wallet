@@ -34,6 +34,7 @@ import Cardano.Wallet.Primitive.Types
     , ProtocolParameters (..)
     , SlotLength (..)
     , SlotNo (..)
+    , SlottingParameters (..)
     , StartTime (..)
     , Tx (..)
     , TxIn (..)
@@ -85,16 +86,22 @@ dummyGenesisParameters :: GenesisParameters
 dummyGenesisParameters = GenesisParameters
     { getGenesisBlockHash = genesisHash
     , getGenesisBlockDate = StartTime $ posixSecondsToUTCTime 0
-    , getSlotLength = SlotLength 1
-    , getEpochLength = EpochLength 21600
     , getEpochStability = Quantity 2160
+    }
+
+dummySlottingParameters :: SlottingParameters
+dummySlottingParameters = SlottingParameters
+    { getSlotLength = SlotLength 1
+    , getEpochLength = EpochLength 21600
     , getActiveSlotCoefficient = ActiveSlotCoefficient 1
     }
 
 dummyTimeInterpreter :: Monad m => TimeInterpreter m
 dummyTimeInterpreter = pure
     . runIdentity
-    . singleEraInterpreter dummyGenesisParameters
+    . singleEraInterpreter
+        (getGenesisBlockDate dummyGenesisParameters)
+        dummySlottingParameters
 
 dummyTxParameters :: TxParameters
 dummyTxParameters = TxParameters
@@ -105,6 +112,7 @@ dummyTxParameters = TxParameters
 dummyNetworkParameters :: NetworkParameters
 dummyNetworkParameters = NetworkParameters
     { genesisParameters = dummyGenesisParameters
+    , slottingParameters = dummySlottingParameters
     , protocolParameters = dummyProtocolParameters
     }
 

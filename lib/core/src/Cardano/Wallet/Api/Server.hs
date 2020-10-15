@@ -1818,8 +1818,11 @@ getNetworkParameters
     -> Handler ApiNetworkParameters
 getNetworkParameters (_block0, np, _st) nl = do
     pp <- liftIO $ NW.getProtocolParameters nl
-    let (apiNetworkParams, epochNoM) =
-            toApiNetworkParameters np { protocolParameters = pp }
+    let pastHorizon :: PastHorizonException -> IO W.SlottingParameters
+        pastHorizon _ = pure (slottingParameters np)
+    sp <- liftIO $ handle pastHorizon $ NW.getSlottingParametersForTip nl
+    let (apiNetworkParams, epochNoM) = toApiNetworkParameters np
+            { protocolParameters = pp, slottingParameters = sp }
     case epochNoM of
         Just epochNo -> do
             epochStartTime <-
@@ -2170,7 +2173,7 @@ registerWorker
 registerWorker ctx coworker wid =
     void $ Registry.register @_ @ctx re ctx wid config
   where
-    (_, NetworkParameters gp _, _) = ctx ^. genesisData
+    (_, NetworkParameters gp _ _, _) = ctx ^. genesisData
     re = ctx ^. workerRegistry
     df = ctx ^. dbFactory
     config = MkWorker
