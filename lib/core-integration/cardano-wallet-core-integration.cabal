@@ -29,7 +29,8 @@ library
     ghc-options:
       -Werror
   build-depends:
-      QuickCheck
+      HUnit
+    , QuickCheck
     , aeson
     , aeson-qq
     , async
