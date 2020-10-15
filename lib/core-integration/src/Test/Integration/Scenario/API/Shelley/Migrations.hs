@@ -36,6 +36,8 @@ import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey )
+import Control.Concurrent
+    ( threadDelay )
 import Control.Monad
     ( forM_ )
 import Data.Generics.Internal.VL.Lens
@@ -69,6 +71,7 @@ import Test.Integration.Framework.DSL
     , icarusAddresses
     , json
     , listAddresses
+    , oneSecond
     , randomAddresses
     , request
     , unsafeRequest
@@ -220,6 +223,9 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                         (#balance . #getApiT . #total)
                         ( `shouldBe` Quantity expectedBalance)
                 ]
+
+        -- #2238 quick fix to reduce likelihood of rollback.
+        threadDelay $ 10 * oneSecond
 
         -- Analyze the target wallet UTxO distribution
         request @ApiUtxoStatistics ctx (Link.getUTxOsStatistics @'Shelley wNew)

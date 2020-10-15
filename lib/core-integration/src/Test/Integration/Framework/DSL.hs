@@ -114,6 +114,7 @@ module Test.Integration.Framework.DSL
     , rootPrvKeyFromMnemonics
     , unsafeGetTransactionTime
     , getTxId
+    , oneSecond
 
     -- * Delegation helpers
     , mkEpochInfo
