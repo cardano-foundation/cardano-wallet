@@ -169,6 +169,7 @@ import Cardano.Wallet.Api.Types
     , ApiCoinSelection (..)
     , ApiCoinSelectionChange (..)
     , ApiCoinSelectionInput (..)
+    , ApiCoinSelectionOutput (..)
     , ApiEpochInfo (ApiEpochInfo)
     , ApiErrorCode (..)
     , ApiFee (..)
@@ -1905,7 +1906,7 @@ mkApiCoinSelection
 mkApiCoinSelection mcerts (UnsignedTx inputs outputs change) =
     ApiCoinSelection
         (mkApiCoinSelectionInput <$> inputs)
-        (mkAddressAmount <$> outputs)
+        (mkApiCoinSelectionOutput <$> outputs)
         (mkApiCoinSelectionChange <$> change)
         (fmap (uncurry mkCertificates) mcerts)
   where
@@ -1930,10 +1931,6 @@ mkApiCoinSelection mcerts (UnsignedTx inputs outputs change) =
       where
         apiStakePath = ApiT <$> xs
 
-    mkAddressAmount :: output -> AddressAmount (ApiT Address, Proxy n)
-    mkAddressAmount (TxOut addr (Coin c)) =
-        AddressAmount (ApiT addr, Proxy @n) (Quantity $ fromIntegral c)
-
     mkApiCoinSelectionInput :: input -> ApiCoinSelectionInput n
     mkApiCoinSelectionInput (TxIn txid index, TxOut addr (Coin c), path) =
         ApiCoinSelectionInput
@@ -1943,6 +1940,10 @@ mkApiCoinSelection mcerts (UnsignedTx inputs outputs change) =
             , amount = Quantity $ fromIntegral c
             , derivationPath = ApiT <$> path
             }
+
+    mkApiCoinSelectionOutput :: output -> ApiCoinSelectionOutput n
+    mkApiCoinSelectionOutput (TxOut addr (Coin c)) =
+        ApiCoinSelectionOutput (ApiT addr, Proxy @n) (Quantity $ fromIntegral c)
 
     mkApiCoinSelectionChange :: change -> ApiCoinSelectionChange n
     mkApiCoinSelectionChange txChange =

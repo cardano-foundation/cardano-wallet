@@ -24,6 +24,7 @@ import Cardano.Wallet.Api.Types
     , ApiByronWallet
     , ApiCoinSelection
     , ApiCoinSelectionInput (derivationPath)
+    , ApiCoinSelectionOutput (..)
     , ApiNetworkInformation
     , ApiT (..)
     , ApiTransaction
@@ -923,6 +924,7 @@ spec = describe "SHELLEY_WALLETS" $ do
             targetAddress : _ <- fmap (view #id) <$> listAddresses @n ctx target
             let amount = Quantity minUTxOValue
             let payment = AddressAmount targetAddress amount
+            let output = ApiCoinSelectionOutput targetAddress amount
             let hasValidDerivationPath input =
                     ( length (derivationPath input) == 5 )
                     &&
@@ -940,7 +942,7 @@ spec = describe "SHELLEY_WALLETS" $ do
                 , expectField #outputs
                     (`shouldSatisfy` ((> 1) . length))
                 , expectField #outputs
-                    (`shouldSatisfy` (payment `elem`))
+                    (`shouldSatisfy` (output `elem`))
                 ]
 
     let satisfy = flip shouldSatisfy
@@ -955,6 +957,9 @@ spec = describe "SHELLEY_WALLETS" $ do
             let payments = NE.fromList
                     $ take paymentCount
                     $ zipWith AddressAmount targetAddresses amounts
+            let outputs = NE.fromList
+                    $ take paymentCount
+                    $ zipWith ApiCoinSelectionOutput targetAddresses amounts
             selectCoins @_ @'Shelley ctx source payments >>= flip verify
                 [ expectResponseCode
                     HTTP.status200
@@ -963,7 +968,7 @@ spec = describe "SHELLEY_WALLETS" $ do
                 , expectField
                     #outputs (satisfy $ (> paymentCount) . length)
                 , expectField
-                    #outputs (satisfy $ flip all payments . flip elem)
+                    #outputs (satisfy $ flip all outputs . flip elem)
                 ]
 
     it "WALLETS_COIN_SELECTION_03 - \

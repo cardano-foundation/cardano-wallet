@@ -19,6 +19,7 @@ import Cardano.Mnemonic
 import Cardano.Wallet.Api.Types
     ( AddressAmount (..)
     , ApiAddress
+    , ApiCoinSelectionOutput (..)
     , ApiFee
     , ApiTransaction
     , ApiUtxoStatistics
@@ -304,11 +305,12 @@ spec = describe "SHELLEY_HW_WALLETS" $ do
 
             let amount = Quantity minUTxOValue
             let payment = AddressAmount targetAddress amount
+            let output = ApiCoinSelectionOutput targetAddress amount
             selectCoins @n @'Shelley ctx source (payment :| []) >>= flip verify
                 [ expectResponseCode HTTP.status200
                 , expectField #inputs (`shouldSatisfy` (not . null))
                 , expectField #outputs (`shouldSatisfy` ((> 1) . length))
-                , expectField #outputs (`shouldSatisfy` (payment `elem`))
+                , expectField #outputs (`shouldSatisfy` (output `elem`))
                 ]
 
     describe "HW_WALLETS_05 - Wallet from pubKey is available" $ do

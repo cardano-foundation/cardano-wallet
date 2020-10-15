@@ -52,6 +52,7 @@ import Cardano.Wallet.Api.Types
     , ApiCoinSelection (..)
     , ApiCoinSelectionChange (..)
     , ApiCoinSelectionInput (..)
+    , ApiCoinSelectionOutput (..)
     , ApiEpochInfo (..)
     , ApiFee (..)
     , ApiMnemonicT (..)
@@ -326,6 +327,7 @@ spec = do
             jsonRoundtripAndGolden $ Proxy @(ApiCoinSelection ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @(ApiCoinSelectionChange ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @(ApiCoinSelectionInput ('Testnet 0))
+            jsonRoundtripAndGolden $ Proxy @(ApiCoinSelectionOutput ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @ApiBlockReference
             jsonRoundtripAndGolden $ Proxy @ApiSlotReference
             jsonRoundtripAndGolden $ Proxy @ApiNetworkInformation
@@ -659,6 +661,16 @@ spec = do
                     }
             in
                 x' === x .&&. show x' === show x
+        it "ApiCoinSelectionOutput" $ property $ \x ->
+            let
+                x' = ApiCoinSelectionOutput
+                    { address = address
+                        (x :: ApiCoinSelectionOutput ('Testnet 0))
+                    , amount = amount
+                        (x :: ApiCoinSelectionOutput ('Testnet 0))
+                    }
+            in
+                x' === x .&&. show x' === show x
         it "ApiWallet" $ property $ \x ->
             let
                 x' = ApiWallet
@@ -989,6 +1001,10 @@ instance Arbitrary (ApiCoinSelectionInput n) where
         <*> fmap (, Proxy @n) arbitrary
         <*> arbitrary
         <*> arbitrary
+    shrink _ = []
+
+instance Arbitrary (ApiCoinSelectionOutput a) where
+    arbitrary = applyArbitrary2 ApiCoinSelectionOutput
     shrink _ = []
 
 instance Arbitrary AddressState where
