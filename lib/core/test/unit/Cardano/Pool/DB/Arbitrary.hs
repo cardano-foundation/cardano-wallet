@@ -324,6 +324,7 @@ genStakePoolMetadata (StakePoolMetadataUrl url) = StakePoolMetadata
     <*> genPrintableText
     <*> oneof [ pure Nothing, Just <$> genPrintableText ]
     <*> pure url
+    <*> pure False
 
 genStakePoolTicker :: Gen StakePoolTicker
 genStakePoolTicker = (StakePoolTicker . T.pack) <$>

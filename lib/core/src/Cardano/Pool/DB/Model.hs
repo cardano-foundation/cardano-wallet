@@ -60,6 +60,7 @@ module Cardano.Pool.DB.Model
     , mRollbackTo
     , mReadCursor
     , mRemovePools
+    , mDelistPools
     , mRemoveRetiredPools
     , mReadSettings
     , mPutSettings
@@ -82,11 +83,13 @@ import Cardano.Wallet.Primitive.Types
     , PoolRetirementCertificate (..)
     , Settings
     , SlotNo (..)
-    , StakePoolMetadata
+    , StakePoolMetadata (..)
     , StakePoolMetadataHash
     , StakePoolMetadataUrl
     , defaultSettings
     )
+import Control.Monad
+    ( forM_ )
 import Control.Monad.Trans.Class
     ( lift )
 import Control.Monad.Trans.State.Strict
@@ -413,6 +416,13 @@ mRollbackTo ti point = do
     discardBy getPoint point' v
         | point' <= getPoint point = Just v
         | otherwise = Nothing
+
+mDelistPools :: [PoolId] -> ModelOp ()
+mDelistPools poolsToDelist =
+    forM_ poolsToDelist $ \pool -> do
+        mhash <- (>>= (fmap snd . poolMetadata . snd)) <$> mReadPoolRegistration pool
+        forM_ mhash $ \hash -> modify #metadata
+            $ Map.adjust (\m -> m { delisted = True }) hash
 
 mRemovePools :: [PoolId] -> ModelOp ()
 mRemovePools poolsToRemove = do

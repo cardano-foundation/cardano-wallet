@@ -90,6 +90,7 @@ library
     , statistics
     , stm
     , streaming-commons
+    , string-interpolate
     , string-qq
     , template-haskell
     , text

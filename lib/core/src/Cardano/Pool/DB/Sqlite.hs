@@ -60,7 +60,7 @@ import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
     , CertificatePublicationTime (..)
     , EpochNo (..)
-    , PoolId
+    , PoolId (..)
     , PoolLifeCycleStatus (..)
     , PoolRegistrationCertificate (..)
     , PoolRetirementCertificate (..)
@@ -89,13 +89,15 @@ import Data.Functor
 import Data.Generics.Internal.VL.Lens
     ( view )
 import Data.List
-    ( foldl' )
+    ( foldl', intercalate )
 import Data.Map.Strict
     ( Map )
 import Data.Quantity
     ( Percentage (..), Quantity (..) )
 import Data.Ratio
     ( denominator, numerator, (%) )
+import Data.String.Interpolate
+    ( i )
 import Data.String.QQ
     ( s )
 import Data.Text
@@ -115,6 +117,7 @@ import Database.Persist.Sql
     , fromPersistValue
     , insertMany_
     , insert_
+    , rawExecute
     , rawSql
     , repsert
     , selectFirst
@@ -139,6 +142,7 @@ import Cardano.Pool.DB.Sqlite.TH hiding
 
 import qualified Cardano.Pool.DB.Sqlite.TH as TH
 import qualified Cardano.Wallet.Primitive.Types as W
+import qualified Data.ByteString.Char8 as B8
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
 import qualified Database.Sqlite as Sqlite
@@ -393,10 +397,10 @@ newDBLayer trace fp timeInterpreter = do
                         (PoolMetadataFetchAttempts hash url retryAfter $ retryCount + 1)
 
         putPoolMetadata hash metadata = do
-            let StakePoolMetadata{ticker,name,description,homepage} = metadata
+            let StakePoolMetadata{ticker,name,description,homepage,delisted} = metadata
             repsert
                 (PoolMetadataKey hash)
-                (PoolMetadata hash name ticker description homepage)
+                (PoolMetadata hash name ticker description homepage delisted)
             deleteWhere [ PoolFetchAttemptsMetadataHash ==. hash ]
 
         removePoolMetadata = do
@@ -488,6 +492,43 @@ newDBLayer trace fp timeInterpreter = do
             deleteWhere [ PoolRetirementSlot >. point ]
             deleteWhere [ BlockSlot >. point ]
             -- TODO: remove dangling metadata no longer attached to a pool
+
+        delistPools pools =
+            -- sqlite has a max of 2k variables or so, so we don't want
+            -- 'IN #{poolList my_pools}' to blow up.
+            forM_ (listOfK 1000 pools)
+                $ \kPools -> do
+                    rawExecute
+                        (deleteQueryString kPools)
+                        []
+
+          where
+            deleteQueryString my_pools = [i|
+                UPDATE pool_metadata
+                    SET delisted = 1
+                    WHERE metadata_hash
+                    IN (
+                        SELECT metadata_hash
+                        FROM active_pool_registrations
+                        WHERE pool_id
+                        IN #{poolList my_pools}
+                       );
+            |]
+
+            poolList :: [PoolId] -> String
+            poolList pids =
+                let inner = intercalate ", "
+                        -- pool IDs are strictly ascii, Char8 is safe
+                        . fmap (\x -> "\"" ++ B8.unpack (getPoolId x) ++ "\"")
+                        $ pids
+                in "( " ++ inner ++ " )"
+
+            listOfK :: Int -> [a] -> [[a]]
+            listOfK k = go
+              where
+                go [] = []
+                go xs = let (l, r) = splitAt k xs
+                        in l : go r
 
         removePools = mapM_ $ \pool -> do
             liftIO $ traceWith trace $ MsgRemovingPool pool
@@ -961,6 +1002,7 @@ fromPoolMeta meta = (poolMetadataHash meta,) $
         , name = poolMetadataName meta
         , description = poolMetadataDescription meta
         , homepage = poolMetadataHomepage meta
+        , delisted = poolMetadataDelisted meta
         }
 
 fromSettings
