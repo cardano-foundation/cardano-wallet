@@ -1041,7 +1041,7 @@ instance DecodeAddress n => FromJSON (ApiSelectCoinsData n) where
                 pure $ ApiSelectForDelegation $ ApiSelectCoinsAction v
             (Just v, Nothing) ->
                 pure $ ApiSelectForPayment $ ApiSelectCoinsPayments v
-            _ -> fail "No valid parse for ApiSelectCoinsAction or ApiSelectCoinsAction"
+            _ -> fail "No valid parse for ApiSelectCoinsPayments or ApiSelectCoinsAction"
 instance EncodeAddress n => ToJSON (ApiSelectCoinsData n) where
     toJSON (ApiSelectForPayment v) = toJSON v
     toJSON (ApiSelectForDelegation v) = toJSON v
@@ -1060,7 +1060,7 @@ apiCertificateOptions = Aeson.defaultOptions
       , sumEncoding = TaggedObject
           {
             tagFieldName = "certificate_type"
-          , contentsFieldName = "details"
+          , contentsFieldName = "details" -- this isn't actually used
           }
       }
 
@@ -1080,7 +1080,8 @@ instance FromJSON (ApiT DelegationAction) where
             val -> fail ("Unexpeced action value \"" <> T.unpack val <> "\". Valid values are: \"quit\" and \"join\".")
 
 instance ToJSON (ApiT DelegationAction) where
-    toJSON (ApiT (RegisterKeyAndJoin _)) = error "RegisterKeyAndJoin not valid"
+    toJSON (ApiT (RegisterKeyAndJoin pid)) = object
+        [ "action" .= String "register_key_and_join", "pool" .= (ApiT pid) ]
     toJSON (ApiT (Join pid)) = object [ "action" .= String "join", "pool" .= (ApiT pid) ]
     toJSON (ApiT Quit) = object [ "action" .= String "quit" ]
 

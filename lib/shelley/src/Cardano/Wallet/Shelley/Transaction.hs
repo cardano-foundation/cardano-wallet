@@ -45,6 +45,8 @@ import Cardano.Binary
     ( serialize' )
 import Cardano.Crypto.DSIGN
     ( DSIGNAlgorithm (..), SignedDSIGN (..) )
+import Cardano.Crypto.Wallet
+    ( XPub )
 import Cardano.Ledger.Crypto
     ( Crypto (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -109,8 +111,6 @@ import qualified Cardano.Api.Typed as Cardano
 import qualified Cardano.Chain.Common as Byron
 import qualified Cardano.Crypto as CC
 import qualified Cardano.Crypto.Hash.Class as Crypto
-import Cardano.Crypto.Wallet
-    ( XPub )
 import qualified Cardano.Crypto.Wallet as Crypto.HD
 import qualified Cardano.Wallet.Primitive.CoinSelection as CS
 import qualified Data.ByteArray as BA
@@ -175,39 +175,25 @@ instance TxWitnessTagFor ByronKey where
     txWitnessTagFor = TxWitnessByronUTxO Byron
 
 
--- | Returns a tuple of unsigned transactions and withdrawals.
-mkTxUnsigned
-    :: Cardano.NetworkId
-    -> [Cardano.Certificate]
-    -> Maybe Cardano.TxMetadata
-    -> SlotNo
-    -- ^ Time to Live
-    -> XPrv
-    -- ^ Reward account
-    -> CoinSelection
-    -> (Cardano.TxBody Cardano.Shelley, [(Cardano.StakeAddress, Cardano.Lovelace)])
-mkTxUnsigned networkId certs md timeToLive rewardAcnt cs =
-    let wdrls = mkWithdrawals
-            networkId
-            (toChimericAccountRaw . toXPub $ rewardAcnt)
-            (withdrawal cs)
-        unsigned = mkUnsignedTx timeToLive cs md wdrls certs
-    in (unsigned, wdrls)
-
 mkTx
     :: forall k. (TxWitnessTagFor k, WalletKey k)
     => Cardano.NetworkId
     -> TxPayload Cardano.Shelley
     -> SlotNo
-    -- ^ Time to Live
+    -- ^ Tip of chain, for calculating TTL
     -> (XPrv, Passphrase "encryption")
     -- ^ Reward account
     -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
     -> CoinSelection
     -> Either ErrMkTx (Tx, SealedTx, SlotNo)
 mkTx networkId (TxPayload md certs mkExtraWits) tip (rewardAcnt, pwdAcnt) keyFrom cs = do
+    let wdrls = mkWithdrawals
+            networkId
+            (toChimericAccountRaw . toXPub $ rewardAcnt)
+            (withdrawal cs)
+
     let timeToLive = defaultTTL tip
-    let (unsigned, wdrls) = mkTxUnsigned networkId certs md timeToLive rewardAcnt cs
+    let unsigned = mkUnsignedTx timeToLive cs md wdrls certs
 
     wits <- case (txWitnessTagFor @k) of
         TxWitnessShelleyUTxO -> do

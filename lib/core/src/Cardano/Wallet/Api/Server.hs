@@ -1838,14 +1838,21 @@ mkApiCoinSelection mcerts (UnsignedTx inputs outputs) =
         -> NonEmpty DerivationIndex
         -> NonEmpty Api.ApiCertificate
     mkCertificates action xs =
-        let apiStakePath = ApiT <$> xs
-        in case action of
-            Join pid -> Api.JoinPool apiStakePath (ApiT pid) :| []
-            RegisterKeyAndJoin pid ->
-                Api.RegisterRewardAccount apiStakePath :|
-                    [Api.JoinPool apiStakePath (ApiT pid)]
-            Quit-> Api.QuitPool apiStakePath :| []
+        case action of
+            Join pid -> NE.fromList
+                [ Api.JoinPool apiStakePath (ApiT pid)
+                ]
 
+            RegisterKeyAndJoin pid -> NE.fromList
+                [ Api.RegisterRewardAccount apiStakePath
+                , Api.JoinPool apiStakePath (ApiT pid)
+                ]
+
+            Quit -> NE.fromList
+                [ Api.QuitPool apiStakePath
+                ]
+      where
+        apiStakePath = ApiT <$> xs
     mkAddressAmount :: TxOut -> AddressAmount (ApiT Address, Proxy n)
     mkAddressAmount (TxOut addr (Coin c)) =
         AddressAmount (ApiT addr, Proxy @n) (Quantity $ fromIntegral c)
@@ -2199,12 +2206,12 @@ instance Buildable e => LiftHandler (ErrSelectCoinsExternal e) where
         ErrSelectCoinsExternalUnableToMakeSelection e ->
             handler e
         ErrSelectCoinsExternalUnableToAssignInputs e ->
-            apiError err403 UnableToAssignInputOutput $ mconcat
-                [ "Unable to assign inputs from coin selection: "
+            apiError err500 UnableToAssignInputOutput $ mconcat
+                [ "I'm unable to assign inputs from coin selection: "
                 , pretty e]
         ErrSelectCoinsExternalUnableToAssignOutputs e ->
-            apiError err403 UnableToAssignInputOutput $ mconcat
-                [ "Unable to assign outputs from coin selection: "
+            apiError err500 UnableToAssignInputOutput $ mconcat
+                [ "I'm unable to assign outputs from coin selection: "
                 , pretty e]
 
 instance Buildable e => LiftHandler (ErrCoinSelection e) where
@@ -2507,12 +2514,12 @@ instance LiftHandler ErrJoinStakePool where
                     , toText pid
                     ]
         ErrJoinStakePoolUnableToAssignInputs e ->
-            apiError err403 UnableToAssignInputOutput $ mconcat
-                [ "Unable to assign inputs from coin selection: "
+            apiError err500 UnableToAssignInputOutput $ mconcat
+                [ "I'm unable to assign inputs from coin selection: "
                 , pretty e]
         ErrJoinStakePoolUnableToAssignOutputs  e ->
-            apiError err403 UnableToAssignInputOutput $ mconcat
-                [ "Unable to assign outputs from coin selection: "
+            apiError err500 UnableToAssignInputOutput $ mconcat
+                [ "I'm unable to assign outputs from coin selection: "
                 , pretty e]
 
 instance LiftHandler ErrFetchRewards where
@@ -2551,12 +2558,12 @@ instance LiftHandler ErrQuitStakePool where
                     , " lovelace first."
                     ]
         ErrQuitStakePoolUnableToAssignInputs e ->
-            apiError err403 UnableToAssignInputOutput $ mconcat
-                [ "Unable to assign inputs from coin selection: "
+            apiError err500 UnableToAssignInputOutput $ mconcat
+                [ "I'm unable to assign inputs from coin selection: "
                 , pretty e]
         ErrQuitStakePoolUnableToAssignOutputs e ->
-            apiError err403 UnableToAssignInputOutput $ mconcat
-                [ "Unable to assign outputs from coin selection: "
+            apiError err500 UnableToAssignInputOutput $ mconcat
+                [ "I'm unable to assign outputs from coin selection: "
                 , pretty e]
 
 instance LiftHandler ErrCreateRandomAddress where

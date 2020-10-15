@@ -531,7 +531,10 @@ x-transactionOutputs: &transactionOutputs
       amount: *transactionAmount
 
 x-delegationAction: &delegationAction
-  description: A delegation action
+  description: |
+    A delegation action.
+
+    Pool id is only required for "join".
   type: object
   required:
     - action
@@ -543,7 +546,8 @@ x-delegationAction: &delegationAction
 
 x-rewardAccountPath: &rewardAccountPath
   type: array
-  minItems: 1
+  minItems: 5
+  maxItems: 5
   items:
     type: string
 

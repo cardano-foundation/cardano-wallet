@@ -39,7 +39,7 @@ module Cardano.Wallet.Primitive.AddressDerivation
     , utxoInternal
     , mutableAccount
     , zeroAccount
-    , stakePath
+    , stakeDerivationPath
     , DerivationType (..)
     , HardDerivation (..)
     , SoftDerivation (..)
@@ -217,8 +217,8 @@ zeroAccount :: Index 'Soft 'AddressK
 zeroAccount = minBound
 
 -- | Full path to the stake key. There's only one.
-stakePath :: DerivationPrefix -> NonEmpty DerivationIndex
-stakePath (DerivationPrefix (purpose, coin, acc)) =
+stakeDerivationPath :: DerivationPrefix -> NonEmpty DerivationIndex
+stakeDerivationPath (DerivationPrefix (purpose, coin, acc)) =
     (fromIndex purpose) :| [
       fromIndex coin
     , fromIndex acc
@@ -226,7 +226,7 @@ stakePath (DerivationPrefix (purpose, coin, acc)) =
     , fromIndex zeroAccount]
   where
     fromIndex :: Index t l -> DerivationIndex
-    fromIndex (Index ix) = DerivationIndex ix
+    fromIndex = DerivationIndex . getIndex
 
 -- | A derivation index, with phantom-types to disambiguate derivation type.
 --

@@ -312,7 +312,8 @@ server byron icarus shelley spl ntp =
         withLegacyLayer wid
             (byron, liftHandler $ throwE ErrNotASequentialWallet)
             (icarus, selectCoins icarus (const $ paymentAddress @n) wid x)
-    byronCoinSelections _ _ = throwError err400
+    byronCoinSelections _ _ = throwError
+        $ err400 { errBody = "Byron wallets don't have delegation capabilities." }
 
     byronTransactions :: Server (ByronTransactions n)
     byronTransactions =

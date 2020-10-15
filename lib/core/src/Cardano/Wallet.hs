@@ -230,7 +230,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , encryptPassphrase
     , liftIndex
     , preparePassphrase
-    , stakePath
+    , stakeDerivationPath
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey, unsafeMkByronKeyFromMasterKey )
@@ -2029,7 +2029,7 @@ joinStakePoolUnsigned' ctx currentEpoch knownPools pid poolStatus wid =
 
         let s = getState wal
             dprefix = Seq.derivationPrefix s
-            sPath = stakePath dprefix
+            sPath = stakeDerivationPath dprefix
 
         pure (cs, action, sPath)
 
@@ -2146,7 +2146,7 @@ quitStakePoolUnsigned' ctx wid = db & \DBLayer{..} -> do
         $ readCheckpoint (PrimaryKey wid)
     let s = getState cp
         dprefix = Seq.derivationPrefix s
-        sPath = stakePath dprefix
+        sPath = stakeDerivationPath dprefix
 
     pure (cs, action, sPath)
   where

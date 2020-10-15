@@ -16,7 +16,8 @@ module Test.Integration.Scenario.API.Shelley.StakePools
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiStakePool
+    ( ApiCertificate (JoinPool, QuitPool, RegisterRewardAccount)
+    , ApiStakePool
     , ApiT (..)
     , ApiTransaction
     , ApiWallet
@@ -53,6 +54,8 @@ import Data.IORef
     ( readIORef )
 import Data.List
     ( find, sortOn )
+import Data.List.NonEmpty
+    ( NonEmpty (..) )
 import Data.Maybe
     ( fromMaybe, isJust, isNothing, listToMaybe, mapMaybe )
 import Data.Ord
@@ -576,6 +579,9 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                     . find (isNothing . getRetirementEpoch)
                     $ nonRetiredPools
 
+            let isValidCerts (Just (RegisterRewardAccount{}:|[JoinPool{}])) = True
+                isValidCerts _ = False
+
             -- Join Pool
             w <- fixtureWallet ctx
             joinStakePoolUnsigned @n @'Shelley ctx w nonRetiringPoolId >>= \o -> do
@@ -583,7 +589,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                     [ expectResponseCode HTTP.status200
                     , expectField #inputs (`shouldSatisfy` (not . null))
                     , expectField #outputs (`shouldSatisfy` (not . null))
-                    , expectField #certificates (`shouldSatisfy` (not . null))
+                    , expectField #certificates (`shouldSatisfy` isValidCerts)
                     ]
 
     describe "STAKE_POOLS_JOIN_UNSIGNED_02"
@@ -668,13 +674,17 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                     [ expectField #delegation (`shouldBe` delegating pool [])
                     ]
 
+            let isValidCerts (Just (QuitPool{}:|[])) = True
+                isValidCerts _ = False
+
             -- Quit Pool
             quitStakePoolUnsigned @n @'Shelley ctx w >>= \o -> do
                 verify o
                     [ expectResponseCode HTTP.status200
                     , expectField #inputs (`shouldSatisfy` (not . null))
                     , expectField #outputs (`shouldSatisfy` (not . null))
-                    , expectField #certificates (`shouldSatisfy` (not . null))
+                    , expectField #certificates (`shouldSatisfy` ((==1) . length))
+                    , expectField #certificates (`shouldSatisfy` isValidCerts)
                     ]
 
     describe "STAKE_POOLS_QUIT_UNSIGNED_02"
