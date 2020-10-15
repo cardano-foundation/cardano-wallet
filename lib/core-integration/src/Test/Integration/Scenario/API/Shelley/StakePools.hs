@@ -937,24 +937,28 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                             , name = "Genesis Pool A"
                             , description = Nothing
                             , homepage = "https://iohk.io"
+                            , delisted = False
                             }
                         , StakePoolMetadata
                             { ticker = (StakePoolTicker "GPB")
                             , name = "Genesis Pool B"
                             , description = Nothing
                             , homepage = "https://iohk.io"
+                            , delisted = False
                             }
                         , StakePoolMetadata
                             { ticker = (StakePoolTicker "GPC")
                             , name = "Genesis Pool C"
                             , description = Just "Lorem Ipsum Dolor Sit Amet."
                             , homepage = "https://iohk.io"
+                            , delisted = False
                             }
                         , StakePoolMetadata
                             { ticker = (StakePoolTicker "GPD")
                             , name = "Genesis Pool D"
                             , description = Just "Lorem Ipsum Dolor Sit Amet."
                             , homepage = "https://iohk.io"
+                            , delisted = False
                             }
                         ]
 

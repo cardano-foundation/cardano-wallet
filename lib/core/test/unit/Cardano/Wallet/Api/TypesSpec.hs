@@ -1333,6 +1333,7 @@ instance Arbitrary StakePoolMetadata where
         <*> arbitraryText 50
         <*> arbitraryMaybeText 255
         <*> arbitraryText 100
+        <*> pure False
       where
         arbitraryText maxLen = do
             len <- choose (1, maxLen)
