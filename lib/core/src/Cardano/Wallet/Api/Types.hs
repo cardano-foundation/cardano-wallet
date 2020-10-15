@@ -434,7 +434,7 @@ data ApiCoinSelectionInput (n :: NetworkDiscriminant) = ApiCoinSelectionInput
 data ApiCoinSelectionOutput (n :: NetworkDiscriminant) = ApiCoinSelectionOutput
     { address :: !(ApiT Address, Proxy n)
     , amount :: !(Quantity "lovelace" Natural)
-    } deriving (Eq, Generic, Show)
+    } deriving (Eq, Ord, Generic, Show)
 
 data ApiWallet = ApiWallet
     { id :: !(ApiT WalletId)

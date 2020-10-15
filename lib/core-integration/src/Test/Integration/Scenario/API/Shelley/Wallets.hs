@@ -124,6 +124,7 @@ import Test.Integration.Framework.TestData
     )
 
 import qualified Cardano.Wallet.Api.Link as Link
+import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Text as T
 import qualified Network.HTTP.Types.Status as HTTP
@@ -946,7 +947,6 @@ spec = describe "SHELLEY_WALLETS" $ do
                     (`shouldBe` [output])
                 ]
 
-    let satisfy = flip shouldSatisfy
     it "WALLETS_COIN_SELECTION_02 - \
         \Multiple payments are all included in the coin selection output." $
         \ctx -> do
@@ -958,8 +958,8 @@ spec = describe "SHELLEY_WALLETS" $ do
             let payments = NE.fromList
                     $ take paymentCount
                     $ zipWith AddressAmount targetAddresses amounts
-            let outputs = NE.fromList
-                    $ take paymentCount
+            let outputs =
+                    take paymentCount
                     $ zipWith ApiCoinSelectionOutput targetAddresses amounts
             selectCoins @_ @'Shelley ctx source payments >>= flip verify
                 [ expectResponseCode
@@ -967,9 +967,7 @@ spec = describe "SHELLEY_WALLETS" $ do
                 , expectField
                     #inputs (`shouldSatisfy` (not . null))
                 , expectField
-                    #outputs (satisfy $ (> paymentCount) . length)
-                , expectField
-                    #outputs (satisfy $ flip all outputs . flip elem)
+                    #outputs (`shouldSatisfy` ((L.sort outputs ==) . L.sort))
                 ]
 
     it "WALLETS_COIN_SELECTION_03 - \
