@@ -33,7 +33,7 @@ import Cardano.BM.Data.Severity
 import Cardano.BM.Setup
     ( setupTrace_ )
 import Cardano.BM.Trace
-    ( Trace )
+    ( Trace, nullTracer )
 import Cardano.Launcher.Node
     ( CardanoNodeConfig (..)
     , CardanoNodeConn (..)
@@ -83,6 +83,7 @@ import Options.Applicative
     , showDefaultWith
     , strArgument
     , strOption
+    , switch
     , value
     )
 import Say
@@ -117,7 +118,8 @@ execBenchWithNode networkConfig action = do
     hSetBuffering stdout NoBuffering
     hSetBuffering stderr NoBuffering
 
-    (_logCfg, tr) <- initBenchmarkLogging Info
+    (_logCfg, tr') <- initBenchmarkLogging Info
+    let tr = if argQuiet args then nullTracer else tr'
     installSignalHandlers (return ())
 
     case argUseAlreadyRunningNodeSocketPath args of
@@ -165,6 +167,7 @@ data RestoreBenchArgs = RestoreBenchArgs
     , argConfigsDir :: FilePath
     , argNodeDatabaseDir :: Maybe FilePath
     , argUseAlreadyRunningNodeSocketPath :: Maybe FilePath
+    , argQuiet :: Bool
     } deriving (Show, Eq)
 
 restoreBenchArgsParser
@@ -198,6 +201,9 @@ restoreBenchArgsParser envNetwork envConfigsDir envNodeDatabaseDir = RestoreBenc
           <> help "Path to the socket of an already running cardano-node. \
                   \Also set by $CARDANO_NODE_SOCKET. If not set, cardano-node \
               \will automatically be started."))
+    <*> switch
+        ( long ("quiet")
+          <> help "Reduce unnecessary log output.")
   where
     envDefault :: HasValue f => String -> Maybe a -> Mod f a
     envDefault name env = showDefaultWith (const ('$':name))
