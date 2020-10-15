@@ -23,7 +23,6 @@ import Cardano.Wallet.Api.Types
     , ApiAddress
     , ApiByronWallet
     , ApiCoinSelection
-    , ApiCoinSelectionInput (derivationPath)
     , ApiCoinSelectionOutput (..)
     , ApiNetworkInformation
     , ApiT (..)
@@ -925,24 +924,26 @@ spec = describe "SHELLEY_WALLETS" $ do
             let amount = Quantity minUTxOValue
             let payment = AddressAmount targetAddress amount
             let output = ApiCoinSelectionOutput targetAddress amount
-            let hasValidDerivationPath input =
-                    ( length (derivationPath input) == 5 )
+            let isValidDerivationPath path =
+                    ( length path == 5 )
                     &&
                     ( [ ApiT $ DerivationIndex $ getIndex purposeCIP1852
                       , ApiT $ DerivationIndex $ getIndex coinTypeAda
                       , ApiT $ DerivationIndex $ getIndex @'Hardened minBound
-                      ] `isPrefixOf` NE.toList (derivationPath input)
+                      ] `isPrefixOf` NE.toList path
                     )
             selectCoins @_ @'Shelley ctx source (payment :| []) >>= flip verify
                 [ expectResponseCode HTTP.status200
                 , expectField #inputs
                     (`shouldSatisfy` (not . null))
                 , expectField #inputs
-                    (`shouldSatisfy` all hasValidDerivationPath)
+                    (`shouldSatisfy` all
+                        (isValidDerivationPath . view #derivationPath))
+                , expectField #change
+                    (`shouldSatisfy` all
+                        (isValidDerivationPath . view #derivationPath))
                 , expectField #outputs
-                    (`shouldSatisfy` ((> 1) . length))
-                , expectField #outputs
-                    (`shouldSatisfy` (output `elem`))
+                    (`shouldBe` [output])
                 ]
 
     let satisfy = flip shouldSatisfy
