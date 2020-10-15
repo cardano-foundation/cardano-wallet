@@ -134,6 +134,7 @@ PoolMetadata sql=pool_metadata
     poolMetadataTicker                 W.StakePoolTicker       sql=ticker
     poolMetadataDescription            Text Maybe              sql=description
     poolMetadataHomepage               Text                    sql=homepage
+    poolMetadataDelisted               Bool                    sql=delisted
 
     Primary poolMetadataHash
     deriving Show Generic
