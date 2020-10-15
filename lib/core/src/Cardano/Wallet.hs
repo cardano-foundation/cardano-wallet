@@ -407,6 +407,8 @@ import Data.Type.Equality
     ( (:~:) (..), testEquality )
 import Data.Vector.Shuffle
     ( shuffle )
+import Data.Void
+    ( Void )
 import Data.Word
     ( Word16, Word64 )
 import Fmt
@@ -1626,7 +1628,7 @@ signPayment ctx wid argGenChange mkRewardAccount pwd md cs = db & \DBLayer{..} -
 
 -- | Very much like 'signPayment', but doesn't not generate change addresses.
 signTx
-    :: forall ctx s t k input output change.
+    :: forall ctx s t k input output.
         ( HasTransactionLayer t k ctx
         , HasDBLayer s k ctx
         , HasNetworkLayer t ctx
@@ -1642,7 +1644,11 @@ signTx
     -> WalletId
     -> Passphrase "raw"
     -> Maybe TxMetadata
-    -> UnsignedTx input output change
+    -- This function is currently only used in contexts where all change outputs
+    -- have been assigned with addresses and are included in the set of ordinary
+    -- outputs. We use the 'Void' type here to prevent callers from accidentally
+    -- passing change values into this function:
+    -> UnsignedTx input output Void
     -> ExceptT ErrSignPayment IO (Tx, TxMeta, UTCTime, SealedTx)
 signTx ctx wid pwd md (UnsignedTx inpsNE outs _change) = db & \DBLayer{..} ->
     withRootKey @_ @s ctx wid pwd ErrSignPaymentWithRootKey $ \xprv scheme -> do
