@@ -175,7 +175,7 @@ data ServeArgs = ServeArgs
     , _database :: Maybe FilePath
     , _syncTolerance :: SyncTolerance
     , _enableShutdownHandler :: Bool
-    , _smashOpt :: Maybe PoolMetadataSource
+    , _poolMetadataSourceOpt :: Maybe PoolMetadataSource
     , _logging :: LoggingOptions TracerSeverities
     } deriving (Show)
 
@@ -208,7 +208,7 @@ cmdServe = command "serve" $ info (helper <*> helper' <*> cmd) $ mempty
       databaseDir
       sTolerance
       enableShutdownHandler
-      smashURL
+      poolMetadataSource
       logOpt) = do
         withTracers logOpt $ \tr tracers -> do
             installSignalHandlers (logNotice tr MsgSigTerm)
@@ -232,7 +232,7 @@ cmdServe = command "serve" $ info (helper <*> helper' <*> cmd) $ mempty
                     host
                     listen
                     tlsConfig
-                    (fmap Settings smashURL)
+                    (fmap Settings poolMetadataSource)
                     nodeSocket
                     block0
                     (gp, vData)
