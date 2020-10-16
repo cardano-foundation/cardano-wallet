@@ -14,7 +14,13 @@
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE UndecidableInstances #-}
+
+-- `const` isn't more readable than lambdas. Our language is based on
+-- lambda calculus and we shouldn't feel ashamed to use them. They also
+-- have different strictness properties.
+{-# HLINT ignore "Use const" #-}
 
 -- |
 -- Copyright: © 2018-2020 IOHK
@@ -64,6 +70,8 @@ module Cardano.Pool.DB.Model
     , mRemoveRetiredPools
     , mReadSettings
     , mPutSettings
+    , mPutLastMetadataGC
+    , mReadLastMetadataGC
     ) where
 
 import Prelude
@@ -82,10 +90,12 @@ import Cardano.Wallet.Primitive.Types
     , PoolRegistrationCertificate (..)
     , PoolRetirementCertificate (..)
     , Settings
+    , InternalState (..)
     , SlotNo (..)
     , StakePoolMetadata (..)
     , StakePoolMetadataHash
     , StakePoolMetadataUrl
+    , defaultInternalState
     , defaultSettings
     )
 import Control.Monad
@@ -112,6 +122,8 @@ import Data.Ord
     ( Down (..) )
 import Data.Quantity
     ( Quantity (..) )
+import Data.Time.Clock.POSIX
+    ( POSIXTime )
 import Data.Word
     ( Word64 )
 import GHC.Generics
@@ -159,6 +171,10 @@ data PoolDatabase = PoolDatabase
     -- ^ Store headers during syncing
 
     , settings :: Settings
+
+    , internalState :: InternalState
+    -- ^ Various internal states that need to persist across
+    -- wallet restarts.
     } deriving (Generic, Show, Eq)
 
 data SystemSeed
@@ -176,7 +192,7 @@ instance Eq SystemSeed where
 emptyPoolDatabase :: PoolDatabase
 emptyPoolDatabase =
     PoolDatabase mempty mempty mempty mempty mempty mempty mempty NotSeededYet
-        mempty defaultSettings
+        mempty defaultSettings defaultInternalState
 
 {-------------------------------------------------------------------------------
                                   Model Operation Types
@@ -462,6 +478,15 @@ mPutSettings
     :: Settings
     -> ModelOp ()
 mPutSettings s = modify #settings (\_ -> s)
+
+mReadLastMetadataGC
+    :: ModelOp POSIXTime
+mReadLastMetadataGC = get (#internalState . #lastMetadataGC)
+
+mPutLastMetadataGC
+    :: POSIXTime
+    -> ModelOp ()
+mPutLastMetadataGC t = modify (#internalState . #lastMetadataGC) (\_ -> t)
 
 --------------------------------------------------------------------------------
 -- Utilities
