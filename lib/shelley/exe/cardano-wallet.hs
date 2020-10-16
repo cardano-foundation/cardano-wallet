@@ -208,7 +208,7 @@ cmdServe = command "serve" $ info (helper <*> helper' <*> cmd) $ mempty
       databaseDir
       sTolerance
       enableShutdownHandler
-      poolMetadataSource
+      poolMetadataFetching
       logOpt) = do
         withTracers logOpt $ \tr tracers -> do
             installSignalHandlers (logNotice tr MsgSigTerm)
@@ -232,7 +232,7 @@ cmdServe = command "serve" $ info (helper <*> helper' <*> cmd) $ mempty
                     host
                     listen
                     tlsConfig
-                    (fmap Settings poolMetadataSource)
+                    (fmap Settings poolMetadataFetching)
                     nodeSocket
                     block0
                     (gp, vData)
