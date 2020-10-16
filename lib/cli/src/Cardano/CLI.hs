@@ -1323,11 +1323,12 @@ poolMetadataSourceOption
 poolMetadataSourceOption = option (eitherReader reader) $ mempty
     <> long "pool-metadata-fetching"
     <> metavar "( none | direct | SMASH-URL )"
-    <> help ("Stake pool metadata fetching strategy. "
+    <> help ("Sets the stake pool metadata fetching strategy. "
             <> "Provide a URL to specify a SMASH metadata proxy server, "
             <> "use \"direct\" to fetch directly from the registered pool URLs,"
-            <> " or \"none\" to completely disable stake pool metadata. "
-            <> "This setting will persist across restarts.")
+            <> " or \"none\" to completely disable stake pool"
+            <> " metadata. The initial setting is \"none\" and changes by"
+            <> " either this option or the API will persist across restarts.")
   where
     reader :: String -> Either String PoolMetadataSource
     reader = left (const err) . fromTextS @PoolMetadataSource
