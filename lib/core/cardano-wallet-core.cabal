@@ -56,7 +56,7 @@ library
     , filepath
     , fmt
     , foldl
-    , generic-lens
+    , generic-lens >=1.1.0.0 && < 1.2.0.0
     , http-api-data
     , http-client
     , http-client-tls
