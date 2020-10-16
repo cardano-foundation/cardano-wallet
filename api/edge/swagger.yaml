@@ -2886,6 +2886,9 @@ paths:
 
         Uses the <a href="https://iohk.io/blog/self-organisation-in-coin-selection/">
         Random-Improve coin selection algorithm</a>.
+
+        <b>Note: </b> Not supported for Byron random wallets.
+        
       parameters:
         - *parametersWalletId
       requestBody:
