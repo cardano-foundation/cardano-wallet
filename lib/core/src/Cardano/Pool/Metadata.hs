@@ -16,6 +16,7 @@ module Cardano.Pool.Metadata
     -- * Fetch
       fetchFromRemote
     , StakePoolMetadataFetchLog (..)
+    , fetchDelistedPools
 
     -- * Construct URLs
     , identityUrlBuilder
@@ -32,6 +33,8 @@ import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
+import Cardano.Wallet.Api.Types
+    ( ApiT (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( hex )
 import Cardano.Wallet.Primitive.Types
@@ -70,6 +73,7 @@ import Network.HTTP.Client
     ( HttpException (..)
     , Manager
     , ManagerSettings
+    , brConsume
     , brReadSome
     , managerResponseTimeout
     , requestFromURI
@@ -83,6 +87,7 @@ import Network.HTTP.Types.Status
 import Network.URI
     ( URI (..), parseURI, pathSegments )
 
+import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Text as T
@@ -130,6 +135,45 @@ registryUrlBuilder baseUrl pid _ (StakePoolMetadataHash bytes) =
     hashStr = T.unpack $ T.decodeUtf8 $ convertToBase Base16 bytes
     pidStr  = T.unpack $ toText pid
 
+fetchDelistedPools
+    :: Tracer IO StakePoolMetadataFetchLog
+    -> URI
+    -> Manager
+    -> IO (Maybe [PoolId])
+fetchDelistedPools tr uri manager = runExceptTLog $ do
+    pl <- getPoolsPayload
+    except . (fmap . fmap) getApiT . eitherDecodeStrict @[ApiT PoolId] $ pl
+  where
+    getPoolsPayload :: ExceptT String IO ByteString
+    getPoolsPayload = do
+        req <- withExceptT show $ except $ requestFromURI uri
+        liftIO $ traceWith tr $ MsgFetchDelistedPools uri
+        ExceptT
+            $ handle fromIOException
+            $ handle fromHttpException
+            $ withResponse req manager $ \res -> do
+            case responseStatus res of
+                s | s == status200 -> do
+                    let body = responseBody res
+                    Right . BS.concat <$> brConsume body
+
+                s -> do
+                    pure $ Left $ "The server replied something unexpected: " <> show s
+
+    runExceptTLog
+        :: ExceptT String IO [PoolId]
+        -> IO (Maybe [PoolId])
+    runExceptTLog action = runExceptT action >>= \case
+        Left msg ->
+            Nothing <$ traceWith tr (MsgFetchDelistedPoolsFailure msg)
+
+        Right meta ->
+            Just meta <$ traceWith tr (MsgFetchDelistedPoolsSuccess meta)
+
+    fromHttpException :: Monad m => HttpException -> m (Either String a)
+    fromHttpException = return . Left . ("HTTp Exception exception: " <>) . show
+
+-- TODO: refactor/simplify this
 fetchFromRemote
     :: Tracer IO StakePoolMetadataFetchLog
     -> [   PoolId
@@ -207,17 +251,21 @@ fetchFromRemote tr builders manager pid url hash = runExceptTLog $ do
                 s -> do
                     pure $ Left $ "The server replied something unexpected: " <> show s
 
-    fromIOException :: Monad m => IOException -> m (Either String a)
-    fromIOException = return . Left . ("IO exception: " <>) . show
-
     fromHttpException :: Monad m => HttpException -> m (Either String (Maybe a))
     fromHttpException = const (return $ Right Nothing)
+
+fromIOException :: Monad m => IOException -> m (Either String a)
+fromIOException = return . Left . ("IO exception: " <>) . show
+
 
 data StakePoolMetadataFetchLog
     = MsgFetchPoolMetadata StakePoolMetadataHash URI
     | MsgFetchPoolMetadataSuccess StakePoolMetadataHash StakePoolMetadata
     | MsgFetchPoolMetadataFailure StakePoolMetadataHash String
     | MsgFetchPoolMetadataFallback URI Bool
+    | MsgFetchDelistedPools URI
+    | MsgFetchDelistedPoolsFailure String
+    | MsgFetchDelistedPoolsSuccess [PoolId]
     deriving (Show, Eq)
 
 instance HasPrivacyAnnotation StakePoolMetadataFetchLog
@@ -227,6 +275,9 @@ instance HasSeverityAnnotation StakePoolMetadataFetchLog where
         MsgFetchPoolMetadataSuccess{} -> Info
         MsgFetchPoolMetadataFailure{} -> Warning
         MsgFetchPoolMetadataFallback{} -> Warning
+        MsgFetchDelistedPools{} -> Info
+        MsgFetchDelistedPoolsFailure{} -> Warning
+        MsgFetchDelistedPoolsSuccess{} -> Info
 
 instance ToText StakePoolMetadataFetchLog where
     toText = \case
@@ -246,4 +297,14 @@ instance ToText StakePoolMetadataFetchLog where
             , if noMoreUrls
                 then ""
                 else " Falling back using a different strategy."
+            ]
+        MsgFetchDelistedPools uri -> mconcat
+            [ "Fetching delisted pools from ", T.pack (show uri)
+            ]
+        MsgFetchDelistedPoolsSuccess poolIds -> mconcat
+            [ "Successfully fetched delisted pools: "
+            , T.pack (show poolIds)
+            ]
+        MsgFetchDelistedPoolsFailure err -> mconcat
+            [ "Failed to fetch delisted pools: ", T.pack err
             ]

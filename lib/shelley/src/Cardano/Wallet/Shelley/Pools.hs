@@ -42,6 +42,7 @@ import Cardano.Pool.DB
 import Cardano.Pool.Metadata
     ( StakePoolMetadataFetchLog
     , defaultManagerSettings
+    , fetchDelistedPools
     , fetchFromRemote
     , identityUrlBuilder
     , newManager
@@ -93,6 +94,8 @@ import Cardano.Wallet.Primitive.Types
     , getPoolRetirementCertificate
     , unSmashServer
     )
+import Cardano.Wallet.Registry
+    ( WorkerLog, defaultWorkerAfter )
 import Cardano.Wallet.Shelley.Compatibility
     ( Shelley
     , StandardCrypto
@@ -106,9 +109,9 @@ import Cardano.Wallet.Shelley.Network
 import Cardano.Wallet.Unsafe
     ( unsafeMkPercentage )
 import Control.Concurrent
-    ( threadDelay )
+    ( forkFinally, threadDelay )
 import Control.Exception
-    ( SomeException (..), bracket, mask_, try )
+    ( SomeException (..), bracket, finally, mask_, try )
 import Control.Monad
     ( forM, forM_, forever, void, when, (<=<) )
 import Control.Monad.IO.Class
@@ -134,13 +137,15 @@ import Data.Map
 import Data.Map.Merge.Strict
     ( dropMissing, traverseMissing, zipWithAMatched, zipWithMatched )
 import Data.Maybe
-    ( catMaybes )
+    ( catMaybes, fromMaybe )
 import Data.Ord
     ( Down (..) )
 import Data.Quantity
     ( Percentage (..), Quantity (..) )
 import Data.Set
     ( Set )
+import Data.Text
+    ( Text )
 import Data.Text.Class
     ( ToText (..) )
 import Data.Tuple.Extra
@@ -153,6 +158,8 @@ import GHC.Conc
     ( TVar, ThreadId, killThread, newTVarIO, readTVarIO, writeTVar )
 import GHC.Generics
     ( Generic )
+import Network.URI
+    ( URI (..) )
 import Ouroboros.Consensus.Cardano.Block
     ( CardanoBlock, HardForkBlock (..) )
 import System.Random
@@ -164,6 +171,8 @@ import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Merge.Strict as Map
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
+import Data.Time.Clock.POSIX
+    ( getPOSIXTime, posixDayLength )
 import qualified GHC.Conc as STM
 
 --
@@ -681,24 +690,45 @@ monitorStakePools tr gp nl DBLayer{..} =
 
 -- | Worker thread that monitors pool metadata and syncs it to the database.
 monitorMetadata
-    :: Tracer IO StakePoolLog
+    :: Tracer IO (WorkerLog Text StakePoolLog)
+    -> Tracer IO StakePoolLog
     -> GenesisParameters
     -> DBLayer IO
     -> IO ()
-monitorMetadata tr gp DBLayer{..} = do
+monitorMetadata tr' tr gp db@(DBLayer{..}) = do
     settings <- atomically readSettings
     manager <- newManager defaultManagerSettings
-    let fetcher fetchStrategies = fetchFromRemote trFetch fetchStrategies manager
-    forever $ do
-        (refs, successes) <- case poolMetadataSource settings of
-            FetchNone -> pure ([], [])
-            FetchDirect -> fetchThem $ fetcher [identityUrlBuilder]
-            FetchSMASH (unSmashServer -> uri) -> fetchThem $ fetcher [registryUrlBuilder uri]
 
-        when (null refs || null successes) $ do
-            traceWith tr $ MsgFetchTakeBreak blockFrequency
-            threadDelay blockFrequency
+    let fetcher fetchStrategies = fetchFromRemote trFetch fetchStrategies manager
+        loop getPoolMetadata = forever $ do
+            (refs, successes) <- getPoolMetadata
+            when (null refs || null successes) $ do
+                traceWith tr $ MsgFetchTakeBreak blockFrequency
+                threadDelay blockFrequency
+
+    case poolMetadataSource settings of
+        FetchNone -> loop (pure ([], [])) -- TODO: exit loop?
+        FetchDirect -> loop (fetchThem $ fetcher [identityUrlBuilder])
+        FetchSMASH (unSmashServer -> uri) -> do
+            tid <-
+                forkFinally
+                    (gcDelistedPools tr db
+                        (fetchDelistedPools trFetch (toDelistedPoolsURI uri) manager)
+                    )
+                    onExit
+            flip finally (killThread tid) $
+                loop (fetchThem $ fetcher [registryUrlBuilder uri])
+
   where
+    -- Currently the SMASH url points to the full API path, e.g.
+    --   https://smash.cardano-testnet.iohkdev.io/api/v1/monitorMetadata
+    -- so we need to recover/infer the delisted pools url.
+    -- TODO:
+    --   - require the smash url to only specify sheme and host
+    --   - use smash servant types to call the endpoints
+    toDelistedPoolsURI uri =
+        uri { uriPath = "/api/v1/delisted" , uriQuery = "", uriFragment = "" }
+
     trFetch = contramap MsgFetchPoolMetadata tr
     -- We mask this entire section just in case, although the database
     -- operations runs masked anyway. Unfortunately we cannot run
@@ -722,6 +752,34 @@ monitorMetadata tr gp DBLayer{..} = do
         toMicroSecond = (`div` 1000000) . fromEnum
         slotLength = unSlotLength $ getSlotLength gp
         f = unActiveSlotCoefficient (getActiveSlotCoefficient gp)
+    onExit = defaultWorkerAfter tr'
+
+gcDelistedPools
+    :: Tracer IO StakePoolLog
+    -> DBLayer IO
+    -> IO (Maybe [PoolId])  -- ^ delisted pools fetcher
+    -> IO ()
+gcDelistedPools tr DBLayer{..} fetchDelisted = forever $ do
+    lastGC <- atomically readLastMetadataGC
+    currentTime <- getPOSIXTime
+
+    let timeSinceLastGC = currentTime - lastGC
+        sixHours = posixDayLength / 4
+    if timeSinceLastGC > sixHours
+        then do
+            delistedPools <- fmap (fromMaybe []) fetchDelisted
+            atomically $ do
+                putLastMetadataGC currentTime
+                delistPools delistedPools
+        else do
+            -- Sleep for 60 seconds. This is useful in case
+            -- something else is modifying the last sync time
+            -- in the database.
+            let sec_to_milisec = (* 1000000)
+                sleep_time = sec_to_milisec 60
+            traceWith tr $ MsgGCTakeBreak sleep_time
+            threadDelay sleep_time
+    pure ()
 
 data StakePoolLog
     = MsgFollow FollowLog
@@ -735,6 +793,7 @@ data StakePoolLog
     | MsgErrProduction ErrPointAlreadyExists
     | MsgFetchPoolMetadata StakePoolMetadataFetchLog
     | MsgFetchTakeBreak Int
+    | MsgGCTakeBreak Int
     deriving (Show, Eq)
 
 data PoolGarbageCollectionInfo = PoolGarbageCollectionInfo
@@ -762,6 +821,7 @@ instance HasSeverityAnnotation StakePoolLog where
         MsgErrProduction{} -> Error
         MsgFetchPoolMetadata e -> getSeverityAnnotation e
         MsgFetchTakeBreak{} -> Debug
+        MsgGCTakeBreak{} -> Debug
 
 instance ToText StakePoolLog where
     toText = \case
@@ -801,6 +861,11 @@ instance ToText StakePoolLog where
             toText e
         MsgFetchTakeBreak delay -> mconcat
             [ "Taking a little break from fetching metadata, "
+            , "back to it in about "
+            , pretty (fixedF 1 (toRational delay / 1000000)), "s"
+            ]
+        MsgGCTakeBreak delay -> mconcat
+            [ "Taking a little break from GCing delisted metadata pools, "
             , "back to it in about "
             , pretty (fixedF 1 (toRational delay / 1000000)), "s"
             ]
