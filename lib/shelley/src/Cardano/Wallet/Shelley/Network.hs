@@ -101,7 +101,7 @@ import Control.Monad.Class.MonadSTM
     , isEmptyTMVar
     , modifyTVar'
     , newEmptyTMVar
-    , newTMVarM
+    , newTMVarIO
     , newTQueue
     , newTVar
     , putTMVar
@@ -918,7 +918,7 @@ newObserver tr fetch = do
 -- since the previous time it was called.
 debounce :: (Eq a, MonadSTM m) => (a -> m ()) -> m (a -> m ())
 debounce action = do
-    mvar <- newTMVarM Nothing
+    mvar <- newTMVarIO Nothing
     pure $ \cur -> do
         prev <- atomically $ takeTMVar mvar
         unless (Just cur == prev) $ action cur
