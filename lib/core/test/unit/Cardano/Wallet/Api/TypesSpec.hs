@@ -275,6 +275,7 @@ import Test.QuickCheck
     , scale
     , shrinkIntegral
     , vector
+    , vectorOf
     , (.&&.)
     , (===)
     )
@@ -298,6 +299,7 @@ import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.HashMap.Strict as HM
+import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
@@ -934,7 +936,14 @@ instance Arbitrary DelegationAction where
     shrink _ = []
 
 instance Arbitrary ApiCertificate where
-    arbitrary = genericArbitrary
+    arbitrary =
+        oneof [ JoinPool <$> arbitraryRewardAccountPath <*> arbitrary
+            , QuitPool <$> arbitraryRewardAccountPath
+            , RegisterRewardAccount <$> arbitraryRewardAccountPath
+            ]
+      where
+        arbitraryRewardAccountPath :: Gen (NonEmpty (ApiT DerivationIndex))
+        arbitraryRewardAccountPath = NE.fromList <$> vectorOf 5 arbitrary
     shrink = genericShrink
 
 instance Arbitrary (ApiCoinSelection n) where
