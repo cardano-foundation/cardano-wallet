@@ -321,6 +321,30 @@ x-poolMetadataSource: &poolMetadataSource
       format: uri
       example: https://smash.cardano-mainnet.iohk.io/
 
+x-walletCredentialPubkey: &walletCredentialPubkey
+  description: A public key (public key without chain code) for credential
+  oneOf:
+    - title: Payment public key
+      type: string
+      format: bech32
+      example: addr_vk13pfp60uf4ru7cmj5d57xjdzj6lagn328ah67h35urqrl92jn094z0s07fcy2pvfw3xfhna6fa24na8nk6lraymjcrl5wwj6chsjqtjqlfw44z
+    - title: Stake public key
+      type: string
+      format: bech32
+      example: stake_vk13pfp60uf4ru7cmj5d57xjdzj6lagn328ah67h35urqrl92jn094z0s07fcy2pvfw3xfhna6fa24na8nk6lraymjcrl5wwj6chsjqtjqlfw44z
+
+x-credential: &credential
+  description: |
+    Credential that could act in as spending or staking credential.
+    Could be either public key or script.
+  oneOf:
+    - title: Key Credential
+      <<: *walletCredentialPubkey
+    - title: Script Credential
+      type: object
+      additionalProperties:
+        $ref: "#/components/schemas/ApiScript"
+
 x-settings: &settings
   description: Settings
   type: object
@@ -672,6 +696,13 @@ x-signedTransactionBlob: &signedTransactionBlob
   description: Signed transaction message binary blob.
   type: string
   format: binary
+
+x-addressParts: &addressParts
+  description: Address credentials.
+  type: object
+  properties:
+    payment_credential: *credential
+    stake_credential: *credential
 
 x-transactionStatus: &transactionStatus
   description: |
@@ -1700,6 +1731,52 @@ components:
       properties:
         passphrase: *lenientPassphrase
         address_index: *addressIndex
+
+    ApiScript: &ApiScript
+      oneOf:
+        - title: Require Key Hash
+          type: string
+          format: bech32
+          example: script_vkh1wqaz0q0zhtxlgn0ewssevn2mrtm30fgh2g7hr7z9rj5856457mm
+
+        - title: Require All
+          type: object
+          required:
+            - all
+          properties:
+            all:
+              type: array
+              items:
+                $ref: "#/components/schemas/ApiScript"
+
+        - title: Require Any
+          type: object
+          required:
+            - any
+          properties:
+            any:
+              type: array
+              items:
+                $ref: "#/components/schemas/ApiScript"
+
+        - title: Require Some
+          type: object
+          required:
+            - some
+          properties:
+            some:
+              type: object
+              required:
+                - at_least
+                - from
+              properties:
+                at_least:
+                  type: integer
+                  minimum: 1
+                from:
+                  type: array
+                  items:
+                    $ref: "#/components/schemas/ApiScript"
 
     TransactionMetadataValue: &TransactionMetadataValue
       oneOf:
@@ -2777,6 +2854,17 @@ x-responsesPostExternalTransaction: &responsesPostExternalTransaction
       application/json:
         schema: *ApiTxId
 
+x-responsesPostAddress: &responsesPostAddress
+  <<: *responsesErr400
+  <<: *responsesErr405
+  <<: *responsesErr406
+  <<: *responsesErr415
+  202:
+    description: Accepted
+    content:
+      application/json:
+        schema: *ApiAddress
+
 x-responsesPostTransactionFee: &responsesPostTransactionFee
   400:
     description: Bad Request
@@ -3837,6 +3925,21 @@ paths:
       parameters:
         - *parametersAddressId
       responses: *responsesInspectAddress
+
+  /addresses:
+    post:
+      operationId: postAddress
+      tags: ["Utils"]
+      summary: Construct Address
+      description: |
+        <p align="right">status: <strong>unstable</strong></p>
+
+        Construct an address by specyfying credential for payment or stake.
+      requestBody:
+        content:
+          application/json:
+            schema: *addressParts
+      responses: *responsesPostAddress
 
   /settings:
     put:
