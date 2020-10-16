@@ -878,6 +878,8 @@ x-stakePoolMetadata: &stakePoolMetadata
       type: string
       format: uri
       example: https://iohk.io
+    delisted:
+      type: boolean
 
 x-stakePoolRetirement: &stakePoolRetirement
   <<: *epochInfo
