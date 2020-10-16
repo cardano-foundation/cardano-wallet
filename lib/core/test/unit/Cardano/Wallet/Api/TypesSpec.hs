@@ -48,6 +48,7 @@ import Cardano.Wallet.Api.Types
     , ApiBlockReference (..)
     , ApiByronWallet (..)
     , ApiByronWalletBalance (..)
+    , ApiCertificate (..)
     , ApiCoinSelection (..)
     , ApiCoinSelectionInput (..)
     , ApiEpochInfo (..)
@@ -59,7 +60,9 @@ import Cardano.Wallet.Api.Types
     , ApiNtpStatus (..)
     , ApiPostRandomAddressData
     , ApiPutAddressesData (..)
+    , ApiSelectCoinsAction (..)
     , ApiSelectCoinsData (..)
+    , ApiSelectCoinsPayments (..)
     , ApiSlotId (..)
     , ApiSlotReference (..)
     , ApiStakePool (..)
@@ -167,6 +170,8 @@ import Cardano.Wallet.Primitive.Types
     , walletNameMaxLength
     , walletNameMinLength
     )
+import Cardano.Wallet.Transaction
+    ( DelegationAction (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeFromText, unsafeXPrv )
 import Control.Lens
@@ -270,6 +275,7 @@ import Test.QuickCheck
     , scale
     , shrinkIntegral
     , vector
+    , vectorOf
     , (.&&.)
     , (===)
     )
@@ -293,6 +299,7 @@ import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.HashMap.Strict as HM
+import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
@@ -602,8 +609,8 @@ spec = do
                 x' === x .&&. show x' === show x
         it "ApiSelectCoinsData" $ property $ \x ->
             let
-                x' = ApiSelectCoinsData
-                    { payments = payments (x :: ApiSelectCoinsData ('Testnet 0))
+                x' = ApiSelectCoinsPayments
+                    { payments = payments (x :: ApiSelectCoinsPayments ('Testnet 0))
                     }
             in
                 x' === x .&&. show x' === show x
@@ -612,6 +619,7 @@ spec = do
                 x' = ApiCoinSelection
                     { inputs = inputs (x :: ApiCoinSelection ('Testnet 0))
                     , outputs = outputs (x :: ApiCoinSelection ('Testnet 0))
+                    , certificates = certificates (x :: ApiCoinSelection ('Testnet 0))
                     }
             in
                 x' === x .&&. show x' === show x
@@ -911,12 +919,35 @@ instance Arbitrary ApiEpochInfo where
     arbitrary = ApiEpochInfo <$> arbitrary <*> genUniformTime
     shrink _ = []
 
+instance Arbitrary (ApiSelectCoinsPayments n) where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
+
+instance Arbitrary ApiSelectCoinsAction where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
+
 instance Arbitrary (ApiSelectCoinsData n) where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
+instance Arbitrary DelegationAction where
+    arbitrary = oneof [Join <$> arbitrary, pure Quit]
+    shrink _ = []
+
+instance Arbitrary ApiCertificate where
+    arbitrary =
+        oneof [ JoinPool <$> arbitraryRewardAccountPath <*> arbitrary
+            , QuitPool <$> arbitraryRewardAccountPath
+            , RegisterRewardAccount <$> arbitraryRewardAccountPath
+            ]
+      where
+        arbitraryRewardAccountPath :: Gen (NonEmpty (ApiT DerivationIndex))
+        arbitraryRewardAccountPath = NE.fromList <$> vectorOf 5 arbitrary
+    shrink = genericShrink
+
 instance Arbitrary (ApiCoinSelection n) where
-    arbitrary = applyArbitrary2 ApiCoinSelection
+    arbitrary = ApiCoinSelection <$> arbitrary <*> arbitrary <*> arbitrary
     shrink = genericShrink
 
 instance Arbitrary (ApiCoinSelectionInput n) where
@@ -1559,7 +1590,22 @@ instance ToSchema (ApiPutAddressesData t) where
     declareNamedSchema _ = declareSchemaForDefinition "ApiPutAddressesData"
 
 instance ToSchema (ApiSelectCoinsData n) where
-    declareNamedSchema _ = declareSchemaForDefinition "ApiSelectCoinsData"
+    declareNamedSchema _ = do
+        NamedSchema _ paymentData <- declareNamedSchema (Proxy @(ApiSelectCoinsPayments n))
+        NamedSchema _ actionData  <- declareNamedSchema (Proxy @ApiSelectCoinsAction)
+        pure $ NamedSchema Nothing $ mempty
+            & type_ .~ Just SwaggerObject
+            & required .~ []
+            & properties .~ mconcat
+                [ paymentData ^. properties
+                , actionData ^. properties
+                ]
+
+instance ToSchema (ApiSelectCoinsPayments n) where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiSelectCoinsPayments"
+
+instance ToSchema ApiSelectCoinsAction where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiSelectCoinsAction"
 
 instance ToSchema (ApiCoinSelection n) where
     declareNamedSchema _ = declareSchemaForDefinition "ApiCoinSelection"

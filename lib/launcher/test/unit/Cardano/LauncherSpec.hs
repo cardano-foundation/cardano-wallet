@@ -81,7 +81,8 @@ import Test.Hspec
 import Test.Utils.Windows
     ( isWindows, pendingOnWine )
 
-{-# ANN spec ("HLint: ignore Use head" :: String) #-}
+{- HLINT ignore spec "Use head" -}
+
 spec :: Spec
 spec = beforeAll setupMockCommands $ do
     it "Buildable Command" $ \MockCommands{..} -> do

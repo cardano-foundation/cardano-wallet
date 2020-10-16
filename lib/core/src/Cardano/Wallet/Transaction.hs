@@ -1,5 +1,6 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -45,6 +46,8 @@ import Data.Text
     ( Text )
 import Data.Word
     ( Word16, Word8 )
+import GHC.Generics
+    ( Generic )
 
 data TransactionLayer t k = TransactionLayer
     { mkStdTx
@@ -158,7 +161,7 @@ data TransactionLayer t k = TransactionLayer
 
 -- | Whether the user is attempting any particular delegation action.
 data DelegationAction = RegisterKeyAndJoin PoolId | Join PoolId | Quit
-    deriving (Show)
+    deriving (Show, Eq, Generic)
 
 -- | A type family for validations that are specific to a particular backend
 -- type. This demands an instantiation of the family for a particular backend:

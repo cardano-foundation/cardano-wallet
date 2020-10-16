@@ -530,6 +530,45 @@ x-transactionOutputs: &transactionOutputs
       address: *addressId
       amount: *transactionAmount
 
+x-delegationAction: &delegationAction
+  description: |
+    A delegation action.
+
+    Pool id is only required for "join".
+  type: object
+  required:
+    - action
+  properties:
+    action:
+      type: string
+      enum: ["quit", "join"]
+    pool: *stakePoolId
+
+x-rewardAccountPath: &rewardAccountPath
+  type: array
+  minItems: 5
+  maxItems: 5
+  items:
+    type: string
+
+x-certificate: &certificate
+  description: |
+    A delegation certificate
+
+    Only for 'join_pool' the 'pool' property is required.
+  type: object
+  required:
+    - certificate_type
+    - reward_account_path
+  properties:
+    certificate_type:
+      type: string
+      enum: ["join_pool", "quit_pool", "register_reward_account"]
+    pool:
+      <<: *stakePoolId
+    reward_account_path:
+      <<: *rewardAccountPath
+
 x-transactionRedemptionRequest: &transactionRedemptionRequest
   <<: *walletMnemonicSentence
   description: |
@@ -1085,12 +1124,29 @@ components:
         minimum_utxo_value: *amount
         hardfork_at: *epochInfo
 
-    ApiSelectCoinsData: &ApiSelectCoinsData
+
+    ApiSelectCoinsPayments: &ApiSelectCoinsPayments
       type: object
       required:
         - payments
       properties:
         payments: *transactionOutputs
+
+    ApiSelectCoinsAction: &ApiSelectCoinsAction
+      type: object
+      required:
+        - delegation_action
+      properties:
+        delegation_action: *delegationAction
+
+    ApiSelectCoinsData: &ApiSelectCoinsData
+      type: object
+      oneOf:
+        - <<: *ApiSelectCoinsPayments
+        - <<: *ApiSelectCoinsAction
+
+    ApiByronSelectCoinsData: &ApiByronSelectCoinsData
+        <<: *ApiSelectCoinsPayments
 
     ApiCoinSelection: &ApiCoinSelection
       type: object
@@ -1100,6 +1156,9 @@ components:
       properties:
         inputs: *transactionResolvedInputs
         outputs: *transactionOutputs
+        certificates:
+          type: array
+          items: *certificate
 
     ApiStakePool: &ApiStakePool
       type: object
@@ -2895,7 +2954,7 @@ paths:
         required: true
         content:
           application/json:
-            schema: *ApiSelectCoinsData
+            schema: *ApiByronSelectCoinsData
       responses: *responsesSelectCoins
 
   /byron-wallets/{walletId}/migrations:
@@ -3024,3 +3083,4 @@ paths:
 
         Return the current settings.
       responses: *responsesGetSettings
+

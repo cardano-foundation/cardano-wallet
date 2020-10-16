@@ -17,7 +17,6 @@ in pkgs: super: with pkgs; {
       environments = {
         inherit (pkgs.commonLib.cardanoLib.environments)
           mainnet
-          mainnet_candidate_4
           staging
           testnet
           shelley_qa

@@ -41,7 +41,7 @@
 , projectArgs ? {
     config = { allowUnfree = false; inHydra = true; };
     gitrev = cardano-wallet.rev;
-    inherit pr;
+    inherit pr sourcesOverride;
   }
 
 # The systems that the jobset will be built for.
@@ -90,7 +90,7 @@ let
   inherit (systems.examples) mingwW64 musl64;
 
   mappedJobs = optionalAttrs buildNative {
-    native = mapTestOn (filterJobsNative (packagePlatformsOrig project));
+    native = mapTestOn (filterMappedNative (packagePlatformsOrig (filterJobsNative project)));
   } // optionalAttrs buildWindows {
     "${mingwW64.config}" = mapTestOnCross mingwW64
       (packagePlatformsCross (filterJobsWindows project));
@@ -116,25 +116,44 @@ let
     ) ds);
 
   # Remove build jobs for which cross compiling does not make sense.
-  filterJobsCross = filterAttrs (n: _: !(elem n ["dockerImage" "shell" "stackShell" "cabalShell" "stackNixRegenerate"]));
+  filterJobsCross = filterAttrs (n: _: !(elem n [
+    "dockerImage"
+    "shell"
+    "shell-prof"
+    "stackShell"
+    "cabalShell"
+    "stackNixRegenerate"
+  ]));
 
   # Remove cardano-node integration tests for Windows because
   # ouroboros-network doesn't work under wine.
   filterJobsWindows = let
       f = path: value: if (isCardanoNodeIntegration path) then {} else value;
-      isCardanoNodeIntegration = path: elem path
-        (map (x: ["checks" "cardano-wallet-${x}" "integration"]) ["shelley"]);
+      isCardanoNodeIntegration = path:
+         path == ["checks" "cardano-wallet" "integration"];
     in
       js: mapAttrsRecursive f (filterJobsCross js);
 
-  # Don't run tests on linux native, because they are also run for linux musl.
-  filterJobsNative = let
+  # Filters jobs for non-cross builds after platform mapping.
+  # 1. Don't run tests on linux native, because they are also run for linux musl.
+  filterMappedNative = let
     removeLinuxNativeChecks = path: value:
       if (head path == "checks" && builtins.typeOf value == "list")
         then remove "x86_64-linux" value
         else value;
   in mapAttrsRecursive removeLinuxNativeChecks;
 
+  # Filters the derivations from default.nix for non-cross builds.
+  # 1. Build profiled packages for the master branch, so that they are cached.
+  #    But don't make profiled builds for PRs because this is a waste of time.
+  # 2. Remove the test coverage report - only generate that for Linux musl.
+  filterJobsNative = let
+    removeProfiledBuildForPRs = if (pr == null)
+      then id
+      else filterAttrs (n: _: n != "shell-prof");
+    removeCoverageReport = filterAttrs (n: _: n != "testCoverageReport");
+  in
+    drvs: removeCoverageReport (removeProfiledBuildForPRs drvs);
 
   ############################################################################
   # This aggregate job is what IOHK Hydra uses to update the CI status

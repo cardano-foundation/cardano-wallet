@@ -12,6 +12,8 @@ in
   cabalShell.overrideAttrs (old: {
     name = "cardano-wallet-stack-env";
 
+    buildInputs = old.buildInputs ++ [ pkgs.stack ];
+
     # Build environment setup copied from
     # <nixpkgs/pkgs/development/haskell-modules/generic-stack-builder.nix>
     GIT_SSL_CAINFO = "${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt";

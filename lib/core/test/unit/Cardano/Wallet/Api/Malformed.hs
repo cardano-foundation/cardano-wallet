@@ -847,12 +847,31 @@ instance Malformed (BodyParam (ApiSelectCoinsData ('Testnet pm))) where
     malformed = jsonValid ++ jsonInvalid
      where
          jsonInvalid = first BodyParam <$>
-            [ ("1020344", "Error in $: parsing Cardano.Wallet.Api.Types.ApiSelectCoinsData(ApiSelectCoinsData) failed, expected Object, but encountered Number")
-            , ("\"1020344\"", "Error in $: parsing Cardano.Wallet.Api.Types.ApiSelectCoinsData(ApiSelectCoinsData) failed, expected Object, but encountered String")
+            [ ("1020344", "Error in $: parsing DelegationAction failed, expected Object, but encountered Number")
+            , ("\"1020344\"", "Error in $: parsing DelegationAction failed, expected Object, but encountered String")
             , ("\"slot_number : \"random\"}", "trailing junk after valid JSON: endOfInput")
             , ("{\"payments : [], \"random\"}", msgJsonInvalid)
+            , ("join", "I couldn't understand the content of your message. If your message is intended to be in JSON format, please check that the JSON is valid.")
+            , ("quit", msgJsonInvalid)
             ]
-         jsonValid = first (BodyParam . Aeson.encode) <$> paymentCases
+         jsonValid = (first (BodyParam . Aeson.encode) <$> paymentCases) <> jsonValidAction
+         jsonValidAction = first (BodyParam . Aeson.encode) <$>
+            [ ( [aesonQQ| { "action": "join" }|]
+              , "Error in $: No valid parse for ApiSelectCoinsPayments or ApiSelectCoinsAction"
+              )
+            , ( [aesonQQ| { "action": "" }|]
+              , "Error in $: No valid parse for ApiSelectCoinsPayments or ApiSelectCoinsAction"
+              )
+            , ( [aesonQQ| { "action": "join", "pool": "" }|]
+              , "Error in $: No valid parse for ApiSelectCoinsPayments or ApiSelectCoinsAction"
+              )
+            , ( [aesonQQ| { "action": "join", "pool": "1" }|]
+              , "Error in $: No valid parse for ApiSelectCoinsPayments or ApiSelectCoinsAction"
+              )
+            , ( [aesonQQ| { "pool": "pool1wqaz0q0zhtxlgn0ewssevn2mrtm30fgh2g7hr7z9rj5856457mm" }|]
+              , "Error in $: No valid parse for ApiSelectCoinsPayments or ApiSelectCoinsAction"
+              )
+            ]
 
 instance Malformed (BodyParam (PostTransactionData ('Testnet pm))) where
     malformed = jsonValid ++ jsonInvalid

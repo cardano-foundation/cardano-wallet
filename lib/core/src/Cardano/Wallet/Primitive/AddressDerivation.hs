@@ -38,9 +38,12 @@ module Cardano.Wallet.Primitive.AddressDerivation
     , utxoExternal
     , utxoInternal
     , mutableAccount
+    , zeroAccount
+    , stakeDerivationPath
     , DerivationType (..)
     , HardDerivation (..)
     , SoftDerivation (..)
+    , DerivationPrefix (..)
     , liftIndex
 
     -- * Delegation
@@ -85,7 +88,12 @@ import Cardano.Address.Derivation
 import Cardano.Mnemonic
     ( SomeMnemonic )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..), ChimericAccount (..), Hash (..), PassphraseScheme (..) )
+    ( Address (..)
+    , ChimericAccount (..)
+    , DerivationIndex (..)
+    , Hash (..)
+    , PassphraseScheme (..)
+    )
 import Control.DeepSeq
     ( NFData )
 import Control.Monad
@@ -138,6 +146,8 @@ import qualified Codec.CBOR.Write as CBOR
 import qualified Crypto.Scrypt as Scrypt
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
+import Data.List.NonEmpty
+    ( NonEmpty (..) )
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 
@@ -202,6 +212,21 @@ utxoInternal = toEnum $ fromEnum UTxOInternal
 -- key level (a.k.a mutable account)
 mutableAccount :: Index 'Soft 'RoleK
 mutableAccount = toEnum $ fromEnum MutableAccount
+
+zeroAccount :: Index 'Soft 'AddressK
+zeroAccount = minBound
+
+-- | Full path to the stake key. There's only one.
+stakeDerivationPath :: DerivationPrefix -> NonEmpty DerivationIndex
+stakeDerivationPath (DerivationPrefix (purpose, coin, acc)) =
+    (fromIndex purpose) :| [
+      fromIndex coin
+    , fromIndex acc
+    , fromIndex mutableAccount
+    , fromIndex zeroAccount]
+  where
+    fromIndex :: Index t l -> DerivationIndex
+    fromIndex = DerivationIndex . getIndex
 
 -- | A derivation index, with phantom-types to disambiguate derivation type.
 --
@@ -276,6 +301,43 @@ instance LiftIndex 'Hardened where
 
 instance LiftIndex 'Soft where
     liftIndex (Index ix) = Index ix
+
+-- | Each 'SeqState' is like a bucket of addresses associated with an 'account'.
+-- An 'account' corresponds to a subset of an HD tree as defined in BIP-0039.
+--
+-- cardano-wallet implements two similar HD schemes on top of BIP-0039 that are:
+--
+-- - BIP-0044 (for so-called Icarus wallets)
+-- - CIP-1815 (for so-called Shelley and Jormungandr wallets)
+--
+-- Both scheme works by considering 5 levels of derivation from an initial root
+-- key (see also 'Depth' from Cardano.Wallet.Primitive.AddressDerivation). A
+-- SeqState keeps track of indexes from the two last levels of a derivation
+-- branch. The 'DerivationPrefix' defines the first three indexes chosen for
+-- this particular 'SeqState'.
+newtype DerivationPrefix = DerivationPrefix
+    ( Index 'Hardened 'PurposeK
+    , Index 'Hardened 'CoinTypeK
+    , Index 'Hardened 'AccountK
+    ) deriving (Show, Generic, Eq, Ord)
+
+instance NFData DerivationPrefix
+
+instance ToText DerivationPrefix where
+    toText (DerivationPrefix (purpose, coinType, account))
+        = T.intercalate "/"
+        $ map toText
+        [getIndex purpose, getIndex coinType, getIndex account]
+
+instance FromText DerivationPrefix where
+    fromText txt =
+        DerivationPrefix <$> case T.splitOn "/" txt of
+            [purposeT, coinTypeT, accountT] -> (,,)
+                <$> fromText purposeT
+                <*> fromText coinTypeT
+                <*> fromText accountT
+            _ ->
+                Left $ TextDecodingError "expected exactly 3 derivation paths"
 
 -- | Type of derivation that should be used with the given indexes.
 --

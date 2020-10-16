@@ -8,6 +8,7 @@
 {-# LANGUAGE TypeOperators #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 
 -- |
 -- Copyright: © 2018-2020 IOHK
@@ -37,6 +38,7 @@ import Cardano.Wallet.Api
     , Api
     , ApiLayer (..)
     , ByronAddresses
+    , ByronCoinSelections
     , ByronMigrations
     , ByronTransactions
     , ByronWallets
@@ -89,7 +91,11 @@ import Cardano.Wallet.Api.Server
     , withLegacyLayer'
     )
 import Cardano.Wallet.Api.Types
-    ( ApiErrorCode (..), ApiT (..), SomeByronWalletPostData (..) )
+    ( ApiErrorCode (..)
+    , ApiSelectCoinsData (..)
+    , ApiT (..)
+    , SomeByronWalletPostData (..)
+    )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( DelegationAddress (..), NetworkDiscriminant (..), PaymentAddress )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
@@ -169,8 +175,16 @@ server byron icarus jormungandr spl ntp =
     addresses = listAddresses jormungandr (normalizeDelegationAddress @_ @JormungandrKey @n)
         :<|> (\_ -> throwError err501)
 
+    -- Hlint doesn't seem to care about inlining properties:
+    --   https://github.com/quchen/articles/blob/master/fbut.md#f-x---is-not-f--x---
+    {-# HLINT ignore "Redundant lambda" #-}
     coinSelections :: Server (CoinSelections n)
-    coinSelections = selectCoins jormungandr (delegationAddress @n)
+    coinSelections =
+        \wid ascd -> case ascd of
+                (ApiSelectForPayment ascp) ->
+                    selectCoins jormungandr (delegationAddress @n) wid ascp
+                (ApiSelectForDelegation _) ->
+                    throwError err501
 
     transactions :: Server (Transactions n)
     transactions =
@@ -242,7 +256,7 @@ server byron icarus jormungandr spl ntp =
         :<|> (\_ _ -> throwError err501)
         :<|> (\_ _ -> throwError err501)
 
-    byronCoinSelections :: Server (CoinSelections n)
+    byronCoinSelections :: Server (ByronCoinSelections n)
     byronCoinSelections _ _ = throwError err501
 
     byronTransactions :: Server (ByronTransactions n)

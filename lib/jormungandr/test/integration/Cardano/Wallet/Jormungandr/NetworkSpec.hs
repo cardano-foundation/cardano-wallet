@@ -129,7 +129,7 @@ import qualified Cardano.Wallet.Jormungandr.Api.Client as Jormungandr
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 
-{-# ANN spec ("HLint: ignore Use head" :: String) #-}
+{- HLINT ignore spec "Use head" -}
 
 spec :: Spec
 spec = do

@@ -227,6 +227,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , encryptPassphrase
     , liftIndex
     , preparePassphrase
+    , stakeDerivationPath
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey, unsafeMkByronKeyFromMasterKey )
@@ -993,18 +994,20 @@ readChimericAccount
         )
     => ctx
     -> WalletId
-    -> ExceptT ErrReadChimericAccount IO ChimericAccount
+    -> ExceptT ErrReadChimericAccount IO (ChimericAccount, NonEmpty DerivationIndex)
 readChimericAccount ctx wid = db & \DBLayer{..} -> do
     cp <- withExceptT ErrReadChimericAccountNoSuchWallet
         $ mapExceptT atomically
         $ withNoSuchWallet wid
         $ readCheckpoint (PrimaryKey wid)
     case testEquality (typeRep @s) (typeRep @shelley) of
-        Nothing -> throwE ErrReadChimericAccountNotAShelleyWallet
-        Just Refl -> pure
-            $ toChimericAccount
-            $ Seq.rewardAccountKey
-            $ getState cp
+        Nothing ->
+            throwE ErrReadChimericAccountNotAShelleyWallet
+        Just Refl -> do
+            let s = getState cp
+            let acct = toChimericAccount   $ Seq.rewardAccountKey s
+            let path = stakeDerivationPath $ Seq.derivationPrefix s
+            pure (acct, path)
   where
     db = ctx ^. dbLayer @s @k
 
@@ -1047,7 +1050,7 @@ manageRewardBalance _ ctx wid = db & \DBLayer{..} -> do
     watchNodeTip $ \bh -> do
          traceWith tr $ MsgRewardBalanceQuery bh
          query <- runExceptT $ do
-            acct <- withExceptT ErrFetchRewardsReadChimericAccount $
+            (acct, _) <- withExceptT ErrFetchRewardsReadChimericAccount $
                 readChimericAccount @ctx @s @k @n ctx wid
             queryRewardBalance @ctx @t ctx acct
          traceWith tr $ MsgRewardBalanceResult query
@@ -1659,27 +1662,20 @@ signTx ctx wid pwd md (UnsignedTx inpsNE outsNE) = db & \DBLayer{..} -> do
 
 -- | Makes a fully-resolved coin selection for the given set of payments.
 selectCoinsExternal
-    :: forall ctx s t k e.
+    :: forall ctx s k e resolvedInput.
         ( GenChange s
         , HasDBLayer s k ctx
-        , HasLogger WalletLog ctx
-        , HasTransactionLayer t k ctx
-        , e ~ ErrValidateSelection t
         , IsOurs s Address
+        , resolvedInput ~ (TxIn, TxOut, NonEmpty DerivationIndex)
         )
     => ctx
     -> WalletId
     -> ArgGenChange s
-    -> NonEmpty TxOut
-    -> Quantity "lovelace" Word64
-    -> Maybe TxMetadata
-    -> ExceptT
-        (ErrSelectCoinsExternal e)
-        IO
-        (UnsignedTx (TxIn, TxOut, NonEmpty DerivationIndex))
-selectCoinsExternal ctx wid argGenChange payments withdrawal md = do
-    cs <- withExceptT ErrSelectCoinsExternalUnableToMakeSelection $
-        selectCoinsForPayment @ctx @s @t @k @e ctx wid payments withdrawal md
+    -> ExceptT (ErrSelectCoinsExternal e) IO CoinSelection
+    -> ExceptT (ErrSelectCoinsExternal e) IO (UnsignedTx resolvedInput)
+selectCoinsExternal ctx wid argGenChange selectCoins = do
+    cs <- selectCoins
+
     (cs', s') <- db & \DBLayer{..} ->
         withExceptT ErrSelectCoinsExternalNoSuchWallet $
             mapExceptT atomically $ do
@@ -1687,48 +1683,21 @@ selectCoinsExternal ctx wid argGenChange payments withdrawal md = do
                 (cs', s') <- assignChangeAddresses argGenChange cs (getState cp)
                 putCheckpoint (PrimaryKey wid) (updateState s' cp)
                 pure (cs', s')
+
     UnsignedTx
-        <$> (fullyQualifiedInputs s' cs' >>= flip ensureNonEmpty
-                ErrSelectCoinsExternalUnableToAssignInputs)
+        <$> (fullyQualifiedInputs s' cs'
+                (ErrSelectCoinsExternalUnableToAssignInputs cs'))
         <*> ensureNonEmpty (outputs cs')
-                ErrSelectCoinsExternalUnableToAssignOutputs
+                (ErrSelectCoinsExternalUnableToAssignOutputs cs')
   where
     db = ctx ^. dbLayer @s @k
 
-    fullyQualifiedInputs
-        :: s
-        -> CoinSelection
-        -> ExceptT
-            (ErrSelectCoinsExternal e)
-            IO
-            [(TxIn, TxOut, NonEmpty DerivationIndex)]
-    fullyQualifiedInputs s cs =
-        traverse withDerivationPath (inputs cs)
-      where
-        withDerivationPath
-            :: (TxIn, TxOut)
-            -> ExceptT
-                (ErrSelectCoinsExternal e)
-                IO
-                (TxIn, TxOut, NonEmpty DerivationIndex)
-        withDerivationPath (txin, txout) = do
-            case fst $ isOurs (address txout) s of
-                Nothing -> throwE $ ErrSelectCoinsExternalUnableToAssignInputs wid
-                Just path -> pure (txin, txout, path)
-
-    ensureNonEmpty
-        :: forall a. [a]
-        -> (WalletId -> ErrSelectCoinsExternal e)
-        -> ExceptT (ErrSelectCoinsExternal e) IO (NonEmpty a)
-    ensureNonEmpty mxs err = case NE.nonEmpty mxs of
-        Nothing -> throwE $ err wid
-        Just xs -> pure xs
-
 data ErrSelectCoinsExternal e
     = ErrSelectCoinsExternalNoSuchWallet ErrNoSuchWallet
-    | ErrSelectCoinsExternalUnableToMakeSelection (ErrSelectForPayment e)
-    | ErrSelectCoinsExternalUnableToAssignInputs WalletId
-    | ErrSelectCoinsExternalUnableToAssignOutputs WalletId
+    | ErrSelectCoinsExternalForPayment (ErrSelectForPayment e)
+    | ErrSelectCoinsExternalForDelegation ErrSelectForDelegation
+    | ErrSelectCoinsExternalUnableToAssignInputs CoinSelection
+    | ErrSelectCoinsExternalUnableToAssignOutputs CoinSelection
     deriving (Eq, Show)
 
 signDelegation
@@ -1972,19 +1941,11 @@ getTransaction ctx wid tid = db & \DBLayer{..} -> do
                                   Delegation
 -------------------------------------------------------------------------------}
 
--- | Helper function to factor necessary logic for joining a stake pool.
 joinStakePool
-    :: forall ctx s t k.
+    :: forall ctx s k n.
         ( HasDBLayer s k ctx
         , HasLogger WalletLog ctx
-        , HasNetworkLayer t ctx
-        , HasTransactionLayer t k ctx
-        , IsOwned s k
-        , IsOurs s ChimericAccount
-        , GenChange s
-        , HardDerivation k
-        , AddressIndexDerivationType k ~ 'Soft
-        , WalletKey k
+        , s ~ SeqState n k
         )
     => ctx
     -> W.EpochNo
@@ -1992,16 +1953,16 @@ joinStakePool
     -> PoolId
     -> PoolLifeCycleStatus
     -> WalletId
-    -> ArgGenChange s
-    -> Passphrase "raw"
-    -> ExceptT ErrJoinStakePool IO (Tx, TxMeta, UTCTime)
-joinStakePool ctx currentEpoch knownPools pid poolStatus wid argGenChange pwd =
+    -> ExceptT ErrJoinStakePool IO DelegationAction
+joinStakePool ctx currentEpoch knownPools pid poolStatus wid =
     db & \DBLayer{..} -> do
-
-        (isKeyReg, walMeta) <- mapExceptT atomically
-            $ withExceptT ErrJoinStakePoolNoSuchWallet
-            $ (,) <$> isStakeKeyRegistered (PrimaryKey wid)
-                  <*> withNoSuchWallet wid (readWalletMeta (PrimaryKey wid))
+        (walMeta, isKeyReg) <- mapExceptT atomically $ do
+            walMeta <- withExceptT ErrJoinStakePoolNoSuchWallet
+                $ withNoSuchWallet wid
+                $ readWalletMeta (PrimaryKey wid)
+            isKeyReg <- withExceptT ErrJoinStakePoolNoSuchWallet
+                $ isStakeKeyRegistered (PrimaryKey wid)
+            pure (walMeta, isKeyReg)
 
         let mRetirementEpoch = view #retirementEpoch <$>
                 W.getPoolRetirementCertificate poolStatus
@@ -2011,67 +1972,39 @@ joinStakePool ctx currentEpoch knownPools pid poolStatus wid argGenChange pwd =
         withExceptT ErrJoinStakePoolCannotJoin $ except $
             guardJoin knownPools (walMeta ^. #delegation) pid retirementInfo
 
-        let action = if isKeyReg then Join pid else RegisterKeyAndJoin pid
         liftIO $ traceWith tr $ MsgIsStakeKeyRegistered isKeyReg
 
-        selection <- withExceptT ErrJoinStakePoolSelectCoin $
-            selectCoinsForDelegation @ctx @s @t @k ctx wid action
-
-        (tx, txMeta, txTime, sealedTx) <-
-            withExceptT ErrJoinStakePoolSignDelegation $
-                signDelegation
-                    @ctx @s @t @k ctx wid argGenChange pwd selection action
-
-        withExceptT ErrJoinStakePoolSubmitTx $
-            submitTx @ctx @s @t @k ctx wid (tx, txMeta, sealedTx)
-
-        pure (tx, txMeta, txTime)
+        return $ if isKeyReg
+            then Join pid
+            else RegisterKeyAndJoin pid
   where
     db = ctx ^. dbLayer @s @k
     tr = ctx ^. logger
 
 -- | Helper function to factor necessary logic for quitting a stake pool.
 quitStakePool
-    :: forall ctx s t k.
+    :: forall ctx s k n.
         ( HasDBLayer s k ctx
-        , HasLogger WalletLog ctx
-        , HasNetworkLayer t ctx
-        , HasTransactionLayer t k ctx
-        , IsOwned s k
-        , IsOurs s ChimericAccount
-        , GenChange s
-        , HardDerivation k
-        , AddressIndexDerivationType k ~ 'Soft
-        , WalletKey k
+        , s ~ SeqState n k
         )
     => ctx
     -> WalletId
-    -> ArgGenChange s
-    -> Passphrase "raw"
-    -> ExceptT ErrQuitStakePool IO (Tx, TxMeta, UTCTime)
-quitStakePool ctx wid argGenChange pwd = db & \DBLayer{..} -> do
-    walMeta <- mapExceptT atomically $ withExceptT ErrQuitStakePoolNoSuchWallet $
-        withNoSuchWallet wid $ readWalletMeta (PrimaryKey wid)
+    -> ExceptT ErrQuitStakePool IO DelegationAction
+quitStakePool ctx wid = db & \DBLayer{..} -> do
+    walMeta <- mapExceptT atomically
+        $ withExceptT ErrQuitStakePoolNoSuchWallet
+        $ withNoSuchWallet wid
+        $ readWalletMeta (PrimaryKey wid)
 
-    rewards <- liftIO $ fetchRewardBalance @ctx @s @k ctx wid
+    rewards <- liftIO
+        $ fetchRewardBalance @ctx @s @k ctx wid
+
     withExceptT ErrQuitStakePoolCannotQuit $ except $
         guardQuit (walMeta ^. #delegation) rewards
 
-    let action = Quit
-
-    selection <- withExceptT ErrQuitStakePoolSelectCoin $
-        selectCoinsForDelegation @ctx @s @t @k ctx wid action
-
-    (tx, txMeta, txTime, sealedTx) <- withExceptT ErrQuitStakePoolSignDelegation $
-        signDelegation @ctx @s @t @k ctx wid argGenChange pwd selection action
-
-    withExceptT ErrQuitStakePoolSubmitTx $
-        submitTx @ctx @s @t @k ctx wid (tx, txMeta, sealedTx)
-
-    pure (tx, txMeta, txTime)
+    pure Quit
   where
     db = ctx ^. dbLayer @s @k
-
 
 {-------------------------------------------------------------------------------
                                  Fee Estimation
@@ -2331,6 +2264,8 @@ data ErrStartTimeLaterThanEndTime = ErrStartTimeLaterThanEndTime
 data ErrSelectForDelegation
     = ErrSelectForDelegationNoSuchWallet ErrNoSuchWallet
     | ErrSelectForDelegationFee ErrAdjustForFee
+    | ErrSelectForDelegationUnableToAssignInputs ErrNoSuchWallet
+    | ErrSelectForDelegationUnableToAssignOutputs ErrNoSuchWallet
     deriving (Show, Eq)
 
 -- | Errors that can occur when signing a delegation certificate.
@@ -2347,6 +2282,8 @@ data ErrJoinStakePool
     | ErrJoinStakePoolSignDelegation ErrSignDelegation
     | ErrJoinStakePoolSubmitTx ErrSubmitTx
     | ErrJoinStakePoolCannotJoin ErrCannotJoin
+    | ErrJoinStakePoolUnableToAssignInputs CoinSelection
+    | ErrJoinStakePoolUnableToAssignOutputs CoinSelection
     deriving (Generic, Eq, Show)
 
 data ErrQuitStakePool
@@ -2355,6 +2292,8 @@ data ErrQuitStakePool
     | ErrQuitStakePoolSignDelegation ErrSignDelegation
     | ErrQuitStakePoolSubmitTx ErrSubmitTx
     | ErrQuitStakePoolCannotQuit ErrCannotQuit
+    | ErrQuitStakePoolUnableToAssignInputs CoinSelection
+    | ErrQuitStakePoolUnableToAssignOutputs CoinSelection
     deriving (Generic, Eq, Show)
 
 -- | Errors that can occur when fetching the reward balance of a wallet
@@ -2493,6 +2432,33 @@ guardCoinSelection minUtxoValue cs@CoinSelection{outputs, change} = do
             filter (< minUtxoValue) (outputCoins ++ change)
     unless (L.null invalidTxOuts) $
         Left (ErrUTxOTooSmall (getCoin minUtxoValue) (getCoin <$> invalidTxOuts))
+
+fullyQualifiedInputs
+    :: forall s e.
+        (IsOurs s Address)
+    => s
+    -> CoinSelection
+    -> e
+    -> ExceptT e IO (NonEmpty (TxIn, TxOut, NonEmpty DerivationIndex))
+fullyQualifiedInputs s cs e =
+    traverse withDerivationPath (inputs cs) >>= flip ensureNonEmpty e
+  where
+    withDerivationPath
+        :: (TxIn, TxOut)
+        -> ExceptT e IO (TxIn, TxOut, NonEmpty DerivationIndex)
+    withDerivationPath (txin, txout) = do
+        case fst $ isOurs (address txout) s of
+            Nothing -> throwE e
+            Just path -> pure (txin, txout, path)
+
+ensureNonEmpty
+    :: forall a e.
+      [a]
+    -> e
+    -> ExceptT e IO (NonEmpty a)
+ensureNonEmpty mxs err = case NE.nonEmpty mxs of
+    Nothing -> throwE err
+    Just xs -> pure xs
 
 {-------------------------------------------------------------------------------
                                     Logging

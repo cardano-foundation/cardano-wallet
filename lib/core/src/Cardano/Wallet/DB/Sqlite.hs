@@ -12,8 +12,7 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
-{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
-{-# HLINT ignore "Redundant flip" #-}
+{- HLINT ignore "Redundant flip" -}
 
 -- |
 -- Copyright: © 2018-2020 IOHK

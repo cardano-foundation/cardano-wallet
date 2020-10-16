@@ -6,6 +6,8 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+
 -- |
 -- Copyright: © 2018-2020 IOHK
 -- License: Apache-2.0
@@ -32,6 +34,7 @@ import Cardano.Wallet.Api
     , Api
     , ApiLayer (..)
     , ByronAddresses
+    , ByronCoinSelections
     , ByronMigrations
     , ByronTransactions
     , ByronWallets
@@ -85,6 +88,8 @@ import Cardano.Wallet.Api.Server
     , quitStakePool
     , rndStateChange
     , selectCoins
+    , selectCoinsForJoin
+    , selectCoinsForQuit
     , withLegacyLayer
     , withLegacyLayer'
     )
@@ -92,6 +97,8 @@ import Cardano.Wallet.Api.Types
     ( ApiAddressInspect (..)
     , ApiAddressInspectData (..)
     , ApiErrorCode (..)
+    , ApiSelectCoinsAction (..)
+    , ApiSelectCoinsData (..)
     , ApiStakePool
     , ApiT (..)
     , SettingsPutData (..)
@@ -113,6 +120,8 @@ import Cardano.Wallet.Shelley.Compatibility
     ( inspectAddress )
 import Cardano.Wallet.Shelley.Pools
     ( StakePoolLayer (..) )
+import Cardano.Wallet.Transaction
+    ( DelegationAction (..) )
 import Control.Applicative
     ( liftA2 )
 import Control.Monad.IO.Class
@@ -134,7 +143,7 @@ import Fmt
 import Network.Ntp
     ( NtpClient )
 import Servant
-    ( (:<|>) (..), Handler (..), NoContent (..), Server, err400 )
+    ( (:<|>) (..), Handler (..), NoContent (..), Server, err400, throwError )
 import Servant.Server
     ( ServerError (..) )
 import Type.Reflection
@@ -192,8 +201,22 @@ server byron icarus shelley spl ntp =
         handler transform =
             Handler . withExceptT toServerError . except . fmap transform
 
+    -- Hlint doesn't seem to care about inlining properties:
+    --   https://github.com/quchen/articles/blob/master/fbut.md#f-x---is-not-f--x---
+    {-# HLINT ignore "Redundant lambda" #-}
     coinSelections :: Server (CoinSelections n)
-    coinSelections = selectCoins shelley (delegationAddress @n)
+    coinSelections = (\wid ascd -> case ascd of
+        (ApiSelectForPayment ascp) -> selectCoins shelley (delegationAddress @n) wid ascp
+        (ApiSelectForDelegation (ApiSelectCoinsAction (ApiT action))) -> case action of
+                Join pid -> selectCoinsForJoin @_ @()
+                    shelley
+                    (knownPools spl)
+                    (getPoolLifeCycleStatus spl)
+                    pid
+                    (getApiT wid)
+                RegisterKeyAndJoin _ -> throwError err400
+                Quit -> selectCoinsForQuit @_ @() shelley wid
+        )
 
     transactions :: Server (Transactions n)
     transactions =
@@ -285,10 +308,15 @@ server byron icarus shelley spl ntp =
                 (icarus, listAddresses icarus (const pure) wid s)
              )
 
-    byronCoinSelections :: Server (CoinSelections n)
-    byronCoinSelections wid x = withLegacyLayer wid
-        (byron, liftHandler $ throwE ErrNotASequentialWallet)
-        (icarus, selectCoins icarus (const $ paymentAddress @n) wid x)
+    byronCoinSelections :: Server (ByronCoinSelections n)
+    byronCoinSelections wid (ApiSelectForPayment x) =
+        withLegacyLayer wid
+            (byron, liftHandler $ throwE ErrNotASequentialWallet)
+            (icarus, selectCoins icarus (const $ paymentAddress @n) wid x)
+    byronCoinSelections _ _ = Handler
+        $ throwE
+        $ apiError err400 InvalidWalletType
+        "Byron wallets don't have delegation capabilities."
 
     byronTransactions :: Server (ByronTransactions n)
     byronTransactions =

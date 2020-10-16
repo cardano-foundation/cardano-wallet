@@ -73,8 +73,10 @@ module Test.Integration.Framework.DSL
     , getFromResponseList
     , json
     , joinStakePool
+    , joinStakePoolUnsigned
     , delegationFee
     , quitStakePool
+    , quitStakePoolUnsigned
     , selectCoins
     , listAddresses
     , listTransactions
@@ -144,6 +146,9 @@ module Test.Integration.Framework.DSL
     , postExternalTransactionViaCLI
     , deleteTransactionViaCLI
     , getTransactionViaCLI
+
+    -- utilites
+    , getRetirementEpoch
     ) where
 
 import Cardano.CLI
@@ -171,6 +176,7 @@ import Cardano.Wallet.Api.Types
     , ApiFee
     , ApiNetworkInformation
     , ApiNetworkParameters (..)
+    , ApiStakePool
     , ApiT (..)
     , ApiTransaction
     , ApiTxId (ApiTxId)
@@ -1233,6 +1239,24 @@ joinStakePool ctx p (w, pass) = do
     request @(ApiTransaction n) ctx
         (Link.joinStakePool (Identity p) w) Default payload
 
+joinStakePoolUnsigned
+    :: forall n style t w.
+        ( HasType (ApiT WalletId) w
+        , DecodeAddress n
+        , EncodeAddress n
+        , Link.Discriminate style
+        )
+    => Context t
+    -> w
+    -> ApiT PoolId
+    -> IO (HTTP.Status, Either RequestException (ApiCoinSelection n))
+joinStakePoolUnsigned ctx w pid = do
+    let payload = Json [aesonQQ| {
+            "delegation_action": { "action": "join", "pool": #{pid} }
+        } |]
+    request @(ApiCoinSelection n) ctx
+        (Link.selectCoins @style w) Default payload
+
 quitStakePool
     :: forall n t w.
         ( HasType (ApiT WalletId) w
@@ -1248,6 +1272,23 @@ quitStakePool ctx (w, pass) = do
             } |]
     request @(ApiTransaction n) ctx
         (Link.quitStakePool w) Default payload
+
+quitStakePoolUnsigned
+    :: forall n style t w.
+        ( HasType (ApiT WalletId) w
+        , DecodeAddress n
+        , EncodeAddress n
+        , Link.Discriminate style
+        )
+    => Context t
+    -> w
+    -> IO (HTTP.Status, Either RequestException (ApiCoinSelection n))
+quitStakePoolUnsigned ctx w = do
+    let payload = Json [aesonQQ| {
+            "delegation_action": { "action": "quit" }
+        } |]
+    request @(ApiCoinSelection n) ctx
+        (Link.selectCoins @style w) Default payload
 
 selectCoins
     :: forall n style t w.
@@ -1898,3 +1939,7 @@ delegating
 delegating pidActive nexts = (notDelegating nexts)
     { active = ApiWalletDelegationNext Delegating (Just pidActive) Nothing
     }
+
+
+getRetirementEpoch :: ApiStakePool -> Maybe EpochNo
+getRetirementEpoch = fmap (view (#epochNumber . #getApiT)) .  view #retirement

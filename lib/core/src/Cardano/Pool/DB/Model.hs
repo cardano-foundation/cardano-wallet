@@ -451,7 +451,7 @@ mReadSettings = get #settings
 -- `const` isn't more readable than lambdas. Our language is based on
 -- lambda calculus and we shouldn't feel ashamed to use them. They also
 -- have different strictness properties.
-{-# HLINT ignore mPutSettings "Use const" #-}
+{- HLINT ignore mPutSettings "Use const" -}
 mPutSettings
     :: Settings
     -> ModelOp ()

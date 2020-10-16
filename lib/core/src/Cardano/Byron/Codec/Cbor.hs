@@ -1,6 +1,3 @@
--- need this for {-# HLINT ... #-}; see https://github.com/ndmitchell/hlint#ignoring-hints
-{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
-
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
@@ -281,7 +278,7 @@ decodeTx = do
     _ <- decodeEmptyAttributes
     return (ins, outs)
 
-{-# HLINT ignore decodeTxIn "Use <$>" #-}
+{- HLINT ignore decodeTxIn "Use <$>" -}
 decodeTxIn :: CBOR.Decoder s TxIn
 decodeTxIn = do
     _ <- CBOR.decodeListLenCanonicalOf 2
@@ -301,7 +298,7 @@ decodeTxIn = do
         tx <- Hash <$> CBOR.decodeBytes
         TxIn tx <$> CBOR.decodeWord32
 
-{-# HLINT ignore decodeTxOut "Use <$>" #-}
+{- HLINT ignore decodeTxOut "Use <$>" -}
 decodeTxOut :: CBOR.Decoder s TxOut
 decodeTxOut = do
     _ <- CBOR.decodeListLenCanonicalOf 2

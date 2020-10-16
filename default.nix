@@ -69,11 +69,61 @@ let
   } // args);
   haskellPackages = buildHaskellPackages {};
   profiledHaskellPackages = buildHaskellPackages { profiling = true; };
+  coveredHaskellPackages = buildHaskellPackages { coverage = true; };
 
   getPackageChecks = mapAttrs (_: package: package.checks);
 
+  # Creates a development environment for Cabal builds or ghci
+  # sessions, with various build tools included.
+  mkShell = name: hp: hp.shellFor {
+    inherit name;
+    packages = ps: attrValues (selectProjectPackages ps);
+    buildInputs = (with self; [
+        jormungandr
+        jormungandr-cli
+        cardano-node
+        cardano-cli
+        cardano-address
+        cardano-tx
+        bech32
+      ]) ++ (with pkgs; [
+        niv
+        pkgconfig
+        python3Packages.openapi-spec-validator
+        ruby
+        sqlite-interactive
+        yq
+      ]) ++ attrValues hls;
+    tools = {
+      cabal = "3.2.0.0";
+      ghcid = "0.8.7";
+      hlint = "3.2";
+      lentil = "1.3.2.0";
+      stylish-haskell = "0.11.0.3";
+      weeder = "1.0.9";
+    };
+    CARDANO_NODE_CONFIGS = cardano-node.deployments;
+    meta.platforms = lib.platforms.unix;
+    shellHook = ''
+      setup_completion() {
+        local p
+        for p in $buildInputs; do
+          if [ -d "$p/share/bash-completion" ]; then
+            addToSearchPath XDG_DATA_DIRS "$p/share"
+          fi
+        done
+      }
+      setup_completion
+    '';
+  };
+
+  # Build latest release of haskell-language-server from github
+  hls = pkgs.callPackages ./nix/hls.nix {
+    compiler-nix-name = haskellPackages._config.compiler.nix-name;
+  };
+
   self = {
-    inherit pkgs commonLib src haskellPackages profiledHaskellPackages;
+    inherit pkgs commonLib src haskellPackages profiledHaskellPackages coveredHaskellPackages;
     # Jormungandr
     inherit (jmPkgs) jormungandr jormungandr-cli;
     # expose cardano-node, so daedalus can ship it without needing to pin cardano-node
@@ -101,9 +151,11 @@ let
     };
 
     # `tests` are the test suites which have been built.
-    tests = collectComponents "tests" isProjectPackage haskellPackages;
+    tests = collectComponents "tests" isProjectPackage coveredHaskellPackages;
     # `checks` are the result of executing the tests.
-    checks = pkgs.recurseIntoAttrs (getPackageChecks (selectProjectPackages haskellPackages));
+    checks = pkgs.recurseIntoAttrs (getPackageChecks (selectProjectPackages coveredHaskellPackages));
+    # Combined project coverage report
+    inherit (coveredHaskellPackages) testCoverageReport;
     # `benchmarks` are only built, not run.
     benchmarks = collectComponents "benchmarks" isProjectPackage haskellPackages;
 
@@ -114,48 +166,8 @@ let
       shelley = self.cardano-wallet;
     });
 
-    shell = haskellPackages.shellFor {
-      name = "cardano-wallet-shell";
-      packages = ps: attrValues (selectProjectPackages ps);
-      buildInputs = (with self; [
-          jormungandr
-          jormungandr-cli
-          cardano-node
-          cardano-cli
-          cardano-address
-          cardano-tx
-          bech32
-        ]) ++ (with pkgs; [
-          niv
-          pkgconfig
-          python3Packages.openapi-spec-validator
-          ruby
-          sqlite-interactive
-          yq
-        ]);
-      tools = {
-        cabal = "3.2.0.0";
-        ghcid = "0.8.7";
-        ghcide = "0.2.0";
-        hlint = "3.1.6";
-        lentil = "1.3.2.0";
-        stylish-haskell = "0.11.0.0";
-        weeder = "1.0.9";
-      };
-      CARDANO_NODE_CONFIGS = cardano-node.deployments;
-      meta.platforms = lib.platforms.unix;
-      shellHook = ''
-        setup_completion() {
-          local p
-          for p in $buildInputs; do
-            if [ -d "$p/share/bash-completion" ]; then
-              addToSearchPath XDG_DATA_DIRS "$p/share"
-            fi
-          done
-        }
-        setup_completion
-      '';
-    };
+    shell = mkShell "cardano-wallet-shell" haskellPackages;
+    shell-prof = mkShell "cardano-wallet-shell-profiled" profiledHaskellPackages;
     cabalShell = import ./nix/cabal-shell.nix { inherit pkgs; walletPackages = self; };
     stackShell = import ./nix/stack-shell.nix { inherit pkgs; walletPackages = self; };
 

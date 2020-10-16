@@ -45,6 +45,8 @@ import Cardano.Binary
     ( serialize' )
 import Cardano.Crypto.DSIGN
     ( DSIGNAlgorithm (..), SignedDSIGN (..) )
+import Cardano.Crypto.Wallet
+    ( XPub )
 import Cardano.Ledger.Crypto
     ( Crypto (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -172,6 +174,7 @@ instance TxWitnessTagFor IcarusKey where
 instance TxWitnessTagFor ByronKey where
     txWitnessTagFor = TxWitnessByronUTxO Byron
 
+
 mkTx
     :: forall k. (TxWitnessTagFor k, WalletKey k)
     => Cardano.NetworkId
@@ -265,19 +268,17 @@ newTransactionLayer networkId = TransactionLayer
     _mkDelegationJoinTx poolId acc@(accXPrv, pwd') keyFrom tip cs = do
         let accXPub = toXPub accXPrv
         let certs =
-                if deposit cs > 0 then
-                    [ toStakeKeyRegCert  accXPub
-                    , toStakePoolDlgCert accXPub poolId
-                    ]
-                else
-                    [ toStakePoolDlgCert accXPub poolId ]
+                if deposit cs > 0
+                then mkDelegationCertificates (RegisterKeyAndJoin poolId) accXPub
+                else mkDelegationCertificates (Join poolId) accXPub
 
         let mkWits unsigned =
                 [ mkShelleyWitness unsigned (accXPrv, pwd')
                 ]
 
         let payload = TxPayload Nothing certs mkWits
-        mkTx networkId payload tip acc keyFrom cs
+        let ttl = defaultTTL tip
+        mkTx networkId payload ttl acc keyFrom cs
 
     _mkDelegationQuitTx
         :: (XPrv, Passphrase "encryption")
@@ -298,7 +299,24 @@ newTransactionLayer networkId = TransactionLayer
                 ]
 
         let payload = TxPayload Nothing certs mkWits
-        mkTx networkId payload tip acc keyFrom cs
+        let ttl = defaultTTL tip
+        mkTx networkId payload ttl acc keyFrom cs
+
+mkDelegationCertificates
+    :: DelegationAction
+        -- Pool Id to which we're planning to delegate
+    -> XPub
+        -- Reward account public key
+    -> [Cardano.Certificate]
+mkDelegationCertificates da accXPub =
+    case da of
+       Join poolId ->
+               [ toStakePoolDlgCert accXPub poolId ]
+       RegisterKeyAndJoin poolId ->
+               [ toStakeKeyRegCert  accXPub
+               , toStakePoolDlgCert accXPub poolId
+               ]
+       Quit -> [toStakeKeyDeregCert accXPub]
 
 _estimateMaxNumberOfInputs
     :: forall k. TxWitnessTagFor k
