@@ -49,6 +49,8 @@ import Data.Map.Strict
     ( Map )
 import Data.Quantity
     ( Quantity (..) )
+import Data.Time.Clock.POSIX
+    ( POSIXTime )
 import Data.Word
     ( Word64 )
 import System.Random
@@ -254,6 +256,15 @@ data DBLayer m = forall stm. (MonadFail stm, MonadIO stm) => DBLayer
         -> stm ()
         -- ^ Modify the settings.
 
+    , readLastMetadataGC
+        :: stm POSIXTime
+        -- ^ Get the last metadata GC time.
+
+    , putLastMetadataGC
+        :: POSIXTime
+        -> stm ()
+        -- ^ Set the last metadata GC time.
+        --
     , cleanDB
         :: stm ()
         -- ^ Clean a database

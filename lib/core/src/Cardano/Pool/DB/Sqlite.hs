@@ -50,6 +50,8 @@ import Cardano.Pool.DB
     ( DBLayer (..), ErrPointAlreadyExists (..), determinePoolLifeCycleStatus )
 import Cardano.Pool.DB.Log
     ( ParseFailure (..), PoolDbLog (..) )
+import Cardano.Pool.DB.Sqlite.TH hiding
+    ( BlockHeader, blockHeight )
 import Cardano.Wallet.DB.Sqlite.Types
     ( BlockId (..) )
 import Cardano.Wallet.Logging
@@ -66,6 +68,7 @@ import Cardano.Wallet.Primitive.Types
     , PoolRetirementCertificate (..)
     , StakePoolMetadata (..)
     , StakePoolMetadataHash
+    , defaultInternalState
     , defaultSettings
     )
 import Cardano.Wallet.Unsafe
@@ -123,7 +126,9 @@ import Database.Persist.Sql
     , selectFirst
     , selectList
     , toPersistValue
+    , update
     , (<.)
+    , (=.)
     , (==.)
     , (>.)
     , (>=.)
@@ -136,9 +141,6 @@ import System.FilePath
     ( (</>) )
 import System.Random
     ( newStdGen )
-
-import Cardano.Pool.DB.Sqlite.TH hiding
-    ( BlockHeader, blockHeight )
 
 import qualified Cardano.Pool.DB.Sqlite.TH as TH
 import qualified Cardano.Wallet.Primitive.Types as W
@@ -582,6 +584,23 @@ newDBLayer trace fp timeInterpreter = do
                 (SettingsKey 1)
             . toSettings
 
+        readLastMetadataGC = do
+            -- only ever read the first row
+            result <- selectFirst
+                []
+                [Asc InternalStateId, LimitTo 1]
+            case result of
+                Nothing -> pure . W.lastMetadataGC $ defaultInternalState
+                Just x -> pure . W.lastMetadataGC . fromInternalState . entityVal $ x
+
+        putLastMetadataGC utc = do
+            result <- selectFirst
+                [ InternalStateId ==. (InternalStateKey 1) ]
+                [ ]
+            case result of
+                Just _ -> update (InternalStateKey 1) [ LastGCMetadata =. utc ]
+                Nothing -> insert_ (InternalState utc)
+
         cleanDB = do
             deleteWhere ([] :: [Filter PoolProduction])
             deleteWhere ([] :: [Filter PoolOwner])
@@ -592,6 +611,7 @@ newDBLayer trace fp timeInterpreter = do
             deleteWhere ([] :: [Filter PoolMetadataFetchAttempts])
             deleteWhere ([] :: [Filter TH.BlockHeader])
             deleteWhere ([] :: [Filter Settings])
+            deleteWhere ([] :: [Filter InternalState])
 
         atomically :: forall a. (SqlPersistT IO a -> IO a)
         atomically = runQuery
@@ -1014,4 +1034,9 @@ toSettings
     :: W.Settings
     -> Settings
 toSettings (W.Settings pms) = Settings pms
+
+fromInternalState
+    :: InternalState
+    -> W.InternalState
+fromInternalState (InternalState utc) = W.InternalState utc
 
