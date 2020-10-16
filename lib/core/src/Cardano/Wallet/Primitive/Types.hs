@@ -185,6 +185,10 @@ module Cardano.Wallet.Primitive.Types
     , PoolMetadataSource( .. )
     , defaultSettings
     , unsafeToPMS
+
+    -- * InternalState
+    , InternalState (..)
+    , defaultInternalState
     ) where
 
 import Prelude
@@ -257,6 +261,8 @@ import Data.Text.Class
     )
 import Data.Time.Clock
     ( NominalDiffTime, UTCTime )
+import Data.Time.Clock.POSIX
+    ( POSIXTime )
 import Data.Time.Format
     ( defaultTimeLocale, formatTime )
 import Data.Word
@@ -1998,6 +2004,19 @@ data Settings = Settings {
 defaultSettings :: Settings
 defaultSettings = Settings {
     poolMetadataSource = FetchNone
+}
+
+-- | Various internal states of he pool DB
+--  that need to survive wallet restarts. These aren't
+--  exposed settings.
+{-# HLINT ignore InternalState "Use newtype instead of data" #-}
+data InternalState = InternalState
+    { lastMetadataGC :: POSIXTime
+    } deriving (Generic, Show, Eq)
+
+defaultInternalState :: InternalState
+defaultInternalState = InternalState {
+   lastMetadataGC = (fromIntegral @Int 0)
 }
 
 instance FromJSON PoolMetadataSource where

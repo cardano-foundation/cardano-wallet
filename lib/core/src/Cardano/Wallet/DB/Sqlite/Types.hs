@@ -89,12 +89,14 @@ import Data.Text.Class
     )
 import Data.Text.Encoding
     ( decodeUtf8, encodeUtf8 )
+import Data.Time.Clock.POSIX
+    (utcTimeToPOSIXSeconds,  POSIXTime, posixSecondsToUTCTime )
 import Data.Word
     ( Word32, Word64 )
 import Data.Word.Odd
     ( Word31 )
 import Database.Persist.Sqlite
-    ( PersistField (..), PersistFieldSql (..), PersistValue )
+    ( PersistField (..), PersistFieldSql (..), PersistValue (..) )
 import Database.Persist.TH
     ( MkPersistSettings (..), sqlSettings )
 import GHC.Generics
@@ -670,3 +672,15 @@ instance PersistField DerivationPrefix where
 
 instance PersistFieldSql DerivationPrefix where
     sqlType _ = sqlType (Proxy @Text)
+
+
+----------------------------------------------------------------------------
+-- Other
+
+instance PersistField POSIXTime where
+    toPersistValue = PersistUTCTime . posixSecondsToUTCTime
+    fromPersistValue (PersistUTCTime utc) = Right . utcTimeToPOSIXSeconds $ utc
+    fromPersistValue _ = Left "Could not convert to unknown construtctor POSIX seconds"
+
+instance PersistFieldSql POSIXTime where
+    sqlType _ = sqlType (Proxy @Word64)

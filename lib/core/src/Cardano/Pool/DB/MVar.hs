@@ -33,6 +33,7 @@ import Cardano.Pool.DB.Model
     , mListRetiredPools
     , mPutFetchAttempt
     , mPutHeader
+    , mPutLastMetadataGC
     , mPutPoolMetadata
     , mPutPoolProduction
     , mPutPoolRegistration
@@ -40,6 +41,7 @@ import Cardano.Pool.DB.Model
     , mPutSettings
     , mPutStakeDistribution
     , mReadCursor
+    , mReadLastMetadataGC
     , mReadPoolLifeCycleStatus
     , mReadPoolMetadata
     , mReadPoolProduction
@@ -168,6 +170,11 @@ newDBLayer timeInterpreter = do
 
         putSettings =
             void . alterPoolDB (const Nothing) db . mPutSettings
+
+        readLastMetadataGC = readPoolDB db mReadLastMetadataGC
+
+        putLastMetadataGC =
+            void . alterPoolDB (const Nothing) db . mPutLastMetadataGC
 
         cleanDB =
             void $ alterPoolDB (const Nothing) db mCleanDatabase
