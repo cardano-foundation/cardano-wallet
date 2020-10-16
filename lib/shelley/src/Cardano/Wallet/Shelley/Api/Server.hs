@@ -88,8 +88,8 @@ import Cardano.Wallet.Api.Server
     , quitStakePool
     , rndStateChange
     , selectCoins
-    , selectCoinsJoinStakePool
-    , selectCoinsQuitStakePool
+    , selectCoinsForJoin
+    , selectCoinsForQuit
     , withLegacyLayer
     , withLegacyLayer'
     )
@@ -208,14 +208,15 @@ server byron icarus shelley spl ntp =
     coinSelections = (\wid ascd -> case ascd of
         (ApiSelectForPayment ascp) -> selectCoins shelley (delegationAddress @n) wid ascp
         (ApiSelectForDelegation (ApiSelectCoinsAction (ApiT action))) -> case action of
-                Join pid -> selectCoinsJoinStakePool
+                Join pid -> selectCoinsForJoin @_ @()
                     shelley
                     (knownPools spl)
                     (getPoolLifeCycleStatus spl)
                     pid
                     (getApiT wid)
                 RegisterKeyAndJoin _ -> throwError err400
-                Quit -> selectCoinsQuitStakePool shelley wid)
+                Quit -> selectCoinsForQuit @_ @() shelley wid
+        )
 
     transactions :: Server (Transactions n)
     transactions =
