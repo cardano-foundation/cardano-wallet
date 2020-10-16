@@ -29,7 +29,7 @@ import Cardano.CLI
     , hGetLine
     , hGetSensitiveLine
     , metadataOption
-    , smashURLOption
+    , poolMetadataSourceOption
     )
 import Cardano.Wallet.Api.Client
     ( addressClient
@@ -648,9 +648,10 @@ spec = do
             , expectedResult = "pata14" :: Text
             }
 
-    describe "SMASH URL option" $ do
+    describe "Pool metadata fetching option" $ do
         let parse arg = execParserPure defaultPrefs
-                (info smashURLOption mempty) ["--pool-metadata-fetching", arg]
+                (info poolMetadataSourceOption mempty)
+                ["--pool-metadata-fetching", arg]
         let ok arg (Success url) = Right url == fromText @PoolMetadataSource
                 (T.pack arg)
             ok _ _ = False
