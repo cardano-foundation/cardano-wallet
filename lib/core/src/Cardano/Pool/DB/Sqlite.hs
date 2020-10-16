@@ -495,6 +495,7 @@ newDBLayer trace fp timeInterpreter = do
             deleteWhere [ BlockSlot >. point ]
             -- TODO: remove dangling metadata no longer attached to a pool
 
+        delistPools [] = pure ()
         delistPools pools =
             -- sqlite has a max of 2k variables or so, so we don't want
             -- 'IN #{poolList my_pools}' to blow up.

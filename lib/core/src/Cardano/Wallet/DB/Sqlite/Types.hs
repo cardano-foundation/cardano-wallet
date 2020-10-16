@@ -90,7 +90,7 @@ import Data.Text.Class
 import Data.Text.Encoding
     ( decodeUtf8, encodeUtf8 )
 import Data.Time.Clock.POSIX
-    (utcTimeToPOSIXSeconds,  POSIXTime, posixSecondsToUTCTime )
+    ( POSIXTime, posixSecondsToUTCTime, utcTimeToPOSIXSeconds )
 import Data.Word
     ( Word32, Word64 )
 import Data.Word.Odd
