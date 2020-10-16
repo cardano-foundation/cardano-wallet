@@ -63,6 +63,7 @@ library
     , memory
     , network
     , network-mux
+    , network-uri
     , optparse-applicative
     , ouroboros-consensus
     , ouroboros-consensus-byron

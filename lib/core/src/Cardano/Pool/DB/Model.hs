@@ -14,7 +14,6 @@
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 -- `const` isn't more readable than lambdas. Our language is based on
@@ -84,13 +83,13 @@ import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
     , CertificatePublicationTime
     , EpochNo (..)
+    , InternalState (..)
     , PoolId
     , PoolLifeCycleStatus (..)
     , PoolOwner (..)
     , PoolRegistrationCertificate (..)
     , PoolRetirementCertificate (..)
     , Settings
-    , InternalState (..)
     , SlotNo (..)
     , StakePoolMetadata (..)
     , StakePoolMetadataHash
