@@ -1179,6 +1179,9 @@ components:
           type: array
           items: *certificate
 
+    ApiLastGC: &ApiLastGC
+      <<: *date
+
     ApiStakePool: &ApiStakePool
       type: object
       required:
@@ -1195,6 +1198,17 @@ components:
         pledge: *stakePoolPledge
         metadata: *stakePoolMetadata
         retirement: *stakePoolRetirement
+
+    ApiListStakePools: &ApiListStakePools
+      type: object
+      required:
+        - pools
+      properties:
+        lastGC:
+          <<: *ApiLastGC
+        pools:
+          type: array
+          items: *ApiStakePool
 
     ApiJormungandrStakePool: &ApiJormungandrStakePool
       type: object
@@ -1215,6 +1229,15 @@ components:
         metadata: *jormungandrStakePoolMetadata
         saturation: *jormungandrStakePoolSaturation
         desirability: *stakePoolDesirability
+
+    ApiJormungandrListStakePools: &ApiJormungandrListStakePools
+      type: object
+      required:
+        - pools
+      properties:
+        pools:
+          type: array
+          items: *ApiJormungandrStakePool
 
     ApiFee: &ApiFee
       type: object
@@ -2220,11 +2243,9 @@ x-responsesListStakePools: &responsesListStakePools
       application/json:
         schema:
           oneOf:
-            - type: array
-              items: *ApiStakePool
+            - <<: *ApiListStakePools
               title: "cardano-node stake pools"
-            - type: array
-              items: *ApiJormungandrStakePool
+            - <<: *ApiJormungandrListStakePools
               title: "jormungandr stake pools"
 
 x-responsesJoinStakePool: &responsesJoinStakePool

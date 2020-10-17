@@ -81,6 +81,8 @@ import Test.QuickCheck
     ( Arbitrary (..), Gen, applyArbitrary3, choose, frequency, vector )
 import Test.Utils.Paths
     ( getTestData )
+import Test.Utils.Time
+    ( genUniformTime )
 
 import qualified Cardano.Wallet.Api.Types as W
 import qualified Data.Aeson as Aeson
@@ -280,6 +282,9 @@ instance Arbitrary ApiStakePoolMetrics where
         blocks <- Quantity . fromIntegral <$> choose (1::Integer, 22_600_000)
         pure $ ApiStakePoolMetrics stakes blocks
 
+instance Arbitrary (W.ApiListStakePools ApiStakePool) where
+    arbitrary = W.ApiListStakePools <$> arbitrary <*> (pure Nothing)
+
 instance Arbitrary ApiStakePool where
     arbitrary = ApiStakePool
         <$> arbitrary
@@ -329,11 +334,17 @@ instance Arbitrary StakePoolTicker where
         len <- choose (3, 5)
         replicateM len arbitrary
 
+instance Arbitrary W.Iso8601Time where
+    arbitrary = W.Iso8601Time <$> genUniformTime
+
 instance ToSchema ApiStakePool where
     declareNamedSchema _ = declareSchemaForDefinition "ApiJormungandrStakePool"
 
 instance ToSchema ApiStakePoolMetrics where
     declareNamedSchema _ = declareSchemaForDefinition "ApiJormungandrStakePoolMetrics"
+
+instance ToSchema (W.ApiListStakePools ApiStakePool) where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiJormungandrListStakePools"
 
 {-------------------------------------------------------------------------------
                                   Test data
