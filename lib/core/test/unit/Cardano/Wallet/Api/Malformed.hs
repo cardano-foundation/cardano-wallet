@@ -51,6 +51,7 @@ import Prelude
 
 import Cardano.Wallet.Api.Types
     ( ApiAddressInspectData
+    , ApiMaintenanceAction
     , ApiPoolId
     , ApiPostRandomAddressData
     , ApiPutAddressesData
@@ -1103,6 +1104,15 @@ instance Malformed (BodyParam SettingsPutData) where
                           }
             }|]
           , "Error in $.settings['pool_metadata_source']: Could not parse URI: not_a_uri"
+          )
+        ]
+
+instance Malformed (BodyParam ApiMaintenanceAction) where
+    malformed = first (BodyParam . Aeson.encode) <$>
+        [ ( [aesonQQ|
+            { "maintenance_action": "unknown_action"
+            }|]
+          , "Error in $['maintenance_action']: parsing Cardano.Wallet.Api.Types.MaintenanceAction failed, expected one of the tags ['gc_stake_pools'], but found tag 'unknown_action'"
           )
         ]
 

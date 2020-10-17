@@ -200,6 +200,8 @@ data StakePoolLayer = StakePoolLayer
         -> Coin
         -> ExceptT ErrListPools IO (ApiListStakePools Api.ApiStakePool)
 
+    , forceMetadataGC :: IO ()
+
     , putSettings :: Settings -> IO ()
 
     , getSettings :: IO Settings
@@ -218,6 +220,7 @@ newStakePoolLayer nl db@DBLayer {..} worker = do
         { getPoolLifeCycleStatus = _getPoolLifeCycleStatus
         , knownPools = _knownPools
         , listStakePools = _listPools
+        , forceMetadataGC = _forceMetadataGC tvTid
         , putSettings = _putSettings tvTid
         , getSettings = _getSettings
         }
@@ -235,17 +238,9 @@ newStakePoolLayer nl db@DBLayer {..} worker = do
     -- In order to apply the settings, we have to restart the
     -- metadata sync thread as well to avoid race conditions.
     _putSettings :: TVar ThreadId -> Settings -> IO ()
-    _putSettings tvTid settings = do
-        bracket
-            killSyncThread
-            (\_ -> restartSyncThread)
-            (\_ -> atomically (gcMetadata >> writeSettings))
+    _putSettings tvTid settings =
+        bracketSyncThread tvTid (atomically (gcMetadata >> writeSettings))
       where
-        -- kill syncing thread, so we can apply the settings cleanly
-        killSyncThread = do
-            tid <- readTVarIO tvTid
-            killThread tid
-
         -- clean up metadata table if the new sync settings suggests so
         gcMetadata = do
             oldSettings <- readSettings
@@ -260,10 +255,7 @@ newStakePoolLayer nl db@DBLayer {..} worker = do
 
         writeSettings = putSettings settings
 
-        restartSyncThread = do
-            tid <- worker
-            STM.atomically $ writeTVar tvTid tid
-
+    _getSettings :: IO Settings
     _getSettings = liftIO $ atomically readSettings
 
     _listPools
@@ -278,7 +270,7 @@ newStakePoolLayer nl db@DBLayer {..} worker = do
         let lsqData = combineLsqData rawLsqData
         dbData <- liftIO $ readPoolDbData db currentEpoch
         seed <- liftIO $ atomically readSystemSeed
-        lastGC <- liftIO $ atomically $ readLastMetadataGC
+        lastGC <- liftIO $ atomically readLastMetadataGC
         r <- liftIO $ try $
             sortByReward seed
             . map snd
@@ -330,6 +322,28 @@ newStakePoolLayer nl db@DBLayer {..} worker = do
 
             rewards = view (#metrics . #nonMyopicMemberRewards) . stakePool
             (randomWeight, stakePool) = (fst, snd)
+
+    _forceMetadataGC :: TVar ThreadId -> IO ()
+    _forceMetadataGC tvTid =
+        -- We force a GC by resetting last sync time to 0 (start of POSIX
+        -- time) and have the metadata thread restart.
+        bracketSyncThread tvTid (atomically (putLastMetadataGC (fromIntegral @Int 0)))
+
+    -- Stop the sync thread, carry out an action, and restart the sync thread.
+    bracketSyncThread :: TVar ThreadId -> IO a -> IO ()
+    bracketSyncThread tvTid action =
+        void $ bracket
+            killSyncThread
+            (\_ -> restartSyncThread)
+            (\_ -> action)
+      where
+        killSyncThread = do
+            tid <- readTVarIO tvTid
+            killThread tid
+
+        restartSyncThread = do
+            tid <- worker
+            STM.atomically $ writeTVar tvTid tid
 
 --
 -- Data Combination functions

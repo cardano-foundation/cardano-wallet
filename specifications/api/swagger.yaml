@@ -1179,6 +1179,18 @@ components:
           type: array
           items: *certificate
 
+    ApiMaintenanceAction: &ApiMaintenanceAction
+      type: object
+      required:
+        - maintenance_action
+      description: |
+        The maintenance action to carry out, current values are
+          - gc_stake_pools -> trigger looking up delisted pools from the remote SMASH server
+      properties:
+        maintenance_action:
+          type: string
+          enum: ['gc_stake_pools']
+
     ApiLastGC: &ApiLastGC
       <<: *date
 
@@ -1204,7 +1216,7 @@ components:
       required:
         - pools
       properties:
-        lastGC:
+        last_gc:
           <<: *ApiLastGC
         pools:
           type: array
@@ -2248,6 +2260,12 @@ x-responsesListStakePools: &responsesListStakePools
             - <<: *ApiJormungandrListStakePools
               title: "jormungandr stake pools"
 
+x-responsesPoolMaintenance: &responsesPoolMaintenance
+  <<: *responsesErr405
+  <<: *responsesErr404
+  204:
+    description: No Content
+
 x-responsesJoinStakePool: &responsesJoinStakePool
   <<: *responsesErr400
   <<: *responsesErr403
@@ -2666,6 +2684,22 @@ paths:
       parameters:
         - *parametersIntendedStakeAmount
       responses: *responsesListStakePools
+
+    post:
+      operationId: poolMaintenance
+      tags: ["Stake Pools"]
+      summary: Maintenance actions
+      description: |
+        Performs maintenance action on the stake pools, such
+        as triggering metadata garbage collection.
+
+        Actions may not be instantaneous.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: *ApiMaintenanceAction
+      responses: *responsesPoolMaintenance
 
   /wallets/{walletId}/delegation-fees:
     get:
