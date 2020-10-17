@@ -269,7 +269,7 @@ server byron icarus shelley spl ntp =
         :<|> _poolMaintenance
       where
         _poolMaintenance = \case
-            (ApiMaintenanceAction GcStakePools) ->
+            ApiMaintenanceAction GcStakePools ->
                 liftIO $ forceMetadataGC spl >> pure NoContent
         listStakePools_ = \case
             Just (ApiT stake) -> do

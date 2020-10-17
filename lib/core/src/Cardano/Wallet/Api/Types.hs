@@ -558,6 +558,7 @@ data ApiStakePool = ApiStakePool
     , margin :: !(Quantity "percent" Percentage)
     , pledge :: !(Quantity "lovelace" Natural)
     , retirement :: !(Maybe ApiEpochInfo)
+    , delisted :: !Bool
     } deriving (Eq, Generic, Show)
 
 data ApiStakePoolMetrics = ApiStakePoolMetrics

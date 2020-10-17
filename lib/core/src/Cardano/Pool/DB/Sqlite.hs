@@ -62,6 +62,7 @@ import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
     , CertificatePublicationTime (..)
     , EpochNo (..)
+    , PoolFlag (..)
     , PoolId (..)
     , PoolLifeCycleStatus (..)
     , PoolRegistrationCertificate (..)
@@ -92,7 +93,7 @@ import Data.Functor
 import Data.Generics.Internal.VL.Lens
     ( view )
 import Data.List
-    ( foldl', intercalate )
+    ( foldl' )
 import Data.Map.Strict
     ( Map )
 import Data.Quantity
@@ -101,8 +102,6 @@ import Data.Ratio
     ( denominator, numerator, (%) )
 import Data.String.Interpolate
     ( i )
-import Data.String.QQ
-    ( s )
 import Data.Text
     ( Text )
 import Data.Time.Clock
@@ -120,13 +119,14 @@ import Database.Persist.Sql
     , fromPersistValue
     , insertMany_
     , insert_
-    , rawExecute
     , rawSql
     , repsert
+    , repsertMany
     , selectFirst
     , selectList
     , toPersistValue
     , update
+    , (<-.)
     , (<.)
     , (=.)
     , (==.)
@@ -144,7 +144,6 @@ import System.Random
 
 import qualified Cardano.Pool.DB.Sqlite.TH as TH
 import qualified Cardano.Wallet.Primitive.Types as W
-import qualified Data.ByteString.Char8 as B8
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
 import qualified Database.Sqlite as Sqlite
@@ -309,6 +308,7 @@ newDBLayer trace fp timeInterpreter = do
                     (getQuantity $ poolPledge cert)
                     (fst <$> poolMetadata cert)
                     (snd <$> poolMetadata cert)
+                    NoPoolFlag
             _ <- repsert poolRegistrationKey poolRegistrationRow
             insertMany_ $
                 zipWith
@@ -399,10 +399,11 @@ newDBLayer trace fp timeInterpreter = do
                         (PoolMetadataFetchAttempts hash url retryAfter $ retryCount + 1)
 
         putPoolMetadata hash metadata = do
-            let StakePoolMetadata{ticker,name,description,homepage,delisted} = metadata
+            let StakePoolMetadata
+                    {ticker, name, description, homepage} = metadata
             repsert
                 (PoolMetadataKey hash)
-                (PoolMetadata hash name ticker description homepage delisted)
+                (PoolMetadata hash name ticker description homepage)
             deleteWhere [ PoolFetchAttemptsMetadataHash ==. hash ]
 
         removePoolMetadata = do
@@ -452,6 +453,7 @@ newDBLayer trace fp timeInterpreter = do
                 , Single fieldMarginDenominator
                 , Single fieldMetadataHash
                 , Single fieldMetadataUrl
+                , Single fieldFlag
                 ) = do
                 regCert <- parseRegistrationCertificate
                 parseRetirementCertificate <&> maybe
@@ -465,6 +467,7 @@ newDBLayer trace fp timeInterpreter = do
                     <*> (Quantity <$> fromPersistValue fieldCost)
                     <*> (Quantity <$> fromPersistValue fieldPledge)
                     <*> parseMetadata
+                    <*> fromPersistValue fieldFlag
 
                 parseRetirementCertificate = do
                     poolId <- fromPersistValue fieldPoolId
@@ -495,43 +498,13 @@ newDBLayer trace fp timeInterpreter = do
             deleteWhere [ BlockSlot >. point ]
             -- TODO: remove dangling metadata no longer attached to a pool
 
-        delistPools [] = pure ()
-        delistPools pools =
-            -- sqlite has a max of 2k variables or so, so we don't want
-            -- 'IN #{poolList my_pools}' to blow up.
-            forM_ (listOfK 1000 pools)
-                $ \kPools -> do
-                    rawExecute
-                        (deleteQueryString kPools)
-                        []
-
-          where
-            deleteQueryString my_pools = [i|
-                UPDATE pool_metadata
-                    SET delisted = 1
-                    WHERE metadata_hash
-                    IN (
-                        SELECT metadata_hash
-                        FROM active_pool_registrations
-                        WHERE pool_id
-                        IN #{poolList my_pools}
-                       );
-            |]
-
-            poolList :: [PoolId] -> String
-            poolList pids =
-                let inner = intercalate ", "
-                        -- pool IDs are strictly ascii, Char8 is safe
-                        . fmap (\x -> "\"" ++ B8.unpack (getPoolId x) ++ "\"")
-                        $ pids
-                in "( " ++ inner ++ " )"
-
-            listOfK :: Int -> [a] -> [[a]]
-            listOfK k = go
-              where
-                go [] = []
-                go xs = let (l, r) = splitAt k xs
-                        in l : go r
+        delistPools pools = do
+            px <- selectList
+                [ PoolRegistrationPoolId <-. pools ]
+                [  ]
+            repsertMany $ fmap
+                (\(Entity k val) -> (k, val {poolRegistrationFlag = Delisted}))
+                px
 
         removePools = mapM_ $ \pool -> do
             liftIO $ traceWith trace $ MsgRemovingPool pool
@@ -592,7 +565,11 @@ newDBLayer trace fp timeInterpreter = do
                 [Asc InternalStateId, LimitTo 1]
             case result of
                 Nothing -> pure . W.lastMetadataGC $ defaultInternalState
-                Just x -> pure . W.lastMetadataGC . fromInternalState . entityVal $ x
+                Just x -> pure
+                    . W.lastMetadataGC
+                    . fromInternalState
+                    . entityVal
+                    $ x
 
         putLastMetadataGC utc = do
             result <- selectFirst
@@ -633,7 +610,8 @@ newDBLayer trace fp timeInterpreter = do
                         poolCost_
                         poolPledge_
                         poolMetadataUrl
-                        poolMetadataHash = entityVal meta
+                        poolMetadataHash
+                        poolFlag = entityVal meta
                 let poolMargin = unsafeMkPercentage $
                         toRational $ marginNum % marginDen
                 let poolCost = Quantity poolCost_
@@ -656,6 +634,7 @@ newDBLayer trace fp timeInterpreter = do
                         , poolCost
                         , poolPledge
                         , poolMetadata
+                        , poolFlag
                         }
                 let cpt = CertificatePublicationTime {slotNo, slotInternalIndex}
                 pure (cpt, cert)
@@ -768,7 +747,7 @@ createView conn (DatabaseView name definition) = do
 -- This view does NOT exclude pools that have retired.
 --
 activePoolLifeCycleData :: DatabaseView
-activePoolLifeCycleData = DatabaseView "active_pool_lifecycle_data" [s|
+activePoolLifeCycleData = DatabaseView "active_pool_lifecycle_data" [i|
     SELECT
         active_pool_registrations.pool_id as pool_id,
         active_pool_retirements.retirement_epoch as retirement_epoch,
@@ -797,7 +776,7 @@ activePoolLifeCycleData = DatabaseView "active_pool_lifecycle_data" [s|
 -- This view does NOT exclude pools that have retired.
 --
 activePoolOwners :: DatabaseView
-activePoolOwners = DatabaseView "active_pool_owners" [s|
+activePoolOwners = DatabaseView "active_pool_owners" [i|
     SELECT pool_id, pool_owners FROM (
         SELECT row_number() OVER w AS r, *
         FROM (
@@ -825,7 +804,7 @@ activePoolOwners = DatabaseView "active_pool_owners" [s|
 -- This view does NOT exclude pools that have retired.
 --
 activePoolRegistrations :: DatabaseView
-activePoolRegistrations = DatabaseView "active_pool_registrations" [s|
+activePoolRegistrations = DatabaseView "active_pool_registrations" [i|
     SELECT
         pool_id,
         cost,
@@ -855,7 +834,7 @@ activePoolRegistrations = DatabaseView "active_pool_registrations" [s|
 --      certificates revoked by subsequent re-registration certificates.
 --
 activePoolRetirements :: DatabaseView
-activePoolRetirements = DatabaseView "active_pool_retirements" [s|
+activePoolRetirements = DatabaseView "active_pool_retirements" [i|
     SELECT * FROM (
         SELECT
             pool_id,
@@ -1023,7 +1002,6 @@ fromPoolMeta meta = (poolMetadataHash meta,) $
         , name = poolMetadataName meta
         , description = poolMetadataDescription meta
         , homepage = poolMetadataHomepage meta
-        , delisted = poolMetadataDelisted meta
         }
 
 fromSettings
@@ -1040,4 +1018,3 @@ fromInternalState
     :: InternalState
     -> W.InternalState
 fromInternalState (InternalState utc) = W.InternalState utc
-

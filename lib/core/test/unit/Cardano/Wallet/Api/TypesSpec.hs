@@ -1314,11 +1314,12 @@ instance Arbitrary PoolId where
         return $ PoolId $ BS.pack $ take 28 bytes
 
 instance Arbitrary (ApiListStakePools ApiStakePool) where
-    arbitrary = ApiListStakePools <$> arbitrary <*> arbitrary
+    arbitrary = applyArbitrary2 ApiListStakePools
 
 instance Arbitrary ApiStakePool where
     arbitrary = ApiStakePool
         <$> arbitrary
+        <*> arbitrary
         <*> arbitrary
         <*> arbitrary
         <*> arbitrary
@@ -1339,7 +1340,6 @@ instance Arbitrary StakePoolMetadata where
         <*> arbitraryText 50
         <*> arbitraryMaybeText 255
         <*> arbitraryText 100
-        <*> pure False
       where
         arbitraryText maxLen = do
             len <- choose (1, maxLen)
@@ -1526,6 +1526,9 @@ instance ToSchema ApiVerificationKey where
 instance Arbitrary Api.MaintenanceAction where
     arbitrary = genericArbitrary
     shrink = genericShrink
+
+instance ToSchema Api.ApiMaintenanceAction where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiMaintenanceAction"
 
 instance Arbitrary ApiNetworkParameters where
     arbitrary = genericArbitrary

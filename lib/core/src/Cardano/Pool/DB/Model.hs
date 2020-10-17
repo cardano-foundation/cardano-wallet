@@ -16,10 +16,6 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE UndecidableInstances #-}
 
--- `const` isn't more readable than lambdas. Our language is based on
--- lambda calculus and we shouldn't feel ashamed to use them. They also
--- have different strictness properties.
-{-# HLINT ignore "Use const" #-}
 
 -- |
 -- Copyright: © 2018-2020 IOHK
@@ -84,6 +80,7 @@ import Cardano.Wallet.Primitive.Types
     , CertificatePublicationTime
     , EpochNo (..)
     , InternalState (..)
+    , PoolFlag (..)
     , PoolId
     , PoolLifeCycleStatus (..)
     , PoolOwner (..)
@@ -97,8 +94,6 @@ import Cardano.Wallet.Primitive.Types
     , defaultInternalState
     , defaultSettings
     )
-import Control.Monad
-    ( forM_ )
 import Control.Monad.Trans.Class
     ( lift )
 import Control.Monad.Trans.State.Strict
@@ -434,10 +429,15 @@ mRollbackTo ti point = do
 
 mDelistPools :: [PoolId] -> ModelOp ()
 mDelistPools poolsToDelist =
-    forM_ poolsToDelist $ \pool -> do
-        mhash <- (>>= (fmap snd . poolMetadata . snd)) <$> mReadPoolRegistration pool
-        forM_ mhash $ \hash -> modify #metadata
-            $ Map.adjust (\m -> m { delisted = True }) hash
+    modify #registrations
+        $ Map.mapWithKey
+        $ \(_, pid) a ->
+            if updateThis pid
+            then a {poolFlag = Delisted}
+            else a
+  where
+    updateThis p = p `Set.member` poolsToDelistSet
+    poolsToDelistSet = Set.fromList poolsToDelist
 
 mRemovePools :: [PoolId] -> ModelOp ()
 mRemovePools poolsToRemove = do

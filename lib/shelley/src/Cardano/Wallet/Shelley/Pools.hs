@@ -5,6 +5,7 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE Rank2Types #-}
@@ -79,6 +80,7 @@ import Cardano.Wallet.Primitive.Types
     , EpochNo (..)
     , GenesisParameters (..)
     , PoolCertificate (..)
+    , PoolFlag (..)
     , PoolId
     , PoolLifeCycleStatus (..)
     , PoolMetadataSource (..)
@@ -95,8 +97,6 @@ import Cardano.Wallet.Primitive.Types
     , getPoolRetirementCertificate
     , unSmashServer
     )
-import Cardano.Wallet.Registry
-    ( WorkerLog, defaultWorkerAfter )
 import Cardano.Wallet.Shelley.Compatibility
     ( Shelley
     , StandardCrypto
@@ -112,7 +112,14 @@ import Cardano.Wallet.Unsafe
 import Control.Concurrent
     ( forkFinally, threadDelay )
 import Control.Exception
-    ( SomeException (..), bracket, finally, mask_, try )
+    ( AsyncException (..)
+    , SomeException (..)
+    , asyncExceptionFromException
+    , bracket
+    , finally
+    , mask_
+    , try
+    )
 import Control.Monad
     ( forM, forM_, forever, void, when, (<=<) )
 import Control.Monad.IO.Class
@@ -284,8 +291,9 @@ newStakePoolLayer nl db@DBLayer {..} worker = do
         case r of
             Left e@(PastHorizon{}) ->
                 throwE (ErrListPoolsPastHorizonException e)
-            Right r' -> pure (ApiListStakePools r'
-                (Just . ApiT . Iso8601Time . posixSecondsToUTCTime $ lastGC))
+            Right r' -> pure  
+                $ ApiListStakePools r' $ Just $ ApiT
+                $ Iso8601Time $ posixSecondsToUTCTime lastGC
       where
         fromErrCurrentNodeTip :: ErrCurrentNodeTip -> ErrListPools
         fromErrCurrentNodeTip = \case
@@ -328,7 +336,10 @@ newStakePoolLayer nl db@DBLayer {..} worker = do
     _forceMetadataGC tvTid =
         -- We force a GC by resetting last sync time to 0 (start of POSIX
         -- time) and have the metadata thread restart.
-        bracketSyncThread tvTid (atomically (putLastMetadataGC (fromIntegral @Int 0)))
+        bracketSyncThread tvTid
+            $ atomically
+            $ putLastMetadataGC
+            $ fromIntegral @Int 0
 
     -- Stop the sync thread, carry out an action, and restart the sync thread.
     bracketSyncThread :: TVar ThreadId -> IO a -> IO ()
@@ -439,6 +450,7 @@ combineDbAndLsqData ti nOpt lsqData =
             , Api.margin =
                 Quantity $ poolMargin $ registrationCert dbData
             , Api.retirement = retirementEpochInfo
+            , Api.delisted = poolFlag (registrationCert dbData) == Delisted
             }
 
     toApiEpochInfo ep = do
@@ -707,12 +719,27 @@ monitorStakePools tr gp nl DBLayer{..} =
 
 -- | Worker thread that monitors pool metadata and syncs it to the database.
 monitorMetadata
+<<<<<<< HEAD
     :: Tracer IO (WorkerLog Text StakePoolLog)
     -> Tracer IO StakePoolLog
     -> SlottingParameters
+||||||| parent of 5bbb4ba4a (Redo the database layer)
+    :: Tracer IO (WorkerLog Text StakePoolLog)
+    -> Tracer IO StakePoolLog
+    -> GenesisParameters
+=======
+    :: Tracer IO StakePoolLog
+    -> GenesisParameters
+>>>>>>> 5bbb4ba4a (Redo the database layer)
     -> DBLayer IO
     -> IO ()
+<<<<<<< HEAD
 monitorMetadata tr' tr sp db@(DBLayer{..}) = do
+||||||| parent of 5bbb4ba4a (Redo the database layer)
+monitorMetadata tr' tr gp db@(DBLayer{..}) = do
+=======
+monitorMetadata tr gp db@(DBLayer{..}) = do
+>>>>>>> 5bbb4ba4a (Redo the database layer)
     settings <- atomically readSettings
     manager <- newManager defaultManagerSettings
 
@@ -727,12 +754,11 @@ monitorMetadata tr' tr sp db@(DBLayer{..}) = do
         FetchNone -> loop (pure ([], [])) -- TODO: exit loop?
         FetchDirect -> loop (fetchThem $ fetcher [identityUrlBuilder])
         FetchSMASH (unSmashServer -> uri) -> do
-            tid <-
-                forkFinally
-                    (gcDelistedPools tr db
-                        (fetchDelistedPools trFetch (toDelistedPoolsURI uri) manager)
-                    )
-                    onExit
+            let getDelistedPools =
+                    fetchDelistedPools trFetch (toDelistedPoolsURI uri) manager
+            tid <- forkFinally
+                (gcDelistedPools tr db getDelistedPools)
+                onExit
             flip finally (killThread tid) $
                 loop (fetchThem $ fetcher [registryUrlBuilder uri])
 
@@ -769,8 +795,16 @@ monitorMetadata tr' tr sp db@(DBLayer{..}) = do
         toMicroSecond = (`div` 1000000) . fromEnum
         slotLength = unSlotLength $ getSlotLength gp
         f = unActiveSlotCoefficient (getActiveSlotCoefficient sp)
-    onExit = defaultWorkerAfter tr'
 
+    onExit
+        :: Either SomeException a
+        -> IO ()
+    onExit = traceWith tr . \case
+        Right _ -> MsgGCFinished
+        Left e -> case asyncExceptionFromException e of
+            Just ThreadKilled -> MsgGCThreadKilled
+            Just UserInterrupt -> MsgGCUserInterrupt
+            _ -> MsgGCUnhandledException $ pretty $ show e
 gcDelistedPools
     :: Tracer IO StakePoolLog
     -> DBLayer IO
@@ -782,20 +816,19 @@ gcDelistedPools tr DBLayer{..} fetchDelisted = forever $ do
 
     let timeSinceLastGC = currentTime - lastGC
         sixHours = posixDayLength / 4
-    if timeSinceLastGC > sixHours
-        then do
-            delistedPools <- fmap (fromMaybe []) fetchDelisted
-            atomically $ do
-                putLastMetadataGC currentTime
-                delistPools delistedPools
-        else do
-            -- Sleep for 60 seconds. This is useful in case
-            -- something else is modifying the last sync time
-            -- in the database.
-            let sec_to_milisec = (* 1000000)
-                sleep_time = sec_to_milisec 60
-            traceWith tr $ MsgGCTakeBreak sleep_time
-            threadDelay sleep_time
+    when (timeSinceLastGC > sixHours) $ do
+        delistedPools <- fmap (fromMaybe []) fetchDelisted
+        atomically $ do
+            putLastMetadataGC currentTime
+            delistPools delistedPools
+
+    -- Sleep for 60 seconds. This is useful in case
+    -- something else is modifying the last sync time
+    -- in the database.
+    let ms = (* 1_000_000)
+    let sleepTime = ms 60
+    traceWith tr $ MsgGCTakeBreak sleepTime
+    threadDelay sleepTime
     pure ()
 
 data StakePoolLog
@@ -811,6 +844,10 @@ data StakePoolLog
     | MsgFetchPoolMetadata StakePoolMetadataFetchLog
     | MsgFetchTakeBreak Int
     | MsgGCTakeBreak Int
+    | MsgGCFinished
+    | MsgGCThreadKilled
+    | MsgGCUserInterrupt
+    | MsgGCUnhandledException Text
     deriving (Show, Eq)
 
 data PoolGarbageCollectionInfo = PoolGarbageCollectionInfo
@@ -839,6 +876,10 @@ instance HasSeverityAnnotation StakePoolLog where
         MsgFetchPoolMetadata e -> getSeverityAnnotation e
         MsgFetchTakeBreak{} -> Debug
         MsgGCTakeBreak{} -> Debug
+        MsgGCFinished{} -> Debug
+        MsgGCThreadKilled{} -> Debug
+        MsgGCUserInterrupt{} -> Debug
+        MsgGCUnhandledException{} -> Debug
 
 instance ToText StakePoolLog where
     toText = \case
@@ -884,5 +925,10 @@ instance ToText StakePoolLog where
         MsgGCTakeBreak delay -> mconcat
             [ "Taking a little break from GCing delisted metadata pools, "
             , "back to it in about "
-            , pretty (fixedF 1 (toRational delay / 1000000)), "s"
+            , pretty (fixedF 1 (toRational delay / 1_000_000)), "s"
             ]
+        MsgGCFinished -> "GC thread has exited: main action is over."
+        MsgGCThreadKilled -> "GC thread has exited: killed by parent."
+        MsgGCUserInterrupt -> "GC thread has exited: killed by user."
+        MsgGCUnhandledException err ->
+            "GC thread has exited unexpectedly: " <> err

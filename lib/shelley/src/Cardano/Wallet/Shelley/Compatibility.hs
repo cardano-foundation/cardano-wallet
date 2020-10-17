@@ -772,6 +772,7 @@ fromShelleyRegistrationCert = \case
             , W.poolCost = lovelaceFromCoin (SL._poolCost pp)
             , W.poolPledge = lovelaceFromCoin (SL._poolPledge pp)
             , W.poolMetadata = fromPoolMetaData <$> strictMaybeToMaybe (SL._poolMD pp)
+            , W.poolFlag = W.NoPoolFlag
             }
         )
 
@@ -1088,12 +1089,8 @@ inspectAddress =
   where
     inspect :: ByteString -> Either TextDecodingError Aeson.Value
     inspect = maybe (Left errMalformedAddress) Right
-        . inspectShelleyAddress mRootPub
+        . inspectShelleyAddress Nothing
         . unsafeMkAddress
-
-    -- TODO: It's possible to inspect a byron address, given a root XPub.
-    -- However, this is not yet exposed by the API.
-    mRootPub = Nothing
 
 toHDPayloadAddress :: W.Address -> Maybe Byron.HDAddressPayload
 toHDPayloadAddress (W.Address addr) = do

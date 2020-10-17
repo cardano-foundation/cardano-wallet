@@ -43,6 +43,7 @@ import Cardano.Wallet.Primitive.Types
     , Direction (..)
     , EpochNo (..)
     , FeePolicy
+    , PoolFlag (..)
     , PoolId
     , PoolMetadataSource (..)
     , PoolOwner (..)
@@ -674,22 +675,27 @@ instance PersistField DerivationPrefix where
 
 instance PersistFieldSql DerivationPrefix where
     sqlType _ = sqlType (Proxy @Text)
-
-
 ----------------------------------------------------------------------------
 -- Other
 
 instance PersistField POSIXTime where
-    toPersistValue =
-        PersistText
-            . T.pack
-            . formatTime defaultTimeLocale (iso8601DateFormat (Just "%H:%M:%S"))
-            . posixSecondsToUTCTime
+    toPersistValue = PersistText
+        . T.pack
+        . formatTime defaultTimeLocale (iso8601DateFormat (Just "%H:%M:%S"))
+        . posixSecondsToUTCTime
     fromPersistValue (PersistText time) =
-        fmap utcTimeToPOSIXSeconds $
+        utcTimeToPOSIXSeconds <$>
             parseTimeM True defaultTimeLocale
                 (iso8601DateFormat (Just "%H:%M:%S")) (T.unpack time)
-    fromPersistValue _ = Left "Could not convert to unknown constructor POSIX seconds"
+    fromPersistValue _ = Left
+        "Could not parse POSIX time value"
 
 instance PersistFieldSql POSIXTime where
+    sqlType _ = sqlType (Proxy @Text)
+
+instance PersistField PoolFlag where
+    toPersistValue = toPersistValue . toText
+    fromPersistValue = fromPersistValueFromText
+
+instance PersistFieldSql PoolFlag where
     sqlType _ = sqlType (Proxy @Text)

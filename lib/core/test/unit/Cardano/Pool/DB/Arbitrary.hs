@@ -27,6 +27,7 @@ import Cardano.Wallet.Primitive.Types
     , CertificatePublicationTime (..)
     , EpochNo (..)
     , PoolCertificate (..)
+    , PoolFlag (..)
     , PoolId (..)
     , PoolMetadataSource (..)
     , PoolMetadataSource (..)
@@ -54,7 +55,7 @@ import Control.Monad
 import Data.Function
     ( (&) )
 import Data.Generics.Internal.VL.Lens
-    ( (^.) )
+    ( view, (^.) )
 import Data.Maybe
     ( fromJust )
 import Data.Ord
@@ -165,11 +166,18 @@ instance Arbitrary PoolOwner where
         byte <- elements ['0'..'8']
         return $ PoolOwner $ B8.pack (replicate 32 byte)
 
+instance Arbitrary PoolFlag where
+    arbitrary = arbitraryBoundedEnum
+    shrink = const []
+
 instance Arbitrary PoolRegistrationCertificate where
-    shrink (PoolRegistrationCertificate pid owners m c pl md) =
-        (\pid' owners' -> PoolRegistrationCertificate pid' owners' m c pl md)
-            <$> shrink pid
-            <*> shrinkOwners owners
+    shrink regCert = do
+        shrunkPoolId <- shrink $ view #poolId regCert
+        shrunkPoolOwners <- shrinkOwners $ view #poolOwners regCert
+        pure regCert
+            { poolId = shrunkPoolId
+            , poolOwners = shrunkPoolOwners
+            }
       where
         shrinkOwners os =
             -- A valid registration certificate must have at least one owner:
@@ -181,6 +189,7 @@ instance Arbitrary PoolRegistrationCertificate where
         <*> fmap Quantity arbitrary
         <*> fmap Quantity arbitrary
         <*> oneof [pure Nothing, Just <$> genMetadata]
+        <*> arbitrary
       where
         genMetadata = (,)
             <$> fmap StakePoolMetadataUrl genURL
@@ -325,7 +334,6 @@ genStakePoolMetadata (StakePoolMetadataUrl url) = StakePoolMetadata
     <*> genPrintableText
     <*> oneof [ pure Nothing, Just <$> genPrintableText ]
     <*> pure url
-    <*> pure False
 
 genStakePoolTicker :: Gen StakePoolTicker
 genStakePoolTicker = (StakePoolTicker . T.pack) <$>
@@ -399,4 +407,3 @@ instance Arbitrary PoolMetadataSource where
 instance Arbitrary Settings where
     shrink = genericShrink
     arbitrary = genericArbitrary
-
