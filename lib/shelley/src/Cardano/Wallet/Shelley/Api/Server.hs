@@ -106,10 +106,12 @@ import Cardano.Wallet.Api.Types
     , ApiAddressInspectData (..)
     , ApiCredential (..)
     , ApiErrorCode (..)
+    , ApiMaintenanceAction (..)
     , ApiSelectCoinsAction (..)
     , ApiSelectCoinsData (..)
     , ApiStakePool
     , ApiT (..)
+    , MaintenanceAction (..)
     , SettingsPutData (..)
     , SomeByronWalletPostData (..)
     )
@@ -264,7 +266,11 @@ server byron icarus shelley spl ntp =
         :<|> joinStakePool shelley (knownPools spl) (getPoolLifeCycleStatus spl)
         :<|> quitStakePool shelley
         :<|> delegationFee shelley
+        :<|> _poolMaintenance
       where
+        _poolMaintenance = \case
+            (ApiMaintenanceAction GcStakePools) ->
+                liftIO $ forceMetadataGC spl >> pure NoContent
         listStakePools_ = \case
             Just (ApiT stake) -> do
                 currentEpoch <- getCurrentEpoch shelley

@@ -77,6 +77,8 @@ module Cardano.Wallet.Api.Types
     , PostExternalTransactionData (..)
     , ApiTransaction (..)
     , ApiWithdrawalPostData (..)
+    , ApiMaintenanceAction (..)
+    , MaintenanceAction (..)
     , ApiFee (..)
     , ApiTxId (..)
     , ApiTxInput (..)
@@ -402,6 +404,13 @@ fmtAllowedWords =
 {-------------------------------------------------------------------------------
                                   API Types
 -------------------------------------------------------------------------------}
+
+data MaintenanceAction = GcStakePools
+    deriving (Eq, Generic, Show)
+
+newtype ApiMaintenanceAction = ApiMaintenanceAction
+    { maintenanceAction :: MaintenanceAction
+    } deriving (Eq, Generic, Show)
 
 data ApiListStakePools apiPool = ApiListStakePools
     { pools :: [apiPool]
@@ -1396,6 +1405,16 @@ instance FromJSON ByronWalletPutPassphraseData where
     parseJSON = genericParseJSON defaultRecordTypeOptions
 instance ToJSON ByronWalletPutPassphraseData where
     toJSON = genericToJSON defaultRecordTypeOptions
+
+instance FromJSON ApiMaintenanceAction where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance ToJSON ApiMaintenanceAction where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+instance FromJSON MaintenanceAction where
+    parseJSON = genericParseJSON defaultSumTypeOptions
+instance ToJSON MaintenanceAction where
+    toJSON = genericToJSON defaultSumTypeOptions
 
 instance FromJSON ApiTxId where
     parseJSON = genericParseJSON defaultRecordTypeOptions

@@ -217,6 +217,7 @@ server byron icarus jormungandr spl ntp =
                 (getPoolLifeCycleStatus spl)
         :<|> quitStakePool jormungandr
         :<|> delegationFee jormungandr
+        :<|> (\_ -> throwError err501)
 
     byronWallets :: Server ByronWallets
     byronWallets =
