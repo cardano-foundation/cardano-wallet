@@ -122,6 +122,7 @@ import Cardano.Wallet.Api.Types
     , ApiCoinSelectionT
     , ApiFee
     , ApiListStakePools
+    , ApiMaintenanceAction
     , ApiNetworkClock
     , ApiNetworkInformation
     , ApiNetworkParameters
@@ -200,6 +201,7 @@ import Servant.API.Verbs
     , Post
     , PostAccepted
     , PostCreated
+    , PostNoContent
     , Put
     , PutAccepted
     , PutNoContent
@@ -435,6 +437,7 @@ type StakePools n apiPool =
     :<|> JoinStakePool n
     :<|> QuitStakePool n
     :<|> DelegationFee
+    :<|> PoolMaintenance
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/listStakePools
 type ListStakePools apiPool = "stake-pools"
@@ -462,6 +465,10 @@ type DelegationFee = "wallets"
     :> Capture "walletId" (ApiT WalletId)
     :> "delegation-fees"
     :> Get '[JSON] ApiFee
+
+type PoolMaintenance = "stake-pools"
+    :> ReqBody '[JSON] ApiMaintenanceAction
+    :> PostNoContent
 
 {-------------------------------------------------------------------------------
                                   Settings

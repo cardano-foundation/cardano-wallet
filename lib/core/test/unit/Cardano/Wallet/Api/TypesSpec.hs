@@ -56,6 +56,7 @@ import Cardano.Wallet.Api.Types
     , ApiEpochInfo (..)
     , ApiFee (..)
     , ApiListStakePools (..)
+    , ApiMaintenanceAction (..)
     , ApiMnemonicT (..)
     , ApiNetworkClock (..)
     , ApiNetworkInformation (..)
@@ -1261,6 +1262,10 @@ instance Arbitrary WalletName where
 instance Arbitrary ApiWalletPassphraseInfo where
     arbitrary = ApiWalletPassphraseInfo <$> genUniformTime
 
+instance Arbitrary ApiMaintenanceAction where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
+
 instance Arbitrary SyncProgress where
     arbitrary = genericArbitrary
     shrink = genericShrink
@@ -1403,6 +1408,10 @@ instance Arbitrary ApiVerificationKey where
 
 instance ToSchema ApiVerificationKey where
     declareNamedSchema _ = declareSchemaForDefinition "ApiVerificationKey"
+
+instance Arbitrary Api.MaintenanceAction where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
 
 instance Arbitrary ApiNetworkParameters where
     arbitrary = genericArbitrary
