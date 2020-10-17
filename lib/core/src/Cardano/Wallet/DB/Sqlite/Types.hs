@@ -91,6 +91,8 @@ import Data.Text.Encoding
     ( decodeUtf8, encodeUtf8 )
 import Data.Time.Clock.POSIX
     ( POSIXTime, posixSecondsToUTCTime, utcTimeToPOSIXSeconds )
+import Data.Time.Format
+    ( defaultTimeLocale, formatTime, iso8601DateFormat, parseTimeM )
 import Data.Word
     ( Word32, Word64 )
 import Data.Word.Odd
@@ -678,9 +680,16 @@ instance PersistFieldSql DerivationPrefix where
 -- Other
 
 instance PersistField POSIXTime where
-    toPersistValue = PersistUTCTime . posixSecondsToUTCTime
-    fromPersistValue (PersistUTCTime utc) = Right . utcTimeToPOSIXSeconds $ utc
-    fromPersistValue _ = Left "Could not convert to unknown construtctor POSIX seconds"
+    toPersistValue =
+        PersistText
+            . T.pack
+            . formatTime defaultTimeLocale (iso8601DateFormat (Just "%H:%M:%S"))
+            . posixSecondsToUTCTime
+    fromPersistValue (PersistText time) =
+        fmap utcTimeToPOSIXSeconds $
+            parseTimeM True defaultTimeLocale
+                (iso8601DateFormat (Just "%H:%M:%S")) (T.unpack time)
+    fromPersistValue _ = Left "Could not convert to unknown constructor POSIX seconds"
 
 instance PersistFieldSql POSIXTime where
-    sqlType _ = sqlType (Proxy @Word64)
+    sqlType _ = sqlType (Proxy @Text)
