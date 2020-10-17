@@ -50,6 +50,7 @@ module Cardano.Wallet.Api.Types
     , ApiAddressData (..)
     , AnyAddress (..)
     , AnyAddressType (..)
+    , ApiListStakePools (..)
     , ApiCertificate (..)
     , ApiEpochInfo (..)
     , ApiSelectCoinsData (..)
@@ -401,6 +402,11 @@ fmtAllowedWords =
 {-------------------------------------------------------------------------------
                                   API Types
 -------------------------------------------------------------------------------}
+
+data ApiListStakePools apiPool = ApiListStakePools
+    { pools :: [apiPool]
+    , lastGC :: !(Maybe (ApiT Iso8601Time))
+    } deriving (Eq, Generic, Show)
 
 data ApiAddress (n :: NetworkDiscriminant) = ApiAddress
     { id :: !(ApiT Address, Proxy n)
@@ -819,7 +825,6 @@ data ApiPostRandomAddressData = ApiPostRandomAddressData
     } deriving (Eq, Generic, Show)
       deriving anyclass NFData
 
-
 data ApiWalletMigrationPostData (n :: NetworkDiscriminant) (s :: Symbol) =
     ApiWalletMigrationPostData
     { passphrase :: !(ApiT (Passphrase s))
@@ -921,6 +926,12 @@ instance FromText Iso8601Time where
             <> T.unpack t
             <> "'. Expecting ISO 8601 date-and-time format (basic or extended)"
             <> ", e.g. 2012-09-25T10:15:00Z."
+
+instance FromJSON (ApiT Iso8601Time) where
+    parseJSON =
+        parseJSON >=> eitherToParser . bimap ShowFmt ApiT . fromText
+instance ToJSON (ApiT Iso8601Time) where
+    toJSON = toJSON . toText . getApiT
 
 instance FromHttpApiData Iso8601Time where
     parseUrlPiece = first (T.pack . getTextDecodingError) . fromText
@@ -1374,6 +1385,11 @@ instance ToJSON  SettingsPutData where
 instance FromJSON WalletPutPassphraseData where
     parseJSON = genericParseJSON defaultRecordTypeOptions
 instance ToJSON  WalletPutPassphraseData where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+instance FromJSON a => FromJSON (ApiListStakePools a) where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance ToJSON a => ToJSON (ApiListStakePools a) where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 instance FromJSON ByronWalletPutPassphraseData where

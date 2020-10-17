@@ -95,6 +95,7 @@ import Cardano.Wallet.Api.Server
     )
 import Cardano.Wallet.Api.Types
     ( ApiErrorCode (..)
+    , ApiListStakePools (..)
     , ApiSelectCoinsData (..)
     , ApiT (..)
     , SomeByronWalletPostData (..)
@@ -323,9 +324,10 @@ listPools
     => StakePoolLayer e IO
     -> Maybe (ApiT Coin)
     -- ^ Not needed, but there for consistency with haskell node.
-    -> Handler [ApiStakePool]
-listPools spl _walletId =
-    liftHandler $ map (uncurry mkApiStakePool) <$> listStakePools spl
+    -> Handler (ApiListStakePools ApiStakePool)
+listPools spl _walletId = do
+    ps <- liftHandler $ map (uncurry mkApiStakePool) <$> listStakePools spl
+    pure (ApiListStakePools ps Nothing)
   where
     mkApiStakePool
         :: StakePool
