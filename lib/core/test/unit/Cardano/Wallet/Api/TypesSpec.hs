@@ -55,6 +55,7 @@ import Cardano.Wallet.Api.Types
     , ApiCoinSelectionOutput (..)
     , ApiEpochInfo (..)
     , ApiFee (..)
+    , ApiListStakePools (..)
     , ApiMnemonicT (..)
     , ApiNetworkClock (..)
     , ApiNetworkInformation (..)
@@ -323,6 +324,7 @@ spec = do
         \and match existing golden files" $ do
             jsonRoundtripAndGolden $ Proxy @(ApiAddress ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @(ApiT DerivationIndex)
+            jsonRoundtripAndGolden $ Proxy @(ApiListStakePools Api.ApiStakePool)
             jsonRoundtripAndGolden $ Proxy @ApiEpochInfo
             jsonRoundtripAndGolden $ Proxy @(ApiSelectCoinsData ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @(ApiCoinSelection ('Testnet 0))
@@ -1206,6 +1208,9 @@ instance Arbitrary PoolId where
         InfiniteList bytes _ <- arbitrary
         return $ PoolId $ BS.pack $ take 28 bytes
 
+instance Arbitrary (ApiListStakePools ApiStakePool) where
+    arbitrary = ApiListStakePools <$> arbitrary <*> arbitrary
+
 instance Arbitrary ApiStakePool where
     arbitrary = ApiStakePool
         <$> arbitrary
@@ -1771,6 +1776,12 @@ instance ToSchema SettingsPutData where
 
 instance ToSchema (ApiT Settings) where
     declareNamedSchema _ = declareSchemaForDefinition "ApiGetSettings"
+
+instance ToSchema (ApiT Iso8601Time) where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiLastGC"
+
+instance ToSchema (Api.ApiListStakePools Api.ApiStakePool) where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiListStakePools"
 
 instance ToSchema WalletPutPassphraseData where
     declareNamedSchema _ =

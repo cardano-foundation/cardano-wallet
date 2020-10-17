@@ -51,7 +51,7 @@ import Cardano.Pool.Metadata
 import Cardano.Wallet
     ( ErrListPools (..) )
 import Cardano.Wallet.Api.Types
-    ( ApiT (..) )
+    ( ApiListStakePools (..), ApiT (..), Iso8601Time (..) )
 import Cardano.Wallet.Byron.Compatibility
     ( toByronBlockHeader )
 import Cardano.Wallet.Network
@@ -148,6 +148,8 @@ import Data.Text
     ( Text )
 import Data.Text.Class
     ( ToText (..) )
+import Data.Time.Clock.POSIX
+    ( getPOSIXTime, posixDayLength, posixSecondsToUTCTime )
 import Data.Tuple.Extra
     ( dupe )
 import Data.Word
@@ -171,8 +173,6 @@ import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Merge.Strict as Map
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
-import Data.Time.Clock.POSIX
-    ( getPOSIXTime, posixDayLength )
 import qualified GHC.Conc as STM
 
 --
@@ -198,7 +198,7 @@ data StakePoolLayer = StakePoolLayer
         :: EpochNo
         -- Exclude all pools that retired in or before this epoch.
         -> Coin
-        -> ExceptT ErrListPools IO [Api.ApiStakePool]
+        -> ExceptT ErrListPools IO (ApiListStakePools Api.ApiStakePool)
 
     , putSettings :: Settings -> IO ()
 
@@ -270,7 +270,7 @@ newStakePoolLayer nl db@DBLayer {..} worker = do
         :: EpochNo
         -- Exclude all pools that retired in or before this epoch.
         -> Coin
-        -> ExceptT ErrListPools IO [Api.ApiStakePool]
+        -> ExceptT ErrListPools IO (ApiListStakePools Api.ApiStakePool)
     _listPools currentEpoch userStake = do
         tip <- withExceptT fromErrCurrentNodeTip $ currentNodeTip nl
         rawLsqData <- mapExceptT (fmap (first ErrListPoolsNetworkError))
@@ -278,6 +278,7 @@ newStakePoolLayer nl db@DBLayer {..} worker = do
         let lsqData = combineLsqData rawLsqData
         dbData <- liftIO $ readPoolDbData db currentEpoch
         seed <- liftIO $ atomically readSystemSeed
+        lastGC <- liftIO $ atomically $ readLastMetadataGC
         r <- liftIO $ try $
             sortByReward seed
             . map snd
@@ -290,7 +291,8 @@ newStakePoolLayer nl db@DBLayer {..} worker = do
         case r of
             Left e@(PastHorizon{}) ->
                 throwE (ErrListPoolsPastHorizonException e)
-            Right r' -> pure r'
+            Right r' -> pure (ApiListStakePools r'
+                (Just . ApiT . Iso8601Time . posixSecondsToUTCTime $ lastGC))
       where
         fromErrCurrentNodeTip :: ErrCurrentNodeTip -> ErrListPools
         fromErrCurrentNodeTip = \case

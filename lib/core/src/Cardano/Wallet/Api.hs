@@ -121,6 +121,7 @@ import Cardano.Wallet.Api.Types
     , ApiByronWallet
     , ApiCoinSelectionT
     , ApiFee
+    , ApiListStakePools
     , ApiNetworkClock
     , ApiNetworkInformation
     , ApiNetworkParameters
@@ -438,7 +439,7 @@ type StakePools n apiPool =
 -- | https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/listStakePools
 type ListStakePools apiPool = "stake-pools"
     :> QueryParam "stake" (ApiT Coin)
-    :> Get '[JSON] [apiPool]
+    :> Get '[JSON] (ApiListStakePools apiPool)
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/joinStakePool
 type JoinStakePool n = "stake-pools"
