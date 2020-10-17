@@ -6,7 +6,9 @@
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TypeSynonymInstances #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Cardano.Pool.DB.Properties
@@ -87,6 +89,8 @@ import Data.Quantity
     ( Quantity (..) )
 import Data.Text.Class
     ( toText )
+import Data.Time.Clock.POSIX
+    ( POSIXTime )
 import Data.Word
     ( Word64 )
 import Fmt
@@ -217,6 +221,8 @@ properties = do
             (property . prop_putHeaderListHeader)
         it "modSettings . readSettings == id"
             (property . prop_modSettingsReadSettings)
+        it "putLastMetadataGC . readLastMetadataGC == id"
+            (property . prop_putLastMetadataGCReadLastMetadataGC)
 
 {-------------------------------------------------------------------------------
                                     Properties
@@ -1431,6 +1437,24 @@ prop_modSettingsReadSettings DBLayer{..} settings = do
         assertWith "Modifying settings and reading afterwards works"
             (modSettings' == settings)
 
+-- | read . put == pure
+prop_putLastMetadataGCReadLastMetadataGC
+    :: DBLayer IO
+    -> POSIXTime
+    -> Property
+prop_putLastMetadataGCReadLastMetadataGC DBLayer{..} posixTime = do
+    monadicIO (setup >> prop)
+  where
+    setup = run $ atomically cleanDB
+    prop = do
+        defGCTime <- run $ atomically readLastMetadataGC
+        assertWith "Reading sync time from empty db returns start of unix epoch"
+            (defGCTime == fromIntegral @Int 0)
+        run $ atomically $ putLastMetadataGC posixTime
+        time <- run $ atomically readLastMetadataGC
+        assertWith "Setting sync time and reading afterwards works"
+            (time == posixTime)
+
 descSlotsPerPool :: Map PoolId [BlockHeader] -> Expectation
 descSlotsPerPool pools = do
     let checkIfDesc slots =
@@ -1484,3 +1508,8 @@ testCertificatePublicationTimes =
 
 instance Arbitrary BlockHeader where
     arbitrary = genSlotNo >>= genBlockHeader
+
+instance Arbitrary POSIXTime where
+    arbitrary = do
+        (Positive int) <- arbitrary @(Positive Int)
+        pure (fromIntegral int)

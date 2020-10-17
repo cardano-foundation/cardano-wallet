@@ -673,7 +673,7 @@ instance PersistField POSIXTime where
             . formatTime defaultTimeLocale (iso8601DateFormat (Just "%H:%M:%S"))
             . posixSecondsToUTCTime
     fromPersistValue (PersistText time) =
-        fmap utcTimeToPOSIXSeconds $
+        utcTimeToPOSIXSeconds <$>
             parseTimeM True defaultTimeLocale
                 (iso8601DateFormat (Just "%H:%M:%S")) (T.unpack time)
     fromPersistValue _ = Left "Could not convert to unknown constructor POSIX seconds"
