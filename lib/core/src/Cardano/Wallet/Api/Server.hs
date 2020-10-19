@@ -378,6 +378,8 @@ import Data.Time
     ( UTCTime )
 import Data.Time.Clock
     ( getCurrentTime )
+import Data.Void
+    ( Void )
 import Data.Word
     ( Word32, Word64 )
 import Fmt
@@ -1688,7 +1690,7 @@ migrateWallet ctx (ApiT wid) migrateData = do
 -- the number of addresses in the specified address list, addresses will be
 -- recycled in order of their appearance in the original list.
 assignMigrationAddresses
-    :: forall input output change .
+    :: forall input output.
         ( input ~ (TxIn, TxOut)
         , output ~ TxOut
         )
@@ -1696,7 +1698,8 @@ assignMigrationAddresses
     -- ^ Target addresses
     -> [CoinSelection]
     -- ^ Migration data for the source wallet.
-    -> [UnsignedTx input output change]
+    -> [UnsignedTx input output Void]
+    -- ^ An unsigned transaction without change, indicated with Void.
 assignMigrationAddresses addrs selections =
     fst $ foldr accumulate ([], cycle addrs) selections
   where
@@ -1704,10 +1707,11 @@ assignMigrationAddresses addrs selections =
         (\addrsSelected -> makeTx sel addrsSelected : txs)
         (splitAt (length $ view #change sel) addrsAvailable)
 
-    makeTx :: CoinSelection -> [Address] -> UnsignedTx input output change
+    makeTx :: CoinSelection -> [Address] -> UnsignedTx input output Void
     makeTx sel addrsSelected = UnsignedTx
         (NE.fromList (sel ^. #inputs))
         (zipWith TxOut addrsSelected (sel ^. #change))
+        -- We never return any change:
         []
 
 {-------------------------------------------------------------------------------
