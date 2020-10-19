@@ -1360,7 +1360,7 @@ icarusAddresses mw =
         accXPrv =
             deriveAccountPrivateKey pwd rootXPrv minBound
         addrXPrv =
-            deriveAddressPrivateKey pwd accXPrv UTxOExternal
+            deriveAddressPrivateKey pwd accXPrv UtxoExternal
     in
         [ paymentAddress @n (publicKey $ addrXPrv ix)
         | ix <- [minBound..maxBound]
@@ -1385,7 +1385,7 @@ shelleyAddresses mw =
         accXPrv =
             deriveAccountPrivateKey pwd rootXPrv minBound
         addrXPrv =
-            deriveAddressPrivateKey pwd accXPrv UTxOExternal
+            deriveAddressPrivateKey pwd accXPrv UtxoExternal
     in
         [ paymentAddress @n (publicKey $ addrXPrv ix)
         | ix <- [minBound..maxBound]

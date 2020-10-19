@@ -169,8 +169,8 @@ data Depth = RootK | PurposeK | CoinTypeK | AccountK | RoleK | AddressK
 --
 -- FIXME: rename this to 'Role' or 'HDRole'
 data AccountingStyle
-    = UTxOExternal
-    | UTxOInternal
+    = UtxoExternal
+    | UtxoInternal
     | MutableAccount
     deriving (Generic, Typeable, Show, Eq, Ord, Bounded)
 
@@ -181,13 +181,13 @@ instance NFData AccountingStyle
 -- around the constructor above for instance).
 instance Enum AccountingStyle where
     toEnum = \case
-        0 -> UTxOExternal
-        1 -> UTxOInternal
+        0 -> UtxoExternal
+        1 -> UtxoInternal
         2 -> MutableAccount
         _ -> error "AccountingStyle.toEnum: bad argument"
     fromEnum = \case
-        UTxOExternal -> 0
-        UTxOInternal -> 1
+        UtxoExternal -> 0
+        UtxoInternal -> 1
         MutableAccount -> 2
 
 instance ToText AccountingStyle where
@@ -199,12 +199,12 @@ instance FromText AccountingStyle where
 -- | smart-constructor for getting a derivation index that refers to external
 -- utxo.
 utxoExternal :: Index 'Soft 'RoleK
-utxoExternal = toEnum $ fromEnum UTxOExternal
+utxoExternal = toEnum $ fromEnum UtxoExternal
 
 -- | smart-constructor for getting a derivation index that refers to internal
 -- utxo.
 utxoInternal :: Index 'Soft 'RoleK
-utxoInternal = toEnum $ fromEnum UTxOInternal
+utxoInternal = toEnum $ fromEnum UtxoInternal
 
 -- | smart-constructor for getting a derivation index that refers to stake
 -- key level (a.k.a mutable account)
