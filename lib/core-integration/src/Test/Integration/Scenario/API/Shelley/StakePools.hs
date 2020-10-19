@@ -656,13 +656,13 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
             expectErrorMessage (errMsg404NoSuchPool (toText non_existing_pool_id)) r
 
     describe "STAKE_POOLS_QUIT_UNSIGNED_01"
-        $ it "Can quit a joined pool" $ \ctx -> do
+        $ it "Join/quit when already joined a pool" $ \ctx -> do
             w <- fixtureWallet ctx
 
-            pool:_ <- map (view #id) . snd <$> unsafeRequest @[ApiStakePool]
+            pool1:pool2:_ <- map (view #id) . snd <$> unsafeRequest @[ApiStakePool]
                 ctx (Link.listStakePools arbitraryStake) Empty
 
-            joinStakePool @n ctx pool (w, fixturePassphrase) >>= flip verify
+            joinStakePool @n ctx pool1 (w, fixturePassphrase) >>= flip verify
                 [ expectResponseCode HTTP.status202
                 , expectField (#status . #getApiT) (`shouldBe` Pending)
                 , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
@@ -671,20 +671,37 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
             eventually "Wallet is delegating to p1" $ do
                 request @ApiWallet ctx (Link.getWallet @'Shelley w)
                     Default Empty >>= flip verify
-                    [ expectField #delegation (`shouldBe` delegating pool [])
+                    [ expectField #delegation (`shouldBe` delegating pool1 [])
                     ]
 
-            let isValidCerts (Just (QuitPool{}:|[])) = True
-                isValidCerts _ = False
+            -- Cannot join the same pool
+            let pid = toText $ pool1 ^. #getApiT
+            joinStakePoolUnsigned @n @'Shelley ctx w pool1 >>= \o -> do
+                verify o
+                    [ expectResponseCode HTTP.status403
+                    , expectErrorMessage (errMsg403PoolAlreadyJoined pid)
+                    ]
 
-            -- Quit Pool
+            -- Can join another pool
+            let isValidCertsJoin (Just (JoinPool{}:|[])) = True
+                isValidCertsJoin _ = False
+            joinStakePoolUnsigned @n @'Shelley ctx w pool2 >>= \o -> do
+                verify o
+                    [ expectResponseCode HTTP.status200
+                    , expectField #inputs (`shouldSatisfy` (not . null))
+                    , expectField #certificates (`shouldSatisfy` isValidCertsJoin)
+                    ]
+
+            -- Can quit pool
+            let isValidCertsQuit (Just (QuitPool{}:|[])) = True
+                isValidCertsQuit _ = False
             quitStakePoolUnsigned @n @'Shelley ctx w >>= \o -> do
                 verify o
                     [ expectResponseCode HTTP.status200
                     , expectField #inputs (`shouldSatisfy` (not . null))
                     , expectField #outputs (`shouldSatisfy` (not . null))
                     , expectField #certificates (`shouldSatisfy` ((==1) . length))
-                    , expectField #certificates (`shouldSatisfy` isValidCerts)
+                    , expectField #certificates (`shouldSatisfy` isValidCertsQuit)
                     ]
 
     describe "STAKE_POOLS_QUIT_UNSIGNED_02"
