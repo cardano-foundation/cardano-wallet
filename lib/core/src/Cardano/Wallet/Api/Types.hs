@@ -410,7 +410,7 @@ data ApiCertificate
 
 data ApiCoinSelection (n :: NetworkDiscriminant) = ApiCoinSelection
     { inputs :: !(NonEmpty (ApiCoinSelectionInput n))
-    , outputs :: !(NonEmpty (AddressAmount (ApiT Address, Proxy n)))
+    , outputs :: ![AddressAmount (ApiT Address, Proxy n)]
     , certificates :: Maybe (NonEmpty ApiCertificate)
     } deriving (Eq, Generic, Show)
 

@@ -1659,7 +1659,7 @@ migrateWallet ctx (ApiT wid) migrateData = do
             ti
             (txId tx)
             (fmap Just <$> NE.toList (W.unsignedInputs cs))
-            (NE.toList (W.unsignedOutputs cs))
+            (W.unsignedOutputs cs)
             (tx ^. #withdrawals)
             (meta, time)
             Nothing
@@ -1699,7 +1699,7 @@ assignMigrationAddresses addrs selections =
     makeTx :: CoinSelection -> [Address] -> UnsignedTx (TxIn, TxOut)
     makeTx sel addrsSelected = UnsignedTx
         (NE.fromList (sel ^. #inputs))
-        (NE.fromList (zipWith TxOut addrsSelected (sel ^. #change)))
+        (zipWith TxOut addrsSelected (sel ^. #change))
 
 {-------------------------------------------------------------------------------
                                     Network
@@ -1916,6 +1916,7 @@ mkApiCoinSelection mcerts (UnsignedTx inputs outputs) =
                 ]
       where
         apiStakePath = ApiT <$> xs
+
     mkAddressAmount :: TxOut -> AddressAmount (ApiT Address, Proxy n)
     mkAddressAmount (TxOut addr (Coin c)) =
         AddressAmount (ApiT addr, Proxy @n) (Quantity $ fromIntegral c)
@@ -2273,11 +2274,8 @@ instance Buildable e => LiftHandler (ErrSelectCoinsExternal e) where
         ErrSelectCoinsExternalUnableToAssignInputs e ->
             apiError err500 UnableToAssignInputOutput $ mconcat
                 [ "I'm unable to assign inputs from coin selection: "
-                , pretty e]
-        ErrSelectCoinsExternalUnableToAssignOutputs e ->
-            apiError err500 UnableToAssignInputOutput $ mconcat
-                [ "I'm unable to assign outputs from coin selection: "
-                , pretty e]
+                , pretty e
+                ]
 
 instance Buildable e => LiftHandler (ErrCoinSelection e) where
     handler = \case
@@ -2543,7 +2541,6 @@ instance LiftHandler ErrSelectForDelegation where
                 , "delegation certificate. I need: ", showT cost, " Lovelace."
                 ]
         ErrSelectForDelegationUnableToAssignInputs e -> handler e
-        ErrSelectForDelegationUnableToAssignOutputs e -> handler e
 
 instance LiftHandler ErrSignDelegation where
     handler = \case
@@ -2581,10 +2578,6 @@ instance LiftHandler ErrJoinStakePool where
         ErrJoinStakePoolUnableToAssignInputs e ->
             apiError err500 UnableToAssignInputOutput $ mconcat
                 [ "I'm unable to assign inputs from coin selection: "
-                , pretty e]
-        ErrJoinStakePoolUnableToAssignOutputs  e ->
-            apiError err500 UnableToAssignInputOutput $ mconcat
-                [ "I'm unable to assign outputs from coin selection: "
                 , pretty e]
 
 instance LiftHandler ErrFetchRewards where
@@ -2625,10 +2618,6 @@ instance LiftHandler ErrQuitStakePool where
         ErrQuitStakePoolUnableToAssignInputs e ->
             apiError err500 UnableToAssignInputOutput $ mconcat
                 [ "I'm unable to assign inputs from coin selection: "
-                , pretty e]
-        ErrQuitStakePoolUnableToAssignOutputs e ->
-            apiError err500 UnableToAssignInputOutput $ mconcat
-                [ "I'm unable to assign outputs from coin selection: "
                 , pretty e]
 
 instance LiftHandler ErrCreateRandomAddress where

@@ -520,7 +520,7 @@ x-transactionInputs: &transactionInputs
 x-transactionOutputs: &transactionOutputs
   description: A list of target outputs
   type: array
-  minItems: 1
+  minItems: 0
   items:
     type: object
     required:
@@ -2947,7 +2947,7 @@ paths:
         Random-Improve coin selection algorithm</a>.
 
         <b>Note: </b> Not supported for Byron random wallets.
-        
+
       parameters:
         - *parametersWalletId
       requestBody:

@@ -145,7 +145,7 @@ prop_coinValuesPreserved (CoinSelectionsSetup cs addrs) = do
     let selsCoinValue =
             sum $ getCoinValueFromInp . inputs . getCS <$> cs
     let getCoinValueFromTxOut (UnsignedTx _ txouts) =
-            sum $ map (\(TxOut _ (Coin c)) -> c) $ NE.toList txouts
+            sum $ map (\(TxOut _ (Coin c)) -> c) txouts
     let txsCoinValue =
             sum . map getCoinValueFromTxOut
     txsCoinValue (assignMigrationAddresses addrs sels) === selsCoinValue
@@ -164,7 +164,7 @@ prop_coinValuesPreservedPerTx f (CoinSelectionsSetup cs addrs) = do
             f . map (\(_, TxOut _ (Coin c)) -> c)
     let selsCoinValue = getCoinValueFromInp . inputs . getCS <$> cs
     let getCoinValueFromTxOut (UnsignedTx _ txouts) =
-            f $ map (\(TxOut _ (Coin c)) -> c) $ NE.toList txouts
+            f $ map (\(TxOut _ (Coin c)) -> c) txouts
     let txsCoinValue = map getCoinValueFromTxOut
     txsCoinValue (assignMigrationAddresses addrs sels) === selsCoinValue
 
@@ -202,8 +202,7 @@ prop_fairAddressesRecycled
 prop_fairAddressesRecycled (CoinSelectionsSetup cs addrs) = do
     let sels = getCS <$> cs
     let getAllAddrPerTx (UnsignedTx _ txouts) =
-            map (\(TxOut addr _) -> addr) $
-            NE.toList txouts
+            map (\(TxOut addr _) -> addr) txouts
     let getAllAddrCounts =
             Map.elems .
             foldr (\x -> Map.insertWith (+) x (1::Int)) Map.empty .
