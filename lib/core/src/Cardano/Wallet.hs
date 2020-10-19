@@ -1695,29 +1695,29 @@ selectCoinsExternal
     -> ExceptT error IO (UnsignedTx input output change)
 selectCoinsExternal ctx wid argGenChange selectCoins = do
     cs <- selectCoins
-    (changeOutputs, s) <- db & \DBLayer{..} ->
+    db & \DBLayer{..} -> mapExceptT atomically $ do
+        cp <- withExceptT ErrSelectCoinsExternalNoSuchWallet $
+            withNoSuchWallet wid $ readCheckpoint $ PrimaryKey wid
+        (changeOutputs, s) <- flip runStateT (getState cp) $
+            assignChangeAddresses argGenChange (change cs)
         withExceptT ErrSelectCoinsExternalNoSuchWallet $
-            mapExceptT atomically $ do
-                cp <- withNoSuchWallet wid $ readCheckpoint $ PrimaryKey wid
-                (changeOutputs, s) <- flip runStateT (getState cp) $
-                    assignChangeAddresses argGenChange (change cs)
-                putCheckpoint (PrimaryKey wid) (updateState s cp)
-                pure (changeOutputs, s)
-    UnsignedTx
-        <$> fullyQualifiedInputs s (inputs cs)
+            putCheckpoint (PrimaryKey wid) (updateState s cp)
+        UnsignedTx
+            <$> fullyQualifiedInputs s (inputs cs)
                 (ErrSelectCoinsExternalUnableToAssignInputs cs)
-        <*> pure (outputs cs)
-        <*> fullyQualifiedChange s changeOutputs
+            <*> pure (outputs cs)
+            <*> fullyQualifiedChange s changeOutputs
                 (ErrSelectCoinsExternalUnableToAssignChange cs)
   where
     db = ctx ^. dbLayer @s @k
 
     qualifyAddresses
-        :: forall hasAddress . s
+        :: forall hasAddress m. (Monad m)
+        => s
         -> error
         -> (hasAddress -> Address)
         -> [hasAddress]
-        -> ExceptT error IO [(hasAddress, NonEmpty DerivationIndex)]
+        -> ExceptT error m [(hasAddress, NonEmpty DerivationIndex)]
     qualifyAddresses s e getAddress hasAddresses =
         case traverse withDerivationPath hasAddresses of
             Nothing -> throwE e
@@ -1727,14 +1727,16 @@ selectCoinsExternal ctx wid argGenChange selectCoins = do
             (hasAddress,) <$> fst (isOurs (getAddress hasAddress) s)
 
     fullyQualifiedInputs
-        :: s -> [(TxIn, TxOut)] -> error -> ExceptT error IO (NonEmpty input)
+        :: Monad m
+        => s -> [(TxIn, TxOut)] -> error -> ExceptT error m (NonEmpty input)
     fullyQualifiedInputs s inputs e = flip ensureNonEmpty e .
         fmap mkInput =<< qualifyAddresses s e (view #address . snd) inputs
       where
         mkInput ((txin, txout), path) = (txin, txout, path)
 
     fullyQualifiedChange
-        :: s -> [TxOut] -> error -> ExceptT error IO [change]
+        :: Monad m
+        => s -> [TxOut] -> error -> ExceptT error m [change]
     fullyQualifiedChange s txouts e =
         fmap mkChange <$> qualifyAddresses s e (view #address) txouts
       where
@@ -2480,10 +2482,10 @@ guardCoinSelection minUtxoValue cs@CoinSelection{outputs, change} = do
         Left (ErrUTxOTooSmall (getCoin minUtxoValue) (getCoin <$> invalidTxOuts))
 
 ensureNonEmpty
-    :: forall a e.
-      [a]
+    :: forall a e m . (Monad m)
+    => [a]
     -> e
-    -> ExceptT e IO (NonEmpty a)
+    -> ExceptT e m (NonEmpty a)
 ensureNonEmpty mxs err = case NE.nonEmpty mxs of
     Nothing -> throwE err
     Just xs -> pure xs
