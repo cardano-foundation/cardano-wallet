@@ -119,14 +119,15 @@ spec = describe "SHELLEY_CLI_WALLETS" $ do
         err `shouldContain` errMsg404NoWallet (T.pack wid)
 
     it "BYRON_LIST_03 - Shelley CLI does not list Byron wallet" $ \ctx -> runResourceT $ do
-        _ <- emptyRandomWallet' ctx
-        wid <- emptyWallet' ctx
+        byronWid <- emptyRandomWallet' ctx
+        shelleyWid <- emptyWallet' ctx
         (Exit c, Stdout out, Stderr err) <- listWalletsViaCLI @t ctx
         c `shouldBe` ExitSuccess
         err `shouldBe` cmdOk
         j <- expectValidJSON (Proxy @[ApiWallet]) out
-        length j `shouldBe` 1
-        expectCliListField 0 walletId (`shouldBe` T.pack wid) j
+        let wids = map (T.unpack . view walletId) j
+        wids `shouldContain` [shelleyWid]
+        wids `shouldNotContain` [byronWid]
 
     it "BYRON_DELETE_03 - Shelley CLI does not delete Byron wallet" $ \ctx -> runResourceT $ do
         wid <- emptyRandomWallet' ctx
