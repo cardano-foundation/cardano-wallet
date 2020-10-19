@@ -33,7 +33,7 @@ import Cardano.BM.Data.Severity
 import Cardano.BM.Setup
     ( setupTrace_ )
 import Cardano.BM.Trace
-    ( Trace )
+    ( Trace, nullTracer )
 import Cardano.Launcher.Node
     ( CardanoNodeConfig (..)
     , CardanoNodeConn (..)
@@ -60,6 +60,8 @@ import Data.Aeson
     ( ToJSON (..) )
 import Data.Functor
     ( (<&>) )
+import Data.Maybe
+    ( fromMaybe )
 import Data.Text
     ( Text )
 import Fmt
@@ -81,6 +83,7 @@ import Options.Applicative
     , showDefaultWith
     , strArgument
     , strOption
+    , switch
     , value
     )
 import Say
@@ -115,12 +118,17 @@ execBenchWithNode networkConfig action = do
     hSetBuffering stdout NoBuffering
     hSetBuffering stderr NoBuffering
 
-    (_logCfg, tr) <- initBenchmarkLogging Info
+    (_logCfg, tr') <- initBenchmarkLogging Info
+    let tr = if argQuiet args then nullTracer else tr'
     installSignalHandlers (return ())
 
-    void $ withNetworkConfiguration args $ \nodeConfig ->
-        withCardanoNode (trMessageText tr) nodeConfig $ \cp ->
-            action tr (networkConfig args) (nodeSocketFile cp)
+    case argUseAlreadyRunningNodeSocketPath args of
+        Just socket ->
+            action tr (networkConfig args) socket
+        Nothing -> do
+            void $ withNetworkConfiguration args $ \nodeConfig ->
+                withCardanoNode (trMessageText tr) nodeConfig $ \cp ->
+                    action tr (networkConfig args) (nodeSocketFile cp)
 
 withNetworkConfiguration :: RestoreBenchArgs -> (CardanoNodeConfig -> IO a) -> IO a
 withNetworkConfiguration args action = do
@@ -136,7 +144,7 @@ withNetworkConfiguration args action = do
     withNodeDir $ \dir -> action CardanoNodeConfig
         { nodeDir          = dir
         , nodeConfigFile   = networkDir </> "configuration.json"
-        , nodeDatabaseDir  = "db"
+        , nodeDatabaseDir  = fromMaybe "db" (argNodeDatabaseDir args)
         , nodeDlgCertFile  = Nothing
         , nodeSignKeyFile  = Nothing
         , nodeTopologyFile = networkDir </> "topology.json"
@@ -158,6 +166,8 @@ data RestoreBenchArgs = RestoreBenchArgs
     { argNetworkName :: String
     , argConfigsDir :: FilePath
     , argNodeDatabaseDir :: Maybe FilePath
+    , argUseAlreadyRunningNodeSocketPath :: Maybe FilePath
+    , argQuiet :: Bool
     } deriving (Show, Eq)
 
 restoreBenchArgsParser
@@ -184,6 +194,16 @@ restoreBenchArgsParser envNetwork envConfigsDir envNodeDatabaseDir = RestoreBenc
           <> envDefault "NODE_DB" envNodeDatabaseDir
           <> help "Directory to put cardano-node state. Defaults to $NODE_DB, \
               \falls back to temporary directory"))
+    <*> optional (strOption
+        ( long "running-node"
+          <> metavar "SOCKET"
+          <> envDefault "CARDANO_NODE_SOCKET" envNodeDatabaseDir
+          <> help "Path to the socket of an already running cardano-node. \
+                  \Also set by $CARDANO_NODE_SOCKET. If not set, cardano-node \
+              \will automatically be started."))
+    <*> switch
+        ( long ("quiet")
+          <> help "Reduce unnecessary log output.")
   where
     envDefault :: HasValue f => String -> Maybe a -> Mod f a
     envDefault name env = showDefaultWith (const ('$':name))
