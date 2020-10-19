@@ -1712,30 +1712,33 @@ selectCoinsExternal ctx wid argGenChange selectCoins = do
   where
     db = ctx ^. dbLayer @s @k
 
+    qualifyAddresses
+        :: forall hasAddress . s
+        -> error
+        -> (hasAddress -> Address)
+        -> [hasAddress]
+        -> ExceptT error IO [(hasAddress, NonEmpty DerivationIndex)]
+    qualifyAddresses s e getAddress hasAddresses =
+        case traverse withDerivationPath hasAddresses of
+            Nothing -> throwE e
+            Just as -> pure as
+      where
+        withDerivationPath hasAddress =
+            (hasAddress,) <$> fst (isOurs (getAddress hasAddress) s)
+
     fullyQualifiedInputs
         :: s -> [(TxIn, TxOut)] -> error -> ExceptT error IO (NonEmpty input)
-    fullyQualifiedInputs s inputs e =
-        traverse withDerivationPath inputs >>= flip ensureNonEmpty e
+    fullyQualifiedInputs s inputs e = flip ensureNonEmpty e .
+        fmap mkInput =<< qualifyAddresses s e (view #address . snd) inputs
       where
-        withDerivationPath :: (TxIn, TxOut) -> ExceptT error IO input
-        withDerivationPath (txin, txout) = do
-            case fst $ isOurs (view #address txout) s of
-                Nothing -> throwE e
-                Just path -> pure (txin, txout, path)
+        mkInput ((txin, txout), path) = (txin, txout, path)
 
     fullyQualifiedChange
         :: s -> [TxOut] -> error -> ExceptT error IO [change]
-    fullyQualifiedChange s txouts e = traverse withDerivationPath txouts
+    fullyQualifiedChange s txouts e =
+        fmap mkChange <$> qualifyAddresses s e (view #address) txouts
       where
-        withDerivationPath :: TxOut -> ExceptT error IO change
-        withDerivationPath txout =
-            case fst $ isOurs (view #address txout) s of
-                Nothing -> throwE e
-                Just derivationPath -> pure $ TxChange
-                    { address = view #address txout
-                    , amount = view #coin txout
-                    , derivationPath
-                    }
+        mkChange (TxOut address amount, derivationPath) = TxChange {..}
 
 data ErrSelectCoinsExternal e
     = ErrSelectCoinsExternalNoSuchWallet ErrNoSuchWallet
