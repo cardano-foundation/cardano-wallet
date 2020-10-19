@@ -195,6 +195,8 @@ import System.IO.Temp
     ( createTempDirectory, getCanonicalTemporaryDirectory, withTempDirectory )
 import System.IO.Unsafe
     ( unsafePerformIO )
+import System.Posix.Files
+    ( ownerReadMode, setFileMode )
 import System.Process
     ( readProcess, readProcessWithExitCode )
 import Test.Utils.Paths
@@ -663,6 +665,12 @@ withBFTNode tr baseDir params action =
         createDirectoryIfMissing False dir
         source <- getShelleyTestDataPath
 
+        let copyKeyFile f = do
+                let dst = dir </> f
+                copyFile (source </> f) dst
+                setFileMode dst ownerReadMode
+                pure dst
+
         [bftCert, bftPrv, vrfPrv, kesPrv, opCert] <- forM
             [ "bft-leader" <> ".byron.cert"
             , "bft-leader" <> ".byron.skey"
@@ -670,7 +678,7 @@ withBFTNode tr baseDir params action =
             , "bft-leader" <> ".kes.skey"
             , "bft-leader" <> ".opcert"
             ]
-            (\f -> copyFile (source </> f) (dir </> f) $> (dir </> f))
+            copyKeyFile
 
         let extraLogFile = (fmap (first (</> (name ++ ".log"))) logDir)
         (config, block0, networkParams, versionData)
