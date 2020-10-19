@@ -32,7 +32,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..) )
 import Cardano.Wallet.Primitive.Types
-    ( walletNameMaxLength, walletNameMinLength )
+    ( getWalletName, walletNameMaxLength, walletNameMinLength )
 import Control.Monad
     ( forM_ )
 import Control.Monad.Catch
@@ -314,9 +314,6 @@ spec = describe "SHELLEY_CLI_WALLETS" $ do
             out `shouldBe` ""
             T.unpack err `shouldContain` "Invalid number of words: 15, 18, 21\
                 \ or 24 words are expected."
-            (Stdout o, Stderr e) <- listWalletsViaCLI @t ctx
-            o `shouldBe` "[]\n"
-            e `shouldBe` cmdOk
 
     describe "WALLETS_CREATE_06 - Can create wallet with different mnemonic snd factor sizes" $ do
         forM_ ["9", "12"] $ \(size) -> it size $ \ctx -> runResourceT $ do
@@ -342,9 +339,6 @@ spec = describe "SHELLEY_CLI_WALLETS" $ do
             out `shouldBe` ""
             T.unpack err `shouldContain` "Invalid number of words: 9 or 12\
                 \ words are expected."
-            (Stdout o, Stderr e) <- listWalletsViaCLI @t ctx
-            o `shouldBe` "[]\n"
-            e `shouldBe` cmdOk
 
     describe "WALLETS_CREATE_07 - Passphrase is valid" $ do
         let proxy_ = Proxy @"raw"
@@ -464,17 +458,21 @@ spec = describe "SHELLEY_CLI_WALLETS" $ do
                 err `shouldContain` errMsg400WalletIdEncoding
 
     it "WALLETS_LIST_01 - Can list wallets" $ \ctx -> runResourceT $ do
-        let name = "Wallet to be listed"
-        w1 <- emptyWalletWith' ctx (name, "secure-passphrase", 21)
-        _ <- emptyWallet' ctx
+        let prefix = "WALLETS_LIST_01_can"
+        let name1 = prefix <> "#1"
+        let name2 = prefix <> "#2"
+        w1 <- emptyWalletWith' ctx (name1, "secure-passphrase", 21)
+        _ <- emptyWalletWith' ctx (name2, "secure-passphrase", 21)
         (Exit c, Stdout out, Stderr err) <- listWalletsViaCLI @t ctx
         c `shouldBe` ExitSuccess
         err `shouldBe` cmdOk
-        j <- expectValidJSON (Proxy @[ApiWallet]) out
+        let walFromThisTest w =
+                prefix `T.isPrefixOf` getWalletName (getApiT (view #name w))
+        j <- filter walFromThisTest <$> expectValidJSON (Proxy @[ApiWallet]) out
         length j `shouldBe` 2
         verify j
             [ expectCliListField 0
-                    (#name . #getApiT . #getWalletName) (`shouldBe` name)
+                    (#name . #getApiT . #getWalletName) (`shouldBe` name1)
             , expectCliListField 0
                     (#addressPoolGap . #getApiT . #getAddressPoolGap) (`shouldBe` 21)
             , expectCliListField 0
@@ -488,13 +486,16 @@ spec = describe "SHELLEY_CLI_WALLETS" $ do
             ]
 
     it "WALLETS_LIST_01 - Wallets are listed from oldest to newest" $ \ctx -> runResourceT $ do
-        w1 <- emptyWalletWith' ctx ("1", "secure-passphrase", 20)
-        w2 <- emptyWalletWith' ctx ("2", "secure-passphrase", 20)
-        w3 <- emptyWalletWith' ctx ("3", "secure-passphrase", 20)
+        let prefix = "WALLETS_LIST_01_order"
+        w1 <- emptyWalletWith' ctx (prefix <> "1", "secure-passphrase", 20)
+        w2 <- emptyWalletWith' ctx (prefix <> "2", "secure-passphrase", 20)
+        w3 <- emptyWalletWith' ctx (prefix <> "3", "secure-passphrase", 20)
         (Exit c, Stdout out, Stderr err) <- listWalletsViaCLI @t ctx
         c `shouldBe` ExitSuccess
         err `shouldBe` cmdOk
-        j <- expectValidJSON (Proxy @[ApiWallet]) out
+        let walFromThisTest w =
+                prefix `T.isPrefixOf` getWalletName (getApiT (view #name w))
+        j <- filter walFromThisTest <$> expectValidJSON (Proxy @[ApiWallet]) out
         length j `shouldBe` 3
         verify j
             [ expectCliListField 0 walletId (`shouldBe` T.pack w1)
@@ -706,7 +707,9 @@ spec = describe "SHELLEY_CLI_WALLETS" $ do
         c `shouldBe` ExitSuccess
         out `shouldBe` "\n"
         (Stdout o, Stderr e) <- listWalletsViaCLI @t ctx
-        o `shouldBe` "[]\n"
+        wids <- map (T.unpack . view walletId)
+            <$> expectValidJSON (Proxy @[ApiWallet]) o
+        wids `shouldNotContain` [walId]
         e `shouldBe` cmdOk
 
     it "WALLETS_UTXO_01 - Wallet's inactivity is reflected in utxo" $ \ctx -> runResourceT $ do
