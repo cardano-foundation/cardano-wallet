@@ -82,6 +82,7 @@ import Cardano.Wallet.Api.Types
     , ApiWalletMigrationPostData (..)
     , ApiWalletPassphrase (..)
     , ApiWalletPassphraseInfo (..)
+    , ApiWalletSignData (..)
     , ApiWithdrawal (..)
     , ApiWithdrawalPostData (..)
     , ByronWalletFromXPrvPostData (..)
@@ -1180,6 +1181,10 @@ instance Arbitrary StakePoolTicker where
         len <- choose (3, 5)
         replicateM len arbitrary
 
+instance Arbitrary ApiWalletSignData where
+    arbitrary = ApiWalletSignData <$> arbitrary <*> arbitrary
+    shrink = genericShrink
+
 instance Arbitrary PoolOwner where
     arbitrary = PoolOwner . BS.pack <$> vector 32
 
@@ -1758,6 +1763,11 @@ instance ToSchema ApiWalletDelegation where
 
 instance ToSchema ApiPostRandomAddressData where
     declareNamedSchema _ = declareSchemaForDefinition "ApiPostRandomAddressData"
+
+instance ToSchema ApiWalletSignData where
+    declareNamedSchema _ = do
+        addDefinition transactionMetadataValueSchema
+        declareSchemaForDefinition "ApiWalletSignData"
 
 -- FIXME: #ADP-417
 --

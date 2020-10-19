@@ -60,6 +60,7 @@ import Cardano.Wallet.Api.Types
     , ApiTxId
     , ApiWalletMigrationPostData
     , ApiWalletPassphrase
+    , ApiWalletSignData
     , ByronWalletPutPassphraseData
     , PostExternalTransactionData
     , PostTransactionData
@@ -71,7 +72,7 @@ import Cardano.Wallet.Api.Types
     , WalletPutPassphraseData
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( NetworkDiscriminant (..) )
+    ( AccountingStyle (..), DerivationIndex (..), NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Types
     ( Address, WalletId, walletNameMaxLength )
 import Control.Arrow
@@ -181,9 +182,82 @@ instance Wellformed (PathParam ApiAddressInspectData) where
 instance Malformed (PathParam ApiAddressInspectData) where
     malformed = []
 
+instance Wellformed (PathParam (ApiT AccountingStyle)) where
+    wellformed = PathParam <$>
+        [ "utxo_internal"
+        , "utxo_external"
+        , "mutable_account"
+        ]
+
+instance Malformed (PathParam (ApiT AccountingStyle)) where
+    malformed = first PathParam <$>
+        [ ( "patate", msgMalformed )
+        , ( "💩", msgMalformed )
+        , ( "utxoInternal", msgMalformed )
+        ]
+      where
+        msgMalformed =
+            "Unable to decode the given text value. Please specify \
+            \one of the following values: utxo_external, utxo_internal, \
+            \mutable_account."
+
+instance Wellformed (PathParam (ApiT DerivationIndex)) where
+    wellformed = PathParam <$>
+        [ "0"
+        , "1234"
+        , "2147483647"
+        , "0H"
+        , "1234H"
+        ]
+
+instance Malformed (PathParam (ApiT DerivationIndex)) where
+    malformed = first PathParam <$>
+        [ ( "patate", msgMalformed )
+        , ( "💩", msgMalformed )
+        , ( "2147483648", msgOutOfBounds )
+        , ( "1234H1234", msgMalformed )
+        , ( "H", msgMalformed )
+        ]
+      where
+        msgMalformed =
+            "expected a number as string with an optional 'H' suffix \
+            \(e.g. '1815H' or '44')."
+
+        msgOutOfBounds =
+            "A derivation index must be a natural number between 0 and 2147483647."
+
 --
 -- Class instances (BodyParam)
 --
+
+instance Malformed (BodyParam ApiWalletSignData) where
+    malformed = first BodyParam <$>
+        [ ( ""
+          , "not enough input"
+          )
+        , ( Aeson.encode [aesonQQ|
+            { "metadata": null
+            , "passphrase": #{wPassphrase}
+            }|]
+          , "Error in $.metadata: The JSON metadata top level must be a map (JSON object) from word to value."
+          )
+        , ( Aeson.encode [aesonQQ|
+            { "metadata": { "0": { "string": "metadata" } }
+            , "passphrase": 100
+            }|]
+          , "Error in $.passphrase: parsing Text failed, expected String, but encountered Number"
+          )
+        , ( Aeson.encode [aesonQQ|
+            { "metadata": { "0": { "string": "metadata" } }
+            }|]
+          , "Error in $: parsing Cardano.Wallet.Api.Types.ApiWalletSignData(ApiWalletSignData) failed, key 'passphrase' not found"
+          )
+        , ( Aeson.encode [aesonQQ|
+            { "passphrase": #{wPassphrase}
+            }|]
+          , "Error in $: parsing Cardano.Wallet.Api.Types.ApiWalletSignData(ApiWalletSignData) failed, key 'metadata' not found"
+          )
+        ]
 
 instance Malformed (BodyParam SomeByronWalletPostData) where
     malformed = jsonValid ++ jsonInvalid
@@ -1065,6 +1139,17 @@ instance Malformed (Header "Accept" JSON) where
     malformed = first Header <$>
         [ ( "plain/text"
           , "It seems as though you don't accept 'application/json', but unfortunately I only speak 'application/json'! Please double-check your 'Accept' request header and make sure it's set to 'application/json'."
+          )
+        ]
+
+instance Wellformed (Header "Accept" OctetStream) where
+    wellformed =
+        [Header "application/octet-stream"]
+
+instance Malformed (Header "Accept" OctetStream) where
+    malformed = first Header <$>
+        [ ( "application/json"
+          , "It seems as though you don't accept 'application/octet-stream', but unfortunately I only speak 'application/octet-stream'! Please double-check your 'Accept' request header and make sure it's set to 'application/octet-stream'."
           )
         ]
 

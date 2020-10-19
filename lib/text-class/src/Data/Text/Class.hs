@@ -203,7 +203,7 @@ fromTextToBoundedEnum cs t =
     case matchingValue of
         Just mv -> Right mv
         Nothing -> Left $ TextDecodingError $ mempty
-            <> "Unable to decode the given text value."
+            <> "Unable to decode the given text value. "
             <> "Please specify one of the following values: "
             <> T.unpack (T.intercalate ", " allValuesInRequiredCase)
             <> "."

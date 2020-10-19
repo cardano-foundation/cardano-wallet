@@ -28,6 +28,7 @@ module Cardano.Wallet.Api
         , PutWallet
         , PutWalletPassphrase
         , GetUTxOsStatistics
+        , SignMetadata
 
     , Addresses
         , ListAddresses
@@ -132,6 +133,7 @@ import Cardano.Wallet.Api.Types
     , ApiWalletMigrationInfo
     , ApiWalletMigrationPostDataT
     , ApiWalletPassphrase
+    , ApiWalletSignData
     , ByronWalletPutPassphraseData
     , Iso8601Time
     , MinWithdrawal
@@ -149,7 +151,7 @@ import Cardano.Wallet.DB
 import Cardano.Wallet.Network
     ( NetworkLayer )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth )
+    ( AccountingStyle, Depth, DerivationIndex )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncTolerance )
 import Cardano.Wallet.Primitive.Types
@@ -166,6 +168,8 @@ import Cardano.Wallet.Transaction
     ( TransactionLayer )
 import Control.Tracer
     ( Tracer, contramap )
+import Data.ByteString
+    ( ByteString )
 import Data.Generics.Internal.VL.Lens
     ( Lens' )
 import Data.Generics.Labels
@@ -233,6 +237,7 @@ type Wallets =
     :<|> PutWallet
     :<|> PutWalletPassphrase
     :<|> GetUTxOsStatistics
+    :<|> SignMetadata
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/deleteWallet
 type DeleteWallet = "wallets"
@@ -272,6 +277,15 @@ type GetUTxOsStatistics = "wallets"
     :> "statistics"
     :> "utxos"
     :> Get '[JSON] ApiUtxoStatistics
+
+-- | https://input-output-hk.github.io/cardano-wallet/api/#operation/signMetadata
+type SignMetadata = "wallets"
+    :> Capture "walletId" (ApiT WalletId)
+    :> Capture "role" (ApiT AccountingStyle)
+    :> Capture "index" (ApiT DerivationIndex)
+    :> "signatures"
+    :> ReqBody '[JSON] ApiWalletSignData
+    :> Post '[OctetStream] ByteString
 
 {-------------------------------------------------------------------------------
                                   Addresses

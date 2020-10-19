@@ -93,6 +93,7 @@ module Cardano.Wallet.Api.Types
     , ApiWalletMigrationPostData (..)
     , ApiWalletMigrationInfo (..)
     , ApiWithdrawal (..)
+    , ApiWalletSignData (..)
 
     -- * API Types (Byron)
     , ApiByronWallet (..)
@@ -734,6 +735,11 @@ data ApiWalletMigrationInfo = ApiWalletMigrationInfo
 
 newtype ApiWithdrawRewards = ApiWithdrawRewards Bool
     deriving (Eq, Generic, Show)
+
+data ApiWalletSignData = ApiWalletSignData
+    { metadata :: ApiT TxMetadata
+    , passphrase :: ApiT (Passphrase "lenient")
+    } deriving (Eq, Generic, Show)
 
 -- | Error codes returned by the API, in the form of snake_cased strings
 data ApiErrorCode
@@ -1536,6 +1542,11 @@ instance ToJSON (ApiT (Hash "Genesis")) where
 instance FromJSON ApiNetworkParameters where
     parseJSON = genericParseJSON defaultRecordTypeOptions
 instance ToJSON ApiNetworkParameters where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+instance FromJSON ApiWalletSignData where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance ToJSON ApiWalletSignData where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 instance DecodeStakeAddress n => FromJSON (ApiWithdrawal n) where

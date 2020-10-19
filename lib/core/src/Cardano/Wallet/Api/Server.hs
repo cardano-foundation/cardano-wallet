@@ -352,7 +352,7 @@ import Data.Generics.Internal.VL.Lens
 import Data.Generics.Labels
     ()
 import Data.List
-    ( isInfixOf, isSubsequenceOf, sortOn )
+    ( isInfixOf, isPrefixOf, isSubsequenceOf, isSuffixOf, sortOn )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Map.Strict
@@ -2693,14 +2693,22 @@ instance LiftHandler (Request, ServerError) where
             , "endpoint and the method: one of them is likely to be incorrect "
             , "(for example: POST instead of PUT, or GET instead of POST...)."
             ]
-        406 -> apiError err' NotAcceptable $ mconcat
-            [ "It seems as though you don't accept 'application/json', but "
-            , "unfortunately I only speak 'application/json'! Please "
+        406 ->
+            let cType =
+                    -- FIXME: Ugly and not really scalable nor maintainable.
+                    if ["wallets"] `isPrefixOf` pathInfo req
+                    && ["signatures"] `isSuffixOf` pathInfo req
+                    then "application/octet-stream"
+                    else "application/json"
+            in apiError err' NotAcceptable $ mconcat
+            [ "It seems as though you don't accept '", cType,"', but "
+            , "unfortunately I only speak '", cType,"'! Please "
             , "double-check your 'Accept' request header and make sure it's "
-            , "set to 'application/json'."
+            , "set to '", cType,"'."
             ]
         415 ->
             let cType =
+                    -- FIXME: Ugly and not really scalable nor maintainable.
                     if ["proxy", "transactions"] `isSubsequenceOf` pathInfo req
                         then "application/octet-stream"
                         else "application/json"

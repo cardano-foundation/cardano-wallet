@@ -285,7 +285,7 @@ instance FromText DerivationIndex where
                 Nothing ->
                     Left $ TextDecodingError
                         "expected a number as string with an optional 'H' \
-                         \suffix (e.g. \"1815H\" or \"44\""
+                         \suffix (e.g. \"1815H\" or \"44\")."
                 Just s ->
                     pure s
 
