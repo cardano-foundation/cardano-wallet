@@ -1679,20 +1679,20 @@ signTx ctx wid pwd md (UnsignedTx inpsNE outs _change) = db & \DBLayer{..} ->
 
 -- | Makes a fully-resolved coin selection for the given set of payments.
 selectCoinsExternal
-    :: forall ctx s k e error input output change.
+    :: forall ctx s k error e input output change.
         ( GenChange s
         , HasDBLayer s k ctx
         , IsOurs s Address
         , input ~ (TxIn, TxOut, NonEmpty DerivationIndex)
         , output ~ TxOut
         , change ~ TxChange (NonEmpty DerivationIndex)
-        , error ~ ErrSelectCoinsExternal e
+        , e ~ ErrSelectCoinsExternal error
         )
     => ctx
     -> WalletId
     -> ArgGenChange s
-    -> ExceptT error IO CoinSelection
-    -> ExceptT error IO (UnsignedTx input output change)
+    -> ExceptT e IO CoinSelection
+    -> ExceptT e IO (UnsignedTx input output change)
 selectCoinsExternal ctx wid argGenChange selectCoins = do
     cs <- selectCoins
     db & \DBLayer{..} -> mapExceptT atomically $ do
@@ -1714,10 +1714,10 @@ selectCoinsExternal ctx wid argGenChange selectCoins = do
     qualifyAddresses
         :: forall hasAddress m. (Monad m)
         => s
-        -> error
+        -> e
         -> (hasAddress -> Address)
         -> [hasAddress]
-        -> ExceptT error m [(hasAddress, NonEmpty DerivationIndex)]
+        -> ExceptT e m [(hasAddress, NonEmpty DerivationIndex)]
     qualifyAddresses s e getAddress hasAddresses =
         case traverse withDerivationPath hasAddresses of
             Nothing -> throwE e
@@ -1727,16 +1727,14 @@ selectCoinsExternal ctx wid argGenChange selectCoins = do
             (hasAddress,) <$> fst (isOurs (getAddress hasAddress) s)
 
     fullyQualifiedInputs
-        :: Monad m
-        => s -> [(TxIn, TxOut)] -> error -> ExceptT error m (NonEmpty input)
+        :: Monad m => s -> [(TxIn, TxOut)] -> e -> ExceptT e m (NonEmpty input)
     fullyQualifiedInputs s inputs e = flip ensureNonEmpty e .
         fmap mkInput =<< qualifyAddresses s e (view #address . snd) inputs
       where
         mkInput ((txin, txout), path) = (txin, txout, path)
 
     fullyQualifiedChange
-        :: Monad m
-        => s -> [TxOut] -> error -> ExceptT error m [change]
+        :: Monad m => s -> [TxOut] -> e -> ExceptT e m [change]
     fullyQualifiedChange s txouts e =
         fmap mkChange <$> qualifyAddresses s e (view #address) txouts
       where
