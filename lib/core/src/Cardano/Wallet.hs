@@ -1634,7 +1634,7 @@ signTx
     -> Maybe TxMetadata
     -> UnsignedTx (TxIn, TxOut)
     -> ExceptT ErrSignPayment IO (Tx, TxMeta, UTCTime, SealedTx)
-signTx ctx wid pwd md (UnsignedTx inpsNE outsNE) = db & \DBLayer{..} -> do
+signTx ctx wid pwd md (UnsignedTx inpsNE outs) = db & \DBLayer{..} -> do
     withRootKey @_ @s ctx wid pwd ErrSignPaymentWithRootKey $ \xprv scheme -> do
         let pwdP = preparePassphrase scheme pwd
         nodeTip <- withExceptT ErrSignPaymentNetwork $ currentNodeTip nl
@@ -1658,7 +1658,6 @@ signTx ctx wid pwd md (UnsignedTx inpsNE outsNE) = db & \DBLayer{..} -> do
     tl = ctx ^. transactionLayer @t @k
     nl = ctx ^. networkLayer @t
     inps = NE.toList inpsNE
-    outs = NE.toList outsNE
 
 -- | Makes a fully-resolved coin selection for the given set of payments.
 selectCoinsExternal
@@ -1687,8 +1686,7 @@ selectCoinsExternal ctx wid argGenChange selectCoins = do
     UnsignedTx
         <$> (fullyQualifiedInputs s' cs'
                 (ErrSelectCoinsExternalUnableToAssignInputs cs'))
-        <*> ensureNonEmpty (outputs cs')
-                (ErrSelectCoinsExternalUnableToAssignOutputs cs')
+        <*> pure (outputs cs')
   where
     db = ctx ^. dbLayer @s @k
 
@@ -1697,7 +1695,6 @@ data ErrSelectCoinsExternal e
     | ErrSelectCoinsExternalForPayment (ErrSelectForPayment e)
     | ErrSelectCoinsExternalForDelegation ErrSelectForDelegation
     | ErrSelectCoinsExternalUnableToAssignInputs CoinSelection
-    | ErrSelectCoinsExternalUnableToAssignOutputs CoinSelection
     deriving (Eq, Show)
 
 signDelegation
@@ -2265,7 +2262,6 @@ data ErrSelectForDelegation
     = ErrSelectForDelegationNoSuchWallet ErrNoSuchWallet
     | ErrSelectForDelegationFee ErrAdjustForFee
     | ErrSelectForDelegationUnableToAssignInputs ErrNoSuchWallet
-    | ErrSelectForDelegationUnableToAssignOutputs ErrNoSuchWallet
     deriving (Show, Eq)
 
 -- | Errors that can occur when signing a delegation certificate.
@@ -2283,7 +2279,6 @@ data ErrJoinStakePool
     | ErrJoinStakePoolSubmitTx ErrSubmitTx
     | ErrJoinStakePoolCannotJoin ErrCannotJoin
     | ErrJoinStakePoolUnableToAssignInputs CoinSelection
-    | ErrJoinStakePoolUnableToAssignOutputs CoinSelection
     deriving (Generic, Eq, Show)
 
 data ErrQuitStakePool
@@ -2293,7 +2288,6 @@ data ErrQuitStakePool
     | ErrQuitStakePoolSubmitTx ErrSubmitTx
     | ErrQuitStakePoolCannotQuit ErrCannotQuit
     | ErrQuitStakePoolUnableToAssignInputs CoinSelection
-    | ErrQuitStakePoolUnableToAssignOutputs CoinSelection
     deriving (Generic, Eq, Show)
 
 -- | Errors that can occur when fetching the reward balance of a wallet

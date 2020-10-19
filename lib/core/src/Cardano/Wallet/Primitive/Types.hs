@@ -969,8 +969,20 @@ instance ToText TxStatus where
 data UnsignedTx input = UnsignedTx
     { unsignedInputs
         :: NonEmpty input
+        -- Inputs are *necessarily* non-empty because Cardano requires at least
+        -- one UTxO input per transaction to prevent replayable transactions.
+        -- (each UTxO being unique, including at least one UTxO in the
+        -- transaction body makes it seemingly unique).
+
     , unsignedOutputs
-        :: NonEmpty TxOut
+        :: [TxOut]
+        -- Unlike inputs, it is perfectly reasonable to have empty outputs. The
+        -- main scenario where this might occur is when constructing a
+        -- delegation for the sake of submitting a certificate. This type of
+        -- transaction does not typically include any target output and,
+        -- depending on which input(s) get selected to fuel the transaction, it
+        -- may or may not include a change output should its value be less than
+        -- the minimal UTxO value set by the network.
     }
     deriving (Eq, Show)
 

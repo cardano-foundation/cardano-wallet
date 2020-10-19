@@ -93,7 +93,7 @@ let
         ruby
         sqlite-interactive
         yq
-      ]) ++ attrValues hls;
+      ]);
     tools = {
       cabal = "3.2.0.0";
       ghcid = "0.8.7";
@@ -117,10 +117,12 @@ let
     '';
   };
 
-  # Build latest release of haskell-language-server from github
-  hls = pkgs.callPackages ./nix/hls.nix {
-    compiler-nix-name = haskellPackages._config.compiler.nix-name;
-  };
+  # FIXME: This is causing issue in CI, as described here: https://github.com/input-output-hk/haskell.nix/issues/884
+  #
+  # # Build latest release of haskell-language-server from github
+  # hls = pkgs.callPackages ./nix/hls.nix {
+  #   compiler-nix-name = haskellPackages._config.compiler.nix-name;
+  # };
 
   self = {
     inherit pkgs commonLib src haskellPackages profiledHaskellPackages coveredHaskellPackages;
