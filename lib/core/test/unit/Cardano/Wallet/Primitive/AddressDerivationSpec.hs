@@ -22,6 +22,7 @@ import Cardano.Wallet.Gen
     ( genMnemonic )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
+    , DerivationIndex (..)
     , DerivationType (..)
     , ErrWrongPassphrase (..)
     , Index
@@ -63,8 +64,10 @@ import Test.QuickCheck
     , Property
     , arbitraryBoundedEnum
     , arbitraryPrintableChar
+    , arbitrarySizedBoundedIntegral
     , choose
     , expectFailure
+    , genericShrink
     , oneof
     , property
     , (.&&.)
@@ -105,6 +108,7 @@ spec = do
 
     describe "Text Roundtrip" $ do
         textRoundtrip $ Proxy @(Passphrase "raw")
+        textRoundtrip $ Proxy @DerivationIndex
 
     describe "Enum Roundtrip" $ do
         it "Index @'Hardened _" (property prop_roundtripEnumIndexHard)
@@ -449,6 +453,10 @@ instance Arbitrary XPrvWithPass where
             , return $ Passphrase ""
             ]
         flip XPrvWithPass pwd <$> genAnyKeyWithPass pwd
+
+instance Arbitrary DerivationIndex where
+    arbitrary = DerivationIndex <$> arbitrarySizedBoundedIntegral
+    shrink = genericShrink
 
 genAnyKeyWithPass
     :: Passphrase "encryption"

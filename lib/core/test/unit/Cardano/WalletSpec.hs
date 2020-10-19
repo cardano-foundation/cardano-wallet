@@ -49,6 +49,7 @@ import Cardano.Wallet.Network
 import Cardano.Wallet.Primitive.AddressDerivation
     ( AccountingStyle (..)
     , Depth (..)
+    , DerivationIndex (..)
     , DerivationType (..)
     , ErrWrongPassphrase (..)
     , HardDerivation (..)
@@ -78,7 +79,6 @@ import Cardano.Wallet.Primitive.Types
     , BlockHeader (BlockHeader)
     , ChimericAccount (..)
     , Coin (..)
-    , DerivationIndex (..)
     , Direction (..)
     , EpochNo (..)
     , Hash (..)

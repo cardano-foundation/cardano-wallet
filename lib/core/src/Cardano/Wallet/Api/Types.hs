@@ -150,7 +150,7 @@ import Cardano.Mnemonic
     )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
-    , DerivationType (..)
+    , DerivationIndex (..)
     , Index (..)
     , NetworkDiscriminant (..)
     , Passphrase (..)
@@ -174,7 +174,6 @@ import Cardano.Wallet.Primitive.Types
     , ChimericAccount (..)
     , Coin (..)
     , DecentralizationLevel (..)
-    , DerivationIndex (..)
     , Direction (..)
     , EpochLength (..)
     , EpochNo (..)
@@ -251,8 +250,6 @@ import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
     ( Percentage, Quantity (..) )
-import Data.Scientific
-    ( Scientific, toBoundedInteger )
 import Data.String
     ( IsString )
 import Data.Text
@@ -281,8 +278,6 @@ import GHC.TypeLits
     ( Nat, Symbol )
 import Numeric.Natural
     ( Natural )
-import Safe
-    ( readMay )
 import Servant.API
     ( MimeRender (..), MimeUnrender (..), OctetStream )
 import Web.HttpApiData
@@ -976,45 +971,10 @@ instance EncodeAddress n => ToJSON (ApiAddress n) where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 instance ToJSON (ApiT DerivationIndex) where
-    toJSON (ApiT (DerivationIndex ix))
-        | ix >= firstHardened = toJSON (show (ix - firstHardened) <> "H")
-        | otherwise = toJSON (show ix)
-      where
-        firstHardened = getIndex @'Hardened minBound
-
+    toJSON = toJSON . toText . getApiT
 instance FromJSON (ApiT DerivationIndex) where
-    parseJSON value = ApiT <$> (parseJSON value >>= parseAsText)
-      where
-        firstHardened = getIndex @'Hardened minBound
-
-        parseAsText :: Text -> Aeson.Parser DerivationIndex
-        parseAsText txt =
-            if "H" `T.isSuffixOf` txt then do
-                DerivationIndex ix <- castNumber (T.init txt) >>= parseAsScientific
-                pure $ DerivationIndex $ ix + firstHardened
-            else
-                castNumber txt >>= parseAsScientific
-
-        parseAsScientific :: Scientific -> Aeson.Parser DerivationIndex
-        parseAsScientific x =
-            case toBoundedInteger x of
-                Just ix | ix < firstHardened -> pure $ DerivationIndex ix
-                _ -> fail $ mconcat
-                    [ "A derivation index must be a natural number between "
-                    , show (getIndex @'Soft minBound)
-                    , " and "
-                    , show (getIndex @'Soft maxBound)
-                    , "."
-                    ]
-
-        castNumber :: Text -> Aeson.Parser Scientific
-        castNumber txt =
-            case readMay (T.unpack txt) of
-                Nothing ->
-                    fail "expected a number as string with an optional 'H' \
-                         \suffix (e.g. \"1815H\" or \"44\""
-                Just s ->
-                    pure s
+    parseJSON = parseJSON
+        >=> fmap ApiT . eitherToParser . first ShowFmt . fromText
 
 instance FromJSON ApiEpochInfo where
     parseJSON = genericParseJSON defaultRecordTypeOptions

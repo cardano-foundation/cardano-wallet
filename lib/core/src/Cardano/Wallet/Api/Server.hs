@@ -227,6 +227,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( ChimericAccount (..)
     , DelegationAddress (..)
     , Depth (..)
+    , DerivationIndex (..)
     , DerivationType (..)
     , HardDerivation (..)
     , Index (..)
@@ -286,7 +287,6 @@ import Cardano.Wallet.Primitive.Types
     , Block
     , BlockHeader (..)
     , Coin (..)
-    , DerivationIndex (..)
     , Hash (..)
     , NetworkParameters (..)
     , PassphraseScheme (..)

@@ -113,7 +113,8 @@ import Cardano.Wallet.Gen
     , shrinkTxMetadata
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( DerivationType (..)
+    ( DerivationIndex (..)
+    , DerivationType (..)
     , HardDerivation (..)
     , Index (..)
     , NetworkDiscriminant (..)
@@ -137,7 +138,6 @@ import Cardano.Wallet.Primitive.Types
     , AddressState (..)
     , ChimericAccount (..)
     , Coin (..)
-    , DerivationIndex (..)
     , Direction (..)
     , EpochNo (..)
     , Hash (..)
@@ -910,10 +910,6 @@ instance Arbitrary (ApiAddress t) where
     arbitrary = ApiAddress
         <$> fmap (, Proxy @t) arbitrary
         <*> arbitrary
-
-instance Arbitrary DerivationIndex where
-    arbitrary = DerivationIndex <$> arbitrary
-    shrink = genericShrink
 
 instance Arbitrary ApiEpochInfo where
     arbitrary = ApiEpochInfo <$> arbitrary <*> genUniformTime

@@ -32,9 +32,9 @@ import Prelude
 import Cardano.Crypto.Wallet
     ( XPrv )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..), Passphrase (..) )
+    ( Depth (..), DerivationIndex (..), Passphrase (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..), AddressState (..), DerivationIndex (..) )
+    ( Address (..), AddressState (..) )
 import Data.List.NonEmpty
     ( NonEmpty )
 

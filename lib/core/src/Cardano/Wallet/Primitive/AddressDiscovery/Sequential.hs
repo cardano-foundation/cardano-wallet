@@ -74,6 +74,7 @@ import Cardano.Crypto.Wallet
 import Cardano.Wallet.Primitive.AddressDerivation
     ( AccountingStyle (..)
     , Depth (..)
+    , DerivationIndex (..)
     , DerivationPrefix (..)
     , DerivationType (..)
     , HardDerivation (..)
@@ -98,12 +99,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     , KnownAddresses (..)
     )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..)
-    , AddressState (..)
-    , ChimericAccount (..)
-    , DerivationIndex (..)
-    , invariant
-    )
+    ( Address (..), AddressState (..), ChimericAccount (..), invariant )
 import Control.Applicative
     ( (<|>) )
 import Control.DeepSeq

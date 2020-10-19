@@ -44,6 +44,7 @@ module Cardano.Wallet.Primitive.AddressDerivation
     , HardDerivation (..)
     , SoftDerivation (..)
     , DerivationPrefix (..)
+    , DerivationIndex (..)
     , liftIndex
 
     -- * Delegation
@@ -88,12 +89,7 @@ import Cardano.Address.Derivation
 import Cardano.Mnemonic
     ( SomeMnemonic )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..)
-    , ChimericAccount (..)
-    , DerivationIndex (..)
-    , Hash (..)
-    , PassphraseScheme (..)
-    )
+    ( Address (..), ChimericAccount (..), Hash (..), PassphraseScheme (..) )
 import Control.DeepSeq
     ( NFData )
 import Control.Monad
@@ -114,8 +110,12 @@ import Data.ByteString
     ( ByteString )
 import Data.Coerce
     ( coerce )
+import Data.List.NonEmpty
+    ( NonEmpty (..) )
 import Data.Proxy
     ( Proxy (..) )
+import Data.Scientific
+    ( Scientific, toBoundedInteger )
 import Data.String
     ( fromString )
 import Data.Text
@@ -139,15 +139,13 @@ import GHC.Generics
 import GHC.TypeLits
     ( KnownNat, Nat, Symbol, natVal )
 import Safe
-    ( toEnumMay )
+    ( readMay, toEnumMay )
 
 import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Write as CBOR
 import qualified Crypto.Scrypt as Scrypt
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
-import Data.List.NonEmpty
-    ( NonEmpty (..) )
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 
@@ -227,6 +225,69 @@ stakeDerivationPath (DerivationPrefix (purpose, coin, acc)) =
   where
     fromIndex :: Index t l -> DerivationIndex
     fromIndex = DerivationIndex . getIndex
+
+-- | A thin wrapper around derivation indexes. This can be used to represent
+-- derivation path as homogeneous lists of 'DerivationIndex'. This is slightly
+-- more convenient than having to carry heterogeneous lists of 'Index depth type'
+-- and works fine because:
+--
+-- 1. The 'depth' matters not because what the depth captures is actually the
+--    position of the index in that list. It makes sense to carry at the type
+--    level when manipulating standalone indexes to avoid mistakes, but when
+--    treating them as a part of a list it is redundant.
+--
+-- 2. The derivationType is captured by representing indexes as plain Word32.
+--    The Soft / Hardened notation is for easing human-readability but in the
+--    end, a soft index is simply a value < 2^31, whereas a "hardened" index is
+--    simply a value >= 2^31. Therefore, instead of representing indexes as
+--    derivationType + relative index within 0 and 2^31, we can represent them
+--    as just an index between 0 and 2^32, which is what DerivationIndex does.
+newtype DerivationIndex
+    = DerivationIndex Word32
+    deriving (Show, Eq, Ord, Generic)
+
+instance NFData DerivationIndex
+
+instance ToText DerivationIndex where
+    toText (DerivationIndex ix)
+        | ix >= firstHardened  = T.pack $ show (ix - firstHardened) <> "H"
+        | otherwise = T.pack $ show ix
+      where
+        firstHardened = getIndex @'Hardened minBound
+
+instance FromText DerivationIndex where
+    fromText source =
+        if "H" `T.isSuffixOf` source then do
+            DerivationIndex ix <- castNumber (T.init source) >>= parseAsScientific
+            pure $ DerivationIndex $ ix + firstHardened
+        else
+            castNumber source >>= parseAsScientific
+      where
+        firstHardened = getIndex @'Hardened minBound
+
+        parseAsScientific :: Scientific -> Either TextDecodingError DerivationIndex
+        parseAsScientific x =
+            case toBoundedInteger x of
+                Just ix | ix < firstHardened ->
+                    pure $ DerivationIndex ix
+                _ ->
+                    Left $ TextDecodingError $ mconcat
+                        [ "A derivation index must be a natural number between "
+                        , show (getIndex @'Soft minBound)
+                        , " and "
+                        , show (getIndex @'Soft maxBound)
+                        , "."
+                        ]
+
+        castNumber :: Text -> Either TextDecodingError Scientific
+        castNumber txt =
+            case readMay (T.unpack txt) of
+                Nothing ->
+                    Left $ TextDecodingError
+                        "expected a number as string with an optional 'H' \
+                         \suffix (e.g. \"1815H\" or \"44\""
+                Just s ->
+                    pure s
 
 -- | A derivation index, with phantom-types to disambiguate derivation type.
 --
