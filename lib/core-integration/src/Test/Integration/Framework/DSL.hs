@@ -756,7 +756,16 @@ eventuallyUsingDelay delay timeout desc io = liftIO $ do
 utcIso8601ToText :: UTCTime -> Text
 utcIso8601ToText = utcTimeToText iso8601ExtendedUtc
 
+-- Functions for creating wallets.
+--
+-- Wallets are cleaned up automatically at the end of @runResourceT@ in your
+-- integration test.
+--
+-- Do not try to POST a wallet in any other way, since you'd then need to handle
+-- the cleanup manually.
+
 -- | Restore HW Wallet from pub key
+--
 restoreWalletFromPubKey
     :: forall w (style :: WalletStyle) t m.
         ( Link.Discriminate style
