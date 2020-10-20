@@ -108,6 +108,10 @@ import Cardano.Address
     ( unsafeMkAddress )
 import Cardano.Address.Derivation
     ( XPub, xpubPublicKey )
+import Cardano.Address.Style.Shelley
+    ( inspectAddress )
+import Cardano.Api.Shelley
+    ( fromShelleyMetaData )
 import Cardano.Api.Shelley.Genesis
     ( ShelleyGenesis (..) )
 import Cardano.Api.Typed
@@ -230,7 +234,6 @@ import Shelley.Spec.Ledger.BaseTypes
 import Type.Reflection
     ( Typeable, typeRep )
 
-import qualified Cardano.Address.Style.Shelley as SH
 import qualified Cardano.Api.Typed as Cardano
 import qualified Cardano.Byron.Codec.Cbor as CBOR
 import qualified Cardano.Chain.Common as Byron
@@ -722,7 +725,7 @@ fromShelleyTx (SL.Tx bod@(SL.TxBody ins outs certs wdrls _ _ _ _) _ mmd) =
         (map ((,W.Coin 0) . fromShelleyTxIn) (toList ins))
         (map fromShelleyTxOut (toList outs))
         (fromShelleyWdrl wdrls)
-        (fromShelleyMetadata <$> SL.strictMaybeToMaybe mmd)
+        (fromShelleyMD <$> SL.strictMaybeToMaybe mmd)
     , mapMaybe fromShelleyDelegationCert (toList certs)
     , mapMaybe fromShelleyRegistrationCert (toList certs)
     )
@@ -732,17 +735,8 @@ fromShelleyWdrl (SL.Wdrl wdrl) = Map.fromList $
     bimap (fromStakeCredential . SL.getRwdCred) fromShelleyCoin
         <$> Map.toList wdrl
 
-fromShelleyMetadata :: SL.MetaData -> Cardano.TxMetadata
-fromShelleyMetadata (SL.MetaData md) = Cardano.makeTransactionMetadata md'
-  where
-    md' = fmap convert md
-    convert :: SL.MetaDatum -> Cardano.TxMetadataValue
-    convert = \case
-        SL.I n -> Cardano.TxMetaNumber n
-        SL.B bs -> Cardano.TxMetaBytes bs
-        SL.S s -> Cardano.TxMetaText s
-        SL.Map as -> Cardano.TxMetaMap (bimap convert convert <$> as)
-        SL.List xs -> Cardano.TxMetaList (map convert xs)
+fromShelleyMD :: SL.MetaData -> Cardano.TxMetadata
+fromShelleyMD = Cardano.makeTransactionMetadata . fromShelleyMetaData
 
 -- Convert & filter Shelley certificate into delegation certificate. Returns
 -- 'Nothing' if certificates aren't delegation certificate.
@@ -1096,7 +1090,7 @@ inspectAddress =
   where
     inspect :: ByteString -> Either TextDecodingError Aeson.Value
     inspect = maybe (Left errMalformedAddress) Right
-        . SH.inspectAddress mRootPub
+        . inspectAddress mRootPub
         . unsafeMkAddress
     -- TODO: It's possible to inspect a byron address, given a root XPub.
     -- However, this is not yet exposed by the API.
