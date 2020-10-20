@@ -1438,7 +1438,7 @@ waitUntilRegistered :: Tracer IO ClusterLog -> String -> FilePath -> IO ()
 waitUntilRegistered tr name opPub = do
     poolId <- init <$> cli tr
         [ "shelley", "stake-pool", "id"
-        , "--verification-key-file", opPub
+        , "--stake-pool-verification-key-file", opPub
         ]
     (exitCode, distribution, err) <- readProcessWithExitCode "cardano-cli"
         [ "shelley", "query", "stake-distribution"
