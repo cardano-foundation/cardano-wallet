@@ -32,7 +32,7 @@ import Control.Monad
 import Control.Monad.Trans.Resource
     ( ResourceT, runResourceT )
 import Data.Generics.Internal.VL.Lens
-    ( (^.) )
+    ( view, (^.) )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -313,7 +313,7 @@ spec = describe "SHELLEY_CLI_HW_WALLETS" $ do
             (c1, o1, e1) <- createWalletViaCLI @t ctx [mnemonicWalName] m "\n" "secure-passphrase"
             c1 `shouldBe` ExitSuccess
             T.unpack e1 `shouldContain` cmdOk
-            _ <- expectValidJSON (Proxy @ApiWallet) o1
+            mnemonicWal <- expectValidJSON (Proxy @ApiWallet) o1
 
             -- create wallet from pub key
             let accXPub = pubKeyFromMnemonics' (words m)
@@ -321,21 +321,14 @@ spec = describe "SHELLEY_CLI_HW_WALLETS" $ do
                 createWalletFromPublicKeyViaCLI @t ctx [pubKeyWalName, accXPub]
             c2 `shouldBe` ExitSuccess
             e2 `shouldContain` cmdOk
-            _ <- expectValidJSON (Proxy @ApiWallet) o2
+            pubKeyWal <- expectValidJSON (Proxy @ApiWallet) o2
 
             (Exit c, Stdout out, Stderr err) <- listWalletsViaCLI @t ctx
+            wids <- map (view walletId) <$> expectValidJSON (Proxy @[ApiWallet]) out
             c `shouldBe` ExitSuccess
             err `shouldBe` cmdOk
-            rl <- expectValidJSON (Proxy @[ApiWallet]) out
-            length rl `shouldBe` 2
-            verify rl
-                [ expectCliListField 0
-                    (#name . #getApiT . #getWalletName)
-                    (`shouldBe` T.pack mnemonicWalName)
-                , expectCliListField 1
-                    (#name . #getApiT . #getWalletName)
-                    (`shouldBe` T.pack pubKeyWalName)
-                ]
+            wids `shouldContain` [mnemonicWal ^. walletId]
+            wids `shouldContain` [pubKeyWal ^. walletId]
 
     describe "HW_WALLETS_06 - Test parameters" $ do
         describe "Wallet names valid" $ do
