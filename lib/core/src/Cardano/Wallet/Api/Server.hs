@@ -2621,7 +2621,6 @@ instance LiftHandler ErrSelectForDelegation where
                 [ "I'm unable to select enough coins to pay for a "
                 , "delegation certificate. I need: ", showT cost, " Lovelace."
                 ]
-        ErrSelectForDelegationUnableToAssignInputs e -> handler e
 
 instance LiftHandler ErrSignDelegation where
     handler = \case
