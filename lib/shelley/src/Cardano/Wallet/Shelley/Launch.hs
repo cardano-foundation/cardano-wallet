@@ -91,6 +91,8 @@ import Cardano.Launcher.Node
     )
 import Cardano.Pool.Metadata
     ( SMASHPoolId (..) )
+import Cardano.Startup
+    ( restrictFileMode )
 import Cardano.Wallet.Api.Server
     ( Listen (..) )
 import Cardano.Wallet.Logging
@@ -195,8 +197,6 @@ import System.IO.Temp
     ( createTempDirectory, getCanonicalTemporaryDirectory, withTempDirectory )
 import System.IO.Unsafe
     ( unsafePerformIO )
-import System.Posix.Files
-    ( ownerReadMode, setFileMode )
 import System.Process
     ( readProcess, readProcessWithExitCode )
 import Test.Utils.Paths
@@ -668,7 +668,7 @@ withBFTNode tr baseDir params action =
         let copyKeyFile f = do
                 let dst = dir </> f
                 copyFile (source </> f) dst
-                setFileMode dst ownerReadMode
+                restrictFileMode dst
                 pure dst
 
         [bftCert, bftPrv, vrfPrv, kesPrv, opCert] <- forM

@@ -6,12 +6,18 @@
 
 module Cardano.Startup.POSIX
     ( installSignalHandlers
+    , setDefaultFilePermissions
+    , restrictFileMode
     ) where
 
 import Prelude
 
 import Control.Monad
     ( void )
+import Data.Bits
+    ( (.|.) )
+import System.Posix.Files
+    ( groupModes, otherModes, ownerReadMode, setFileCreationMask, setFileMode )
 import System.Posix.Signals
     ( Handler (..)
     , installHandler
@@ -29,3 +35,14 @@ installSignalHandlers notify = void $
         termHandler = CatchOnce $ do
             notify
             raiseSignal keyboardSignal
+
+-- | Restricts the process umask so that any files created are only readable by
+-- their owner.
+setDefaultFilePermissions :: IO ()
+setDefaultFilePermissions = void $ setFileCreationMask mask
+    where mask = groupModes .|. otherModes
+
+-- | Changes permissions of an existing file so that only the owner can read
+-- them.
+restrictFileMode :: FilePath -> IO ()
+restrictFileMode f = setFileMode f ownerReadMode

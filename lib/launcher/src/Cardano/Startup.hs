@@ -19,6 +19,10 @@ module Cardano.Startup
     , withShutdownHandler'
     , installSignalHandlers
 
+    -- * File permissions
+    , setDefaultFilePermissions
+    , restrictFileMode
+
     -- * Logging
     , ShutdownHandlerLog(..)
     ) where
@@ -60,10 +64,8 @@ import System.IO.CodePage
 
 #ifdef WINDOWS
 import Cardano.Startup.Windows
-    ( installSignalHandlers )
 #else
 import Cardano.Startup.POSIX
-    ( installSignalHandlers )
 #endif
 
 import qualified Data.ByteString as BS
