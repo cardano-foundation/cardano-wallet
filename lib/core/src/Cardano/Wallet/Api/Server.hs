@@ -1690,16 +1690,12 @@ migrateWallet ctx (ApiT wid) migrateData = do
 -- the number of addresses in the specified address list, addresses will be
 -- recycled in order of their appearance in the original list.
 assignMigrationAddresses
-    :: forall input output.
-        ( input ~ (TxIn, TxOut)
-        , output ~ TxOut
-        )
-    => [Address]
+    :: [Address]
     -- ^ Target addresses
     -> [CoinSelection]
     -- ^ Migration data for the source wallet.
-    -> [UnsignedTx input output Void]
-    -- ^ An unsigned transaction without change, indicated with Void.
+    -> [UnsignedTx (TxIn, TxOut) TxOut Void]
+    -- ^ Unsigned transactions without change, indicated with Void.
 assignMigrationAddresses addrs selections =
     fst $ foldr accumulate ([], cycle addrs) selections
   where
@@ -1707,7 +1703,7 @@ assignMigrationAddresses addrs selections =
         (\addrsSelected -> makeTx sel addrsSelected : txs)
         (splitAt (length $ view #change sel) addrsAvailable)
 
-    makeTx :: CoinSelection -> [Address] -> UnsignedTx input output Void
+    makeTx :: CoinSelection -> [Address] -> UnsignedTx (TxIn, TxOut) TxOut Void
     makeTx sel addrsSelected = UnsignedTx
         (NE.fromList (sel ^. #inputs))
         (zipWith TxOut addrsSelected (sel ^. #change))
