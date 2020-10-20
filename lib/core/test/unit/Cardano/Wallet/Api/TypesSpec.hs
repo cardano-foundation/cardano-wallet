@@ -593,7 +593,7 @@ spec = do
                 `shouldBe` (Left @Text @(ApiT WalletId) msg)
 
         it "ApiT AddressState" $ do
-            let msg = "Unable to decode the given value: \"patate\".\
+            let msg = "Unable to decode the given text value.\
                     \ Please specify one of the following values: used, unused."
             parseUrlPiece "patate"
                 `shouldBe` (Left @Text @(ApiT AddressState) msg)
