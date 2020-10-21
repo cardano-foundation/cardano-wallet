@@ -167,10 +167,13 @@ module Cardano.Wallet
 
     -- ** Root Key
     , withRootKey
+    , derivePublicKey
     , signMetadataWith
     , ErrWithRootKey (..)
     , ErrWrongPassphrase (..)
     , ErrSignMetadataWith (..)
+    , ErrDerivePublicKey(..)
+    , ErrInvalidDerivationIndex(..)
 
     -- * Logging
     , WalletLog (..)
@@ -183,7 +186,7 @@ import Prelude hiding
     ( log )
 
 import Cardano.Address.Derivation
-    ( XPrv )
+    ( XPrv, XPub )
 import Cardano.Api.Typed
     ( serialiseToCBOR )
 import Cardano.BM.Data.Severity
@@ -227,6 +230,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , NetworkDiscriminant (..)
     , Passphrase
     , PaymentAddress (..)
+    , SoftDerivation (..)
     , ToChimericAccount (..)
     , WalletKey (..)
     , checkPassphrase
@@ -2251,9 +2255,7 @@ signMetadataWith
     -> TxMetadata
     -> ExceptT ErrSignMetadataWith IO (Signature TxMetadata)
 signMetadataWith ctx wid pwd (role_, ix) metadata = db & \DBLayer{..} -> do
-    addrIx <- if ix > DerivationIndex (getIndex @'Soft maxBound)
-        then throwE $ ErrSignMetadataWithIndexTooHigh maxBound ix
-        else pure (Index $ getDerivationIndex ix)
+    addrIx <- withExceptT ErrSignMetadataWithInvalidIndex $ guardSoftIndex ix
 
     cp <- mapExceptT atomically
         $ withExceptT ErrSignMetadataWithNoSuchWallet
@@ -2271,6 +2273,44 @@ signMetadataWith ctx wid pwd (role_, ix) metadata = db & \DBLayer{..} -> do
   where
     db = ctx ^. dbLayer @s @k
 
+-- | Derive public key of a wallet's account.
+derivePublicKey
+    :: forall ctx s k n.
+        ( HasDBLayer s k ctx
+        , SoftDerivation k
+        , s ~ SeqState n k
+        )
+    => ctx
+    -> WalletId
+    -> AccountingStyle
+    -> DerivationIndex
+    -> ExceptT ErrDerivePublicKey IO (k 'AddressK XPub)
+derivePublicKey ctx wid role_ ix = db & \DBLayer{..} -> do
+    addrIx <- withExceptT ErrDerivePublicKeyInvalidIndex $ guardSoftIndex ix
+
+    cp <- mapExceptT atomically
+        $ withExceptT ErrDerivePublicKeyNoSuchWallet
+        $ withNoSuchWallet wid
+        $ readCheckpoint (PrimaryKey wid)
+
+    -- NOTE: Alternatively, we could use 'internalPool', they share the same
+    --       account public key.
+    let acctK = Seq.accountPubKey $ Seq.externalPool $ getState cp
+    let addrK = deriveAddressPublicKey acctK role_ addrIx
+
+    return addrK
+  where
+    db = ctx ^. dbLayer @s @k
+
+guardSoftIndex
+    :: Monad m
+    => DerivationIndex
+    -> ExceptT ErrInvalidDerivationIndex m (Index 'Soft whatever)
+guardSoftIndex ix =
+    if ix > DerivationIndex (getIndex @'Soft maxBound)
+    then throwE $ ErrIndexTooHigh maxBound ix
+    else pure (Index $ getDerivationIndex ix)
+
 {-------------------------------------------------------------------------------
                                    Errors
 -------------------------------------------------------------------------------}
@@ -2280,8 +2320,19 @@ data ErrSignMetadataWith
         -- ^ The wallet exists, but there's no root key attached to it
     | ErrSignMetadataWithNoSuchWallet ErrNoSuchWallet
         -- ^ The wallet doesn't exist?
-    | ErrSignMetadataWithIndexTooHigh (Index 'Soft 'AddressK) DerivationIndex
+    | ErrSignMetadataWithInvalidIndex ErrInvalidDerivationIndex
         -- ^ User provided a derivation index outside of the 'Soft' domain
+    deriving (Eq, Show)
+
+data ErrDerivePublicKey
+    = ErrDerivePublicKeyNoSuchWallet ErrNoSuchWallet
+        -- ^ The wallet doesn't exist?
+    | ErrDerivePublicKeyInvalidIndex ErrInvalidDerivationIndex
+        -- ^ User provided a derivation index outside of the 'Soft' domain
+    deriving (Eq, Show)
+
+data ErrInvalidDerivationIndex
+    = ErrIndexTooHigh (Index 'Soft 'AddressK) DerivationIndex
     deriving (Eq, Show)
 
 data ErrUTxOTooSmall

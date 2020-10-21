@@ -105,16 +105,9 @@ import Cardano.Wallet.Api.Types
     , WalletStyle (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( NetworkDiscriminant (..) )
+    ( AccountingStyle, DerivationIndex, NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Types
-    ( AddressState
-    , Coin (..)
-    , DerivationIndex
-    , Hash
-    , PoolId
-    , SortOrder
-    , WalletId (..)
-    )
+    ( AddressState, Coin (..), Hash, PoolId, SortOrder, WalletId (..) )
 import Data.Function
     ( (&) )
 import Data.Generics.Internal.VL.Lens
@@ -274,10 +267,11 @@ getWalletKey
         ( HasType (ApiT WalletId) w
         )
     => w
-    -> ApiT DerivationIndex
+    -> AccountingStyle
+    -> DerivationIndex
     -> (Method, Text)
-getWalletKey w index =
-    endpoint @Api.GetWalletKey (\mk -> mk wid index)
+getWalletKey w role_ index =
+    endpoint @Api.GetWalletKey (\mk -> mk wid (ApiT role_) (ApiT index))
   where
     wid = w ^. typed @(ApiT WalletId)
 

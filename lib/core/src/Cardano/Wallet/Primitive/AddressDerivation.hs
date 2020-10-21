@@ -156,7 +156,8 @@ import qualified Data.Text.Encoding as T
 -- | Key Depth in the derivation path, according to BIP-0044 / CIP-1852
 --
 -- @m | purpose' | cointype' | account' | role | address@
-data Depth = RootK | PurposeK | CoinTypeK | AccountK | RoleK | AddressK
+data Depth
+    = RootK | PurposeK | CoinTypeK | AccountK | RoleK | AddressK
 
 -- | Marker for addresses type engaged. We want to handle three cases here.
 -- The first two are pertinent to UTxO accounting
@@ -172,6 +173,7 @@ data AccountingStyle
     = UtxoExternal
     | UtxoInternal
     | MutableAccount
+    | MultisigScript
     deriving (Generic, Typeable, Show, Eq, Ord, Bounded)
 
 instance NFData AccountingStyle
@@ -184,11 +186,13 @@ instance Enum AccountingStyle where
         0 -> UtxoExternal
         1 -> UtxoInternal
         2 -> MutableAccount
+        3 -> MultisigScript
         _ -> error "AccountingStyle.toEnum: bad argument"
     fromEnum = \case
         UtxoExternal -> 0
         UtxoInternal -> 1
         MutableAccount -> 2
+        MultisigScript -> 3
 
 instance ToText AccountingStyle where
     toText = toTextFromBoundedEnum SnakeLowerCase

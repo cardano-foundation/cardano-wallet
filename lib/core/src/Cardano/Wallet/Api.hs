@@ -132,7 +132,7 @@ import Cardano.Wallet.Api.Types
     , ApiTransactionT
     , ApiTxId
     , ApiUtxoStatistics
-    , ApiVerificationKeyHash
+    , ApiVerificationKey
     , ApiWallet
     , ApiWalletMigrationInfo
     , ApiWalletMigrationPostDataT
@@ -162,7 +162,6 @@ import Cardano.Wallet.Primitive.Types
     ( AddressState
     , Block
     , Coin (..)
-    , DerivationIndex
     , NetworkParameters
     , SortOrder (..)
     , WalletId (..)
@@ -305,9 +304,9 @@ type WalletKeys =
 type GetWalletKey = "wallets"
     :> Capture "walletId" (ApiT WalletId)
     :> "keys"
-    :> "script"
+    :> Capture "role" (ApiT AccountingStyle)
     :> Capture "index" (ApiT DerivationIndex)
-    :> Get '[JSON] ApiVerificationKeyHash
+    :> Get '[JSON] ApiVerificationKey
 
 {-------------------------------------------------------------------------------
                                   Addresses

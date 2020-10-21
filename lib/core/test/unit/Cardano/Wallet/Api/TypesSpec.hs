@@ -75,7 +75,7 @@ import Cardano.Wallet.Api.Types
     , ApiTxInput (..)
     , ApiTxMetadata (..)
     , ApiUtxoStatistics (..)
-    , ApiVerificationKeyHash (..)
+    , ApiVerificationKey (..)
     , ApiWallet (..)
     , ApiWalletDelegation (..)
     , ApiWalletDelegationNext (..)
@@ -117,7 +117,8 @@ import Cardano.Wallet.Gen
     , shrinkTxMetadata
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( DerivationIndex (..)
+    ( AccountingStyle (..)
+    , DerivationIndex (..)
     , DerivationType (..)
     , HardDerivation (..)
     , Index (..)
@@ -177,7 +178,7 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Transaction
     ( DelegationAction (..) )
 import Cardano.Wallet.Unsafe
-    ( unsafeFromText, unsafeXPrv )
+    ( unsafeFromText, unsafeXPrv, unsafeXPub )
 import Control.Lens
     ( at, (.~), (?~), (^.) )
 import Control.Monad
@@ -355,7 +356,7 @@ spec = do
             jsonRoundtripAndGolden $ Proxy @ApiFee
             jsonRoundtripAndGolden $ Proxy @ApiStakePoolMetrics
             jsonRoundtripAndGolden $ Proxy @ApiTxId
-            jsonRoundtripAndGolden $ Proxy @ApiVerificationKeyHash
+            jsonRoundtripAndGolden $ Proxy @ApiVerificationKey
             jsonRoundtripAndGolden $ Proxy @(PostTransactionData ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @(PostTransactionFeeData ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @WalletPostData
@@ -529,13 +530,6 @@ spec = do
             Aeson.parseEither parseJSON [aesonQQ|
                 "invalid-id"
             |] `shouldBe` (Left @String @(ApiT WalletId) msg)
-
-        it "ApiT (Hash \"ScriptKey\")" $ do
-            let msg = "Error in $: Invalid scriptKey hash: \
-                    \expecting a hex-encoded value that is 28 bytes in length."
-            Aeson.parseEither parseJSON [aesonQQ|
-                "-----"
-            |] `shouldBe` (Left @String @(ApiT (Hash "ScriptKey")) msg)
 
         it "AddressAmount (too small)" $ do
             let msg = "Error in $.amount.quantity: parsing Natural failed, \
@@ -1395,12 +1389,14 @@ instance Arbitrary (Quantity "percent" Double) where
     shrink _ = [Quantity 0.0]
     arbitrary = Quantity <$> choose (0,100)
 
-instance Arbitrary ApiVerificationKeyHash where
+instance Arbitrary ApiVerificationKey where
     arbitrary =
-        ApiVerificationKeyHash . ApiT . Hash . B8.pack <$> replicateM 28 arbitrary
+        fmap ApiVerificationKey . (,)
+            <$> fmap (unsafeXPub . B8.pack) (replicateM 64 arbitrary)
+            <*> elements [UtxoExternal, MutableAccount, MultisigScript]
 
-instance ToSchema ApiVerificationKeyHash where
-    declareNamedSchema _ = declareSchemaForDefinition "ApiVerificationKeyHash"
+instance ToSchema ApiVerificationKey where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiVerificationKey"
 
 instance Arbitrary ApiNetworkParameters where
     arbitrary = genericArbitrary

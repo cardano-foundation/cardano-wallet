@@ -42,6 +42,7 @@ module Cardano.Wallet.Api.Server
     , delegationFee
     , deleteTransaction
     , deleteWallet
+    , derivePublicKey
     , getMigrationInfo
     , getNetworkClock
     , getNetworkInformation
@@ -76,7 +77,6 @@ module Cardano.Wallet.Api.Server
     , selectCoinsForJoin
     , selectCoinsForQuit
     , signMetadata
-    , getWalletKeyHash
 
     -- * Internals
     , LiftHandler(..)
@@ -99,12 +99,8 @@ import Prelude
 
 import Cardano.Address.Derivation
     ( XPrv, XPub )
-import Cardano.Address.Style.Shelley
-    ( deriveMultisigPublicKey, hashKey, liftXPub )
 import Cardano.Mnemonic
     ( SomeMnemonic )
-import Cardano.Script
-    ( KeyHash (..) )
 import Cardano.Wallet
     ( ErrAdjustForFee (..)
     , ErrCannotJoin (..)
@@ -112,10 +108,12 @@ import Cardano.Wallet
     , ErrCoinSelection (..)
     , ErrCreateRandomAddress (..)
     , ErrDecodeSignedTx (..)
+    , ErrDerivePublicKey (..)
     , ErrFetchRewards (..)
     , ErrGetTransaction (..)
     , ErrImportAddress (..)
     , ErrImportRandomAddress (..)
+    , ErrInvalidDerivationIndex (..)
     , ErrJoinStakePool (..)
     , ErrListPools (..)
     , ErrListTransactions (..)
@@ -196,7 +194,7 @@ import Cardano.Wallet.Api.Types
     , ApiTxInput (..)
     , ApiTxMetadata (..)
     , ApiUtxoStatistics (..)
-    , ApiVerificationKeyHash (..)
+    , ApiVerificationKey (..)
     , ApiWallet (..)
     , ApiWalletDelegation (..)
     , ApiWalletDelegationNext (..)
@@ -450,7 +448,6 @@ import qualified Cardano.Wallet.Api.Types as Api
 import qualified Cardano.Wallet.Network as NW
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Byron as Byron
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Icarus as Icarus
-import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Shelley
 import qualified Cardano.Wallet.Primitive.Slotting as S
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Registry as Registry
@@ -1121,26 +1118,6 @@ getUTxOsStatistics ctx (ApiT wid) = do
     stats <- withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
         W.listUtxoStatistics wrk wid
     return $ toApiUtxoStatistics stats
-
-getWalletKeyHash
-    :: forall ctx s t k n.
-        ( s ~ SeqState n k
-        , ctx ~ ApiLayer s t k
-        , k ~ ShelleyKey
-        )
-    => ctx
-    -> ApiT WalletId
-    -> ApiT DerivationIndex
-    -> Handler ApiVerificationKeyHash
-getWalletKeyHash ctx (ApiT wid) (ApiT (DerivationIndex index)) =
-    withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk -> do
-        (cp, _, _) <- liftHandler $ W.readWallet @_ @s @k wrk wid
-        let accPub = getState cp ^. #externalPool . #accountPubKey
-        let (KeyHash bytes) =
-                hashKey $ deriveMultisigPublicKey
-                (liftXPub $ Shelley.getKey accPub)
-                (toEnum $ fromInteger $ toInteger index)
-        pure $ ApiVerificationKeyHash $ ApiT $ Hash bytes
 
 {-------------------------------------------------------------------------------
                                   Coin Selections
@@ -1871,6 +1848,23 @@ signMetadata ctx (ApiT wid) (ApiT role_) (ApiT ix) body = do
     withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk -> liftHandler $ do
         getSignature <$> W.signMetadataWith @_ @s @k @n
             wrk wid (coerce pwd) (role_, ix) meta
+
+derivePublicKey
+    :: forall ctx s t k n.
+        ( s ~ SeqState n k
+        , ctx ~ ApiLayer s t k
+        , SoftDerivation k
+        , WalletKey k
+        )
+    => ctx
+    -> ApiT WalletId
+    -> ApiT AccountingStyle
+    -> ApiT DerivationIndex
+    -> Handler ApiVerificationKey
+derivePublicKey ctx (ApiT wid) (ApiT role_) (ApiT ix) = do
+    withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk -> do
+        k <- liftHandler $ W.derivePublicKey @_ @s @k @n wrk wid role_ ix
+        pure $ ApiVerificationKey (getRawKey k, role_)
 
 {-------------------------------------------------------------------------------
                                   Helpers
@@ -2760,12 +2754,22 @@ instance LiftHandler ErrSignMetadataWith where
     handler = \case
         ErrSignMetadataWithRootKey e -> handler e
         ErrSignMetadataWithNoSuchWallet e -> handler e
-        ErrSignMetadataWithIndexTooHigh maxIx _ix ->
+        ErrSignMetadataWithInvalidIndex e -> handler e
+
+instance LiftHandler ErrDerivePublicKey where
+    handler = \case
+        ErrDerivePublicKeyNoSuchWallet e -> handler e
+        ErrDerivePublicKeyInvalidIndex e -> handler e
+
+instance LiftHandler ErrInvalidDerivationIndex where
+    handler = \case
+        ErrIndexTooHigh maxIx _ix ->
             apiError err400 BadRequest $ mconcat
-                [ "It looks like you've provided a derivation index that is"
+                [ "It looks like you've provided a derivation index that is "
                 , "out of bound. I can only derive keys up to #"
                 , pretty maxIx, "."
                 ]
+
 
 instance LiftHandler (Request, ServerError) where
     handler (req, err@(ServerError code _ body headers))

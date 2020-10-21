@@ -423,14 +423,6 @@ x-walletBalance: &walletBalance
       <<: *amount
       description: Total balance (available balance plus pending change and reward balance).
 
-x-verificationKeyHash: &verificationKeyHash
-  description: A verification key hash
-  type: string
-  format: base16
-  minLength: 56
-  maxLength: 56
-  example: 1423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d5
-
 x-byronWalletBalance: &byronWalletBalance
   description: Byron wallet's current balance(s)
   type: object
@@ -1240,12 +1232,10 @@ components:
           <<: *addresses
           description: The imported addresses.
 
-    ApiVerificationKeyHash: &ApiVerificationKeyHash
-      type: object
-      required:
-        - verification_key_hash
-      properties:
-        verification_key_hash: *verificationKeyHash
+    ApiVerificationKey: &ApiVerificationKey
+      type: string
+      format: bech32
+      pattern: "^((addr_xvk)|(stake_xvk)|(script_xvk))1[0-9a-z]*$"
 
     ApiTxId: &ApiTxId
       type: object
@@ -1855,17 +1845,6 @@ x-parametersAddressState: &parametersAddressState
       - used
       - unused
 
-x-parametersIndex: &parametersIndex
-  in: path
-  name: index
-  required: true
-  schema:
-    type: integer
-    # minimum soft index
-    minimum: 0
-    # 2 ^ 31 - 1, maximum soft index
-    maximum: 2147483647
-
 x-parametersForceNtpCheck: &parametersForceNtpCheck
   in: query
   name: forceNtpCheck
@@ -2227,7 +2206,7 @@ x-responsesGetKey: &responsesGetKey
     description: Ok
     content:
       application/json:
-        schema: *ApiVerificationKeyHash
+        schema: *ApiVerificationKey
 
 x-responsesListStakePools: &responsesListStakePools
   <<: *responsesErr405
@@ -2630,17 +2609,18 @@ paths:
         - *parametersAddressState
       responses: *responsesListAddresses
 
-  /wallets/{walletId}/keys/script/{index}:
+  /wallets/{walletId}/keys/{role}/{index}:
     get:
       operationId: getWalletKey
       tags: ["Keys"]
-      summary: Get
+      summary: Get Public Key
       description: |
         <p align="right">status: <strong>stable</strong></p>
-        Return a verification key hash for a script role and a given index
+        Return a public key for a given role and derivation index.
       parameters:
         - *parametersWalletId
-        - *parametersIndex
+        - *parametersRole
+        - *parametersDerivationSegment
       responses: *responsesGetKey
 
   /stake-pools:

@@ -53,6 +53,7 @@ import Cardano.Wallet.Api.Server
     , delegationFee
     , deleteTransaction
     , deleteWallet
+    , derivePublicKey
     , getCurrentEpoch
     , getMigrationInfo
     , getNetworkClock
@@ -61,7 +62,6 @@ import Cardano.Wallet.Api.Server
     , getTransaction
     , getUTxOsStatistics
     , getWallet
-    , getWalletKeyHash
     , idleWorker
     , joinStakePool
     , liftHandler
@@ -196,7 +196,7 @@ server byron icarus shelley spl ntp =
         :<|> signMetadata shelley
 
     walletKeys :: Server WalletKeys
-    walletKeys = getWalletKeyHash shelley
+    walletKeys = derivePublicKey shelley
 
     addresses :: Server (Addresses n)
     addresses = listAddresses shelley (normalizeDelegationAddress @_ @ShelleyKey @n)

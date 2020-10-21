@@ -28,7 +28,7 @@ import Cardano.Wallet.Api.Types
     , ApiT (..)
     , ApiTransaction
     , ApiUtxoStatistics
-    , ApiVerificationKeyHash (..)
+    , ApiVerificationKey (..)
     , ApiWallet
     , DecodeAddress
     , DecodeStakeAddress
@@ -36,13 +36,13 @@ import Cardano.Wallet.Api.Types
     , WalletStyle (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( DerivationIndex (..)
+    ( AccountingStyle (..)
+    , DerivationIndex (..)
     , DerivationType (..)
     , Index (..)
     , PassphraseMaxLength (..)
     , PassphraseMinLength (..)
     , PaymentAddress
-    , hex
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )
@@ -55,13 +55,11 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..) )
 import Cardano.Wallet.Primitive.Types
-    ( DerivationIndex (..)
-    , Hash (..)
-    , walletNameMaxLength
-    , walletNameMinLength
-    )
+    ( walletNameMaxLength, walletNameMinLength )
 import Control.Monad
     ( forM_ )
+import Data.Aeson
+    ( ToJSON (..) )
 import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
 import Data.List
@@ -102,7 +100,6 @@ import Test.Integration.Framework.DSL
     , fixtureWallet
     , genMnemonics
     , getFromResponse
-    , getWalletKey
     , json
     , listAddresses
     , minUTxOValue
@@ -135,7 +132,6 @@ import qualified Cardano.Wallet.Api.Link as Link
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Text as T
-import qualified Data.Text.Encoding as T
 import qualified Network.HTTP.Types.Status as HTTP
 
 spec :: forall n t.
@@ -1131,48 +1127,80 @@ spec = describe "SHELLEY_WALLETS" $ do
             r <- request @ApiUtxoStatistics ctx (Link.getUTxOsStatistics @'Shelley w) headers Empty
             verify r expectations
 
-    describe "WALLETS_GET_KEY_01 - can get verification key hash for valid indices" $ do
-        let indices = [ 0, 100, 2147483647 ]
-        forM_ indices $ \index -> it (show index) $ \ctx -> do
-
-            m <- genMnemonics M15
-            let payload = Json [json| {
-                    "name": "Wallet",
-                    "mnemonic_sentence": #{m},
-                    "passphrase": #{fixturePassphrase}
-                    } |]
-            r <- request @ApiWallet ctx (Link.postWallet @'Shelley) Default payload
-            verify r [ expectResponseCode @IO HTTP.status201 ]
-            let apiWal = getFromResponse id r
-
-            let link = Link.getWalletKey (apiWal ^. id) (ApiT $ DerivationIndex index)
-            rGet <- request @ApiVerificationKeyHash ctx link Default Empty
-            verify rGet [ expectResponseCode @IO HTTP.status200 ]
-
-    describe "WALLETS_GET_KEY_02 - golden tests for verification key hashes" $ do
+    describe "WALLETS_GET_KEY_01 - golden tests for verification key" $ do
     --- $ cat recovery-phrase.txt
     -- pulp ten light rhythm replace vessel slow drift kingdom amazing negative join auction ugly symptom
     --- $ cat recovery-phrase.txt | cardano-address key from-recovery-phrase Shelley > root.prv
     --- $ cat root.prv \
-    --- > | cardano-address key child 1852H/1815H/0H/3/INDEX \
+    --- > | cardano-address key child 1852H/1815H/0H/ROLE/INDEX \
     --- > | cardano-address key public \
-    --- > | cardano-address key hash --base16
-        let matrix = [ (0, "6b36aac60b70e47a7ed365e20d1a2ad9466c244b5d90227f0f4ecdcf")
-                      , (100, "99d083e217fe70e113ea57f40214c6a3ad44e2ebbe2e1fc3ac07a988")
-                      , (2147483647, "f9e4aab174b83f711a0e243cfee407cd0f24ac9fbf48f899ac660143") ]
-        forM_ matrix $ \(index, keyHash) -> it (show index) $ \ctx -> do
-            let payload = Json [json| {
-                    "name": "Wallet",
-                    "mnemonic_sentence": #{explicitMnemonics},
-                    "passphrase": #{fixturePassphrase}
-                    } |]
-            r <- request @ApiWallet ctx (Link.postWallet @'Shelley) Default payload
-            verify r [ expectResponseCode @IO HTTP.status201 ]
-            let apiWal = getFromResponse id r
+        let matrix :: [(AccountingStyle, DerivationIndex, String)]
+            matrix =
+                [ ( UtxoExternal
+                  , DerivationIndex 0
+                  , "addr_xvk1tmdggpmj7r2mqfhneqsc5fzfj2j4sxf4j7mqwwsa8w58vz94zr\
+                    \463ndsajkjvn82va30fgf22qruc53zxyjp6pu7yd87ppdefd6u98cue5ul9"
+                  )
+                , ( UtxoInternal
+                  , DerivationIndex 100
+                  , "addr_xvk1wchen6vz4zz7kpfjld3g89zdcpdv2hzvtsufphgvpjxjkl49pq\
+                    \rfd2lgqg228zl7ylax8c5tr0rkys3phfkxd5j6s56c0tfy7r49jhct38kq6"
+                  )
+                , ( MutableAccount
+                  , DerivationIndex 2147483647
+                  , "stake_xvk1qy9tp370ze3cfre8f6daz7l85pgk3wpg6s5zqae2yjljwqkx4\
+                    \ht28cxx7j5ju0wl8795s3yj8z3te4h2j9eaztll2z4mxhwwkppy53sf49ev5"
+                  )
+                , ( MultisigScript
+                  , DerivationIndex 42
+                  , "script_xvk1mjr5lrrlxuvelx94hu2cttmg5pp6cwy5h0sa37qvpcd07pv9g\
+                    \23nlvugj5ez9qfxxvkmjwnpn69s48cv572phfy6qpmnwat0hwcdrasapqewe"
+                  )
+                ]
 
-            (ApiVerificationKeyHash (ApiT (Hash h))) <-
-                getWalletKey ctx (apiWal ^. id) (ApiT $ DerivationIndex index)
-            T.decodeUtf8 (hex h) `shouldBe` keyHash
+        forM_ matrix
+            $ \(role_, index, expected) -> it (show role_ <> "/" <> show index)
+            $ \ctx -> do
+                let payload = Json [json|{
+                        "name": "Wallet",
+                        "mnemonic_sentence": #{explicitMnemonics},
+                        "passphrase": #{fixturePassphrase}
+                    }|]
+
+                r <- request @ApiWallet ctx (Link.postWallet @'Shelley) Default payload
+                verify r [ expectResponseCode @IO HTTP.status201 ]
+                let apiWal = getFromResponse id r
+
+                let link = Link.getWalletKey (apiWal ^. id) role_ index
+                rGet <- request @ApiVerificationKey ctx link Default Empty
+                verify rGet
+                    [ expectResponseCode @IO HTTP.status200
+                    , expectField id (\k -> toJSON k `shouldBe` toJSON expected)
+                    ]
+
+    it "WALLETS_GET_KEY_02 - invalid index for verification key" $ \ctx -> do
+        w <- emptyWallet ctx
+
+        let link = Link.getWalletKey w UtxoExternal (DerivationIndex 2147483648)
+        r <- request @ApiVerificationKey ctx link Default Empty
+
+        verify r
+            [ expectResponseCode @IO HTTP.status400
+            , expectErrorMessage
+                "It looks like you've provided a derivation index that is out of bound."
+            ]
+
+    it "WALLETS_GET_KEY_03 - unknown wallet" $ \ctx -> do
+        w <- emptyWallet ctx
+        _ <- request @ApiWallet ctx (Link.deleteWallet @'Shelley w) Default Empty
+
+        let link = Link.getWalletKey w UtxoExternal (DerivationIndex 0)
+        r <- request @ApiVerificationKey ctx link Default Empty
+
+        verify r
+            [ expectResponseCode @IO HTTP.status404
+            , expectErrorMessage (errMsg404NoWallet $ w ^. walletId)
+            ]
 
     it "BYRON_WALLETS_UTXO -\
         \ Cannot show Byron wal utxo with shelley ep (404)" $ \ctx -> do
