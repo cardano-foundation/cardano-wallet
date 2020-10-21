@@ -1460,6 +1460,15 @@ components:
         - <<: *ApiAccountPostData
           title: shelley (from xpub)
 
+    ApiWalletSignData: &ApiWalletSignData
+        type: object
+        required:
+          - passphrase
+          - metadata
+        properties:
+          passphrase: *lenientPassphrase
+          metadata: *transactionMetadata
+
     ApiByronWalletRandomPostData: &ApiByronWalletRandomPostData
       type: object
       required:
@@ -1723,18 +1732,18 @@ x-parametersWalletId: &parametersWalletId
     maxLength: 40
     minLength: 40
 
-  x-parametersIntendedStakeAmount: &parametersIntendedStakeAmount
-    in: query
-    name: stake
-    required: false
-    schema:
-      type: integer
-      minimum: 0
-      maximum: 45_000_000_000_000_000 # 45 B ada (in Lovelace)
-    description: |
-      The stake the user intends to delegate in Lovelace. Required.
+x-parametersIntendedStakeAmount: &parametersIntendedStakeAmount
+  in: query
+  name: stake
+  required: false
+  schema:
+    type: integer
+    minimum: 0
+    maximum: 45_000_000_000_000_000 # 45 B ada (in Lovelace)
+  description: |
+    The stake the user intends to delegate in Lovelace. Required.
 
-      > ⚠️  On the incentivized testnet, this parameter is not requred, but rather completely ignored.
+    > ⚠️  On the incentivized testnet, this parameter is not requred, but rather completely ignored.
 
 x-parametersTransactionId: &parametersTransactionId
   in: path
@@ -1762,6 +1771,21 @@ x-parametersAddressId:  &parametersAddressId
     type: string
     format: base58
     example: DdzFFzCqrhtCNjPk5Lei7E1FxnoqMoAYtJ8VjAWbFmDb614nNBWBwv3kt6QHJa59cGezzf6piMWsbK7sWRB5sv325QqWdRuusMqqLdMt
+
+x-parametersRole: &parametersRole
+  in: path
+  name: role
+  schema:
+    type: string
+    enum:
+    - utxo_external
+    - utxo_internal
+    - mutable_account
+
+x-parametersDerivationSegment: &parametersDerivationSegment
+  in: path
+  name: index
+  schema: *derivationSegment
 
 x-parametersStartDate: &parametersStartDate
   in: query
@@ -2280,6 +2304,20 @@ x-responsesGetSettings: &responsesGetSettings
       application/json:
         schema: *ApiGetSettings
 
+x-responsesPostSignatures: &responsesPostSignatures
+    <<: *responsesErr400
+    <<: *responsesErr405
+    <<: *responsesErr406
+    <<: *responsesErr409
+    <<: *responsesErr415
+    200:
+      description: OK
+      content:
+        application/octet-stream:
+          schema:
+            type: string
+            format: binary
+
 #############################################################################
 #                                                                           #
 #                                  PATHS                                    #
@@ -2310,8 +2348,33 @@ x-tagGroups:
     - Network
     - Proxy
     - Settings
+    - Experimental
 
 paths:
+  /wallets/{walletId}/{role}/{index}/signatures:
+      post:
+        operationId: signMetadata
+        tags: ["Experimental"]
+        summary: Sign Metadata
+        description: |
+          <p align="right">status: <strong>experimental</strong></p>
+
+          **⚠️ WARNING ⚠️**
+
+          This endpoint is experimental and for internal use in the Catalyst project. This
+          functionality will be refined in the forthcoming future and the interface is likely
+          to change in **NON-BACKWARD COMPATIBLE WAYS**.
+        parameters:
+          - *parametersWalletId
+          - *parametersRole
+          - *parametersDerivationSegment
+        requestBody:
+          required: true
+          content:
+            application/json:
+              schema: *ApiWalletSignData
+        responses: *responsesPostSignatures
+
   /wallets:
     post:
       operationId: postWallet
