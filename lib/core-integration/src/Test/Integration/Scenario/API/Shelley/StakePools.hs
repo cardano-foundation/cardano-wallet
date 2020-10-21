@@ -627,6 +627,8 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                     , expectField #inputs
                         (`shouldSatisfy` (not . null))
                     , expectField #outputs
+                        (`shouldSatisfy` null)
+                    , expectField #change
                         (`shouldSatisfy` (not . null))
                     , expectField #certificates
                         (`shouldSatisfy` (not . null))
