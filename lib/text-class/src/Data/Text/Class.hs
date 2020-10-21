@@ -63,7 +63,7 @@ import Text.Read
 
 import qualified Data.Char as C
 import qualified Data.Text as T
-import qualified Data.Text.Lazy as T
+import qualified Data.Text.Lazy as TL
 import qualified Data.Text.Lazy.Builder as B
 import qualified Data.Text.Lazy.Builder.Int as B
 import qualified Data.Text.Lazy.Builder.RealFloat as B
@@ -163,10 +163,10 @@ instance ToText Word31 where
     toText = intToText
 
 realFloatToText :: RealFloat a => a -> T.Text
-realFloatToText = T.toStrict . B.toLazyText . B.realFloat
+realFloatToText = TL.toStrict . B.toLazyText . B.realFloat
 
 intToText :: Integral a => a -> T.Text
-intToText = T.toStrict . B.toLazyText . B.decimal
+intToText = TL.toStrict . B.toLazyText . B.decimal
 
 -- | Decode the specified text with a 'Maybe' result type.
 fromTextMaybe :: FromText a => Text -> Maybe a
