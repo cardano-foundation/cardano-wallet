@@ -156,7 +156,7 @@ spec = describe "SHELLEY_ADDRESSES" $ do
                 [ expectResponseCode @IO HTTP.status400
                 , expectErrorMessage $
                     "Error parsing query parameter state failed: Unable to\
-                    \ decode the given value: '" <> fil <> "'. Please specify\
+                    \ decode the given text value. Please specify\
                     \ one of the following values: used, unused."
                 ]
 
