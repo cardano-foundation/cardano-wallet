@@ -149,8 +149,8 @@ spec = do
         textRoundtrip (Proxy @DerivationPrefix)
 
     let styles =
-            [ Style (Proxy @'UTxOExternal)
-            , Style (Proxy @'UTxOInternal)
+            [ Style (Proxy @'UtxoExternal)
+            , Style (Proxy @'UtxoInternal)
             , Style (Proxy @'MutableAccount)
             ]
 
@@ -469,8 +469,8 @@ prop_atLeastKnownAddresses s =
     g = fromEnum . getAddressPoolGap . gap
 
 prop_changeIsOnlyKnownAfterGeneration
-    :: ( AddressPool 'UTxOInternal JormungandrKey
-       , AddressPool 'UTxOExternal JormungandrKey
+    :: ( AddressPool 'UtxoInternal JormungandrKey
+       , AddressPool 'UtxoExternal JormungandrKey
        )
     -> Property
 prop_changeIsOnlyKnownAfterGeneration (intPool, extPool) =
@@ -660,11 +660,11 @@ instance Arbitrary (Index 'Hardened depth) where
 instance Arbitrary Address where
     shrink _ = []
     arbitrary = frequency
-        [ (8, elements $ take 25 (ourAddresses (Proxy @JormungandrKey) UTxOExternal))
-        , (8, elements $ take 25 (ourAddresses (Proxy @JormungandrKey) UTxOInternal))
+        [ (8, elements $ take 25 (ourAddresses (Proxy @JormungandrKey) UtxoExternal))
+        , (8, elements $ take 25 (ourAddresses (Proxy @JormungandrKey) UtxoInternal))
         , (8, elements $ take 25 (ourAddresses (Proxy @JormungandrKey) MutableAccount))
-        , (8, elements $ take 25 (ourAddresses (Proxy @IcarusKey) UTxOExternal))
-        , (8, elements $ take 25 (ourAddresses (Proxy @IcarusKey) UTxOInternal))
+        , (8, elements $ take 25 (ourAddresses (Proxy @IcarusKey) UtxoExternal))
+        , (8, elements $ take 25 (ourAddresses (Proxy @IcarusKey) UtxoInternal))
         , (8, elements $ take 25 (ourAddresses (Proxy @IcarusKey) MutableAccount))
         ]
 

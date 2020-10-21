@@ -120,7 +120,7 @@ spec = do
 
 prop_toEnumAccountingStyle :: Int -> Property
 prop_toEnumAccountingStyle n =
-    n > fromEnum UTxOInternal ==> expectFailure $ property $
+    n > fromEnum UtxoInternal ==> expectFailure $ property $
         (toEnum n :: AccountingStyle) `seq` ()
 
 prop_roundtripEnumAccountingStyle :: AccountingStyle -> Property

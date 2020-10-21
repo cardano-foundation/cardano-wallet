@@ -1903,7 +1903,7 @@ genIcarusFaucets = genFaucet encodeAddress genAddresses
             accXPrv =
                 deriveAccountPrivateKey pwd rootXPrv minBound
             addrXPrv =
-                deriveAddressPrivateKey pwd accXPrv UTxOExternal
+                deriveAddressPrivateKey pwd accXPrv UtxoExternal
         in
             [ paymentAddress @'Mainnet $ publicKey $ addrXPrv ix
             | ix <- [minBound..maxBound]
@@ -1929,7 +1929,7 @@ genShelleyAddresses mw =
         accXPrv =
             deriveAccountPrivateKey pwd rootXPrv minBound
         addrXPrv =
-            deriveAddressPrivateKey pwd accXPrv UTxOExternal
+            deriveAddressPrivateKey pwd accXPrv UtxoExternal
     in
         [ paymentAddress @'Mainnet $ publicKey $ addrXPrv ix
         | ix <- [minBound..maxBound]

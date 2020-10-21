@@ -50,6 +50,7 @@ import Cardano.Byron.Codec.Cbor
     ( decodeAddressDerivationPath, decodeAddressPayload, deserialiseCbor )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
+    , DerivationIndex (..)
     , DerivationType (..)
     , Index (..)
     , NetworkDiscriminant
@@ -68,7 +69,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     , KnownAddresses (..)
     )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..), AddressState (..), ChimericAccount, DerivationIndex (..) )
+    ( Address (..), AddressState (..), ChimericAccount )
 import Control.Arrow
     ( second )
 import Control.DeepSeq

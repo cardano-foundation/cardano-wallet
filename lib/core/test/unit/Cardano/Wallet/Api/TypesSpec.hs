@@ -84,6 +84,7 @@ import Cardano.Wallet.Api.Types
     , ApiWalletMigrationPostData (..)
     , ApiWalletPassphrase (..)
     , ApiWalletPassphraseInfo (..)
+    , ApiWalletSignData (..)
     , ApiWithdrawal (..)
     , ApiWithdrawalPostData (..)
     , ByronWalletFromXPrvPostData (..)
@@ -115,7 +116,8 @@ import Cardano.Wallet.Gen
     , shrinkTxMetadata
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( DerivationType (..)
+    ( DerivationIndex (..)
+    , DerivationType (..)
     , HardDerivation (..)
     , Index (..)
     , NetworkDiscriminant (..)
@@ -139,7 +141,6 @@ import Cardano.Wallet.Primitive.Types
     , AddressState (..)
     , ChimericAccount (..)
     , Coin (..)
-    , DerivationIndex (..)
     , Direction (..)
     , EpochNo (..)
     , Hash (..)
@@ -598,7 +599,7 @@ spec = do
                 `shouldBe` (Left @Text @(ApiT WalletId) msg)
 
         it "ApiT AddressState" $ do
-            let msg = "Unable to decode the given value: \"patate\".\
+            let msg = "Unable to decode the given text value.\
                     \ Please specify one of the following values: used, unused."
             parseUrlPiece "patate"
                 `shouldBe` (Left @Text @(ApiT AddressState) msg)
@@ -948,10 +949,6 @@ instance Arbitrary (ApiAddress t) where
         <$> fmap (, Proxy @t) arbitrary
         <*> arbitrary
 
-instance Arbitrary DerivationIndex where
-    arbitrary = DerivationIndex <$> arbitrary
-    shrink = genericShrink
-
 instance Arbitrary ApiEpochInfo where
     arbitrary = ApiEpochInfo <$> arbitrary <*> genUniformTime
     shrink _ = []
@@ -1231,6 +1228,10 @@ instance Arbitrary StakePoolTicker where
     arbitrary = unsafeFromText . T.pack <$> do
         len <- choose (3, 5)
         replicateM len arbitrary
+
+instance Arbitrary ApiWalletSignData where
+    arbitrary = ApiWalletSignData <$> arbitrary <*> arbitrary
+    shrink = genericShrink
 
 instance Arbitrary PoolOwner where
     arbitrary = PoolOwner . BS.pack <$> vector 32
@@ -1810,6 +1811,11 @@ instance ToSchema ApiWalletDelegation where
 
 instance ToSchema ApiPostRandomAddressData where
     declareNamedSchema _ = declareSchemaForDefinition "ApiPostRandomAddressData"
+
+instance ToSchema ApiWalletSignData where
+    declareNamedSchema _ = do
+        addDefinition transactionMetadataValueSchema
+        declareSchemaForDefinition "ApiWalletSignData"
 
 -- FIXME: #ADP-417
 --

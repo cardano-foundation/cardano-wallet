@@ -35,7 +35,8 @@ import Cardano.Wallet.Api.Types
     , WalletStyle (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( DerivationType (..)
+    ( DerivationIndex (..)
+    , DerivationType (..)
     , Index (..)
     , PassphraseMaxLength (..)
     , PassphraseMinLength (..)
@@ -52,7 +53,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..) )
 import Cardano.Wallet.Primitive.Types
-    ( DerivationIndex (..), walletNameMaxLength, walletNameMinLength )
+    ( walletNameMaxLength, walletNameMinLength )
 import Control.Monad
     ( forM_ )
 import Data.Generics.Internal.VL.Lens

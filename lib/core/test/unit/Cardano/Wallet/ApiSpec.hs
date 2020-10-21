@@ -30,6 +30,9 @@
 -- See comment in Cardano.Wallet.Jormungandr.Compatibility
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
+-- Required to use the HLINT pragma
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+
 module Cardano.Wallet.ApiSpec
     ( spec
     ) where
@@ -243,6 +246,31 @@ instance
         forM_ wellformed $ \w -> gSpec (`toRequest` w) toSpec
 
 instance
+    ( Typeable a, Wellformed (PathParam a)
+    , GenericApiSpec (PathParam a -> [Request])
+    , Typeable b, Wellformed (PathParam b)
+    , GenericApiSpec (PathParam b -> [Request])
+    , Wellformed (PathParam c)
+    , GenericApiSpec (PathParam c -> [Request])
+    ) => GenericApiSpec (PathParam a -> PathParam b -> PathParam c -> [Request])
+  where
+    gSpec toRequest toSpec = do
+        forM_
+            [ (b,c) | b <- wellformed, c <- wellformed ]
+            (\(b,c) -> gSpec (\a -> toRequest a b c) toSpec)
+
+        forM_
+            [ (a,c) | a <- wellformed, c <- wellformed ]
+            (\(a,c) -> gSpec (\b -> toRequest a b c) toSpec)
+
+        forM_
+            [ (a,b) | a <- wellformed, b <- wellformed ]
+            (\(a,b) -> gSpec (\c -> toRequest a b c) toSpec)
+
+        -- The lambda above helps readability and make the pattern obvious
+        {-# HLINT ignore "Avoid lambda" #-}
+
+instance
     ( Typeable a, Malformed (BodyParam a)
     ) => GenericApiSpec (BodyParam a -> IO [Request])
   where
@@ -351,7 +379,7 @@ everyBodyParam :: GEveryEndpoints api => Proxy api -> MkBodyRequest api
 everyBodyParam proxy = gEveryBodyParam proxy $ defaultRequest
     { requestHeaders =
         [ (hContentType, "application/json")
-        , (hAccept, "application/json")
+        , (hAccept, "*/*")
         ]
     }
 

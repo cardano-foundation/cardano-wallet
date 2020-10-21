@@ -18,6 +18,8 @@ import Prelude
 
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( block0, dummyGenesisParameters )
+import Cardano.Wallet.Primitive.AddressDerivation
+    ( DerivationIndex (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( IsOurs (..) )
 import Cardano.Wallet.Primitive.Model
@@ -40,7 +42,6 @@ import Cardano.Wallet.Primitive.Types
     , BlockHeader (..)
     , ChimericAccount (..)
     , Coin (..)
-    , DerivationIndex (..)
     , Direction (..)
     , Dom (..)
     , EpochLength (..)

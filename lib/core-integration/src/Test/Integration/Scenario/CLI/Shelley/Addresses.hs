@@ -151,7 +151,7 @@ spec = describe "SHELLEY_CLI_ADDRESSES" $ do
             walId <- emptyWallet' ctx
             (Exit c, Stdout o, Stderr e)
                 <- listAddressesViaCLI @t ctx ["--state", fil, walId]
-            let err = "Unable to decode the given value: \"" <> fil <> "\". Please\
+            let err = "Unable to decode the given text value. Please\
                     \ specify one of the following values: used, unused."
             e `shouldContain` err
             c `shouldBe` ExitFailure 1

@@ -170,6 +170,7 @@ server byron icarus jormungandr spl ntp =
         :<|> putWallet jormungandr mkShelleyWallet
         :<|> putWalletPassphrase jormungandr
         :<|> getUTxOsStatistics jormungandr
+        :<|> (\_ _ _ _ -> throwError err501)
 
     addresses :: Server (Addresses n)
     addresses = listAddresses jormungandr (normalizeDelegationAddress @_ @JormungandrKey @n)

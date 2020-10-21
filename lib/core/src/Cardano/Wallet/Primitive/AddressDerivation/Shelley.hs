@@ -58,6 +58,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( ChimericAccount (..)
     , DelegationAddress (..)
     , Depth (..)
+    , DerivationIndex (..)
     , DerivationType (..)
     , HardDerivation (..)
     , Index (..)
@@ -86,7 +87,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     , rewardAccountKey
     )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..), DerivationIndex (..), Hash (..), invariant )
+    ( Address (..), Hash (..), invariant )
 import Control.DeepSeq
     ( NFData (..) )
 import Control.Monad

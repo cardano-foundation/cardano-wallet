@@ -49,6 +49,7 @@ import Cardano.Wallet.Network
 import Cardano.Wallet.Primitive.AddressDerivation
     ( AccountingStyle (..)
     , Depth (..)
+    , DerivationIndex (..)
     , DerivationType (..)
     , ErrWrongPassphrase (..)
     , HardDerivation (..)
@@ -78,7 +79,6 @@ import Cardano.Wallet.Primitive.Types
     , BlockHeader (BlockHeader)
     , ChimericAccount (..)
     , Coin (..)
-    , DerivationIndex (..)
     , Direction (..)
     , EpochNo (..)
     , Hash (..)
@@ -795,7 +795,7 @@ instance IsOwned DummyState JormungandrKey where
     isOwned (DummyState m) (rootK, pwd) addr = do
         ix <- Map.lookup addr m
         let accXPrv = deriveAccountPrivateKey pwd rootK minBound
-        let addrXPrv = deriveAddressPrivateKey pwd accXPrv UTxOExternal ix
+        let addrXPrv = deriveAddressPrivateKey pwd accXPrv UtxoExternal ix
         return (addrXPrv, pwd)
 
 instance GenChange DummyState where

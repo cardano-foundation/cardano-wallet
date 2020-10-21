@@ -780,7 +780,7 @@ spec = do
                     \'3s', '3600s', '42s'."
             fromText @SyncTolerance "patate" === Left (TextDecodingError err)
         it "fail fromText @AddressState \"unusedused\"" $ do
-            let err = "Unable to decode the given value: \"unusedused\".\
+            let err = "Unable to decode the given text value.\
                     \ Please specify one of the following values: used, unused."
             fromText @AddressState "unusedused" === Left (TextDecodingError err)
         it "fail fromText @WalletName \"\"" $ do

@@ -74,6 +74,7 @@ import Cardano.Crypto.Wallet
 import Cardano.Wallet.Primitive.AddressDerivation
     ( AccountingStyle (..)
     , Depth (..)
+    , DerivationIndex (..)
     , DerivationPrefix (..)
     , DerivationType (..)
     , HardDerivation (..)
@@ -98,12 +99,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     , KnownAddresses (..)
     )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..)
-    , AddressState (..)
-    , ChimericAccount (..)
-    , DerivationIndex (..)
-    , invariant
-    )
+    ( Address (..), AddressState (..), ChimericAccount (..), invariant )
 import Control.Applicative
     ( (<|>) )
 import Control.DeepSeq
@@ -262,18 +258,18 @@ instance ((PersistPublicKey (key 'AccountK)), Typeable chain)
 -- application and either a scoped type variable, or an explicit passing of a
 -- 'AccountingStyle'.
 --
--- >>> accountingStyle @'UTxOExternal
--- UTxOExternal
+-- >>> accountingStyle @'UtxoExternal
+-- UtxoExternal
 --
 -- >>> accountingStyle @chain
 -- ...
 accountingStyle :: forall (c :: AccountingStyle). Typeable c => AccountingStyle
 accountingStyle =
     case typeRep (Proxy :: Proxy c) of
-        t | t == typeRep (Proxy :: Proxy 'UTxOInternal) ->
-            UTxOInternal
-          | t == typeRep (Proxy :: Proxy 'UTxOExternal) ->
-            UTxOExternal
+        t | t == typeRep (Proxy :: Proxy 'UtxoInternal) ->
+            UtxoInternal
+          | t == typeRep (Proxy :: Proxy 'UtxoExternal) ->
+            UtxoExternal
         _ ->
             MutableAccount
 
@@ -554,10 +550,10 @@ unsafePaymentKeyFingerprint from = case paymentKeyFingerprint @k from of
 -- parameterized by a type @n@ which captures a particular network discrimination.
 -- This enables the state to be agnostic to the underlying address format.
 data SeqState (n :: NetworkDiscriminant) k = SeqState
-    { internalPool :: !(AddressPool 'UTxOInternal k)
-        -- ^ Addresses living on the 'UTxOInternal'
-    , externalPool :: !(AddressPool 'UTxOExternal k)
-        -- ^ Addresses living on the 'UTxOExternal'
+    { internalPool :: !(AddressPool 'UtxoInternal k)
+        -- ^ Addresses living on the 'UtxoInternal'
+    , externalPool :: !(AddressPool 'UtxoExternal k)
+        -- ^ Addresses living on the 'UtxoExternal'
     , pendingChangeIxs :: !PendingIxs
         -- ^ Indexes from the internal pool that have been used in pending
         -- transactions. The list is maintained sorted in descending order
@@ -740,7 +736,7 @@ instance
         let
             (ix, pending') = nextChangeIndex intPool pending
             accountXPub = accountPubKey intPool
-            addressXPub = deriveAddressPublicKey accountXPub UTxOInternal ix
+            addressXPub = deriveAddressPublicKey accountXPub UtxoInternal ix
             addr = mkAddress addressXPub rpk
         in
             (addr, SeqState intPool extPool pending' rpk path)

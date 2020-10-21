@@ -143,7 +143,14 @@ import Fmt
 import Network.Ntp
     ( NtpClient )
 import Servant
-    ( (:<|>) (..), Handler (..), NoContent (..), Server, err400, throwError )
+    ( (:<|>) (..)
+    , Handler (..)
+    , NoContent (..)
+    , Server
+    , err400
+    , err501
+    , throwError
+    )
 import Servant.Server
     ( ServerError (..) )
 import Type.Reflection
@@ -189,6 +196,7 @@ server byron icarus shelley spl ntp =
         :<|> putWallet shelley mkShelleyWallet
         :<|> putWalletPassphrase shelley
         :<|> getUTxOsStatistics shelley
+        :<|> (\_ _ _ _ -> throwError err501) -- FIXME: ADP-509
 
     addresses :: Server (Addresses n)
     addresses = listAddresses shelley (normalizeDelegationAddress @_ @ShelleyKey @n)
