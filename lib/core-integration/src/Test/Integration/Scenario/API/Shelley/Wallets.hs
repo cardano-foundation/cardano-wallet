@@ -23,7 +23,7 @@ import Cardano.Wallet.Api.Types
     , ApiAddress
     , ApiByronWallet
     , ApiCoinSelection
-    , ApiCoinSelectionInput (derivationPath)
+    , ApiCoinSelectionOutput (..)
     , ApiNetworkInformation
     , ApiT (..)
     , ApiTransaction
@@ -124,6 +124,7 @@ import Test.Integration.Framework.TestData
     )
 
 import qualified Cardano.Wallet.Api.Link as Link
+import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Text as T
 import qualified Network.HTTP.Types.Status as HTTP
@@ -923,23 +924,29 @@ spec = describe "SHELLEY_WALLETS" $ do
             targetAddress : _ <- fmap (view #id) <$> listAddresses @n ctx target
             let amount = Quantity minUTxOValue
             let payment = AddressAmount targetAddress amount
-            let hasValidDerivationPath input =
-                    ( length (derivationPath input) == 5 )
+            let output = ApiCoinSelectionOutput targetAddress amount
+            let isValidDerivationPath path =
+                    ( length path == 5 )
                     &&
                     ( [ ApiT $ DerivationIndex $ getIndex purposeCIP1852
                       , ApiT $ DerivationIndex $ getIndex coinTypeAda
                       , ApiT $ DerivationIndex $ getIndex @'Hardened minBound
-                      ] `isPrefixOf` NE.toList (derivationPath input)
+                      ] `isPrefixOf` NE.toList path
                     )
             selectCoins @_ @'Shelley ctx source (payment :| []) >>= flip verify
                 [ expectResponseCode HTTP.status200
-                , expectField #inputs (`shouldSatisfy` (not . null))
-                , expectField #inputs (`shouldSatisfy` all hasValidDerivationPath)
-                , expectField #outputs (`shouldSatisfy` ((> 1) . length))
-                , expectField #outputs (`shouldSatisfy` (payment `elem`))
+                , expectField #inputs
+                    (`shouldSatisfy` (not . null))
+                , expectField #inputs
+                    (`shouldSatisfy` all
+                        (isValidDerivationPath . view #derivationPath))
+                , expectField #change
+                    (`shouldSatisfy` all
+                        (isValidDerivationPath . view #derivationPath))
+                , expectField #outputs
+                    (`shouldBe` [output])
                 ]
 
-    let satisfy = flip shouldSatisfy
     it "WALLETS_COIN_SELECTION_02 - \
         \Multiple payments are all included in the coin selection output." $
         \ctx -> do
@@ -951,15 +958,16 @@ spec = describe "SHELLEY_WALLETS" $ do
             let payments = NE.fromList
                     $ take paymentCount
                     $ zipWith AddressAmount targetAddresses amounts
+            let outputs =
+                    take paymentCount
+                    $ zipWith ApiCoinSelectionOutput targetAddresses amounts
             selectCoins @_ @'Shelley ctx source payments >>= flip verify
                 [ expectResponseCode
                     HTTP.status200
                 , expectField
                     #inputs (`shouldSatisfy` (not . null))
                 , expectField
-                    #outputs (satisfy $ (> paymentCount) . length)
-                , expectField
-                    #outputs (satisfy $ flip all payments . flip elem)
+                    #outputs (`shouldSatisfy` ((L.sort outputs ==) . L.sort))
                 ]
 
     it "WALLETS_COIN_SELECTION_03 - \

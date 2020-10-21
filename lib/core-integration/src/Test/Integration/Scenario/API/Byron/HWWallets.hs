@@ -25,6 +25,7 @@ import Cardano.Wallet.Api.Types
     ( AddressAmount (..)
     , ApiAddress
     , ApiByronWallet
+    , ApiCoinSelectionOutput (..)
     , ApiFee
     , ApiT (..)
     , ApiTransaction
@@ -50,8 +51,6 @@ import Control.Monad
     ( forM_ )
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
-import Data.List.NonEmpty
-    ( NonEmpty ((:|)) )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -91,6 +90,8 @@ import Test.Integration.Framework.TestData
 
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Icarus as Icarus
+import qualified Data.List as L
+import qualified Data.List.NonEmpty as NE
 import qualified Data.Text.Encoding as T
 import qualified Network.HTTP.Types.Status as HTTP
 
@@ -313,19 +314,30 @@ spec = describe "BYRON_HW_WALLETS" $ do
         it "Can get coin selection" $ \ctx -> do
             (w, mnemonics) <- fixtureIcarusWalletMws ctx
             let pubKey = pubKeyFromMnemonics mnemonics
-            r <- request @ApiByronWallet ctx (Link.deleteWallet @'Byron w) Default Empty
+            r <- request
+                @ApiByronWallet ctx (Link.deleteWallet @'Byron w) Default Empty
             expectResponseCode @IO HTTP.status204 r
 
-            source <- restoreWalletFromPubKey @ApiByronWallet @'Byron ctx pubKey restoredWalletName
-            let [addr] = take 1 $ icarusAddresses @n mnemonics
-
-            let amount = Quantity minUTxOValue
-            let payment = AddressAmount (ApiT addr, Proxy @n) amount
-            selectCoins @n @'Byron ctx source (payment :| []) >>= flip verify
+            source <- restoreWalletFromPubKey
+                @ApiByronWallet @'Byron ctx pubKey restoredWalletName
+            let paymentCount = 4
+            let targetAddresses = take paymentCount $
+                    (\a -> (ApiT a, Proxy @n)) <$>
+                    icarusAddresses @n mnemonics
+            let targetAmounts = take paymentCount $
+                    Quantity <$> [minUTxOValue ..]
+            let payments = NE.fromList $
+                    zipWith AddressAmount targetAddresses targetAmounts
+            let outputs =
+                    zipWith ApiCoinSelectionOutput targetAddresses targetAmounts
+            selectCoins @n @'Byron ctx source payments >>= flip verify
                 [ expectResponseCode HTTP.status200
-                , expectField #inputs (`shouldSatisfy` (not . null))
-                , expectField #outputs (`shouldSatisfy` ((> 1) . length))
-                , expectField #outputs (`shouldSatisfy` (payment `elem`))
+                , expectField #inputs
+                    (`shouldSatisfy` (not . null))
+                , expectField #outputs
+                    (`shouldSatisfy` ((L.sort outputs ==) . L.sort))
+                , expectField #change
+                    (`shouldSatisfy` (not . null))
                 ]
 
     describe "HW_WALLETS_05 - Wallet from pubKey is available" $ do

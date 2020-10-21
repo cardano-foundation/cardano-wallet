@@ -19,6 +19,7 @@ import Cardano.Mnemonic
 import Cardano.Wallet.Api.Types
     ( AddressAmount (..)
     , ApiAddress
+    , ApiCoinSelectionOutput (..)
     , ApiFee
     , ApiTransaction
     , ApiUtxoStatistics
@@ -36,8 +37,6 @@ import Control.Monad
     ( forM_ )
 import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
-import Data.List.NonEmpty
-    ( NonEmpty ((:|)) )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text
@@ -76,6 +75,8 @@ import Test.Integration.Framework.TestData
     ( errMsg403NoRootKey, payloadWith, updateNamePayload, updatePassPayload )
 
 import qualified Cardano.Wallet.Api.Link as Link
+import qualified Data.List as L
+import qualified Data.List.NonEmpty as NE
 import qualified Network.HTTP.Types.Status as HTTP
 
 
@@ -293,20 +294,29 @@ spec = describe "SHELLEY_HW_WALLETS" $ do
         it "Can get coin selection" $ \ctx -> do
             (w, mnemonics) <- fixtureWalletWithMnemonics ctx
             let pubKey = pubKeyFromMnemonics mnemonics
-            r <- request @ApiWallet ctx (Link.deleteWallet @'Shelley w) Default Empty
+            r <- request
+                @ApiWallet ctx (Link.deleteWallet @'Shelley w) Default Empty
             expectResponseCode @IO HTTP.status204 r
-
-            source <- restoreWalletFromPubKey @ApiWallet @'Shelley ctx pubKey restoredWalletName
+            source <- restoreWalletFromPubKey
+                @ApiWallet @'Shelley ctx pubKey restoredWalletName
             target <- emptyWallet ctx
-            targetAddress : _ <- fmap (view #id) <$> listAddresses @n ctx target
-
-            let amount = Quantity minUTxOValue
-            let payment = AddressAmount targetAddress amount
-            selectCoins @n @'Shelley ctx source (payment :| []) >>= flip verify
+            let paymentCount = 4
+            targetAddresses <- take paymentCount .
+                fmap (view #id) <$> listAddresses @n ctx target
+            let targetAmounts = take paymentCount $
+                    Quantity <$> [minUTxOValue ..]
+            let payments = NE.fromList $
+                    zipWith AddressAmount targetAddresses targetAmounts
+            let outputs =
+                    zipWith ApiCoinSelectionOutput targetAddresses targetAmounts
+            selectCoins @n @'Shelley ctx source payments >>= flip verify
                 [ expectResponseCode HTTP.status200
-                , expectField #inputs (`shouldSatisfy` (not . null))
-                , expectField #outputs (`shouldSatisfy` ((> 1) . length))
-                , expectField #outputs (`shouldSatisfy` (payment `elem`))
+                , expectField #inputs
+                    (`shouldSatisfy` (not . null))
+                , expectField #outputs
+                    (`shouldSatisfy` ((L.sort outputs ==) . L.sort))
+                , expectField #change
+                    (`shouldSatisfy` (not . null))
                 ]
 
     describe "HW_WALLETS_05 - Wallet from pubKey is available" $ do

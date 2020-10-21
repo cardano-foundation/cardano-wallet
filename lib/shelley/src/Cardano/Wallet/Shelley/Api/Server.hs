@@ -206,8 +206,10 @@ server byron icarus shelley spl ntp =
     {-# HLINT ignore "Redundant lambda" #-}
     coinSelections :: Server (CoinSelections n)
     coinSelections = (\wid ascd -> case ascd of
-        (ApiSelectForPayment ascp) -> selectCoins shelley (delegationAddress @n) wid ascp
-        (ApiSelectForDelegation (ApiSelectCoinsAction (ApiT action))) -> case action of
+        (ApiSelectForPayment ascp) ->
+            selectCoins shelley (delegationAddress @n) wid ascp
+        (ApiSelectForDelegation (ApiSelectCoinsAction (ApiT action))) ->
+            case action of
                 Join pid -> selectCoinsForJoin @_ @()
                     shelley
                     (knownPools spl)
@@ -310,9 +312,11 @@ server byron icarus shelley spl ntp =
 
     byronCoinSelections :: Server (ByronCoinSelections n)
     byronCoinSelections wid (ApiSelectForPayment x) =
-        withLegacyLayer wid
-            (byron, liftHandler $ throwE ErrNotASequentialWallet)
-            (icarus, selectCoins icarus (const $ paymentAddress @n) wid x)
+        withLegacyLayer wid (byron, handleRandom) (icarus, handleSequential)
+      where
+        handleRandom = liftHandler $ throwE ErrNotASequentialWallet
+        handleSequential = selectCoins icarus genChangeSequential wid x
+        genChangeSequential paymentK _ = paymentAddress @n paymentK
     byronCoinSelections _ _ = Handler
         $ throwE
         $ apiError err400 InvalidWalletType

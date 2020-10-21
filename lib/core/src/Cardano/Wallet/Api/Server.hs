@@ -167,7 +167,9 @@ import Cardano.Wallet.Api.Types
     , ApiByronWallet (..)
     , ApiByronWalletBalance (..)
     , ApiCoinSelection (..)
+    , ApiCoinSelectionChange (..)
     , ApiCoinSelectionInput (..)
+    , ApiCoinSelectionOutput (..)
     , ApiEpochInfo (ApiEpochInfo)
     , ApiErrorCode (..)
     , ApiFee (..)
@@ -297,6 +299,7 @@ import Cardano.Wallet.Primitive.Types
     , SortOrder (..)
     , TransactionInfo (TransactionInfo)
     , Tx (..)
+    , TxChange (..)
     , TxIn (..)
     , TxOut (..)
     , TxStatus (..)
@@ -375,6 +378,8 @@ import Data.Time
     ( UTCTime )
 import Data.Time.Clock
     ( getCurrentTime )
+import Data.Void
+    ( Void )
 import Data.Word
     ( Word32, Word64 )
 import Fmt
@@ -1131,7 +1136,8 @@ selectCoins ctx genChange (ApiT wid) body =
         liftHandler
             $ W.selectCoinsExternal @_ @s @k wrk wid genChange
             $ withExceptT ErrSelectCoinsExternalForPayment
-            $ W.selectCoinsForPayment @_ @s @t @k wrk wid outs withdrawal Nothing
+            $ W.selectCoinsForPayment
+                @_ @s @t @k wrk wid outs withdrawal Nothing
 
 selectCoinsForJoin
     :: forall ctx e s t n k.
@@ -1688,18 +1694,21 @@ assignMigrationAddresses
     -- ^ Target addresses
     -> [CoinSelection]
     -- ^ Migration data for the source wallet.
-    -> [UnsignedTx (TxIn, TxOut)]
+    -> [UnsignedTx (TxIn, TxOut) TxOut Void]
+    -- ^ Unsigned transactions without change, indicated with Void.
 assignMigrationAddresses addrs selections =
     fst $ foldr accumulate ([], cycle addrs) selections
   where
     accumulate sel (txs, addrsAvailable) = first
         (\addrsSelected -> makeTx sel addrsSelected : txs)
-        (splitAt (length $ change sel) addrsAvailable)
+        (splitAt (length $ view #change sel) addrsAvailable)
 
-    makeTx :: CoinSelection -> [Address] -> UnsignedTx (TxIn, TxOut)
+    makeTx :: CoinSelection -> [Address] -> UnsignedTx (TxIn, TxOut) TxOut Void
     makeTx sel addrsSelected = UnsignedTx
         (NE.fromList (sel ^. #inputs))
         (zipWith TxOut addrsSelected (sel ^. #change))
+        -- We never return any change:
+        []
 
 {-------------------------------------------------------------------------------
                                     Network
@@ -1886,14 +1895,19 @@ rndStateChange ctx (ApiT wid) pwd =
 
 -- | Makes an 'ApiCoinSelection' from the given 'UnsignedTx'.
 mkApiCoinSelection
-    :: forall n. ()
+    :: forall n input output change.
+        ( input ~ (TxIn, TxOut, NonEmpty DerivationIndex)
+        , output ~ TxOut
+        , change ~ TxChange (NonEmpty DerivationIndex)
+        )
     => Maybe (DelegationAction, NonEmpty DerivationIndex)
-    -> UnsignedTx (TxIn, TxOut, NonEmpty DerivationIndex)
+    -> UnsignedTx input output change
     -> ApiCoinSelection n
-mkApiCoinSelection mcerts (UnsignedTx inputs outputs) =
+mkApiCoinSelection mcerts (UnsignedTx inputs outputs change) =
     ApiCoinSelection
         (mkApiCoinSelectionInput <$> inputs)
-        (mkAddressAmount <$> outputs)
+        (mkApiCoinSelectionOutput <$> outputs)
+        (mkApiCoinSelectionChange <$> change)
         (fmap (uncurry mkCertificates) mcerts)
   where
     mkCertificates
@@ -1917,13 +1931,7 @@ mkApiCoinSelection mcerts (UnsignedTx inputs outputs) =
       where
         apiStakePath = ApiT <$> xs
 
-    mkAddressAmount :: TxOut -> AddressAmount (ApiT Address, Proxy n)
-    mkAddressAmount (TxOut addr (Coin c)) =
-        AddressAmount (ApiT addr, Proxy @n) (Quantity $ fromIntegral c)
-
-    mkApiCoinSelectionInput
-        :: (TxIn, TxOut, NonEmpty DerivationIndex)
-        -> ApiCoinSelectionInput n
+    mkApiCoinSelectionInput :: input -> ApiCoinSelectionInput n
     mkApiCoinSelectionInput (TxIn txid index, TxOut addr (Coin c), path) =
         ApiCoinSelectionInput
             { id = ApiT txid
@@ -1931,6 +1939,21 @@ mkApiCoinSelection mcerts (UnsignedTx inputs outputs) =
             , address = (ApiT addr, Proxy @n)
             , amount = Quantity $ fromIntegral c
             , derivationPath = ApiT <$> path
+            }
+
+    mkApiCoinSelectionOutput :: output -> ApiCoinSelectionOutput n
+    mkApiCoinSelectionOutput (TxOut addr (Coin c)) =
+        ApiCoinSelectionOutput (ApiT addr, Proxy @n) (Quantity $ fromIntegral c)
+
+    mkApiCoinSelectionChange :: change -> ApiCoinSelectionChange n
+    mkApiCoinSelectionChange txChange =
+        ApiCoinSelectionChange
+            { address =
+                (ApiT $ view #address txChange, Proxy @n)
+            , amount =
+                Quantity $ fromIntegral $ getCoin $ view #amount txChange
+            , derivationPath =
+                ApiT <$> view #derivationPath txChange
             }
 
 mkApiTransaction
@@ -2274,6 +2297,11 @@ instance Buildable e => LiftHandler (ErrSelectCoinsExternal e) where
         ErrSelectCoinsExternalUnableToAssignInputs e ->
             apiError err500 UnableToAssignInputOutput $ mconcat
                 [ "I'm unable to assign inputs from coin selection: "
+                , pretty e
+                ]
+        ErrSelectCoinsExternalUnableToAssignChange e ->
+            apiError err500 UnexpectedError $ mconcat
+                [ "I was unable to assign change from the coin selection: "
                 , pretty e
                 ]
 

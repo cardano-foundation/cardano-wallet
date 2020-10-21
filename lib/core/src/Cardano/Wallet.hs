@@ -309,6 +309,7 @@ import Cardano.Wallet.Primitive.Types
     , SortOrder (..)
     , TransactionInfo (..)
     , Tx
+    , TxChange (..)
     , TxIn
     , TxMeta (..)
     , TxMetadata
@@ -346,7 +347,7 @@ import Control.DeepSeq
 import Control.Exception
     ( Exception, try )
 import Control.Monad
-    ( forM, forM_, replicateM, unless, when )
+    ( forM_, replicateM, unless, when )
 import Control.Monad.IO.Class
     ( MonadIO, liftIO )
 import Control.Monad.Trans.Class
@@ -363,7 +364,7 @@ import Control.Monad.Trans.Except
 import Control.Monad.Trans.Maybe
     ( MaybeT (..), maybeToExceptT )
 import Control.Monad.Trans.State.Strict
-    ( runStateT, state )
+    ( StateT, runStateT, state )
 import Control.Tracer
     ( Tracer, contramap, traceWith )
 import Data.ByteString
@@ -406,6 +407,8 @@ import Data.Type.Equality
     ( (:~:) (..), testEquality )
 import Data.Vector.Shuffle
     ( shuffle )
+import Data.Void
+    ( Void )
 import Data.Word
     ( Word16, Word64 )
 import Fmt
@@ -612,7 +615,7 @@ createIcarusWallet ctx wid wname credentials = db & \DBLayer{..} -> do
     let s = mkSeqStateFromRootXPrv @n credentials purposeBIP44 $
             mkUnboundedAddressPoolGap 10000
     let (hist, cp) = initWallet block0 gp s
-    let addrs = map address . concatMap (view #outputs . fst) $ hist
+    let addrs = map (view #address) . concatMap (view #outputs . fst) $ hist
     let g  = defaultAddressPoolGap
     let s' = Seq.SeqState
             (shrinkPool @n (liftPaymentAddress @n) addrs g (Seq.internalPool s))
@@ -1273,22 +1276,22 @@ selectCoinsForPayment
     -> Maybe TxMetadata
     -> ExceptT (ErrSelectForPayment e) IO CoinSelection
 selectCoinsForPayment ctx wid recipients withdrawal md = do
-    (utxo, pending, txp, minUtxo) <- withExceptT ErrSelectForPaymentNoSuchWallet $
-        selectCoinsSetup @ctx @s @k ctx wid
+    (utxo, pending, txp, minUtxo) <-
+        withExceptT ErrSelectForPaymentNoSuchWallet $
+            selectCoinsSetup @ctx @s @k ctx wid
 
     let pendingWithdrawal = Set.lookupMin $ Set.filter hasWithdrawal pending
     when (withdrawal /= Quantity 0 && isJust pendingWithdrawal) $ throwE $
         ErrSelectForPaymentAlreadyWithdrawing (fromJust pendingWithdrawal)
 
-    cs <-
-        selectCoinsForPaymentFromUTxO @ctx @t @k @e ctx utxo txp minUtxo recipients withdrawal md
+    cs <- selectCoinsForPaymentFromUTxO
+        @ctx @t @k @e ctx utxo txp minUtxo recipients withdrawal md
     withExceptT ErrSelectForPaymentMinimumUTxOValue $ except $
         guardCoinSelection minUtxo cs
     pure cs
   where
     hasWithdrawal :: Tx -> Bool
     hasWithdrawal = not . null . withdrawals
-
 
 -- | Retrieve wallet data which is needed for all types of coin selections.
 selectCoinsSetup
@@ -1511,7 +1514,8 @@ estimateFeeForPayment ctx wid recipients withdrawal md = do
     (utxo, _, txp, minUtxo) <- withExceptT ErrSelectForPaymentNoSuchWallet $
         selectCoinsSetup @ctx @s @k ctx wid
 
-    let selectCoins = selectCoinsForPaymentFromUTxO @ctx @t @k @e ctx utxo txp minUtxo recipients withdrawal md
+    let selectCoins = selectCoinsForPaymentFromUTxO
+            @ctx @t @k @e ctx utxo txp minUtxo recipients withdrawal md
 
     cs <- selectCoins `catchE` handleNotSuccessfulCoinSelection
     withExceptT ErrSelectForPaymentMinimumUTxOValue $ except $
@@ -1553,7 +1557,7 @@ handleNotSuccessfulCoinSelection _ =
 -- | Augments the given outputs with new outputs. These new outputs corresponds
 -- to change outputs to which new addresses are being assigned to. This updates
 -- the wallet state as it needs to keep track of new pending change addresses.
-assignChangeAddresses
+assignChangeAddressesForSelection
     :: forall s m.
         ( GenChange s
         , MonadIO m
@@ -1562,12 +1566,17 @@ assignChangeAddresses
     -> CoinSelection
     -> s
     -> m (CoinSelection, s)
-assignChangeAddresses argGenChange cs = runStateT $ do
-    chgsOuts <- forM (change cs) $ \c -> do
-        addr <- state (genChange argGenChange)
-        pure $ TxOut addr c
-    outs' <- liftIO $ shuffle (outputs cs ++ chgsOuts)
+assignChangeAddressesForSelection argGenChange cs = runStateT $ do
+    chgOuts <- assignChangeAddresses argGenChange (change cs)
+    outs' <- liftIO $ shuffle (outputs cs ++ chgOuts)
     pure $ cs { change = [], outputs = outs' }
+
+-- | Assigns addresses to the given change values.
+assignChangeAddresses
+    :: forall s m. (GenChange s, Monad m)
+    => ArgGenChange s -> [Coin] -> StateT s m [TxOut]
+assignChangeAddresses argGenChange =
+    mapM $ \coin -> flip TxOut coin <$> state (genChange argGenChange)
 
 -- | Produce witnesses and construct a transaction from a given
 -- selection. Requires the encryption passphrase in order to decrypt
@@ -1598,7 +1607,8 @@ signPayment ctx wid argGenChange mkRewardAccount pwd md cs = db & \DBLayer{..} -
         mapExceptT atomically $ do
             cp <- withExceptT ErrSignPaymentNoSuchWallet $ withNoSuchWallet wid $
                 readCheckpoint (PrimaryKey wid)
-            (cs', s') <- assignChangeAddresses argGenChange cs (getState cp)
+            (cs', s') <- assignChangeAddressesForSelection
+                argGenChange cs (getState cp)
             withExceptT ErrSignPaymentNoSuchWallet $
                 putCheckpoint (PrimaryKey wid) (updateState s' cp)
 
@@ -1632,21 +1642,27 @@ signTx
     -> WalletId
     -> Passphrase "raw"
     -> Maybe TxMetadata
-    -> UnsignedTx (TxIn, TxOut)
+    -- This function is currently only used in contexts where all change outputs
+    -- have been assigned with addresses and are included in the set of ordinary
+    -- outputs. We use the 'Void' type here to prevent callers from accidentally
+    -- passing change values into this function:
+    -> UnsignedTx (TxIn, TxOut) TxOut Void
     -> ExceptT ErrSignPayment IO (Tx, TxMeta, UTCTime, SealedTx)
-signTx ctx wid pwd md (UnsignedTx inpsNE outs) = db & \DBLayer{..} -> do
+signTx ctx wid pwd md (UnsignedTx inpsNE outs _change) = db & \DBLayer{..} ->
     withRootKey @_ @s ctx wid pwd ErrSignPaymentWithRootKey $ \xprv scheme -> do
         let pwdP = preparePassphrase scheme pwd
         nodeTip <- withExceptT ErrSignPaymentNetwork $ currentNodeTip nl
         mapExceptT atomically $ do
-            cp <- withExceptT ErrSignPaymentNoSuchWallet $ withNoSuchWallet wid $
-                readCheckpoint (PrimaryKey wid)
+            cp <- withExceptT ErrSignPaymentNoSuchWallet
+                $ withNoSuchWallet wid
+                $ readCheckpoint (PrimaryKey wid)
 
             let cs = mempty { inputs = inps, outputs = outs }
             let keyFrom = isOwned (getState cp) (xprv, pwdP)
             let rewardAcnt = getRawKey $ deriveRewardAccount @k pwdP xprv
-            (tx, sealedTx, txExp) <- withExceptT ErrSignPaymentMkTx $ ExceptT $
-                pure $ mkStdTx tl (rewardAcnt, pwdP) keyFrom (nodeTip ^. #slotNo) md cs
+            (tx, sealedTx, txExp) <- withExceptT ErrSignPaymentMkTx $
+                ExceptT $ pure $ mkStdTx
+                    tl (rewardAcnt, pwdP) keyFrom (nodeTip ^. #slotNo) md cs
 
             (time, meta) <- liftIO $
                 mkTxMeta ti (currentTip cp) (getState cp) tx cs txExp
@@ -1661,39 +1677,72 @@ signTx ctx wid pwd md (UnsignedTx inpsNE outs) = db & \DBLayer{..} -> do
 
 -- | Makes a fully-resolved coin selection for the given set of payments.
 selectCoinsExternal
-    :: forall ctx s k e resolvedInput.
+    :: forall ctx s k error e input output change.
         ( GenChange s
         , HasDBLayer s k ctx
         , IsOurs s Address
-        , resolvedInput ~ (TxIn, TxOut, NonEmpty DerivationIndex)
+        , input ~ (TxIn, TxOut, NonEmpty DerivationIndex)
+        , output ~ TxOut
+        , change ~ TxChange (NonEmpty DerivationIndex)
+        , e ~ ErrSelectCoinsExternal error
         )
     => ctx
     -> WalletId
     -> ArgGenChange s
-    -> ExceptT (ErrSelectCoinsExternal e) IO CoinSelection
-    -> ExceptT (ErrSelectCoinsExternal e) IO (UnsignedTx resolvedInput)
+    -> ExceptT e IO CoinSelection
+    -> ExceptT e IO (UnsignedTx input output change)
 selectCoinsExternal ctx wid argGenChange selectCoins = do
     cs <- selectCoins
-
-    (cs', s') <- db & \DBLayer{..} ->
+    db & \DBLayer{..} -> mapExceptT atomically $ do
+        cp <- withExceptT ErrSelectCoinsExternalNoSuchWallet $
+            withNoSuchWallet wid $ readCheckpoint $ PrimaryKey wid
+        (changeOutputs, s) <- flip runStateT (getState cp) $
+            assignChangeAddresses argGenChange (change cs)
         withExceptT ErrSelectCoinsExternalNoSuchWallet $
-            mapExceptT atomically $ do
-                cp <- withNoSuchWallet wid $ readCheckpoint $ PrimaryKey wid
-                (cs', s') <- assignChangeAddresses argGenChange cs (getState cp)
-                putCheckpoint (PrimaryKey wid) (updateState s' cp)
-                pure (cs', s')
-
-    UnsignedTx
-        <$> (fullyQualifiedInputs s' cs'
-                (ErrSelectCoinsExternalUnableToAssignInputs cs'))
-        <*> pure (outputs cs')
+            putCheckpoint (PrimaryKey wid) (updateState s cp)
+        UnsignedTx
+            <$> fullyQualifiedInputs s (inputs cs)
+                (ErrSelectCoinsExternalUnableToAssignInputs cs)
+            <*> pure (outputs cs)
+            <*> fullyQualifiedChange s changeOutputs
+                (ErrSelectCoinsExternalUnableToAssignChange cs)
   where
     db = ctx ^. dbLayer @s @k
+
+    qualifyAddresses
+        :: forall hasAddress m. (Monad m)
+        => s
+        -> e
+        -> (hasAddress -> Address)
+        -> [hasAddress]
+        -> ExceptT e m [(hasAddress, NonEmpty DerivationIndex)]
+    qualifyAddresses s e getAddress hasAddresses =
+        case traverse withDerivationPath hasAddresses of
+            Nothing -> throwE e
+            Just as -> pure as
+      where
+        withDerivationPath hasAddress =
+            (hasAddress,) <$> fst (isOurs (getAddress hasAddress) s)
+
+    fullyQualifiedInputs
+        :: Monad m => s -> [(TxIn, TxOut)] -> e -> ExceptT e m (NonEmpty input)
+    fullyQualifiedInputs s inputs e = flip ensureNonEmpty e .
+        fmap mkInput =<< qualifyAddresses s e (view #address . snd) inputs
+      where
+        mkInput ((txin, txout), path) = (txin, txout, path)
+
+    fullyQualifiedChange
+        :: Monad m => s -> [TxOut] -> e -> ExceptT e m [change]
+    fullyQualifiedChange s txouts e =
+        fmap mkChange <$> qualifyAddresses s e (view #address) txouts
+      where
+        mkChange (TxOut address amount, derivationPath) = TxChange {..}
 
 data ErrSelectCoinsExternal e
     = ErrSelectCoinsExternalNoSuchWallet ErrNoSuchWallet
     | ErrSelectCoinsExternalForPayment (ErrSelectForPayment e)
     | ErrSelectCoinsExternalForDelegation ErrSelectForDelegation
+    | ErrSelectCoinsExternalUnableToAssignChange CoinSelection
     | ErrSelectCoinsExternalUnableToAssignInputs CoinSelection
     deriving (Eq, Show)
 
@@ -1723,7 +1772,8 @@ signDelegation ctx wid argGenChange pwd coinSel action = db & \DBLayer{..} -> do
         mapExceptT atomically $ do
             cp <- withExceptT ErrSignDelegationNoSuchWallet $ withNoSuchWallet wid $
                 readCheckpoint (PrimaryKey wid)
-            (coinSel', s') <- assignChangeAddresses argGenChange coinSel (getState cp)
+            (coinSel', s') <- assignChangeAddressesForSelection
+                argGenChange coinSel (getState cp)
 
             withExceptT ErrSignDelegationNoSuchWallet $
                 putCheckpoint (PrimaryKey wid) (updateState s' cp)
@@ -2427,29 +2477,11 @@ guardCoinSelection minUtxoValue cs@CoinSelection{outputs, change} = do
     unless (L.null invalidTxOuts) $
         Left (ErrUTxOTooSmall (getCoin minUtxoValue) (getCoin <$> invalidTxOuts))
 
-fullyQualifiedInputs
-    :: forall s e.
-        (IsOurs s Address)
-    => s
-    -> CoinSelection
-    -> e
-    -> ExceptT e IO (NonEmpty (TxIn, TxOut, NonEmpty DerivationIndex))
-fullyQualifiedInputs s cs e =
-    traverse withDerivationPath (inputs cs) >>= flip ensureNonEmpty e
-  where
-    withDerivationPath
-        :: (TxIn, TxOut)
-        -> ExceptT e IO (TxIn, TxOut, NonEmpty DerivationIndex)
-    withDerivationPath (txin, txout) = do
-        case fst $ isOurs (address txout) s of
-            Nothing -> throwE e
-            Just path -> pure (txin, txout, path)
-
 ensureNonEmpty
-    :: forall a e.
-      [a]
+    :: forall a e m . (Monad m)
+    => [a]
     -> e
-    -> ExceptT e IO (NonEmpty a)
+    -> ExceptT e m (NonEmpty a)
 ensureNonEmpty mxs err = case NE.nonEmpty mxs of
     Nothing -> throwE err
     Just xs -> pure xs
