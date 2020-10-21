@@ -154,7 +154,7 @@ spec = describe "SHELLEY_ADDRESSES" $ do
             r <- request @[ApiAddress n] ctx link Default Empty
             verify r
                 [ expectResponseCode @IO HTTP.status400
-                , expectErrorMessage $
+                , expectErrorMessage
                     "Error parsing query parameter state failed: Unable to\
                     \ decode the given text value. Please specify\
                     \ one of the following values: used, unused."
