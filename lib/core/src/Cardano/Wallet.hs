@@ -167,8 +167,10 @@ module Cardano.Wallet
 
     -- ** Root Key
     , withRootKey
+    , signMetadataWith
     , ErrWithRootKey (..)
     , ErrWrongPassphrase (..)
+    , ErrSignMetadataWith (..)
 
     -- * Logging
     , WalletLog (..)
@@ -182,6 +184,8 @@ import Prelude hiding
 
 import Cardano.Address.Derivation
     ( XPrv )
+import Cardano.Api.Typed
+    ( serialiseToCBOR )
 import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
@@ -210,9 +214,11 @@ import Cardano.Wallet.Network
     , follow
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( DelegationAddress (..)
+    ( AccountingStyle (..)
+    , DelegationAddress (..)
     , Depth (..)
-    , DerivationIndex
+    , DerivationIndex (..)
+    , DerivationPrefix (..)
     , DerivationType (..)
     , ErrWrongPassphrase (..)
     , HardDerivation (..)
@@ -248,6 +254,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Random
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( SeqState
     , defaultAddressPoolGap
+    , derivationPrefix
     , mkSeqStateFromRootXPrv
     , mkUnboundedAddressPoolGap
     , purposeBIP44
@@ -306,13 +313,14 @@ import Cardano.Wallet.Primitive.Types
     , ProtocolParameters (..)
     , Range (..)
     , SealedTx (..)
+    , Signature (..)
     , SortOrder (..)
     , TransactionInfo (..)
     , Tx
     , TxChange (..)
     , TxIn
     , TxMeta (..)
-    , TxMetadata
+    , TxMetadata (..)
     , TxOut (..)
     , TxOut (..)
     , TxStatus (..)
@@ -426,10 +434,12 @@ import Statistics.Quantile
 import Type.Reflection
     ( Typeable, typeRep )
 
+import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Random as Rnd
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Sequential as Seq
 import qualified Cardano.Wallet.Primitive.CoinSelection.Random as CoinSelection
 import qualified Cardano.Wallet.Primitive.Types as W
+import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
@@ -2221,9 +2231,58 @@ withRootKey ctx wid pwd embed action = db & \DBLayer{..} -> do
   where
     db = ctx ^. dbLayer @s @k
 
+-- | Sign an arbitrary transaction metadata object with a private key belonging
+-- to the wallet's account.
+--
+-- This is experimental, and will likely be replaced by a more robust to
+-- arbitrary message signing using COSE, or a subset of it.
+signMetadataWith
+    :: forall ctx s k n.
+        ( HasDBLayer s k ctx
+        , HardDerivation k
+        , AddressIndexDerivationType k ~ 'Soft
+        , WalletKey k
+        , s ~ SeqState n k
+        )
+    => ctx
+    -> WalletId
+    -> Passphrase "raw"
+    -> (AccountingStyle, DerivationIndex)
+    -> TxMetadata
+    -> ExceptT ErrSignMetadataWith IO (Signature TxMetadata)
+signMetadataWith ctx wid pwd (role_, ix) metadata = db & \DBLayer{..} -> do
+    addrIx <- if ix > DerivationIndex (getIndex @'Soft maxBound)
+        then throwE $ ErrSignMetadataWithIndexTooHigh maxBound ix
+        else pure (Index $ getDerivationIndex ix)
+
+    cp <- mapExceptT atomically
+        $ withExceptT ErrSignMetadataWithNoSuchWallet
+        $ withNoSuchWallet wid
+        $ readCheckpoint (PrimaryKey wid)
+
+    withRootKey @ctx @s @k ctx wid pwd ErrSignMetadataWithRootKey
+        $ \rootK scheme -> do
+            let encPwd = preparePassphrase scheme pwd
+            let DerivationPrefix (_, _, acctIx) = derivationPrefix (getState cp)
+            let acctK = deriveAccountPrivateKey encPwd rootK acctIx
+            let addrK = deriveAddressPrivateKey encPwd acctK role_ addrIx
+            let msg   = serialiseToCBOR metadata
+            pure $ Signature $ BA.convert $ CC.sign encPwd (getRawKey addrK) msg
+  where
+    db = ctx ^. dbLayer @s @k
+
 {-------------------------------------------------------------------------------
                                    Errors
 -------------------------------------------------------------------------------}
+
+data ErrSignMetadataWith
+    = ErrSignMetadataWithRootKey ErrWithRootKey
+        -- ^ The wallet exists, but there's no root key attached to it
+    | ErrSignMetadataWithNoSuchWallet ErrNoSuchWallet
+        -- ^ The wallet doesn't exist?
+    | ErrSignMetadataWithIndexTooHigh (Index 'Soft 'AddressK) DerivationIndex
+        -- ^ User provided a derivation index outside of the 'Soft' domain
+    deriving (Eq, Show)
 
 data ErrUTxOTooSmall
     = ErrUTxOTooSmall Word64 [Word64]

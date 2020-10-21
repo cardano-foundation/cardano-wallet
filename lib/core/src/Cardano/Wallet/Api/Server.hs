@@ -75,6 +75,7 @@ module Cardano.Wallet.Api.Server
     , selectCoins
     , selectCoinsForJoin
     , selectCoinsForQuit
+    , signMetadata
 
     -- * Internals
     , LiftHandler(..)
@@ -127,6 +128,7 @@ import Cardano.Wallet
     , ErrSelectForMigration (..)
     , ErrSelectForPayment (..)
     , ErrSignDelegation (..)
+    , ErrSignMetadataWith (..)
     , ErrSignPayment (..)
     , ErrStartTimeLaterThanEndTime (..)
     , ErrSubmitExternalTx (..)
@@ -197,6 +199,7 @@ import Cardano.Wallet.Api.Types
     , ApiWalletMigrationPostData (..)
     , ApiWalletPassphrase (..)
     , ApiWalletPassphraseInfo (..)
+    , ApiWalletSignData (..)
     , ApiWithdrawal (..)
     , ApiWithdrawalPostData (..)
     , ByronWalletFromXPrvPostData
@@ -226,7 +229,8 @@ import Cardano.Wallet.Network
     , timeInterpreter
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( ChimericAccount (..)
+    ( AccountingStyle
+    , ChimericAccount (..)
     , DelegationAddress (..)
     , Depth (..)
     , DerivationIndex (..)
@@ -294,6 +298,7 @@ import Cardano.Wallet.Primitive.Types
     , PassphraseScheme (..)
     , PoolId
     , PoolLifeCycleStatus (..)
+    , Signature (..)
     , SlotId
     , SlotNo
     , SortOrder (..)
@@ -344,6 +349,8 @@ import Data.Aeson
     ( (.=) )
 import Data.Bifunctor
     ( first )
+import Data.ByteString
+    ( ByteString )
 import Data.Coerce
     ( coerce )
 import Data.Function
@@ -1802,7 +1809,7 @@ getNetworkClock :: NtpClient -> Bool -> Handler ApiNetworkClock
 getNetworkClock client = liftIO . getNtpStatus client
 
 {-------------------------------------------------------------------------------
-                                   Proxy
+                               Miscellaneous
 -------------------------------------------------------------------------------}
 
 postExternalTransaction
@@ -1815,6 +1822,28 @@ postExternalTransaction
 postExternalTransaction ctx (PostExternalTransactionData load) = do
     tx <- liftHandler $ W.submitExternalTx @ctx @t @k ctx load
     return $ ApiTxId (ApiT (txId tx))
+
+signMetadata
+    :: forall ctx s t k n.
+        ( ctx ~ ApiLayer s t k
+        , s ~ SeqState n k
+        , HardDerivation k
+        , AddressIndexDerivationType k ~ 'Soft
+        , WalletKey k
+        )
+    => ctx
+    -> ApiT WalletId
+    -> ApiT AccountingStyle
+    -> ApiT DerivationIndex
+    -> ApiWalletSignData
+    -> Handler ByteString
+signMetadata ctx (ApiT wid) (ApiT role_) (ApiT ix) body = do
+    let meta = body ^. #metadata . #getApiT
+    let pwd  = body ^. #passphrase . #getApiT
+
+    withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk -> liftHandler $ do
+        getSignature <$> W.signMetadataWith @_ @s @k @n
+            wrk wid (coerce pwd) (role_, ix) meta
 
 {-------------------------------------------------------------------------------
                                   Helpers
@@ -2699,6 +2728,17 @@ instance LiftHandler ErrListPools where
     handler = \case
         ErrListPoolsNetworkError e -> handler e
         ErrListPoolsPastHorizonException e -> handler e
+
+instance LiftHandler ErrSignMetadataWith where
+    handler = \case
+        ErrSignMetadataWithRootKey e -> handler e
+        ErrSignMetadataWithNoSuchWallet e -> handler e
+        ErrSignMetadataWithIndexTooHigh maxIx _ix ->
+            apiError err400 BadRequest $ mconcat
+                [ "It looks like you've provided a derivation index that is"
+                , "out of bound. I can only derive keys up to #"
+                , pretty maxIx, "."
+                ]
 
 instance LiftHandler (Request, ServerError) where
     handler (req, err@(ServerError code _ body headers))

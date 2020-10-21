@@ -243,7 +243,7 @@ stakeDerivationPath (DerivationPrefix (purpose, coin, acc)) =
 --    derivationType + relative index within 0 and 2^31, we can represent them
 --    as just an index between 0 and 2^32, which is what DerivationIndex does.
 newtype DerivationIndex
-    = DerivationIndex Word32
+    = DerivationIndex { getDerivationIndex :: Word32 }
     deriving (Show, Eq, Ord, Generic)
 
 instance NFData DerivationIndex

@@ -173,6 +173,7 @@ module Cardano.Wallet.Primitive.Types
 
     -- * Polymorphic
     , Hash (..)
+    , Signature (..)
     , ShowFmt (..)
     , invariant
     , distance
@@ -1873,6 +1874,12 @@ hashFromText len text = case decoded of
     mapFirst :: (a -> a) -> [a] -> [a]
     mapFirst _     [] = []
     mapFirst fn (h:q) = fn h:q
+
+-- | A newtype to wrap raw bytestring representing signed data, captured with a
+-- phantom type.
+newtype Signature (what :: *) = Signature { getSignature :: ByteString }
+    deriving stock (Show, Eq, Generic)
+    deriving newtype (ByteArrayAccess)
 
 -- | A polymorphic wrapper type with a custom show instance to display data
 -- through 'Buildable' instances.

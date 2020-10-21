@@ -87,6 +87,7 @@ import Cardano.Wallet.Api.Server
     , putWalletPassphrase
     , quitStakePool
     , selectCoins
+    , signMetadata
     , withLegacyLayer
     , withLegacyLayer'
     )
@@ -170,7 +171,7 @@ server byron icarus jormungandr spl ntp =
         :<|> putWallet jormungandr mkShelleyWallet
         :<|> putWalletPassphrase jormungandr
         :<|> getUTxOsStatistics jormungandr
-        :<|> (\_ _ _ _ -> throwError err501)
+        :<|> signMetadata jormungandr
 
     addresses :: Server (Addresses n)
     addresses = listAddresses jormungandr (normalizeDelegationAddress @_ @JormungandrKey @n)
