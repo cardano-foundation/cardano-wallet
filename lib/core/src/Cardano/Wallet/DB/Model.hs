@@ -55,7 +55,7 @@ module Cardano.Wallet.DB.Model
     , mPutTxHistory
     , mReadTxHistory
     , mUpdatePendingTxForExpiry
-    , mRemovePendingTx
+    , mRemovePendingOrExpiredTx
     , mPutPrivateKey
     , mReadPrivateKey
     , mPutProtocolParameters
@@ -272,20 +272,20 @@ mUpdatePendingTxForExpiry wid currentTip = alterModel wid $ \wal ->
         _ ->
             txMeta
 
-mRemovePendingTx :: Ord wid => wid -> (Hash "Tx") -> ModelOp wid s xprv ()
-mRemovePendingTx wid tid db@(Database wallets txs) = case Map.lookup wid wallets of
+mRemovePendingOrExpiredTx :: Ord wid => wid -> Hash "Tx" -> ModelOp wid s xprv ()
+mRemovePendingOrExpiredTx wid tid db@(Database wallets txs) = case Map.lookup wid wallets of
     Nothing ->
         ( Left (CannotRemovePendingTx (ErrErasePendingTxNoSuchWallet wid)), db )
     Just wal -> case Map.lookup tid (txHistory wal) of
         Nothing ->
             ( Left (CannotRemovePendingTx (ErrErasePendingTxNoTx tid)), db )
         Just txMeta ->
-            if (status :: TxMeta -> TxStatus) txMeta == Pending then
-                ( Right (), Database updateWallets txs )
+            if isPendingOrExpired txMeta then ( Right (), Database updateWallets txs )
             else ( Left (CannotRemovePendingTx (ErrErasePendingTxNoPendingTx tid)), db )
     where
         updateWallets = Map.adjust changeTxMeta wid wallets
         changeTxMeta meta = meta { txHistory = Map.delete tid (txHistory meta) }
+        isPendingOrExpired = (/= InLedger) . (status :: TxMeta -> TxStatus)
 
 mRollbackTo :: Ord wid => wid -> SlotNo -> ModelOp wid s xprv SlotNo
 mRollbackTo wid requested db@(Database wallets txs) = case Map.lookup wid wallets of

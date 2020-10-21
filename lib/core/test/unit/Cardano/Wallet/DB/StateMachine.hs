@@ -55,7 +55,7 @@ import Cardano.Address.Derivation
 import Cardano.Wallet.DB
     ( DBLayer (..)
     , ErrNoSuchWallet (..)
-    , ErrRemovePendingTx (..)
+    , ErrRemoveTx (..)
     , ErrWalletAlreadyExists (..)
     , PrimaryKey (..)
     , cleanDB
@@ -87,7 +87,7 @@ import Cardano.Wallet.DB.Model
     , mReadProtocolParameters
     , mReadTxHistory
     , mReadWalletMeta
-    , mRemovePendingTx
+    , mRemovePendingOrExpiredTx
     , mRemoveWallet
     , mRollbackTo
     , mUpdatePendingTxForExpiry
@@ -395,7 +395,7 @@ runMock = \case
     RollbackTo wid sl ->
         first (Resp . fmap Point) . mRollbackTo wid sl
     RemovePendingTx wid tid ->
-        first (Resp . fmap Unit) . mRemovePendingTx wid tid
+        first (Resp . fmap Unit) . mRemovePendingOrExpiredTx wid tid
     UpdatePendingTxForExpiry wid sl ->
         first (Resp . fmap Unit) . mUpdatePendingTxForExpiry wid sl
   where
@@ -449,7 +449,7 @@ runIO db@DBLayer{..} = fmap Resp . go
         ReadTxHistory wid minWith order range status -> Right . TxHistory <$>
             atomically (readTxHistory (PrimaryKey wid) minWith order range status)
         RemovePendingTx wid tid -> catchCannotRemovePendingTx Unit $
-            mapExceptT atomically $ removePendingTx (PrimaryKey wid) tid
+            mapExceptT atomically $ removePendingOrExpiredTx (PrimaryKey wid) tid
         UpdatePendingTxForExpiry wid sl -> catchNoSuchWallet Unit $
             mapExceptT atomically $ updatePendingTxForExpiry (PrimaryKey wid) sl
         PutPrivateKey wid pk -> catchNoSuchWallet Unit $
@@ -480,12 +480,12 @@ runIO db@DBLayer{..} = fmap Resp . go
     errWalletAlreadyExists :: ErrWalletAlreadyExists -> Err WalletId
     errWalletAlreadyExists (ErrWalletAlreadyExists wid) = WalletAlreadyExists wid
 
-    errCannotRemovePendingTx :: ErrRemovePendingTx -> Err WalletId
-    errCannotRemovePendingTx (ErrRemovePendingTxNoSuchWallet (ErrNoSuchWallet wid)) =
+    errCannotRemovePendingTx :: ErrRemoveTx -> Err WalletId
+    errCannotRemovePendingTx (ErrRemoveTxNoSuchWallet (ErrNoSuchWallet wid)) =
         CannotRemovePendingTx (ErrErasePendingTxNoSuchWallet wid)
-    errCannotRemovePendingTx (ErrRemovePendingTxNoSuchTransaction tid) =
+    errCannotRemovePendingTx (ErrRemoveTxNoSuchTransaction tid) =
         CannotRemovePendingTx (ErrErasePendingTxNoTx tid)
-    errCannotRemovePendingTx (ErrRemovePendingTxTransactionNoMorePending tid) =
+    errCannotRemovePendingTx (ErrRemoveTxAlreadyInLedger tid) =
         CannotRemovePendingTx (ErrErasePendingTxNoPendingTx tid)
 
     unPrimaryKey :: PrimaryKey key -> key
