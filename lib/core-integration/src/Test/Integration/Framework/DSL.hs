@@ -54,6 +54,8 @@ module Test.Integration.Framework.DSL
 
     -- * Constants
     , minUTxOValue
+    , slotLengthValue
+    , epochLengthValue
     , defaultTxTTL
 
     -- * Create wallets
@@ -313,7 +315,7 @@ import Data.Time
 import Data.Time.Text
     ( iso8601ExtendedUtc, utcTimeToText )
 import Data.Word
-    ( Word64 )
+    ( Word32, Word64 )
 import Language.Haskell.TH.Quote
     ( QuasiQuoter )
 import Network.HTTP.Types.Method
@@ -568,6 +570,14 @@ walletId =
 -- | Min UTxO parameter for the test cluster.
 minUTxOValue :: Natural
 minUTxOValue = 1_000_000
+
+-- | Parameter in test cluster genesis.
+slotLengthValue :: NominalDiffTime
+slotLengthValue = 0.2
+
+-- | Parameter in test cluster genesis.
+epochLengthValue :: Word32
+epochLengthValue = 200
 
 -- | Wallet server's chosen transaction TTL value (in seconds) when none is
 -- given.

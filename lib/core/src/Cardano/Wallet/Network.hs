@@ -262,8 +262,8 @@ getSlottingParametersForTip
 getSlottingParametersForTip nl = do
     tip <- either (const 0) slotNo <$> runExceptT (currentNodeTip nl)
 
-    -- TODO: Query activeSlotCoeff. Where to get it from though? Need to be able
-    -- to query Globals from ledger.
+    -- TODO: #2226 Query activeSlotCoeff from ledger.
+    -- This requires code changes in the shelley ledger.
     let getActiveSlotCoeff = pure (ActiveSlotCoefficient 1.0)
 
     SlottingParameters
