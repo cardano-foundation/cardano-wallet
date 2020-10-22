@@ -2367,7 +2367,7 @@ x-tagGroups:
     - Experimental
 
 paths:
-  /wallets/{walletId}/{role}/{index}/signatures:
+  /wallets/{walletId}/signatures/{role}/{index}:
       post:
         operationId: signMetadata
         tags: ["Experimental"]

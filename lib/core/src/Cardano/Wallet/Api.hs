@@ -28,10 +28,10 @@ module Cardano.Wallet.Api
         , PutWallet
         , PutWalletPassphrase
         , GetUTxOsStatistics
-        , SignMetadata
 
     , WalletKeys
         , GetWalletKey
+        , SignMetadata
 
     , Addresses
         , ListAddresses
@@ -242,7 +242,6 @@ type Wallets =
     :<|> PutWallet
     :<|> PutWalletPassphrase
     :<|> GetUTxOsStatistics
-    :<|> SignMetadata
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/deleteWallet
 type DeleteWallet = "wallets"
@@ -283,15 +282,6 @@ type GetUTxOsStatistics = "wallets"
     :> "utxos"
     :> Get '[JSON] ApiUtxoStatistics
 
--- | https://input-output-hk.github.io/cardano-wallet/api/#operation/signMetadata
-type SignMetadata = "wallets"
-    :> Capture "walletId" (ApiT WalletId)
-    :> Capture "role" (ApiT AccountingStyle)
-    :> Capture "index" (ApiT DerivationIndex)
-    :> "signatures"
-    :> ReqBody '[JSON] ApiWalletSignData
-    :> Post '[OctetStream] ByteString
-
 {-------------------------------------------------------------------------------
                                   Wallet Keys
   See also: https://input-output-hk.github.io/cardano-wallet/api/#tag/WalletKeys
@@ -299,6 +289,7 @@ type SignMetadata = "wallets"
 
 type WalletKeys =
     GetWalletKey
+    :<|> SignMetadata
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/getWalletKey
 type GetWalletKey = "wallets"
@@ -307,6 +298,15 @@ type GetWalletKey = "wallets"
     :> Capture "role" (ApiT AccountingStyle)
     :> Capture "index" (ApiT DerivationIndex)
     :> Get '[JSON] ApiVerificationKey
+
+-- | https://input-output-hk.github.io/cardano-wallet/api/#operation/signMetadata
+type SignMetadata = "wallets"
+    :> Capture "walletId" (ApiT WalletId)
+    :> "signatures"
+    :> Capture "role" (ApiT AccountingStyle)
+    :> Capture "index" (ApiT DerivationIndex)
+    :> ReqBody '[JSON] ApiWalletSignData
+    :> Post '[OctetStream] ByteString
 
 {-------------------------------------------------------------------------------
                                   Addresses

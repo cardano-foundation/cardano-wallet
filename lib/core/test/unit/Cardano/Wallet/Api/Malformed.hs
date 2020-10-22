@@ -199,7 +199,7 @@ instance Malformed (PathParam (ApiT AccountingStyle)) where
         msgMalformed =
             "Unable to decode the given text value. Please specify \
             \one of the following values: utxo_external, utxo_internal, \
-            \mutable_account."
+            \mutable_account, multisig_script."
 
 instance Wellformed (PathParam (ApiT DerivationIndex)) where
     wellformed = PathParam <$>

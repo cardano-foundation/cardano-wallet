@@ -193,10 +193,10 @@ server byron icarus shelley spl ntp =
         :<|> putWallet shelley mkShelleyWallet
         :<|> putWalletPassphrase shelley
         :<|> getUTxOsStatistics shelley
-        :<|> signMetadata shelley
 
     walletKeys :: Server WalletKeys
     walletKeys = derivePublicKey shelley
+        :<|> signMetadata shelley
 
     addresses :: Server (Addresses n)
     addresses = listAddresses shelley (normalizeDelegationAddress @_ @ShelleyKey @n)

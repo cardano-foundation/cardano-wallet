@@ -366,7 +366,7 @@ import Data.Generics.Internal.VL.Lens
 import Data.Generics.Labels
     ()
 import Data.List
-    ( isInfixOf, isPrefixOf, isSubsequenceOf, isSuffixOf, sortOn )
+    ( isInfixOf, isPrefixOf, isSubsequenceOf, sortOn )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Map.Strict
@@ -2796,7 +2796,7 @@ instance LiftHandler (Request, ServerError) where
             let cType =
                     -- FIXME: Ugly and not really scalable nor maintainable.
                     if ["wallets"] `isPrefixOf` pathInfo req
-                    && ["signatures"] `isSuffixOf` pathInfo req
+                    && ["signatures"] `isInfixOf` pathInfo req
                     then "application/octet-stream"
                     else "application/json"
             in apiError err' NotAcceptable $ mconcat

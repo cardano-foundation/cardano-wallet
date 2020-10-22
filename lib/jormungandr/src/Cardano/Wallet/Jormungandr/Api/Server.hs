@@ -49,6 +49,7 @@ import Cardano.Wallet.Api
     , ShelleyMigrations
     , StakePools
     , Transactions
+    , WalletKeys
     , Wallets
     )
 import Cardano.Wallet.Api.Server
@@ -57,6 +58,7 @@ import Cardano.Wallet.Api.Server
     , delegationFee
     , deleteTransaction
     , deleteWallet
+    , derivePublicKey
     , getMigrationInfo
     , getNetworkClock
     , getNetworkInformation
@@ -149,7 +151,7 @@ server
     -> Server (Api n ApiStakePool)
 server byron icarus jormungandr spl ntp =
          wallets
-    :<|> (\ _ _ -> throwError err501)
+    :<|> walletKeys
     :<|> addresses
     :<|> coinSelections
     :<|> transactions
@@ -172,6 +174,9 @@ server byron icarus jormungandr spl ntp =
         :<|> putWallet jormungandr mkShelleyWallet
         :<|> putWalletPassphrase jormungandr
         :<|> getUTxOsStatistics jormungandr
+
+    walletKeys :: Server WalletKeys
+    walletKeys = derivePublicKey jormungandr
         :<|> signMetadata jormungandr
 
     addresses :: Server (Addresses n)
