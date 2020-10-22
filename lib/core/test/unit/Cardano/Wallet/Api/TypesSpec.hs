@@ -1221,6 +1221,7 @@ instance Arbitrary ApiStakePool where
         <*> arbitrary
         <*> arbitrary
         <*> arbitrary
+        <*> arbitrary
 
 instance Arbitrary ApiStakePoolMetrics where
     arbitrary = ApiStakePoolMetrics
@@ -1235,7 +1236,6 @@ instance Arbitrary StakePoolMetadata where
         <*> arbitraryText 50
         <*> arbitraryMaybeText 255
         <*> arbitraryText 100
-        <*> pure False
       where
         arbitraryText maxLen = do
             len <- choose (1, maxLen)

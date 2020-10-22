@@ -1075,7 +1075,7 @@ inspectAddress =
   where
     inspect :: ByteString -> Either TextDecodingError Aeson.Value
     inspect = maybe (Left errMalformedAddress) Right
-        . inspectShelleyAddress
+        . inspectShelleyAddress Nothing
         . unsafeMkAddress
 
 toHDPayloadAddress :: W.Address -> Maybe Byron.HDAddressPayload

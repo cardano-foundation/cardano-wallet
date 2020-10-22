@@ -1202,6 +1202,7 @@ components:
         - cost
         - margin
         - pledge
+        - delisted
       properties:
         id: *stakePoolId
         metrics: *stakePoolMetrics
@@ -1210,6 +1211,8 @@ components:
         pledge: *stakePoolPledge
         metadata: *stakePoolMetadata
         retirement: *stakePoolRetirement
+        delisted:
+          type: boolean
 
     ApiListStakePools: &ApiListStakePools
       type: object

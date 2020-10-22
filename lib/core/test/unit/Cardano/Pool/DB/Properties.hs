@@ -970,7 +970,6 @@ prop_removePools
         , name = "MOCK"
         , description = Nothing
         , homepage = "http://mock.pool/"
-        , delisted = False
         }
 
 prop_listRegisteredPools

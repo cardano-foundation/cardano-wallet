@@ -5,6 +5,7 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE Rank2Types #-}
@@ -13,7 +14,6 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE ViewPatterns #-}
-{-# LANGUAGE NumericUnderscores #-}
 
 -- |
 -- Copyright: © 2020 IOHK
@@ -80,6 +80,7 @@ import Cardano.Wallet.Primitive.Types
     , EpochNo (..)
     , GenesisParameters (..)
     , PoolCertificate (..)
+    , PoolFlag (..)
     , PoolId
     , PoolLifeCycleStatus (..)
     , PoolMetadataSource (..)
@@ -95,8 +96,6 @@ import Cardano.Wallet.Primitive.Types
     , getPoolRetirementCertificate
     , unSmashServer
     )
-import Cardano.Wallet.Registry
-    ( WorkerLog, defaultWorkerAfter )
 import Cardano.Wallet.Shelley.Compatibility
     ( Shelley
     , StandardCrypto
@@ -112,7 +111,14 @@ import Cardano.Wallet.Unsafe
 import Control.Concurrent
     ( forkFinally, threadDelay )
 import Control.Exception
-    ( SomeException (..), bracket, finally, mask_, try )
+    ( AsyncException (..)
+    , SomeException (..)
+    , asyncExceptionFromException
+    , bracket
+    , finally
+    , mask_
+    , try
+    )
 import Control.Monad
     ( forM, forM_, forever, void, when, (<=<) )
 import Control.Monad.IO.Class
@@ -439,6 +445,7 @@ combineDbAndLsqData ti nOpt lsqData =
             , Api.margin =
                 Quantity $ poolMargin $ registrationCert dbData
             , Api.retirement = retirementEpochInfo
+            , Api.delisted = poolFlag (registrationCert dbData) == Delisted
             }
 
     toApiEpochInfo ep = do
@@ -707,12 +714,11 @@ monitorStakePools tr gp nl DBLayer{..} =
 
 -- | Worker thread that monitors pool metadata and syncs it to the database.
 monitorMetadata
-    :: Tracer IO (WorkerLog Text StakePoolLog)
-    -> Tracer IO StakePoolLog
+    :: Tracer IO StakePoolLog
     -> GenesisParameters
     -> DBLayer IO
     -> IO ()
-monitorMetadata tr' tr gp db@(DBLayer{..}) = do
+monitorMetadata tr gp db@(DBLayer{..}) = do
     settings <- atomically readSettings
     manager <- newManager defaultManagerSettings
 
@@ -769,7 +775,17 @@ monitorMetadata tr' tr gp db@(DBLayer{..}) = do
         toMicroSecond = (`div` 1000000) . fromEnum
         slotLength = unSlotLength $ getSlotLength gp
         f = unActiveSlotCoefficient (getActiveSlotCoefficient gp)
-    onExit = defaultWorkerAfter tr'
+
+    onExit
+        :: Either SomeException a
+        -> IO ()
+    onExit = traceWith tr . \case
+        Right _ -> MsgGCFinished
+        Left e -> case asyncExceptionFromException e of
+            Just ThreadKilled -> MsgGCThreadKilled
+            Just UserInterrupt -> MsgGCUserInterrupt
+            _ -> MsgGCUnhandledException $ pretty $ show e
+
 
 gcDelistedPools
     :: Tracer IO StakePoolLog
@@ -810,6 +826,10 @@ data StakePoolLog
     | MsgFetchPoolMetadata StakePoolMetadataFetchLog
     | MsgFetchTakeBreak Int
     | MsgGCTakeBreak Int
+    | MsgGCFinished
+    | MsgGCThreadKilled
+    | MsgGCUserInterrupt
+    | MsgGCUnhandledException Text
     deriving (Show, Eq)
 
 data PoolGarbageCollectionInfo = PoolGarbageCollectionInfo
@@ -838,6 +858,10 @@ instance HasSeverityAnnotation StakePoolLog where
         MsgFetchPoolMetadata e -> getSeverityAnnotation e
         MsgFetchTakeBreak{} -> Debug
         MsgGCTakeBreak{} -> Debug
+        MsgGCFinished{} -> Debug
+        MsgGCThreadKilled{} -> Debug
+        MsgGCUserInterrupt{} -> Debug
+        MsgGCUnhandledException{} -> Debug
 
 instance ToText StakePoolLog where
     toText = \case
@@ -885,3 +909,8 @@ instance ToText StakePoolLog where
             , "back to it in about "
             , pretty (fixedF 1 (toRational delay / 1_000_000)), "s"
             ]
+        MsgGCFinished -> "GC thread has exited: main action is over."
+        MsgGCThreadKilled -> "GC thread has exited: killed by parent."
+        MsgGCUserInterrupt -> "GC thread has exited: killed by user."
+        MsgGCUnhandledException err -> "GC thread has exited unexpectedly: " <> err
+
