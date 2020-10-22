@@ -84,6 +84,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , Index
     , NetworkDiscriminant (..)
     , Passphrase (..)
+    , PaymentAddress (..)
     , PersistPrivateKey
     , WalletKey
     , encryptPassphrase
@@ -214,6 +215,7 @@ import Test.Hspec
     , shouldNotBe
     , shouldNotContain
     , shouldReturn
+    , shouldSatisfy
     , shouldThrow
     , xit
     )
@@ -262,6 +264,10 @@ spec = do
                 , minBound
                 )
 
+        it "'migrate' db with old text serialization for 'AccountingStyle'" $
+            testMigrationAccountingStyle @ShelleyKey
+                "shelleyAccountingStyle-v2020-10-13.sqlite"
+
 sqliteSpecSeq :: Spec
 sqliteSpecSeq = withDB newMemoryDBLayer $ do
     describe "Sqlite" properties
@@ -274,6 +280,30 @@ sqliteSpecRnd = withDB newMemoryDBLayer $ do
     describe "Sqlite State machine (RndState)" $ do
         it "Sequential state machine tests"
             (prop_sequential :: TestDBRnd -> Property)
+
+testMigrationAccountingStyle
+    :: forall k s.
+        ( s ~ SeqState 'Mainnet k
+        , WalletKey k
+        , PersistState s
+        , PersistPrivateKey (k 'RootK)
+        , PaymentAddress 'Mainnet k
+        )
+    => String
+    -> IO ()
+testMigrationAccountingStyle dbName = do
+    let orig = $(getTestData) </> dbName
+    withSystemTempDirectory "migration-db" $ \dir -> do
+        let path = dir </> "db.sqlite"
+        let ti = dummyTimeInterpreter
+        copyFile orig path
+        (logs, Just cp) <- captureLogging $ \tr -> do
+            withDBLayer @s @k tr defaultFieldValues (Just path) ti
+                $ \(_ctx, db) -> db & \DBLayer{..} -> atomically
+                $ do
+                    [wid] <- listWallets
+                    readCheckpoint wid
+        knownAddresses (getState cp) `shouldSatisfy` ((> 20) . length)
 
 testMigrationSeqStateDerivationPrefix
     :: forall k s.
