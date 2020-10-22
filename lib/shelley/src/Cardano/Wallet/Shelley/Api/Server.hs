@@ -201,6 +201,7 @@ server byron icarus shelley spl ntp =
     addresses :: Server (Addresses n)
     addresses = listAddresses shelley (normalizeDelegationAddress @_ @ShelleyKey @n)
         :<|> (handler ApiAddressInspect . inspectAddress . unApiAddressInspectData)
+        :<|> (\_ -> throwError err501)
       where
         toServerError :: TextDecodingError -> ServerError
         toServerError = apiError err400 BadRequest . T.pack . getTextDecodingError

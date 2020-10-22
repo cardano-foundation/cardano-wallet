@@ -145,6 +145,8 @@ import Prelude
 
 import Cardano.Address.Derivation
     ( XPrv, XPub, xpubFromBytes, xpubToBytes )
+import Cardano.Address.Script
+    ( Script )
 import Cardano.Api.MetaData
     ( TxMetadataJsonSchema (..), metadataFromJson, metadataToJson )
 import Cardano.Api.Typed
@@ -1359,6 +1361,11 @@ instance (PassphraseMaxLength purpose, PassphraseMinLength purpose)
     parseJSON = parseJSON >=> eitherToParser . bimap ShowFmt ApiT . fromText
 instance ToJSON (ApiT (Passphrase purpose)) where
     toJSON = toJSON . toText . getApiT
+
+instance FromJSON (ApiT Script) where
+    parseJSON = fmap ApiT . parseJSON
+instance ToJSON (ApiT Script) where
+    toJSON (ApiT script) = toJSON script
 
 instance MkSomeMnemonic sizes => FromJSON (ApiMnemonicT sizes)
   where
