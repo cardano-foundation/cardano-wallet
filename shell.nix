@@ -96,19 +96,19 @@ let
         materialized = ./nix/materialized/weeder;
       };
     };
+
     CARDANO_NODE_CONFIGS = walletPackages.cardano-node.deployments;
+
+    # If any build input has bash completions, add it to the search
+    # path for shell completions.
+    XDG_DATA_DIRS = concatStringsSep ":" (
+      [(builtins.getEnv "XDG_DATA_DIRS")] ++
+      (filter
+        (share: builtins.pathExists (share + "/bash-completion"))
+        (map (p: p + "/share") buildInputs))
+    );
+
     meta.platforms = platforms.unix;
-    shellHook = ''
-      setup_completion() {
-        local p
-        for p in $buildInputs; do
-          if [ -d "$p/share/bash-completion" ]; then
-            addToSearchPath XDG_DATA_DIRS "$p/share"
-          fi
-        done
-      }
-      setup_completion
-    '';
   };
 in
   if profiling
