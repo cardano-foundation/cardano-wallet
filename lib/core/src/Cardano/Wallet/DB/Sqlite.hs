@@ -451,12 +451,12 @@ migrateManually tr proxy defaultFieldValues =
         hardLowerBound = toText $ fromEnum $ minBound @(Index 'Hardened _)
         rndAccountIx   = DBField RndStateAddressAccountIndex
 
-    -- | Adds an 'active_slot_coeff' column to the 'checkpoint' table if
-    --   it is missing.
+    -- | Adds a placeholder 'active_slot_coeff' column to the 'checkpoint' table
+    --   if it is missing.
     --
     addActiveSlotCoefficientIfMissing :: Sqlite.Connection -> IO ()
     addActiveSlotCoefficientIfMissing conn =
-        addColumn_ conn True (DBField CheckpointActiveSlotCoeff) value
+        addColumn_ conn True (DBField CheckpointActiveSlotCoeffUnused) value
       where
         value = toText
             $ W.unActiveSlotCoefficient
@@ -1128,10 +1128,10 @@ mkCheckpointEntity wid wal =
         , checkpointBlockHeight = bh
         , checkpointGenesisHash = BlockId (coerce (gp ^. #getGenesisBlockHash))
         , checkpointGenesisStart = coerce (gp ^. #getGenesisBlockDate)
-        , checkpointSlotLength = 0
-        , checkpointEpochLength = 0
         , checkpointEpochStability = coerce (gp ^. #getEpochStability)
-        , checkpointActiveSlotCoeff = 0
+        , checkpointSlotLengthUnused = 0
+        , checkpointEpochLengthUnused = 0
+        , checkpointActiveSlotCoeffUnused = 0
         , checkpointFeePolicyUnused = ""
         , checkpointTxMaxSizeUnused = 0
         }
