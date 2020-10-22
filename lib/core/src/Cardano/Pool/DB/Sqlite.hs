@@ -101,8 +101,6 @@ import Data.Ratio
     ( denominator, numerator, (%) )
 import Data.String.Interpolate
     ( i )
-import Data.String.QQ
-    ( s )
 import Data.Text
     ( Text )
 import Data.Time.Clock
@@ -399,7 +397,8 @@ newDBLayer trace fp timeInterpreter = do
                         (PoolMetadataFetchAttempts hash url retryAfter $ retryCount + 1)
 
         putPoolMetadata hash metadata = do
-            let StakePoolMetadata{ticker,name,description,homepage,delisted} = metadata
+            let StakePoolMetadata
+                    {ticker, name, description, homepage, delisted} = metadata
             repsert
                 (PoolMetadataKey hash)
                 (PoolMetadata hash name ticker description homepage delisted)
@@ -530,8 +529,9 @@ newDBLayer trace fp timeInterpreter = do
             listOfK k = go
               where
                 go [] = []
-                go xs = let (l, r) = splitAt k xs
-                        in l : go r
+                go xs =
+                    let (l, r) = splitAt k xs
+                    in l : go r
 
         removePools = mapM_ $ \pool -> do
             liftIO $ traceWith trace $ MsgRemovingPool pool
@@ -592,7 +592,11 @@ newDBLayer trace fp timeInterpreter = do
                 [Asc InternalStateId, LimitTo 1]
             case result of
                 Nothing -> pure . W.lastMetadataGC $ defaultInternalState
-                Just x -> pure . W.lastMetadataGC . fromInternalState . entityVal $ x
+                Just x -> pure
+                    . W.lastMetadataGC
+                    . fromInternalState
+                    . entityVal
+                    $ x
 
         putLastMetadataGC utc = do
             result <- selectFirst
@@ -768,7 +772,7 @@ createView conn (DatabaseView name definition) = do
 -- This view does NOT exclude pools that have retired.
 --
 activePoolLifeCycleData :: DatabaseView
-activePoolLifeCycleData = DatabaseView "active_pool_lifecycle_data" [s|
+activePoolLifeCycleData = DatabaseView "active_pool_lifecycle_data" [i|
     SELECT
         active_pool_registrations.pool_id as pool_id,
         active_pool_retirements.retirement_epoch as retirement_epoch,
@@ -797,7 +801,7 @@ activePoolLifeCycleData = DatabaseView "active_pool_lifecycle_data" [s|
 -- This view does NOT exclude pools that have retired.
 --
 activePoolOwners :: DatabaseView
-activePoolOwners = DatabaseView "active_pool_owners" [s|
+activePoolOwners = DatabaseView "active_pool_owners" [i|
     SELECT pool_id, pool_owners FROM (
         SELECT row_number() OVER w AS r, *
         FROM (
@@ -825,7 +829,7 @@ activePoolOwners = DatabaseView "active_pool_owners" [s|
 -- This view does NOT exclude pools that have retired.
 --
 activePoolRegistrations :: DatabaseView
-activePoolRegistrations = DatabaseView "active_pool_registrations" [s|
+activePoolRegistrations = DatabaseView "active_pool_registrations" [i|
     SELECT
         pool_id,
         cost,
@@ -855,7 +859,7 @@ activePoolRegistrations = DatabaseView "active_pool_registrations" [s|
 --      certificates revoked by subsequent re-registration certificates.
 --
 activePoolRetirements :: DatabaseView
-activePoolRetirements = DatabaseView "active_pool_retirements" [s|
+activePoolRetirements = DatabaseView "active_pool_retirements" [i|
     SELECT * FROM (
         SELECT
             pool_id,
@@ -1040,4 +1044,3 @@ fromInternalState
     :: InternalState
     -> W.InternalState
 fromInternalState (InternalState utc) = W.InternalState utc
-

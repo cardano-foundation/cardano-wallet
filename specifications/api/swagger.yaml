@@ -2690,7 +2690,7 @@ paths:
       tags: ["Stake Pools"]
       summary: Maintenance actions
       description: |
-        Performs maintenance action on the stake pools, such
+        Performs maintenance actions on stake pools, such
         as triggering metadata garbage collection.
 
         Actions may not be instantaneous.

@@ -13,6 +13,7 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE ViewPatterns #-}
+{-# LANGUAGE NumericUnderscores #-}
 
 -- |
 -- Copyright: © 2020 IOHK
@@ -781,20 +782,19 @@ gcDelistedPools tr DBLayer{..} fetchDelisted = forever $ do
 
     let timeSinceLastGC = currentTime - lastGC
         sixHours = posixDayLength / 4
-    if timeSinceLastGC > sixHours
-        then do
-            delistedPools <- fmap (fromMaybe []) fetchDelisted
-            atomically $ do
-                putLastMetadataGC currentTime
-                delistPools delistedPools
-        else do
-            -- Sleep for 60 seconds. This is useful in case
-            -- something else is modifying the last sync time
-            -- in the database.
-            let sec_to_milisec = (* 1000000)
-                sleep_time = sec_to_milisec 60
-            traceWith tr $ MsgGCTakeBreak sleep_time
-            threadDelay sleep_time
+    when (timeSinceLastGC > sixHours) $ do
+        delistedPools <- fmap (fromMaybe []) fetchDelisted
+        atomically $ do
+            putLastMetadataGC currentTime
+            delistPools delistedPools
+
+    -- Sleep for 60 seconds. This is useful in case
+    -- something else is modifying the last sync time
+    -- in the database.
+    let ms = (* 1_000_000)
+    let sleepTime = ms 60
+    traceWith tr $ MsgGCTakeBreak sleepTime
+    threadDelay sleepTime
     pure ()
 
 data StakePoolLog
@@ -883,5 +883,5 @@ instance ToText StakePoolLog where
         MsgGCTakeBreak delay -> mconcat
             [ "Taking a little break from GCing delisted metadata pools, "
             , "back to it in about "
-            , pretty (fixedF 1 (toRational delay / 1000000)), "s"
+            , pretty (fixedF 1 (toRational delay / 1_000_000)), "s"
             ]

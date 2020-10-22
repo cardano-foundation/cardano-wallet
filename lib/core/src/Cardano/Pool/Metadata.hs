@@ -158,7 +158,10 @@ fetchDelistedPools tr uri manager = runExceptTLog $ do
                     Right . BS.concat <$> brConsume body
 
                 s -> do
-                    pure $ Left $ "The server replied something unexpected: " <> show s
+                    pure $ Left $ mconcat
+                        [ "The server replied something unexpected: "
+                        , show s
+                        ]
 
     runExceptTLog
         :: ExceptT String IO [PoolId]
@@ -171,7 +174,7 @@ fetchDelistedPools tr uri manager = runExceptTLog $ do
             Just meta <$ traceWith tr (MsgFetchDelistedPoolsSuccess meta)
 
     fromHttpException :: Monad m => HttpException -> m (Either String a)
-    fromHttpException = return . Left . ("HTTp Exception exception: " <>) . show
+    fromHttpException = return . Left . ("HTTP exception: " <>) . show
 
 -- TODO: refactor/simplify this
 fetchFromRemote
@@ -249,15 +252,16 @@ fetchFromRemote tr builders manager pid url hash = runExceptTLog $ do
                     pure $ Left "There's no known metadata for this pool."
 
                 s -> do
-                    pure $ Left $ "The server replied something unexpected: " <> show s
+                    pure $ Left $ mconcat
+                        [ "The server replied with something unexpected: "
+                        , show s
+                        ]
 
     fromHttpException :: Monad m => HttpException -> m (Either String (Maybe a))
     fromHttpException = const (return $ Right Nothing)
 
 fromIOException :: Monad m => IOException -> m (Either String a)
 fromIOException = return . Left . ("IO exception: " <>) . show
-
-
 data StakePoolMetadataFetchLog
     = MsgFetchPoolMetadata StakePoolMetadataHash URI
     | MsgFetchPoolMetadataSuccess StakePoolMetadataHash StakePoolMetadata
@@ -302,8 +306,9 @@ instance ToText StakePoolMetadataFetchLog where
             [ "Fetching delisted pools from ", T.pack (show uri)
             ]
         MsgFetchDelistedPoolsSuccess poolIds -> mconcat
-            [ "Successfully fetched delisted pools: "
-            , T.pack (show poolIds)
+            [ "Successfully fetched delisted "
+            , T.pack (show . length $ poolIds)
+            , " pools."
             ]
         MsgFetchDelistedPoolsFailure err -> mconcat
             [ "Failed to fetch delisted pools: ", T.pack err
