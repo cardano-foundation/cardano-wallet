@@ -63,6 +63,7 @@ library
     , http-client
     , http-types
     , iohk-monitoring
+    , lens-aeson
     , memory
     , optparse-applicative
     , process
