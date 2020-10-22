@@ -765,8 +765,8 @@ data ApiWalletSignData = ApiWalletSignData
     } deriving (Eq, Generic, Show)
 
 newtype ApiVerificationKey = ApiVerificationKey
-    (XPub, AccountingStyle)
-    deriving (Eq, Generic, Show)
+    { getApiVerificationKey :: (XPub, AccountingStyle)
+    } deriving (Eq, Generic, Show)
 
 -- | Error codes returned by the API, in the form of snake_cased strings
 data ApiErrorCode

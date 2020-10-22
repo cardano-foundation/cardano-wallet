@@ -56,6 +56,8 @@ import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..) )
 import Cardano.Wallet.Primitive.Types
     ( walletNameMaxLength, walletNameMinLength )
+import Cardano.Wallet.Unsafe
+    ( unsafeFromHex )
 import Control.Monad
     ( forM_ )
 import Data.Aeson
@@ -104,6 +106,7 @@ import Test.Integration.Framework.DSL
     , listAddresses
     , minUTxOValue
     , notDelegating
+    , rawRequest
     , request
     , selectCoins
     , unsafeRequest
@@ -128,11 +131,17 @@ import Test.Integration.Framework.TestData
     , wildcardsWalletName
     )
 
+-- FIXME:
+-- give ways to construct and deconstruct an 'XSignature' in cardano-addresses,
+-- e.g. xsignatureFromBytes / xsignatureToBytes so that we can avoid the import
+-- of cardano-crypto here.
+import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet.Api.Link as Link
+import qualified Data.ByteString.Lazy as BL
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Text as T
-import qualified Network.HTTP.Types.Status as HTTP
+import qualified Network.HTTP.Types as HTTP
 
 spec :: forall n t.
     ( DecodeAddress n
@@ -1196,6 +1205,89 @@ spec = describe "SHELLEY_WALLETS" $ do
 
         let link = Link.getWalletKey w UtxoExternal (DerivationIndex 0)
         r <- request @ApiVerificationKey ctx link Default Empty
+
+        verify r
+            [ expectResponseCode @IO HTTP.status404
+            , expectErrorMessage (errMsg404NoWallet $ w ^. walletId)
+            ]
+
+    it "WALLETS_SIGNATURES_01 - can verify signature" $ \ctx -> do
+        w <- emptyWallet ctx
+
+        let (role_, index) = (MutableAccount, DerivationIndex 0)
+        let payload = [json|
+                { "passphrase": #{fixturePassphrase}
+                , "metadata": {"0": { "string": "please sign this." }}
+                }|]
+
+        -- sign metadata
+        rSig <- rawRequest ctx
+            (Link.signMetadata w role_ index)
+            (Headers [(HTTP.hAccept, "*/*"), (HTTP.hContentType, "application/json")])
+            (Json payload)
+        verify rSig
+            [ expectResponseCode @IO HTTP.status200
+            ]
+
+        -- get corresponding public key
+        rKey <- request @ApiVerificationKey ctx
+            (Link.getWalletKey w role_ index)
+            Default
+            Empty
+        verify rKey
+            [ expectResponseCode @IO HTTP.status200
+            ]
+
+        -- verify the signature
+        --
+        -- expected metadata serialized as CBOR:
+        --
+        --     {0:"please sign this."}
+        --
+        --     ~
+        --
+        --     A1                                      # map(1)
+        --        00                                   # unsigned(0)
+        --        71                                   # text(17)
+        --           706C65617365207369676E20746869732E # "please sign this."
+        --
+        let sig = CC.xsignature $ BL.toStrict $ getFromResponse id rSig
+        let key = fst $ getFromResponse #getApiVerificationKey rKey
+        let msg = unsafeFromHex "A10071706C65617365207369676E20746869732E"
+
+        CC.verify key msg <$> sig `shouldBe` Right True
+
+    it "WALLETS_SIGNATURES_02 - invalid index for signing key" $ \ctx -> do
+        w <- emptyWallet ctx
+
+        let payload = [json|
+              { "passphrase": #{fixturePassphrase}
+              , "metadata": { "0": { "int": 1 } }
+              }|]
+        let link = Link.signMetadata w UtxoExternal (DerivationIndex 2147483648)
+        r <- rawRequest ctx link
+            (Headers [(HTTP.hAccept, "*/*"), (HTTP.hContentType, "application/json")])
+            (Json payload)
+
+        verify r
+            [ expectResponseCode @IO HTTP.status400
+            , expectErrorMessage
+                "It looks like you've provided a derivation index that is out of bound."
+            ]
+
+    it "WALLETS_SIGNATURES_03 - unknown wallet" $ \ctx -> do
+        w <- emptyWallet ctx
+        _ <- request @ApiWallet ctx (Link.deleteWallet @'Shelley w) Default Empty
+
+
+        let payload = [json|
+              { "passphrase": #{fixturePassphrase}
+              , "metadata": { "0": { "int": 1 } }
+              }|]
+        let link = Link.signMetadata w UtxoExternal (DerivationIndex 0)
+        r <- rawRequest ctx link
+            (Headers [(HTTP.hAccept, "*/*"), (HTTP.hContentType, "application/json")])
+            (Json payload)
 
         verify r
             [ expectResponseCode @IO HTTP.status404
