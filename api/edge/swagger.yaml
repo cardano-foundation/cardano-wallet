@@ -1232,6 +1232,11 @@ components:
           <<: *addresses
           description: The imported addresses.
 
+    ApiVerificationKey: &ApiVerificationKey
+      type: string
+      format: bech32
+      pattern: "^((addr_xvk)|(stake_xvk)|(script_xvk))1[0-9a-z]*$"
+
     ApiTxId: &ApiTxId
       type: object
       required:
@@ -2192,6 +2197,17 @@ x-responsesListAddresses: &responsesListAddresses
           type: array
           items: *ApiAddress
 
+x-responsesGetKey: &responsesGetKey
+  <<: *responsesErr400
+  <<: *responsesErr404
+  <<: *responsesErr405
+  <<: *responsesErr406
+  200:
+    description: Ok
+    content:
+      application/json:
+        schema: *ApiVerificationKey
+
 x-responsesListStakePools: &responsesListStakePools
   <<: *responsesErr405
   <<: *responsesErr404
@@ -2351,7 +2367,7 @@ x-tagGroups:
     - Experimental
 
 paths:
-  /wallets/{walletId}/{role}/{index}/signatures:
+  /wallets/{walletId}/signatures/{role}/{index}:
       post:
         operationId: signMetadata
         tags: ["Experimental"]
@@ -2592,6 +2608,20 @@ paths:
         - *parametersWalletId
         - *parametersAddressState
       responses: *responsesListAddresses
+
+  /wallets/{walletId}/keys/{role}/{index}:
+    get:
+      operationId: getWalletKey
+      tags: ["Keys"]
+      summary: Get Public Key
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+        Return a public key for a given role and derivation index.
+      parameters:
+        - *parametersWalletId
+        - *parametersRole
+        - *parametersDerivationSegment
+      responses: *responsesGetKey
 
   /stake-pools:
     get:
