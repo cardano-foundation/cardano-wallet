@@ -21,6 +21,7 @@ module Test.Integration.Framework.DSL
 
     -- * Steps
     , request
+    , rawRequest
     , unsafeRequest
 
     -- * Expectations
@@ -324,6 +325,7 @@ import Test.Integration.Framework.Request
     ( Headers (..)
     , Payload (..)
     , RequestException (..)
+    , rawRequest
     , request
     , unsafeRequest
     )

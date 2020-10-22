@@ -28,6 +28,9 @@ module Cardano.Wallet.Api
         , PutWallet
         , PutWalletPassphrase
         , GetUTxOsStatistics
+
+    , WalletKeys
+        , GetWalletKey
         , SignMetadata
 
     , Addresses
@@ -129,6 +132,7 @@ import Cardano.Wallet.Api.Types
     , ApiTransactionT
     , ApiTxId
     , ApiUtxoStatistics
+    , ApiVerificationKey
     , ApiWallet
     , ApiWalletMigrationInfo
     , ApiWalletMigrationPostDataT
@@ -209,6 +213,7 @@ type ApiV2 n apiPool = "v2" :> Api n apiPool
 -- The API used in cardano-wallet-jormungandr may differ from this one.
 type Api n apiPool =
          Wallets
+    :<|> WalletKeys
     :<|> Addresses n
     :<|> CoinSelections n
     :<|> Transactions n
@@ -237,7 +242,6 @@ type Wallets =
     :<|> PutWallet
     :<|> PutWalletPassphrase
     :<|> GetUTxOsStatistics
-    :<|> SignMetadata
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/deleteWallet
 type DeleteWallet = "wallets"
@@ -278,12 +282,29 @@ type GetUTxOsStatistics = "wallets"
     :> "utxos"
     :> Get '[JSON] ApiUtxoStatistics
 
+{-------------------------------------------------------------------------------
+                                  Wallet Keys
+  See also: https://input-output-hk.github.io/cardano-wallet/api/#tag/WalletKeys
+-------------------------------------------------------------------------------}
+
+type WalletKeys =
+    GetWalletKey
+    :<|> SignMetadata
+
+-- | https://input-output-hk.github.io/cardano-wallet/api/#operation/getWalletKey
+type GetWalletKey = "wallets"
+    :> Capture "walletId" (ApiT WalletId)
+    :> "keys"
+    :> Capture "role" (ApiT AccountingStyle)
+    :> Capture "index" (ApiT DerivationIndex)
+    :> Get '[JSON] ApiVerificationKey
+
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/signMetadata
 type SignMetadata = "wallets"
     :> Capture "walletId" (ApiT WalletId)
+    :> "signatures"
     :> Capture "role" (ApiT AccountingStyle)
     :> Capture "index" (ApiT DerivationIndex)
-    :> "signatures"
     :> ReqBody '[JSON] ApiWalletSignData
     :> Post '[OctetStream] ByteString
 

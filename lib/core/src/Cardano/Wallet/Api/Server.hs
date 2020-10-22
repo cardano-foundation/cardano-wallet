@@ -42,6 +42,7 @@ module Cardano.Wallet.Api.Server
     , delegationFee
     , deleteTransaction
     , deleteWallet
+    , derivePublicKey
     , getMigrationInfo
     , getNetworkClock
     , getNetworkInformation
@@ -75,6 +76,7 @@ module Cardano.Wallet.Api.Server
     , selectCoins
     , selectCoinsForJoin
     , selectCoinsForQuit
+    , signMetadata
 
     -- * Internals
     , LiftHandler(..)
@@ -106,10 +108,12 @@ import Cardano.Wallet
     , ErrCoinSelection (..)
     , ErrCreateRandomAddress (..)
     , ErrDecodeSignedTx (..)
+    , ErrDerivePublicKey (..)
     , ErrFetchRewards (..)
     , ErrGetTransaction (..)
     , ErrImportAddress (..)
     , ErrImportRandomAddress (..)
+    , ErrInvalidDerivationIndex (..)
     , ErrJoinStakePool (..)
     , ErrListPools (..)
     , ErrListTransactions (..)
@@ -127,6 +131,7 @@ import Cardano.Wallet
     , ErrSelectForMigration (..)
     , ErrSelectForPayment (..)
     , ErrSignDelegation (..)
+    , ErrSignMetadataWith (..)
     , ErrSignPayment (..)
     , ErrStartTimeLaterThanEndTime (..)
     , ErrSubmitExternalTx (..)
@@ -189,6 +194,7 @@ import Cardano.Wallet.Api.Types
     , ApiTxInput (..)
     , ApiTxMetadata (..)
     , ApiUtxoStatistics (..)
+    , ApiVerificationKey (..)
     , ApiWallet (..)
     , ApiWalletDelegation (..)
     , ApiWalletDelegationNext (..)
@@ -197,6 +203,7 @@ import Cardano.Wallet.Api.Types
     , ApiWalletMigrationPostData (..)
     , ApiWalletPassphrase (..)
     , ApiWalletPassphraseInfo (..)
+    , ApiWalletSignData (..)
     , ApiWithdrawal (..)
     , ApiWithdrawalPostData (..)
     , ByronWalletFromXPrvPostData
@@ -226,7 +233,8 @@ import Cardano.Wallet.Network
     , timeInterpreter
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( ChimericAccount (..)
+    ( AccountingStyle
+    , ChimericAccount (..)
     , DelegationAddress (..)
     , Depth (..)
     , DerivationIndex (..)
@@ -294,6 +302,7 @@ import Cardano.Wallet.Primitive.Types
     , PassphraseScheme (..)
     , PoolId
     , PoolLifeCycleStatus (..)
+    , Signature (..)
     , SlotId
     , SlotNo
     , SortOrder (..)
@@ -344,6 +353,8 @@ import Data.Aeson
     ( (.=) )
 import Data.Bifunctor
     ( first )
+import Data.ByteString
+    ( ByteString )
 import Data.Coerce
     ( coerce )
 import Data.Function
@@ -355,7 +366,7 @@ import Data.Generics.Internal.VL.Lens
 import Data.Generics.Labels
     ()
 import Data.List
-    ( isInfixOf, isPrefixOf, isSubsequenceOf, isSuffixOf, sortOn )
+    ( isInfixOf, isPrefixOf, isSubsequenceOf, sortOn )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Map.Strict
@@ -1802,7 +1813,7 @@ getNetworkClock :: NtpClient -> Bool -> Handler ApiNetworkClock
 getNetworkClock client = liftIO . getNtpStatus client
 
 {-------------------------------------------------------------------------------
-                                   Proxy
+                               Miscellaneous
 -------------------------------------------------------------------------------}
 
 postExternalTransaction
@@ -1815,6 +1826,45 @@ postExternalTransaction
 postExternalTransaction ctx (PostExternalTransactionData load) = do
     tx <- liftHandler $ W.submitExternalTx @ctx @t @k ctx load
     return $ ApiTxId (ApiT (txId tx))
+
+signMetadata
+    :: forall ctx s t k n.
+        ( ctx ~ ApiLayer s t k
+        , s ~ SeqState n k
+        , HardDerivation k
+        , AddressIndexDerivationType k ~ 'Soft
+        , WalletKey k
+        )
+    => ctx
+    -> ApiT WalletId
+    -> ApiT AccountingStyle
+    -> ApiT DerivationIndex
+    -> ApiWalletSignData
+    -> Handler ByteString
+signMetadata ctx (ApiT wid) (ApiT role_) (ApiT ix) body = do
+    let meta = body ^. #metadata . #getApiT
+    let pwd  = body ^. #passphrase . #getApiT
+
+    withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk -> liftHandler $ do
+        getSignature <$> W.signMetadataWith @_ @s @k @n
+            wrk wid (coerce pwd) (role_, ix) meta
+
+derivePublicKey
+    :: forall ctx s t k n.
+        ( s ~ SeqState n k
+        , ctx ~ ApiLayer s t k
+        , SoftDerivation k
+        , WalletKey k
+        )
+    => ctx
+    -> ApiT WalletId
+    -> ApiT AccountingStyle
+    -> ApiT DerivationIndex
+    -> Handler ApiVerificationKey
+derivePublicKey ctx (ApiT wid) (ApiT role_) (ApiT ix) = do
+    withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk -> do
+        k <- liftHandler $ W.derivePublicKey @_ @s @k @n wrk wid role_ ix
+        pure $ ApiVerificationKey (getRawKey k, role_)
 
 {-------------------------------------------------------------------------------
                                   Helpers
@@ -2700,6 +2750,27 @@ instance LiftHandler ErrListPools where
         ErrListPoolsNetworkError e -> handler e
         ErrListPoolsPastHorizonException e -> handler e
 
+instance LiftHandler ErrSignMetadataWith where
+    handler = \case
+        ErrSignMetadataWithRootKey e -> handler e
+        ErrSignMetadataWithNoSuchWallet e -> handler e
+        ErrSignMetadataWithInvalidIndex e -> handler e
+
+instance LiftHandler ErrDerivePublicKey where
+    handler = \case
+        ErrDerivePublicKeyNoSuchWallet e -> handler e
+        ErrDerivePublicKeyInvalidIndex e -> handler e
+
+instance LiftHandler ErrInvalidDerivationIndex where
+    handler = \case
+        ErrIndexTooHigh maxIx _ix ->
+            apiError err400 BadRequest $ mconcat
+                [ "It looks like you've provided a derivation index that is "
+                , "out of bound. I can only derive keys up to #"
+                , pretty maxIx, "."
+                ]
+
+
 instance LiftHandler (Request, ServerError) where
     handler (req, err@(ServerError code _ body headers))
       | not (isJSON body) = case code of
@@ -2725,7 +2796,7 @@ instance LiftHandler (Request, ServerError) where
             let cType =
                     -- FIXME: Ugly and not really scalable nor maintainable.
                     if ["wallets"] `isPrefixOf` pathInfo req
-                    && ["signatures"] `isSuffixOf` pathInfo req
+                    && ["signatures"] `isInfixOf` pathInfo req
                     then "application/octet-stream"
                     else "application/json"
             in apiError err' NotAcceptable $ mconcat

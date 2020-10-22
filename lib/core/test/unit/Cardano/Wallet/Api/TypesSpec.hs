@@ -75,6 +75,7 @@ import Cardano.Wallet.Api.Types
     , ApiTxInput (..)
     , ApiTxMetadata (..)
     , ApiUtxoStatistics (..)
+    , ApiVerificationKey (..)
     , ApiWallet (..)
     , ApiWalletDelegation (..)
     , ApiWalletDelegationNext (..)
@@ -116,7 +117,8 @@ import Cardano.Wallet.Gen
     , shrinkTxMetadata
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( DerivationIndex (..)
+    ( AccountingStyle (..)
+    , DerivationIndex (..)
     , DerivationType (..)
     , HardDerivation (..)
     , Index (..)
@@ -176,7 +178,7 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Transaction
     ( DelegationAction (..) )
 import Cardano.Wallet.Unsafe
-    ( unsafeFromText, unsafeXPrv )
+    ( unsafeFromText, unsafeXPrv, unsafeXPub )
 import Control.Lens
     ( at, (.~), (?~), (^.) )
 import Control.Monad
@@ -354,6 +356,7 @@ spec = do
             jsonRoundtripAndGolden $ Proxy @ApiFee
             jsonRoundtripAndGolden $ Proxy @ApiStakePoolMetrics
             jsonRoundtripAndGolden $ Proxy @ApiTxId
+            jsonRoundtripAndGolden $ Proxy @ApiVerificationKey
             jsonRoundtripAndGolden $ Proxy @(PostTransactionData ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @(PostTransactionFeeData ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @WalletPostData
@@ -1385,6 +1388,15 @@ instance Arbitrary (Quantity "percent" Double) where
     shrink (Quantity 0.0) = []
     shrink _ = [Quantity 0.0]
     arbitrary = Quantity <$> choose (0,100)
+
+instance Arbitrary ApiVerificationKey where
+    arbitrary =
+        fmap ApiVerificationKey . (,)
+            <$> fmap (unsafeXPub . B8.pack) (replicateM 64 arbitrary)
+            <*> elements [UtxoExternal, MutableAccount, MultisigScript]
+
+instance ToSchema ApiVerificationKey where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiVerificationKey"
 
 instance Arbitrary ApiNetworkParameters where
     arbitrary = genericArbitrary

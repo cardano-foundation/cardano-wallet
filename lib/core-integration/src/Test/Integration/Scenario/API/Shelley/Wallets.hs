@@ -28,6 +28,7 @@ import Cardano.Wallet.Api.Types
     , ApiT (..)
     , ApiTransaction
     , ApiUtxoStatistics
+    , ApiVerificationKey (..)
     , ApiWallet
     , DecodeAddress
     , DecodeStakeAddress
@@ -35,7 +36,8 @@ import Cardano.Wallet.Api.Types
     , WalletStyle (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( DerivationIndex (..)
+    ( AccountingStyle (..)
+    , DerivationIndex (..)
     , DerivationType (..)
     , Index (..)
     , PassphraseMaxLength (..)
@@ -54,8 +56,12 @@ import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..) )
 import Cardano.Wallet.Primitive.Types
     ( walletNameMaxLength, walletNameMinLength )
+import Cardano.Wallet.Unsafe
+    ( unsafeFromHex )
 import Control.Monad
     ( forM_ )
+import Data.Aeson
+    ( ToJSON (..) )
 import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
 import Data.List
@@ -100,6 +106,7 @@ import Test.Integration.Framework.DSL
     , listAddresses
     , minUTxOValue
     , notDelegating
+    , rawRequest
     , request
     , selectCoins
     , unsafeRequest
@@ -124,11 +131,17 @@ import Test.Integration.Framework.TestData
     , wildcardsWalletName
     )
 
+-- FIXME:
+-- give ways to construct and deconstruct an 'XSignature' in cardano-addresses,
+-- e.g. xsignatureFromBytes / xsignatureToBytes so that we can avoid the import
+-- of cardano-crypto here.
+import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet.Api.Link as Link
+import qualified Data.ByteString.Lazy as BL
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Text as T
-import qualified Network.HTTP.Types.Status as HTTP
+import qualified Network.HTTP.Types as HTTP
 
 spec :: forall n t.
     ( DecodeAddress n
@@ -171,10 +184,6 @@ spec = describe "SHELLEY_WALLETS" $ do
 
     describe "OWASP_INJECTION_CREATE_WALLET_01 - \
              \SQL injection when creating a wallet" $  do
-        let mnemonics =
-                [ "pulp", "ten", "light", "rhythm", "replace"
-                , "vessel", "slow", "drift", "kingdom", "amazing"
-                , "negative", "join", "auction", "ugly", "symptom"] :: [Text]
         let matrix =
                 [ ( "new wallet\",'',''); DROP TABLE \"wallet\"; --"
                   , "new wallet\",'',''); DROP TABLE \"wallet\"; --"
@@ -186,7 +195,7 @@ spec = describe "SHELLEY_WALLETS" $ do
         forM_ matrix $ \(nameIn, nameOut) -> it nameIn $ \ctx -> do
             let payload = Json [json| {
                     "name": #{nameIn},
-                    "mnemonic_sentence": #{mnemonics},
+                    "mnemonic_sentence": #{explicitMnemonics},
                     "passphrase": "12345678910"
                     } |]
             let postWallet = Link.postWallet @'Shelley
@@ -1127,6 +1136,164 @@ spec = describe "SHELLEY_WALLETS" $ do
             r <- request @ApiUtxoStatistics ctx (Link.getUTxOsStatistics @'Shelley w) headers Empty
             verify r expectations
 
+    describe "WALLETS_GET_KEY_01 - golden tests for verification key" $ do
+    --- $ cat recovery-phrase.txt
+    -- pulp ten light rhythm replace vessel slow drift kingdom amazing negative join auction ugly symptom
+    --- $ cat recovery-phrase.txt | cardano-address key from-recovery-phrase Shelley > root.prv
+    --- $ cat root.prv \
+    --- > | cardano-address key child 1852H/1815H/0H/ROLE/INDEX \
+    --- > | cardano-address key public \
+        let matrix :: [(AccountingStyle, DerivationIndex, String)]
+            matrix =
+                [ ( UtxoExternal
+                  , DerivationIndex 0
+                  , "addr_xvk1tmdggpmj7r2mqfhneqsc5fzfj2j4sxf4j7mqwwsa8w58vz94zr\
+                    \463ndsajkjvn82va30fgf22qruc53zxyjp6pu7yd87ppdefd6u98cue5ul9"
+                  )
+                , ( UtxoInternal
+                  , DerivationIndex 100
+                  , "addr_xvk1wchen6vz4zz7kpfjld3g89zdcpdv2hzvtsufphgvpjxjkl49pq\
+                    \rfd2lgqg228zl7ylax8c5tr0rkys3phfkxd5j6s56c0tfy7r49jhct38kq6"
+                  )
+                , ( MutableAccount
+                  , DerivationIndex 2147483647
+                  , "stake_xvk1qy9tp370ze3cfre8f6daz7l85pgk3wpg6s5zqae2yjljwqkx4\
+                    \ht28cxx7j5ju0wl8795s3yj8z3te4h2j9eaztll2z4mxhwwkppy53sf49ev5"
+                  )
+                , ( MultisigScript
+                  , DerivationIndex 42
+                  , "script_xvk1mjr5lrrlxuvelx94hu2cttmg5pp6cwy5h0sa37qvpcd07pv9g\
+                    \23nlvugj5ez9qfxxvkmjwnpn69s48cv572phfy6qpmnwat0hwcdrasapqewe"
+                  )
+                ]
+
+        forM_ matrix
+            $ \(role_, index, expected) -> it (show role_ <> "/" <> show index)
+            $ \ctx -> do
+                let payload = Json [json|{
+                        "name": "Wallet",
+                        "mnemonic_sentence": #{explicitMnemonics},
+                        "passphrase": #{fixturePassphrase}
+                    }|]
+
+                r <- request @ApiWallet ctx (Link.postWallet @'Shelley) Default payload
+                verify r [ expectResponseCode @IO HTTP.status201 ]
+                let apiWal = getFromResponse id r
+
+                let link = Link.getWalletKey (apiWal ^. id) role_ index
+                rGet <- request @ApiVerificationKey ctx link Default Empty
+                verify rGet
+                    [ expectResponseCode @IO HTTP.status200
+                    , expectField id (\k -> toJSON k `shouldBe` toJSON expected)
+                    ]
+
+    it "WALLETS_GET_KEY_02 - invalid index for verification key" $ \ctx -> do
+        w <- emptyWallet ctx
+
+        let link = Link.getWalletKey w UtxoExternal (DerivationIndex 2147483648)
+        r <- request @ApiVerificationKey ctx link Default Empty
+
+        verify r
+            [ expectResponseCode @IO HTTP.status400
+            , expectErrorMessage
+                "It looks like you've provided a derivation index that is out of bound."
+            ]
+
+    it "WALLETS_GET_KEY_03 - unknown wallet" $ \ctx -> do
+        w <- emptyWallet ctx
+        _ <- request @ApiWallet ctx (Link.deleteWallet @'Shelley w) Default Empty
+
+        let link = Link.getWalletKey w UtxoExternal (DerivationIndex 0)
+        r <- request @ApiVerificationKey ctx link Default Empty
+
+        verify r
+            [ expectResponseCode @IO HTTP.status404
+            , expectErrorMessage (errMsg404NoWallet $ w ^. walletId)
+            ]
+
+    it "WALLETS_SIGNATURES_01 - can verify signature" $ \ctx -> do
+        w <- emptyWallet ctx
+
+        let (role_, index) = (MutableAccount, DerivationIndex 0)
+        let payload = [json|
+                { "passphrase": #{fixturePassphrase}
+                , "metadata": {"0": { "string": "please sign this." }}
+                }|]
+
+        -- sign metadata
+        rSig <- rawRequest ctx
+            (Link.signMetadata w role_ index)
+            (Headers [(HTTP.hAccept, "*/*"), (HTTP.hContentType, "application/json")])
+            (Json payload)
+        verify rSig
+            [ expectResponseCode @IO HTTP.status200
+            ]
+
+        -- get corresponding public key
+        rKey <- request @ApiVerificationKey ctx
+            (Link.getWalletKey w role_ index)
+            Default
+            Empty
+        verify rKey
+            [ expectResponseCode @IO HTTP.status200
+            ]
+
+        -- verify the signature
+        --
+        -- expected metadata serialized as CBOR:
+        --
+        --     {0:"please sign this."}
+        --
+        --     ~
+        --
+        --     A1                                      # map(1)
+        --        00                                   # unsigned(0)
+        --        71                                   # text(17)
+        --           706C65617365207369676E20746869732E # "please sign this."
+        --
+        let sig = CC.xsignature $ BL.toStrict $ getFromResponse id rSig
+        let key = fst $ getFromResponse #getApiVerificationKey rKey
+        let msg = unsafeFromHex "A10071706C65617365207369676E20746869732E"
+
+        CC.verify key msg <$> sig `shouldBe` Right True
+
+    it "WALLETS_SIGNATURES_02 - invalid index for signing key" $ \ctx -> do
+        w <- emptyWallet ctx
+
+        let payload = [json|
+              { "passphrase": #{fixturePassphrase}
+              , "metadata": { "0": { "int": 1 } }
+              }|]
+        let link = Link.signMetadata w UtxoExternal (DerivationIndex 2147483648)
+        r <- rawRequest ctx link
+            (Headers [(HTTP.hAccept, "*/*"), (HTTP.hContentType, "application/json")])
+            (Json payload)
+
+        verify r
+            [ expectResponseCode @IO HTTP.status400
+            , expectErrorMessage
+                "It looks like you've provided a derivation index that is out of bound."
+            ]
+
+    it "WALLETS_SIGNATURES_03 - unknown wallet" $ \ctx -> do
+        w <- emptyWallet ctx
+        _ <- request @ApiWallet ctx (Link.deleteWallet @'Shelley w) Default Empty
+
+
+        let payload = [json|
+              { "passphrase": #{fixturePassphrase}
+              , "metadata": { "0": { "int": 1 } }
+              }|]
+        let link = Link.signMetadata w UtxoExternal (DerivationIndex 0)
+        r <- rawRequest ctx link
+            (Headers [(HTTP.hAccept, "*/*"), (HTTP.hContentType, "application/json")])
+            (Json payload)
+
+        verify r
+            [ expectResponseCode @IO HTTP.status404
+            , expectErrorMessage (errMsg404NoWallet $ w ^. walletId)
+            ]
+
     it "BYRON_WALLETS_UTXO -\
         \ Cannot show Byron wal utxo with shelley ep (404)" $ \ctx -> do
         w <- emptyRandomWallet ctx
@@ -1289,3 +1456,9 @@ spec = describe "SHELLEY_WALLETS" $ do
                     , expectField (#tip . #slotId . #slotNumber  . #getApiT) (`shouldBe` slotNum)
                     , expectField (#tip . #block . #height) (`shouldBe` blockHeight)
                     ]
+
+  where
+    explicitMnemonics =
+        [ "pulp", "ten", "light", "rhythm", "replace"
+        , "vessel", "slow", "drift", "kingdom", "amazing"
+        , "negative", "join", "auction", "ugly", "symptom"] :: [Text]

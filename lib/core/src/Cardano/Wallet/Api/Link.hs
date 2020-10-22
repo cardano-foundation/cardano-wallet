@@ -48,6 +48,10 @@ module Cardano.Wallet.Api.Link
     , getMigrationInfo
     , migrateWallet
 
+     -- * WalletKeys
+    , getWalletKey
+    , signMetadata
+
       -- * Addresses
     , postRandomAddress
     , putRandomAddresses
@@ -102,7 +106,7 @@ import Cardano.Wallet.Api.Types
     , WalletStyle (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( NetworkDiscriminant (..) )
+    ( AccountingStyle, DerivationIndex, NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Types
     ( AddressState, Coin (..), Hash, PoolId, SortOrder, WalletId (..) )
 import Data.Function
@@ -252,6 +256,36 @@ getMigrationInfo
 getMigrationInfo w = discriminate @style
     (endpoint @Api.GetShelleyWalletMigrationInfo (wid &))
     (endpoint @Api.GetByronWalletMigrationInfo (wid &))
+  where
+    wid = w ^. typed @(ApiT WalletId)
+
+--
+-- WalletKeys
+--
+
+getWalletKey
+    :: forall w.
+        ( HasType (ApiT WalletId) w
+        )
+    => w
+    -> AccountingStyle
+    -> DerivationIndex
+    -> (Method, Text)
+getWalletKey w role_ index =
+    endpoint @Api.GetWalletKey (\mk -> mk wid (ApiT role_) (ApiT index))
+  where
+    wid = w ^. typed @(ApiT WalletId)
+
+signMetadata
+    :: forall w.
+        ( HasType (ApiT WalletId) w
+        )
+    => w
+    -> AccountingStyle
+    -> DerivationIndex
+    -> (Method, Text)
+signMetadata w role_ index =
+    endpoint @Api.SignMetadata (\mk -> mk wid (ApiT role_) (ApiT index))
   where
     wid = w ^. typed @(ApiT WalletId)
 

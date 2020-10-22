@@ -15,6 +15,7 @@ module Cardano.Wallet.Unsafe
     , unsafeFromText
     , unsafeRunExceptT
     , unsafeXPrv
+    , unsafeXPub
     , unsafeDeserialiseCbor
     , unsafeBech32DecodeFile
     , unsafeBech32Decode
@@ -29,7 +30,7 @@ module Cardano.Wallet.Unsafe
 import Prelude
 
 import Cardano.Crypto.Wallet
-    ( XPrv )
+    ( XPrv, XPub )
 import Cardano.Mnemonic
     ( ConsistentEntropy
     , Entropy
@@ -116,6 +117,13 @@ unsafeXPrv :: HasCallStack => ByteString -> XPrv
 unsafeXPrv bytes =
     case CC.xprv bytes of
         Left e -> error $ "unsafeXPrv: " <> e
+        Right a -> a
+
+-- | Build a 'XPub' from a bytestring
+unsafeXPub :: HasCallStack => ByteString -> XPub
+unsafeXPub bytes =
+    case CC.xpub bytes of
+        Left e -> error $ "unsafeXPub: " <> e
         Right a -> a
 
 -- | Build 'Mnemonic' from literals

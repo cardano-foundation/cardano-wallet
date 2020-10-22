@@ -10,6 +10,7 @@
 
 module Test.Integration.Framework.Request
     ( request
+    , rawRequest
     , unsafeRequest
     , Headers(..)
     , Payload(..)
@@ -50,7 +51,7 @@ import Network.HTTP.Types.Header
 import Network.HTTP.Types.Method
     ( Method )
 import Network.HTTP.Types.Status
-    ( status500 )
+    ( status400, status500 )
 import Test.Integration.Framework.Context
     ( Context )
 
@@ -144,6 +145,55 @@ request ctx (verb, path) reqHeaders body = do
 
     decodeFailure :: HTTP.Response ByteString -> RequestException
     decodeFailure res = DecodeFailure $ responseBody res
+
+-- | Like 'request', but does not attempt to deserialize the response.
+rawRequest
+    :: forall m s.
+        ( MonadIO m
+        , MonadCatch m
+        , HasType (Text, Manager) s
+        )
+    => s
+    -> (Method, Text)
+        -- ^ HTTP method and request path
+    -> Headers
+        -- ^ Request headers
+    -> Payload
+        -- ^ Request body
+    -> m (HTTP.Status, Either RequestException ByteString)
+rawRequest ctx (verb, path) reqHeaders body = do
+    let (base, manager) = ctx ^. typed @(Text, Manager)
+    req <- parseRequest $ T.unpack $ base <> path
+    let io = handleResponse <$> liftIO (httpLbs (prepareReq req) manager)
+    catch io handleException
+  where
+    prepareReq :: HTTP.Request -> HTTP.Request
+    prepareReq req = req
+        { method = verb
+        , requestBody = payload
+        , requestHeaders = headers
+        }
+        where
+            headers = case reqHeaders of
+                Headers x -> x
+                Default -> mempty
+                None -> mempty
+
+            payload = case body of
+                Json x -> (RequestBodyLBS . Aeson.encode) x
+                NonJson x -> RequestBodyLBS x
+                Empty -> mempty
+
+    handleResponse res = case responseStatus res of
+        s | s >= status400 -> (s, Left $ DecodeFailure $ responseBody res)
+        s -> (s, Right $ responseBody res)
+
+    handleException = \case
+        e@InvalidUrlException{} ->
+            throwM e
+        HttpExceptionRequest _ e ->
+            return (status500, Left (HttpException e))
+
 
 -- | Makes a request to the API, but throws if it fails.
 unsafeRequest

@@ -13,8 +13,10 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE PolyKinds #-}
+{-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -96,6 +98,7 @@ module Cardano.Wallet.Api.Types
     , ApiWalletMigrationInfo (..)
     , ApiWithdrawal (..)
     , ApiWalletSignData (..)
+    , ApiVerificationKey (..)
 
     -- * API Types (Byron)
     , ApiByronWallet (..)
@@ -139,7 +142,7 @@ module Cardano.Wallet.Api.Types
 import Prelude
 
 import Cardano.Address.Derivation
-    ( XPrv, XPub, xpubToBytes )
+    ( XPrv, XPub, xpubFromBytes, xpubToBytes )
 import Cardano.Api.MetaData
     ( TxMetadataJsonSchema (..), metadataFromJson, metadataToJson )
 import Cardano.Api.Typed
@@ -152,7 +155,8 @@ import Cardano.Mnemonic
     , natVals
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..)
+    ( AccountingStyle (..)
+    , Depth (..)
     , DerivationIndex (..)
     , Index (..)
     , NetworkDiscriminant (..)
@@ -206,6 +210,10 @@ import Cardano.Wallet.Primitive.Types
     )
 import Cardano.Wallet.Transaction
     ( DelegationAction (..) )
+import Codec.Binary.Bech32
+    ( dataPartFromBytes, dataPartToBytes )
+import Codec.Binary.Bech32.TH
+    ( humanReadablePart )
 import Control.Applicative
     ( optional, (<|>) )
 import Control.Arrow
@@ -289,6 +297,7 @@ import Web.HttpApiData
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet.Primitive.AddressDerivation as AD
 import qualified Cardano.Wallet.Primitive.Types as W
+import qualified Codec.Binary.Bech32 as Bech32
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Types as Aeson
 import qualified Data.ByteString.Lazy as BL
@@ -755,6 +764,10 @@ data ApiWalletSignData = ApiWalletSignData
     , passphrase :: ApiT (Passphrase "lenient")
     } deriving (Eq, Generic, Show)
 
+newtype ApiVerificationKey = ApiVerificationKey
+    { getApiVerificationKey :: (XPub, AccountingStyle)
+    } deriving (Eq, Generic, Show)
+
 -- | Error codes returned by the API, in the form of snake_cased strings
 data ApiErrorCode
     = NoSuchWallet
@@ -995,6 +1008,51 @@ instance ToJSON (ApiT DerivationIndex) where
 instance FromJSON (ApiT DerivationIndex) where
     parseJSON = parseJSON
         >=> fmap ApiT . eitherToParser . first ShowFmt . fromText
+
+instance ToJSON ApiVerificationKey where
+    toJSON (ApiVerificationKey (xpub, role_)) =
+        toJSON $ Bech32.encodeLenient hrp $ dataPartFromBytes $ xpubToBytes xpub
+      where
+        hrp = case role_ of
+            UtxoInternal -> [humanReadablePart|addr_xvk|]
+            UtxoExternal -> [humanReadablePart|addr_xvk|]
+            MutableAccount -> [humanReadablePart|stake_xvk|]
+            MultisigScript -> [humanReadablePart|script_xvk|]
+
+instance FromJSON ApiVerificationKey where
+    parseJSON value = do
+        (hrp, bytes) <- parseJSON value >>= parseBech32
+        fmap ApiVerificationKey . (,)
+            <$> parseXPub bytes
+            <*> parseRole hrp
+      where
+        parseBech32 =
+            either (const $ fail errBech32) parseDataPart . Bech32.decodeLenient
+          where
+            errBech32 =
+                "Malformed verification key. Expected a bech32-encoded key."
+
+        parseDataPart =
+            maybe (fail errDataPart) pure . traverse dataPartToBytes
+          where
+            errDataPart =
+                "Couldn't decode data-part to valid UTF-8 bytes."
+
+        parseRole = \case
+            hrp | hrp == [humanReadablePart|addr_xvk|]  -> pure UtxoExternal
+            hrp | hrp == [humanReadablePart|stake_xvk|] -> pure MutableAccount
+            hrp | hrp == [humanReadablePart|script_xvk|] -> pure MultisigScript
+            _ -> fail errRole
+          where
+            errRole =
+                "Unrecognized human-readable part. Expected one of:\
+                \ \"addr_xvk\", \"stake_xvk\" or \"script_xvk\"."
+
+        parseXPub =
+            maybe (fail errXPub) pure . xpubFromBytes
+          where
+            errXPub =
+                "Not a valid extended public key."
 
 instance FromJSON ApiEpochInfo where
     parseJSON = genericParseJSON defaultRecordTypeOptions
