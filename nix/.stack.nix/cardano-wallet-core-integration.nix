@@ -39,6 +39,7 @@
           (hsPkgs."bech32" or (errorHandler.buildDepError "bech32"))
           (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
           (hsPkgs."cardano-addresses" or (errorHandler.buildDepError "cardano-addresses"))
+          (hsPkgs."cardano-crypto" or (errorHandler.buildDepError "cardano-crypto"))
           (hsPkgs."cardano-transactions" or (errorHandler.buildDepError "cardano-transactions"))
           (hsPkgs."cardano-wallet-cli" or (errorHandler.buildDepError "cardano-wallet-cli"))
           (hsPkgs."cardano-wallet-core" or (errorHandler.buildDepError "cardano-wallet-core"))
