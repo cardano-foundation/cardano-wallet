@@ -84,6 +84,7 @@ import Cardano.Wallet.Primitive.Types
     , CertificatePublicationTime
     , EpochNo (..)
     , InternalState (..)
+    , PoolFlag (..)
     , PoolId
     , PoolLifeCycleStatus (..)
     , PoolOwner (..)
@@ -97,8 +98,6 @@ import Cardano.Wallet.Primitive.Types
     , defaultInternalState
     , defaultSettings
     )
-import Control.Monad
-    ( forM_ )
 import Control.Monad.Trans.Class
     ( lift )
 import Control.Monad.Trans.State.Strict
@@ -434,11 +433,14 @@ mRollbackTo ti point = do
 
 mDelistPools :: [PoolId] -> ModelOp ()
 mDelistPools poolsToDelist =
-    forM_ poolsToDelist $ \pool -> do
-        mRegistrationCert <- fmap snd <$> mReadPoolRegistration pool
-        let mHash = fmap snd (poolMetadata =<< mRegistrationCert)
-        forM_ mHash $ \hash -> modify #metadata
-            $ Map.adjust (\m -> m { delisted = True }) hash
+    modify #registrations
+        $ Map.mapWithKey (\(_, pid) a ->
+            if updateThis pid
+            then a{ poolFlag = Delisted }
+            else a)
+  where
+    updateThis p = p `Set.member` poolsToDelistSet
+    poolsToDelistSet = Set.fromList poolsToDelist
 
 mRemovePools :: [PoolId] -> ModelOp ()
 mRemovePools poolsToRemove = do

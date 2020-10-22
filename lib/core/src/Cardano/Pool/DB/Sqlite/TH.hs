@@ -120,6 +120,7 @@ PoolRegistration sql=pool_registration
     poolRegistrationPledge            Word64                        sql=pledge
     poolRegistrationMetadataUrl       W.StakePoolMetadataUrl  Maybe sql=metadata_url
     poolRegistrationMetadataHash      W.StakePoolMetadataHash Maybe sql=metadata_hash
+    poolRegistrationFlag              W.PoolFlag                    sql=flag
 
     Primary poolRegistrationPoolId poolRegistrationSlot poolRegistrationSlotInternalIndex
     deriving Show Generic
@@ -141,7 +142,6 @@ PoolMetadata sql=pool_metadata
     poolMetadataTicker                 W.StakePoolTicker       sql=ticker
     poolMetadataDescription            Text Maybe              sql=description
     poolMetadataHomepage               Text                    sql=homepage
-    poolMetadataDelisted               Bool                    sql=delisted
 
     Primary poolMetadataHash
     deriving Show Generic

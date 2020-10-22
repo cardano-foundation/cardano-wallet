@@ -190,6 +190,9 @@ module Cardano.Wallet.Primitive.Types
     -- * InternalState
     , InternalState (..)
     , defaultInternalState
+
+    -- * other
+    , PoolFlag (..)
     ) where
 
 import Prelude
@@ -647,9 +650,6 @@ data StakePoolMetadata = StakePoolMetadata
     -- ^ Short description of the stake pool.
     , homepage :: Text
     -- ^ Absolute URL for the stake pool's homepage link.
-    , delisted :: Bool
-    -- ^ The pool has been delisted from the current SMASH server
-    -- (e.g. due to non-compliance). This isn't part of the JSON.
     } deriving (Eq, Ord, Show, Generic)
 
 instance FromJSON StakePoolMetadata where
@@ -665,7 +665,7 @@ instance FromJSON StakePoolMetadata where
         homepage <- obj .: "homepage"
         guard (T.length homepage <= 100)
 
-        pure $ StakePoolMetadata{ticker,name,description,homepage,delisted=False}
+        pure $ StakePoolMetadata{ticker,name,description,homepage}
 
 -- | Very short name for a stake pool.
 newtype StakePoolTicker = StakePoolTicker { unStakePoolTicker :: Text }
@@ -1782,12 +1782,13 @@ data PoolRegistrationCertificate = PoolRegistrationCertificate
     , poolCost :: Quantity "lovelace" Word64
     , poolPledge :: Quantity "lovelace" Word64
     , poolMetadata :: Maybe (StakePoolMetadataUrl, StakePoolMetadataHash)
+    , poolFlag :: PoolFlag
     } deriving (Generic, Show, Eq, Ord)
 
 instance NFData PoolRegistrationCertificate
 
 instance Buildable PoolRegistrationCertificate where
-    build (PoolRegistrationCertificate p o _ _ _ _) = mempty
+    build (PoolRegistrationCertificate p o _ _ _ _ _) = mempty
         <> "Registration of "
         <> build p
         <> " owned by "
@@ -2032,3 +2033,17 @@ instance FromJSON PoolMetadataSource where
 
 instance ToJSON PoolMetadataSource where
     toJSON = toJSON . toText
+
+data PoolFlag = NoPoolFlag | Delisted
+    deriving (Generic, Show, Eq, Ord)
+
+instance NFData PoolFlag
+
+instance ToText PoolFlag where
+    toText NoPoolFlag = "no-pool-flag"
+    toText Delisted = "delisted"
+
+instance FromText PoolFlag where
+    fromText "no-pool-flag" = Right NoPoolFlag
+    fromText "delisted" = Right Delisted
+    fromText t = Left $ TextDecodingError ("unexpected value: " <> T.unpack t)

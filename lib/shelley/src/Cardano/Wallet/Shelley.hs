@@ -353,7 +353,7 @@ serveWallet
             forM_ settings $ atomically . putSettings
             void $ forkFinally (monitorStakePools tr gp nl db) onExit
             spl <- newStakePoolLayer nl db
-                $ forkFinally (monitorMetadata poolsEngineTracer tr gp db) onExit
+                $ forkFinally (monitorMetadata tr gp db) onExit
             action spl
       where
         tr = contramap (MsgFromWorker mempty) poolsEngineTracer

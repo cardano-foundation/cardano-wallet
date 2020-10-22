@@ -28,6 +28,7 @@ import Cardano.Wallet.Primitive.Types
     , EpochNo (..)
     , Hash (..)
     , PoolCertificate (..)
+    , PoolFlag (..)
     , PoolId (..)
     , PoolMetadataSource (..)
     , PoolMetadataSource (..)
@@ -164,9 +165,16 @@ instance Arbitrary PoolOwner where
         byte <- elements ['0'..'8']
         return $ PoolOwner $ B8.pack (replicate 32 byte)
 
+instance Arbitrary PoolFlag where
+    arbitrary = elements
+        [ Delisted
+        , NoPoolFlag
+        ]
+    shrink = const []
+
 instance Arbitrary PoolRegistrationCertificate where
-    shrink (PoolRegistrationCertificate pid owners m c pl md) =
-        (\pid' owners' -> PoolRegistrationCertificate pid' owners' m c pl md)
+    shrink (PoolRegistrationCertificate pid owners m c pl md fl) =
+        (\pid' owners' -> PoolRegistrationCertificate pid' owners' m c pl md fl)
             <$> shrink pid
             <*> shrinkOwners owners
       where
@@ -180,6 +188,7 @@ instance Arbitrary PoolRegistrationCertificate where
         <*> fmap Quantity arbitrary
         <*> fmap Quantity arbitrary
         <*> oneof [pure Nothing, Just <$> genMetadata]
+        <*> arbitrary
       where
         genMetadata = (,)
             <$> fmap StakePoolMetadataUrl genURL
@@ -324,7 +333,6 @@ genStakePoolMetadata (StakePoolMetadataUrl url) = StakePoolMetadata
     <*> genPrintableText
     <*> oneof [ pure Nothing, Just <$> genPrintableText ]
     <*> pure url
-    <*> pure False
 
 genStakePoolTicker :: Gen StakePoolTicker
 genStakePoolTicker = (StakePoolTicker . T.pack) <$>
