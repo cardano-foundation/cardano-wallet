@@ -26,6 +26,8 @@ module Cardano.Wallet.Api.TypesSpec (spec) where
 import Prelude hiding
     ( id )
 
+import Cardano.Address.Script
+    ( KeyHash (..), Script (..) )
 import Cardano.Mnemonic
     ( CheckSumBits
     , ConsistentEntropy
@@ -65,6 +67,7 @@ import Cardano.Wallet.Api.Types
     , ApiNtpStatus (..)
     , ApiPostRandomAddressData
     , ApiPutAddressesData (..)
+    , ApiScript (..)
     , ApiSelectCoinsAction (..)
     , ApiSelectCoinsData (..)
     , ApiSelectCoinsPayments (..)
@@ -337,6 +340,7 @@ spec = do
         "can perform roundtrip JSON serialization & deserialization, \
         \and match existing golden files" $ do
             jsonRoundtripAndGolden $ Proxy @(ApiAddress ('Testnet 0))
+            jsonRoundtripAndGolden $ Proxy @ApiScript
             jsonRoundtripAndGolden $ Proxy @(ApiT DerivationIndex)
             jsonRoundtripAndGolden $ Proxy @ApiEpochInfo
             jsonRoundtripAndGolden $ Proxy @(ApiSelectCoinsData ('Testnet 0))
@@ -1017,6 +1021,30 @@ instance Arbitrary (ApiAddress t) where
 instance Arbitrary ApiEpochInfo where
     arbitrary = ApiEpochInfo <$> arbitrary <*> genUniformTime
     shrink _ = []
+
+instance Arbitrary ApiScript where
+    arbitrary = ApiScript . ApiT <$> arbitrary
+
+instance Arbitrary Script where
+    arbitrary = do
+        reqAllGen <- do
+            n <- choose (1,10)
+            pure $ RequireAllOf <$> vector n
+        reqAnyGen <- do
+            n <- choose (1,10)
+            pure $ RequireAnyOf <$> vector n
+        reqMofNGen <- do
+            m <- choose (2,5)
+            n <- choose ((fromInteger $ toInteger m),10)
+            pure $ RequireSomeOf m <$> vector n
+        let reqSig =
+                (RequireSignatureOf . KeyHash . BS.pack) <$> replicateM 28 arbitrary
+        oneof
+            (replicate 15 reqSig ++
+            [ reqAllGen
+            , reqAnyGen
+            , reqMofNGen
+            ])
 
 instance Arbitrary (ApiSelectCoinsPayments n) where
     arbitrary = genericArbitrary
@@ -1857,6 +1885,11 @@ instance ToSchema ApiNetworkInformation where
 instance ToSchema ApiNetworkClock where
     declareNamedSchema _ = declareSchemaForDefinition "ApiNetworkClock"
 
+instance ToSchema ApiScript where
+    declareNamedSchema _ = do
+        addDefinition scriptValueSchema
+        declareSchemaForDefinition "ApiScript"
+
 instance ToSchema ApiNetworkParameters where
     declareNamedSchema _ = declareSchemaForDefinition "ApiNetworkParameters"
 
@@ -1894,6 +1927,11 @@ instance ToSchema ApiWalletSignData where
 transactionMetadataValueSchema :: NamedSchema
 transactionMetadataValueSchema =
     NamedSchema (Just "TransactionMetadataValue") $ mempty
+        & additionalProperties ?~ AdditionalPropertiesAllowed True
+
+scriptValueSchema :: NamedSchema
+scriptValueSchema =
+    NamedSchema (Just "ScriptValue") $ mempty
         & additionalProperties ?~ AdditionalPropertiesAllowed True
 
 -- | Utility function to provide an ad-hoc 'ToSchema' instance for a definition:

@@ -54,6 +54,7 @@ import Cardano.Wallet.Api.Types
     , ApiPoolId
     , ApiPostRandomAddressData
     , ApiPutAddressesData
+    , ApiScript
     , ApiSelectCoinsData
     , ApiSlotReference
     , ApiT (..)
@@ -256,6 +257,35 @@ instance Malformed (BodyParam ApiWalletSignData) where
             { "passphrase": #{wPassphrase}
             }|]
           , "Error in $: parsing Cardano.Wallet.Api.Types.ApiWalletSignData(ApiWalletSignData) failed, key 'metadata' not found"
+          )
+        ]
+
+instance Malformed (BodyParam ApiScript) where
+    malformed = first BodyParam <$>
+        [ ( Aeson.encode [aesonQQ|
+            { "something": []
+            }|]
+          , "Error in $: key 'script' not found"
+          )
+        , ( Aeson.encode [aesonQQ|
+            { "script": {}
+            }|]
+          , "Error in $: key 'some' not found"
+          )
+        , ( Aeson.encode [aesonQQ|
+            { "script": 2
+            }|]
+          , "Error in $: parsing Script SomeOf failed, expected Object, but encountered Number"
+          )
+        , ( Aeson.encode [aesonQQ|
+            { "script": { "some" : 2 }
+            }|]
+          , "Error in $.some: parsing HashMap ~Text failed, expected Object, but encountered Number"
+          )
+        , ( Aeson.encode [aesonQQ|
+            { "script": { "some" : { "something": 2, "at_least": 0 } }
+            }|]
+          , "Error in $: key 'from' not found"
           )
         ]
 

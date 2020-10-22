@@ -1368,9 +1368,12 @@ instance ToJSON (ApiT (Passphrase purpose)) where
     toJSON = toJSON . toText . getApiT
 
 instance FromJSON ApiScript where
-    parseJSON = fmap (ApiScript . ApiT) . parseJSON
+    parseJSON =  withObject "Script" $ \o -> do
+        script' <- o .: "script"
+        (ApiScript . ApiT) <$> parseJSON script'
 instance ToJSON ApiScript where
-    toJSON (ApiScript (ApiT script')) = toJSON script'
+    toJSON (ApiScript (ApiT script')) =
+        object ["script" .= toJSON script']
 
 instance MkSomeMnemonic sizes => FromJSON (ApiMnemonicT sizes)
   where
