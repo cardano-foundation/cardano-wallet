@@ -641,7 +641,7 @@ x-transactionChange: &transactionChange
 x-transactionResolvedInputs: &transactionResolvedInputs
   description: A list of transaction inputs
   type: array
-  minItems: 0
+  minItems: 1
   items:
     type: object
     required:
