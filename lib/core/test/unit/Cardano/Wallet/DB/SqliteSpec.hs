@@ -84,6 +84,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , Index
     , NetworkDiscriminant (..)
     , Passphrase (..)
+    , PaymentAddress (..)
     , PersistPrivateKey
     , WalletKey
     , encryptPassphrase
@@ -262,6 +263,10 @@ spec = do
                 , minBound
                 )
 
+        it "'migrate' db with old text serialization for 'AccountingStyle'" $
+            testMigrationAccountingStyle @ShelleyKey
+                "shelleyAccountingStyle-v2020-10-13.sqlite"
+
 sqliteSpecSeq :: Spec
 sqliteSpecSeq = withDB newMemoryDBLayer $ do
     describe "Sqlite" properties
@@ -274,6 +279,41 @@ sqliteSpecRnd = withDB newMemoryDBLayer $ do
     describe "Sqlite State machine (RndState)" $ do
         it "Sequential state machine tests"
             (prop_sequential :: TestDBRnd -> Property)
+
+testMigrationAccountingStyle
+    :: forall k s.
+        ( s ~ SeqState 'Mainnet k
+        , WalletKey k
+        , PersistState s
+        , PersistPrivateKey (k 'RootK)
+        , PaymentAddress 'Mainnet k
+        )
+    => String
+    -> IO ()
+testMigrationAccountingStyle dbName = do
+    let orig = $(getTestData) </> dbName
+    withSystemTempDirectory "migration-db" $ \dir -> do
+        let path = dir </> "db.sqlite"
+        let ti = dummyTimeInterpreter
+        copyFile orig path
+        (logs, Just cp) <- captureLogging $ \tr -> do
+            withDBLayer @s @k tr defaultFieldValues (Just path) ti
+                $ \(_ctx, db) -> db & \DBLayer{..} -> atomically
+                $ do
+                    [wid] <- listWallets
+                    readCheckpoint wid
+        let migrationMsg = filter isMsgManualMigration logs
+        length migrationMsg `shouldBe` 2
+        length (knownAddresses $ getState cp) `shouldBe` 69
+  where
+    isMsgManualMigration :: DBLog -> Bool
+    isMsgManualMigration = \case
+        MsgManualMigrationNeeded field _ ->
+            fieldName field == unDBName fieldInDb
+        _ ->
+            False
+      where
+        fieldInDb = fieldDB $ persistFieldDef DB.SeqStateAddressAccountingStyle
 
 testMigrationSeqStateDerivationPrefix
     :: forall k s.
