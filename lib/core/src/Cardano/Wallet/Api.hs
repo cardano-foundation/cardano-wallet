@@ -112,8 +112,6 @@ module Cardano.Wallet.Api
 
 import Prelude
 
-import Cardano.Address.Script
-    ( Script )
 import Cardano.Wallet
     ( WalletLayer (..), WalletLog )
 import Cardano.Wallet.Api.Types
@@ -130,6 +128,7 @@ import Cardano.Wallet.Api.Types
     , ApiPoolId
     , ApiPostRandomAddressData
     , ApiPutAddressesDataT
+    , ApiScript
     , ApiSelectCoinsDataT
     , ApiT
     , ApiTransactionT
@@ -336,7 +335,7 @@ type InspectAddress = "addresses"
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/postScriptAddress
 type PostScriptAddress n = "addresses"
-    :> ReqBody '[JSON] (ApiT Script)
+    :> ReqBody '[JSON] ApiScript
     :> PostCreated '[JSON] (ApiAddressT n)
 
 {-------------------------------------------------------------------------------
