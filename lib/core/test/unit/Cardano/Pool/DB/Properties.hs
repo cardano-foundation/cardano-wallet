@@ -1437,7 +1437,7 @@ prop_modSettingsReadSettings DBLayer{..} settings = do
         assertWith "Modifying settings and reading afterwards works"
             (modSettings' == settings)
 
--- | read . put == pure
+-- | read . put == id
 prop_putLastMetadataGCReadLastMetadataGC
     :: DBLayer IO
     -> POSIXTime

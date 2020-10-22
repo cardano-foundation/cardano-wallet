@@ -2023,9 +2023,9 @@ data InternalState = InternalState
     } deriving (Generic, Show, Eq)
 
 defaultInternalState :: InternalState
-defaultInternalState = InternalState {
-   lastMetadataGC = (fromIntegral @Int 0)
-}
+defaultInternalState = InternalState
+    { lastMetadataGC = fromIntegral @Int 0 }
+
 
 instance FromJSON PoolMetadataSource where
     parseJSON = parseJSON >=> either (fail . show . ShowFmt) pure . fromText

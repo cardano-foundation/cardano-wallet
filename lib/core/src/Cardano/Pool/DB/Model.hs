@@ -435,8 +435,9 @@ mRollbackTo ti point = do
 mDelistPools :: [PoolId] -> ModelOp ()
 mDelistPools poolsToDelist =
     forM_ poolsToDelist $ \pool -> do
-        mhash <- (>>= (fmap snd . poolMetadata . snd)) <$> mReadPoolRegistration pool
-        forM_ mhash $ \hash -> modify #metadata
+        mRegistrationCert <- fmap snd <$> mReadPoolRegistration pool
+        let mHash = fmap snd (poolMetadata =<< mRegistrationCert)
+        forM_ mHash $ \hash -> modify #metadata
             $ Map.adjust (\m -> m { delisted = True }) hash
 
 mRemovePools :: [PoolId] -> ModelOp ()
