@@ -30,7 +30,6 @@ import Cardano.Wallet.DB
 import Cardano.Wallet.DB.Model
     ( Database
     , Err (..)
-    , ErrErasePendingTx (..)
     , ModelOp
     , emptyDatabase
     , mCheckWallet
@@ -239,11 +238,11 @@ errNoSuchWallet (NoSuchWallet (PrimaryKey wid)) = Just (ErrNoSuchWallet wid)
 errNoSuchWallet _ = Nothing
 
 errCannotRemovePendingTx :: Err (PrimaryKey WalletId) -> Maybe ErrRemoveTx
-errCannotRemovePendingTx (CannotRemovePendingTx (ErrErasePendingTxNoSuchWallet (PrimaryKey wid))) =
+errCannotRemovePendingTx (NoSuchWallet (PrimaryKey wid)) =
     Just (ErrRemoveTxNoSuchWallet (ErrNoSuchWallet wid))
-errCannotRemovePendingTx (CannotRemovePendingTx (ErrErasePendingTxNoTx tid)) =
+errCannotRemovePendingTx (NoSuchTx _ tid) =
     Just (ErrRemoveTxNoSuchTransaction tid)
-errCannotRemovePendingTx (CannotRemovePendingTx (ErrErasePendingTxNoPendingTx tid)) =
+errCannotRemovePendingTx (CantRemoveTxInLedger _ tid) =
     Just (ErrRemoveTxAlreadyInLedger tid)
 errCannotRemovePendingTx _ = Nothing
 

@@ -65,7 +65,6 @@ import Cardano.Wallet.DB.Arbitrary
 import Cardano.Wallet.DB.Model
     ( Database
     , Err (..)
-    , ErrErasePendingTx (..)
     , TxHistory
     , WalletDatabase (..)
     , emptyDatabase
@@ -448,7 +447,7 @@ runIO db@DBLayer{..} = fmap Resp . go
             mapExceptT atomically $ putTxHistory (PrimaryKey wid) txs
         ReadTxHistory wid minWith order range status -> Right . TxHistory <$>
             atomically (readTxHistory (PrimaryKey wid) minWith order range status)
-        RemovePendingTx wid tid -> catchCannotRemovePendingTx Unit $
+        RemovePendingTx wid tid -> (catchCannotRemovePendingTx wid) Unit $
             mapExceptT atomically $ removePendingOrExpiredTx (PrimaryKey wid) tid
         UpdatePendingTxForExpiry wid sl -> catchNoSuchWallet Unit $
             mapExceptT atomically $ updatePendingTxForExpiry (PrimaryKey wid) sl
@@ -471,8 +470,8 @@ runIO db@DBLayer{..} = fmap Resp . go
         fmap (bimap errWalletAlreadyExists f) . runExceptT
     catchNoSuchWallet f =
         fmap (bimap errNoSuchWallet f) . runExceptT
-    catchCannotRemovePendingTx f =
-        fmap (bimap errCannotRemovePendingTx f) . runExceptT
+    catchCannotRemovePendingTx wid f =
+        fmap (bimap (errCannotRemovePendingTx wid) f) . runExceptT
 
     errNoSuchWallet :: ErrNoSuchWallet -> Err WalletId
     errNoSuchWallet (ErrNoSuchWallet wid) = NoSuchWallet wid
@@ -480,13 +479,13 @@ runIO db@DBLayer{..} = fmap Resp . go
     errWalletAlreadyExists :: ErrWalletAlreadyExists -> Err WalletId
     errWalletAlreadyExists (ErrWalletAlreadyExists wid) = WalletAlreadyExists wid
 
-    errCannotRemovePendingTx :: ErrRemoveTx -> Err WalletId
-    errCannotRemovePendingTx (ErrRemoveTxNoSuchWallet (ErrNoSuchWallet wid)) =
-        CannotRemovePendingTx (ErrErasePendingTxNoSuchWallet wid)
-    errCannotRemovePendingTx (ErrRemoveTxNoSuchTransaction tid) =
-        CannotRemovePendingTx (ErrErasePendingTxNoTx tid)
-    errCannotRemovePendingTx (ErrRemoveTxAlreadyInLedger tid) =
-        CannotRemovePendingTx (ErrErasePendingTxNoPendingTx tid)
+    errCannotRemovePendingTx :: WalletId -> ErrRemoveTx -> Err WalletId
+    errCannotRemovePendingTx _ (ErrRemoveTxNoSuchWallet e) =
+        errNoSuchWallet e
+    errCannotRemovePendingTx wid (ErrRemoveTxNoSuchTransaction tid) =
+        NoSuchTx wid tid
+    errCannotRemovePendingTx wid (ErrRemoveTxAlreadyInLedger tid) =
+        CantRemoveTxInLedger wid tid
 
     unPrimaryKey :: PrimaryKey key -> key
     unPrimaryKey (PrimaryKey key) = key
