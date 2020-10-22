@@ -215,7 +215,6 @@ import Test.Hspec
     , shouldNotBe
     , shouldNotContain
     , shouldReturn
-    , shouldSatisfy
     , shouldThrow
     , xit
     )
@@ -303,7 +302,18 @@ testMigrationAccountingStyle dbName = do
                 $ do
                     [wid] <- listWallets
                     readCheckpoint wid
-        knownAddresses (getState cp) `shouldSatisfy` ((> 20) . length)
+        let migrationMsg = filter isMsgManualMigration logs
+        length migrationMsg `shouldBe` 2
+        length (knownAddresses $ getState cp) `shouldBe` 69
+  where
+    isMsgManualMigration :: DBLog -> Bool
+    isMsgManualMigration = \case
+        MsgManualMigrationNeeded field _ ->
+            fieldName field == unDBName fieldInDb
+        _ ->
+            False
+      where
+        fieldInDb = fieldDB $ persistFieldDef DB.SeqStateAddressAccountingStyle
 
 testMigrationSeqStateDerivationPrefix
     :: forall k s.

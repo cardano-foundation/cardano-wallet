@@ -1,7 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE TypeApplications #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
@@ -431,28 +430,7 @@ instance PersistFieldSql AddressPoolGap where
 
 instance PersistField AccountingStyle where
     toPersistValue = toPersistValue . toText
-    fromPersistValue value =
-        backwardCompatible . fromPersistValueFromText $ value
-      where
-        -- The 'AccountingStyle' constructors used to be respectively:
-        --
-        --   - UTxOInternal
-        --   - UTxOExternal
-        --
-        -- (notice the mixed case here) and were serialized to text as:
-        --
-        --   - u_tx_o_internal
-        --   - u_tx_o_external
-        --
-        -- which is pretty lame. This was changed later on, but already
-        -- serialized data may subsist on for quite a while. Hence this little
-        -- pirouette here.
-        backwardCompatible = \case
-            success@Right{} -> success
-            failure@Left{}  -> fromPersistValue @Text value >>= \case
-                t | t == "u_tx_o_internal" -> pure UtxoInternal
-                t | t == "u_tx_o_external" -> pure UtxoExternal
-                _ -> failure
+    fromPersistValue = fromPersistValueFromText
 
 instance PersistFieldSql AccountingStyle where
     sqlType _ = sqlType (Proxy @Text)

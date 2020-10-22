@@ -370,6 +370,8 @@ migrateManually tr proxy defaultFieldValues =
         addAddressStateIfMissing conn
 
         addSeqStateDerivationPrefixIfMissing conn
+
+        renameAccountingStyle conn
   where
     -- NOTE
     -- Wallets created before the 'PassphraseScheme' was introduced have no
@@ -546,6 +548,26 @@ migrateManually tr proxy defaultFieldValues =
         jormungandrPrefix =
             shelleyPrefix
 
+    -- The 'AccountingStyle' constructors used to be respectively:
+    --
+    --   - UTxOInternal
+    --   - UTxOExternal
+    --
+    -- (notice the mixed case here) and were serialized to text as:
+    --
+    --   - u_tx_o_internal
+    --   - u_tx_o_external
+    --
+    -- which is pretty lame. This was changed later on, but already
+    -- serialized data may subsist on for quite a while. Hence this little
+    -- pirouette here.
+    renameAccountingStyle :: Sqlite.Connection -> IO ()
+    renameAccountingStyle conn = do
+        renameColumn conn (DBField SeqStateAddressAccountingStyle)
+            "u_tx_o_internal" "utxo_internal"
+        renameColumn conn (DBField SeqStateAddressAccountingStyle)
+            "u_tx_o_external" "utxo_external"
+
     -- | Determines whether a field is present in its parent table.
     isFieldPresent :: Sqlite.Connection -> DBField -> IO SqlColumnStatus
     isFieldPresent conn field = do
@@ -597,6 +619,33 @@ migrateManually tr proxy defaultFieldValues =
                 Sqlite.finalize query
             ColumnPresent ->
                 traceWith tr $ MsgManualMigrationNotNeeded field
+
+    renameColumn
+        :: Sqlite.Connection
+        -> DBField
+        -> Text -- Old Value
+        -> Text -- New Value
+        -> IO ()
+    renameColumn conn field old new = do
+        isFieldPresent conn field >>= \case
+            TableMissing ->
+                traceWith tr $ MsgManualMigrationNotNeeded field
+            ColumnMissing -> do
+                traceWith tr $ MsgManualMigrationNotNeeded field
+            ColumnPresent -> do
+                query <- Sqlite.prepare conn $ T.unwords
+                    [ "UPDATE", tableName field
+                    , "SET", fieldName field, "=", quotes new
+                    , "WHERE", fieldName field, "=", quotes old
+                    ]
+                _ <- Sqlite.step query
+                changes <- Sqlite.changes conn
+                traceWith tr $ if changes > 0
+                    then MsgManualMigrationNeeded field old
+                    else MsgManualMigrationNotNeeded field
+                Sqlite.finalize query
+      where
+        quotes x = "\"" <> x <> "\""
 
 -- | A set of default field values that can be consulted when performing a
 --   database migration.
