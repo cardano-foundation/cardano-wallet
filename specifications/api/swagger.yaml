@@ -2364,6 +2364,7 @@ x-tagGroups:
     - Network
     - Proxy
     - Settings
+    - Keys
     - Experimental
 
 paths:
@@ -3193,4 +3194,3 @@ paths:
 
         Return the current settings.
       responses: *responsesGetSettings
-
