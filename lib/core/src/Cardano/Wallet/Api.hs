@@ -121,6 +121,7 @@ import Cardano.Wallet.Api.Types
     , ApiAddressT
     , ApiByronWallet
     , ApiCoinSelectionT
+    , ApiCredentials
     , ApiFee
     , ApiNetworkClock
     , ApiNetworkInformation
@@ -128,7 +129,6 @@ import Cardano.Wallet.Api.Types
     , ApiPoolId
     , ApiPostRandomAddressData
     , ApiPutAddressesDataT
-    , ApiScript
     , ApiSelectCoinsDataT
     , ApiT
     , ApiTransactionT
@@ -335,7 +335,7 @@ type InspectAddress = "addresses"
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/postScriptAddress
 type PostScriptAddress n = "addresses"
-    :> ReqBody '[JSON] ApiScript
+    :> ReqBody '[JSON] ApiCredentials
     :> PostCreated '[JSON] (ApiAddressT n)
 
 {-------------------------------------------------------------------------------

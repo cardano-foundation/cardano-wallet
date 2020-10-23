@@ -47,6 +47,9 @@ module Cardano.Wallet.Api.Types
     -- * API Types
     , ApiAddress (..)
     , ApiScript (..)
+    , ApiPubKey (..)
+    , Credential (..)
+    , ApiCredentials (..)
     , ApiCertificate (..)
     , ApiEpochInfo (..)
     , ApiSelectCoinsData (..)
@@ -219,6 +222,8 @@ import Codec.Binary.Bech32
     ( dataPartFromBytes, dataPartToBytes )
 import Codec.Binary.Bech32.TH
     ( humanReadablePart )
+import Codec.Binary.Encoding
+    ( AbstractEncoding (..), detectEncoding, encode )
 import Control.Applicative
     ( optional, (<|>) )
 import Control.Arrow
@@ -254,6 +259,8 @@ import Data.ByteString
     ( ByteString )
 import Data.Data
     ( Data )
+import Data.Either.Combinators
+    ( maybeToRight )
 import Data.Either.Extra
     ( maybeToEither )
 import Data.Function
@@ -309,8 +316,10 @@ import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet.Primitive.AddressDerivation as AD
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Codec.Binary.Bech32 as Bech32
+import qualified Codec.Binary.Bech32.TH as Bech32
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Types as Aeson
+import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.HashMap.Strict as HM
 import qualified Data.Map as Map
@@ -398,6 +407,19 @@ data ApiAddress (n :: NetworkDiscriminant) = ApiAddress
 
 newtype ApiScript = ApiScript
     { script :: ApiT Script
+    } deriving (Eq, Generic, Show)
+
+newtype ApiPubKey = ApiPubKey
+    { pubKey :: ByteString
+    } deriving (Eq, Generic, Show)
+
+data Credential = Credential
+    { credential :: Either ApiPubKey ApiScript
+    } deriving (Eq, Generic, Show)
+
+data ApiCredentials = ApiCredentials
+    { spending :: !(Maybe Credential)
+    , staking :: !(Maybe Credential)
     } deriving (Eq, Generic, Show)
 
 data ApiEpochInfo = ApiEpochInfo
@@ -1375,6 +1397,55 @@ instance ToJSON ApiScript where
     toJSON (ApiScript (ApiT script')) =
         object ["script" .= toJSON script']
 
+instance FromJSON ApiPubKey where
+    parseJSON = parseJSON >=> eitherToParser . first ShowFmt . fromText
+instance ToJSON ApiPubKey where
+    toJSON (ApiPubKey key') = do
+        let hrp = [Bech32.humanReadablePart|addr_vk|]
+        String $ T.decodeUtf8 $ encode (EBech32 hrp) key'
+
+instance FromJSON Credential where
+    parseJSON obj = do
+        key' <-
+            (withObject "PubKey" $
+             \o -> o .:? "pub_key" :: Aeson.Parser (Maybe Text)) obj
+        case key' of
+            Nothing ->
+                Credential . Right <$> parseJSON obj
+            Just pubKeyTxt -> case fromText pubKeyTxt of
+                Right bytes ->
+                    pure $ Credential $ Left bytes
+                Left (TextDecodingError err) -> fail err
+
+instance ToJSON Credential where
+    toJSON (Credential (Left c))= object ["pub_key" .= toJSON c]
+    toJSON (Credential (Right c))= toJSON c
+
+instance FromJSON ApiCredentials where
+    parseJSON = withObject "ApiCredentials" $ \obj -> do
+        choice <- (,) <$> obj .:? "spending" <*> obj .:? "staking"
+        case choice of
+            (Nothing, Nothing) -> fail "ApiCredentials must have at least one credential."
+            (Just c, Nothing) -> do
+                spending' <- parseJSON c
+                pure $ ApiCredentials (Just spending') Nothing
+            (Nothing, Just c) -> do
+                staking' <- parseJSON c
+                pure $ ApiCredentials Nothing (Just staking')
+            (Just c1, Just c2) -> do
+                spending' <- parseJSON c1
+                staking' <- parseJSON c2
+                pure $ ApiCredentials (Just spending') (Just staking')
+instance ToJSON ApiCredentials where
+    toJSON (ApiCredentials Nothing Nothing) =
+        error "ApiCredentials must have at least one credential."
+    toJSON (ApiCredentials (Just spending') Nothing) =
+        object [ "spending" .= toJSON spending']
+    toJSON (ApiCredentials Nothing (Just staking')) =
+        object [ "staking" .= toJSON staking']
+    toJSON (ApiCredentials (Just spending') (Just staking')) =
+        object [ "spending" .= toJSON spending', "staking" .= toJSON staking']
+
 instance MkSomeMnemonic sizes => FromJSON (ApiMnemonicT sizes)
   where
     parseJSON bytes = do
@@ -1800,6 +1871,28 @@ instance FromText PostExternalTransactionData where
             fail "Parse error. Expecting hex-encoded format."
         Right load ->
             pure $ PostExternalTransactionData load
+
+instance FromText ApiPubKey where
+    fromText txt = case detectEncoding (T.unpack txt) of
+        Just EBech32{} -> do
+            (hrp, dp) <- either
+                (const $ Left $ TextDecodingError "ApiPubKey's Bech32 has invalid text.")
+                Right (Bech32.decodeLenient txt)
+            let err1 = TextDecodingError "ApiPubKey has invalid Bech32 datapart."
+            let err2 = TextDecodingError "ApiPubKey must be 32 bytes."
+            let pubKeyFromBytes bytes
+                    | BS.length bytes /= 32 = Nothing
+                    | otherwise = Just $ ApiPubKey bytes
+            let checkPayload bytes =
+                    maybeToRight err2 (pubKeyFromBytes bytes)
+            let proceedWhenHrpCorrect = do
+                    bytes <- maybeToRight err1 (Bech32.dataPartToBytes dp)
+                    checkPayload bytes
+            case Bech32.humanReadablePartToText hrp of
+                "stake_vk" -> proceedWhenHrpCorrect
+                "addr_vk" -> proceedWhenHrpCorrect
+                _ -> Left $ TextDecodingError "ApiPubKey must have either 'addr_vk' or 'stake_vk' prefix."
+        _ -> Left $ TextDecodingError "ApiPubKey must be must be encoded as Bech32."
 
 {-------------------------------------------------------------------------------
                              HTTPApiData instances

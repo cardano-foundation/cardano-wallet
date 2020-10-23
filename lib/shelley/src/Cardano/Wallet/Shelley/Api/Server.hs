@@ -146,7 +146,14 @@ import Fmt
 import Network.Ntp
     ( NtpClient )
 import Servant
-    ( (:<|>) (..), Handler (..), NoContent (..), Server, err400, throwError )
+    ( (:<|>) (..)
+    , Handler (..)
+    , NoContent (..)
+    , Server
+    , err400
+    , err501
+    , throwError
+    )
 import Servant.Server
     ( ServerError (..) )
 import Type.Reflection

@@ -51,6 +51,7 @@ import Prelude
 
 import Cardano.Wallet.Api.Types
     ( ApiAddressInspectData
+    , ApiCredentials
     , ApiPoolId
     , ApiPostRandomAddressData
     , ApiPutAddressesData
@@ -289,6 +290,38 @@ instance Malformed (BodyParam ApiScript) where
           )
         ]
 
+instance Malformed (BodyParam ApiCredentials) where
+    malformed = first BodyParam <$>
+        [ ( Aeson.encode [aesonQQ|
+            {}|]
+          , "Error in $: ApiCredentials must have at least one credential."
+          )
+        , ( Aeson.encode [aesonQQ|
+            { "script": {}
+            }|]
+          , "Error in $: ApiCredentials must have at least one credential."
+          )
+        , ( Aeson.encode [aesonQQ|
+            { "staking": {}
+            }|]
+          , "Error in $: key 'script' not found"
+          )
+        , ( Aeson.encode [aesonQQ|
+            { "spending": {}
+            }|]
+          , "Error in $: key 'script' not found"
+          )
+        , ( Aeson.encode [aesonQQ|
+            { "staking": 2
+            }|]
+          , "Error in $: parsing PubKey failed, expected Object, but encountered Number"
+          )
+        , ( Aeson.encode [aesonQQ|
+            { "spending": 2
+            }|]
+          , "Error in $: parsing PubKey failed, expected Object, but encountered Number"
+          )
+        ]
 instance Malformed (BodyParam SomeByronWalletPostData) where
     malformed = jsonValid ++ jsonInvalid
      where
