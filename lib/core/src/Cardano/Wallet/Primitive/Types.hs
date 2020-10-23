@@ -1788,11 +1788,11 @@ data PoolRegistrationCertificate = PoolRegistrationCertificate
 instance NFData PoolRegistrationCertificate
 
 instance Buildable PoolRegistrationCertificate where
-    build (PoolRegistrationCertificate p o _ _ _ _ _) = mempty
+    build (PoolRegistrationCertificate {poolId, poolOwners}) = mempty
         <> "Registration of "
-        <> build p
+        <> build poolId
         <> " owned by "
-        <> build o
+        <> build poolOwners
 
 data PoolRetirementCertificate = PoolRetirementCertificate
     { poolId :: !PoolId
@@ -2015,7 +2015,7 @@ defaultSettings = Settings {
     poolMetadataSource = FetchNone
 }
 
--- | Various internal states of he pool DB
+-- | Various internal states of the pool DB
 --  that need to survive wallet restarts. These aren't
 --  exposed settings.
 {-# HLINT ignore InternalState "Use newtype instead of data" #-}
@@ -2026,8 +2026,6 @@ data InternalState = InternalState
 defaultInternalState :: InternalState
 defaultInternalState = InternalState
     { lastMetadataGC = fromIntegral @Int 0 }
-
-
 instance FromJSON PoolMetadataSource where
     parseJSON = parseJSON >=> either (fail . show . ShowFmt) pure . fromText
 
@@ -2035,15 +2033,12 @@ instance ToJSON PoolMetadataSource where
     toJSON = toJSON . toText
 
 data PoolFlag = NoPoolFlag | Delisted
-    deriving (Generic, Show, Eq, Ord)
+    deriving (Generic, Bounded, Enum, Show, Eq, Ord)
 
 instance NFData PoolFlag
 
 instance ToText PoolFlag where
-    toText NoPoolFlag = "no-pool-flag"
-    toText Delisted = "delisted"
+    toText = toTextFromBoundedEnum KebabLowerCase
 
 instance FromText PoolFlag where
-    fromText "no-pool-flag" = Right NoPoolFlag
-    fromText "delisted" = Right Delisted
-    fromText t = Left $ TextDecodingError ("unexpected value: " <> T.unpack t)
+    fromText = fromTextToBoundedEnum KebabLowerCase
