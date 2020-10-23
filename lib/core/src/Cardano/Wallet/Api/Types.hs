@@ -140,6 +140,9 @@ module Cardano.Wallet.Api.Types
     , PostTransactionDataT
     , PostTransactionFeeDataT
     , ApiWalletMigrationPostDataT
+
+    -- * Others
+    , defaultRecordTypeOptions
     ) where
 
 import Prelude

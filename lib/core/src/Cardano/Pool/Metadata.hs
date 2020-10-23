@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NumericUnderscores #-}
@@ -18,6 +19,7 @@ module Cardano.Pool.Metadata
       fetchFromRemote
     , StakePoolMetadataFetchLog (..)
     , fetchDelistedPools
+    , healthCheck
 
     -- * Construct URLs
     , identityUrlBuilder
@@ -34,10 +36,12 @@ import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
+import Cardano.Wallet.Api.Types
+    ( defaultRecordTypeOptions )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( hex )
 import Cardano.Wallet.Primitive.Types
-    ( PoolId
+    ( PoolId (..)
     , StakePoolMetadata (..)
     , StakePoolMetadataHash (..)
     , StakePoolMetadataUrl (..)
@@ -55,16 +59,20 @@ import Control.Tracer
 import Crypto.Hash.Utils
     ( blake2b256 )
 import Data.Aeson
-    ( FromJSON (..)
-    , ToJSON (..)
+    ( FromJSON
+    , ToJSON
     , eitherDecodeStrict
+    , genericParseJSON
+    , genericToJSON
     , object
+    , parseJSON
+    , toJSON
     , withObject
     , (.:)
     , (.=)
     )
 import Data.Bifunctor
-    ( first )
+    ( Bifunctor (first) )
 import Data.ByteArray.Encoding
     ( Base (..), convertToBase )
 import Data.ByteString
@@ -77,6 +85,8 @@ import Data.Text.Class
     ( TextDecodingError (..), ToText (..), fromText )
 import Fmt
     ( pretty )
+import GHC.Generics
+    ( Generic )
 import Network.HTTP.Client
     ( HttpException (..)
     , Manager
@@ -161,20 +171,18 @@ registryUrlBuilder baseUrl pid _ (StakePoolMetadataHash bytes) =
     hashStr = T.unpack $ T.decodeUtf8 $ convertToBase Base16 bytes
     pidStr  = T.unpack $ toText pid
 
-fetchDelistedPools
+-- | A smash GET request that reads the result at once into memory.
+smashRequest
     :: Tracer IO StakePoolMetadataFetchLog
     -> URI
     -> Manager
-    -> IO (Maybe [PoolId])
-fetchDelistedPools tr uri manager = runExceptTLog $ do
-    pl <- getPoolsPayload
-    smashPids <- except $ eitherDecodeStrict @[SMASHPoolId] pl
-    forM smashPids $ except . first getTextDecodingError . toPoolId
+    -> ExceptT String IO ByteString
+smashRequest tr uri manager = getPayload
   where
-    getPoolsPayload :: ExceptT String IO ByteString
-    getPoolsPayload = do
+    getPayload :: ExceptT String IO ByteString
+    getPayload = do
         req <- withExceptT show $ except $ requestFromURI uri
-        liftIO $ traceWith tr $ MsgFetchDelistedPools uri
+        liftIO $ traceWith tr $ MsgFetchSMASH uri
         ExceptT
             $ handle fromIOException
             $ handle fromHttpException
@@ -190,6 +198,48 @@ fetchDelistedPools tr uri manager = runExceptTLog $ do
                 , show s
                 ]
 
+    fromHttpException :: Monad m => HttpException -> m (Either String a)
+    fromHttpException = return . Left . ("HTTP exception: " <>) . show
+
+data HealthCheck = HealthCheck
+    { status :: T.Text
+    , version :: T.Text
+    } deriving (Generic, Show, Eq, Ord)
+
+instance FromJSON HealthCheck where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance ToJSON HealthCheck where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+healthCheck
+    :: Tracer IO StakePoolMetadataFetchLog
+    -> URI
+    -> Manager
+    -> IO (Maybe HealthCheck)
+healthCheck tr uri manager = runExceptTLog $ do
+    pl <- smashRequest tr uri manager
+    except . eitherDecodeStrict @HealthCheck $ pl
+  where
+    runExceptTLog
+        :: ExceptT String IO HealthCheck
+        -> IO (Maybe HealthCheck)
+    runExceptTLog action = runExceptT action >>= \case
+        Left msg ->
+            Nothing <$ traceWith tr (MsgFetchHealthCheckFailure msg)
+
+        Right meta ->
+            Just meta <$ traceWith tr (MsgFetchHealthCheckSuccess meta)
+
+fetchDelistedPools
+    :: Tracer IO StakePoolMetadataFetchLog
+    -> URI
+    -> Manager
+    -> IO (Maybe [PoolId])
+fetchDelistedPools tr uri manager = runExceptTLog $ do
+    pl <- smashRequest tr uri manager
+    smashPids <- except $ eitherDecodeStrict @[SMASHPoolId] pl
+    forM smashPids $ except . first getTextDecodingError . toPoolId
+  where
     runExceptTLog
         :: ExceptT String IO [PoolId]
         -> IO (Maybe [PoolId])
@@ -199,9 +249,6 @@ fetchDelistedPools tr uri manager = runExceptTLog $ do
 
         Right meta ->
             Just meta <$ traceWith tr (MsgFetchDelistedPoolsSuccess meta)
-
-    fromHttpException :: Monad m => HttpException -> m (Either String a)
-    fromHttpException = return . Left . ("HTTP exception: " <>) . show
 
 -- TODO: refactor/simplify this
 fetchFromRemote
@@ -294,9 +341,11 @@ data StakePoolMetadataFetchLog
     | MsgFetchPoolMetadataSuccess StakePoolMetadataHash StakePoolMetadata
     | MsgFetchPoolMetadataFailure StakePoolMetadataHash String
     | MsgFetchPoolMetadataFallback URI Bool
-    | MsgFetchDelistedPools URI
+    | MsgFetchSMASH URI
     | MsgFetchDelistedPoolsFailure String
     | MsgFetchDelistedPoolsSuccess [PoolId]
+    | MsgFetchHealthCheckFailure String
+    | MsgFetchHealthCheckSuccess HealthCheck
     deriving (Show, Eq)
 
 instance HasPrivacyAnnotation StakePoolMetadataFetchLog
@@ -306,9 +355,11 @@ instance HasSeverityAnnotation StakePoolMetadataFetchLog where
         MsgFetchPoolMetadataSuccess{} -> Info
         MsgFetchPoolMetadataFailure{} -> Warning
         MsgFetchPoolMetadataFallback{} -> Warning
-        MsgFetchDelistedPools{} -> Info
+        MsgFetchSMASH{} -> Debug
         MsgFetchDelistedPoolsFailure{} -> Warning
         MsgFetchDelistedPoolsSuccess{} -> Info
+        MsgFetchHealthCheckFailure{} -> Warning
+        MsgFetchHealthCheckSuccess{} -> Info
 
 instance ToText StakePoolMetadataFetchLog where
     toText = \case
@@ -329,8 +380,8 @@ instance ToText StakePoolMetadataFetchLog where
                 then ""
                 else " Falling back using a different strategy."
             ]
-        MsgFetchDelistedPools uri -> mconcat
-            [ "Fetching delisted pools from ", T.pack (show uri)
+        MsgFetchSMASH uri -> mconcat
+            [ "Making a SMASH request to ", T.pack (show uri)
             ]
         MsgFetchDelistedPoolsSuccess poolIds -> mconcat
             [ "Successfully fetched delisted "
@@ -340,3 +391,11 @@ instance ToText StakePoolMetadataFetchLog where
         MsgFetchDelistedPoolsFailure err -> mconcat
             [ "Failed to fetch delisted pools: ", T.pack err
             ]
+        MsgFetchHealthCheckSuccess health -> mconcat
+            [ "Successfully checked health "
+            , T.pack (show health)
+            ]
+        MsgFetchHealthCheckFailure err -> mconcat
+            [ "Failed to check health: ", T.pack err
+            ]
+
