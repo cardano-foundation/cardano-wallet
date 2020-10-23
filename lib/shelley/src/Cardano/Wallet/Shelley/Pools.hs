@@ -45,6 +45,7 @@ import Cardano.Pool.Metadata
     , defaultManagerSettings
     , fetchDelistedPools
     , fetchFromRemote
+    , healthCheck
     , identityUrlBuilder
     , newManager
     , registryUrlBuilder
@@ -736,6 +737,9 @@ monitorMetadata tr gp db@(DBLayer{..}) = do
         FetchNone -> loop (pure ([], [])) -- TODO: exit loop?
         FetchDirect -> loop (fetchThem $ fetcher [identityUrlBuilder])
         FetchSMASH (unSmashServer -> uri) -> do
+            -- health check
+            _ <- healthCheck trFetch (toHealthCheckURI uri) manager
+
             let getDelistedPools =
                     fetchDelistedPools trFetch (toDelistedPoolsURI uri) manager
             tid <- forkFinally
@@ -753,6 +757,9 @@ monitorMetadata tr gp db@(DBLayer{..}) = do
     --   - use smash servant types to call the endpoints
     toDelistedPoolsURI uri =
         uri { uriPath = "/api/v1/delisted" , uriQuery = "", uriFragment = "" }
+
+    toHealthCheckURI uri =
+        uri { uriPath = "/api/v1/status" , uriQuery = "", uriFragment = "" }
 
     trFetch = contramap MsgFetchPoolMetadata tr
     -- We mask this entire section just in case, although the database
