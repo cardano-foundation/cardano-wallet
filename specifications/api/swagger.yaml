@@ -1786,6 +1786,7 @@ x-parametersRole: &parametersRole
     - utxo_external
     - utxo_internal
     - mutable_account
+    - multisig_script
 
 x-parametersDerivationSegment: &parametersDerivationSegment
   in: path
@@ -2349,6 +2350,7 @@ x-tagGroups:
     - Transactions
     - Migrations
     - Stake Pools
+    - Keys
 
   - name: Byron (Random)
     tags:
@@ -2364,7 +2366,6 @@ x-tagGroups:
     - Network
     - Proxy
     - Settings
-    - Keys
     - Experimental
 
 paths:
