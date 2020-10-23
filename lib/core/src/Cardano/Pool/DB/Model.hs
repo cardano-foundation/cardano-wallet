@@ -434,10 +434,11 @@ mRollbackTo ti point = do
 mDelistPools :: [PoolId] -> ModelOp ()
 mDelistPools poolsToDelist =
     modify #registrations
-        $ Map.mapWithKey (\(_, pid) a ->
+        $ Map.mapWithKey
+        $ \(_, pid) a ->
             if updateThis pid
-            then a{ poolFlag = Delisted }
-            else a)
+            then a {poolFlag = Delisted}
+            else a
   where
     updateThis p = p `Set.member` poolsToDelistSet
     poolsToDelistSet = Set.fromList poolsToDelist

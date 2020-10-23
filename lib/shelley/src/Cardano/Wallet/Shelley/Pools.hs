@@ -334,7 +334,10 @@ newStakePoolLayer nl db@DBLayer {..} worker = do
     _forceMetadataGC tvTid =
         -- We force a GC by resetting last sync time to 0 (start of POSIX
         -- time) and have the metadata thread restart.
-        bracketSyncThread tvTid (atomically (putLastMetadataGC (fromIntegral @Int 0)))
+        bracketSyncThread tvTid
+            $ atomically
+            $ putLastMetadataGC
+            $ fromIntegral @Int 0
 
     -- Stop the sync thread, carry out an action, and restart the sync thread.
     bracketSyncThread :: TVar ThreadId -> IO a -> IO ()
@@ -733,12 +736,11 @@ monitorMetadata tr gp db@(DBLayer{..}) = do
         FetchNone -> loop (pure ([], [])) -- TODO: exit loop?
         FetchDirect -> loop (fetchThem $ fetcher [identityUrlBuilder])
         FetchSMASH (unSmashServer -> uri) -> do
-            tid <-
-                forkFinally
-                    (gcDelistedPools tr db
-                        (fetchDelistedPools trFetch (toDelistedPoolsURI uri) manager)
-                    )
-                    onExit
+            let getDelistedPools =
+                    fetchDelistedPools trFetch (toDelistedPoolsURI uri) manager
+            tid <- forkFinally
+                (gcDelistedPools tr db getDelistedPools)
+                onExit
             flip finally (killThread tid) $
                 loop (fetchThem $ fetcher [registryUrlBuilder uri])
 
@@ -785,8 +787,6 @@ monitorMetadata tr gp db@(DBLayer{..}) = do
             Just ThreadKilled -> MsgGCThreadKilled
             Just UserInterrupt -> MsgGCUserInterrupt
             _ -> MsgGCUnhandledException $ pretty $ show e
-
-
 gcDelistedPools
     :: Tracer IO StakePoolLog
     -> DBLayer IO
@@ -912,5 +912,5 @@ instance ToText StakePoolLog where
         MsgGCFinished -> "GC thread has exited: main action is over."
         MsgGCThreadKilled -> "GC thread has exited: killed by parent."
         MsgGCUserInterrupt -> "GC thread has exited: killed by user."
-        MsgGCUnhandledException err -> "GC thread has exited unexpectedly: " <> err
-
+        MsgGCUnhandledException err ->
+            "GC thread has exited unexpectedly: " <> err

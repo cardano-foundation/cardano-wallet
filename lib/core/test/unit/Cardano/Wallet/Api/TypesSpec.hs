@@ -1423,6 +1423,9 @@ instance Arbitrary Api.MaintenanceAction where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
+instance ToSchema Api.ApiMaintenanceAction where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiMaintenanceAction"
+
 instance Arbitrary ApiNetworkParameters where
     arbitrary = genericArbitrary
     shrink = genericShrink

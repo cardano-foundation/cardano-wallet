@@ -1447,7 +1447,8 @@ prop_putLastMetadataGCReadLastMetadataGC DBLayer{..} posixTime = do
     setup = run $ atomically cleanDB
     prop = do
         defGCTime <- run $ atomically readLastMetadataGC
-        assertWith "Reading sync time from empty db returns start of unix epoch"
+        assertWith
+            "Reading sync time from empty db returns start of unix epoch"
             (defGCTime == fromIntegral @Int 0)
         run $ atomically $ putLastMetadataGC posixTime
         time <- run $ atomically readLastMetadataGC
@@ -1510,5 +1511,5 @@ instance Arbitrary BlockHeader where
 
 instance Arbitrary POSIXTime where
     arbitrary = do
-        (Positive int) <- arbitrary @(Positive Int)
+        Positive int <- arbitrary @(Positive Int)
         pure (fromIntegral int)

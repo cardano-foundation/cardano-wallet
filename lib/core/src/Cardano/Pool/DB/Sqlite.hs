@@ -502,8 +502,9 @@ newDBLayer trace fp timeInterpreter = do
             px <- selectList
                 [ PoolRegistrationPoolId <-. pools ]
                 [ Desc PoolRegistrationPoolId ]
-            repsertMany (fmap (\(Entity k val)
-                -> (k, val {poolRegistrationFlag = Delisted})) px)
+            repsertMany $ fmap
+                (\(Entity k val) -> (k, val {poolRegistrationFlag = Delisted}))   
+                px
 
         removePools = mapM_ $ \pool -> do
             liftIO $ traceWith trace $ MsgRemovingPool pool

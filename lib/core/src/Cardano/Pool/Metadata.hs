@@ -151,17 +151,17 @@ fetchDelistedPools tr uri manager = runExceptTLog $ do
         ExceptT
             $ handle fromIOException
             $ handle fromHttpException
-            $ withResponse req manager $ \res -> do
-            case responseStatus res of
-                s | s == status200 -> do
-                    let body = responseBody res
-                    Right . BS.concat <$> brConsume body
+            $ withResponse req manager handleResponseStatus
 
-                s -> do
-                    pure $ Left $ mconcat
-                        [ "The server replied something unexpected: "
-                        , show s
-                        ]
+    handleResponseStatus response = case responseStatus response of
+        s | s == status200 -> do
+            let body = responseBody response
+            Right . BS.concat <$> brConsume body
+        s ->
+            pure $ Left $ mconcat
+                [ "The server replied with something unexpected: "
+                , show s
+                ]
 
     runExceptTLog
         :: ExceptT String IO [PoolId]
