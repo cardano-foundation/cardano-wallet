@@ -1,3 +1,4 @@
+{-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE Rank2Types #-}
@@ -33,8 +34,6 @@ import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
-import Cardano.Wallet.Api.Types
-    ( ApiT (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( hex )
 import Cardano.Wallet.Primitive.Types
@@ -46,7 +45,7 @@ import Cardano.Wallet.Primitive.Types
 import Control.Exception
     ( IOException, handle )
 import Control.Monad
-    ( when )
+    ( forM, when )
 import Control.Monad.IO.Class
     ( MonadIO (..) )
 import Control.Monad.Trans.Except
@@ -56,7 +55,16 @@ import Control.Tracer
 import Crypto.Hash.Utils
     ( blake2b256 )
 import Data.Aeson
-    ( eitherDecodeStrict )
+    ( FromJSON (..)
+    , ToJSON (..)
+    , eitherDecodeStrict
+    , object
+    , withObject
+    , (.:)
+    , (.=)
+    )
+import Data.Bifunctor
+    ( first )
 import Data.ByteArray.Encoding
     ( Base (..), convertToBase )
 import Data.ByteString
@@ -66,7 +74,7 @@ import Data.Coerce
 import Data.List
     ( intercalate )
 import Data.Text.Class
-    ( ToText (..) )
+    ( TextDecodingError (..), ToText (..), fromText )
 import Fmt
     ( pretty )
 import Network.HTTP.Client
@@ -94,6 +102,24 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Network.HTTP.Client.TLS as HTTPS
 
+
+-- | TODO: import SMASH types
+newtype SMASHPoolId = SMASHPoolId T.Text
+  deriving stock (Eq, Show, Ord)
+
+instance ToJSON SMASHPoolId where
+    toJSON (SMASHPoolId poolId) =
+        object
+            [ "poolId" .= poolId
+            ]
+
+instance FromJSON SMASHPoolId where
+    parseJSON = withObject "SMASHPoolId" $ \o -> do
+        poolId <- o .: "poolId"
+        return $ SMASHPoolId poolId
+
+toPoolId :: SMASHPoolId -> Either TextDecodingError PoolId
+toPoolId (SMASHPoolId pid) = fromText pid
 
 -- | Some default settings, overriding some of the library's default with
 -- stricter values.
@@ -142,7 +168,8 @@ fetchDelistedPools
     -> IO (Maybe [PoolId])
 fetchDelistedPools tr uri manager = runExceptTLog $ do
     pl <- getPoolsPayload
-    except . (fmap . fmap) getApiT . eitherDecodeStrict @[ApiT PoolId] $ pl
+    smashPids <- except $ eitherDecodeStrict @[SMASHPoolId] pl
+    forM smashPids $ except . first getTextDecodingError . toPoolId
   where
     getPoolsPayload :: ExceptT String IO ByteString
     getPoolsPayload = do
