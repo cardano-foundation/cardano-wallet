@@ -52,6 +52,7 @@
 - ignore: {name: "Monoid law, left identity"} # Using 'mempty' can be useful to vertically-align elements
 - ignore: {name: "Use ?~"} # It's actually much clearer to do (.~ Just ...) than having to load yet-another-lens-operator
 - ignore: {name: "Redundant multi-way if"} # Using this style might be appropriate given the circumstances.
+- ignore: {name: "Use const"} # Sometimes using a lambda expression is simpler and clearer.
 
 # Add custom hints for this project
 #
