@@ -512,14 +512,14 @@ spec = describe "SHELLEY_WALLETS" $ do
 
 
     it "WALLETS_GET_01 - can get wallet details" $ \ctx -> runResourceT $ do
-        w <- unsafeResponse <$> (postWallet ctx simplePayload)
+        w <- emptyWallet ctx
 
         eventually "I can get all wallet details" $ do
             rg <- request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty
             verify rg
                 [ expectResponseCode HTTP.status200
                 , expectField
-                        (#name . #getApiT . #getWalletName) (`shouldBe` "Secure Wallet")
+                        (#name . #getApiT . #getWalletName) (`shouldBe` "Empty Wallet")
                 , expectField
                         (#addressPoolGap . #getApiT . #getAddressPoolGap) (`shouldBe` 20)
                 , expectField
@@ -604,11 +604,10 @@ spec = describe "SHELLEY_WALLETS" $ do
             ]
 
     it "WALLETS_UPDATE_01 - Updated wallet name is available" $ \ctx -> runResourceT $ do
-
-        r <- postWallet ctx simplePayload
-        let passLastUpdateValue = getFromResponse #passphrase r
+        w <- emptyWallet ctx
+        let passLastUpdateValue = w ^. #passphrase
         let newName = updateNamePayload "New great name"
-        let walId = getFromResponse walletId r
+        let walId = w ^. walletId
         let expectations = [ expectResponseCode HTTP.status200
                     , expectField
                             (#name . #getApiT . #getWalletName)
@@ -620,35 +619,17 @@ spec = describe "SHELLEY_WALLETS" $ do
                             (#balance . #getApiT . #available) (`shouldBe` Quantity 0)
                     , expectField
                             (#balance . #getApiT . #total) (`shouldBe` Quantity 0)
-                    , expectField (#state . #getApiT) (`shouldBe` Ready)
                     , expectField #delegation (`shouldBe` notDelegating [])
                     , expectField walletId (`shouldBe` walId)
                     , expectField #passphrase (`shouldBe` passLastUpdateValue)
                     ]
-        eventually "Updated wallet name is available" $ do
-            ru <- request @ApiWallet ctx
-                ("PUT", "v2/wallets" </> walId) Default newName
-            verify ru expectations
-            rg <- request @ApiWallet ctx
-                ("GET", "v2/wallets" </> walId) Default Empty
-            verify rg expectations
-            rl <- request @[ApiWallet] ctx ("GET", "v2/wallets") Default Empty
-            verify rl
-                [ expectResponseCode HTTP.status200
-                , expectListSize 1
-                , expectListField 0
-                        (#name . #getApiT . #getWalletName) (`shouldBe` "New great name")
-                , expectListField 0
-                        (#addressPoolGap . #getApiT . #getAddressPoolGap) (`shouldBe` 20)
-                , expectListField 0
-                        (#balance . #getApiT . #available) (`shouldBe` Quantity 0)
-                , expectListField 0
-                        (#balance . #getApiT . #total) (`shouldBe` Quantity 0)
-                , expectListField 0 (#state . #getApiT) (`shouldBe` Ready)
-                , expectListField 0 #delegation (`shouldBe` notDelegating [])
-                , expectListField 0 walletId (`shouldBe` walId)
-                , expectListField 0 #passphrase (`shouldBe` passLastUpdateValue)
-                ]
+        ru <- request @ApiWallet ctx
+            ("PUT", "v2/wallets" </> walId) Default newName
+        verify ru expectations
+        rg <- request @ApiWallet ctx
+            ("GET", "v2/wallets" </> walId) Default Empty
+        verify rg expectations
+        verify ru expectations
 
     describe "WALLETS_UPDATE_02 - Various names" $ do
         let walNameMax = T.pack (replicate walletNameMaxLength 'ą')
@@ -702,15 +683,15 @@ spec = describe "SHELLEY_WALLETS" $ do
                   )
                 ]
         forM_ matrix $ \(title, walName, expectations) -> it title $ \ctx -> runResourceT $ do
-            r <- postWallet ctx simplePayload
+            w <- emptyWallet ctx
             let newName = updateNamePayload walName
-            let endpoint = "v2/wallets" </> (getFromResponse walletId r)
+            let endpoint = "v2/wallets" </> (w ^. walletId)
             ru <- request @ApiWallet ctx ("PUT", endpoint) Default newName
             verify ru expectations
 
     it "WALLETS_UPDATE_03 - Deleted wallet cannot be updated (404)" $ \ctx -> runResourceT $ do
-        r <- postWallet ctx simplePayload
-        let wid = getFromResponse walletId r
+        w <- emptyWallet ctx
+        let wid = w ^. walletId
         let endpoint = "v2/wallets" </> wid
         _ <- request @ApiWallet ctx ("DELETE", endpoint) Default Empty
 
@@ -748,22 +729,22 @@ spec = describe "SHELLEY_WALLETS" $ do
                     )
                   ]
         forM_ matrix $ \(title, headers, expectations) -> it title $ \ctx -> runResourceT $ do
-            r <- postWallet ctx simplePayload
+            w <- emptyWallet ctx
             let newName = updateNamePayload "new name"
-            let endpoint = "v2/wallets" </> (getFromResponse walletId r)
+            let endpoint = "v2/wallets" </> (w ^. walletId)
             ru <- request @ApiWallet ctx ("PUT", endpoint) headers newName
             verify ru expectations
 
     it "WALLETS_UPDATE_PASS_01 - passphaseLastUpdate gets updated" $ \ctx -> runResourceT $ do
-        r <- postWallet ctx simplePayload
+        w <- emptyWallet ctx
         let payload = updatePassPayload fixturePassphrase "New passphrase"
-        let endpoint = "v2/wallets" </> (getFromResponse walletId r)
+        let endpoint = "v2/wallets" </> (w ^. walletId)
                 </> ("passphrase" :: Text)
         rup <- request @ApiWallet ctx ("PUT", endpoint) Default payload
         expectResponseCode HTTP.status204 rup
 
-        let getEndpoint = "v2/wallets" </> (getFromResponse walletId r)
-        let originalPassUpdateDateTime = getFromResponse #passphrase r
+        let getEndpoint = "v2/wallets" </> (w ^. walletId)
+        let originalPassUpdateDateTime = w ^. #passphrase
         rg <- request @ApiWallet ctx ("GET", getEndpoint) Default Empty
         expectField #passphrase (`shouldNotBe` originalPassUpdateDateTime) rg
 
@@ -797,9 +778,9 @@ spec = describe "SHELLEY_WALLETS" $ do
                   )
                 ]
         forM_ matrix $ \(title, passphrase, expectations) -> it title $ \ctx -> runResourceT $ do
-            r <- postWallet ctx simplePayload
+            w <- emptyWallet ctx
             let payload = updatePassPayload fixturePassphrase passphrase
-            let endpoint = "v2/wallets" </> (getFromResponse walletId r)
+            let endpoint = "v2/wallets" </> (w ^. walletId)
                     </> ("passphrase" :: Text)
             rup <- request @ApiWallet ctx ("PUT", endpoint) Default payload
             verify rup expectations
@@ -844,9 +825,9 @@ spec = describe "SHELLEY_WALLETS" $ do
             expectResponseCode HTTP.status204 rup
 
     it "WALLETS_UPDATE_PASS_04 - Deleted wallet is not available" $ \ctx -> runResourceT $ do
-        r <- postWallet ctx simplePayload
+        w <- emptyWallet ctx
         let payload = updatePassPayload fixturePassphrase "Secure passphrase2"
-        let walId = getFromResponse walletId r
+        let walId = w ^. walletId
         let delEndp = "v2/wallets" </> walId
         _ <- request @ApiWallet ctx ("DELETE", delEndp) Default Empty
         let updEndp = delEndp </> ("passphrase" :: Text)
@@ -916,7 +897,8 @@ spec = describe "SHELLEY_WALLETS" $ do
                     )
                   ]
         forM_ matrix $ \(title, headers, expectations) -> it title $ \ctx -> runResourceT $ do
-            w <- unsafeResponse <$> postWallet ctx simplePayload
+            mnemonic <- liftIO $ genMnemonics M24
+            w <- unsafeResponse <$> postWallet ctx (simplePayload mnemonic)
             let payload = updatePassPayload fixturePassphrase "Passphrase"
             let endpoint = Link.putWalletPassphrase @'Shelley w
             rup <- request @ApiWallet ctx endpoint headers payload

@@ -195,12 +195,10 @@ payloadWith' name mnemonics gap = Json [json| {
      "address_pool_gap": #{gap}
      } |]
 
-simplePayload :: Payload
-simplePayload = Json [json| {
+simplePayload :: [Text] -> Payload
+simplePayload mnemonic = Json [json| {
     "name": "Secure Wallet",
-    "mnemonic_sentence": ["click", "puzzle", "athlete", "morning", "fold", "retreat",
-        "across", "timber", "essay", "drill", "finger", "erase", "galaxy",
-        "spoon", "swift", "eye", "awesome", "shrimp", "depend", "zebra", "token"],
+    "mnemonic_sentence": #{mnemonic},
     "passphrase": #{fixturePassphrase}
     } |]
 
