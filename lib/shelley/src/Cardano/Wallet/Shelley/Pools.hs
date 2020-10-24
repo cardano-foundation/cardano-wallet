@@ -225,7 +225,6 @@ newStakePoolLayer nl db@DBLayer {..} worker = do
 
     -- In order to apply the settings, we have to restart the
     -- metadata sync thread as well to avoid race conditions.
-    {- HLINT ignore "Use const" -}
     _putSettings :: TVar ThreadId -> Settings -> IO ()
     _putSettings tvTid settings = do
         bracket
