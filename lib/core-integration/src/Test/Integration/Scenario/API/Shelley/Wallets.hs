@@ -1194,7 +1194,7 @@ spec = describe "SHELLEY_WALLETS" $ do
         r <- request @ApiVerificationKey ctx link Default Empty
 
         verify r
-            [ expectResponseCode @IO HTTP.status400
+            [ expectResponseCode @IO HTTP.status403
             , expectErrorMessage
                 "It looks like you've provided a derivation index that is out of bound."
             ]
@@ -1270,7 +1270,7 @@ spec = describe "SHELLEY_WALLETS" $ do
             (Json payload)
 
         verify r
-            [ expectResponseCode @IO HTTP.status400
+            [ expectResponseCode @IO HTTP.status403
             , expectErrorMessage
                 "It looks like you've provided a derivation index that is out of bound."
             ]

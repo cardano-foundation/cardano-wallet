@@ -214,17 +214,17 @@ instance Malformed (PathParam (ApiT DerivationIndex)) where
     malformed = first PathParam <$>
         [ ( "patate", msgMalformed )
         , ( "💩", msgMalformed )
-        , ( "2147483648", msgOutOfBounds )
+        , ( "2147483648", msgMalformed )
         , ( "1234H1234", msgMalformed )
         , ( "H", msgMalformed )
         ]
       where
         msgMalformed =
-            "expected a number as string with an optional 'H' suffix \
-            \(e.g. '1815H' or '44')."
-
-        msgOutOfBounds =
-            "A derivation index must be a natural number between 0 and 2147483647."
+            "A derivation index must be a natural number between \
+            \0 and 2147483647 with an optional 'H' suffix \
+            \(e.g. '1815H' or '44'). \
+            \Indexes without suffixes are called 'Soft' \
+            \Indexes with suffixes are called 'Hardened'."
 
 --
 -- Class instances (BodyParam)
