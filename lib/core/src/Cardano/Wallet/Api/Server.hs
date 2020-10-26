@@ -2239,9 +2239,6 @@ data ErrCreateWallet
         -- ^ Somehow, we couldn't create a worker or open a db connection
     deriving (Eq, Show)
 
-newtype ErrRejectedTip = ErrRejectedTip ApiSlotReference
-    deriving (Eq, Show)
-
 -- | Small helper to easy show things to Text
 showT :: Show a => a -> Text
 showT = T.pack . show
@@ -2261,15 +2258,6 @@ instance LiftHandler ErrUnexpectedPoolIdPlaceholder where
             apiError err400 BadRequest (pretty msg)
       where
         Left msg = fromText @PoolId "INVALID"
-
-instance LiftHandler ErrRejectedTip where
-    handler = \case
-        ErrRejectedTip {} ->
-            apiError err403 RejectedTip $ mconcat
-                [ "I am sorry but I refuse to rollback to the given point. "
-                , "Notwithstanding I'll willingly rollback to the genesis point "
-                , "(0, 0) should you demand it."
-                ]
 
 instance LiftHandler ErrSelectForMigration where
     handler = \case
