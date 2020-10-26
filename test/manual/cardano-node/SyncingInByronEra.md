@@ -9,23 +9,23 @@ Windows, MacOS, Linux
 1. Start cardano-node and cardano-wallet on `testnet` using latest [config](https://hydra.iohk.io/build/4547830/download/1/index.html). **Start syncing from scratch.**
 
 ```bash
-cardano-node run \
-	--config ./*-config.json \
-  --topology ./*-topology.json \
-	--database-path ./db \
-	--socket-path ./node.socket
+$ cardano-node run \
+		--config ./*-config.json \
+		--topology ./*-topology.json \
+		--database-path ./db \
+		--socket-path ./node.socket
 
-cardano-wallet serve --port 8090 \
-  --node-socket ../relay1/node.socket \
-  --testnet testnet-byron-genesis.json  \
-  --database ./wallet-db
+$ cardano-wallet serve --port 8090 \
+		--node-socket ../relay1/node.socket \
+		--testnet testnet-byron-genesis.json  \
+		--database ./wallet-db
 ```
 
 2. Note the `sync_progress` while wallet and node are syncing through Byron era.
 
 ```bash
 $ cardano-wallet network information | jq .sync_progress
-Ok.
+
 Ok.
 {
   "status": "syncing",
@@ -34,7 +34,6 @@ Ok.
     "unit": "percent"
   }
 }
-
 ```
 
 3. Stop the cardano-wallet, but **keep cardano-node running**.
@@ -43,7 +42,7 @@ Ok.
 4. Start cardano-wallet again and make sure that `sync_progress` restarts from the place it was stopped at and moves forward.
 
 ```bash
-cardano-wallet network information | jq .sync_progress
+$ cardano-wallet network information | jq .sync_progress
 
 Ok.
 {
@@ -61,7 +60,7 @@ Ok.
 6. List stake pools while the wallet is syncing through Byron era and make sure appropriate error message is presented.
 
 ```bash
-curl -X GET http://localhost:8090/v2/stake-pools?stake=1000000000
+$ curl -X GET 'http://localhost:8090/v2/stake-pools?stake=1000000000'
 
 {
   "code": "past_horizon",

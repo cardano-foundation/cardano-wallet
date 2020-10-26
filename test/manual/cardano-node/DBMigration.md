@@ -12,16 +12,16 @@ Windows, MacOS, Linux
 2. Start cardano-node and cardano-wallet on `testnet` using latest [config](https://hydra.iohk.io/build/4547830/download/1/index.html). Make sure both are fully synced.
 
 ```bash
-cardano-node run \
-	--config ./*-config.json \
-  --topology ./*-topology.json \
-	--database-path ./db \
-	--socket-path ./node.socket
+$ cardano-node run \
+		--config ./*-config.json \
+		--topology ./*-topology.json \
+		--database-path ./db \
+		--socket-path ./node.socket
 
-cardano-wallet serve --port 8090 \
-  --node-socket ../relay1/node.socket \
-  --testnet testnet-byron-genesis.json  \
-  --database ./wallet-db
+$ cardano-wallet serve --port 8090 \
+		--node-socket ../relay1/node.socket \
+		--testnet testnet-byron-genesis.json  \
+		--database ./wallet-db
 ```
 
 3. Produce some data in the cardano-wallet DB e.g.
@@ -36,10 +36,10 @@ cardano-wallet serve --port 8090 \
 2. start wallet (on the same `--database`)
 
 ```bash
-cardano-wallet serve --port 8090 \
-  --node-socket ../relay1/node.socket \
-  --testnet testnet-byron-genesis.json  \
-  --database ./wallet-db
+$ cardano-wallet serve --port 8090 \
+		--node-socket ../relay1/node.socket \
+		--testnet testnet-byron-genesis.json  \
+		--database ./wallet-db
 ```
 
 3. Check basic functionality:
