@@ -2325,7 +2325,6 @@ x-responsesPostSignatures: &responsesPostSignatures
     <<: *responsesErr400
     <<: *responsesErr405
     <<: *responsesErr406
-    <<: *responsesErr409
     <<: *responsesErr415
     200:
       description: OK
