@@ -188,7 +188,7 @@ instance Arbitrary PoolRegistrationCertificate where
         <*> fmap Quantity arbitrary
         <*> fmap Quantity arbitrary
         <*> oneof [pure Nothing, Just <$> genMetadata]
-        <*> arbitrary
+        <*> (pure NoPoolFlag)
       where
         genMetadata = (,)
             <$> fmap StakePoolMetadataUrl genURL
