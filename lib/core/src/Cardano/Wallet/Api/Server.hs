@@ -98,6 +98,8 @@ module Cardano.Wallet.Api.Server
 
 import Prelude
 
+import Cardano.Address
+    ( unAddress )
 import Cardano.Address.Derivation
     ( XPrv, XPub )
 import Cardano.Mnemonic
@@ -166,6 +168,7 @@ import Cardano.Wallet.Api.Types
     ( AccountPostData (..)
     , AddressAmount (..)
     , AnyAddress (..)
+    , AnyAddressType (..)
     , ApiAccountPublicKey (..)
     , ApiAddress (..)
     , ApiBlockInfo (..)
@@ -187,7 +190,9 @@ import Cardano.Wallet.Api.Types
     , ApiNetworkParameters (..)
     , ApiPoolId (..)
     , ApiPostRandomAddressData (..)
+    , ApiPubKey (..)
     , ApiPutAddressesData (..)
+    , ApiScript (..)
     , ApiSelectCoinsPayments
     , ApiSlotId (..)
     , ApiSlotReference (..)
@@ -212,6 +217,7 @@ import Cardano.Wallet.Api.Types
     , ByronWalletFromXPrvPostData
     , ByronWalletPostData (..)
     , ByronWalletPutPassphraseData (..)
+    , Credential (..)
     , Iso8601Time (..)
     , KnownDiscovery (..)
     , MinWithdrawal (..)
@@ -453,6 +459,9 @@ import System.Random
 import Type.Reflection
     ( Typeable )
 
+import qualified Cardano.Address.Derivation as CA
+import qualified Cardano.Address.Script as CA
+import qualified Cardano.Address.Style.Shelley as CA
 import qualified Cardano.Wallet as W
 import qualified Cardano.Wallet.Api.Types as Api
 import qualified Cardano.Wallet.Network as NW
@@ -1900,7 +1909,23 @@ postAnyAddress
     => ctx
     -> ApiCredentials
     -> Handler AnyAddress
-postAnyAddress ctx body = undefined
+postAnyAddress ctx body = do
+    (addr, addrType) <-
+            case (body ^. #spending, body ^. #staking) of
+                (Just (Credential (Left (ApiPubKey bytes))), Nothing) ->
+                    pure ( unAddress $ CA.paymentAddress discriminant (CA.PaymentFromKey $ CA.liftXPub $ toXPub bytes)
+                    , EnterpriseDelegating )
+                (Just (Credential (Right (ApiScript (ApiT script)))), Nothing) ->
+                    pure ( unAddress $ CA.paymentAddress discriminant (CA.PaymentFromScript $ CA.toScriptHash script)
+                    , EnterpriseDelegating )
+                _ -> undefined
+    pure $ AnyAddress addr addrType netTag
+  where
+      toXPub = fromJust . CA.xpubFromBytes
+      netTag = case testEquality (typeRep @n) (typeRep @'Mainnet) of
+          Just{}  -> 1
+          Nothing -> 0
+      (Right discriminant) = CA.mkNetworkDiscriminant netTag
 
 {-------------------------------------------------------------------------------
                                   Helpers
