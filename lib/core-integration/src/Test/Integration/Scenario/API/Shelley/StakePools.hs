@@ -173,9 +173,9 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
         dest <- emptyWallet ctx
 
         -- Join Pool
-        pool:_ <- map (view #id) . view #pools . snd
-                <$> unsafeRequest @(ApiListStakePools ApiStakePool) ctx
-                    (Link.listStakePools arbitraryStake) Empty
+        pool:_ <- map (view #id) . view #pools . snd <$>
+            unsafeRequest @(ApiListStakePools ApiStakePool) ctx
+            (Link.listStakePools arbitraryStake) Empty
         joinStakePool @n ctx pool (src, fixturePassphrase) >>= flip verify
             [ expectResponseCode HTTP.status202
             , expectField (#status . #getApiT) (`shouldBe` Pending)
