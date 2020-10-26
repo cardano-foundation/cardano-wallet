@@ -180,7 +180,7 @@ main = withUtf8Encoding $ do
         <> cmdServe
         <> cmdMnemonic
         <> cmdWallet cmdWalletCreate walletClient
-        <> cmdTransaction transactionClient walletClient
+        <> cmdTransaction False transactionClient walletClient
         <> cmdAddress addressClient
         <> cmdStakePool @ApiStakePool stakePoolClient
         <> cmdNetwork networkClient

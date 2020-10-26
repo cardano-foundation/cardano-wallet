@@ -685,16 +685,17 @@ cmdWalletGetUtxoStatistics mkClient =
 -- | cardano-wallet transaction
 cmdTransaction
     :: ToJSON wallet
-    => TransactionClient
+    => Bool -- ^ Enable Shelley transaction features
+    -> TransactionClient
     -> WalletClient wallet
     -> Mod CommandFields (IO ())
-cmdTransaction mkTxClient mkWalletClient =
+cmdTransaction isShelley mkTxClient mkWalletClient =
     command "transaction" $ info (helper <*> cmds) $ mempty
         <> progDesc "About transactions"
   where
     cmds = subparser $ mempty
-        <> cmdTransactionCreate mkTxClient mkWalletClient
-        <> cmdTransactionFees mkTxClient mkWalletClient
+        <> cmdTransactionCreate isShelley mkTxClient mkWalletClient
+        <> cmdTransactionFees isShelley mkTxClient mkWalletClient
         <> cmdTransactionList mkTxClient
         <> cmdTransactionSubmit mkTxClient
         <> cmdTransactionForget mkTxClient
@@ -710,10 +711,11 @@ data TransactionCreateArgs t = TransactionCreateArgs
 
 cmdTransactionCreate
     :: ToJSON wallet
-    => TransactionClient
+    => Bool -- ^ Enable Shelley transaction features
+    -> TransactionClient
     -> WalletClient wallet
     -> Mod CommandFields (IO ())
-cmdTransactionCreate mkTxClient mkWalletClient =
+cmdTransactionCreate isShelley mkTxClient mkWalletClient =
     command "create" $ info (helper <*> cmd) $ mempty
         <> progDesc "Create and submit a new transaction."
   where
@@ -721,7 +723,7 @@ cmdTransactionCreate mkTxClient mkWalletClient =
         <$> portOption
         <*> walletIdArgument
         <*> fmap NE.fromList (some paymentOption)
-        <*> metadataOption
+        <*> if isShelley then metadataOption else pure (ApiTxMetadata Nothing)
     exec (TransactionCreateArgs wPort wId wAddressAmounts md) = do
         wPayments <- either (fail . getTextDecodingError) pure $
             traverse (fromText @(AddressAmount Text)) wAddressAmounts
@@ -743,10 +745,11 @@ cmdTransactionCreate mkTxClient mkWalletClient =
 
 cmdTransactionFees
     :: ToJSON wallet
-    => TransactionClient
+    => Bool -- ^ Enable Shelley transaction features
+    -> TransactionClient
     -> WalletClient wallet
     -> Mod CommandFields (IO ())
-cmdTransactionFees mkTxClient mkWalletClient =
+cmdTransactionFees isShelley mkTxClient mkWalletClient =
     command "fees" $ info (helper <*> cmd) $ mempty
         <> progDesc "Estimate fees for a transaction."
   where
@@ -754,7 +757,7 @@ cmdTransactionFees mkTxClient mkWalletClient =
         <$> portOption
         <*> walletIdArgument
         <*> fmap NE.fromList (some paymentOption)
-        <*> metadataOption
+        <*> if isShelley then metadataOption else pure (ApiTxMetadata Nothing)
     exec (TransactionCreateArgs wPort wId wAddressAmounts md) = do
         wPayments <- either (fail . getTextDecodingError) pure $
             traverse (fromText @(AddressAmount Text)) wAddressAmounts
