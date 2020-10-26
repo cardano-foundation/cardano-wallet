@@ -217,7 +217,7 @@ data DBLayer m = forall stm. (MonadFail stm, MonadIO stm) => DBLayer
         :: [PoolId]
         -> stm ()
         -- ^ Mark pools as delisted, e.g. due to non-compliance.
-        -- This is stored as an attribute in the metadata table.
+        -- This is stored as an attribute in the pool_registration table.
 
     , removePools
         :: [PoolId]
