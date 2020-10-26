@@ -649,9 +649,6 @@ data ApiTransaction (n :: NetworkDiscriminant) = ApiTransaction
     , depth :: !(Maybe (Quantity "block" Natural))
     , direction :: !(ApiT Direction)
     , inputs :: ![ApiTxInput n]
-      -- TODO: Investigate whether the list of outputs should be non-empty, and
-      -- if so, whether the 'outputs' field can be encoded as a non-empty list.
-      -- See: https://jira.iohk.io/browse/ADP-400
     , outputs :: ![AddressAmount (ApiT Address, Proxy n)]
     , withdrawals :: ![ApiWithdrawal n]
     , status :: !(ApiT TxStatus)
