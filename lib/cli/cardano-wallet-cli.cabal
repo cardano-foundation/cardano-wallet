@@ -47,6 +47,7 @@ library
     , servant-client-core
     , text
     , text-class
+    , time
     , optparse-applicative
   hs-source-dirs:
       src

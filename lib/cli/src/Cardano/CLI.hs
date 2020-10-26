@@ -206,6 +206,8 @@ import Data.Text.Class
     ( FromText (..), TextDecodingError (..), ToText (..), showT )
 import Data.Text.Read
     ( decimal )
+import Data.Time.Clock
+    ( NominalDiffTime )
 import Data.Void
     ( Void )
 import Fmt
@@ -707,6 +709,7 @@ data TransactionCreateArgs t = TransactionCreateArgs
     , _id :: WalletId
     , _payments :: NonEmpty Text
     , _metadata :: ApiTxMetadata
+    , _timeToLive :: Maybe NominalDiffTime
     }
 
 cmdTransactionCreate
@@ -723,8 +726,9 @@ cmdTransactionCreate isShelley mkTxClient mkWalletClient =
         <$> portOption
         <*> walletIdArgument
         <*> fmap NE.fromList (some paymentOption)
-        <*> if isShelley then metadataOption else pure (ApiTxMetadata Nothing)
-    exec (TransactionCreateArgs wPort wId wAddressAmounts md) = do
+        <*> (if isShelley then metadataOption else pure (ApiTxMetadata Nothing))
+        <*> (if isShelley then timeToLiveOption else pure Nothing)
+    exec (TransactionCreateArgs wPort wId wAddressAmounts md ttl) = do
         wPayments <- either (fail . getTextDecodingError) pure $
             traverse (fromText @(AddressAmount Text)) wAddressAmounts
         res <- sendRequest wPort $ getWallet mkWalletClient $ ApiT wId
@@ -738,6 +742,7 @@ cmdTransactionCreate isShelley mkTxClient mkWalletClient =
                         [ "payments" .= wPayments
                         , "passphrase" .= ApiT wPwd
                         , "metadata" .= md
+                        , "time_to_live" .= ttl
                         ]
                     )
             Left _ ->
@@ -757,8 +762,9 @@ cmdTransactionFees isShelley mkTxClient mkWalletClient =
         <$> portOption
         <*> walletIdArgument
         <*> fmap NE.fromList (some paymentOption)
-        <*> if isShelley then metadataOption else pure (ApiTxMetadata Nothing)
-    exec (TransactionCreateArgs wPort wId wAddressAmounts md) = do
+        <*> (if isShelley then metadataOption else pure (ApiTxMetadata Nothing))
+        <*> (if isShelley then timeToLiveOption else pure Nothing)
+    exec (TransactionCreateArgs wPort wId wAddressAmounts md ttl) = do
         wPayments <- either (fail . getTextDecodingError) pure $
             traverse (fromText @(AddressAmount Text)) wAddressAmounts
         res <- sendRequest wPort $ getWallet mkWalletClient $ ApiT wId
@@ -770,6 +776,7 @@ cmdTransactionFees isShelley mkTxClient mkWalletClient =
                     (Aeson.object
                         [ "payments" .= wPayments
                         , "metadata" .= md
+                        , "time_to_live" .= ttl
                         ])
             Left _ ->
                 handleResponse Aeson.encodePretty res
@@ -1341,7 +1348,7 @@ walletIdArgument :: Parser WalletId
 walletIdArgument = argumentT $ mempty
     <> metavar "WALLET_ID"
 
--- | <stake=STAKE>
+-- | [--stake=STAKE]
 stakeOption :: Parser (Maybe Coin)
 stakeOption = optional $ optionT $ mempty
     <> long "stake"
@@ -1371,7 +1378,7 @@ transactionSubmitPayloadArgument = argumentT $ mempty
     <> metavar "BINARY_BLOB"
     <> help "hex-encoded binary blob of externally-signed transaction."
 
--- | <metadata=JSON>
+-- | [--metadata=JSON]
 --
 -- Note: we decode the JSON just so that we can validate more client-side.
 metadataOption :: Parser ApiTxMetadata
@@ -1385,6 +1392,15 @@ metadataOption = option txMetadataReader $ mempty
 
 txMetadataReader :: ReadM ApiTxMetadata
 txMetadataReader = eitherReader (Aeson.eitherDecode' . BL8.pack)
+
+-- | [--ttl=SECONDS]
+timeToLiveOption :: Parser (Maybe NominalDiffTime)
+timeToLiveOption = optional $ option diffTime $ mempty
+    <> long "ttl"
+    <> metavar "SECONDS"
+    <> help "Time-to-live value in seconds. Default is 2 hours."
+  where
+    diffTime = fromIntegral <$> (auto :: ReadM Int)
 
 -- | <address=ADDRESS>
 addressIdArgument :: Parser Text
