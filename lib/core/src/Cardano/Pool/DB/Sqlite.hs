@@ -757,7 +757,8 @@ activePoolLifeCycleData = DatabaseView "active_pool_lifecycle_data" [i|
         margin_numerator,
         margin_denominator,
         metadata_hash,
-        metadata_url
+        metadata_url,
+        active_pool_registrations.flag as flag
     FROM
         active_pool_registrations
     LEFT JOIN
@@ -812,7 +813,8 @@ activePoolRegistrations = DatabaseView "active_pool_registrations" [i|
         margin_numerator,
         margin_denominator,
         metadata_hash,
-        metadata_url
+        metadata_url,
+        flag
     FROM (
         SELECT row_number() OVER w AS r, *
         FROM pool_registration

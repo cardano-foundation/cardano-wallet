@@ -95,7 +95,6 @@ library
     , stm
     , streaming-commons
     , string-interpolate
-    , string-qq
     , template-haskell
     , text
     , text-class
