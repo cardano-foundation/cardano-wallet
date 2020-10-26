@@ -43,6 +43,7 @@ import Cardano.Wallet.Primitive.Types
     , CertificatePublicationTime (..)
     , EpochNo (..)
     , PoolCertificate (..)
+    , PoolFlag (..)
     , PoolId
     , PoolLifeCycleStatus (..)
     , PoolRegistrationCertificate (..)
@@ -223,6 +224,8 @@ properties = do
             (property . prop_modSettingsReadSettings)
         it "putLastMetadataGC . readLastMetadataGC == id"
             (property . prop_putLastMetadataGCReadLastMetadataGC)
+        it "delistPools >> readPoolRegistration shows the pool as delisted"
+            (property . prop_delistPools)
 
 {-------------------------------------------------------------------------------
                                     Properties
@@ -1454,6 +1457,45 @@ prop_putLastMetadataGCReadLastMetadataGC DBLayer{..} posixTime = do
         time <- run $ atomically readLastMetadataGC
         assertWith "Setting sync time and reading afterwards works"
             (time == posixTime)
+
+prop_delistPools
+    :: DBLayer IO
+    -> [(CertificatePublicationTime, PoolRegistrationCertificate)]
+    -> Property
+prop_delistPools DBLayer {..} entries =
+    monadicIO (setup >> prop)
+  where
+    setup = run $ atomically cleanDB
+    entriesIn = L.sort entries
+    prop = do
+        run $ atomically $
+            mapM_ (uncurry putPoolRegistration) entriesIn
+        entriesOut <- run . atomically $ L.sort . catMaybes
+            <$> mapM (readPoolRegistration . view #poolId . snd) entries
+
+        monitor $ counterexample $ unlines
+            [ "Written into DB: "
+            , show entriesIn
+            , "Read from DB: "
+            , show entriesOut
+            ]
+
+        assertWith "entriesIn == entriesOut"
+            $ entriesIn == entriesOut
+
+        -- delist pools
+        run $ atomically $ delistPools (fmap (view #poolId . snd) entries)
+        entriesDelisted <- run . atomically $ L.sort . catMaybes
+            <$> mapM (readPoolRegistration . view #poolId . snd) entries
+        let expected = fmap (\(c, p) -> (c, p { poolFlag = Delisted })) entriesIn
+        monitor $ counterexample $ unlines
+            [ "Expected: "
+            , show expected
+            , "Read from DB: "
+            , show entriesDelisted
+            ]
+        assertWith "expected == entriesDelisted"
+            $ expected == entriesDelisted
 
 descSlotsPerPool :: Map PoolId [BlockHeader] -> Expectation
 descSlotsPerPool pools = do
