@@ -2220,6 +2220,45 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         txDeleteFromDifferentWalletTest emptyWallet "wallets"
         txDeleteFromDifferentWalletTest emptyRandomWallet "byron-wallets"
 
+    it "TRANS_TTL_DELETE_01 - Shelley: can remove expired tx" $ \ctx -> do
+        (wa, wb) <- (,) <$> fixtureWallet ctx <*> fixtureWallet ctx
+        let amt = minUTxOValue :: Natural
+
+        -- this transaction is going to expire really soon.
+        basePayload <- mkTxPayload ctx wb amt fixturePassphrase
+        let payload = addTxTTL 0.1 basePayload
+
+        ra <- request @(ApiTransaction n) ctx
+            (Link.createTransaction @'Shelley wa) Default payload
+
+        expectSuccess ra
+
+        let txid = ApiTxId (getFromResponse #id ra)
+        let linkSrc = Link.getTransaction @'Shelley wa txid
+
+        rb <- eventually "transaction is no longer pending" $ do
+            rr <- request @(ApiTransaction n) ctx linkSrc Default Empty
+            verify rr
+                [ expectSuccess
+                , expectField (#status . #getApiT) (`shouldNotBe` Pending)
+                ]
+            pure rr
+
+        -- it should be expired
+        expectField (#status . #getApiT) (`shouldBe` Expired) rb
+
+        -- remove it
+        let linkDel = Link.deleteTransaction @'Shelley wa txid
+        request @(ApiTransaction n) ctx linkDel Default Empty
+            >>= expectResponseCode @IO HTTP.status204
+
+        -- it should be gone
+        request @(ApiTransaction n) ctx linkSrc Default Empty
+            >>= expectResponseCode @IO HTTP.status404
+        -- yes, gone
+        request @(ApiTransaction n) ctx linkDel Default Empty
+            >>= expectResponseCode @IO HTTP.status404
+
     it "BYRON_TRANS_DELETE -\
         \ Cannot delete tx on Byron wallet using shelley ep" $ \ctx -> runResourceT $ do
             w <- emptyRandomWallet ctx
