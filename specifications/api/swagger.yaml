@@ -332,8 +332,8 @@ x-settings: &settings
       description: |
         Select stake pool metadata fetching strategy:
           - `none` - metadata is not fetched at all,
-          - `direct` - metadata is fetched directly from chain,
-          - `uri` - metadata is fetched from the external Stake-Pool Metadata Aggregation Server (SMASH)
+          - `direct` - metadata is fetched directly URLs registered on chain,
+          - `uri` - metadata is fetched from an external Stake-Pool Metadata Aggregation Server (SMASH)
 
         After update existing metadata will be dropped forcing it to re-sync automatically with the new setting.
 
