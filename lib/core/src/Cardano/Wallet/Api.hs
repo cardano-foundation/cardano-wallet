@@ -115,7 +115,8 @@ import Prelude
 import Cardano.Wallet
     ( WalletLayer (..), WalletLog )
 import Cardano.Wallet.Api.Types
-    ( ApiAddressIdT
+    ( AnyAddress
+    , ApiAddressIdT
     , ApiAddressInspect
     , ApiAddressInspectData
     , ApiAddressT
@@ -333,10 +334,10 @@ type InspectAddress = "addresses"
     :> Capture "addressId" ApiAddressInspectData
     :> Get '[JSON] ApiAddressInspect
 
--- | https://input-output-hk.github.io/cardano-wallet/api/#operation/postScriptAddress
+-- | https://input-output-hk.github.io/cardano-wallet/api/#operation/postAnyAddress
 type PostScriptAddress n = "addresses"
     :> ReqBody '[JSON] ApiCredentials
-    :> PostCreated '[JSON] (ApiAddressT n)
+    :> PostCreated '[JSON] AnyAddress
 
 {-------------------------------------------------------------------------------
                                Coin Selections

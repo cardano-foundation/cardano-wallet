@@ -77,6 +77,7 @@ module Cardano.Wallet.Api.Server
     , selectCoinsForJoin
     , selectCoinsForQuit
     , signMetadata
+    , postAnyAddress
 
     -- * Internals
     , LiftHandler(..)
@@ -164,6 +165,7 @@ import Cardano.Wallet.Api.Server.Tls
 import Cardano.Wallet.Api.Types
     ( AccountPostData (..)
     , AddressAmount (..)
+    , AnyAddress (..)
     , ApiAccountPublicKey (..)
     , ApiAddress (..)
     , ApiBlockInfo (..)
@@ -175,6 +177,7 @@ import Cardano.Wallet.Api.Types
     , ApiCoinSelectionChange (..)
     , ApiCoinSelectionInput (..)
     , ApiCoinSelectionOutput (..)
+    , ApiCredentials (..)
     , ApiEpochInfo (ApiEpochInfo)
     , ApiErrorCode (..)
     , ApiFee (..)
@@ -1887,6 +1890,17 @@ derivePublicKey ctx (ApiT wid) (ApiT role_) (ApiT ix) = do
     withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk -> do
         k <- liftHandler $ W.derivePublicKey @_ @s @k @n wrk wid role_ ix
         pure $ ApiVerificationKey (getRawKey k, role_)
+
+postAnyAddress
+    :: forall ctx s t k n.
+        ( s ~ SeqState n k
+        , k ~ ShelleyKey
+        , ctx ~ ApiLayer s t k
+        )
+    => ctx
+    -> ApiCredentials
+    -> Handler AnyAddress
+postAnyAddress ctx body = undefined
 
 {-------------------------------------------------------------------------------
                                   Helpers

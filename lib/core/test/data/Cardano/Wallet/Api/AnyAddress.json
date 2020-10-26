@@ -1,0 +1,35 @@
+{
+    "seed": 406081777260831026,
+    "samples": [
+        {
+            "address": "addr1kn0hst6smm5jwsmyw0ewj3r0w7rszpudfpz7gpcv2q3h2m494qksva58aw"
+        },
+        {
+            "address": "addr_test1zzf0zlnnp95ly399hqetfvpgreldacs0jm4qxn65ykjdfk4v3ansxlwmc0"
+        },
+        {
+            "address": "addr_test1zl8d4etheywevjgsd5p5mpqfge8xjskr6cd209kmrevzzx6nlmnsqh6gcz"
+        },
+        {
+            "address": "stake_test1gp9nl0zgw8h3a226z7ygpv6l06vxtuh0nfey4kf099mhy7lcdg0qtzfx8q"
+        },
+        {
+            "address": "addr_test1pu44lev3w28fm25g0mlmng2s5wwh4jk8u93ead5ll66cezjqv6dq8w0p0d"
+        },
+        {
+            "address": "addr_test1lklyyd7ewrc6pt4jlg38xkaf0vc98q50uhdpagdv7jk4w0nvkq8s26pn3z"
+        },
+        {
+            "address": "addr17j606vkpz89v7zsuvedrnnrkv3djyykrndjvh3cqedpjwkrseg2qkckem3"
+        },
+        {
+            "address": "stake_test1d9fzzrmemtnr8jyd4mcwy0mz7lmf0pnlvuskmgrxwfujpfpe3jdqvlyyml"
+        },
+        {
+            "address": "stake_test1alxs246symxwaektgww8933cje93j9at0srzwepcqnlp33usg2cs5tj9j5"
+        },
+        {
+            "address": "stake_test18f3ktc9g2aj297paj0vd0hl8n02p7893gdzctq00rzcrmse7yr4qg79txs"
+        }
+    ]
+}

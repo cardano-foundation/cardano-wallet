@@ -72,6 +72,7 @@ import Cardano.Wallet.Api.Server
     , mkLegacyWallet
     , mkShelleyWallet
     , postAccountWallet
+    , postAnyAddress
     , postExternalTransaction
     , postIcarusWallet
     , postLedgerWallet
@@ -146,14 +147,7 @@ import Fmt
 import Network.Ntp
     ( NtpClient )
 import Servant
-    ( (:<|>) (..)
-    , Handler (..)
-    , NoContent (..)
-    , Server
-    , err400
-    , err501
-    , throwError
-    )
+    ( (:<|>) (..), Handler (..), NoContent (..), Server, err400, throwError )
 import Servant.Server
     ( ServerError (..) )
 import Type.Reflection
@@ -208,7 +202,7 @@ server byron icarus shelley spl ntp =
     addresses :: Server (Addresses n)
     addresses = listAddresses shelley (normalizeDelegationAddress @_ @ShelleyKey @n)
         :<|> (handler ApiAddressInspect . inspectAddress . unApiAddressInspectData)
-        :<|> (\_ -> throwError err501)
+        :<|> postAnyAddress shelley
       where
         toServerError :: TextDecodingError -> ServerError
         toServerError = apiError err400 BadRequest . T.pack . getTextDecodingError

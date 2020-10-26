@@ -45,6 +45,7 @@ import Cardano.Wallet.Api
 import Cardano.Wallet.Api.Types
     ( AccountPostData (..)
     , AddressAmount (..)
+    , AnyAddress (..)
     , ApiAccountPublicKey (..)
     , ApiAddress (..)
     , ApiAddressInspect (..)
@@ -346,6 +347,7 @@ spec = do
             jsonRoundtripAndGolden $ Proxy @(ApiAddress ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @ApiScript
             jsonRoundtripAndGolden $ Proxy @ApiPubKey
+            jsonRoundtripAndGolden $ Proxy @AnyAddress
             jsonRoundtripAndGolden $ Proxy @Credential
             jsonRoundtripAndGolden $ Proxy @ApiCredentials
             jsonRoundtripAndGolden $ Proxy @(ApiT DerivationIndex)
@@ -1073,6 +1075,13 @@ instance Arbitrary ApiCredentials where
             , pure $ ApiCredentials Nothing (Just credential1)
             , pure $ ApiCredentials (Just credential1) (Just credential2)
             ]
+
+instance Arbitrary AnyAddress where
+    arbitrary = do
+        payload <- BS.pack <$> replicateM 32 arbitrary
+        network <- choose (0,1)
+        addrType <- arbitraryBoundedEnum
+        pure $ AnyAddress payload addrType network
 
 instance Arbitrary (ApiSelectCoinsPayments n) where
     arbitrary = genericArbitrary
@@ -1939,6 +1948,9 @@ instance ToSchema Credential where
                 [ pubKey' ^. properties
                 , script' ^. properties
                 ]
+
+instance ToSchema AnyAddress where
+    declareNamedSchema _ = declareSchemaForDefinition "AnyAddress"
 
 instance ToSchema ApiNetworkParameters where
     declareNamedSchema _ = declareSchemaForDefinition "ApiNetworkParameters"
