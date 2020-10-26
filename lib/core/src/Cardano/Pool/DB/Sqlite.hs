@@ -399,8 +399,9 @@ newDBLayer trace fp timeInterpreter = do
                 (PoolMetadata hash name ticker description homepage)
             deleteWhere [ PoolFetchAttemptsMetadataHash ==. hash ]
 
-        removePoolMetadata =
+        removePoolMetadata = do
             deleteWhere ([] :: [Filter PoolMetadata])
+            deleteWhere ([] :: [Filter PoolMetadataFetchAttempts])
 
         readPoolMetadata = do
             Map.fromList . map (fromPoolMeta . entityVal)
