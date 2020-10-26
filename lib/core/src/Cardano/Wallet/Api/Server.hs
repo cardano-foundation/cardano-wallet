@@ -2764,10 +2764,11 @@ instance LiftHandler ErrDerivePublicKey where
 instance LiftHandler ErrInvalidDerivationIndex where
     handler = \case
         ErrIndexTooHigh maxIx _ix ->
-            apiError err400 BadRequest $ mconcat
+            apiError err403 SoftDerivationRequired $ mconcat
                 [ "It looks like you've provided a derivation index that is "
-                , "out of bound. I can only derive keys up to #"
-                , pretty maxIx, "."
+                , "out of bound. The index is well-formed, but I require "
+                , "indexes valid for soft derivation only. That is, indexes "
+                , "between 0 and ", pretty maxIx, " without a suffix."
                 ]
 
 

@@ -471,21 +471,33 @@ spec = do
 
 
         it "ApiT DerivationIndex (too small)" $ do
-            let message = mconcat
-                  [ "Error in $: "
-                  , "A derivation index must be a natural number "
-                  , "between 0 and 2147483647."
+            let message = unwords
+                  [ "Error in $:"
+                  , "A derivation index must be a natural number between"
+                  , show (getIndex @'Soft minBound)
+                  , "and"
+                  , show (getIndex @'Soft maxBound)
+                  , "with an optional 'H' suffix (e.g. '1815H' or '44')."
+                  , "Indexes without suffixes are called 'Soft'"
+                  , "Indexes with suffixes are called 'Hardened'."
                   ]
+
             let value = show $ pred $ toInteger $ getIndex @'Soft minBound
             Aeson.parseEither parseJSON [aesonQQ|#{value}|]
                 `shouldBe` Left @String @(ApiT DerivationIndex) message
 
         it "ApiT DerivationIndex (too large)" $ do
-            let message = mconcat
-                  [ "Error in $: "
-                  , "A derivation index must be a natural number "
-                  , "between 0 and 2147483647."
+            let message = unwords
+                  [ "Error in $:"
+                  , "A derivation index must be a natural number between"
+                  , show (getIndex @'Soft minBound)
+                  , "and"
+                  , show (getIndex @'Soft maxBound)
+                  , "with an optional 'H' suffix (e.g. '1815H' or '44')."
+                  , "Indexes without suffixes are called 'Soft'"
+                  , "Indexes with suffixes are called 'Hardened'."
                   ]
+
             let value = show $ succ $ toInteger $ getIndex @'Soft maxBound
             Aeson.parseEither parseJSON [aesonQQ|#{value}|]
                 `shouldBe` Left @String @(ApiT DerivationIndex) message

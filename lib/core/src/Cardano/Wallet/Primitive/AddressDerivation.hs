@@ -269,27 +269,29 @@ instance FromText DerivationIndex where
       where
         firstHardened = getIndex @'Hardened minBound
 
+        errMalformed = TextDecodingError $ unwords
+            [ "A derivation index must be a natural number between"
+            , show (getIndex @'Soft minBound)
+            , "and"
+            , show (getIndex @'Soft maxBound)
+            , "with an optional 'H' suffix (e.g. '1815H' or '44')."
+            , "Indexes without suffixes are called 'Soft'"
+            , "Indexes with suffixes are called 'Hardened'."
+            ]
+
         parseAsScientific :: Scientific -> Either TextDecodingError DerivationIndex
         parseAsScientific x =
             case toBoundedInteger x of
                 Just ix | ix < firstHardened ->
                     pure $ DerivationIndex ix
                 _ ->
-                    Left $ TextDecodingError $ mconcat
-                        [ "A derivation index must be a natural number between "
-                        , show (getIndex @'Soft minBound)
-                        , " and "
-                        , show (getIndex @'Soft maxBound)
-                        , "."
-                        ]
+                    Left errMalformed
 
         castNumber :: Text -> Either TextDecodingError Scientific
         castNumber txt =
             case readMay (T.unpack txt) of
                 Nothing ->
-                    Left $ TextDecodingError
-                        "expected a number as string with an optional 'H' \
-                         \suffix (e.g. \"1815H\" or \"44\")."
+                    Left errMalformed
                 Just s ->
                     pure s
 
