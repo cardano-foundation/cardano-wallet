@@ -197,8 +197,6 @@ import Data.FileEmbed
     ( embedFile, makeRelativeToProject )
 import Data.Function
     ( (&) )
-import Data.Generics.Internal.VL.Lens
-    ( view )
 import Data.List
     ( foldl' )
 import Data.List.NonEmpty
@@ -1462,10 +1460,7 @@ instance Arbitrary ApiTxMetadata where
     shrink = genericShrink
 
 instance Arbitrary (ApiTransaction t) where
-    shrink = filter outputsNonEmpty . genericShrink
-      where
-        outputsNonEmpty :: ApiTransaction t -> Bool
-        outputsNonEmpty = (not . null) . view #outputs
+    shrink = genericShrink
     arbitrary = do
         txStatus <- arbitrary
         txInsertedAt <- case txStatus of
@@ -1497,15 +1492,8 @@ instance Arbitrary (ApiTransaction t) where
       where
         genInputs =
             Test.QuickCheck.scale (`mod` 3) arbitrary
-        -- Note that the generated list of outputs must be non-empty in order
-        -- to be consistent with the specification.
-        --
-        -- Ideally, we should encode this restriction in the type system.
-        --
-        -- See https://jira.iohk.io/browse/ADP-400.
-        genOutputs = (:)
-            <$> arbitrary
-            <*> Test.QuickCheck.scale (`mod` 3) arbitrary
+        genOutputs =
+            Test.QuickCheck.scale (`mod` 3) arbitrary
         genWithdrawals =
             Test.QuickCheck.scale (`mod` 3) arbitrary
 
