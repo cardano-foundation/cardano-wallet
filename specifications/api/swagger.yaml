@@ -1923,7 +1923,9 @@ x-responsesErrWalletNotFound: &responsesErrWalletNotFound
   properties:
     message:
       type: string
-      description: A descriptive error message.
+      description: |
+        May occur when a given walletId does not match with any known
+        wallets (because it has been deleted, or has never existed).
     code:
       type: string
       enum: ['no_such_wallet']
@@ -1936,7 +1938,10 @@ x-responsesErrBadRequest: &responsesErrBadRequest
   properties:
     message:
       type: string
-      description: Explanation of a good request.
+      description: |
+        May occur when a request is not well-formed; that is, it fails to parse
+        successfully. This could be the case when some required parameters
+        are missing or, when wrong values are provided.
     code:
       type: string
       enum: ['bad_request']

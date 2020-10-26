@@ -2655,10 +2655,6 @@ instance LiftHandler ErrJoinStakePool where
                     [ "I couldn't find any stake pool with the given id: "
                     , toText pid
                     ]
-        ErrJoinStakePoolUnableToAssignInputs e ->
-            apiError err500 UnableToAssignInputOutput $ mconcat
-                [ "I'm unable to assign inputs from coin selection: "
-                , pretty e]
 
 instance LiftHandler ErrFetchRewards where
     handler = \case
@@ -2695,10 +2691,6 @@ instance LiftHandler ErrQuitStakePool where
                     , "account! Make sure to withdraw your ", pretty rewards
                     , " lovelace first."
                     ]
-        ErrQuitStakePoolUnableToAssignInputs e ->
-            apiError err500 UnableToAssignInputOutput $ mconcat
-                [ "I'm unable to assign inputs from coin selection: "
-                , pretty e]
 
 instance LiftHandler ErrCreateRandomAddress where
     handler = \case
