@@ -166,10 +166,7 @@ instance Arbitrary PoolOwner where
         return $ PoolOwner $ B8.pack (replicate 32 byte)
 
 instance Arbitrary PoolFlag where
-    arbitrary = elements
-        [ Delisted
-        , NoPoolFlag
-        ]
+    arbitrary = arbitraryBoundedEnum
     shrink = const []
 
 instance Arbitrary PoolRegistrationCertificate where

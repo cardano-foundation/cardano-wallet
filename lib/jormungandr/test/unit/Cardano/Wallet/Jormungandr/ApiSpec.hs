@@ -283,7 +283,7 @@ instance Arbitrary ApiStakePoolMetrics where
         pure $ ApiStakePoolMetrics stakes blocks
 
 instance Arbitrary (W.ApiListStakePools ApiStakePool) where
-    arbitrary = W.ApiListStakePools <$> arbitrary <*> (pure Nothing)
+    arbitrary = W.ApiListStakePools <$> arbitrary <*> pure Nothing
 
 instance Arbitrary ApiStakePool where
     arbitrary = ApiStakePool

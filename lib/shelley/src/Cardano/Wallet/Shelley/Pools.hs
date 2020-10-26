@@ -291,8 +291,9 @@ newStakePoolLayer nl db@DBLayer {..} worker = do
         case r of
             Left e@(PastHorizon{}) ->
                 throwE (ErrListPoolsPastHorizonException e)
-            Right r' -> pure (ApiListStakePools r'
-                (Just . ApiT . Iso8601Time . posixSecondsToUTCTime $ lastGC))
+            Right r' -> pure  
+                $ ApiListStakePools r' $ Just $ ApiT
+                $ Iso8601Time $ posixSecondsToUTCTime lastGC
       where
         fromErrCurrentNodeTip :: ErrCurrentNodeTip -> ErrListPools
         fromErrCurrentNodeTip = \case
