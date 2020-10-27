@@ -952,6 +952,8 @@ spec = describe "SHELLEY_WALLETS" $ do
                     (`shouldSatisfy` all
                         (isValidDerivationPath . view #derivationPath))
                 , expectField #change
+                    (`shouldSatisfy` (not . null))
+                , expectField #change
                     (`shouldSatisfy` all
                         (isValidDerivationPath . view #derivationPath))
                 , expectField #outputs
@@ -973,10 +975,9 @@ spec = describe "SHELLEY_WALLETS" $ do
                     take paymentCount
                     $ zipWith ApiCoinSelectionOutput targetAddresses amounts
             selectCoins @_ @'Shelley ctx source payments >>= flip verify
-                [ expectResponseCode
-                    HTTP.status200
-                , expectField
-                    #inputs (`shouldSatisfy` (not . null))
+                [ expectResponseCode HTTP.status200
+                , expectField #inputs (`shouldSatisfy` (not . null))
+                , expectField #change (`shouldSatisfy` (not . null))
                 , expectField
                     #outputs (`shouldSatisfy` ((L.sort outputs ==) . L.sort))
                 ]
