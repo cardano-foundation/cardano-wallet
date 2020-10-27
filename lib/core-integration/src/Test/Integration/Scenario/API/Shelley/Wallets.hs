@@ -192,6 +192,7 @@ spec = describe "SHELLEY_WALLETS" $ do
                     \'\346\949\8466\8455\8450\430\8217'); DROP TABLE \"wallet\"; --"
                   ) ]
         forM_ matrix $ \(nameIn, nameOut) -> it nameIn $ \ctx -> runResourceT $ do
+            mnemonics <- liftIO $ genMnemonics M24
             let payload = Json [json| {
                     "name": #{nameIn},
                     "mnemonic_sentence": #{explicitMnemonics},
@@ -212,8 +213,6 @@ spec = describe "SHELLEY_WALLETS" $ do
                 , expectField
                     (#balance . #getApiT . #reward) (`shouldBe` Quantity 0)
                 , expectField #delegation (`shouldBe` notDelegating [])
-                , expectField walletId
-                    (`shouldBe` "135bfb99b9f7a0c702bf8c658cc0d9b1a0d797a2")
                 , expectField #passphrase (`shouldNotBe` Nothing)
                 ]
             eventually "listed wallet's state = Ready" $ do
