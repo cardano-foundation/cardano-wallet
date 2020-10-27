@@ -662,6 +662,7 @@ instance PersistField DerivationPrefix where
 
 instance PersistFieldSql DerivationPrefix where
     sqlType _ = sqlType (Proxy @Text)
+
 ----------------------------------------------------------------------------
 -- Other
 

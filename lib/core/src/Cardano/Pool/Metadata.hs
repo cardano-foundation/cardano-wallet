@@ -114,19 +114,14 @@ import qualified Network.HTTP.Client.TLS as HTTPS
 
 
 -- | TODO: import SMASH types
-newtype SMASHPoolId = SMASHPoolId T.Text
-  deriving stock (Eq, Show, Ord)
-
-instance ToJSON SMASHPoolId where
-    toJSON (SMASHPoolId poolId) =
-        object
-            [ "poolId" .= poolId
-            ]
+newtype SMASHPoolId = SMASHPoolId
+    { poolId :: T.Text
+    } deriving stock (Eq, Show, Ord)
 
 instance FromJSON SMASHPoolId where
-    parseJSON = withObject "SMASHPoolId" $ \o -> do
-        poolId <- o .: "poolId"
-        return $ SMASHPoolId poolId
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance ToJSON SMASHPoolId where
+    toJSON = genericToJSON defaultRecordTypeOptions
 
 toPoolId :: SMASHPoolId -> Either TextDecodingError PoolId
 toPoolId (SMASHPoolId pid) = fromText pid
@@ -398,4 +393,3 @@ instance ToText StakePoolMetadataFetchLog where
         MsgFetchHealthCheckFailure err -> mconcat
             [ "Failed to check health: ", T.pack err
             ]
-

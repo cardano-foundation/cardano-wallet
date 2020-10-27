@@ -754,7 +754,7 @@ monitorMetadata tr gp db@(DBLayer{..}) = do
     --   https://smash.cardano-testnet.iohkdev.io/api/v1/monitorMetadata
     -- so we need to recover/infer the delisted pools url.
     -- TODO:
-    --   - require the smash url to only specify sheme and host
+    --   - require the smash URL to only specify scheme and host
     --   - use smash servant types to call the endpoints
     toDelistedPoolsURI uri =
         uri { uriPath = "/api/v1/delisted" , uriQuery = "", uriFragment = "" }
