@@ -1238,7 +1238,8 @@ instance Arbitrary PoolId where
         return $ PoolId $ BS.pack $ take 28 bytes
 
 instance Arbitrary (ApiListStakePools ApiStakePool) where
-    arbitrary = applyArbitrary2 ApiListStakePools
+    arbitrary = ApiListStakePools <$> arbitrary
+        <*> (Just <$> arbitrary) -- only for Jormungandr this can be Nothing
 
 instance Arbitrary ApiStakePool where
     arbitrary = ApiStakePool
