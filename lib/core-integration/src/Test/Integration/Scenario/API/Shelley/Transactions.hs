@@ -1143,9 +1143,10 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
 
             r'' <- request @ApiWallet ctx
                 (Link.getWallet @'Shelley wFaucet) Default Empty
-            expectField
-                (#balance . #getApiT . #available)
-                (between wFaucetBalRange) r''
+            counterexample ("fee response: " <> show r2) $
+                expectField
+                    (#balance . #getApiT . #available)
+                    (between wFaucetBalRange) r''
 
         -- #2238 quick fix to reduce likelihood of rollback.
         liftIO $ threadDelay $ 10 * oneSecond
