@@ -50,6 +50,7 @@ module Cardano.Wallet.Api
 
     , StakePools
         , ListStakePools
+        , MetadataGCStatus
         , JoinStakePool
         , QuitStakePool
         , DelegationFee
@@ -168,6 +169,7 @@ import Cardano.Wallet.Primitive.Types
     , Block
     , Coin (..)
     , NetworkParameters
+    , PoolMetadataGCStatus (..)
     , SortOrder (..)
     , WalletId (..)
     )
@@ -447,11 +449,16 @@ type StakePools n apiPool =
     :<|> QuitStakePool n
     :<|> DelegationFee
     :<|> PoolMaintenance
+    :<|> MetadataGCStatus
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/listStakePools
 type ListStakePools apiPool = "stake-pools"
     :> QueryParam "stake" (ApiT Coin)
     :> Get '[JSON] (ApiListStakePools apiPool)
+
+type MetadataGCStatus = "stake-pools"
+    :> "metadata-gc-status"
+    :> Get '[JSON] (ApiT PoolMetadataGCStatus)
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/joinStakePool
 type JoinStakePool n = "stake-pools"

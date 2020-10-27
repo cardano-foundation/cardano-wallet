@@ -3076,6 +3076,14 @@ x-responsesPoolMaintenance: &responsesPoolMaintenance
   204:
     description: No Content
 
+x-responsesMetadataGCStatus: &responsesMetadataGCStatus
+  200:
+    description: Ok
+    content:
+      application/json:
+        schema:
+          <<: *ApiGCStatus
+
 x-responsesJoinStakePool: &responsesJoinStakePool
   <<: *responsesErr400
   403:
@@ -3535,6 +3543,15 @@ paths:
           application/json:
             schema: *ApiMaintenanceAction
       responses: *responsesPoolMaintenance
+
+  /stake-pools/metadata-gc-status:
+    get:
+      operationId: getGCMetadataStatus
+      tags: ["Stake Pools"]
+      summary: Metdata GC Status
+      description: |
+        Returns the status of the pool metadata GC thread.
+      responses: *responsesMetadataGCStatus
 
   /wallets/{walletId}/delegation-fees:
     get:

@@ -1452,7 +1452,7 @@ prop_putLastMetadataGCReadLastMetadataGC DBLayer{..} posixTime = do
         defGCTime <- run $ atomically readLastMetadataGC
         assertWith
             "Reading sync time from empty db returns Nothing"
-            (defGCTime == Nothing)
+            (isNothing defGCTime)
         run $ atomically $ putLastMetadataGC posixTime
         time <- run $ atomically readLastMetadataGC
         assertWith "Setting sync time and reading afterwards works"
