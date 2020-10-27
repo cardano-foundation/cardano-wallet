@@ -71,6 +71,10 @@ module Test.Integration.Framework.DSL
     , emptyByronWalletFromXPrvWith
     , rewardWallet
 
+    -- * Wallet helpers
+    , listFilteredWallets
+    , listFilteredByronWallets
+
     -- * Helpers
     , (</>)
     , (!!)
@@ -299,6 +303,8 @@ import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
+import Data.Set
+    ( Set )
 import Data.Text
     ( Text )
 import Data.Time
@@ -364,6 +370,7 @@ import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString.Lazy.Char8 as BL8
 import qualified Data.Map.Strict as Map
+import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.Text.IO as TIO
@@ -1602,6 +1609,30 @@ deleteAllWallets ctx = do
      wallets c = case c of
          Left e -> error $ "deleteAllWallets: Cannot return wallets: " <> show e
          Right s -> s
+
+-- | Calls 'GET /wallets' and filters the response. This allows tests to be
+-- written for a parallel setting.
+listFilteredWallets
+    :: (MonadIO m, MonadCatch m)
+    => Set Text -- ^ Set of walletIds to include
+    -> Context t
+    -> m (HTTP.Status, Either RequestException [ApiWallet])
+listFilteredWallets include ctx = do
+    (s, mwallets) <- request @[ApiWallet] ctx
+        (Link.listWallets @'Shelley) Default Empty
+    return (s, filter (\w -> (w ^. walletId) `Set.member` include) <$> mwallets)
+
+-- | Calls 'GET /byron-wallets' and filters the response. This allows tests to
+-- be written for a parallel setting.
+listFilteredByronWallets
+    :: (MonadIO m, MonadCatch m)
+    => Set Text -- ^ Set of walletIds to include
+    -> Context t
+    -> m (HTTP.Status, Either RequestException [ApiByronWallet])
+listFilteredByronWallets include ctx = do
+    (s, mwallets) <- request @[ApiByronWallet] ctx
+        (Link.listWallets @'Byron) Default Empty
+    return (s, filter (\w -> (w ^. walletId) `Set.member` include) <$> mwallets)
 
 -- | Wait for a booting wallet server to start. Wait up to 30s or fail.
 waitForServer
