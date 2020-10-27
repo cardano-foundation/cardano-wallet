@@ -100,6 +100,7 @@ import Test.Integration.Framework.DSL
     , expectWalletUTxO
     , fixturePassphrase
     , fixtureWallet
+    , fixtureWalletWith
     , genMnemonics
     , getFromResponse
     , json
@@ -951,6 +952,8 @@ spec = describe "SHELLEY_WALLETS" $ do
                     (`shouldSatisfy` all
                         (isValidDerivationPath . view #derivationPath))
                 , expectField #change
+                    (`shouldSatisfy` (not . null))
+                , expectField #change
                     (`shouldSatisfy` all
                         (isValidDerivationPath . view #derivationPath))
                 , expectField #outputs
@@ -972,10 +975,9 @@ spec = describe "SHELLEY_WALLETS" $ do
                     take paymentCount
                     $ zipWith ApiCoinSelectionOutput targetAddresses amounts
             selectCoins @_ @'Shelley ctx source payments >>= flip verify
-                [ expectResponseCode
-                    HTTP.status200
-                , expectField
-                    #inputs (`shouldSatisfy` (not . null))
+                [ expectResponseCode HTTP.status200
+                , expectField #inputs (`shouldSatisfy` (not . null))
+                , expectField #change (`shouldSatisfy` (not . null))
                 , expectField
                     #outputs (`shouldSatisfy` ((L.sort outputs ==) . L.sort))
                 ]
@@ -1048,6 +1050,37 @@ spec = describe "SHELLEY_WALLETS" $ do
             r <- request @(ApiCoinSelection n) ctx
                 (Link.selectCoins @'Shelley w) headers payload
             verify r expectations
+
+    it "WALLETS_COIN_SELECTION_05 - \
+        \No change when payment fee eats leftovers due to minUTxOValue" $
+        \ctx -> do
+            source  <- fixtureWalletWith @n ctx [minUTxOValue, minUTxOValue]
+            target <- emptyWallet ctx
+
+            targetAddress:_ <- fmap (view #id) <$> listAddresses @n ctx target
+            let amount = Quantity minUTxOValue
+            let payment = AddressAmount targetAddress amount
+            let output = ApiCoinSelectionOutput targetAddress amount
+            let isValidDerivationPath path =
+                    ( length path == 5 )
+                    &&
+                    ( [ ApiT $ DerivationIndex $ getIndex purposeCIP1852
+                      , ApiT $ DerivationIndex $ getIndex coinTypeAda
+                      , ApiT $ DerivationIndex $ getIndex @'Hardened minBound
+                      ] `isPrefixOf` NE.toList path
+                    )
+            selectCoins @_ @'Shelley ctx source (payment :| []) >>= flip verify
+                [ expectResponseCode HTTP.status200
+                , expectField #inputs
+                    (`shouldSatisfy` (not . null))
+                , expectField #inputs
+                    (`shouldSatisfy` all
+                        (isValidDerivationPath . view #derivationPath))
+                , expectField #change
+                    (`shouldSatisfy` null)
+                , expectField #outputs
+                    (`shouldBe` [output])
+                ]
 
     it "WALLETS_UTXO_01 - Wallet's inactivity is reflected in utxo" $ \ctx -> do
         w <- emptyWallet ctx
