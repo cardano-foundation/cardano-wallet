@@ -1,5 +1,6 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DeriveGeneric #-}
@@ -219,6 +220,8 @@ import Control.Applicative
     ( optional, (<|>) )
 import Control.Arrow
     ( left )
+import Control.DeepSeq
+    ( NFData )
 import Control.Monad
     ( guard, (>=>) )
 import Data.Aeson
@@ -388,11 +391,13 @@ data ApiAddress (n :: NetworkDiscriminant) = ApiAddress
     { id :: !(ApiT Address, Proxy n)
     , state :: !(ApiT AddressState)
     } deriving (Eq, Generic, Show)
+      deriving anyclass NFData
 
 data ApiEpochInfo = ApiEpochInfo
     { epochNumber :: !(ApiT EpochNo)
     , epochStartTime :: !UTCTime
     } deriving (Eq, Generic, Show)
+      deriving anyclass NFData
 
 data ApiSelectCoinsData (n :: NetworkDiscriminant)
     = ApiSelectForPayment (ApiSelectCoinsPayments n)
@@ -402,6 +407,7 @@ data ApiSelectCoinsData (n :: NetworkDiscriminant)
 newtype ApiSelectCoinsPayments (n :: NetworkDiscriminant) = ApiSelectCoinsPayments
     { payments :: NonEmpty (AddressAmount (ApiT Address, Proxy n))
     } deriving (Eq, Generic, Show)
+      deriving anyclass NFData
 
 newtype ApiSelectCoinsAction = ApiSelectCoinsAction
     { delegationAction :: ApiT DelegationAction
@@ -419,6 +425,7 @@ data ApiCertificate
         { rewardAccountPath :: NonEmpty (ApiT DerivationIndex)
         }
     deriving (Eq, Generic, Show)
+    deriving anyclass NFData
 
 data ApiCoinSelection (n :: NetworkDiscriminant) = ApiCoinSelection
     { inputs :: !(NonEmpty (ApiCoinSelectionInput n))
@@ -426,12 +433,14 @@ data ApiCoinSelection (n :: NetworkDiscriminant) = ApiCoinSelection
     , change :: ![ApiCoinSelectionChange n]
     , certificates :: Maybe (NonEmpty ApiCertificate)
     } deriving (Eq, Generic, Show)
+      deriving anyclass NFData
 
 data ApiCoinSelectionChange (n :: NetworkDiscriminant) = ApiCoinSelectionChange
     { address :: !(ApiT Address, Proxy n)
     , amount :: !(Quantity "lovelace" Natural)
     , derivationPath :: NonEmpty (ApiT DerivationIndex)
     } deriving (Eq, Generic, Show)
+      deriving anyclass NFData
 
 data ApiCoinSelectionInput (n :: NetworkDiscriminant) = ApiCoinSelectionInput
     { id :: !(ApiT (Hash "Tx"))
@@ -440,11 +449,13 @@ data ApiCoinSelectionInput (n :: NetworkDiscriminant) = ApiCoinSelectionInput
     , derivationPath :: NonEmpty (ApiT DerivationIndex)
     , amount :: !(Quantity "lovelace" Natural)
     } deriving (Eq, Generic, Show)
+      deriving anyclass NFData
 
 data ApiCoinSelectionOutput (n :: NetworkDiscriminant) = ApiCoinSelectionOutput
     { address :: !(ApiT Address, Proxy n)
     , amount :: !(Quantity "lovelace" Natural)
     } deriving (Eq, Ord, Generic, Show)
+      deriving anyclass NFData
 
 data ApiWallet = ApiWallet
     { id :: !(ApiT WalletId)
@@ -456,30 +467,36 @@ data ApiWallet = ApiWallet
     , state :: !(ApiT SyncProgress)
     , tip :: !ApiBlockReference
     } deriving (Eq, Generic, Show)
+      deriving anyclass NFData
 
 newtype ApiWalletPassphraseInfo = ApiWalletPassphraseInfo
     { lastUpdatedAt :: UTCTime
     } deriving (Eq, Generic, Show)
+      deriving anyclass NFData
 
 data ApiWalletDelegation = ApiWalletDelegation
     { active :: !ApiWalletDelegationNext
     , next :: ![ApiWalletDelegationNext]
     } deriving (Eq, Generic, Show)
+      deriving anyclass NFData
 
 data ApiWalletDelegationNext = ApiWalletDelegationNext
     { status :: !ApiWalletDelegationStatus
     , target :: !(Maybe (ApiT PoolId))
     , changesAt :: !(Maybe ApiEpochInfo)
     } deriving (Eq, Generic, Show)
+      deriving anyclass NFData
 
 data ApiWalletDelegationStatus
     = NotDelegating
     | Delegating
     deriving (Eq, Generic, Show)
+    deriving anyclass NFData
 
 newtype ApiWalletPassphrase = ApiWalletPassphrase
     { passphrase :: ApiT (Passphrase "lenient")
     } deriving (Eq, Generic, Show)
+      deriving anyclass NFData
 
 data ApiStakePool = ApiStakePool
     { id :: !(ApiT PoolId)
@@ -497,12 +514,14 @@ data ApiStakePoolMetrics = ApiStakePoolMetrics
     , saturation :: !Double
     , producedBlocks :: !(Quantity "block" Natural)
     } deriving (Eq, Generic, Show)
+      deriving anyclass NFData
 
 data ApiUtxoStatistics = ApiUtxoStatistics
     { total :: !(Quantity "lovelace" Natural)
     , scale :: !(ApiT BoundType)
     , distribution :: !(Map Word64 Word64)
     } deriving (Eq, Generic, Show)
+      deriving anyclass NFData
 
 toApiUtxoStatistics :: UTxOStatistics -> ApiUtxoStatistics
 toApiUtxoStatistics (UTxOStatistics histo totalStakes bType) =
@@ -547,10 +566,12 @@ data ByronWalletFromXPrvPostData = ByronWalletFromXPrvPostData
     -- - r = 8
     -- - p = 1
     } deriving (Eq, Generic, Show)
+      deriving anyclass NFData
 
 newtype ApiAccountPublicKey = ApiAccountPublicKey
     { key :: (ApiT XPub)
     } deriving (Eq, Generic, Show)
+      deriving anyclass NFData
 
 newtype WalletOrAccountPostData = WalletOrAccountPostData
     { postData :: Either WalletPostData AccountPostData
@@ -646,6 +667,7 @@ toApiNetworkParameters (NetworkParameters gp pp) = (np, view #hardforkEpochNo pp
 newtype ApiTxId = ApiTxId
     { id :: ApiT (Hash "Tx")
     } deriving (Eq, Generic, Show)
+      deriving anyclass NFData
 
 data ApiTransaction (n :: NetworkDiscriminant) = ApiTransaction
     { id :: !(ApiT (Hash "Tx"))
@@ -661,15 +683,18 @@ data ApiTransaction (n :: NetworkDiscriminant) = ApiTransaction
     , status :: !(ApiT TxStatus)
     , metadata :: !ApiTxMetadata
     } deriving (Eq, Generic, Show)
+      deriving anyclass NFData
 
 newtype ApiTxMetadata = ApiTxMetadata
     { getApiTxMetadata :: Maybe (ApiT TxMetadata)
     } deriving (Eq, Generic, Show)
+      deriving anyclass NFData
 
 data ApiWithdrawal n = ApiWithdrawal
     { stakeAddress :: !(ApiT ChimericAccount, Proxy n)
     , amount :: !(Quantity "lovelace" Natural)
     } deriving (Eq, Generic, Show)
+      deriving anyclass NFData
 
 data ApiWithdrawalPostData
     = SelfWithdrawal
@@ -680,31 +705,37 @@ data ApiTxInput (n :: NetworkDiscriminant) = ApiTxInput
     { source :: !(Maybe (AddressAmount (ApiT Address, Proxy n)))
     , input :: !(ApiT TxIn)
     } deriving (Eq, Generic, Show)
+      deriving anyclass NFData
 
 data AddressAmount addr = AddressAmount
     { address :: !addr
     , amount :: !(Quantity "lovelace" Natural)
     } deriving (Eq, Generic, Show)
+      deriving anyclass NFData
 
 newtype ApiAddressInspect = ApiAddressInspect
     { unApiAddressInspect :: Aeson.Value }
     deriving (Eq, Generic, Show)
+    deriving anyclass NFData
 
 newtype ApiAddressInspectData = ApiAddressInspectData
     { unApiAddressInspectData :: Text }
     deriving (Eq, Generic, Show)
     deriving newtype (IsString)
+    deriving anyclass NFData
 
 data ApiSlotReference = ApiSlotReference
     { absoluteSlotNumber :: !(ApiT SlotNo)
     , slotId :: !ApiSlotId
     , time :: !UTCTime
     } deriving (Eq, Generic, Show)
+      deriving anyclass NFData
 
 data ApiSlotId = ApiSlotId
     { epochNumber :: !(ApiT EpochNo)
     , slotNumber :: !(ApiT SlotInEpoch)
     } deriving (Eq, Generic, Show)
+      deriving anyclass NFData
 
 data ApiBlockReference = ApiBlockReference
     { absoluteSlotNumber :: !(ApiT SlotNo)
@@ -712,10 +743,12 @@ data ApiBlockReference = ApiBlockReference
     , time :: !UTCTime
     , block :: !ApiBlockInfo
     } deriving (Eq, Generic, Show)
+      deriving anyclass NFData
 
 newtype ApiBlockInfo = ApiBlockInfo
     { height :: Quantity "block" Natural
     } deriving (Eq, Generic, Show)
+      deriving anyclass NFData
 
 data ApiNetworkInformation = ApiNetworkInformation
     { syncProgress :: !(ApiT SyncProgress)
@@ -723,26 +756,31 @@ data ApiNetworkInformation = ApiNetworkInformation
     , nodeTip :: !ApiBlockReference
     , networkTip :: !(Maybe ApiSlotReference)
     } deriving (Eq, Generic, Show)
+      deriving anyclass NFData
 
 data NtpSyncingStatus =
       NtpSyncingStatusUnavailable
     | NtpSyncingStatusPending
     | NtpSyncingStatusAvailable
     deriving (Eq, Generic, Show)
+    deriving anyclass NFData
 
 data ApiNtpStatus = ApiNtpStatus
     { status :: !NtpSyncingStatus
     , offset :: !(Maybe (Quantity "microsecond" Integer))
     } deriving (Eq, Generic, Show)
+      deriving anyclass NFData
 
 newtype ApiNetworkClock = ApiNetworkClock
     { ntpStatus :: ApiNtpStatus
     } deriving (Eq, Generic, Show)
+      deriving anyclass NFData
 
 data ApiPostRandomAddressData = ApiPostRandomAddressData
     { passphrase :: !(ApiT (Passphrase "lenient"))
     , addressIndex :: !(Maybe (ApiT (Index 'AD.Hardened 'AddressK)))
     } deriving (Eq, Generic, Show)
+      deriving anyclass NFData
 
 
 data ApiWalletMigrationPostData (n :: NetworkDiscriminant) (s :: Symbol) =
@@ -750,27 +788,33 @@ data ApiWalletMigrationPostData (n :: NetworkDiscriminant) (s :: Symbol) =
     { passphrase :: !(ApiT (Passphrase s))
     , addresses :: ![(ApiT Address, Proxy n)]
     } deriving (Eq, Generic, Show)
+      deriving anyclass NFData
 
 newtype ApiPutAddressesData (n :: NetworkDiscriminant) = ApiPutAddressesData
     { addresses :: [(ApiT Address, Proxy n)]
     } deriving (Eq, Generic, Show)
+      deriving anyclass NFData
 
 data ApiWalletMigrationInfo = ApiWalletMigrationInfo
     { migrationCost :: Quantity "lovelace" Natural
     , leftovers :: Quantity "lovelace" Natural
     } deriving (Eq, Generic, Show)
+      deriving anyclass NFData
 
 newtype ApiWithdrawRewards = ApiWithdrawRewards Bool
     deriving (Eq, Generic, Show)
+    deriving anyclass NFData
 
 data ApiWalletSignData = ApiWalletSignData
     { metadata :: ApiT TxMetadata
     , passphrase :: ApiT (Passphrase "lenient")
     } deriving (Eq, Generic, Show)
+      deriving anyclass NFData
 
 newtype ApiVerificationKey = ApiVerificationKey
     { getApiVerificationKey :: (XPub, AccountingStyle)
     } deriving (Eq, Generic, Show)
+      deriving anyclass NFData
 
 -- | Error codes returned by the API, in the form of snake_cased strings
 data ApiErrorCode
@@ -819,6 +863,7 @@ data ApiErrorCode
     | UnableToAssignInputOutput
     | SoftDerivationRequired
     deriving (Eq, Generic, Show, Data, Typeable)
+    deriving anyclass NFData
 
 -- | Defines a point in time that can be formatted as and parsed from an
 --   ISO 8601-compliant string.
@@ -943,11 +988,13 @@ data ApiByronWallet = ApiByronWallet
     , state :: !(ApiT SyncProgress)
     , tip :: !ApiBlockReference
     } deriving (Eq, Generic, Show)
+      deriving anyclass NFData
 
 data ApiWalletDiscovery
     = DiscoveryRandom
     | DiscoverySequential
     deriving (Eq, Generic, Show)
+    deriving anyclass NFData
 
 class KnownDiscovery s where
     knownDiscovery :: ApiWalletDiscovery
@@ -969,6 +1016,7 @@ instance KnownDiscovery (SeqState network key) where
 newtype ApiT a =
     ApiT { getApiT :: a }
     deriving (Generic, Show, Eq, Functor)
+    deriving anyclass NFData
 deriving instance Ord a => Ord (ApiT a)
 
 -- | Representation of mnemonics at the API-level, using a polymorphic type in
@@ -1342,6 +1390,7 @@ data ApiByronWalletBalance = ApiByronWalletBalance
     { available :: !(Quantity "lovelace" Natural)
     , total :: !(Quantity "lovelace" Natural)
     } deriving (Eq, Generic, Show)
+      deriving anyclass NFData
 
 instance FromJSON ApiByronWalletBalance where
     parseJSON = genericParseJSON defaultRecordTypeOptions
