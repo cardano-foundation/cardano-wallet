@@ -479,13 +479,13 @@ mPutSettings
 mPutSettings s = modify #settings (\_ -> s)
 
 mReadLastMetadataGC
-    :: ModelOp POSIXTime
+    :: ModelOp (Maybe POSIXTime)
 mReadLastMetadataGC = get (#internalState . #lastMetadataGC)
 
 mPutLastMetadataGC
     :: POSIXTime
     -> ModelOp ()
-mPutLastMetadataGC t = modify (#internalState . #lastMetadataGC) (\_ -> t)
+mPutLastMetadataGC t = modify (#internalState . #lastMetadataGC) (\_ -> Just t)
 
 --------------------------------------------------------------------------------
 -- Utilities

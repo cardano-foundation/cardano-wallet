@@ -144,6 +144,7 @@ module Cardano.Wallet.Primitive.Types
     , StakePoolMetadataUrl (..)
     , StakePoolTicker (..)
     , StakeKeyCertificate (..)
+    , PoolMetadataGCStatus (..)
 
     -- * Querying
     , SortOrder (..)
@@ -604,6 +605,15 @@ data StakePool = StakePool
     , pledge :: Quantity "lovelace" Word64
     , saturation :: Double
     } deriving (Show, Generic)
+
+-- Status encoding of the metadata GC thread, which queries
+-- the SMASH server for delisted pools.
+data PoolMetadataGCStatus
+    = NotApplicable
+    | NotStarted
+    | Restarting POSIXTime -- shows last GC before restart occured
+    | HasRun POSIXTime     -- shows last GC
+    deriving (Eq, Show, Generic)
 
 -- | A newtype to wrap metadata hash.
 --
@@ -2020,12 +2030,13 @@ defaultSettings = Settings {
 --  exposed settings.
 {-# HLINT ignore InternalState "Use newtype instead of data" #-}
 data InternalState = InternalState
-    { lastMetadataGC :: POSIXTime
+    { lastMetadataGC :: Maybe POSIXTime
     } deriving (Generic, Show, Eq)
 
 defaultInternalState :: InternalState
 defaultInternalState = InternalState
-    { lastMetadataGC = fromIntegral @Int 0 }
+    { lastMetadataGC = Nothing }
+
 instance FromJSON PoolMetadataSource where
     parseJSON = parseJSON >=> either (fail . show . ShowFmt) pure . fromText
 

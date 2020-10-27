@@ -1451,12 +1451,12 @@ prop_putLastMetadataGCReadLastMetadataGC DBLayer{..} posixTime = do
     prop = do
         defGCTime <- run $ atomically readLastMetadataGC
         assertWith
-            "Reading sync time from empty db returns start of unix epoch"
-            (defGCTime == fromIntegral @Int 0)
+            "Reading sync time from empty db returns Nothing"
+            (defGCTime == Nothing)
         run $ atomically $ putLastMetadataGC posixTime
         time <- run $ atomically readLastMetadataGC
         assertWith "Setting sync time and reading afterwards works"
-            (time == posixTime)
+            (time == Just posixTime)
 
 prop_delistPools
     :: DBLayer IO
@@ -1553,5 +1553,5 @@ instance Arbitrary BlockHeader where
 
 instance Arbitrary POSIXTime where
     arbitrary = do
-        Positive int <- arbitrary @(Positive Int)
+        NonNegative int <- arbitrary @(NonNegative Int)
         pure (fromIntegral int)

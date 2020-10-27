@@ -108,6 +108,7 @@ import Cardano.Wallet.Primitive.Types
     , ChimericAccount
     , GenesisParameters (..)
     , NetworkParameters (..)
+    , PoolMetadataGCStatus (..)
     , ProtocolParameters (..)
     , Settings (..)
     , WalletId
@@ -149,6 +150,8 @@ import Data.Text
     ( Text )
 import Data.Text.Class
     ( ToText (..) )
+import GHC.Conc
+    ( newTVarIO )
 import GHC.Generics
     ( Generic )
 import GHC.TypeLits
@@ -350,10 +353,11 @@ serveWallet
                 (timeInterpreter nl)
                 $ \db@DBLayer{..} -> do
 
+            gcStatus <- newTVarIO NotStarted
             forM_ settings $ atomically . putSettings
             void $ forkFinally (monitorStakePools tr gp nl db) onExit
-            spl <- newStakePoolLayer nl db
-                $ forkFinally (monitorMetadata tr gp db) onExit
+            spl <- newStakePoolLayer gcStatus nl db
+                $ forkFinally (monitorMetadata gcStatus tr gp db) onExit
             action spl
       where
         tr = contramap (MsgFromWorker mempty) poolsEngineTracer

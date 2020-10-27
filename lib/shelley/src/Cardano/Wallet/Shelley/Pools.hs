@@ -53,7 +53,7 @@ import Cardano.Pool.Metadata
 import Cardano.Wallet
     ( ErrListPools (..) )
 import Cardano.Wallet.Api.Types
-    ( ApiListStakePools (..), ApiT (..), Iso8601Time (..) )
+    ( ApiListStakePools (..), ApiT (..) )
 import Cardano.Wallet.Byron.Compatibility
     ( toByronBlockHeader )
 import Cardano.Wallet.Network
@@ -75,6 +75,7 @@ import Cardano.Wallet.Primitive.Slotting
     )
 import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
+    , PoolMetadataGCStatus (..)
     , BlockHeader (..)
     , CertificatePublicationTime (..)
     , Coin (..)
@@ -157,7 +158,7 @@ import Data.Text
 import Data.Text.Class
     ( ToText (..) )
 import Data.Time.Clock.POSIX
-    ( getPOSIXTime, posixDayLength, posixSecondsToUTCTime )
+    ( getPOSIXTime, posixDayLength )
 import Data.Tuple.Extra
     ( dupe )
 import Data.Word
@@ -217,11 +218,12 @@ data StakePoolLayer = StakePoolLayer
 
 newStakePoolLayer
     :: forall sc. ()
-    => NetworkLayer IO (IO Shelley) (CardanoBlock sc)
+    => TVar PoolMetadataGCStatus
+    -> NetworkLayer IO (IO Shelley) (CardanoBlock sc)
     -> DBLayer IO
     -> IO ThreadId
     -> IO StakePoolLayer
-newStakePoolLayer nl db@DBLayer {..} worker = do
+newStakePoolLayer gcStatus nl db@DBLayer {..} worker = do
     tid <- worker
     tvTid <- newTVarIO tid
     pure $ StakePoolLayer
@@ -278,7 +280,6 @@ newStakePoolLayer nl db@DBLayer {..} worker = do
         let lsqData = combineLsqData rawLsqData
         dbData <- liftIO $ readPoolDbData db currentEpoch
         seed <- liftIO $ atomically readSystemSeed
-        lastGC <- liftIO $ atomically readLastMetadataGC
         r <- liftIO $ try $
             sortByReward seed
             . map snd
@@ -291,9 +292,11 @@ newStakePoolLayer nl db@DBLayer {..} worker = do
         case r of
             Left e@(PastHorizon{}) ->
                 throwE (ErrListPoolsPastHorizonException e)
-            Right r' -> pure  
-                $ ApiListStakePools r' $ Just $ ApiT
-                $ Iso8601Time $ posixSecondsToUTCTime lastGC
+            Right r' -> do
+                gcStatus' <- liftIO $ readTVarIO gcStatus
+                pure
+                    $ ApiListStakePools r' $ Just $ ApiT
+                    $ gcStatus'
       where
         fromErrCurrentNodeTip :: ErrCurrentNodeTip -> ErrListPools
         fromErrCurrentNodeTip = \case
@@ -337,9 +340,12 @@ newStakePoolLayer nl db@DBLayer {..} worker = do
         -- We force a GC by resetting last sync time to 0 (start of POSIX
         -- time) and have the metadata thread restart.
         bracketSyncThread tvTid
-            $ atomically
-            $ putLastMetadataGC
-            $ fromIntegral @Int 0
+            $ do
+                lastGC <- atomically readLastMetadataGC
+                case lastGC of
+                    Nothing -> STM.atomically $ writeTVar gcStatus NotStarted
+                    Just gc -> STM.atomically $ writeTVar gcStatus (Restarting gc)
+                atomically $ putLastMetadataGC $ fromIntegral @Int 0
 
     -- Stop the sync thread, carry out an action, and restart the sync thread.
     bracketSyncThread :: TVar ThreadId -> IO a -> IO ()
@@ -719,11 +725,12 @@ monitorStakePools tr gp nl DBLayer{..} =
 
 -- | Worker thread that monitors pool metadata and syncs it to the database.
 monitorMetadata
-    :: Tracer IO StakePoolLog
+    :: TVar PoolMetadataGCStatus
+    -> Tracer IO StakePoolLog
     -> GenesisParameters
     -> DBLayer IO
     -> IO ()
-monitorMetadata tr gp db@(DBLayer{..}) = do
+monitorMetadata gcStatus tr gp db@(DBLayer{..}) = do
     settings <- atomically readSettings
     manager <- newManager defaultManagerSettings
 
@@ -735,16 +742,21 @@ monitorMetadata tr gp db@(DBLayer{..}) = do
                 threadDelay blockFrequency
 
     case poolMetadataSource settings of
-        FetchNone -> loop (pure ([], [])) -- TODO: exit loop?
-        FetchDirect -> loop (fetchThem $ fetcher [identityUrlBuilder])
+        FetchNone -> do
+            STM.atomically $ writeTVar gcStatus NotApplicable
+            loop (pure ([], [])) -- TODO: exit loop?
+        FetchDirect -> do
+            STM.atomically $ writeTVar gcStatus NotApplicable
+            loop (fetchThem $ fetcher [identityUrlBuilder])
         FetchSMASH (unSmashServer -> uri) -> do
+            STM.atomically $ writeTVar gcStatus NotStarted
             -- health check
             _ <- healthCheck trFetch (toHealthCheckURI uri) manager
 
             let getDelistedPools =
                     fetchDelistedPools trFetch (toDelistedPoolsURI uri) manager
             tid <- forkFinally
-                (gcDelistedPools tr db getDelistedPools)
+                (gcDelistedPools gcStatus tr db getDelistedPools)
                 onExit
             flip finally (killThread tid) $
                 loop (fetchThem $ fetcher [registryUrlBuilder uri])
@@ -795,19 +807,26 @@ monitorMetadata tr gp db@(DBLayer{..}) = do
             Just ThreadKilled -> MsgGCThreadKilled
             Just UserInterrupt -> MsgGCUserInterrupt
             _ -> MsgGCUnhandledException $ pretty $ show e
+
 gcDelistedPools
-    :: Tracer IO StakePoolLog
+    :: TVar PoolMetadataGCStatus
+    -> Tracer IO StakePoolLog
     -> DBLayer IO
     -> IO (Maybe [PoolId])  -- ^ delisted pools fetcher
     -> IO ()
-gcDelistedPools tr DBLayer{..} fetchDelisted = forever $ do
+gcDelistedPools gcStatus tr DBLayer{..} fetchDelisted = forever $ do
     lastGC <- atomically readLastMetadataGC
     currentTime <- getPOSIXTime
 
-    let timeSinceLastGC = currentTime - lastGC
+    case lastGC of
+        Nothing -> pure ()
+        Just gc -> STM.atomically $ writeTVar gcStatus (HasRun gc)
+
+    let timeSinceLastGC = fmap (currentTime -) lastGC
         sixHours = posixDayLength / 4
-    when (timeSinceLastGC > sixHours) $ do
+    when (maybe True (> sixHours) timeSinceLastGC) $ do
         delistedPools <- fmap (fromMaybe []) fetchDelisted
+        STM.atomically $ writeTVar gcStatus (HasRun currentTime)
         atomically $ do
             putLastMetadataGC currentTime
             delistPools delistedPools

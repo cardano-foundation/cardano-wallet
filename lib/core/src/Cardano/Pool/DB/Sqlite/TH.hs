@@ -52,7 +52,7 @@ share
     [persistLowerCase|
 
 InternalState sql=internal_state
-    lastGCMetadata                   POSIXTime   sql=last_gc_metadata
+    lastGCMetadata                   POSIXTime Maybe   sql=last_gc_metadata
 
     deriving Show Generic
 

@@ -1019,6 +1019,32 @@ x-addressIndex: &addressIndex
   description: |
     An address derivation index.
 
+x-gCStatus :: &gCStatus
+  description: |
+    Gives an indication if metadata GC checking for delisted pools
+    has run and if so, when.
+
+    Possible values are:
+      - not_applicable -> we're currently not querying a SMASH server for metadata
+      - not_started -> the GC hasn't started yet, try again in a short while
+      - restarting -> the GC thread is currently restarting, try again in short while
+      - has_run -> the GC has run successfully
+
+    When 'status' is 'restarting' or 'has_run' then the field 'last_run'
+    is set to the last GC time in UTC.
+  type: object
+  required:
+    - status
+  properties:
+    status:
+      type: string
+      enum:
+        - not_applicable
+        - not_started
+        - restarting
+        - has_run
+    last_run: *date
+
 #############################################################################
 #                                                                           #
 #                              DEFINITIONS                                  #
@@ -1191,8 +1217,8 @@ components:
           type: string
           enum: ['gc_stake_pools']
 
-    ApiLastGC: &ApiLastGC
-      <<: *date
+    ApiGCStatus: &ApiGCStatus
+      <<: *gCStatus
 
     ApiStakePool: &ApiStakePool
       type: object
@@ -1218,9 +1244,10 @@ components:
       type: object
       required:
         - pools
+        - gc_status
       properties:
-        last_gc:
-          <<: *ApiLastGC
+        gc_status:
+          <<: *ApiGCStatus
         pools:
           type: array
           items: *ApiStakePool

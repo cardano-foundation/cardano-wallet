@@ -195,6 +195,7 @@ import Cardano.Wallet.Primitive.Types
     , HistogramBar (..)
     , NetworkParameters (..)
     , PoolId (..)
+    , PoolMetadataGCStatus (..)
     , ShowFmt (..)
     , SlotInEpoch (..)
     , SlotLength (..)
@@ -281,6 +282,8 @@ import Data.Text.Class
     )
 import Data.Time.Clock
     ( NominalDiffTime, UTCTime )
+import Data.Time.Clock.POSIX
+    ( posixSecondsToUTCTime, utcTimeToPOSIXSeconds )
 import Data.Time.Text
     ( iso8601, iso8601ExtendedUtc, utcTimeFromText, utcTimeToText )
 import Data.Word
@@ -394,7 +397,7 @@ newtype ApiMaintenanceAction = ApiMaintenanceAction
 
 data ApiListStakePools apiPool = ApiListStakePools
     { pools :: [apiPool]
-    , lastGC :: !(Maybe (ApiT Iso8601Time))
+    , gc_status :: !(Maybe (ApiT PoolMetadataGCStatus)) -- Nothing, bc of Jormungandr
     } deriving (Eq, Generic, Show)
 
 data ApiAddress (n :: NetworkDiscriminant) = ApiAddress
@@ -1311,6 +1314,37 @@ instance FromJSON WalletPutPassphraseData where
     parseJSON = genericParseJSON defaultRecordTypeOptions
 instance ToJSON  WalletPutPassphraseData where
     toJSON = genericToJSON defaultRecordTypeOptions
+
+instance FromJSON (ApiT PoolMetadataGCStatus) where
+    parseJSON = withObject "PoolMetadataGCStatus" $ \o -> do
+        (status' :: String) <- o .: "status"
+        last_run <- o .:? "last_run"
+        case (status', last_run) of
+            ("restarting", Just (ApiT (Iso8601Time gctime)))
+                -> pure $ ApiT (Restarting $ utcTimeToPOSIXSeconds gctime)
+            ("has_run", Just (ApiT (Iso8601Time gctime)))
+                -> pure $ ApiT (HasRun $ utcTimeToPOSIXSeconds gctime)
+            ("restarting", Nothing)
+                -> fail "missing field last_run"
+            ("has_run", Nothing)
+                -> fail "missing field last_run"
+            ("not_applicable", _)
+                -> pure $ ApiT NotApplicable
+            ("not_started", _)
+                -> pure $ ApiT NotStarted
+            _ -> fail ("Unknown status: " <> status')
+
+instance ToJSON (ApiT PoolMetadataGCStatus) where
+    toJSON (ApiT (NotApplicable)) =
+        object [ "status" .= String "not_applicable" ]
+    toJSON (ApiT (NotStarted)) =
+        object [ "status" .= String "not_started" ]
+    toJSON (ApiT (Restarting gctime)) =
+        object [ "status" .= String "restarting"
+            , "last_run" .= ApiT (Iso8601Time (posixSecondsToUTCTime gctime)) ]
+    toJSON (ApiT (HasRun gctime)) =
+        object [ "status" .= String "has_run"
+            , "last_run" .= ApiT (Iso8601Time (posixSecondsToUTCTime gctime)) ]
 
 instance FromJSON a => FromJSON (ApiListStakePools a) where
     parseJSON = genericParseJSON defaultRecordTypeOptions

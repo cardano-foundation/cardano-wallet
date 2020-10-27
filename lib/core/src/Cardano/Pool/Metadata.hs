@@ -28,6 +28,9 @@ module Cardano.Pool.Metadata
     -- * re-exports
     , newManager
     , defaultManagerSettings
+
+    -- * other
+    , SMASHPoolId (..)
     ) where
 
 import Prelude
@@ -64,12 +67,8 @@ import Data.Aeson
     , eitherDecodeStrict
     , genericParseJSON
     , genericToJSON
-    , object
     , parseJSON
     , toJSON
-    , withObject
-    , (.:)
-    , (.=)
     )
 import Data.Bifunctor
     ( Bifunctor (first) )
@@ -116,7 +115,7 @@ import qualified Network.HTTP.Client.TLS as HTTPS
 -- | TODO: import SMASH types
 newtype SMASHPoolId = SMASHPoolId
     { poolId :: T.Text
-    } deriving stock (Eq, Show, Ord)
+    } deriving stock (Eq, Show, Ord, Generic)
 
 instance FromJSON SMASHPoolId where
     parseJSON = genericParseJSON defaultRecordTypeOptions
