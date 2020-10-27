@@ -1901,30 +1901,43 @@ derivePublicKey ctx (ApiT wid) (ApiT role_) (ApiT ix) = do
         pure $ ApiVerificationKey (getRawKey k, role_)
 
 postAnyAddress
-    :: forall ctx s t k n.
-        ( s ~ SeqState n k
-        , k ~ ShelleyKey
-        , ctx ~ ApiLayer s t k
-        )
-    => ctx
-    -> ApiCredentials
+    :: forall n. ApiCredentials
     -> Handler AnyAddress
-postAnyAddress ctx body = do
+postAnyAddress body = do
     (addr, addrType) <-
             case (body ^. #spending, body ^. #staking) of
                 (Just (Credential (Left (ApiPubKey bytes))), Nothing) ->
-                    pure ( unAddress $ CA.paymentAddress discriminant (CA.PaymentFromKey $ CA.liftXPub $ toXPub bytes)
+                    pure ( unAddress $
+                           CA.paymentAddress discriminant (spendingFromKey bytes)
                     , EnterpriseDelegating )
                 (Just (Credential (Right (ApiScript (ApiT script)))), Nothing) ->
-                    pure ( unAddress $ CA.paymentAddress discriminant (CA.PaymentFromScript $ CA.toScriptHash script)
+                    pure ( unAddress $
+                           CA.paymentAddress discriminant (spendingFromScript script)
                     , EnterpriseDelegating )
+                (Nothing, Just (Credential (Left (ApiPubKey bytes)))) -> do
+                    let (Right stakeAddr) =
+                            CA.stakeAddress discriminant (stakingFromKey bytes)
+                    pure ( unAddress stakeAddr, EnterpriseDelegating )
+                (Nothing, Just (Credential (Right (ApiScript (ApiT script))))) -> do
+                    let (Right stakeAddr) =
+                            CA.stakeAddress discriminant (stakingFromScript script)
+                    pure ( unAddress stakeAddr, EnterpriseDelegating )
+
                 _ -> undefined
-    pure $ AnyAddress addr addrType netTag
+    pure $ AnyAddress addr addrType (fromInteger netTag)
   where
-      toXPub = fromJust . CA.xpubFromBytes
+      toXPub = fromJust . CA.xpubFromBytes . pubToXPub
+      pubToXPub bytes = BS.append bytes bytes
+      netTag = 1
+      spendingFromKey = CA.PaymentFromKey . CA.liftXPub . toXPub
+      spendingFromScript = CA.PaymentFromScript . CA.toScriptHash
+      stakingFromKey = CA.DelegationFromKey . CA.liftXPub . toXPub
+      stakingFromScript = CA.DelegationFromScript . CA.toScriptHash
+{--
       netTag = case testEquality (typeRep @n) (typeRep @'Mainnet) of
           Just{}  -> 1
           Nothing -> 0
+--}
       (Right discriminant) = CA.mkNetworkDiscriminant netTag
 
 {-------------------------------------------------------------------------------
