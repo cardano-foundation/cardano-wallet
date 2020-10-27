@@ -357,6 +357,7 @@ spec = do
             jsonRoundtripAndGolden $ Proxy @ApiAddressData
             jsonRoundtripAndGolden $ Proxy @(ApiT DerivationIndex)
             jsonRoundtripAndGolden $ Proxy @(ApiListStakePools Api.ApiStakePool)
+            jsonRoundtripAndGolden $ Proxy @(ApiT PoolMetadataGCStatus)
             jsonRoundtripAndGolden $ Proxy @ApiEpochInfo
             jsonRoundtripAndGolden $ Proxy @(ApiSelectCoinsData ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @(ApiCoinSelection ('Testnet 0))
