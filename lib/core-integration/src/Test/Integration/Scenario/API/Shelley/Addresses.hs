@@ -33,7 +33,7 @@ import Data.Generics.Internal.VL.Lens
 import Data.Quantity
     ( Quantity (..) )
 import Test.Hspec
-    ( SpecWith, describe, shouldBe )
+    ( SpecWith, describe, shouldBe, shouldSatisfy )
 import Test.Hspec.Extra
     ( it )
 import Test.Integration.Framework.DSL
@@ -62,6 +62,7 @@ import Test.Integration.Framework.TestData
 
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Data.Aeson as Aeson
+import qualified Data.Aeson.Lens as Aeson
 import qualified Data.Text as T
 import qualified Network.HTTP.Types.Status as HTTP
 
@@ -225,6 +226,17 @@ spec = describe "SHELLEY_ADDRESSES" $ do
             (Link.listAddresses @'Shelley w) Default Empty
         expectResponseCode @IO HTTP.status404 r
         expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
+
+    it "ADDRESS_LIST_05 - bech32 HRP is correct - mainnet" $ \ctx -> do
+        w <- emptyWallet ctx
+        r <- request @[Aeson.Value] ctx
+            (Link.listAddresses @'Shelley w) Default Empty
+        verify r
+            [ expectResponseCode @IO HTTP.status200
+            -- integration tests are configured for mainnet
+            , expectListField 0 (Aeson.key "id" . Aeson._String)
+                (`shouldSatisfy` T.isPrefixOf "addr")
+            ]
 
     it "ADDRESS_INSPECT_01 - Address inspect OK" $ \ctx -> do
         let str = "Ae2tdPwUPEYz6ExfbWubiXPB6daUuhJxikMEb4eXRp5oKZBKZwrbJ2k7EZe"

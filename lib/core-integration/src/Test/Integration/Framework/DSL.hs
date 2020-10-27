@@ -265,6 +265,10 @@ import Data.Functor.Identity
     ( Identity (..) )
 import Data.Generics.Internal.VL.Lens
     ( Lens', lens, set, view, (^.) )
+import Data.Generics.Internal.VL.Prism
+    ( (^?) )
+import Data.Generics.Internal.VL.Traversal
+    ( Traversal' )
 import Data.Generics.Labels
     ()
 import Data.Generics.Product.Typed
@@ -406,20 +410,21 @@ expectResponseCode want (got, a) =
 
 expectField
     :: (HasCallStack, MonadIO m, Show a)
-    => Lens' s a
+    => Traversal' s a
     -> (a -> Expectation)
     -> (HTTP.Status, Either RequestException s)
     -> m ()
 expectField getter predicate (_, res) = case res of
     Left e  -> wantedSuccessButError e
-    Right s ->
-        let a = view getter s in
-        liftIO $ predicate a
+    Right s -> liftIO $ case s ^? getter of
+        Nothing -> expectationFailure
+            "could not traverse response to test expectations"
+        Just a -> predicate a
 
 expectListField
     :: (HasCallStack, MonadIO m, Show a)
     => Int
-    -> Lens' s a
+    -> Traversal' s a
     -> (a -> Expectation)
     -> (HTTP.Status, Either RequestException [s])
     -> m ()

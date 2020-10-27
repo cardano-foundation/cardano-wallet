@@ -985,20 +985,20 @@ _decodeStakeAddress serverNetwork txt = do
         "Unable to decode stake-address: must be a valid bech32 string."
 
 instance EncodeAddress 'Mainnet where
-    encodeAddress = _encodeAddress
+    encodeAddress = _encodeAddress [Bech32.humanReadablePart|addr|]
 
 instance EncodeAddress ('Testnet pm) where
-    encodeAddress = _encodeAddress
+    -- https://github.com/cardano-foundation/CIPs/tree/master/CIP5
+    encodeAddress = _encodeAddress [Bech32.humanReadablePart|addr_test|]
 
-_encodeAddress :: W.Address -> Text
-_encodeAddress (W.Address bytes) =
+_encodeAddress :: Bech32.HumanReadablePart -> W.Address -> Text
+_encodeAddress hrp (W.Address bytes) =
     if isJust (CBOR.deserialiseCbor CBOR.decodeAddressPayload bytes)
         then base58
         else bech32
   where
     base58 = T.decodeUtf8 $ encodeBase58 bitcoinAlphabet bytes
     bech32 = Bech32.encodeLenient hrp (dataPartFromBytes bytes)
-    hrp = [Bech32.humanReadablePart|addr|]
 
 instance DecodeAddress 'Mainnet where
     decodeAddress = _decodeAddress SL.Mainnet

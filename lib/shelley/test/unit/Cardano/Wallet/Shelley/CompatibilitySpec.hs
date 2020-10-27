@@ -161,6 +161,11 @@ spec = do
                     & counterexample (show $ base58 bytes)
                 ]
 
+        prop "Shelley addresses from bech32 - testnet" $ \k ->
+            let addr@(Address raw) = paymentAddress @('Testnet 0) @ShelleyKey k
+            in decodeAddress @('Testnet 0) (bech32testnet raw) === Right addr
+                   & counterexample (show $ bech32testnet raw)
+
         prop "Byron addresses from base16, bech32 and base58" $ \k -> do
             let addr@(Address bytes) = paymentAddress @'Mainnet @ByronKey k
             conjoin
@@ -377,6 +382,12 @@ base16 = T.decodeUtf8 . convertToBase Base16
 bech32 :: ByteString -> Text
 bech32 = Bech32.encodeLenient hrp . Bech32.dataPartFromBytes
   where hrp = [humanReadablePart|addr|]
+
+-- Expected bech32 encoding for testnets
+-- https://github.com/cardano-foundation/CIPs/tree/master/CIP5
+bech32testnet :: ByteString -> Text
+bech32testnet = Bech32.encodeLenient hrp . Bech32.dataPartFromBytes
+  where hrp = [humanReadablePart|addr_test|]
 
 base58 :: ByteString -> Text
 base58 = T.decodeUtf8 . encodeBase58 bitcoinAlphabet

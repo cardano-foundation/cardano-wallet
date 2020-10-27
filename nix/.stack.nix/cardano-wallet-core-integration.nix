@@ -63,6 +63,7 @@
           (hsPkgs."http-client" or (errorHandler.buildDepError "http-client"))
           (hsPkgs."http-types" or (errorHandler.buildDepError "http-types"))
           (hsPkgs."iohk-monitoring" or (errorHandler.buildDepError "iohk-monitoring"))
+          (hsPkgs."lens-aeson" or (errorHandler.buildDepError "lens-aeson"))
           (hsPkgs."memory" or (errorHandler.buildDepError "memory"))
           (hsPkgs."optparse-applicative" or (errorHandler.buildDepError "optparse-applicative"))
           (hsPkgs."process" or (errorHandler.buildDepError "process"))
