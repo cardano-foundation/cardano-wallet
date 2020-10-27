@@ -148,9 +148,9 @@ import Test.Integration.Framework.TestData
     ( errMsg400MinWithdrawalWrong
     , errMsg400StartTimeLaterThanEndTime
     , errMsg400TxMetadataStringTooLong
+    , errMsg403AlreadyInLedger
     , errMsg403Fee
     , errMsg403InputsDepleted
-    , errMsg403NoPendingAnymore
     , errMsg403NotAShelleyWallet
     , errMsg403NotEnoughMoney
     , errMsg403NotEnoughMoney_
@@ -2208,7 +2208,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         let ep = Link.deleteTransaction @'Shelley wSrc (ApiTxId txid)
         rDel <- request @ApiTxId ctx ep Default Empty
         expectResponseCode HTTP.status403 rDel
-        let err = errMsg403NoPendingAnymore (toUrlPiece (ApiTxId txid))
+        let err = errMsg403AlreadyInLedger (toUrlPiece (ApiTxId txid))
         expectErrorMessage err rDel
 
     describe "TRANS_DELETE_03 - checking no transaction id error for " $ do
@@ -2221,7 +2221,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         txDeleteFromDifferentWalletTest emptyRandomWallet "byron-wallets"
 
     it "TRANS_TTL_DELETE_01 - Shelley: can remove expired tx" $ \ctx -> do
-        (wa, wb) <- (,) <$> fixtureWallet ctx <*> fixtureWallet ctx
+        (wa, wb) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
         let amt = minUTxOValue :: Natural
 
         -- this transaction is going to expire really soon.

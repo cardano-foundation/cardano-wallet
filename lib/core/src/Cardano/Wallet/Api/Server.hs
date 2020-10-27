@@ -2519,9 +2519,9 @@ instance LiftHandler ErrRemoveTx where
                 , toText tid
                 ]
         ErrRemoveTxAlreadyInLedger tid ->
-            apiError err403 TransactionNotPending $ mconcat
+            apiError err403 TransactionAlreadyInLedger $ mconcat
                 [ "The transaction with id: ", toText tid,
-                  " cannot be forgotten as it is not pending anymore."
+                  " cannot be forgotten as it is already in the ledger."
                 ]
 
 instance LiftHandler ErrPostTx where

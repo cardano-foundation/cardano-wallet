@@ -64,7 +64,7 @@ import Test.Integration.Framework.DSL
 import Test.Integration.Framework.TestData
     ( errMsg400MalformedTxPayload
     , errMsg400WronglyEncodedTxPayload
-    , errMsg403NoPendingAnymore
+    , errMsg403AlreadyInLedger
     )
 import Test.Integration.Jormungandr.Scenario.API.Transactions
     ( ExternalTxFixture (..), fixtureExternalTx, getWalletBalance )
@@ -203,6 +203,6 @@ spec = do
         -- Try to forget external tx
         (Exit c2, Stdout out2, Stderr err2) <-
             deleteTransactionViaCLI @t ctx (T.unpack $ w ^. walletId) txid
-        err2 `shouldContain` errMsg403NoPendingAnymore (T.pack txid)
+        err2 `shouldContain` errMsg403AlreadyInLedger (T.pack txid)
         out2 `shouldBe` ""
         c2 `shouldBe` ExitFailure 1
