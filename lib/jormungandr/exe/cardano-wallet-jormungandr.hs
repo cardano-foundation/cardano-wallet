@@ -37,7 +37,7 @@ import Cardano.CLI
     , cmdMnemonic
     , cmdNetwork
     , cmdStakePool
-    , cmdTransaction
+    , cmdTransactionJormungandr
     , cmdVersion
     , cmdWallet
     , cmdWalletCreate
@@ -180,7 +180,7 @@ main = withUtf8Encoding $ do
         <> cmdServe
         <> cmdMnemonic
         <> cmdWallet cmdWalletCreate walletClient
-        <> cmdTransaction False transactionClient walletClient
+        <> cmdTransactionJormungandr transactionClient walletClient
         <> cmdAddress addressClient
         <> cmdStakePool @ApiStakePool stakePoolClient
         <> cmdNetwork networkClient

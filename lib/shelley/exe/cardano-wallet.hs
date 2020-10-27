@@ -149,7 +149,7 @@ main = withUtf8Encoding $ do
         <> cmdKey
         <> cmdWallet cmdWalletCreate walletClient
         <> cmdAddress addressClient
-        <> cmdTransaction True transactionClient walletClient
+        <> cmdTransaction transactionClient walletClient
         <> cmdNetwork networkClient
         <> cmdStakePool @ApiStakePool stakePoolClient
         <> cmdVersion

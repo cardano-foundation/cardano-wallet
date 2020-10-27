@@ -35,6 +35,7 @@ module Cardano.CLI
     , cmdWalletCreate
     , cmdByronWalletCreate
     , cmdTransaction
+    , cmdTransactionJormungandr
     , cmdAddress
     , cmdStakePool
     , cmdNetwork
@@ -684,14 +685,32 @@ cmdWalletGetUtxoStatistics mkClient =
                             Commands - 'transaction'
 -------------------------------------------------------------------------------}
 
+data TransactionFeatures = NoShelleyFeatures | ShelleyFeatures
+    deriving (Show, Eq)
+
 -- | cardano-wallet transaction
 cmdTransaction
     :: ToJSON wallet
-    => Bool -- ^ Enable Shelley transaction features
+    => TransactionClient
+    -> WalletClient wallet
+    -> Mod CommandFields (IO ())
+cmdTransaction = cmdTransactionBase ShelleyFeatures
+
+-- | cardano-wallet-jormungandr transaction
+cmdTransactionJormungandr
+    :: ToJSON wallet
+    => TransactionClient
+    -> WalletClient wallet
+    -> Mod CommandFields (IO ())
+cmdTransactionJormungandr = cmdTransactionBase NoShelleyFeatures
+
+cmdTransactionBase
+    :: ToJSON wallet
+    => TransactionFeatures
     -> TransactionClient
     -> WalletClient wallet
     -> Mod CommandFields (IO ())
-cmdTransaction isShelley mkTxClient mkWalletClient =
+cmdTransactionBase isShelley mkTxClient mkWalletClient =
     command "transaction" $ info (helper <*> cmds) $ mempty
         <> progDesc "About transactions"
   where
@@ -712,9 +731,14 @@ data TransactionCreateArgs t = TransactionCreateArgs
     , _timeToLive :: Maybe NominalDiffTime
     }
 
+whenShelley :: a -> Parser a -> TransactionFeatures -> Parser a
+whenShelley j s = \case
+    NoShelleyFeatures -> pure j
+    ShelleyFeatures -> s
+
 cmdTransactionCreate
     :: ToJSON wallet
-    => Bool -- ^ Enable Shelley transaction features
+    => TransactionFeatures
     -> TransactionClient
     -> WalletClient wallet
     -> Mod CommandFields (IO ())
@@ -726,8 +750,8 @@ cmdTransactionCreate isShelley mkTxClient mkWalletClient =
         <$> portOption
         <*> walletIdArgument
         <*> fmap NE.fromList (some paymentOption)
-        <*> (if isShelley then metadataOption else pure (ApiTxMetadata Nothing))
-        <*> (if isShelley then timeToLiveOption else pure Nothing)
+        <*> whenShelley (ApiTxMetadata Nothing) metadataOption isShelley
+        <*> whenShelley Nothing timeToLiveOption isShelley
     exec (TransactionCreateArgs wPort wId wAddressAmounts md ttl) = do
         wPayments <- either (fail . getTextDecodingError) pure $
             traverse (fromText @(AddressAmount Text)) wAddressAmounts
@@ -750,7 +774,7 @@ cmdTransactionCreate isShelley mkTxClient mkWalletClient =
 
 cmdTransactionFees
     :: ToJSON wallet
-    => Bool -- ^ Enable Shelley transaction features
+    => TransactionFeatures
     -> TransactionClient
     -> WalletClient wallet
     -> Mod CommandFields (IO ())
@@ -762,8 +786,8 @@ cmdTransactionFees isShelley mkTxClient mkWalletClient =
         <$> portOption
         <*> walletIdArgument
         <*> fmap NE.fromList (some paymentOption)
-        <*> (if isShelley then metadataOption else pure (ApiTxMetadata Nothing))
-        <*> (if isShelley then timeToLiveOption else pure Nothing)
+        <*> whenShelley (ApiTxMetadata Nothing) metadataOption isShelley
+        <*> whenShelley Nothing timeToLiveOption isShelley
     exec (TransactionCreateArgs wPort wId wAddressAmounts md ttl) = do
         wPayments <- either (fail . getTextDecodingError) pure $
             traverse (fromText @(AddressAmount Text)) wAddressAmounts
