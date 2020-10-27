@@ -14,7 +14,8 @@ module Test.Integration.Scenario.API.Shelley.Addresses
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiAddress
+    ( AnyAddress
+    , ApiAddress
     , ApiTransaction
     , ApiWallet
     , DecodeAddress
@@ -251,3 +252,58 @@ spec = describe "SHELLEY_ADDRESSES" $ do
         let str = "patate"
         r <- request @Aeson.Value ctx (Link.inspectAddress str) Default Empty
         expectResponseCode HTTP.status400 r
+
+    it "ANY_ADDRESS_POST_01 - Golden tests for enterprise script address - signature" $ \ctx -> do
+        let payload = Json [json|{
+                "spending": {
+                    "script": "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a"
+                    }
+            }|]
+        r <- request @AnyAddress ctx Link.postAnyAddress Default payload
+        expectResponseCode HTTP.status201 r
+
+    it "ANY_ADDRESS_POST_02 - Golden tests for enterprise script address - any" $ \ctx -> do
+        let payload = Json [json|{
+                "spending": {
+                    "script": {
+                        "any": [
+                            "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a",
+                            "script_vkh1mwlngj4fcwegw53tdmyemfupen2758xwvudmcz9ap8cnqk7jmh4"
+                            ]
+                        }
+                    }
+            }|]
+        r <- request @AnyAddress ctx Link.postAnyAddress Default payload
+        expectResponseCode HTTP.status201 r
+
+    it "ANY_ADDRESS_POST_03 - Golden tests for enterprise script address - all" $ \ctx -> do
+        let payload = Json [json|{
+                "spending": {
+                    "script" : {
+                        "all": [
+                            "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a",
+                            "script_vkh1mwlngj4fcwegw53tdmyemfupen2758xwvudmcz9ap8cnqk7jmh4"
+                            ]
+                        }
+                    }
+            }|]
+        r <- request @AnyAddress ctx Link.postAnyAddress Default payload
+        expectResponseCode HTTP.status201 r
+
+    it "ANY_ADDRESS_POST_04 - Golden tests for enterprise script address - some" $ \ctx -> do
+        let payload = Json [json|{
+                "spending": {
+                    "script": {
+                        "some": {
+                            "from" : [
+                                "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a",
+                                "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a",
+                                "script_vkh1qw4l62k4203dllrk3dk3sfjpnh3gufhtrtm4qvtrvn4xjp5x5rt"
+                                ],
+                             "at_least": 2
+                             }
+                        }
+                    }
+            }|]
+        r <- request @AnyAddress ctx Link.postAnyAddress Default payload
+        expectResponseCode HTTP.status201 r
