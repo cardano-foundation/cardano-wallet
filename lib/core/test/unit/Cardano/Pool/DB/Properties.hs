@@ -226,6 +226,8 @@ properties = do
             (property . prop_putLastMetadataGCReadLastMetadataGC)
         it "delistPools >> readPoolRegistration shows the pool as delisted"
             (property . prop_delistPools)
+        it "rolling back doesn't cancel out the effect of calling delistPools"
+            (property . prop_rollback_delistPools)
 
 {-------------------------------------------------------------------------------
                                     Properties
@@ -725,6 +727,56 @@ prop_readPoolLifeCycleStatus
         | sn <- [0 .. 3]
         , ii <- [0 .. 3]
         ]
+
+-- Test that rolling back doesn't cancel out the effect of calling delistPools.
+--
+prop_rollback_delistPools
+    :: DBLayer IO
+    -> SinglePoolCertificateSequence
+    -> Property
+prop_rollback_delistPools
+    db@DBLayer {..} (SinglePoolCertificateSequence poolId certificates) =
+        checkCoverage
+            $ cover 10 (rollbackPoint == 0)
+                "rollbackPoint = 0"
+            $ cover 10 (rollbackPoint == 1)
+                "rollbackPoint = 1"
+            $ cover 40 (rollbackPoint > 1)
+                "rollbackPoint > 1"
+            $ monadicIO (setup >> prop)
+  where
+    setup = run $ atomically cleanDB
+
+    prop = do
+        mRegistration <- run $ do
+            forM_ certificatePublications $ uncurry $ putPoolCertificate db
+            atomically $ do
+                delistPools [poolId]
+                rollbackTo rollbackPoint
+                readPoolRegistration poolId
+        case snd <$> mRegistration of
+            Just registration ->
+                assertWith "pool is still delisted after rollback" $
+                    view #poolFlag registration == Delisted
+            Nothing ->
+                -- If we failed to read a registration certificate, this means
+                -- we must have rolled back to the point before the very first
+                -- certificate was added. Check that this is the case:
+                assertWith "we rolled back to the start of time" $
+                    rollbackPoint == 0
+
+    certificatePublications :: [(CertificatePublicationTime, PoolCertificate)]
+    certificatePublications = testCertificatePublicationTimes `zip` certificates
+
+    rollbackPoint :: SlotNo
+    rollbackPoint =
+        -- Pick a slot that approximately corresponds to the midpoint of the
+        -- certificate publication list.
+        testCertificatePublicationTimes
+            & drop (length certificates `div` 2)
+            & fmap (view #slotNo)
+            & listToMaybe
+            & fromMaybe (SlotNo 0)
 
 prop_rollbackRegistration
     :: DBLayer IO
