@@ -19,9 +19,9 @@ signals are correctly handled on a unix system.
 
 ```
 # Normally
-stack exec -- cardano-wallet-jormungandr launch --genesis-block lib/jormungandr/test/data/jormungandr/block0.bin -- --secret lib/jormungandr/test/data/jormungandr/secret.yaml
+$ stack exec -- cardano-wallet-jormungandr launch --genesis-block lib/jormungandr/test/data/jormungandr/block0.bin -- --secret lib/jormungandr/test/data/jormungandr/secret.yaml
 # In the background:
-stack exec -- cardano-wallet-jormungandr launch --genesis-block lib/jormungandr/test/data/jormungandr/block0.bin -- --secret lib/jormungandr/test/data/jormungandr/secret.yaml &
+$ stack exec -- cardano-wallet-jormungandr launch --genesis-block lib/jormungandr/test/data/jormungandr/block0.bin -- --secret lib/jormungandr/test/data/jormungandr/secret.yaml &
 ```
 
 ### Check pid / if running
@@ -30,7 +30,8 @@ To check if the wallet and jormungandr are running, and to find their pids, the 
 command can be used:
 
 ```
-ps -ef | grep " jormungandr "; ps -ef | grep " cardano-wallet-jormungandr "
+$ ps -ef | grep " jormungandr "; ps -ef | grep " cardano-wallet-jormungandr "
+
   501 73924 73923   0  6:14PM ttys006    0:00.40 jormungandr --genesis-block lib/jormungandr/test/data/jormungandr/block0.bin --rest-listen 127.0.0.1:55218 --storage /Users/Johannes/.local/share/cardano-wallet/jormungandr/testnet/chain --secret lib/jormungandr/test/data/jormungandr/secret.yaml
   501 73923   623   0  6:14PM ttys006    0:00.67 cardano-wallet-jormungandr launch --genesis-block lib/jormungandr/test/data/jormungandr/block0.bin -- --secret lib/jormungandr/test/data/jormungandr/secret.yaml
 ```

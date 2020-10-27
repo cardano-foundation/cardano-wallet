@@ -1,6 +1,6 @@
 # Fee Policy Override
 
-## OS 
+## OS
 
 Windows, MacOS, Linux
 
@@ -32,7 +32,7 @@ blockchain_configuration:
 2. Encode it to produce a genesis block
 
 ```bash
-jcli genesis encode --input-file genesis-no-override.yaml > block0-no-override.bin
+$ jcli genesis encode --input-file genesis-no-override.yaml > block0-no-override.bin
 ```
 
 3. Launch a wallet using that genesis configuration. The wallet should start and not fail.
@@ -75,7 +75,7 @@ blockchain_configuration:
 2. Encode it to produce a genesis block
 
 ```bash
-jcli genesis encode --input-file genesis-with-override.yaml > block0-with-override.bin
+$ jcli genesis encode --input-file genesis-with-override.yaml > block0-with-override.bin
 ```
 
 3. Launch a wallet using that genesis configuration. The wallet should start and not fail.
