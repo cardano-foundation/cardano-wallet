@@ -145,7 +145,7 @@ main = withUtf8Encoding $ withTracers $ \tracers -> do
         describe "No backend required" $ do
             describe "Miscellaneous CLI tests" $ parallel (MiscellaneousCLI.spec @t)
         specWithServer tracers $ do
-            describe "API Specifications" $ do
+            parallel $ describe "API Specifications" $ do
                 Addresses.spec @n
                 CoinSelections.spec @n
                 ByronAddresses.spec @n
@@ -162,7 +162,7 @@ main = withUtf8Encoding $ withTracers $ \tracers -> do
                 ByronTransactions.spec @n
                 ByronHWWallets.spec @n
                 Settings.spec @n
-            describe "CLI Specifications" $ do
+            parallel $ describe "CLI Specifications" $ do
                 AddressesCLI.spec @n
                 TransactionsCLI.spec @n
                 WalletsCLI.spec @n

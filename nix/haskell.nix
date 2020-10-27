@@ -92,6 +92,11 @@ let
 
           # cardano-node socket path becomes too long otherwise
           unit.preCheck = lib.optionalString stdenv.isDarwin "export TMPDIR=/tmp";
+
+          # Force more integration tests to run in parallel than the
+          # default number of build cores.
+          integration.testFlags = ["-j" "8"];
+
           integration.preCheck = ''
             # Variables picked up by integration tests
             export CARDANO_NODE_TRACING_MIN_SEVERITY=notice
