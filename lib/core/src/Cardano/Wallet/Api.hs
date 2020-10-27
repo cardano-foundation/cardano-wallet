@@ -36,7 +36,7 @@ module Cardano.Wallet.Api
     , Addresses
         , ListAddresses
         , InspectAddress
-        , PostScriptAddress
+        , PostAnyAddress
 
     , CoinSelections
         , SelectCoins
@@ -320,7 +320,7 @@ type SignMetadata = "wallets"
 type Addresses n =
     ListAddresses n
     :<|> InspectAddress
-    :<|> PostScriptAddress n
+    :<|> PostAnyAddress n
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/listAddresses
 type ListAddresses n = "wallets"
@@ -335,7 +335,7 @@ type InspectAddress = "addresses"
     :> Get '[JSON] ApiAddressInspect
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/postAnyAddress
-type PostScriptAddress n = "addresses"
+type PostAnyAddress n = "addresses"
     :> ReqBody '[JSON] ApiCredentials
     :> PostCreated '[JSON] AnyAddress
 
