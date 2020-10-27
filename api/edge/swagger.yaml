@@ -613,7 +613,10 @@ x-transactionWithdrawals: &transactionWithdrawals
       amount: *amount
 
 x-derivationSegment: &derivationSegment
-  description: An individual segment within a derivation path.
+  description: |
+    An individual segment within a derivation path.
+    Indexes without `H` suffix are called `Soft`.
+    Indexes with `H` suffix are called `Hardened`.
   type: string
   example: 1852H
 
@@ -2381,6 +2384,8 @@ paths:
           This endpoint is experimental and for internal use in the Catalyst project. This
           functionality will be refined in the forthcoming future and the interface is likely
           to change in **NON-BACKWARD COMPATIBLE WAYS**.
+
+          <b>Note:</b> Only `Soft` indexes are supported by this endpoint.
         parameters:
           - *parametersWalletId
           - *parametersRole
@@ -2618,6 +2623,8 @@ paths:
       description: |
         <p align="right">status: <strong>stable</strong></p>
         Return a public key for a given role and derivation index.
+
+        <b>Note:</b> Only `Soft` indexes are supported by this endpoint.
       parameters:
         - *parametersWalletId
         - *parametersRole
