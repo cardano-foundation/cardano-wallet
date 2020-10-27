@@ -295,6 +295,9 @@ newDBLayer trace fp timeInterpreter = do
                 ]
             let poolRegistrationKey = PoolRegistrationKey
                     poolId slotNo slotInternalIndex
+            prevResult <- selectFirst
+                [ PoolRegistrationPoolId ==. poolId ]
+                [ ]
             let poolRegistrationRow = PoolRegistration
                     (poolId)
                     (slotNo)
@@ -307,7 +310,7 @@ newDBLayer trace fp timeInterpreter = do
                     (getQuantity $ poolPledge cert)
                     (fst <$> poolMetadata cert)
                     (snd <$> poolMetadata cert)
-                    NoPoolFlag
+                    (maybe NoPoolFlag (poolRegistrationFlag . entityVal) prevResult)
             _ <- repsert poolRegistrationKey poolRegistrationRow
             insertMany_ $
                 zipWith
