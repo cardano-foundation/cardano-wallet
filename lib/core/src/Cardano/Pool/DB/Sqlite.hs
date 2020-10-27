@@ -69,7 +69,6 @@ import Cardano.Wallet.Primitive.Types
     , PoolRetirementCertificate (..)
     , StakePoolMetadata (..)
     , StakePoolMetadataHash
-    , defaultInternalState
     , defaultSettings
     )
 import Cardano.Wallet.Unsafe
@@ -563,21 +562,15 @@ newDBLayer trace fp timeInterpreter = do
             result <- selectFirst
                 []
                 [Asc InternalStateId, LimitTo 1]
-            case result of
-                Nothing -> pure . W.lastMetadataGC $ defaultInternalState
-                Just x -> pure
-                    . W.lastMetadataGC
-                    . fromInternalState
-                    . entityVal
-                    $ x
+            pure $ (W.lastMetadataGC . fromInternalState . entityVal) =<< result
 
         putLastMetadataGC utc = do
             result <- selectFirst
                 [ InternalStateId ==. (InternalStateKey 1) ]
                 [ ]
             case result of
-                Just _ -> update (InternalStateKey 1) [ LastGCMetadata =. utc ]
-                Nothing -> insert_ (InternalState utc)
+                Just _ -> update (InternalStateKey 1) [ LastGCMetadata =. Just utc ]
+                Nothing -> insert_ (InternalState $ Just utc)
 
         cleanDB = do
             deleteWhere ([] :: [Filter PoolProduction])

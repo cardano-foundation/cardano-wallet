@@ -258,7 +258,7 @@ data DBLayer m = forall stm. (MonadFail stm, MonadIO stm) => DBLayer
         -- ^ Modify the settings.
 
     , readLastMetadataGC
-        :: stm POSIXTime
+        :: stm (Maybe POSIXTime)
         -- ^ Get the last metadata GC time.
 
     , putLastMetadataGC
