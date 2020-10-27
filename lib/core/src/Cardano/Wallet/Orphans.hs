@@ -22,21 +22,12 @@ import Control.Exception
     ( displayException )
 import Data.Ord
     ( comparing )
-import Data.Text.Class
-    ( FromText (..), TextDecodingError (..), ToText (..) )
-import Data.Time.Clock
-    ( NominalDiffTime )
 import Fmt
     ( Buildable (..), blockListF, hexF, nameF, unlinesF )
-import Numeric.Natural
-    ( Natural )
 import Ouroboros.Consensus.HardFork.History.Qry
     ( PastHorizonException )
-import Text.Read
-    ( readMaybe )
 
 import qualified Data.Map as Map
-import qualified Data.Text as T
 
 instance Buildable SlotNo where
     build (SlotNo n) = build (show n)
@@ -74,18 +65,3 @@ instance NFData TxMetadataValue where
 -- Defined here so that other types with use PastHorizonException can have Eq.
 instance Eq PastHorizonException where
     a == b = displayException a == displayException b
-
-instance ToText NominalDiffTime where
-    toText = T.pack . show
-
-instance FromText NominalDiffTime where
-    fromText t = case T.splitOn "s" t of
-        [v,""] -> maybe (Left err) (Right . toDiffTime) (readMaybe $ T.unpack v)
-        _ -> Left err
-      where
-        toDiffTime = fromIntegral :: Natural -> NominalDiffTime
-        err = TextDecodingError $ unwords
-            [ "Cannot parse given time duration."
-            , "Values must be given as whole positive seconds,"
-            , "and must finish with \"s\". For example: \"3s\", \"3600s\", \"42s\"."
-            ]
