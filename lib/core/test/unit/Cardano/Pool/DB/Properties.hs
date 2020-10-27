@@ -47,7 +47,7 @@ import Cardano.Wallet.Primitive.Types
     , PoolId
     , PoolLifeCycleStatus (..)
     , PoolRegistrationCertificate (..)
-    , PoolRetirementCertificate (..)
+    , PoolRetirementCertificate
     , Settings
     , SlotNo (..)
     , StakePoolMetadata (..)
@@ -226,6 +226,8 @@ properties = do
             (property . prop_putLastMetadataGCReadLastMetadataGC)
         it "delistPools >> readPoolRegistration shows the pool as delisted"
             (property . prop_delistPools)
+        it "delisting a pools persists even if a new certificate is registered"
+            (property . prop_delistPoolsPersists)
 
 {-------------------------------------------------------------------------------
                                     Properties
@@ -1496,6 +1498,40 @@ prop_delistPools DBLayer {..} entries =
             ]
         assertWith "expected == entriesDelisted"
             $ expected == entriesDelisted
+
+prop_delistPoolsPersists
+    :: DBLayer IO
+    -> (CertificatePublicationTime, PoolRegistrationCertificate)
+    -> Property
+prop_delistPoolsPersists DBLayer {..} cert =
+    monadicIO (setup >> prop)
+  where
+    setup = run $ atomically cleanDB
+    prop = do
+        run $ atomically $ uncurry putPoolRegistration cert
+
+        let poolid = view #poolId . snd $ cert
+        -- delist pool
+        run $ atomically $ delistPools [poolid]
+        delisted <- run . atomically . readPoolRegistration $ poolid
+        let expected = (\(c, p) ->
+                (c, p { poolFlag = Delisted })) cert
+        assertWith "expected == delisted"
+            $ Just expected == delisted
+
+        -- insert the cert again
+        run $ atomically
+            $ uncurry putPoolRegistration cert
+        delistedAgain <- run . atomically . readPoolRegistration $ poolid
+
+        monitor $ counterexample $ unlines
+            [ "Expected: "
+            , show (Just expected)
+            , "Read from DB: "
+            , show delistedAgain
+            ]
+        assertWith "expected == delisted"
+            $ Just expected == delistedAgain
 
 descSlotsPerPool :: Map PoolId [BlockHeader] -> Expectation
 descSlotsPerPool pools = do
