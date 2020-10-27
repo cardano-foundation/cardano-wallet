@@ -40,6 +40,7 @@ module Test.Integration.Framework.TestData
     , errMsg403Fee
     , errMsg403DelegationFee
     , errMsg403NotAByronWallet
+    , errMsg403NotAnIcarusWallet
     , errMsg403NotEnoughMoney
     , errMsg403NotEnoughMoney_
     , errMsg403WrongPass
@@ -271,6 +272,11 @@ errMsg403NotAByronWallet :: String
 errMsg403NotAByronWallet =
     "I cannot derive new address for this wallet type.\
     \ Make sure to use Byron random wallet id."
+
+errMsg403NotAnIcarusWallet :: String
+errMsg403NotAnIcarusWallet =
+    "I cannot derive new address for this wallet type.\
+    \ Make sure to use a sequential wallet style, like Icarus."
 
 errMsg403NotEnoughMoney_ :: String
 errMsg403NotEnoughMoney_ =
