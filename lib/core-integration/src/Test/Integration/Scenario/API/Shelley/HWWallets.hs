@@ -46,7 +46,7 @@ import Data.Quantity
 import Data.Text
     ( Text )
 import Test.Hspec
-    ( SpecWith, describe, shouldBe, shouldSatisfy )
+    ( SpecWith, describe, shouldBe, shouldContain, shouldSatisfy )
 import Test.Hspec.Extra
     ( it )
 import Test.Integration.Framework.DSL
@@ -73,6 +73,7 @@ import Test.Integration.Framework.DSL
     , request
     , restoreWalletFromPubKey
     , selectCoins
+    , unsafeResponse
     , verify
     , walletId
     )
@@ -338,13 +339,10 @@ spec = describe "SHELLEY_HW_WALLETS" $ do
         it "Can list wallet" $ \ctx -> runResourceT $ do
             mnemonics <- liftIO $ mnemonicToText @15 . entropyToMnemonic <$> genEntropy
             let pubKey = pubKeyFromMnemonics mnemonics
-            _ <- restoreWalletFromPubKey @ApiWallet @'Shelley ctx pubKey restoredWalletName
-            rl <- request @[ApiWallet] ctx
+            w <- restoreWalletFromPubKey @ApiWallet @'Shelley ctx pubKey restoredWalletName
+            wids <- map (view #id) . unsafeResponse <$> request @[ApiWallet] ctx
                 (Link.listWallets @'Shelley) Default Empty
-            expectListField 0
-                (#name . #getApiT . #getWalletName)
-                (`shouldBe` restoredWalletName)
-                rl
+            liftIO $ wids `shouldContain` [view #id w]
 
         it "The same account and mnemonic wallet can live side-by-side" $ \ctx -> runResourceT $ do
             mnemonics <- liftIO $ mnemonicToText @15 . entropyToMnemonic <$> genEntropy

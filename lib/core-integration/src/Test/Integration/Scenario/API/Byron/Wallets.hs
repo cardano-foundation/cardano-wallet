@@ -75,6 +75,7 @@ import Test.Integration.Framework.DSL
     , getFromResponse
     , json
     , listAddresses
+    , listFilteredByronWallets
     , minUTxOValue
     , postByronWallet
     , request
@@ -96,6 +97,9 @@ import Test.Integration.Framework.TestData
     )
 
 import qualified Cardano.Wallet.Api.Link as Link
+import qualified Data.List as L
+import qualified Data.List.NonEmpty as NE
+import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Network.HTTP.Types.Status as HTTP
 
@@ -119,11 +123,12 @@ spec = describe "BYRON_WALLETS" $ do
             m1 <- liftIO $ genMnemonics M12
             m2 <- liftIO $ genMnemonics M12
             m3 <- liftIO $ genMnemonics M12
-            _ <- emptyByronWalletWith ctx "random" ("b1", m1, fixturePassphrase)
-            _ <- emptyByronWalletWith ctx "random" ("b2", m2, fixturePassphrase)
-            _ <- emptyByronWalletWith ctx "random" ("b3", m3, fixturePassphrase)
+            r1 <- emptyByronWalletWith ctx "random" ("b1", m1, fixturePassphrase)
+            r2 <- emptyByronWalletWith ctx "random" ("b2", m2, fixturePassphrase)
+            r3 <- emptyByronWalletWith ctx "random" ("b3", m3, fixturePassphrase)
 
-            rl <- request @[ApiByronWallet] ctx (Link.listWallets @'Byron) Default Empty
+            let wids = Set.fromList $ map (view walletId) [r1,r2,r3]
+            rl <- listFilteredByronWallets wids ctx
             verify rl
                 [ expectResponseCode HTTP.status200
                 , expectListSize 3
@@ -137,10 +142,11 @@ spec = describe "BYRON_WALLETS" $ do
 
     it "BYRON_LIST_01 - Interleave of Icarus and Random wallets" $ \ctx -> runResourceT $ do
         let pwd = fixturePassphrase
-        liftIO (genMnemonics M15) >>= \m -> void (emptyByronWalletWith ctx "icarus" ("ica1", m, pwd))
-        liftIO (genMnemonics M12) >>= \m -> void (emptyByronWalletWith ctx "random" ("rnd2", m, pwd))
-        liftIO (genMnemonics M15) >>= \m -> void (emptyByronWalletWith ctx "icarus" ("ica3", m, pwd))
-        rl <- request @[ApiByronWallet] ctx (Link.listWallets @'Byron) Default Empty
+        r1 <- liftIO (genMnemonics M15) >>= \m -> (emptyByronWalletWith ctx "icarus" ("ica1", m, pwd))
+        r2 <- liftIO (genMnemonics M12) >>= \m -> (emptyByronWalletWith ctx "random" ("rnd2", m, pwd))
+        r3 <- liftIO (genMnemonics M15) >>= \m -> (emptyByronWalletWith ctx "icarus" ("ica3", m, pwd))
+        let wids = Set.fromList $ map (view walletId) [r1,r2,r3]
+        rl <- listFilteredByronWallets wids ctx
         verify rl
             [ expectResponseCode HTTP.status200
             , expectListSize 3
@@ -184,8 +190,8 @@ spec = describe "BYRON_WALLETS" $ do
                     verify rg $
                         (expectField (#state . #getApiT) (`shouldBe` Ready)) : expectations
                     -- list
-                    rl <- request @[ApiByronWallet] ctx
-                        (Link.listWallets @'Byron) Default Empty
+                    let wid = getFromResponse walletId rg
+                    rl <- listFilteredByronWallets (Set.singleton wid) ctx
                     verify rl
                         [ expectResponseCode HTTP.status200
                         , expectListSize 1
