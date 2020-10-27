@@ -171,6 +171,14 @@ spec = describe "SHELLEY_CLI_HW_WALLETS" $ do
             e2 `shouldContain` cmdOk
             wRestored <- expectValidJSON (Proxy @ApiWallet) o2
 
+            eventually "pubKey wallet is restored and has balance" $ do
+                Stdout o3 <- getWalletViaCLI @t ctx $ T.unpack (wRestored ^. walletId)
+                justRestored <- expectValidJSON (Proxy @ApiWallet) o3
+                verify justRestored
+                    [ expectCliField (#balance . #getApiT . #available)
+                        (.> Quantity 0)
+                    ]
+
             -- make sure you cannot send tx from wallet
             wDest <- emptyWallet ctx
             addrs:_ <- listAddresses @n ctx wDest
