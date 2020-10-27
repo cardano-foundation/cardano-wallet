@@ -1909,21 +1909,36 @@ postAnyAddress body = do
                 (Just (Credential (Left (ApiPubKey bytes))), Nothing) ->
                     pure ( unAddress $
                            CA.paymentAddress discriminant (spendingFromKey bytes)
-                    , EnterpriseDelegating )
+                         , EnterpriseDelegating )
                 (Just (Credential (Right (ApiScript (ApiT script)))), Nothing) ->
                     pure ( unAddress $
                            CA.paymentAddress discriminant (spendingFromScript script)
-                    , EnterpriseDelegating )
+                         , EnterpriseDelegating )
                 (Nothing, Just (Credential (Left (ApiPubKey bytes)))) -> do
                     let (Right stakeAddr) =
                             CA.stakeAddress discriminant (stakingFromKey bytes)
-                    pure ( unAddress stakeAddr, EnterpriseDelegating )
+                    pure ( unAddress stakeAddr, RewardAccount )
                 (Nothing, Just (Credential (Right (ApiScript (ApiT script))))) -> do
                     let (Right stakeAddr) =
                             CA.stakeAddress discriminant (stakingFromScript script)
-                    pure ( unAddress stakeAddr, EnterpriseDelegating )
-
-                _ -> undefined
+                    pure ( unAddress stakeAddr, RewardAccount )
+                (Just (Credential (Left (ApiPubKey bytes1))), Just (Credential (Left (ApiPubKey bytes2)))) ->
+                    pure ( unAddress $
+                           CA.delegationAddress discriminant (spendingFromKey bytes1) (stakingFromKey bytes2)
+                         , EnterpriseDelegating )
+                (Just (Credential (Left (ApiPubKey bytes))), Just (Credential (Right (ApiScript (ApiT script))))) ->
+                    pure ( unAddress $
+                           CA.delegationAddress discriminant (spendingFromKey bytes) (stakingFromScript script)
+                         , EnterpriseDelegating )
+                (Just (Credential (Right (ApiScript (ApiT script)))), Just (Credential (Left (ApiPubKey bytes)))) ->
+                    pure ( unAddress $
+                           CA.delegationAddress discriminant (spendingFromScript script) (stakingFromKey bytes)
+                         , EnterpriseDelegating )
+                (Just (Credential (Right (ApiScript (ApiT script1)))), Just (Credential (Right (ApiScript (ApiT script2)))) )->
+                    pure ( unAddress $
+                           CA.delegationAddress discriminant (spendingFromScript script1) (stakingFromScript script2)
+                         , EnterpriseDelegating )
+                (Nothing, Nothing) -> fail "At least one credential is required"
     pure $ AnyAddress addr addrType (fromInteger netTag)
   where
       toXPub = fromJust . CA.xpubFromBytes . pubToXPub
