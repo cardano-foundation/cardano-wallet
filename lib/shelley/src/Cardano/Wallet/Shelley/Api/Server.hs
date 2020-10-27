@@ -250,7 +250,7 @@ server byron icarus shelley spl ntp =
         :<|> quitStakePool shelley
         :<|> delegationFee shelley
         :<|> _poolMaintenance
-        :<|> liftIO (fmap ApiT $ getGCMetadataStatus spl)
+        :<|> liftIO (ApiT <$> getGCMetadataStatus spl)
       where
         _poolMaintenance = \case
             ApiMaintenanceAction GcStakePools ->

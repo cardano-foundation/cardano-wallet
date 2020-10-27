@@ -298,8 +298,7 @@ newStakePoolLayer gcStatus nl db@DBLayer {..} worker = do
             Right r' -> do
                 gcStatus' <- liftIO $ readTVarIO gcStatus
                 pure
-                    $ ApiListStakePools r' $ Just $ ApiT
-                    $ gcStatus'
+                    $ ApiListStakePools r' $ Just $ ApiT gcStatus'
       where
         fromErrCurrentNodeTip :: ErrCurrentNodeTip -> ErrListPools
         fromErrCurrentNodeTip = \case
