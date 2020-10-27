@@ -267,6 +267,7 @@ spec = do
         ["transaction", "create", "--help"] `shouldShowUsage`
             [ "Usage:  transaction create [--port INT] WALLET_ID"
             , "                           --payment PAYMENT [--metadata JSON]"
+            , "                           [--ttl DURATION]"
             , "  Create and submit a new transaction."
             , ""
             , "Available options:"
@@ -280,11 +281,14 @@ spec = do
             , "                           metadata as a JSON object. The value"
             , "                           must match the schema defined in the"
             , "                           cardano-wallet OpenAPI specification."
+            , "  --ttl DURATION           Time-to-live value. Expressed in"
+            , "                           seconds with a trailing 's'. Default"
+            , "                           is 3600s (2 hours)."
             ]
 
         ["transaction", "fees", "--help"] `shouldShowUsage`
             [ "Usage:  transaction fees [--port INT] WALLET_ID --payment PAYMENT"
-            , "                         [--metadata JSON]"
+            , "                         [--metadata JSON] [--ttl DURATION]"
             , "  Estimate fees for a transaction."
             , ""
             , "Available options:"
@@ -298,6 +302,9 @@ spec = do
             , "                           metadata as a JSON object. The value"
             , "                           must match the schema defined in the"
             , "                           cardano-wallet OpenAPI specification."
+            , "  --ttl DURATION           Time-to-live value. Expressed in"
+            , "                           seconds with a trailing 's'. Default"
+            , "                           is 3600s (2 hours)."
             ]
 
         ["transaction", "list", "--help"] `shouldShowUsage`

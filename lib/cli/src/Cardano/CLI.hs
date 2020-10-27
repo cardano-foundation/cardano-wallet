@@ -156,6 +156,8 @@ import Cardano.Wallet.Api.Types
     )
 import Cardano.Wallet.Network
     ( ErrNetworkUnavailable (..) )
+import Cardano.Wallet.Orphans
+    ()
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , DerivationType (..)
@@ -1417,14 +1419,14 @@ metadataOption = option txMetadataReader $ mempty
 txMetadataReader :: ReadM ApiTxMetadata
 txMetadataReader = eitherReader (Aeson.eitherDecode' . BL8.pack)
 
--- | [--ttl=SECONDS]
+-- | [--ttl=DURATION]
 timeToLiveOption :: Parser (Maybe NominalDiffTime)
-timeToLiveOption = optional $ option diffTime $ mempty
+timeToLiveOption = optional $ optionT $ mempty
     <> long "ttl"
-    <> metavar "SECONDS"
-    <> help "Time-to-live value in seconds. Default is 2 hours."
-  where
-    diffTime = fromIntegral <$> (auto :: ReadM Int)
+    <> metavar "DURATION"
+    <> help ("Time-to-live value. "
+             <> "Expressed in seconds with a trailing 's'. "
+             <> "Default is 3600s (2 hours).")
 
 -- | <address=ADDRESS>
 addressIdArgument :: Parser Text

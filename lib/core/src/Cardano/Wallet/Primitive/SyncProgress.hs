@@ -26,6 +26,8 @@ import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..), SlotNo (..) )
 import Control.DeepSeq
     ( NFData (..) )
+import Data.Bifunctor
+    ( bimap )
 import Data.Quantity
     ( Percentage (..), Quantity (..), mkPercentage )
 import Data.Ratio
@@ -40,10 +42,6 @@ import GHC.Generics
     ( Generic )
 import GHC.Stack
     ( HasCallStack )
-import Safe
-    ( readMay )
-
-import qualified Data.Text as T
 
 data SyncProgress
     = Ready
@@ -82,17 +80,10 @@ mkSyncTolerance =
     pico = 1_000_000_000_000
 
 instance ToText SyncTolerance where
-    toText (SyncTolerance t) = T.pack (show t)
+    toText (SyncTolerance t) = toText t
 
 instance FromText SyncTolerance where
-    fromText t = case T.splitOn "s" t of
-        [v,""] ->
-            maybe
-                (Left errSyncTolerance)
-                (Right . mkSyncTolerance)
-                (readMay $ T.unpack v)
-        _ ->
-            Left errSyncTolerance
+    fromText = bimap (const errSyncTolerance) SyncTolerance . fromText
       where
         errSyncTolerance = TextDecodingError $ unwords
             [ "Cannot parse given time duration. Here are a few examples of"
