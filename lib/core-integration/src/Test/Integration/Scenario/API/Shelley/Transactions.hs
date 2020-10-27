@@ -101,6 +101,7 @@ import Test.Integration.Framework.DSL
     , Headers (..)
     , Payload (..)
     , between
+    , counterexample
     , defaultTxTTL
     , emptyByronWalletWith
     , emptyRandomWallet

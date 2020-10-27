@@ -39,6 +39,7 @@ module Test.Integration.Framework.DSL
     , expectCliListField
     , expectWalletUTxO
     , between
+    , counterexample
     , (.>=)
     , (.<=)
     , (.>)
