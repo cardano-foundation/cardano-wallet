@@ -254,10 +254,12 @@ mPutPoolRegistration
     -> PoolRegistrationCertificate
     -> ModelOp ()
 mPutPoolRegistration cpt cert = do
+    old <- fmap snd <$> mReadPoolRegistration (view #poolId cert)
+    let flag = maybe NoPoolFlag poolFlag old
     modify #owners
         $ Map.insert poolId poolOwners
     modify #registrations
-        $ Map.insert (cpt, poolId) cert
+        $ Map.insert (cpt, poolId) (cert { poolFlag = flag })
   where
     PoolRegistrationCertificate {poolId, poolOwners} = cert
 
