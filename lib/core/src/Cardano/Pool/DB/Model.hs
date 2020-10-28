@@ -432,7 +432,7 @@ mRollbackTo ti point = do
         | otherwise = Nothing
 
 mDelistPools :: [PoolId] -> ModelOp ()
-mDelistPools = modify #delisted . Set.union . Set.fromList
+mDelistPools = modify #delisted . const . Set.fromList
 
 mReadDelistedPools :: ModelOp [PoolId]
 mReadDelistedPools = Set.toList <$> get #delisted
