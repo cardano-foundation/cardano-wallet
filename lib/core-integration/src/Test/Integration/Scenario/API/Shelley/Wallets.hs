@@ -1055,6 +1055,17 @@ spec = describe "SHELLEY_WALLETS" $ do
         \No change when payment fee eats leftovers due to minUTxOValue" $
         \ctx -> do
             source  <- fixtureWalletWith @n ctx [minUTxOValue, minUTxOValue]
+            eventually "Source wallet balance is as expected" $ do
+                rGet <- request @ApiWallet ctx
+                    (Link.getWallet @'Shelley source) Default Empty
+                verify rGet
+                    [ expectField
+                            (#balance . #getApiT . #total)
+                            (`shouldBe` Quantity (2 * minUTxOValue))
+                    , expectField
+                            (#balance . #getApiT . #available)
+                            (`shouldBe` Quantity (2 * minUTxOValue))
+                    ]
             target <- emptyWallet ctx
 
             targetAddress:_ <- fmap (view #id) <$> listAddresses @n ctx target
