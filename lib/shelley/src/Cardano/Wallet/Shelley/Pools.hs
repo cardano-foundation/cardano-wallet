@@ -341,13 +341,12 @@ newStakePoolLayer gcStatus nl db@DBLayer {..} worker = do
     _forceMetadataGC tvTid =
         -- We force a GC by resetting last sync time to 0 (start of POSIX
         -- time) and have the metadata thread restart.
-        bracketSyncThread tvTid
-            $ do
-                lastGC <- atomically readLastMetadataGC
-                case lastGC of
-                    Nothing -> STM.atomically $ writeTVar gcStatus NotStarted
-                    Just gc -> STM.atomically $ writeTVar gcStatus (Restarting gc)
-                atomically $ putLastMetadataGC $ fromIntegral @Int 0
+        bracketSyncThread tvTid $ do
+            lastGC <- atomically readLastMetadataGC
+            case lastGC of
+                Nothing -> STM.atomically $ writeTVar gcStatus NotStarted
+                Just gc -> STM.atomically $ writeTVar gcStatus (Restarting gc)
+            atomically $ putLastMetadataGC $ fromIntegral @Int 0
 
     _getGCMetadataStatus =
         readTVarIO gcStatus
