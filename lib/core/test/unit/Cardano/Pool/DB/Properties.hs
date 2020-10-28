@@ -225,8 +225,6 @@ properties = do
             (property . prop_putLastMetadataGCReadLastMetadataGC)
         it "putDelistedPools >> readDelistedPools shows the pool as delisted"
             (property . prop_putDelistedPools)
-        it "delisting a pools persists even if a new certificate is registered"
-            (property . prop_putDelistedPoolsPersists)
 
 {-------------------------------------------------------------------------------
                                     Properties
@@ -1501,39 +1499,6 @@ prop_putDelistedPools DBLayer {..} pools1 pools2 =
             ]
         assertWith "poolsToMarkAsDelisted == poolsActuallyDelisted"
             $ poolsToMarkAsDelisted == poolsActuallyDelisted
-
-prop_putDelistedPoolsPersists
-    :: DBLayer IO
-    -> (CertificatePublicationTime, PoolRegistrationCertificate)
-    -> Property
-prop_putDelistedPoolsPersists DBLayer {..} cert =
-    monadicIO (setup >> prop)
-  where
-    setup = run $ atomically cleanDB
-    prop = do
-        run $ atomically $ uncurry putPoolRegistration cert
-
-        let poolid = view #poolId . snd $ cert
-        -- delist pool
-        run $ atomically $ putDelistedPools [poolid]
-        delisted <- run $ atomically readDelistedPools
-        let expected = [poolid]
-        assertWith "expected == delisted"
-            $ expected == delisted
-
-        -- insert the cert again
-        run $ atomically
-            $ uncurry putPoolRegistration cert
-        delistedAgain <- run $ atomically readDelistedPools
-
-        monitor $ counterexample $ unlines
-            [ "Expected: "
-            , show (Just expected)
-            , "Read from DB: "
-            , show delistedAgain
-            ]
-        assertWith "expected == delisted"
-            $ expected == delistedAgain
 
 descSlotsPerPool :: Map PoolId [BlockHeader] -> Expectation
 descSlotsPerPool pools = do
