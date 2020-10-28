@@ -124,9 +124,9 @@ PoolRegistration sql=pool_registration
     Primary poolRegistrationPoolId poolRegistrationSlot poolRegistrationSlotInternalIndex
     deriving Show Generic
 
-DelistedPool sql=delisted_pool
-    delistedPoolPoolId                W.PoolId                      sql=pool_id
-    Primary delistedPoolPoolId
+PoolDelistment sql=pool_delistment
+    delistedPoolId                W.PoolId                      sql=pool_id
+    Primary delistedPoolId
     deriving Show Generic
 
 -- Mapping of retirement certificates to pools
