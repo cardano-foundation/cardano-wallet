@@ -33,7 +33,7 @@ import Data.Generics.Internal.VL.Lens
 import Data.Quantity
     ( Quantity (..) )
 import Test.Hspec
-    ( SpecWith, describe, shouldBe, shouldSatisfy )
+    ( SpecWith, describe, shouldBe, shouldNotSatisfy, shouldSatisfy )
 import Test.Hspec.Extra
     ( it )
 import Test.Integration.Framework.DSL
@@ -236,6 +236,8 @@ spec = describe "SHELLEY_ADDRESSES" $ do
             -- integration tests are configured for mainnet
             , expectListField 0 (Aeson.key "id" . Aeson._String)
                 (`shouldSatisfy` T.isPrefixOf "addr")
+            , expectListField 0 (Aeson.key "id" . Aeson._String)
+                (`shouldNotSatisfy` T.isPrefixOf "addr_test")
             ]
 
     it "ADDRESS_INSPECT_01 - Address inspect OK" $ \ctx -> do
