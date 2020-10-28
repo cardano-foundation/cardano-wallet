@@ -1459,43 +1459,48 @@ prop_putLastMetadataGCReadLastMetadataGC DBLayer{..} posixTime = do
         assertWith "Setting sync time and reading afterwards works"
             (time == Just posixTime)
 
+-- Check that 'putDelistedPools' completely overwrites the existing set
+-- of delisted pools every time:
+--
 prop_putDelistedPools
     :: DBLayer IO
-    -> [(CertificatePublicationTime, PoolRegistrationCertificate)]
+    -> [PoolId]
+    -> [PoolId]
     -> Property
-prop_putDelistedPools DBLayer {..} entries =
-    monadicIO (setup >> prop)
+prop_putDelistedPools DBLayer {..} pools1 pools2 =
+    checkCoverage
+        $ cover 2 (Set.size poolSet1 == 0)
+            "number of pools in set #1 = 0"
+        $ cover 2 (Set.size poolSet1 == 1)
+            "number of pools in set #1 = 1"
+        $ cover 2 (Set.size poolSet1 > 1)
+            "number of pools in set #1 > 1"
+        $ cover 2 (Set.size poolSet2 == 0)
+            "number of pools in set #2 = 0"
+        $ cover 2 (Set.size poolSet2 == 1)
+            "number of pools in set #2 = 1"
+        $ cover 2 (Set.size poolSet2 > 1)
+            "number of pools in set #2 > 1"
+        $ monadicIO (setup >> prop)
   where
+    poolSet1 = Set.fromList pools1 `Set.difference` Set.fromList pools2
+    poolSet2 = Set.fromList pools2 `Set.difference` Set.fromList pools1
+
     setup = run $ atomically cleanDB
-    entriesIn = L.sort entries
-    prop = do
-        run $ atomically $
-            mapM_ (uncurry putPoolRegistration) entriesIn
-        entriesOut <- run . atomically $ L.sort . catMaybes
-            <$> mapM (readPoolRegistration . view #poolId . snd) entries
 
+    prop = forM_ [poolSet1, poolSet2] $ \poolsToMarkAsDelisted -> do
+        run $ atomically $ putDelistedPools $
+            Set.toList poolsToMarkAsDelisted
+        poolsActuallyDelisted <- Set.fromList . L.sort <$>
+            run (atomically readDelistedPools)
         monitor $ counterexample $ unlines
-            [ "Written into DB: "
-            , show entriesIn
-            , "Read from DB: "
-            , show entriesOut
-            ]
-
-        assertWith "entriesIn == entriesOut"
-            $ entriesIn == entriesOut
-
-        -- delist pools
-        let poolsToDelist = L.sort $ fmap (view #poolId . snd) entriesIn
-        run $ atomically $ putDelistedPools poolsToDelist
-        poolsDelisted <- L.sort <$> run (atomically readDelistedPools)
-        monitor $ counterexample $ unlines
-            [ "Pools to delist: "
-            , pretty poolsToDelist
+            [ "Pools to mark as delisted: "
+            , pretty $ Set.toList poolsToMarkAsDelisted
             , "Pools actually delisted: "
-            , pretty poolsDelisted
+            , pretty $ Set.toList poolsActuallyDelisted
             ]
-        assertWith "poolsToDelist == poolsDelisted"
-            $ poolsToDelist == poolsDelisted
+        assertWith "poolsToMarkAsDelisted == poolsActuallyDelisted"
+            $ poolsToMarkAsDelisted == poolsActuallyDelisted
 
 prop_putDelistedPoolsPersists
     :: DBLayer IO
