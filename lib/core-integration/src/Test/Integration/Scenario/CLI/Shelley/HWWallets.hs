@@ -78,6 +78,7 @@ import Test.Integration.Framework.DSL
     , verify
     , walletId
     , (.>)
+    , (.>)
     )
 import Test.Integration.Framework.TestData
     ( cmdOk, errMsg403NoRootKey )
@@ -234,6 +235,13 @@ spec = describe "SHELLEY_CLI_HW_WALLETS" $ do
             c1 `shouldBe` ExitSuccess
             e1 `shouldContain` cmdOk
             wRestored <- expectValidJSON (Proxy @ApiWallet) o1
+
+            eventually "Wallet has funds" $ do
+                Stdout og <- getWalletViaCLI @t ctx $ T.unpack (wRestored ^. walletId)
+                expectValidJSON (Proxy @ApiWallet) og >>= flip verify
+                    [ expectCliField (#balance . #getApiT . #available)
+                        (.> Quantity 0)
+                    ]
 
             -- get fee
             wDest <- emptyWallet ctx
