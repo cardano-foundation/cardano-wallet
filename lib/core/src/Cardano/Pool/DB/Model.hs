@@ -449,8 +449,6 @@ mRemovePools poolsToRemove = do
         $ Map.filterWithKey $ \(_, p) _ -> retain p
     modify #retirements
         $ Map.filterWithKey $ \(_, p) _ -> retain p
-    modify #delisted
-        $ Set.filter retain
   where
     retain p = p `Set.notMember` poolsToRemoveSet
     poolsToRemoveSet = Set.fromList poolsToRemove
