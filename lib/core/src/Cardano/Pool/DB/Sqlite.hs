@@ -491,8 +491,9 @@ newDBLayer trace fp timeInterpreter = do
             deleteWhere [ BlockSlot >. point ]
             -- TODO: remove dangling metadata no longer attached to a pool
 
-        delistPools =
-            insertMany_ . fmap PoolDelistment
+        delistPools pools = do
+            deleteWhere ([] :: [Filter PoolDelistment])
+            insertMany_ $ fmap PoolDelistment pools
 
         readDelistedPools =
             fmap (delistedPoolId . entityVal) <$> selectList [] []
