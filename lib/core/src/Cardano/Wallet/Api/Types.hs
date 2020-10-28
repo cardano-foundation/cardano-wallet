@@ -397,7 +397,8 @@ newtype ApiMaintenanceAction = ApiMaintenanceAction
 
 data ApiListStakePools apiPool = ApiListStakePools
     { pools :: [apiPool]
-    , gc_status :: !(Maybe (ApiT PoolMetadataGCStatus)) -- Nothing, bc of Jormungandr
+    , gcStatus :: !(Maybe (ApiT PoolMetadataGCStatus))
+        -- 'Nothing' in the case of Jormungandr.
     } deriving (Eq, Generic, Show)
 
 data ApiAddress (n :: NetworkDiscriminant) = ApiAddress
