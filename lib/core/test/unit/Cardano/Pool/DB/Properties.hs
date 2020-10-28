@@ -223,10 +223,10 @@ properties = do
             (property . prop_modSettingsReadSettings)
         it "putLastMetadataGC . readLastMetadataGC == id"
             (property . prop_putLastMetadataGCReadLastMetadataGC)
-        it "delistPools >> readDelistedPools shows the pool as delisted"
-            (property . prop_delistPools)
+        it "putDelistedPools >> readDelistedPools shows the pool as delisted"
+            (property . prop_putDelistedPools)
         it "delisting a pools persists even if a new certificate is registered"
-            (property . prop_delistPoolsPersists)
+            (property . prop_putDelistedPoolsPersists)
 
 {-------------------------------------------------------------------------------
                                     Properties
@@ -1459,11 +1459,11 @@ prop_putLastMetadataGCReadLastMetadataGC DBLayer{..} posixTime = do
         assertWith "Setting sync time and reading afterwards works"
             (time == Just posixTime)
 
-prop_delistPools
+prop_putDelistedPools
     :: DBLayer IO
     -> [(CertificatePublicationTime, PoolRegistrationCertificate)]
     -> Property
-prop_delistPools DBLayer {..} entries =
+prop_putDelistedPools DBLayer {..} entries =
     monadicIO (setup >> prop)
   where
     setup = run $ atomically cleanDB
@@ -1486,7 +1486,7 @@ prop_delistPools DBLayer {..} entries =
 
         -- delist pools
         let poolsToDelist = L.sort $ fmap (view #poolId . snd) entriesIn
-        run $ atomically $ delistPools poolsToDelist
+        run $ atomically $ putDelistedPools poolsToDelist
         poolsDelisted <- L.sort <$> run (atomically readDelistedPools)
         monitor $ counterexample $ unlines
             [ "Pools to delist: "
@@ -1497,11 +1497,11 @@ prop_delistPools DBLayer {..} entries =
         assertWith "poolsToDelist == poolsDelisted"
             $ poolsToDelist == poolsDelisted
 
-prop_delistPoolsPersists
+prop_putDelistedPoolsPersists
     :: DBLayer IO
     -> (CertificatePublicationTime, PoolRegistrationCertificate)
     -> Property
-prop_delistPoolsPersists DBLayer {..} cert =
+prop_putDelistedPoolsPersists DBLayer {..} cert =
     monadicIO (setup >> prop)
   where
     setup = run $ atomically cleanDB
@@ -1510,7 +1510,7 @@ prop_delistPoolsPersists DBLayer {..} cert =
 
         let poolid = view #poolId . snd $ cert
         -- delist pool
-        run $ atomically $ delistPools [poolid]
+        run $ atomically $ putDelistedPools [poolid]
         delisted <- run $ atomically readDelistedPools
         let expected = [poolid]
         assertWith "expected == delisted"

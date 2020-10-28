@@ -836,7 +836,7 @@ gcDelistedPools gcStatus tr DBLayer{..} fetchDelisted = forever $ do
         STM.atomically $ writeTVar gcStatus (HasRun currentTime)
         atomically $ do
             putLastMetadataGC currentTime
-            delistPools delistedPools
+            putDelistedPools delistedPools
 
     -- Sleep for 60 seconds. This is useful in case
     -- something else is modifying the last sync time

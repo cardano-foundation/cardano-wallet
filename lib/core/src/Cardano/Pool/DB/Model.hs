@@ -51,6 +51,7 @@ module Cardano.Pool.DB.Model
     , mPutPoolRetirement
     , mReadPoolRetirement
     , mUnfetchedPoolMetadataRefs
+    , mPutDelistedPools
     , mPutFetchAttempt
     , mPutPoolMetadata
     , mListPoolLifeCycleData
@@ -61,7 +62,6 @@ module Cardano.Pool.DB.Model
     , mRollbackTo
     , mReadCursor
     , mRemovePools
-    , mDelistPools
     , mReadDelistedPools
     , mRemoveRetiredPools
     , mReadSettings
@@ -431,8 +431,8 @@ mRollbackTo ti point = do
         | point' <= getPoint point = Just v
         | otherwise = Nothing
 
-mDelistPools :: [PoolId] -> ModelOp ()
-mDelistPools = modify #delisted . const . Set.fromList
+mPutDelistedPools :: [PoolId] -> ModelOp ()
+mPutDelistedPools = modify #delisted . const . Set.fromList
 
 mReadDelistedPools :: ModelOp [PoolId]
 mReadDelistedPools = Set.toList <$> get #delisted
