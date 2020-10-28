@@ -93,11 +93,10 @@ spec = do
         (Exit code, Stdout out, Stderr err) <-
             postExternalTransactionViaCLI @t ctx
                 [T.unpack $ T.decodeUtf8 $ hex $ BL.toStrict payload]
-        liftIO $ do
-            err `shouldBe` "Ok.\n"
-            out `shouldContain` "id"
-            code `shouldBe` ExitSuccess
-        liftIO $ eventually ("Wallet's balance is as expected = " ++ show amt) $ do
+        err `shouldBe` "Ok.\n"
+        out `shouldContain` "id"
+        code `shouldBe` ExitSuccess
+        eventually ("Wallet's balance is as expected = " ++ show amt) $ do
             Stdout gOutDest <- getWalletViaCLI @t ctx
                 (T.unpack (w ^. walletId))
             destJson <- expectValidJSON (Proxy @ApiWallet) gOutDest
@@ -161,20 +160,18 @@ spec = do
         -- post external transaction
         (Exit code1, Stdout out1, Stderr err1) <-
             postExternalTransactionViaCLI @t ctx [argWrong]
-        liftIO $ do
-            err1 `shouldContain` errMsg400WronglyEncodedTxPayload
-            out1 `shouldBe` ""
-            code1 `shouldBe` ExitFailure 1
+        err1 `shouldContain` errMsg400WronglyEncodedTxPayload
+        out1 `shouldBe` ""
+        code1 `shouldBe` ExitFailure 1
 
     it "TRANS_EXTERNAL_CREATE_03 - proper single output transaction and \
        \wrong binary format" $ \ctx -> runResourceT @IO $ do
         let invalidArg = "0000"
         (Exit code, Stdout out, Stderr err)
             <- postExternalTransactionViaCLI @t ctx [invalidArg]
-        liftIO $ do
-            err `shouldContain` errMsg400MalformedTxPayload
-            out `shouldBe` mempty
-            code `shouldBe` ExitFailure 1
+        err `shouldContain` errMsg400MalformedTxPayload
+        out `shouldBe` mempty
+        code `shouldBe` ExitFailure 1
 
     it "TRANS_DELETE_05 - Cannot forget external tx via CLI" $ \ctx -> runResourceT @IO $ do
         w <- emptyWallet ctx
@@ -206,7 +203,6 @@ spec = do
         -- Try to forget external tx
         (Exit c2, Stdout out2, Stderr err2) <-
             deleteTransactionViaCLI @t ctx (T.unpack $ w ^. walletId) txid
-        liftIO $ do
-            err2 `shouldContain` errMsg403NoPendingAnymore (T.pack txid)
-            out2 `shouldBe` ""
-            c2 `shouldBe` ExitFailure 1
+        err2 `shouldContain` errMsg403NoPendingAnymore (T.pack txid)
+        out2 `shouldBe` ""
+        c2 `shouldBe` ExitFailure 1

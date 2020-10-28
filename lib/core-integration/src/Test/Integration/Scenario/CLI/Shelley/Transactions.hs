@@ -38,7 +38,7 @@ import Control.Monad.Catch
 import Control.Monad.Fail
     ( MonadFail )
 import Control.Monad.IO.Class
-    ( MonadIO, liftIO )
+    ( MonadIO )
 import Control.Monad.Trans.Resource
     ( ResourceT, runResourceT )
 import Data.Generics.Internal.VL.Lens
@@ -181,7 +181,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
         (c, out, err) <- postTransactionViaCLI @t ctx "cardano-wallet" args
         err `shouldBe` "Please enter your passphrase: **************\nOk.\n"
         txJson <- expectValidJSON (Proxy @(ApiTransaction n)) out
-        liftIO $ verify txJson
+        verify txJson
             [ expectCliField
                 (#amount . #getQuantity)
                 (between (feeMin + (2*amt), feeMax + (2*amt)))
@@ -297,23 +297,22 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
     it "TRANS_CREATE_07 - Deleted wallet" $ \ctx -> runResourceT $ do
         wSrc <- emptyWallet ctx
         Exit ex <- deleteWalletViaCLI @t ctx (T.unpack ( wSrc ^. walletId ))
-        liftIO $ ex `shouldBe` ExitSuccess
+        ex `shouldBe` ExitSuccess
 
         wDest <- emptyWallet ctx
-        liftIO $ do
-            addrs:_ <- listAddresses @n ctx wDest
-            let addr = encodeAddress @n (getApiT $ fst $ addrs ^. #id)
-            let port = T.pack $ show $ ctx ^. typed @(Port "wallet")
-            let args = T.unpack <$>
-                    [ "transaction", "create", "--port", port
-                    , wSrc ^. walletId, "--payment", T.pack (show minUTxOValue) <> "@" <> addr
-                    ]
-            -- make sure CLI returns error before asking for passphrase
-            (Exit c, Stdout out, Stderr err) <- cardanoWalletCLI @t args
-            err `shouldContain` "I couldn't find a wallet with \
-                \the given id: " ++ T.unpack ( wSrc ^. walletId )
-            out `shouldBe` ""
-            c `shouldBe` ExitFailure 1
+        addrs:_ <- listAddresses @n ctx wDest
+        let addr = encodeAddress @n (getApiT $ fst $ addrs ^. #id)
+        let port = T.pack $ show $ ctx ^. typed @(Port "wallet")
+        let args = T.unpack <$>
+                [ "transaction", "create", "--port", port
+                , wSrc ^. walletId, "--payment", T.pack (show minUTxOValue) <> "@" <> addr
+                ]
+        -- make sure CLI returns error before asking for passphrase
+        (Exit c, Stdout out, Stderr err) <- cardanoWalletCLI @t args
+        err `shouldContain` "I couldn't find a wallet with \
+            \the given id: " ++ T.unpack ( wSrc ^. walletId )
+        out `shouldBe` ""
+        c `shouldBe` ExitFailure 1
 
     it "TRANSMETA_CREATE_01 - Transaction with metadata via CLI" $ \ctx -> runResourceT $ do
         (wSrc, wDest) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx

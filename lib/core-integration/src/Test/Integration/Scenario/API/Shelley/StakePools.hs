@@ -75,7 +75,9 @@ import Data.Text.Class
 import Numeric.Natural
     ( Natural )
 import Test.Hspec
-    ( SpecWith, describe, pendingWith, shouldBe, shouldSatisfy )
+    ( SpecWith, describe, pendingWith )
+import Test.Hspec.Expectations.Lifted
+    ( shouldBe, shouldSatisfy )
 import Test.Hspec.Extra
     ( it )
 import Test.Integration.Framework.Context
@@ -1069,19 +1071,18 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                     filter (not . null . poolGarbageCollectionCertificates)
 
             -- Check that the removed pool was removed at the correct epoch:
-            liftIO $ do
-                view #retirementEpoch certificate
-                    `shouldBe` testPoolRetirementEpoch
-                poolGarbageCollectionEpochNo event
-                    `shouldBe` testPoolRetirementEpoch
+            view #retirementEpoch certificate
+                `shouldBe` testPoolRetirementEpoch
+            poolGarbageCollectionEpochNo event
+                `shouldBe` testPoolRetirementEpoch
 
-                -- Check that the removed pool was one of the test pools:
-                view #poolId certificate
-                    `shouldSatisfy` (`Set.member` testClusterPoolIds)
+            -- Check that the removed pool was one of the test pools:
+            view #poolId certificate
+                `shouldSatisfy` (`Set.member` testClusterPoolIds)
 
-                -- Check that garbage collection occurred exactly once per epoch:
-                let epochs = poolGarbageCollectionEpochNo <$> events
-                (reverse epochs `zip` [1 ..]) `shouldSatisfy` all (uncurry (==))
+            -- Check that garbage collection occurred exactly once per epoch:
+            let epochs = poolGarbageCollectionEpochNo <$> events
+            (reverse epochs `zip` [1 ..]) `shouldSatisfy` all (uncurry (==))
 
   where
     arbitraryStake :: Maybe Coin

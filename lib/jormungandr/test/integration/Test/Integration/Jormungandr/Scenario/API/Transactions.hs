@@ -414,9 +414,8 @@ spec = do
 
     it "TRANS_LIST_?? - List transactions of a fixture wallet" $ \ctx -> runResourceT @IO $ do
         txs <- fixtureWallet ctx >>= listAllTransactions @n ctx
-        liftIO $ do
-            length txs `shouldBe` 10
-            txs `shouldSatisfy` all (null . view #inputs)
+        length txs `shouldBe` 10
+        txs `shouldSatisfy` all (null . view #inputs)
 
     it "TRANS_EXTERNAL_CREATE_01x - \
         \single output tx signed via jcli" $ \ctx -> runResourceT @IO $ do

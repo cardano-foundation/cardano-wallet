@@ -187,7 +187,7 @@ spec = describe "BYRON_WALLETS" $ do
                     -- get
                     rg <- request @ApiByronWallet ctx
                         (Link.getWallet @'Byron w) Default Empty
-                    verify rg $
+                    liftIO $ verify rg $
                         (expectField (#state . #getApiT) (`shouldBe` Ready)) : expectations
                     -- list
                     let wid = getFromResponse walletId rg

@@ -55,7 +55,9 @@ import Data.Text
 import Data.Word
     ( Word64 )
 import Test.Hspec
-    ( SpecWith, describe, shouldBe, shouldSatisfy )
+    ( SpecWith, describe )
+import Test.Hspec.Expectations.Lifted
+    ( shouldBe, shouldSatisfy )
 import Test.Hspec.Extra
     ( it )
 import Test.Integration.Framework.DSL
@@ -112,7 +114,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
             w <- fixtureWallet ctx
             let ep = Link.getMigrationInfo @'Shelley w
             r <- request @ApiWalletMigrationInfo ctx ep Default Empty
-            liftIO $ verify r
+            verify r
                 [ expectResponseCode HTTP.status200
                 , expectField (#migrationCost . #getQuantity)
                     (.> 0)
@@ -124,7 +126,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
             w <- emptyWallet ctx
             let ep = Link.getMigrationInfo @'Shelley w
             r <- request @ApiWalletMigrationInfo ctx ep Default Empty
-            liftIO $ verify r
+            verify r
                 [ expectResponseCode HTTP.status403
                 , expectErrorMessage (errMsg403NothingToMigrate $ w ^. walletId)
                 ]
@@ -188,7 +190,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
             (Link.getMigrationInfo @'Shelley wOld)
             Default
             Empty
-        liftIO $ verify rFee
+        verify rFee
             [ expectResponseCode HTTP.status200
             , expectField #migrationCost (.> Quantity 0)
             ]
@@ -255,7 +257,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
             let ep = Link.migrateWallet @'Shelley sourceWallet
             r <- request @[ApiTransaction n] ctx ep Default payload
             let srcId = sourceWallet ^. walletId
-            liftIO $ verify r
+            verify r
                 [ expectResponseCode HTTP.status403
                 , expectErrorMessage (errMsg403NothingToMigrate srcId)
                 ]
@@ -290,7 +292,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
             -- Calculate the expected migration fee:
             r0 <- request @ApiWalletMigrationInfo ctx
                 (Link.getMigrationInfo @'Shelley sourceWallet) Default Empty
-            liftIO $ verify r0
+            verify r0
                 [ expectResponseCode HTTP.status200
                 , expectField #migrationCost (.> Quantity 0)
                 ]
@@ -306,7 +308,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                         }|]
             let ep = Link.migrateWallet @'Shelley sourceWallet
             r <- request @[ApiTransaction n] ctx ep Default payload
-            liftIO $ verify r
+            verify r
                 [ expectResponseCode HTTP.status202 ]
 
             -- Check that funds become available in the target wallet:
@@ -333,7 +335,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
             -- Request a migration fee prediction.
             let ep0 = (Link.getMigrationInfo @'Shelley sourceWallet)
             r0 <- request @ApiWalletMigrationInfo ctx ep0 Default Empty
-            liftIO $ verify r0
+            verify r0
                 [ expectResponseCode HTTP.status200
                 , expectField #migrationCost (.> Quantity 0)
                 ]

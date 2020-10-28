@@ -46,7 +46,9 @@ import Data.Quantity
 import Data.Text
     ( Text )
 import Test.Hspec
-    ( SpecWith, describe, shouldBe, shouldContain, shouldSatisfy )
+    ( SpecWith, describe )
+import Test.Hspec.Expectations.Lifted
+    ( shouldBe, shouldContain, shouldSatisfy )
 import Test.Hspec.Extra
     ( it )
 import Test.Integration.Framework.DSL
@@ -361,11 +363,11 @@ spec = describe "SHELLEY_HW_WALLETS" $ do
             r2 <- request @ApiWallet ctx (Link.getWallet @'Shelley r2') Default Empty
 
             -- both wallets are available
-            liftIO $ verify r1
+            verify r1
                 [ expectField (#name . #getApiT . #getWalletName)
                     (`shouldBe` mnemonicWalletName)
                 ]
-            liftIO $ verify r2
+            verify r2
                 [ expectField
                     (#name . #getApiT . #getWalletName)
                     (`shouldBe` restoredWalletName)
