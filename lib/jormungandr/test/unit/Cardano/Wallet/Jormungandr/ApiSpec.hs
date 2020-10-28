@@ -282,9 +282,6 @@ instance Arbitrary ApiStakePoolMetrics where
         blocks <- Quantity . fromIntegral <$> choose (1::Integer, 22_600_000)
         pure $ ApiStakePoolMetrics stakes blocks
 
-instance Arbitrary (W.ApiListStakePools ApiStakePool) where
-    arbitrary = W.ApiListStakePools <$> arbitrary <*> pure Nothing
-
 instance Arbitrary ApiStakePool where
     arbitrary = ApiStakePool
         <$> arbitrary
@@ -342,9 +339,6 @@ instance ToSchema ApiStakePool where
 
 instance ToSchema ApiStakePoolMetrics where
     declareNamedSchema _ = declareSchemaForDefinition "ApiJormungandrStakePoolMetrics"
-
-instance ToSchema (W.ApiListStakePools ApiStakePool) where
-    declareNamedSchema _ = declareSchemaForDefinition "ApiJormungandrListStakePools"
 
 {-------------------------------------------------------------------------------
                                   Test data

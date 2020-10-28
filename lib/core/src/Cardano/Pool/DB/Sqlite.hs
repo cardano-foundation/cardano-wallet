@@ -505,7 +505,6 @@ newDBLayer trace fp timeInterpreter = do
             deleteWhere [ PoolRegistrationPoolId ==. pool ]
             deleteWhere [ PoolRetirementPoolId ==. pool ]
             deleteWhere [ StakeDistributionPoolId ==. pool ]
-            deleteWhere [ DelistedPoolId ==. pool ]
 
         removeRetiredPools epoch =
             bracketTracer traceOuter action

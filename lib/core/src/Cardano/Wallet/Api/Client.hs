@@ -64,7 +64,6 @@ import Cardano.Wallet.Api.Types
     , ApiByronWallet
     , ApiCoinSelectionT
     , ApiFee
-    , ApiListStakePools
     , ApiNetworkClock
     , ApiNetworkInformation (..)
     , ApiNetworkParameters
@@ -190,7 +189,7 @@ data AddressClient = AddressClient
 
 data StakePoolClient apiPool = StakePoolClient
     { listPools
-        :: Maybe (ApiT Coin) -> ClientM (ApiListStakePools apiPool)
+        :: Maybe (ApiT Coin) -> ClientM [apiPool]
     , joinStakePool
         :: ApiPoolId
         -> ApiT WalletId

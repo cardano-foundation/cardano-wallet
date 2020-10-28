@@ -1327,18 +1327,6 @@ components:
         delisted:
           type: boolean
 
-    ApiListStakePools: &ApiListStakePools
-      type: object
-      required:
-        - pools
-        - gc_status
-      properties:
-        gc_status:
-          <<: *ApiGCStatus
-        pools:
-          type: array
-          items: *ApiStakePool
-
     ApiJormungandrStakePool: &ApiJormungandrStakePool
       type: object
       required:
@@ -1358,15 +1346,6 @@ components:
         metadata: *jormungandrStakePoolMetadata
         saturation: *jormungandrStakePoolSaturation
         desirability: *stakePoolDesirability
-
-    ApiJormungandrListStakePools: &ApiJormungandrListStakePools
-      type: object
-      required:
-        - pools
-      properties:
-        pools:
-          type: array
-          items: *ApiJormungandrStakePool
 
     ApiFee: &ApiFee
       type: object
@@ -3065,10 +3044,10 @@ x-responsesListStakePools: &responsesListStakePools
       application/json:
         schema:
           oneOf:
-            - <<: *ApiListStakePools
-              title: "cardano-node stake pools"
-            - <<: *ApiJormungandrListStakePools
-              title: "jormungandr stake pools"
+            - type: array
+              items: *ApiStakePool
+            - type: array
+              items: *ApiJormungandrStakePool
 
 x-responsesPoolMaintenance: &responsesPoolMaintenance
   <<: *responsesErr405

@@ -40,8 +40,6 @@ import Cardano.Mnemonic
     , entropyToMnemonic
     , mkEntropy
     )
-import Cardano.Pool.Metadata
-    ( SMASHPoolId (..) )
 import Cardano.Wallet.Api
     ( Api )
 import Cardano.Wallet.Api.Types
@@ -65,7 +63,6 @@ import Cardano.Wallet.Api.Types
     , ApiEpochInfo (..)
     , ApiErrorCode (..)
     , ApiFee (..)
-    , ApiListStakePools (..)
     , ApiMaintenanceAction (..)
     , ApiMnemonicT (..)
     , ApiNetworkClock (..)
@@ -356,7 +353,6 @@ spec = do
             jsonRoundtripAndGolden $ Proxy @ApiCredential
             jsonRoundtripAndGolden $ Proxy @ApiAddressData
             jsonRoundtripAndGolden $ Proxy @(ApiT DerivationIndex)
-            jsonRoundtripAndGolden $ Proxy @(ApiListStakePools Api.ApiStakePool)
             jsonRoundtripAndGolden $ Proxy @(ApiT PoolMetadataGCStatus)
             jsonRoundtripAndGolden $ Proxy @ApiEpochInfo
             jsonRoundtripAndGolden $ Proxy @(ApiSelectCoinsData ('Testnet 0))
@@ -398,7 +394,6 @@ spec = do
             jsonRoundtripAndGolden $ Proxy @SomeByronWalletPostData
             jsonRoundtripAndGolden $ Proxy @ByronWalletFromXPrvPostData
             jsonRoundtripAndGolden $ Proxy @WalletPutData
-            jsonRoundtripAndGolden $ Proxy @SMASHPoolId
             jsonRoundtripAndGolden $ Proxy @SettingsPutData
             jsonRoundtripAndGolden $ Proxy @WalletPutPassphraseData
             jsonRoundtripAndGolden $ Proxy @ByronWalletPutPassphraseData
@@ -1196,20 +1191,6 @@ instance Arbitrary NominalDiffTime where
 instance Arbitrary Iso8601Time where
     arbitrary = Iso8601Time <$> genUniformTime
 
-instance Arbitrary SMASHPoolId where
-    arbitrary = elements $ fmap SMASHPoolId
-        ["eb7832cb137b6d20ee2c3f4892d4938a734326ca18122f0d21e5f587"
-        ,"3d9aab7ac059512c948fe8bb773aad076c5e8b3941fa4fbcdff34597"
-        ,"8b5060d437571746f57cbd27dab89eb8e6045a554919dc472748920c"
-        ,"74d3e2c4d640dd181def5a5b6b22308b5a835b98ccfb7143d52bd150"
-        ,"a6906f8ecfcc437375bd8763120ac5c96ae4796c8f78f549193e7b36"
-        ,"5ee7591bf30eaa4f5dce70b4a676eb02d5be8012d188f04fe3beffb0"
-        ,"961d329fba1807eef89db767ba405aec0c5426501c6b1df20f5c0995"
-        ,"ff5b4952dd7734f07e4905dea64fa230fb75f7b2d603d154d9ff1d43"
-        ,"50927e8ecd44cb2d4302af9c5ae9a77c8ad7d8be331a24c4e5406f82"
-        ,"81017236ed16380bb96bd02bbd452541f3e5694e14196f65e37ce502"
-        ]
-
 instance Arbitrary PoolMetadataGCStatus where
     arbitrary = genericArbitrary
     shrink = genericShrink
@@ -1340,10 +1321,6 @@ instance Arbitrary PoolId where
     arbitrary = do
         InfiniteList bytes _ <- arbitrary
         return $ PoolId $ BS.pack $ take 28 bytes
-
-instance Arbitrary (ApiListStakePools ApiStakePool) where
-    arbitrary = ApiListStakePools <$> arbitrary
-        <*> (Just <$> arbitrary) -- only for Jormungandr this can be Nothing
 
 instance Arbitrary ApiStakePool where
     arbitrary = ApiStakePool
@@ -1926,9 +1903,6 @@ instance ToSchema (ApiT Settings) where
 
 instance ToSchema (ApiT PoolMetadataGCStatus) where
     declareNamedSchema _ = declareSchemaForDefinition "ApiGCStatus"
-
-instance ToSchema (Api.ApiListStakePools Api.ApiStakePool) where
-    declareNamedSchema _ = declareSchemaForDefinition "ApiListStakePools"
 
 instance ToSchema WalletPutPassphraseData where
     declareNamedSchema _ =

@@ -52,7 +52,7 @@ import Cardano.Pool.Metadata
 import Cardano.Wallet
     ( ErrListPools (..) )
 import Cardano.Wallet.Api.Types
-    ( ApiListStakePools (..), ApiT (..) )
+    ( ApiT (..) )
 import Cardano.Wallet.Byron.Compatibility
     ( toByronBlockHeader )
 import Cardano.Wallet.Network
@@ -206,7 +206,7 @@ data StakePoolLayer = StakePoolLayer
         :: EpochNo
         -- Exclude all pools that retired in or before this epoch.
         -> Coin
-        -> ExceptT ErrListPools IO (ApiListStakePools Api.ApiStakePool)
+        -> ExceptT ErrListPools IO [Api.ApiStakePool]
 
     , forceMetadataGC :: IO ()
 
@@ -274,7 +274,7 @@ newStakePoolLayer gcStatus nl db@DBLayer {..} worker = do
         :: EpochNo
         -- Exclude all pools that retired in or before this epoch.
         -> Coin
-        -> ExceptT ErrListPools IO (ApiListStakePools Api.ApiStakePool)
+        -> ExceptT ErrListPools IO [Api.ApiStakePool]
     _listPools currentEpoch userStake = do
         tip <- withExceptT fromErrCurrentNodeTip $ currentNodeTip nl
         rawLsqData <- mapExceptT (fmap (first ErrListPoolsNetworkError))
@@ -294,10 +294,7 @@ newStakePoolLayer gcStatus nl db@DBLayer {..} worker = do
         case r of
             Left e@(PastHorizon{}) ->
                 throwE (ErrListPoolsPastHorizonException e)
-            Right r' -> do
-                gcStatus' <- liftIO $ readTVarIO gcStatus
-                pure
-                    $ ApiListStakePools r' $ Just $ ApiT gcStatus'
+            Right r' -> pure r'
       where
         fromErrCurrentNodeTip :: ErrCurrentNodeTip -> ErrListPools
         fromErrCurrentNodeTip = \case
@@ -796,7 +793,7 @@ monitorMetadata gcStatus tr sp db@(DBLayer{..}) = do
     blockFrequency = ceiling (1/f) * toMicroSecond slotLength
       where
         toMicroSecond = (`div` 1000000) . fromEnum
-        slotLength = unSlotLength $ getSlotLength gp
+        slotLength = unSlotLength $ getSlotLength sp
         f = unActiveSlotCoefficient (getActiveSlotCoefficient sp)
 
     onExit

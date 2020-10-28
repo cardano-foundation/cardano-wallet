@@ -1088,8 +1088,11 @@ inspectAddress =
   where
     inspect :: ByteString -> Either TextDecodingError Aeson.Value
     inspect = maybe (Left errMalformedAddress) Right
-        . inspectShelleyAddress Nothing
+        . inspectShelleyAddress mRootPub
         . unsafeMkAddress
+    -- TODO: It's possible to inspect a byron address, given a root XPub.
+    -- However, this is not yet exposed by the API.
+    mRootPub = Nothing
 
 toHDPayloadAddress :: W.Address -> Maybe Byron.HDAddressPayload
 toHDPayloadAddress (W.Address addr) = do
