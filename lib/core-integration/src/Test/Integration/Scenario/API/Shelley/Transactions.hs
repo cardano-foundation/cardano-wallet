@@ -85,7 +85,7 @@ import Network.HTTP.Types.Method
 import Numeric.Natural
     ( Natural )
 import Test.Hspec
-    ( SpecWith, describe )
+    ( SpecWith, describe, pendingWith )
 import Test.Hspec.Expectations.Lifted
     ( shouldBe, shouldNotBe, shouldSatisfy )
 import Test.Hspec.Extra
@@ -602,7 +602,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
     let slotDiff a b = if a > b then a - b else b - a
 
     it "TRANS_TTL_01 - Pending transaction expiry" $ \ctx -> do
-        (wa, wb) <- (,) <$> fixtureWallet ctx <*> fixtureWallet ctx
+        (wa, wb) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
         let amt = minUTxOValue :: Natural
 
         payload <- mkTxPayload ctx wb amt fixturePassphrase
@@ -633,7 +633,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         slotDiff txExpectedExp txActualExp `shouldSatisfy` (< 50)
 
     it "TRANS_TTL_02 - Custom transaction expiry" $ \ctx -> do
-        (wa, wb) <- (,) <$> fixtureWallet ctx <*> fixtureWallet ctx
+        (wa, wb) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
         let amt = minUTxOValue :: Natural
         let testTTL = 42 :: NominalDiffTime
 
@@ -665,11 +665,22 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         slotDiff txExpectedExp txActualExp `shouldSatisfy` (< 50)
 
     it "TRANS_TTL_03 - Expired transactions" $ \ctx -> do
-        (wa, wb) <- (,) <$> fixtureWallet ctx <*> fixtureWallet ctx
+        pendingWith "#1840 this is flaky -- need a better approach"
+
+        (wa, wb) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
         let amt = minUTxOValue :: Natural
 
-        -- this transaction is going to expire really soon.
         basePayload <- mkTxPayload ctx wb amt fixturePassphrase
+        -- Set a transaction TTL that is going to expire really soon.
+        --
+        -- The TTL wants to be small enough that it expires before it can get
+        -- into a block, but large enough that the node allows it into its
+        -- mempool.
+        --
+        -- This is probably impossible to do reliably, so this test is pending.
+        --
+        -- Perhaps we could disconnect the test cluster relay node from its
+        -- peers temporarily while letting the tx expire.
         let payload = addTxTTL 0.1 basePayload
 
         ra <- request @(ApiTransaction n) ctx
@@ -698,7 +709,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             ]
 
     it "TRANS_TTL_04 - Large TTL" $ \ctx -> do
-        (wa, wb) <- (,) <$> fixtureWallet ctx <*> fixtureWallet ctx
+        (wa, wb) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
         let amt = minUTxOValue :: Natural
         let hugeTTL = 1e9 :: NominalDiffTime
 
