@@ -47,9 +47,9 @@ import Data.Proxy
 import Data.Quantity
     ( Quantity (..) )
 import Test.Hspec
-    ( SpecWith, describe, runIO, shouldNotBe, shouldSatisfy )
+    ( SpecWith, describe, runIO )
 import Test.Hspec.Expectations.Lifted
-    ( shouldBe )
+    ( shouldBe, shouldNotBe, shouldSatisfy )
 import Test.Hspec.Extra
     ( it )
 import Test.Integration.Framework.DSL

@@ -1441,18 +1441,19 @@ quitStakePoolUnsigned ctx w = liftIO $ do
     request @(ApiCoinSelection n) ctx
         (Link.selectCoins @style w) Default payload
 
--- TODO: Convert to MonadIO
 selectCoins
-    :: forall n style t w.
+    :: forall n style t w m.
         ( HasType (ApiT WalletId) w
         , DecodeAddress n
         , EncodeAddress n
         , Link.Discriminate style
+        , MonadIO m
+        , MonadCatch m
         )
     => Context t
     -> w
     -> NonEmpty (AddressAmount (ApiT Address, Proxy n))
-    -> IO (HTTP.Status, Either RequestException (ApiCoinSelection n))
+    -> m (HTTP.Status, Either RequestException (ApiCoinSelection n))
 selectCoins ctx w payments = do
     let payload = Json [aesonQQ| {
             "payments": #{payments}

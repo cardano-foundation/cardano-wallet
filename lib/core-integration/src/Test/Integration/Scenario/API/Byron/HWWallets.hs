@@ -334,7 +334,7 @@ spec = describe "BYRON_HW_WALLETS" $ do
                     zipWith AddressAmount targetAddresses targetAmounts
             let outputs =
                     zipWith ApiCoinSelectionOutput targetAddresses targetAmounts
-            liftIO $ selectCoins @n @'Byron ctx source payments >>= flip verify
+            selectCoins @n @'Byron ctx source payments >>= flip verify
                 [ expectResponseCode HTTP.status200
                 , expectField #inputs
                     (`shouldSatisfy` (not . null))
