@@ -104,7 +104,6 @@ import Cardano.Wallet.Primitive.Types
     , EpochLength (..)
     , EpochNo (..)
     , Hash (..)
-    , PoolFlag (..)
     , PoolId (PoolId)
     , PoolOwner (..)
     , SealedTx (..)
@@ -1092,7 +1091,7 @@ poolRegistrationsFromBlock (Block _hdr fragments) = do
     let dummyPledge = Quantity 0
     let metadata = Nothing
     pure $ W.PoolRegistrationCertificate
-        poolId owners margin cost dummyPledge metadata NoPoolFlag
+        poolId owners margin cost dummyPledge metadata
 
 -- | If all incentives parameters are present in the blocks, returns a function
 -- that computes reward based on a given epoch.

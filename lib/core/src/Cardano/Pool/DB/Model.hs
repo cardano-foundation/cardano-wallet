@@ -62,6 +62,7 @@ module Cardano.Pool.DB.Model
     , mReadCursor
     , mRemovePools
     , mDelistPools
+    , mReadDelistedPools
     , mRemoveRetiredPools
     , mReadSettings
     , mPutSettings
@@ -80,7 +81,6 @@ import Cardano.Wallet.Primitive.Types
     , CertificatePublicationTime
     , EpochNo (..)
     , InternalState (..)
-    , PoolFlag (..)
     , PoolId
     , PoolLifeCycleStatus (..)
     , PoolOwner (..)
@@ -116,6 +116,8 @@ import Data.Ord
     ( Down (..) )
 import Data.Quantity
     ( Quantity (..) )
+import Data.Set
+    ( Set )
 import Data.Time.Clock.POSIX
     ( POSIXTime )
 import Data.Word
@@ -152,6 +154,8 @@ data PoolDatabase = PoolDatabase
         !(Map (CertificatePublicationTime, PoolId) PoolRetirementCertificate)
     -- ^ On-chain retirements associated with pools
 
+    , delisted :: !(Set PoolId)
+
     , metadata :: !(Map StakePoolMetadataHash StakePoolMetadata)
     -- ^ Off-chain metadata cached in database
 
@@ -184,9 +188,9 @@ instance Eq SystemSeed where
 
 -- | Produces an empty model pool production database.
 emptyPoolDatabase :: PoolDatabase
-emptyPoolDatabase =
-    PoolDatabase mempty mempty mempty mempty mempty mempty mempty NotSeededYet
-        mempty defaultSettings defaultInternalState
+emptyPoolDatabase = PoolDatabase
+    mempty mempty mempty mempty mempty mempty mempty mempty NotSeededYet
+    mempty defaultSettings defaultInternalState
 
 {-------------------------------------------------------------------------------
                                   Model Operation Types
@@ -254,12 +258,10 @@ mPutPoolRegistration
     -> PoolRegistrationCertificate
     -> ModelOp ()
 mPutPoolRegistration cpt cert = do
-    old <- fmap snd <$> mReadPoolRegistration (view #poolId cert)
-    let flag = maybe NoPoolFlag poolFlag old
     modify #owners
         $ Map.insert poolId poolOwners
     modify #registrations
-        $ Map.insert (cpt, poolId) (cert { poolFlag = flag })
+        $ Map.insert (cpt, poolId) cert
   where
     PoolRegistrationCertificate {poolId, poolOwners} = cert
 
@@ -430,16 +432,10 @@ mRollbackTo ti point = do
         | otherwise = Nothing
 
 mDelistPools :: [PoolId] -> ModelOp ()
-mDelistPools poolsToDelist =
-    modify #registrations
-        $ Map.mapWithKey
-        $ \(_, pid) a ->
-            if updateThis pid
-            then a {poolFlag = Delisted}
-            else a
-  where
-    updateThis p = p `Set.member` poolsToDelistSet
-    poolsToDelistSet = Set.fromList poolsToDelist
+mDelistPools = modify #delisted . Set.union . Set.fromList
+
+mReadDelistedPools :: ModelOp [PoolId]
+mReadDelistedPools = Set.toList <$> get #delisted
 
 mRemovePools :: [PoolId] -> ModelOp ()
 mRemovePools poolsToRemove = do
@@ -453,6 +449,8 @@ mRemovePools poolsToRemove = do
         $ Map.filterWithKey $ \(_, p) _ -> retain p
     modify #retirements
         $ Map.filterWithKey $ \(_, p) _ -> retain p
+    modify #delisted
+        $ Set.filter retain
   where
     retain p = p `Set.notMember` poolsToRemoveSet
     poolsToRemoveSet = Set.fromList poolsToRemove

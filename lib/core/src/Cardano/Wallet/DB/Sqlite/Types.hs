@@ -43,7 +43,6 @@ import Cardano.Wallet.Primitive.Types
     , EpochNo (..)
     , FeePolicy
     , Hash (..)
-    , PoolFlag (..)
     , PoolId
     , PoolMetadataSource
     , PoolOwner (..)
@@ -679,11 +678,4 @@ instance PersistField POSIXTime where
         "Could not parse POSIX time value"
 
 instance PersistFieldSql POSIXTime where
-    sqlType _ = sqlType (Proxy @Text)
-
-instance PersistField PoolFlag where
-    toPersistValue = toPersistValue . toText
-    fromPersistValue = fromPersistValueFromText
-
-instance PersistFieldSql PoolFlag where
     sqlType _ = sqlType (Proxy @Text)

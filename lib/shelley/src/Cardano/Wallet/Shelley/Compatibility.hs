@@ -759,7 +759,6 @@ fromShelleyRegistrationCert = \case
             , W.poolCost = lovelaceFromCoin (SL._poolCost pp)
             , W.poolPledge = lovelaceFromCoin (SL._poolPledge pp)
             , W.poolMetadata = fromPoolMetaData <$> strictMaybeToMaybe (SL._poolMD pp)
-            , W.poolFlag = W.NoPoolFlag
             }
         )
 

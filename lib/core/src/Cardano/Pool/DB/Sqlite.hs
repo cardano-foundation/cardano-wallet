@@ -62,7 +62,6 @@ import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
     , CertificatePublicationTime (..)
     , EpochNo (..)
-    , PoolFlag (..)
     , PoolId (..)
     , PoolLifeCycleStatus (..)
     , PoolRegistrationCertificate (..)
@@ -120,12 +119,10 @@ import Database.Persist.Sql
     , insert_
     , rawSql
     , repsert
-    , repsertMany
     , selectFirst
     , selectList
     , toPersistValue
     , update
-    , (<-.)
     , (<.)
     , (=.)
     , (==.)
@@ -295,9 +292,6 @@ newDBLayer trace fp timeInterpreter = do
                 ]
             let poolRegistrationKey = PoolRegistrationKey
                     poolId slotNo slotInternalIndex
-            prevResult <- selectFirst
-                [ PoolRegistrationPoolId ==. poolId ]
-                [ ]
             let poolRegistrationRow = PoolRegistration
                     (poolId)
                     (slotNo)
@@ -310,7 +304,6 @@ newDBLayer trace fp timeInterpreter = do
                     (getQuantity $ poolPledge cert)
                     (fst <$> poolMetadata cert)
                     (snd <$> poolMetadata cert)
-                    (maybe NoPoolFlag (poolRegistrationFlag . entityVal) prevResult)
             _ <- repsert poolRegistrationKey poolRegistrationRow
             insertMany_ $
                 zipWith
@@ -455,7 +448,6 @@ newDBLayer trace fp timeInterpreter = do
                 , Single fieldMarginDenominator
                 , Single fieldMetadataHash
                 , Single fieldMetadataUrl
-                , Single fieldFlag
                 ) = do
                 regCert <- parseRegistrationCertificate
                 parseRetirementCertificate <&> maybe
@@ -469,7 +461,6 @@ newDBLayer trace fp timeInterpreter = do
                     <*> (Quantity <$> fromPersistValue fieldCost)
                     <*> (Quantity <$> fromPersistValue fieldPledge)
                     <*> parseMetadata
-                    <*> fromPersistValue fieldFlag
 
                 parseRetirementCertificate = do
                     poolId <- fromPersistValue fieldPoolId
@@ -500,13 +491,11 @@ newDBLayer trace fp timeInterpreter = do
             deleteWhere [ BlockSlot >. point ]
             -- TODO: remove dangling metadata no longer attached to a pool
 
-        delistPools pools = do
-            px <- selectList
-                [ PoolRegistrationPoolId <-. pools ]
-                [  ]
-            repsertMany $ fmap
-                (\(Entity k val) -> (k, val {poolRegistrationFlag = Delisted}))
-                px
+        delistPools =
+            insertMany_ . fmap DelistedPool
+
+        readDelistedPools =
+            fmap (delistedPoolPoolId . entityVal) <$> selectList [] []
 
         removePools = mapM_ $ \pool -> do
             liftIO $ traceWith trace $ MsgRemovingPool pool
@@ -515,6 +504,7 @@ newDBLayer trace fp timeInterpreter = do
             deleteWhere [ PoolRegistrationPoolId ==. pool ]
             deleteWhere [ PoolRetirementPoolId ==. pool ]
             deleteWhere [ StakeDistributionPoolId ==. pool ]
+            deleteWhere [ DelistedPoolPoolId ==. pool ]
 
         removeRetiredPools epoch =
             bracketTracer traceOuter action
@@ -580,6 +570,7 @@ newDBLayer trace fp timeInterpreter = do
             deleteWhere ([] :: [Filter PoolOwner])
             deleteWhere ([] :: [Filter PoolRegistration])
             deleteWhere ([] :: [Filter PoolRetirement])
+            deleteWhere ([] :: [Filter DelistedPool])
             deleteWhere ([] :: [Filter StakeDistribution])
             deleteWhere ([] :: [Filter PoolMetadata])
             deleteWhere ([] :: [Filter PoolMetadataFetchAttempts])
@@ -606,8 +597,7 @@ newDBLayer trace fp timeInterpreter = do
                         poolCost_
                         poolPledge_
                         poolMetadataUrl
-                        poolMetadataHash
-                        poolFlag = entityVal meta
+                        poolMetadataHash = entityVal meta
                 let poolMargin = unsafeMkPercentage $
                         toRational $ marginNum % marginDen
                 let poolCost = Quantity poolCost_
@@ -630,7 +620,6 @@ newDBLayer trace fp timeInterpreter = do
                         , poolCost
                         , poolPledge
                         , poolMetadata
-                        , poolFlag
                         }
                 let cpt = CertificatePublicationTime {slotNo, slotInternalIndex}
                 pure (cpt, cert)
@@ -753,8 +742,7 @@ activePoolLifeCycleData = DatabaseView "active_pool_lifecycle_data" [i|
         margin_numerator,
         margin_denominator,
         metadata_hash,
-        metadata_url,
-        active_pool_registrations.flag as flag
+        metadata_url
     FROM
         active_pool_registrations
     LEFT JOIN
@@ -809,8 +797,7 @@ activePoolRegistrations = DatabaseView "active_pool_registrations" [i|
         margin_numerator,
         margin_denominator,
         metadata_hash,
-        metadata_url,
-        flag
+        metadata_url
     FROM (
         SELECT row_number() OVER w AS r, *
         FROM pool_registration

@@ -56,7 +56,6 @@ import Cardano.Wallet.Primitive.Types
     , FeePolicy (..)
     , GenesisParameters (..)
     , Hash (..)
-    , PoolFlag (..)
     , PoolId (..)
     , PoolOwner (..)
     , PoolRegistrationCertificate (..)
@@ -428,8 +427,8 @@ instance Arbitrary PoolOwner where
     arbitrary = PoolOwner . B8.singleton <$> elements ['a'..'e']
 
 instance Arbitrary PoolRegistrationCertificate where
-    shrink (PoolRegistrationCertificate p o m c pl md fl) =
-        (\(p', NonEmpty o') -> PoolRegistrationCertificate p' o' m c pl md fl)
+    shrink (PoolRegistrationCertificate p o m c pl md) =
+        (\(p', NonEmpty o') -> PoolRegistrationCertificate p' o' m c pl md)
         <$> shrink (p, NonEmpty o)
     arbitrary = PoolRegistrationCertificate
         <$> arbitrary
@@ -438,7 +437,6 @@ instance Arbitrary PoolRegistrationCertificate where
         <*> fmap Quantity arbitrary
         <*> pure (Quantity 0)
         <*> pure Nothing
-        <*> pure NoPoolFlag
 
 instance Arbitrary RegistrationsTest where
     shrink (RegistrationsTest xs) = RegistrationsTest <$> shrink xs

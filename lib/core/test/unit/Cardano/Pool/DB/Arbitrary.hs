@@ -28,7 +28,6 @@ import Cardano.Wallet.Primitive.Types
     , EpochNo (..)
     , Hash (..)
     , PoolCertificate (..)
-    , PoolFlag (..)
     , PoolId (..)
     , PoolMetadataSource (..)
     , PoolMetadataSource (..)
@@ -165,10 +164,6 @@ instance Arbitrary PoolOwner where
         byte <- elements ['0'..'8']
         return $ PoolOwner $ B8.pack (replicate 32 byte)
 
-instance Arbitrary PoolFlag where
-    arbitrary = arbitraryBoundedEnum
-    shrink = const []
-
 instance Arbitrary PoolRegistrationCertificate where
     shrink regCert = do
         shrunkPoolId <- shrink $ view #poolId regCert
@@ -188,7 +183,6 @@ instance Arbitrary PoolRegistrationCertificate where
         <*> fmap Quantity arbitrary
         <*> fmap Quantity arbitrary
         <*> oneof [pure Nothing, Just <$> genMetadata]
-        <*> pure NoPoolFlag
       where
         genMetadata = (,)
             <$> fmap StakePoolMetadataUrl genURL

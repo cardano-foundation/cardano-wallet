@@ -120,9 +120,13 @@ PoolRegistration sql=pool_registration
     poolRegistrationPledge            Word64                        sql=pledge
     poolRegistrationMetadataUrl       W.StakePoolMetadataUrl  Maybe sql=metadata_url
     poolRegistrationMetadataHash      W.StakePoolMetadataHash Maybe sql=metadata_hash
-    poolRegistrationFlag              W.PoolFlag                    sql=flag
 
     Primary poolRegistrationPoolId poolRegistrationSlot poolRegistrationSlotInternalIndex
+    deriving Show Generic
+
+DelistedPool sql=delisted_pool
+    delistedPoolPoolId                W.PoolId                      sql=pool_id
+    Primary delistedPoolPoolId
     deriving Show Generic
 
 -- Mapping of retirement certificates to pools
