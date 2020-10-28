@@ -26,11 +26,11 @@ import Cardano.Pool.DB.Model
     , emptyPoolDatabase
     , mCleanDatabase
     , mCleanPoolMetadata
-    , mDelistPools
     , mListHeaders
     , mListPoolLifeCycleData
     , mListRegisteredPools
     , mListRetiredPools
+    , mPutDelistedPools
     , mPutFetchAttempt
     , mPutHeader
     , mPutLastMetadataGC
@@ -150,8 +150,8 @@ newDBLayer timeInterpreter = do
         rollbackTo =
             void . alterPoolDB (const Nothing) db . mRollbackTo timeInterpreter
 
-        delistPools =
-            void . alterPoolDB (const Nothing) db . mDelistPools
+        putDelistedPools =
+            void . alterPoolDB (const Nothing) db . mPutDelistedPools
 
         readDelistedPools =
             readPoolDB db mReadDelistedPools

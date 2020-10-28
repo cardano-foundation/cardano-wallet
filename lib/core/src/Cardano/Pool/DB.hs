@@ -213,14 +213,15 @@ data DBLayer m = forall stm. (MonadFail stm, MonadIO stm) => DBLayer
         -> stm ()
         -- ^ Remove all entries of slot ids newer than the argument
 
-    , delistPools
+    , putDelistedPools
         :: [PoolId]
         -> stm ()
-        -- ^ Mark pools as delisted, e.g. due to non-compliance.
-        -- This is stored as an attribute in the pool_registration table.
+        -- ^ Overwrite the set of delisted pools with a completely new set.
+        -- Pools may be delisted for reasons such as non-compliance.
 
     , readDelistedPools
         :: stm [PoolId]
+        -- ^ Fetch the set of delisted pools.
 
     , removePools
         :: [PoolId]
