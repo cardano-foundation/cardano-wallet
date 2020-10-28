@@ -48,7 +48,7 @@ module Cardano.Wallet.Api.Types
     , ApiAddress (..)
     , ApiScript (..)
     , ApiPubKey (..)
-    , Credential (..)
+    , ApiCredential (..)
     , ApiCredentials (..)
     , AnyAddress (..)
     , AnyAddressType (..)
@@ -415,13 +415,14 @@ newtype ApiPubKey = ApiPubKey
     { pubKey :: ByteString
     } deriving (Eq, Generic, Show)
 
-data Credential = Credential
-    { credential :: Either ApiPubKey ApiScript
-    } deriving (Eq, Generic, Show)
+data ApiCredential =
+      CredentialPubKey ApiPubKey
+    | CredentialScript ApiScript
+    deriving (Eq, Generic, Show)
 
 data ApiCredentials = ApiCredentials
-    { spending :: !(Maybe Credential)
-    , staking :: !(Maybe Credential)
+    { spending :: !(Maybe ApiCredential)
+    , staking :: !(Maybe ApiCredential)
     } deriving (Eq, Generic, Show)
 
 data AnyAddressType =
@@ -1417,22 +1418,22 @@ instance ToJSON ApiPubKey where
         let hrp = [Bech32.humanReadablePart|addr_vk|]
         String $ T.decodeUtf8 $ encode (EBech32 hrp) key'
 
-instance FromJSON Credential where
+instance FromJSON ApiCredential where
     parseJSON obj = do
         key' <-
-            (withObject "PubKey" $
+            (withObject "ApiCredential" $
              \o -> o .:? "pub_key" :: Aeson.Parser (Maybe Text)) obj
         case key' of
             Nothing ->
-                Credential . Right <$> parseJSON obj
+                CredentialScript <$> parseJSON obj
             Just pubKeyTxt -> case fromText pubKeyTxt of
                 Right bytes ->
-                    pure $ Credential $ Left bytes
+                    pure $ CredentialPubKey bytes
                 Left (TextDecodingError err) -> fail err
 
-instance ToJSON Credential where
-    toJSON (Credential (Left c))= object ["pub_key" .= toJSON c]
-    toJSON (Credential (Right c))= toJSON c
+instance ToJSON ApiCredential where
+    toJSON (CredentialPubKey c)= object ["pub_key" .= toJSON c]
+    toJSON (CredentialScript c)= toJSON c
 
 instance FromJSON ApiCredentials where
     parseJSON = withObject "ApiCredentials" $ \obj -> do

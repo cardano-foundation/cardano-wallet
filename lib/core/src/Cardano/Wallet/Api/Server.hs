@@ -180,6 +180,7 @@ import Cardano.Wallet.Api.Types
     , ApiCoinSelectionChange (..)
     , ApiCoinSelectionInput (..)
     , ApiCoinSelectionOutput (..)
+    , ApiCredential (..)
     , ApiCredentials (..)
     , ApiEpochInfo (ApiEpochInfo)
     , ApiErrorCode (..)
@@ -217,7 +218,6 @@ import Cardano.Wallet.Api.Types
     , ByronWalletFromXPrvPostData
     , ByronWalletPostData (..)
     , ByronWalletPutPassphraseData (..)
-    , Credential (..)
     , Iso8601Time (..)
     , KnownDiscovery (..)
     , MinWithdrawal (..)
@@ -1906,35 +1906,35 @@ postAnyAddress
 postAnyAddress body = do
     (addr, addrType) <-
             case (body ^. #spending, body ^. #staking) of
-                (Just (Credential (Left (ApiPubKey bytes))), Nothing) ->
+                (Just (CredentialPubKey (ApiPubKey bytes)), Nothing) ->
                     pure ( unAddress $
                            CA.paymentAddress discriminant (spendingFromKey bytes)
                          , EnterpriseDelegating )
-                (Just (Credential (Right (ApiScript (ApiT script)))), Nothing) ->
+                (Just (CredentialScript (ApiScript (ApiT script))), Nothing) ->
                     pure ( unAddress $
                            CA.paymentAddress discriminant (spendingFromScript script)
                          , EnterpriseDelegating )
-                (Nothing, Just (Credential (Left (ApiPubKey bytes)))) -> do
+                (Nothing, Just (CredentialPubKey (ApiPubKey bytes))) -> do
                     let (Right stakeAddr) =
                             CA.stakeAddress discriminant (stakingFromKey bytes)
                     pure ( unAddress stakeAddr, RewardAccount )
-                (Nothing, Just (Credential (Right (ApiScript (ApiT script))))) -> do
+                (Nothing, Just (CredentialScript (ApiScript (ApiT script)))) -> do
                     let (Right stakeAddr) =
                             CA.stakeAddress discriminant (stakingFromScript script)
                     pure ( unAddress stakeAddr, RewardAccount )
-                (Just (Credential (Left (ApiPubKey bytes1))), Just (Credential (Left (ApiPubKey bytes2)))) ->
+                (Just (CredentialPubKey (ApiPubKey bytes1)), Just (CredentialPubKey (ApiPubKey bytes2))) ->
                     pure ( unAddress $
                            CA.delegationAddress discriminant (spendingFromKey bytes1) (stakingFromKey bytes2)
                          , EnterpriseDelegating )
-                (Just (Credential (Left (ApiPubKey bytes))), Just (Credential (Right (ApiScript (ApiT script))))) ->
+                (Just (CredentialPubKey (ApiPubKey bytes)), Just (CredentialScript (ApiScript (ApiT script)))) ->
                     pure ( unAddress $
                            CA.delegationAddress discriminant (spendingFromKey bytes) (stakingFromScript script)
                          , EnterpriseDelegating )
-                (Just (Credential (Right (ApiScript (ApiT script)))), Just (Credential (Left (ApiPubKey bytes)))) ->
+                (Just (CredentialScript (ApiScript (ApiT script))), Just (CredentialPubKey (ApiPubKey bytes))) ->
                     pure ( unAddress $
                            CA.delegationAddress discriminant (spendingFromScript script) (stakingFromKey bytes)
                          , EnterpriseDelegating )
-                (Just (Credential (Right (ApiScript (ApiT script1)))), Just (Credential (Right (ApiScript (ApiT script2)))) )->
+                (Just (CredentialScript (ApiScript (ApiT script1))), Just (CredentialScript (ApiScript (ApiT script2))) )->
                     pure ( unAddress $
                            CA.delegationAddress discriminant (spendingFromScript script1) (stakingFromScript script2)
                          , EnterpriseDelegating )

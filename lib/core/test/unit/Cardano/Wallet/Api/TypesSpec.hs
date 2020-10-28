@@ -58,6 +58,7 @@ import Cardano.Wallet.Api.Types
     , ApiCoinSelectionChange (..)
     , ApiCoinSelectionInput (..)
     , ApiCoinSelectionOutput (..)
+    , ApiCredential (..)
     , ApiCredentials (..)
     , ApiEpochInfo (..)
     , ApiErrorCode (..)
@@ -102,7 +103,6 @@ import Cardano.Wallet.Api.Types
     , ByronWalletPostData (..)
     , ByronWalletPutPassphraseData (..)
     , ByronWalletStyle (..)
-    , Credential (..)
     , DecodeAddress (..)
     , DecodeStakeAddress (..)
     , EncodeAddress (..)
@@ -348,7 +348,7 @@ spec = do
             jsonRoundtripAndGolden $ Proxy @ApiScript
             jsonRoundtripAndGolden $ Proxy @ApiPubKey
             jsonRoundtripAndGolden $ Proxy @AnyAddress
-            jsonRoundtripAndGolden $ Proxy @Credential
+            jsonRoundtripAndGolden $ Proxy @ApiCredential
             jsonRoundtripAndGolden $ Proxy @ApiCredentials
             jsonRoundtripAndGolden $ Proxy @(ApiT DerivationIndex)
             jsonRoundtripAndGolden $ Proxy @ApiEpochInfo
@@ -1059,12 +1059,12 @@ instance Arbitrary ApiPubKey where
     arbitrary =
         (ApiPubKey . BS.pack) <$> replicateM 32 arbitrary
 
-instance Arbitrary Credential where
+instance Arbitrary ApiCredential where
     arbitrary = do
         let pubKeyGen = arbitrary :: Gen ApiPubKey
         let scriptGen = arbitrary :: Gen ApiScript
-        oneof [ Credential . Left <$> pubKeyGen
-              , Credential . Right <$> scriptGen ]
+        oneof [ CredentialPubKey <$> pubKeyGen
+              , CredentialScript <$> scriptGen ]
 
 instance Arbitrary ApiCredentials where
     arbitrary = do
@@ -1936,7 +1936,7 @@ instance ToSchema ApiCredentials where
         addDefinition credentialValueSchema
         declareSchemaForDefinition "ApiCredentials"
 
-instance ToSchema Credential where
+instance ToSchema ApiCredential where
     declareNamedSchema _ = do
         addDefinition scriptValueSchema
         NamedSchema _ pubKey' <- declareNamedSchema (Proxy @ApiPubKey)

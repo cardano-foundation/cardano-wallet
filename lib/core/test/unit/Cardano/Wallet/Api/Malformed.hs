@@ -314,12 +314,12 @@ instance Malformed (BodyParam ApiCredentials) where
         , ( Aeson.encode [aesonQQ|
             { "staking": 2
             }|]
-          , "Error in $: parsing PubKey failed, expected Object, but encountered Number"
+          , "Error in $: parsing ApiCredential failed, expected Object, but encountered Number"
           )
         , ( Aeson.encode [aesonQQ|
             { "spending": 2
             }|]
-          , "Error in $: parsing PubKey failed, expected Object, but encountered Number"
+          , "Error in $: parsing ApiCredential failed, expected Object, but encountered Number"
           )
         ]
 instance Malformed (BodyParam SomeByronWalletPostData) where
