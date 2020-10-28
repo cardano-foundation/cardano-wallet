@@ -492,10 +492,10 @@ newDBLayer trace fp timeInterpreter = do
             -- TODO: remove dangling metadata no longer attached to a pool
 
         delistPools =
-            insertMany_ . fmap DelistedPool
+            insertMany_ . fmap PoolDelistment
 
         readDelistedPools =
-            fmap (delistedPoolPoolId . entityVal) <$> selectList [] []
+            fmap (delistedPoolId . entityVal) <$> selectList [] []
 
         removePools = mapM_ $ \pool -> do
             liftIO $ traceWith trace $ MsgRemovingPool pool
@@ -504,7 +504,7 @@ newDBLayer trace fp timeInterpreter = do
             deleteWhere [ PoolRegistrationPoolId ==. pool ]
             deleteWhere [ PoolRetirementPoolId ==. pool ]
             deleteWhere [ StakeDistributionPoolId ==. pool ]
-            deleteWhere [ DelistedPoolPoolId ==. pool ]
+            deleteWhere [ DelistedPoolId ==. pool ]
 
         removeRetiredPools epoch =
             bracketTracer traceOuter action
@@ -570,7 +570,7 @@ newDBLayer trace fp timeInterpreter = do
             deleteWhere ([] :: [Filter PoolOwner])
             deleteWhere ([] :: [Filter PoolRegistration])
             deleteWhere ([] :: [Filter PoolRetirement])
-            deleteWhere ([] :: [Filter DelistedPool])
+            deleteWhere ([] :: [Filter PoolDelistment])
             deleteWhere ([] :: [Filter StakeDistribution])
             deleteWhere ([] :: [Filter PoolMetadata])
             deleteWhere ([] :: [Filter PoolMetadataFetchAttempts])
