@@ -79,6 +79,7 @@ import Test.Integration.Framework.DSL
     , Headers (..)
     , MnemonicLength (..)
     , Payload (..)
+    , counterexample
     , emptyByronWalletWith
     , emptyRandomWallet
     , emptyWallet
@@ -990,7 +991,7 @@ spec = describe "SHELLEY_WALLETS" $ do
             r <- request @ApiUtxoStatistics ctx (Link.getUTxOsStatistics @'Shelley w) headers Empty
             verify r expectations
 
-    describe "WALLETS_GET_KEY_01 - golden tests for verification key" $ do
+    it "WALLETS_GET_KEY_01 - golden tests for verification key" $ \ctx -> runResourceT $ do
     --- $ cat recovery-phrase.txt
     -- pulp ten light rhythm replace vessel slow drift kingdom amazing negative join auction ugly symptom
     --- $ cat recovery-phrase.txt | cardano-address key from-recovery-phrase Shelley > root.prv
@@ -1021,19 +1022,22 @@ spec = describe "SHELLEY_WALLETS" $ do
                   )
                 ]
 
-        forM_ matrix
-            $ \(role_, index, expected) -> it (show role_ <> "/" <> show index)
-            $ \ctx -> runResourceT $ do
-                let payload = Json [json|{
-                        "name": "Wallet",
-                        "mnemonic_sentence": #{explicitMnemonics},
-                        "passphrase": #{fixturePassphrase}
-                    }|]
+        let explicitMnemonics =
+                [ "pulp", "ten", "light", "rhythm", "replace"
+                , "vessel", "slow", "drift", "kingdom", "amazing"
+                , "negative", "join", "auction", "ugly", "symptom"] :: [Text]
+        let payload = Json [json|{
+                "name": "Wallet",
+                "mnemonic_sentence": #{explicitMnemonics},
+                "passphrase": #{fixturePassphrase}
+            }|]
 
-                r <- postWallet ctx payload
-                verify r [ expectResponseCode HTTP.status201 ]
-                let apiWal = getFromResponse id r
+        r <- postWallet ctx payload
+        verify r [ expectResponseCode HTTP.status201 ]
+        let apiWal = getFromResponse id r
 
+        forM_ matrix $ \(role_, index, expected) ->
+            counterexample (show role_ <> "/" <> show index) $ do
                 let link = Link.getWalletKey (apiWal ^. id) role_ index
                 rGet <- request @ApiVerificationKey ctx link Default Empty
                 verify rGet
@@ -1317,9 +1321,3 @@ spec = describe "SHELLEY_WALLETS" $ do
                     , expectField (#tip . #slotId . #slotNumber  . #getApiT) (`shouldBe` slotNum)
                     , expectField (#tip . #block . #height) (`shouldBe` blockHeight)
                     ]
-
-  where
-    explicitMnemonics =
-        [ "pulp", "ten", "light", "rhythm", "replace"
-        , "vessel", "slow", "drift", "kingdom", "amazing"
-        , "negative", "join", "auction", "ugly", "symptom"] :: [Text]
