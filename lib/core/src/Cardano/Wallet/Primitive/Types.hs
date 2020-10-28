@@ -191,8 +191,6 @@ module Cardano.Wallet.Primitive.Types
     , InternalState (..)
     , defaultInternalState
 
-    -- * other
-    , PoolFlag (..)
     ) where
 
 import Prelude
@@ -1822,7 +1820,6 @@ data PoolRegistrationCertificate = PoolRegistrationCertificate
     , poolCost :: Quantity "lovelace" Word64
     , poolPledge :: Quantity "lovelace" Word64
     , poolMetadata :: Maybe (StakePoolMetadataUrl, StakePoolMetadataHash)
-    , poolFlag :: PoolFlag
     } deriving (Generic, Show, Eq, Ord)
 
 instance NFData PoolRegistrationCertificate
@@ -2034,14 +2031,3 @@ instance FromJSON PoolMetadataSource where
 
 instance ToJSON PoolMetadataSource where
     toJSON = toJSON . toText
-
-data PoolFlag = NoPoolFlag | Delisted
-    deriving (Generic, Bounded, Enum, Show, Eq, Ord)
-
-instance NFData PoolFlag
-
-instance ToText PoolFlag where
-    toText = toTextFromBoundedEnum KebabLowerCase
-
-instance FromText PoolFlag where
-    fromText = fromTextToBoundedEnum KebabLowerCase

@@ -41,6 +41,7 @@ import Cardano.Pool.DB.Model
     , mPutSettings
     , mPutStakeDistribution
     , mReadCursor
+    , mReadDelistedPools
     , mReadLastMetadataGC
     , mReadPoolLifeCycleStatus
     , mReadPoolMetadata
@@ -151,6 +152,9 @@ newDBLayer timeInterpreter = do
 
         delistPools =
             void . alterPoolDB (const Nothing) db . mDelistPools
+
+        readDelistedPools =
+            readPoolDB db mReadDelistedPools
 
         removePools =
             void . alterPoolDB (const Nothing) db . mRemovePools

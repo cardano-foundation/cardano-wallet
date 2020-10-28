@@ -43,7 +43,6 @@ import Cardano.Wallet.Primitive.Types
     , CertificatePublicationTime (..)
     , EpochNo (..)
     , PoolCertificate (..)
-    , PoolFlag (..)
     , PoolId
     , PoolLifeCycleStatus (..)
     , PoolRegistrationCertificate (..)
@@ -224,7 +223,7 @@ properties = do
             (property . prop_modSettingsReadSettings)
         it "putLastMetadataGC . readLastMetadataGC == id"
             (property . prop_putLastMetadataGCReadLastMetadataGC)
-        it "delistPools >> readPoolRegistration shows the pool as delisted"
+        it "delistPools >> readDelistedPools shows the pool as delisted"
             (property . prop_delistPools)
         it "delisting a pools persists even if a new certificate is registered"
             (property . prop_delistPoolsPersists)
@@ -1486,18 +1485,17 @@ prop_delistPools DBLayer {..} entries =
             $ entriesIn == entriesOut
 
         -- delist pools
-        run $ atomically $ delistPools (fmap (view #poolId . snd) entries)
-        entriesDelisted <- run . atomically $ L.sort . catMaybes
-            <$> mapM (readPoolRegistration . view #poolId . snd) entries
-        let expected = fmap (\(c, p) -> (c, p { poolFlag = Delisted })) entriesIn
+        let poolsToDelist = L.sort $ fmap (view #poolId . snd) entriesIn
+        run $ atomically $ delistPools poolsToDelist
+        poolsDelisted <- L.sort <$> run (atomically readDelistedPools)
         monitor $ counterexample $ unlines
-            [ "Expected: "
-            , show expected
-            , "Read from DB: "
-            , show entriesDelisted
+            [ "Pools to delist: "
+            , pretty poolsToDelist
+            , "Pools actually delisted: "
+            , pretty poolsDelisted
             ]
-        assertWith "expected == entriesDelisted"
-            $ expected == entriesDelisted
+        assertWith "poolsToDelist == poolsDelisted"
+            $ poolsToDelist == poolsDelisted
 
 prop_delistPoolsPersists
     :: DBLayer IO
@@ -1513,16 +1511,15 @@ prop_delistPoolsPersists DBLayer {..} cert =
         let poolid = view #poolId . snd $ cert
         -- delist pool
         run $ atomically $ delistPools [poolid]
-        delisted <- run . atomically . readPoolRegistration $ poolid
-        let expected = (\(c, p) ->
-                (c, p { poolFlag = Delisted })) cert
+        delisted <- run $ atomically readDelistedPools
+        let expected = [poolid]
         assertWith "expected == delisted"
-            $ Just expected == delisted
+            $ expected == delisted
 
         -- insert the cert again
         run $ atomically
             $ uncurry putPoolRegistration cert
-        delistedAgain <- run . atomically . readPoolRegistration $ poolid
+        delistedAgain <- run $ atomically readDelistedPools
 
         monitor $ counterexample $ unlines
             [ "Expected: "
@@ -1531,7 +1528,7 @@ prop_delistPoolsPersists DBLayer {..} cert =
             , show delistedAgain
             ]
         assertWith "expected == delisted"
-            $ Just expected == delistedAgain
+            $ expected == delistedAgain
 
 descSlotsPerPool :: Map PoolId [BlockHeader] -> Expectation
 descSlotsPerPool pools = do
