@@ -77,7 +77,6 @@ module Cardano.Wallet.Api.Server
     , selectCoinsForJoin
     , selectCoinsForQuit
     , signMetadata
-    , postAnyAddress
 
     -- * Internals
     , LiftHandler(..)
@@ -98,8 +97,6 @@ module Cardano.Wallet.Api.Server
 
 import Prelude
 
-import Cardano.Address
-    ( unAddress )
 import Cardano.Address.Derivation
     ( XPrv, XPub )
 import Cardano.Mnemonic
@@ -167,8 +164,6 @@ import Cardano.Wallet.Api.Server.Tls
 import Cardano.Wallet.Api.Types
     ( AccountPostData (..)
     , AddressAmount (..)
-    , AnyAddress (..)
-    , AnyAddressType (..)
     , ApiAccountPublicKey (..)
     , ApiAddress (..)
     , ApiBlockInfo (..)
@@ -180,8 +175,6 @@ import Cardano.Wallet.Api.Types
     , ApiCoinSelectionChange (..)
     , ApiCoinSelectionInput (..)
     , ApiCoinSelectionOutput (..)
-    , ApiCredential (..)
-    , ApiCredentials (..)
     , ApiEpochInfo (ApiEpochInfo)
     , ApiErrorCode (..)
     , ApiFee (..)
@@ -191,9 +184,7 @@ import Cardano.Wallet.Api.Types
     , ApiNetworkParameters (..)
     , ApiPoolId (..)
     , ApiPostRandomAddressData (..)
-    , ApiPubKey (..)
     , ApiPutAddressesData (..)
-    , ApiScript (..)
     , ApiSelectCoinsPayments
     , ApiSlotId (..)
     , ApiSlotReference (..)
@@ -459,9 +450,6 @@ import System.Random
 import Type.Reflection
     ( Typeable )
 
-import qualified Cardano.Address.Derivation as CA
-import qualified Cardano.Address.Script as CA
-import qualified Cardano.Address.Style.Shelley as CA
 import qualified Cardano.Wallet as W
 import qualified Cardano.Wallet.Api.Types as Api
 import qualified Cardano.Wallet.Network as NW
@@ -1899,61 +1887,6 @@ derivePublicKey ctx (ApiT wid) (ApiT role_) (ApiT ix) = do
     withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk -> do
         k <- liftHandler $ W.derivePublicKey @_ @s @k @n wrk wid role_ ix
         pure $ ApiVerificationKey (getRawKey k, role_)
-
-postAnyAddress
-    :: forall n. ApiCredentials
-    -> Handler AnyAddress
-postAnyAddress body = do
-    (addr, addrType) <-
-            case (body ^. #spending, body ^. #staking) of
-                (Just (CredentialPubKey (ApiPubKey bytes)), Nothing) ->
-                    pure ( unAddress $
-                           CA.paymentAddress discriminant (spendingFromKey bytes)
-                         , EnterpriseDelegating )
-                (Just (CredentialScript (ApiScript (ApiT script))), Nothing) ->
-                    pure ( unAddress $
-                           CA.paymentAddress discriminant (spendingFromScript script)
-                         , EnterpriseDelegating )
-                (Nothing, Just (CredentialPubKey (ApiPubKey bytes))) -> do
-                    let (Right stakeAddr) =
-                            CA.stakeAddress discriminant (stakingFromKey bytes)
-                    pure ( unAddress stakeAddr, RewardAccount )
-                (Nothing, Just (CredentialScript (ApiScript (ApiT script)))) -> do
-                    let (Right stakeAddr) =
-                            CA.stakeAddress discriminant (stakingFromScript script)
-                    pure ( unAddress stakeAddr, RewardAccount )
-                (Just (CredentialPubKey (ApiPubKey bytes1)), Just (CredentialPubKey (ApiPubKey bytes2))) ->
-                    pure ( unAddress $
-                           CA.delegationAddress discriminant (spendingFromKey bytes1) (stakingFromKey bytes2)
-                         , EnterpriseDelegating )
-                (Just (CredentialPubKey (ApiPubKey bytes)), Just (CredentialScript (ApiScript (ApiT script)))) ->
-                    pure ( unAddress $
-                           CA.delegationAddress discriminant (spendingFromKey bytes) (stakingFromScript script)
-                         , EnterpriseDelegating )
-                (Just (CredentialScript (ApiScript (ApiT script))), Just (CredentialPubKey (ApiPubKey bytes))) ->
-                    pure ( unAddress $
-                           CA.delegationAddress discriminant (spendingFromScript script) (stakingFromKey bytes)
-                         , EnterpriseDelegating )
-                (Just (CredentialScript (ApiScript (ApiT script1))), Just (CredentialScript (ApiScript (ApiT script2))) )->
-                    pure ( unAddress $
-                           CA.delegationAddress discriminant (spendingFromScript script1) (stakingFromScript script2)
-                         , EnterpriseDelegating )
-                (Nothing, Nothing) -> fail "At least one credential is required"
-    pure $ AnyAddress addr addrType (fromInteger netTag)
-  where
-      toXPub = fromJust . CA.xpubFromBytes . pubToXPub
-      pubToXPub bytes = BS.append bytes bytes
-      netTag = 1
-      spendingFromKey = CA.PaymentFromKey . CA.liftXPub . toXPub
-      spendingFromScript = CA.PaymentFromScript . CA.toScriptHash
-      stakingFromKey = CA.DelegationFromKey . CA.liftXPub . toXPub
-      stakingFromScript = CA.DelegationFromScript . CA.toScriptHash
-{--
-      netTag = case testEquality (typeRep @n) (typeRep @'Mainnet) of
-          Just{}  -> 1
-          Nothing -> 0
---}
-      (Right discriminant) = CA.mkNetworkDiscriminant netTag
 
 {-------------------------------------------------------------------------------
                                   Helpers

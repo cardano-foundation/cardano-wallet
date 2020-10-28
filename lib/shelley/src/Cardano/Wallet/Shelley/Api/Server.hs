@@ -21,6 +21,8 @@ module Cardano.Wallet.Shelley.Api.Server
 
 import Prelude
 
+import Cardano.Address
+    ( unAddress )
 import Cardano.Wallet
     ( ErrCreateRandomAddress (..)
     , ErrNotASequentialWallet (..)
@@ -72,7 +74,6 @@ import Cardano.Wallet.Api.Server
     , mkLegacyWallet
     , mkShelleyWallet
     , postAccountWallet
-    , postAnyAddress
     , postExternalTransaction
     , postIcarusWallet
     , postLedgerWallet
@@ -98,9 +99,15 @@ import Cardano.Wallet.Api.Server
     , withLegacyLayer'
     )
 import Cardano.Wallet.Api.Types
-    ( ApiAddressInspect (..)
+    ( AnyAddress (..)
+    , AnyAddressType (..)
+    , ApiAddressInspect (..)
     , ApiAddressInspectData (..)
+    , ApiCredential (..)
+    , ApiCredentials (..)
     , ApiErrorCode (..)
+    , ApiPubKey (..)
+    , ApiScript (..)
     , ApiSelectCoinsAction (..)
     , ApiSelectCoinsData (..)
     , ApiStakePool
@@ -121,7 +128,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Random
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( SeqState )
 import Cardano.Wallet.Shelley.Compatibility
-    ( inspectAddress )
+    ( HasNetworkId (..), NetworkId, inspectAddress )
 import Cardano.Wallet.Shelley.Pools
     ( StakePoolLayer (..) )
 import Cardano.Wallet.Transaction
@@ -140,6 +147,10 @@ import Data.Generics.Labels
     ()
 import Data.List
     ( sortOn )
+import Data.Maybe
+    ( fromJust )
+import Data.Proxy
+    ( Proxy (..) )
 import Data.Text.Class
     ( TextDecodingError (..) )
 import Fmt
@@ -153,6 +164,11 @@ import Servant.Server
 import Type.Reflection
     ( Typeable )
 
+import qualified Cardano.Address.Derivation as CA
+import qualified Cardano.Address.Script as CA
+import qualified Cardano.Address.Style.Shelley as CA
+import qualified Cardano.Api.Typed as Cardano
+import qualified Data.ByteString as BS
 import qualified Data.Text as T
 
 server
@@ -162,6 +178,7 @@ server
         , PaymentAddress n ByronKey
         , DelegationAddress n ShelleyKey
         , Typeable n
+        , HasNetworkId n
         )
     => ApiLayer (RndState n) t ByronKey
     -> ApiLayer (SeqState n IcarusKey) t IcarusKey
@@ -182,7 +199,7 @@ server byron icarus shelley spl ntp =
     :<|> byronCoinSelections
     :<|> byronTransactions
     :<|> byronMigrations
-    :<|> network
+    :<|> network'
     :<|> proxy
     :<|> settingS
   where
@@ -202,7 +219,7 @@ server byron icarus shelley spl ntp =
     addresses :: Server (Addresses n)
     addresses = listAddresses shelley (normalizeDelegationAddress @_ @ShelleyKey @n)
         :<|> (handler ApiAddressInspect . inspectAddress . unApiAddressInspectData)
-        :<|> postAnyAddress
+        :<|> postAnyAddress (networkIdVal (Proxy @n))
       where
         toServerError :: TextDecodingError -> ServerError
         toServerError = apiError err400 BadRequest . T.pack . getTextDecodingError
@@ -376,8 +393,8 @@ server byron icarus shelley spl ntp =
                 (icarus, migrateWallet icarus wid m)
              )
 
-    network :: Server Network
-    network =
+    network' :: Server Network
+    network' =
         getNetworkInformation syncTolerance nl
         :<|> getNetworkParameters genesis nl
         :<|> getNetworkClock ntp
@@ -397,3 +414,56 @@ server byron icarus shelley spl ntp =
                 pure NoContent
         getSettings'
             = Handler $ fmap ApiT $ liftIO $ getSettings spl
+
+postAnyAddress
+    :: NetworkId
+    -> ApiCredentials
+    -> Handler AnyAddress
+postAnyAddress net body = do
+    (addr, addrType) <-
+            case (body ^. #spending, body ^. #staking) of
+                (Just (CredentialPubKey (ApiPubKey bytes)), Nothing) ->
+                    pure ( unAddress $
+                           CA.paymentAddress discriminant (spendingFromKey bytes)
+                         , EnterpriseDelegating )
+                (Just (CredentialScript (ApiScript (ApiT s))), Nothing) ->
+                    pure ( unAddress $
+                           CA.paymentAddress discriminant (spendingFromScript s)
+                         , EnterpriseDelegating )
+                (Nothing, Just (CredentialPubKey (ApiPubKey bytes))) -> do
+                    let (Right stakeAddr) =
+                            CA.stakeAddress discriminant (stakingFromKey bytes)
+                    pure ( unAddress stakeAddr, RewardAccount )
+                (Nothing, Just (CredentialScript (ApiScript (ApiT s)))) -> do
+                    let (Right stakeAddr) =
+                            CA.stakeAddress discriminant (stakingFromScript s)
+                    pure ( unAddress stakeAddr, RewardAccount )
+                (Just (CredentialPubKey (ApiPubKey bytes1)), Just (CredentialPubKey (ApiPubKey bytes2))) ->
+                    pure ( unAddress $
+                           CA.delegationAddress discriminant (spendingFromKey bytes1) (stakingFromKey bytes2)
+                         , EnterpriseDelegating )
+                (Just (CredentialPubKey (ApiPubKey bytes)), Just (CredentialScript (ApiScript (ApiT s)))) ->
+                    pure ( unAddress $
+                           CA.delegationAddress discriminant (spendingFromKey bytes) (stakingFromScript s)
+                         , EnterpriseDelegating )
+                (Just (CredentialScript (ApiScript (ApiT s))), Just (CredentialPubKey (ApiPubKey bytes))) ->
+                    pure ( unAddress $
+                           CA.delegationAddress discriminant (spendingFromScript s) (stakingFromKey bytes)
+                         , EnterpriseDelegating )
+                (Just (CredentialScript (ApiScript (ApiT s1))), Just (CredentialScript (ApiScript (ApiT s2))) )->
+                    pure ( unAddress $
+                           CA.delegationAddress discriminant (spendingFromScript s1) (stakingFromScript s2)
+                         , EnterpriseDelegating )
+                (Nothing, Nothing) -> fail "At least one credential is required"
+    pure $ AnyAddress addr addrType (fromInteger netTag)
+  where
+      toXPub = fromJust . CA.xpubFromBytes . pubToXPub
+      pubToXPub bytes = BS.append bytes bytes
+      netTag = case net of
+          Cardano.Mainnet -> 1
+          _ -> 0
+      spendingFromKey = CA.PaymentFromKey . CA.liftXPub . toXPub
+      spendingFromScript = CA.PaymentFromScript . CA.toScriptHash
+      stakingFromKey = CA.DelegationFromKey . CA.liftXPub . toXPub
+      stakingFromScript = CA.DelegationFromScript . CA.toScriptHash
+      (Right discriminant) = CA.mkNetworkDiscriminant netTag
