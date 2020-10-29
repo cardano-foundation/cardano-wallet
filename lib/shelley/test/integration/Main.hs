@@ -111,12 +111,14 @@ import qualified Cardano.Pool.DB as Pool
 import qualified Cardano.Pool.DB.Sqlite as Pool
 import qualified Data.Text as T
 import qualified Test.Integration.Scenario.API.Byron.Addresses as ByronAddresses
+import qualified Test.Integration.Scenario.API.Byron.CoinSelections as ByronCoinSelections
 import qualified Test.Integration.Scenario.API.Byron.HWWallets as ByronHWWallets
 import qualified Test.Integration.Scenario.API.Byron.Migrations as ByronMigrations
 import qualified Test.Integration.Scenario.API.Byron.Transactions as ByronTransactions
 import qualified Test.Integration.Scenario.API.Byron.Wallets as ByronWallets
 import qualified Test.Integration.Scenario.API.Network as Network
 import qualified Test.Integration.Scenario.API.Shelley.Addresses as Addresses
+import qualified Test.Integration.Scenario.API.Shelley.CoinSelections as CoinSelections
 import qualified Test.Integration.Scenario.API.Shelley.HWWallets as HWWallets
 import qualified Test.Integration.Scenario.API.Shelley.Migrations as Migrations
 import qualified Test.Integration.Scenario.API.Shelley.Network as Network_
@@ -145,7 +147,9 @@ main = withUtf8Encoding $ withTracers $ \tracers -> do
         specWithServer tracers $ do
             describe "API Specifications" $ do
                 Addresses.spec @n
+                CoinSelections.spec @n
                 ByronAddresses.spec @n
+                ByronCoinSelections.spec @n
                 Wallets.spec @n
                 ByronWallets.spec @n
                 HWWallets.spec @n

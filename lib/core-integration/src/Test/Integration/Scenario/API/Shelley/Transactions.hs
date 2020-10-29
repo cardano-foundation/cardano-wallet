@@ -835,6 +835,10 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         r2 <- request @ApiFee ctx
                (Link.getTransactionFee @'Shelley wFaucet) Default payload1
         let (Quantity feeMin) = getFromResponse #estimatedMin r2
+        let (Quantity feeMax) = getFromResponse #estimatedMax r2
+        let wFaucetBalRange = ( Quantity (faucetAmt - feeMax - amtSrc)
+                              , Quantity (faucetAmt - feeMin - amtSrc)
+                              )
 
         r3 <- request @(ApiTransaction n) ctx
             (Link.createTransaction @'Shelley wFaucet) Default payload1
@@ -859,7 +863,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 (Link.getWallet @'Shelley wFaucet) Default Empty
             expectField
                 (#balance . #getApiT . #available)
-                (`shouldBe` Quantity (faucetAmt - feeMin - amtSrc)) r''
+                (between wFaucetBalRange) r''
 
         -- #2238 quick fix to reduce likelihood of rollback.
         threadDelay $ 10 * oneSecond
@@ -1002,6 +1006,10 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         r2 <- request @ApiFee ctx
                (Link.getTransactionFee @'Shelley wFaucet) Default payload1
         let (Quantity feeMin) = getFromResponse #estimatedMin r2
+        let (Quantity feeMax) = getFromResponse #estimatedMax r2
+        let wFaucetBalRange = ( Quantity (faucetAmt - feeMax - amtSrc)
+                              , Quantity (faucetAmt - feeMin - amtSrc)
+                              )
 
         r3 <- request @(ApiTransaction n) ctx
             (Link.createTransaction @'Shelley wFaucet) Default payload1
@@ -1027,7 +1035,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 (Link.getWallet @'Shelley wFaucet) Default Empty
             expectField
                 (#balance . #getApiT . #available)
-                (`shouldBe` Quantity (faucetAmt - feeMin - amtSrc)) r''
+                (between wFaucetBalRange) r''
 
         -- #2238 quick fix to reduce likelihood of rollback.
         threadDelay $ 10 * oneSecond
@@ -2004,14 +2012,6 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             , expectResponseCode HTTP.status202
             , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
             , expectField (#status . #getApiT) (`shouldBe` Pending)
-            ]
-
-        -- verify balance on src wallet
-        request @ApiWallet ctx (Link.getWallet @'Shelley wSrc) Default Empty >>= flip verify
-            [ expectSuccess
-            , expectField
-                    (#balance . #getApiT . #available)
-                    (`shouldBe` Quantity (faucetAmt - faucetUtxoAmt))
             ]
 
         -- forget transaction

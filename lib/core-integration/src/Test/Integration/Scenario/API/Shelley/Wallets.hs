@@ -19,13 +19,9 @@ import Prelude
 import Cardano.Mnemonic
     ( entropyToMnemonic, genEntropy, mnemonicToText )
 import Cardano.Wallet.Api.Types
-    ( AddressAmount (..)
-    , ApiAddress
+    ( ApiAddress
     , ApiByronWallet
-    , ApiCoinSelection
-    , ApiCoinSelectionOutput (..)
     , ApiNetworkInformation
-    , ApiT (..)
     , ApiTransaction
     , ApiUtxoStatistics
     , ApiVerificationKey (..)
@@ -38,8 +34,6 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.Primitive.AddressDerivation
     ( AccountingStyle (..)
     , DerivationIndex (..)
-    , DerivationType (..)
-    , Index (..)
     , PassphraseMaxLength (..)
     , PassphraseMinLength (..)
     , PaymentAddress
@@ -51,7 +45,7 @@ import Cardano.Wallet.Primitive.AddressDerivation.Icarus
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
-    ( AddressPoolGap (..), coinTypeAda, purposeCIP1852 )
+    ( AddressPoolGap (..) )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..) )
 import Cardano.Wallet.Primitive.Types
@@ -63,23 +57,17 @@ import Control.Monad
 import Data.Aeson
     ( ToJSON (..) )
 import Data.Generics.Internal.VL.Lens
-    ( view, (^.) )
-import Data.List
-    ( isPrefixOf )
-import Data.List.NonEmpty
-    ( NonEmpty ((:|)) )
+    ( (^.) )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text
     ( Text )
-import Data.Text.Class
-    ( toText )
 import Data.Word
     ( Word32, Word64 )
 import Test.Hspec
-    ( SpecWith, describe, shouldBe, shouldNotBe, shouldSatisfy )
+    ( SpecWith, describe, shouldBe, shouldNotBe )
 import Test.Hspec.Extra
     ( it )
 import Test.Integration.Framework.DSL
@@ -100,7 +88,6 @@ import Test.Integration.Framework.DSL
     , expectWalletUTxO
     , fixturePassphrase
     , fixtureWallet
-    , fixtureWalletWith
     , genMnemonics
     , getFromResponse
     , json
@@ -109,7 +96,6 @@ import Test.Integration.Framework.DSL
     , notDelegating
     , rawRequest
     , request
-    , selectCoins
     , unsafeRequest
     , verify
     , walletId
@@ -139,8 +125,6 @@ import Test.Integration.Framework.TestData
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Data.ByteString.Lazy as BL
-import qualified Data.List as L
-import qualified Data.List.NonEmpty as NE
 import qualified Data.Text as T
 import qualified Network.HTTP.Types as HTTP
 
@@ -926,161 +910,6 @@ spec = describe "SHELLEY_WALLETS" $ do
             let endpoint = Link.putWalletPassphrase @'Shelley w
             rup <- request @ApiWallet ctx endpoint headers payload
             verify rup expectations
-
-    it "WALLETS_COIN_SELECTION_01 - \
-        \A singleton payment is included in the coin selection output." $
-        \ctx -> do
-            source <- fixtureWallet ctx
-            target <- emptyWallet ctx
-            targetAddress : _ <- fmap (view #id) <$> listAddresses @n ctx target
-            let amount = Quantity minUTxOValue
-            let payment = AddressAmount targetAddress amount
-            let output = ApiCoinSelectionOutput targetAddress amount
-            let isValidDerivationPath path =
-                    ( length path == 5 )
-                    &&
-                    ( [ ApiT $ DerivationIndex $ getIndex purposeCIP1852
-                      , ApiT $ DerivationIndex $ getIndex coinTypeAda
-                      , ApiT $ DerivationIndex $ getIndex @'Hardened minBound
-                      ] `isPrefixOf` NE.toList path
-                    )
-            selectCoins @_ @'Shelley ctx source (payment :| []) >>= flip verify
-                [ expectResponseCode HTTP.status200
-                , expectField #inputs
-                    (`shouldSatisfy` (not . null))
-                , expectField #inputs
-                    (`shouldSatisfy` all
-                        (isValidDerivationPath . view #derivationPath))
-                , expectField #change
-                    (`shouldSatisfy` (not . null))
-                , expectField #change
-                    (`shouldSatisfy` all
-                        (isValidDerivationPath . view #derivationPath))
-                , expectField #outputs
-                    (`shouldBe` [output])
-                ]
-
-    it "WALLETS_COIN_SELECTION_02 - \
-        \Multiple payments are all included in the coin selection output." $
-        \ctx -> do
-            let paymentCount = 10
-            source <- fixtureWallet ctx
-            target <- emptyWallet ctx
-            targetAddresses <- fmap (view #id) <$> listAddresses @n ctx target
-            let amounts = Quantity <$> [minUTxOValue ..]
-            let payments = NE.fromList
-                    $ take paymentCount
-                    $ zipWith AddressAmount targetAddresses amounts
-            let outputs =
-                    take paymentCount
-                    $ zipWith ApiCoinSelectionOutput targetAddresses amounts
-            selectCoins @_ @'Shelley ctx source payments >>= flip verify
-                [ expectResponseCode HTTP.status200
-                , expectField #inputs (`shouldSatisfy` (not . null))
-                , expectField #change (`shouldSatisfy` (not . null))
-                , expectField
-                    #outputs (`shouldSatisfy` ((L.sort outputs ==) . L.sort))
-                ]
-
-    it "WALLETS_COIN_SELECTION_03 - \
-        \Deleted wallet is not available for selection" $ \ctx -> do
-        w <- emptyWallet ctx
-        (addr:_) <- fmap (view #id) <$> listAddresses @n ctx w
-        let payments = NE.fromList [ AddressAmount addr (Quantity minUTxOValue) ]
-        _ <- request @ApiWallet ctx (Link.deleteWallet @'Shelley w) Default Empty
-        selectCoins @_ @'Shelley ctx w payments >>= flip verify
-            [ expectResponseCode @IO HTTP.status404
-            , expectErrorMessage (errMsg404NoWallet $ w ^. walletId)
-            ]
-
-    it "WALLETS_COIN_SELECTION_03 - \
-        \Wrong selection method (not 'random')" $ \ctx -> do
-        w <- fixtureWallet ctx
-        (addr:_) <- fmap (view #id) <$> listAddresses @n ctx w
-        let payments = NE.fromList [ AddressAmount addr (Quantity minUTxOValue) ]
-        let payload = Json [json| { "payments": #{payments} } |]
-        let wid = toText $ getApiT $ w ^. #id
-        let endpoints = ("POST",) . mconcat <$>
-                [ [ "v2/wallets/", wid, "/coin-selections/largest-first" ]
-                , [ "v2/wallets/", wid, "/coin-selections" ]
-                ]
-        forM_ endpoints $ \endpoint -> do
-            r <- request @(ApiCoinSelection n) ctx endpoint Default payload
-            verify r [ expectResponseCode @IO HTTP.status404 ]
-
-    describe "WALLETS_COIN_SELECTION_04 - HTTP headers" $ do
-        let matrix =
-                [ ( "No HTTP headers -> 415"
-                  , None
-                  , [ expectResponseCode @IO HTTP.status415
-                    , expectErrorMessage errMsg415
-                    ]
-                  )
-                , ( "Accept: text/plain -> 406"
-                  , Headers
-                        [ ("Content-Type", "application/json")
-                        , ("Accept", "text/plain")
-                        ]
-                  , [ expectResponseCode @IO HTTP.status406
-                    , expectErrorMessage errMsg406
-                    ]
-                  )
-                , ( "No Accept -> 200"
-                  , Headers [ ("Content-Type", "application/json") ]
-                  , [ expectResponseCode @IO HTTP.status200 ]
-                  )
-                , ( "No Content-Type -> 415"
-                  , Headers [ ("Accept", "application/json") ]
-                  , [ expectResponseCode @IO HTTP.status415
-                    , expectErrorMessage errMsg415
-                    ]
-                  )
-                , ( "Content-Type: text/plain -> 415"
-                  , Headers [ ("Content-Type", "text/plain") ]
-                  , [ expectResponseCode @IO HTTP.status415
-                    , expectErrorMessage errMsg415
-                    ]
-                  )
-                ]
-        forM_ matrix $ \(title, headers, expectations) -> it title $ \ctx -> do
-            w <- fixtureWallet ctx
-            (addr:_) <- fmap (view #id) <$> listAddresses @n ctx w
-            let payments = NE.fromList [ AddressAmount addr (Quantity minUTxOValue) ]
-            let payload = Json [json| { "payments": #{payments} } |]
-            r <- request @(ApiCoinSelection n) ctx
-                (Link.selectCoins @'Shelley w) headers payload
-            verify r expectations
-
-    it "WALLETS_COIN_SELECTION_05 - \
-        \No change when payment fee eats leftovers due to minUTxOValue" $
-        \ctx -> do
-            source  <- fixtureWalletWith @n ctx [minUTxOValue, minUTxOValue]
-            target <- emptyWallet ctx
-
-            targetAddress:_ <- fmap (view #id) <$> listAddresses @n ctx target
-            let amount = Quantity minUTxOValue
-            let payment = AddressAmount targetAddress amount
-            let output = ApiCoinSelectionOutput targetAddress amount
-            let isValidDerivationPath path =
-                    ( length path == 5 )
-                    &&
-                    ( [ ApiT $ DerivationIndex $ getIndex purposeCIP1852
-                      , ApiT $ DerivationIndex $ getIndex coinTypeAda
-                      , ApiT $ DerivationIndex $ getIndex @'Hardened minBound
-                      ] `isPrefixOf` NE.toList path
-                    )
-            selectCoins @_ @'Shelley ctx source (payment :| []) >>= flip verify
-                [ expectResponseCode HTTP.status200
-                , expectField #inputs
-                    (`shouldSatisfy` (not . null))
-                , expectField #inputs
-                    (`shouldSatisfy` all
-                        (isValidDerivationPath . view #derivationPath))
-                , expectField #change
-                    (`shouldSatisfy` null)
-                , expectField #outputs
-                    (`shouldBe` [output])
-                ]
 
     it "WALLETS_UTXO_01 - Wallet's inactivity is reflected in utxo" $ \ctx -> do
         w <- emptyWallet ctx
