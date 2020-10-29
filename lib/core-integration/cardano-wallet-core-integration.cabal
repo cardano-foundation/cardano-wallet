@@ -87,10 +87,12 @@ library
       Test.Integration.Scenario.API.Byron.Wallets
       Test.Integration.Scenario.API.Byron.HWWallets
       Test.Integration.Scenario.API.Byron.Addresses
+      Test.Integration.Scenario.API.Byron.CoinSelections
       Test.Integration.Scenario.API.Byron.Transactions
       Test.Integration.Scenario.API.Byron.Migrations
       Test.Integration.Scenario.API.Byron.Network
       Test.Integration.Scenario.API.Shelley.Addresses
+      Test.Integration.Scenario.API.Shelley.CoinSelections
       Test.Integration.Scenario.API.Shelley.HWWallets
       Test.Integration.Scenario.API.Shelley.Network
       Test.Integration.Scenario.API.Shelley.Settings
