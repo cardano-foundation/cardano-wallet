@@ -90,7 +90,7 @@ import Cardano.Wallet.DB.Model
     , mRemovePendingTx
     , mRemoveWallet
     , mRollbackTo
-    , mUpdatePendingTx
+    , mUpdatePendingTxForExpiry
     )
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( dummyTimeInterpreter )
@@ -309,7 +309,7 @@ data Cmd s wid
     | ReadProtocolParameters wid
     | RollbackTo wid SlotNo
     | RemovePendingTx wid (Hash "Tx")
-    | UpdatePendingTx wid SlotNo
+    | UpdatePendingTxForExpiry wid SlotNo
     | PutDelegationCertificate wid DelegationCertificate SlotNo
     | IsStakeKeyRegistered wid
     | PutDelegationRewardBalance wid (Quantity "lovelace" Word64)
@@ -396,8 +396,8 @@ runMock = \case
         first (Resp . fmap Point) . mRollbackTo wid sl
     RemovePendingTx wid tid ->
         first (Resp . fmap Unit) . mRemovePendingTx wid tid
-    UpdatePendingTx wid sl ->
-        first (Resp . fmap Unit) . mUpdatePendingTx wid sl
+    UpdatePendingTxForExpiry wid sl ->
+        first (Resp . fmap Unit) . mUpdatePendingTxForExpiry wid sl
   where
     timeInterpreter = dummyTimeInterpreter
 
@@ -450,7 +450,7 @@ runIO db@DBLayer{..} = fmap Resp . go
             atomically (readTxHistory (PrimaryKey wid) minWith order range status)
         RemovePendingTx wid tid -> catchCannotRemovePendingTx Unit $
             mapExceptT atomically $ removePendingTx (PrimaryKey wid) tid
-        UpdatePendingTx wid sl -> catchNoSuchWallet Unit $
+        UpdatePendingTxForExpiry wid sl -> catchNoSuchWallet Unit $
             mapExceptT atomically $ updatePendingTxForExpiry (PrimaryKey wid) sl
         PutPrivateKey wid pk -> catchNoSuchWallet Unit $
             mapExceptT atomically $ putPrivateKey (PrimaryKey wid) (fromMockPrivKey pk)
@@ -608,7 +608,7 @@ generator (Model _ wids) = Just $ frequency $ fmap (fmap At) <$> concat
             <*> genRange
             <*> arbitrary)
         , (4, RemovePendingTx <$> genId' <*> arbitrary)
-        , (4, UpdatePendingTx <$> genId' <*> arbitrary)
+        , (4, UpdatePendingTxForExpiry <$> genId' <*> arbitrary)
         , (3, PutPrivateKey <$> genId' <*> genPrivKey)
         , (3, ReadPrivateKey <$> genId')
         , (1, RollbackTo <$> genId' <*> arbitrary)
@@ -752,14 +752,15 @@ instance CommandNames (At (Cmd s)) where
     cmdName (At ReadDelegationRewardBalance{}) = "ReadDelegationRewardBalance"
     cmdName (At RollbackTo{}) = "RollbackTo"
     cmdName (At RemovePendingTx{}) = "RemovePendingTx"
-    cmdName (At UpdatePendingTx{}) = "UpdatePendingTx"
+    cmdName (At UpdatePendingTxForExpiry{}) = "UpdatePendingTxForExpiry"
     cmdNames _ =
         [ "CleanDB"
         , "CreateWallet", "RemoveWallet", "ListWallets"
         , "PutCheckpoint", "ReadCheckpoint", "ListCheckpoints", "RollbackTo"
         , "PutWalletMeta", "ReadWalletMeta"
         , "PutDelegationCertificate", "IsStakeKeyRegistered"
-        , "PutTxHistory", "ReadTxHistory", "RemovePendingTx", "UpdatePendingTx"
+        , "PutTxHistory", "ReadTxHistory"
+        , "RemovePendingTx", "UpdatePendingTxForExpiry"
         , "PutPrivateKey", "ReadPrivateKey"
         , "PutProtocolParameters", "ReadProtocolParameters"
         , "PutDelegationRewardBalance", "ReadDelegationRewardBalance"

@@ -54,7 +54,7 @@ module Cardano.Wallet.DB.Model
     , mIsStakeKeyRegistered
     , mPutTxHistory
     , mReadTxHistory
-    , mUpdatePendingTx
+    , mUpdatePendingTxForExpiry
     , mRemovePendingTx
     , mPutPrivateKey
     , mReadPrivateKey
@@ -261,14 +261,16 @@ mListCheckpoints wid db@(Database wallets _) =
   where
     tips = map currentTip . Map.elems . checkpoints
 
-mUpdatePendingTx :: Ord wid => wid -> SlotNo -> ModelOp wid s xprv ()
-mUpdatePendingTx wid currentTip = alterModel wid $ \wal ->
+mUpdatePendingTxForExpiry :: Ord wid => wid -> SlotNo -> ModelOp wid s xprv ()
+mUpdatePendingTxForExpiry wid currentTip = alterModel wid $ \wal ->
     ((), wal { txHistory = setExpired <$> txHistory wal })
   where
     setExpired :: TxMeta -> TxMeta
-    setExpired txMeta
-        | expiry txMeta >= Just currentTip = txMeta { status = Expired }
-        | otherwise = txMeta
+    setExpired txMeta@TxMeta{status,expiry} = case (status, expiry) of
+        (Pending, Just txExp) | txExp <= currentTip ->
+            txMeta { status = Expired }
+        _ ->
+            txMeta
 
 mRemovePendingTx :: Ord wid => wid -> (Hash "Tx") -> ModelOp wid s xprv ()
 mRemovePendingTx wid tid db@(Database wallets txs) = case Map.lookup wid wallets of

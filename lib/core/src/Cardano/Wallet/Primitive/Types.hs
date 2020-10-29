@@ -943,6 +943,8 @@ data TxMeta = TxMeta
     , blockHeight :: !(Quantity "block" Word32)
     , amount :: !(Quantity "lovelace" Natural)
     , expiry :: !(Maybe SlotNo)
+      -- ^ The slot at which a pending transaction will no longer be accepted
+      -- into mempools.
     } deriving (Show, Eq, Ord, Generic)
 
 instance NFData TxMeta

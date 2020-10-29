@@ -531,10 +531,10 @@ walletKeyIsReencrypted (wid, wname) (xprv, pwd) newPwd =
         let credentials (rootK, pwdP) =
                 (getRawKey $ deriveRewardAccount pwdP rootK, pwdP)
         (_,_,_,txOld) <- unsafeRunExceptT $
-            W.signPayment @_ @_ @DummyTarget wl wid () credentials (coerce pwd) Nothing selection
+            W.signPayment @_ @_ @DummyTarget wl wid () credentials (coerce pwd) Nothing Nothing selection
         unsafeRunExceptT $ W.updateWalletPassphrase wl wid (coerce pwd, newPwd)
         (_,_,_,txNew) <- unsafeRunExceptT $
-            W.signPayment @_ @_ @DummyTarget wl wid () credentials newPwd Nothing selection
+            W.signPayment @_ @_ @DummyTarget wl wid () credentials newPwd Nothing Nothing selection
         txOld `shouldBe` txNew
   where
     selection = mempty
@@ -708,7 +708,7 @@ setupFixture (wid, wname, wstate) = do
 -- implements a fake signer that still produces sort of witnesses
 dummyTransactionLayer :: TransactionLayer DummyTarget JormungandrKey
 dummyTransactionLayer = TransactionLayer
-    { mkStdTx = \_ keyFrom slot _md cs -> do
+    { mkStdTx = \_ keyFrom _slot _md cs -> do
         let inps' = map (second coin) (CS.inputs cs)
         let tid = mkTxId inps' (CS.outputs cs) mempty Nothing
         let tx = Tx tid inps' (CS.outputs cs) mempty Nothing
@@ -721,7 +721,7 @@ dummyTransactionLayer = TransactionLayer
 
         -- (tx1, wit1) == (tx2, wit2) <==> fakebinary1 == fakebinary2
         let fakeBinary = SealedTx . B8.pack $ show (tx, wit)
-        return (tx, fakeBinary, slot + 1)
+        return (tx, fakeBinary)
     , initDelegationSelection =
         error "dummyTransactionLayer: initDelegationSelection not implemented"
     , mkDelegationJoinTx =

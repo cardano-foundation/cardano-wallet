@@ -49,7 +49,6 @@ import Cardano.Wallet.Primitive.Types
     ( ChimericAccount (..)
     , Hash (..)
     , SealedTx (..)
-    , SlotNo (..)
     , Tx (..)
     , TxMetadata
     , TxOut (..)
@@ -157,7 +156,6 @@ newTransactionLayer block0H = TransactionLayer
                 , metadata = Nothing
                 }
             , finalizeFragment fragment
-            , maxBound :: SlotNo
             )
 
     -- NOTE

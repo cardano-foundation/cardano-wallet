@@ -118,6 +118,7 @@ module Test.Integration.Framework.DSL
     , unsafeGetTransactionTime
     , getTxId
     , oneSecond
+    , getTTLSlots
 
     -- * Delegation helpers
     , mkEpochInfo
@@ -288,7 +289,7 @@ import Data.Quantity
 import Data.Text
     ( Text )
 import Data.Time
-    ( UTCTime )
+    ( NominalDiffTime, UTCTime )
 import Data.Time.Text
     ( iso8601ExtendedUtc, utcTimeToText )
 import Data.Word
@@ -547,8 +548,9 @@ walletId =
 minUTxOValue :: Natural
 minUTxOValue = 1_000_000
 
--- | Wallet server's chosen transaction TTL value (in slots) when none is given.
-defaultTxTTL :: SlotNo
+-- | Wallet server's chosen transaction TTL value (in seconds) when none is
+-- given.
+defaultTxTTL :: NominalDiffTime
 defaultTxTTL = 7200
 
 --
@@ -1887,7 +1889,7 @@ pubKeyFromMnemonics mnemonics =
 -- Helper for delegation statuses
 --
 getSlotParams
-    :: (Context t)
+    :: Context t
     -> IO (EpochNo, SlotParameters)
 getSlotParams ctx = do
     r1 <- request @ApiNetworkInformation ctx
@@ -1906,10 +1908,21 @@ getSlotParams ctx = do
     let sp = SlotParameters
             (EpochLength epochL)
             (SlotLength slotL)
-            (genesisBlockDate)
+            genesisBlockDate
             (ActiveSlotCoefficient coeff)
 
     return (currentEpoch, sp)
+
+-- | Converts a transaction TTL in seconds into a number of slots, using the
+-- slot length.
+getTTLSlots
+    :: Context t
+    -> NominalDiffTime
+    -> IO SlotNo
+getTTLSlots ctx dt = do
+    (_, SlotParameters _ (SlotLength _slotLenWrong) _ _) <- getSlotParams ctx
+    let slotLen = 0.2 -- fixme: this is the value from byron genesis
+    pure $ SlotNo $ ceiling $ dt / slotLen
 
 -- | Handy constructor for ApiEpochInfo
 mkEpochInfo

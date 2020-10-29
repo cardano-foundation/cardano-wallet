@@ -363,6 +363,8 @@ import Data.Functor
     ( (<&>) )
 import Data.Generics.Internal.VL.Lens
     ( Lens', view, (.~), (^.) )
+import Data.Generics.Internal.VL.Prism
+    ( (^?) )
 import Data.Generics.Labels
     ()
 import Data.List
@@ -1327,9 +1329,10 @@ postTransaction
     -> PostTransactionData n
     -> Handler (ApiTransaction n)
 postTransaction ctx genChange (ApiT wid) body = do
-    let pwd = coerce $ getApiT $ body ^. #passphrase
-    let outs = coerceCoin <$> (body ^. #payments)
-    let md = getApiT <$> body ^. #metadata
+    let pwd = coerce $ body ^. #passphrase . #getApiT
+    let outs = coerceCoin <$> body ^. #payments
+    let md = body ^? #metadata . traverse . #getApiT
+    let mTTL = body ^? #timeToLive . traverse . #getQuantity
 
     let selfRewardCredentials (rootK, pwdP) =
             (getRawKey $ deriveRewardAccount @k pwdP rootK, pwdP)
@@ -1357,7 +1360,7 @@ postTransaction ctx genChange (ApiT wid) body = do
         pure (selection, credentials)
 
     (tx, meta, time, wit) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
-        W.signPayment @_ @s @t @k wrk wid genChange credentials pwd md selection
+        W.signPayment @_ @s @t @k wrk wid genChange credentials pwd md mTTL selection
 
     withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
         W.submitTx @_ @s @t @k wrk wid (tx, meta, wit)
@@ -1669,7 +1672,7 @@ migrateWallet ctx (ApiT wid) migrateData = do
 
     forM migration $ \cs -> do
         (tx, meta, time, wit) <- withWorkerCtx ctx wid liftE liftE
-            $ \wrk -> liftHandler $ W.signTx @_ @s @t @k wrk wid pwd Nothing cs
+            $ \wrk -> liftHandler $ W.signTx @_ @s @t @k wrk wid pwd Nothing Nothing cs
         withWorkerCtx ctx wid liftE liftE
             $ \wrk -> liftHandler $ W.submitTx @_ @_ @t wrk wid (tx, meta, wit)
         liftIO $ mkApiTransaction
@@ -2448,7 +2451,6 @@ instance LiftHandler ErrMkTx where
 instance LiftHandler ErrSignPayment where
     handler = \case
         ErrSignPaymentMkTx e -> handler e
-        ErrSignPaymentNetwork e -> handler e
         ErrSignPaymentNoSuchWallet e -> (handler e)
             { errHTTPCode = 410
             , errReasonPhrase = errReasonPhrase err410
@@ -2458,6 +2460,7 @@ instance LiftHandler ErrSignPayment where
             , errReasonPhrase = errReasonPhrase err403
             }
         ErrSignPaymentWithRootKey e@ErrWithRootKeyWrongPassphrase{} -> handler e
+        ErrSignPaymentIncorrectTTL e -> handler e
 
 instance LiftHandler ErrDecodeSignedTx where
     handler = \case
@@ -2623,7 +2626,6 @@ instance LiftHandler ErrSelectForDelegation where
 instance LiftHandler ErrSignDelegation where
     handler = \case
         ErrSignDelegationMkTx e -> handler e
-        ErrSignDelegationNetwork e -> handler e
         ErrSignDelegationNoSuchWallet e -> (handler e)
             { errHTTPCode = 410
             , errReasonPhrase = errReasonPhrase err410
@@ -2633,6 +2635,7 @@ instance LiftHandler ErrSignDelegation where
             , errReasonPhrase = errReasonPhrase err403
             }
         ErrSignDelegationWithRootKey e@ErrWithRootKeyWrongPassphrase{} -> handler e
+        ErrSignDelegationIncorrectTTL e -> handler e
 
 instance LiftHandler ErrJoinStakePool where
     handler = \case

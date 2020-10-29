@@ -18,10 +18,14 @@ import Cardano.Slotting.Slot
     ( SlotNo (..) )
 import Control.DeepSeq
     ( NFData (..) )
+import Control.Exception
+    ( displayException )
 import Data.Ord
     ( comparing )
 import Fmt
     ( Buildable (..), blockListF, hexF, nameF, unlinesF )
+import Ouroboros.Consensus.HardFork.History.Qry
+    ( PastHorizonException )
 
 import qualified Data.Map as Map
 
@@ -56,3 +60,8 @@ instance NFData TxMetadataValue where
     rnf (TxMetaNumber x) = rnf x
     rnf (TxMetaBytes x) = rnf x
     rnf (TxMetaText x) = rnf x
+
+-- Compare PastHorizonException based on their error messages being the same.
+-- Defined here so that other types with use PastHorizonException can have Eq.
+instance Eq PastHorizonException where
+    a == b = displayException a == displayException b

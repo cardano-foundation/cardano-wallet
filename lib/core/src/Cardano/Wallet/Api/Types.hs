@@ -580,12 +580,14 @@ data PostTransactionData (n :: NetworkDiscriminant) = PostTransactionData
     , passphrase :: !(ApiT (Passphrase "lenient"))
     , withdrawal :: !(Maybe ApiWithdrawalPostData)
     , metadata :: !(Maybe (ApiT TxMetadata))
+    , timeToLive :: !(Maybe (Quantity "second" NominalDiffTime))
     } deriving (Eq, Generic, Show)
 
 data PostTransactionFeeData (n :: NetworkDiscriminant) = PostTransactionFeeData
     { payments :: (NonEmpty (AddressAmount (ApiT Address, Proxy n)))
     , withdrawal :: !(Maybe ApiWithdrawalPostData)
     , metadata :: !(Maybe (ApiT TxMetadata))
+    , timeToLive :: !(Maybe (Quantity "second" NominalDiffTime))
     } deriving (Eq, Generic, Show)
 
 newtype PostExternalTransactionData = PostExternalTransactionData

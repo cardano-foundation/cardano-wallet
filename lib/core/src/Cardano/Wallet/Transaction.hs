@@ -56,13 +56,13 @@ data TransactionLayer t k = TransactionLayer
         -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
             -- Key store
         -> SlotNo
-            -- Tip of the chain, for TTL
+            -- Transaction expiry (TTL) slot.
         -> Maybe TxMetadata
             -- User or application-defined metadata to embed in the transaction.
         -> CoinSelection
             -- A balanced coin selection where all change addresses have been
             -- assigned.
-        -> Either ErrMkTx (Tx, SealedTx, SlotNo)
+        -> Either ErrMkTx (Tx, SealedTx)
         -- ^ Construct a standard transaction
         --
         -- " Standard " here refers to the fact that we do not deal with redemption,
@@ -79,11 +79,11 @@ data TransactionLayer t k = TransactionLayer
         -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
             -- Key store
         -> SlotNo
-            -- Tip of the chain, for TTL
+            -- Transaction expiry (TTL) slot.
         -> CoinSelection
             -- A balanced coin selection where all change addresses have been
             -- assigned.
-        -> Either ErrMkTx (Tx, SealedTx, SlotNo)
+        -> Either ErrMkTx (Tx, SealedTx)
         -- ^ Construct a transaction containing a certificate for delegating to
         -- a stake pool.
         --
@@ -97,11 +97,11 @@ data TransactionLayer t k = TransactionLayer
         -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
             -- Key store
         -> SlotNo
-            -- Tip of the chain, for TTL
+            -- Transaction expiry (TTL) slot.
         -> CoinSelection
             -- A balanced coin selection where all change addresses have been
             -- assigned.
-        -> Either ErrMkTx (Tx, SealedTx, SlotNo)
+        -> Either ErrMkTx (Tx, SealedTx)
         -- ^ Construct a transaction containing a certificate for quiting from
         -- a stake pool.
         --

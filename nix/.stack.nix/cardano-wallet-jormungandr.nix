@@ -138,7 +138,6 @@
             (hsPkgs."contra-tracer" or (errorHandler.buildDepError "contra-tracer"))
             (hsPkgs."deepseq" or (errorHandler.buildDepError "deepseq"))
             (hsPkgs."directory" or (errorHandler.buildDepError "directory"))
-            (hsPkgs."extra" or (errorHandler.buildDepError "extra"))
             (hsPkgs."filepath" or (errorHandler.buildDepError "filepath"))
             (hsPkgs."file-embed" or (errorHandler.buildDepError "file-embed"))
             (hsPkgs."fmt" or (errorHandler.buildDepError "fmt"))

@@ -75,7 +75,7 @@ import Data.Text
 import Data.Text.Class
     ( FromText (..), ToText (..) )
 import Data.Time.Clock
-    ( UTCTime, addUTCTime )
+    ( NominalDiffTime, UTCTime, addUTCTime )
 import Data.Time.Utils
     ( utcTimePred, utcTimeSucc )
 import Data.Word
@@ -85,9 +85,9 @@ import Network.HTTP.Types.Method
 import Numeric.Natural
     ( Natural )
 import Test.Hspec
-    ( SpecWith, describe )
+    ( SpecWith, describe, pendingWith )
 import Test.Hspec.Expectations.Lifted
-    ( shouldBe, shouldSatisfy )
+    ( shouldBe, shouldNotBe, shouldSatisfy )
 import Test.Hspec.Extra
     ( it )
 import Test.Integration.Framework.DSL
@@ -115,6 +115,7 @@ import Test.Integration.Framework.DSL
     , fixtureWallet
     , fixtureWalletWith
     , getFromResponse
+    , getTTLSlots
     , json
     , listAddresses
     , listAllTransactions
@@ -596,8 +597,12 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 (#balance . #available)
                 (`shouldBe` Quantity (faucetAmt - feeEstMax - amt)) ra2
 
-    it "TRANS_CREATE_10 - Pending transaction expiry" $ \ctx -> do
-        (wa, wb) <- (,) <$> fixtureWallet ctx <*> fixtureWallet ctx
+    let absSlotB = view (#absoluteSlotNumber . #getApiT)
+    let absSlotS = view (#absoluteSlotNumber . #getApiT)
+    let slotDiff a b = if a > b then a - b else b - a
+
+    it "TRANS_TTL_01 - Pending transaction expiry" $ \ctx -> do
+        (wa, wb) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
         let amt = minUTxOValue :: Natural
 
         payload <- mkTxPayload ctx wb amt fixturePassphrase
@@ -607,8 +612,6 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
 
         verify r
             [ expectSuccess
-            , expectResponseCode HTTP.status202
-            , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
             , expectField (#status . #getApiT) (`shouldBe` Pending)
             , expectField #expiresAt (`shouldSatisfy` isJust)
             ]
@@ -617,13 +620,112 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
 
         -- Get insertion slot and out of response.
         let (_, Right apiTx) = r
-        let Just sl = view (#absoluteSlotNumber . #getApiT) <$> apiTx ^. #pendingSince
+        let Just sl = absSlotB <$> apiTx ^. #pendingSince
 
         -- The expected expiry slot (adds the hardcoded default ttl)
-        let ttl = sl + defaultTxTTL
+        ttl <- getTTLSlots ctx defaultTxTTL
+        let txExpectedExp = sl + ttl
 
-        (view #absoluteSlotNumber <$> (apiTx ^. #expiresAt))
-            `shouldBe` Just (ApiT ttl)
+        -- The actual expiry slot
+        let Just txActualExp = absSlotS <$> apiTx ^. #expiresAt
+
+        -- Expected and actual are fairly close
+        slotDiff txExpectedExp txActualExp `shouldSatisfy` (< 50)
+
+    it "TRANS_TTL_02 - Custom transaction expiry" $ \ctx -> do
+        (wa, wb) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
+        let amt = minUTxOValue :: Natural
+        let testTTL = 42 :: NominalDiffTime
+
+        basePayload <- mkTxPayload ctx wb amt fixturePassphrase
+        let payload = addTxTTL (realToFrac testTTL) basePayload
+
+        r <- request @(ApiTransaction n) ctx
+            (Link.createTransaction @'Shelley wa) Default payload
+
+        verify r
+            [ expectSuccess
+            , expectField (#status . #getApiT) (`shouldBe` Pending)
+            , expectField #expiresAt (`shouldSatisfy` isJust)
+            ]
+
+        -- Get insertion slot and out of response.
+        let (_, Right apiTx) = r
+        let Just sl = absSlotB <$> apiTx ^. #pendingSince
+
+        -- The expected expiry slot (adds the hardcoded default ttl)
+        ttl <- getTTLSlots ctx testTTL
+        let txExpectedExp = sl + ttl
+
+        -- The actual expiry slot
+        let Just txActualExp = absSlotS <$> apiTx ^. #expiresAt
+
+        -- Expected and actual are fairly close. Any difference should only be
+        -- due to slot rounding.
+        slotDiff txExpectedExp txActualExp `shouldSatisfy` (< 50)
+
+    it "TRANS_TTL_03 - Expired transactions" $ \ctx -> do
+        pendingWith "#1840 this is flaky -- need a better approach"
+
+        (wa, wb) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
+        let amt = minUTxOValue :: Natural
+
+        basePayload <- mkTxPayload ctx wb amt fixturePassphrase
+        -- Set a transaction TTL that is going to expire really soon.
+        --
+        -- The TTL wants to be small enough that it expires before it can get
+        -- into a block, but large enough that the node allows it into its
+        -- mempool.
+        --
+        -- This is probably impossible to do reliably, so this test is pending.
+        --
+        -- Perhaps we could disconnect the test cluster relay node from its
+        -- peers temporarily while letting the tx expire.
+        let payload = addTxTTL 0.1 basePayload
+
+        ra <- request @(ApiTransaction n) ctx
+            (Link.createTransaction @'Shelley wa) Default payload
+
+        verify ra
+            [ expectSuccess
+            , expectField (#status . #getApiT) (`shouldBe` Pending)
+            , expectField #expiresAt (`shouldSatisfy` isJust)
+            ]
+
+        let txid = getFromResponse #id ra
+        let linkSrc = Link.getTransaction @'Shelley wa (ApiTxId txid)
+
+        rb <- eventually "transaction is no longer pending" $ do
+            rr <- request @(ApiTransaction n) ctx linkSrc Default Empty
+            verify rr
+                [ expectSuccess
+                , expectField (#status . #getApiT) (`shouldNotBe` Pending)
+                ]
+            pure rr
+
+        verify rb
+            [ expectField (#status . #getApiT) (`shouldBe` Expired)
+            , expectField #expiresAt (`shouldSatisfy` isJust)
+            ]
+
+    it "TRANS_TTL_04 - Large TTL" $ \ctx -> do
+        (wa, wb) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
+        let amt = minUTxOValue :: Natural
+        let hugeTTL = 1e9 :: NominalDiffTime
+
+        basePayload <- mkTxPayload ctx wb amt fixturePassphrase
+        let payload = addTxTTL (realToFrac hugeTTL) basePayload
+
+        r <- request @(ApiTransaction n) ctx
+            (Link.createTransaction @'Shelley wa) Default payload
+
+        -- If another HFC Era is added, then this payment request will fail
+        -- because the expiry would be past the slotting horizon.
+        verify r
+            [ expectSuccess
+            , expectField (#status . #getApiT) (`shouldBe` Pending)
+            , expectField #expiresAt (`shouldSatisfy` isJust)
+            ]
 
     it "TRANSMETA_CREATE_01 - Transaction with metadata" $ \ctx -> do
         (wa, wb) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
@@ -2543,6 +2645,12 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 }],
                 "passphrase": #{passphrase}
             }|]
+
+    addTxTTL :: Double -> Payload -> Payload
+    addTxTTL t (Json (Aeson.Object o)) = Json (Aeson.Object (o <> ttl))
+      where
+        ttl = "time_to_live" .= [json|{ "quantity": #{t}, "unit": "second"}|]
+    addTxTTL _ _ = error "can't do that"
 
     addTxMetadata :: Aeson.Value -> Payload -> Payload
     addTxMetadata md (Json (Aeson.Object o)) =

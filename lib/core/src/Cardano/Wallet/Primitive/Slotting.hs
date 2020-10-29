@@ -26,6 +26,7 @@ module Cardano.Wallet.Primitive.Slotting
     , slotRangeFromTimeRange
     , firstSlotInEpoch
     , ongoingSlotAt
+    , ceilingSlotAt
     , endTimeOfEpoch
 
     -- ** Running queries

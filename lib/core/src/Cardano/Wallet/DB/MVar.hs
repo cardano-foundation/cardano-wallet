@@ -54,7 +54,7 @@ import Cardano.Wallet.DB.Model
     , mRemovePendingTx
     , mRemoveWallet
     , mRollbackTo
-    , mUpdatePendingTx
+    , mUpdatePendingTxForExpiry
     )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..) )
@@ -176,7 +176,7 @@ newDBLayer timeInterpreter = do
         -----------------------------------------------------------------------}
 
         , updatePendingTxForExpiry = \pk tip -> ExceptT $ do
-            alterDB errNoSuchWallet db (mUpdatePendingTx pk tip)
+            alterDB errNoSuchWallet db (mUpdatePendingTxForExpiry pk tip)
 
         , removePendingTx = \pk tid -> ExceptT $ do
             alterDB errCannotRemovePendingTx db (mRemovePendingTx pk tid)
