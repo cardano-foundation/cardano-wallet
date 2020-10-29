@@ -1915,6 +1915,30 @@ x-responsesErr: &responsesErr
       description: A specific error code for this error, more precise than HTTP ones.
       example: an_error_code
 
+x-errNotFound: &errNotFound
+  <<: *responsesErr
+  title: not_found
+  properties:
+    message:
+      type: string
+      description: A descriptive error message.
+    code:
+    code:
+      type: string
+      enum: ['not_found']
+
+x-errSoftDerivationRequired: &errSoftDerivationRequired
+  <<: *responsesErr
+  title: not_found
+  properties:
+    message:
+      type: string
+      description: A descriptive error message.
+    code:
+    code:
+      type: string
+      enum: ['soft_derivation_required']
+
 x-errNoSuchWallet: &errNoSuchWallet
   <<: *responsesErr
   title: no_such_wallet
