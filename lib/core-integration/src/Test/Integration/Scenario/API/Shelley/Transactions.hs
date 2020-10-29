@@ -2014,14 +2014,6 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             , expectField (#status . #getApiT) (`shouldBe` Pending)
             ]
 
-        -- verify balance on src wallet
-        request @ApiWallet ctx (Link.getWallet @'Shelley wSrc) Default Empty >>= flip verify
-            [ expectSuccess
-            , expectField
-                    (#balance . #getApiT . #available)
-                    (`shouldBe` Quantity (faucetAmt - faucetUtxoAmt))
-            ]
-
         -- forget transaction
         request @ApiTxId ctx (Link.deleteTransaction @'Shelley wSrc (ApiTxId txid)) Default Empty
             >>= expectResponseCode @IO HTTP.status204

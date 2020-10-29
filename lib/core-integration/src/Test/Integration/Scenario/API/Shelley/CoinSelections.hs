@@ -28,11 +28,7 @@ import Cardano.Wallet.Api.Types
     , WalletStyle (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( DerivationIndex (..)
-    , DerivationType (..)
-    , Index (..)
-    , PaymentAddress
-    )
+    ( DerivationIndex (..), DerivationType (..), Index (..), PaymentAddress )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
@@ -77,10 +73,7 @@ import Test.Integration.Framework.DSL
     , walletId
     )
 import Test.Integration.Framework.TestData
-    ( errMsg404NoWallet
-    , errMsg406
-    , errMsg415
-    )
+    ( errMsg404NoWallet, errMsg406, errMsg415 )
 
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Data.List as L
