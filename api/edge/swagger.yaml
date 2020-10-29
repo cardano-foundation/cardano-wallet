@@ -469,7 +469,7 @@ x-transactionExpiresAt: &transactionExpiresAt
     <span style="position: relative; left: 35px; top: -21px; vertical-align: middle; background-color: rgba(142, 142, 220, 0.05); color: rgba(50, 50, 159, 0.9); margin: 0 5px; padding: 0 5px; border: 1px solid rgba(50, 50, 159, 0.1); line-height: 20px; font-size: 13px; border-radius: 2px;">
     <strong>if:</strong> status == pending OR status == expired
     </span><br/>
-    Absolute time and slot at which the pending transaction TTL will expire.
+    Absolute time and slot at which the pending transaction TTL (time to live) will lapse.
   <<: *slotReference
 
 x-transactionPendingSince: &transactionPendingSince
@@ -743,6 +743,29 @@ x-transactionMetadata: &transactionMetadata
     2: { "bytes": "2512a00e9653fe49a44a5886202e24d77eeb998f" }
     3: { "list": [ { "int": 14 }, { "int": 42 }, { "string": "1337" } ] }
     4: { "map": [{ "k": { "string": "key" }, "v": { "string": "value" }}, { "k": { "int": 14 }, "v": { "int": 42 } }] }
+
+x-transactionTTL: &transactionTTL
+  description: |
+    The TTL (time to live) is the time period in which the transaction
+    will be accepted into node mempools.
+
+    After the TTL has lapsed, the transaction is considered
+    expired. At this point, nodes will give up on broadcasting the
+    transaction, and the wallet will release the funds allocated to
+    the transaction so they can be used for other payments.
+
+    The TTL should be long enough that the transaction has time to be
+    propagated through the network and confirmed, but short enough so
+    that - in the event of failures - UTxO are returned to the wallet
+    in a timely manner.
+
+    The TTL value is given in seconds. It will be converted to a slot
+    number internally.
+
+    If the TTL is not provided for a payment, a reasonable default
+    value will be used.
+
+  <<: *numberOfSeconds
 
 x-stakePoolApparentPerformance: &stakePoolApparentPerformance
   description: |
@@ -1617,6 +1640,7 @@ components:
         payments: *transactionOutputs
         withdrawal: *transactionWithdrawalRequestSelf
         metadata: *transactionMetadata
+        time_to_live: *transactionTTL
 
     ApiPostRedemptionData: &ApiPostRedemptionData
       type: object
@@ -1646,6 +1670,7 @@ components:
         payments: *transactionOutputs
         withdrawal: *transactionWithdrawalRequestSelf
         metadata: *transactionMetadata
+        time_to_live: *transactionTTL
 
     ApiPostRedemptionFeeData: &ApiPostRedemptionFeeData
       type: object
