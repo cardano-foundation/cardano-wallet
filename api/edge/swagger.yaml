@@ -1519,6 +1519,7 @@ components:
 
     ApiByronWalletRandomXPrvPostData: &ApiByronWalletRandomXPrvPostData
       type: object
+      description: patate
       required:
         - name
         - encrypted_root_private_key
@@ -1528,8 +1529,13 @@ components:
           type: string
           enum: ["random"]
         name: *walletName
-        encrypted_root_private_key: *walletEncryptedRootPrivateKey
-        passphrase_hash: *walletPassphraseHash
+        encrypted_root_private_key:
+          <<: *walletEncryptedRootPrivateKey
+          deprecated: true
+
+        passphrase_hash:
+          <<: *walletPassphraseHash
+          deprecated: true
 
     ApiByronWalletIcarusPostData: &ApiByronWalletIcarusPostData
       type: object
@@ -2810,7 +2816,12 @@ paths:
       description: |
         <p align="right">status: <strong>stable</strong></p>
 
-        Restore a Byron wallet from a mnemonic sentence or encrypted root private key.
+        Restore a Byron wallet from a mnemonic sentence or encrypted root private key (deprecated).
+
+          **⚠️ WARNING ⚠️**
+
+          The construction of random wallet in itself is **deprecated**, in particular the restoration from an encrypted root private key.
+          These endpoints exist to ease migrations from legacy software such as `cardano-sl` but should be avoided by new applications.
       requestBody:
         required: true
         content:
@@ -2819,8 +2830,6 @@ paths:
               oneOf:
                 - <<: *ApiByronWalletRandomPostData
                   title: random
-                - <<: *ApiByronWalletRandomXPrvPostData
-                  title: random (from xprv)
                 - <<: *ApiByronWalletIcarusPostData
                   title: icarus
                 - <<: *ApiByronWalletTrezorPostData
@@ -2829,6 +2838,8 @@ paths:
                   title: ledger
                 - <<: *ApiAccountPostData
                   title: icarus/trezor/ledger (from xpub)
+                - <<: *ApiByronWalletRandomXPrvPostData
+                  title: random (from xprv)
       responses: *responsesPostByronWallet
 
     get:
