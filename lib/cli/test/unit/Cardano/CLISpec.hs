@@ -659,7 +659,7 @@ spec = do
             err _ _ = False
         mapM_
             (\(desc, arg, tst) -> it desc (parse arg `shouldSatisfy` tst arg))
-            [ ( "http", "http://localhost/api", ok )
+            [ ( "http", "http://localhost", ok )
             , ( "https", "https://iohkdev.io", ok )
             , ( "not http(s)", "gopher://iohk.io", err )
             , ( "relative", "/home/user", err )

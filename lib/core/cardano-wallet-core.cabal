@@ -49,6 +49,7 @@ library
     , deepseq
     , digest
     , directory
+    , errors
     , exceptions
     , extra
     , fast-logger
@@ -66,6 +67,7 @@ library
     , iohk-monitoring
     , memory
     , monad-logger
+    , mtl
     , network
     , network-uri
     , ntp-client

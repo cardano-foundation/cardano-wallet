@@ -1102,7 +1102,7 @@ instance Malformed (BodyParam SettingsPutData) where
                           "pool_metadata_source": "not_a_uri"
                           }
             }|]
-          , "Error in $.settings['pool_metadata_source']: Could not parse URI: not_a_uri"
+          , "Error in $.settings['pool_metadata_source']: Not a valid absolute URI."
           )
         ]
 

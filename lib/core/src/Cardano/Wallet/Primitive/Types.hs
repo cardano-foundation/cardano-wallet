@@ -200,8 +200,14 @@ import Control.Arrow
     ( left, right )
 import Control.DeepSeq
     ( NFData (..) )
+import Control.Error.Util
+    ( (??) )
 import Control.Monad
     ( guard, (<=<), (>=>) )
+import Control.Monad.Except
+    ( runExceptT )
+import Control.Monad.Trans.Except
+    ( throwE )
 import Crypto.Hash
     ( Blake2b_160, Digest, digestFromByteString )
 import Data.Aeson
@@ -214,6 +220,8 @@ import Data.ByteArray.Encoding
     ( Base (Base16), convertFromBase, convertToBase )
 import Data.ByteString
     ( ByteString )
+import Data.Functor.Identity
+    ( runIdentity )
 import Data.Generics.Internal.VL.Lens
     ( set, view, (^.) )
 import Data.Generics.Labels
@@ -227,7 +235,7 @@ import Data.List.NonEmpty
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
-    ( isJust )
+    ( isJust, isNothing )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -277,7 +285,7 @@ import GHC.Stack
 import GHC.TypeLits
     ( KnownNat, KnownSymbol, Symbol, natVal, symbolVal )
 import Network.URI
-    ( URI, parseAbsoluteURI, uriScheme, uriToString )
+    ( URI (..), parseAbsoluteURI, uriQuery, uriScheme, uriToString )
 import Numeric.Natural
     ( Natural )
 import System.Random
@@ -1959,14 +1967,22 @@ instance ToText SmashServer where
     toText (SmashServer uri) = T.pack $ uriToString id uri ""
 
 instance FromText SmashServer where
-    fromText (T.unpack -> uri) =
-        case (parseAbsoluteURI >=> isHttp) uri of
-            Nothing -> Left $ TextDecodingError ("Could not parse URI: " <> uri)
-            Just uri' -> Right $ SmashServer uri'
-      where
-        isHttp uri'
-            | uriScheme uri' `elem` ["http:", "https:"] = Just uri'
-            | otherwise = Nothing
+    fromText (T.unpack -> uri) = runIdentity $ runExceptT $ do
+        uri' <- parseAbsoluteURI uri ?? TextDecodingError
+            ("Not a valid absolute URI.")
+        case uri' of
+            (URI {uriAuthority, uriScheme, uriPath, uriQuery, uriFragment})
+                | uriScheme `notElem` ["http:", "https:"] ->
+                    throwE (TextDecodingError
+                        "Not a valid URI scheme, only http/https is supported.")
+                | isNothing uriAuthority ->
+                    throwE
+                        (TextDecodingError "URI must contain a domain part.")
+                | not ((uriPath == "" || uriPath == "/")
+                && uriQuery == "" && uriFragment == "") ->
+                    throwE
+                        (TextDecodingError "URI must not contain a path/query/fragment.")
+            _ -> pure $ SmashServer uri'
 
 -- | Source of Stake Pool Metadata aggregation.
 data PoolMetadataSource
