@@ -127,9 +127,14 @@ import Cardano.Wallet.Primitive.Types
     , log10
     )
 import Cardano.Wallet.Shelley
-    ( HasNetworkId (..), SomeNetworkDiscriminant (..) )
+    ( SomeNetworkDiscriminant (..) )
 import Cardano.Wallet.Shelley.Compatibility
-    ( NodeVersionData, Shelley, emptyGenesis, fromCardanoBlock )
+    ( HasNetworkId (..)
+    , NodeVersionData
+    , Shelley
+    , emptyGenesis
+    , fromCardanoBlock
+    )
 import Cardano.Wallet.Shelley.Launch
     ( NetworkConfiguration (..), parseGenesisData )
 import Cardano.Wallet.Shelley.Network

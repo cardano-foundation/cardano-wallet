@@ -327,8 +327,8 @@ x-credentialPubKey: &credentialPubKey
   format: bech32
   pattern: "^((addr_vk)|(stake_vk))1[0-9a-z]*$"
   example:
-    - addr_vk13pfp60uf4ru7cmj5d57xjdzj6lagn328ah67h35urqrl92jn094z0s07fcy2pvfw3xfhna6fa24na8nk6lraymjcrl5wwj6chsjqtjqlfw44z
-    - stake_vk13pfp60uf4ru7cmj5d57xjdzj6lagn328ah67h35urqrl92jn094z0s07fcy2pvfw3xfhna6fa24na8nk6lraymjcrl5wwj6chsjqtjqlfw44z
+    - stake_vk16apaenn9ut6s40lcw3l8v68xawlrlq20z2966uzcx8jmv2q9uy7qau558d
+    - addr_vk16apaenn9ut6s40lcw3l8v68xawlrlq20z2966uzcx8jmv2q9uy7q3yvuv2
 
 x-anyAddress: &anyAddress
   description: A Shelley address representing either enterprise, reward account or delegating address
@@ -336,8 +336,9 @@ x-anyAddress: &anyAddress
   format: bech32
   pattern: "^((addr)|(stake)|(addr_test)|(stake_test))1[0-9a-z]*$"
   example:
-    - addr13pfp60uf4ru7cmj5d57xjdzj6lagn328ah67h35urqrl92jn094z0s07fcy2pvfw3xfhna6fa24na8nk6lraymjcrl5wwj6chsjqtjqlfw44z
-    - stake_test13pfp60uf4ru7cmj5d57xjdzj6lagn328ah67h35urqrl92jn094z0s07fcy2pvfw3xfhna6fa24na8nk6lraymjcrl5wwj6chsjqtjqlfw44z
+    - stake17xt2z3pa7etaxp7jurdg0m8jhsmtp4r2z56pd3a5q3jhxycdxzmx9
+    - addr1wy5np0m5x03tax3kcdh6e2cet98qcfs80wtv4cyvl5taclc6dnd8e
+    - addr1xy5np0m5x03tax3kcdh6e2cet98qcfs80wtv4cyvl5tacluk59zrmajh6vra9cx6slk090pkkr2x59f5zmrmgpr9wvfs37hjk4
 
 x-credential: &credential
   nullable: false
