@@ -2,6 +2,6 @@ status = [
   "buildkite/cardano-wallet",
   "ci/hydra-build:required",
 ]
-timeout_sec = 7200
+timeout_sec = 14400
 required_approvals = 1
 delete_merged_branches = false
