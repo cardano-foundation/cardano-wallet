@@ -36,12 +36,6 @@ jobs:
       - name: 'cardano-wallet:integration'
         run: '.\\cardano-wallet-test-integration.exe --color'
         timeout-minutes: 60
-      - name: 'cardano-wallet-jormungandr:unit'
-        run: '.\\cardano-wallet-jormungandr-test-unit.exe --color'
-      - name: 'cardano-wallet-jormungandr:integration'
-        run: '.\\cardano-wallet-jormungandr-test-jormungandr-integration.exe --color'
-        continue-on-error: true
-        timeout-minutes: 60
       - uses: actions/checkout@v2
         with:
           fetch-depth: 0
