@@ -327,8 +327,8 @@ x-credentialPubKey: &credentialPubKey
   format: bech32
   pattern: "^((addr_vk)|(stake_vk))1[0-9a-z]*$"
   example:
-    0: addr_vk13pfp60uf4ru7cmj5d57xjdzj6lagn328ah67h35urqrl92jn094z0s07fcy2pvfw3xfhna6fa24na8nk6lraymjcrl5wwj6chsjqtjqlfw44z
-    1: stake_vk13pfp60uf4ru7cmj5d57xjdzj6lagn328ah67h35urqrl92jn094z0s07fcy2pvfw3xfhna6fa24na8nk6lraymjcrl5wwj6chsjqtjqlfw44z
+    - addr_vk13pfp60uf4ru7cmj5d57xjdzj6lagn328ah67h35urqrl92jn094z0s07fcy2pvfw3xfhna6fa24na8nk6lraymjcrl5wwj6chsjqtjqlfw44z
+    - stake_vk13pfp60uf4ru7cmj5d57xjdzj6lagn328ah67h35urqrl92jn094z0s07fcy2pvfw3xfhna6fa24na8nk6lraymjcrl5wwj6chsjqtjqlfw44z
 
 x-anyAddress: &anyAddress
   description: A Shelley address representing either enterprise, reward account or delegating address
@@ -336,8 +336,8 @@ x-anyAddress: &anyAddress
   format: bech32
   pattern: "^((addr)|(stake)|(addr_test)|(stake_test))1[0-9a-z]*$"
   example:
-    0: addr13pfp60uf4ru7cmj5d57xjdzj6lagn328ah67h35urqrl92jn094z0s07fcy2pvfw3xfhna6fa24na8nk6lraymjcrl5wwj6chsjqtjqlfw44z
-    1: stake_test13pfp60uf4ru7cmj5d57xjdzj6lagn328ah67h35urqrl92jn094z0s07fcy2pvfw3xfhna6fa24na8nk6lraymjcrl5wwj6chsjqtjqlfw44z
+    - addr13pfp60uf4ru7cmj5d57xjdzj6lagn328ah67h35urqrl92jn094z0s07fcy2pvfw3xfhna6fa24na8nk6lraymjcrl5wwj6chsjqtjqlfw44z
+    - stake_test13pfp60uf4ru7cmj5d57xjdzj6lagn328ah67h35urqrl92jn094z0s07fcy2pvfw3xfhna6fa24na8nk6lraymjcrl5wwj6chsjqtjqlfw44z
 
 x-credential: &credential
   nullable: false
@@ -355,19 +355,23 @@ x-script: &script
      - any condition for which any list element' expectation is to be met for the condition to be valid
      - some condition for which a minimal number of list elements' expectation is to be met for the condition to be valid
     example:
-      - "script_vkh18srsxr3khll7vl3w9mqfu55n6wzxxlxj7qzr2mhnyreluzt36ms"
-      - { "all": [ "script_vkh18srsxr3khll7vl3w9mqfu55n6wzxxlxj7qzr2mhnyreluzt36ms"
-                  , "script_vkh18srsxr3khll7vl3w9mqfu55n6wzxxlxj7qzr2mhnyreluzt37ms"] }
-      - { "all": [ "script_vkh18srsxr3khll7vl3w9mqfu55n6wzxxlxj7qzr2mhnyreluzt36ms"
-                  , { "any" : [ "script_vkh18srsxr3khll7vl3w9mqfu55n6wzxxlxj7qzr2mhnyreluzt37ms"
-                              , "script_vkh18srsxr3khll7vl3w9mqfu55n6wzxxlxj7qzr2mhnyreluzt38ms"] }
-                  ] }
-      - { "all": [ "script_vkh18srsxr3khll7vl3w9mqfu55n6wzxxlxj7qzr2mhnyreluzt36ms"
-                  , { "some" : { "from" : [ "script_vkh18srsxr3khll7vl3w9mqfu55n6wzxxlxj7qzr2mhnyreluzt37ms"
-                                          , "script_vkh18srsxr3khll7vl3w9mqfu55n6wzxxlxj7qzr2mhnyreluzt38ms"]
-                               , "at_least" : 2
-                               }
-                    } ] }
+      -
+        "script_vkh18srsxr3khll7vl3w9mqfu55n6wzxxlxj7qzr2mhnyreluzt36ms"
+      -
+        { "all": [ "script_vkh18srsxr3khll7vl3w9mqfu55n6wzxxlxj7qzr2mhnyreluzt36ms"
+                 , "script_vkh18srsxr3khll7vl3w9mqfu55n6wzxxlxj7qzr2mhnyreluzt37ms"] }
+      -
+        { "all": [ "script_vkh18srsxr3khll7vl3w9mqfu55n6wzxxlxj7qzr2mhnyreluzt36ms"
+                 , { "any" : [ "script_vkh18srsxr3khll7vl3w9mqfu55n6wzxxlxj7qzr2mhnyreluzt37ms"
+                             , "script_vkh18srsxr3khll7vl3w9mqfu55n6wzxxlxj7qzr2mhnyreluzt38ms"] }
+                 ] }
+      -
+        { "all": [ "script_vkh18srsxr3khll7vl3w9mqfu55n6wzxxlxj7qzr2mhnyreluzt36ms"
+                 , { "some" : { "from" : [ "script_vkh18srsxr3khll7vl3w9mqfu55n6wzxxlxj7qzr2mhnyreluzt37ms"
+                                         , "script_vkh18srsxr3khll7vl3w9mqfu55n6wzxxlxj7qzr2mhnyreluzt38ms"]
+                              , "at_least" : 2
+                              }
+                   } ] }
   nullable: false
   additionalProperties:
     $ref: "#/components/schemas/ScriptValue"

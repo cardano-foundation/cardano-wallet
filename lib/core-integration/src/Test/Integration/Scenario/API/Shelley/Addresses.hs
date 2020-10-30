@@ -335,6 +335,60 @@ spec = describe "SHELLEY_ADDRESSES" $ do
         let goldenAddr =
                 "addr1wy5np0m5x03tax3kcdh6e2cet98qcfs80wtv4cyvl5taclc6dnd8e" :: Text
         validateAddr r goldenAddr
+
+    -- Generating golden test data for reward account addresses:
+    --- $ cardano-address script hash "$(cat script.txt)" \
+    --- | cardano-address address stake --from-script --network-tag mainnet
+    it "ANY_ADDRESS_POST_05 - Golden tests for reward account script address - any" $ \ctx -> do
+        let payload = Json [json|{
+                "staking": {
+                    "script": {
+                        "any": [
+                            "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a",
+                            "script_vkh1mwlngj4fcwegw53tdmyemfupen2758xwvudmcz9ap8cnqk7jmh4"
+                            ]
+                        }
+                    }
+            }|]
+        r <- request @AnyAddress ctx Link.postAnyAddress Default payload
+        expectResponseCode HTTP.status201 r
+        let goldenAddr =
+                "stake17xt2z3pa7etaxp7jurdg0m8jhsmtp4r2z56pd3a5q3jhxycdxzmx9" :: Text
+        validateAddr r goldenAddr
+
+    -- Generating golden test data for reward account addresses:
+    --- $ cardano-address script hash "$(cat script1.txt)" \
+    --- | cardano-address address payment --from-script --network-tag mainnet
+    --- | cardano-address address delegation --from-script $(cardano-address script hash "$(cat script2.txt)")
+    it "ANY_ADDRESS_POST_06 - Golden tests for delegating script address - any" $ \ctx -> do
+        let payload = Json [json|{
+                "spending": {
+                    "script": {
+                        "some": {
+                            "from" : [
+                                "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a",
+                                "script_vkh1mwlngj4fcwegw53tdmyemfupen2758xwvudmcz9ap8cnqk7jmh4",
+                                "script_vkh1qw4l62k4203dllrk3dk3sfjpnh3gufhtrtm4qvtrvn4xjp5x5rt"
+                                ],
+                             "at_least": 2
+                             }
+                        }
+                    },
+                "staking": {
+                    "script": {
+                        "any": [
+                            "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a",
+                            "script_vkh1mwlngj4fcwegw53tdmyemfupen2758xwvudmcz9ap8cnqk7jmh4"
+                            ]
+                        }
+                    }
+            }|]
+        r <- request @AnyAddress ctx Link.postAnyAddress Default payload
+        expectResponseCode HTTP.status201 r
+        let goldenAddr =
+                "addr1xy5np0m5x03tax3kcdh6e2cet98qcfs80wtv4cyvl5tacluk59zr\
+                \majh6vra9cx6slk090pkkr2x59f5zmrmgpr9wvfs37hjk4" :: Text
+        validateAddr r goldenAddr
   where
     validateAddr resp expected = do
         let addr = getFromResponse id resp
