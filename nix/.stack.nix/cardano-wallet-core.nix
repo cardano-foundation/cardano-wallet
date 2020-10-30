@@ -79,6 +79,7 @@
           (hsPkgs."random-shuffle" or (errorHandler.buildDepError "random-shuffle"))
           (hsPkgs."retry" or (errorHandler.buildDepError "retry"))
           (hsPkgs."safe" or (errorHandler.buildDepError "safe"))
+          (hsPkgs."safe-exceptions" or (errorHandler.buildDepError "safe-exceptions"))
           (hsPkgs."scientific" or (errorHandler.buildDepError "scientific"))
           (hsPkgs."scrypt" or (errorHandler.buildDepError "scrypt"))
           (hsPkgs."servant" or (errorHandler.buildDepError "servant"))
