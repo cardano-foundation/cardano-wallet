@@ -98,7 +98,7 @@ import Cardano.Wallet.Shelley.Launch
     , parseGenesisData
     )
 import Cardano.Wallet.Version
-    ( GitRevision, Version, gitRevision, showFullVersion, version )
+    ( GitRevision, Version, gitRevision, showFullVersion )
 import Control.Applicative
     ( Const (..), optional )
 import Control.Monad
@@ -134,6 +134,7 @@ import System.Environment
 import System.Exit
     ( ExitCode (..), exitWith )
 
+import qualified Cardano.Wallet.Version as V
 import qualified Data.Text as T
 
 {-------------------------------------------------------------------------------
@@ -296,7 +297,7 @@ withTracers logOpt action =
     withLogging [LogToStdout (loggingMinSeverity logOpt)] $ \(_, tr) -> do
         let trMain = appendName "main" (transformTextTrace tr)
         let tracers = setupTracers (loggingTracers logOpt) tr
-        logInfo trMain $ MsgVersion version gitRevision
+        logInfo trMain $ MsgVersion V.version gitRevision
         logInfo trMain =<< MsgCmdLine <$> getExecutablePath <*> getArgs
         action trMain tracers
 

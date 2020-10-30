@@ -150,8 +150,11 @@ module Cardano.Wallet.Api.Types
     , PostTransactionFeeDataT
     , ApiWalletMigrationPostDataT
 
-    -- * other
+    -- * Others
     , defaultRecordTypeOptions
+    , HealthStatusSMASH (..)
+    , HealthCheckSMASH (..)
+    , ApiHealthCheck (..)
     ) where
 
 import Prelude
@@ -205,6 +208,7 @@ import Cardano.Wallet.Primitive.Types
     , SlotLength (..)
     , SlotNo (..)
     , SlottingParameters (..)
+    , SmashServer (..)
     , StakePoolMetadata
     , StartTime (..)
     , WalletBalance (..)
@@ -2161,3 +2165,49 @@ type instance PostTransactionFeeDataT (n :: NetworkDiscriminant) =
 
 type instance ApiWalletMigrationPostDataT (n :: NetworkDiscriminant) (s :: Symbol) =
     ApiWalletMigrationPostData n s
+
+
+{-------------------------------------------------------------------------------
+                         SMASH interfacing types
+-------------------------------------------------------------------------------}
+
+-- | Parses the SMASH HealthCheck type from the SMASH API.
+data HealthStatusSMASH = HealthStatusSMASH
+    { status :: Text
+    , version :: Text
+    } deriving (Generic, Show, Eq, Ord)
+
+instance FromJSON HealthStatusSMASH where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance ToJSON HealthStatusSMASH where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+-- | Dscribes the health status of the SMASH server.
+data HealthCheckSMASH =
+      Available          -- server available
+    | Unavailable        -- server reachable, but unavailable
+    | Unreachable        -- could not get a response from the SMASH server
+    | NoSmashConfigured  -- no SMASH server has been configured
+    deriving (Generic, Show, Eq, Ord)
+
+newtype ApiHealthCheck = ApiHealthCheck
+    { health :: HealthCheckSMASH }
+    deriving (Generic, Show, Eq, Ord)
+
+instance FromJSON HealthCheckSMASH where
+    parseJSON = genericParseJSON defaultSumTypeOptions
+        { sumEncoding = UntaggedValue }
+instance ToJSON HealthCheckSMASH where
+    toJSON = genericToJSON defaultSumTypeOptions
+
+instance FromJSON ApiHealthCheck where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance ToJSON ApiHealthCheck where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+instance FromJSON (ApiT SmashServer) where
+    parseJSON = parseJSON >=> either (fail . show . ShowFmt) (pure . ApiT) . fromText
+
+instance ToJSON (ApiT SmashServer) where
+    toJSON = toJSON . toText . getApiT
+

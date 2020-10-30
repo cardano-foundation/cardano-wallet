@@ -1700,6 +1700,30 @@ components:
       properties:
         settings: *settings
 
+    ApiSmashServer: &ApiSmashServer
+      type: string
+      pattern: '^https?:\/\/[a-zA-Z0-9-_~.]+(:[0-9]+)?/?$'
+      example: https://smash.cardano-mainnet.iohk.io/
+      description: A base SMASH uri without endpoint path.
+
+    ApiHealthCheck: &ApiHealthCheck
+      type: object
+      required:
+        - health
+      properties:
+        health:
+          type: string
+          enum: ["available", "unavailable", "unreachable", "no_smash_configured"]
+      description: |
+        The status of the SMASH server. Possible values are:
+
+        health                  | description
+        ---                     | ---
+        `"available"`           | server is awaiting your requests
+        `"unavailable"`         | server is running, but currently unavailable, try again in a short time
+        `"unreachable"`         | server could not be reached or didn't return a health status
+        `"no_smash_configured"` | SMASH is currently not configured, adjust the Settings first
+
     ApiWalletPutPassphraseData: &ApiWalletPutPassphraseData
       type: object
       required:
@@ -3127,6 +3151,14 @@ x-responsesPostSignatures: &responsesPostSignatures
             type: string
             format: binary
 
+x-responsesGetSmashHealth: &responsesGetSmashHealth
+  200:
+    description: Ok
+    content:
+      application/json:
+        schema: *ApiHealthCheck
+
+
 #############################################################################
 #                                                                           #
 #                                  PATHS                                    #
@@ -3154,6 +3186,7 @@ x-tagGroups:
 
   - name: Miscellaneous
     tags:
+    - Utils
     - Network
     - Proxy
     - Settings
@@ -4068,3 +4101,18 @@ paths:
 
         Return the current settings.
       responses: *responsesGetSettings
+
+  /smash/health:
+    get:
+      operationId: getCurrentSmashHealth
+      tags: ["Utils"]
+      summary: Current SMASH health
+      description: |
+        Get health status of the currently active SMASH server.
+      parameters:
+        - in: query
+          name: url
+          schema: *ApiSmashServer
+          required: false
+          description: check this url for health instead of the currently configured one
+      responses: *responsesGetSmashHealth
