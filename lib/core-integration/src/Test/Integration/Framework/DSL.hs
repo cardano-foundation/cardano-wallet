@@ -2118,10 +2118,11 @@ getSlotParams ctx = do
 -- | Converts a transaction TTL in seconds into a number of slots, using the
 -- slot length.
 getTTLSlots
-    :: Context t
+    :: MonadIO m
+    => Context t
     -> NominalDiffTime
-    -> IO SlotNo
-getTTLSlots ctx dt = do
+    -> m SlotNo
+getTTLSlots ctx dt = liftIO $ do
     (_, SlotParameters _ (SlotLength _slotLenWrong) _ _) <- getSlotParams ctx
     let slotLen = 0.2 -- fixme: this is the value from byron genesis
     pure $ SlotNo $ ceiling $ dt / slotLen

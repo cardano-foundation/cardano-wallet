@@ -332,17 +332,17 @@ import Control.Arrow
 import Control.Concurrent
     ( threadDelay )
 import Control.Concurrent.Async
-    ( race_, withAsync )
+    ( race_ )
 import Control.DeepSeq
-    ( NFData, deepseq, ($!!) )
+    ( NFData )
 import Control.Exception
-    ( IOException, SomeException, bracket, evaluate, throwIO, tryJust )
+    ( IOException, bracket, throwIO, tryJust )
 import Control.Exception.Safe
     ( tryAnyDeep )
 import Control.Monad
     ( forM, forever, join, void, when, (>=>) )
 import Control.Monad.Catch
-    ( MonadCatch, catch, handle, try )
+    ( handle, try )
 import Control.Monad.IO.Class
     ( MonadIO, liftIO )
 import Control.Monad.Trans.Class
@@ -350,7 +350,7 @@ import Control.Monad.Trans.Class
 import Control.Monad.Trans.Except
     ( ExceptT (..), runExceptT, throwE, withExceptT )
 import Control.Monad.Trans.Maybe
-    ( MaybeT (..), exceptToMaybeT )
+    ( MaybeT (..) )
 import Control.Tracer
     ( Tracer )
 import Data.Aeson
@@ -1055,7 +1055,6 @@ listWallets
     :: forall ctx s t k apiWallet.
         ( ctx ~ ApiLayer s t k
         , NFData apiWallet
-        , Show apiWallet
         )
     => ctx
     -> MkApiWallet ctx s apiWallet

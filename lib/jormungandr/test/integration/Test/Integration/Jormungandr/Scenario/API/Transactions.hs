@@ -75,7 +75,9 @@ import Data.Text.Class
 import Numeric.Natural
     ( Natural )
 import Test.Hspec
-    ( SpecWith, describe, it, pendingWith, shouldBe, shouldSatisfy )
+    ( SpecWith, describe, it, pendingWith )
+import Test.Hspec.Expectations.Lifted
+    ( shouldBe, shouldSatisfy )
 import Test.Integration.Faucet
     ( nextWallet )
 import Test.Integration.Framework.DSL as DSL

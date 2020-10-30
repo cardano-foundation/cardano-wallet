@@ -106,8 +106,6 @@ import Test.Integration.Framework.DSL
     , postWallet'
     , rawRequest
     , request
-    , selectCoins
-    , unsafeRequest
     , unsafeResponse
     , verify
     , walletId
@@ -137,8 +135,6 @@ import Test.Integration.Framework.TestData
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Data.ByteString.Lazy as BL
-import qualified Data.List as L
-import qualified Data.List.NonEmpty as NE
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Network.HTTP.Types as HTTP
@@ -196,7 +192,7 @@ spec = describe "SHELLEY_WALLETS" $ do
             mnemonics <- liftIO $ genMnemonics M24
             let payload = Json [json| {
                     "name": #{nameIn},
-                    "mnemonic_sentence": #{explicitMnemonics},
+                    "mnemonic_sentence": #{mnemonics},
                     "passphrase": "12345678910"
                     } |]
             r <- postWallet ctx payload
