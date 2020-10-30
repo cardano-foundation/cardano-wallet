@@ -31,10 +31,14 @@ import Control.Monad
     ( forM_ )
 import Control.Monad.Trans.Resource
     ( runResourceT )
+import Data.Aeson
+    ( ToJSON (..), object, (.=) )
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
 import Data.Quantity
     ( Quantity (..) )
+import Data.Text
+    ( Text )
 import Test.Hspec
     ( SpecWith, describe, shouldBe, shouldNotSatisfy, shouldSatisfy )
 import Test.Hspec.Extra
@@ -53,6 +57,7 @@ import Test.Integration.Framework.DSL
     , expectListSize
     , expectResponseCode
     , fixtureWallet
+    , getFromResponse
     , json
     , listAddresses
     , minUTxOValue
@@ -253,7 +258,12 @@ spec = describe "SHELLEY_ADDRESSES" $ do
         r <- request @Aeson.Value ctx (Link.inspectAddress str) Default Empty
         expectResponseCode HTTP.status400 r
 
+    -- Generating golden test data for enterprise addresses:
+    --- $ cardano-address script hash "$(cat script.txt)" \
+    --- | cardano-address address payment --from-script --network-tag mainnet
     it "ANY_ADDRESS_POST_01 - Golden tests for enterprise script address - signature" $ \ctx -> do
+        --- $ cat script.txt
+        --- script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a
         let payload = Json [json|{
                 "spending": {
                     "script": "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a"
@@ -261,8 +271,13 @@ spec = describe "SHELLEY_ADDRESSES" $ do
             }|]
         r <- request @AnyAddress ctx Link.postAnyAddress Default payload
         expectResponseCode HTTP.status201 r
+        let goldenAddr =
+                "addr1w96eswctz5wzrv3ceh3h4y3na2t6d95sjn23dawy0zlzg0q0j39eu" :: Text
+        validateAddr r goldenAddr
 
     it "ANY_ADDRESS_POST_02 - Golden tests for enterprise script address - any" $ \ctx -> do
+        --- $ cat script.txt
+        --- any [script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a, script_vkh1mwlngj4fcwegw53tdmyemfupen2758xwvudmcz9ap8cnqk7jmh4]
         let payload = Json [json|{
                 "spending": {
                     "script": {
@@ -275,8 +290,13 @@ spec = describe "SHELLEY_ADDRESSES" $ do
             }|]
         r <- request @AnyAddress ctx Link.postAnyAddress Default payload
         expectResponseCode HTTP.status201 r
+        let goldenAddr =
+                "addr1wxt2z3pa7etaxp7jurdg0m8jhsmtp4r2z56pd3a5q3jhxyc3vza6h" :: Text
+        validateAddr r goldenAddr
 
     it "ANY_ADDRESS_POST_03 - Golden tests for enterprise script address - all" $ \ctx -> do
+        --- $ cat script.txt
+        --- all [script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a, script_vkh1mwlngj4fcwegw53tdmyemfupen2758xwvudmcz9ap8cnqk7jmh4]
         let payload = Json [json|{
                 "spending": {
                     "script" : {
@@ -289,15 +309,20 @@ spec = describe "SHELLEY_ADDRESSES" $ do
             }|]
         r <- request @AnyAddress ctx Link.postAnyAddress Default payload
         expectResponseCode HTTP.status201 r
+        let goldenAddr =
+                "addr1w94h4mtdkxr2x68zx4tk0cgmd9hymjgsuhmzaxkg5tkl3scc0g8xj" :: Text
+        validateAddr r goldenAddr
 
     it "ANY_ADDRESS_POST_04 - Golden tests for enterprise script address - some" $ \ctx -> do
+        --- $ cat script.txt
+        --- at_least 2 [script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a,script_vkh1mwlngj4fcwegw53tdmyemfupen2758xwvudmcz9ap8cnqk7jmh4,script_vkh1qw4l62k4203dllrk3dk3sfjpnh3gufhtrtm4qvtrvn4xjp5x5rt]
         let payload = Json [json|{
                 "spending": {
                     "script": {
                         "some": {
                             "from" : [
                                 "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a",
-                                "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a",
+                                "script_vkh1mwlngj4fcwegw53tdmyemfupen2758xwvudmcz9ap8cnqk7jmh4",
                                 "script_vkh1qw4l62k4203dllrk3dk3sfjpnh3gufhtrtm4qvtrvn4xjp5x5rt"
                                 ],
                              "at_least": 2
@@ -307,3 +332,10 @@ spec = describe "SHELLEY_ADDRESSES" $ do
             }|]
         r <- request @AnyAddress ctx Link.postAnyAddress Default payload
         expectResponseCode HTTP.status201 r
+        let goldenAddr =
+                "addr1wy5np0m5x03tax3kcdh6e2cet98qcfs80wtv4cyvl5taclc6dnd8e" :: Text
+        validateAddr r goldenAddr
+  where
+    validateAddr resp expected = do
+        let addr = getFromResponse id resp
+        toJSON addr `shouldBe` object ["address" .= expected ]
