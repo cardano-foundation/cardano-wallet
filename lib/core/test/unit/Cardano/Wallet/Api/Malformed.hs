@@ -50,8 +50,8 @@ module Cardano.Wallet.Api.Malformed
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiAddressInspectData
-    , ApiCredentials
+    ( ApiAddressData
+    , ApiAddressInspectData
     , ApiPoolId
     , ApiPostRandomAddressData
     , ApiPutAddressesData
@@ -290,16 +290,16 @@ instance Malformed (BodyParam ApiScript) where
           )
         ]
 
-instance Malformed (BodyParam ApiCredentials) where
+instance Malformed (BodyParam ApiAddressData) where
     malformed = first BodyParam <$>
         [ ( Aeson.encode [aesonQQ|
             {}|]
-          , "Error in $: ApiCredentials must have at least one credential."
+          , "Error in $: ApiAddressData must have at least one credential."
           )
         , ( Aeson.encode [aesonQQ|
             { "script": {}
             }|]
-          , "Error in $: ApiCredentials must have at least one credential."
+          , "Error in $: ApiAddressData must have at least one credential."
           )
         , ( Aeson.encode [aesonQQ|
             { "staking": {}

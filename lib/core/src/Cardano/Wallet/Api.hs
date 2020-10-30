@@ -116,13 +116,13 @@ import Cardano.Wallet
     ( WalletLayer (..), WalletLog )
 import Cardano.Wallet.Api.Types
     ( AnyAddress
+    , ApiAddressData
     , ApiAddressIdT
     , ApiAddressInspect
     , ApiAddressInspectData
     , ApiAddressT
     , ApiByronWallet
     , ApiCoinSelectionT
-    , ApiCredentials
     , ApiFee
     , ApiNetworkClock
     , ApiNetworkInformation
@@ -336,7 +336,7 @@ type InspectAddress = "addresses"
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/postAnyAddress
 type PostAnyAddress n = "addresses"
-    :> ReqBody '[JSON] ApiCredentials
+    :> ReqBody '[JSON] ApiAddressData
     :> PostCreated '[JSON] AnyAddress
 
 {-------------------------------------------------------------------------------

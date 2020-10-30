@@ -101,10 +101,10 @@ import Cardano.Wallet.Api.Server
 import Cardano.Wallet.Api.Types
     ( AnyAddress (..)
     , AnyAddressType (..)
+    , ApiAddressData (..)
     , ApiAddressInspect (..)
     , ApiAddressInspectData (..)
     , ApiCredential (..)
-    , ApiCredentials (..)
     , ApiErrorCode (..)
     , ApiPubKey (..)
     , ApiScript (..)
@@ -417,44 +417,22 @@ server byron icarus shelley spl ntp =
 
 postAnyAddress
     :: NetworkId
-    -> ApiCredentials
+    -> ApiAddressData
     -> Handler AnyAddress
-postAnyAddress net body = do
-    (addr, addrType) <-
-            case (body ^. #spending, body ^. #staking) of
-                (Just (CredentialPubKey (ApiPubKey bytes)), Nothing) ->
-                    pure ( unAddress $
-                           CA.paymentAddress discriminant (spendingFromKey bytes)
-                         , EnterpriseDelegating )
-                (Just (CredentialScript (ApiScript (ApiT s))), Nothing) ->
-                    pure ( unAddress $
-                           CA.paymentAddress discriminant (spendingFromScript s)
-                         , EnterpriseDelegating )
-                (Nothing, Just (CredentialPubKey (ApiPubKey bytes))) -> do
-                    let (Right stakeAddr) =
-                            CA.stakeAddress discriminant (stakingFromKey bytes)
-                    pure ( unAddress stakeAddr, RewardAccount )
-                (Nothing, Just (CredentialScript (ApiScript (ApiT s)))) -> do
-                    let (Right stakeAddr) =
-                            CA.stakeAddress discriminant (stakingFromScript s)
-                    pure ( unAddress stakeAddr, RewardAccount )
-                (Just (CredentialPubKey (ApiPubKey bytes1)), Just (CredentialPubKey (ApiPubKey bytes2))) ->
-                    pure ( unAddress $
-                           CA.delegationAddress discriminant (spendingFromKey bytes1) (stakingFromKey bytes2)
-                         , EnterpriseDelegating )
-                (Just (CredentialPubKey (ApiPubKey bytes)), Just (CredentialScript (ApiScript (ApiT s)))) ->
-                    pure ( unAddress $
-                           CA.delegationAddress discriminant (spendingFromKey bytes) (stakingFromScript s)
-                         , EnterpriseDelegating )
-                (Just (CredentialScript (ApiScript (ApiT s))), Just (CredentialPubKey (ApiPubKey bytes))) ->
-                    pure ( unAddress $
-                           CA.delegationAddress discriminant (spendingFromScript s) (stakingFromKey bytes)
-                         , EnterpriseDelegating )
-                (Just (CredentialScript (ApiScript (ApiT s1))), Just (CredentialScript (ApiScript (ApiT s2))) )->
-                    pure ( unAddress $
-                           CA.delegationAddress discriminant (spendingFromScript s1) (stakingFromScript s2)
-                         , EnterpriseDelegating )
-                (Nothing, Nothing) -> fail "At least one credential is required"
+postAnyAddress net addrData = do
+    (addr, addrType) <- case addrData of
+        AddrEnterprise spendingCred ->
+            pure ( unAddress $
+                     CA.paymentAddress discriminant (spendingFrom spendingCred)
+                 , EnterpriseDelegating )
+        AddrRewardAccount stakingCred -> do
+            let (Right stakeAddr) =
+                    CA.stakeAddress discriminant (stakingFrom stakingCred)
+            pure ( unAddress stakeAddr, RewardAccount )
+        AddrBase spendingCred stakingCred ->
+            pure ( unAddress $ CA.delegationAddress discriminant
+                     (spendingFrom spendingCred) (stakingFrom stakingCred)
+                 , EnterpriseDelegating )
     pure $ AnyAddress addr addrType (fromInteger netTag)
   where
       toXPub = fromJust . CA.xpubFromBytes . pubToXPub
@@ -462,8 +440,14 @@ postAnyAddress net body = do
       netTag = case net of
           Cardano.Mainnet -> 1
           _ -> 0
-      spendingFromKey = CA.PaymentFromKey . CA.liftXPub . toXPub
-      spendingFromScript = CA.PaymentFromScript . CA.toScriptHash
-      stakingFromKey = CA.DelegationFromKey . CA.liftXPub . toXPub
-      stakingFromScript = CA.DelegationFromScript . CA.toScriptHash
+      spendingFrom cred = case cred of
+          CredentialPubKey (ApiPubKey bytes) ->
+              CA.PaymentFromKey $ CA.liftXPub $ toXPub bytes
+          CredentialScript (ApiScript (ApiT script')) ->
+              CA.PaymentFromScript $ CA.toScriptHash script'
+      stakingFrom cred = case cred of
+          CredentialPubKey (ApiPubKey bytes) ->
+              CA.DelegationFromKey $ CA.liftXPub $ toXPub bytes
+          CredentialScript (ApiScript (ApiT script')) ->
+              CA.DelegationFromScript $ CA.toScriptHash script'
       (Right discriminant) = CA.mkNetworkDiscriminant netTag

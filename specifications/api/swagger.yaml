@@ -355,20 +355,19 @@ x-script: &script
      - any condition for which any list element' expectation is to be met for the condition to be valid
      - some condition for which a minimal number of list elements' expectation is to be met for the condition to be valid
     example:
-      0: "script_vkh18srsxr3khll7vl3w9mqfu55n6wzxxlxj7qzr2mhnyreluzt36ms"
-      1: { "all": [ "script_vkh18srsxr3khll7vl3w9mqfu55n6wzxxlxj7qzr2mhnyreluzt36ms"
+      - "script_vkh18srsxr3khll7vl3w9mqfu55n6wzxxlxj7qzr2mhnyreluzt36ms"
+      - { "all": [ "script_vkh18srsxr3khll7vl3w9mqfu55n6wzxxlxj7qzr2mhnyreluzt36ms"
                   , "script_vkh18srsxr3khll7vl3w9mqfu55n6wzxxlxj7qzr2mhnyreluzt37ms"] }
-      2: { "all": [ "script_vkh18srsxr3khll7vl3w9mqfu55n6wzxxlxj7qzr2mhnyreluzt36ms"
+      - { "all": [ "script_vkh18srsxr3khll7vl3w9mqfu55n6wzxxlxj7qzr2mhnyreluzt36ms"
                   , { "any" : [ "script_vkh18srsxr3khll7vl3w9mqfu55n6wzxxlxj7qzr2mhnyreluzt37ms"
                               , "script_vkh18srsxr3khll7vl3w9mqfu55n6wzxxlxj7qzr2mhnyreluzt38ms"] }
                   ] }
-      3: { "all": [ "script_vkh18srsxr3khll7vl3w9mqfu55n6wzxxlxj7qzr2mhnyreluzt36ms"
+      - { "all": [ "script_vkh18srsxr3khll7vl3w9mqfu55n6wzxxlxj7qzr2mhnyreluzt36ms"
                   , { "some" : { "from" : [ "script_vkh18srsxr3khll7vl3w9mqfu55n6wzxxlxj7qzr2mhnyreluzt37ms"
                                           , "script_vkh18srsxr3khll7vl3w9mqfu55n6wzxxlxj7qzr2mhnyreluzt38ms"]
                                , "at_least" : 2
                                }
                     } ] }
-
   nullable: false
   additionalProperties:
     $ref: "#/components/schemas/ScriptValue"
@@ -1581,7 +1580,7 @@ components:
     ApiCredential: &ApiCredential
       <<: *credential
 
-    ApiCredentials: &ApiCredentials
+    ApiAddressData: &ApiAddressData
       type: object
       nullable: false
       properties:
@@ -3997,7 +3996,7 @@ paths:
       requestBody:
         content:
           application/json:
-            schema: *ApiCredentials
+            schema: *ApiAddressData
       responses: *responsesPostAnyAddress
 
   /settings:

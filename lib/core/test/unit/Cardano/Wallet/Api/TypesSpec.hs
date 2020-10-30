@@ -48,6 +48,7 @@ import Cardano.Wallet.Api.Types
     , AnyAddress (..)
     , ApiAccountPublicKey (..)
     , ApiAddress (..)
+    , ApiAddressData (..)
     , ApiAddressInspect (..)
     , ApiBlockInfo (..)
     , ApiBlockReference (..)
@@ -59,7 +60,6 @@ import Cardano.Wallet.Api.Types
     , ApiCoinSelectionInput (..)
     , ApiCoinSelectionOutput (..)
     , ApiCredential (..)
-    , ApiCredentials (..)
     , ApiEpochInfo (..)
     , ApiErrorCode (..)
     , ApiFee (..)
@@ -288,6 +288,7 @@ import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
     , InfiniteList (..)
+    , Positive (..)
     , applyArbitrary2
     , applyArbitrary4
     , arbitraryBoundedEnum
@@ -301,6 +302,7 @@ import Test.QuickCheck
     , property
     , scale
     , shrinkIntegral
+    , sized
     , vector
     , vectorOf
     , (.&&.)
@@ -349,7 +351,7 @@ spec = do
             jsonRoundtripAndGolden $ Proxy @ApiPubKey
             jsonRoundtripAndGolden $ Proxy @AnyAddress
             jsonRoundtripAndGolden $ Proxy @ApiCredential
-            jsonRoundtripAndGolden $ Proxy @ApiCredentials
+            jsonRoundtripAndGolden $ Proxy @ApiAddressData
             jsonRoundtripAndGolden $ Proxy @(ApiT DerivationIndex)
             jsonRoundtripAndGolden $ Proxy @ApiEpochInfo
             jsonRoundtripAndGolden $ Proxy @(ApiSelectCoinsData ('Testnet 0))
@@ -1035,25 +1037,23 @@ instance Arbitrary ApiScript where
     arbitrary = ApiScript . ApiT <$> arbitrary
 
 instance Arbitrary Script where
-    arbitrary = do
-        reqAllGen <- do
-            n <- choose (1,10)
-            pure $ RequireAllOf <$> vector n
-        reqAnyGen <- do
-            n <- choose (1,10)
-            pure $ RequireAnyOf <$> vector n
-        reqMofNGen <- do
-            m <- choose (2,5)
-            n <- choose ((fromInteger $ toInteger m),10)
-            pure $ RequireSomeOf m <$> vector n
-        let reqSig =
-                (RequireSignatureOf . KeyHash . BS.pack) <$> replicateM 28 arbitrary
-        oneof
-            (replicate 15 reqSig ++
-            [ reqAllGen
-            , reqAnyGen
-            , reqMofNGen
-            ])
+    arbitrary = Test.QuickCheck.scale (`div` 3) $ sized scriptTree
+      where
+        scriptTree 0 = RequireSignatureOf <$> arbitrary
+        scriptTree n = do
+            Positive m <- arbitrary
+            let n' = n `div` (m + 1)
+            scripts <- vectorOf m (scriptTree n')
+            atLeast <- choose (0, fromIntegral (m + 1))
+            elements
+                [ RequireAllOf scripts
+                , RequireAnyOf scripts
+                , RequireSomeOf atLeast scripts
+                ]
+    shrink = genericShrink
+
+instance Arbitrary KeyHash where
+    arbitrary = KeyHash . BS.pack <$> vectorOf 28 arbitrary
 
 instance Arbitrary ApiPubKey where
     arbitrary =
@@ -1066,22 +1066,22 @@ instance Arbitrary ApiCredential where
         oneof [ CredentialPubKey <$> pubKeyGen
               , CredentialScript <$> scriptGen ]
 
-instance Arbitrary ApiCredentials where
+instance Arbitrary ApiAddressData where
     arbitrary = do
         credential1 <- arbitrary
         credential2 <- arbitrary
         oneof
-            [ pure $ ApiCredentials (Just credential1) Nothing
-            , pure $ ApiCredentials Nothing (Just credential1)
-            , pure $ ApiCredentials (Just credential1) (Just credential2)
+            [ pure $ AddrEnterprise credential1
+            , pure $ AddrRewardAccount credential2
+            , pure $ AddrBase credential1 credential2
             ]
 
 instance Arbitrary AnyAddress where
     arbitrary = do
-        payload <- BS.pack <$> replicateM 32 arbitrary
-        network <- choose (0,1)
+        payload' <- BS.pack <$> replicateM 32 arbitrary
+        network' <- choose (0,1)
         addrType <- arbitraryBoundedEnum
-        pure $ AnyAddress payload addrType network
+        pure $ AnyAddress payload' addrType network'
 
 instance Arbitrary (ApiSelectCoinsPayments n) where
     arbitrary = genericArbitrary
@@ -1930,11 +1930,11 @@ instance ToSchema ApiScript where
 instance ToSchema ApiPubKey where
     declareNamedSchema _ = declareSchemaForDefinition "ApiPubKey"
 
-instance ToSchema ApiCredentials where
+instance ToSchema ApiAddressData where
     declareNamedSchema _ = do
         addDefinition scriptValueSchema
         addDefinition credentialValueSchema
-        declareSchemaForDefinition "ApiCredentials"
+        declareSchemaForDefinition "ApiAddressData"
 
 instance ToSchema ApiCredential where
     declareNamedSchema _ = do

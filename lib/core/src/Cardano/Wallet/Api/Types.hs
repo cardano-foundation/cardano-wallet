@@ -49,7 +49,7 @@ module Cardano.Wallet.Api.Types
     , ApiScript (..)
     , ApiPubKey (..)
     , ApiCredential (..)
-    , ApiCredentials (..)
+    , ApiAddressData (..)
     , AnyAddress (..)
     , AnyAddressType (..)
     , ApiCertificate (..)
@@ -420,10 +420,11 @@ data ApiCredential =
     | CredentialScript ApiScript
     deriving (Eq, Generic, Show)
 
-data ApiCredentials = ApiCredentials
-    { spending :: !(Maybe ApiCredential)
-    , staking :: !(Maybe ApiCredential)
-    } deriving (Eq, Generic, Show)
+data ApiAddressData =
+      AddrEnterprise ApiCredential
+    | AddrRewardAccount ApiCredential
+    | AddrBase ApiCredential ApiCredential
+    deriving (Eq, Generic, Show)
 
 data AnyAddressType =
       EnterpriseDelegating
@@ -1435,33 +1436,31 @@ instance ToJSON ApiCredential where
     toJSON (CredentialPubKey c)= object ["pub_key" .= toJSON c]
     toJSON (CredentialScript c)= toJSON c
 
-instance FromJSON ApiCredentials where
-    parseJSON = withObject "ApiCredentials" $ \obj -> do
+instance FromJSON ApiAddressData where
+    parseJSON = withObject "ApiAddressData" $ \obj -> do
         choice <- (,) <$> obj .:? "spending" <*> obj .:? "staking"
         case choice of
-            (Nothing, Nothing) -> fail "ApiCredentials must have at least one credential."
+            (Nothing, Nothing) -> fail "ApiAddressData must have at least one credential."
             (Just c, Nothing) -> do
                 spending' <- parseJSON c
-                pure $ ApiCredentials (Just spending') Nothing
+                pure $ AddrEnterprise spending'
             (Nothing, Just c) -> do
                 staking' <- parseJSON c
-                pure $ ApiCredentials Nothing (Just staking')
+                pure $ AddrRewardAccount staking'
             (Just c1, Just c2) -> do
                 spending' <- parseJSON c1
                 staking' <- parseJSON c2
-                pure $ ApiCredentials (Just spending') (Just staking')
-instance ToJSON ApiCredentials where
-    toJSON (ApiCredentials Nothing Nothing) =
-        error "ApiCredentials must have at least one credential."
-    toJSON (ApiCredentials (Just spending') Nothing) =
+                pure $ AddrBase spending' staking'
+instance ToJSON ApiAddressData where
+    toJSON (AddrEnterprise spending') =
         object [ "spending" .= toJSON spending']
-    toJSON (ApiCredentials Nothing (Just staking')) =
+    toJSON (AddrRewardAccount staking') =
         object [ "staking" .= toJSON staking']
-    toJSON (ApiCredentials (Just spending') (Just staking')) =
+    toJSON (AddrBase spending' staking') =
         object [ "spending" .= toJSON spending', "staking" .= toJSON staking']
 
 instance FromJSON AnyAddress where
-    parseJSON = withObject "ApiCredentials" $ \obj -> do
+    parseJSON = withObject "AnyAddress" $ \obj -> do
         addr <- obj .:? "address"
         case addr of
             Nothing ->
@@ -1478,7 +1477,7 @@ instance ToJSON AnyAddress where
                 (EnterpriseDelegating, 0) -> [Bech32.humanReadablePart|addr_test|]
                 (RewardAccount, 0) -> [Bech32.humanReadablePart|stake_test|]
                 _ -> error "Wrong network tag in AnyAddress"
-        object [ "address" .= (String $ T.decodeUtf8 $ encode (EBech32 hrp) p)]
+        object [ "address" .= String (T.decodeUtf8 $ encode (EBech32 hrp) p) ]
 
 instance MkSomeMnemonic sizes => FromJSON (ApiMnemonicT sizes)
   where
