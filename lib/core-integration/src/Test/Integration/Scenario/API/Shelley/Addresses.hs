@@ -424,6 +424,41 @@ spec = describe "SHELLEY_ADDRESSES" $ do
         let goldenAddr =
                 "addr1v9qthemrg5kczwfjjnahwt65elhrl95e9hcgufnajtp6wfgknj82e" :: Text
         validateAddr r goldenAddr
+
+    -- Generating golden test data for enterprise addresses - key credential:
+    --- $ cat recovery-phrase.txt
+    --- east student silly already breeze enact seat trade few way online skin grass humble electric
+    --- $ cat recovery-phrase.txt | cardano-address key from-recovery-phrase Shelley \
+    --- > | cardano-address key child 1852H/1815H/0H/2/0 \
+    --- > | cardano-address key public --pub
+    --- xpub16apaenn9ut6s40lcw3l8v68xawlrlq20z2966uzcx8jmv2q9uy7qh83kg9
+    -- which can be translated in cardano-addresses
+    -- :set -XOverloadedStrings
+    -- import Data.Text
+    -- let k = "xpub16apaenn9ut6s40lcw3l8v68xawlrlq20z2966uzcx8jmv2q9uy7qh83kg9" :: Text
+    -- let (Right bytes) = fromBech32 (const id) (T.encodeUtf8 k)
+    -- bytes
+    -- "\215C\220\206e\226\245\n\191\248t~vh\230\235\190?\129O\DC2\139\173pX1\229\182(\ENQ\225<"
+    -- let (Right hrp) = Bech32.humanReadablePartFromText "stake_vk"
+    -- encode (EBech32 hrp) bytes
+    -- "stake_vk16apaenn9ut6s40lcw3l8v68xawlrlq20z2966uzcx8jmv2q9uy7qau558d"
+
+    -- Golden address can be obtained via
+    --- $ cat recovery-phrase.txt | cardano-address key from-recovery-phrase Shelley \
+    --- > | cardano-address key child 1852H/1815H/0H/2/0 \
+    --- > | cardano-address key public \
+    --- > | cardano-address address stake --from-key --network-tag mainnet
+    it "ANY_ADDRESS_POST_08 - Golden tests for reward account pub key address" $ \ctx -> do
+        let payload = Json [json|{
+                "staking": {
+                    "pub_key": "stake_vk16apaenn9ut6s40lcw3l8v68xawlrlq20z2966uzcx8jmv2q9uy7qau558d"
+                    }
+            }|]
+        r <- request @AnyAddress ctx Link.postAnyAddress Default payload
+        expectResponseCode HTTP.status201 r
+        let goldenAddr =
+                "stake1uy6pmlvyl3wn4ca6807e26gy2gek9hqu0gastzh5tk0xx0g2rxsr5" :: Text
+        validateAddr r goldenAddr
   where
     validateAddr resp expected = do
         let addr = getFromResponse id resp
