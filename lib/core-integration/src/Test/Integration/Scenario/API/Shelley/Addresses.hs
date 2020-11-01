@@ -459,6 +459,32 @@ spec = describe "SHELLEY_ADDRESSES" $ do
         let goldenAddr =
                 "stake1uy6pmlvyl3wn4ca6807e26gy2gek9hqu0gastzh5tk0xx0g2rxsr5" :: Text
         validateAddr r goldenAddr
+
+    -- Golden address can be obtained via
+    --- $ cat recovery-phrase.txt | cardano-address key from-recovery-phrase Shelley \
+    --- > | cardano-address key child 1852H/1815H/0H/2/0 \
+    --- > | cardano-address key public > stake.xpub
+
+    --- $ cat recovery-phrase.txt | cardano-address key from-recovery-phrase Shelley \
+    --- > | cardano-address key child 1852H/1815H/0H/0/0 \
+    --- > | cardano-address key public \
+    --- > | cardano-address address payment --from-key --network-tag mainnet \
+    --- > | cardano-address address delegation --from-key $(cat stake.xpub)
+    it "ANY_ADDRESS_POST_09 - Golden tests for payment address with both pub key credentials" $ \ctx -> do
+        let payload = Json [json|{
+                "spending": {
+                    "pub_key": "addr_vk1lqglg77z6kajsdz4739q22c0zm0yhuy567z6xk2vc0z5ucjtkwpschzd2j"
+                    },
+                "staking": {
+                    "pub_key": "stake_vk16apaenn9ut6s40lcw3l8v68xawlrlq20z2966uzcx8jmv2q9uy7qau558d"
+                    }
+            }|]
+        r <- request @AnyAddress ctx Link.postAnyAddress Default payload
+        expectResponseCode HTTP.status201 r
+        let goldenAddr =
+                "addr1q9qthemrg5kczwfjjnahwt65elhrl95e9hcgufnajtp6wff5r\
+                \h7cflza8t3m5wlaj45sg53nvtwpc73mqk90ghv7vv7s64ryn2" :: Text
+        validateAddr r goldenAddr
   where
     validateAddr resp expected = do
         let addr = getFromResponse id resp
