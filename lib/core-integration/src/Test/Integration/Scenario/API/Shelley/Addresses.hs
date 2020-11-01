@@ -356,9 +356,9 @@ spec = describe "SHELLEY_ADDRESSES" $ do
                 "stake17xt2z3pa7etaxp7jurdg0m8jhsmtp4r2z56pd3a5q3jhxycdxzmx9" :: Text
         validateAddr r goldenAddr
 
-    -- Generating golden test data for reward account addresses - script credential:
+    -- Generating golden test data for reward account addresses - both script credentials:
     --- $ cardano-address script hash "$(cat script1.txt)" \
-    --- | cardano-address address payment --from-script --network-tag mainnet
+    --- | cardano-address address payment --from-script --network-tag mainnet \
     --- | cardano-address address delegation --from-script $(cardano-address script hash "$(cat script2.txt)")
     it "ANY_ADDRESS_POST_06 - Golden tests for delegating script address - any" $ \ctx -> do
         let payload = Json [json|{
@@ -470,7 +470,7 @@ spec = describe "SHELLEY_ADDRESSES" $ do
     --- > | cardano-address key public \
     --- > | cardano-address address payment --from-key --network-tag mainnet \
     --- > | cardano-address address delegation --from-key $(cat stake.xpub)
-    it "ANY_ADDRESS_POST_09 - Golden tests for payment address with both pub key credentials" $ \ctx -> do
+    it "ANY_ADDRESS_POST_09 - Golden tests for delegating address with both pub key credentials" $ \ctx -> do
         let payload = Json [json|{
                 "spending": {
                     "pub_key": "addr_vk1lqglg77z6kajsdz4739q22c0zm0yhuy567z6xk2vc0z5ucjtkwpschzd2j"
@@ -484,6 +484,39 @@ spec = describe "SHELLEY_ADDRESSES" $ do
         let goldenAddr =
                 "addr1q9qthemrg5kczwfjjnahwt65elhrl95e9hcgufnajtp6wff5r\
                 \h7cflza8t3m5wlaj45sg53nvtwpc73mqk90ghv7vv7s64ryn2" :: Text
+        validateAddr r goldenAddr
+
+    -- Generating golden test data for reward account addresses - both script credentials:
+    --- $ cat recovery-phrase.txt | cardano-address key from-recovery-phrase Shelley \
+    --- > | cardano-address key child 1852H/1815H/0H/2/0 \
+    --- > | cardano-address key public > stake.xpub
+
+    --- $ cardano-address script hash "$(cat script1.txt)" \
+    --- | cardano-address address payment --from-script --network-tag mainnet \
+    --- | cardano-address address delegation --from-key $(cat stake.xpub)
+    it "ANY_ADDRESS_POST_10 - Golden tests for delegating address - spending script, staking pub key" $ \ctx -> do
+        let payload = Json [json|{
+                "spending": {
+                    "script": {
+                        "some": {
+                            "from" : [
+                                "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a",
+                                "script_vkh1mwlngj4fcwegw53tdmyemfupen2758xwvudmcz9ap8cnqk7jmh4",
+                                "script_vkh1qw4l62k4203dllrk3dk3sfjpnh3gufhtrtm4qvtrvn4xjp5x5rt"
+                                ],
+                             "at_least": 2
+                             }
+                        }
+                    },
+                "staking": {
+                    "pub_key": "stake_vk16apaenn9ut6s40lcw3l8v68xawlrlq20z2966uzcx8jmv2q9uy7qau558d"
+                    }
+            }|]
+        r <- request @AnyAddress ctx Link.postAnyAddress Default payload
+        expectResponseCode HTTP.status201 r
+        let goldenAddr =
+                "addr1zy5np0m5x03tax3kcdh6e2cet98qcfs80wtv4cyvl5tacle5rh7cflza8\
+                \t3m5wlaj45sg53nvtwpc73mqk90ghv7vv7sleajnd" :: Text
         validateAddr r goldenAddr
   where
     validateAddr resp expected = do
