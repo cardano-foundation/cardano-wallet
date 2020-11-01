@@ -258,7 +258,7 @@ spec = describe "SHELLEY_ADDRESSES" $ do
         r <- request @Aeson.Value ctx (Link.inspectAddress str) Default Empty
         expectResponseCode HTTP.status400 r
 
-    -- Generating golden test data for enterprise addresses:
+    -- Generating golden test data for enterprise addresses - script credential:
     --- $ cardano-address script hash "$(cat script.txt)" \
     --- | cardano-address address payment --from-script --network-tag mainnet
     it "ANY_ADDRESS_POST_01 - Golden tests for enterprise script address - signature" $ \ctx -> do
@@ -336,7 +336,7 @@ spec = describe "SHELLEY_ADDRESSES" $ do
                 "addr1wy5np0m5x03tax3kcdh6e2cet98qcfs80wtv4cyvl5taclc6dnd8e" :: Text
         validateAddr r goldenAddr
 
-    -- Generating golden test data for reward account addresses:
+    -- Generating golden test data for reward account addresses - script credential:
     --- $ cardano-address script hash "$(cat script.txt)" \
     --- | cardano-address address stake --from-script --network-tag mainnet
     it "ANY_ADDRESS_POST_05 - Golden tests for reward account script address - any" $ \ctx -> do
@@ -356,7 +356,7 @@ spec = describe "SHELLEY_ADDRESSES" $ do
                 "stake17xt2z3pa7etaxp7jurdg0m8jhsmtp4r2z56pd3a5q3jhxycdxzmx9" :: Text
         validateAddr r goldenAddr
 
-    -- Generating golden test data for reward account addresses:
+    -- Generating golden test data for reward account addresses - script credential:
     --- $ cardano-address script hash "$(cat script1.txt)" \
     --- | cardano-address address payment --from-script --network-tag mainnet
     --- | cardano-address address delegation --from-script $(cardano-address script hash "$(cat script2.txt)")
@@ -388,6 +388,41 @@ spec = describe "SHELLEY_ADDRESSES" $ do
         let goldenAddr =
                 "addr1xy5np0m5x03tax3kcdh6e2cet98qcfs80wtv4cyvl5tacluk59zr\
                 \majh6vra9cx6slk090pkkr2x59f5zmrmgpr9wvfs37hjk4" :: Text
+        validateAddr r goldenAddr
+
+    -- Generating golden test data for enterprise addresses - key credential:
+    --- $ cat recovery-phrase.txt
+    --- east student silly already breeze enact seat trade few way online skin grass humble electric
+    --- $ cat recovery-phrase.txt | cardano-address key from-recovery-phrase Shelley \
+    --- > | cardano-address key child 1852H/1815H/0H/0/0 \
+    --- > | cardano-address key public --pub
+    --- xpub1lqglg77z6kajsdz4739q22c0zm0yhuy567z6xk2vc0z5ucjtkwps75l8wa
+    -- which can be translated in cardano-addresses
+    -- :set -XOverloadedStrings
+    -- import Data.Text
+    -- let k = "xpub1lqglg77z6kajsdz4739q22c0zm0yhuy567z6xk2vc0z5ucjtkwps75l8wa" :: Text
+    -- let (Right bytes) = fromBech32 (const id) (T.encodeUtf8 k)
+    -- bytes
+    -- "\248\DC1\244{\194\213\187(4U\244J\ENQ+\SI\SYN\222K\240\148\215\133\163YL\195\197NbK\179\131"
+    -- let (Right hrp) = Bech32.humanReadablePartFromText "addr_vk"
+    -- encode (EBech32 hrp) bytes
+    -- "addr_vk1lqglg77z6kajsdz4739q22c0zm0yhuy567z6xk2vc0z5ucjtkwpschzd2j"
+
+    -- Golden address can be obtained via
+    --- $ cat recovery-phrase.txt | cardano-address key from-recovery-phrase Shelley \
+    --- > | cardano-address key child 1852H/1815H/0H/0/0 \
+    --- > | cardano-address key public \
+    --- > | cardano-address address payment --from-key --network-tag mainnet
+    it "ANY_ADDRESS_POST_07 - Golden tests for enterprise pub key address" $ \ctx -> do
+        let payload = Json [json|{
+                "spending": {
+                    "pub_key": "addr_vk1lqglg77z6kajsdz4739q22c0zm0yhuy567z6xk2vc0z5ucjtkwpschzd2j"
+                    }
+            }|]
+        r <- request @AnyAddress ctx Link.postAnyAddress Default payload
+        expectResponseCode HTTP.status201 r
+        let goldenAddr =
+                "addr1v9qthemrg5kczwfjjnahwt65elhrl95e9hcgufnajtp6wfgknj82e" :: Text
         validateAddr r goldenAddr
   where
     validateAddr resp expected = do
