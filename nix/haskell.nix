@@ -125,8 +125,8 @@ let
         };
 
         packages.cardano-wallet-jormungandr.components.tests = {
-          # Next releases are going to be about cardano-node and we
-          # aren't touching jormungandr a lot more these days.
+          # Don't run any jormungandr tests
+          unit.doCheck = false;
           jormungandr-integration.doCheck = false;
           # Some tests want to write ~/.local/share/cardano-wallet
           jormungandr-integration.preCheck = "export HOME=`pwd`";
