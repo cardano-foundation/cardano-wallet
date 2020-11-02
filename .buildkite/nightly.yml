@@ -48,15 +48,6 @@ steps:
     agents:
       system: x86_64-linux
 
-  - label: "Rebuild master branch"
-    trigger: "cardano-wallet"
-    build:
-      message: "Nightly build with jormungandr integration tests"
-      env:
-        NIGHTLY_BUILD: "yes"
-    # Run the jormungandr integration tests, but don't worry about them failing.
-    async: true
-
   - wait
 
   - label: "Advance linux-tests-pass and all-tests-pass branches"
