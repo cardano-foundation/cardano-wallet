@@ -87,177 +87,177 @@ nix:
 # package cardano-crypto
 #   tests: False
 #   benchmarks: False
-#
+# 
 # package contra-tracer
 #   tests: False
 #   benchmarks: False
-#
+# 
 # package iohk-monitoring
 #   tests: False
 #   benchmarks: False
-#
+# 
 # package zip
 #   tests: False
 #   benchmarks: False
-#
+# 
 # package cardano-crypto-praos
 #   tests: False
 #   benchmarks: False
-#
+# 
 # package byron-spec-ledger
 #   tests: False
 #   benchmarks: False
-#
+# 
 # package ouroboros-consensus-cardano
 #   tests: False
 #   benchmarks: False
-#
+# 
 # package small-steps
 #   tests: False
 #   benchmarks: False
-#
+# 
 # package small-steps-test
 #   tests: False
 #   benchmarks: False
-#
+# 
 # package ouroboros-consensus
 #   tests: False
 #   benchmarks: False
-#
+# 
 # package ouroboros-consensus-byron
 #   tests: False
 #   benchmarks: False
-#
+# 
 # package ouroboros-consensus-shelley
 #   tests: False
 #   benchmarks: False
-#
+# 
 # package ouroboros-consensus-mock
 #   tests: False
 #   benchmarks: False
-#
+# 
 # package cborg
 #   tests: False
 #   benchmarks: False
-#
+# 
 # package http-client
 #   tests: False
 #   benchmarks: False
-#
+# 
 # package goblins
 #   tests: False
 #   benchmarks: False
-#
+# 
 # package io-sim
 #   tests: False
 #   benchmarks: False
-#
+# 
 # package io-sim-classes
 #   tests: False
 #   benchmarks: False
-#
+# 
 # package shelley-spec-non-integral
 #   tests: False
 #   benchmarks: False
-#
+# 
 # package network-mux
 #   tests: False
 #   benchmarks: False
-#
+# 
 # package typed-protocols
 #   tests: False
 #   benchmarks: False
-#
+# 
 # package typed-protocols-examples
 #   tests: False
 #   benchmarks: False
-#
+# 
 # package cardano-prelude
 #   tests: False
 #   benchmarks: False
-#
+# 
 # package cardano-binary
 #   tests: False
 #   benchmarks: False
-#
+# 
 # package cardano-sl-x509
 #   tests: False
 #   benchmarks: False
-#
+# 
 # package cardano-crypto-class
 #   tests: False
 #   benchmarks: False
-#
+# 
 # package cardano-crypto-wrapper
 #   tests: False
 #   benchmarks: False
-#
+# 
 # package ouroboros-network-framework
 #   tests: False
 #   benchmarks: False
-#
+# 
 # package ouroboros-network
 #   tests: False
 #   benchmarks: False
-#
+# 
 # package byron-spec-chain
 #   tests: False
 #   benchmarks: False
-#
+# 
 # package cardano-addresses
 #   tests: False
 #   benchmarks: False
-#
+# 
 # package cardano-api
 #   tests: False
 #   benchmarks: False
-#
+# 
 # package cardano-cli
 #   tests: False
 #   benchmarks: False
-#
+# 
 # package cardano-crypto
 #   tests: False
 #   benchmarks: False
-#
+# 
 # package cardano-ledger
 #   tests: False
 #   benchmarks: False
-#
+# 
 # package cardano-node
 #   tests: False
 #   benchmarks: False
-#
+# 
 # package cardano-transactions
 #   tests: False
 #   benchmarks: False
-#
+# 
 # package lobemo-backend-monitoring
 #   tests: False
 #   benchmarks: False
-#
+# 
 # package ntp-client
 #   tests: False
 #   benchmarks: False
-#
+# 
 # package ouroboros-consensus-test-infra
 #   tests: False
 #   benchmarks: False
-#
+# 
 # package persistent
 #   tests: False
 #   benchmarks: False
-#
+# 
 # package persistent-sqlite
 #   tests: False
 #   benchmarks: False
-#
+# 
 # package persistent-template
 #   tests: False
 #   benchmarks: False
-#
+# 
 # package shelley-spec-ledger-test
 #   tests: False
 #   benchmarks: False
-#
+# 
 #+END_STACK2CABAL
