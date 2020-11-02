@@ -1057,23 +1057,20 @@ instance Arbitrary KeyHash where
 
 instance Arbitrary ApiPubKey where
     arbitrary =
-        (ApiPubKey . BS.pack) <$> replicateM 32 arbitrary
+        ApiPubKey . BS.pack <$> replicateM 32 arbitrary
 
 instance Arbitrary ApiCredential where
-    arbitrary = do
-        let pubKeyGen = arbitrary :: Gen ApiPubKey
-        let scriptGen = arbitrary :: Gen ApiScript
-        oneof [ CredentialPubKey <$> pubKeyGen
-              , CredentialScript <$> scriptGen ]
+    arbitrary =
+        oneof [ CredentialPubKey <$> arbitrary, CredentialScript <$> arbitrary ]
 
 instance Arbitrary ApiAddressData where
     arbitrary = do
         credential1 <- arbitrary
         credential2 <- arbitrary
-        oneof
-            [ pure $ AddrEnterprise credential1
-            , pure $ AddrRewardAccount credential2
-            , pure $ AddrBase credential1 credential2
+        elements
+            [ AddrEnterprise credential1
+            , AddrRewardAccount credential2
+            , AddrBase credential1 credential2
             ]
 
 instance Arbitrary AnyAddress where

@@ -1405,9 +1405,8 @@ instance ToJSON (ApiT (Passphrase purpose)) where
     toJSON = toJSON . toText . getApiT
 
 instance FromJSON ApiScript where
-    parseJSON =  withObject "Script" $ \o -> do
-        script' <- o .: "script"
-        (ApiScript . ApiT) <$> parseJSON script'
+    parseJSON =  withObject "ApiScript" $ \o ->
+        ApiScript . ApiT <$> o .: "script"
 instance ToJSON ApiScript where
     toJSON (ApiScript (ApiT script')) =
         object ["script" .= toJSON script']
@@ -1420,64 +1419,58 @@ instance ToJSON ApiPubKey where
         String $ T.decodeUtf8 $ encode (EBech32 hrp) key'
 
 instance FromJSON ApiCredential where
-    parseJSON obj = do
-        key' <-
-            (withObject "ApiCredential" $
-             \o -> o .:? "pub_key" :: Aeson.Parser (Maybe Text)) obj
-        case key' of
-            Nothing ->
-                CredentialScript <$> parseJSON obj
-            Just pubKeyTxt -> case fromText pubKeyTxt of
-                Right bytes ->
-                    pure $ CredentialPubKey bytes
-                Left (TextDecodingError err) -> fail err
+    parseJSON v =
+        (CredentialScript <$> parseJSON v) <|>
+        (CredentialPubKey <$> parsePubKey v)
+      where
+        parsePubKey = parseFromText "ApiCredential" "pub_key"
+
+parseFromText :: FromText a => String -> Text -> Aeson.Value -> Aeson.Parser a
+parseFromText typeName k = withObject typeName $ \o -> do
+    v <- o .: k
+    case fromText v of
+        Right bytes -> pure bytes
+        Left (TextDecodingError err) -> fail err
 
 instance ToJSON ApiCredential where
-    toJSON (CredentialPubKey c)= object ["pub_key" .= toJSON c]
-    toJSON (CredentialScript c)= toJSON c
+    toJSON (CredentialPubKey c) = object ["pub_key" .= c]
+    toJSON (CredentialScript c) = toJSON c
 
 instance FromJSON ApiAddressData where
-    parseJSON = withObject "ApiAddressData" $ \obj -> do
-        choice <- (,) <$> obj .:? "spending" <*> obj .:? "staking"
-        case choice of
-            (Nothing, Nothing) -> fail "ApiAddressData must have at least one credential."
-            (Just c, Nothing) -> do
-                spending' <- parseJSON c
-                pure $ AddrEnterprise spending'
-            (Nothing, Just c) -> do
-                staking' <- parseJSON c
-                pure $ AddrRewardAccount staking'
-            (Just c1, Just c2) -> do
-                spending' <- parseJSON c1
-                staking' <- parseJSON c2
-                pure $ AddrBase spending' staking'
+    parseJSON v =
+        parseBaseAddr v <|>
+        parseEnterprise v <|>
+        parseRewardAccount v <|>
+        fail "ApiAddressData must have at least one credential."
+      where
+         parseBaseAddr = withObject "AddrBase" $ \o ->
+             AddrBase <$> o .: "payment" <*> o .: "stake"
+         parseEnterprise = withObject "AddrEnterprise" $ \o ->
+             AddrEnterprise <$> o .: "payment"
+         parseRewardAccount = withObject "AddrRewardAccount" $ \o ->
+             AddrRewardAccount <$> o .: "stake"
+
 instance ToJSON ApiAddressData where
-    toJSON (AddrEnterprise spending') =
-        object [ "spending" .= toJSON spending']
-    toJSON (AddrRewardAccount staking') =
-        object [ "staking" .= toJSON staking']
-    toJSON (AddrBase spending' staking') =
-        object [ "spending" .= toJSON spending', "staking" .= toJSON staking']
+    toJSON (AddrEnterprise payment') =
+        object [ "payment" .= payment']
+    toJSON (AddrRewardAccount stake') =
+        object [ "stake" .= stake']
+    toJSON (AddrBase payment' stake') =
+        object [ "payment" .= payment', "stake" .= stake']
 
 instance FromJSON AnyAddress where
-    parseJSON = withObject "AnyAddress" $ \obj -> do
-        addr <- obj .:? "address"
-        case addr of
-            Nothing ->
-                fail "AnyAddress expects 'address' key"
-            Just addr' -> case fromText addr' of
-                Right anyAddr -> pure anyAddr
-                Left (TextDecodingError err) -> fail err
+    parseJSON = parseFromText "AnyAddress" "address"
 
 instance ToJSON AnyAddress where
-    toJSON (AnyAddress p addrType net) = do
-        let hrp = case (addrType, net) of
-                (EnterpriseDelegating, 1) -> [Bech32.humanReadablePart|addr|]
-                (RewardAccount, 1) -> [Bech32.humanReadablePart|stake|]
-                (EnterpriseDelegating, 0) -> [Bech32.humanReadablePart|addr_test|]
-                (RewardAccount, 0) -> [Bech32.humanReadablePart|stake_test|]
-                _ -> error "Wrong network tag in AnyAddress"
-        object [ "address" .= String (T.decodeUtf8 $ encode (EBech32 hrp) p) ]
+    toJSON (AnyAddress p addrType net) =
+        object [ "address" .= T.decodeUtf8 (encode (EBech32 hrp) p) ]
+      where
+        Right hrp = Bech32.humanReadablePartFromText (prefix <> suffix)
+        prefix = case addrType of
+                EnterpriseDelegating -> "addr"
+                RewardAccount -> "stake"
+        suffix = if net == mainnetId then "" else "_test"
+        mainnetId = 1 :: Int
 
 instance MkSomeMnemonic sizes => FromJSON (ApiMnemonicT sizes)
   where

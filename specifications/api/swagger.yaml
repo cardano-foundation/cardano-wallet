@@ -347,7 +347,7 @@ x-credential: &credential
 
 x-script: &script
   description: |
-    Script allows establishing either spending or staking guard that could be removed
+    Script allows establishing either payment or stake guard that could be removed
     when a special combination of signing keys is present.
 
     The script can be constructed using four primitives:
@@ -355,24 +355,24 @@ x-script: &script
      - all condition for which all list elements' expectation are met for the condition to be valid
      - any condition for which any list element' expectation is to be met for the condition to be valid
      - some condition for which a minimal number of list elements' expectation is to be met for the condition to be valid
-    example:
-      -
-        "script_vkh18srsxr3khll7vl3w9mqfu55n6wzxxlxj7qzr2mhnyreluzt36ms"
-      -
-        { "all": [ "script_vkh18srsxr3khll7vl3w9mqfu55n6wzxxlxj7qzr2mhnyreluzt36ms"
-                 , "script_vkh18srsxr3khll7vl3w9mqfu55n6wzxxlxj7qzr2mhnyreluzt37ms"] }
-      -
-        { "all": [ "script_vkh18srsxr3khll7vl3w9mqfu55n6wzxxlxj7qzr2mhnyreluzt36ms"
-                 , { "any" : [ "script_vkh18srsxr3khll7vl3w9mqfu55n6wzxxlxj7qzr2mhnyreluzt37ms"
-                             , "script_vkh18srsxr3khll7vl3w9mqfu55n6wzxxlxj7qzr2mhnyreluzt38ms"] }
-                 ] }
-      -
-        { "all": [ "script_vkh18srsxr3khll7vl3w9mqfu55n6wzxxlxj7qzr2mhnyreluzt36ms"
-                 , { "some" : { "from" : [ "script_vkh18srsxr3khll7vl3w9mqfu55n6wzxxlxj7qzr2mhnyreluzt37ms"
-                                         , "script_vkh18srsxr3khll7vl3w9mqfu55n6wzxxlxj7qzr2mhnyreluzt38ms"]
-                              , "at_least" : 2
-                              }
-                   } ] }
+  example:
+    -
+      "script_vkh18srsxr3khll7vl3w9mqfu55n6wzxxlxj7qzr2mhnyreluzt36ms"
+    -
+      { "all": [ "script_vkh18srsxr3khll7vl3w9mqfu55n6wzxxlxj7qzr2mhnyreluzt36ms"
+               , "script_vkh18srsxr3khll7vl3w9mqfu55n6wzxxlxj7qzr2mhnyreluzt37ms"] }
+    -
+      { "all": [ "script_vkh18srsxr3khll7vl3w9mqfu55n6wzxxlxj7qzr2mhnyreluzt36ms"
+               , { "any" : [ "script_vkh18srsxr3khll7vl3w9mqfu55n6wzxxlxj7qzr2mhnyreluzt37ms"
+                           , "script_vkh18srsxr3khll7vl3w9mqfu55n6wzxxlxj7qzr2mhnyreluzt38ms"] }
+               ] }
+    -
+      { "all": [ "script_vkh18srsxr3khll7vl3w9mqfu55n6wzxxlxj7qzr2mhnyreluzt36ms"
+               , { "some" : { "from" : [ "script_vkh18srsxr3khll7vl3w9mqfu55n6wzxxlxj7qzr2mhnyreluzt37ms"
+                                       , "script_vkh18srsxr3khll7vl3w9mqfu55n6wzxxlxj7qzr2mhnyreluzt38ms"]
+                            , "at_least" : 2
+                            }
+                 } ] }
   nullable: false
   additionalProperties:
     $ref: "#/components/schemas/ScriptValue"
@@ -1589,8 +1589,8 @@ components:
       type: object
       nullable: false
       properties:
-        spending: *ApiCredential
-        staking: *ApiCredential
+        payment: *ApiCredential
+        stake: *ApiCredential
 
     ApiByronWalletRandomPostData: &ApiByronWalletRandomPostData
       type: object
@@ -2919,7 +2919,6 @@ x-responsesPostExternalTransaction: &responsesPostExternalTransaction
 
 x-responsesPostAnyAddress: &responsesPostAnyAddress
   <<: *responsesErr400
-  <<: *responsesErr405
   <<: *responsesErr406
   <<: *responsesErr415
   202:

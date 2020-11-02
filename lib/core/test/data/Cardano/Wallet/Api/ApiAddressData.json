@@ -1,72 +1,346 @@
 {
-    "seed": 3464589065996029052,
+    "seed": -5242410206249913370,
     "samples": [
         {
-            "staking": {
-                "script": "script_vkh1vpq4jwk2zue8gttfaqkc6zdxxt67r3j0mg9az9tj4tnp6zewcpz"
+            "stake": {
+                "pub_key": "addr_vk1mepchlvj6l5u5265ycxt4att8tzkkzxzvze2udqa6k05qnqecujq6dtdk6"
             }
         },
         {
-            "staking": {
-                "script": "script_vkh1l686qpfelyz057dn0yacxsr6da6z775pk7nmwgqp8a0dghzlnre"
+            "stake": {
+                "pub_key": "addr_vk1daqlsl5sf2507ddhtkzdxx3fyxu74klw3x76q6l8hl6r4hf98gtq5jlwtf"
             }
         },
         {
-            "staking": {
-                "pub_key": "addr_vk1jg5gupuznm0t6py32xfmxw3aths7v8583wd6rrg23nfe94nzhgwsl69n85"
-            }
-        },
-        {
-            "spending": {
-                "script": "script_vkh1w0lc9k9uxn66qr9galkc026yay2uapk02mhlu0jsenx0z83vkyw"
-            },
-            "staking": {
-                "pub_key": "addr_vk1zejnq8l778fsry7rm56cnndm0n847lg4vq5xrt27xw762d97cyjsgy5vs4"
-            }
-        },
-        {
-            "staking": {
-                "pub_key": "addr_vk1ykxae7euz42zh33nmrjt8plcv0xudsxn63fsyx7q5n7nwdqfnzeqk33qq2"
-            }
-        },
-        {
-            "spending": {
-                "script": "script_vkh1z8sje05asrq33mjnggh7qel50ngv3x0h4detewew2903x2s0frk"
-            },
-            "staking": {
-                "pub_key": "addr_vk1fmz6fehcw8u8gu4hvy8p3vp6zznmp6cualqpc3xv4zjmm875etdquvu9td"
-            }
-        },
-        {
-            "staking": {
-                "script": "script_vkh1g6nyj4v2hpwu7l35tttr775y98ktah8tn2ynjxmuxdh0gkzd4su"
-            }
-        },
-        {
-            "spending": {
-                "pub_key": "addr_vk1pgunxulhzrwzs8gk68xh5me0y8k9hvg6crs3fr098tztl4ynjaaq06lu6s"
-            },
-            "staking": {
-                "pub_key": "addr_vk1kp4hdttm4n3tzsq2jk9958lzwyd8lp7azhs3w5jlk0fu687t5ydspdlak6"
-            }
-        },
-        {
-            "spending": {
+            "payment": {
                 "script": {
                     "all": [
-                        "script_vkh15gqdujp76avesry8pst70c7etd3dpa9qyfwmngcvmddazkr0szk",
-                        "script_vkh1r6jl4ehjenluwlejmshm0lvche2eteyzng5sm5vag9mzc4h0vlw",
-                        "script_vkh1lnunew99ncml4nfecre58ek55xnhrrnvyl7wta0w2ljz553jpw2"
+                        {
+                            "all": [
+                                "script_vkh1pyppvrgazuppvyg3rqqsw8cqpu23gzgspqzskrswpyvsysvyh3e",
+                                "script_vkh1qq0qxzcnpgwqcycszszswgqwrgtqgrqep5psy9gnzuyssv3zxc3",
+                                "script_vkh1pu2zqqcyqg9pj9cjpsdsxqqhqsqsyxqgpgspv8gnqg0jq8lejdh",
+                                "script_vkh1pu0q5rqppsfp7pgepuysxpqrzqr3gygcpq2p2rcurcd3gl5srnu",
+                                "script_vkh1qsd369cczq8skxs7qcvjqpgqpgfpkpgepvvqkpgmyq8jqdl06uh",
+                                "script_vkh1rc8pvy3qrqqpups4zqz37qc5py0sygqtrsdsqrgnqywqwn43knm",
+                                "script_vkh1qutsxrqpqq9su8s3psxqjrs4rg0pqzqvrs9sspc0ryzp6ewaz5g",
+                                "script_vkh1q5dswxq4rcvquqgmpgfpcxcfryrpgxcazgxpq8cpzvfpychy52y"
+                            ]
+                        },
+                        {
+                            "some": {
+                                "from": [
+                                    "script_vkh1zsrs69ssry8zqxq5rq8s6pgwrcwsjzq4zc0suycdr5ts65lxqn7",
+                                    "script_vkh1rsv3k8g9zy03gqspqy0sk8sary2qurchr583gzcvzuq3jyn0s5w",
+                                    "script_vkh1pct32rq5psxq2yqlzggqjpclqs9sx8cupq0jq9qnz5qsqaleqk9",
+                                    "script_vkh1rvxsq9s8qgfqvxq0zgzpgqc9pgspxxgcr5037ys4q5zpjltyw0q",
+                                    "script_vkh1pvtsjxq8qgxp6zq4pu9sqxqdqvgjq9g7rqq3sxcgqqxs29zjvmk",
+                                    "script_vkh1q50s5rcuyqppw8qlrgg3vpcnquy3srgtpsds59g0p50q5hk7rqr",
+                                    "script_vkh1zv23qqqwzurqx9strqxqsygyrcpqc9c3puqsyrsdru2s59373s2",
+                                    "script_vkh1rcpqzrcdpyps5qgerqrq5r3qpu0qx9qhzcx3kqc2py83zhxrp0l",
+                                    "script_vkh1zvppjzsgq5wpvxqgrcgssrsqzq9q6xs4psyqvqchpst3cw0zz3h"
+                                ],
+                                "at_least": 0
+                            }
+                        },
+                        {
+                            "some": {
+                                "from": [
+                                    "script_vkh1z5rq5rqyzgvqvzsprsr3upcppypswyg5rg2sv9gvzsg3zav7xvq",
+                                    "script_vkh1q503wzqcpyxqzqcjqgppyqqzpqrpzqg2yqd32rq4zyx3zer3v45",
+                                    "script_vkh1q50s5rqvqydqs8qgzvx3w8c6puz3kps8qurpg8cfp5r36qdt74r",
+                                    "script_vkh1pv93sygyquzpcqgzyqvpzyczpvzs7rs0rgfqxqspzsvqg8nu075",
+                                    "script_vkh1qc9qj8cayqsqvrskpuxpyrqursrq5xsjzs8ss9slpuw3c6xmrcl",
+                                    "script_vkh1quysxyqqrsdsx9saqctqg9suzut3wpgzpgsquzsfp5sp6jlqczc",
+                                    "script_vkh1qsdqc9seq58sj9qmp5rq2zcsqqfsyqqpqc2qzxscrqszq2ds7f9",
+                                    "script_vkh1qsd3zrqsqc8sz9cer5vqw8qqrgz32xq6zgd3j9ccq5vqw6lws7q"
+                                ],
+                                "at_least": 2
+                            }
+                        },
+                        {
+                            "any": [
+                                "script_vkh1pgr3kzg2qysquzqqquqsk8qfrsdpqpsyrvrq2yc4rsds5kzhxkg",
+                                "script_vkh1pggq5pgjzgqp2xsnpuxswqc2pcfq69g8pvgpvxs3r5gsxrw729f",
+                                "script_vkh1zswq7zgzz5ysuqqwqugpjrcwqyqpu9cnz52s29ghrc83gahulzl",
+                                "script_vkh1puxscrcgpvzq7ps3z5dp69sjzg2ps8q8qu2pqxqmzgrp756f5qy"
+                            ]
+                        },
+                        {
+                            "some": {
+                                "from": [
+                                    "script_vkh1yqdsgqstpugsc8cpqypp5rglqggq28gtqqzsurggpy8pjjgacv4",
+                                    "script_vkh1rvzskys6pudqyzc0zqrsqxqxpswjqzcqz5qsqzsezypqur5s4wg",
+                                    "script_vkh1zsts2pgrrv9qw9s2puxs7qcdpcdqcxqkpgqsxqgnzvfqv79vpls",
+                                    "script_vkh1q5spwxsvzvxpqqczqugpkyqnpcgp7qc9zqxqsysfzy9sswwjypy",
+                                    "script_vkh1pvwjq9q6qqyqwpc2zvt3xxcaqux35yqmrsfpy9qyrcy3vp8469z"
+                                ],
+                                "at_least": 4
+                            }
+                        },
+                        {
+                            "some": {
+                                "from": [
+                                    "script_vkh1qcrpzqs7qv9scqcwzvqpw8gapyxsqpgnzsrpxpslqgvqc0mmyu7",
+                                    "script_vkh1rcxqvyc8pgqqwps4pcrpc9sjqu8sczg0ryq3xgqfryqpx2k536t",
+                                    "script_vkh1zgg3gpqwqc2swrqlzy0zqysnzggqzqcaqvyp68qfqq23s6jpsqc",
+                                    "script_vkh1pyxqg8sszcv3vzqypy8p29ctzuv3sqc0pv8q68sgzgrsuvpdjk0",
+                                    "script_vkh1yqgpcxspqqysgrs7qgqqxyg8r5rsxxsrpq03wxgnzqfssvx4sum",
+                                    "script_vkh1zc93k9c3qvqs78qjpufqxpgczsvq7qcwrv9qcqcspsqqyl2335r",
+                                    "script_vkh1zqz37rqzpsv32yggpqy3x8q6rupqvygrrcg37ps7zgypgcdd6tu"
+                                ],
+                                "at_least": 4
+                            }
+                        }
                     ]
                 }
             },
-            "staking": {
-                "pub_key": "addr_vk13t3hzrma0wf4663yxfrepzh4pghpwlvmherzvpadx3s6y08umxts2jsv09"
+            "stake": {
+                "script": {
+                    "some": {
+                        "from": [
+                            {
+                                "any": [
+                                    "script_vkh1qgws68seryx35xgzrvvpyrg2rcz35qqfqsszqyspqcwq6hu922y",
+                                    "script_vkh1pqv32ygfrvfqxzgdr5qp79snqg8py9qjrcg3yqghqgwsxj3f2wu",
+                                    "script_vkh1zvsps9qprspsvrglpsyq6z3qrv0skxg6zy9s6gq4r5qqw245wsw",
+                                    "script_vkh1zgtpurgxq5yqx8cupggsjqqfquz3w9c2zqdsxxguqydpzl5wgxm",
+                                    "script_vkh1rgzpjyceq50p7gqezv0qqxc3qvvpj8s5zqxsyxc3zvzsz92k5gk"
+                                ]
+                            },
+                            {
+                                "all": [
+                                    "script_vkh1rq8pyqqqrg0pjgq8pczqkxqmqs9pwpsjzcxqxq3qyqz3sx0962z",
+                                    "script_vkh1zgsp2zs4zc8pvrgmqgyqqxsqrqgpxpsmpczpzqcxry8p6rwg2lz",
+                                    "script_vkh1ryy3x9q5yqf36pgppcxqkqcsq5dssgqyqurps8qkrcqqcahnctz",
+                                    "script_vkh1rctq28qdqgwp5rqhrcxzqqgqzc9pxrglpsp3yygwqsf3s7ssqst",
+                                    "script_vkh1q50pvzgjzydqxpgwry23x8cszc2qj8ckzqxscxq0q52sg88xe3m",
+                                    "script_vkh1zydqzqs0qv2qy8c4qv93x8c0yqwqj9c7pg0qkrs0p5z3wvust79",
+                                    "script_vkh1ruwscrsrqqps7xsmqs236zchqvzpxgq8qy0329qfpyzpj9r64sw",
+                                    "script_vkh1qqfs5ys3r59qqqqkrcwqxqqfpywqursyrv8qqqsnrsyqs3hg7wf",
+                                    "script_vkh1z5dqjqshq58sgqsuqsfqqqg8qv9pgqcnq5rpw8qxrcp3u3vx264"
+                                ]
+                            },
+                            {
+                                "some": {
+                                    "from": [
+                                        "script_vkh1zszs7yg6qcq3y8c9zqgs69cdrvrs5p3qp5p379qlzvsqgrh63lr",
+                                        "script_vkh1qypqjyq5qszjqzs7zsgsgzqpqqsp2pqtpg83vzsrz5r3y8vwnh9",
+                                        "script_vkh1pc8scgq0qcxs29gyzqsq2xsczc0psrsdzsx36xc7z5tqu926wps",
+                                        "script_vkh1pvxszyqnq5rqczg3qg932gqsrvrpyyclr5f3yyqmqcfpkcfrnzl",
+                                        "script_vkh1q5vzqzguqgp3vpgsqyrpy8q7zsfpzpgyzygp7zqnzuwsupu3s3t"
+                                    ],
+                                    "at_least": 2
+                                }
+                            },
+                            {
+                                "any": [
+                                    "script_vkh1qgg3zpgwr50qyrctqsp368g0zsppzqsgq5y3cpcfpsrqqwmmrf6",
+                                    "script_vkh1ps0pjyquqqxqvzcpqug378s4zczp69swzq2qjzfqqutpjqxnxq3",
+                                    "script_vkh1ruvpg8suqgv3c9qmzggpkzq0zur3qrgmrsv3jrg9pszpg7lnjjr",
+                                    "script_vkh1pggpjycqrgxjqpfqpsyqspclz5v3v8chzcd3g9qxpv93ugmqjwu",
+                                    "script_vkh1pstpgzchqcqqvqssr5fq7ysppuz3cgqrrg93src3rqvq76w26nn",
+                                    "script_vkh1p5xqyzsnry9qxrcaqsspk8qpqvxsqx3qzqvsyxslpgyssvm6a8c",
+                                    "script_vkh1pvwqwzc5qgpsyyqjzyxq7rqgrqvswxcmpgwsgpctzqfqxq960hu"
+                                ]
+                            },
+                            {
+                                "all": [
+                                    "script_vkh1pc2sx9q2rvrpspglqvfpuqqaruvsxxctzsszqpsrqyspgcly6ak",
+                                    "script_vkh1psrqkrcupvys2pglzg83xrcer5w3yzqlqcppkqqdrqvs2uvepvw",
+                                    "script_vkh1qsypgrgurgd3qpqzzuz3y8c2rygqc9cvzyz3y9c8yqvpgq4p647",
+                                    "script_vkh1q5v35rqqp5xpqqcprqvssrclp5zq6psnzydsx8qrqurqg2hpldc"
+                                ]
+                            }
+                        ],
+                        "at_least": 3
+                    }
+                }
             }
         },
         {
-            "spending": {
-                "pub_key": "addr_vk1jjt99zk9778l6c5zchw9vdu2rrzfs6l60lgxcyv8sv7sjgkpueesx9d99m"
+            "payment": {
+                "pub_key": "addr_vk1v6835v2g6yx4xqgyzu3x785snq4yks2t0e8mgkldxeyhmx57ksvshkua8r"
+            },
+            "stake": {
+                "pub_key": "addr_vk1ney9mxfedm5gas7x85rdzdz5npgcv5hqpm4au99jr3gumdjf66nqmk5t8r"
+            }
+        },
+        {
+            "payment": {
+                "script": {
+                    "any": [
+                        "script_vkh1zsqp59clzgvsszq4p5w3xpgmrsrqwyq8pv83vrcmqyx3w6q5y6d",
+                        "script_vkh1rvpszrgzzspq79sepuspgpcuyqgsg9gyzvzqqrqgpq0syyu988q",
+                        "script_vkh1zgq3vzs8qsxs5xsdz5t32rcgrczs58chz5fpjgpqq5tpcgcefjx",
+                        "script_vkh1q5qsxygkzvrpxycxqug3zrqzryq37xggps2q29s5qudszx0j2hn",
+                        "script_vkh1zgr36xqppv9369ggqc8pqzgrrgpqzyqxpgvqgrgprvdp50tkz9r",
+                        "script_vkh1qct369c6p5zqgreqru8pvyc6pux35rs5yqsquzqjzcpskam5kuc",
+                        "script_vkh1p59p69sypq9ss8ckpyyqkpgsp5dsu8cwry2pvxcvpv03yqggx6w",
+                        "script_vkh1rszswqckqu8qgyq6zvqscxcvq5xpz8shqq0p7yczzyzpvsvl6ch",
+                        "script_vkh1ruyq2rcaquxp58svrvxqkyqfq5f3wyguqc2skxquzyf3ypp9khg",
+                        "script_vkh1qqpsuxq4z5rqkxqcrqtpjpcyp5dqs9cmqvgqczcfzq8scu53ety"
+                    ]
+                }
+            },
+            "stake": {
+                "pub_key": "addr_vk1t02wuwem02hg47q94e9a5hlle05uwah9hh90wh8le44gpur2uupss2mkpj"
+            }
+        },
+        {
+            "payment": {
+                "script": {
+                    "some": {
+                        "from": [
+                            {
+                                "any": [
+                                    "script_vkh1rg8qsygcru8pg8cgrqx3sgqfrv2s7pqlqvwjqzsjrgtpwvz8jk2",
+                                    "script_vkh1p5dq5rq2pqqpqxg5pqypvycerggsk9sdzgtqyycupvfqu2d4etr",
+                                    "script_vkh1qqf3x8capv9sxyctpqvpkqcrrcvqwxq0qvx3jrgtqyp3yrw2vp6",
+                                    "script_vkh1qqdsuycazuyp6rqxzvyqk8s7zu0pyqstrvz3srgezq8qkl8h0r5"
+                                ]
+                            },
+                            {
+                                "some": {
+                                    "from": [
+                                        "script_vkh1qy0svrqjrvwzqzccpvvsqysrz5gqqzgkruqpwgq8quy3knr7qnz",
+                                        "script_vkh1psfp2pgxqygq7xqtzqyjqyskp5gpqzgvrvvpzyc7yqgqugn4x09",
+                                        "script_vkh1p5x3czgvpcvpurs8zvwpjqshpv8sgxg7zy2sc9gvqvqps8xfrrc",
+                                        "script_vkh1zgtpgxszzsvsqzqdzgqp7xc8zgr369g3rcrs2pq6zqxq2qsfffh",
+                                        "script_vkh1zg0puqcvrvxsuqghrg03yxceryv3gpszqc0pxqccrcvpqgfv83f",
+                                        "script_vkh1pvf37zqcqsvsk9s7r5fp79sdpgdsvrgfqggpc8gzry9322ak2uk"
+                                    ],
+                                    "at_least": 4
+                                }
+                            },
+                            {
+                                "all": [
+                                    "script_vkh1zgvq6xqwry8328q6ryxp7zcfrvpsvzsuzgps7xslqcts2g0uplm",
+                                    "script_vkh1rsr3jxstzgyss8ghpuppq8qsquwjqqcyzc0qv8g5zcy3gysrwhw",
+                                    "script_vkh1ps2s69qpp5tpyrg4zu0pvzq5zyf3v9ckpudpw8sjpsvs7e750aj",
+                                    "script_vkh1pcqpgyctrqz37pqdp5wsxqchpqrsyxczqcz3q9s5zuypqd5ypk6",
+                                    "script_vkh1qszsupqnpu8qgqqcrvv3uxeqpvqpx8c4qqxszqcrzc8jqm83gwl",
+                                    "script_vkh1putsqyclpy9qqxg6qvfsurqpr5dpx9czpgsqczq8ruz37csxvsw",
+                                    "script_vkh1qvxpxqq3qg0qvyqfz5yq5xqtzy9qw9qtpqt3vrq9qcxsvfddauz"
+                                ]
+                            },
+                            {
+                                "any": [
+                                    "script_vkh1zcvpypq8rcvjqpchzvf3kzg9qcwsk9cfpufsgzcjzqd3x5pvh9r",
+                                    "script_vkh1pypsgzg7qutqkysgyq0q2gqep58p68svqgwpxygzryrp6y936zf",
+                                    "script_vkh1pv0svqgcpyvqqzcqpsp328qlrs93wgqwzcsq5zgsrvp3ucysufh"
+                                ]
+                            },
+                            {
+                                "any": [
+                                    "script_vkh1p5yq78cuzc2pz9gjqsz358srpqgqjpq6rgx3j9clzqgs2tzp3yy",
+                                    "script_vkh1qv0sgygmzvdq29sdzydp28q5rctpxzguzv8p6zcgzqq3zatpeqf",
+                                    "script_vkh1z50quzg5zsq3w8gxqsgquxg7rqdqurc5zsxsugqnpuzs2x0lysq",
+                                    "script_vkh1pgrpyyqxrg8p6yqercxqx9c7p5ypxyqkqg2qx9gtz5qs54w4qpp"
+                                ]
+                            },
+                            {
+                                "some": {
+                                    "from": [
+                                        "script_vkh1qux3cpghqu9qxqs3qgxqy9gkqvrzqpsnqcpsx8cnryfqgp9y2an",
+                                        "script_vkh1zsw368sypqrpwxqxzyx3kpqgqcrskqgnqc0ssxs0qspq69fl7xh",
+                                        "script_vkh1qyyskyc4rspqc9gqpgvq5qspqcxpyqgrzupq29ggzygscw0uh0z",
+                                        "script_vkh1zvzquppqqsp3uqq6qugqz9qypvrq6qs4zcg3wrfqqyr3xgul6ch",
+                                        "script_vkh1rc8qq8sfpvrpgycyru2sqxgjr593cqqzru2qkxszzyppwg8kfyd",
+                                        "script_vkh1pg8qzqgdqu9p28ckpc8s6ycvqvp3uxqzquxq5qqpzcppx4dy2n5",
+                                        "script_vkh1zs23krfqqqwszzchpcdsxpgapy03uqs2pv93yygurcrq6pjymfa",
+                                        "script_vkh1rq93sps5psqpqqs5qqwpj9gqrv8ssxgprc2ss8gaqvx3ujwh3ml",
+                                        "script_vkh1rgppq8g8rq93jygrrgxp7yq2z5qqs9svpsdpjrggpyxpygc6gpz",
+                                        "script_vkh1qyqpqysrrq23y8caz5p3jqchqvrp6yqhrsq3grcwqqvsv39xg6t"
+                                    ],
+                                    "at_least": 1
+                                }
+                            },
+                            {
+                                "some": {
+                                    "from": [
+                                        "script_vkh1pgqpgyc4qcrp58cnzyws7xs6qgy3v8gxryqqk9q5zy23s8sy6dr",
+                                        "script_vkh1zqtsgxgcpyf3z9cwryfpwpctqu0p69qvrqw3cys9rcfqzv5m336",
+                                        "script_vkh1zu9q7zgepsfsurcgz583szc4zcqp7xqtyqyzqpswpcqpk94gk0z",
+                                        "script_vkh1qudp5qc8pvysy9cwrcrpzqsvrc2syyfqryxjqxsjq5gszfhkupz",
+                                        "script_vkh1zgyq7xc3pgdsvrskpcdqwygnpvrskzc7py9q69s8zgdpvug66pv",
+                                        "script_vkh1rqf32rg0pytp2xq9pgppgzs5qvfpsqg6zcd3sxguzvfswvuzau0"
+                                    ],
+                                    "at_least": 6
+                                }
+                            },
+                            {
+                                "all": [
+                                    "script_vkh1zczs5rq6ryt3s8qkpsrsyrcqrsqpwrq6yqdpwzqcpg93yfglpg2",
+                                    "script_vkh1qcrscxcwps0q7xs7zuxqqrcwqqpp2qgerq9q2zc4pgp3zc5phhu",
+                                    "script_vkh1pyyp5pqsps0puyq2pu0sgreqqupszrgtrgxszrqrrgqs6hv56ff",
+                                    "script_vkh1qyv3krc0p583y8gdru9pkqgxqgwp6qspqsg37qg0pq9p6d5up2g",
+                                    "script_vkh1rg9pwpeqzggqjzq3rgxs2yq4rqxq69cqzqzsxrcjps03v02eg96",
+                                    "script_vkh1psp3gpqkrs0pczcrruts7zsnpqrqc8gxpyzqvzg4qqpsj2gaque",
+                                    "script_vkh1ryvpszslpc83w9ckqs03kxs8rs23zzqyqvd3jpq3zsgp2pafyr4"
+                                ]
+                            },
+                            {
+                                "all": [
+                                    "script_vkh1zud3gyq7rsv3zqspzvz3qxcsrgtjq8cczgx3j8q5r52skr7q2p6",
+                                    "script_vkh1quys6ysjqyz37pqfqgpscpq0rvp3ypcwpy83zgq3ps0qsfwtl07",
+                                    "script_vkh1zyzs5rq0ryzszzgfpc9pwpq7psrsjqsyrq0pv9q5zqyq2xwnqn4",
+                                    "script_vkh1qcqqy8fqpqrqjyq7zcrqkrglqqypjycars8pjyczrupp72jztcd",
+                                    "script_vkh1zy9szysmq59qcxg6qc8378s7rvrsyzc5rvx3kzc2pytpkphnpph",
+                                    "script_vkh1rcxq5ysxyqps6psrrcyp79gpru2p5xgnqvv3vxsgzvfpvmzhhnk",
+                                    "script_vkh1ru2s7xg3zsv3qyqjqssp2xq2z5dpqyc5pg2qsps4psqpy7kcmjh",
+                                    "script_vkh1zvfqkxsuqctpvpslqsz3vrgkzyrpgqcvpv9psgqnrqvqc3awrta"
+                                ]
+                            }
+                        ],
+                        "at_least": 7
+                    }
+                }
+            }
+        },
+        {
+            "payment": {
+                "script": {
+                    "some": {
+                        "from": [
+                            {
+                                "all": [
+                                    "script_vkh1pqw358qyqux3s8c6puyqjxgapuzpxrgjqyx3wys0pcgqzxxqdsu",
+                                    "script_vkh1qcz3qxsuzy8pu8g4zg03kxsnqyypg8qfqvtqcpsfqusqjyvr0gp",
+                                    "script_vkh1qc2zq8sjrufp2qs9qgqszygjruxqkycvpvq3zqsqpu0sxdd5pef",
+                                    "script_vkh1zvd3xrgdr5fqqrgvzvzqj9cszcgp7xcjyq93wxc6zqv369dzdkl",
+                                    "script_vkh1zqfqkpqzrqps7xq6yq03uzqgzcspw9cdru8qszslr593schr9r4",
+                                    "script_vkh1q5wpyygjquwq29gfpqtqs9c9rqrpkqc4qg9qx9snrv93q2urfat",
+                                    "script_vkh1rgspv8g3zgv36qgrzcxssqs7yqvp69c0ru0qcxgkqq035srau3w",
+                                    "script_vkh1pux3zysepq2q6pcurvw35pgzqq0sjxg7zq0pyxgpzsfsc55wflt",
+                                    "script_vkh1pg8sjpgqry8s68gyq5qscpsrpuzs69swq58p79grr50scldpyh8"
+                                ]
+                            }
+                        ],
+                        "at_least": 2
+                    }
+                }
+            },
+            "stake": {
+                "pub_key": "addr_vk1xlw0e0v2z902yhwe50pr3j20xzus5nqpj95thz9xfxaxasm57u7qlafrah"
+            }
+        },
+        {
+            "payment": {
+                "pub_key": "addr_vk1xxy7nq0ehryh7u0qcastl4376wr04f4chuh082qknmvx90gc7eeq0tppa2"
+            }
+        },
+        {
+            "payment": {
+                "pub_key": "addr_vk15vexd5a645u5q9zhp2qjkfhv2hljxjfsx4leq2kecc702dyzcqpsmswtwh"
+            },
+            "stake": {
+                "pub_key": "addr_vk1u0al9xu9qf34xwx4s3y054myfwcdn9s292akkhnxkspdatqyfe5q3xfukq"
+            }
+        },
+        {
+            "stake": {
+                "pub_key": "addr_vk1zwn7d70c09v0n9533xrvgppsgajz84js4jlyp80kalt0744wty4s6usra9"
             }
         }
     ]

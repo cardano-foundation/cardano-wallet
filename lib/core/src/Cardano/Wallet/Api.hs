@@ -337,7 +337,7 @@ type InspectAddress = "addresses"
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/postAnyAddress
 type PostAnyAddress n = "addresses"
     :> ReqBody '[JSON] ApiAddressData
-    :> PostCreated '[JSON] AnyAddress
+    :> PostAccepted '[JSON] AnyAddress
 
 {-------------------------------------------------------------------------------
                                Coin Selections

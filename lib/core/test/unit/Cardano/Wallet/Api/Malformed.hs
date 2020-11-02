@@ -302,24 +302,24 @@ instance Malformed (BodyParam ApiAddressData) where
           , "Error in $: ApiAddressData must have at least one credential."
           )
         , ( Aeson.encode [aesonQQ|
-            { "staking": {}
+            { "stake": {}
             }|]
-          , "Error in $: key 'script' not found"
+          , "Error in $: ApiAddressData must have at least one credential."
           )
         , ( Aeson.encode [aesonQQ|
-            { "spending": {}
+            { "payment": {}
             }|]
-          , "Error in $: key 'script' not found"
+          , "Error in $: ApiAddressData must have at least one credential."
           )
         , ( Aeson.encode [aesonQQ|
-            { "staking": 2
+            { "stake": 2
             }|]
-          , "Error in $: parsing ApiCredential failed, expected Object, but encountered Number"
+          , "Error in $: ApiAddressData must have at least one credential."
           )
         , ( Aeson.encode [aesonQQ|
-            { "spending": 2
+            { "payment": 2
             }|]
-          , "Error in $: parsing ApiCredential failed, expected Object, but encountered Number"
+          , "Error in $: ApiAddressData must have at least one credential."
           )
         ]
 instance Malformed (BodyParam SomeByronWalletPostData) where
