@@ -1685,7 +1685,7 @@ verify a = counterexample msg . mapM_ (a &)
 -- >>>  (Status {statusCode = 200, statusMessage = "OK"},Right [])
 -- >>>        expected: 3
 -- >>>         but got: 0
-counterexample :: (MonadIO m, MonadCatch m) => String -> m a -> m a
+counterexample :: (MonadIO m, MonadCatch m, HasCallStack) => String -> m a -> m a
 counterexample msg = (`catch` (throwM . appendFailureReason msg))
 
 appendFailureReason :: String -> HUnitFailure -> HUnitFailure
