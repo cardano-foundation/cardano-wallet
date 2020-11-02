@@ -1929,7 +1929,6 @@ x-errNotFound: &errNotFound
       type: string
       description: A descriptive error message.
     code:
-    code:
       type: string
       enum: ['not_found']
 
@@ -1940,7 +1939,6 @@ x-errSoftDerivationRequired: &errSoftDerivationRequired
     message:
       type: string
       description: A descriptive error message.
-    code:
     code:
       type: string
       enum: ['soft_derivation_required']
