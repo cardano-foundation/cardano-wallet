@@ -1921,12 +1921,517 @@ x-responsesErr: &responsesErr
       description: A specific error code for this error, more precise than HTTP ones.
       example: an_error_code
 
+x-errNotFound: &errNotFound
+  <<: *responsesErr
+  title: not_found
+  properties:
+    message:
+      type: string
+      description: A descriptive error message.
+    code:
+    code:
+      type: string
+      enum: ['not_found']
+
+x-errSoftDerivationRequired: &errSoftDerivationRequired
+  <<: *responsesErr
+  title: not_found
+  properties:
+    message:
+      type: string
+      description: A descriptive error message.
+    code:
+    code:
+      type: string
+      enum: ['soft_derivation_required']
+
+x-errNoSuchWallet: &errNoSuchWallet
+  <<: *responsesErr
+  title: no_such_wallet
+  properties:
+    message:
+      type: string
+      description: |
+        May occur when a given walletId does not match with any known
+        wallets (because it has been deleted, or has never existed).
+    code:
+      type: string
+      enum: ['no_such_wallet']
+
+x-errNoSuchTransaction: &errNoSuchTransaction
+  <<: *responsesErr
+  title: no_such_transaction
+  properties:
+    message:
+      type: string
+      description: May occur when a given transactionId does not match with any known transactions.
+    code:
+      type: string
+      enum: ['no_such_transaction']
+
+x-errTransactionNotPending: &errTransactionNotPending
+  <<: *responsesErr
+  title: transaction_not_pending
+  properties:
+    message:
+      type: string
+      description: May occur when trying to forget a transaction that is not pending.
+    code:
+      type: string
+      enum: ['transaction_not_pending']
+
+x-errWalletAlreadyExists: &errWalletAlreadyExists
+  <<: *responsesErr
+  title: wallet_already_exists
+  properties:
+    message:
+      type: string
+      description: May occur when a otherwise valid request would yield a wallet that already exists.
+    code:
+      type: string
+      enum: ['wallet_already_exists']
+
+x-errNoRootKey: &errNoRootKey
+  <<: *responsesErr
+  title: no_root_key
+  properties:
+    message:
+      type: string
+      description: May occur when an action require a signing key but the wallet has only access to verification keys.
+    code:
+      type: string
+      enum: ['no_root_key']
+
+x-errWrongEncryptionPassphrase: &errWrongEncryptionPassphrase
+  <<: *responsesErr
+  title: wrong_encryption_passphrase
+  properties:
+    message:
+      type: string
+      description: May occur when the given spending passphrase is wrong.
+    code:
+      type: string
+      enum: ['wrong_encryption_passphrase']
+
+x-errMalformedTxPayload: &errMalformedTxPayload
+  <<: *responsesErr
+  title: malformed_tx_payload
+  properties:
+    message:
+      type: string
+      description: May occur when submitting a malformed serialized transaction.
+    code:
+      type: string
+      enum: ['malformed_tx_payload']
+
+# TODO: Map this error to the place it belongs.
+x-errKeyNotFoundForAddress: &errKeyNotFoundForAddress
+  <<: *responsesErr
+  title: key_not_found_for_address
+  properties:
+    message:
+      type: string
+      description: Should never happen unless the server screwed up and has lost track of previously known addresses.
+    code:
+      type: string
+      enum: ['key_not_found_for_address']
+
+x-errNotEnoughMoney: &errNotEnoughMoney
+  <<: *responsesErr
+  title: not_enough_money
+  properties:
+    message:
+      type: string
+      description: May occur when there's not enough money in the wallet to cover a requested payment.
+    code:
+      type: string
+      enum: ['not_enough_money']
+
+x-errTransactionIsTooBig: &errTransactionIsTooBig
+  <<: *responsesErr
+  title: transaction_is_too_big
+  properties:
+    message:
+      type: string
+      description: May occur when the wallet can't cover for all requested outputs without making the transaction too large.
+    code:
+      type: string
+      enum: ['transaction_is_too_big']
+
+x-errInputsDepleted: &errInputsDepleted
+  <<: *responsesErr
+  title: inputs_depleted
+  properties:
+    message:
+      type: string
+      description: May occur when there's enough money to pay for a payment, but not enough UTxO to allow for paying each output independently.
+    code:
+      type: string
+      enum: ['inputs_depleted']
+
+x-errCannotCoverFee: &errCannotCoverFee
+  <<: *responsesErr
+  title: cannot_cover_fee
+  properties:
+    message:
+      type: string
+      description: May occur when a transaction can't be balanced for fees.
+    code:
+      type: string
+      enum: ['cannot_cover_fee']
+
+x-errInvalidCoinSelection: &errInvalidCoinSelection
+  <<: *responsesErr
+  title: invalid_coin_selection
+  properties:
+    message:
+      type: string
+      description: Should never happen unless the server screwed up with the creation of a coin selection.
+    code:
+      type: string
+      enum: ['invalid_coin_selection']
+
+# TODO: Map this error to the place it belongs.
+x-errNetworkUnreachable: &errNetworkUnreachable
+  <<: *responsesErr
+  title: network_unreachable
+  properties:
+    message:
+      type: string
+      description: May occur when the connection with the node is lost or not responding.
+    code:
+      type: string
+      enum: ['network_unreachable']
+
+# TODO: Map this error to the place it belongs.
+x-errNetworkMisconfigured: &errNetworkMisconfigured
+  <<: *responsesErr
+  title: network_misconfigured
+  properties:
+    message:
+      type: string
+      description: May occur when trying to connect to a wrong network (e.g. testnet instead of mainnet).
+    code:
+      type: string
+      enum: ['network_misconfigured']
+
+# TODO: Map this error to the place it belongs.
+x-errNetworkTipNotFound: &errNetworkTipNotFound
+  <<: *responsesErr
+  title: network_tip_not_found
+  properties:
+    message:
+      type: string
+      description: May occur when the connection with the node is lost or not responding.
+    code:
+      type: string
+      enum: ['network_tip_not_found']
+
+x-errCreatedInvalidTransaction: &errCreatedInvalidTransaction
+  <<: *responsesErr
+  title: created_invalid_transaction
+  properties:
+    message:
+      type: string
+      description: Should never happen unless the server screwed up with the creation of transaction.
+    code:
+      type: string
+      enum: ['created_invalid_transaction']
+
+x-errRejectedByCoreNode: &errRejectedByCoreNode
+  <<: *responsesErr
+  title: rejected_by_core_node
+  properties:
+    message:
+      type: string
+      description: Should never happen unless the server screwed up with the creation of transaction.
+    code:
+      type: string
+      enum: ['rejected_by_core_node']
+
+x-errBadRequest: &errBadRequest
+  <<: *responsesErr
+  title: bad_request
+  properties:
+    message:
+      type: string
+      description: |
+        May occur when a request is not well-formed; that is, it fails to parse
+        successfully. This could be the case when some required parameters
+        are missing or, when malformed values are provided.
+    code:
+      type: string
+      enum: ['bad_request']
+
+x-errMethodNotAllowed: &errMethodNotAllowed
+  <<: *responsesErr
+  title: method_not_allowed
+  properties:
+    message:
+      type: string
+      description: May occur when sending a request on a wrong endpoint.
+    code:
+      type: string
+      enum: ['method_not_allowed']
+
+x-errNotAcceptable: &errNotAcceptable
+  <<: *responsesErr
+  title: not_acceptable
+  properties:
+    message:
+      type: string
+      description: May occur when providing an invalid 'Accept' header.
+    code:
+      type: string
+      enum: ['not_acceptable']
+
+x-errUnsupportedMediaType: &errUnsupportedMediaType
+  <<: *responsesErr
+  title: unsupported_media_type
+  properties:
+    message:
+      type: string
+      description: May occur when providing an invalid 'Content-Type' header.
+    code:
+      type: string
+      enum: ['unsupported_media_type']
+
+# TODO: Map this error to the place it belongs.
+x-errUnexpectedError: &errUnexpectedError
+  <<: *responsesErr
+  title: unexpected_error
+  properties:
+    message:
+      type: string
+      description: Should never occur, unless the server screwed up badly.
+    code:
+      type: string
+      enum: ['unexpected_error']
+
+x-errStartTimeLaterThanEndTime: &errStartTimeLaterThanEndTime
+  <<: *responsesErr
+  title: start_time_later_than_end_time
+  properties:
+    message:
+      type: string
+      description: May occur when a provided time-range is unsound.
+    code:
+      type: string
+      enum: ['start_time_later_than_end_time']
+
+# TODO: Map this error to the place it belongs.
+x-errUnableToDetermineCurrentEpoch: &errUnableToDetermineCurrentEpoch
+  <<: *responsesErr
+  title: unable_to_determine_current_epoch
+  properties:
+    message:
+      type: string
+      description: May occur under rare circumstances if the underlying node isn't enough synced with the network.
+    code:
+      type: string
+      enum: ['unable_to_determine_current_epoch']
+
+# TODO: Map this error to the place it belongs.
+x-errNotSynced: &errNotSynced
+  <<: *responsesErr
+  title: not_synced
+  properties:
+    message:
+      type: string
+      description: May occur under rare circumstances if the underlying node isn't enough synced with the network.
+    code:
+      type: string
+      enum: ['not_synced']
+
+# TODO: Map this error to the place it belongs.
+x-errNothingToMigrate: &errNothingToMigrate
+  <<: *responsesErr
+  title: nothing_to_migrate
+  properties:
+    message:
+      type: string
+      description: May occur when trying to migrate a wallet that is empty or full of dust.
+    code:
+      type: string
+      enum: ['nothing_to_migrate']
+
+x-errNoSuchPool: &errNoSuchPool
+  <<: *responsesErr
+  title: no_such_pool
+  properties:
+    message:
+      type: string
+      description: May occur when a given poolId does not match any known pool.
+    code:
+      type: string
+      enum: ['no_such_pool']
+
+x-errPoolAlreadyJoined: &errPoolAlreadyJoined
+  <<: *responsesErr
+  title: pool_already_joined
+  properties:
+    message:
+      type: string
+      description: May occur when a given poolId matches the current delegation preferences of the wallet's account.
+    code:
+      type: string
+      enum: ['pool_already_joined']
+
+x-errNotDelegatingTo: &errNotDelegatingTo
+  <<: *responsesErr
+  title: not_delegating_to
+  properties:
+    message:
+      type: string
+      description: May occur when trying to quit a pool on an account that isn't delegating.
+    code:
+      type: string
+      enum: ['not_delegating_to']
+
+# TODO: Map this error to the place it belongs.
+x-errNotImplemented: &errNotImplemented
+  <<: *responsesErr
+  title: not_implemented
+  properties:
+    message:
+      type: string
+      description: May occur when reaching an endpoint under construction.
+    code:
+      type: string
+      enum: ['not_implemented']
+
+# TODO: Map this error to the place it belongs.
+x-errWalletNotResponding: &errWalletNotResponding
+  <<: *responsesErr
+  title: wallet_not_responding
+  properties:
+    message:
+      type: string
+      description: Should never occur unless something really wrong happened causing a background worker to die.
+    code:
+      type: string
+      enum: ['wallet_not_responding']
+
+# TODO: Map this error to the place it belongs.
+x-errAddressAlreadyExists: &errAddressAlreadyExists
+  <<: *responsesErr
+  title: address_already_exists
+  properties:
+    message:
+      type: string
+      description: May occur when trying to import an address that is already known of the wallet's account.
+    code:
+      type: string
+      enum: ['address_already_exists']
+
+x-errInvalidWalletType: &errInvalidWalletType
+  <<: *responsesErr
+  title: invalid_wallet_type
+  properties:
+    message:
+      type: string
+      description: May occur when trying to perform an operation not supported by this type of wallet.
+    code:
+      type: string
+      enum: ['invalid_wallet_type']
+
+x-errQueryParamMissing: &errQueryParamMissing
+  <<: *responsesErr
+  title: query_param_missing
+  properties:
+    message:
+      type: string
+      description: May occur when an endpoint requires the presence of a query parameter that is missing.
+    code:
+      type: string
+      enum: ['query_param_missing']
+
+x-errNonNullRewards: &errNonNullRewards
+  <<: *responsesErr
+  title: non_null_rewards
+  properties:
+    message:
+      type: string
+      description: May occur when trying to unregister a stake key that still has rewards attached to it.
+    code:
+      type: string
+      enum: ['non_null_rewards']
+
+x-errUtxoTooSmall: &errUtxoTooSmall
+  <<: *responsesErr
+  title: utxo_too_small
+  properties:
+    message:
+      type: string
+      description: May occur when a requested output is below the minimum utxo value.
+    code:
+      type: string
+      enum: ['utxo_too_small']
+
+x-errMinWithdrawalWrong: &errMinWithdrawalWrong
+  <<: *responsesErr
+  title: min_withdrawal_wrong
+  properties:
+    message:
+      type: string
+      description: May occur when trying to withdraw less than the minimal UTxO value.
+    code:
+      type: string
+      enum: ['min_withdrawal_wrong']
+
+x-errAlreadyWithdrawing: &errAlreadyWithdrawing
+  <<: *responsesErr
+  title: already_withdrawing
+  properties:
+    message:
+      type: string
+      description: May occur when submitting a withdrawal while another withdrawal is pending.
+    code:
+      type: string
+      enum: ['already_withdrawing']
+
+# TODO: Map this error to the place it belongs.
+x-errWithdrawalNotWorth: &errWithdrawalNotWorth
+  <<: *responsesErr
+  title: withdrawal_not_worth
+  properties:
+    message:
+      type: string
+      description: May occur when withdrawing an amount would cost more than the withdrawn value.
+    code:
+      type: string
+      enum: ['withdrawal_not_worth']
+
+# TODO: Map this error to the place it belongs.
+x-errPastHorizon: &errPastHorizon
+  <<: *responsesErr
+  title: past_horizon
+  properties:
+    message:
+      type: string
+      description: May occur in rare cases when converting slot to time can't be done, typically near hard-forks.
+    code:
+      type: string
+      enum: ['past_horizon']
+
+# TODO: Map this error to the place it belongs.
+x-errUnableToAssignInputOutput: &errUnableToAssignInputOutput
+  <<: *responsesErr
+  title: unable_to_assign_input_output
+  properties:
+    message:
+      type: string
+      description: Should never occur unless the server screwed up with a coin selection.
+    code:
+      type: string
+      enum: ['unable_to_assign_input_output']
+
 x-responsesErr400: &responsesErr400
   400:
     description: Bad Request
     content:
       application/json:
-        schema: *responsesErr
+        schema: *errBadRequest
 
 x-responsesErr403: &responsesErr403
   403:
@@ -1942,19 +2447,12 @@ x-responsesErr404: &responsesErr404
       application/json:
         schema: *responsesErr
 
-x-responsesErr405: &responsesErr405
-  405:
-    description: Method Not Allowed
-    content:
-      application/json:
-        schema: *responsesErr
-
 x-responsesErr406: &responsesErr406
   406:
     description: Not Acceptable
     content:
       application/json:
-        schema: *responsesErr
+        schema: *errNotAcceptable
 
 x-responsesErr409: &responsesErr409
   409:
@@ -1984,8 +2482,28 @@ x-responsesErr423: &responsesErr423
       application/json:
         schema: *responsesErr
 
+x-responsesErr404WalletNotFound: &responsesErr404WalletNotFound
+  404:
+    description: Not Found
+    content:
+      application/json:
+        schema: *errNoSuchWallet
+
+x-responsesErr409WalletAlreadyExists: &responsesErr409WalletAlreadyExists
+  409:
+    description: Conflict
+    content:
+      application/json:
+        schema: *errWalletAlreadyExists
+
+x-responsesErr415UnsupportedMediaType: &responsesErr415UnsupportedMediaType
+  415:
+    description: Unsupported Media Type
+    content:
+      application/json:
+        schema: *errUnsupportedMediaType
+
 x-responsesListWallets: &responsesListWallets
-  <<: *responsesErr405
   <<: *responsesErr406
   200:
     description: Ok
@@ -1996,7 +2514,6 @@ x-responsesListWallets: &responsesListWallets
           items: *ApiWallet
 
 x-responsesListByronWallets: &responsesListByronWallets
-  <<: *responsesErr405
   <<: *responsesErr406
   200:
     description: Ok
@@ -2007,8 +2524,7 @@ x-responsesListByronWallets: &responsesListByronWallets
           items: *ApiByronWallet
 
 x-responsesGetUTxOsStatistics: &responsesGetUTxOsStatistics
-  <<: *responsesErr404
-  <<: *responsesErr405
+  <<: *responsesErr404WalletNotFound
   <<: *responsesErr406
   200:
     description: Ok
@@ -2018,10 +2534,9 @@ x-responsesGetUTxOsStatistics: &responsesGetUTxOsStatistics
 
 x-responsesPostWallet: &responsesPostWallet
   <<: *responsesErr400
-  <<: *responsesErr405
   <<: *responsesErr406
-  <<: *responsesErr409
-  <<: *responsesErr415
+  <<: *responsesErr409WalletAlreadyExists
+  <<: *responsesErr415UnsupportedMediaType
   201:
     description: Created
     content:
@@ -2030,7 +2545,6 @@ x-responsesPostWallet: &responsesPostWallet
 
 x-responsesPostByronWallet: &responsesPostByronWallet
   <<: *responsesErr400
-  <<: *responsesErr405
   <<: *responsesErr406
   <<: *responsesErr409
   <<: *responsesErr415
@@ -2041,8 +2555,8 @@ x-responsesPostByronWallet: &responsesPostByronWallet
         schema: *ApiByronWallet
 
 x-responsesGetWallet: &responsesGetWallet
-  <<: *responsesErr404
-  <<: *responsesErr405
+  <<: *responsesErr400
+  <<: *responsesErr404WalletNotFound
   <<: *responsesErr406
   200:
     description: Ok
@@ -2052,7 +2566,6 @@ x-responsesGetWallet: &responsesGetWallet
 
 x-responsesGetByronWallet: &responsesGetByronWallet
   <<: *responsesErr404
-  <<: *responsesErr405
   <<: *responsesErr406
   200:
     description: Ok
@@ -2061,8 +2574,12 @@ x-responsesGetByronWallet: &responsesGetByronWallet
         schema: *ApiByronWallet
 
 x-responsesGetWalletMigrationInfo: &responsesGetWalletMigrationInfo
-  <<: *responsesErr404
-  <<: *responsesErr405
+  403:
+    description: Forbidden
+    content:
+      application/json:
+        schema: *errNothingToMigrate
+  <<: *responsesErr404WalletNotFound
   <<: *responsesErr406
   200:
     description: Ok
@@ -2071,11 +2588,24 @@ x-responsesGetWalletMigrationInfo: &responsesGetWalletMigrationInfo
         schema: *ApiWalletMigrationInfo
 
 x-responsesMigrateWallet: &responsesMigrateWallet
-  <<: *responsesErr403
-  <<: *responsesErr404
-  <<: *responsesErr405
+  403:
+    description: Forbidden
+    content:
+      application/json:
+        schema:
+          oneOf:
+            - <<: *errNothingToMigrate
+            - <<: *errNoRootKey
+            - <<: *errWrongEncryptionPassphrase
+  <<: *responsesErr404WalletNotFound
   <<: *responsesErr406
-  <<: *responsesErr415
+  410:
+    description: Gone
+    content:
+      application/json:
+        schema:
+          <<: *errNoSuchWallet
+  <<: *responsesErr415UnsupportedMediaType
   200:
     description: Ok
     content:
@@ -2085,8 +2615,8 @@ x-responsesMigrateWallet: &responsesMigrateWallet
           items: *ApiTransaction
 
 x-responsesDeleteWallet: &responsesDeleteWallet
-  <<: *responsesErr404
-  <<: *responsesErr405
+  <<: *responsesErr400
+  <<: *responsesErr404WalletNotFound
   <<: *responsesErr406
   204:
     description: No Content
@@ -2095,7 +2625,6 @@ x-responsesForceResyncWallet: &responsesForceResyncWallet
   <<: *responsesErr400
   <<: *responsesErr403
   <<: *responsesErr404
-  <<: *responsesErr405
   <<: *responsesErr406
   <<: *responsesErr415
   204:
@@ -2103,10 +2632,9 @@ x-responsesForceResyncWallet: &responsesForceResyncWallet
 
 x-responsesPutWallet: &responsesPutWallet
   <<: *responsesErr400
-  <<: *responsesErr404
-  <<: *responsesErr405
+  <<: *responsesErr404WalletNotFound
   <<: *responsesErr406
-  <<: *responsesErr415
+  <<: *responsesErr415UnsupportedMediaType
   200:
     description: Ok
     content:
@@ -2115,21 +2643,37 @@ x-responsesPutWallet: &responsesPutWallet
 
 x-responsesPutWalletPassphrase: &responsesPutWalletPassphrase
   <<: *responsesErr400
-  <<: *responsesErr403
-  <<: *responsesErr404
-  <<: *responsesErr405
+  403:
+    description: Forbidden
+    content:
+      application/json:
+        schema:
+          oneOf:
+            - <<: *errNoRootKey
+            - <<: *errWrongEncryptionPassphrase
+  <<: *responsesErr404WalletNotFound
   <<: *responsesErr406
-  <<: *responsesErr415
+  <<: *responsesErr415UnsupportedMediaType
   204:
     description: No Content
 
 x-responsesSelectCoins: &responsesSelectCoins
   <<: *responsesErr400
-  <<: *responsesErr403
-  <<: *responsesErr404
-  <<: *responsesErr405
+  403:
+    description: Forbidden
+    content:
+      application/json:
+        schema:
+          oneOf:
+            - <<: *errAlreadyWithdrawing
+            - <<: *errUtxoTooSmall
+            - <<: *errNotEnoughMoney
+            - <<: *errCannotCoverFee
+            - <<: *errInputsDepleted
+            - <<: *errInvalidCoinSelection
+  <<: *responsesErr404WalletNotFound
   <<: *responsesErr406
-  <<: *responsesErr415
+  <<: *responsesErr415UnsupportedMediaType
   200:
     description: OK
     content:
@@ -2137,16 +2681,33 @@ x-responsesSelectCoins: &responsesSelectCoins
         schema: *ApiCoinSelection
 
 x-responsesDeleteTransaction: &responsesDeleteTransaction
-  <<: *responsesErr403
-  <<: *responsesErr404
-  <<: *responsesErr405
+  403:
+    description: Forbidden
+    content:
+      application/json:
+        schema: *errTransactionNotPending
+  404:
+    description: Not Found
+    content:
+      application/json:
+        schema:
+          oneOf:
+            - <<: *errNoSuchWallet
+            - <<: *errNoSuchTransaction
   <<: *responsesErr406
   204:
     description: No Content
 
 x-responsesListTransactions: &responsesListTransactions
-  <<: *responsesErr404
-  <<: *responsesErr405
+  400:
+    description: Bad Request
+    content:
+      application/json:
+        schema:
+          oneOf:
+            - <<: *errMinWithdrawalWrong
+            - <<: *errStartTimeLaterThanEndTime
+  <<: *responsesErr404WalletNotFound
   <<: *responsesErr406
   200:
     description: Ok
@@ -2162,8 +2723,14 @@ x-responsesListTransactions: &responsesListTransactions
           items: *ApiTransaction
 
 x-responsesGetTransaction: &responsesGetTransaction
-  <<: *responsesErr404
-  <<: *responsesErr405
+  404:
+    description: Not Found
+    content:
+      application/json:
+        schema:
+          oneOf:
+            - <<: *errNoSuchWallet
+            - <<: *errNoSuchTransaction
   <<: *responsesErr406
   200:
     description: OK
@@ -2172,12 +2739,37 @@ x-responsesGetTransaction: &responsesGetTransaction
         schema: *ApiTransaction
 
 x-responsesPostTransaction: &responsesPostTransaction
-  <<: *responsesErr400
-  <<: *responsesErr403
-  <<: *responsesErr404
-  <<: *responsesErr405
+  400:
+    description: Bad Request
+    content:
+      application/json:
+        schema:
+          oneOf:
+            - <<: *errBadRequest
+            - <<: *errTransactionIsTooBig
+  403:
+    description: Forbidden
+    content:
+      application/json:
+        schema:
+          oneOf:
+            - <<: *errInvalidWalletType
+            - <<: *errAlreadyWithdrawing
+            - <<: *errUtxoTooSmall
+            - <<: *errCannotCoverFee
+            - <<: *errNotEnoughMoney
+            - <<: *errTransactionIsTooBig
+            - <<: *errNoRootKey
+            - <<: *errWrongEncryptionPassphrase
+  <<: *responsesErr404WalletNotFound
   <<: *responsesErr406
-  <<: *responsesErr415
+  410:
+    description: Gone
+    content:
+      application/json:
+        schema:
+          <<: *errNoSuchWallet
+  <<: *responsesErr415UnsupportedMediaType
   202:
     description: Accepted
     content:
@@ -2186,9 +2778,8 @@ x-responsesPostTransaction: &responsesPostTransaction
 
 x-responsesPostExternalTransaction: &responsesPostExternalTransaction
   <<: *responsesErr400
-  <<: *responsesErr405
   <<: *responsesErr406
-  <<: *responsesErr415
+  <<: *responsesErr415UnsupportedMediaType
   202:
     description: Accepted
     content:
@@ -2196,12 +2787,31 @@ x-responsesPostExternalTransaction: &responsesPostExternalTransaction
         schema: *ApiTxId
 
 x-responsesPostTransactionFee: &responsesPostTransactionFee
-  <<: *responsesErr400
-  <<: *responsesErr403
-  <<: *responsesErr404
-  <<: *responsesErr405
+  400:
+    description: Bad Request
+    content:
+      application/json:
+        schema:
+          oneOf:
+            - <<: *errBadRequest
+            - <<: *errTransactionIsTooBig
+  403:
+    description: Forbidden
+    content:
+      application/json:
+        schema:
+          oneOf:
+            - <<: *errInvalidWalletType
+            - <<: *errAlreadyWithdrawing
+            - <<: *errUtxoTooSmall
+            - <<: *errCannotCoverFee
+            - <<: *errNotEnoughMoney
+            - <<: *errInputsDepleted
+            - <<: *errInvalidCoinSelection
+            - <<: *errTransactionIsTooBig
+  <<: *responsesErr404WalletNotFound
   <<: *responsesErr406
-  <<: *responsesErr415
+  <<: *responsesErr415UnsupportedMediaType
   202:
     description: Accepted
     content:
@@ -2209,9 +2819,12 @@ x-responsesPostTransactionFee: &responsesPostTransactionFee
         schema: *ApiFee
 
 x-responsesGetDelegationFee: &responsesGetDelegationFee
-  <<: *responsesErr403
-  <<: *responsesErr404
-  <<: *responsesErr405
+  403:
+    description: Forbidden
+    content:
+      application/json:
+        schema: *errCannotCoverFee
+  <<: *responsesErr404WalletNotFound
   <<: *responsesErr406
   200:
     description: Ok
@@ -2221,8 +2834,7 @@ x-responsesGetDelegationFee: &responsesGetDelegationFee
 
 x-responsesListAddresses: &responsesListAddresses
   <<: *responsesErr400
-  <<: *responsesErr404
-  <<: *responsesErr405
+  <<: *responsesErr404WalletNotFound
   <<: *responsesErr406
   200:
     description: Ok
@@ -2235,7 +2847,6 @@ x-responsesListAddresses: &responsesListAddresses
 x-responsesGetKey: &responsesGetKey
   <<: *responsesErr400
   <<: *responsesErr404
-  <<: *responsesErr405
   <<: *responsesErr406
   200:
     description: Ok
@@ -2244,8 +2855,11 @@ x-responsesGetKey: &responsesGetKey
         schema: *ApiVerificationKey
 
 x-responsesListStakePools: &responsesListStakePools
-  <<: *responsesErr405
-  <<: *responsesErr404
+  400:
+    description: Bad Request
+    content:
+      application/json:
+        schema: *errQueryParamMissing
   200:
     description: Ok
     content:
@@ -2261,11 +2875,32 @@ x-responsesListStakePools: &responsesListStakePools
 
 x-responsesJoinStakePool: &responsesJoinStakePool
   <<: *responsesErr400
-  <<: *responsesErr403
-  <<: *responsesErr404
-  <<: *responsesErr405
+  403:
+    description: Forbidden
+    content:
+      application/json:
+        schema:
+          oneOf:
+            - <<: *errCannotCoverFee
+            - <<: *errNoRootKey
+            - <<: *errWrongEncryptionPassphrase
+            - <<: *errPoolAlreadyJoined
+  404:
+    description: Not Found
+    content:
+      application/json:
+        schema:
+          oneOf:
+            - <<: *errNoSuchWallet
+            - <<: *errNoSuchPool
   <<: *responsesErr406
-  <<: *responsesErr415
+  410:
+    description: Gone
+    content:
+      application/json:
+        schema:
+          <<: *errNoSuchWallet
+  <<: *responsesErr415UnsupportedMediaType
   202:
     description: Accepted
     content:
@@ -2273,10 +2908,34 @@ x-responsesJoinStakePool: &responsesJoinStakePool
         schema: *ApiTransaction
 
 x-responsesQuitStakePool: &responsesQuitStakePool
-  <<: *responsesJoinStakePool
+  <<: *responsesErr400
+  403:
+    description: Forbidden
+    content:
+      application/json:
+        schema:
+          oneOf:
+            - <<: *errCannotCoverFee
+            - <<: *errNoRootKey
+            - <<: *errWrongEncryptionPassphrase
+            - <<: *errNotDelegatingTo
+            - <<: *errNonNullRewards
+  <<: *responsesErr404WalletNotFound
+  <<: *responsesErr406
+  410:
+    description: Gone
+    content:
+      application/json:
+        schema:
+          <<: *errNoSuchWallet
+  <<: *responsesErr415UnsupportedMediaType
+  202:
+    description: Accepted
+    content:
+      application/json:
+        schema: *ApiTransaction
 
 x-responsesGetNetworkInformation: &responsesGetNetworkInformation
-  <<: *responsesErr405
   <<: *responsesErr406
   200:
     description: Ok
@@ -2285,7 +2944,6 @@ x-responsesGetNetworkInformation: &responsesGetNetworkInformation
         schema: *ApiNetworkInformation
 
 x-responsesGetNetworkClock: &responsesGetNetworkClock
-  <<: *responsesErr405
   <<: *responsesErr406
   200:
     description: Ok
@@ -2294,7 +2952,6 @@ x-responsesGetNetworkClock: &responsesGetNetworkClock
         schema: *ApiNetworkClock
 
 x-responsesGetNetworkParameters: &responsesGetNetworkParameters
-  <<: *responsesErr405
   <<: *responsesErr406
   200:
     description: Ok
@@ -2305,7 +2962,6 @@ x-responsesGetNetworkParameters: &responsesGetNetworkParameters
 x-responsesPostRandomAddress: &responsesPostRandomAddress
   <<: *responsesErr400
   <<: *responsesErr403
-  <<: *responsesErr405
   <<: *responsesErr406
   <<: *responsesErr415
   201:
@@ -2317,21 +2973,17 @@ x-responsesPostRandomAddress: &responsesPostRandomAddress
 x-responsesPutRandomAddress: &responsesPutRandomAddress
   <<: *responsesErr400
   <<: *responsesErr403
-  <<: *responsesErr405
   204:
     description: No Content
 
 x-responsesPutRandomAddresses: &responsesPutRandomAddresses
   <<: *responsesErr400
   <<: *responsesErr403
-  <<: *responsesErr405
   204:
     description: No Content
 
 x-responsesInspectAddress: &responsesInspectAddress
   <<: *responsesErr400
-  <<: *responsesErr405
-  <<: *responsesErr415
   200:
     description: Ok
     content:
@@ -2340,15 +2992,11 @@ x-responsesInspectAddress: &responsesInspectAddress
 
 x-responsesPutSettings: &responsesPutSettings
   <<: *responsesErr400
-  <<: *responsesErr403
-  <<: *responsesErr405
+  <<: *responsesErr415UnsupportedMediaType
   204:
     description: No Content
 
 x-responsesGetSettings: &responsesGetSettings
-  <<: *responsesErr400
-  <<: *responsesErr403
-  <<: *responsesErr405
   200:
     description: Ok
     content:
@@ -2357,7 +3005,6 @@ x-responsesGetSettings: &responsesGetSettings
 
 x-responsesPostSignatures: &responsesPostSignatures
     <<: *responsesErr400
-    <<: *responsesErr405
     <<: *responsesErr406
     <<: *responsesErr415
     200:
@@ -2686,6 +3333,7 @@ paths:
     get:
       operationId: getDelegationFee
       tags: ["Stake Pools"]
+
       summary: Estimate Fee
       description: |
         <p align="right">status: <strong>stable</strong></p>

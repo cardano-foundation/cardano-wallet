@@ -1,5 +1,6 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
@@ -8,6 +9,7 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -54,6 +56,7 @@ import Cardano.Wallet.Api.Types
     , ApiCoinSelectionInput (..)
     , ApiCoinSelectionOutput (..)
     , ApiEpochInfo (..)
+    , ApiErrorCode (..)
     , ApiFee (..)
     , ApiMnemonicT (..)
     , ApiNetworkClock (..)
@@ -182,17 +185,28 @@ import Cardano.Wallet.Unsafe
 import Control.Lens
     ( at, (.~), (?~), (^.) )
 import Control.Monad
-    ( forM_, replicateM )
+    ( forM, forM_, replicateM )
 import Control.Monad.IO.Class
     ( liftIO )
 import Crypto.Hash
     ( hash )
 import Data.Aeson
-    ( FromJSON (..), ToJSON (..), (.=) )
+    ( FromJSON (..)
+    , Result (..)
+    , ToJSON (..)
+    , fromJSON
+    , withObject
+    , (.:?)
+    , (.=)
+    )
 import Data.Aeson.QQ
     ( aesonQQ )
 import Data.Char
     ( toLower )
+import Data.Data
+    ( dataTypeConstrs, dataTypeOf, showConstr )
+import Data.Either
+    ( lefts )
 import Data.FileEmbed
     ( embedFile, makeRelativeToProject )
 import Data.Function
@@ -272,6 +286,7 @@ import Test.QuickCheck
     , arbitraryPrintableChar
     , arbitrarySizedBoundedIntegral
     , choose
+    , counterexample
     , elements
     , frequency
     , oneof
@@ -928,6 +943,41 @@ spec = do
                     }
             in
             x' === x .&&. show x' === show x
+
+    describe "Api Errors" $ do
+        it "Every constructor from ApiErrorCode has a corresponding type in the schema" $
+            let res = fromJSON @SchemaApiErrorCode specification
+                errStr = case res of
+                    Error s -> s
+                    _ -> ""
+            in counterexample errStr $ res == Success SchemaApiErrorCode
+
+{-------------------------------------------------------------------------------
+                              Error type Encoding
+-------------------------------------------------------------------------------}
+
+-- | We use this empty data type to define a custom
+-- JSON instance that checks ApiErrorCode has corresponding
+-- constructors in the schema file.
+data SchemaApiErrorCode = SchemaApiErrorCode
+    deriving (Show, Eq)
+
+instance FromJSON SchemaApiErrorCode where
+    parseJSON = withObject "SchemaApiErrorCode" $ \o -> do
+        vals <- forM (fmap showConstr $ dataTypeConstrs $ dataTypeOf NoSuchWallet)
+            $ \n -> do
+                (r :: Maybe Yaml.Value) <- o .:? T.pack (toSchemaName n)
+                pure $ maybe (Left n) Right r
+        case lefts vals of
+            [] -> pure SchemaApiErrorCode
+            xs -> fail ("Missing ApiErrorCode constructors for: "
+                <> show xs
+                <> "\nEach of these need a corresponding swagger type of the form: "
+                <> "x-errConstructorName")
+      where
+        toSchemaName :: String -> String
+        toSchemaName [] = []
+        toSchemaName xs = "x-err" <> xs
 
 {-------------------------------------------------------------------------------
                               Address Encoding

@@ -2239,9 +2239,6 @@ data ErrCreateWallet
         -- ^ Somehow, we couldn't create a worker or open a db connection
     deriving (Eq, Show)
 
-newtype ErrRejectedTip = ErrRejectedTip ApiSlotReference
-    deriving (Eq, Show)
-
 -- | Small helper to easy show things to Text
 showT :: Show a => a -> Text
 showT = T.pack . show
@@ -2261,15 +2258,6 @@ instance LiftHandler ErrUnexpectedPoolIdPlaceholder where
             apiError err400 BadRequest (pretty msg)
       where
         Left msg = fromText @PoolId "INVALID"
-
-instance LiftHandler ErrRejectedTip where
-    handler = \case
-        ErrRejectedTip {} ->
-            apiError err403 RejectedTip $ mconcat
-                [ "I am sorry but I refuse to rollback to the given point. "
-                , "Notwithstanding I'll willingly rollback to the genesis point "
-                , "(0, 0) should you demand it."
-                ]
 
 instance LiftHandler ErrSelectForMigration where
     handler = \case
@@ -2621,7 +2609,6 @@ instance LiftHandler ErrSelectForDelegation where
                 [ "I'm unable to select enough coins to pay for a "
                 , "delegation certificate. I need: ", showT cost, " Lovelace."
                 ]
-        ErrSelectForDelegationUnableToAssignInputs e -> handler e
 
 instance LiftHandler ErrSignDelegation where
     handler = \case
@@ -2656,10 +2643,6 @@ instance LiftHandler ErrJoinStakePool where
                     [ "I couldn't find any stake pool with the given id: "
                     , toText pid
                     ]
-        ErrJoinStakePoolUnableToAssignInputs e ->
-            apiError err500 UnableToAssignInputOutput $ mconcat
-                [ "I'm unable to assign inputs from coin selection: "
-                , pretty e]
 
 instance LiftHandler ErrFetchRewards where
     handler = \case
@@ -2696,10 +2679,6 @@ instance LiftHandler ErrQuitStakePool where
                     , "account! Make sure to withdraw your ", pretty rewards
                     , " lovelace first."
                     ]
-        ErrQuitStakePoolUnableToAssignInputs e ->
-            apiError err500 UnableToAssignInputOutput $ mconcat
-                [ "I'm unable to assign inputs from coin selection: "
-                , pretty e]
 
 instance LiftHandler ErrCreateRandomAddress where
     handler = \case

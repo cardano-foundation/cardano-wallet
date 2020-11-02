@@ -1,5 +1,6 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
@@ -245,6 +246,8 @@ import Data.ByteArray.Encoding
     ( Base (Base16), convertFromBase, convertToBase )
 import Data.ByteString
     ( ByteString )
+import Data.Data
+    ( Data )
 import Data.Either.Extra
     ( maybeToEither )
 import Data.Function
@@ -277,6 +280,8 @@ import Data.Time.Clock
     ( NominalDiffTime, UTCTime )
 import Data.Time.Text
     ( iso8601, iso8601ExtendedUtc, utcTimeFromText, utcTimeToText )
+import Data.Typeable
+    ( Typeable )
 import Data.Word
     ( Word16, Word32, Word64 )
 import Data.Word.Odd
@@ -778,7 +783,6 @@ data ApiErrorCode
     | MalformedTxPayload
     | KeyNotFoundForAddress
     | NotEnoughMoney
-    | UtxoNotEnoughFragmented
     | TransactionIsTooBig
     | InputsDepleted
     | CannotCoverFee
@@ -792,18 +796,15 @@ data ApiErrorCode
     | NotFound
     | MethodNotAllowed
     | NotAcceptable
-    | StartTimeLaterThanEndTime
-    | UnableToDetermineCurrentEpoch
     | UnsupportedMediaType
     | UnexpectedError
+    | StartTimeLaterThanEndTime
+    | UnableToDetermineCurrentEpoch
     | NotSynced
     | NothingToMigrate
     | NoSuchPool
     | PoolAlreadyJoined
     | NotDelegatingTo
-    | InvalidRestorationParameters
-    | RejectedTip
-    | InvalidDelegationDiscovery
     | NotImplemented
     | WalletNotResponding
     | AddressAlreadyExists
@@ -817,7 +818,7 @@ data ApiErrorCode
     | PastHorizon
     | UnableToAssignInputOutput
     | SoftDerivationRequired
-    deriving (Eq, Generic, Show)
+    deriving (Eq, Generic, Show, Data, Typeable)
 
 -- | Defines a point in time that can be formatted as and parsed from an
 --   ISO 8601-compliant string.
