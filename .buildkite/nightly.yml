@@ -51,6 +51,24 @@ steps:
 
   - wait
 
+  - label: 'Repeated integration'
+    command: "nix-build -A checks.cardano-wallet.integration --no-out-link"
+    timeout_in_minutes: 360
+    env:
+      HOME: "/cache/cardano-wallet.home"
+      CARDANO_WALLET_INTEGRATION_TEST_REPETITIONS: 7
+    agents:
+      system: x86_64-linux
+
+  - label: 'Extensive unit tests'
+    command: "nix-build -A checks.cardano-wallet-core.unit --no-out-link"
+    timeout_in_minutes: 360
+    env:
+      HOME: "/cache/cardano-wallet.home"
+      HSPEC_OPTIONS: "--qc-max-success=2000"
+    agents:
+      system: x86_64-linux
+
   - label: "Advance linux-tests-pass and all-tests-pass branches"
     command: "./.buildkite/push-branch.sh linux-tests-pass windows-tests-pass all-tests-pass"
     agents:

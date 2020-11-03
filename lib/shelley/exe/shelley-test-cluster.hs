@@ -46,6 +46,7 @@ import Cardano.Wallet.Shelley.Launch
     ( ClusterLog (..)
     , RunningNode (..)
     , moveInstantaneousRewardsTo
+    , newClusterSetupFaucet
     , nodeMinSeverityFromEnv
     , oneMillionAda
     , poolConfigsFromEnv
@@ -219,28 +220,30 @@ main = withUtf8Encoding $ do
 
     poolConfigs <- poolConfigsFromEnv
     withLoggingNamed "test-cluster" clusterLogs $ \(_, (_, trCluster)) ->
-        withSystemTempDir (trMessageText trCluster) "test-cluster" $ \dir ->
+        withSystemTempDir (trMessageText trCluster) "test-cluster" $ \dir -> do
+        setupFaucet <- newClusterSetupFaucet (trMessageText trCluster)
         withCluster
             (contramap MsgCluster $ trMessageText trCluster)
             nodeMinSeverity
             poolConfigs
             dir
             Nothing
+            setupFaucet
             whenByron
-            (whenShelley dir (trMessageText trCluster))
+            (whenShelley dir (trMessageText trCluster) setupFaucet)
             (whenReady dir (trMessageText trCluster) (walletLogs dir))
   where
     whenByron _ = pure ()
 
-    whenShelley dir trCluster _ = do
-        traceWith trCluster MsgSettingUpFaucet
-        let trCluster' = contramap MsgCluster trCluster
+    whenShelley dir tr' setupFaucet _ = do
+        traceWith tr' MsgSettingUpFaucet
+        let tr = contramap MsgCluster tr'
         let encodeAddr = T.unpack . encodeAddress @'Mainnet
         let addresses = map (first encodeAddr) shelleyIntegrationTestFunds
         let accts = concatMap genRewardAccounts mirMnemonics
         let rewards = (,Coin $ fromIntegral oneMillionAda) <$> accts
-        sendFaucetFundsTo trCluster' dir addresses
-        moveInstantaneousRewardsTo trCluster' dir rewards
+        sendFaucetFundsTo tr dir setupFaucet addresses
+        moveInstantaneousRewardsTo tr dir setupFaucet rewards
 
     whenReady dir trCluster logs (RunningNode socketPath block0 (gp, vData)) =
         withLoggingNamed "cardano-wallet" logs $ \(sb, (cfg, tr)) -> do

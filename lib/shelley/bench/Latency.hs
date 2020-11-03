@@ -63,6 +63,7 @@ import Cardano.Wallet.Shelley.Faucet
     ( initFaucet )
 import Cardano.Wallet.Shelley.Launch
     ( RunningNode (..)
+    , newClusterSetupFaucet
     , sendFaucetFundsTo
     , withCluster
     , withSystemTempDir
@@ -367,20 +368,22 @@ withShelleyServer tracers action = do
     withServer act = withSystemTempDir nullTracer "latency" $ \dir -> do
             let db = dir </> "wallets"
             createDirectory db
+            setupFaucet <- newClusterSetupFaucet nullTracer
             withCluster
                 nullTracer
                 Error
                 []
                 dir
                 Nothing
+                setupFaucet
                 onByron
-                (afterFork dir)
+                (afterFork dir setupFaucet)
                 (onClusterStart act dir)
     onByron _ = pure ()
-    afterFork dir _ = do
+    afterFork dir setupFaucet _ = do
         let encodeAddr = T.unpack . encodeAddress @'Mainnet
         let addresses = map (first encodeAddr) shelleyIntegrationTestFunds
-        sendFaucetFundsTo nullTracer dir addresses
+        sendFaucetFundsTo nullTracer dir setupFaucet addresses
 
     onClusterStart act dir (RunningNode socketPath block0 (gp, vData)) = do
         -- NOTE: We may want to keep a wallet running across the fork, but

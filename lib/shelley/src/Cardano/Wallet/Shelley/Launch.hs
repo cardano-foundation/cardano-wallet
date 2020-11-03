@@ -34,6 +34,8 @@ module Cardano.Wallet.Shelley.Launch
     , defaultPoolConfigs
     , poolConfigsFromEnv
     , RunningNode (..)
+    , ClusterSetupFaucet (..)
+    , newClusterSetupFaucet
 
       -- * Faucets
     , sendFaucetFundsTo
@@ -53,9 +55,6 @@ module Cardano.Wallet.Shelley.Launch
     , testMinSeverityFromEnv
     , testLogDirFromEnv
     , walletListenFromEnv
-
-    -- * global vars
-    , operators
 
     -- * Logging
     , ClusterLog (..)
@@ -142,7 +141,7 @@ import Control.Concurrent.Async
 import Control.Concurrent.Chan
     ( newChan, readChan, writeChan )
 import Control.Concurrent.MVar
-    ( MVar, modifyMVar, newMVar, putMVar, readMVar, takeMVar )
+    ( MVar, modifyMVar, newMVar, putMVar, takeMVar )
 import Control.Exception
     ( SomeException, finally, handle, throwIO )
 import Control.Monad
@@ -222,8 +221,6 @@ import System.Info
     ( os )
 import System.IO.Temp
     ( createTempDirectory, getCanonicalTemporaryDirectory, withTempDirectory )
-import System.IO.Unsafe
-    ( unsafePerformIO )
 import System.Process
     ( readProcess, readProcessWithExitCode )
 import Test.Utils.Paths
@@ -581,6 +578,7 @@ withCluster
     -> FilePath
     -- ^ Parent state directory for cluster
     -> Maybe (FilePath, Severity)
+    -> ClusterSetupFaucet
     -> (RunningNode -> IO ())
     -- ^ Action to run when the Byron BFT node is up
     -> (RunningNode -> IO ())
@@ -591,7 +589,7 @@ withCluster
     -- ^ Action to run when we have transitioned to the Allegra era and
     -- stake pools are running
     -> IO a
-withCluster tr severity poolConfigs dir logFile onByron onShelley onClusterStart =
+withCluster tr severity poolConfigs dir logFile setupFaucet onByron onShelley onClusterStart =
     bracketTracer' tr "withCluster" $ do
         traceWith tr $ MsgStartingCluster dir
         let poolCount = length poolConfigs
@@ -606,7 +604,7 @@ withCluster tr severity poolConfigs dir logFile onByron onShelley onClusterStart
             onShelley runningBftNode
 
             setEnv "CARDANO_NODE_SOCKET_PATH" bftSocket
-            (rawTx, faucetPrv) <- prepareKeyRegistration tr dir
+            (rawTx, faucetPrv) <- prepareKeyRegistration tr dir setupFaucet
             tx <- signTx tr dir rawTx [faucetPrv]
             submitTx tr "pre-registered stake key" tx
 
@@ -635,7 +633,7 @@ withCluster tr severity poolConfigs dir logFile onByron onShelley onClusterStart
                         let spCfg =
                                 NodeParams severity systemStart (port, peers) logFile
                         withStakePool
-                            tr dir idx spCfg (pledgeOf idx) poolConfig $ do
+                            tr dir idx spCfg (pledgeOf idx) poolConfig setupFaucet $ do
                                 writeChan waitGroup $ Right port
                                 readChan doneGroup)
 
@@ -801,11 +799,12 @@ setupStakePoolData
     -- ^ Pledge (and stake) amount.
     -> Maybe EpochNo
     -- ^ Optional retirement epoch.
+    -> ClusterSetupFaucet
     -> IO (CardanoNodeConfig, FilePath, FilePath)
-setupStakePoolData tr dir name params url pledgeAmt mRetirementEpoch = do
+setupStakePoolData tr dir name params url pledgeAmt mRetirementEpoch setupFaucet = do
     let NodeParams severity systemStart (port, peers) logDir = params
 
-    (opPrv, opPub, opCount, metadata) <- genOperatorKeyPair tr dir
+    (opPrv, opPub, opCount, metadata) <- genOperatorKeyPair setupFaucet dir
     (vrfPrv, vrfPub) <- genVrfKeyPair tr dir
     (kesPrv, kesPub) <- genKesKeyPair tr dir
     (stakePrv, stakePub) <- genStakeAddrKeyPair tr dir
@@ -840,7 +839,7 @@ setupStakePoolData tr dir name params url pledgeAmt mRetirementEpoch = do
             , mPoolRetirementCert
             ]
     (rawTx, faucetPrv) <- preparePoolRegistration
-        tr dir stakePub certificates pledgeAmt
+        tr dir stakePub certificates pledgeAmt setupFaucet
     tx <- signTx tr dir rawTx [faucetPrv, stakePrv, opPrv]
 
     let cfg = CardanoNodeConfig
@@ -874,16 +873,17 @@ withStakePool
     -- ^ Pledge amount / initial stake
     -> PoolConfig
     -- ^ Pool configuration
+    -> ClusterSetupFaucet
     -> IO a
     -- ^ Action to run with the stake pool running
     -> IO a
-withStakePool tr baseDir idx params pledgeAmt poolConfig action =
+withStakePool tr baseDir idx params pledgeAmt poolConfig setupFaucet action =
     bracketTracer' tr "withStakePool" $ do
         createDirectory dir
         withStaticServer dir $ \url -> do
             traceWith tr $ MsgStartedStaticServer dir url
             (cfg, opPub, tx) <- setupStakePoolData
-                tr dir name params url pledgeAmt (retirementEpoch poolConfig)
+                tr dir name params url pledgeAmt (retirementEpoch poolConfig) setupFaucet
             withCardanoNodeProcess tr name cfg $ \_ -> do
                 submitTx tr name tx
                 timeout 120
@@ -896,14 +896,15 @@ withStakePool tr baseDir idx params pledgeAmt poolConfig action =
 -- | Run a SMASH stub server, serving some delisted pool IDs.
 withSMASH
     :: Tracer IO ClusterLog
+    -> ClusterSetupFaucet
     -> IO a
     -> IO a
-withSMASH tr action =
+withSMASH tr setupFaucet action =
     withSystemTempDir tr "smash" $ \fp -> do
         let baseDir = fp </> "api/v1"
 
         -- write pool metadatas
-        pools <- readMVar operators
+        let pools = operators setupFaucet
         forM_ pools $ \(poolId, _, _, _, metadata) -> do
             let bytes = Aeson.encode metadata
 
@@ -1096,24 +1097,6 @@ genTopology dir peers = do
         , "valency" .= (1 :: Int)
         ]
 
--- | Create a key pair for a node operator's offline key and a new certificate
--- issue counter
-genOperatorKeyPair :: Tracer IO ClusterLog -> FilePath -> IO (FilePath, FilePath, FilePath, Aeson.Value)
-genOperatorKeyPair tr dir = do
-    traceWith tr $ MsgGenOperatorKeyPair dir
-    (_poolId, pub, prv, count, metadata) <- takeMVar operators >>= \case
-        [] -> fail "genOperatorKeyPair: Awe crap! No more operators available!"
-        (op:q) -> putMVar operators q $> op
-
-    let opPub = dir </> "op.pub"
-    let opPrv = dir </> "op.prv"
-    let opCount = dir </> "op.count"
-
-    Aeson.encodeFile opPub pub
-    Aeson.encodeFile opPrv prv
-    Aeson.encodeFile opCount count
-
-    pure (opPrv, opPub, opCount, metadata)
 
 -- | Create a key pair for a node KES operational key
 genKesKeyPair :: Tracer IO ClusterLog -> FilePath -> IO (FilePath, FilePath)
@@ -1249,8 +1232,9 @@ preparePoolRegistration
     -> FilePath
     -> [FilePath]
     -> Integer
+    -> ClusterSetupFaucet
     -> IO (FilePath, FilePath)
-preparePoolRegistration tr dir stakePub certs pledgeAmt = do
+preparePoolRegistration tr dir stakePub certs pledgeAmt setupFaucet = do
     let file = dir </> "tx.raw"
     let sinkPrv = dir </> "sink.prv"
     let sinkPub = dir </> "sink.pub"
@@ -1266,7 +1250,7 @@ preparePoolRegistration tr dir stakePub certs pledgeAmt = do
         , "--mainnet"
         ]
 
-    (faucetInput, faucetPrv) <- takeFaucet
+    (faucetInput, faucetPrv) <- takeFaucet setupFaucet
     void $ cli tr $
         [ "transaction", "build-raw"
         , "--tx-in", faucetInput
@@ -1281,13 +1265,14 @@ preparePoolRegistration tr dir stakePub certs pledgeAmt = do
 sendFaucetFundsTo
     :: Tracer IO ClusterLog
     -> FilePath
+    -> ClusterSetupFaucet
     -> [(String, Coin)]
     -> IO ()
-sendFaucetFundsTo tr dir allTargets = do
+sendFaucetFundsTo tr dir setupFaucet allTargets = do
     forM_ (group 80 allTargets) sendBatch
   where
     sendBatch targets = do
-        (faucetInput, faucetPrv) <- takeFaucet
+        (faucetInput, faucetPrv) <- takeFaucet setupFaucet
         let file = dir </> "faucet-tx.raw"
         let outputs = flip concatMap targets $ \(addr, (Coin c)) ->
                 ["--tx-out", addr <> "+" <> show c]
@@ -1317,11 +1302,12 @@ sendFaucetFundsTo tr dir allTargets = do
 moveInstantaneousRewardsTo
     :: Tracer IO ClusterLog
     -> FilePath
+    -> ClusterSetupFaucet
     -> [(XPub, Coin)]
     -> IO ()
-moveInstantaneousRewardsTo tr dir targets = do
+moveInstantaneousRewardsTo tr dir setupFaucet targets = do
     certs <- mapM (mkVerificationKey >=> mkMIRCertificate) targets
-    (faucetInput, faucetPrv) <- takeFaucet
+    (faucetInput, faucetPrv) <- takeFaucet setupFaucet
     let file = dir </> "mir-tx.raw"
 
     let total = fromIntegral $ sum $ map (getCoin . snd) targets
@@ -1379,14 +1365,15 @@ moveInstantaneousRewardsTo tr dir targets = do
 prepareKeyRegistration
     :: Tracer IO ClusterLog
     -> FilePath
+    -> ClusterSetupFaucet
     -> IO (FilePath, FilePath)
-prepareKeyRegistration tr dir = do
+prepareKeyRegistration tr dir setupFaucet = do
     let file = dir </> "tx.raw"
 
     let stakePub = dir </> "pre-registered-stake.pub"
     Aeson.encodeFile stakePub preRegisteredStakeKey
 
-    (faucetInput, faucetPrv) <- takeFaucet
+    (faucetInput, faucetPrv) <- takeFaucet setupFaucet
 
     cert <- issueStakeCert tr dir "pre-registered" stakePub
     sink <- genSinkAddress tr dir
@@ -1486,143 +1473,176 @@ waitUntilRegistered tr name opPub = do
         waitUntilRegistered tr name opPub
 
 
--- | Hard-wired faucets referenced in the genesis file. Purpose is simply to
--- fund some initial transaction for the cluster. Faucet have plenty of money to
--- pay for certificates and are intended for a one-time usage in a single
--- transaction.
-takeFaucet :: IO (String, String)
-takeFaucet = do
-    i <- modifyMVar faucetIndex (\i -> pure (i+1, i))
-    source <- getShelleyTestDataPath
-    let basename = source </> "faucet-addrs" </> "faucet" <> show i
-    base58Addr <- BS.readFile $ basename <> ".addr"
-    let addr = fromMaybe (error $ "decodeBase58 failed for " ++ show base58Addr)
-            . decodeBase58 bitcoinAlphabet
-            . T.encodeUtf8
-            . T.strip
-            $ T.decodeUtf8 base58Addr
+-- | Provides needed utilities for cluster setup.
+data ClusterSetupFaucet = ClusterSetupFaucet
+    { takeFaucet :: IO (String, String)
+    , genOperatorKeyPair :: FilePath -> IO (FilePath, FilePath, FilePath, Aeson.Value)
+    , operators :: [(PoolId, Aeson.Value, Aeson.Value, Aeson.Value, Aeson.Value)]
+    }
 
-    let txin = B8.unpack (hex $ blake2b256 addr) <> "#0"
-    let signingKey = basename <> ".shelley.key"
-    pure (txin, signingKey)
+newClusterSetupFaucet
+    :: Tracer IO ClusterLog
+    -> IO ClusterSetupFaucet
+newClusterSetupFaucet tr = do
+    indexVar <- newMVar 1
+    opVar <- newOperatorsVar
+    return $ ClusterSetupFaucet
+        { takeFaucet = takeFaucet' indexVar
+        , genOperatorKeyPair = genOperatorKeyPair opVar
+        , operators = _operators
+        }
 
--- | List of faucets also referenced in the shelley 'genesis.yaml'
-faucetIndex :: MVar Int
-faucetIndex = unsafePerformIO $ newMVar 1
-{-# NOINLINE faucetIndex #-}
 
-operators :: MVar [(PoolId, Aeson.Value, Aeson.Value, Aeson.Value, Aeson.Value)]
-operators = unsafePerformIO $ newMVar
-    [ ( PoolId $ unsafeFromHex
-          "ec28f33dcbe6d6400a1e5e339bd0647c0973ca6c0cf9c2bbe6838dc6"
-      , Aeson.object
-          [ "type" .= Aeson.String "StakePoolVerificationKey_ed25519"
-          , "description" .= Aeson.String "Stake pool operator key"
-          , "cborHex" .= Aeson.String
-              "5820a12804d805eff46c691da5b11eb703cbf7463983e325621b41ac5b24e4b51887"
-          ]
-      , Aeson.object
-          [ "type" .= Aeson.String "StakePoolSigningKey_ed25519"
-          , "description" .= Aeson.String "Stake pool operator key"
-          , "cborHex" .= Aeson.String
-              "5820d8f81c455ef786f47ad9f573e49dc417e0125dfa8db986d6c0ddc03be8634dc6"
-          ]
-      , Aeson.object
-          [ "type" .= Aeson.String "NodeOperationalCertificateIssueCounter"
-          , "description" .= Aeson.String "Next certificate issue number: 0"
-          , "cborHex" .= Aeson.String
-              "82005820a12804d805eff46c691da5b11eb703cbf7463983e325621b41ac5b24e4b51887"
-          ]
-      , Aeson.object
-          [ "name" .= Aeson.String "Genesis Pool A"
-          , "ticker" .= Aeson.String "GPA"
-          , "description" .= Aeson.Null
-          , "homepage" .= Aeson.String "https://iohk.io"
-          ]
-      )
-    , ( PoolId $ unsafeFromHex
-          "1b3dc19c6ab89eaffc8501f375bb03c11bf8ed5d183736b1d80413d6"
-      , Aeson.object
-          [ "type" .= Aeson.String "StakePoolVerificationKey_ed25519"
-          , "description" .= Aeson.String "Stake pool operator key"
-          , "cborHex" .= Aeson.String
-              "5820109440baecebefd92e3b933b4a717dae8d3291edee85f27ebac1f40f945ad9d4"
-          ]
-      , Aeson.object
-          [ "type" .= Aeson.String "StakePoolSigningKey_ed25519"
-          , "description" .= Aeson.String "Stake pool operator key"
-          , "cborHex" .= Aeson.String
-              "5820fab9d94c52b3e222ed494f84020a29ef8405228d509a924106d05ed01c923547"
-          ]
-      , Aeson.object
-          [ "type" .= Aeson.String "NodeOperationalCertificateIssueCounter"
-          , "description" .= Aeson.String "Next certificate issue number: 0"
-          , "cborHex" .= Aeson.String
-              "82005820109440baecebefd92e3b933b4a717dae8d3291edee85f27ebac1f40f945ad9d4"
-          ]
-      , Aeson.object
-          [ "name" .= Aeson.String "Genesis Pool B"
-          , "ticker" .= Aeson.String "GPB"
-          , "description" .= Aeson.Null
-          , "homepage" .= Aeson.String "https://iohk.io"
-          ]
-      )
-    , ( PoolId $ unsafeFromHex
-          "b45768c1a2da4bd13ebcaa1ea51408eda31dcc21765ccbd407cda9f2"
-      , Aeson.object
-          [ "type" .= Aeson.String "StakePoolVerificationKey_ed25519"
-          , "description" .= Aeson.String "Stake pool operator key"
-          , "cborHex" .= Aeson.String
-              "5820c7383d89aa33656464a7796b06616c4590d6db018b2f73640be985794db0702d"
-          ]
-      , Aeson.object
-          [ "type" .= Aeson.String "StakePoolSigningKey_ed25519"
-          , "description" .= Aeson.String "Stake pool operator key"
-          , "cborHex" .= Aeson.String
-              "5820047572e48be93834d6d7ddb01bb1ad889b4de5a7a1a78112f1edd46284250869"
-          ]
-      , Aeson.object
-          [ "type" .= Aeson.String "NodeOperationalCertificateIssueCounter"
-          , "description" .= Aeson.String "Next certificate issue number: 0"
-          , "cborHex" .= Aeson.String
-              "82005820c7383d89aa33656464a7796b06616c4590d6db018b2f73640be985794db0702d"
-          ]
-      , Aeson.object
-          [ "name" .= Aeson.String "Genesis Pool C"
-          , "ticker" .= Aeson.String "GPC"
-          , "description" .= Aeson.String "Lorem Ipsum Dolor Sit Amet."
-          , "homepage" .= Aeson.String "https://iohk.io"
-          ]
-      )
-    , ( PoolId $ unsafeFromHex
-          "bb114cb37d75fa05260328c235a3dae295a33d0ba674a5eb1e3e568e"
-      , Aeson.object
-          [ "type" .= Aeson.String "StakePoolVerificationKey_ed25519"
-          , "description" .= Aeson.String "Stake Pool Operator Verification Key"
-          , "cborHex" .= Aeson.String
-              "58203263e07605b9fc0100eb520d317f472ae12989fbf27fc71f46310bc0f24f2970"
-          ]
-      , Aeson.object
-          [ "type" .= Aeson.String "StakePoolSigningKey_ed25519"
-          , "description" .= Aeson.String "Stake Pool Operator Signing Key"
-          , "cborHex" .= Aeson.String
-              "58208f50de27d74325eaf57767d70277210b31eb97cdc3033f632a9791a3677a64d2"
-          ]
-      , Aeson.object
-          [ "type" .= Aeson.String "NodeOperationalCertificateIssueCounter"
-          , "description" .= Aeson.String "Next certificate issue number: 0"
-          , "cborHex" .= Aeson.String
-              "820058203263e07605b9fc0100eb520d317f472ae12989fbf27fc71f46310bc0f24f2970"
-          ]
-      , Aeson.object
-          [ "name" .= Aeson.String "Genesis Pool D"
-          , "ticker" .= Aeson.String "GPD"
-          , "description" .= Aeson.String "Lorem Ipsum Dolor Sit Amet."
-          , "homepage" .= Aeson.String "https://iohk.io"
-          ]
-      )
-    ]
-{-# NOINLINE operators #-}
+  where
+    -- | Hard-wired faucets referenced in the genesis file. Purpose is simply to
+    -- fund some initial transaction for the cluster. Faucet have plenty of money to
+    -- pay for certificates and are intended for a one-time usage in a single
+    -- transaction.
+    takeFaucet' :: MVar Int -> IO (String, String)
+    takeFaucet' faucetIndexVar = do
+        i <- modifyMVar faucetIndexVar (\i -> pure (i+1, i))
+        source <- getShelleyTestDataPath
+        let basename = source </> "faucet-addrs" </> "faucet" <> show i
+        base58Addr <- BS.readFile $ basename <> ".addr"
+        let addr = fromMaybe (error $ "decodeBase58 failed for " ++ show base58Addr)
+                . decodeBase58 bitcoinAlphabet
+                . T.encodeUtf8
+                . T.strip
+                $ T.decodeUtf8 base58Addr
+
+        let txin = B8.unpack (hex $ blake2b256 addr) <> "#0"
+        let signingKey = basename <> ".shelley.key"
+        pure (txin, signingKey)
+
+    -- | Create a key pair for a node operator's offline key and a new certificate
+    -- issue counter
+    genOperatorKeyPair opMVar dir = do
+        traceWith tr $ MsgGenOperatorKeyPair dir
+        (_poolId, pub, prv, count, metadata) <- takeMVar opMVar >>= \case
+            [] -> fail "genOperatorKeyPair: Awe crap! No more operators available!"
+            (op:q) -> putMVar opMVar q $> op
+
+        let opPub = dir </> "op.pub"
+        let opPrv = dir </> "op.prv"
+        let opCount = dir </> "op.count"
+
+        Aeson.encodeFile opPub pub
+        Aeson.encodeFile opPrv prv
+        Aeson.encodeFile opCount count
+
+        pure (opPrv, opPub, opCount, metadata)
+
+    newOperatorsVar = newMVar _operators
+    _operators =
+        [ ( PoolId $ unsafeFromHex
+              "c7258ccc42a43b653aaf2f80dde3120df124ebc3a79353eed782267f78d04739"
+          , Aeson.object
+              [ "type" .= Aeson.String "StakePoolVerificationKey_ed25519"
+              , "description" .= Aeson.String "Stake pool operator key"
+              , "cborHex" .= Aeson.String
+                  "5820a12804d805eff46c691da5b11eb703cbf7463983e325621b41ac5b24e4b51887"
+              ]
+          , Aeson.object
+              [ "type" .= Aeson.String "StakePoolSigningKey_ed25519"
+              , "description" .= Aeson.String "Stake pool operator key"
+              , "cborHex" .= Aeson.String
+                  "5820d8f81c455ef786f47ad9f573e49dc417e0125dfa8db986d6c0ddc03be8634dc6"
+              ]
+          , Aeson.object
+              [ "type" .= Aeson.String "NodeOperationalCertificateIssueCounter"
+              , "description" .= Aeson.String "Next certificate issue number: 0"
+              , "cborHex" .= Aeson.String
+                  "82005820a12804d805eff46c691da5b11eb703cbf7463983e325621b41ac5b24e4b51887"
+              ]
+          , Aeson.object
+              [ "name" .= Aeson.String "Genesis Pool A"
+              , "ticker" .= Aeson.String "GPA"
+              , "description" .= Aeson.Null
+              , "homepage" .= Aeson.String "https://iohk.io"
+              ]
+          )
+        , ( PoolId $ unsafeFromHex
+              "775af3b22eff9ff53a0bdd3ac6f8e1c5013ab68445768c476ccfc1e1c6b629b4"
+          , Aeson.object
+              [ "type" .= Aeson.String "StakePoolVerificationKey_ed25519"
+              , "description" .= Aeson.String "Stake pool operator key"
+              , "cborHex" .= Aeson.String
+                  "5820109440baecebefd92e3b933b4a717dae8d3291edee85f27ebac1f40f945ad9d4"
+              ]
+          , Aeson.object
+              [ "type" .= Aeson.String "StakePoolSigningKey_ed25519"
+              , "description" .= Aeson.String "Stake pool operator key"
+              , "cborHex" .= Aeson.String
+                  "5820fab9d94c52b3e222ed494f84020a29ef8405228d509a924106d05ed01c923547"
+              ]
+          , Aeson.object
+              [ "type" .= Aeson.String "NodeOperationalCertificateIssueCounter"
+              , "description" .= Aeson.String "Next certificate issue number: 0"
+              , "cborHex" .= Aeson.String
+                  "82005820109440baecebefd92e3b933b4a717dae8d3291edee85f27ebac1f40f945ad9d4"
+              ]
+          , Aeson.object
+              [ "name" .= Aeson.String "Genesis Pool B"
+              , "ticker" .= Aeson.String "GPB"
+              , "description" .= Aeson.Null
+              , "homepage" .= Aeson.String "https://iohk.io"
+              ]
+          )
+        , ( PoolId $ unsafeFromHex
+              "5a7b67c7dcfa8c4c25796bea05bcdfca01590c8c7612cc537c97012bed0dec35"
+          , Aeson.object
+              [ "type" .= Aeson.String "StakePoolVerificationKey_ed25519"
+              , "description" .= Aeson.String "Stake pool operator key"
+              , "cborHex" .= Aeson.String
+                  "5820c7383d89aa33656464a7796b06616c4590d6db018b2f73640be985794db0702d"
+              ]
+          , Aeson.object
+              [ "type" .= Aeson.String "StakePoolSigningKey_ed25519"
+              , "description" .= Aeson.String "Stake pool operator key"
+              , "cborHex" .= Aeson.String
+                  "5820047572e48be93834d6d7ddb01bb1ad889b4de5a7a1a78112f1edd46284250869"
+              ]
+          , Aeson.object
+              [ "type" .= Aeson.String "NodeOperationalCertificateIssueCounter"
+              , "description" .= Aeson.String "Next certificate issue number: 0"
+              , "cborHex" .= Aeson.String
+                  "82005820c7383d89aa33656464a7796b06616c4590d6db018b2f73640be985794db0702d"
+              ]
+          , Aeson.object
+              [ "name" .= Aeson.String "Genesis Pool C"
+              , "ticker" .= Aeson.String "GPC"
+              , "description" .= Aeson.String "Lorem Ipsum Dolor Sit Amet."
+              , "homepage" .= Aeson.String "https://iohk.io"
+              ]
+          )
+        , ( PoolId $ unsafeFromHex
+              "bb114cb37d75fa05260328c235a3dae295a33d0ba674a5eb1e3e568e"
+          , Aeson.object
+              [ "type" .= Aeson.String "StakePoolVerificationKey_ed25519"
+              , "description" .= Aeson.String "Stake Pool Operator Verification Key"
+              , "cborHex" .= Aeson.String
+                  "58203263e07605b9fc0100eb520d317f472ae12989fbf27fc71f46310bc0f24f2970"
+              ]
+          , Aeson.object
+              [ "type" .= Aeson.String "StakePoolSigningKey_ed25519"
+              , "description" .= Aeson.String "Stake Pool Operator Signing Key"
+              , "cborHex" .= Aeson.String
+                  "58208f50de27d74325eaf57767d70277210b31eb97cdc3033f632a9791a3677a64d2"
+              ]
+          , Aeson.object
+              [ "type" .= Aeson.String "NodeOperationalCertificateIssueCounter"
+              , "description" .= Aeson.String "Next certificate issue number: 0"
+              , "cborHex" .= Aeson.String
+                  "820058203263e07605b9fc0100eb520d317f472ae12989fbf27fc71f46310bc0f24f2970"
+              ]
+          , Aeson.object
+              [ "name" .= Aeson.String "Genesis Pool D"
+              , "ticker" .= Aeson.String "GPD"
+              , "description" .= Aeson.String "Lorem Ipsum Dolor Sit Amet."
+              , "homepage" .= Aeson.String "https://iohk.io"
+              ]
+          )
+        ]
 
 -- | A public stake key associated with a mnemonic that we pre-registered for
 -- STAKE_POOLS_JOIN_05.
