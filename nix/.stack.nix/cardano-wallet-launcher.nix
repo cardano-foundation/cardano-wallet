@@ -13,7 +13,7 @@
       specVersion = "1.10";
       identifier = {
         name = "cardano-wallet-launcher";
-        version = "2020.10.13";
+        version = "2020.11.03";
         };
       license = "Apache-2.0";
       copyright = "2018-2020 IOHK";

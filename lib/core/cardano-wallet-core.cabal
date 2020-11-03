@@ -1,5 +1,5 @@
 name:                cardano-wallet-core
-version:             2020.10.13
+version:             2020.11.03
 synopsis:            The Wallet Backend for a Cardano node.
 description:         Please see README.md
 homepage:            https://github.com/input-output-hk/cardano-wallet
