@@ -37,6 +37,8 @@ $ ./scripts/make_release.sh
 ```
 This will bump the version in .cabal and .nix files and generate release notes. If you have none yet, you can create a _personal access token_ in your [Github Settings](https://github.com/settings/tokens). No scope is required for this token, only public access (as it is simply used to read publicly available data from the Github API).
 
+Revise README.md and add corresponding entry.
+
 - [ ] Open a pull request to submit the modified files. Get it merged.
 
 - [ ] Trigger a release build on CI (Travis) and wait for the build artifacts to be published on github
