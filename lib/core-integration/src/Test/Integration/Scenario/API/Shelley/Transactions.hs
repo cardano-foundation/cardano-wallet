@@ -93,7 +93,7 @@ import Numeric.Natural
 import Test.Hspec
     ( SpecWith, describe, pendingWith )
 import Test.Hspec.Expectations.Lifted
-    ( shouldBe, shouldNotBe, shouldSatisfy )
+    ( expectationFailure, shouldBe, shouldNotBe, shouldSatisfy )
 import Test.Hspec.Extra
     ( it )
 import Test.Integration.Framework.DSL
@@ -2134,28 +2134,41 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             ]
 
         -- forget transaction
-        request @ApiTxId ctx (Link.deleteTransaction @'Shelley wSrc (ApiTxId txid)) Default Empty
-            >>= expectResponseCode HTTP.status204
+        (statusDelete, _) <- request @ApiTxId ctx
+            (Link.deleteTransaction @'Shelley wSrc (ApiTxId txid)) Default Empty
+        rBalance <- getFromResponse (#balance . #getApiT . #total)
+            <$> request @ApiWallet ctx (Link.getWallet @'Shelley wSrc) Default Empty
 
-        -- verify again balance on src wallet
-        request @ApiWallet ctx (Link.getWallet @'Shelley wSrc) Default Empty >>= flip verify
-            [ expectSuccess
-            , expectField
-                    (#balance . #getApiT . #total)
-                    (`shouldBe` Quantity faucetAmt)
-            , expectField
-                    (#balance . #getApiT . #available)
-                    (`shouldBe` Quantity faucetAmt)
-            ]
+        let assertSourceTx = do
+                let ep = Link.listTransactions @'Shelley wSrc
+                request @[ApiTransaction n] ctx ep Default Empty >>= flip verify
+                    [ expectListField 0
+                        (#direction . #getApiT) (`shouldBe` Outgoing)
+                    , expectListField 0
+                        (#status . #getApiT) (`shouldBe` InLedger)
+                    ]
 
-        eventually "transaction eventually is in source wallet" $ do
-            let ep = Link.listTransactions @'Shelley wSrc
-            request @[ApiTransaction n] ctx ep Default Empty >>= flip verify
-                [ expectListField 0
-                    (#direction . #getApiT) (`shouldBe` Outgoing)
-                , expectListField 0
-                    (#status . #getApiT) (`shouldBe` InLedger)
-                ]
+        -- We cannot guarantee that we're able to forget the tx before it is
+        -- accepted. The slot length is really fast in the integration tests.
+        --
+        -- As a workaround we also pass if the tx is already accepted.
+        case (statusDelete, rBalance) of
+            (s, balance) | s == HTTP.status204 && balance == Quantity faucetAmt ->
+                eventually "transaction eventually is in source wallet"
+                    assertSourceTx
+
+            (s, balance) | s == HTTP.status204 && balance < Quantity faucetAmt ->
+                liftIO assertSourceTx
+
+            (s, balance) | s == HTTP.status403 -> liftIO $ do
+                assertSourceTx
+                balance .< Quantity faucetAmt
+
+            _ ->
+                expectationFailure $ "invalid combination of results: "
+                    <> show statusDelete
+                    <> ", wallet balance="
+                    <> show rBalance
 
         eventually "transaction eventually is in target wallet" $ do
             let ep = Link.listTransactions @'Shelley wDest
