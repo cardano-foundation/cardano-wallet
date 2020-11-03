@@ -173,7 +173,7 @@ test-suite unit
     , servant
     , servant-swagger
     , stm
-    , swagger2
+    , openapi3 >= 3.0.0.1
     , temporary
     , text
     , text-class

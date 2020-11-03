@@ -15,6 +15,16 @@
         "directory" = (((hackage.directory)."1.3.3.0").revisions).default;
         "process" = (((hackage.process)."1.6.5.0").revisions).default;
         "time" = (((hackage.time)."1.8.0.2").revisions).default;
+        "openapi3" = (((hackage.openapi3)."3.0.0.1").revisions).default;
+        "optics" = (((hackage.optics)."0.3").revisions).default;
+        "optics-core" = (((hackage.optics-core)."0.3.0.1").revisions).default;
+        "optics-extra" = (((hackage.optics-extra)."0.3").revisions).default;
+        "optics-th" = (((hackage.optics-th)."0.3.0.2").revisions).default;
+        "optics-vl" = (((hackage.optics-vl)."0.2.1").revisions).default;
+        "insert-ordered-containers" = (((hackage.insert-ordered-containers)."0.2.3.1").revisions).default;
+        "base-compat" = (((hackage.base-compat)."0.11.2").revisions).default;
+        "base-compat-batteries" = (((hackage.base-compat-batteries)."0.11.2").revisions).default;
+        "indexed-profunctors" = (((hackage.indexed-profunctors)."0.1").revisions).default;
         "base16" = (((hackage.base16)."0.1.2.1").revisions).default;
         "base58-bytestring" = (((hackage.base58-bytestring)."0.1.0").revisions).default;
         "base64" = (((hackage.base64)."0.4.2").revisions).default;

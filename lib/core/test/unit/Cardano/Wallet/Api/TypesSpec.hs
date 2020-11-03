@@ -102,7 +102,6 @@ import Cardano.Wallet.Api.Types
     , ByronWalletFromXPrvPostData (..)
     , ByronWalletPostData (..)
     , ByronWalletPutPassphraseData (..)
-    , ByronWalletStyle (..)
     , DecodeAddress (..)
     , DecodeStakeAddress (..)
     , EncodeAddress (..)
@@ -193,7 +192,7 @@ import Cardano.Wallet.Transaction
 import Cardano.Wallet.Unsafe
     ( unsafeFromText, unsafeXPrv, unsafeXPub )
 import Control.Lens
-    ( at, (.~), (?~), (^.) )
+    ( at, (?~) )
 import Control.Monad
     ( forM, forM_, replicateM )
 import Control.Monad.IO.Class
@@ -201,14 +200,7 @@ import Control.Monad.IO.Class
 import Crypto.Hash
     ( hash )
 import Data.Aeson
-    ( FromJSON (..)
-    , Result (..)
-    , ToJSON (..)
-    , fromJSON
-    , withObject
-    , (.:?)
-    , (.=)
-    )
+    ( FromJSON (..), Result (..), fromJSON, withObject, (.:?), (.=) )
 import Data.Aeson.QQ
     ( aesonQQ )
 import Data.Char
@@ -227,30 +219,24 @@ import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Maybe
     ( fromJust, fromMaybe )
+import Data.OpenApi
+    ( AdditionalProperties (..)
+    , Definitions
+    , NamedSchema (..)
+    , Schema
+    , ToSchema (..)
+    , additionalProperties
+    )
+import Data.OpenApi.Declare
+    ( Declare, MonadDeclare (..) )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
     ( Percentage, Quantity (..) )
-import Data.Swagger
-    ( AdditionalProperties (..)
-    , Definitions
-    , NamedSchema (..)
-    , Referenced (..)
-    , Schema
-    , SwaggerType (..)
-    , ToSchema (..)
-    , additionalProperties
-    , enum_
-    , properties
-    , required
-    , type_
-    )
-import Data.Swagger.Declare
-    ( Declare, MonadDeclare (..) )
 import Data.Text
     ( Text )
 import Data.Text.Class
-    ( FromText (..), TextDecodingError (..), ToText (..) )
+    ( FromText (..), TextDecodingError (..) )
 import Data.Time.Clock
     ( NominalDiffTime )
 import Data.Time.Clock.POSIX
@@ -280,8 +266,6 @@ import Servant
     )
 import Servant.API.Verbs
     ( NoContentVerb )
-import Servant.Swagger.Test
-    ( validateEveryToJSON )
 import System.Environment
     ( lookupEnv )
 import System.FilePath
@@ -316,6 +300,8 @@ import Test.QuickCheck.Arbitrary.Generic
     ( genericArbitrary, genericShrink )
 import Test.Text.Roundtrip
     ( textRoundtrip )
+import Test.Utils.OpenApi
+    ( validateEveryToJSON )
 import Test.Utils.Paths
     ( getTestData )
 import Test.Utils.Roundtrip
@@ -336,8 +322,6 @@ import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
-import qualified Data.Text.Lazy as TL
-import qualified Data.Text.Lazy.Encoding as TL
 import qualified Data.Yaml as Yaml
 import qualified Prelude
 import qualified Test.Utils.Roundtrip as Utils
@@ -1795,16 +1779,7 @@ instance ToSchema (ApiPutAddressesData t) where
     declareNamedSchema _ = declareSchemaForDefinition "ApiPutAddressesData"
 
 instance ToSchema (ApiSelectCoinsData n) where
-    declareNamedSchema _ = do
-        NamedSchema _ paymentData <- declareNamedSchema (Proxy @(ApiSelectCoinsPayments n))
-        NamedSchema _ actionData  <- declareNamedSchema (Proxy @ApiSelectCoinsAction)
-        pure $ NamedSchema Nothing $ mempty
-            & type_ .~ Just SwaggerObject
-            & required .~ []
-            & properties .~ mconcat
-                [ paymentData ^. properties
-                , actionData ^. properties
-                ]
+    declareNamedSchema _ = declareSchemaForDefinition "ApiSelectCoinsData"
 
 instance ToSchema (ApiSelectCoinsPayments n) where
     declareNamedSchema _ = declareSchemaForDefinition "ApiSelectCoinsPayments"
@@ -1856,24 +1831,7 @@ instance ToSchema AccountPostData where
     declareNamedSchema _ = declareSchemaForDefinition "ApiAccountPostData"
 
 instance ToSchema WalletOrAccountPostData where
-    declareNamedSchema _ = do
-        -- NOTE
-        -- 'WalletOrAccountPostData' makes use of the 'oneOf' operator from
-        -- Swagger 3.0.0. We don't have that in Swagger 2.0 so we kinda have to
-        -- "fake it".
-        -- Therefore, we validate that any JSON matches with the union of the
-        -- schema, modulo the "required" properties that have to be different,
-        -- and we also validate both 'WalletPostData' and 'AccountPostData'
-        -- independently with 'validateEveryToJSON'.
-        NamedSchema _ accountPostData <- declareNamedSchema (Proxy @AccountPostData)
-        NamedSchema _ walletPostData  <- declareNamedSchema (Proxy @WalletPostData)
-        pure $ NamedSchema Nothing $ mempty
-            & type_ .~ Just SwaggerObject
-            & required .~ ["name"]
-            & properties .~ mconcat
-                [ accountPostData ^. properties
-                , walletPostData ^. properties
-                ]
+    declareNamedSchema _ = declareSchemaForDefinition "ApiWalletOrAccountPostData"
 
 instance ToSchema (ByronWalletPostData '[12]) where
     declareNamedSchema _ = declareSchemaForDefinition "ApiByronWalletRandomPostData"
@@ -1889,22 +1847,7 @@ instance ToSchema ByronWalletFromXPrvPostData where
     declareNamedSchema _ = declareSchemaForDefinition "ApiByronWalletRandomXPrvPostData"
 
 instance ToSchema SomeByronWalletPostData where
-    declareNamedSchema _ = do
-        NamedSchema _ schema1 <- declareNamedSchema (Proxy @(ByronWalletPostData '[12,15,18,21,24]))
-        let props1 = schema1 ^. properties
-        NamedSchema _ schema2 <- declareNamedSchema (Proxy @ByronWalletFromXPrvPostData)
-        let props2 = schema2 ^. properties
-        NamedSchema _ accountPostData <- declareNamedSchema (Proxy @AccountPostData)
-        pure $ NamedSchema Nothing $ mempty
-            & properties .~ mconcat
-            [ props1 & at "style" .~ Just (Inline styleSchema)
-            , props2 & at "style" .~ Just (Inline styleSchema)
-            , accountPostData ^. properties
-            ]
-      where
-        styleSchema = mempty
-            & type_ .~ Just SwaggerString
-            & enum_ .~ Just (toJSON . toText <$> [Random, Icarus, Trezor, Ledger])
+    declareNamedSchema _ = declareSchemaForDefinition "ApiByronWalletPostData"
 
 instance ToSchema WalletPutData where
     declareNamedSchema _ = declareSchemaForDefinition "ApiWalletPutData"
@@ -2031,18 +1974,11 @@ credentialValueSchema =
 declareSchemaForDefinition :: Text -> Declare (Definitions Schema) NamedSchema
 declareSchemaForDefinition ref = do
     let json = foldl' unsafeLookupKey specification ["components","schemas",ref]
-    case Aeson.eitherDecode' $ replaceRefs  $ Aeson.encode json of
+    case Aeson.eitherDecode' $ Aeson.encode json of
         Left err -> error $
             "unable to decode schema for definition '" <> T.unpack ref <> "': " <> show err
         Right schema ->
             return $ NamedSchema (Just ref) schema
-  where
-    -- FIXME: another little hack to work-around the Haskell swagger2 library
-    -- expecting schemas in the '2.0' format whereas our spec is written
-    -- according to OpenAPI '3.0'.
-    replaceRefs = TL.encodeUtf8 . replace . TL.decodeUtf8
-      where
-        replace = TL.replace "components/schemas" "definitions"
 
 -- | Add a known definition to the set of definitions, this may be necessary
 -- when we can't inline a definition because it is recursive or, when a

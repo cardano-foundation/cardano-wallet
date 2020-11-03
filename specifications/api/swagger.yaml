@@ -311,15 +311,9 @@ x-poolMetadataSource: &poolMetadataSource
       * null -> no fetching
       * direct -> direct fetching
       * uri -> use SMASH server
-  oneOf:
-    - type: string
-      enum:
-        - none
-        - direct
-    - title: URI
-      type: string
-      format: uri
-      example: https://smash.cardano-mainnet.iohk.io/
+  type: string
+  pattern: '(null|direct|https?:\/\/[a-zA-Z0-9-_~.]+/?)'
+  example: https://smash.cardano-mainnet.iohk.io/
 
 x-credentialPubKey: &credentialPubKey
   description: A public key (public key without chain code) for credential - 32 bytes
