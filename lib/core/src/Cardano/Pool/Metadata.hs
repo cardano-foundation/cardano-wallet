@@ -81,7 +81,7 @@ import Network.HTTP.Client
 import Network.HTTP.Types.Status
     ( status200, status404 )
 import Network.URI
-    ( URI (..), parseURI, pathSegments )
+    ( URI (..), parseURI )
 
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
@@ -89,6 +89,14 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Network.HTTP.Client.TLS as HTTPS
 
+-- | Build the SMASH metadata fetch endpoint for a single pool. Does not
+-- contain leading '/'.
+metadaFetchEp :: PoolId -> StakePoolMetadataHash -> String
+metadaFetchEp pid (StakePoolMetadataHash bytes)
+    = intercalate "/" (["api", "v1", "metadata"] ++ [pidStr, hashStr])
+  where
+    hashStr = T.unpack $ T.decodeUtf8 $ convertToBase Base16 bytes
+    pidStr  = T.unpack $ toText pid
 
 -- | Some default settings, overriding some of the library's default with
 -- stricter values.
@@ -121,14 +129,10 @@ registryUrlBuilder
     -> StakePoolMetadataUrl
     -> StakePoolMetadataHash
     -> Either HttpException URI
-registryUrlBuilder baseUrl pid _ (StakePoolMetadataHash bytes) =
+registryUrlBuilder baseUrl pid _ hash =
     Right $ baseUrl
-        { uriPath = "/" <> intercalate "/"
-            (pathSegments baseUrl ++ [pidStr,hashStr])
+        { uriPath = "/" <> metadaFetchEp pid hash
         }
-  where
-    hashStr = T.unpack $ T.decodeUtf8 $ convertToBase Base16 bytes
-    pidStr  = T.unpack $ toText pid
 
 fetchFromRemote
     :: Tracer IO StakePoolMetadataFetchLog

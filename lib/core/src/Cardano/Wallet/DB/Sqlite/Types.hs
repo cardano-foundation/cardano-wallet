@@ -1,6 +1,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE TypeApplications #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
@@ -44,7 +45,7 @@ import Cardano.Wallet.Primitive.Types
     , FeePolicy
     , Hash (..)
     , PoolId
-    , PoolMetadataSource
+    , PoolMetadataSource (..)
     , PoolOwner (..)
     , StakeKeyCertificate (..)
     , StakePoolMetadataHash (..)
@@ -56,6 +57,7 @@ import Cardano.Wallet.Primitive.Types
     , isValidCoin
     , isValidEpochNo
     , unsafeEpochNo
+    , unsafeToPMS
     )
 import Control.Arrow
     ( left )
@@ -96,6 +98,8 @@ import Database.Persist.TH
     ( MkPersistSettings (..), sqlSettings )
 import GHC.Generics
     ( Generic )
+import Network.URI
+    ( parseAbsoluteURI )
 import System.Random
     ( StdGen )
 import Text.Read
@@ -643,7 +647,15 @@ instance PersistFieldSql AddressState where
 
 instance PersistField PoolMetadataSource where
     toPersistValue = toPersistValue . toText
-    fromPersistValue = fromPersistValueFromText
+    -- be more permissive than fromText here
+    fromPersistValue = fromPersistValue
+        >=> \case
+            "none" -> Right FetchNone
+            "direct" -> Right FetchDirect
+            uri -> fmap unsafeToPMS
+                . maybe (Left "Not an absolute URI") Right
+                . parseAbsoluteURI
+                $ uri
 
 instance PersistFieldSql PoolMetadataSource where
     sqlType _ = sqlType (Proxy @Text)

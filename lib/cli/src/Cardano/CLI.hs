@@ -1331,12 +1331,7 @@ poolMetadataSourceOption = option (eitherReader reader) $ mempty
             <> " either this option or the API will persist across restarts.")
   where
     reader :: String -> Either String PoolMetadataSource
-    reader = left (const err) . fromTextS @PoolMetadataSource
-
-    err :: String
-    err =
-        "Invalid URI. Make sure it is a well-formed \
-        \ absolute http or https URI."
+    reader = fromTextS @PoolMetadataSource
 
 -- | <wallet-id=WALLET_ID>
 walletIdArgument :: Parser WalletId
