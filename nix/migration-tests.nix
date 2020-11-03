@@ -79,7 +79,7 @@ let
       };
 
   # Grab the migration test from the current version.
-  migrationTest = (importRelease null).haskellPackages.cardano-wallet-jormungandr.components.exes.migration-test;
+  migrationTest = (importRelease null).haskellPackages.cardano-wallet.components.exes.migration-test;
 
   # Generate attribute name/filename for a release.
   releaseName = rel: if rel == null
@@ -104,18 +104,19 @@ let
         #!${pkgs.runtimeShell}
 
         export PATH=${makeBinPath [
-          targetRelease.cardano-wallet-jormungandr
-          targetRelease.jormungandr
+          targetRelease.cardano-wallet
+          targetRelease.cardano-node
           migrationTest
           pkgs.bash
           pkgs.coreutils
           pkgs.python3
         ]}
+        # fixme: port to shelley
         export genesisDataDir=${latestRelease.src}/lib/jormungandr/test/data/jormungandr
         export configFile=${targetRelease.src}/lib/jormungandr/test/data/jormungandr/config.yaml
 
         exec ${./launch-migration-test.sh} "$@"
-      '' // { inherit (latestRelease) cardano-wallet-jormungandr; };
+      '' // { inherit (latestRelease) cardano-wallet; };
 
     # Create a test runner script for the given release.
     # The test scenario is quite simple at present.
@@ -158,7 +159,7 @@ let
     '' + concatMapStringsSep "\n" (test: ''
         mkdir -p $out/${test.name}
         ln -s ${test.test} $out/${test.name}/migration-test
-        ln -s ${test.test.cardano-wallet-jormungandr}/bin/* $out/${test.name}
+        ln -s ${test.test.cardano-wallet}/bin/* $out/${test.name}
         ln -s ${test.runner} $out/${test.name}/${test.runner.name}
         echo 'printf "\n\n *** Migrating from ${test.name} ***\n\n"' >> $out/runall.sh
         echo "$out/${test.name}/${test.runner.name}" >> $out/runall.sh
@@ -176,7 +177,7 @@ let
     mkTestRunner = rel: rec {
       name = releaseName rel;
       walletPackages = importRelease rel;
-      inherit (walletPackages) cardano-wallet-jormungandr src;
+      inherit (walletPackages) cardano-wallet src;
       allowFail = rel.allowFail or false;
       runner = let
         stateDir = "state-migration-test-${name}";
@@ -208,8 +209,9 @@ let
       cp ${migrationTest}/bin/* $out
     '' + concatMapStringsSep "\n" (test: ''
       mkdir -p $out/${test.name}/data
-      cp ${test.cardano-wallet-jormungandr}/bin/* $out/${test.name}
+      cp ${test.cardano-wallet}/bin/* $out/${test.name}
       cp ${test.runner} $out/${test.name}/${test.runner.name}
+      # fixme: port to shelley
       cp ${latest.src}/lib/jormungandr/test/data/jormungandr/{block0.bin,config.yaml,secret.yaml} $out/${test.name}/data
 
       # append test to the run all script

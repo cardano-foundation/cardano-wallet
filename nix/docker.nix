@@ -12,7 +12,7 @@
 
 # The main contents of the image.
 , exe
-# Short name of the backend, e.g. jormungandr or shelley
+# Short name of the backend, e.g. shelley
 , backend
 
 # Other things to include in the image.
