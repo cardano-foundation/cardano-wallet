@@ -15,6 +15,7 @@
         "directory" = (((hackage.directory)."1.3.3.0").revisions).default;
         "process" = (((hackage.process)."1.6.5.0").revisions).default;
         "time" = (((hackage.time)."1.8.0.2").revisions).default;
+        "prometheus-metrics-ghc" = (((hackage.prometheus-metrics-ghc)."1.0.1.1").revisions).default;
         "base16" = (((hackage.base16)."0.1.2.1").revisions).default;
         "base58-bytestring" = (((hackage.base58-bytestring)."0.1.0").revisions).default;
         "base64" = (((hackage.base64)."0.4.2").revisions).default;

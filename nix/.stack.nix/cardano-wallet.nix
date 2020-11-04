@@ -68,6 +68,8 @@
           (hsPkgs."ouroboros-network" or (errorHandler.buildDepError "ouroboros-network"))
           (hsPkgs."ouroboros-network-framework" or (errorHandler.buildDepError "ouroboros-network-framework"))
           (hsPkgs."process" or (errorHandler.buildDepError "process"))
+          (hsPkgs."prometheus-client" or (errorHandler.buildDepError "prometheus-client"))
+          (hsPkgs."prometheus-metrics-ghc" or (errorHandler.buildDepError "prometheus-metrics-ghc"))
           (hsPkgs."random" or (errorHandler.buildDepError "random"))
           (hsPkgs."retry" or (errorHandler.buildDepError "retry"))
           (hsPkgs."servant-server" or (errorHandler.buildDepError "servant-server"))
