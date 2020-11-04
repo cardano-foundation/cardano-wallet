@@ -90,7 +90,7 @@ spec = describe "SHELLEY_SETTINGS" $ do
             getMetadata = fmap (view #metadata) . snd <$> unsafeRequest
                 @[ApiStakePool] ctx (Link.listStakePools arbitraryStake) Empty
             delay = 500 * 1000
-            timeout = 180
+            timeout = 120
 
         updateMetadataSource ctx toNone
         verifyMetadataSource ctx FetchNone
