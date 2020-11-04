@@ -148,13 +148,13 @@ import Test.Integration.Framework.TestData
     ( errMsg400MinWithdrawalWrong
     , errMsg400StartTimeLaterThanEndTime
     , errMsg400TxMetadataStringTooLong
-    , errMsg400TxTooLarge
     , errMsg403Fee
     , errMsg403InputsDepleted
     , errMsg403NoPendingAnymore
     , errMsg403NotAShelleyWallet
     , errMsg403NotEnoughMoney
     , errMsg403NotEnoughMoney_
+    , errMsg403TxTooLarge
     , errMsg403WithdrawalNotWorth
     , errMsg403WrongPass
     , errMsg404CannotFindTx
@@ -842,8 +842,8 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         r <- request @(ApiTransaction n) ctx
             (Link.createTransaction @'Shelley wa) Default payload
 
-        expectResponseCode HTTP.status400 r
-        expectErrorMessage errMsg400TxTooLarge r
+        expectResponseCode HTTP.status403 r
+        expectErrorMessage errMsg403TxTooLarge r
 
     it "TRANSMETA_ESTIMATE_01 - fee estimation includes metadata" $ \ctx -> runResourceT $ do
         (wa, wb) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
@@ -905,8 +905,8 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         r <- request @ApiFee ctx
             (Link.getTransactionFee @'Shelley wa) Default payload
 
-        expectResponseCode HTTP.status400 r
-        expectErrorMessage errMsg400TxTooLarge r
+        expectResponseCode HTTP.status403 r
+        expectErrorMessage errMsg403TxTooLarge r
 
     it "TRANS_EXTERNAL_01 - Single Output Transaction - Shelley witnesses" $ \ctx -> runResourceT $ do
         wFaucet <- fixtureWallet ctx
