@@ -118,6 +118,8 @@ import Test.Integration.Framework.TestData
     , errMsg404NoSuchPool
     , errMsg404NoWallet
     )
+import Test.Integration.Scenario.API.Shelley.Settings
+    ( updateMetadataSource )
 
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Data.ByteString as BS
@@ -919,6 +921,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                 saturation `shouldSatisfy` (any (> 0))
 
         it "contains pool metadata" $ \ctx -> do
+            updateMetadataSource ctx "direct"
             eventually "metadata is fetched" $ do
                 r <- listPools ctx arbitraryStake
                 let metadataPossible = Set.fromList
@@ -955,6 +958,8 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                                 mapMaybe (fmap getApiT . view #metadata) pools
                         metadataActual
                             `shouldSatisfy` (`Set.isSubsetOf` metadataPossible)
+                        metadataActual
+                            `shouldSatisfy` (not . Set.null)
                     ]
 
         it "contains and is sorted by non-myopic-rewards" $ \ctx -> do

@@ -235,7 +235,7 @@ spec = do
         -- This might take a few tries (epoch changes), so it is only feasible
         -- to test with very short epochs.
         let ms = 1000
-        eventuallyUsingDelay (50*ms)
+        eventuallyUsingDelay (50*ms) 100
             "Shows error when listing stake pools on epoch boundaries"
             $ do
             r <- request @[ApiStakePool] ctx Link.listJormungandrStakePools Default Empty

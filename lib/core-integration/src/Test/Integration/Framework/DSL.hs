@@ -683,35 +683,37 @@ expectationFailure' msg = do
 -- has been retried enough.
 --
 -- It is like 'eventuallyUsingDelay', but with the default delay of 500 ms
--- between retries.
+-- and timeout of 90s between retries.
+-- NOTE
+-- This __90s__ is mostly justified by the parameters in the shelley
+-- genesis. The longest action we have two wait for are about 2 epochs,
+-- which corresponds to 80s with the current parameters. Using something
+-- much longer than that isn't really useful (in particular, this doesn't
+-- depend on the host machine running the test, because the protocol moves
+-- forward at the same speed regardless...)
 eventually :: String -> IO a -> IO a
-eventually = eventuallyUsingDelay (500 * ms)
+eventually = eventuallyUsingDelay (500 * ms) 90
   where
     ms = 1000
 
 -- Retry the given action a couple of time until it doesn't throw, or until it
 -- has been retried enough.
 --
--- It sleeps for a specified delay between retries.
+-- It sleeps for a specified delay between retries and fails after timeout.
 eventuallyUsingDelay
     :: Int -- ^ Delay in microseconds
+    -> Int -- ^ Timeout in seconds
     -> String -- ^ Brief description of the IO action
     -> IO a
     -> IO a
-eventuallyUsingDelay delay desc io = do
+eventuallyUsingDelay delay timeout desc io = do
     lastErrorRef <- newIORef Nothing
-    -- NOTE
-    -- This __90s__ is mostly justified by the parameters in the shelley
-    -- genesis. The longest action we have two wait for are about 2 epochs,
-    -- which corresponds to 80s with the current parameters. Using something
-    -- much longer than that isn't really useful (in particular, this doesn't
-    -- depend on the host machine running the test, because the protocol moves
-    -- forward at the same speed regardless...)
-    winner <- race (threadDelay $ 90 * oneSecond) (trial lastErrorRef)
+    winner <- race (threadDelay $ timeout * oneSecond) (trial lastErrorRef)
     case winner of
         Left () -> do
             lastError <- readIORef lastErrorRef
-            let msg = "Waited longer than 90s (more than 2 epochs) to resolve action: " ++ show desc ++ "."
+            let msg = "Waited longer than " ++ show timeout ++
+                      "s to resolve action: " ++ show desc ++ "."
             case fromException @HUnitFailure =<< lastError of
                 Just lastError' -> throwIO $ appendFailureReason msg lastError'
                 Nothing ->
