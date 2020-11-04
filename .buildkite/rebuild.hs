@@ -139,7 +139,8 @@ parseOpts = execParser opts
 buildStep :: DryRun -> Maybe BuildkiteEnv -> Bool -> IO ExitCode
 buildStep dryRun bk nightly = do
     pkgs <- listLocalPackages
-    let cabalFlags = concatMap (flag "release") pkgs
+    let pkgsNoJorm =  filter ( /= "cardano-wallet-jormungandr") pkgs
+    let cabalFlags = concatMap (flag "release") pkgsNoJorm
 
     titled "Build LTS Snapshot"
         (build Standard ["--only-snapshot"]) .&&.
