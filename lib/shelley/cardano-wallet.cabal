@@ -71,6 +71,8 @@ library
     , ouroboros-network
     , ouroboros-network-framework
     , process
+    , prometheus-client
+    , prometheus-metrics-ghc
     , random
     , retry
     , servant-server

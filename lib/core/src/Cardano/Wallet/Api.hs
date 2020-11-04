@@ -188,6 +188,7 @@ import Servant.API
     , Capture
     , JSON
     , OctetStream
+    , PlainText
     , QueryFlag
     , QueryParam
     , ReqBody
@@ -205,6 +206,7 @@ import Servant.API.Verbs
     )
 
 import qualified Cardano.Wallet.Primitive.Types as W
+import qualified Data.Text.Lazy as L
 
 type ApiV2 n apiPool = "v2" :> Api n apiPool
 
@@ -227,6 +229,7 @@ type Api n apiPool =
     :<|> Network
     :<|> Proxy_
     :<|> Settings
+    :<|> Metrics
 
 {-------------------------------------------------------------------------------
                                   Wallets
@@ -474,6 +477,15 @@ type PutSettings = "settings"
 
 type GetSettings = "settings"
     :> Get '[JSON] (ApiT W.Settings)
+
+{-------------------------------------------------------------------------------
+                                  Metrics
+-------------------------------------------------------------------------------}
+
+type Metrics = GetMetrics
+
+type GetMetrics = "metrics"
+    :> Get '[PlainText] L.Text
 
 {-------------------------------------------------------------------------------
                                  Byron Wallets

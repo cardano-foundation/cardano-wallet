@@ -141,6 +141,10 @@ import Data.List
     ( sortOn )
 import Data.Text.Class
     ( TextDecodingError (..) )
+import Data.Text.Encoding.Error
+    ( lenientDecode )
+import Data.Text.Lazy.Encoding
+    ( decodeUtf8With )
 import Fmt
     ( Buildable )
 import Network.Ntp
@@ -153,6 +157,8 @@ import Type.Reflection
     ( Typeable )
 
 import qualified Data.Text as T
+import qualified Data.Text.Lazy as L
+import qualified Prometheus as P
 
 server
     :: forall t n.
@@ -184,6 +190,7 @@ server byron icarus shelley spl ntp =
     :<|> network
     :<|> proxy
     :<|> settingS
+    :<|> metrics
   where
     wallets :: Server Wallets
     wallets = deleteWallet shelley
@@ -395,3 +402,7 @@ server byron icarus shelley spl ntp =
                 pure NoContent
         getSettings'
             = Handler $ fmap ApiT $ liftIO $ getSettings spl
+
+    metrics :: Handler L.Text
+    metrics = Handler (decodeUtf8With lenientDecode <$> liftIO P.exportMetricsAsText)
+

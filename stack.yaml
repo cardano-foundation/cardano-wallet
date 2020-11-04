@@ -34,6 +34,8 @@ extra-deps:
 - process-1.6.5.0
 - time-1.8.0.2
 
+- prometheus-metrics-ghc-1.0.1.1
+
 # persistent-2.10.2 with CASCADE DELETE support for SQLite.
 #
 # See: https://github.com/input-output-hk/persistent/tree/cardano-wallet

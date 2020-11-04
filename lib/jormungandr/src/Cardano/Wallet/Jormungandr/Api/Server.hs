@@ -165,6 +165,7 @@ server byron icarus jormungandr spl ntp =
     :<|> network
     :<|> proxy
     :<|> settingS
+    :<|> throwError err501
   where
     wallets :: Server Wallets
     wallets = deleteWallet jormungandr

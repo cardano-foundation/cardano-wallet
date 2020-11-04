@@ -178,6 +178,8 @@ import qualified Cardano.Wallet.Api.Server as Server
 import qualified Cardano.Wallet.DB.Sqlite as Sqlite
 import qualified Data.Text as T
 import qualified Network.Wai.Handler.Warp as Warp
+import qualified Prometheus as P
+import qualified Prometheus.Metric.GHC as P
 
 -- | Encapsulate a network discriminant and the necessary constraints it should
 -- satisfy.
@@ -271,9 +273,13 @@ serveWallet
   block0
   (np, vData)
   beforeMainLoop = do
+    -- start metrics
+    _ <- P.register P.ghcMetrics
+
     let ntwrk = networkDiscriminantValFromProxy proxy
     traceWith applicationTracer $ MsgStarting socketPath
     traceWith applicationTracer $ MsgNetworkName ntwrk
+
     Server.withListeningSocket hostPref listen $ \case
         Left e -> handleApiServerStartupError e
         Right (_, socket) -> serveApp socket
