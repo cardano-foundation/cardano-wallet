@@ -329,7 +329,13 @@ x-settings: &settings
   properties:
     pool_metadata_source:
       <<: *poolMetadataSource
-      description: How to fetch pool metadata
+      description: |
+        Select stake pool metadata fetching strategy:
+          - `none` - metadata is not fetched at all,
+          - `direct` - metadata is fetched directly URLs registered on chain,
+          - `uri` - metadata is fetched from an external Stake-Pool Metadata Aggregation Server (SMASH)
+
+        After update existing metadata will be dropped forcing it to re-sync automatically with the new setting.
 
 x-walletMnemonicSentence: &walletMnemonicSentence
   description: A list of mnemonic words
@@ -3866,7 +3872,7 @@ paths:
       description: |
         <p align="right">status: <strong>stable</strong></p>
 
-        Overwrite current settings
+        Overwrite current settings.
       requestBody:
         required: true
         content:
