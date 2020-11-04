@@ -92,6 +92,14 @@ let
 
           # cardano-node socket path becomes too long otherwise
           unit.preCheck = lib.optionalString stdenv.isDarwin "export TMPDIR=/tmp";
+
+          # Force more integration tests to run in parallel than the
+          # default number of build cores.
+          #
+          # TODO: Figure out why this doesn't work in hydra when it works in buildkite,
+          # and enable.
+          # integration.testFlags = ["-j" "3"];
+
           integration.preCheck = ''
             # Variables picked up by integration tests
             export CARDANO_NODE_TRACING_MIN_SEVERITY=notice

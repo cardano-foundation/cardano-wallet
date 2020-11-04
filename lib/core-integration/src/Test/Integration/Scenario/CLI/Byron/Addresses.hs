@@ -30,6 +30,8 @@ import Cardano.Wallet.Primitive.Types
     ( AddressState (..) )
 import Control.Monad
     ( forM_ )
+import Control.Monad.Trans.Resource
+    ( ResourceT, runResourceT )
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
 import Data.Proxy
@@ -39,7 +41,9 @@ import System.Command
 import System.Exit
     ( ExitCode (..) )
 import Test.Hspec
-    ( SpecWith, describe, it, shouldBe, shouldContain )
+    ( SpecWith, describe, it )
+import Test.Hspec.Expectations.Lifted
+    ( shouldBe, shouldContain )
 import Test.Integration.Framework.DSL
     ( Context
     , KnownCommand
@@ -121,9 +125,9 @@ scenario_ADDRESS_LIST_01
         , KnownCommand t
         )
     => String
-    -> (Context t -> IO ApiByronWallet)
+    -> (Context t -> ResourceT IO ApiByronWallet)
     -> SpecWith (Context t)
-scenario_ADDRESS_LIST_01 walType fixture = it title $ \ctx -> do
+scenario_ADDRESS_LIST_01 walType fixture = it title $ \ctx -> runResourceT $ do
     w <- fixture ctx
     let wid = T.unpack (w ^. walletId)
     (Exit c, Stdout out, Stderr err) <- listAddressesViaCLI @t ctx [wid]
@@ -145,9 +149,9 @@ scenario_ADDRESS_LIST_02
         , KnownCommand t
         )
     => String
-    -> (Context t -> IO ApiByronWallet)
+    -> (Context t -> ResourceT IO ApiByronWallet)
     -> SpecWith (Context t)
-scenario_ADDRESS_LIST_02 walType fixture = it title $ \ctx -> do
+scenario_ADDRESS_LIST_02 walType fixture = it title $ \ctx -> runResourceT $ do
     w <- fixture ctx
     let wid = T.unpack (w ^. walletId)
     let args u = [ wid
@@ -183,9 +187,9 @@ scenario_ADDRESS_LIST_04
         , KnownCommand t
         )
     => String
-    -> (Context t -> IO ApiByronWallet)
+    -> (Context t -> ResourceT IO ApiByronWallet)
     -> SpecWith (Context t)
-scenario_ADDRESS_LIST_04 walType fixture = it title $ \ctx -> do
+scenario_ADDRESS_LIST_04 walType fixture = it title $ \ctx -> runResourceT $ do
     w <- fixture ctx
     let wid = w ^. walletId
     Exit cd <- deleteWalletViaCLI @t ctx $ T.unpack wid
@@ -204,7 +208,7 @@ scenario_ADDRESS_CREATE_01
         , KnownCommand t
         )
     => SpecWith (Context t)
-scenario_ADDRESS_CREATE_01 = it title $ \ctx -> do
+scenario_ADDRESS_CREATE_01 = it title $ \ctx -> runResourceT @IO $ do
     w <- emptyRandomWallet ctx
     let wid = T.unpack (w ^. walletId)
     (c, out, err) <- createAddressViaCLI @t ctx [wid] (T.unpack fixturePassphrase)
@@ -222,7 +226,7 @@ scenario_ADDRESS_CREATE_02
         , KnownCommand t
         )
     => SpecWith (Context t)
-scenario_ADDRESS_CREATE_02 = it title $ \ctx -> do
+scenario_ADDRESS_CREATE_02 = it title $ \ctx -> runResourceT @IO $ do
     w <- emptyIcarusWallet ctx
     let wid = T.unpack (w ^. walletId)
     (c, out, err) <- createAddressViaCLI @t ctx [wid] (T.unpack fixturePassphrase)
@@ -239,7 +243,7 @@ scenario_ADDRESS_CREATE_03
         , KnownCommand t
         )
     => SpecWith (Context t)
-scenario_ADDRESS_CREATE_03 = it title $ \ctx -> do
+scenario_ADDRESS_CREATE_03 = it title $ \ctx -> runResourceT @IO $ do
     w <- emptyRandomWallet ctx
     let wid = T.unpack (w ^. walletId)
     (c, out, err) <- createAddressViaCLI @t ctx [wid] "Give me all your money."
@@ -256,7 +260,7 @@ scenario_ADDRESS_CREATE_04
         , KnownCommand t
         )
     => SpecWith (Context t)
-scenario_ADDRESS_CREATE_04 = it title $ \ctx -> do
+scenario_ADDRESS_CREATE_04 = it title $ \ctx -> runResourceT @IO $ do
     w <- emptyRandomWallet ctx
     let wid = T.unpack (w ^. walletId)
     (c, out, err) <- createAddressViaCLI @t ctx [wid] (T.unpack fixturePassphrase)
@@ -279,7 +283,7 @@ scenario_ADDRESS_CREATE_05
         , KnownCommand t
         )
     => SpecWith (Context t)
-scenario_ADDRESS_CREATE_05 = it title $ \ctx -> do
+scenario_ADDRESS_CREATE_05 = it title $ \ctx -> runResourceT @IO $ do
     w <- emptyRandomWallet ctx
     let wid = T.unpack (w ^. walletId)
     let args = [ wid, "--address-index", "2147483662" ]
@@ -298,7 +302,7 @@ scenario_ADDRESS_CREATE_06
         , KnownCommand t
         )
     => SpecWith (Context t)
-scenario_ADDRESS_CREATE_06 = it title $ \ctx -> do
+scenario_ADDRESS_CREATE_06 = it title $ \ctx -> runResourceT @IO $ do
     w <- emptyRandomWallet ctx
     let wid = T.unpack (w ^. walletId)
     let args = [ wid, "--address-index", "2147483662" ]
@@ -322,7 +326,7 @@ scenario_ADDRESS_CREATE_07
     => String
     -> String
     -> SpecWith (Context t)
-scenario_ADDRESS_CREATE_07 index expectedMsg = it index $ \ctx -> do
+scenario_ADDRESS_CREATE_07 index expectedMsg = it index $ \ctx -> runResourceT @IO $ do
     w <- emptyRandomWallet ctx
     let wid = T.unpack (w ^. walletId)
     let args = [ wid, "--address-index", index ]
@@ -339,7 +343,7 @@ scenario_ADDRESS_IMPORT_01
         , KnownCommand t
         )
     => SpecWith (Context t)
-scenario_ADDRESS_IMPORT_01 = it title $ \ctx -> do
+scenario_ADDRESS_IMPORT_01 = it title $ \ctx -> runResourceT @IO $ do
     (w, mw) <- emptyRandomWalletMws ctx
     let wid = T.unpack (w ^. walletId)
     let addr = T.unpack $ encodeAddress @n $ randomAddresses @n mw !! 42
@@ -357,7 +361,7 @@ scenario_ADDRESS_IMPORT_02
         , KnownCommand t
         )
     => SpecWith (Context t)
-scenario_ADDRESS_IMPORT_02 = it title $ \ctx -> do
+scenario_ADDRESS_IMPORT_02 = it title $ \ctx -> runResourceT @IO $ do
     (w, mw) <- emptyIcarusWalletMws ctx
     let wid = T.unpack (w ^. walletId)
     let addr = T.unpack $ encodeAddress @n $ icarusAddresses @n mw !! 42
@@ -375,7 +379,7 @@ scenario_ADDRESS_IMPORT_03
         , KnownCommand t
         )
     => SpecWith (Context t)
-scenario_ADDRESS_IMPORT_03 = it title $ \ctx -> do
+scenario_ADDRESS_IMPORT_03 = it title $ \ctx -> runResourceT @IO $ do
     w <- emptyRandomWallet ctx
     let wid = T.unpack (w ^. walletId)
     let addr = "💩"

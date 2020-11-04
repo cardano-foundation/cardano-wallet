@@ -67,6 +67,7 @@ library
     , memory
     , optparse-applicative
     , process
+    , resourcet
     , retry
     , say
     , scrypt

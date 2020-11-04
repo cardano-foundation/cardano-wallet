@@ -333,12 +333,16 @@ import Control.Concurrent
     ( threadDelay )
 import Control.Concurrent.Async
     ( race_ )
+import Control.DeepSeq
+    ( NFData )
 import Control.Exception
-    ( IOException, bracket, throwIO, try, tryJust )
+    ( IOException, bracket, throwIO, tryJust )
+import Control.Exception.Safe
+    ( tryAnyDeep )
 import Control.Monad
-    ( forM, forever, void, when, (>=>) )
+    ( forM, forever, join, void, when, (>=>) )
 import Control.Monad.Catch
-    ( handle )
+    ( handle, try )
 import Control.Monad.IO.Class
     ( MonadIO, liftIO )
 import Control.Monad.Trans.Class
@@ -357,6 +361,8 @@ import Data.ByteString
     ( ByteString )
 import Data.Coerce
     ( coerce )
+import Data.Either.Extra
+    ( eitherToMaybe )
 import Data.Function
     ( (&) )
 import Data.Functor
@@ -374,7 +380,7 @@ import Data.List.NonEmpty
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
-    ( fromMaybe, isJust )
+    ( catMaybes, fromMaybe, isJust )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -1048,15 +1054,29 @@ getWallet ctx mkApiWallet (ApiT wid) = do
 listWallets
     :: forall ctx s t k apiWallet.
         ( ctx ~ ApiLayer s t k
+        , NFData apiWallet
         )
     => ctx
     -> MkApiWallet ctx s apiWallet
     -> Handler [(apiWallet, UTCTime)]
 listWallets ctx mkApiWallet = do
     wids <- liftIO $ listDatabases df
-    sortOn snd <$> mapM (getWallet ctx mkApiWallet) (ApiT <$> wids)
+    liftIO $ sortOn snd . catMaybes <$> mapM maybeGetWallet (ApiT <$> wids)
   where
     df = ctx ^. dbFactory @s @k
+
+    -- Under extreme circumstances (like integration tests running in parallel)
+    -- there may be race conditions where the wallet is deleted just before we
+    -- try to read it.
+    --
+    -- But.. why do we need to both runHandler and tryAnyDeep?
+    maybeGetWallet :: ApiT WalletId -> IO (Maybe (apiWallet, UTCTime))
+    maybeGetWallet =
+        fmap (join . eitherToMaybe)
+        . tryAnyDeep
+        . fmap eitherToMaybe
+        . runHandler
+        . getWallet ctx mkApiWallet
 
 putWallet
     :: forall ctx s t k apiWallet.

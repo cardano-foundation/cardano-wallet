@@ -467,6 +467,8 @@ data WalletBalance = WalletBalance
     , reward :: !(Quantity "lovelace" Natural)
     } deriving (Eq, Generic, Show)
 
+instance NFData WalletBalance
+
 {-------------------------------------------------------------------------------
                                    Queries
 -------------------------------------------------------------------------------}

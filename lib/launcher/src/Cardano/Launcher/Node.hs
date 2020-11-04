@@ -112,6 +112,7 @@ cardanoNodeProcess cfg socketPath = do
         ++ opt "--shelley-operational-certificate" (nodeOpCertFile cfg)
         ++ opt "--shelley-kes-key" (nodeKesKeyFile cfg)
         ++ opt "--shelley-vrf-key" (nodeVrfKeyFile cfg)
+        ++ ["+RTS", "-N4", "-RTS"]
 
     opt _ Nothing = []
     opt arg (Just val) = [arg, val]

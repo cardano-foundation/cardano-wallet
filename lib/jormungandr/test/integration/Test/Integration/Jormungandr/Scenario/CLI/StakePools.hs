@@ -21,8 +21,11 @@ spec
     :: forall t. (KnownCommand t)
     => SpecWith (Context t)
 spec = do
-    it "STAKE_POOLS_LIST_01 - List stake pools" $ \ctx -> do
+    it "STAKE_POOLS_LIST_01 - List stake pools" $ \ctx -> inIO $ do
         eventually "Stake pools are listed" $ do
             (Exit c, Stdout _, Stderr e) <- listStakePoolsViaCLI @t ctx
             e `shouldBe` "Ok.\n"
             c `shouldBe` ExitSuccess
+  where
+    inIO :: IO a -> IO a
+    inIO = id

@@ -20,6 +20,8 @@ import Cardano.Wallet.Primitive.Types
     ( AddressState (..) )
 import Control.Monad
     ( forM_ )
+import Control.Monad.Trans.Resource
+    ( ResourceT, runResourceT )
 import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
 import Data.Proxy
@@ -68,7 +70,7 @@ spec :: forall n t.
     ) => SpecWith (Context t)
 spec = describe "SHELLEY_CLI_ADDRESSES" $ do
 
-    it "ADDRESS_LIST_01 - Can list addresses - default poolGap" $ \ctx -> do
+    it "ADDRESS_LIST_01 - Can list addresses - default poolGap" $ \ctx -> runResourceT $ do
         let g = fromIntegral $ getAddressPoolGap defaultAddressPoolGap
         walId <- emptyWallet' ctx
         (Exit c, Stdout out, Stderr err) <- listAddressesViaCLI @t ctx [walId]
@@ -80,7 +82,7 @@ spec = describe "SHELLEY_CLI_ADDRESSES" $ do
             expectCliListField
                 addrNum (#state . #getApiT) (`shouldBe` Unused) json
 
-    it "ADDRESS_LIST_01 - Can list addresses - non-default poolGap" $ \ctx -> do
+    it "ADDRESS_LIST_01 - Can list addresses - non-default poolGap" $ \ctx -> runResourceT $ do
         let addrPoolGap = 60
         walId <- emptyWalletWith' ctx
                     ("This is Wallet, OK?", "cardano-wallet", addrPoolGap)
@@ -93,7 +95,7 @@ spec = describe "SHELLEY_CLI_ADDRESSES" $ do
             expectCliListField
                 addrNum (#state . #getApiT) (`shouldBe` Unused) json
 
-    it "ADDRESS_LIST_02 - Can filter used and unused addresses" $ \ctx -> do
+    it "ADDRESS_LIST_02 - Can filter used and unused addresses" $ \ctx -> runResourceT $ do
         let g = fromIntegral $ getAddressPoolGap defaultAddressPoolGap
         walId <- fixtureWallet' ctx
         (Exit c1, Stdout o1, Stderr e1)
@@ -116,7 +118,7 @@ spec = describe "SHELLEY_CLI_ADDRESSES" $ do
                 addrNum (#state . #getApiT) (`shouldBe` Unused) j2
 
     it "ADDRESS_LIST_02 - Shows nothing when there are no used addresses"
-        $ \ctx -> do
+        $ \ctx -> runResourceT $ do
         walId <- emptyWallet' ctx
         (Exit c1, Stdout o1, Stderr e1)
             <- listAddressesViaCLI @t ctx ["--state", "used", walId]
@@ -147,7 +149,7 @@ spec = describe "SHELLEY_CLI_ADDRESSES" $ do
                 , "44444444"
                 , "*"
                 ]
-        forM_ filters $ \fil -> it ("--state=" <> fil) $ \ctx -> do
+        forM_ filters $ \fil -> it ("--state=" <> fil) $ \ctx -> runResourceT $ do
             walId <- emptyWallet' ctx
             (Exit c, Stdout o, Stderr e)
                 <- listAddressesViaCLI @t ctx ["--state", fil, walId]
@@ -157,7 +159,7 @@ spec = describe "SHELLEY_CLI_ADDRESSES" $ do
             c `shouldBe` ExitFailure 1
             o `shouldBe` ""
 
-    it "ADDRESS_LIST_03 - Generates new address pool gap" $ \ctx -> do
+    it "ADDRESS_LIST_03 - Generates new address pool gap" $ \ctx -> runResourceT $ do
         let initPoolGap = 10
         wSrc <- fixtureWallet' ctx
         wDest <- emptyWalletWith ctx ("Wallet", "cardano-wallet", initPoolGap)
@@ -201,7 +203,7 @@ spec = describe "SHELLEY_CLI_ADDRESSES" $ do
                 addrNum (#state . #getApiT) (`shouldBe` Unused) j1
 
     describe "ADDRESS_LIST_04 - False wallet ids" $ do
-        forM_ falseWalletIds $ \(title, walId) -> it title $ \ctx -> do
+        forM_ falseWalletIds $ \(title, walId) -> it title $ \ctx -> runResourceT $ do
             (Exit c, Stdout o, Stderr e) <- listAddressesViaCLI @t ctx [walId]
             o `shouldBe` ""
             c `shouldBe` ExitFailure 1
@@ -212,7 +214,7 @@ spec = describe "SHELLEY_CLI_ADDRESSES" $ do
                 e `shouldContain`
                     "wallet id should be a hex-encoded string of 40 characters"
 
-    it "ADDRESS_LIST_04 - 'almost' valid walletId" $ \ctx -> do
+    it "ADDRESS_LIST_04 - 'almost' valid walletId" $ \ctx -> runResourceT $ do
         wid <- emptyWallet' ctx
         (Exit c, Stdout o, Stderr e) <- listAddressesViaCLI @t ctx [wid ++ "0"]
         e `shouldContain`
@@ -220,7 +222,7 @@ spec = describe "SHELLEY_CLI_ADDRESSES" $ do
         o `shouldBe` ""
         c `shouldBe` ExitFailure 1
 
-    it "ADDRESS_LIST_04 - Deleted wallet" $ \ctx -> do
+    it "ADDRESS_LIST_04 - Deleted wallet" $ \ctx -> runResourceT $ do
         wid <- emptyWallet' ctx
         Exit d <- deleteWalletViaCLI @t ctx wid
         d `shouldBe` ExitSuccess
@@ -230,7 +232,7 @@ spec = describe "SHELLEY_CLI_ADDRESSES" $ do
         o `shouldBe` ""
         c `shouldBe` ExitFailure 1
 
-    it "BYRON_ADDRESS_LIST - Byron wallet on Shelley CLI" $ \ctx -> do
+    it "BYRON_ADDRESS_LIST - Byron wallet on Shelley CLI" $ \ctx -> runResourceT $ do
         wid <- emptyRandomWallet' ctx
         (Exit c, Stdout o, Stderr e) <- listAddressesViaCLI @t ctx [wid]
         e `shouldContain` errMsg404NoWallet (T.pack wid)
@@ -238,15 +240,15 @@ spec = describe "SHELLEY_CLI_ADDRESSES" $ do
         c `shouldBe` ExitFailure 1
 
   where
-    emptyRandomWallet' :: Context t -> IO String
+    emptyRandomWallet' :: Context t -> ResourceT IO String
     emptyRandomWallet' = fmap (T.unpack . view walletId) . emptyRandomWallet
 
-    emptyWallet' :: Context t -> IO String
+    emptyWallet' :: Context t -> ResourceT IO String
     emptyWallet' = fmap (T.unpack . view walletId) . emptyWallet
 
-    emptyWalletWith' :: Context t -> (Text, Text, Int) -> IO String
+    emptyWalletWith' :: Context t -> (Text, Text, Int) -> ResourceT IO String
     emptyWalletWith' ctx (name, pass, pg) =
         fmap (T.unpack . view walletId) (emptyWalletWith ctx (name, pass, pg))
 
-    fixtureWallet' :: Context t -> IO String
+    fixtureWallet' :: Context t -> ResourceT IO String
     fixtureWallet' = fmap (T.unpack . view walletId) . fixtureWallet

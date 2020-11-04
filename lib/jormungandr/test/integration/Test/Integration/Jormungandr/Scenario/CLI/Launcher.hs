@@ -148,7 +148,7 @@ spec = do
                     , "--secret", secret
                     , "--config", config
                     ]
-            (Exit c, Stdout _, Stderr e) <- cardanoWalletCLI @t args
+            (Exit c, Stdout _, Stderr e) <- cardanoWalletCLI @t @_ @IO args
             c `shouldBe` ExitFailure 1
             e `shouldContain`
                 ("I couldn't find any file at the given location: " <> block0')
@@ -161,7 +161,7 @@ spec = do
                     , "--secret", secret
                     , "--config", config
                     ]
-            (Exit c, Stdout _, Stderr _) <- cardanoWalletCLI @t args
+            (Exit c, Stdout _, Stderr _) <- cardanoWalletCLI @t @_ @IO args
             c `shouldBe` ExitFailure 33
             -- FIXME: https://github.com/input-output-hk/cardano-wallet/issues/2187
             -- o `shouldContain`
@@ -174,7 +174,7 @@ spec = do
                     , "--"
                     , "--rest-listen", "127.0.0.1:8080"
                     ]
-            (Exit c, Stdout _, Stderr e) <- cardanoWalletCLI @t args
+            (Exit c, Stdout _, Stderr e) <- cardanoWalletCLI @t @_ @IO args
             c `shouldBe` ExitFailure 1
             e `shouldContain`
                 "The --rest-listen option is used by the 'launch' command."
@@ -186,7 +186,7 @@ spec = do
                     , "--"
                     , "--storage", "/tmp/whatever"
                     ]
-            (Exit c, Stdout _, Stderr e) <- cardanoWalletCLI @t args
+            (Exit c, Stdout _, Stderr e) <- cardanoWalletCLI @t @_ @IO args
             c `shouldBe` ExitFailure 1
             e `shouldContain`
                 "The --storage option is used by the 'launch' command."

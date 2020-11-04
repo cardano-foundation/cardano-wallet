@@ -24,6 +24,10 @@ import Cardano.Wallet.Api.Types
     )
 import Control.Monad
     ( forM_ )
+import Control.Monad.IO.Class
+    ( liftIO )
+import Control.Monad.Trans.Resource
+    ( runResourceT )
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
 import Data.Quantity
@@ -31,7 +35,9 @@ import Data.Quantity
 import Data.Text.Class
     ( fromText )
 import Test.Hspec
-    ( SpecWith, describe, shouldBe )
+    ( SpecWith, describe )
+import Test.Hspec.Expectations.Lifted
+    ( shouldBe )
 import Test.Hspec.Extra
     ( it )
 import Test.Integration.Framework.DSL
@@ -49,6 +55,7 @@ import Test.Integration.Framework.DSL
     , fixturePassphrase
     , fixtureRandomWallet
     , json
+    , postByronWallet
     , request
     , toQueryString
     , verify
@@ -74,7 +81,7 @@ spec :: forall n t.
     ) => SpecWith (Context t)
 spec = describe "BYRON_MIGRATIONS" $ do
 
-    it "BYRON_RESTORE_08 - Icarus wallet with high indexes" $ \ctx -> do
+    it "BYRON_RESTORE_08 - Icarus wallet with high indexes" $ \ctx -> runResourceT $ do
         -- NOTE
         -- Special Icarus mnemonic where address indexes are all after the index
         -- 500. Because we don't have the whole history, restoring sequential
@@ -92,13 +99,13 @@ spec = describe "BYRON_MIGRATIONS" $ do
                     "style": "icarus"
                     } |]
 
-        r <- request @ApiByronWallet ctx (Link.postWallet @'Byron) Default payload
+        r <- postByronWallet ctx payload
         verify r
-            [ expectResponseCode @IO HTTP.status201
+            [ expectResponseCode HTTP.status201
             , expectField (#balance . #available) (`shouldBe` Quantity faucetAmt)
             ]
 
-    it "BYRON_RESTORE_09 - Ledger wallet" $ \ctx -> do
+    it "BYRON_RESTORE_09 - Ledger wallet" $ \ctx -> runResourceT $ do
         -- NOTE
         -- Special legacy wallets where addresses have been generated from a
         -- seed derived using the auxiliary method used by Ledger.
@@ -114,30 +121,30 @@ spec = describe "BYRON_MIGRATIONS" $ do
                     "style": "ledger"
                     } |]
 
-        r <- request @ApiByronWallet ctx (Link.postWallet @'Byron) Default payload
+        r <- postByronWallet ctx payload
         verify r
-            [ expectResponseCode @IO HTTP.status201
+            [ expectResponseCode HTTP.status201
             , expectField (#balance . #available) (`shouldBe` Quantity faucetAmt)
             ]
 
     it "BYRON_TX_LIST_01 - 0 txs on empty Byron wallet"
-        $ \ctx -> forM_ [emptyRandomWallet, emptyIcarusWallet] $ \emptyByronWallet -> do
+        $ \ctx -> runResourceT @IO $ forM_ [emptyRandomWallet, emptyIcarusWallet] $ \emptyByronWallet -> do
             w <- emptyByronWallet ctx
             let link = Link.listTransactions @'Byron w
             r <- request @([ApiTransaction n]) ctx link Default Empty
             verify r
-                [ expectResponseCode @IO HTTP.status200
+                [ expectResponseCode HTTP.status200
                 , expectListSize 0
                 ]
 
     it "BYRON_TX_LIST_01 - Can list transactions on Byron Wallet"
-        $ \ctx -> forM_ [fixtureRandomWallet, fixtureIcarusWallet]
+        $ \ctx -> runResourceT @IO $ forM_ [fixtureRandomWallet, fixtureIcarusWallet]
         $ \fixtureByronWallet -> do
             w <- fixtureByronWallet ctx
             let link = Link.listTransactions @'Byron w
             r <- request @([ApiTransaction n]) ctx link Default Empty
             verify r
-                [ expectResponseCode @IO HTTP.status200
+                [ expectResponseCode HTTP.status200
                 , expectListSize 10
                 ]
 
@@ -151,7 +158,7 @@ spec = describe "BYRON_MIGRATIONS" $ do
                   TestCase
                     { query = toQueryString [ ("start", "2009") ]
                     , assertions =
-                             [ expectResponseCode @IO HTTP.status400
+                             [ expectResponseCode HTTP.status400
                              , expectErrorMessage startEndErr
                              ]
 
@@ -162,7 +169,7 @@ spec = describe "BYRON_MIGRATIONS" $ do
                              , ("end", "2016-11-21")
                              ]
                      , assertions =
-                             [ expectResponseCode @IO HTTP.status400
+                             [ expectResponseCode HTTP.status400
                              , expectErrorMessage startEndErr
                              ]
 
@@ -173,7 +180,7 @@ spec = describe "BYRON_MIGRATIONS" $ do
                              , ("end", "2016-11-21T10:15:00Z")
                              ]
                      , assertions =
-                             [ expectResponseCode @IO HTTP.status400
+                             [ expectResponseCode HTTP.status400
                              , expectErrorMessage startEndErr
                              ]
 
@@ -184,7 +191,7 @@ spec = describe "BYRON_MIGRATIONS" $ do
                              , ("start", "2016-11-21")
                              ]
                      , assertions =
-                             [ expectResponseCode @IO HTTP.status400
+                             [ expectResponseCode HTTP.status400
                              , expectErrorMessage startEndErr
                              ]
 
@@ -192,7 +199,7 @@ spec = describe "BYRON_MIGRATIONS" $ do
                  , TestCase
                      { query = toQueryString [ ("order", "scending") ]
                      , assertions =
-                            [ expectResponseCode @IO HTTP.status400
+                            [ expectResponseCode HTTP.status400
                             , expectErrorMessage orderErr
                             ]
 
@@ -203,7 +210,7 @@ spec = describe "BYRON_MIGRATIONS" $ do
                              , ("order", "asc")
                              ]
                      , assertions =
-                             [ expectResponseCode @IO HTTP.status400
+                             [ expectResponseCode HTTP.status400
                              , expectErrorMessage orderErr
                              ]
                      }
@@ -211,14 +218,14 @@ spec = describe "BYRON_MIGRATIONS" $ do
 
         let withQuery q (method, link) = (method, link <> q)
 
-        forM_ queries $ \tc -> it (T.unpack $ query tc) $ \ctx -> do
+        forM_ queries $ \tc -> it (T.unpack $ query tc) $ \ctx -> runResourceT @IO $ do
             w <- emptyRandomWallet ctx
             let link = withQuery (query tc) $ Link.listTransactions @'Byron w
             r <- request @([ApiTransaction n]) ctx link Default Empty
-            verify r (assertions tc)
+            liftIO $ verify r (assertions tc)
 
     it "BYRON_TX_LIST_01 - Start time shouldn't be later than end time" $
-        \ctx -> do
+        \ctx -> runResourceT @IO $ do
             w <- emptyRandomWallet ctx
             let startTime = "2009-09-09T09:09:09Z"
             let endTime = "2001-01-01T01:01:01Z"
@@ -228,15 +235,15 @@ spec = describe "BYRON_MIGRATIONS" $ do
                     (either (const Nothing) Just $ fromText $ T.pack endTime)
                     Nothing
             r <- request @([ApiTransaction n]) ctx link Default Empty
-            expectResponseCode @IO HTTP.status400 r
+            expectResponseCode HTTP.status400 r
             expectErrorMessage
                 (errMsg400StartTimeLaterThanEndTime startTime endTime) r
 
-    it "BYRON_TX_LIST_04 - Deleted wallet" $ \ctx -> do
+    it "BYRON_TX_LIST_04 - Deleted wallet" $ \ctx -> runResourceT @IO $ do
         w <- emptyRandomWallet ctx
         _ <- request @ApiByronWallet ctx
             (Link.deleteWallet @'Byron w) Default Empty
         let link = Link.listTransactions @'Byron w
         r <- request @([ApiTransaction n]) ctx link Default Empty
-        expectResponseCode @IO HTTP.status404 r
+        expectResponseCode HTTP.status404 r
         expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r

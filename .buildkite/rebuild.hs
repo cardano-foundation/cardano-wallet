@@ -96,7 +96,7 @@ data DryRun = Run | DryRun deriving (Show, Eq)
 
 data QA = QuickTest | FullTest | NightlyTest deriving (Show, Eq)
 
-data Jobs = Serial | Parallel deriving (Show, Eq)
+data Jobs = Serial | Parallel Int deriving (Show, Eq)
 
 rebuildOpts :: Parser RebuildOpts
 rebuildOpts = RebuildOpts
@@ -149,7 +149,7 @@ buildStep dryRun bk nightly = do
       titled "Build"
         (build Fast (["--test", "--no-run-tests"] ++ cabalFlags)) .&&.
       titled "Test"
-        (timeout 60 (test Fast Serial cabalFlags .&&. test Fast Parallel cabalFlags)) .&&.
+        (timeout 60 (test Fast cabalFlags)) .&&.
       titled "Checking golden test files"
         (checkUnclean dryRun "lib/core/test/data")
   where
@@ -166,7 +166,7 @@ buildStep dryRun bk nightly = do
             , args
             ]
 
-    test opt behavior args =
+    test opt args =
         run dryRun "stack" $ concat
             [ color "always"
             , [ "test" ]
@@ -175,11 +175,7 @@ buildStep dryRun bk nightly = do
                 QuickTest -> skip "integration" <> skip "jormungandr-integration"
                 FullTest -> skip "jormungandr-integration"
                 NightlyTest -> mempty
-            , case behavior of
-                Serial ->
-                    ta (match serialTests ++ jobs 1) ++ jobs 1
-                Parallel ->
-                    ta (skip serialTests)
+            , ta (jobs 8)
             , args
             ]
 

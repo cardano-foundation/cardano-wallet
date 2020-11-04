@@ -73,6 +73,8 @@ import Control.Exception
     ( throwIO )
 import Control.Monad
     ( mapM_, replicateM, replicateM_ )
+import Control.Monad.IO.Class
+    ( liftIO )
 import Data.Aeson
     ( Value )
 import Data.Aeson.QQ
@@ -113,6 +115,8 @@ import Test.Integration.Framework.DSL
     , json
     , listAddresses
     , request
+    , runResourceT
+    , runResourceT
     , verify
     )
 
@@ -232,7 +236,7 @@ walletApiBench capture benchWithServer = do
 
         replicateM_ batchSize
             (postTx ctx (wSrc, Link.createTransaction @'Shelley, pass) wDest amtToSend)
-        eventually "repeatPostTx: wallet balance is as expected" $ do
+        liftIO $ eventually "repeatPostTx: wallet balance is as expected" $ do
             rWal1 <- request @ApiWallet ctx (Link.getWallet @'Shelley wDest) Default Empty
             verify rWal1
                 [ expectSuccess
@@ -242,7 +246,7 @@ walletApiBench capture benchWithServer = do
                 ]
 
         rDel <- request @ApiWallet ctx (Link.deleteWallet @'Shelley wSrc) Default Empty
-        expectResponseCode @IO HTTP.status204 rDel
+        expectResponseCode HTTP.status204 rDel
 
         pure ()
 
@@ -269,7 +273,7 @@ walletApiBench capture benchWithServer = do
         postMultiTx ctx
             (wSrc, Link.createTransaction @'Shelley, fixturePassphrase)
             wDest amtToSend batchSize
-        eventually "repeatPostMultiTx: wallet balance is as expected" $ do
+        liftIO $ eventually "repeatPostMultiTx: wallet balance is as expected" $ do
             rWal1 <- request @ApiWallet ctx
                 (Link.getWallet @'Shelley wDest) Default Empty
             verify rWal1
@@ -280,11 +284,11 @@ walletApiBench capture benchWithServer = do
                 ]
 
         rStat <- request @ApiUtxoStatistics ctx (Link.getUTxOsStatistics @'Shelley  wDest) Default Empty
-        expectResponseCode @IO HTTP.status200 rStat
+        expectResponseCode HTTP.status200 rStat
         expectWalletUTxO utxoExp (snd rStat)
 
         rDel <- request @ApiWallet ctx (Link.deleteWallet @'Shelley wSrc) Default Empty
-        expectResponseCode @IO HTTP.status204 rDel
+        expectResponseCode HTTP.status204 rDel
 
         pure ()
 
@@ -309,9 +313,7 @@ walletApiBench capture benchWithServer = do
         expectResponseCode HTTP.status202 r
         return ()
 
-    runScenario scenario = benchWithServer $ \ctx -> do
-        (wal1, wal2) <- scenario ctx
-
+    runScenario scenario = benchWithServer $ \ctx -> runResourceT $ scenario ctx >>= \(wal1, wal2) -> liftIO $ do
         t1 <- measureApiLogs capture
             (request @[ApiWallet] ctx (Link.listWallets @'Shelley) Default Empty)
 

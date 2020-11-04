@@ -25,6 +25,8 @@ import Cardano.Wallet.Primitive.AddressDerivation.Jormungandr
     ( JormungandrKey )
 import Cardano.Wallet.Primitive.Types
     ( Hash (..), Tx (..) )
+import Control.Monad.IO.Class
+    ( liftIO )
 import Data.ByteArray.Encoding
     ( Base (Base16, Base64), convertToBase )
 import Data.Generics.Internal.VL.Lens
@@ -55,6 +57,7 @@ import Test.Integration.Framework.DSL
     , getWalletViaCLI
     , listAddresses
     , postExternalTransactionViaCLI
+    , runResourceT
     , verify
     , walletId
     )
@@ -81,12 +84,12 @@ spec :: forall n t.
     ) => SpecWith (Context t)
 spec = do
     it "TRANS_EXTERNAL_CREATE_01x - \
-        \single output tx signed via jcli" $ \ctx -> do
+        \single output tx signed via jcli" $ \ctx -> runResourceT @IO $ do
         w <- emptyWallet ctx
         addr:_ <- listAddresses @n ctx w
         let amt = 4321
 
-        payload <- fixtureRawTx ctx (getApiT $ fst $ addr ^. #id, amt)
+        payload <- liftIO $ fixtureRawTx ctx (getApiT $ fst $ addr ^. #id, amt)
         (Exit code, Stdout out, Stderr err) <-
             postExternalTransactionViaCLI @t ctx
                 [T.unpack $ T.decodeUtf8 $ hex $ BL.toStrict payload]
@@ -107,14 +110,14 @@ spec = do
                 ]
 
     it "TRANS_EXTERNAL_CREATE_01cli - proper single output transaction and \
-       \proper binary format" $ \ctx -> do
+       \proper binary format" $ \ctx -> runResourceT @IO $ do
         let toSend = 1 :: Natural
         (ExternalTxFixture _ wDest _ bin tx) <-
             fixtureExternalTx @n @t ctx toSend
         let baseOk = Base16
         let arg = B8.unpack $ convertToBase baseOk bin
         let expectedTxId = T.decodeUtf8 $ hex . getHash $ txId tx
-        (initTotal, initAvailable) <- getWalletBalance ctx wDest
+        (initTotal, initAvailable) <- liftIO $ getWalletBalance ctx wDest
 
         -- post external transaction
         (Exit code, Stdout out, Stderr err) <-
@@ -149,7 +152,7 @@ spec = do
             ]
 
     it "TRANS_EXTERNAL_CREATE_02 - proper single output transaction and \
-       \not hex-encoded binary format" $ \ctx -> do
+       \not hex-encoded binary format" $ \ctx -> runResourceT @IO $ do
         let toSend = 1 :: Natural
         (ExternalTxFixture _ _ _ bin _) <- fixtureExternalTx @n @t ctx toSend
         let baseWrong = Base64
@@ -162,7 +165,7 @@ spec = do
         code1 `shouldBe` ExitFailure 1
 
     it "TRANS_EXTERNAL_CREATE_03 - proper single output transaction and \
-       \wrong binary format" $ \ctx -> do
+       \wrong binary format" $ \ctx -> runResourceT @IO $ do
         let invalidArg = "0000"
         (Exit code, Stdout out, Stderr err)
             <- postExternalTransactionViaCLI @t ctx [invalidArg]
@@ -170,23 +173,23 @@ spec = do
         out `shouldBe` mempty
         code `shouldBe` ExitFailure 1
 
-    it "TRANS_DELETE_05 - Cannot forget external tx via CLI" $ \ctx -> do
+    it "TRANS_DELETE_05 - Cannot forget external tx via CLI" $ \ctx -> runResourceT @IO $ do
         w <- emptyWallet ctx
         addr:_ <- listAddresses @n ctx w
         let amt = 11111
 
         -- post external tx
-        payload <- fixtureRawTx ctx (getApiT $ fst $ addr ^. #id, amt)
+        payload <- liftIO $ fixtureRawTx ctx (getApiT $ fst $ addr ^. #id, amt)
         (Exit code, Stdout out, Stderr err) <-
             postExternalTransactionViaCLI @t ctx
                 [T.unpack $ T.decodeUtf8 $ hex $ BL.toStrict payload]
-        err `shouldBe` "Ok.\n"
+        liftIO $ err `shouldBe` "Ok.\n"
         txJson <- expectValidJSON (Proxy @ApiTxId) out
-        code `shouldBe` ExitSuccess
+        liftIO $ code `shouldBe` ExitSuccess
         let txid = T.unpack $ toUrlPiece (txJson ^. #id)
 
         -- funds eventually are on target wallet
-        eventually "Wallet balance is as expected" $ do
+        liftIO $ eventually "Wallet balance is as expected" $ do
             Stdout gOutDest <- getWalletViaCLI @t ctx
                 (T.unpack (w ^. walletId))
             destJson <- expectValidJSON (Proxy @ApiWallet) gOutDest

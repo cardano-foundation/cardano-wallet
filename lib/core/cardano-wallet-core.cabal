@@ -83,6 +83,7 @@ library
     , random-shuffle
     , retry
     , safe
+    , safe-exceptions
     , scientific
     , scrypt
     , servant

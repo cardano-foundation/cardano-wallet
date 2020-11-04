@@ -35,6 +35,10 @@ import Cardano.Wallet.Primitive.Types
     ( AddressState (..) )
 import Control.Monad
     ( forM_ )
+import Control.Monad.IO.Class
+    ( liftIO )
+import Control.Monad.Trans.Resource
+    ( runResourceT )
 import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
 import Data.Quantity
@@ -42,7 +46,9 @@ import Data.Quantity
 import Data.Text
     ( Text )
 import Test.Hspec
-    ( SpecWith, describe, shouldBe, shouldSatisfy )
+    ( SpecWith, describe )
+import Test.Hspec.Expectations.Lifted
+    ( shouldBe, shouldContain, shouldSatisfy )
 import Test.Hspec.Extra
     ( it )
 import Test.Integration.Framework.DSL
@@ -64,10 +70,12 @@ import Test.Integration.Framework.DSL
     , json
     , listAddresses
     , minUTxOValue
+    , postWallet
     , pubKeyFromMnemonics
     , request
     , restoreWalletFromPubKey
     , selectCoins
+    , unsafeResponse
     , verify
     , walletId
     )
@@ -86,15 +94,15 @@ spec :: forall n t.
     , EncodeAddress n
     ) => SpecWith (Context t)
 spec = describe "SHELLEY_HW_WALLETS" $ do
-    it "HW_WALLETS_01 - Restoration from account public key preserves funds" $ \ctx -> do
+    it "HW_WALLETS_01 - Restoration from account public key preserves funds" $ \ctx -> runResourceT $ do
         wSrc <- fixtureWallet ctx
         -- create wallet
-        mnemonics <- mnemonicToText @15 . entropyToMnemonic <$> genEntropy
+        mnemonics <- liftIO $ mnemonicToText @15 . entropyToMnemonic <$> genEntropy
         let wName = "!st created"
         let payldCrt = payloadWith wName mnemonics
-        rInit <- request @ApiWallet ctx (Link.postWallet @'Shelley) Default payldCrt
+        rInit <- postWallet ctx payldCrt
         verify rInit
-            [ expectResponseCode @IO HTTP.status201
+            [ expectResponseCode HTTP.status201
             , expectField (#balance . #getApiT . #available) (`shouldBe` Quantity 0)
             , expectField (#balance . #getApiT . #total) (`shouldBe` Quantity 0)
             ]
@@ -115,7 +123,7 @@ spec = describe "SHELLEY_HW_WALLETS" $ do
             }|]
         rTrans <- request @(ApiTransaction n) ctx
             (Link.createTransaction @'Shelley wSrc) Default payload
-        expectResponseCode @IO HTTP.status202 rTrans
+        expectResponseCode HTTP.status202 rTrans
 
         eventually "Wallet balance is as expected" $ do
             rGet <- request @ApiWallet ctx
@@ -130,7 +138,7 @@ spec = describe "SHELLEY_HW_WALLETS" $ do
         -- delete wallet
         rDel <-
             request @ApiWallet ctx (Link.deleteWallet @'Shelley wDest) Default Empty
-        expectResponseCode @IO HTTP.status204 rDel
+        expectResponseCode HTTP.status204 rDel
 
         -- restore from account public key and make sure funds are there
         let accXPub = pubKeyFromMnemonics mnemonics
@@ -147,11 +155,11 @@ spec = describe "SHELLEY_HW_WALLETS" $ do
                 ]
 
     describe "HW_WALLETS_03 - Cannot do operations requiring private key" $ do
-        it "Cannot send tx" $ \ctx -> do
+        it "Cannot send tx" $ \ctx -> runResourceT $ do
             (w, mnemonics) <- fixtureWalletWithMnemonics ctx
             let pubKey = pubKeyFromMnemonics mnemonics
             r <- request @ApiWallet ctx (Link.deleteWallet @'Shelley w) Default Empty
-            expectResponseCode @IO HTTP.status204 r
+            expectResponseCode HTTP.status204 r
 
             wSrc <- restoreWalletFromPubKey @ApiWallet @'Shelley ctx pubKey restoredWalletName
             wDest <- emptyWallet ctx
@@ -170,11 +178,11 @@ spec = describe "SHELLEY_HW_WALLETS" $ do
                 }|]
             rTrans <- request @(ApiTransaction n) ctx
                 (Link.createTransaction @'Shelley wSrc) Default payload
-            expectResponseCode @IO HTTP.status403 rTrans
+            expectResponseCode HTTP.status403 rTrans
             expectErrorMessage (errMsg403NoRootKey $ wSrc ^. walletId) rTrans
 
-        it "Cannot update pass" $ \ctx -> do
-            mnemonics <- mnemonicToText @15 . entropyToMnemonic <$> genEntropy
+        it "Cannot update pass" $ \ctx -> runResourceT $ do
+            mnemonics <- liftIO $ mnemonicToText @15 . entropyToMnemonic <$> genEntropy
             let pubKey = pubKeyFromMnemonics mnemonics
             wk <- restoreWalletFromPubKey @ApiWallet @'Shelley ctx pubKey restoredWalletName
 
@@ -182,12 +190,12 @@ spec = describe "SHELLEY_HW_WALLETS" $ do
             let payload = updatePassPayload fixturePassphrase "new-wallet-passphrase"
             rup <- request @ApiWallet ctx
                 (Link.putWalletPassphrase @'Shelley wk) Default payload
-            expectResponseCode @IO HTTP.status403 rup
+            expectResponseCode HTTP.status403 rup
             expectErrorMessage (errMsg403NoRootKey $ wk ^. walletId) rup
 
     describe "HW_WALLETS_04 - Can manage HW wallet the same way as others" $ do
-        it "Can update name" $ \ctx -> do
-            mnemonics <- mnemonicToText @15 . entropyToMnemonic <$> genEntropy
+        it "Can update name" $ \ctx -> runResourceT $ do
+            mnemonics <- liftIO $ mnemonicToText @15 . entropyToMnemonic <$> genEntropy
             let pubKey = pubKeyFromMnemonics mnemonics
             wk <- restoreWalletFromPubKey @ApiWallet @'Shelley ctx pubKey restoredWalletName
 
@@ -195,7 +203,7 @@ spec = describe "SHELLEY_HW_WALLETS" $ do
             let newName = "new name"
             let payload = updateNamePayload newName
             rup <- request @ApiWallet ctx (Link.putWallet @'Shelley wk) Default payload
-            expectResponseCode @IO HTTP.status200 rup
+            expectResponseCode HTTP.status200 rup
 
             rGet <- request @ApiWallet ctx
                 (Link.getWallet @'Shelley wk) Default Empty
@@ -204,11 +212,11 @@ spec = describe "SHELLEY_HW_WALLETS" $ do
                 (`shouldBe` newName)
                 rGet
 
-        it "Can get tx fee" $ \ctx -> do
+        it "Can get tx fee" $ \ctx -> runResourceT $ do
             (w, mnemonics) <- fixtureWalletWithMnemonics ctx
             let pubKey = pubKeyFromMnemonics mnemonics
             r <- request @ApiWallet ctx (Link.deleteWallet @'Shelley w) Default Empty
-            expectResponseCode @IO HTTP.status204 r
+            expectResponseCode HTTP.status204 r
 
             wSrc <- restoreWalletFromPubKey @ApiWallet @'Shelley ctx pubKey restoredWalletName
             wDest <- emptyWallet ctx
@@ -227,40 +235,40 @@ spec = describe "SHELLEY_HW_WALLETS" $ do
 
             rFee <- request @ApiFee ctx
                 (Link.getTransactionFee @'Shelley wSrc) Default payload
-            expectResponseCode @IO HTTP.status202 rFee
+            expectResponseCode HTTP.status202 rFee
 
-        it "Can delete" $ \ctx -> do
-            mnemonics <- mnemonicToText @15 . entropyToMnemonic <$> genEntropy
+        it "Can delete" $ \ctx -> runResourceT $ do
+            mnemonics <- liftIO $ mnemonicToText @15 . entropyToMnemonic <$> genEntropy
             let pubKey = pubKeyFromMnemonics mnemonics
             wPub <- restoreWalletFromPubKey @ApiWallet @'Shelley ctx pubKey restoredWalletName
             r <- request @ApiWallet ctx
                 (Link.deleteWallet @'Shelley wPub) Default Empty
-            expectResponseCode @IO HTTP.status204 r
+            expectResponseCode HTTP.status204 r
 
-        it "Can see utxo" $ \ctx -> do
-            mnemonics <- mnemonicToText @15 . entropyToMnemonic <$> genEntropy
+        it "Can see utxo" $ \ctx -> runResourceT $ do
+            mnemonics <- liftIO $ mnemonicToText @15 . entropyToMnemonic <$> genEntropy
             let pubKey = pubKeyFromMnemonics mnemonics
             wPub <- restoreWalletFromPubKey @ApiWallet @'Shelley ctx pubKey restoredWalletName
             rStat <- request @ApiUtxoStatistics ctx
                 (Link.getUTxOsStatistics @'Shelley wPub) Default Empty
-            expectResponseCode @IO HTTP.status200 rStat
+            expectResponseCode HTTP.status200 rStat
             expectWalletUTxO [] (snd rStat)
 
-        it "Can list addresses" $ \ctx -> do
-            mnemonics <- mnemonicToText @15 . entropyToMnemonic <$> genEntropy
+        it "Can list addresses" $ \ctx -> runResourceT $ do
+            mnemonics <- liftIO $ mnemonicToText @15 . entropyToMnemonic <$> genEntropy
             let pubKey = pubKeyFromMnemonics mnemonics
             wPub <- restoreWalletFromPubKey @ApiWallet @'Shelley ctx pubKey restoredWalletName
 
             let g = fromIntegral $ getAddressPoolGap defaultAddressPoolGap
             r <- request @[ApiAddress n] ctx
                 (Link.listAddresses @'Shelley wPub) Default Empty
-            expectResponseCode @IO HTTP.status200 r
+            expectResponseCode HTTP.status200 r
             expectListSize g r
             forM_ [0..(g-1)] $ \addrNum -> do
                 expectListField addrNum (#state . #getApiT) (`shouldBe` Unused) r
 
-        it "Can have address pool gap" $ \ctx -> do
-            mnemonics <- mnemonicToText @15 . entropyToMnemonic <$> genEntropy
+        it "Can have address pool gap" $ \ctx -> runResourceT $ do
+            mnemonics <- liftIO $ mnemonicToText @15 . entropyToMnemonic <$> genEntropy
             let pubKey = pubKeyFromMnemonics mnemonics
             let addrPoolGap = 55 --arbitraty but known
             let payloadRestore = Json [json| {
@@ -268,21 +276,20 @@ spec = describe "SHELLEY_HW_WALLETS" $ do
                     "account_public_key": #{pubKey},
                     "address_pool_gap": #{addrPoolGap}
                 }|]
-            rRestore <- request @ApiWallet ctx (Link.postWallet @'Shelley)
-                    Default payloadRestore
-            expectResponseCode @IO HTTP.status201 rRestore
+            rRestore <- postWallet ctx payloadRestore
+            expectResponseCode HTTP.status201 rRestore
 
             let wPub = getFromResponse id rRestore
 
             r <- request @[ApiAddress n] ctx
                 (Link.listAddresses @'Shelley wPub) Default Empty
-            expectResponseCode @IO HTTP.status200 r
+            expectResponseCode HTTP.status200 r
             expectListSize addrPoolGap r
             forM_ [0..(addrPoolGap-1)] $ \addrNum -> do
                 expectListField addrNum (#state . #getApiT) (`shouldBe` Unused) r
 
-        it "Can list transactions" $ \ctx -> do
-            mnemonics <- mnemonicToText @15 . entropyToMnemonic <$> genEntropy
+        it "Can list transactions" $ \ctx -> runResourceT $ do
+            mnemonics <- liftIO $ mnemonicToText @15 . entropyToMnemonic <$> genEntropy
             let pubKey = pubKeyFromMnemonics mnemonics
             wPub <- restoreWalletFromPubKey @ApiWallet @'Shelley ctx pubKey restoredWalletName
 
@@ -291,12 +298,12 @@ spec = describe "SHELLEY_HW_WALLETS" $ do
             expectResponseCode HTTP.status200 rt
             expectListSize 0 rt
 
-        it "Can get coin selection" $ \ctx -> do
+        it "Can get coin selection" $ \ctx -> runResourceT $ do
             (w, mnemonics) <- fixtureWalletWithMnemonics ctx
             let pubKey = pubKeyFromMnemonics mnemonics
             r <- request
                 @ApiWallet ctx (Link.deleteWallet @'Shelley w) Default Empty
-            expectResponseCode @IO HTTP.status204 r
+            expectResponseCode HTTP.status204 r
             source <- restoreWalletFromPubKey
                 @ApiWallet @'Shelley ctx pubKey restoredWalletName
             target <- emptyWallet ctx
@@ -320,8 +327,8 @@ spec = describe "SHELLEY_HW_WALLETS" $ do
                 ]
 
     describe "HW_WALLETS_05 - Wallet from pubKey is available" $ do
-        it "Can get wallet" $ \ctx -> do
-            mnemonics <- mnemonicToText @15 . entropyToMnemonic <$> genEntropy
+        it "Can get wallet" $ \ctx -> runResourceT $ do
+            mnemonics <- liftIO $ mnemonicToText @15 . entropyToMnemonic <$> genEntropy
             let pubKey = pubKeyFromMnemonics mnemonics
             wPub <- restoreWalletFromPubKey @ApiWallet @'Shelley ctx pubKey restoredWalletName
             rGet <- request @ApiWallet ctx
@@ -331,38 +338,37 @@ spec = describe "SHELLEY_HW_WALLETS" $ do
                 (`shouldBe` restoredWalletName)
                 rGet
 
-        it "Can list wallet" $ \ctx -> do
-            mnemonics <- mnemonicToText @15 . entropyToMnemonic <$> genEntropy
+        it "Can list wallet" $ \ctx -> runResourceT $ do
+            mnemonics <- liftIO $ mnemonicToText @15 . entropyToMnemonic <$> genEntropy
             let pubKey = pubKeyFromMnemonics mnemonics
-            _ <- restoreWalletFromPubKey @ApiWallet @'Shelley ctx pubKey restoredWalletName
-            rl <- request @[ApiWallet] ctx
+            w <- restoreWalletFromPubKey @ApiWallet @'Shelley ctx pubKey restoredWalletName
+            wids <- map (view #id) . unsafeResponse <$> request @[ApiWallet] ctx
                 (Link.listWallets @'Shelley) Default Empty
-            expectListField 0
-                (#name . #getApiT . #getWalletName)
-                (`shouldBe` restoredWalletName)
-                rl
+            liftIO $ wids `shouldContain` [view #id w]
 
-        it "The same account and mnemonic wallet can live side-by-side" $ \ctx -> do
-            mnemonics <- mnemonicToText @15 . entropyToMnemonic <$> genEntropy
+        it "The same account and mnemonic wallet can live side-by-side" $ \ctx -> runResourceT $ do
+            mnemonics <- liftIO $ mnemonicToText @15 . entropyToMnemonic <$> genEntropy
 
             -- create mnemonic wallet
             let mnemonicWalletName = "Mnemonic wallet"
             let payldCrt = payloadWith mnemonicWalletName mnemonics
-            r <- request @ApiWallet ctx (Link.postWallet @'Shelley) Default payldCrt
-            expectResponseCode @IO HTTP.status201 r
+            r1' <- postWallet ctx payldCrt
+            expectResponseCode HTTP.status201 r1'
 
             -- create from account public key
             let accXPub = pubKeyFromMnemonics mnemonics
-            _ <- restoreWalletFromPubKey @ApiWallet @'Shelley ctx accXPub restoredWalletName
+            r2' <- restoreWalletFromPubKey @ApiWallet @'Shelley ctx accXPub restoredWalletName
+
+            r1 <- request @ApiWallet ctx (Link.getWallet @'Shelley (getFromResponse id r1')) Default Empty
+            r2 <- request @ApiWallet ctx (Link.getWallet @'Shelley r2') Default Empty
 
             -- both wallets are available
-            rl <- request @[ApiWallet] ctx
-                (Link.listWallets @'Shelley) Default Empty
-            verify rl
-                [ expectListField 0
-                    (#name . #getApiT . #getWalletName)
+            verify r1
+                [ expectField (#name . #getApiT . #getWalletName)
                     (`shouldBe` mnemonicWalletName)
-                , expectListField 1
+                ]
+            verify r2
+                [ expectField
                     (#name . #getApiT . #getWalletName)
                     (`shouldBe` restoredWalletName)
                 ]
