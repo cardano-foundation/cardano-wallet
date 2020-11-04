@@ -638,7 +638,9 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         let Just txActualExp = absSlotS <$> apiTx ^. #expiresAt
 
         -- Expected and actual are fairly close
-        slotDiff txExpectedExp txActualExp `shouldSatisfy` (< 50)
+        (slotDiff txExpectedExp txActualExp `shouldSatisfy` (< 50))
+            & counterexample ("expected expiry: " <> show txExpectedExp)
+            & counterexample ("actual expiry: " <> show txActualExp)
 
     it "TRANS_TTL_02 - Custom transaction expiry" $ \ctx -> runResourceT $ do
         (wa, wb) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
@@ -670,7 +672,9 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
 
         -- Expected and actual are fairly close. Any difference should only be
         -- due to slot rounding.
-        slotDiff txExpectedExp txActualExp `shouldSatisfy` (< 50)
+        (slotDiff txExpectedExp txActualExp `shouldSatisfy` (< 50))
+            & counterexample ("expected expiry: " <> show txExpectedExp)
+            & counterexample ("actual expiry: " <> show txActualExp)
 
     it "TRANS_TTL_03 - Expired transactions" $ \ctx -> runResourceT $ do
         liftIO $ pendingWith "#1840 this is flaky -- need a better approach"
