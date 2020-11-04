@@ -2603,12 +2603,6 @@ x-responsesMigrateWallet: &responsesMigrateWallet
             - <<: *errWrongEncryptionPassphrase
   <<: *responsesErr404WalletNotFound
   <<: *responsesErr406
-  410:
-    description: Gone
-    content:
-      application/json:
-        schema:
-          <<: *errNoSuchWallet
   <<: *responsesErr415UnsupportedMediaType
   200:
     description: Ok
@@ -2750,7 +2744,6 @@ x-responsesPostTransaction: &responsesPostTransaction
         schema:
           oneOf:
             - <<: *errBadRequest
-            - <<: *errTransactionIsTooBig
   403:
     description: Forbidden
     content:
@@ -2767,12 +2760,6 @@ x-responsesPostTransaction: &responsesPostTransaction
             - <<: *errWrongEncryptionPassphrase
   <<: *responsesErr404WalletNotFound
   <<: *responsesErr406
-  410:
-    description: Gone
-    content:
-      application/json:
-        schema:
-          <<: *errNoSuchWallet
   <<: *responsesErr415UnsupportedMediaType
   202:
     description: Accepted
@@ -2798,7 +2785,6 @@ x-responsesPostTransactionFee: &responsesPostTransactionFee
         schema:
           oneOf:
             - <<: *errBadRequest
-            - <<: *errTransactionIsTooBig
   403:
     description: Forbidden
     content:
@@ -2898,12 +2884,6 @@ x-responsesJoinStakePool: &responsesJoinStakePool
             - <<: *errNoSuchWallet
             - <<: *errNoSuchPool
   <<: *responsesErr406
-  410:
-    description: Gone
-    content:
-      application/json:
-        schema:
-          <<: *errNoSuchWallet
   <<: *responsesErr415UnsupportedMediaType
   202:
     description: Accepted
@@ -2926,12 +2906,6 @@ x-responsesQuitStakePool: &responsesQuitStakePool
             - <<: *errNonNullRewards
   <<: *responsesErr404WalletNotFound
   <<: *responsesErr406
-  410:
-    description: Gone
-    content:
-      application/json:
-        schema:
-          <<: *errNoSuchWallet
   <<: *responsesErr415UnsupportedMediaType
   202:
     description: Accepted
