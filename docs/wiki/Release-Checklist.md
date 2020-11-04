@@ -37,8 +37,6 @@ $ ./scripts/make_release.sh
 ```
 This will bump the version in .cabal and .nix files and generate release notes. If you have none yet, you can create a _personal access token_ in your [Github Settings](https://github.com/settings/tokens). No scope is required for this token, only public access (as it is simply used to read publicly available data from the Github API).
 
-Revise README.md and add corresponding entry.
-
 - [ ] Open a pull request to submit the modified files. Get it merged.
 
 - [ ] Trigger a release build on CI (Travis) and wait for the build artifacts to be published on github
@@ -83,16 +81,6 @@ Revise README.md and add corresponding entry.
   ```
 
 - [ ] Verify latest [buildkite nightly](https://buildkite.com/input-output-hk/cardano-wallet-nightly) and make sure the results are fine. [Benchmark charts](http://cardano-wallet-benchmarks.herokuapp.com/) may be helpful in analysis.
-
-- [ ] Manually run the disabled `LAUNCH` tests in:
-  ```
-  lib/jormungandr/test/integration/Test/Integration/Jormungandr/Scenario/CLI/Launcher.hs
-  ```
-- [ ] run all integration test for jormungandr:
-  ```
-  stack test cardano-wallet-jormungandr:jormungandr-integration
-  ```
-  This is done as part of the [buildkite nightly](https://buildkite.com/input-output-hk/cardano-wallet-nightly) pipeline. Click on the _Rebuild master branch_ step and check that it has succeeded.
   
 ## Publication
 
