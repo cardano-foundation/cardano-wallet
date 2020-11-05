@@ -95,10 +95,7 @@ let
 
           # Force more integration tests to run in parallel than the
           # default number of build cores.
-          #
-          # TODO: Figure out why this doesn't work in hydra when it works in buildkite,
-          # and enable.
-          # integration.testFlags = ["-j" "3"];
+          integration.testFlags = ["-j" "8"];
 
           integration.preCheck = ''
             # Variables picked up by integration tests
