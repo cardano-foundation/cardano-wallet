@@ -60,6 +60,10 @@ import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..) )
+import Cardano.Wallet.Primitive.Types.TokenPolicy
+    ( TokenName, TokenPolicyId )
+import Cardano.Wallet.Primitive.Types.TokenQuantity
+    ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..), TxMetadata, TxStatus (..) )
 import Control.Arrow
@@ -262,6 +266,35 @@ instance FromHttpApiData TxId where
 instance PathPiece TxId where
     toPathPiece = toText . getTxId
     fromPathPiece = fmap TxId . fromTextMaybe
+
+--------------------------------------------------------------------------------
+-- Tokens
+--------------------------------------------------------------------------------
+
+instance PersistField TokenName where
+    toPersistValue = toPersistValue . toText
+    fromPersistValue = fromPersistValueFromText
+
+instance PersistFieldSql TokenName where
+    sqlType _ = sqlType (Proxy @Text)
+
+instance PersistField TokenPolicyId where
+    toPersistValue = toPersistValue . toText
+    fromPersistValue = fromPersistValueFromText
+
+instance PersistFieldSql TokenPolicyId where
+    sqlType _ = sqlType (Proxy @Text)
+
+instance PersistField TokenQuantity where
+    -- The `persistent-sqlite` package has no big number type, so we use a
+    -- textual representation instead.
+    toPersistValue = toPersistValue . toText
+    fromPersistValue = fromPersistValueFromText
+
+instance PersistFieldSql TokenQuantity where
+    -- The `persistent-sqlite` package has no big number type, so we use a
+    -- textual representation instead.
+    sqlType _ = sqlType (Proxy @Text)
 
 ----------------------------------------------------------------------------
 -- BlockId
