@@ -265,9 +265,7 @@ spec = describe "SHELLEY_ADDRESSES" $ do
         --- $ cat script.txt
         --- script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a
         let payload = Json [json|{
-                "payment": {
-                    "script": "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a"
-                    }
+                "payment": "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a"
             }|]
         r <- request @AnyAddress ctx Link.postAnyAddress Default payload
         expectResponseCode HTTP.status202 r
@@ -280,12 +278,10 @@ spec = describe "SHELLEY_ADDRESSES" $ do
         --- any [script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a, script_vkh1mwlngj4fcwegw53tdmyemfupen2758xwvudmcz9ap8cnqk7jmh4]
         let payload = Json [json|{
                 "payment": {
-                    "script": {
-                        "any": [
-                            "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a",
-                            "script_vkh1mwlngj4fcwegw53tdmyemfupen2758xwvudmcz9ap8cnqk7jmh4"
-                            ]
-                        }
+                    "any": [
+                        "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a",
+                        "script_vkh1mwlngj4fcwegw53tdmyemfupen2758xwvudmcz9ap8cnqk7jmh4"
+                        ]
                     }
             }|]
         r <- request @AnyAddress ctx Link.postAnyAddress Default payload
@@ -299,12 +295,10 @@ spec = describe "SHELLEY_ADDRESSES" $ do
         --- all [script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a, script_vkh1mwlngj4fcwegw53tdmyemfupen2758xwvudmcz9ap8cnqk7jmh4]
         let payload = Json [json|{
                 "payment": {
-                    "script" : {
-                        "all": [
-                            "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a",
-                            "script_vkh1mwlngj4fcwegw53tdmyemfupen2758xwvudmcz9ap8cnqk7jmh4"
-                            ]
-                        }
+                    "all": [
+                        "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a",
+                        "script_vkh1mwlngj4fcwegw53tdmyemfupen2758xwvudmcz9ap8cnqk7jmh4"
+                        ]
                     }
             }|]
         r <- request @AnyAddress ctx Link.postAnyAddress Default payload
@@ -318,16 +312,14 @@ spec = describe "SHELLEY_ADDRESSES" $ do
         --- at_least 2 [script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a,script_vkh1mwlngj4fcwegw53tdmyemfupen2758xwvudmcz9ap8cnqk7jmh4,script_vkh1qw4l62k4203dllrk3dk3sfjpnh3gufhtrtm4qvtrvn4xjp5x5rt]
         let payload = Json [json|{
                 "payment": {
-                    "script": {
-                        "some": {
-                            "from" : [
-                                "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a",
-                                "script_vkh1mwlngj4fcwegw53tdmyemfupen2758xwvudmcz9ap8cnqk7jmh4",
-                                "script_vkh1qw4l62k4203dllrk3dk3sfjpnh3gufhtrtm4qvtrvn4xjp5x5rt"
-                                ],
-                             "at_least": 2
-                             }
-                        }
+                    "some": {
+                        "from" : [
+                            "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a",
+                            "script_vkh1mwlngj4fcwegw53tdmyemfupen2758xwvudmcz9ap8cnqk7jmh4",
+                            "script_vkh1qw4l62k4203dllrk3dk3sfjpnh3gufhtrtm4qvtrvn4xjp5x5rt"
+                            ],
+                         "at_least": 2
+                         }
                     }
             }|]
         r <- request @AnyAddress ctx Link.postAnyAddress Default payload
@@ -342,12 +334,10 @@ spec = describe "SHELLEY_ADDRESSES" $ do
     it "ANY_ADDRESS_POST_05 - Golden tests for reward account script address - any" $ \ctx -> do
         let payload = Json [json|{
                 "stake": {
-                    "script": {
-                        "any": [
-                            "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a",
-                            "script_vkh1mwlngj4fcwegw53tdmyemfupen2758xwvudmcz9ap8cnqk7jmh4"
-                            ]
-                        }
+                    "any": [
+                        "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a",
+                        "script_vkh1mwlngj4fcwegw53tdmyemfupen2758xwvudmcz9ap8cnqk7jmh4"
+                        ]
                     }
             }|]
         r <- request @AnyAddress ctx Link.postAnyAddress Default payload
@@ -363,24 +353,20 @@ spec = describe "SHELLEY_ADDRESSES" $ do
     it "ANY_ADDRESS_POST_06 - Golden tests for delegating script address - any" $ \ctx -> do
         let payload = Json [json|{
                 "payment": {
-                    "script": {
-                        "some": {
-                            "from" : [
-                                "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a",
-                                "script_vkh1mwlngj4fcwegw53tdmyemfupen2758xwvudmcz9ap8cnqk7jmh4",
-                                "script_vkh1qw4l62k4203dllrk3dk3sfjpnh3gufhtrtm4qvtrvn4xjp5x5rt"
-                                ],
-                             "at_least": 2
-                             }
-                        }
+                    "some": {
+                        "from" : [
+                            "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a",
+                            "script_vkh1mwlngj4fcwegw53tdmyemfupen2758xwvudmcz9ap8cnqk7jmh4",
+                            "script_vkh1qw4l62k4203dllrk3dk3sfjpnh3gufhtrtm4qvtrvn4xjp5x5rt"
+                            ],
+                         "at_least": 2
+                         }
                     },
                 "stake": {
-                    "script": {
-                        "any": [
-                            "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a",
-                            "script_vkh1mwlngj4fcwegw53tdmyemfupen2758xwvudmcz9ap8cnqk7jmh4"
-                            ]
-                        }
+                    "any": [
+                        "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a",
+                        "script_vkh1mwlngj4fcwegw53tdmyemfupen2758xwvudmcz9ap8cnqk7jmh4"
+                        ]
                     }
             }|]
         r <- request @AnyAddress ctx Link.postAnyAddress Default payload
@@ -415,9 +401,7 @@ spec = describe "SHELLEY_ADDRESSES" $ do
     --- > | cardano-address address payment --from-key --network-tag mainnet
     it "ANY_ADDRESS_POST_07 - Golden tests for enterprise pub key address" $ \ctx -> do
         let payload = Json [json|{
-                "payment": {
-                    "pub_key": "addr_vk1lqglg77z6kajsdz4739q22c0zm0yhuy567z6xk2vc0z5ucjtkwpschzd2j"
-                    }
+                "payment": "addr_vk1lqglg77z6kajsdz4739q22c0zm0yhuy567z6xk2vc0z5ucjtkwpschzd2j"
             }|]
         r <- request @AnyAddress ctx Link.postAnyAddress Default payload
         expectResponseCode HTTP.status202 r
@@ -450,9 +434,7 @@ spec = describe "SHELLEY_ADDRESSES" $ do
     --- > | cardano-address address stake --from-key --network-tag mainnet
     it "ANY_ADDRESS_POST_08 - Golden tests for reward account pub key address" $ \ctx -> do
         let payload = Json [json|{
-                "stake": {
-                    "pub_key": "stake_vk16apaenn9ut6s40lcw3l8v68xawlrlq20z2966uzcx8jmv2q9uy7qau558d"
-                    }
+                "stake": "stake_vk16apaenn9ut6s40lcw3l8v68xawlrlq20z2966uzcx8jmv2q9uy7qau558d"
             }|]
         r <- request @AnyAddress ctx Link.postAnyAddress Default payload
         expectResponseCode HTTP.status202 r
@@ -472,12 +454,8 @@ spec = describe "SHELLEY_ADDRESSES" $ do
     --- > | cardano-address address delegation --from-key $(cat stake.xpub)
     it "ANY_ADDRESS_POST_09 - Golden tests for delegating address with both pub key credentials" $ \ctx -> do
         let payload = Json [json|{
-                "payment": {
-                    "pub_key": "addr_vk1lqglg77z6kajsdz4739q22c0zm0yhuy567z6xk2vc0z5ucjtkwpschzd2j"
-                    },
-                "stake": {
-                    "pub_key": "stake_vk16apaenn9ut6s40lcw3l8v68xawlrlq20z2966uzcx8jmv2q9uy7qau558d"
-                    }
+                "payment": "addr_vk1lqglg77z6kajsdz4739q22c0zm0yhuy567z6xk2vc0z5ucjtkwpschzd2j",
+                "stake": "stake_vk16apaenn9ut6s40lcw3l8v68xawlrlq20z2966uzcx8jmv2q9uy7qau558d"
             }|]
         r <- request @AnyAddress ctx Link.postAnyAddress Default payload
         expectResponseCode HTTP.status202 r
@@ -497,20 +475,16 @@ spec = describe "SHELLEY_ADDRESSES" $ do
     it "ANY_ADDRESS_POST_10 - Golden tests for delegating address - payment from script, stake from key" $ \ctx -> do
         let payload = Json [json|{
                 "payment": {
-                    "script": {
-                        "some": {
-                            "from" : [
-                                "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a",
-                                "script_vkh1mwlngj4fcwegw53tdmyemfupen2758xwvudmcz9ap8cnqk7jmh4",
-                                "script_vkh1qw4l62k4203dllrk3dk3sfjpnh3gufhtrtm4qvtrvn4xjp5x5rt"
-                                ],
-                             "at_least": 2
-                             }
-                        }
-                    },
-                "stake": {
-                    "pub_key": "stake_vk16apaenn9ut6s40lcw3l8v68xawlrlq20z2966uzcx8jmv2q9uy7qau558d"
-                    }
+                    "some": {
+                        "from" : [
+                            "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a",
+                            "script_vkh1mwlngj4fcwegw53tdmyemfupen2758xwvudmcz9ap8cnqk7jmh4",
+                            "script_vkh1qw4l62k4203dllrk3dk3sfjpnh3gufhtrtm4qvtrvn4xjp5x5rt"
+                            ],
+                         "at_least": 2
+                         }
+                     },
+                "stake": "stake_vk16apaenn9ut6s40lcw3l8v68xawlrlq20z2966uzcx8jmv2q9uy7qau558d"
             }|]
         r <- request @AnyAddress ctx Link.postAnyAddress Default payload
         expectResponseCode HTTP.status202 r
@@ -527,20 +501,16 @@ spec = describe "SHELLEY_ADDRESSES" $ do
     --- > | cardano-address address delegation --from-script $(cardano-address script hash "$(cat script3.txt)")
     it "ANY_ADDRESS_POST_11 - Golden tests for delegating address - payment from key, stake from script" $ \ctx -> do
         let payload = Json [json|{
-                "payment": {
-                    "pub_key": "addr_vk1lqglg77z6kajsdz4739q22c0zm0yhuy567z6xk2vc0z5ucjtkwpschzd2j"
-                    },
+                "payment": "addr_vk1lqglg77z6kajsdz4739q22c0zm0yhuy567z6xk2vc0z5ucjtkwpschzd2j",
                 "stake": {
-                    "script": {
-                        "some": {
-                            "from" : [
-                                "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a",
-                                "script_vkh1mwlngj4fcwegw53tdmyemfupen2758xwvudmcz9ap8cnqk7jmh4",
-                                "script_vkh1qw4l62k4203dllrk3dk3sfjpnh3gufhtrtm4qvtrvn4xjp5x5rt"
-                                ],
-                             "at_least": 2
-                             }
-                        }
+                    "some": {
+                        "from" : [
+                            "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a",
+                            "script_vkh1mwlngj4fcwegw53tdmyemfupen2758xwvudmcz9ap8cnqk7jmh4",
+                            "script_vkh1qw4l62k4203dllrk3dk3sfjpnh3gufhtrtm4qvtrvn4xjp5x5rt"
+                            ],
+                         "at_least": 2
+                         }
                     }
             }|]
         r <- request @AnyAddress ctx Link.postAnyAddress Default payload

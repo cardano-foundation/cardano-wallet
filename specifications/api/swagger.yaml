@@ -1562,18 +1562,10 @@ components:
           metadata: *transactionMetadata
 
     ApiScript: &ApiScript
-      type: object
-      required:
-        - script
-      properties:
-        script: *script
+      <<: *script
 
     ApiPubKey: &ApiPubKey
-      type: object
-      required:
-        - pub_key
-      properties:
-        pub_key: *credentialPubKey
+      <<: *credentialPubKey
 
     AnyAddress: &AnyAddress
       type: object
@@ -1789,8 +1781,8 @@ components:
 
     CredentialValue: &CredentialValue
       oneOf:
-        - <<: *ApiPubKey
-        - <<: *ApiScript
+        - <<: *credentialPubKey
+        - <<: *script
 
     ScriptValue: &ScriptValue
       oneOf:

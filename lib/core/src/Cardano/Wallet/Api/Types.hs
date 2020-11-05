@@ -46,8 +46,6 @@ module Cardano.Wallet.Api.Types
 
     -- * API Types
     , ApiAddress (..)
-    , ApiScript (..)
-    , ApiPubKey (..)
     , ApiCredential (..)
     , ApiAddressData (..)
     , AnyAddress (..)
@@ -249,6 +247,7 @@ import Data.Aeson
     , sumEncoding
     , tagSingleConstructors
     , withObject
+    , withText
     , (.:)
     , (.:?)
     , (.=)
@@ -407,17 +406,9 @@ data ApiAddress (n :: NetworkDiscriminant) = ApiAddress
     } deriving (Eq, Generic, Show)
       deriving anyclass NFData
 
-newtype ApiScript = ApiScript
-    { script :: ApiT Script
-    } deriving (Eq, Generic, Show)
-
-newtype ApiPubKey = ApiPubKey
-    { pubKey :: ByteString
-    } deriving (Eq, Generic, Show)
-
 data ApiCredential =
-      CredentialPubKey ApiPubKey
-    | CredentialScript ApiScript
+      CredentialPubKey ByteString
+    | CredentialScript Script
     deriving (Eq, Generic, Show)
 
 data ApiAddressData =
@@ -1404,37 +1395,37 @@ instance (PassphraseMaxLength purpose, PassphraseMinLength purpose)
 instance ToJSON (ApiT (Passphrase purpose)) where
     toJSON = toJSON . toText . getApiT
 
-instance FromJSON ApiScript where
-    parseJSON =  withObject "ApiScript" $ \o ->
-        ApiScript . ApiT <$> o .: "script"
-instance ToJSON ApiScript where
-    toJSON (ApiScript (ApiT script')) =
-        object ["script" .= toJSON script']
-
-instance FromJSON ApiPubKey where
-    parseJSON = parseJSON >=> eitherToParser . first ShowFmt . fromText
-instance ToJSON ApiPubKey where
-    toJSON (ApiPubKey key') = do
-        let hrp = [Bech32.humanReadablePart|addr_vk|]
-        String $ T.decodeUtf8 $ encode (EBech32 hrp) key'
-
 instance FromJSON ApiCredential where
     parseJSON v =
         (CredentialScript <$> parseJSON v) <|>
         (CredentialPubKey <$> parsePubKey v)
-      where
-        parsePubKey = parseFromText "ApiCredential" "pub_key"
 
-parseFromText :: FromText a => String -> Text -> Aeson.Value -> Aeson.Parser a
-parseFromText typeName k = withObject typeName $ \o -> do
-    v <- o .: k
-    case fromText v of
-        Right bytes -> pure bytes
-        Left (TextDecodingError err) -> fail err
+parsePubKey :: Aeson.Value -> Aeson.Parser ByteString
+parsePubKey = withText "CredentialPubKey" $ \txt ->
+    case detectEncoding (T.unpack txt) of
+        Just EBech32{} -> do
+            (hrp, dp) <- case Bech32.decodeLenient txt of
+                Left _ -> fail "CredentialPubKey's Bech32 has invalid text."
+                Right res -> pure res
+            let checkPayload bytes
+                    | BS.length bytes /= 32 =
+                          fail "CredentialPubKey must be 32 bytes."
+                    | otherwise = pure bytes
+            let proceedWhenHrpCorrect = case  Bech32.dataPartToBytes dp of
+                    Nothing ->
+                          fail "CredentialPubKey has invalid Bech32 datapart."
+                    Just bytes -> checkPayload bytes
+            case Bech32.humanReadablePartToText hrp of
+                "stake_vk" -> proceedWhenHrpCorrect
+                "addr_vk" -> proceedWhenHrpCorrect
+                _ -> fail "CredentialPubKey must have either 'addr_vk' or 'stake_vk' prefix."
+        _ -> fail "CredentialPubKey must be must be encoded as Bech32."
 
 instance ToJSON ApiCredential where
-    toJSON (CredentialPubKey c) = object ["pub_key" .= c]
-    toJSON (CredentialScript c) = toJSON c
+    toJSON (CredentialPubKey key') = do
+        let hrp = [Bech32.humanReadablePart|addr_vk|]
+        String $ T.decodeUtf8 $ encode (EBech32 hrp) key'
+    toJSON (CredentialScript s) = toJSON s
 
 instance FromJSON ApiAddressData where
     parseJSON v =
@@ -1460,6 +1451,13 @@ instance ToJSON ApiAddressData where
 
 instance FromJSON AnyAddress where
     parseJSON = parseFromText "AnyAddress" "address"
+
+parseFromText :: FromText a => String -> Text -> Aeson.Value -> Aeson.Parser a
+parseFromText typeName k = withObject typeName $ \o -> do
+    v <- o .: k
+    case fromText v of
+        Right bytes -> pure bytes
+        Left (TextDecodingError err) -> fail err
 
 instance ToJSON AnyAddress where
     toJSON (AnyAddress p addrType net) =
@@ -1897,28 +1895,6 @@ instance FromText PostExternalTransactionData where
             fail "Parse error. Expecting hex-encoded format."
         Right load ->
             pure $ PostExternalTransactionData load
-
-instance FromText ApiPubKey where
-    fromText txt = case detectEncoding (T.unpack txt) of
-        Just EBech32{} -> do
-            (hrp, dp) <- either
-                (const $ Left $ TextDecodingError "ApiPubKey's Bech32 has invalid text.")
-                Right (Bech32.decodeLenient txt)
-            let err1 = TextDecodingError "ApiPubKey has invalid Bech32 datapart."
-            let err2 = TextDecodingError "ApiPubKey must be 32 bytes."
-            let pubKeyFromBytes bytes
-                    | BS.length bytes /= 32 = Nothing
-                    | otherwise = Just $ ApiPubKey bytes
-            let checkPayload bytes =
-                    maybeToRight err2 (pubKeyFromBytes bytes)
-            let proceedWhenHrpCorrect = do
-                    bytes <- maybeToRight err1 (Bech32.dataPartToBytes dp)
-                    checkPayload bytes
-            case Bech32.humanReadablePartToText hrp of
-                "stake_vk" -> proceedWhenHrpCorrect
-                "addr_vk" -> proceedWhenHrpCorrect
-                _ -> Left $ TextDecodingError "ApiPubKey must have either 'addr_vk' or 'stake_vk' prefix."
-        _ -> Left $ TextDecodingError "ApiPubKey must be must be encoded as Bech32."
 
 instance FromText AnyAddress where
     fromText txt = case detectEncoding (T.unpack txt) of

@@ -69,10 +69,7 @@ import Cardano.Wallet.Api.Types
     , ApiNetworkParameters (..)
     , ApiNtpStatus (..)
     , ApiPostRandomAddressData
-    , ApiPubKey (..)
-    , ApiPubKey
     , ApiPutAddressesData (..)
-    , ApiScript (..)
     , ApiSelectCoinsAction (..)
     , ApiSelectCoinsData (..)
     , ApiSelectCoinsPayments (..)
@@ -347,8 +344,6 @@ spec = do
         "can perform roundtrip JSON serialization & deserialization, \
         \and match existing golden files" $ do
             jsonRoundtripAndGolden $ Proxy @(ApiAddress ('Testnet 0))
-            jsonRoundtripAndGolden $ Proxy @ApiScript
-            jsonRoundtripAndGolden $ Proxy @ApiPubKey
             jsonRoundtripAndGolden $ Proxy @AnyAddress
             jsonRoundtripAndGolden $ Proxy @ApiCredential
             jsonRoundtripAndGolden $ Proxy @ApiAddressData
@@ -1033,9 +1028,6 @@ instance Arbitrary ApiEpochInfo where
     arbitrary = ApiEpochInfo <$> arbitrary <*> genUniformTime
     shrink _ = []
 
-instance Arbitrary ApiScript where
-    arbitrary = ApiScript . ApiT <$> arbitrary
-
 instance Arbitrary Script where
     arbitrary = Test.QuickCheck.scale (`div` 3) $ sized scriptTree
       where
@@ -1055,13 +1047,10 @@ instance Arbitrary Script where
 instance Arbitrary KeyHash where
     arbitrary = KeyHash . BS.pack <$> vectorOf 28 arbitrary
 
-instance Arbitrary ApiPubKey where
-    arbitrary =
-        ApiPubKey . BS.pack <$> replicateM 32 arbitrary
-
 instance Arbitrary ApiCredential where
-    arbitrary =
-        oneof [ CredentialPubKey <$> arbitrary, CredentialScript <$> arbitrary ]
+    arbitrary = do
+        pubKey <- BS.pack <$> replicateM 32 arbitrary
+        oneof [ pure $ CredentialPubKey pubKey, CredentialScript <$> arbitrary ]
 
 instance Arbitrary ApiAddressData where
     arbitrary = do
@@ -1919,11 +1908,11 @@ instance ToSchema ApiNetworkInformation where
 instance ToSchema ApiNetworkClock where
     declareNamedSchema _ = declareSchemaForDefinition "ApiNetworkClock"
 
+data ApiScript
 instance ToSchema ApiScript where
-    declareNamedSchema _ = do
-        addDefinition scriptValueSchema
-        declareSchemaForDefinition "ApiScript"
+    declareNamedSchema _ = declareSchemaForDefinition "ApiScript"
 
+data ApiPubKey
 instance ToSchema ApiPubKey where
     declareNamedSchema _ = declareSchemaForDefinition "ApiPubKey"
 

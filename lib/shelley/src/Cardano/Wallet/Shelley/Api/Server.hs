@@ -106,8 +106,6 @@ import Cardano.Wallet.Api.Types
     , ApiAddressInspectData (..)
     , ApiCredential (..)
     , ApiErrorCode (..)
-    , ApiPubKey (..)
-    , ApiScript (..)
     , ApiSelectCoinsAction (..)
     , ApiSelectCoinsData (..)
     , ApiStakePool
@@ -441,13 +439,13 @@ postAnyAddress net addrData = do
           Cardano.Mainnet -> 1
           _ -> 0
       spendingFrom cred = case cred of
-          CredentialPubKey (ApiPubKey bytes) ->
+          CredentialPubKey  bytes ->
               CA.PaymentFromKey $ CA.liftXPub $ toXPub bytes
-          CredentialScript (ApiScript (ApiT script')) ->
+          CredentialScript  script' ->
               CA.PaymentFromScript $ CA.toScriptHash script'
       stakingFrom cred = case cred of
-          CredentialPubKey (ApiPubKey bytes) ->
+          CredentialPubKey bytes ->
               CA.DelegationFromKey $ CA.liftXPub $ toXPub bytes
-          CredentialScript (ApiScript (ApiT script')) ->
+          CredentialScript script' ->
               CA.DelegationFromScript $ CA.toScriptHash script'
       (Right discriminant) = CA.mkNetworkDiscriminant netTag
