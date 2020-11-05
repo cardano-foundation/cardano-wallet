@@ -54,6 +54,8 @@ import qualified Cardano.Wallet.Primitive.AddressDiscovery.Sequential as W
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Address as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
+import qualified Cardano.Wallet.Primitive.Types.TokenPolicy as TP
+import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as TQ
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Data.ByteString.Char8 as B8
 
@@ -138,6 +140,22 @@ TxOut
     txOutputAmount   W.Coin      sql=amount
 
     Primary txOutputTxId txOutputIndex
+    deriving Show Generic
+
+-- A token quantity associated with a TxOut.
+--
+-- Each row within TxOut can have many associated rows within TxOutToken.
+-- Each row within TxOutToken refers to just a single row within TxOut.
+--
+TxOutToken
+    txOutTokenTxId      TxId              sql=tx_id
+    txOutTokenTxIndex   Word32            sql=tx_index
+    txOutTokenPolicyId  TP.TokenPolicyId  sql=token_policy_id
+    txOutTokenName      TP.TokenName      sql=token_name
+    txOutTokenQuantity  TQ.TokenQuantity  sql=token_quantity
+
+    Primary txOutTokenTxId txOutTokenTxIndex txOutTokenPolicyId txOutTokenName
+    Foreign TxOut txOut txOutTokenTxId txOutTokenTxIndex ! ON DELETE CASCADE
     deriving Show Generic
 
 -- | A transaction withdrawal associated with TxMeta.
