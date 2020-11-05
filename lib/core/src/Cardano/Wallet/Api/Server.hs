@@ -432,7 +432,6 @@ import Servant
     , err403
     , err404
     , err409
-    , err410
     , err500
     , err503
     , serve
@@ -2431,7 +2430,7 @@ instance Buildable e => LiftHandler (ErrSelectForPayment e) where
                 , "transaction, then cancel the previous one first."
                 ]
         ErrSelectForPaymentTxTooLarge maxSize maxN  ->
-            apiError err400 TransactionIsTooBig $ mconcat
+            apiError err403 TransactionIsTooBig $ mconcat
                 [ "I am afraid that the transaction you're trying to submit is "
                 , "too large! The network allows transactions only as large as "
                 , pretty maxSize, "s! As it stands, the current transaction only "
@@ -2460,8 +2459,8 @@ instance LiftHandler ErrSignPayment where
     handler = \case
         ErrSignPaymentMkTx e -> handler e
         ErrSignPaymentNoSuchWallet e -> (handler e)
-            { errHTTPCode = 410
-            , errReasonPhrase = errReasonPhrase err410
+            { errHTTPCode = 404
+            , errReasonPhrase = errReasonPhrase err404
             }
         ErrSignPaymentWithRootKey e@ErrWithRootKeyNoRootKey{} -> (handler e)
             { errHTTPCode = 403
@@ -2550,8 +2549,8 @@ instance LiftHandler ErrSubmitTx where
     handler = \case
         ErrSubmitTxNetwork e -> handler e
         ErrSubmitTxNoSuchWallet e@ErrNoSuchWallet{} -> (handler e)
-            { errHTTPCode = 410
-            , errReasonPhrase = errReasonPhrase err410
+            { errHTTPCode = 404
+            , errReasonPhrase = errReasonPhrase err404
             }
 
 instance LiftHandler ErrNetworkUnavailable where
@@ -2634,8 +2633,8 @@ instance LiftHandler ErrSignDelegation where
     handler = \case
         ErrSignDelegationMkTx e -> handler e
         ErrSignDelegationNoSuchWallet e -> (handler e)
-            { errHTTPCode = 410
-            , errReasonPhrase = errReasonPhrase err410
+            { errHTTPCode = 404
+            , errReasonPhrase = errReasonPhrase err404
             }
         ErrSignDelegationWithRootKey e@ErrWithRootKeyNoRootKey{} -> (handler e)
             { errHTTPCode = 403

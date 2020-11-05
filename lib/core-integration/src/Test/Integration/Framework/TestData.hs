@@ -73,7 +73,7 @@ module Test.Integration.Framework.TestData
     , errMsg403NotAShelleyWallet
     , errMsg403InputsDepleted
     , errMsg404MinUTxOValue
-    , errMsg400TxTooLarge
+    , errMsg403TxTooLarge
     , errMsg403CouldntIdentifyAddrAsMine
     , errMsg503PastHorizon
     ) where
@@ -311,8 +311,8 @@ errMsg400TxMetadataStringTooLong :: String
 errMsg400TxMetadataStringTooLong =
     "Text string metadata value must consist of at most 64 UTF8 bytes"
 
-errMsg400TxTooLarge :: String
-errMsg400TxTooLarge =
+errMsg403TxTooLarge :: String
+errMsg403TxTooLarge =
     "I am afraid that the transaction you're trying to submit is too large!"
 
 errMsg400ParseError :: String
