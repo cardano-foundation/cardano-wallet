@@ -321,6 +321,62 @@ x-poolMetadataSource: &poolMetadataSource
       format: uri
       example: https://smash.cardano-mainnet.iohk.io/
 
+x-credentialPubKey: &credentialPubKey
+  description: A public key (public key without chain code) for credential - 32 bytes
+  type: string
+  format: bech32
+  pattern: "^((addr_vk)|(stake_vk))1[0-9a-z]*$"
+  example:
+    - stake_vk16apaenn9ut6s40lcw3l8v68xawlrlq20z2966uzcx8jmv2q9uy7qau558d
+    - addr_vk16apaenn9ut6s40lcw3l8v68xawlrlq20z2966uzcx8jmv2q9uy7q3yvuv2
+
+x-anyAddress: &anyAddress
+  description: A Shelley address representing either enterprise, reward account or delegating address
+  type: string
+  format: bech32
+  pattern: "^((addr)|(stake)|(addr_test)|(stake_test))1[0-9a-z]*$"
+  example:
+    - stake17xt2z3pa7etaxp7jurdg0m8jhsmtp4r2z56pd3a5q3jhxycdxzmx9
+    - addr1wy5np0m5x03tax3kcdh6e2cet98qcfs80wtv4cyvl5taclc6dnd8e
+    - addr1xy5np0m5x03tax3kcdh6e2cet98qcfs80wtv4cyvl5tacluk59zrmajh6vra9cx6slk090pkkr2x59f5zmrmgpr9wvfs37hjk4
+
+x-credential: &credential
+  nullable: false
+  additionalProperties:
+    $ref: "#/components/schemas/CredentialValue"
+
+x-script: &script
+  description: |
+    Script allows establishing either payment or stake guard that could be removed
+    when a special combination of signing keys is present.
+
+    The script can be constructed using four primitives:
+     - verification key hash for which a corresponding signing key is expected
+     - all condition for which all list elements' expectation are met for the condition to be valid
+     - any condition for which any list element' expectation is to be met for the condition to be valid
+     - some condition for which a minimal number of list elements' expectation is to be met for the condition to be valid
+  example:
+    -
+      "script_vkh18srsxr3khll7vl3w9mqfu55n6wzxxlxj7qzr2mhnyreluzt36ms"
+    -
+      { "all": [ "script_vkh18srsxr3khll7vl3w9mqfu55n6wzxxlxj7qzr2mhnyreluzt36ms"
+               , "script_vkh18srsxr3khll7vl3w9mqfu55n6wzxxlxj7qzr2mhnyreluzt37ms"] }
+    -
+      { "all": [ "script_vkh18srsxr3khll7vl3w9mqfu55n6wzxxlxj7qzr2mhnyreluzt36ms"
+               , { "any" : [ "script_vkh18srsxr3khll7vl3w9mqfu55n6wzxxlxj7qzr2mhnyreluzt37ms"
+                           , "script_vkh18srsxr3khll7vl3w9mqfu55n6wzxxlxj7qzr2mhnyreluzt38ms"] }
+               ] }
+    -
+      { "all": [ "script_vkh18srsxr3khll7vl3w9mqfu55n6wzxxlxj7qzr2mhnyreluzt36ms"
+               , { "some" : { "from" : [ "script_vkh18srsxr3khll7vl3w9mqfu55n6wzxxlxj7qzr2mhnyreluzt37ms"
+                                       , "script_vkh18srsxr3khll7vl3w9mqfu55n6wzxxlxj7qzr2mhnyreluzt38ms"]
+                            , "at_least" : 2
+                            }
+                 } ] }
+  nullable: false
+  additionalProperties:
+    $ref: "#/components/schemas/ScriptValue"
+
 x-settings: &settings
   description: Settings
   type: object
@@ -1171,7 +1227,6 @@ components:
         minimum_utxo_value: *amount
         hardfork_at: *epochInfo
 
-
     ApiSelectCoinsPayments: &ApiSelectCoinsPayments
       type: object
       required:
@@ -1506,6 +1561,29 @@ components:
           passphrase: *lenientPassphrase
           metadata: *transactionMetadata
 
+    ApiScript: &ApiScript
+      <<: *script
+
+    ApiPubKey: &ApiPubKey
+      <<: *credentialPubKey
+
+    AnyAddress: &AnyAddress
+      type: object
+      required:
+        - address
+      properties:
+        address: *anyAddress
+
+    ApiCredential: &ApiCredential
+      <<: *credential
+
+    ApiAddressData: &ApiAddressData
+      type: object
+      nullable: false
+      properties:
+        payment: *ApiCredential
+        stake: *ApiCredential
+
     ApiByronWalletRandomPostData: &ApiByronWalletRandomPostData
       type: object
       required:
@@ -1700,6 +1778,60 @@ components:
       properties:
         passphrase: *lenientPassphrase
         address_index: *addressIndex
+
+    CredentialValue: &CredentialValue
+      oneOf:
+        - <<: *credentialPubKey
+        - <<: *script
+
+    ScriptValue: &ScriptValue
+      oneOf:
+        - title: Require Key Hash
+          type: string
+          format: bech32
+          example: script_vkh18srsxr3khll7vl3w9mqfu55n6wzxxlxj7qzr2mhnyreluzt36ms
+
+        - title: Require All
+          type: object
+          required:
+            - all
+          properties:
+            all:
+              type: array
+              minItems: 1
+              items:
+                $ref: "#/components/schemas/ScriptValue"
+
+        - title: Require Any
+          type: object
+          required:
+            - any
+          properties:
+            any:
+              type: array
+              minItems: 1
+              items:
+                $ref: "#/components/schemas/ScriptValue"
+
+        - title: Require Some
+          type: object
+          required:
+            - some
+          properties:
+            some:
+              type: object
+              required:
+                - at_least
+                - from
+              properties:
+                at_least:
+                  type: integer
+                  minimum: 1
+                from:
+                  type: array
+                  minItems: 1
+                  items:
+                    $ref: "#/components/schemas/ScriptValue"
 
     TransactionMetadataValue: &TransactionMetadataValue
       oneOf:
@@ -2777,6 +2909,16 @@ x-responsesPostExternalTransaction: &responsesPostExternalTransaction
       application/json:
         schema: *ApiTxId
 
+x-responsesPostAnyAddress: &responsesPostAnyAddress
+  <<: *responsesErr400
+  <<: *responsesErr406
+  <<: *responsesErr415
+  202:
+    description: Accepted
+    content:
+      application/json:
+        schema: *AnyAddress
+
 x-responsesPostTransactionFee: &responsesPostTransactionFee
   400:
     description: Bad Request
@@ -3837,6 +3979,21 @@ paths:
       parameters:
         - *parametersAddressId
       responses: *responsesInspectAddress
+
+  /addresses:
+    post:
+      operationId: postAnyAddress
+      tags: ["Utils"]
+      summary: Construct Address
+      description: |
+        <p align="right">status: <strong>unstable</strong></p>
+
+        Construct any address by specyfying credential for payment or stake.
+      requestBody:
+        content:
+          application/json:
+            schema: *ApiAddressData
+      responses: *responsesPostAnyAddress
 
   /settings:
     put:
