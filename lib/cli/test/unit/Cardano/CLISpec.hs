@@ -484,6 +484,7 @@ spec = do
             , "  public                   Get the public counterpart of a"
             , "                           private key"
             , "  inspect                  Show information about a key"
+            , "  hash                     Get the hash of a public key"
             , ""
             , "Example:"
             , "  \ESC[1m$ "<>progName<>" recovery-phrase generate --size 15 \\\ESC[0m"

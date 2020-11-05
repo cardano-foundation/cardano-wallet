@@ -26,6 +26,8 @@ module Cardano.Wallet.Api.TypesSpec (spec) where
 import Prelude hiding
     ( id )
 
+import Cardano.Address.Script
+    ( KeyHash (..), Script (..) )
 import Cardano.Mnemonic
     ( CheckSumBits
     , ConsistentEntropy
@@ -43,8 +45,10 @@ import Cardano.Wallet.Api
 import Cardano.Wallet.Api.Types
     ( AccountPostData (..)
     , AddressAmount (..)
+    , AnyAddress (..)
     , ApiAccountPublicKey (..)
     , ApiAddress (..)
+    , ApiAddressData (..)
     , ApiAddressInspect (..)
     , ApiBlockInfo (..)
     , ApiBlockReference (..)
@@ -55,6 +59,7 @@ import Cardano.Wallet.Api.Types
     , ApiCoinSelectionChange (..)
     , ApiCoinSelectionInput (..)
     , ApiCoinSelectionOutput (..)
+    , ApiCredential (..)
     , ApiEpochInfo (..)
     , ApiErrorCode (..)
     , ApiFee (..)
@@ -280,6 +285,7 @@ import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
     , InfiniteList (..)
+    , Positive (..)
     , applyArbitrary2
     , applyArbitrary4
     , arbitraryBoundedEnum
@@ -293,6 +299,7 @@ import Test.QuickCheck
     , property
     , scale
     , shrinkIntegral
+    , sized
     , vector
     , vectorOf
     , (.&&.)
@@ -337,6 +344,9 @@ spec = do
         "can perform roundtrip JSON serialization & deserialization, \
         \and match existing golden files" $ do
             jsonRoundtripAndGolden $ Proxy @(ApiAddress ('Testnet 0))
+            jsonRoundtripAndGolden $ Proxy @AnyAddress
+            jsonRoundtripAndGolden $ Proxy @ApiCredential
+            jsonRoundtripAndGolden $ Proxy @ApiAddressData
             jsonRoundtripAndGolden $ Proxy @(ApiT DerivationIndex)
             jsonRoundtripAndGolden $ Proxy @ApiEpochInfo
             jsonRoundtripAndGolden $ Proxy @(ApiSelectCoinsData ('Testnet 0))
@@ -1017,6 +1027,47 @@ instance Arbitrary (ApiAddress t) where
 instance Arbitrary ApiEpochInfo where
     arbitrary = ApiEpochInfo <$> arbitrary <*> genUniformTime
     shrink _ = []
+
+instance Arbitrary Script where
+    arbitrary = Test.QuickCheck.scale (`div` 3) $ sized scriptTree
+      where
+        scriptTree 0 = RequireSignatureOf <$> arbitrary
+        scriptTree n = do
+            Positive m <- arbitrary
+            let n' = n `div` (m + 1)
+            scripts <- vectorOf m (scriptTree n')
+            atLeast <- choose (0, fromIntegral (m + 1))
+            elements
+                [ RequireAllOf scripts
+                , RequireAnyOf scripts
+                , RequireSomeOf atLeast scripts
+                ]
+    shrink = genericShrink
+
+instance Arbitrary KeyHash where
+    arbitrary = KeyHash . BS.pack <$> vectorOf 28 arbitrary
+
+instance Arbitrary ApiCredential where
+    arbitrary = do
+        pubKey <- BS.pack <$> replicateM 32 arbitrary
+        oneof [ pure $ CredentialPubKey pubKey, CredentialScript <$> arbitrary ]
+
+instance Arbitrary ApiAddressData where
+    arbitrary = do
+        credential1 <- arbitrary
+        credential2 <- arbitrary
+        elements
+            [ AddrEnterprise credential1
+            , AddrRewardAccount credential2
+            , AddrBase credential1 credential2
+            ]
+
+instance Arbitrary AnyAddress where
+    arbitrary = do
+        payload' <- BS.pack <$> replicateM 32 arbitrary
+        network' <- choose (0,1)
+        addrType <- arbitraryBoundedEnum
+        pure $ AnyAddress payload' addrType network'
 
 instance Arbitrary (ApiSelectCoinsPayments n) where
     arbitrary = genericArbitrary
@@ -1857,6 +1908,36 @@ instance ToSchema ApiNetworkInformation where
 instance ToSchema ApiNetworkClock where
     declareNamedSchema _ = declareSchemaForDefinition "ApiNetworkClock"
 
+data ApiScript
+instance ToSchema ApiScript where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiScript"
+
+data ApiPubKey
+instance ToSchema ApiPubKey where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiPubKey"
+
+instance ToSchema ApiAddressData where
+    declareNamedSchema _ = do
+        addDefinition scriptValueSchema
+        addDefinition credentialValueSchema
+        declareSchemaForDefinition "ApiAddressData"
+
+instance ToSchema ApiCredential where
+    declareNamedSchema _ = do
+        addDefinition scriptValueSchema
+        NamedSchema _ pubKey' <- declareNamedSchema (Proxy @ApiPubKey)
+        NamedSchema _ script'  <- declareNamedSchema (Proxy @ApiScript)
+        pure $ NamedSchema Nothing $ mempty
+            & type_ .~ Just SwaggerObject
+            & required .~ []
+            & properties .~ mconcat
+                [ pubKey' ^. properties
+                , script' ^. properties
+                ]
+
+instance ToSchema AnyAddress where
+    declareNamedSchema _ = declareSchemaForDefinition "AnyAddress"
+
 instance ToSchema ApiNetworkParameters where
     declareNamedSchema _ = declareSchemaForDefinition "ApiNetworkParameters"
 
@@ -1894,6 +1975,16 @@ instance ToSchema ApiWalletSignData where
 transactionMetadataValueSchema :: NamedSchema
 transactionMetadataValueSchema =
     NamedSchema (Just "TransactionMetadataValue") $ mempty
+        & additionalProperties ?~ AdditionalPropertiesAllowed True
+
+scriptValueSchema :: NamedSchema
+scriptValueSchema =
+    NamedSchema (Just "ScriptValue") $ mempty
+        & additionalProperties ?~ AdditionalPropertiesAllowed True
+
+credentialValueSchema :: NamedSchema
+credentialValueSchema =
+    NamedSchema (Just "CredentialValue") $ mempty
         & additionalProperties ?~ AdditionalPropertiesAllowed True
 
 -- | Utility function to provide an ad-hoc 'ToSchema' instance for a definition:

@@ -1,16 +1,22 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE QuasiQuotes #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TypeOperators #-}
 
 -- Orphan instances for {Encode,Decode}Address until we get rid of the
 -- Jörmungandr dual support.
@@ -25,6 +31,7 @@
 module Cardano.Wallet.Shelley.Compatibility
     ( Shelley
     , CardanoBlock
+    , NetworkId
 
     , NodeVersionData
     , StandardCrypto
@@ -66,6 +73,7 @@ module Cardano.Wallet.Shelley.Compatibility
     , optimumNumberOfPools
     , getProducer
 
+    , HasNetworkId (..)
     , fromBlockNo
     , fromCardanoBlock
     , poolCertsFromShelleyBlock
@@ -105,7 +113,7 @@ import Cardano.Address.Style.Shelley
 import Cardano.Api.Shelley.Genesis
     ( ShelleyGenesis (..) )
 import Cardano.Api.Typed
-    ( AsType (..), Shelley, deserialiseFromRawBytes )
+    ( AsType (..), NetworkId, Shelley, deserialiseFromRawBytes )
 import Cardano.Binary
     ( fromCBOR, serialize' )
 import Cardano.Crypto.Hash.Class
@@ -166,7 +174,7 @@ import Data.Map.Strict
 import Data.Maybe
     ( fromMaybe, isJust, mapMaybe )
 import Data.Proxy
-    ( Proxy )
+    ( Proxy (..) )
 import Data.Quantity
     ( Percentage, Quantity (..), mkPercentage )
 import Data.Ratio
@@ -183,6 +191,8 @@ import Fmt
     ( Buildable (..) )
 import GHC.Stack
     ( HasCallStack )
+import GHC.TypeLits
+    ( KnownNat, natVal )
 import Numeric.Natural
     ( Natural )
 import Ouroboros.Consensus.Cardano.Block
@@ -1106,6 +1116,23 @@ guardNetwork addrNetwork serverNetwork =
             <> " but got "
             <> show addrNetwork
             <> "."
+
+-- | Class to extract a @NetworkId@ from @NetworkDiscriminant@.
+class HasNetworkId (n :: NetworkDiscriminant) where
+    networkIdVal :: Proxy n -> NetworkId
+
+instance HasNetworkId 'Mainnet where
+    networkIdVal _ = Cardano.Mainnet
+
+instance KnownNat protocolMagic => HasNetworkId ('Testnet protocolMagic) where
+    networkIdVal _ = Cardano.Testnet networkMagic
+      where
+        networkMagic = Cardano.NetworkMagic
+            . fromIntegral
+            $ natVal (Proxy @protocolMagic)
+
+instance HasNetworkId ('Staging protocolMagic) where
+    networkIdVal _ = Cardano.Mainnet
 
 {-------------------------------------------------------------------------------
                                     Logging

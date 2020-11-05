@@ -27,7 +27,6 @@
 module Cardano.Wallet.Shelley
     ( SomeNetworkDiscriminant (..)
     , serveWallet
-    , HasNetworkId (..)
 
       -- * Tracing
     , Tracers' (..)
@@ -45,8 +44,6 @@ module Cardano.Wallet.Shelley
 
 import Prelude
 
-import Cardano.Api.Typed
-    ( NetworkId, Shelley )
 import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
@@ -117,7 +114,12 @@ import Cardano.Wallet.Registry
 import Cardano.Wallet.Shelley.Api.Server
     ( server )
 import Cardano.Wallet.Shelley.Compatibility
-    ( CardanoBlock, StandardCrypto, fromCardanoBlock )
+    ( CardanoBlock
+    , HasNetworkId (..)
+    , Shelley
+    , StandardCrypto
+    , fromCardanoBlock
+    )
 import Cardano.Wallet.Shelley.Network
     ( NetworkLayerLog, withNetworkLayer )
 import Cardano.Wallet.Shelley.Pools
@@ -151,8 +153,6 @@ import Data.Text.Class
     ( ToText (..) )
 import GHC.Generics
     ( Generic )
-import GHC.TypeLits
-    ( KnownNat, natVal )
 import Network.Ntp
     ( NtpClient (..), NtpTrace, withWalletNtpClient )
 import Network.Socket
@@ -172,7 +172,6 @@ import System.IOManager
 import Type.Reflection
     ( Typeable )
 
-import qualified Cardano.Api.Typed as Cardano
 import qualified Cardano.Pool.DB.Sqlite as Pool
 import qualified Cardano.Wallet.Api.Server as Server
 import qualified Cardano.Wallet.DB.Sqlite as Sqlite
@@ -198,24 +197,6 @@ data SomeNetworkDiscriminant where
             )
         => Proxy n
         -> SomeNetworkDiscriminant
-
-
--- | Class to extract a @NetworkId@ from @NetworkDiscriminant@.
-class HasNetworkId (n :: NetworkDiscriminant) where
-    networkIdVal :: Proxy n -> NetworkId
-
-instance HasNetworkId 'Mainnet where
-    networkIdVal _ = Cardano.Mainnet
-
-instance KnownNat protocolMagic => HasNetworkId ('Testnet protocolMagic) where
-    networkIdVal _ = Cardano.Testnet networkMagic
-      where
-        networkMagic = Cardano.NetworkMagic
-            . fromIntegral
-            $ natVal (Proxy @protocolMagic)
-
-instance HasNetworkId ('Staging protocolMagic) where
-    networkIdVal _ = Cardano.Mainnet
 
 deriving instance Show SomeNetworkDiscriminant
 
@@ -319,6 +300,7 @@ serveWallet
             , EncodeAddress n
             , EncodeStakeAddress n
             , Typeable n
+            , HasNetworkId n
             )
         => Proxy n
         -> Socket

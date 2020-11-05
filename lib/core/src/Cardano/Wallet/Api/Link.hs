@@ -58,6 +58,7 @@ module Cardano.Wallet.Api.Link
     , listAddresses
     , listAddresses'
     , inspectAddress
+    , postAnyAddress
 
       -- * CoinSelections
     , selectCoins
@@ -344,6 +345,11 @@ inspectAddress
     -> (Method, Text)
 inspectAddress addr =
     endpoint @Api.InspectAddress (addr &)
+
+postAnyAddress
+    :: (Method, Text)
+postAnyAddress =
+    endpoint @(Api.PostAnyAddress Net) id
 
 --
 -- Coin Selections

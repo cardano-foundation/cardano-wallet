@@ -182,6 +182,7 @@ server byron icarus jormungandr spl ntp =
     addresses :: Server (Addresses n)
     addresses = listAddresses jormungandr (normalizeDelegationAddress @_ @JormungandrKey @n)
         :<|> (\_ -> throwError err501)
+        :<|> (\_ -> throwError err501)
 
     -- Hlint doesn't seem to care about inlining properties:
     --   https://github.com/quchen/articles/blob/master/fbut.md#f-x---is-not-f--x---

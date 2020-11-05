@@ -14,7 +14,8 @@ module Test.Integration.Scenario.API.Shelley.Addresses
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiAddress
+    ( AnyAddress
+    , ApiAddress
     , ApiTransaction
     , ApiWallet
     , DecodeAddress
@@ -30,10 +31,14 @@ import Control.Monad
     ( forM_ )
 import Control.Monad.Trans.Resource
     ( runResourceT )
+import Data.Aeson
+    ( ToJSON (..), object, (.=) )
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
 import Data.Quantity
     ( Quantity (..) )
+import Data.Text
+    ( Text )
 import Test.Hspec
     ( SpecWith, describe, shouldBe, shouldNotSatisfy, shouldSatisfy )
 import Test.Hspec.Extra
@@ -52,6 +57,7 @@ import Test.Integration.Framework.DSL
     , expectListSize
     , expectResponseCode
     , fixtureWallet
+    , getFromResponse
     , json
     , listAddresses
     , minUTxOValue
@@ -251,3 +257,269 @@ spec = describe "SHELLEY_ADDRESSES" $ do
         let str = "patate"
         r <- request @Aeson.Value ctx (Link.inspectAddress str) Default Empty
         expectResponseCode HTTP.status400 r
+
+    -- Generating golden test data for enterprise addresses - script credential:
+    --- $ cardano-address script hash "$(cat script.txt)" \
+    --- | cardano-address address payment --from-script --network-tag mainnet
+    it "ANY_ADDRESS_POST_01 - Golden tests for enterprise script address - signature" $ \ctx -> do
+        --- $ cat script.txt
+        --- script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a
+        let payload = Json [json|{
+                "payment": "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a"
+            }|]
+        r <- request @AnyAddress ctx Link.postAnyAddress Default payload
+        expectResponseCode HTTP.status202 r
+        let goldenAddr =
+                "addr1w96eswctz5wzrv3ceh3h4y3na2t6d95sjn23dawy0zlzg0q0j39eu" :: Text
+        validateAddr r goldenAddr
+
+    it "ANY_ADDRESS_POST_02 - Golden tests for enterprise script address - any" $ \ctx -> do
+        --- $ cat script.txt
+        --- any [script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a, script_vkh1mwlngj4fcwegw53tdmyemfupen2758xwvudmcz9ap8cnqk7jmh4]
+        let payload = Json [json|{
+                "payment": {
+                    "any": [
+                        "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a",
+                        "script_vkh1mwlngj4fcwegw53tdmyemfupen2758xwvudmcz9ap8cnqk7jmh4"
+                        ]
+                    }
+            }|]
+        r <- request @AnyAddress ctx Link.postAnyAddress Default payload
+        expectResponseCode HTTP.status202 r
+        let goldenAddr =
+                "addr1wxt2z3pa7etaxp7jurdg0m8jhsmtp4r2z56pd3a5q3jhxyc3vza6h" :: Text
+        validateAddr r goldenAddr
+
+    it "ANY_ADDRESS_POST_03 - Golden tests for enterprise script address - all" $ \ctx -> do
+        --- $ cat script.txt
+        --- all [script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a, script_vkh1mwlngj4fcwegw53tdmyemfupen2758xwvudmcz9ap8cnqk7jmh4]
+        let payload = Json [json|{
+                "payment": {
+                    "all": [
+                        "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a",
+                        "script_vkh1mwlngj4fcwegw53tdmyemfupen2758xwvudmcz9ap8cnqk7jmh4"
+                        ]
+                    }
+            }|]
+        r <- request @AnyAddress ctx Link.postAnyAddress Default payload
+        expectResponseCode HTTP.status202 r
+        let goldenAddr =
+                "addr1w94h4mtdkxr2x68zx4tk0cgmd9hymjgsuhmzaxkg5tkl3scc0g8xj" :: Text
+        validateAddr r goldenAddr
+
+    it "ANY_ADDRESS_POST_04 - Golden tests for enterprise script address - some" $ \ctx -> do
+        --- $ cat script.txt
+        --- at_least 2 [script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a,script_vkh1mwlngj4fcwegw53tdmyemfupen2758xwvudmcz9ap8cnqk7jmh4,script_vkh1qw4l62k4203dllrk3dk3sfjpnh3gufhtrtm4qvtrvn4xjp5x5rt]
+        let payload = Json [json|{
+                "payment": {
+                    "some": {
+                        "from" : [
+                            "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a",
+                            "script_vkh1mwlngj4fcwegw53tdmyemfupen2758xwvudmcz9ap8cnqk7jmh4",
+                            "script_vkh1qw4l62k4203dllrk3dk3sfjpnh3gufhtrtm4qvtrvn4xjp5x5rt"
+                            ],
+                         "at_least": 2
+                         }
+                    }
+            }|]
+        r <- request @AnyAddress ctx Link.postAnyAddress Default payload
+        expectResponseCode HTTP.status202 r
+        let goldenAddr =
+                "addr1wy5np0m5x03tax3kcdh6e2cet98qcfs80wtv4cyvl5taclc6dnd8e" :: Text
+        validateAddr r goldenAddr
+
+    -- Generating golden test data for reward account addresses - script credential:
+    --- $ cardano-address script hash "$(cat script.txt)" \
+    --- | cardano-address address stake --from-script --network-tag mainnet
+    it "ANY_ADDRESS_POST_05 - Golden tests for reward account script address - any" $ \ctx -> do
+        let payload = Json [json|{
+                "stake": {
+                    "any": [
+                        "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a",
+                        "script_vkh1mwlngj4fcwegw53tdmyemfupen2758xwvudmcz9ap8cnqk7jmh4"
+                        ]
+                    }
+            }|]
+        r <- request @AnyAddress ctx Link.postAnyAddress Default payload
+        expectResponseCode HTTP.status202 r
+        let goldenAddr =
+                "stake17xt2z3pa7etaxp7jurdg0m8jhsmtp4r2z56pd3a5q3jhxycdxzmx9" :: Text
+        validateAddr r goldenAddr
+
+    -- Generating golden test data for reward account addresses - both script credentials:
+    --- $ cardano-address script hash "$(cat script1.txt)" \
+    --- | cardano-address address payment --from-script --network-tag mainnet \
+    --- | cardano-address address delegation --from-script $(cardano-address script hash "$(cat script2.txt)")
+    it "ANY_ADDRESS_POST_06 - Golden tests for delegating script address - any" $ \ctx -> do
+        let payload = Json [json|{
+                "payment": {
+                    "some": {
+                        "from" : [
+                            "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a",
+                            "script_vkh1mwlngj4fcwegw53tdmyemfupen2758xwvudmcz9ap8cnqk7jmh4",
+                            "script_vkh1qw4l62k4203dllrk3dk3sfjpnh3gufhtrtm4qvtrvn4xjp5x5rt"
+                            ],
+                         "at_least": 2
+                         }
+                    },
+                "stake": {
+                    "any": [
+                        "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a",
+                        "script_vkh1mwlngj4fcwegw53tdmyemfupen2758xwvudmcz9ap8cnqk7jmh4"
+                        ]
+                    }
+            }|]
+        r <- request @AnyAddress ctx Link.postAnyAddress Default payload
+        expectResponseCode HTTP.status202 r
+        let goldenAddr =
+                "addr1xy5np0m5x03tax3kcdh6e2cet98qcfs80wtv4cyvl5tacluk59zr\
+                \majh6vra9cx6slk090pkkr2x59f5zmrmgpr9wvfs37hjk4" :: Text
+        validateAddr r goldenAddr
+
+    -- Generating golden test data for enterprise addresses - key credential:
+    --- $ cat recovery-phrase.txt
+    --- east student silly already breeze enact seat trade few way online skin grass humble electric
+    --- $ cat recovery-phrase.txt | cardano-address key from-recovery-phrase Shelley \
+    --- > | cardano-address key child 1852H/1815H/0H/0/0 \
+    --- > | cardano-address key public --without-chain-code
+    --- xpub1lqglg77z6kajsdz4739q22c0zm0yhuy567z6xk2vc0z5ucjtkwps75l8wa
+    -- which can be translated in cardano-addresses
+    -- :set -XOverloadedStrings
+    -- import Data.Text
+    -- let k = "xpub1lqglg77z6kajsdz4739q22c0zm0yhuy567z6xk2vc0z5ucjtkwps75l8wa" :: Text
+    -- let (Right bytes) = fromBech32 (const id) (T.encodeUtf8 k)
+    -- bytes
+    -- "\248\DC1\244{\194\213\187(4U\244J\ENQ+\SI\SYN\222K\240\148\215\133\163YL\195\197NbK\179\131"
+    -- let (Right hrp) = Bech32.humanReadablePartFromText "addr_vk"
+    -- encode (EBech32 hrp) bytes
+    -- "addr_vk1lqglg77z6kajsdz4739q22c0zm0yhuy567z6xk2vc0z5ucjtkwpschzd2j"
+
+    -- Golden address can be obtained via
+    --- $ cat recovery-phrase.txt | cardano-address key from-recovery-phrase Shelley \
+    --- > | cardano-address key child 1852H/1815H/0H/0/0 \
+    --- > | cardano-address key public --with-chain-code \
+    --- > | cardano-address address payment --from-key --network-tag mainnet
+    it "ANY_ADDRESS_POST_07 - Golden tests for enterprise pub key address" $ \ctx -> do
+        let payload = Json [json|{
+                "payment": "addr_vk1lqglg77z6kajsdz4739q22c0zm0yhuy567z6xk2vc0z5ucjtkwpschzd2j"
+            }|]
+        r <- request @AnyAddress ctx Link.postAnyAddress Default payload
+        expectResponseCode HTTP.status202 r
+        let goldenAddr =
+                "addr1v9qthemrg5kczwfjjnahwt65elhrl95e9hcgufnajtp6wfgknj82e" :: Text
+        validateAddr r goldenAddr
+
+    -- Generating golden test data for enterprise addresses - key credential:
+    --- $ cat recovery-phrase.txt
+    --- east student silly already breeze enact seat trade few way online skin grass humble electric
+    --- $ cat recovery-phrase.txt | cardano-address key from-recovery-phrase Shelley \
+    --- > | cardano-address key child 1852H/1815H/0H/2/0 \
+    --- > | cardano-address key public --without-chain-code
+    --- xpub16apaenn9ut6s40lcw3l8v68xawlrlq20z2966uzcx8jmv2q9uy7qh83kg9
+    -- which can be translated in cardano-addresses
+    -- :set -XOverloadedStrings
+    -- import Data.Text
+    -- let k = "xpub16apaenn9ut6s40lcw3l8v68xawlrlq20z2966uzcx8jmv2q9uy7qh83kg9" :: Text
+    -- let (Right bytes) = fromBech32 (const id) (T.encodeUtf8 k)
+    -- bytes
+    -- "\215C\220\206e\226\245\n\191\248t~vh\230\235\190?\129O\DC2\139\173pX1\229\182(\ENQ\225<"
+    -- let (Right hrp) = Bech32.humanReadablePartFromText "stake_vk"
+    -- encode (EBech32 hrp) bytes
+    -- "stake_vk16apaenn9ut6s40lcw3l8v68xawlrlq20z2966uzcx8jmv2q9uy7qau558d"
+
+    -- Golden address can be obtained via
+    --- $ cat recovery-phrase.txt | cardano-address key from-recovery-phrase Shelley \
+    --- > | cardano-address key child 1852H/1815H/0H/2/0 \
+    --- > | cardano-address key public --with-chain-code \
+    --- > | cardano-address address stake --from-key --network-tag mainnet
+    it "ANY_ADDRESS_POST_08 - Golden tests for reward account pub key address" $ \ctx -> do
+        let payload = Json [json|{
+                "stake": "stake_vk16apaenn9ut6s40lcw3l8v68xawlrlq20z2966uzcx8jmv2q9uy7qau558d"
+            }|]
+        r <- request @AnyAddress ctx Link.postAnyAddress Default payload
+        expectResponseCode HTTP.status202 r
+        let goldenAddr =
+                "stake1uy6pmlvyl3wn4ca6807e26gy2gek9hqu0gastzh5tk0xx0g2rxsr5" :: Text
+        validateAddr r goldenAddr
+
+    -- Golden address can be obtained via
+    --- $ cat recovery-phrase.txt | cardano-address key from-recovery-phrase Shelley \
+    --- > | cardano-address key child 1852H/1815H/0H/2/0 \
+    --- > | cardano-address key public --with-chain-code > stake.xpub
+
+    --- $ cat recovery-phrase.txt | cardano-address key from-recovery-phrase Shelley \
+    --- > | cardano-address key child 1852H/1815H/0H/0/0 \
+    --- > | cardano-address key public --with-chain-code \
+    --- > | cardano-address address payment --from-key --network-tag mainnet \
+    --- > | cardano-address address delegation --from-key $(cat stake.xpub)
+    it "ANY_ADDRESS_POST_09 - Golden tests for delegating address with both pub key credentials" $ \ctx -> do
+        let payload = Json [json|{
+                "payment": "addr_vk1lqglg77z6kajsdz4739q22c0zm0yhuy567z6xk2vc0z5ucjtkwpschzd2j",
+                "stake": "stake_vk16apaenn9ut6s40lcw3l8v68xawlrlq20z2966uzcx8jmv2q9uy7qau558d"
+            }|]
+        r <- request @AnyAddress ctx Link.postAnyAddress Default payload
+        expectResponseCode HTTP.status202 r
+        let goldenAddr =
+                "addr1q9qthemrg5kczwfjjnahwt65elhrl95e9hcgufnajtp6wff5r\
+                \h7cflza8t3m5wlaj45sg53nvtwpc73mqk90ghv7vv7s64ryn2" :: Text
+        validateAddr r goldenAddr
+
+    -- Generating golden test data for delegating address - payment from script, stake from pub key:
+    --- $ cat recovery-phrase.txt | cardano-address key from-recovery-phrase Shelley \
+    --- > | cardano-address key child 1852H/1815H/0H/2/0 \
+    --- > | cardano-address key public --with-chain-code > stake.xpub
+
+    --- $ cardano-address script hash "$(cat script.txt)" \
+    --- | cardano-address address payment --from-script --network-tag mainnet \
+    --- | cardano-address address delegation --from-key $(cat stake.xpub)
+    it "ANY_ADDRESS_POST_10 - Golden tests for delegating address - payment from script, stake from key" $ \ctx -> do
+        let payload = Json [json|{
+                "payment": {
+                    "some": {
+                        "from" : [
+                            "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a",
+                            "script_vkh1mwlngj4fcwegw53tdmyemfupen2758xwvudmcz9ap8cnqk7jmh4",
+                            "script_vkh1qw4l62k4203dllrk3dk3sfjpnh3gufhtrtm4qvtrvn4xjp5x5rt"
+                            ],
+                         "at_least": 2
+                         }
+                     },
+                "stake": "stake_vk16apaenn9ut6s40lcw3l8v68xawlrlq20z2966uzcx8jmv2q9uy7qau558d"
+            }|]
+        r <- request @AnyAddress ctx Link.postAnyAddress Default payload
+        expectResponseCode HTTP.status202 r
+        let goldenAddr =
+                "addr1zy5np0m5x03tax3kcdh6e2cet98qcfs80wtv4cyvl5tacle5rh7cflza8\
+                \t3m5wlaj45sg53nvtwpc73mqk90ghv7vv7sleajnd" :: Text
+        validateAddr r goldenAddr
+
+    -- Generating golden test data for delegating address - payment from pub key, stake from script:
+    --- $ cat recovery-phrase.txt | cardano-address key from-recovery-phrase Shelley \
+    --- > | cardano-address key child 1852H/1815H/0H/0/0 \
+    --- > | cardano-address key public --with-chain-code \
+    --- > | cardano-address address payment --from-key --network-tag mainnet \
+    --- > | cardano-address address delegation --from-script $(cardano-address script hash "$(cat script3.txt)")
+    it "ANY_ADDRESS_POST_11 - Golden tests for delegating address - payment from key, stake from script" $ \ctx -> do
+        let payload = Json [json|{
+                "payment": "addr_vk1lqglg77z6kajsdz4739q22c0zm0yhuy567z6xk2vc0z5ucjtkwpschzd2j",
+                "stake": {
+                    "some": {
+                        "from" : [
+                            "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a",
+                            "script_vkh1mwlngj4fcwegw53tdmyemfupen2758xwvudmcz9ap8cnqk7jmh4",
+                            "script_vkh1qw4l62k4203dllrk3dk3sfjpnh3gufhtrtm4qvtrvn4xjp5x5rt"
+                            ],
+                         "at_least": 2
+                         }
+                    }
+            }|]
+        r <- request @AnyAddress ctx Link.postAnyAddress Default payload
+        expectResponseCode HTTP.status202 r
+        let goldenAddr =
+                "addr1y9qthemrg5kczwfjjnahwt65elhrl95e9hcgufnajtp6wfffxzlhgvlzh\
+                \6drdsm04j43jk2wpsnqw7uketsgelghm3lsch4g8t" :: Text
+        validateAddr r goldenAddr
+  where
+    validateAddr resp expected = do
+        let addr = getFromResponse id resp
+        toJSON addr `shouldBe` object ["address" .= expected ]

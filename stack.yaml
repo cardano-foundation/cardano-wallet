@@ -46,7 +46,7 @@ extra-deps:
 
 # cardano-addresses-2.1.0
 - git: https://github.com/input-output-hk/cardano-addresses
-  commit: e0ab4587266430a08734e1aec1c29d261a9a3b70
+  commit: 1399751501b03346265b2e429e5832bacd6df279
   subdirs:
     - command-line
     - core

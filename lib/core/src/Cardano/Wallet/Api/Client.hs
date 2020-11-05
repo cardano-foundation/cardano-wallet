@@ -317,6 +317,7 @@ addressClient =
     let
         _listAddresses
             :<|> _inspectAddress
+            :<|> _postScriptAddress
             = client (Proxy @("v2" :> Addresses Aeson.Value))
     in
         AddressClient
@@ -336,6 +337,7 @@ byronAddressClient
 byronAddressClient =
     let
         _ :<|> _inspectAddress
+          :<|> _postScriptAddress
             = client (Proxy @("v2" :> Addresses Aeson.Value))
 
         _postRandomAddress

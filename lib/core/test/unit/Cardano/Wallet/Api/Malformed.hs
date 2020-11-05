@@ -50,7 +50,8 @@ module Cardano.Wallet.Api.Malformed
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiAddressInspectData
+    ( ApiAddressData
+    , ApiAddressInspectData
     , ApiPoolId
     , ApiPostRandomAddressData
     , ApiPutAddressesData
@@ -259,6 +260,38 @@ instance Malformed (BodyParam ApiWalletSignData) where
           )
         ]
 
+instance Malformed (BodyParam ApiAddressData) where
+    malformed = first BodyParam <$>
+        [ ( Aeson.encode [aesonQQ|
+            {}|]
+          , "Error in $: ApiAddressData must have at least one credential."
+          )
+        , ( Aeson.encode [aesonQQ|
+            { "script": {}
+            }|]
+          , "Error in $: ApiAddressData must have at least one credential."
+          )
+        , ( Aeson.encode [aesonQQ|
+            { "stake": {}
+            }|]
+          , "Error in $: ApiAddressData must have at least one credential."
+          )
+        , ( Aeson.encode [aesonQQ|
+            { "payment": {}
+            }|]
+          , "Error in $: ApiAddressData must have at least one credential."
+          )
+        , ( Aeson.encode [aesonQQ|
+            { "stake": 2
+            }|]
+          , "Error in $: ApiAddressData must have at least one credential."
+          )
+        , ( Aeson.encode [aesonQQ|
+            { "payment": 2
+            }|]
+          , "Error in $: ApiAddressData must have at least one credential."
+          )
+        ]
 instance Malformed (BodyParam SomeByronWalletPostData) where
     malformed = jsonValid ++ jsonInvalid
      where
