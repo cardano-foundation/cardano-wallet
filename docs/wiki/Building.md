@@ -108,24 +108,32 @@ Then add and commit the files that it creates.
 Alternatively, wait for Buildkite to run this same command, and apply
 the patch that it produces.
 
-### Haskell.nix and iohk-nix pins
+### Haskell.nix pin
 
-The Nix build also depends on the [Haskell.nix](https://github.com/input-output-hk/haskell.nix) build infrastructure and the
-[iohk-nix](https://github.com/input-output-hk/iohk-nix) library of
-common code. It may be necessary to update `haskell.nix` and/or `iohk-nix` when moving to a
+The Nix build also depends on the [Haskell.nix](https://github.com/input-output-hk/haskell.nix) build infrastructure. It may be necessary to update `haskell.nix` when moving to a
 new Haskell LTS version or adding Hackage dependencies.
 
-To update these to the latest version, run the following command in a `nix-shell`:
+To update to the latest version, run the following command in a `nix-shell`:
 
 ```
 niv update haskell.nix
-niv update iohk-nix
 ```
 
 Then commit the updated
 [sources.json](https://github.com/input-output-hk/cardano-wallet/blob/master/nix/sources.json)
 file.
 
+When updating Haskell.nix, consult the [ChangeLog](https://github.com/input-output-hk/haskell.nix/blob/master/changelog.md) file. There may have been API changes which need corresponding updates in `cardano-wallet`.
+
+### iohk-nix pin
+
+The procedure for updating the [`iohk-nix`](https://github.com/input-output-hk/iohk-nix) library of common code is much the same as for Haskell.nix. Run this in a `nix-shell` and commit the updated `nix/sources.json` file:
+
+```
+niv update iohk-nix
+```
+
+It is not often necessary to update `iohk-nix`. Before updating, ask devops whether there may be changes which affect our build.
 
 ### Cabal+Nix build
 
