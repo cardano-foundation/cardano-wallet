@@ -432,10 +432,10 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             verify rd
                 [ expectField
                         (#balance . #getApiT . #available)
-                        (`shouldBe` Quantity amt)
+                        (`shouldBe` Quantity (2*amt))
                 , expectField
                         (#balance . #getApiT . #total)
-                        (`shouldBe` Quantity amt)
+                        (`shouldBe` Quantity (2*amt))
                 ]
 
         ra2 <- request @ApiWallet ctx (Link.getWallet @'Shelley wSrc) Default Empty
