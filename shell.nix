@@ -33,6 +33,7 @@ let
         cardano-tx
         bech32
       ]) ++ (with pkgs; [
+        haskellPackages.ghcid
         niv
         pkgconfig
         python3Packages.openapi-spec-validator
