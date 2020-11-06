@@ -2220,7 +2220,8 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         txDeleteFromDifferentWalletTest emptyWallet "wallets"
         txDeleteFromDifferentWalletTest emptyRandomWallet "byron-wallets"
 
-    it "TRANS_TTL_DELETE_01 - Shelley: can remove expired tx" $ \ctx -> do
+    it "TRANS_TTL_DELETE_01 - Shelley: can remove expired tx" $ \ctx -> runResourceT $ do
+        liftIO $ pendingWith "#1840 this is flaky -- need a better approach"
         (wa, wb) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
         let amt = minUTxOValue :: Natural
 
@@ -2250,14 +2251,14 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         -- remove it
         let linkDel = Link.deleteTransaction @'Shelley wa txid
         request @(ApiTransaction n) ctx linkDel Default Empty
-            >>= expectResponseCode @IO HTTP.status204
+            >>= expectResponseCode HTTP.status204
 
         -- it should be gone
         request @(ApiTransaction n) ctx linkSrc Default Empty
-            >>= expectResponseCode @IO HTTP.status404
+            >>= expectResponseCode HTTP.status404
         -- yes, gone
         request @(ApiTransaction n) ctx linkDel Default Empty
-            >>= expectResponseCode @IO HTTP.status404
+            >>= expectResponseCode HTTP.status404
 
     it "BYRON_TRANS_DELETE -\
         \ Cannot delete tx on Byron wallet using shelley ep" $ \ctx -> runResourceT $ do
