@@ -70,7 +70,6 @@ let
       };
     in mapAttrs mkTool {
       cabal.version                   = "3.2.0.0";
-      ghcid.version                   = "0.8.7";
       haskell-language-server.version = "0.5.1";
       hoogle.version                  = "5.0.18";
       hlint.version                   = "3.2";
