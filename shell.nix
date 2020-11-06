@@ -43,58 +43,40 @@ let
         yq
       ]);
     tools = let
-      # NOTE: Updating versions
+      # NOTE: Updating versions of Haskell tools
       #
-      # You will need to increase index-state and
-      # "niv update haskell.nix" to get recent Hackage packages.
+      # Modify the tool version number to a different Hackage version.
+      # If you have chosen a recent version, you may also need to
+      # advance the "index-state" variable to include the upload date
+      # of your package.
       #
-      # Modify the version number, then run:
+      # When increasing the "index-state" variable, it's possible that
+      # you will also need to update Haskell.nix to get a recent
+      # Hackage package index.
+      #
+      #   niv update haskell.nix
+      #
+      # After changing tool versions, you can update the generated
+      # files which are cached in ./nix/materialized. Run this
+      # command, follow the instructions shown, then commit the
+      # updated files.
+      #
       #   nix-shell --arg checkMaterialization true
-      index-state = "2020-10-20T00:00:00Z";
-      mkTool = name: args: {
-        inherit index-state checkMaterialization;
-      } // (if checkMaterialization then builtins.removeAttrs args ["plan-sha256"] else args);
+      #
+      mkTool = name: args: args // {
+        index-state = "2020-10-20T00:00:00Z";
+        inherit checkMaterialization;
+        materialized = ./nix/materialized + "/${name}";
+      };
     in mapAttrs mkTool {
-      cabal = {
-        version = "3.2.0.0";
-        plan-sha256 = "0ik4ws852dk7wchbhc84w5ac149myvc1az7rxapfy0hdmiiwjh2j";
-        materialized = ./nix/materialized/cabal;
-      };
-      ghcid = {
-        version = "0.8.7";
-        plan-sha256 = "1qqhwx1xkqllfbmiwcwfknx9595l10173rni0gfdwm9bax69j7ik";
-        materialized = ./nix/materialized/ghcid;
-      };
-      haskell-language-server = {
-        version = "0.5.1";
-        plan-sha256 = "1iz60r763ksarr222lcd7rx3rh2lv8ascqsjw7wf54bgrl3c0nhw";
-        materialized = ./nix/materialized/haskell-language-server;
-      };
-      hoogle = {
-        version = "5.0.18";
-        plan-sha256 = "1qsbmh7yxswj3wcjv6hvln67bkh87c1nn53ij44n89cj8l5apzss";
-        materialized = ./nix/materialized/hoogle;
-      };
-      hlint = {
-        version = "3.2";
-        plan-sha256 = "0qjj9a98j3wj3ar0zsmdqsydnnl6bj82xf0f087nrx3x0c6d7jzl";
-        materialized = ./nix/materialized/hlint;
-      };
-      lentil = {
-        version = "1.3.2.0";
-        plan-sha256 = "08vs2h03n5p9lkkmfx5anqgn2fbx2a3cs23p74bn2kl61fqhkb88";
-        materialized = ./nix/materialized/lentil;
-      };
-      stylish-haskell = {
-        version = "0.11.0.3";
-        plan-sha256 = "0sys32gfz5hxavwgvv55cc8fwfrw3n8244gvsz49vv7d845fkq66";
-        materialized = ./nix/materialized/stylish-haskell;
-      };
-      weeder = {
-        version = "1.0.9";
-        plan-sha256 = "0b2sv30jyh0xh3cqi31mc6nzv9p8496s8q2r7dpw7r95mbrlw0dx";
-        materialized = ./nix/materialized/weeder;
-      };
+      cabal.version                   = "3.2.0.0";
+      ghcid.version                   = "0.8.7";
+      haskell-language-server.version = "0.5.1";
+      hoogle.version                  = "5.0.18";
+      hlint.version                   = "3.2";
+      lentil.version                  = "1.3.2.0";
+      stylish-haskell.version         = "0.11.0.3";
+      weeder.version                  = "1.0.9";
     };
 
     CARDANO_NODE_CONFIGS = walletPackages.cardano-node.deployments;
