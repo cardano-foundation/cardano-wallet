@@ -54,7 +54,6 @@ import Cardano.Wallet.Primitive.Types
     , EpochLength (..)
     , EpochNo
     , FeePolicy (..)
-    , GenesisParameters (..)
     , Hash (..)
     , PoolId (..)
     , PoolOwner (..)
@@ -62,6 +61,7 @@ import Cardano.Wallet.Primitive.Types
     , ProtocolParameters (..)
     , SlotLength (..)
     , SlotNo (..)
+    , SlottingParameters (..)
     , StartTime (..)
     , TxParameters (..)
     )
@@ -485,15 +485,14 @@ genPercentage = unsafeMkPercentage . fromRational . toRational <$> genDouble
     genDouble = choose (0, 1)
 
 testTimeInterpreter :: Monad m => TimeInterpreter m
-testTimeInterpreter = pure . runIdentity . singleEraInterpreter gp
+testTimeInterpreter = pure . runIdentity . singleEraInterpreter startTime sp
   where
-    gp :: GenesisParameters
-    gp = GenesisParameters
-        { getGenesisBlockHash = genesisHash
-        , getGenesisBlockDate = StartTime $ posixSecondsToUTCTime 0
-        , getSlotLength = SlotLength 1
+    startTime = StartTime $ posixSecondsToUTCTime 0
+
+    sp :: SlottingParameters
+    sp = SlottingParameters
+        { getSlotLength = SlotLength 1
         , getEpochLength = EpochLength 50
-        , getEpochStability = Quantity 5
         , getActiveSlotCoefficient = ActiveSlotCoefficient 1
         }
 
@@ -511,9 +510,6 @@ genesisTxParameters = TxParameters
     { getFeePolicy = LinearFee (Quantity 14) (Quantity 42) (Quantity 5)
     , getTxMaxSize = Quantity 8192
     }
-
-genesisHash :: Hash "Genesis"
-genesisHash = Hash (B8.replicate 32 '0')
 
 {-------------------------------------------------------------------------------
                                    Unit tests

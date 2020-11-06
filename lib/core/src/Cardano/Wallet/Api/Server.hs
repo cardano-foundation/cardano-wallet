@@ -1816,10 +1816,11 @@ getNetworkParameters
     :: (Block, NetworkParameters, SyncTolerance)
     -> NetworkLayer IO t Block
     -> Handler ApiNetworkParameters
-getNetworkParameters (_block0, np, _st) nl = do
+getNetworkParameters (_block0, genesisNp, _st) nl = do
     pp <- liftIO $ NW.getProtocolParameters nl
-    let (apiNetworkParams, epochNoM) =
-            toApiNetworkParameters np { protocolParameters = pp }
+    sp <- liftIO $ ignorePastHorizon $ NW.getSlottingParametersForTip nl
+    let (apiNetworkParams, epochNoM) = toApiNetworkParameters genesisNp
+            { protocolParameters = pp, slottingParameters = sp }
     case epochNoM of
         Just epochNo -> do
             epochStartTime <-
@@ -1830,6 +1831,13 @@ getNetworkParameters (_block0, np, _st) nl = do
                     ApiEpochInfo (ApiT epochNo) epochStartTime }
         Nothing ->
             pure apiNetworkParams
+  where
+    -- A PastHorizonException should never happen here because the ledger is
+    -- being queried for slotting info about its own tip.  So we return the
+    -- genesis slotting parameters as a fallback.
+    ignorePastHorizon = handle pastHorizon
+    pastHorizon :: PastHorizonException -> IO W.SlottingParameters
+    pastHorizon _ = pure (slottingParameters genesisNp)
 
 getNetworkClock :: NtpClient -> Bool -> Handler ApiNetworkClock
 getNetworkClock client = liftIO . getNtpStatus client
@@ -2170,7 +2178,7 @@ registerWorker
 registerWorker ctx coworker wid =
     void $ Registry.register @_ @ctx re ctx wid config
   where
-    (_, NetworkParameters gp _, _) = ctx ^. genesisData
+    (_, NetworkParameters gp _ _, _) = ctx ^. genesisData
     re = ctx ^. workerRegistry
     df = ctx ^. dbFactory
     config = MkWorker

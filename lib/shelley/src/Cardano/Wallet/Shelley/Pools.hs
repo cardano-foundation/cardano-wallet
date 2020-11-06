@@ -87,6 +87,7 @@ import Cardano.Wallet.Primitive.Types
     , Settings (..)
     , SlotLength (..)
     , SlotNo (..)
+    , SlottingParameters (..)
     , StakePoolMetadata
     , StakePoolMetadataHash
     , getPoolRegistrationCertificate
@@ -682,10 +683,10 @@ monitorStakePools tr gp nl DBLayer{..} =
 -- | Worker thread that monitors pool metadata and syncs it to the database.
 monitorMetadata
     :: Tracer IO StakePoolLog
-    -> GenesisParameters
+    -> SlottingParameters
     -> DBLayer IO
     -> IO ()
-monitorMetadata tr gp DBLayer{..} = do
+monitorMetadata tr sp DBLayer{..} = do
     settings <- atomically readSettings
     manager <- newManager defaultManagerSettings
     let fetcher fetchStrategies = fetchFromRemote trFetch fetchStrategies manager
@@ -720,8 +721,8 @@ monitorMetadata tr gp DBLayer{..} = do
     blockFrequency = ceiling (1/f) * toMicroSecond slotLength
       where
         toMicroSecond = (`div` 1000000) . fromEnum
-        slotLength = unSlotLength $ getSlotLength gp
-        f = unActiveSlotCoefficient (getActiveSlotCoefficient gp)
+        slotLength = unSlotLength $ getSlotLength sp
+        f = unActiveSlotCoefficient (getActiveSlotCoefficient sp)
 
 data StakePoolLog
     = MsgFollow FollowLog

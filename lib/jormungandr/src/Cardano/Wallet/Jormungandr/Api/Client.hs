@@ -87,6 +87,7 @@ import Cardano.Wallet.Primitive.Types
     , ProtocolParameters (..)
     , SealedTx
     , SlotLength (..)
+    , SlottingParameters (..)
     , TxParameters (..)
     )
 import Control.Arrow
@@ -312,9 +313,11 @@ mkJormungandrClient mgr baseUrl = JormungandrClient
                         { genesisParameters = GenesisParameters
                             { getGenesisBlockHash = block0
                             , getGenesisBlockDate = block0T
-                            , getEpochLength = epLength
-                            , getSlotLength = SlotLength duration
                             , getEpochStability = stability
+                            }
+                        , slottingParameters = SlottingParameters
+                            { getEpochLength = epLength
+                            , getSlotLength = SlotLength duration
                             , getActiveSlotCoefficient = coeff
                             }
                         , protocolParameters = ProtocolParameters

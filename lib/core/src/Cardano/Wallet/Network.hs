@@ -20,6 +20,7 @@ module Cardano.Wallet.Network
     , FollowAction (..)
     , FollowExit (..)
     , GetStakeDistribution
+    , getSlottingParametersForTip
 
     -- * Errors
     , ErrNetworkUnavailable (..)
@@ -44,14 +45,16 @@ import Cardano.BM.Data.Severity
 import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.Wallet.Primitive.Slotting
-    ( TimeInterpreter )
+    ( TimeInterpreter, queryEpochLength, querySlotLength )
 import Cardano.Wallet.Primitive.Types
-    ( BlockHeader (..)
+    ( ActiveSlotCoefficient (..)
+    , BlockHeader (..)
     , ChimericAccount (..)
     , Hash (..)
     , ProtocolParameters
     , SealedTx
-    , SlotNo
+    , SlotNo (..)
+    , SlottingParameters (..)
     )
 import Control.Concurrent
     ( threadDelay )
@@ -247,6 +250,26 @@ defaultRetryPolicy =
 -------------------------------------------------------------------------------}
 
 type family GetStakeDistribution target (m :: * -> *) :: *
+
+-- | Use the HFC history interpreter to get the slot and epoch lengths current
+-- for the network tip.
+--
+-- This may throw a 'PastHorizonException' in some cases.
+getSlottingParametersForTip
+    :: Monad m
+    => NetworkLayer m target block
+    -> m SlottingParameters
+getSlottingParametersForTip nl = do
+    tip <- either (const 0) slotNo <$> runExceptT (currentNodeTip nl)
+
+    -- TODO: #2226 Query activeSlotCoeff from ledger.
+    -- This requires code changes in the shelley ledger.
+    let getActiveSlotCoeff = pure (ActiveSlotCoefficient 1.0)
+
+    SlottingParameters
+        <$> timeInterpreter nl (querySlotLength tip)
+        <*> timeInterpreter nl (queryEpochLength tip)
+        <*> getActiveSlotCoeff
 
 {-------------------------------------------------------------------------------
                                 Chain Sync

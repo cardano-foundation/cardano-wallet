@@ -24,11 +24,11 @@ import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
     , BlockHeader (..)
     , EpochLength (..)
-    , GenesisParameters (..)
     , Hash (..)
     , SlotLength (..)
     , SlotNo (..)
     , SlotNo (..)
+    , SlottingParameters (..)
     , StartTime (..)
     )
 import Cardano.Wallet.Unsafe
@@ -56,22 +56,19 @@ import Test.QuickCheck.Monadic
 
 spec :: Spec
 spec = do
-    let gp = GenesisParameters
+    let t0 = read "2019-11-09 16:43:02 UTC"
+    let sp = SlottingParameters
             { getEpochLength = EpochLength 21600
             , getSlotLength  = SlotLength 10
-            , getGenesisBlockDate = StartTime (read "2019-11-09 16:43:02 UTC")
-            , getGenesisBlockHash = Hash ""
             , getActiveSlotCoefficient = 1
-            , getEpochStability = Quantity 10
             }
     let st = SyncTolerance 10
 
 
-    let ti = (singleEraInterpreter gp :: TimeInterpreter Identity)
+    let ti = (singleEraInterpreter (StartTime t0) sp :: TimeInterpreter Identity)
     describe "syncProgress" $ do
         it "works for any two slots" $ property $ \tip (dt :: NominalDiffTime) ->
             let
-                StartTime t0 = getGenesisBlockDate gp
                 t = dt `addUTCTime` t0
             in
                 runIdentity (syncProgress st ti tip t) `deepseq` ()
@@ -172,7 +169,6 @@ spec = do
 
         it "syncProgress should never crash" $ withMaxSuccess 10000
             $ property $ \tip dt -> monadicIO $ do
-                let StartTime t0 = getGenesisBlockDate gp
                 let t = dt `addUTCTime` t0
                 let x = runIdentity $
                         syncProgress tolerance ti tip t

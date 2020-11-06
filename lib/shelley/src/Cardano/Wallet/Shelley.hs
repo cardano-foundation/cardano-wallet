@@ -103,10 +103,10 @@ import Cardano.Wallet.Primitive.Types
     ( Address
     , Block
     , ChimericAccount
-    , GenesisParameters (..)
     , NetworkParameters (..)
     , ProtocolParameters (..)
     , Settings (..)
+    , SlottingParameters (..)
     , WalletId
     )
 import Cardano.Wallet.Registry
@@ -264,7 +264,6 @@ serveWallet
     serveApp socket = withIOManager $ \io -> do
         withNetworkLayer networkTracer np socketPath vData $ \nl -> do
             withWalletNtpClient io ntpClientTracer $ \ntpClient -> do
-                let gp = genesisParameters np
                 let net = networkIdVal proxy
                 randomApi <- apiLayer (newTransactionLayer net) nl
                     Server.idleWorker
@@ -273,7 +272,7 @@ serveWallet
                 shelleyApi <- apiLayer (newTransactionLayer net) nl
                     (Server.manageRewardBalance proxy)
 
-                withPoolsMonitoring databaseDir gp nl $ \spl -> do
+                withPoolsMonitoring databaseDir np nl $ \spl -> do
                     startServer
                         proxy
                         socket
@@ -320,11 +319,11 @@ serveWallet
 
     withPoolsMonitoring
         :: Maybe FilePath
-        -> GenesisParameters
+        -> NetworkParameters
         -> NetworkLayer IO t (CardanoBlock StandardCrypto)
         -> (StakePoolLayer -> IO a)
         -> IO a
-    withPoolsMonitoring dir gp nl action =
+    withPoolsMonitoring dir (NetworkParameters gp sp _) nl action =
         Pool.withDecoratedDBLayer
                 poolDatabaseDecorator
                 poolsDbTracer
@@ -334,7 +333,7 @@ serveWallet
 
             forM_ settings $ atomically . putSettings
             void $ forkFinally (monitorStakePools tr gp nl db) onExit
-            spl <- newStakePoolLayer nl db $ forkFinally (monitorMetadata tr gp db) onExit
+            spl <- newStakePoolLayer nl db $ forkFinally (monitorMetadata tr sp db) onExit
             action spl
       where
         tr = contramap (MsgFromWorker mempty) poolsEngineTracer
@@ -358,20 +357,20 @@ serveWallet
             walletDbTracer
             (DefaultFieldValues
                 { defaultActiveSlotCoefficient =
-                    getActiveSlotCoefficient gp
+                    getActiveSlotCoefficient sp
                 , defaultDesiredNumberOfPool =
-                    desiredNumberOfStakePools (protocolParameters np)
+                    desiredNumberOfStakePools pp
                 , defaultMinimumUTxOValue =
-                    minimumUTxOvalue (protocolParameters np)
+                    minimumUTxOvalue pp
                 , defaultHardforkEpoch =
-                    hardforkEpochNo (protocolParameters np)
+                    hardforkEpochNo pp
                 }
             )
             (timeInterpreter nl)
             databaseDir
         Server.newApiLayer walletEngineTracer params nl' tl db coworker
       where
-        gp = genesisParameters np
+        NetworkParameters gp sp pp = np
         nl' = fromCardanoBlock gp <$> nl
 
     -- FIXME: reduce duplication (see Cardano.Wallet.Jormungandr)

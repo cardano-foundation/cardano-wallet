@@ -40,6 +40,7 @@ import Cardano.Wallet.Primitive.Types
     , SlotId (..)
     , SlotInEpoch (..)
     , SlotNo (..)
+    , SlottingParameters (..)
     , TxParameters (..)
     )
 import Control.Concurrent.MVar.Lifted
@@ -418,9 +419,11 @@ mockJormungandrClient logLine = JormungandrClient
             { genesisParameters = GenesisParameters
                 { getGenesisBlockHash = blockId
                 , getGenesisBlockDate = error "mock gp"
-                , getSlotLength = error "mock gp"
-                , getEpochLength = epochLength
                 , getEpochStability = Quantity (fromIntegral k)
+                }
+            , slottingParameters = SlottingParameters
+                { getSlotLength = error "mock gp"
+                , getEpochLength = epochLength
                 , getActiveSlotCoefficient = error "mock gp"
                 }
             , protocolParameters = ProtocolParameters

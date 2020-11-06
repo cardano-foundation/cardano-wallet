@@ -23,11 +23,13 @@ import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)
     , Payload (..)
+    , epochLengthValue
     , eventually
     , expectField
     , expectResponseCode
     , minUTxOValue
     , request
+    , slotLengthValue
     , verify
     )
 
@@ -45,8 +47,12 @@ spec = describe "SHELLEY_NETWORK" $ do
         -- in integration test setup it is 3
         let nOpt = 3
         verify r
-            [ expectField (#decentralizationLevel) (`shouldBe` d)
-            , expectField (#desiredPoolNumber) (`shouldBe` nOpt)
-            , expectField (#minimumUtxoValue) (`shouldBe` (Quantity minUTxOValue))
-            , expectField (#hardforkAt) (`shouldNotBe` Nothing)
+            [ expectField #decentralizationLevel (`shouldBe` d)
+            , expectField #desiredPoolNumber (`shouldBe` nOpt)
+            , expectField #minimumUtxoValue (`shouldBe` Quantity minUTxOValue)
+            , expectField #hardforkAt (`shouldNotBe` Nothing)
+            , expectField #slotLength (`shouldBe` Quantity slotLengthValue)
+            , expectField #epochLength (`shouldBe` Quantity epochLengthValue)
+            -- TODO: #2226 query activeSlotCoefficient from ledger
+            -- , expectField #activeSlotCoefficient (`shouldBe` Quantity 0.5)
             ]

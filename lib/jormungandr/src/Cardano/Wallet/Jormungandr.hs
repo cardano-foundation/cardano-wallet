@@ -135,6 +135,7 @@ import Cardano.Wallet.Primitive.Types
     , GenesisParameters (..)
     , NetworkParameters (..)
     , ProtocolParameters (..)
+    , SlottingParameters (..)
     , WalletId
     )
 import Cardano.Wallet.Registry
@@ -237,17 +238,17 @@ serveWallet Tracers{..} sTolerance databaseDir hostPref listen backend beforeMai
         Left e -> handleNetworkStartupError e
         Right (cp, (block0, np), nl) -> do
             let nPort = Port $ baseUrlPort $ _restApi cp
-            let gp = genesisParameters np
-            let byronTl = newTransactionLayer (getGenesisBlockHash gp)
-            let icarusTl = newTransactionLayer (getGenesisBlockHash gp)
-            let jormungandrTl = newTransactionLayer (getGenesisBlockHash gp)
+            let block0Hash = getGenesisBlockHash $ genesisParameters np
+            let byronTl = newTransactionLayer block0Hash
+            let icarusTl = newTransactionLayer block0Hash
+            let jormungandrTl = newTransactionLayer block0Hash
             let poolDBPath = Pool.defaultFilePath <$> databaseDir
             Pool.withDBLayer stakePoolDbTracer poolDBPath (timeInterpreter nl) $ \db ->
                 withSystemTempDirectory "stake-pool-metadata" $ \md ->
                 withIOManager $ \io ->
                 withWalletNtpClient io ntpClientTracer $ \ntpClient -> do
                     link $ ntpThread ntpClient
-                    poolApi <- stakePoolLayer (block0, gp) nl db md
+                    poolApi <- stakePoolLayer (block0, np) nl db md
                     byronApi <- apiLayer (block0, np) byronTl nl
                     icarusApi <- apiLayer (block0, np) icarusTl nl
                     jormungandrApi <- apiLayer (block0, np) jormungandrTl nl
@@ -296,7 +297,7 @@ serveWallet Tracers{..} sTolerance databaseDir hostPref listen backend beforeMai
             walletDbTracer
             (DefaultFieldValues
                 { defaultActiveSlotCoefficient =
-                    getActiveSlotCoefficient (genesisParameters np)
+                    getActiveSlotCoefficient (slottingParameters np)
                 , defaultDesiredNumberOfPool =
                     desiredNumberOfStakePools (protocolParameters np)
                 , defaultMinimumUTxOValue =
@@ -312,15 +313,15 @@ serveWallet Tracers{..} sTolerance databaseDir hostPref listen backend beforeMai
             Server.idleWorker
       where
         nl' = toWLBlock el <$> nl
-        el = getEpochLength $ genesisParameters np
+        el = getEpochLength $ slottingParameters np
 
     stakePoolLayer
-        :: (J.Block, GenesisParameters)
+        :: (J.Block, NetworkParameters)
         -> NetworkLayer IO t J.Block
         -> Pool.DBLayer IO
         -> FilePath
         -> IO (StakePoolLayer ErrListStakePools IO)
-    stakePoolLayer (block0, gp) nl db metadataDir = do
+    stakePoolLayer (block0, np) nl db metadataDir = do
         void $ forkFinally (monitorStakePools tr (toSPBlock el block0, k) nl' db) onExit
         getEpCst <- maybe (throwIO ErrStartupMissingIncentiveParameters) pure $
             J.rankingEpochConstants block0
@@ -329,8 +330,8 @@ serveWallet Tracers{..} sTolerance databaseDir hostPref listen backend beforeMai
         nl' = toSPBlock el <$> nl
         tr  = contramap (MsgFromWorker mempty) stakePoolEngineTracer
         onExit = defaultWorkerAfter stakePoolEngineTracer
-        k = getEpochStability gp
-        el = getEpochLength gp
+        k = getEpochStability $ genesisParameters np
+        el = getEpochLength $ slottingParameters np
         block0H = W.header $ toWLBlock el block0
 
     handleNetworkStartupError :: ErrStartup -> IO ExitCode

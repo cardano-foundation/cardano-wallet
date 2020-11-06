@@ -97,11 +97,11 @@ import Cardano.Wallet.Primitive.Types
     , Coin (..)
     , EpochLength (..)
     , EpochNo (..)
-    , GenesisParameters (..)
     , NetworkParameters (..)
     , PoolId (..)
     , ProtocolMagic (..)
     , SlotLength (..)
+    , SlottingParameters (..)
     , TxOut
     )
 import Cardano.Wallet.Shelley
@@ -524,7 +524,8 @@ withCluster tr severity poolConfigs dir logFile onByron onFork onClusterStart =
 
             traceWith tr MsgWaitingForFork
             updateVersion tr dir
-            waitForHardFork bftSocket (fst params) 1 *> onFork runningBftNode
+            let sp = slottingParameters $ fst params
+            waitForHardFork bftSocket sp 1 *> onFork runningBftNode
 
             setEnv "CARDANO_NODE_SOCKET_PATH" bftSocket
             (rawTx, faucetPrv) <- prepareKeyRegistration tr dir
@@ -582,13 +583,13 @@ withCluster tr severity poolConfigs dir logFile onByron onFork onClusterStart =
     rotate :: Ord a => [a] -> [(a, [a])]
     rotate = nub . fmap (\(x:xs) -> (x, sort xs)) . permutations
 
-waitForHardFork :: FilePath -> NetworkParameters -> Int -> IO ()
-waitForHardFork _socket np epoch = threadDelay (ceiling (1e6 * delay))
+waitForHardFork :: FilePath -> SlottingParameters -> Int -> IO ()
+waitForHardFork _socket sp epoch = threadDelay (ceiling (1e6 * delay))
   where
     delay :: NominalDiffTime
     delay = slotDur * fromIntegral epLen * fromIntegral epoch + fuzz
-    EpochLength epLen = getEpochLength (genesisParameters np)
-    SlotLength slotDur = getSlotLength (genesisParameters np)
+    EpochLength epLen = getEpochLength sp
+    SlotLength slotDur = getSlotLength sp
     -- add two seconds just to make sure.
     fuzz = 2
 

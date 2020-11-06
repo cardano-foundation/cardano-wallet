@@ -102,6 +102,7 @@ module Cardano.Wallet.Primitive.Types
     -- * Network Parameters
     , NetworkParameters (..)
     , GenesisParameters (..)
+    , SlottingParameters (..)
     , ProtocolParameters (..)
     , TxParameters (..)
     , ActiveSlotCoefficient (..)
@@ -1461,6 +1462,8 @@ computeStatistics getCoins btype utxos =
 data NetworkParameters = NetworkParameters
     { genesisParameters :: GenesisParameters
        -- ^ See 'GenesisParameters'.
+    , slottingParameters :: SlottingParameters
+       -- ^ See 'SlottingParameters'.
     , protocolParameters :: ProtocolParameters
        -- ^ See 'ProtocolParameters'.
     } deriving (Generic, Show, Eq)
@@ -1468,7 +1471,7 @@ data NetworkParameters = NetworkParameters
 instance NFData NetworkParameters
 
 instance Buildable NetworkParameters where
-    build (NetworkParameters gp pp) = build gp <> build pp
+    build (NetworkParameters gp sp pp) = build gp <> build sp <> build pp
 
 -- | Parameters defined by the __genesis block__.
 --
@@ -1481,15 +1484,8 @@ data GenesisParameters = GenesisParameters
         -- ^ Hash of the very first block
     , getGenesisBlockDate :: StartTime
         -- ^ Start time of the chain.
-    , getSlotLength :: SlotLength
-        -- ^ Length, in seconds, of a slot.
-    , getEpochLength :: EpochLength
-        -- ^ Number of slots in a single epoch.
     , getEpochStability :: Quantity "block" Word32
         -- ^ Length of the suffix of the chain considered unstable
-    , getActiveSlotCoefficient :: ActiveSlotCoefficient
-        -- ^ In Genesis/Praos, corresponds to the % of active slots
-        -- (i.e. slots for which someone can be elected as leader).
     } deriving (Generic, Show, Eq)
 
 instance NFData GenesisParameters
@@ -1499,19 +1495,36 @@ instance Buildable GenesisParameters where
         [ "Genesis block hash: " <> genesisF (getGenesisBlockHash gp)
         , "Genesis block date: " <> startTimeF (getGenesisBlockDate
             (gp :: GenesisParameters))
-        , "Slot length:        " <> slotLengthF (getSlotLength
-            (gp :: GenesisParameters))
-        , "Epoch length:       " <> epochLengthF (getEpochLength
-            (gp :: GenesisParameters))
         , "Epoch stability:    " <> epochStabilityF (getEpochStability gp)
-        , "Active slot coeff:  " <> build (gp ^. #getActiveSlotCoefficient)
         ]
       where
         genesisF = build . T.decodeUtf8 . convertToBase Base16 . getHash
         startTimeF (StartTime s) = build s
+        epochStabilityF (Quantity s) = build s
+
+data SlottingParameters = SlottingParameters
+    { getSlotLength :: SlotLength
+        -- ^ Length, in seconds, of a slot.
+    , getEpochLength :: EpochLength
+        -- ^ Number of slots in a single epoch.
+    , getActiveSlotCoefficient :: ActiveSlotCoefficient
+        -- ^ In Genesis/Praos, corresponds to the % of active slots
+        -- (i.e. slots for which someone can be elected as leader).
+    } deriving (Generic, Show, Eq)
+
+instance NFData SlottingParameters
+
+instance Buildable SlottingParameters where
+    build gp = blockListF' "" id
+        [ "Slot length:        " <> slotLengthF (getSlotLength
+            (gp :: SlottingParameters))
+        , "Epoch length:       " <> epochLengthF (getEpochLength
+            (gp :: SlottingParameters))
+        , "Active slot coeff:  " <> build (gp ^. #getActiveSlotCoefficient)
+        ]
+      where
         slotLengthF (SlotLength s) = build s
         epochLengthF (EpochLength s) = build s
-        epochStabilityF (Quantity s) = build s
 
 newtype ActiveSlotCoefficient
     = ActiveSlotCoefficient { unActiveSlotCoefficient :: Double }

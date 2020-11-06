@@ -27,6 +27,7 @@ import Cardano.Wallet.Primitive.Types
     , GenesisParameters (..)
     , NetworkParameters (..)
     , SlotNo
+    , SlottingParameters (..)
     )
 import Control.Concurrent
     ( forkIO, killThread )
@@ -124,7 +125,7 @@ spec = around setup $ do
             withNetworkLayer tr (UseRunning cp) $ \case
                 Right (_, (b0, np), nl) -> withDB "reference.sqlite" nl $ \db -> do
                     let gp = genesisParameters np
-                    let el = getEpochLength gp
+                    let el = getEpochLength $ slottingParameters np
                     let nl' = toSPBlock el <$> nl
                     let k = getEpochStability gp
                     let block0 = toSPBlock el b0

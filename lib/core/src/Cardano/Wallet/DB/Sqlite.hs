@@ -156,7 +156,7 @@ import Data.Text.Class
 import Data.Typeable
     ( Typeable )
 import Data.Word
-    ( Word16, Word32, Word64 )
+    ( Word16, Word32 )
 import Database.Persist.Class
     ( toPersistValue )
 import Database.Persist.Sql
@@ -451,12 +451,12 @@ migrateManually tr proxy defaultFieldValues =
         hardLowerBound = toText $ fromEnum $ minBound @(Index 'Hardened _)
         rndAccountIx   = DBField RndStateAddressAccountIndex
 
-    -- | Adds an 'active_slot_coeff' column to the 'checkpoint' table if
-    --   it is missing.
+    -- | Adds a placeholder 'active_slot_coeff' column to the 'checkpoint' table
+    --   if it is missing.
     --
     addActiveSlotCoefficientIfMissing :: Sqlite.Connection -> IO ()
     addActiveSlotCoefficientIfMissing conn =
-        addColumn_ conn True (DBField CheckpointActiveSlotCoeff) value
+        addColumn_ conn True (DBField CheckpointActiveSlotCoeffUnused) value
       where
         value = toText
             $ W.unActiveSlotCoefficient
@@ -1128,11 +1128,10 @@ mkCheckpointEntity wid wal =
         , checkpointBlockHeight = bh
         , checkpointGenesisHash = BlockId (coerce (gp ^. #getGenesisBlockHash))
         , checkpointGenesisStart = coerce (gp ^. #getGenesisBlockDate)
-        , checkpointSlotLength = coerceSlotLength $ gp ^. #getSlotLength
-        , checkpointEpochLength = coerce (gp ^. #getEpochLength)
         , checkpointEpochStability = coerce (gp ^. #getEpochStability)
-        , checkpointActiveSlotCoeff =
-            W.unActiveSlotCoefficient (gp ^. #getActiveSlotCoefficient)
+        , checkpointSlotLengthUnused = 0
+        , checkpointEpochLengthUnused = 0
+        , checkpointActiveSlotCoeffUnused = 0
         , checkpointFeePolicyUnused = ""
         , checkpointTxMaxSizeUnused = 0
         }
@@ -1141,9 +1140,6 @@ mkCheckpointEntity wid wal =
         | (W.TxIn input ix, W.TxOut addr coin) <- utxoMap
         ]
     utxoMap = Map.assocs (W.getUTxO (W.utxo wal))
-
-    coerceSlotLength :: W.SlotLength -> Word64
-    coerceSlotLength (W.SlotLength x) = toEnum (fromEnum x)
 
 -- note: TxIn records must already be sorted by order
 -- and TxOut records must already by sorted by index.
@@ -1164,11 +1160,11 @@ checkpointFromEntity cp utxo s =
         (BlockId genesisHash)
         genesisStart
         _feePolicyUnused
-        slotLength
-        epochLength
+        _slotLengthUnused
+        _epochLengthUnused
         _txMaxSizeUnused
         epochStability
-        activeSlotCoeff
+        _activeSlotCoeffUnused
         ) = cp
     header = (W.BlockHeader slot (Quantity bh) headerHash parentHeaderHash)
     utxo' = W.UTxO . Map.fromList $
@@ -1178,10 +1174,7 @@ checkpointFromEntity cp utxo s =
     gp = W.GenesisParameters
         { getGenesisBlockHash = coerce genesisHash
         , getGenesisBlockDate = W.StartTime genesisStart
-        , getSlotLength = W.SlotLength (toEnum (fromEnum slotLength))
-        , getEpochLength = W.EpochLength epochLength
         , getEpochStability = Quantity epochStability
-        , getActiveSlotCoefficient = W.ActiveSlotCoefficient activeSlotCoeff
         }
 
 mkTxHistory

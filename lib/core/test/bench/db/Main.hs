@@ -107,11 +107,11 @@ import Cardano.Wallet.Primitive.Types
     , Coin (..)
     , Direction (..)
     , EpochLength (..)
-    , GenesisParameters (..)
     , Hash (..)
     , Range (..)
     , SlotLength (..)
     , SlotNo (..)
+    , SlottingParameters (..)
     , SortOrder (..)
     , StartTime (..)
     , TransactionInfo
@@ -598,12 +598,11 @@ setupDB tr = do
     (ctx, db) <- newDBLayer tr defaultFieldValues (Just f) ti
     pure (f, ctx, db)
   where
-    ti = pure . runIdentity . singleEraInterpreter (GenesisParameters
-        { getGenesisBlockHash = Hash $ BS.replicate 32 0
-        , getGenesisBlockDate = StartTime $ posixSecondsToUTCTime 0
-        , getSlotLength = SlotLength 1
+    ti = pure . runIdentity . singleEraInterpreter
+        (StartTime $ posixSecondsToUTCTime 0)
+        (SlottingParameters
+        { getSlotLength = SlotLength 1
         , getEpochLength = EpochLength 21600
-        , getEpochStability = Quantity 108
         , getActiveSlotCoefficient = ActiveSlotCoefficient 1
         })
 

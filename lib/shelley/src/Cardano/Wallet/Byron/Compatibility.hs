@@ -152,7 +152,6 @@ type NodeVersionData =
 --
 -- Chain Parameters
 
-
 mainnetNetworkParameters :: W.NetworkParameters
 mainnetNetworkParameters = W.NetworkParameters
     { genesisParameters = W.GenesisParameters
@@ -160,12 +159,14 @@ mainnetNetworkParameters = W.NetworkParameters
             "5f20df933584822601f9e3f8c024eb5eb252fe8cefb24d1317dc3d432e940ebb"
         , getGenesisBlockDate =
             W.StartTime $ posixSecondsToUTCTime 1506203091
-        , getSlotLength =
+        , getEpochStability =
+            Quantity 2160
+        }
+    , slottingParameters = W.SlottingParameters
+        { getSlotLength =
             W.SlotLength 20
         , getEpochLength =
             W.EpochLength 21600
-        , getEpochStability =
-            Quantity 2160
         , getActiveSlotCoefficient =
             W.ActiveSlotCoefficient 1.0
         }
@@ -316,8 +317,8 @@ toGenTx =
     . BL.fromStrict
     . W.getSealedTx
 
-byronCodecConfig :: W.GenesisParameters -> CodecConfig ByronBlock
-byronCodecConfig W.GenesisParameters{getEpochLength} =
+byronCodecConfig :: W.SlottingParameters -> CodecConfig ByronBlock
+byronCodecConfig W.SlottingParameters{getEpochLength} =
     ByronCodecConfig (toEpochSlots getEpochLength)
 
 fromByronBlock :: W.GenesisParameters -> ByronBlock -> W.Block
@@ -489,12 +490,14 @@ fromGenesisData (genesisData, genesisHash) =
                 W.Hash . CC.hashToBytes . unGenesisHash $ genesisHash
             , getGenesisBlockDate =
                 W.StartTime . gdStartTime $ genesisData
-            , getSlotLength =
+            , getEpochStability =
+                Quantity . fromIntegral . unBlockCount . gdK $ genesisData
+            }
+        , slottingParameters = W.SlottingParameters
+            { getSlotLength =
                 fromSlotDuration . ppSlotDuration . gdProtocolParameters $ genesisData
             , getEpochLength =
                 fromBlockCount . gdK $ genesisData
-            , getEpochStability =
-                Quantity . fromIntegral . unBlockCount . gdK $ genesisData
             , getActiveSlotCoefficient =
                 W.ActiveSlotCoefficient 1.0
             }
