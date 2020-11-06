@@ -29,5 +29,8 @@ cabal.sandbox.config
 result*
 .stack-to-nix.cache
 
+### Direnv ###
+.envrc-local
+
 ### auto-generated faulty JSON golden tests ###
 *.faulty.json

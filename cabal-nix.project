@@ -14,11 +14,18 @@
 --
 -- The Haskell package set is automatically generated from stack.yaml.
 --
--- To build, run "nix-shell", then:
+-- To build, start "nix-shell", then run Cabal inside:
+--     nix-shell
+--     cabal build --project-file=cabal-nix.project all
 --
---     cabal build --project-file=cabal-nix.project --enable-tests --enable-benchmarks all
+-- To build with profiling enabled, use:
+--    nix-shell --arg profiling true
+--    cabal build --project-file=cabal-nix.project all --enable-profiling
 --
 --------------------------------------------------------------------------------
 
 packages:
   lib/*/*.cabal
+
+tests: True
+benchmarks: True

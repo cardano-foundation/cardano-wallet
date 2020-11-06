@@ -272,6 +272,14 @@ let
         doHaddock = false;
       }))
 
+      # Silence some warnings about "cleaning component source not
+      # supported for hpack package" which appear in nix-shell
+      {
+        packages.cardano-addresses.cabal-generator = lib.mkForce null;
+        packages.cardano-addresses-cli.cabal-generator = lib.mkForce null;
+        packages.cardano-transactions.cabal-generator = lib.mkForce null;
+      }
+
       # Allow installation of a newer version of Win32 than what is
       # included with GHC. The packages in this list are all those
       # installed with GHC, except for Win32.
