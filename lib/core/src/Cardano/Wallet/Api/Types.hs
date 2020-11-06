@@ -856,7 +856,7 @@ newtype ApiVerificationKey = ApiVerificationKey
 data ApiErrorCode
     = NoSuchWallet
     | NoSuchTransaction
-    | TransactionNotPending
+    | TransactionAlreadyInLedger
     | WalletAlreadyExists
     | NoRootKey
     | WrongEncryptionPassphrase

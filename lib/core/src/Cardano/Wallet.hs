@@ -146,7 +146,7 @@ module Cardano.Wallet
     , handleCannotCover
 
     -- ** Transaction
-    , forgetPendingTx
+    , forgetTx
     , listTransactions
     , getTransaction
     , submitExternalTx
@@ -155,7 +155,7 @@ module Cardano.Wallet
     , ErrMkTx (..)
     , ErrSubmitTx (..)
     , ErrSubmitExternalTx (..)
-    , ErrRemovePendingTx (..)
+    , ErrRemoveTx (..)
     , ErrPostTx (..)
     , ErrDecodeSignedTx (..)
     , ErrListTransactions (..)
@@ -198,7 +198,7 @@ import Cardano.Slotting.Slot
 import Cardano.Wallet.DB
     ( DBLayer (..)
     , ErrNoSuchWallet (..)
-    , ErrRemovePendingTx (..)
+    , ErrRemoveTx (..)
     , ErrWalletAlreadyExists (..)
     , PrimaryKey (..)
     , SparseCheckpointsConfig (..)
@@ -1945,18 +1945,22 @@ submitExternalTx ctx bytes = do
     nw = ctx ^. networkLayer @t
     tl = ctx ^. transactionLayer @t @k
 
--- | Forget pending transaction. This happens at the request of the user and
--- will remove the transaction from the history.
-forgetPendingTx
+-- | Remove a pending or expired transaction from the transaction history. This
+-- happens at the request of the user. If the transaction is already on chain,
+-- or is missing from the transaction history, an error will be returned.
+--
+-- If a 'Pending' transaction is removed, but later appears in a block, it will
+-- be added back to the transaction history.
+forgetTx
     :: forall ctx s k.
         ( HasDBLayer s k ctx
         )
     => ctx
     -> WalletId
     -> Hash "Tx"
-    -> ExceptT ErrRemovePendingTx IO ()
-forgetPendingTx ctx wid tid = db & \DBLayer{..} -> do
-    mapExceptT atomically $ removePendingTx (PrimaryKey wid) tid
+    -> ExceptT ErrRemoveTx IO ()
+forgetTx ctx wid tid = db & \DBLayer{..} -> do
+    mapExceptT atomically $ removePendingOrExpiredTx (PrimaryKey wid) tid
   where
     db = ctx ^. dbLayer @s @k
 

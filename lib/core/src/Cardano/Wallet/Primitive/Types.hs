@@ -947,6 +947,9 @@ instance Buildable TxOut where
 instance Buildable (TxIn, TxOut) where
     build (txin, txout) = build txin <> " ==> " <> build txout
 
+-- | Additional information about a transaction, derived from the transaction
+-- and ledger state. This should not be confused with 'TxMetadata' which is
+-- application-specific data included with the transaction.
 data TxMeta = TxMeta
     { status :: !TxStatus
     , direction :: !Direction
@@ -970,8 +973,11 @@ instance Buildable TxMeta where
 
 data TxStatus
     = Pending
+        -- ^ Created, but not yet in a block.
     | InLedger
+        -- ^ Has been found in a block.
     | Expired
+        -- ^ Time to live (TTL) has passed.
     deriving (Show, Eq, Ord, Bounded, Enum, Generic)
 
 instance NFData TxStatus

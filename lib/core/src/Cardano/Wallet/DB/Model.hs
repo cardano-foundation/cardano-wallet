@@ -38,7 +38,6 @@ module Cardano.Wallet.DB.Model
     -- * Model Operation Types
     , ModelOp
     , Err (..)
-    , ErrErasePendingTx (..)
     -- * Model database functions
     , mCleanDB
     , mInitializeWallet
@@ -55,7 +54,7 @@ module Cardano.Wallet.DB.Model
     , mPutTxHistory
     , mReadTxHistory
     , mUpdatePendingTxForExpiry
-    , mRemovePendingTx
+    , mRemovePendingOrExpiredTx
     , mPutPrivateKey
     , mReadPrivateKey
     , mPutProtocolParameters
@@ -183,13 +182,8 @@ type ModelOp wid s xprv a =
 data Err wid
     = NoSuchWallet wid
     | WalletAlreadyExists wid
-    | CannotRemovePendingTx (ErrErasePendingTx wid)
-    deriving (Show, Eq, Functor, Foldable, Traversable)
-
-data ErrErasePendingTx wid
-    = ErrErasePendingTxNoSuchWallet wid
-    | ErrErasePendingTxNoTx (Hash "Tx")
-    | ErrErasePendingTxNoPendingTx (Hash "Tx")
+    | NoSuchTx wid (Hash "Tx")
+    | CantRemoveTxInLedger wid (Hash "Tx")
     deriving (Show, Eq, Functor, Foldable, Traversable)
 
 {-------------------------------------------------------------------------------
@@ -272,20 +266,15 @@ mUpdatePendingTxForExpiry wid currentTip = alterModel wid $ \wal ->
         _ ->
             txMeta
 
-mRemovePendingTx :: Ord wid => wid -> (Hash "Tx") -> ModelOp wid s xprv ()
-mRemovePendingTx wid tid db@(Database wallets txs) = case Map.lookup wid wallets of
-    Nothing ->
-        ( Left (CannotRemovePendingTx (ErrErasePendingTxNoSuchWallet wid)), db )
-    Just wal -> case Map.lookup tid (txHistory wal) of
+mRemovePendingOrExpiredTx :: Ord wid => wid -> Hash "Tx" -> ModelOp wid s xprv ()
+mRemovePendingOrExpiredTx wid tid = alterModelErr wid $ \wal ->
+    case Map.lookup tid (txHistory wal) of
         Nothing ->
-            ( Left (CannotRemovePendingTx (ErrErasePendingTxNoTx tid)), db )
-        Just txMeta ->
-            if (status :: TxMeta -> TxStatus) txMeta == Pending then
-                ( Right (), Database updateWallets txs )
-            else ( Left (CannotRemovePendingTx (ErrErasePendingTxNoPendingTx tid)), db )
-    where
-        updateWallets = Map.adjust changeTxMeta wid wallets
-        changeTxMeta meta = meta { txHistory = Map.delete tid (txHistory meta) }
+            ( Left (NoSuchTx wid tid), wal )
+        Just txMeta | txMeta ^. #status == InLedger ->
+            ( Left (CantRemoveTxInLedger wid tid), wal )
+        Just _ ->
+            ( Right (), wal { txHistory = Map.delete tid (txHistory wal) } )
 
 mRollbackTo :: Ord wid => wid -> SlotNo -> ModelOp wid s xprv SlotNo
 mRollbackTo wid requested db@(Database wallets txs) = case Map.lookup wid wallets of
@@ -508,14 +497,29 @@ mReadDelegationRewardBalance wid db@(Database wallets _) =
                              Model function helpers
 -------------------------------------------------------------------------------}
 
+-- | Create a 'ModelOp' which mutates the database for a certain wallet id.
+--
+-- The given function returns a value and a modified wallet database.
 alterModel
     :: Ord wid
     => wid
     -> (WalletDatabase s xprv -> (a, WalletDatabase s xprv))
     -> ModelOp wid s xprv a
-alterModel wid f db@Database{wallets,txs} = case f <$> Map.lookup wid wallets of
-    Just (a, wal) -> (Right a, Database (Map.insert wid wal wallets) txs)
-    Nothing -> (Left (NoSuchWallet wid), db)
+alterModel wid f = alterModelErr wid (first Right . f)
+
+-- | Create a 'ModelOp' which mutates the database for a certain wallet id.
+--
+-- The given function returns a either a value or error, and a modified wallet
+-- database.
+alterModelErr
+    :: Ord wid
+    => wid
+    -> (WalletDatabase s xprv -> (Either (Err wid) a, WalletDatabase s xprv))
+    -> ModelOp wid s xprv a
+alterModelErr wid f db@Database{wallets,txs} =
+    case f <$> Map.lookup wid wallets of
+        Just (a, wal) -> (a, Database (Map.insert wid wal wallets) txs)
+        Nothing -> (Left (NoSuchWallet wid), db)
 
 -- | Apply optional filters on slotNo and sort using the default sort order
 -- (first time/slotNo, then by TxId) to a 'TxHistory'.

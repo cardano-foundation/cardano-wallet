@@ -103,7 +103,7 @@ import Test.Integration.Framework.DSL
     )
 import Test.Integration.Framework.TestData
     ( arabicWalletName
-    , errMsg403NoPendingAnymore
+    , errMsg403AlreadyInLedger
     , errMsg403WrongPass
     , errMsg404CannotFindTx
     , errMsg404NoWallet
@@ -749,7 +749,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
      -- Try Forget transaction once it's no longer pending
         (Exit c2, Stdout out2, Stderr err2) <-
             deleteTransactionViaCLI @t ctx wSrcId txId
-        err2 `shouldContain` errMsg403NoPendingAnymore (T.pack txId)
+        err2 `shouldContain` errMsg403AlreadyInLedger (T.pack txId)
         out2 `shouldBe` ""
         c2 `shouldBe` ExitFailure 1
 

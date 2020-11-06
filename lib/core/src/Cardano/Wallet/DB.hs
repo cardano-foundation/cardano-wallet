@@ -27,7 +27,7 @@ module Cardano.Wallet.DB
     , gapSize
 
       -- * Errors
-    , ErrRemovePendingTx (..)
+    , ErrRemoveTx (..)
     , ErrNoSuchWallet(..)
     , ErrWalletAlreadyExists(..)
     ) where
@@ -252,10 +252,10 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         -- ^ Removes any expired transactions from the pending set and marks
         -- their status as expired.
 
-    , removePendingTx
+    , removePendingOrExpiredTx
         :: PrimaryKey WalletId
         -> Hash "Tx"
-        -> ExceptT ErrRemovePendingTx stm ()
+        -> ExceptT ErrRemoveTx stm ()
         -- ^ Manually remove a pending transaction.
 
     , putPrivateKey
@@ -310,11 +310,11 @@ newtype ErrNoSuchWallet
     = ErrNoSuchWallet WalletId -- Wallet is gone or doesn't exist yet
     deriving (Eq, Show)
 
--- | Can't perform removing pending transaction
-data ErrRemovePendingTx
-    = ErrRemovePendingTxNoSuchWallet ErrNoSuchWallet
-    | ErrRemovePendingTxNoSuchTransaction (Hash "Tx")
-    | ErrRemovePendingTxTransactionNoMorePending (Hash "Tx")
+-- | Can't remove pending or expired transaction.
+data ErrRemoveTx
+    = ErrRemoveTxNoSuchWallet ErrNoSuchWallet
+    | ErrRemoveTxNoSuchTransaction (Hash "Tx")
+    | ErrRemoveTxAlreadyInLedger (Hash "Tx")
     deriving (Eq, Show)
 
 -- | Can't perform given operation because there's no transaction

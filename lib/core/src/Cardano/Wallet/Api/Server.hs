@@ -125,7 +125,7 @@ import Cardano.Wallet
     , ErrPostTx (..)
     , ErrQuitStakePool (..)
     , ErrReadChimericAccount (..)
-    , ErrRemovePendingTx (..)
+    , ErrRemoveTx (..)
     , ErrSelectCoinsExternal (..)
     , ErrSelectForDelegation (..)
     , ErrSelectForMigration (..)
@@ -1405,7 +1405,7 @@ deleteTransaction
     -> Handler NoContent
 deleteTransaction ctx (ApiT wid) (ApiTxId (ApiT (tid))) = do
     withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
-        W.forgetPendingTx wrk wid tid
+        W.forgetTx wrk wid tid
     return NoContent
 
 listTransactions
@@ -2518,18 +2518,18 @@ instance LiftHandler ErrSubmitExternalTx where
             , errReasonPhrase = errReasonPhrase err400
             }
 
-instance LiftHandler ErrRemovePendingTx where
+instance LiftHandler ErrRemoveTx where
     handler = \case
-        ErrRemovePendingTxNoSuchWallet wid -> handler wid
-        ErrRemovePendingTxNoSuchTransaction tid ->
+        ErrRemoveTxNoSuchWallet wid -> handler wid
+        ErrRemoveTxNoSuchTransaction tid ->
             apiError err404 NoSuchTransaction $ mconcat
                 [ "I couldn't find a transaction with the given id: "
                 , toText tid
                 ]
-        ErrRemovePendingTxTransactionNoMorePending tid ->
-            apiError err403 TransactionNotPending $ mconcat
+        ErrRemoveTxAlreadyInLedger tid ->
+            apiError err403 TransactionAlreadyInLedger $ mconcat
                 [ "The transaction with id: ", toText tid,
-                  " cannot be forgotten as it is not pending anymore."
+                  " cannot be forgotten as it is already in the ledger."
                 ]
 
 instance LiftHandler ErrPostTx where

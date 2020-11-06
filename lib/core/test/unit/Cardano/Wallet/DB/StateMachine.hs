@@ -55,7 +55,7 @@ import Cardano.Address.Derivation
 import Cardano.Wallet.DB
     ( DBLayer (..)
     , ErrNoSuchWallet (..)
-    , ErrRemovePendingTx (..)
+    , ErrRemoveTx (..)
     , ErrWalletAlreadyExists (..)
     , PrimaryKey (..)
     , cleanDB
@@ -65,7 +65,6 @@ import Cardano.Wallet.DB.Arbitrary
 import Cardano.Wallet.DB.Model
     ( Database
     , Err (..)
-    , ErrErasePendingTx (..)
     , TxHistory
     , WalletDatabase (..)
     , emptyDatabase
@@ -87,7 +86,7 @@ import Cardano.Wallet.DB.Model
     , mReadProtocolParameters
     , mReadTxHistory
     , mReadWalletMeta
-    , mRemovePendingTx
+    , mRemovePendingOrExpiredTx
     , mRemoveWallet
     , mRollbackTo
     , mUpdatePendingTxForExpiry
@@ -395,7 +394,7 @@ runMock = \case
     RollbackTo wid sl ->
         first (Resp . fmap Point) . mRollbackTo wid sl
     RemovePendingTx wid tid ->
-        first (Resp . fmap Unit) . mRemovePendingTx wid tid
+        first (Resp . fmap Unit) . mRemovePendingOrExpiredTx wid tid
     UpdatePendingTxForExpiry wid sl ->
         first (Resp . fmap Unit) . mUpdatePendingTxForExpiry wid sl
   where
@@ -448,8 +447,8 @@ runIO db@DBLayer{..} = fmap Resp . go
             mapExceptT atomically $ putTxHistory (PrimaryKey wid) txs
         ReadTxHistory wid minWith order range status -> Right . TxHistory <$>
             atomically (readTxHistory (PrimaryKey wid) minWith order range status)
-        RemovePendingTx wid tid -> catchCannotRemovePendingTx Unit $
-            mapExceptT atomically $ removePendingTx (PrimaryKey wid) tid
+        RemovePendingTx wid tid -> (catchCannotRemovePendingTx wid) Unit $
+            mapExceptT atomically $ removePendingOrExpiredTx (PrimaryKey wid) tid
         UpdatePendingTxForExpiry wid sl -> catchNoSuchWallet Unit $
             mapExceptT atomically $ updatePendingTxForExpiry (PrimaryKey wid) sl
         PutPrivateKey wid pk -> catchNoSuchWallet Unit $
@@ -471,8 +470,8 @@ runIO db@DBLayer{..} = fmap Resp . go
         fmap (bimap errWalletAlreadyExists f) . runExceptT
     catchNoSuchWallet f =
         fmap (bimap errNoSuchWallet f) . runExceptT
-    catchCannotRemovePendingTx f =
-        fmap (bimap errCannotRemovePendingTx f) . runExceptT
+    catchCannotRemovePendingTx wid f =
+        fmap (bimap (errCannotRemovePendingTx wid) f) . runExceptT
 
     errNoSuchWallet :: ErrNoSuchWallet -> Err WalletId
     errNoSuchWallet (ErrNoSuchWallet wid) = NoSuchWallet wid
@@ -480,13 +479,13 @@ runIO db@DBLayer{..} = fmap Resp . go
     errWalletAlreadyExists :: ErrWalletAlreadyExists -> Err WalletId
     errWalletAlreadyExists (ErrWalletAlreadyExists wid) = WalletAlreadyExists wid
 
-    errCannotRemovePendingTx :: ErrRemovePendingTx -> Err WalletId
-    errCannotRemovePendingTx (ErrRemovePendingTxNoSuchWallet (ErrNoSuchWallet wid)) =
-        CannotRemovePendingTx (ErrErasePendingTxNoSuchWallet wid)
-    errCannotRemovePendingTx (ErrRemovePendingTxNoSuchTransaction tid) =
-        CannotRemovePendingTx (ErrErasePendingTxNoTx tid)
-    errCannotRemovePendingTx (ErrRemovePendingTxTransactionNoMorePending tid) =
-        CannotRemovePendingTx (ErrErasePendingTxNoPendingTx tid)
+    errCannotRemovePendingTx :: WalletId -> ErrRemoveTx -> Err WalletId
+    errCannotRemovePendingTx _ (ErrRemoveTxNoSuchWallet e) =
+        errNoSuchWallet e
+    errCannotRemovePendingTx wid (ErrRemoveTxNoSuchTransaction tid) =
+        NoSuchTx wid tid
+    errCannotRemovePendingTx wid (ErrRemoveTxAlreadyInLedger tid) =
+        CantRemoveTxInLedger wid tid
 
     unPrimaryKey :: PrimaryKey key -> key
     unPrimaryKey (PrimaryKey key) = key

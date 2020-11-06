@@ -44,7 +44,7 @@ module Test.Integration.Framework.TestData
     , errMsg403NotEnoughMoney
     , errMsg403NotEnoughMoney_
     , errMsg403WrongPass
-    , errMsg403NoPendingAnymore
+    , errMsg403AlreadyInLedger
     , errMsg404NoSuchPool
     , errMsg403PoolAlreadyJoined
     , errMsg403NotDelegating
@@ -351,9 +351,9 @@ errMsg404NoEndpoint = "I couldn't find the requested endpoint. If the endpoint\
     \ contains path parameters, please ensure they are well-formed, otherwise I\
     \ won't be able to route them correctly."
 
-errMsg403NoPendingAnymore :: Text -> String
-errMsg403NoPendingAnymore tid = "The transaction with id: " ++ unpack tid ++
-    " cannot be forgotten as it is not pending anymore."
+errMsg403AlreadyInLedger :: Text -> String
+errMsg403AlreadyInLedger tid = "The transaction with id: " ++ unpack tid ++
+    " cannot be forgotten as it is already in the ledger."
 
 errMsg404NoSuchPool :: Text -> String
 errMsg404NoSuchPool pid = "I couldn't find any stake pool with the given id: "
