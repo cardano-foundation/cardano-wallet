@@ -54,10 +54,6 @@ jobs:
     - npm install --no-save axios@0.19.2 lodash@4.17.20
     - node --tls-min-v1.2 scripts/travis-download-builds.js
 
-    ############################
-    # cardano-node
-    ############################
-
     # Unpack and rename stuff for the Linux archive
     - "tar xzf cardano-wallet-20*-linux64.tar.gz"
     - "mv cardano-wallet-20*/ cardano-wallet-linux64"
@@ -82,36 +78,6 @@ jobs:
     - "zip -r cardano-wallet-$TRAVIS_TAG-win64.zip cardano-wallet-win64"
     - "rm -rf cardano-wallet-win64 cardano-wallet-win64.zip"
 
-    ############################
-    # jörmungandr
-    ############################
-
-    # Unpack and rename stuff for the Linux archive
-    - "tar xzf cardano-wallet-jormungandr-*-linux64.tar.gz"
-    - "mv cardano-wallet-jormungandr-*/ cardano-wallet-jormungandr-linux64"
-    - "mv cardano-wallet-jormungandr-linux64/cardano-wallet-jormungandr cardano-wallet-jormungandr-linux64/cardano-wallet"
-    - "./cardano-wallet-jormungandr-linux64/cardano-wallet --bash-completion-script cardano-wallet > auto-completion/bash/cardano-wallet.sh"
-    - "./cardano-wallet-jormungandr-linux64/cardano-wallet --zsh-completion-script  cardano-wallet > auto-completion/zsh/_cardano-wallet"
-    - "./cardano-wallet-jormungandr-linux64/cardano-wallet --fish-completion-script cardano-wallet > auto-completion/fish/cardano-wallet.fish"
-    - "cp -r auto-completion cardano-wallet-jormungandr-linux64"
-    - "./cardano-wallet-jormungandr-linux64/cardano-wallet version | grep -q $TRAVIS_COMMIT"
-    - "tar czf cardano-wallet-itn-$TRAVIS_TAG-linux64.tar.gz cardano-wallet-jormungandr-linux64"
-    - "rm -rf cardano-wallet-jormungandr-linux64 cardano-wallet-jormungandr-*-linux64.tar.gz"
-
-    # Unpack and rename stuff for the MacOS archive
-    - "tar xzf cardano-wallet-jormungandr-*-macos64.tar.gz"
-    - "mv cardano-wallet-jormungandr-*/ cardano-wallet-jormungandr-macos64"
-    - "mv cardano-wallet-jormungandr-macos64/cardano-wallet-jormungandr cardano-wallet-jormungandr-macos64/cardano-wallet"
-    - "cp -r auto-completion cardano-wallet-jormungandr-macos64"
-    - "tar czf cardano-wallet-itn-$TRAVIS_TAG-macos64.tar.gz cardano-wallet-jormungandr-macos64"
-    - "rm -rf cardano-wallet-jormungandr-macos64 cardano-wallet-jormungandr-*-macos64.tar.gz"
-
-    # Unpack and rename stuff for the Windows archive
-    - "unzip -d cardano-wallet-jormungandr-win64 cardano-wallet-jormungandr-*-win64.zip"
-    - "mv cardano-wallet-jormungandr-win64/cardano-wallet-jormungandr.exe cardano-wallet-jormungandr-win64/cardano-wallet.exe"
-    - "zip -r cardano-wallet-itn-$TRAVIS_TAG-win64.zip cardano-wallet-jormungandr-win64"
-    - "rm -rf cardano-wallet-jormungandr-win64 cardano-wallet-jormungandr-*-win64.zip"
-
     # Deploy documentation snapshot
     - mkdir -p api/$TRAVIS_TAG
     - cp -Rv specifications/api/* api/$TRAVIS_TAG
@@ -126,15 +92,9 @@ jobs:
       draft: true # Allow editing the release before publishing it officially on GitHub
       skip_cleanup: true # Make sure that files from the previous stages aren't cleaned up
       file:
-        # cardano-node
         - cardano-wallet-$TRAVIS_TAG-linux64.tar.gz
         - cardano-wallet-$TRAVIS_TAG-macos64.tar.gz
         - cardano-wallet-$TRAVIS_TAG-win64.zip
-
-        # Jörmungandr / ITN
-        - cardano-wallet-itn-$TRAVIS_TAG-linux64.tar.gz
-        - cardano-wallet-itn-$TRAVIS_TAG-macos64.tar.gz
-        - cardano-wallet-itn-$TRAVIS_TAG-win64.zip
       on:
         repo: input-output-hk/cardano-wallet
         branch: master

@@ -7,7 +7,6 @@ cd `dirname $0`/..
 
 echo "--- Build"
 nix-build -A benchmarks.cardano-wallet.latency -o bench-latency-shelley
-nix-build -A benchmarks.cardano-wallet-jormungandr.latency -o bench-latency-jormungandr
 
 # Note: the tracing will not work if program output is piped
 # to another process (e.g. "tee").
@@ -16,7 +15,3 @@ nix-build -A benchmarks.cardano-wallet-jormungandr.latency -o bench-latency-jorm
 echo "+++ Run benchmark - shelley"
 
 ( cd lib/shelley && ../../bench-latency-shelley/bin/latency )
-
-echo "+++ Run benchmark - jormungandr"
-
-( cd lib/jormungandr && ../../bench-latency-jormungandr/bin/latency )

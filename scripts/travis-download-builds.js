@@ -159,9 +159,6 @@ function getDownloadSpec(jobs) {
 
 download(".", getDownloadSpec([
   "cardano-wallet-linux64",
-  "cardano-wallet-jormungandr-linux64",
   "cardano-wallet-win64",
-  "cardano-wallet-jormungandr-win64",
   "cardano-wallet-macos64",
-  "cardano-wallet-jormungandr-macos64",
 ]));
