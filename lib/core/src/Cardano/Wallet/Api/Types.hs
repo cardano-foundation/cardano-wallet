@@ -193,7 +193,6 @@ import Cardano.Wallet.Primitive.Types
     , EpochLength (..)
     , EpochNo (..)
     , GenesisParameters (..)
-    , Hash (..)
     , HistogramBar (..)
     , NetworkParameters (..)
     , PoolId (..)
@@ -217,6 +216,8 @@ import Cardano.Wallet.Primitive.Types
     , txMetadataIsNull
     , unsafeEpochNo
     )
+import Cardano.Wallet.Primitive.Types.Hash
+    ( Hash (..) )
 import Cardano.Wallet.Transaction
     ( DelegationAction (..) )
 import Codec.Binary.Bech32

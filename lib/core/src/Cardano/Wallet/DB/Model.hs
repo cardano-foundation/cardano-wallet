@@ -76,7 +76,6 @@ import Cardano.Wallet.Primitive.Types
     , DelegationCertificate (..)
     , Direction (..)
     , EpochNo (..)
-    , Hash
     , PoolId
     , ProtocolParameters (..)
     , Range (..)
@@ -95,6 +94,8 @@ import Cardano.Wallet.Primitive.Types
     , dlgCertPoolId
     , isWithinRange
     )
+import Cardano.Wallet.Primitive.Types.Hash
+    ( Hash (..) )
 import Control.Monad
     ( when )
 import Data.Bifunctor

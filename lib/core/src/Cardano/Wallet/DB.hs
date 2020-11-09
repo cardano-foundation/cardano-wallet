@@ -43,7 +43,6 @@ import Cardano.Wallet.Primitive.Model
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader
     , DelegationCertificate
-    , Hash
     , ProtocolParameters
     , Range (..)
     , SlotNo (..)
@@ -55,6 +54,8 @@ import Cardano.Wallet.Primitive.Types
     , WalletId
     , WalletMetadata
     )
+import Cardano.Wallet.Primitive.Types.Hash
+    ( Hash )
 import Control.Monad.Fail
     ( MonadFail )
 import Control.Monad.IO.Class

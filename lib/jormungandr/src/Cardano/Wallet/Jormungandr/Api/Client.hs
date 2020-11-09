@@ -82,7 +82,6 @@ import Cardano.Wallet.Primitive.Types
     , EpochLength (..)
     , EpochNo (..)
     , GenesisParameters (..)
-    , Hash (..)
     , NetworkParameters (..)
     , ProtocolParameters (..)
     , SealedTx
@@ -90,6 +89,8 @@ import Cardano.Wallet.Primitive.Types
     , SlottingParameters (..)
     , TxParameters (..)
     )
+import Cardano.Wallet.Primitive.Types.Hash
+    ( Hash (..) )
 import Control.Arrow
     ( left )
 import Control.Exception

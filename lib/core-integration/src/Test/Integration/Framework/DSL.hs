@@ -239,7 +239,6 @@ import Cardano.Wallet.Primitive.Types
     , Coin (..)
     , EpochLength (..)
     , EpochNo
-    , Hash (..)
     , HistogramBar (..)
     , PoolId (..)
     , SlotLength (..)
@@ -254,6 +253,8 @@ import Cardano.Wallet.Primitive.Types
     , computeUtxoStatistics
     , log10
     )
+import Cardano.Wallet.Primitive.Types.Hash
+    ( Hash (..) )
 import Control.Arrow
     ( second )
 import Control.Concurrent

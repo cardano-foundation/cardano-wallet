@@ -65,7 +65,6 @@ import Cardano.Wallet.Primitive.Types
     , EpochLength (..)
     , EpochNo (..)
     , FeePolicy (..)
-    , Hash (..)
     , HistogramBar (..)
     , PoolId (..)
     , PoolOwner (..)
@@ -116,6 +115,8 @@ import Cardano.Wallet.Primitive.Types
     , walletNameMinLength
     , wholeRange
     )
+import Cardano.Wallet.Primitive.Types.Hash
+    ( Hash (..) )
 import Cardano.Wallet.Unsafe
     ( someDummyMnemonic, unsafeFromHex )
 import Control.Exception

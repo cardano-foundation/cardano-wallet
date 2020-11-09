@@ -48,9 +48,10 @@ import Cardano.Wallet.Primitive.Types
     , ChimericAccount (..)
     , DecentralizationLevel (..)
     , EpochLength (..)
-    , Hash (..)
     , SlotId (..)
     )
+import Cardano.Wallet.Primitive.Types.Hash
+    ( Hash (..) )
 import Cardano.Wallet.Shelley.Compatibility
     ( CardanoBlock
     , StandardCrypto

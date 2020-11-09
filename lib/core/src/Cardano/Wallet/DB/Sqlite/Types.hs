@@ -43,7 +43,6 @@ import Cardano.Wallet.Primitive.Types
     , Direction (..)
     , EpochNo (..)
     , FeePolicy
-    , Hash (..)
     , PoolId
     , PoolMetadataSource (..)
     , PoolOwner (..)
@@ -59,6 +58,8 @@ import Cardano.Wallet.Primitive.Types
     , unsafeEpochNo
     , unsafeToPMS
     )
+import Cardano.Wallet.Primitive.Types.Hash
+    ( Hash (..) )
 import Control.Arrow
     ( left )
 import Control.Monad

@@ -309,7 +309,6 @@ import Cardano.Wallet.Primitive.Types
     , Direction (..)
     , FeePolicy (LinearFee)
     , GenesisParameters (..)
-    , Hash (..)
     , IsDelegatingTo (..)
     , NetworkParameters (..)
     , PassphraseScheme (..)
@@ -346,6 +345,8 @@ import Cardano.Wallet.Primitive.Types
     , wholeRange
     , withdrawals
     )
+import Cardano.Wallet.Primitive.Types.Hash
+    ( Hash (..) )
 import Cardano.Wallet.Transaction
     ( DelegationAction (..)
     , ErrDecodeSignedTx (..)

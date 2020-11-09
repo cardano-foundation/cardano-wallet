@@ -45,7 +45,6 @@ import Cardano.Wallet.Primitive.Types
     , Direction (..)
     , Dom (..)
     , EpochLength (..)
-    , Hash (..)
     , ShowFmt (..)
     , SlotId (..)
     , SlotNo (..)
@@ -61,6 +60,8 @@ import Cardano.Wallet.Primitive.Types
     , txId
     , txIns
     )
+import Cardano.Wallet.Primitive.Types.Hash
+    ( Hash (..) )
 import Control.DeepSeq
     ( NFData (..) )
 import Control.Monad

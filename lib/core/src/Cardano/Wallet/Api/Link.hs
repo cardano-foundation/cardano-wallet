@@ -109,7 +109,9 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.Primitive.AddressDerivation
     ( AccountingStyle, DerivationIndex, NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Types
-    ( AddressState, Coin (..), Hash, PoolId, SortOrder, WalletId (..) )
+    ( AddressState, Coin (..), PoolId, SortOrder, WalletId (..) )
+import Cardano.Wallet.Primitive.Types.Hash
+    ( Hash )
 import Data.Function
     ( (&) )
 import Data.Generics.Internal.VL.Lens

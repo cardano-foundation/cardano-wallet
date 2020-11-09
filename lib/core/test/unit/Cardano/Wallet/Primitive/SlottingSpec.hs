@@ -32,13 +32,14 @@ import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient
     , EpochLength (..)
     , EpochNo (..)
-    , Hash (..)
     , Range (..)
     , SlotId (..)
     , SlotLength (..)
     , SlottingParameters (..)
     , StartTime (..)
     )
+import Cardano.Wallet.Primitive.Types.Hash
+    ( Hash (..) )
 import Data.Functor.Identity
     ( runIdentity )
 import Data.Quantity

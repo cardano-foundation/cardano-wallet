@@ -238,6 +238,7 @@ import qualified Cardano.Chain.Common as Byron
 import qualified Cardano.Ledger.Crypto as SL
 import qualified Cardano.Ledger.Shelley as SL
 import qualified Cardano.Wallet.Primitive.Types as W
+import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Codec.Binary.Bech32 as Bech32
 import qualified Codec.Binary.Bech32.TH as Bech32
 import qualified Codec.CBOR.Decoding as CBOR

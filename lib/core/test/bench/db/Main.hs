@@ -107,7 +107,6 @@ import Cardano.Wallet.Primitive.Types
     , Coin (..)
     , Direction (..)
     , EpochLength (..)
-    , Hash (..)
     , Range (..)
     , SlotLength (..)
     , SlotNo (..)
@@ -127,6 +126,8 @@ import Cardano.Wallet.Primitive.Types
     , WalletMetadata (..)
     , WalletName (..)
     )
+import Cardano.Wallet.Primitive.Types.Hash
+    ( Hash (..) )
 import Cardano.Wallet.Unsafe
     ( someDummyMnemonic, unsafeRunExceptT )
 import Control.DeepSeq

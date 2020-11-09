@@ -120,8 +120,6 @@ import Cardano.Wallet.Primitive.Types
     , EpochNo (..)
     , FeePolicy
     , GenesisParameters
-    , Hash (..)
-    , Hash (..)
     , PoolId (..)
     , ProtocolParameters (..)
     , Range (..)
@@ -141,6 +139,8 @@ import Cardano.Wallet.Primitive.Types
     , WalletMetadata (..)
     , inputs
     )
+import Cardano.Wallet.Primitive.Types.Hash
+    ( Hash (..) )
 import Control.Foldl
     ( Fold (..) )
 import Control.Monad.IO.Class

@@ -103,7 +103,6 @@ import Cardano.Wallet.Primitive.Types
     , Coin (..)
     , EpochLength (..)
     , EpochNo (..)
-    , Hash (..)
     , PoolId (PoolId)
     , PoolOwner (..)
     , SealedTx (..)
@@ -114,6 +113,8 @@ import Cardano.Wallet.Primitive.Types
     , TxOut (..)
     , unsafeEpochNo
     )
+import Cardano.Wallet.Primitive.Types.Hash
+    ( Hash (..) )
 import Control.DeepSeq
     ( NFData )
 import Control.Monad

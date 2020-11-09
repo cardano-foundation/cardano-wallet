@@ -41,13 +41,14 @@ import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
 import Cardano.Wallet.Primitive.Types
     ( Direction (..)
-    , Hash (..)
     , SortOrder (..)
     , TxMetadata (..)
     , TxMetadataValue (..)
     , TxStatus (..)
     , WalletId
     )
+import Cardano.Wallet.Primitive.Types.Hash
+    ( Hash (..) )
 import Control.Concurrent
     ( threadDelay )
 import Control.Monad

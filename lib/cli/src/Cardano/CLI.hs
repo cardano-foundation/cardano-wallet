@@ -170,12 +170,13 @@ import Cardano.Wallet.Primitive.SyncProgress
 import Cardano.Wallet.Primitive.Types
     ( AddressState
     , Coin (..)
-    , Hash
     , PoolMetadataSource (..)
     , SortOrder
     , WalletId
     , WalletName
     )
+import Cardano.Wallet.Primitive.Types.Hash
+    ( Hash (..) )
 import Cardano.Wallet.Version
     ( gitRevision, showFullVersion, version )
 import Control.Applicative

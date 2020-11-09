@@ -46,13 +46,9 @@ import Cardano.Wallet.Primitive.CoinSelection
 import Cardano.Wallet.Primitive.Fee
     ( Fee (..), FeePolicy (..) )
 import Cardano.Wallet.Primitive.Types
-    ( ChimericAccount (..)
-    , Hash (..)
-    , SealedTx (..)
-    , Tx (..)
-    , TxMetadata
-    , TxOut (..)
-    )
+    ( ChimericAccount (..), SealedTx (..), Tx (..), TxMetadata, TxOut (..) )
+import Cardano.Wallet.Primitive.Types.Hash
+    ( Hash (..) )
 import Cardano.Wallet.Transaction
     ( DelegationAction (..)
     , ErrDecodeSignedTx (..)

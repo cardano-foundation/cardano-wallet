@@ -63,13 +63,14 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
     , Coin (..)
-    , Hash (..)
     , PoolId (..)
     , SealedTx (..)
     , SlotNo (..)
     , TxIn (..)
     , TxOut (..)
     )
+import Cardano.Wallet.Primitive.Types.Hash
+    ( Hash (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeDecodeAddress
     , unsafeFromHex
