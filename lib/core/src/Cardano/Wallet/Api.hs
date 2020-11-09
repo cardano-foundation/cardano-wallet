@@ -482,6 +482,7 @@ type DelegationFee = "wallets"
     :> Get '[JSON] ApiFee
 
 type PoolMaintenance = "stake-pools"
+    :> "maintenance-actions"
     :> ReqBody '[JSON] ApiMaintenanceAction
     :> PostNoContent
 
