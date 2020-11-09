@@ -253,7 +253,7 @@ SeqStateAddress
     seqStateAddressSlot             SlotNo             sql=slot
     seqStateAddressAddress          W.Address          sql=address
     seqStateAddressIndex            Word32             sql=address_ix
-    seqStateAddressAccountingStyle  W.AccountingStyle  sql=accounting_style
+    seqStateAddressRole             W.Role             sql=role
     seqStateAddressStatus           W.AddressState     sql=status
 
     Primary
@@ -261,7 +261,7 @@ SeqStateAddress
         seqStateAddressSlot
         seqStateAddressAddress
         seqStateAddressIndex
-        seqStateAddressAccountingStyle
+        seqStateAddressRole
     Foreign Checkpoint seq_state_address seqStateAddressWalletId seqStateAddressSlot ! ON DELETE CASCADE
     deriving Show Generic
 

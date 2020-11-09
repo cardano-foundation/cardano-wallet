@@ -23,8 +23,7 @@ import Prelude
 import Cardano.Address.Derivation
     ( XPub )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( AccountingStyle (..)
-    , DelegationAddress (..)
+    ( DelegationAddress (..)
     , Depth (..)
     , DerivationType (..)
     , HardDerivation (..)
@@ -33,6 +32,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , MkKeyFingerprint (..)
     , NetworkDiscriminant (..)
     , PaymentAddress (..)
+    , Role (..)
     , SoftDerivation (..)
     , WalletKey (..)
     )
@@ -55,7 +55,6 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     , MkAddressPoolGapError (..)
     , SeqState (..)
     , accountPubKey
-    , accountingStyle
     , addresses
     , coinTypeAda
     , defaultAddressPoolGap
@@ -69,6 +68,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     , mkUnboundedAddressPoolGap
     , purposeCIP1852
     , purposeCIP1852
+    , role
     , shrinkPool
     )
 import Cardano.Wallet.Primitive.Types
@@ -274,7 +274,7 @@ prop_roundtripEnumGap g =
 
 -- | After a lookup, a property should never grow more than its gap value.
 prop_poolGrowWithinGap
-    :: forall (chain :: AccountingStyle) k.
+    :: forall (chain :: Role) k.
         ( Typeable chain
         , Eq (k 'AccountK XPub)
         , Show (k 'AccountK XPub)
@@ -301,7 +301,7 @@ prop_poolGrowWithinGap _proxy (pool, addr) =
 
 -- | A pool gives back its addresses in correct order and can be reconstructed
 prop_roundtripMkAddressPool
-    :: forall (chain :: AccountingStyle) k.
+    :: forall (chain :: Role) k.
         ( Typeable chain
         , Eq (k 'AccountK XPub)
         , Show (k 'AccountK XPub)
@@ -322,7 +322,7 @@ prop_roundtripMkAddressPool _proxy pool =
 
 -- | A pool always contains a number of addresses at least equal to its gap
 prop_poolAtLeastGapAddresses
-    :: forall (chain :: AccountingStyle) k.
+    :: forall (chain :: Role) k.
         ( AddressPoolTest k
         )
     => (Proxy chain, Proxy k)
@@ -335,7 +335,7 @@ prop_poolAtLeastGapAddresses _proxy pool =
 
 -- | Our addresses are eventually discovered
 prop_poolEventuallyDiscoverOurs
-    :: forall (chain :: AccountingStyle) k.
+    :: forall (chain :: Role) k.
         ( Typeable chain
         , MkKeyFingerprint k (Proxy 'Mainnet, k 'AddressK XPub)
         , MkKeyFingerprint k Address
@@ -351,7 +351,7 @@ prop_poolEventuallyDiscoverOurs _proxy (g, addr) =
     else
         label "address not ours" (property True)
   where
-    ours = take 25 (ourAddresses (Proxy @k) (accountingStyle @chain))
+    ours = take 25 (ourAddresses (Proxy @k) (role @chain))
     pool = flip execState (mkAddressPool @'Mainnet @chain @k ourAccount g mempty) $
         forM ours (state . lookupAddress @'Mainnet id)
 
@@ -516,7 +516,7 @@ prop_oursAreUsed s =
 -- Make sure that, for any cut we take from an existing pool, the addresses
 -- from the cut are all necessarily in the pool.
 prop_shrinkPreserveKnown
-    :: forall (chain :: AccountingStyle) k.
+    :: forall (chain :: Role) k.
         ( Typeable chain
         , MkKeyFingerprint k (Proxy 'Mainnet, k 'AddressK XPub)
         , MkKeyFingerprint k Address
@@ -539,7 +539,7 @@ prop_shrinkPreserveKnown _proxy (Positive size) pool =
 
 -- There's no address after the address from the cut with the highest index
 prop_shrinkMaxIndex
-    :: forall (chain :: AccountingStyle) k.
+    :: forall (chain :: Role) k.
         ( Typeable chain
         , MkKeyFingerprint k (Proxy 'Mainnet, k 'AddressK XPub)
         , MkKeyFingerprint k Address
@@ -567,7 +567,7 @@ class AddressPoolTest k where
         :: k 'AccountK XPub
     ourAddresses
         :: Proxy k
-        -> AccountingStyle
+        -> Role
         -> [Address]
     liftAddress
         :: KeyFingerprint "payment" k
@@ -638,7 +638,7 @@ instance Arbitrary AddressPoolGap where
     shrink _ = []
     arbitrary = mkUnboundedAddressPoolGap <$> choose (10, 20)
 
-instance Arbitrary AccountingStyle where
+instance Arbitrary Role where
     shrink _ = []
     arbitrary = arbitraryBoundedEnum
 
@@ -697,7 +697,7 @@ instance
         g <- unsafeMkAddressPoolGap <$> choose
             (getAddressPoolGap minBound, 2 * getAddressPoolGap minBound)
         n <- choose (0, 2 * fromEnum g)
-        let addrs = take n (ourAddresses (Proxy @k) (accountingStyle @chain))
+        let addrs = take n (ourAddresses (Proxy @k) (role @chain))
         InfiniteList statuses _ <- arbitrary
         return $ mkAddressPool @'Mainnet ourAccount g (zip addrs statuses)
 
@@ -713,7 +713,7 @@ instance Arbitrary (SeqState 'Mainnet ShelleyKey) where
 -- different types in order to easily map over them and avoid duplicating
 -- properties.
 data Style =
-    forall (chain :: AccountingStyle). Typeable chain => Style (Proxy chain)
+    forall (chain :: Role). Typeable chain => Style (Proxy chain)
 instance Show Style where show (Style proxy) = show (typeRep proxy)
 
 -- | Wrapper to encapsulate keys.

@@ -189,10 +189,10 @@ instance HardDerivation ShelleyKey where
             ShelleyKey acctXPrv
 
     deriveAddressPrivateKey
-            (Passphrase pwd) (ShelleyKey accXPrv) accountingStyle (Index addrIx) =
+            (Passphrase pwd) (ShelleyKey accXPrv) role (Index addrIx) =
         let
             changeCode =
-                fromIntegral $ fromEnum accountingStyle
+                fromIntegral $ fromEnum role
             changeXPrv = -- lvl4 derivation; soft derivation of change chain
                 deriveXPrv DerivationScheme2 pwd accXPrv changeCode
             addrXPrv = -- lvl5 derivation; soft derivation of address index
@@ -201,9 +201,9 @@ instance HardDerivation ShelleyKey where
             ShelleyKey addrXPrv
 
 instance SoftDerivation ShelleyKey where
-    deriveAddressPublicKey (ShelleyKey accXPub) accountingStyle (Index addrIx) =
+    deriveAddressPublicKey (ShelleyKey accXPub) role (Index addrIx) =
         fromMaybe errWrongIndex $ do
-            let changeCode = fromIntegral $ fromEnum accountingStyle
+            let changeCode = fromIntegral $ fromEnum role
             changeXPub <- -- lvl4 derivation in bip44 is derivation of change chain
                 deriveXPub DerivationScheme2 accXPub changeCode
             addrXPub <- -- lvl5 derivation in bip44 is derivation of address chain

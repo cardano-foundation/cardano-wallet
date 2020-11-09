@@ -129,8 +129,7 @@ import Cardano.Wallet.Gen
     , shrinkTxMetadata
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( AccountingStyle (..)
-    , DerivationIndex (..)
+    ( DerivationIndex (..)
     , DerivationType (..)
     , HardDerivation (..)
     , Index (..)
@@ -138,6 +137,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , Passphrase (..)
     , PassphraseMaxLength (..)
     , PassphraseMinLength (..)
+    , Role (..)
     , WalletKey (..)
     , passphraseMaxLength
     , passphraseMinLength

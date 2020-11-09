@@ -177,14 +177,14 @@ import Cardano.Mnemonic
     , natVals
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( AccountingStyle (..)
-    , Depth (..)
+    ( Depth (..)
     , DerivationIndex (..)
     , Index (..)
     , NetworkDiscriminant (..)
     , Passphrase (..)
     , PassphraseMaxLength (..)
     , PassphraseMinLength (..)
+    , Role (..)
     , fromHex
     , hex
     )
@@ -883,7 +883,7 @@ data ApiWalletSignData = ApiWalletSignData
       deriving anyclass NFData
 
 newtype ApiVerificationKey = ApiVerificationKey
-    { getApiVerificationKey :: (ByteString, AccountingStyle)
+    { getApiVerificationKey :: (ByteString, Role)
     } deriving (Eq, Generic, Show)
       deriving anyclass NFData
 

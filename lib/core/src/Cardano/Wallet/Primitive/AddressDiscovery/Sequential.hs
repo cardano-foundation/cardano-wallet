@@ -41,7 +41,7 @@ module Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     , AddressPool
     , gap
     , addresses
-    , accountingStyle
+    , role
     , accountPubKey
     , mkAddressPool
     , lookupAddress
@@ -72,8 +72,7 @@ import Prelude
 import Cardano.Crypto.Wallet
     ( XPrv, XPub )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( AccountingStyle (..)
-    , Depth (..)
+    ( Depth (..)
     , DerivationIndex (..)
     , DerivationPrefix (..)
     , DerivationType (..)
@@ -85,6 +84,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , Passphrase (..)
     , PaymentAddress (..)
     , PersistPublicKey (..)
+    , Role (..)
     , SoftDerivation (..)
     , WalletKey (..)
     , deriveRewardAccount
@@ -222,10 +222,10 @@ defaultAddressPoolGap =
 -- Account and change chain. See 'mkAddressPool' to create a new or existing
 -- pool:
 --
--- >>> mkAddressPool xpub gap accountingStyle mempty
+-- >>> mkAddressPool xpub gap role mempty
 -- AddressPool { }
 data AddressPool
-    (chain :: AccountingStyle)
+    (chain :: Role)
     (key :: Depth -> * -> *) = AddressPool
     { accountPubKey
         :: !(key 'AccountK XPub)
@@ -254,21 +254,21 @@ instance ((PersistPublicKey (key 'AccountK)), Typeable chain)
     build (AddressPool acct (AddressPoolGap g) _) = mempty
         <> ccF <> " " <> acctF <> " (gap=" <> build g <> ")\n"
       where
-        ccF = build $ toText $ accountingStyle @chain
+        ccF = build $ toText $ role @chain
         xpubF = hexF $ serializeXPub acct
         acctF = prefixF 8 xpubF <> "..." <> suffixF 8 xpubF
 
--- | Bring a 'AccountingStyle' type back to the term-level. This requires a type
+-- | Bring a 'Role' type back to the term-level. This requires a type
 -- application and either a scoped type variable, or an explicit passing of a
--- 'AccountingStyle'.
+-- 'Role'.
 --
--- >>> accountingStyle @'UtxoExternal
+-- >>> role @'UtxoExternal
 -- UtxoExternal
 --
--- >>> accountingStyle @chain
+-- >>> role @chain
 -- ...
-accountingStyle :: forall (c :: AccountingStyle). Typeable c => AccountingStyle
-accountingStyle =
+role :: forall (c :: Role). Typeable c => Role
+role =
     case typeRep (Proxy :: Proxy c) of
         t | t == typeRep (Proxy :: Proxy 'UtxoInternal) ->
             UtxoInternal
@@ -323,7 +323,7 @@ mkAddressPool key g addrs = AddressPool
         , nextAddresses @n
             key
             g
-            (accountingStyle @c)
+            (role @c)
             minBound
         ]
     }
@@ -434,7 +434,7 @@ extendAddressPool !ix !pool
     next = if ix == maxBound then mempty else nextAddresses @n
         (accountPubKey pool)
         (gap pool)
-        (accountingStyle @c)
+        (role @c)
         (succ ix)
 
 -- | Compute the pool extension from a starting index
@@ -445,7 +445,7 @@ nextAddresses
         )
     => k 'AccountK XPub
     -> AddressPoolGap
-    -> AccountingStyle
+    -> Role
     -> Index 'Soft 'AddressK
     -> Map (KeyFingerprint "payment" k) (Index 'Soft 'AddressK, AddressState)
 nextAddresses !key (AddressPoolGap !g) !cc !fromIx =
@@ -770,7 +770,7 @@ instance
                 -- We are assuming there is only one account
                 accountPrv = deriveAccountPrivateKey pwd rootPrv minBound
                 (addrIx, _) = lookupAddress @n (const Used) addr pool
-                cc = accountingStyle @c
+                cc = role @c
             in
                 deriveAddressPrivateKey pwd accountPrv cc <$> addrIx
 

@@ -30,7 +30,7 @@ import Cardano.Api.Typed
 import Cardano.Slotting.Slot
     ( SlotNo (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( AccountingStyle (..), Passphrase (..), PassphraseScheme (..) )
+    ( Passphrase (..), PassphraseScheme (..), Role (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPoolGap (..)
     , DerivationPrefix
@@ -437,13 +437,13 @@ instance PersistFieldSql AddressPoolGap where
     sqlType _ = sqlType (Proxy @Word32)
 
 ----------------------------------------------------------------------------
--- AccountingStyle
+-- Role
 
-instance PersistField AccountingStyle where
+instance PersistField Role where
     toPersistValue = toPersistValue . toText
     fromPersistValue = fromPersistValueFromText
 
-instance PersistFieldSql AccountingStyle where
+instance PersistFieldSql Role where
     sqlType _ = sqlType (Proxy @Text)
 
 ----------------------------------------------------------------------------

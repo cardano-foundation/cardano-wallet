@@ -96,11 +96,7 @@ import Cardano.Wallet.DB.Model
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( dummyTimeInterpreter )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( AccountingStyle (..)
-    , Depth (..)
-    , NetworkDiscriminant (..)
-    , PersistPrivateKey (..)
-    )
+    ( Depth (..), NetworkDiscriminant (..), PersistPrivateKey (..), Role (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
@@ -879,7 +875,7 @@ instance ToExpr (RndState 'Mainnet) where
 
 instance (Show (key 'AccountK CC.XPub)) =>
     ToExpr (AddressPool
-        (chain :: AccountingStyle)
+        (chain :: Role)
         (key :: Depth -> * -> *)
     ) where
     toExpr = defaultExprViaShow

@@ -74,7 +74,7 @@ import Cardano.Wallet.Api.Types
     , WalletPutPassphraseData
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( AccountingStyle (..), DerivationIndex (..), NetworkDiscriminant (..) )
+    ( DerivationIndex (..), NetworkDiscriminant (..), Role (..) )
 import Cardano.Wallet.Primitive.Types
     ( WalletId, walletNameMaxLength )
 import Cardano.Wallet.Primitive.Types.Address
@@ -186,14 +186,14 @@ instance Wellformed (PathParam ApiAddressInspectData) where
 instance Malformed (PathParam ApiAddressInspectData) where
     malformed = []
 
-instance Wellformed (PathParam (ApiT AccountingStyle)) where
+instance Wellformed (PathParam (ApiT Role)) where
     wellformed = PathParam <$>
         [ "utxo_internal"
         , "utxo_external"
         , "mutable_account"
         ]
 
-instance Malformed (PathParam (ApiT AccountingStyle)) where
+instance Malformed (PathParam (ApiT Role)) where
     malformed = first PathParam <$>
         [ ( "patate", msgMalformed )
         , ( "💩", msgMalformed )

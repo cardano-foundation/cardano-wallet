@@ -32,11 +32,11 @@ import Cardano.Wallet.Api.Types
     , WalletStyle (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( AccountingStyle (..)
-    , DerivationIndex (..)
+    ( DerivationIndex (..)
     , PassphraseMaxLength (..)
     , PassphraseMinLength (..)
     , PaymentAddress
+    , Role (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )
@@ -995,7 +995,7 @@ spec = describe "SHELLEY_WALLETS" $ do
     --- $ cat root.prv \
     --- > | cardano-address key child 1852H/1815H/0H/ROLE/INDEX \
     --- > | cardano-address key public \
-        let matrix :: [(AccountingStyle, DerivationIndex, String)]
+        let matrix :: [(Role, DerivationIndex, String)]
             matrix =
                 [ ( UtxoExternal
                   , DerivationIndex 0

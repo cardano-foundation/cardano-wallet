@@ -44,14 +44,14 @@ import Cardano.Wallet.Gen
 import Cardano.Wallet.Network
     ( NetworkLayer (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( AccountingStyle (..)
-    , Depth (..)
+    ( Depth (..)
     , DerivationIndex (..)
     , DerivationType (..)
     , ErrWrongPassphrase (..)
     , HardDerivation (..)
     , Index
     , Passphrase (..)
+    , Role (..)
     , deriveRewardAccount
     , getRawKey
     , publicKey

@@ -217,12 +217,12 @@ import Cardano.Wallet.Api.Types
     , insertedAt
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( AccountingStyle (..)
-    , HardDerivation (..)
+    ( HardDerivation (..)
     , NetworkDiscriminant (..)
     , Passphrase (..)
     , PaymentAddress (..)
     , PersistPublicKey (..)
+    , Role (..)
     , WalletKey (..)
     , hex
     , preparePassphrase

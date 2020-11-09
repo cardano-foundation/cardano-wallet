@@ -380,7 +380,7 @@ migrateManually tr proxy defaultFieldValues =
 
         addSeqStateDerivationPrefixIfMissing conn
 
-        renameAccountingStyle conn
+        renameRole conn
   where
     -- NOTE
     -- Wallets created before the 'PassphraseScheme' was introduced have no
@@ -549,7 +549,6 @@ migrateManually tr proxy defaultFieldValues =
         shelleyPrefix = T.pack $ show $ toText
             $ Seq.DerivationPrefix (Seq.purposeCIP1852, Seq.coinTypeAda, minBound)
 
-    -- The 'AccountingStyle' constructors used to be respectively:
     --
     --   - UTxOInternal
     --   - UTxOExternal
@@ -562,11 +561,11 @@ migrateManually tr proxy defaultFieldValues =
     -- which is pretty lame. This was changed later on, but already
     -- serialized data may subsist on for quite a while. Hence this little
     -- pirouette here.
-    renameAccountingStyle :: Sqlite.Connection -> IO ()
-    renameAccountingStyle conn = do
-        renameColumn conn (DBField SeqStateAddressAccountingStyle)
+    renameRole :: Sqlite.Connection -> IO ()
+    renameRole conn = do
+        renameColumn conn (DBField SeqStateAddressRole)
             "u_tx_o_internal" "utxo_internal"
-        renameColumn conn (DBField SeqStateAddressAccountingStyle)
+        renameColumn conn (DBField SeqStateAddressRole)
             "u_tx_o_external" "utxo_external"
 
     -- | Determines whether a field is present in its parent table.
@@ -1714,7 +1713,7 @@ insertAddressPool
     -> SqlPersistT IO ()
 insertAddressPool wid sl pool =
     void $ dbChunked insertMany_
-        [ SeqStateAddress wid sl addr ix (Seq.accountingStyle @c) state
+        [ SeqStateAddress wid sl addr ix (Seq.role @c) state
         | (ix, (addr, state))
         <- zip [0..] (Seq.addresses (liftPaymentAddress @n) pool)
         ]
@@ -1735,7 +1734,7 @@ selectAddressPool wid sl gap xpub = do
     addrs <- fmap entityVal <$> selectList
         [ SeqStateAddressWalletId ==. wid
         , SeqStateAddressSlot ==. sl
-        , SeqStateAddressAccountingStyle ==. Seq.accountingStyle @c
+        , SeqStateAddressRole ==. Seq.role @c
         ] [Asc SeqStateAddressIndex]
     pure $ addressPoolFromEntity addrs
   where

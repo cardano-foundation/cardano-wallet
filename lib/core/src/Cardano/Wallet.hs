@@ -213,8 +213,7 @@ import Cardano.Wallet.Network
     , follow
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( AccountingStyle (..)
-    , DelegationAddress (..)
+    ( DelegationAddress (..)
     , Depth (..)
     , DerivationIndex (..)
     , DerivationPrefix (..)
@@ -226,6 +225,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , NetworkDiscriminant (..)
     , Passphrase
     , PaymentAddress (..)
+    , Role (..)
     , SoftDerivation (..)
     , ToRewardAccount (..)
     , WalletKey (..)
@@ -2286,7 +2286,7 @@ signMetadataWith
     => ctx
     -> WalletId
     -> Passphrase "raw"
-    -> (AccountingStyle, DerivationIndex)
+    -> (Role, DerivationIndex)
     -> TxMetadata
     -> ExceptT ErrSignMetadataWith IO (Signature TxMetadata)
 signMetadataWith ctx wid pwd (role_, ix) metadata = db & \DBLayer{..} -> do
@@ -2317,7 +2317,7 @@ derivePublicKey
         )
     => ctx
     -> WalletId
-    -> AccountingStyle
+    -> Role
     -> DerivationIndex
     -> ExceptT ErrDerivePublicKey IO (k 'AddressK XPub)
 derivePublicKey ctx wid role_ ix = db & \DBLayer{..} -> do
