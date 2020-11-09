@@ -50,12 +50,13 @@ import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
     , BlockHeader (..)
     , ChimericAccount (..)
-    , Hash (..)
     , ProtocolParameters
     , SealedTx
     , SlotNo (..)
     , SlottingParameters (..)
     )
+import Cardano.Wallet.Primitive.Types.Hash
+    ( Hash (..) )
 import Control.Concurrent
     ( threadDelay )
 import Control.Concurrent.Async

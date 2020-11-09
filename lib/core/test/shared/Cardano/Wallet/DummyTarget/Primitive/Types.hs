@@ -29,7 +29,6 @@ import Cardano.Wallet.Primitive.Types
     , EpochLength (..)
     , FeePolicy (..)
     , GenesisParameters (..)
-    , Hash (..)
     , NetworkParameters (..)
     , ProtocolParameters (..)
     , SlotLength (..)
@@ -42,6 +41,8 @@ import Cardano.Wallet.Primitive.Types
     , TxOut (..)
     , TxParameters (..)
     )
+import Cardano.Wallet.Primitive.Types.Hash
+    ( Hash (..) )
 import Crypto.Hash
     ( Blake2b_256, hash )
 import Data.ByteString

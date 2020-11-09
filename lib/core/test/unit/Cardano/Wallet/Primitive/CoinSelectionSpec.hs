@@ -32,13 +32,14 @@ import Cardano.Wallet.Primitive.CoinSelection
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , Coin (..)
-    , Hash (..)
     , ShowFmt (..)
     , TxIn (..)
     , TxOut (..)
     , UTxO (..)
     , UnsignedTx (..)
     )
+import Cardano.Wallet.Primitive.Types.Hash
+    ( Hash (..) )
 import Control.Monad.Trans.Except
     ( ExceptT, runExceptT )
 import Data.List.NonEmpty

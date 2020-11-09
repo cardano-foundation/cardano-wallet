@@ -44,7 +44,9 @@ import Cardano.Wallet.Primitive.AddressDerivation.Icarus
 import Cardano.Wallet.Primitive.AddressDerivation.Jormungandr
     ( JormungandrKey (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Hash (..), PassphraseScheme (..) )
+    ( PassphraseScheme (..) )
+import Cardano.Wallet.Primitive.Types.Hash
+    ( Hash (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex )
 import Control.Monad

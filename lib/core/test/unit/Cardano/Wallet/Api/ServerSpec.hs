@@ -25,7 +25,9 @@ import Cardano.Wallet.Primitive.Slotting
 import Cardano.Wallet.Primitive.SyncProgress
     ( mkSyncTolerance )
 import Cardano.Wallet.Primitive.Types
-    ( Block (..), BlockHeader (..), Hash (..), SlotNo (..), StartTime (..) )
+    ( Block (..), BlockHeader (..), SlotNo (..), StartTime (..) )
+import Cardano.Wallet.Primitive.Types.Hash
+    ( Hash (..) )
 import Control.Concurrent
     ( threadDelay )
 import Control.Concurrent.Async

@@ -77,7 +77,9 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , hex
     )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..), Hash (..), ProtocolMagic (..), invariant, testnetMagic )
+    ( Address (..), ProtocolMagic (..), invariant, testnetMagic )
+import Cardano.Wallet.Primitive.Types.Hash
+    ( Hash (..) )
 import Control.DeepSeq
     ( NFData )
 import Control.Monad

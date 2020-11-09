@@ -24,13 +24,13 @@ import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
     , BlockHeader (..)
     , EpochLength (..)
-    , Hash (..)
     , SlotLength (..)
-    , SlotNo (..)
     , SlotNo (..)
     , SlottingParameters (..)
     , StartTime (..)
     )
+import Cardano.Wallet.Primitive.Types.Hash
+    ( Hash (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeMkPercentage )
 import Control.DeepSeq

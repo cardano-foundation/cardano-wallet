@@ -64,7 +64,6 @@ import Cardano.Wallet.Primitive.Fee
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , Coin (..)
-    , Hash (..)
     , PoolId (..)
     , SealedTx (..)
     , Tx (..)
@@ -72,6 +71,8 @@ import Cardano.Wallet.Primitive.Types
     , TxMetadata
     , TxOut (..)
     )
+import Cardano.Wallet.Primitive.Types.Hash
+    ( Hash (..) )
 import Cardano.Wallet.Shelley.Compatibility
     ( Shelley
     , StandardCrypto

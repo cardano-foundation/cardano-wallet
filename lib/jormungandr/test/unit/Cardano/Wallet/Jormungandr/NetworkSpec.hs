@@ -34,7 +34,6 @@ import Cardano.Wallet.Primitive.Types
     , Coin (..)
     , EpochLength (..)
     , GenesisParameters (..)
-    , Hash (..)
     , NetworkParameters (..)
     , ProtocolParameters (..)
     , SlotId (..)
@@ -43,6 +42,8 @@ import Cardano.Wallet.Primitive.Types
     , SlottingParameters (..)
     , TxParameters (..)
     )
+import Cardano.Wallet.Primitive.Types.Hash
+    ( Hash (..) )
 import Control.Concurrent.MVar.Lifted
     ( MVar, newMVar, readMVar )
 import Control.Concurrent.STM.TChan

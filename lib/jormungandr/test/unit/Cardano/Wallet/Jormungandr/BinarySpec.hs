@@ -43,7 +43,6 @@ import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , ChimericAccount (..)
     , Coin (..)
-    , Hash (..)
     , PoolId (..)
     , PoolOwner (..)
     , SealedTx (..)
@@ -51,6 +50,8 @@ import Cardano.Wallet.Primitive.Types
     , TxIn (..)
     , TxOut (..)
     )
+import Cardano.Wallet.Primitive.Types.Hash
+    ( Hash (..) )
 import Cardano.Wallet.Transaction
     ( TransactionLayer (..) )
 import Cardano.Wallet.Unsafe

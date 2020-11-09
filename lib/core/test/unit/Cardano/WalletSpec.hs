@@ -81,7 +81,6 @@ import Cardano.Wallet.Primitive.Types
     , Coin (..)
     , Direction (..)
     , EpochNo (..)
-    , Hash (..)
     , PoolId (..)
     , SealedTx (..)
     , SlotNo (..)
@@ -103,6 +102,8 @@ import Cardano.Wallet.Primitive.Types
     , WalletName (..)
     , txId
     )
+import Cardano.Wallet.Primitive.Types.Hash
+    ( Hash (..) )
 import Cardano.Wallet.Transaction
     ( ErrMkTx (..), TransactionLayer (..) )
 import Cardano.Wallet.Unsafe

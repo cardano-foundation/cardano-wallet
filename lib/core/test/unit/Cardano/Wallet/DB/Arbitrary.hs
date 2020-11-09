@@ -90,7 +90,6 @@ import Cardano.Wallet.Primitive.Types
     , Direction (..)
     , EpochNo (..)
     , FeePolicy (..)
-    , Hash (..)
     , PassphraseScheme (..)
     , PoolId (..)
     , ProtocolParameters (..)
@@ -117,6 +116,8 @@ import Cardano.Wallet.Primitive.Types
     , rangeIsValid
     , wholeRange
     )
+import Cardano.Wallet.Primitive.Types.Hash
+    ( Hash (..) )
 import Cardano.Wallet.Unsafe
     ( someDummyMnemonic, unsafeMkPercentage )
 import Control.Arrow

@@ -26,7 +26,6 @@ import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
     , CertificatePublicationTime (..)
     , EpochNo (..)
-    , Hash (..)
     , PoolCertificate (..)
     , PoolId (..)
     , PoolMetadataSource (..)
@@ -46,6 +45,8 @@ import Cardano.Wallet.Primitive.Types
     , getPoolCertificatePoolId
     , setPoolCertificatePoolId
     )
+import Cardano.Wallet.Primitive.Types.Hash
+    ( Hash (..) )
 import Control.Arrow
     ( second )
 import Control.Monad

@@ -133,13 +133,14 @@ import Cardano.Wallet.Primitive.Types
     , EpochLength (..)
     , EpochNo
     , GenesisParameters (..)
-    , Hash (..)
     , NetworkParameters (..)
     , PoolId
     , ProtocolParameters (..)
     , SlotNo (..)
     , SlottingParameters (..)
     )
+import Cardano.Wallet.Primitive.Types.Hash
+    ( Hash (..) )
 import Control.Concurrent.MVar.Lifted
     ( MVar, modifyMVar, newMVar, readMVar )
 import Control.Concurrent.STM

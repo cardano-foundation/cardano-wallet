@@ -54,7 +54,6 @@ import Cardano.Wallet.Primitive.Types
     , EpochLength (..)
     , EpochNo
     , FeePolicy (..)
-    , Hash (..)
     , PoolId (..)
     , PoolOwner (..)
     , PoolRegistrationCertificate (..)
@@ -65,6 +64,8 @@ import Cardano.Wallet.Primitive.Types
     , StartTime (..)
     , TxParameters (..)
     )
+import Cardano.Wallet.Primitive.Types.Hash
+    ( Hash (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeFromText, unsafeMkPercentage, unsafeRunExceptT )
 import Control.Concurrent.Async

@@ -37,12 +37,13 @@ import Cardano.Wallet.Jormungandr.Binary
 import Cardano.Wallet.Primitive.Types
     ( EpochNo (..)
     , EpochNo (..)
-    , Hash (..)
     , PoolId (..)
     , SealedTx (..)
     , ShowFmt (..)
     , unsafeEpochNo
     )
+import Cardano.Wallet.Primitive.Types.Hash
+    ( Hash (..) )
 import Control.Applicative
     ( many )
 import Control.Monad

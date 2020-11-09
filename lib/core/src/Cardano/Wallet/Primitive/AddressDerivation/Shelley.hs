@@ -87,7 +87,9 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     , rewardAccountKey
     )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..), Hash (..), invariant )
+    ( Address (..), invariant )
+import Cardano.Wallet.Primitive.Types.Hash
+    ( Hash (..) )
 import Control.DeepSeq
     ( NFData (..) )
 import Control.Monad

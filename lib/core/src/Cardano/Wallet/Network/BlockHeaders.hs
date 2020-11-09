@@ -42,7 +42,9 @@ module Cardano.Wallet.Network.BlockHeaders
 import Prelude
 
 import Cardano.Wallet.Primitive.Types
-    ( BlockHeader (..), Hash (..), SlotNo (..) )
+    ( BlockHeader (..), SlotNo (..) )
+import Cardano.Wallet.Primitive.Types.Hash
+    ( Hash (..) )
 import Control.DeepSeq
     ( NFData, ($!!) )
 import Data.Quantity

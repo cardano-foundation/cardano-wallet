@@ -71,7 +71,9 @@ import Cardano.Wallet.Primitive.AddressDiscovery
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( SeqState, coinTypeAda, purposeBIP44 )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..), Hash (..), invariant, testnetMagic )
+    ( Address (..), invariant, testnetMagic )
+import Cardano.Wallet.Primitive.Types.Hash
+    ( Hash (..) )
 import Control.Arrow
     ( first, left )
 import Control.DeepSeq

@@ -15,7 +15,9 @@ import Cardano.Wallet.Jormungandr.Binary
 import Cardano.Wallet.Primitive.Fee
     ( FeePolicy (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..), Coin (..), Hash (..), TxIn (..), TxOut (..) )
+    ( Address (..), Coin (..), TxIn (..), TxOut (..) )
+import Cardano.Wallet.Primitive.Types.Hash
+    ( Hash (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex )
 import Control.Concurrent.MVar

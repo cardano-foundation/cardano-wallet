@@ -20,7 +20,9 @@ import Cardano.Wallet.Network.BlockHeaders
     , updateUnstableBlocks
     )
 import Cardano.Wallet.Primitive.Types
-    ( BlockHeader (..), Hash (..), SlotNo (..) )
+    ( BlockHeader (..), SlotNo (..) )
+import Cardano.Wallet.Primitive.Types.Hash
+    ( Hash (..) )
 import Control.Monad.Trans.Class
     ( lift )
 import Control.Monad.Trans.Writer

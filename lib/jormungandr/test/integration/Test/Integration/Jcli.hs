@@ -27,7 +27,7 @@ import Prelude
 
 import Cardano.Wallet.Jormungandr.Binary
     ( getBlockId, runGet )
-import Cardano.Wallet.Primitive.Types
+import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Control.Monad.IO.Class
     ( MonadIO, liftIO )

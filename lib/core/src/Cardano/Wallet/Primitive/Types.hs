@@ -173,12 +173,10 @@ module Cardano.Wallet.Primitive.Types
     , testnetMagic
 
     -- * Polymorphic
-    , Hash (..)
     , Signature (..)
     , ShowFmt (..)
     , invariant
     , distance
-    , hashFromText
 
     -- * Settings
     , Settings(..)
@@ -197,6 +195,8 @@ import Cardano.Slotting.Slot
     ( SlotNo (..) )
 import Cardano.Wallet.Orphans
     ()
+import Cardano.Wallet.Primitive.Types.Hash
+    ( Hash (..), hashFromText )
 import Control.Arrow
     ( left, right )
 import Control.DeepSeq
@@ -284,7 +284,7 @@ import GHC.Generics
 import GHC.Stack
     ( HasCallStack )
 import GHC.TypeLits
-    ( KnownNat, KnownSymbol, Symbol, natVal, symbolVal )
+    ( KnownNat, natVal )
 import Network.URI
     ( URI (..), parseAbsoluteURI, uriQuery, uriScheme, uriToString )
 import Numeric.Natural
@@ -296,7 +296,6 @@ import qualified Codec.Binary.Bech32 as Bech32
 import qualified Codec.Binary.Bech32.TH as Bech32
 import qualified Control.Foldl as F
 import qualified Data.ByteString as BS
-import qualified Data.Char as C
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
@@ -1887,52 +1886,6 @@ getPoolRetirementCertificate = \case
 class Dom a where
     type DomElem a :: *
     dom :: a -> Set (DomElem a)
-
-newtype Hash (tag :: Symbol) = Hash { getHash :: ByteString }
-    deriving stock (Show, Generic, Eq, Ord)
-    deriving newtype (ByteArrayAccess)
-
-instance NFData (Hash tag)
-
-instance Buildable (Hash tag) where
-    build h = mempty
-        <> prefixF 8 builder
-      where
-        builder = build . toText $ h
-
-instance ToText (Hash tag) where
-    toText = T.decodeUtf8 . convertToBase Base16 . getHash
-
-instance FromText (Hash "Tx")              where fromText = hashFromText 32
-instance FromText (Hash "Account")         where fromText = hashFromText 32
-instance FromText (Hash "Genesis")         where fromText = hashFromText 32
-instance FromText (Hash "Block")           where fromText = hashFromText 32
-instance FromText (Hash "BlockHeader")     where fromText = hashFromText 32
-instance FromText (Hash "ChimericAccount") where fromText = hashFromText 28
-
-hashFromText
-    :: forall t. (KnownSymbol t)
-    => Int
-        -- ^ Expected decoded hash length
-    -> Text
-    -> Either TextDecodingError (Hash t)
-hashFromText len text = case decoded of
-    Right bytes | BS.length bytes == len ->
-        Right $ Hash bytes
-    _ ->
-        Left $ TextDecodingError $ unwords
-            [ "Invalid"
-            , mapFirst C.toLower $ symbolVal $ Proxy @t
-            , "hash: expecting a hex-encoded value that is"
-            , show len
-            , "bytes in length."
-            ]
-  where
-    decoded = convertFromBase Base16 $ T.encodeUtf8 text
-
-    mapFirst :: (a -> a) -> [a] -> [a]
-    mapFirst _     [] = []
-    mapFirst fn (h:q) = fn h:q
 
 -- | A newtype to wrap raw bytestring representing signed data, captured with a
 -- phantom type.

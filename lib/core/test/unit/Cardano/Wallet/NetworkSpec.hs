@@ -10,7 +10,7 @@ import Cardano.Wallet.Network
     , ErrNetworkUnavailable (..)
     , ErrPostTx (..)
     )
-import Cardano.Wallet.Primitive.Types
+import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Test.Hspec
     ( Spec, describe, it )

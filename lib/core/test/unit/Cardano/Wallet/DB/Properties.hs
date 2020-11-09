@@ -51,7 +51,6 @@ import Cardano.Wallet.Primitive.Model
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
     , Direction (..)
-    , Hash (..)
     , ProtocolParameters
     , ShowFmt (..)
     , SlotId (..)
@@ -67,6 +66,8 @@ import Cardano.Wallet.Primitive.Types
     , toTxHistory
     , wholeRange
     )
+import Cardano.Wallet.Primitive.Types.Hash
+    ( Hash (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
 import Control.Concurrent.Async

@@ -24,7 +24,9 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.AddressDerivation.Jormungandr
     ( JormungandrKey )
 import Cardano.Wallet.Primitive.Types
-    ( Hash (..), Tx (..) )
+    ( Tx (..) )
+import Cardano.Wallet.Primitive.Types.Hash
+    ( Hash (..) )
 import Control.Monad.IO.Class
     ( liftIO )
 import Data.ByteArray.Encoding

@@ -153,7 +153,6 @@ import Cardano.Wallet.Primitive.Types
     , Coin (..)
     , Direction (..)
     , EpochNo (..)
-    , Hash (..)
     , HistogramBar (..)
     , PoolId (..)
     , PoolMetadataSource
@@ -183,6 +182,8 @@ import Cardano.Wallet.Primitive.Types
     , walletNameMaxLength
     , walletNameMinLength
     )
+import Cardano.Wallet.Primitive.Types.Hash
+    ( Hash (..) )
 import Cardano.Wallet.Transaction
     ( DelegationAction (..) )
 import Cardano.Wallet.Unsafe
