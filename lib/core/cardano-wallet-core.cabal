@@ -173,6 +173,8 @@ library
       Crypto.Hash.Utils
       Data.Binary.Get.Safe
       Data.Function.Utils
+      Data.Map.NonEmpty.Strict
+      Data.Map.NonEmpty.Strict.Internal
       Data.Time.Text
       Data.Time.Utils
       Data.Quantity
@@ -226,6 +228,7 @@ test-suite unit
     , generic-arbitrary
     , generic-lens
     , hspec
+    , hspec-core
     , http-api-data
     , http-client
     , http-client-tls
@@ -318,6 +321,7 @@ test-suite unit
       Cardano.Wallet.TransactionSpec
       Cardano.WalletSpec
       Data.Function.UtilsSpec
+      Data.Map.NonEmpty.StrictSpec
       Data.QuantitySpec
       Data.Time.TextSpec
       Data.Time.UtilsSpec
