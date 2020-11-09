@@ -380,7 +380,9 @@ migrateManually tr proxy defaultFieldValues =
 
         addSeqStateDerivationPrefixIfMissing conn
 
-        renameRole conn
+        renameRoleColumn conn
+
+        renameRoleFields conn
   where
     -- NOTE
     -- Wallets created before the 'PassphraseScheme' was introduced have no
@@ -561,24 +563,45 @@ migrateManually tr proxy defaultFieldValues =
     -- which is pretty lame. This was changed later on, but already
     -- serialized data may subsist on for quite a while. Hence this little
     -- pirouette here.
-    renameRole :: Sqlite.Connection -> IO ()
-    renameRole conn = do
-        renameColumn conn (DBField SeqStateAddressRole)
+    renameRoleFields :: Sqlite.Connection -> IO ()
+    renameRoleFields conn = do
+        renameColumnField conn (DBField SeqStateAddressRole)
             "u_tx_o_internal" "utxo_internal"
-        renameColumn conn (DBField SeqStateAddressRole)
+        renameColumnField conn (DBField SeqStateAddressRole)
             "u_tx_o_external" "utxo_external"
+
+    -- | Rename column table of SeqStateAddress from 'accounting_style' to `role`
+    -- if needed.
+    renameRoleColumn :: Sqlite.Connection -> IO ()
+    renameRoleColumn conn =
+        isFieldPresent conn roleField >>= \case
+            TableMissing ->
+                traceWith tr $ MsgManualMigrationNotNeeded roleField
+            ColumnMissing -> do
+                traceWith tr $ MsgManualMigrationNotNeeded roleField
+                query <- Sqlite.prepare conn $ T.unwords
+                    [ "ALTER TABLE", tableName roleField
+                    , "RENAME COLUMN accounting_style TO"
+                    , fieldName roleField
+                    , ";"
+                    ]
+                Sqlite.step query *> Sqlite.finalize query
+            ColumnPresent ->
+                traceWith tr $ MsgManualMigrationNotNeeded roleField
+      where
+        roleField = DBField SeqStateAddressRole
 
     -- | Determines whether a field is present in its parent table.
     isFieldPresent :: Sqlite.Connection -> DBField -> IO SqlColumnStatus
     isFieldPresent conn field = do
-        getCheckpointTableInfo <- Sqlite.prepare conn $ mconcat
+        getTableInfo <- Sqlite.prepare conn $ mconcat
             [ "SELECT sql FROM sqlite_master "
             , "WHERE type = 'table' "
             , "AND name = '" <> tableName field <> "';"
             ]
-        row <- Sqlite.step getCheckpointTableInfo
-            >> Sqlite.columns getCheckpointTableInfo
-        Sqlite.finalize getCheckpointTableInfo
+        row <- Sqlite.step getTableInfo
+            >> Sqlite.columns getTableInfo
+        Sqlite.finalize getTableInfo
         pure $ case row of
             [PersistText t]
                 | fieldName field `T.isInfixOf` t -> ColumnPresent
@@ -620,13 +643,13 @@ migrateManually tr proxy defaultFieldValues =
             ColumnPresent ->
                 traceWith tr $ MsgManualMigrationNotNeeded field
 
-    renameColumn
+    renameColumnField
         :: Sqlite.Connection
         -> DBField
         -> Text -- Old Value
         -> Text -- New Value
         -> IO ()
-    renameColumn conn field old new = do
+    renameColumnField conn field old new = do
         isFieldPresent conn field >>= \case
             TableMissing ->
                 traceWith tr $ MsgManualMigrationNotNeeded field
