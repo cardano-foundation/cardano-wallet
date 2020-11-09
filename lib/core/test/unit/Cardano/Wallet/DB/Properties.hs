@@ -6,6 +6,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
@@ -130,6 +131,7 @@ import Test.QuickCheck
     , label
     , property
     , suchThat
+    , within
     , (.&&.)
     , (===)
     , (==>)
@@ -455,7 +457,7 @@ prop_createListWallet
     -> KeyValPairs (PrimaryKey WalletId) (Wallet s , WalletMetadata)
     -> Property
 prop_createListWallet db@DBLayer{..} (KeyValPairs pairs) =
-    monadicIO (setup >> prop)
+    within (2 * minute) $ monadicIO (setup >> prop)
   where
     setup = liftIO (cleanDB db)
     prop = liftIO $ do
@@ -473,7 +475,7 @@ prop_createWalletTwice
        )
     -> Property
 prop_createWalletTwice db@DBLayer{..} (key@(PrimaryKey wid), cp, meta) =
-    monadicIO (setup >> prop)
+    within (2 * minute) $ monadicIO (setup >> prop)
   where
     setup = liftIO (cleanDB db)
     prop = liftIO $ do
@@ -492,7 +494,7 @@ prop_removeWalletTwice
        )
     -> Property
 prop_removeWalletTwice db@DBLayer{..} (key@(PrimaryKey wid), cp, meta) =
-    monadicIO (setup >> prop)
+    within (2 * minute) $ monadicIO (setup >> prop)
   where
     setup = liftIO $ do
         cleanDB db
@@ -519,7 +521,7 @@ prop_readAfterPut
         -- ^ Property arguments
     -> Property
 prop_readAfterPut putOp readOp db@DBLayer{..} (key, a) =
-    monadicIO (setup >> prop)
+    within (2 * minute) $ monadicIO (setup >> prop)
   where
     setup = do
         run $ cleanDB db
@@ -541,7 +543,7 @@ prop_getTxAfterPutValidTxId
     -> GenTxHistory
     -> Property
 prop_getTxAfterPutValidTxId db@DBLayer{..} wid txGen =
-    monadicIO (setup >> prop)
+    within (2 * minute) $ monadicIO (setup >> prop)
   where
     setup = do
         run $ cleanDB db
@@ -570,7 +572,7 @@ prop_getTxAfterPutInvalidTxId
     -> (Hash "Tx")
     -> Property
 prop_getTxAfterPutInvalidTxId db@DBLayer{..} wid txGen txId' =
-    monadicIO (setup >> prop)
+    within (2 * minute) $ monadicIO (setup >> prop)
   where
     setup = do
         run $ cleanDB db
@@ -594,7 +596,7 @@ prop_getTxAfterPutInvalidWalletId
     -> PrimaryKey WalletId
     -> Property
 prop_getTxAfterPutInvalidWalletId db@DBLayer{..} (key, cp, meta) txGen key'@(PrimaryKey wid') =
-    key /= key' ==> monadicIO (setup >> prop)
+    key /= key' ==> within (2 * minute) $ monadicIO (setup >> prop)
   where
     setup = liftIO $ do
         cleanDB db
@@ -625,7 +627,7 @@ prop_putBeforeInit
         -- ^ Property arguments
     -> Property
 prop_putBeforeInit putOp readOp empty db@DBLayer{..} (key@(PrimaryKey wid), a) =
-    monadicIO (setup >> prop)
+    within (2 * minute) $ monadicIO (setup >> prop)
   where
     setup = liftIO (cleanDB db)
     prop = liftIO $ do
@@ -666,7 +668,7 @@ prop_isolation
         -- ^ Properties arguments
     -> Property
 prop_isolation putA readB readC readD db@DBLayer{..} (ShowFmt key, ShowFmt a) =
-    monadicIO (setup >>= prop)
+    within (2 * minute) $ monadicIO (setup >>= prop)
   where
     setup = do
         liftIO (cleanDB db)
@@ -699,7 +701,7 @@ prop_readAfterDelete
     -> ShowFmt (PrimaryKey WalletId)
     -> Property
 prop_readAfterDelete readOp empty db@DBLayer{..} (ShowFmt key) =
-    monadicIO (setup >> prop)
+    within (2 * minute) $ monadicIO (setup >> prop)
   where
     setup = do
         liftIO (cleanDB db)
@@ -729,7 +731,9 @@ prop_sequentialPut
         -- ^ Property arguments
     -> Property
 prop_sequentialPut putOp readOp resolve db@DBLayer{..} kv =
-    cover 25 cond "conflicting db entries" $ monadicIO (setup >> prop)
+    cover 25 cond "conflicting db entries"
+        $ within (2 * minute)
+        $ monadicIO (setup >> prop)
   where
     pairs = (\(KeyValPairs xs) -> bimap unShowFmt unShowFmt <$> xs) kv
     -- Make sure that we have some conflicting insertion to actually test the
@@ -769,7 +773,9 @@ prop_parallelPut
         -- ^ Property arguments
     -> Property
 prop_parallelPut putOp readOp resolve db@DBLayer{..} (KeyValPairs pairs) =
-    cover 25 cond "conflicting db entries" $ monadicIO (setup >> prop)
+    cover 25 cond "conflicting db entries"
+        $ within (2 * minute)
+        $ monadicIO (setup >> prop)
   where
     -- Make sure that we have some conflicting insertion to actually test the
     -- semantic of the DB Layer.
@@ -795,7 +801,7 @@ prop_rollbackCheckpoint
     -> MockChain
     -> Property
 prop_rollbackCheckpoint db@DBLayer{..} cp0 (MockChain chain) = do
-    monadicIO $ do
+    within (2 * minute) $ monadicIO $ do
         ShowFmt wid <- namedPick "Wallet ID" arbitrary
         ShowFmt meta <- namedPick "Wallet Metadata" arbitrary
         ShowFmt point <- namedPick "Rollback target" (elements $ ShowFmt <$> cps)
@@ -837,7 +843,7 @@ prop_rollbackTxHistory
     -> GenTxHistory
     -> Property
 prop_rollbackTxHistory db@DBLayer{..} (InitialCheckpoint cp0) (GenTxHistory txs0) = do
-    monadicIO $ do
+    within (2 * minute) $ monadicIO $ do
         ShowFmt wid <- namedPick "Wallet ID" arbitrary
         ShowFmt meta <- namedPick "Wallet Metadata" arbitrary
         ShowFmt point <- namedPick "Requested Rollback point" arbitrary
@@ -1068,3 +1074,7 @@ genBatches (GenSparseCheckpointsArgs cfg h) = do
         -- sure we generate realistic cases.
         n <- fromIntegral <$> choose (1, 3 * gapSize cfg)
         go (drop n source) (take n source : batches)
+
+-- | Microseconds in a minute
+minute :: Int
+minute = 60_000_000
