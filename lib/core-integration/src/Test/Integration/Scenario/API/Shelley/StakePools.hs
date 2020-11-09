@@ -974,7 +974,6 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                 Right pools@[pool1,_pool2,pool3] <-
                     snd <$> listPools ctx arbitraryStake
                 let rewards = view (#metrics . #nonMyopicMemberRewards)
-                print (rewards <$> pools) -- FIXME temporary
                 (rewards <$> pools) `shouldBe`
                     (rewards <$> sortOn (Down . rewards) pools)
                 -- Make sure the rewards are not all equal:

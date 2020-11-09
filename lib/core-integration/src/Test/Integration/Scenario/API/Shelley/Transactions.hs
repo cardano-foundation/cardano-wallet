@@ -902,12 +902,13 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 | i <- [0..127] ]
             bytes = [json|{ "bytes": #{T.replicate 64 "a"} }|]
         let payload = addTxMetadata txMeta basePayload
-        liftIO $ print payload
         r <- request @ApiFee ctx
             (Link.getTransactionFee @'Shelley wa) Default payload
 
-        expectResponseCode HTTP.status403 r
-        expectErrorMessage errMsg403TxTooLarge r
+        verify r
+            [ expectResponseCode HTTP.status403
+            , expectErrorMessage errMsg403TxTooLarge
+            ]
 
     it "TRANS_EXTERNAL_01 - Single Output Transaction - Shelley witnesses" $ \ctx -> runResourceT $ do
         wFaucet <- fixtureWallet ctx
@@ -2359,7 +2360,6 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         eventually "rewards are transferred from self to self" $ do
             rW <- request @ApiWallet ctx
                 (Link.getWallet @'Shelley wSrc) Default payload
-            print rW
             verify rW
                 [ expectField (#balance . #getApiT . #available)
                     (.> (wSrc ^. #balance . #getApiT . #available))

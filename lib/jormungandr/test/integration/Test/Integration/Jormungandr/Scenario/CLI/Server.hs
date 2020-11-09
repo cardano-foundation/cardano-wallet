@@ -50,6 +50,7 @@ import Test.Integration.Framework.DSL
     ( Context (..)
     , KnownCommand (..)
     , cardanoWalletCLI
+    , counterexample
     , expectPathEventuallyExist
     , proc'
     )
@@ -168,8 +169,8 @@ spec = do
                     threadDelay (10 * oneSecond)
                 hClose hLogs
                 logged <- T.unpack <$> TIO.readFile logs
-                putStrLn logged
-                logged `shouldContain` "Logging shutdown"
+                counterexample logged $
+                    logged `shouldContain` "Logging shutdown"
 
         describe "LOGGING - Exits nicely on wrong genesis hash" $  do
             let hashes =

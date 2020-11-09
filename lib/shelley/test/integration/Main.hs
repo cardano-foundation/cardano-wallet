@@ -106,6 +106,8 @@ import Test.Integration.Framework.Context
     ( Context (..), PoolGarbageCollectionEvent (..) )
 import Test.Integration.Framework.DSL
     ( KnownCommand (..) )
+import Test.Utils.Paths
+    ( inNixBuild )
 
 import qualified Cardano.Pool.DB as Pool
 import qualified Cardano.Pool.DB.Sqlite as Pool
@@ -141,9 +143,11 @@ instance KnownCommand Shelley where
 main :: forall t n . (t ~ Shelley, n ~ 'Mainnet) => IO ()
 main = withUtf8Encoding $ withTracers $ \tracers -> do
     hSetBuffering stdout LineBuffering
+    nix <- inNixBuild
     hspec $ do
-        describe "No backend required" $ do
-            describe "Miscellaneous CLI tests" $ parallel (MiscellaneousCLI.spec @t)
+        describe "No backend required" $
+            parallelIf (not nix) $ describe "Miscellaneous CLI tests" $
+                MiscellaneousCLI.spec @t
         specWithServer tracers $ do
             parallel $ describe "API Specifications" $ do
                 Addresses.spec @n
@@ -162,13 +166,22 @@ main = withUtf8Encoding $ withTracers $ \tracers -> do
                 ByronTransactions.spec @n
                 ByronHWWallets.spec @n
                 Settings.spec @n
-            parallel $ describe "CLI Specifications" $ do
+
+            -- Hydra runs tests with code coverage enabled. CLI tests run
+            -- multiple processes. These processes can try to write to the
+            -- same .tix file simultaneously, causing errors.
+            --
+            -- Because of this, don't run the CLI tests in parallel in hydra.
+            parallelIf (not nix) $ describe "CLI Specifications" $ do
                 AddressesCLI.spec @n
                 TransactionsCLI.spec @n
                 WalletsCLI.spec @n
                 HWWalletsCLI.spec @n
                 PortCLI.spec @t
                 NetworkCLI.spec @t
+  where
+    parallelIf :: forall a. Bool -> SpecWith a -> SpecWith a
+    parallelIf flag = if flag then parallel else id
 
 specWithServer
     :: (Tracer IO TestsLog, Tracers IO)
