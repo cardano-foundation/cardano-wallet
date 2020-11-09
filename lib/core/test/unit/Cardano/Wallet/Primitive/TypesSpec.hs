@@ -117,8 +117,10 @@ import Cardano.Wallet.Primitive.Types
     )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
+import Cardano.Wallet.Primitive.Types.HashSpec
+    ()
 import Cardano.Wallet.Unsafe
-    ( someDummyMnemonic, unsafeFromHex )
+    ( someDummyMnemonic )
 import Control.Exception
     ( evaluate )
 import Control.Monad
@@ -220,12 +222,6 @@ spec = do
         textRoundtrip $ Proxy @TxStatus
         textRoundtrip $ Proxy @WalletName
         textRoundtrip $ Proxy @WalletId
-        textRoundtrip $ Proxy @(Hash "Genesis")
-        textRoundtrip $ Proxy @(Hash "Tx")
-        textRoundtrip $ Proxy @(Hash "Account")
-        textRoundtrip $ Proxy @(Hash "ChimericAccount")
-        textRoundtrip $ Proxy @(Hash "Block")
-        textRoundtrip $ Proxy @(Hash "BlockHeader")
         textRoundtrip $ Proxy @SyncTolerance
         textRoundtrip $ Proxy @PoolId
         textRoundtrip $ Proxy @PoolOwner
@@ -797,23 +793,6 @@ spec = do
             let err = "wallet id should be a hex-encoded string \
                       \of 40 characters"
             fromText @WalletId "101" === Left (TextDecodingError err)
-        it "fail fromText (@Hash \"Tx\")" $ do
-            let err =
-                    "Invalid tx hash: \
-                    \expecting a hex-encoded value that is 32 bytes in length."
-            fromText @(Hash "Tx") "----" === Left (TextDecodingError err)
-        it "fail fromText (@Hash \"Genesis\")" $ do
-            let err = "Invalid genesis hash: \
-                    \expecting a hex-encoded value that is 32 bytes in length."
-            fromText @(Hash "Genesis") "----" === Left (TextDecodingError err)
-        it "fail fromText (@Hash \"Block\")" $ do
-            let err = "Invalid block hash: \
-                    \expecting a hex-encoded value that is 32 bytes in length."
-            fromText @(Hash "Block") "----" === Left (TextDecodingError err)
-        it "fail fromText (@Hash \"BlockHeader\")" $ do
-            let err = "Invalid blockHeader hash: \
-                    \expecting a hex-encoded value that is 32 bytes in length."
-            fromText @(Hash "BlockHeader") "----" === Left (TextDecodingError err)
         it "Invalid account IDs cannot be decoded from text" $ do
             let expectedErrorMessage =
                     "Invalid account hash: \
@@ -1140,32 +1119,6 @@ instance Arbitrary FeePolicy where
         f <$> shrink (a, b, c)
       where
         f (x, y, z) = LinearFee (Quantity x) (Quantity y) (Quantity z)
-
-instance Arbitrary (Hash "Genesis") where
-    arbitrary = Hash . BS.pack <$> vector 32
-
-instance Arbitrary (Hash "Block") where
-    arbitrary = Hash . BS.pack <$> vector 32
-
-instance Arbitrary (Hash "Account") where
-    arbitrary = Hash . BS.pack <$> vector 32
-
-instance Arbitrary (Hash "ChimericAccount") where
-    arbitrary = Hash . BS.pack <$> vector 28
-
-instance Arbitrary (Hash "BlockHeader") where
-    arbitrary = Hash . BS.pack <$> vector 32
-
-instance Arbitrary (Hash "Tx") where
-    -- No Shrinking
-    arbitrary = elements
-        [ Hash $ unsafeFromHex
-            "0000000000000000000000000000000000000000000000000000000000000001"
-        , Hash $ unsafeFromHex
-            "0000000000000000000000000000000000000000000000000000000000000002"
-        , Hash $ unsafeFromHex
-            "0000000000000000000000000000000000000000000000000000000000000003"
-        ]
 
 -- Same for addresses
 instance Arbitrary Address where
