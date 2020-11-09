@@ -878,8 +878,6 @@ x-stakePoolMetadata: &stakePoolMetadata
       type: string
       format: uri
       example: https://iohk.io
-    delisted:
-      type: boolean
 
 x-stakePoolRetirement: &stakePoolRetirement
   <<: *epochInfo
@@ -3050,7 +3048,6 @@ x-responsesListStakePools: &responsesListStakePools
               items: *ApiJormungandrStakePool
 
 x-responsesPoolMaintenance: &responsesPoolMaintenance
-  <<: *responsesErr405
   <<: *responsesErr404
   204:
     description: No Content
