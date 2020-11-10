@@ -31,6 +31,7 @@ library
   build-depends:
       base
     , aeson
+    , aeson-pretty
     , async
     , contra-tracer
     , filepath
@@ -49,6 +50,7 @@ library
     , servant-swagger
     , stm
     , template-haskell
+    , text
     , time
     , wai-app-static
     , warp

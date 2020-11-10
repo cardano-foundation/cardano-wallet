@@ -220,15 +220,9 @@ import Data.List.NonEmpty
 import Data.Maybe
     ( fromJust, fromMaybe )
 import Data.OpenApi
-    ( AdditionalProperties (..)
-    , Definitions
-    , NamedSchema (..)
-    , Schema
-    , ToSchema (..)
-    , additionalProperties
-    )
+    ( Definitions, NamedSchema (..), Schema, ToSchema (..) )
 import Data.OpenApi.Declare
-    ( Declare, MonadDeclare (..) )
+    ( Declare, declare, look )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -301,13 +295,15 @@ import Test.QuickCheck.Arbitrary.Generic
 import Test.Text.Roundtrip
     ( textRoundtrip )
 import Test.Utils.OpenApi
-    ( validateEveryToJSON )
+    ( validateEveryToJSON, validateEveryToJSONWithPatternChecker )
 import Test.Utils.Paths
     ( getTestData )
 import Test.Utils.Roundtrip
     ( httpApiDataRoundtrip )
 import Test.Utils.Time
     ( genUniformTime )
+import Text.Regex.PCRE
+    ( compBlank, execBlank, makeRegexOpts, matchTest )
 import Web.HttpApiData
     ( FromHttpApiData (..) )
 
@@ -426,7 +422,11 @@ spec = do
     describe
         "verify that every type used with JSON content type in a servant API \
         \has compatible ToJSON and ToSchema instances using validateToJSON." $ do
-        validateEveryToJSON
+        let match regex sourc = matchTest
+                (makeRegexOpts compBlank execBlank $ T.unpack regex)
+                (T.unpack sourc)
+        validateEveryToJSONWithPatternChecker
+            match
             (Proxy :: Proxy (Api ('Testnet 0) ApiStakePool))
         -- NOTE See (ToSchema WalletOrAccountPostData)
         validateEveryToJSON
@@ -1847,7 +1847,7 @@ instance ToSchema ByronWalletFromXPrvPostData where
     declareNamedSchema _ = declareSchemaForDefinition "ApiByronWalletRandomXPrvPostData"
 
 instance ToSchema SomeByronWalletPostData where
-    declareNamedSchema _ = declareSchemaForDefinition "ApiByronWalletPostData"
+    declareNamedSchema _ = declareSchemaForDefinition "SomeByronWalletPostData"
 
 instance ToSchema WalletPutData where
     declareNamedSchema _ = declareSchemaForDefinition "ApiWalletPutData"
@@ -1866,19 +1866,22 @@ instance ToSchema ByronWalletPutPassphraseData where
     declareNamedSchema _ =
         declareSchemaForDefinition "ApiByronWalletPutPassphraseData"
 
+instance ToSchema ApiTxMetadata where
+    declareNamedSchema _ = declareSchemaForDefinition "TransactionMetadataValue"
+
 instance ToSchema (PostTransactionData t) where
     declareNamedSchema _ = do
-        addDefinition transactionMetadataValueSchema
+        addDefinition =<< declareSchemaForDefinition "TransactionMetadataValue"
         declareSchemaForDefinition "ApiPostTransactionData"
 
 instance ToSchema (PostTransactionFeeData t) where
     declareNamedSchema _ = do
-        addDefinition transactionMetadataValueSchema
+        addDefinition =<< declareSchemaForDefinition "TransactionMetadataValue"
         declareSchemaForDefinition "ApiPostTransactionFeeData"
 
 instance ToSchema (ApiTransaction t) where
     declareNamedSchema _ = do
-        addDefinition transactionMetadataValueSchema
+        addDefinition =<< declareSchemaForDefinition "TransactionMetadataValue"
         declareSchemaForDefinition "ApiTransaction"
 
 instance ToSchema ApiUtxoStatistics where
@@ -1900,22 +1903,14 @@ instance ToSchema ApiPubKey where
 
 instance ToSchema ApiAddressData where
     declareNamedSchema _ = do
-        addDefinition scriptValueSchema
-        addDefinition credentialValueSchema
+        addDefinition =<< declareSchemaForDefinition "ScriptValue"
+        addDefinition =<< declareSchemaForDefinition "CredentialValue"
         declareSchemaForDefinition "ApiAddressData"
 
 instance ToSchema ApiCredential where
     declareNamedSchema _ = do
-        addDefinition scriptValueSchema
-        NamedSchema _ pubKey' <- declareNamedSchema (Proxy @ApiPubKey)
-        NamedSchema _ script'  <- declareNamedSchema (Proxy @ApiScript)
-        pure $ NamedSchema Nothing $ mempty
-            & type_ .~ Just SwaggerObject
-            & required .~ []
-            & properties .~ mconcat
-                [ pubKey' ^. properties
-                , script' ^. properties
-                ]
+        addDefinition =<< declareSchemaForDefinition "ScriptValue"
+        declareSchemaForDefinition "ApiCredential"
 
 instance ToSchema AnyAddress where
     declareNamedSchema _ = declareSchemaForDefinition "AnyAddress"
@@ -1943,31 +1938,8 @@ instance ToSchema ApiPostRandomAddressData where
 
 instance ToSchema ApiWalletSignData where
     declareNamedSchema _ = do
-        addDefinition transactionMetadataValueSchema
+        addDefinition =<< declareSchemaForDefinition "TransactionMetadataValue"
         declareSchemaForDefinition "ApiWalletSignData"
-
--- FIXME: #ADP-417
---
--- OpenAPI 2.0 does not support sum-types and the 'oneOf' combinator. When we
--- switched to a library that supports OpenAPI 3.0, we can remove this empty
--- schema and use instead something like:
---
---     addDefinition =<< declareSchemaForDefinition "TransactionMetadataValue"
---
-transactionMetadataValueSchema :: NamedSchema
-transactionMetadataValueSchema =
-    NamedSchema (Just "TransactionMetadataValue") $ mempty
-        & additionalProperties ?~ AdditionalPropertiesAllowed True
-
-scriptValueSchema :: NamedSchema
-scriptValueSchema =
-    NamedSchema (Just "ScriptValue") $ mempty
-        & additionalProperties ?~ AdditionalPropertiesAllowed True
-
-credentialValueSchema :: NamedSchema
-credentialValueSchema =
-    NamedSchema (Just "CredentialValue") $ mempty
-        & additionalProperties ?~ AdditionalPropertiesAllowed True
 
 -- | Utility function to provide an ad-hoc 'ToSchema' instance for a definition:
 -- we simply look it up within the Swagger specification.
