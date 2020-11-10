@@ -377,7 +377,7 @@ x-ScriptValue: &ScriptValue
           properties:
             at_least:
               type: integer
-              minimum: 0
+              minimum: 1
             from:
               type: array
               minItems: 1

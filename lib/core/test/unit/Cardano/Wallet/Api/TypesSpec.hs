@@ -1029,7 +1029,7 @@ instance Arbitrary Script where
             Positive m <- arbitrary
             let n' = n `div` (m + 1)
             scripts <- vectorOf m (scriptTree n')
-            atLeast <- choose (0, fromIntegral (m + 1))
+            atLeast <- choose (1, fromIntegral (m + 1))
             elements
                 [ RequireAllOf scripts
                 , RequireAnyOf scripts
