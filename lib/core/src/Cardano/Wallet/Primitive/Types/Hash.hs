@@ -48,7 +48,7 @@ import qualified Data.Text.Encoding as T
 newtype Hash (tag :: Symbol) = Hash { getHash :: ByteString }
     deriving stock (Generic, Eq, Ord)
     deriving newtype (ByteArrayAccess)
-    deriving Show via (Quiet (Hash tag))
+    deriving (Read, Show) via (Quiet (Hash tag))
 
 instance NFData (Hash tag)
 
@@ -67,6 +67,7 @@ instance FromText (Hash "Genesis")       where fromText = hashFromText 32
 instance FromText (Hash "Block")         where fromText = hashFromText 32
 instance FromText (Hash "BlockHeader")   where fromText = hashFromText 32
 instance FromText (Hash "RewardAccount") where fromText = hashFromText 28
+instance FromText (Hash "TokenPolicy")   where fromText = hashFromText 28
 
 hashFromText
     :: forall t. (KnownSymbol t)

@@ -95,6 +95,7 @@ library
     , statistics
     , stm
     , streaming-commons
+    , strict-non-empty-containers
     , string-interpolate
     , template-haskell
     , text
@@ -165,6 +166,9 @@ library
       Cardano.Wallet.Primitive.Types.Coin
       Cardano.Wallet.Primitive.Types.Hash
       Cardano.Wallet.Primitive.Types.RewardAccount
+      Cardano.Wallet.Primitive.Types.TokenBundle
+      Cardano.Wallet.Primitive.Types.TokenPolicy
+      Cardano.Wallet.Primitive.Types.TokenQuantity
       Cardano.Wallet.Primitive.Types.Tx
       Cardano.Wallet.Primitive.Types.UTxO
       Cardano.Wallet.Registry
@@ -228,6 +232,7 @@ test-suite unit
     , generic-arbitrary
     , generic-lens
     , hspec
+    , hspec-core
     , http-api-data
     , http-client
     , http-client-tls
@@ -243,6 +248,7 @@ test-suite unit
     , OddWord
     , ouroboros-consensus
     , QuickCheck
+    , quickcheck-classes
     , quickcheck-state-machine >= 0.6.0
     , random
     , retry
@@ -251,8 +257,10 @@ test-suite unit
     , servant
     , servant-server
     , stm
+    , strict-non-empty-containers
     , openapi3 >= 3.0.0.1
     , servant-openapi3
+    , string-qq
     , temporary
     , text
     , text-class
@@ -317,6 +325,8 @@ test-suite unit
       Cardano.Wallet.Primitive.SyncProgressSpec
       Cardano.Wallet.Primitive.TypesSpec
       Cardano.Wallet.Primitive.Types.HashSpec
+      Cardano.Wallet.Primitive.Types.TokenBundleSpec
+      Cardano.Wallet.Primitive.Types.TokenQuantitySpec
       Cardano.Wallet.RegistrySpec
       Cardano.Wallet.TransactionSpec
       Cardano.WalletSpec
