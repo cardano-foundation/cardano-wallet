@@ -61,6 +61,7 @@ module Cardano.Wallet.Api.Types
     , ApiCoinSelectionOutput (..)
     , ApiStakePool (..)
     , ApiStakePoolMetrics (..)
+    , ApiStakePoolFlag (..)
     , ApiWallet (..)
     , ApiWalletPassphrase (..)
     , ApiWalletPassphraseInfo (..)
@@ -77,6 +78,7 @@ module Cardano.Wallet.Api.Types
     , ApiTransaction (..)
     , ApiWithdrawalPostData (..)
     , ApiMaintenanceAction (..)
+    , ApiMaintenanceActionPostData (..)
     , MaintenanceAction (..)
     , ApiFee (..)
     , ApiTxId (..)
@@ -410,8 +412,12 @@ fmtAllowedWords =
 data MaintenanceAction = GcStakePools
     deriving (Eq, Generic, Show)
 
-newtype ApiMaintenanceAction = ApiMaintenanceAction
+newtype ApiMaintenanceActionPostData = ApiMaintenanceActionPostData
     { maintenanceAction :: MaintenanceAction
+    } deriving (Eq, Generic, Show)
+
+newtype ApiMaintenanceAction = ApiMaintenanceAction
+    { gcStakePools :: ApiT PoolMetadataGCStatus
     } deriving (Eq, Generic, Show)
 
 data ApiAddress (n :: NetworkDiscriminant) = ApiAddress
@@ -555,8 +561,13 @@ data ApiStakePool = ApiStakePool
     , margin :: !(Quantity "percent" Percentage)
     , pledge :: !(Quantity "lovelace" Natural)
     , retirement :: !(Maybe ApiEpochInfo)
-    , delisted :: !Bool
+    , flags :: ![ApiStakePoolFlag]
     } deriving (Eq, Generic, Show)
+
+data ApiStakePoolFlag
+    = Delisted
+    deriving stock (Eq, Generic, Show)
+    deriving anyclass NFData
 
 data ApiStakePoolMetrics = ApiStakePoolMetrics
     { nonMyopicMemberRewards :: !(Quantity "lovelace" Natural)
@@ -1430,6 +1441,11 @@ instance FromJSON ByronWalletPutPassphraseData where
 instance ToJSON ByronWalletPutPassphraseData where
     toJSON = genericToJSON defaultRecordTypeOptions
 
+instance FromJSON ApiMaintenanceActionPostData where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance ToJSON ApiMaintenanceActionPostData where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
 instance FromJSON ApiMaintenanceAction where
     parseJSON = genericParseJSON defaultRecordTypeOptions
 instance ToJSON ApiMaintenanceAction where
@@ -1599,6 +1615,11 @@ instance FromJSON ApiStakePoolMetrics where
     parseJSON = genericParseJSON defaultRecordTypeOptions
 instance ToJSON ApiStakePoolMetrics where
     toJSON = genericToJSON defaultRecordTypeOptions
+
+instance FromJSON ApiStakePoolFlag where
+    parseJSON = genericParseJSON defaultSumTypeOptions
+instance ToJSON ApiStakePoolFlag where
+    toJSON = genericToJSON defaultSumTypeOptions
 
 instance FromJSON (ApiT WalletName) where
     parseJSON = parseJSON >=> eitherToParser . bimap ShowFmt ApiT . fromText

@@ -456,8 +456,10 @@ combineDbAndLsqData ti nOpt lsqData =
                 fmap fromIntegral $ poolPledge $ registrationCert dbData
             , Api.margin =
                 Quantity $ poolMargin $ registrationCert dbData
-            , Api.retirement = retirementEpochInfo
-            , Api.delisted = delisted dbData
+            , Api.retirement =
+                retirementEpochInfo
+            , Api.flags =
+                [ Api.Delisted | delisted dbData ]
             }
 
     toApiEpochInfo ep = do

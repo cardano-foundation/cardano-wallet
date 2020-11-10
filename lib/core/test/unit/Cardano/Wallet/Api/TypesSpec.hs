@@ -64,6 +64,7 @@ import Cardano.Wallet.Api.Types
     , ApiErrorCode (..)
     , ApiFee (..)
     , ApiMaintenanceAction (..)
+    , ApiMaintenanceActionPostData (..)
     , ApiMnemonicT (..)
     , ApiNetworkClock (..)
     , ApiNetworkInformation (..)
@@ -77,6 +78,7 @@ import Cardano.Wallet.Api.Types
     , ApiSlotId (..)
     , ApiSlotReference (..)
     , ApiStakePool (..)
+    , ApiStakePoolFlag (..)
     , ApiStakePoolMetrics (..)
     , ApiT (..)
     , ApiTransaction (..)
@@ -353,7 +355,6 @@ spec = do
             jsonRoundtripAndGolden $ Proxy @ApiCredential
             jsonRoundtripAndGolden $ Proxy @ApiAddressData
             jsonRoundtripAndGolden $ Proxy @(ApiT DerivationIndex)
-            jsonRoundtripAndGolden $ Proxy @(ApiT PoolMetadataGCStatus)
             jsonRoundtripAndGolden $ Proxy @ApiEpochInfo
             jsonRoundtripAndGolden $ Proxy @(ApiSelectCoinsData ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @(ApiCoinSelection ('Testnet 0))
@@ -413,6 +414,8 @@ spec = do
             jsonRoundtripAndGolden $ Proxy @(ApiT StakePoolMetadata)
             jsonRoundtripAndGolden $ Proxy @ApiPostRandomAddressData
             jsonRoundtripAndGolden $ Proxy @ApiTxMetadata
+            jsonRoundtripAndGolden $ Proxy @ApiMaintenanceAction
+            jsonRoundtripAndGolden $ Proxy @ApiMaintenanceActionPostData
 
     describe "Textual encoding" $ do
         describe "Can perform roundtrip textual encoding & decoding" $ do
@@ -1340,6 +1343,10 @@ instance Arbitrary ApiStakePoolMetrics where
         <*> (choose (0.0, 5.0))
         <*> (Quantity . fromIntegral <$> choose (1::Integer, 22_600_000))
 
+instance Arbitrary ApiStakePoolFlag where
+    shrink = genericShrink
+    arbitrary = genericArbitrary
+
 instance Arbitrary StakePoolMetadata where
     arbitrary = StakePoolMetadata
         <$> arbitrary
@@ -1383,6 +1390,10 @@ instance Arbitrary ApiWalletPassphraseInfo where
     arbitrary = ApiWalletPassphraseInfo <$> genUniformTime
 
 instance Arbitrary ApiMaintenanceAction where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
+
+instance Arbitrary ApiMaintenanceActionPostData where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
@@ -1535,6 +1546,9 @@ instance Arbitrary Api.MaintenanceAction where
 
 instance ToSchema Api.ApiMaintenanceAction where
     declareNamedSchema _ = declareSchemaForDefinition "ApiMaintenanceAction"
+
+instance ToSchema Api.ApiMaintenanceActionPostData where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiMaintenanceActionPostData"
 
 instance Arbitrary ApiNetworkParameters where
     arbitrary = genericArbitrary
@@ -1900,9 +1914,6 @@ instance ToSchema SettingsPutData where
 
 instance ToSchema (ApiT Settings) where
     declareNamedSchema _ = declareSchemaForDefinition "ApiGetSettings"
-
-instance ToSchema (ApiT PoolMetadataGCStatus) where
-    declareNamedSchema _ = declareSchemaForDefinition "ApiGCStatus"
 
 instance ToSchema WalletPutPassphraseData where
     declareNamedSchema _ =

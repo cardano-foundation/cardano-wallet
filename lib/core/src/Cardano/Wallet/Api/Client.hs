@@ -366,6 +366,8 @@ stakePoolClient =
             :<|> _joinStakePool
             :<|> _quitStakePool
             :<|> _delegationFee
+            :<|> _postPoolMaintenance
+            :<|> _getPoolMaintenance
             = client (Proxy @("v2" :> StakePools Aeson.Value apiPool))
     in
         StakePoolClient

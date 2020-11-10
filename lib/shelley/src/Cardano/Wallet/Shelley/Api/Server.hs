@@ -107,6 +107,7 @@ import Cardano.Wallet.Api.Types
     , ApiCredential (..)
     , ApiErrorCode (..)
     , ApiMaintenanceAction (..)
+    , ApiMaintenanceActionPostData (..)
     , ApiSelectCoinsAction (..)
     , ApiSelectCoinsData (..)
     , ApiStakePool
@@ -266,12 +267,9 @@ server byron icarus shelley spl ntp =
         :<|> joinStakePool shelley (knownPools spl) (getPoolLifeCycleStatus spl)
         :<|> quitStakePool shelley
         :<|> delegationFee shelley
-        :<|> _poolMaintenance
-        :<|> liftIO (ApiT <$> getGCMetadataStatus spl)
+        :<|> postPoolMaintenance
+        :<|> getPoolMaintenance
       where
-        _poolMaintenance = \case
-            ApiMaintenanceAction GcStakePools ->
-                liftIO $ forceMetadataGC spl >> pure NoContent
         listStakePools_ = \case
             Just (ApiT stake) -> do
                 currentEpoch <- getCurrentEpoch shelley
@@ -281,6 +279,15 @@ server byron icarus shelley spl ntp =
                 [ "The stake intended to delegate must be provided as a query "
                 , "parameter as it affects the rewards and ranking."
                 ]
+
+        postPoolMaintenance action = do
+            case action of
+                ApiMaintenanceActionPostData GcStakePools ->
+                    liftIO $ forceMetadataGC spl
+            getPoolMaintenance
+
+        getPoolMaintenance =
+            liftIO (ApiMaintenanceAction . ApiT <$> getGCMetadataStatus spl)
 
     byronWallets :: Server ByronWallets
     byronWallets =

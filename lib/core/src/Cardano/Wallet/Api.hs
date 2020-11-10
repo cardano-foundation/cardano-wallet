@@ -50,10 +50,11 @@ module Cardano.Wallet.Api
 
     , StakePools
         , ListStakePools
-        , MetadataGCStatus
         , JoinStakePool
         , QuitStakePool
         , DelegationFee
+        , PostPoolMaintenance
+        , GetPoolMaintenance
 
     , ShelleyMigrations
         , MigrateShelleyWallet
@@ -61,8 +62,8 @@ module Cardano.Wallet.Api
 
     -- * Settings
     , Settings
-    , PutSettings
-    , GetSettings
+        , PutSettings
+        , GetSettings
 
     -- * Byron
     , ByronWallets
@@ -126,6 +127,7 @@ import Cardano.Wallet.Api.Types
     , ApiCoinSelectionT
     , ApiFee
     , ApiMaintenanceAction
+    , ApiMaintenanceActionPostData
     , ApiNetworkClock
     , ApiNetworkInformation
     , ApiNetworkParameters
@@ -168,7 +170,6 @@ import Cardano.Wallet.Primitive.Types
     , Block
     , Coin (..)
     , NetworkParameters
-    , PoolMetadataGCStatus (..)
     , SortOrder (..)
     , WalletId (..)
     )
@@ -205,7 +206,6 @@ import Servant.API.Verbs
     , Post
     , PostAccepted
     , PostCreated
-    , PostNoContent
     , Put
     , PutAccepted
     , PutNoContent
@@ -447,17 +447,13 @@ type StakePools n apiPool =
     :<|> JoinStakePool n
     :<|> QuitStakePool n
     :<|> DelegationFee
-    :<|> PoolMaintenance
-    :<|> MetadataGCStatus
+    :<|> PostPoolMaintenance
+    :<|> GetPoolMaintenance
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/listStakePools
 type ListStakePools apiPool = "stake-pools"
     :> QueryParam "stake" (ApiT Coin)
     :> Get '[JSON] [apiPool]
-
-type MetadataGCStatus = "stake-pools"
-    :> "metadata-gc-status"
-    :> Get '[JSON] (ApiT PoolMetadataGCStatus)
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/joinStakePool
 type JoinStakePool n = "stake-pools"
@@ -481,10 +477,16 @@ type DelegationFee = "wallets"
     :> "delegation-fees"
     :> Get '[JSON] ApiFee
 
-type PoolMaintenance = "stake-pools"
+-- | https://input-output-hk.github.io/cardano-wallet/api/#operation/postPoolMaintenance
+type PostPoolMaintenance = "stake-pools"
     :> "maintenance-actions"
-    :> ReqBody '[JSON] ApiMaintenanceAction
-    :> PostNoContent
+    :> ReqBody '[JSON] ApiMaintenanceActionPostData
+    :> Post '[JSON] ApiMaintenanceAction
+
+-- | https://input-output-hk.github.io/cardano-wallet/api/#operation/getPoolMaintenance
+type GetPoolMaintenance = "stake-pools"
+    :> "maintenance-actions"
+    :> Get '[JSON] ApiMaintenanceAction
 
 {-------------------------------------------------------------------------------
                                   Settings

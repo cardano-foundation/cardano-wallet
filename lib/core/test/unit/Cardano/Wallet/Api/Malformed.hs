@@ -52,7 +52,7 @@ import Prelude
 import Cardano.Wallet.Api.Types
     ( ApiAddressData
     , ApiAddressInspectData
-    , ApiMaintenanceAction
+    , ApiMaintenanceActionPostData
     , ApiPoolId
     , ApiPostRandomAddressData
     , ApiPutAddressesData
@@ -1140,7 +1140,7 @@ instance Malformed (BodyParam SettingsPutData) where
           )
         ]
 
-instance Malformed (BodyParam ApiMaintenanceAction) where
+instance Malformed (BodyParam ApiMaintenanceActionPostData) where
     malformed = first (BodyParam . Aeson.encode) <$>
         [ ( [aesonQQ|
             { "maintenance_action": "unknown_action"

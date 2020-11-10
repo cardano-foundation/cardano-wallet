@@ -1,398 +1,591 @@
 {
-    "seed": 8667568736628734356,
+    "seed": -4132539117587378523,
     "samples": [
         {
+            "flags": [
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted"
+            ],
             "metrics": {
-                "saturation": 4.1071403845648105,
+                "saturation": 1.347474258087622e-2,
                 "non_myopic_member_rewards": {
-                    "quantity": 971736278287,
+                    "quantity": 389762930128,
                     "unit": "lovelace"
                 },
                 "produced_blocks": {
-                    "quantity": 861441,
+                    "quantity": 8342542,
                     "unit": "block"
                 },
                 "relative_stake": {
-                    "quantity": 52.99,
+                    "quantity": 73.62,
+                    "unit": "percent"
+                }
+            },
+            "cost": {
+                "quantity": 143,
+                "unit": "lovelace"
+            },
+            "margin": {
+                "quantity": 74.1,
+                "unit": "percent"
+            },
+            "pledge": {
+                "quantity": 123,
+                "unit": "lovelace"
+            },
+            "metadata": {
+                "homepage": "򪏔fi@9Jq72􉿏y\u001a\u0007F",
+                "name": "Y𶸻p\n󑪊$󎙷\u001e2\u0019򼤺\u0000R>JF\u00024򣾜U7k=Vt7S𩬻𞼟򗀆!=3GjQpN\u0004",
+                "ticker": "z񜊑$z򫔄",
+                "description": "iF@,\u0000!񖅬󞉳\u0001󚩾IeT`򲌉M񟴙񘜮􈇒󫁮xK󁄢\u0017z8_?𰮧_l \u000e\u001e\t-*^'0u\r򱱺^k񢓱3\t\u000fAcD8uZ@\u0007I𯊓-򼫌񤮸&\u0003oC󠉄`𤬱OG(񿠝\r󇿣󲡳𐕕\u0007}毲񔪓k\u000e{KT\u0013\u0001\u000e\u001e\u0003c_󞒉񎖾`\u00001Xd~SH\u00199𱘎\u000b;w\u0003Vv񐉑𮇪bW!񟯆03𿰄\u0018nU𯝅\u0007t򫖺\u0008󊞛넇󨲹󵪌󿯵^"
+            },
+            "id": "pool16rqaujxmx4j0quwyzct9rdauvhm30ttrhncpcj4c9hzqxndf3ac"
+        },
+        {
+            "flags": [
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted"
+            ],
+            "metrics": {
+                "saturation": 3.8837672493828688,
+                "non_myopic_member_rewards": {
+                    "quantity": 801057920191,
+                    "unit": "lovelace"
+                },
+                "produced_blocks": {
+                    "quantity": 21889826,
+                    "unit": "block"
+                },
+                "relative_stake": {
+                    "quantity": 22.66,
                     "unit": "percent"
                 }
             },
             "retirement": {
-                "epoch_start_time": "1905-05-05T20:00:00Z",
-                "epoch_number": 28310
+                "epoch_start_time": "1881-07-25T04:00:00Z",
+                "epoch_number": 2951
             },
             "cost": {
-                "quantity": 234,
+                "quantity": 67,
                 "unit": "lovelace"
             },
             "margin": {
-                "quantity": 45.08,
+                "quantity": 9.67,
                 "unit": "percent"
             },
             "pledge": {
-                "quantity": 127,
+                "quantity": 203,
                 "unit": "lovelace"
             },
-            "delisted": false,
             "metadata": {
-                "homepage": "}[Phq򨖾𧱜6-l#wy\u0003꣔򒀨\u001e`񇏹o\u0019c񠚍>M\u0016\u001d\u000b󅹓\u0014򴉬onO",
-                "name": "\ndx𰲗񿅢m󉈩,T荣F)$O󻼼I:6P33m//EO\u0017A򗛤\u001aT",
-                "ticker": "lDG\u0011r"
+                "homepage": "K\u0004R9𡨭z<7Wu\u000b\\\"𴵻4񹭽󐴫l󿛛f`\u0018񉌹(\u0006\u0002/?a􆄓\tU\u0016G\u0005'?g넎kK\u000cM򃡆v񨛪󑌺EB򍔦򏊁S􀠪T\u000bl}s`񖈾\u0010\u0015j󁉿M񙅇,񙎌󚕆7Ikh󫹠\u0014O\u001f򳤥",
+                "name": "C\u0000򋛐v𲓻򓧨#2Q𝄺\u000bY𹼶m𲗡񳥥󉮳}Su򮐵{񂆢L\u0007",
+                "ticker": "9򗛽^􆋶򄈩"
             },
-            "id": "pool15pvw2h7q43fkjt66nf5ezwn57ksxk3nqyds3yzk5a6jxss7t0d6"
+            "id": "pool19vd9w4kgkzrpaxvykv2x5wa7pd6e07c64qrvkckk9fj5c7zzmuz"
         },
         {
+            "flags": [
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted"
+            ],
             "metrics": {
-                "saturation": 1.9695964314075094,
+                "saturation": 2.2678498772463547,
                 "non_myopic_member_rewards": {
-                    "quantity": 849281553646,
+                    "quantity": 916311513140,
                     "unit": "lovelace"
                 },
                 "produced_blocks": {
-                    "quantity": 15626410,
+                    "quantity": 20949158,
                     "unit": "block"
                 },
                 "relative_stake": {
-                    "quantity": 66.09,
+                    "quantity": 47.99,
                     "unit": "percent"
                 }
             },
             "retirement": {
-                "epoch_start_time": "1899-12-14T22:50:04Z",
-                "epoch_number": 14402
+                "epoch_start_time": "1894-11-16T03:37:27.329210709372Z",
+                "epoch_number": 26550
             },
             "cost": {
-                "quantity": 126,
-                "unit": "lovelace"
-            },
-            "margin": {
-                "quantity": 13.5,
-                "unit": "percent"
-            },
-            "pledge": {
-                "quantity": 40,
-                "unit": "lovelace"
-            },
-            "delisted": true,
-            "metadata": {
-                "homepage": "\u0002񎋫\u0007\u0019^\u0002_f]2.񥈒U\u001a`?沔(󌭳hH\u000fU={Gvz\r񓾽񿹅𖳖󷔩ᕷ7>򶠽C𾐎\u0003\u0016\u001c\u000e=\u000c\u0008\u0005G@-u^t+􄬤T\u0015\u0000`",
-                "name": "?y-\u0008p򜜅,\u000c[௹\u000c񢝵T񢀕񀄎sᛩ)Qj0/񸤥G/M\u001a",
-                "ticker": ">𯞔󣼗\"󂗆",
-                "description": "G󼤏+񩪣\u001f:D\u0010*_3p󖍓y􈧭񵞊\u0011𥎔𯒜򷌡\u001eI5\u0000?\u000b8򆓒"
-            },
-            "id": "pool1vg0uj4wswn6jztrxr83fleggxs8qn73zh637qplqdqfyuzj7m6m"
-        },
-        {
-            "metrics": {
-                "saturation": 2.654499194014374,
-                "non_myopic_member_rewards": {
-                    "quantity": 679234505893,
-                    "unit": "lovelace"
-                },
-                "produced_blocks": {
-                    "quantity": 6339247,
-                    "unit": "block"
-                },
-                "relative_stake": {
-                    "quantity": 29.98,
-                    "unit": "percent"
-                }
-            },
-            "retirement": {
-                "epoch_start_time": "1879-06-30T04:24:38Z",
-                "epoch_number": 5230
-            },
-            "cost": {
-                "quantity": 112,
-                "unit": "lovelace"
-            },
-            "margin": {
-                "quantity": 92.9,
-                "unit": "percent"
-            },
-            "pledge": {
-                "quantity": 6,
-                "unit": "lovelace"
-            },
-            "delisted": true,
-            "metadata": {
-                "homepage": "\u0004tc\u0001\u0003󠇶𜂽OI\u000b7jA\r\u001f(x.\u0018\u000bw򜯟\tiIG󩱅򶡡𯒇G)𷃂򇲇󲷬R3\u0015Dm󃦉$\"S𦆅D𰗧񟁧󐱐\u0018\u001d\u0004Ev3",
-                "name": "\u000b/-8\u001fni\u0016Y򩽇\u0018\u000b𞪎\u0019.<f",
-                "ticker": "@\u0001.\u0001",
-                "description": "pm{#\u0004򡳊\u0012񿜈𠈨220\u0016L1𣷳'\u0010񟿔\t\u000fR򼬴󘆨C?B\u001dA+\u0016reD|q}򺋝󖌡󨆬D\u000f\\,P=󃐫\u0013\u0014𓅖󎰗'O񈊿R\u001do\u0010񮄄3o4\u0003(𠚋򽢢I񙛏\u000c񺛗<*񪃯弱1񷴄򚋑t󲡸󶯚\u0010󋔼\u0018=f\u0001fI򳫵j𨏠\u0007򒫼򄲩\u0001\u0001e񯟫z򵅐<z󳘈y\u0005]\u001e\\3%%>\u000el𻊵󳦍􂦨aM"
-            },
-            "id": "pool1wghjk8a7vaze793tstw4x75fuzd38z9jgsw9dlpluwmz2ekpmut"
-        },
-        {
-            "metrics": {
-                "saturation": 2.772004782927855,
-                "non_myopic_member_rewards": {
-                    "quantity": 238501381298,
-                    "unit": "lovelace"
-                },
-                "produced_blocks": {
-                    "quantity": 14728397,
-                    "unit": "block"
-                },
-                "relative_stake": {
-                    "quantity": 1.45,
-                    "unit": "percent"
-                }
-            },
-            "cost": {
-                "quantity": 205,
-                "unit": "lovelace"
-            },
-            "margin": {
-                "quantity": 74.12,
-                "unit": "percent"
-            },
-            "pledge": {
-                "quantity": 38,
-                "unit": "lovelace"
-            },
-            "delisted": true,
-            "metadata": {
-                "homepage": "/\u0005\u0012U;񨁏n}􅬭\u0016kgw󣏞\u001b5\nM𰊩erqB1EE<G,Y\r\u0007􃖎W\u0010\u0007򉪈𙥌1",
-                "name": "#\t򂲏󤣟\u0000v~񥉧\u0001򞳃",
-                "ticker": "\u0008\tm>",
-                "description": "񑣥Zh)\u0008󪡊\u0013\u0003U󑔞*qw\u0015󸁇v\u0017wBꁉ(q7󗢣$S=]𝀖󼓂󓍙B+8\u0005up0%C89󡚔󃂾\u0005oF)F\u0017򭛋LT<YK𿗋i-;\u000f+hqVY\u000e𳹎񭘃񯺱\u001cFn򏺖Q𞯈+.𬲼8`G|n\u000e"
-            },
-            "id": "pool1an26acf94hyfkx5n2xset0jxdn56pdcc86e82cv476m3zam2v6q"
-        },
-        {
-            "metrics": {
-                "saturation": 4.497478417049241,
-                "non_myopic_member_rewards": {
-                    "quantity": 885638369003,
-                    "unit": "lovelace"
-                },
-                "produced_blocks": {
-                    "quantity": 8721735,
-                    "unit": "block"
-                },
-                "relative_stake": {
-                    "quantity": 62.75,
-                    "unit": "percent"
-                }
-            },
-            "retirement": {
-                "epoch_start_time": "1860-01-07T12:53:29Z",
-                "epoch_number": 319
-            },
-            "cost": {
-                "quantity": 145,
-                "unit": "lovelace"
-            },
-            "margin": {
                 "quantity": 20,
-                "unit": "percent"
-            },
-            "pledge": {
-                "quantity": 174,
-                "unit": "lovelace"
-            },
-            "delisted": false,
-            "id": "pool1hwdmw9v8mn9s78rl84m6s8dzfaq7wtyqcc8k9uz7yd06u54q947"
-        },
-        {
-            "metrics": {
-                "saturation": 3.383340477178831,
-                "non_myopic_member_rewards": {
-                    "quantity": 549236892900,
-                    "unit": "lovelace"
-                },
-                "produced_blocks": {
-                    "quantity": 8624182,
-                    "unit": "block"
-                },
-                "relative_stake": {
-                    "quantity": 44.33,
-                    "unit": "percent"
-                }
-            },
-            "retirement": {
-                "epoch_start_time": "1904-07-10T02:32:59Z",
-                "epoch_number": 14297
-            },
-            "cost": {
-                "quantity": 201,
                 "unit": "lovelace"
             },
             "margin": {
-                "quantity": 51.49,
+                "quantity": 34.53,
                 "unit": "percent"
             },
             "pledge": {
-                "quantity": 21,
+                "quantity": 156,
                 "unit": "lovelace"
             },
-            "delisted": false,
             "metadata": {
-                "homepage": "\u001d񽲔N>񻖮/|XC)r&𩐑\u001e󣏓",
-                "name": "fg3j1zP",
-                "ticker": "0龘򖣉\"5",
-                "description": "󗯟򹗬_K'\u000cF\"\u0001L\u0002죠\u0002\n$xf\u000b#=L񸤪mbZ񭳂0\u0010X󎄭-7Bk\u000f\u0008\u001b>Z\u0007\u00120WW𾯡\u0010B񋁘\u0010oⳘ򩔐򍾐\u001c\u0000򑐏󧀑󋇛!t\u0017\u0008&K\u0006\u0004w~\u0018dM\u000b\u0003BQE󎨾^C|#DhU\u0019R\u001a󇲣$\u000f󯂯𣭱􊦥d𸦊򠐣P<򰥸\u000eT:󙄽񿪜6O\u001bn񏋘k)J򔥑U򲠏𧔢V\u0014񔶧&#>H\u0012\u0003\u001f8n\u0012\u0005򱦯D7a-򞎕8\u001dtG8\"\u001b󪁕9G64L%y\u001b𧫁\u0003P\t󠾃aRqQ[\u000b󂟰H\u000e##-}񎈼񉉖O+􃰗~[\u0000f\u00036񌓕\u0001\u0015<d\u001el\u0013󁵄I\r\u0000]󆳐!T\u001c\u0018\r\u0011FCq;񠚳ID\u001e򔋚G"
+                "homepage": "򫇂򨐵s'XH\nX\u0004G\t񨵄S\u0019I㝒BNL%򇮂U0󅐦9\u0007\u0011~So+\u0004<X\u0011Q\u0004\u000fa񒱳AY\u0005",
+                "name": "򾦃𘸋󦛵\u0017򔐶a\r\u001d\u0004",
+                "ticker": "񑕤I*򌣾",
+                "description": "򐝗𜥡2\u0008򼅃I\u0005CEF`:"
             },
-            "id": "pool1nrzngf70zg2z888hv0anc5h56r8ghdrmw04ke6dg9dz2xjeuzz2"
+            "id": "pool1x7jdrs067hf4wavedfear47w3vxuhrflcxn2am6u8u4g558e4gh"
         },
         {
+            "flags": [
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted"
+            ],
             "metrics": {
-                "saturation": 1.3236826420605308,
+                "saturation": 1.9895939894694687,
                 "non_myopic_member_rewards": {
-                    "quantity": 215426305147,
+                    "quantity": 554231821476,
                     "unit": "lovelace"
                 },
                 "produced_blocks": {
-                    "quantity": 1725025,
+                    "quantity": 16892881,
                     "unit": "block"
                 },
                 "relative_stake": {
-                    "quantity": 28.07,
+                    "quantity": 50.97,
                     "unit": "percent"
                 }
             },
             "retirement": {
-                "epoch_start_time": "1906-01-14T06:00:00Z",
-                "epoch_number": 19750
+                "epoch_start_time": "1862-05-15T16:00:00Z",
+                "epoch_number": 13039
             },
             "cost": {
-                "quantity": 138,
+                "quantity": 137,
                 "unit": "lovelace"
             },
             "margin": {
-                "quantity": 50.87,
+                "quantity": 31.73,
                 "unit": "percent"
             },
             "pledge": {
-                "quantity": 53,
+                "quantity": 136,
                 "unit": "lovelace"
             },
-            "delisted": false,
             "metadata": {
-                "homepage": "-󊔑򬿻󲋾\u00112o~𒙄d:\u0005Z^q󬯏\u001c4󙑵𕻛v\r􎟩\u0013k󄻕򭊷𢀈𽺼񧽁e\u0004񲧬OI9&\u001b񵑱C::vfA2kⓖUr&D?󎫠\u0007𡽪6􀝣7򱣐5<6疇,e𞋗񬑰ab1d\u0003T\u000ckf򬄦񒷈BWb񢚫_\u0006񫡅b:j󓓯\u0017;􍝧",
-                "name": "z I>c1\u0010񆼻V󦁙񲘭񐀀L\u000b\u000f񤢎]򰇁\u0003W\n9\u0008𦣝P򾐉b􅆦\u0008𲖬񐪜𘉽>}Wv=\u0002w𺊦򄥃^sP\u0010\u0001~\u0015",
-                "ticker": "!b_\"󪹙",
-                "description": "m_d\u001fY񨜪+C𓄿oO"
+                "homepage": "T񓔋$󉧞\u001bE򭘦bJR%򇠈3񸚞𮺞񫢫;󌳧Y85uu񄧵%򥔀W􍉜X\u0013Za`:\u0019/򉴿)\u0005(",
+                "name": "6~m",
+                "ticker": "\u0002V򆘍񇺙",
+                "description": "𼴃 ~񟝶|8󧛊9\u000edP#WO`H(`l󨭰vt${5巄*򡥿f\u0018h򘾅𫬨𡧆\tB\u001eh򮮴A(U򌳛Y𰌇𦲔\u0013\u0007.,3\u001f\u001d2\u000e\u0002d\u001dꞕ@'W񴃌=\u0018=]󋫦t\u0012𮱢\u0011󬼌\u0000:𹥂B\u0008q\u0015|򓻋~\u000c\nai񘨈򟒧𲊊f𺻖sO󄯈򯪽F|9SsjSNඅ}󷔊񨛅\u0010񉆿/_2\u0000倍\u0010􁣰2毺񮜇\t򯢜ko=$uD=󭨘V\u000b:}󒃼\u0018򋾋\u0014\u0013u񜮷H\u001b>`򑳍\u0000𑹙\r𵌨 󠼦Rw\u0006򭹺p񳎦q\"𭗎e8\u000bLX𙮴s|z&\u001dz=\"-\r\u001fx\"𰩵d<^%m󀏒!a\u0018\u0000:]𠊮\u0007G\u0010\u0018/\u001f񅩼𦡡\tF,\u001c񙠻\u001fM)G\u0007NKAR.Fp𽹃L󁷤.M\u0011 𲭳񌩼\u001f\u0005]񳘥N\u0019\u0012\u000c;􂣟\u0003\u0006\u000b%,"
             },
-            "id": "pool1msxwr6yfy48369eqmyvyptvy6ecx2x4cz3grw0p3vckzjwucqvq"
+            "id": "pool198e0usn343jw6xza34hcg5qd9m6ah7kn79pyhe5wdz6m536h6lc"
         },
         {
+            "flags": [
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted"
+            ],
             "metrics": {
-                "saturation": 2.5286176040540203,
+                "saturation": 4.9370305129779055,
                 "non_myopic_member_rewards": {
-                    "quantity": 182230157555,
+                    "quantity": 982002410599,
                     "unit": "lovelace"
                 },
                 "produced_blocks": {
-                    "quantity": 6494646,
+                    "quantity": 182860,
                     "unit": "block"
                 },
                 "relative_stake": {
-                    "quantity": 73.5,
+                    "quantity": 46.11,
                     "unit": "percent"
                 }
             },
             "retirement": {
-                "epoch_start_time": "1878-03-06T08:00:00Z",
-                "epoch_number": 16318
+                "epoch_start_time": "1867-06-14T08:14:50Z",
+                "epoch_number": 27512
             },
             "cost": {
-                "quantity": 73,
+                "quantity": 213,
                 "unit": "lovelace"
             },
             "margin": {
-                "quantity": 89.21,
+                "quantity": 49.06,
                 "unit": "percent"
             },
             "pledge": {
-                "quantity": 233,
+                "quantity": 154,
                 "unit": "lovelace"
             },
-            "delisted": false,
-            "id": "pool1h5ts9q43yyj38t60xaqjld7g9fsld07y7dlcgq7mf9p4j2j6ke2"
-        },
-        {
-            "metrics": {
-                "saturation": 0.669270261550966,
-                "non_myopic_member_rewards": {
-                    "quantity": 245471190452,
-                    "unit": "lovelace"
-                },
-                "produced_blocks": {
-                    "quantity": 16221082,
-                    "unit": "block"
-                },
-                "relative_stake": {
-                    "quantity": 51.96,
-                    "unit": "percent"
-                }
-            },
-            "retirement": {
-                "epoch_start_time": "1905-03-11T22:11:38Z",
-                "epoch_number": 25515
-            },
-            "cost": {
-                "quantity": 40,
-                "unit": "lovelace"
-            },
-            "margin": {
-                "quantity": 14.85,
-                "unit": "percent"
-            },
-            "pledge": {
-                "quantity": 52,
-                "unit": "lovelace"
-            },
-            "delisted": true,
             "metadata": {
-                "homepage": "Zl󳫽st𢽣>b米󕱌\u0001󒪻\u000e9򱗧\u001bYhe\u0015z\u0013f\u001b<񆼊􁄡𹸏M\u0006zx7񩴡",
-                "name": "P󎅖󂻢lG.9[I%H𣃰&\u001e\u0015",
-                "ticker": "D>I]\"",
-                "description": "\u0004]i\n𭚍󶕉0\"F\u0003񦒼\u0010>UmF\u0001?C9W)/󾣔\u0002as𨝰򣇜\u0019򫐠f𶐒\u0004_\u0013CP+\u0007򓲦</\u001a󱐖z!*0a;\r\u0005\u000e񿠉'c:򰨠z󌬨~,B򕩕HF􉢼y򕅯􉾥\t_\u0018P)1G!\u0007ej򬋡񁱬w+Z\"𲘾H3􄡁󝘆\u001bW􂋛\u001b񟁃_C!k5񟑴\"\u0015GB=JRCG\u0005Yx򕋎w𜱸$󔢠+򏽽󄮁󖑭6).18\u001ee5 wL򾬎e'\u001aV*K\u000cN#\u001a2g\u0012ypAWL%\u001c򨬱\u000b\u001f [hn\u0016q)􌱾aX%\u0014\nyO@xg|DL\u0016RA񭾕\tH\u001e3r򓆇\u000bq멵򇁸󢠴/=\u0014𕑗򐔡񷿮fi񟞇[\u0015\u0019󲽾/\u0018,񣜞\"􍖴'\u0010񾐶1󚾘FAfj"
+                "homepage": "u񯫽U\u0008\u0006a񆧦\u0006\u0015>3󬌥^𓃷򽽈𖮩mh+U\u000e\u0018NJB\u000c{/\u0005\n򯡕U𻂆{򝨓\u0002躳6\u000e'񤄂\u0013-:eE򑍌򁫢񅞿򍞪n򮨏*􆳭_oSDK\u001f񫴒",
+                "name": "!򣫨񲡷wn񆣮\u001a򾇢x)]+G<󜇻4(ZK]񋢕_Lssw򜢲aUtq",
+                "ticker": "~񪗜\u0004񘨎",
+                "description": "\u000f𐗷􋒍e𑺡bT𵲷c󀣷󌫄`$\u000b%&x򸩡&窝\u0007bq}󇇕𡛚񪵈,Y@R{sBV\u0010O𖳡6\u0001:xjApL󓡠ru򱙾!#񈾆򕠨*񇟳2\u0017\u001f񺿨G%󃦧$򮷧@𼾛򘮪\u000b\u0019'󈯙\u00059^A<Dn󌭻񿚃A)Jqfn򧤣y\u001fP\u0016I򭳧fJ\u001aP^\u0012^񅢸\u000bP𯰐%#󻡦('T)\u0008󥢤𴚘򯞸HlTE򆂿w3󇇝>}񩒩𮚭[KR)\u001a񮃅\u000409\\-8𜀶\u0000+\t^򇕰񡜁\r𖦒i\u0016C1\t򣓥\riq𯋾1A\u0001񜾋\"󼭳\u001a񶪄ZxNA\u000f𖓡"
             },
-            "id": "pool1c3hks0j2ahq2uhfknph9fskg92q454w5n4uzs5qjlxeuzafafy5"
+            "id": "pool16t92v0svq0f4anmf0y9yn4s0262fcut9cyydzrw3wl8awqac9er"
         },
         {
+            "flags": [
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted"
+            ],
             "metrics": {
-                "saturation": 4.786759609791348,
+                "saturation": 1.138016094198579,
                 "non_myopic_member_rewards": {
-                    "quantity": 340999995010,
+                    "quantity": 404203198635,
                     "unit": "lovelace"
                 },
                 "produced_blocks": {
-                    "quantity": 16245381,
+                    "quantity": 15534840,
                     "unit": "block"
                 },
                 "relative_stake": {
-                    "quantity": 61.29,
+                    "quantity": 42.13,
                     "unit": "percent"
                 }
             },
             "retirement": {
-                "epoch_start_time": "1861-05-27T09:22:45.306910631593Z",
-                "epoch_number": 6051
+                "epoch_start_time": "1903-02-27T02:29:54.859997028566Z",
+                "epoch_number": 18574
             },
             "cost": {
-                "quantity": 124,
+                "quantity": 135,
                 "unit": "lovelace"
             },
             "margin": {
-                "quantity": 78.37,
+                "quantity": 35.18,
                 "unit": "percent"
             },
             "pledge": {
-                "quantity": 97,
+                "quantity": 173,
                 "unit": "lovelace"
             },
-            "delisted": true,
             "metadata": {
-                "homepage": "=󜵪򨬝򘰤򁄥IcL򞢭\u001c@>񿹕tt?z\\tGN򺺒L@I􄺌.m𜈎yh𑻕\t󔹷\u001dE񞿎\u0003 :Y,/q𢾠\u0015m= 렗OyOQ='1O򞙧O}x򶸓\u000e\u0006\u000e8c\u0011򬌱\u0014򕑲񃔝󯋷\u00111\u0018𲹑~",
-                "name": "󀹩6D\u0000]\u0015\n񓸄񗥾X_bpv\u001e!O\u000e~󛗿1OPn",
-                "ticker": "7􍠭h",
-                "description": "󮢿OK\u0013𱆩[\t}󴋣򣳣Y3񲰡U󃍛\u0015$M\u0008ᚧ\u0015\u001f*\t\u001f𕢿\u001c_;~񤏉<'􏷋񮣮󆓸=^V\u0006񺐑31\u000ev\u0014Pe\"`\u001bn񄑌\u0013)39zM)=\u001f'udl򷍼񐮢V󌞛񠢂𺩁:𱪨\u000bh5L\u001b꜃\u0018\u0019<4\u001d\u001e\u0014X\u0005)V5򖈀9P|\\XfS4򄝿i\u001eV1O\u001bp\u0017𒮑\u000e'i]{VJU7i:8\u0003\"񙇖{\"r-\u0011򴆦>󈣊󯂈,𭒙8\u0013U!Qx+\u001d\u00061)𓖎h`楝𚿻\u0011\u001c\u0018\u001f\u0011\u0003\rs\r񶇰0񻬭7\u0015N"
+                "homepage": "\u000eT]A\u0017dNY^fS+\u001aJ8􂜮\u0015􏔟_𐜫񫈲R󣉥J򖡁泥𬕹򟔉\u001f񗑵5\u0011󻻌􆷁񍎬y\\\u0004F``iw!aQ𦯶g\u000f1򆅡D|\u001e򻓟𗴅j\u001c񐹽:7򿄾xq`𻳯\u001f[x񕌎񃖶𴁪󨩬񻑙",
+                "name": "P𨺡#Ip\nDJf󩟤-",
+                "ticker": "򯵐z񞣀6",
+                "description": "􏻗𾦻\"\n0HSza\u0002􉶩X\t򏱌+񐙦\"u.񅽷\u0001 IO|$ 󯅜򋲗4?\u000f/i𳿾򼤶񣪝\u001cdD5;\t󘧉rk{p\u0019Nq󢂨e񗉙Z'W򡢝@V'񫢫K;=\u0007U񢽾R(\u001b󎧝n&񙛼\u0003\u001eq󷿜."
             },
-            "id": "pool1jrssl7cpdrcgp8adf4t8qzm7y6gyq4e0wranfzaad3zhqme2dgk"
+            "id": "pool1l4cqjmmzrgw06lhkx4cy6nt2gmw0tfhw6kxz6wrjknzgwz653nh"
+        },
+        {
+            "flags": [
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted"
+            ],
+            "metrics": {
+                "saturation": 1.6585053755520496,
+                "non_myopic_member_rewards": {
+                    "quantity": 300609044073,
+                    "unit": "lovelace"
+                },
+                "produced_blocks": {
+                    "quantity": 2390995,
+                    "unit": "block"
+                },
+                "relative_stake": {
+                    "quantity": 90.25,
+                    "unit": "percent"
+                }
+            },
+            "retirement": {
+                "epoch_start_time": "1859-12-17T20:24:15Z",
+                "epoch_number": 23116
+            },
+            "cost": {
+                "quantity": 140,
+                "unit": "lovelace"
+            },
+            "margin": {
+                "quantity": 16.88,
+                "unit": "percent"
+            },
+            "pledge": {
+                "quantity": 56,
+                "unit": "lovelace"
+            },
+            "metadata": {
+                "homepage": "8𷗴'lP<{Q椪}:\u000c@򗸆񨯟e񢼮At󨁱l7\n򙎸򠥀o\u000f8(\u0013!<L񾨸𐛙7ᩊ񒱡c\"\u001d󀏬򑡃,\u0002J񊺂T𣑺\u0019^\u0018\u0018򣊷\u0016񐋀喃\r\u00138DO󎸬y'un[\u001ey\u001et󧮩\u0016𓅬DJ\u000cH3ei\u0012,񼈟$",
+                "name": "%7N&\\򡖞\u001e\u001b\u0005\u0016&򭭩𻻅7v򹘖Z",
+                "ticker": "򓗦m\u0005",
+                "description": "𰱉\u0006𤦁\u0014ud\u001e񓸀򗙸\u000b6\u0000󦎩.\u0003\u0008򣽿􍶦\u0002Y񥧡𗸹k󪿠1s\u0013K%񘧓,/J񿇋!\r𼒿MN\u0011򱦀𩎙-i*\u0003\u0014\",򐺲B\n\"񶋼j.򭑘\u0010\u0017&񫥥\r?%\"h%a0g񾳠q􆔔BX\u0002\u0000򽀁JoꅁKE{uQ`b/ \u0014*񓜧\u001b\"\u0018P\u000e𛷋\u001f;񖒢4#󦃞Ty>a\u0014􄯜󯿨󃗭]\u001f򾹙s-򩶄󍍙󖦨󢹢5򭏀Id񱞊󴓅/\u0000񌚪?񒋼w\u000c@"
+            },
+            "id": "pool1mjpjwlpz6nh05s6036c9us877r75t6uf0wupx8j2rcyvqkd25c3"
+        },
+        {
+            "flags": [
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted"
+            ],
+            "metrics": {
+                "saturation": 0.17884223298848034,
+                "non_myopic_member_rewards": {
+                    "quantity": 946806669499,
+                    "unit": "lovelace"
+                },
+                "produced_blocks": {
+                    "quantity": 11703246,
+                    "unit": "block"
+                },
+                "relative_stake": {
+                    "quantity": 5.93,
+                    "unit": "percent"
+                }
+            },
+            "retirement": {
+                "epoch_start_time": "1860-03-24T16:53:01.445638759844Z",
+                "epoch_number": 9997
+            },
+            "cost": {
+                "quantity": 116,
+                "unit": "lovelace"
+            },
+            "margin": {
+                "quantity": 82.73,
+                "unit": "percent"
+            },
+            "pledge": {
+                "quantity": 100,
+                "unit": "lovelace"
+            },
+            "id": "pool1e09np6w4qrg09ru2v7l5zlkef4e49uwsu7ud8zs64mu8zy2gu2w"
+        },
+        {
+            "flags": [
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted"
+            ],
+            "metrics": {
+                "saturation": 1.908211384172374,
+                "non_myopic_member_rewards": {
+                    "quantity": 808230372438,
+                    "unit": "lovelace"
+                },
+                "produced_blocks": {
+                    "quantity": 1967385,
+                    "unit": "block"
+                },
+                "relative_stake": {
+                    "quantity": 9.24,
+                    "unit": "percent"
+                }
+            },
+            "cost": {
+                "quantity": 217,
+                "unit": "lovelace"
+            },
+            "margin": {
+                "quantity": 25.41,
+                "unit": "percent"
+            },
+            "pledge": {
+                "quantity": 248,
+                "unit": "lovelace"
+            },
+            "metadata": {
+                "homepage": "򷗒\u0001Q񰋥m+eY4t\"b\u0000^wK]0󣾎zH@L𡊕^\u0013lO\u0018񰤜B\u000b>\u0012MK?𥲓h\u0016\u0014h\u0004𭵁𰰝񥎔x𻧽|񀺝%𹼠񭂢Y㤁\u0016\u000e'o\u0004+<2P񸬑\u001au󅱦󲗍V",
+                "name": "k{]\"i",
+                "ticker": "򙭾󽸴k",
+                "description": "?pO%\u000e7Q0L5񅡳D\u001cT'񬟜J\u001cg󍯤j𞩎uBnp\u0005\u0008v4Aᘨ[=񜈏8񓩁\u0018A컆a'\n3fk_b\u0010RXH񵖫򔐭󈨤;XD:Qd9m𒋞󜇇𨣹>\u0011B򏤈\u0018ASWSv\u0005H󾉾Zf򬚑%*\\K󤎈񂿽\u00134`[%\u0017򧆇\u001f:{5 ^x5\u0008$\\󠒫񪳀l庰󓬛򼉀򕣙\u0001t𸳾mfo=񫛖򓘭񑙤t򋮰󡫛\u0018G񏞚}\u000fA\u0011t󊧀&󿿕U󩩰T`|G8z)@*(}[\u0008𷬟@\u000fT\u0004򩲃R]i񸛱s%ht\u0018I_M񃥺/f񪒫~u\u0013򣰝\u000f4Oa#D񉇜M\u0019\u001cCx+\u0003|g򼥺𫉣+^z𭂿;_JA(\u0005򆒛-\rs!wNfծ\u001bsn\t񉼫P6v\u0005\n񂀧󙢃񓃻򅨣𳋜?\u0000ਵlr󘅃#\u0002BR񛯛񬗛QTz"
+            },
+            "id": "pool1nclnu8l5qnsgrdc9full4kta4pckzwkh600dducxyrm35q22dwu"
+        },
+        {
+            "flags": [
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted",
+                "delisted"
+            ],
+            "metrics": {
+                "saturation": 1.0444737007095983,
+                "non_myopic_member_rewards": {
+                    "quantity": 958698119066,
+                    "unit": "lovelace"
+                },
+                "produced_blocks": {
+                    "quantity": 3442578,
+                    "unit": "block"
+                },
+                "relative_stake": {
+                    "quantity": 21.12,
+                    "unit": "percent"
+                }
+            },
+            "retirement": {
+                "epoch_start_time": "1872-07-25T22:00:00Z",
+                "epoch_number": 23284
+            },
+            "cost": {
+                "quantity": 69,
+                "unit": "lovelace"
+            },
+            "margin": {
+                "quantity": 31.27,
+                "unit": "percent"
+            },
+            "pledge": {
+                "quantity": 192,
+                "unit": "lovelace"
+            },
+            "id": "pool1mnx8q7lhtep4h0k3dpzg9npl2kcgjxatpckc2kc7mghqxudeqv6"
         }
     ]
 }

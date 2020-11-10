@@ -1018,6 +1018,21 @@ x-stakePoolMetrics: &stakePoolMetrics
       <<: *numberOfBlocks
       description: Number of blocks produced by a given stake pool in its lifetime.
 
+x-stakePoolFlag: &stakePoolFlag
+  type: string
+  enum:
+  - delisted
+
+x-stakePoolFlags: &stakePoolFlags
+  type: array
+  description: |
+    Various flags applicable to stake pools. Possible flags:
+
+    | flag     | description                                                                                                      |
+    | ---      | ---                                                                                                              |
+    | delisted | The pool is marked as delisted on a configured SMASH server; metadata for this pool have therefore been dropped. |
+  items: *stakePoolFlag
+
 x-jormungandrStakePoolMetrics: &jormungandrStakePoolMetrics
   type: object
   required:
@@ -1106,30 +1121,6 @@ x-addressIndex: &addressIndex
     An address derivation index.
 
 x-gCStatus :: &gCStatus
-  description: |
-    Gives an indication if metadata GC checking for delisted pools
-    has run and if so, when.
-
-    Possible values are:
-      - not_applicable -> we're currently not querying a SMASH server for metadata
-      - not_started -> the GC hasn't started yet, try again in a short while
-      - restarting -> the GC thread is currently restarting, try again in short while
-      - has_run -> the GC has run successfully
-
-    When 'status' is 'restarting' or 'has_run' then the field 'last_run'
-    is set to the last GC time in UTC.
-  type: object
-  required:
-    - status
-  properties:
-    status:
-      type: string
-      enum:
-        - not_applicable
-        - not_started
-        - restarting
-        - has_run
-    last_run: *date
 
 #############################################################################
 #                                                                           #
@@ -1290,7 +1281,33 @@ components:
           type: array
           items: *certificate
 
-    ApiMaintenanceAction: &ApiMaintenanceAction
+    ApiGCStatus: &ApiGCStatus
+      type: object
+      description: |
+        Gives an indication if metadata GC checking for delisted pools
+        has run and if so, when.
+
+        Possible values are:
+          - not_applicable -> we're currently not querying a SMASH server for metadata
+          - not_started -> the GC hasn't started yet, try again in a short while
+          - restarting -> the GC thread is currently restarting, try again in short while
+          - has_run -> the GC has run successfully
+
+        When 'status' is 'restarting' or 'has_run' then the field 'last_run'
+        is set to the last GC time in UTC.
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          enum:
+            - not_applicable
+            - not_started
+            - restarting
+            - has_run
+        last_run: *date
+
+    ApiMaintenanceActionPostData: &ApiMaintenanceActionPostData
       type: object
       required:
         - maintenance_action
@@ -1302,8 +1319,12 @@ components:
           type: string
           enum: ['gc_stake_pools']
 
-    ApiGCStatus: &ApiGCStatus
-      <<: *gCStatus
+    ApiMaintenanceAction: &ApiMaintenanceAction
+      type: object
+      required:
+      - gc_stake_pools
+      properties:
+        gc_stake_pools: *ApiGCStatus
 
     ApiStakePool: &ApiStakePool
       type: object
@@ -1313,7 +1334,7 @@ components:
         - cost
         - margin
         - pledge
-        - delisted
+        - flags
       properties:
         id: *stakePoolId
         metrics: *stakePoolMetrics
@@ -1322,8 +1343,7 @@ components:
         pledge: *stakePoolPledge
         metadata: *stakePoolMetadata
         retirement: *stakePoolRetirement
-        delisted:
-          type: boolean
+        flags: *stakePoolFlags
 
     ApiJormungandrStakePool: &ApiJormungandrStakePool
       type: object
@@ -3047,18 +3067,18 @@ x-responsesListStakePools: &responsesListStakePools
             - type: array
               items: *ApiJormungandrStakePool
 
-x-responsesPoolMaintenance: &responsesPoolMaintenance
+x-responsesPostMaintenanceAction: &responsesPostMaintenanceAction
   <<: *responsesErr404
   204:
     description: No Content
 
-x-responsesMetadataGCStatus: &responsesMetadataGCStatus
+x-responsesGetMaintenanceAction: &responsesGetMaintenanceAction
   200:
     description: Ok
     content:
       application/json:
         schema:
-          <<: *ApiGCStatus
+          <<: *ApiMaintenanceAction
 
 x-responsesJoinStakePool: &responsesJoinStakePool
   <<: *responsesErr400
@@ -3505,10 +3525,18 @@ paths:
       responses: *responsesListStakePools
 
   /stake-pools/maintenance-actions:
-    post:
-      operationId: poolMaintenance
+    get:
+      operationId: getMaintenanceActions
       tags: ["Stake Pools"]
-      summary: Maintenance actions
+      summary: View maintenance actions
+      description: |
+        Returns the current status of the stake pools maintenance actions.
+      responses: *responsesGetMaintenanceAction
+
+    post:
+      operationId: postMaintenanceAction
+      tags: ["Stake Pools"]
+      summary: Trigger Maintenance actions
       description: |
         Performs maintenance actions on stake pools, such
         as triggering metadata garbage collection.
@@ -3518,17 +3546,8 @@ paths:
         required: true
         content:
           application/json:
-            schema: *ApiMaintenanceAction
-      responses: *responsesPoolMaintenance
-
-  /stake-pools/metadata-gc-status:
-    get:
-      operationId: getGCMetadataStatus
-      tags: ["Stake Pools"]
-      summary: Metdata GC Status
-      description: |
-        Returns the status of the pool metadata GC thread.
-      responses: *responsesMetadataGCStatus
+            schema: *ApiMaintenanceActionPostData
+      responses: *responsesPostMaintenanceAction
 
   /wallets/{walletId}/delegation-fees:
     get:
