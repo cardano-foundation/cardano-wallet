@@ -1090,7 +1090,6 @@ inspectAddress =
     inspect = maybe (Left errMalformedAddress) Right
         . inspectShelleyAddress mRootPub
         . unsafeMkAddress
-
     -- TODO: It's possible to inspect a byron address, given a root XPub.
     -- However, this is not yet exposed by the API.
     mRootPub = Nothing

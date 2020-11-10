@@ -63,6 +63,8 @@ import Cardano.Wallet.Api.Types
     , ApiEpochInfo (..)
     , ApiErrorCode (..)
     , ApiFee (..)
+    , ApiMaintenanceAction (..)
+    , ApiMaintenanceActionPostData (..)
     , ApiMnemonicT (..)
     , ApiNetworkClock (..)
     , ApiNetworkInformation (..)
@@ -76,6 +78,7 @@ import Cardano.Wallet.Api.Types
     , ApiSlotId (..)
     , ApiSlotReference (..)
     , ApiStakePool (..)
+    , ApiStakePoolFlag (..)
     , ApiStakePoolMetrics (..)
     , ApiT (..)
     , ApiTransaction (..)
@@ -155,6 +158,7 @@ import Cardano.Wallet.Primitive.Types
     , EpochNo (..)
     , HistogramBar (..)
     , PoolId (..)
+    , PoolMetadataGCStatus (..)
     , PoolMetadataSource
     , PoolOwner (..)
     , Settings
@@ -249,6 +253,8 @@ import Data.Text.Class
     ( FromText (..), TextDecodingError (..), ToText (..) )
 import Data.Time.Clock
     ( NominalDiffTime )
+import Data.Time.Clock.POSIX
+    ( utcTimeToPOSIXSeconds )
 import Data.Word
     ( Word32, Word8 )
 import Data.Word.Odd
@@ -408,6 +414,8 @@ spec = do
             jsonRoundtripAndGolden $ Proxy @(ApiT StakePoolMetadata)
             jsonRoundtripAndGolden $ Proxy @ApiPostRandomAddressData
             jsonRoundtripAndGolden $ Proxy @ApiTxMetadata
+            jsonRoundtripAndGolden $ Proxy @ApiMaintenanceAction
+            jsonRoundtripAndGolden $ Proxy @ApiMaintenanceActionPostData
 
     describe "Textual encoding" $ do
         describe "Can perform roundtrip textual encoding & decoding" $ do
@@ -1180,8 +1188,15 @@ instance Arbitrary ApiTxId where
 instance Arbitrary AddressPoolGap where
     arbitrary = arbitraryBoundedEnum
 
+instance Arbitrary NominalDiffTime where
+    arbitrary = fmap utcTimeToPOSIXSeconds genUniformTime
+
 instance Arbitrary Iso8601Time where
     arbitrary = Iso8601Time <$> genUniformTime
+
+instance Arbitrary PoolMetadataGCStatus where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
 
 instance Arbitrary SortOrder where
     arbitrary = arbitraryBoundedEnum
@@ -1319,6 +1334,7 @@ instance Arbitrary ApiStakePool where
         <*> arbitrary
         <*> arbitrary
         <*> arbitrary
+        <*> arbitrary
 
 instance Arbitrary ApiStakePoolMetrics where
     arbitrary = ApiStakePoolMetrics
@@ -1326,6 +1342,10 @@ instance Arbitrary ApiStakePoolMetrics where
         <*> arbitrary
         <*> (choose (0.0, 5.0))
         <*> (Quantity . fromIntegral <$> choose (1::Integer, 22_600_000))
+
+instance Arbitrary ApiStakePoolFlag where
+    shrink = genericShrink
+    arbitrary = genericArbitrary
 
 instance Arbitrary StakePoolMetadata where
     arbitrary = StakePoolMetadata
@@ -1368,6 +1388,14 @@ instance Arbitrary WalletName where
 
 instance Arbitrary ApiWalletPassphraseInfo where
     arbitrary = ApiWalletPassphraseInfo <$> genUniformTime
+
+instance Arbitrary ApiMaintenanceAction where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
+
+instance Arbitrary ApiMaintenanceActionPostData where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
 
 instance Arbitrary SyncProgress where
     arbitrary = genericArbitrary
@@ -1511,6 +1539,16 @@ instance Arbitrary ApiVerificationKey where
 
 instance ToSchema ApiVerificationKey where
     declareNamedSchema _ = declareSchemaForDefinition "ApiVerificationKey"
+
+instance Arbitrary Api.MaintenanceAction where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
+
+instance ToSchema Api.ApiMaintenanceAction where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiMaintenanceAction"
+
+instance ToSchema Api.ApiMaintenanceActionPostData where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiMaintenanceActionPostData"
 
 instance Arbitrary ApiNetworkParameters where
     arbitrary = genericArbitrary

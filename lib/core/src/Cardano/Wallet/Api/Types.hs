@@ -61,6 +61,7 @@ module Cardano.Wallet.Api.Types
     , ApiCoinSelectionOutput (..)
     , ApiStakePool (..)
     , ApiStakePoolMetrics (..)
+    , ApiStakePoolFlag (..)
     , ApiWallet (..)
     , ApiWalletPassphrase (..)
     , ApiWalletPassphraseInfo (..)
@@ -76,6 +77,9 @@ module Cardano.Wallet.Api.Types
     , PostExternalTransactionData (..)
     , ApiTransaction (..)
     , ApiWithdrawalPostData (..)
+    , ApiMaintenanceAction (..)
+    , ApiMaintenanceActionPostData (..)
+    , MaintenanceAction (..)
     , ApiFee (..)
     , ApiTxId (..)
     , ApiTxInput (..)
@@ -196,6 +200,7 @@ import Cardano.Wallet.Primitive.Types
     , HistogramBar (..)
     , NetworkParameters (..)
     , PoolId (..)
+    , PoolMetadataGCStatus (..)
     , ShowFmt (..)
     , SlotInEpoch (..)
     , SlotLength (..)
@@ -294,6 +299,8 @@ import Data.Text.Class
     )
 import Data.Time.Clock
     ( NominalDiffTime, UTCTime )
+import Data.Time.Clock.POSIX
+    ( posixSecondsToUTCTime, utcTimeToPOSIXSeconds )
 import Data.Time.Text
     ( iso8601, iso8601ExtendedUtc, utcTimeFromText, utcTimeToText )
 import Data.Typeable
@@ -401,6 +408,17 @@ fmtAllowedWords =
 {-------------------------------------------------------------------------------
                                   API Types
 -------------------------------------------------------------------------------}
+
+data MaintenanceAction = GcStakePools
+    deriving (Eq, Generic, Show)
+
+newtype ApiMaintenanceActionPostData = ApiMaintenanceActionPostData
+    { maintenanceAction :: MaintenanceAction
+    } deriving (Eq, Generic, Show)
+
+newtype ApiMaintenanceAction = ApiMaintenanceAction
+    { gcStakePools :: ApiT PoolMetadataGCStatus
+    } deriving (Eq, Generic, Show)
 
 data ApiAddress (n :: NetworkDiscriminant) = ApiAddress
     { id :: !(ApiT Address, Proxy n)
@@ -543,7 +561,13 @@ data ApiStakePool = ApiStakePool
     , margin :: !(Quantity "percent" Percentage)
     , pledge :: !(Quantity "lovelace" Natural)
     , retirement :: !(Maybe ApiEpochInfo)
+    , flags :: ![ApiStakePoolFlag]
     } deriving (Eq, Generic, Show)
+
+data ApiStakePoolFlag
+    = Delisted
+    deriving stock (Eq, Generic, Show)
+    deriving anyclass NFData
 
 data ApiStakePoolMetrics = ApiStakePoolMetrics
     { nonMyopicMemberRewards :: !(Quantity "lovelace" Natural)
@@ -819,7 +843,6 @@ data ApiPostRandomAddressData = ApiPostRandomAddressData
     } deriving (Eq, Generic, Show)
       deriving anyclass NFData
 
-
 data ApiWalletMigrationPostData (n :: NetworkDiscriminant) (s :: Symbol) =
     ApiWalletMigrationPostData
     { passphrase :: !(ApiT (Passphrase s))
@@ -921,6 +944,12 @@ instance FromText Iso8601Time where
             <> T.unpack t
             <> "'. Expecting ISO 8601 date-and-time format (basic or extended)"
             <> ", e.g. 2012-09-25T10:15:00Z."
+
+instance FromJSON (ApiT Iso8601Time) where
+    parseJSON =
+        parseJSON >=> eitherToParser . bimap ShowFmt ApiT . fromText
+instance ToJSON (ApiT Iso8601Time) where
+    toJSON = toJSON . toText . getApiT
 
 instance FromHttpApiData Iso8601Time where
     parseUrlPiece = first (T.pack . getTextDecodingError) . fromText
@@ -1376,10 +1405,56 @@ instance FromJSON WalletPutPassphraseData where
 instance ToJSON  WalletPutPassphraseData where
     toJSON = genericToJSON defaultRecordTypeOptions
 
+instance FromJSON (ApiT PoolMetadataGCStatus) where
+    parseJSON = withObject "PoolMetadataGCStatus" $ \o -> do
+        (status' :: String) <- o .: "status"
+        last_run <- o .:? "last_run"
+        case (status', last_run) of
+            ("restarting", Just (ApiT (Iso8601Time gctime)))
+                -> pure $ ApiT (Restarting $ utcTimeToPOSIXSeconds gctime)
+            ("has_run", Just (ApiT (Iso8601Time gctime)))
+                -> pure $ ApiT (HasRun $ utcTimeToPOSIXSeconds gctime)
+            ("restarting", Nothing)
+                -> fail "missing field last_run"
+            ("has_run", Nothing)
+                -> fail "missing field last_run"
+            ("not_applicable", _)
+                -> pure $ ApiT NotApplicable
+            ("not_started", _)
+                -> pure $ ApiT NotStarted
+            _ -> fail ("Unknown status: " <> status')
+
+instance ToJSON (ApiT PoolMetadataGCStatus) where
+    toJSON (ApiT (NotApplicable)) =
+        object [ "status" .= String "not_applicable" ]
+    toJSON (ApiT (NotStarted)) =
+        object [ "status" .= String "not_started" ]
+    toJSON (ApiT (Restarting gctime)) =
+        object [ "status" .= String "restarting"
+            , "last_run" .= ApiT (Iso8601Time (posixSecondsToUTCTime gctime)) ]
+    toJSON (ApiT (HasRun gctime)) =
+        object [ "status" .= String "has_run"
+            , "last_run" .= ApiT (Iso8601Time (posixSecondsToUTCTime gctime)) ]
+
 instance FromJSON ByronWalletPutPassphraseData where
     parseJSON = genericParseJSON defaultRecordTypeOptions
 instance ToJSON ByronWalletPutPassphraseData where
     toJSON = genericToJSON defaultRecordTypeOptions
+
+instance FromJSON ApiMaintenanceActionPostData where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance ToJSON ApiMaintenanceActionPostData where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+instance FromJSON ApiMaintenanceAction where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance ToJSON ApiMaintenanceAction where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+instance FromJSON MaintenanceAction where
+    parseJSON = genericParseJSON defaultSumTypeOptions
+instance ToJSON MaintenanceAction where
+    toJSON = genericToJSON defaultSumTypeOptions
 
 instance FromJSON ApiTxId where
     parseJSON = genericParseJSON defaultRecordTypeOptions
@@ -1540,6 +1615,11 @@ instance FromJSON ApiStakePoolMetrics where
     parseJSON = genericParseJSON defaultRecordTypeOptions
 instance ToJSON ApiStakePoolMetrics where
     toJSON = genericToJSON defaultRecordTypeOptions
+
+instance FromJSON ApiStakePoolFlag where
+    parseJSON = genericParseJSON defaultSumTypeOptions
+instance ToJSON ApiStakePoolFlag where
+    toJSON = genericToJSON defaultSumTypeOptions
 
 instance FromJSON (ApiT WalletName) where
     parseJSON = parseJSON >=> eitherToParser . bimap ShowFmt ApiT . fromText

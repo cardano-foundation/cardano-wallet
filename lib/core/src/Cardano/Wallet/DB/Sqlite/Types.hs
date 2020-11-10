@@ -89,12 +89,16 @@ import Data.Text.Class
     )
 import Data.Text.Encoding
     ( decodeUtf8, encodeUtf8 )
+import Data.Time.Clock.POSIX
+    ( POSIXTime, posixSecondsToUTCTime, utcTimeToPOSIXSeconds )
+import Data.Time.Format
+    ( defaultTimeLocale, formatTime, iso8601DateFormat, parseTimeM )
 import Data.Word
     ( Word32, Word64 )
 import Data.Word.Odd
     ( Word31 )
 import Database.Persist.Sqlite
-    ( PersistField (..), PersistFieldSql (..), PersistValue )
+    ( PersistField (..), PersistFieldSql (..), PersistValue (..) )
 import Database.Persist.TH
     ( MkPersistSettings (..), sqlSettings )
 import GHC.Generics
@@ -669,4 +673,22 @@ instance PersistField DerivationPrefix where
     fromPersistValue = fromPersistValueFromText
 
 instance PersistFieldSql DerivationPrefix where
+    sqlType _ = sqlType (Proxy @Text)
+
+----------------------------------------------------------------------------
+-- Other
+
+instance PersistField POSIXTime where
+    toPersistValue = PersistText
+        . T.pack
+        . formatTime defaultTimeLocale (iso8601DateFormat (Just "%H:%M:%S"))
+        . posixSecondsToUTCTime
+    fromPersistValue (PersistText time) =
+        utcTimeToPOSIXSeconds <$>
+            parseTimeM True defaultTimeLocale
+                (iso8601DateFormat (Just "%H:%M:%S")) (T.unpack time)
+    fromPersistValue _ = Left
+        "Could not parse POSIX time value"
+
+instance PersistFieldSql POSIXTime where
     sqlType _ = sqlType (Proxy @Text)

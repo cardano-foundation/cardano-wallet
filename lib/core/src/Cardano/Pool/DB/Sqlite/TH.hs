@@ -28,6 +28,8 @@ import Data.Text
     ( Text )
 import Data.Time.Clock
     ( UTCTime )
+import Data.Time.Clock.POSIX
+    ( POSIXTime )
 import Data.Word
     ( Word32, Word64, Word8 )
 import Database.Persist.Class
@@ -48,6 +50,11 @@ share
     , mkMigrate "migrateAll"
     ]
     [persistLowerCase|
+
+InternalState sql=internal_state
+    lastGCMetadata                   POSIXTime Maybe   sql=last_gc_metadata
+
+    deriving Show Generic
 
 Settings sql=settings
     settingsPoolMetadataSource       W.PoolMetadataSource   sql=metadata_source
@@ -115,6 +122,11 @@ PoolRegistration sql=pool_registration
     poolRegistrationMetadataHash      W.StakePoolMetadataHash Maybe sql=metadata_hash
 
     Primary poolRegistrationPoolId poolRegistrationSlot poolRegistrationSlotInternalIndex
+    deriving Show Generic
+
+PoolDelistment sql=pool_delistment
+    delistedPoolId                W.PoolId                      sql=pool_id
+    Primary delistedPoolId
     deriving Show Generic
 
 -- Mapping of retirement certificates to pools

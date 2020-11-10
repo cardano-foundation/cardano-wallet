@@ -54,7 +54,7 @@ import Control.Monad
 import Data.Function
     ( (&) )
 import Data.Generics.Internal.VL.Lens
-    ( (^.) )
+    ( view, (^.) )
 import Data.Maybe
     ( fromJust )
 import Data.Ord
@@ -166,10 +166,13 @@ instance Arbitrary PoolOwner where
         return $ PoolOwner $ B8.pack (replicate 32 byte)
 
 instance Arbitrary PoolRegistrationCertificate where
-    shrink (PoolRegistrationCertificate pid owners m c pl md) =
-        (\pid' owners' -> PoolRegistrationCertificate pid' owners' m c pl md)
-            <$> shrink pid
-            <*> shrinkOwners owners
+    shrink regCert = do
+        shrunkPoolId <- shrink $ view #poolId regCert
+        shrunkPoolOwners <- shrinkOwners $ view #poolOwners regCert
+        pure regCert
+            { poolId = shrunkPoolId
+            , poolOwners = shrunkPoolOwners
+            }
       where
         shrinkOwners os =
             -- A valid registration certificate must have at least one owner:
@@ -398,4 +401,3 @@ instance Arbitrary PoolMetadataSource where
 instance Arbitrary Settings where
     shrink = genericShrink
     arbitrary = genericArbitrary
-

@@ -6,7 +6,9 @@
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TypeSynonymInstances #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Cardano.Pool.DB.Properties
@@ -44,7 +46,7 @@ import Cardano.Wallet.Primitive.Types
     , PoolId
     , PoolLifeCycleStatus (..)
     , PoolRegistrationCertificate (..)
-    , PoolRetirementCertificate (..)
+    , PoolRetirementCertificate
     , Settings
     , SlotNo (..)
     , StakePoolMetadata (..)
@@ -87,6 +89,8 @@ import Data.Quantity
     ( Quantity (..) )
 import Data.Text.Class
     ( toText )
+import Data.Time.Clock.POSIX
+    ( POSIXTime )
 import Data.Word
     ( Word64 )
 import Fmt
@@ -217,6 +221,10 @@ properties = do
             (property . prop_putHeaderListHeader)
         it "modSettings . readSettings == id"
             (property . prop_modSettingsReadSettings)
+        it "putLastMetadataGC . readLastMetadataGC == id"
+            (property . prop_putLastMetadataGCReadLastMetadataGC)
+        it "putDelistedPools >> readDelistedPools shows the pool as delisted"
+            (property . prop_putDelistedPools)
 
 {-------------------------------------------------------------------------------
                                     Properties
@@ -1430,6 +1438,68 @@ prop_modSettingsReadSettings DBLayer{..} settings = do
         assertWith "Modifying settings and reading afterwards works"
             (modSettings' == settings)
 
+-- | read . put == id
+prop_putLastMetadataGCReadLastMetadataGC
+    :: DBLayer IO
+    -> POSIXTime
+    -> Property
+prop_putLastMetadataGCReadLastMetadataGC DBLayer{..} posixTime = do
+    monadicIO (setup >> prop)
+  where
+    setup = run $ atomically cleanDB
+    prop = do
+        defGCTime <- run $ atomically readLastMetadataGC
+        assertWith
+            "Reading sync time from empty db returns Nothing"
+            (isNothing defGCTime)
+        run $ atomically $ putLastMetadataGC posixTime
+        time <- run $ atomically readLastMetadataGC
+        assertWith "Setting sync time and reading afterwards works"
+            (time == Just posixTime)
+
+-- Check that 'putDelistedPools' completely overwrites the existing set
+-- of delisted pools every time:
+--
+prop_putDelistedPools
+    :: DBLayer IO
+    -> [PoolId]
+    -> [PoolId]
+    -> Property
+prop_putDelistedPools DBLayer {..} pools1 pools2 =
+    checkCoverage
+        $ cover 2 (Set.size poolSet1 == 0)
+            "number of pools in set #1 = 0"
+        $ cover 2 (Set.size poolSet1 == 1)
+            "number of pools in set #1 = 1"
+        $ cover 2 (Set.size poolSet1 > 1)
+            "number of pools in set #1 > 1"
+        $ cover 2 (Set.size poolSet2 == 0)
+            "number of pools in set #2 = 0"
+        $ cover 2 (Set.size poolSet2 == 1)
+            "number of pools in set #2 = 1"
+        $ cover 2 (Set.size poolSet2 > 1)
+            "number of pools in set #2 > 1"
+        $ monadicIO (setup >> prop)
+  where
+    poolSet1 = Set.fromList pools1 `Set.difference` Set.fromList pools2
+    poolSet2 = Set.fromList pools2 `Set.difference` Set.fromList pools1
+
+    setup = run $ atomically cleanDB
+
+    prop = forM_ [poolSet1, poolSet2] $ \poolsToMarkAsDelisted -> do
+        run $ atomically $ putDelistedPools $
+            Set.toList poolsToMarkAsDelisted
+        poolsActuallyDelisted <- Set.fromList . L.sort <$>
+            run (atomically readDelistedPools)
+        monitor $ counterexample $ unlines
+            [ "Pools to mark as delisted: "
+            , pretty $ Set.toList poolsToMarkAsDelisted
+            , "Pools actually delisted: "
+            , pretty $ Set.toList poolsActuallyDelisted
+            ]
+        assertWith "poolsToMarkAsDelisted == poolsActuallyDelisted"
+            $ poolsToMarkAsDelisted == poolsActuallyDelisted
+
 descSlotsPerPool :: Map PoolId [BlockHeader] -> Expectation
 descSlotsPerPool pools = do
     let checkIfDesc slots =
@@ -1483,3 +1553,8 @@ testCertificatePublicationTimes =
 
 instance Arbitrary BlockHeader where
     arbitrary = genSlotNo >>= genBlockHeader
+
+instance Arbitrary POSIXTime where
+    arbitrary = do
+        NonNegative int <- arbitrary @(NonNegative Int)
+        pure (fromIntegral int)

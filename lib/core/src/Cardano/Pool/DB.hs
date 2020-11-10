@@ -49,6 +49,8 @@ import Data.Map.Strict
     ( Map )
 import Data.Quantity
     ( Quantity (..) )
+import Data.Time.Clock.POSIX
+    ( POSIXTime )
 import Data.Word
     ( Word64 )
 import System.Random
@@ -211,6 +213,16 @@ data DBLayer m = forall stm. (MonadFail stm, MonadIO stm) => DBLayer
         -> stm ()
         -- ^ Remove all entries of slot ids newer than the argument
 
+    , putDelistedPools
+        :: [PoolId]
+        -> stm ()
+        -- ^ Overwrite the set of delisted pools with a completely new set.
+        -- Pools may be delisted for reasons such as non-compliance.
+
+    , readDelistedPools
+        :: stm [PoolId]
+        -- ^ Fetch the set of delisted pools.
+
     , removePools
         :: [PoolId]
         -> stm ()
@@ -249,6 +261,15 @@ data DBLayer m = forall stm. (MonadFail stm, MonadIO stm) => DBLayer
         -> stm ()
         -- ^ Modify the settings.
 
+    , readLastMetadataGC
+        :: stm (Maybe POSIXTime)
+        -- ^ Get the last metadata GC time.
+
+    , putLastMetadataGC
+        :: POSIXTime
+        -> stm ()
+        -- ^ Set the last metadata GC time.
+        --
     , cleanDB
         :: stm ()
         -- ^ Clean a database

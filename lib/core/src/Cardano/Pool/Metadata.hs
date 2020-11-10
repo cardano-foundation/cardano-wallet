@@ -1,3 +1,4 @@
+{-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE Rank2Types #-}
@@ -16,6 +17,7 @@ module Cardano.Pool.Metadata
     -- * Fetch
       fetchFromRemote
     , StakePoolMetadataFetchLog (..)
+    , fetchDelistedPools
 
     -- * Construct URLs
     , identityUrlBuilder
@@ -43,7 +45,7 @@ import Cardano.Wallet.Primitive.Types
 import Control.Exception
     ( IOException, handle )
 import Control.Monad
-    ( when )
+    ( forM, when )
 import Control.Monad.IO.Class
     ( MonadIO (..) )
 import Control.Monad.Trans.Except
@@ -53,7 +55,16 @@ import Control.Tracer
 import Crypto.Hash.Utils
     ( blake2b256 )
 import Data.Aeson
-    ( eitherDecodeStrict )
+    ( FromJSON (..)
+    , ToJSON (..)
+    , eitherDecodeStrict
+    , object
+    , withObject
+    , (.:)
+    , (.=)
+    )
+import Data.Bifunctor
+    ( first )
 import Data.ByteArray.Encoding
     ( Base (..), convertToBase )
 import Data.ByteString
@@ -63,13 +74,14 @@ import Data.Coerce
 import Data.List
     ( intercalate )
 import Data.Text.Class
-    ( ToText (..) )
+    ( TextDecodingError (..), ToText (..), fromText )
 import Fmt
     ( pretty )
 import Network.HTTP.Client
     ( HttpException (..)
     , Manager
     , ManagerSettings
+    , brConsume
     , brReadSome
     , managerResponseTimeout
     , requestFromURI
@@ -83,6 +95,7 @@ import Network.HTTP.Types.Status
 import Network.URI
     ( URI (..), parseURI )
 
+import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Text as T
@@ -97,6 +110,24 @@ metadaFetchEp pid (StakePoolMetadataHash bytes)
   where
     hashStr = T.unpack $ T.decodeUtf8 $ convertToBase Base16 bytes
     pidStr  = T.unpack $ toText pid
+
+-- | TODO: import SMASH types
+newtype SMASHPoolId = SMASHPoolId T.Text
+  deriving stock (Eq, Show, Ord)
+
+instance ToJSON SMASHPoolId where
+    toJSON (SMASHPoolId poolId) =
+        object
+            [ "poolId" .= poolId
+            ]
+
+instance FromJSON SMASHPoolId where
+    parseJSON = withObject "SMASHPoolId" $ \o -> do
+        poolId <- o .: "poolId"
+        return $ SMASHPoolId poolId
+
+toPoolId :: SMASHPoolId -> Either TextDecodingError PoolId
+toPoolId (SMASHPoolId pid) = fromText pid
 
 -- | Some default settings, overriding some of the library's default with
 -- stricter values.
@@ -134,6 +165,49 @@ registryUrlBuilder baseUrl pid _ hash =
         { uriPath = "/" <> metadaFetchEp pid hash
         }
 
+fetchDelistedPools
+    :: Tracer IO StakePoolMetadataFetchLog
+    -> URI
+    -> Manager
+    -> IO (Maybe [PoolId])
+fetchDelistedPools tr uri manager = runExceptTLog $ do
+    pl <- getPoolsPayload
+    smashPids <- except $ eitherDecodeStrict @[SMASHPoolId] pl
+    forM smashPids $ except . first getTextDecodingError . toPoolId
+  where
+    getPoolsPayload :: ExceptT String IO ByteString
+    getPoolsPayload = do
+        req <- withExceptT show $ except $ requestFromURI uri
+        liftIO $ traceWith tr $ MsgFetchDelistedPools uri
+        ExceptT
+            $ handle fromIOException
+            $ handle fromHttpException
+            $ withResponse req manager handleResponseStatus
+
+    handleResponseStatus response = case responseStatus response of
+        s | s == status200 -> do
+            let body = responseBody response
+            Right . BS.concat <$> brConsume body
+        s ->
+            pure $ Left $ mconcat
+                [ "The server replied with something unexpected: "
+                , show s
+                ]
+
+    runExceptTLog
+        :: ExceptT String IO [PoolId]
+        -> IO (Maybe [PoolId])
+    runExceptTLog action = runExceptT action >>= \case
+        Left msg ->
+            Nothing <$ traceWith tr (MsgFetchDelistedPoolsFailure msg)
+
+        Right meta ->
+            Just meta <$ traceWith tr (MsgFetchDelistedPoolsSuccess meta)
+
+    fromHttpException :: Monad m => HttpException -> m (Either String a)
+    fromHttpException = return . Left . ("HTTP exception: " <>) . show
+
+-- TODO: refactor/simplify this
 fetchFromRemote
     :: Tracer IO StakePoolMetadataFetchLog
     -> [   PoolId
@@ -209,19 +283,24 @@ fetchFromRemote tr builders manager pid url hash = runExceptTLog $ do
                     pure $ Left "There's no known metadata for this pool."
 
                 s -> do
-                    pure $ Left $ "The server replied something unexpected: " <> show s
-
-    fromIOException :: Monad m => IOException -> m (Either String a)
-    fromIOException = return . Left . ("IO exception: " <>) . show
+                    pure $ Left $ mconcat
+                        [ "The server replied with something unexpected: "
+                        , show s
+                        ]
 
     fromHttpException :: Monad m => HttpException -> m (Either String (Maybe a))
     fromHttpException = const (return $ Right Nothing)
 
+fromIOException :: Monad m => IOException -> m (Either String a)
+fromIOException = return . Left . ("IO exception: " <>) . show
 data StakePoolMetadataFetchLog
     = MsgFetchPoolMetadata StakePoolMetadataHash URI
     | MsgFetchPoolMetadataSuccess StakePoolMetadataHash StakePoolMetadata
     | MsgFetchPoolMetadataFailure StakePoolMetadataHash String
     | MsgFetchPoolMetadataFallback URI Bool
+    | MsgFetchDelistedPools URI
+    | MsgFetchDelistedPoolsFailure String
+    | MsgFetchDelistedPoolsSuccess [PoolId]
     deriving (Show, Eq)
 
 instance HasPrivacyAnnotation StakePoolMetadataFetchLog
@@ -231,6 +310,9 @@ instance HasSeverityAnnotation StakePoolMetadataFetchLog where
         MsgFetchPoolMetadataSuccess{} -> Info
         MsgFetchPoolMetadataFailure{} -> Warning
         MsgFetchPoolMetadataFallback{} -> Warning
+        MsgFetchDelistedPools{} -> Info
+        MsgFetchDelistedPoolsFailure{} -> Warning
+        MsgFetchDelistedPoolsSuccess{} -> Info
 
 instance ToText StakePoolMetadataFetchLog where
     toText = \case
@@ -250,4 +332,15 @@ instance ToText StakePoolMetadataFetchLog where
             , if noMoreUrls
                 then ""
                 else " Falling back using a different strategy."
+            ]
+        MsgFetchDelistedPools uri -> mconcat
+            [ "Fetching delisted pools from ", T.pack (show uri)
+            ]
+        MsgFetchDelistedPoolsSuccess poolIds -> mconcat
+            [ "Successfully fetched delisted "
+            , T.pack (show . length $ poolIds)
+            , " pools."
+            ]
+        MsgFetchDelistedPoolsFailure err -> mconcat
+            [ "Failed to fetch delisted pools: ", T.pack err
             ]

@@ -16,6 +16,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE UndecidableInstances #-}
 
+
 -- |
 -- Copyright: © 2018-2020 IOHK
 -- License: Apache-2.0
@@ -50,6 +51,7 @@ module Cardano.Pool.DB.Model
     , mPutPoolRetirement
     , mReadPoolRetirement
     , mUnfetchedPoolMetadataRefs
+    , mPutDelistedPools
     , mPutFetchAttempt
     , mPutPoolMetadata
     , mListPoolLifeCycleData
@@ -60,9 +62,12 @@ module Cardano.Pool.DB.Model
     , mRollbackTo
     , mReadCursor
     , mRemovePools
+    , mReadDelistedPools
     , mRemoveRetiredPools
     , mReadSettings
     , mPutSettings
+    , mPutLastMetadataGC
+    , mReadLastMetadataGC
     ) where
 
 import Prelude
@@ -75,6 +80,7 @@ import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
     , CertificatePublicationTime
     , EpochNo (..)
+    , InternalState (..)
     , PoolId
     , PoolLifeCycleStatus (..)
     , PoolOwner (..)
@@ -82,9 +88,10 @@ import Cardano.Wallet.Primitive.Types
     , PoolRetirementCertificate (..)
     , Settings
     , SlotNo (..)
-    , StakePoolMetadata
+    , StakePoolMetadata (..)
     , StakePoolMetadataHash
     , StakePoolMetadataUrl
+    , defaultInternalState
     , defaultSettings
     )
 import Control.Monad.Trans.Class
@@ -109,6 +116,10 @@ import Data.Ord
     ( Down (..) )
 import Data.Quantity
     ( Quantity (..) )
+import Data.Set
+    ( Set )
+import Data.Time.Clock.POSIX
+    ( POSIXTime )
 import Data.Word
     ( Word64 )
 import GHC.Generics
@@ -143,6 +154,8 @@ data PoolDatabase = PoolDatabase
         !(Map (CertificatePublicationTime, PoolId) PoolRetirementCertificate)
     -- ^ On-chain retirements associated with pools
 
+    , delisted :: !(Set PoolId)
+
     , metadata :: !(Map StakePoolMetadataHash StakePoolMetadata)
     -- ^ Off-chain metadata cached in database
 
@@ -156,6 +169,10 @@ data PoolDatabase = PoolDatabase
     -- ^ Store headers during syncing
 
     , settings :: Settings
+
+    , internalState :: InternalState
+    -- ^ Various internal states that need to persist across
+    -- wallet restarts.
     } deriving (Generic, Show, Eq)
 
 data SystemSeed
@@ -171,9 +188,9 @@ instance Eq SystemSeed where
 
 -- | Produces an empty model pool production database.
 emptyPoolDatabase :: PoolDatabase
-emptyPoolDatabase =
-    PoolDatabase mempty mempty mempty mempty mempty mempty mempty NotSeededYet
-        mempty defaultSettings
+emptyPoolDatabase = PoolDatabase
+    mempty mempty mempty mempty mempty mempty mempty mempty NotSeededYet
+    mempty defaultSettings defaultInternalState
 
 {-------------------------------------------------------------------------------
                                   Model Operation Types
@@ -414,6 +431,12 @@ mRollbackTo ti point = do
         | point' <= getPoint point = Just v
         | otherwise = Nothing
 
+mPutDelistedPools :: [PoolId] -> ModelOp ()
+mPutDelistedPools = modify #delisted . const . Set.fromList
+
+mReadDelistedPools :: ModelOp [PoolId]
+mReadDelistedPools = Set.toList <$> get #delisted
+
 mRemovePools :: [PoolId] -> ModelOp ()
 mRemovePools poolsToRemove = do
     modify #distributions
@@ -452,6 +475,15 @@ mPutSettings
     :: Settings
     -> ModelOp ()
 mPutSettings s = modify #settings (\_ -> s)
+
+mReadLastMetadataGC
+    :: ModelOp (Maybe POSIXTime)
+mReadLastMetadataGC = get (#internalState . #lastMetadataGC)
+
+mPutLastMetadataGC
+    :: POSIXTime
+    -> ModelOp ()
+mPutLastMetadataGC t = modify (#internalState . #lastMetadataGC) (\_ -> Just t)
 
 --------------------------------------------------------------------------------
 -- Utilities

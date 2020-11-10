@@ -53,6 +53,8 @@ module Cardano.Wallet.Api
         , JoinStakePool
         , QuitStakePool
         , DelegationFee
+        , PostPoolMaintenance
+        , GetPoolMaintenance
 
     , ShelleyMigrations
         , MigrateShelleyWallet
@@ -60,8 +62,8 @@ module Cardano.Wallet.Api
 
     -- * Settings
     , Settings
-    , PutSettings
-    , GetSettings
+        , PutSettings
+        , GetSettings
 
     -- * Byron
     , ByronWallets
@@ -124,6 +126,8 @@ import Cardano.Wallet.Api.Types
     , ApiByronWallet
     , ApiCoinSelectionT
     , ApiFee
+    , ApiMaintenanceAction
+    , ApiMaintenanceActionPostData
     , ApiNetworkClock
     , ApiNetworkInformation
     , ApiNetworkParameters
@@ -443,6 +447,8 @@ type StakePools n apiPool =
     :<|> JoinStakePool n
     :<|> QuitStakePool n
     :<|> DelegationFee
+    :<|> PostPoolMaintenance
+    :<|> GetPoolMaintenance
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/edge/#operation/listStakePools
 type ListStakePools apiPool = "stake-pools"
@@ -470,6 +476,17 @@ type DelegationFee = "wallets"
     :> Capture "walletId" (ApiT WalletId)
     :> "delegation-fees"
     :> Get '[JSON] ApiFee
+
+-- | https://input-output-hk.github.io/cardano-wallet/api/#operation/postPoolMaintenance
+type PostPoolMaintenance = "stake-pools"
+    :> "maintenance-actions"
+    :> ReqBody '[JSON] ApiMaintenanceActionPostData
+    :> Post '[JSON] ApiMaintenanceAction
+
+-- | https://input-output-hk.github.io/cardano-wallet/api/#operation/getPoolMaintenance
+type GetPoolMaintenance = "stake-pools"
+    :> "maintenance-actions"
+    :> Get '[JSON] ApiMaintenanceAction
 
 {-------------------------------------------------------------------------------
                                   Settings

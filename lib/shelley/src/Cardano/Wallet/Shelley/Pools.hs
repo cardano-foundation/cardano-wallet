@@ -5,6 +5,7 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE Rank2Types #-}
@@ -42,6 +43,7 @@ import Cardano.Pool.DB
 import Cardano.Pool.Metadata
     ( StakePoolMetadataFetchLog
     , defaultManagerSettings
+    , fetchDelistedPools
     , fetchFromRemote
     , identityUrlBuilder
     , newManager
@@ -80,6 +82,7 @@ import Cardano.Wallet.Primitive.Types
     , PoolCertificate (..)
     , PoolId
     , PoolLifeCycleStatus (..)
+    , PoolMetadataGCStatus (..)
     , PoolMetadataSource (..)
     , PoolRegistrationCertificate (..)
     , PoolRetirementCertificate (..)
@@ -107,9 +110,16 @@ import Cardano.Wallet.Shelley.Network
 import Cardano.Wallet.Unsafe
     ( unsafeMkPercentage )
 import Control.Concurrent
-    ( threadDelay )
+    ( forkFinally, threadDelay )
 import Control.Exception
-    ( SomeException (..), bracket, mask_, try )
+    ( AsyncException (..)
+    , SomeException (..)
+    , asyncExceptionFromException
+    , bracket
+    , finally
+    , mask_
+    , try
+    )
 import Control.Monad
     ( forM, forM_, forever, void, when, (<=<) )
 import Control.Monad.IO.Class
@@ -135,15 +145,19 @@ import Data.Map
 import Data.Map.Merge.Strict
     ( dropMissing, traverseMissing, zipWithAMatched, zipWithMatched )
 import Data.Maybe
-    ( catMaybes )
+    ( catMaybes, fromMaybe )
 import Data.Ord
     ( Down (..) )
 import Data.Quantity
     ( Percentage (..), Quantity (..) )
 import Data.Set
     ( Set )
+import Data.Text
+    ( Text )
 import Data.Text.Class
     ( ToText (..) )
+import Data.Time.Clock.POSIX
+    ( getPOSIXTime, posixDayLength )
 import Data.Tuple.Extra
     ( dupe )
 import Data.Word
@@ -154,6 +168,8 @@ import GHC.Conc
     ( TVar, ThreadId, killThread, newTVarIO, readTVarIO, writeTVar )
 import GHC.Generics
     ( Generic )
+import Network.URI
+    ( URI (..) )
 import Ouroboros.Consensus.Cardano.Block
     ( CardanoBlock, HardForkBlock (..) )
 import System.Random
@@ -192,26 +208,33 @@ data StakePoolLayer = StakePoolLayer
         -> Coin
         -> ExceptT ErrListPools IO [Api.ApiStakePool]
 
+    , forceMetadataGC :: IO ()
+
     , putSettings :: Settings -> IO ()
 
     , getSettings :: IO Settings
+
+    , getGCMetadataStatus :: IO PoolMetadataGCStatus
     }
 
 newStakePoolLayer
     :: forall sc. ()
-    => NetworkLayer IO (IO Shelley) (CardanoBlock sc)
+    => TVar PoolMetadataGCStatus
+    -> NetworkLayer IO (IO Shelley) (CardanoBlock sc)
     -> DBLayer IO
     -> IO ThreadId
     -> IO StakePoolLayer
-newStakePoolLayer nl db@DBLayer {..} worker = do
+newStakePoolLayer gcStatus nl db@DBLayer {..} worker = do
     tid <- worker
     tvTid <- newTVarIO tid
     pure $ StakePoolLayer
         { getPoolLifeCycleStatus = _getPoolLifeCycleStatus
         , knownPools = _knownPools
         , listStakePools = _listPools
+        , forceMetadataGC = _forceMetadataGC tvTid
         , putSettings = _putSettings tvTid
         , getSettings = _getSettings
+        , getGCMetadataStatus = _getGCMetadataStatus
         }
   where
     _getPoolLifeCycleStatus
@@ -227,17 +250,9 @@ newStakePoolLayer nl db@DBLayer {..} worker = do
     -- In order to apply the settings, we have to restart the
     -- metadata sync thread as well to avoid race conditions.
     _putSettings :: TVar ThreadId -> Settings -> IO ()
-    _putSettings tvTid settings = do
-        bracket
-            killSyncThread
-            (\_ -> restartSyncThread)
-            (\_ -> atomically (gcMetadata >> writeSettings))
+    _putSettings tvTid settings =
+        bracketSyncThread tvTid (atomically (gcMetadata >> writeSettings))
       where
-        -- kill syncing thread, so we can apply the settings cleanly
-        killSyncThread = do
-            tid <- readTVarIO tvTid
-            killThread tid
-
         -- clean up metadata table if the new sync settings suggests so
         gcMetadata = do
             oldSettings <- readSettings
@@ -252,10 +267,7 @@ newStakePoolLayer nl db@DBLayer {..} worker = do
 
         writeSettings = putSettings settings
 
-        restartSyncThread = do
-            tid <- worker
-            STM.atomically $ writeTVar tvTid tid
-
+    _getSettings :: IO Settings
     _getSettings = liftIO $ atomically readSettings
 
     _listPools
@@ -321,6 +333,36 @@ newStakePoolLayer nl db@DBLayer {..} worker = do
             rewards = view (#metrics . #nonMyopicMemberRewards) . stakePool
             (randomWeight, stakePool) = (fst, snd)
 
+    _forceMetadataGC :: TVar ThreadId -> IO ()
+    _forceMetadataGC tvTid =
+        -- We force a GC by resetting last sync time to 0 (start of POSIX
+        -- time) and have the metadata thread restart.
+        bracketSyncThread tvTid $ do
+            lastGC <- atomically readLastMetadataGC
+            case lastGC of
+                Nothing -> STM.atomically $ writeTVar gcStatus NotStarted
+                Just gc -> STM.atomically $ writeTVar gcStatus (Restarting gc)
+            atomically $ putLastMetadataGC $ fromIntegral @Int 0
+
+    _getGCMetadataStatus =
+        readTVarIO gcStatus
+
+    -- Stop the sync thread, carry out an action, and restart the sync thread.
+    bracketSyncThread :: TVar ThreadId -> IO a -> IO ()
+    bracketSyncThread tvTid action =
+        void $ bracket
+            killSyncThread
+            (\_ -> restartSyncThread)
+            (\_ -> action)
+      where
+        killSyncThread = do
+            tid <- readTVarIO tvTid
+            killThread tid
+
+        restartSyncThread = do
+            tid <- worker
+            STM.atomically $ writeTVar tvTid tid
+
 --
 -- Data Combination functions
 --
@@ -339,6 +381,7 @@ data PoolDbData = PoolDbData
     , retirementCert :: Maybe PoolRetirementCertificate
     , nProducedBlocks :: Quantity "block" Word64
     , metadata :: Maybe StakePoolMetadata
+    , delisted :: Bool
     }
 
 -- | Top level combine-function that merges DB and LSQ data.
@@ -413,7 +456,10 @@ combineDbAndLsqData ti nOpt lsqData =
                 fmap fromIntegral $ poolPledge $ registrationCert dbData
             , Api.margin =
                 Quantity $ poolMargin $ registrationCert dbData
-            , Api.retirement = retirementEpochInfo
+            , Api.retirement =
+                retirementEpochInfo
+            , Api.flags =
+                [ Api.Delisted | delisted dbData ]
             }
 
     toApiEpochInfo ep = do
@@ -465,8 +511,9 @@ combineChainData
     -> Map PoolId PoolRetirementCertificate
     -> Map PoolId (Quantity "block" Word64)
     -> Map StakePoolMetadataHash StakePoolMetadata
+    -> Set PoolId
     -> Map PoolId PoolDbData
-combineChainData registrationMap retirementMap prodMap metaMap =
+combineChainData registrationMap retirementMap prodMap metaMap delistedSet =
     Map.map mkPoolDbData $
         Map.merge
             registeredNoProductions
@@ -487,12 +534,13 @@ combineChainData registrationMap retirementMap prodMap metaMap =
         :: (PoolRegistrationCertificate, Quantity "block" Word64)
         -> PoolDbData
     mkPoolDbData (registrationCert, n) =
-        PoolDbData registrationCert mRetirementCert n meta
+        PoolDbData registrationCert mRetirementCert n meta delisted
       where
         metaHash = snd <$> poolMetadata registrationCert
         meta = flip Map.lookup metaMap =<< metaHash
         mRetirementCert =
             Map.lookup (view #poolId registrationCert) retirementMap
+        delisted = view #poolId registrationCert `Set.member` delistedSet
 
 readPoolDbData :: DBLayer IO -> EpochNo -> IO (Map PoolId PoolDbData)
 readPoolDbData DBLayer {..} currentEpoch = atomically $ do
@@ -512,6 +560,7 @@ readPoolDbData DBLayer {..} currentEpoch = atomically $ do
         retirementCertificates
         <$> readTotalProduction
         <*> readPoolMetadata
+        <*> (Set.fromList <$> readDelistedPools)
 
 --
 -- Monitoring stake pool
@@ -682,24 +731,49 @@ monitorStakePools tr gp nl DBLayer{..} =
 
 -- | Worker thread that monitors pool metadata and syncs it to the database.
 monitorMetadata
-    :: Tracer IO StakePoolLog
+    :: TVar PoolMetadataGCStatus
+    -> Tracer IO StakePoolLog
     -> SlottingParameters
     -> DBLayer IO
     -> IO ()
-monitorMetadata tr sp DBLayer{..} = do
+monitorMetadata gcStatus tr sp db@(DBLayer{..}) = do
     settings <- atomically readSettings
     manager <- newManager defaultManagerSettings
-    let fetcher fetchStrategies = fetchFromRemote trFetch fetchStrategies manager
-    forever $ do
-        (refs, successes) <- case poolMetadataSource settings of
-            FetchNone -> pure ([], [])
-            FetchDirect -> fetchThem $ fetcher [identityUrlBuilder]
-            FetchSMASH (unSmashServer -> uri) -> fetchThem $ fetcher [registryUrlBuilder uri]
 
-        when (null refs || null successes) $ do
-            traceWith tr $ MsgFetchTakeBreak blockFrequency
-            threadDelay blockFrequency
+    let fetcher fetchStrategies = fetchFromRemote trFetch fetchStrategies manager
+        loop getPoolMetadata = forever $ do
+            (refs, successes) <- getPoolMetadata
+            when (null refs || null successes) $ do
+                traceWith tr $ MsgFetchTakeBreak blockFrequency
+                threadDelay blockFrequency
+
+    case poolMetadataSource settings of
+        FetchNone -> do
+            STM.atomically $ writeTVar gcStatus NotApplicable
+            loop (pure ([], [])) -- TODO: exit loop?
+        FetchDirect -> do
+            STM.atomically $ writeTVar gcStatus NotApplicable
+            loop (fetchThem $ fetcher [identityUrlBuilder])
+        FetchSMASH (unSmashServer -> uri) -> do
+            STM.atomically $ writeTVar gcStatus NotStarted
+            let getDelistedPools =
+                    fetchDelistedPools trFetch (toDelistedPoolsURI uri) manager
+            tid <- forkFinally
+                (gcDelistedPools gcStatus tr db getDelistedPools)
+                onExit
+            flip finally (killThread tid) $
+                loop (fetchThem $ fetcher [registryUrlBuilder uri])
+
   where
+    -- Currently the SMASH url points to the full API path, e.g.
+    --   https://smash.cardano-testnet.iohkdev.io/api/v1/monitorMetadata
+    -- so we need to recover/infer the delisted pools url.
+    -- TODO:
+    --   - require the smash URL to only specify scheme and host
+    --   - use smash servant types to call the endpoints
+    toDelistedPoolsURI uri =
+        uri { uriPath = "/api/v1/delisted" , uriQuery = "", uriFragment = "" }
+
     trFetch = contramap MsgFetchPoolMetadata tr
     -- We mask this entire section just in case, although the database
     -- operations runs masked anyway. Unfortunately we cannot run
@@ -724,6 +798,48 @@ monitorMetadata tr sp DBLayer{..} = do
         slotLength = unSlotLength $ getSlotLength sp
         f = unActiveSlotCoefficient (getActiveSlotCoefficient sp)
 
+    onExit
+        :: Either SomeException a
+        -> IO ()
+    onExit = traceWith tr . \case
+        Right _ -> MsgGCFinished
+        Left e -> case asyncExceptionFromException e of
+            Just ThreadKilled -> MsgGCThreadKilled
+            Just UserInterrupt -> MsgGCUserInterrupt
+            _ -> MsgGCUnhandledException $ pretty $ show e
+
+gcDelistedPools
+    :: TVar PoolMetadataGCStatus
+    -> Tracer IO StakePoolLog
+    -> DBLayer IO
+    -> IO (Maybe [PoolId])  -- ^ delisted pools fetcher
+    -> IO ()
+gcDelistedPools gcStatus tr DBLayer{..} fetchDelisted = forever $ do
+    lastGC <- atomically readLastMetadataGC
+    currentTime <- getPOSIXTime
+
+    case lastGC of
+        Nothing -> pure ()
+        Just gc -> STM.atomically $ writeTVar gcStatus (HasRun gc)
+
+    let timeSinceLastGC = fmap (currentTime -) lastGC
+        sixHours = posixDayLength / 4
+    when (maybe True (> sixHours) timeSinceLastGC) $ do
+        delistedPools <- fmap (fromMaybe []) fetchDelisted
+        STM.atomically $ writeTVar gcStatus (HasRun currentTime)
+        atomically $ do
+            putLastMetadataGC currentTime
+            putDelistedPools delistedPools
+
+    -- Sleep for 60 seconds. This is useful in case
+    -- something else is modifying the last sync time
+    -- in the database.
+    let ms = (* 1_000_000)
+    let sleepTime = ms 60
+    traceWith tr $ MsgGCTakeBreak sleepTime
+    threadDelay sleepTime
+    pure ()
+
 data StakePoolLog
     = MsgFollow FollowLog
     | MsgStartMonitoring [BlockHeader]
@@ -736,6 +852,11 @@ data StakePoolLog
     | MsgErrProduction ErrPointAlreadyExists
     | MsgFetchPoolMetadata StakePoolMetadataFetchLog
     | MsgFetchTakeBreak Int
+    | MsgGCTakeBreak Int
+    | MsgGCFinished
+    | MsgGCThreadKilled
+    | MsgGCUserInterrupt
+    | MsgGCUnhandledException Text
     deriving (Show, Eq)
 
 data PoolGarbageCollectionInfo = PoolGarbageCollectionInfo
@@ -763,6 +884,11 @@ instance HasSeverityAnnotation StakePoolLog where
         MsgErrProduction{} -> Error
         MsgFetchPoolMetadata e -> getSeverityAnnotation e
         MsgFetchTakeBreak{} -> Debug
+        MsgGCTakeBreak{} -> Debug
+        MsgGCFinished{} -> Debug
+        MsgGCThreadKilled{} -> Debug
+        MsgGCUserInterrupt{} -> Debug
+        MsgGCUnhandledException{} -> Debug
 
 instance ToText StakePoolLog where
     toText = \case
@@ -805,3 +931,13 @@ instance ToText StakePoolLog where
             , "back to it in about "
             , pretty (fixedF 1 (toRational delay / 1000000)), "s"
             ]
+        MsgGCTakeBreak delay -> mconcat
+            [ "Taking a little break from GCing delisted metadata pools, "
+            , "back to it in about "
+            , pretty (fixedF 1 (toRational delay / 1_000_000)), "s"
+            ]
+        MsgGCFinished -> "GC thread has exited: main action is over."
+        MsgGCThreadKilled -> "GC thread has exited: killed by parent."
+        MsgGCUserInterrupt -> "GC thread has exited: killed by user."
+        MsgGCUnhandledException err ->
+            "GC thread has exited unexpectedly: " <> err

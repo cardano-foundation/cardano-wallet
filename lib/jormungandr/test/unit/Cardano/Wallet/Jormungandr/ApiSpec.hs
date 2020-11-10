@@ -81,6 +81,8 @@ import Test.QuickCheck
     ( Arbitrary (..), Gen, applyArbitrary3, choose, frequency, vector )
 import Test.Utils.Paths
     ( getTestData )
+import Test.Utils.Time
+    ( genUniformTime )
 
 import qualified Cardano.Wallet.Api.Types as W
 import qualified Data.Aeson as Aeson
@@ -328,6 +330,9 @@ instance Arbitrary StakePoolTicker where
     arbitrary = unsafeFromText . T.pack <$> do
         len <- choose (3, 5)
         replicateM len arbitrary
+
+instance Arbitrary W.Iso8601Time where
+    arbitrary = W.Iso8601Time <$> genUniformTime
 
 instance ToSchema ApiStakePool where
     declareNamedSchema _ = declareSchemaForDefinition "ApiJormungandrStakePool"

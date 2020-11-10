@@ -19,6 +19,8 @@ import Cardano.Wallet.Primitive.Types
     ( EpochNo (..), SlotInEpoch (..), SlotNo )
 import Data.Proxy
     ( Proxy (..) )
+import Data.Time.Clock.POSIX
+    ( POSIXTime )
 import Data.Typeable
     ( Typeable, typeRep )
 import Data.Word.Odd
@@ -29,6 +31,7 @@ import Test.Hspec
     ( Spec, describe, it )
 import Test.QuickCheck
     ( Arbitrary (..)
+    , NonNegative (..)
     , arbitrarySizedBoundedIntegral
     , property
     , shrinkIntegral
@@ -39,6 +42,7 @@ spec :: Spec
 spec = do
     describe "Values can be persisted and unpersisted successfully" $ do
         persistRoundtrip $ Proxy @SlotNo
+        persistRoundtrip $ Proxy @POSIXTime
 
 -- | Constructs a test to check that roundtrip persistence and unpersistence is
 --   possible for values of the given type.
@@ -56,6 +60,11 @@ persistRoundtrip proxy = it
 {-------------------------------------------------------------------------------
                               Arbitrary Instances
 -------------------------------------------------------------------------------}
+
+instance Arbitrary POSIXTime where
+    arbitrary = do
+        NonNegative int <- arbitrary @(NonNegative Int)
+        pure (fromIntegral int)
 
 instance Arbitrary SlotNo where
     arbitrary = genSlotNo

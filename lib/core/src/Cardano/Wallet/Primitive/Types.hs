@@ -145,6 +145,7 @@ module Cardano.Wallet.Primitive.Types
     , StakePoolMetadataUrl (..)
     , StakePoolTicker (..)
     , StakeKeyCertificate (..)
+    , PoolMetadataGCStatus (..)
 
     -- * Querying
     , SortOrder (..)
@@ -185,6 +186,11 @@ module Cardano.Wallet.Primitive.Types
     , PoolMetadataSource( .. )
     , defaultSettings
     , unsafeToPMS
+
+    -- * InternalState
+    , InternalState (..)
+    , defaultInternalState
+
     ) where
 
 import Prelude
@@ -257,6 +263,8 @@ import Data.Text.Class
     )
 import Data.Time.Clock
     ( NominalDiffTime, UTCTime )
+import Data.Time.Clock.POSIX
+    ( POSIXTime )
 import Data.Time.Format
     ( defaultTimeLocale, formatTime )
 import Data.Word
@@ -605,6 +613,15 @@ data StakePool = StakePool
     , pledge :: Quantity "lovelace" Word64
     , saturation :: Double
     } deriving (Show, Generic)
+
+-- Status encoding of the metadata GC thread, which queries
+-- the SMASH server for delisted pools.
+data PoolMetadataGCStatus
+    = NotApplicable
+    | NotStarted
+    | Restarting POSIXTime -- shows last GC before restart occured
+    | HasRun POSIXTime     -- shows last GC
+    deriving (Eq, Show, Generic)
 
 -- | A newtype to wrap metadata hash.
 --
@@ -1808,11 +1825,11 @@ data PoolRegistrationCertificate = PoolRegistrationCertificate
 instance NFData PoolRegistrationCertificate
 
 instance Buildable PoolRegistrationCertificate where
-    build (PoolRegistrationCertificate p o _ _ _ _) = mempty
+    build (PoolRegistrationCertificate {poolId, poolOwners}) = mempty
         <> "Registration of "
-        <> build p
+        <> build poolId
         <> " owned by "
-        <> build o
+        <> build poolOwners
 
 data PoolRetirementCertificate = PoolRetirementCertificate
     { poolId :: !PoolId
@@ -1996,6 +2013,18 @@ defaultSettings :: Settings
 defaultSettings = Settings {
     poolMetadataSource = FetchNone
 }
+
+-- | Various internal states of the pool DB
+--  that need to survive wallet restarts. These aren't
+--  exposed settings.
+{-# HLINT ignore InternalState "Use newtype instead of data" #-}
+data InternalState = InternalState
+    { lastMetadataGC :: Maybe POSIXTime
+    } deriving (Generic, Show, Eq)
+
+defaultInternalState :: InternalState
+defaultInternalState = InternalState
+    { lastMetadataGC = Nothing }
 
 instance FromJSON PoolMetadataSource where
     parseJSON = parseJSON >=> either (fail . show . ShowFmt) pure . fromText
