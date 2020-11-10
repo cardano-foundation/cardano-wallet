@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NumericUnderscores #-}
@@ -34,6 +35,8 @@ import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
+import Cardano.Wallet.Api.Types
+    ( defaultRecordTypeOptions )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( hex )
 import Cardano.Wallet.Primitive.Types
@@ -41,6 +44,7 @@ import Cardano.Wallet.Primitive.Types
     , StakePoolMetadata (..)
     , StakePoolMetadataHash (..)
     , StakePoolMetadataUrl (..)
+    , decodePoolIdBech32
     )
 import Control.Exception
     ( IOException, handle )
@@ -58,10 +62,9 @@ import Data.Aeson
     ( FromJSON (..)
     , ToJSON (..)
     , eitherDecodeStrict
-    , object
-    , withObject
-    , (.:)
-    , (.=)
+    , fieldLabelModifier
+    , genericParseJSON
+    , genericToJSON
     )
 import Data.Bifunctor
     ( first )
@@ -77,6 +80,8 @@ import Data.Text.Class
     ( TextDecodingError (..), ToText (..), fromText )
 import Fmt
     ( pretty )
+import GHC.Generics
+    ( Generic )
 import Network.HTTP.Client
     ( HttpException (..)
     , Manager
@@ -112,22 +117,22 @@ metadaFetchEp pid (StakePoolMetadataHash bytes)
     pidStr  = T.unpack $ toText pid
 
 -- | TODO: import SMASH types
-newtype SMASHPoolId = SMASHPoolId T.Text
-  deriving stock (Eq, Show, Ord)
-
-instance ToJSON SMASHPoolId where
-    toJSON (SMASHPoolId poolId) =
-        object
-            [ "poolId" .= poolId
-            ]
+newtype SMASHPoolId = SMASHPoolId
+    { poolId :: T.Text
+    } deriving stock (Eq, Show, Ord)
+      deriving (Generic)
 
 instance FromJSON SMASHPoolId where
-    parseJSON = withObject "SMASHPoolId" $ \o -> do
-        poolId <- o .: "poolId"
-        return $ SMASHPoolId poolId
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+        { fieldLabelModifier = id }
+
+instance ToJSON SMASHPoolId where
+    toJSON = genericToJSON defaultRecordTypeOptions
+        { fieldLabelModifier = id }
 
 toPoolId :: SMASHPoolId -> Either TextDecodingError PoolId
-toPoolId (SMASHPoolId pid) = fromText pid
+toPoolId (SMASHPoolId pid) =
+    either (\_ -> decodePoolIdBech32 pid) Right (fromText @PoolId pid)
 
 -- | Some default settings, overriding some of the library's default with
 -- stricter values.
