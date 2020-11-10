@@ -80,6 +80,7 @@ library
     , persistent-sqlite
     , persistent-template
     , process
+    , quiet
     , random
     , random-shuffle
     , retry

@@ -1,5 +1,6 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE TypeApplications #-}
 
@@ -36,6 +37,8 @@ import GHC.Generics
     ( Generic )
 import Numeric.Natural
     ( Natural )
+import Quiet
+    ( Quiet (..) )
 
 import qualified Data.Text as T
 
@@ -46,7 +49,8 @@ import qualified Data.Text as T
 newtype Coin = Coin
     { getCoin :: Word64
     }
-    deriving stock (Show, Ord, Eq, Generic)
+    deriving stock (Ord, Eq, Generic)
+    deriving Show via (Quiet Coin)
 
 instance ToText Coin where
     toText (Coin c) = T.pack $ show c

@@ -76,6 +76,7 @@
           (hsPkgs."persistent-sqlite" or (errorHandler.buildDepError "persistent-sqlite"))
           (hsPkgs."persistent-template" or (errorHandler.buildDepError "persistent-template"))
           (hsPkgs."process" or (errorHandler.buildDepError "process"))
+          (hsPkgs."quiet" or (errorHandler.buildDepError "quiet"))
           (hsPkgs."random" or (errorHandler.buildDepError "random"))
           (hsPkgs."random-shuffle" or (errorHandler.buildDepError "random-shuffle"))
           (hsPkgs."retry" or (errorHandler.buildDepError "retry"))
