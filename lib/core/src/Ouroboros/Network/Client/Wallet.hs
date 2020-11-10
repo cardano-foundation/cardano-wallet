@@ -81,7 +81,7 @@ import Network.TypedProtocol.Pipelined
     ( N (..), Nat (..), natToInt )
 import Numeric.Natural
     ( Natural )
-import Ouroboros.Consensus.Ledger.Abstract
+import Ouroboros.Consensus.HardFork.Combinator.Ledger.Query
     ( Query )
 import Ouroboros.Network.Block
     ( BlockNo (..)
