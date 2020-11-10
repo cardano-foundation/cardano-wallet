@@ -128,11 +128,11 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
         wDest <- emptyWallet ctx
 
         let amt = fromIntegral minUTxOValue
-        args <- postTxArgs ctx wSrc wDest amt Nothing
+        args <- postTxArgs ctx wSrc wDest amt Nothing Nothing
         Stdout feeOut <- postTransactionFeeViaCLI @t ctx args
         ApiFee (Quantity feeMin) (Quantity feeMax) <- expectValidJSON Proxy feeOut
 
-        txJson <- postTxViaCLI ctx wSrc wDest amt Nothing
+        txJson <- postTxViaCLI ctx wSrc wDest amt Nothing Nothing
         verify txJson
             [ expectCliField (#amount . #getQuantity)
                 (between (feeMin + amt, feeMax + amt))
@@ -321,11 +321,11 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
         let expected = Just $ ApiT $ TxMetadata $
                 Map.singleton 1 (TxMetaText "hello")
 
-        args <- postTxArgs ctx wSrc wDest amt md
+        args <- postTxArgs ctx wSrc wDest amt md Nothing
         Stdout feeOut <- postTransactionFeeViaCLI @t ctx args
         ApiFee (Quantity feeMin) (Quantity feeMax) <- expectValidJSON Proxy feeOut
 
-        txJson <- postTxViaCLI ctx wSrc wDest amt md
+        txJson <- postTxViaCLI ctx wSrc wDest amt md Nothing
         verify txJson
             [ expectCliField (#amount . #getQuantity)
                 (between (feeMin + amt, feeMax + amt))
@@ -344,6 +344,32 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
                 [ expectCliListField 0 (#metadata . #getApiTxMetadata) (`shouldBe` expected)
                 , expectCliListField 0 (#status . #getApiT) (`shouldBe` InLedger)
                 ]
+
+    it "TRANSTTL_CREATE_01 - Transaction with TTL via CLI" $ \ctx -> runResourceT $ do
+      (wSrc, wDest) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
+      let amt = 10_000_000
+      let ttl = Just "30s"
+
+      args <- postTxArgs ctx wSrc wDest amt Nothing ttl
+      Stdout feeOut <- postTransactionFeeViaCLI @t ctx args
+      ApiFee (Quantity feeMin) (Quantity feeMax) <- expectValidJSON Proxy feeOut
+
+      txJson <- postTxViaCLI ctx wSrc wDest amt Nothing ttl
+      verify txJson
+          [ expectCliField (#amount . #getQuantity)
+              (between (feeMin + amt, feeMax + amt))
+          , expectCliField (#direction . #getApiT) (`shouldBe` Outgoing)
+          , expectCliField (#status . #getApiT) (`shouldBe` Pending)
+          ]
+
+      eventually "transaction with ttl is confirmed in transaction list" $ do
+          (Exit code, Stdout out, Stderr err) <-
+              listTransactionsViaCLI @t ctx [T.unpack $ wDest ^. walletId]
+          err `shouldBe` "Ok.\n"
+          code `shouldBe` ExitSuccess
+          outJson <- expectValidJSON (Proxy @([ApiTransaction n])) out
+          verify outJson
+              [ expectCliListField 0 (#status . #getApiT) (`shouldBe` InLedger) ]
 
     describe "TRANS_ESTIMATE_08 - Invalid addresses" $ do
         forM_ matrixInvalidAddrs $ \(title, addr, errMsg) -> it title $ \ctx -> runResourceT $ do
@@ -729,7 +755,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
         let wSrcId = T.unpack (wSrc ^. walletId)
 
         -- post transaction
-        txJson <- postTxViaCLI ctx wSrc wDest minUTxOValue Nothing
+        txJson <- postTxViaCLI ctx wSrc wDest minUTxOValue Nothing Nothing
         verify txJson
             [ expectCliField (#direction . #getApiT) (`shouldBe` Outgoing)
             , expectCliField (#status . #getApiT) (`shouldBe` Pending)
@@ -784,7 +810,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
             -- post tx
             wSrc <- fixtureWallet ctx
             wDest <- emptyWallet ctx
-            txJson <- postTxViaCLI ctx wSrc wDest minUTxOValue Nothing
+            txJson <- postTxViaCLI ctx wSrc wDest minUTxOValue Nothing Nothing
 
             -- try to forget from different wallet
             widDiff <- emptyWallet' ctx
@@ -853,9 +879,10 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
           -> ApiWallet
           -> Natural
           -> Maybe Text
+          -> Maybe Text
           -> m (ApiTransaction n)
-      postTxViaCLI ctx wSrc wDest amt md = do
-          args <- postTxArgs ctx wSrc wDest amt md
+      postTxViaCLI ctx wSrc wDest amt md ttl = do
+          args <- postTxArgs ctx wSrc wDest amt md ttl
 
           -- post transaction
           (c, out, err) <- postTransactionViaCLI @t ctx "cardano-wallet" args
@@ -870,14 +897,16 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
         -> ApiWallet
         -> Natural
         -> Maybe Text
+        -> Maybe Text
         -> m [String]
-      postTxArgs ctx wSrc wDest amt md = do
+      postTxArgs ctx wSrc wDest amt md ttl = do
           addr:_ <- listAddresses @n ctx wDest
           let addrStr = encodeAddress @n (getApiT $ fst $ addr ^. #id)
           return $ T.unpack <$>
               [ wSrc ^. walletId
               , "--payment", T.pack (show amt) <> "@" <> addrStr
               ] ++ maybe [] (\json -> ["--metadata", json]) md
+              ++ maybe [] (\s -> ["--ttl", s]) ttl
 
       fixtureWallet' :: Context t -> ResourceT IO String
       fixtureWallet' = fmap (T.unpack . view walletId) . fixtureWallet
