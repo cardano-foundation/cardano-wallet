@@ -56,6 +56,7 @@ module Cardano.CLI
     , tlsOption
     , poolMetadataSourceOption
     , metadataOption
+    , timeToLiveOption
 
     -- * Option parsers for configuring tracing
     , LoggingOptions (..)
@@ -201,6 +202,8 @@ import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Maybe
     ( fromMaybe )
+import Data.Quantity
+    ( Quantity (..) )
 import Data.String
     ( IsString )
 import Data.Text
@@ -730,7 +733,7 @@ data TransactionCreateArgs t = TransactionCreateArgs
     , _id :: WalletId
     , _payments :: NonEmpty Text
     , _metadata :: ApiTxMetadata
-    , _timeToLive :: Maybe NominalDiffTime
+    , _timeToLive :: Maybe (Quantity "second" NominalDiffTime)
     }
 
 whenShelley :: a -> Parser a -> TransactionFeatures -> Parser a
@@ -1420,8 +1423,8 @@ txMetadataReader :: ReadM ApiTxMetadata
 txMetadataReader = eitherReader (Aeson.eitherDecode' . BL8.pack)
 
 -- | [--ttl=DURATION]
-timeToLiveOption :: Parser (Maybe NominalDiffTime)
-timeToLiveOption = optional $ optionT $ mempty
+timeToLiveOption :: Parser (Maybe (Quantity "second" NominalDiffTime))
+timeToLiveOption = optional $ fmap Quantity $ optionT $ mempty
     <> long "ttl"
     <> metavar "DURATION"
     <> help ("Time-to-live value. "
