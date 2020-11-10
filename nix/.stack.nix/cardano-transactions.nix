@@ -88,7 +88,7 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/cardano-transactions";
-      rev = "218cdc2dfea34b0261f96c96c7b937d620a8780e";
-      sha256 = "072vz2bbrscim77fwqsjbid0w3ks9lpzk8q5rx1g3wc0hrs9dpsa";
+      rev = "52068c6d039f1edd719d27682cd38a48d96ce373";
+      sha256 = "1aiciabhyphhxhqr1sbbfcpqrmab8xc6arv858znw9zhwf3aznaz";
       });
     }) // { cabal-generator = "hpack"; }
