@@ -163,7 +163,7 @@ import qualified Data.Text.Encoding as T
 --
 -- @m | purpose' | cointype' | account' | role | address@
 data Depth
-    = RootK | PurposeK | CoinTypeK | AccountK | RoleK | AddressK
+    = RootK | PurposeK | CoinTypeK | AccountK | RoleK | AddressK | ScriptK
 
 -- | Marker for addresses type engaged. We want to handle four cases here.
 -- The first two are pertinent to UTxO accounting,

@@ -678,6 +678,7 @@ data DefaultFieldValues = DefaultFieldValues
     , defaultDesiredNumberOfPool :: Word16
     , defaultMinimumUTxOValue :: W.Coin
     , defaultHardforkEpoch :: Maybe W.EpochNo
+    , defaultMultisigPoolGap :: Maybe Seq.AddressPoolGap
     }
 
 -- | Sets up a connection to the SQLite database.
@@ -1696,7 +1697,8 @@ instance
     , SoftDerivation k
     ) => PersistState (Seq.SeqState n k) where
     insertState (wid, sl) st = do
-        let (intPool, extPool) = (Seq.internalPool st, Seq.externalPool st)
+        let (intPool, extPool) =
+                (Seq.internalPool st, Seq.externalPool st)
         let (accountXPub, _) = W.invariant
                 "Internal & External pool use different account public keys!"
                 (Seq.accountPubKey intPool, Seq.accountPubKey extPool)
@@ -1726,7 +1728,7 @@ instance
         intPool <- lift $ selectAddressPool @n wid sl iGap accountXPub
         extPool <- lift $ selectAddressPool @n wid sl eGap accountXPub
         pendingChangeIxs <- lift $ selectSeqStatePendingIxs wid
-        pure $ Seq.SeqState intPool extPool pendingChangeIxs rewardXPub prefix
+        pure $ Seq.SeqState intPool extPool pendingChangeIxs rewardXPub prefix Map.empty
 
 insertAddressPool
     :: forall n k c. (PaymentAddress n k, Typeable c)

@@ -69,6 +69,8 @@ module Cardano.Wallet.Primitive.AddressDiscovery.Sequential
 
 import Prelude
 
+import Cardano.Address.Script
+    ( ScriptHash )
 import Cardano.Crypto.Wallet
     ( XPrv, XPub )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -274,6 +276,8 @@ role =
             UtxoInternal
           | t == typeRep (Proxy :: Proxy 'UtxoExternal) ->
             UtxoExternal
+          | t == typeRep (Proxy :: Proxy 'MultisigScript) ->
+            MultisigScript
         _ ->
             MutableAccount
 
@@ -566,24 +570,28 @@ data SeqState (n :: NetworkDiscriminant) k = SeqState
         -- ^ Reward account public key associated with this wallet
     , derivationPrefix :: DerivationPrefix
         -- ^ Derivation path prefix from a root key up to the internal account
+    , knownScripts :: !(Map ScriptHash [k 'ScriptK XPub])
+        -- ^ Known script hashes that contain our verification key hashes
     }
     deriving stock (Generic)
 
 deriving instance
     ( Show (k 'AccountK XPub)
     , Show (k 'AddressK XPub)
+    , Show (k 'ScriptK XPub)
     , Show (KeyFingerprint "payment" k)
     ) => Show (SeqState n k)
 
 instance
     ( NFData (k 'AccountK XPub)
     , NFData (k 'AddressK XPub)
+    , NFData (k 'ScriptK XPub)
     , NFData (KeyFingerprint "payment" k)
     )
     => NFData (SeqState n k)
 
 instance PersistPublicKey (k 'AccountK) => Buildable (SeqState n k) where
-    build (SeqState intP extP chgs _ path) = "SeqState:\n"
+    build (SeqState intP extP chgs _ path _) = "SeqState:\n"
         <> indentF 4 ("Derivation prefix: " <> build (toText path))
         <> indentF 4 (build intP)
         <> indentF 4 (build extP)
@@ -651,10 +659,11 @@ mkSeqStateFromRootXPrv (rootXPrv, pwd) purpose g =
             mkAddressPool @n (publicKey accXPrv) g []
         intPool =
             mkAddressPool @n (publicKey accXPrv) g []
+        scripts = Map.empty
         prefix =
             DerivationPrefix ( purpose, coinTypeAda, minBound )
     in
-        SeqState intPool extPool emptyPendingIxs rewardXPub prefix
+        SeqState intPool extPool emptyPendingIxs rewardXPub prefix scripts
 
 -- | Construct a Sequential state for a wallet from public account key.
 mkSeqStateFromAccountXPub
@@ -677,10 +686,11 @@ mkSeqStateFromAccountXPub accXPub purpose g =
             mkAddressPool @n accXPub g []
         intPool =
             mkAddressPool @n accXPub g []
+        scripts = Map.empty
         prefix =
             DerivationPrefix ( purpose, coinTypeAda, minBound )
     in
-        SeqState intPool extPool emptyPendingIxs rewardXPub prefix
+        SeqState intPool extPool emptyPendingIxs rewardXPub prefix scripts
 
 -- NOTE
 -- We have to scan both the internal and external chain. Note that, the
@@ -693,7 +703,7 @@ instance
     , MkKeyFingerprint k Address
     ) => IsOurs (SeqState n k) Address
   where
-    isOurs addr (SeqState !s1 !s2 !ixs !rpk !prefix) =
+    isOurs addr (SeqState !s1 !s2 !ixs !rpk !prefix !scripts) =
         let
             DerivationPrefix (purpose, coinType, accountIx) = prefix
             (internal, !s1') = lookupAddress @n (const Used) addr s1
@@ -722,7 +732,7 @@ instance
 
                 _ -> Nothing
         in
-            (ixs' `deepseq` ours `deepseq` ours, SeqState s1' s2' ixs' rpk prefix)
+            (ixs' `deepseq` ours `deepseq` ours, SeqState s1' s2' ixs' rpk prefix scripts)
 
 instance
     ( SoftDerivation k
@@ -736,14 +746,14 @@ instance
     type ArgGenChange (SeqState n k) =
         (k 'AddressK XPub -> k 'AddressK XPub -> Address)
 
-    genChange mkAddress (SeqState intPool extPool pending rpk path) =
+    genChange mkAddress (SeqState intPool extPool pending rpk path scripts) =
         let
             (ix, pending') = nextChangeIndex intPool pending
             accountXPub = accountPubKey intPool
             addressXPub = deriveAddressPublicKey accountXPub UtxoInternal ix
             addr = mkAddress addressXPub rpk
         in
-            (addr, SeqState intPool extPool pending' rpk path)
+            (addr, SeqState intPool extPool pending' rpk path scripts)
 
 instance
     ( IsOurs (SeqState n k) Address
@@ -753,7 +763,7 @@ instance
     , AddressIndexDerivationType k ~ 'Soft
     )
     => IsOwned (SeqState n k) k where
-    isOwned (SeqState !s1 !s2 _ _ _) (rootPrv, pwd) addr =
+    isOwned (SeqState !s1 !s2 _ _ _ _) (rootPrv, pwd) addr =
         let
             xPrv1 = lookupAndDeriveXPrv s1
             xPrv2 = lookupAndDeriveXPrv s2
@@ -779,7 +789,7 @@ instance
     , MkKeyFingerprint k Address
     , SoftDerivation k
     ) => CompareDiscovery (SeqState n k) where
-    compareDiscovery (SeqState !s1 !s2 _ _ _) a1 a2 =
+    compareDiscovery (SeqState !s1 !s2 _ _ _ _) a1 a2 =
         case (ix a1 s1 <|> ix a1 s2, ix a2 s1 <|> ix a2 s2) of
             (Nothing, Nothing) -> EQ
             (Nothing, Just _)  -> GT
@@ -829,12 +839,14 @@ newtype SeqAnyState (network :: NetworkDiscriminant) key (p :: Nat) = SeqAnyStat
 deriving instance
     ( Show (k 'AccountK XPub)
     , Show (k 'AddressK XPub)
+    , Show (k 'ScriptK XPub)
     , Show (KeyFingerprint "payment" k)
     ) => Show (SeqAnyState n k p)
 
 instance
     ( NFData (k 'AccountK XPub)
     , NFData (k 'AddressK XPub)
+    , NFData (k 'ScriptK XPub)
     , NFData (KeyFingerprint "payment" k)
     )
     => NFData (SeqAnyState n k p)
