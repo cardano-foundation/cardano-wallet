@@ -136,7 +136,7 @@ import Cardano.Wallet.Api.Types
     , EncodeStakeAddress (..)
     )
 import Cardano.Wallet.Byron.Compatibility
-    ( NodeVersionData, fromByronBlock, toByronBlockHeader )
+    ( fromByronBlock, toByronBlockHeader )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Types
@@ -224,11 +224,14 @@ import Ouroboros.Network.Block
     , getTipPoint
     , legacyTip
     )
+import Ouroboros.Network.CodecCBORTerm
+    ( CodecCBORTerm )
 import Ouroboros.Network.Magic
     ( NetworkMagic (..) )
 import Ouroboros.Network.NodeToClient
     ( ConnectionId (..)
     , LocalAddress (..)
+    , NodeToClientVersion (..)
     , NodeToClientVersionData (..)
     , nodeToClientCodecCBORTerm
     )
@@ -269,6 +272,9 @@ import qualified Shelley.Spec.Ledger.BaseTypes as SL
 import qualified Shelley.Spec.Ledger.BlockChain as SL
 import qualified Shelley.Spec.Ledger.Credential as SL
 import qualified Shelley.Spec.Ledger.UTxO as SL
+
+type NodeVersionData =
+    (NodeToClientVersionData, CodecCBORTerm Text NodeToClientVersionData)
 
 --------------------------------------------------------------------------------
 --
