@@ -166,6 +166,7 @@
             (hsPkgs."servant-server" or (errorHandler.buildDepError "servant-server"))
             (hsPkgs."stm" or (errorHandler.buildDepError "stm"))
             (hsPkgs."openapi3" or (errorHandler.buildDepError "openapi3"))
+            (hsPkgs."servant-openapi3" or (errorHandler.buildDepError "servant-openapi3"))
             (hsPkgs."temporary" or (errorHandler.buildDepError "temporary"))
             (hsPkgs."text" or (errorHandler.buildDepError "text"))
             (hsPkgs."text-class" or (errorHandler.buildDepError "text-class"))

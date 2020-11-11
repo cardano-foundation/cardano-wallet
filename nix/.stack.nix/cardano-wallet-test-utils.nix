@@ -47,7 +47,6 @@
           (hsPkgs."process" or (errorHandler.buildDepError "process"))
           (hsPkgs."QuickCheck" or (errorHandler.buildDepError "QuickCheck"))
           (hsPkgs."servant-server" or (errorHandler.buildDepError "servant-server"))
-          (hsPkgs."servant-swagger" or (errorHandler.buildDepError "servant-swagger"))
           (hsPkgs."stm" or (errorHandler.buildDepError "stm"))
           (hsPkgs."template-haskell" or (errorHandler.buildDepError "template-haskell"))
           (hsPkgs."text" or (errorHandler.buildDepError "text"))

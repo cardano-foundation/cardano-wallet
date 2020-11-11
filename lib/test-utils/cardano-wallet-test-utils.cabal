@@ -47,7 +47,6 @@ library
     , process
     , QuickCheck
     , servant-server
-    , servant-swagger
     , stm
     , template-haskell
     , text
@@ -59,7 +58,6 @@ library
   exposed-modules:
       Test.Hspec.Extra
       Test.Utils.FilePath
-      Test.Utils.OpenApi
       Test.Utils.Paths
       Test.Utils.Roundtrip
       Test.Utils.StaticServer

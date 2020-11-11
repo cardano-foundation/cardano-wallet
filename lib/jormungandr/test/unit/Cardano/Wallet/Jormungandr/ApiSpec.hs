@@ -67,6 +67,8 @@ import Numeric.Natural
     ( Natural )
 import Servant.API
     ( MimeUnrender (..) )
+import Servant.OpenApi.Test
+    ( validateEveryToJSON )
 import System.Environment
     ( lookupEnv )
 import System.FilePath
@@ -77,8 +79,6 @@ import Test.Hspec
     ( Spec, describe, it, shouldBe, shouldSatisfy )
 import Test.QuickCheck
     ( Arbitrary (..), Gen, applyArbitrary3, choose, frequency, vector )
-import Test.Utils.OpenApi
-    ( validateEveryToJSON )
 import Test.Utils.Paths
     ( getTestData )
 import Test.Utils.Time

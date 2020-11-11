@@ -260,6 +260,8 @@ import Servant
     )
 import Servant.API.Verbs
     ( NoContentVerb )
+import Servant.OpenApi.Test
+    ( validateEveryToJSON, validateEveryToJSONWithPatternChecker )
 import System.Environment
     ( lookupEnv )
 import System.FilePath
@@ -294,8 +296,6 @@ import Test.QuickCheck.Arbitrary.Generic
     ( genericArbitrary, genericShrink )
 import Test.Text.Roundtrip
     ( textRoundtrip )
-import Test.Utils.OpenApi
-    ( validateEveryToJSON, validateEveryToJSONWithPatternChecker )
 import Test.Utils.Paths
     ( getTestData )
 import Test.Utils.Roundtrip

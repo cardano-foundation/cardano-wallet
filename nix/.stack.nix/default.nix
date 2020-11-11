@@ -9,7 +9,7 @@
         "servant-server" = (((hackage.servant-server)."0.17").revisions).default;
         "servant-client-core" = (((hackage.servant-client-core)."0.17").revisions).default;
         "servant-client" = (((hackage.servant-client)."0.17").revisions).default;
-        "servant-swagger" = (((hackage.servant-swagger)."1.1.8").revisions).default;
+        "servant-openapi3" = (((hackage.servant-openapi3)."2.0.0.1").revisions).default;
         "zip" = (((hackage.zip)."1.3.0").revisions).default;
         "tls" = (((hackage.tls)."1.5.4").revisions).default;
         "directory" = (((hackage.directory)."1.3.3.0").revisions).default;

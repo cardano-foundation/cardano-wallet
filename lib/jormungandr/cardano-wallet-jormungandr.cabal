@@ -173,6 +173,7 @@ test-suite unit
     , servant
     , stm
     , openapi3 >= 3.0.0.1
+    , servant-openapi3
     , temporary
     , text
     , text-class
