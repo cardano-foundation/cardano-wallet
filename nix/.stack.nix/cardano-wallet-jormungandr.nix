@@ -153,7 +153,6 @@
             (hsPkgs."QuickCheck" or (errorHandler.buildDepError "QuickCheck"))
             (hsPkgs."safe" or (errorHandler.buildDepError "safe"))
             (hsPkgs."servant" or (errorHandler.buildDepError "servant"))
-            (hsPkgs."servant-swagger" or (errorHandler.buildDepError "servant-swagger"))
             (hsPkgs."stm" or (errorHandler.buildDepError "stm"))
             (hsPkgs."openapi3" or (errorHandler.buildDepError "openapi3"))
             (hsPkgs."temporary" or (errorHandler.buildDepError "temporary"))

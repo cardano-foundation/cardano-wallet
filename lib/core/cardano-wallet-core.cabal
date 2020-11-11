@@ -243,7 +243,6 @@ test-suite unit
     , scrypt
     , servant
     , servant-server
-    , servant-swagger
     , stm
     , openapi3 >= 3.0.0.1
     , temporary

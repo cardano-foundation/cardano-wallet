@@ -164,7 +164,6 @@
             (hsPkgs."scrypt" or (errorHandler.buildDepError "scrypt"))
             (hsPkgs."servant" or (errorHandler.buildDepError "servant"))
             (hsPkgs."servant-server" or (errorHandler.buildDepError "servant-server"))
-            (hsPkgs."servant-swagger" or (errorHandler.buildDepError "servant-swagger"))
             (hsPkgs."stm" or (errorHandler.buildDepError "stm"))
             (hsPkgs."openapi3" or (errorHandler.buildDepError "openapi3"))
             (hsPkgs."temporary" or (errorHandler.buildDepError "temporary"))
