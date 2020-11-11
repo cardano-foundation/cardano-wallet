@@ -373,7 +373,7 @@ toPoint genesisH (W.BlockHeader sl _ (W.Hash h) _)
   | otherwise = O.BlockPoint sl (OneEraHash $ toShort h)
 
 toCardanoBlockHeader
-    :: forall c. Era (SL.Shelley c)
+    :: forall c. Era (SL.ShelleyEra c)
     => W.GenesisParameters
     -> CardanoBlock c
     -> W.BlockHeader
@@ -409,7 +409,7 @@ getProducer (ShelleyBlock (SL.Block (SL.BHeader header _) _) _) =
     fromPoolKeyHash $ SL.hashKey (SL.bheaderVk header)
 
 fromCardanoBlock
-    :: Era (SL.Shelley c)
+    :: Era (SL.ShelleyEra c)
     => W.GenesisParameters
     -> CardanoBlock c
     -> W.Block
@@ -510,7 +510,7 @@ fromMaxTxSize :: Natural -> Quantity "byte" Word16
 fromMaxTxSize =
     Quantity . fromIntegral
 
-fromShelleyPParams :: Maybe Bound -> SL.PParams (SL.Shelley c) -> W.ProtocolParameters
+fromShelleyPParams :: Maybe Bound -> SL.PParams (SL.ShelleyEra c) -> W.ProtocolParameters
 fromShelleyPParams bound pp = W.ProtocolParameters
     { decentralizationLevel =
         decentralizationLevelFromPParams pp
@@ -546,7 +546,7 @@ fromShelleyPParams bound pp = W.ProtocolParameters
 -- convert it into a percentage.
 --
 decentralizationLevelFromPParams
-    :: SL.PParams (SL.Shelley c)
+    :: SL.PParams (SL.ShelleyEra c)
     -> W.DecentralizationLevel
 decentralizationLevelFromPParams pp =
     W.DecentralizationLevel $ fromUnitInterval
@@ -556,7 +556,7 @@ decentralizationLevelFromPParams pp =
     d = SL._d pp
 
 txParametersFromPParams
-    :: SL.PParams (SL.Shelley c)
+    :: SL.PParams (SL.ShelleyEra c)
     -> W.TxParameters
 txParametersFromPParams pp = W.TxParameters
     { getFeePolicy = W.LinearFee
@@ -573,18 +573,18 @@ txParametersFromPParams pp = W.TxParameters
     coinToDouble (SL.Coin c) = fromIntegral c
 
 desiredNumberOfStakePoolsFromPParams
-    :: SL.PParams (SL.Shelley c)
+    :: SL.PParams (SL.ShelleyEra c)
     -> Word16
 desiredNumberOfStakePoolsFromPParams pp = fromIntegral (SL._nOpt pp)
 
 minimumUTxOvalueFromPParams
-    :: SL.PParams (SL.Shelley c)
+    :: SL.PParams (SL.ShelleyEra c)
     -> W.Coin
 minimumUTxOvalueFromPParams pp = toWalletCoin $ SL._minUTxOValue pp
 
 -- | Convert genesis data into blockchain params and an initial set of UTxO
 fromGenesisData
-    :: forall e crypto. (Era e, e ~ SL.Shelley crypto)
+    :: forall e crypto. (Era e, e ~ SL.ShelleyEra crypto)
     => ShelleyGenesis e
     -> [(SL.Addr e, SL.Coin)]
     -> (W.NetworkParameters, W.Block)
@@ -680,7 +680,7 @@ fromNonMyopicMemberRewards =
     . Map.mapKeys (bimap fromShelleyCoin fromStakeCredential)
     . O.unNonMyopicMemberRewards
 
-optimumNumberOfPools :: SL.PParams (SL.Shelley c) -> Int
+optimumNumberOfPools :: SL.PParams (SL.ShelleyEra c) -> Int
 optimumNumberOfPools = unsafeConvert . SL._nOpt
   where
     -- A value of ~100 can be expected, so should be fine.
@@ -777,7 +777,7 @@ fromShelleyRegistrationCert
 fromShelleyRegistrationCert = \case
     SL.DCertPool (SL.RegPool pp) -> Just $ Registration
         ( W.PoolRegistrationCertificate
-            { W.poolId = fromPoolKeyHash $ SL._poolPubKey pp
+            { W.poolId = fromPoolKeyHash $ _SLpoolPubKey pp
             , W.poolOwners = fromOwnerKeyHash <$> Set.toList (SL._poolOwners pp)
             , W.poolMargin = fromUnitInterval (SL._poolMargin pp)
             , W.poolCost = lovelaceFromCoin (SL._poolCost pp)
@@ -860,7 +860,7 @@ toByronNetworkMagic pm@(W.ProtocolMagic magic) =
 -- | SealedTx are the result of rightfully constructed shelley transactions so, it
 -- is relatively safe to unserialize them from CBOR.
 unsealShelleyTx
-    :: (HasCallStack, Era (SL.Shelley c))
+    :: (HasCallStack, Era (SL.ShelleyEra c))
     => W.SealedTx
     -> CardanoGenTx c
 unsealShelleyTx = GenTxShelley
@@ -987,7 +987,7 @@ _decodeStakeAddress
 _decodeStakeAddress serverNetwork txt = do
     (_, dp) <- left (const errBech32) $ Bech32.decodeLenient txt
     bytes <- maybe (Left errBech32) Right $ dataPartToBytes dp
-    rewardAcnt <- runGetOrFail' (SL.getRewardAcnt @(SL.Shelley StandardCrypto)) bytes
+    rewardAcnt <- runGetOrFail' (SL.getRewardAcnt @(Shelley StandardCrypto)) bytes
 
     guardNetwork (SL.getRwdNetwork rewardAcnt) serverNetwork
 
@@ -1074,7 +1074,7 @@ _decodeAddress serverNetwork =
   where
     decodeShelleyAddress :: forall c. (SL.Crypto c) => ByteString -> Either TextDecodingError W.Address
     decodeShelleyAddress bytes = do
-        case SL.deserialiseAddr @(SL.Shelley c) bytes of
+        case SL.deserialiseAddr @(SL.ShelleyEra c) bytes of
             Just (SL.Addr addrNetwork _ _) -> do
                 guardNetwork addrNetwork serverNetwork
                 pure (W.Address bytes)
