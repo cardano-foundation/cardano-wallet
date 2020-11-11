@@ -115,7 +115,12 @@ import Cardano.Api.Shelley
 import Cardano.Api.Shelley.Genesis
     ( ShelleyGenesis (..) )
 import Cardano.Api.Typed
-    ( AsType (..), NetworkId, Shelley, deserialiseFromRawBytes )
+    ( AsType (..)
+    , NetworkId
+    , Shelley
+    , StandardShelley
+    , deserialiseFromRawBytes
+    )
 import Cardano.Binary
     ( fromCBOR, serialize' )
 import Cardano.Crypto.Hash.Class
@@ -208,7 +213,7 @@ import Ouroboros.Consensus.Shelley.Ledger
 import Ouroboros.Consensus.Shelley.Ledger.Block
     ( ShelleyBlock (..) )
 import Ouroboros.Consensus.Shelley.Protocol.Crypto
-    ( StandardCrypto, StandardShelley )
+    ( StandardCrypto )
 import Ouroboros.Network.Block
     ( BlockNo (..)
     , ChainHash
