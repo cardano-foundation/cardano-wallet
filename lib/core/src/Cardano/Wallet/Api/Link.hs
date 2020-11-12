@@ -77,6 +77,8 @@ module Cardano.Wallet.Api.Link
     , joinStakePool
     , quitStakePool
     , getDelegationFee
+    , postPoolMaintenance
+    , getPoolMaintenance
 
       -- * Network
     , getNetworkInfo
@@ -466,6 +468,15 @@ getTransaction w t = discriminate @style
 --
 -- Stake Pools
 --
+postPoolMaintenance
+    :: (Method, Text)
+postPoolMaintenance =
+    endpoint @Api.PostPoolMaintenance id
+
+getPoolMaintenance
+    :: (Method, Text)
+getPoolMaintenance =
+    endpoint @Api.GetPoolMaintenance id
 
 listStakePools
     :: Maybe Coin

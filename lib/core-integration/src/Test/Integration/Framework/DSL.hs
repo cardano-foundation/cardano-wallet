@@ -77,8 +77,6 @@ module Test.Integration.Framework.DSL
     -- * Wallet helpers
     , listFilteredWallets
     , listFilteredByronWallets
-    , updateMetadataSource
-    , verifyMetadataSource
 
     -- * Helpers
     , (</>)
@@ -134,6 +132,10 @@ module Test.Integration.Framework.DSL
     , getTxId
     , oneSecond
     , getTTLSlots
+    , updateMetadataSource
+    , verifyMetadataSource
+    , triggerMaintenanceAction
+    , verifyMaintenanceAction
 
     -- * Delegation helpers
     , mkEpochInfo
@@ -194,6 +196,7 @@ import Cardano.Wallet.Api.Types
     , ApiCoinSelection
     , ApiEpochInfo (ApiEpochInfo)
     , ApiFee
+    , ApiMaintenanceAction (..)
     , ApiNetworkInformation
     , ApiNetworkParameters (..)
     , ApiStakePool
@@ -243,6 +246,7 @@ import Cardano.Wallet.Primitive.Types
     , EpochNo
     , HistogramBar (..)
     , PoolId (..)
+    , PoolMetadataGCStatus (..)
     , PoolMetadataSource
     , Settings
     , SlotLength (..)
@@ -597,7 +601,7 @@ updateMetadataSource ctx t = do
     r <- request @(ApiT Settings) ctx Link.putSettings Default payload
     expectResponseCode HTTP.status204 r
  where
-   payload = Json [aesonQQ| {
+  payload = Json [aesonQQ| {
        "settings": {
            "pool_metadata_source": #{t}
             }
@@ -612,6 +616,23 @@ verifyMetadataSource ctx s = do
     r <- request @(ApiT Settings) ctx Link.getSettings Default Empty
     expectResponseCode HTTP.status200 r
     expectField (#getApiT . #poolMetadataSource) (`shouldBe` s) r
+
+triggerMaintenanceAction :: (MonadIO m, MonadCatch m) => Context t -> Text -> m ()
+triggerMaintenanceAction ctx a = do
+    r <- request @ApiMaintenanceAction ctx Link.postPoolMaintenance Default payload
+    expectResponseCode HTTP.status204 r
+ where
+   payload = Json [aesonQQ| { "maintenance_action": #{a} } |]
+
+verifyMaintenanceAction
+    :: (MonadIO m, MonadCatch m)
+    => Context t
+    -> PoolMetadataGCStatus
+    -> m ()
+verifyMaintenanceAction ctx s = do
+    r <- request @ApiMaintenanceAction ctx Link.getPoolMaintenance Default Empty
+    expectResponseCode HTTP.status200 r
+    expectField (#gcStakePools . #getApiT) (`shouldBe` s) r
 
 data MnemonicLength = M9 | M12 | M15 | M18 | M21 | M24 deriving (Show)
 
