@@ -2169,16 +2169,16 @@ x-errNoSuchTransaction: &errNoSuchTransaction
       type: string
       enum: ['no_such_transaction']
 
-x-errTransactionAlreadyInLedger: &errTransactionAlreadyInLedger
+x-errTransactionNotPending: &errTransactionNotPending
   <<: *responsesErr
-  title: transaction_already_in_ledger
+  title: transaction_not_pending
   properties:
     message:
       type: string
-      description: Occurs when attempting to delete a transaction which is neither pending nor expired.
+      description: May occur when trying to forget a transaction that is not pending.
     code:
       type: string
-      enum: ['transaction_already_in_ledger']
+      enum: ['transaction_not_pending']
 
 x-errWalletAlreadyExists: &errWalletAlreadyExists
   <<: *responsesErr
@@ -2879,7 +2879,7 @@ x-responsesDeleteTransaction: &responsesDeleteTransaction
     description: Forbidden
     content:
       application/json:
-        schema: *errTransactionAlreadyInLedger
+        schema: *errTransactionNotPending
   404:
     description: Not Found
     content:

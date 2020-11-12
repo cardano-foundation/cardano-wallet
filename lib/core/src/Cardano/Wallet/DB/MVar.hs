@@ -23,13 +23,14 @@ import Cardano.Address.Derivation
 import Cardano.Wallet.DB
     ( DBLayer (..)
     , ErrNoSuchWallet (..)
-    , ErrRemoveTx (..)
+    , ErrRemovePendingTx (..)
     , ErrWalletAlreadyExists (..)
     , PrimaryKey (..)
     )
 import Cardano.Wallet.DB.Model
     ( Database
     , Err (..)
+    , ErrErasePendingTx (..)
     , ModelOp
     , emptyDatabase
     , mCheckWallet
@@ -50,7 +51,7 @@ import Cardano.Wallet.DB.Model
     , mReadProtocolParameters
     , mReadTxHistory
     , mReadWalletMeta
-    , mRemovePendingOrExpiredTx
+    , mRemovePendingTx
     , mRemoveWallet
     , mRollbackTo
     , mUpdatePendingTxForExpiry
@@ -179,8 +180,8 @@ newDBLayer timeInterpreter = do
         , updatePendingTxForExpiry = \pk tip -> ExceptT $ do
             alterDB errNoSuchWallet db (mUpdatePendingTxForExpiry pk tip)
 
-        , removePendingOrExpiredTx = \pk tid -> ExceptT $ do
-            alterDB errCannotRemovePendingTx db (mRemovePendingOrExpiredTx pk tid)
+        , removePendingTx = \pk tid -> ExceptT $ do
+            alterDB errCannotRemovePendingTx db (mRemovePendingTx pk tid)
 
         {-----------------------------------------------------------------------
                                  Protocol Parameters
@@ -239,13 +240,13 @@ errNoSuchWallet :: Err (PrimaryKey WalletId) -> Maybe ErrNoSuchWallet
 errNoSuchWallet (NoSuchWallet (PrimaryKey wid)) = Just (ErrNoSuchWallet wid)
 errNoSuchWallet _ = Nothing
 
-errCannotRemovePendingTx :: Err (PrimaryKey WalletId) -> Maybe ErrRemoveTx
-errCannotRemovePendingTx (NoSuchWallet (PrimaryKey wid)) =
-    Just (ErrRemoveTxNoSuchWallet (ErrNoSuchWallet wid))
-errCannotRemovePendingTx (NoSuchTx _ tid) =
-    Just (ErrRemoveTxNoSuchTransaction tid)
-errCannotRemovePendingTx (CantRemoveTxInLedger _ tid) =
-    Just (ErrRemoveTxAlreadyInLedger tid)
+errCannotRemovePendingTx :: Err (PrimaryKey WalletId) -> Maybe ErrRemovePendingTx
+errCannotRemovePendingTx (CannotRemovePendingTx (ErrErasePendingTxNoSuchWallet (PrimaryKey wid))) =
+    Just (ErrRemovePendingTxNoSuchWallet (ErrNoSuchWallet wid))
+errCannotRemovePendingTx (CannotRemovePendingTx (ErrErasePendingTxNoTx tid)) =
+    Just (ErrRemovePendingTxNoSuchTransaction tid)
+errCannotRemovePendingTx (CannotRemovePendingTx (ErrErasePendingTxNoPendingTx tid)) =
+    Just (ErrRemovePendingTxTransactionNoMorePending tid)
 errCannotRemovePendingTx _ = Nothing
 
 errWalletAlreadyExists

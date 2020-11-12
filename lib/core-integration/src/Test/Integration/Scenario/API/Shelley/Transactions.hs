@@ -149,9 +149,9 @@ import Test.Integration.Framework.TestData
     ( errMsg400MinWithdrawalWrong
     , errMsg400StartTimeLaterThanEndTime
     , errMsg400TxMetadataStringTooLong
-    , errMsg403AlreadyInLedger
     , errMsg403Fee
     , errMsg403InputsDepleted
+    , errMsg403NoPendingAnymore
     , errMsg403NotAShelleyWallet
     , errMsg403NotEnoughMoney
     , errMsg403NotEnoughMoney_
@@ -2210,7 +2210,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         let ep = Link.deleteTransaction @'Shelley wSrc (ApiTxId txid)
         rDel <- request @ApiTxId ctx ep Default Empty
         expectResponseCode HTTP.status403 rDel
-        let err = errMsg403AlreadyInLedger (toUrlPiece (ApiTxId txid))
+        let err = errMsg403NoPendingAnymore (toUrlPiece (ApiTxId txid))
         expectErrorMessage err rDel
 
     describe "TRANS_DELETE_03 - checking no transaction id error for " $ do
@@ -2221,46 +2221,6 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         \ Cannot forget tx that is performed from different wallet" $ do
         txDeleteFromDifferentWalletTest emptyWallet "wallets"
         txDeleteFromDifferentWalletTest emptyRandomWallet "byron-wallets"
-
-    it "TRANS_TTL_DELETE_01 - Shelley: can remove expired tx" $ \ctx -> runResourceT $ do
-        liftIO $ pendingWith "#1840 this is flaky -- need a better approach"
-        (wa, wb) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
-        let amt = minUTxOValue :: Natural
-
-        -- this transaction is going to expire really soon.
-        basePayload <- mkTxPayload ctx wb amt fixturePassphrase
-        let payload = addTxTTL 0.1 basePayload
-
-        ra <- request @(ApiTransaction n) ctx
-            (Link.createTransaction @'Shelley wa) Default payload
-
-        expectSuccess ra
-
-        let txid = ApiTxId (getFromResponse #id ra)
-        let linkSrc = Link.getTransaction @'Shelley wa txid
-
-        rb <- eventually "transaction is no longer pending" $ do
-            rr <- request @(ApiTransaction n) ctx linkSrc Default Empty
-            verify rr
-                [ expectSuccess
-                , expectField (#status . #getApiT) (`shouldNotBe` Pending)
-                ]
-            pure rr
-
-        -- it should be expired
-        expectField (#status . #getApiT) (`shouldBe` Expired) rb
-
-        -- remove it
-        let linkDel = Link.deleteTransaction @'Shelley wa txid
-        request @(ApiTransaction n) ctx linkDel Default Empty
-            >>= expectResponseCode HTTP.status204
-
-        -- it should be gone
-        request @(ApiTransaction n) ctx linkSrc Default Empty
-            >>= expectResponseCode HTTP.status404
-        -- yes, gone
-        request @(ApiTransaction n) ctx linkDel Default Empty
-            >>= expectResponseCode HTTP.status404
 
     it "BYRON_TRANS_DELETE -\
         \ Cannot delete tx on Byron wallet using shelley ep" $ \ctx -> runResourceT $ do

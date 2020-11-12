@@ -57,7 +57,7 @@ import Cardano.Wallet.DB
     ( DBFactory (..)
     , DBLayer (..)
     , ErrNoSuchWallet (..)
-    , ErrRemoveTx (..)
+    , ErrRemovePendingTx (..)
     , ErrWalletAlreadyExists (..)
     , PrimaryKey (..)
     , defaultSparseCheckpointsConfig
@@ -166,7 +166,6 @@ import Database.Persist.Sql
     , Update (..)
     , deleteCascadeWhere
     , deleteWhere
-    , deleteWhereCount
     , insertMany_
     , insert_
     , rawExecute
@@ -919,22 +918,24 @@ newDBLayer trace defaultFieldValues mDatabaseFile timeInterpreter = do
                   updatePendingTxForExpiryQuery wid tip
                   pure $ Right ()
 
-        , removePendingOrExpiredTx = \(PrimaryKey wid) tid -> ExceptT $ do
+        , removePendingTx = \(PrimaryKey wid) tid -> ExceptT $ do
             let errNoSuchWallet =
-                    Left $ ErrRemoveTxNoSuchWallet $ ErrNoSuchWallet wid
+                    Left $ ErrRemovePendingTxNoSuchWallet $ ErrNoSuchWallet wid
             let errNoMorePending =
-                    Left $ ErrRemoveTxAlreadyInLedger tid
+                    Left $ ErrRemovePendingTxTransactionNoMorePending tid
             let errNoSuchTransaction =
-                    Left $ ErrRemoveTxNoSuchTransaction tid
+                    Left $ ErrRemovePendingTxNoSuchTransaction tid
             selectWallet wid >>= \case
                 Nothing -> pure errNoSuchWallet
-                Just _  -> selectTxMeta wid tid >>= \case
-                    Nothing -> pure errNoSuchTransaction
-                    Just _ -> do
-                        count <- deletePendingOrExpiredTx wid tid
-                        pure $ if count == 0
-                            then errNoMorePending
-                            else Right ()
+                Just _  -> do
+                    metas <- selectPendingTxs wid (TxId tid)
+                    let isPending meta = txMetaStatus meta == W.Pending
+                    case metas of
+                        [] -> pure errNoSuchTransaction
+                        txs | any isPending txs -> do
+                            deletePendingTx wid (TxId tid)
+                            pure $ Right ()
+                        _ -> pure errNoMorePending
 
         , getTx = \(PrimaryKey wid) tid -> ExceptT $ do
             selectLatestCheckpoint wid >>= \case
@@ -1566,31 +1567,26 @@ selectTxHistory cp ti wid minWithdrawal order conditions = do
         W.Ascending -> [Asc TxMetaSlot, Desc TxMetaTxId]
         W.Descending -> [Desc TxMetaSlot, Asc TxMetaTxId]
 
-selectTxMeta
+selectPendingTxs
     :: W.WalletId
-    -> W.Hash "Tx"
-    -> SqlPersistT IO (Maybe TxMeta)
-selectTxMeta wid tid =
-    fmap entityVal <$> selectFirst
-        [ TxMetaWalletId ==. wid, TxMetaTxId ==. (TxId tid)]
-        [ Desc TxMetaSlot ]
+    -> TxId
+    -> SqlPersistT IO [TxMeta]
+selectPendingTxs wid tid =
+    fmap entityVal <$> selectList
+        [TxMetaWalletId ==. wid, TxMetaTxId ==. tid] []
 
--- | Delete the transaction, but only if it's not in ledger.
--- Returns non-zero if this was a success.
-deletePendingOrExpiredTx
+deletePendingTx
     :: W.WalletId
-    -> W.Hash "Tx"
-    -> SqlPersistT IO Int
-deletePendingOrExpiredTx wid tid = do
-    let filt = [ TxMetaWalletId ==. wid, TxMetaTxId ==. (TxId tid) ]
-    selectFirst ((TxMetaStatus ==. W.InLedger):filt) [] >>= \case
-        Just _ -> pure 0  -- marked in ledger - refuse to delete
-        Nothing -> fromIntegral <$> deleteWhereCount
-            ((TxMetaStatus <-. [W.Pending, W.Expired]):filt)
+    -> TxId
+    -> SqlPersistT IO ()
+deletePendingTx wid tid = do
+    deleteWhere
+        [ TxMetaWalletId ==. wid, TxMetaTxId ==. tid
+        , TxMetaStatus ==. W.Pending ]
 
--- | Mutates all pending transaction entries which have exceeded their TTL so
--- that their status becomes expired. Transaction expiry is not something which
--- can be rolled back.
+-- Mutates all pending transaction entries which have exceeded their TTL so that
+-- their status becomes expired. Transaction expiry is not something which can
+-- be rolled back.
 updatePendingTxForExpiryQuery
     :: W.WalletId
     -> W.SlotNo
