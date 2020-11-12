@@ -1073,7 +1073,7 @@ data NetworkLayerLog where
     MsgLocalStateQuery
         :: QueryClientName
         -> (TraceSendRecv
-            (LocalStateQuery (CardanoBlock StandardCrypto) (Query (CardanoBlock StandardCrypto))))
+            (LocalStateQuery (CardanoBlock StandardCrypto) (Point (CardanoBlock StandardCrypto)) (Query (CardanoBlock StandardCrypto))))
         -> NetworkLayerLog
     MsgHandshakeTracer ::
       (WithMuxBearer (ConnectionId LocalAddress) HandshakeTrace) -> NetworkLayerLog
@@ -1091,8 +1091,8 @@ data NetworkLayerLog where
         -> Set W.RewardAccount
         -> NetworkLayerLog
     MsgAccountDelegationAndRewards
-        :: (Map (SL.Credential 'SL.Staking (SL.Shelley StandardCrypto)) (SL.KeyHash 'SL.StakePool (SL.Shelley StandardCrypto)))
-        -> SL.RewardAccounts (SL.Shelley StandardCrypto)
+        :: (Map (SL.Credential 'SL.Staking (SL.ShelleyEra StandardCrypto)) (SL.KeyHash 'SL.StakePool StandardCrypto))
+        -> SL.RewardAccounts (SL.ShelleyEra StandardCrypto)
         -> NetworkLayerLog
     MsgDestroyCursor :: ThreadId -> NetworkLayerLog
     MsgWillQueryRewardsForStake :: W.Coin -> NetworkLayerLog
