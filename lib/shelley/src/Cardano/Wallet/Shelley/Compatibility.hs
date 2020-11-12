@@ -777,7 +777,7 @@ fromShelleyRegistrationCert
 fromShelleyRegistrationCert = \case
     SL.DCertPool (SL.RegPool pp) -> Just $ Registration
         ( W.PoolRegistrationCertificate
-            { W.poolId = fromPoolKeyHash $ _SLpoolPubKey pp
+            { W.poolId = fromPoolKeyHash $ SL._poolId pp
             , W.poolOwners = fromOwnerKeyHash <$> Set.toList (SL._poolOwners pp)
             , W.poolMargin = fromUnitInterval (SL._poolMargin pp)
             , W.poolCost = lovelaceFromCoin (SL._poolCost pp)
