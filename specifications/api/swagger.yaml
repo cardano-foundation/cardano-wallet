@@ -1431,7 +1431,7 @@ components:
     ApiVerificationKey: &ApiVerificationKey
       type: string
       format: bech32
-      pattern: "^((addr_xvk)|(stake_xvk)|(script_xvk))1[0-9a-z]*$"
+      pattern: "^((addr_vk)|(stake_vk)|(script_vk))1[0-9a-z]*$"
 
     ApiTxId: &ApiTxId
       type: object

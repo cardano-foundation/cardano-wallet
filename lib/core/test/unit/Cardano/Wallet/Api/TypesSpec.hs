@@ -190,7 +190,7 @@ import Cardano.Wallet.Primitive.Types.Hash
 import Cardano.Wallet.Transaction
     ( DelegationAction (..) )
 import Cardano.Wallet.Unsafe
-    ( unsafeFromText, unsafeXPrv, unsafeXPub )
+    ( unsafeFromText, unsafeXPrv )
 import Control.Lens
     ( at, (?~) )
 import Control.Monad
@@ -1518,7 +1518,7 @@ instance Arbitrary (Quantity "percent" Double) where
 instance Arbitrary ApiVerificationKey where
     arbitrary =
         fmap ApiVerificationKey . (,)
-            <$> fmap (unsafeXPub . B8.pack) (replicateM 64 arbitrary)
+            <$> fmap B8.pack (replicateM 32 arbitrary)
             <*> elements [UtxoExternal, MutableAccount, MultisigScript]
 
 instance ToSchema ApiVerificationKey where

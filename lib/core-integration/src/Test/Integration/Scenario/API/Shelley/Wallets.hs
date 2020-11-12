@@ -51,7 +51,7 @@ import Cardano.Wallet.Primitive.SyncProgress
 import Cardano.Wallet.Primitive.Types
     ( walletNameMaxLength, walletNameMinLength )
 import Cardano.Wallet.Unsafe
-    ( unsafeFromHex )
+    ( unsafeFromHex, unsafeXPub )
 import Control.Monad
     ( forM, forM_ )
 import Control.Monad.IO.Class
@@ -134,6 +134,7 @@ import Test.Integration.Framework.TestData
 -- of cardano-crypto here.
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet.Api.Link as Link
+import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Set as Set
 import qualified Data.Text as T
@@ -998,23 +999,19 @@ spec = describe "SHELLEY_WALLETS" $ do
             matrix =
                 [ ( UtxoExternal
                   , DerivationIndex 0
-                  , "addr_xvk1tmdggpmj7r2mqfhneqsc5fzfj2j4sxf4j7mqwwsa8w58vz94zr\
-                    \463ndsajkjvn82va30fgf22qruc53zxyjp6pu7yd87ppdefd6u98cue5ul9"
+                  , "addr_vk1tmdggpmj7r2mqfhneqsc5fzfj2j4sxf4j7mqwwsa8w58vz94zr4seun089"
                   )
                 , ( UtxoInternal
                   , DerivationIndex 100
-                  , "addr_xvk1wchen6vz4zz7kpfjld3g89zdcpdv2hzvtsufphgvpjxjkl49pq\
-                    \rfd2lgqg228zl7ylax8c5tr0rkys3phfkxd5j6s56c0tfy7r49jhct38kq6"
+                  , "addr_vk1wchen6vz4zz7kpfjld3g89zdcpdv2hzvtsufphgvpjxjkl49pqrqaj4j0e"
                   )
                 , ( MutableAccount
                   , DerivationIndex 2147483647
-                  , "stake_xvk1qy9tp370ze3cfre8f6daz7l85pgk3wpg6s5zqae2yjljwqkx4\
-                    \ht28cxx7j5ju0wl8795s3yj8z3te4h2j9eaztll2z4mxhwwkppy53sf49ev5"
+                  , "stake_vk1qy9tp370ze3cfre8f6daz7l85pgk3wpg6s5zqae2yjljwqkx4htqc7kr4p"
                   )
                 , ( MultisigScript
                   , DerivationIndex 42
-                  , "script_xvk1mjr5lrrlxuvelx94hu2cttmg5pp6cwy5h0sa37qvpcd07pv9g\
-                    \23nlvugj5ez9qfxxvkmjwnpn69s48cv572phfy6qpmnwat0hwcdrasapqewe"
+                  , "script_vk1mjr5lrrlxuvelx94hu2cttmg5pp6cwy5h0sa37qvpcd07pv9g23skqaly0"
                   )
                 ]
 
@@ -1105,8 +1102,9 @@ spec = describe "SHELLEY_WALLETS" $ do
         --        71                                   # text(17)
         --           706C65617365207369676E20746869732E # "please sign this."
         --
+        let dummyChainCode = BS.replicate 32 0
         let sig = CC.xsignature $ BL.toStrict $ getFromResponse id rSig
-        let key = fst $ getFromResponse #getApiVerificationKey rKey
+        let key = unsafeXPub $ fst (getFromResponse #getApiVerificationKey rKey) <> dummyChainCode
         let msg = unsafeFromHex "A10071706C65617365207369676E20746869732E"
 
         liftIO $ CC.verify key msg <$> sig `shouldBe` Right True

@@ -155,7 +155,7 @@ module Cardano.Wallet.Api.Types
 import Prelude
 
 import Cardano.Address.Derivation
-    ( XPrv, XPub, xpubFromBytes, xpubToBytes )
+    ( XPrv, XPub, xpubToBytes )
 import Cardano.Address.Script
     ( Script )
 import Cardano.Api.MetaData
@@ -875,7 +875,7 @@ data ApiWalletSignData = ApiWalletSignData
       deriving anyclass NFData
 
 newtype ApiVerificationKey = ApiVerificationKey
-    { getApiVerificationKey :: (XPub, AccountingStyle)
+    { getApiVerificationKey :: (ByteString, AccountingStyle)
     } deriving (Eq, Generic, Show)
       deriving anyclass NFData
 
@@ -1128,20 +1128,20 @@ instance FromJSON (ApiT DerivationIndex) where
         >=> fmap ApiT . eitherToParser . first ShowFmt . fromText
 
 instance ToJSON ApiVerificationKey where
-    toJSON (ApiVerificationKey (xpub, role_)) =
-        toJSON $ Bech32.encodeLenient hrp $ dataPartFromBytes $ xpubToBytes xpub
+    toJSON (ApiVerificationKey (pub, role_)) =
+        toJSON $ Bech32.encodeLenient hrp $ dataPartFromBytes pub
       where
         hrp = case role_ of
-            UtxoInternal -> [humanReadablePart|addr_xvk|]
-            UtxoExternal -> [humanReadablePart|addr_xvk|]
-            MutableAccount -> [humanReadablePart|stake_xvk|]
-            MultisigScript -> [humanReadablePart|script_xvk|]
+            UtxoInternal -> [humanReadablePart|addr_vk|]
+            UtxoExternal -> [humanReadablePart|addr_vk|]
+            MutableAccount -> [humanReadablePart|stake_vk|]
+            MultisigScript -> [humanReadablePart|script_vk|]
 
 instance FromJSON ApiVerificationKey where
     parseJSON value = do
         (hrp, bytes) <- parseJSON value >>= parseBech32
         fmap ApiVerificationKey . (,)
-            <$> parseXPub bytes
+            <$> parsePub bytes
             <*> parseRole hrp
       where
         parseBech32 =
@@ -1157,20 +1157,20 @@ instance FromJSON ApiVerificationKey where
                 "Couldn't decode data-part to valid UTF-8 bytes."
 
         parseRole = \case
-            hrp | hrp == [humanReadablePart|addr_xvk|]  -> pure UtxoExternal
-            hrp | hrp == [humanReadablePart|stake_xvk|] -> pure MutableAccount
-            hrp | hrp == [humanReadablePart|script_xvk|] -> pure MultisigScript
+            hrp | hrp == [humanReadablePart|addr_vk|] -> pure UtxoExternal
+            hrp | hrp == [humanReadablePart|stake_vk|] -> pure MutableAccount
+            hrp | hrp == [humanReadablePart|script_vk|] -> pure MultisigScript
             _ -> fail errRole
           where
             errRole =
                 "Unrecognized human-readable part. Expected one of:\
-                \ \"addr_xvk\", \"stake_xvk\" or \"script_xvk\"."
+                \ \"addr_vk\", \"stake_vk\" or \"script_vk\"."
 
-        parseXPub =
-            maybe (fail errXPub) pure . xpubFromBytes
-          where
-            errXPub =
-                "Not a valid extended public key."
+        parsePub bytes
+            | BS.length bytes == 32 =
+                pure bytes
+            | otherwise =
+                fail "Not a valid Ed25519 public key. Must be 32 bytes."
 
 instance FromJSON ApiEpochInfo where
     parseJSON = genericParseJSON defaultRecordTypeOptions
