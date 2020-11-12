@@ -612,7 +612,11 @@ codecVersion = verMap ! nodeToClientVersion
     where verMap = supportedNodeToClientVersions (Proxy @(CardanoBlock StandardCrypto))
 
 codecConfig :: W.SlottingParameters -> CodecConfig (CardanoBlock c)
-codecConfig sp = CardanoCodecConfig (byronCodecConfig sp) ShelleyCodecConfig
+codecConfig sp = CardanoCodecConfig
+    (byronCodecConfig sp)
+    ShelleyCodecConfig
+    ShelleyCodecConfig
+    ShelleyCodecConfig
 
 -- | A group of codecs which will deserialise block data.
 codecs
