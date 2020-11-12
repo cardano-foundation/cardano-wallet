@@ -206,6 +206,7 @@ import Servant.API.Verbs
     , Post
     , PostAccepted
     , PostCreated
+    , PostNoContent
     , Put
     , PutAccepted
     , PutNoContent
@@ -481,7 +482,7 @@ type DelegationFee = "wallets"
 type PostPoolMaintenance = "stake-pools"
     :> "maintenance-actions"
     :> ReqBody '[JSON] ApiMaintenanceActionPostData
-    :> Post '[JSON] ApiMaintenanceAction
+    :> PostNoContent
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/getPoolMaintenance
 type GetPoolMaintenance = "stake-pools"
