@@ -511,13 +511,12 @@ spec = do
             ]
 
         ["key", "from-recovery-phrase", "--help"] `shouldShowUsage`
-            [ "Usage:  key from-recovery-phrase ([--base16] | [--base58] |"
-            , "                                 [--bech32]) STYLE"
+            [ "Usage:  key from-recovery-phrase STYLE"
             , "  Convert a recovery phrase to an extended private key"
             , ""
             , "Available options:"
             , "  -h,--help                Show this help text"
-            , "  STYLE                    Byron | Icarus | Jormungandr | Shelley"
+            , "  STYLE                    Byron | Icarus | Shelley"
             , ""
             , "The recovery phrase is read from stdin."
             , ""
@@ -527,8 +526,7 @@ spec = do
             ]
 
         ["key", "child", "--help"] `shouldShowUsage`
-            [ "Usage:  key child ([--base16] | [--base58] | [--bech32])"
-            , "                  [--legacy] DERIVATION-PATH"
+            [ "Usage:  key child DERIVATION-PATH"
             , "  Derive child keys from a parent public/private key"
             , ""
             , "Available options:"
@@ -541,13 +539,13 @@ spec = do
             ]
 
         ["key", "public", "--help"] `shouldShowUsage`
-            [ "Usage:  key public ([--base16] | [--base58] | [--bech32])"
+            [ "Usage:  key public (--without-chain-code | --with-chain-code)"
             , "  Get the public counterpart of a private key"
             , ""
             , "Available options:"
             , "  -h,--help                Show this help text"
             , ""
-            , "The private key is read from stdin."
+            , "The private key is read from stdin.To get extended public key pass '--with-chain-code'.To get public key pass '--without-chain-code'."
             ]
 
         ["key", "inspect", "--help"] `shouldShowUsage`

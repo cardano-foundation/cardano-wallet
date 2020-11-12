@@ -11,7 +11,7 @@
     flags = { release = false; };
     package = {
       specVersion = "1.12";
-      identifier = { name = "cardano-addresses-cli"; version = "2.1.0"; };
+      identifier = { name = "cardano-addresses-cli"; version = "3.1.0"; };
       license = "Apache-2.0";
       copyright = "2020 IOHK";
       maintainer = "operations@iohk.io";
@@ -31,7 +31,6 @@
           (hsPkgs."ansi-terminal" or (errorHandler.buildDepError "ansi-terminal"))
           (hsPkgs."base" or (errorHandler.buildDepError "base"))
           (hsPkgs."bech32" or (errorHandler.buildDepError "bech32"))
-          (hsPkgs."bech32-th" or (errorHandler.buildDepError "bech32-th"))
           (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
           (hsPkgs."cardano-addresses" or (errorHandler.buildDepError "cardano-addresses"))
           (hsPkgs."cardano-crypto" or (errorHandler.buildDepError "cardano-crypto"))
@@ -62,7 +61,6 @@
             (hsPkgs."QuickCheck" or (errorHandler.buildDepError "QuickCheck"))
             (hsPkgs."aeson" or (errorHandler.buildDepError "aeson"))
             (hsPkgs."base" or (errorHandler.buildDepError "base"))
-            (hsPkgs."base58-bytestring" or (errorHandler.buildDepError "base58-bytestring"))
             (hsPkgs."bech32" or (errorHandler.buildDepError "bech32"))
             (hsPkgs."bech32-th" or (errorHandler.buildDepError "bech32-th"))
             (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
@@ -71,7 +69,6 @@
             (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
             (hsPkgs."hjsonschema" or (errorHandler.buildDepError "hjsonschema"))
             (hsPkgs."hspec" or (errorHandler.buildDepError "hspec"))
-            (hsPkgs."memory" or (errorHandler.buildDepError "memory"))
             (hsPkgs."process" or (errorHandler.buildDepError "process"))
             (hsPkgs."string-interpolate" or (errorHandler.buildDepError "string-interpolate"))
             (hsPkgs."temporary" or (errorHandler.buildDepError "temporary"))
@@ -88,8 +85,8 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/cardano-addresses";
-      rev = "1399751501b03346265b2e429e5832bacd6df279";
-      sha256 = "0dsprpk1sk2kk1s1m4wwfhk9ngwrni7fsx3lmmy19phbv39rnlc5";
+      rev = "9c38189c3e0e011a305ddcd1219e50a0731e99ea";
+      sha256 = "1p93g97aacfsgd68bjm1yw0ccp8wmlqfslcv3qm0q6bahsrrhl02";
       });
     postUnpack = "sourceRoot+=/command-line; echo source root reset to \$sourceRoot";
     }) // { cabal-generator = "hpack"; }

@@ -108,8 +108,6 @@ import Cardano.Address
     ( unsafeMkAddress )
 import Cardano.Address.Derivation
     ( XPub, xpubPublicKey )
-import Cardano.Address.Style.Shelley
-    ( inspectShelleyAddress )
 import Cardano.Api.Shelley.Genesis
     ( ShelleyGenesis (..) )
 import Cardano.Api.Typed
@@ -232,6 +230,7 @@ import Shelley.Spec.Ledger.BaseTypes
 import Type.Reflection
     ( Typeable, typeRep )
 
+import qualified Cardano.Address.Style.Shelley as SH
 import qualified Cardano.Api.Typed as Cardano
 import qualified Cardano.Byron.Codec.Cbor as CBOR
 import qualified Cardano.Chain.Common as Byron
@@ -1088,7 +1087,7 @@ inspectAddress =
   where
     inspect :: ByteString -> Either TextDecodingError Aeson.Value
     inspect = maybe (Left errMalformedAddress) Right
-        . inspectShelleyAddress mRootPub
+        . SH.inspectAddress mRootPub
         . unsafeMkAddress
     -- TODO: It's possible to inspect a byron address, given a root XPub.
     -- However, this is not yet exposed by the API.
