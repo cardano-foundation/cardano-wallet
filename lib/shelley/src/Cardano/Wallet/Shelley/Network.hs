@@ -237,7 +237,7 @@ import Ouroboros.Network.Protocol.ChainSync.Client
 import Ouroboros.Network.Protocol.ChainSync.ClientPipelined
     ( chainSyncClientPeerPipelined )
 import Ouroboros.Network.Protocol.Handshake.Version
-    ( DictVersion (..), simpleSingletonVersions )
+    ( Version (..), simpleSingletonVersions )
 import Ouroboros.Network.Protocol.LocalStateQuery.Client
     ( localStateQueryClientPeer )
 import Ouroboros.Network.Protocol.LocalStateQuery.Type
@@ -968,7 +968,7 @@ connectClient
     -> FilePath
     -> IO ()
 connectClient tr handlers client (vData, vCodec) addr = withIOManager $ \iocp -> do
-    let vDict = DictVersion vCodec (\_ _ -> ())
+    let vDict = Version vCodec (\_ _ -> ())
     let versions = simpleSingletonVersions nodeToClientVersion vData vDict client
     let tracers = NetworkConnectTracers
             { nctMuxTracer = nullTracer
