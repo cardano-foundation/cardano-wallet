@@ -61,14 +61,21 @@
 
 # GitHub PR number (as a string), provided as a Hydra input
 , pr ? null
+
+# Platform filter string for jobset.
+, platform ? "all"
 }:
+
+assert pkgs.lib.asserts.assertOneOf "platform" platform
+  ["all" "linux" "macos" "windows"];
 
 let
   buildNative  = builtins.elem builtins.currentSystem supportedSystems;
-  buildLinux   = builtins.elem "x86_64-linux" supportedSystems;
-  buildMacOS   = builtins.elem "x86_64-darwin" supportedSystems;
+  buildLinux   = builtins.elem "x86_64-linux" supportedSystems && buildForPlatform "linux";
+  buildMacOS   = builtins.elem "x86_64-darwin" supportedSystems && buildForPlatform "macos";
   buildMusl    = builtins.elem "x86_64-linux" supportedCrossSystems && buildLinux;
-  buildWindows = builtins.elem builtins.currentSystem supportedCrossSystems;
+  buildWindows = builtins.elem builtins.currentSystem supportedCrossSystems && buildForPlatform "windows";
+  buildForPlatform = name: builtins.elem platform ["all" name];
 in
 
 with (import pkgs.iohkNix.release-lib) {
