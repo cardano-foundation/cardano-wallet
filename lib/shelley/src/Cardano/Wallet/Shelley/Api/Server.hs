@@ -284,7 +284,7 @@ server byron icarus shelley spl ntp =
             case action of
                 ApiMaintenanceActionPostData GcStakePools ->
                     liftIO $ forceMetadataGC spl
-            getPoolMaintenance
+            pure NoContent
 
         getPoolMaintenance =
             liftIO (ApiMaintenanceAction . ApiT <$> getGCMetadataStatus spl)

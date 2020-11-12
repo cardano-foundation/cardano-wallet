@@ -1,18 +1,14 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
-{-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
 module Test.Integration.Scenario.API.Shelley.Settings
     ( spec
-    , updateMetadataSource
     ) where
 
 import Prelude
@@ -34,16 +30,10 @@ import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey )
 import Cardano.Wallet.Primitive.Types
     ( Coin (..), PoolMetadataSource (..), Settings )
-import Control.Monad.Catch
-    ( MonadCatch )
-import Control.Monad.IO.Class
-    ( MonadIO )
 import Data.Generics.Internal.VL.Lens
     ( view )
 import Data.Maybe
     ( isJust, isNothing )
-import Data.Text
-    ( Text )
 import Data.Text.Class
     ( fromText )
 import Test.Hspec
@@ -58,10 +48,11 @@ import Test.Integration.Framework.DSL
     , eventuallyUsingDelay
     , expectField
     , expectResponseCode
-    , json
     , request
     , unsafeRequest
+    , updateMetadataSource
     , verify
+    , verifyMetadataSource
     )
 
 import qualified Cardano.Wallet.Api.Link as Link
@@ -110,28 +101,6 @@ spec = describe "SHELLEY_SETTINGS" $ do
         verifyMetadataSource ctx FetchNone
         eventuallyUsingDelay delay timeout "3. There is no metadata" $
             getMetadata >>= (`shouldSatisfy` all isNothing)
-
-
-updateMetadataSource :: (MonadIO m, MonadCatch m) => Context t -> Text -> m ()
-updateMetadataSource ctx t = do
-    r <- request @(ApiT Settings) ctx Link.putSettings Default payload
-    expectResponseCode HTTP.status204 r
- where
-   payload = Json [json| {
-       "settings": {
-           "pool_metadata_source": #{t}
-            }
-       } |]
-
-verifyMetadataSource
-    :: (MonadIO m, MonadCatch m)
-    => Context t
-    -> PoolMetadataSource
-    -> m ()
-verifyMetadataSource ctx s = do
-    r <- request @(ApiT Settings) ctx Link.getSettings Default Empty
-    expectResponseCode HTTP.status200 r
-    expectField (#getApiT . #poolMetadataSource) (`shouldBe` s) r
 
 arbitraryStake :: Maybe Coin
 arbitraryStake = Just $ ada 10_000

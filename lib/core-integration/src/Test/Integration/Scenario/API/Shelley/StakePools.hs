@@ -37,6 +37,8 @@ import Cardano.Wallet.Primitive.Types
     ( Coin (..)
     , Direction (..)
     , PoolId (..)
+    , PoolMetadataGCStatus (..)
+    , PoolMetadataSource (..)
     , StakePoolMetadata (..)
     , StakePoolTicker (..)
     , TxStatus (..)
@@ -89,6 +91,7 @@ import Test.Integration.Framework.DSL
     , delegationFee
     , emptyWallet
     , eventually
+    , eventuallyUsingDelay
     , expectErrorMessage
     , expectField
     , expectListField
@@ -110,9 +113,13 @@ import Test.Integration.Framework.DSL
     , quitStakePool
     , quitStakePoolUnsigned
     , request
+    , triggerMaintenanceAction
     , unsafeRequest
     , unsafeResponse
+    , updateMetadataSource
     , verify
+    , verifyMaintenanceAction
+    , verifyMetadataSource
     , waitForNextEpoch
     , walletId
     , (.>)
@@ -126,8 +133,6 @@ import Test.Integration.Framework.TestData
     , errMsg404NoSuchPool
     , errMsg404NoWallet
     )
-import Test.Integration.Scenario.API.Shelley.Settings
-    ( updateMetadataSource )
 
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Data.ByteString as BS
@@ -143,6 +148,26 @@ spec :: forall n t.
 spec = describe "SHELLEY_STAKE_POOLS" $ do
     let listPools ctx stake = request @[ApiStakePool] ctx
                 (Link.listStakePools stake) Default Empty
+
+    it "STAKE_POOLS_MAINTENANCE_01 - \
+        \trigger GC action when metadata source = direct" $ \ctx -> runResourceT $ do
+        updateMetadataSource ctx "direct"
+        verifyMetadataSource ctx FetchDirect
+        triggerMaintenanceAction ctx "gc_stake_pools"
+        let delay = 500 * 1000
+            timeout = 10
+        eventuallyUsingDelay delay timeout "GC Status shows as NotApplicable" $ do
+          verifyMaintenanceAction ctx NotApplicable
+
+    it "STAKE_POOLS_MAINTENANCE_02 - \
+        \trigger GC action when metadata source = none" $ \ctx -> runResourceT $ do
+        updateMetadataSource ctx "none"
+        verifyMetadataSource ctx FetchNone
+        triggerMaintenanceAction ctx "gc_stake_pools"
+        let delay = 500 * 1000
+            timeout = 10
+        eventuallyUsingDelay delay timeout "GC Status shows as NotApplicable" $ do
+          verifyMaintenanceAction ctx NotApplicable
 
     it "STAKE_POOLS_JOIN_01 - Cannot join non-existent wallet" $ \ctx -> runResourceT $ do
         w <- emptyWallet ctx
