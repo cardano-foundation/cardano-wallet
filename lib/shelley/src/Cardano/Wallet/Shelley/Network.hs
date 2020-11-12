@@ -972,8 +972,7 @@ connectClient
     -> FilePath
     -> IO ()
 connectClient tr handlers client (vData, vCodec) addr = withIOManager $ \iocp -> do
-    let vDict = Version vCodec (\_ _ -> ())
-    let versions = simpleSingletonVersions nodeToClientVersion vData vDict client
+    let versions = simpleSingletonVersions nodeToClientVersion vData client
     let tracers = NetworkConnectTracers
             { nctMuxTracer = nullTracer
             , nctHandshakeTracer = contramap MsgHandshakeTracer tr
