@@ -112,6 +112,7 @@ import Test.Integration.Framework.DSL
     , request
     , unsafeRequest
     , unsafeResponse
+    , updateMetadataSource
     , verify
     , waitForNextEpoch
     , walletId
@@ -126,8 +127,6 @@ import Test.Integration.Framework.TestData
     , errMsg404NoSuchPool
     , errMsg404NoWallet
     )
-import Test.Integration.Scenario.API.Shelley.Settings
-    ( updateMetadataSource )
 
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Data.ByteString as BS

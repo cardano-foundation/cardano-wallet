@@ -77,6 +77,8 @@ module Test.Integration.Framework.DSL
     -- * Wallet helpers
     , listFilteredWallets
     , listFilteredByronWallets
+    , updateMetadataSource
+    , verifyMetadataSource
 
     -- * Helpers
     , (</>)
@@ -241,6 +243,8 @@ import Cardano.Wallet.Primitive.Types
     , EpochNo
     , HistogramBar (..)
     , PoolId (..)
+    , PoolMetadataSource
+    , Settings
     , SlotLength (..)
     , SlotNo (..)
     , SortOrder (..)
@@ -588,6 +592,27 @@ defaultTxTTL = 7200
 --
 -- Helpers
 --
+updateMetadataSource :: (MonadIO m, MonadCatch m) => Context t -> Text -> m ()
+updateMetadataSource ctx t = do
+    r <- request @(ApiT Settings) ctx Link.putSettings Default payload
+    expectResponseCode HTTP.status204 r
+ where
+   payload = Json [aesonQQ| {
+       "settings": {
+           "pool_metadata_source": #{t}
+            }
+       } |]
+
+verifyMetadataSource
+    :: (MonadIO m, MonadCatch m)
+    => Context t
+    -> PoolMetadataSource
+    -> m ()
+verifyMetadataSource ctx s = do
+    r <- request @(ApiT Settings) ctx Link.getSettings Default Empty
+    expectResponseCode HTTP.status200 r
+    expectField (#getApiT . #poolMetadataSource) (`shouldBe` s) r
+
 data MnemonicLength = M9 | M12 | M15 | M18 | M21 | M24 deriving (Show)
 
 genMnemonics :: MnemonicLength -> IO [Text]
