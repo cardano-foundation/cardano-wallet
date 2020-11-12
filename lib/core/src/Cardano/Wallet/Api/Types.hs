@@ -1170,7 +1170,7 @@ instance FromJSON ApiVerificationKey where
             | BS.length bytes == 32 =
                 pure bytes
             | otherwise =
-                fail "Not a valid Ed25519 public key. Must be 32 bytes."
+                fail "Not a valid Ed25519 public key. Must be 32 bytes, without chain code"
 
 instance FromJSON ApiEpochInfo where
     parseJSON = genericParseJSON defaultRecordTypeOptions
