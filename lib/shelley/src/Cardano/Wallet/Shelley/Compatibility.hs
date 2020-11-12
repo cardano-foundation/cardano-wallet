@@ -404,7 +404,7 @@ toShelleyBlockHeader genesisHash blk =
                     SL.bheaderPrev header
             }
 
-getProducer :: Era e => ShelleyBlock e -> W.PoolId
+getProducer :: SL.Crypto c => ShelleyBlock (SL.ShelleyEra c) -> W.PoolId
 getProducer (ShelleyBlock (SL.Block (SL.BHeader header _) _) _) =
     fromPoolKeyHash $ SL.hashKey (SL.bheaderVk header)
 
@@ -430,8 +430,8 @@ fromCardanoBlock gp = \case
             }
 
 poolCertsFromShelleyBlock
-    :: Era e
-    => ShelleyBlock e
+    :: SL.Crypto c
+    => ShelleyBlock (SL.ShelleyEra c)
     -> (W.SlotNo, [W.PoolCertificate])
 poolCertsFromShelleyBlock blk =
     let
@@ -694,14 +694,14 @@ optimumNumberOfPools = unsafeConvert . SL._nOpt
 fromShelleyTxId :: SL.TxId crypto -> W.Hash "Tx"
 fromShelleyTxId (SL.TxId (UnsafeHash h)) = W.Hash $ fromShort h
 
-fromShelleyTxIn :: Era e => SL.TxIn e -> W.TxIn
+fromShelleyTxIn :: SL.Crypto c => SL.TxIn (SL.ShelleyEra c) -> W.TxIn
 fromShelleyTxIn (SL.TxIn txid ix) =
     W.TxIn (fromShelleyTxId txid) (unsafeCast ix)
   where
     unsafeCast :: Natural -> Word32
     unsafeCast = fromIntegral
 
-fromShelleyTxOut :: Era e => SL.TxOut e -> W.TxOut
+fromShelleyTxOut :: SL.Crypto c => SL.TxOut (SL.ShelleyEra c) -> W.TxOut
 fromShelleyTxOut (SL.TxOut addr amount) =
   W.TxOut (fromShelleyAddress addr) (fromShelleyCoin amount)
 
@@ -724,8 +724,8 @@ toShelleyCoin (W.Coin c) = SL.Coin $ safeCast c
 
 -- NOTE: For resolved inputs we have to pass in a dummy value of 0.
 fromShelleyTx
-    :: Era e
-    => SL.Tx e
+    :: SL.Crypto c
+    => SL.Tx (SL.ShelleyEra c)
     -> ( W.Tx
        , [W.DelegationCertificate]
        , [W.PoolCertificate]
@@ -860,7 +860,7 @@ toByronNetworkMagic pm@(W.ProtocolMagic magic) =
 -- | SealedTx are the result of rightfully constructed shelley transactions so, it
 -- is relatively safe to unserialize them from CBOR.
 unsealShelleyTx
-    :: (HasCallStack, Era (SL.ShelleyEra c))
+    :: (HasCallStack, SL.PraosCrypto c, Era (SL.ShelleyEra c))
     => W.SealedTx
     -> CardanoGenTx c
 unsealShelleyTx = GenTxShelley
@@ -987,7 +987,7 @@ _decodeStakeAddress
 _decodeStakeAddress serverNetwork txt = do
     (_, dp) <- left (const errBech32) $ Bech32.decodeLenient txt
     bytes <- maybe (Left errBech32) Right $ dataPartToBytes dp
-    rewardAcnt <- runGetOrFail' (SL.getRewardAcnt @(Shelley StandardCrypto)) bytes
+    rewardAcnt <- runGetOrFail' (SL.getRewardAcnt @(SL.ShelleyEra StandardCrypto)) bytes
 
     guardNetwork (SL.getRwdNetwork rewardAcnt) serverNetwork
 
