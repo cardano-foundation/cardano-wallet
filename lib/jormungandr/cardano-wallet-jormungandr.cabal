@@ -171,9 +171,9 @@ test-suite unit
     , QuickCheck
     , safe
     , servant
-    , servant-swagger
     , stm
-    , swagger2
+    , openapi3 >= 3.0.0.1
+    , servant-openapi3
     , temporary
     , text
     , text-class

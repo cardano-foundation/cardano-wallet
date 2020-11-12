@@ -308,18 +308,12 @@ x-poolMetadataSource: &poolMetadataSource
     Pool metadata source. This sets the metadata fetching strategy.
 
     Possible values are
-      * null -> no fetching
+      * none -> no fetching
       * direct -> direct fetching
       * uri -> use SMASH server
-  oneOf:
-    - type: string
-      enum:
-        - none
-        - direct
-    - title: URI
-      type: string
-      format: uri
-      example: https://smash.cardano-mainnet.iohk.io/
+  type: string
+  pattern: '^(none|direct|https?:\/\/[a-zA-Z0-9-_~.]+(:[0-9]+)?/?)$'
+  example: https://smash.cardano-mainnet.iohk.io/
 
 x-credentialPubKey: &credentialPubKey
   description: A public key (public key without chain code) for credential - 32 bytes
@@ -340,12 +334,58 @@ x-anyAddress: &anyAddress
     - addr1wy5np0m5x03tax3kcdh6e2cet98qcfs80wtv4cyvl5taclc6dnd8e
     - addr1xy5np0m5x03tax3kcdh6e2cet98qcfs80wtv4cyvl5tacluk59zrmajh6vra9cx6slk090pkkr2x59f5zmrmgpr9wvfs37hjk4
 
-x-credential: &credential
-  nullable: false
-  additionalProperties:
-    $ref: "#/components/schemas/CredentialValue"
+x-ScriptValue: &ScriptValue
+  oneOf:
+    - title: Key Hash
+      type: string
+      format: bech32
+      pattern: "^(script_vkh)1[0-9a-z]*$"
+      example: script_vkh18srsxr3khll7vl3w9mqfu55n6wzxxlxj7qzr2mhnyreluzt36ms
+
+    - title: All
+      type: object
+      required:
+        - all
+      properties:
+        all:
+          type: array
+          minItems: 1
+          items:
+            $ref: "#/components/schemas/ScriptValue"
+
+    - title: Any
+      type: object
+      required:
+        - any
+      properties:
+        any:
+          type: array
+          minItems: 1
+          items:
+            $ref: "#/components/schemas/ScriptValue"
+
+    - title: Some
+      type: object
+      required:
+        - some
+      properties:
+        some:
+          type: object
+          required:
+            - at_least
+            - from
+          properties:
+            at_least:
+              type: integer
+              minimum: 1
+            from:
+              type: array
+              minItems: 1
+              items:
+                $ref: "#/components/schemas/ScriptValue"
 
 x-script: &script
+  <<: *ScriptValue
   description: |
     Script allows establishing either payment or stake guard that could be removed
     when a special combination of signing keys is present.
@@ -373,9 +413,14 @@ x-script: &script
                             , "at_least" : 2
                             }
                  } ] }
+
+x-CredentialValue: &CredentialValue
   nullable: false
-  additionalProperties:
-    $ref: "#/components/schemas/ScriptValue"
+  oneOf:
+    - <<: *credentialPubKey
+      title: public key
+    - <<: *script
+      title: script
 
 x-settings: &settings
   description: Settings
@@ -1639,7 +1684,7 @@ components:
         address: *anyAddress
 
     ApiCredential: &ApiCredential
-      <<: *credential
+      <<: *CredentialValue
 
     ApiAddressData: &ApiAddressData
       type: object
@@ -1843,60 +1888,11 @@ components:
         passphrase: *lenientPassphrase
         address_index: *addressIndex
 
-    CredentialValue: &CredentialValue
-      oneOf:
-        - <<: *credentialPubKey
-        - <<: *script
+    CredentialValue: *CredentialValue
 
-    ScriptValue: &ScriptValue
-      oneOf:
-        - title: Require Key Hash
-          type: string
-          format: bech32
-          example: script_vkh18srsxr3khll7vl3w9mqfu55n6wzxxlxj7qzr2mhnyreluzt36ms
+    ScriptValue: *ScriptValue
 
-        - title: Require All
-          type: object
-          required:
-            - all
-          properties:
-            all:
-              type: array
-              minItems: 1
-              items:
-                $ref: "#/components/schemas/ScriptValue"
-
-        - title: Require Any
-          type: object
-          required:
-            - any
-          properties:
-            any:
-              type: array
-              minItems: 1
-              items:
-                $ref: "#/components/schemas/ScriptValue"
-
-        - title: Require Some
-          type: object
-          required:
-            - some
-          properties:
-            some:
-              type: object
-              required:
-                - at_least
-                - from
-              properties:
-                at_least:
-                  type: integer
-                  minimum: 1
-                from:
-                  type: array
-                  minItems: 1
-                  items:
-                    $ref: "#/components/schemas/ScriptValue"
-
+    # https://github.com/input-output-hk/cardano-ledger-specs/blob/8d836e61bb88bda4a6a5c00694735928390067a1/shelley/chain-and-ledger/executable-spec/src/Shelley/Spec/Ledger/MetaData.hs#L48-L65
     TransactionMetadataValue: &TransactionMetadataValue
       oneOf:
         - title: String
@@ -1923,7 +1919,7 @@ components:
           properties:
             bytes:
               type: string
-              pattern: "^[0-9a-fA-F]$"
+              pattern: "^[0-9a-fA-F]*$"
               maxLength: 128
 
         - title: List
@@ -1950,12 +1946,29 @@ components:
                     $ref: "#/components/schemas/TransactionMetadataValue"
                   v:
                     $ref: "#/components/schemas/TransactionMetadataValue"
+
     ApiGetSettings: &ApiGetSettings
       type: object
       required:
         - pool_metadata_source
       properties:
         pool_metadata_source: *poolMetadataSource
+
+    SomeByronWalletPostData: &SomeByronWalletPostData
+      oneOf:
+        - <<: *ApiByronWalletRandomPostData
+          title: random
+        - <<: *ApiByronWalletIcarusPostData
+          title: icarus
+        - <<: *ApiByronWalletTrezorPostData
+          title: trezor
+        - <<: *ApiByronWalletLedgerPostData
+          title: ledger
+        - <<: *ApiAccountPostData
+          title: icarus/trezor/ledger (from xpub)
+        - <<: *ApiByronWalletRandomXPrvPostData
+          title: random (from xprv)
+
 
 #############################################################################
 #                                                                           #
@@ -3694,20 +3707,7 @@ paths:
         required: true
         content:
           application/json:
-            schema:
-              oneOf:
-                - <<: *ApiByronWalletRandomPostData
-                  title: random
-                - <<: *ApiByronWalletIcarusPostData
-                  title: icarus
-                - <<: *ApiByronWalletTrezorPostData
-                  title: trezor
-                - <<: *ApiByronWalletLedgerPostData
-                  title: ledger
-                - <<: *ApiAccountPostData
-                  title: icarus/trezor/ledger (from xpub)
-                - <<: *ApiByronWalletRandomXPrvPostData
-                  title: random (from xprv)
+            schema: *SomeByronWalletPostData
       responses: *responsesPostByronWallet
 
     get:

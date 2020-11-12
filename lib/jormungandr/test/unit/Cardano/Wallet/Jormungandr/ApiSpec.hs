@@ -47,14 +47,14 @@ import Data.List
     ( foldl' )
 import Data.Maybe
     ( fromMaybe )
+import Data.OpenApi
+    ( Definitions, NamedSchema (..), Schema, ToSchema (..) )
+import Data.OpenApi.Declare
+    ( Declare )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
     ( Percentage (..), Quantity (..) )
-import Data.Swagger
-    ( Definitions, NamedSchema (..), Schema, ToSchema (..) )
-import Data.Swagger.Declare
-    ( Declare )
 import Data.Text
     ( Text )
 import Data.Text.Class
@@ -67,7 +67,7 @@ import Numeric.Natural
     ( Natural )
 import Servant.API
     ( MimeUnrender (..) )
-import Servant.Swagger.Test
+import Servant.OpenApi.Test
     ( validateEveryToJSON )
 import System.Environment
     ( lookupEnv )

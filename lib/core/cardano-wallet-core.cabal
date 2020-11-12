@@ -232,6 +232,7 @@ test-suite unit
     , network
     , network-uri
     , persistent
+    , regex-pcre-builtin
     , OddWord
     , ouroboros-consensus
     , QuickCheck
@@ -242,9 +243,9 @@ test-suite unit
     , scrypt
     , servant
     , servant-server
-    , servant-swagger
     , stm
-    , swagger2
+    , openapi3 >= 3.0.0.1
+    , servant-openapi3
     , temporary
     , text
     , text-class
