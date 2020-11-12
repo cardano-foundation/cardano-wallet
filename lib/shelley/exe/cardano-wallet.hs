@@ -27,6 +27,8 @@ import Prelude
 
 import Cardano.BM.Data.Severity
     ( Severity (..) )
+import Cardano.BM.Plugin
+    ( loadPlugin )
 import Cardano.BM.Trace
     ( Trace, appendName, logDebug, logError, logInfo, logNotice )
 import Cardano.CLI
@@ -43,6 +45,7 @@ import Cardano.CLI
     , cmdWallet
     , cmdWalletCreate
     , databaseOption
+    , ekgEnabled
     , enableWindowsANSI
     , helperTracing
     , hostPreferenceOption
@@ -102,7 +105,7 @@ import Cardano.Wallet.Version
 import Control.Applicative
     ( Const (..), optional )
 import Control.Monad
-    ( void )
+    ( void, when )
 import Control.Monad.Trans.Except
     ( runExceptT )
 import Control.Tracer
@@ -134,6 +137,7 @@ import System.Environment
 import System.Exit
     ( ExitCode (..), exitWith )
 
+import qualified Cardano.BM.Backend.EKGView as EKG
 import qualified Cardano.Wallet.Version as V
 import qualified Data.Text as T
 
@@ -294,7 +298,8 @@ withTracers
     -> (Trace IO MainLog -> Tracers IO -> IO a)
     -> IO a
 withTracers logOpt action =
-    withLogging [LogToStdout (loggingMinSeverity logOpt)] $ \(_, tr) -> do
+    withLogging [LogToStdout (loggingMinSeverity logOpt)] $ \(sb, (cfg, tr)) -> do
+        ekgEnabled >>= flip when (EKG.plugin cfg tr sb >>= loadPlugin sb)
         let trMain = appendName "main" (transformTextTrace tr)
         let tracers = setupTracers (loggingTracers logOpt) tr
         logInfo trMain $ MsgVersion V.version gitRevision

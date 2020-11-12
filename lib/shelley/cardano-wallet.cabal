@@ -119,6 +119,7 @@ executable cardano-wallet
     , cardano-wallet
     , contra-tracer
     , iohk-monitoring
+    , lobemo-backend-ekg
     , network
     , optparse-applicative
     , text
@@ -151,6 +152,7 @@ executable shelley-test-cluster
     , iohk-monitoring
     , directory
     , filepath
+    , lobemo-backend-ekg
     , text
     , text-class
   hs-source-dirs:
@@ -237,6 +239,7 @@ test-suite integration
     , hspec
     , http-client
     , iohk-monitoring
+    , lobemo-backend-ekg
     , text
     , text-class
   build-tools:

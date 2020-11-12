@@ -18,10 +18,18 @@ import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
+import Cardano.BM.Plugin
+    ( loadPlugin )
 import Cardano.BM.Trace
     ( appendName )
 import Cardano.CLI
-    ( LogOutput (..), Port (..), withLogging )
+    ( LogOutput (..)
+    , Port (..)
+    , ekgEnabled
+    , getEKGURL
+    , getPrometheusURL
+    , withLogging
+    )
 import Cardano.Launcher
     ( ProcessHasExited (..) )
 import Cardano.Startup
@@ -75,6 +83,8 @@ import Control.Concurrent.MVar
     ( newEmptyMVar, putMVar, takeMVar )
 import Control.Exception
     ( SomeException, fromException, handle, throwIO )
+import Control.Monad
+    ( when )
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Tracer
@@ -110,6 +120,7 @@ import Test.Integration.Framework.DSL
 import Test.Utils.Paths
     ( inNixBuild )
 
+import qualified Cardano.BM.Backend.EKGView as EKG
 import qualified Cardano.Pool.DB as Pool
 import qualified Cardano.Pool.DB.Sqlite as Pool
 import qualified Data.Text as T
@@ -202,7 +213,9 @@ specWithServer (tr, tracers) = aroundAll withContext
                 recordPoolGarbageCollectionEvents poolGarbageCollectionEvents
         let setupContext np wAddr = bracketTracer' tr "setupContext" $ do
                 let baseUrl = "http://" <> T.pack (show wAddr) <> "/"
-                traceWith tr $ MsgBaseUrl baseUrl
+                prometheusUrl <- (maybe "none" (\(h, p) -> T.pack h <> ":" <> toText @(Port "Prometheus") p)) <$> getPrometheusURL
+                ekgUrl <- (maybe "none" (\(h, p) -> T.pack h <> ":" <> toText @(Port "EKG") p)) <$> getEKGURL
+                traceWith tr $ MsgBaseUrl baseUrl ekgUrl prometheusUrl
                 let fiveMinutes = 300*1000*1000 -- 5 minutes in microseconds
                 manager <- (baseUrl,) <$> newManager (defaultManagerSettings
                     { managerResponseTimeout =
@@ -307,7 +320,7 @@ specWithServer (tr, tracers) = aroundAll withContext
 
 data TestsLog
     = MsgBracket Text BracketLog
-    | MsgBaseUrl Text
+    | MsgBaseUrl Text Text Text
     | MsgSettingUpFaucet
     | MsgCluster ClusterLog
     | MsgPoolGarbageCollectionEvent PoolGarbageCollectionEvent
@@ -317,7 +330,11 @@ data TestsLog
 instance ToText TestsLog where
     toText = \case
         MsgBracket name b -> name <> ": " <> toText b
-        MsgBaseUrl txt -> txt
+        MsgBaseUrl walletUrl ekgUrl prometheusUrl -> mconcat
+            [ "Wallet url: " , walletUrl
+            , ", EKG url: " , ekgUrl
+            , ", Prometheus url:", prometheusUrl
+            ]
         MsgSettingUpFaucet -> "Setting up faucet..."
         MsgCluster msg -> toText msg
         MsgPoolGarbageCollectionEvent e -> mconcat
@@ -338,7 +355,7 @@ instance HasSeverityAnnotation TestsLog where
     getSeverityAnnotation = \case
         MsgBracket _ _ -> Debug
         MsgSettingUpFaucet -> Notice
-        MsgBaseUrl _ -> Notice
+        MsgBaseUrl {} -> Notice
         MsgCluster msg -> getSeverityAnnotation msg
         MsgPoolGarbageCollectionEvent _ -> Info
         MsgServerError{} -> Critical
@@ -356,8 +373,9 @@ withTracers action = do
     walletLogOutputs <- getLogOutputs walletMinSeverityFromEnv "wallet.log"
     testLogOutputs <- getLogOutputs testMinSeverityFromEnv "test.log"
 
-    withLogging walletLogOutputs $ \(_, walTr) -> do
-        withLogging testLogOutputs $ \(_, testTr) -> do
+    withLogging walletLogOutputs $ \(sb, (cfg, walTr)) -> do
+        ekgEnabled >>= flip when (EKG.plugin cfg walTr sb >>= loadPlugin sb)
+        withLogging testLogOutputs $ \(_, (_, testTr)) -> do
             let trTests = appendName "integration" testTr
             let tracers = setupTracers (tracerSeverities (Just Info)) walTr
             action (trMessageText trTests, tracers)

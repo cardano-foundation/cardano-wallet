@@ -98,6 +98,7 @@
             (hsPkgs."cardano-wallet" or (errorHandler.buildDepError "cardano-wallet"))
             (hsPkgs."contra-tracer" or (errorHandler.buildDepError "contra-tracer"))
             (hsPkgs."iohk-monitoring" or (errorHandler.buildDepError "iohk-monitoring"))
+            (hsPkgs."lobemo-backend-ekg" or (errorHandler.buildDepError "lobemo-backend-ekg"))
             (hsPkgs."network" or (errorHandler.buildDepError "network"))
             (hsPkgs."optparse-applicative" or (errorHandler.buildDepError "optparse-applicative"))
             (hsPkgs."text" or (errorHandler.buildDepError "text"))
@@ -118,6 +119,7 @@
             (hsPkgs."iohk-monitoring" or (errorHandler.buildDepError "iohk-monitoring"))
             (hsPkgs."directory" or (errorHandler.buildDepError "directory"))
             (hsPkgs."filepath" or (errorHandler.buildDepError "filepath"))
+            (hsPkgs."lobemo-backend-ekg" or (errorHandler.buildDepError "lobemo-backend-ekg"))
             (hsPkgs."text" or (errorHandler.buildDepError "text"))
             (hsPkgs."text-class" or (errorHandler.buildDepError "text-class"))
             ];

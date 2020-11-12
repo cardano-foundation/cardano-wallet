@@ -11,6 +11,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
@@ -94,6 +95,9 @@ module Cardano.CLI
     , getDataDir
     , setupDirectory
     , waitForService
+    , getPrometheusURL
+    , getEKGURL
+    , ekgEnabled
     , WaitForServiceLog (..)
     ) where
 
@@ -104,8 +108,14 @@ import Cardano.BM.Backend.Switchboard
     ( Switchboard )
 import Cardano.BM.Configuration.Static
     ( defaultConfigStdout )
+import Cardano.BM.Counters
+    ( readCounters )
+import Cardano.BM.Data.Configuration
+    ( Endpoint (..) )
+import Cardano.BM.Data.Counter
+    ( Counter (..), nameCounter )
 import Cardano.BM.Data.LogItem
-    ( LoggerName )
+    ( LOContent (..), LoggerName, PrivacyAnnotation (..), mkLOMeta )
 import Cardano.BM.Data.Output
     ( ScribeDefinition (..)
     , ScribeFormat (..)
@@ -115,12 +125,14 @@ import Cardano.BM.Data.Output
     )
 import Cardano.BM.Data.Severity
     ( Severity (..) )
+import Cardano.BM.Data.SubTrace
+    ( SubTrace (..) )
 import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.BM.Setup
     ( setupTrace_, shutdown )
 import Cardano.BM.Trace
-    ( Trace, appendName, logDebug )
+    ( Trace, appendName, logDebug, traceNamedObject )
 import Cardano.Mnemonic
     ( MkSomeMnemonic (..), SomeMnemonic (..) )
 import Cardano.Wallet.Api.Client
@@ -185,10 +197,14 @@ import Control.Applicative
     ( optional, some, (<|>) )
 import Control.Arrow
     ( first, left )
+import Control.Concurrent
+    ( threadDelay )
 import Control.Exception
     ( bracket, catch )
 import Control.Monad
-    ( join, unless, void, when )
+    ( forM_, forever, join, unless, void, when )
+import Control.Monad.IO.Class
+    ( MonadIO )
 import Control.Tracer
     ( Tracer, traceWith )
 import Data.Aeson
@@ -200,7 +216,7 @@ import Data.Char
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Maybe
-    ( fromMaybe )
+    ( fromMaybe, isJust )
 import Data.Quantity
     ( Quantity (..) )
 import Data.String
@@ -286,6 +302,8 @@ import System.Directory
     , doesFileExist
     , getXdgDirectory
     )
+import System.Environment
+    ( lookupEnv )
 import System.Exit
     ( exitFailure, exitSuccess )
 import System.FilePath
@@ -309,8 +327,10 @@ import System.IO
 
 import qualified Cardano.BM.Configuration.Model as CM
 import qualified Cardano.BM.Data.BackendKind as CM
+import qualified Cardano.BM.Data.Observable as Obs
 import qualified Command.Key as Key
 import qualified Command.RecoveryPhrase as RecoveryPhrase
+import qualified Control.Concurrent.Async as Async
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Encode.Pretty as Aeson
 import qualified Data.Aeson.Types as Aeson
@@ -1576,6 +1596,36 @@ mkScribeId :: LogOutput -> ScribeId
 mkScribeId (LogToStdout _) = "StdoutSK::text"
 mkScribeId (LogToFile file _) = T.pack $ "FileSK::" <> file
 
+getPrometheusURL :: IO (Maybe (String, Port "Prometheus"))
+getPrometheusURL = do
+    prometheus_port <- lookupEnv "CARDANO_WALLET_PROMETHEUS_PORT"
+    prometheus_host <- fromMaybe "localhost" <$> lookupEnv "CARDANO_WALLET_PROMETHEUS_HOST"
+    case (prometheus_host, prometheus_port) of
+        (host, Just port) ->
+            case fromText @(Port "Prometheus") $ T.pack port of
+                Right port' -> pure $ Just (host, port')
+                _ -> do
+                    TIO.hPutStr stderr
+                        "Port value for prometheus metrics invalid. Will be disabled."
+                    pure Nothing
+        _ -> pure Nothing
+
+getEKGURL :: IO (Maybe (String, Port "EKG"))
+getEKGURL = do
+    ekg_port <- lookupEnv "CARDANO_WALLET_EKG_PORT"
+    ekg_host <- fromMaybe "localhost" <$> lookupEnv "CARDANO_WALLET_EKG_HOST"
+    case (ekg_host, ekg_port) of
+        (host, Just port) ->
+            case fromText @(Port "EKG") $ T.pack port of
+                Right port' -> pure $ Just (host, port')
+                _ -> do
+                    TIO.hPutStr stderr
+                        "Port value for EKB metrics invalid. Will be disabled."
+                    pure Nothing
+        _ -> pure Nothing
+
+ekgEnabled :: IO Bool
+ekgEnabled = isJust <$> getEKGURL
 
 -- | Initialize logging at the specified minimum 'Severity' level.
 initTracer
@@ -1583,19 +1633,48 @@ initTracer
     -> [LogOutput]
     -> IO (Switchboard Text, (CM.Configuration, Trace IO Text))
 initTracer loggerName outputs = do
+    prometheusHP <- getPrometheusURL
+    ekgHP <- getEKGURL
     cfg <- do
         c <- defaultConfigStdout
-        CM.setSetupBackends c [CM.KatipBK, CM.AggregationBK]
+        CM.setSetupBackends c [CM.KatipBK, CM.AggregationBK, CM.EKGViewBK, CM.EditorBK]
+        CM.setDefaultBackends c [CM.KatipBK, CM.EKGViewBK]
         CM.setSetupScribes c $ map mkScribe outputs
         CM.setDefaultScribes c $ map mkScribeId outputs
+        CM.setBackends c "test-cluster.metrics" (Just [CM.EKGViewBK])
+        CM.setBackends c "cardano-wallet.metrics" (Just [CM.EKGViewBK])
+        forM_ ekgHP $ \(h, p) -> do
+            CM.setEKGBindAddr c $ Just (Endpoint (h, getPort p))
+        forM_ prometheusHP $ \(h, p) ->
+            CM.setPrometheusBindAddr c $ Just (h, getPort p)
         pure c
     (tr, sb) <- setupTrace_ cfg loggerName
+    ekgEnabled >>= flip when (startCapturingMetrics tr)
     pure (sb, (cfg, tr))
+  where
+    -- https://github.com/input-output-hk/cardano-node/blob/f7d57e30c47028ba2aeb306a4f21b47bb41dec01/cardano-node/src/Cardano/Node/Configuration/Logging.hs#L224
+    startCapturingMetrics :: Trace IO Text -> IO ()
+    startCapturingMetrics trace0 = do
+      let trace = appendName "metrics" trace0
+          counters = [Obs.MemoryStats, Obs.ProcessStats
+            , Obs.NetStats, Obs.IOStats, Obs.GhcRtsStats, Obs.SysStats]
+      _ <- Async.async $ forever $ do
+        cts <- readCounters (ObservableTraceSelf counters)
+        traceCounters trace cts
+        threadDelay 30_000_000   -- 30 seconds
+      pure ()
+     where
+       traceCounters :: forall m a. MonadIO m => Trace m a -> [Counter] -> m ()
+       traceCounters _tr [] = return ()
+       traceCounters tr (c@(Counter _ct cn cv) : cs) = do
+         mle <- mkLOMeta Notice Confidential
+         traceNamedObject tr (mle, LogValue (nameCounter c <> "." <> cn) cv)
+         traceCounters tr cs
 
 -- | See 'withLoggingNamed'
 withLogging
     :: [LogOutput]
-    -> ((CM.Configuration, Trace IO Text) -> IO a)
+    -> ((Switchboard Text, (CM.Configuration, Trace IO Text)) -> IO a)
     -> IO a
 withLogging =
     withLoggingNamed "cardano-wallet"
@@ -1605,10 +1684,10 @@ withLogging =
 withLoggingNamed
     :: LoggerName
     -> [LogOutput]
-    -> ((CM.Configuration, Trace IO Text) -> IO a)
+    -> ((Switchboard Text, (CM.Configuration, Trace IO Text)) -> IO a)
     -- ^ The action to run with logging configured.
     -> IO a
-withLoggingNamed loggerName outputs action = bracket before after (action . snd)
+withLoggingNamed loggerName outputs = bracket before after
   where
     before = initTracer loggerName outputs
     after (sb, (_, tr)) = do
