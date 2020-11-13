@@ -382,6 +382,10 @@ toCardanoBlockHeader gp = \case
         toByronBlockHeader gp blk
     BlockShelley blk ->
         toShelleyBlockHeader (W.getGenesisBlockHash gp) blk
+    BlockMary _ ->
+        error "TODO: unimplemented mary era"
+    BlockAllegra _ ->
+        error "TODO: unimplemented allegra era"
 
 toShelleyBlockHeader
     :: Era e
@@ -418,6 +422,10 @@ fromCardanoBlock gp = \case
         fromByronBlock gp blk
     BlockShelley blk ->
         fromShelleyBlock blk
+    BlockMary _ ->
+        error "TODO: unimplemented mary era"
+    BlockAllegra _ ->
+        error "TODO: unimplemented allegra era"
   where
     fromShelleyBlock blk@(ShelleyBlock (SL.Block _ (SL.TxSeq txs')) _) =
         let
@@ -860,7 +868,7 @@ toByronNetworkMagic pm@(W.ProtocolMagic magic) =
 -- | SealedTx are the result of rightfully constructed shelley transactions so, it
 -- is relatively safe to unserialize them from CBOR.
 unsealShelleyTx
-    :: (HasCallStack, SL.PraosCrypto c, Era (SL.ShelleyEra c))
+    :: (HasCallStack, SL.PraosCrypto c)
     => W.SealedTx
     -> CardanoGenTx c
 unsealShelleyTx = GenTxShelley
