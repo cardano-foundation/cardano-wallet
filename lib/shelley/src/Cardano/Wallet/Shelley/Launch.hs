@@ -182,7 +182,10 @@ import Ouroboros.Consensus.Shelley.Node
 import Ouroboros.Network.Magic
     ( NetworkMagic (..) )
 import Ouroboros.Network.NodeToClient
-    ( NodeToClientVersionData (..), nodeToClientCodecCBORTerm )
+    ( NodeToClientVersion (..)
+    , NodeToClientVersionData (..)
+    , nodeToClientCodecCBORTerm
+    )
 import System.Directory
     ( copyFile, createDirectory, createDirectoryIfMissing, makeAbsolute )
 import System.Environment
@@ -207,6 +210,7 @@ import Test.Utils.StaticServer
 import qualified Cardano.Chain.Common as Byron
 import qualified Cardano.Chain.UTxO as Legacy
 import qualified Cardano.Wallet.Byron.Compatibility as Byron
+import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Shelley.Compatibility as Shelley
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Types as Aeson
@@ -312,10 +316,15 @@ parseGenesisData
         (SomeNetworkDiscriminant, NetworkParameters, NodeVersionData, Block)
 parseGenesisData = \case
     MainnetConfig -> do
+        let nm = NetworkMagic $ fromIntegral $ W.getProtocolMagic W.mainnetMagic
+        let mainnetVersionData =
+                ( NodeToClientVersionData nm
+                , nodeToClientCodecCBORTerm NodeToClientV_3
+                )
         pure
             ( SomeNetworkDiscriminant $ Proxy @'Mainnet
             , Byron.mainnetNetworkParameters
-            , Byron.mainnetVersionData
+            , mainnetVersionData
             , Byron.emptyGenesis (genesisParameters Byron.mainnetNetworkParameters)
             )
 
@@ -1022,7 +1031,7 @@ genConfig dir severity mExtraLogFile systemStart = do
     let shelleyParams = fst $ Shelley.fromGenesisData shelleyGenesis []
     let versionData =
             ( NodeToClientVersionData $ NetworkMagic networkMagic
-            , nodeToClientCodecCBORTerm
+            , nodeToClientCodecCBORTerm NodeToClientV_3
             )
 
     pure
