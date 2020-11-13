@@ -31,8 +31,16 @@ Note that lists and maps need not necessarily contain the same type of metadata 
 ### Limits
 
  - Strings may be at most 64 bytes long when UTF-8 encoded.
- - Unencoded bytestrings may be at most 64 bytes long.
+ - Unencoded bytestrings may be at most 64 bytes long (i.e. at most 128 hex digits).
  - There are no limits to the number of metadata values, apart from the protocol limit on transaction size.
+
+The string length limitation is explained in the
+[Delegation Design Spec, section E.3][delegation-spec]:
+
+> The size of strings in the structured value is limited to mitigate
+> the problem of unpleasant or illegal content being posted to the
+> blockchain. It does not prevent this problem entirely, but it means
+> that it is not as simple as posting large binary blobs.
 
 ## JSON representation in cardano-wallet
 
