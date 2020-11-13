@@ -27,6 +27,7 @@ module Cardano.Wallet.Shelley.Launch
       withCluster
     , withBFTNode
     , withStakePool
+    , withSMASH
     , NodeParams (..)
     , singleNodeParams
     , PoolConfig (..)
@@ -52,6 +53,9 @@ module Cardano.Wallet.Shelley.Launch
     , testMinSeverityFromEnv
     , testLogDirFromEnv
     , walletListenFromEnv
+
+    -- * global vars
+    , operators
 
     -- * Logging
     , ClusterLog (..)
@@ -85,6 +89,8 @@ import Cardano.Launcher.Node
     , NodePort (..)
     , withCardanoNode
     )
+import Cardano.Pool.Metadata
+    ( SMASHPoolId (..) )
 import Cardano.Wallet.Api.Server
     ( Listen (..) )
 import Cardano.Wallet.Logging
@@ -120,7 +126,7 @@ import Control.Concurrent.Async
 import Control.Concurrent.Chan
     ( newChan, readChan, writeChan )
 import Control.Concurrent.MVar
-    ( MVar, modifyMVar, newMVar, putMVar, takeMVar )
+    ( MVar, modifyMVar, newMVar, putMVar, readMVar, takeMVar )
 import Control.Exception
     ( SomeException, finally, handle, throwIO )
 import Control.Monad
@@ -819,6 +825,40 @@ withStakePool tr baseDir idx params pledgeAmt poolConfig action =
     dir = baseDir </> name
     name = "pool-" ++ show idx
 
+-- | Run a SMASH stub server, serving some delisted pool IDs.
+withSMASH
+    :: Tracer IO ClusterLog
+    -> IO a
+    -> IO a
+withSMASH tr action =
+    withSystemTempDir tr "smash" $ \fp -> do
+        let baseDir = fp </> "api/v1"
+
+        -- write pool metadatas
+        pools <- readMVar operators
+        forM_ pools $ \(poolId, _, _, _, metadata) -> do
+            let bytes = Aeson.encode metadata
+
+            let metadataDir = baseDir </> "metadata"
+                poolDir = metadataDir </> T.unpack (toText poolId)
+                hash = blake2b256S (BL.toStrict bytes)
+                hashFile = poolDir </> hash
+
+            createDirectoryIfMissing True poolDir
+            BL8.writeFile (poolDir </> hashFile) bytes
+
+        -- write delisted pools
+        let delisted = [SMASHPoolId (T.pack
+                "b45768c1a2da4bd13ebcaa1ea51408eda31dcc21765ccbd407cda9f2")]
+            bytes = Aeson.encode delisted
+        BL8.writeFile (baseDir </> "delisted") bytes
+
+        withStaticServer fp $ \baseUrl -> do
+            setEnv envVar baseUrl
+            action
+  where
+    envVar :: String
+    envVar = "CARDANO_WALLET_SMASH_URL"
 
 updateVersion :: Tracer IO ClusterLog -> FilePath -> IO ()
 updateVersion tr tmpDir = do
@@ -1402,7 +1442,7 @@ faucetIndex = unsafePerformIO $ newMVar 1
 operators :: MVar [(PoolId, Aeson.Value, Aeson.Value, Aeson.Value, Aeson.Value)]
 operators = unsafePerformIO $ newMVar
     [ ( PoolId $ unsafeFromHex
-          "c7258ccc42a43b653aaf2f80dde3120df124ebc3a79353eed782267f78d04739"
+          "ec28f33dcbe6d6400a1e5e339bd0647c0973ca6c0cf9c2bbe6838dc6"
       , Aeson.object
           [ "type" .= Aeson.String "StakePoolVerificationKey_ed25519"
           , "description" .= Aeson.String "Stake pool operator key"
@@ -1429,7 +1469,7 @@ operators = unsafePerformIO $ newMVar
           ]
       )
     , ( PoolId $ unsafeFromHex
-          "775af3b22eff9ff53a0bdd3ac6f8e1c5013ab68445768c476ccfc1e1c6b629b4"
+          "1b3dc19c6ab89eaffc8501f375bb03c11bf8ed5d183736b1d80413d6"
       , Aeson.object
           [ "type" .= Aeson.String "StakePoolVerificationKey_ed25519"
           , "description" .= Aeson.String "Stake pool operator key"
@@ -1456,7 +1496,7 @@ operators = unsafePerformIO $ newMVar
           ]
       )
     , ( PoolId $ unsafeFromHex
-          "5a7b67c7dcfa8c4c25796bea05bcdfca01590c8c7612cc537c97012bed0dec35"
+          "b45768c1a2da4bd13ebcaa1ea51408eda31dcc21765ccbd407cda9f2"
       , Aeson.object
           [ "type" .= Aeson.String "StakePoolVerificationKey_ed25519"
           , "description" .= Aeson.String "Stake pool operator key"

@@ -27,6 +27,9 @@ module Cardano.Pool.Metadata
     -- * re-exports
     , newManager
     , defaultManagerSettings
+
+    -- * Types
+    , SMASHPoolId (..)
     ) where
 
 import Prelude

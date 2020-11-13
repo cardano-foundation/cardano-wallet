@@ -17,7 +17,8 @@ import Prelude
 
 import Cardano.Wallet.Api.Types
     ( ApiCertificate (JoinPool, QuitPool, RegisterRewardAccount)
-    , ApiStakePool
+    , ApiStakePool (flags)
+    , ApiStakePoolFlag (..)
     , ApiT (..)
     , ApiTransaction
     , ApiWallet
@@ -76,6 +77,8 @@ import Data.Text.Class
     ( showT, toText )
 import Numeric.Natural
     ( Natural )
+import System.Environment
+    ( getEnv )
 import Test.Hspec
     ( SpecWith, describe, pendingWith )
 import Test.Hspec.Expectations.Lifted
@@ -137,6 +140,7 @@ import Test.Integration.Framework.TestData
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Data.ByteString as BS
 import qualified Data.Set as Set
+import qualified Data.Text as T
 import qualified Network.HTTP.Types.Status as HTTP
 
 spec :: forall n t.
@@ -966,33 +970,6 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
             updateMetadataSource ctx "direct"
             eventually "metadata is fetched" $ do
                 r <- listPools ctx arbitraryStake
-                let metadataPossible = Set.fromList
-                        [ StakePoolMetadata
-                            { ticker = (StakePoolTicker "GPA")
-                            , name = "Genesis Pool A"
-                            , description = Nothing
-                            , homepage = "https://iohk.io"
-                            }
-                        , StakePoolMetadata
-                            { ticker = (StakePoolTicker "GPB")
-                            , name = "Genesis Pool B"
-                            , description = Nothing
-                            , homepage = "https://iohk.io"
-                            }
-                        , StakePoolMetadata
-                            { ticker = (StakePoolTicker "GPC")
-                            , name = "Genesis Pool C"
-                            , description = Just "Lorem Ipsum Dolor Sit Amet."
-                            , homepage = "https://iohk.io"
-                            }
-                        , StakePoolMetadata
-                            { ticker = (StakePoolTicker "GPD")
-                            , name = "Genesis Pool D"
-                            , description = Just "Lorem Ipsum Dolor Sit Amet."
-                            , homepage = "https://iohk.io"
-                            }
-                        ]
-
                 verify r
                     [ expectListSize 3
                     , expectField Prelude.id $ \pools' -> do
@@ -1120,7 +1097,56 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
             let epochs = poolGarbageCollectionEpochNo <$> events
             (reverse epochs `zip` [1 ..]) `shouldSatisfy` all (uncurry (==))
 
+    it "STAKE_POOLS_SMASH_01 - fetching metadata from SMASH works with delisted pools" $
+        \ctx -> runResourceT $ do
+            smashUrl <- liftIO $ getEnv "CARDANO_WALLET_SMASH_URL"
+            updateMetadataSource ctx (T.pack smashUrl)
+            eventually "metadata is fetched" $ do
+                r <- listPools ctx arbitraryStake
+                verify r
+                    [ expectListSize 3
+                    , expectField Prelude.id $ \pools' -> do
+                        let metadataActual = Set.fromList $
+                                mapMaybe (fmap getApiT . view #metadata) pools'
+                            delistedPools = filter (\pool -> Delisted `elem` flags pool)
+                                pools'
+                        metadataActual
+                            `shouldSatisfy` (`Set.isSubsetOf` metadataPossible)
+                        metadataActual
+                            `shouldSatisfy` (not . Set.null)
+                        (fmap (getApiT . view #id) delistedPools)
+                            `shouldBe` [PoolId . unsafeFromHex $
+                                "b45768c1a2da4bd13ebcaa1ea51408eda31dcc21765ccbd407cda9f2"]
+                    ]
+
   where
+    metadataPossible = Set.fromList
+        [ StakePoolMetadata
+            { ticker = (StakePoolTicker "GPA")
+            , name = "Genesis Pool A"
+            , description = Nothing
+            , homepage = "https://iohk.io"
+            }
+        , StakePoolMetadata
+            { ticker = (StakePoolTicker "GPB")
+            , name = "Genesis Pool B"
+            , description = Nothing
+            , homepage = "https://iohk.io"
+            }
+        , StakePoolMetadata
+            { ticker = (StakePoolTicker "GPC")
+            , name = "Genesis Pool C"
+            , description = Just "Lorem Ipsum Dolor Sit Amet."
+            , homepage = "https://iohk.io"
+            }
+        , StakePoolMetadata
+            { ticker = (StakePoolTicker "GPD")
+            , name = "Genesis Pool D"
+            , description = Just "Lorem Ipsum Dolor Sit Amet."
+            , homepage = "https://iohk.io"
+            }
+        ]
+
     arbitraryStake :: Maybe Coin
     arbitraryStake = Just $ ada 10_000_000_000
       where ada = Coin . (1000*1000*)
