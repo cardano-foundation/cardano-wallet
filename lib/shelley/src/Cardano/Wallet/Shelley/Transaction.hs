@@ -727,7 +727,7 @@ mkByronWitness (Cardano.ShelleyTxBody body _) nw addr encryptedKey =
     Cardano.ShelleyBootstrapWitness $
         SL.makeBootstrapWitness txHash (unencrypt encryptedKey) addrAttr
   where
-    txHash = Crypto.hashWith serialize' body
+    txHash = Crypto.castHash $ Crypto.hashWith serialize' body
 
     unencrypt (xprv, pwd) = CC.SigningKey
         $ Crypto.HD.xPrvChangePass pwd BS.empty xprv
