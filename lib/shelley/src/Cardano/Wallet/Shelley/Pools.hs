@@ -626,12 +626,20 @@ monitorStakePools tr gp nl DBLayer{..} =
                 handleErr (putPoolProduction header (getProducer blk))
                 garbageCollectPools slot latestGarbageCollectionEpochRef
                 putPoolCertificates slot certificates
+            BlockMary _ ->
+                error "TODO: unimplemented mary era"
+            BlockAllegra _ ->
+                error "TODO: unimplemented allegra era"
 
         forLastBlock = \case
             BlockByron blk ->
                 putHeader (toByronBlockHeader gp blk)
             BlockShelley blk ->
                 putHeader (toShelleyBlockHeader getGenesisBlockHash blk)
+            BlockMary _ ->
+                error "TODO: unimplemented mary era"
+            BlockAllegra _ ->
+                error "TODO: unimplemented allegra era"
 
         handleErr action = runExceptT action
             >>= \case
