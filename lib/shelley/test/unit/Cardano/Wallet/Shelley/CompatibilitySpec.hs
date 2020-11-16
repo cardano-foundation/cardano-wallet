@@ -144,7 +144,7 @@ spec = do
     describe "Shelley Addresses" $ do
         prop "(Mainnet) can be deserialised by shelley ledger spec" $ \k -> do
             let Address addr = paymentAddress @'Mainnet @ShelleyKey k
-            case SL.deserialiseAddr @(SL.Shelley StandardCrypto) addr of
+            case SL.deserialiseAddr @(SL.ShelleyEra StandardCrypto) addr of
                 Just _ -> property True
                 Nothing -> property False
 
@@ -177,7 +177,7 @@ spec = do
 
     describe "decentralizationLevelFromPParams" $ do
 
-        let mkDecentralizationParam :: SL.UnitInterval -> SL.PParams (SL.Shelley c)
+        let mkDecentralizationParam :: SL.UnitInterval -> SL.PParams (SL.ShelleyEra StandardCrypto)
             mkDecentralizationParam i = SL.emptyPParams { SL._d = i }
 
         let testCases :: [(Ratio Word64, Text)]
