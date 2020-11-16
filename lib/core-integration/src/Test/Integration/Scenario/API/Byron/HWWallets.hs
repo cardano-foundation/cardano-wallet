@@ -24,7 +24,7 @@ import Cardano.Mnemonic
 import Cardano.Wallet.Api.Types
     ( AddressAmount (..)
     , ApiAddress
-    , ApiByronWallet
+    , ApiByronAccount
     , ApiCoinSelectionOutput (..)
     , ApiFee
     , ApiT (..)
@@ -118,7 +118,7 @@ spec = describe "BYRON_HW_WALLETS" $ do
             "passphrase": #{fixturePassphrase},
             "style": "icarus"
             }|]
-        rInit <- request @ApiByronWallet ctx (Link.postWallet @'Byron) Default payldCrt
+        rInit <- request @ApiByronAccount ctx (Link.postWallet @'Byron) Default payldCrt
         verify rInit
             [ expectResponseCode HTTP.status201
             , expectField (#balance . #available) (`shouldBe` Quantity 0)
@@ -144,7 +144,7 @@ spec = describe "BYRON_HW_WALLETS" $ do
         expectResponseCode HTTP.status202 rTrans
 
         eventually "Wallet balance is as expected" $ do
-            rGet <- request @ApiByronWallet ctx
+            rGet <- request @ApiByronAccount ctx
                 (Link.getWallet @'Byron wDest) Default Empty
             verify rGet
                 [ expectField
@@ -155,15 +155,15 @@ spec = describe "BYRON_HW_WALLETS" $ do
 
         -- delete wallet
         rDel <-
-            request @ApiByronWallet ctx (Link.deleteWallet @'Byron wDest) Default Empty
+            request @ApiByronAccount ctx (Link.deleteWallet @'Byron wDest) Default Empty
         expectResponseCode HTTP.status204 rDel
 
         -- restore from account public key and make sure funds are there
         let accXPub = pubKeyFromMnemonics mnemonics
-        wDest' <- restoreWalletFromPubKey @ApiByronWallet @'Byron ctx accXPub restoredWalletName
+        wDest' <- restoreWalletFromPubKey @ApiByronAccount @'Byron ctx accXPub restoredWalletName
 
         eventually "Balance of restored wallet is as expected" $ do
-            rGet <- request @ApiByronWallet ctx
+            rGet <- request @ApiByronAccount ctx
                 (Link.getWallet @'Byron wDest') Default Empty
             verify rGet
                 [ expectField
@@ -176,10 +176,10 @@ spec = describe "BYRON_HW_WALLETS" $ do
         it "Cannot send tx" $ \ctx -> runResourceT $ do
             (w, mnemonics) <- fixtureIcarusWalletMws ctx
             let pubKey = pubKeyFromMnemonics mnemonics
-            r <- request @ApiByronWallet ctx (Link.deleteWallet @'Byron w) Default Empty
+            r <- request @ApiByronAccount ctx (Link.deleteWallet @'Byron w) Default Empty
             expectResponseCode HTTP.status204 r
 
-            wSrc <- restoreWalletFromPubKey @ApiByronWallet @'Byron ctx pubKey restoredWalletName
+            wSrc <- restoreWalletFromPubKey @ApiByronAccount @'Byron ctx pubKey restoredWalletName
 
             let [addr] = take 1 $ icarusAddresses @n mnemonics
             let destination = encodeAddress @n addr
@@ -201,11 +201,11 @@ spec = describe "BYRON_HW_WALLETS" $ do
         it "Cannot update pass" $ \ctx -> runResourceT $ do
             mnemonics <- liftIO $ entropyToMnemonic <$> genEntropy
             let pubKey = pubKeyFromMnemonics mnemonics
-            wk <- restoreWalletFromPubKey @ApiByronWallet @'Byron ctx pubKey restoredWalletName
+            wk <- restoreWalletFromPubKey @ApiByronAccount @'Byron ctx pubKey restoredWalletName
 
             -- cannot update pass
             let payload = updatePassPayload fixturePassphrase "new-wallet-passphrase"
-            rup <- request @ApiByronWallet ctx
+            rup <- request @ApiByronAccount ctx
                 (Link.putWalletPassphrase @'Byron wk) Default payload
             expectResponseCode HTTP.status403 rup
             expectErrorMessage (errMsg403NoRootKey $ wk ^. walletId) rup
@@ -214,15 +214,15 @@ spec = describe "BYRON_HW_WALLETS" $ do
         it "Can update name" $ \ctx -> runResourceT $ do
             mnemonics <- liftIO $ entropyToMnemonic <$> genEntropy
             let pubKey = pubKeyFromMnemonics mnemonics
-            wk <- restoreWalletFromPubKey @ApiByronWallet @'Byron ctx pubKey restoredWalletName
+            wk <- restoreWalletFromPubKey @ApiByronAccount @'Byron ctx pubKey restoredWalletName
 
             -- cannot update wallet name
             let newName = "new name"
             let payload = updateNamePayload newName
-            rup <- request @ApiByronWallet ctx (Link.putWallet @'Byron wk) Default payload
+            rup <- request @ApiByronAccount ctx (Link.putWallet @'Byron wk) Default payload
             expectResponseCode HTTP.status200 rup
 
-            rGet <- request @ApiByronWallet ctx
+            rGet <- request @ApiByronAccount ctx
                 (Link.getWallet @'Byron wk) Default Empty
             expectField
                 (#name . #getApiT . #getWalletName)
@@ -232,10 +232,10 @@ spec = describe "BYRON_HW_WALLETS" $ do
         it "Can get tx fee" $ \ctx -> runResourceT $ do
             (w, mnemonics) <- fixtureIcarusWalletMws ctx
             let pubKey = pubKeyFromMnemonics mnemonics
-            r <- request @ApiByronWallet ctx (Link.deleteWallet @'Byron w) Default Empty
+            r <- request @ApiByronAccount ctx (Link.deleteWallet @'Byron w) Default Empty
             expectResponseCode HTTP.status204 r
 
-            wSrc <- restoreWalletFromPubKey @ApiByronWallet @'Byron ctx pubKey restoredWalletName
+            wSrc <- restoreWalletFromPubKey @ApiByronAccount @'Byron ctx pubKey restoredWalletName
 
             let [addr] = take 1 $ icarusAddresses @n mnemonics
             let destination = encodeAddress @n addr
@@ -256,15 +256,15 @@ spec = describe "BYRON_HW_WALLETS" $ do
         it "Can delete" $ \ctx -> runResourceT $ do
             mnemonics <- liftIO $ entropyToMnemonic <$> genEntropy
             let pubKey = pubKeyFromMnemonics mnemonics
-            wPub <- restoreWalletFromPubKey @ApiByronWallet @'Byron ctx pubKey restoredWalletName
-            r <- request @ApiByronWallet ctx
+            wPub <- restoreWalletFromPubKey @ApiByronAccount @'Byron ctx pubKey restoredWalletName
+            r <- request @ApiByronAccount ctx
                 (Link.deleteWallet @'Byron wPub) Default Empty
             expectResponseCode HTTP.status204 r
 
         it "Can see utxo" $ \ctx -> runResourceT $ do
             mnemonics <- liftIO $ entropyToMnemonic <$> genEntropy
             let pubKey = pubKeyFromMnemonics mnemonics
-            wPub <- restoreWalletFromPubKey @ApiByronWallet @'Byron ctx pubKey restoredWalletName
+            wPub <- restoreWalletFromPubKey @ApiByronAccount @'Byron ctx pubKey restoredWalletName
             rStat <- request @ApiUtxoStatistics ctx
                 (Link.getUTxOsStatistics @'Byron wPub) Default Empty
             expectResponseCode HTTP.status200 rStat
@@ -273,7 +273,7 @@ spec = describe "BYRON_HW_WALLETS" $ do
         it "Can list addresses" $ \ctx -> runResourceT $ do
             mnemonics <- liftIO $ entropyToMnemonic <$> genEntropy
             let pubKey = pubKeyFromMnemonics mnemonics
-            wPub <- restoreWalletFromPubKey @ApiByronWallet @'Byron ctx pubKey restoredWalletName
+            wPub <- restoreWalletFromPubKey @ApiByronAccount @'Byron ctx pubKey restoredWalletName
 
             let g = fromIntegral $ getAddressPoolGap defaultAddressPoolGap
             r <- request @[ApiAddress n] ctx
@@ -292,7 +292,7 @@ spec = describe "BYRON_HW_WALLETS" $ do
                     "account_public_key": #{pubKey},
                     "address_pool_gap": #{addrPoolGap}
                 }|]
-            rRestore <- request @ApiByronWallet ctx (Link.postWallet @'Byron)
+            rRestore <- request @ApiByronAccount ctx (Link.postWallet @'Byron)
                     Default payloadRestore
             expectResponseCode HTTP.status201 rRestore
 
@@ -308,7 +308,7 @@ spec = describe "BYRON_HW_WALLETS" $ do
         it "Can list transactions" $ \ctx -> runResourceT $ do
             mnemonics <- liftIO $ entropyToMnemonic <$> genEntropy
             let pubKey = pubKeyFromMnemonics mnemonics
-            wPub <- restoreWalletFromPubKey @ApiByronWallet @'Byron ctx pubKey restoredWalletName
+            wPub <- restoreWalletFromPubKey @ApiByronAccount @'Byron ctx pubKey restoredWalletName
 
             rt <- request @([ApiTransaction n]) ctx
                 (Link.listTransactions @'Byron wPub) Default Empty
@@ -319,11 +319,11 @@ spec = describe "BYRON_HW_WALLETS" $ do
             (w, mnemonics) <- fixtureIcarusWalletMws ctx
             let pubKey = pubKeyFromMnemonics mnemonics
             r <- request
-                @ApiByronWallet ctx (Link.deleteWallet @'Byron w) Default Empty
+                @ApiByronAccount ctx (Link.deleteWallet @'Byron w) Default Empty
             expectResponseCode HTTP.status204 r
 
             source <- restoreWalletFromPubKey
-                @ApiByronWallet @'Byron ctx pubKey restoredWalletName
+                @ApiByronAccount @'Byron ctx pubKey restoredWalletName
             let paymentCount = 4
             let targetAddresses = take paymentCount $
                     (\a -> (ApiT a, Proxy @n)) <$>
@@ -348,8 +348,8 @@ spec = describe "BYRON_HW_WALLETS" $ do
         it "Can get wallet" $ \ctx -> runResourceT $ do
             mnemonics <- liftIO $ entropyToMnemonic <$> genEntropy
             let pubKey = pubKeyFromMnemonics mnemonics
-            wPub <- restoreWalletFromPubKey @ApiByronWallet @'Byron ctx pubKey restoredWalletName
-            rGet <- request @ApiByronWallet ctx
+            wPub <- restoreWalletFromPubKey @ApiByronAccount @'Byron ctx pubKey restoredWalletName
+            rGet <- request @ApiByronAccount ctx
                 (Link.getWallet @'Byron wPub) Default Empty
             expectField
                 (#name . #getApiT . #getWalletName)
@@ -360,8 +360,8 @@ spec = describe "BYRON_HW_WALLETS" $ do
             liftIO $ pendingWith "TODO: appears to be flaky from time to time."
             mnemonics <- liftIO $ entropyToMnemonic <$> genEntropy
             let pubKey = pubKeyFromMnemonics mnemonics
-            _ <- restoreWalletFromPubKey @ApiByronWallet @'Byron ctx pubKey restoredWalletName
-            rl <- request @[ApiByronWallet] ctx
+            _ <- restoreWalletFromPubKey @ApiByronAccount @'Byron ctx pubKey restoredWalletName
+            rl <- request @[ApiByronAccount] ctx
                 (Link.listWallets @'Byron) Default Empty
             expectListField 0
                 (#name . #getApiT . #getWalletName)
@@ -381,15 +381,15 @@ spec = describe "BYRON_HW_WALLETS" $ do
                 "passphrase": #{fixturePassphrase},
                 "style": "icarus"
                 }|]
-            r <- request @ApiByronWallet ctx (Link.postWallet @'Byron) Default payldCrt
+            r <- request @ApiByronAccount ctx (Link.postWallet @'Byron) Default payldCrt
             expectResponseCode HTTP.status201 r
 
             -- create from account public key
             let accXPub = pubKeyFromMnemonics mnemonics
-            _ <- restoreWalletFromPubKey @ApiByronWallet @'Byron ctx accXPub restoredWalletName
+            _ <- restoreWalletFromPubKey @ApiByronAccount @'Byron ctx accXPub restoredWalletName
 
             -- both wallets are available
-            rl <- request @[ApiByronWallet] ctx
+            rl <- request @[ApiByronAccount] ctx
                 (Link.listWallets @'Byron) Default Empty
             verify rl
                 [ expectListField 0

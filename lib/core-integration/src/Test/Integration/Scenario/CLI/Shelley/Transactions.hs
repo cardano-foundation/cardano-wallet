@@ -15,10 +15,10 @@ import Prelude
 import Cardano.CLI
     ( Port )
 import Cardano.Wallet.Api.Types
-    ( ApiFee (..)
+    ( ApiAccount
+    , ApiFee (..)
     , ApiT (..)
     , ApiTransaction
-    , ApiWallet
     , DecodeAddress
     , DecodeStakeAddress
     , EncodeAddress (..)
@@ -143,7 +143,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
 
         -- verify balance on src wallet
         Stdout gOutSrc <- getWalletViaCLI @t ctx (T.unpack (wSrc ^. walletId))
-        gJson <- expectValidJSON (Proxy @ApiWallet) gOutSrc
+        gJson <- expectValidJSON (Proxy @ApiAccount) gOutSrc
         verify gJson
             [ expectCliField
                 (#balance . #getApiT . #total)
@@ -153,7 +153,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
         eventually "balance on dest wallet is OK" $ do
             Stdout gOutDest <- getWalletViaCLI @t ctx
                 (T.unpack (wDest ^. walletId))
-            destJson <- expectValidJSON (Proxy @ApiWallet) gOutDest
+            destJson <- expectValidJSON (Proxy @ApiAccount) gOutDest
             verify destJson
                 [ expectCliField
                         (#balance . #getApiT . #available) (`shouldBe` Quantity amt)
@@ -192,7 +192,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
 
         -- verify balance on src wallet
         Stdout gOutSrc <- getWalletViaCLI @t ctx (T.unpack (wSrc ^. walletId))
-        gJson <- expectValidJSON (Proxy @ApiWallet) gOutSrc
+        gJson <- expectValidJSON (Proxy @ApiAccount) gOutSrc
         verify gJson
             [ expectCliField
                 (#balance . #getApiT . #total)
@@ -202,7 +202,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
         eventually "balance on dest wallet is OK" $ do
             Stdout gOutDest <- getWalletViaCLI @t ctx
                 (T.unpack (wDest ^. walletId))
-            destJson <- expectValidJSON (Proxy @ApiWallet) gOutDest
+            destJson <- expectValidJSON (Proxy @ApiAccount) gOutDest
             verify destJson
                 [ expectCliField
                     (#balance . #getApiT . #available) (`shouldBe` Quantity (2*amt))
@@ -416,7 +416,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
         eventually "Balance on wallet is as expected" $ do
             Stdout gOutDest <- getWalletViaCLI @t ctx
                 (T.unpack (wDest ^. walletId))
-            destJson <- expectValidJSON (Proxy @ApiWallet) gOutDest
+            destJson <- expectValidJSON (Proxy @ApiAccount) gOutDest
             verify destJson
                 [ expectCliField
                         (#balance . #getApiT . #available) (`shouldBe` Quantity amt)
@@ -650,7 +650,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
         eventually "Balance on wallet is as expected" $ do
             Stdout gOutDest <- getWalletViaCLI @t ctx
                 (T.unpack (wDest ^. walletId))
-            destJson <- expectValidJSON (Proxy @ApiWallet) gOutDest
+            destJson <- expectValidJSON (Proxy @ApiAccount) gOutDest
             verify destJson
                 [ expectCliField
                         (#balance . #getApiT . #available) (`shouldBe` Quantity amt)
@@ -849,8 +849,8 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
       postTxViaCLI
           :: (MonadIO m, MonadFail m, MonadCatch m)
           => Context t
-          -> ApiWallet
-          -> ApiWallet
+          -> ApiAccount
+          -> ApiAccount
           -> Natural
           -> Maybe Text
           -> m (ApiTransaction n)
@@ -866,8 +866,8 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
       postTxArgs
         :: (MonadIO m, MonadFail m, MonadCatch m)
         => Context t
-        -> ApiWallet
-        -> ApiWallet
+        -> ApiAccount
+        -> ApiAccount
         -> Natural
         -> Maybe Text
         -> m [String]

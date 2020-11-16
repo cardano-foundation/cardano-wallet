@@ -15,7 +15,7 @@ import Prelude
 import Cardano.BM.Trace
     ( nullTracer )
 import Cardano.Wallet.Primitive.Types
-    ( WalletId (..) )
+    ( AccountId (..) )
 import Cardano.Wallet.Registry
     ( HasWorkerCtx (..)
     , MkWorker (..)
@@ -210,7 +210,7 @@ workerIsUsableAfterBefore (Delay delay) = monadicIO $ do
 -------------------------------------------------------------------------------}
 
 data DummyCtx = DummyCtx
-    (Tracer IO (WorkerLog WalletId Text))
+    (Tracer IO (WorkerLog AccountId Text))
     DummyResource
     deriving (Generic)
 
@@ -219,23 +219,23 @@ data DummyResource = DummyResource deriving (Generic)
 instance HasWorkerCtx DummyResource DummyCtx where
     type WorkerCtx DummyCtx = DummyCtx
     type WorkerMsg DummyCtx = Text
-    type WorkerKey DummyCtx = WalletId
+    type WorkerKey DummyCtx = AccountId
     hoistResource _ _ = id
 
 -- A reasonnably 'long' delay to test asynchronous race conditions, in us
 newtype Delay = Delay Int deriving Show
 
 data WorkerTest ctx res = WorkerTest
-    { _workerBefore :: WorkerCtx ctx -> WalletId -> IO ()
+    { _workerBefore :: WorkerCtx ctx -> AccountId -> IO ()
         -- | A task to execute before the main worker's task. See 'workerBefore'
 
-    , _workerMain :: WorkerCtx ctx -> WalletId -> IO ()
+    , _workerMain :: WorkerCtx ctx -> AccountId -> IO ()
         -- | A main task to execute, see 'workerMain'
 
     , _workerAcquire :: (res -> IO ()) -> IO ()
         -- | How the worker acquires its resource
 
-    , _workerConcurrently :: Worker WalletId res -> IO ()
+    , _workerConcurrently :: Worker AccountId res -> IO ()
         -- | An action to perform after the worker has been created,
         -- concurrently in the main thread.
 
@@ -292,11 +292,11 @@ workerTest (WorkerTest before main acquire concurrently assertion timeout) = do
                 Right (Left e) -> assertion (WorkerWasInterrupted e)
                 Left _ -> fail "expected worker to stop but hasn't"
 
-instance Arbitrary WalletId where
+instance Arbitrary AccountId where
     shrink _ = []
     arbitrary = do
         bytes <- BS.pack <$> replicateM 16 arbitrary
-        return $ WalletId (hash bytes)
+        return $ AccountId (hash bytes)
 
 instance Arbitrary Delay where
     shrink (Delay n) =

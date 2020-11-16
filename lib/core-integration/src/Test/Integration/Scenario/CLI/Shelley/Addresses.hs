@@ -13,7 +13,7 @@ module Test.Integration.Scenario.CLI.Shelley.Addresses
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiAddress, ApiWallet, DecodeAddress (..), EncodeAddress (..), getApiT )
+    ( ApiAccount, ApiAddress, DecodeAddress (..), EncodeAddress (..), getApiT )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( defaultAddressPoolGap, getAddressPoolGap )
 import Cardano.Wallet.Primitive.Types
@@ -184,7 +184,7 @@ spec = describe "SHELLEY_CLI_ADDRESSES" $ do
 
         eventually "all transactions are in ledger" $ do
             Stdout o2 <- getWalletViaCLI @t ctx $ T.unpack (wDest ^. walletId)
-            w <- expectValidJSON (Proxy @ApiWallet) o2
+            w <- expectValidJSON (Proxy @ApiAccount) o2
             expectCliField
                 (#balance . #getApiT . #available)
                 (`shouldBe` Quantity (10 * 1_000_000)) w

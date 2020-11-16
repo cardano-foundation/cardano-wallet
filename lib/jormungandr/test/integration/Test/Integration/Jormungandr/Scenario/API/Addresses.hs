@@ -14,9 +14,9 @@ module Test.Integration.Jormungandr.Scenario.API.Addresses
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiAddress
+    ( ApiAccount
+    , ApiAddress
     , ApiTransaction
-    , ApiWallet
     , DecodeAddress
     , DecodeStakeAddress
     , EncodeAddress
@@ -196,7 +196,7 @@ spec = describe "SHELLEY_ADDRESSES" $ do
 
         -- make sure all transactions are in ledger
         eventually "Wallet balance = initPoolGap * minUTxOValue" $ do
-            rb <- request @ApiWallet ctx
+            rb <- request @ApiAccount ctx
                 (Link.getWallet @'Shelley wDest) Default Empty
             expectField
                 (#balance . #getApiT . #available)
@@ -219,7 +219,7 @@ spec = describe "SHELLEY_ADDRESSES" $ do
 
     it "ADDRESS_LIST_04 - Deleted wallet" $ \ctx -> runResourceT $ do
         w <- emptyWallet ctx
-        _ <- request @ApiWallet ctx
+        _ <- request @ApiAccount ctx
             (Link.deleteWallet @'Shelley w) Default Empty
         r <- request @[ApiAddress n] ctx
             (Link.listAddresses @'Shelley w) Default Empty

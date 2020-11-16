@@ -62,16 +62,16 @@ module Cardano.Wallet.Api.Types
     , ApiStakePool (..)
     , ApiStakePoolMetrics (..)
     , ApiStakePoolFlag (..)
-    , ApiWallet (..)
-    , ApiWalletPassphrase (..)
-    , ApiWalletPassphraseInfo (..)
+    , ApiAccount (..)
+    , ApiEncryptionPassphrase (..)
+    , ApiEncryptionPassphraseInfo (..)
     , ApiUtxoStatistics (..)
     , toApiUtxoStatistics
-    , WalletBalance (..)
-    , WalletPostData (..)
-    , WalletPutData (..)
+    , Balance (..)
+    , ApiAccountFromPhrase (..)
+    , ApiAccountPutData (..)
     , SettingsPutData (..)
-    , WalletPutPassphraseData (..)
+    , AccountPutPassphraseData (..)
     , PostTransactionData (..)
     , PostTransactionFeeData (..)
     , PostExternalTransactionData (..)
@@ -100,32 +100,32 @@ module Cardano.Wallet.Api.Types
     , MinWithdrawal (..)
     , ApiNetworkParameters (..)
     , toApiNetworkParameters
-    , ApiWalletDelegation (..)
-    , ApiWalletDelegationStatus (..)
-    , ApiWalletDelegationNext (..)
+    , ApiAccountDelegation (..)
+    , ApiAccountDelegationStatus (..)
+    , ApiAccountDelegationNext (..)
     , ApiPoolId (..)
-    , ApiWalletMigrationPostData (..)
-    , ApiWalletMigrationInfo (..)
+    , ApiAccountMigrationPostData (..)
+    , ApiAccountMigrationInfo (..)
     , ApiWithdrawal (..)
-    , ApiWalletSignData (..)
+    , ApiAccountSignData (..)
     , ApiVerificationKey (..)
 
     -- * API Types (Byron)
-    , ApiByronWallet (..)
-    , ApiByronWalletBalance (..)
-    , ByronWalletPostData (..)
-    , SomeByronWalletPostData (..)
-    , ByronWalletFromXPrvPostData (..)
-    , ByronWalletPutPassphraseData (..)
+    , ApiByronAccount (..)
+    , ApiByronBalance (..)
+    , ApiByronAccountFromPhrase (..)
+    , ApiSomeByronAccountPostData (..)
+    , ApiByronAccountFromXPrv (..)
+    , ApiByronAccountPutPassphraseData (..)
     , ApiPostRandomAddressData (..)
-    , ApiWalletDiscovery (..)
+    , ApiAccountDiscovery (..)
     , KnownDiscovery(..)
     , ApiPutAddressesData (..)
 
     -- * API Types (Hardware)
-    , AccountPostData (..)
+    , ApiAccountFromKey (..)
     , ApiAccountPublicKey (..)
-    , WalletOrAccountPostData (..)
+    , ApiAccountPostData (..)
 
     -- * User-Facing Address Encoding/Decoding
     , EncodeAddress (..)
@@ -146,7 +146,7 @@ module Cardano.Wallet.Api.Types
     , ApiTransactionT
     , PostTransactionDataT
     , PostTransactionFeeDataT
-    , ApiWalletMigrationPostDataT
+    , ApiAccountMigrationPostDataT
 
     -- * other
     , defaultRecordTypeOptions
@@ -189,9 +189,11 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..) )
 import Cardano.Wallet.Primitive.Types
-    ( ActiveSlotCoefficient (..)
+    ( AccountId (..)
+    , ActiveSlotCoefficient (..)
     , Address (..)
     , AddressState (..)
+    , Balance (..)
     , BoundType
     , ChimericAccount (..)
     , Coin (..)
@@ -215,8 +217,6 @@ import Cardano.Wallet.Primitive.Types
     , TxMetadata
     , TxStatus (..)
     , UTxOStatistics (..)
-    , WalletBalance (..)
-    , WalletId (..)
     , WalletName (..)
     , decodePoolIdBech32
     , encodePoolIdBech32
@@ -515,43 +515,43 @@ data ApiCoinSelectionOutput (n :: NetworkDiscriminant) = ApiCoinSelectionOutput
     } deriving (Eq, Ord, Generic, Show)
       deriving anyclass NFData
 
-data ApiWallet = ApiWallet
-    { id :: !(ApiT WalletId)
+data ApiAccount = ApiAccount
+    { id :: !(ApiT AccountId)
     , addressPoolGap :: !(ApiT AddressPoolGap)
-    , balance :: !(ApiT WalletBalance)
-    , delegation :: !ApiWalletDelegation
+    , balance :: !(ApiT Balance)
+    , delegation :: !ApiAccountDelegation
     , name :: !(ApiT WalletName)
-    , passphrase :: !(Maybe ApiWalletPassphraseInfo)
+    , passphrase :: !(Maybe ApiEncryptionPassphraseInfo)
     , state :: !(ApiT SyncProgress)
     , tip :: !ApiBlockReference
     } deriving (Eq, Generic, Show)
       deriving anyclass NFData
 
-newtype ApiWalletPassphraseInfo = ApiWalletPassphraseInfo
+newtype ApiEncryptionPassphraseInfo = ApiEncryptionPassphraseInfo
     { lastUpdatedAt :: UTCTime
     } deriving (Eq, Generic, Show)
       deriving anyclass NFData
 
-data ApiWalletDelegation = ApiWalletDelegation
-    { active :: !ApiWalletDelegationNext
-    , next :: ![ApiWalletDelegationNext]
+data ApiAccountDelegation = ApiAccountDelegation
+    { active :: !ApiAccountDelegationNext
+    , next :: ![ApiAccountDelegationNext]
     } deriving (Eq, Generic, Show)
       deriving anyclass NFData
 
-data ApiWalletDelegationNext = ApiWalletDelegationNext
-    { status :: !ApiWalletDelegationStatus
+data ApiAccountDelegationNext = ApiAccountDelegationNext
+    { status :: !ApiAccountDelegationStatus
     , target :: !(Maybe (ApiT PoolId))
     , changesAt :: !(Maybe ApiEpochInfo)
     } deriving (Eq, Generic, Show)
       deriving anyclass NFData
 
-data ApiWalletDelegationStatus
+data ApiAccountDelegationStatus
     = NotDelegating
     | Delegating
     deriving (Eq, Generic, Show)
     deriving anyclass NFData
 
-newtype ApiWalletPassphrase = ApiWalletPassphrase
+newtype ApiEncryptionPassphrase = ApiEncryptionPassphrase
     { passphrase :: ApiT (Passphrase "lenient")
     } deriving (Eq, Generic, Show)
       deriving anyclass NFData
@@ -595,7 +595,7 @@ toApiUtxoStatistics (UTxOStatistics histo totalStakes bType) =
     , distribution = Map.fromList $ map (\(HistogramBar k v)-> (k,v)) histo
     }
 
-data WalletPostData = WalletPostData
+data ApiAccountFromPhrase = ApiAccountFromPhrase
     { addressPoolGap :: !(Maybe (ApiT AddressPoolGap))
     , mnemonicSentence :: !(ApiMnemonicT (AllowedMnemonics 'Shelley))
     , mnemonicSecondFactor :: !(Maybe (ApiMnemonicT (AllowedMnemonics 'SndFactor)))
@@ -603,22 +603,22 @@ data WalletPostData = WalletPostData
     , passphrase :: !(ApiT (Passphrase "raw"))
     } deriving (Eq, Generic, Show)
 
-data SomeByronWalletPostData
-    = RandomWalletFromMnemonic (ByronWalletPostData (AllowedMnemonics 'Random))
-    | RandomWalletFromXPrv ByronWalletFromXPrvPostData
-    | SomeIcarusWallet (ByronWalletPostData (AllowedMnemonics 'Icarus))
-    | SomeTrezorWallet (ByronWalletPostData (AllowedMnemonics 'Trezor))
-    | SomeLedgerWallet (ByronWalletPostData (AllowedMnemonics 'Ledger))
-    | SomeAccount AccountPostData
+data ApiSomeByronAccountPostData
+    = SomeRandomFromPhrase (ApiByronAccountFromPhrase (AllowedMnemonics 'Random))
+    | SomeRandomFromXPrv ApiByronAccountFromXPrv
+    | SomeIcarusAccount (ApiByronAccountFromPhrase (AllowedMnemonics 'Icarus))
+    | SomeTrezorAccount (ApiByronAccountFromPhrase (AllowedMnemonics 'Trezor))
+    | SomeLedgerAccount (ApiByronAccountFromPhrase (AllowedMnemonics 'Ledger))
+    | SomeAccountFromKey ApiAccountFromKey
     deriving (Eq, Generic, Show)
 
-data ByronWalletPostData mw = ByronWalletPostData
+data ApiByronAccountFromPhrase mw = ApiByronAccountFromPhrase
     { mnemonicSentence :: !(ApiMnemonicT mw)
     , name :: !(ApiT WalletName)
     , passphrase :: !(ApiT (Passphrase "raw"))
     } deriving (Eq, Generic, Show)
 
-data ByronWalletFromXPrvPostData = ByronWalletFromXPrvPostData
+data ApiByronAccountFromXPrv = ApiByronAccountFromXPrv
     { name :: !(ApiT WalletName)
     , encryptedRootPrivateKey :: !(ApiT XPrv)
     -- ^ A root private key hex-encoded, encrypted using a given passphrase.
@@ -637,17 +637,17 @@ newtype ApiAccountPublicKey = ApiAccountPublicKey
     } deriving (Eq, Generic, Show)
       deriving anyclass NFData
 
-newtype WalletOrAccountPostData = WalletOrAccountPostData
-    { postData :: Either WalletPostData AccountPostData
+newtype ApiAccountPostData = ApiAccountPostData
+    { postData :: Either ApiAccountFromPhrase ApiAccountFromKey
     } deriving (Eq, Generic, Show)
 
-data AccountPostData = AccountPostData
+data ApiAccountFromKey = ApiAccountFromKey
     { name :: !(ApiT WalletName)
     , accountPublicKey :: !ApiAccountPublicKey
     , addressPoolGap :: !(Maybe (ApiT AddressPoolGap))
     } deriving (Eq, Generic, Show)
 
-newtype WalletPutData = WalletPutData
+newtype ApiAccountPutData = ApiAccountPutData
     { name :: (Maybe (ApiT WalletName))
     } deriving (Eq, Generic, Show)
 
@@ -655,12 +655,12 @@ newtype SettingsPutData = SettingsPutData
     { settings :: (ApiT W.Settings)
     } deriving (Eq, Generic, Show)
 
-data WalletPutPassphraseData = WalletPutPassphraseData
+data AccountPutPassphraseData = AccountPutPassphraseData
     { oldPassphrase :: !(ApiT (Passphrase "raw"))
     , newPassphrase :: !(ApiT (Passphrase "raw"))
     } deriving (Eq, Generic, Show)
 
-data ByronWalletPutPassphraseData = ByronWalletPutPassphraseData
+data ApiByronAccountPutPassphraseData = ApiByronAccountPutPassphraseData
     { oldPassphrase :: !(Maybe (ApiT (Passphrase "lenient")))
     , newPassphrase :: !(ApiT (Passphrase "raw"))
     } deriving (Eq, Generic, Show)
@@ -846,8 +846,8 @@ data ApiPostRandomAddressData = ApiPostRandomAddressData
     } deriving (Eq, Generic, Show)
       deriving anyclass NFData
 
-data ApiWalletMigrationPostData (n :: NetworkDiscriminant) (s :: Symbol) =
-    ApiWalletMigrationPostData
+data ApiAccountMigrationPostData (n :: NetworkDiscriminant) (s :: Symbol) =
+    ApiAccountMigrationPostData
     { passphrase :: !(ApiT (Passphrase s))
     , addresses :: ![(ApiT Address, Proxy n)]
     } deriving (Eq, Generic, Show)
@@ -858,7 +858,7 @@ newtype ApiPutAddressesData (n :: NetworkDiscriminant) = ApiPutAddressesData
     } deriving (Eq, Generic, Show)
       deriving anyclass NFData
 
-data ApiWalletMigrationInfo = ApiWalletMigrationInfo
+data ApiAccountMigrationInfo = ApiAccountMigrationInfo
     { migrationCost :: Quantity "lovelace" Natural
     , leftovers :: Quantity "lovelace" Natural
     } deriving (Eq, Generic, Show)
@@ -868,7 +868,7 @@ newtype ApiWithdrawRewards = ApiWithdrawRewards Bool
     deriving (Eq, Generic, Show)
     deriving anyclass NFData
 
-data ApiWalletSignData = ApiWalletSignData
+data ApiAccountSignData = ApiAccountSignData
     { metadata :: ApiT TxMetadata
     , passphrase :: ApiT (Passphrase "lenient")
     } deriving (Eq, Generic, Show)
@@ -1048,25 +1048,25 @@ instance EncodeAddress n => ToHttpApiData (ApiT Address, Proxy n) where
                               API Types: Byron
 -------------------------------------------------------------------------------}
 
-data ApiByronWallet = ApiByronWallet
-    { id :: !(ApiT WalletId)
-    , balance :: !(ApiByronWalletBalance)
-    , discovery :: !ApiWalletDiscovery
+data ApiByronAccount = ApiByronAccount
+    { id :: !(ApiT AccountId)
+    , balance :: !(ApiByronBalance)
+    , discovery :: !ApiAccountDiscovery
     , name :: !(ApiT WalletName)
-    , passphrase :: !(Maybe ApiWalletPassphraseInfo)
+    , passphrase :: !(Maybe ApiEncryptionPassphraseInfo)
     , state :: !(ApiT SyncProgress)
     , tip :: !ApiBlockReference
     } deriving (Eq, Generic, Show)
       deriving anyclass NFData
 
-data ApiWalletDiscovery
+data ApiAccountDiscovery
     = DiscoveryRandom
     | DiscoverySequential
     deriving (Eq, Generic, Show)
     deriving anyclass NFData
 
 class KnownDiscovery s where
-    knownDiscovery :: ApiWalletDiscovery
+    knownDiscovery :: ApiAccountDiscovery
 
 instance KnownDiscovery (RndState network) where
     knownDiscovery = DiscoveryRandom
@@ -1273,19 +1273,19 @@ instance FromJSON (ApiT AddressState) where
 instance ToJSON (ApiT AddressState) where
     toJSON = genericToJSON defaultSumTypeOptions . getApiT
 
-instance FromJSON ApiWallet where
+instance FromJSON ApiAccount where
     parseJSON = genericParseJSON defaultRecordTypeOptions
-instance ToJSON ApiWallet where
+instance ToJSON ApiAccount where
     toJSON = genericToJSON defaultRecordTypeOptions
 
-instance FromJSON ApiWalletPassphrase where
+instance FromJSON ApiEncryptionPassphrase where
     parseJSON = genericParseJSON defaultRecordTypeOptions
-instance ToJSON ApiWalletPassphrase where
+instance ToJSON ApiEncryptionPassphrase where
     toJSON = genericToJSON defaultRecordTypeOptions
 
-instance FromJSON WalletPostData where
+instance FromJSON ApiAccountFromPhrase where
     parseJSON = genericParseJSON defaultRecordTypeOptions
-instance ToJSON WalletPostData where
+instance ToJSON ApiAccountFromPhrase where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 instance FromJSON ApiAccountPublicKey where
@@ -1295,7 +1295,7 @@ instance ToJSON ApiAccountPublicKey where
     toJSON =
         toJSON . T.decodeUtf8 . hex . xpubToBytes . getApiT . key
 
-instance FromJSON WalletOrAccountPostData where
+instance FromJSON ApiAccountPostData where
     parseJSON obj = do
         passwd <-
             (withObject "postData" $
@@ -1305,60 +1305,60 @@ instance FromJSON WalletOrAccountPostData where
              \o -> o .:? "mnemonic_sentence" :: Aeson.Parser (Maybe [Text])) obj
         case (passwd, mnemonic) of
             (Nothing, Nothing) -> do
-                xs <- parseJSON obj :: Aeson.Parser AccountPostData
-                pure $ WalletOrAccountPostData $ Right xs
+                xs <- parseJSON obj :: Aeson.Parser ApiAccountFromKey
+                pure $ ApiAccountPostData $ Right xs
             _ -> do
-                xs <- parseJSON obj :: Aeson.Parser WalletPostData
-                pure $ WalletOrAccountPostData $ Left xs
+                xs <- parseJSON obj :: Aeson.Parser ApiAccountFromPhrase
+                pure $ ApiAccountPostData $ Left xs
 
-instance ToJSON WalletOrAccountPostData where
-    toJSON (WalletOrAccountPostData (Left c))= toJSON c
-    toJSON (WalletOrAccountPostData (Right c))= toJSON c
+instance ToJSON ApiAccountPostData where
+    toJSON (ApiAccountPostData (Left c))= toJSON c
+    toJSON (ApiAccountPostData (Right c))= toJSON c
 
-instance FromJSON AccountPostData where
+instance FromJSON ApiAccountFromKey where
     parseJSON = genericParseJSON defaultRecordTypeOptions
-instance ToJSON AccountPostData where
+instance ToJSON ApiAccountFromKey where
     toJSON = genericToJSON defaultRecordTypeOptions
 
-instance ToJSON SomeByronWalletPostData where
+instance ToJSON ApiSomeByronAccountPostData where
     toJSON = \case
-        RandomWalletFromMnemonic w -> toJSON w
+        SomeRandomFromPhrase w -> toJSON w
             & withExtraField (fieldName, toJSON $ toText Random)
-        RandomWalletFromXPrv w -> toJSON w
+        SomeRandomFromXPrv w -> toJSON w
             & withExtraField (fieldName, toJSON $ toText Random)
-        SomeIcarusWallet w -> toJSON w
+        SomeIcarusAccount w -> toJSON w
             & withExtraField (fieldName, toJSON $ toText Icarus)
-        SomeTrezorWallet w -> toJSON w
+        SomeTrezorAccount w -> toJSON w
             & withExtraField (fieldName, toJSON $ toText Trezor)
-        SomeLedgerWallet w -> toJSON w
+        SomeLedgerAccount w -> toJSON w
             & withExtraField (fieldName, toJSON $ toText Ledger)
-        SomeAccount w -> toJSON w
+        SomeAccountFromKey w -> toJSON w
       where
         fieldName :: Text
         fieldName = "style"
 
-instance FromJSON SomeByronWalletPostData where
-    parseJSON = withObject "SomeByronWallet" $ \obj -> do
+instance FromJSON ApiSomeByronAccountPostData where
+    parseJSON = withObject "SomeByronAccount" $ \obj -> do
         choice <- (,) <$> obj .:? "account_public_key" <*> obj .:? "style"
         case choice of
             (Nothing, Just t) | t == toText Random ->
                 (obj .:? "passphrase_hash" :: Aeson.Parser (Maybe Text)) >>= \case
                     Nothing ->
-                        RandomWalletFromMnemonic <$> parseJSON (Aeson.Object obj)
+                        SomeRandomFromPhrase <$> parseJSON (Aeson.Object obj)
                     Just _ ->
-                        RandomWalletFromXPrv <$> parseJSON (Aeson.Object obj)
+                        SomeRandomFromXPrv <$> parseJSON (Aeson.Object obj)
 
             (Nothing, Just t) | t == toText Icarus ->
-                SomeIcarusWallet <$> parseJSON (Aeson.Object obj)
+                SomeIcarusAccount <$> parseJSON (Aeson.Object obj)
 
             (Nothing, Just t) | t == toText Trezor ->
-                    SomeTrezorWallet <$> parseJSON (Aeson.Object obj)
+                    SomeTrezorAccount <$> parseJSON (Aeson.Object obj)
 
             (Nothing, Just t) | t == toText Ledger ->
-                    SomeLedgerWallet <$> parseJSON (Aeson.Object obj)
+                    SomeLedgerAccount <$> parseJSON (Aeson.Object obj)
 
             (Just (_ :: ApiAccountPublicKey), _) ->
-                SomeAccount <$> parseJSON (Aeson.Object obj)
+                SomeAccountFromKey <$> parseJSON (Aeson.Object obj)
 
             _ ->
                 fail "unrecognized wallet's style."
@@ -1371,9 +1371,9 @@ withExtraField (k,v) = \case
     Aeson.Object m -> Aeson.Object (HM.insert k v m)
     json -> json
 
-instance MkSomeMnemonic mw => FromJSON (ByronWalletPostData mw) where
+instance MkSomeMnemonic mw => FromJSON (ApiByronAccountFromPhrase mw) where
     parseJSON = genericParseJSON defaultRecordTypeOptions
-instance ToJSON (ByronWalletPostData mw) where
+instance ToJSON (ApiByronAccountFromPhrase mw) where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 instance FromJSON (ApiT (Hash "encryption")) where
@@ -1388,14 +1388,14 @@ instance FromJSON (ApiT XPrv) where
 instance ToJSON (ApiT XPrv) where
     toJSON = toJSON . toText
 
-instance FromJSON ByronWalletFromXPrvPostData where
+instance FromJSON ApiByronAccountFromXPrv where
     parseJSON = genericParseJSON defaultRecordTypeOptions
-instance ToJSON ByronWalletFromXPrvPostData where
+instance ToJSON ApiByronAccountFromXPrv where
     toJSON = genericToJSON defaultRecordTypeOptions
 
-instance FromJSON WalletPutData where
+instance FromJSON ApiAccountPutData where
     parseJSON = genericParseJSON defaultRecordTypeOptions
-instance ToJSON  WalletPutData where
+instance ToJSON  ApiAccountPutData where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 instance FromJSON SettingsPutData where
@@ -1403,9 +1403,9 @@ instance FromJSON SettingsPutData where
 instance ToJSON  SettingsPutData where
     toJSON = genericToJSON defaultRecordTypeOptions
 
-instance FromJSON WalletPutPassphraseData where
+instance FromJSON AccountPutPassphraseData where
     parseJSON = genericParseJSON defaultRecordTypeOptions
-instance ToJSON  WalletPutPassphraseData where
+instance ToJSON  AccountPutPassphraseData where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 instance FromJSON (ApiT PoolMetadataGCStatus) where
@@ -1439,9 +1439,9 @@ instance ToJSON (ApiT PoolMetadataGCStatus) where
         object [ "status" .= String "has_run"
             , "last_run" .= ApiT (Iso8601Time (posixSecondsToUTCTime gctime)) ]
 
-instance FromJSON ByronWalletPutPassphraseData where
+instance FromJSON ApiByronAccountPutPassphraseData where
     parseJSON = genericParseJSON defaultRecordTypeOptions
-instance ToJSON ByronWalletPutPassphraseData where
+instance ToJSON ApiByronAccountPutPassphraseData where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 instance FromJSON ApiMaintenanceActionPostData where
@@ -1560,9 +1560,9 @@ instance MkSomeMnemonic sizes => FromJSON (ApiMnemonicT sizes)
 instance ToJSON (ApiMnemonicT sizes) where
     toJSON (ApiMnemonicT (SomeMnemonic mw)) = toJSON (mnemonicToText mw)
 
-instance FromJSON (ApiT WalletId) where
+instance FromJSON (ApiT AccountId) where
     parseJSON = parseJSON >=> eitherToParser . bimap ShowFmt ApiT . fromText
-instance ToJSON (ApiT WalletId) where
+instance ToJSON (ApiT AccountId) where
     toJSON = toJSON . toText . getApiT
 
 instance FromJSON (ApiT AddressPoolGap) where
@@ -1571,20 +1571,20 @@ instance FromJSON (ApiT AddressPoolGap) where
 instance ToJSON (ApiT AddressPoolGap) where
     toJSON = toJSON . getAddressPoolGap . getApiT
 
-instance FromJSON (ApiT WalletBalance) where
+instance FromJSON (ApiT Balance) where
     parseJSON = fmap ApiT . genericParseJSON defaultRecordTypeOptions
-instance ToJSON (ApiT WalletBalance) where
+instance ToJSON (ApiT Balance) where
     toJSON = genericToJSON defaultRecordTypeOptions . getApiT
 
-data ApiByronWalletBalance = ApiByronWalletBalance
+data ApiByronBalance = ApiByronBalance
     { available :: !(Quantity "lovelace" Natural)
     , total :: !(Quantity "lovelace" Natural)
     } deriving (Eq, Generic, Show)
       deriving anyclass NFData
 
-instance FromJSON ApiByronWalletBalance where
+instance FromJSON ApiByronBalance where
     parseJSON = genericParseJSON defaultRecordTypeOptions
-instance ToJSON ApiByronWalletBalance where
+instance ToJSON ApiByronBalance where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 instance FromJSON (ApiT PoolId) where
@@ -1594,19 +1594,19 @@ instance FromJSON (ApiT PoolId) where
 instance ToJSON (ApiT PoolId) where
     toJSON = toJSON . encodePoolIdBech32 . getApiT
 
-instance FromJSON ApiWalletDelegationStatus where
+instance FromJSON ApiAccountDelegationStatus where
     parseJSON = genericParseJSON defaultSumTypeOptions
-instance ToJSON ApiWalletDelegationStatus where
+instance ToJSON ApiAccountDelegationStatus where
     toJSON = genericToJSON defaultSumTypeOptions
 
-instance FromJSON ApiWalletDelegation where
+instance FromJSON ApiAccountDelegation where
     parseJSON = genericParseJSON defaultRecordTypeOptions
-instance ToJSON ApiWalletDelegation where
+instance ToJSON ApiAccountDelegation where
     toJSON = genericToJSON defaultRecordTypeOptions
 
-instance FromJSON ApiWalletDelegationNext where
+instance FromJSON ApiAccountDelegationNext where
     parseJSON = genericParseJSON defaultRecordTypeOptions
-instance ToJSON ApiWalletDelegationNext where
+instance ToJSON ApiAccountDelegationNext where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 instance FromJSON ApiStakePool where
@@ -1634,9 +1634,9 @@ instance FromJSON (ApiT W.Settings) where
 instance ToJSON (ApiT W.Settings) where
     toJSON = genericToJSON defaultRecordTypeOptions . getApiT
 
-instance FromJSON ApiWalletPassphraseInfo where
+instance FromJSON ApiEncryptionPassphraseInfo where
     parseJSON = genericParseJSON defaultRecordTypeOptions
-instance ToJSON ApiWalletPassphraseInfo where
+instance ToJSON ApiEncryptionPassphraseInfo where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 instance FromJSON (ApiT SyncProgress) where
@@ -1769,10 +1769,10 @@ instance ToJSON ApiTxMetadata where
         Just (ApiT md) | txMetadataIsNull md -> Aeson.Null
         Just md -> toJSON md
 
-instance (DecodeAddress n , PassphraseMaxLength s , PassphraseMinLength s) => FromJSON (ApiWalletMigrationPostData n s)
+instance (DecodeAddress n , PassphraseMaxLength s , PassphraseMinLength s) => FromJSON (ApiAccountMigrationPostData n s)
   where
     parseJSON = genericParseJSON defaultRecordTypeOptions
-instance EncodeAddress n => ToJSON (ApiWalletMigrationPostData n s) where
+instance EncodeAddress n => ToJSON (ApiAccountMigrationPostData n s) where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 instance (DecodeAddress n) => FromJSON (ApiPutAddressesData n)
@@ -1871,9 +1871,9 @@ instance FromJSON ApiNetworkParameters where
 instance ToJSON ApiNetworkParameters where
     toJSON = genericToJSON defaultRecordTypeOptions
 
-instance FromJSON ApiWalletSignData where
+instance FromJSON ApiAccountSignData where
     parseJSON = genericParseJSON defaultRecordTypeOptions
-instance ToJSON ApiWalletSignData where
+instance ToJSON ApiAccountSignData where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 instance DecodeStakeAddress n => FromJSON (ApiWithdrawal n) where
@@ -1918,14 +1918,14 @@ syncProgressOptions = taggedSumTypeOptions defaultSumTypeOptions $
                              JSON Instances: Byron
 -------------------------------------------------------------------------------}
 
-instance FromJSON ApiByronWallet where
+instance FromJSON ApiByronAccount where
     parseJSON = genericParseJSON defaultRecordTypeOptions
-instance ToJSON ApiByronWallet where
+instance ToJSON ApiByronAccount where
     toJSON = genericToJSON defaultRecordTypeOptions
 
-instance FromJSON ApiWalletMigrationInfo where
+instance FromJSON ApiAccountMigrationInfo where
     parseJSON = genericParseJSON defaultRecordTypeOptions
-instance ToJSON ApiWalletMigrationInfo where
+instance ToJSON ApiAccountMigrationInfo where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 instance FromJSON ApiPostRandomAddressData where
@@ -1946,11 +1946,11 @@ instance
   ) => ToJSON (ApiT (Index derivation level)) where
     toJSON = toJSON . fromEnum . getApiT
 
-instance FromJSON ApiWalletDiscovery where
+instance FromJSON ApiAccountDiscovery where
     parseJSON = genericParseJSON $ Aeson.defaultOptions
         { constructorTagModifier = drop 1 . dropWhile (/= '_') . camelTo2 '_' }
 
-instance ToJSON ApiWalletDiscovery where
+instance ToJSON ApiAccountDiscovery where
     toJSON = genericToJSON $ Aeson.defaultOptions
         { constructorTagModifier = drop 1 . dropWhile (/= '_') . camelTo2 '_' }
 
@@ -2126,7 +2126,7 @@ type family ApiSelectCoinsDataT (n :: k) :: *
 type family ApiTransactionT (n :: k) :: *
 type family PostTransactionDataT (n :: k) :: *
 type family PostTransactionFeeDataT (n :: k) :: *
-type family ApiWalletMigrationPostDataT (n :: k1) (s :: k2) :: *
+type family ApiAccountMigrationPostDataT (n :: k1) (s :: k2) :: *
 type family ApiPutAddressesDataT (n :: k) :: *
 
 type instance ApiAddressT (n :: NetworkDiscriminant) =
@@ -2153,5 +2153,5 @@ type instance PostTransactionDataT (n :: NetworkDiscriminant) =
 type instance PostTransactionFeeDataT (n :: NetworkDiscriminant) =
     PostTransactionFeeData n
 
-type instance ApiWalletMigrationPostDataT (n :: NetworkDiscriminant) (s :: Symbol) =
-    ApiWalletMigrationPostData n s
+type instance ApiAccountMigrationPostDataT (n :: NetworkDiscriminant) (s :: Symbol) =
+    ApiAccountMigrationPostData n s

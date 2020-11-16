@@ -117,14 +117,23 @@ import Prelude
 import Cardano.Wallet
     ( WalletLayer (..), WalletLog )
 import Cardano.Wallet.Api.Types
-    ( AnyAddress
+    ( AccountPutPassphraseData
+    , AnyAddress
+    , ApiAccount
+    , ApiAccountMigrationInfo
+    , ApiAccountMigrationPostDataT
+    , ApiAccountPostData
+    , ApiAccountPutData
+    , ApiAccountSignData
     , ApiAddressData
     , ApiAddressIdT
     , ApiAddressInspect
     , ApiAddressInspectData
     , ApiAddressT
-    , ApiByronWallet
+    , ApiByronAccount
+    , ApiByronAccountPutPassphraseData
     , ApiCoinSelectionT
+    , ApiEncryptionPassphrase
     , ApiFee
     , ApiMaintenanceAction
     , ApiMaintenanceActionPostData
@@ -135,27 +144,18 @@ import Cardano.Wallet.Api.Types
     , ApiPostRandomAddressData
     , ApiPutAddressesDataT
     , ApiSelectCoinsDataT
+    , ApiSomeByronAccountPostData
     , ApiT
     , ApiTransactionT
     , ApiTxId
     , ApiUtxoStatistics
     , ApiVerificationKey
-    , ApiWallet
-    , ApiWalletMigrationInfo
-    , ApiWalletMigrationPostDataT
-    , ApiWalletPassphrase
-    , ApiWalletSignData
-    , ByronWalletPutPassphraseData
     , Iso8601Time
     , MinWithdrawal
     , PostExternalTransactionData
     , PostTransactionDataT
     , PostTransactionFeeDataT
     , SettingsPutData
-    , SomeByronWalletPostData
-    , WalletOrAccountPostData
-    , WalletPutData
-    , WalletPutPassphraseData
     )
 import Cardano.Wallet.DB
     ( DBFactory, DBLayer )
@@ -166,12 +166,12 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncTolerance )
 import Cardano.Wallet.Primitive.Types
-    ( AddressState
+    ( AccountId (..)
+    , AddressState
     , Block
     , Coin (..)
     , NetworkParameters
     , SortOrder (..)
-    , WalletId (..)
     )
 import Cardano.Wallet.Registry
     ( HasWorkerCtx (..), WorkerLog, WorkerRegistry )
@@ -253,39 +253,39 @@ type Wallets =
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/deleteWallet
 type DeleteWallet = "wallets"
-    :> Capture "walletId" (ApiT WalletId)
+    :> Capture "walletId" (ApiT AccountId)
     :> DeleteNoContent
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/getWallet
 type GetWallet = "wallets"
-    :> Capture "walletId" (ApiT WalletId)
-    :> Get '[JSON] ApiWallet
+    :> Capture "walletId" (ApiT AccountId)
+    :> Get '[JSON] ApiAccount
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/listWallets
 type ListWallets = "wallets"
-    :> Get '[JSON] [ApiWallet]
+    :> Get '[JSON] [ApiAccount]
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/postWallet
 type PostWallet = "wallets"
-    :> ReqBody '[JSON] (PostData ApiWallet)
-    :> PostCreated '[JSON] ApiWallet
+    :> ReqBody '[JSON] (PostData ApiAccount)
+    :> PostCreated '[JSON] ApiAccount
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/putWallet
 type PutWallet = "wallets"
-    :> Capture "walletId" (ApiT WalletId)
-    :> ReqBody '[JSON] WalletPutData
-    :> Put '[JSON] ApiWallet
+    :> Capture "walletId" (ApiT AccountId)
+    :> ReqBody '[JSON] ApiAccountPutData
+    :> Put '[JSON] ApiAccount
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/putWalletPassphrase
 type PutWalletPassphrase = "wallets"
-    :> Capture "walletId" (ApiT WalletId)
+    :> Capture "walletId" (ApiT AccountId)
     :> "passphrase"
-    :> ReqBody '[JSON] WalletPutPassphraseData
+    :> ReqBody '[JSON] AccountPutPassphraseData
     :> PutNoContent
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/getUTxOsStatistics
 type GetUTxOsStatistics = "wallets"
-    :> Capture "walletId" (ApiT WalletId)
+    :> Capture "walletId" (ApiT AccountId)
     :> "statistics"
     :> "utxos"
     :> Get '[JSON] ApiUtxoStatistics
@@ -301,7 +301,7 @@ type WalletKeys =
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/getWalletKey
 type GetWalletKey = "wallets"
-    :> Capture "walletId" (ApiT WalletId)
+    :> Capture "walletId" (ApiT AccountId)
     :> "keys"
     :> Capture "role" (ApiT AccountingStyle)
     :> Capture "index" (ApiT DerivationIndex)
@@ -309,11 +309,11 @@ type GetWalletKey = "wallets"
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/signMetadata
 type SignMetadata = "wallets"
-    :> Capture "walletId" (ApiT WalletId)
+    :> Capture "walletId" (ApiT AccountId)
     :> "signatures"
     :> Capture "role" (ApiT AccountingStyle)
     :> Capture "index" (ApiT DerivationIndex)
-    :> ReqBody '[JSON] ApiWalletSignData
+    :> ReqBody '[JSON] ApiAccountSignData
     :> Post '[OctetStream] ByteString
 
 {-------------------------------------------------------------------------------
@@ -329,7 +329,7 @@ type Addresses n =
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/listAddresses
 type ListAddresses n = "wallets"
-    :> Capture "walletId" (ApiT WalletId)
+    :> Capture "walletId" (ApiT AccountId)
     :> "addresses"
     :> QueryParam "state" (ApiT AddressState)
     :> Get '[JSON] [ApiAddressT n]
@@ -356,7 +356,7 @@ type CoinSelections n =
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/selectCoins
 type SelectCoins n = "wallets"
-    :> Capture "walletId" (ApiT WalletId)
+    :> Capture "walletId" (ApiT AccountId)
     :> "coin-selections"
     :> "random"
     :> ReqBody '[JSON] (ApiSelectCoinsDataT n)
@@ -377,14 +377,14 @@ type Transactions n =
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/postTransaction
 type CreateTransaction n = "wallets"
-    :> Capture "walletId" (ApiT WalletId)
+    :> Capture "walletId" (ApiT AccountId)
     :> "transactions"
     :> ReqBody '[JSON] (PostTransactionDataT n)
     :> PostAccepted '[JSON] (ApiTransactionT n)
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/listTransactions
 type ListTransactions n = "wallets"
-    :> Capture "walletId" (ApiT WalletId)
+    :> Capture "walletId" (ApiT AccountId)
     :> "transactions"
     :> QueryParam "minWithdrawal" MinWithdrawal
     :> QueryParam "start" Iso8601Time
@@ -394,21 +394,21 @@ type ListTransactions n = "wallets"
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/getTransaction
 type GetTransaction n = "wallets"
-    :> Capture "walletId" (ApiT WalletId)
+    :> Capture "walletId" (ApiT AccountId)
     :> "transactions"
     :> Capture "transactionId" ApiTxId
     :> Get '[JSON] (ApiTransactionT n)
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/postTransactionFee
 type PostTransactionFee n = "wallets"
-    :> Capture "walletId" (ApiT WalletId)
+    :> Capture "walletId" (ApiT AccountId)
     :> "payment-fees"
     :> ReqBody '[JSON] (PostTransactionFeeDataT n)
     :> PostAccepted '[JSON] ApiFee
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/deleteTransaction
 type DeleteTransaction = "wallets"
-    :> Capture "walletId" (ApiT WalletId)
+    :> Capture "walletId" (ApiT AccountId)
     :> "transactions"
     :> Capture "transactionId" ApiTxId
     :> DeleteNoContent
@@ -426,16 +426,16 @@ type ShelleyMigrations n =
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/migrateShelleyWallet
 type MigrateShelleyWallet n = "wallets"
-    :> Capture "walletId" (ApiT WalletId)
+    :> Capture "walletId" (ApiT AccountId)
     :> "migrations"
-    :> ReqBody '[JSON] (ApiWalletMigrationPostDataT n "raw")
+    :> ReqBody '[JSON] (ApiAccountMigrationPostDataT n "raw")
     :> PostAccepted '[JSON] [ApiTransactionT n]
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/getShelleyWalletMigrationInfo
 type GetShelleyWalletMigrationInfo = "wallets"
-    :> Capture "walletId" (ApiT WalletId)
+    :> Capture "walletId" (ApiT AccountId)
     :> "migrations"
-    :> Get '[JSON] ApiWalletMigrationInfo
+    :> Get '[JSON] ApiAccountMigrationInfo
 
 {-------------------------------------------------------------------------------
                                   StakePools
@@ -460,21 +460,21 @@ type ListStakePools apiPool = "stake-pools"
 type JoinStakePool n = "stake-pools"
     :> Capture "stakePoolId" ApiPoolId
     :> "wallets"
-    :> Capture "walletId" (ApiT WalletId)
-    :> ReqBody '[JSON] ApiWalletPassphrase
+    :> Capture "walletId" (ApiT AccountId)
+    :> ReqBody '[JSON] ApiEncryptionPassphrase
     :> PutAccepted '[JSON] (ApiTransactionT n)
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/quitStakePool
 type QuitStakePool n = "stake-pools"
     :> "*"
     :> "wallets"
-    :> Capture "walletId" (ApiT WalletId)
-    :> ReqBody '[JSON] ApiWalletPassphrase
+    :> Capture "walletId" (ApiT AccountId)
+    :> ReqBody '[JSON] ApiEncryptionPassphrase
     :> DeleteAccepted '[JSON] (ApiTransactionT n)
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/getDelegationFee
 type DelegationFee = "wallets"
-    :> Capture "walletId" (ApiT WalletId)
+    :> Capture "walletId" (ApiT AccountId)
     :> "delegation-fees"
     :> Get '[JSON] ApiFee
 
@@ -519,41 +519,41 @@ type ByronWallets =
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/postByronWallet
 type PostByronWallet = "byron-wallets"
-    :> ReqBody '[JSON] (PostData ApiByronWallet)
-    :> PostCreated '[JSON] ApiByronWallet
+    :> ReqBody '[JSON] (PostData ApiByronAccount)
+    :> PostCreated '[JSON] ApiByronAccount
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/deleteByronWallet
 type DeleteByronWallet = "byron-wallets"
-    :> Capture "walletId" (ApiT WalletId)
+    :> Capture "walletId" (ApiT AccountId)
     :> DeleteNoContent
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/getByronWallet
 type GetByronWallet = "byron-wallets"
-    :> Capture "walletId" (ApiT WalletId)
-    :> Get '[JSON] ApiByronWallet
+    :> Capture "walletId" (ApiT AccountId)
+    :> Get '[JSON] ApiByronAccount
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/listByronWallets
 type ListByronWallets = "byron-wallets"
-    :> Get '[JSON] [ApiByronWallet]
+    :> Get '[JSON] [ApiByronAccount]
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/putByronWallet
 type PutByronWallet = "byron-wallets"
-    :> Capture "walletId" (ApiT WalletId)
-    :> ReqBody '[JSON] WalletPutData
-    :> Put '[JSON] ApiByronWallet
+    :> Capture "walletId" (ApiT AccountId)
+    :> ReqBody '[JSON] ApiAccountPutData
+    :> Put '[JSON] ApiByronAccount
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/getByronUTxOsStatistics
 type GetByronUTxOsStatistics = "byron-wallets"
-    :> Capture "walletId" (ApiT WalletId)
+    :> Capture "walletId" (ApiT AccountId)
     :> "statistics"
     :> "utxos"
     :> Get '[JSON] ApiUtxoStatistics
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/putByronWalletPassphrase
 type PutByronWalletPassphrase = "byron-wallets"
-    :> Capture "walletId" (ApiT WalletId)
+    :> Capture "walletId" (ApiT AccountId)
     :> "passphrase"
-    :> ReqBody '[JSON] ByronWalletPutPassphraseData
+    :> ReqBody '[JSON] ApiByronAccountPutPassphraseData
     :> PutNoContent
 
 {-------------------------------------------------------------------------------
@@ -570,28 +570,28 @@ type ByronAddresses n =
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/createAddress
 type PostByronAddress n = "byron-wallets"
-    :> Capture "walletId" (ApiT WalletId)
+    :> Capture "walletId" (ApiT AccountId)
     :> "addresses"
     :> ReqBody '[JSON] ApiPostRandomAddressData
     :> PostCreated '[JSON] (ApiAddressT n)
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/restoreAddress
 type PutByronAddress n = "byron-wallets"
-    :> Capture "walletId" (ApiT WalletId)
+    :> Capture "walletId" (ApiT AccountId)
     :> "addresses"
     :> Capture "addressId" (ApiAddressIdT n)
     :> PutNoContent
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/importAddresses
 type PutByronAddresses n = "byron-wallets"
-    :> Capture "walletId" (ApiT WalletId)
+    :> Capture "walletId" (ApiT AccountId)
     :> "addresses"
     :> ReqBody '[JSON] (ApiPutAddressesDataT n)
     :> PutNoContent
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/listByronAddresses
 type ListByronAddresses n = "byron-wallets"
-    :> Capture "walletId" (ApiT WalletId)
+    :> Capture "walletId" (ApiT AccountId)
     :> "addresses"
     :> QueryParam "state" (ApiT AddressState)
     :> Get '[JSON] [ApiAddressT n]
@@ -608,7 +608,7 @@ type ByronCoinSelections n =
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/byronSelectCoins
 type ByronSelectCoins n = "byron-wallets"
-    :> Capture "walletId" (ApiT WalletId)
+    :> Capture "walletId" (ApiT AccountId)
     :> "coin-selections"
     :> "random"
     :> ReqBody '[JSON] (ApiSelectCoinsDataT n)
@@ -629,14 +629,14 @@ type ByronTransactions n =
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/postByronTransaction
 type CreateByronTransaction n = "byron-wallets"
-    :> Capture "walletId" (ApiT WalletId)
+    :> Capture "walletId" (ApiT AccountId)
     :> "transactions"
     :> ReqBody '[JSON] (PostTransactionDataT n)
     :> PostAccepted '[JSON] (ApiTransactionT n)
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/listByronTransactions
 type ListByronTransactions n = "byron-wallets"
-    :> Capture "walletId" (ApiT WalletId)
+    :> Capture "walletId" (ApiT AccountId)
     :> "transactions"
     :> QueryParam "start" Iso8601Time
     :> QueryParam "end" Iso8601Time
@@ -645,21 +645,21 @@ type ListByronTransactions n = "byron-wallets"
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/getByronTransaction
 type GetByronTransaction n = "byron-wallets"
-    :> Capture "walletId" (ApiT WalletId)
+    :> Capture "walletId" (ApiT AccountId)
     :> "transactions"
     :> Capture "transactionId" ApiTxId
     :> Get '[JSON] (ApiTransactionT n)
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/postByronTransactionFee
 type PostByronTransactionFee n = "byron-wallets"
-    :> Capture "walletId" (ApiT WalletId)
+    :> Capture "walletId" (ApiT AccountId)
     :> "payment-fees"
     :> ReqBody '[JSON] (PostTransactionFeeDataT n)
     :> PostAccepted '[JSON] ApiFee
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/deleteByronTransaction
 type DeleteByronTransaction = "byron-wallets"
-    :> Capture "walletId" (ApiT WalletId)
+    :> Capture "walletId" (ApiT AccountId)
     :> "transactions"
     :> Capture "transactionId" ApiTxId
     :> DeleteNoContent
@@ -676,16 +676,16 @@ type ByronMigrations n =
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/migrateByronWallet
 type MigrateByronWallet n = "byron-wallets"
-    :> Capture "walletId" (ApiT WalletId)
+    :> Capture "walletId" (ApiT AccountId)
     :> "migrations"
-    :> ReqBody '[JSON] (ApiWalletMigrationPostDataT n "lenient")
+    :> ReqBody '[JSON] (ApiAccountMigrationPostDataT n "lenient")
     :> PostAccepted '[JSON] [ApiTransactionT n]
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/getByronWalletMigrationInfo
 type GetByronWalletMigrationInfo = "byron-wallets"
-    :> Capture "walletId" (ApiT WalletId)
+    :> Capture "walletId" (ApiT AccountId)
     :> "migrations"
-    :> Get '[JSON] ApiWalletMigrationInfo
+    :> Get '[JSON] ApiAccountMigrationInfo
 
 {-------------------------------------------------------------------------------
                                   Network
@@ -732,18 +732,18 @@ type PostExternalTransaction = "proxy"
 
 data ApiLayer s t (k :: Depth -> * -> *)
     = ApiLayer
-        (Tracer IO (WorkerLog WalletId WalletLog))
+        (Tracer IO (WorkerLog AccountId WalletLog))
         (Block, NetworkParameters, SyncTolerance)
         (NetworkLayer IO t (Block))
         (TransactionLayer t k)
         (DBFactory IO s k)
-        (WorkerRegistry WalletId (DBLayer IO s k))
+        (WorkerRegistry AccountId (DBLayer IO s k))
     deriving (Generic)
 
 instance HasWorkerCtx (DBLayer IO s k) (ApiLayer s t k) where
     type WorkerCtx (ApiLayer s t k) = WalletLayer s t k
     type WorkerMsg (ApiLayer s t k) = WalletLog
-    type WorkerKey (ApiLayer s t k) = WalletId
+    type WorkerKey (ApiLayer s t k) = AccountId
     hoistResource db transform (ApiLayer tr gp nw tl _ _) =
         WalletLayer (contramap transform tr) gp nw tl db
 
@@ -752,17 +752,17 @@ instance HasWorkerCtx (DBLayer IO s k) (ApiLayer s t k) where
 -------------------------------------------------------------------------------}
 
 type HasWorkerRegistry s k ctx =
-    ( HasType (WorkerRegistry WalletId (DBLayer IO s k)) ctx
+    ( HasType (WorkerRegistry AccountId (DBLayer IO s k)) ctx
     , HasWorkerCtx (DBLayer IO s k) ctx
-    , WorkerKey ctx ~ WalletId
+    , WorkerKey ctx ~ AccountId
     , WorkerMsg ctx ~ WalletLog
     )
 
 workerRegistry
     :: forall s k ctx. (HasWorkerRegistry s k ctx)
-    => Lens' ctx (WorkerRegistry WalletId (DBLayer IO s k))
+    => Lens' ctx (WorkerRegistry AccountId (DBLayer IO s k))
 workerRegistry =
-    typed @(WorkerRegistry WalletId (DBLayer IO s k))
+    typed @(WorkerRegistry AccountId (DBLayer IO s k))
 
 type HasDBFactory s k = HasType (DBFactory IO s k)
 
@@ -777,5 +777,5 @@ dbFactory =
 -------------------------------------------------------------------------------}
 
 type family PostData wallet :: * where
-    PostData ApiWallet = WalletOrAccountPostData
-    PostData ApiByronWallet = SomeByronWalletPostData
+    PostData ApiAccount = ApiAccountPostData
+    PostData ApiByronAccount = ApiSomeByronAccountPostData

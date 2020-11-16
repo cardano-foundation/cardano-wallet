@@ -19,7 +19,7 @@ import Cardano.CLI
 import Cardano.Launcher
     ( Command (..), StdStream (..), withBackendProcess )
 import Cardano.Wallet.Api.Types
-    ( ApiWallet )
+    ( ApiAccount )
 import Cardano.Wallet.Network.Ports
     ( findPort )
 import Cardano.Wallet.Primitive.SyncProgress
@@ -216,7 +216,7 @@ spec = do
                 waitForServer @t ctx
                 let pwd = "passphrase"
                 (_, out, _) <- createWalletViaCLI @t ctx ["n"] m "\n" pwd
-                expectValidJSON (Proxy @ApiWallet) out
+                expectValidJSON (Proxy @ApiAccount) out
               `finally` do
                 terminateProcess ph
                 TIO.hGetContents o >>= TIO.putStrLn
@@ -225,7 +225,7 @@ spec = do
                 waitForServer @t ctx
                 eventually "Wallet state = Ready" $ do
                     Stdout og <- getWalletViaCLI @t ctx $ T.unpack (wallet ^. walletId)
-                    jg <- expectValidJSON (Proxy @ApiWallet) og
+                    jg <- expectValidJSON (Proxy @ApiAccount) og
                     expectCliField (#state . #getApiT) (`shouldBe` Ready) jg
               `finally` do
                 terminateProcess ph

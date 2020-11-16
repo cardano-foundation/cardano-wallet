@@ -1,35 +1,35 @@
 {
-    "seed": 406081777260831026,
+    "seed": -4104980084752959184,
     "samples": [
         {
-            "address": "addr1kn0hst6smm5jwsmyw0ewj3r0w7rszpudfpz7gpcv2q3h2m494qksva58aw"
+            "address": "addr_test1j3n4y3t7lyyd7h33fgpzp75pl98zs2gkulaz6jecahunpceylf2s79f4tl"
         },
         {
-            "address": "addr_test1zzf0zlnnp95ly399hqetfvpgreldacs0jm4qxn65ykjdfk4v3ansxlwmc0"
+            "address": "stake_test1enffv8sevsn9v4d0nw78njk37mhfjdv4n4qc0lkwpt9mehfpf0msxrx4f0"
         },
         {
-            "address": "addr_test1zl8d4etheywevjgsd5p5mpqfge8xjskr6cd209kmrevzzx6nlmnsqh6gcz"
+            "address": "stake_test1p93qucghdgrk9vyzg82suvjh889xrttqfs4dlv3tjme77kqekhuq2f3lmh"
         },
         {
-            "address": "stake_test1gp9nl0zgw8h3a226z7ygpv6l06vxtuh0nfey4kf099mhy7lcdg0qtzfx8q"
+            "address": "stake_test1tz2exlcxg4syrfg5zdkxp2akn93n2p6eltwjv6v99eq0ywv9meuqks9ju8"
         },
         {
-            "address": "addr_test1pu44lev3w28fm25g0mlmng2s5wwh4jk8u93ead5ll66cezjqv6dq8w0p0d"
+            "address": "stake_test1vt48svp0gx2h7psapj6n55g8c8n557srdnulnuk39qes0ky9wdvswda3q6"
         },
         {
-            "address": "addr_test1lklyyd7ewrc6pt4jlg38xkaf0vc98q50uhdpagdv7jk4w0nvkq8s26pn3z"
+            "address": "addr_test1h9nzejrav4ymcn0mmagwut7dszwna39n0uv9stegczum92mmprlq3ezepz"
         },
         {
-            "address": "addr17j606vkpz89v7zsuvedrnnrkv3djyykrndjvh3cqedpjwkrseg2qkckem3"
+            "address": "addr188cw6m8lukkfuk480sahjm0xnaxw0njd5uzn2plallxxfzyez58qzjg2d3"
         },
         {
-            "address": "stake_test1d9fzzrmemtnr8jyd4mcwy0mz7lmf0pnlvuskmgrxwfujpfpe3jdqvlyyml"
+            "address": "stake_test12wsg9g897tmffe2adg7xk9jhdcwxc2xhnr9jrpcvn6xsvm02ga4q5m2ggg"
         },
         {
-            "address": "stake_test1alxs246symxwaektgww8933cje93j9at0srzwepcqnlp33usg2cs5tj9j5"
+            "address": "addr_test16kc0nrcsdrrlnm86zngxge3a8d50hke7equl83z4apf8tsc7ptsstzvc28"
         },
         {
-            "address": "stake_test18f3ktc9g2aj297paj0vd0hl8n02p7893gdzctq00rzcrmse7yr4qg79txs"
+            "address": "stake1led4nv42lhqnn9nmhy9ge6p7n29jcqemd8afhkjyu4xp798ua3qs40rr2z"
         }
     ]
 }

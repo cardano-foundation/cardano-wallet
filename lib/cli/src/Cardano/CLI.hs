@@ -131,26 +131,26 @@ import Cardano.Wallet.Api.Client
 import Cardano.Wallet.Api.Server
     ( HostPreference, Listen (..), TlsConfiguration (..) )
 import Cardano.Wallet.Api.Types
-    ( AccountPostData (..)
+    ( AccountPutPassphraseData (..)
     , AddressAmount
     , AllowedMnemonics
+    , ApiAccount
+    , ApiAccountFromKey (..)
+    , ApiAccountFromPhrase (..)
+    , ApiAccountPostData (..)
     , ApiAccountPublicKey
-    , ApiByronWallet
+    , ApiAccountPutData (..)
+    , ApiByronAccount
+    , ApiByronAccountFromPhrase (..)
     , ApiMnemonicT (..)
     , ApiPostRandomAddressData (..)
+    , ApiSomeByronAccountPostData (..)
     , ApiT (..)
     , ApiTxId (ApiTxId)
     , ApiTxMetadata (..)
-    , ApiWallet
-    , ByronWalletPostData (..)
     , ByronWalletStyle (..)
     , Iso8601Time (..)
     , PostExternalTransactionData (..)
-    , SomeByronWalletPostData (..)
-    , WalletOrAccountPostData (..)
-    , WalletPostData (..)
-    , WalletPutData (..)
-    , WalletPutPassphraseData (..)
     , fmtAllowedWords
     )
 import Cardano.Wallet.Network
@@ -168,11 +168,11 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncTolerance (..) )
 import Cardano.Wallet.Primitive.Types
-    ( AddressState
+    ( AccountId
+    , AddressState
     , Coin (..)
     , PoolMetadataSource (..)
     , SortOrder
-    , WalletId
     , WalletName
     )
 import Cardano.Wallet.Primitive.Types.Hash
@@ -396,7 +396,7 @@ cmdWalletList mkClient =
         runClient wPort Aeson.encodePretty $ listWallets mkClient
 
 cmdWalletCreate
-    :: WalletClient ApiWallet
+    :: WalletClient ApiAccount
     -> Mod CommandFields (IO ())
 cmdWalletCreate mkClient =
     command "create" $ info (helper <*> cmds) $ mempty
@@ -407,7 +407,7 @@ cmdWalletCreate mkClient =
         <> cmdWalletCreateFromPublicKey mkClient
 
 cmdByronWalletCreate
-    :: WalletClient ApiByronWallet
+    :: WalletClient ApiByronAccount
     -> Mod CommandFields (IO ())
 cmdByronWalletCreate mkClient =
     command "create" $ info (helper <*> cmds) $ mempty
@@ -423,7 +423,7 @@ data ByronWalletCreateFromMnemonicArgs = ByronWalletCreateFromMnemonicArgs
     }
 
 cmdByronWalletCreateFromMnemonic
-    :: WalletClient ApiByronWallet
+    :: WalletClient ApiByronAccount
     -> Mod CommandFields (IO ())
 cmdByronWalletCreateFromMnemonic mkClient =
     command "from-recovery-phrase" $ info (helper <*> cmd) $ mempty
@@ -441,7 +441,7 @@ cmdByronWalletCreateFromMnemonic mkClient =
                 fst <$> getLine @SomeMnemonic (T.pack prompt) (left show . parser)
             wPwd <- getPassphraseWithConfirm "Please enter a passphrase: "
             runClient wPort Aeson.encodePretty $ postWallet mkClient $
-                RandomWalletFromMnemonic $ ByronWalletPostData
+                SomeRandomFromPhrase $ ApiByronAccountFromPhrase
                     (ApiMnemonicT wSeed)
                     (ApiT wName)
                     (ApiT wPwd)
@@ -453,7 +453,7 @@ cmdByronWalletCreateFromMnemonic mkClient =
                 fst <$> getLine @SomeMnemonic (T.pack prompt) (left show . parser)
             wPwd <- getPassphraseWithConfirm "Please enter a passphrase: "
             runClient wPort Aeson.encodePretty $ postWallet mkClient $
-                SomeIcarusWallet $ ByronWalletPostData
+                SomeIcarusAccount $ ApiByronAccountFromPhrase
                     (ApiMnemonicT wSeed)
                     (ApiT wName)
                     (ApiT wPwd)
@@ -465,7 +465,7 @@ cmdByronWalletCreateFromMnemonic mkClient =
                 fst <$> getLine @SomeMnemonic (T.pack prompt) (left show . parser)
             wPwd <- getPassphraseWithConfirm "Please enter a passphrase: "
             runClient wPort Aeson.encodePretty $ postWallet mkClient $
-                SomeTrezorWallet $ ByronWalletPostData
+                SomeTrezorAccount $ ApiByronAccountFromPhrase
                     (ApiMnemonicT wSeed)
                     (ApiT wName)
                     (ApiT wPwd)
@@ -477,7 +477,7 @@ cmdByronWalletCreateFromMnemonic mkClient =
                 fst <$> getLine @SomeMnemonic (T.pack prompt) (left show . parser)
             wPwd <- getPassphraseWithConfirm "Please enter a passphrase: "
             runClient wPort Aeson.encodePretty $ postWallet mkClient $
-                SomeLedgerWallet $ ByronWalletPostData
+                SomeLedgerAccount $ ApiByronAccountFromPhrase
                     (ApiMnemonicT wSeed)
                     (ApiT wName)
                     (ApiT wPwd)
@@ -490,7 +490,7 @@ data WalletCreateArgs = WalletCreateArgs
     }
 
 cmdWalletCreateFromMnemonic
-    :: WalletClient ApiWallet
+    :: WalletClient ApiAccount
     -> Mod CommandFields (IO ())
 cmdWalletCreateFromMnemonic mkClient =
     command "from-recovery-phrase" $ info (helper <*> cmd) $ mempty
@@ -515,7 +515,7 @@ cmdWalletCreateFromMnemonic mkClient =
             fst <$> getLine @(Maybe SomeMnemonic) prompt (left show . parser)
         wPwd <- getPassphraseWithConfirm "Please enter a passphrase: "
         runClient wPort Aeson.encodePretty $ postWallet mkClient $
-            WalletOrAccountPostData $ Left $ WalletPostData
+            ApiAccountPostData $ Left $ ApiAccountFromPhrase
                 (Just $ ApiT wGap)
                 (ApiMnemonicT wSeed)
                 (ApiMnemonicT <$> wSndFactor)
@@ -531,7 +531,7 @@ data WalletCreateFromPublicKeyArgs = WalletCreateFromPublicKeyArgs
     }
 
 cmdWalletCreateFromPublicKey
-    :: WalletClient ApiWallet
+    :: WalletClient ApiAccount
     -> Mod CommandFields (IO ())
 cmdWalletCreateFromPublicKey mkClient =
     command "from-public-key" $ info (helper <*> cmd) $ mempty
@@ -544,7 +544,7 @@ cmdWalletCreateFromPublicKey mkClient =
         <*> accPubKeyArgument
     exec (WalletCreateFromPublicKeyArgs wPort wName wGap wAccPubKey) =
         runClient wPort Aeson.encodePretty $ postWallet mkClient $
-            WalletOrAccountPostData $ Right $ AccountPostData
+            ApiAccountPostData $ Right $ ApiAccountFromKey
                 (ApiT wName)
                 wAccPubKey
                 (Just $ ApiT wGap)
@@ -552,7 +552,7 @@ cmdWalletCreateFromPublicKey mkClient =
 -- | Arguments for 'wallet get' command
 data WalletGetArgs = WalletGetArgs
     { _port :: Port "Wallet"
-    , _id :: WalletId
+    , _id :: AccountId
     }
 
 cmdWalletGet
@@ -585,7 +585,7 @@ cmdWalletUpdate mkClient =
 -- | Arguments for 'wallet update name' command
 data WalletUpdateNameArgs = WalletUpdateNameArgs
     { _port :: Port "Wallet"
-    , _id :: WalletId
+    , _id :: AccountId
     , _name :: WalletName
     }
 
@@ -604,12 +604,12 @@ cmdWalletUpdateName mkClient =
     exec (WalletUpdateNameArgs wPort wId wName) = do
         runClient wPort Aeson.encodePretty $ putWallet mkClient
             (ApiT wId)
-            (WalletPutData $ Just (ApiT wName))
+            (ApiAccountPutData $ Just (ApiT wName))
 
 -- | Arguments for 'wallet update passphrase' command
 data WalletUpdatePassphraseArgs = WalletUpdatePassphraseArgs
     { _port :: Port "Wallet"
-    , _id :: WalletId
+    , _id :: AccountId
     }
 
 cmdWalletUpdatePassphrase
@@ -633,7 +633,7 @@ cmdWalletUpdatePassphrase mkClient =
                     "Please enter a new passphrase: "
                 runClient wPort (const mempty) $
                     putWalletPassphrase mkClient (ApiT wId) $
-                        WalletPutPassphraseData
+                        AccountPutPassphraseData
                             (ApiT wPassphraseOld)
                             (ApiT wPassphraseNew)
             Left _ ->
@@ -642,7 +642,7 @@ cmdWalletUpdatePassphrase mkClient =
 -- | Arguments for 'wallet delete' command
 data WalletDeleteArgs = WalletDeleteArgs
     { _port :: Port "Wallet"
-    , _id :: WalletId
+    , _id :: AccountId
     }
 
 cmdWalletDelete
@@ -704,7 +704,7 @@ cmdTransaction mkTxClient mkWalletClient =
 -- | Arguments for 'transaction create' command
 data TransactionCreateArgs t = TransactionCreateArgs
     { _port :: Port "Wallet"
-    , _id :: WalletId
+    , _id :: AccountId
     , _payments :: NonEmpty Text
     , _metadata :: ApiTxMetadata
     }
@@ -775,7 +775,7 @@ cmdTransactionFees mkTxClient mkWalletClient =
 -- | Arguments for 'transaction list' command.
 data TransactionListArgs = TransactionListArgs
     { _port :: Port "Wallet"
-    , _walletId :: WalletId
+    , _walletId :: AccountId
     , _timeRangeStart :: Maybe Iso8601Time
     , _timeRangeEnd :: Maybe Iso8601Time
     , _sortOrder :: Maybe SortOrder
@@ -825,7 +825,7 @@ cmdTransactionSubmit mkTxClient =
 -- | Arguments for 'transaction forget' command
 data TransactionForgetArgs = TransactionForgetArgs
     { _port :: Port "Wallet"
-    , _wid :: WalletId
+    , _wid :: AccountId
     , _txid :: TxId
     }
 
@@ -848,7 +848,7 @@ cmdTransactionForget mkClient =
 -- | Arguments for 'transaction get' command
 data TransactionGetArgs = TransactionGetArgs
     { _port :: Port "Wallet"
-    , _wid :: WalletId
+    , _wid :: AccountId
     , _txid :: TxId
     }
 
@@ -888,7 +888,7 @@ cmdAddress mkClient =
 data AddressListArgs = AddressListArgs
     { _port :: Port "Wallet"
     , _state :: Maybe AddressState
-    , _id :: WalletId
+    , _id :: AccountId
     }
 
 cmdAddressList
@@ -911,7 +911,7 @@ cmdAddressList mkClient =
 data AddressCreateArgs = AddressCreateArgs
     { _port :: Port "Wallet"
     , _addressIndex :: Maybe (Index 'Hardened 'AddressK)
-    , _id :: WalletId
+    , _id :: AccountId
     }
 
 cmdAddressCreate
@@ -936,7 +936,7 @@ cmdAddressCreate mkClient =
 -- | Arguments for 'address import' command
 data AddressImportArgs = AddressImportArgs
     { _port :: Port "Wallet"
-    , _id :: WalletId
+    , _id :: AccountId
     , _addr :: Text
     }
 
@@ -1335,7 +1335,7 @@ poolMetadataSourceOption = option (eitherReader reader) $ mempty
     reader = fromTextS @PoolMetadataSource
 
 -- | <wallet-id=WALLET_ID>
-walletIdArgument :: Parser WalletId
+walletIdArgument :: Parser AccountId
 walletIdArgument = argumentT $ mempty
     <> metavar "WALLET_ID"
 

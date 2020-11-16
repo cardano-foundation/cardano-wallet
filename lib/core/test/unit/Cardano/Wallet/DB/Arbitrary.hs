@@ -79,7 +79,8 @@ import Cardano.Wallet.Primitive.Model
 import Cardano.Wallet.Primitive.Slotting
     ( unsafeEpochNo )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..)
+    ( AccountId (..)
+    , Address (..)
     , AddressState (..)
     , Block (..)
     , BlockHeader (..)
@@ -108,7 +109,6 @@ import Cardano.Wallet.Primitive.Types
     , UTxO (..)
     , WalletDelegation (..)
     , WalletDelegationStatus (..)
-    , WalletId (..)
     , WalletMetadata (..)
     , WalletName (..)
     , WalletPassphraseInfo (..)
@@ -314,11 +314,11 @@ instance GenState s => Arbitrary (Wallet s) where
         <*> arbitrary
         <*> pure dummyGenesisParameters
 
-instance Arbitrary (PrimaryKey WalletId) where
+instance Arbitrary (PrimaryKey AccountId) where
     shrink _ = []
     arbitrary = do
         bytes <- B8.pack . pure <$> elements ['a'..'k']
-        return $ PrimaryKey $ WalletId $ hash bytes
+        return $ PrimaryKey $ AccountId $ hash bytes
 
 instance Arbitrary WalletMetadata where
     shrink _ = []
@@ -673,7 +673,7 @@ instance Buildable (JormungandrKey depth XPrv, Hash "encryption") where
         xprvF = "XPrv" :: Builder
         hF = build (toText (coerce @_ @(Hash "BlockHeader") h))
 
-instance Buildable (PrimaryKey WalletId) where
+instance Buildable (PrimaryKey AccountId) where
     build (PrimaryKey wid) = build wid
 
 instance Buildable MockChain where

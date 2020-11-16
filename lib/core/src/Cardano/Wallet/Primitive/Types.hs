@@ -120,7 +120,7 @@ module Cardano.Wallet.Primitive.Types
 
     -- * Wallet Metadata
     , WalletMetadata(..)
-    , WalletId(..)
+    , AccountId(..)
     , WalletName(..)
     , walletNameMinLength
     , walletNameMaxLength
@@ -129,7 +129,7 @@ module Cardano.Wallet.Primitive.Types
     , WalletDelegationNext (..)
     , WalletPassphraseInfo(..)
     , PassphraseScheme(..)
-    , WalletBalance(..)
+    , Balance(..)
     , IsDelegatingTo (..)
 
     -- * Stake Pools
@@ -379,25 +379,25 @@ walletNameMinLength = 1
 walletNameMaxLength :: Int
 walletNameMaxLength = 255
 
-newtype WalletId = WalletId { getWalletId :: Digest Blake2b_160 }
+newtype AccountId = AccountId { getAccountId :: Digest Blake2b_160 }
     deriving (Generic, Eq, Ord, Show)
 
-instance NFData WalletId
+instance NFData AccountId
 
-instance FromText WalletId where
+instance FromText AccountId where
     fromText txt = maybe
         (Left $ TextDecodingError msg)
-        (Right . WalletId)
+        (Right . AccountId)
         (decodeHex txt >>= digestFromByteString @_ @ByteString)
       where
         msg = "wallet id should be a hex-encoded string of 40 characters"
         decodeHex =
             either (const Nothing) Just . convertFromBase Base16 . T.encodeUtf8
 
-instance ToText WalletId where
-    toText = T.decodeUtf8 . convertToBase Base16 . getWalletId
+instance ToText AccountId where
+    toText = T.decodeUtf8 . convertToBase Base16 . getAccountId
 
-instance Buildable WalletId where
+instance Buildable AccountId where
     build wid = prefixF 8 widF <> "..." <> suffixF 8 widF
       where
         widF = toText wid
@@ -469,13 +469,13 @@ data PassphraseScheme
 
 instance NFData PassphraseScheme
 
-data WalletBalance = WalletBalance
+data Balance = Balance
     { available :: !(Quantity "lovelace" Natural)
     , total :: !(Quantity "lovelace" Natural)
     , reward :: !(Quantity "lovelace" Natural)
     } deriving (Eq, Generic, Show)
 
-instance NFData WalletBalance
+instance NFData Balance
 
 {-------------------------------------------------------------------------------
                                    Queries

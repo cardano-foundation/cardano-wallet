@@ -98,7 +98,8 @@ import Cardano.Wallet.Primitive.Model
 import Cardano.Wallet.Primitive.Slotting
     ( singleEraInterpreter )
 import Cardano.Wallet.Primitive.Types
-    ( ActiveSlotCoefficient (..)
+    ( AccountId (..)
+    , ActiveSlotCoefficient (..)
     , ActiveSlotCoefficient (..)
     , Address (..)
     , AddressState (..)
@@ -122,7 +123,6 @@ import Cardano.Wallet.Primitive.Types
     , UTxO (..)
     , WalletDelegation (..)
     , WalletDelegationStatus (..)
-    , WalletId (..)
     , WalletMetadata (..)
     , WalletName (..)
     )
@@ -779,10 +779,10 @@ testMetadata = WalletMetadata
     , creationTime = systemToUTCTime (MkSystemTime 0 0)
     }
 
-testWid :: WalletId
-testWid = WalletId (hash ("test" :: ByteString))
+testWid :: AccountId
+testWid = AccountId (hash ("test" :: ByteString))
 
-testPk :: PrimaryKey WalletId
+testPk :: PrimaryKey AccountId
 testPk = PrimaryKey testWid
 
 defaultPrefix :: DerivationPrefix

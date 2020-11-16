@@ -75,7 +75,8 @@ import Cardano.Wallet.Primitive.Fee
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncTolerance (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..)
+    ( AccountId (..)
+    , Address (..)
     , BlockHeader (BlockHeader)
     , ChimericAccount (..)
     , Coin (..)
@@ -97,7 +98,6 @@ import Cardano.Wallet.Primitive.Types
     , WalletDelegation (..)
     , WalletDelegationNext (..)
     , WalletDelegationStatus (..)
-    , WalletId (..)
     , WalletMetadata (..)
     , WalletName (..)
     , txId
@@ -200,7 +200,7 @@ import qualified Data.Set as Set
 spec :: Spec
 spec = do
     describe "Pointless tests to cover 'Show' instances for errors" $ do
-        let wid = WalletId (hash @ByteString "arbitrary")
+        let wid = AccountId (hash @ByteString "arbitrary")
         it (show $ ErrSelectForPaymentNoSuchWallet @() (ErrNoSuchWallet wid)) True
         it (show $ ErrSignPaymentNoSuchWallet (ErrNoSuchWallet wid)) True
         it (show $ ErrSubmitTxNoSuchWallet (ErrNoSuchWallet wid)) True
@@ -378,7 +378,7 @@ prop_guardCoinSelection (CoinSelectionGuard minVal cs) =
             label "ErrUTxOTooSmall" $ property True
 
 walletCreationProp
-    :: (WalletId, WalletName, DummyState)
+    :: (AccountId, WalletName, DummyState)
     -> Property
 walletCreationProp newWallet = monadicIO $ liftIO $ do
     (WalletLayerFixture DBLayer{..} _wl walletIds _) <- setupFixture newWallet
@@ -386,7 +386,7 @@ walletCreationProp newWallet = monadicIO $ liftIO $ do
     resFromDb `shouldSatisfy` isJust
 
 walletDoubleCreationProp
-    :: (WalletId, WalletName, DummyState)
+    :: (AccountId, WalletName, DummyState)
     -> Property
 walletDoubleCreationProp newWallet@(wid, wname, wstate) =
     monadicIO $ liftIO $ do
@@ -395,7 +395,7 @@ walletDoubleCreationProp newWallet@(wid, wname, wstate) =
         secondTrial `shouldSatisfy` isLeft
 
 walletGetProp
-    :: (WalletId, WalletName, DummyState)
+    :: (AccountId, WalletName, DummyState)
     -> Property
 walletGetProp newWallet = monadicIO $ liftIO $ do
     (WalletLayerFixture _db wl walletIds _) <- liftIO $ setupFixture newWallet
@@ -403,15 +403,15 @@ walletGetProp newWallet = monadicIO $ liftIO $ do
     resFromGet `shouldSatisfy` isRight
 
 walletGetWrongIdProp
-    :: ((WalletId, WalletName, DummyState), WalletId)
+    :: ((AccountId, WalletName, DummyState), AccountId)
     -> Property
-walletGetWrongIdProp (newWallet, corruptedWalletId) = monadicIO $ liftIO $ do
+walletGetWrongIdProp (newWallet, corruptedAccountId) = monadicIO $ liftIO $ do
     (WalletLayerFixture _db wl _walletIds _) <- liftIO $ setupFixture newWallet
-    attempt <- runExceptT $ W.readWallet wl corruptedWalletId
+    attempt <- runExceptT $ W.readWallet wl corruptedAccountId
     attempt `shouldSatisfy` isLeft
 
 walletIdDeterministic
-    :: (WalletId, WalletName, DummyState)
+    :: (AccountId, WalletName, DummyState)
     -> Property
 walletIdDeterministic newWallet = monadicIO $ liftIO $ do
     (WalletLayerFixture _ _ widsA _) <- liftIO $ setupFixture newWallet
@@ -419,7 +419,7 @@ walletIdDeterministic newWallet = monadicIO $ liftIO $ do
     widsA `shouldBe` widsB
 
 walletIdInjective
-    :: ((WalletId, WalletName, DummyState), (WalletId, WalletName, DummyState))
+    :: ((AccountId, WalletName, DummyState), (AccountId, WalletName, DummyState))
     -> Property
 walletIdInjective (walletA, walletB) = monadicIO $ liftIO $ do
     (WalletLayerFixture _ _ widsA _) <- liftIO $ setupFixture walletA
@@ -427,7 +427,7 @@ walletIdInjective (walletA, walletB) = monadicIO $ liftIO $ do
     widsA `shouldNotBe` widsB
 
 walletUpdateName
-    :: (WalletId, WalletName, DummyState)
+    :: (AccountId, WalletName, DummyState)
     -> [WalletName]
     -> Property
 walletUpdateName wallet@(_, wName0, _) names = monadicIO $ liftIO $ do
@@ -439,8 +439,8 @@ walletUpdateName wallet@(_, wName0, _) names = monadicIO $ liftIO $ do
     wName `shouldBe` last (wName0 : names)
 
 walletUpdateNameNoSuchWallet
-    :: (WalletId, WalletName, DummyState)
-    -> WalletId
+    :: (AccountId, WalletName, DummyState)
+    -> AccountId
     -> WalletName
     -> Property
 walletUpdateNameNoSuchWallet wallet@(wid', _, _) wid wName =
@@ -450,7 +450,7 @@ walletUpdateNameNoSuchWallet wallet@(wid', _, _) wid wName =
         attempt `shouldBe` Left (ErrNoSuchWallet wid)
 
 walletUpdatePassphrase
-    :: (WalletId, WalletName, DummyState)
+    :: (AccountId, WalletName, DummyState)
     -> Passphrase "raw"
     -> Maybe (JormungandrKey 'RootK XPrv, Passphrase "encryption")
     -> Property
@@ -471,7 +471,7 @@ walletUpdatePassphrase wallet new mxprv = monadicIO $ liftIO $ do
         attempt `shouldBe` Right ()
 
 walletUpdatePassphraseWrong
-    :: (WalletId, WalletName, DummyState)
+    :: (AccountId, WalletName, DummyState)
     -> (JormungandrKey 'RootK XPrv, Passphrase "encryption")
     -> (Passphrase "raw", Passphrase "raw")
     -> Property
@@ -486,8 +486,8 @@ walletUpdatePassphraseWrong wallet (xprv, pwd) (old, new) =
         attempt `shouldBe` Left err
 
 walletUpdatePassphraseNoSuchWallet
-    :: (WalletId, WalletName, DummyState)
-    -> WalletId
+    :: (AccountId, WalletName, DummyState)
+    -> AccountId
     -> (Passphrase "raw", Passphrase "raw")
     -> Property
 walletUpdatePassphraseNoSuchWallet wallet@(wid', _, _) wid (old, new) =
@@ -498,7 +498,7 @@ walletUpdatePassphraseNoSuchWallet wallet@(wid', _, _) wid (old, new) =
         attempt `shouldBe` Left err
 
 walletUpdatePassphraseDate
-    :: (WalletId, WalletName, DummyState)
+    :: (AccountId, WalletName, DummyState)
     -> (JormungandrKey 'RootK XPrv, Passphrase "encryption")
     -> Property
 walletUpdatePassphraseDate wallet (xprv, pwd) = monadicIO $ liftIO $ do
@@ -519,7 +519,7 @@ walletUpdatePassphraseDate wallet (xprv, pwd) = monadicIO $ liftIO $ do
     pause = threadDelay 500
 
 walletKeyIsReencrypted
-    :: (WalletId, WalletName)
+    :: (AccountId, WalletName)
     -> (JormungandrKey 'RootK XPrv, Passphrase "encryption")
     -> Passphrase "raw"
     -> Property
@@ -549,7 +549,7 @@ walletKeyIsReencrypted (wid, wname) (xprv, pwd) newPwd =
         }
 
 walletListTransactionsSorted
-    :: (WalletId, WalletName, DummyState)
+    :: (AccountId, WalletName, DummyState)
     -> SortOrder
     -> (Maybe UniformTime, Maybe UniformTime)
     -> [(Tx, TxMeta)]
@@ -682,12 +682,12 @@ instance Arbitrary CoinSelectionGuard where
 data WalletLayerFixture = WalletLayerFixture
     { _fixtureDBLayer :: DBLayer IO DummyState JormungandrKey
     , _fixtureWalletLayer :: WalletLayer DummyState DummyTarget JormungandrKey
-    , _fixtureWallet :: [WalletId]
+    , _fixtureWallet :: [AccountId]
     , _fixtureSlotNoTime :: SlotNo -> UTCTime
     }
 
 setupFixture
-    :: (WalletId, WalletName, DummyState)
+    :: (AccountId, WalletName, DummyState)
     -> IO WalletLayerFixture
 setupFixture (wid, wname, wstate) = do
     let nl = dummyNetworkLayer
@@ -809,11 +809,11 @@ instance CompareDiscovery DummyState where
 instance KnownAddresses DummyState where
     knownAddresses _ = []
 
-instance Arbitrary WalletId where
+instance Arbitrary AccountId where
     shrink _ = []
     arbitrary = do
         bytes <- BS.pack <$> replicateM 16 arbitrary
-        return $ WalletId (hash bytes)
+        return $ AccountId (hash bytes)
 
 instance Arbitrary WalletName where
     shrink _ = []

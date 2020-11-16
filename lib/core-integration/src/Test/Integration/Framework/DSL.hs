@@ -190,9 +190,13 @@ import Cardano.Mnemonic
     )
 import Cardano.Wallet.Api.Types
     ( AddressAmount
+    , ApiAccount
+    , ApiAccountDelegation (..)
+    , ApiAccountDelegationNext (..)
+    , ApiAccountDelegationStatus (..)
     , ApiAddress
     , ApiBlockReference (..)
-    , ApiByronWallet
+    , ApiByronAccount
     , ApiCoinSelection
     , ApiEpochInfo (ApiEpochInfo)
     , ApiFee
@@ -204,10 +208,6 @@ import Cardano.Wallet.Api.Types
     , ApiTransaction
     , ApiTxId (ApiTxId)
     , ApiUtxoStatistics (..)
-    , ApiWallet
-    , ApiWalletDelegation (..)
-    , ApiWalletDelegationNext (..)
-    , ApiWalletDelegationStatus (..)
     , DecodeAddress (..)
     , DecodeStakeAddress (..)
     , EncodeAddress (..)
@@ -239,7 +239,8 @@ import Cardano.Wallet.Primitive.Slotting
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..) )
 import Cardano.Wallet.Primitive.Types
-    ( ActiveSlotCoefficient (..)
+    ( AccountId (..)
+    , ActiveSlotCoefficient (..)
     , Address (..)
     , Coin (..)
     , EpochLength (..)
@@ -257,7 +258,6 @@ import Cardano.Wallet.Primitive.Types
     , TxStatus (..)
     , UTxO (..)
     , UTxOStatistics (..)
-    , WalletId (..)
     , computeUtxoStatistics
     , log10
     )
@@ -563,14 +563,14 @@ expectPathEventuallyExist filepath = do
 -- Lenses
 --
 
-walletId :: HasType (ApiT WalletId) s => Lens' s Text
+walletId :: HasType (ApiT AccountId) s => Lens' s Text
 walletId =
     lens _get _set
   where
-    _get :: HasType (ApiT WalletId) s => s -> Text
-    _get = T.pack . show . getWalletId . getApiT . view typed
-    _set :: HasType (ApiT WalletId) s => (s, Text) -> s
-    _set (s, v) = set typed (ApiT $ WalletId (unsafeCreateDigest v)) s
+    _get :: HasType (ApiT AccountId) s => s -> Text
+    _get = T.pack . show . getAccountId . getApiT . view typed
+    _set :: HasType (ApiT AccountId) s => (s, Text) -> s
+    _set (s, v) = set typed (ApiT $ AccountId (unsafeCreateDigest v)) s
 
 --
 -- Constants
@@ -676,7 +676,7 @@ waitAllTxsInLedger
         , MonadCatch m
         )
     => Context t
-    -> ApiWallet
+    -> ApiAccount
     -> m ()
 waitAllTxsInLedger ctx w = eventually "waitAllTxsInLedger: all txs in ledger" $ do
     let ep = Link.listTransactions @'Shelley w
@@ -835,7 +835,7 @@ restoreWalletFromPubKey
     :: forall w (style :: WalletStyle) t m.
         ( Link.Discriminate style
         , Link.PostWallet style
-        , HasType (ApiT WalletId) w
+        , HasType (ApiT AccountId) w
         , HasType (ApiT SyncProgress) w
         , Show w
         , FromJSON w
@@ -867,7 +867,7 @@ restoreWalletFromPubKey ctx pubKey name = snd <$> allocate create destroy
 emptyRandomWallet
     :: (MonadIO m, MonadCatch m)
     => Context t
-    -> ResourceT m ApiByronWallet
+    -> ResourceT m ApiByronAccount
 emptyRandomWallet ctx = do
     mnemonic <- liftIO $ mnemonicToText @12 . entropyToMnemonic <$> genEntropy
     emptyByronWalletWith ctx "random"
@@ -876,7 +876,7 @@ emptyRandomWallet ctx = do
 emptyRandomWalletMws
     :: (MonadIO m, MonadCatch m)
     => Context t
-    -> ResourceT m (ApiByronWallet, Mnemonic 12)
+    -> ResourceT m (ApiByronAccount, Mnemonic 12)
 emptyRandomWalletMws ctx = do
     mnemonic <- liftIO $ entropyToMnemonic <$> genEntropy
     (,mnemonic) <$> emptyByronWalletWith ctx "random"
@@ -885,7 +885,7 @@ emptyRandomWalletMws ctx = do
 emptyIcarusWallet
     :: (MonadIO m, MonadCatch m)
     => Context t
-    -> ResourceT m ApiByronWallet
+    -> ResourceT m ApiByronAccount
 emptyIcarusWallet ctx = do
     mnemonic <- liftIO $ mnemonicToText @15 . entropyToMnemonic <$> genEntropy
     emptyByronWalletWith ctx "icarus"
@@ -894,7 +894,7 @@ emptyIcarusWallet ctx = do
 emptyIcarusWalletMws
     :: (MonadIO m, MonadCatch m)
     => Context t
-    -> ResourceT m (ApiByronWallet, Mnemonic 15)
+    -> ResourceT m (ApiByronAccount, Mnemonic 15)
 emptyIcarusWalletMws ctx = do
     mnemonic <- liftIO $ entropyToMnemonic <$> genEntropy
     (,mnemonic) <$> emptyByronWalletWith ctx "icarus"
@@ -904,7 +904,7 @@ emptyRandomWalletWithPasswd
     :: (MonadIO m, MonadCatch m)
     => Context t
     -> Text
-    -> ResourceT m ApiByronWallet
+    -> ResourceT m ApiByronAccount
 emptyRandomWalletWithPasswd ctx rawPwd = do
     let pwd = preparePassphrase W.EncryptWithScrypt
             $ Passphrase
@@ -932,11 +932,11 @@ postWallet'
     => Context t
     -> Headers
     -> Payload
-    -> ResourceT m (HTTP.Status, Either RequestException ApiWallet)
+    -> ResourceT m (HTTP.Status, Either RequestException ApiAccount)
 postWallet' ctx headers payload = snd <$> allocate create (free . snd)
   where
     create =
-        request @ApiWallet ctx (Link.postWallet @'Shelley) headers payload
+        request @ApiAccount ctx (Link.postWallet @'Shelley) headers payload
 
     free (Right w) = void $ request @Aeson.Value ctx
         (Link.deleteWallet @'Shelley w) Default Empty
@@ -946,7 +946,7 @@ postWallet
     :: (MonadIO m, MonadCatch m)
     => Context t
     -> Payload
-    -> ResourceT m (HTTP.Status, Either RequestException ApiWallet)
+    -> ResourceT m (HTTP.Status, Either RequestException ApiAccount)
 postWallet ctx = postWallet' ctx Default
 
 
@@ -954,11 +954,11 @@ postByronWallet
     :: (MonadIO m, MonadCatch m)
     => Context t
     -> Payload
-    -> ResourceT m (HTTP.Status, Either RequestException ApiByronWallet)
+    -> ResourceT m (HTTP.Status, Either RequestException ApiByronAccount)
 postByronWallet ctx payload = snd <$> allocate create (free . snd)
   where
     create =
-        request @ApiByronWallet ctx (Link.postWallet @'Byron) Default payload
+        request @ApiByronAccount ctx (Link.postWallet @'Byron) Default payload
 
     free (Right w) = void $ request @Aeson.Value ctx
         (Link.deleteWallet @'Byron w) Default Empty
@@ -969,7 +969,7 @@ emptyByronWalletWith
     => Context t
     -> String
     -> (Text, [Text], Text)
-    -> ResourceT m ApiByronWallet
+    -> ResourceT m ApiByronAccount
 emptyByronWalletWith ctx style (name, mnemonic, pass) = do
     let payload = Json [aesonQQ| {
             "name": #{name},
@@ -986,7 +986,7 @@ emptyByronWalletFromXPrvWith
     => Context t
     -> String
     -> (Text, Text, Text)
-    -> ResourceT m ApiByronWallet
+    -> ResourceT m ApiByronAccount
 emptyByronWalletFromXPrvWith ctx style (name, key, passHash) = do
     let payload = Json [aesonQQ| {
             "name": #{name},
@@ -1002,7 +1002,7 @@ emptyByronWalletFromXPrvWith ctx style (name, key, passHash) = do
 emptyWallet
     :: (MonadIO m, MonadCatch m)
     => Context t
-    -> ResourceT m ApiWallet
+    -> ResourceT m ApiAccount
 emptyWallet ctx = do
     mnemonic <- liftIO $ (mnemonicToText . entropyToMnemonic) <$> genEntropy @160
     let payload = Json [aesonQQ| {
@@ -1019,7 +1019,7 @@ emptyWalletWith
     :: (MonadIO m, MonadCatch m)
     => Context t
     -> (Text, Text, Int)
-    -> ResourceT m ApiWallet
+    -> ResourceT m ApiAccount
 emptyWalletWith ctx (name, passphrase, addrPoolGap) = do
     mnemonic <- liftIO $ (mnemonicToText . entropyToMnemonic) <$> genEntropy @160
     let payload = Json [aesonQQ| {
@@ -1035,7 +1035,7 @@ emptyWalletWith ctx (name, passphrase, addrPoolGap) = do
 rewardWallet
     :: (MonadIO m, MonadCatch m)
     => Context t
-    -> ResourceT m (ApiWallet, Mnemonic 24)
+    -> ResourceT m (ApiAccount, Mnemonic 24)
 rewardWallet ctx = do
     mw <- liftIO $ nextWallet @"reward" (_faucet ctx)
     let mnemonic = mnemonicToText mw
@@ -1049,7 +1049,7 @@ rewardWallet ctx = do
     let w = getFromResponse id r
     waitForNextEpoch ctx
     eventually "MIR wallet: wallet is 100% synced " $ do
-        rg <- request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty
+        rg <- request @ApiAccount ctx (Link.getWallet @'Shelley w) Default Empty
         verify rg
             [ expectField (#balance . #getApiT . #available . #getQuantity) (.> 0)
             , expectField (#balance . #getApiT . #reward . #getQuantity) (.> 0)
@@ -1087,7 +1087,7 @@ fixturePassphraseEncrypted =
 fixtureWallet
     :: MonadIO m
     => Context t
-    -> ResourceT m ApiWallet
+    -> ResourceT m ApiAccount
 fixtureWallet ctx = do
     (w, _) <- fixtureWalletWithMnemonics ctx
     return w
@@ -1095,7 +1095,7 @@ fixtureWallet ctx = do
 fixtureWalletWithMnemonics
     :: MonadIO m
     => Context t
-    -> ResourceT m (ApiWallet, [Text])
+    -> ResourceT m (ApiAccount, [Text])
 fixtureWalletWithMnemonics ctx = snd <$> allocate create (free . fst)
   where
     create = do
@@ -1105,7 +1105,7 @@ fixtureWalletWithMnemonics ctx = snd <$> allocate create (free . fst)
                 "mnemonic_sentence": #{mnemonics},
                 "passphrase": #{fixturePassphrase}
                 } |]
-        (_, w) <- unsafeRequest @ApiWallet ctx
+        (_, w) <- unsafeRequest @ApiAccount ctx
             (Link.postWallet @'Shelley) payload
         race (threadDelay sixtySeconds) (checkBalance w) >>= \case
             Left _ -> expectationFailure'
@@ -1116,7 +1116,7 @@ fixtureWalletWithMnemonics ctx = snd <$> allocate create (free . fst)
         (Link.deleteWallet @'Shelley w) Default Empty
     sixtySeconds = 60*oneSecond
     checkBalance w = do
-        r <- request @ApiWallet ctx
+        r <- request @ApiAccount ctx
             (Link.getWallet @'Shelley w) Default Empty
         if getFromResponse (#balance . #getApiT . #available) r > Quantity 0
             then return (getFromResponse id r)
@@ -1126,7 +1126,7 @@ fixtureWalletWithMnemonics ctx = snd <$> allocate create (free . fst)
 fixtureRandomWalletMws
     :: (MonadIO m, MonadCatch m)
     => Context t
-    -> ResourceT m (ApiByronWallet, Mnemonic 12)
+    -> ResourceT m (ApiByronAccount, Mnemonic 12)
 fixtureRandomWalletMws ctx = do
     mnemonics <- liftIO $ nextWallet @"random" (_faucet ctx)
     (,mnemonics) <$> fixtureLegacyWallet ctx "random" (mnemonicToText mnemonics)
@@ -1134,7 +1134,7 @@ fixtureRandomWalletMws ctx = do
 fixtureRandomWallet
     :: (MonadIO m, MonadCatch m)
     => Context t
-    -> ResourceT m ApiByronWallet
+    -> ResourceT m ApiByronAccount
 fixtureRandomWallet = fmap fst . fixtureRandomWalletMws
 
 fixtureRandomWalletAddrs
@@ -1144,7 +1144,7 @@ fixtureRandomWalletAddrs
         , MonadCatch m
         )
     => Context t
-    -> ResourceT m (ApiByronWallet, [Address])
+    -> ResourceT m (ApiByronAccount, [Address])
 fixtureRandomWalletAddrs =
     fmap (second (randomAddresses @n)) . fixtureRandomWalletMws
 
@@ -1167,7 +1167,7 @@ fixtureRandomWalletWith
         )
     => Context t
     -> [Natural]
-    -> ResourceT m ApiByronWallet
+    -> ResourceT m ApiByronAccount
 fixtureRandomWalletWith ctx coins0 = do
     src  <- fixtureRandomWallet ctx
     mws  <- liftIO $ entropyToMnemonic <$> genEntropy
@@ -1177,14 +1177,14 @@ fixtureRandomWalletWith ctx coins0 = do
     liftIO $ mapM_ (moveByronCoins @n ctx src (dest, addrs)) (groupsOf 10 coins0)
     void $ request @() ctx
         (Link.deleteWallet @'Byron src) Default Empty
-    snd <$> unsafeRequest @ApiByronWallet ctx
+    snd <$> unsafeRequest @ApiByronAccount ctx
         (Link.getWallet @'Byron dest) Empty
 
 -- | Restore a faucet Icarus wallet and wait until funds are available.
 fixtureIcarusWalletMws
     :: (MonadIO m, MonadCatch m)
     => Context t
-    -> ResourceT m (ApiByronWallet, Mnemonic 15)
+    -> ResourceT m (ApiByronAccount, Mnemonic 15)
 fixtureIcarusWalletMws ctx = do
     mnemonics <- liftIO $ nextWallet @"icarus" (_faucet ctx)
     (,mnemonics) <$> fixtureLegacyWallet ctx "icarus" (mnemonicToText mnemonics)
@@ -1192,7 +1192,7 @@ fixtureIcarusWalletMws ctx = do
 fixtureIcarusWallet
     :: (MonadIO m, MonadCatch m)
     => Context t
-    -> ResourceT m ApiByronWallet
+    -> ResourceT m ApiByronAccount
 fixtureIcarusWallet = fmap fst . fixtureIcarusWalletMws
 
 fixtureIcarusWalletAddrs
@@ -1202,7 +1202,7 @@ fixtureIcarusWalletAddrs
         , MonadCatch m
         )
     => Context t
-    -> ResourceT m (ApiByronWallet, [Address])
+    -> ResourceT m (ApiByronAccount, [Address])
 fixtureIcarusWalletAddrs =
     fmap (second (icarusAddresses @n)) . fixtureIcarusWalletMws
 
@@ -1225,7 +1225,7 @@ fixtureIcarusWalletWith
         )
     => Context t
     -> [Natural]
-    -> ResourceT m ApiByronWallet
+    -> ResourceT m ApiByronAccount
 fixtureIcarusWalletWith ctx coins0 = do
     src  <- fixtureIcarusWallet ctx
     mws  <- liftIO $ entropyToMnemonic <$> genEntropy
@@ -1235,7 +1235,7 @@ fixtureIcarusWalletWith ctx coins0 = do
     liftIO $ mapM_ (moveByronCoins @n ctx src (dest, addrs)) (groupsOf 10 coins0)
     void $ request @() ctx
         (Link.deleteWallet @'Byron src) Default Empty
-    snd <$> unsafeRequest @ApiByronWallet ctx
+    snd <$> unsafeRequest @ApiByronAccount ctx
         (Link.getWallet @'Byron dest) Empty
 
 
@@ -1245,7 +1245,7 @@ fixtureLegacyWallet
     => Context t
     -> String
     -> [Text]
-    -> ResourceT m ApiByronWallet
+    -> ResourceT m ApiByronAccount
 fixtureLegacyWallet ctx style mnemonics = snd <$> allocate create free
   where
     create = do
@@ -1255,7 +1255,7 @@ fixtureLegacyWallet ctx style mnemonics = snd <$> allocate create free
                 "passphrase": #{fixturePassphrase},
                 "style": #{style}
                 } |]
-        (_, w) <- unsafeRequest @ApiByronWallet ctx
+        (_, w) <- unsafeRequest @ApiByronAccount ctx
             (Link.postWallet @'Byron) payload
         liftIO $ race (threadDelay sixtySeconds) (checkBalance w) >>= \case
             Left _ ->
@@ -1269,7 +1269,7 @@ fixtureLegacyWallet ctx style mnemonics = snd <$> allocate create free
 
     sixtySeconds = 60*oneSecond
     checkBalance w = do
-        r <- request @ApiByronWallet ctx
+        r <- request @ApiByronAccount ctx
             (Link.getWallet @'Byron w) Default Empty
         if getFromResponse (#balance . #available) r > Quantity 0
             then return (getFromResponse id r)
@@ -1291,28 +1291,28 @@ fixtureWalletWith
         )
     => Context t
     -> [Natural]
-    -> ResourceT m ApiWallet
+    -> ResourceT m ApiAccount
 fixtureWalletWith ctx coins0 = do
     src <- fixtureWallet ctx
     dest <- emptyWallet ctx
     liftIO $ mapM_ (moveCoins src dest) (groupsOf 10 coins0)
     liftIO $ void $ request @() ctx
         (Link.deleteWallet @'Shelley src) Default Empty
-    snd <$> unsafeRequest @ApiWallet ctx
+    snd <$> unsafeRequest @ApiAccount ctx
         (Link.getWallet @'Shelley dest) Empty
   where
     -- | Move coins from a wallet to another
     moveCoins
-        :: ApiWallet
+        :: ApiAccount
             -- ^ Source Wallet
-        -> ApiWallet
+        -> ApiAccount
             -- ^ Destination wallet
         -> [Natural]
             -- ^ Coins to move
         -> IO ()
     moveCoins src dest coins = do
         balance <- getFromResponse (#balance . #getApiT . #available . #getQuantity)
-            <$> request @ApiWallet ctx
+            <$> request @ApiAccount ctx
                     (Link.getWallet @'Shelley dest) Default Empty
         addrs <- fmap (view #id) . getFromResponse id
             <$> request @[ApiAddress n] ctx
@@ -1332,12 +1332,12 @@ fixtureWalletWith ctx coins0 = do
             (Link.createTransaction @'Shelley src) Default payload
             >>= expectResponseCode HTTP.status202
         eventually "balance available = balance total" $ do
-            rb <- request @ApiWallet ctx
+            rb <- request @ApiAccount ctx
                 (Link.getWallet @'Shelley dest) Default Empty
             expectField
                 (#balance . #getApiT . #available)
                 (`shouldBe` Quantity (sum (balance:coins))) rb
-            ra <- request @ApiWallet ctx
+            ra <- request @ApiAccount ctx
                 (Link.getWallet @'Shelley src) Default Empty
 
             getFromResponse (#balance . #getApiT . #available) ra
@@ -1353,16 +1353,16 @@ moveByronCoins
         )
     => Context t
         -- ^ Api context
-    -> ApiByronWallet
+    -> ApiByronAccount
         -- ^ Source Wallet
-    -> (ApiByronWallet, [Address])
+    -> (ApiByronAccount, [Address])
         -- ^ Destination wallet
     -> [Natural]
         -- ^ Coins to move
     -> IO ()
 moveByronCoins ctx src (dest, addrs) coins = do
     balance <- getFromResponse (#balance . #available . #getQuantity)
-        <$> request @ApiByronWallet ctx (Link.getWallet @'Byron dest) Default Empty
+        <$> request @ApiByronAccount ctx (Link.getWallet @'Byron dest) Default Empty
     let payments = for (zip coins addrs) $ \(amt, addr) ->
             let addrStr = encodeAddress @n addr
             in [aesonQQ|{
@@ -1380,11 +1380,11 @@ moveByronCoins ctx src (dest, addrs) coins = do
         (Link.createTransaction @'Byron src) Default payload
         >>= expectResponseCode HTTP.status202
     eventually "balance available = balance total" $ do
-        rb <- request @ApiByronWallet ctx
+        rb <- request @ApiByronAccount ctx
             (Link.getWallet @'Byron dest) Default Empty
         expectField (#balance . #available)
             (`shouldBe` Quantity (sum (balance:coins))) rb
-        ra <- request @ApiByronWallet ctx
+        ra <- request @ApiByronAccount ctx
             (Link.getWallet @'Byron src) Default Empty
         getFromResponse (#balance . #available) ra
             `shouldBe` getFromResponse (#balance . #total) ra
@@ -1427,7 +1427,7 @@ json = aesonQQ
 
 joinStakePool
     :: forall n t w m.
-        ( HasType (ApiT WalletId) w
+        ( HasType (ApiT AccountId) w
         , DecodeAddress n
         , DecodeStakeAddress n
         , MonadIO m
@@ -1446,7 +1446,7 @@ joinStakePool ctx p (w, pass) = do
 
 joinStakePoolUnsigned
     :: forall n style t w.
-        ( HasType (ApiT WalletId) w
+        ( HasType (ApiT AccountId) w
         , DecodeAddress n
         , EncodeAddress n
         , Link.Discriminate style
@@ -1464,7 +1464,7 @@ joinStakePoolUnsigned ctx w pid = do
 
 quitStakePool
     :: forall n t w m.
-        ( HasType (ApiT WalletId) w
+        ( HasType (ApiT AccountId) w
         , DecodeAddress n
         , DecodeStakeAddress n
         , MonadIO m
@@ -1482,7 +1482,7 @@ quitStakePool ctx (w, pass) = do
 
 quitStakePoolUnsigned
     :: forall n style t w m.
-        ( HasType (ApiT WalletId) w
+        ( HasType (ApiT AccountId) w
         , DecodeAddress n
         , EncodeAddress n
         , MonadIO m
@@ -1500,7 +1500,7 @@ quitStakePoolUnsigned ctx w = liftIO $ do
 
 selectCoins
     :: forall n style t w m.
-        ( HasType (ApiT WalletId) w
+        ( HasType (ApiT AccountId) w
         , DecodeAddress n
         , EncodeAddress n
         , Link.Discriminate style
@@ -1519,7 +1519,7 @@ selectCoins ctx w payments = do
         (Link.selectCoins @style w) Default payload
 
 delegationFee
-    :: forall t w m. (HasType (ApiT WalletId) w, MonadIO m, MonadCatch m)
+    :: forall t w m. (HasType (ApiT AccountId) w, MonadIO m, MonadCatch m)
     => Context t
     -> w
     -> m (HTTP.Status, Either RequestException ApiFee)
@@ -1604,7 +1604,7 @@ shelleyAddresses mw =
 listAddresses
     :: forall n t m. (MonadIO m, MonadCatch m, DecodeAddress n)
     => Context t
-    -> ApiWallet
+    -> ApiAccount
     -> m [ApiAddress n]
 listAddresses ctx w = do
     let link = Link.listAddresses @'Shelley w
@@ -1615,7 +1615,7 @@ listAllTransactions
     :: forall n t w m.
         ( DecodeAddress n
         , DecodeStakeAddress n
-        , HasType (ApiT WalletId) w
+        , HasType (ApiT AccountId) w
         , MonadIO m
         , MonadCatch m
         )
@@ -1629,7 +1629,7 @@ listTransactions
     :: forall n t w m.
         ( DecodeAddress n
         , DecodeStakeAddress n
-        , HasType (ApiT WalletId) w
+        , HasType (ApiT AccountId) w
         , MonadIO m
         , MonadCatch m
         )
@@ -1652,13 +1652,13 @@ listTransactions ctx wallet mStart mEnd mOrder = do
 -- | Delete all wallets
 deleteAllWallets :: Context t -> IO ()
 deleteAllWallets ctx = do
-    resp <- request @[ApiWallet] ctx ("GET", "v2/wallets") Default Empty
+    resp <- request @[ApiAccount] ctx ("GET", "v2/wallets") Default Empty
     forM_ (wallets (snd resp)) $ \wal -> do
         let endpoint = "v2/wallets" </> wal ^. walletId
         d <- request @Value ctx ("DELETE", endpoint) None Empty
         expectResponseCode HTTP.status204 d
     respByron <-
-        request @[ApiByronWallet] ctx ("GET", "v2/byron-wallets") Default Empty
+        request @[ApiByronAccount] ctx ("GET", "v2/byron-wallets") Default Empty
     forM_ (wallets (snd respByron)) $ \wal -> do
         let endpoint = "v2/byron-wallets" </> wal ^. walletId
         d <- request @Value ctx ("DELETE", endpoint) None Empty
@@ -1675,9 +1675,9 @@ listFilteredWallets
     :: (MonadIO m, MonadCatch m)
     => Set Text -- ^ Set of walletIds to include
     -> Context t
-    -> m (HTTP.Status, Either RequestException [ApiWallet])
+    -> m (HTTP.Status, Either RequestException [ApiAccount])
 listFilteredWallets include ctx = do
-    (s, mwallets) <- request @[ApiWallet] ctx
+    (s, mwallets) <- request @[ApiAccount] ctx
         (Link.listWallets @'Shelley) Default Empty
     return (s, filter (\w -> (w ^. walletId) `Set.member` include) <$> mwallets)
 
@@ -1687,9 +1687,9 @@ listFilteredByronWallets
     :: (MonadIO m, MonadCatch m)
     => Set Text -- ^ Set of walletIds to include
     -> Context t
-    -> m (HTTP.Status, Either RequestException [ApiByronWallet])
+    -> m (HTTP.Status, Either RequestException [ApiByronAccount])
 listFilteredByronWallets include ctx = do
-    (s, mwallets) <- request @[ApiByronWallet] ctx
+    (s, mwallets) <- request @[ApiByronAccount] ctx
         (Link.listWallets @'Byron) Default Empty
     return (s, filter (\w -> (w ^. walletId) `Set.member` include) <$> mwallets)
 
@@ -2200,14 +2200,14 @@ mkEpochInfo epochNo sp =
 notDelegating
     :: [(Maybe (ApiT PoolId), ApiEpochInfo)]
     -- ^ Pools to be joined & epoch at which the new delegation will become active
-    -> ApiWalletDelegation
-notDelegating nexts = ApiWalletDelegation
-    { active = ApiWalletDelegationNext NotDelegating Nothing Nothing
+    -> ApiAccountDelegation
+notDelegating nexts = ApiAccountDelegation
+    { active = ApiAccountDelegationNext NotDelegating Nothing Nothing
     , next = flip map nexts $ \(mpid, epochInfo) -> case mpid of
         Nothing ->
-            ApiWalletDelegationNext NotDelegating Nothing (Just epochInfo)
+            ApiAccountDelegationNext NotDelegating Nothing (Just epochInfo)
         Just pid ->
-            ApiWalletDelegationNext Delegating (Just pid) (Just epochInfo)
+            ApiAccountDelegationNext Delegating (Just pid) (Just epochInfo)
     }
 
 delegating
@@ -2215,9 +2215,9 @@ delegating
     -- ^ Pool joined
     -> [(Maybe (ApiT PoolId), ApiEpochInfo)]
     -- ^ Pools to be joined & epoch at which the new delegation will become active
-    -> ApiWalletDelegation
+    -> ApiAccountDelegation
 delegating pidActive nexts = (notDelegating nexts)
-    { active = ApiWalletDelegationNext Delegating (Just pidActive) Nothing
+    { active = ApiAccountDelegationNext Delegating (Just pidActive) Nothing
     }
 
 

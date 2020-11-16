@@ -512,7 +512,7 @@ x-walletState: &walletState
   <<: *syncProgress
   description: Whether a wallet is ready to use or still syncing
 
-x-walletBalance: &walletBalance
+x-balance: &balance
   description: Wallet current balance(s)
   type: object
   required:
@@ -530,7 +530,7 @@ x-walletBalance: &walletBalance
       <<: *amount
       description: Total balance (available balance plus pending change and reward balance).
 
-x-byronWalletBalance: &byronWalletBalance
+x-byronBalance: &byronBalance
   description: Byron wallet's current balance(s)
   type: object
   required:
@@ -1464,7 +1464,7 @@ components:
         status: *transactionStatus
         metadata: *transactionMetadata
 
-    ApiWalletDelegationNext: &ApiWalletDelegationNext
+    ApiAccountDelegationNext: &ApiAccountDelegationNext
       type: object
       description: Next delegation status becomes active at the start of the second epoch after the corresponding delegation certificate was discovered. The exact moment is specified by changes_at
       required:
@@ -1480,7 +1480,7 @@ components:
           epoch_number: 14
           epoch_start_time: 2020-01-22T10:06:39.037Z
 
-    ApiWalletDelegation: &ApiWalletDelegation
+    ApiAccountDelegation: &ApiAccountDelegation
       description: Delegation settings
       type: object
       required:
@@ -1500,9 +1500,9 @@ components:
             target: 1423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db1
         next:
           type: array
-          items: *ApiWalletDelegationNext
+          items: *ApiAccountDelegationNext
 
-    ApiWallet: &ApiWallet
+    ApiAccount: &ApiAccount
       type: object
       required:
         - id
@@ -1515,14 +1515,14 @@ components:
       properties:
         id: *walletId
         address_pool_gap: *walletAddressPoolGap
-        balance: *walletBalance
-        delegation: *ApiWalletDelegation
+        balance: *balance
+        delegation: *ApiAccountDelegation
         name: *walletName
         passphrase: *walletPassphraseInfo
         state: *walletState
         tip: *blockReference
 
-    ApiByronWallet: &ApiByronWallet
+    ApiByronAccount: &ApiByronAccount
       type: object
       required:
         - id
@@ -1533,14 +1533,14 @@ components:
         - tip
       properties:
         id: *walletId
-        balance: *byronWalletBalance
+        balance: *byronBalance
         discovery: *walletDiscovery
         name: *walletName
         passphrase: *walletPassphraseInfo
         state: *walletState
         tip: *blockReference
 
-    ApiWalletMigrationInfo: &ApiWalletMigrationInfo
+    ApiAccountMigrationInfo: &ApiAccountMigrationInfo
       type: object
       required:
         - migration_cost
@@ -1553,7 +1553,7 @@ components:
           <<: *amount
           description: Leftovers dust coins which won't be migrated nor spent as fees.
 
-    ApiWalletPassphrase: &ApiWalletPassphrase
+    ApiEncryptionPassphrase: &ApiEncryptionPassphrase
       type: object
       required:
         - passphrase
@@ -1562,7 +1562,7 @@ components:
           <<: *lenientPassphrase
           description: The source Byron wallet's master passphrase.
 
-    ApiByronWalletMigrationPostData: &ApiByronWalletMigrationPostData
+    ApiByronAccountMigrationPostData: &ApiByronAccountMigrationPostData
       type: object
       required:
         - passphrase
@@ -1588,7 +1588,7 @@ components:
           <<: *addresses
           description: The recipient addresses.
 
-    ApiWalletUTxOsStatistics: &ApiWalletUTxOsStatistics
+    ApiAccountUTxOsStatistics: &ApiAccountUTxOsStatistics
       type: object
       required:
         - total
@@ -1628,7 +1628,7 @@ components:
           10000000000000000: 0
           45000000000000000: 0
 
-    ApiWalletPostData: &ApiWalletPostData
+    ApiAccountFromPhrase: &ApiAccountFromPhrase
       type: object
       description: Restore from root private key
       required:
@@ -1642,7 +1642,7 @@ components:
         passphrase: *walletPassphrase
         address_pool_gap: *walletAddressPoolGap
 
-    ApiAccountPostData: &ApiAccountPostData
+    ApiAccountFromKey: &ApiAccountFromKey
       type: object
       description: Restore from account public key
       required:
@@ -1653,15 +1653,15 @@ components:
         account_public_key: *walletAccountPubkey
         address_pool_gap: *walletAddressPoolGap
 
-    ApiWalletOrAccountPostData: &ApiWalletOrAccountPostData
+    ApiAccountPostData: &ApiAccountPostData
       type: object
       oneOf:
-        - <<: *ApiWalletPostData
+        - <<: *ApiAccountFromPhrase
           title: shelley
-        - <<: *ApiAccountPostData
+        - <<: *ApiAccountFromKey
           title: shelley (from xpub)
 
-    ApiWalletSignData: &ApiWalletSignData
+    ApiAccountSignData: &ApiAccountSignData
         type: object
         required:
           - passphrase
@@ -1693,7 +1693,7 @@ components:
         payment: *ApiCredential
         stake: *ApiCredential
 
-    ApiByronWalletRandomPostData: &ApiByronWalletRandomPostData
+    ApiByronAccountFromPhrase_Random: &ApiByronAccountFromPhrase_Random
       type: object
       required:
         - name
@@ -1710,7 +1710,7 @@ components:
           minItems: 12
           maxItems: 24
 
-    ApiByronWalletRandomXPrvPostData: &ApiByronWalletRandomXPrvPostData
+    ApiByronAccountFromXPrv: &ApiByronAccountFromXPrv
       type: object
       description: patate
       required:
@@ -1730,7 +1730,7 @@ components:
           <<: *walletPassphraseHash
           deprecated: true
 
-    ApiByronWalletIcarusPostData: &ApiByronWalletIcarusPostData
+    ApiByronAccountFromPhrase_Icarus: &ApiByronAccountFromPhrase_Icarus
       type: object
       required:
         - name
@@ -1747,7 +1747,7 @@ components:
           minItems: 12
           maxItems: 24
 
-    ApiByronWalletTrezorPostData: &ApiByronWalletTrezorPostData
+    ApiByronAccountFromPhrase_Trezor: &ApiByronAccountFromPhrase_Trezor
       type: object
       required:
         - name
@@ -1764,7 +1764,7 @@ components:
           minItems: 12
           maxItems: 24
 
-    ApiByronWalletLedgerPostData: &ApiByronWalletLedgerPostData
+    ApiByronAccountFromPhrase_Ledger: &ApiByronAccountFromPhrase_Ledger
       type: object
       required:
         - name
@@ -1781,7 +1781,7 @@ components:
           minItems: 12
           maxItems: 24
 
-    ApiWalletPutData: &ApiWalletPutData
+    ApiAccountPutData: &ApiAccountPutData
       type: object
       properties:
         name: *walletName
@@ -1791,7 +1791,7 @@ components:
       properties:
         settings: *settings
 
-    ApiWalletPutPassphraseData: &ApiWalletPutPassphraseData
+    ApiAccountPutPassphraseData: &ApiAccountPutPassphraseData
       type: object
       required:
         - old_passphrase
@@ -1804,7 +1804,7 @@ components:
           <<: *walletPassphrase
           description: A master passphrase to lock and protect the wallet for sensitive operation (e.g. sending funds).
 
-    ApiByronWalletPutPassphraseData: &ApiByronWalletPutPassphraseData
+    ApiByronAccountPutPassphraseData: &ApiByronAccountPutPassphraseData
       type: object
       required:
         - new_passphrase
@@ -1954,19 +1954,19 @@ components:
       properties:
         pool_metadata_source: *poolMetadataSource
 
-    SomeByronWalletPostData: &SomeByronWalletPostData
+    ApiSomeByronAccountPostData: &ApiSomeByronAccountPostData
       oneOf:
-        - <<: *ApiByronWalletRandomPostData
+        - <<: *ApiByronAccountFromPhrase_Random
           title: random
-        - <<: *ApiByronWalletIcarusPostData
+        - <<: *ApiByronAccountFromPhrase_Icarus
           title: icarus
-        - <<: *ApiByronWalletTrezorPostData
+        - <<: *ApiByronAccountFromPhrase_Trezor
           title: trezor
-        - <<: *ApiByronWalletLedgerPostData
+        - <<: *ApiByronAccountFromPhrase_Ledger
           title: ledger
-        - <<: *ApiAccountPostData
+        - <<: *ApiAccountFromKey
           title: icarus/trezor/ledger (from xpub)
-        - <<: *ApiByronWalletRandomXPrvPostData
+        - <<: *ApiByronAccountFromXPrv
           title: random (from xprv)
 
 
@@ -2724,7 +2724,7 @@ x-responsesListWallets: &responsesListWallets
       application/json:
         schema:
           type: array
-          items: *ApiWallet
+          items: *ApiAccount
 
 x-responsesListByronWallets: &responsesListByronWallets
   <<: *responsesErr406
@@ -2734,7 +2734,7 @@ x-responsesListByronWallets: &responsesListByronWallets
       application/json:
         schema:
           type: array
-          items: *ApiByronWallet
+          items: *ApiByronAccount
 
 x-responsesGetUTxOsStatistics: &responsesGetUTxOsStatistics
   <<: *responsesErr404WalletNotFound
@@ -2743,7 +2743,7 @@ x-responsesGetUTxOsStatistics: &responsesGetUTxOsStatistics
     description: Ok
     content:
       application/json:
-        schema: *ApiWalletUTxOsStatistics
+        schema: *ApiAccountUTxOsStatistics
 
 x-responsesPostWallet: &responsesPostWallet
   <<: *responsesErr400
@@ -2754,7 +2754,7 @@ x-responsesPostWallet: &responsesPostWallet
     description: Created
     content:
       application/json:
-        schema: *ApiWallet
+        schema: *ApiAccount
 
 x-responsesPostByronWallet: &responsesPostByronWallet
   <<: *responsesErr400
@@ -2765,7 +2765,7 @@ x-responsesPostByronWallet: &responsesPostByronWallet
     description: Created
     content:
       application/json:
-        schema: *ApiByronWallet
+        schema: *ApiByronAccount
 
 x-responsesGetWallet: &responsesGetWallet
   <<: *responsesErr400
@@ -2775,7 +2775,7 @@ x-responsesGetWallet: &responsesGetWallet
     description: Ok
     content:
       application/json:
-        schema: *ApiWallet
+        schema: *ApiAccount
 
 x-responsesGetByronWallet: &responsesGetByronWallet
   <<: *responsesErr404
@@ -2784,7 +2784,7 @@ x-responsesGetByronWallet: &responsesGetByronWallet
     description: Ok
     content:
       application/json:
-        schema: *ApiByronWallet
+        schema: *ApiByronAccount
 
 x-responsesGetWalletMigrationInfo: &responsesGetWalletMigrationInfo
   403:
@@ -2798,7 +2798,7 @@ x-responsesGetWalletMigrationInfo: &responsesGetWalletMigrationInfo
     description: Ok
     content:
       application/json:
-        schema: *ApiWalletMigrationInfo
+        schema: *ApiAccountMigrationInfo
 
 x-responsesMigrateWallet: &responsesMigrateWallet
   403:
@@ -2846,7 +2846,7 @@ x-responsesPutWallet: &responsesPutWallet
     description: Ok
     content:
       application/json:
-        schema: *ApiWallet
+        schema: *ApiAccount
 
 x-responsesPutWalletPassphrase: &responsesPutWalletPassphrase
   <<: *responsesErr400
@@ -3280,7 +3280,7 @@ paths:
           required: true
           content:
             application/json:
-              schema: *ApiWalletSignData
+              schema: *ApiAccountSignData
         responses: *responsesPostSignatures
 
   /wallets:
@@ -3296,7 +3296,7 @@ paths:
         required: true
         content:
           application/json:
-            schema: *ApiWalletOrAccountPostData
+            schema: *ApiAccountPostData
       responses: *responsesPostWallet
 
     get:
@@ -3370,7 +3370,7 @@ paths:
         required: true
         content:
           application/json:
-            schema: *ApiWalletPutData
+            schema: *ApiAccountPutData
       responses: *responsesPutWallet
 
   /wallets/{walletId}/passphrase:
@@ -3386,7 +3386,7 @@ paths:
         required: true
         content:
           application/json:
-            schema: *ApiWalletPutPassphraseData
+            schema: *ApiAccountPutPassphraseData
       responses: *responsesPutWalletPassphrase
 
   /wallets/{walletId}/payment-fees:
@@ -3602,7 +3602,7 @@ paths:
         required: true
         content:
           application/json:
-            schema: *ApiWalletPassphrase
+            schema: *ApiEncryptionPassphrase
       responses: *responsesQuitStakePool
 
   /stake-pools/{stakePoolId}/wallets/{walletId}:
@@ -3624,7 +3624,7 @@ paths:
         required: true
         content:
           application/json:
-            schema: *ApiWalletPassphrase
+            schema: *ApiEncryptionPassphrase
       responses: *responsesJoinStakePool
 
   /wallets/{walletId}/coin-selections/random:
@@ -3707,7 +3707,7 @@ paths:
         required: true
         content:
           application/json:
-            schema: *SomeByronWalletPostData
+            schema: *ApiSomeByronAccountPostData
       responses: *responsesPostByronWallet
 
     get:
@@ -3785,7 +3785,7 @@ paths:
         required: true
         content:
           application/json:
-            schema: *ApiWalletPutData
+            schema: *ApiAccountPutData
       responses: *responsesPutWallet
 
   /byron-wallets/{walletId}/passphrase:
@@ -3801,7 +3801,7 @@ paths:
         required: true
         content:
           application/json:
-            schema: *ApiByronWalletPutPassphraseData
+            schema: *ApiByronAccountPutPassphraseData
       responses: *responsesPutWalletPassphrase
 
   /byron-wallets/{walletId}/addresses:
@@ -4003,7 +4003,7 @@ paths:
         required: true
         content:
           application/json:
-            schema: *ApiByronWalletMigrationPostData
+            schema: *ApiByronAccountMigrationPostData
       responses: *responsesMigrateWallet
 
     get:

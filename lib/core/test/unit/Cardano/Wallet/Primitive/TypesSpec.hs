@@ -52,7 +52,8 @@ import Cardano.Wallet.Primitive.Slotting
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncTolerance (..), mkSyncTolerance )
 import Cardano.Wallet.Primitive.Types
-    ( ActiveSlotCoefficient (..)
+    ( AccountId (..)
+    , ActiveSlotCoefficient (..)
     , Address (..)
     , AddressState (..)
     , Block (..)
@@ -85,7 +86,6 @@ import Cardano.Wallet.Primitive.Types
     , TxStatus (..)
     , UTxO (..)
     , UTxOStatistics (..)
-    , WalletId (..)
     , WalletName (..)
     , balance
     , computeUtxoStatistics
@@ -221,7 +221,7 @@ spec = do
         textRoundtrip $ Proxy @FeePolicy
         textRoundtrip $ Proxy @TxStatus
         textRoundtrip $ Proxy @WalletName
-        textRoundtrip $ Proxy @WalletId
+        textRoundtrip $ Proxy @AccountId
         textRoundtrip $ Proxy @SyncTolerance
         textRoundtrip $ Proxy @PoolId
         textRoundtrip $ Proxy @PoolOwner
@@ -237,11 +237,11 @@ spec = do
                 decodePoolIdBech32 (encodePoolIdBech32 pid) === Right pid
 
     describe "Buildable" $ do
-        it "WalletId" $ do
+        it "AccountId" $ do
             let mw = someDummyMnemonic (Proxy @12)
             let xprv = generateKeyFromSeed
                     (mw, Nothing) mempty :: JormungandrKey 'RootK XPrv
-            let wid = WalletId $ digest $ publicKey xprv
+            let wid = AccountId $ digest $ publicKey xprv
             "c225b83f...1d9d620e" === pretty @_ @Text wid
         it "TxMeta (1)" $ do
             let txMeta = TxMeta
@@ -789,10 +789,10 @@ spec = do
                       <> show walletNameMaxLength <> " characters"
             let walName = T.pack (replicate (walletNameMaxLength + 1) 'x')
             fromText @WalletName walName === Left (TextDecodingError err)
-        it "fail fromText @WalletId \"101\"" $ do
+        it "fail fromText @AccountId \"101\"" $ do
             let err = "wallet id should be a hex-encoded string \
                       \of 40 characters"
-            fromText @WalletId "101" === Left (TextDecodingError err)
+            fromText @AccountId "101" === Left (TextDecodingError err)
         it "Invalid account IDs cannot be decoded from text" $ do
             let expectedErrorMessage =
                     "Invalid account hash: \
@@ -1257,11 +1257,11 @@ instance Arbitrary Block where
         txs <- choose (0, 500) >>= vector
         Block <$> arbitrary <*> pure txs <*> pure []
 
-instance Arbitrary WalletId where
+instance Arbitrary AccountId where
     shrink _ = []
     arbitrary = do
         bytes <- BS.pack <$> replicateM 16 arbitrary
-        return $ WalletId (hash bytes)
+        return $ AccountId (hash bytes)
 
 instance Arbitrary WalletName where
     arbitrary = do

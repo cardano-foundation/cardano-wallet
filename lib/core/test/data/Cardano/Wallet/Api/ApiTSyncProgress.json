@@ -1,20 +1,13 @@
 {
-    "seed": 2198964721125321647,
+    "seed": 2243848787104206902,
     "samples": [
         {
-            "status": "syncing",
-            "progress": {
-                "quantity": 44.48,
-                "unit": "percent"
-            }
-        },
-        {
-            "status": "not_responding"
+            "status": "ready"
         },
         {
             "status": "syncing",
             "progress": {
-                "quantity": 7.78,
+                "quantity": 81.15,
                 "unit": "percent"
             }
         },
@@ -25,7 +18,11 @@
             "status": "not_responding"
         },
         {
-            "status": "not_responding"
+            "status": "syncing",
+            "progress": {
+                "quantity": 77.91,
+                "unit": "percent"
+            }
         },
         {
             "status": "ready"
@@ -33,21 +30,20 @@
         {
             "status": "syncing",
             "progress": {
-                "quantity": 96.99,
+                "quantity": 82.51,
                 "unit": "percent"
             }
         },
         {
-            "status": "syncing",
-            "progress": {
-                "quantity": 85.13,
-                "unit": "percent"
-            }
+            "status": "ready"
+        },
+        {
+            "status": "ready"
         },
         {
             "status": "syncing",
             "progress": {
-                "quantity": 86.86,
+                "quantity": 38.94,
                 "unit": "percent"
             }
         }

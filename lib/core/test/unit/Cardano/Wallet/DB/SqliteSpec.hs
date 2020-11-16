@@ -120,7 +120,8 @@ import Cardano.Wallet.Primitive.Model
     , initWallet
     )
 import Cardano.Wallet.Primitive.Types
-    ( ActiveSlotCoefficient (..)
+    ( AccountId (..)
+    , ActiveSlotCoefficient (..)
     , Address (..)
     , Block (..)
     , BlockHeader (..)
@@ -138,7 +139,6 @@ import Cardano.Wallet.Primitive.Types
     , TxStatus (..)
     , WalletDelegation (..)
     , WalletDelegationStatus (..)
-    , WalletId (..)
     , WalletMetadata (..)
     , WalletName (..)
     , WalletPassphraseInfo (..)
@@ -727,7 +727,7 @@ fileModeSpec =  do
 -- multiple sessions.
 prop_randomOpChunks
     :: (Eq s, PersistState s, Show s)
-    => KeyValPairs (PrimaryKey WalletId) (Wallet s, WalletMetadata)
+    => KeyValPairs (PrimaryKey AccountId) (Wallet s, WalletMetadata)
     -> Property
 prop_randomOpChunks (KeyValPairs pairs) =
     not (null pairs) ==> monadicIO (liftIO prop)
@@ -746,7 +746,7 @@ prop_randomOpChunks (KeyValPairs pairs) =
 
     insertPair
         :: DBLayer IO s k
-        -> (PrimaryKey WalletId, (Wallet s, WalletMetadata))
+        -> (PrimaryKey AccountId, (Wallet s, WalletMetadata))
         -> IO ()
     insertPair DBLayer{..} (k, (cp, meta)) = do
         keys <- atomically listWallets
@@ -849,27 +849,27 @@ cleanDB' (ctx, db) =
 
 listWallets'
     :: DBLayer m s k
-    -> m [PrimaryKey WalletId]
+    -> m [PrimaryKey AccountId]
 listWallets' DBLayer{..} =
     atomically listWallets
 
 readCheckpoint'
     :: DBLayer m s k
-    -> PrimaryKey WalletId
+    -> PrimaryKey AccountId
     -> m (Maybe (Wallet s))
 readCheckpoint' DBLayer{..} =
     atomically . readCheckpoint
 
 readWalletMeta'
     :: DBLayer m s k
-    -> PrimaryKey WalletId
+    -> PrimaryKey AccountId
     -> m (Maybe WalletMetadata)
 readWalletMeta' DBLayer{..} =
     atomically . readWalletMeta
 
 readTxHistory'
     :: DBLayer m s k
-    -> PrimaryKey WalletId
+    -> PrimaryKey AccountId
     -> SortOrder
     -> Range SlotNo
     -> Maybe TxStatus
@@ -879,7 +879,7 @@ readTxHistory' DBLayer{..} a0 a1 a2 =
 
 readPrivateKey'
     :: DBLayer m s k
-    -> PrimaryKey WalletId
+    -> PrimaryKey AccountId
     -> m (Maybe (k 'RootK XPrv, Hash "encryption"))
 readPrivateKey' DBLayer{..} =
     atomically . readPrivateKey
@@ -887,7 +887,7 @@ readPrivateKey' DBLayer{..} =
 -- | Attach an arbitrary private key to a wallet
 attachPrivateKey
     :: DBLayer IO s JormungandrKey
-    -> PrimaryKey WalletId
+    -> PrimaryKey AccountId
     -> ExceptT ErrNoSuchWallet IO (JormungandrKey 'RootK XPrv, Hash "encryption")
 attachPrivateKey DBLayer{..} wid = do
     let pwd = Passphrase $ BA.convert $ T.encodeUtf8 "simplevalidphrase"
@@ -930,10 +930,10 @@ testMetadata = WalletMetadata
     , delegation = WalletDelegation NotDelegating []
     }
 
-testWid :: WalletId
-testWid = WalletId (hash ("test" :: ByteString))
+testWid :: AccountId
+testWid = AccountId (hash ("test" :: ByteString))
 
-testPk :: PrimaryKey WalletId
+testPk :: PrimaryKey AccountId
 testPk = PrimaryKey testWid
 
 testTxs :: [(Tx, TxMeta)]

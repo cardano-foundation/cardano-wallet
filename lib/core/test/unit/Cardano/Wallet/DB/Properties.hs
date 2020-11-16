@@ -49,7 +49,8 @@ import Cardano.Wallet.Primitive.AddressDerivation.Jormungandr
 import Cardano.Wallet.Primitive.Model
     ( Wallet, applyBlock, currentTip )
 import Cardano.Wallet.Primitive.Types
-    ( BlockHeader (..)
+    ( AccountId (..)
+    , BlockHeader (..)
     , Direction (..)
     , ProtocolParameters
     , ShowFmt (..)
@@ -60,7 +61,6 @@ import Cardano.Wallet.Primitive.Types
     , Tx (..)
     , TxMeta (..)
     , TxStatus (..)
-    , WalletId (..)
     , WalletMetadata (..)
     , isPending
     , toTxHistory
@@ -182,7 +182,7 @@ properties = do
         it "cannot read after putting tx history for invalid tx id" $
             property . prop_getTxAfterPutInvalidTxId
         it "cannot read after putting tx history for invalid wallet id" $
-            property . prop_getTxAfterPutInvalidWalletId
+            property . prop_getTxAfterPutInvalidAccountId
 
     describe "can't put before wallet exists" $ do
         it "Checkpoint" $
@@ -356,7 +356,7 @@ properties = do
 readTxHistoryF
     :: Functor m
     => DBLayer m s JormungandrKey
-    -> PrimaryKey WalletId
+    -> PrimaryKey AccountId
     -> m (Identity GenTxHistory)
 readTxHistoryF DBLayer{..} wid =
     (Identity . GenTxHistory . fmap toTxHistory)
@@ -364,7 +364,7 @@ readTxHistoryF DBLayer{..} wid =
 
 putTxHistoryF
     :: DBLayer m s JormungandrKey
-    -> PrimaryKey WalletId
+    -> PrimaryKey AccountId
     -> GenTxHistory
     -> ExceptT ErrNoSuchWallet m ()
 putTxHistoryF DBLayer{..} wid =
@@ -452,7 +452,7 @@ assertWith lbl condition = do
 -- | Can list created wallets
 prop_createListWallet
     :: DBLayer IO s JormungandrKey
-    -> KeyValPairs (PrimaryKey WalletId) (Wallet s , WalletMetadata)
+    -> KeyValPairs (PrimaryKey AccountId) (Wallet s , WalletMetadata)
     -> Property
 prop_createListWallet db@DBLayer{..} (KeyValPairs pairs) =
     monadicIO (setup >> prop)
@@ -467,7 +467,7 @@ prop_createListWallet db@DBLayer{..} (KeyValPairs pairs) =
 -- | Trying to create a same wallet twice should yield an error
 prop_createWalletTwice
     :: DBLayer IO s JormungandrKey
-    -> ( PrimaryKey WalletId
+    -> ( PrimaryKey AccountId
        , Wallet s
        , WalletMetadata
        )
@@ -486,7 +486,7 @@ prop_createWalletTwice db@DBLayer{..} (key@(PrimaryKey wid), cp, meta) =
 -- | Trying to remove a same wallet twice should yield an error
 prop_removeWalletTwice
     :: DBLayer IO s JormungandrKey
-    -> ( PrimaryKey WalletId
+    -> ( PrimaryKey AccountId
        , Wallet s
        , WalletMetadata
        )
@@ -506,16 +506,16 @@ prop_removeWalletTwice db@DBLayer{..} (key@(PrimaryKey wid), cp, meta) =
 prop_readAfterPut
     :: ( Buildable (f a), Eq (f a), Applicative f, GenState s )
     => (  DBLayer IO s JormungandrKey
-       -> PrimaryKey WalletId
+       -> PrimaryKey AccountId
        -> a
        -> ExceptT ErrNoSuchWallet IO ()
        ) -- ^ Put Operation
     -> (  DBLayer IO s JormungandrKey
-       -> PrimaryKey WalletId
+       -> PrimaryKey AccountId
        -> IO (f a)
        ) -- ^ Read Operation
     -> DBLayer IO s JormungandrKey
-    -> (PrimaryKey WalletId, a)
+    -> (PrimaryKey AccountId, a)
         -- ^ Property arguments
     -> Property
 prop_readAfterPut putOp readOp db@DBLayer{..} (key, a) =
@@ -537,7 +537,7 @@ prop_readAfterPut putOp readOp db@DBLayer{..} (key, a) =
 prop_getTxAfterPutValidTxId
     :: GenState s
     => DBLayer IO s JormungandrKey
-    -> PrimaryKey WalletId
+    -> PrimaryKey AccountId
     -> GenTxHistory
     -> Property
 prop_getTxAfterPutValidTxId db@DBLayer{..} wid txGen =
@@ -565,7 +565,7 @@ prop_getTxAfterPutValidTxId db@DBLayer{..} wid txGen =
 prop_getTxAfterPutInvalidTxId
     :: GenState s
     => DBLayer IO s JormungandrKey
-    -> PrimaryKey WalletId
+    -> PrimaryKey AccountId
     -> GenTxHistory
     -> (Hash "Tx")
     -> Property
@@ -584,16 +584,16 @@ prop_getTxAfterPutInvalidTxId db@DBLayer{..} wid txGen txId' =
         assertWith "Irrespective of Inserted, Read is Nothing for invalid tx id"
             (isNothing res)
 
-prop_getTxAfterPutInvalidWalletId
+prop_getTxAfterPutInvalidAccountId
     :: DBLayer IO s JormungandrKey
-    -> ( PrimaryKey WalletId
+    -> ( PrimaryKey AccountId
        , Wallet s
        , WalletMetadata
        )
     -> GenTxHistory
-    -> PrimaryKey WalletId
+    -> PrimaryKey AccountId
     -> Property
-prop_getTxAfterPutInvalidWalletId db@DBLayer{..} (key, cp, meta) txGen key'@(PrimaryKey wid') =
+prop_getTxAfterPutInvalidAccountId db@DBLayer{..} (key, cp, meta) txGen key'@(PrimaryKey wid') =
     key /= key' ==> monadicIO (setup >> prop)
   where
     setup = liftIO $ do
@@ -610,18 +610,18 @@ prop_getTxAfterPutInvalidWalletId db@DBLayer{..} (key, cp, meta) txGen key'@(Pri
 prop_putBeforeInit
     :: (Buildable (f a), Eq (f a))
     => (  DBLayer IO s JormungandrKey
-       -> PrimaryKey WalletId
+       -> PrimaryKey AccountId
        -> a
        -> ExceptT ErrNoSuchWallet IO ()
        ) -- ^ Put Operation
     -> (  DBLayer IO s JormungandrKey
-       -> PrimaryKey WalletId
+       -> PrimaryKey AccountId
        -> IO (f a)
        ) -- ^ Read Operation
     -> f a
         -- ^ An 'empty' value for the 'Applicative' f
     -> DBLayer IO s JormungandrKey
-    -> (PrimaryKey WalletId, a)
+    -> (PrimaryKey AccountId, a)
         -- ^ Property arguments
     -> Property
 prop_putBeforeInit putOp readOp empty db@DBLayer{..} (key@(PrimaryKey wid), a) =
@@ -645,24 +645,24 @@ prop_isolation
        , Show s
        )
     => (  DBLayer IO s JormungandrKey
-       -> PrimaryKey WalletId
+       -> PrimaryKey AccountId
        -> a
        -> ExceptT ErrNoSuchWallet IO ()
        ) -- ^ Put Operation
     -> (  DBLayer IO s JormungandrKey
-       -> PrimaryKey WalletId
+       -> PrimaryKey AccountId
        -> IO (f b)
        ) -- ^ Read Operation for another resource
     -> (  DBLayer IO s JormungandrKey
-       -> PrimaryKey WalletId
+       -> PrimaryKey AccountId
        -> IO (g c)
        ) -- ^ Read Operation for another resource
     -> (  DBLayer IO s JormungandrKey
-       -> PrimaryKey WalletId
+       -> PrimaryKey AccountId
        -> IO (h d)
        ) -- ^ Read Operation for another resource
     -> DBLayer IO s JormungandrKey
-    -> (ShowFmt (PrimaryKey WalletId), ShowFmt a)
+    -> (ShowFmt (PrimaryKey AccountId), ShowFmt a)
         -- ^ Properties arguments
     -> Property
 prop_isolation putA readB readC readD db@DBLayer{..} (ShowFmt key, ShowFmt a) =
@@ -690,13 +690,13 @@ prop_isolation putA readB readC readD db@DBLayer{..} (ShowFmt key, ShowFmt a) =
 prop_readAfterDelete
     :: (Buildable (f a), Eq (f a), GenState s)
     => (  DBLayer IO s JormungandrKey
-       -> PrimaryKey WalletId
+       -> PrimaryKey AccountId
        -> IO (f a)
        ) -- ^ Read Operation
     -> f a
         -- ^ An 'empty' value for the 'Applicative' f
     -> DBLayer IO s JormungandrKey
-    -> ShowFmt (PrimaryKey WalletId)
+    -> ShowFmt (PrimaryKey AccountId)
     -> Property
 prop_readAfterDelete readOp empty db@DBLayer{..} (ShowFmt key) =
     monadicIO (setup >> prop)
@@ -714,18 +714,18 @@ prop_readAfterDelete readOp empty db@DBLayer{..} (ShowFmt key) =
 prop_sequentialPut
     :: (Buildable (f a), Eq (f a), GenState s)
     => (  DBLayer IO s JormungandrKey
-       -> PrimaryKey WalletId
+       -> PrimaryKey AccountId
        -> a
        -> ExceptT ErrNoSuchWallet IO ()
        ) -- ^ Put Operation
     -> (  DBLayer IO s JormungandrKey
-       -> PrimaryKey WalletId
+       -> PrimaryKey AccountId
        -> IO (f a)
        ) -- ^ Read Operation
     -> (forall k. Ord k => [(k, a)] -> [f a])
         -- ^ How do we expect operations to resolve
     -> DBLayer IO s JormungandrKey
-    -> KeyValPairs (ShowFmt (PrimaryKey WalletId)) (ShowFmt a)
+    -> KeyValPairs (ShowFmt (PrimaryKey AccountId)) (ShowFmt a)
         -- ^ Property arguments
     -> Property
 prop_sequentialPut putOp readOp resolve db@DBLayer{..} kv =
@@ -754,18 +754,18 @@ prop_sequentialPut putOp readOp resolve db@DBLayer{..} kv =
 prop_parallelPut
     :: (Arbitrary (Wallet s), Show s)
     => (  DBLayer IO s JormungandrKey
-       -> PrimaryKey WalletId
+       -> PrimaryKey AccountId
        -> a
        -> ExceptT ErrNoSuchWallet IO ()
        ) -- ^ Put Operation
     -> (  DBLayer IO s JormungandrKey
-       -> PrimaryKey WalletId
+       -> PrimaryKey AccountId
        -> IO (f a)
        ) -- ^ Read Operation
     -> (forall k. Ord k => [(k, a)] -> Int)
         -- ^ How many entries to we expect in the end
     -> DBLayer IO s JormungandrKey
-    -> KeyValPairs (PrimaryKey WalletId) a
+    -> KeyValPairs (PrimaryKey AccountId) a
         -- ^ Property arguments
     -> Property
 prop_parallelPut putOp readOp resolve db@DBLayer{..} (KeyValPairs pairs) =

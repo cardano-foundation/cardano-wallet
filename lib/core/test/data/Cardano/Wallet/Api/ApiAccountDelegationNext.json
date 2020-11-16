@@ -1,0 +1,81 @@
+{
+    "seed": -1884825779589271425,
+    "samples": [
+        {
+            "status": "delegating",
+            "changes_at": {
+                "epoch_start_time": "1873-07-15T13:44:15.401801260304Z",
+                "epoch_number": 11402
+            },
+            "target": "pool18yakezzl37tatpu95n3c9mazyauvutgmd6nh3fzh89ze2rf9hy3"
+        },
+        {
+            "status": "not_delegating",
+            "changes_at": {
+                "epoch_start_time": "1863-09-21T17:37:30.266426153071Z",
+                "epoch_number": 31673
+            }
+        },
+        {
+            "status": "delegating",
+            "changes_at": {
+                "epoch_start_time": "1869-01-29T19:49:48.652345470481Z",
+                "epoch_number": 21062
+            },
+            "target": "pool1pallrrf0vcu9vadr68uvt6v4y5vk3249yev33hc8u3g0yjfe00h"
+        },
+        {
+            "status": "delegating",
+            "changes_at": {
+                "epoch_start_time": "1860-01-25T19:09:30.767742928347Z",
+                "epoch_number": 28754
+            },
+            "target": "pool10wp28sxns5kpffa4q7e4cq7ec2k7d5kqp3tx4tp3mlm6wvf2kn3"
+        },
+        {
+            "status": "not_delegating",
+            "changes_at": {
+                "epoch_start_time": "1908-03-06T10:00:00Z",
+                "epoch_number": 10903
+            }
+        },
+        {
+            "status": "delegating",
+            "changes_at": {
+                "epoch_start_time": "1873-04-02T23:57:08Z",
+                "epoch_number": 8648
+            },
+            "target": "pool10xthsxs6ersy780xvvynwhmlmt9xd6adlk4653twku39uurepqq"
+        },
+        {
+            "status": "delegating",
+            "changes_at": {
+                "epoch_start_time": "1862-09-14T05:00:00Z",
+                "epoch_number": 29368
+            },
+            "target": "pool1cfdq59qnpmxskckgtqhqysu8nsq9spfedhq6en5z0v5dv07qkz8"
+        },
+        {
+            "status": "delegating",
+            "changes_at": {
+                "epoch_start_time": "1881-05-11T09:27:15Z",
+                "epoch_number": 12814
+            },
+            "target": "pool1daktfw4sv26vlvdd3ftfjy4dvgqjqr75suxtl7a3860yyw6xnxs"
+        },
+        {
+            "status": "not_delegating",
+            "changes_at": {
+                "epoch_start_time": "1893-10-27T03:00:00Z",
+                "epoch_number": 6321
+            }
+        },
+        {
+            "status": "not_delegating",
+            "changes_at": {
+                "epoch_start_time": "1860-06-26T10:43:20.950363154778Z",
+                "epoch_number": 26772
+            }
+        }
+    ]
+}

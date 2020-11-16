@@ -36,7 +36,8 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     , mkAddressPoolGap
     )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..)
+    ( AccountId (..)
+    , Address (..)
     , AddressState (..)
     , ChimericAccount (..)
     , Coin (..)
@@ -52,7 +53,6 @@ import Cardano.Wallet.Primitive.Types
     , StakePoolTicker
     , TxMetadata
     , TxStatus (..)
-    , WalletId (..)
     , isValidCoin
     , isValidEpochNo
     , unsafeEpochNo
@@ -201,31 +201,31 @@ instance PersistFieldSql Percentage where
     sqlType _ = sqlType (Proxy @Rational)
 
 ----------------------------------------------------------------------------
--- WalletId
+-- AccountId
 
-instance PersistField WalletId where
+instance PersistField AccountId where
     toPersistValue = toPersistValue . toText
     fromPersistValue = fromPersistValueFromText
 
-instance PersistFieldSql WalletId where
+instance PersistFieldSql AccountId where
     sqlType _ = sqlType (Proxy @Text)
 
-instance Read WalletId where
+instance Read AccountId where
     readsPrec _ = error "readsPrec stub needed for persistent"
 
-instance ToHttpApiData WalletId where
+instance ToHttpApiData AccountId where
     toUrlPiece = toText
 
-instance FromHttpApiData WalletId where
+instance FromHttpApiData AccountId where
     parseUrlPiece = fromText'
 
-instance ToJSON WalletId where
+instance ToJSON AccountId where
     toJSON = String . toText
 
-instance FromJSON WalletId where
-    parseJSON = aesonFromText "WalletId"
+instance FromJSON AccountId where
+    parseJSON = aesonFromText "AccountId"
 
-instance PathPiece WalletId where
+instance PathPiece AccountId where
     fromPathPiece = fromTextMaybe
     toPathPiece = toText
 

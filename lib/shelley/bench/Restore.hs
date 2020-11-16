@@ -110,7 +110,8 @@ import Cardano.Wallet.Primitive.Slotting
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..), mkSyncTolerance, syncProgress )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..)
+    ( AccountId (..)
+    , Address (..)
     , Block (..)
     , BlockHeader (..)
     , ChimericAccount
@@ -121,7 +122,6 @@ import Cardano.Wallet.Primitive.Types
     , SortOrder (..)
     , TxOut (..)
     , UTxOStatistics (..)
-    , WalletId (..)
     , WalletName (..)
     , computeUtxoStatistics
     , log10
@@ -311,12 +311,12 @@ cardanoRestoreBench tr c socketFile = do
     walletRnd
         :: Text
         -> (ByronKey 'RootK XPrv -> Int -> s)
-        -> (WalletId, WalletName, s)
+        -> (AccountId, WalletName, s)
     walletRnd wname mkState =
         let
             seed = dummySeedFromName wname
             xprv = Byron.generateKeyFromSeed seed mempty
-            wid = WalletId $ digest $ publicKey xprv
+            wid = AccountId $ digest $ publicKey xprv
             rngSeed = 0
             s = mkState xprv rngSeed
         in
@@ -325,12 +325,12 @@ cardanoRestoreBench tr c socketFile = do
     walletSeq
         :: Text
         -> ((ShelleyKey 'RootK XPrv, Passphrase "encryption") -> AddressPoolGap -> s)
-        -> (WalletId, WalletName, s)
+        -> (AccountId, WalletName, s)
     walletSeq wname mkState =
         let
             seed = dummySeedFromName wname
             xprv = Shelley.generateKeyFromSeed (seed, Nothing) mempty
-            wid = WalletId $ digest $ publicKey xprv
+            wid = AccountId $ digest $ publicKey xprv
             Right gap = mkAddressPoolGap 20
             s = mkState (xprv, mempty) gap
         in
@@ -421,7 +421,7 @@ benchmarksRnd
         )
     => Proxy n
     -> WalletLayer s t k
-    -> WalletId
+    -> AccountId
     -> WalletName
     -> Text
     -> Time
@@ -509,7 +509,7 @@ benchmarksSeq
         )
     => Proxy n
     -> WalletLayer s t k
-    -> WalletId
+    -> AccountId
     -> WalletName
     -> Text -- ^ Bench name
     -> Time
@@ -576,10 +576,10 @@ bench_restoration
     -> NetworkParameters
     -> NodeVersionData
     -> Text -- ^ Benchmark name (used for naming resulting files)
-    -> [(WalletId, WalletName, s)]
+    -> [(AccountId, WalletName, s)]
     -> Bool -- ^ If @True@, will trace detailed progress to a .timelog file.
     -> Percentage -- ^ Target sync progress
-    -> (Proxy n -> WalletLayer s t k -> WalletId -> WalletName -> Text -> Time -> IO results)
+    -> (Proxy n -> WalletLayer s t k -> AccountId -> WalletName -> Text -> Time -> IO results)
     -> IO SomeBenchmarkResults
 bench_restoration proxy tr socket np vData benchname wallets traceToDisk targetSync benchmarks = do
     putStrLn $ "*** " ++ T.unpack benchname
@@ -712,7 +712,7 @@ waitForWalletsSyncTo
     -> Tracer IO (BenchmarkLog n)
     -> Proxy n
     -> WalletLayer s t k
-    -> [WalletId]
+    -> [AccountId]
     -> GenesisParameters
     -> NodeVersionData
     -> IO ()

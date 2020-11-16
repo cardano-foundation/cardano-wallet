@@ -100,7 +100,8 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncTolerance )
 import Cardano.Wallet.Primitive.Types
-    ( Address
+    ( AccountId
+    , Address
     , Block
     , ChimericAccount
     , NetworkParameters (..)
@@ -108,7 +109,6 @@ import Cardano.Wallet.Primitive.Types
     , ProtocolParameters (..)
     , Settings (..)
     , SlottingParameters (..)
-    , WalletId
     )
 import Cardano.Wallet.Registry
     ( HasWorkerCtx (..), WorkerLog (..), defaultWorkerAfter )
@@ -354,7 +354,7 @@ serveWallet
             )
         => TransactionLayer t k
         -> NetworkLayer IO t (CardanoBlock StandardCrypto)
-        -> (WorkerCtx (ApiLayer s t k) -> WalletId -> IO ())
+        -> (WorkerCtx (ApiLayer s t k) -> AccountId -> IO ())
         -> IO (ApiLayer s t k)
     apiLayer tl nl coworker = do
         let params = (block0, np, sTolerance)
@@ -445,7 +445,7 @@ instance HasSeverityAnnotation ApplicationLog where
 data Tracers' f = Tracers
     { applicationTracer  :: f ApplicationLog
     , apiServerTracer    :: f ApiLog
-    , walletEngineTracer :: f (WorkerLog WalletId WalletLog)
+    , walletEngineTracer :: f (WorkerLog AccountId WalletLog)
     , walletDbTracer     :: f DBLog
     , poolsEngineTracer  :: f (WorkerLog Text StakePoolLog)
     , poolsDbTracer      :: f PoolDbLog

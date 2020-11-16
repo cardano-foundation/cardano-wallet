@@ -299,7 +299,8 @@ import Cardano.Wallet.Primitive.Slotting
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress, SyncTolerance (..), syncProgress )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..)
+    ( AccountId (..)
+    , Address (..)
     , AddressState (..)
     , Block (..)
     , BlockHeader (..)
@@ -333,7 +334,6 @@ import Cardano.Wallet.Primitive.Types
     , UnsignedTx (..)
     , WalletDelegation (..)
     , WalletDelegationStatus (..)
-    , WalletId (..)
     , WalletMetadata (..)
     , WalletName (..)
     , WalletPassphraseInfo (..)
@@ -524,7 +524,7 @@ data WalletLayer s t (k :: Depth -> * -> *)
 --         ( HasDBLayer s t k ctx
 --         )
 --     => ctx
---     -> IO [WalletId]
+--     -> IO [AccountId]
 -- @
 --
 -- Requires that the given context has an access to a database layer 'DBLayer'
@@ -591,10 +591,10 @@ createWallet
         , IsOurs s ChimericAccount
         )
     => ctx
-    -> WalletId
+    -> AccountId
     -> WalletName
     -> s
-    -> ExceptT ErrWalletAlreadyExists IO WalletId
+    -> ExceptT ErrWalletAlreadyExists IO AccountId
 createWallet ctx wid wname s = db & \DBLayer{..} -> do
     let (hist, cp) = initWallet block0 gp s
     now <- lift getCurrentTime
@@ -625,10 +625,10 @@ createIcarusWallet
         , s ~ SeqState n k
         )
     => ctx
-    -> WalletId
+    -> AccountId
     -> WalletName
     -> (k 'RootK XPrv, Passphrase "encryption")
-    -> ExceptT ErrWalletAlreadyExists IO WalletId
+    -> ExceptT ErrWalletAlreadyExists IO AccountId
 createIcarusWallet ctx wid wname credentials = db & \DBLayer{..} -> do
     let s = mkSeqStateFromRootXPrv @n credentials purposeBIP44 $
             mkUnboundedAddressPoolGap 10000
@@ -659,7 +659,7 @@ createIcarusWallet ctx wid wname credentials = db & \DBLayer{..} -> do
 checkWalletIntegrity
     :: forall ctx s k. HasDBLayer s k ctx
     => ctx
-    -> WalletId
+    -> AccountId
     -> GenesisParameters
     -> ExceptT ErrCheckWalletIntegrity IO ()
 checkWalletIntegrity ctx wid gp = db & \DBLayer{..} -> mapExceptT atomically $ do
@@ -679,7 +679,7 @@ checkWalletIntegrity ctx wid gp = db & \DBLayer{..} -> mapExceptT atomically $ d
 readWallet
     :: forall ctx s k. HasDBLayer s k ctx
     => ctx
-    -> WalletId
+    -> AccountId
     -> ExceptT ErrNoSuchWallet IO (Wallet s, WalletMetadata, Set Tx)
 readWallet ctx wid = db & \DBLayer{..} -> mapExceptT atomically $ do
     let pk = PrimaryKey wid
@@ -693,7 +693,7 @@ readWallet ctx wid = db & \DBLayer{..} -> mapExceptT atomically $ do
 readWalletProtocolParameters
     :: forall ctx s k. HasDBLayer s k ctx
     => ctx
-    -> WalletId
+    -> AccountId
     -> ExceptT ErrNoSuchWallet IO ProtocolParameters
 readWalletProtocolParameters ctx wid = db & \DBLayer{..} ->
     mapExceptT atomically $
@@ -726,7 +726,7 @@ updateWallet
         ( HasDBLayer s k ctx
         )
     => ctx
-    -> WalletId
+    -> AccountId
     -> (WalletMetadata -> WalletMetadata)
     -> ExceptT ErrNoSuchWallet IO ()
 updateWallet ctx wid modify = db & \DBLayer{..} -> mapExceptT atomically $ do
@@ -742,7 +742,7 @@ updateWalletPassphrase
         , WalletKey k
         )
     => ctx
-    -> WalletId
+    -> AccountId
     -> (Passphrase "raw", Passphrase "raw")
     -> ExceptT ErrUpdatePassphrase IO ()
 updateWalletPassphrase ctx wid (old, new) =
@@ -762,7 +762,7 @@ updateWalletPassphrase ctx wid (old, new) =
 listUtxoStatistics
     :: forall ctx s k. HasDBLayer s k ctx
     => ctx
-    -> WalletId
+    -> AccountId
     -> ExceptT ErrListUTxOStatistics IO UTxOStatistics
 listUtxoStatistics ctx wid = do
     (wal, _, pending) <- withExceptT
@@ -785,7 +785,7 @@ restoreWallet
         , IsOurs s ChimericAccount
         )
     => ctx
-    -> WalletId
+    -> AccountId
     -> ExceptT ErrNoSuchWallet IO ()
 restoreWallet ctx wid = db & \DBLayer{..} -> do
     cps <- liftIO $ atomically $ listCheckpoints (PrimaryKey wid)
@@ -816,7 +816,7 @@ rollbackBlocks
         , HasDBLayer s k ctx
         )
     => ctx
-    -> WalletId
+    -> AccountId
     -> SlotNo
     -> ExceptT ErrNoSuchWallet IO ()
 rollbackBlocks ctx wid point = db & \DBLayer{..} -> do
@@ -839,7 +839,7 @@ restoreBlocks
         , HasNetworkLayer t ctx
         )
     => ctx
-    -> WalletId
+    -> AccountId
     -> NonEmpty Block
     -> BlockHeader
     -> ExceptT ErrNoSuchWallet IO ()
@@ -929,7 +929,7 @@ saveParams
         ( HasDBLayer s k ctx
         )
     => ctx
-    -> WalletId
+    -> AccountId
     -> ProtocolParameters
     -> ExceptT ErrNoSuchWallet IO ()
 saveParams ctx wid params = db & \DBLayer{..} ->
@@ -945,7 +945,7 @@ deleteWallet
         ( HasDBLayer s k ctx
         )
     => ctx
-    -> WalletId
+    -> AccountId
     -> ExceptT ErrNoSuchWallet IO ()
 deleteWallet ctx wid = db & \DBLayer{..} -> do
     mapExceptT atomically $ removeWallet (PrimaryKey wid)
@@ -958,7 +958,7 @@ fetchRewardBalance
         ( HasDBLayer s k ctx
         )
     => ctx
-    -> WalletId
+    -> AccountId
     -> IO (Quantity "lovelace" Word64)
 fetchRewardBalance ctx wid = db & \DBLayer{..} ->
     atomically $ readDelegationRewardBalance pk
@@ -978,7 +978,7 @@ readNextWithdrawal
         , HasTransactionLayer t k ctx
         )
     => ctx
-    -> WalletId
+    -> AccountId
     -> Quantity "lovelace" Word64
     -> IO (Quantity "lovelace" Word64)
 readNextWithdrawal ctx wid (Quantity withdrawal) = db & \DBLayer{..} -> do
@@ -1014,7 +1014,7 @@ readChimericAccount
         , Typeable s
         )
     => ctx
-    -> WalletId
+    -> AccountId
     -> ExceptT ErrReadChimericAccount IO (ChimericAccount, NonEmpty DerivationIndex)
 readChimericAccount ctx wid = db & \DBLayer{..} -> do
     cp <- withExceptT ErrReadChimericAccountNoSuchWallet
@@ -1065,7 +1065,7 @@ manageRewardBalance
         )
     => Proxy n
     -> ctx
-    -> WalletId
+    -> AccountId
     -> IO ()
 manageRewardBalance _ ctx wid = db & \DBLayer{..} -> do
     watchNodeTip $ \bh -> do
@@ -1109,7 +1109,7 @@ listAddresses
         , KnownAddresses s
         )
     => ctx
-    -> WalletId
+    -> AccountId
     -> (s -> Address -> Maybe Address)
         -- ^ A function to normalize address, so that delegated addresses
         -- non-delegation addresses found in the transaction history are
@@ -1137,7 +1137,7 @@ createChangeAddress
         , GenChange s
         )
     => ctx
-    -> WalletId
+    -> AccountId
     -> ArgGenChange s
     -> ExceptT ErrNoSuchWallet IO Address
 createChangeAddress ctx wid argGenChange = db & \DBLayer{..} -> do
@@ -1158,7 +1158,7 @@ createRandomAddress
         , k ~ ByronKey
         )
     => ctx
-    -> WalletId
+    -> AccountId
     -> Passphrase "raw"
     -> Maybe (Index 'Hardened 'AddressK)
     -> ExceptT ErrCreateRandomAddress IO Address
@@ -1197,7 +1197,7 @@ importRandomAddresses
         , k ~ ByronKey
         )
     => ctx
-    -> WalletId
+    -> AccountId
     -> [Address]
     -> ExceptT ErrImportRandomAddress IO ()
 importRandomAddresses ctx wid addrs = db & \DBLayer{..} -> mapExceptT atomically $ do
@@ -1288,7 +1288,7 @@ selectCoinsForPayment
         , e ~ ErrValidateSelection t
         )
     => ctx
-    -> WalletId
+    -> AccountId
     -> NonEmpty TxOut
     -> Quantity "lovelace" Word64
     -> Maybe TxMetadata
@@ -1317,7 +1317,7 @@ selectCoinsSetup
         ( HasDBLayer s k ctx
         )
     => ctx
-    -> WalletId
+    -> AccountId
     -> ExceptT ErrNoSuchWallet IO (W.UTxO, Set Tx, W.TxParameters, W.Coin)
 selectCoinsSetup ctx wid = do
     (wal, _, pending) <- readWallet @ctx @s @k ctx wid
@@ -1370,7 +1370,7 @@ selectCoinsForDelegation
         , HasDBLayer s k ctx
         )
     => ctx
-    -> WalletId
+    -> AccountId
     -> DelegationAction
     -> ExceptT ErrSelectForDelegation IO CoinSelection
 selectCoinsForDelegation ctx wid action = do
@@ -1408,7 +1408,7 @@ estimateFeeForDelegation
         , HasDBLayer s k ctx
         )
     => ctx
-    -> WalletId
+    -> AccountId
     -> ExceptT ErrSelectForDelegation IO FeeEstimation
 estimateFeeForDelegation ctx wid = db & \DBLayer{..} -> do
     (utxo, _, txp, minUtxo) <- withExceptT ErrSelectForDelegationNoSuchWallet
@@ -1441,7 +1441,7 @@ selectCoinsForMigration
         , PaymentAddress n ByronKey
         )
     => ctx
-    -> WalletId
+    -> AccountId
        -- ^ The source wallet ID.
     -> ExceptT ErrSelectForMigration IO
         ( [CoinSelection]
@@ -1462,7 +1462,7 @@ selectCoinsForMigrationFromUTxO
     -> W.UTxO
     -> W.TxParameters
     -> W.Coin
-    -> WalletId
+    -> AccountId
        -- ^ The source wallet ID.
     -> ExceptT ErrSelectForMigration IO
         ( [CoinSelection]
@@ -1524,7 +1524,7 @@ estimateFeeForPayment
         , e ~ ErrValidateSelection t
         )
     => ctx
-    -> WalletId
+    -> AccountId
     -> NonEmpty TxOut
     -> Quantity "lovelace" Word64
     -> Maybe TxMetadata
@@ -1611,7 +1611,7 @@ signPayment
         , GenChange s
         )
     => ctx
-    -> WalletId
+    -> AccountId
     -> ArgGenChange s
     -> ((k 'RootK XPrv, Passphrase "encryption") -> (XPrv, Passphrase "encryption"))
        -- ^ Reward account derived from the root key (or somewhere else).
@@ -1683,7 +1683,7 @@ signTx
         , WalletKey k
         )
     => ctx
-    -> WalletId
+    -> AccountId
     -> Passphrase "raw"
     -> Maybe TxMetadata
     -> Maybe NominalDiffTime
@@ -1731,7 +1731,7 @@ selectCoinsExternal
         , e ~ ErrSelectCoinsExternal error
         )
     => ctx
-    -> WalletId
+    -> AccountId
     -> ArgGenChange s
     -> ExceptT e IO CoinSelection
     -> ExceptT e IO (UnsignedTx input output change)
@@ -1803,7 +1803,7 @@ signDelegation
         , WalletKey k
         )
     => ctx
-    -> WalletId
+    -> AccountId
     -> ArgGenChange s
     -> Passphrase "raw"
     -> CoinSelection
@@ -1916,7 +1916,7 @@ submitTx
         , HasDBLayer s k ctx
         )
     => ctx
-    -> WalletId
+    -> AccountId
     -> (Tx, TxMeta, SealedTx)
     -> ExceptT ErrSubmitTx IO ()
 submitTx ctx wid (tx, meta, binary) = db & \DBLayer{..} -> do
@@ -1957,7 +1957,7 @@ forgetTx
         ( HasDBLayer s k ctx
         )
     => ctx
-    -> WalletId
+    -> AccountId
     -> Hash "Tx"
     -> ExceptT ErrRemoveTx IO ()
 forgetTx ctx wid tid = db & \DBLayer{..} -> do
@@ -1972,7 +1972,7 @@ listTransactions
         , HasNetworkLayer t ctx
         )
     => ctx
-    -> WalletId
+    -> AccountId
     -> Maybe (Quantity "lovelace" Natural)
         -- Inclusive minimum value of at least one withdrawal in each transaction
     -> Maybe UTCTime
@@ -2016,7 +2016,7 @@ listTransactions ctx wid mMinWithdrawal mStart mEnd order = db & \DBLayer{..} ->
 getTransaction
     :: forall ctx s k. HasDBLayer s k ctx
     => ctx
-    -> WalletId
+    -> AccountId
     -> Hash "Tx"
     -> ExceptT ErrGetTransaction IO TransactionInfo
 getTransaction ctx wid tid = db & \DBLayer{..} -> do
@@ -2048,7 +2048,7 @@ joinStakePool
     -> Set PoolId
     -> PoolId
     -> PoolLifeCycleStatus
-    -> WalletId
+    -> AccountId
     -> ExceptT ErrJoinStakePool IO DelegationAction
 joinStakePool ctx currentEpoch knownPools pid poolStatus wid =
     db & \DBLayer{..} -> do
@@ -2084,7 +2084,7 @@ quitStakePool
         , s ~ SeqState n k
         )
     => ctx
-    -> WalletId
+    -> AccountId
     -> ExceptT ErrQuitStakePool IO DelegationAction
 quitStakePool ctx wid = db & \DBLayer{..} -> do
     walMeta <- mapExceptT atomically
@@ -2167,7 +2167,7 @@ attachPrivateKeyFromPwd
         ( HasDBLayer s k ctx
         )
     => ctx
-    -> WalletId
+    -> AccountId
     -> (k 'RootK XPrv, Passphrase "encryption")
     -> ExceptT ErrNoSuchWallet IO ()
 attachPrivateKeyFromPwd ctx wid (xprv, pwd) = db & \DBLayer{..} -> do
@@ -2201,7 +2201,7 @@ attachPrivateKeyFromPwdHash
         ( HasDBLayer s k ctx
         )
     => ctx
-    -> WalletId
+    -> AccountId
     -> (k 'RootK XPrv, Hash "encryption")
     -> ExceptT ErrNoSuchWallet IO ()
 attachPrivateKeyFromPwdHash ctx wid (xprv, hpwd) = db & \DBLayer{..} ->
@@ -2213,7 +2213,7 @@ attachPrivateKeyFromPwdHash ctx wid (xprv, hpwd) = db & \DBLayer{..} ->
 
 attachPrivateKey
     :: DBLayer IO s k
-    -> WalletId
+    -> AccountId
     -> (k 'RootK XPrv, Hash "encryption")
     -> PassphraseScheme
     -> ExceptT ErrNoSuchWallet IO ()
@@ -2249,7 +2249,7 @@ attachPrivateKey db wid (xprv, hpwd) scheme = db & \DBLayer{..} -> do
 withRootKey
     :: forall ctx s k e a. HasDBLayer s k ctx
     => ctx
-    -> WalletId
+    -> AccountId
     -> Passphrase "raw"
     -> (ErrWithRootKey -> e)
     -> (k 'RootK XPrv -> PassphraseScheme -> ExceptT e IO a)
@@ -2284,7 +2284,7 @@ signMetadataWith
         , s ~ SeqState n k
         )
     => ctx
-    -> WalletId
+    -> AccountId
     -> Passphrase "raw"
     -> (AccountingStyle, DerivationIndex)
     -> TxMetadata
@@ -2316,7 +2316,7 @@ derivePublicKey
         , s ~ SeqState n k
         )
     => ctx
-    -> WalletId
+    -> AccountId
     -> AccountingStyle
     -> DerivationIndex
     -> ExceptT ErrDerivePublicKey IO (k 'AddressK XPub)
@@ -2422,8 +2422,8 @@ data ErrUpdatePassphrase
 -- | Errors that can occur when trying to perform an operation on a wallet that
 -- requires a private key, but where none is attached to the wallet.
 data ErrWithRootKey
-    = ErrWithRootKeyNoRootKey WalletId
-    | ErrWithRootKeyWrongPassphrase WalletId ErrWrongPassphrase
+    = ErrWithRootKeyNoRootKey AccountId
+    | ErrWithRootKeyWrongPassphrase AccountId ErrWrongPassphrase
     deriving (Show, Eq)
 
 -- | Errors that can occur when trying to list transactions.
@@ -2490,7 +2490,7 @@ data ErrFetchRewards
 
 data ErrSelectForMigration
     = ErrSelectForMigrationNoSuchWallet ErrNoSuchWallet
-    | ErrSelectForMigrationEmptyWallet WalletId
+    | ErrSelectForMigrationEmptyWallet AccountId
         -- ^ User attempted to migrate an empty wallet
     deriving (Eq, Show)
 
@@ -2513,7 +2513,7 @@ data ErrCannotQuit
 
 -- | Can't perform given operation because the wallet died.
 newtype ErrWalletNotResponding
-    = ErrWalletNotResponding WalletId
+    = ErrWalletNotResponding AccountId
     deriving (Eq, Show)
 
 data ErrCreateRandomAddress
@@ -2553,7 +2553,7 @@ data ErrListPools
 
 withNoSuchWallet
     :: Monad m
-    => WalletId
+    => AccountId
     -> m (Maybe a)
     -> ExceptT ErrNoSuchWallet m a
 withNoSuchWallet wid =

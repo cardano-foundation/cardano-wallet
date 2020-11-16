@@ -1,153 +1,153 @@
 {
-    "seed": 4290201172570848777,
+    "seed": 4159525450067191117,
     "samples": [
         {
-            "saturation": 0.10751614481989469,
+            "saturation": 4.491879473231281,
             "non_myopic_member_rewards": {
-                "quantity": 152166704544,
+                "quantity": 121827186923,
                 "unit": "lovelace"
             },
             "produced_blocks": {
-                "quantity": 4805481,
+                "quantity": 22119833,
                 "unit": "block"
             },
             "relative_stake": {
-                "quantity": 44.16,
+                "quantity": 12.07,
                 "unit": "percent"
             }
         },
         {
-            "saturation": 3.4310496884085753,
+            "saturation": 2.2262821079675668,
             "non_myopic_member_rewards": {
-                "quantity": 188764404030,
+                "quantity": 745228065389,
                 "unit": "lovelace"
             },
             "produced_blocks": {
-                "quantity": 15633324,
+                "quantity": 15369146,
                 "unit": "block"
             },
             "relative_stake": {
-                "quantity": 1.9,
+                "quantity": 31.56,
                 "unit": "percent"
             }
         },
         {
-            "saturation": 4.243705057888601,
+            "saturation": 0.7441383114584138,
             "non_myopic_member_rewards": {
-                "quantity": 395723120014,
+                "quantity": 21748079767,
                 "unit": "lovelace"
             },
             "produced_blocks": {
-                "quantity": 4721387,
+                "quantity": 10218626,
                 "unit": "block"
             },
             "relative_stake": {
-                "quantity": 27,
+                "quantity": 10.2,
                 "unit": "percent"
             }
         },
         {
-            "saturation": 2.043344706638611,
+            "saturation": 1.6356776241223625,
             "non_myopic_member_rewards": {
-                "quantity": 783184264297,
+                "quantity": 219429706133,
                 "unit": "lovelace"
             },
             "produced_blocks": {
-                "quantity": 22592059,
+                "quantity": 15327642,
                 "unit": "block"
             },
             "relative_stake": {
-                "quantity": 9.26,
+                "quantity": 73.51,
                 "unit": "percent"
             }
         },
         {
-            "saturation": 4.272294780206066,
+            "saturation": 3.595657168117504,
             "non_myopic_member_rewards": {
-                "quantity": 655416953793,
+                "quantity": 100234584605,
                 "unit": "lovelace"
             },
             "produced_blocks": {
-                "quantity": 11965030,
+                "quantity": 15717361,
                 "unit": "block"
             },
             "relative_stake": {
-                "quantity": 15.22,
+                "quantity": 77.8,
                 "unit": "percent"
             }
         },
         {
-            "saturation": 3.4320540590575965,
+            "saturation": 4.307913380188285,
             "non_myopic_member_rewards": {
-                "quantity": 946139789543,
+                "quantity": 79390828516,
                 "unit": "lovelace"
             },
             "produced_blocks": {
-                "quantity": 20598819,
+                "quantity": 21263009,
                 "unit": "block"
             },
             "relative_stake": {
-                "quantity": 53.47,
+                "quantity": 95.36,
                 "unit": "percent"
             }
         },
         {
-            "saturation": 3.612078927784514,
+            "saturation": 1.0971530552331776,
             "non_myopic_member_rewards": {
-                "quantity": 922004030335,
+                "quantity": 119135475205,
                 "unit": "lovelace"
             },
             "produced_blocks": {
-                "quantity": 13948002,
+                "quantity": 1412519,
                 "unit": "block"
             },
             "relative_stake": {
-                "quantity": 20.32,
+                "quantity": 32.2,
                 "unit": "percent"
             }
         },
         {
-            "saturation": 1.8369126690876247,
+            "saturation": 0.29094318359386806,
             "non_myopic_member_rewards": {
-                "quantity": 741760214377,
+                "quantity": 627962108234,
                 "unit": "lovelace"
             },
             "produced_blocks": {
-                "quantity": 8208651,
+                "quantity": 12913132,
                 "unit": "block"
             },
             "relative_stake": {
-                "quantity": 38.08,
+                "quantity": 51.01,
                 "unit": "percent"
             }
         },
         {
-            "saturation": 0.8068271487118317,
+            "saturation": 0.582478800674241,
             "non_myopic_member_rewards": {
-                "quantity": 218944845310,
+                "quantity": 279739373422,
                 "unit": "lovelace"
             },
             "produced_blocks": {
-                "quantity": 5009789,
+                "quantity": 16817048,
                 "unit": "block"
             },
             "relative_stake": {
-                "quantity": 38.84,
+                "quantity": 34.37,
                 "unit": "percent"
             }
         },
         {
-            "saturation": 0.6898508393623815,
+            "saturation": 3.2360378531111684,
             "non_myopic_member_rewards": {
-                "quantity": 963600219927,
+                "quantity": 562111111080,
                 "unit": "lovelace"
             },
             "produced_blocks": {
-                "quantity": 21950838,
+                "quantity": 20597853,
                 "unit": "block"
             },
             "relative_stake": {
-                "quantity": 33.63,
+                "quantity": 45.05,
                 "unit": "percent"
             }
         }

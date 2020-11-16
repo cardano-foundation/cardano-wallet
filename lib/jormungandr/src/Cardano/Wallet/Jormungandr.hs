@@ -128,7 +128,8 @@ import Cardano.Wallet.Primitive.Slotting
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncTolerance )
 import Cardano.Wallet.Primitive.Types
-    ( Address
+    ( AccountId
+    , Address
     , Block
     , BlockHeader (..)
     , ChimericAccount
@@ -136,7 +137,6 @@ import Cardano.Wallet.Primitive.Types
     , NetworkParameters (..)
     , ProtocolParameters (..)
     , SlottingParameters (..)
-    , WalletId
     )
 import Cardano.Wallet.Registry
     ( WorkerLog (..), defaultWorkerAfter )
@@ -473,7 +473,7 @@ exitCodeApiServer = \case
 data Tracers' f = Tracers
     { applicationTracer     :: f ApplicationLog
     , apiServerTracer       :: f ApiLog
-    , walletEngineTracer    :: f (WorkerLog WalletId WalletLog)
+    , walletEngineTracer    :: f (WorkerLog AccountId WalletLog)
     , walletDbTracer        :: f DBLog
     , stakePoolEngineTracer :: f (WorkerLog Text StakePoolLog)
     , stakePoolDbTracer     :: f PoolDbLog

@@ -18,9 +18,9 @@ import Cardano.CLI
 import Cardano.Pool.Jormungandr.Metadata
     ( ApiStakePool )
 import Cardano.Wallet.Api.Types
-    ( ApiT (..)
+    ( ApiAccount
+    , ApiT (..)
     , ApiTransaction
-    , ApiWallet
     , DecodeAddress
     , DecodeStakeAddress
     , EncodeAddress
@@ -123,10 +123,10 @@ spec = do
         it "HW_WALLETS_03 - Cannot join SP" $ \(_,_,ctx) -> runResourceT @IO $ do
             (w, mnemonics) <- fixtureWalletWithMnemonics ctx
             let pubKey = pubKeyFromMnemonics mnemonics
-            r <- request @ApiWallet ctx (Link.deleteWallet @'Shelley w) Default Empty
+            r <- request @ApiAccount ctx (Link.deleteWallet @'Shelley w) Default Empty
             expectResponseCode HTTP.status204 r
 
-            wk <- restoreWalletFromPubKey @ApiWallet @'Shelley ctx pubKey "Wallet from pubkey"
+            wk <- restoreWalletFromPubKey @ApiAccount @'Shelley ctx pubKey "Wallet from pubkey"
             -- cannot join stake pool
             (_, p:_) <- liftIO $ eventually "Stake pools are listed" $
                 unsafeRequest @[ApiStakePool] ctx Link.listJormungandrStakePools Empty
@@ -157,17 +157,17 @@ spec = do
                             ]
                         )
                     ]
-            request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
+            request @ApiAccount ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
                 expectedDelegation
 
             -- delete wallet
             rDel <-
-                request @ApiWallet ctx (Link.deleteWallet @'Shelley w) Default Empty
+                request @ApiAccount ctx (Link.deleteWallet @'Shelley w) Default Empty
             expectResponseCode HTTP.status204 rDel
 
             -- restore from pub key and make sure delegation preserved
-            wRestored <- restoreWalletFromPubKey @ApiWallet @'Shelley ctx accPub "Wallet from pubkey"
-            request @ApiWallet ctx (Link.getWallet @'Shelley wRestored) Default Empty >>= flip verify
+            wRestored <- restoreWalletFromPubKey @ApiAccount @'Shelley ctx accPub "Wallet from pubkey"
+            request @ApiAccount ctx (Link.getWallet @'Shelley wRestored) Default Empty >>= flip verify
                 expectedDelegation
 
             -- cannot quit stake pool
@@ -360,7 +360,7 @@ spec = do
 
         -- Wait for money to flow
         eventually "Wallet gets rewards" $ do
-            request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
+            request @ApiAccount ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
                 [ expectField (#balance . #getApiT . #reward)
                     (.> (Quantity 0))
                 ]
@@ -391,7 +391,7 @@ spec = do
             ]
 
         reward <- eventually "wallet gets rewards" $ do
-            r <- request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty
+            r <- request @ApiAccount ctx (Link.getWallet @'Shelley w) Default Empty
             verify r
                 [ expectField
                         (#balance . #getApiT . #reward)
@@ -402,7 +402,7 @@ spec = do
         waitForNextEpoch ctx
 
         eventually "rewards are the same in the next epoch" $ do
-            request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
+            request @ApiAccount ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
                 [ expectField
                         (#balance . #getApiT . #reward)
                         (`shouldBe` reward)
@@ -450,7 +450,7 @@ spec = do
             rq <- quitStakePool @n ctx (w, fixturePassphrase)
             expectResponseCode HTTP.status202 rq
             eventually "Wallet is not delegating and has balance = 0" $ do
-                request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
+                request @ApiAccount ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
                     [ expectField #delegation (`shouldBe` notDelegating [])
                     -- balance is 0 because the rest was used for fees
                     , expectField
@@ -513,7 +513,7 @@ spec = do
 
         -- Verify the wallet is now delegating
         (currentEpochNo, sp) <- getSlotParams ctx
-        request @ApiWallet ctx (Link.getWallet @'Shelley wA) Default Empty >>= flip verify
+        request @ApiAccount ctx (Link.getWallet @'Shelley wA) Default Empty >>= flip verify
             [ expectField #delegation
                 (`shouldBe` notDelegating
                     [ (Just (p ^. #id), mkEpochInfo (currentEpochNo + 2) sp)
@@ -522,7 +522,7 @@ spec = do
             ]
 
         -- Verify the other is NOT delegating
-        request @ApiWallet ctx (Link.getWallet @'Shelley wB) Default Empty >>= flip verify
+        request @ApiAccount ctx (Link.getWallet @'Shelley wB) Default Empty >>= flip verify
             [ expectField #delegation (`shouldBe` notDelegating [])
             ]
 
@@ -698,7 +698,7 @@ spec = do
             unsafeRequest @[ApiStakePool] ctx Link.listJormungandrStakePools Empty
         w <- fixtureWallet ctx
 
-        request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
+        request @ApiAccount ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
             [ expectField #delegation (`shouldBe` notDelegating [])
             ]
 
@@ -710,7 +710,7 @@ spec = do
         r1 <- joinStakePool @n ctx (p1 ^. #id) (w, fixturePassphrase)
         expectResponseCode HTTP.status202 r1
         waitAllTxsInLedger @n ctx w
-        request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
+        request @ApiAccount ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
             [ expectField #delegation
                 (`shouldBe` notDelegating
                     [ (Just (p1 ^. #id), mkEpochInfo (currentEpoch + 3) sp)
@@ -718,7 +718,7 @@ spec = do
                 )
             ]
         eventually "Wallet is delegating to p1" $ do
-            request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
+            request @ApiAccount ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
                 [ expectField #delegation (`shouldBe` delegating (p1 ^. #id) [])
                 ]
 
@@ -726,7 +726,7 @@ spec = do
         r2 <- joinStakePool @n ctx (p2 ^. #id) (w, fixturePassphrase)
         expectResponseCode HTTP.status202 r2
         waitAllTxsInLedger @n ctx w
-        request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
+        request @ApiAccount ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
             [ expectField #delegation
                 (`shouldBe` delegating (p1 ^. #id)
                     [ (Just (p2 ^. #id), mkEpochInfo (currentEpoch + 5) sp)
@@ -734,7 +734,7 @@ spec = do
                 )
             ]
         eventually "Wallet is delegating to p2" $ do
-            request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
+            request @ApiAccount ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
                 [ expectField #delegation (`shouldBe` delegating (p2 ^. #id) [])
                 ]
 
@@ -761,7 +761,7 @@ spec = do
             unsafeRequest @[ApiStakePool] ctx Link.listJormungandrStakePools Empty
         w <- fixtureWallet ctx
 
-        request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty
+        request @ApiAccount ctx (Link.getWallet @'Shelley w) Default Empty
             >>= flip verify
                 [ expectField #delegation (`shouldBe` notDelegating []) ]
 
@@ -773,7 +773,7 @@ spec = do
                 r1 <- joinStakePool @n ctx (pool ^. #id) (w, fixturePassphrase)
                 expectResponseCode HTTP.status202 r1
                 waitAllTxsInLedger @n ctx w
-                request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
+                request @ApiAccount ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
                     [ expectField #delegation
                         (`shouldBe` notDelegating
                             [ (Just (pool ^. #id), mkEpochInfo (currentEpoch + 3) sp)
@@ -793,7 +793,7 @@ spec = do
             unsafeRequest @[ApiStakePool] ctx Link.listJormungandrStakePools Empty
         w <- fixtureWallet ctx
 
-        request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
+        request @ApiAccount ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
             [ expectField #delegation (`shouldBe` notDelegating []) ]
 
         -- make sure we are at the beginning of new epoch
@@ -803,7 +803,7 @@ spec = do
         r1 <- joinStakePool @n ctx (p1 ^. #id) (w, fixturePassphrase)
         expectResponseCode HTTP.status202 r1
         waitAllTxsInLedger @n ctx w
-        request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
+        request @ApiAccount ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
             [ expectField #delegation
                 (`shouldBe` notDelegating
                     [ (Just (p1 ^. #id), mkEpochInfo (currentEpoch + 3) sp)
@@ -818,7 +818,7 @@ spec = do
         r2 <- joinStakePool @n ctx (p2 ^. #id) (w, fixturePassphrase)
         expectResponseCode HTTP.status202 r2
         waitAllTxsInLedger @n ctx w
-        request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
+        request @ApiAccount ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
             [ expectField #delegation
                 (`shouldBe` notDelegating
                     [ (Just (p1 ^. #id), mkEpochInfo (currentEpoch + 3) sp)
@@ -830,7 +830,7 @@ spec = do
         -- coming to the next epoch:
         --  active: delegating to p1, next: delegating to p2
         eventually "Delegating to p1 and about to delegate to p2" $ do
-            request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
+            request @ApiAccount ctx (Link.getWallet @'Shelley w) Default Empty >>= flip verify
                 [ expectField (#tip . #slotId . #epochNumber . #getApiT)
                     (`shouldBe` currentEpoch + 3)
                 , expectField #delegation
@@ -856,7 +856,7 @@ joinStakePoolWithWalletBalance
         )
     => (Context t)
     -> [Natural]
-    -> ResourceT IO (ApiWallet, ApiStakePool)
+    -> ResourceT IO (ApiAccount, ApiStakePool)
 joinStakePoolWithWalletBalance ctx balance = do
     w <- fixtureWalletWith @n ctx balance
     (_, p:_) <- eventually "Stake pools are listed in joinStakePoolWithWalletBalance" $
@@ -878,7 +878,7 @@ joinStakePoolWithFixtureWallet
         , DecodeStakeAddress n
         )
     => (Context t)
-    -> ResourceT IO (ApiWallet, ApiStakePool)
+    -> ResourceT IO (ApiAccount, ApiStakePool)
 joinStakePoolWithFixtureWallet ctx = do
     w <- fixtureWallet ctx
     (_, p:_) <- eventually "Stake pools are listed in joinStakePoolWithFixtureWallet" $

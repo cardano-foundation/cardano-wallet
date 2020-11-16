@@ -41,7 +41,8 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.Model
     ( Wallet )
 import Cardano.Wallet.Primitive.Types
-    ( BlockHeader
+    ( AccountId
+    , BlockHeader
     , DelegationCertificate
     , ProtocolParameters
     , Range (..)
@@ -51,7 +52,6 @@ import Cardano.Wallet.Primitive.Types
     , Tx (..)
     , TxMeta
     , TxStatus
-    , WalletId
     , WalletMetadata
     )
 import Cardano.Wallet.Primitive.Types.Hash
@@ -73,14 +73,14 @@ import qualified Data.List as L
 
 -- | Instantiate database layers at will
 data DBFactory m s k = DBFactory
-    { withDatabase :: forall a. WalletId -> (DBLayer m s k -> IO a) -> IO a
+    { withDatabase :: forall a. AccountId -> (DBLayer m s k -> IO a) -> IO a
         -- ^ Creates a new or use an existing database, maintaining an open
         -- connection so long as necessary
 
-    , removeDatabase :: WalletId -> IO ()
+    , removeDatabase :: AccountId -> IO ()
         -- ^ Erase any trace of the database
 
-    , listDatabases :: IO [WalletId]
+    , listDatabases :: IO [AccountId]
         -- ^ List existing wallet database found on disk.
     }
 
@@ -119,7 +119,7 @@ data DBFactory m s k = DBFactory
 -- pattern match here!
 data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
     { initializeWallet
-        :: PrimaryKey WalletId
+        :: PrimaryKey AccountId
         -> Wallet s
         -> WalletMetadata
         -> [(Tx, TxMeta)]
@@ -130,17 +130,17 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         -- actually all fail if they are called _first_ on a wallet.
 
     , removeWallet
-        :: PrimaryKey WalletId
+        :: PrimaryKey AccountId
         -> ExceptT ErrNoSuchWallet stm ()
         -- ^ Remove a given wallet and all its associated data (checkpoints,
         -- metadata, tx history ...)
 
     , listWallets
-        :: stm [PrimaryKey WalletId]
+        :: stm [PrimaryKey AccountId]
         -- ^ Get the list of all known wallets in the DB, possibly empty.
 
     , putCheckpoint
-        :: PrimaryKey WalletId
+        :: PrimaryKey AccountId
         -> Wallet s
         -> ExceptT ErrNoSuchWallet stm ()
         -- ^ Replace the current checkpoint for a given wallet. We do not handle
@@ -150,20 +150,20 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         -- If the wallet doesn't exist, this operation returns an error.
 
     , readCheckpoint
-        :: PrimaryKey WalletId
+        :: PrimaryKey AccountId
         -> stm (Maybe (Wallet s))
         -- ^ Fetch the most recent checkpoint of a given wallet.
         --
         -- Return 'Nothing' if there's no such wallet.
 
     , listCheckpoints
-        :: PrimaryKey WalletId
+        :: PrimaryKey AccountId
         -> stm [BlockHeader]
         -- ^ List all known checkpoint tips, ordered by slot ids from the oldest
         -- to the newest.
 
     , putWalletMeta
-        :: PrimaryKey WalletId
+        :: PrimaryKey AccountId
         -> WalletMetadata
         -> ExceptT ErrNoSuchWallet stm ()
         -- ^ Replace an existing wallet metadata with the given one.
@@ -171,18 +171,18 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         -- If the wallet doesn't exist, this operation returns an error
 
     , readWalletMeta
-        :: PrimaryKey WalletId
+        :: PrimaryKey AccountId
         -> stm (Maybe WalletMetadata)
         -- ^ Fetch a wallet metadata, if they exist.
         --
         -- Return 'Nothing' if there's no such wallet.
 
     , isStakeKeyRegistered
-        :: PrimaryKey WalletId
+        :: PrimaryKey AccountId
         -> ExceptT ErrNoSuchWallet stm Bool
 
     , putDelegationCertificate
-        :: PrimaryKey WalletId
+        :: PrimaryKey AccountId
         -> DelegationCertificate
         -> SlotNo
         -> ExceptT ErrNoSuchWallet stm ()
@@ -197,7 +197,7 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         -- 2. Affected by rollbacks (or said differently, tied to a 'SlotNo').
 
     , putDelegationRewardBalance
-        :: PrimaryKey WalletId
+        :: PrimaryKey AccountId
         -> Quantity "lovelace" Word64
         -> ExceptT ErrNoSuchWallet stm ()
         -- ^ Store the latest known reward account balance.
@@ -207,7 +207,7 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         -- This is separate from putWalletMeta because it's not meta data
 
     , readDelegationRewardBalance
-        :: PrimaryKey WalletId
+        :: PrimaryKey AccountId
         -> stm (Quantity "lovelace" Word64)
         -- ^ Get the reward account balance.
         --
@@ -215,7 +215,7 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         -- stake.
 
     , putTxHistory
-        :: PrimaryKey WalletId
+        :: PrimaryKey AccountId
         -> [(Tx, TxMeta)]
         -> ExceptT ErrNoSuchWallet stm ()
         -- ^ Augments the transaction history for a known wallet.
@@ -226,7 +226,7 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         -- If the wallet doesn't exist, this operation returns an error.
 
     , readTxHistory
-        :: PrimaryKey WalletId
+        :: PrimaryKey AccountId
         -> Maybe (Quantity "lovelace" Natural)
         -> SortOrder
         -> Range SlotNo
@@ -238,7 +238,7 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         -- Returns an empty list if the wallet isn't found.
 
     , getTx
-        :: PrimaryKey WalletId
+        :: PrimaryKey AccountId
         -> Hash "Tx"
         -> ExceptT ErrNoSuchWallet stm (Maybe TransactionInfo)
         -- ^ Fetch the latest transaction by id, returns Nothing when the
@@ -247,20 +247,20 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         -- If the wallet doesn't exist, this operation returns an error.
 
     , updatePendingTxForExpiry
-        :: PrimaryKey WalletId
+        :: PrimaryKey AccountId
         -> SlotNo
         -> ExceptT ErrNoSuchWallet stm ()
         -- ^ Removes any expired transactions from the pending set and marks
         -- their status as expired.
 
     , removePendingOrExpiredTx
-        :: PrimaryKey WalletId
+        :: PrimaryKey AccountId
         -> Hash "Tx"
         -> ExceptT ErrRemoveTx stm ()
         -- ^ Manually remove a pending transaction.
 
     , putPrivateKey
-        :: PrimaryKey WalletId
+        :: PrimaryKey AccountId
         -> (k 'RootK XPrv, Hash "encryption")
         -> ExceptT ErrNoSuchWallet stm ()
         -- ^ Store or replace a private key for a given wallet. Note that wallet
@@ -269,24 +269,24 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         -- operations (like transaction signing).
 
     , readPrivateKey
-        :: PrimaryKey WalletId
+        :: PrimaryKey AccountId
         -> stm (Maybe (k 'RootK XPrv, Hash "encryption"))
         -- ^ Read a previously stored private key and its associated passphrase
         -- hash.
 
     , putProtocolParameters
-        :: PrimaryKey WalletId
+        :: PrimaryKey AccountId
         -> ProtocolParameters
         -> ExceptT ErrNoSuchWallet stm ()
         -- ^ Store protocol parameters for the node tip.
 
     , readProtocolParameters
-        :: PrimaryKey WalletId
+        :: PrimaryKey AccountId
         -> stm (Maybe ProtocolParameters)
         -- ^ Read the previously stored node tip protocol parameters.
 
     , rollbackTo
-        :: PrimaryKey WalletId
+        :: PrimaryKey AccountId
         -> SlotNo
         -> ExceptT ErrNoSuchWallet stm SlotNo
         -- ^ Drops all checkpoints and transaction data after the given slot.
@@ -297,7 +297,7 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         -- because the database may only keep sparse checkpoints.
 
     , prune
-        :: PrimaryKey WalletId
+        :: PrimaryKey AccountId
         -> ExceptT ErrNoSuchWallet stm ()
         -- ^ Prune database entities and remove entities that can be discarded.
 
@@ -308,7 +308,7 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
 
 -- | Can't perform given operation because there's no wallet
 newtype ErrNoSuchWallet
-    = ErrNoSuchWallet WalletId -- Wallet is gone or doesn't exist yet
+    = ErrNoSuchWallet AccountId -- Wallet is gone or doesn't exist yet
     deriving (Eq, Show)
 
 -- | Can't remove pending or expired transaction.
@@ -325,7 +325,7 @@ newtype ErrNoSuchTransaction
 
 -- | Forbidden operation was executed on an already existing wallet
 newtype ErrWalletAlreadyExists
-    = ErrWalletAlreadyExists WalletId -- Wallet already exists in db
+    = ErrWalletAlreadyExists AccountId -- Wallet already exists in db
     deriving (Eq, Show)
 
 -- | A primary key which can take many forms depending on the value. This may

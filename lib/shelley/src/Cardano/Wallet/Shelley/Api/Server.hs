@@ -110,11 +110,11 @@ import Cardano.Wallet.Api.Types
     , ApiMaintenanceActionPostData (..)
     , ApiSelectCoinsAction (..)
     , ApiSelectCoinsData (..)
+    , ApiSomeByronAccountPostData (..)
     , ApiStakePool
     , ApiT (..)
     , MaintenanceAction (..)
     , SettingsPutData (..)
-    , SomeByronWalletPostData (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( DelegationAddress (..), PaymentAddress (..) )
@@ -292,12 +292,12 @@ server byron icarus shelley spl ntp =
     byronWallets :: Server ByronWallets
     byronWallets =
         (\case
-            RandomWalletFromMnemonic x -> postRandomWallet byron x
-            RandomWalletFromXPrv x -> postRandomWalletFromXPrv byron x
-            SomeIcarusWallet x -> postIcarusWallet icarus x
-            SomeTrezorWallet x -> postTrezorWallet icarus x
-            SomeLedgerWallet x -> postLedgerWallet icarus x
-            SomeAccount x ->
+            SomeRandomFromPhrase x -> postRandomWallet byron x
+            SomeRandomFromXPrv x -> postRandomWalletFromXPrv byron x
+            SomeIcarusAccount x -> postIcarusWallet icarus x
+            SomeTrezorAccount x -> postTrezorWallet icarus x
+            SomeLedgerAccount x -> postLedgerWallet icarus x
+            SomeAccountFromKey x ->
                 postAccountWallet icarus (mkLegacyWallet @_ @_ @_ @t) IcarusKey idleWorker x
         )
         :<|> (\wid -> withLegacyLayer wid

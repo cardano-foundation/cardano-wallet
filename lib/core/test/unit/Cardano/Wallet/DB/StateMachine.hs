@@ -110,7 +110,8 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
 import Cardano.Wallet.Primitive.Model
     ( Wallet )
 import Cardano.Wallet.Primitive.Types
-    ( Address
+    ( AccountId (..)
+    , Address
     , BlockHeader
     , ChimericAccount (..)
     , Coin (..)
@@ -135,7 +136,6 @@ import Cardano.Wallet.Primitive.Types
     , TxParameters (..)
     , TxStatus
     , UTxO (..)
-    , WalletId (..)
     , WalletMetadata (..)
     , inputs
     )
@@ -242,13 +242,13 @@ type Mock s = Database MWid s MPrivKey
 newtype MWid = MWid String
     deriving (Show, Eq, Ord, Generic)
 
-widPK :: MWid -> PrimaryKey WalletId
+widPK :: MWid -> PrimaryKey AccountId
 widPK = PrimaryKey . unMockWid
 
 -- | Convert a mock wallet ID to a real one by hashing it, then splicing the
 -- mock ID in front so that both ID types are sorted in the same order.
-unMockWid :: MWid -> WalletId
-unMockWid (MWid wid) = WalletId m
+unMockWid :: MWid -> AccountId
+unMockWid (MWid wid) = AccountId m
   where
     Just m = digestFromByteString spliced
     spliced = wid' <> B8.drop (B8.length wid') hashed
@@ -318,7 +318,7 @@ data Cmd s wid
 data Success s wid
     = Unit ()
     | NewWallet wid
-    | WalletIds [wid]
+    | AccountIds [wid]
     | Checkpoint (Maybe (Wallet s))
     | Metadata (Maybe WalletMetadata)
     | TxHistory [TransactionInfo]
@@ -358,7 +358,7 @@ runMock = \case
     RemoveWallet wid ->
         first (Resp . fmap Unit) . mRemoveWallet wid
     ListWallets ->
-        first (Resp . fmap WalletIds) . mListWallets
+        first (Resp . fmap AccountIds) . mListWallets
     PutCheckpoint wid wal ->
         first (Resp . fmap Unit) . mPutCheckpoint wid wal
     ListCheckpoints wid ->
@@ -411,13 +411,13 @@ type DBLayerTest s k = DBLayer IO s k
 runIO
     :: forall s k. (MockPrivKey (k 'RootK))
     => DBLayerTest s k
-    -> Cmd s WalletId
-    -> IO (Resp s WalletId)
+    -> Cmd s AccountId
+    -> IO (Resp s AccountId)
 runIO db@DBLayer{..} = fmap Resp . go
   where
     go
-        :: Cmd s WalletId
-        -> IO (Either (Err WalletId) (Success s WalletId))
+        :: Cmd s AccountId
+        -> IO (Either (Err AccountId) (Success s AccountId))
     go = \case
         CleanDB -> do
             Right . Unit <$> cleanDB db
@@ -427,7 +427,7 @@ runIO db@DBLayer{..} = fmap Resp . go
             initializeWallet (widPK wid) wal meta txs pp
         RemoveWallet wid -> catchNoSuchWallet Unit $
             mapExceptT atomically $ removeWallet (PrimaryKey wid)
-        ListWallets -> Right . WalletIds . fmap unPrimaryKey <$>
+        ListWallets -> Right . AccountIds . fmap unPrimaryKey <$>
             atomically listWallets
         PutCheckpoint wid wal -> catchNoSuchWallet Unit $
             mapExceptT atomically $ putCheckpoint (PrimaryKey wid) wal
@@ -473,13 +473,13 @@ runIO db@DBLayer{..} = fmap Resp . go
     catchCannotRemovePendingTx wid f =
         fmap (bimap (errCannotRemovePendingTx wid) f) . runExceptT
 
-    errNoSuchWallet :: ErrNoSuchWallet -> Err WalletId
+    errNoSuchWallet :: ErrNoSuchWallet -> Err AccountId
     errNoSuchWallet (ErrNoSuchWallet wid) = NoSuchWallet wid
 
-    errWalletAlreadyExists :: ErrWalletAlreadyExists -> Err WalletId
+    errWalletAlreadyExists :: ErrWalletAlreadyExists -> Err AccountId
     errWalletAlreadyExists (ErrWalletAlreadyExists wid) = WalletAlreadyExists wid
 
-    errCannotRemovePendingTx :: WalletId -> ErrRemoveTx -> Err WalletId
+    errCannotRemovePendingTx :: AccountId -> ErrRemoveTx -> Err AccountId
     errCannotRemovePendingTx _ (ErrRemoveTxNoSuchWallet e) =
         errNoSuchWallet e
     errCannotRemovePendingTx wid (ErrRemoveTxNoSuchTransaction tid) =
@@ -500,10 +500,10 @@ runIO db@DBLayer{..} = fmap Resp . go
 -- The Functor f will be Cmd/Resp and reference type r will be
 -- Concrete/Symbolic.
 newtype At f r
-    = At (f (Reference WalletId r))
+    = At (f (Reference AccountId r))
 
 deriving instance
-    Show (f (Reference WalletId r)) => Show (At f r)
+    Show (f (Reference AccountId r)) => Show (At f r)
 
 type f :@ r = At f r
 
@@ -517,7 +517,7 @@ env ! r = fromJust (lookup r env)
 -------------------------------------------------------------------------------}
 
 type WidRefs r =
-    RefEnv WalletId MWid r
+    RefEnv AccountId MWid r
 
 data Model s r
     = Model (Mock s) (WidRefs r)
@@ -578,7 +578,7 @@ generator (Model _ wids) = Just $ frequency $ fmap (fmap At) <$> concat
     , if null wids then [] else withWid
     ]
   where
-    withoutWid :: [(Int, Gen (Cmd s (Reference WalletId Symbolic)))]
+    withoutWid :: [(Int, Gen (Cmd s (Reference AccountId Symbolic)))]
     withoutWid =
         [ (5, CreateWallet
             <$> genId
@@ -588,7 +588,7 @@ generator (Model _ wids) = Just $ frequency $ fmap (fmap At) <$> concat
             <*> arbitrary)
         ]
 
-    withWid :: [(Int, Gen (Cmd s (Reference WalletId Symbolic)))]
+    withWid :: [(Int, Gen (Cmd s (Reference AccountId Symbolic)))]
     withWid =
         [ (3, RemoveWallet <$> genId')
         , (5, pure ListWallets)
@@ -616,7 +616,7 @@ generator (Model _ wids) = Just $ frequency $ fmap (fmap At) <$> concat
     genId :: Gen MWid
     genId = MWid <$> elements ["a", "b", "c"]
 
-    genId' :: Gen (Reference WalletId Symbolic)
+    genId' :: Gen (Reference AccountId Symbolic)
     genId' = QC.elements (map fst wids)
 
     genPrivKey :: Gen MPrivKey
@@ -792,7 +792,7 @@ deriving instance ToExpr s => ToExpr (Model s Concrete)
 instance ToExpr s => ToExpr (Mock s) where
     toExpr = genericToExpr
 
-instance ToExpr WalletId where
+instance ToExpr AccountId where
     toExpr = defaultExprViaShow
 
 instance ToExpr s => ToExpr (Wallet s) where
@@ -1065,7 +1065,7 @@ tag = Foldl.fold $ catMaybes <$> sequenceA
             case (cmd ev, mockResp ev) of
                 (At (CreateWallet wid _ _ _ _), Resp (Right _)) ->
                     Map.insert wid False created
-                (At ListWallets, Resp (Right (WalletIds wids))) ->
+                (At ListWallets, Resp (Right (AccountIds wids))) ->
                     foldr (Map.adjust (const True)) created wids
                 _otherwise ->
                     created

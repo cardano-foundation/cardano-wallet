@@ -22,11 +22,11 @@ import Cardano.Mnemonic
     ( MkSomeMnemonic (..), mnemonicToText )
 import Cardano.Wallet.Api.Types
     ( AddressAmount (..)
+    , ApiAccount
     , ApiFee (..)
     , ApiT (..)
     , ApiTransaction (..)
     , ApiTxId (..)
-    , ApiWallet
     , DecodeAddress
     , DecodeStakeAddress
     , EncodeAddress
@@ -45,14 +45,14 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Coin (..)
+    ( AccountId
+    , Coin (..)
     , Direction (..)
     , SealedTx (..)
     , Tx (..)
     , TxIn (..)
     , TxOut (..)
     , TxStatus (..)
-    , WalletId
     )
 import Cardano.Wallet.Transaction
     ( TransactionLayer (..) )
@@ -180,7 +180,7 @@ spec = do
             , expectField (#metadata . #getApiTxMetadata) (`shouldBe` Nothing)
             ]
 
-        ra <- request @ApiWallet ctx (Link.getWallet @'Shelley wa) Default Empty
+        ra <- request @ApiAccount ctx (Link.getWallet @'Shelley wa) Default Empty
         verify ra
             [ expectSuccess
             , expectField (#balance . #getApiT . #total) $
@@ -194,13 +194,13 @@ spec = do
             ]
 
         eventually "wa and wb balances are as expected" $ do
-            rb <- request @ApiWallet ctx
+            rb <- request @ApiAccount ctx
                 (Link.getWallet @'Shelley wb) Default Empty
             expectField
                 (#balance . #getApiT . #available)
                 (`shouldBe` Quantity (faucetAmt + amt)) rb
 
-            ra2 <- request @ApiWallet ctx
+            ra2 <- request @ApiAccount ctx
                 (Link.getWallet @'Shelley wa) Default Empty
             expectField
                 (#balance . #getApiT . #available)
@@ -238,7 +238,7 @@ spec = do
         r <- request @(ApiTransaction n) ctx
             (Link.createTransaction @'Shelley wSrc) Default payload
 
-        ra <- request @ApiWallet ctx (Link.getWallet @'Shelley wSrc) Default Empty
+        ra <- request @ApiAccount ctx (Link.getWallet @'Shelley wSrc) Default Empty
         verify r
             [ expectResponseCode HTTP.status202
             , expectField (#amount . #getQuantity) $
@@ -257,7 +257,7 @@ spec = do
                     (.>= Quantity (faucetAmt - 2 * faucetUtxoAmt))
             ]
         eventually "wDest balance is as expected" $ do
-            rd <- request @ApiWallet ctx
+            rd <- request @ApiAccount ctx
                 (Link.getWallet @'Shelley wDest) Default Empty
             verify rd
                 [ expectField
@@ -389,7 +389,7 @@ spec = do
                 , expectListField 0 (#status . #getApiT) (`shouldBe` InLedger)
                 , expectListField 0 #amount (`shouldBe` Quantity utxoAmt)
                 ]
-            request @ApiWallet ctx
+            request @ApiAccount ctx
                 (Link.getWallet @'Shelley wDest)
                 Default
                 Empty
@@ -433,7 +433,7 @@ spec = do
             >>= expectResponseCode HTTP.status202
 
         eventually ("Wallet balance = " ++ show amt) $ do
-            r <- request @ApiWallet ctx
+            r <- request @ApiAccount ctx
                 (Link.getWallet @'Shelley w) Default Empty
             expectField (#balance . #getApiT . #available)
                 (`shouldBe` Quantity amt) r
@@ -442,7 +442,7 @@ spec = do
 
     describe "TRANS_DELETE_05 - Cannot forget external tx -> 404" $ do
         let txDeleteTest05
-                :: (HasType (ApiT WalletId) wal)
+                :: (HasType (ApiT AccountId) wal)
                 => String
                 -> (Context t -> ResourceT IO wal)
                 -> SpecWith (Context t)
@@ -469,7 +469,7 @@ spec = do
 
                 -- tx eventually gets into ledger (funds are on the target wallet)
                 eventually ("Wallet balance = " ++ show amt) $ do
-                    rg <- request @ApiWallet ctx
+                    rg <- request @ApiAccount ctx
                         (Link.getWallet @'Shelley wal) Default Empty
                     expectField (#balance . #getApiT . #available)
                         (`shouldBe` Quantity amt) rg
@@ -498,7 +498,7 @@ spec = do
             ]
 
         eventually "wDest and wSrc balance is as expected" $ do
-            rb <- request @ApiWallet ctx
+            rb <- request @ApiAccount ctx
                 (Link.getWallet @'Shelley wDest) Default Empty
             verify rb
                 [ expectSuccess
@@ -509,7 +509,7 @@ spec = do
                         (#balance . #getApiT . #available . #getQuantity)
                         (`shouldBe` initAvailable + toSend)
                 ]
-            ra <- request @ApiWallet ctx
+            ra <- request @ApiAccount ctx
                 (Link.getWallet @'Shelley wSrc) Default Empty
             verify ra
                 [ expectField
@@ -625,8 +625,8 @@ spec = do
         Right res -> res
 
 data ExternalTxFixture = ExternalTxFixture
-    { srcWallet :: ApiWallet
-    , dstWallet :: ApiWallet
+    { srcWallet :: ApiAccount
+    , dstWallet :: ApiAccount
     , feeMin :: Natural
     , txBinary :: SealedTx
     , txTx :: Tx
@@ -681,12 +681,12 @@ fixtureExternalTx ctx toSend = do
             "mnemonic_sentence": #{mnemonics15},
             "passphrase": #{fixturePassphrase}
             } |]
-    r1 <- request @ApiWallet ctx ("POST", "v2/wallets") Default createWallet
+    r1 <- request @ApiAccount ctx ("POST", "v2/wallets") Default createWallet
     expectField
             (#name . #getApiT . #getWalletName) (`shouldBe` "Destination Wallet") r1
     let wid = getFromResponse Prelude.id r1
     eventually "Wallet state is Ready" $ do
-        r <- request @ApiWallet ctx (Link.getWallet @'Shelley wid) Default Empty
+        r <- request @ApiAccount ctx (Link.getWallet @'Shelley wid) Default Empty
         expectField (#state . #getApiT) (`shouldBe` Ready) r
 
     let wDest = getFromResponse Prelude.id r1
@@ -741,9 +741,9 @@ fixtureExternalTx ctx toSend = do
              , mkSeqStateFromRootXPrv @n (rootXPrv, pwd) purposeCIP1852 defaultAddressPoolGap
              )
 
-getWalletBalance :: Context t -> ApiWallet -> IO (Natural, Natural)
+getWalletBalance :: Context t -> ApiAccount -> IO (Natural, Natural)
 getWalletBalance ctx w = do
-    r <- request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty
+    r <- request @ApiAccount ctx (Link.getWallet @'Shelley w) Default Empty
     let total =
             getFromResponse (#balance . #getApiT . #total . #getQuantity) r
     let available =

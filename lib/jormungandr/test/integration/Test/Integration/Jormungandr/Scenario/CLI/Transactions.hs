@@ -13,8 +13,8 @@ module Test.Integration.Jormungandr.Scenario.CLI.Transactions
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiTxId (..)
-    , ApiWallet
+    ( ApiAccount
+    , ApiTxId (..)
     , DecodeAddress (..)
     , DecodeStakeAddress
     , getApiT
@@ -101,7 +101,7 @@ spec = do
         eventually ("Wallet's balance is as expected = " ++ show amt) $ do
             Stdout gOutDest <- getWalletViaCLI @t ctx
                 (T.unpack (w ^. walletId))
-            destJson <- expectValidJSON (Proxy @ApiWallet) gOutDest
+            destJson <- expectValidJSON (Proxy @ApiAccount) gOutDest
             verify destJson
                 [ expectCliField
                         (#balance . #getApiT . #available)
@@ -131,7 +131,7 @@ spec = do
         eventually "Wallet balance is as expected" $ do
             Stdout gOutDest <- getWalletViaCLI @t ctx
                 (T.unpack (wDest ^. walletId))
-            destJson <- expectValidJSON (Proxy @ApiWallet) gOutDest
+            destJson <- expectValidJSON (Proxy @ApiAccount) gOutDest
             verify destJson
                 [ expectCliField
                         (#balance . #getApiT . #available)
@@ -143,7 +143,7 @@ spec = do
 
         -- verify balance on dest wallet
         Stdout gOutDest <- getWalletViaCLI @t ctx (T.unpack (wDest ^. walletId))
-        destJson <- expectValidJSON (Proxy @ApiWallet) gOutDest
+        destJson <- expectValidJSON (Proxy @ApiAccount) gOutDest
         verify destJson
             [ expectCliField
                     (#balance . #getApiT . #available . #getQuantity)
@@ -194,7 +194,7 @@ spec = do
         liftIO $ eventually "Wallet balance is as expected" $ do
             Stdout gOutDest <- getWalletViaCLI @t ctx
                 (T.unpack (w ^. walletId))
-            destJson <- expectValidJSON (Proxy @ApiWallet) gOutDest
+            destJson <- expectValidJSON (Proxy @ApiAccount) gOutDest
             verify destJson
                 [ expectCliField
                         (#balance . #getApiT . #available) (`shouldBe` Quantity amt)

@@ -18,10 +18,10 @@ import Prelude
 
 import Cardano.Wallet.Api.Types
     ( AddressAmount (..)
+    , ApiAccount
     , ApiCoinSelection
     , ApiCoinSelectionOutput (..)
     , ApiT (..)
-    , ApiWallet
     , DecodeAddress
     , DecodeStakeAddress
     , EncodeAddress (..)
@@ -151,7 +151,7 @@ spec = describe "SHELLEY_COIN_SELECTION" $ do
         w <- emptyWallet ctx
         (addr:_) <- fmap (view #id) <$> listAddresses @n ctx w
         let payments = NE.fromList [ AddressAmount addr (Quantity minUTxOValue) ]
-        _ <- request @ApiWallet ctx (Link.deleteWallet @'Shelley w) Default Empty
+        _ <- request @ApiAccount ctx (Link.deleteWallet @'Shelley w) Default Empty
         selectCoins @_ @'Shelley ctx w payments >>= flip verify
             [ expectResponseCode HTTP.status404
             , expectErrorMessage (errMsg404NoWallet $ w ^. walletId)
@@ -220,7 +220,7 @@ spec = describe "SHELLEY_COIN_SELECTION" $ do
         \ctx -> runResourceT $ do
             source  <- fixtureWalletWith @n ctx [minUTxOValue, minUTxOValue]
             eventually "Source wallet balance is as expected" $ do
-                rGet <- request @ApiWallet ctx
+                rGet <- request @ApiAccount ctx
                     (Link.getWallet @'Shelley source) Default Empty
                 verify rGet
                     [ expectField

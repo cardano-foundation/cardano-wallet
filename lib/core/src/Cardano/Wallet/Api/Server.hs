@@ -162,19 +162,35 @@ import Cardano.Wallet.Api
 import Cardano.Wallet.Api.Server.Tls
     ( TlsConfiguration (..), requireClientAuth )
 import Cardano.Wallet.Api.Types
-    ( AccountPostData (..)
+    ( AccountPutPassphraseData (..)
     , AddressAmount (..)
+    , ApiAccount (..)
+    , ApiAccountDelegation (..)
+    , ApiAccountDelegationNext (..)
+    , ApiAccountDelegationStatus (..)
+    , ApiAccountFromKey (..)
+    , ApiAccountFromPhrase (..)
+    , ApiAccountMigrationInfo (..)
+    , ApiAccountMigrationPostData (..)
+    , ApiAccountPostData (..)
     , ApiAccountPublicKey (..)
+    , ApiAccountPutData (..)
+    , ApiAccountSignData (..)
     , ApiAddress (..)
     , ApiBlockInfo (..)
     , ApiBlockReference (..)
     , ApiBlockReference (..)
-    , ApiByronWallet (..)
-    , ApiByronWalletBalance (..)
+    , ApiByronAccount (..)
+    , ApiByronAccountFromPhrase (..)
+    , ApiByronAccountFromXPrv
+    , ApiByronAccountPutPassphraseData (..)
+    , ApiByronBalance (..)
     , ApiCoinSelection (..)
     , ApiCoinSelectionChange (..)
     , ApiCoinSelectionInput (..)
     , ApiCoinSelectionOutput (..)
+    , ApiEncryptionPassphrase (..)
+    , ApiEncryptionPassphraseInfo (..)
     , ApiEpochInfo (ApiEpochInfo)
     , ApiErrorCode (..)
     , ApiFee (..)
@@ -195,31 +211,15 @@ import Cardano.Wallet.Api.Types
     , ApiTxMetadata (..)
     , ApiUtxoStatistics (..)
     , ApiVerificationKey (..)
-    , ApiWallet (..)
-    , ApiWalletDelegation (..)
-    , ApiWalletDelegationNext (..)
-    , ApiWalletDelegationStatus (..)
-    , ApiWalletMigrationInfo (..)
-    , ApiWalletMigrationPostData (..)
-    , ApiWalletPassphrase (..)
-    , ApiWalletPassphraseInfo (..)
-    , ApiWalletSignData (..)
     , ApiWithdrawal (..)
     , ApiWithdrawalPostData (..)
-    , ByronWalletFromXPrvPostData
-    , ByronWalletPostData (..)
-    , ByronWalletPutPassphraseData (..)
+    , Balance (..)
     , Iso8601Time (..)
     , KnownDiscovery (..)
     , MinWithdrawal (..)
     , PostExternalTransactionData (..)
     , PostTransactionData (..)
     , PostTransactionFeeData (..)
-    , WalletBalance (..)
-    , WalletOrAccountPostData (..)
-    , WalletPostData (..)
-    , WalletPutData (..)
-    , WalletPutPassphraseData (..)
     , getApiMnemonicT
     , toApiNetworkParameters
     , toApiUtxoStatistics
@@ -292,7 +292,8 @@ import Cardano.Wallet.Primitive.Slotting
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..), SyncTolerance, syncProgress )
 import Cardano.Wallet.Primitive.Types
-    ( Address
+    ( AccountId (..)
+    , Address
     , AddressState (..)
     , Block
     , BlockHeader (..)
@@ -312,7 +313,6 @@ import Cardano.Wallet.Primitive.Types
     , TxOut (..)
     , TxStatus (..)
     , UnsignedTx (..)
-    , WalletId (..)
     , WalletMetadata (..)
     )
 import Cardano.Wallet.Primitive.Types.Hash
@@ -575,9 +575,9 @@ ioToListenError hostPreference portOpt e
                               Wallet Constructors
 -------------------------------------------------------------------------------}
 
-type MkApiWallet ctx s w
+type MkApiAccount ctx s w
     =  ctx
-    -> WalletId
+    -> AccountId
     -> Wallet s
     -> WalletMetadata
     -> Set Tx
@@ -603,9 +603,9 @@ postWallet
     => ctx
     -> ((SomeMnemonic, Maybe SomeMnemonic) -> Passphrase "encryption" -> k 'RootK XPrv)
     -> (XPub -> k 'AccountK XPub)
-    -> WalletOrAccountPostData
-    -> Handler ApiWallet
-postWallet ctx generateKey liftKey (WalletOrAccountPostData body) = case body of
+    -> ApiAccountPostData
+    -> Handler ApiAccount
+postWallet ctx generateKey liftKey (ApiAccountPostData body) = case body of
     Left  body' ->
         postShelleyWallet ctx generateKey body'
     Right body' ->
@@ -629,8 +629,8 @@ postShelleyWallet
         )
     => ctx
     -> ((SomeMnemonic, Maybe SomeMnemonic) -> Passphrase "encryption" -> k 'RootK XPrv)
-    -> WalletPostData
-    -> Handler ApiWallet
+    -> ApiAccountFromPhrase
+    -> Handler ApiAccount
 postShelleyWallet ctx generateKey body = do
     let state = mkSeqStateFromRootXPrv (rootXPrv, pwd) purposeCIP1852 g
     void $ liftHandler $ initWorker @_ @s @k ctx wid
@@ -646,7 +646,7 @@ postShelleyWallet ctx generateKey body = do
     pwd = preparePassphrase EncryptWithPBKDF2 $ getApiT (body ^. #passphrase)
     rootXPrv = generateKey (seed, secondFactor) pwd
     g = maybe defaultAddressPoolGap getApiT (body ^. #addressPoolGap)
-    wid = WalletId $ digest $ publicKey rootXPrv
+    wid = AccountId $ digest $ publicKey rootXPrv
     wName = getApiT (body ^. #name)
 
 postAccountWallet
@@ -661,11 +661,11 @@ postAccountWallet
         , IsOurs s ChimericAccount
         )
     => ctx
-    -> MkApiWallet ctx s w
+    -> MkApiAccount ctx s w
     -> (XPub -> k 'AccountK XPub)
-    -> (WorkerCtx ctx -> WalletId -> IO ())
+    -> (WorkerCtx ctx -> AccountId -> IO ())
         -- ^ Action to run concurrently with restore action
-    -> AccountPostData
+    -> ApiAccountFromKey
     -> Handler w
 postAccountWallet ctx mkWallet liftKey coworker body = do
     let state = mkSeqStateFromAccountXPub (liftKey accXPub) purposeCIP1852 g
@@ -679,7 +679,7 @@ postAccountWallet ctx mkWallet liftKey coworker body = do
     wName = getApiT (body ^. #name)
     (ApiAccountPublicKey accXPubApiT) =  body ^. #accountPublicKey
     accXPub = getApiT accXPubApiT
-    wid = WalletId $ digest (liftKey accXPub)
+    wid = AccountId $ digest (liftKey accXPub)
 
 mkShelleyWallet
     :: forall ctx s t k n.
@@ -689,18 +689,18 @@ mkShelleyWallet
         , IsOurs s ChimericAccount
         , HasWorkerRegistry s k ctx
         )
-    => MkApiWallet ctx s ApiWallet
+    => MkApiAccount ctx s ApiAccount
 mkShelleyWallet ctx wid cp meta pending progress = do
     reward <- withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk ->
         -- never fails - returns zero if balance not found
         liftIO $ fmap fromIntegral <$> W.fetchRewardBalance @_ @s @k wrk wid
 
 
-    apiDelegation <- liftIO $ toApiWalletDelegation (meta ^. #delegation)
+    apiDelegation <- liftIO $ toApiAccountDelegation (meta ^. #delegation)
     tip' <- liftIO $ getWalletTip ti cp
-    pure ApiWallet
+    pure ApiAccount
         { addressPoolGap = ApiT $ getState cp ^. #externalPool . #gap
-        , balance = ApiT $ WalletBalance
+        , balance = ApiT $ Balance
             { available = Quantity $ availableBalance pending cp
             , total = Quantity $ totalBalance pending reward cp
             , reward
@@ -708,7 +708,7 @@ mkShelleyWallet ctx wid cp meta pending progress = do
         , delegation = apiDelegation
         , id = ApiT wid
         , name = ApiT $ meta ^. #name
-        , passphrase = ApiWalletPassphraseInfo
+        , passphrase = ApiEncryptionPassphraseInfo
             <$> fmap (view #lastUpdatedAt) (meta ^. #passphraseInfo)
         , state = ApiT progress
         , tip = tip'
@@ -732,24 +732,24 @@ mkShelleyWallet ctx wid cp meta pending progress = do
         time <- ti (firstSlotInEpoch ep >>= startTime)
         return $ ApiEpochInfo (ApiT ep) time
 
-    toApiWalletDelegation W.WalletDelegation{active,next} = do
+    toApiAccountDelegation W.WalletDelegation{active,next} = do
         apiNext <- forM next $ \W.WalletDelegationNext{status,changesAt} -> do
             info <- toApiEpochInfo changesAt
-            return $ toApiWalletDelegationNext (Just info) status
+            return $ toApiAccountDelegationNext (Just info) status
 
-        return $ ApiWalletDelegation
-            { active = toApiWalletDelegationNext Nothing active
+        return $ ApiAccountDelegation
+            { active = toApiAccountDelegationNext Nothing active
             , next = apiNext
             }
 
-    toApiWalletDelegationNext mepochInfo = \case
-        W.Delegating pid -> ApiWalletDelegationNext
+    toApiAccountDelegationNext mepochInfo = \case
+        W.Delegating pid -> ApiAccountDelegationNext
             { status = Delegating
             , target = Just (ApiT pid)
             , changesAt = mepochInfo
             }
 
-        W.NotDelegating -> ApiWalletDelegationNext
+        W.NotDelegating -> ApiAccountDelegationNext
             { status = NotDelegating
             , target = Nothing
             , changesAt = mepochInfo
@@ -772,11 +772,11 @@ postLegacyWallet
     -> (k 'RootK XPrv, Passphrase "encryption")
         -- ^ Root key
     -> (  WorkerCtx ctx
-       -> WalletId
-       -> ExceptT ErrWalletAlreadyExists IO WalletId
+       -> AccountId
+       -> ExceptT ErrWalletAlreadyExists IO AccountId
        )
         -- ^ How to create this legacy wallet
-    -> Handler ApiByronWallet
+    -> Handler ApiByronAccount
 postLegacyWallet ctx (rootXPrv, pwd) createWallet = do
     void $ liftHandler $ initWorker @_ @s @k ctx wid (`createWallet` wid)
         (\wrk -> W.restoreWallet @(WorkerCtx ctx) @s @t @k wrk wid)
@@ -785,7 +785,7 @@ postLegacyWallet ctx (rootXPrv, pwd) createWallet = do
         W.attachPrivateKeyFromPwd wrk wid (rootXPrv, pwd)
     fst <$> getWallet ctx (mkLegacyWallet @_ @_ @_ @t) (ApiT wid)
   where
-    wid = WalletId $ digest $ publicKey rootXPrv
+    wid = AccountId $ digest $ publicKey rootXPrv
 
 mkLegacyWallet
     :: forall ctx s k t.
@@ -797,12 +797,12 @@ mkLegacyWallet
         , IsOurs s ChimericAccount
         )
     => ctx
-    -> WalletId
+    -> AccountId
     -> Wallet s
     -> WalletMetadata
     -> Set Tx
     -> SyncProgress
-    -> Handler ApiByronWallet
+    -> Handler ApiByronAccount
 mkLegacyWallet ctx wid cp meta pending progress = do
     -- NOTE
     -- Legacy wallets imported through via XPrv might have an empty passphrase
@@ -816,16 +816,16 @@ mkLegacyWallet ctx wid cp meta pending progress = do
         Nothing ->
             pure Nothing
         Just (W.WalletPassphraseInfo time EncryptWithPBKDF2) ->
-            pure $ Just $ ApiWalletPassphraseInfo time
+            pure $ Just $ ApiEncryptionPassphraseInfo time
         Just (W.WalletPassphraseInfo time EncryptWithScrypt) -> do
             withWorkerCtx @_ @s @k ctx wid liftE liftE $
                 matchEmptyPassphrase >=> \case
                     Right{} -> pure Nothing
-                    Left{} -> pure $ Just $ ApiWalletPassphraseInfo time
+                    Left{} -> pure $ Just $ ApiEncryptionPassphraseInfo time
 
     tip' <- liftIO $ getWalletTip ti cp
-    pure ApiByronWallet
-        { balance = ApiByronWalletBalance
+    pure ApiByronAccount
+        { balance = ApiByronBalance
             { available = Quantity $ availableBalance pending cp
             , total = Quantity $ totalBalance pending (Quantity 0) cp
             }
@@ -853,8 +853,8 @@ postRandomWallet
         , k ~ ByronKey
         )
     => ctx
-    -> ByronWalletPostData '[12,15,18,21,24]
-    -> Handler ApiByronWallet
+    -> ApiByronAccountFromPhrase '[12,15,18,21,24]
+    -> Handler ApiByronAccount
 postRandomWallet ctx body = do
     s <- liftIO $ mkRndState rootXPrv <$> getStdRandom random
     postLegacyWallet ctx (rootXPrv, pwd) $ \wrk wid ->
@@ -873,8 +873,8 @@ postRandomWalletFromXPrv
         , HasNetworkLayer t ctx
         )
     => ctx
-    -> ByronWalletFromXPrvPostData
-    -> Handler ApiByronWallet
+    -> ApiByronAccountFromXPrv
+    -> Handler ApiByronAccount
 postRandomWalletFromXPrv ctx body = do
     s <- liftIO $ mkRndState byronKey <$> getStdRandom random
     void $ liftHandler $ initWorker @_ @s @k ctx wid
@@ -889,7 +889,7 @@ postRandomWalletFromXPrv ctx body = do
     pwd   = getApiT (body ^. #passphraseHash)
     masterKey = getApiT (body ^. #encryptedRootPrivateKey)
     byronKey = mkByronKeyFromMasterKey masterKey
-    wid = WalletId $ digest $ publicKey byronKey
+    wid = AccountId $ digest $ publicKey byronKey
 
 postIcarusWallet
     :: forall ctx s t k n.
@@ -900,8 +900,8 @@ postIcarusWallet
         , PaymentAddress n IcarusKey
         )
     => ctx
-    -> ByronWalletPostData '[12,15,18,21,24]
-    -> Handler ApiByronWallet
+    -> ApiByronAccountFromPhrase '[12,15,18,21,24]
+    -> Handler ApiByronAccount
 postIcarusWallet ctx body = do
     postLegacyWallet ctx (rootXPrv, pwd) $ \wrk wid ->
         W.createIcarusWallet @(WorkerCtx ctx) @s @k wrk wid wName (rootXPrv, pwd)
@@ -920,8 +920,8 @@ postTrezorWallet
         , PaymentAddress n IcarusKey
         )
     => ctx
-    -> ByronWalletPostData '[12,15,18,21,24]
-    -> Handler ApiByronWallet
+    -> ApiByronAccountFromPhrase '[12,15,18,21,24]
+    -> Handler ApiByronAccount
 postTrezorWallet ctx body = do
     postLegacyWallet ctx (rootXPrv, pwd) $ \wrk wid ->
         W.createIcarusWallet @(WorkerCtx ctx) @s @k wrk wid wName (rootXPrv, pwd)
@@ -940,8 +940,8 @@ postLedgerWallet
         , PaymentAddress n IcarusKey
         )
     => ctx
-    -> ByronWalletPostData '[12,15,18,21,24]
-    -> Handler ApiByronWallet
+    -> ApiByronAccountFromPhrase '[12,15,18,21,24]
+    -> Handler ApiByronAccount
 postLedgerWallet ctx body = do
     postLegacyWallet ctx (rootXPrv, pwd) $ \wrk wid ->
         W.createIcarusWallet @(WorkerCtx ctx) @s @k wrk wid wName (rootXPrv, pwd)
@@ -963,7 +963,7 @@ withLegacyLayer
         ( byron ~ ApiLayer (RndState n) t ByronKey
         , icarus ~ ApiLayer (SeqState n IcarusKey) t IcarusKey
         )
-    => ApiT WalletId
+    => ApiT AccountId
     -> (byron, Handler a)
     -> (icarus, Handler a)
     -> Handler a
@@ -979,7 +979,7 @@ withLegacyLayer'
         ( byron ~ ApiLayer (RndState n) t ByronKey
         , icarus ~ ApiLayer (SeqState n IcarusKey) t IcarusKey
         )
-    => ApiT WalletId
+    => ApiT AccountId
     -> (byron, Handler a, ErrWalletNotResponding -> Handler a)
     -> (icarus, Handler a, ErrWalletNotResponding -> Handler a)
     -> Handler a
@@ -1015,7 +1015,7 @@ deleteWallet
         ( ctx ~ ApiLayer s t k
         )
     => ctx
-    -> ApiT WalletId
+    -> ApiT AccountId
     -> Handler NoContent
 deleteWallet ctx (ApiT wid) =
     withWorkerCtx @_ @s @k ctx wid liftE liftE $ \_ -> do
@@ -1033,10 +1033,10 @@ getWallet
         , HasDBFactory s k ctx
         )
     => ctx
-    -> MkApiWallet ctx s apiWallet
-    -> ApiT WalletId
+    -> MkApiAccount ctx s apiWallet
+    -> ApiT AccountId
     -> Handler (apiWallet, UTCTime)
-getWallet ctx mkApiWallet (ApiT wid) = do
+getWallet ctx mkApiAccount (ApiT wid) = do
     withWorkerCtx @_ @s @k ctx wid liftE whenNotResponding whenAlive
   where
     df = ctx ^. dbFactory @s @k
@@ -1044,12 +1044,12 @@ getWallet ctx mkApiWallet (ApiT wid) = do
     whenAlive wrk = do
         (cp, meta, pending) <- liftHandler $ W.readWallet @_ @s @k wrk wid
         progress <- liftIO $ W.walletSyncProgress @_ @_ @t ctx cp
-        (, meta ^. #creationTime) <$> mkApiWallet ctx wid cp meta pending progress
+        (, meta ^. #creationTime) <$> mkApiAccount ctx wid cp meta pending progress
 
     whenNotResponding _ = Handler $ ExceptT $ withDatabase df wid $ \db -> runHandler $ do
         let wrk = hoistResource db (MsgFromWorker wid) ctx
         (cp, meta, pending) <- liftHandler $ W.readWallet @_ @s @k wrk wid
-        (, meta ^. #creationTime) <$> mkApiWallet ctx wid cp meta pending NotResponding
+        (, meta ^. #creationTime) <$> mkApiAccount ctx wid cp meta pending NotResponding
 
 listWallets
     :: forall ctx s t k apiWallet.
@@ -1057,9 +1057,9 @@ listWallets
         , NFData apiWallet
         )
     => ctx
-    -> MkApiWallet ctx s apiWallet
+    -> MkApiAccount ctx s apiWallet
     -> Handler [(apiWallet, UTCTime)]
-listWallets ctx mkApiWallet = do
+listWallets ctx mkApiAccount = do
     wids <- liftIO $ listDatabases df
     liftIO $ sortOn snd . catMaybes <$> mapM maybeGetWallet (ApiT <$> wids)
   where
@@ -1070,30 +1070,30 @@ listWallets ctx mkApiWallet = do
     -- try to read it.
     --
     -- But.. why do we need to both runHandler and tryAnyDeep?
-    maybeGetWallet :: ApiT WalletId -> IO (Maybe (apiWallet, UTCTime))
+    maybeGetWallet :: ApiT AccountId -> IO (Maybe (apiWallet, UTCTime))
     maybeGetWallet =
         fmap (join . eitherToMaybe)
         . tryAnyDeep
         . fmap eitherToMaybe
         . runHandler
-        . getWallet ctx mkApiWallet
+        . getWallet ctx mkApiAccount
 
 putWallet
     :: forall ctx s t k apiWallet.
         ( ctx ~ ApiLayer s t k
         )
     => ctx
-    -> MkApiWallet ctx s apiWallet
-    -> ApiT WalletId
-    -> WalletPutData
+    -> MkApiAccount ctx s apiWallet
+    -> ApiT AccountId
+    -> ApiAccountPutData
     -> Handler apiWallet
-putWallet ctx mkApiWallet (ApiT wid) body = do
+putWallet ctx mkApiAccount (ApiT wid) body = do
     case body ^. #name of
         Nothing ->
             return ()
         Just (ApiT wName) -> withWorkerCtx ctx wid liftE liftE $ \wrk -> do
             liftHandler $ W.updateWallet wrk wid (modify wName)
-    fst <$> getWallet ctx mkApiWallet (ApiT wid)
+    fst <$> getWallet ctx mkApiAccount (ApiT wid)
   where
     modify :: W.WalletName -> WalletMetadata -> WalletMetadata
     modify wName meta = meta { name = wName }
@@ -1104,11 +1104,11 @@ putWalletPassphrase
         , ctx ~ ApiLayer s t k
         )
     => ctx
-    -> ApiT WalletId
-    -> WalletPutPassphraseData
+    -> ApiT AccountId
+    -> AccountPutPassphraseData
     -> Handler NoContent
 putWalletPassphrase ctx (ApiT wid) body = do
-    let (WalletPutPassphraseData (ApiT old) (ApiT new)) = body
+    let (AccountPutPassphraseData (ApiT old) (ApiT new)) = body
     withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
         W.updateWalletPassphrase wrk wid (old, new)
     return NoContent
@@ -1119,11 +1119,11 @@ putByronWalletPassphrase
         , ctx ~ ApiLayer s t k
         )
     => ctx
-    -> ApiT WalletId
-    -> ByronWalletPutPassphraseData
+    -> ApiT AccountId
+    -> ApiByronAccountPutPassphraseData
     -> Handler NoContent
 putByronWalletPassphrase ctx (ApiT wid) body = do
-    let (ByronWalletPutPassphraseData oldM (ApiT new)) = body
+    let (ApiByronAccountPutPassphraseData oldM (ApiT new)) = body
     withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $ do
         let old = maybe mempty (coerce . getApiT) oldM
         W.updateWalletPassphrase wrk wid (old, new)
@@ -1134,7 +1134,7 @@ getUTxOsStatistics
         ( ctx ~ ApiLayer s t k
         )
     => ctx
-    -> ApiT WalletId
+    -> ApiT AccountId
     -> Handler ApiUtxoStatistics
 getUTxOsStatistics ctx (ApiT wid) = do
     stats <- withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
@@ -1155,7 +1155,7 @@ selectCoins
         )
     => ctx
     -> ArgGenChange s
-    -> ApiT WalletId
+    -> ApiT AccountId
     -> ApiSelectCoinsPayments n
     -> Handler (ApiCoinSelection n)
 selectCoins ctx genChange (ApiT wid) body =
@@ -1189,7 +1189,7 @@ selectCoinsForJoin
        -- We could maybe replace this with a @IO (PoolId -> Bool)@
     -> (PoolId -> IO PoolLifeCycleStatus)
     -> PoolId
-    -> WalletId
+    -> AccountId
     -> Handler (Api.ApiCoinSelection n)
 selectCoinsForJoin ctx knownPools getPoolStatus pid wid = do
     poolStatus <- liftIO (getPoolStatus pid)
@@ -1226,7 +1226,7 @@ selectCoinsForQuit
         , Typeable n
         )
     => ctx
-    -> ApiT WalletId
+    -> ApiT AccountId
     -> Handler (Api.ApiCoinSelection n)
 selectCoinsForQuit ctx (ApiT wid) = do
     (utx, action, path) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
@@ -1259,7 +1259,7 @@ postRandomAddress
         , PaymentAddress n ByronKey
         )
     => ctx
-    -> ApiT WalletId
+    -> ApiT AccountId
     -> ApiPostRandomAddressData
     -> Handler (ApiAddress n)
 postRandomAddress ctx (ApiT wid) body = do
@@ -1278,7 +1278,7 @@ putRandomAddress
         , ctx ~ ApiLayer s t k
         )
     => ctx
-    -> ApiT WalletId
+    -> ApiT AccountId
     -> (ApiT Address, Proxy n)
     -> Handler NoContent
 putRandomAddress ctx (ApiT wid) (ApiT addr, _proxy)  = do
@@ -1293,7 +1293,7 @@ putRandomAddresses
         , ctx ~ ApiLayer s t k
         )
     => ctx
-    -> ApiT WalletId
+    -> ApiT AccountId
     -> ApiPutAddressesData n
     -> Handler NoContent
 putRandomAddresses ctx (ApiT wid) (ApiPutAddressesData addrs)  = do
@@ -1311,7 +1311,7 @@ listAddresses
         )
     => ctx
     -> (s -> Address -> Maybe Address)
-    -> ApiT WalletId
+    -> ApiT AccountId
     -> Maybe (ApiT AddressState)
     -> Handler [ApiAddress n]
 listAddresses ctx normalize (ApiT wid) stateFilter = do
@@ -1345,7 +1345,7 @@ postTransaction
         )
     => ctx
     -> ArgGenChange s
-    -> ApiT WalletId
+    -> ApiT AccountId
     -> PostTransactionData n
     -> Handler (ApiTransaction n)
 postTransaction ctx genChange (ApiT wid) body = do
@@ -1401,7 +1401,7 @@ postTransaction ctx genChange (ApiT wid) body = do
 deleteTransaction
     :: forall ctx s t k. ctx ~ ApiLayer s t k
     => ctx
-    -> ApiT WalletId
+    -> ApiT AccountId
     -> ApiTxId
     -> Handler NoContent
 deleteTransaction ctx (ApiT wid) (ApiTxId (ApiT (tid))) = do
@@ -1412,7 +1412,7 @@ deleteTransaction ctx (ApiT wid) (ApiTxId (ApiT (tid))) = do
 listTransactions
     :: forall ctx s t k n. (ctx ~ ApiLayer s t k)
     => ctx
-    -> ApiT WalletId
+    -> ApiT AccountId
     -> Maybe MinWithdrawal
     -> Maybe Iso8601Time
     -> Maybe Iso8601Time
@@ -1438,7 +1438,7 @@ listTransactions ctx (ApiT wid) mMinWithdrawal mStart mEnd mOrder = do
 getTransaction
     :: forall ctx s t k n. (ctx ~ ApiLayer s t k)
     => ctx
-    -> ApiT WalletId
+    -> ApiT AccountId
     -> ApiTxId
     -> Handler (ApiTransaction n)
 getTransaction ctx (ApiT wid) (ApiTxId (ApiT (tid))) = do
@@ -1481,7 +1481,7 @@ postTransactionFee
         , Typeable n
         )
     => ctx
-    -> ApiT WalletId
+    -> ApiT AccountId
     -> PostTransactionFeeData n
     -> Handler ApiFee
 postTransactionFee ctx (ApiT wid) body = do
@@ -1524,8 +1524,8 @@ joinStakePool
        -- We could maybe replace this with a @IO (PoolId -> Bool)@
     -> (PoolId -> IO PoolLifeCycleStatus)
     -> ApiPoolId
-    -> ApiT WalletId
-    -> ApiWalletPassphrase
+    -> ApiT AccountId
+    -> ApiEncryptionPassphrase
     -> Handler (ApiTransaction n)
 joinStakePool ctx knownPools getPoolStatus apiPoolId (ApiT wid) body = do
     let pwd = coerce $ getApiT $ body ^. #passphrase
@@ -1577,7 +1577,7 @@ delegationFee
         , ctx ~ ApiLayer s t k
         )
     => ctx
-    -> ApiT WalletId
+    -> ApiT AccountId
     -> Handler ApiFee
 delegationFee ctx (ApiT wid) = do
     withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
@@ -1597,8 +1597,8 @@ quitStakePool
         , ctx ~ ApiLayer s t k
         )
     => ctx
-    -> ApiT WalletId
-    -> ApiWalletPassphrase
+    -> ApiT AccountId
+    -> ApiEncryptionPassphrase
     -> Handler (ApiTransaction n)
 quitStakePool ctx (ApiT wid) body = do
     let pwd = coerce $ getApiT $ body ^. #passphrase
@@ -1646,13 +1646,13 @@ getMigrationInfo
         )
     => ApiLayer s t k
         -- ^ Source wallet context
-    -> ApiT WalletId
+    -> ApiT AccountId
         -- ^ Source wallet
-    -> Handler ApiWalletMigrationInfo
+    -> Handler ApiAccountMigrationInfo
 getMigrationInfo ctx (ApiT wid) = do
     (cs, leftovers) <- getSelections
     let migrationCost = costFromSelections cs
-    pure $ ApiWalletMigrationInfo{migrationCost,leftovers}
+    pure $ ApiAccountMigrationInfo{migrationCost,leftovers}
   where
     costFromSelections :: [CoinSelection] -> Quantity "lovelace" Natural
     costFromSelections = Quantity
@@ -1678,9 +1678,9 @@ migrateWallet
         )
     => ApiLayer s t k
         -- ^ Source wallet context
-    -> ApiT WalletId
+    -> ApiT AccountId
         -- ^ Source wallet
-    -> ApiWalletMigrationPostData n p
+    -> ApiAccountMigrationPostData n p
     -> Handler [ApiTransaction n]
 migrateWallet ctx (ApiT wid) migrateData = do
     -- TODO: check if addrs are not empty
@@ -1867,10 +1867,10 @@ signMetadata
         , WalletKey k
         )
     => ctx
-    -> ApiT WalletId
+    -> ApiT AccountId
     -> ApiT AccountingStyle
     -> ApiT DerivationIndex
-    -> ApiWalletSignData
+    -> ApiAccountSignData
     -> Handler ByteString
 signMetadata ctx (ApiT wid) (ApiT role_) (ApiT ix) body = do
     let meta = body ^. #metadata . #getApiT
@@ -1888,7 +1888,7 @@ derivePublicKey
         , WalletKey k
         )
     => ctx
-    -> ApiT WalletId
+    -> ApiT AccountId
     -> ApiT AccountingStyle
     -> ApiT DerivationIndex
     -> Handler ApiVerificationKey
@@ -1906,19 +1906,19 @@ initWorker
     :: forall ctx s k.
         ( HasWorkerRegistry s k ctx
         , HasDBFactory s k ctx
-        , HasLogger (WorkerLog WalletId WalletLog) ctx
+        , HasLogger (WorkerLog AccountId WalletLog) ctx
         )
     => ctx
         -- ^ Surrounding API context
-    -> WalletId
+    -> AccountId
         -- ^ Wallet Id
-    -> (WorkerCtx ctx -> ExceptT ErrWalletAlreadyExists IO WalletId)
+    -> (WorkerCtx ctx -> ExceptT ErrWalletAlreadyExists IO AccountId)
         -- ^ Create action
     -> (WorkerCtx ctx -> ExceptT ErrNoSuchWallet IO ())
         -- ^ Restore action
     -> (WorkerCtx ctx -> IO ())
         -- ^ Action to run concurrently with restore action
-    -> ExceptT ErrCreateWallet IO WalletId
+    -> ExceptT ErrCreateWallet IO AccountId
 initWorker ctx wid createWallet restoreWallet coworker =
     liftIO (Registry.lookup re wid) >>= \case
         Just _ ->
@@ -1966,7 +1966,7 @@ rndStateChange
         , k ~ ByronKey
         )
     => ctx
-    -> ApiT WalletId
+    -> ApiT AccountId
     -> Passphrase "raw"
     -> Handler (ArgGenChange s)
 rndStateChange ctx (ApiT wid) pwd =
@@ -2151,12 +2151,12 @@ newApiLayer
         , IsOurs s ChimericAccount
         , IsOurs s Address
         )
-    => Tracer IO (WorkerLog WalletId WalletLog)
+    => Tracer IO (WorkerLog AccountId WalletLog)
     -> (Block, NetworkParameters, SyncTolerance)
     -> NetworkLayer IO t Block
     -> TransactionLayer t k
     -> DBFactory IO s k
-    -> (WorkerCtx ctx -> WalletId -> IO ())
+    -> (WorkerCtx ctx -> AccountId -> IO ())
         -- ^ Action to run concurrently with wallet restore
     -> IO ctx
 newApiLayer tr g0 nw tl df coworker = do
@@ -2173,8 +2173,8 @@ registerWorker
         , IsOurs s Address
         )
     => ApiLayer s t k
-    -> (WorkerCtx ctx -> WalletId -> IO ())
-    -> WalletId
+    -> (WorkerCtx ctx -> AccountId -> IO ())
+    -> AccountId
     -> IO ()
 registerWorker ctx coworker wid =
     void $ Registry.register @_ @ctx re ctx wid config
@@ -2211,7 +2211,7 @@ withWorkerCtx
         )
     => ctx
         -- ^ A context that has a registry
-    -> WalletId
+    -> AccountId
         -- ^ Wallet to look for
     -> (ErrNoSuchWallet -> m a)
         -- ^ Wallet not present, handle error

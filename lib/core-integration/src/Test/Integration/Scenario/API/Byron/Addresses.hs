@@ -19,7 +19,7 @@ import Cardano.Mnemonic
     ( Mnemonic )
 import Cardano.Wallet.Api.Types
     ( ApiAddress
-    , ApiByronWallet
+    , ApiByronAccount
     , ApiPutAddressesData
     , ApiT (..)
     , DecodeAddress
@@ -121,7 +121,7 @@ scenario_ADDRESS_LIST_01
         ( DecodeAddress n
         , EncodeAddress n
         )
-    => (Context t -> ResourceT IO ApiByronWallet)
+    => (Context t -> ResourceT IO ApiByronAccount)
     -> SpecWith (Context t)
 scenario_ADDRESS_LIST_01 fixture = it title $ \ctx -> runResourceT $ do
     w <- fixture ctx
@@ -138,7 +138,7 @@ scenario_ADDRESS_LIST_02
         ( DecodeAddress n
         , EncodeAddress n
         )
-    => (Context t -> ResourceT IO ApiByronWallet)
+    => (Context t -> ResourceT IO ApiByronAccount)
     -> SpecWith (Context t)
 scenario_ADDRESS_LIST_02 fixture = it title $ \ctx -> runResourceT $ do
     w <- fixture ctx
@@ -168,7 +168,7 @@ scenario_ADDRESS_LIST_04
         ( DecodeAddress n
         , EncodeAddress n
         )
-    => (Context t -> ResourceT IO ApiByronWallet)
+    => (Context t -> ResourceT IO ApiByronAccount)
     -> SpecWith (Context t)
 scenario_ADDRESS_LIST_04 fixture = it title $ \ctx -> runResourceT $ do
     w <- fixture ctx
@@ -302,7 +302,7 @@ scenario_ADDRESS_IMPORT_01
         , EncodeAddress n
         , PaymentAddress n ByronKey
         )
-    => (Context t -> ResourceT IO (ApiByronWallet, Mnemonic 12))
+    => (Context t -> ResourceT IO (ApiByronAccount, Mnemonic 12))
     -> SpecWith (Context t)
 scenario_ADDRESS_IMPORT_01 fixture = it title $ \ctx -> runResourceT $ do
     (w, mw) <- fixture ctx
@@ -331,7 +331,7 @@ scenario_ADDRESS_IMPORT_02
         , EncodeAddress n
         , PaymentAddress n IcarusKey
         )
-    => (Context t -> ResourceT IO (ApiByronWallet, Mnemonic 15))
+    => (Context t -> ResourceT IO (ApiByronAccount, Mnemonic 15))
     -> SpecWith (Context t)
 scenario_ADDRESS_IMPORT_02 fixture = it title $ \ctx -> runResourceT $ do
     (w, mw) <- fixture ctx
@@ -353,7 +353,7 @@ scenario_ADDRESS_IMPORT_03
         , EncodeAddress n
         , PaymentAddress n ByronKey
         )
-    => (Context t -> ResourceT IO (ApiByronWallet, Mnemonic 12))
+    => (Context t -> ResourceT IO (ApiByronAccount, Mnemonic 12))
     -> SpecWith (Context t)
 scenario_ADDRESS_IMPORT_03 fixture = it title $ \ctx -> runResourceT $ do
     (w, mw) <- fixture ctx
@@ -377,7 +377,7 @@ scenario_ADDRESS_IMPORT_04
         , EncodeAddress n
         , PaymentAddress n ByronKey
         )
-    => (Context t -> ResourceT IO ApiByronWallet)
+    => (Context t -> ResourceT IO ApiByronAccount)
     -> SpecWith (Context t)
 scenario_ADDRESS_IMPORT_04 fixture = it title $ \ctx -> runResourceT $ do
     w <- fixture ctx
@@ -407,7 +407,7 @@ scenario_ADDRESS_IMPORT_05
         , PaymentAddress n ByronKey
         )
     => Int
-    -> (Context t -> ResourceT IO (ApiByronWallet, Mnemonic 12))
+    -> (Context t -> ResourceT IO (ApiByronAccount, Mnemonic 12))
     -> SpecWith (Context t)
 scenario_ADDRESS_IMPORT_05 addrNum fixture = it title $ \ctx -> runResourceT $ do
     (w, mw) <- fixture ctx
@@ -440,7 +440,7 @@ scenario_ADDRESS_IMPORT_06
         , EncodeAddress n
         , PaymentAddress n ByronKey
         )
-    => (Context t -> ResourceT IO (ApiByronWallet, Mnemonic 12))
+    => (Context t -> ResourceT IO (ApiByronAccount, Mnemonic 12))
     -> SpecWith (Context t)
 scenario_ADDRESS_IMPORT_06 fixture = it title $ \ctx -> runResourceT $ do
     (w, _)   <- fixture ctx

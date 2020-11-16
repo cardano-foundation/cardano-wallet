@@ -18,12 +18,12 @@ import Cardano.Mnemonic
     ( entropyToMnemonic, genEntropy, mnemonicToText )
 import Cardano.Wallet.Api.Types
     ( AddressAmount (..)
+    , ApiAccount
     , ApiAddress
     , ApiCoinSelectionOutput (..)
     , ApiFee
     , ApiTransaction
     , ApiUtxoStatistics
-    , ApiWallet
     , DecodeAddress
     , DecodeStakeAddress
     , EncodeAddress
@@ -126,7 +126,7 @@ spec = describe "SHELLEY_HW_WALLETS" $ do
         expectResponseCode HTTP.status202 rTrans
 
         eventually "Wallet balance is as expected" $ do
-            rGet <- request @ApiWallet ctx
+            rGet <- request @ApiAccount ctx
                 (Link.getWallet @'Shelley wDest) Default Empty
             verify rGet
                 [ expectField
@@ -137,15 +137,15 @@ spec = describe "SHELLEY_HW_WALLETS" $ do
 
         -- delete wallet
         rDel <-
-            request @ApiWallet ctx (Link.deleteWallet @'Shelley wDest) Default Empty
+            request @ApiAccount ctx (Link.deleteWallet @'Shelley wDest) Default Empty
         expectResponseCode HTTP.status204 rDel
 
         -- restore from account public key and make sure funds are there
         let accXPub = pubKeyFromMnemonics mnemonics
-        wDest' <- restoreWalletFromPubKey @ApiWallet @'Shelley ctx accXPub restoredWalletName
+        wDest' <- restoreWalletFromPubKey @ApiAccount @'Shelley ctx accXPub restoredWalletName
 
         eventually "Balance of restored wallet is as expected" $ do
-            rGet <- request @ApiWallet ctx
+            rGet <- request @ApiAccount ctx
                 (Link.getWallet @'Shelley wDest') Default Empty
             verify rGet
                 [ expectField
@@ -158,10 +158,10 @@ spec = describe "SHELLEY_HW_WALLETS" $ do
         it "Cannot send tx" $ \ctx -> runResourceT $ do
             (w, mnemonics) <- fixtureWalletWithMnemonics ctx
             let pubKey = pubKeyFromMnemonics mnemonics
-            r <- request @ApiWallet ctx (Link.deleteWallet @'Shelley w) Default Empty
+            r <- request @ApiAccount ctx (Link.deleteWallet @'Shelley w) Default Empty
             expectResponseCode HTTP.status204 r
 
-            wSrc <- restoreWalletFromPubKey @ApiWallet @'Shelley ctx pubKey restoredWalletName
+            wSrc <- restoreWalletFromPubKey @ApiAccount @'Shelley ctx pubKey restoredWalletName
             wDest <- emptyWallet ctx
 
             addrs <- listAddresses @n ctx wDest
@@ -184,11 +184,11 @@ spec = describe "SHELLEY_HW_WALLETS" $ do
         it "Cannot update pass" $ \ctx -> runResourceT $ do
             mnemonics <- liftIO $ mnemonicToText @15 . entropyToMnemonic <$> genEntropy
             let pubKey = pubKeyFromMnemonics mnemonics
-            wk <- restoreWalletFromPubKey @ApiWallet @'Shelley ctx pubKey restoredWalletName
+            wk <- restoreWalletFromPubKey @ApiAccount @'Shelley ctx pubKey restoredWalletName
 
             -- cannot update pass
             let payload = updatePassPayload fixturePassphrase "new-wallet-passphrase"
-            rup <- request @ApiWallet ctx
+            rup <- request @ApiAccount ctx
                 (Link.putWalletPassphrase @'Shelley wk) Default payload
             expectResponseCode HTTP.status403 rup
             expectErrorMessage (errMsg403NoRootKey $ wk ^. walletId) rup
@@ -197,15 +197,15 @@ spec = describe "SHELLEY_HW_WALLETS" $ do
         it "Can update name" $ \ctx -> runResourceT $ do
             mnemonics <- liftIO $ mnemonicToText @15 . entropyToMnemonic <$> genEntropy
             let pubKey = pubKeyFromMnemonics mnemonics
-            wk <- restoreWalletFromPubKey @ApiWallet @'Shelley ctx pubKey restoredWalletName
+            wk <- restoreWalletFromPubKey @ApiAccount @'Shelley ctx pubKey restoredWalletName
 
             -- cannot update wallet name
             let newName = "new name"
             let payload = updateNamePayload newName
-            rup <- request @ApiWallet ctx (Link.putWallet @'Shelley wk) Default payload
+            rup <- request @ApiAccount ctx (Link.putWallet @'Shelley wk) Default payload
             expectResponseCode HTTP.status200 rup
 
-            rGet <- request @ApiWallet ctx
+            rGet <- request @ApiAccount ctx
                 (Link.getWallet @'Shelley wk) Default Empty
             expectField
                 (#name . #getApiT . #getWalletName)
@@ -215,10 +215,10 @@ spec = describe "SHELLEY_HW_WALLETS" $ do
         it "Can get tx fee" $ \ctx -> runResourceT $ do
             (w, mnemonics) <- fixtureWalletWithMnemonics ctx
             let pubKey = pubKeyFromMnemonics mnemonics
-            r <- request @ApiWallet ctx (Link.deleteWallet @'Shelley w) Default Empty
+            r <- request @ApiAccount ctx (Link.deleteWallet @'Shelley w) Default Empty
             expectResponseCode HTTP.status204 r
 
-            wSrc <- restoreWalletFromPubKey @ApiWallet @'Shelley ctx pubKey restoredWalletName
+            wSrc <- restoreWalletFromPubKey @ApiAccount @'Shelley ctx pubKey restoredWalletName
             wDest <- emptyWallet ctx
 
             addrs <- listAddresses @n ctx wDest
@@ -240,15 +240,15 @@ spec = describe "SHELLEY_HW_WALLETS" $ do
         it "Can delete" $ \ctx -> runResourceT $ do
             mnemonics <- liftIO $ mnemonicToText @15 . entropyToMnemonic <$> genEntropy
             let pubKey = pubKeyFromMnemonics mnemonics
-            wPub <- restoreWalletFromPubKey @ApiWallet @'Shelley ctx pubKey restoredWalletName
-            r <- request @ApiWallet ctx
+            wPub <- restoreWalletFromPubKey @ApiAccount @'Shelley ctx pubKey restoredWalletName
+            r <- request @ApiAccount ctx
                 (Link.deleteWallet @'Shelley wPub) Default Empty
             expectResponseCode HTTP.status204 r
 
         it "Can see utxo" $ \ctx -> runResourceT $ do
             mnemonics <- liftIO $ mnemonicToText @15 . entropyToMnemonic <$> genEntropy
             let pubKey = pubKeyFromMnemonics mnemonics
-            wPub <- restoreWalletFromPubKey @ApiWallet @'Shelley ctx pubKey restoredWalletName
+            wPub <- restoreWalletFromPubKey @ApiAccount @'Shelley ctx pubKey restoredWalletName
             rStat <- request @ApiUtxoStatistics ctx
                 (Link.getUTxOsStatistics @'Shelley wPub) Default Empty
             expectResponseCode HTTP.status200 rStat
@@ -257,7 +257,7 @@ spec = describe "SHELLEY_HW_WALLETS" $ do
         it "Can list addresses" $ \ctx -> runResourceT $ do
             mnemonics <- liftIO $ mnemonicToText @15 . entropyToMnemonic <$> genEntropy
             let pubKey = pubKeyFromMnemonics mnemonics
-            wPub <- restoreWalletFromPubKey @ApiWallet @'Shelley ctx pubKey restoredWalletName
+            wPub <- restoreWalletFromPubKey @ApiAccount @'Shelley ctx pubKey restoredWalletName
 
             let g = fromIntegral $ getAddressPoolGap defaultAddressPoolGap
             r <- request @[ApiAddress n] ctx
@@ -291,7 +291,7 @@ spec = describe "SHELLEY_HW_WALLETS" $ do
         it "Can list transactions" $ \ctx -> runResourceT $ do
             mnemonics <- liftIO $ mnemonicToText @15 . entropyToMnemonic <$> genEntropy
             let pubKey = pubKeyFromMnemonics mnemonics
-            wPub <- restoreWalletFromPubKey @ApiWallet @'Shelley ctx pubKey restoredWalletName
+            wPub <- restoreWalletFromPubKey @ApiAccount @'Shelley ctx pubKey restoredWalletName
 
             rt <- request @([ApiTransaction n]) ctx
                 (Link.listTransactions @'Shelley wPub) Default Empty
@@ -302,10 +302,10 @@ spec = describe "SHELLEY_HW_WALLETS" $ do
             (w, mnemonics) <- fixtureWalletWithMnemonics ctx
             let pubKey = pubKeyFromMnemonics mnemonics
             r <- request
-                @ApiWallet ctx (Link.deleteWallet @'Shelley w) Default Empty
+                @ApiAccount ctx (Link.deleteWallet @'Shelley w) Default Empty
             expectResponseCode HTTP.status204 r
             source <- restoreWalletFromPubKey
-                @ApiWallet @'Shelley ctx pubKey restoredWalletName
+                @ApiAccount @'Shelley ctx pubKey restoredWalletName
             target <- emptyWallet ctx
             let paymentCount = 4
             targetAddresses <- take paymentCount .
@@ -330,8 +330,8 @@ spec = describe "SHELLEY_HW_WALLETS" $ do
         it "Can get wallet" $ \ctx -> runResourceT $ do
             mnemonics <- liftIO $ mnemonicToText @15 . entropyToMnemonic <$> genEntropy
             let pubKey = pubKeyFromMnemonics mnemonics
-            wPub <- restoreWalletFromPubKey @ApiWallet @'Shelley ctx pubKey restoredWalletName
-            rGet <- request @ApiWallet ctx
+            wPub <- restoreWalletFromPubKey @ApiAccount @'Shelley ctx pubKey restoredWalletName
+            rGet <- request @ApiAccount ctx
                 (Link.getWallet @'Shelley wPub) Default Empty
             expectField
                 (#name . #getApiT . #getWalletName)
@@ -341,8 +341,8 @@ spec = describe "SHELLEY_HW_WALLETS" $ do
         it "Can list wallet" $ \ctx -> runResourceT $ do
             mnemonics <- liftIO $ mnemonicToText @15 . entropyToMnemonic <$> genEntropy
             let pubKey = pubKeyFromMnemonics mnemonics
-            w <- restoreWalletFromPubKey @ApiWallet @'Shelley ctx pubKey restoredWalletName
-            wids <- map (view #id) . unsafeResponse <$> request @[ApiWallet] ctx
+            w <- restoreWalletFromPubKey @ApiAccount @'Shelley ctx pubKey restoredWalletName
+            wids <- map (view #id) . unsafeResponse <$> request @[ApiAccount] ctx
                 (Link.listWallets @'Shelley) Default Empty
             liftIO $ wids `shouldContain` [view #id w]
 
@@ -357,10 +357,10 @@ spec = describe "SHELLEY_HW_WALLETS" $ do
 
             -- create from account public key
             let accXPub = pubKeyFromMnemonics mnemonics
-            r2' <- restoreWalletFromPubKey @ApiWallet @'Shelley ctx accXPub restoredWalletName
+            r2' <- restoreWalletFromPubKey @ApiAccount @'Shelley ctx accXPub restoredWalletName
 
-            r1 <- request @ApiWallet ctx (Link.getWallet @'Shelley (getFromResponse id r1')) Default Empty
-            r2 <- request @ApiWallet ctx (Link.getWallet @'Shelley r2') Default Empty
+            r1 <- request @ApiAccount ctx (Link.getWallet @'Shelley (getFromResponse id r1')) Default Empty
+            r2 <- request @ApiAccount ctx (Link.getWallet @'Shelley r2') Default Empty
 
             -- both wallets are available
             verify r1

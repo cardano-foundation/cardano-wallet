@@ -17,9 +17,9 @@ import Prelude
 import Cardano.CLI
     ( Port )
 import Cardano.Wallet.Api.Types
-    ( ApiTransaction
+    ( ApiAccount
+    , ApiTransaction
     , ApiUtxoStatistics
-    , ApiWallet
     , DecodeAddress (..)
     , DecodeStakeAddress (..)
     , EncodeAddress (..)
@@ -124,7 +124,7 @@ spec = describe "SHELLEY_CLI_WALLETS" $ do
         (Exit c, Stdout out, Stderr err) <- listWalletsViaCLI @t ctx
         c `shouldBe` ExitSuccess
         err `shouldBe` cmdOk
-        j <- expectValidJSON (Proxy @[ApiWallet]) out
+        j <- expectValidJSON (Proxy @[ApiAccount]) out
         let wids = map (T.unpack . view walletId) j
         wids `shouldContain` [shelleyWid]
         wids `shouldNotContain` [byronWid]
@@ -173,7 +173,7 @@ spec = describe "SHELLEY_CLI_WALLETS" $ do
         (c, out, err) <- createWalletViaCLI @t ctx ["n"] m "\n" "secure-passphrase"
         c `shouldBe` ExitSuccess
         T.unpack err `shouldContain` cmdOk
-        j <- expectValidJSON (Proxy @ApiWallet) out
+        j <- expectValidJSON (Proxy @ApiAccount) out
         verify j
             [ expectCliField (#name . #getApiT . #getWalletName) (`shouldBe` "n")
             , expectCliField
@@ -187,7 +187,7 @@ spec = describe "SHELLEY_CLI_WALLETS" $ do
 
         eventually "Wallet state = Ready" $ do
             Stdout og <- getWalletViaCLI @t ctx $ T.unpack (j ^. walletId)
-            jg <- expectValidJSON (Proxy @ApiWallet) og
+            jg <- expectValidJSON (Proxy @ApiAccount) og
             expectCliField (#state . #getApiT) (`shouldBe` Ready) jg
 
     it "WALLETS_CREATE_02 - Restored wallet preserves funds" $ \ctx -> runResourceT $ do
@@ -198,7 +198,7 @@ spec = describe "SHELLEY_CLI_WALLETS" $ do
         (c1, o1, e1) <- liftIO $ createWalletViaCLI @t ctx ["n"] m "\n" "secure-passphrase"
         c1 `shouldBe` ExitSuccess
         T.unpack e1 `shouldContain` cmdOk
-        wDest <- expectValidJSON (Proxy @ApiWallet) o1
+        wDest <- expectValidJSON (Proxy @ApiAccount) o1
         verify wDest
             [ expectCliField
                     (#balance . #getApiT . #available) (`shouldBe` Quantity 0)
@@ -222,7 +222,7 @@ spec = describe "SHELLEY_CLI_WALLETS" $ do
 
         eventually "Wallet balance is as expected" $ do
             Stdout og <- getWalletViaCLI @t ctx $ T.unpack (wDest ^. walletId)
-            jg <- expectValidJSON (Proxy @ApiWallet) og
+            jg <- expectValidJSON (Proxy @ApiAccount) og
             expectCliField (#balance . #getApiT . #available)
                 (`shouldBe` Quantity amount) jg
             expectCliField (#balance . #getApiT . #total)
@@ -236,16 +236,16 @@ spec = describe "SHELLEY_CLI_WALLETS" $ do
         (c2, o2, e2) <- createWalletViaCLI @t ctx ["n"] m "\n" "secure-passphraseX"
         c2 `shouldBe` ExitSuccess
         T.unpack e2 `shouldContain` cmdOk
-        wRestored <- expectValidJSON (Proxy @ApiWallet) o2
+        wRestored <- expectValidJSON (Proxy @ApiAccount) o2
         expectCliField walletId (`shouldBe` wDest ^. walletId) wRestored
         eventually "Wallet is fully restored" $ do
             Stdout og2 <- getWalletViaCLI @t ctx $ T.unpack (wDest ^. walletId)
-            jg2 <- expectValidJSON (Proxy @ApiWallet) og2
+            jg2 <- expectValidJSON (Proxy @ApiAccount) og2
             expectCliField (#state . #getApiT) (`shouldBe` Ready) jg2
 
         -- make sure funds are there
         Stdout o3 <- getWalletViaCLI @t ctx $ T.unpack (wRestored ^. walletId)
-        justRestored <- expectValidJSON (Proxy @ApiWallet) o3
+        justRestored <- expectValidJSON (Proxy @ApiAccount) o3
         verify justRestored
             [ expectCliField
                     (#balance . #getApiT . #available) (`shouldBe` Quantity amount)
@@ -261,7 +261,7 @@ spec = describe "SHELLEY_CLI_WALLETS" $ do
         (c1, o1, e1) <- createWalletViaCLI @t ctx ["n1"] m1 m2 "secure-passphrase"
         c1 `shouldBe` ExitSuccess
         T.unpack e1 `shouldContain` cmdOk
-        j <- expectValidJSON (Proxy @ApiWallet) o1
+        j <- expectValidJSON (Proxy @ApiAccount) o1
         expectCliField (#name . #getApiT . #getWalletName) (`shouldBe` "n1") j
 
         (c2, o2, e2) <- createWalletViaCLI @t ctx ["n2"] m1 m2 "Xsecure-passphraseX"
@@ -277,7 +277,7 @@ spec = describe "SHELLEY_CLI_WALLETS" $ do
             (c, o, e) <- createWalletViaCLI @t ctx [n] m "\n" "secure-passphrase"
             c `shouldBe` ExitSuccess
             T.unpack e `shouldContain` cmdOk
-            j <- expectValidJSON (Proxy @ApiWallet) o
+            j <- expectValidJSON (Proxy @ApiAccount) o
             expectCliField
                 (#name . #getApiT . #getWalletName) (`shouldBe` T.pack n) j
 
@@ -298,7 +298,7 @@ spec = describe "SHELLEY_CLI_WALLETS" $ do
                 createWalletViaCLI @t ctx [name] mnemonics "\n" pwd
             c `shouldBe` ExitSuccess
             T.unpack err `shouldContain` cmdOk
-            j <- expectValidJSON (Proxy @ApiWallet) out
+            j <- expectValidJSON (Proxy @ApiAccount) out
             expectCliField
                     (#name . #getApiT . #getWalletName) (`shouldBe` T.pack name) j
 
@@ -324,7 +324,7 @@ spec = describe "SHELLEY_CLI_WALLETS" $ do
             (c, out, err) <- createWalletViaCLI @t ctx [name] m1 m2 pwd
             c `shouldBe` ExitSuccess
             T.unpack err `shouldContain` cmdOk
-            j <- expectValidJSON (Proxy @ApiWallet) out
+            j <- expectValidJSON (Proxy @ApiAccount) out
             expectCliField
                     (#name . #getApiT . #getWalletName) (`shouldBe` T.pack name) j
 
@@ -360,7 +360,7 @@ spec = describe "SHELLEY_CLI_WALLETS" $ do
             (c, o, e) <- createWalletViaCLI @t ctx ["Wallet name"] m "\n" pass
             c `shouldBe` ExitSuccess
             T.unpack e `shouldContain` cmdOk
-            j <- expectValidJSON (Proxy @ApiWallet) o
+            j <- expectValidJSON (Proxy @ApiAccount) o
             expectCliField #passphrase (`shouldNotBe` Nothing) j
 
     describe "WALLETS_CREATE_07 - When passphrase is invalid" $ do
@@ -387,7 +387,7 @@ spec = describe "SHELLEY_CLI_WALLETS" $ do
         let expectsOk c o e gap = do
                 c `shouldBe` ExitSuccess
                 T.unpack e `shouldContain` cmdOk
-                j <- expectValidJSON (Proxy @ApiWallet) o
+                j <- expectValidJSON (Proxy @ApiAccount) o
                 expectCliField
                         (#addressPoolGap . #getApiT . #getAddressPoolGap)
                         (`shouldBe` (read gap :: Word32))
@@ -426,7 +426,7 @@ spec = describe "SHELLEY_CLI_WALLETS" $ do
         (Exit c, Stdout out, Stderr err) <- getWalletViaCLI @t ctx walId
         c `shouldBe` ExitSuccess
         err `shouldBe` cmdOk
-        j <- expectValidJSON (Proxy @ApiWallet) out
+        j <- expectValidJSON (Proxy @ApiAccount) out
         verify j
             [ expectCliField
                     (#name . #getApiT . #getWalletName) (`shouldBe` "Empty Wallet")
@@ -444,7 +444,7 @@ spec = describe "SHELLEY_CLI_WALLETS" $ do
 
         eventually "Wallet state = Ready" $ do
             Stdout og <- getWalletViaCLI @t ctx walId
-            jg <- expectValidJSON (Proxy @ApiWallet) og
+            jg <- expectValidJSON (Proxy @ApiAccount) og
             expectCliField (#state . #getApiT) (`shouldBe` Ready) jg
 
     describe "WALLETS_GET_03,04 - Cannot get wallets with false ids" $ do
@@ -468,7 +468,7 @@ spec = describe "SHELLEY_CLI_WALLETS" $ do
         err `shouldBe` cmdOk
         let walFromThisTest w =
                 prefix `T.isPrefixOf` getWalletName (getApiT (view #name w))
-        j <- filter walFromThisTest <$> expectValidJSON (Proxy @[ApiWallet]) out
+        j <- filter walFromThisTest <$> expectValidJSON (Proxy @[ApiAccount]) out
         length j `shouldBe` 2
         verify j
             [ expectCliListField 0
@@ -495,7 +495,7 @@ spec = describe "SHELLEY_CLI_WALLETS" $ do
         err `shouldBe` cmdOk
         let walFromThisTest w =
                 prefix `T.isPrefixOf` getWalletName (getApiT (view #name w))
-        j <- filter walFromThisTest <$> expectValidJSON (Proxy @[ApiWallet]) out
+        j <- filter walFromThisTest <$> expectValidJSON (Proxy @[ApiAccount]) out
         length j `shouldBe` 3
         verify j
             [ expectCliListField 0 walletId (`shouldBe` T.pack w1)
@@ -511,7 +511,7 @@ spec = describe "SHELLEY_CLI_WALLETS" $ do
                 updateWalletNameViaCLI @t ctx args
             c `shouldBe` ExitSuccess
             err `shouldBe` cmdOk
-            j <- expectValidJSON (Proxy @ApiWallet) out
+            j <- expectValidJSON (Proxy @ApiAccount) out
             expectCliField
                 (#name . #getApiT . #getWalletName) (`shouldBe` T.pack n) j
 
@@ -534,7 +534,7 @@ spec = describe "SHELLEY_CLI_WALLETS" $ do
 
             --verify passphraseLastUpdate was updated
             Stdout o <- getWalletViaCLI @t ctx wid
-            j <- expectValidJSON (Proxy @ApiWallet) o
+            j <- expectValidJSON (Proxy @ApiAccount) o
             expectCliField #passphrase (`shouldNotBe` initPassUpdateTime) j
 
     describe "WALLETS_UPDATE_PASS_02 - New passphrase values" $ do
@@ -708,7 +708,7 @@ spec = describe "SHELLEY_CLI_WALLETS" $ do
         out `shouldBe` "\n"
         (Stdout o, Stderr e) <- listWalletsViaCLI @t ctx
         wids <- map (T.unpack . view walletId)
-            <$> expectValidJSON (Proxy @[ApiWallet]) o
+            <$> expectValidJSON (Proxy @[ApiAccount]) o
         wids `shouldNotContain` [walId]
         e `shouldBe` cmdOk
 
@@ -739,7 +739,7 @@ spec = describe "SHELLEY_CLI_WALLETS" $ do
         cp `shouldBe` ExitSuccess
         eventually "Wallet balance is as expected" $ do
             Stdout og <- getWalletViaCLI @t ctx $ T.unpack (wDest ^. walletId)
-            jg <- expectValidJSON (Proxy @ApiWallet) og
+            jg <- expectValidJSON (Proxy @ApiAccount) og
             expectCliField (#balance . #getApiT . #available)
                 (`shouldBe` Quantity (fromIntegral $ sum coins)) jg
             expectCliField (#balance . #getApiT . #total)

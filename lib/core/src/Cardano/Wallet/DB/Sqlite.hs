@@ -314,7 +314,7 @@ findDatabases
     :: forall k. WalletKey k
     => Tracer IO DBLog
     -> FilePath
-    -> IO [W.WalletId]
+    -> IO [W.AccountId]
 findDatabases tr dir = do
     files <- listDirectory dir
     fmap catMaybes $ forM files $ \file -> do
@@ -715,10 +715,10 @@ newDBLayer trace defaultFieldValues mDatabaseFile timeInterpreter = do
     -- `SqlPersistT`.
     cache <- newIORef Map.empty
 
-    let readCache :: W.WalletId -> SqlPersistT IO (Maybe (W.Wallet s))
+    let readCache :: W.AccountId -> SqlPersistT IO (Maybe (W.Wallet s))
         readCache wid = Map.lookup wid <$> liftIO (readIORef cache)
 
-    let writeCache :: W.WalletId -> Maybe (W.Wallet s) -> SqlPersistT IO ()
+    let writeCache :: W.AccountId -> Maybe (W.Wallet s) -> SqlPersistT IO ()
         writeCache wid = \case
             Nothing ->
                 liftIO $ modifyIORef' cache $ Map.delete wid
@@ -732,14 +732,14 @@ newDBLayer trace defaultFieldValues mDatabaseFile timeInterpreter = do
                 liftIO $ modifyIORef' cache $ Map.alter alter wid
 
     let selectLatestCheckpoint
-            :: W.WalletId
+            :: W.AccountId
             -> SqlPersistT IO (Maybe (W.Wallet s))
         selectLatestCheckpoint wid = do
             readCache wid >>= maybe fromDatabase (pure . Just)
           where
             fromDatabase = do
                 mcp <- fmap entityVal <$> selectFirst
-                    [ CheckpointWalletId ==. wid ]
+                    [ CheckpointAccountId ==. wid ]
                     [ LimitTo 1, Desc CheckpointSlot ]
                 case mcp of
                     Nothing -> pure Nothing
@@ -748,7 +748,7 @@ newDBLayer trace defaultFieldValues mDatabaseFile timeInterpreter = do
                         s <- selectState (checkpointId cp)
                         pure (checkpointFromEntity @s cp utxo <$> s)
 
-    let invalidateCache :: W.WalletId -> SqlPersistT IO ()
+    let invalidateCache :: W.AccountId -> SqlPersistT IO ()
         invalidateCache wid = do
             writeCache wid Nothing
             selectLatestCheckpoint wid >>= writeCache wid
@@ -796,7 +796,7 @@ newDBLayer trace defaultFieldValues mDatabaseFile timeInterpreter = do
 
         , listCheckpoints = \(PrimaryKey wid) -> do
             map (blockHeaderFromEntity . entityVal) <$> selectList
-                [ CheckpointWalletId ==. wid ]
+                [ CheckpointAccountId ==. wid ]
                 [ Asc CheckpointSlot ]
 
         , rollbackTo = \(PrimaryKey wid) requestedPoint -> ExceptT $ do
@@ -883,7 +883,7 @@ newDBLayer trace defaultFieldValues mDatabaseFile timeInterpreter = do
                 Nothing -> pure $ Left $ ErrNoSuchWallet wid
                 Just{} -> do
                     val <- fmap entityVal <$> selectFirst
-                        [StakeKeyCertWalletId ==. wid]
+                        [StakeKeyCertAccountId ==. wid]
                         [Desc StakeKeyCertSlot]
                     return $ case val of
                         Nothing -> Right False
@@ -955,7 +955,7 @@ newDBLayer trace defaultFieldValues mDatabaseFile timeInterpreter = do
             selectWallet wid >>= \case
                 Nothing -> pure $ Left $ ErrNoSuchWallet wid
                 Just _ -> Right <$> do
-                    deleteWhere [PrivateKeyWalletId ==. wid]
+                    deleteWhere [PrivateKeyAccountId ==. wid]
                     insert_ (mkPrivateKeyEntity wid key)
 
         , readPrivateKey = \(PrimaryKey wid) -> selectPrivateKey wid
@@ -989,7 +989,7 @@ newDBLayer trace defaultFieldValues mDatabaseFile timeInterpreter = do
         , readDelegationRewardBalance =
             \(PrimaryKey wid) ->
                 maybe minBound (Quantity . rewardAccountBalance . entityVal) <$>
-                selectFirst [RewardWalletId ==. wid] []
+                selectFirst [RewardAccountId ==. wid] []
 
         {-----------------------------------------------------------------------
                                      ACID Execution
@@ -1000,7 +1000,7 @@ newDBLayer trace defaultFieldValues mDatabaseFile timeInterpreter = do
         })
 
 readWalletMetadata
-    :: W.WalletId
+    :: W.AccountId
     -> W.WalletDelegation
     -> SqlPersistT IO (Maybe W.WalletMetadata)
 readWalletMetadata wid walDel =
@@ -1009,7 +1009,7 @@ readWalletMetadata wid walDel =
 
 readWalletDelegation
     :: TimeInterpreter IO
-    -> W.WalletId
+    -> W.AccountId
     -> W.EpochNo
     -> SqlPersistT IO W.WalletDelegation
 readWalletDelegation ti wid epoch
@@ -1037,11 +1037,11 @@ readWalletDelegation ti wid epoch
         pure $ W.WalletDelegation active next
 
 readDelegationCertificate
-    :: W.WalletId
+    :: W.AccountId
     -> [Filter DelegationCertificate]
     -> SqlPersistT IO (Maybe DelegationCertificate)
 readDelegationCertificate wid filters = fmap entityVal
-    <$> selectFirst ((CertWalletId ==. wid) : filters) [Desc CertSlot]
+    <$> selectFirst ((CertAccountId ==. wid) : filters) [Desc CertSlot]
 
 toWalletDelegationStatus
     :: DelegationCertificate
@@ -1052,7 +1052,7 @@ toWalletDelegationStatus = \case
     DelegationCertificate _ _ (Just pool) ->
         W.Delegating pool
 
-mkWalletEntity :: W.WalletId -> W.WalletMetadata -> Wallet
+mkWalletEntity :: W.AccountId -> W.WalletMetadata -> Wallet
 mkWalletEntity wid meta = Wallet
     { walId = wid
     , walName = meta ^. #name . coerce
@@ -1091,11 +1091,11 @@ metadataFromEntity walDelegation wal = W.WalletMetadata
 
 mkPrivateKeyEntity
     :: PersistPrivateKey (k 'RootK)
-    => W.WalletId
+    => W.AccountId
     -> (k 'RootK XPrv, W.Hash "encryption")
     -> PrivateKey
 mkPrivateKeyEntity wid kh = PrivateKey
-    { privateKeyWalletId = wid
+    { privateKeyAccountId = wid
     , privateKeyRootKey = root
     , privateKeyHash = hash
     }
@@ -1110,7 +1110,7 @@ privateKeyFromEntity (PrivateKey _ k h) =
     unsafeDeserializeXPrv (k, h)
 
 mkCheckpointEntity
-    :: W.WalletId
+    :: W.AccountId
     -> W.Wallet s
     -> (Checkpoint, [UTxO])
 mkCheckpointEntity wid wal =
@@ -1121,7 +1121,7 @@ mkCheckpointEntity wid wal =
     (Quantity bh) = header ^. #blockHeight
     gp = W.blockchainParameters wal
     cp = Checkpoint
-        { checkpointWalletId = wid
+        { checkpointAccountId = wid
         , checkpointSlot = sl
         , checkpointParentHash = BlockId (header ^. #parentHeaderHash)
         , checkpointHeaderHash = BlockId (header ^. #headerHash)
@@ -1178,7 +1178,7 @@ checkpointFromEntity cp utxo s =
         }
 
 mkTxHistory
-    :: W.WalletId
+    :: W.AccountId
     -> [(W.Tx, W.TxMeta)]
     -> ([TxMeta], [TxIn], [TxOut], [TxWithdrawal])
 mkTxHistory wid txs = flatTxHistory
@@ -1243,14 +1243,14 @@ mkTxWithdrawals (txid, tx) =
             }
 
 mkTxMetaEntity
-    :: W.WalletId
+    :: W.AccountId
     -> W.Hash "Tx"
     -> Maybe W.TxMetadata
     -> W.TxMeta
     -> TxMeta
 mkTxMetaEntity wid txid meta derived = TxMeta
     { txMetaTxId = TxId txid
-    , txMetaWalletId = wid
+    , txMetaAccountId = wid
     , txMetaStatus = derived ^. #status
     , txMetaDirection = derived ^. #direction
     , txMetaSlot = derived ^. #slotNo
@@ -1325,7 +1325,7 @@ txHistoryFromEntity ti tip metas ins outs ws =
         }
 
 mkProtocolParametersEntity
-    :: W.WalletId
+    :: W.AccountId
     -> W.ProtocolParameters
     -> ProtocolParameters
 mkProtocolParametersEntity wid pp =
@@ -1354,13 +1354,13 @@ protocolParametersFromEntity (ProtocolParameters _ fp mx dl poolNum minUTxO epoc
                                    DB Queries
 -------------------------------------------------------------------------------}
 
-selectWallet :: MonadIO m => W.WalletId -> SqlPersistT m (Maybe Wallet)
+selectWallet :: MonadIO m => W.AccountId -> SqlPersistT m (Maybe Wallet)
 selectWallet wid =
     fmap entityVal <$> selectFirst [WalId ==. wid] []
 
 insertCheckpoint
     :: forall s. (PersistState s)
-    => W.WalletId
+    => W.AccountId
     -> W.Wallet s
     -> SqlPersistT IO ()
 insertCheckpoint wid wallet = do
@@ -1373,15 +1373,15 @@ insertCheckpoint wid wallet = do
 
 -- | Delete one or all checkpoints associated with a wallet.
 deleteCheckpoints
-    :: W.WalletId
+    :: W.AccountId
     -> [Filter Checkpoint]
     -> SqlPersistT IO ()
 deleteCheckpoints wid filters = do
-    deleteCascadeWhere ((CheckpointWalletId ==. wid) : filters)
+    deleteCascadeWhere ((CheckpointAccountId ==. wid) : filters)
 
 -- | Prune checkpoints in the database to keep it tidy
 pruneCheckpoints
-    :: W.WalletId
+    :: W.AccountId
     -> W.Wallet s
     -> SqlPersistT IO ()
 pruneCheckpoints wid cp = do
@@ -1393,34 +1393,34 @@ pruneCheckpoints wid cp = do
 
 -- | Delete TxMeta values for a wallet.
 deleteTxMetas
-    :: W.WalletId
+    :: W.AccountId
     -> [Filter TxMeta]
     -> SqlPersistT IO ()
 deleteTxMetas wid filters =
-    deleteWhere ((TxMetaWalletId ==. wid) : filters)
+    deleteWhere ((TxMetaAccountId ==. wid) : filters)
 
 
 -- | Delete stake key certificates for a wallet.
 deleteStakeKeyCerts
-    :: W.WalletId
+    :: W.AccountId
     -> [Filter StakeKeyCertificate]
     -> SqlPersistT IO ()
 deleteStakeKeyCerts wid filters =
-    deleteWhere ((StakeKeyCertWalletId ==. wid) : filters)
+    deleteWhere ((StakeKeyCertAccountId ==. wid) : filters)
 
 updateTxMetas
-    :: W.WalletId
+    :: W.AccountId
     -> [Filter TxMeta]
     -> [Update TxMeta]
     -> SqlPersistT IO ()
 updateTxMetas wid filters =
-    updateWhere ((TxMetaWalletId ==. wid) : filters)
+    updateWhere ((TxMetaAccountId ==. wid) : filters)
 
 -- | Insert multiple transactions, removing old instances first.
 putTxs :: [TxMeta] -> [TxIn] -> [TxOut] -> [TxWithdrawal] -> SqlPersistT IO ()
 putTxs metas txins txouts ws = do
     dbChunked repsertMany
-        [ (TxMetaKey txMetaTxId txMetaWalletId, m)
+        [ (TxMetaKey txMetaTxId txMetaAccountId, m)
         | m@TxMeta{..} <- metas]
     dbChunked repsertMany
         [ (TxInKey txInputTxId txInputSourceTxId txInputSourceIndex, i)
@@ -1451,18 +1451,18 @@ deleteLooseTransactions = do
 
 -- | Delete all delegation certificates matching the given filter
 deleteDelegationCertificates
-    :: W.WalletId
+    :: W.AccountId
     -> [Filter DelegationCertificate]
     -> SqlPersistT IO ()
 deleteDelegationCertificates wid filters = do
-    deleteCascadeWhere ((CertWalletId ==. wid) : filters)
+    deleteCascadeWhere ((CertAccountId ==. wid) : filters)
 
 selectUTxO
     :: Checkpoint
     -> SqlPersistT IO [UTxO]
 selectUTxO cp = fmap entityVal <$>
     selectList
-        [ UtxoWalletId ==. checkpointWalletId cp
+        [ UtxoAccountId ==. checkpointAccountId cp
         , UtxoSlot ==. checkpointSlot cp
         ] []
 
@@ -1529,13 +1529,13 @@ combineChunked xs f = concatMapM f $ chunksOf chunkSize xs
 selectTxHistory
     :: W.Wallet s
     -> TimeInterpreter IO
-    -> W.WalletId
+    -> W.AccountId
     -> Maybe (Quantity "lovelace" Natural)
     -> W.SortOrder
     -> [Filter TxMeta]
     -> SqlPersistT IO [W.TransactionInfo]
 selectTxHistory cp ti wid minWithdrawal order conditions = do
-    let txMetaFilter = (TxMetaWalletId ==. wid):conditions
+    let txMetaFilter = (TxMetaAccountId ==. wid):conditions
     metas <- case minWithdrawal of
         Nothing -> fmap entityVal <$> selectList txMetaFilter sortOpt
         Just inf -> do
@@ -1567,22 +1567,22 @@ selectTxHistory cp ti wid minWithdrawal order conditions = do
         W.Descending -> [Desc TxMetaSlot, Asc TxMetaTxId]
 
 selectTxMeta
-    :: W.WalletId
+    :: W.AccountId
     -> W.Hash "Tx"
     -> SqlPersistT IO (Maybe TxMeta)
 selectTxMeta wid tid =
     fmap entityVal <$> selectFirst
-        [ TxMetaWalletId ==. wid, TxMetaTxId ==. (TxId tid)]
+        [ TxMetaAccountId ==. wid, TxMetaTxId ==. (TxId tid)]
         [ Desc TxMetaSlot ]
 
 -- | Delete the transaction, but only if it's not in ledger.
 -- Returns non-zero if this was a success.
 deletePendingOrExpiredTx
-    :: W.WalletId
+    :: W.AccountId
     -> W.Hash "Tx"
     -> SqlPersistT IO Int
 deletePendingOrExpiredTx wid tid = do
-    let filt = [ TxMetaWalletId ==. wid, TxMetaTxId ==. (TxId tid) ]
+    let filt = [ TxMetaAccountId ==. wid, TxMetaTxId ==. (TxId tid) ]
     selectFirst ((TxMetaStatus ==. W.InLedger):filt) [] >>= \case
         Just _ -> pure 0  -- marked in ledger - refuse to delete
         Nothing -> fromIntegral <$> deleteWhereCount
@@ -1592,41 +1592,41 @@ deletePendingOrExpiredTx wid tid = do
 -- that their status becomes expired. Transaction expiry is not something which
 -- can be rolled back.
 updatePendingTxForExpiryQuery
-    :: W.WalletId
+    :: W.AccountId
     -> W.SlotNo
     -> SqlPersistT IO ()
 updatePendingTxForExpiryQuery wid tip =
     updateWhere isExpired [TxMetaStatus =. W.Expired]
   where
     isExpired =
-        [ TxMetaWalletId ==. wid
+        [ TxMetaAccountId ==. wid
         , TxMetaStatus ==. W.Pending
         , TxMetaSlotExpires <=. Just tip ]
 
 selectPrivateKey
     :: (MonadIO m, PersistPrivateKey (k 'RootK))
-    => W.WalletId
+    => W.AccountId
     -> SqlPersistT m (Maybe (k 'RootK XPrv, W.Hash "encryption"))
 selectPrivateKey wid = do
-    keys <- selectFirst [PrivateKeyWalletId ==. wid] []
+    keys <- selectFirst [PrivateKeyAccountId ==. wid] []
     pure $ (privateKeyFromEntity . entityVal) <$> keys
 
 selectProtocolParameters
     :: MonadIO m
-    => W.WalletId
+    => W.AccountId
     -> SqlPersistT m (Maybe W.ProtocolParameters)
 selectProtocolParameters wid = do
-    pp <- selectFirst [ProtocolParametersWalletId ==. wid] []
+    pp <- selectFirst [ProtocolParametersAccountId ==. wid] []
     pure $ (protocolParametersFromEntity . entityVal) <$> pp
 
 -- | Find the nearest 'Checkpoint' that is either at the given point or before.
 findNearestPoint
-    :: W.WalletId
+    :: W.AccountId
     -> W.SlotNo
     -> SqlPersistT IO (Maybe W.SlotNo)
 findNearestPoint wid sl =
     fmap (checkpointSlot . entityVal) <$> selectFirst
-        [CheckpointWalletId ==. wid, CheckpointSlot <=. sl]
+        [CheckpointAccountId ==. wid, CheckpointSlot <=. sl]
         [Desc CheckpointSlot]
 
 -- | A fatal exception thrown when trying to rollback but, there's no checkpoint
@@ -1636,25 +1636,25 @@ findNearestPoint wid sl =
 --
 -- If we don't find any checkpoint, it means that this invariant has been
 -- violated.
-data ErrRollbackTo = ErrNoOlderCheckpoint W.WalletId W.SlotNo deriving (Show)
+data ErrRollbackTo = ErrNoOlderCheckpoint W.AccountId W.SlotNo deriving (Show)
 instance Exception ErrRollbackTo
 
 {-------------------------------------------------------------------------------
                      DB queries for address discovery state
 -------------------------------------------------------------------------------}
 
--- | Get a @(WalletId, SlotNo)@ pair from the checkpoint table, for use with
+-- | Get a @(AccountId, SlotNo)@ pair from the checkpoint table, for use with
 -- 'insertState' and 'selectState'.
-checkpointId :: Checkpoint -> (W.WalletId, W.SlotNo)
-checkpointId cp = (checkpointWalletId cp, checkpointSlot cp)
+checkpointId :: Checkpoint -> (W.AccountId, W.SlotNo)
+checkpointId cp = (checkpointAccountId cp, checkpointSlot cp)
 
 -- | Functions for saving/loading the wallet's address discovery state into
 -- SQLite.
 class PersistState s where
     -- | Store the state for a checkpoint.
-    insertState :: (W.WalletId, W.SlotNo) -> s -> SqlPersistT IO ()
+    insertState :: (W.AccountId, W.SlotNo) -> s -> SqlPersistT IO ()
     -- | Load the state for a checkpoint.
-    selectState :: (W.WalletId, W.SlotNo) -> SqlPersistT IO (Maybe s)
+    selectState :: (W.AccountId, W.SlotNo) -> SqlPersistT IO (Maybe s)
 
 {-------------------------------------------------------------------------------
                           Sequential address discovery
@@ -1683,7 +1683,7 @@ instance
         let eGap = Seq.gap extPool
         let iGap = Seq.gap intPool
         repsert (SeqStateKey wid) $ SeqState
-            { seqStateWalletId = wid
+            { seqStateAccountId = wid
             , seqStateExternalGap = eGap
             , seqStateInternalGap = iGap
             , seqStateAccountXPub = serializeXPub accountXPub
@@ -1692,13 +1692,13 @@ instance
             }
         insertAddressPool @n wid sl intPool
         insertAddressPool @n wid sl extPool
-        deleteWhere [SeqStatePendingWalletId ==. wid]
+        deleteWhere [SeqStatePendingAccountId ==. wid]
         dbChunked
             insertMany_
             (mkSeqStatePendingIxs wid $ Seq.pendingChangeIxs st)
 
     selectState (wid, sl) = runMaybeT $ do
-        st <- MaybeT $ selectFirst [SeqStateWalletId ==. wid] []
+        st <- MaybeT $ selectFirst [SeqStateAccountId ==. wid] []
         let SeqState _ eGap iGap accountBytes rewardBytes prefix = entityVal st
         let accountXPub = unsafeDeserializeXPub accountBytes
         let rewardXPub = unsafeDeserializeXPub rewardBytes
@@ -1709,7 +1709,7 @@ instance
 
 insertAddressPool
     :: forall n k c. (PaymentAddress n k, Typeable c)
-    => W.WalletId
+    => W.AccountId
     -> W.SlotNo
     -> Seq.AddressPool c k
     -> SqlPersistT IO ()
@@ -1727,14 +1727,14 @@ selectAddressPool
         , MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
         , MkKeyFingerprint k W.Address
         )
-    => W.WalletId
+    => W.AccountId
     -> W.SlotNo
     -> Seq.AddressPoolGap
     -> k 'AccountK XPub
     -> SqlPersistT IO (Seq.AddressPool c k)
 selectAddressPool wid sl gap xpub = do
     addrs <- fmap entityVal <$> selectList
-        [ SeqStateAddressWalletId ==. wid
+        [ SeqStateAddressAccountId ==. wid
         , SeqStateAddressSlot ==. sl
         , SeqStateAddressAccountingStyle ==. Seq.accountingStyle @c
         ] [Asc SeqStateAddressIndex]
@@ -1747,14 +1747,14 @@ selectAddressPool wid sl gap xpub = do
         = Seq.mkAddressPool @n @c @k xpub gap
         $ map (\x -> (seqStateAddressAddress x, seqStateAddressStatus x)) addrs
 
-mkSeqStatePendingIxs :: W.WalletId -> Seq.PendingIxs -> [SeqStatePendingIx]
+mkSeqStatePendingIxs :: W.AccountId -> Seq.PendingIxs -> [SeqStatePendingIx]
 mkSeqStatePendingIxs wid =
     fmap (SeqStatePendingIx wid . W.getIndex) . Seq.pendingIxsToList
 
-selectSeqStatePendingIxs :: W.WalletId -> SqlPersistT IO Seq.PendingIxs
+selectSeqStatePendingIxs :: W.AccountId -> SqlPersistT IO Seq.PendingIxs
 selectSeqStatePendingIxs wid =
     Seq.pendingIxsFromList . fromRes <$> selectList
-        [SeqStatePendingWalletId ==. wid]
+        [SeqStatePendingAccountId ==. wid]
         [Desc SeqStatePendingIxIndex]
   where
     fromRes = fmap (W.Index . seqStatePendingIxIndex . entityVal)
@@ -1782,7 +1782,7 @@ instance PersistState (Rnd.RndState t) where
 
     selectState (wid, sl) = runMaybeT $ do
         st <- MaybeT $ selectFirst
-            [ RndStateWalletId ==. wid
+            [ RndStateAccountId ==. wid
             ] []
         let (RndState _ ix gen (HDPassphrase pwd)) = entityVal st
         addresses <- lift $ selectRndStateAddresses wid sl
@@ -1796,7 +1796,7 @@ instance PersistState (Rnd.RndState t) where
             }
 
 insertRndStateAddresses
-    :: W.WalletId
+    :: W.AccountId
     -> W.SlotNo
     -> Map Rnd.DerivationPath (W.Address, W.AddressState)
     -> SqlPersistT IO ()
@@ -1807,23 +1807,23 @@ insertRndStateAddresses wid sl addresses = do
         ]
 
 insertRndStatePending
-    :: W.WalletId
+    :: W.AccountId
     -> Map Rnd.DerivationPath W.Address
     -> SqlPersistT IO ()
 insertRndStatePending wid addresses = do
-    deleteWhere [RndStatePendingAddressWalletId ==. wid]
+    deleteWhere [RndStatePendingAddressAccountId ==. wid]
     dbChunked insertMany_
         [ RndStatePendingAddress wid accIx addrIx addr
         | ((W.Index accIx, W.Index addrIx), addr) <- Map.assocs addresses
         ]
 
 selectRndStateAddresses
-    :: W.WalletId
+    :: W.AccountId
     -> W.SlotNo
     -> SqlPersistT IO (Map Rnd.DerivationPath (W.Address, W.AddressState))
 selectRndStateAddresses wid sl = do
     addrs <- fmap entityVal <$> selectList
-        [ RndStateAddressWalletId ==. wid
+        [ RndStateAddressAccountId ==. wid
         , RndStateAddressSlot ==. sl
         ] []
     pure $ Map.fromList $ map assocFromEntity addrs
@@ -1832,11 +1832,11 @@ selectRndStateAddresses wid sl = do
         ((W.Index accIx, W.Index addrIx), (addr, st))
 
 selectRndStatePending
-    :: W.WalletId
+    :: W.AccountId
     -> SqlPersistT IO (Map Rnd.DerivationPath W.Address)
 selectRndStatePending wid = do
     addrs <- fmap entityVal <$> selectList
-        [ RndStatePendingAddressWalletId ==. wid
+        [ RndStatePendingAddressAccountId ==. wid
         ] []
     pure $ Map.fromList $ map assocFromEntity addrs
   where

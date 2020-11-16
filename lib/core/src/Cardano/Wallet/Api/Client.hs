@@ -57,12 +57,17 @@ import Cardano.Wallet.Api
     , Wallets
     )
 import Cardano.Wallet.Api.Types
-    ( ApiAddressIdT
+    ( AccountPutPassphraseData (..)
+    , ApiAccount (..)
+    , ApiAccountPutData (..)
+    , ApiAddressIdT
     , ApiAddressInspect (..)
     , ApiAddressInspectData (..)
     , ApiAddressT
-    , ApiByronWallet
+    , ApiByronAccount
+    , ApiByronAccountPutPassphraseData (..)
     , ApiCoinSelectionT
+    , ApiEncryptionPassphrase
     , ApiFee
     , ApiNetworkClock
     , ApiNetworkInformation (..)
@@ -75,18 +80,13 @@ import Cardano.Wallet.Api.Types
     , ApiTransactionT
     , ApiTxId (..)
     , ApiUtxoStatistics
-    , ApiWallet (..)
-    , ApiWalletPassphrase
-    , ByronWalletPutPassphraseData (..)
     , Iso8601Time (..)
     , PostExternalTransactionData (..)
     , PostTransactionDataT
     , PostTransactionFeeDataT
-    , WalletPutData (..)
-    , WalletPutPassphraseData (..)
     )
 import Cardano.Wallet.Primitive.Types
-    ( AddressState, Coin (..), SortOrder, WalletId )
+    ( AccountId, AddressState, Coin (..), SortOrder )
 import Control.Monad
     ( void )
 import Data.Coerce
@@ -114,13 +114,13 @@ import qualified Data.Aeson as Aeson
 -- cardano-wallet V2 API.
 data WalletClient wallet = WalletClient
     { deleteWallet
-        :: ApiT WalletId
+        :: ApiT AccountId
         -> ClientM ()
     , getWallet
-        :: ApiT WalletId
+        :: ApiT AccountId
         -> ClientM wallet
     , getWalletUtxoStatistics
-        :: ApiT WalletId
+        :: ApiT AccountId
         -> ClientM ApiUtxoStatistics
     , listWallets
         :: ClientM [wallet]
@@ -128,61 +128,61 @@ data WalletClient wallet = WalletClient
         :: PostData wallet
         -> ClientM wallet
     , putWallet
-        :: ApiT WalletId
-        -> WalletPutData
+        :: ApiT AccountId
+        -> ApiAccountPutData
         -> ClientM wallet
     , putWalletPassphrase
-        :: ApiT WalletId
-        -> WalletPutPassphraseData
+        :: ApiT AccountId
+        -> AccountPutPassphraseData
         -> ClientM NoContent
     }
 
 data TransactionClient = TransactionClient
     { listTransactions
-        :: ApiT WalletId
+        :: ApiT AccountId
         -> Maybe Iso8601Time
         -> Maybe Iso8601Time
         -> Maybe (ApiT SortOrder)
         -> ClientM [ApiTransactionT Aeson.Value]
     , postTransaction
-        :: ApiT WalletId
+        :: ApiT AccountId
         -> PostTransactionDataT Aeson.Value
         -> ClientM (ApiTransactionT Aeson.Value)
     , postTransactionFee
-        :: ApiT WalletId
+        :: ApiT AccountId
         -> PostTransactionFeeDataT Aeson.Value
         -> ClientM ApiFee
     , postExternalTransaction
         :: PostExternalTransactionData
         -> ClientM ApiTxId
     , deleteTransaction
-        :: ApiT WalletId
+        :: ApiT AccountId
         -> ApiTxId
         -> ClientM NoContent
     , getTransaction
-        :: ApiT WalletId
+        :: ApiT AccountId
         -> ApiTxId
         -> ClientM (ApiTransactionT Aeson.Value)
     }
 
 data AddressClient = AddressClient
     { listAddresses
-        :: ApiT WalletId
+        :: ApiT AccountId
         -> Maybe (ApiT AddressState)
         -> ClientM [Aeson.Value]
     , inspectAddress
         :: Text
         -> ClientM Aeson.Value
     , postRandomAddress
-        :: ApiT WalletId
+        :: ApiT AccountId
         -> ApiPostRandomAddressData
         -> ClientM (ApiAddressT Aeson.Value)
     , putRandomAddress
-        :: ApiT WalletId
+        :: ApiT AccountId
         -> ApiAddressIdT Aeson.Value
         -> ClientM NoContent
     , putRandomAddresses
-        :: ApiT WalletId
+        :: ApiT AccountId
         -> ApiPutAddressesDataT Aeson.Value
         -> ClientM NoContent
     }
@@ -192,12 +192,12 @@ data StakePoolClient apiPool = StakePoolClient
         :: Maybe (ApiT Coin) -> ClientM [apiPool]
     , joinStakePool
         :: ApiPoolId
-        -> ApiT WalletId
-        -> ApiWalletPassphrase
+        -> ApiT AccountId
+        -> ApiEncryptionPassphrase
         -> ClientM (ApiTransactionT Aeson.Value)
     , quitStakePool
-        :: ApiT WalletId
-        -> ApiWalletPassphrase
+        :: ApiT AccountId
+        -> ApiEncryptionPassphrase
         -> ClientM (ApiTransactionT Aeson.Value)
     }
 
@@ -213,7 +213,7 @@ data NetworkClient = NetworkClient
     }
 
 -- | Produces a 'WalletClient' working against the /wallets API.
-walletClient :: WalletClient ApiWallet
+walletClient :: WalletClient ApiAccount
 walletClient =
     let
         _deleteWallet
@@ -236,7 +236,7 @@ walletClient =
             }
 
 -- | Produces a 'WalletClient' working against the /wallets API.
-byronWalletClient :: WalletClient ApiByronWallet
+byronWalletClient :: WalletClient ApiByronAccount
 byronWalletClient =
     let
         _postWallet
@@ -255,7 +255,7 @@ byronWalletClient =
             , postWallet = _postWallet
             , putWallet = _putWallet
             , putWalletPassphrase = \wid body ->
-                _putWalletPassphrase wid $ ByronWalletPutPassphraseData
+                _putWalletPassphrase wid $ ApiByronAccountPutPassphraseData
                     { oldPassphrase = Just $ coerce <$> body ^. #oldPassphrase
                     , newPassphrase = body ^. #newPassphrase
                     }

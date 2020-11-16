@@ -15,7 +15,7 @@ import Prelude
 
 import Cardano.Wallet.Api.Types
     ( AddressAmount (..)
-    , ApiByronWallet
+    , ApiByronAccount
     , ApiCoinSelectionOutput (..)
     , ApiT (..)
     , DecodeAddress
@@ -154,7 +154,7 @@ spec = describe "BYRON_COIN_SELECTION" $ do
         shW <- emptyWallet ctx
         (addr:_) <- fmap (view #id) <$> listAddresses @n ctx shW
         let payments = NE.fromList [ AddressAmount addr (Quantity minUTxOValue) ]
-        _ <- request @ApiByronWallet ctx (Link.deleteWallet @'Byron icW) Default Empty
+        _ <- request @ApiByronAccount ctx (Link.deleteWallet @'Byron icW) Default Empty
         selectCoins @_ @'Byron ctx icW payments >>= flip verify
             [ expectResponseCode HTTP.status404
             , expectErrorMessage (errMsg404NoWallet $ icW ^. walletId)

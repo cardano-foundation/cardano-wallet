@@ -19,11 +19,11 @@ import Prelude
 import Cardano.Mnemonic
     ( entropyToMnemonic, genEntropy )
 import Cardano.Wallet.Api.Types
-    ( ApiByronWallet
+    ( ApiAccount
+    , ApiAccountMigrationInfo (..)
+    , ApiByronAccount
     , ApiTransaction
     , ApiUtxoStatistics
-    , ApiWallet
-    , ApiWalletMigrationInfo (..)
     , DecodeAddress
     , DecodeStakeAddress
     , EncodeAddress (..)
@@ -115,7 +115,7 @@ spec = describe "BYRON_MIGRATIONS" $ do
         $ \fixtureByronWallet -> runResourceT $ do
             w <- fixtureByronWallet ctx
             let ep = Link.getMigrationInfo @'Byron w
-            r <- request @ApiWalletMigrationInfo ctx ep Default Empty
+            r <- request @ApiAccountMigrationInfo ctx ep Default Empty
             verify r
                 [ expectResponseCode HTTP.status200
                 , expectField (#migrationCost . #getQuantity)
@@ -128,7 +128,7 @@ spec = describe "BYRON_MIGRATIONS" $ do
         $ \emptyByronWallet -> runResourceT $ do
             w <- emptyByronWallet ctx
             let ep = Link.getMigrationInfo @'Byron w
-            r <- request @ApiWalletMigrationInfo ctx ep Default Empty
+            r <- request @ApiAccountMigrationInfo ctx ep Default Empty
             verify r
                 [ expectResponseCode HTTP.status403
                 , expectErrorMessage (errMsg403NothingToMigrate $ w ^. walletId)
@@ -151,7 +151,7 @@ spec = describe "BYRON_MIGRATIONS" $ do
                     } |]
             w <- unsafeResponse <$> postByronWallet ctx payloadRestore
             let ep = Link.getMigrationInfo @'Byron w
-            r <- request @ApiWalletMigrationInfo ctx ep Default Empty
+            r <- request @ApiAccountMigrationInfo ctx ep Default Empty
             verify r
                 [ expectResponseCode HTTP.status403
                 , expectErrorMessage (errMsg403NothingToMigrate $ w ^. walletId)
@@ -162,7 +162,7 @@ spec = describe "BYRON_MIGRATIONS" $ do
         $ \ctx -> runResourceT $ do
             w <- emptyWallet ctx
             let ep = Link.getMigrationInfo @'Byron w
-            r <- request @ApiWalletMigrationInfo ctx ep Default Empty
+            r <- request @ApiAccountMigrationInfo ctx ep Default Empty
             expectResponseCode HTTP.status404 r
             expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
 
@@ -238,7 +238,7 @@ spec = describe "BYRON_MIGRATIONS" $ do
                 } |]
         wOld <- unsafeResponse <$> postByronWallet ctx payloadRestore
         originalBalance <- eventually "wallet balance greater than 0" $ do
-            r <- request @ApiByronWallet ctx
+            r <- request @ApiByronAccount ctx
                 (Link.getWallet @'Byron wOld)
                 Default
                 Empty
@@ -248,7 +248,7 @@ spec = describe "BYRON_MIGRATIONS" $ do
             return $ getFromResponse (#balance . #available . #getQuantity) r
 
         --Calculate the expected migration fee:
-        rFee <- request @ApiWalletMigrationInfo ctx
+        rFee <- request @ApiAccountMigrationInfo ctx
             (Link.getMigrationInfo @'Byron wOld)
             Default
             Empty
@@ -286,7 +286,7 @@ spec = describe "BYRON_MIGRATIONS" $ do
         -- Check that funds become available in the target wallet:
         let expectedBalance = originalBalance - expectedFee - leftovers
         eventually "wallet balance = expectedBalance" $ do
-            request @ApiWallet ctx
+            request @ApiAccount ctx
                 (Link.getWallet @'Shelley wNew)
                 Default
                 Empty >>= flip verify
@@ -331,7 +331,7 @@ spec = describe "BYRON_MIGRATIONS" $ do
                 ]
 
             -- Verify that the source wallet has no funds available:
-            r1 <- request @ApiByronWallet ctx
+            r1 <- request @ApiByronAccount ctx
                 (Link.getWallet @'Byron sourceWallet) Default Empty
             verify r1
                 [ expectResponseCode HTTP.status200
@@ -378,7 +378,7 @@ spec = describe "BYRON_MIGRATIONS" $ do
                     } |]
             sourceWallet <- unsafeResponse <$> postByronWallet ctx payloadRestore
             eventually "wallet balance greater than 0" $ do
-                request @ApiByronWallet ctx
+                request @ApiByronAccount ctx
                     (Link.getWallet @'Byron sourceWallet)
                     Default
                     Empty >>= flip verify
@@ -410,7 +410,7 @@ spec = describe "BYRON_MIGRATIONS" $ do
 
             -- Request a migration fee prediction.
             let ep0 = (Link.getMigrationInfo @'Byron sourceWallet)
-            r0 <- request @ApiWalletMigrationInfo ctx ep0 Default Empty
+            r0 <- request @ApiAccountMigrationInfo ctx ep0 Default Empty
             verify r0
                 [ expectResponseCode HTTP.status200
                 , expectField #migrationCost (.> Quantity 0)
@@ -493,7 +493,7 @@ spec = describe "BYRON_MIGRATIONS" $ do
                     take addrNum addrs
 
             -- Calculate the expected migration fee:
-            r0 <- request @ApiWalletMigrationInfo ctx
+            r0 <- request @ApiAccountMigrationInfo ctx
                 (Link.getMigrationInfo @'Byron sourceWallet) Default Empty
             verify r0
                 [ expectResponseCode HTTP.status200
@@ -518,7 +518,7 @@ spec = describe "BYRON_MIGRATIONS" $ do
             -- Check that funds become available in the target wallet:
             let expectedBalance = originalBalance - expectedFee - leftovers
             eventually "Wallet has expectedBalance" $ do
-                r2 <- request @ApiWallet ctx
+                r2 <- request @ApiAccount ctx
                     (Link.getWallet @'Shelley targetWallet) Default Empty
                 verify r2
                     [ expectField

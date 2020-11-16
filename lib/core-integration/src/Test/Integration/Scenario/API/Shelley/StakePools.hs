@@ -16,12 +16,12 @@ module Test.Integration.Scenario.API.Shelley.StakePools
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiCertificate (JoinPool, QuitPool, RegisterRewardAccount)
+    ( ApiAccount
+    , ApiAccountDelegationStatus (..)
+    , ApiCertificate (JoinPool, QuitPool, RegisterRewardAccount)
     , ApiStakePool
     , ApiT (..)
     , ApiTransaction
-    , ApiWallet
-    , ApiWalletDelegationStatus (..)
     , DecodeAddress
     , DecodeStakeAddress
     , EncodeAddress
@@ -172,7 +172,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
     it "STAKE_POOLS_JOIN_01 - Cannot join non-existent wallet" $ \ctx -> runResourceT $ do
         w <- emptyWallet ctx
         let wid = w ^. walletId
-        _ <- request @ApiWallet ctx
+        _ <- request @ApiAccount ctx
             (Link.deleteWallet @'Shelley w) Default Empty
         let poolIdAbsent = PoolId $ BS.pack $ replicate 32 1
         r <- joinStakePool @n ctx (ApiT poolIdAbsent) (w, fixturePassphrase)
@@ -218,7 +218,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
         waitForNextEpoch ctx
         (previousBalance, walletRewards) <-
             liftIO $ eventually "Wallet gets rewards" $ do
-                r <- request @ApiWallet ctx (Link.getWallet @'Shelley src)
+                r <- request @ApiAccount ctx (Link.getWallet @'Shelley src)
                     Default Empty
                 verify r
                     [ expectField
@@ -260,7 +260,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                   [ expectField
                       (#status . #getApiT) (`shouldBe` InLedger)
                   ]
-          request @ApiWallet ctx (Link.getWallet @'Shelley src) Default Empty
+          request @ApiAccount ctx (Link.getWallet @'Shelley src) Default Empty
               >>= flip verify
                   [ expectField
                       (#balance . #getApiT . #reward) (`shouldBe` walletRewards)
@@ -298,7 +298,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
 
         -- Rewards are have been consumed.
         eventually "Wallet has consumed rewards" $ do
-            request @ApiWallet ctx (Link.getWallet @'Shelley src) Default Empty
+            request @ApiAccount ctx (Link.getWallet @'Shelley src) Default Empty
                 >>= flip verify
                     [ expectField
                         (#balance . #getApiT . #reward)
@@ -492,7 +492,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                     (#status . #getApiT) (`shouldBe` InLedger)
                 ]
 
-        request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty
+        request @ApiAccount ctx (Link.getWallet @'Shelley w) Default Empty
             >>= flip verify
                 [ expectField (#delegation . #next)
                     (\case
@@ -508,7 +508,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                     )
                 ]
         eventually "Wallet is delegating to p1" $ do
-            request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty
+            request @ApiAccount ctx (Link.getWallet @'Shelley w) Default Empty
                 >>= flip verify
                     [ expectField #delegation (`shouldBe` delegating pool1 [])
                     ]
@@ -531,7 +531,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                 ]
 
         eventually "Wallet is delegating to p2" $ do
-            request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty
+            request @ApiAccount ctx (Link.getWallet @'Shelley w) Default Empty
                 >>= flip verify
                     [ expectField #delegation (`shouldBe` delegating pool2 [])
                     ]
@@ -561,7 +561,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
 
         -- Wait for money to flow
         eventually "Wallet gets rewards" $ do
-            request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty
+            request @ApiAccount ctx (Link.getWallet @'Shelley w) Default Empty
                 >>= flip verify
                     [ expectField (#balance . #getApiT . #reward)
                         (.> (Quantity 0))
@@ -727,7 +727,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                 ]
 
             eventually "Wallet is delegating to p1" $ do
-                request @ApiWallet ctx (Link.getWallet @'Shelley w)
+                request @ApiAccount ctx (Link.getWallet @'Shelley w)
                     Default Empty >>= flip verify
                     [ expectField #delegation (`shouldBe` delegating pool1 [])
                     ]
@@ -832,7 +832,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                 ]
 
             eventually "Wallet is delegating to p1" $ do
-                request @ApiWallet ctx (Link.getWallet @'Shelley w)
+                request @ApiAccount ctx (Link.getWallet @'Shelley w)
                     Default Empty >>= flip verify
                     [ expectField #delegation (`shouldBe` delegating pool [])
                     ]
@@ -842,7 +842,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                 ]
             eventually "Wallet is not delegating and it got his deposit back" $
                 do
-                request @ApiWallet ctx (Link.getWallet @'Shelley w)
+                request @ApiAccount ctx (Link.getWallet @'Shelley w)
                     Default Empty >>= flip verify
                     [ expectField #delegation (`shouldBe` notDelegating [])
                     , expectField
@@ -869,7 +869,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                 ]
 
             eventually "Wallet is delegating to p1" $ do
-                request @ApiWallet ctx (Link.getWallet @'Shelley w)
+                request @ApiAccount ctx (Link.getWallet @'Shelley w)
                     Default Empty >>= flip verify
                     [ expectField #delegation (`shouldBe` delegating pool [])
                     ]

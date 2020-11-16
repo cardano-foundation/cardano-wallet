@@ -19,10 +19,10 @@ import Prelude
 import Cardano.Mnemonic
     ( entropyToMnemonic, genEntropy )
 import Cardano.Wallet.Api.Types
-    ( ApiTransaction
+    ( ApiAccount
+    , ApiAccountMigrationInfo (..)
+    , ApiTransaction
     , ApiUtxoStatistics
-    , ApiWallet
-    , ApiWalletMigrationInfo (..)
     , DecodeAddress
     , DecodeStakeAddress
     , EncodeAddress (..)
@@ -113,7 +113,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
         $ \ctx -> runResourceT $ do
             w <- fixtureWallet ctx
             let ep = Link.getMigrationInfo @'Shelley w
-            r <- request @ApiWalletMigrationInfo ctx ep Default Empty
+            r <- request @ApiAccountMigrationInfo ctx ep Default Empty
             verify r
                 [ expectResponseCode HTTP.status200
                 , expectField (#migrationCost . #getQuantity)
@@ -125,7 +125,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
         $ \ctx -> runResourceT $ do
             w <- emptyWallet ctx
             let ep = Link.getMigrationInfo @'Shelley w
-            r <- request @ApiWalletMigrationInfo ctx ep Default Empty
+            r <- request @ApiAccountMigrationInfo ctx ep Default Empty
             verify r
                 [ expectResponseCode HTTP.status403
                 , expectErrorMessage (errMsg403NothingToMigrate $ w ^. walletId)
@@ -141,7 +141,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                     $ \ctx -> runResourceT $ do
                     w <- byronWallet ctx
                     let ep = Link.getMigrationInfo @'Shelley w
-                    r <- request @ApiWalletMigrationInfo ctx ep Default Empty
+                    r <- request @ApiAccountMigrationInfo ctx ep Default Empty
                     expectResponseCode HTTP.status404 r
                     expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
 
@@ -175,7 +175,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                 } |]
         wOld <- unsafeResponse <$> postWallet ctx payloadRestore
         originalBalance <- eventually "wallet balance greater than 0" $ do
-            r <- request @ApiWallet ctx
+            r <- request @ApiAccount ctx
                 (Link.getWallet @'Shelley wOld)
                 Default
                 Empty
@@ -186,7 +186,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                 (#balance . #getApiT . #available . #getQuantity) r
 
         -- Calculate the expected migration fee:
-        rFee <- request @ApiWalletMigrationInfo ctx
+        rFee <- request @ApiAccountMigrationInfo ctx
             (Link.getMigrationInfo @'Shelley wOld)
             Default
             Empty
@@ -218,7 +218,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
         -- Check that funds become available in the target wallet:
         let expectedBalance = originalBalance - expectedFee - leftovers
         eventually "wallet balance = expectedBalance" $ do
-            request @ApiWallet ctx
+            request @ApiAccount ctx
                 (Link.getWallet @'Shelley wNew)
                 Default
                 Empty >>= flip verify
@@ -279,7 +279,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                     } |]
             sourceWallet <- unsafeResponse <$> postWallet ctx payloadRestore
             originalBalance <- eventually "wallet balance greater than 0" $ do
-                rg <- request @ApiWallet ctx
+                rg <- request @ApiAccount ctx
                     (Link.getWallet @'Shelley sourceWallet)
                     Default
                     Empty
@@ -290,7 +290,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                                  rg
 
             -- Calculate the expected migration fee:
-            r0 <- request @ApiWalletMigrationInfo ctx
+            r0 <- request @ApiAccountMigrationInfo ctx
                 (Link.getMigrationInfo @'Shelley sourceWallet) Default Empty
             verify r0
                 [ expectResponseCode HTTP.status200
@@ -314,7 +314,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
             -- Check that funds become available in the target wallet:
             let expectedBalance = originalBalance - expectedFee
             eventually "targetWallet balance = expectedBalance" $ do
-                request @ApiWallet ctx
+                request @ApiAccount ctx
                     (Link.getWallet @'Shelley targetWallet)
                     Default
                     Empty >>= flip verify
@@ -334,7 +334,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
 
             -- Request a migration fee prediction.
             let ep0 = (Link.getMigrationInfo @'Shelley sourceWallet)
-            r0 <- request @ApiWalletMigrationInfo ctx ep0 Default Empty
+            r0 <- request @ApiAccountMigrationInfo ctx ep0 Default Empty
             verify r0
                 [ expectResponseCode HTTP.status200
                 , expectField #migrationCost (.> Quantity 0)
@@ -451,7 +451,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                     take addrNum addrs
 
             -- Calculate the expected migration fee:
-            r0 <- request @ApiWalletMigrationInfo ctx
+            r0 <- request @ApiAccountMigrationInfo ctx
                 (Link.getMigrationInfo @'Shelley sourceWallet) Default Empty
             verify r0
                 [ expectResponseCode HTTP.status200
@@ -475,7 +475,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
             -- Check that funds become available in the target wallet:
             let expectedBalance = originalBalance - expectedFee
             eventually "Wallet has expectedBalance" $ do
-                r2 <- request @ApiWallet ctx
+                r2 <- request @ApiAccount ctx
                     (Link.getWallet @'Shelley targetWallet) Default Empty
                 verify r2
                     [ expectField
@@ -487,7 +487,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                     ]
 
             -- Verify sourceWallet has balance 0
-            r3 <- request @ApiWallet ctx
+            r3 <- request @ApiAccount ctx
                 (Link.getWallet @'Shelley sourceWallet) Default Empty
             verify r3
                 [ expectField

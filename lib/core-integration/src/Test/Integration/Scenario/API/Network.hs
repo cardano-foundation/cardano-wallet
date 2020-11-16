@@ -10,7 +10,7 @@ module Test.Integration.Scenario.API.Network
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiByronWallet
+    ( ApiByronAccount
     , ApiEpochInfo (..)
     , ApiNetworkClock
     , ApiNetworkInformation
@@ -93,7 +93,7 @@ spec = describe "COMMON_NETWORK" $ do
                 let absSlot =
                         getFromResponse (#nodeTip . #absoluteSlotNumber) sync
 
-                res <- request @ApiByronWallet ctx
+                res <- request @ApiByronAccount ctx
                     (Link.getWallet @'Byron w) Default Empty
                 verify res
                     [ expectField (#state . #getApiT) (`shouldBe` Ready)

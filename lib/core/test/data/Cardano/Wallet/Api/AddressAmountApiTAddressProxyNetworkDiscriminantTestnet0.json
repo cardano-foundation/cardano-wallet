@@ -1,72 +1,72 @@
 {
-    "seed": -7518356479236390969,
+    "seed": -1783022156951056457,
     "samples": [
         {
             "amount": {
-                "quantity": 212,
+                "quantity": 242,
                 "unit": "lovelace"
             },
             "address": "<addr>"
         },
         {
             "amount": {
-                "quantity": 32,
+                "quantity": 247,
                 "unit": "lovelace"
             },
             "address": "<addr>"
         },
         {
             "amount": {
-                "quantity": 40,
+                "quantity": 166,
                 "unit": "lovelace"
             },
             "address": "<addr>"
         },
         {
             "amount": {
-                "quantity": 6,
+                "quantity": 226,
                 "unit": "lovelace"
             },
             "address": "<addr>"
         },
         {
             "amount": {
-                "quantity": 232,
+                "quantity": 86,
                 "unit": "lovelace"
             },
             "address": "<addr>"
         },
         {
             "amount": {
-                "quantity": 18,
+                "quantity": 119,
                 "unit": "lovelace"
             },
             "address": "<addr>"
         },
         {
             "amount": {
-                "quantity": 214,
+                "quantity": 152,
                 "unit": "lovelace"
             },
             "address": "<addr>"
         },
         {
             "amount": {
-                "quantity": 143,
+                "quantity": 207,
                 "unit": "lovelace"
             },
             "address": "<addr>"
         },
         {
             "amount": {
-                "quantity": 250,
+                "quantity": 159,
                 "unit": "lovelace"
             },
             "address": "<addr>"
         },
         {
             "amount": {
-                "quantity": 85,
+                "quantity": 50,
                 "unit": "lovelace"
             },
             "address": "<addr>"

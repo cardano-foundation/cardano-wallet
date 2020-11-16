@@ -50,33 +50,33 @@ module Cardano.Wallet.Api.Malformed
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiAddressData
+    ( AccountPutPassphraseData
+    , ApiAccountMigrationPostData
+    , ApiAccountPostData
+    , ApiAccountPutData
+    , ApiAccountSignData
+    , ApiAddressData
     , ApiAddressInspectData
+    , ApiByronAccountPutPassphraseData
+    , ApiEncryptionPassphrase
     , ApiMaintenanceActionPostData
     , ApiPoolId
     , ApiPostRandomAddressData
     , ApiPutAddressesData
     , ApiSelectCoinsData
     , ApiSlotReference
+    , ApiSomeByronAccountPostData
     , ApiT (..)
     , ApiTxId
-    , ApiWalletMigrationPostData
-    , ApiWalletPassphrase
-    , ApiWalletSignData
-    , ByronWalletPutPassphraseData
     , PostExternalTransactionData
     , PostTransactionData
     , PostTransactionFeeData
     , SettingsPutData (..)
-    , SomeByronWalletPostData
-    , WalletOrAccountPostData
-    , WalletPutData
-    , WalletPutPassphraseData
     )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( AccountingStyle (..), DerivationIndex (..), NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Address, WalletId, walletNameMaxLength )
+    ( AccountId, Address, walletNameMaxLength )
 import Control.Arrow
     ( first )
 import Data.Aeson.QQ
@@ -130,10 +130,10 @@ class Malformed t where
 --
 -- Class instances (PathParam)
 --
-instance Wellformed (PathParam (ApiT WalletId)) where
+instance Wellformed (PathParam (ApiT AccountId)) where
     wellformed = [PathParam $ T.replicate 40 "0"]
 
-instance Malformed (PathParam (ApiT WalletId)) where
+instance Malformed (PathParam (ApiT AccountId)) where
     malformed = first PathParam <$>
         [ (T.replicate 40 "ś", msg)
         , (T.replicate 39 "1", msg)
@@ -232,7 +232,7 @@ instance Malformed (PathParam (ApiT DerivationIndex)) where
 -- Class instances (BodyParam)
 --
 
-instance Malformed (BodyParam ApiWalletSignData) where
+instance Malformed (BodyParam ApiAccountSignData) where
     malformed = first BodyParam <$>
         [ ( ""
           , "not enough input"
@@ -252,12 +252,12 @@ instance Malformed (BodyParam ApiWalletSignData) where
         , ( Aeson.encode [aesonQQ|
             { "metadata": { "0": { "string": "metadata" } }
             }|]
-          , "Error in $: parsing Cardano.Wallet.Api.Types.ApiWalletSignData(ApiWalletSignData) failed, key 'passphrase' not found"
+          , "Error in $: parsing Cardano.Wallet.Api.Types.ApiAccountSignData(ApiAccountSignData) failed, key 'passphrase' not found"
           )
         , ( Aeson.encode [aesonQQ|
             { "passphrase": #{wPassphrase}
             }|]
-          , "Error in $: parsing Cardano.Wallet.Api.Types.ApiWalletSignData(ApiWalletSignData) failed, key 'metadata' not found"
+          , "Error in $: parsing Cardano.Wallet.Api.Types.ApiAccountSignData(ApiAccountSignData) failed, key 'metadata' not found"
           )
         ]
 
@@ -293,12 +293,12 @@ instance Malformed (BodyParam ApiAddressData) where
           , "Error in $: ApiAddressData must have at least one credential."
           )
         ]
-instance Malformed (BodyParam SomeByronWalletPostData) where
+instance Malformed (BodyParam ApiSomeByronAccountPostData) where
     malformed = jsonValid ++ jsonInvalid
      where
          jsonInvalid = first BodyParam <$>
-            [ ("1020344", "Error in $: parsing SomeByronWallet failed, expected Object, but encountered Number")
-            , ("\"1020344\"", "Error in $: parsing SomeByronWallet failed, expected Object, but encountered String")
+            [ ("1020344", "Error in $: parsing SomeByronAccount failed, expected Object, but encountered Number")
+            , ("\"1020344\"", "Error in $: parsing SomeByronAccount failed, expected Object, but encountered String")
             , ("\"slot_number : \"random\"}", "trailing junk after valid JSON: endOfInput")
             , ("{style = \"random\"}", msgJsonInvalid)
             ]
@@ -456,11 +456,11 @@ instance Malformed (BodyParam SomeByronWalletPostData) where
                 , "name": #{wName}
                 , "mnemonic_sentence": #{mnemonics12}
                 }|]
-              , "Error in $: parsing Cardano.Wallet.Api.Types.ByronWalletPostData(ByronWalletPostData) failed, key 'passphrase' not found"
+              , "Error in $: parsing Cardano.Wallet.Api.Types.ApiByronAccountFromPhrase(ApiByronAccountFromPhrase) failed, key 'passphrase' not found"
               )
             ]
 
-instance Malformed (BodyParam WalletOrAccountPostData) where
+instance Malformed (BodyParam ApiAccountPostData) where
     malformed = jsonValid ++ jsonInvalid
      where
          jsonInvalid = first BodyParam <$>
@@ -488,7 +488,7 @@ instance Malformed (BodyParam WalletOrAccountPostData) where
                 { "name": #{wName}
                 , "passphrase": #{wPassphrase}
                 }|]
-              , "Error in $: parsing Cardano.Wallet.Api.Types.WalletPostData(WalletPostData) failed, key 'mnemonic_sentence' not found"
+              , "Error in $: parsing Cardano.Wallet.Api.Types.ApiAccountFromPhrase(ApiAccountFromPhrase) failed, key 'mnemonic_sentence' not found"
               )
             , ( [aesonQQ|
                 { "name": #{wName}
@@ -636,7 +636,7 @@ instance Malformed (BodyParam WalletOrAccountPostData) where
                 { "mnemonic_sentence": #{mnemonics15}
                 , "passphrase" :#{wPassphrase}
                 }|]
-              , "Error in $: parsing Cardano.Wallet.Api.Types.WalletPostData(WalletPostData) failed, key 'name' not found"
+              , "Error in $: parsing Cardano.Wallet.Api.Types.ApiAccountFromPhrase(ApiAccountFromPhrase) failed, key 'name' not found"
               )
             -- address_pool_gap
             , ( [aesonQQ|
@@ -759,7 +759,7 @@ instance Malformed (BodyParam WalletOrAccountPostData) where
                 { "name": #{wName}
                 , "mnemonic_sentence": #{mnemonics15}
                 }|]
-              , "Error in $: parsing Cardano.Wallet.Api.Types.WalletPostData(WalletPostData) failed, key 'passphrase' not found"
+              , "Error in $: parsing Cardano.Wallet.Api.Types.ApiAccountFromPhrase(ApiAccountFromPhrase) failed, key 'passphrase' not found"
               )
             -- HW Wallets (account_public_key)
             , ( [aesonQQ|
@@ -794,12 +794,12 @@ instance Malformed (BodyParam WalletOrAccountPostData) where
                )
             ]
 
-instance Malformed (BodyParam WalletPutPassphraseData) where
+instance Malformed (BodyParam AccountPutPassphraseData) where
     malformed = jsonValid ++ jsonInvalid
      where
          jsonInvalid = first BodyParam <$>
-            [ ("1020344", "Error in $: parsing Cardano.Wallet.Api.Types.WalletPutPassphraseData(WalletPutPassphraseData) failed, expected Object, but encountered Number")
-            , ("\"1020344\"", "Error in $: parsing Cardano.Wallet.Api.Types.WalletPutPassphraseData(WalletPutPassphraseData) failed, expected Object, but encountered String")
+            [ ("1020344", "Error in $: parsing Cardano.Wallet.Api.Types.AccountPutPassphraseData(AccountPutPassphraseData) failed, expected Object, but encountered Number")
+            , ("\"1020344\"", "Error in $: parsing Cardano.Wallet.Api.Types.AccountPutPassphraseData(AccountPutPassphraseData) failed, expected Object, but encountered String")
             , ("\"slot_number : \"random\"}", "trailing junk after valid JSON: endOfInput")
             , ("{old_passphrase = \"random\"}", msgJsonInvalid)
             ]
@@ -843,21 +843,21 @@ instance Malformed (BodyParam WalletPutPassphraseData) where
             , ( [aesonQQ|
                 { "old_passphrase": #{wPassphrase}
                 }|]
-              , "Error in $: parsing Cardano.Wallet.Api.Types.WalletPutPassphraseData(WalletPutPassphraseData) failed, key 'new_passphrase' not found"
+              , "Error in $: parsing Cardano.Wallet.Api.Types.AccountPutPassphraseData(AccountPutPassphraseData) failed, key 'new_passphrase' not found"
               )
             , ( [aesonQQ|
                 { "new_passphrase": #{wPassphrase}
                 }|]
-              , "Error in $: parsing Cardano.Wallet.Api.Types.WalletPutPassphraseData(WalletPutPassphraseData) failed, key 'old_passphrase' not found"
+              , "Error in $: parsing Cardano.Wallet.Api.Types.AccountPutPassphraseData(AccountPutPassphraseData) failed, key 'old_passphrase' not found"
               )
             ]
 
-instance Malformed (BodyParam ByronWalletPutPassphraseData) where
+instance Malformed (BodyParam ApiByronAccountPutPassphraseData) where
     malformed = jsonValid ++ jsonInvalid
      where
          jsonInvalid = first BodyParam <$>
-            [ ("1020344", "Error in $: parsing Cardano.Wallet.Api.Types.ByronWalletPutPassphraseData(ByronWalletPutPassphraseData) failed, expected Object, but encountered Number")
-            , ("\"1020344\"", "Error in $: parsing Cardano.Wallet.Api.Types.ByronWalletPutPassphraseData(ByronWalletPutPassphraseData) failed, expected Object, but encountered String")
+            [ ("1020344", "Error in $: parsing Cardano.Wallet.Api.Types.ApiByronAccountPutPassphraseData(ApiByronAccountPutPassphraseData) failed, expected Object, but encountered Number")
+            , ("\"1020344\"", "Error in $: parsing Cardano.Wallet.Api.Types.ApiByronAccountPutPassphraseData(ApiByronAccountPutPassphraseData) failed, expected Object, but encountered String")
             , ("\"slot_number : \"random\"}", "trailing junk after valid JSON: endOfInput")
             , ("{old_passphrase = \"random\"}", msgJsonInvalid)
             ]
@@ -895,16 +895,16 @@ instance Malformed (BodyParam ByronWalletPutPassphraseData) where
             , ( [aesonQQ|
                 { "old_passphrase": #{wPassphrase}
                 }|]
-              , "Error in $: parsing Cardano.Wallet.Api.Types.ByronWalletPutPassphraseData(ByronWalletPutPassphraseData) failed, key 'new_passphrase' not found"
+              , "Error in $: parsing Cardano.Wallet.Api.Types.ApiByronAccountPutPassphraseData(ApiByronAccountPutPassphraseData) failed, key 'new_passphrase' not found"
               )
             ]
 
-instance Malformed (BodyParam WalletPutData) where
+instance Malformed (BodyParam ApiAccountPutData) where
     malformed = jsonValid ++ jsonInvalid
      where
          jsonInvalid = first BodyParam <$>
-            [ ("1020344", "Error in $: parsing Cardano.Wallet.Api.Types.WalletPutData(WalletPutData) failed, expected Object, but encountered Number")
-            , ("\"1020344\"", "Error in $: parsing Cardano.Wallet.Api.Types.WalletPutData(WalletPutData) failed, expected Object, but encountered String")
+            [ ("1020344", "Error in $: parsing Cardano.Wallet.Api.Types.ApiAccountPutData(ApiAccountPutData) failed, expected Object, but encountered Number")
+            , ("\"1020344\"", "Error in $: parsing Cardano.Wallet.Api.Types.ApiAccountPutData(ApiAccountPutData) failed, expected Object, but encountered String")
             , ("\"slot_number : \"random\"}", "trailing junk after valid JSON: endOfInput")
             , ("{\"name : \"random\"}", msgJsonInvalid)
             ]
@@ -927,12 +927,12 @@ instance Malformed (BodyParam WalletPutData) where
               )
             ]
 
-instance Malformed (BodyParam ApiWalletPassphrase) where
+instance Malformed (BodyParam ApiEncryptionPassphrase) where
     malformed = jsonValid ++ jsonInvalid
      where
          jsonInvalid = first BodyParam <$>
-            [ ("1020344", "Error in $: parsing Cardano.Wallet.Api.Types.ApiWalletPassphrase(ApiWalletPassphrase) failed, expected Object, but encountered Number")
-            , ("\"1020344\"", "Error in $: parsing Cardano.Wallet.Api.Types.ApiWalletPassphrase(ApiWalletPassphrase) failed, expected Object, but encountered String")
+            [ ("1020344", "Error in $: parsing Cardano.Wallet.Api.Types.ApiEncryptionPassphrase(ApiEncryptionPassphrase) failed, expected Object, but encountered Number")
+            , ("\"1020344\"", "Error in $: parsing Cardano.Wallet.Api.Types.ApiEncryptionPassphrase(ApiEncryptionPassphrase) failed, expected Object, but encountered String")
             , ("\"slot_number : \"random\"}", "trailing junk after valid JSON: endOfInput")
             , ("{\"name : \"random\"}", msgJsonInvalid)
             ]
@@ -1031,23 +1031,23 @@ instance Malformed (BodyParam (PostTransactionFeeData ('Testnet pm))) where
             ]
          jsonValid = first (BodyParam . Aeson.encode) <$> paymentCases
 
-instance Malformed (BodyParam (ApiWalletMigrationPostData ('Testnet pm) "lenient")) where
+instance Malformed (BodyParam (ApiAccountMigrationPostData ('Testnet pm) "lenient")) where
     malformed = jsonValid ++ jsonInvalid
      where
          jsonInvalid = first BodyParam <$>
-            [ ("1020344", "Error in $: parsing Cardano.Wallet.Api.Types.ApiWalletMigrationPostData(ApiWalletMigrationPostData) failed, expected Object, but encountered Number")
-            , ("\"1020344\"", "Error in $: parsing Cardano.Wallet.Api.Types.ApiWalletMigrationPostData(ApiWalletMigrationPostData) failed, expected Object, but encountered String")
+            [ ("1020344", "Error in $: parsing Cardano.Wallet.Api.Types.ApiAccountMigrationPostData(ApiAccountMigrationPostData) failed, expected Object, but encountered Number")
+            , ("\"1020344\"", "Error in $: parsing Cardano.Wallet.Api.Types.ApiAccountMigrationPostData(ApiAccountMigrationPostData) failed, expected Object, but encountered String")
             , ("{\"payments : [], \"random\"}", msgJsonInvalid)
             , ("\"slot_number : \"random\"}", "trailing junk after valid JSON: endOfInput")
             ]
          jsonValid = first (BodyParam . Aeson.encode) <$> migrateDataCases
 
-instance Malformed (BodyParam (ApiWalletMigrationPostData ('Testnet pm) "raw")) where
+instance Malformed (BodyParam (ApiAccountMigrationPostData ('Testnet pm) "raw")) where
     malformed = jsonValid ++ jsonInvalid
      where
          jsonInvalid = first BodyParam <$>
-            [ ("1020344", "Error in $: parsing Cardano.Wallet.Api.Types.ApiWalletMigrationPostData(ApiWalletMigrationPostData) failed, expected Object, but encountered Number")
-            , ("\"1020344\"", "Error in $: parsing Cardano.Wallet.Api.Types.ApiWalletMigrationPostData(ApiWalletMigrationPostData) failed, expected Object, but encountered String")
+            [ ("1020344", "Error in $: parsing Cardano.Wallet.Api.Types.ApiAccountMigrationPostData(ApiAccountMigrationPostData) failed, expected Object, but encountered Number")
+            , ("\"1020344\"", "Error in $: parsing Cardano.Wallet.Api.Types.ApiAccountMigrationPostData(ApiAccountMigrationPostData) failed, expected Object, but encountered String")
             , ("{\"payments : [], \"random\"}", msgJsonInvalid)
             , ("\"slot_number : \"random\"}", "trailing junk after valid JSON: endOfInput")
             ]
@@ -1510,12 +1510,12 @@ migrateDataCases =
     , ( [aesonQQ|
         { "passphrase": #{wPassphrase}
         }|]
-      , "Error in $: parsing Cardano.Wallet.Api.Types.ApiWalletMigrationPostData(ApiWalletMigrationPostData) failed, key 'addresses' not found"
+      , "Error in $: parsing Cardano.Wallet.Api.Types.ApiAccountMigrationPostData(ApiAccountMigrationPostData) failed, key 'addresses' not found"
       )
     , ( [aesonQQ|
         { "addresses": 1
         }|]
-      , "Error in $: parsing Cardano.Wallet.Api.Types.ApiWalletMigrationPostData(ApiWalletMigrationPostData) failed, key 'passphrase' not found"
+      , "Error in $: parsing Cardano.Wallet.Api.Types.ApiAccountMigrationPostData(ApiAccountMigrationPostData) failed, key 'passphrase' not found"
       )
     , ( [aesonQQ|
         { "passphrase": 1

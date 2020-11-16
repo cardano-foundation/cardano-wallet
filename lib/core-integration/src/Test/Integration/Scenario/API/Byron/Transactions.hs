@@ -16,7 +16,7 @@ module Test.Integration.Scenario.API.Byron.Transactions
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiByronWallet
+    ( ApiByronAccount
     , ApiTransaction
     , DecodeAddress
     , DecodeStakeAddress
@@ -241,7 +241,7 @@ spec = describe "BYRON_MIGRATIONS" $ do
 
     it "BYRON_TX_LIST_04 - Deleted wallet" $ \ctx -> runResourceT @IO $ do
         w <- emptyRandomWallet ctx
-        _ <- request @ApiByronWallet ctx
+        _ <- request @ApiByronAccount ctx
             (Link.deleteWallet @'Byron w) Default Empty
         let link = Link.listTransactions @'Byron w
         r <- request @([ApiTransaction n]) ctx link Default Empty

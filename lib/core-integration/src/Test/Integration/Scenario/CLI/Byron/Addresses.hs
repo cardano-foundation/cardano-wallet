@@ -15,7 +15,7 @@ import Prelude
 
 import Cardano.Wallet.Api.Types
     ( ApiAddress
-    , ApiByronWallet
+    , ApiByronAccount
     , ApiT (..)
     , DecodeAddress
     , EncodeAddress (..)
@@ -125,7 +125,7 @@ scenario_ADDRESS_LIST_01
         , KnownCommand t
         )
     => String
-    -> (Context t -> ResourceT IO ApiByronWallet)
+    -> (Context t -> ResourceT IO ApiByronAccount)
     -> SpecWith (Context t)
 scenario_ADDRESS_LIST_01 walType fixture = it title $ \ctx -> runResourceT $ do
     w <- fixture ctx
@@ -149,7 +149,7 @@ scenario_ADDRESS_LIST_02
         , KnownCommand t
         )
     => String
-    -> (Context t -> ResourceT IO ApiByronWallet)
+    -> (Context t -> ResourceT IO ApiByronAccount)
     -> SpecWith (Context t)
 scenario_ADDRESS_LIST_02 walType fixture = it title $ \ctx -> runResourceT $ do
     w <- fixture ctx
@@ -187,7 +187,7 @@ scenario_ADDRESS_LIST_04
         , KnownCommand t
         )
     => String
-    -> (Context t -> ResourceT IO ApiByronWallet)
+    -> (Context t -> ResourceT IO ApiByronAccount)
     -> SpecWith (Context t)
 scenario_ADDRESS_LIST_04 walType fixture = it title $ \ctx -> runResourceT $ do
     w <- fixture ctx

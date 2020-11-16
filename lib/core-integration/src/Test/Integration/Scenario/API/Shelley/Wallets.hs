@@ -19,13 +19,13 @@ import Prelude
 import Cardano.Mnemonic
     ( entropyToMnemonic, genEntropy, mnemonicToText )
 import Cardano.Wallet.Api.Types
-    ( ApiAddress
-    , ApiByronWallet
+    ( ApiAccount
+    , ApiAddress
+    , ApiByronAccount
     , ApiNetworkInformation
     , ApiTransaction
     , ApiUtxoStatistics
     , ApiVerificationKey (..)
-    , ApiWallet
     , DecodeAddress
     , DecodeStakeAddress
     , EncodeAddress (..)
@@ -174,7 +174,7 @@ spec = describe "SHELLEY_WALLETS" $ do
             ]
         let wid = getFromResponse id r
         eventually "Wallet state = Ready" $ do
-            rg <- request @ApiWallet ctx
+            rg <- request @ApiAccount ctx
                 (Link.getWallet @'Shelley wid) Default Empty
             expectField (#state . #getApiT) (`shouldBe` Ready) rg
 
@@ -213,7 +213,7 @@ spec = describe "SHELLEY_WALLETS" $ do
                 , expectField #passphrase (`shouldNotBe` Nothing)
                 ]
             eventually "listed wallet's state = Ready" $ do
-                r2 <- request @ApiWallet ctx (Link.getWallet @'Shelley wid) Default Empty
+                r2 <- request @ApiAccount ctx (Link.getWallet @'Shelley wid) Default Empty
                 verify r2
                     [ expectResponseCode HTTP.status200
                     , expectField (#state . #getApiT) (`shouldBe` Ready)
@@ -250,7 +250,7 @@ spec = describe "SHELLEY_WALLETS" $ do
         expectResponseCode HTTP.status202 rTrans
 
         eventually "Wallet balance is as expected" $ do
-            rGet <- request @ApiWallet ctx
+            rGet <- request @ApiAccount ctx
                 (Link.getWallet @'Shelley wDest) Default Empty
             verify rGet
                 [ expectField
@@ -260,14 +260,14 @@ spec = describe "SHELLEY_WALLETS" $ do
                 ]
 
         -- delete wallet
-        rDel <- request @ApiWallet ctx (Link.deleteWallet @'Shelley wDest) Default Empty
+        rDel <- request @ApiAccount ctx (Link.deleteWallet @'Shelley wDest) Default Empty
         expectResponseCode HTTP.status204 rDel
 
         -- restore and make sure funds are there
         rRestore <- postWallet ctx payldCrt
         expectResponseCode HTTP.status201 rRestore
         eventually "Wallet balance is ok on restored wallet" $ do
-            rGet <- request @ApiWallet ctx
+            rGet <- request @ApiAccount ctx
                 (Link.getWallet @'Shelley wDest) Default Empty
             verify rGet
                 [ expectField
@@ -448,7 +448,7 @@ spec = describe "SHELLEY_WALLETS" $ do
             let w = getFromResponse id rW
             rA <- request @[ApiAddress n] ctx
                 (Link.listAddresses @'Shelley w) Default Empty
-            _ <- request @ApiWallet ctx
+            _ <- request @ApiAccount ctx
                 (Link.deleteWallet @'Shelley w) Default Empty
             verify rA
                 [ expectListSize addrPoolGap
@@ -511,7 +511,7 @@ spec = describe "SHELLEY_WALLETS" $ do
         w <- emptyWallet ctx
 
         eventually "I can get all wallet details" $ do
-            rg <- request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty
+            rg <- request @ApiAccount ctx (Link.getWallet @'Shelley w) Default Empty
             verify rg
                 [ expectResponseCode HTTP.status200
                 , expectField
@@ -532,9 +532,9 @@ spec = describe "SHELLEY_WALLETS" $ do
 
     it "WALLETS_GET_02, WALLETS_DELETE_01 - Deleted wallet is not available" $ \ctx -> runResourceT $ do
         w <- emptyWallet ctx
-        _ <- request @ApiWallet ctx
+        _ <- request @ApiAccount ctx
             (Link.deleteWallet @'Shelley w) Default Empty
-        rg <- request @ApiWallet ctx
+        rg <- request @ApiAccount ctx
             (Link.getWallet @'Shelley w) Default Empty
         expectResponseCode HTTP.status404 rg
         expectErrorMessage (errMsg404NoWallet $ w ^. walletId) rg
@@ -592,7 +592,7 @@ spec = describe "SHELLEY_WALLETS" $ do
 
     it "WALLETS_LIST_02 - Deleted wallet not listed" $ \ctx -> runResourceT $ do
         w <- emptyWallet ctx
-        _ <- request @ApiWallet ctx (Link.deleteWallet @'Shelley w) Default Empty
+        _ <- request @ApiAccount ctx (Link.deleteWallet @'Shelley w) Default Empty
         rl <- listFilteredWallets (Set.singleton $ w ^. walletId) ctx
         verify rl
             [ expectResponseCode HTTP.status200
@@ -619,10 +619,10 @@ spec = describe "SHELLEY_WALLETS" $ do
                     , expectField walletId (`shouldBe` walId)
                     , expectField #passphrase (`shouldBe` passLastUpdateValue)
                     ]
-        ru <- request @ApiWallet ctx
+        ru <- request @ApiAccount ctx
             ("PUT", "v2/wallets" </> walId) Default newName
         verify ru expectations
-        rg <- request @ApiWallet ctx
+        rg <- request @ApiAccount ctx
             ("GET", "v2/wallets" </> walId) Default Empty
         verify rg expectations
         verify ru expectations
@@ -682,17 +682,17 @@ spec = describe "SHELLEY_WALLETS" $ do
             w <- emptyWallet ctx
             let newName = updateNamePayload walName
             let endpoint = "v2/wallets" </> (w ^. walletId)
-            ru <- request @ApiWallet ctx ("PUT", endpoint) Default newName
+            ru <- request @ApiAccount ctx ("PUT", endpoint) Default newName
             verify ru expectations
 
     it "WALLETS_UPDATE_03 - Deleted wallet cannot be updated (404)" $ \ctx -> runResourceT $ do
         w <- emptyWallet ctx
         let wid = w ^. walletId
         let endpoint = "v2/wallets" </> wid
-        _ <- request @ApiWallet ctx ("DELETE", endpoint) Default Empty
+        _ <- request @ApiAccount ctx ("DELETE", endpoint) Default Empty
 
         let newName = updateNamePayload "new name"
-        ru <- request @ApiWallet ctx ("PUT", endpoint) Default newName
+        ru <- request @ApiAccount ctx ("PUT", endpoint) Default newName
         expectResponseCode HTTP.status404 ru
         expectErrorMessage (errMsg404NoWallet wid) ru
 
@@ -728,7 +728,7 @@ spec = describe "SHELLEY_WALLETS" $ do
             w <- emptyWallet ctx
             let newName = updateNamePayload "new name"
             let endpoint = "v2/wallets" </> (w ^. walletId)
-            ru <- request @ApiWallet ctx ("PUT", endpoint) headers newName
+            ru <- request @ApiAccount ctx ("PUT", endpoint) headers newName
             verify ru expectations
 
     it "WALLETS_UPDATE_PASS_01 - passphaseLastUpdate gets updated" $ \ctx -> runResourceT $ do
@@ -736,12 +736,12 @@ spec = describe "SHELLEY_WALLETS" $ do
         let payload = updatePassPayload fixturePassphrase "New passphrase"
         let endpoint = "v2/wallets" </> (w ^. walletId)
                 </> ("passphrase" :: Text)
-        rup <- request @ApiWallet ctx ("PUT", endpoint) Default payload
+        rup <- request @ApiAccount ctx ("PUT", endpoint) Default payload
         expectResponseCode HTTP.status204 rup
 
         let getEndpoint = "v2/wallets" </> (w ^. walletId)
         let originalPassUpdateDateTime = w ^. #passphrase
-        rg <- request @ApiWallet ctx ("GET", getEndpoint) Default Empty
+        rg <- request @ApiAccount ctx ("GET", getEndpoint) Default Empty
         expectField #passphrase (`shouldNotBe` originalPassUpdateDateTime) rg
 
     describe "WALLETS_UPDATE_PASS_02 - New passphrase values" $ do
@@ -778,14 +778,14 @@ spec = describe "SHELLEY_WALLETS" $ do
             let payload = updatePassPayload fixturePassphrase passphrase
             let endpoint = "v2/wallets" </> (w ^. walletId)
                     </> ("passphrase" :: Text)
-            rup <- request @ApiWallet ctx ("PUT", endpoint) Default payload
+            rup <- request @ApiAccount ctx ("PUT", endpoint) Default payload
             verify rup expectations
 
     it "WALLETS_UPDATE_PASS_03 - Old passphrase incorrect" $ \ctx -> runResourceT $ do
         w <- emptyWalletWith ctx
             ("Wallet to update pass", "cardano-passphrase", 20)
         let payload = updatePassPayload "incorrect-passphrase" "whatever-pass"
-        rup <- request @ApiWallet ctx
+        rup <- request @ApiAccount ctx
             (Link.putWalletPassphrase @'Shelley w) Default payload
         expectResponseCode HTTP.status403 rup
         expectErrorMessage errMsg403WrongPass rup
@@ -816,7 +816,7 @@ spec = describe "SHELLEY_WALLETS" $ do
             let len = passphraseMaxLength (Proxy @"raw")
             let newPass = T.pack $ replicate len '💘'
             let payload = updatePassPayload oldPass newPass
-            rup <- request @ApiWallet ctx
+            rup <- request @ApiAccount ctx
                 (Link.putWalletPassphrase @'Shelley w) Default payload
             expectResponseCode HTTP.status204 rup
 
@@ -825,9 +825,9 @@ spec = describe "SHELLEY_WALLETS" $ do
         let payload = updatePassPayload fixturePassphrase "Secure passphrase2"
         let walId = w ^. walletId
         let delEndp = "v2/wallets" </> walId
-        _ <- request @ApiWallet ctx ("DELETE", delEndp) Default Empty
+        _ <- request @ApiAccount ctx ("DELETE", delEndp) Default Empty
         let updEndp = delEndp </> ("passphrase" :: Text)
-        rup <- request @ApiWallet ctx ("PUT", updEndp) Default payload
+        rup <- request @ApiAccount ctx ("PUT", updEndp) Default payload
         expectResponseCode HTTP.status404 rup
         expectErrorMessage (errMsg404NoWallet walId) rup
 
@@ -845,7 +845,7 @@ spec = describe "SHELLEY_WALLETS" $ do
             wSrc <- fixtureWallet ctx
             wDest <- emptyWallet ctx
             let payloadUpdate = updatePassPayload oldPass newPass
-            rup <- request @ApiWallet ctx
+            rup <- request @ApiAccount ctx
                    (Link.putWalletPassphrase @'Shelley wSrc) Default payloadUpdate
             expectResponseCode HTTP.status204 rup
 
@@ -897,7 +897,7 @@ spec = describe "SHELLEY_WALLETS" $ do
             w <- unsafeResponse <$> postWallet ctx (simplePayload mnemonic)
             let payload = updatePassPayload fixturePassphrase "Passphrase"
             let endpoint = Link.putWalletPassphrase @'Shelley w
-            rup <- request @ApiWallet ctx endpoint headers payload
+            rup <- request @ApiAccount ctx endpoint headers payload
             verify rup expectations
 
     it "WALLETS_UTXO_01 - Wallet's inactivity is reflected in utxo" $ \ctx -> runResourceT $ do
@@ -931,7 +931,7 @@ spec = describe "SHELLEY_WALLETS" $ do
         expectResponseCode HTTP.status202 rTrans
 
         eventually "Wallet balance is as expected" $ do
-            rGet <- request @ApiWallet ctx
+            rGet <- request @ApiAccount ctx
                 (Link.getWallet @'Shelley wDest) Default Empty
             verify rGet
                 [ expectField
@@ -950,7 +950,7 @@ spec = describe "SHELLEY_WALLETS" $ do
 
     it "WALLETS_UTXO_03 - Deleted wallet is not available for utxo" $ \ctx -> runResourceT $ do
         w <- emptyWallet ctx
-        _ <- request @ApiWallet ctx (Link.deleteWallet @'Shelley w)
+        _ <- request @ApiAccount ctx (Link.deleteWallet @'Shelley w)
             Default Empty
         r <- request @ApiUtxoStatistics ctx (Link.getUTxOsStatistics @'Shelley w)
             Default Empty
@@ -1055,7 +1055,7 @@ spec = describe "SHELLEY_WALLETS" $ do
 
     it "WALLETS_GET_KEY_03 - unknown wallet" $ \ctx -> runResourceT $ do
         w <- emptyWallet ctx
-        _ <- request @ApiWallet ctx (Link.deleteWallet @'Shelley w) Default Empty
+        _ <- request @ApiAccount ctx (Link.deleteWallet @'Shelley w) Default Empty
 
         let link = Link.getWalletKey w UtxoExternal (DerivationIndex 0)
         r <- request @ApiVerificationKey ctx link Default Empty
@@ -1131,7 +1131,7 @@ spec = describe "SHELLEY_WALLETS" $ do
 
     it "WALLETS_SIGNATURES_03 - unknown wallet" $ \ctx -> runResourceT $ do
         w <- emptyWallet ctx
-        _ <- request @ApiWallet ctx (Link.deleteWallet @'Shelley w) Default Empty
+        _ <- request @ApiAccount ctx (Link.deleteWallet @'Shelley w) Default Empty
 
 
         let payload = [json|
@@ -1169,7 +1169,7 @@ spec = describe "SHELLEY_WALLETS" $ do
                 "v2/wallets"
                 </> wid
                 </> ("passphrase" :: Text)
-        rup <- request @ApiWallet ctx ("PUT", endpoint) Default payload
+        rup <- request @ApiAccount ctx ("PUT", endpoint) Default payload
         expectResponseCode HTTP.status404 rup
         expectErrorMessage (errMsg404NoWallet wid) rup
 
@@ -1179,20 +1179,20 @@ spec = describe "SHELLEY_WALLETS" $ do
         let wid = w ^. walletId
         let endpoint = "v2/wallets" </> wid
         let newName = updateNamePayload "new name"
-        ru <- request @ApiWallet ctx ("PUT", endpoint) Default newName
+        ru <- request @ApiAccount ctx ("PUT", endpoint) Default newName
         expectResponseCode HTTP.status404 ru
         expectErrorMessage (errMsg404NoWallet wid) ru
 
     it "BYRON_GET_02 - Byron ep does not show Shelley wallet" $ \ctx -> runResourceT $ do
         w <- emptyWallet ctx
-        r <- request @ApiByronWallet ctx
+        r <- request @ApiByronAccount ctx
             (Link.getWallet @'Byron w) Default Empty
         expectResponseCode HTTP.status404 r
         expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
 
     it "BYRON_GET_03 - Shelley ep does not show Byron wallet" $ \ctx -> runResourceT $ do
         w <- emptyRandomWallet ctx
-        r <- request @ApiWallet ctx
+        r <- request @ApiAccount ctx
             (Link.getWallet @'Shelley w) Default Empty
         expectResponseCode HTTP.status404 r
         expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
@@ -1258,8 +1258,8 @@ spec = describe "SHELLEY_WALLETS" $ do
                 ++ map (view walletId) [_ws1,_ws2,ws3]
 
         -- delete
-        _ <- request @ApiByronWallet ctx (Link.deleteWallet @'Byron wb2) Default Empty
-        _ <- request @ApiWallet ctx (Link.deleteWallet @'Shelley ws3) Default Empty
+        _ <- request @ApiByronAccount ctx (Link.deleteWallet @'Byron wb2) Default Empty
+        _ <- request @ApiAccount ctx (Link.deleteWallet @'Shelley ws3) Default Empty
 
         --list only byron
         rdl <- listFilteredByronWallets wids ctx
@@ -1284,13 +1284,13 @@ spec = describe "SHELLEY_WALLETS" $ do
 
     it "BYRON_DELETE_02 - Byron ep does not delete Shelley wallet" $ \ctx -> runResourceT $ do
         w <- emptyWallet ctx
-        r <- request @ApiByronWallet ctx (Link.deleteWallet @'Byron w) Default Empty
+        r <- request @ApiByronAccount ctx (Link.deleteWallet @'Byron w) Default Empty
         expectResponseCode HTTP.status404 r
         expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
 
     it "BYRON_DELETE_03 - Shelley ep does not delete Byron wallet" $ \ctx -> runResourceT $ do
         w <- emptyRandomWallet ctx
-        r <- request @ApiByronWallet ctx (Link.deleteWallet @'Shelley w) Default Empty
+        r <- request @ApiByronAccount ctx (Link.deleteWallet @'Shelley w) Default Empty
         expectResponseCode HTTP.status404 r
         expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
 
@@ -1309,7 +1309,7 @@ spec = describe "SHELLEY_WALLETS" $ do
                 let blockHeight =
                         getFromResponse (#nodeTip . #block . #height) sync
 
-                res <- request @ApiWallet ctx
+                res <- request @ApiAccount ctx
                     (Link.getWallet @'Shelley w) Default Empty
                 verify res
                     [ expectField (#state . #getApiT) (`shouldBe` Ready)

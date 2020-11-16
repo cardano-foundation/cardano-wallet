@@ -14,7 +14,7 @@ module Test.Integration.Scenario.CLI.Byron.Wallets
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiByronWallet, ApiUtxoStatistics, DecodeAddress )
+    ( ApiByronAccount, ApiUtxoStatistics, DecodeAddress )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( PassphraseMaxLength (..), PassphraseMinLength (..) )
 import Cardano.Wallet.Primitive.SyncProgress
@@ -100,7 +100,7 @@ spec = describe "BYRON_CLI_WALLETS" $ do
                         "\n" "secure-passphrase"
             T.unpack err `shouldContain` cmdOk
             c `shouldBe` ExitSuccess
-            j <- expectValidJSON (Proxy @ApiByronWallet) out
+            j <- expectValidJSON (Proxy @ApiByronAccount) out
             let wid = T.unpack $ j ^. walletId
             --delete
             (Exit cd, Stdout outd, Stderr errd) <- deleteWalletViaCLI @t ctx wid
@@ -118,7 +118,7 @@ spec = describe "BYRON_CLI_WALLETS" $ do
                         "\n" "secure-passphrase-restored"
             c3 `shouldBe` ExitSuccess
             T.unpack err3 `shouldContain` cmdOk
-            jr <- expectValidJSON (Proxy @ApiByronWallet) out3
+            jr <- expectValidJSON (Proxy @ApiByronAccount) out3
             verify jr [ expectCliField walletId (`shouldBe` T.pack wid) ]
             --re-create again? No!
             (c4, out4, err4) <- createWalletViaCLI @t ctx
@@ -151,7 +151,7 @@ spec = describe "BYRON_CLI_WALLETS" $ do
                             "\n" "secure-passphrase"
                 T.unpack err `shouldContain` cmdOk
                 c `shouldBe` ExitSuccess
-                j <- expectValidJSON (Proxy @ApiByronWallet) out
+                j <- expectValidJSON (Proxy @ApiByronAccount) out
                 liftIO $ verify j expectations
                 let wid = T.unpack $ j ^. walletId
 
@@ -160,14 +160,14 @@ spec = describe "BYRON_CLI_WALLETS" $ do
                     (Exit c2, Stdout out2, Stderr err2) <- getWalletViaCLI @t ctx wid
                     c2 `shouldBe` ExitSuccess
                     err2 `shouldContain` cmdOk
-                    jg <- expectValidJSON (Proxy @ApiByronWallet) out2
+                    jg <- expectValidJSON (Proxy @ApiByronAccount) out2
                     verify jg $
                         (expectCliField (#state . #getApiT) (`shouldBe` Ready)) : expectations
                     -- list
                     (Exit c3, Stdout out3, Stderr err3) <- listWalletsViaCLI @t ctx
                     c3 `shouldBe` ExitSuccess
                     err3 `shouldBe` cmdOk
-                    jl <- expectValidJSON (Proxy @[ApiByronWallet]) out3
+                    jl <- expectValidJSON (Proxy @[ApiByronAccount]) out3
                     length jl `shouldBe` 1
                     expectCliListField 0 walletId (`shouldBe` T.pack wid) jl
 
@@ -244,7 +244,7 @@ spec = describe "BYRON_CLI_WALLETS" $ do
                             args (unwords $ T.unpack <$> mnemonic)
                             "\n" (T.unpack passphrase)
                 T.unpack err `shouldContain` cmdOk
-                _ <- expectValidJSON (Proxy @ApiByronWallet) out
+                _ <- expectValidJSON (Proxy @ApiByronAccount) out
                 c `shouldBe` ExitSuccess
 
     it "CLI_BYRON_UPDATE_NAME_01 - Update names of wallets" $ \ctx ->
@@ -256,7 +256,7 @@ spec = describe "BYRON_CLI_WALLETS" $ do
                 updateWalletNameViaCLI @t ctx [wid, updatedName]
             c `shouldBe` ExitSuccess
             err `shouldBe` cmdOk
-            ju <- expectValidJSON (Proxy @ApiByronWallet) out
+            ju <- expectValidJSON (Proxy @ApiByronAccount) out
             expectCliField
                 (#name . #getApiT . #getWalletName)
                 (`shouldBe` T.pack updatedName) ju
@@ -287,7 +287,7 @@ spec = describe "BYRON_CLI_WALLETS" $ do
         \emptyByronWallet -> runResourceT @IO $ do
             wid <- fmap (T.unpack . view walletId) (emptyByronWallet ctx)
             Stdout out <- getWalletViaCLI @t ctx wid
-            expectValidJSON (Proxy @ApiByronWallet) out
+            expectValidJSON (Proxy @ApiByronAccount) out
                 >>= flip verify [ expectCliField #passphrase (`shouldSatisfy` isJust) ]
             let oldPass = T.unpack fixturePassphrase
             let newPass = "cardano-wallet-new-pass"
@@ -302,7 +302,7 @@ spec = describe "BYRON_CLI_WALLETS" $ do
         \emptyByronWallet -> runResourceT @IO $ do
             wid <- fmap (T.unpack . view walletId) (emptyByronWallet ctx)
             Stdout out <- getWalletViaCLI @t ctx wid
-            expectValidJSON (Proxy @ApiByronWallet) out
+            expectValidJSON (Proxy @ApiByronAccount) out
                 >>= flip verify [ expectCliField #passphrase (`shouldSatisfy` isJust) ]
             let oldPass = "incorrect-passphrase"
             let newPass = "cardano-wallet-new-pass"
@@ -330,7 +330,7 @@ spec = describe "BYRON_CLI_WALLETS" $ do
             forM_ [ emptyRandomWallet, emptyIcarusWallet ] $ \emptyByronWallet -> do
                 wid <- fmap (T.unpack . view walletId) (emptyByronWallet ctx)
                 Stdout out <- getWalletViaCLI @t ctx wid
-                expectValidJSON (Proxy @ApiByronWallet) out
+                expectValidJSON (Proxy @ApiByronAccount) out
                     >>= flip verify [ expectCliField #passphrase (`shouldSatisfy` isJust) ]
                 (c, o, e) <-
                     updateWalletPassphraseViaCLI @t ctx wid oldPass newPass newPass

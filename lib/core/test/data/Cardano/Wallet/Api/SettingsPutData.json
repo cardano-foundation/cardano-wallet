@@ -1,9 +1,19 @@
 {
-    "seed": 4980686044093433468,
+    "seed": -5409279500099716067,
     "samples": [
         {
             "settings": {
-                "pool_metadata_source": "direct"
+                "pool_metadata_source": "none"
+            }
+        },
+        {
+            "settings": {
+                "pool_metadata_source": "none"
+            }
+        },
+        {
+            "settings": {
+                "pool_metadata_source": "none"
             }
         },
         {
@@ -28,22 +38,12 @@
         },
         {
             "settings": {
-                "pool_metadata_source": "https://my.little.friend"
-            }
-        },
-        {
-            "settings": {
                 "pool_metadata_source": "direct"
             }
         },
         {
             "settings": {
                 "pool_metadata_source": "none"
-            }
-        },
-        {
-            "settings": {
-                "pool_metadata_source": "direct"
             }
         },
         {
