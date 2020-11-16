@@ -5,7 +5,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -22,6 +21,8 @@
 
 module Cardano.Wallet.Primitive.Scripts
     ( isShared
+    , retrieveAllVerKeyHashes
+    , toKeyHash
     ) where
 
 import Prelude
@@ -60,26 +61,33 @@ isShared
     -> SeqState n k
     -> ([k 'ScriptK XPub], SeqState n k)
 isShared script s@(SeqState !s1 !s2 !ixs !rpk !prefix !scripts) =
-    let verKeysInScript = extractVerKey [] script
-        toVerKey = deriveAddressPublicKey (accountPubKey s2) MultisigScript
+    let verKeysInScript = retrieveAllVerKeyHashes script
+        accXPub = accountPubKey s2
+        toVerKey ix = deriveAddressPublicKey accXPub MultisigScript ix
         minIndex = getIndex @'Soft minBound
         scriptAddressGap = 10
-        toKeyHash = KeyHash . blake2b224 . xpubPublicKey . getKey
-        ourVerKeyHashes =
+        ourVerKeys =
             map (\ix -> toVerKey (toEnum (fromInteger $ toInteger $ minIndex + ix)))
-            [0 .. scriptAddressGap - 1]
-        ourVerKeysInScript =
+            [0 .. scriptAddressGap]
+        ourVerKeyHashesInScript =
             filter (\keyH -> toKeyHash keyH `elem` verKeysInScript)
-            ourVerKeyHashes
+            ourVerKeys
         toScriptXPub (ShelleyKey k) = ShelleyKey k
-        scriptXPubs = map toScriptXPub ourVerKeysInScript
-    in if null ourVerKeysInScript then
+        scriptXPubs = map toScriptXPub ourVerKeyHashesInScript
+    in if null ourVerKeyHashesInScript then
         ([], s)
        else
         ( scriptXPubs
         , SeqState s1 s2 ixs rpk prefix (Map.insert (toScriptHash script) scriptXPubs scripts))
   where
-    extractVerKey acc (RequireSignatureOf verKey) = verKey : acc
-    extractVerKey acc (RequireAllOf xs) = foldr (flip extractVerKey) acc xs
-    extractVerKey acc (RequireAnyOf xs) = foldr (flip extractVerKey) acc xs
-    extractVerKey acc (RequireSomeOf _ xs) = foldr (flip extractVerKey) acc xs
+
+retrieveAllVerKeyHashes :: Script -> [KeyHash]
+retrieveAllVerKeyHashes = extractVerKey []
+  where
+      extractVerKey acc (RequireSignatureOf verKey) = verKey : acc
+      extractVerKey acc (RequireAllOf xs) = foldr (flip extractVerKey) acc xs
+      extractVerKey acc (RequireAnyOf xs) = foldr (flip extractVerKey) acc xs
+      extractVerKey acc (RequireSomeOf _ xs) = foldr (flip extractVerKey) acc xs
+
+toKeyHash :: ShelleyKey depth XPub -> KeyHash
+toKeyHash = KeyHash . blake2b224 . xpubPublicKey . getKey

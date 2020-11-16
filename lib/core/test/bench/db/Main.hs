@@ -327,6 +327,7 @@ bgroupWriteSeqState db = bgroup "SeqState"
                     emptyPendingIxs
                     rewardAccount
                     defaultPrefix
+                    Map.empty
             | i <- [1..n]
             ]
 
