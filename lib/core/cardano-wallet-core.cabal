@@ -158,6 +158,7 @@ library
       Cardano.Wallet.Primitive.CoinSelection.Random
       Cardano.Wallet.Primitive.Fee
       Cardano.Wallet.Primitive.Model
+      Cardano.Wallet.Primitive.Scripts
       Cardano.Wallet.Primitive.Types
       Cardano.Wallet.Primitive.Types.Address
       Cardano.Wallet.Primitive.Types.Coin
