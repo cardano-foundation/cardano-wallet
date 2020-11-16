@@ -337,10 +337,10 @@ x-anyAddress: &anyAddress
 x-ScriptValue: &ScriptValue
   oneOf:
     - title: Key Hash
+      description: Leaf value for a script designating a required verification key hash.
       type: string
       format: bech32
       pattern: "^(script_vkh)1[0-9a-z]*$"
-      example: script_vkh18srsxr3khll7vl3w9mqfu55n6wzxxlxj7qzr2mhnyreluzt36ms
 
     - title: All
       type: object
@@ -348,6 +348,7 @@ x-ScriptValue: &ScriptValue
         - all
       properties:
         all:
+          description: Script primitive for which all signing keys corresponding to all list elements' verification keys are expected to make the script valid.
           type: array
           minItems: 1
           items:
@@ -359,6 +360,7 @@ x-ScriptValue: &ScriptValue
         - any
       properties:
         any:
+          description: Script primitive for which a signing key corresponding to any of the list elements' verification keys is expected to make the script valid. It is equivalent to `some` with `"at_least"=1`.
           type: array
           minItems: 1
           items:
@@ -370,6 +372,7 @@ x-ScriptValue: &ScriptValue
         - some
       properties:
         some:
+          description: Script primitive for which at least a given number of signing keys corresponding to the list elements' verification keys are expected to make the script valid.
           type: object
           required:
             - at_least
@@ -386,33 +389,6 @@ x-ScriptValue: &ScriptValue
 
 x-script: &script
   <<: *ScriptValue
-  description: |
-    Script allows establishing either payment or stake guard that could be removed
-    when a special combination of signing keys is present.
-
-    The script can be constructed using four primitives:
-     - verification key hash for which a corresponding signing key is expected
-     - all condition for which all list elements' expectation are met for the condition to be valid
-     - any condition for which any list element' expectation is to be met for the condition to be valid
-     - some condition for which a minimal number of list elements' expectation is to be met for the condition to be valid
-  example:
-    -
-      "script_vkh18srsxr3khll7vl3w9mqfu55n6wzxxlxj7qzr2mhnyreluzt36ms"
-    -
-      { "all": [ "script_vkh18srsxr3khll7vl3w9mqfu55n6wzxxlxj7qzr2mhnyreluzt36ms"
-               , "script_vkh18srsxr3khll7vl3w9mqfu55n6wzxxlxj7qzr2mhnyreluzt37ms"] }
-    -
-      { "all": [ "script_vkh18srsxr3khll7vl3w9mqfu55n6wzxxlxj7qzr2mhnyreluzt36ms"
-               , { "any" : [ "script_vkh18srsxr3khll7vl3w9mqfu55n6wzxxlxj7qzr2mhnyreluzt37ms"
-                           , "script_vkh18srsxr3khll7vl3w9mqfu55n6wzxxlxj7qzr2mhnyreluzt38ms"] }
-               ] }
-    -
-      { "all": [ "script_vkh18srsxr3khll7vl3w9mqfu55n6wzxxlxj7qzr2mhnyreluzt36ms"
-               , { "some" : { "from" : [ "script_vkh18srsxr3khll7vl3w9mqfu55n6wzxxlxj7qzr2mhnyreluzt37ms"
-                                       , "script_vkh18srsxr3khll7vl3w9mqfu55n6wzxxlxj7qzr2mhnyreluzt38ms"]
-                            , "at_least" : 2
-                            }
-                 } ] }
 
 x-CredentialValue: &CredentialValue
   nullable: false
@@ -421,6 +397,25 @@ x-CredentialValue: &CredentialValue
       title: public key
     - <<: *script
       title: script
+  example:
+    any:
+    - script_vkh18srsxr3khll7vl3w9mqfu55n6wzxxlxj7qzr2mhnyreluzt36ms
+
+    - all:
+      - script_vkh18srsxr3khll7vl3w9mqfu55n6wzxxlxj7qzr2mhnyreluzt36ms
+      - script_vkh18srsxr3khll7vl3w9mqfu55n6wzxxlxj7qzr2mhnyreluzt37ms
+
+    - any:
+      - script_vkh18srsxr3khll7vl3w9mqfu55n6wzxxlxj7qzr2mhnyreluzt36ms
+      - all:
+        - script_vkh18srsxr3khll7vl3w9mqfu55n6wzxxlxj7qzr2mhnyreluzt36ms
+        - script_vkh18srsxr3khll7vl3w9mqfu55n6wzxxlxj7qzr2mhnyreluzt37ms
+
+    - some:
+        at_least: 2
+        from:
+        - script_vkh18srsxr3khll7vl3w9mqfu55n6wzxxlxj7qzr2mhnyreluzt37ms
+        - script_vkh18srsxr3khll7vl3w9mqfu55n6wzxxlxj7qzr2mhnyreluzt38ms
 
 x-settings: &settings
   description: Settings
@@ -1431,7 +1426,7 @@ components:
     ApiVerificationKey: &ApiVerificationKey
       type: string
       format: bech32
-      pattern: "^((addr_xvk)|(stake_xvk)|(script_xvk))1[0-9a-z]*$"
+      pattern: "^((addr_vk)|(stake_vk)|(script_vk))1[0-9a-z]*$"
 
     ApiTxId: &ApiTxId
       type: object
@@ -1691,7 +1686,9 @@ components:
       nullable: false
       properties:
         payment: *ApiCredential
-        stake: *ApiCredential
+        stake:
+          <<: *ApiCredential
+          example: stake_vk16apaenn9ut6s40lcw3l8v68xawlrlq20z2966uzcx8jmv2q9uy7qau558d
 
     ApiByronWalletRandomPostData: &ApiByronWalletRandomPostData
       type: object
@@ -3250,7 +3247,6 @@ x-tagGroups:
 
   - name: Miscellaneous
     tags:
-    - Utils
     - Network
     - Proxy
     - Settings
@@ -4070,7 +4066,7 @@ paths:
   /addresses/{addressId}:
     get:
       operationId: inspectAddress
-      tags: ["Utils"]
+      tags: ["Addresses"]
       summary: Inspect Address
       description: |
         <p align="right">status: <strong>stable</strong></p>
@@ -4083,12 +4079,60 @@ paths:
   /addresses:
     post:
       operationId: postAnyAddress
-      tags: ["Utils"]
+      tags: ["Addresses"]
       summary: Construct Address
       description: |
-        <p align="right">status: <strong>unstable</strong></p>
+        <p align="right">status: <strong>stable</strong></p>
 
         Construct any address by specyfying credential for payment or stake.
+
+        In Cardano, Addresses are made of three parts:
+
+        ```
+        *---------*---------*-------*
+        | NETWORK | PAYMENT | STAKE |
+        *---------*---------*-------*
+        ```
+
+        The `NETWORK` part allows for distinguishing addresses between different networks like the mainnet or the testnet. It is implicitly
+        handled by the server without you having to worry about it. The `PAYMENT` and `STAKE` parts however can be constructed similarly, using
+        either:
+
+        - A public key
+        - A script
+
+        The script itself is either constructed out of a public key, or one of the three following primitives:
+
+        - all
+        - any
+        - some
+
+        Each of which contains one or more script(s) that can be either keys or primitives, and so on. Schematically:
+
+        ```
+                                           ┏─────────┓
+        SCRIPT = ──┬───────────────────────┤ pub key ├─────────────────────┬──
+                   │                       ┗─────────┛                     │
+                   │  ╭─────╮   ╭────────╮                                 │
+                   ├──┤ ALL ├───┤ SCRIPT ├─┬───────────────────────────────┤
+                   │  ╰─────╯ ^ ╰────────╯ │                               │
+                   │          │   ╭───╮    │                               │
+                   │          └───┤ , ├────┘                               │
+                   │              ╰───╯                                    │
+                   │  ╭─────╮   ╭────────╮                                 │
+                   ├──┤ ALL ├───┤ SCRIPT ├─┬───────────────────────────────┤
+                   │  ╰─────╯ ^ ╰────────╯ │                               │
+                   │          │   ╭───╮    │                               │
+                   │          └───┤ , ├────┘                               │
+                   │              ╰───╯                                    │
+                   │  ╭──────╮ ╭──────────╮ ┏───┓ ╭──────╮   ╭────────╮    │
+                   └──┤ SOME ├─┤ AT_LEAST ├─┤ n ├─┤ FROM ├───┤ SCRIPT ├─┬──┘
+                      ╰──────╯ ╰──────────╯ ┗───┛ ╰──────╯ ^ ╰────────╯ │
+                                                           │   ╭───╮    │
+                                                           └───┤ , ├────┘
+                                                               ╰───╯
+        ```
+
       requestBody:
         content:
           application/json:
