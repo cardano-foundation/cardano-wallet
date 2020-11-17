@@ -209,9 +209,10 @@ mCleanDatabase :: ModelOp ()
 mCleanDatabase = State.put emptyPoolDatabase
 
 mCleanPoolMetadata :: ModelOp ()
-mCleanPoolMetadata =
+mCleanPoolMetadata = do
     modify #metadata
         $ const mempty
+    mPutDelistedPools []
 
 mPutPoolProduction :: BlockHeader -> PoolId -> ModelOp ()
 mPutPoolProduction point poolId = getPoints >>= \points -> if
