@@ -927,54 +927,6 @@ x-stakePoolRetirement: &stakePoolRetirement
       May be omitted if the wallet hasn't yet found a retirement certificate
       for this stake pool.
 
-x-jormungandrStakePoolMetadata: &jormungandrStakePoolMetadata
-  description: |
-    Information about the stake pool.
-  type: object
-  required:
-    - owner
-    - ticker
-    - name
-    - homepage
-    - pledge_address
-  additionalProperties: false
-  properties:
-    owner:
-      type: string
-      format: bech32
-      example: ed25519_pk1lrspg0h4afh3l2kaneqlktdv9kaq4zskcvehqwhc4lmx36f5dweqjtaga8
-    ticker:
-      type: string
-      minLength: 3
-      maxLength: 5
-      example: IOHK
-    name:
-      type: string
-      minLength: 1
-      maxLength: 50
-    description:
-      type: string
-      maxLength: 255
-    homepage:
-      type: string
-      format: uri
-      example: https://iohk.io
-    pledge_address:
-      type: string
-      format: bech32
-      example: addr1sjck9mdmfyhzvjhydcjllgj9vjvl522w0573ncustrrr2rg7h9azg4cyqd36yyd48t5ut72hgld0fg2xfvz82xgwh7wal6g2xt8n996s3xvu5g
-
-x-jormungandrStakePoolCost: &jormungandrStakePoolCost
-  <<: *amount
-  description: |
-      Estimated cost set by the pool operator when registering his pool.
-      This fixed cost is taken from each reward earned by the pool before splitting rewards between stakeholders.
-
-x-jormungandrStakePoolMargin: &jormungandrStakePoolMargin
-  <<: *percentage
-  description: |
-      Variable margin on the total reward given to an operator before splitting rewards between stakeholders.
-
 x-stakePoolPledge: &stakePoolPledge
   <<: *amount
   description: |
@@ -983,7 +935,7 @@ x-stakePoolPledge: &stakePoolPledge
       May be omitted if the wallet hasn't found the pool's registration cerificate yet.
 
 x-stakePoolCost: &stakePoolCost
-  <<: *jormungandrStakePoolCost
+  <<: *amount
   description: |
       Estimated cost set by the pool operator when registering his pool.
       This fixed cost is taken from each reward earned by the pool before splitting rewards between stakeholders.
@@ -991,19 +943,11 @@ x-stakePoolCost: &stakePoolCost
       May be omitted if the wallet hasn't found the pool's registration cerificate yet.
 
 x-stakePoolMargin: &stakePoolMargin
-  <<: *jormungandrStakePoolMargin
+  <<: *percentage
   description: |
       Variable margin on the total reward given to an operator before splitting rewards between stakeholders.
 
       May be omitted if the wallet hasn't found the pool's registration cerificate yet.
-
-x-jormungandrStakePoolSaturation: &jormungandrStakePoolSaturation
-  type: number
-  minimum: 0
-  description: |
-    Saturation-level of the pool based on the desired number of pools aimed by the network.
-    A value above `1` indicates that the pool is saturated.
-  example: 0.74
 
 x-stakePoolSaturation: &stakePoolSaturation
   type: number
@@ -1072,18 +1016,6 @@ x-stakePoolFlags: &stakePoolFlags
     | ---      | ---                                                                                                              |
     | delisted | The pool is marked as delisted on a configured SMASH server; metadata for this pool have therefore been dropped. |
   items: *stakePoolFlag
-
-x-jormungandrStakePoolMetrics: &jormungandrStakePoolMetrics
-  type: object
-  required:
-    - controlled_stake
-    - produced_blocks
-  properties:
-    controlled_stake: *transactionAmount
-    produced_blocks:
-      <<: *numberOfBlocks
-      description: Number of blocks produced by a given stake pool
-
 
 x-networkInformationSyncProgress: &networkInformationSyncProgress
   <<: *syncProgress
@@ -1384,26 +1316,6 @@ components:
         metadata: *stakePoolMetadata
         retirement: *stakePoolRetirement
         flags: *stakePoolFlags
-
-    ApiJormungandrStakePool: &ApiJormungandrStakePool
-      type: object
-      required:
-        - id
-        - metrics
-        - apparent_performance
-        - cost
-        - margin
-        - saturation
-        - desirability
-      properties:
-        id: *stakePoolId
-        metrics: *jormungandrStakePoolMetrics
-        apparent_performance: *stakePoolApparentPerformance
-        cost: *jormungandrStakePoolCost
-        margin: *jormungandrStakePoolMargin
-        metadata: *jormungandrStakePoolMetadata
-        saturation: *jormungandrStakePoolSaturation
-        desirability: *stakePoolDesirability
 
     ApiFee: &ApiFee
       type: object
@@ -1986,15 +1898,13 @@ x-parametersWalletId: &parametersWalletId
 x-parametersIntendedStakeAmount: &parametersIntendedStakeAmount
   in: query
   name: stake
-  required: false
+  required: true
   schema:
     type: integer
     minimum: 0
     maximum: 45_000_000_000_000_000 # 45 B ada (in Lovelace)
   description: |
     The stake the user intends to delegate in Lovelace. Required.
-
-    > ⚠️  On the incentivized testnet, this parameter is not requred, but rather completely ignored.
 
 x-parametersTransactionId: &parametersTransactionId
   in: path
@@ -3071,11 +2981,8 @@ x-responsesListStakePools: &responsesListStakePools
     content:
       application/json:
         schema:
-          oneOf:
-            - type: array
-              items: *ApiStakePool
-            - type: array
-              items: *ApiJormungandrStakePool
+          type: array
+          items: *ApiStakePool
 
 x-responsesPostMaintenanceAction: &responsesPostMaintenanceAction
   <<: *responsesErr404
@@ -3524,9 +3431,6 @@ paths:
         List all known stake pools ordered by descending `non_myopic_member_rewards`.
         The `non_myopic_member_rewards` — and thus the ordering — depends on the `?stake` query
         parameter.
-
-        > ⚠️  On the incentivized testnet, pools are instead ordered by
-        descending `desirability`.
 
         Some pools _may_ also have metadata attached to them.
       parameters:
