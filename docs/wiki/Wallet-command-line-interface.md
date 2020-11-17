@@ -376,7 +376,7 @@ $ cardano-wallet wallet delete 2512a00e9653fe49a44a5886202e24d77eeb998f
 
 ## transaction create
 
-> `cardano-wallet transaction create [--port=INT] WALLET_ID [--metadata=JSON] --payment=PAYMENT...`
+> `cardano-wallet transaction create [--port=INT] WALLET_ID [--metadata=JSON] [--ttl=SECONDS] --payment=PAYMENT...`
 
 Creates and submits a new transaction:
 
@@ -395,7 +395,7 @@ For more information about the `--metadata` option, see [TxMetadata](https://git
 
 ## transaction fees
 
-> `cardano-wallet transaction fees [--port=INT] WALLET_ID [--metadata=JSON] --payment=PAYMENT...`
+> `cardano-wallet transaction fees [--port=INT] WALLET_ID [--metadata=JSON] [--ttl=SECONDS] --payment=PAYMENT...`
 
 Estimates fee for a given transaction:
 
