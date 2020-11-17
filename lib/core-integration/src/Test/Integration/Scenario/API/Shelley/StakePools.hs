@@ -90,6 +90,7 @@ import Test.Integration.Framework.Context
 import Test.Integration.Framework.DSL
     ( Headers (..)
     , Payload (..)
+    , bracketSettings
     , delegating
     , delegationFee
     , emptyWallet
@@ -154,7 +155,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                 (Link.listStakePools stake) Default Empty
 
     it "STAKE_POOLS_MAINTENANCE_01 - \
-        \trigger GC action when metadata source = direct" $ \ctx -> runResourceT $ do
+        \trigger GC action when metadata source = direct" $ \ctx -> runResourceT $ bracketSettings ctx $ do
         updateMetadataSource ctx "direct"
         verifyMetadataSource ctx FetchDirect
         triggerMaintenanceAction ctx "gc_stake_pools"
@@ -164,7 +165,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
           verifyMaintenanceAction ctx NotApplicable
 
     it "STAKE_POOLS_MAINTENANCE_02 - \
-        \trigger GC action when metadata source = none" $ \ctx -> runResourceT $ do
+        \trigger GC action when metadata source = none" $ \ctx -> runResourceT $ bracketSettings ctx $ do
         updateMetadataSource ctx "none"
         verifyMetadataSource ctx FetchNone
         triggerMaintenanceAction ctx "gc_stake_pools"
@@ -966,7 +967,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                 production `shouldSatisfy` (> 0)
                 saturation `shouldSatisfy` (any (> 0))
 
-        it "contains pool metadata" $ \ctx -> runResourceT $ do
+        it "contains pool metadata" $ \ctx -> runResourceT $ bracketSettings ctx $ do
             updateMetadataSource ctx "direct"
             eventually "metadata is fetched" $ do
                 r <- listPools ctx arbitraryStake
@@ -1098,7 +1099,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
             (reverse epochs `zip` [1 ..]) `shouldSatisfy` all (uncurry (==))
 
     it "STAKE_POOLS_SMASH_01 - fetching metadata from SMASH works with delisted pools" $
-        \ctx -> runResourceT $ do
+        \ctx -> runResourceT $ bracketSettings ctx $ do
             smashUrl <- liftIO $ getEnv "CARDANO_WALLET_SMASH_URL"
             updateMetadataSource ctx (T.pack smashUrl)
             eventually "metadata is fetched" $ do

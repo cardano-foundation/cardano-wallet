@@ -133,6 +133,7 @@ module Test.Integration.Framework.DSL
     , oneSecond
     , getTTLSlots
     , updateMetadataSource
+    , bracketSettings
     , verifyMetadataSource
     , triggerMaintenanceAction
     , verifyMaintenanceAction
@@ -212,6 +213,7 @@ import Cardano.Wallet.Api.Types
     , DecodeStakeAddress (..)
     , EncodeAddress (..)
     , Iso8601Time (..)
+    , SettingsPutData (..)
     , WalletStyle (..)
     , insertedAt
     )
@@ -598,7 +600,7 @@ defaultTxTTL = 7200
 --
 updateMetadataSource :: (MonadIO m, MonadCatch m) => Context t -> Text -> m ()
 updateMetadataSource ctx t = do
-    r <- request @(ApiT Settings) ctx Link.putSettings Default payload
+    r <- request @SettingsPutData ctx Link.putSettings Default payload
     expectResponseCode HTTP.status204 r
  where
   payload = Json [aesonQQ| {
@@ -606,6 +608,18 @@ updateMetadataSource ctx t = do
            "pool_metadata_source": #{t}
             }
        } |]
+
+bracketSettings :: (MonadIO m, MonadCatch m) => Context t -> m () -> m ()
+bracketSettings ctx action = do
+    r@(_, response) <- request @(ApiT Settings) ctx Link.getSettings Default Empty
+    expectResponseCode HTTP.status200 r
+    case response of
+        Left e -> wantedSuccessButError e
+        Right s -> do
+            action
+            r' <- request @SettingsPutData ctx Link.putSettings Default
+                (Json $ Aeson.toJSON $ SettingsPutData s)
+            expectResponseCode HTTP.status204 r'
 
 verifyMetadataSource
     :: (MonadIO m, MonadCatch m)
