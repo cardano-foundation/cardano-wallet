@@ -1,5 +1,5 @@
 #! /usr/bin/env nix-shell
-#! nix-shell -i bash -p nix coreutils gnugrep gnused
+#! nix-shell -i bash -p nix coreutils gnugrep gnused jq curl
 
 set -euo pipefail
 
@@ -44,7 +44,7 @@ git grep $OLD_CABAL_VERSION
 echo ""
 
 echo "Generating changelog..."
-./scripts/make_changelog $OLD_DATE > $CHANGELOG
+./scripts/make_changelog.sh $OLD_DATE > $CHANGELOG
 echo ""
 echo "Filling in template..."
 sed -e "s/{{GIT_TAG}}/$GIT_TAG/g"                   \
