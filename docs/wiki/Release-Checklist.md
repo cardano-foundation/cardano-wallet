@@ -1,68 +1,109 @@
 ## Preparing the release
-- [ ] Make sure `cardano-wallet` points to correct revisions of dependent low-level libs (verify on target repositories if [stack.yaml](https://github.com/input-output-hk/cardano-wallet/blob/master/stack.yaml#L34-L42) points to appopriate revisions for `persistent`, `cardano-addresses`...). Also verify that the stack resolver corresponds to the `cardano-node` version.
+- [ ] Make sure `cardano-wallet` points to correct revisions of
+      dependent low-level libs (verify on target repositories if
+      [stack.yaml](https://github.com/input-output-hk/cardano-wallet/blob/master/stack.yaml#L34-L42)
+      points to appopriate revisions for `persistent`,
+      `cardano-addresses`...). Also verify that the stack resolver
+      corresponds to the `cardano-node` version. ⇒ cardano-node will
+      stay the same as before. cardano-addresses will be bumped to
+      3.1.0.
 
 - [ ] Fetch the tip of `master`:
 
-```sh
-$ git checkout master
-$ git pull
-```
+      ```sh
+      $ git checkout master
+      $ git pull
+      ```
 
 - [ ] Create a new branch for the release:
 
-```sh
-$ git checkout -b your-name/bump-release/YYYY-MM-DD
-```
+      ```sh
+      $ git checkout -b your-name/bump-release/YYYY-MM-DD
+      ```
 
-- [ ] Edit the release parameters section in `./scripts/make_release.sh`. To bump from `2020.3.16` to `2020.4.1` they will look like:
-```
- # Release-specific parameters (Change when you bump the version)
- GIT_TAG="v2020-04-01"
- CABAL_VERSION="2020.4.1"
+- [ ] Add an entry to the compatibility matrix in
+      [README.md](https://github.com/input-output-hk/cardano-wallet/blob/master/README.md)
+      for this release.
+      Check that versions match `stack.yaml`.
+      Keep info about the last 3 versions of `cardano-wallet`.
 
- OLD_GIT_TAG="v2020-03-16"
- OLD_CABAL_VERSION="2020.3.16"
+- [ ] Edit the release parameters section in
+      `./scripts/make_release.sh`. To bump from `2020.3.16` to
+      `2020.4.1` they will look like:
 
- JORM_TAG="v0.8.15"
- CARDANO_NODE_TAG="1.9.3"
-```
+      ```
+      ################################################################################
+      # Release-specific parameters (Change when you bump the version)
+      #
+      # Use trailing zeros for the date in the git tag, but
+      # do not use trailing zeros for the Cabal version.
+      # i.e. v2020-11-03 and not 2020.11.03 but 2020.11.3
+      GIT_TAG="v2020-04-01"
+      CABAL_VERSION="2020.4.1"
 
-> :warning: We use a slightly different notation between `.cabal` and git tags! Git tags follows the following format: `vYYYY-MM-DD` (notice the `v` and hyphens) whereas cabal version are written as: `YYYY.MM.DD`.
+      OLD_GIT_TAG="v2020-03-16"
+      OLD_CABAL_VERSION="2020.3.16"
+
+      CARDANO_NODE_TAG="1.9.3"
+      ```
+
+      > :warning: We use a slightly different notation between
+      > `.cabal` and git tags! Git tags follows the following format:
+      > `vYYYY-MM-DD` (notice the `v` and hyphens) whereas cabal
+      > version are written as: `YYYY.MM.DD`.
 
 - [ ] From the **root** of the repository, run:
 
-```bash
-export GITHUB_API_TOKEN=<A GITHUB API TOKEN>
-$ ./scripts/make_release.sh
-```
-This will bump the version in .cabal and .nix files and generate release notes. If you have none yet, you can create a _personal access token_ in your [Github Settings](https://github.com/settings/tokens). No scope is required for this token, only public access (as it is simply used to read publicly available data from the Github API).
+      ```bash
+      $ ./scripts/make_release.sh
+      ```
+
+      This will bump the version in `.cabal` and `.nix` files, and the
+      swagger spec files, and generate release notes.
+
+      > :bulb: Note: If you get GitHub API rate limit errors, you can
+      > set the `GITHUB_API_TOKEN` environment variable. To create a
+      > _personal access token_, go to your
+      > [Github Settings](https://github.com/settings/tokens).
+      > No scope is required for this token, only public access (as it
+      > is simply used to read publicly available data from the Github
+      > API).
 
 - [ ] Open a pull request to submit the modified files. Get it merged.
 
-- [ ] Trigger a release build on CI (Travis) and wait for the build artifacts to be published on github
-  ```
-  $ git push origin refs/tags/vYYYY-MM-DD
-  ```
-  Where `YYYY-MM-DD` should be replaced by the actual date of the release.
+- [ ] Trigger a release build on CI (Travis) and wait for the build
+      artifacts to be published on github
+
+      ```
+      $ git push origin refs/tags/vYYYY-MM-DD
+      ```
+      
+      Where `YYYY-MM-DD` should be replaced by the actual date of the release.
+
 
 ## Create the release notes
 
+- [ ] Write release notes in the
+      [release page](https://github.com/input-output-hk/cardano-wallet/releases)
+      using the previously generated release notes. Fill in the empty
+      sections.
 
-- [ ] Write release notes in the [release page](https://github.com/input-output-hk/cardano-wallet/releases) using the previously generated release notes. Fill in the empty sections.
+- [ ] Remove items that are irrelevant to users (e.g. pure
+      refactoring, improved testing)
 
-- [ ] Remove items that are irrelevant to users (e.g. pure refactoring, improved testing)
+- [ ] Make sure the items that the script put in the "Unclassified"
+      section are moved to an appropriate section (or removed).
 
-- [ ] Make sure the items that the script put in the "Unclassified" section are moved to an appropriate section (or removed).
+- [ ] You may want to polish the language of the PR titles to make it
+      sound like actual release notes.
 
-- [ ] You may want to polish the language of the PR titles to make it sound like actual release notes.
 
 ## Verify release artifacts
 
-- [ ] Verify that the documentations have been correctly exported on [gh-pages](https://github.com/input-output-hk/cardano-wallet/tree/gh-pages)
+- [ ] Verify that the documentations have been correctly exported on
+      [gh-pages](https://github.com/input-output-hk/cardano-wallet/tree/gh-pages)
 
-- [ ] Make sure CLI manuals are up to date:
-  - [Command-Line Interface](https://github.com/input-output-hk/cardano-wallet/wiki/Wallet-command-line-interface)
-  - [Command-Line Interface (jormungandr)]( https://github.com/input-output-hk/cardano-wallet/wiki/Wallet-command-line-interface-jormungandr)
+- [ ] Make sure the [Command-Line Interface](https://github.com/input-output-hk/cardano-wallet/wiki/Wallet-command-line-interface) manual is up to date.
 
 
 ## Manual ad-hoc verifications
@@ -85,7 +126,5 @@ This will bump the version in .cabal and .nix files and generate release notes. 
 ## Publication
 
 - [ ] Once everyone has signed off (i.e. Tech lead, QA & Release manager), publish the release draft.
-
-- [ ] Update the "Compatibility Matrix" in the README.md (keep info about last 3 versions of `cardano-wallet`).
 
 - [ ] Add the release to the [automated migration tests](https://github.com/input-output-hk/cardano-wallet/blob/master/nix/migration-tests.nix#L44-L61) (keep only the last 10 versions). See the header of the file as to how to generate the SHA256 hashes.
