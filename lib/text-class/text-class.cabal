@@ -33,6 +33,7 @@ library
     , extra
     , fmt
     , text
+    , time
     , hspec
     , OddWord
     , QuickCheck
@@ -59,6 +60,7 @@ test-suite unit
     , QuickCheck
     , text
     , text-class
+    , time
   build-tools:
       hspec-discover
   type:

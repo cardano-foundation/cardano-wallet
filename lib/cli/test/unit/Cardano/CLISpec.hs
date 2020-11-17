@@ -30,6 +30,7 @@ import Cardano.CLI
     , hGetSensitiveLine
     , metadataOption
     , poolMetadataSourceOption
+    , timeToLiveOption
     )
 import Cardano.Wallet.Api.Client
     ( addressClient
@@ -50,6 +51,8 @@ import Control.Monad
     ( mapM_ )
 import Data.Proxy
     ( Proxy (..) )
+import Data.Quantity
+    ( Quantity (..) )
 import Data.Text
     ( Text )
 import Data.Text.Class
@@ -267,6 +270,7 @@ spec = do
         ["transaction", "create", "--help"] `shouldShowUsage`
             [ "Usage:  transaction create [--port INT] WALLET_ID"
             , "                           --payment PAYMENT [--metadata JSON]"
+            , "                           [--ttl DURATION]"
             , "  Create and submit a new transaction."
             , ""
             , "Available options:"
@@ -280,11 +284,14 @@ spec = do
             , "                           metadata as a JSON object. The value"
             , "                           must match the schema defined in the"
             , "                           cardano-wallet OpenAPI specification."
+            , "  --ttl DURATION           Time-to-live value. Expressed in"
+            , "                           seconds with a trailing 's'. Default"
+            , "                           is 3600s (2 hours)."
             ]
 
         ["transaction", "fees", "--help"] `shouldShowUsage`
             [ "Usage:  transaction fees [--port INT] WALLET_ID --payment PAYMENT"
-            , "                         [--metadata JSON]"
+            , "                         [--metadata JSON] [--ttl DURATION]"
             , "  Estimate fees for a transaction."
             , ""
             , "Available options:"
@@ -298,6 +305,9 @@ spec = do
             , "                           metadata as a JSON object. The value"
             , "                           must match the schema defined in the"
             , "                           cardano-wallet OpenAPI specification."
+            , "  --ttl DURATION           Time-to-live value. Expressed in"
+            , "                           seconds with a trailing 's'. Default"
+            , "                           is 3600s (2 hours)."
             ]
 
         ["transaction", "list", "--help"] `shouldShowUsage`
@@ -683,6 +693,26 @@ spec = do
             , ("null 1", "{ \"0\": null }", err)
             , ("null 2", "null", ok Nothing)
             , ("null 3", "{ }", ok (Just (ApiT mempty)))
+            ]
+
+    describe "Tx TTL option" $ do
+        let parse arg = execParserPure defaultPrefs
+                (info timeToLiveOption mempty) ["--ttl", arg]
+        let ok ex (Success res) = Just (Quantity ex) == res
+            ok _ _ = False
+        let err (Failure _) = True
+            err _ = False
+        mapM_
+            (\(desc, arg, tst) -> it desc (parse arg `shouldSatisfy` tst))
+            [ ("valid integer", "1s", ok 1)
+            , ("valid zero", "0s", ok 0)
+            , ("invalid negative", "-1s", err)
+            , ("invalid fractional", "1.5s", err)
+            , ("malformed trailling", "1ss", err)
+            , ("malformed suffix", "1", err)
+            , ("malformed empty", "", err)
+            , ("malformed emptyish", "s", err)
+            , ("malformed leading", "a1s", err)
             ]
 
   where

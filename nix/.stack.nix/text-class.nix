@@ -31,6 +31,7 @@
           (hsPkgs."extra" or (errorHandler.buildDepError "extra"))
           (hsPkgs."fmt" or (errorHandler.buildDepError "fmt"))
           (hsPkgs."text" or (errorHandler.buildDepError "text"))
+          (hsPkgs."time" or (errorHandler.buildDepError "time"))
           (hsPkgs."hspec" or (errorHandler.buildDepError "hspec"))
           (hsPkgs."OddWord" or (errorHandler.buildDepError "OddWord"))
           (hsPkgs."QuickCheck" or (errorHandler.buildDepError "QuickCheck"))
@@ -45,6 +46,7 @@
             (hsPkgs."QuickCheck" or (errorHandler.buildDepError "QuickCheck"))
             (hsPkgs."text" or (errorHandler.buildDepError "text"))
             (hsPkgs."text-class" or (errorHandler.buildDepError "text-class"))
+            (hsPkgs."time" or (errorHandler.buildDepError "time"))
             ];
           build-tools = [
             (hsPkgs.buildPackages.hspec-discover or (pkgs.buildPackages.hspec-discover or (errorHandler.buildToolDepError "hspec-discover")))

@@ -37,7 +37,7 @@ import Prelude
 import Control.Monad
     ( unless, (<=<) )
 import Data.Bifunctor
-    ( first )
+    ( bimap, first )
 import Data.List
     ( find )
 import Data.List.Extra
@@ -48,6 +48,8 @@ import Data.Text
     ( Text )
 import Data.Text.Read
     ( decimal, signed )
+import Data.Time.Clock
+    ( NominalDiffTime )
 import Data.Word
     ( Word32, Word64 )
 import Data.Word.Odd
@@ -69,6 +71,10 @@ import qualified Data.Text.Lazy.Builder.Int as B
 import qualified Data.Text.Lazy.Builder.RealFloat as B
 import qualified Text.Casing as Casing
 
+{-------------------------------------------------------------------------------
+                                     Types
+-------------------------------------------------------------------------------}
+
 -- | Defines a textual encoding for a type.
 class ToText a where
     -- | Encode the specified value as text.
@@ -84,6 +90,14 @@ newtype TextDecodingError = TextDecodingError
     { getTextDecodingError :: String }
     deriving stock (Eq, Show)
     deriving newtype Buildable
+
+-- | Decode the specified text with a 'Maybe' result type.
+fromTextMaybe :: FromText a => Text -> Maybe a
+fromTextMaybe = either (const Nothing) Just . fromText
+
+{-------------------------------------------------------------------------------
+                                   Instances
+-------------------------------------------------------------------------------}
 
 instance FromText String where
     fromText = pure . T.unpack
@@ -162,15 +176,30 @@ instance ToText Word32 where
 instance ToText Word31 where
     toText = intToText
 
+instance ToText NominalDiffTime where
+    toText = T.pack . show
+
+-- Note: This parser doesn't allow fractional or negative durations.
+instance FromText NominalDiffTime where
+    fromText t = case T.splitOn "s" t of
+        [v,""] -> bimap (const err) (fromIntegral @Natural) (fromText v)
+        _ -> Left err
+      where
+        err = TextDecodingError $ unwords
+            [ "Cannot parse given time duration."
+            , "Values must be given as whole positive seconds, and must"
+            , "finish with \"s\". For example: \"3s\", \"3600s\", \"42s\"."
+            ]
+
 realFloatToText :: RealFloat a => a -> T.Text
 realFloatToText = TL.toStrict . B.toLazyText . B.realFloat
 
 intToText :: Integral a => a -> T.Text
 intToText = TL.toStrict . B.toLazyText . B.decimal
 
--- | Decode the specified text with a 'Maybe' result type.
-fromTextMaybe :: FromText a => Text -> Maybe a
-fromTextMaybe = either (const Nothing) Just . fromText
+{-------------------------------------------------------------------------------
+                            Formatting enums as text
+-------------------------------------------------------------------------------}
 
 -- | Represents a case style for multi-word strings.
 data CaseStyle
@@ -251,6 +280,10 @@ fromCaseStyle = \case
         (\c -> if C.isUpper c then Nothing else Just s) =<< listToMaybe s
     ensureFirstCharUpperCase s =
         (\c -> if C.isLower c then Nothing else Just s) =<< listToMaybe s
+
+{-------------------------------------------------------------------------------
+                                    Helpers
+-------------------------------------------------------------------------------}
 
 -- | Show a data-type through its 'ToText' instance
 showT :: ToText a => a -> String

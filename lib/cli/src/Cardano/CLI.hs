@@ -35,6 +35,7 @@ module Cardano.CLI
     , cmdWalletCreate
     , cmdByronWalletCreate
     , cmdTransaction
+    , cmdTransactionJormungandr
     , cmdAddress
     , cmdStakePool
     , cmdNetwork
@@ -55,6 +56,7 @@ module Cardano.CLI
     , tlsOption
     , poolMetadataSourceOption
     , metadataOption
+    , timeToLiveOption
 
     -- * Option parsers for configuring tracing
     , LoggingOptions (..)
@@ -155,6 +157,8 @@ import Cardano.Wallet.Api.Types
     )
 import Cardano.Wallet.Network
     ( ErrNetworkUnavailable (..) )
+import Cardano.Wallet.Orphans
+    ()
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , DerivationType (..)
@@ -199,6 +203,8 @@ import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Maybe
     ( fromMaybe )
+import Data.Quantity
+    ( Quantity (..) )
 import Data.String
     ( IsString )
 import Data.Text
@@ -207,6 +213,8 @@ import Data.Text.Class
     ( FromText (..), TextDecodingError (..), ToText (..), showT )
 import Data.Text.Read
     ( decimal )
+import Data.Time.Clock
+    ( NominalDiffTime )
 import Data.Void
     ( Void )
 import Fmt
@@ -683,19 +691,38 @@ cmdWalletGetUtxoStatistics mkClient =
                             Commands - 'transaction'
 -------------------------------------------------------------------------------}
 
+data TransactionFeatures = NoShelleyFeatures | ShelleyFeatures
+    deriving (Show, Eq)
+
 -- | cardano-wallet transaction
 cmdTransaction
     :: ToJSON wallet
     => TransactionClient
     -> WalletClient wallet
     -> Mod CommandFields (IO ())
-cmdTransaction mkTxClient mkWalletClient =
+cmdTransaction = cmdTransactionBase ShelleyFeatures
+
+-- | cardano-wallet-jormungandr transaction
+cmdTransactionJormungandr
+    :: ToJSON wallet
+    => TransactionClient
+    -> WalletClient wallet
+    -> Mod CommandFields (IO ())
+cmdTransactionJormungandr = cmdTransactionBase NoShelleyFeatures
+
+cmdTransactionBase
+    :: ToJSON wallet
+    => TransactionFeatures
+    -> TransactionClient
+    -> WalletClient wallet
+    -> Mod CommandFields (IO ())
+cmdTransactionBase isShelley mkTxClient mkWalletClient =
     command "transaction" $ info (helper <*> cmds) $ mempty
         <> progDesc "About transactions"
   where
     cmds = subparser $ mempty
-        <> cmdTransactionCreate mkTxClient mkWalletClient
-        <> cmdTransactionFees mkTxClient mkWalletClient
+        <> cmdTransactionCreate isShelley mkTxClient mkWalletClient
+        <> cmdTransactionFees isShelley mkTxClient mkWalletClient
         <> cmdTransactionList mkTxClient
         <> cmdTransactionSubmit mkTxClient
         <> cmdTransactionForget mkTxClient
@@ -707,14 +734,21 @@ data TransactionCreateArgs t = TransactionCreateArgs
     , _id :: WalletId
     , _payments :: NonEmpty Text
     , _metadata :: ApiTxMetadata
+    , _timeToLive :: Maybe (Quantity "second" NominalDiffTime)
     }
+
+whenShelley :: a -> Parser a -> TransactionFeatures -> Parser a
+whenShelley j s = \case
+    NoShelleyFeatures -> pure j
+    ShelleyFeatures -> s
 
 cmdTransactionCreate
     :: ToJSON wallet
-    => TransactionClient
+    => TransactionFeatures
+    -> TransactionClient
     -> WalletClient wallet
     -> Mod CommandFields (IO ())
-cmdTransactionCreate mkTxClient mkWalletClient =
+cmdTransactionCreate isShelley mkTxClient mkWalletClient =
     command "create" $ info (helper <*> cmd) $ mempty
         <> progDesc "Create and submit a new transaction."
   where
@@ -722,8 +756,9 @@ cmdTransactionCreate mkTxClient mkWalletClient =
         <$> portOption
         <*> walletIdArgument
         <*> fmap NE.fromList (some paymentOption)
-        <*> metadataOption
-    exec (TransactionCreateArgs wPort wId wAddressAmounts md) = do
+        <*> whenShelley (ApiTxMetadata Nothing) metadataOption isShelley
+        <*> whenShelley Nothing timeToLiveOption isShelley
+    exec (TransactionCreateArgs wPort wId wAddressAmounts md ttl) = do
         wPayments <- either (fail . getTextDecodingError) pure $
             traverse (fromText @(AddressAmount Text)) wAddressAmounts
         res <- sendRequest wPort $ getWallet mkWalletClient $ ApiT wId
@@ -737,6 +772,7 @@ cmdTransactionCreate mkTxClient mkWalletClient =
                         [ "payments" .= wPayments
                         , "passphrase" .= ApiT wPwd
                         , "metadata" .= md
+                        , "time_to_live" .= ttl
                         ]
                     )
             Left _ ->
@@ -744,10 +780,11 @@ cmdTransactionCreate mkTxClient mkWalletClient =
 
 cmdTransactionFees
     :: ToJSON wallet
-    => TransactionClient
+    => TransactionFeatures
+    -> TransactionClient
     -> WalletClient wallet
     -> Mod CommandFields (IO ())
-cmdTransactionFees mkTxClient mkWalletClient =
+cmdTransactionFees isShelley mkTxClient mkWalletClient =
     command "fees" $ info (helper <*> cmd) $ mempty
         <> progDesc "Estimate fees for a transaction."
   where
@@ -755,8 +792,9 @@ cmdTransactionFees mkTxClient mkWalletClient =
         <$> portOption
         <*> walletIdArgument
         <*> fmap NE.fromList (some paymentOption)
-        <*> metadataOption
-    exec (TransactionCreateArgs wPort wId wAddressAmounts md) = do
+        <*> whenShelley (ApiTxMetadata Nothing) metadataOption isShelley
+        <*> whenShelley Nothing timeToLiveOption isShelley
+    exec (TransactionCreateArgs wPort wId wAddressAmounts md ttl) = do
         wPayments <- either (fail . getTextDecodingError) pure $
             traverse (fromText @(AddressAmount Text)) wAddressAmounts
         res <- sendRequest wPort $ getWallet mkWalletClient $ ApiT wId
@@ -768,6 +806,7 @@ cmdTransactionFees mkTxClient mkWalletClient =
                     (Aeson.object
                         [ "payments" .= wPayments
                         , "metadata" .= md
+                        , "time_to_live" .= ttl
                         ])
             Left _ ->
                 handleResponse Aeson.encodePretty res
@@ -1339,7 +1378,7 @@ walletIdArgument :: Parser WalletId
 walletIdArgument = argumentT $ mempty
     <> metavar "WALLET_ID"
 
--- | <stake=STAKE>
+-- | [--stake=STAKE]
 stakeOption :: Parser (Maybe Coin)
 stakeOption = optional $ optionT $ mempty
     <> long "stake"
@@ -1369,7 +1408,7 @@ transactionSubmitPayloadArgument = argumentT $ mempty
     <> metavar "BINARY_BLOB"
     <> help "hex-encoded binary blob of externally-signed transaction."
 
--- | <metadata=JSON>
+-- | [--metadata=JSON]
 --
 -- Note: we decode the JSON just so that we can validate more client-side.
 metadataOption :: Parser ApiTxMetadata
@@ -1383,6 +1422,15 @@ metadataOption = option txMetadataReader $ mempty
 
 txMetadataReader :: ReadM ApiTxMetadata
 txMetadataReader = eitherReader (Aeson.eitherDecode' . BL8.pack)
+
+-- | [--ttl=DURATION]
+timeToLiveOption :: Parser (Maybe (Quantity "second" NominalDiffTime))
+timeToLiveOption = optional $ fmap Quantity $ optionT $ mempty
+    <> long "ttl"
+    <> metavar "DURATION"
+    <> help ("Time-to-live value. "
+             <> "Expressed in seconds with a trailing 's'. "
+             <> "Default is 3600s (2 hours).")
 
 -- | <address=ADDRESS>
 addressIdArgument :: Parser Text
