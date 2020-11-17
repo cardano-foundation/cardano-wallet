@@ -8,7 +8,7 @@ let
   walletJobs = walletPkgs:
     walletPkgs.pkgs.recurseIntoAttrs {
       inherit (walletPkgs)
-        cardano-wallet-jormungandr
+        cardano-wallet
         checks
         benchmarks;
     };

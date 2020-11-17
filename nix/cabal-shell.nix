@@ -30,8 +30,6 @@ mkShell rec {
   ]
   ++ lib.optional (!stdenv.isDarwin) git
   ++ (with walletPackages; [
-    jormungandr
-    jormungandr-cli
     cardano-node
     cardano-cli
   ]);

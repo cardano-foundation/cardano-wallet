@@ -43,9 +43,6 @@ let
         packages.cardano-wallet-launcher.src = filterSubDir "lib/launcher";
         packages.cardano-wallet.src = filterSubDir "lib/shelley";
         packages.cardano-wallet.components.tests.integration.keepSource = true;
-        packages.cardano-wallet-jormungandr.src = filterSubDir "lib/jormungandr";
-        packages.cardano-wallet-jormungandr.components.tests.unit.keepSource = true;
-        packages.cardano-wallet-jormungandr.components.tests.jormungandr-integration.keepSource = true;
         packages.cardano-wallet-test-utils.src = filterSubDir "lib/test-utils";
         packages.text-class.src = filterSubDir "lib/text-class";
         packages.text-class.components.tests.unit.keepSource = true;
@@ -57,7 +54,6 @@ let
         packages.cardano-wallet-cli.flags.release = true;
         packages.cardano-wallet-core-integration.flags.release = true;
         packages.cardano-wallet-core.flags.release = true;
-        packages.cardano-wallet-jormungandr.flags.release = true;
         packages.cardano-wallet-launcher.flags.release = true;
         packages.cardano-wallet-test-utils.flags.release = true;
         packages.text-class.flags.release = true;
@@ -70,9 +66,6 @@ let
         packages.cardano-wallet-core-integration.components.library.doCoverage = true;
         packages.cardano-wallet-core.components.library.doCoverage = true;
         packages.cardano-wallet-core.components.tests.unit.doCoverage = true;
-        packages.cardano-wallet-jormungandr.components.library.doCoverage = true;
-        packages.cardano-wallet-jormungandr.components.tests.unit.doCoverage = true;
-        packages.cardano-wallet-jormungandr.components.tests.jormungandr-integration.doCoverage = true;
         packages.cardano-wallet-launcher.components.library.doCoverage = true;
         packages.cardano-wallet-test-utils.components.library.doCoverage = true;
         packages.text-class.components.library.doCoverage = true;
@@ -129,22 +122,7 @@ let
           unit.postInstall = libSodiumPostInstall;
         };
 
-        packages.cardano-wallet-jormungandr.components.tests = {
-          # Don't run any jormungandr tests
-          unit.doCheck = false;
-          jormungandr-integration.doCheck = false;
-          # Some tests want to write ~/.local/share/cardano-wallet
-          jormungandr-integration.preCheck = "export HOME=`pwd`";
-          # provide jormungandr command to test suites
-          jormungandr-integration.build-tools = [
-            jmPkgs.jormungandr
-            jmPkgs.jormungandr-cli
-          ];
-          unit.build-tools = [ jmPkgs.jormungandr ];
-        };
-
         # Add node backend to the PATH of the latency benchmarks
-        packages.cardano-wallet-jormungandr.components.benchmarks.latency = wrapBench [ jmPkgs.jormungandr ];
         packages.cardano-wallet.components.benchmarks.latency = wrapBench [ pkgs.cardano-node pkgs.cardano-cli ];
 
         # Add cardano-node to the PATH of the byroon restore benchmark.
@@ -181,8 +159,6 @@ let
         # Make sure that libsodium DLLs for all windows executables,
         # and add shell completions for main executables.
         packages.cardano-wallet.components.exes.cardano-wallet.postInstall = optparseCompletionPostInstall + libSodiumPostInstall;
-        packages.cardano-wallet-jormungandr.components.exes.cardano-wallet-jormungandr.postInstall = optparseCompletionPostInstall + libSodiumPostInstall;
-        packages.cardano-wallet-jormungandr.components.tests.unit.postInstall = libSodiumPostInstall;
         packages.cardano-wallet-core.components.tests.unit.postInstall = libSodiumPostInstall;
         packages.cardano-wallet-cli.components.tests.unit.postInstall = libSodiumPostInstall;
       }
@@ -205,7 +181,6 @@ let
         '';
       in {
         packages.cardano-wallet-core.components.tests.unit.preBuild = swaggerYamlPreBuild;
-        packages.cardano-wallet-jormungandr.components.tests.unit.preBuild = swaggerYamlPreBuild;
       })
 
       # Build fixes for library dependencies
@@ -234,7 +209,6 @@ let
         enableLibraryProfiling = true;
         packages.cardano-wallet.components.exes.cardano-wallet.enableExecutableProfiling = true;
         packages.cardano-wallet.components.benchmarks.restore.enableExecutableProfiling = true;
-        packages.cardano-wallet-jormungandr.components.exes.cardano-wallet-jormungandr.enableExecutableProfiling = true;
       })
 
       # Musl libc fully static build
@@ -256,10 +230,6 @@ let
         packages.cardano-wallet-cli.components.tests.unit = fullyStaticOptions;
         packages.cardano-wallet-core.components.benchmarks.db = fullyStaticOptions;
         packages.cardano-wallet-core.components.tests.unit = fullyStaticOptions;
-        packages.cardano-wallet-jormungandr.components.benchmarks.latency = fullyStaticOptions;
-        packages.cardano-wallet-jormungandr.components.exes.cardano-wallet-jormungandr = fullyStaticOptions;
-        packages.cardano-wallet-jormungandr.components.tests.jormungandr-integration = fullyStaticOptions;
-        packages.cardano-wallet-jormungandr.components.tests.unit = fullyStaticOptions;
         packages.cardano-wallet-launcher.components.tests.unit = fullyStaticOptions;
 
         # systemd can't be statically linked - disable lobemo-scribe-journal

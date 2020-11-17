@@ -139,8 +139,7 @@ parseOpts = execParser opts
 buildStep :: DryRun -> Maybe BuildkiteEnv -> Bool -> IO ExitCode
 buildStep dryRun bk nightly = do
     pkgs <- listLocalPackages
-    let pkgsNoJorm =  filter ( /= "cardano-wallet-jormungandr") pkgs
-    let cabalFlags = concatMap (flag "release") pkgsNoJorm
+    let cabalFlags = concatMap (flag "release") pkgs
 
     titled "Build LTS Snapshot"
         (build Standard ["--only-snapshot"]) .&&.
@@ -172,8 +171,8 @@ buildStep dryRun bk nightly = do
             , [ "test" ]
             , fast opt
             , case qaLevel nightly bk of
-                QuickTest -> skip "integration" <> skip "jormungandr-integration"
-                FullTest -> skip "jormungandr-integration"
+                QuickTest -> skip "integration"
+                FullTest -> mempty
                 NightlyTest -> mempty
             , ta (jobs 8)
             , args

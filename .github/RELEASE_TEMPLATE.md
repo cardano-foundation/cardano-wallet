@@ -1,6 +1,6 @@
 <!-- Short optional summary -->
 
-Compatible with [`jormungandr@{{JORM_TAG}}`](https://github.com/input-output-hk/jormungandr/releases/tag/{{JORM_TAG}}) and [`cardano-node@{{CARDANO_NODE_TAG}}`](https://github.com/input-output-hk/cardano-node/releases/tag/{{CARDANO_NODE_TAG}}).
+Compatible with [`cardano-node@{{CARDANO_NODE_TAG}}`](https://github.com/input-output-hk/cardano-node/releases/tag/{{CARDANO_NODE_TAG}}).
 
 <!-- A CHANGELOG, organized in three sections:
 
@@ -20,11 +20,9 @@ Compatible with [`jormungandr@{{JORM_TAG}}`](https://github.com/input-output-hk/
 
 <!-- A snapshot of the documentation at the time of releasing. -->
 
-Cardano (cardano-node)                                                                                             | ITN (Jörmungandr)
----                                                                                                                | ---
-[API Documentation](https://input-output-hk.github.io/cardano-wallet/api/{{GIT_TAG}})                              | [API Documentation](https://input-output-hk.github.io/cardano-wallet/api/{{GIT_TAG}})
-[CLI Manual](https://github.com/input-output-hk/cardano-wallet/wiki/Wallet-command-line-interface/{{WIKI_COMMIT}}) | [CLI Manual](https://github.com/input-output-hk/cardano-wallet/wiki/Wallet-command-line-interface-jormungandr/{{WIKI_COMMIT}})
-[Docker Manual](https://github.com/input-output-hk/cardano-wallet/wiki/Docker/{{WIKI_COMMIT}})                     | [Docker Manual](https://github.com/input-output-hk/cardano-wallet/wiki/Docker-jormungandr/{{WIKI_COMMIT}})
+[API Documentation](https://input-output-hk.github.io/cardano-wallet/api/{{GIT_TAG}})
+[CLI Manual](https://github.com/input-output-hk/cardano-wallet/wiki/Wallet-command-line-interface/{{WIKI_COMMIT}})
+[Docker Manual](https://github.com/input-output-hk/cardano-wallet/wiki/Docker/{{WIKI_COMMIT}})
 
 ## Installation Instructions
 
@@ -51,22 +49,7 @@ $ docker run --rm inputoutput/cardano-wallet:{{CABAL_VERSION}} version
 
 ### ITN (jormungandr)
 
-1. Install [`jormungandr@{{JORM_TAG}}`](https://github.com/input-output-hk/jormungandr/releases/tag/{{JORM_TAG}}).
-
-2. Download the provided `cardano-wallet-jormungandr` for your platform, and uncompress it in a directory that is on your `$PATH`, e.g. `/usr/local/bin`. Or `%PATH%` on Windows.
-
-3. (optional) Install the bash/zsh auto-completion script according to the [jormungandr cli manual](https://github.com/input-output-hk/cardano-wallet/wiki/Wallet-Command-Line-Interface/{{JORM_CLI_WIKI_COMMIT}})
-
-4. Start `cardano-wallet --help` and see available parameters.
-
-#### Docker
-
-Pull from DockerHub and verify the version matches {{CABAL_VERSION}}
-
-```
-$ docker pull inputoutput/cardano-wallet:{{CABAL_VERSION}}-jormungandr
-$ docker run --rm inputoutput/cardano-wallet:{{CABAL_VERSION}}-jormungandr version
-```
+See [cardano-wallet-jormungandr](https://github.com/input-output-hk/cardano-wallet-jormungandr).
 
 ## Signatures
 

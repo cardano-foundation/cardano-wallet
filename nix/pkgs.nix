@@ -5,7 +5,6 @@ let
   pkgs1903 = import sources."nixpkgs-19.03" {};
   inherit (import ./default.nix {}) commonLib;
 in pkgs: super: with pkgs; {
-  jmPkgs = import ./jormungandr.nix { inherit (pkgs) commonLib; inherit pkgs; };
   cardanoNodePkgs = import sources.cardano-node {
     inherit system crossSystem config;
     gitrev = sources.cardano-node.rev;

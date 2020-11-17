@@ -11,7 +11,6 @@ packages:
   , lib/launcher/
   , lib/text-class/
   , lib/test-utils/
-  , lib/jormungandr/
   , lib/shelley/
 
 source-repository-package
@@ -353,9 +352,6 @@ package text-class
     ghc-options: -ddump-to-file -ddump-hi
 
 package cardano-wallet-test-utils
-    ghc-options: -ddump-to-file -ddump-hi
-
-package cardano-wallet-jormungandr
     ghc-options: -ddump-to-file -ddump-hi
 
 package cardano-wallet

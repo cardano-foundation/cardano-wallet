@@ -39,14 +39,15 @@ steps:
       system: x86_64-linux
       queue: benchmark
 
-  - label: 'Database Migrations Test'
-    commands:
-      - "rm -rf state-migration-test*"
-      - "nix-build nix/migration-tests.nix -o migration-tests"
-      - "./migration-tests/runall.sh"
-    timeout_in_minutes: 60
-    agents:
-      system: x86_64-linux
+  # TODO: ADP-549 Port migrations test to shelley
+  # - label: 'Database Migrations Test'
+  #   commands:
+  #     - "rm -rf state-migration-test*"
+  #     - "nix-build nix/migration-tests.nix -o migration-tests"
+  #     - "./migration-tests/runall.sh"
+  #   timeout_in_minutes: 60
+  #   agents:
+  #     system: x86_64-linux
 
   - wait
 

@@ -7,23 +7,21 @@
 #
 # Interesting top-level attributes:
 #
-#   - cardano-wallet-jormungandr - cli executable
 #   - cardano-wallet - cli executable
 #   - tests - attrset of test-suite executables
 #     - cardano-wallet-core.unit
-#     - cardano-wallet-jormungandr.jormungandr-integration
+#     - cardano-wallet.integration
 #     - etc (layout is PACKAGE.COMPONENT)
 #   - checks - attrset of test-suite results
 #     - cardano-wallet-core.unit
-#     - cardano-wallet-jormungandr.jormungandr-integration
+#     - cardano-wallet.integration
 #     - etc
 #   - benchmarks - attret of benchmark executables
 #     - cardano-wallet-core.db
-#     - cardano-wallet-jormungandr.latency
+#     - cardano-wallet.latency
 #     - etc
 #   - migration-tests - tests db migrations from previous versions
 #   - dockerImage - tarballs of the docker images
-#     - jormungandr
 #     - shelley
 #   - shell - imported by shell.nix
 #   - haskellPackages - a Haskell.nix package set of all packages and their dependencies
@@ -75,8 +73,6 @@ let
 
   self = {
     inherit pkgs commonLib src haskellPackages profiledHaskellPackages coveredHaskellPackages;
-    # Jormungandr
-    inherit (jmPkgs) jormungandr jormungandr-cli;
     # expose cardano-node, so daedalus can ship it without needing to pin cardano-node
     inherit (pkgs) cardano-node cardano-cli;
     inherit (haskellPackages.cardano-wallet-core.identifier) version;
@@ -86,13 +82,6 @@ let
     inherit (haskellPackages.bech32.components.exes) bech32;
     inherit (haskellPackages.cardano-addresses-cli.components.exes) cardano-address;
     inherit (haskellPackages.cardano-transactions.components.exes) cardano-tx;
-
-    cardano-wallet-jormungandr = import ./nix/package-jormungandr.nix {
-      inherit (haskellPackages.cardano-wallet-jormungandr.components.exes)
-        cardano-wallet-jormungandr;
-      inherit pkgs jmPkgs gitrev;
-      haskellBuildUtils = haskellBuildUtils.package;
-    };
 
     cardano-wallet = import ./nix/package-cardano-node.nix {
       inherit pkgs gitrev;
@@ -113,7 +102,6 @@ let
     dockerImage = let
       mkDockerImage = backend: exe: pkgs.callPackage ./nix/docker.nix { inherit backend exe; };
     in recurseIntoAttrs (mapAttrs mkDockerImage {
-      jormungandr = self.cardano-wallet-jormungandr;
       shelley = self.cardano-wallet;
     });
 

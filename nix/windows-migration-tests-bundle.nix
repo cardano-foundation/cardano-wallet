@@ -20,7 +20,7 @@
 }:
 
 let
-  name = "cardano-wallet-jormungandr-${project.version}-migration-tests-win64";
+  name = "cardano-wallet-${project.version}-migration-tests-win64";
   migration-tests = import ./migration-tests.nix { inherit system crossSystem config pkgs; };
 
 in pkgs.buildPackages.runCommand name {

@@ -7,7 +7,6 @@ packages:
 - lib/launcher
 - lib/text-class
 - lib/test-utils
-- lib/jormungandr
 - lib/shelley
 
 extra-deps:

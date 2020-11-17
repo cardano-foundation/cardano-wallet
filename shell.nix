@@ -27,8 +27,6 @@ let
     inherit name;
     packages = ps: attrValues (selectProjectPackages ps);
     buildInputs = (with walletPackages; [
-        jormungandr
-        jormungandr-cli
         cardano-node
         cardano-cli
         cardano-address
