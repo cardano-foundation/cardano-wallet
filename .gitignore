@@ -34,3 +34,6 @@ result*
 
 ### auto-generated faulty JSON golden tests ###
 *.faulty.json
+
+### Release scripts output
+/GENERATED_*.md
