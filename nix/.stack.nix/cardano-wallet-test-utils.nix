@@ -43,6 +43,7 @@
           (hsPkgs."iohk-monitoring" or (errorHandler.buildDepError "iohk-monitoring"))
           (hsPkgs."process" or (errorHandler.buildDepError "process"))
           (hsPkgs."QuickCheck" or (errorHandler.buildDepError "QuickCheck"))
+          (hsPkgs."quickcheck-classes" or (errorHandler.buildDepError "quickcheck-classes"))
           (hsPkgs."stm" or (errorHandler.buildDepError "stm"))
           (hsPkgs."template-haskell" or (errorHandler.buildDepError "template-haskell"))
           (hsPkgs."time" or (errorHandler.buildDepError "time"))

@@ -19,6 +19,9 @@ extra-deps:
 - OddWord-1.0.2.0
 - command-0.1.1
 - wai-extra-3.0.29.1
+- primitive-addr-0.1.0.2
+- quickcheck-classes-0.6.4.0
+- quickcheck-classes-base-0.6.1.0
 
 # Needed because network > 3.1 is needed
 - servant-0.17
