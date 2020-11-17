@@ -1120,6 +1120,24 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                                 "b45768c1a2da4bd13ebcaa1ea51408eda31dcc21765ccbd407cda9f2"]
                     ]
 
+            updateMetadataSource ctx "direct"
+            eventually "pools are not delisted anymore" $ do
+                r <- listPools ctx arbitraryStake
+                verify r
+                    [ expectListSize 3
+                    , expectField Prelude.id $ \pools' -> do
+                        let metadataActual = Set.fromList $
+                                mapMaybe (fmap getApiT . view #metadata) pools'
+                            delistedPools = filter (\pool -> Delisted `elem` flags pool)
+                                pools'
+                        metadataActual
+                            `shouldSatisfy` (`Set.isSubsetOf` metadataPossible)
+                        metadataActual
+                            `shouldSatisfy` (not . Set.null)
+                        (fmap (getApiT . view #id) delistedPools)
+                            `shouldBe` []
+                    ]
+
   where
     metadataPossible = Set.fromList
         [ StakePoolMetadata

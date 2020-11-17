@@ -225,6 +225,8 @@ properties = do
             (property . prop_putLastMetadataGCReadLastMetadataGC)
         it "putDelistedPools >> readDelistedPools shows the pool as delisted"
             (property . prop_putDelistedPools)
+        it "clearing metadata also clears delisted pools"
+            (property . prop_removePoolMetadataDelistedPools)
 
 {-------------------------------------------------------------------------------
                                     Properties
@@ -1456,6 +1458,36 @@ prop_putLastMetadataGCReadLastMetadataGC DBLayer{..} posixTime = do
         time <- run $ atomically readLastMetadataGC
         assertWith "Setting sync time and reading afterwards works"
             (time == Just posixTime)
+
+-- Check that removing pool metadata removes delisted pools.
+prop_removePoolMetadataDelistedPools
+    :: DBLayer IO
+    -> Set.Set PoolId
+    -> Property
+prop_removePoolMetadataDelistedPools DBLayer {..} pools =
+    monadicIO (setup >> prop)
+  where
+    setup = run $ atomically cleanDB
+
+    prop = do
+        run $ atomically $ putDelistedPools (Set.toList pools)
+        poolsActuallyDelisted <- Set.fromList . L.sort <$>
+            run (atomically readDelistedPools)
+        monitor $ counterexample $ unlines
+            [ "Pools to mark as delisted: "
+            , pretty $ Set.toList pools
+            , "Pools actually delisted: "
+            , pretty $ Set.toList poolsActuallyDelisted
+            ]
+        assertWith "pools == poolsActuallyDelisted"
+            $ pools == poolsActuallyDelisted
+
+        -- now should be empty
+        run $ atomically removePoolMetadata
+        poolsAfter <- Set.fromList . L.sort <$>
+            run (atomically readDelistedPools)
+        assertWith "[] == poolsAfter"
+            $ null (Set.toList poolsAfter)
 
 -- Check that 'putDelistedPools' completely overwrites the existing set
 -- of delisted pools every time:

@@ -404,6 +404,7 @@ newDBLayer trace fp timeInterpreter = do
         removePoolMetadata = do
             deleteWhere ([] :: [Filter PoolMetadata])
             deleteWhere ([] :: [Filter PoolMetadataFetchAttempts])
+            deleteWhere ([] :: [Filter PoolDelistment])
 
         readPoolMetadata = do
             Map.fromList . map (fromPoolMeta . entityVal)
