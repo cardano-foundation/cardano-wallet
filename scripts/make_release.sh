@@ -17,14 +17,16 @@ set -euo pipefail
 
 ################################################################################
 # Release-specific parameters (Change when you bump the version)
-# Do not use trailing zeros, ie., not 2020.11.03 but 2020.11.3
-OLD_GIT_TAG="v2020-10-13"
-OLD_CABAL_VERSION="2020.10.13"
+#
+# Use trailing zeros for the date in the git tag, but
+# do not use trailing zeros for the Cabal version.
+# i.e. v2020-11-03 and not 2020.11.03 but 2020.11.3
+OLD_GIT_TAG="v2020-11-03"
+OLD_CABAL_VERSION="2020.11.3"
 
-GIT_TAG="v2020-11-3"
-CABAL_VERSION="2020.11.3"
+GIT_TAG="v2020-11-17"
+CABAL_VERSION="2020.11.17"
 
-JORM_TAG="v0.9.0"
 CARDANO_NODE_TAG="1.21.1"
 ################################################################################
 OLD_DATE="${OLD_GIT_TAG//v}"
@@ -46,7 +48,6 @@ echo "Generating changelog..."
 echo ""
 echo "Filling in template..."
 sed -e "s/{{GIT_TAG}}/$GIT_TAG/g"                   \
-    -e "s/{{JORM_TAG}}/$JORM_TAG/g"                 \
     -e "s/{{CARDANO_NODE_TAG}}/$CARDANO_NODE_TAG/g" \
     -e "s/{{CABAL_VERSION}}/$CABAL_VERSION/g"       \
     -e "s/{{WIKI_COMMIT}}/$WIKI_COMMIT/g"    \
