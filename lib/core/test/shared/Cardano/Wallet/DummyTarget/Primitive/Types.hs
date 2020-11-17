@@ -97,7 +97,7 @@ dummyTimeInterpreter = hoistTimeInterpreter (pure . runIdentity)
 
 dummyTxParameters :: TxParameters
 dummyTxParameters = TxParameters
-    { getFeePolicy = LinearFee (Quantity 14) (Quantity 42) (Quantity 5)
+    { getFeePolicy = LinearFee (Quantity 14) (Quantity 42)
     , getTxMaxSize = Quantity 8192
     }
 
@@ -114,6 +114,7 @@ dummyProtocolParameters = ProtocolParameters
     , txParameters = dummyTxParameters
     , desiredNumberOfStakePools = 100
     , minimumUTxOvalue = Coin 0
+    , stakeKeyDeposit = Coin 0
     , hardforkEpochNo = Nothing
     }
 

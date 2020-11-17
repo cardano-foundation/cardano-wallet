@@ -1223,10 +1223,9 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
     depositAmt :: Context -> Natural
     depositAmt ctx =
         let
-            pp = ctx ^. #_networkParameters . #protocolParameters
-            LinearFee _ _ (Quantity c) = pp ^. #txParameters . #getFeePolicy
+            c = ctx ^. #_networkParameters . #protocolParameters . #stakeKeyDeposit
         in
-            round c
+            fromIntegral (getCoin c)
 
     costOfJoining :: Context -> Natural
     costOfJoining = costOf (\coeff cst -> 370 * coeff + cst)
@@ -1243,7 +1242,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
       where
         pp = ctx ^. #_networkParameters . #protocolParameters
         (cst, coeff) = (round $ getQuantity a, round $ getQuantity b)
-        LinearFee a b _ = pp ^. #txParameters . #getFeePolicy
+        LinearFee a b = pp ^. #txParameters . #getFeePolicy
 
 -- The complete set of pool identifiers in the static test pool cluster.
 --

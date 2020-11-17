@@ -267,17 +267,17 @@ newTransactionLayer networkId = TransactionLayer
     }
   where
     _initDelegationSelection
-        :: FeePolicy
-            -- Current fee policy
+        :: Coin
+            -- stake key deposit
         -> DelegationAction
             -- What sort of action is going on
         -> CoinSelection
         -- ^ An initial selection where 'deposit' and/or 'reclaim' have been set
         -- accordingly.
-    _initDelegationSelection (LinearFee _ _ (Quantity c)) = \case
-        Quit{} -> mempty { reclaim = round c }
+    _initDelegationSelection (Coin c) = \case
+        Quit{} -> mempty { reclaim = c }
         Join{} -> mempty
-        RegisterKeyAndJoin{} -> mempty { deposit = round c }
+        RegisterKeyAndJoin{} -> mempty { deposit = c }
 
     _mkDelegationJoinTx
         :: forall era. (EraConstraints era)
@@ -425,7 +425,7 @@ _minimumFee policy action md cs =
     computeFee size =
         Fee $ ceiling (a + b*fromIntegral size)
       where
-        LinearFee (Quantity a) (Quantity b) _unused = policy
+        LinearFee (Quantity a) (Quantity b) = policy
 
 -- Estimate the size of a final transaction by using upper boundaries for cbor
 -- serialized objects according to:

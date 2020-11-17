@@ -593,7 +593,7 @@ prop_estimateFee :: NonEmptyList (Either String FeeGen) -> Property
 prop_estimateFee (NonEmpty results) = case actual of
     Left err -> label "errors: all" $
         Left err === head results
-    Right estimation@(W.FeeEstimation minFee maxFee) ->
+    Right estimation@(W.FeeEstimation minFee maxFee _) ->
         label ("errors: " <> if any isLeft results then "some" else "none") $
         counterexample (show estimation) $
             maxFee <= maximum (map (getRight 0) results) .&&.
@@ -601,7 +601,7 @@ prop_estimateFee (NonEmpty results) = case actual of
             (proportionBelow minFee results `closeTo` (1/10 :: Double))
   where
     actual :: Either String W.FeeEstimation
-    actual = runTest results' (W.estimateFeeForCoinSelection mockCoinSelection)
+    actual = runTest results' (W.estimateFeeForCoinSelection Nothing mockCoinSelection)
 
     -- infinite list of CoinSelections (or errors) matching the given fee
     -- amounts.

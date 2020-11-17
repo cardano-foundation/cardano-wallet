@@ -804,36 +804,34 @@ instance Buildable BlockHeader where
 -- function where @x@ can be the transaction size in bytes or, a number of
 -- inputs + outputs.
 --
--- @a@, @b@ and @c@ are constant coefficients.
+-- @a@ and @b@ are constant coefficients.
 --
 -- FIXME 'Double' is an old artifact from the Byron era on cardano-sl. It must
 -- go.
 data FeePolicy = LinearFee
     (Quantity "lovelace" Double)
     (Quantity "lovelace/byte" Double)
-    (Quantity "lovelace/certificate" Double)
     deriving (Eq, Show, Generic)
 
 instance NFData FeePolicy
 
 instance ToText FeePolicy where
-    toText (LinearFee (Quantity a) (Quantity b) (Quantity c)) =
-        toText a <> " + " <> toText b <> "x + " <> toText c <> "y"
+    toText (LinearFee (Quantity a) (Quantity b)) =
+        toText a <> " + " <> toText b <> "x"
 
 instance FromText FeePolicy where
     fromText txt = case T.splitOn " + " txt of
-        [a, b, c] | T.takeEnd 1 b == "x" && T.takeEnd 1 c == "y" ->
+        [a, b] | T.takeEnd 1 b == "x" ->
             left (const err) $ LinearFee
                 <$> fmap Quantity (fromText a)
                 <*> fmap Quantity (fromText (T.dropEnd 1 b))
-                <*> fmap Quantity (fromText (T.dropEnd 1 c))
         _ ->
             Left err
       where
         err = TextDecodingError
             "Unable to decode FeePolicy: \
-            \Linear equation not in expected format: a + bx + cy \
-            \where 'a', 'b', and 'c' are numbers"
+            \Linear equation not in expected format: a + bx \
+            \where 'a' and 'b' are numbers"
 
 -- | A thin wrapper around derivation indexes. This can be used to represent
 -- derivation path as homogeneous lists of 'DerivationIndex'. This is slightly
@@ -980,6 +978,11 @@ data ProtocolParameters = ProtocolParameters
     , minimumUTxOvalue
         :: Coin
         -- ^ The minimum UTxO value.
+    , stakeKeyDeposit
+        :: Coin
+        -- ^ Registering a stake key requires storage on the node and as such
+        -- needs a deposit. There may be more actions that require deposit
+        -- (such as registering a stake pool).
     , hardforkEpochNo
         :: Maybe EpochNo
         -- ^ The hardfork epoch number.

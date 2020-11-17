@@ -60,6 +60,7 @@ import Cardano.Wallet.Api.Types
     , ApiCoinSelectionInput (..)
     , ApiCoinSelectionOutput (..)
     , ApiCredential (..)
+    , ApiDelegationAction (..)
     , ApiEpochInfo (..)
     , ApiErrorCode (..)
     , ApiFee (..)
@@ -197,8 +198,6 @@ import Cardano.Wallet.Primitive.Types.UTxO
     , computeUtxoStatistics
     , log10
     )
-import Cardano.Wallet.Transaction
-    ( DelegationAction (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeFromText, unsafeXPrv )
 import Control.Lens
@@ -284,7 +283,6 @@ import Test.QuickCheck
     , InfiniteList (..)
     , Positive (..)
     , applyArbitrary2
-    , applyArbitrary4
     , arbitraryBoundedEnum
     , arbitraryPrintableChar
     , arbitrarySizedBoundedIntegral
@@ -353,6 +351,7 @@ spec = parallel $ do
             jsonRoundtripAndGolden $ Proxy @(ApiCoinSelectionOutput ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @ApiBlockReference
             jsonRoundtripAndGolden $ Proxy @ApiSlotReference
+            jsonRoundtripAndGolden $ Proxy @ApiDelegationAction
             jsonRoundtripAndGolden $ Proxy @ApiNetworkInformation
             jsonRoundtripAndGolden $ Proxy @ApiNetworkParameters
             jsonRoundtripAndGolden $ Proxy @ApiNetworkClock
@@ -673,6 +672,8 @@ spec = parallel $ do
                         (x :: ApiCoinSelection ('Testnet 0))
                     , certificates = certificates
                         (x :: ApiCoinSelection ('Testnet 0))
+                    , deposits = deposits
+                        (x :: ApiCoinSelection ('Testnet 0))
                     }
             in
                 x' === x .&&. show x' === show x
@@ -784,6 +785,7 @@ spec = parallel $ do
                 x' = ApiFee
                     { estimatedMin = estimatedMin (x :: ApiFee)
                     , estimatedMax = estimatedMax (x :: ApiFee)
+                    , deposits = deposits (x :: ApiFee)
                     }
             in
                 x' === x .&&. show x' === show x
@@ -878,6 +880,7 @@ spec = parallel $ do
                     , status = status (x :: ApiTransaction ('Testnet 0))
                     , withdrawals = withdrawals (x :: ApiTransaction ('Testnet 0))
                     , metadata = metadata (x :: ApiTransaction ('Testnet 0))
+                    , deposits = deposits (x :: ApiTransaction ('Testnet 0))
                     }
             in
                 x' === x .&&. show x' === show x
@@ -1077,6 +1080,10 @@ instance Arbitrary (ApiSelectCoinsPayments n) where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
+instance Arbitrary ApiDelegationAction where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
+
 instance Arbitrary ApiSelectCoinsAction where
     arbitrary = genericArbitrary
     shrink = genericShrink
@@ -1084,10 +1091,6 @@ instance Arbitrary ApiSelectCoinsAction where
 instance Arbitrary (ApiSelectCoinsData n) where
     arbitrary = genericArbitrary
     shrink = genericShrink
-
-instance Arbitrary DelegationAction where
-    arbitrary = oneof [Join <$> arbitrary, pure Quit]
-    shrink _ = []
 
 instance Arbitrary ApiCertificate where
     arbitrary =
@@ -1101,7 +1104,12 @@ instance Arbitrary ApiCertificate where
     shrink = genericShrink
 
 instance Arbitrary (ApiCoinSelection n) where
-    arbitrary = applyArbitrary4 ApiCoinSelection
+    arbitrary = ApiCoinSelection
+        <$> arbitrary
+        <*> arbitrary
+        <*> arbitrary
+        <*> arbitrary
+        <*> arbitrary
     shrink = genericShrink
 
 instance Arbitrary (ApiCoinSelectionChange n) where
@@ -1640,12 +1648,15 @@ instance Arbitrary (ApiTransaction t) where
             <*> genWithdrawals
             <*> pure txStatus
             <*> arbitrary
+            <*> genDeposits
       where
         genInputs =
             Test.QuickCheck.scale (`mod` 3) arbitrary
         genOutputs =
             Test.QuickCheck.scale (`mod` 3) arbitrary
         genWithdrawals =
+            Test.QuickCheck.scale (`mod` 3) arbitrary
+        genDeposits =
             Test.QuickCheck.scale (`mod` 3) arbitrary
 
 instance Arbitrary (ApiWithdrawal (t :: NetworkDiscriminant)) where

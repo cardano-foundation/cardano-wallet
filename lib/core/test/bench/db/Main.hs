@@ -623,6 +623,7 @@ defaultFieldValues = DefaultFieldValues
     , defaultMinimumUTxOValue = Coin 0
     , defaultHardforkEpoch = Nothing
         -- NOTE value in the genesis when at the time this migration was needed.
+    , defaultKeyDeposit = Coin 0
     }
 
 cleanupDB :: (FilePath, SqliteContext, DBLayer IO s k) -> IO ()

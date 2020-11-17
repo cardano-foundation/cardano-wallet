@@ -52,6 +52,7 @@ module Cardano.Wallet.Api.Types
     , AnyAddress (..)
     , AnyAddressType (..)
     , ApiCertificate (..)
+    , ApiDelegationAction (..)
     , ApiEpochInfo (..)
     , toApiEpochInfo
     , ApiSelectCoinsData (..)
@@ -230,8 +231,6 @@ import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..), TxIn (..), TxMetadata, TxStatus (..), txMetadataIsNull )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( BoundType, HistogramBar (..), UTxOStatistics (..) )
-import Cardano.Wallet.Transaction
-    ( DelegationAction (..) )
 import Codec.Binary.Bech32
     ( dataPartFromBytes, dataPartToBytes )
 import Codec.Binary.Bech32.TH
@@ -476,7 +475,7 @@ newtype ApiSelectCoinsPayments (n :: NetworkDiscriminant) = ApiSelectCoinsPaymen
       deriving anyclass NFData
 
 newtype ApiSelectCoinsAction = ApiSelectCoinsAction
-    { delegationAction :: ApiT DelegationAction
+    { delegationAction :: ApiDelegationAction
     } deriving (Eq, Generic, Show)
 
 data ApiCertificate
@@ -493,11 +492,16 @@ data ApiCertificate
     deriving (Eq, Generic, Show)
     deriving anyclass NFData
 
+data ApiDelegationAction = Join (ApiT PoolId) | Quit
+    deriving (Eq, Generic, Show)
+    deriving anyclass NFData
+
 data ApiCoinSelection (n :: NetworkDiscriminant) = ApiCoinSelection
     { inputs :: !(NonEmpty (ApiCoinSelectionInput n))
     , outputs :: ![ApiCoinSelectionOutput n]
     , change :: ![ApiCoinSelectionChange n]
     , certificates :: Maybe (NonEmpty ApiCertificate)
+    , deposits :: ![Quantity "lovelace" Natural]
     } deriving (Eq, Generic, Show)
       deriving anyclass NFData
 
@@ -695,6 +699,7 @@ newtype PostExternalTransactionData = PostExternalTransactionData
 data ApiFee = ApiFee
     { estimatedMin :: !(Quantity "lovelace" Natural)
     , estimatedMax :: !(Quantity "lovelace" Natural)
+    , deposits :: ![Quantity "lovelace" Natural]
     } deriving (Eq, Generic, Show)
 
 data ApiNetworkParameters = ApiNetworkParameters
@@ -754,6 +759,7 @@ data ApiTransaction (n :: NetworkDiscriminant) = ApiTransaction
     , withdrawals :: ![ApiWithdrawal n]
     , status :: !(ApiT TxStatus)
     , metadata :: !ApiTxMetadata
+    , deposits :: ![Quantity "lovelace" Natural]
     } deriving (Eq, Generic, Show)
       deriving anyclass NFData
 
@@ -1238,20 +1244,22 @@ instance FromJSON ApiCertificate where
 instance ToJSON ApiCertificate where
     toJSON = genericToJSON apiCertificateOptions
 
-instance FromJSON (ApiT DelegationAction) where
-    parseJSON = withObject "DelegationAction" $ \o ->
-        o .: "action" >>= \case
-            "join" -> do
-                pid <- o .: "pool"
-                pure (ApiT $ Join (getApiT pid))
-            "quit" -> pure $ ApiT Quit
-            val -> fail ("Unexpeced action value \"" <> T.unpack val <> "\". Valid values are: \"quit\" and \"join\".")
+apiDelegationActionOptions :: Aeson.Options
+apiDelegationActionOptions = Aeson.defaultOptions
+      { tagSingleConstructors = True
+      , omitNothingFields = True
+      , constructorTagModifier = camelTo2 '_'
+      , fieldLabelModifier = camelTo2 '_' . dropWhile (== '_')
+      , sumEncoding = TaggedObject
+          { tagFieldName = "action"
+          , contentsFieldName = "pool"
+          }
+      }
 
-instance ToJSON (ApiT DelegationAction) where
-    toJSON (ApiT (RegisterKeyAndJoin pid)) = object
-        [ "action" .= String "register_key_and_join", "pool" .= (ApiT pid) ]
-    toJSON (ApiT (Join pid)) = object [ "action" .= String "join", "pool" .= (ApiT pid) ]
-    toJSON (ApiT Quit) = object [ "action" .= String "quit" ]
+instance FromJSON ApiDelegationAction where
+    parseJSON = genericParseJSON apiDelegationActionOptions
+instance ToJSON ApiDelegationAction where
+    toJSON = genericToJSON apiDelegationActionOptions
 
 instance DecodeAddress n => FromJSON (ApiCoinSelectionChange n) where
     parseJSON = genericParseJSON defaultRecordTypeOptions

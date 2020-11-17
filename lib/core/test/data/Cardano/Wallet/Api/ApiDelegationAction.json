@@ -1,0 +1,40 @@
+{
+    "seed": -5960734323645434439,
+    "samples": [
+        {
+            "action": "quit"
+        },
+        {
+            "action": "quit"
+        },
+        {
+            "action": "join",
+            "pool": "pool1fucm9hu542ghx69c4qm9ufnkrtu5yrjtg0a8eyu3vyxpk9dc2p5"
+        },
+        {
+            "action": "quit"
+        },
+        {
+            "action": "join",
+            "pool": "pool1g6n0udghqyx8fy6q5qxf6kjaq8hn7vrrkjt8c2q6mf5vg9vecwe"
+        },
+        {
+            "action": "join",
+            "pool": "pool162lkaca0jcn3ur0as7dd5p7d2ggnguw5msfjhlvzk7xdqsvj99m"
+        },
+        {
+            "action": "quit"
+        },
+        {
+            "action": "quit"
+        },
+        {
+            "action": "join",
+            "pool": "pool10j2hj96e9cttt2urf3gys9tmq47rj6u5ndx94pyvdt7665hhfkj"
+        },
+        {
+            "action": "join",
+            "pool": "pool1n6ynw8rrnm5h7fhqtwzqftwhnvwjpwugg80763qw05gxx9hqg8z"
+        }
+    ]
+}

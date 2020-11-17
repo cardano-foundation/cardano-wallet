@@ -683,6 +683,7 @@ withBenchDBLayer ti action =
         , Sqlite.defaultDesiredNumberOfPool = 0
         , Sqlite.defaultMinimumUTxOValue = Coin 0
         , Sqlite.defaultHardforkEpoch = Nothing
+        , Sqlite.defaultKeyDeposit = Coin 0
         }
 
 prepareNode

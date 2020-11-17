@@ -377,7 +377,7 @@ import Data.List.NonEmpty
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
-    ( catMaybes, isJust )
+    ( catMaybes, isJust, maybeToList )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -1157,7 +1157,7 @@ selectCoins
     -> ApiSelectCoinsPayments n
     -> Handler (ApiCoinSelection n)
 selectCoins ctx genChange (ApiT wid) body =
-    fmap (mkApiCoinSelection Nothing)
+    fmap (mkApiCoinSelection [] Nothing)
     $ withWorkerCtx ctx wid liftE liftE
     $ \wrk -> do
         -- TODO:
@@ -1193,8 +1193,9 @@ selectCoinsForJoin ctx knownPools getPoolStatus pid wid = do
     pools <- liftIO knownPools
     curEpoch <- getCurrentEpoch ctx
 
-    (utx, action, path) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
-        action <- liftHandler
+    (utx, action, path, dep) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+        -- we never register stake key here, so deposit is irrelevant
+        (action, dep) <- liftHandler
             $ W.joinStakePool @_ @s @k @n wrk curEpoch pools pid poolStatus wid
 
         utx <- liftHandler
@@ -1205,9 +1206,9 @@ selectCoinsForJoin ctx knownPools getPoolStatus pid wid = do
         (_, path) <- liftHandler
             $ W.readRewardAccount @_ @s @k @n wrk wid
 
-        pure (utx, action, path)
+        pure (utx, action, path, dep)
 
-    pure $ mkApiCoinSelection (Just (action, path)) utx
+    pure $ mkApiCoinSelection (maybeToList dep) (Just (action, path)) utx
   where
     genChange = delegationAddress @n
 
@@ -1239,7 +1240,7 @@ selectCoinsForQuit ctx (ApiT wid) = do
 
         pure (utx, action, path)
 
-    pure $ mkApiCoinSelection (Just (action, path)) utx
+    pure $ mkApiCoinSelection [] (Just (action, path)) utx
   where
     genChange = delegationAddress @n
 
@@ -1388,6 +1389,7 @@ postTransaction ctx genChange (ApiT wid) body = do
         (tx ^. #withdrawals)
         (meta, time)
         (tx ^. #metadata)
+        []
         #pendingSince
 
 deleteTransaction
@@ -1441,8 +1443,9 @@ mkApiTransactionFromInfo
     -> TransactionInfo
     -> m (ApiTransaction n)
 mkApiTransactionFromInfo ti (TransactionInfo txid ins outs ws meta depth txtime txmeta) = do
-    apiTx <- liftIO $ mkApiTransaction ti txid (drop2nd <$> ins) outs ws (meta, txtime) txmeta $
-        case meta ^. #status of
+    let deposits = []
+    apiTx <- liftIO $ mkApiTransaction ti txid (drop2nd <$> ins) outs ws (meta, txtime) txmeta deposits
+        $ case meta ^. #status of
             Pending  -> #pendingSince
             InLedger -> #insertedAt
             Expired  -> #pendingSince
@@ -1454,8 +1457,9 @@ mkApiTransactionFromInfo ti (TransactionInfo txid ins outs ws meta depth txtime 
       drop2nd (a,_,c) = (a,c)
 
 apiFee :: FeeEstimation -> ApiFee
-apiFee (FeeEstimation estMin estMax) = ApiFee (qty estMin) (qty estMax)
-    where qty = Quantity . fromIntegral
+apiFee (FeeEstimation estMin estMax deposit) =
+    ApiFee (qty estMin) (qty estMax) (qty <$> maybeToList deposit)
+  where qty = Quantity . fromIntegral
 
 postTransactionFee
     :: forall ctx s k n.
@@ -1521,8 +1525,8 @@ joinStakePool ctx knownPools getPoolStatus apiPoolId (ApiT wid) body = do
     pools <- liftIO knownPools
     curEpoch <- getCurrentEpoch ctx
 
-    (tx, txMeta, txTime) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
-        action <- liftHandler
+    (tx, txMeta, txTime, dep) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+        (action, dep) <- liftHandler
             $ W.joinStakePool @_ @s @k @n wrk curEpoch pools pid poolStatus wid
 
         cs <- liftHandler
@@ -1535,7 +1539,7 @@ joinStakePool ctx knownPools getPoolStatus apiPoolId (ApiT wid) body = do
             $ W.submitTx @_ @s @k wrk
                 wid (tx, txMeta, sealedTx)
 
-        pure (tx, txMeta, txTime)
+        pure (tx, txMeta, txTime, dep)
 
     liftIO $ mkApiTransaction
         (timeInterpreter (ctx ^. networkLayer))
@@ -1545,6 +1549,7 @@ joinStakePool ctx knownPools getPoolStatus apiPoolId (ApiT wid) body = do
         (tx ^. #withdrawals)
         (txMeta, txTime)
         Nothing
+        (maybeToList dep)
         #pendingSince
   where
     genChange = delegationAddress @n
@@ -1597,6 +1602,7 @@ quitStakePool ctx (ApiT wid) body = do
 
         pure (tx, txMeta, txTime)
 
+
     liftIO $ mkApiTransaction
         (timeInterpreter (ctx ^. networkLayer))
         (txId tx)
@@ -1605,6 +1611,7 @@ quitStakePool ctx (ApiT wid) body = do
         (tx ^. #withdrawals)
         (txMeta, txTime)
         Nothing
+        []
         #pendingSince
   where
     genChange = delegationAddress @n
@@ -1676,10 +1683,12 @@ migrateWallet ctx (ApiT wid) migrateData = do
             (tx ^. #withdrawals)
             (meta, time)
             Nothing
+            []
             #pendingSince
   where
     pwd = coerce $ getApiT $ migrateData ^. #passphrase
     addrs = getApiT . fst <$> migrateData ^. #addresses
+
 
 -- | Transform the given set of migration coin selections (for a source wallet)
 --   into a set of coin selections that will migrate funds to the specified
@@ -1938,15 +1947,17 @@ mkApiCoinSelection
         , output ~ TxOut
         , change ~ TxChange (NonEmpty DerivationIndex)
         )
-    => Maybe (DelegationAction, NonEmpty DerivationIndex)
+    => [Coin]
+    -> Maybe (DelegationAction, NonEmpty DerivationIndex)
     -> UnsignedTx input output change
     -> ApiCoinSelection n
-mkApiCoinSelection mcerts (UnsignedTx inputs outputs change) =
+mkApiCoinSelection deps mcerts (UnsignedTx inputs outputs change) =
     ApiCoinSelection
         (mkApiCoinSelectionInput <$> inputs)
         (mkApiCoinSelectionOutput <$> outputs)
         (mkApiCoinSelectionChange <$> change)
         (fmap (uncurry mkCertificates) mcerts)
+        (fmap mkApiCoin deps)
   where
     mkCertificates
         :: DelegationAction
@@ -2006,9 +2017,10 @@ mkApiTransaction
     -> Map RewardAccount Coin
     -> (W.TxMeta, UTCTime)
     -> Maybe W.TxMetadata
+    -> [Coin]
     -> Lens' (ApiTransaction n) (Maybe ApiBlockReference)
     -> IO (ApiTransaction n)
-mkApiTransaction ti txid ins outs ws (meta, timestamp) txMeta setTimeReference = do
+mkApiTransaction ti txid ins outs ws (meta, timestamp) txMeta deposits' setTimeReference = do
     timeRef <- (#time .~ timestamp) <$> makeApiBlockReference
         (neverFails "makeApiBlockReference shouldn't fail getting the time of \
             \transactions with slots in the past" ti)
@@ -2035,6 +2047,7 @@ mkApiTransaction ti txid ins outs ws (meta, timestamp) txMeta setTimeReference =
         , withdrawals = mkApiWithdrawal @n <$> Map.toList ws
         , status = ApiT (meta ^. #status)
         , metadata = ApiTxMetadata $ ApiT <$> txMeta
+        , deposits = fmap mkApiCoin deposits'
         }
 
     toAddressAmount :: TxOut -> AddressAmount (ApiT Address, Proxy n)

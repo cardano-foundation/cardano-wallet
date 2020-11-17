@@ -191,6 +191,7 @@ ProtocolParameters
     protocolParametersDesiredNumberOfPools  Word16          sql=desired_pool_number
     protocolParametersMinimumUtxoValue      W.Coin          sql=minimum_utxo_value
     protocolParametersHardforkEpoch         W.EpochNo Maybe sql=hardfork_epoch
+    protocolParametersKeyDeposit            W.Coin          sql=key_deposit
 
     Primary protocolParametersWalletId
     Foreign Wallet fk_wallet_protocol_parameters protocolParametersWalletId ! ON DELETE CASCADE

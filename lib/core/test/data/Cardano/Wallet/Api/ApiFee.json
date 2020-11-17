@@ -1,93 +1,375 @@
 {
-    "seed": -1303484063503918952,
+    "seed": 1916468866592988374,
     "samples": [
         {
             "estimated_min": {
-                "quantity": 193,
-                "unit": "lovelace"
-            },
-            "estimated_max": {
-                "quantity": 5,
-                "unit": "lovelace"
-            }
-        },
-        {
-            "estimated_min": {
                 "quantity": 47,
                 "unit": "lovelace"
             },
+            "deposits": [
+                {
+                    "quantity": 236,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 124,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 84,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 24,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 103,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 178,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 42,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 153,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 136,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 171,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 137,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 233,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 150,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 55,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 135,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 39,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 12,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 109,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 114,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 213,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 105,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 37,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 35,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 226,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 133,
+                    "unit": "lovelace"
+                }
+            ],
             "estimated_max": {
-                "quantity": 178,
+                "quantity": 209,
                 "unit": "lovelace"
             }
         },
         {
             "estimated_min": {
-                "quantity": 198,
+                "quantity": 15,
                 "unit": "lovelace"
             },
+            "deposits": [
+                {
+                    "quantity": 96,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 255,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 120,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 235,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 200,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 158,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 21,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 56,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 239,
+                    "unit": "lovelace"
+                }
+            ],
             "estimated_max": {
-                "quantity": 25,
+                "quantity": 9,
                 "unit": "lovelace"
             }
         },
         {
             "estimated_min": {
-                "quantity": 133,
+                "quantity": 79,
                 "unit": "lovelace"
             },
+            "deposits": [
+                {
+                    "quantity": 97,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 51,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 61,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 59,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 72,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 58,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 88,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 81,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 38,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 95,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 93,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 7,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 136,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 57,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 86,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 132,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 11,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 251,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 114,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 82,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 221,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 212,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 167,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 20,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 154,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 10,
+                    "unit": "lovelace"
+                }
+            ],
             "estimated_max": {
-                "quantity": 198,
+                "quantity": 220,
                 "unit": "lovelace"
             }
         },
         {
             "estimated_min": {
-                "quantity": 26,
+                "quantity": 59,
                 "unit": "lovelace"
             },
+            "deposits": [
+                {
+                    "quantity": 101,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 139,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 69,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 149,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 19,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 27,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 158,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 216,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 101,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 52,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 182,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 171,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 134,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 12,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 110,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 201,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 67,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 153,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 79,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 197,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 211,
+                    "unit": "lovelace"
+                }
+            ],
             "estimated_max": {
-                "quantity": 145,
-                "unit": "lovelace"
-            }
-        },
-        {
-            "estimated_min": {
-                "quantity": 123,
-                "unit": "lovelace"
-            },
-            "estimated_max": {
-                "quantity": 47,
-                "unit": "lovelace"
-            }
-        },
-        {
-            "estimated_min": {
-                "quantity": 231,
-                "unit": "lovelace"
-            },
-            "estimated_max": {
-                "quantity": 100,
-                "unit": "lovelace"
-            }
-        },
-        {
-            "estimated_min": {
-                "quantity": 73,
-                "unit": "lovelace"
-            },
-            "estimated_max": {
-                "quantity": 109,
-                "unit": "lovelace"
-            }
-        },
-        {
-            "estimated_min": {
-                "quantity": 227,
-                "unit": "lovelace"
-            },
-            "estimated_max": {
-                "quantity": 78,
+                "quantity": 30,
                 "unit": "lovelace"
             }
         },
@@ -96,8 +378,334 @@
                 "quantity": 35,
                 "unit": "lovelace"
             },
+            "deposits": [
+                {
+                    "quantity": 141,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 79,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 54,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 30,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 194,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 159,
+                    "unit": "lovelace"
+                }
+            ],
             "estimated_max": {
-                "quantity": 132,
+                "quantity": 96,
+                "unit": "lovelace"
+            }
+        },
+        {
+            "estimated_min": {
+                "quantity": 166,
+                "unit": "lovelace"
+            },
+            "deposits": [
+                {
+                    "quantity": 107,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 220,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 37,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 198,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 152,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 10,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 83,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 55,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 99,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 7,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 235,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 185,
+                    "unit": "lovelace"
+                }
+            ],
+            "estimated_max": {
+                "quantity": 71,
+                "unit": "lovelace"
+            }
+        },
+        {
+            "estimated_min": {
+                "quantity": 12,
+                "unit": "lovelace"
+            },
+            "deposits": [
+                {
+                    "quantity": 136,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 117,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 220,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 218,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 154,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 59,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 59,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 189,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 73,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 237,
+                    "unit": "lovelace"
+                }
+            ],
+            "estimated_max": {
+                "quantity": 16,
+                "unit": "lovelace"
+            }
+        },
+        {
+            "estimated_min": {
+                "quantity": 85,
+                "unit": "lovelace"
+            },
+            "deposits": [
+                {
+                    "quantity": 219,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 185,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 64,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 177,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 22,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 183,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 169,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 212,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 53,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 148,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 65,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 189,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 72,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 68,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 20,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 209,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 10,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 146,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 62,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 224,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 165,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 171,
+                    "unit": "lovelace"
+                }
+            ],
+            "estimated_max": {
+                "quantity": 55,
+                "unit": "lovelace"
+            }
+        },
+        {
+            "estimated_min": {
+                "quantity": 230,
+                "unit": "lovelace"
+            },
+            "deposits": [
+                {
+                    "quantity": 156,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 113,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 253,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 149,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 210,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 34,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 218,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 86,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 171,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 100,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 194,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 161,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 126,
+                    "unit": "lovelace"
+                }
+            ],
+            "estimated_max": {
+                "quantity": 36,
+                "unit": "lovelace"
+            }
+        },
+        {
+            "estimated_min": {
+                "quantity": 22,
+                "unit": "lovelace"
+            },
+            "deposits": [
+                {
+                    "quantity": 75,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 7,
+                    "unit": "lovelace"
+                },
+                {
+                    "quantity": 120,
+                    "unit": "lovelace"
+                }
+            ],
+            "estimated_max": {
+                "quantity": 92,
                 "unit": "lovelace"
             }
         }

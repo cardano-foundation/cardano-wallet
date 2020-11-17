@@ -1086,6 +1086,12 @@ x-addressIndex: &addressIndex
 
 x-gCStatus :: &gCStatus
 
+x-deposits: &deposits
+  description: A list of deposits associated with a transaction.
+  type: array
+  minItems: 0
+  items: *transactionAmount
+
 #############################################################################
 #                                                                           #
 #                              DEFINITIONS                                  #
@@ -1244,6 +1250,7 @@ components:
         certificates:
           type: array
           items: *certificate
+        deposits: *deposits
 
     ApiGCStatus: &ApiGCStatus
       type: object
@@ -1314,9 +1321,11 @@ components:
       required:
         - estimated_min
         - estimated_max
+        - deposits
       properties:
         estimated_min: *transactionAmount
         estimated_max: *transactionAmount
+        deposits: *deposits
 
     ApiPutAddressesData: &ApiPutAddressesData
       type: object
@@ -1349,6 +1358,7 @@ components:
         - outputs
         - withdrawals
         - status
+        - deposits
       properties:
         id: *transactionId
         amount: *transactionAmount
@@ -1362,6 +1372,7 @@ components:
         withdrawals: *transactionWithdrawals
         status: *transactionStatus
         metadata: *transactionMetadata
+        deposits: *deposits
 
     ApiWalletDelegationNext: &ApiWalletDelegationNext
       type: object

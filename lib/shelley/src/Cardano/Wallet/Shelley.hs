@@ -380,6 +380,8 @@ serveWallet
                     minimumUTxOvalue pp
                 , defaultHardforkEpoch =
                     hardforkEpochNo pp
+                , defaultKeyDeposit =
+                    stakeKeyDeposit pp
                 }
             )
             (neverFails "db layer should never forecast into the future"

@@ -1276,7 +1276,7 @@ feeOpts tl action md txp minUtxo cs = FeeOptions
         estimateMaxNumberOfInputs tl (Quantity txMaxSize) md nOuts
     }
   where
-    feePolicy@(LinearFee (Quantity a) (Quantity b) _) = W.getFeePolicy txp
+    feePolicy@(LinearFee (Quantity a) (Quantity b)) = W.getFeePolicy txp
     Quantity txMaxSize = W.getTxMaxSize txp
     nOuts = fromIntegral $ length $ outputs cs
 
@@ -1376,9 +1376,13 @@ selectCoinsForDelegation
     -> DelegationAction
     -> ExceptT ErrSelectForDelegation IO CoinSelection
 selectCoinsForDelegation ctx wid action = do
+    dep <- fmap stakeKeyDeposit $
+        withExceptT ErrSelectForDelegationNoSuchWallet
+            $ readWalletProtocolParameters @ctx @s @k ctx wid
+
     (utxo, _, txp, minUtxo) <- withExceptT ErrSelectForDelegationNoSuchWallet $
         selectCoinsSetup @ctx @s @k ctx wid
-    selectCoinsForDelegationFromUTxO @_ @k ctx utxo txp minUtxo action
+    selectCoinsForDelegationFromUTxO @_ @k ctx utxo txp minUtxo dep action
 
 selectCoinsForDelegationFromUTxO
     :: forall ctx k.
@@ -1389,10 +1393,11 @@ selectCoinsForDelegationFromUTxO
     -> W.UTxO
     -> W.TxParameters
     -> W.Coin
+    -> W.Coin
     -> DelegationAction
     -> ExceptT ErrSelectForDelegation IO CoinSelection
-selectCoinsForDelegationFromUTxO ctx utxo txp minUtxo action = do
-    let sel = initDelegationSelection tl (txp ^. #getFeePolicy) action
+selectCoinsForDelegationFromUTxO ctx utxo txp minUtxo dep action = do
+    let sel = initDelegationSelection tl dep action
     let feePolicy = feeOpts tl (Just action) Nothing txp minUtxo sel
     withExceptT ErrSelectForDelegationFee $ do
         balancedSel <- adjustForFee feePolicy utxo sel
@@ -1420,10 +1425,16 @@ estimateFeeForDelegation ctx wid = db & \DBLayer{..} -> do
         $ withExceptT ErrSelectForDelegationNoSuchWallet
         $ isStakeKeyRegistered (PrimaryKey wid)
 
+    dep <- fmap stakeKeyDeposit $
+        withExceptT ErrSelectForDelegationNoSuchWallet
+            $ readWalletProtocolParameters @ctx @s @k ctx wid
+
     let action = if isKeyReg then Join pid else RegisterKeyAndJoin pid
     let selectCoins = selectCoinsForDelegationFromUTxO @_ @k
-            ctx utxo txp minUtxo action
-    estimateFeeForCoinSelection $ Fee . feeBalance <$> selectCoins
+            ctx utxo txp minUtxo dep action
+
+    estimateFeeForCoinSelection (if isKeyReg then Nothing else Just $ getCoin dep)
+        $ Fee . feeBalance <$> selectCoins
   where
     db  = ctx ^. dbLayer @s @k
     pid = PoolId (error "Dummy pool id for estimation. Never evaluated.")
@@ -1471,7 +1482,7 @@ selectCoinsForMigrationFromUTxO
         , Quantity "lovelace" Natural
         )
 selectCoinsForMigrationFromUTxO ctx utxo txp minUtxo wid = do
-    let feePolicy@(LinearFee (Quantity a) _ _) = txp ^. #getFeePolicy
+    let feePolicy@(LinearFee (Quantity a) _) = txp ^. #getFeePolicy
     let feeOptions = (feeOpts tl Nothing Nothing txp minBound mempty)
             { estimateFee = minimumFee tl feePolicy Nothing Nothing . worstCase
             , dustThreshold = max (Coin $ ceiling a) minUtxo
@@ -1541,7 +1552,7 @@ estimateFeeForPayment ctx wid recipients withdrawal md = do
     withExceptT ErrSelectForPaymentMinimumUTxOValue $ except $
         guardCoinSelection minUtxo cs
 
-    estimateFeeForCoinSelection $ (Fee . feeBalance <$> selectCoins)
+    estimateFeeForCoinSelection Nothing $ (Fee . feeBalance <$> selectCoins)
         `catchE` handleCannotCover utxo withdrawal recipients
 
 -- | When estimating fee, it is rather cumbersome to return "cannot cover fee"
@@ -2058,7 +2069,8 @@ joinStakePool
     -> PoolId
     -> PoolLifeCycleStatus
     -> WalletId
-    -> ExceptT ErrJoinStakePool IO DelegationAction
+    -> ExceptT ErrJoinStakePool IO (DelegationAction, Maybe Coin)
+    -- ^ snd is the deposit
 joinStakePool ctx currentEpoch knownPools pid poolStatus wid =
     db & \DBLayer{..} -> do
         (walMeta, isKeyReg) <- mapExceptT atomically $ do
@@ -2079,9 +2091,13 @@ joinStakePool ctx currentEpoch knownPools pid poolStatus wid =
 
         liftIO $ traceWith tr $ MsgIsStakeKeyRegistered isKeyReg
 
+        dep <- fmap stakeKeyDeposit $
+            withExceptT ErrJoinStakePoolNoSuchWallet
+                $ readWalletProtocolParameters @ctx @s @k ctx wid
+
         return $ if isKeyReg
-            then Join pid
-            else RegisterKeyAndJoin pid
+            then (Join pid, Nothing)
+            else (RegisterKeyAndJoin pid, Just dep)
   where
     db = ctx ^. dbLayer @s @k
     tr = ctx ^. logger
@@ -2121,6 +2137,8 @@ data FeeEstimation = FeeEstimation
     -- ^ Most coin selections will result in a fee higher than this.
     , estMaxFee :: Word64
     -- ^ Most coin selections will result in a fee lower than this.
+    , deposit :: Maybe Word64
+    -- ^ Deposit if stake key was registered,
     } deriving (Show, Eq, Generic)
 
 instance NFData FeeEstimation
@@ -2131,10 +2149,11 @@ instance NFData FeeEstimation
 -- greater than. The maximum fee is the highest fee observed in the samples.
 estimateFeeForCoinSelection
     :: forall m err. Monad m
-    => ExceptT err m Fee
+    => Maybe Word64
+    -> ExceptT err m Fee
     -> ExceptT err m FeeEstimation
 estimateFeeForCoinSelection
-    = fmap deciles
+    deposit' = fmap deciles
     . handleErrors
     . replicateM repeats
     . runExceptT
@@ -2148,7 +2167,7 @@ estimateFeeForCoinSelection
         . quantiles medianUnbiased (V.fromList [1, 10]) 10
         . V.fromList
         . map fromIntegral
-    mkFeeEstimation [a,b] = FeeEstimation a b
+    mkFeeEstimation [a,b] = FeeEstimation a b deposit'
     mkFeeEstimation _ = error "estimateFeeForCoinSelection: impossible"
 
     -- Remove failed coin selections from samples. Unless they all failed, in

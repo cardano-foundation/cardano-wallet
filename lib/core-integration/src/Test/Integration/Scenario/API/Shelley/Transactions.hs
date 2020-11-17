@@ -231,7 +231,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
 
         payload <- liftIO $ mkTxPayload ctx wSrc minUTxOValue fixturePassphrase
 
-        (_, ApiFee (Quantity feeMin) (Quantity feeMax)) <- unsafeRequest ctx
+        (_, ApiFee (Quantity feeMin) (Quantity feeMax) _) <- unsafeRequest ctx
             (Link.getTransactionFee @'Shelley wSrc) payload
 
         r <- request @(ApiTransaction n) ctx
@@ -299,7 +299,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
 
         payload <- liftIO $ mkTxPayload ctx wb amt fixturePassphrase
 
-        (_, ApiFee (Quantity feeMin) (Quantity feeMax)) <- unsafeRequest ctx
+        (_, ApiFee (Quantity feeMin) (Quantity feeMax) _) <- unsafeRequest ctx
             (Link.getTransactionFee @'Shelley wa) payload
 
         r <- request @(ApiTransaction n) ctx
@@ -367,7 +367,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 "passphrase": "cardano-wallet"
             }|]
 
-        (_, ApiFee (Quantity feeMin) (Quantity feeMax)) <- unsafeRequest ctx
+        (_, ApiFee (Quantity feeMin) (Quantity feeMax) _) <- unsafeRequest ctx
             (Link.getTransactionFee @'Shelley wSrc) payload
 
         r <- request @(ApiTransaction n) ctx
@@ -409,7 +409,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         wDest <- fixtureWalletWith @n ctx [amt]
         payload <- liftIO $ mkTxPayload ctx wDest amt fixturePassphrase
 
-        (_, ApiFee (Quantity feeMin) _) <- unsafeRequest ctx
+        (_, ApiFee (Quantity feeMin) _ _) <- unsafeRequest ctx
             (Link.getTransactionFee @'Shelley wDest) payload
 
         -- NOTE It's a little tricky to estimate the fee needed for a
@@ -460,7 +460,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         wDest <- fixtureWallet ctx
 
         payload <- liftIO $ mkTxPayload ctx wDest minUTxOValue fixturePassphrase
-        (_, ApiFee (Quantity feeMin) _) <- unsafeRequest ctx
+        (_, ApiFee (Quantity feeMin) _ _) <- unsafeRequest ctx
             (Link.getTransactionFee @'Shelley wDest) payload
 
         wSrc <- fixtureWalletWith @n ctx [minUTxOValue + (feeMin `div` 2)]
@@ -2393,7 +2393,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 }],
                 "passphrase": #{fixturePassphrase}
             }|]
-        (_, ApiFee (Quantity _) (Quantity fee)) <- unsafeRequest ctx
+        (_, ApiFee (Quantity _) (Quantity fee) _) <- unsafeRequest ctx
             (Link.getTransactionFee @'Shelley wSelf) payload
 
         rTx <- request @(ApiTransaction n) ctx

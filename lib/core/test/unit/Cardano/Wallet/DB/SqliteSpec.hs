@@ -122,13 +122,15 @@ import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
     , Block (..)
     , BlockHeader (..)
+    , FeePolicy (..)
     , GenesisParameters (..)
     , PassphraseScheme (..)
-    , ProtocolParameters
+    , ProtocolParameters (..)
     , Range
     , SlotNo (..)
     , SortOrder (..)
     , StartTime (..)
+    , TxParameters (..)
     , WalletDelegation (..)
     , WalletDelegationStatus (..)
     , WalletId (..)
@@ -302,6 +304,10 @@ spec = parallel $ do
                         "e9414e08d8c5ca177dd0cb6a9e4bf868e1ea03389c31f5f7a6b099a3bcdfdedf"
                     }
                 )
+
+        it "'migrate' db with new FeePolicy" $
+            testMigrationUpdateFeeValue @ShelleyKey
+                "shelleyAccountingStyle-v2020-10-13.sqlite"
 
 sqliteSpecSeq :: Spec
 sqliteSpecSeq = do
@@ -497,6 +503,43 @@ testMigrationPassphraseScheme = do
     Right walNewScheme     = fromText "5e481f55084afda69fc9cd3863ced80fa83734aa"
     Right walOldScheme     = fromText "4a6279cd71d5993a288b2c5879daa7c42cebb73d"
     Right walNoPassphrase  = fromText "ba74a7d2c1157ea7f32a93f255dac30e9ebca62b"
+
+testMigrationUpdateFeeValue
+    :: forall k s.
+        ( s ~ SeqState 'Mainnet k
+        , WalletKey k
+        , PersistState s
+        , PersistPrivateKey (k 'RootK)
+        )
+    => String
+    -> IO ()
+testMigrationUpdateFeeValue dbName = do
+    let orig = $(getTestData) </> dbName
+    withSystemTempDirectory "migration-db" $ \dir -> do
+        let path = dir </> "db.sqlite"
+        let ti = dummyTimeInterpreter
+        copyFile orig path
+        (logs, pp') <- captureLogging $ \tr -> do
+            withDBLayer @s @k tr defaultFieldValues (Just path) ti
+                $ \(_ctx, db) -> db & \DBLayer{..} -> atomically
+                $ do
+                    [wid] <- listWallets
+                    readProtocolParameters wid
+        let migrationMsg = filter isMsgManualMigration logs
+        length migrationMsg `shouldBe` 1
+        (getFeePolicy . txParameters <$> pp') `shouldBe`
+            (Just (LinearFee (Quantity 155381.0)  (Quantity 44.0)))
+
+        (stakeKeyDeposit <$> pp') `shouldBe`
+            (Just (Coin 2000000))
+  where
+    isMsgManualMigration :: DBLog -> Bool
+    isMsgManualMigration = \case
+        MsgManualMigrationNeeded field _ ->
+            fieldName field ==
+                unDBName (fieldDB $ persistFieldDef DB.ProtocolParametersFeePolicy)
+        _ ->
+            False
 
 {-------------------------------------------------------------------------------
                                 Logging Spec
@@ -911,6 +954,7 @@ defaultFieldValues = DefaultFieldValues
     , defaultDesiredNumberOfPool = 0
     , defaultMinimumUTxOValue = Coin 0
     , defaultHardforkEpoch = Nothing
+    , defaultKeyDeposit = Coin 0
     }
 
 newDBLayer'
