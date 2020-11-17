@@ -111,7 +111,7 @@ let
           pkgs.coreutils
           pkgs.python3
         ]}
-        # fixme: port to shelley
+        # fixme: ADP-549 port to shelley
         export genesisDataDir=${latestRelease.src}/lib/jormungandr/test/data/jormungandr
         export configFile=${targetRelease.src}/lib/jormungandr/test/data/jormungandr/config.yaml
 
@@ -211,7 +211,7 @@ let
       mkdir -p $out/${test.name}/data
       cp ${test.cardano-wallet}/bin/* $out/${test.name}
       cp ${test.runner} $out/${test.name}/${test.runner.name}
-      # fixme: port to shelley
+      # fixme: ADP-549 port to shelley
       cp ${latest.src}/lib/jormungandr/test/data/jormungandr/{block0.bin,config.yaml,secret.yaml} $out/${test.name}/data
 
       # append test to the run all script
