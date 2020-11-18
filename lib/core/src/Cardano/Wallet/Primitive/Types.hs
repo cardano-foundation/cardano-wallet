@@ -195,6 +195,8 @@ import Cardano.Wallet.Orphans
     ()
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
+import Cardano.Wallet.Primitive.Types.ChimericAccount
+    ( ChimericAccount (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
@@ -1615,22 +1617,6 @@ testnetMagic = ProtocolMagic $ fromIntegral $ natVal $ Proxy @pm
 {-------------------------------------------------------------------------------
               Stake Pool Delegation and Registration Certificates
 -------------------------------------------------------------------------------}
-
--- | Also known as a staking key, chimeric account is used in group-type address
--- for staking purposes. It is a public key of the account address
-newtype ChimericAccount = ChimericAccount { unChimericAccount :: ByteString }
-    deriving (Generic, Show, Eq, Ord)
-
-instance NFData ChimericAccount
-
-instance Buildable ChimericAccount where
-    build = build . Hash @"ChimericAccount" . unChimericAccount
-
-instance ToText ChimericAccount where
-    toText = toText . Hash @"ChimericAccount" . unChimericAccount
-
-instance FromText ChimericAccount where
-    fromText = fmap (ChimericAccount . getHash @"ChimericAccount") . fromText
 
 -- | Represent a delegation certificate.
 data DelegationCertificate
