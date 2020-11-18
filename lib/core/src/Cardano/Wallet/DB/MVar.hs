@@ -60,9 +60,11 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.Slotting
     ( TimeInterpreter )
 import Cardano.Wallet.Primitive.Types
-    ( SortOrder (..), TransactionInfo (..), WalletId, wholeRange )
+    ( SortOrder (..), WalletId, wholeRange )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash )
+import Cardano.Wallet.Primitive.Types.Tx
+    ( TransactionInfo (..) )
 import Control.Concurrent.MVar
     ( MVar, modifyMVar, newMVar, withMVar )
 import Control.DeepSeq

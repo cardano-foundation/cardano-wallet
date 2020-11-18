@@ -25,7 +25,7 @@ import Cardano.Wallet.Api.Types
     )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( defaultAddressPoolGap, getAddressPoolGap )
-import Cardano.Wallet.Primitive.Types
+import Cardano.Wallet.Primitive.Types.Address
     ( AddressState (..) )
 import Control.Monad
     ( forM_ )

@@ -89,7 +89,11 @@ import Cardano.Address.Derivation
 import Cardano.Mnemonic
     ( SomeMnemonic )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..), ChimericAccount (..), PassphraseScheme (..) )
+    ( PassphraseScheme (..) )
+import Cardano.Wallet.Primitive.Types.Address
+    ( Address (..) )
+import Cardano.Wallet.Primitive.Types.ChimericAccount
+    ( ChimericAccount (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Control.DeepSeq

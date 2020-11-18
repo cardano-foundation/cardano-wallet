@@ -44,12 +44,11 @@ import Cardano.Wallet.Primitive.AddressDerivation.Shelley
 import Cardano.Wallet.Primitive.Slotting
     ( fromFlatSlot )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..)
-    , ChimericAccount (..)
-    , DecentralizationLevel (..)
-    , EpochLength (..)
-    , SlotId (..)
-    )
+    ( DecentralizationLevel (..), EpochLength (..), SlotId (..) )
+import Cardano.Wallet.Primitive.Types.Address
+    ( Address (..) )
+import Cardano.Wallet.Primitive.Types.ChimericAccount
+    ( ChimericAccount (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Shelley.Compatibility

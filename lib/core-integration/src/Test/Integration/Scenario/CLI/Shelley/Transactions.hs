@@ -25,12 +25,9 @@ import Cardano.Wallet.Api.Types
     , getApiT
     )
 import Cardano.Wallet.Primitive.Types
-    ( Direction (..)
-    , SortOrder (..)
-    , TxMetadata (..)
-    , TxMetadataValue (..)
-    , TxStatus (..)
-    )
+    ( SortOrder (..) )
+import Cardano.Wallet.Primitive.Types.Tx
+    ( Direction (..), TxMetadata (..), TxMetadataValue (..), TxStatus (..) )
 import Control.Monad
     ( forM_, join )
 import Control.Monad.Catch

@@ -26,7 +26,7 @@ import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
-import Cardano.Wallet.Primitive.Types
+import Cardano.Wallet.Primitive.Types.Address
     ( AddressState (..) )
 import Control.Monad
     ( forM_ )

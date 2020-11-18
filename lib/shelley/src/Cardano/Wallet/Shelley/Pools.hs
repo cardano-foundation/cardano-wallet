@@ -76,7 +76,6 @@ import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
     , BlockHeader (..)
     , CertificatePublicationTime (..)
-    , Coin (..)
     , EpochNo (..)
     , GenesisParameters (..)
     , PoolCertificate (..)
@@ -97,6 +96,8 @@ import Cardano.Wallet.Primitive.Types
     , getPoolRetirementCertificate
     , unSmashServer
     )
+import Cardano.Wallet.Primitive.Types.Coin
+    ( Coin (..) )
 import Cardano.Wallet.Shelley.Compatibility
     ( Shelley
     , StandardCrypto

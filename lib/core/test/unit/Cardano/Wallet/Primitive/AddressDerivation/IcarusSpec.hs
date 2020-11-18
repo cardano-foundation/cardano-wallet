@@ -42,7 +42,7 @@ import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     )
 import Cardano.Wallet.Primitive.AddressDerivationSpec
     ()
-import Cardano.Wallet.Primitive.Types
+import Cardano.Wallet.Primitive.Types.Address
     ( Address )
 import Test.Hspec
     ( Spec, describe, it )

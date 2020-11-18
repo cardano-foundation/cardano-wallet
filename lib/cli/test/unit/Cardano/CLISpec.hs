@@ -42,7 +42,9 @@ import Cardano.Wallet.Api.Client
 import Cardano.Wallet.Api.Types
     ( ApiT (..), ApiTxMetadata (..) )
 import Cardano.Wallet.Primitive.Types
-    ( PoolMetadataSource, TxMetadata (..), TxMetadataValue (..) )
+    ( PoolMetadataSource )
+import Cardano.Wallet.Primitive.Types.Tx
+    ( TxMetadata (..), TxMetadataValue (..) )
 import Control.Concurrent
     ( forkFinally )
 import Control.Concurrent.MVar

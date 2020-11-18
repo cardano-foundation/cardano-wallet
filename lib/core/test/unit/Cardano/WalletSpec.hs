@@ -75,16 +75,30 @@ import Cardano.Wallet.Primitive.Fee
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncTolerance (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..)
-    , BlockHeader (BlockHeader)
-    , ChimericAccount (..)
-    , Coin (..)
-    , Direction (..)
+    ( BlockHeader (BlockHeader)
     , EpochNo (..)
     , PoolId (..)
-    , SealedTx (..)
     , SlotNo (..)
     , SortOrder (..)
+    , UTxO (..)
+    , WalletDelegation (..)
+    , WalletDelegationNext (..)
+    , WalletDelegationStatus (..)
+    , WalletId (..)
+    , WalletMetadata (..)
+    , WalletName (..)
+    )
+import Cardano.Wallet.Primitive.Types.Address
+    ( Address (..) )
+import Cardano.Wallet.Primitive.Types.ChimericAccount
+    ( ChimericAccount (..) )
+import Cardano.Wallet.Primitive.Types.Coin
+    ( Coin (..) )
+import Cardano.Wallet.Primitive.Types.Hash
+    ( Hash (..) )
+import Cardano.Wallet.Primitive.Types.Tx
+    ( Direction (..)
+    , SealedTx (..)
     , TransactionInfo (txInfoMeta)
     , TransactionInfo (..)
     , Tx (..)
@@ -93,17 +107,8 @@ import Cardano.Wallet.Primitive.Types
     , TxMetadata
     , TxOut (..)
     , TxStatus (..)
-    , UTxO (..)
-    , WalletDelegation (..)
-    , WalletDelegationNext (..)
-    , WalletDelegationStatus (..)
-    , WalletId (..)
-    , WalletMetadata (..)
-    , WalletName (..)
     , txId
     )
-import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..) )
 import Cardano.Wallet.Transaction
     ( ErrMkTx (..), TransactionLayer (..) )
 import Cardano.Wallet.Unsafe

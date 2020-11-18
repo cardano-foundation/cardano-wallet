@@ -47,7 +47,7 @@ import Cardano.Mnemonic
     )
 import Cardano.Wallet.Api.Types
     ( DecodeAddress (..) )
-import Cardano.Wallet.Primitive.Types
+import Cardano.Wallet.Primitive.Types.Address
     ( Address )
 import Control.Monad
     ( (>=>) )

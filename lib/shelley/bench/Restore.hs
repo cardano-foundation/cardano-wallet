@@ -110,22 +110,26 @@ import Cardano.Wallet.Primitive.Slotting
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..), mkSyncTolerance, syncProgress )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..)
-    , Block (..)
+    ( Block (..)
     , BlockHeader (..)
-    , ChimericAccount
-    , Coin (..)
     , GenesisParameters (..)
     , NetworkParameters (..)
     , SlotNo (..)
     , SortOrder (..)
-    , TxOut (..)
     , UTxOStatistics (..)
     , WalletId (..)
     , WalletName (..)
     , computeUtxoStatistics
     , log10
     )
+import Cardano.Wallet.Primitive.Types.Address
+    ( Address (..) )
+import Cardano.Wallet.Primitive.Types.ChimericAccount
+    ( ChimericAccount )
+import Cardano.Wallet.Primitive.Types.Coin
+    ( Coin (..) )
+import Cardano.Wallet.Primitive.Types.Tx
+    ( TxOut (..) )
 import Cardano.Wallet.Shelley
     ( SomeNetworkDiscriminant (..) )
 import Cardano.Wallet.Shelley.Compatibility

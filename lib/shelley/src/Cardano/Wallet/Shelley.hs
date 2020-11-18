@@ -100,9 +100,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncTolerance )
 import Cardano.Wallet.Primitive.Types
-    ( Address
-    , Block
-    , ChimericAccount
+    ( Block
     , NetworkParameters (..)
     , PoolMetadataGCStatus (..)
     , ProtocolParameters (..)
@@ -110,6 +108,10 @@ import Cardano.Wallet.Primitive.Types
     , SlottingParameters (..)
     , WalletId
     )
+import Cardano.Wallet.Primitive.Types.Address
+    ( Address )
+import Cardano.Wallet.Primitive.Types.ChimericAccount
+    ( ChimericAccount )
 import Cardano.Wallet.Registry
     ( HasWorkerCtx (..), WorkerLog (..), defaultWorkerAfter )
 import Cardano.Wallet.Shelley.Api.Server

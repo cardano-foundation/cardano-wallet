@@ -4,7 +4,7 @@ module Cardano.Wallet.TransactionSpec
 
 import Prelude
 
-import Cardano.Wallet.Primitive.Types
+import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Transaction
     ( ErrMkTx (..) )

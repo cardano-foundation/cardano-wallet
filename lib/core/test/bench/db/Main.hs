@@ -99,13 +99,8 @@ import Cardano.Wallet.Primitive.Slotting
     ( singleEraInterpreter )
 import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
-    , ActiveSlotCoefficient (..)
-    , Address (..)
-    , AddressState (..)
     , Block (..)
     , BlockHeader (..)
-    , Coin (..)
-    , Direction (..)
     , EpochLength (..)
     , Range (..)
     , SlotLength (..)
@@ -113,12 +108,6 @@ import Cardano.Wallet.Primitive.Types
     , SlottingParameters (..)
     , SortOrder (..)
     , StartTime (..)
-    , TransactionInfo
-    , Tx (..)
-    , TxIn (..)
-    , TxMeta (..)
-    , TxOut (..)
-    , TxStatus (..)
     , UTxO (..)
     , WalletDelegation (..)
     , WalletDelegationStatus (..)
@@ -126,8 +115,21 @@ import Cardano.Wallet.Primitive.Types
     , WalletMetadata (..)
     , WalletName (..)
     )
+import Cardano.Wallet.Primitive.Types.Address
+    ( Address (..), AddressState (..) )
+import Cardano.Wallet.Primitive.Types.Coin
+    ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
+import Cardano.Wallet.Primitive.Types.Tx
+    ( Direction (..)
+    , TransactionInfo
+    , Tx (..)
+    , TxIn (..)
+    , TxMeta (..)
+    , TxOut (..)
+    , TxStatus (..)
+    )
 import Cardano.Wallet.Unsafe
     ( someDummyMnemonic, unsafeRunExceptT )
 import Control.DeepSeq

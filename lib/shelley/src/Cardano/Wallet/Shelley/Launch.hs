@@ -101,7 +101,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..), hex )
 import Cardano.Wallet.Primitive.Types
     ( Block (..)
-    , Coin (..)
     , EpochLength (..)
     , EpochNo (..)
     , NetworkParameters (..)
@@ -109,8 +108,11 @@ import Cardano.Wallet.Primitive.Types
     , ProtocolMagic (..)
     , SlotLength (..)
     , SlottingParameters (..)
-    , TxOut
     )
+import Cardano.Wallet.Primitive.Types.Coin
+    ( Coin (..) )
+import Cardano.Wallet.Primitive.Types.Tx
+    ( TxOut )
 import Cardano.Wallet.Shelley
     ( SomeNetworkDiscriminant (..) )
 import Cardano.Wallet.Shelley.Compatibility

@@ -39,33 +39,8 @@ module Cardano.Wallet.Primitive.Types
       Block(..)
     , BlockHeader(..)
 
-    -- * Tx
-    , Tx (..)
-    , TxChange (..)
-    , TxIn(..)
-    , TxOut(..)
-    , TxMeta(..)
-    , TxMetadata(..)
-    , TxMetadataValue(..)
-    , Direction(..)
-    , TxStatus(..)
-    , SealedTx (..)
-    , TransactionInfo (..)
-    , UnsignedTx (..)
-    , txIns
-    , isPending
-    , inputs
-    , fromTransactionInfo
-    , toTxHistory
-    , txMetadataIsNull
-
-    -- * Address
-    , Address (..)
-    , AddressState (..)
-
     -- * Delegation and stake pools
     , CertificatePublicationTime (..)
-    , ChimericAccount (..)
     , DelegationCertificate (..)
     , dlgCertAccount
     , dlgCertPoolId
@@ -77,10 +52,6 @@ module Cardano.Wallet.Primitive.Types
     , setPoolCertificatePoolId
     , getPoolRegistrationCertificate
     , getPoolRetirementCertificate
-
-    -- * Coin
-    , Coin (..)
-    , isValidCoin
 
     -- * UTxO
     , UTxO (..)
@@ -195,14 +166,18 @@ module Cardano.Wallet.Primitive.Types
 
 import Prelude
 
-import Cardano.Api.Typed
-    ( TxMetadata (..), TxMetadataValue (..) )
 import Cardano.Slotting.Slot
     ( SlotNo (..) )
 import Cardano.Wallet.Orphans
     ()
+import Cardano.Wallet.Primitive.Types.ChimericAccount
+    ( ChimericAccount (..) )
+import Cardano.Wallet.Primitive.Types.Coin
+    ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..), hashFromText )
+import Cardano.Wallet.Primitive.Types.Tx
+    ( Tx (..), TxIn (..), TxOut (..) )
 import Control.Arrow
     ( left, right )
 import Control.DeepSeq
@@ -219,8 +194,6 @@ import Crypto.Hash
     ( Blake2b_160, Digest, digestFromByteString )
 import Data.Aeson
     ( FromJSON (..), ToJSON (..), withObject, (.:), (.:?) )
-import Data.Bifunctor
-    ( bimap )
 import Data.ByteArray
     ( ByteArrayAccess )
 import Data.ByteArray.Encoding
@@ -275,12 +248,9 @@ import Fmt
     ( Buildable (..)
     , blockListF
     , blockListF'
-    , fixedF
     , fmt
     , indentF
     , listF'
-    , nameF
-    , ordinalF
     , padRightF
     , prefixF
     , pretty
@@ -310,7 +280,6 @@ import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
-import qualified Data.Text.Lazy.Builder as Builder
 
 {-------------------------------------------------------------------------------
                              Wallet Metadata
@@ -859,250 +828,6 @@ instance Buildable BlockHeader where
         hhF = build $ T.decodeUtf8 $ convertToBase Base16 $ getHash hh
         phF = build $ T.decodeUtf8 $ convertToBase Base16 $ getHash ph
 
-{-------------------------------------------------------------------------------
-                                      Tx
--------------------------------------------------------------------------------}
-
--- | Primitive @Tx@-type.
---
--- Currently tailored for jormungandr in that inputs are @(TxIn, Coin)@
--- instead of @TxIn@. We might have to revisit this when supporting another
--- node.
-data Tx = Tx
-    { txId
-        :: Hash "Tx"
-        -- ^ Jörmungandr computes transaction id by hashing the full content of
-        -- the transaction, which includes witnesses. Therefore, we need either
-        -- to keep track of the witnesses to be able to re-compute the tx id
-        -- every time, or, simply keep track of the id itself.
-    , resolvedInputs
-        :: ![(TxIn, Coin)]
-        -- ^ NOTE: Order of inputs matters in the transaction representation. The
-        -- transaction id is computed from the binary representation of a tx,
-        -- for which inputs are serialized in a specific order.
-    , outputs
-        :: ![TxOut]
-        -- ^ NOTE: Order of outputs matters in the transaction representations. Outputs
-        -- are used as inputs for next transactions which refer to them using
-        -- their indexes. It matters also for serialization.
-    , withdrawals
-        :: !(Map ChimericAccount Coin)
-        -- ^ Withdrawals (of funds from a registered reward account) embedded in
-        -- a transaction. The order does not matter.
-    , metadata
-        :: !(Maybe TxMetadata)
-        -- ^ Semi-structured application-specific extension data stored in the
-        -- transaction on chain.
-        --
-        -- This is not to be confused with 'TxMeta', which is information about
-        -- a transaction derived from the ledger.
-        --
-        -- See Appendix E of <https://hydra.iohk.io/job/Cardano/cardano-ledger-specs/delegationDesignSpec/latest/download-by-type/doc-pdf/delegation_design_spec Shelley Ledger: Delegation/Incentives Design Spec>.
-    } deriving (Show, Generic, Ord, Eq)
-
-instance NFData Tx
-
-instance Buildable Tx where
-    build (Tx tid ins outs ws md) = mempty
-        <> build tid
-        <> build ("\n" :: String)
-        <> blockListF' "inputs" build (fst <$> ins)
-        <> blockListF' "outputs" build outs
-        <> blockListF' "withdrawals" tupleF (Map.toList ws)
-        <> nameF "metadata" (maybe "" build md)
-
-txIns :: Set Tx -> Set TxIn
-txIns = foldMap (Set.fromList . inputs)
-
-inputs :: Tx -> [TxIn]
-inputs = map fst . resolvedInputs
-
-data TxIn = TxIn
-    { inputId
-        :: !(Hash "Tx")
-    , inputIx
-        :: !Word32
-    } deriving (Show, Generic, Eq, Ord)
-
-instance NFData TxIn
-
-instance Buildable TxIn where
-    build txin = mempty
-        <> ordinalF (inputIx txin + 1)
-        <> " "
-        <> build (inputId txin)
-
-data TxOut = TxOut
-    { address
-        :: !Address
-    , coin
-        :: !Coin
-    } deriving (Show, Generic, Eq, Ord)
-
-data TxChange derivationPath = TxChange
-    { address
-        :: !Address
-    , amount
-        :: !Coin
-    , derivationPath
-        :: derivationPath
-    } deriving (Show, Generic, Eq, Ord)
-
-instance NFData TxOut
-
-instance Buildable TxOut where
-    build txout = mempty
-        <> build (coin txout)
-        <> " @ "
-        <> prefixF 8 addrF
-        <> "..."
-        <> suffixF 8 addrF
-      where
-        addrF = build $ view #address txout
-
-instance Buildable (TxIn, TxOut) where
-    build (txin, txout) = build txin <> " ==> " <> build txout
-
--- | Additional information about a transaction, derived from the transaction
--- and ledger state. This should not be confused with 'TxMetadata' which is
--- application-specific data included with the transaction.
-data TxMeta = TxMeta
-    { status :: !TxStatus
-    , direction :: !Direction
-    , slotNo :: !SlotNo
-    , blockHeight :: !(Quantity "block" Word32)
-    , amount :: !(Quantity "lovelace" Natural)
-    , expiry :: !(Maybe SlotNo)
-      -- ^ The slot at which a pending transaction will no longer be accepted
-      -- into mempools.
-    } deriving (Show, Eq, Ord, Generic)
-
-instance NFData TxMeta
-
-instance Buildable TxMeta where
-    build (TxMeta s d sl (Quantity bh) (Quantity a) mex) = mempty
-        <> (case d of; Incoming -> "+"; Outgoing -> "-")
-        <> fixedF @Double 6 (fromIntegral a / 1e6)
-        <> " " <> build s
-        <> " since " <> build sl <> "#" <> build bh
-        <> maybe mempty (\ex -> " (expires slot " <> build ex <> ")") mex
-
-data TxStatus
-    = Pending
-        -- ^ Created, but not yet in a block.
-    | InLedger
-        -- ^ Has been found in a block.
-    | Expired
-        -- ^ Time to live (TTL) has passed.
-    deriving (Show, Eq, Ord, Bounded, Enum, Generic)
-
-instance NFData TxStatus
-
-instance Buildable TxStatus where
-    build = Builder.fromText . toTextFromBoundedEnum SpacedLowerCase
-
-instance FromText TxStatus where
-    fromText = fromTextToBoundedEnum SnakeLowerCase
-
-instance ToText TxStatus where
-    toText = toTextFromBoundedEnum SnakeLowerCase
-
--- | An unsigned transaction.
---
--- See 'Tx' for a signed transaction.
---
-data UnsignedTx input output change = UnsignedTx
-    { unsignedInputs
-        :: NonEmpty input
-        -- Inputs are *necessarily* non-empty because Cardano requires at least
-        -- one UTxO input per transaction to prevent replayable transactions.
-        -- (each UTxO being unique, including at least one UTxO in the
-        -- transaction body makes it seemingly unique).
-
-    , unsignedOutputs
-        :: [TxOut]
-        -- Unlike inputs, it is perfectly reasonable to have empty outputs. The
-        -- main scenario where this might occur is when constructing a
-        -- delegation for the sake of submitting a certificate. This type of
-        -- transaction does not typically include any target output and,
-        -- depending on which input(s) get selected to fuel the transaction, it
-        -- may or may not include a change output should its value be less than
-        -- the minimal UTxO value set by the network.
-    , unsignedChange
-        :: [change]
-    }
-    deriving (Eq, Show)
-
--- | The effect of a @Transaction@ on the wallet balance.
-data Direction
-    = Outgoing -- ^ The wallet balance decreases.
-    | Incoming -- ^ The wallet balance increases or stays the same.
-    deriving (Show, Bounded, Enum, Eq, Ord, Generic)
-
-instance NFData Direction
-
-instance Buildable Direction where
-    build = Builder.fromText . toTextFromBoundedEnum SpacedLowerCase
-
-instance FromText Direction where
-    fromText = fromTextToBoundedEnum SnakeLowerCase
-
-instance ToText Direction where
-    toText = toTextFromBoundedEnum SnakeLowerCase
-
--- | @SealedTx@ is a serialised transaction that is ready to be submitted
--- to the node.
-newtype SealedTx = SealedTx { getSealedTx :: ByteString }
-    deriving stock (Show, Eq, Generic)
-    deriving newtype (ByteArrayAccess)
-
--- | True if the given metadata refers to a pending transaction
-isPending :: TxMeta -> Bool
-isPending = (== Pending) . (status :: TxMeta -> TxStatus)
-
--- | Full expanded and resolved information about a transaction, suitable for
--- presentation to the user.
-data TransactionInfo = TransactionInfo
-    { txInfoId :: !(Hash "Tx")
-    -- ^ Transaction ID of this transaction
-    , txInfoInputs :: ![(TxIn, Coin, Maybe TxOut)]
-    -- ^ Transaction inputs and (maybe) corresponding outputs of the
-    -- source. Source information can only be provided for outgoing payments.
-    , txInfoOutputs :: ![TxOut]
-    -- ^ Payment destination.
-    , txInfoWithdrawals :: !(Map ChimericAccount Coin)
-    -- ^ Withdrawals on this transaction.
-    , txInfoMeta :: !TxMeta
-    -- ^ Other information calculated from the transaction.
-    , txInfoDepth :: Quantity "block" Natural
-    -- ^ Number of slots since the transaction slot.
-    , txInfoTime :: UTCTime
-    -- ^ Creation time of the block including this transaction.
-    , txInfoMetadata :: !(Maybe TxMetadata)
-    -- ^ Application-specific extension data.
-    } deriving (Generic, Show, Eq)
-
-instance NFData TransactionInfo
-
--- | Reconstruct a transaction info from a transaction.
-fromTransactionInfo :: TransactionInfo -> Tx
-fromTransactionInfo info = Tx
-    { txId = txInfoId info
-    , resolvedInputs = (\(a,b,_) -> (a,b)) <$> txInfoInputs info
-    , outputs = txInfoOutputs info
-    , withdrawals = txInfoWithdrawals info
-    , metadata = txInfoMetadata info
-    }
-
--- | Test whether the given metadata map is empty.
-txMetadataIsNull :: TxMetadata -> Bool
-txMetadataIsNull (TxMetadata md) = Map.null md
-
--- | Drop time-specific information
-toTxHistory :: TransactionInfo -> (Tx, TxMeta)
-toTxHistory info =
-    (fromTransactionInfo info, txInfoMeta info)
-
 -- | A linear equation of a free variable `x`. Represents the @\x -> a + b*x@
 -- function where @x@ can be the transaction size in bytes or, a number of
 -- inputs + outputs.
@@ -1138,96 +863,6 @@ instance FromText FeePolicy where
             \Linear equation not in expected format: a + bx + cy \
             \where 'a', 'b', and 'c' are numbers"
 
-
-{-------------------------------------------------------------------------------
-                                    Address
--------------------------------------------------------------------------------}
-
--- | Representation of Cardano addresses. Addresses are basically a
--- human-friendly representation of public keys. Historically in Cardano, there
--- exists different sort of addresses, and new ones are to come. So far, we can
--- distinguish between three types of addresses:
---
--- - Byron Random addresses, which holds a payload with derivation path details
--- - Byron Sequential addresses, also known as Icarus'style addresses
--- - Shelley base addresses, see also [implementation-decisions/address](https://github.com/input-output-hk/implementation-decisions/blob/master/text/0001-address.md)
---
--- For more details, see also [About Address Derivation](https://github.com/input-output-hk/cardano-wallet/wiki/About-Address-Derivation)
---
--- Shelley base addresses can be divided into two types:
---
--- - Single Addresses: which only hold a public spending key
--- - Group Addresses: which hold both a spending and delegation keys
---
--- It'll therefore seem legitimate to represent addresses as:
---
--- @
--- data Address
---   = ByronAddress !ByteString
---   | SingleAddress !XPub
---   | GroupAddress !XPub XPub
--- @
---
--- However, there's a major drawback to this approach:  we have to consider all
--- three constructors everywhere, and make sure we test every function using
--- them three despite having no need for such fine-grained representation.
---
--- Indeed, from the wallet core code, addresses are nothing more than an opaque
--- bunch of bytes that can be compared with each other. When signing
--- transactions, we have to lookup addresses anyway and therefore, can re-derive
--- their corresponding public keys. The only moment the distinction between
--- address type matters is when it comes to representing addresses at the edge
--- of the application (the API layer). And here, this is precisely where we need
--- to also what target backend we're connected to. Different backends use
--- different encodings which may not be compatible.
---
--- Therefore, for simplicity, it's easier to consider addresses as "bytes", and
--- only peak into these bytes whenever we need to do something with them. This
--- makes it fairly clear that addresses are just an opaque string for the wallet
--- layer and that the underlying encoding is rather agnostic to the underlying
--- backend.
-newtype Address = Address
-    { unAddress :: ByteString
-    } deriving (Show, Generic, Eq, Ord)
-
-instance NFData Address
-
-instance Buildable Address where
-    build addr = mempty
-        <> prefixF 8 addrF
-        <> "..."
-        <> suffixF 8 addrF
-      where
-        addrF = build (toText addr)
-
-instance ToText Address where
-    toText = T.decodeUtf8
-        . convertToBase Base16
-        . unAddress
-
-instance FromText Address where
-    fromText = bimap textDecodingError Address
-        . convertFromBase Base16
-        . T.encodeUtf8
-      where
-        textDecodingError = TextDecodingError . show
-
--- | Denotes if an address has been previously used or not... whether that be
--- in the output of a transaction on the blockchain or one in our pending set.
-data AddressState = Used | Unused
-    deriving (Bounded, Enum, Eq, Generic, Show)
-
-instance FromText AddressState where
-    fromText = fromTextToBoundedEnum SnakeLowerCase
-
-instance ToText AddressState where
-    toText = toTextFromBoundedEnum SnakeLowerCase
-
-instance Buildable AddressState where
-    build = build . toText
-
-instance NFData AddressState
-
 -- | A thin wrapper around derivation indexes. This can be used to represent
 -- derivation path as homogeneous lists of 'DerivationIndex'. This is slightly
 -- more convenient than having to carry heterogeneous lists of 'Index depth type'
@@ -1255,39 +890,6 @@ instance FromText DerivationIndex where
 
 instance ToText DerivationIndex where
     toText (DerivationIndex index) = toText index
-
-{-------------------------------------------------------------------------------
-                                     Coin
--------------------------------------------------------------------------------}
-
--- | Coins are stored as Lovelace (reminder: 1 Lovelace = 1e-6 ADA)
-newtype Coin = Coin
-    { getCoin :: Word64
-    } deriving stock (Show, Ord, Eq, Generic)
-
-instance ToText Coin where
-    toText (Coin c) = T.pack $ show c
-
-instance FromText Coin where
-    fromText = validate <=< (fmap (Coin . fromIntegral) . fromText @Natural)
-      where
-        validate x
-            | isValidCoin x =
-                return x
-            | otherwise =
-                Left $ TextDecodingError "Coin value is out of bounds"
-
-instance NFData Coin
-
-instance Bounded Coin where
-    minBound = Coin 0
-    maxBound = Coin 45_000_000_000_000_000
-
-instance Buildable Coin where
-    build = build . getCoin
-
-isValidCoin :: Coin -> Bool
-isValidCoin c = c >= minBound && c <= maxBound
 
 {-------------------------------------------------------------------------------
                                     UTxO
@@ -1744,22 +1346,6 @@ testnetMagic = ProtocolMagic $ fromIntegral $ natVal $ Proxy @pm
 {-------------------------------------------------------------------------------
               Stake Pool Delegation and Registration Certificates
 -------------------------------------------------------------------------------}
-
--- | Also known as a staking key, chimeric account is used in group-type address
--- for staking purposes. It is a public key of the account address
-newtype ChimericAccount = ChimericAccount { unChimericAccount :: ByteString }
-    deriving (Generic, Show, Eq, Ord)
-
-instance NFData ChimericAccount
-
-instance Buildable ChimericAccount where
-    build = build . Hash @"ChimericAccount" . unChimericAccount
-
-instance ToText ChimericAccount where
-    toText = toText . Hash @"ChimericAccount" . unChimericAccount
-
-instance FromText ChimericAccount where
-    fromText = fmap (ChimericAccount . getHash @"ChimericAccount") . fromText
 
 -- | Represent a delegation certificate.
 data DelegationCertificate

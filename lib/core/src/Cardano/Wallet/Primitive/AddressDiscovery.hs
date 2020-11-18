@@ -33,7 +33,7 @@ import Cardano.Crypto.Wallet
     ( XPrv )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..), DerivationIndex (..), Passphrase (..) )
-import Cardano.Wallet.Primitive.Types
+import Cardano.Wallet.Primitive.Types.Address
     ( Address (..), AddressState (..) )
 import Data.List.NonEmpty
     ( NonEmpty )

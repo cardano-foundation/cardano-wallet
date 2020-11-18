@@ -99,7 +99,11 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     , KnownAddresses (..)
     )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..), AddressState (..), ChimericAccount (..), invariant )
+    ( invariant )
+import Cardano.Wallet.Primitive.Types.Address
+    ( Address (..), AddressState (..) )
+import Cardano.Wallet.Primitive.Types.ChimericAccount
+    ( ChimericAccount )
 import Control.Applicative
     ( (<|>) )
 import Control.DeepSeq

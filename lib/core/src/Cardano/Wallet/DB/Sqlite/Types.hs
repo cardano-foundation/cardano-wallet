@@ -36,12 +36,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     , mkAddressPoolGap
     )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..)
-    , AddressState (..)
-    , ChimericAccount (..)
-    , Coin (..)
-    , Direction (..)
-    , EpochNo (..)
+    ( EpochNo (..)
     , FeePolicy
     , PoolId
     , PoolMetadataSource (..)
@@ -50,16 +45,21 @@ import Cardano.Wallet.Primitive.Types
     , StakePoolMetadataHash (..)
     , StakePoolMetadataUrl (..)
     , StakePoolTicker
-    , TxMetadata
-    , TxStatus (..)
     , WalletId (..)
-    , isValidCoin
     , isValidEpochNo
     , unsafeEpochNo
     , unsafeToPMS
     )
+import Cardano.Wallet.Primitive.Types.Address
+    ( Address (..), AddressState (..) )
+import Cardano.Wallet.Primitive.Types.ChimericAccount
+    ( ChimericAccount (..) )
+import Cardano.Wallet.Primitive.Types.Coin
+    ( Coin (..), isValidCoin )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
+import Cardano.Wallet.Primitive.Types.Tx
+    ( Direction (..), TxMetadata, TxStatus (..) )
 import Control.Arrow
     ( left )
 import Control.Monad

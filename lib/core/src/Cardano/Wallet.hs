@@ -299,14 +299,9 @@ import Cardano.Wallet.Primitive.Slotting
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress, SyncTolerance (..), syncProgress )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..)
-    , AddressState (..)
-    , Block (..)
+    ( Block (..)
     , BlockHeader (..)
-    , ChimericAccount (..)
-    , Coin (..)
     , DelegationCertificate (..)
-    , Direction (..)
     , FeePolicy (LinearFee)
     , GenesisParameters (..)
     , IsDelegatingTo (..)
@@ -316,21 +311,10 @@ import Cardano.Wallet.Primitive.Types
     , PoolLifeCycleStatus (..)
     , ProtocolParameters (..)
     , Range (..)
-    , SealedTx (..)
     , Signature (..)
     , SortOrder (..)
-    , TransactionInfo (..)
-    , Tx
-    , TxChange (..)
-    , TxIn
-    , TxMeta (..)
-    , TxMetadata (..)
-    , TxOut (..)
-    , TxOut (..)
-    , TxStatus (..)
     , UTxO (..)
     , UTxOStatistics
-    , UnsignedTx (..)
     , WalletDelegation (..)
     , WalletDelegationStatus (..)
     , WalletId (..)
@@ -340,13 +324,33 @@ import Cardano.Wallet.Primitive.Types
     , computeUtxoStatistics
     , distance
     , dlgCertPoolId
-    , fromTransactionInfo
     , log10
     , wholeRange
-    , withdrawals
     )
+import Cardano.Wallet.Primitive.Types.Address
+    ( Address (..), AddressState (..) )
+import Cardano.Wallet.Primitive.Types.ChimericAccount
+    ( ChimericAccount (..) )
+import Cardano.Wallet.Primitive.Types.Coin
+    ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
+import Cardano.Wallet.Primitive.Types.Tx
+    ( Direction (..)
+    , SealedTx (..)
+    , TransactionInfo (..)
+    , Tx
+    , TxChange (..)
+    , TxIn
+    , TxMeta (..)
+    , TxMetadata (..)
+    , TxOut (..)
+    , TxOut (..)
+    , TxStatus (..)
+    , UnsignedTx (..)
+    , fromTransactionInfo
+    , withdrawals
+    )
 import Cardano.Wallet.Transaction
     ( DelegationAction (..)
     , ErrDecodeSignedTx (..)
@@ -447,6 +451,8 @@ import qualified Cardano.Wallet.Primitive.AddressDiscovery.Random as Rnd
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Sequential as Seq
 import qualified Cardano.Wallet.Primitive.CoinSelection.Random as CoinSelection
 import qualified Cardano.Wallet.Primitive.Types as W
+import qualified Cardano.Wallet.Primitive.Types.Coin as W
+import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.List as L

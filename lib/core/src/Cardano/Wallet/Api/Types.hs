@@ -190,13 +190,8 @@ import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..) )
 import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
-    , Address (..)
-    , AddressState (..)
     , BoundType
-    , ChimericAccount (..)
-    , Coin (..)
     , DecentralizationLevel (..)
-    , Direction (..)
     , EpochLength (..)
     , EpochNo (..)
     , GenesisParameters (..)
@@ -211,21 +206,24 @@ import Cardano.Wallet.Primitive.Types
     , SlottingParameters (..)
     , StakePoolMetadata
     , StartTime (..)
-    , TxIn (..)
-    , TxMetadata
-    , TxStatus (..)
     , UTxOStatistics (..)
     , WalletBalance (..)
     , WalletId (..)
     , WalletName (..)
     , decodePoolIdBech32
     , encodePoolIdBech32
-    , isValidCoin
-    , txMetadataIsNull
     , unsafeEpochNo
     )
+import Cardano.Wallet.Primitive.Types.Address
+    ( Address (..), AddressState (..) )
+import Cardano.Wallet.Primitive.Types.ChimericAccount
+    ( ChimericAccount (..) )
+import Cardano.Wallet.Primitive.Types.Coin
+    ( Coin (..), isValidCoin )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
+import Cardano.Wallet.Primitive.Types.Tx
+    ( Direction (..), TxIn (..), TxMetadata, TxStatus (..), txMetadataIsNull )
 import Cardano.Wallet.Transaction
     ( DelegationAction (..) )
 import Codec.Binary.Bech32

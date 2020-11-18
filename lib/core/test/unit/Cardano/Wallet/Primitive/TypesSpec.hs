@@ -53,14 +53,9 @@ import Cardano.Wallet.Primitive.SyncProgress
     ( SyncTolerance (..), mkSyncTolerance )
 import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
-    , Address (..)
-    , AddressState (..)
     , Block (..)
     , BlockHeader (..)
     , BoundType
-    , ChimericAccount (..)
-    , Coin (..)
-    , Direction (..)
     , Dom (..)
     , EpochLength (..)
     , EpochNo (..)
@@ -76,13 +71,6 @@ import Cardano.Wallet.Primitive.Types
     , SlotLength (..)
     , SlotNo (..)
     , StartTime (..)
-    , Tx (..)
-    , TxIn (..)
-    , TxMeta (..)
-    , TxMetadata (..)
-    , TxMetadataValue (..)
-    , TxOut (..)
-    , TxStatus (..)
     , UTxO (..)
     , UTxOStatistics (..)
     , WalletId (..)
@@ -96,7 +84,6 @@ import Cardano.Wallet.Primitive.Types
     , isBeforeRange
     , isSubrangeOf
     , isSubsetOf
-    , isValidCoin
     , isWithinRange
     , log10
     , mapRangeLowerBound
@@ -115,10 +102,26 @@ import Cardano.Wallet.Primitive.Types
     , walletNameMinLength
     , wholeRange
     )
+import Cardano.Wallet.Primitive.Types.Address
+    ( Address (..), AddressState (..) )
+import Cardano.Wallet.Primitive.Types.ChimericAccount
+    ( ChimericAccount (..) )
+import Cardano.Wallet.Primitive.Types.Coin
+    ( Coin (..), isValidCoin )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.HashSpec
     ()
+import Cardano.Wallet.Primitive.Types.Tx
+    ( Direction (..)
+    , Tx (..)
+    , TxIn (..)
+    , TxMeta (..)
+    , TxMetadata (..)
+    , TxMetadataValue (..)
+    , TxOut (..)
+    , TxStatus (..)
+    )
 import Cardano.Wallet.Unsafe
     ( someDummyMnemonic )
 import Control.Exception

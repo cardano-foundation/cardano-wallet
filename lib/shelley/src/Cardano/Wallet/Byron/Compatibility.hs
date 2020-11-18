@@ -137,7 +137,10 @@ import qualified Cardano.Chain.Update as Update
 import qualified Cardano.Chain.Update.Validation.Interface as Update
 import qualified Cardano.Crypto.Hashing as CC
 import qualified Cardano.Wallet.Primitive.Types as W
+import qualified Cardano.Wallet.Primitive.Types.Address as W
+import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
+import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.List.NonEmpty as NE
