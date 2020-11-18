@@ -190,8 +190,6 @@ import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..) )
 import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
-    , Address (..)
-    , AddressState (..)
     , BoundType
     , ChimericAccount (..)
     , DecentralizationLevel (..)
@@ -222,6 +220,8 @@ import Cardano.Wallet.Primitive.Types
     , txMetadataIsNull
     , unsafeEpochNo
     )
+import Cardano.Wallet.Primitive.Types.Address
+    ( Address (..), AddressState (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..), isValidCoin )
 import Cardano.Wallet.Primitive.Types.Hash

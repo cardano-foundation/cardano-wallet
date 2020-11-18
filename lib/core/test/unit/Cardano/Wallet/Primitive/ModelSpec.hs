@@ -37,8 +37,7 @@ import Cardano.Wallet.Primitive.Model
 import Cardano.Wallet.Primitive.Slotting
     ( flatSlot )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..)
-    , Block (..)
+    ( Block (..)
     , BlockHeader (..)
     , ChimericAccount (..)
     , Direction (..)
@@ -59,6 +58,8 @@ import Cardano.Wallet.Primitive.Types
     , txId
     , txIns
     )
+import Cardano.Wallet.Primitive.Types.Address
+    ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash

@@ -44,7 +44,7 @@ import Cardano.Wallet.Primitive.AddressDerivation.Jormungandr
     )
 import Cardano.Wallet.Primitive.AddressDerivationSpec
     ()
-import Cardano.Wallet.Primitive.Types
+import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Control.Exception
     ( SomeException, evaluate )

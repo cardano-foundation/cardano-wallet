@@ -36,11 +36,12 @@ import Cardano.Mnemonic
     ( ConsistentEntropy, EntropySize, Mnemonic, entropyToMnemonic )
 import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
-    , Address (..)
     , BlockHeader (..)
     , ProtocolMagic (..)
     , SlotNo (..)
     )
+import Cardano.Wallet.Primitive.Types.Address
+    ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Unsafe

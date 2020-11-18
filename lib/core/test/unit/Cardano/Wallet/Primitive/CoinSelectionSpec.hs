@@ -30,13 +30,9 @@ import Cardano.Wallet.Api.Server
 import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..), CoinSelectionOptions (..), ErrCoinSelection (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..)
-    , ShowFmt (..)
-    , TxIn (..)
-    , TxOut (..)
-    , UTxO (..)
-    , UnsignedTx (..)
-    )
+    ( ShowFmt (..), TxIn (..), TxOut (..), UTxO (..), UnsignedTx (..) )
+import Cardano.Wallet.Primitive.Types.Address
+    ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash

@@ -79,9 +79,7 @@ import Cardano.Wallet.Primitive.Model
 import Cardano.Wallet.Primitive.Slotting
     ( unsafeEpochNo )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..)
-    , AddressState (..)
-    , Block (..)
+    ( Block (..)
     , BlockHeader (..)
     , ChimericAccount (..)
     , DecentralizationLevel (..)
@@ -115,6 +113,8 @@ import Cardano.Wallet.Primitive.Types
     , rangeIsValid
     , wholeRange
     )
+import Cardano.Wallet.Primitive.Types.Address
+    ( Address (..), AddressState (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash

@@ -292,9 +292,7 @@ import Cardano.Wallet.Primitive.Slotting
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..), SyncTolerance, syncProgress )
 import Cardano.Wallet.Primitive.Types
-    ( Address
-    , AddressState (..)
-    , Block
+    ( Block
     , BlockHeader (..)
     , NetworkParameters (..)
     , PassphraseScheme (..)
@@ -314,6 +312,8 @@ import Cardano.Wallet.Primitive.Types
     , WalletId (..)
     , WalletMetadata (..)
     )
+import Cardano.Wallet.Primitive.Types.Address
+    ( Address (..), AddressState (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash

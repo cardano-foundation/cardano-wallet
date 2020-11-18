@@ -76,7 +76,9 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.Primitive.AddressDerivation
     ( AccountingStyle (..), DerivationIndex (..), NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Address, WalletId, walletNameMaxLength )
+    ( WalletId, walletNameMaxLength )
+import Cardano.Wallet.Primitive.Types.Address
+    ( Address (..) )
 import Control.Arrow
     ( first )
 import Data.Aeson.QQ

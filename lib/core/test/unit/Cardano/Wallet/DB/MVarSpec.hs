@@ -27,7 +27,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     ( IsOurs (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( SeqState (..) )
-import Cardano.Wallet.Primitive.Types
+import Cardano.Wallet.Primitive.Types.Address
     ( Address )
 import Control.DeepSeq
     ( NFData )

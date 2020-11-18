@@ -57,7 +57,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , deriveRewardAccount
     , liftIndex
     )
-import Cardano.Wallet.Primitive.Types
+import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )

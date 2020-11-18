@@ -121,7 +121,6 @@ import Cardano.Wallet.Primitive.Model
     )
 import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
-    , Address (..)
     , Block (..)
     , BlockHeader (..)
     , Direction (..)
@@ -144,6 +143,8 @@ import Cardano.Wallet.Primitive.Types
     , toTxHistory
     , wholeRange
     )
+import Cardano.Wallet.Primitive.Types.Address
+    ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash

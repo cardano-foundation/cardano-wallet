@@ -53,8 +53,6 @@ import Cardano.Wallet.Primitive.SyncProgress
     ( SyncTolerance (..), mkSyncTolerance )
 import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
-    , Address (..)
-    , AddressState (..)
     , Block (..)
     , BlockHeader (..)
     , BoundType
@@ -113,6 +111,8 @@ import Cardano.Wallet.Primitive.Types
     , walletNameMinLength
     , wholeRange
     )
+import Cardano.Wallet.Primitive.Types.Address
+    ( Address (..), AddressState (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..), isValidCoin )
 import Cardano.Wallet.Primitive.Types.Hash

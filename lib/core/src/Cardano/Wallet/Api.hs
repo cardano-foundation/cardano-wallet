@@ -166,7 +166,9 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncTolerance )
 import Cardano.Wallet.Primitive.Types
-    ( AddressState, Block, NetworkParameters, SortOrder (..), WalletId (..) )
+    ( Block, NetworkParameters, SortOrder (..), WalletId (..) )
+import Cardano.Wallet.Primitive.Types.Address
+    ( AddressState )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Registry

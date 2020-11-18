@@ -37,7 +37,9 @@ import Cardano.Wallet.Primitive.CoinSelection
 import Cardano.Wallet.Primitive.Fee
     ( Fee, FeePolicy )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..), PoolId, SealedTx (..), SlotNo (..), Tx (..), TxMetadata )
+    ( PoolId, SealedTx (..), SlotNo (..), Tx (..), TxMetadata )
+import Cardano.Wallet.Primitive.Types.Address
+    ( Address (..) )
 import Data.ByteString
     ( ByteString )
 import Data.Quantity

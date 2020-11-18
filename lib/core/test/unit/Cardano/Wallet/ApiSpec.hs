@@ -63,7 +63,9 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..), ChimericAccount (..) )
+    ( ChimericAccount (..) )
+import Cardano.Wallet.Primitive.Types.Address
+    ( Address (..) )
 import Control.Arrow
     ( first )
 import Control.Monad

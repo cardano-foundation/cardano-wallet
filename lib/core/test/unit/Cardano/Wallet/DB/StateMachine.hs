@@ -110,8 +110,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
 import Cardano.Wallet.Primitive.Model
     ( Wallet )
 import Cardano.Wallet.Primitive.Types
-    ( Address
-    , BlockHeader
+    ( BlockHeader
     , ChimericAccount (..)
     , DecentralizationLevel
     , DelegationCertificate
@@ -138,6 +137,8 @@ import Cardano.Wallet.Primitive.Types
     , WalletMetadata (..)
     , inputs
     )
+import Cardano.Wallet.Primitive.Types.Address
+    ( Address )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash

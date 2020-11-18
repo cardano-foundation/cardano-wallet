@@ -72,7 +72,9 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     , shrinkPool
     )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..), AddressState (..), ShowFmt (..) )
+    ( ShowFmt (..) )
+import Cardano.Wallet.Primitive.Types.Address
+    ( Address (..), AddressState (..) )
 import Cardano.Wallet.Unsafe
     ( someDummyMnemonic )
 import Control.Arrow

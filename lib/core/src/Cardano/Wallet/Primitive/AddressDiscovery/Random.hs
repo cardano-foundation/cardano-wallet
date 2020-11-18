@@ -69,7 +69,9 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     , KnownAddresses (..)
     )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..), AddressState (..), ChimericAccount )
+    ( ChimericAccount )
+import Cardano.Wallet.Primitive.Types.Address
+    ( Address (..), AddressState (..) )
 import Control.Arrow
     ( second )
 import Control.DeepSeq

@@ -75,8 +75,7 @@ import Cardano.Wallet.Primitive.Fee
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncTolerance (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..)
-    , BlockHeader (BlockHeader)
+    ( BlockHeader (BlockHeader)
     , ChimericAccount (..)
     , Direction (..)
     , EpochNo (..)
@@ -101,6 +100,8 @@ import Cardano.Wallet.Primitive.Types
     , WalletName (..)
     , txId
     )
+import Cardano.Wallet.Primitive.Types.Address
+    ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash

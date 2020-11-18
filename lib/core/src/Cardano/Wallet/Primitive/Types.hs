@@ -59,10 +59,6 @@ module Cardano.Wallet.Primitive.Types
     , toTxHistory
     , txMetadataIsNull
 
-    -- * Address
-    , Address (..)
-    , AddressState (..)
-
     -- * Delegation and stake pools
     , CertificatePublicationTime (..)
     , ChimericAccount (..)
@@ -198,7 +194,7 @@ import Cardano.Slotting.Slot
 import Cardano.Wallet.Orphans
     ()
 import Cardano.Wallet.Primitive.Types.Address
-    ( Address (..), AddressState (..) )
+    ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash

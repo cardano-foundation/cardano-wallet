@@ -43,7 +43,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     ( GenChange (..), IsOurs (..), IsOwned (..), KnownAddresses (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState (..), findUnusedPath, mkRndState )
-import Cardano.Wallet.Primitive.Types
+import Cardano.Wallet.Primitive.Types.Address
     ( Address (..), AddressState (..) )
 import Control.Monad
     ( forM_ )
