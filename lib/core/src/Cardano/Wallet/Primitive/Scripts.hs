@@ -48,6 +48,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
 import Crypto.Hash.Utils
     ( blake2b224 )
 
+import qualified Data.List as L
 import qualified Data.Map.Strict as Map
 import qualified Data.Text.Encoding as T
 
@@ -63,7 +64,7 @@ isShared
 isShared script s@(SeqState !s1 !s2 !ixs !rpk !prefix !scripts) =
     let verKeysInScript = retrieveAllVerKeyHashes script
         accXPub = accountPubKey s2
-        toVerKey ix = deriveAddressPublicKey accXPub MultisigScript ix
+        toVerKey = deriveAddressPublicKey accXPub MultisigScript
         minIndex = getIndex @'Soft minBound
         scriptAddressGap = 10
         ourVerKeys =
@@ -73,13 +74,12 @@ isShared script s@(SeqState !s1 !s2 !ixs !rpk !prefix !scripts) =
             filter (\keyH -> toKeyHash keyH `elem` verKeysInScript)
             ourVerKeys
         toScriptXPub (ShelleyKey k) = ShelleyKey k
-        scriptXPubs = map toScriptXPub ourVerKeyHashesInScript
+        scriptXPubs = L.nub $ map toScriptXPub ourVerKeyHashesInScript
     in if null ourVerKeyHashesInScript then
         ([], s)
        else
         ( scriptXPubs
         , SeqState s1 s2 ixs rpk prefix (Map.insert (toScriptHash script) scriptXPubs scripts))
-  where
 
 retrieveAllVerKeyHashes :: Script -> [KeyHash]
 retrieveAllVerKeyHashes = extractVerKey []
