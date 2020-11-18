@@ -149,8 +149,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..) )
 import Cardano.Wallet.Primitive.Types
-    ( ChimericAccount (..)
-    , Direction (..)
+    ( Direction (..)
     , EpochNo (..)
     , HistogramBar (..)
     , PoolId (..)
@@ -184,6 +183,8 @@ import Cardano.Wallet.Primitive.Types
     )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..), AddressState (..) )
+import Cardano.Wallet.Primitive.Types.ChimericAccount
+    ( ChimericAccount (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash

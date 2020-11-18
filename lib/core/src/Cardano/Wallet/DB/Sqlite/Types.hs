@@ -36,8 +36,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     , mkAddressPoolGap
     )
 import Cardano.Wallet.Primitive.Types
-    ( ChimericAccount (..)
-    , Direction (..)
+    ( Direction (..)
     , EpochNo (..)
     , FeePolicy
     , PoolId
@@ -56,6 +55,8 @@ import Cardano.Wallet.Primitive.Types
     )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..), AddressState (..) )
+import Cardano.Wallet.Primitive.Types.ChimericAccount
+    ( ChimericAccount (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..), isValidCoin )
 import Cardano.Wallet.Primitive.Types.Hash

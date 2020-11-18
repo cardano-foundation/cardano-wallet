@@ -112,7 +112,6 @@ import Cardano.Wallet.Primitive.SyncProgress
 import Cardano.Wallet.Primitive.Types
     ( Block (..)
     , BlockHeader (..)
-    , ChimericAccount
     , GenesisParameters (..)
     , NetworkParameters (..)
     , SlotNo (..)
@@ -126,6 +125,8 @@ import Cardano.Wallet.Primitive.Types
     )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
+import Cardano.Wallet.Primitive.Types.ChimericAccount
+    ( ChimericAccount )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Shelley

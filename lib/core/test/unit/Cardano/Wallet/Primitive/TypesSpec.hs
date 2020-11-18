@@ -56,7 +56,6 @@ import Cardano.Wallet.Primitive.Types
     , Block (..)
     , BlockHeader (..)
     , BoundType
-    , ChimericAccount (..)
     , Direction (..)
     , Dom (..)
     , EpochLength (..)
@@ -113,6 +112,8 @@ import Cardano.Wallet.Primitive.Types
     )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..), AddressState (..) )
+import Cardano.Wallet.Primitive.Types.ChimericAccount
+    ( ChimericAccount (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..), isValidCoin )
 import Cardano.Wallet.Primitive.Types.Hash

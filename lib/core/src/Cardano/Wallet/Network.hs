@@ -49,12 +49,13 @@ import Cardano.Wallet.Primitive.Slotting
 import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
     , BlockHeader (..)
-    , ChimericAccount (..)
     , ProtocolParameters
     , SealedTx
     , SlotNo (..)
     , SlottingParameters (..)
     )
+import Cardano.Wallet.Primitive.Types.ChimericAccount
+    ( ChimericAccount (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Control.Concurrent

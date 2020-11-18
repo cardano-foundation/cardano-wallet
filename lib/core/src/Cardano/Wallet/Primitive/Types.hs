@@ -61,7 +61,6 @@ module Cardano.Wallet.Primitive.Types
 
     -- * Delegation and stake pools
     , CertificatePublicationTime (..)
-    , ChimericAccount (..)
     , DelegationCertificate (..)
     , dlgCertAccount
     , dlgCertPoolId

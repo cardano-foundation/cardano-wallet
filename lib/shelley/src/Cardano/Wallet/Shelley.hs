@@ -101,7 +101,6 @@ import Cardano.Wallet.Primitive.SyncProgress
     ( SyncTolerance )
 import Cardano.Wallet.Primitive.Types
     ( Block
-    , ChimericAccount
     , NetworkParameters (..)
     , PoolMetadataGCStatus (..)
     , ProtocolParameters (..)
@@ -111,6 +110,8 @@ import Cardano.Wallet.Primitive.Types
     )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address )
+import Cardano.Wallet.Primitive.Types.ChimericAccount
+    ( ChimericAccount )
 import Cardano.Wallet.Registry
     ( HasWorkerCtx (..), WorkerLog (..), defaultWorkerAfter )
 import Cardano.Wallet.Shelley.Api.Server

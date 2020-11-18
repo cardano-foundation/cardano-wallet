@@ -24,7 +24,6 @@ import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
     , Block (..)
     , BlockHeader (..)
-    , ChimericAccount (..)
     , EpochLength (..)
     , FeePolicy (..)
     , GenesisParameters (..)
@@ -40,6 +39,8 @@ import Cardano.Wallet.Primitive.Types
     , TxOut (..)
     , TxParameters (..)
     )
+import Cardano.Wallet.Primitive.Types.ChimericAccount
+    ( ChimericAccount (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash

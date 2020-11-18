@@ -58,7 +58,6 @@ import Cardano.Wallet.Primitive.AddressDiscovery
 import Cardano.Wallet.Primitive.Types
     ( Block (..)
     , BlockHeader (..)
-    , ChimericAccount (..)
     , DelegationCertificate (..)
     , Direction (..)
     , Dom (..)
@@ -79,6 +78,8 @@ import Cardano.Wallet.Primitive.Types
     )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
+import Cardano.Wallet.Primitive.Types.ChimericAccount
+    ( ChimericAccount (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Control.DeepSeq

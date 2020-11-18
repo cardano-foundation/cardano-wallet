@@ -39,7 +39,6 @@ import Cardano.Wallet.Primitive.Slotting
 import Cardano.Wallet.Primitive.Types
     ( Block (..)
     , BlockHeader (..)
-    , ChimericAccount (..)
     , Direction (..)
     , Dom (..)
     , EpochLength (..)
@@ -60,6 +59,8 @@ import Cardano.Wallet.Primitive.Types
     )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
+import Cardano.Wallet.Primitive.Types.ChimericAccount
+    ( ChimericAccount (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
