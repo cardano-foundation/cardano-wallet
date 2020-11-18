@@ -33,10 +33,6 @@ import Cardano.Wallet.Primitive.Types
     , SlotNo (..)
     , SlottingParameters (..)
     , StartTime (..)
-    , Tx (..)
-    , TxIn (..)
-    , TxMetadata (..)
-    , TxOut (..)
     , TxParameters (..)
     )
 import Cardano.Wallet.Primitive.Types.ChimericAccount
@@ -45,6 +41,12 @@ import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
+import Cardano.Wallet.Primitive.Types.Tx
+    ( Tx (..)
+    , TxIn (..)
+    , TxMetadata (..)
+    , TxOut (..)
+    )
 import Crypto.Hash
     ( Blake2b_256, hash )
 import Data.ByteString

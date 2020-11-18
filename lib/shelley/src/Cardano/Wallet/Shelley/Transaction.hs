@@ -62,13 +62,15 @@ import Cardano.Wallet.Primitive.CoinSelection
 import Cardano.Wallet.Primitive.Fee
     ( Fee (..), FeePolicy (..) )
 import Cardano.Wallet.Primitive.Types
-    ( PoolId (..), SealedTx (..), Tx (..), TxIn (..), TxMetadata, TxOut (..) )
+    ( PoolId (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
+import Cardano.Wallet.Primitive.Types.Tx
+    ( SealedTx (..), Tx (..), TxIn (..), TxMetadata, TxOut (..) )
 import Cardano.Wallet.Shelley.Compatibility
     ( Shelley
     , StandardCrypto

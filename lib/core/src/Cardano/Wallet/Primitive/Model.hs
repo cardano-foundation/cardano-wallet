@@ -59,22 +59,14 @@ import Cardano.Wallet.Primitive.Types
     ( Block (..)
     , BlockHeader (..)
     , DelegationCertificate (..)
-    , Direction (..)
     , Dom (..)
     , GenesisParameters (..)
-    , Tx (..)
-    , TxIn (..)
-    , TxMeta (..)
-    , TxOut (..)
-    , TxStatus (..)
     , UTxO (..)
     , balance
     , distance
     , dlgCertAccount
     , excluding
-    , inputs
     , restrictedBy
-    , txIns
     )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
@@ -82,6 +74,16 @@ import Cardano.Wallet.Primitive.Types.ChimericAccount
     ( ChimericAccount (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
+import Cardano.Wallet.Primitive.Types.Tx
+    ( Direction (..)
+    , Tx (..)
+    , TxIn (..)
+    , TxMeta (..)
+    , TxOut (..)
+    , TxStatus (..)
+    , inputs
+    , txIns
+    )
 import Control.DeepSeq
     ( NFData (..), deepseq )
 import Control.Monad

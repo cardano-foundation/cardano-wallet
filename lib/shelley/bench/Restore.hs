@@ -116,7 +116,6 @@ import Cardano.Wallet.Primitive.Types
     , NetworkParameters (..)
     , SlotNo (..)
     , SortOrder (..)
-    , TxOut (..)
     , UTxOStatistics (..)
     , WalletId (..)
     , WalletName (..)
@@ -129,6 +128,8 @@ import Cardano.Wallet.Primitive.Types.ChimericAccount
     ( ChimericAccount )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
+import Cardano.Wallet.Primitive.Types.Tx
+    ( TxOut (..) )
 import Cardano.Wallet.Shelley
     ( SomeNetworkDiscriminant (..) )
 import Cardano.Wallet.Shelley.Compatibility

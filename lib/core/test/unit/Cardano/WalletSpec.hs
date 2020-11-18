@@ -76,20 +76,10 @@ import Cardano.Wallet.Primitive.SyncProgress
     ( SyncTolerance (..) )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (BlockHeader)
-    , Direction (..)
     , EpochNo (..)
     , PoolId (..)
-    , SealedTx (..)
     , SlotNo (..)
     , SortOrder (..)
-    , TransactionInfo (txInfoMeta)
-    , TransactionInfo (..)
-    , Tx (..)
-    , TxIn (..)
-    , TxMeta (..)
-    , TxMetadata
-    , TxOut (..)
-    , TxStatus (..)
     , UTxO (..)
     , WalletDelegation (..)
     , WalletDelegationNext (..)
@@ -97,7 +87,6 @@ import Cardano.Wallet.Primitive.Types
     , WalletId (..)
     , WalletMetadata (..)
     , WalletName (..)
-    , txId
     )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
@@ -107,6 +96,19 @@ import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
+import Cardano.Wallet.Primitive.Types.Tx
+    ( Direction (..)
+    , SealedTx (..)
+    , TransactionInfo (txInfoMeta)
+    , TransactionInfo (..)
+    , Tx (..)
+    , TxIn (..)
+    , TxMeta (..)
+    , TxMetadata
+    , TxOut (..)
+    , TxStatus (..)
+    , txId
+    )
 import Cardano.Wallet.Transaction
     ( ErrMkTx (..), TransactionLayer (..) )
 import Cardano.Wallet.Unsafe

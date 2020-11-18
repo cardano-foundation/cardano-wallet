@@ -302,13 +302,6 @@ import Cardano.Wallet.Primitive.Types
     , SlotId
     , SlotNo
     , SortOrder (..)
-    , TransactionInfo (TransactionInfo)
-    , Tx (..)
-    , TxChange (..)
-    , TxIn (..)
-    , TxOut (..)
-    , TxStatus (..)
-    , UnsignedTx (..)
     , WalletId (..)
     , WalletMetadata (..)
     )
@@ -318,6 +311,15 @@ import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
+import Cardano.Wallet.Primitive.Types.Tx
+    ( TransactionInfo (TransactionInfo)
+    , Tx (..)
+    , TxChange (..)
+    , TxIn (..)
+    , TxOut (..)
+    , TxStatus (..)
+    , UnsignedTx (..)
+    )
 import Cardano.Wallet.Registry
     ( HasWorkerCtx (..)
     , MkWorker (..)
@@ -459,6 +461,7 @@ import qualified Cardano.Wallet.Primitive.AddressDerivation.Byron as Byron
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Icarus as Icarus
 import qualified Cardano.Wallet.Primitive.Slotting as S
 import qualified Cardano.Wallet.Primitive.Types as W
+import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Cardano.Wallet.Registry as Registry
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BS

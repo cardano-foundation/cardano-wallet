@@ -35,15 +35,15 @@ import Cardano.Wallet.Primitive.AddressDerivation.Shelley
 import Cardano.Wallet.Primitive.Fee
     ( FeePolicy (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Direction (..)
-    , PoolId (..)
+    ( PoolId (..)
     , PoolMetadataGCStatus (..)
     , PoolMetadataSource (..)
     , StakePoolMetadata (..)
     , StakePoolTicker (..)
-    , TxStatus (..)
     , decodePoolIdBech32
     )
+import Cardano.Wallet.Primitive.Types.Tx
+    ( Direction (..), TxStatus (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Unsafe

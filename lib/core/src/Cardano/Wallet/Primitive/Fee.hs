@@ -44,9 +44,11 @@ import Cardano.Wallet.Primitive.CoinSelection
     , outputBalance
     )
 import Cardano.Wallet.Primitive.Types
-    ( FeePolicy (..), TxIn, TxOut (..), UTxO (..), invariant, pickRandom )
+    ( FeePolicy (..), UTxO (..), invariant, pickRandom )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..), isValidCoin )
+import Cardano.Wallet.Primitive.Types.Tx
+    ( TxIn, TxOut (..) )
 import Control.Monad
     ( when )
 import Control.Monad.Trans.Class

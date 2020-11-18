@@ -73,7 +73,6 @@ import Cardano.Wallet.Primitive.Slotting
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (blockHeight, slotNo)
     , DelegationCertificate (..)
-    , Direction (..)
     , EpochNo (..)
     , PoolId
     , ProtocolParameters (..)
@@ -81,10 +80,6 @@ import Cardano.Wallet.Primitive.Types
     , SlotNo (..)
     , SortOrder (..)
     , StakeKeyCertificate (..)
-    , TransactionInfo (..)
-    , Tx (..)
-    , TxMeta (..)
-    , TxStatus (..)
     , UTxO (..)
     , WalletDelegation (..)
     , WalletDelegationNext (..)
@@ -97,6 +92,13 @@ import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
+import Cardano.Wallet.Primitive.Types.Tx
+    ( Direction (..)
+    , TransactionInfo (..)
+    , Tx (..)
+    , TxMeta (..)
+    , TxStatus (..)
+    )
 import Control.Monad
     ( when )
 import Data.Bifunctor

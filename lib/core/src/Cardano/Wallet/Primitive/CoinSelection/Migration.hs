@@ -47,9 +47,11 @@ import Cardano.Wallet.Primitive.CoinSelection
 import Cardano.Wallet.Primitive.Fee
     ( Fee (..), FeeOptions (..) )
 import Cardano.Wallet.Primitive.Types
-    ( TxIn (..), TxOut (..), UTxO (..) )
+    ( UTxO (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
+import Cardano.Wallet.Primitive.Types.Tx
+    ( TxIn (..), TxOut (..) )
 import Control.Monad.Trans.State
     ( State, evalState, get, put )
 import Data.List

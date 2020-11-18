@@ -52,6 +52,7 @@ import qualified Cardano.Wallet.Primitive.AddressDiscovery.Sequential as W
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Address as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
+import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Data.ByteString.Char8 as B8
 
 share

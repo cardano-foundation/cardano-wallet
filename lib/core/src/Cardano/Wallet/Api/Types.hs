@@ -192,7 +192,6 @@ import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
     , BoundType
     , DecentralizationLevel (..)
-    , Direction (..)
     , EpochLength (..)
     , EpochNo (..)
     , GenesisParameters (..)
@@ -207,16 +206,12 @@ import Cardano.Wallet.Primitive.Types
     , SlottingParameters (..)
     , StakePoolMetadata
     , StartTime (..)
-    , TxIn (..)
-    , TxMetadata
-    , TxStatus (..)
     , UTxOStatistics (..)
     , WalletBalance (..)
     , WalletId (..)
     , WalletName (..)
     , decodePoolIdBech32
     , encodePoolIdBech32
-    , txMetadataIsNull
     , unsafeEpochNo
     )
 import Cardano.Wallet.Primitive.Types.Address
@@ -227,6 +222,13 @@ import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..), isValidCoin )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
+import Cardano.Wallet.Primitive.Types.Tx
+    ( Direction (..)
+    , TxIn (..)
+    , TxMetadata
+    , TxStatus (..)
+    , txMetadataIsNull
+    )
 import Cardano.Wallet.Transaction
     ( DelegationAction (..) )
 import Codec.Binary.Bech32

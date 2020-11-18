@@ -113,7 +113,6 @@ import Cardano.Wallet.Primitive.Types
     ( BlockHeader
     , DecentralizationLevel
     , DelegationCertificate
-    , Direction (..)
     , EpochNo (..)
     , FeePolicy
     , GenesisParameters
@@ -123,18 +122,10 @@ import Cardano.Wallet.Primitive.Types
     , SlotNo (..)
     , SortOrder (..)
     , StakeKeyCertificate
-    , TransactionInfo (..)
-    , Tx (..)
-    , TxIn (..)
-    , TxMeta (..)
-    , TxMetadata
-    , TxOut (..)
     , TxParameters (..)
-    , TxStatus
     , UTxO (..)
     , WalletId (..)
     , WalletMetadata (..)
-    , inputs
     )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address )
@@ -144,6 +135,17 @@ import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
+import Cardano.Wallet.Primitive.Types.Tx
+    ( Direction (..)
+    , TransactionInfo (..)
+    , Tx (..)
+    , TxIn (..)
+    , TxMeta (..)
+    , TxMetadata
+    , TxOut (..)
+    , TxStatus
+    , inputs
+    )
 import Control.Foldl
     ( Fold (..) )
 import Control.Monad.IO.Class

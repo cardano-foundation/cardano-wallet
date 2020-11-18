@@ -206,6 +206,7 @@ import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Address as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
+import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Data.Map as Map
 import qualified Data.Text as T
 import qualified Database.Sqlite as Sqlite

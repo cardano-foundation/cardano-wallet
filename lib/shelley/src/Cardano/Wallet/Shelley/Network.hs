@@ -254,6 +254,7 @@ import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.ChimericAccount as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
+import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Codec.CBOR.Term as CBOR
 import qualified Data.Map as Map
 import qualified Data.Set as Set

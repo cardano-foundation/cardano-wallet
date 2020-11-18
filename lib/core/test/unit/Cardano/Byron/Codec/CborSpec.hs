@@ -30,14 +30,14 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..), DerivationType (..), Index (..), Passphrase (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey (..), generateKeyFromSeed )
-import Cardano.Wallet.Primitive.Types
-    ( TxIn (..), TxOut (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
+import Cardano.Wallet.Primitive.Types.Tx
+    ( TxIn (..), TxOut (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeDeserialiseCbor, unsafeFromHex )
 import Data.ByteString

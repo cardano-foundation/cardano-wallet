@@ -56,7 +56,6 @@ import Cardano.Wallet.Primitive.Types
     , Block (..)
     , BlockHeader (..)
     , BoundType
-    , Direction (..)
     , Dom (..)
     , EpochLength (..)
     , EpochNo (..)
@@ -72,13 +71,6 @@ import Cardano.Wallet.Primitive.Types
     , SlotLength (..)
     , SlotNo (..)
     , StartTime (..)
-    , Tx (..)
-    , TxIn (..)
-    , TxMeta (..)
-    , TxMetadata (..)
-    , TxMetadataValue (..)
-    , TxOut (..)
-    , TxStatus (..)
     , UTxO (..)
     , UTxOStatistics (..)
     , WalletId (..)
@@ -120,6 +112,16 @@ import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.HashSpec
     ()
+import Cardano.Wallet.Primitive.Types.Tx
+    ( Direction (..)
+    , Tx (..)
+    , TxIn (..)
+    , TxMeta (..)
+    , TxMetadata (..)
+    , TxMetadataValue (..)
+    , TxOut (..)
+    , TxStatus (..)
+    )
 import Cardano.Wallet.Unsafe
     ( someDummyMnemonic )
 import Control.Exception

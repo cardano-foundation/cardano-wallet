@@ -108,10 +108,11 @@ import Cardano.Wallet.Primitive.Types
     , ProtocolMagic (..)
     , SlotLength (..)
     , SlottingParameters (..)
-    , TxOut
     )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
+import Cardano.Wallet.Primitive.Types.Tx
+    ( TxOut )
 import Cardano.Wallet.Shelley
     ( SomeNetworkDiscriminant (..) )
 import Cardano.Wallet.Shelley.Compatibility

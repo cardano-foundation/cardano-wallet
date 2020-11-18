@@ -83,7 +83,6 @@ import Cardano.Wallet.Primitive.Types
     , BlockHeader (..)
     , DecentralizationLevel (..)
     , DelegationCertificate (..)
-    , Direction (..)
     , EpochNo (..)
     , FeePolicy (..)
     , PassphraseScheme (..)
@@ -94,13 +93,7 @@ import Cardano.Wallet.Primitive.Types
     , SlotInEpoch (..)
     , SlotNo (..)
     , SortOrder (..)
-    , Tx (..)
-    , TxIn (..)
-    , TxMeta (..)
-    , TxMetadata
-    , TxOut (..)
     , TxParameters (..)
-    , TxStatus (..)
     , UTxO (..)
     , WalletDelegation (..)
     , WalletDelegationStatus (..)
@@ -108,7 +101,6 @@ import Cardano.Wallet.Primitive.Types
     , WalletMetadata (..)
     , WalletName (..)
     , WalletPassphraseInfo (..)
-    , isPending
     , rangeIsValid
     , wholeRange
     )
@@ -120,6 +112,16 @@ import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
+import Cardano.Wallet.Primitive.Types.Tx
+    ( Direction (..)
+    , Tx (..)
+    , TxIn (..)
+    , TxMeta (..)
+    , TxMetadata
+    , TxOut (..)
+    , TxStatus (..)
+    , isPending
+    )
 import Cardano.Wallet.Unsafe
     ( someDummyMnemonic, unsafeMkPercentage )
 import Control.Arrow

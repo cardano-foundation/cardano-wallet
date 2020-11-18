@@ -47,15 +47,13 @@ import Cardano.Wallet.Primitive.Types
     , Range (..)
     , SlotNo (..)
     , SortOrder (..)
-    , TransactionInfo
-    , Tx (..)
-    , TxMeta
-    , TxStatus
     , WalletId
     , WalletMetadata
     )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash )
+import Cardano.Wallet.Primitive.Types.Tx
+    ( TransactionInfo, Tx (..), TxMeta, TxStatus )
 import Control.Monad.Fail
     ( MonadFail )
 import Control.Monad.IO.Class

@@ -252,9 +252,6 @@ import Cardano.Wallet.Primitive.Types
     , SlotLength (..)
     , SlotNo (..)
     , SortOrder (..)
-    , TxIn (..)
-    , TxOut (..)
-    , TxStatus (..)
     , UTxO (..)
     , UTxOStatistics (..)
     , WalletId (..)
@@ -267,6 +264,8 @@ import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
+import Cardano.Wallet.Primitive.Types.Tx
+    ( TxIn (..), TxOut (..), TxStatus (..) )
 import Control.Arrow
     ( second )
 import Control.Concurrent

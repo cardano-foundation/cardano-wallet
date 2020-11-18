@@ -39,26 +39,6 @@ module Cardano.Wallet.Primitive.Types
       Block(..)
     , BlockHeader(..)
 
-    -- * Tx
-    , Tx (..)
-    , TxChange (..)
-    , TxIn(..)
-    , TxOut(..)
-    , TxMeta(..)
-    , TxMetadata(..)
-    , TxMetadataValue(..)
-    , Direction(..)
-    , TxStatus(..)
-    , SealedTx (..)
-    , TransactionInfo (..)
-    , UnsignedTx (..)
-    , txIns
-    , isPending
-    , inputs
-    , fromTransactionInfo
-    , toTxHistory
-    , txMetadataIsNull
-
     -- * Delegation and stake pools
     , CertificatePublicationTime (..)
     , DelegationCertificate (..)
@@ -186,8 +166,6 @@ module Cardano.Wallet.Primitive.Types
 
 import Prelude
 
-import Cardano.Api.Typed
-    ( TxMetadata (..), TxMetadataValue (..) )
 import Cardano.Slotting.Slot
     ( SlotNo (..) )
 import Cardano.Wallet.Orphans
@@ -199,23 +177,7 @@ import Cardano.Wallet.Primitive.Types.Coin
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..), hashFromText )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( Direction (..)
-    , SealedTx (..)
-    , TransactionInfo (..)
-    , Tx (..)
-    , TxChange (..)
-    , TxIn (..)
-    , TxMeta (..)
-    , TxOut (..)
-    , TxStatus (..)
-    , UnsignedTx (..)
-    , fromTransactionInfo
-    , inputs
-    , isPending
-    , toTxHistory
-    , txIns
-    , txMetadataIsNull
-    )
+    ( Tx (..), TxIn (..), TxOut (..) )
 import Control.Arrow
     ( left, right )
 import Control.DeepSeq

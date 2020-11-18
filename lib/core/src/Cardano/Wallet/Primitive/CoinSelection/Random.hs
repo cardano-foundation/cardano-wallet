@@ -27,9 +27,11 @@ import Cardano.Wallet.Primitive.CoinSelection
 import Cardano.Wallet.Primitive.CoinSelection.LargestFirst
     ( largestFirst )
 import Cardano.Wallet.Primitive.Types
-    ( TxIn, TxOut (..), UTxO (..), distance, invariant, pickRandom )
+    ( UTxO (..), distance, invariant, pickRandom )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
+import Cardano.Wallet.Primitive.Types.Tx
+    ( TxIn, TxOut (..) )
 import Control.Arrow
     ( left )
 import Control.Monad

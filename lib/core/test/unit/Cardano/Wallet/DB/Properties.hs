@@ -50,24 +50,26 @@ import Cardano.Wallet.Primitive.Model
     ( Wallet, applyBlock, currentTip )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
-    , Direction (..)
     , ProtocolParameters
     , ShowFmt (..)
     , SlotId (..)
     , SlotNo (..)
     , SortOrder (..)
-    , TransactionInfo (..)
-    , Tx (..)
-    , TxMeta (..)
-    , TxStatus (..)
     , WalletId (..)
     , WalletMetadata (..)
-    , isPending
-    , toTxHistory
     , wholeRange
     )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
+import Cardano.Wallet.Primitive.Types.Tx
+    ( Direction (..)
+    , TransactionInfo (..)
+    , Tx (..)
+    , TxMeta (..)
+    , TxStatus (..)
+    , isPending
+    , toTxHistory
+    )
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
 import Control.Concurrent.Async

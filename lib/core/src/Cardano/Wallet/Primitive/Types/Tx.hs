@@ -16,6 +16,8 @@ module Cardano.Wallet.Primitive.Types.Tx
     , TxOut (..)
     , TxChange (..)
     , TxMeta (..)
+    , TxMetadata (..)
+    , TxMetadataValue (..)
     , TxStatus (..)
     , SealedTx (..)
     , UnsignedTx (..)
@@ -35,7 +37,7 @@ module Cardano.Wallet.Primitive.Types.Tx
 import Prelude
 
 import Cardano.Api.Typed
-    ( TxMetadata (..) )
+    ( TxMetadata (..), TxMetadataValue (..) )
 import Cardano.Slotting.Slot
     ( SlotNo (..) )
 import Cardano.Wallet.Orphans
@@ -60,8 +62,12 @@ import Data.Generics.Labels
     ()
 import Data.List.NonEmpty
     ( NonEmpty (..) )
+import Data.Map.Strict
+    ( Map )
 import Data.Quantity
     ( Quantity (..) )
+import Data.Set
+    ( Set )
 import Data.Text.Class
     ( CaseStyle (..)
     , FromText (..)
@@ -69,10 +75,6 @@ import Data.Text.Class
     , fromTextToBoundedEnum
     , toTextFromBoundedEnum
     )
-import Data.Map.Strict
-    ( Map )
-import Data.Set
-    ( Set )
 import Data.Time.Clock
     ( UTCTime )
 import Data.Word

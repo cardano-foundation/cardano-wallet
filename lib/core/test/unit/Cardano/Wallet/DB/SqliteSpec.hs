@@ -123,24 +123,17 @@ import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
     , Block (..)
     , BlockHeader (..)
-    , Direction (..)
     , PassphraseScheme (..)
     , ProtocolParameters
     , Range
     , SlotNo (..)
     , SortOrder (..)
-    , Tx (..)
-    , TxIn (..)
-    , TxMeta (TxMeta, amount, direction)
-    , TxOut (..)
-    , TxStatus (..)
     , WalletDelegation (..)
     , WalletDelegationStatus (..)
     , WalletId (..)
     , WalletMetadata (..)
     , WalletName (..)
     , WalletPassphraseInfo (..)
-    , toTxHistory
     , wholeRange
     )
 import Cardano.Wallet.Primitive.Types.Address
@@ -149,6 +142,15 @@ import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
+import Cardano.Wallet.Primitive.Types.Tx
+    ( Direction (..)
+    , Tx (..)
+    , TxIn (..)
+    , TxMeta (TxMeta, amount, direction)
+    , TxOut (..)
+    , TxStatus (..)
+    , toTxHistory
+    )
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
 import Control.Concurrent
