@@ -223,12 +223,7 @@ import Cardano.Wallet.Primitive.Types.Coin
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( Direction (..)
-    , TxIn (..)
-    , TxMetadata
-    , TxStatus (..)
-    , txMetadataIsNull
-    )
+    ( Direction (..), TxIn (..), TxMetadata, TxStatus (..), txMetadataIsNull )
 import Cardano.Wallet.Transaction
     ( DelegationAction (..) )
 import Codec.Binary.Bech32

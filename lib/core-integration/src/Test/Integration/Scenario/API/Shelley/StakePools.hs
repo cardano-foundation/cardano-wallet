@@ -42,10 +42,10 @@ import Cardano.Wallet.Primitive.Types
     , StakePoolTicker (..)
     , decodePoolIdBech32
     )
-import Cardano.Wallet.Primitive.Types.Tx
-    ( Direction (..), TxStatus (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
+import Cardano.Wallet.Primitive.Types.Tx
+    ( Direction (..), TxStatus (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex, unsafeMkPercentage )
 import Control.Monad

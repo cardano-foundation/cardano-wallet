@@ -59,10 +59,7 @@ import Cardano.Wallet.Primitive.Types.Coin
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( Direction (..)
-    , TxMetadata
-    , TxStatus (..)
-    )
+    ( Direction (..), TxMetadata, TxStatus (..) )
 import Control.Arrow
     ( left )
 import Control.Monad
