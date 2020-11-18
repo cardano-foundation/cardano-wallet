@@ -93,6 +93,8 @@ spec = do
     describe "isShared" $ do
         it "script composed with all of our verification keys should discover them all"
             (property prop_scriptFromOurVerKeys)
+        it "script composed with not our verification keys should not be discovered"
+            (property prop_scriptFromNotOurVerKeys)
 
 prop_scriptFromOurVerKeys
     :: AccountXPubWithScript
@@ -105,6 +107,18 @@ prop_scriptFromOurVerKeys (AccountXPubWithScript accXPub' script') = do
             SeqState intPool extPool emptyPendingIxs dummyRewardAccount defaultPrefix Map.empty
     let (ourSharedKeys, _) = isShared script' seqState
     L.sort (L.nub $ map toKeyHash ourSharedKeys) === L.sort (L.nub sciptHashes)
+
+prop_scriptFromNotOurVerKeys
+    :: ShelleyKey 'AccountK XPub
+    -> AccountXPubWithScript
+    -> Property
+prop_scriptFromNotOurVerKeys accXPub' (AccountXPubWithScript _accXPub script') = do
+    let intPool = mkAddressPool accXPub' defaultAddressPoolGap []
+    let extPool = mkAddressPool accXPub' defaultAddressPoolGap []
+    let seqState =
+            SeqState intPool extPool emptyPendingIxs dummyRewardAccount defaultPrefix Map.empty
+    let (ourSharedKeys, _) = isShared script' seqState
+    ourSharedKeys === []
 
 data AccountXPubWithScript = AccountXPubWithScript
     { accXPub :: ShelleyKey 'AccountK XPub
@@ -147,12 +161,16 @@ genScript keyHashes =
                 , RequireSomeOf atLeast scripts
                 ]
 
-instance Arbitrary AccountXPubWithScript where
+instance Arbitrary (ShelleyKey 'AccountK XPub) where
     arbitrary = do
         mnemonics <- SomeMnemonic <$> genMnemonic @12
         encPwd <- arbitrary
         let rootXPrv = generateKeyFromSeed (mnemonics, Nothing) encPwd
-        let accXPub' = publicKey $ deriveAccountPrivateKey encPwd rootXPrv minBound
+        pure $ publicKey $ deriveAccountPrivateKey encPwd rootXPrv minBound
+
+instance Arbitrary AccountXPubWithScript where
+    arbitrary = do
+        accXPub' <- arbitrary
         keyNum <- choose (2,8)
         let toVerKey ix = deriveAddressPublicKey accXPub' MultisigScript ix
         let minIndex = getIndex @'Soft minBound
