@@ -113,7 +113,6 @@ import Cardano.Wallet.Primitive.Types
     ( Address
     , BlockHeader
     , ChimericAccount (..)
-    , Coin (..)
     , DecentralizationLevel
     , DelegationCertificate
     , Direction (..)
@@ -139,6 +138,8 @@ import Cardano.Wallet.Primitive.Types
     , WalletMetadata (..)
     , inputs
     )
+import Cardano.Wallet.Primitive.Types.Coin
+    ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Control.Foldl

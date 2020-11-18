@@ -72,7 +72,6 @@ import Cardano.Wallet.Primitive.Slotting
     ( TimeInterpreter, epochOf, startTime )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (blockHeight, slotNo)
-    , Coin (..)
     , DelegationCertificate (..)
     , Direction (..)
     , EpochNo (..)
@@ -94,6 +93,8 @@ import Cardano.Wallet.Primitive.Types
     , dlgCertPoolId
     , isWithinRange
     )
+import Cardano.Wallet.Primitive.Types.Coin
+    ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Control.Monad

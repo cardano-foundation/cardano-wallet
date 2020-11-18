@@ -35,8 +35,7 @@ import Cardano.Wallet.Primitive.AddressDerivation.Shelley
 import Cardano.Wallet.Primitive.Fee
     ( FeePolicy (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Coin (..)
-    , Direction (..)
+    ( Direction (..)
     , PoolId (..)
     , PoolMetadataGCStatus (..)
     , PoolMetadataSource (..)
@@ -45,6 +44,8 @@ import Cardano.Wallet.Primitive.Types
     , TxStatus (..)
     , decodePoolIdBech32
     )
+import Cardano.Wallet.Primitive.Types.Coin
+    ( Coin (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex, unsafeMkPercentage )
 import Control.Monad

@@ -39,7 +39,6 @@ import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , AddressState (..)
     , ChimericAccount (..)
-    , Coin (..)
     , Direction (..)
     , EpochNo (..)
     , FeePolicy
@@ -53,11 +52,12 @@ import Cardano.Wallet.Primitive.Types
     , TxMetadata
     , TxStatus (..)
     , WalletId (..)
-    , isValidCoin
     , isValidEpochNo
     , unsafeEpochNo
     , unsafeToPMS
     )
+import Cardano.Wallet.Primitive.Types.Coin
+    ( Coin (..), isValidCoin )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Control.Arrow

@@ -78,10 +78,6 @@ module Cardano.Wallet.Primitive.Types
     , getPoolRegistrationCertificate
     , getPoolRetirementCertificate
 
-    -- * Coin
-    , Coin (..)
-    , isValidCoin
-
     -- * UTxO
     , UTxO (..)
     , balance
@@ -202,7 +198,7 @@ import Cardano.Slotting.Slot
 import Cardano.Wallet.Orphans
     ()
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..), isValidCoin )
+    ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..), hashFromText )
 import Control.Arrow

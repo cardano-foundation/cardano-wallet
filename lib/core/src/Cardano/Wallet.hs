@@ -304,7 +304,6 @@ import Cardano.Wallet.Primitive.Types
     , Block (..)
     , BlockHeader (..)
     , ChimericAccount (..)
-    , Coin (..)
     , DelegationCertificate (..)
     , Direction (..)
     , FeePolicy (LinearFee)
@@ -345,6 +344,8 @@ import Cardano.Wallet.Primitive.Types
     , wholeRange
     , withdrawals
     )
+import Cardano.Wallet.Primitive.Types.Coin
+    ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Transaction
@@ -447,6 +448,7 @@ import qualified Cardano.Wallet.Primitive.AddressDiscovery.Random as Rnd
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Sequential as Seq
 import qualified Cardano.Wallet.Primitive.CoinSelection.Random as CoinSelection
 import qualified Cardano.Wallet.Primitive.Types as W
+import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.List as L

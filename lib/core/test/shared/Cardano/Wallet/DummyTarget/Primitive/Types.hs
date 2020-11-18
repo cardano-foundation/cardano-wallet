@@ -25,7 +25,6 @@ import Cardano.Wallet.Primitive.Types
     , Block (..)
     , BlockHeader (..)
     , ChimericAccount (..)
-    , Coin (..)
     , EpochLength (..)
     , FeePolicy (..)
     , GenesisParameters (..)
@@ -41,6 +40,8 @@ import Cardano.Wallet.Primitive.Types
     , TxOut (..)
     , TxParameters (..)
     )
+import Cardano.Wallet.Primitive.Types.Coin
+    ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Crypto.Hash

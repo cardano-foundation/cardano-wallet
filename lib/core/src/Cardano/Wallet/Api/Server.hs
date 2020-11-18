@@ -296,7 +296,6 @@ import Cardano.Wallet.Primitive.Types
     , AddressState (..)
     , Block
     , BlockHeader (..)
-    , Coin (..)
     , NetworkParameters (..)
     , PassphraseScheme (..)
     , PoolId
@@ -315,6 +314,8 @@ import Cardano.Wallet.Primitive.Types
     , WalletId (..)
     , WalletMetadata (..)
     )
+import Cardano.Wallet.Primitive.Types.Coin
+    ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Registry

@@ -29,7 +29,9 @@ import Cardano.Wallet.Primitive.AddressDerivation.Icarus
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey )
 import Cardano.Wallet.Primitive.Types
-    ( Coin (..), PoolMetadataSource (..), Settings )
+    ( PoolMetadataSource (..), Settings )
+import Cardano.Wallet.Primitive.Types.Coin
+    ( Coin (..) )
 import Data.Generics.Internal.VL.Lens
     ( view )
 import Data.Maybe

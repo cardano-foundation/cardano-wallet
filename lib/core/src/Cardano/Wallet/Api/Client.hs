@@ -86,7 +86,9 @@ import Cardano.Wallet.Api.Types
     , WalletPutPassphraseData (..)
     )
 import Cardano.Wallet.Primitive.Types
-    ( AddressState, Coin (..), SortOrder, WalletId )
+    ( AddressState, SortOrder, WalletId )
+import Cardano.Wallet.Primitive.Types.Coin
+    ( Coin (..) )
 import Control.Monad
     ( void )
 import Data.Coerce

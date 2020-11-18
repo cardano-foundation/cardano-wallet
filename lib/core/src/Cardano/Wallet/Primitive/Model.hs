@@ -60,7 +60,6 @@ import Cardano.Wallet.Primitive.Types
     , Block (..)
     , BlockHeader (..)
     , ChimericAccount (..)
-    , Coin (..)
     , DelegationCertificate (..)
     , Direction (..)
     , Dom (..)
@@ -79,6 +78,8 @@ import Cardano.Wallet.Primitive.Types
     , restrictedBy
     , txIns
     )
+import Cardano.Wallet.Primitive.Types.Coin
+    ( Coin (..) )
 import Control.DeepSeq
     ( NFData (..), deepseq )
 import Control.Monad

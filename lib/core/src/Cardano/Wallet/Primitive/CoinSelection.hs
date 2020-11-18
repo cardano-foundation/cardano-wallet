@@ -28,7 +28,9 @@ module Cardano.Wallet.Primitive.CoinSelection
 import Prelude
 
 import Cardano.Wallet.Primitive.Types
-    ( Coin (..), TxIn, TxOut (..), balance' )
+    ( TxIn, TxOut (..), balance' )
+import Cardano.Wallet.Primitive.Types.Coin
+    ( Coin (..) )
 import Data.List
     ( foldl' )
 import Data.Quantity

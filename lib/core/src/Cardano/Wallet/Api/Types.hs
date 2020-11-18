@@ -194,7 +194,6 @@ import Cardano.Wallet.Primitive.Types
     , AddressState (..)
     , BoundType
     , ChimericAccount (..)
-    , Coin (..)
     , DecentralizationLevel (..)
     , Direction (..)
     , EpochLength (..)
@@ -220,10 +219,11 @@ import Cardano.Wallet.Primitive.Types
     , WalletName (..)
     , decodePoolIdBech32
     , encodePoolIdBech32
-    , isValidCoin
     , txMetadataIsNull
     , unsafeEpochNo
     )
+import Cardano.Wallet.Primitive.Types.Coin
+    ( Coin (..), isValidCoin )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Transaction

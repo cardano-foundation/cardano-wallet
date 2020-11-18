@@ -32,7 +32,9 @@ import Cardano.Wallet.Primitive.Fee
     , rebalanceSelection
     )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..), Coin (..), ShowFmt (..), TxIn (..), TxOut (..), UTxO (..) )
+    ( Address (..), ShowFmt (..), TxIn (..), TxOut (..), UTxO (..) )
+import Cardano.Wallet.Primitive.Types.Coin
+    ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Control.Arrow

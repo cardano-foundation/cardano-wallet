@@ -172,13 +172,9 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncTolerance (..) )
 import Cardano.Wallet.Primitive.Types
-    ( AddressState
-    , Coin (..)
-    , PoolMetadataSource (..)
-    , SortOrder
-    , WalletId
-    , WalletName
-    )
+    ( AddressState, PoolMetadataSource (..), SortOrder, WalletId, WalletName )
+import Cardano.Wallet.Primitive.Types.Coin
+    ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Version

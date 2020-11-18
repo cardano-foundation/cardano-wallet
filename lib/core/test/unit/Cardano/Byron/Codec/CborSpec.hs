@@ -31,7 +31,9 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey (..), generateKeyFromSeed )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..), Coin (..), TxIn (..), TxOut (..) )
+    ( Address (..), TxIn (..), TxOut (..) )
+import Cardano.Wallet.Primitive.Types.Coin
+    ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Unsafe

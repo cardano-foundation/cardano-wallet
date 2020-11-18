@@ -47,7 +47,6 @@ import Cardano.Wallet.Primitive.Fee
     ( Fee (..), FeeOptions (..), FeePolicy (..), adjustForFee )
 import Cardano.Wallet.Primitive.Types
     ( Address (..)
-    , Coin (..)
     , TxIn (..)
     , TxMetadata (..)
     , TxMetadataValue (..)
@@ -56,6 +55,8 @@ import Cardano.Wallet.Primitive.Types
     , UTxO (..)
     , txMetadataIsNull
     )
+import Cardano.Wallet.Primitive.Types.Coin
+    ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Shelley.Compatibility

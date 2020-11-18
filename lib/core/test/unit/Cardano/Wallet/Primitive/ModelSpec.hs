@@ -41,7 +41,6 @@ import Cardano.Wallet.Primitive.Types
     , Block (..)
     , BlockHeader (..)
     , ChimericAccount (..)
-    , Coin (..)
     , Direction (..)
     , Dom (..)
     , EpochLength (..)
@@ -60,6 +59,8 @@ import Cardano.Wallet.Primitive.Types
     , txId
     , txIns
     )
+import Cardano.Wallet.Primitive.Types.Coin
+    ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Control.DeepSeq

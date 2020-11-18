@@ -152,7 +152,6 @@ import Cardano.Wallet.Primitive.Types
     ( Address (..)
     , AddressState (..)
     , ChimericAccount (..)
-    , Coin (..)
     , Direction (..)
     , EpochNo (..)
     , HistogramBar (..)
@@ -185,6 +184,8 @@ import Cardano.Wallet.Primitive.Types
     , walletNameMaxLength
     , walletNameMinLength
     )
+import Cardano.Wallet.Primitive.Types.Coin
+    ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Transaction

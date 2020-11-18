@@ -56,7 +56,9 @@ import Cardano.Address.Derivation
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..), DerivationType (..), Index (..), Passphrase (..) )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..), Coin (..), ProtocolMagic (..), TxIn (..), TxOut (..) )
+    ( Address (..), ProtocolMagic (..), TxIn (..), TxOut (..) )
+import Cardano.Wallet.Primitive.Types.Coin
+    ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Control.Monad

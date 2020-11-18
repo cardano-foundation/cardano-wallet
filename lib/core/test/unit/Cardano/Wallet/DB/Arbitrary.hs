@@ -84,7 +84,6 @@ import Cardano.Wallet.Primitive.Types
     , Block (..)
     , BlockHeader (..)
     , ChimericAccount (..)
-    , Coin (..)
     , DecentralizationLevel (..)
     , DelegationCertificate (..)
     , Direction (..)
@@ -116,6 +115,8 @@ import Cardano.Wallet.Primitive.Types
     , rangeIsValid
     , wholeRange
     )
+import Cardano.Wallet.Primitive.Types.Coin
+    ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Unsafe

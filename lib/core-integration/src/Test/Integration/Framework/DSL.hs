@@ -243,7 +243,6 @@ import Cardano.Wallet.Primitive.SyncProgress
 import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
     , Address (..)
-    , Coin (..)
     , EpochLength (..)
     , EpochNo
     , HistogramBar (..)
@@ -263,6 +262,8 @@ import Cardano.Wallet.Primitive.Types
     , computeUtxoStatistics
     , log10
     )
+import Cardano.Wallet.Primitive.Types.Coin
+    ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Control.Arrow

@@ -58,7 +58,9 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , liftIndex
     )
 import Cardano.Wallet.Primitive.Types
-    ( Address (..), Coin (..) )
+    ( Address (..) )
+import Cardano.Wallet.Primitive.Types.Coin
+    ( Coin (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex, unsafeMkMnemonic )
 import Control.Concurrent.MVar

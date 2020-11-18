@@ -124,7 +124,6 @@ import Cardano.Wallet.Primitive.Types
     , Address (..)
     , Block (..)
     , BlockHeader (..)
-    , Coin (..)
     , Direction (..)
     , PassphraseScheme (..)
     , ProtocolParameters
@@ -145,6 +144,8 @@ import Cardano.Wallet.Primitive.Types
     , toTxHistory
     , wholeRange
     )
+import Cardano.Wallet.Primitive.Types.Coin
+    ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Unsafe

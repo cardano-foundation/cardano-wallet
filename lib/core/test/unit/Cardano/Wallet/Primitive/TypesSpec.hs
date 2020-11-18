@@ -59,7 +59,6 @@ import Cardano.Wallet.Primitive.Types
     , BlockHeader (..)
     , BoundType
     , ChimericAccount (..)
-    , Coin (..)
     , Direction (..)
     , Dom (..)
     , EpochLength (..)
@@ -96,7 +95,6 @@ import Cardano.Wallet.Primitive.Types
     , isBeforeRange
     , isSubrangeOf
     , isSubsetOf
-    , isValidCoin
     , isWithinRange
     , log10
     , mapRangeLowerBound
@@ -115,6 +113,8 @@ import Cardano.Wallet.Primitive.Types
     , walletNameMinLength
     , wholeRange
     )
+import Cardano.Wallet.Primitive.Types.Coin
+    ( Coin (..), isValidCoin )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.HashSpec
