@@ -50,7 +50,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncTolerance (..) )
-import Cardano.Wallet.Primitive.Types
+import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Shelley
     ( SomeNetworkDiscriminant (..)

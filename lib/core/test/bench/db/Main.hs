@@ -100,11 +100,8 @@ import Cardano.Wallet.Primitive.Slotting
 import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
     , ActiveSlotCoefficient (..)
-    , Address (..)
-    , AddressState (..)
     , Block (..)
     , BlockHeader (..)
-    , Coin (..)
     , Direction (..)
     , EpochLength (..)
     , Range (..)
@@ -126,6 +123,10 @@ import Cardano.Wallet.Primitive.Types
     , WalletMetadata (..)
     , WalletName (..)
     )
+import Cardano.Wallet.Primitive.Types.Address
+    ( Address (..), AddressState (..) )
+import Cardano.Wallet.Primitive.Types.Coin
+    ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Unsafe
