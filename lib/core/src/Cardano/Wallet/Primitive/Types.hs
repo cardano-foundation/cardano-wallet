@@ -201,6 +201,8 @@ import Cardano.Slotting.Slot
     ( SlotNo (..) )
 import Cardano.Wallet.Orphans
     ()
+import Cardano.Wallet.Primitive.Types.Coin
+    ( Coin (..), isValidCoin )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..), hashFromText )
 import Control.Arrow
@@ -1255,39 +1257,6 @@ instance FromText DerivationIndex where
 
 instance ToText DerivationIndex where
     toText (DerivationIndex index) = toText index
-
-{-------------------------------------------------------------------------------
-                                     Coin
--------------------------------------------------------------------------------}
-
--- | Coins are stored as Lovelace (reminder: 1 Lovelace = 1e-6 ADA)
-newtype Coin = Coin
-    { getCoin :: Word64
-    } deriving stock (Show, Ord, Eq, Generic)
-
-instance ToText Coin where
-    toText (Coin c) = T.pack $ show c
-
-instance FromText Coin where
-    fromText = validate <=< (fmap (Coin . fromIntegral) . fromText @Natural)
-      where
-        validate x
-            | isValidCoin x =
-                return x
-            | otherwise =
-                Left $ TextDecodingError "Coin value is out of bounds"
-
-instance NFData Coin
-
-instance Bounded Coin where
-    minBound = Coin 0
-    maxBound = Coin 45_000_000_000_000_000
-
-instance Buildable Coin where
-    build = build . getCoin
-
-isValidCoin :: Coin -> Bool
-isValidCoin c = c >= minBound && c <= maxBound
 
 {-------------------------------------------------------------------------------
                                     UTxO
