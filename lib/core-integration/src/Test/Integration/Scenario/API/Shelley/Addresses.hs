@@ -530,8 +530,8 @@ spec = describe "SHELLEY_ADDRESSES" $ do
 
         -- Generate first 20 addresses using payment and stake keys derived from
         -- wallet API
-        let indexes = [0..19]
-        generatedAddresses <- forM indexes $ \index -> do
+        let indices = [0..19]
+        generatedAddresses <- forM indices $ \index -> do
             let paymentPath = Link.getWalletKey w UtxoExternal (DerivationIndex index)
             (_, paymentKey) <- unsafeRequest @ApiVerificationKey ctx paymentPath Empty
 
@@ -547,7 +547,7 @@ spec = describe "SHELLEY_ADDRESSES" $ do
 
         -- Make sure the same addresses are already available in the wallet
         addrs <- listAddresses @n ctx w
-        forM_ (zip (fmap fromIntegral indexes) generatedAddresses)
+        forM_ (zip (fmap fromIntegral indices) generatedAddresses)
             $ \(idx, genAddr) -> do
                 let walAddr = fst (addrs !! idx ^. #id) ^. (#getApiT . #unAddress)
                 walAddr `Expectations.shouldBe` genAddr
