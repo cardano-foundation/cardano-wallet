@@ -48,7 +48,7 @@ DATA=$(echo $QUERY \
       | sort_by (.createdAt)
       | map (
           select(.author.login == "iohk-bors")
-          | select(.bodyText | contains("try") | not)
+          | select(.bodyText | contains("try\nBuild") | not)
           | select(.bodyText | contains("Canceled") | not)
           | select(.bodyText | contains("Merge conflict") | not)
           | select(.bodyText | contains("Rejected by too few approved reviews") | not)
