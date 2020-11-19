@@ -17,18 +17,21 @@ import Cardano.Wallet.Api.Types
     ( AnyAddress
     , ApiAddress
     , ApiTransaction
+    , ApiVerificationKey
     , ApiWallet
     , DecodeAddress
     , DecodeStakeAddress
     , EncodeAddress
     , WalletStyle (..)
     )
+import Cardano.Wallet.Primitive.AddressDerivation
+    ( AccountingStyle (..), DerivationIndex (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( defaultAddressPoolGap, getAddressPoolGap )
 import Cardano.Wallet.Primitive.Types.Address
     ( AddressState (..) )
 import Control.Monad
-    ( forM_ )
+    ( forM, forM_ )
 import Control.Monad.Trans.Resource
     ( runResourceT )
 import Data.Aeson
@@ -62,6 +65,7 @@ import Test.Integration.Framework.DSL
     , listAddresses
     , minUTxOValue
     , request
+    , unsafeRequest
     , verify
     , walletId
     )
@@ -73,6 +77,7 @@ import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Lens as Aeson
 import qualified Data.Text as T
 import qualified Network.HTTP.Types.Status as HTTP
+import qualified Test.Hspec.Expectations.Lifted as Expectations
 
 spec :: forall n t.
     ( DecodeAddress n
@@ -519,6 +524,51 @@ spec = describe "SHELLEY_ADDRESSES" $ do
                 "addr1y9qthemrg5kczwfjjnahwt65elhrl95e9hcgufnajtp6wfffxzlhgvlzh\
                 \6drdsm04j43jk2wpsnqw7uketsgelghm3lsch4g8t" :: Text
         validateAddr r goldenAddr
+
+    it "ANY_ADDRESS_POST_12 - Delegating addresses API roundtrip" $ \ctx -> runResourceT $ do
+        w <- emptyWallet ctx
+
+        -- Generate first 20 addresses using payment and stake keys derived from
+        -- wallet API
+        let indices = [0..19]
+        generatedAddresses <- forM indices $ \index -> do
+            let paymentPath = Link.getWalletKey w UtxoExternal (DerivationIndex index)
+            (_, paymentKey) <- unsafeRequest @ApiVerificationKey ctx paymentPath Empty
+
+            let stakePath = Link.getWalletKey w MutableAccount (DerivationIndex 0)
+            (_, stakeKey) <- unsafeRequest @ApiVerificationKey ctx stakePath Empty
+
+            let payload = Json [json|{
+                    "payment": #{paymentKey},
+                    "stake": #{stakeKey}
+                }|]
+            (_, addr) <- unsafeRequest @AnyAddress ctx Link.postAnyAddress payload
+            pure (addr ^. #payload)
+
+        -- Make sure the same addresses are already available in the wallet
+        addrs <- listAddresses @n ctx w
+        forM_ (zip (fmap fromIntegral indices) generatedAddresses)
+            $ \(idx, genAddr) -> do
+                let walAddr = fst (addrs !! idx ^. #id) ^. (#getApiT . #unAddress)
+                walAddr `Expectations.shouldBe` genAddr
+
+    it "ANY_ADDRESS_POST_13 - at_least must make sense" $ \ctx -> do
+        forM_ ([0, 4, 333] :: [Int]) $ \atLeast -> do
+            let payload = Json [json|{
+                    "payment": {
+                        "some": {
+                            "from" : [
+                                "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a",
+                                "script_vkh1mwlngj4fcwegw53tdmyemfupen2758xwvudmcz9ap8cnqk7jmh4",
+                                "script_vkh1qw4l62k4203dllrk3dk3sfjpnh3gufhtrtm4qvtrvn4xjp5x5rt"
+                                ],
+                             "at_least": #{atLeast}
+                             }
+                        }
+                }|]
+            r <- request @AnyAddress ctx Link.postAnyAddress Default payload
+            expectResponseCode HTTP.status400 r
+            expectErrorMessage "must have at least one credential" r
   where
     validateAddr resp expected = do
         let addr = getFromResponse id resp
