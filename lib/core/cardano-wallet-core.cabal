@@ -165,6 +165,7 @@ library
       Cardano.Wallet.Primitive.Types.Hash
       Cardano.Wallet.Primitive.Types.RewardAccount
       Cardano.Wallet.Primitive.Types.Tx
+      Cardano.Wallet.Primitive.Types.UTxO
       Cardano.Wallet.Registry
       Cardano.Wallet.Transaction
       Cardano.Wallet.Unsafe
