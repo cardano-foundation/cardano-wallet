@@ -7,6 +7,12 @@
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE TypeApplications #-}
 
+-- |
+-- Copyright: © 2018-2020 IOHK
+-- License: Apache-2.0
+--
+-- This module provides the main transaction data types used by the wallet.
+--
 module Cardano.Wallet.Primitive.Types.Tx
     (
     -- * Types
