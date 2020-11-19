@@ -80,7 +80,6 @@ import Cardano.Wallet.Primitive.Types
     , PoolId (..)
     , SlotNo (..)
     , SortOrder (..)
-    , UTxO (..)
     , WalletDelegation (..)
     , WalletDelegationNext (..)
     , WalletDelegationStatus (..)
@@ -90,12 +89,12 @@ import Cardano.Wallet.Primitive.Types
     )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
-import Cardano.Wallet.Primitive.Types.ChimericAccount
-    ( ChimericAccount (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
+import Cardano.Wallet.Primitive.Types.RewardAccount
+    ( RewardAccount (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..)
     , SealedTx (..)
@@ -109,6 +108,8 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxStatus (..)
     , txId
     )
+import Cardano.Wallet.Primitive.Types.UTxO
+    ( UTxO (..) )
 import Cardano.Wallet.Transaction
     ( ErrMkTx (..), TransactionLayer (..) )
 import Cardano.Wallet.Unsafe
@@ -794,7 +795,7 @@ instance Arbitrary DummyState where
 instance IsOurs DummyState Address where
     isOurs _ s = (Just (DerivationIndex 0 :| []), s)
 
-instance IsOurs DummyState ChimericAccount where
+instance IsOurs DummyState RewardAccount where
     isOurs _ s = (Nothing, s)
 
 instance IsOwned DummyState JormungandrKey where
@@ -897,8 +898,8 @@ instance Arbitrary Tx where
         <*> fmap (Map.fromList . L.take 5) arbitrary
         <*> arbitrary
 
-instance Arbitrary ChimericAccount where
-    arbitrary = ChimericAccount . BS.pack <$> vector 28
+instance Arbitrary RewardAccount where
+    arbitrary = RewardAccount . BS.pack <$> vector 28
 
 instance Arbitrary TxIn where
     arbitrary = TxIn

@@ -244,7 +244,6 @@ import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
     , EpochLength (..)
     , EpochNo
-    , HistogramBar (..)
     , PoolId (..)
     , PoolMetadataGCStatus (..)
     , PoolMetadataSource
@@ -252,11 +251,7 @@ import Cardano.Wallet.Primitive.Types
     , SlotLength (..)
     , SlotNo (..)
     , SortOrder (..)
-    , UTxO (..)
-    , UTxOStatistics (..)
     , WalletId (..)
-    , computeUtxoStatistics
-    , log10
     )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
@@ -266,6 +261,13 @@ import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( TxIn (..), TxOut (..), TxStatus (..) )
+import Cardano.Wallet.Primitive.Types.UTxO
+    ( HistogramBar (..)
+    , UTxO (..)
+    , UTxOStatistics (..)
+    , computeUtxoStatistics
+    , log10
+    )
 import Control.Arrow
     ( second )
 import Control.Concurrent

@@ -35,12 +35,12 @@ import Cardano.Wallet.Primitive.Types
     , StartTime (..)
     , TxParameters (..)
     )
-import Cardano.Wallet.Primitive.Types.ChimericAccount
-    ( ChimericAccount (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
+import Cardano.Wallet.Primitive.Types.RewardAccount
+    ( RewardAccount (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Tx (..), TxIn (..), TxMetadata (..), TxOut (..) )
 import Crypto.Hash
@@ -127,11 +127,20 @@ dummyProtocolParameters = ProtocolParameters
     }
 
 -- | Construct a @Tx@, computing its hash using the dummy @mkTxId@.
-mkTx :: [(TxIn, Coin)] -> [TxOut] -> Map ChimericAccount Coin -> Maybe TxMetadata -> Tx
+mkTx
+    :: [(TxIn, Coin)]
+    -> [TxOut]
+    -> Map RewardAccount Coin
+    -> Maybe TxMetadata
+    -> Tx
 mkTx ins outs wdrls md = Tx (mkTxId ins outs wdrls md) ins outs wdrls md
 
 -- | txId calculation for testing purposes.
-mkTxId :: [(TxIn, Coin)] -> [TxOut] -> Map ChimericAccount Coin -> Maybe TxMetadata -> Hash "Tx"
+mkTxId
+    :: [(TxIn, Coin)]
+    -> [TxOut]
+    -> Map RewardAccount Coin
+    -> Maybe TxMetadata -> Hash "Tx"
 mkTxId ins outs wdrls md = mockHash (ins, outs, wdrls, md)
 
 -- | Construct a good-enough hash for testing

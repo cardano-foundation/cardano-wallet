@@ -4,8 +4,7 @@
 -- Copyright: © 2018-2020 IOHK
 -- License: Apache-2.0
 --
--- This module provides the 'Address' data type, which provides a human-friendly
--- representation of a public key.
+-- This module provides the main 'Address' data type used by the wallet.
 --
 module Cardano.Wallet.Primitive.Types.Address
     ( Address (..)

@@ -21,12 +21,12 @@ import Cardano.Wallet.Primitive.CoinSelectionSpec
     , coinSelectionUnitTest
     , noValidation
     )
-import Cardano.Wallet.Primitive.Types
-    ( UTxO (..), excluding )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( TxOut (..) )
+import Cardano.Wallet.Primitive.Types.UTxO
+    ( UTxO (..), excluding )
 import Control.Monad
     ( unless )
 import Control.Monad.Trans.Except

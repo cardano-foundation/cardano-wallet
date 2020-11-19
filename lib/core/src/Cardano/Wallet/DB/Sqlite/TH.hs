@@ -143,7 +143,7 @@ TxOut
 TxWithdrawal
     txWithdrawalTxId    TxId                sql=tx_id
     txWithdrawalAmount  W.Coin              sql=amount
-    txWithdrawalAccount W.ChimericAccount   sql=account
+    txWithdrawalAccount W.RewardAccount     sql=account
 
     Primary txWithdrawalTxId txWithdrawalAccount
     deriving Show Generic

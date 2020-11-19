@@ -80,8 +80,8 @@ module Cardano.Wallet
     , rollbackBlocks
     , checkWalletIntegrity
     , readNextWithdrawal
-    , readChimericAccount
-    , someChimericAccount
+    , readRewardAccount
+    , someRewardAccount
     , queryRewardBalance
     , ErrWalletAlreadyExists (..)
     , ErrNoSuchWallet (..)
@@ -90,7 +90,7 @@ module Cardano.Wallet
     , ErrFetchRewards (..)
     , ErrCheckWalletIntegrity (..)
     , ErrWalletNotResponding (..)
-    , ErrReadChimericAccount (..)
+    , ErrReadRewardAccount (..)
 
     -- ** Address
     , createChangeAddress
@@ -231,7 +231,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , Passphrase
     , PaymentAddress (..)
     , SoftDerivation (..)
-    , ToChimericAccount (..)
+    , ToRewardAccount (..)
     , WalletKey (..)
     , checkPassphrase
     , deriveRewardAccount
@@ -313,28 +313,24 @@ import Cardano.Wallet.Primitive.Types
     , Range (..)
     , Signature (..)
     , SortOrder (..)
-    , UTxO (..)
-    , UTxOStatistics
     , WalletDelegation (..)
     , WalletDelegationStatus (..)
     , WalletId (..)
     , WalletMetadata (..)
     , WalletName (..)
     , WalletPassphraseInfo (..)
-    , computeUtxoStatistics
     , distance
     , dlgCertPoolId
-    , log10
     , wholeRange
     )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..), AddressState (..) )
-import Cardano.Wallet.Primitive.Types.ChimericAccount
-    ( ChimericAccount (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
+import Cardano.Wallet.Primitive.Types.RewardAccount
+    ( RewardAccount (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..)
     , SealedTx (..)
@@ -351,6 +347,8 @@ import Cardano.Wallet.Primitive.Types.Tx
     , fromTransactionInfo
     , withdrawals
     )
+import Cardano.Wallet.Primitive.Types.UTxO
+    ( UTxO (..), UTxOStatistics, computeUtxoStatistics, log10 )
 import Cardano.Wallet.Transaction
     ( DelegationAction (..)
     , ErrDecodeSignedTx (..)
@@ -453,6 +451,7 @@ import qualified Cardano.Wallet.Primitive.CoinSelection.Random as CoinSelection
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
+import qualified Cardano.Wallet.Primitive.Types.UTxO as W
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.List as L
@@ -594,7 +593,7 @@ createWallet
         ( HasGenesisData ctx
         , HasDBLayer s k ctx
         , IsOurs s Address
-        , IsOurs s ChimericAccount
+        , IsOurs s RewardAccount
         )
     => ctx
     -> WalletId
@@ -788,7 +787,7 @@ restoreWallet
         , HasDBLayer s k ctx
         , HasGenesisData ctx
         , IsOurs s Address
-        , IsOurs s ChimericAccount
+        , IsOurs s RewardAccount
         )
     => ctx
     -> WalletId
@@ -841,7 +840,7 @@ restoreBlocks
         , HasDBLayer s k ctx
         , HasGenesisData ctx
         , IsOurs s Address
-        , IsOurs s ChimericAccount
+        , IsOurs s RewardAccount
         , HasNetworkLayer t ctx
         )
     => ctx
@@ -1012,7 +1011,7 @@ readNextWithdrawal ctx wid (Quantity withdrawal) = db & \DBLayer{..} -> do
     minFee policy =
         fromIntegral . getFee . minimumFee tl policy Nothing Nothing
 
-readChimericAccount
+readRewardAccount
     :: forall ctx s k (n :: NetworkDiscriminant) shelley.
         ( HasDBLayer s k ctx
         , shelley ~ SeqState n ShelleyKey
@@ -1021,18 +1020,18 @@ readChimericAccount
         )
     => ctx
     -> WalletId
-    -> ExceptT ErrReadChimericAccount IO (ChimericAccount, NonEmpty DerivationIndex)
-readChimericAccount ctx wid = db & \DBLayer{..} -> do
-    cp <- withExceptT ErrReadChimericAccountNoSuchWallet
+    -> ExceptT ErrReadRewardAccount IO (RewardAccount, NonEmpty DerivationIndex)
+readRewardAccount ctx wid = db & \DBLayer{..} -> do
+    cp <- withExceptT ErrReadRewardAccountNoSuchWallet
         $ mapExceptT atomically
         $ withNoSuchWallet wid
         $ readCheckpoint (PrimaryKey wid)
     case testEquality (typeRep @s) (typeRep @shelley) of
         Nothing ->
-            throwE ErrReadChimericAccountNotAShelleyWallet
+            throwE ErrReadRewardAccountNotAShelleyWallet
         Just Refl -> do
             let s = getState cp
-            let acct = toChimericAccount   $ Seq.rewardAccountKey s
+            let acct = toRewardAccount   $ Seq.rewardAccountKey s
             let path = stakeDerivationPath $ Seq.derivationPrefix s
             pure (acct, path)
   where
@@ -1047,7 +1046,7 @@ queryRewardBalance
         ( HasNetworkLayer t ctx
         )
     => ctx
-    -> ChimericAccount
+    -> RewardAccount
     -> ExceptT ErrFetchRewards IO (Quantity "lovelace" Word64)
 queryRewardBalance ctx acct = do
     mapExceptT (fmap handleErr) $ getAccountBalance nw acct
@@ -1077,8 +1076,8 @@ manageRewardBalance _ ctx wid = db & \DBLayer{..} -> do
     watchNodeTip $ \bh -> do
          traceWith tr $ MsgRewardBalanceQuery bh
          query <- runExceptT $ do
-            (acct, _) <- withExceptT ErrFetchRewardsReadChimericAccount $
-                readChimericAccount @ctx @s @k @n ctx wid
+            (acct, _) <- withExceptT ErrFetchRewardsReadRewardAccount $
+                readRewardAccount @ctx @s @k @n ctx wid
             queryRewardBalance @ctx @t ctx acct
          traceWith tr $ MsgRewardBalanceResult query
          case query of
@@ -1612,7 +1611,7 @@ signPayment
         ( HasTransactionLayer t k ctx
         , HasDBLayer s k ctx
         , HasNetworkLayer t ctx
-        , IsOurs s ChimericAccount
+        , IsOurs s RewardAccount
         , IsOwned s k
         , GenChange s
         )
@@ -1682,7 +1681,7 @@ signTx
         ( HasTransactionLayer t k ctx
         , HasDBLayer s k ctx
         , HasNetworkLayer t ctx
-        , IsOurs s ChimericAccount
+        , IsOurs s RewardAccount
         , IsOwned s k
         , HardDerivation k
         , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
@@ -1802,7 +1801,7 @@ signDelegation
         , HasDBLayer s k ctx
         , HasNetworkLayer t ctx
         , IsOwned s k
-        , IsOurs s ChimericAccount
+        , IsOurs s RewardAccount
         , GenChange s
         , HardDerivation k
         , AddressIndexDerivationType k ~ 'Soft
@@ -1870,7 +1869,7 @@ signDelegation ctx wid argGenChange pwd coinSel action = db & \DBLayer{..} -> do
 -- FIXME: There's a logic duplication regarding the calculation of the transaction
 -- amount between right here, and the Primitive.Model (see prefilterBlocks).
 mkTxMeta
-    :: (IsOurs s Address, IsOurs s ChimericAccount, Monad m)
+    :: (IsOurs s Address, IsOurs s RewardAccount, Monad m)
     => TimeInterpreter m
     -> BlockHeader
     -> s
@@ -1909,7 +1908,7 @@ mkTxMeta interpretTime blockHeader wState tx cs expiry =
             Just{}  -> Just (fromIntegral val)
             Nothing -> Nothing
 
-    ourWithdrawal :: (ChimericAccount, Coin) -> Maybe Natural
+    ourWithdrawal :: (RewardAccount, Coin) -> Maybe Natural
     ourWithdrawal (acct, (Coin val)) =
         case fst (isOurs acct wState) of
             Just{}  -> Just (fromIntegral val)
@@ -2491,7 +2490,7 @@ data ErrQuitStakePool
 -- | Errors that can occur when fetching the reward balance of a wallet
 data ErrFetchRewards
     = ErrFetchRewardsNetworkUnreachable ErrNetworkUnavailable
-    | ErrFetchRewardsReadChimericAccount ErrReadChimericAccount
+    | ErrFetchRewardsReadRewardAccount ErrReadRewardAccount
     deriving (Generic, Eq, Show)
 
 data ErrSelectForMigration
@@ -2539,9 +2538,9 @@ data ErrNotASequentialWallet
     = ErrNotASequentialWallet
     deriving (Generic, Eq, Show)
 
-data ErrReadChimericAccount
-    = ErrReadChimericAccountNotAShelleyWallet
-    | ErrReadChimericAccountNoSuchWallet ErrNoSuchWallet
+data ErrReadRewardAccount
+    = ErrReadRewardAccountNotAShelleyWallet
+    | ErrReadRewardAccountNoSuchWallet ErrNoSuchWallet
     deriving (Generic, Eq, Show)
 
 data ErrWithdrawalNotWorth

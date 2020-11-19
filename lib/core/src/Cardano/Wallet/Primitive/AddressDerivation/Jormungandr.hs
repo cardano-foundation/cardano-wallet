@@ -57,8 +57,7 @@ import Cardano.Crypto.Wallet
 import Cardano.Mnemonic
     ( SomeMnemonic (..), entropyToBytes, mnemonicToEntropy )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( ChimericAccount (..)
-    , DelegationAddress (..)
+    ( DelegationAddress (..)
     , Depth (..)
     , DerivationIndex (..)
     , DerivationType (..)
@@ -73,8 +72,9 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , PaymentAddress (..)
     , PersistPrivateKey (..)
     , PersistPublicKey (..)
+    , RewardAccount (..)
     , SoftDerivation (..)
-    , ToChimericAccount (..)
+    , ToRewardAccount (..)
     , WalletKey (..)
     , deriveRewardAccount
     , fromHex
@@ -420,7 +420,7 @@ instance MkKeyFingerprint JormungandrKey (Proxy (n :: NetworkDiscriminant), Jorm
                           Dealing with Rewards
 -------------------------------------------------------------------------------}
 
-instance IsOurs (SeqState n JormungandrKey) ChimericAccount
+instance IsOurs (SeqState n JormungandrKey) RewardAccount
   where
     isOurs account state@SeqState{derivationPrefix} =
         let
@@ -435,12 +435,12 @@ instance IsOurs (SeqState n JormungandrKey) ChimericAccount
         in
             (guard (account == ourAccount) *> Just path, state)
       where
-        ourAccount = toChimericAccount $ rewardAccountKey state
+        ourAccount = toRewardAccount $ rewardAccountKey state
 
-instance ToChimericAccount JormungandrKey where
-    toChimericAccount = ChimericAccount . xpubPublicKey . getKey
-    someChimericAccount mw =
-        (getRawKey acctK, toChimericAccount (publicKey acctK))
+instance ToRewardAccount JormungandrKey where
+    toRewardAccount = RewardAccount . xpubPublicKey . getKey
+    someRewardAccount mw =
+        (getRawKey acctK, toRewardAccount (publicKey acctK))
       where
         rootK = generateKeyFromSeed (mw, Nothing) mempty
         acctK = deriveRewardAccount mempty rootK

@@ -102,8 +102,8 @@ import Cardano.Wallet.Primitive.Types
     ( invariant )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..), AddressState (..) )
-import Cardano.Wallet.Primitive.Types.ChimericAccount
-    ( ChimericAccount )
+import Cardano.Wallet.Primitive.Types.RewardAccount
+    ( RewardAccount )
 import Control.Applicative
     ( (<|>) )
 import Control.DeepSeq
@@ -886,7 +886,7 @@ instance
         double :: Integral a => a -> Double
         double = fromIntegral
 
-instance IsOurs (SeqAnyState n k p) ChimericAccount
+instance IsOurs (SeqAnyState n k p) RewardAccount
   where
     isOurs _account state = (Nothing, state)
 

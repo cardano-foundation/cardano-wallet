@@ -70,8 +70,8 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..), AddressState (..) )
-import Cardano.Wallet.Primitive.Types.ChimericAccount
-    ( ChimericAccount )
+import Cardano.Wallet.Primitive.Types.RewardAccount
+    ( RewardAccount )
 import Control.Arrow
     ( second )
 import Control.DeepSeq
@@ -213,7 +213,7 @@ instance IsOurs (RndState n) Address where
       where
         path = addressToPath addr (hdPassphrase st)
 
-instance IsOurs (RndState n) ChimericAccount where
+instance IsOurs (RndState n) RewardAccount where
     isOurs _account state = (Nothing, state)
 
 instance IsOwned (RndState n) ByronKey where
@@ -402,7 +402,7 @@ instance KnownNat p => IsOurs (RndAnyState n p) Address where
         double :: Integral a => a -> Double
         double = fromIntegral
 
-instance IsOurs (RndAnyState n p) ChimericAccount where
+instance IsOurs (RndAnyState n p) RewardAccount where
     isOurs _account state = (Nothing, state)
 
 instance KnownNat p => IsOwned (RndAnyState n p) ByronKey where

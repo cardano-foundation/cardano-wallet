@@ -48,8 +48,8 @@ module Cardano.Wallet.Primitive.AddressDerivation
     , liftIndex
 
     -- * Delegation
-    , ChimericAccount (..)
-    , ToChimericAccount(..)
+    , RewardAccount (..)
+    , ToRewardAccount(..)
     , deriveRewardAccount
 
     -- * Helpers
@@ -92,10 +92,10 @@ import Cardano.Wallet.Primitive.Types
     ( PassphraseScheme (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
-import Cardano.Wallet.Primitive.Types.ChimericAccount
-    ( ChimericAccount (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
+import Cardano.Wallet.Primitive.Types.RewardAccount
+    ( RewardAccount (..) )
 import Control.DeepSeq
     ( NFData )
 import Control.Monad
@@ -172,7 +172,7 @@ data Depth
 --     targets of a given transaction
 -- (b) internal change is for addresses used to handle the change of a
 --     the transaction within a given wallet
--- (c) the addresses for a reward (chimeric) account
+-- (c) the addresses for a reward account
 --
 -- FIXME: rename this to 'Role' or 'HDRole'
 data AccountingStyle
@@ -472,9 +472,9 @@ class HardDerivation key => SoftDerivation (key :: Depth -> * -> *) where
 
 -- | Derivation of a reward account, as a type-class because different between
 -- key types (in particular, Jörmungandr vs Shelley).
-class ToChimericAccount k where
-    toChimericAccount :: k 'AddressK XPub -> ChimericAccount
-    someChimericAccount :: SomeMnemonic -> (XPrv, ChimericAccount)
+class ToRewardAccount k where
+    toRewardAccount :: k 'AddressK XPub -> RewardAccount
+    someRewardAccount :: SomeMnemonic -> (XPrv, RewardAccount)
 
 -- | Derive a reward account from a root private key. It is agreed by standard
 -- that every HD wallet will use only a single reward account. This account is

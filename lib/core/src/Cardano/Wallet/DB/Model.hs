@@ -80,7 +80,6 @@ import Cardano.Wallet.Primitive.Types
     , SlotNo (..)
     , SortOrder (..)
     , StakeKeyCertificate (..)
-    , UTxO (..)
     , WalletDelegation (..)
     , WalletDelegationNext (..)
     , WalletDelegationStatus (..)
@@ -99,6 +98,8 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxMeta (..)
     , TxStatus (..)
     )
+import Cardano.Wallet.Primitive.Types.UTxO
+    ( UTxO (..) )
 import Control.Monad
     ( when )
 import Data.Bifunctor

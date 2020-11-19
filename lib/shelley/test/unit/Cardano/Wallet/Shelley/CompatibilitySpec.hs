@@ -47,10 +47,10 @@ import Cardano.Wallet.Primitive.Types
     ( DecentralizationLevel (..), EpochLength (..), SlotId (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
-import Cardano.Wallet.Primitive.Types.ChimericAccount
-    ( ChimericAccount (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
+import Cardano.Wallet.Primitive.Types.RewardAccount
+    ( RewardAccount (..) )
 import Cardano.Wallet.Shelley.Compatibility
     ( CardanoBlock
     , StandardCrypto
@@ -302,8 +302,8 @@ instance Arbitrary (Hash "Genesis") where
 instance Arbitrary (Hash "BlockHeader") where
     arbitrary = Hash . BS.pack <$> vector 32
 
-instance Arbitrary ChimericAccount where
-    arbitrary = ChimericAccount . BS.pack <$> vector 28
+instance Arbitrary RewardAccount where
+    arbitrary = RewardAccount . BS.pack <$> vector 28
 
 instance Arbitrary (Tip (CardanoBlock StandardCrypto)) where
     arbitrary = frequency

@@ -50,13 +50,13 @@ import Cardano.Crypto.Wallet
 import Cardano.Ledger.Crypto
     ( Crypto (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( ChimericAccount (..), Depth (..), Passphrase (..), WalletKey (..) )
+    ( Depth (..), Passphrase (..), RewardAccount (..), WalletKey (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
-    ( ShelleyKey, toChimericAccountRaw )
+    ( ShelleyKey, toRewardAccountRaw )
 import Cardano.Wallet.Primitive.CoinSelection
     ( CoinSelection (..), feeBalance )
 import Cardano.Wallet.Primitive.Fee
@@ -188,7 +188,7 @@ mkTx
 mkTx networkId (TxPayload md certs mkExtraWits) expirySlot (rewardAcnt, pwdAcnt) keyFrom cs = do
     let wdrls = mkWithdrawals
             networkId
-            (toChimericAccountRaw . toXPub $ rewardAcnt)
+            (toRewardAccountRaw . toXPub $ rewardAcnt)
             (withdrawal cs)
 
     let unsigned = mkUnsignedTx expirySlot cs md wdrls certs
@@ -467,7 +467,7 @@ computeTxSize networkId witTag md action cs =
             TxOut $ Address $ BS.pack $ 0:replicate 56 0
 
         dummyStakeCred = toCardanoStakeCredential
-            $ ChimericAccount dummyKeyHashRaw
+            $ RewardAccount dummyKeyHashRaw
 
         dummyPoolId :: Cardano.PoolId
         dummyPoolId = fromMaybe (error "dummyPoolId couldn't be constructed")
@@ -491,7 +491,7 @@ computeTxSize networkId witTag md action cs =
 
     wdrls = mkWithdrawals
         networkId
-        (ChimericAccount dummyKeyHashRaw)
+        (RewardAccount dummyKeyHashRaw)
         (withdrawal cs)
 
     -- NOTE
@@ -571,7 +571,7 @@ mkUnsignedTx ttl cs md wdrls certs =
 
 mkWithdrawals
     :: NetworkId
-    -> ChimericAccount
+    -> RewardAccount
     -> Word64
     -> [(Cardano.StakeAddress, Cardano.Lovelace)]
 mkWithdrawals networkId acc amount

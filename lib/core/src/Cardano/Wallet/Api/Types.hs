@@ -190,12 +190,10 @@ import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..) )
 import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
-    , BoundType
     , DecentralizationLevel (..)
     , EpochLength (..)
     , EpochNo (..)
     , GenesisParameters (..)
-    , HistogramBar (..)
     , NetworkParameters (..)
     , PoolId (..)
     , PoolMetadataGCStatus (..)
@@ -206,7 +204,6 @@ import Cardano.Wallet.Primitive.Types
     , SlottingParameters (..)
     , StakePoolMetadata
     , StartTime (..)
-    , UTxOStatistics (..)
     , WalletBalance (..)
     , WalletId (..)
     , WalletName (..)
@@ -216,14 +213,14 @@ import Cardano.Wallet.Primitive.Types
     )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..), AddressState (..) )
-import Cardano.Wallet.Primitive.Types.ChimericAccount
-    ( ChimericAccount (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..), isValidCoin )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..), TxIn (..), TxMetadata, TxStatus (..), txMetadataIsNull )
+import Cardano.Wallet.Primitive.Types.UTxO
+    ( BoundType, HistogramBar (..), UTxOStatistics (..) )
 import Cardano.Wallet.Transaction
     ( DelegationAction (..) )
 import Codec.Binary.Bech32
@@ -326,6 +323,7 @@ import Web.HttpApiData
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet.Primitive.AddressDerivation as AD
 import qualified Cardano.Wallet.Primitive.Types as W
+import qualified Cardano.Wallet.Primitive.Types.RewardAccount as W
 import qualified Codec.Binary.Bech32 as Bech32
 import qualified Codec.Binary.Bech32.TH as Bech32
 import qualified Data.Aeson as Aeson
@@ -753,7 +751,7 @@ newtype ApiTxMetadata = ApiTxMetadata
       deriving anyclass NFData
 
 data ApiWithdrawal n = ApiWithdrawal
-    { stakeAddress :: !(ApiT ChimericAccount, Proxy n)
+    { stakeAddress :: !(ApiT W.RewardAccount, Proxy n)
     , amount :: !(Quantity "lovelace" Natural)
     } deriving (Eq, Generic, Show)
       deriving anyclass NFData
@@ -1880,7 +1878,7 @@ instance EncodeStakeAddress n => ToJSON (ApiWithdrawal n) where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 instance {-# OVERLAPS #-} (DecodeStakeAddress n)
-    => FromJSON (ApiT ChimericAccount, Proxy n)
+    => FromJSON (ApiT W.RewardAccount, Proxy n)
   where
     parseJSON x = do
         let proxy = Proxy @n
@@ -1890,7 +1888,7 @@ instance {-# OVERLAPS #-} (DecodeStakeAddress n)
         return (acct, proxy)
 
 instance {-# OVERLAPS #-} EncodeStakeAddress n
-    => ToJSON (ApiT ChimericAccount, Proxy n)
+    => ToJSON (ApiT W.RewardAccount, Proxy n)
   where
     toJSON (acct, _) = toJSON . encodeStakeAddress @n . getApiT $ acct
 
@@ -2097,13 +2095,13 @@ instance DecodeAddress 'Mainnet => DecodeAddress ('Staging pm) where
     decodeAddress = decodeAddress @'Mainnet
 
 class EncodeStakeAddress (n :: NetworkDiscriminant) where
-    encodeStakeAddress :: ChimericAccount -> Text
+    encodeStakeAddress :: W.RewardAccount -> Text
 
 instance EncodeStakeAddress 'Mainnet => EncodeStakeAddress ('Staging pm) where
     encodeStakeAddress = encodeStakeAddress @'Mainnet
 
 class DecodeStakeAddress (n :: NetworkDiscriminant) where
-    decodeStakeAddress :: Text -> Either TextDecodingError ChimericAccount
+    decodeStakeAddress :: Text -> Either TextDecodingError W.RewardAccount
 
 instance DecodeStakeAddress 'Mainnet => DecodeStakeAddress ('Staging pm) where
     decodeStakeAddress = decodeStakeAddress @'Mainnet

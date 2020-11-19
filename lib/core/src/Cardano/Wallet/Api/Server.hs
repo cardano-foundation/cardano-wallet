@@ -124,7 +124,7 @@ import Cardano.Wallet
     , ErrNotASequentialWallet (..)
     , ErrPostTx (..)
     , ErrQuitStakePool (..)
-    , ErrReadChimericAccount (..)
+    , ErrReadRewardAccount (..)
     , ErrRemoveTx (..)
     , ErrSelectCoinsExternal (..)
     , ErrSelectForDelegation (..)
@@ -234,7 +234,6 @@ import Cardano.Wallet.Network
     )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( AccountingStyle
-    , ChimericAccount (..)
     , DelegationAddress (..)
     , Depth (..)
     , DerivationIndex (..)
@@ -245,6 +244,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , NetworkDiscriminant (..)
     , Passphrase (..)
     , PaymentAddress (..)
+    , RewardAccount (..)
     , SoftDerivation (..)
     , WalletKey (..)
     , deriveRewardAccount
@@ -600,7 +600,7 @@ postWallet
         , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
         , HasDBFactory s k ctx
         , HasWorkerRegistry s k ctx
-        , IsOurs s ChimericAccount
+        , IsOurs s RewardAccount
         , Typeable s
         , Typeable n
         )
@@ -627,7 +627,7 @@ postShelleyWallet
         , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
         , HasDBFactory s k ctx
         , HasWorkerRegistry s k ctx
-        , IsOurs s ChimericAccount
+        , IsOurs s RewardAccount
         , Typeable s
         , Typeable n
         )
@@ -662,7 +662,7 @@ postAccountWallet
         , MkKeyFingerprint k Address
         , WalletKey k
         , HasWorkerRegistry s k ctx
-        , IsOurs s ChimericAccount
+        , IsOurs s RewardAccount
         )
     => ctx
     -> MkApiWallet ctx s w
@@ -690,7 +690,7 @@ mkShelleyWallet
         ( ctx ~ ApiLayer s t k
         , s ~ SeqState n k
         , IsOurs s Address
-        , IsOurs s ChimericAccount
+        , IsOurs s RewardAccount
         , HasWorkerRegistry s k ctx
         )
     => MkApiWallet ctx s ApiWallet
@@ -766,7 +766,7 @@ postLegacyWallet
     :: forall ctx s t k.
         ( ctx ~ ApiLayer s t k
         , KnownDiscovery s
-        , IsOurs s ChimericAccount
+        , IsOurs s RewardAccount
         , IsOurs s Address
         , HasNetworkLayer t ctx
         , WalletKey k
@@ -798,7 +798,7 @@ mkLegacyWallet
         , KnownDiscovery s
         , HasNetworkLayer t ctx
         , IsOurs s Address
-        , IsOurs s ChimericAccount
+        , IsOurs s RewardAccount
         )
     => ctx
     -> WalletId
@@ -1210,7 +1210,7 @@ selectCoinsForJoin ctx knownPools getPoolStatus pid wid = do
             $ W.selectCoinsForDelegation @_ @s @t @k wrk wid action
 
         (_, path) <- liftHandler
-            $ W.readChimericAccount @_ @s @k @n wrk wid
+            $ W.readRewardAccount @_ @s @k @n wrk wid
 
         pure (utx, action, path)
 
@@ -1243,7 +1243,7 @@ selectCoinsForQuit ctx (ApiT wid) = do
             $ W.selectCoinsForDelegation @_ @s @t @k wrk wid action
 
         (_, path) <- liftHandler
-            $ W.readChimericAccount @_ @s @k @n wrk wid
+            $ W.readRewardAccount @_ @s @k @n wrk wid
 
         pure (utx, action, path)
 
@@ -1338,7 +1338,7 @@ postTransaction
         ( Buildable (ErrValidateSelection t)
         , GenChange s
         , HasNetworkLayer t ctx
-        , IsOurs s ChimericAccount
+        , IsOurs s RewardAccount
         , IsOwned s k
         , ctx ~ ApiLayer s t k
         , HardDerivation k
@@ -1367,13 +1367,13 @@ postTransaction ctx genChange (ApiT wid) body = do
                 pure (Quantity 0, selfRewardCredentials)
 
             Just SelfWithdrawal -> do
-                (acct, _) <- liftHandler $ W.readChimericAccount @_ @s @k @n wrk wid
+                (acct, _) <- liftHandler $ W.readRewardAccount @_ @s @k @n wrk wid
                 wdrl <- liftHandler $ W.queryRewardBalance @_ @t wrk acct
                 (, selfRewardCredentials)
                     <$> liftIO (W.readNextWithdrawal @_ @s @t @k wrk wid wdrl)
 
             Just (ExternalWithdrawal (ApiMnemonicT mw)) -> do
-                let (xprv, acct) = W.someChimericAccount @ShelleyKey mw
+                let (xprv, acct) = W.someRewardAccount @ShelleyKey mw
                 wdrl <- liftHandler (W.queryRewardBalance @_ @t wrk acct)
                     >>= liftIO . W.readNextWithdrawal @_ @s @t @k wrk wid
                 when (wdrl == Quantity 0) $ do
@@ -1498,12 +1498,12 @@ postTransactionFee ctx (ApiT wid) body = do
                 pure (Quantity 0)
 
             Just SelfWithdrawal -> do
-                (acct, _) <- liftHandler $ W.readChimericAccount @_ @s @k @n wrk wid
+                (acct, _) <- liftHandler $ W.readRewardAccount @_ @s @k @n wrk wid
                 wdrl <- liftHandler $ W.queryRewardBalance @_ @t wrk acct
                 liftIO $ W.readNextWithdrawal @_ @s @t @k wrk wid wdrl
 
             Just (ExternalWithdrawal (ApiMnemonicT mw)) -> do
-                let (_, acct) = W.someChimericAccount @ShelleyKey mw
+                let (_, acct) = W.someRewardAccount @ShelleyKey mw
                 wdrl <- liftHandler $ W.queryRewardBalance @_ @t wrk acct
                 liftIO $ W.readNextWithdrawal @_ @s @t @k wrk wid wdrl
 
@@ -1514,7 +1514,7 @@ joinStakePool
     :: forall ctx s t n k.
         ( DelegationAddress n k
         , s ~ SeqState n k
-        , IsOurs s ChimericAccount
+        , IsOurs s RewardAccount
         , IsOwned s k
         , GenChange s
         , SoftDerivation k
@@ -1591,7 +1591,7 @@ quitStakePool
     :: forall ctx s t n k.
         ( DelegationAddress n k
         , s ~ SeqState n k
-        , IsOurs s ChimericAccount
+        , IsOurs s RewardAccount
         , IsOwned s k
         , GenChange s
         , HasNetworkLayer t ctx
@@ -1673,7 +1673,7 @@ getMigrationInfo ctx (ApiT wid) = do
 
 migrateWallet
     :: forall s t k n p.
-        ( IsOurs s ChimericAccount
+        ( IsOurs s RewardAccount
         , IsOwned s k
         , HardDerivation k
         , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
@@ -2047,7 +2047,7 @@ mkApiTransaction
     -> Hash "Tx"
     -> [(TxIn, Maybe TxOut)]
     -> [TxOut]
-    -> Map ChimericAccount Coin
+    -> Map RewardAccount Coin
     -> (W.TxMeta, UTCTime)
     -> Maybe W.TxMetadata
     -> Lens' (ApiTransaction n) (Maybe ApiBlockReference)
@@ -2086,7 +2086,7 @@ mkApiCoin (Coin c) = Quantity $ fromIntegral c
 
 mkApiWithdrawal
     :: forall (n :: NetworkDiscriminant). ()
-    => (ChimericAccount, Coin)
+    => (RewardAccount, Coin)
     -> ApiWithdrawal n
 mkApiWithdrawal (acct, c) =
     ApiWithdrawal (ApiT acct, Proxy @n) (mkApiCoin c)
@@ -2152,7 +2152,7 @@ getWalletTip ti = makeApiBlockReferenceFromHeader ti . currentTip
 newApiLayer
     :: forall ctx s t k.
         ( ctx ~ ApiLayer s t k
-        , IsOurs s ChimericAccount
+        , IsOurs s RewardAccount
         , IsOurs s Address
         )
     => Tracer IO (WorkerLog WalletId WalletLog)
@@ -2173,7 +2173,7 @@ newApiLayer tr g0 nw tl df coworker = do
 registerWorker
     :: forall ctx s t k.
         ( ctx ~ ApiLayer s t k
-        , IsOurs s ChimericAccount
+        , IsOurs s RewardAccount
         , IsOurs s Address
         )
     => ApiLayer s t k
@@ -2678,13 +2678,13 @@ instance LiftHandler ErrJoinStakePool where
 
 instance LiftHandler ErrFetchRewards where
     handler = \case
-        ErrFetchRewardsReadChimericAccount e -> handler e
+        ErrFetchRewardsReadRewardAccount e -> handler e
         ErrFetchRewardsNetworkUnreachable e -> handler e
 
-instance LiftHandler ErrReadChimericAccount where
+instance LiftHandler ErrReadRewardAccount where
     handler = \case
-        ErrReadChimericAccountNoSuchWallet e -> handler e
-        ErrReadChimericAccountNotAShelleyWallet ->
+        ErrReadRewardAccountNoSuchWallet e -> handler e
+        ErrReadRewardAccountNotAShelleyWallet ->
             apiError err403 InvalidWalletType $ mconcat
                 [ "It is regrettable but you've just attempted an operation "
                 , "that is invalid for this type of wallet. Only new 'Shelley' "

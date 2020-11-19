@@ -30,7 +30,7 @@ module Cardano.Wallet.Primitive.AddressDerivation.Shelley
     , unsafeGenerateKeyFromSeed
 
     -- * Reward Account
-    , toChimericAccountRaw
+    , toRewardAccountRaw
 
     -- * Address
     , decodeShelleyAddress
@@ -55,8 +55,7 @@ import Cardano.Crypto.Wallet
 import Cardano.Mnemonic
     ( SomeMnemonic (..), entropyToBytes, mnemonicToEntropy )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( ChimericAccount (..)
-    , DelegationAddress (..)
+    ( DelegationAddress (..)
     , Depth (..)
     , DerivationIndex (..)
     , DerivationType (..)
@@ -69,8 +68,9 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , PaymentAddress (..)
     , PersistPrivateKey (..)
     , PersistPublicKey (..)
+    , RewardAccount (..)
     , SoftDerivation (..)
-    , ToChimericAccount (..)
+    , ToRewardAccount (..)
     , WalletKey (..)
     , deriveRewardAccount
     , fromHex
@@ -331,7 +331,7 @@ instance MkKeyFingerprint ShelleyKey (Proxy (n :: NetworkDiscriminant), ShelleyK
                           Dealing with Rewards
 -------------------------------------------------------------------------------}
 
-instance IsOurs (SeqState n ShelleyKey) ChimericAccount
+instance IsOurs (SeqState n ShelleyKey) RewardAccount
   where
     isOurs account state@SeqState{derivationPrefix} =
         let
@@ -346,18 +346,18 @@ instance IsOurs (SeqState n ShelleyKey) ChimericAccount
         in
             (guard (account == ourAccount) *> Just path, state)
       where
-        ourAccount = toChimericAccount $ rewardAccountKey state
+        ourAccount = toRewardAccount $ rewardAccountKey state
 
-instance ToChimericAccount ShelleyKey where
-    toChimericAccount = toChimericAccountRaw . getKey
-    someChimericAccount mw =
-        (getRawKey acctK, toChimericAccount (publicKey acctK))
+instance ToRewardAccount ShelleyKey where
+    toRewardAccount = toRewardAccountRaw . getKey
+    someRewardAccount mw =
+        (getRawKey acctK, toRewardAccount (publicKey acctK))
       where
         rootK = generateKeyFromSeed (mw, Nothing) mempty
         acctK = deriveRewardAccount mempty rootK
 
-toChimericAccountRaw :: XPub -> ChimericAccount
-toChimericAccountRaw = ChimericAccount . blake2b224 . xpubPublicKey
+toRewardAccountRaw :: XPub -> RewardAccount
+toRewardAccountRaw = RewardAccount . blake2b224 . xpubPublicKey
 
 {-------------------------------------------------------------------------------
                           Storing and retrieving keys

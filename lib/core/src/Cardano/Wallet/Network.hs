@@ -53,10 +53,10 @@ import Cardano.Wallet.Primitive.Types
     , SlotNo (..)
     , SlottingParameters (..)
     )
-import Cardano.Wallet.Primitive.Types.ChimericAccount
-    ( ChimericAccount (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
+import Cardano.Wallet.Primitive.Types.RewardAccount
+    ( RewardAccount (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx )
 import Control.Concurrent
@@ -153,7 +153,7 @@ data NetworkLayer m target block = NetworkLayer
         :: GetStakeDistribution target m
 
     , getAccountBalance
-        :: ChimericAccount
+        :: RewardAccount
         -> ExceptT ErrGetAccountBalance m (Quantity "lovelace" Word64)
 
     , timeInterpreter
@@ -213,7 +213,7 @@ instance Exception ErrPostTx
 
 data ErrGetAccountBalance
     = ErrGetAccountBalanceNetworkUnreachable ErrNetworkUnavailable
-    | ErrGetAccountBalanceAccountNotFound ChimericAccount
+    | ErrGetAccountBalanceAccountNotFound RewardAccount
     deriving (Generic, Eq, Show)
 
 {-------------------------------------------------------------------------------

@@ -123,18 +123,17 @@ import Cardano.Wallet.Primitive.Types
     , SortOrder (..)
     , StakeKeyCertificate
     , TxParameters (..)
-    , UTxO (..)
     , WalletId (..)
     , WalletMetadata (..)
     )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address )
-import Cardano.Wallet.Primitive.Types.ChimericAccount
-    ( ChimericAccount (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
+import Cardano.Wallet.Primitive.Types.RewardAccount
+    ( RewardAccount (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..)
     , TransactionInfo (..)
@@ -146,6 +145,8 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxStatus
     , inputs
     )
+import Cardano.Wallet.Primitive.Types.UTxO
+    ( UTxO (..) )
 import Control.Foldl
     ( Fold (..) )
 import Control.Monad.IO.Class
@@ -894,7 +895,7 @@ instance ToExpr MWid where
 instance ToExpr StakeKeyCertificate where
     toExpr = genericToExpr
 
-instance ToExpr ChimericAccount where
+instance ToExpr RewardAccount where
     toExpr = genericToExpr
 
 {-------------------------------------------------------------------------------

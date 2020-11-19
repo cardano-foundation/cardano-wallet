@@ -110,8 +110,8 @@ import Cardano.Wallet.Primitive.Types
     )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address )
-import Cardano.Wallet.Primitive.Types.ChimericAccount
-    ( ChimericAccount )
+import Cardano.Wallet.Primitive.Types.RewardAccount
+    ( RewardAccount )
 import Cardano.Wallet.Registry
     ( HasWorkerCtx (..), WorkerLog (..), defaultWorkerAfter )
 import Cardano.Wallet.Shelley.Api.Server
@@ -349,7 +349,7 @@ serveWallet
     apiLayer
         :: forall s k.
             ( IsOurs s Address
-            , IsOurs s ChimericAccount
+            , IsOurs s RewardAccount
             , PersistState s
             , PersistPrivateKey (k 'RootK)
             , WalletKey k

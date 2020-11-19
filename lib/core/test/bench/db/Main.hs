@@ -108,7 +108,6 @@ import Cardano.Wallet.Primitive.Types
     , SlottingParameters (..)
     , SortOrder (..)
     , StartTime (..)
-    , UTxO (..)
     , WalletDelegation (..)
     , WalletDelegationStatus (..)
     , WalletId (..)
@@ -130,6 +129,8 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxOut (..)
     , TxStatus (..)
     )
+import Cardano.Wallet.Primitive.Types.UTxO
+    ( UTxO (..) )
 import Cardano.Wallet.Unsafe
     ( someDummyMnemonic, unsafeRunExceptT )
 import Control.DeepSeq

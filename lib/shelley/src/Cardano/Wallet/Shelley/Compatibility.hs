@@ -238,9 +238,9 @@ import qualified Cardano.Ledger.Crypto as SL
 import qualified Cardano.Ledger.Shelley as SL
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Address as W
-import qualified Cardano.Wallet.Primitive.Types.ChimericAccount as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
+import qualified Cardano.Wallet.Primitive.Types.RewardAccount as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Codec.Binary.Bech32 as Bech32
 import qualified Codec.Binary.Bech32.TH as Bech32
@@ -658,7 +658,9 @@ fromPoolDistr =
 -- NOTE: This function disregards results that are using staking keys
 fromNonMyopicMemberRewards
     :: O.NonMyopicMemberRewards crypto
-    -> Map (Either W.Coin W.ChimericAccount) (Map W.PoolId (Quantity "lovelace" Word64))
+    -> Map
+        (Either W.Coin W.RewardAccount)
+        (Map W.PoolId (Quantity "lovelace" Word64))
 fromNonMyopicMemberRewards =
     Map.map (Map.map lovelaceFromCoin . Map.mapKeys fromPoolId)
     . Map.mapKeys (bimap fromShelleyCoin fromStakeCredential)
@@ -725,9 +727,10 @@ fromShelleyTx (SL.Tx bod@(SL.TxBody ins outs certs wdrls _ _ _ _) _ mmd) =
     , mapMaybe fromShelleyRegistrationCert (toList certs)
     )
 
-fromShelleyWdrl :: SL.Wdrl crypto -> Map W.ChimericAccount W.Coin
+fromShelleyWdrl :: SL.Wdrl crypto -> Map W.RewardAccount W.Coin
 fromShelleyWdrl (SL.Wdrl wdrl) = Map.fromList $
-    bimap (fromStakeCredential . SL.getRwdCred) fromShelleyCoin <$> Map.toList wdrl
+    bimap (fromStakeCredential . SL.getRwdCred) fromShelleyCoin
+        <$> Map.toList wdrl
 
 fromShelleyMetadata :: SL.MetaData -> Cardano.TxMetadata
 fromShelleyMetadata (SL.MetaData md) = Cardano.makeTransactionMetadata md'
@@ -803,15 +806,17 @@ fromPoolMetaData meta =
     )
 
 
--- | Convert a stake credentials to a 'ChimericAccount' type. Unlike with
--- Jörmungandr, the Chimeric payload doesn't represent a public key but a HASH
--- of a public key.
-fromStakeCredential :: SL.Credential 'SL.Staking crypto -> W.ChimericAccount
+-- | Convert a stake credentials to a 'RewardAccount' type.
+--
+-- Unlike with Jörmungandr, the reward account payload doesn't represent a
+-- public key but a HASH of a public key.
+--
+fromStakeCredential :: SL.Credential 'SL.Staking crypto -> W.RewardAccount
 fromStakeCredential = \case
     SL.ScriptHashObj (SL.ScriptHash h) ->
-        W.ChimericAccount (hashToBytes h)
+        W.RewardAccount (hashToBytes h)
     SL.KeyHashObj (SL.KeyHash h) ->
-        W.ChimericAccount (hashToBytes h)
+        W.RewardAccount (hashToBytes h)
 
 fromPoolKeyHash :: SL.KeyHash rol sc -> W.PoolId
 fromPoolKeyHash (SL.KeyHash h) =
@@ -875,13 +880,13 @@ toCardanoTxIn :: W.TxIn -> Cardano.TxIn
 toCardanoTxIn (W.TxIn tid ix) =
     Cardano.TxIn (toCardanoTxId tid) (Cardano.TxIx (fromIntegral ix))
 
-toCardanoStakeCredential :: W.ChimericAccount -> Cardano.StakeCredential
+toCardanoStakeCredential :: W.RewardAccount -> Cardano.StakeCredential
 toCardanoStakeCredential = Cardano.StakeCredentialByKey
     . Cardano.StakeKeyHash
     . SL.KeyHash
     . UnsafeHash
     . SBS.toShort
-    . W.unChimericAccount
+    . W.unRewardAccount
 
 toCardanoLovelace :: W.Coin -> Cardano.Lovelace
 toCardanoLovelace (W.Coin c) = Cardano.Lovelace $ safeCast c
@@ -896,11 +901,11 @@ toCardanoTxOut (W.TxOut (W.Address addr) coin) =
     addr' = fromMaybe (error "toCardanoTxOut: malformed address")
         $ deserialiseFromRawBytes AsShelleyAddress addr
 
--- | Convert from a chimeric account address (which is a hash of a public key)
+-- | Convert from reward account address (which is a hash of a public key)
 -- to a shelley ledger stake credential.
-toStakeCredential :: W.ChimericAccount -> SL.StakeCredential crypto
+toStakeCredential :: W.RewardAccount -> SL.StakeCredential crypto
 toStakeCredential = SL.KeyHashObj
-    . SL.KeyHash . UnsafeHash . toShort . W.unChimericAccount
+    . SL.KeyHash . UnsafeHash . toShort . W.unRewardAccount
 
 toStakeKeyDeregCert :: XPub -> Cardano.Certificate
 toStakeKeyDeregCert = Cardano.makeStakeAddressDeregistrationCertificate
@@ -958,9 +963,9 @@ toNetworkId = \case
 
 _encodeStakeAddress
     :: SL.Network
-    -> W.ChimericAccount
+    -> W.RewardAccount
     -> Text
-_encodeStakeAddress network (W.ChimericAccount acct) =
+_encodeStakeAddress network (W.RewardAccount acct) =
     Bech32.encodeLenient hrp (dataPartFromBytes bytes)
   where
     hrp = case network of
@@ -973,7 +978,7 @@ _encodeStakeAddress network (W.ChimericAccount acct) =
 _decodeStakeAddress
     :: SL.Network
     -> Text
-    -> Either TextDecodingError W.ChimericAccount
+    -> Either TextDecodingError W.RewardAccount
 _decodeStakeAddress serverNetwork txt = do
     (_, dp) <- left (const errBech32) $ Bech32.decodeLenient txt
     bytes <- maybe (Left errBech32) Right $ dataPartToBytes dp

@@ -94,7 +94,6 @@ import Cardano.Wallet.Primitive.Types
     , SlotNo (..)
     , SortOrder (..)
     , TxParameters (..)
-    , UTxO (..)
     , WalletDelegation (..)
     , WalletDelegationStatus (..)
     , WalletId (..)
@@ -106,12 +105,12 @@ import Cardano.Wallet.Primitive.Types
     )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..), AddressState (..) )
-import Cardano.Wallet.Primitive.Types.ChimericAccount
-    ( ChimericAccount (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
+import Cardano.Wallet.Primitive.Types.RewardAccount
+    ( RewardAccount (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..)
     , Tx (..)
@@ -122,6 +121,8 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxStatus (..)
     , isPending
     )
+import Cardano.Wallet.Primitive.Types.UTxO
+    ( UTxO (..) )
 import Cardano.Wallet.Unsafe
     ( someDummyMnemonic, unsafeMkPercentage )
 import Control.Arrow
@@ -206,7 +207,7 @@ type GenState s =
     ( Arbitrary s
     , Buildable s
     , IsOurs s Address
-    , IsOurs s ChimericAccount
+    , IsOurs s RewardAccount
     , NFData s
     , Show s
     )
@@ -635,9 +636,9 @@ instance Arbitrary Percentage where
 instance Arbitrary DecentralizationLevel where
     arbitrary = DecentralizationLevel <$> arbitrary
 
-instance Arbitrary ChimericAccount where
+instance Arbitrary RewardAccount where
     arbitrary =
-        ChimericAccount . BS.pack <$> vector 28
+        RewardAccount . BS.pack <$> vector 28
 
 instance Arbitrary (Hash purpose) where
     arbitrary = do
@@ -649,11 +650,11 @@ instance Arbitrary PoolId where
 
 instance Arbitrary DelegationCertificate where
     arbitrary = oneof
-        [ CertDelegateNone <$> arbitraryChimericAccount
-        , CertDelegateFull <$> arbitraryChimericAccount <*> arbitrary
+        [ CertDelegateNone <$> genArbitraryRewardAccount
+        , CertDelegateFull <$> genArbitraryRewardAccount <*> arbitrary
         ]
       where
-        arbitraryChimericAccount = pure $ ChimericAccount $ BS.replicate 32 0
+        genArbitraryRewardAccount = pure $ RewardAccount $ BS.replicate 32 0
 
 instance Arbitrary Word31 where
     arbitrary = arbitrarySizedBoundedIntegral

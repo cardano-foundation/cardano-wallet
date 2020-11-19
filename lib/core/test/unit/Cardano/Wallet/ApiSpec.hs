@@ -64,8 +64,8 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
-import Cardano.Wallet.Primitive.Types.ChimericAccount
-    ( ChimericAccount (..) )
+import Cardano.Wallet.Primitive.Types.RewardAccount
+    ( RewardAccount (..) )
 import Control.Arrow
     ( first )
 import Control.Monad
@@ -372,7 +372,7 @@ instance EncodeStakeAddress ('Testnet 0) where
     encodeStakeAddress = T.pack . show
 
 instance DecodeStakeAddress ('Testnet 0) where
-    decodeStakeAddress _ = pure (ChimericAccount "<acct>")
+    decodeStakeAddress _ = pure (RewardAccount "<acct>")
 
 everyPathParam :: GEveryEndpoints api => Proxy api -> MkPathRequest api
 everyPathParam proxy = gEveryPathParam proxy defaultRequest
