@@ -43,12 +43,12 @@ import Cardano.Wallet.Orphans
     ()
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
-import Cardano.Wallet.Primitive.Types.ChimericAccount
-    ( ChimericAccount (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
+import Cardano.Wallet.Primitive.Types.RewardAccount
+    ( RewardAccount (..) )
 import Control.DeepSeq
     ( NFData (..) )
 import Data.ByteArray
@@ -120,7 +120,7 @@ data Tx = Tx
         -- Outputs are used as inputs for next transactions which refer to them
         -- using their indexes. It matters also for serialization.
     , withdrawals
-        :: !(Map ChimericAccount Coin)
+        :: !(Map RewardAccount Coin)
         -- ^ Withdrawals (of funds from a registered reward account) embedded in
         -- a transaction. The order does not matter.
     , metadata
@@ -305,7 +305,7 @@ data TransactionInfo = TransactionInfo
     -- source. Source information can only be provided for outgoing payments.
     , txInfoOutputs :: ![TxOut]
     -- ^ Payment destination.
-    , txInfoWithdrawals :: !(Map ChimericAccount Coin)
+    , txInfoWithdrawals :: !(Map RewardAccount Coin)
     -- ^ Withdrawals on this transaction.
     , txInfoMeta :: !TxMeta
     -- ^ Other information calculated from the transaction.

@@ -104,14 +104,14 @@ import Cardano.Wallet.Primitive.Types
     )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..), AddressState (..) )
-import Cardano.Wallet.Primitive.Types.ChimericAccount
-    ( ChimericAccount (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..), isValidCoin )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.HashSpec
     ()
+import Cardano.Wallet.Primitive.Types.RewardAccount
+    ( RewardAccount (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..)
     , Tx (..)
@@ -1221,8 +1221,8 @@ instance Arbitrary TxMetadata where
     shrink = shrinkTxMetadata
     arbitrary = genTxMetadata
 
-instance Arbitrary ChimericAccount where
-    arbitrary = ChimericAccount . BS.pack <$> vector 28
+instance Arbitrary RewardAccount where
+    arbitrary = RewardAccount . BS.pack <$> vector 28
 
 instance Arbitrary BlockHeader where
     shrink _ = []

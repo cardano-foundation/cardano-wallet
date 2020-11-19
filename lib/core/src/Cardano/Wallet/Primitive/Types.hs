@@ -170,12 +170,12 @@ import Cardano.Slotting.Slot
     ( SlotNo (..) )
 import Cardano.Wallet.Orphans
     ()
-import Cardano.Wallet.Primitive.Types.ChimericAccount
-    ( ChimericAccount (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..), hashFromText )
+import Cardano.Wallet.Primitive.Types.RewardAccount
+    ( RewardAccount (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Tx (..), TxIn (..), TxOut (..) )
 import Control.Arrow
@@ -1349,9 +1349,9 @@ testnetMagic = ProtocolMagic $ fromIntegral $ natVal $ Proxy @pm
 
 -- | Represent a delegation certificate.
 data DelegationCertificate
-    = CertDelegateNone ChimericAccount
-    | CertDelegateFull ChimericAccount PoolId
-    | CertRegisterKey ChimericAccount
+    = CertDelegateNone RewardAccount
+    | CertDelegateFull RewardAccount PoolId
+    | CertRegisterKey RewardAccount
     deriving (Generic, Show, Eq, Ord)
 
 instance NFData DelegationCertificate
@@ -1363,7 +1363,7 @@ data StakeKeyCertificate
 
 instance NFData StakeKeyCertificate
 
-dlgCertAccount :: DelegationCertificate -> ChimericAccount
+dlgCertAccount :: DelegationCertificate -> RewardAccount
 dlgCertAccount = \case
     CertDelegateNone acc -> acc
     CertDelegateFull acc _ -> acc

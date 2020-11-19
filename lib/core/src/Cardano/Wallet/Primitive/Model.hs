@@ -70,10 +70,10 @@ import Cardano.Wallet.Primitive.Types
     )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
-import Cardano.Wallet.Primitive.Types.ChimericAccount
-    ( ChimericAccount (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
+import Cardano.Wallet.Primitive.Types.RewardAccount
+    ( RewardAccount (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..)
     , Tx (..)
@@ -189,7 +189,7 @@ instance Buildable s => Buildable (Wallet s) where
 --
 -- The wallet tip will be set to the header of the applied genesis block.
 initWallet
-    :: (IsOurs s Address, IsOurs s ChimericAccount)
+    :: (IsOurs s Address, IsOurs s RewardAccount)
     => Block
         -- ^ The genesis block
     -> GenesisParameters
@@ -246,7 +246,7 @@ data FilteredBlock = FilteredBlock
 -- that were discovered while applying the block.
 --
 applyBlock
-    :: (IsOurs s Address, IsOurs s ChimericAccount)
+    :: (IsOurs s Address, IsOurs s RewardAccount)
     => Block
     -> Wallet s
     -> (FilteredBlock, Wallet s)
@@ -279,7 +279,7 @@ applyBlock !b (Wallet !u _ s gp) =
 --   __@w@__.
 --
 applyBlocks
-    :: (IsOurs s Address, IsOurs s ChimericAccount)
+    :: (IsOurs s Address, IsOurs s RewardAccount)
     => NonEmpty (Block)
     -> Wallet s
     -> NonEmpty (FilteredBlock, Wallet s)
@@ -297,7 +297,7 @@ availableBalance pending =
 
 -- | Total balance = 'balance' . 'totalUTxO' +? rewards
 totalBalance
-    :: (IsOurs s Address, IsOurs s ChimericAccount)
+    :: (IsOurs s Address, IsOurs s RewardAccount)
     => Set Tx
     -> Quantity "lovelace" Natural
     -> Wallet s
@@ -357,7 +357,7 @@ totalUTxO pending wallet@(Wallet _ _ s _) =
 -- in order, starting from the known inputs that can be spent (from the previous
 -- UTxO) and collect resolved tx outputs that are ours as we apply transactions.
 prefilterBlock
-    :: (IsOurs s Address, IsOurs s ChimericAccount)
+    :: (IsOurs s Address, IsOurs s RewardAccount)
     => Block
     -> UTxO
     -> s
@@ -368,7 +368,7 @@ prefilterBlock b u0 = runState $ do
     return (FilteredBlock {delegations, transactions}, ourU)
   where
     ourDelegation
-        :: IsOurs s ChimericAccount
+        :: IsOurs s RewardAccount
         => DelegationCertificate
         -> State s (Maybe DelegationCertificate)
     ourDelegation cert =
@@ -376,9 +376,9 @@ prefilterBlock b u0 = runState $ do
             Nothing -> Nothing
             Just{}  -> Just cert
     ourWithdrawal
-        :: IsOurs s ChimericAccount
-        => (ChimericAccount, Coin)
-        -> State s (Maybe (ChimericAccount, Coin))
+        :: IsOurs s RewardAccount
+        => (RewardAccount, Coin)
+        -> State s (Maybe (RewardAccount, Coin))
     ourWithdrawal (acct, amt) =
         state (isOurs acct) <&> \case
             Nothing -> Nothing
@@ -393,7 +393,7 @@ prefilterBlock b u0 = runState $ do
         , expiry = Nothing
         }
     applyTx
-        :: (IsOurs s Address, IsOurs s ChimericAccount)
+        :: (IsOurs s Address, IsOurs s RewardAccount)
         => ([(Tx, TxMeta)], UTxO)
         -> Tx
         -> State s ([(Tx, TxMeta)], UTxO)

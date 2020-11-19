@@ -251,9 +251,9 @@ import System.IO.Error
 
 import qualified Cardano.Ledger.Shelley as SL
 import qualified Cardano.Wallet.Primitive.Types as W
-import qualified Cardano.Wallet.Primitive.Types.ChimericAccount as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
+import qualified Cardano.Wallet.Primitive.Types.RewardAccount as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Codec.CBOR.Term as CBOR
 import qualified Data.Map as Map
@@ -788,7 +788,7 @@ newRewardBalanceFetcher
     -> W.GenesisParameters
     -- ^ Used to convert tips for logging
     -> TQueue IO (LocalStateQueryCmd (CardanoBlock StandardCrypto) IO)
-    -> IO ( Observer IO W.ChimericAccount W.Coin
+    -> IO ( Observer IO W.RewardAccount W.Coin
           , Tip (CardanoBlock StandardCrypto) -> IO ()
             -- Call on tip-change to refresh
           )
@@ -797,8 +797,8 @@ newRewardBalanceFetcher tr gp queryRewardQ =
   where
     fetch
         :: Tip (CardanoBlock StandardCrypto)
-        -> Set W.ChimericAccount
-        -> IO (Maybe (Map W.ChimericAccount W.Coin))
+        -> Set W.RewardAccount
+        -> IO (Maybe (Map W.RewardAccount W.Coin))
     fetch tip accounts = do
         liftIO $ traceWith tr $
             MsgGetRewardAccountBalance (fromTip' gp tip) accounts
@@ -1084,7 +1084,7 @@ data NetworkLayerLog where
     MsgLocalStateQueryEraMismatch :: MismatchEraInfo (CardanoEras StandardCrypto) -> NetworkLayerLog
     MsgGetRewardAccountBalance
         :: W.BlockHeader
-        -> Set W.ChimericAccount
+        -> Set W.RewardAccount
         -> NetworkLayerLog
     MsgAccountDelegationAndRewards
         :: (Map (SL.Credential 'SL.Staking (SL.Shelley StandardCrypto)) (SL.KeyHash 'SL.StakePool (SL.Shelley StandardCrypto)))
@@ -1102,7 +1102,7 @@ data NetworkLayerLog where
     MsgInterpreterPastHorizon :: PastHorizonException -> NetworkLayerLog
     MsgQueryTime :: String -> NominalDiffTime -> NetworkLayerLog
     MsgObserverLog
-        :: ObserverLog W.ChimericAccount W.Coin
+        :: ObserverLog W.RewardAccount W.Coin
         -> NetworkLayerLog
 
 data QueryClientName

@@ -48,8 +48,7 @@ import Cardano.Crypto.Wallet
 import Cardano.Mnemonic
     ( SomeMnemonic (..), entropyToBytes, mnemonicToEntropy, mnemonicToText )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( ChimericAccount (..)
-    , Depth (..)
+    ( Depth (..)
     , DerivationType (..)
     , ErrMkKeyFingerprint (..)
     , HardDerivation (..)
@@ -61,6 +60,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , PaymentAddress (..)
     , PersistPrivateKey (..)
     , PersistPublicKey (..)
+    , RewardAccount (..)
     , SoftDerivation (..)
     , WalletKey (..)
     , fromHex
@@ -391,7 +391,7 @@ instance PaymentAddress n IcarusKey
       where
         err = ErrInvalidAddress (proxy, k) Proxy
 
-instance IsOurs (SeqState n IcarusKey) ChimericAccount where
+instance IsOurs (SeqState n IcarusKey) RewardAccount where
     isOurs _account state = (Nothing, state)
 
 {-------------------------------------------------------------------------------

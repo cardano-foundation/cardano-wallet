@@ -52,12 +52,12 @@ import Cardano.Wallet.Primitive.Types
     )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..), AddressState (..) )
-import Cardano.Wallet.Primitive.Types.ChimericAccount
-    ( ChimericAccount (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..), isValidCoin )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
+import Cardano.Wallet.Primitive.Types.RewardAccount
+    ( RewardAccount (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..), TxMetadata, TxStatus (..) )
 import Control.Arrow
@@ -608,31 +608,31 @@ instance PathPiece StakePoolMetadataUrl where
     toPathPiece = toText
 
 ----------------------------------------------------------------------------
--- ChimericAccount
+-- RewardAccount
 
-instance PersistField ChimericAccount where
+instance PersistField RewardAccount where
     toPersistValue = toPersistValue . toText
     fromPersistValue = fromPersistValueFromText
 
-instance PersistFieldSql ChimericAccount where
+instance PersistFieldSql RewardAccount where
     sqlType _ = sqlType (Proxy @Text)
 
-instance Read ChimericAccount where
+instance Read RewardAccount where
     readsPrec _ = error "readsPrec stub needed for persistent"
 
-instance ToHttpApiData ChimericAccount where
+instance ToHttpApiData RewardAccount where
     toUrlPiece = toText
 
-instance FromHttpApiData ChimericAccount where
+instance FromHttpApiData RewardAccount where
     parseUrlPiece = fromText'
 
-instance ToJSON ChimericAccount where
+instance ToJSON RewardAccount where
     toJSON = String . toText
 
-instance FromJSON ChimericAccount where
-    parseJSON = aesonFromText "ChimericAccount"
+instance FromJSON RewardAccount where
+    parseJSON = aesonFromText "RewardAccount"
 
-instance PathPiece ChimericAccount where
+instance PathPiece RewardAccount where
     fromPathPiece = fromTextMaybe
     toPathPiece = toText
 

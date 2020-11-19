@@ -124,10 +124,10 @@ import Cardano.Wallet.Primitive.Types
     )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
-import Cardano.Wallet.Primitive.Types.ChimericAccount
-    ( ChimericAccount )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
+import Cardano.Wallet.Primitive.Types.RewardAccount
+    ( RewardAccount )
 import Cardano.Wallet.Primitive.Types.Tx
     ( TxOut (..) )
 import Cardano.Wallet.Shelley
@@ -557,7 +557,7 @@ benchmarksSeq _ w wid _wname benchname restoreTime = do
 bench_restoration
     :: forall (n :: NetworkDiscriminant) (k :: Depth -> * -> *) s t results.
         ( IsOurs s Address
-        , IsOurs s ChimericAccount
+        , IsOurs s RewardAccount
         , IsOwned s k
         , WalletKey k
         , NFData s
@@ -670,7 +670,7 @@ withBenchDBLayer
         , NFData s
         , Show s
         , PersistState s
-        , IsOurs s ChimericAccount
+        , IsOurs s RewardAccount
         , IsOurs s Address
         , PersistPrivateKey (k 'RootK)
         , WalletKey k

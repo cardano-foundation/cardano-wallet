@@ -35,7 +35,7 @@ spec = do
         textRoundtrip $ Proxy @(Hash "Account")
         textRoundtrip $ Proxy @(Hash "Block")
         textRoundtrip $ Proxy @(Hash "BlockHeader")
-        textRoundtrip $ Proxy @(Hash "ChimericAccount")
+        textRoundtrip $ Proxy @(Hash "RewardAccount")
         textRoundtrip $ Proxy @(Hash "Genesis")
         textRoundtrip $ Proxy @(Hash "Tx")
 
@@ -71,7 +71,7 @@ instance Arbitrary (Hash "Block") where
 instance Arbitrary (Hash "Account") where
     arbitrary = Hash . BS.pack <$> vector 32
 
-instance Arbitrary (Hash "ChimericAccount") where
+instance Arbitrary (Hash "RewardAccount") where
     arbitrary = Hash . BS.pack <$> vector 28
 
 instance Arbitrary (Hash "BlockHeader") where

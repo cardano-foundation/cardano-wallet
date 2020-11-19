@@ -90,12 +90,12 @@ import Cardano.Wallet.Primitive.Types
     )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
-import Cardano.Wallet.Primitive.Types.ChimericAccount
-    ( ChimericAccount (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
+import Cardano.Wallet.Primitive.Types.RewardAccount
+    ( RewardAccount (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..)
     , SealedTx (..)
@@ -794,7 +794,7 @@ instance Arbitrary DummyState where
 instance IsOurs DummyState Address where
     isOurs _ s = (Just (DerivationIndex 0 :| []), s)
 
-instance IsOurs DummyState ChimericAccount where
+instance IsOurs DummyState RewardAccount where
     isOurs _ s = (Nothing, s)
 
 instance IsOwned DummyState JormungandrKey where
@@ -897,8 +897,8 @@ instance Arbitrary Tx where
         <*> fmap (Map.fromList . L.take 5) arbitrary
         <*> arbitrary
 
-instance Arbitrary ChimericAccount where
-    arbitrary = ChimericAccount . BS.pack <$> vector 28
+instance Arbitrary RewardAccount where
+    arbitrary = RewardAccount . BS.pack <$> vector 28
 
 instance Arbitrary TxIn where
     arbitrary = TxIn

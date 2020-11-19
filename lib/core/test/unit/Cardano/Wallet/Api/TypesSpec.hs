@@ -176,12 +176,12 @@ import Cardano.Wallet.Primitive.Types
     )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..), AddressState (..) )
-import Cardano.Wallet.Primitive.Types.ChimericAccount
-    ( ChimericAccount (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
+import Cardano.Wallet.Primitive.Types.RewardAccount
+    ( RewardAccount (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..)
     , TxIn (..)
@@ -1003,7 +1003,7 @@ instance EncodeStakeAddress ('Testnet 0) where
     encodeStakeAddress = const "<stake-addr>"
 
 instance DecodeStakeAddress ('Testnet 0) where
-    decodeStakeAddress "<stake-addr>" = Right $ ChimericAccount "<stake-addr>"
+    decodeStakeAddress "<stake-addr>" = Right $ RewardAccount "<stake-addr>"
     decodeStakeAddress _ = Left $ TextDecodingError "invalid stake address"
 
 
@@ -1646,8 +1646,8 @@ instance Arbitrary (ApiWithdrawal (t :: NetworkDiscriminant)) where
         <$> fmap (, Proxy @t) arbitrary
         <*> arbitrary
 
-instance Arbitrary ChimericAccount where
-    arbitrary = ChimericAccount . BS.pack <$> vector 28
+instance Arbitrary RewardAccount where
+    arbitrary = RewardAccount . BS.pack <$> vector 28
 
 instance Arbitrary Coin where
     -- No Shrinking

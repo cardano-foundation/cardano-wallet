@@ -52,12 +52,12 @@ import Cardano.Wallet.Primitive.Types
     )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
-import Cardano.Wallet.Primitive.Types.ChimericAccount
-    ( ChimericAccount (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
+import Cardano.Wallet.Primitive.Types.RewardAccount
+    ( RewardAccount (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..)
     , Tx (..)
@@ -367,8 +367,8 @@ ourAddresses :: WalletState -> Set Address
 ourAddresses =
     Set.map (\(ShowFmt a) -> a) . _ourAddresses
 
-ourChimericAccount :: ChimericAccount
-ourChimericAccount = ChimericAccount $ BS.replicate 28 0
+ourRewardAccount :: RewardAccount
+ourRewardAccount = RewardAccount $ BS.replicate 28 0
 
 instance NFData WalletState
 
@@ -387,9 +387,9 @@ instance IsOurs WalletState Address where
             Nothing ->
                 (Nothing, s)
 
-instance IsOurs WalletState ChimericAccount where
+instance IsOurs WalletState RewardAccount where
     isOurs account s =
-        ( guard (account == ourChimericAccount) $> (DerivationIndex 0 :| [])
+        ( guard (account == ourRewardAccount) $> (DerivationIndex 0 :| [])
         , s
         )
 
@@ -438,7 +438,7 @@ instance Arbitrary (WithPending WalletState) where
                         then tx
                         else tx
                             { withdrawals =
-                                Map.singleton ourChimericAccount rewards
+                                Map.singleton ourRewardAccount rewards
                             , outputs =
                                 out { coin = rewards } : outputs tx
                             }

@@ -129,12 +129,12 @@ import Cardano.Wallet.Primitive.Types
     )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address )
-import Cardano.Wallet.Primitive.Types.ChimericAccount
-    ( ChimericAccount (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
+import Cardano.Wallet.Primitive.Types.RewardAccount
+    ( RewardAccount (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..)
     , TransactionInfo (..)
@@ -894,7 +894,7 @@ instance ToExpr MWid where
 instance ToExpr StakeKeyCertificate where
     toExpr = genericToExpr
 
-instance ToExpr ChimericAccount where
+instance ToExpr RewardAccount where
     toExpr = genericToExpr
 
 {-------------------------------------------------------------------------------
