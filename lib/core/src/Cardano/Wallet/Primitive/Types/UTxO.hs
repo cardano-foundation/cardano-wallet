@@ -12,11 +12,11 @@
 --
 module Cardano.Wallet.Primitive.Types.UTxO
     (
-    -- * UTxO Types
+    -- * UTxO types
       UTxO (..)
     , UTxOStatistics (..)
 
-    -- * Auxilliary Types
+    -- * Auxilliary types
     , BoundType
     , Dom (..)
     , HistogramBar (..)
@@ -54,11 +54,7 @@ import Data.Set
 import Data.Word
     ( Word64 )
 import Fmt
-    ( Buildable (..)
-    , blockListF'
-    , padRightF
-    , tupleF
-    )
+    ( Buildable (..), blockListF', padRightF, tupleF )
 import GHC.Generics
     ( Generic )
 import Numeric.Natural

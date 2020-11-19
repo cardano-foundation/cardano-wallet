@@ -27,12 +27,12 @@ module Cardano.Wallet.Primitive.CoinSelection
 
 import Prelude
 
-import Cardano.Wallet.Primitive.Types
-    ( balance' )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( TxIn, TxOut (..) )
+import Cardano.Wallet.Primitive.Types.UTxO
+    ( balance' )
 import Data.List
     ( foldl' )
 import Data.Quantity

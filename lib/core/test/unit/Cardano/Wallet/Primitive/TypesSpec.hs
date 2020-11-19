@@ -55,12 +55,9 @@ import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
     , Block (..)
     , BlockHeader (..)
-    , BoundType
-    , Dom (..)
     , EpochLength (..)
     , EpochNo (..)
     , FeePolicy (..)
-    , HistogramBar (..)
     , PoolId (..)
     , PoolOwner (..)
     , Range (..)
@@ -71,21 +68,14 @@ import Cardano.Wallet.Primitive.Types
     , SlotLength (..)
     , SlotNo (..)
     , StartTime (..)
-    , UTxO (..)
-    , UTxOStatistics (..)
     , WalletId (..)
     , WalletName (..)
-    , balance
-    , computeUtxoStatistics
     , decodePoolIdBech32
     , encodePoolIdBech32
-    , excluding
     , isAfterRange
     , isBeforeRange
     , isSubrangeOf
-    , isSubsetOf
     , isWithinRange
-    , log10
     , mapRangeLowerBound
     , mapRangeUpperBound
     , rangeHasLowerBound
@@ -95,8 +85,6 @@ import Cardano.Wallet.Primitive.Types
     , rangeIsValid
     , rangeLowerBound
     , rangeUpperBound
-    , restrictedBy
-    , restrictedTo
     , unsafeEpochNo
     , walletNameMaxLength
     , walletNameMinLength
@@ -121,6 +109,20 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxMetadataValue (..)
     , TxOut (..)
     , TxStatus (..)
+    )
+import Cardano.Wallet.Primitive.Types.UTxO
+    ( BoundType
+    , Dom (..)
+    , HistogramBar (..)
+    , UTxO (..)
+    , UTxOStatistics (..)
+    , balance
+    , computeUtxoStatistics
+    , excluding
+    , isSubsetOf
+    , log10
+    , restrictedBy
+    , restrictedTo
     )
 import Cardano.Wallet.Unsafe
     ( someDummyMnemonic )

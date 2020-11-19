@@ -39,16 +39,11 @@ import Cardano.Wallet.Primitive.Slotting
 import Cardano.Wallet.Primitive.Types
     ( Block (..)
     , BlockHeader (..)
-    , Dom (..)
     , EpochLength (..)
     , ShowFmt (..)
     , SlotId (..)
     , SlotNo (..)
-    , UTxO (..)
-    , balance
-    , excluding
     , invariant
-    , restrictedTo
     )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
@@ -67,6 +62,8 @@ import Cardano.Wallet.Primitive.Types.Tx
     , txId
     , txIns
     )
+import Cardano.Wallet.Primitive.Types.UTxO
+    ( Dom (..), UTxO (..), balance, excluding, restrictedTo )
 import Control.DeepSeq
     ( NFData (..) )
 import Control.Monad

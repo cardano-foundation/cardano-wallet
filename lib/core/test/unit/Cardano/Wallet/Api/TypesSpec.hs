@@ -150,7 +150,6 @@ import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..) )
 import Cardano.Wallet.Primitive.Types
     ( EpochNo (..)
-    , HistogramBar (..)
     , PoolId (..)
     , PoolMetadataGCStatus (..)
     , PoolMetadataSource
@@ -164,13 +163,9 @@ import Cardano.Wallet.Primitive.Types
     , StakePoolMetadata (..)
     , StakePoolTicker
     , StartTime (..)
-    , UTxO (..)
-    , UTxOStatistics (..)
     , WalletDelegationStatus (..)
     , WalletId (..)
     , WalletName (..)
-    , computeUtxoStatistics
-    , log10
     , walletNameMaxLength
     , walletNameMinLength
     )
@@ -190,6 +185,13 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxMetadata (..)
     , TxOut (..)
     , TxStatus (..)
+    )
+import Cardano.Wallet.Primitive.Types.UTxO
+    ( HistogramBar (..)
+    , UTxO (..)
+    , UTxOStatistics (..)
+    , computeUtxoStatistics
+    , log10
     )
 import Cardano.Wallet.Transaction
     ( DelegationAction (..) )

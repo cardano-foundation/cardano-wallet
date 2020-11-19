@@ -190,12 +190,10 @@ import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..) )
 import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
-    , BoundType
     , DecentralizationLevel (..)
     , EpochLength (..)
     , EpochNo (..)
     , GenesisParameters (..)
-    , HistogramBar (..)
     , NetworkParameters (..)
     , PoolId (..)
     , PoolMetadataGCStatus (..)
@@ -206,7 +204,6 @@ import Cardano.Wallet.Primitive.Types
     , SlottingParameters (..)
     , StakePoolMetadata
     , StartTime (..)
-    , UTxOStatistics (..)
     , WalletBalance (..)
     , WalletId (..)
     , WalletName (..)
@@ -222,6 +219,8 @@ import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..), TxIn (..), TxMetadata, TxStatus (..), txMetadataIsNull )
+import Cardano.Wallet.Primitive.Types.UTxO
+    ( BoundType, HistogramBar (..), UTxOStatistics (..) )
 import Cardano.Wallet.Transaction
     ( DelegationAction (..) )
 import Codec.Binary.Bech32

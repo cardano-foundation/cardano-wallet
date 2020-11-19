@@ -53,23 +53,6 @@ module Cardano.Wallet.Primitive.Types
     , getPoolRegistrationCertificate
     , getPoolRetirementCertificate
 
-    -- * UTxO
-    , UTxO (..)
-    , balance
-    , balance'
-    , pickRandom
-    , excluding
-    , isSubsetOf
-    , restrictedBy
-    , restrictedTo
-    , Dom(..)
-    , UTxOStatistics (..)
-    , HistogramBar (..)
-    , BoundType
-    , computeUtxoStatistics
-    , computeStatistics
-    , log10
-
     -- * Network Parameters
     , NetworkParameters (..)
     , GenesisParameters (..)
@@ -178,23 +161,6 @@ import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Tx (..) )
-import Cardano.Wallet.Primitive.Types.UTxO
-    ( BoundType
-    , Dom (..)
-    , HistogramBar (..)
-    , UTxO (..)
-    , UTxOStatistics (..)
-    , balance
-    , balance'
-    , computeStatistics
-    , computeUtxoStatistics
-    , excluding
-    , isSubsetOf
-    , log10
-    , pickRandom
-    , restrictedBy
-    , restrictedTo
-    )
 import Control.Arrow
     ( left, right )
 import Control.DeepSeq

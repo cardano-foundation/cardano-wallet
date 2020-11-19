@@ -94,7 +94,6 @@ import Cardano.Wallet.Primitive.Types
     , SlotNo (..)
     , SortOrder (..)
     , TxParameters (..)
-    , UTxO (..)
     , WalletDelegation (..)
     , WalletDelegationStatus (..)
     , WalletId (..)
@@ -122,6 +121,8 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxStatus (..)
     , isPending
     )
+import Cardano.Wallet.Primitive.Types.UTxO
+    ( UTxO (..) )
 import Cardano.Wallet.Unsafe
     ( someDummyMnemonic, unsafeMkPercentage )
 import Control.Arrow

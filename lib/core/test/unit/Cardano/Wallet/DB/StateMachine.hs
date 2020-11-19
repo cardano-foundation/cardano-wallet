@@ -123,7 +123,6 @@ import Cardano.Wallet.Primitive.Types
     , SortOrder (..)
     , StakeKeyCertificate
     , TxParameters (..)
-    , UTxO (..)
     , WalletId (..)
     , WalletMetadata (..)
     )
@@ -146,6 +145,8 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxStatus
     , inputs
     )
+import Cardano.Wallet.Primitive.Types.UTxO
+    ( UTxO (..) )
 import Control.Foldl
     ( Fold (..) )
 import Control.Monad.IO.Class

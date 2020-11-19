@@ -24,12 +24,12 @@ import Cardano.Wallet.Primitive.CoinSelection
     , ErrCoinSelection (..)
     , totalBalance
     )
-import Cardano.Wallet.Primitive.Types
-    ( UTxO (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( TxIn, TxOut (..) )
+import Cardano.Wallet.Primitive.Types.UTxO
+    ( UTxO (..) )
 import Control.Arrow
     ( left )
 import Control.Monad

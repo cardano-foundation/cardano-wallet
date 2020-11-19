@@ -80,7 +80,6 @@ import Cardano.Wallet.Primitive.Types
     , PoolId (..)
     , SlotNo (..)
     , SortOrder (..)
-    , UTxO (..)
     , WalletDelegation (..)
     , WalletDelegationNext (..)
     , WalletDelegationStatus (..)
@@ -109,6 +108,8 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxStatus (..)
     , txId
     )
+import Cardano.Wallet.Primitive.Types.UTxO
+    ( UTxO (..) )
 import Cardano.Wallet.Transaction
     ( ErrMkTx (..), TransactionLayer (..) )
 import Cardano.Wallet.Unsafe

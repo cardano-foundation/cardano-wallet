@@ -313,18 +313,14 @@ import Cardano.Wallet.Primitive.Types
     , Range (..)
     , Signature (..)
     , SortOrder (..)
-    , UTxO (..)
-    , UTxOStatistics
     , WalletDelegation (..)
     , WalletDelegationStatus (..)
     , WalletId (..)
     , WalletMetadata (..)
     , WalletName (..)
     , WalletPassphraseInfo (..)
-    , computeUtxoStatistics
     , distance
     , dlgCertPoolId
-    , log10
     , wholeRange
     )
 import Cardano.Wallet.Primitive.Types.Address
@@ -351,6 +347,8 @@ import Cardano.Wallet.Primitive.Types.Tx
     , fromTransactionInfo
     , withdrawals
     )
+import Cardano.Wallet.Primitive.Types.UTxO
+    ( UTxO (..), UTxOStatistics, computeUtxoStatistics, log10 )
 import Cardano.Wallet.Transaction
     ( DelegationAction (..)
     , ErrDecodeSignedTx (..)
@@ -453,6 +451,7 @@ import qualified Cardano.Wallet.Primitive.CoinSelection.Random as CoinSelection
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
+import qualified Cardano.Wallet.Primitive.Types.UTxO as W
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.List as L

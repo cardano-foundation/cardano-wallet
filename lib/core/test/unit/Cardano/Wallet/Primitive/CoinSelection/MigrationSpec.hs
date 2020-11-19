@@ -18,8 +18,6 @@ import Cardano.Wallet.Primitive.Fee
     ( Fee (..), FeeOptions (..), OnDanglingChange (..) )
 import Cardano.Wallet.Primitive.FeeSpec
     ()
-import Cardano.Wallet.Primitive.Types
-    ( UTxO (..), balance )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
@@ -28,6 +26,8 @@ import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( TxIn (..), TxOut (..) )
+import Cardano.Wallet.Primitive.Types.UTxO
+    ( UTxO (..), balance )
 import Data.ByteString
     ( ByteString )
 import Data.Function

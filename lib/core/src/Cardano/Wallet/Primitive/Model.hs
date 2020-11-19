@@ -59,14 +59,9 @@ import Cardano.Wallet.Primitive.Types
     ( Block (..)
     , BlockHeader (..)
     , DelegationCertificate (..)
-    , Dom (..)
     , GenesisParameters (..)
-    , UTxO (..)
-    , balance
     , distance
     , dlgCertAccount
-    , excluding
-    , restrictedBy
     )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
@@ -84,6 +79,8 @@ import Cardano.Wallet.Primitive.Types.Tx
     , inputs
     , txIns
     )
+import Cardano.Wallet.Primitive.Types.UTxO
+    ( Dom (..), UTxO (..), balance, excluding, restrictedBy )
 import Control.DeepSeq
     ( NFData (..), deepseq )
 import Control.Monad

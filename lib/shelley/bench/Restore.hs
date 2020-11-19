@@ -116,11 +116,8 @@ import Cardano.Wallet.Primitive.Types
     , NetworkParameters (..)
     , SlotNo (..)
     , SortOrder (..)
-    , UTxOStatistics (..)
     , WalletId (..)
     , WalletName (..)
-    , computeUtxoStatistics
-    , log10
     )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
@@ -130,6 +127,8 @@ import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount )
 import Cardano.Wallet.Primitive.Types.Tx
     ( TxOut (..) )
+import Cardano.Wallet.Primitive.Types.UTxO
+    ( UTxOStatistics (..), computeUtxoStatistics, log10 )
 import Cardano.Wallet.Shelley
     ( SomeNetworkDiscriminant (..) )
 import Cardano.Wallet.Shelley.Compatibility
