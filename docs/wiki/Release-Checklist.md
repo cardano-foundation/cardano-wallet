@@ -17,40 +17,40 @@
 
 - [ ] Create a new branch for the release:
 
-      ```sh
-      $ git checkout -b your-name/bump-release/YYYY-MM-DD
-      ```
+  ```sh
+  $ git checkout -b your-name/bump-release/YYYY-MM-DD
+  ```
 
 - [ ] Add an entry to the compatibility matrix in
-      [README.md](https://github.com/input-output-hk/cardano-wallet/blob/master/README.md)
-      for this release.
-      Check that versions match `stack.yaml`.
-      Keep info about the last 3 versions of `cardano-wallet`.
+  [README.md](https://github.com/input-output-hk/cardano-wallet/blob/master/README.md)
+  for this release.
+  Check that versions match `stack.yaml`.
+  Keep info about the last 3 versions of `cardano-wallet`.
 
 - [ ] Edit the release parameters section in
-      `./scripts/make_release.sh`. To bump from `2020.3.16` to
-      `2020.4.1` they will look like:
+  `./scripts/make_release.sh`. To bump from `2020.3.16` to
+  `2020.4.1` they will look like:
 
-      ```
-      ################################################################################
-      # Release-specific parameters (Change when you bump the version)
-      #
-      # Use trailing zeros for the date in the git tag, but
-      # do not use trailing zeros for the Cabal version.
-      # i.e. v2020-11-03 and not 2020.11.03 but 2020.11.3
-      GIT_TAG="v2020-04-01"
-      CABAL_VERSION="2020.4.1"
+  ```
+  ################################################################################
+  # Release-specific parameters (Change when you bump the version)
+  #
+  # Use trailing zeros for the date in the git tag, but
+  # do not use trailing zeros for the Cabal version.
+  # i.e. v2020-11-03 and not 2020.11.03 but 2020.11.3
+  GIT_TAG="v2020-04-01"
+  CABAL_VERSION="2020.4.1"
 
-      OLD_GIT_TAG="v2020-03-16"
-      OLD_CABAL_VERSION="2020.3.16"
+  OLD_GIT_TAG="v2020-03-16"
+  OLD_CABAL_VERSION="2020.3.16"
 
-      CARDANO_NODE_TAG="1.9.3"
-      ```
+  CARDANO_NODE_TAG="1.9.3"
+  ```
 
-      > :warning: We use a slightly different notation between
-      > `.cabal` and git tags! Git tags follows the following format:
-      > `vYYYY-MM-DD` (notice the `v` and hyphens) whereas cabal
-      > version are written as: `YYYY.MM.DD`.
+  > :warning: We use a slightly different notation between
+  > `.cabal` and git tags! Git tags follows the following format:
+  > `vYYYY-MM-DD` (notice the `v` and hyphens) whereas cabal
+  > version are written as: `YYYY.MM.DD`.
 
 - [ ] From the **root** of the repository, run:
 
