@@ -6,8 +6,7 @@
 -- Copyright: © 2018-2020 IOHK
 -- License: Apache-2.0
 --
--- This module provides the 'RewardAccount' data type, used for staking
--- purposes.
+-- This module provides the 'RewardAccount' data type.
 --
 module Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..)
@@ -28,8 +27,7 @@ import Fmt
 import GHC.Generics
     ( Generic )
 
--- | Also known as a staking key, a reward account is used in group-type
---   addresses for staking purposes.
+-- | A reward account is used in group-type addresses for delegation.
 --
 -- It is the public key of the account address.
 --
