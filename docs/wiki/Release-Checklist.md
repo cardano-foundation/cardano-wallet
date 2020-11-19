@@ -10,10 +10,10 @@
 
 - [ ] Fetch the tip of `master`:
 
-      ```sh
-      $ git checkout master
-      $ git pull
-      ```
+  ```sh
+  $ git checkout master
+  $ git pull
+  ```
 
 - [ ] Create a new branch for the release:
 
