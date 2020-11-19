@@ -551,6 +551,24 @@ spec = describe "SHELLEY_ADDRESSES" $ do
             $ \(idx, genAddr) -> do
                 let walAddr = fst (addrs !! idx ^. #id) ^. (#getApiT . #unAddress)
                 walAddr `Expectations.shouldBe` genAddr
+
+    it "ANY_ADDRESS_POST_13 - at_least must make sense" $ \ctx -> do
+        forM_ ([0, 4, 333] :: [Int]) $ \atLeast -> do
+            let payload = Json [json|{
+                    "payment": {
+                        "some": {
+                            "from" : [
+                                "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a",
+                                "script_vkh1mwlngj4fcwegw53tdmyemfupen2758xwvudmcz9ap8cnqk7jmh4",
+                                "script_vkh1qw4l62k4203dllrk3dk3sfjpnh3gufhtrtm4qvtrvn4xjp5x5rt"
+                                ],
+                             "at_least": #{atLeast}
+                             }
+                        }
+                }|]
+            r <- request @AnyAddress ctx Link.postAnyAddress Default payload
+            expectResponseCode HTTP.status400 r
+            expectErrorMessage "must have at least one credential" r
   where
     validateAddr resp expected = do
         let addr = getFromResponse id resp
