@@ -14,6 +14,7 @@ module Test.Hspec.Extra
     ( aroundAll
     , it
     , itWithCustomTimeout
+    , flakyBecauseOf
     ) where
 
 import Prelude
@@ -26,8 +27,11 @@ import Control.Concurrent.MVar
     ( MVar, newEmptyMVar, putMVar, takeMVar )
 import Control.Exception
     ( SomeException, catch, throwIO )
+import System.Environment
+    ( lookupEnv )
 import Test.Hspec
     ( ActionWith
+    , Expectation
     , HasCallStack
     , Spec
     , SpecWith
@@ -35,6 +39,7 @@ import Test.Hspec
     , beforeAll
     , beforeWith
     , expectationFailure
+    , pendingWith
     , specify
     )
 
@@ -143,3 +148,11 @@ await = takeMVar
 -- | Some helper to help readability on the thread synchronization above.
 unlock  :: MVar () -> IO ()
 unlock = flip putMVar ()
+
+-- | Mark a test pending because of flakiness, with given reason. Unless the
+-- RUN_FLAKY_TESTS environment variable is set.
+flakyBecauseOf :: String -> Expectation
+flakyBecauseOf ticketOrReason =
+    lookupEnv "RUN_FLAKY_TESTS" >>= \case
+        Just _ -> return ()
+        Nothing -> pendingWith $ "Flaky: " <> ticketOrReason
