@@ -658,7 +658,9 @@ fromPoolDistr =
 -- NOTE: This function disregards results that are using staking keys
 fromNonMyopicMemberRewards
     :: O.NonMyopicMemberRewards crypto
-    -> Map (Either W.Coin W.RewardAccount) (Map W.PoolId (Quantity "lovelace" Word64))
+    -> Map
+        (Either W.Coin W.RewardAccount)
+        (Map W.PoolId (Quantity "lovelace" Word64))
 fromNonMyopicMemberRewards =
     Map.map (Map.map lovelaceFromCoin . Map.mapKeys fromPoolId)
     . Map.mapKeys (bimap fromShelleyCoin fromStakeCredential)
@@ -727,7 +729,8 @@ fromShelleyTx (SL.Tx bod@(SL.TxBody ins outs certs wdrls _ _ _ _) _ mmd) =
 
 fromShelleyWdrl :: SL.Wdrl crypto -> Map W.RewardAccount W.Coin
 fromShelleyWdrl (SL.Wdrl wdrl) = Map.fromList $
-    bimap (fromStakeCredential . SL.getRwdCred) fromShelleyCoin <$> Map.toList wdrl
+    bimap (fromStakeCredential . SL.getRwdCred) fromShelleyCoin
+        <$> Map.toList wdrl
 
 fromShelleyMetadata :: SL.MetaData -> Cardano.TxMetadata
 fromShelleyMetadata (SL.MetaData md) = Cardano.makeTransactionMetadata md'
