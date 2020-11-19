@@ -54,54 +54,54 @@
 
 - [ ] From the **root** of the repository, run:
 
-      ```bash
-      $ ./scripts/make_release.sh
-      ```
+  ```bash
+  $ ./scripts/make_release.sh
+  ```
 
-      This will bump the version in `.cabal` and `.nix` files, and the
-      swagger spec files, and generate release notes.
+  This will bump the version in `.cabal` and `.nix` files, and the
+  swagger spec files, and generate release notes.
 
-      > :bulb: Note: If you get GitHub API rate limit errors, you can
-      > set the `GITHUB_API_TOKEN` environment variable. To create a
-      > _personal access token_, go to your
-      > [Github Settings](https://github.com/settings/tokens).
-      > No scope is required for this token, only public access (as it
-      > is simply used to read publicly available data from the Github
-      > API).
+  > :bulb: Note: If you get GitHub API rate limit errors, you can
+  > set the `GITHUB_API_TOKEN` environment variable. To create a
+  > _personal access token_, go to your
+  > [Github Settings](https://github.com/settings/tokens).
+  > No scope is required for this token, only public access (as it
+  > is simply used to read publicly available data from the Github
+  > API).
 
 - [ ] Open a pull request to submit the modified files. Get it merged.
 
 - [ ] Trigger a release build on CI (Travis) and wait for the build
-      artifacts to be published on github
+  artifacts to be published on github
 
-      ```
-      $ git push origin refs/tags/vYYYY-MM-DD
-      ```
-      
-      Where `YYYY-MM-DD` should be replaced by the actual date of the release.
+  ```
+  $ git push origin refs/tags/vYYYY-MM-DD
+  ```
+
+  Where `YYYY-MM-DD` should be replaced by the actual date of the release.
 
 
 ## Create the release notes
 
 - [ ] Write release notes in the
-      [release page](https://github.com/input-output-hk/cardano-wallet/releases)
-      using the previously generated release notes. Fill in the empty
-      sections.
+  [release page](https://github.com/input-output-hk/cardano-wallet/releases)
+  using the previously generated release notes. Fill in the empty
+  sections.
 
 - [ ] Remove items that are irrelevant to users (e.g. pure
-      refactoring, improved testing)
+  refactoring, improved testing)
 
 - [ ] Make sure the items that the script put in the "Unclassified"
-      section are moved to an appropriate section (or removed).
+  section are moved to an appropriate section (or removed).
 
 - [ ] You may want to polish the language of the PR titles to make it
-      sound like actual release notes.
+  sound like actual release notes.
 
 
 ## Verify release artifacts
 
 - [ ] Verify that the documentations have been correctly exported on
-      [gh-pages](https://github.com/input-output-hk/cardano-wallet/tree/gh-pages)
+  [gh-pages](https://github.com/input-output-hk/cardano-wallet/tree/gh-pages)
 
 - [ ] Make sure the [Command-Line Interface](https://github.com/input-output-hk/cardano-wallet/wiki/Wallet-command-line-interface) manual is up to date.
 
