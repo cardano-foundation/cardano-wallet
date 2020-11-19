@@ -581,6 +581,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
 
     it "STAKE_POOLS_JOIN_05 - \
         \Can join when stake key already exists" $ \ctx -> runResourceT $ do
+        liftIO $ flakyBecauseOf "#2230"
         let walletWithPreRegKey =
                 [ "over", "decorate", "flock", "badge", "beauty"
                 , "stamp" , "chest", "owner", "excess", "omit"
