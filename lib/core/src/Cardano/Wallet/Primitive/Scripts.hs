@@ -22,13 +22,10 @@
 module Cardano.Wallet.Primitive.Scripts
     ( isShared
     , retrieveAllVerKeyHashes
-    , toKeyHash
     ) where
 
 import Prelude
 
-import Cardano.Address.Derivation
-    ( xpubPublicKey )
 import Cardano.Address.Script
     ( KeyHash (..), Script (..), ScriptHash (..), toScriptHash )
 import Cardano.Crypto.Wallet
@@ -44,9 +41,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
-    ( SeqState (..), accountPubKey )
-import Crypto.Hash.Utils
-    ( blake2b224 )
+    ( SeqState (..), accountPubKey, toVerKeyHash )
 
 import qualified Data.List as L
 import qualified Data.Map.Strict as Map
@@ -61,7 +56,7 @@ isShared
     => Script
     -> SeqState n k
     -> ([k 'ScriptK XPub], SeqState n k)
-isShared script s@(SeqState !s1 !s2 !ixs !rpk !prefix !scripts) =
+isShared script s@(SeqState !s1 !s2 !ixs !rpk !prefix !scripts !s3) =
     let verKeysInScript = retrieveAllVerKeyHashes script
         accXPub = accountPubKey s2
         toVerKey = deriveAddressPublicKey accXPub MultisigScript
@@ -71,7 +66,7 @@ isShared script s@(SeqState !s1 !s2 !ixs !rpk !prefix !scripts) =
             map (\ix -> toVerKey (toEnum (fromInteger $ toInteger $ minIndex + ix)))
             [0 .. scriptAddressGap]
         ourVerKeyHashesInScript =
-            filter (\keyH -> toKeyHash keyH `elem` verKeysInScript)
+            filter (\keyH -> toVerKeyHash keyH `elem` verKeysInScript)
             ourVerKeys
         toScriptXPub (ShelleyKey k) = ShelleyKey k
         scriptXPubs = L.nub $ map toScriptXPub ourVerKeyHashesInScript
@@ -79,7 +74,7 @@ isShared script s@(SeqState !s1 !s2 !ixs !rpk !prefix !scripts) =
         ([], s)
        else
         ( scriptXPubs
-        , SeqState s1 s2 ixs rpk prefix (Map.insert (toScriptHash script) scriptXPubs scripts))
+        , SeqState s1 s2 ixs rpk prefix (Map.insert (toScriptHash script) scriptXPubs scripts) s3)
 
 retrieveAllVerKeyHashes :: Script -> [KeyHash]
 retrieveAllVerKeyHashes = extractVerKey []
@@ -88,6 +83,3 @@ retrieveAllVerKeyHashes = extractVerKey []
       extractVerKey acc (RequireAllOf xs) = foldr (flip extractVerKey) acc xs
       extractVerKey acc (RequireAnyOf xs) = foldr (flip extractVerKey) acc xs
       extractVerKey acc (RequireSomeOf _ xs) = foldr (flip extractVerKey) acc xs
-
-toKeyHash :: ShelleyKey depth XPub -> KeyHash
-toKeyHash = KeyHash . blake2b224 . xpubPublicKey . getKey

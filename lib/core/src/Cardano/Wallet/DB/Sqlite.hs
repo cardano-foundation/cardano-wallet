@@ -1695,6 +1695,7 @@ instance
     , MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
     , PaymentAddress n k
     , SoftDerivation k
+    , WalletKey k
     ) => PersistState (Seq.SeqState n k) where
     insertState (wid, sl) st = do
         let (intPool, extPool) =
@@ -1727,8 +1728,10 @@ instance
         let rewardXPub = unsafeDeserializeXPub rewardBytes
         intPool <- lift $ selectAddressPool @n wid sl iGap accountXPub
         extPool <- lift $ selectAddressPool @n wid sl eGap accountXPub
+        --TO-DO
+        let multiPool = Seq.mkVerificationKeyPool accountXPub iGap Map.empty
         pendingChangeIxs <- lift $ selectSeqStatePendingIxs wid
-        pure $ Seq.SeqState intPool extPool pendingChangeIxs rewardXPub prefix Map.empty
+        pure $ Seq.SeqState intPool extPool pendingChangeIxs rewardXPub prefix Map.empty multiPool
 
 insertAddressPool
     :: forall n k c. (PaymentAddress n k, Typeable c)
