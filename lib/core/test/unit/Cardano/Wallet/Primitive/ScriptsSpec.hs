@@ -39,6 +39,7 @@ import Cardano.Wallet.Primitive.AddressDerivation.Shelley
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( DerivationPrefix (..)
     , SeqState (..)
+    , VerificationKeyPool (..)
     , coinTypeAda
     , defaultAddressPoolGap
     , emptyPendingIxs
@@ -52,6 +53,8 @@ import Cardano.Wallet.Primitive.Scripts
     ( isShared, retrieveAllVerKeyHashes )
 import Cardano.Wallet.Primitive.Types
     ( PassphraseScheme (..) )
+import Cardano.Wallet.Primitive.Types.Address
+    ( AddressState (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeXPub )
 import Control.Monad
@@ -96,6 +99,8 @@ spec = do
             (property prop_scriptUpdatesStateProperly)
         it "scripts with our verification keys are discovered properly"
             (property prop_scriptsDiscovered)
+        it "discovering our verification keys make them mark Used"
+            (property prop_markingDiscoveredVerKeys)
 
 prop_scriptFromOurVerKeys
     :: AccountXPubWithScripts
@@ -148,6 +153,20 @@ prop_scriptsDiscovered (AccountXPubWithScripts accXPub' scripts') = do
     let seqState = foldr (\script s -> snd $ isShared script s) seqState0 scripts'
     let scriptHashes = Set.fromList $ Map.keys $ knownScripts seqState
     scriptHashes === Set.fromList (map toScriptHash scripts')
+
+prop_markingDiscoveredVerKeys
+    :: AccountXPubWithScripts
+    -> Property
+prop_markingDiscoveredVerKeys (AccountXPubWithScripts accXPub' scripts') = do
+    let (script:_) = scripts'
+    let sciptKeyHashes = retrieveAllVerKeyHashes script
+    let seqState = initializeState accXPub'
+    let (_, SeqState _ _ _ _ _ _ (VerificationKeyPool _ _ allOurVerKeys)) =
+            isShared script seqState
+    let discoveredKeyMap = Map.filterWithKey (\k _ -> k `elem` sciptKeyHashes) allOurVerKeys
+    let addressStatesToCheck =
+            map (\(_, (_, isUsed)) -> isUsed) $ Map.toList discoveredKeyMap
+    L.all (== Used) addressStatesToCheck === True
 
 data AccountXPubWithScripts = AccountXPubWithScripts
     { accXPub :: ShelleyKey 'AccountK XPub
@@ -208,12 +227,12 @@ instance Arbitrary (ShelleyKey 'AccountK XPub) where
 instance Arbitrary AccountXPubWithScripts where
     arbitrary = do
         accXPub' <- arbitrary
-        keyNum <- choose (2,8)
+        kNum <- choose (2,8)
         let toVerKey = deriveAddressPublicKey accXPub' MultisigScript
         let minIndex = getIndex @'Soft minBound
         let verKeys =
                 map (\ix -> toVerKey (toEnum (fromInteger $ toInteger $ minIndex + ix)))
-                [0 .. keyNum]
+                [0 .. kNum]
         let verKeyHashes = map toVerKeyHash verKeys
         scriptsNum <- choose (1,10)
         AccountXPubWithScripts accXPub' <$> vectorOf scriptsNum (genScript verKeyHashes)

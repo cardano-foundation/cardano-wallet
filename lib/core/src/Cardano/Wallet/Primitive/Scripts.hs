@@ -41,6 +41,8 @@ import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( SeqState (..), VerificationKeyPool (..) )
+import Cardano.Wallet.Primitive.Types.Address
+    ( AddressState (..) )
 
 import qualified Data.List as L
 import qualified Data.Map.Strict as Map
@@ -55,7 +57,7 @@ isShared
     -> ([k 'ScriptK XPub], SeqState n k)
 isShared script s@(SeqState !s1 !s2 !ixs !rpk !prefix !scripts !s3) =
     let verKeysInScript = retrieveAllVerKeyHashes script
-        (VerificationKeyPool accXPub _ verKeyMap) = s3
+        (VerificationKeyPool accXPub gap verKeyMap) = s3
         projectKey (ShelleyKey k) = ShelleyKey k
         toVerKey = deriveAddressPublicKey accXPub MultisigScript
         projectIndex = toEnum . fromInteger . toInteger . getIndex @'Soft
@@ -64,11 +66,21 @@ isShared script s@(SeqState !s1 !s2 !ixs !rpk !prefix !scripts !s3) =
             filter (\(keyH,_) -> keyH `elem` verKeysInScript)
             (Map.toList verKeyMap)
         scriptXPubs = L.nub $ map projectKey ourVerKeysInScript
+        updateAddressState k current =
+            if k `elem` verKeysInScript then
+                Used
+            else
+                current
+        markedVerKeyMap =
+            Map.fromList $
+            map (\(keyH,(ix,isUsed)) -> (keyH, (ix, updateAddressState keyH isUsed)) )
+            (Map.toList verKeyMap)
+        s3' = VerificationKeyPool accXPub gap markedVerKeyMap
     in if null ourVerKeysInScript then
         ([], s)
        else
         ( scriptXPubs
-        , SeqState s1 s2 ixs rpk prefix (Map.insert (toScriptHash script) scriptXPubs scripts) s3)
+        , SeqState s1 s2 ixs rpk prefix (Map.insert (toScriptHash script) scriptXPubs scripts) s3')
 
 retrieveAllVerKeyHashes :: Script -> [KeyHash]
 retrieveAllVerKeyHashes = extractVerKey []
