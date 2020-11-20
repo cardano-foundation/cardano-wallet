@@ -66,13 +66,13 @@ let
       #   nix-shell --arg checkMaterialization true
       #
       mkTool = name: args: args // {
-        index-state = "2020-10-20T00:00:00Z";
+        index-state = "2020-11-20T00:00:00Z";
         inherit checkMaterialization;
         materialized = ./nix/materialized + "/${name}";
       };
     in mapAttrs mkTool {
       cabal.version                   = "3.2.0.0";
-      haskell-language-server.version = "0.5.1";
+      haskell-language-server.version = "0.6.0";
       hoogle.version                  = "5.0.18";
       hlint.version                   = "3.2";
       lentil.version                  = "1.3.2.0";
