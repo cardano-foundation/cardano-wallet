@@ -6,7 +6,7 @@
         "warp".flags.allow-sendfilefd = true;
         "warp".flags.network-bytestring = false;
         "warp".flags.warp-debug = false;
-        "http-client".revision = (((hackage."http-client")."0.7.2.1").revisions).default;
+        "http-client".revision = (((hackage."http-client")."0.7.3").revisions).default;
         "http-client".flags.network-uri = true;
         "cookie".revision = (((hackage."cookie")."0.4.5").revisions).default;
         "byteorder".revision = (((hackage."byteorder")."1.0.4").revisions).default;
@@ -74,7 +74,7 @@
         "distributive".flags.semigroups = true;
         "distributive".flags.tagged = true;
         "asn1-encoding".revision = (((hackage."asn1-encoding")."0.9.6").revisions).default;
-        "QuickCheck".revision = (((hackage."QuickCheck")."2.14.1").revisions).default;
+        "QuickCheck".revision = (((hackage."QuickCheck")."2.14.2").revisions).default;
         "QuickCheck".flags.templatehaskell = true;
         "QuickCheck".flags.old-random = false;
         "scientific".revision = (((hackage."scientific")."0.3.6.2").revisions).default;
@@ -89,7 +89,7 @@
         "network".flags.devel = false;
         "word8".revision = (((hackage."word8")."0.1.3").revisions).default;
         "connection".revision = (((hackage."connection")."0.3.1").revisions).default;
-        "splitmix".revision = (((hackage."splitmix")."0.1.0.2").revisions).default;
+        "splitmix".revision = (((hackage."splitmix")."0.1.0.3").revisions).default;
         "splitmix".flags.optimised-mixer = false;
         "async".revision = (((hackage."async")."2.2.2").revisions).default;
         "async".flags.bench = false;
@@ -111,9 +111,7 @@
         "semigroups".flags.template-haskell = true;
         "data-default".revision = (((hackage."data-default")."0.7.1.1").revisions).default;
         "data-default-instances-old-locale".revision = (((hackage."data-default-instances-old-locale")."0.0.1").revisions).default;
-        "uniplate".revision = (((hackage."uniplate")."1.6.12").revisions).default;
-        "uniplate".flags.separate_syb = true;
-        "uniplate".flags.typeable_fingerprint = true;
+        "uniplate".revision = (((hackage."uniplate")."1.6.13").revisions).default;
         "parsec".revision = (((hackage."parsec")."3.1.13.0").revisions).default;
         "hsc2hs".revision = (((hackage."hsc2hs")."0.68.7").revisions).default;
         "hsc2hs".flags.in-ghc-tree = false;
@@ -139,7 +137,7 @@
         "blaze-builder".revision = (((hackage."blaze-builder")."0.4.1.0").revisions).default;
         "base-compat".revision = (((hackage."base-compat")."0.11.2").revisions).default;
         "js-jquery".revision = (((hackage."js-jquery")."3.3.1").revisions).default;
-        "time-compat".revision = (((hackage."time-compat")."1.9.3").revisions).default;
+        "time-compat".revision = (((hackage."time-compat")."1.9.4").revisions).default;
         "time-compat".flags.old-locale = false;
         "x509-system".revision = (((hackage."x509-system")."1.6.6").revisions).default;
         "tagged".revision = (((hackage."tagged")."0.8.6").revisions).default;
@@ -149,7 +147,7 @@
         "haskell-src-exts".revision = (((hackage."haskell-src-exts")."1.23.1").revisions).default;
         "unliftio-core".revision = (((hackage."unliftio-core")."0.2.0.1").revisions).default;
         "containers".revision = (((hackage."containers")."0.6.0.1").revisions).default;
-        "integer-logarithms".revision = (((hackage."integer-logarithms")."1.0.3").revisions).default;
+        "integer-logarithms".revision = (((hackage."integer-logarithms")."1.0.3.1").revisions).default;
         "integer-logarithms".flags.check-bounds = false;
         "integer-logarithms".flags.integer-gmp = true;
         "these".revision = (((hackage."these")."1.1.1.1").revisions).default;
@@ -191,7 +189,7 @@
         "vector-algorithms".flags.boundschecks = true;
         "vector-algorithms".flags.bench = true;
         "vector-algorithms".flags.properties = true;
-        "iproute".revision = (((hackage."iproute")."1.7.9").revisions).default;
+        "iproute".revision = (((hackage."iproute")."1.7.10").revisions).default;
         "transformers".revision = (((hackage."transformers")."0.5.6.2").revisions).default;
         "hashable".revision = (((hackage."hashable")."1.3.0.0").revisions).default;
         "hashable".flags.sse2 = true;

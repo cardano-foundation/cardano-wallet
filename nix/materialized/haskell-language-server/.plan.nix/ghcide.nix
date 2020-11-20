@@ -11,7 +11,7 @@
     flags = { ghc-lib = false; };
     package = {
       specVersion = "1.20";
-      identifier = { name = "ghcide"; version = "0.4.0"; };
+      identifier = { name = "ghcide"; version = "0.5.0"; };
       license = "Apache-2.0";
       copyright = "Digital Asset and Ghcide contributors 2018-2020";
       maintainer = "Ghcide contributors";
@@ -63,6 +63,7 @@
           (hsPkgs."hashable" or (errorHandler.buildDepError "hashable"))
           (hsPkgs."haskell-lsp-types" or (errorHandler.buildDepError "haskell-lsp-types"))
           (hsPkgs."haskell-lsp" or (errorHandler.buildDepError "haskell-lsp"))
+          (hsPkgs."hie-compat" or (errorHandler.buildDepError "hie-compat"))
           (hsPkgs."mtl" or (errorHandler.buildDepError "mtl"))
           (hsPkgs."network-uri" or (errorHandler.buildDepError "network-uri"))
           (hsPkgs."prettyprinter-ansi-terminal" or (errorHandler.buildDepError "prettyprinter-ansi-terminal"))
@@ -101,14 +102,11 @@
           then [ (hsPkgs."Win32" or (errorHandler.buildDepError "Win32")) ]
           else [ (hsPkgs."unix" or (errorHandler.buildDepError "unix")) ]);
         buildable = true;
-        modules = ((([
+        modules = [
           "Development/IDE/Core/Compile"
-          "Development/IDE/Core/Preprocessor"
           "Development/IDE/Core/FileExists"
           "Development/IDE/GHC/CPP"
-          "Development/IDE/GHC/Orphans"
           "Development/IDE/GHC/Warnings"
-          "Development/IDE/GHC/WithDynFlags"
           "Development/IDE/Import/FindImports"
           "Development/IDE/LSP/Notifications"
           "Development/IDE/Spans/Documentation"
@@ -125,12 +123,14 @@
           "Development/IDE/Core/IdeConfiguration"
           "Development/IDE/Core/OfInterest"
           "Development/IDE/Core/PositionMapping"
+          "Development/IDE/Core/Preprocessor"
           "Development/IDE/Core/Rules"
           "Development/IDE/Core/RuleTypes"
           "Development/IDE/Core/Service"
           "Development/IDE/Core/Shake"
           "Development/IDE/GHC/Compat"
           "Development/IDE/GHC/Error"
+          "Development/IDE/GHC/Orphans"
           "Development/IDE/GHC/Util"
           "Development/IDE/Import/DependencyInformation"
           "Development/IDE/LSP/HoverDefinition"
@@ -153,23 +153,11 @@
           ] ++ (pkgs.lib).optionals (!flags.ghc-lib) [
           "Development/IDE/Session/VersionCheck"
           "Development/IDE/Session"
-          ]) ++ (pkgs.lib).optionals (compiler.isGhc && (compiler.version).gt "8.5" && (compiler.isGhc && (compiler.version).lt "8.7") && !flags.ghc-lib) [
-          "Development/IDE/GHC/HieAst"
-          "Development/IDE/GHC/HieBin"
-          "Development/IDE/GHC/HieTypes"
-          "Development/IDE/GHC/HieDebug"
-          "Development/IDE/GHC/HieUtils"
-          ]) ++ (pkgs.lib).optionals (compiler.isGhc && (compiler.version).gt "8.7" && (compiler.isGhc && (compiler.version).lt "8.10") || flags.ghc-lib) [
-          "Development/IDE/GHC/HieAst"
-          "Development/IDE/GHC/HieBin"
-          ]) ++ (pkgs.lib).optionals (compiler.isGhc && (compiler.version).gt "8.9") [
-          "Development/IDE/GHC/HieAst"
-          "Development/IDE/GHC/HieBin"
           ];
         cSources = (pkgs.lib).optional (!system.isWindows) "cbits/getmodtime.c";
-        hsSourceDirs = ((([
+        hsSourceDirs = [
           "src"
-          ] ++ (pkgs.lib).optional (!flags.ghc-lib) "session-loader") ++ (pkgs.lib).optional (compiler.isGhc && (compiler.version).gt "8.5" && (compiler.isGhc && (compiler.version).lt "8.7") && !flags.ghc-lib) "src-ghc86") ++ (pkgs.lib).optional (compiler.isGhc && (compiler.version).gt "8.7" && (compiler.isGhc && (compiler.version).lt "8.10") || flags.ghc-lib) "src-ghc88") ++ (pkgs.lib).optional (compiler.isGhc && (compiler.version).gt "8.9") "src-ghc810";
+          ] ++ (pkgs.lib).optional (!flags.ghc-lib) "session-loader";
         includeDirs = [ "include" ];
         };
       exes = {
@@ -217,12 +205,14 @@
             (hsPkgs."optparse-applicative" or (errorHandler.buildDepError "optparse-applicative"))
             (hsPkgs."process" or (errorHandler.buildDepError "process"))
             (hsPkgs."safe-exceptions" or (errorHandler.buildDepError "safe-exceptions"))
+            (hsPkgs."shake" or (errorHandler.buildDepError "shake"))
+            (hsPkgs."text" or (errorHandler.buildDepError "text"))
             ];
           build-tools = [
             (hsPkgs.buildPackages.ghcide or (pkgs.buildPackages.ghcide or (errorHandler.buildToolDepError "ghcide")))
             ];
           buildable = true;
-          modules = [ "Experiments" ];
+          modules = [ "Experiments" "Experiments/Types" ];
           hsSourceDirs = [ "bench/lib" "bench/exe" ];
           includeDirs = [ "include" ];
           mainPath = [ "Main.hs" ];
@@ -275,6 +265,7 @@
             "Development/IDE/Test"
             "Development/IDE/Test/Runfiles"
             "Experiments"
+            "Experiments/Types"
             ];
           hsSourceDirs = [ "test/cabal" "test/exe" "test/src" "bench/lib" ];
           includeDirs = [ "include" ];
@@ -302,7 +293,9 @@
             (hsPkgs.buildPackages.ghcide or (pkgs.buildPackages.ghcide or (errorHandler.buildToolDepError "ghcide")))
             ];
           buildable = true;
+          modules = [ "Experiments/Types" ];
+          hsSourceDirs = [ "bench/hist" "bench/lib" ];
           };
         };
       };
-    } // rec { src = (pkgs.lib).mkDefault ../ghcide; }
+    } // rec { src = (pkgs.lib).mkDefault .././ghcide; }

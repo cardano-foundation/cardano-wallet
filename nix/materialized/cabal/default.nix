@@ -36,9 +36,9 @@
         "containers".revision = (((hackage."containers")."0.6.0.1").revisions).default;
         "bytestring".revision = (((hackage."bytestring")."0.10.8.2").revisions).default;
         "text".revision = (((hackage."text")."1.2.3.1").revisions).default;
-        "Cabal".revision = (((hackage."Cabal")."3.2.0.0").revisions).default;
+        "Cabal".revision = (((hackage."Cabal")."3.2.1.0").revisions).default;
         "Cabal".flags.bundled-binary-generic = false;
-        "base64-bytestring".revision = (((hackage."base64-bytestring")."1.2.0.0").revisions).default;
+        "base64-bytestring".revision = (((hackage."base64-bytestring")."1.2.0.1").revisions).default;
         "base".revision = (((hackage."base")."4.12.0.0").revisions).default;
         "time".revision = (((hackage."time")."1.8.0.2").revisions).default;
         "base16-bytestring".revision = (((hackage."base16-bytestring")."0.1.1.7").revisions).default;

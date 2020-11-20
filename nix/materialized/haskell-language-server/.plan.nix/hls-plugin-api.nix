@@ -11,7 +11,7 @@
     flags = { pedantic = false; };
     package = {
       specVersion = "2.2";
-      identifier = { name = "hls-plugin-api"; version = "0.4.1.0"; };
+      identifier = { name = "hls-plugin-api"; version = "0.5.0.0"; };
       license = "Apache-2.0";
       copyright = "Alan Zimmerman";
       maintainer = "alan.zimm@gmail.com (for now)";
@@ -42,6 +42,7 @@
           (hsPkgs."ghc-boot-th" or (errorHandler.buildDepError "ghc-boot-th"))
           (hsPkgs."ghcide" or (errorHandler.buildDepError "ghcide"))
           (hsPkgs."haskell-lsp" or (errorHandler.buildDepError "haskell-lsp"))
+          (hsPkgs."hashable" or (errorHandler.buildDepError "hashable"))
           (hsPkgs."hslogger" or (errorHandler.buildDepError "hslogger"))
           (hsPkgs."lens" or (errorHandler.buildDepError "lens"))
           (hsPkgs."process" or (errorHandler.buildDepError "process"))
@@ -63,4 +64,4 @@
         hsSourceDirs = [ "src" ];
         };
       };
-    } // rec { src = (pkgs.lib).mkDefault ../hls-plugin-api; }
+    } // rec { src = (pkgs.lib).mkDefault .././hls-plugin-api; }

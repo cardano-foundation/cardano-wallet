@@ -13,13 +13,13 @@
       specVersion = "1.24";
       identifier = { name = "lentil"; version = "1.3.2.0"; };
       license = "GPL-3.0-only";
-      copyright = "© 2015-2019 Francesco Ariis et al. (check authors.txt)";
+      copyright = "© 2015-2020 Francesco Ariis et al. (check authors.txt)";
       maintainer = "Francesco Ariis <fa-ml@ariis.it>";
       author = "Francesco Ariis <fa-ml@ariis.it> et al.\n(check authors.txt)";
       homepage = "http://www.ariis.it/static/articles/lentil/page.html";
       url = "";
       synopsis = "frugal issue tracker";
-      description = "minumum effort, cohesive issue tracker based on\nubiquitous @TODO@s and @FIXME@s conventions.\nCheck homepage for manual, tutorial, examples.";
+      description = "minumum effort, cohesive issue tracker based on\nubiquitous @TODO@s and @FIXME@s conventions.\nCheck homepage for manual, tutorial, binaries,\nexamples.";
       buildType = "Simple";
       isLocal = true;
       detailLevel = "FullDetails";

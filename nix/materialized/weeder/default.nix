@@ -31,7 +31,7 @@
         "deepseq".revision = (((hackage."deepseq")."1.4.4.0").revisions).default;
         "random".revision = (((hackage."random")."1.2.0").revisions).default;
         "uuid-types".revision = (((hackage."uuid-types")."1.0.3").revisions).default;
-        "splitmix".revision = (((hackage."splitmix")."0.1.0.2").revisions).default;
+        "splitmix".revision = (((hackage."splitmix")."0.1.0.3").revisions).default;
         "splitmix".flags.optimised-mixer = false;
         "dlist".revision = (((hackage."dlist")."1.0").revisions).default;
         "dlist".flags.werror = false;
@@ -58,14 +58,14 @@
         "vector".flags.boundschecks = true;
         "primitive".revision = (((hackage."primitive")."0.7.1.0").revisions).default;
         "base-compat".revision = (((hackage."base-compat")."0.11.2").revisions).default;
-        "time-compat".revision = (((hackage."time-compat")."1.9.3").revisions).default;
+        "time-compat".revision = (((hackage."time-compat")."1.9.4").revisions).default;
         "time-compat".flags.old-locale = false;
         "tagged".revision = (((hackage."tagged")."0.8.6").revisions).default;
         "tagged".flags.transformers = true;
         "tagged".flags.deepseq = true;
         "unliftio-core".revision = (((hackage."unliftio-core")."0.2.0.1").revisions).default;
         "containers".revision = (((hackage."containers")."0.6.0.1").revisions).default;
-        "integer-logarithms".revision = (((hackage."integer-logarithms")."1.0.3").revisions).default;
+        "integer-logarithms".revision = (((hackage."integer-logarithms")."1.0.3.1").revisions).default;
         "integer-logarithms".flags.check-bounds = false;
         "integer-logarithms".flags.integer-gmp = true;
         "these".revision = (((hackage."these")."1.1.1.1").revisions).default;
