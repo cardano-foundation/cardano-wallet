@@ -12,7 +12,10 @@
 #
 ######################################################################
 
-{ walletPackages ? import ./default.nix { inherit sourcesOverride; }
+{ walletPackages ? import ./default.nix { inherit system crossSystem config sourcesOverride; }
+, system ? builtins.currentSystem
+, crossSystem ? null
+, config ? {}
 , pkgs ? walletPackages.pkgs
 , profiling ? false  # enable profiling in haskell dependencies
 , sourcesOverride ? {}  # see sourcesOverride in nix/default.nix

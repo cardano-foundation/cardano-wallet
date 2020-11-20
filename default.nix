@@ -23,7 +23,7 @@
 #   - migration-tests - tests db migrations from previous versions
 #   - dockerImage - tarballs of the docker images
 #     - shelley
-#   - shell - imported by shell.nix
+#   - shell - import of shell.nix
 #   - haskellPackages - a Haskell.nix package set of all packages and their dependencies
 #     - cardano-wallet-core.components.library
 #     - etc (layout is PACKAGE-NAME.components.COMPONENT-TYPE.COMPONENT-NAME)
