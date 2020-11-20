@@ -105,7 +105,7 @@ prop_scriptFromOurVerKeys (AccountXPubWithScripts accXPub' scripts') = do
     let sciptKeyHashes = retrieveAllVerKeyHashes script
     let seqState = initializeState accXPub'
     let (ourSharedKeys, _) = isShared script seqState
-    L.sort (L.nub $ map (toVerKeyHash . projectKey) ourSharedKeys) === L.sort (L.nub sciptKeyHashes)
+    L.sort (L.nub $ map toVerKeyHash ourSharedKeys) === L.sort (L.nub sciptKeyHashes)
 
 prop_scriptFromNotOurVerKeys
     :: ShelleyKey 'AccountK XPub

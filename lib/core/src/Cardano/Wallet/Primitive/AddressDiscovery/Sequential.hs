@@ -133,16 +133,12 @@ import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Map.Strict
     ( Map )
-import Data.Maybe
-    ( fromJust )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Text.Class
     ( FromText (..), TextDecodingError (..), ToText (..) )
 import Data.Text.Read
     ( decimal )
-import Data.Typeable
-    ( cast )
 import Data.Typeable
     ( Typeable, typeRep )
 import Data.Word
@@ -310,7 +306,7 @@ instance Ord KeyHash where
 
 toVerKeyHash
     :: WalletKey k
-    => k 'AddressK XPub
+    => k (depth:: Depth) XPub
     -> KeyHash
 toVerKeyHash = KeyHash . blake2b224 . xpubPublicKey . getRawKey
 
@@ -336,11 +332,13 @@ mkVerificationKeyPool accXPub num@(AddressPoolGap g) vkPoolMap = VerificationKey
     deriveScriptXPub = deriveAddressPublicKey accXPub MultisigScript
     deriveVerKeyH = toVerKeyHash . deriveScriptXPub
     toIndex = toEnum . fromInteger . toInteger
+    projectIndex :: Index 'Soft 'AddressK -> Index 'Soft 'ScriptK
+    projectIndex ix = Index $ getIndex ix
     indices =
         [firstIndexToAdd .. (firstIndexToAdd + (fromInteger $ toInteger g) - 1)]
     vkPoolMap' =
         Map.fromList $
-        map (\ix -> (deriveVerKeyH (toIndex ix), (fromJust $ cast $ toIndex ix, Unused) ) )
+        map (\ix -> (deriveVerKeyH (toIndex ix), (projectIndex $ toIndex ix, Unused)) )
         indices
 
 -- | Bring a 'Role' type back to the term-level. This requires a type

@@ -40,7 +40,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
-    ( SeqState (..), accountPubKey, toVerKeyHash )
+    ( SeqState (..), VerificationKeyPool (..) )
 
 import qualified Data.List as L
 import qualified Data.Map.Strict as Map
@@ -55,19 +55,16 @@ isShared
     -> ([k 'ScriptK XPub], SeqState n k)
 isShared script s@(SeqState !s1 !s2 !ixs !rpk !prefix !scripts !s3) =
     let verKeysInScript = retrieveAllVerKeyHashes script
-        accXPub = accountPubKey s2
+        (VerificationKeyPool accXPub _ verKeyMap) = s3
+        projectKey (ShelleyKey k) = ShelleyKey k
         toVerKey = deriveAddressPublicKey accXPub MultisigScript
-        minIndex = getIndex @'Soft minBound
-        scriptAddressGap = 10
-        ourVerKeys =
-            map (\ix -> toVerKey (toEnum (fromInteger $ toInteger $ minIndex + ix)))
-            [0 .. scriptAddressGap]
-        ourVerKeyHashesInScript =
-            filter (\keyH -> toVerKeyHash keyH `elem` verKeysInScript)
-            ourVerKeys
-        toScriptXPub (ShelleyKey k) = ShelleyKey k
-        scriptXPubs = L.nub $ map toScriptXPub ourVerKeyHashesInScript
-    in if null ourVerKeyHashesInScript then
+        projectIndex = toEnum . fromInteger . toInteger . getIndex @'Soft
+        ourVerKeysInScript =
+            map (\(_,(ix,_)) -> toVerKey (projectIndex ix) ) $
+            filter (\(keyH,_) -> keyH `elem` verKeysInScript)
+            (Map.toList verKeyMap)
+        scriptXPubs = L.nub $ map projectKey ourVerKeysInScript
+    in if null ourVerKeysInScript then
         ([], s)
        else
         ( scriptXPubs
