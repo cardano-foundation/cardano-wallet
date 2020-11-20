@@ -28,8 +28,8 @@ in pkgs.runCommand name {
   nativeBuildInputs = [ pkgs.zip pkgs.gnused ];
   passthru = { inherit tests benchmarks; };
 } ''
-  mkdir -pv jm jm/test/data jm/test/integration $out/nix-support
-  cd jm
+  mkdir -pv bundle/test/data $out/nix-support
+  cd bundle
 
   # Copy in wallet and node EXEs and DLLs.
   for pkg in ${cardano-wallet} ${cardano-cli}; do
