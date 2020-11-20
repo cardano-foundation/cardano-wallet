@@ -36,7 +36,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , Index (..)
     , Role (..)
     , SoftDerivation (..)
-    , hex
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey (..) )
@@ -45,11 +44,9 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
 
 import qualified Data.List as L
 import qualified Data.Map.Strict as Map
-import qualified Data.Text.Encoding as T
 
 instance Ord ScriptHash where
-    compare (ScriptHash sh1) (ScriptHash sh2) =
-        compare (T.decodeUtf8 $ hex sh1) (T.decodeUtf8 $ hex sh2)
+    compare (ScriptHash sh1) (ScriptHash sh2) = compare sh1 sh2
 
 isShared
     :: (k ~ ShelleyKey, SoftDerivation k)

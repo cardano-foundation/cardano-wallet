@@ -64,8 +64,11 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPool
     , DerivationPrefix (..)
     , SeqState (..)
+    , accountPubKey
     , coinTypeAda
+    , gap
     , mkAddressPool
+    , mkVerificationKeyPool
     , purposeCIP1852
     )
 import Cardano.Wallet.Primitive.Model
@@ -455,15 +458,18 @@ instance Arbitrary (Index 'WholeDomain depth) where
 -------------------------------------------------------------------------------}
 
 instance Arbitrary (SeqState 'Mainnet ShelleyKey) where
-    shrink (SeqState intPool extPool ixs rwd prefix scripts) =
-        (\(i, e, x) -> SeqState i e x rwd prefix scripts) <$> shrink (intPool, extPool, ixs)
-    arbitrary = SeqState
-        <$> arbitrary
-        <*> arbitrary
-        <*> arbitrary
-        <*> pure arbitraryRewardAccount
-        <*> pure defaultSeqStatePrefix
-        <*> pure Map.empty
+    shrink (SeqState intPool extPool ixs rwd prefix scripts multiPool) =
+        (\(i, e, x) -> SeqState i e x rwd prefix scripts multiPool) <$> shrink (intPool, extPool, ixs)
+    arbitrary = do
+        extPool <- arbitrary
+        SeqState
+            <$> arbitrary
+            <*> pure extPool
+            <*> arbitrary
+            <*> pure arbitraryRewardAccount
+            <*> pure defaultSeqStatePrefix
+            <*> pure Map.empty
+            <*> pure (mkVerificationKeyPool (accountPubKey extPool) (gap extPool) Map.empty)
 
 defaultSeqStatePrefix :: DerivationPrefix
 defaultSeqStatePrefix = DerivationPrefix
