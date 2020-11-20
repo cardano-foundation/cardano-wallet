@@ -147,10 +147,9 @@ for `cardano-wallet`. This will contain:
 - a GHC configured with a package database containing all Haskell package dependencies;
 - system library dependencies;
 - a Hoogle index and `hoogle` command for searching documentation;
-- development tools such as `ghcide`, `hlint`, `stylish-haskell`, and `weeder`;
+- development tools such as `haskell-language-server`, `hlint`, `stylish-haskell`, and `weeder`;
 - the `sqlite3` command; and
-- the node backend `jormungandr`, and `jcli`.
-- the Byron Reboot/Shelley node backend `cardano-node`
+- the Shelley node backend `cardano-node`
 
 Inside this shell you can use `cabal new-build` and `ghci` for development.
 
@@ -162,5 +161,22 @@ $ nix-shell
 [nix-shell:~/iohk/cardano-wallet]$ cabal build \
     --project-file=cabal-nix.project \
     --enable-tests --enable-benchmarks \
+    all
+```
+
+#### Profiling build with cached dependencies
+
+Use `nix-shell --arg profiling true` to get a shell where Haskell
+dependencies are built with profiling enabled. You won't need to
+rebuild all of the dependencies because they can be downloaded from
+the Hydra cache.
+
+```console
+$ nix-shell --arg profiling true
+
+[nix-shell:~/iohk/cardano-wallet]$ cabal build \
+    --project-file=cabal-nix.project \
+    --enable-tests --enable-benchmarks \
+    --enable-profiling \
     all
 ```
