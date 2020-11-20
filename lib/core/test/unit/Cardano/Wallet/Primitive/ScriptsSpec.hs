@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -43,7 +44,9 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     , coinTypeAda
     , defaultAddressPoolGap
     , emptyPendingIxs
+    , getAddressPoolGap
     , mkAddressPool
+    , mkUnboundedAddressPoolGap
     , mkVerificationKeyPool
     , purposeCIP1852
     , purposeCIP1852
@@ -101,6 +104,8 @@ spec = do
             (property prop_scriptsDiscovered)
         it "discovering our verification keys make them mark Used"
             (property prop_markingDiscoveredVerKeys)
+        it "discovering works after pool extension"
+            (property prop_poolExtension)
 
 prop_scriptFromOurVerKeys
     :: AccountXPubWithScripts
@@ -168,7 +173,34 @@ prop_markingDiscoveredVerKeys (AccountXPubWithScripts accXPub' scripts') = do
             map (\(_, (_, isUsed)) -> isUsed) $ Map.toList discoveredKeyMap
     L.all (== Used) addressStatesToCheck === True
 
+prop_poolExtension
+    :: AccountXPubWithScriptsExtension
+    -> Property
+prop_poolExtension (AccountXPubWithScriptsExtension accXPub' scripts') = do
+    let (SeqState s1 s2 ixs rpk prefix scr (VerificationKeyPool _ g allOurVerKeys)) =
+         initializeState accXPub'
+    --make artificially all except last index Used
+    let isLastIndex ix =
+            if ix == Index (minBound + getAddressPoolGap defaultAddressPoolGap - 1) then
+                Unused
+            else
+                Used
+    let allOurVerKeys' =
+            Map.mapWithKey (\_ (ix, _) -> (ix, isLastIndex ix)) allOurVerKeys
+    let seqState =
+            SeqState s1 s2 ixs rpk prefix scr (VerificationKeyPool accXPub' g allOurVerKeys')
+    let (script:_) = scripts'
+    let (_, SeqState _ _ _ _ _ _ (VerificationKeyPool _ g' _)) =
+            isShared script seqState
+    g' === mkUnboundedAddressPoolGap
+        (getAddressPoolGap defaultAddressPoolGap + getAddressPoolGap g)
+
 data AccountXPubWithScripts = AccountXPubWithScripts
+    { accXPub :: ShelleyKey 'AccountK XPub
+    , scripts :: [Script]
+    } deriving (Eq, Show)
+
+data AccountXPubWithScriptsExtension = AccountXPubWithScriptsExtension
     { accXPub :: ShelleyKey 'AccountK XPub
     , scripts :: [Script]
     } deriving (Eq, Show)
@@ -236,6 +268,28 @@ instance Arbitrary AccountXPubWithScripts where
         let verKeyHashes = map toVerKeyHash verKeys
         scriptsNum <- choose (1,10)
         AccountXPubWithScripts accXPub' <$> vectorOf scriptsNum (genScript verKeyHashes)
+
+instance Arbitrary AccountXPubWithScriptsExtension where
+    arbitrary = do
+        accXPub' <- arbitrary
+
+        let toVerKey = deriveAddressPublicKey accXPub' MultisigScript
+        let minIndex = getIndex @'Soft minBound
+        let verKeys =
+                map (\ix -> toVerKey (toEnum (fromInteger $ toInteger $ minIndex + ix)))
+
+        let g = getAddressPoolGap defaultAddressPoolGap
+        -- the first script is expected to trigger extension to multisigScript
+        let verKeys1 = verKeys [g - 1]
+        scriptTipping <- genScript (toVerKeyHash <$> verKeys1)
+
+        -- the next scripts are using extended indices that were not possible to be discovered
+        kNum <- choose (2,8)
+        scriptsNum <- choose (1,10)
+        let verKeysNext = verKeys [g .. g + kNum]
+        scriptsNext <- vectorOf scriptsNum (genScript (toVerKeyHash <$> verKeysNext))
+
+        pure $ AccountXPubWithScriptsExtension accXPub' (scriptTipping : scriptsNext )
 
 instance Arbitrary (Passphrase "raw") where
     arbitrary = do

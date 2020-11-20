@@ -40,7 +40,13 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
-    ( SeqState (..), VerificationKeyPool (..) )
+    ( SeqState (..)
+    , VerificationKeyPool (..)
+    , defaultAddressPoolGap
+    , getAddressPoolGap
+    , mkUnboundedAddressPoolGap
+    , mkVerificationKeyPool
+    )
 import Cardano.Wallet.Primitive.Types.Address
     ( AddressState (..) )
 
@@ -57,7 +63,7 @@ isShared
     -> ([k 'ScriptK XPub], SeqState n k)
 isShared script s@(SeqState !s1 !s2 !ixs !rpk !prefix !scripts !s3) =
     let verKeysInScript = retrieveAllVerKeyHashes script
-        (VerificationKeyPool accXPub gap verKeyMap) = s3
+        (VerificationKeyPool accXPub currentGap verKeyMap) = s3
         projectKey (ShelleyKey k) = ShelleyKey k
         toVerKey = deriveAddressPublicKey accXPub MultisigScript
         projectIndex = toEnum . fromInteger . toInteger . getIndex @'Soft
@@ -75,7 +81,18 @@ isShared script s@(SeqState !s1 !s2 !ixs !rpk !prefix !scripts !s3) =
             Map.fromList $
             map (\(keyH,(ix,isUsed)) -> (keyH, (ix, updateAddressState keyH isUsed)) )
             (Map.toList verKeyMap)
-        s3' = VerificationKeyPool accXPub gap markedVerKeyMap
+        -- if all verification keys are used (after discovering) we are extending multisigPool
+        extendingPool =
+            all (==Used) $
+            map (\(_,(_,isUsed)) -> isUsed) $
+            Map.toList markedVerKeyMap
+        s3' = if extendingPool then
+                  mkVerificationKeyPool
+                  accXPub
+                  (mkUnboundedAddressPoolGap (getAddressPoolGap currentGap + getAddressPoolGap defaultAddressPoolGap))
+                  markedVerKeyMap
+              else
+                  VerificationKeyPool accXPub currentGap markedVerKeyMap
     in if null ourVerKeysInScript then
         ([], s)
        else
