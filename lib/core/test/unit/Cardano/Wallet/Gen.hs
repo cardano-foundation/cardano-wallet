@@ -20,6 +20,7 @@ module Cardano.Wallet.Gen
     , shrinkSlotNo
     , genTxMetadata
     , shrinkTxMetadata
+    , genSmallTxMetadata
     ) where
 
 import Prelude
@@ -221,6 +222,18 @@ genTxMetadata = do
     case metadataFromJson TxMetadataJsonNoSchema json of
         Left e -> fail $ show e <> ": " <> show (Aeson.encode json)
         Right metadata -> pure metadata
+
+-- | Generates a 'TxMetadata' containing only simple values.
+genSmallTxMetadata :: Gen TxMetadata
+genSmallTxMetadata = TxMetadata <$>
+    (Map.singleton <$> arbitrary <*> genSimpleTxMetadataValue)
+
+genSimpleTxMetadataValue :: Gen TxMetadataValue
+genSimpleTxMetadataValue = oneof
+    [ TxMetaNumber . fromIntegral <$> arbitrary @Int
+    , TxMetaBytes <$> genByteString
+    , TxMetaText <$> genText
+    ]
 
 shrinkTxMetadata :: TxMetadata -> [TxMetadata]
 shrinkTxMetadata (TxMetadata m) = TxMetadata . Map.fromList
