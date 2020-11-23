@@ -256,7 +256,7 @@ prop_countRewardsOnce (WithPending wallet pending rewards)
     $ counterexample ("Available UTxO:\n" <> pretty' (availableUTxO pending wallet))
     $ counterexample ("Pending Transactions:\n" <> pretty' (blockListF pending))
     $ counterexample ("Pending balance:            " <> show pendingBalance)
-    $ counterexample ("Total Rewards:              " <> show (getCoin rewards))
+    $ counterexample ("Total Rewards:              " <> show (unCoin rewards))
     $ counterexample ("Total Balance (w/ pending): " <> show totalWithPending)
     $ counterexample ("Total Balance (no pending): " <> show totalWithoutPending)
     $ classify hasPending "has pending"
@@ -266,13 +266,13 @@ prop_countRewardsOnce (WithPending wallet pending rewards)
       else property (totalWithPending == totalWithoutPending)
   where
     pendingBalance =
-        sum $ (getCoin . coin) <$> concatMap outputs (Set.elems pending)
+        sum $ (unCoin . coin) <$> concatMap outputs (Set.elems pending)
     totalWithPending =
         totalBalance pending rewardsQ wallet
     totalWithoutPending =
         totalBalance Set.empty rewardsQ wallet
     rewardsQ =
-        Quantity $ fromIntegral $ getCoin rewards
+        Quantity $ fromIntegral $ unCoin rewards
 
     hasPending =
         not $ Set.null pending

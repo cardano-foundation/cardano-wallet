@@ -618,7 +618,7 @@ prop_estimateFee (NonEmpty results) = case actual of
     count p = length . filter p
 
     -- get the coin amount from a Right FeeGen, or a default value otherwise.
-    getRight d = either (const d) (getCoin . unFeeGen)
+    getRight d = either (const d) (unCoin . unFeeGen)
 
     -- Two fractions are close to each other if they are within 20% either way.
     closeTo a b =

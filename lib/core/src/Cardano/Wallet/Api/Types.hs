@@ -731,7 +731,7 @@ toApiNetworkParameters (NetworkParameters gp sp pp) = (np, view #hardforkEpochNo
         , desiredPoolNumber = view #desiredNumberOfStakePools pp
         , minimumUtxoValue = Quantity
             $ fromIntegral
-            $ getCoin
+            $ unCoin
             $ view #minimumUTxOvalue pp
         , hardforkAt = Nothing
         }
@@ -1746,7 +1746,7 @@ instance FromJSON a => FromJSON (AddressAmount a) where
             then return v
             else fail $
                 "invalid coin value: value has to be lower than or equal to "
-                <> show (getCoin maxBound) <> " lovelace."
+                <> show (unCoin maxBound) <> " lovelace."
 
 instance ToJSON a => ToJSON (AddressAmount a) where
     toJSON = genericToJSON defaultRecordTypeOptions

@@ -1490,7 +1490,7 @@ selectCoinsForMigrationFromUTxO ctx utxo txp minUtxo wid = do
 
     getCoins :: CoinSelection -> [Word64]
     getCoins CoinSelection{change,outputs} =
-        (getCoin <$> change) ++ (getCoin . coin <$> outputs)
+        (unCoin <$> change) ++ (unCoin . coin <$> outputs)
 
     -- When performing a selection for migration, at this stage, we do not know
     -- exactly to which address we're going to assign which change. It could be
@@ -1555,7 +1555,7 @@ handleCannotCover utxo (Quantity withdrawal) outs = \case
                 = fromIntegral (W.balance utxo)
                 + fromIntegral withdrawal
         let payment
-                = sum (getCoin . coin <$> outs)
+                = sum (unCoin . coin <$> outs)
         pure $ Fee $
             available + missing - payment
     e ->
@@ -1874,7 +1874,7 @@ mkTxMeta ti' blockHeader wState tx cs expiry =
             sum (mapMaybe ourCoins (outputs cs))
 
         amtInps
-            = sum (fromIntegral . getCoin . coin . snd <$> (inputs cs))
+            = sum (fromIntegral . unCoin . coin . snd <$> (inputs cs))
             + sum (mapMaybe ourWithdrawal $ Map.toList $ withdrawals tx)
             + fromIntegral (reclaim cs)
     in do
@@ -2617,7 +2617,7 @@ guardCoinSelection minUtxoValue cs@CoinSelection{outputs, change} = do
     let invalidTxOuts =
             filter (< minUtxoValue) (outputCoins ++ change)
     unless (L.null invalidTxOuts) $
-        Left (ErrUTxOTooSmall (getCoin minUtxoValue) (getCoin <$> invalidTxOuts))
+        Left (ErrUTxOTooSmall (unCoin minUtxoValue) (unCoin <$> invalidTxOuts))
 
 ensureNonEmpty
     :: forall a e m . (Monad m)

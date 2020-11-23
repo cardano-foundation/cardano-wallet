@@ -159,7 +159,7 @@ depleteUTxO feeOpts batchSize utxo =
         c' = op (integer c)
 
         threshold :: Integer
-        threshold = integer (getCoin (dustThreshold feeOpts))
+        threshold = integer (unCoin (dustThreshold feeOpts))
 
     getNextBatch :: State [a] [a]
     getNextBatch = do

@@ -1278,7 +1278,7 @@ sendFaucetFundsTo tr dir allTargets = do
         let outputs = flip concatMap targets $ \(addr, (Coin c)) ->
                 ["--tx-out", addr <> "+" <> show c]
 
-        let total = fromIntegral $ sum $ map (getCoin . snd) targets
+        let total = fromIntegral $ sum $ map (unCoin . snd) targets
         when (total > faucetAmt) $ error "sendFaucetFundsTo: too much to pay"
 
         void $ cli tr $
@@ -1310,7 +1310,7 @@ moveInstantaneousRewardsTo tr dir targets = do
     (faucetInput, faucetPrv) <- takeFaucet
     let file = dir </> "mir-tx.raw"
 
-    let total = fromIntegral $ sum $ map (getCoin . snd) targets
+    let total = fromIntegral $ sum $ map (unCoin . snd) targets
     let totalDeposit = fromIntegral (length targets) * depositAmt
     when (total > faucetAmt) $ error "moveInstantaneousRewardsTo: too much to pay"
 

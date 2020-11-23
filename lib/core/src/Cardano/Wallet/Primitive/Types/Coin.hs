@@ -47,7 +47,7 @@ import qualified Data.Text as T
 -- Reminder: 1 ada = 1,000,000 lovelace.
 --
 newtype Coin = Coin
-    { getCoin :: Word64
+    { unCoin :: Word64
     }
     deriving stock (Ord, Eq, Generic)
     deriving Show via (Quiet Coin)
@@ -71,7 +71,7 @@ instance Bounded Coin where
     maxBound = Coin 45_000_000_000_000_000
 
 instance Buildable Coin where
-    build = build . getCoin
+    build = build . unCoin
 
 isValidCoin :: Coin -> Bool
 isValidCoin c = c >= minBound && c <= maxBound

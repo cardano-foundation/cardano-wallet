@@ -152,7 +152,7 @@ makeSelection (SelectionState maxN utxo0 withdrawal0 selection0) txout = do
         , _selection = selection' : selection0
         }
   where
-    TargetRange{targetMin} = mkTargetRange $ getCoin $ coin txout
+    TargetRange{targetMin} = mkTargetRange $ unCoin $ coin txout
 
     coverRandomly
         :: ([(TxIn, TxOut)], UTxO)
@@ -202,7 +202,7 @@ improveTxOut (maxN0, selection, utxo0) (CoinSelection inps0 withdraw _ outs _ _)
         , utxo
         )
   where
-    target = mkTargetRange $ sum $ getCoin . coin <$> outs
+    target = mkTargetRange $ sum $ unCoin . coin <$> outs
 
     improve
         :: (Word64, [(TxIn, TxOut)], UTxO)
@@ -269,7 +269,7 @@ mkTargetRange base = TargetRange
 mkChange :: Quantity "lovelace" Word64 -> [TxOut] -> [(TxIn, TxOut)] -> [Coin]
 mkChange withdraw outs inps =
     let
-        out = sum $ getCoin . coin <$> outs
+        out = sum $ unCoin . coin <$> outs
         selected = invariant
             "mkChange: output is smaller than selected inputs!"
             (totalBalance withdraw inps)

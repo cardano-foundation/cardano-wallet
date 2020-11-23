@@ -299,7 +299,7 @@ spec = do
             , csChngs = [1]
             })
 
-        let c = getCoin maxBound
+        let c = unCoin maxBound
 
         -- New BIG inputs selected causes change to overflow
         feeUnitTest id (FeeFixture
@@ -433,9 +433,9 @@ spec = do
 isValidSelection :: CoinSelection -> Bool
 isValidSelection cs =
     let
-        oAmt = sum $ map (fromIntegral . getCoin . coin) (outputs cs)
-        cAmt = sum $ map (fromIntegral . getCoin) (change cs)
-        iAmt = sum $ map (fromIntegral . getCoin . coin . snd) (inputs cs)
+        oAmt = sum $ map (fromIntegral . unCoin . coin) (outputs cs)
+        cAmt = sum $ map (fromIntegral . unCoin) (change cs)
+        iAmt = sum $ map (fromIntegral . unCoin . coin . snd) (inputs cs)
     in
         iAmt + (withdrawal cs) + (reclaim cs) >= oAmt + cAmt + (deposit cs)
 
@@ -476,8 +476,8 @@ propReducedChanges (ShowFmt (FeeProp coinSel utxo (fee, dust)))
         coinSel' <- run $ runExceptT $ adjustForFee feeOpt utxo coinSel
         pre (isRight coinSel')
         let Right s = coinSel'
-        let chgs' = sum $ map getCoin $ change s
-        let chgs = sum $ map getCoin $ change coinSel
+        let chgs' = sum $ map unCoin $ change s
+        let chgs = sum $ map unCoin $ change coinSel
         let inps' = CS.inputs s
         let inps = CS.inputs coinSel
         assert (chgs' < chgs || length inps' >= length inps)
@@ -656,9 +656,9 @@ feeUnitTest adjustOpts fixture expected = it title $ do
     result <- runExceptT $ do
         cs' <- adjustForFee (adjustOpts $ feeOptions feeF dustF) utxo cs
         return $ FeeOutput
-            { csInps  = map (getCoin . coin . snd) (inputs cs')
-            , csOuts  = map (getCoin . coin) (outputs cs')
-            , csChngs = map getCoin (change cs')
+            { csInps  = map (unCoin . coin . snd) (inputs cs')
+            , csOuts  = map (unCoin . coin) (outputs cs')
+            , csChngs = map unCoin (change cs')
             }
     result `shouldBe` expected
   where
@@ -790,7 +790,7 @@ instance Arbitrary Coin where
 
 instance Arbitrary Fee where
     shrink (Fee c) = Fee <$> filter (> 0) (shrink $ fromIntegral c)
-    arbitrary = Fee . getCoin <$> arbitrary
+    arbitrary = Fee . unCoin <$> arbitrary
 
 instance Arbitrary FeeProp where
     shrink (FeeProp cs utxo opts) =

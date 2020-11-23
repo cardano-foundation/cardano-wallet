@@ -487,7 +487,7 @@ migrateManually tr proxy defaultFieldValues =
     addMinimumUTxOValueIfMissing conn = do
         addColumn_ conn True (DBField ProtocolParametersMinimumUtxoValue) value
       where
-        value = T.pack $ show $ W.getCoin $ defaultMinimumUTxOValue defaultFieldValues
+        value = T.pack $ show $ W.unCoin $ defaultMinimumUTxOValue defaultFieldValues
 
     -- | Adds an 'hardfork_epoch' column to the 'protocol_parameters'
     -- table if it is missing.

@@ -398,7 +398,7 @@ prefilterBlock b u0 = runState $ do
         ourU <- state $ utxoOurs tx
         let ourIns = Set.fromList (inputs tx) `Set.intersection` dom (u <> ourU)
         let u' = (u <> ourU) `excluding` ourIns
-        ourWithdrawals <- fmap (fromIntegral . getCoin . snd) <$>
+        ourWithdrawals <- fmap (fromIntegral . unCoin . snd) <$>
             mapMaybeM ourWithdrawal (Map.toList $ withdrawals tx)
         let received = balance ourU
         let spent = balance (u `restrictedBy` ourIns) + sum ourWithdrawals

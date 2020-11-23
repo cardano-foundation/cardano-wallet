@@ -260,7 +260,7 @@ propInputDecreasingOrder (CoinSelProp utxo wdrl txOuts) =
             getExtremumValue L.minimum (inputs cs)
             `shouldSatisfy`
             (>= (getExtremumValue L.maximum utxo'))
-    getExtremumValue f = f . map (getCoin . coin . snd)
+    getExtremumValue f = f . map (unCoin . coin . snd)
     selection = runIdentity $ runExceptT $ do
         let opts = CoinSelectionOptions (const 100)
         largestFirst opts txOuts wdrl utxo

@@ -236,7 +236,7 @@ coverRemainingFee maxN (Fee fee) = go [] 0 where
             -- We ignore the size of the fee, and just pick randomly
             StateT (lift . pickRandom) >>= \case
                 Just input@(_, out) ->
-                    go (input : additionalInputs) (getCoin (coin out) + surplus)
+                    go (input : additionalInputs) (unCoin (coin out) + surplus)
                 Nothing -> do
                     lift $ throwE $ ErrCannotCoverFee (fee - surplus)
 
@@ -330,7 +330,7 @@ divvyFee _ outs | (Coin 0) `elem` outs =
     error "divvyFee: some outputs are null"
 divvyFee (Fee f0) outs = go f0 [] outs
   where
-    total = (sum . map getCoin) outs
+    total = (sum . map unCoin) outs
     go _ _ [] =
         error "divvyFee: empty list"
     go fOut xs [out] =
@@ -353,7 +353,7 @@ divvyFee (Fee f0) outs = go f0 [] outs
 -- return an empty list.
 coalesceDust :: Coin -> [Coin] -> [Coin]
 coalesceDust threshold coins
-    | balance coins <= getCoin threshold =
+    | balance coins <= unCoin threshold =
         []
     | otherwise =
         let
@@ -385,7 +385,7 @@ splitChange = go
         -- or if is some overflow happens when we try to add.
     go remaining [a] =
         let
-            newChange = Coin $ (getCoin remaining) + (getCoin a)
+            newChange = Coin $ (unCoin remaining) + (unCoin a)
         in
             if isValidCoin newChange
             then [newChange]
@@ -394,7 +394,7 @@ splitChange = go
         let
             piece = remaining `div` fromIntegral (length ls)
             newRemaining = Coin (remaining - piece)
-            newChange = Coin (piece + getCoin a)
+            newChange = Coin (piece + unCoin a)
         in
             if isValidCoin newChange
             then newChange : go newRemaining as

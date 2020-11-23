@@ -280,9 +280,9 @@ coinSelectionUnitTest run lbl expected (CoinSelectionFixture n utxoF outsF w) =
             cs <- fst <$> run
                 (CoinSelectionOptions (const n)) txOuts (Quantity w) utxo
             return $ CoinSelectionResult
-                { rsInputs  = map (getCoin . coin . snd) (inputs cs)
-                , rsChange  = map getCoin (change cs)
-                , rsOutputs = map (getCoin . coin) (outputs cs)
+                { rsInputs  = map (unCoin . coin . snd) (inputs cs)
+                , rsChange  = map unCoin (change cs)
+                , rsOutputs = map (unCoin . coin) (outputs cs)
                 }
         result `shouldBe` expected
   where
