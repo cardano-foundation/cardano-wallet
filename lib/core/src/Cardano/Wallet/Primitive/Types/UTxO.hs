@@ -109,7 +109,7 @@ balance =
     Map.foldl' fn 0 . getUTxO
   where
     fn :: Natural -> TxOut -> Natural
-    fn tot out = tot + fromIntegral (getCoin (coin out))
+    fn tot out = tot + fromIntegral (unCoin (coin out))
 
 -- | Compute the balance of a unwrapped UTxO
 balance' :: [(TxIn, TxOut)] -> Word64
@@ -117,7 +117,7 @@ balance' =
     foldl' fn 0
   where
     fn :: Word64 -> (TxIn, TxOut) -> Word64
-    fn tot (_, out) = tot + getCoin (coin out)
+    fn tot (_, out) = tot + unCoin (coin out)
 
 -- | ins⋪ u
 excluding :: UTxO -> Set TxIn ->  UTxO
@@ -220,7 +220,7 @@ log10 = Log10
 -- | Compute UtxoStatistics from UTxOs
 computeUtxoStatistics :: BoundType -> UTxO -> UTxOStatistics
 computeUtxoStatistics btype =
-    computeStatistics (pure . getCoin . coin) btype . Map.elems . getUTxO
+    computeStatistics (pure . unCoin . coin) btype . Map.elems . getUTxO
 
 -- | A more generic function for computing UTxO statistics on some other type of
 -- data that maps to UTxO's values.

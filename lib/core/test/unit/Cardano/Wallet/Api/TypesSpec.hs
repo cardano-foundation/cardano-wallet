@@ -578,13 +578,13 @@ spec = parallel $ do
 
         it "AddressAmount (too big)" $ do
             let msg = "Error in $: invalid coin value: value has to be lower \
-                    \than or equal to " <> show (getCoin maxBound)
+                    \than or equal to " <> show (unCoin maxBound)
                     <> " lovelace."
             Aeson.parseEither parseJSON [aesonQQ|
                 { "address": "<addr>"
                 , "amount":
                     { "unit":"lovelace"
-                    ,"quantity":#{getCoin maxBound + 1}
+                    ,"quantity":#{unCoin maxBound + 1}
                     }
                 }
             |] `shouldBe` (Left @String @(AddressAmount (ApiT Address, Proxy ('Testnet 0))) msg)

@@ -409,7 +409,7 @@ mkCoin n
     where c = Coin n
 
 instance PersistField Coin where
-    toPersistValue = toPersistValue . getCoin
+    toPersistValue = toPersistValue . unCoin
     fromPersistValue = fromPersistValue >=> mkCoin
 
 instance PersistFieldSql Coin where

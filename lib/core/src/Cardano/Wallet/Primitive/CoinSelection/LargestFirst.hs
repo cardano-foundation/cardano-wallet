@@ -67,7 +67,7 @@ largestFirst opt outs withdrawal utxo = do
         Just (utxo', s) ->
             pure (s, UTxO $ Map.fromList utxo')
         Nothing -> do
-            let moneyRequested = sum $ (getCoin . coin) <$> outs
+            let moneyRequested = sum $ (unCoin . coin) <$> outs
             let utxoList = Map.toList $ getUTxO utxo
             let total = totalBalance withdrawal utxoList
             let nUtxo = fromIntegral $ Map.size $ getUTxO utxo
@@ -102,7 +102,7 @@ atLeast
     -> [TxOut]
     -> Maybe ([(TxIn, TxOut)], CoinSelection)
 atLeast utxo0 (Quantity withdrawal) outs =
-    coverOutput (toInteger $ sum $ getCoin . coin <$> outs, mempty) utxo0
+    coverOutput (toInteger $ sum $ unCoin . coin <$> outs, mempty) utxo0
   where
     coverOutput
         :: (Integer, [(TxIn, TxOut)])
@@ -125,7 +125,7 @@ atLeast utxo0 (Quantity withdrawal) outs =
         | otherwise =
             let
                 (inp, out):utxo' = utxo
-                outAmount = getCoin (coin out)
+                outAmount = unCoin (coin out)
                 -- NOTE: For the /first/ selected input, we also use the entire
                 -- withdrawal. If it's not enough, new inputs will be selected.
                 target'

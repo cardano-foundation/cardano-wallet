@@ -626,7 +626,11 @@ estimateTxSize witTag md action cs =
     --
     -- So, for outputs, since we have the values, we can compute it accurately.
     sizeOf_Coin
-        = toInteger . BS.length . CBOR.toStrictByteString . CBOR.encodeWord64 . getCoin
+        = toInteger
+        . BS.length
+        . CBOR.toStrictByteString
+        . CBOR.encodeWord64
+        . unCoin
 
     -- withdrawals =
     --   { * reward_account => coin }
