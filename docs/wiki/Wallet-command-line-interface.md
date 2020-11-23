@@ -135,7 +135,8 @@ Serve API that listens for commands/actions. Before launching user should start 
 >   --tls-sv-cert FILE       A x.509 Server (SV) certificate.
 >   --tls-sv-key FILE        The RSA Server key which signed the x.509 server
 >                            certificate.
->   --node-socket FILE       Path to the node's domain socket.
+>   --node-socket FILE       Path to the node's domain socket (POSIX)
+>                            or pipe name (Windows).
 >   --mainnet                Use Cardano mainnet protocol
 >   --testnet FILE           Path to the byron genesis data in JSON format.
 >   --staging FILE           Path to the byron genesis data in JSON format.
@@ -157,16 +158,26 @@ Serve API that listens for commands/actions. Before launching user should start 
 
 ### Minimal Arguments
 
-In order to start the wallet server, you'll need to provide _at least_ the path to cardano-node's socket and a target network. That socket is automatically created when starting a cardano-node and it exists so long as the node remains running.  
+In order to start the wallet server, you'll need to provide _at least_ the path to cardano-node's socket/pipe and a target network. That socket is automatically created when starting a cardano-node and it exists so long as the node remains running.  
 
 We also recommend to pass a `--database` option pointing to a directory on the file-system; without this option, the wallet will maintain a state in-memory which will vanish once stopped. 
+
+#### Domain socket/named pipe
+
+On POSIX systems (i.e. Linux and macOS), a [UNIX domain socket](https://en.wikipedia.org/wiki/Unix_domain_socket) is used for communication between the cardano-wallet and cardano-node processes.
+
+On these systems, the `--node-socket` argument must be a path to a socket file. Note that there is a limitation on socket path lengths of about 100 characters or so.
+
+On Windows systems, a [Named Pipe](https://en.wikipedia.org/wiki/Named_pipe#In_Windows) is used instead.
+
+[Windows Named Pipes](https://docs.microsoft.com/en-us/windows/win32/ipc/named-pipes) do not have filenames. So on Windows systems, the `--node-socket` argument must be a pipe name. Pipe names are a string of the form `\\.\pipe\name`. For example, `\\.\pipe\cardano-wallet`.
 
 #### example on Mainnet
 
 ```
 cardano-wallet serve \
   --mainnet \
-  --node-socket PATH_TO_CARDANO_NODE_SOCKET \
+  --node-socket CARDANO_NODE_SOCKET_PATH_OR_PIPE \
   --database ./wallets-mainnet
 ```
 
@@ -178,7 +189,7 @@ synced from the beginning of the first era.
 ```
 cardano-wallet serve \
   --testnet testnet-byron-genesis.json \
-  --node-socket PATH_TO_CARDANO_NODE_SOCKET \
+  --node-socket CARDANO_NODE_SOCKET_PATH_OR_PIPE \
   --database ./wallets-testnet
 ```
 
