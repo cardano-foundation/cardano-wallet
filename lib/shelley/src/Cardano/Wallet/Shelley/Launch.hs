@@ -242,7 +242,9 @@ nodeSocketOption :: Parser FilePath
 nodeSocketOption = optionT $ mempty
     <> long "node-socket"
     <> metavar "FILE"
-    <> help "Path to the node's domain socket."
+    <> help "Path to the node's domain socket file (POSIX) or pipe name (Windows). \
+            \ Note: Maximum length for POSIX socket files is approx. 100 bytes. \
+            \ Note: Windows named pipes are of the form \\\\.\\pipe\\cardano-node"
 
 -- | --mainnet --shelley-genesis=FILE
 -- --testnet --byron-genesis=FILE --shelley-genesis=FILE
