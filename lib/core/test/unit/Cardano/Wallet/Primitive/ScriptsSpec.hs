@@ -143,7 +143,7 @@ prop_scriptUpdatesStateProperly (AccountXPubWithScripts accXPub' scripts') = do
     let scriptKeyHashesInMap =
             Set.fromList . map (toVerKeyHash . projectKey) <$>
             Map.lookup (toScriptHash script) (knownScripts seqState')
-    scriptKeyHashesInMap === (Just $ Set.fromList (L.nub sciptKeyHashes))
+    scriptKeyHashesInMap === Just (Set.fromList (L.nub sciptKeyHashes))
 
 prop_scriptDiscoveredTwice
     :: AccountXPubWithScripts

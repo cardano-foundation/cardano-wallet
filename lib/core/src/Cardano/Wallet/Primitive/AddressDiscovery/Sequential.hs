@@ -335,7 +335,7 @@ mkVerificationKeyPool accXPub num@(AddressPoolGap g) vkPoolMap = VerificationKey
     projectIndex :: Index 'Soft 'AddressK -> Index 'Soft 'ScriptK
     projectIndex ix = Index $ getIndex ix
     indices =
-        [firstIndexToAdd .. (firstIndexToAdd + (fromInteger $ toInteger g) - 1)]
+        [firstIndexToAdd .. (firstIndexToAdd + fromInteger (toInteger g) - 1)]
     vkPoolMap' =
         Map.fromList $
         map (\ix -> (deriveVerKeyH (toIndex ix), (projectIndex $ toIndex ix, Unused)) )

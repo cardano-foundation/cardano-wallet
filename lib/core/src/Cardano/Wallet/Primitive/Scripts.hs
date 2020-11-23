@@ -4,6 +4,7 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
@@ -49,6 +50,10 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     )
 import Cardano.Wallet.Primitive.Types.Address
     ( AddressState (..) )
+import Control.Monad
+    ( foldM )
+import Data.Functor.Identity
+    ( Identity (..) )
 
 import qualified Data.List as L
 import qualified Data.Map.Strict as Map
@@ -61,7 +66,7 @@ isShared
     => Script
     -> SeqState n k
     -> ([k 'ScriptK XPub], SeqState n k)
-isShared script s@(SeqState !s1 !s2 !ixs !rpk !prefix !scripts !s3) =
+isShared script (SeqState !s1 !s2 !ixs !rpk !prefix !scripts !s3) =
     let verKeysInScript = retrieveAllVerKeyHashes script
         (VerificationKeyPool accXPub currentGap verKeyMap) = s3
         projectKey (ShelleyKey k) = ShelleyKey k
@@ -83,9 +88,8 @@ isShared script s@(SeqState !s1 !s2 !ixs !rpk !prefix !scripts !s3) =
             (Map.toList verKeyMap)
         -- if all verification keys are used (after discovering) we are extending multisigPool
         extendingPool =
-            all (==Used) $
-            map (\(_,(_,isUsed)) -> isUsed) $
-            Map.toList markedVerKeyMap
+            all ((== Used) . (\ (_, (_, isUsed)) -> isUsed))
+            (Map.toList markedVerKeyMap)
         s3' = if extendingPool then
                   mkVerificationKeyPool
                   accXPub
@@ -93,16 +97,22 @@ isShared script s@(SeqState !s1 !s2 !ixs !rpk !prefix !scripts !s3) =
                   markedVerKeyMap
               else
                   VerificationKeyPool accXPub currentGap markedVerKeyMap
-    in if null ourVerKeysInScript then
-        ([], s)
-       else
-        ( scriptXPubs
-        , SeqState s1 s2 ixs rpk prefix (Map.insert (toScriptHash script) scriptXPubs scripts) s3')
+        insertIf predicate k v = if predicate v then Map.insert k v else id
+    in ( scriptXPubs
+       , SeqState s1 s2 ixs rpk prefix
+           (insertIf (not . null) (toScriptHash script) scriptXPubs scripts)
+           s3'
+       )
 
 retrieveAllVerKeyHashes :: Script -> [KeyHash]
-retrieveAllVerKeyHashes = extractVerKey []
+retrieveAllVerKeyHashes = foldScript (:) []
+
+foldScript :: (KeyHash -> b -> b) -> b -> Script -> b
+foldScript fn zero = \case
+    RequireSignatureOf k -> fn k zero
+    RequireAllOf xs      -> foldMScripts xs
+    RequireAnyOf xs      -> foldMScripts xs
+    RequireSomeOf _ xs   -> foldMScripts xs
   where
-      extractVerKey acc (RequireSignatureOf verKey) = verKey : acc
-      extractVerKey acc (RequireAllOf xs) = foldr (flip extractVerKey) acc xs
-      extractVerKey acc (RequireAnyOf xs) = foldr (flip extractVerKey) acc xs
-      extractVerKey acc (RequireSomeOf _ xs) = foldr (flip extractVerKey) acc xs
+    foldMScripts =
+        runIdentity . foldM (\acc -> Identity . foldScript fn acc) zero

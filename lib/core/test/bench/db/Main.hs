@@ -86,11 +86,14 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPool
     , DerivationPrefix (..)
     , SeqState (..)
+    , accountPubKey
     , coinTypeAda
     , defaultAddressPoolGap
     , emptyPendingIxs
+    , gap
     , mkAddressPool
     , mkSeqStateFromRootXPrv
+    , mkVerificationKeyPool
     , purposeCIP1852
     )
 import Cardano.Wallet.Primitive.Model
@@ -318,16 +321,18 @@ bgroupWriteSeqState db = bgroup "SeqState"
         fixture db_ = do
             walletFixture db_
             pure cps
+        extPool = mkPool a i
         cps :: [WalletBench]
         cps =
             [ snd $ initWallet (withMovingSlot i block0) dummyGenesisParameters $
                 SeqState
                     (mkPool a i)
-                    (mkPool a i)
+                    extPool
                     emptyPendingIxs
                     rewardAccount
                     defaultPrefix
                     Map.empty
+                    (mkVerificationKeyPool (accountPubKey extPool) (gap extPool) Map.empty)
             | i <- [1..n]
             ]
 
