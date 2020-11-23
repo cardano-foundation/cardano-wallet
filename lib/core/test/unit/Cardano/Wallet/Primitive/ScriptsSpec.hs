@@ -64,6 +64,8 @@ import Control.Monad
     ( replicateM )
 import Data.Proxy
     ( Proxy (..) )
+import Data.Word
+    ( Word32 )
 import Test.Hspec
     ( Spec, describe, it )
 import Test.QuickCheck
@@ -78,6 +80,7 @@ import Test.QuickCheck
     , scale
     , sized
     , vectorOf
+    , (.&&.)
     , (===)
     )
 
@@ -106,6 +109,8 @@ spec = do
             (property prop_markingDiscoveredVerKeys)
         it "discovering works after pool extension"
             (property prop_poolExtension)
+        it "our verification keys beyond pool gap are not discovered"
+            (property prop_scriptsOutsideNotDiscovered)
 
 prop_scriptFromOurVerKeys
     :: AccountXPubWithScripts
@@ -177,23 +182,37 @@ prop_poolExtension
     :: AccountXPubWithScriptsExtension
     -> Property
 prop_poolExtension (AccountXPubWithScriptsExtension accXPub' scripts') = do
-    let (SeqState s1 s2 ixs rpk prefix scr (VerificationKeyPool _ g allOurVerKeys)) =
-         initializeState accXPub'
-    --make artificially all except last index Used
-    let isLastIndex ix =
-            if ix == Index (minBound + getAddressPoolGap defaultAddressPoolGap - 1) then
-                Unused
-            else
-                Used
-    let allOurVerKeys' =
-            Map.mapWithKey (\_ (ix, _) -> (ix, isLastIndex ix)) allOurVerKeys
-    let seqState =
-            SeqState s1 s2 ixs rpk prefix scr (VerificationKeyPool accXPub' g allOurVerKeys')
-    let (script:_) = scripts'
-    let (_, SeqState _ _ _ _ _ _ (VerificationKeyPool _ g' _)) =
-            isShared script seqState
-    g' === mkUnboundedAddressPoolGap
+    g' == mkUnboundedAddressPoolGap
         (getAddressPoolGap defaultAddressPoolGap + getAddressPoolGap g)
+    .&&.
+        scriptHashes == Set.fromList (map toScriptHash scripts')
+  where
+    (SeqState s1 s2 ixs rpk prefix scr (VerificationKeyPool _ g allOurVerKeys)) =
+        initializeState accXPub'
+    --make artificially all except last index Used
+    isLastIndex ix =
+        if ix == Index (minBound + getAddressPoolGap defaultAddressPoolGap - 1) then
+            Unused
+        else
+            Used
+    allOurVerKeys' =
+        Map.mapWithKey (\_ (ix, _) -> (ix, isLastIndex ix)) allOurVerKeys
+    seqState =
+        SeqState s1 s2 ixs rpk prefix scr (VerificationKeyPool accXPub' g allOurVerKeys')
+    (script:restScripts) = scripts'
+    (_, seqState0@(SeqState _ _ _ _ _ _ (VerificationKeyPool _ g' _)) ) =
+        isShared script seqState
+    seqState' = foldr (\script' s -> snd $ isShared script' s) seqState0 restScripts
+    scriptHashes = Set.fromList $ Map.keys $ knownScripts seqState'
+
+prop_scriptsOutsideNotDiscovered
+    :: AccountXPubWithScriptsOutside
+    -> Property
+prop_scriptsOutsideNotDiscovered (AccountXPubWithScriptsOutside accXPub' scripts') = do
+    let seqState0 = initializeState accXPub'
+    let seqState = foldr (\script s -> snd $ isShared script s) seqState0 scripts'
+    let scriptHashes = Map.keys $ knownScripts seqState
+    null scriptHashes === True
 
 data AccountXPubWithScripts = AccountXPubWithScripts
     { accXPub :: ShelleyKey 'AccountK XPub
@@ -201,6 +220,11 @@ data AccountXPubWithScripts = AccountXPubWithScripts
     } deriving (Eq, Show)
 
 data AccountXPubWithScriptsExtension = AccountXPubWithScriptsExtension
+    { accXPub :: ShelleyKey 'AccountK XPub
+    , scripts :: [Script]
+    } deriving (Eq, Show)
+
+data AccountXPubWithScriptsOutside = AccountXPubWithScriptsOutside
     { accXPub :: ShelleyKey 'AccountK XPub
     , scripts :: [Script]
     } deriving (Eq, Show)
@@ -249,6 +273,15 @@ genScript keyHashes =
                 , RequireSomeOf atLeast scripts'
                 ]
 
+prepareVerKeys
+    :: ShelleyKey 'AccountK XPub
+    -> [Word32]
+    -> [ShelleyKey 'AddressK XPub]
+prepareVerKeys accXPub' =
+    let toVerKey = deriveAddressPublicKey accXPub' MultisigScript
+        minIndex = getIndex @'Soft minBound
+    in map (\ix -> toVerKey (toEnum (fromInteger $ toInteger $ minIndex + ix)))
+
 instance Arbitrary (ShelleyKey 'AccountK XPub) where
     arbitrary = do
         mnemonics <- SomeMnemonic <$> genMnemonic @12
@@ -260,12 +293,7 @@ instance Arbitrary AccountXPubWithScripts where
     arbitrary = do
         accXPub' <- arbitrary
         kNum <- choose (2,8)
-        let toVerKey = deriveAddressPublicKey accXPub' MultisigScript
-        let minIndex = getIndex @'Soft minBound
-        let verKeys =
-                map (\ix -> toVerKey (toEnum (fromInteger $ toInteger $ minIndex + ix)))
-                [0 .. kNum]
-        let verKeyHashes = map toVerKeyHash verKeys
+        let verKeyHashes = map toVerKeyHash (prepareVerKeys accXPub' [0 .. kNum])
         scriptsNum <- choose (1,10)
         AccountXPubWithScripts accXPub' <$> vectorOf scriptsNum (genScript verKeyHashes)
 
@@ -273,23 +301,28 @@ instance Arbitrary AccountXPubWithScriptsExtension where
     arbitrary = do
         accXPub' <- arbitrary
 
-        let toVerKey = deriveAddressPublicKey accXPub' MultisigScript
-        let minIndex = getIndex @'Soft minBound
-        let verKeys =
-                map (\ix -> toVerKey (toEnum (fromInteger $ toInteger $ minIndex + ix)))
-
-        let g = getAddressPoolGap defaultAddressPoolGap
         -- the first script is expected to trigger extension to multisigScript
-        let verKeys1 = verKeys [g - 1]
-        scriptTipping <- genScript (toVerKeyHash <$> verKeys1)
+        let g = getAddressPoolGap defaultAddressPoolGap
+        scriptTipping <-
+            genScript (toVerKeyHash <$> (prepareVerKeys accXPub' [g - 1]))
 
         -- the next scripts are using extended indices that were not possible to be discovered
         kNum <- choose (2,8)
         scriptsNum <- choose (1,10)
-        let verKeysNext = verKeys [g .. g + kNum]
-        scriptsNext <- vectorOf scriptsNum (genScript (toVerKeyHash <$> verKeysNext))
+        let verKeysNext = prepareVerKeys accXPub' [g .. g + kNum]
+        scriptsNext <-
+            vectorOf scriptsNum (genScript (toVerKeyHash <$> verKeysNext))
 
         pure $ AccountXPubWithScriptsExtension accXPub' (scriptTipping : scriptsNext )
+
+instance Arbitrary AccountXPubWithScriptsOutside where
+    arbitrary = do
+        accXPub' <- arbitrary
+        kNum <- choose (2,8)
+        let g = getAddressPoolGap defaultAddressPoolGap
+        let verKeyHashes = map toVerKeyHash (prepareVerKeys accXPub' [g .. g + kNum])
+        scriptsNum <- choose (1,10)
+        AccountXPubWithScriptsOutside accXPub' <$> vectorOf scriptsNum (genScript verKeyHashes)
 
 instance Arbitrary (Passphrase "raw") where
     arbitrary = do
