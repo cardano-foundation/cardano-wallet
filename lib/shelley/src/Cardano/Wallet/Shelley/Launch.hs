@@ -158,7 +158,7 @@ import Data.Function
 import Data.Functor
     ( ($>), (<&>) )
 import Data.List
-    ( isInfixOf, nub, permutations, sort )
+    ( isInfixOf, isPrefixOf, nub, permutations, sort )
 import Data.Maybe
     ( catMaybes, fromMaybe )
 import Data.Proxy
@@ -174,7 +174,7 @@ import Data.Time.Clock.POSIX
 import GHC.TypeLits
     ( KnownNat, Nat, SomeNat (..), someNatVal )
 import Options.Applicative
-    ( Parser, flag', help, long, metavar, (<|>) )
+    ( Parser, eitherReader, flag', help, long, metavar, option, (<|>) )
 import Ouroboros.Consensus.Shelley.Node
     ( sgNetworkMagic )
 import Ouroboros.Network.Magic
@@ -188,7 +188,9 @@ import System.Environment
 import System.Exit
     ( ExitCode (..), die )
 import System.FilePath
-    ( (</>) )
+    ( isValid, (</>) )
+import System.Info
+    ( os )
 import System.IO.Temp
     ( createTempDirectory, getCanonicalTemporaryDirectory, withTempDirectory )
 import System.IO.Unsafe
@@ -239,12 +241,35 @@ data NetworkConfiguration where
 
 -- | --node-socket=FILE
 nodeSocketOption :: Parser FilePath
-nodeSocketOption = optionT $ mempty
+nodeSocketOption = option (eitherReader check) $ mempty
     <> long "node-socket"
-    <> metavar "FILE"
-    <> help "Path to the node's domain socket file (POSIX) or pipe name (Windows). \
-            \ Note: Maximum length for POSIX socket files is approx. 100 bytes. \
-            \ Note: Windows named pipes are of the form \\\\.\\pipe\\cardano-node"
+    <> metavar (if isWindows then "PIPENAME" else "FILE")
+    <> help helpText
+  where
+    check :: String -> Either String FilePath
+    check name
+        | isWindows = if isValidWindowsPipeName name
+            then Right name
+            else Left ("Invalid pipe name. " ++ pipeHelp)
+        | otherwise = if isValid name
+            then Right name
+            else Left "Invalid file path"
+
+    helpText = mconcat
+        [ "Path to the node's domain socket file (POSIX) "
+        , "or pipe name (Windows). "
+        , "Note: Maximum length for POSIX socket files is approx. 100 bytes. "
+        , "Note: ", pipeHelp ]
+    pipeHelp = "Windows named pipes are of the form \\\\.\\pipe\\cardano-node"
+
+isWindows :: Bool
+isWindows = os == "mingw32"
+
+isValidWindowsPipeName :: FilePath -> Bool
+isValidWindowsPipeName name = slashPipe `isPrefixOf` name
+    && isValid (drop (length slashPipe) name)
+  where
+    slashPipe = "\\\\.\\pipe\\"
 
 -- | --mainnet --shelley-genesis=FILE
 -- --testnet --byron-genesis=FILE --shelley-genesis=FILE
