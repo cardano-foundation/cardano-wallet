@@ -85,7 +85,7 @@ import Test.Hspec
 import Test.Hspec.Expectations.Lifted
     ( shouldBe, shouldSatisfy )
 import Test.Hspec.Extra
-    ( it )
+    ( flakyBecauseOf, it )
 import Test.Integration.Framework.Context
     ( Context (..), PoolGarbageCollectionEvent (..) )
 import Test.Integration.Framework.DSL
@@ -581,6 +581,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
 
     it "STAKE_POOLS_JOIN_05 - \
         \Can join when stake key already exists" $ \ctx -> runResourceT $ do
+        liftIO $ flakyBecauseOf "#2230"
         let walletWithPreRegKey =
                 [ "over", "decorate", "flock", "badge", "beauty"
                 , "stamp" , "chest", "owner", "excess", "omit"
@@ -1101,6 +1102,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
 
     it "STAKE_POOLS_SMASH_01 - fetching metadata from SMASH works with delisted pools" $
         \ctx -> runResourceT $ bracketSettings ctx $ do
+            liftIO $ flakyBecauseOf "#2337 (theorized)"
             smashUrl <- liftIO $ getEnv "CARDANO_WALLET_SMASH_URL"
             updateMetadataSource ctx (T.pack smashUrl)
             eventually "metadata is fetched" $ do

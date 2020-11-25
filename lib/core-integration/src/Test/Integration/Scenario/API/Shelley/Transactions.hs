@@ -88,11 +88,11 @@ import Network.HTTP.Types.Method
 import Numeric.Natural
     ( Natural )
 import Test.Hspec
-    ( SpecWith, describe, pendingWith )
+    ( SpecWith, describe )
 import Test.Hspec.Expectations.Lifted
     ( expectationFailure, shouldBe, shouldNotBe, shouldSatisfy )
 import Test.Hspec.Extra
-    ( it )
+    ( flakyBecauseOf, it )
 import Test.Integration.Framework.DSL
     ( Context
     , Headers (..)
@@ -607,6 +607,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
     let slotDiff a b = if a > b then a - b else b - a
 
     it "TRANS_TTL_01 - Pending transaction expiry" $ \ctx -> runResourceT $ do
+        liftIO $ flakyBecauseOf "#2295"
         (wa, wb) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
         let amt = minUTxOValue :: Natural
 
@@ -640,6 +641,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             & counterexample ("actual expiry: " <> show txActualExp)
 
     it "TRANS_TTL_02 - Custom transaction expiry" $ \ctx -> runResourceT $ do
+        liftIO $ flakyBecauseOf "#2295"
         (wa, wb) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
         let amt = minUTxOValue :: Natural
         let testTTL = 42 :: NominalDiffTime
@@ -674,7 +676,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             & counterexample ("actual expiry: " <> show txActualExp)
 
     it "TRANS_TTL_03 - Expired transactions" $ \ctx -> runResourceT $ do
-        liftIO $ pendingWith "#1840 this is flaky -- need a better approach"
+        liftIO $ flakyBecauseOf "#1840 -- need a better approach"
 
         (wa, wb) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
         let amt = minUTxOValue :: Natural
@@ -2219,7 +2221,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         txDeleteFromDifferentWalletTest emptyRandomWallet "byron-wallets"
 
     it "TRANS_TTL_DELETE_01 - Shelley: can remove expired tx" $ \ctx -> runResourceT $ do
-        liftIO $ pendingWith "#1840 this is flaky -- need a better approach"
+        liftIO $ flakyBecauseOf "#1840 -- need a better approach"
         (wa, wb) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
         let amt = minUTxOValue :: Natural
 
