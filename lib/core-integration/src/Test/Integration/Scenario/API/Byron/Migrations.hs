@@ -52,7 +52,7 @@ import Data.Quantity
 import Data.Text
     ( Text )
 import Data.Typeable
-    ( Typeable, typeOf )
+    ( Typeable )
 import Data.Word
     ( Word64 )
 import Test.Hspec
@@ -264,11 +264,6 @@ spec = describe "BYRON_MIGRATIONS" $ do
         addrs <- listAddresses @n ctx wNew
         let addr1 = (addrs !! 1) ^. #id
 
-        numOfTxs <- case (show (typeOf (_target ctx))) of
-                s | s == "Proxy * Jormungandr" -> pure 1
-                s | s == "Proxy * Shelley" -> pure 20
-                _ -> fail ("unknown target backend? (" <> show (typeOf (_target ctx)) <> ")")
-
         let payloadMigrate =
                 Json [json|
                     { passphrase: #{fixturePassphrase}
@@ -280,7 +275,7 @@ spec = describe "BYRON_MIGRATIONS" $ do
             payloadMigrate
         verify rm
             [ expectResponseCode HTTP.status202
-            , expectField id ( (`shouldBe` (numOfTxs)) . length )
+            , expectField id ( (`shouldBe` 19) . length )
             ]
 
         -- Check that funds become available in the target wallet:

@@ -132,20 +132,12 @@ spec = do
         prop "roundtrip for Shelley witnesses" prop_decodeSignedShelleyTxRoundtrip
         prop "roundtrip for Byron witnesses" prop_decodeSignedByronTxRoundtrip
 
-    estimateMaxInputsTests @ShelleyKey Cardano.Mainnet
-        [(1,23),(10,16),(20,9),(30,2)]
-    estimateMaxInputsTests @ShelleyKey (Cardano.Testnet (Cardano.NetworkMagic 0))
-        [(1,23),(10,16),(20,9),(30,2)]
-
-    estimateMaxInputsTests @ByronKey Cardano.Mainnet
-        [(1,16),(10,10),(20,5),(30,0)]
-    estimateMaxInputsTests @ByronKey (Cardano.Testnet (Cardano.NetworkMagic 0))
-        [(1,15),(10,10),(20,4),(30,0)]
-
-    estimateMaxInputsTests @IcarusKey Cardano.Mainnet
-        [(1,19),(10,14),(20,9),(30,4)]
-    estimateMaxInputsTests @IcarusKey (Cardano.Testnet (Cardano.NetworkMagic 0))
-        [(1,18),(10,13),(20,8),(30,2)]
+    estimateMaxInputsTests @ShelleyKey
+        [(1,27),(10,19),(20,10),(30,1)]
+    estimateMaxInputsTests @ByronKey
+        [(1,17),(10,11),(20,4),(30,0)]
+    estimateMaxInputsTests @IcarusKey
+        [(1,17),(10,11),(20,4),(30,0)]
 
     describe "fee calculations" $ do
         let policy :: FeePolicy
@@ -204,7 +196,7 @@ spec = do
                     (Fee . CS.feeBalance) <$> adjustForFee testFeeOpts utxo' sel
         res <- runExceptT $ estimateFeeForCoinSelection selectCoins
 
-        res `shouldBe` Right (FeeEstimation 165413 165413)
+        res `shouldBe` Right (FeeEstimation 166029 166029)
 
     describe "tx binary calculations - Byron witnesses - mainnet" $ do
         let slotNo = SlotNo 7750
@@ -376,24 +368,23 @@ newtype ExpectedNumInputs = ExpectedNumInputs Word8 deriving Num
 -- layer.
 estimateMaxInputsTests
     :: forall k. (TxWitnessTagFor k, Typeable k)
-    => Cardano.NetworkId
-    -> [(GivenNumOutputs, ExpectedNumInputs)]
+    => [(GivenNumOutputs, ExpectedNumInputs)]
     -> SpecWith ()
-estimateMaxInputsTests net cases = do
+estimateMaxInputsTests cases = do
     let k = show $ typeRep (Proxy @k)
-    describe ("estimateMaxNumberOfInputs for "<>k<>" on "<>show net) $ do
+    describe ("estimateMaxNumberOfInputs for "<>k) $ do
         forM_ cases $ \(GivenNumOutputs nOuts, ExpectedNumInputs nInps) -> do
             let (o,i) = (show nOuts, show nInps)
             it ("order of magnitude, nOuts = " <> o <> " => nInps = " <> i) $
-                _estimateMaxNumberOfInputs @k net (Quantity 4096) Nothing nOuts
+                _estimateMaxNumberOfInputs @k (Quantity 4096) Nothing nOuts
                     `shouldBe` nInps
 
         prop "more outputs ==> less inputs"
-            (prop_moreOutputsMeansLessInputs @k net)
+            (prop_moreOutputsMeansLessInputs @k)
         prop "less outputs ==> more inputs"
-            (prop_lessOutputsMeansMoreInputs @k net)
+            (prop_lessOutputsMeansMoreInputs @k)
         prop "bigger size  ==> more inputs"
-            (prop_biggerMaxSizeMeansMoreInputs @k net)
+            (prop_biggerMaxSizeMeansMoreInputs @k)
 
 prop_decodeSignedShelleyTxRoundtrip
     :: DecodeShelleySetup
@@ -427,47 +418,44 @@ prop_decodeSignedByronTxRoundtrip (DecodeByronSetup utxo outs slotNo ntwrk pairs
 -- | Increasing the number of outputs reduces the number of inputs.
 prop_moreOutputsMeansLessInputs
     :: forall k. TxWitnessTagFor k
-    => Cardano.NetworkId
-    -> Quantity "byte" Word16
+    => Quantity "byte" Word16
     -> Word8
     -> Property
-prop_moreOutputsMeansLessInputs net size nOuts
+prop_moreOutputsMeansLessInputs size nOuts
     = withMaxSuccess 1000
     $ within 300000
     $ nOuts < maxBound ==>
-        _estimateMaxNumberOfInputs @k net size Nothing nOuts
+        _estimateMaxNumberOfInputs @k size Nothing nOuts
         >=
-        _estimateMaxNumberOfInputs @k net size Nothing (nOuts + 1)
+        _estimateMaxNumberOfInputs @k size Nothing (nOuts + 1)
 
 -- | Reducing the number of outputs increases the number of inputs.
 prop_lessOutputsMeansMoreInputs
     :: forall k. TxWitnessTagFor k
-    => Cardano.NetworkId
-    -> Quantity "byte" Word16
+    => Quantity "byte" Word16
     -> Word8
     -> Property
-prop_lessOutputsMeansMoreInputs net size nOuts
+prop_lessOutputsMeansMoreInputs size nOuts
     = withMaxSuccess 1000
     $ within 300000
     $ nOuts > minBound ==>
-        _estimateMaxNumberOfInputs @k net size Nothing (nOuts - 1)
+        _estimateMaxNumberOfInputs @k size Nothing (nOuts - 1)
         >=
-        _estimateMaxNumberOfInputs @k net size Nothing nOuts
+        _estimateMaxNumberOfInputs @k size Nothing nOuts
 
 -- | Increasing the max size automatically increased the number of inputs
 prop_biggerMaxSizeMeansMoreInputs
     :: forall k. TxWitnessTagFor k
-    => Cardano.NetworkId
-    -> Quantity "byte" Word16
+    => Quantity "byte" Word16
     -> Word8
     -> Property
-prop_biggerMaxSizeMeansMoreInputs net (Quantity size) nOuts
+prop_biggerMaxSizeMeansMoreInputs (Quantity size) nOuts
     = withMaxSuccess 1000
     $ within 300000
     $ size < maxBound `div` 2 ==>
-        _estimateMaxNumberOfInputs @k net (Quantity size) Nothing nOuts
+        _estimateMaxNumberOfInputs @k (Quantity size) Nothing nOuts
         <=
-        _estimateMaxNumberOfInputs @k net (Quantity (size * 2)) Nothing nOuts
+        _estimateMaxNumberOfInputs @k (Quantity (size * 2)) Nothing nOuts
 
 testCoinSelOpts :: CoinSelectionOptions ()
 testCoinSelOpts = coinSelOpts testTxLayer (Quantity 4096) Nothing

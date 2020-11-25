@@ -212,7 +212,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
             Default
             payloadMigrate >>= flip verify
             [ expectResponseCode HTTP.status202
-            , expectField id ((`shouldBe` 15) . length)
+            , expectField id ((`shouldBe` 14) . length)
             ]
 
         -- Check that funds become available in the target wallet:

@@ -40,15 +40,11 @@ import Prelude
 import Cardano.Address.Derivation
     ( XPrv, toXPub )
 import Cardano.Api.Typed
-    ( NetworkId, TxExtraContent (..) )
+    ( NetworkId, SerialiseAsCBOR (..), TxExtraContent (..) )
 import Cardano.Binary
     ( serialize' )
-import Cardano.Crypto.DSIGN
-    ( DSIGNAlgorithm (..), SignedDSIGN (..) )
 import Cardano.Crypto.Wallet
     ( XPub )
-import Cardano.Ledger.Crypto
-    ( Crypto (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..), Passphrase (..), RewardAccount (..), WalletKey (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
@@ -73,7 +69,6 @@ import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx (..), Tx (..), TxIn (..), TxMetadata, TxOut (..) )
 import Cardano.Wallet.Shelley.Compatibility
     ( Shelley
-    , StandardCrypto
     , sealShelleyTx
     , toCardanoLovelace
     , toCardanoStakeCredential
@@ -95,10 +90,6 @@ import Control.Monad
     ( forM )
 import Data.ByteString
     ( ByteString )
-import Data.Maybe
-    ( fromMaybe )
-import Data.Proxy
-    ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Word
@@ -112,15 +103,11 @@ import qualified Cardano.Crypto as CC
 import qualified Cardano.Crypto.Hash.Class as Crypto
 import qualified Cardano.Crypto.Wallet as Crypto.HD
 import qualified Cardano.Wallet.Primitive.CoinSelection as CS
-import qualified Data.ByteArray as BA
+import qualified Codec.CBOR.Encoding as CBOR
+import qualified Codec.CBOR.Write as CBOR
 import qualified Data.ByteString as BS
-import qualified Data.ByteString.Lazy as BL
-import qualified Data.ByteString.Lazy.Char8 as L8
 import qualified Data.Text as T
 import qualified Shelley.Spec.Ledger.Address.Bootstrap as SL
-import qualified Shelley.Spec.Ledger.Keys as SL
-import qualified Shelley.Spec.Ledger.LedgerState as SL
-import qualified Shelley.Spec.Ledger.Tx as SL
 
 -- | Type encapsulating what we need to know to add things -- payloads,
 -- certificates -- to a transaction.
@@ -230,8 +217,8 @@ newTransactionLayer networkId = TransactionLayer
     , mkDelegationJoinTx = _mkDelegationJoinTx
     , mkDelegationQuitTx = _mkDelegationQuitTx
     , decodeSignedTx = _decodeSignedTx
-    , minimumFee = _minimumFee @k networkId
-    , estimateMaxNumberOfInputs = _estimateMaxNumberOfInputs @k networkId
+    , minimumFee = _minimumFee @k
+    , estimateMaxNumberOfInputs = _estimateMaxNumberOfInputs @k
     , validateSelection = const $ return ()
     }
   where
@@ -314,15 +301,14 @@ mkDelegationCertificates da accXPub =
 
 _estimateMaxNumberOfInputs
     :: forall k. TxWitnessTagFor k
-    => NetworkId
-    -> Quantity "byte" Word16
+    => Quantity "byte" Word16
      -- ^ Transaction max size in bytes
     -> Maybe TxMetadata
      -- ^ Metadata associated with the transaction.
     -> Word8
     -- ^ Number of outputs in transaction
     -> Word8
-_estimateMaxNumberOfInputs networkId txMaxSize md nOuts =
+_estimateMaxNumberOfInputs txMaxSize md nOuts =
     findLargestUntil ((> maxSize) . txSizeGivenInputs) 0
   where
     -- | Find the largest amount of inputs that doesn't make the tx too big.
@@ -338,7 +324,7 @@ _estimateMaxNumberOfInputs networkId txMaxSize md nOuts =
 
     txSizeGivenInputs nInps = size
       where
-        size = computeTxSize networkId (txWitnessTagFor @k) md Nothing sel
+        size = estimateTxSize (txWitnessTagFor @k) md Nothing sel
         sel  = dummyCoinSel (fromIntegral nInps) (fromIntegral nOuts)
 
 dummyCoinSel :: Int -> Int -> CoinSelection
@@ -364,14 +350,13 @@ _decodeSignedTx bytes = do
 
 _minimumFee
     :: forall k. TxWitnessTagFor k
-    => NetworkId
-    -> FeePolicy
+    => FeePolicy
     -> Maybe DelegationAction
     -> Maybe TxMetadata
     -> CoinSelection
     -> Fee
-_minimumFee networkId policy action md cs =
-    computeFee $ computeTxSize networkId (txWitnessTagFor @k) md action cs
+_minimumFee policy action md cs =
+    computeFee $ estimateTxSize (txWitnessTagFor @k) md action cs
   where
     computeFee :: Integer -> Fee
     computeFee size =
@@ -379,167 +364,308 @@ _minimumFee networkId policy action md cs =
       where
         LinearFee (Quantity a) (Quantity b) _unused = policy
 
--- TODO: Can this function be re-written by calling @mkTx@ with dummy signing
--- functions?
-computeTxSize
-    :: Cardano.NetworkId
-    -> TxWitnessTag
+-- Estimate the size of a final transaction by using upper boundaries for cbor
+-- serialized objects according to:
+--
+-- https://github.com/input-output-hk/cardano-ledger-specs/blob/master/shelley/chain-and-ledger/shelley-spec-ledger-test/cddl-files/shelley.cddl
+--
+-- All sizes below are in bytes.
+estimateTxSize
+    :: TxWitnessTag
     -> Maybe Cardano.TxMetadata
     -> Maybe DelegationAction
     -> CoinSelection
     -> Integer
-computeTxSize networkId witTag md action cs =
-    withUnderlyingShelleyTx SL.txsize signed + outputCorrection
- where
-    withUnderlyingShelleyTx
-        :: (forall crypto. SL.Tx crypto -> a)
-        -> Cardano.Tx Cardano.Shelley
-        -> a
-    withUnderlyingShelleyTx f (Cardano.ShelleyTx x) = f x
+estimateTxSize witTag md action cs =
+    sizeOf_Transaction
+  where
+    numberOf_Inputs
+        = toInteger $ length $ CS.inputs cs
 
-    signed = Cardano.makeSignedTransaction wits unsigned
+    numberOf_CertificateSignatures
+        = maybe 0 (const 1) action
 
-    outputCorrection = sum
-        [ toInteger (length $ change cs) * perChangeCorrection
-        , toInteger (length $ inputs cs) * perInputCorrection
-        ]
-      where
-         -- NOTE
-         -- When we generate dummy output, we generate them as new Shelley addresses
-         -- because their format is much easier to generate (can be a sequence of
-         -- bytes, and a straightforward header). Generating dummy Byron or Icarus
-         -- addresses would be nuts. So instead, we apply a small correction for each
-         -- output which can either slightly increase or decrease the overall size.
-         --
-         -- When change are Shelley addresses, the correction is null.
-         perChangeCorrection = case witTag of
+    numberOf_Withdrawals
+        = if CS.withdrawal cs > 0 then 1 else 0
+
+    numberOf_VkeyWitnesses
+        = case witTag of
+            TxWitnessByronUTxO{} -> 0
             TxWitnessShelleyUTxO ->
-                0
-            TxWitnessByronUTxO Byron | networkId == Cardano.Mainnet ->
-                maxSizeOfByronMainAddr - maxSizeOfShelleyAddr
-            TxWitnessByronUTxO Byron ->
-                maxSizeOfByronTestAddr - maxSizeOfShelleyAddr
-            TxWitnessByronUTxO Icarus | networkId == Cardano.Mainnet ->
-                maxSizeOfIcarusMainAddr - maxSizeOfShelleyAddr
-            TxWitnessByronUTxO Icarus ->
-                maxSizeOfIcarusTestAddr - maxSizeOfShelleyAddr
-          where
-            maxSizeOfShelleyAddr    = 56 + 1
-            maxSizeOfByronMainAddr  = 76
-            maxSizeOfByronTestAddr  = 83
-            maxSizeOfIcarusMainAddr = 43
-            maxSizeOfIcarusTestAddr = 50
+                numberOf_Inputs
+                + numberOf_Withdrawals
+                + numberOf_CertificateSignatures
 
-         -- NOTE
-         -- We generate dummy witnesses that are exclusively in Shelley format.
-         -- In Byron (or so-called bootstrap witnesses), we need to account for
-         -- some extra bytes due to the inclusion of:
-         --
-         -- - The chain code
-         -- - Serialized address attributes (path and protocol magic)
-         perInputCorrection = case witTag of
-            TxWitnessShelleyUTxO ->
-                0
-            TxWitnessByronUTxO Byron | networkId == Cardano.Mainnet ->
-                ccLen + addrPathAttrLen
-            TxWitnessByronUTxO Byron ->
-                ccLen + addrPathAttrLen + networkMagicLen
-            TxWitnessByronUTxO Icarus | networkId == Cardano.Mainnet ->
-                ccLen
-            TxWitnessByronUTxO Icarus ->
-                ccLen + networkMagicLen
-           where
-             ccLen = 34
-             addrPathAttrLen = 40
-             networkMagicLen = 7
+    numberOf_BootstrapWitnesses
+        = case witTag of
+            TxWitnessByronUTxO{} -> numberOf_Inputs
+            TxWitnessShelleyUTxO -> 0
 
-    unsigned = mkUnsignedTx maxBound cs' md wdrls certs
+    -- transaction =
+    --   [ transaction_body
+    --   , transaction_witness_set
+    --   , transaction_metadata / null
+    --   ]
+    sizeOf_Transaction
+        = sizeOf_SmallArray
+        + sizeOf_TransactionBody
+        + sizeOf_WitnessSet
+        + sizeOf_Metadata
+
+    -- transaction_body =
+    --   { 0 : set<transaction_input>
+    --   , 1 : [* transaction_output]
+    --   , 2 : coin ; fee
+    --   , 3 : uint ; ttl
+    --   , ? 4 : [* certificate]
+    --   , ? 5 : withdrawals
+    --   , ? 6 : update
+    --   , ? 7 : metadata_hash
+    --   }
+    sizeOf_TransactionBody
+        = sizeOf_SmallMap
+        + sizeOf_Inputs
+        + sizeOf_Outputs
+        + sizeOf_Fee
+        + sizeOf_Ttl
+        + sizeOf_Certificates
+        + sizeOf_Withdrawals
+        + sizeOf_Update
+        + sizeOf_MetadataHash
       where
-        cs' :: CoinSelection
-        cs' = cs
-            { CS.outputs = CS.outputs cs <> (dummyOutput <$> change cs)
-            , CS.change  = []
-            }
+        -- 0 => set<transaction_input>
+        sizeOf_Inputs
+            = sizeOf_SmallUInt
+            + sizeOf_Array
+            + sizeOf_Input * numberOf_Inputs
 
-        dummyOutput :: Coin -> TxOut
-        dummyOutput =
-            TxOut $ Address $ BS.pack $ 0:replicate 56 0
+        -- 1 => [* transaction_output]
+        sizeOf_Outputs
+            = sizeOf_SmallUInt
+            + sizeOf_Array
+            + sum (sizeOf_Output <$> CS.outputs cs)
+            + sum (sizeOf_ChangeOutput <$> CS.change cs)
 
-        dummyStakeCred = toCardanoStakeCredential
-            $ RewardAccount dummyKeyHashRaw
+        -- 2 => fee
+        sizeOf_Fee
+            = sizeOf_SmallUInt
+            + sizeOf_UInt
 
-        dummyPoolId :: Cardano.PoolId
-        dummyPoolId = fromMaybe (error "dummyPoolId couldn't be constructed")
-            $ Cardano.deserialiseFromRawBytes (Cardano.AsHash Cardano.AsStakePoolKey)
-            dummyKeyHashRaw
+        -- 3 => ttl
+        sizeOf_Ttl
+            = sizeOf_SmallUInt
+            + sizeOf_UInt
 
-        certs = case action of
-            Nothing -> []
-            Just RegisterKeyAndJoin{} ->
-                [ Cardano.makeStakeAddressRegistrationCertificate dummyStakeCred
-                , Cardano.makeStakeAddressDelegationCertificate dummyStakeCred dummyPoolId
-                ]
-            Just Join{} ->
-                [ Cardano.makeStakeAddressDelegationCertificate dummyStakeCred dummyPoolId
-                ]
-            Just Quit ->
-                [ Cardano.makeStakeAddressDeregistrationCertificate dummyStakeCred
-                ]
+        -- ?4 => [* certificates ]
+        sizeOf_Certificates
+            = case action of
+                Nothing ->
+                    0
+                Just RegisterKeyAndJoin{} ->
+                    sizeOf_SmallUInt
+                    + sizeOf_SmallArray
+                    + sizeOf_StakeRegistration
+                    + sizeOf_StakeDelegation
+                Just Join{} ->
+                    sizeOf_SmallUInt
+                    + sizeOf_SmallArray
+                    + sizeOf_StakeDelegation
+                Just Quit{} ->
+                    sizeOf_SmallUInt
+                    + sizeOf_SmallArray
+                    + sizeOf_StakeDeregistration
 
-    dummyKeyHashRaw = BA.convert $ BS.pack (replicate 28 0)
+        -- ?5 => withdrawals
+        sizeOf_Withdrawals
+            = (if numberOf_Withdrawals > 0 then sizeOf_SmallUInt + sizeOf_SmallMap else 0)
+            + sizeOf_Withdrawal * numberOf_Withdrawals
 
-    wdrls = mkWithdrawals
-        networkId
-        (RewardAccount dummyKeyHashRaw)
-        (withdrawal cs)
+        -- ?6 => update
+        sizeOf_Update
+            = 0 -- Assuming no updates is running through cardano-wallet
 
-    -- NOTE
-    -- We do not allow certificate witnesses for Byron because we _know_ that we
-    -- don't have hybrid wallets (in the context of cardano-wallet). So, any
-    -- Byron UTxO would necessarily come from a Byron wallet (either Random or
-    -- Icarus) and therefore, have no delegation capability and no need for
-    -- certificate witnesses.
-    wits = case witTag of
-        TxWitnessShelleyUTxO ->
-           addrWits <> certWits
-        TxWitnessByronUTxO{} ->
-           addrWits
+        -- ?7 => metadata_hash
+        sizeOf_MetadataHash
+            = maybe 0 (const (sizeOf_SmallUInt + sizeOf_Hash32)) md
 
-    (addrWits, certWits) =
-        ( mconcat
-            [ map dummyWitnessUniq (fst <$> CS.inputs cs)
-            , if null wdrls then mempty else [dummyWitness "0"]
-            ]
-        , case action of
-            Nothing -> []
-            Just{}  -> [dummyWitness "a"]
-        )
+    -- For metadata, we can't choose a reasonable upper bound, so it's easier to
+    -- measure the serialize data since we have it anyway. When it's "empty",
+    -- metadata are represented by a special "null byte" in CBOR `F6`.
+    sizeOf_Metadata
+        = maybe 1 (toInteger . BS.length . serialiseToCBOR) md
+
+    -- transaction_input =
+    --   [ transaction_id : $hash32
+    --   , index : uint
+    --   ]
+    sizeOf_Input
+        = sizeOf_SmallArray
+        + sizeOf_Hash32
+        + sizeOf_UInt
+
+    -- transaction_output =
+    --   [address, amount : coin]
+    sizeOf_Output (TxOut addr c)
+        = sizeOf_SmallArray
+        + sizeOf_Address addr
+        + sizeOf_Coin c
+
+    sizeOf_ChangeOutput c
+        = sizeOf_SmallArray
+        + sizeOf_ChangeAddress
+        + sizeOf_Coin c
+
+    -- stake_registration =
+    --   (0, stake_credential)
+    sizeOf_StakeRegistration
+        = sizeOf_SmallArray
+        + sizeOf_SmallUInt
+        + sizeOf_StakeCredential
+
+    -- stake_deregistration =
+    --   (1, stake_credential)
+    sizeOf_StakeDeregistration
+        = sizeOf_StakeRegistration
+
+    -- stake_delegation =
+    --   (2, stake_credential, pool_keyhash)
+    sizeOf_StakeDelegation
+        = sizeOf_SmallArray
+        + sizeOf_SmallUInt
+        + sizeOf_StakeCredential
+        + sizeOf_Hash28
+
+    -- stake_credential =
+    --   [  0, addr_keyhash
+    --   // 1, scripthash
+    --   ]
+    sizeOf_StakeCredential
+        = sizeOf_SmallArray
+        + sizeOf_SmallUInt
+        + sizeOf_Hash28
+
+    -- We carry addresses already serialized, so it's a matter of measuring.
+    sizeOf_Address addr
+        = 2 + toInteger (BS.length (unAddress addr))
+
+    -- For change address, we consider the worst-case scenario based on the
+    -- given wallet scheme. Byron addresses are larger.
+    --
+    -- NOTE: we could do slightly better if we wanted to for Byron addresses and
+    -- discriminate based on the network as well since testnet addresses are
+    -- larger than mainnet ones. But meh.
+    sizeOf_ChangeAddress
+        = case witTag of
+            TxWitnessByronUTxO{} -> 85
+            TxWitnessShelleyUTxO -> 59
+
+    -- Coins can really vary so it's very punishing to always assign them the
+    -- upper bound. They will typically be between 3 and 9 bytes (only 6 bytes
+    -- difference, but on 20+ outputs, one starts feeling it).
+    --
+    -- So, for outputs, since we have the values, we can compute it accurately.
+    sizeOf_Coin
+        = toInteger . BS.length . CBOR.toStrictByteString . CBOR.encodeWord64 . getCoin
+
+    -- withdrawals =
+    --   { * reward_account => coin }
+    sizeOf_Withdrawal
+        = sizeOf_Hash28
+        + sizeOf_LargeUInt
+
+    -- transaction_witness_set =
+    --   { ?0 => [* vkeywitness ]
+    --   , ?1 => [* multisig_script ]
+    --   , ?2 => [* bootstrap_witness ]
+    --   }
+    sizeOf_WitnessSet
+        = sizeOf_SmallMap
+        + sizeOf_VKeyWitnesses
+        + sizeOf_MultisigScript
+        + sizeOf_BootstrapWitnesses
       where
-        dummyWitness :: BL.ByteString -> Cardano.Witness Cardano.Shelley
-        dummyWitness chaff = Cardano.ShelleyKeyWitness $ SL.WitVKey key sig
-          where
-            key = SL.VKey
-                $ fromMaybe (error "error creating dummy witness ver key")
-                $ rawDeserialiseVerKeyDSIGN
-                $ bloatChaff keyLen chaff
+        -- ?0 => [* vkeywitness ]
+        sizeOf_VKeyWitnesses
+            = (if numberOf_VkeyWitnesses > 0 then sizeOf_Array + sizeOf_SmallUInt else 0)
+            + sizeOf_VKeyWitness * numberOf_VkeyWitnesses
 
-            sig = SignedDSIGN
-                $ fromMaybe (error "error creating dummy witness sig")
-                $ rawDeserialiseSigDSIGN
-                $ bloatChaff sigLen chaff
+        -- ?1 => [* multisig_script ]
+        sizeOf_MultisigScript
+            = 0
 
-        dummyWitnessUniq :: TxIn -> Cardano.Witness Cardano.Shelley
-        dummyWitnessUniq (TxIn (Hash txid) ix) =
-            dummyWitness chaff
-          where
-            chaff = L8.pack (show ix) <> BL.fromStrict txid
+        -- ?2 => [* bootstrap_witness ]
+        sizeOf_BootstrapWitnesses
+            = (if numberOf_BootstrapWitnesses > 0 then sizeOf_Array + sizeOf_SmallUInt else 0)
+            + sizeOf_BootstrapWitness * numberOf_BootstrapWitnesses
 
-    sigLen = sizeSigDSIGN $ Proxy @(DSIGN StandardCrypto)
+    -- vkeywitness =
+    --  [ $vkey
+    --  , $signature
+    --  ]
+    sizeOf_VKeyWitness
+        = sizeOf_SmallArray
+        + sizeOf_VKey
+        + sizeOf_Signature
 
-    keyLen = sizeVerKeyDSIGN $ Proxy @(DSIGN StandardCrypto)
+    -- bootstrap_witness =
+    --  [ public_key : $vkey
+    --  , signature  : $signature
+    --  , chain_code : bytes .size 32
+    --  , attributes : bytes
+    --  ]
+    sizeOf_BootstrapWitness
+        = sizeOf_SmallArray
+        + sizeOf_VKey
+        + sizeOf_Signature
+        + sizeOf_ChainCode
+        + sizeOf_Attributes
+      where
+        sizeOf_ChainCode  = 34
+        sizeOf_Attributes = 45 -- NOTE: could be smaller by ~34 for Icarus
 
-    bloatChaff :: Word -> BL.ByteString -> ByteString
-    bloatChaff n = BL.toStrict . BL.take (fromIntegral n) . BL.cycle
+    -- A Blake2b-224 hash, resulting in a 28-byte digest wrapped in CBOR, so
+    -- with 2 bytes overhead (length <255, but length > 23)
+    sizeOf_Hash28
+        = 30
+
+    -- A Blake2b-256 hash, resulting in a 32-byte digest wrapped in CBOR, so
+    -- with 2 bytes overhead (length <255, but length > 23)
+    sizeOf_Hash32
+        = 34
+
+    -- A 32-byte Ed25519 public key, encoded as a CBOR-bytestring so with 2
+    -- bytes overhead (length < 255, but length > 23)
+    sizeOf_VKey
+        = 34
+
+    -- A 64-byte Ed25519 signature, encoded as a CBOR-bytestring so with 2
+    -- bytes overhead (length < 255, but length > 23)
+    sizeOf_Signature
+        = 66
+
+    -- A CBOR UInt which is less than 23 in value fits on a single byte. Beyond,
+    -- the first byte is used to encode the number of bytes necessary to encode
+    -- the number itself, followed by the number itself.
+    --
+    -- When considering a 'UInt', we consider the worst case scenario only where
+    -- the uint is encoded over 4 bytes, so up to 2^32 which is fine for most
+    -- cases but coin values.
+    sizeOf_SmallUInt = 1
+    sizeOf_UInt = 5
+    sizeOf_LargeUInt = 9
+
+    -- A CBOR array with less than 23 elements, fits on a single byte, followed
+    -- by each key-value pair (encoded as two concatenated CBOR elements).
+    sizeOf_SmallMap = 1
+
+    -- A CBOR array with less than 23 elements, fits on a single byte, followed
+    -- by each elements. Otherwise, the length of the array is encoded first,
+    -- very much like for UInt.
+    --
+    -- When considering an 'Array', we consider large scenarios where arrays can
+    -- have up to 65536 elements.
+    sizeOf_SmallArray = 1
+    sizeOf_Array = 3
 
 lookupPrivateKey
     :: (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
