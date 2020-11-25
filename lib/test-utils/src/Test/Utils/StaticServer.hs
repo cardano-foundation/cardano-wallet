@@ -12,7 +12,7 @@ module Test.Utils.StaticServer
 import Prelude
 
 import Network.Wai.Application.Static
-    ( defaultFileServerSettings, staticApp )
+    ( defaultWebAppSettings, staticApp )
 import Network.Wai.Handler.Warp
     ( withApplication )
 
@@ -27,5 +27,5 @@ withStaticServer
 withStaticServer root action =
     withApplication (pure app) $ \port -> action (baseUrl port)
   where
-    app = staticApp $ defaultFileServerSettings root
+    app = staticApp $ defaultWebAppSettings root
     baseUrl port = "http://localhost:" <> show port <> "/"

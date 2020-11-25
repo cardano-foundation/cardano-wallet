@@ -17,8 +17,7 @@ import Prelude
 
 import Cardano.Wallet.Api.Types
     ( ApiCertificate (JoinPool, QuitPool, RegisterRewardAccount)
-    , ApiStakePool (flags)
-    , ApiStakePoolFlag (..)
+    , ApiStakePool
     , ApiT (..)
     , ApiTransaction
     , ApiWallet
@@ -78,8 +77,6 @@ import Data.Text.Class
     ( showT, toText )
 import Numeric.Natural
     ( Natural )
-import System.Environment
-    ( getEnv )
 import Test.Hspec
     ( SpecWith, describe, pendingWith )
 import Test.Hspec.Expectations.Lifted
@@ -91,7 +88,6 @@ import Test.Integration.Framework.Context
 import Test.Integration.Framework.DSL
     ( Headers (..)
     , Payload (..)
-    , bracketSettings
     , delegating
     , delegationFee
     , emptyWallet
@@ -142,7 +138,6 @@ import Test.Integration.Framework.TestData
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Data.ByteString as BS
 import qualified Data.Set as Set
-import qualified Data.Text as T
 import qualified Network.HTTP.Types.Status as HTTP
 
 spec :: forall n t.
@@ -156,7 +151,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                 (Link.listStakePools stake) Default Empty
 
     it "STAKE_POOLS_MAINTENANCE_01 - \
-        \trigger GC action when metadata source = direct" $ \ctx -> runResourceT $ bracketSettings ctx $ do
+        \trigger GC action when metadata source = direct" $ \ctx -> runResourceT $ do
         updateMetadataSource ctx "direct"
         verifyMetadataSource ctx FetchDirect
         triggerMaintenanceAction ctx "gc_stake_pools"
@@ -166,7 +161,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
           verifyMaintenanceAction ctx NotApplicable
 
     it "STAKE_POOLS_MAINTENANCE_02 - \
-        \trigger GC action when metadata source = none" $ \ctx -> runResourceT $ bracketSettings ctx $ do
+        \trigger GC action when metadata source = none" $ \ctx -> runResourceT $ do
         updateMetadataSource ctx "none"
         verifyMetadataSource ctx FetchNone
         triggerMaintenanceAction ctx "gc_stake_pools"
@@ -968,10 +963,37 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                 production `shouldSatisfy` (> 0)
                 saturation `shouldSatisfy` (any (> 0))
 
-        it "contains pool metadata" $ \ctx -> runResourceT $ bracketSettings ctx $ do
+        it "contains pool metadata" $ \ctx -> runResourceT $ do
             updateMetadataSource ctx "direct"
             eventually "metadata is fetched" $ do
                 r <- listPools ctx arbitraryStake
+                let metadataPossible = Set.fromList
+                        [ StakePoolMetadata
+                            { ticker = (StakePoolTicker "GPA")
+                            , name = "Genesis Pool A"
+                            , description = Nothing
+                            , homepage = "https://iohk.io"
+                            }
+                        , StakePoolMetadata
+                            { ticker = (StakePoolTicker "GPB")
+                            , name = "Genesis Pool B"
+                            , description = Nothing
+                            , homepage = "https://iohk.io"
+                            }
+                        , StakePoolMetadata
+                            { ticker = (StakePoolTicker "GPC")
+                            , name = "Genesis Pool C"
+                            , description = Just "Lorem Ipsum Dolor Sit Amet."
+                            , homepage = "https://iohk.io"
+                            }
+                        , StakePoolMetadata
+                            { ticker = (StakePoolTicker "GPD")
+                            , name = "Genesis Pool D"
+                            , description = Just "Lorem Ipsum Dolor Sit Amet."
+                            , homepage = "https://iohk.io"
+                            }
+                        ]
+
                 verify r
                     [ expectListSize 3
                     , expectField Prelude.id $ \pools' -> do
@@ -1099,74 +1121,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
             let epochs = poolGarbageCollectionEpochNo <$> events
             (reverse epochs `zip` [1 ..]) `shouldSatisfy` all (uncurry (==))
 
-    it "STAKE_POOLS_SMASH_01 - fetching metadata from SMASH works with delisted pools" $
-        \ctx -> runResourceT $ bracketSettings ctx $ do
-            smashUrl <- liftIO $ getEnv "CARDANO_WALLET_SMASH_URL"
-            updateMetadataSource ctx (T.pack smashUrl)
-            eventually "metadata is fetched" $ do
-                r <- listPools ctx arbitraryStake
-                verify r
-                    [ expectListSize 3
-                    , expectField Prelude.id $ \pools' -> do
-                        let metadataActual = Set.fromList $
-                                mapMaybe (fmap getApiT . view #metadata) pools'
-                            delistedPools = filter (\pool -> Delisted `elem` flags pool)
-                                pools'
-                        metadataActual
-                            `shouldSatisfy` (`Set.isSubsetOf` metadataPossible)
-                        metadataActual
-                            `shouldSatisfy` (not . Set.null)
-                        (fmap (getApiT . view #id) delistedPools)
-                            `shouldBe` [PoolId . unsafeFromHex $
-                                "b45768c1a2da4bd13ebcaa1ea51408eda31dcc21765ccbd407cda9f2"]
-                    ]
-
-            updateMetadataSource ctx "direct"
-            eventually "pools are not delisted anymore" $ do
-                r <- listPools ctx arbitraryStake
-                verify r
-                    [ expectListSize 3
-                    , expectField Prelude.id $ \pools' -> do
-                        let metadataActual = Set.fromList $
-                                mapMaybe (fmap getApiT . view #metadata) pools'
-                            delistedPools = filter (\pool -> Delisted `elem` flags pool)
-                                pools'
-                        metadataActual
-                            `shouldSatisfy` (`Set.isSubsetOf` metadataPossible)
-                        metadataActual
-                            `shouldSatisfy` (not . Set.null)
-                        (fmap (getApiT . view #id) delistedPools)
-                            `shouldBe` []
-                    ]
-
   where
-    metadataPossible = Set.fromList
-        [ StakePoolMetadata
-            { ticker = (StakePoolTicker "GPA")
-            , name = "Genesis Pool A"
-            , description = Nothing
-            , homepage = "https://iohk.io"
-            }
-        , StakePoolMetadata
-            { ticker = (StakePoolTicker "GPB")
-            , name = "Genesis Pool B"
-            , description = Nothing
-            , homepage = "https://iohk.io"
-            }
-        , StakePoolMetadata
-            { ticker = (StakePoolTicker "GPC")
-            , name = "Genesis Pool C"
-            , description = Just "Lorem Ipsum Dolor Sit Amet."
-            , homepage = "https://iohk.io"
-            }
-        , StakePoolMetadata
-            { ticker = (StakePoolTicker "GPD")
-            , name = "Genesis Pool D"
-            , description = Just "Lorem Ipsum Dolor Sit Amet."
-            , homepage = "https://iohk.io"
-            }
-        ]
-
     arbitraryStake :: Maybe Coin
     arbitraryStake = Just $ ada 10_000_000_000
       where ada = Coin . (1000*1000*)

@@ -63,7 +63,6 @@ import Cardano.Wallet.Shelley.Launch
     , testMinSeverityFromEnv
     , walletMinSeverityFromEnv
     , withCluster
-    , withSMASH
     , withSystemTempDir
     , withTempDir
     )
@@ -150,25 +149,22 @@ main = withUtf8Encoding $ withTracers $ \tracers -> do
             parallelIf (not nix) $ describe "Miscellaneous CLI tests" $
                 MiscellaneousCLI.spec @t
         specWithServer tracers $ do
-            describe "API Specifications" $ do
-                parallel $ do
-                    Addresses.spec @n
-                    CoinSelections.spec @n
-                    ByronAddresses.spec @n
-                    ByronCoinSelections.spec @n
-                    Wallets.spec @n
-                    ByronWallets.spec @n
-                    HWWallets.spec @n
-                    Migrations.spec @n
-                    ByronMigrations.spec @n
-                    Transactions.spec @n
-                    Network.spec
-                    Network_.spec
-                    StakePools.spec @n
-                    ByronTransactions.spec @n
-                    ByronHWWallets.spec @n
-
-                -- possible conflict with StakePools
+            parallel $ describe "API Specifications" $ do
+                Addresses.spec @n
+                CoinSelections.spec @n
+                ByronAddresses.spec @n
+                ByronCoinSelections.spec @n
+                Wallets.spec @n
+                ByronWallets.spec @n
+                HWWallets.spec @n
+                Migrations.spec @n
+                ByronMigrations.spec @n
+                Transactions.spec @n
+                Network.spec
+                Network_.spec
+                StakePools.spec @n
+                ByronTransactions.spec @n
+                ByronHWWallets.spec @n
                 Settings.spec @n
 
             -- Hydra runs tests with code coverage enabled. CLI tests run
@@ -247,7 +243,7 @@ specWithServer (tr, tracers) = aroundAll withContext
                     atomicModifyIORef' eventsRef ((, ()) . (event :))
                 pure certificates
 
-    withServer dbDecorator action = bracketTracer' tr "withServer" $ withSMASH tr' $ do
+    withServer dbDecorator action = bracketTracer' tr "withServer" $ do
         minSev <- nodeMinSeverityFromEnv
         testPoolConfigs <- poolConfigsFromEnv
         withSystemTempDir tr' "test" $ \dir -> do
