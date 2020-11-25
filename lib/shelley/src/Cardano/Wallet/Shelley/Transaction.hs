@@ -233,7 +233,6 @@ newTransactionLayer networkId = TransactionLayer
     , minimumFee = _minimumFee @k networkId
     , estimateMaxNumberOfInputs = _estimateMaxNumberOfInputs @k networkId
     , validateSelection = const $ return ()
-    , allowUnbalancedTx = True
     }
   where
     _initDelegationSelection

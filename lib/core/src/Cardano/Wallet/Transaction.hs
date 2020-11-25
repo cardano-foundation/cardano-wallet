@@ -154,10 +154,6 @@ data TransactionLayer t k = TransactionLayer
       -- For example, Byron nodes do not allow null output amounts. Jörmungandr
       -- on its side doesn't support more than 255 inputs or outputs.
 
-    , allowUnbalancedTx
-      :: Bool
-      -- ^ Whether the transaction layer accepts unbalanced transactions.
-
     , decodeSignedTx
         :: ByteString -> Either ErrDecodeSignedTx (Tx, SealedTx)
         -- ^ Decode an externally-signed transaction to the chain producer
