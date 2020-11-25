@@ -556,23 +556,30 @@ instance Arbitrary (Hash "Tx") where
         bs <- vectorOf 32 arbitrary
         pure $ Hash $ BS.pack bs
 
+-- Coins (quantities of lovelace) must be strictly positive when included in
+-- transactions.
+--
 instance Arbitrary Coin where
     arbitrary = genStrictlyPositiveCoin
+    shrink = shrinkStrictlyPositiveCoin
 
 genStrictlyPositiveCoin :: Gen Coin
 genStrictlyPositiveCoin = Coin <$> choose (1, 200_000)
 
+shrinkStrictlyPositiveCoin :: Coin -> [Coin]
+shrinkStrictlyPositiveCoin (Coin c) = Coin <$> filter (> 0) (shrink c)
+
 instance Arbitrary TxOut where
-    arbitrary = do
-        let addr = Address $ BS.pack (1:replicate 64 0)
-        TxOut addr <$> fmap TB.fromCoin genStrictlyPositiveCoin
+    arbitrary = TxOut addr <$> arbitrary
+      where
+        addr = Address $ BS.pack (1:replicate 64 0)
 
 instance Arbitrary AssetId where
     arbitrary = AssetId <$> arbitrary <*> arbitrary
 
 instance Arbitrary TokenBundle where
-    arbitrary = TB.fromFlatList <$> arbitrary
-    shrink b = TB.fromFlatList <$> shrink (TB.toFlatList b)
+    arbitrary = TB.fromFlatList <$> arbitrary <*> arbitrary
+    shrink b = uncurry TB.fromFlatList <$> shrink (TB.toFlatList b)
 
 instance Arbitrary TokenName where
     -- We generate token names from a small range in order to increase the

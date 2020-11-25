@@ -58,12 +58,18 @@ import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle )
+import Cardano.Wallet.Primitive.Types.TokenPolicy
+    ( TokenName, TokenPolicyId )
+import Cardano.Wallet.Primitive.Types.TokenQuantity
+    ( TokenQuantity )
 import Control.DeepSeq
     ( NFData (..) )
 import Data.ByteArray
     ( ByteArrayAccess )
 import Data.ByteString
     ( ByteString )
+import Data.Function
+    ( (&) )
 import Data.Generics.Internal.VL.Lens
     ( view )
 import Data.Generics.Labels
@@ -72,6 +78,8 @@ import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Map.Strict
     ( Map )
+import Data.Ord
+    ( comparing )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Set
@@ -103,6 +111,7 @@ import Numeric.Natural
     ( Natural )
 
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TB
+import qualified Cardano.Wallet.Primitive.Types.TokenBundle.TokenMap as TM
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Text.Lazy.Builder as Builder
@@ -186,8 +195,7 @@ data TxOut = TxOut
 
 -- Gets the current 'Coin' value from a transaction output.
 --
--- 'Coin' values correspond to the ada asset, represented by the 'adaAssetId'
--- constant.
+-- 'Coin' values correspond to the ada asset.
 --
 txOutCoin :: TxOut -> Coin
 txOutCoin = TB.getCoin . view #tokens
@@ -200,9 +208,18 @@ txOutCoin = TB.getCoin . view #tokens
 -- representation of a 'TokenBundle'.
 --
 instance Ord TxOut where
-    compare output1 output2 = compare
-        (view #address output1, TB.toNestedList $ tokens output1)
-        (view #address output2, TB.toNestedList $ tokens output2)
+    compare = comparing projection
+      where
+        projection :: TxOut ->
+            ( Address
+            , Coin
+            , [(TokenPolicyId, NonEmpty (TokenName, TokenQuantity))]
+            )
+        projection out =
+            ( out & view #address
+            , out & view (#tokens . #coin)
+            , out & view (#tokens . #tokens) & TM.toNestedList
+            )
 
 data TxChange derivationPath = TxChange
     { address

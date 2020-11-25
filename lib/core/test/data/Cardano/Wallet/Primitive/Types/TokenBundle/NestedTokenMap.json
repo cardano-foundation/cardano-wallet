@@ -1,155 +1,28 @@
 {
-    "seed": 867431146332868719,
+    "seed": -7550890380130037994,
     "samples": [
         [
             {
                 "tokens": [
                     {
-                        "quantity": -30,
+                        "quantity": -16,
                         "name": "TokenA"
-                    },
-                    {
-                        "quantity": 27,
-                        "name": "TokenB"
-                    },
-                    {
-                        "quantity": 15,
-                        "name": "TokenC"
-                    }
-                ],
-                "policy": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-            },
-            {
-                "tokens": [
-                    {
-                        "quantity": -10,
-                        "name": "TokenA"
-                    },
-                    {
-                        "quantity": -13,
-                        "name": "TokenB"
-                    },
-                    {
-                        "quantity": 24,
-                        "name": "TokenC"
-                    },
-                    {
-                        "quantity": -5,
-                        "name": "TokenD"
-                    }
-                ],
-                "policy": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-            },
-            {
-                "tokens": [
-                    {
-                        "quantity": 53,
-                        "name": "TokenA"
-                    },
-                    {
-                        "quantity": -6,
-                        "name": "TokenC"
-                    },
-                    {
-                        "quantity": -18,
-                        "name": "TokenD"
-                    }
-                ],
-                "policy": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
-            },
-            {
-                "tokens": [
-                    {
-                        "quantity": -30,
-                        "name": "TokenA"
-                    },
-                    {
-                        "quantity": -52,
-                        "name": "TokenC"
-                    },
-                    {
-                        "quantity": 35,
-                        "name": "TokenD"
-                    }
-                ],
-                "policy": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
-            }
-        ],
-        [
-            {
-                "tokens": [
-                    {
-                        "quantity": 8,
-                        "name": "TokenA"
-                    },
-                    {
-                        "quantity": 20,
-                        "name": "TokenB"
-                    },
-                    {
-                        "quantity": 61,
-                        "name": "TokenC"
-                    }
-                ],
-                "policy": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-            },
-            {
-                "tokens": [
-                    {
-                        "quantity": 39,
-                        "name": "TokenA"
-                    },
-                    {
-                        "quantity": 15,
-                        "name": "TokenB"
-                    },
-                    {
-                        "quantity": 30,
-                        "name": "TokenD"
-                    }
-                ],
-                "policy": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-            },
-            {
-                "tokens": [
-                    {
-                        "quantity": 18,
-                        "name": "TokenA"
-                    },
-                    {
-                        "quantity": 28,
-                        "name": "TokenB"
-                    },
-                    {
-                        "quantity": 32,
-                        "name": "TokenC"
-                    }
-                ],
-                "policy": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
-            },
-            {
-                "tokens": [
-                    {
-                        "quantity": -30,
-                        "name": "TokenA"
-                    },
-                    {
-                        "quantity": -28,
-                        "name": "TokenC"
                     },
                     {
                         "quantity": -24,
-                        "name": "TokenD"
+                        "name": "TokenB"
                     }
                 ],
-                "policy": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
-            }
-        ],
-        [
+                "policy": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            },
             {
                 "tokens": [
                     {
-                        "quantity": 2,
+                        "quantity": -7,
+                        "name": "TokenB"
+                    },
+                    {
+                        "quantity": -29,
                         "name": "TokenC"
                     }
                 ],
@@ -158,8 +31,20 @@
             {
                 "tokens": [
                     {
-                        "quantity": 18,
+                        "quantity": 24,
+                        "name": "TokenA"
+                    },
+                    {
+                        "quantity": -20,
                         "name": "TokenB"
+                    },
+                    {
+                        "quantity": -1,
+                        "name": "TokenC"
+                    },
+                    {
+                        "quantity": -14,
+                        "name": "TokenD"
                     }
                 ],
                 "policy": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
@@ -167,16 +52,8 @@
             {
                 "tokens": [
                     {
-                        "quantity": 26,
-                        "name": "TokenA"
-                    },
-                    {
-                        "quantity": 2,
-                        "name": "TokenC"
-                    },
-                    {
-                        "quantity": 16,
-                        "name": "TokenD"
+                        "quantity": -24,
+                        "name": "TokenB"
                     }
                 ],
                 "policy": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
@@ -186,23 +63,32 @@
             {
                 "tokens": [
                     {
-                        "quantity": -36,
-                        "name": "TokenA"
-                    },
-                    {
-                        "quantity": 8,
+                        "quantity": -15,
                         "name": "TokenB"
                     },
                     {
-                        "quantity": -28,
+                        "quantity": -3,
                         "name": "TokenC"
                     },
                     {
-                        "quantity": 9,
+                        "quantity": -9,
                         "name": "TokenD"
                     }
                 ],
                 "policy": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            },
+            {
+                "tokens": [
+                    {
+                        "quantity": 27,
+                        "name": "TokenC"
+                    },
+                    {
+                        "quantity": 2,
+                        "name": "TokenD"
+                    }
+                ],
+                "policy": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
             },
             {
                 "tokens": [
@@ -211,15 +97,72 @@
                         "name": "TokenA"
                     },
                     {
-                        "quantity": -9,
+                        "quantity": -44,
                         "name": "TokenB"
                     },
                     {
-                        "quantity": 13,
+                        "quantity": -11,
                         "name": "TokenC"
                     },
                     {
-                        "quantity": -30,
+                        "quantity": -31,
+                        "name": "TokenD"
+                    }
+                ],
+                "policy": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+            },
+            {
+                "tokens": [
+                    {
+                        "quantity": -10,
+                        "name": "TokenA"
+                    },
+                    {
+                        "quantity": -18,
+                        "name": "TokenB"
+                    },
+                    {
+                        "quantity": 22,
+                        "name": "TokenC"
+                    }
+                ],
+                "policy": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+            }
+        ],
+        [
+            {
+                "tokens": [
+                    {
+                        "quantity": 6,
+                        "name": "TokenA"
+                    },
+                    {
+                        "quantity": -11,
+                        "name": "TokenB"
+                    },
+                    {
+                        "quantity": -37,
+                        "name": "TokenC"
+                    },
+                    {
+                        "quantity": -24,
+                        "name": "TokenD"
+                    }
+                ],
+                "policy": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            },
+            {
+                "tokens": [
+                    {
+                        "quantity": -2,
+                        "name": "TokenA"
+                    },
+                    {
+                        "quantity": 32,
+                        "name": "TokenB"
+                    },
+                    {
+                        "quantity": -33,
                         "name": "TokenD"
                     }
                 ],
@@ -228,16 +171,82 @@
             {
                 "tokens": [
                     {
-                        "quantity": 12,
+                        "quantity": 41,
+                        "name": "TokenB"
+                    },
+                    {
+                        "quantity": -94,
+                        "name": "TokenC"
+                    },
+                    {
+                        "quantity": -16,
+                        "name": "TokenD"
+                    }
+                ],
+                "policy": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+            },
+            {
+                "tokens": [
+                    {
+                        "quantity": -25,
                         "name": "TokenA"
                     },
+                    {
+                        "quantity": 6,
+                        "name": "TokenC"
+                    },
+                    {
+                        "quantity": -15,
+                        "name": "TokenD"
+                    }
+                ],
+                "policy": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+            }
+        ],
+        [
+            {
+                "tokens": [
                     {
                         "quantity": 4,
                         "name": "TokenB"
                     },
                     {
-                        "quantity": 29,
+                        "quantity": -25,
+                        "name": "TokenC"
+                    },
+                    {
+                        "quantity": -44,
                         "name": "TokenD"
+                    }
+                ],
+                "policy": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            },
+            {
+                "tokens": [
+                    {
+                        "quantity": 32,
+                        "name": "TokenA"
+                    },
+                    {
+                        "quantity": -3,
+                        "name": "TokenB"
+                    },
+                    {
+                        "quantity": 22,
+                        "name": "TokenD"
+                    }
+                ],
+                "policy": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+            },
+            {
+                "tokens": [
+                    {
+                        "quantity": 34,
+                        "name": "TokenA"
+                    },
+                    {
+                        "quantity": 20,
+                        "name": "TokenB"
                     }
                 ],
                 "policy": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
@@ -245,15 +254,15 @@
             {
                 "tokens": [
                     {
-                        "quantity": 12,
-                        "name": "TokenB"
+                        "quantity": -7,
+                        "name": "TokenA"
                     },
                     {
-                        "quantity": -12,
+                        "quantity": 1,
                         "name": "TokenC"
                     },
                     {
-                        "quantity": -3,
+                        "quantity": 19,
                         "name": "TokenD"
                     }
                 ],
@@ -264,35 +273,15 @@
             {
                 "tokens": [
                     {
-                        "quantity": 25,
+                        "quantity": -18,
                         "name": "TokenA"
                     },
                     {
-                        "quantity": -26,
-                        "name": "TokenB"
-                    }
-                ],
-                "policy": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-            },
-            {
-                "tokens": [
-                    {
-                        "quantity": 12,
-                        "name": "TokenA"
-                    }
-                ],
-                "policy": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
-            }
-        ],
-        [
-            {
-                "tokens": [
-                    {
-                        "quantity": -12,
+                        "quantity": -34,
                         "name": "TokenB"
                     },
                     {
-                        "quantity": 27,
+                        "quantity": 19,
                         "name": "TokenD"
                     }
                 ],
@@ -305,11 +294,69 @@
                         "name": "TokenA"
                     },
                     {
-                        "quantity": -19,
+                        "quantity": 15,
                         "name": "TokenB"
                     },
                     {
+                        "quantity": -8,
+                        "name": "TokenD"
+                    }
+                ],
+                "policy": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+            },
+            {
+                "tokens": [
+                    {
+                        "quantity": 6,
+                        "name": "TokenA"
+                    },
+                    {
+                        "quantity": -9,
+                        "name": "TokenC"
+                    }
+                ],
+                "policy": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+            },
+            {
+                "tokens": [
+                    {
+                        "quantity": -12,
+                        "name": "TokenA"
+                    },
+                    {
+                        "quantity": -16,
+                        "name": "TokenB"
+                    }
+                ],
+                "policy": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+            }
+        ],
+        [
+            {
+                "tokens": [
+                    {
+                        "quantity": -14,
+                        "name": "TokenA"
+                    },
+                    {
+                        "quantity": 16,
+                        "name": "TokenC"
+                    }
+                ],
+                "policy": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            },
+            {
+                "tokens": [
+                    {
+                        "quantity": -16,
+                        "name": "TokenA"
+                    },
+                    {
                         "quantity": -24,
+                        "name": "TokenB"
+                    },
+                    {
+                        "quantity": 13,
                         "name": "TokenC"
                     }
                 ],
@@ -318,20 +365,16 @@
             {
                 "tokens": [
                     {
-                        "quantity": -12,
+                        "quantity": -7,
                         "name": "TokenA"
                     },
                     {
-                        "quantity": -24,
+                        "quantity": 3,
                         "name": "TokenB"
                     },
                     {
-                        "quantity": -27,
+                        "quantity": 25,
                         "name": "TokenC"
-                    },
-                    {
-                        "quantity": -4,
-                        "name": "TokenD"
                     }
                 ],
                 "policy": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
@@ -339,27 +382,24 @@
             {
                 "tokens": [
                     {
-                        "quantity": 1,
+                        "quantity": 10,
+                        "name": "TokenA"
+                    },
+                    {
+                        "quantity": -6,
                         "name": "TokenD"
                     }
                 ],
                 "policy": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
             }
         ],
+        [],
         [
             {
                 "tokens": [
                     {
-                        "quantity": -37,
+                        "quantity": 1,
                         "name": "TokenA"
-                    },
-                    {
-                        "quantity": -1,
-                        "name": "TokenC"
-                    },
-                    {
-                        "quantity": 30,
-                        "name": "TokenD"
                     }
                 ],
                 "policy": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
@@ -367,15 +407,15 @@
             {
                 "tokens": [
                     {
-                        "quantity": 7,
+                        "quantity": -27,
                         "name": "TokenA"
                     },
                     {
-                        "quantity": -9,
+                        "quantity": -7,
                         "name": "TokenB"
                     },
                     {
-                        "quantity": -51,
+                        "quantity": 13,
                         "name": "TokenC"
                     },
                     {
@@ -388,19 +428,19 @@
             {
                 "tokens": [
                     {
-                        "quantity": -17,
+                        "quantity": 1,
                         "name": "TokenA"
                     },
                     {
-                        "quantity": -3,
+                        "quantity": -15,
                         "name": "TokenB"
                     },
                     {
-                        "quantity": -24,
+                        "quantity": 1,
                         "name": "TokenC"
                     },
                     {
-                        "quantity": -28,
+                        "quantity": -21,
                         "name": "TokenD"
                     }
                 ],
@@ -409,16 +449,8 @@
             {
                 "tokens": [
                     {
-                        "quantity": 52,
+                        "quantity": 30,
                         "name": "TokenA"
-                    },
-                    {
-                        "quantity": -19,
-                        "name": "TokenB"
-                    },
-                    {
-                        "quantity": -39,
-                        "name": "TokenC"
                     }
                 ],
                 "policy": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
@@ -428,23 +460,103 @@
             {
                 "tokens": [
                     {
-                        "quantity": 59,
-                        "name": "TokenA"
-                    },
-                    {
-                        "quantity": 26,
+                        "quantity": -15,
                         "name": "TokenB"
                     },
                     {
-                        "quantity": 28,
+                        "quantity": 11,
                         "name": "TokenC"
-                    },
-                    {
-                        "quantity": 21,
-                        "name": "TokenD"
                     }
                 ],
                 "policy": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            },
+            {
+                "tokens": [
+                    {
+                        "quantity": -3,
+                        "name": "TokenB"
+                    },
+                    {
+                        "quantity": -6,
+                        "name": "TokenC"
+                    },
+                    {
+                        "quantity": -39,
+                        "name": "TokenD"
+                    }
+                ],
+                "policy": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+            },
+            {
+                "tokens": [
+                    {
+                        "quantity": -3,
+                        "name": "TokenB"
+                    },
+                    {
+                        "quantity": 1,
+                        "name": "TokenC"
+                    },
+                    {
+                        "quantity": 2,
+                        "name": "TokenD"
+                    }
+                ],
+                "policy": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+            },
+            {
+                "tokens": [
+                    {
+                        "quantity": 7,
+                        "name": "TokenA"
+                    },
+                    {
+                        "quantity": -15,
+                        "name": "TokenC"
+                    },
+                    {
+                        "quantity": -10,
+                        "name": "TokenD"
+                    }
+                ],
+                "policy": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+            }
+        ],
+        [
+            {
+                "tokens": [
+                    {
+                        "quantity": 15,
+                        "name": "TokenA"
+                    },
+                    {
+                        "quantity": -32,
+                        "name": "TokenB"
+                    }
+                ],
+                "policy": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            },
+            {
+                "tokens": [
+                    {
+                        "quantity": -22,
+                        "name": "TokenB"
+                    }
+                ],
+                "policy": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+            },
+            {
+                "tokens": [
+                    {
+                        "quantity": -22,
+                        "name": "TokenB"
+                    },
+                    {
+                        "quantity": 3,
+                        "name": "TokenC"
+                    }
+                ],
+                "policy": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
             },
             {
                 "tokens": [
@@ -453,80 +565,11 @@
                         "name": "TokenA"
                     },
                     {
-                        "quantity": 27,
-                        "name": "TokenB"
-                    },
-                    {
-                        "quantity": 11,
+                        "quantity": 20,
                         "name": "TokenC"
-                    }
-                ],
-                "policy": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-            },
-            {
-                "tokens": [
-                    {
-                        "quantity": -55,
-                        "name": "TokenA"
-                    },
-                    {
-                        "quantity": 25,
-                        "name": "TokenB"
-                    },
-                    {
-                        "quantity": 17,
-                        "name": "TokenC"
-                    }
-                ],
-                "policy": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
-            },
-            {
-                "tokens": [
-                    {
-                        "quantity": 24,
-                        "name": "TokenA"
-                    },
-                    {
-                        "quantity": -29,
-                        "name": "TokenD"
                     }
                 ],
                 "policy": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
-            }
-        ],
-        [
-            {
-                "tokens": [
-                    {
-                        "quantity": 12,
-                        "name": "TokenA"
-                    }
-                ],
-                "policy": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-            },
-            {
-                "tokens": [
-                    {
-                        "quantity": 18,
-                        "name": "TokenA"
-                    },
-                    {
-                        "quantity": 8,
-                        "name": "TokenB"
-                    }
-                ],
-                "policy": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
-            }
-        ],
-        [
-            {
-                "tokens": [
-                    {
-                        "quantity": 16,
-                        "name": "TokenD"
-                    }
-                ],
-                "policy": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
             }
         ]
     ]

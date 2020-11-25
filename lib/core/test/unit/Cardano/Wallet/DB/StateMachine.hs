@@ -138,6 +138,8 @@ import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle )
+import Cardano.Wallet.Primitive.Types.TokenBundle.TokenMap
+    ( TokenMap )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenName, TokenPolicyId )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
@@ -920,6 +922,9 @@ instance ToExpr TxOut where
     toExpr = genericToExpr
 
 instance ToExpr TokenBundle where
+    toExpr = genericToExpr
+
+instance ToExpr TokenMap where
     toExpr = genericToExpr
 
 instance ToExpr TokenName where
