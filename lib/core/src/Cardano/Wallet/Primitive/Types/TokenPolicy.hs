@@ -14,10 +14,6 @@ module Cardano.Wallet.Primitive.Types.TokenPolicy
     , TokenName
     , mkTokenName
 
-      -- * Constants
-    , adaTokenPolicyId
-    , adaTokenName
-
     ) where
 
 import Prelude
@@ -100,15 +96,3 @@ instance FromText TokenName where
 
 mkTokenName :: Text -> TokenName
 mkTokenName = TokenName
-
---------------------------------------------------------------------------------
--- Constants
---------------------------------------------------------------------------------
-
--- TODO: Replace this with the correct token policy ID.
-adaTokenPolicyId :: TokenPolicyId
-adaTokenPolicyId = mkTokenPolicyId "0"
-
--- TODO: Verify that this is the correct token name.
-adaTokenName :: TokenName
-adaTokenName = mkTokenName "ADA"
