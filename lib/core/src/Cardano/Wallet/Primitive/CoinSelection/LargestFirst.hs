@@ -114,7 +114,8 @@ atLeast utxo0 (Quantity withdrawal) outs =
             , mempty
                 { inputs  = ins
                 , outputs = outs
-                , change  = filter (/= (Coin 0)) [Coin (fromIntegral $ abs target)]
+                , change  = undefined
+                -- , change  = filter (/= (Coin 0)) [Coin (fromIntegral $ abs target)]
                 , withdrawal
                 }
             )

@@ -347,6 +347,8 @@ import Cardano.Wallet.Primitive.Types.Tx
     )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..), UTxOStatistics, computeUtxoStatistics, log10 )
+import Cardano.Wallet.Shelley.MultiAsset.Compatibility
+    ( calculateMinCoin )
 import Cardano.Wallet.Transaction
     ( DelegationAction (..)
     , ErrDecodeSignedTx (..)
@@ -1255,7 +1257,8 @@ feeOpts
     -> FeeOptions
 feeOpts tl action md txp minUtxo cs = FeeOptions
     { estimateFee = minimumFee tl feePolicy action md
-    , dustThreshold = minUtxo
+    , dustThreshold = either (\_ -> error "failed to calculate min coins")
+        id . calculateMinCoin minUtxo
     -- NOTE
     -- Our fee calculation is rather good, but not perfect. We make little
     -- approximation errors that may lead to us leaving slightly more fees than
@@ -1470,7 +1473,8 @@ selectCoinsForMigrationFromUTxO ctx utxo txp minUtxo wid = do
     let feePolicy@(LinearFee (Quantity a) _ _) = txp ^. #getFeePolicy
     let feeOptions = (feeOpts tl Nothing Nothing txp minBound mempty)
             { estimateFee = minimumFee tl feePolicy Nothing Nothing . worstCase
-            , dustThreshold = max (Coin $ ceiling a) minUtxo
+            , dustThreshold = either (\_ -> error "failed to calculate min coins")
+                id . calculateMinCoin (max (Coin $ ceiling a) minUtxo)
             }
     let selOptions = coinSelOpts tl (txp ^. #getTxMaxSize) Nothing
     let previousDistribution = W.computeUtxoStatistics W.log10 utxo
@@ -1492,7 +1496,7 @@ selectCoinsForMigrationFromUTxO ctx utxo txp minUtxo wid = do
 
     getCoins :: CoinSelection -> [Word64]
     getCoins CoinSelection{change,outputs} =
-        (unCoin <$> change) ++ (unCoin . txOutCoin <$> outputs)
+        ((unCoin . TB.getCoin) <$> change) ++ (unCoin . txOutCoin <$> outputs)
 
     -- When performing a selection for migration, at this stage, we do not know
     -- exactly to which address we're going to assign which change. It could be
@@ -1504,7 +1508,7 @@ selectCoinsForMigrationFromUTxO ctx utxo txp minUtxo wid = do
     worstCase :: CoinSelection -> CoinSelection
     worstCase cs = cs
         { change = mempty
-        , outputs = TxOut worstCaseAddress . TB.fromCoin <$> change cs
+        , outputs = TxOut worstCaseAddress <$> change cs
         }
       where
         worstCaseAddress :: Address
@@ -1583,7 +1587,7 @@ assignChangeAddressesForSelection
     -> s
     -> m (CoinSelection, s)
 assignChangeAddressesForSelection argGenChange cs = runStateT $ do
-    chgOuts <- assignChangeAddresses argGenChange (change cs)
+    chgOuts <- assignChangeAddresses argGenChange (TB.getCoin <$> change cs)
     outs' <- liftIO $ shuffle (outputs cs ++ chgOuts)
     pure $ cs { change = [], outputs = outs' }
 
@@ -1735,7 +1739,7 @@ selectCoinsExternal ctx wid argGenChange selectCoins = do
         cp <- withExceptT ErrSelectCoinsExternalNoSuchWallet $
             withNoSuchWallet wid $ readCheckpoint $ PrimaryKey wid
         (changeOutputs, s) <- flip runStateT (getState cp) $
-            assignChangeAddresses argGenChange (change cs)
+            assignChangeAddresses argGenChange (TB.getCoin <$> change cs)
         withExceptT ErrSelectCoinsExternalNoSuchWallet $
             putCheckpoint (PrimaryKey wid) (updateState s cp)
         UnsignedTx
@@ -1776,7 +1780,7 @@ selectCoinsExternal ctx wid argGenChange selectCoins = do
       where
         mkChange (TxOut address tokens, derivationPath) = TxChange {..}
           where
-            amount = TB.getCoin tokens
+            amount = tokens
 
 data ErrSelectCoinsExternal
     = ErrSelectCoinsExternalNoSuchWallet ErrNoSuchWallet
@@ -2617,11 +2621,14 @@ guardCoinSelection
 guardCoinSelection minUtxoValue cs@CoinSelection{outputs, change} = do
     when (cs == mempty) $
         Right ()
-    let outputCoins = map (\(TxOut _ c) -> TB.getCoin c) outputs
+    let outputTokens = map (\(TxOut _ c) -> c) outputs
     let invalidTxOuts =
-            filter (< minUtxoValue) (outputCoins ++ change)
+            filter (\tb -> TB.getCoin tb <
+                either (\_ -> error "oops") id
+                (calculateMinCoin minUtxoValue tb))
+                (outputTokens ++ change)
     unless (L.null invalidTxOuts) $ Left
-        (ErrUTxOTooSmall (unCoin minUtxoValue) (unCoin <$> invalidTxOuts))
+        (ErrUTxOTooSmall (unCoin minUtxoValue) ((unCoin . TB.getCoin) <$> invalidTxOuts))
 
 ensureNonEmpty
     :: forall a e m . (Monad m)

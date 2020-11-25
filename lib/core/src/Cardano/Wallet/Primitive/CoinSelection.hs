@@ -29,6 +29,8 @@ import Prelude
 
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
+import Cardano.Wallet.Primitive.Types.TokenBundle
+    ( TokenBundle, getCoin )
 import Cardano.Wallet.Primitive.Types.Tx
     ( TxIn, TxOut (..), txOutCoin )
 import Cardano.Wallet.Primitive.Types.UTxO
@@ -57,7 +59,7 @@ data CoinSelection = CoinSelection
       -- ^ Claim back a deposit, counting as a an extra input
     , outputs :: [TxOut]
       -- ^ Picked outputs
-    , change  :: [Coin]
+    , change  :: [TokenBundle]
       -- ^ Resulting changes
     , deposit :: Word64
       -- ^ A deposit counting as an extra output
@@ -86,7 +88,7 @@ instance Buildable CoinSelection where
         <> nameF "withdrawal" (build draw)
         <> nameF "reclaim" (build back)
         <> nameF "outputs" (blockListF outs)
-        <> nameF "change" (listF chngs)
+        <> nameF "change" (listF $ fmap getCoin chngs) -- TODO: fix
         <> nameF "deposit" (build depo)
       where
         inpsF (txin, txout) = build txin <> " (~ " <> build txout <> ")"
@@ -116,7 +118,7 @@ outputBalance cs =
 
 -- | Calculate the sum of all output values
 changeBalance :: CoinSelection -> Word64
-changeBalance = foldl' addCoin 0 . change
+changeBalance = foldl' addCoin 0 . fmap getCoin . change
 
 feeBalance :: CoinSelection -> Word64
 feeBalance sel = inputBalance sel - outputBalance sel - changeBalance sel

@@ -1711,7 +1711,7 @@ assignMigrationAddresses addrs selections =
     makeTx :: CoinSelection -> [Address] -> UnsignedTx (TxIn, TxOut) TxOut Void
     makeTx sel addrsSelected = UnsignedTx
         (NE.fromList (sel ^. #inputs))
-        (zipWith TxOut addrsSelected (TB.fromCoin <$> sel ^. #change))
+        (zipWith TxOut addrsSelected (sel ^. #change))
         -- We never return any change:
         []
 
@@ -1993,7 +1993,7 @@ mkApiCoinSelection mcerts (UnsignedTx inputs outputs change) =
             { address =
                 (ApiT $ view #address txChange, Proxy @n)
             , amount =
-                Quantity $ fromIntegral $ unCoin $ view #amount txChange
+                Quantity $ fromIntegral $ unCoin $ TB.getCoin $ view #amount txChange
             , derivationPath =
                 ApiT <$> view #derivationPath txChange
             }
@@ -2378,6 +2378,7 @@ instance LiftHandler ErrAdjustForFee where
                 , "acceptable limit. Note that I am only missing "
                 , showT missing, " Lovelace."
                 ]
+        _ -> apiError err500 CannotCoverFee "" -- TODO
 
 instance LiftHandler ErrUTxOTooSmall where
     handler = \case
@@ -2613,6 +2614,7 @@ instance LiftHandler ErrSelectForDelegation where
                 [ "I'm unable to select enough coins to pay for a "
                 , "delegation certificate. I need: ", showT cost, " Lovelace."
                 ]
+        _ -> apiError err500 CannotCoverFee "" -- TODO
 
 instance LiftHandler ErrSignDelegation where
     handler = \case

@@ -235,7 +235,7 @@ data TxChange derivationPath = TxChange
     { address
         :: !Address
     , amount
-        :: !Coin
+        :: !TokenBundle
     , derivationPath
         :: derivationPath
     } deriving (Show, Generic, Eq, Ord)

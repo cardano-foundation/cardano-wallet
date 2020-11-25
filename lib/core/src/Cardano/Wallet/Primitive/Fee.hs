@@ -4,6 +4,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TypeApplications #-}
 
 -- |
@@ -46,18 +47,26 @@ import Cardano.Wallet.Primitive.Types
     ( FeePolicy (..), invariant )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..), isValidCoin )
+import Cardano.Wallet.Primitive.Types.TokenBundle
+    ( TokenBundle (..), fromCoin, getCoin, setCoin )
 import Cardano.Wallet.Primitive.Types.Tx
     ( TxIn, TxOut (..), txOutCoin )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..), pickRandom )
+import Control.Error.Util
+    ( (??) )
 import Control.Monad
-    ( when )
+    ( guard, when )
 import Control.Monad.Trans.Class
     ( lift )
 import Control.Monad.Trans.Except
-    ( ExceptT (..), throwE )
+    ( ExceptT (..), except, throwE )
 import Control.Monad.Trans.State
     ( StateT (..), evalStateT )
+import Data.Either
+    ( partitionEithers )
+import Data.Maybe
+    ( fromMaybe )
 import Data.Word
     ( Word64, Word8 )
 import Fmt
@@ -100,7 +109,7 @@ data FeeOptions = FeeOptions
       --     b: 43.946 # additional minimal fees per byte of transaction size
 
     , dustThreshold
-      :: Coin
+      :: TokenBundle -> Coin
       -- ^ Change addresses below the given threshold will be evicted
       -- from the created transaction. Setting 'dustThreshold' to 0
       -- removes output equal to 0
@@ -118,10 +127,12 @@ data FeeOptions = FeeOptions
       -- transaction size based on how many inputs it has.
     } deriving (Generic)
 
-newtype ErrAdjustForFee
+data ErrAdjustForFee
     = ErrCannotCoverFee Word64
     -- ^ UTxO exhausted during fee covering
     -- We record what amount missed to cover the fee
+    | ErrCannotRemoveDust [TokenBundle] -- ^ the dusty bundles
+    | ErrCannotRebalance CoinSelection
     deriving (Show, Eq)
 
 -- | Given the coin selection result from a policy run, adjust the outputs
@@ -185,7 +196,7 @@ senderPaysFee opt utxo sel = evalStateT (go sel) utxo where
         -> StateT UTxO (ExceptT ErrAdjustForFee IO) CoinSelection
     go coinSel@(CoinSelection inps _ _ outs chgs _) = do
         -- Substract fee from change outputs, proportionally to their value.
-        let (coinSel', remFee) = rebalanceSelection opt coinSel
+        (coinSel', remFee) <- lift $ except $ rebalanceSelection opt coinSel
 
         -- Should the change cover the fee, we're (almost) good. By removing
         -- change outputs, we make them smaller and may reduce the size of the
@@ -193,9 +204,12 @@ senderPaysFee opt utxo sel = evalStateT (go sel) utxo where
         -- the upper bound. We could do some binary search and try to
         -- re-distribute excess across changes until fee becomes bigger.
         if remFee == Fee 0
-        then pure $ coinSel'
-            { change = coalesceDust (dustThreshold opt) (change coinSel')
-            }
+        then do
+            change' <- lift $ coalesceDust (dustThreshold opt) (change coinSel') ??
+                ErrCannotRemoveDust (change coinSel')
+            pure $ coinSel'
+                { change = change'
+                }
         else do
             -- Otherwise, we need an extra entries from the available utxo to
             -- cover what's left. Note that this entry may increase our change
@@ -255,70 +269,73 @@ coverRemainingFee maxN (Fee fee) = go [] 0 where
 rebalanceSelection
     :: FeeOptions
     -> CoinSelection
-    -> (CoinSelection, Fee)
-rebalanceSelection opts s
-    -- When there are no inputs, exit right away a pick a first input.
-    --
-    -- A case where this could occur is when selections are balanced in the
-    -- context of delegation / de-registration.
-    --
-    -- A transaction would have initially no inputs.
-    | null (inputs s) =
-        (s, Fee φ_original)
-
-    -- selection is now balanced, nothing to do.
-    | φ_original == δ_original =
-        (s, Fee 0)
-
-    -- some fee left to pay, but we've depleted all change outputs
-    | φ_original > δ_original && null (change s) =
-        (s, Fee (φ_original - δ_original))
-
-    -- some fee left to pay, and we've haven't depleted all change yet
-    | φ_original > δ_original && not (null (change s)) = do
-        let chgs' = coalesceDust (Coin 0)
-                $ map reduceSingleChange
-                $ divvyFee (Fee $ φ_original - δ_original) (change s)
-        rebalanceSelection opts (s { change = chgs' })
-
-    -- we've left too much, but adding a change output would be more
-    -- expensive than not having it. Sicne the node allows unbalanced transaction,
-    -- we can stop here and do nothing. We'll leave slightly more than what's
-    -- needed for fees, but having an extra change output isn't worth it anyway.
-    | φ_dangling >= δ_original && φ_dangling > δ_dangling =
-        (s, Fee 0)
-
-    -- So, we can simply add the change output, and iterate.
-    | otherwise =
-        rebalanceSelection opts sDangling
+    -> Either ErrAdjustForFee (CoinSelection, Fee)
+rebalanceSelection opts = go
   where
-    -- The original requested fee amount
-    Fee φ_original = estimateFee opts s
-    -- The initial amount left for fee (i.e. inputs - outputs), with a minimum
-    -- of 0 in case there are more output than inputs. This is possible when
-    -- there are other elements apart from normal outputs like a deposit.
-    δ_original
-        | inputBalance s >= (outputBalance s + changeBalance s) =
-            inputBalance s - (outputBalance s + changeBalance s)
+    go s
+        -- When there are no inputs, exit right away a pick a first input.
+        --
+        -- A case where this could occur is when selections are balanced in the
+        -- context of delegation / de-registration.
+        --
+        -- A transaction would have initially no inputs.
+        | null (inputs s) =
+            Right (s, Fee φ_original)
+
+        -- selection is now balanced, nothing to do.
+        | φ_original == δ_original =
+            Right (s, Fee 0)
+
+        -- some fee left to pay, but we've depleted all change outputs
+        | φ_original > δ_original && null (change s) =
+            Right (s, Fee (φ_original - δ_original))
+
+        -- some fee left to pay, and we've haven't depleted all change yet
+        | φ_original > δ_original && not (null (change s)) = do
+            let chgs' = fmap reduceSingleChange
+                    $ divvyFee (Fee $ φ_original - δ_original) (change s)
+            case partitionEithers (maybe (Left "") Right <$> chgs') of
+                ([], chgs'') -> go (s { change = chgs'' })
+                _ -> Left $ ErrCannotRebalance s
+
+        -- we've left too much, but adding a change output would be more
+        -- expensive than not having it. Sicne the node allows unbalanced transaction,
+        -- we can stop here and do nothing. We'll leave slightly more than what's
+        -- needed for fees, but having an extra change output isn't worth it anyway.
+        | φ_dangling >= δ_original && φ_dangling > δ_dangling =
+            Right (s, Fee 0)
+
+        -- So, we can simply add the change output, and iterate.
         | otherwise =
-            0
+            go sDangling
+      where
+        -- The original requested fee amount
+        Fee φ_original = estimateFee opts s
+        -- The initial amount left for fee (i.e. inputs - outputs), with a minimum
+        -- of 0 in case there are more output than inputs. This is possible when
+        -- there are other elements apart from normal outputs like a deposit.
+        δ_original
+            | inputBalance s >= (outputBalance s + changeBalance s) =
+                inputBalance s - (outputBalance s + changeBalance s)
+            | otherwise =
+                0
 
-    -- The new amount left after balancing (i.e. φ_original)
-    Fee φ_dangling = estimateFee opts sDangling
-    -- The new requested fee after adding the output.
-    δ_dangling = φ_original -- by construction of the change output
+        -- The new amount left after balancing (i.e. φ_original)
+        Fee φ_dangling = estimateFee opts sDangling
+        -- The new requested fee after adding the output.
+        δ_dangling = φ_original -- by construction of the change output
 
-    extraChng = Coin (δ_original - φ_original)
-    sDangling = s { change = splitChange extraChng (change s) }
+        extraChng = Coin (δ_original - φ_original)
+        sDangling = s { change = splitChange extraChng (change s) }
 
 -- | Reduce single change output by a given fee amount. If fees are too big for
 -- a single coin, returns a `Coin 0`.
-reduceSingleChange :: (Fee, Coin) -> Coin
-reduceSingleChange (Fee fee, Coin chng)
-    | chng >= fee =
-          Coin (chng - fee)
-    | otherwise =
-          Coin 0
+reduceSingleChange :: (Fee, TokenBundle) -> Maybe TokenBundle
+reduceSingleChange (Fee fee, chng)
+    | let chngAda = unCoin (getCoin chng)
+    , chngAda >= fee = Just $ setCoin chng (Coin chngAda)
+    | otherwise = Nothing
+
 
 -- | Proportionally divide the fee over each output.
 --
@@ -326,42 +343,71 @@ reduceSingleChange (Fee fee, Coin chng)
 -- Pre-condition 2: None of the outputs should be null
 --
 -- It returns the a list of pairs (fee, output).
-divvyFee :: Fee -> [Coin] -> [(Fee, Coin)]
-divvyFee _ outs | (Coin 0) `elem` outs =
+divvyFee :: Fee -> [TokenBundle] -> [(Fee, TokenBundle)]
+divvyFee _ outs | (Coin 0) `elem` fmap getCoin outs =
     error "divvyFee: some outputs are null"
 divvyFee (Fee f0) outs = go f0 [] outs
   where
-    total = (sum . map unCoin) outs
+    total = (sum . map unCoin) (fmap getCoin outs)
+
+    go :: Word64 -> [(Fee, TokenBundle)] -> [TokenBundle] -> [(Fee, TokenBundle)]
     go _ _ [] =
         error "divvyFee: empty list"
     go fOut xs [out] =
         -- The last one pays the rounding issues
         reverse ((Fee fOut, out):xs)
-    go f xs ((Coin out):q) =
+    go f xs (out:q) =
         let
-            r = fromIntegral out / fromIntegral total
+            outAda = unCoin $ getCoin out
+            r = fromIntegral outAda / fromIntegral total
             fOut = ceiling @Double (r * fromIntegral f)
         in
-            go (f - fOut) ((Fee fOut, Coin out):xs) q
+            go (f - fOut) ((Fee fOut, out):xs) q
 
--- | Remove coins that are below a given threshold. It'll try two strategies:
+-- | Coalesce token bundles that are below a given threshold. This tries to:
 --
--- 1. Try to coalesce dust coins with other non-dust coins.
+-- 1) Collect the total number of Ada available in all bundles
+-- 2) Tentatively assign the minimum Ada value to each bundle
+-- 3) Redistribute any surplus Ada to each bundle
 --
---     ∀δ≥0. sum coins == sum (removeDust δcoins)
+-- If this algorithm fails to distribute enough Ada across all bundles to be
+-- higher than the dust threshold, then it returns @Nothing@.
 --
--- 2. If the result is a single coin still smaller than the threshold, it'll
--- return an empty list.
-coalesceDust :: Coin -> [Coin] -> [Coin]
-coalesceDust threshold coins
-    | balance coins <= unCoin threshold =
-        []
-    | otherwise =
-        let
-            filtered = L.filter (> threshold) coins
-            diff = balance coins - balance filtered
-        in
-            splitChange (Coin diff) filtered
+-- This function never drops any bundles.
+coalesceDust :: (TokenBundle -> Coin) -> [TokenBundle] -> Maybe [TokenBundle]
+coalesceDust dusty bundles
+    = do
+        let bundlesMinAda = fmap bundleMinAda bundles
+            remainingAda = totalAda bundles - totalAda bundlesMinAda
+        guard (remainingAda > 0)
+        let redistributed = redistributeSurplus remainingAda bundlesMinAda
+        guard (totalAda redistributed == totalAda bundles)
+        guard (and $ fmap aboveThreshold redistributed)
+        pure redistributed
+  where
+    totalAda :: [TokenBundle] -> Word64
+    totalAda = sum . fmap (unCoin . getCoin)
+
+    aboveThreshold :: TokenBundle -> Bool
+    aboveThreshold t = getCoin t > dusty t
+
+    bundleMinAda :: TokenBundle -> TokenBundle
+    bundleMinAda t = t { coin = dusty t }
+
+    -- We redistribute evenly. We could also do it proportionally to the bundle
+    -- size.
+    redistributeSurplus
+        :: Word64        -- ^ surplus
+        -> [TokenBundle] -- ^ redistribute amongst these
+        -> [TokenBundle]
+    redistributeSurplus sur ts =
+        let tsLen = length ts
+            (base, rest) = quotRem sur (fromIntegral tsLen)
+            perToken = zipWith (+) (replicate tsLen base)
+                (replicate (fromIntegral rest) 1 ++ repeat 0)
+        in zipWith (\TokenBundle{..} add -> TokenBundle { coin = Coin (unCoin coin + add), .. })
+            ts perToken
+
 
 balance :: [Coin] -> Word64
 balance = L.foldl' (\total (Coin c) -> c + total) 0
@@ -377,26 +423,27 @@ balance = L.foldl' (\total (Coin c) -> c + total) 0
 -- outputs. This means that if we happen to pick a very large UTxO entry, adding
 -- this evenly rather than proportionally might skew the payment:change ratio a
 -- lot. Could consider defining this in terms of divvy instead.
-splitChange :: Coin -> [Coin] -> [Coin]
+splitChange :: Coin -> [TokenBundle] -> [TokenBundle]
 splitChange = go
   where
+    go :: Coin -> [TokenBundle] -> [TokenBundle]
     go remaining as | remaining == Coin 0 = as
-    go remaining [] = [remaining]
+    go remaining [] = [fromCoin remaining]
         -- we only create new change if for whatever reason there is none already
         -- or if is some overflow happens when we try to add.
     go remaining [a] =
         let
-            newChange = Coin $ (unCoin remaining) + (unCoin a)
+            newChange = Coin $ (unCoin remaining) + (unCoin $ getCoin a)
         in
             if isValidCoin newChange
-            then [newChange]
-            else [a, remaining]
+            then [setCoin a newChange]
+            else [a, fromCoin remaining]
     go rest@(Coin remaining) ls@(a : as) =
         let
             piece = remaining `div` fromIntegral (length ls)
             newRemaining = Coin (remaining - piece)
-            newChange = Coin (piece + unCoin a)
+            newChange = Coin (piece + unCoin (getCoin a))
         in
             if isValidCoin newChange
-            then newChange : go newRemaining as
+            then setCoin a newChange : go newRemaining as
             else a : go rest as

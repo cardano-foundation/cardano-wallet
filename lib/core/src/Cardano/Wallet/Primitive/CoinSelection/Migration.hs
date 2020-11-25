@@ -107,12 +107,13 @@ depleteUTxO feeOpts batchSize utxo =
         { inputs = inps
         , change =
             let chgs = mapMaybe (noDust . snd) inps
-            in if null chgs then [dustThreshold feeOpts] else chgs
+            in fmap TB.fromCoin
+                (if null chgs then [dustThreshold feeOpts (TB.fromCoin (Coin 1))] else chgs)
         }
       where
         noDust :: TxOut -> Maybe Coin
         noDust (TxOut _ c)
-            | TB.getCoin c < dustThreshold feeOpts = Nothing
+            | TB.getCoin c < dustThreshold feeOpts c = Nothing
             | otherwise = Just $ TB.getCoin c
 
     -- | Attempt to balance the coin selection by reducing or increasing the
@@ -138,7 +139,7 @@ depleteUTxO feeOpts batchSize utxo =
         -- We then recursively call ourselves for this might reduce the number
         -- of outputs and change the fee.
         (c : cs) -> adjustForFee $ coinSel
-            { change = modifyFirst (c :| cs) (+ diff) }
+            { change = fmap TB.fromCoin (modifyFirst (fmap TB.getCoin (c :| cs)) (+ diff)) }
       where
         diff :: Integer
         diff = actualFee - integer requiredFee
@@ -160,7 +161,7 @@ depleteUTxO feeOpts batchSize utxo =
         c' = op (integer c)
 
         threshold :: Integer
-        threshold = integer (unCoin (dustThreshold feeOpts))
+        threshold = integer (unCoin (dustThreshold feeOpts (TB.fromCoin (Coin c))))
 
     getNextBatch :: State [a] [a]
     getNextBatch = do

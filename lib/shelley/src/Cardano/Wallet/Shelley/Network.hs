@@ -171,6 +171,8 @@ import Ouroboros.Consensus.HardFork.Combinator
     ( QueryAnytime (..), QueryHardFork (..) )
 import Ouroboros.Consensus.HardFork.Combinator.AcrossEras
     ( MismatchEraInfo )
+import Ouroboros.Consensus.HardFork.Combinator.Basics
+    ( HardForkBlock )
 import Ouroboros.Consensus.HardFork.History.Qry
     ( Interpreter, PastHorizonException (..) )
 import Ouroboros.Consensus.HardFork.History.Summary

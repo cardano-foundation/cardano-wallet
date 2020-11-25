@@ -51,6 +51,7 @@ import Data.Quantity
 import Data.Word
     ( Word64 )
 
+import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TB
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
 
@@ -196,7 +197,7 @@ improveTxOut (maxN0, selection, utxo0) (CoinSelection inps0 withdraw _ outs _ _)
         , selection <> mempty
             { inputs = inps
             , outputs = outs
-            , change = mkChange (Quantity withdraw) outs inps
+            , change = TB.fromCoin <$> mkChange (Quantity withdraw) outs inps
             , withdrawal = withdraw
             }
         , utxo

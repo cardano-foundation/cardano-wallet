@@ -216,6 +216,8 @@ import Ouroboros.Consensus.HardFork.Combinator.AcrossEras
     ( OneEraHash (..) )
 import Ouroboros.Consensus.HardFork.History.Summary
     ( Bound (..) )
+import Ouroboros.Consensus.Shelley.Eras
+    ( StandardShelley )
 import Ouroboros.Consensus.Shelley.Ledger
     ( ShelleyHash (..) )
 import Ouroboros.Consensus.Shelley.Ledger.Block
@@ -281,6 +283,7 @@ import qualified Data.Set as Set
 import qualified Data.Text.Encoding as T
 import qualified Ouroboros.Consensus.Shelley.Ledger as O
 import qualified Ouroboros.Network.Block as O
+import qualified Ouroboros.Network.NodeToClient as N
 import qualified Ouroboros.Network.Point as Point
 import qualified Shelley.Spec.Ledger.Address as SL
 import qualified Shelley.Spec.Ledger.API as SL

@@ -381,7 +381,7 @@ dummyCoinSel :: Int -> Int -> CoinSelection
 dummyCoinSel nInps nOuts = mempty
     { CS.inputs = map (\ix -> (dummyTxIn ix, dummyTxOut)) [0..nInps-1]
     , CS.outputs = replicate nOuts dummyTxOut
-    , CS.change = replicate nOuts (Coin 1)
+    , CS.change = TB.fromCoin <$> replicate nOuts (Coin 1)
     }
   where
     dummyTxIn   = TxIn (Hash $ BS.pack (1:replicate 64 0)) . fromIntegral
@@ -507,7 +507,7 @@ estimateTxSize witTag md action cs =
             = sizeOf_SmallUInt
             + sizeOf_Array
             + sum (sizeOf_Output <$> CS.outputs cs)
-            + sum (sizeOf_ChangeOutput <$> CS.change cs)
+            + sum ((sizeOf_ChangeOutput . TB.getCoin) <$> CS.change cs)
 
         -- 2 => fee
         sizeOf_Fee

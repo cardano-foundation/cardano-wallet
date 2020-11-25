@@ -36,7 +36,7 @@ module Cardano.Wallet.Primitive.Types.TokenMap
       -- To construct a 'TokenMap', use one of the provided constructors, all
       -- of which are tested to check that they respect the invariant.
       --
-      TokenMap
+      TokenMap (..)
     , AssetId (..)
 
     -- * Construction
