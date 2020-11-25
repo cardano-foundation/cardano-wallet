@@ -1102,6 +1102,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
 
     it "STAKE_POOLS_SMASH_01 - fetching metadata from SMASH works with delisted pools" $
         \ctx -> runResourceT $ bracketSettings ctx $ do
+            liftIO $ flakyBecauseOf "#2337 (theorized)"
             smashUrl <- liftIO $ getEnv "CARDANO_WALLET_SMASH_URL"
             updateMetadataSource ctx (T.pack smashUrl)
             eventually "metadata is fetched" $ do
