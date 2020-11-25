@@ -27,6 +27,8 @@ module Cardano.Wallet.Primitive.Types.UTxO
     , computeStatistics
     , computeUtxoStatistics
     , excluding
+    , filterForAsset
+    , partitionForAsset
     , isSubsetOf
     , log10
     , pickRandom
@@ -39,10 +41,14 @@ import Prelude
 
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
+import Cardano.Wallet.Primitive.Types.TokenBundle
+    ( AssetId )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( TxIn, TxOut (..), txOutCoin )
+    ( TxIn, TxOut (..), txOutCoin, txOutHasAsset )
 import Control.DeepSeq
     ( NFData (..) )
+import Data.Bifunctor
+    ( bimap )
 import Data.List
     ( foldl' )
 import Data.List.NonEmpty
@@ -102,6 +108,22 @@ pickRandom (UTxO utxo)
     | otherwise = do
         ix <- randomRIO (0, toEnum (Map.size utxo - 1))
         return (Just $ Map.elemAt ix utxo, UTxO $ Map.deleteAt ix utxo)
+
+-- | Filter the given UTxO set based on the given asset.
+--
+-- Every entry in the returned set has a non-zero quantity of the asset.
+--
+filterForAsset :: UTxO -> AssetId -> UTxO
+filterForAsset (UTxO m) a = UTxO $ Map.filter (`txOutHasAsset` a) m
+
+-- | Partition the given UTxO set based on the given asset.
+--
+-- All entries in the first set have a non-zero quantity of the asset.
+-- No entries in the second set have a non-zero quantity of the asset.
+--
+partitionForAsset :: UTxO -> AssetId -> (UTxO, UTxO)
+partitionForAsset (UTxO m) a = bimap UTxO UTxO $
+    Map.partition (`txOutHasAsset` a) m
 
 -- | Compute the balance of a UTxO
 balance :: UTxO -> Natural

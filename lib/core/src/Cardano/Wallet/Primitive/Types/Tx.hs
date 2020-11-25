@@ -37,6 +37,7 @@ module Cardano.Wallet.Primitive.Types.Tx
     , txIns
     , txMetadataIsNull
     , txOutCoin
+    , txOutHasAsset
 
     ) where
 
@@ -57,7 +58,7 @@ import Cardano.Wallet.Primitive.Types.Hash
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle
-    ( TokenBundle )
+    ( AssetId, TokenBundle )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenName, TokenPolicyId )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
@@ -199,6 +200,12 @@ data TxOut = TxOut
 --
 txOutCoin :: TxOut -> Coin
 txOutCoin = TB.getCoin . view #tokens
+
+-- Returns true if (and only if) the given transaction output has a non-zero
+-- quantity of the given asset.
+--
+txOutHasAsset :: TxOut -> AssetId -> Bool
+txOutHasAsset (TxOut _ b) = TB.hasQuantity b
 
 -- Since the 'TokenBundle' type deliberately does not provide an 'Ord' instance
 -- (as that would lead to arithmetically invalid orderings), this means we can't
