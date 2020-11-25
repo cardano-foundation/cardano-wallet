@@ -15,7 +15,7 @@ import Cardano.Wallet.Primitive.CoinSelection.Migration
 import Cardano.Wallet.Primitive.CoinSelectionSpec
     ()
 import Cardano.Wallet.Primitive.Fee
-    ( Fee (..), FeeOptions (..), OnDanglingChange (..) )
+    ( Fee (..), FeeOptions (..) )
 import Cardano.Wallet.Primitive.FeeSpec
     ()
 import Cardano.Wallet.Primitive.Types.Address
@@ -122,7 +122,6 @@ spec = do
                     , estimateFee = \s -> Fee
                         $ fromIntegral
                         $ 5 * (length (inputs s) + length (outputs s))
-                    , onDanglingChange = PayAndBalance
                     , feeUpperBound = Fee maxBound
                     , maximumNumberOfInputs = maxBound
                     }
@@ -245,7 +244,6 @@ genFeeOptions (Coin dust) = do
             let x = fromIntegral (length (inputs s) + length (outputs s))
             in Fee $ (dust `div` 100) * x + dust
         , dustThreshold = Coin dust
-        , onDanglingChange = PayAndBalance
         , feeUpperBound = Fee maxBound
         , maximumNumberOfInputs = maxBound
         }

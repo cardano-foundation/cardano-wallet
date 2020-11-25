@@ -273,12 +273,7 @@ import Cardano.Wallet.Primitive.CoinSelection
 import Cardano.Wallet.Primitive.CoinSelection.Migration
     ( depleteUTxO, idealBatchSize )
 import Cardano.Wallet.Primitive.Fee
-    ( ErrAdjustForFee (..)
-    , Fee (..)
-    , FeeOptions (..)
-    , OnDanglingChange (..)
-    , adjustForFee
-    )
+    ( ErrAdjustForFee (..), Fee (..), FeeOptions (..), adjustForFee )
 import Cardano.Wallet.Primitive.Model
     ( Wallet
     , applyBlocks
@@ -1260,7 +1255,6 @@ feeOpts
 feeOpts tl action md txp minUtxo cs = FeeOptions
     { estimateFee = minimumFee tl feePolicy action md
     , dustThreshold = minUtxo
-    , onDanglingChange = if allowUnbalancedTx tl then SaveMoney else PayAndBalance
     -- NOTE
     -- Our fee calculation is rather good, but not perfect. We make little
     -- approximation errors that may lead to us leaving slightly more fees than

@@ -25,7 +25,6 @@ import Cardano.Wallet.Primitive.Fee
     ( ErrAdjustForFee (..)
     , Fee (..)
     , FeeOptions (..)
-    , OnDanglingChange (..)
     , adjustForFee
     , coalesceDust
     , divvyFee
@@ -514,23 +513,19 @@ propDivvyFeeInvariantEmptyList (fee, outs) =
 
 prop_rebalanceSelection
     :: CoinSelection
-    -> OnDanglingChange
     -> Coin
     -> Property
-prop_rebalanceSelection sel onDangling threshold = do
+prop_rebalanceSelection sel threshold = do
     let (sel', fee') = first withCoalescedDust $ rebalanceSelection opts sel
 
-    let selectionIsBalanced = case onDangling of
-            PayAndBalance ->
-                delta sel' == fromIntegral (getFee $ estimateFee opts sel')
-            SaveMoney ->
-                delta sel' >= fromIntegral (getFee $ estimateFee opts sel')
+    let selectionIsBalanced =
+            delta sel' >= fromIntegral (getFee $ estimateFee opts sel')
 
     let equalityModuloChange =
             sel { change = [] } == sel' { change = [] }
 
     let noDust =
-            all (> threshold') (change sel')
+            all (> threshold) (change sel')
 
     conjoin
         [ fee' == Fee 0 ==> selectionIsBalanced
@@ -566,45 +561,20 @@ prop_rebalanceSelection sel onDangling threshold = do
 
     withCoalescedDust :: CoinSelection -> CoinSelection
     withCoalescedDust cs =
-        cs { change = coalesceDust threshold' (change cs) }
-
-    -- NOTE: We only allow non-null dust threshold if 'onDangling' is
-    -- set to 'SaveMoney'.
-    threshold' =
-        case onDangling of
-            SaveMoney ->
-                threshold
-
-            PayAndBalance ->
-                Coin 0
+        cs { change = coalesceDust threshold (change cs) }
 
     opts = FeeOptions
         { estimateFee = \cs ->
-            case onDangling of
-                -- NOTE
-                -- Dummy fee policy but, following a similar rule as the fee
-                -- policy on Byron / Shelley (bigger transaction cost more) with
-                -- sensible values.
-                SaveMoney ->
-                    let
-                        size = fromIntegral $ length $ show cs
-                    in
-                        Fee (100000 + 100 * size)
+            -- NOTE
+            -- Dummy fee policy but, following a similar rule as the fee
+            -- policy on Byron / Shelley (bigger transaction cost more) with
+            -- sensible values.
+            let
+                size = fromIntegral $ length $ show cs
+            in
+                Fee (100000 + 100 * size)
 
-                -- NOTE
-                -- Dummy fee policy but, following a similar rule as the fee
-                -- policy on Jormungandr. More inputs/outputs cost more.
-                PayAndBalance ->
-                    let
-                        ios = fromIntegral
-                            $ length (inputs cs)
-                            + length (outputs cs)
-                            + length (change cs)
-                    in
-                        Fee (100000 + 100 * ios)
-
-        , dustThreshold = threshold'
-        , onDanglingChange = onDangling
+        , dustThreshold = threshold
         , feeUpperBound = Fee maxBound
         , maximumNumberOfInputs = maxBound
         }
@@ -629,8 +599,6 @@ feeOptions fee dust = FeeOptions
         \_ -> Fee fee
     , dustThreshold =
         Coin dust
-    , onDanglingChange =
-        PayAndBalance
     , feeUpperBound =
         Fee maxBound
     , maximumNumberOfInputs =
@@ -846,10 +814,6 @@ instance Arbitrary CoinSelection where
             >>= genTxOut
         genSelectionFor (NE.fromList outs)
 
-instance Arbitrary OnDanglingChange
-  where
-    arbitrary = elements [ PayAndBalance, SaveMoney ]
-
 instance Arbitrary FeeOptions where
     arbitrary = do
         t <- choose (0, 10) -- dust threshold
@@ -861,11 +825,10 @@ instance Arbitrary FeeOptions where
                     $ fromIntegral
                     $ c + a * (length (inputs s) + length (outputs s))
             , dustThreshold = Coin t
-            , onDanglingChange = PayAndBalance
             , feeUpperBound = Fee maxBound
             , maximumNumberOfInputs = maxBound
             }
 
 instance Show FeeOptions where
-    show (FeeOptions _ dust onDangling maxFee maxN) =
-        show (dust, onDangling, maxFee, maxN)
+    show (FeeOptions _ dust maxFee maxN) =
+        show (dust, maxFee, maxN)

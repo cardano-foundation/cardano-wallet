@@ -28,7 +28,6 @@ module Cardano.Wallet.Primitive.Fee
       -- * Fee Adjustment
     , FeeOptions (..)
     , ErrAdjustForFee(..)
-    , OnDanglingChange(..)
     , adjustForFee
     , rebalanceSelection
     , coalesceDust
@@ -106,11 +105,6 @@ data FeeOptions = FeeOptions
       -- from the created transaction. Setting 'dustThreshold' to 0
       -- removes output equal to 0
 
-    , onDanglingChange
-      :: OnDanglingChange
-      -- ^ What do to when we encouter a dangling change output.
-      -- See 'OnDanglingChange'
-
     , feeUpperBound
       :: Fee
       -- ^ An extra upper-bound computed from the transaction max size. This is
@@ -123,19 +117,6 @@ data FeeOptions = FeeOptions
       -- estimated from the maximum transaction size and an approximation of the
       -- transaction size based on how many inputs it has.
     } deriving (Generic)
-
--- | We call 'dangling' a change output that would be too expensive to add. This
--- can happen when a change output is small, but adding it generate more fees
--- than not having it.
---
--- In case where nodes accept slightly unbalanced transactions, we may choose to
--- save money and keep the transaction slightly unbalanced. In case where node
--- demands exactly balanced transaction, we have no choice but to add the extra
--- dangling change output and pay for the extra cost induced.
-data OnDanglingChange
-    = PayAndBalance
-    | SaveMoney
-    deriving (Generic, Show, Eq)
 
 newtype ErrAdjustForFee
     = ErrCannotCoverFee Word64
@@ -300,21 +281,11 @@ rebalanceSelection opts s
         rebalanceSelection opts (s { change = chgs' })
 
     -- we've left too much, but adding a change output would be more
-    -- expensive than not having it. Here we have two choices:
-    --
-    -- a) If the node allows unbalanced transaction, we can stop here and do
-    -- nothing. We'll leave slightly more than what's needed for fees, but
-    -- having an extra change output isn't worth it anyway.
-    --
-    -- b) If we __must__ balance the transaction, then we can choose to pay
-    -- the extra cost by adding the change output and pick a new input to
-    -- pay for the fee.
+    -- expensive than not having it. Sicne the node allows unbalanced transaction,
+    -- we can stop here and do nothing. We'll leave slightly more than what's
+    -- needed for fees, but having an extra change output isn't worth it anyway.
     | φ_dangling >= δ_original && φ_dangling > δ_dangling =
-        case onDanglingChange opts of
-            SaveMoney ->
-                (s, Fee 0)
-            PayAndBalance ->
-                (sDangling, Fee (φ_dangling - δ_dangling))
+        (s, Fee 0)
 
     -- So, we can simply add the change output, and iterate.
     | otherwise =
