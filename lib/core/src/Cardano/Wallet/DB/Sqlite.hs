@@ -1418,7 +1418,9 @@ txHistoryFromEntity ti tip metas ins outs ws =
             , W.txInfoOutputs =
                 map mkTxOut $ filter ((== txid) . txOutputTxId) outs
             , W.txInfoWithdrawals =
-                Map.fromList $ map mkTxWithdrawal $ filter ((== txid) . txWithdrawalTxId) ws
+                Map.fromList
+                    $ map mkTxWithdrawal
+                    $ filter ((== txid) . txWithdrawalTxId) ws
             , W.txInfoMeta =
                 derived
             , W.txInfoMetadata =
