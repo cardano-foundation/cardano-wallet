@@ -106,7 +106,7 @@ import Cardano.Wallet.Primitive.AddressDerivation.Icarus
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey )
 import Cardano.Wallet.Primitive.Slotting
-    ( TimeInterpreter, epochOf, firstSlotInEpoch, startTime )
+    ( TimeInterpreter, epochOf, firstSlotInEpoch, slotToUTCTime )
 import Control.Concurrent.MVar
     ( modifyMVar, modifyMVar_, newMVar, readMVar )
 import Control.Exception
@@ -1009,8 +1009,8 @@ readWalletDelegation
 readWalletDelegation ti wid epoch
     | epoch == 0 = pure $ W.WalletDelegation W.NotDelegating []
     | otherwise = do
-        eMinus1 <- liftIO $ ti $ firstSlotInEpoch (epoch - 1)
-        e <- liftIO $ ti $ firstSlotInEpoch epoch
+        (eMinus1, e) <- liftIO $ ti $
+            (,) <$> firstSlotInEpoch (epoch - 1) <*> firstSlotInEpoch epoch
         active <- maybe W.NotDelegating toWalletDelegationStatus
             <$> readDelegationCertificate wid
                 [ CertSlot <. eMinus1
@@ -1268,7 +1268,7 @@ txHistoryFromEntity
 txHistoryFromEntity ti tip metas ins outs ws =
     mapM mkItem metas
   where
-    startTime' = ti . startTime
+    startTime' = ti . slotToUTCTime
     mkItem m = mkTxWith (txMetaTxId m) (txMetaData m) (mkTxDerived m)
     mkTxWith txid meta derived = do
         t <- startTime' (derived ^. #slotNo)

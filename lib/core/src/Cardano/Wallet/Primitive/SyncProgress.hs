@@ -15,15 +15,14 @@ module Cardano.Wallet.Primitive.SyncProgress
 
       -- * Implementations
     , syncProgress
-    , )
-    where
+    ) where
 
 import Prelude
 
 import Cardano.Wallet.Primitive.Slotting
-    ( TimeInterpreter, startTime )
+    ( TimeInterpreter, slotToRelTime )
 import Cardano.Wallet.Primitive.Types
-    ( BlockHeader (..), SlotNo (..) )
+    ( BlockHeader (..) )
 import Control.DeepSeq
     ( NFData (..) )
 import Data.Bifunctor
@@ -35,13 +34,15 @@ import Data.Ratio
 import Data.Text.Class
     ( FromText (..), TextDecodingError (..), ToText (..) )
 import Data.Time.Clock
-    ( NominalDiffTime, UTCTime, diffUTCTime )
+    ( NominalDiffTime )
 import Fmt
     ( Buildable, build )
 import GHC.Generics
     ( Generic )
 import GHC.Stack
     ( HasCallStack )
+import Ouroboros.Consensus.BlockchainTime.WallClock.Types
+    ( RelativeTime (..), diffRelTime )
 
 data SyncProgress
     = Ready
@@ -118,25 +119,19 @@ syncProgress
     => SyncTolerance
         -- ^ A time tolerance inside which we consider ourselves synced
     -> TimeInterpreter m
-        -- ^ Parameters for slot arithmetic which are assumed to be static.
-        --
-        -- NOTE: This is no longer the case with the Hard Fork Combinator and
-        -- Byron-to-Shelley era transition.
+        -- ^ Converts slots to actual time.
     -> BlockHeader
         -- ^ Local tip
-    -> UTCTime
+    -> RelativeTime
         -- ^ Current Time
     -> m SyncProgress
 syncProgress (SyncTolerance tolerance) ti tip now = do
-    tipTime <- ti $ startTime $ slotNo tip
-    let timeRemaining = now `diffUTCTime` tipTime
-    genesisDate <- ti $ startTime $ SlotNo 0
-    let timeCovered = tipTime `diffUTCTime` genesisDate
+    timeCovered <- ti $ slotToRelTime $ slotNo tip
+    let progress
+            | now == start = 0
+            | otherwise = convert timeCovered % convert now
 
-    -- Using (max 1) to avoid division by 0.
-    let progress = (convert timeCovered)
-            % max 1 (convert $ timeCovered + timeRemaining)
-    if timeRemaining < tolerance || timeRemaining < 0 || progress >= 1 then
+    if withinTolerance timeCovered now then
         return Ready
     else
         return
@@ -147,7 +142,11 @@ syncProgress (SyncTolerance tolerance) ti tip now = do
         . toRational
         $ progress
   where
-    convert :: NominalDiffTime -> Integer
-    convert = round
+    start = RelativeTime 0
+
+    convert :: RelativeTime -> Int
+    convert = round . (* 1000) . getRelativeTime
+
+    withinTolerance a b =  b `diffRelTime` a <= tolerance
 
     errMsg x = "syncProgress: " ++ show x ++ " is out of bounds"

@@ -287,9 +287,11 @@ import Cardano.Wallet.Primitive.Model
 import Cardano.Wallet.Primitive.Slotting
     ( PastHorizonException (..)
     , TimeInterpreter
+    , addRelTime
     , ceilingSlotAt
+    , currentRelativeTime
     , slotRangeFromTimeRange
-    , startTime
+    , slotToUTCTime
     )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress, SyncTolerance (..), syncProgress )
@@ -415,7 +417,7 @@ import Data.Set
 import Data.Text.Class
     ( ToText (..) )
 import Data.Time.Clock
-    ( NominalDiffTime, UTCTime, addUTCTime, getCurrentTime )
+    ( NominalDiffTime, UTCTime, getCurrentTime )
 import Data.Type.Equality
     ( (:~:) (..), testEquality )
 import Data.Vector.Shuffle
@@ -713,9 +715,9 @@ walletSyncProgress
     -> IO SyncProgress
 walletSyncProgress ctx w = do
     let tip = currentTip w
-    syncProgress st ti tip =<< getCurrentTime
+    syncProgress st ti tip =<< currentRelativeTime ti
   where
-    (_,_,st) = ctx ^. genesisData
+    (_, _, st) = ctx ^. genesisData
 
     ti :: TimeInterpreter IO
     ti = timeInterpreter (ctx ^. networkLayer @t)
@@ -1661,7 +1663,7 @@ getTxExpiry
     -- ^ Time to live (TTL) in seconds from now.
     -> IO (Either PastHorizonException SlotNo)
 getTxExpiry ti maybeTTL = do
-    expTime <- addUTCTime ttl <$> getCurrentTime
+    expTime <- addRelTime ttl <$> currentRelativeTime ti
     try $ ti $ ceilingSlotAt expTime
   where
     ttl = fromMaybe defaultTTL maybeTTL
@@ -1894,7 +1896,7 @@ mkTxMeta interpretTime blockHeader wState tx cs expiry =
                 }
             )
   where
-    slotStartTime' = interpretTime . startTime
+    slotStartTime' = interpretTime . slotToUTCTime
 
     ourCoins :: TxOut -> Maybe Natural
     ourCoins (TxOut addr (Coin val)) =

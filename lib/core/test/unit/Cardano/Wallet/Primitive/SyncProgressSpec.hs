@@ -17,7 +17,7 @@ import Cardano.Wallet.Gen
     , shrinkSlotNo
     )
 import Cardano.Wallet.Primitive.Slotting
-    ( TimeInterpreter, singleEraInterpreter, startTime )
+    ( TimeInterpreter, mkSingleEraInterpreter, slotToRelTime )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..), SyncTolerance (..), syncProgress )
 import Cardano.Wallet.Primitive.Types
@@ -45,8 +45,8 @@ import Data.Functor.Identity
     ( Identity (..) )
 import Data.Quantity
     ( Quantity (..) )
-import Data.Time.Clock
-    ( NominalDiffTime, addUTCTime )
+import Ouroboros.Consensus.BlockchainTime.WallClock.Types
+    ( RelativeTime (..) )
 import Test.Hspec
     ( Spec, describe, it, parallel, pendingWith, shouldBe )
 import Test.QuickCheck
@@ -65,14 +65,10 @@ spec = do
     let st = SyncTolerance 10
 
 
-    let ti = (singleEraInterpreter (StartTime t0) sp :: TimeInterpreter Identity)
+    let ti = (mkSingleEraInterpreter (StartTime t0) sp :: TimeInterpreter Identity)
     parallel $ describe "syncProgress" $ do
-        it "works for any two slots" $ property $ \tip (dt :: NominalDiffTime) ->
-            let
-                t = dt `addUTCTime` t0
-            in
-                runIdentity (syncProgress st ti tip t) `deepseq` ()
-
+        it "works for any two slots" $ property $ \tip (dt :: RelativeTime) ->
+            runIdentity (syncProgress st ti tip dt) `deepseq` ()
         let mkTip sl = BlockHeader
                 { slotNo = sl
                 , blockHeight = Quantity 0 -- Not needed
@@ -83,25 +79,25 @@ spec = do
 
         it "unit test #1 - 0/10   0%" $ do
             let tip = mkTip (SlotNo 0)
-            let ntwkTime = runIdentity $ ti $ startTime $ SlotNo 10
+            let ntwkTime = runIdentity $ ti $ slotToRelTime $ SlotNo 10
             runIdentity (syncProgress tolerance ti tip ntwkTime)
                 `shouldBe` Syncing (Quantity $ unsafeMkPercentage 0)
 
         it "unit test #2 - 10/20 50%" $ do
             let tip = mkTip (SlotNo 10)
-            let ntwkTime = runIdentity $ ti $ startTime $ SlotNo 20
+            let ntwkTime = runIdentity $ ti $ slotToRelTime $ SlotNo 20
             runIdentity (syncProgress tolerance ti tip ntwkTime)
                 `shouldBe` Syncing (Quantity $ unsafeMkPercentage 0.5)
 
         it "unit test #4 - 10/10 100%" $ do
             let tip = mkTip (SlotNo 10)
-            let ntwkTime = runIdentity $ ti $ startTime $ SlotNo 10
+            let ntwkTime = runIdentity $ ti $ slotToRelTime $ SlotNo 10
             runIdentity (syncProgress tolerance ti tip ntwkTime)
                 `shouldBe` Ready
 
         it "unit test #4 - 11/10 100%" $ do
             let tip = mkTip (SlotNo 11)
-            let ntwkTime = runIdentity $ ti $ startTime $ SlotNo 10
+            let ntwkTime = runIdentity $ ti $ slotToRelTime $ SlotNo 10
             runIdentity (syncProgress tolerance ti tip ntwkTime)
                 `shouldBe` Ready
 
@@ -133,7 +129,7 @@ spec = do
                     , (mkTip (SlotNo 10), 1.0)
                     ]
             forM_ plots $ \(nodeTip, p) -> do
-                let ntwkTime = runIdentity $ ti $ startTime $ SlotNo 10
+                let ntwkTime = runIdentity $ ti $ slotToRelTime $ SlotNo 10
                 let progress = if p == 1
                         then Ready
                         else Syncing (Quantity $ unsafeMkPercentage p)
@@ -146,7 +142,7 @@ spec = do
             -- Very short chains on jormungandr will probably see the
             -- syncProgress immediately jump to 90%, and then slowly continue,
             -- but seems like an acceptable sacrifice. The ITN is long anyway.
-            let ntwkTime = runIdentity $ ti $ startTime $ SlotNo 10
+            let ntwkTime = runIdentity $ ti $ slotToRelTime $ SlotNo 10
             let plots =
                     [ (mkTip (SlotNo 8), 0)
                     , (mkTip (SlotNo 9), 0)
@@ -163,15 +159,13 @@ spec = do
 
         it "unit test #7 - 1k/2M 0.5% (regression for overflow issue)" $ do
             let tip = mkTip (SlotNo 1_000)
-            let ntwkTime = runIdentity $ ti $ startTime $ SlotNo 2_000_000
+            let ntwkTime = runIdentity $ ti $ slotToRelTime $ SlotNo 2_000_000
             runIdentity (syncProgress tolerance ti tip ntwkTime)
                 `shouldBe` Syncing (Quantity $ unsafeMkPercentage 0.0005)
 
         it "syncProgress should never crash" $ withMaxSuccess 10000
             $ property $ \tip dt -> monadicIO $ do
-                let t = dt `addUTCTime` t0
-                let x = runIdentity $
-                        syncProgress tolerance ti tip t
+                let x = runIdentity $ syncProgress tolerance ti tip dt
                 res <- run (try @SomeException $ evaluate x)
                 monitor (counterexample $ "Result: " ++ show res)
                 assert (isRight res)
@@ -185,9 +179,11 @@ instance Arbitrary SlotNo where
     arbitrary = genSlotNo
     shrink = shrinkSlotNo
 
-instance Arbitrary NominalDiffTime where
-    arbitrary = toEnum <$> arbitrary
-    shrink x = map toEnum . shrink $ fromEnum x
+-- Arbitrary instance with whole second values.
+instance Arbitrary RelativeTime where
+    arbitrary = RelativeTime . fromIntegral <$> arbitrary @Int
+    shrink (RelativeTime t) =
+        RelativeTime . fromIntegral <$> shrink (floor @_ @Int t)
 
 instance Arbitrary ActiveSlotCoefficient where
     shrink = shrinkActiveSlotCoefficient

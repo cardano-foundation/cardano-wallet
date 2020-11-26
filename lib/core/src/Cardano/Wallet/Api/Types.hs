@@ -14,6 +14,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE PackageImports #-}
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -52,6 +53,7 @@ module Cardano.Wallet.Api.Types
     , AnyAddressType (..)
     , ApiCertificate (..)
     , ApiEpochInfo (..)
+    , toApiEpochInfo
     , ApiSelectCoinsData (..)
     , ApiSelectCoinsPayments (..)
     , ApiSelectCoinsAction (..)
@@ -185,6 +187,8 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPoolGap, SeqState, getAddressPoolGap )
+import Cardano.Wallet.Primitive.Slotting
+    ( Qry, timeOfEpoch )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..) )
 import Cardano.Wallet.Primitive.Types
@@ -226,7 +230,7 @@ import Codec.Binary.Bech32
     ( dataPartFromBytes, dataPartToBytes )
 import Codec.Binary.Bech32.TH
     ( humanReadablePart )
-import Codec.Binary.Encoding
+import "cardano-addresses" Codec.Binary.Encoding
     ( AbstractEncoding (..), detectEncoding, encode )
 import Control.Applicative
     ( optional, (<|>) )
@@ -451,6 +455,9 @@ data ApiEpochInfo = ApiEpochInfo
     , epochStartTime :: !UTCTime
     } deriving (Eq, Generic, Show)
       deriving anyclass NFData
+
+toApiEpochInfo :: EpochNo -> Qry ApiEpochInfo
+toApiEpochInfo ep = ApiEpochInfo (ApiT ep) . fst <$> timeOfEpoch ep
 
 data ApiSelectCoinsData (n :: NetworkDiscriminant)
     = ApiSelectForPayment (ApiSelectCoinsPayments n)
