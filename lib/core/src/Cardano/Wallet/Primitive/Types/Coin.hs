@@ -44,7 +44,7 @@ import qualified Data.Text as T
 
 -- | A 'Coin' represents a quantity of lovelace.
 --
--- Reminder: 1 Lovelace = 1,000,000 ADA
+-- Reminder: 1 ada = 1,000,000 lovelace.
 --
 newtype Coin = Coin
     { getCoin :: Word64
