@@ -883,7 +883,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
 
             quitStakePool @n ctx (w, fixturePassphrase) >>= flip verify
                 [ expectResponseCode HTTP.status403
-                , expectErrorMessage $ errMsg403DelegationFee 115900
+                , expectErrorMessage $ errMsg403DelegationFee 116500
                 ]
 
     it "STAKE_POOLS_ESTIMATE_FEE_02 - \
@@ -891,8 +891,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
         w <- emptyWallet ctx
         delegationFee ctx w >>= flip verify
             [ expectResponseCode HTTP.status403
-            , expectErrorMessage $ errMsg403DelegationFee
-                (costOfJoining ctx - costOfChange ctx)
+            , expectErrorMessage $ errMsg403DelegationFee 122900
             ]
 
     describe "STAKE_POOLS_LIST_01 - List stake pools" $ do
@@ -1185,10 +1184,10 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
             round c
 
     costOfJoining :: Context t -> Natural
-    costOfJoining = costOf (\coeff cst -> 364 * coeff + cst)
+    costOfJoining = costOf (\coeff cst -> 370 * coeff + cst)
 
     costOfQuitting :: Context t -> Natural
-    costOfQuitting = costOf (\coeff cst -> 297 * coeff + cst)
+    costOfQuitting = costOf (\coeff cst -> 303 * coeff + cst)
 
     costOfChange :: Context t -> Natural
     costOfChange = costOf (\coeff _cst -> 133 * coeff)
