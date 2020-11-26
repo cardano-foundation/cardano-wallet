@@ -22,20 +22,54 @@ https://hydra.iohk.io/job/Cardano/cardano-wallet/required/latest-finished#tabs-c
 This job is set up with the `mkRequiredJob` function in `release.nix`.
 
 
+## Build Products
+
+Some build jobs have build products which can be downloaded from the
+Hydra web interface. Other build systems sometimes call these
+"artefacts".
+
+When you click the "latest successful build" link for a job, it
+redirects (HTTP 302 Moved Temporarily) to the location of the _current
+latest successful build_. To make a download link which is always the
+latest, click the `Details` button next a build product, and copy the
+links.
+
+A nix derivation builder script can register build products by adding
+lines to the file `$out/nix-support/hydra-build-products`.
+
+
 ## Evaluation
 
-Hydra instantiates the `release.nix` file on the Hydra master host (hydra.iohk.io). This is evaluation. It then sends the jobs out to the build farm to be built. Evaluation fails if there are syntax errors in the Nix files, etc.
+Hydra instantiates the `release.nix` file on the Hydra master host
+(hydra.iohk.io). This is evaluation. It then sends the jobs out to the
+build farm to be built.
 
-**Note**: If evaluation fails, no build status will ever be reported to GitHub. If there is a Bors job waiting for this status, it will time out. 
+Evaluation fails if there are syntax errors in the Nix files, type
+errors, etc. Sometimes evaluation can fail due to memory exhaustion on
+Hydra master.
 
-As a workaround for this issue, devops added a `hydra-eval-errors` [Buildkite job](https://buildkite.com/input-output-hk/cardano-wallet) which polls the Hydra web interface for evaluation status. If it detects evaluation failure on Hydra then the Buildkite pipeline will consequently fail.
-
-
-## Binary cache
-
-See [iohk-nix/docs/nix.md](https://github.com/input-output-hk/iohk-nix/blob/master/docs/nix.md) for information on configuring the Hydra binary cache on your system.
+**Note**: If evaluation fails, the Hydra eval runner will retry until
+it succeeds. The `ci/hydra-eval` status will change from pending to
+failed, until the evaluation succeeds.
 
 
 ## Restarting builds
 
 Sign in with the [adrestia](https://hydra.iohk.io/dashboard/adrestia) user to restart build jobs.
+
+
+## Binary cache
+
+See [iohk-nix/docs/nix.md](https://github.com/input-output-hk/iohk-nix/blob/8b1d65ba294708b12d7b15103ac35431d9b60819/docs/nix.md)
+for information on configuring the Hydra binary cache on your system.
+
+**Note**: It must be stressed that, if you see GHC being built by Nix,
+then you don't have the Hydra binary cache configured correctly.
+
+
+## Installing/Upgrading Nix
+
+The required version of Nix is 2.3.8.
+
+- [Nix Package Manager Guide: Installation](https://nixos.org/manual/nix/stable/#ch-installing-binary)
+- [Nix Package Manager Guide: Upgrading Nix](https://nixos.org/manual/nix/stable/#ch-upgrading-nix)
