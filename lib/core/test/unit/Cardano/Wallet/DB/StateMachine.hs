@@ -580,50 +580,55 @@ generator
     => Model s Symbolic
     -> Maybe (Gen (Cmd s :@ Symbolic))
 generator (Model _ wids) = Just $ frequency $ fmap (fmap At) <$> concat
-    [ withoutWid
-    , if null wids then [] else withWid
+    [ generatorWithoutId
+    , if null wids then [] else generatorWithWid (fst <$> wids)
+    ]
+
+generatorWithoutId
+    :: (Arbitrary (Wallet s), GenState s)
+    => [(Int, Gen (Cmd s (Reference WalletId Symbolic)))]
+generatorWithoutId =
+    [ (5, CreateWallet
+        <$> genId
+        <*> (getInitialCheckpoint <$> arbitrary)
+        <*> arbitrary
+        <*> fmap unGenTxHistory arbitrary
+        <*> arbitrary)
     ]
   where
-    withoutWid :: [(Int, Gen (Cmd s (Reference WalletId Symbolic)))]
-    withoutWid =
-        [ (5, CreateWallet
-            <$> genId
-            <*> (getInitialCheckpoint <$> arbitrary)
-            <*> arbitrary
-            <*> fmap unGenTxHistory arbitrary
-            <*> arbitrary)
-        ]
-
-    withWid :: [(Int, Gen (Cmd s (Reference WalletId Symbolic)))]
-    withWid =
-        [ (3, RemoveWallet <$> genId')
-        , (5, pure ListWallets)
-        , (5, PutCheckpoint <$> genId' <*> arbitrary)
-        , (5, ReadCheckpoint <$> genId')
-        , (5, ListCheckpoints <$> genId')
-        , (5, PutWalletMeta <$> genId' <*> arbitrary)
-        , (5, ReadWalletMeta <$> genId')
-        , (5, PutDelegationCertificate <$> genId' <*> arbitrary <*> arbitrary)
-        , (1, IsStakeKeyRegistered <$> genId')
-        , (5, PutTxHistory <$> genId' <*> fmap unGenTxHistory arbitrary)
-        , (5, ReadTxHistory
-            <$> genId'
-            <*> genMinWithdrawal
-            <*> genSortOrder
-            <*> genRange
-            <*> arbitrary)
-        , (4, RemovePendingTx <$> genId' <*> arbitrary)
-        , (4, UpdatePendingTxForExpiry <$> genId' <*> arbitrary)
-        , (3, PutPrivateKey <$> genId' <*> genPrivKey)
-        , (3, ReadPrivateKey <$> genId')
-        , (1, RollbackTo <$> genId' <*> arbitrary)
-        ]
-
     genId :: Gen MWid
     genId = MWid <$> elements ["a", "b", "c"]
 
-    genId' :: Gen (Reference WalletId Symbolic)
-    genId' = QC.elements (map fst wids)
+generatorWithWid
+    :: (Arbitrary (Wallet s), GenState s)
+    => [Reference WalletId Symbolic]
+    -> [(Int, Gen (Cmd s (Reference WalletId Symbolic)))]
+generatorWithWid wids =
+    [ (3, RemoveWallet <$> genId)
+    , (5, pure ListWallets)
+    , (5, PutCheckpoint <$> genId <*> arbitrary)
+    , (5, ReadCheckpoint <$> genId)
+    , (5, ListCheckpoints <$> genId)
+    , (5, PutWalletMeta <$> genId <*> arbitrary)
+    , (5, ReadWalletMeta <$> genId)
+    , (5, PutDelegationCertificate <$> genId <*> arbitrary <*> arbitrary)
+    , (1, IsStakeKeyRegistered <$> genId)
+    , (5, PutTxHistory <$> genId <*> fmap unGenTxHistory arbitrary)
+    , (5, ReadTxHistory
+        <$> genId
+        <*> genMinWithdrawal
+        <*> genSortOrder
+        <*> genRange
+        <*> arbitrary)
+    , (4, RemovePendingTx <$> genId <*> arbitrary)
+    , (4, UpdatePendingTxForExpiry <$> genId <*> arbitrary)
+    , (3, PutPrivateKey <$> genId <*> genPrivKey)
+    , (3, ReadPrivateKey <$> genId)
+    , (1, RollbackTo <$> genId <*> arbitrary)
+    ]
+  where
+    genId :: Gen (Reference WalletId Symbolic)
+    genId = QC.elements wids
 
     genPrivKey :: Gen MPrivKey
     genPrivKey = elements ["pk1", "pk2", "pk3"]
