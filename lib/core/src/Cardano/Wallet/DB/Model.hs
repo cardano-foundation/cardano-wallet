@@ -69,7 +69,7 @@ import Prelude
 import Cardano.Wallet.Primitive.Model
     ( Wallet, currentTip, utxo )
 import Cardano.Wallet.Primitive.Slotting
-    ( TimeInterpreter, epochOf, slotToUTCTime )
+    ( TimeInterpreter, epochOf, interpretQuery, slotToUTCTime )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (blockHeight, slotNo)
     , DelegationCertificate (..)
@@ -334,10 +334,10 @@ mReadWalletMeta
     => TimeInterpreter Identity
     -> wid
     -> ModelOp wid s xprv (Maybe WalletMetadata)
-mReadWalletMeta interpretTime wid db@(Database wallets _) =
+mReadWalletMeta ti wid db@(Database wallets _) =
     (Right (mkMetadata =<< Map.lookup wid wallets), db)
   where
-    epochOf' = runIdentity . interpretTime . epochOf
+    epochOf' = runIdentity . interpretQuery ti . epochOf
     mkMetadata :: WalletDatabase s xprv -> Maybe WalletMetadata
     mkMetadata WalletDatabase{checkpoints,certificates,metadata} = do
         (slot, _) <- Map.lookupMax checkpoints
@@ -415,7 +415,7 @@ mPutTxHistory wid txList db@Database{wallets,txs} =
         Nothing -> (Left (NoSuchWallet wid), db)
 
 mReadTxHistory
-    :: forall wid s xprv. Ord wid
+    :: forall wid s xprv . Ord wid
     => TimeInterpreter Identity
     -> wid
     -> Maybe (Quantity "lovelace" Natural)
@@ -426,7 +426,7 @@ mReadTxHistory
 mReadTxHistory ti wid minWithdrawal order range mstatus db@(Database wallets txs) =
     (Right res, db)
   where
-    slotStartTime' = runIdentity . ti . slotToUTCTime
+    slotStartTime' = runIdentity . interpretQuery ti . slotToUTCTime
     res = fromMaybe mempty $ do
         wal <- Map.lookup wid wallets
         (_, cp) <- Map.lookupMax (checkpoints wal)

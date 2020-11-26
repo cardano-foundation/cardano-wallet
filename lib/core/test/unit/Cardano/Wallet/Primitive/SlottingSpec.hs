@@ -19,6 +19,7 @@ import Cardano.Wallet.Primitive.Slotting
     ( Qry
     , epochOf
     , firstSlotInEpoch
+    , interpretQuery
     , mkSingleEraInterpreter
     , slotRangeFromTimeRange
     , slotToUTCTime
@@ -78,7 +79,8 @@ spec = do
                     -- NOTE: The old impementation breaks for large times /
                     -- slotNos. After only generating SlotLengths of 1s or
                     -- bigger, it should hopefully always work.
-                    let res = runIdentity $ mkSingleEraInterpreter t0 sp
+                    let res = runIdentity $ interpretQuery
+                            (mkSingleEraInterpreter t0 sp)
                             (slotRangeFromTimeRange timeRange)
 
                     let legacy = slotRangeFromTimeRange' (slotParams t0 sp) timeRange
@@ -89,7 +91,8 @@ spec = do
 
             it "(firstSlotInEpoch e) vs (SlotId e 0) "
                 $ withMaxSuccess 10000 $ property $ \t0 sp e -> do
-                    let res = runIdentity $ mkSingleEraInterpreter t0 sp
+                    let res = runIdentity $ interpretQuery
+                            (mkSingleEraInterpreter t0 sp)
                             (firstSlotInEpoch e)
                     let legacy = SlotNo $ flatSlot (sp ^. #getEpochLength) $ SlotId e 0
 
@@ -99,9 +102,12 @@ spec = do
            \ (always true using mkSingleEraInterpreter)"
             $ withMaxSuccess 10000 $ property $ \t0 sp e -> do
                 let run :: Qry a -> a
-                    run = runIdentity . mkSingleEraInterpreter t0 sp
+                    run = runIdentity . interpretQuery
+                        (mkSingleEraInterpreter t0 sp)
+
                     endTimeOfEpoch :: EpochNo -> Qry UTCTime
                     endTimeOfEpoch = fmap snd . timeOfEpoch
+
                 run (endTimeOfEpoch e)
                     === run (slotToUTCTime =<< firstSlotInEpoch (e + 1))
 
@@ -114,7 +120,9 @@ legacySlottingTest
     -> SlotNo
     -> Property
 legacySlottingTest legacyImpl newImpl t0 sp slotNo = withMaxSuccess 10000 $ do
-    let res = runIdentity $ mkSingleEraInterpreter t0 sp (newImpl slotNo)
+    let res = runIdentity $ interpretQuery
+            (mkSingleEraInterpreter t0 sp)
+            (newImpl slotNo)
     let legacy = legacyImpl (slotParams t0 sp) $ fromFlatSlot
             (sp ^. #getEpochLength)
             (unSlotNo slotNo)

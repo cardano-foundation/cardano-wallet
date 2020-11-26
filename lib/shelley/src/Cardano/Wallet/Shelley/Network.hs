@@ -57,7 +57,7 @@ import Cardano.Wallet.Network
     , mapCursor
     )
 import Cardano.Wallet.Primitive.Slotting
-    ( TimeInterpreter, mkTimeInterpreter )
+    ( TimeInterpreter, TimeInterpreterLog, mkTimeInterpreter )
 import Cardano.Wallet.Shelley.Compatibility
     ( Shelley
     , StandardCrypto
@@ -83,7 +83,7 @@ import Control.Concurrent.Async
 import Control.Concurrent.Chan
     ( Chan, dupChan, newChan, readChan, writeChan )
 import Control.Exception
-    ( IOException, throwIO )
+    ( IOException )
 import Control.Monad
     ( forever, unless, void, when, (>=>) )
 import Control.Monad.Catch
@@ -482,14 +482,10 @@ withNetworkLayer tr np addrInfo (versionData, _) action = do
     _timeInterpreterQuery
         :: HasCallStack
         => TMVar IO (CardanoInterpreter sc)
-        -> TimeInterpreter IO
-    _timeInterpreterQuery var query = do
-        interpreter <- liftIO $ atomically $ readTMVar var
-        case mkTimeInterpreter getGenesisBlockDate interpreter query of
-            Right r -> pure r
-            Left e -> do
-                liftIO $ traceWith tr $ MsgInterpreterPastHorizon e
-                throwIO e
+        -> TimeInterpreter (ExceptT PastHorizonException IO)
+    _timeInterpreterQuery var = do
+        let readInterpreter = liftIO $ atomically $ readTMVar var
+        mkTimeInterpreter (contramap MsgInterpreterLog tr) getGenesisBlockDate readInterpreter
 
 type instance GetStakeDistribution (IO Shelley) m =
       W.BlockHeader
@@ -1102,7 +1098,8 @@ data NetworkLayerLog where
     MsgWatcherUpdate :: W.BlockHeader -> BracketLog -> NetworkLayerLog
     MsgChainSyncCmd :: (ChainSyncLog Text Text) -> NetworkLayerLog
     MsgInterpreter :: CardanoInterpreter StandardCrypto -> NetworkLayerLog
-    MsgInterpreterPastHorizon :: PastHorizonException -> NetworkLayerLog
+    -- TODO: Combine ^^ and vv
+    MsgInterpreterLog :: TimeInterpreterLog -> NetworkLayerLog
     MsgQueryTime :: String -> NominalDiffTime -> NetworkLayerLog
     MsgObserverLog
         :: ObserverLog W.RewardAccount W.Coin
@@ -1199,9 +1196,7 @@ instance ToText NetworkLayerLog where
         MsgChainSyncCmd a -> toText a
         MsgInterpreter interpreter ->
             "Updated the history interpreter: " <> T.pack (show interpreter)
-        MsgInterpreterPastHorizon e ->
-            "Time interpreter queried past the horizon: " <> T.pack (show e)
-
+        MsgInterpreterLog msg -> toText msg
         MsgObserverLog msg -> toText msg
 
 instance HasPrivacyAnnotation NetworkLayerLog
@@ -1233,5 +1228,5 @@ instance HasSeverityAnnotation NetworkLayerLog where
         MsgChainSyncCmd cmd                -> getSeverityAnnotation cmd
         MsgInterpreter{}                   -> Debug
         MsgQueryTime{}                     -> Info
-        MsgInterpreterPastHorizon{}        -> Error
+        MsgInterpreterLog msg              -> getSeverityAnnotation msg
         MsgObserverLog{}                   -> Debug

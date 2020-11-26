@@ -290,8 +290,12 @@ import Cardano.Wallet.Primitive.Slotting
     , addRelTime
     , ceilingSlotAt
     , currentRelativeTime
+    , interpretQuery
+    , neverFails
+    , slotRangeFromTimeRange
     , slotRangeFromTimeRange
     , slotToUTCTime
+    , unsafeExtendSafeZone
     )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress, SyncTolerance (..), syncProgress )
@@ -358,7 +362,7 @@ import Cardano.Wallet.Unsafe
 import Control.DeepSeq
     ( NFData )
 import Control.Exception
-    ( Exception, try )
+    ( Exception )
 import Control.Monad
     ( forM_, replicateM, unless, when )
 import Control.Monad.IO.Class
@@ -380,8 +384,6 @@ import Control.Monad.Trans.State.Strict
     ( StateT, runStateT, state )
 import Control.Tracer
     ( Tracer, contramap, traceWith )
-import Data.Bifunctor
-    ( first )
 import Data.ByteString
     ( ByteString )
 import Data.Coerce
@@ -720,7 +722,9 @@ walletSyncProgress ctx w = do
     (_, _, st) = ctx ^. genesisData
 
     ti :: TimeInterpreter IO
-    ti = timeInterpreter (ctx ^. networkLayer @t)
+    ti = neverFails
+            "walletSyncProgress only converts times at the tip or before"
+            (timeInterpreter $ ctx ^. networkLayer @t)
 
 -- | Update a wallet's metadata with the given update function.
 updateWallet
@@ -1622,7 +1626,7 @@ signPayment
     -> CoinSelection
     -> ExceptT ErrSignPayment IO (Tx, TxMeta, UTCTime, SealedTx)
 signPayment ctx wid argGenChange mkRewardAccount pwd md ttl cs = db & \DBLayer{..} -> do
-    txExp <- ExceptT $ first ErrSignPaymentIncorrectTTL <$> getTxExpiry ti ttl
+    txExp <- liftIO $ getTxExpiry ti ttl
     withRootKey @_ @s ctx wid pwd ErrSignPaymentWithRootKey $ \xprv scheme -> do
         let pwdP = preparePassphrase scheme pwd
         mapExceptT atomically $ do
@@ -1642,29 +1646,25 @@ signPayment ctx wid argGenChange mkRewardAccount pwd md ttl cs = db & \DBLayer{.
             (time, meta) <- liftIO $ mkTxMeta ti (currentTip cp) s' tx cs' txExp
             return (tx, meta, time, sealedTx)
   where
-    ti :: TimeInterpreter IO
-    ti = timeInterpreter nl
     db = ctx ^. dbLayer @s @k
     tl = ctx ^. transactionLayer @t @k
     nl = ctx ^. networkLayer @t
+    ti = timeInterpreter nl
 
 -- | Calculate the transaction expiry slot, given a 'TimeInterpreter', and an
 -- optional TTL in seconds.
 --
 -- If no TTL is provided, a default of 2 hours is used (note: there is no
 -- particular reason why we chose that duration).
---
--- If the TTL is too great, or if the 'TimeInterpreter' is not up to date, this
--- will fail with 'PastHorizonException'.
 getTxExpiry
-    :: TimeInterpreter IO
+    :: TimeInterpreter (ExceptT PastHorizonException IO)
     -- ^ Context for time to slot calculation.
     -> Maybe NominalDiffTime
     -- ^ Time to live (TTL) in seconds from now.
-    -> IO (Either PastHorizonException SlotNo)
+    -> IO SlotNo
 getTxExpiry ti maybeTTL = do
-    expTime <- addRelTime ttl <$> currentRelativeTime ti
-    try $ ti $ ceilingSlotAt expTime
+    expTime <- addRelTime ttl <$> currentRelativeTime (unsafeExtendSafeZone ti)
+    interpretQuery (unsafeExtendSafeZone ti) $ ceilingSlotAt expTime
   where
     ttl = fromMaybe defaultTTL maybeTTL
 
@@ -1695,7 +1695,7 @@ signTx
     -> UnsignedTx (TxIn, TxOut) TxOut Void
     -> ExceptT ErrSignPayment IO (Tx, TxMeta, UTCTime, SealedTx)
 signTx ctx wid pwd md ttl (UnsignedTx inpsNE outs _change) = db & \DBLayer{..} -> do
-    txExp <- ExceptT $ first ErrSignPaymentIncorrectTTL <$> getTxExpiry ti ttl
+    txExp <- liftIO $ getTxExpiry ti ttl
     withRootKey @_ @s ctx wid pwd ErrSignPaymentWithRootKey $ \xprv scheme -> do
         let pwdP = preparePassphrase scheme pwd
         mapExceptT atomically $ do
@@ -1713,11 +1713,10 @@ signTx ctx wid pwd md ttl (UnsignedTx inpsNE outs _change) = db & \DBLayer{..} -
                 mkTxMeta ti (currentTip cp) (getState cp) tx cs txExp
             return (tx, meta, time, sealedTx)
   where
-    ti :: TimeInterpreter IO
-    ti = timeInterpreter nl
     db = ctx ^. dbLayer @s @k
     tl = ctx ^. transactionLayer @t @k
     nl = ctx ^. networkLayer @t
+    ti = timeInterpreter nl
     inps = NE.toList inpsNE
 
 -- | Makes a fully-resolved coin selection for the given set of payments.
@@ -1811,8 +1810,7 @@ signDelegation
     -> DelegationAction
     -> ExceptT ErrSignDelegation IO (Tx, TxMeta, UTCTime, SealedTx)
 signDelegation ctx wid argGenChange pwd coinSel action = db & \DBLayer{..} -> do
-    expirySlot <- ExceptT $ first ErrSignDelegationIncorrectTTL
-        <$> getTxExpiry ti Nothing
+    expirySlot <- liftIO $ getTxExpiry ti Nothing
     withRootKey @_ @s ctx wid pwd ErrSignDelegationWithRootKey $ \xprv scheme -> do
         let pwdP = preparePassphrase scheme pwd
         mapExceptT atomically $ do
@@ -1853,11 +1851,10 @@ signDelegation ctx wid argGenChange pwd coinSel action = db & \DBLayer{..} -> do
                 mkTxMeta ti (currentTip cp) s' tx coinSel' expirySlot
             return (tx, meta, time, sealedTx)
   where
-    ti :: TimeInterpreter IO
-    ti = timeInterpreter nl
     db = ctx ^. dbLayer @s @k
     tl = ctx ^. transactionLayer @t @k
     nl = ctx ^. networkLayer @t
+    ti = timeInterpreter nl
 
 -- | Construct transaction metadata for a pending transaction from the block
 -- header of the current tip and a list of input and output.
@@ -1865,15 +1862,15 @@ signDelegation ctx wid argGenChange pwd coinSel action = db & \DBLayer{..} -> do
 -- FIXME: There's a logic duplication regarding the calculation of the transaction
 -- amount between right here, and the Primitive.Model (see prefilterBlocks).
 mkTxMeta
-    :: (IsOurs s Address, IsOurs s RewardAccount, Monad m)
-    => TimeInterpreter m
+    :: (IsOurs s Address, IsOurs s RewardAccount)
+    => TimeInterpreter (ExceptT PastHorizonException IO)
     -> BlockHeader
     -> s
     -> Tx
     -> CoinSelection
     -> SlotNo
-    -> m (UTCTime, TxMeta)
-mkTxMeta interpretTime blockHeader wState tx cs expiry =
+    -> IO (UTCTime, TxMeta)
+mkTxMeta ti' blockHeader wState tx cs expiry =
     let
         amtOuts =
             sum (mapMaybe ourCoins (outputs cs))
@@ -1896,7 +1893,11 @@ mkTxMeta interpretTime blockHeader wState tx cs expiry =
                 }
             )
   where
-    slotStartTime' = interpretTime . slotToUTCTime
+    slotStartTime' = interpretQuery ti . slotToUTCTime
+      where
+        ti = neverFails
+                "mkTxMeta slots should never be ahead of the node tip"
+                ti'
 
     ourCoins :: TxOut -> Maybe Natural
     ourCoins (TxOut addr (Coin val)) =
@@ -1991,7 +1992,7 @@ listTransactions ctx wid mMinWithdrawal mStart mEnd order = db & \DBLayer{..} ->
             (pure [])
             (\r -> lift (readTxHistory pk mMinWithdrawal order r Nothing))
   where
-    ti :: TimeInterpreter IO
+    ti :: TimeInterpreter (ExceptT PastHorizonException IO)
     ti = timeInterpreter (ctx ^. networkLayer @t)
 
     db = ctx ^. dbLayer @s @k
@@ -2006,11 +2007,10 @@ listTransactions ctx wid mMinWithdrawal mStart mEnd order = db & \DBLayer{..} ->
             let err = ErrStartTimeLaterThanEndTime start end
             throwE (ErrListTransactionsStartTimeLaterThanEndTime err)
         _ -> do
-            liftIO (try $ ti $ slotRangeFromTimeRange $ Range mStart mEnd) >>=
-                \case
-                    Left e@(PastHorizon{}) ->
-                        throwE (ErrListTransactionsPastHorizonException e)
-                    Right r -> pure r
+            withExceptT ErrListTransactionsPastHorizonException
+                $ interpretQuery ti
+                $ slotRangeFromTimeRange
+                $ Range mStart mEnd
 
 
 -- | Get transaction and metadata from history for a given wallet.

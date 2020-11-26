@@ -37,7 +37,7 @@ import Cardano.Wallet.DummyTarget.Primitive.Types
 import Cardano.Wallet.Gen
     ( genBlockHeader, genSlotNo )
 import Cardano.Wallet.Primitive.Slotting
-    ( epochOf )
+    ( epochOf, interpretQuery )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
     , CertificatePublicationTime (..)
@@ -364,7 +364,7 @@ prop_readPoolNoEpochLeaks DBLayer{..} (StakePoolsFixture pairs _) =
                 slots' `shouldBe` (Set.fromList slots)
 
     epochOf' :: SlotNo -> EpochNo
-    epochOf' = runIdentity . ti . epochOf
+    epochOf' = runIdentity . interpretQuery ti . epochOf
     ti = dummyTimeInterpreter
 
 -- | Read pool production satisfies conditions after consecutive
@@ -1529,7 +1529,7 @@ noEmptyPools pools = do
 uniqueEpochs :: [(PoolId, BlockHeader)] -> [EpochNo]
 uniqueEpochs = nubOrd . map (epochOf' . view #slotNo . snd)
   where
-    epochOf' = runIdentity . ti . epochOf
+    epochOf' = runIdentity . interpretQuery ti . epochOf
     ti = dummyTimeInterpreter
 
 -- | Concatenate stake pool production for all epochs in the test fixture.

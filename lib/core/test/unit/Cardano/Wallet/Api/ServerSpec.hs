@@ -8,6 +8,8 @@ module Cardano.Wallet.Api.ServerSpec (spec) where
 
 import Prelude
 
+import Cardano.BM.Trace
+    ( nullTracer )
 import Cardano.Slotting.Slot
     ( EpochNo (..) )
 import Cardano.Wallet.Api.Server
@@ -21,7 +23,7 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.Network
     ( NetworkLayer (..) )
 import Cardano.Wallet.Primitive.Slotting
-    ( TimeInterpreter, mkTimeInterpreter )
+    ( PastHorizonException, TimeInterpreter, mkTimeInterpreter )
 import Cardano.Wallet.Primitive.SyncProgress
     ( mkSyncTolerance )
 import Cardano.Wallet.Primitive.Types
@@ -32,10 +34,10 @@ import Control.Concurrent
     ( threadDelay )
 import Control.Concurrent.Async
     ( concurrently_, race_ )
-import Control.Exception
-    ( throwIO )
 import Control.Monad
     ( void )
+import Control.Monad.Trans.Except
+    ( ExceptT )
 import Data.Maybe
     ( isJust, isNothing )
 import Data.Quantity
@@ -144,7 +146,7 @@ spec = describe "API Server" $ do
             let gap = fromRational $ toRational $ getNonNegative gap'
             st <- run $ StartTime . ((negate gap) `addUTCTime`)
                     <$> getCurrentTime
-            let ti = either throwIO pure . forkInterpreter st
+            let ti = forkInterpreter st
             let nodeTip' = SlotNo 0
             let nl = dummyNetworkLayer nodeTip' ti
             let tolerance = mkSyncTolerance 5
@@ -172,7 +174,10 @@ spec = describe "API Server" $ do
         monitor (counterexample $ lbl <> " " <> flag)
         assert condition
 
-    dummyNetworkLayer :: SlotNo -> TimeInterpreter IO -> NetworkLayer IO () Block
+    dummyNetworkLayer
+        :: SlotNo
+        -> TimeInterpreter (ExceptT PastHorizonException IO)
+        -> NetworkLayer IO () Block
     dummyNetworkLayer sl ti = NetworkLayer
         { nextBlocks = error "nextBlocks: not implemented"
         , initCursor = error "initCursor: not implemented"
@@ -204,4 +209,4 @@ spec = describe "API Server" $ do
             summary = HF.summaryWithExactly $ exactlyOne $
                 HF.EraSummary start (HF.EraEnd end) era1Params
             int = HF.mkInterpreter summary
-        in mkTimeInterpreter startTime int
+        in mkTimeInterpreter nullTracer startTime (pure int)

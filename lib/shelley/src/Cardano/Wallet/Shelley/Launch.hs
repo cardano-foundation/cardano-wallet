@@ -1635,14 +1635,6 @@ updateSystemStart
 updateSystemStart systemStart =
     HM.insert "systemStart" (toJSON systemStart)
 
--- | Add a "GenesisFile" field in a given object with the current path of
--- genesis.json in tmp dir as value.
-addGenesisFilePath
-    :: Text
-    -> Aeson.Object
-    -> Aeson.Object
-addGenesisFilePath path = HM.insert "ShelleyGenesisFile" (toJSON path)
-
 -- | Add a @setupScribes[1].scMinSev@ field in a given config object.
 -- The full lens library would be quite helpful here.
 addMinSeverityStdout

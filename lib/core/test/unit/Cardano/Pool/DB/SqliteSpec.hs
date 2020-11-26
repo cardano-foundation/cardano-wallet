@@ -27,8 +27,6 @@ import Cardano.Pool.DB.Sqlite
     ( newDBLayer, withDBLayer )
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( dummyTimeInterpreter )
-import Data.Functor.Identity
-    ( runIdentity )
 import GHC.Conc
     ( TVar, newTVarIO )
 import System.Directory
@@ -54,7 +52,7 @@ newMemoryDBLayer' = do
     logVar <- newTVarIO []
     (logVar, ) <$> newDBLayer (traceInTVarIO logVar) Nothing ti
   where
-    ti = return . runIdentity . dummyTimeInterpreter
+    ti = dummyTimeInterpreter
 
 spec :: Spec
 spec = parallel $ do

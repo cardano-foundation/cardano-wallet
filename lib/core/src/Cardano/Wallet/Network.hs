@@ -45,7 +45,13 @@ import Cardano.BM.Data.Severity
 import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.Wallet.Primitive.Slotting
-    ( TimeInterpreter, queryEpochLength, querySlotLength )
+    ( PastHorizonException
+    , TimeInterpreter
+    , interpretQuery
+    , neverFails
+    , queryEpochLength
+    , querySlotLength
+    )
 import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
     , BlockHeader (..)
@@ -94,8 +100,6 @@ import Fmt
     ( pretty )
 import GHC.Generics
     ( Generic )
-import GHC.Stack
-    ( HasCallStack )
 import UnliftIO.Exception
     ( throwIO )
 
@@ -157,7 +161,7 @@ data NetworkLayer m target block = NetworkLayer
         -> ExceptT ErrGetAccountBalance m (Quantity "lovelace" Word64)
 
     , timeInterpreter
-        :: HasCallStack => TimeInterpreter m
+        :: TimeInterpreter (ExceptT PastHorizonException m)
     }
 
 instance Functor m => Functor (NetworkLayer m target) where
@@ -259,9 +263,8 @@ type family GetStakeDistribution target (m :: * -> *) :: *
 --
 -- This may throw a 'PastHorizonException' in some cases.
 getSlottingParametersForTip
-    :: Monad m
-    => NetworkLayer m target block
-    -> m SlottingParameters
+    :: NetworkLayer IO target block
+    -> IO SlottingParameters
 getSlottingParametersForTip nl = do
     tip <- either (const 0) slotNo <$> runExceptT (currentNodeTip nl)
 
@@ -269,7 +272,11 @@ getSlottingParametersForTip nl = do
     -- This requires code changes in the shelley ledger.
     let getActiveSlotCoeff = pure (ActiveSlotCoefficient 1.0)
 
-    (slotLen, epLen) <- timeInterpreter nl
+    let ti :: TimeInterpreter IO
+        ti =  neverFails "tip in getSlottingParametersForTip can't be more than\
+                \ the timeInterpreter tip, and thus never outside the safe-zone"
+                (timeInterpreter nl)
+    (slotLen, epLen) <- interpretQuery ti
         ((,) <$> querySlotLength tip <*> queryEpochLength tip)
     SlottingParameters slotLen epLen <$> getActiveSlotCoeff
 

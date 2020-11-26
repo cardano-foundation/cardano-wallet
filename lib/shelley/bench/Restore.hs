@@ -106,7 +106,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
 import Cardano.Wallet.Primitive.Model
     ( Wallet, currentTip, getState, totalUTxO )
 import Cardano.Wallet.Primitive.Slotting
-    ( TimeInterpreter, currentRelativeTime )
+    ( TimeInterpreter, currentRelativeTime, neverFails )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..), mkSyncTolerance, syncProgress )
 import Cardano.Wallet.Primitive.Types
@@ -592,7 +592,9 @@ bench_restoration proxy tr socket np vData benchname wallets traceToDisk targetS
         let gp = genesisParameters np
         let convert = fromCardanoBlock gp
         let nw = convert <$> nw'
-        withBenchDBLayer @s @k (timeInterpreter nw) $ \db -> do
+        let ti = neverFails "bench db shouldn't forecast into future"
+                $ timeInterpreter nw
+        withBenchDBLayer @s @k ti $ \db -> do
             withWalletLayerTracer $ \wlTr -> do
                 let w = WalletLayer
                         wlTr
@@ -726,7 +728,12 @@ waitForWalletsSyncTo targetSync tr proxy walletLayer wids gp vData = do
     progress <- forM wids $ \wid -> do
         w <- fmap fst' <$> unsafeRunExceptT $ W.readWallet walletLayer wid
         let Quantity bh = blockHeight $ currentTip w
-        prog <- syncProgress tolerance ti (currentTip w) now
+        prog <- syncProgress
+            tolerance
+            (neverFails "syncProgress never forecasts into the future"
+                $ timeInterpreter nl)
+            (currentTip w)
+            now
         return (prog, bh)
     traceWith tr $ MsgRestorationTick posixNow (map fst progress)
     threadDelay 1000000
@@ -752,7 +759,8 @@ waitForNodeSync tr nw = loop 10
     loop retries = runExceptT (currentNodeTip nw) >>= \case
         Right nodeTip -> do
             let tolerance = mkSyncTolerance 300
-            let ti = timeInterpreter nw
+            let ti = neverFails "syncProgress never forecasts into the future"
+                    $ timeInterpreter nw
             now <- currentRelativeTime ti
             prog <- syncProgress tolerance ti nodeTip now
             traceWith tr $ MsgNodeTipTick nodeTip prog

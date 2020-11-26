@@ -75,7 +75,7 @@ import Prelude
 import Cardano.Pool.DB
     ( determinePoolLifeCycleStatus )
 import Cardano.Wallet.Primitive.Slotting
-    ( TimeInterpreter, epochOf )
+    ( TimeInterpreter, epochOf, interpretQuery )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
     , CertificatePublicationTime
@@ -236,7 +236,7 @@ mReadPoolProduction
 mReadPoolProduction timeInterpreter epoch =
     updatePools . updateSlots epoch <$> get #pools
   where
-    epochOf' = runIdentity . timeInterpreter . epochOf
+    epochOf' = runIdentity . interpretQuery timeInterpreter . epochOf
     updatePools = Map.filter (not . L.null)
     updateSlots e = Map.map (filter (\x -> epochOf' (slotNo x) == e))
 
@@ -417,7 +417,7 @@ mReadCursor k = do
 mRollbackTo :: TimeInterpreter Identity -> SlotNo -> ModelOp ()
 mRollbackTo ti point = do
     modify #distributions
-        $ Map.mapMaybeWithKey $ discardBy $ runIdentity . ti . epochOf
+        $ Map.mapMaybeWithKey $ discardBy $ runIdentity . interpretQuery ti . epochOf
     modify #pools
         $ Map.filter (not . L.null) . fmap (filter ((<= point) . slotNo))
     modify #registrations
