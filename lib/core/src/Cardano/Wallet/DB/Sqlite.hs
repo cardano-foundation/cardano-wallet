@@ -1607,13 +1607,14 @@ selectUTxO cp = fmap entityVal <$>
         , UtxoSlot ==. checkpointSlot cp
         ] []
 
--- This relies on available information from the database to reconstruct
--- coin selection information for __outgoing__ payments. We can't however guarantee
+-- This relies on available information from the database to reconstruct coin
+-- selection information for __outgoing__ payments. We can't however guarantee
 -- that we have such information for __incoming__ payments (we usually don't
 -- have it).
 --
--- To reliably provide this information for incoming payment, it should be looked
--- up when applying blocks from the global Ledger, but that is future work
+-- To reliably provide this information for incoming payments, it should be
+-- looked up when applying blocks from the global ledger, but that is future
+-- work.
 --
 -- See also: issue #573.
 selectTxs
