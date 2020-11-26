@@ -53,6 +53,8 @@ spec = describe "SHELLEY_NETWORK" $ do
             , expectField #hardforkAt (`shouldNotBe` Nothing)
             , expectField #slotLength (`shouldBe` Quantity slotLengthValue)
             , expectField #epochLength (`shouldBe` Quantity epochLengthValue)
-            -- TODO: #2226 query activeSlotCoefficient from ledger
-            -- , expectField #activeSlotCoefficient (`shouldBe` Quantity 0.5)
+            -- TODO: ADP-554 query activeSlotCoefficient from ledger
+            -- This value is hardcoded for mainnet (1.0 = 100%).
+            -- The integration test cluster value is (0.5 = 50%).
+            , expectField #activeSlotCoefficient (`shouldBe` Quantity 100.0)
             ]
