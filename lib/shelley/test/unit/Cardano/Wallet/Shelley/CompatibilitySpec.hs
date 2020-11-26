@@ -41,10 +41,8 @@ import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey (..) )
-import Cardano.Wallet.Primitive.Slotting
-    ( fromFlatSlot )
 import Cardano.Wallet.Primitive.Types
-    ( DecentralizationLevel (..), EpochLength (..), SlotId (..) )
+    ( DecentralizationLevel (..), SlotId (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Hash
@@ -88,7 +86,7 @@ import Data.Text
 import Data.Text.Class
     ( toText )
 import Data.Word
-    ( Word64 )
+    ( Word32, Word64 )
 import GHC.TypeLits
     ( natVal )
 import Ouroboros.Network.Block
@@ -319,9 +317,6 @@ instance Arbitrary (Tip (CardanoBlock StandardCrypto)) where
                 . BS.pack <$> vector 5
             return $ Tip (SlotNo n) hash (BlockNo n)
 
-epochLength :: EpochLength
-epochLength = EpochLength 10
-
 instance Arbitrary SL.UnitInterval where
     arbitrary = oneof
         [ pure interval0
@@ -332,7 +327,9 @@ instance Arbitrary SL.UnitInterval where
     shrink = genericShrink
 
 instance Arbitrary SlotId where
-    arbitrary = fromFlatSlot epochLength <$> choose (0, 100)
+    arbitrary = SlotId
+        <$> (W.EpochNo . fromIntegral <$> choose (0, 10 :: Word32))
+        <*> (W.SlotInEpoch <$> choose (0, 10))
 
 instance Arbitrary (ShelleyKey 'AddressK XPrv) where
     shrink _ = []

@@ -38,7 +38,6 @@ module Cardano.Wallet.Byron.Compatibility
     , toByronHash
     , toGenTx
     , toPoint
-    , toSlotInEpoch
 
     , fromBlockNo
     , fromByronBlock
@@ -49,7 +48,6 @@ module Cardano.Wallet.Byron.Compatibility
     , byronCodecConfig
     , fromNetworkMagic
     , fromProtocolMagicId
-    , fromSlotNo
     , fromTip
     , fromTxAux
     , fromTxIn
@@ -85,8 +83,6 @@ import Cardano.Crypto
     ( serializeCborHash )
 import Cardano.Crypto.ProtocolMagic
     ( ProtocolMagicId, unProtocolMagicId )
-import Cardano.Wallet.Primitive.Slotting
-    ( flatSlot, fromFlatSlot )
 import Cardano.Wallet.Unsafe
     ( unsafeDeserialiseCbor, unsafeFromHex )
 import Crypto.Hash.Utils
@@ -306,10 +302,6 @@ toPoint genesisH (W.BlockHeader sl _ h _)
   | h == (coerce genesisH) = O.GenesisPoint
   | otherwise = O.Point $ Point.block sl (toByronHash h)
 
-toSlotInEpoch :: W.EpochLength -> W.SlotId -> SlotNo
-toSlotInEpoch epLength =
-    SlotNo . flatSlot epLength
-
 -- | SealedTx are the result of rightfully constructed byron transactions so, it
 -- is relatively safe to unserialize them from CBOR.
 toGenTx :: HasCallStack => W.SealedTx -> GenTx ByronBlock
@@ -394,10 +386,6 @@ fromChainHash :: W.Hash "Genesis" -> ChainHash ByronBlock -> W.Hash "BlockHeader
 fromChainHash genesisHash = \case
     O.GenesisHash -> coerce genesisHash
     O.BlockHash h -> fromByronHash h
-
-fromSlotNo :: W.EpochLength -> SlotNo -> W.SlotId
-fromSlotNo epLength (SlotNo sl) =
-    fromFlatSlot epLength sl
 
 -- FIXME unsafe conversion (Word64 -> Word32)
 fromBlockNo :: BlockNo -> Quantity "block" Word32

@@ -139,7 +139,6 @@ module Test.Integration.Framework.DSL
     , verifyMaintenanceAction
 
     -- * Delegation helpers
-    , mkEpochInfo
     , notDelegating
     , delegating
     , getSlotParams
@@ -195,7 +194,7 @@ import Cardano.Wallet.Api.Types
     , ApiBlockReference (..)
     , ApiByronWallet
     , ApiCoinSelection
-    , ApiEpochInfo (ApiEpochInfo)
+    , ApiEpochInfo
     , ApiFee
     , ApiMaintenanceAction (..)
     , ApiNetworkInformation
@@ -236,8 +235,6 @@ import Cardano.Wallet.Primitive.AddressDerivation.Jormungandr
     ( generateKeyFromSeed )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey )
-import Cardano.Wallet.Primitive.Slotting
-    ( SlotParameters (..), epochStartTime )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..) )
 import Cardano.Wallet.Primitive.Types
@@ -250,6 +247,7 @@ import Cardano.Wallet.Primitive.Types
     , Settings
     , SlotLength (..)
     , SlotNo (..)
+    , SlottingParameters (..)
     , SortOrder (..)
     , WalletId (..)
     )
@@ -2166,7 +2164,7 @@ pubKeyFromMnemonics mnemonics =
 getSlotParams
     :: MonadIO m
     => Context t
-    -> m (EpochNo, SlotParameters)
+    -> m (EpochNo, SlottingParameters)
 getSlotParams ctx = do
     r1 <- liftIO $ request @ApiNetworkInformation ctx
           Link.getNetworkInfo Default Empty
@@ -2180,11 +2178,9 @@ getSlotParams ctx = do
     let (Quantity slotL) = getFromResponse #slotLength r2
     let (Quantity epochL) = getFromResponse #epochLength r2
     let (Quantity coeff) = getFromResponse #activeSlotCoefficient r2
-    let (ApiT genesisBlockDate) = getFromResponse #blockchainStartTime r2
-    let sp = SlotParameters
-            (EpochLength epochL)
+    let sp = SlottingParameters
             (SlotLength slotL)
-            genesisBlockDate
+            (EpochLength epochL)
             (ActiveSlotCoefficient coeff)
 
     return (currentEpoch, sp)
@@ -2197,21 +2193,9 @@ getTTLSlots
     -> NominalDiffTime
     -> m SlotNo
 getTTLSlots ctx dt = liftIO $ do
-    (_, SlotParameters _ (SlotLength _slotLenWrong) _ _) <- getSlotParams ctx
+    _slotLenWrong <- unSlotLength . getSlotLength . snd <$> getSlotParams ctx
     let slotLen = 0.2 -- fixme: this is the value from byron genesis
     pure $ SlotNo $ ceiling $ dt / slotLen
-
--- | Handy constructor for ApiEpochInfo
-mkEpochInfo
-    :: EpochNo
-    -- ^ Epoch to construct
-    -> SlotParameters
-    -- ^ Blockchain slot parameters
-    -> ApiEpochInfo
-mkEpochInfo epochNo sp =
-    ApiEpochInfo
-        (ApiT epochNo)
-        (epochStartTime sp epochNo)
 
 -- | Wallet not delegating and not about to join any stake pool.
 notDelegating
