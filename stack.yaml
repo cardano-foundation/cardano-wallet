@@ -1,4 +1,4 @@
-resolver: https://raw.githubusercontent.com/input-output-hk/cardano-haskell/905546b2901572577ff0a515e60a8f079c5bf1aa/snapshots/cardano-1.22.1.yaml
+resolver: cardano-1.22.1.yaml # Contains tweaked consensus revision with unsafeExtendSafeZone
 
 packages:
 - lib/core
