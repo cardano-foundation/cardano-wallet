@@ -458,8 +458,8 @@ instance Arbitrary (Index 'WholeDomain depth) where
 -------------------------------------------------------------------------------}
 
 instance Arbitrary (SeqState 'Mainnet ShelleyKey) where
-    shrink (SeqState intPool extPool ixs rwd prefix scripts multiPool) =
-        (\(i, e, x) -> SeqState i e x rwd prefix scripts multiPool) <$> shrink (intPool, extPool, ixs)
+    shrink (SeqState intPool extPool ixs rwd prefix scriptPool) =
+        (\(i, e, x) -> SeqState i e x rwd prefix scriptPool) <$> shrink (intPool, extPool, ixs)
     arbitrary = do
         extPool <- arbitrary
         SeqState
@@ -468,8 +468,7 @@ instance Arbitrary (SeqState 'Mainnet ShelleyKey) where
             <*> arbitrary
             <*> pure arbitraryRewardAccount
             <*> pure defaultSeqStatePrefix
-            <*> pure Map.empty
-            <*> pure (mkVerificationKeyPool (accountPubKey extPool) (gap extPool) Map.empty)
+            <*> pure (mkVerificationKeyPool (accountPubKey extPool) (gap extPool) Map.empty Map.empty)
 
 defaultSeqStatePrefix :: DerivationPrefix
 defaultSeqStatePrefix = DerivationPrefix

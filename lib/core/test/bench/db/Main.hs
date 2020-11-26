@@ -321,18 +321,17 @@ bgroupWriteSeqState db = bgroup "SeqState"
         fixture db_ = do
             walletFixture db_
             pure cps
-        extPool = mkPool a i
         cps :: [WalletBench]
         cps =
             [ snd $ initWallet (withMovingSlot i block0) dummyGenesisParameters $
                 SeqState
                     (mkPool a i)
-                    extPool
+                    (mkPool a i)
                     emptyPendingIxs
                     rewardAccount
                     defaultPrefix
                     Map.empty
-                    (mkVerificationKeyPool (accountPubKey extPool) (gap extPool) Map.empty)
+                    (mkVerificationKeyPool (accountPubKey (mkPool a i)) (gap (mkPool a i)) Map.empty Map.empty)
             | i <- [1..n]
             ]
 

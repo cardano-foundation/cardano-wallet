@@ -16,7 +16,7 @@ import Prelude
 import Cardano.Address.Derivation
     ( XPub )
 import Cardano.Address.Script
-    ( KeyHash (..), Script (..), toScriptHash )
+    ( KeyHash (..), Script (..), ScriptHash, toScriptHash )
 import Cardano.Mnemonic
     ( SomeMnemonic (..) )
 import Cardano.Wallet.Gen
@@ -62,6 +62,8 @@ import Cardano.Wallet.Unsafe
     ( unsafeXPub )
 import Control.Monad
     ( replicateM )
+import Data.Map.Strict
+    ( Map )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Word
@@ -142,7 +144,7 @@ prop_scriptUpdatesStateProperly (AccountXPubWithScripts accXPub' scripts') = do
     let (_, seqState') = isShared script seqState
     let scriptKeyHashesInMap =
             Set.fromList . map (toVerKeyHash . projectKey) <$>
-            Map.lookup (toScriptHash script) (knownScripts seqState')
+            Map.lookup (toScriptHash script) (getKnownScripts seqState')
     scriptKeyHashesInMap === Just (Set.fromList (L.nub sciptKeyHashes))
 
 prop_scriptDiscoveredTwice
@@ -153,7 +155,7 @@ prop_scriptDiscoveredTwice (AccountXPubWithScripts accXPub' scripts') = do
     let seqState = initializeState accXPub'
     let (_, seqState') = isShared script seqState
     let (_, seqState'') = isShared script seqState'
-    knownScripts seqState' === knownScripts seqState''
+    getKnownScripts seqState' === getKnownScripts seqState''
 
 prop_scriptsDiscovered
     :: AccountXPubWithScripts
@@ -161,7 +163,7 @@ prop_scriptsDiscovered
 prop_scriptsDiscovered (AccountXPubWithScripts accXPub' scripts') = do
     let seqState0 = initializeState accXPub'
     let seqState = foldr (\script s -> snd $ isShared script s) seqState0 scripts'
-    let scriptHashes = Set.fromList $ Map.keys $ knownScripts seqState
+    let scriptHashes = Set.fromList $ Map.keys $ getKnownScripts seqState
     scriptHashes === Set.fromList (map toScriptHash scripts')
 
 prop_markingDiscoveredVerKeys
@@ -171,7 +173,7 @@ prop_markingDiscoveredVerKeys (AccountXPubWithScripts accXPub' scripts') = do
     let (script:_) = scripts'
     let sciptKeyHashes = retrieveAllVerKeyHashes script
     let seqState = initializeState accXPub'
-    let (_, SeqState _ _ _ _ _ _ (VerificationKeyPool _ _ allOurVerKeys)) =
+    let (_, SeqState _ _ _ _ _ (VerificationKeyPool _ _ allOurVerKeys _)) =
             isShared script seqState
     let discoveredKeyMap = Map.filterWithKey (\k _ -> k `elem` sciptKeyHashes) allOurVerKeys
     let addressStatesToCheck =
@@ -187,7 +189,7 @@ prop_poolExtension (AccountXPubWithScriptsExtension accXPub' scripts') = do
     .&&.
         scriptHashes == Set.fromList (map toScriptHash scripts')
   where
-    (SeqState s1 s2 ixs rpk prefix scr (VerificationKeyPool _ g allOurVerKeys)) =
+    (SeqState s1 s2 ixs rpk prefix (VerificationKeyPool _ g allOurVerKeys scr)) =
         initializeState accXPub'
     --make artificially all except last index Used
     isLastIndex ix =
@@ -198,12 +200,12 @@ prop_poolExtension (AccountXPubWithScriptsExtension accXPub' scripts') = do
     allOurVerKeys' =
         Map.mapWithKey (\_ (ix, _) -> (ix, isLastIndex ix)) allOurVerKeys
     seqState =
-        SeqState s1 s2 ixs rpk prefix scr (VerificationKeyPool accXPub' g allOurVerKeys')
+        SeqState s1 s2 ixs rpk prefix (VerificationKeyPool accXPub' g allOurVerKeys' scr)
     (script:restScripts) = scripts'
-    (_, seqState0@(SeqState _ _ _ _ _ _ (VerificationKeyPool _ g' _)) ) =
+    (_, seqState0@(SeqState _ _ _ _ _ (VerificationKeyPool _ g' _ _)) ) =
         isShared script seqState
     seqState' = foldr (\script' s -> snd $ isShared script' s) seqState0 restScripts
-    scriptHashes = Set.fromList $ Map.keys $ knownScripts seqState'
+    scriptHashes = Set.fromList $ Map.keys $ getKnownScripts seqState'
 
 prop_scriptsOutsideNotDiscovered
     :: AccountXPubWithScriptsOutside
@@ -211,7 +213,7 @@ prop_scriptsOutsideNotDiscovered
 prop_scriptsOutsideNotDiscovered (AccountXPubWithScriptsOutside accXPub' scripts') = do
     let seqState0 = initializeState accXPub'
     let seqState = foldr (\script s -> snd $ isShared script s) seqState0 scripts'
-    let scriptHashes = Map.keys $ knownScripts seqState
+    let scriptHashes = Map.keys $ getKnownScripts seqState
     null scriptHashes === True
 
 data AccountXPubWithScripts = AccountXPubWithScripts
@@ -248,8 +250,14 @@ initializeState
 initializeState accXPub' =
     let intPool = mkAddressPool accXPub' defaultAddressPoolGap []
         extPool = mkAddressPool accXPub' defaultAddressPoolGap []
-        multiPool = mkVerificationKeyPool accXPub' defaultAddressPoolGap Map.empty
-    in SeqState intPool extPool emptyPendingIxs dummyRewardAccount defaultPrefix Map.empty multiPool
+        sPool = mkVerificationKeyPool accXPub' defaultAddressPoolGap Map.empty Map.empty
+    in SeqState intPool extPool emptyPendingIxs dummyRewardAccount defaultPrefix sPool
+
+getKnownScripts
+    :: SeqState 'Mainnet ShelleyKey
+    -> Map ScriptHash [ShelleyKey 'ScriptK XPub]
+getKnownScripts (SeqState _ _ _ _ _ (VerificationKeyPool _ _ _ knownScripts)) =
+    knownScripts
 
 {-------------------------------------------------------------------------------
                                 Arbitrary Instances

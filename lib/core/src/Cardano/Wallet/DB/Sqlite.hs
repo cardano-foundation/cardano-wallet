@@ -1729,9 +1729,9 @@ instance
         intPool <- lift $ selectAddressPool @n wid sl iGap accountXPub
         extPool <- lift $ selectAddressPool @n wid sl eGap accountXPub
         --TO-DO
-        let multiPool = Seq.mkVerificationKeyPool accountXPub iGap Map.empty
+        let multiPool = Seq.mkVerificationKeyPool accountXPub iGap Map.empty Map.empty
         pendingChangeIxs <- lift $ selectSeqStatePendingIxs wid
-        pure $ Seq.SeqState intPool extPool pendingChangeIxs rewardXPub prefix Map.empty multiPool
+        pure $ Seq.SeqState intPool extPool pendingChangeIxs rewardXPub prefix multiPool
 
 insertAddressPool
     :: forall n k c. (PaymentAddress n k, Typeable c)

@@ -66,9 +66,9 @@ isShared
     => Script
     -> SeqState n k
     -> ([k 'ScriptK XPub], SeqState n k)
-isShared script (SeqState !s1 !s2 !ixs !rpk !prefix !scripts !s3) =
+isShared script (SeqState !s1 !s2 !ixs !rpk !prefix !s3) =
     let verKeysInScript = retrieveAllVerKeyHashes script
-        (VerificationKeyPool accXPub currentGap verKeyMap) = s3
+        (VerificationKeyPool accXPub currentGap verKeyMap scripts) = s3
         projectKey (ShelleyKey k) = ShelleyKey k
         toVerKey = deriveAddressPublicKey accXPub MultisigScript
         projectIndex = toEnum . fromInteger . toInteger . getIndex @'Soft
@@ -83,25 +83,24 @@ isShared script (SeqState !s1 !s2 !ixs !rpk !prefix !scripts !s3) =
             else
                 current
         markedVerKeyMap =
-            Map.fromList $
-            map (\(keyH,(ix,isUsed)) -> (keyH, (ix, updateAddressState keyH isUsed)) )
-            (Map.toList verKeyMap)
-        -- if all verification keys are used (after discovering) we are extending multisigPool
+            Map.mapWithKey (\keyH (ix,isUsed) -> (ix, updateAddressState keyH isUsed) )
+            verKeyMap
+        -- if all verification keys are used (after discovering) we are extending scriptPool
         extendingPool =
             all ((== Used) . (\ (_, (_, isUsed)) -> isUsed))
             (Map.toList markedVerKeyMap)
+        insertIf predicate k v = if predicate v then Map.insert k v else id
+        script' = insertIf (not . null) (toScriptHash script) scriptXPubs scripts
         s3' = if extendingPool then
                   mkVerificationKeyPool
                   accXPub
                   (mkUnboundedAddressPoolGap (getAddressPoolGap currentGap + getAddressPoolGap defaultAddressPoolGap))
                   markedVerKeyMap
+                  script'
               else
-                  VerificationKeyPool accXPub currentGap markedVerKeyMap
-        insertIf predicate k v = if predicate v then Map.insert k v else id
+                  VerificationKeyPool accXPub currentGap markedVerKeyMap script'
     in ( scriptXPubs
-       , SeqState s1 s2 ixs rpk prefix
-           (insertIf (not . null) (toScriptHash script) scriptXPubs scripts)
-           s3'
+       , SeqState s1 s2 ixs rpk prefix s3'
        )
 
 retrieveAllVerKeyHashes :: Script -> [KeyHash]
