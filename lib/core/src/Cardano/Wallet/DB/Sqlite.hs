@@ -1283,7 +1283,7 @@ txHistoryFromEntity
     => TimeInterpreter m
     -> W.BlockHeader
     -> [TxMeta]
-    -> [(TxIn, Maybe TxOut)]
+    -> [(TxIn, Maybe (TxOut, [TxOutToken]))]
     -> [(TxOut, [TxOutToken])]
     -> [TxWithdrawal]
     -> m [W.TransactionInfo]
@@ -1298,7 +1298,9 @@ txHistoryFromEntity ti tip metas ins outs ws =
             { W.txInfoId =
                 getTxId txid
             , W.txInfoInputs =
-                map mkTxIn $ filter ((== txid) . txInputTxId . fst) ins
+                map mkTxIn
+                    $ filter ((== txid) . txInputTxId . fst)
+                    $ fmap (fmap (fmap fst)) ins
             , W.txInfoOutputs =
                 map mkTxOut
                     $ filter ((== txid) . txOutputTxId)
@@ -1514,7 +1516,7 @@ selectUTxO cp = fmap entityVal <$>
 selectTxs
     :: [TxId]
     -> SqlPersistT IO
-        ( [(TxIn, Maybe (TxOut))]
+        ( [(TxIn, Maybe (TxOut, [TxOutToken]))]
         , [(TxOut, [TxOutToken])]
         , [TxWithdrawal]
         )
@@ -1525,10 +1527,17 @@ selectTxs = fmap concatUnzip . mapM select . chunksOf chunkSize
             [TxInputTxId <-. txids]
             [Asc TxInputTxId, Asc TxInputOrder]
 
-        resolvedInputs <- toOutputMap . fmap entityVal <$>
-            combineChunked inputs (\inputsChunk -> selectList
-                [TxOutputTxId <-. (txInputSourceTxId <$> inputsChunk)]
-                [Asc TxOutputTxId, Asc TxOutputIndex])
+        resolvedInputs <- fmap toOutputMap $
+            combineChunked inputs $ \inputsChunk -> do
+                outs <- fmap entityVal <$> selectList
+                    [TxOutputTxId <-. (txInputSourceTxId <$> inputsChunk)]
+                    [Asc TxOutputTxId, Asc TxOutputIndex]
+                forM outs $ \out ->
+                    (out,) . fmap entityVal <$> selectList
+                        [ TxOutTokenTxId ==. txOutputTxId out
+                        , TxOutTokenTxIndex ==. txOutputIndex out
+                        ]
+                        []
 
         outputs <- do
             outs <- fmap entityVal <$> selectList
@@ -1551,11 +1560,16 @@ selectTxs = fmap concatUnzip . mapM select . chunksOf chunkSize
             , withdrawals
             )
 
-    toOutputMap :: [TxOut] -> Map (TxId, Word32) TxOut
-    toOutputMap = Map.fromList . fmap
-        (\out -> let key = (txOutputTxId out, txOutputIndex out) in (key, out))
+    toOutputMap
+        :: [(TxOut, [TxOutToken])]
+        -> Map (TxId, Word32) (TxOut, [TxOutToken])
+    toOutputMap = Map.fromList . fmap toEntry
+      where
+        toEntry (out, tokens) = (key, (out, tokens))
+          where
+            key = (txOutputTxId out, txOutputIndex out)
 
-    resolveWith :: [TxIn] -> Map (TxId, Word32) TxOut -> [(TxIn, Maybe TxOut)]
+    resolveWith :: [TxIn] -> Map (TxId, Word32) txOut -> [(TxIn, Maybe txOut)]
     resolveWith inputs resolvedInputs =
         [ (i, Map.lookup key resolvedInputs)
         | i <- inputs
