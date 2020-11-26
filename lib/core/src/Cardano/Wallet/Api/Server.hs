@@ -283,7 +283,6 @@ import Cardano.Wallet.Primitive.Slotting
     , TimeInterpreter
     , currentEpoch
     , endTimeOfEpoch
-    , epochSucc
     , firstSlotInEpoch
     , ongoingSlotAt
     , startTime
@@ -384,7 +383,7 @@ import Data.List.NonEmpty
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
-    ( catMaybes, fromMaybe, isJust )
+    ( catMaybes, isJust )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -1801,8 +1800,8 @@ getNetworkInformation st nl = do
         let curEpoch = tip ^. #slotId . #epochNumber . #getApiT
         nextEpochStart <- lift $ ti $ endTimeOfEpoch curEpoch
         let nextEpoch = ApiEpochInfo
-                (ApiT $ unsafeEpochSucc curEpoch)
-                (nextEpochStart)
+                (ApiT $ succ curEpoch)
+                nextEpochStart
         return (tip, nextEpoch)
       where
         handlePastHorizonException
@@ -1810,12 +1809,6 @@ getNetworkInformation st nl = do
             -> MaybeT IO (ApiSlotReference, ApiEpochInfo)
         handlePastHorizonException _ =
             MaybeT (pure Nothing)
-
-    -- Unsafe constructor for the next epoch. Chances to reach the last epoch
-    -- are quite unlikely in this context :)
-    unsafeEpochSucc :: HasCallStack => W.EpochNo -> W.EpochNo
-    unsafeEpochSucc = fromMaybe bomb . epochSucc
-      where bomb = error "reached final epoch of the Blockchain!?"
 
 getNetworkParameters
     :: (Block, NetworkParameters, SyncTolerance)

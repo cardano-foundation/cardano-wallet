@@ -32,11 +32,7 @@ import Cardano.Wallet.Primitive.AddressDerivation.Jormungandr
     ( JormungandrKey (..), generateKeyFromSeed )
 import Cardano.Wallet.Primitive.Slotting
     ( SlotParameters (..)
-    , epochPred
     , epochStartTime
-    , epochStartTime
-    , epochSucc
-    , epochSucc
     , flatSlot
     , fromFlatSlot
     , slotAt'
@@ -543,43 +539,6 @@ spec = do
                         $ cover 10 (not belowMin && not aboveMax)
                             "time point during the lifetime of the blockchain"
                     True
-
-    describe "Epoch arithmetic: predecessors and successors" $ do
-
-        let succN n = applyN n (epochSucc =<<)
-        let predN n = applyN n (epochPred =<<)
-
-        it "epochPred minBound == Nothing" $
-            epochPred minBound === Nothing
-
-        it "epochSucc maxBound == Nothing" $
-            epochSucc maxBound === Nothing
-
-        it "(applyN n epochSucc) . (applyN n epochPred) == id" $
-            withMaxSuccess 1000 $ property $
-                \(Small epochWord) (Small n) ->
-                    let epoch = EpochNo epochWord
-                        withinBounds = minBound + n <= unEpochNo epoch
-                        expectedResult =
-                            if withinBounds then Just epoch else Nothing
-                    in
-                    checkCoverage $
-                    cover 10      withinBounds  "within bounds" $
-                    cover 10 (not withinBounds) "out of bounds" $
-                    expectedResult === succN n (predN n $ Just epoch)
-
-        it "(applyN n epochPred) . (applyN n epochSucc) == id" $
-            withMaxSuccess 1000 $ property $
-                \(Small epochWord) (Small n) ->
-                    let epoch = EpochNo $ maxBound - epochWord
-                        withinBounds = maxBound - n >= unEpochNo epoch
-                        expectedResult =
-                            if withinBounds then Just epoch else Nothing
-                    in
-                    checkCoverage $
-                    cover 10      withinBounds  "within bounds" $
-                    cover 10 (not withinBounds) "out of bounds" $
-                    expectedResult === predN n (succN n $ Just epoch)
 
     describe "Slot arithmetic" $ do
 

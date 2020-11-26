@@ -68,7 +68,6 @@ import Cardano.Wallet.Primitive.Slotting
     ( PastHorizonException (..)
     , TimeInterpreter
     , epochOf
-    , epochPred
     , firstSlotInEpoch
     , startTime
     )
@@ -122,7 +121,7 @@ import Control.Exception
     , try
     )
 import Control.Monad
-    ( forM, forM_, forever, void, when, (<=<) )
+    ( forM, forM_, forever, void, when )
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Except
@@ -692,9 +691,9 @@ monitorStakePools tr gp nl DBLayer{..} =
         -- #2196: We need the try. Arguably we shouldn't need it.
         liftIO (try @SomeException (timeInterpreter nl (epochOf currentSlot))) >>= \case
             Left _ -> return ()
+            Right currentEpoch | currentEpoch < 2 -> return ()
             Right currentEpoch -> do
-                let subtractTwoEpochs = epochPred <=< epochPred
-                forM_ (subtractTwoEpochs currentEpoch) $ \latestRetirementEpoch -> do
+                    let latestRetirementEpoch = currentEpoch - 2
                     latestGarbageCollectionEpoch <-
                         liftIO $ readIORef latestGarbageCollectionEpochRef
                     -- Only perform garbage collection once per epoch:

@@ -40,8 +40,6 @@ module Cardano.Wallet.Primitive.Slotting
 
     -- ** Helpers
     , unsafeEpochNo
-    , epochPred
-    , epochSucc
 
       -- * Legacy api - Inaccurate with cardano-node, okay with Jörmungandr
     , SlotParameters (..)
@@ -378,20 +376,6 @@ slotParams t0 sp = SlotParameters
 -- | Calculate the time at which an epoch begins.
 epochStartTime :: SlotParameters -> EpochNo -> UTCTime
 epochStartTime sps e = slotStartTime sps $ SlotId e 0
-
--- | Return the epoch immediately before the given epoch, or 'Nothing' if there
---   is no representable epoch before the given epoch.
-epochPred :: EpochNo -> Maybe EpochNo
-epochPred (EpochNo e)
-    | e == minBound = Nothing
-    | otherwise = Just $ EpochNo $ pred e
-
--- | Return the epoch immediately after the given epoch, or 'Nothing' if there
---   is no representable epoch after the given epoch.
-epochSucc :: EpochNo -> Maybe EpochNo
-epochSucc (EpochNo e)
-    | e == maxBound = Nothing
-    | otherwise = Just $ EpochNo $ succ e
 
 -- | Convert a 'SlotId' to the number of slots since genesis.
 flatSlot :: EpochLength -> SlotId -> Word64
