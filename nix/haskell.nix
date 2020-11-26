@@ -314,14 +314,8 @@ let
       '';
     };
 
-  proj = haskell.addProjectAndPackageAttrs {
+in
+  haskell.addProjectAndPackageAttrs {
     inherit pkg-set;
     inherit (pkg-set.config) hsPkgs;
-  };
-
-in
-  proj.hsPkgs // {
-    _config = proj.pkg-set.config;
-    #_roots = haskell.roots proj.pkg-set.config.ghc;
-    testCoverageReport = proj.projectCoverageReport;
   }

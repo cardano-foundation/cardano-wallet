@@ -26,7 +26,7 @@ with pkgs.lib;
 with pkgs.haskell-nix.haskellLib;
 
 let
-  mkShell = name: hp: hp.shellFor rec {
+  mkShell = name: project: project.shellFor rec {
     inherit name;
     packages = ps: attrValues (selectProjectPackages ps);
     buildInputs = (with walletPackages; [
@@ -95,5 +95,5 @@ let
   };
 in
   if profiling
-    then mkShell "cardano-wallet-shell-profiled" walletPackages.profiledHaskellPackages
-    else mkShell "cardano-wallet-shell" walletPackages.haskellPackages
+    then mkShell "cardano-wallet-shell-profiled" walletPackages.profiledProject
+    else mkShell "cardano-wallet-shell" walletPackages.project
