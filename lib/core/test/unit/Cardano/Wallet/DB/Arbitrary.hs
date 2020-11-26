@@ -42,7 +42,7 @@ import Cardano.Wallet.DB.Model
 import Cardano.Wallet.DummyTarget.Primitive.Types as DummyTarget
     ( block0, dummyGenesisParameters, mkTx, mockHash )
 import Cardano.Wallet.Gen
-    ( genMnemonic, genTxMetadata, shrinkSlotNo, shrinkTxMetadata )
+    ( genMnemonic, genSmallTxMetadata, shrinkSlotNo, shrinkTxMetadata )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , DerivationType (..)
@@ -257,7 +257,7 @@ instance Arbitrary GenTxHistory where
         -- We discard pending transaction from any 'GenTxHistory since,
         -- inserting a pending transaction actually has an effect on the
         -- checkpoint's pending transactions of the same wallet.
-        filter (not . isPending . snd) <$> scale (`mod` 100) arbitrary
+        filter (not . isPending . snd) <$> scale (min 25) arbitrary
       where
         sortTxHistory = filterTxHistory Nothing Descending wholeRange
 
@@ -429,7 +429,7 @@ instance Arbitrary TxStatus where
     arbitrary = elements [Pending, InLedger]
 
 instance Arbitrary TxMetadata where
-    arbitrary = genTxMetadata
+    arbitrary = genSmallTxMetadata
     shrink = shrinkTxMetadata
 
 instance Arbitrary Coin where
