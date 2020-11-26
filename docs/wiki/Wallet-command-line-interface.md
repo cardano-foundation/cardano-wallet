@@ -162,7 +162,17 @@ In order to start the wallet server, you'll need to provide _at least_ the path 
 
 We also recommend to pass a `--database` option pointing to a directory on the file-system; without this option, the wallet will maintain a state in-memory which will vanish once stopped. 
 
-#### Domain socket/named pipe
+### Runtime flags
+
+By default, the wallet runs **on a single core** which is sufficient for most 'normal users'. Application running larger wallets like exchanges should configure the server to use multiple cores for some database blocking operations may have a visible negative effect on the overall server behavior. This can be achieved by providing specific runtime flags to the serve command delimited by `+RTS <flags> -RTS`. To configure the how much cores are available to the server, use the `-N` flag. For example, to configure 2 cores do:
+
+```
+cardano-wallet serve ... +RTS -N2 -RTS
+```
+
+Using `+RTS -N4 -RTS` will tell the server to use 4 cores. Note that there's little performance benefits between 2 and 4 cores for server running a single wallet, but there are visible performance improvements from 1 to 2. 
+
+### Domain socket/named pipe
 
 On POSIX systems (i.e. Linux and macOS), a [UNIX domain socket](https://en.wikipedia.org/wiki/Unix_domain_socket) is used for communication between the cardano-wallet and cardano-node processes.
 
@@ -172,7 +182,9 @@ On Windows systems, a [Named Pipe](https://en.wikipedia.org/wiki/Named_pipe#In_W
 
 [Windows Named Pipes](https://docs.microsoft.com/en-us/windows/win32/ipc/named-pipes) do not have filenames. So on Windows systems, the `--node-socket` argument must be a pipe name. Pipe names are a string of the form `\\.\pipe\name`. For example, `\\.\pipe\cardano-wallet`.
 
-#### example on Mainnet
+### Examples 
+
+#### Mainnet
 
 ```
 cardano-wallet serve \
@@ -181,7 +193,7 @@ cardano-wallet serve \
   --database ./wallets-mainnet
 ```
 
-#### example on Testnet
+#### Testnet
 
 Note that for testnets, a _byron_ genesis file is required (see [pre-requisites](#pre-requisites)), even though the network is in the shelley era. This is because the chain is
 synced from the beginning of the first era.
