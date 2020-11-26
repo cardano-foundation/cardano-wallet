@@ -30,10 +30,10 @@ spec = describe "Shelley CLI" $
                 let tst = if isWindows then windows else posix
                 parse arg `shouldSatisfy` tst
         mapM_ runTest
-            [ ( "valid rel path",   "hello.sock",   ok,  err )
-            , ( "valid abs path",   "/run/cw.sock", ok,  err )
-            , ( "invalid",          "",             err, err )
-            , ( "valid pipename",   "\\\\.pipe\\a", ok,  ok  )
-            , ( "invalid pipename", "\\\\.pipe\\",  ok,  err )
-            , ( "windows path",     "c:\\windows",  ok,  err )
+            [ ( "valid rel path",   "hello.sock",     ok,  err )
+            , ( "valid abs path",   "/run/cw.sock",   ok,  err )
+            , ( "invalid",          "",               err, err )
+            , ( "valid pipename",   "\\\\.\\pipe\\a", ok,  ok  )
+            , ( "invalid pipename", "\\\\.\\pipe\\",  ok,  err )
+            , ( "windows path",     "c:\\windows",    ok,  err )
             ]
