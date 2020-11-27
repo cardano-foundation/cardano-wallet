@@ -699,8 +699,8 @@ shrinker (At cmd) = case cmd of
         | h' <- map unGenTxHistory . shrink . GenTxHistory $ h
         ]
     CreateWallet wid wal met txs pp ->
-        [ At $ CreateWallet wid wal' met' txs' pp'
-        | (txs', wal', met', pp') <- shrink (txs, wal, met, pp)
+        [ At $ CreateWallet wid wal' met' (unGenTxHistory txs') pp'
+        | (txs', wal', met', pp') <- shrink (GenTxHistory txs, wal, met, pp)
         ]
     PutWalletMeta wid met ->
         [ At $ PutWalletMeta wid met'

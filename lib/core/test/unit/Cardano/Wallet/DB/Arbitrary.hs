@@ -170,7 +170,6 @@ import Test.QuickCheck
     , Gen
     , InfiniteList (..)
     , NonEmptyList (..)
-    , Positive (..)
     , arbitraryBoundedEnum
     , arbitrarySizedBoundedIntegral
     , choose
@@ -246,11 +245,7 @@ instance {-# OVERLAPS #-} (Arbitrary k, Ord k, GenState s)
 instance Arbitrary GenTxHistory where
     shrink (GenTxHistory txs) = GenTxHistory <$> shrinkList shrinkOne txs
       where
-        shrinkOne (tx,meta)
-            | length txs < 10 =
-                [(tx', meta) | tx' <- shrink tx]
-            | otherwise =
-                []
+        shrinkOne (tx,meta) = [(tx', meta) | tx' <- shrink tx]
 
     arbitrary = GenTxHistory . sortTxHistory <$> do
         -- NOTE
@@ -378,26 +373,10 @@ arbitraryChainLength = 10
 -------------------------------------------------------------------------------}
 
 instance Arbitrary Tx where
-    shrink (Tx _tid ins outs wdrls md) = mconcat
-        [ [ mkTx ins' outs  wdrls md
-          | ins' <- shrinkList' ins
-          ]
-
-        , [ mkTx ins  outs' wdrls md
-          | outs' <- shrinkList' outs
-          ]
-
-        , [ mkTx ins outs (Map.fromList wdrls') md
-          | wdrls' <- shrinkList' (Map.toList wdrls)
-          ]
-
-        , [ mkTx ins  outs  wdrls md'
-          | md' <- shrink md
-          ]
+    shrink (Tx _tid ins outs wdrls md) =
+        [ mkTx ins' outs' wdrls' md'
+        | (ins', outs', wdrls', md') <- shrink (ins, outs, wdrls, md)
         ]
-      where
-        shrinkList' xs  = filter (not . null)
-            [ take n xs | Positive n <- shrink (Positive $ length xs) ]
 
     arbitrary = do
         ins <- fmap (L.nub . L.take 5 . getNonEmpty) arbitrary
@@ -565,7 +544,7 @@ instance Arbitrary (RndState 'Mainnet) where
     arbitrary = RndState
         (Passphrase "passphrase")
         minBound
-        <$> arbitrary
+        <$> scale (min 10) arbitrary
         <*> (pure mempty) -- FIXME: see comment on 'Arbitrary Seq.PendingIxs'
         <*> pure (mkStdGen 42)
 
@@ -593,24 +572,29 @@ rootKeysRnd = unsafePerformIO $ generate (vectorOf 10 genRootKeysRnd)
 -------------------------------------------------------------------------------}
 
 instance Arbitrary ProtocolParameters where
+    shrink = genericShrink
     arbitrary = ProtocolParameters
         <$> arbitrary
         <*> arbitrary
+        <*> choose (0, 100)
         <*> arbitrary
         <*> arbitrary
-        <*> arbitrary
-    shrink = genericShrink
 
 instance Arbitrary TxParameters where
-    arbitrary = TxParameters <$> arbitrary <*> arbitrary
-    shrink (TxParameters fp mx) =
-        [TxParameters fp' mx' | (fp', mx') <- shrink (fp, mx)]
+    shrink = genericShrink
+    arbitrary = TxParameters
+        <$> arbitrary
+        <*> fmap Quantity (choose (0, 1000))
 
 instance Arbitrary FeePolicy where
-    arbitrary = LinearFee <$> arbitrary <*> arbitrary <*> pure (Quantity 0)
-    shrink (LinearFee a b c) = [LinearFee a' b' c | (a', b') <- shrink (a, b)]
+    arbitrary = LinearFee
+        <$> fmap Quantity (choose (0, 1000))
+        <*> fmap Quantity (choose (0, 100))
+        <*> pure (Quantity 0)
 
-deriving instance Arbitrary a => Arbitrary (Quantity n a)
+instance (Integral a, Arbitrary a) => Arbitrary (Quantity n a) where
+    shrink (Quantity a) = Quantity <$> shrinkIntegral a
+    arbitrary = Quantity <$> arbitrary
 
 {-------------------------------------------------------------------------------
                                  Miscellaneous
