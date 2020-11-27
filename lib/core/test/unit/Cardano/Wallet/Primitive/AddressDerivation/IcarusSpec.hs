@@ -45,7 +45,7 @@ import Cardano.Wallet.Primitive.AddressDerivationSpec
 import Cardano.Wallet.Primitive.Types.Address
     ( Address )
 import Test.Hspec
-    ( Spec, describe, it )
+    ( Spec, describe, it, parallel )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Property
@@ -61,13 +61,13 @@ import qualified Data.ByteString as BS
 
 spec :: Spec
 spec = do
-    describe "BIP-0044 Derivation Properties" $ do
+    parallel $ describe "BIP-0044 Derivation Properties" $ do
         it "deriveAccountPrivateKey works for various indexes" $
             property prop_accountKeyDerivation
         it "N(CKDpriv((kpar, cpar), i)) === CKDpub(N(kpar, cpar), i)" $
             property prop_publicChildKeyDerivation
 
-    describe "MkKeyFingerprint Properties" $ do
+    parallel $ describe "MkKeyFingerprint Properties" $ do
         it "paymentKeyFingerprint . liftPaymentAddress == pure" $
             property prop_roundtripFingerprintLift
 

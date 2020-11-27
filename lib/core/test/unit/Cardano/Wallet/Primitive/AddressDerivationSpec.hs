@@ -58,7 +58,7 @@ import Data.Either
 import Data.Proxy
     ( Proxy (..) )
 import Test.Hspec
-    ( Spec, describe, it, shouldBe, shouldSatisfy )
+    ( Spec, describe, it, parallel, shouldBe, shouldSatisfy )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
@@ -98,7 +98,7 @@ import qualified Data.Text.Encoding as T
 
 spec :: Spec
 spec = do
-    describe "Bounded / Enum relationship" $ do
+    parallel $ describe "Bounded / Enum relationship" $ do
         it "The calls Index.succ maxBound should result in a runtime err (hard)"
             prop_succMaxBoundHardIx
         it "The calls Index.pred minBound should result in a runtime err (hard)"
@@ -108,15 +108,15 @@ spec = do
         it "The calls Index.pred minBound should result in a runtime err (soft)"
             prop_predMinBoundSoftIx
 
-    describe "Text Roundtrip" $ do
+    parallel $ describe "Text Roundtrip" $ do
         textRoundtrip $ Proxy @(Passphrase "raw")
         textRoundtrip $ Proxy @DerivationIndex
 
-    describe "Enum Roundtrip" $ do
+    parallel $ describe "Enum Roundtrip" $ do
         it "Index @'Hardened _" (property prop_roundtripEnumIndexHard)
         it "Index @'Soft _" (property prop_roundtripEnumIndexSoft)
 
-    describe "Passphrases" $ do
+    parallel $ describe "Passphrases" $ do
         it "checkPassphrase p h(p) == Right ()" $
             property prop_passphraseRoundtrip
         it "p /= p' => checkPassphrase p' h(p) == Left ErrWrongPassphrase" $
@@ -128,7 +128,7 @@ spec = do
         it "p /= p' => checkPassphrase p' h(p) == Left ErrWrongPassphrase for Scrypt passwords" $
             property prop_passphraseFromScryptRoundtripFail
 
-    describe "MkSomeMnemonic" $ do
+    parallel $ describe "MkSomeMnemonic" $ do
         let noInDictErr =
                 "Found an unknown word not present in the pre-defined dictionary. \
                 \The full dictionary is available here: https://github.com/input\
@@ -207,7 +207,7 @@ spec = do
                         ]
             res `shouldSatisfy` isRight
 
-    describe "Keys storing and retrieving roundtrips" $ do
+    parallel $ describe "Keys storing and retrieving roundtrips" $ do
         it "XPrv JormungandrKey"
             (property $ prop_roundtripXPrv @JormungandrKey)
         it "XPrv IcarusKey"
@@ -219,7 +219,7 @@ spec = do
         it "XPub IcarusKey"
             (property $ prop_roundtripXPub @IcarusKey)
 
-    describe "golden test legacy passphrase encryption" $ do
+    parallel $ describe "golden test legacy passphrase encryption" $ do
         it "compare new implementation with cardano-sl - short password" $ do
             let pwd  = Passphrase @"raw" $ BA.convert $ T.encodeUtf8 "patate"
             let hash = Hash $ unsafeFromHex

@@ -195,6 +195,7 @@ test-suite unit
       -threaded -rtsopts
       -Wall
       "-with-rtsopts=-M2G"
+      "-with-rtsopts=-N4"
   if (flag(release))
     ghc-options: -O2 -Werror
   build-depends:

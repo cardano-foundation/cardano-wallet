@@ -39,7 +39,7 @@ import Data.ByteString
 import Data.Text
     ( Text )
 import Test.Hspec
-    ( Expectation, Spec, describe, it, shouldBe )
+    ( Expectation, Spec, describe, it, parallel, shouldBe )
 import Test.QuickCheck
     ( Arbitrary (..), Property, choose, property, vector )
 
@@ -50,7 +50,7 @@ import qualified Data.ByteString as BS
 spec :: Spec
 spec = do
     goldenSpec
-    describe "Random Address Derivation Properties" $ do
+    parallel $ describe "Random Address Derivation Properties" $ do
         it "Key derivation from seed works for various indexes" $
             property prop_keyDerivationFromSeed
         it "Key derivation from master key works for various indexes" $
@@ -88,7 +88,7 @@ prop_keyDerivationFromXPrv masterkey accIx addrIx =
 -------------------------------------------------------------------------------}
 
 goldenSpec :: Spec
-goldenSpec = describe "Golden tests" $ do
+goldenSpec = parallel $ describe "Golden tests" $ do
     it "generateKeyFromSeed - no passphrase" $
         generateTest generateTest1
 

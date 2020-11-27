@@ -38,7 +38,7 @@ import Data.Functor.Identity
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Test.Hspec
-    ( Spec, describe, it, shouldSatisfy )
+    ( Spec, describe, it, parallel, shouldSatisfy )
 import Test.QuickCheck
     ( Property, expectFailure, property, (===), (==>) )
 
@@ -49,7 +49,7 @@ import qualified Data.Set as Set
 
 spec :: Spec
 spec = do
-    describe "Coin selection : LargestFirst algorithm unit tests" $ do
+    parallel $ describe "Coin selection : LargestFirst algorithm unit tests" $ do
         coinSelectionUnitTest largestFirst ""
             (Right $ CoinSelectionResult
                 { rsInputs = [17]
@@ -237,7 +237,7 @@ spec = do
                 , totalWithdrawal = 0
                 })
 
-    describe "Coin selection properties : LargestFirst algorithm" $ do
+    parallel $ describe "Coin selection properties : LargestFirst algorithm" $ do
         it "forall (UTxO, NonEmpty TxOut), running algorithm twice yields \
             \exactly the same result"
             (property propDeterministic)

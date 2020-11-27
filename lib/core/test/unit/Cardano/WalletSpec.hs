@@ -159,7 +159,7 @@ import Data.Word.Odd
 import GHC.Generics
     ( Generic )
 import Test.Hspec
-    ( Spec, describe, it, shouldBe, shouldNotBe, shouldSatisfy )
+    ( Spec, describe, it, parallel, shouldBe, shouldNotBe, shouldSatisfy )
 import Test.QuickCheck
     ( Arbitrary (..)
     , NonEmptyList (..)
@@ -204,8 +204,8 @@ import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 
 spec :: Spec
-spec = do
-    describe "Pointless tests to cover 'Show' instances for errors" $ do
+spec = parallel $ do
+    parallel $ describe "Pointless tests to cover 'Show' instances for errors" $ do
         let wid = WalletId (hash @ByteString "arbitrary")
         it (show $ ErrSelectForPaymentNoSuchWallet @() (ErrNoSuchWallet wid)) True
         it (show $ ErrSignPaymentNoSuchWallet (ErrNoSuchWallet wid)) True
@@ -213,7 +213,7 @@ spec = do
         it (show $ ErrUpdatePassphraseNoSuchWallet (ErrNoSuchWallet wid)) True
         it (show $ ErrWithRootKeyWrongPassphrase wid ErrWrongPassphrase) True
 
-    describe "WalletLayer works as expected" $ do
+    parallel $ describe "WalletLayer works as expected" $ do
         it "Wallet upon creation is written down in db"
             (property walletCreationProp)
         it "Wallet cannot be created more than once"
@@ -245,17 +245,17 @@ spec = do
         it "Coin selection guard is sound"
             (property prop_guardCoinSelection)
 
-    describe "Tx fee estimation" $
+    parallel $ describe "Tx fee estimation" $
         it "Fee estimates are sound"
             (property prop_estimateFee)
 
-    describe "Join/Quit Stake pool properties" $ do
+    parallel $ describe "Join/Quit Stake pool properties" $ do
         it "You can quit if you cannot join"
             (property prop_guardJoinQuit)
         it "You can join if you cannot quit"
             (property prop_guardQuitJoin)
 
-    describe "Join/Quit Stake pool unit tests" $ do
+    parallel $ describe "Join/Quit Stake pool unit tests" $ do
         let noRetirementPlanned = Nothing
         it "Cannot join A, when active = A" $ do
             let dlg = WalletDelegation {active = Delegating pidA, next = []}

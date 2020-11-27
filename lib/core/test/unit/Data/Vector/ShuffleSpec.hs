@@ -11,7 +11,7 @@ import Data.Vector.Shuffle
 import System.Random
     ( mkStdGen )
 import Test.Hspec
-    ( Spec, describe, it )
+    ( Spec, describe, it, parallel )
 import Test.QuickCheck
     ( Confidence (..)
     , NonEmptyList (..)
@@ -33,7 +33,7 @@ import qualified Data.Text as T
 
 spec :: Spec
 spec = do
-    describe "shuffle" $ do
+    parallel $ describe "shuffle" $ do
         it "every non-empty list can be shuffled, ultimately"
             (checkCoverageWith lowerConfidence prop_shuffleCanShuffle)
         it "shuffle is non-deterministic"
@@ -41,7 +41,7 @@ spec = do
         it "sort (shuffled xs) == sort xs"
             (checkCoverageWith lowerConfidence prop_shufflePreserveElements)
 
-    describe "shuffleWith / mkSeed" $ do
+    parallel $ describe "shuffleWith / mkSeed" $ do
         it "shuffling with the same seed is deterministic"
             (checkCoverageWith lowerConfidence prop_shuffleWithDeterministic)
         it "different seed means different shuffles"

@@ -37,7 +37,7 @@ import Data.Word
 import Numeric.Natural
     ( Natural )
 import Test.Hspec
-    ( Spec, SpecWith, describe, it, shouldSatisfy )
+    ( Spec, SpecWith, describe, it, parallel, shouldSatisfy )
 import Test.QuickCheck
     ( Gen
     , Property
@@ -60,14 +60,14 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 
 spec :: Spec
-spec = do
+spec = parallel $ do
     describe "idealBatchSize" $ do
         it "Eventually converge for decreasing functions" $ do
             property $ \coinselOpts -> do
                 let batchSize = idealBatchSize coinselOpts
                 label (show batchSize) True
 
-    describe "accuracy of depleteUTxO" $ do
+    parallel $ describe "accuracy of depleteUTxO" $ do
         let testAccuracy :: Double -> SpecWith ()
             testAccuracy r = it title $ withMaxSuccess 1000 $ monadicIO $ do
                 let dust = Coin 100
@@ -96,7 +96,7 @@ spec = do
 
         mapM_ testAccuracy [ 0.01 , 0.05 , 0.10 , 0.25 , 0.50 ]
 
-    describe "depleteUTxO properties" $ do
+    parallel $ describe "depleteUTxO properties" $ do
         it "No coin selection has outputs" $
             property $ withMaxSuccess 1000 prop_onlyChangeOutputs
 
@@ -115,7 +115,7 @@ spec = do
         it "Every coin selection is well-balanced" $
             property $ withMaxSuccess 1000 prop_wellBalanced
 
-    describe "depleteUTxO regressions" $ do
+    parallel $ describe "depleteUTxO regressions" $ do
         it "regression #1" $ do
             let feeOpts = FeeOptions
                     { dustThreshold = Coin 9

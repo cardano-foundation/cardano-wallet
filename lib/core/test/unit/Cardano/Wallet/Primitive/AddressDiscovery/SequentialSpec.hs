@@ -100,7 +100,7 @@ import Data.Typeable
 import Data.Word
     ( Word8 )
 import Test.Hspec
-    ( Spec, describe, expectationFailure, it )
+    ( Spec, describe, expectationFailure, it, parallel )
 import Test.QuickCheck
     ( Arbitrary (..)
     , InfiniteList (..)
@@ -135,7 +135,7 @@ import qualified Cardano.Wallet.Primitive.AddressDerivation.Jormungandr as Jormu
 
 spec :: Spec
 spec = do
-    describe "AddressPoolGap" $ do
+    parallel $ describe "AddressPoolGap" $ do
         it "'AddressPoolGap.succ maxBound' should result in a runtime err"
             (expectFailure prop_succMaxBoundGap)
         it "'AddressPoolGap.pred minBound' should result in a runtime err"
@@ -147,7 +147,7 @@ spec = do
         it "defaultAddressPoolGap is valid"
             (property prop_defaultValid)
 
-    describe "DerivationPrefix" $ do
+    parallel $ describe "DerivationPrefix" $ do
         textRoundtrip (Proxy @DerivationPrefix)
 
     let styles =
@@ -161,9 +161,9 @@ spec = do
             , Key (Proxy @IcarusKey)
             ]
 
-    describe "AddressPool (Jormungandr)" $ do
+    parallel $ describe "AddressPool (Jormungandr)" $ do
         forM_ styles $ \s@(Style proxyS) -> forM_ keys $ \k@(Key proxyK) -> do
-            describe (show k <> " " <> show s) $ do
+            parallel $ describe (show k <> " " <> show s) $ do
                 it "'lookupAddressPool' extends the pool by a maximum of 'gap'"
                     (checkCoverage (prop_poolGrowWithinGap (proxyS, proxyK)))
                 it "'addresses' preserves the address order"
@@ -177,7 +177,7 @@ spec = do
                 it "Last address from a shrunk is the last known"
                     (property (prop_shrinkMaxIndex (proxyS, proxyK)))
 
-    describe "AddressPoolGap - Text Roundtrip" $ do
+    parallel $ describe "AddressPoolGap - Text Roundtrip" $ do
         textRoundtrip $ Proxy @AddressPoolGap
         let err = "An address pool gap must be a natural number between 10 and 100000."
         it "fail fromText @AddressPoolGap \"-10\"" $
@@ -197,7 +197,7 @@ spec = do
         it "fail fromText @AddressPoolGap \"2.5\"" $
             fromText @AddressPoolGap "2.5" === Left (TextDecodingError err)
 
-    describe "PendingIxs & GenChange" $ do
+    parallel $ describe "PendingIxs & GenChange" $ do
         it "Can always generate exactly `gap` different change addresses from rootXPrv"
             (property prop_genChangeGapFromRootXPrv)
         it "Can always generate exactly `gap` different change addresses from accXPub"
@@ -207,17 +207,17 @@ spec = do
         it "Can generate new change addresses after discovering a pending one"
             (property prop_changeNoLock)
 
-    describe "IsOwned" $ do
+    parallel $ describe "IsOwned" $ do
         it "Any discovered address has a corresponding private key!" $ do
             (property prop_lookupDiscovered)
 
-    describe "CompareDiscovery" $ do
+    parallel $ describe "CompareDiscovery" $ do
         it "Known addresses are always lesser than unknown ones" $ do
             (checkCoverage prop_compareKnownUnknown)
         it "compareDiscovery is anti-symmetric" $ do
             (checkCoverage prop_compareAntiSymmetric)
 
-    describe "KnownAddresses" $ do
+    parallel $ describe "KnownAddresses" $ do
         it "Any known address is ours" $ do
             (property prop_knownAddressesAreOurs)
         it "There are at least gap known addresses" $ do

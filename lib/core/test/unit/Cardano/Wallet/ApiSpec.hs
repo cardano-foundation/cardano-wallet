@@ -123,7 +123,7 @@ import Servant.API
 import Servant.API.Verbs
     ( NoContentVerb, ReflectMethod (..) )
 import Test.Hspec
-    ( Spec, describe, it, runIO, xdescribe )
+    ( Spec, describe, it, parallel, runIO, xdescribe )
 import Type.Reflection
     ( typeOf )
 
@@ -136,34 +136,34 @@ import qualified Servant
 
 
 spec :: Spec
-spec = do
+spec = parallel $ do
     gSpec (everyPathParam api) $ \(SomeTest proxy tests) ->
-        describe "Malformed PathParam" $ do
+        parallel $ describe "Malformed PathParam" $ do
             forM_ tests $ \(req, msg) -> it (titleize proxy req) $
                 runSession (spec_MalformedParam req msg) application
 
     gSpec (everyBodyParam api) $ \(SomeTest proxy tests) ->
-        describe "Malformed BodyParam" $ do
+        parallel $ describe "Malformed BodyParam" $ do
             forM_ tests $ \(req, msg) -> it (titleize proxy req) $
                 runSession (spec_MalformedParam req msg) application
 
     gSpec (everyHeader api) $ \(SomeTest proxy tests) -> do
         case typeOf proxy `testEquality` typeOf (Proxy @"Accept") of
-            Just Refl -> describe "Malformed Headers" $
+            Just Refl -> parallel $ describe "Malformed Headers" $
                 forM_ tests $ \(req, msg) -> it (titleize proxy req) $
                     runSession (spec_WrongAcceptHeader req msg) application
             Nothing ->
                 pure ()
 
         case typeOf proxy `testEquality` typeOf (Proxy @"Content-Type") of
-            Just Refl -> describe "Malformed Headers" $
+            Just Refl -> parallel $ describe "Malformed Headers" $
                 forM_ tests $ \(req, msg) -> it (titleize proxy req) $
                     runSession (spec_WrongContentTypeHeader req msg) application
             Nothing ->
                 pure ()
 
     gSpec (everyAllowedMethod api) $ \(SomeTest proxy tests) ->
-        describe "Not Allowed Methods" $
+        parallel $ describe "Not Allowed Methods" $
             forM_ tests $ \(req, msg) -> it (titleize proxy req) $
                 runSession (spec_NotAllowedMethod req msg) application
 

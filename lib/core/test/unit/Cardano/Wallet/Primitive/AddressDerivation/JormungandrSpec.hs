@@ -53,7 +53,7 @@ import Data.Either
 import Data.List
     ( isSubsequenceOf )
 import Test.Hspec
-    ( Spec, describe, it, shouldThrow )
+    ( Spec, describe, it, parallel, shouldThrow )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Property
@@ -74,20 +74,20 @@ import qualified Data.ByteString as BS
 
 spec :: Spec
 spec = do
-    describe "Bounded / Enum relationship" $ do
+    parallel $ describe "Bounded / Enum relationship" $ do
         it "Calling toEnum for invalid value gives a runtime err (AccountingStyle)"
             (property prop_toEnumAccountingStyle)
 
-    describe "Enum Roundtrip" $ do
+    parallel $ describe "Enum Roundtrip" $ do
         it "AccountingStyle" (property prop_roundtripEnumAccountingStyle)
 
-    describe "BIP-0044 Derivation Properties" $ do
+    parallel $ describe "BIP-0044 Derivation Properties" $ do
         it "deriveAccountPrivateKey works for various indexes" $
             property prop_accountKeyDerivation
         it "N(CKDpriv((kpar, cpar), i)) === CKDpub(N(kpar, cpar), i)" $
             property prop_publicChildKeyDerivation
 
-    describe "Encoding" $ do
+    parallel $ describe "Encoding" $ do
         let cc = CC.ChainCode "<ChainCode is not used by singleAddressToKey>"
 
         let userException str (e :: SomeException) = str `isSubsequenceOf` show e
@@ -102,7 +102,7 @@ spec = do
             evaluate (paymentAddress @('Testnet _) (JormungandrKey $ XPub "\148" cc))
                 `shouldThrow` userException msg
 
-    describe "KeyFingerprint" $ do
+    parallel $ describe "KeyFingerprint" $ do
         it "Single addresses have a payment key but no delegation key"
             (property prop_fingerprintSingleAddress)
         it "Grouped addresses have a payment key and a delegation key"

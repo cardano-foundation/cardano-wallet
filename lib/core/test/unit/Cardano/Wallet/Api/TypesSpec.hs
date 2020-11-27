@@ -273,7 +273,7 @@ import System.Environment
 import System.FilePath
     ( (</>) )
 import Test.Hspec
-    ( Spec, SpecWith, describe, it, shouldBe )
+    ( Spec, SpecWith, describe, it, parallel, shouldBe )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
@@ -329,11 +329,11 @@ import qualified Prelude
 import qualified Test.Utils.Roundtrip as Utils
 
 spec :: Spec
-spec = do
+spec = parallel $ do
     let jsonRoundtripAndGolden = Utils.jsonRoundtripAndGolden
             ($(getTestData) </> "Cardano" </> "Wallet" </> "Api")
 
-    describe
+    parallel $ describe
         "can perform roundtrip JSON serialization & deserialization, \
         \and match existing golden files" $ do
             jsonRoundtripAndGolden $ Proxy @AnyAddress
@@ -446,7 +446,7 @@ spec = do
         \existing path in the specification" $
         validateEveryPath (Proxy :: Proxy (Api ('Testnet 0) ApiStakePool))
 
-    describe "verify JSON parsing failures too" $ do
+    parallel $ describe "verify JSON parsing failures too" $ do
         it "ApiT (Passphrase \"raw\") (too short)" $ do
             let minLength = passphraseMinLength (Proxy :: Proxy "raw")
             let msg = "Error in $: passphrase is too short: \
@@ -640,7 +640,7 @@ spec = do
             parseUrlPiece "patate"
                 `shouldBe` (Left @Text @(ApiT AddressState) msg)
 
-    describe "pointless tests to trigger coverage for record accessors" $ do
+    parallel $ describe "pointless tests to trigger coverage for record accessors" $ do
         it "ApiEpochInfo" $ property $ \x ->
             let
                 x' = ApiEpochInfo

@@ -95,7 +95,7 @@ import Fmt
 import GHC.Generics
     ( Generic )
 import Test.Hspec
-    ( Spec, describe, it, shouldSatisfy )
+    ( Spec, describe, it, parallel, shouldSatisfy )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
@@ -127,19 +127,19 @@ import qualified Data.Text as T
 
 spec :: Spec
 spec = do
-    describe "Buildable instances examples" $ do
+    parallel $ describe "Buildable instances examples" $ do
         let block = blockchain !! 1
         let utxo = utxoFromTx $ head $ transactions block
         it (show $ ShowFmt utxo) True
 
-    describe "Compare Wallet impl. with Specification" $ do
+    parallel $ describe "Compare Wallet impl. with Specification" $ do
         it "Lemma 3.2 - dom u ⋪ updateUTxO b u = new b"
             (checkCoverage prop_3_2)
 
         it "applyBlock matches the basic model from the specification"
             (checkCoverage prop_applyBlockBasic)
 
-    describe "Extra Properties" $ do
+    parallel $ describe "Extra Properties" $ do
         it "Incoming transactions have output addresses that belong to the wallet"
             (property prop_applyBlockTxHistoryIncoming)
 

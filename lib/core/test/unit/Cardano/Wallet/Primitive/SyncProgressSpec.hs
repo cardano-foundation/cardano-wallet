@@ -48,7 +48,7 @@ import Data.Quantity
 import Data.Time.Clock
     ( NominalDiffTime, addUTCTime )
 import Test.Hspec
-    ( Spec, describe, it, pendingWith, shouldBe )
+    ( Spec, describe, it, parallel, pendingWith, shouldBe )
 import Test.QuickCheck
     ( Arbitrary (..), counterexample, property, withMaxSuccess )
 import Test.QuickCheck.Monadic
@@ -66,7 +66,7 @@ spec = do
 
 
     let ti = (singleEraInterpreter (StartTime t0) sp :: TimeInterpreter Identity)
-    describe "syncProgress" $ do
+    parallel $ describe "syncProgress" $ do
         it "works for any two slots" $ property $ \tip (dt :: NominalDiffTime) ->
             let
                 t = dt `addUTCTime` t0
