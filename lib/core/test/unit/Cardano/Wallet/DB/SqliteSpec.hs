@@ -66,7 +66,7 @@ import Cardano.Wallet.DB.Sqlite
     , withDBLayer
     )
 import Cardano.Wallet.DB.StateMachine
-    ( prop_parallel, prop_sequential )
+    ( prop_parallel, prop_sequential, validateGenerators )
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( block0
     , dummyGenesisParameters
@@ -273,17 +273,21 @@ spec = do
                 "shelleyAccountingStyle-v2020-10-13.sqlite"
 
 sqliteSpecSeq :: Spec
-sqliteSpecSeq = withDB newMemoryDBLayer $ do
-    describe "Sqlite" properties
-    describe "Sqlite State machine tests" $ do
-        it "Sequential" (prop_sequential :: TestDBSeq -> Property)
-        xit "Parallel" prop_parallel
+sqliteSpecSeq = do
+    validateGenerators @(SeqState 'Mainnet JormungandrKey)
+    withDB newMemoryDBLayer $ do
+        describe "Sqlite" properties
+        describe "Sqlite State machine tests" $ do
+            it "Sequential" (prop_sequential :: TestDBSeq -> Property)
+            xit "Parallel" prop_parallel
 
 sqliteSpecRnd :: Spec
-sqliteSpecRnd = withDB newMemoryDBLayer $ do
-    describe "Sqlite State machine (RndState)" $ do
-        it "Sequential state machine tests"
-            (prop_sequential :: TestDBRnd -> Property)
+sqliteSpecRnd = do
+    validateGenerators @(RndState 'Mainnet)
+    withDB newMemoryDBLayer $ do
+        describe "Sqlite State machine (RndState)" $ do
+            it "Sequential state machine tests"
+                (prop_sequential :: TestDBRnd -> Property)
 
 testMigrationAccountingStyle
     :: forall k s.

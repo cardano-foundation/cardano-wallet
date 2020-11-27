@@ -11,6 +11,7 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
@@ -44,6 +45,7 @@
 module Cardano.Wallet.DB.StateMachine
     ( prop_sequential
     , prop_parallel
+    , validateGenerators
     , showLabelledExamples
     ) where
 
@@ -147,8 +149,16 @@ import Cardano.Wallet.Primitive.Types.Tx
     )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
+import Control.Concurrent
+    ( threadDelay )
+import Control.Concurrent.Async
+    ( race )
+import Control.Exception
+    ( evaluate )
 import Control.Foldl
     ( Fold (..) )
+import Control.Monad
+    ( forM_, void )
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Except
@@ -183,6 +193,8 @@ import Numeric.Natural
     ( Natural )
 import System.Random
     ( getStdRandom, randomR )
+import Test.Hspec
+    ( SpecWith, describe, expectationFailure, it )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Args (..)
@@ -193,8 +205,10 @@ import Test.QuickCheck
     , collect
     , elements
     , frequency
+    , generate
     , labelledExamplesWith
     , property
+    , resize
     , (===)
     )
 import Test.QuickCheck.Monadic
@@ -579,51 +593,80 @@ generator
     :: forall s. (Arbitrary (Wallet s), GenState s)
     => Model s Symbolic
     -> Maybe (Gen (Cmd s :@ Symbolic))
-generator (Model _ wids) = Just $ frequency $ fmap (fmap At) <$> concat
-    [ withoutWid
-    , if null wids then [] else withWid
+generator (Model _ wids) = Just $ frequency $ fmap (fmap At) . snd <$> concat
+    [ generatorWithoutId
+    , if null wids then [] else generatorWithWid (fst <$> wids)
     ]
-  where
-    withoutWid :: [(Int, Gen (Cmd s (Reference WalletId Symbolic)))]
-    withoutWid =
-        [ (5, CreateWallet
+
+declareGenerator
+    :: String -- ^ A readable name
+    -> Int -- ^ Frequency
+    -> Gen cmd -- ^ Generator
+    -> (String, (Int, Gen cmd))
+declareGenerator name f gen = (name, (f, gen))
+
+generatorWithoutId
+    :: forall s r. (Arbitrary (Wallet s), GenState s)
+    => [(String, (Int, Gen (Cmd s (Reference WalletId r))))]
+generatorWithoutId =
+    [ declareGenerator "CreateWallet" 5
+        $ CreateWallet
             <$> genId
             <*> (getInitialCheckpoint <$> arbitrary)
             <*> arbitrary
             <*> fmap unGenTxHistory arbitrary
-            <*> arbitrary)
-        ]
-
-    withWid :: [(Int, Gen (Cmd s (Reference WalletId Symbolic)))]
-    withWid =
-        [ (3, RemoveWallet <$> genId')
-        , (5, pure ListWallets)
-        , (5, PutCheckpoint <$> genId' <*> arbitrary)
-        , (5, ReadCheckpoint <$> genId')
-        , (5, ListCheckpoints <$> genId')
-        , (5, PutWalletMeta <$> genId' <*> arbitrary)
-        , (5, ReadWalletMeta <$> genId')
-        , (5, PutDelegationCertificate <$> genId' <*> arbitrary <*> arbitrary)
-        , (1, IsStakeKeyRegistered <$> genId')
-        , (5, PutTxHistory <$> genId' <*> fmap unGenTxHistory arbitrary)
-        , (5, ReadTxHistory
-            <$> genId'
-            <*> genMinWithdrawal
-            <*> genSortOrder
-            <*> genRange
-            <*> arbitrary)
-        , (4, RemovePendingTx <$> genId' <*> arbitrary)
-        , (4, UpdatePendingTxForExpiry <$> genId' <*> arbitrary)
-        , (3, PutPrivateKey <$> genId' <*> genPrivKey)
-        , (3, ReadPrivateKey <$> genId')
-        , (1, RollbackTo <$> genId' <*> arbitrary)
-        ]
-
+            <*> arbitrary
+    ]
+  where
     genId :: Gen MWid
     genId = MWid <$> elements ["a", "b", "c"]
 
-    genId' :: Gen (Reference WalletId Symbolic)
-    genId' = QC.elements (map fst wids)
+generatorWithWid
+    :: forall s r. (Arbitrary (Wallet s), GenState s)
+    => [Reference WalletId r]
+    -> [(String, (Int, Gen (Cmd s (Reference WalletId r))))]
+generatorWithWid wids =
+    [ declareGenerator "RemoveWallet" 3
+        $ RemoveWallet <$> genId
+    , declareGenerator "ListWallets" 5
+        $ pure ListWallets
+    , declareGenerator "PutCheckpoints" 5
+        $ PutCheckpoint <$> genId <*> arbitrary
+    , declareGenerator "ReadCheckpoint" 5
+        $ ReadCheckpoint <$> genId
+    , declareGenerator "ListCheckpoints" 5
+        $ ListCheckpoints <$> genId
+    , declareGenerator "PutWalletMeta" 5
+        $ PutWalletMeta <$> genId <*> arbitrary
+    , declareGenerator "ReadWalletMeta" 5
+        $ ReadWalletMeta <$> genId
+    , declareGenerator "PutDelegationCertificate" 5
+        $ PutDelegationCertificate <$> genId <*> arbitrary <*> arbitrary
+    , declareGenerator "IsStakeKeyRegistered" 1
+        $ IsStakeKeyRegistered <$> genId
+    , declareGenerator "PutTxHistory" 5
+        $ PutTxHistory <$> genId <*> fmap unGenTxHistory arbitrary
+    , declareGenerator "ReadTxHistory" 5
+        $ ReadTxHistory
+            <$> genId
+            <*> genMinWithdrawal
+            <*> genSortOrder
+            <*> genRange
+            <*> arbitrary
+    , declareGenerator "RemovePendingTx" 4
+        $ RemovePendingTx <$> genId <*> arbitrary
+    , declareGenerator "UpdatePendingTxForExpiry" 4
+        $ UpdatePendingTxForExpiry <$> genId <*> arbitrary
+    , declareGenerator "PutPrivateKey" 3
+        $ PutPrivateKey <$> genId <*> genPrivKey
+    , declareGenerator "ReadPrivateKey" 3
+        $ ReadPrivateKey <$> genId
+    , declareGenerator "RollbackTo" 1
+        $ RollbackTo <$> genId <*> arbitrary
+    ]
+  where
+    genId :: Gen (Reference WalletId r)
+    genId = QC.elements wids
 
     genPrivKey :: Gen MPrivKey
     genPrivKey = elements ["pk1", "pk2", "pk3"]
@@ -645,9 +688,9 @@ isUnordered xs = xs /= L.sort xs
 
 shrinker
     :: (Arbitrary (Wallet s))
-    => Model s Symbolic
-    -> Cmd s :@ Symbolic -> [Cmd s :@ Symbolic]
-shrinker (Model _ _) (At cmd) = case cmd of
+    => Cmd s :@ r
+    -> [Cmd s :@ r]
+shrinker (At cmd) = case cmd of
     PutCheckpoint wid wal ->
         [ At $ PutCheckpoint wid wal'
         | wal' <- shrink wal ]
@@ -656,8 +699,8 @@ shrinker (Model _ _) (At cmd) = case cmd of
         | h' <- map unGenTxHistory . shrink . GenTxHistory $ h
         ]
     CreateWallet wid wal met txs pp ->
-        [ At $ CreateWallet wid wal' met' txs' pp'
-        | (txs', wal', met', pp') <- shrink (txs, wal, met, pp)
+        [ At $ CreateWallet wid wal' met' (unGenTxHistory txs') pp'
+        | (txs', wal', met', pp') <- shrink (GenTxHistory txs, wal, met, pp)
         ]
     PutWalletMeta wid met ->
         [ At $ PutWalletMeta wid met'
@@ -726,7 +769,7 @@ sm db = QSM.StateMachine
     , invariant = Nothing
     , generator = generator
     , distribution = Nothing
-    , shrinker = shrinker
+    , shrinker = const shrinker
     , semantics = semantics db
     , mock = symbolicResp
     }
@@ -1234,6 +1277,40 @@ prop_parallel db =
         let sm' = sm db
             cmds' = addCleanDB cmds
         prettyParallelCommands cmds =<< runParallelCommands sm' cmds'
+
+-- Controls that generators and shrinkers can run within a reasonable amount of
+-- time. We have been bitten several times already by generators which took much
+-- longer than what they should, causing timeouts in the test suite.
+validateGenerators
+    :: forall s. (Arbitrary (Wallet s), GenState s)
+    => SpecWith ()
+validateGenerators = describe "Validate generators & shrinkers" $ do
+    forM_ allGenerators $ \(name, (_frequency, gen)) -> do
+        let titleGen = "Generator for " <> name
+        it titleGen $ race (threadDelay _1s) (sanityCheckGen gen) >>= \case
+            Left{}  -> expectationFailure "Timed out."
+            Right{} -> pure ()
+
+        let titleShrink = "Shrinker for " <> name
+        it titleShrink $ do
+            cmd <- generate (resize 97 gen) -- NOTE: 97 is prime
+            race (threadDelay _1s) (sanityCheckShrink [At cmd]) >>= \case
+                Left{}  -> expectationFailure "Timed out."
+                Right{} -> pure ()
+  where
+    _1s = 1_000_000
+
+    allGenerators = generatorWithoutId @s ++ generatorWithWid @s wids
+      where wids = QSM.reference . unMockWid . MWid <$> ["a", "b", "c"]
+
+    sanityCheckGen gen = do
+        cmds <- generate (sequence [ resize s gen | s <- [0 .. 999] ])
+        void . traverse evaluate $ cmds
+
+    sanityCheckShrink = \case
+        []  -> pure ()
+        [x] -> sanityCheckShrink (concatMap shrinker [x])
+        xs  -> sanityCheckShrink (concatMap shrinker [head xs, last xs])
 
 -- | The commands for parallel tests are run multiple times to detect
 -- concurrency problems. We need to clean the database before every run. The

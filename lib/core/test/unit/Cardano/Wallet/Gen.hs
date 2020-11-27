@@ -79,7 +79,6 @@ import Test.QuickCheck
     , resize
     , scale
     , shrinkList
-    , shrinkMap
     , suchThat
     , vector
     , vectorOf
@@ -200,15 +199,22 @@ genByteString :: Gen BS.ByteString
 genByteString = B8.pack <$> (choose (0, 64) >>= vector)
 
 shrinkByteString :: BS.ByteString -> [BS.ByteString]
-shrinkByteString = shrinkMap BS.pack BS.unpack
+shrinkByteString bs
+    | n <= 1    = []
+    | otherwise = [ BS.take (n `div` 2) bs, BS.drop (n `div` 2) bs ]
+  where
+    n = BS.length bs
 
 genText :: Gen Text
 genText =
     (T.pack . take 32 . getPrintableString <$> arbitrary) `suchThat` guardText
 
 shrinkText :: Text -> [Text]
-shrinkText =
-    filter guardText . fmap T.pack . shrink . T.unpack
+shrinkText t
+    | n <= 1    = []
+    | otherwise = filter guardText [ T.take (n `div` 2) t, T.drop (n `div` 2) t ]
+  where
+    n = T.length t
 
 guardText :: Text -> Bool
 guardText t = not ("0x" `T.isPrefixOf` t)
