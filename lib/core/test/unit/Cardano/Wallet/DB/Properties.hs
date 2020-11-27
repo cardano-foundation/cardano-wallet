@@ -17,7 +17,6 @@
 
 module Cardano.Wallet.DB.Properties
     ( properties
-    , withDB
     ) where
 
 import Prelude
@@ -88,8 +87,6 @@ import Data.Bifunctor
     ( bimap )
 import Data.Function
     ( (&) )
-import Data.Functor
-    ( ($>) )
 import Data.Functor.Identity
     ( Identity (..) )
 import Data.Generics.Internal.VL.Lens
@@ -109,15 +106,7 @@ import Data.Word
 import Fmt
     ( Buildable, blockListF, pretty )
 import Test.Hspec
-    ( Spec
-    , SpecWith
-    , beforeAll
-    , beforeWith
-    , describe
-    , it
-    , shouldBe
-    , shouldReturn
-    )
+    ( SpecWith, describe, it, shouldBe, shouldReturn )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
@@ -142,11 +131,6 @@ import Test.QuickCheck.Monadic
 import qualified Data.List as L
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
-
--- | Provide a DBLayer to a Spec that requires it. The database is initialised
--- once, and cleared with 'cleanDB' before each test.
-withDB :: IO (DBLayer IO s k) -> SpecWith (DBLayer IO s k) -> Spec
-withDB create = beforeAll create . beforeWith (\db -> cleanDB db $> db)
 
 properties
     :: (GenState s, Eq s)

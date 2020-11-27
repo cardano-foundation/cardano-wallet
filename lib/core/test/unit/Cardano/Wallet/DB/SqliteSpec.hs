@@ -57,7 +57,7 @@ import Cardano.Wallet.DB
 import Cardano.Wallet.DB.Arbitrary
     ( KeyValPairs (..) )
 import Cardano.Wallet.DB.Properties
-    ( properties, withDB )
+    ( properties )
 import Cardano.Wallet.DB.Sqlite
     ( DefaultFieldValues (..)
     , PersistState
@@ -216,6 +216,7 @@ import Test.Hspec
     , beforeWith
     , describe
     , it
+    , parallel
     , shouldBe
     , shouldNotBe
     , shouldNotContain
@@ -243,7 +244,7 @@ import qualified Data.Text.Encoding as T
 import qualified GHC.Conc as TVar
 
 spec :: Spec
-spec = do
+spec = parallel $ do
     sqliteSpecSeq
     sqliteSpecRnd
     loggingSpec
@@ -275,17 +276,17 @@ spec = do
 sqliteSpecSeq :: Spec
 sqliteSpecSeq = do
     validateGenerators @(SeqState 'Mainnet JormungandrKey)
-    withDB newMemoryDBLayer $ do
-        describe "Sqlite" properties
-        describe "Sqlite State machine tests" $ do
+    before newMemoryDBLayer $ do
+        parallel $ describe "Sqlite" properties
+        parallel $ describe "Sqlite State machine tests" $ do
             it "Sequential" (prop_sequential :: TestDBSeq -> Property)
             xit "Parallel" prop_parallel
 
 sqliteSpecRnd :: Spec
 sqliteSpecRnd = do
     validateGenerators @(RndState 'Mainnet)
-    withDB newMemoryDBLayer $ do
-        describe "Sqlite State machine (RndState)" $ do
+    before newMemoryDBLayer $ do
+        parallel $ describe "Sqlite State machine (RndState)" $ do
             it "Sequential state machine tests"
                 (prop_sequential :: TestDBRnd -> Property)
 

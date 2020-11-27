@@ -11,16 +11,16 @@ module Cardano.Pool.DB.MVarSpec
 import Prelude
 
 import Cardano.Pool.DB.Properties
-    ( properties, withDB )
+    ( properties )
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( dummyTimeInterpreter )
 import Test.Hspec
-    ( Spec, describe )
+    ( Spec, before, describe )
 
 import qualified Cardano.Pool.DB.MVar as MVar
 
 spec :: Spec
-spec = withDB (MVar.newDBLayer ti) $
+spec = before (MVar.newDBLayer ti) $
     describe "MVar" properties
   where
     ti = dummyTimeInterpreter

@@ -13,7 +13,6 @@
 
 module Cardano.Pool.DB.Properties
     ( properties
-    , withDB
     ) where
 
 import Prelude
@@ -71,8 +70,6 @@ import Data.Bifunctor
     ( bimap )
 import Data.Function
     ( on, (&) )
-import Data.Functor
-    ( ($>) )
 import Data.Functor.Identity
     ( runIdentity )
 import Data.Generics.Internal.VL.Lens
@@ -97,11 +94,8 @@ import Fmt
     ( pretty )
 import Test.Hspec
     ( Expectation
-    , Spec
     , SpecWith
     , anyException
-    , beforeAll
-    , beforeWith
     , describe
     , it
     , shouldBe
@@ -131,12 +125,6 @@ import qualified Data.List as L
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
-
--- | Provide a DBLayer to a Spec that requires it. The database is initialised
--- once, and cleared with 'cleanDB' before each test.
-withDB :: IO (DBLayer IO) -> SpecWith (DBLayer IO) -> Spec
-withDB create = beforeAll create . beforeWith
-    (\db@DBLayer{cleanDB, atomically}-> atomically $ cleanDB $> db)
 
 properties :: SpecWith (DBLayer IO)
 properties = do
