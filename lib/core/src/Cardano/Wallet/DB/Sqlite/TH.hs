@@ -241,6 +241,7 @@ SeqState
     seqStateAccountXPub       B8.ByteString      sql=account_xpub
     seqStateRewardXPub        B8.ByteString      sql=reward_xpub
     seqStateDerivationPrefix  W.DerivationPrefix sql=derivation_prefix
+    seqStateScriptGap         W.AddressPoolGap   sql=script_gap
 
     Primary seqStateWalletId
     Foreign Wallet seq_state seqStateWalletId ! ON DELETE CASCADE

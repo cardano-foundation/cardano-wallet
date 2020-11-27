@@ -49,10 +49,14 @@ module Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     , lookupAddress
     , shrinkPool
 
-    -- ** Verification Keys
-    , VerificationKeyPool (..)
+    -- ** Verification Key Pool
+    , VerificationKeyPool
     , mkVerificationKeyPool
     , toVerKeyHash
+    , verPoolAccountPubKey
+    , verPoolGap
+    , verPoolIndexedKeys
+    , verPoolKnownScripts
 
     -- * Pending Change Indexes
     , PendingIxs

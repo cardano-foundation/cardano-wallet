@@ -383,6 +383,8 @@ migrateManually tr proxy defaultFieldValues =
         renameRoleColumn conn
 
         renameRoleFields conn
+
+        addScriptAddressGapIfMissing conn
   where
     -- NOTE
     -- Wallets created before the 'PassphraseScheme' was introduced have no
@@ -591,6 +593,18 @@ migrateManually tr proxy defaultFieldValues =
       where
         roleField = DBField SeqStateAddressRole
 
+    -- | Adds an 'script_gap' column to the 'SeqState'
+    -- table if it is missing.
+    --
+    addScriptAddressGapIfMissing :: Sqlite.Connection -> IO ()
+    addScriptAddressGapIfMissing conn =
+        addColumn_ conn True (DBField SeqStateScriptGap) value
+      where
+        value = case defaultScriptPoolGap defaultFieldValues of
+            Nothing ->
+                T.pack $ show $ Seq.getAddressPoolGap Seq.defaultAddressPoolGap
+            Just v -> T.pack $ show $ Seq.getAddressPoolGap v
+
     -- | Determines whether a field is present in its parent table.
     isFieldPresent :: Sqlite.Connection -> DBField -> IO SqlColumnStatus
     isFieldPresent conn field = do
@@ -654,7 +668,7 @@ migrateManually tr proxy defaultFieldValues =
             TableMissing ->
                 traceWith tr $ MsgManualMigrationNotNeeded field
             ColumnMissing -> do
-                traceWith tr $ MsgManualMigrationNotNeeded field
+                traceWith tr $ MsgManualMigrationNeeded field new
             ColumnPresent -> do
                 query <- Sqlite.prepare conn $ T.unwords
                     [ "UPDATE", tableName field
@@ -678,7 +692,7 @@ data DefaultFieldValues = DefaultFieldValues
     , defaultDesiredNumberOfPool :: Word16
     , defaultMinimumUTxOValue :: W.Coin
     , defaultHardforkEpoch :: Maybe W.EpochNo
-    , defaultMultisigPoolGap :: Maybe Seq.AddressPoolGap
+    , defaultScriptPoolGap :: Maybe Seq.AddressPoolGap
     }
 
 -- | Sets up a connection to the SQLite database.
@@ -1698,14 +1712,15 @@ instance
     , WalletKey k
     ) => PersistState (Seq.SeqState n k) where
     insertState (wid, sl) st = do
-        let (intPool, extPool) =
-                (Seq.internalPool st, Seq.externalPool st)
+        let (intPool, extPool, sPool) =
+                (Seq.internalPool st, Seq.externalPool st, Seq.scriptPool st)
         let (accountXPub, _) = W.invariant
                 "Internal & External pool use different account public keys!"
                 (Seq.accountPubKey intPool, Seq.accountPubKey extPool)
                 (uncurry (==))
         let eGap = Seq.gap extPool
         let iGap = Seq.gap intPool
+        let sGap = Seq.verPoolGap sPool
         repsert (SeqStateKey wid) $ SeqState
             { seqStateWalletId = wid
             , seqStateExternalGap = eGap
@@ -1713,6 +1728,7 @@ instance
             , seqStateAccountXPub = serializeXPub accountXPub
             , seqStateRewardXPub = serializeXPub (Seq.rewardAccountKey st)
             , seqStateDerivationPrefix = Seq.derivationPrefix st
+            , seqStateScriptGap = sGap
             }
         insertAddressPool @n wid sl intPool
         insertAddressPool @n wid sl extPool
@@ -1723,13 +1739,13 @@ instance
 
     selectState (wid, sl) = runMaybeT $ do
         st <- MaybeT $ selectFirst [SeqStateWalletId ==. wid] []
-        let SeqState _ eGap iGap accountBytes rewardBytes prefix = entityVal st
+        let SeqState _ eGap iGap accountBytes rewardBytes prefix sGap = entityVal st
         let accountXPub = unsafeDeserializeXPub accountBytes
         let rewardXPub = unsafeDeserializeXPub rewardBytes
         intPool <- lift $ selectAddressPool @n wid sl iGap accountXPub
         extPool <- lift $ selectAddressPool @n wid sl eGap accountXPub
         --TO-DO
-        let multiPool = Seq.mkVerificationKeyPool accountXPub iGap Map.empty Map.empty
+        let multiPool = Seq.mkVerificationKeyPool accountXPub sGap Map.empty Map.empty
         pendingChangeIxs <- lift $ selectSeqStatePendingIxs wid
         pure $ Seq.SeqState intPool extPool pendingChangeIxs rewardXPub prefix multiPool
 

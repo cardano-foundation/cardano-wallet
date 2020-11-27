@@ -838,7 +838,7 @@ defaultFieldValues = DefaultFieldValues
     , defaultDesiredNumberOfPool = 0
     , defaultMinimumUTxOValue = Coin 0
     , defaultHardforkEpoch = Nothing
-    , defaultMultisigPoolGap = Nothing
+    , defaultScriptPoolGap = Nothing
     }
 
 newDBLayer'

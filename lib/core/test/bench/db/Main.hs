@@ -621,7 +621,7 @@ defaultFieldValues = DefaultFieldValues
     , defaultDesiredNumberOfPool = 50
     , defaultMinimumUTxOValue = Coin 0
     , defaultHardforkEpoch = Nothing
-    , defaultMultisigPoolGap = Nothing
+    , defaultScriptPoolGap = Nothing
         -- NOTE value in the genesis when at the time this migration was needed.
     }
 

@@ -35,7 +35,13 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
-    ( SeqState (..), VerificationKeyPool (..), mkVerificationKeyPool )
+    ( SeqState (..)
+    , mkVerificationKeyPool
+    , verPoolAccountPubKey
+    , verPoolGap
+    , verPoolIndexedKeys
+    , verPoolKnownScripts
+    )
 import Cardano.Wallet.Primitive.Types.Address
     ( AddressState (..) )
 import Control.Monad
@@ -58,27 +64,29 @@ isShared
     -> ([k 'ScriptK XPub], SeqState n k)
 isShared script (SeqState !s1 !s2 !ixs !rpk !prefix !s3) =
     let verKeysInScript = retrieveAllVerKeyHashes script
-        (VerificationKeyPool accXPub currentGap verKeyMap scripts) = s3
-        toVerKey = deriveAddressPublicKey accXPub MultisigScript
+        toVerKey = deriveAddressPublicKey (verPoolAccountPubKey s3) MultisigScript
         ourVerKeysInScript =
             map (\(_,(ix,_)) -> toVerKey (coerce ix) ) $
-            filter (\(keyH,_) -> keyH `elem` verKeysInScript)
-            (Map.toList verKeyMap)
+            filter (\(keyH,_) -> keyH `elem` verKeysInScript) $
+            Map.toList (verPoolIndexedKeys s3)
         scriptXPubs = L.nub $ map coerce ourVerKeysInScript
         updateAddressState k current =
             if k `elem` verKeysInScript then
                 Used
             else
                 current
-        markedVerKeyMap =
+        indexedKeys =
             Map.mapWithKey (\keyH (ix,isUsed) -> (ix, updateAddressState keyH isUsed) )
-            verKeyMap
+            (verPoolIndexedKeys s3)
         insertIf predicate k v = if predicate v then Map.insert k v else id
-        script' = insertIf (not . null) (toScriptHash script) scriptXPubs scripts
+        knownScripts =
+            insertIf (not . null) (toScriptHash script) scriptXPubs
+            (verPoolKnownScripts s3)
 
         -- if there are no gap number of consecutive NotUsed verification keys
         -- then we extend the verification key pool
-        s3' = mkVerificationKeyPool accXPub currentGap markedVerKeyMap script'
+        s3' = mkVerificationKeyPool (verPoolAccountPubKey s3) (verPoolGap s3)
+              indexedKeys knownScripts
     in ( scriptXPubs
        , SeqState s1 s2 ixs rpk prefix s3'
        )

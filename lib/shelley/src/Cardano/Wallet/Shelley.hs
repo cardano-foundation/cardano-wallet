@@ -370,7 +370,7 @@ serveWallet
                     minimumUTxOvalue pp
                 , defaultHardforkEpoch =
                     hardforkEpochNo pp
-                , defaultMultisigPoolGap = Nothing
+                , defaultScriptPoolGap = Nothing
                 }
             )
             (neverFails "db layer should never forecast into the future"

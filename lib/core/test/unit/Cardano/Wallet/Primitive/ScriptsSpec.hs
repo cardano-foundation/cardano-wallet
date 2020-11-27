@@ -51,6 +51,8 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     , purposeCIP1852
     , purposeCIP1852
     , toVerKeyHash
+    , verPoolIndexedKeys
+    , verPoolKnownScripts
     )
 import Cardano.Wallet.Primitive.Scripts
     ( isShared, retrieveAllVerKeyHashes )
@@ -176,9 +178,11 @@ prop_markingDiscoveredVerKeys (AccountXPubWithScripts accXPub' scripts') = do
     let (script:_) = scripts'
     let sciptKeyHashes = retrieveAllVerKeyHashes script
     let seqState = initializeState accXPub'
-    let (_, SeqState _ _ _ _ _ (VerificationKeyPool _ _ allOurVerKeys _)) =
+    let (_, SeqState _ _ _ _ _ verKeyPool) =
             isShared script seqState
-    let discoveredKeyMap = Map.filterWithKey (\k _ -> k `elem` sciptKeyHashes) allOurVerKeys
+    let ourKeys = verPoolIndexedKeys verKeyPool
+    let discoveredKeyMap =
+            Map.filterWithKey (\k _ -> k `elem` sciptKeyHashes) ourKeys
     let addressStatesToCheck =
             map (\(_, (_, isUsed)) -> isUsed) $ Map.toList discoveredKeyMap
     L.all (== Used) addressStatesToCheck === True
@@ -258,14 +262,14 @@ initializeState accXPub' =
 getKnownScripts
     :: SeqState 'Mainnet ShelleyKey
     -> Map ScriptHash [ShelleyKey 'ScriptK XPub]
-getKnownScripts (SeqState _ _ _ _ _ (VerificationKeyPool _ _ _ knownScripts)) =
-    knownScripts
+getKnownScripts (SeqState _ _ _ _ _ verKeyPool) =
+    verPoolKnownScripts verKeyPool
 
 getVerKeyMap
     :: SeqState 'Mainnet ShelleyKey
     -> Map KeyHash (Index 'Soft 'ScriptK, AddressState)
-getVerKeyMap (SeqState _ _ _ _ _ (VerificationKeyPool _ _ verMap _)) =
-    verMap
+getVerKeyMap (SeqState _ _ _ _ _ verKeyPool) =
+    verPoolIndexedKeys verKeyPool
 
 {-------------------------------------------------------------------------------
                                 Arbitrary Instances
