@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -12,6 +13,7 @@ module Cardano.Pool.DB.Arbitrary
     , getMultiPoolCertificateSequence
     , SinglePoolCertificateSequence (..)
     , StakePoolsFixture (..)
+    , ManyPoolCertificates (..)
     , genStakePoolMetadata
     , isValidSinglePoolCertificateSequence
     ) where
@@ -67,6 +69,8 @@ import Data.Word
     ( Word32, Word64 )
 import Data.Word.Odd
     ( Word31 )
+import GHC.Generics
+    ( Generic )
 import Network.URI
     ( URI, parseURI )
 import Test.QuickCheck
@@ -79,6 +83,7 @@ import Test.QuickCheck
     , elements
     , frequency
     , oneof
+    , scale
     , shrinkIntegral
     , shuffle
     , vector
@@ -237,7 +242,6 @@ isValidSinglePoolCertificateSequence
         Retirement   _ : _ -> False
 
 instance Arbitrary SinglePoolCertificateSequence where
-
     arbitrary = do
         sharedPoolId <- arbitrary
         frequency
@@ -251,7 +255,7 @@ instance Arbitrary SinglePoolCertificateSequence where
             -- We must start with a registration certificate:
             certificates <- (:)
                 <$> (Registration <$> arbitrary)
-                <*> arbitrary
+                <*> scale (min 10) arbitrary
             pure $ SinglePoolCertificateSequence sharedPoolId $
                 setPoolCertificatePoolId sharedPoolId <$> certificates
 
@@ -276,7 +280,7 @@ data MultiPoolCertificateSequence = MultiPoolCertificateSequence
 instance Arbitrary MultiPoolCertificateSequence where
     arbitrary = MultiPoolCertificateSequence
         <$> arbitrary
-        <*> arbitrary
+        <*> scale (min 50) arbitrary
     shrink mpcs =
         [ MultiPoolCertificateSequence (getSerializationMethod mpcs) sequences
         | sequences <- shrink (getSinglePoolSequences mpcs)
@@ -302,6 +306,14 @@ serializeLists :: ListSerializationMethod -> [[a]] -> [a]
 serializeLists = \case
     Interleave -> interleave
     Concatenate -> concat
+
+newtype ManyPoolCertificates cert
+    = ManyPoolCertificates [(CertificatePublicationTime, cert)]
+    deriving (Eq, Show, Generic)
+
+instance Arbitrary cert => Arbitrary (ManyPoolCertificates cert) where
+    shrink = genericShrink
+    arbitrary = ManyPoolCertificates <$> scale (min 10) arbitrary
 
 -- Interleaves the given list of lists together in a fair way.
 --
