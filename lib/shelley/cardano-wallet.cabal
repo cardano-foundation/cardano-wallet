@@ -176,6 +176,7 @@ test-suite unit
     , cardano-api
     , cardano-crypto-class
     , cardano-wallet-core
+    , cardano-wallet-test-utils
     , cardano-wallet
     , containers
     , contra-tracer
@@ -183,6 +184,7 @@ test-suite unit
     , iohk-monitoring
     , hspec
     , memory
+    , optparse-applicative
     , ouroboros-consensus-shelley
     , ouroboros-network
     , shelley-spec-ledger
@@ -201,6 +203,7 @@ test-suite unit
       Main.hs
   other-modules:
       Cardano.Wallet.Shelley.CompatibilitySpec
+      Cardano.Wallet.Shelley.LaunchSpec
       Cardano.Wallet.Shelley.NetworkSpec
       Cardano.Wallet.Shelley.TransactionSpec
 

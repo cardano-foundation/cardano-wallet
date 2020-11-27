@@ -34,7 +34,7 @@ import Cardano.Wallet.Primitive.Model
     , totalBalance
     , totalUTxO
     )
-import Cardano.Wallet.Primitive.Slotting
+import Cardano.Wallet.Primitive.Slotting.Legacy
     ( flatSlot )
 import Cardano.Wallet.Primitive.Types
     ( Block (..)

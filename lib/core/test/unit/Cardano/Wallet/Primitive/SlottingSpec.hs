@@ -1,8 +1,10 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE TypeApplications #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
+
 module Cardano.Wallet.Primitive.SlottingSpec
     ( spec
     ) where
@@ -15,18 +17,20 @@ import Cardano.Wallet.Gen
     ( genActiveSlotCoefficient, shrinkActiveSlotCoefficient )
 import Cardano.Wallet.Primitive.Slotting
     ( Qry
-    , SlotParameters
     , endTimeOfEpoch
     , epochOf
     , firstSlotInEpoch
+    , singleEraInterpreter
+    , slotRangeFromTimeRange
+    , startTime
+    )
+import Cardano.Wallet.Primitive.Slotting.Legacy
+    ( SlotParameters (..)
     , flatSlot
     , fromFlatSlot
-    , singleEraInterpreter
     , slotParams
-    , slotRangeFromTimeRange
     , slotRangeFromTimeRange'
     , slotStartTime
-    , startTime
     )
 import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient
@@ -42,6 +46,8 @@ import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Data.Functor.Identity
     ( runIdentity )
+import Data.Generics.Internal.VL.Lens
+    ( (^.) )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Time
@@ -77,7 +83,7 @@ spec = do
 
                     let legacy = slotRangeFromTimeRange' (slotParams t0 sp) timeRange
 
-                    let el = getEpochLength sp
+                    let el = sp ^. #getEpochLength
                     let res' = fmap (fromFlatSlot el . unSlotNo) <$> res
                     res' === legacy
 
@@ -85,7 +91,7 @@ spec = do
                 $ withMaxSuccess 10000 $ property $ \t0 sp e -> do
                     let res = runIdentity $ singleEraInterpreter t0 sp
                             (firstSlotInEpoch e)
-                    let legacy = SlotNo $ flatSlot (getEpochLength sp) $ SlotId e 0
+                    let legacy = SlotNo $ flatSlot (sp ^. #getEpochLength) $ SlotId e 0
 
                     res === legacy
 
@@ -106,9 +112,13 @@ legacySlottingTest
 legacySlottingTest legacyImpl newImpl t0 sp slotNo = withMaxSuccess 10000 $ do
     let res = runIdentity $ singleEraInterpreter t0 sp (newImpl slotNo)
     let legacy = legacyImpl (slotParams t0 sp) $ fromFlatSlot
-            (getEpochLength sp)
+            (sp ^. #getEpochLength)
             (unSlotNo slotNo)
     res === legacy
+
+{-------------------------------------------------------------------------------
+                              Arbitrary instances
+-------------------------------------------------------------------------------}
 
 instance Arbitrary SlotNo where
     -- Don't generate /too/ large slots
