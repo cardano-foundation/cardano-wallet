@@ -59,8 +59,8 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , getRawKey
     , publicKey
     )
-import Cardano.Wallet.Primitive.AddressDerivation.Jormungandr
-    ( JormungandrKey (..), generateKeyFromSeed )
+import Cardano.Wallet.Primitive.AddressDerivation.Shelley
+    ( ShelleyKey (..), generateKeyFromSeed )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( CompareDiscovery (..)
     , GenChange (..)
@@ -458,7 +458,7 @@ walletUpdateNameNoSuchWallet wallet@(wid', _, _) wid wName =
 walletUpdatePassphrase
     :: (WalletId, WalletName, DummyState)
     -> Passphrase "raw"
-    -> Maybe (JormungandrKey 'RootK XPrv, Passphrase "encryption")
+    -> Maybe (ShelleyKey 'RootK XPrv, Passphrase "encryption")
     -> Property
 walletUpdatePassphrase wallet new mxprv = monadicIO $ liftIO $ do
     (WalletLayerFixture _ wl [wid] _) <- liftIO $ setupFixture wallet
@@ -478,7 +478,7 @@ walletUpdatePassphrase wallet new mxprv = monadicIO $ liftIO $ do
 
 walletUpdatePassphraseWrong
     :: (WalletId, WalletName, DummyState)
-    -> (JormungandrKey 'RootK XPrv, Passphrase "encryption")
+    -> (ShelleyKey 'RootK XPrv, Passphrase "encryption")
     -> (Passphrase "raw", Passphrase "raw")
     -> Property
 walletUpdatePassphraseWrong wallet (xprv, pwd) (old, new) =
@@ -505,7 +505,7 @@ walletUpdatePassphraseNoSuchWallet wallet@(wid', _, _) wid (old, new) =
 
 walletUpdatePassphraseDate
     :: (WalletId, WalletName, DummyState)
-    -> (JormungandrKey 'RootK XPrv, Passphrase "encryption")
+    -> (ShelleyKey 'RootK XPrv, Passphrase "encryption")
     -> Property
 walletUpdatePassphraseDate wallet (xprv, pwd) = monadicIO $ liftIO $ do
     (WalletLayerFixture _ wl [wid] _) <- liftIO $ setupFixture wallet
@@ -526,7 +526,7 @@ walletUpdatePassphraseDate wallet (xprv, pwd) = monadicIO $ liftIO $ do
 
 walletKeyIsReencrypted
     :: (WalletId, WalletName)
-    -> (JormungandrKey 'RootK XPrv, Passphrase "encryption")
+    -> (ShelleyKey 'RootK XPrv, Passphrase "encryption")
     -> Passphrase "raw"
     -> Property
 walletKeyIsReencrypted (wid, wname) (xprv, pwd) newPwd =
@@ -686,8 +686,8 @@ instance Arbitrary CoinSelectionGuard where
         pure $ CoinSelectionGuard minVal cs
 
 data WalletLayerFixture = WalletLayerFixture
-    { _fixtureDBLayer :: DBLayer IO DummyState JormungandrKey
-    , _fixtureWalletLayer :: WalletLayer DummyState DummyTarget JormungandrKey
+    { _fixtureDBLayer :: DBLayer IO DummyState ShelleyKey
+    , _fixtureWalletLayer :: WalletLayer DummyState DummyTarget ShelleyKey
     , _fixtureWallet :: [WalletId]
     , _fixtureSlotNoTime :: SlotNo -> UTCTime
     }
@@ -713,7 +713,7 @@ setupFixture (wid, wname, wstate) = do
 
 -- | A dummy transaction layer to see the effect of a root private key. It
 -- implements a fake signer that still produces sort of witnesses
-dummyTransactionLayer :: TransactionLayer DummyTarget JormungandrKey
+dummyTransactionLayer :: TransactionLayer DummyTarget ShelleyKey
 dummyTransactionLayer = TransactionLayer
     { mkStdTx = \_ keyFrom _slot _md cs -> do
         let inps' = map (second coin) (CS.inputs cs)
@@ -796,7 +796,7 @@ instance IsOurs DummyState Address where
 instance IsOurs DummyState RewardAccount where
     isOurs _ s = (Nothing, s)
 
-instance IsOwned DummyState JormungandrKey where
+instance IsOwned DummyState ShelleyKey where
     isOwned (DummyState m) (rootK, pwd) addr = do
         ix <- Map.lookup addr m
         let accXPrv = deriveAccountPrivateKey pwd rootK minBound
@@ -835,7 +835,7 @@ instance Arbitrary (Passphrase purpose) where
 instance Arbitrary SomeMnemonic where
     arbitrary = SomeMnemonic <$> genMnemonic @12
 
-instance {-# OVERLAPS #-} Arbitrary (JormungandrKey 'RootK XPrv, Passphrase "encryption")
+instance {-# OVERLAPS #-} Arbitrary (ShelleyKey 'RootK XPrv, Passphrase "encryption")
   where
     shrink _ = []
     arbitrary = do

@@ -41,8 +41,8 @@ import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey (..) )
-import Cardano.Wallet.Primitive.AddressDerivation.Jormungandr
-    ( JormungandrKey (..) )
+import Cardano.Wallet.Primitive.AddressDerivation.Shelley
+    ( ShelleyKey (..) )
 import Cardano.Wallet.Primitive.Types
     ( PassphraseScheme (..) )
 import Cardano.Wallet.Primitive.Types.Hash
@@ -86,7 +86,7 @@ import Test.Text.Roundtrip
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Byron as Byron
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Icarus as Icarus
-import qualified Cardano.Wallet.Primitive.AddressDerivation.Jormungandr as Jormungandr
+import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Shelley
 import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Write as CBOR
 import qualified Crypto.Scrypt as Scrypt
@@ -208,14 +208,14 @@ spec = do
             res `shouldSatisfy` isRight
 
     parallel $ describe "Keys storing and retrieving roundtrips" $ do
-        it "XPrv JormungandrKey"
-            (property $ prop_roundtripXPrv @JormungandrKey)
+        it "XPrv ShelleyKey"
+            (property $ prop_roundtripXPrv @ShelleyKey)
         it "XPrv IcarusKey"
             (property $ prop_roundtripXPrv @IcarusKey)
         it "XPrv ByronKey"
             (property $ prop_roundtripXPrv @ByronKey)
-        it "XPub JormungandrKey"
-            (property $ prop_roundtripXPub @JormungandrKey)
+        it "XPub ShelleyKey"
+            (property $ prop_roundtripXPub @ShelleyKey)
         it "XPub IcarusKey"
             (property $ prop_roundtripXPub @IcarusKey)
 
@@ -413,15 +413,15 @@ instance Show XPrv where
 instance Eq XPrv where
     a == b = CC.unXPrv a == CC.unXPrv b
 
-instance Arbitrary (JormungandrKey 'RootK XPrv) where
+instance Arbitrary (ShelleyKey 'RootK XPrv) where
     shrink _ = []
     arbitrary = genRootKeysSeqWithPass =<< genPassphrase (0, 16)
 
-instance Arbitrary (JormungandrKey 'AccountK XPub) where
+instance Arbitrary (ShelleyKey 'AccountK XPub) where
     shrink _ = []
     arbitrary = publicKey <$> (genRootKeysSeqWithPass =<< genPassphrase (0, 16))
 
-instance Arbitrary (JormungandrKey 'RootK XPub) where
+instance Arbitrary (ShelleyKey 'RootK XPub) where
     shrink _ = []
     arbitrary = publicKey <$> arbitrary
 
@@ -474,11 +474,11 @@ genAnyKeyWithPass pwd = oneof
 
 genRootKeysSeqWithPass
     :: Passphrase "encryption"
-    -> Gen (JormungandrKey depth XPrv)
+    -> Gen (ShelleyKey depth XPrv)
 genRootKeysSeqWithPass encryptionPass = do
     s <- SomeMnemonic <$> genMnemonic @15
     g <- Just . SomeMnemonic <$> genMnemonic @12
-    return $ Jormungandr.unsafeGenerateKeyFromSeed (s, g) encryptionPass
+    return $ Shelley.unsafeGenerateKeyFromSeed (s, g) encryptionPass
 
 genRootKeysRndWithPass
     :: Passphrase "encryption"

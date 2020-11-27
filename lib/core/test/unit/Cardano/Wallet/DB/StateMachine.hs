@@ -103,8 +103,8 @@ import Cardano.Wallet.Primitive.AddressDerivation
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )
-import Cardano.Wallet.Primitive.AddressDerivation.Jormungandr
-    ( JormungandrKey )
+import Cardano.Wallet.Primitive.AddressDerivation.Shelley
+    ( ShelleyKey )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
@@ -294,7 +294,7 @@ class PersistPrivateKey k => MockPrivKey k where
 zeroes :: ByteString
 zeroes = B8.replicate 256 '0'
 
-instance MockPrivKey (JormungandrKey 'RootK) where
+instance MockPrivKey (ShelleyKey 'RootK) where
     fromMockPrivKey s = (k, Hash (B8.pack s))
       where (k, _) = unsafeDeserializeXPrv (zeroes, mempty)
 
@@ -871,7 +871,7 @@ instance ToExpr TxStatus where
 instance ToExpr PoolId where
     toExpr = defaultExprViaShow
 
-instance ToExpr (SeqState 'Mainnet JormungandrKey) where
+instance ToExpr (SeqState 'Mainnet ShelleyKey) where
     toExpr = defaultExprViaShow
 
 instance ToExpr (RndState 'Mainnet) where

@@ -140,8 +140,8 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , passphraseMaxLength
     , passphraseMinLength
     )
-import Cardano.Wallet.Primitive.AddressDerivation.Jormungandr
-    ( JormungandrKey (..), generateKeyFromSeed )
+import Cardano.Wallet.Primitive.AddressDerivation.Shelley
+    ( ShelleyKey (..), generateKeyFromSeed )
 import Cardano.Wallet.Primitive.AddressDerivationSpec
     ()
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential

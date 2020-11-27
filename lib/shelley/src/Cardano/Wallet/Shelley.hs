@@ -380,14 +380,12 @@ serveWallet
         NetworkParameters gp sp pp = np
         nl' = fromCardanoBlock gp <$> nl
 
-    -- FIXME: reduce duplication (see Cardano.Wallet.Jormungandr)
     handleApiServerStartupError :: ListenError -> IO ExitCode
     handleApiServerStartupError err = do
         traceWith applicationTracer $ MsgServerStartupError err
         pure $ ExitFailure $ exitCodeApiServer err
 
 -- | Failure status codes for HTTP API server errors.
--- FIXME: reduce duplication (see Cardano.Wallet.Jormungandr)
 exitCodeApiServer :: ListenError -> Int
 exitCodeApiServer = \case
     ListenErrorHostDoesNotExist _ -> 10
@@ -440,8 +438,6 @@ instance HasSeverityAnnotation ApplicationLog where
 {-------------------------------------------------------------------------------
                                     Tracers
 -------------------------------------------------------------------------------}
-
--- FIXME: reduce duplication (see Cardano.Wallet.Jormungandr) vvv
 
 -- | The types of trace events produced by the Shelley API server.
 data Tracers' f = Tracers

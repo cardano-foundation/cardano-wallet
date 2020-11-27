@@ -231,8 +231,6 @@ import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
-import Cardano.Wallet.Primitive.AddressDerivation.Jormungandr
-    ( generateKeyFromSeed )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey )
 import Cardano.Wallet.Primitive.SyncProgress
@@ -2156,7 +2154,7 @@ pubKeyFromMnemonics mnemonics =
        $ deriveAccountPrivateKey mempty rootXPrv minBound
  where
      seed = either (error . show) id $ mkSomeMnemonic @'[15,24] mnemonics
-     rootXPrv = generateKeyFromSeed (seed, Nothing) mempty
+     rootXPrv = Shelley.generateKeyFromSeed (seed, Nothing) mempty
 
 --
 -- Helper for delegation statuses

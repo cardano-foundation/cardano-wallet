@@ -43,8 +43,8 @@ import Cardano.Wallet.DB.Model
     ( filterTxHistory )
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( dummyProtocolParameters )
-import Cardano.Wallet.Primitive.AddressDerivation.Jormungandr
-    ( JormungandrKey (..) )
+import Cardano.Wallet.Primitive.AddressDerivation.Shelley
+    ( ShelleyKey (..) )
 import Cardano.Wallet.Primitive.Model
     ( Wallet, applyBlock, currentTip )
 import Cardano.Wallet.Primitive.Types
@@ -134,7 +134,7 @@ import qualified Data.Set as Set
 
 properties
     :: (GenState s, Eq s)
-    => SpecWith (DBLayer IO s JormungandrKey)
+    => SpecWith (DBLayer IO s ShelleyKey)
 properties = do
     describe "Extra Properties about DB initialization" $ do
         it "createWallet . listWallets yields expected results"
@@ -341,7 +341,7 @@ properties = do
 -- | Wrap the result of 'readTxHistory' in an arbitrary identity Applicative
 readTxHistoryF
     :: Functor m
-    => DBLayer m s JormungandrKey
+    => DBLayer m s ShelleyKey
     -> PrimaryKey WalletId
     -> m (Identity GenTxHistory)
 readTxHistoryF DBLayer{..} wid =
@@ -349,7 +349,7 @@ readTxHistoryF DBLayer{..} wid =
         <$> atomically (readTxHistory wid Nothing Descending wholeRange Nothing)
 
 putTxHistoryF
-    :: DBLayer m s JormungandrKey
+    :: DBLayer m s ShelleyKey
     -> PrimaryKey WalletId
     -> GenTxHistory
     -> ExceptT ErrNoSuchWallet m ()
@@ -437,7 +437,7 @@ assertWith lbl condition = do
 
 -- | Can list created wallets
 prop_createListWallet
-    :: DBLayer IO s JormungandrKey
+    :: DBLayer IO s ShelleyKey
     -> KeyValPairs (PrimaryKey WalletId) (Wallet s , WalletMetadata)
     -> Property
 prop_createListWallet db@DBLayer{..} (KeyValPairs pairs) =
@@ -452,7 +452,7 @@ prop_createListWallet db@DBLayer{..} (KeyValPairs pairs) =
 
 -- | Trying to create a same wallet twice should yield an error
 prop_createWalletTwice
-    :: DBLayer IO s JormungandrKey
+    :: DBLayer IO s ShelleyKey
     -> ( PrimaryKey WalletId
        , Wallet s
        , WalletMetadata
@@ -471,7 +471,7 @@ prop_createWalletTwice db@DBLayer{..} (key@(PrimaryKey wid), cp, meta) =
 
 -- | Trying to remove a same wallet twice should yield an error
 prop_removeWalletTwice
-    :: DBLayer IO s JormungandrKey
+    :: DBLayer IO s ShelleyKey
     -> ( PrimaryKey WalletId
        , Wallet s
        , WalletMetadata
@@ -491,16 +491,16 @@ prop_removeWalletTwice db@DBLayer{..} (key@(PrimaryKey wid), cp, meta) =
 -- | Checks that a given resource can be read after having been inserted in DB.
 prop_readAfterPut
     :: ( Buildable (f a), Eq (f a), Applicative f, GenState s )
-    => (  DBLayer IO s JormungandrKey
+    => (  DBLayer IO s ShelleyKey
        -> PrimaryKey WalletId
        -> a
        -> ExceptT ErrNoSuchWallet IO ()
        ) -- ^ Put Operation
-    -> (  DBLayer IO s JormungandrKey
+    -> (  DBLayer IO s ShelleyKey
        -> PrimaryKey WalletId
        -> IO (f a)
        ) -- ^ Read Operation
-    -> DBLayer IO s JormungandrKey
+    -> DBLayer IO s ShelleyKey
     -> (PrimaryKey WalletId, a)
         -- ^ Property arguments
     -> Property
@@ -522,7 +522,7 @@ prop_readAfterPut putOp readOp db@DBLayer{..} (key, a) =
 
 prop_getTxAfterPutValidTxId
     :: GenState s
-    => DBLayer IO s JormungandrKey
+    => DBLayer IO s ShelleyKey
     -> PrimaryKey WalletId
     -> GenTxHistory
     -> Property
@@ -550,7 +550,7 @@ prop_getTxAfterPutValidTxId db@DBLayer{..} wid txGen =
 
 prop_getTxAfterPutInvalidTxId
     :: GenState s
-    => DBLayer IO s JormungandrKey
+    => DBLayer IO s ShelleyKey
     -> PrimaryKey WalletId
     -> GenTxHistory
     -> (Hash "Tx")
@@ -571,7 +571,7 @@ prop_getTxAfterPutInvalidTxId db@DBLayer{..} wid txGen txId' =
             (isNothing res)
 
 prop_getTxAfterPutInvalidWalletId
-    :: DBLayer IO s JormungandrKey
+    :: DBLayer IO s ShelleyKey
     -> ( PrimaryKey WalletId
        , Wallet s
        , WalletMetadata
@@ -595,18 +595,18 @@ prop_getTxAfterPutInvalidWalletId db@DBLayer{..} (key, cp, meta) txGen key'@(Pri
 -- | Can't put resource before a wallet has been initialized
 prop_putBeforeInit
     :: (Buildable (f a), Eq (f a))
-    => (  DBLayer IO s JormungandrKey
+    => (  DBLayer IO s ShelleyKey
        -> PrimaryKey WalletId
        -> a
        -> ExceptT ErrNoSuchWallet IO ()
        ) -- ^ Put Operation
-    -> (  DBLayer IO s JormungandrKey
+    -> (  DBLayer IO s ShelleyKey
        -> PrimaryKey WalletId
        -> IO (f a)
        ) -- ^ Read Operation
     -> f a
         -- ^ An 'empty' value for the 'Applicative' f
-    -> DBLayer IO s JormungandrKey
+    -> DBLayer IO s ShelleyKey
     -> (PrimaryKey WalletId, a)
         -- ^ Property arguments
     -> Property
@@ -630,24 +630,24 @@ prop_isolation
        , Arbitrary (Wallet s)
        , Show s
        )
-    => (  DBLayer IO s JormungandrKey
+    => (  DBLayer IO s ShelleyKey
        -> PrimaryKey WalletId
        -> a
        -> ExceptT ErrNoSuchWallet IO ()
        ) -- ^ Put Operation
-    -> (  DBLayer IO s JormungandrKey
+    -> (  DBLayer IO s ShelleyKey
        -> PrimaryKey WalletId
        -> IO (f b)
        ) -- ^ Read Operation for another resource
-    -> (  DBLayer IO s JormungandrKey
+    -> (  DBLayer IO s ShelleyKey
        -> PrimaryKey WalletId
        -> IO (g c)
        ) -- ^ Read Operation for another resource
-    -> (  DBLayer IO s JormungandrKey
+    -> (  DBLayer IO s ShelleyKey
        -> PrimaryKey WalletId
        -> IO (h d)
        ) -- ^ Read Operation for another resource
-    -> DBLayer IO s JormungandrKey
+    -> DBLayer IO s ShelleyKey
     -> (ShowFmt (PrimaryKey WalletId), ShowFmt a)
         -- ^ Properties arguments
     -> Property
@@ -675,13 +675,13 @@ prop_isolation putA readB readC readD db@DBLayer{..} (ShowFmt key, ShowFmt a) =
 -- | Can't read back data after delete
 prop_readAfterDelete
     :: (Buildable (f a), Eq (f a), GenState s)
-    => (  DBLayer IO s JormungandrKey
+    => (  DBLayer IO s ShelleyKey
        -> PrimaryKey WalletId
        -> IO (f a)
        ) -- ^ Read Operation
     -> f a
         -- ^ An 'empty' value for the 'Applicative' f
-    -> DBLayer IO s JormungandrKey
+    -> DBLayer IO s ShelleyKey
     -> ShowFmt (PrimaryKey WalletId)
     -> Property
 prop_readAfterDelete readOp empty db@DBLayer{..} (ShowFmt key) =
@@ -699,18 +699,18 @@ prop_readAfterDelete readOp empty db@DBLayer{..} (ShowFmt key) =
 -- | Check that the DB supports multiple sequential puts for a given resource
 prop_sequentialPut
     :: (Buildable (f a), Eq (f a), GenState s)
-    => (  DBLayer IO s JormungandrKey
+    => (  DBLayer IO s ShelleyKey
        -> PrimaryKey WalletId
        -> a
        -> ExceptT ErrNoSuchWallet IO ()
        ) -- ^ Put Operation
-    -> (  DBLayer IO s JormungandrKey
+    -> (  DBLayer IO s ShelleyKey
        -> PrimaryKey WalletId
        -> IO (f a)
        ) -- ^ Read Operation
     -> (forall k. Ord k => [(k, a)] -> [f a])
         -- ^ How do we expect operations to resolve
-    -> DBLayer IO s JormungandrKey
+    -> DBLayer IO s ShelleyKey
     -> KeyValPairs (ShowFmt (PrimaryKey WalletId)) (ShowFmt a)
         -- ^ Property arguments
     -> Property
@@ -739,18 +739,18 @@ prop_sequentialPut putOp readOp resolve db@DBLayer{..} kv =
 -- | Check that the DB supports multiple sequential puts for a given resource
 prop_parallelPut
     :: (Arbitrary (Wallet s), Show s)
-    => (  DBLayer IO s JormungandrKey
+    => (  DBLayer IO s ShelleyKey
        -> PrimaryKey WalletId
        -> a
        -> ExceptT ErrNoSuchWallet IO ()
        ) -- ^ Put Operation
-    -> (  DBLayer IO s JormungandrKey
+    -> (  DBLayer IO s ShelleyKey
        -> PrimaryKey WalletId
        -> IO (f a)
        ) -- ^ Read Operation
     -> (forall k. Ord k => [(k, a)] -> Int)
         -- ^ How many entries to we expect in the end
-    -> DBLayer IO s JormungandrKey
+    -> DBLayer IO s ShelleyKey
     -> KeyValPairs (PrimaryKey WalletId) a
         -- ^ Property arguments
     -> Property

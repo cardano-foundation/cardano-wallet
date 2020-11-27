@@ -103,8 +103,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
-import Cardano.Wallet.Primitive.AddressDerivation.Jormungandr
-    ( JormungandrKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey )
 import Cardano.Wallet.Primitive.Slotting
@@ -533,9 +531,6 @@ migrateManually tr proxy defaultFieldValues =
         | isShelleyDatabase = do
             addColumn_ conn True (DBField SeqStateDerivationPrefix) shelleyPrefix
 
-        | isJormungandrDatabase = do
-            addColumn_ conn True (DBField SeqStateDerivationPrefix) jormungandrPrefix
-
         | otherwise =
             return ()
       where
@@ -548,11 +543,6 @@ migrateManually tr proxy defaultFieldValues =
             keyTypeDescriptor proxy == keyTypeDescriptor (Proxy @ShelleyKey)
         shelleyPrefix = T.pack $ show $ toText
             $ Seq.DerivationPrefix (Seq.purposeCIP1852, Seq.coinTypeAda, minBound)
-
-        isJormungandrDatabase =
-            keyTypeDescriptor proxy == keyTypeDescriptor (Proxy @JormungandrKey)
-        jormungandrPrefix =
-            shelleyPrefix
 
     -- The 'AccountingStyle' constructors used to be respectively:
     --
