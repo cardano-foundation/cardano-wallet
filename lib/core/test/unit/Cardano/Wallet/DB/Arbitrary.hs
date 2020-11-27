@@ -458,8 +458,8 @@ instance Arbitrary (Index 'WholeDomain depth) where
 -------------------------------------------------------------------------------}
 
 instance Arbitrary (SeqState 'Mainnet ShelleyKey) where
-    shrink (SeqState intPool extPool ixs rwd prefix scriptPool) =
-        (\(i, e, x) -> SeqState i e x rwd prefix scriptPool) <$> shrink (intPool, extPool, ixs)
+    shrink (SeqState intPool extPool ixs rwd prefix sPool) =
+        (\(i, e, x) -> SeqState i e x rwd prefix sPool) <$> shrink (intPool, extPool, ixs)
     arbitrary = do
         extPool <- arbitrary
         SeqState

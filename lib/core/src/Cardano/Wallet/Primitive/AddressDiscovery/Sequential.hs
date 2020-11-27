@@ -135,6 +135,8 @@ import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Map.Strict
     ( Map )
+import Data.Ord
+    ( Down (..) )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Text.Class
@@ -315,7 +317,6 @@ toVerKeyHash = KeyHash . blake2b224 . xpubPublicKey . getRawKey
 -- | Create a new VerificationKey pool.
 -- The extension to the pool is done by adding next adjacent indices,
 -- marking them as unused and their corresponding public keys.
---
 mkVerificationKeyPool
     :: (SoftDerivation k, WalletKey k)
     => k 'AccountK XPub
@@ -332,12 +333,17 @@ mkVerificationKeyPool accXPub num@(AddressPoolGap g) vkPoolMap knownScripts = Ve
     }
   where
     minIndex = fromIntegral $ toInteger $ getIndex @'Soft minBound
+    lastNotUsedIndices =
+        L.takeWhile (\(_,isUsed) -> isUsed == Unused) $
+        L.sortOn (Down . fst) $
+        Map.elems vkPoolMap
     firstIndexToAdd = minIndex + L.length (Map.keys vkPoolMap)
+    newIndicesToAdd = fromInteger (toInteger g) - L.length lastNotUsedIndices
     deriveScriptXPub = deriveAddressPublicKey accXPub MultisigScript
     deriveVerKeyH = toVerKeyHash . deriveScriptXPub
     toIndex = toEnum . fromInteger . toInteger
     indices =
-        [firstIndexToAdd .. (firstIndexToAdd + fromInteger (toInteger g) - 1)]
+        [firstIndexToAdd .. firstIndexToAdd + newIndicesToAdd - 1]
     vkPoolMap' =
         Map.fromList $
         map (\ix -> (deriveVerKeyH (toIndex ix), (coerce $ toIndex ix, Unused)) )

@@ -7,7 +7,6 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
@@ -32,26 +31,17 @@ import Cardano.Address.Script
 import Cardano.Crypto.Wallet
     ( XPub )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..)
-    , DerivationType (..)
-    , Index (..)
-    , Role (..)
-    , SoftDerivation (..)
-    )
+    ( Depth (..), Index (..), Role (..), SoftDerivation (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
-    ( SeqState (..)
-    , VerificationKeyPool (..)
-    , defaultAddressPoolGap
-    , getAddressPoolGap
-    , mkUnboundedAddressPoolGap
-    , mkVerificationKeyPool
-    )
+    ( SeqState (..), VerificationKeyPool (..), mkVerificationKeyPool )
 import Cardano.Wallet.Primitive.Types.Address
     ( AddressState (..) )
 import Control.Monad
     ( foldM )
+import Data.Coerce
+    ( coerce )
 import Data.Functor.Identity
     ( Identity (..) )
 
@@ -69,14 +59,12 @@ isShared
 isShared script (SeqState !s1 !s2 !ixs !rpk !prefix !s3) =
     let verKeysInScript = retrieveAllVerKeyHashes script
         (VerificationKeyPool accXPub currentGap verKeyMap scripts) = s3
-        projectKey (ShelleyKey k) = ShelleyKey k
         toVerKey = deriveAddressPublicKey accXPub MultisigScript
-        projectIndex = toEnum . fromInteger . toInteger . getIndex @'Soft
         ourVerKeysInScript =
-            map (\(_,(ix,_)) -> toVerKey (projectIndex ix) ) $
+            map (\(_,(ix,_)) -> toVerKey (coerce ix) ) $
             filter (\(keyH,_) -> keyH `elem` verKeysInScript)
             (Map.toList verKeyMap)
-        scriptXPubs = L.nub $ map projectKey ourVerKeysInScript
+        scriptXPubs = L.nub $ map coerce ourVerKeysInScript
         updateAddressState k current =
             if k `elem` verKeysInScript then
                 Used
@@ -85,20 +73,12 @@ isShared script (SeqState !s1 !s2 !ixs !rpk !prefix !s3) =
         markedVerKeyMap =
             Map.mapWithKey (\keyH (ix,isUsed) -> (ix, updateAddressState keyH isUsed) )
             verKeyMap
-        -- if all verification keys are used (after discovering) we are extending scriptPool
-        extendingPool =
-            all ((== Used) . (\ (_, (_, isUsed)) -> isUsed))
-            (Map.toList markedVerKeyMap)
         insertIf predicate k v = if predicate v then Map.insert k v else id
         script' = insertIf (not . null) (toScriptHash script) scriptXPubs scripts
-        s3' = if extendingPool then
-                  mkVerificationKeyPool
-                  accXPub
-                  (mkUnboundedAddressPoolGap (getAddressPoolGap currentGap + getAddressPoolGap defaultAddressPoolGap))
-                  markedVerKeyMap
-                  script'
-              else
-                  VerificationKeyPool accXPub currentGap markedVerKeyMap script'
+
+        -- if there are no gap number of consecutive NotUsed verification keys
+        -- then we extend the verification key pool
+        s3' = mkVerificationKeyPool accXPub currentGap markedVerKeyMap script'
     in ( scriptXPubs
        , SeqState s1 s2 ixs rpk prefix s3'
        )

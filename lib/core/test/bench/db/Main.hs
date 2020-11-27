@@ -323,15 +323,15 @@ bgroupWriteSeqState db = bgroup "SeqState"
             pure cps
         cps :: [WalletBench]
         cps =
-            [ snd $ initWallet (withMovingSlot i block0) dummyGenesisParameters $
+            [ let extPool = mkPool a i
+              in snd $ initWallet (withMovingSlot i block0) dummyGenesisParameters $
                 SeqState
                     (mkPool a i)
-                    (mkPool a i)
+                    extPool
                     emptyPendingIxs
                     rewardAccount
                     defaultPrefix
-                    Map.empty
-                    (mkVerificationKeyPool (accountPubKey (mkPool a i)) (gap (mkPool a i)) Map.empty Map.empty)
+                    (mkVerificationKeyPool (accountPubKey extPool) (gap extPool) Map.empty Map.empty)
             | i <- [1..n]
             ]
 
@@ -621,6 +621,7 @@ defaultFieldValues = DefaultFieldValues
     , defaultDesiredNumberOfPool = 50
     , defaultMinimumUTxOValue = Coin 0
     , defaultHardforkEpoch = Nothing
+    , defaultMultisigPoolGap = Nothing
         -- NOTE value in the genesis when at the time this migration was needed.
     }
 
