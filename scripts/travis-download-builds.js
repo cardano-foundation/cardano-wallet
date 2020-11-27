@@ -30,11 +30,11 @@ function makeGitHubApi(options = {}) {
   return api;
 }
 
-async function findEvalByCommit(api, project, jobset, rev, page)  {
-  const evalsPath = `jobset/${project}/${jobset}/evals${page || ""}`;
-  const r = await api.get(jobPath);
+async function findEvalByCommit(api, project, jobset, rev, page = "?page=1")  {
+  const evalsPath = `jobset/${project}/${jobset}/evals${page}`;
+  const r = await api.get(evalsPath);
 
-  const eval = _.find(r.data.evals, e => e.jobsetevalinputs["cardano-wallet"].revision === rev);
+  const eval = _.find(r.data.evals, e => e.jobsetevalinputs["cardano-wallet"].revision.match(rev));
 
   if (eval) {
     return eval;
@@ -45,10 +45,6 @@ async function findEvalByCommit(api, project, jobset, rev, page)  {
   }
 }
 
-function findCardanoWalletEval(api, rev) {
-  return findEvalByCommit(apiapi, "Cardano", "cardano-wallet", rev);
-}
-
 async function findEvalFromGitHub(hydra, github, owner, repo, ref, page) {
   const q = page ? ("?page=" + page) : "";
   const r = await github.get(`repos/${owner}/${repo}/commits/${ref}/statuses${q}`);
@@ -57,8 +53,11 @@ async function findEvalFromGitHub(hydra, github, owner, repo, ref, page) {
 
   if (status) {
     if (status.state === "success") {
-      const eval = await hydra.get(status.target_url);
-      return eval.data;
+      let eval = await hydra.get(status.target_url).then(x => x.data);
+      if (eval.builds.length == 0) {
+          eval = await findEvalByCommit(hydra, 'Cardano', 'cardano-wallet', ref);
+      }
+      return eval;
     } else if (status.state === "pending") {
        console.log("Eval is pending - trying again...");
        await sleep(1000);
