@@ -102,7 +102,7 @@ import Servant.Server
 import Test.Hspec
     ( Spec, after, afterAll, beforeAll, describe, it, shouldBe, shouldContain )
 import Test.QuickCheck
-    ( Arbitrary (..), choose, property )
+    ( Arbitrary (..), choose, property, withMaxSuccess )
 import Test.QuickCheck.Monadic
     ( monadicIO )
 import Test.Utils.Windows
@@ -225,7 +225,7 @@ spec = describe "Logging Middleware"
             length (uniqueReqIds entries) `shouldBe` n
 
     it "correct time measures" $ \ctx -> property $ \(nReq, ix) ->
-        monadicIO $ liftIO $ do
+        withMaxSuccess 10 $ monadicIO $ liftIO $ do
             let (NumberOfRequests n, RandomIndex i) = (nReq, ix)
             let reqs = mconcat
                     [ replicate i (get ctx "/get")

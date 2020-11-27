@@ -94,26 +94,26 @@ spec = parallel $ do
                     a = double real / double sup
                     double = fromRational @Double . fromIntegral
 
-        mapM_ testAccuracy [ 0.01 , 0.05 , 0.10 , 0.25 , 0.50 ]
+        mapM_ testAccuracy [ 0.01 , 0.10 , 0.50 ]
 
     parallel $ describe "depleteUTxO properties" $ do
         it "No coin selection has outputs" $
-            property $ withMaxSuccess 1000 prop_onlyChangeOutputs
+            property prop_onlyChangeOutputs
 
         it "Every coin in the selection change >= minimum threshold coin" $
-            property $ withMaxSuccess 1000 prop_noLessThanThreshold
+            property prop_noLessThanThreshold
 
         it "Total input UTxO value >= sum of selection change coins" $
-            property $ withMaxSuccess 1000 prop_inputsGreaterThanOutputs
+            property prop_inputsGreaterThanOutputs
 
         it "Every selection input is unique" $
-            property $ withMaxSuccess 1000 prop_inputsAreUnique
+            property prop_inputsAreUnique
 
         it "Every selection input is a member of the UTxO" $
-            property $ withMaxSuccess 1000 prop_inputsStillInUTxO
+            property prop_inputsStillInUTxO
 
         it "Every coin selection is well-balanced" $
-            property $ withMaxSuccess 1000 prop_wellBalanced
+            property prop_wellBalanced
 
     parallel $ describe "depleteUTxO regressions" $ do
         it "regression #1" $ do

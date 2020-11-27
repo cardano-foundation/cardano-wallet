@@ -380,7 +380,7 @@ spec = do
     parallel $ describe "prop_rebalanceSelection" $ do
         it "The fee balancing algorithm converges for any coin selection."
             $ property
-            $ withMaxSuccess 10000
+            $ withMaxSuccess 2000
             $ forAllBlind genSelection' prop_rebalanceSelection
 
 {-------------------------------------------------------------------------------
