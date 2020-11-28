@@ -37,6 +37,8 @@ import Prelude
 
 import Cardano.Address.Derivation
     ( XPrv, XPub )
+import Cardano.Address.Script
+    ( KeyHash (..) )
 import Cardano.DB.Sqlite
     ( DBField (..)
     , DBLog (..)
@@ -1732,6 +1734,7 @@ instance
             }
         insertAddressPool @n wid sl intPool
         insertAddressPool @n wid sl extPool
+        insertScriptPool wid sl sPool
         deleteWhere [SeqStatePendingWalletId ==. wid]
         dbChunked
             insertMany_
@@ -1744,10 +1747,9 @@ instance
         let rewardXPub = unsafeDeserializeXPub rewardBytes
         intPool <- lift $ selectAddressPool @n wid sl iGap accountXPub
         extPool <- lift $ selectAddressPool @n wid sl eGap accountXPub
-        --TO-DO
-        let multiPool = Seq.mkVerificationKeyPool accountXPub sGap Map.empty Map.empty
+        sPool <- lift $ selectScriptPool wid sl sGap accountXPub
         pendingChangeIxs <- lift $ selectSeqStatePendingIxs wid
-        pure $ Seq.SeqState intPool extPool pendingChangeIxs rewardXPub prefix multiPool
+        pure $ Seq.SeqState intPool extPool pendingChangeIxs rewardXPub prefix sPool
 
 insertAddressPool
     :: forall n k c. (PaymentAddress n k, Typeable c)
@@ -1800,6 +1802,45 @@ selectSeqStatePendingIxs wid =
         [Desc SeqStatePendingIxIndex]
   where
     fromRes = fmap (W.Index . seqStatePendingIxIndex . entityVal)
+
+insertScriptPool
+    :: W.WalletId
+    -> W.SlotNo
+    -> Seq.VerificationKeyPool k
+    -> SqlPersistT IO ()
+insertScriptPool wid sl pool =
+    void $ dbChunked insertMany_
+        [ SeqStateAddress wid sl (W.Address payload) (getIndex ix) W.MultisigScript state
+        | (KeyHash payload, (ix, state) )
+        <- Map.toList (Seq.verPoolIndexedKeys pool)
+        ]
+
+selectScriptPool
+    :: forall k .
+        ( SoftDerivation k
+        , WalletKey k
+        )
+    => W.WalletId
+    -> W.SlotNo
+    -> Seq.AddressPoolGap
+    -> k 'AccountK XPub
+    -> SqlPersistT IO (Seq.VerificationKeyPool k)
+selectScriptPool wid sl gap xpub = do
+    verKeys <- fmap entityVal <$> selectList
+        [ SeqStateAddressWalletId ==. wid
+        , SeqStateAddressSlot ==. sl
+        , SeqStateAddressRole ==. W.MultisigScript
+        ] [Asc SeqStateAddressIndex]
+    pure $ scriptPoolFromEntity verKeys
+  where
+    verKeyMap =
+        Map.fromList .
+        map (\x -> (coerce $ seqStateAddressAddress x, (Index $ seqStateAddressIndex x, seqStateAddressStatus x)) )
+    scriptPoolFromEntity
+        :: [SeqStateAddress]
+        -> Seq.VerificationKeyPool k
+    scriptPoolFromEntity verKeys
+        = Seq.mkVerificationKeyPool xpub gap (verKeyMap verKeys) Map.empty
 
 {-------------------------------------------------------------------------------
                           HD Random address discovery
