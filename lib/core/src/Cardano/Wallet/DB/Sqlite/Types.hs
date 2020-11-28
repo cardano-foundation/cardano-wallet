@@ -21,6 +21,10 @@ module Cardano.Wallet.DB.Sqlite.Types where
 
 import Prelude
 
+import Cardano.Address.Script
+    ( ScriptHash (..) )
+import Cardano.Api.MetaData
+    ( TxMetadataJsonSchema (..), metadataFromJson, metadataToJson )
 import Cardano.Api.Typed
     ( TxMetadataJsonSchema (..)
     , displayError
@@ -119,6 +123,7 @@ import Web.PathPieces
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
 
 ----------------------------------------------------------------------------
 
@@ -421,6 +426,28 @@ instance PersistField Address where
 
 instance PersistFieldSql Address where
     sqlType _ = sqlType (Proxy @Text)
+
+----------------------------------------------------------------------------
+-- ScriptHash
+
+instance ToText ScriptHash where
+    toText (ScriptHash sh) =
+        T.decodeUtf8 $ convertToBase Base16 sh
+
+instance FromText ScriptHash where
+    fromText = bimap textDecodingError ScriptHash
+        . convertFromBase Base16
+        . T.encodeUtf8
+      where
+        textDecodingError = TextDecodingError . show
+
+instance PersistField ScriptHash where
+    toPersistValue = toPersistValue . toText
+    fromPersistValue = fromPersistValueFromText
+
+instance PersistFieldSql ScriptHash where
+    sqlType _ = sqlType (Proxy @Text)
+
 
 ----------------------------------------------------------------------------
 -- AddressPoolGap

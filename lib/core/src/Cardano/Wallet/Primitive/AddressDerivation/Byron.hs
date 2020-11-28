@@ -150,6 +150,7 @@ instance WalletKey ByronKey where
     -- Hash a public key to some other representation.
     digest = hash . unXPub . getKey
     getRawKey = getKey
+    liftRawKey = error "not supported"
     keyTypeDescriptor _ = "rnd"
 
 instance KnownNat pm => PaymentAddress ('Testnet pm) ByronKey where

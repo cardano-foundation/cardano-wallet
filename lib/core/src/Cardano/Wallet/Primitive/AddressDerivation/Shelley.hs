@@ -233,6 +233,9 @@ instance WalletKey ShelleyKey where
     getRawKey =
         getKey
 
+    liftRawKey =
+        ShelleyKey
+
     keyTypeDescriptor _ =
         "she"
 

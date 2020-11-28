@@ -704,6 +704,11 @@ class WalletKey (key :: Depth -> * -> *) where
         :: key depth raw
         -> raw
 
+    -- | Lift 'XPrv' or 'XPub' to 'WalletKey'.
+    liftRawKey
+        :: raw
+        -> key depth raw
+
 -- | Encoding of addresses for certain key types and backend targets.
 class MkKeyFingerprint key Address
     => PaymentAddress (network :: NetworkDiscriminant) key where

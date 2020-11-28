@@ -24,6 +24,8 @@ module Cardano.Wallet.DB.Sqlite.TH where
 
 import Prelude
 
+import Cardano.Address.Script
+    ( ScriptHash )
 import Cardano.Slotting.Slot
     ( SlotNo )
 import Cardano.Wallet.DB.Sqlite.Types
@@ -264,6 +266,24 @@ SeqStateAddress
         seqStateAddressIndex
         seqStateAddressRole
     Foreign Checkpoint seq_state_address seqStateAddressWalletId seqStateAddressSlot ! ON DELETE CASCADE
+    deriving Show Generic
+
+-- Mapping of discovered script hashes to our verification keys, and the slot
+-- when they were discovered.
+SeqStateScriptHash
+    seqStateScriptHashWalletId         W.WalletId         sql=wallet_id
+    seqStateScriptHashSlot             SlotNo             sql=slot
+    seqStateScriptHashScriptHash       ScriptHash         sql=script_hash
+    seqStateScriptHashVerificationKey  W.Address          sql=verification_key
+    seqStateScriptHashIndex            Word32             sql=verification_key_ix
+
+    Primary
+        seqStateScriptHashWalletId
+        seqStateScriptHashSlot
+        seqStateScriptHashScriptHash
+        seqStateScriptHashVerificationKey
+        seqStateScriptHashIndex
+    Foreign Checkpoint seq_state_script_hash seqStateScriptHashWalletId seqStateScriptHashSlot ! ON DELETE CASCADE
     deriving Show Generic
 
 -- Sequential address discovery scheme -- pending change indexes

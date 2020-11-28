@@ -354,6 +354,9 @@ instance WalletKey IcarusKey where
     getRawKey =
         getKey
 
+    liftRawKey =
+        IcarusKey
+
 {-------------------------------------------------------------------------------
                          Relationship Key / Address
 -------------------------------------------------------------------------------}

@@ -12,6 +12,8 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
+{-# OPTIONS_GHC -fno-warn-orphans #-}
+
 {- HLINT ignore "Redundant flip" -}
 
 -- |
@@ -36,9 +38,9 @@ module Cardano.Wallet.DB.Sqlite
 import Prelude
 
 import Cardano.Address.Derivation
-    ( XPrv, XPub )
+    ( XPrv, XPub, xpubFromBytes, xpubToBytes )
 import Cardano.Address.Script
-    ( KeyHash (..) )
+    ( KeyHash (..), ScriptHash (..) )
 import Cardano.DB.Sqlite
     ( DBField (..)
     , DBLog (..)
@@ -79,6 +81,7 @@ import Cardano.Wallet.DB.Sqlite.TH
     , SeqState (..)
     , SeqStateAddress (..)
     , SeqStatePendingIx (..)
+    , SeqStateScriptHash (..)
     , StakeKeyCertificate (..)
     , TxIn (..)
     , TxMeta (..)
@@ -106,7 +109,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
-    ( ShelleyKey )
+    ( ShelleyKey (..) )
 import Cardano.Wallet.Primitive.Slotting
     ( TimeInterpreter
     , epochOf
@@ -1804,16 +1807,26 @@ selectSeqStatePendingIxs wid =
     fromRes = fmap (W.Index . seqStatePendingIxIndex . entityVal)
 
 insertScriptPool
-    :: W.WalletId
+    :: forall k . WalletKey k
+    => W.WalletId
     -> W.SlotNo
     -> Seq.VerificationKeyPool k
     -> SqlPersistT IO ()
-insertScriptPool wid sl pool =
+insertScriptPool wid sl pool = do
     void $ dbChunked insertMany_
         [ SeqStateAddress wid sl (W.Address payload) (getIndex ix) W.MultisigScript state
         | (KeyHash payload, (ix, state) )
         <- Map.toList (Seq.verPoolIndexedKeys pool)
         ]
+    void $ dbChunked insertMany_ $
+        concat $ map toDB $ Map.toList (Seq.verPoolKnownScripts pool)
+  where
+    toAddress = W.Address . xpubToBytes . getRawKey
+    toDB (scriptHash, verKeys) =
+        zipWith (\v -> SeqStateScriptHash wid sl scriptHash (toAddress v)) verKeys [0..]
+
+instance Ord ScriptHash where
+    compare (ScriptHash sh1) (ScriptHash sh2) = compare sh1 sh2
 
 selectScriptPool
     :: forall k .
@@ -1831,16 +1844,35 @@ selectScriptPool wid sl gap xpub = do
         , SeqStateAddressSlot ==. sl
         , SeqStateAddressRole ==. W.MultisigScript
         ] [Asc SeqStateAddressIndex]
-    pure $ scriptPoolFromEntity verKeys
+    scripts <- fmap entityVal <$> selectList
+        [ SeqStateScriptHashWalletId ==. wid
+        , SeqStateScriptHashSlot ==. sl
+        ] []
+    pure $ scriptPoolFromEntities verKeys scripts
   where
     verKeyMap =
         Map.fromList .
-        map (\x -> (coerce $ seqStateAddressAddress x, (Index $ seqStateAddressIndex x, seqStateAddressStatus x)) )
-    scriptPoolFromEntity
+        map (\x -> ( coerce $ seqStateAddressAddress x
+                   , ( W.Index $ seqStateAddressIndex x
+                     , seqStateAddressStatus x
+                     )))
+    insertIfNotNothing k xpubM i = case xpubM of
+        Just xpub' -> Map.insertWith (++) k [(i, liftRawKey xpub')]
+        Nothing -> id
+    knownScripts =
+        Map.map (map snd . sortOn fst) .
+        foldr (\(sh, vK, i) -> insertIfNotNothing sh vK i) Map.empty .
+        map (\x -> ( seqStateScriptHashScriptHash x
+                   , xpubFromBytes $ W.unAddress $
+                       seqStateScriptHashVerificationKey x
+                   , seqStateScriptHashIndex x
+                   ))
+    scriptPoolFromEntities
         :: [SeqStateAddress]
+        -> [SeqStateScriptHash]
         -> Seq.VerificationKeyPool k
-    scriptPoolFromEntity verKeys
-        = Seq.mkVerificationKeyPool xpub gap (verKeyMap verKeys) Map.empty
+    scriptPoolFromEntities verKeys scripts
+        = Seq.mkVerificationKeyPool xpub gap (verKeyMap verKeys) (knownScripts scripts)
 
 {-------------------------------------------------------------------------------
                           HD Random address discovery
