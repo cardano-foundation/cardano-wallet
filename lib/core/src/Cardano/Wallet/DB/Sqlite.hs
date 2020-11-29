@@ -1819,11 +1819,11 @@ insertScriptPool wid sl pool = do
         <- Map.toList (Seq.verPoolIndexedKeys pool)
         ]
     void $ dbChunked insertMany_ $
-        concat $ map toDB $ Map.toList (Seq.verPoolKnownScripts pool)
+        concatMap toDB $ Map.toList (Seq.verPoolKnownScripts pool)
   where
     toAddress = W.Address . xpubToBytes . getRawKey
     toDB (scriptHash, verKeys) =
-        zipWith (\v -> SeqStateScriptHash wid sl scriptHash (toAddress v)) verKeys [0..]
+        zipWith (SeqStateScriptHash wid sl scriptHash . toAddress) verKeys [0..]
 
 instance Ord ScriptHash where
     compare (ScriptHash sh1) (ScriptHash sh2) = compare sh1 sh2
@@ -1861,12 +1861,13 @@ selectScriptPool wid sl gap xpub = do
         Nothing -> id
     knownScripts =
         Map.map (map snd . sortOn fst) .
-        foldr (\(sh, vK, i) -> insertIfNotNothing sh vK i) Map.empty .
-        map (\x -> ( seqStateScriptHashScriptHash x
-                   , xpubFromBytes $ W.unAddress $
-                       seqStateScriptHashVerificationKey x
-                   , seqStateScriptHashIndex x
-                   ))
+        foldr
+        ((\ (sh, vK, i) -> insertIfNotNothing sh vK i)
+         . (\ x -> (  seqStateScriptHashScriptHash x
+                    , xpubFromBytes $ W.unAddress $
+                      seqStateScriptHashVerificationKey x
+                    , seqStateScriptHashIndex x)))
+        Map.empty
     scriptPoolFromEntities
         :: [SeqStateAddress]
         -> [SeqStateScriptHash]

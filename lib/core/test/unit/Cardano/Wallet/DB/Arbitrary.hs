@@ -31,6 +31,8 @@ import Prelude
 
 import Cardano.Address.Derivation
     ( XPrv, XPub )
+import Cardano.Address.Script
+    ( ScriptHash (..) )
 import Cardano.Crypto.Wallet
     ( unXPrv )
 import Cardano.Mnemonic
@@ -49,6 +51,8 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , Index (..)
     , NetworkDiscriminant (..)
     , Passphrase (..)
+    , Role (..)
+    , SoftDerivation (..)
     , WalletKey (..)
     , publicKey
     )
@@ -64,12 +68,14 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPool
     , DerivationPrefix (..)
     , SeqState (..)
+    , VerificationKeyPool
     , accountPubKey
     , coinTypeAda
-    , gap
+    , defaultAddressPoolGap
     , mkAddressPool
     , mkVerificationKeyPool
     , purposeCIP1852
+    , toVerKeyHash
     )
 import Cardano.Wallet.Primitive.Model
     ( Wallet
@@ -79,6 +85,10 @@ import Cardano.Wallet.Primitive.Model
     , unsafeInitWallet
     , utxo
     )
+import Cardano.Wallet.Primitive.Scripts
+    ()
+import Cardano.Wallet.Primitive.Slotting
+    ( unsafeEpochNo )
 import Cardano.Wallet.Primitive.Types
     ( Block (..)
     , BlockHeader (..)
@@ -468,7 +478,7 @@ instance Arbitrary (SeqState 'Mainnet ShelleyKey) where
             <*> arbitrary
             <*> pure arbitraryRewardAccount
             <*> pure defaultSeqStatePrefix
-            <*> pure (mkVerificationKeyPool (accountPubKey extPool) (gap extPool) Map.empty Map.empty)
+            <*> genVerificationKeyPool (accountPubKey extPool)
 
 defaultSeqStatePrefix :: DerivationPrefix
 defaultSeqStatePrefix = DerivationPrefix
@@ -476,6 +486,34 @@ defaultSeqStatePrefix = DerivationPrefix
     , coinTypeAda
     , minBound
     )
+
+instance Arbitrary ScriptHash where
+    arbitrary =
+        pure $ ScriptHash (BS.replicate 28 0)
+
+genVerificationKeyPool
+    :: ShelleyKey 'AccountK XPub
+    -> Gen (VerificationKeyPool ShelleyKey)
+genVerificationKeyPool accXPub = do
+    nVerKeys <- choose (5,10)
+    let minIndex = getIndex @'Soft minBound
+    let toVerKey ix =
+            deriveAddressPublicKey accXPub MultisigScript
+            (toEnum (fromInteger $ toInteger $ minIndex + ix))
+    verKeysIxs <- L.nub <$> vectorOf nVerKeys (choose (0, 15))
+    let nVerKeys' = L.length verKeysIxs
+    let setUsed ix =
+            if ix `elem` verKeysIxs then
+                Used
+            else
+                Unused
+    let indexedKeysMap = map (\ix -> (toVerKeyHash $ toVerKey ix, (Index ix, setUsed ix)))
+            [0 .. maximum verKeysIxs]
+    knownScripts <- vectorOf nVerKeys' arbitrary
+    let knownScriptsMap =
+            zipWith (\s k -> (s,[k])) knownScripts (coerce . toVerKey <$> verKeysIxs)
+    pure $ mkVerificationKeyPool accXPub defaultAddressPoolGap
+        (Map.fromList indexedKeysMap) (Map.fromList knownScriptsMap)
 
 instance Arbitrary (ShelleyKey 'RootK XPrv) where
     shrink _ = []

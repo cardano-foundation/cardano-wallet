@@ -118,6 +118,8 @@ spec = do
             (property prop_scriptsOutsideNotDiscovered)
         it "before and after discovery pool number of last consequitive Unused keys stays the same"
             (property prop_unusedVerKeysConstant)
+        it "discovered verification keys in scripts are consistent between knownScripts and indexedKeys"
+            (property prop_verKeysConsistent)
 
 prop_scriptFromOurVerKeys
     :: AccountXPubWithScripts
@@ -221,6 +223,17 @@ prop_unusedVerKeysConstant (AccountXPubWithScripts accXPub' scripts') = do
             Map.elems .
             getVerKeyMap
     L.length (lastUnusedKeys seqState) === L.length (lastUnusedKeys seqState')
+
+prop_verKeysConsistent
+    :: AccountXPubWithScripts
+    -> Property
+prop_verKeysConsistent (AccountXPubWithScripts accXPub' scripts') = do
+    let seqState0 = initializeState accXPub'
+    let seqState = foldr (\script s -> snd $ isShared script s) seqState0 scripts'
+    let verKeys = L.nub $ concat $ Map.elems $ getKnownScripts seqState
+    let verKeyHashes =  Map.keys $ Map.filter (\(_, isUsed) -> isUsed == Used) $
+            getVerKeyMap seqState
+    Set.fromList verKeyHashes  === Set.fromList (map toVerKeyHash verKeys)
 
 data AccountXPubWithScripts = AccountXPubWithScripts
     { accXPub :: ShelleyKey 'AccountK XPub
