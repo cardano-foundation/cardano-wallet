@@ -42,7 +42,7 @@ import Data.Word
 import Safe
     ( headMay, lastMay )
 import Test.Hspec
-    ( Spec, describe, it )
+    ( Spec, describe, it, parallel )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
@@ -71,11 +71,11 @@ import qualified Data.Set as Set
 
 spec :: Spec
 spec = do
-    describe "Test Chain" $ do
+    parallel $ describe "Test Chain" $ do
         it "Always generate valid test chains" $
             property prop_generator
 
-    describe "Unstable block headers" $ do
+    parallel $ describe "Unstable block headers" $ do
         it "Are updated by fetching blocks"
             $ withMaxSuccess 10000
             $ property prop_unstableBlockHeaders
@@ -85,7 +85,7 @@ spec = do
         it "Handles failure of node"
             $ withMaxSuccess 10000
             $ property prop_updateUnstableBlocksFailure
-    describe "Chain intersection" $ do
+    parallel $ describe "Chain intersection" $ do
         it "Calculates GCBH"
             $ withMaxSuccess 1000
             $ property prop_greatestCommonBlockHeader

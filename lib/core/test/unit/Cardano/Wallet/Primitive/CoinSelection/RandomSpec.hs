@@ -30,7 +30,7 @@ import Data.Either
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Test.Hspec
-    ( Spec, describe, it )
+    ( Spec, describe, it, parallel )
 import Test.QuickCheck
     ( Property, counterexample, property )
 import Test.QuickCheck.Monadic
@@ -41,7 +41,7 @@ import qualified Data.List.NonEmpty as NE
 
 spec :: Spec
 spec = do
-    describe "Coin selection : random algorithm unit tests" $ do
+    parallel $ describe "Coin selection : random algorithm unit tests" $ do
         let oneAda = 1000000
 
         coinSelectionUnitTest random ""
@@ -324,7 +324,7 @@ spec = do
                 , totalWithdrawal = 0
                 })
 
-    describe "Coin selection properties : random algorithm" $ do
+    parallel $ describe "Coin selection properties : random algorithm" $ do
         it "forall (UTxO, NonEmpty TxOut), \
            \ running algorithm gives not less UTxO fragmentation than LargestFirst algorithm"
             (property propFragmentation)

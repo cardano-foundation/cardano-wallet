@@ -53,6 +53,7 @@ library
       src
   exposed-modules:
       Test.Hspec.Extra
+      Test.QuickCheck.Extra
       Test.Utils.FilePath
       Test.Utils.Paths
       Test.Utils.Roundtrip

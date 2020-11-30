@@ -63,7 +63,7 @@ import Data.Word
 import Fmt
     ( Buildable (..), nameF, pretty, tupleF )
 import Test.Hspec
-    ( Spec, SpecWith, describe, it, shouldBe )
+    ( Spec, SpecWith, describe, it, parallel, shouldBe )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
@@ -99,7 +99,7 @@ import qualified Data.Map.Strict as Map
 
 spec :: Spec
 spec = do
-    describe "Fee calculation : unit tests" $ do
+    parallel $ describe "Fee calculation : unit tests" $ do
         -- Change covers fee exactly, single change output
         feeUnitTest id (FeeFixture
             { fInps = [20]
@@ -353,7 +353,7 @@ spec = do
             , csChngs = [1]
             })
 
-    describe "Fee Calculation: Generators" $ do
+    parallel $ describe "Fee Calculation: Generators" $ do
         it "Arbitrary CoinSelection" $ property $ \(ShowFmt cs) ->
             property $ isValidSelection cs
                 & counterexample ("output balance: "
@@ -361,13 +361,13 @@ spec = do
                 & counterexample ("input balance:  "
                     <> show (inputBalance cs))
 
-    describe "Fee Adjustment properties" $ do
+    parallel $ describe "Fee Adjustment properties" $ do
         it "Fee adjustment is deterministic when there's no extra inputs"
             (property propDeterministic)
         it "Adjusting for fee (/= 0) reduces the change outputs or increase inputs"
             (property propReducedChanges)
 
-    describe "divvyFee" $ do
+    parallel $ describe "divvyFee" $ do
         it "Σ fst (divvyFee fee outs) == fee"
             (checkCoverage propDivvyFeeSame)
         it "snd (divvyFee fee outs) == outs"
@@ -377,12 +377,11 @@ spec = do
         it "expectFailure: empty list"
             (expectFailure propDivvyFeeInvariantEmptyList)
 
-    describe "prop_rebalanceSelection" $ do
+    parallel $ describe "prop_rebalanceSelection" $ do
         it "The fee balancing algorithm converges for any coin selection."
             $ property
-            $ withMaxSuccess 10000
+            $ withMaxSuccess 2000
             $ forAllBlind genSelection' prop_rebalanceSelection
-
 
 {-------------------------------------------------------------------------------
                          Fee Adjustment - Properties

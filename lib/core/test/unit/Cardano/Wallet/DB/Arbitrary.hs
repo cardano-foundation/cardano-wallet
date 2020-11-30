@@ -54,8 +54,8 @@ import Cardano.Wallet.Primitive.AddressDerivation
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey (..) )
-import Cardano.Wallet.Primitive.AddressDerivation.Jormungandr
-    ( JormungandrKey (..), addrSingleSize, unsafeGenerateKeyFromSeed )
+import Cardano.Wallet.Primitive.AddressDerivation.Shelley
+    ( ShelleyKey (..), unsafeGenerateKeyFromSeed )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( IsOurs )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
@@ -190,7 +190,7 @@ import Test.Utils.Time
     ( genUniformTime )
 
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Byron as Byron
-import qualified Cardano.Wallet.Primitive.AddressDerivation.Jormungandr as Jormungandr
+import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Shelley
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Sequential as Seq
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
@@ -437,7 +437,7 @@ instance (Ord a, Arbitrary a) => Arbitrary (Range a) where
 -------------------------------------------------------------------------------}
 
 instance Arbitrary Address where
-    arbitrary = Address . B8.pack <$> vector addrSingleSize
+    arbitrary = Address . B8.pack <$> vector 29
 
 instance Arbitrary (Index 'Soft depth) where
     shrink _ = []
@@ -455,7 +455,7 @@ instance Arbitrary (Index 'WholeDomain depth) where
                               Sequential State
 -------------------------------------------------------------------------------}
 
-instance Arbitrary (SeqState 'Mainnet JormungandrKey) where
+instance Arbitrary (SeqState 'Mainnet ShelleyKey) where
     shrink (SeqState intPool extPool ixs rwd prefix) =
         (\(i, e, x) -> SeqState i e x rwd prefix) <$> shrink (intPool, extPool, ixs)
     arbitrary = SeqState
@@ -472,7 +472,7 @@ defaultSeqStatePrefix = DerivationPrefix
     , minBound
     )
 
-instance Arbitrary (JormungandrKey 'RootK XPrv) where
+instance Arbitrary (ShelleyKey 'RootK XPrv) where
     shrink _ = []
     arbitrary = elements rootKeysSeq
 
@@ -497,17 +497,17 @@ instance Arbitrary (JormungandrKey 'RootK XPrv) where
 instance Arbitrary (Seq.PendingIxs) where
     arbitrary = pure Seq.emptyPendingIxs
 
-instance Typeable chain => Arbitrary (AddressPool chain JormungandrKey) where
+instance Typeable chain => Arbitrary (AddressPool chain ShelleyKey) where
     arbitrary = pure $ mkAddressPool @'Mainnet arbitrarySeqAccount minBound mempty
 
 -- Properties are quite heavy on the generation of values, although for
 -- private keys, it isn't particularly useful / relevant to generate many of
 -- them as they're really treated as an opaque type. Instead, we generate them
 -- once, and picks from the list.
-rootKeysSeq :: [JormungandrKey 'RootK XPrv]
+rootKeysSeq :: [ShelleyKey 'RootK XPrv]
 rootKeysSeq = unsafePerformIO $ generate (vectorOf 10 genRootKeysSeq)
   where
-    genRootKeysSeq :: Gen (JormungandrKey 'RootK XPrv)
+    genRootKeysSeq :: Gen (ShelleyKey 'RootK XPrv)
     genRootKeysSeq = do
         s <- SomeMnemonic <$> genMnemonic @12
         g <- frequency
@@ -515,18 +515,18 @@ rootKeysSeq = unsafePerformIO $ generate (vectorOf 10 genRootKeysSeq)
                 , (3, Just . SomeMnemonic <$> genMnemonic @12)
                 ]
         e <- genPassphrase @"encryption" (0, 16)
-        return $ Jormungandr.generateKeyFromSeed (s, g) e
+        return $ Shelley.generateKeyFromSeed (s, g) e
 {-# NOINLINE rootKeysSeq #-}
 
 arbitrarySeqAccount
-    :: JormungandrKey 'AccountK XPub
+    :: ShelleyKey 'AccountK XPub
 arbitrarySeqAccount =
     publicKey $ unsafeGenerateKeyFromSeed (mw, Nothing) mempty
   where
     mw = someDummyMnemonic (Proxy @15)
 
 arbitraryRewardAccount
-    :: JormungandrKey 'AddressK XPub
+    :: ShelleyKey 'AddressK XPub
 arbitraryRewardAccount =
     publicKey $ unsafeGenerateKeyFromSeed (mw, Nothing) mempty
   where
@@ -602,7 +602,7 @@ instance (Integral a, Arbitrary a) => Arbitrary (Quantity n a) where
 
 deriving instance Arbitrary a => Arbitrary (ShowFmt a)
 
-deriving instance Eq (SeqState 'Mainnet JormungandrKey)
+deriving instance Eq (SeqState 'Mainnet ShelleyKey)
 
 -- Necessary unsound Show instance for QuickCheck failure reporting
 instance Show XPrv where
@@ -656,7 +656,7 @@ deriving instance Buildable a => Buildable (Identity a)
 instance Buildable GenTxHistory where
     build (GenTxHistory txs) = blockListF' "-" tupleF txs
 
-instance Buildable (JormungandrKey depth XPrv, Hash "encryption") where
+instance Buildable (ShelleyKey depth XPrv, Hash "encryption") where
     build (_, h) = tupleF (xprvF, prefixF 8 hF <> "..." <> suffixF 8 hF)
       where
         xprvF = "XPrv" :: Builder

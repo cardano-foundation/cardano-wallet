@@ -13,7 +13,6 @@
 
 module Cardano.Pool.DB.Properties
     ( properties
-    , withDB
     ) where
 
 import Prelude
@@ -25,7 +24,8 @@ import Cardano.Pool.DB
     , readPoolLifeCycleStatus
     )
 import Cardano.Pool.DB.Arbitrary
-    ( MultiPoolCertificateSequence (..)
+    ( ManyPoolCertificates (..)
+    , MultiPoolCertificateSequence (..)
     , SinglePoolCertificateSequence (..)
     , StakePoolsFixture (..)
     , genStakePoolMetadata
@@ -71,8 +71,6 @@ import Data.Bifunctor
     ( bimap )
 import Data.Function
     ( on, (&) )
-import Data.Functor
-    ( ($>) )
 import Data.Functor.Identity
     ( runIdentity )
 import Data.Generics.Internal.VL.Lens
@@ -97,11 +95,8 @@ import Fmt
     ( pretty )
 import Test.Hspec
     ( Expectation
-    , Spec
     , SpecWith
     , anyException
-    , beforeAll
-    , beforeWith
     , describe
     , it
     , shouldBe
@@ -110,11 +105,12 @@ import Test.Hspec
     )
 import Test.QuickCheck
     ( Arbitrary
+    , Confidence (..)
     , NonNegative (..)
     , Positive (..)
     , Property
     , arbitrary
-    , checkCoverage
+    , checkCoverageWith
     , classify
     , counterexample
     , cover
@@ -131,12 +127,6 @@ import qualified Data.List as L
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
-
--- | Provide a DBLayer to a Spec that requires it. The database is initialised
--- once, and cleared with 'cleanDB' before each test.
-withDB :: IO (DBLayer IO) -> SpecWith (DBLayer IO) -> Spec
-withDB create = beforeAll create . beforeWith
-    (\db@DBLayer{cleanDB, atomically}-> atomically $ cleanDB $> db)
 
 properties :: SpecWith (DBLayer IO)
 properties = do
@@ -175,11 +165,9 @@ properties = do
         it "putPoolRetirement then readPoolRetirement yields expected result"
             (property . prop_poolRetirement)
         it "prop_multiple_putPoolRegistration_single_readPoolRegistration"
-            (property .
-                prop_multiple_putPoolRegistration_single_readPoolRegistration)
+            (property .  prop_multiple_putPoolRegistration_single_readPoolRegistration)
         it "prop_multiple_putPoolRetirement_single_readPoolRetirement"
-            (property .
-                prop_multiple_putPoolRetirement_single_readPoolRetirement)
+            (property .  prop_multiple_putPoolRetirement_single_readPoolRetirement)
         it "readPoolLifeCycleStatus respects certificate publication order"
             (property . prop_readPoolLifeCycleStatus)
         it "rollback of PoolRegistration"
@@ -227,6 +215,9 @@ properties = do
             (property . prop_putDelistedPools)
         it "clearing metadata also clears delisted pools"
             (property . prop_removePoolMetadataDelistedPools)
+
+okayConfidence :: Confidence
+okayConfidence = Confidence { certainty = 10 ^ (6 :: Int), tolerance = 0.9 }
 
 {-------------------------------------------------------------------------------
                                     Properties
@@ -356,7 +347,7 @@ prop_readPoolNoEpochLeaks
     -> StakePoolsFixture
     -> Property
 prop_readPoolNoEpochLeaks DBLayer{..} (StakePoolsFixture pairs _) =
-    withMaxSuccess 10000 $ monadicIO (setup >> prop)
+    withMaxSuccess 1000 $ monadicIO (setup >> prop)
   where
     slotPartition = L.groupBy ((==) `on` epochOf')
         $ L.sortOn epochOf'
@@ -479,9 +470,9 @@ prop_putStakePutStake DBLayer {..} epoch a b =
 -- | Heavily relies upon the fact that generated values of 'PoolId' are unique.
 prop_poolRegistration
     :: DBLayer IO
-    -> [(CertificatePublicationTime, PoolRegistrationCertificate)]
+    -> ManyPoolCertificates PoolRegistrationCertificate
     -> Property
-prop_poolRegistration DBLayer {..} entries =
+prop_poolRegistration DBLayer {..} (ManyPoolCertificates entries) =
     monadicIO (setup >> prop)
   where
     setup = run $ atomically cleanDB
@@ -509,9 +500,9 @@ prop_poolRegistration DBLayer {..} entries =
 -- | Heavily relies upon the fact that generated values of 'PoolId' are unique.
 prop_poolRetirement
     :: DBLayer IO
-    -> [(CertificatePublicationTime, PoolRetirementCertificate)]
+    -> ManyPoolCertificates PoolRetirementCertificate
     -> Property
-prop_poolRetirement DBLayer {..} entries =
+prop_poolRetirement DBLayer {..} (ManyPoolCertificates entries) =
     monadicIO (setup >> prop)
   where
     setup = run $ atomically cleanDB
@@ -545,10 +536,10 @@ prop_poolRetirement DBLayer {..} entries =
 prop_multiple_putPoolRegistration_single_readPoolRegistration
     :: DBLayer IO
     -> PoolId
-    -> [PoolRegistrationCertificate]
+    -> ManyPoolCertificates PoolRegistrationCertificate
     -> Property
 prop_multiple_putPoolRegistration_single_readPoolRegistration
-    DBLayer {..} sharedPoolId certificatesManyPoolIds =
+    DBLayer {..} sharedPoolId (ManyPoolCertificates entries) =
         monadicIO (setup >> prop)
   where
     setup = run $ atomically cleanDB
@@ -577,15 +568,12 @@ prop_multiple_putPoolRegistration_single_readPoolRegistration
             null poolsMarkedToRetire
 
     certificatePublications
-        :: [(CertificatePublicationTime, PoolRegistrationCertificate)]
-    certificatePublications =
-        testCertificatePublicationTimes `zip` certificates
+        = L.nubBy (\(a,_) (b, _) -> view #slotNo a == view #slotNo b)
+        $ second (set #poolId sharedPoolId) <$> entries
 
     mExpectedCertificatePublication = certificatePublications
-        & reverse
+        & L.sortOn (Down . view #slotNo . fst)
         & listToMaybe
-
-    certificates = set #poolId sharedPoolId <$> certificatesManyPoolIds
 
 -- For the same pool, write /multiple/ pool retirement certificates to the
 -- database and then read back the current retirement certificate, verifying
@@ -594,10 +582,10 @@ prop_multiple_putPoolRegistration_single_readPoolRegistration
 prop_multiple_putPoolRetirement_single_readPoolRetirement
     :: DBLayer IO
     -> PoolId
-    -> [PoolRetirementCertificate]
+    -> ManyPoolCertificates PoolRetirementCertificate
     -> Property
 prop_multiple_putPoolRetirement_single_readPoolRetirement
-    DBLayer {..} sharedPoolId certificatesManyPoolIds =
+    DBLayer {..} sharedPoolId (ManyPoolCertificates entries) =
         monadicIO (setup >> prop)
   where
     setup = run $ atomically cleanDB
@@ -630,20 +618,12 @@ prop_multiple_putPoolRetirement_single_readPoolRetirement
                     poolsMarkedToRetire == [retirementCert]
 
     certificatePublications
-        :: [(CertificatePublicationTime, PoolRetirementCertificate)]
-    certificatePublications = publicationTimes `zip` certificates
+        = L.nubBy (\(a,_) (b, _) -> view #slotNo a == view #slotNo b)
+        $ second (set #poolId sharedPoolId) <$> entries
 
     mExpectedCertificatePublication = certificatePublications
-        & reverse
+        & L.sortOn (Down . view #slotNo . fst)
         & listToMaybe
-
-    publicationTimes =
-        [ CertificatePublicationTime (SlotNo sn) ii
-        | sn <- [0 .. ]
-        , ii <- [0 .. 3]
-        ]
-
-    certificates = set #poolId sharedPoolId <$> certificatesManyPoolIds
 
 -- After writing an /arbitrary/ sequence of interleaved registration and
 -- retirement certificates for the same pool to the database, verify that
@@ -730,9 +710,9 @@ prop_readPoolLifeCycleStatus
 prop_rollbackRegistration
     :: DBLayer IO
     -> SlotNo
-    -> [(CertificatePublicationTime, PoolRegistrationCertificate)]
+    -> ManyPoolCertificates PoolRegistrationCertificate
     -> Property
-prop_rollbackRegistration DBLayer{..} rollbackPoint entries =
+prop_rollbackRegistration DBLayer{..} rollbackPoint (ManyPoolCertificates entries) =
     monadicIO (setup >> prop)
   where
     setup = run $ atomically cleanDB
@@ -767,16 +747,16 @@ prop_rollbackRetirement
     -> [PoolRetirementCertificate]
     -> Property
 prop_rollbackRetirement DBLayer{..} certificates =
-    checkCoverage
-        $ cover 4 (rollbackPoint == SlotNo 0)
+    checkCoverageWith okayConfidence
+        $ cover 15 (rollbackPoint == SlotNo 0)
             "rollbackPoint = slotMinBound"
-        $ cover 4 (rollbackPoint > SlotNo 0)
+        $ cover 35 (rollbackPoint > SlotNo 0)
             "rollbackPoint > slotMinBound"
         $ cover 2 (null expectedPublications)
             "length expectedPublications = 0"
-        $ cover 4 (not (null expectedPublications))
+        $ cover 50 (not (null expectedPublications))
             "length expectedPublications > 0"
-        $ cover 4
+        $ cover 40
             ( (&&)
                 (not (null expectedPublications))
                 (length expectedPublications < length allPublications)
@@ -865,23 +845,26 @@ prop_rollbackRetirement DBLayer{..} certificates =
 --
 prop_removePools
     :: DBLayer IO
-    -> [PoolCertificate]
+    -> ManyPoolCertificates PoolCertificate
     -> Property
 prop_removePools
-    DBLayer {..} certificates = checkCoverage
-        $ cover 8 (notNull poolsToRemove && notNull poolsToRetain)
+    DBLayer {..} (ManyPoolCertificates entries) =
+        checkCoverageWith okayConfidence
+        $ cover 50 (notNull poolsToRemove && notNull poolsToRetain)
             "remove some pools and retain some pools"
         $ cover 2 (null poolsToRemove)
             "remove no pools"
-        $ cover 2 (null poolsToRetain)
+        $ cover 3 (null poolsToRetain)
             "retain no pools"
-        $ cover 8 (notNull metadataToRetain)
+        $ cover 50 (notNull metadataToRetain)
             "retain some metadata"
-        $ cover 2 (null metadataToRetain)
+        $ cover 6 (null metadataToRetain)
             "retain no metadata"
         $ monadicIO (setup >> prop)
   where
     setup = run $ atomically cleanDB
+
+    certificates = snd <$> entries
 
     notNull = not . null
 
@@ -1226,12 +1209,12 @@ prop_determinePoolLifeCycleStatus_orderCorrect
     -> (certificatePublicationTime, PoolRetirementCertificate)
     -> Property
 prop_determinePoolLifeCycleStatus_orderCorrect regData retData =
-    checkCoverage
-        $ cover 10 (regTime > retTime)
+    checkCoverageWith okayConfidence
+        $ cover 25 (regTime > retTime)
             "registration cert time > retirement cert time"
-        $ cover 10 (regTime < retTime)
+        $ cover 25 (regTime < retTime)
             "registration cert time < retirement cert time"
-        $ cover 2 (regTime == retTime)
+        $ cover 1 (regTime == retTime)
             "registration cert time = retirement cert time"
         $ property prop
   where
@@ -1269,8 +1252,8 @@ prop_determinePoolLifeCycleStatus_neverRegistered
     => Maybe (certificatePublicationTime, PoolRetirementCertificate)
     -> Property
 prop_determinePoolLifeCycleStatus_neverRegistered maybeRetData =
-    checkCoverage
-        $ cover 10 (isJust maybeRetData)
+    checkCoverageWith okayConfidence
+        $ cover 40 (isJust maybeRetData)
             "with retirement data"
         $ cover 10 (isNothing maybeRetData)
             "without retirement data"
@@ -1307,26 +1290,26 @@ prop_SinglePoolCertificateSequence_coverage
     -> Property
 prop_SinglePoolCertificateSequence_coverage
     s@(SinglePoolCertificateSequence _sharedPoolId certificates) =
-        checkCoverage
-            $ cover 2 (null certificates)
+        checkCoverageWith okayConfidence
+            $ cover 7 (null certificates)
                 "length (all certificates) = 0"
-            $ cover 2 (length certificates == 1)
+            $ cover 7 (length certificates == 1)
                 "length (all certificates) = 1"
-            $ cover 2 (length certificates > 1)
+            $ cover 40 (length certificates > 1)
                 "length (all certificates) > 1"
 
-            $ cover 2 (null registrationCertificates)
+            $ cover 5 (null registrationCertificates)
                 "length (registration certificates) = 0"
-            $ cover 2 (length registrationCertificates == 1)
+            $ cover 5 (length registrationCertificates == 1)
                 "length (registration certificates) = 1"
-            $ cover 2 (length registrationCertificates > 1)
+            $ cover 30 (length registrationCertificates > 1)
                 "length (registration certificates) > 1"
 
-            $ cover 2 (null retirementCertificates)
+            $ cover 5 (null retirementCertificates)
                 "length (retirement certificates) = 0"
-            $ cover 2 (length retirementCertificates == 1)
+            $ cover 5 (length retirementCertificates == 1)
                 "length (retirement certificates) = 1"
-            $ cover 2 (length retirementCertificates > 1)
+            $ cover 30 (length retirementCertificates > 1)
                 "length (retirement certificates) > 1"
 
             $ cover 50 (not (null shrunkenSequences))
@@ -1350,22 +1333,21 @@ prop_SinglePoolCertificateSequence_coverage
 prop_MultiPoolCertificateSequence_coverage
     :: MultiPoolCertificateSequence
     -> Property
-prop_MultiPoolCertificateSequence_coverage mpcs = checkCoverage
+prop_MultiPoolCertificateSequence_coverage mpcs =
+    checkCoverageWith okayConfidence
     -- Check the number of certificates:
-    $ cover 2 (certificateCount == 0)
+    $ cover 1 (certificateCount == 0)
         "number of certificates: = 0"
-    $ cover 2 (certificateCount > 0 && certificateCount <= 10)
+    $ cover 3 (certificateCount > 0 && certificateCount <= 10)
         "number of certificates: > 0 && <= 10"
-    $ cover 2 (certificateCount > 10 && certificateCount <= 100)
+    $ cover 20 (certificateCount > 10 && certificateCount <= 100)
         "number of certificates: > 10 && <= 100"
-    $ cover 2 (certificateCount > 100 && certificateCount <= 1000)
-        "number of certificates: > 100 && <= 1000"
     -- Check the number of pools:
-    $ cover 2 (poolCount == 0)
+    $ cover 3 (poolCount == 0)
         "number of pools: = 0"
-    $ cover 2 (poolCount > 0 && poolCount <= 10)
+    $ cover 10 (poolCount > 0 && poolCount <= 10)
         "number of pools: > 0 && <= 10"
-    $ cover 2 (poolCount > 10 && poolCount <= 100)
+    $ cover 30 (poolCount > 10 && poolCount <= 100)
         "number of pools: > 10 && <= 100"
     True
   where
@@ -1498,18 +1480,18 @@ prop_putDelistedPools
     -> [PoolId]
     -> Property
 prop_putDelistedPools DBLayer {..} pools1 pools2 =
-    checkCoverage
+    checkCoverageWith okayConfidence
         $ cover 2 (Set.size poolSet1 == 0)
             "number of pools in set #1 = 0"
         $ cover 2 (Set.size poolSet1 == 1)
             "number of pools in set #1 = 1"
-        $ cover 2 (Set.size poolSet1 > 1)
+        $ cover 40 (Set.size poolSet1 > 1)
             "number of pools in set #1 > 1"
         $ cover 2 (Set.size poolSet2 == 0)
             "number of pools in set #2 = 0"
         $ cover 2 (Set.size poolSet2 == 1)
             "number of pools in set #2 = 1"
-        $ cover 2 (Set.size poolSet2 > 1)
+        $ cover 40 (Set.size poolSet2 > 1)
             "number of pools in set #2 > 1"
         $ monadicIO (setup >> prop)
   where

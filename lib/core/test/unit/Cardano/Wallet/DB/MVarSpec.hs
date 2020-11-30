@@ -16,13 +16,13 @@ module Cardano.Wallet.DB.MVarSpec
 import Prelude
 
 import Cardano.Wallet.DB.Properties
-    ( properties, withDB )
+    ( properties )
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( dummyTimeInterpreter )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
-import Cardano.Wallet.Primitive.AddressDerivation.Jormungandr
-    ( JormungandrKey )
+import Cardano.Wallet.Primitive.AddressDerivation.Shelley
+    ( ShelleyKey )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( IsOurs (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
@@ -32,14 +32,14 @@ import Cardano.Wallet.Primitive.Types.Address
 import Control.DeepSeq
     ( NFData )
 import Test.Hspec
-    ( Spec, describe )
+    ( Spec, before, describe )
 import Test.QuickCheck
     ( Arbitrary (..) )
 
 import qualified Cardano.Wallet.DB.MVar as MVar
 
 spec :: Spec
-spec = withDB @(SeqState 'Mainnet JormungandrKey) (MVar.newDBLayer ti) $
+spec = before (MVar.newDBLayer @(SeqState 'Mainnet ShelleyKey) ti) $
     describe "MVar" properties
   where
     ti = dummyTimeInterpreter

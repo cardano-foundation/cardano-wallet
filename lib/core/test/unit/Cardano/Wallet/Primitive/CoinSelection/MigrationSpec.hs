@@ -37,7 +37,7 @@ import Data.Word
 import Numeric.Natural
     ( Natural )
 import Test.Hspec
-    ( Spec, SpecWith, describe, it, shouldSatisfy )
+    ( Spec, SpecWith, describe, it, parallel, shouldSatisfy )
 import Test.QuickCheck
     ( Gen
     , Property
@@ -60,14 +60,14 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 
 spec :: Spec
-spec = do
+spec = parallel $ do
     describe "idealBatchSize" $ do
         it "Eventually converge for decreasing functions" $ do
             property $ \coinselOpts -> do
                 let batchSize = idealBatchSize coinselOpts
                 label (show batchSize) True
 
-    describe "accuracy of depleteUTxO" $ do
+    parallel $ describe "accuracy of depleteUTxO" $ do
         let testAccuracy :: Double -> SpecWith ()
             testAccuracy r = it title $ withMaxSuccess 1000 $ monadicIO $ do
                 let dust = Coin 100
@@ -94,28 +94,28 @@ spec = do
                     a = double real / double sup
                     double = fromRational @Double . fromIntegral
 
-        mapM_ testAccuracy [ 0.01 , 0.05 , 0.10 , 0.25 , 0.50 ]
+        mapM_ testAccuracy [ 0.01 , 0.10 , 0.50 ]
 
-    describe "depleteUTxO properties" $ do
+    parallel $ describe "depleteUTxO properties" $ do
         it "No coin selection has outputs" $
-            property $ withMaxSuccess 1000 prop_onlyChangeOutputs
+            property prop_onlyChangeOutputs
 
         it "Every coin in the selection change >= minimum threshold coin" $
-            property $ withMaxSuccess 1000 prop_noLessThanThreshold
+            property prop_noLessThanThreshold
 
         it "Total input UTxO value >= sum of selection change coins" $
-            property $ withMaxSuccess 1000 prop_inputsGreaterThanOutputs
+            property prop_inputsGreaterThanOutputs
 
         it "Every selection input is unique" $
-            property $ withMaxSuccess 1000 prop_inputsAreUnique
+            property prop_inputsAreUnique
 
         it "Every selection input is a member of the UTxO" $
-            property $ withMaxSuccess 1000 prop_inputsStillInUTxO
+            property prop_inputsStillInUTxO
 
         it "Every coin selection is well-balanced" $
-            property $ withMaxSuccess 1000 prop_wellBalanced
+            property prop_wellBalanced
 
-    describe "depleteUTxO regressions" $ do
+    parallel $ describe "depleteUTxO regressions" $ do
         it "regression #1" $ do
             let feeOpts = FeeOptions
                     { dustThreshold = Coin 9

@@ -56,7 +56,7 @@ import Data.Word
 import Fmt
     ( Buildable (..), blockListF, nameF )
 import Test.Hspec
-    ( Spec, SpecWith, describe, it, shouldBe )
+    ( Spec, SpecWith, describe, it, parallel, shouldBe )
 import Test.Hspec.QuickCheck
     ( prop )
 import Test.QuickCheck
@@ -90,13 +90,13 @@ import qualified Test.QuickCheck.Monadic as QC
 
 spec :: Spec
 spec = do
-    describe "Coin selection properties" $ do
+    parallel $ describe "Coin selection properties" $ do
         it "UTxO toList order deterministic" $
             checkCoverageWith
                 lowerConfidence
                 prop_utxoToListOrderDeterministic
 
-    describe "assignMigrationAddresses properties" $ do
+    parallel $ describe "assignMigrationAddresses properties" $ do
         prop "Selection count is preserved" prop_selectionCountPreserved
         prop "Overall coin values are preserved" prop_coinValuesPreserved
         prop "Coin values (sum) are preserved per transaction"

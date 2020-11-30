@@ -55,7 +55,7 @@ import Data.Time
 import Data.Word
     ( Word32 )
 import Test.Hspec
-    ( Spec, describe, it )
+    ( Spec, describe, it, parallel )
 import Test.QuickCheck
     ( Arbitrary (..), Property, choose, property, withMaxSuccess, (===) )
 import Test.QuickCheck.Arbitrary.Generic
@@ -65,8 +65,8 @@ import Test.Utils.Time
 
 spec :: Spec
 spec = do
-    describe "slotting" $ do
-        describe "runQuery NEW singleEraInterpreter == OLD . fromFlatSlot" $ do
+    parallel $ describe "slotting" $ do
+        parallel $ describe "runQuery NEW singleEraInterpreter == OLD . fromFlatSlot" $ do
             it "epochOf and epochNumber"
                 $  property $ legacySlottingTest (\_ s -> epochNumber s) epochOf
 

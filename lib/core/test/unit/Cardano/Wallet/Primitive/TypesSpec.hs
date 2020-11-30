@@ -28,8 +28,8 @@ import Cardano.Wallet.Gen
     )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..), WalletKey (..), digest, publicKey )
-import Cardano.Wallet.Primitive.AddressDerivation.Jormungandr
-    ( JormungandrKey (..), generateKeyFromSeed )
+import Cardano.Wallet.Primitive.AddressDerivation.Shelley
+    ( ShelleyKey (..), generateKeyFromSeed )
 import Cardano.Wallet.Primitive.Slotting.Legacy
     ( SlotParameters (..)
     , epochStartTime
@@ -161,6 +161,7 @@ import Test.Hspec
     , anyErrorCall
     , describe
     , it
+    , parallel
     , shouldBe
     , shouldNotSatisfy
     , shouldSatisfy
@@ -212,10 +213,10 @@ import qualified Data.Text as T
 
 spec :: Spec
 spec = do
-    describe "Generators are valid" $ do
+    parallel $ describe "Generators are valid" $ do
         it "Arbitrary Coin" $ property isValidCoin
 
-    describe "Can perform roundtrip textual encoding & decoding" $ do
+    parallel $ describe "Can perform roundtrip textual encoding & decoding" $ do
         textRoundtrip $ Proxy @Address
         textRoundtrip $ Proxy @AddressState
         textRoundtrip $ Proxy @Direction
@@ -237,11 +238,11 @@ spec = do
             withMaxSuccess 1000 $ property $ \(pid :: PoolId) ->
                 decodePoolIdBech32 (encodePoolIdBech32 pid) === Right pid
 
-    describe "Buildable" $ do
+    parallel $ describe "Buildable" $ do
         it "WalletId" $ do
             let mw = someDummyMnemonic (Proxy @12)
             let xprv = generateKeyFromSeed
-                    (mw, Nothing) mempty :: JormungandrKey 'RootK XPrv
+                    (mw, Nothing) mempty :: ShelleyKey 'RootK XPrv
             let wid = WalletId $ digest $ publicKey xprv
             "c225b83f...1d9d620e" === pretty @_ @Text wid
         it "TxMeta (1)" $ do
@@ -338,7 +339,7 @@ spec = do
             , getActiveSlotCoefficient = 1
             }
     let slotsPerEpoch = getEpochLength sp
-    describe "flatSlot" $ do
+    parallel $ describe "flatSlot" $ do
 
         it "fromFlatSlot . flatSlot == id" $ property $ \sl ->
             fromFlatSlot slotsPerEpoch (flatSlot slotsPerEpoch sl) === sl
@@ -365,7 +366,7 @@ spec = do
                 else
                     evaluate result `shouldThrow` anyErrorCall
 
-    describe "Ranges" $ do
+    parallel $ describe "Ranges" $ do
 
         it "arbitrary ranges are valid" $
             withMaxSuccess 1000 $ property $ \(r :: Range Integer) ->
@@ -494,7 +495,7 @@ spec = do
                 cover 10 (rangeIsFinite      r) "is finite" $
                 Range a b `isSubrangeOf` Range a (succ <$> b)
 
-    describe "Range bounds" $ do
+    parallel $ describe "Range bounds" $ do
 
         it "NegativeInfinity < InclusiveBound a" $
             property $ \(a :: Int) ->
@@ -508,7 +509,7 @@ spec = do
             property $ \(a :: Int) (b :: Int) ->
                 compare (InclusiveBound a) (InclusiveBound b) === compare a b
 
-    describe "Epoch arithmetic: arbitrary value generation" $ do
+    parallel $ describe "Epoch arithmetic: arbitrary value generation" $ do
 
         it "EpochNo generation covers interesting cases" $
             withMaxSuccess 10000 $ property $ \(epoch :: EpochNo) ->
@@ -540,7 +541,7 @@ spec = do
                             "time point during the lifetime of the blockchain"
                     True
 
-    describe "Slot arithmetic" $ do
+    parallel $ describe "Slot arithmetic" $ do
 
         it "slotFloor (slotStartTime slotMinBound) == Just slotMinBound" $
             withMaxSuccess 1000 $ property $ \sps ->
@@ -734,7 +735,7 @@ spec = do
                             "`slotRangeFromTimeRange` yielded nothing" $
                         (f =<< f r) === f r
 
-    describe "Negative cases for types decoding" $ do
+    parallel $ describe "Negative cases for types decoding" $ do
         it "fail fromText @SyncTolerance \"patate\"" $ do
             let err = "Cannot parse given time duration. Here are a few \
                     \examples of valid text representing a sync tolerance: \
@@ -819,13 +820,13 @@ spec = do
             it ("fail fromText @PoolOwner " ++ title) $
                 fromText @PoolOwner str `shouldBe` Left (TextDecodingError msg)
 
-    describe "unsafeEpochNo" $ do
+    parallel $ describe "unsafeEpochNo" $ do
         it "returns a successful result for any Word31" $
             property prop_unsafeEpochNoValid
         it "throws an exception for any value bigger than a Word31" $
             property prop_unsafeEpochNoThrows
 
-    describe "Lemma 2.1 - Properties of UTxO operations" $ do
+    parallel $ describe "Lemma 2.1 - Properties of UTxO operations" $ do
         it "2.1.1) ins⊲ u ⊆ u"
             (checkCoverage prop_2_1_1)
         it "2.1.2) ins⋪ u ⊆ u"
@@ -845,13 +846,13 @@ spec = do
         it "2.1.9) ins⋪ u = (dom u \\ ins)⊲ u"
             (checkCoverage prop_2_1_9)
 
-    describe "Lemma 2.6 - Properties of balance" $ do
+    parallel $ describe "Lemma 2.6 - Properties of balance" $ do
         it "2.6.1) dom u ⋂ dom v ==> balance (u ⋃ v) = balance u + balance v"
             (checkCoverage prop_2_6_1)
         it "2.6.2) balance (ins⋪ u) = balance u - balance (ins⊲ u)"
             (checkCoverage prop_2_6_2)
 
-    describe "Slotting ordering" $ do
+    parallel $ describe "Slotting ordering" $ do
         it "Any Slot >= slotMinBound"
             (property (>= slotMinBound))
         it "SlotId 1 2 < SlotId 2 1"
@@ -861,7 +862,7 @@ spec = do
         it "SlotId 1 2 < SlotId 2 2"
             (property $ SlotId { epochNumber = 1, slotNumber = 2 } < SlotId 2 2)
 
-    describe "UtxoStatistics" $ do
+    parallel $ describe "UtxoStatistics" $ do
         it "total statistics == balance utxo"
             (checkCoverage propUtxoTotalIsBalance)
         it "sum of weighted distribution >= total balance"

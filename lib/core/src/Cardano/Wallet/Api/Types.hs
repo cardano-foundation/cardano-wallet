@@ -155,7 +155,7 @@ module Cardano.Wallet.Api.Types
 import Prelude
 
 import Cardano.Address.Derivation
-    ( XPrv, XPub, xpubToBytes )
+    ( XPrv, XPub, xpubFromBytes, xpubToBytes )
 import Cardano.Address.Script
     ( Script )
 import Cardano.Api.MetaData
@@ -178,10 +178,9 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , Passphrase (..)
     , PassphraseMaxLength (..)
     , PassphraseMinLength (..)
+    , fromHex
     , hex
     )
-import Cardano.Wallet.Primitive.AddressDerivation.Jormungandr
-    ( xpubFromText )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
@@ -988,12 +987,16 @@ data ApiPoolId
 
 instance FromText ApiAccountPublicKey where
     fromText txt = case xpubFromText (T.encodeUtf8 txt) of
-        Left _ ->
+        Nothing ->
             Left $ TextDecodingError $ unwords
             [ "Invalid account public key: expecting a hex-encoded value"
             , "that is 64 bytes in length."]
-        Right pubkey ->
+        Just pubkey ->
             Right $ ApiAccountPublicKey $ ApiT pubkey
+      where
+        xpubFromText :: ByteString -> Maybe XPub
+        xpubFromText = (either (const Nothing) Just <$> fromHex @ByteString)
+            >=> xpubFromBytes
 
 instance FromText (ApiT XPrv) where
     fromText t = case convertFromBase Base16 $ T.encodeUtf8 t of

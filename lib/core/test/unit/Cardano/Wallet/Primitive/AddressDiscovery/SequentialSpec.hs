@@ -38,8 +38,8 @@ import Cardano.Wallet.Primitive.AddressDerivation
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey (..) )
-import Cardano.Wallet.Primitive.AddressDerivation.Jormungandr
-    ( JormungandrKey (..) )
+import Cardano.Wallet.Primitive.AddressDerivation.Shelley
+    ( ShelleyKey (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( CompareDiscovery (..)
     , GenChange (..)
@@ -100,7 +100,7 @@ import Data.Typeable
 import Data.Word
     ( Word8 )
 import Test.Hspec
-    ( Spec, describe, expectationFailure, it )
+    ( Spec, describe, expectationFailure, it, parallel )
 import Test.QuickCheck
     ( Arbitrary (..)
     , InfiniteList (..)
@@ -131,11 +131,11 @@ import Test.Text.Roundtrip
     ( textRoundtrip )
 
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Icarus as Icarus
-import qualified Cardano.Wallet.Primitive.AddressDerivation.Jormungandr as Jormungandr
+import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Shelley
 
 spec :: Spec
 spec = do
-    describe "AddressPoolGap" $ do
+    parallel $ describe "AddressPoolGap" $ do
         it "'AddressPoolGap.succ maxBound' should result in a runtime err"
             (expectFailure prop_succMaxBoundGap)
         it "'AddressPoolGap.pred minBound' should result in a runtime err"
@@ -147,7 +147,7 @@ spec = do
         it "defaultAddressPoolGap is valid"
             (property prop_defaultValid)
 
-    describe "DerivationPrefix" $ do
+    parallel $ describe "DerivationPrefix" $ do
         textRoundtrip (Proxy @DerivationPrefix)
 
     let styles =
@@ -157,13 +157,13 @@ spec = do
             ]
 
     let keys =
-            [ Key (Proxy @JormungandrKey)
+            [ Key (Proxy @ShelleyKey)
             , Key (Proxy @IcarusKey)
             ]
 
-    describe "AddressPool (Jormungandr)" $ do
+    parallel $ describe "AddressPool (Shelley)" $ do
         forM_ styles $ \s@(Style proxyS) -> forM_ keys $ \k@(Key proxyK) -> do
-            describe (show k <> " " <> show s) $ do
+            parallel $ describe (show k <> " " <> show s) $ do
                 it "'lookupAddressPool' extends the pool by a maximum of 'gap'"
                     (checkCoverage (prop_poolGrowWithinGap (proxyS, proxyK)))
                 it "'addresses' preserves the address order"
@@ -177,7 +177,7 @@ spec = do
                 it "Last address from a shrunk is the last known"
                     (property (prop_shrinkMaxIndex (proxyS, proxyK)))
 
-    describe "AddressPoolGap - Text Roundtrip" $ do
+    parallel $ describe "AddressPoolGap - Text Roundtrip" $ do
         textRoundtrip $ Proxy @AddressPoolGap
         let err = "An address pool gap must be a natural number between 10 and 100000."
         it "fail fromText @AddressPoolGap \"-10\"" $
@@ -197,7 +197,7 @@ spec = do
         it "fail fromText @AddressPoolGap \"2.5\"" $
             fromText @AddressPoolGap "2.5" === Left (TextDecodingError err)
 
-    describe "PendingIxs & GenChange" $ do
+    parallel $ describe "PendingIxs & GenChange" $ do
         it "Can always generate exactly `gap` different change addresses from rootXPrv"
             (property prop_genChangeGapFromRootXPrv)
         it "Can always generate exactly `gap` different change addresses from accXPub"
@@ -207,17 +207,17 @@ spec = do
         it "Can generate new change addresses after discovering a pending one"
             (property prop_changeNoLock)
 
-    describe "IsOwned" $ do
+    parallel $ describe "IsOwned" $ do
         it "Any discovered address has a corresponding private key!" $ do
             (property prop_lookupDiscovered)
 
-    describe "CompareDiscovery" $ do
+    parallel $ describe "CompareDiscovery" $ do
         it "Known addresses are always lesser than unknown ones" $ do
             (checkCoverage prop_compareKnownUnknown)
         it "compareDiscovery is anti-symmetric" $ do
             (checkCoverage prop_compareAntiSymmetric)
 
-    describe "KnownAddresses" $ do
+    parallel $ describe "KnownAddresses" $ do
         it "Any known address is ours" $ do
             (property prop_knownAddressesAreOurs)
         it "There are at least gap known addresses" $ do
@@ -368,7 +368,7 @@ prop_genChangeGapFromRootXPrv g =
     property prop
   where
     mw = someDummyMnemonic (Proxy @12)
-    key = Jormungandr.unsafeGenerateKeyFromSeed (mw, Nothing) mempty
+    key = Shelley.unsafeGenerateKeyFromSeed (mw, Nothing) mempty
     s0 = mkSeqStateFromRootXPrv (key, mempty) purposeCIP1852 g
     prop =
         length (fst $ changeAddresses [] s0) === fromEnum g
@@ -382,7 +382,7 @@ prop_genChangeGapFromAccountXPub g =
     property prop
   where
     mw = someDummyMnemonic (Proxy @12)
-    rootXPrv = Jormungandr.unsafeGenerateKeyFromSeed (mw, Nothing) mempty
+    rootXPrv = Shelley.unsafeGenerateKeyFromSeed (mw, Nothing) mempty
     accIx = toEnum 0x80000000
     accXPub = publicKey $ deriveAccountPrivateKey mempty rootXPrv accIx
     s0 = mkSeqStateFromAccountXPub accXPub purposeCIP1852 g
@@ -390,7 +390,7 @@ prop_genChangeGapFromAccountXPub g =
         length (fst $ changeAddresses [] s0) === fromEnum g
 
 prop_changeAddressRotation
-    :: SeqState 'Mainnet JormungandrKey
+    :: SeqState 'Mainnet ShelleyKey
     -> Property
 prop_changeAddressRotation s0 =
     property prop
@@ -400,7 +400,7 @@ prop_changeAddressRotation s0 =
         ShowFmt (fst $ changeAddresses [] s') === ShowFmt (reverse as)
 
 prop_changeNoLock
-    :: (SeqState 'Mainnet JormungandrKey, Int)
+    :: (SeqState 'Mainnet ShelleyKey, Int)
     -> Property
 prop_changeNoLock (s0, ix) =
     ShowFmt xs =/= ShowFmt ys .&&. ShowFmt addr `notElem` (ShowFmt <$> ys)
@@ -412,13 +412,13 @@ prop_changeNoLock (s0, ix) =
     (ys, _) = changeAddresses [] s'
 
 prop_lookupDiscovered
-    :: (SeqState 'Mainnet JormungandrKey, Address)
+    :: (SeqState 'Mainnet ShelleyKey, Address)
     -> Property
 prop_lookupDiscovered (s0, addr) =
     let (ours, s) = isOurs addr s0 in isJust ours ==> prop s
   where
     mw = someDummyMnemonic (Proxy @12)
-    key = Jormungandr.unsafeGenerateKeyFromSeed (mw, Nothing) mempty
+    key = Shelley.unsafeGenerateKeyFromSeed (mw, Nothing) mempty
     prop s = monadicIO $ liftIO $ do
         unless (isJust $ isOwned s (key, mempty) addr) $ do
             expectationFailure "couldn't find private key corresponding to addr"
@@ -429,7 +429,7 @@ prop_lookupDiscovered (s0, addr) =
 -------------------------------------------------------------------------------}
 
 prop_compareKnownUnknown
-    :: (SeqState 'Mainnet JormungandrKey, ShowFmt Address, ShowFmt Address)
+    :: (SeqState 'Mainnet ShelleyKey, ShowFmt Address, ShowFmt Address)
     -> Property
 prop_compareKnownUnknown (s, ShowFmt known, ShowFmt addr) =
     case (fst $ isOurs known s, fst $ isOurs addr s) of
@@ -439,7 +439,7 @@ prop_compareKnownUnknown (s, ShowFmt known, ShowFmt addr) =
     prop ordering = compareDiscovery s known addr === ordering
 
 prop_compareAntiSymmetric
-    :: (SeqState 'Mainnet JormungandrKey, ShowFmt Address, ShowFmt Address)
+    :: (SeqState 'Mainnet ShelleyKey, ShowFmt Address, ShowFmt Address)
     -> Property
 prop_compareAntiSymmetric (s, ShowFmt a1, ShowFmt a2) =
     cover 90 (a1 /= a2) "a1 /= a2" prop
@@ -455,7 +455,7 @@ prop_compareAntiSymmetric (s, ShowFmt a1, ShowFmt a2) =
 -------------------------------------------------------------------------------}
 
 prop_knownAddressesAreOurs
-    :: SeqState 'Mainnet JormungandrKey
+    :: SeqState 'Mainnet ShelleyKey
     -> Property
 prop_knownAddressesAreOurs s =
     map (\x -> (ShowFmt x, isJust $ fst $ isOurs x s)) (fst <$> knownAddresses s)
@@ -463,7 +463,7 @@ prop_knownAddressesAreOurs s =
     map (\x -> (ShowFmt x, True)) (fst <$> knownAddresses s)
 
 prop_atLeastKnownAddresses
-    :: SeqState 'Mainnet JormungandrKey
+    :: SeqState 'Mainnet ShelleyKey
     -> Property
 prop_atLeastKnownAddresses s =
     property $ length (knownAddresses s) >= g (externalPool s)
@@ -471,13 +471,13 @@ prop_atLeastKnownAddresses s =
     g = fromEnum . getAddressPoolGap . gap
 
 prop_changeIsOnlyKnownAfterGeneration
-    :: ( AddressPool 'UtxoInternal JormungandrKey
-       , AddressPool 'UtxoExternal JormungandrKey
+    :: ( AddressPool 'UtxoInternal ShelleyKey
+       , AddressPool 'UtxoExternal ShelleyKey
        )
     -> Property
 prop_changeIsOnlyKnownAfterGeneration (intPool, extPool) =
     let
-        s0 :: SeqState 'Mainnet JormungandrKey
+        s0 :: SeqState 'Mainnet ShelleyKey
         s0 = SeqState intPool extPool emptyPendingIxs rewardAccount defaultPrefix
         addrs0 = fst <$> knownAddresses s0
         (change, s1) = genChange (\k _ -> paymentAddress @'Mainnet k) s0
@@ -497,7 +497,7 @@ prop_changeIsOnlyKnownAfterGeneration (intPool, extPool) =
             (property (addr `elem` addrs))
 
 prop_oursAreUsed
-    :: SeqState 'Mainnet JormungandrKey
+    :: SeqState 'Mainnet ShelleyKey
     -> Property
 prop_oursAreUsed s =
     let
@@ -587,9 +587,9 @@ instance AddressPoolTest IcarusKey where
     liftAddress =
         liftPaymentAddress @'Mainnet
 
-instance AddressPoolTest JormungandrKey where
+instance AddressPoolTest ShelleyKey where
     ourAccount = publicKey $
-        Jormungandr.unsafeGenerateKeyFromSeed (mw, Nothing) mempty
+        Shelley.unsafeGenerateKeyFromSeed (mw, Nothing) mempty
       where
         mw = someDummyMnemonic (Proxy @15)
 
@@ -602,16 +602,16 @@ instance AddressPoolTest JormungandrKey where
         liftDelegationAddress @'Mainnet fingerprint rewardAccount
 
 rewardAccount
-    :: JormungandrKey 'AddressK XPub
+    :: ShelleyKey 'AddressK XPub
 rewardAccount = publicKey $
-    Jormungandr.unsafeGenerateKeyFromSeed (mw, Nothing) mempty
+    Shelley.unsafeGenerateKeyFromSeed (mw, Nothing) mempty
   where
     mw = someDummyMnemonic (Proxy @15)
 
 changeAddresses
     :: [Address]
-    -> SeqState 'Mainnet JormungandrKey
-    -> ([Address], SeqState 'Mainnet JormungandrKey)
+    -> SeqState 'Mainnet ShelleyKey
+    -> ([Address], SeqState 'Mainnet ShelleyKey)
 changeAddresses as s =
     let (a, s') = genChange (\k _ -> paymentAddress @'Mainnet k) s
     in if a `elem` as then (as, s) else changeAddresses (a:as) s'
@@ -662,9 +662,9 @@ instance Arbitrary (Index 'Hardened depth) where
 instance Arbitrary Address where
     shrink _ = []
     arbitrary = frequency
-        [ (8, elements $ take 25 (ourAddresses (Proxy @JormungandrKey) UtxoExternal))
-        , (8, elements $ take 25 (ourAddresses (Proxy @JormungandrKey) UtxoInternal))
-        , (8, elements $ take 25 (ourAddresses (Proxy @JormungandrKey) MutableAccount))
+        [ (8, elements $ take 25 (ourAddresses (Proxy @ShelleyKey) UtxoExternal))
+        , (8, elements $ take 25 (ourAddresses (Proxy @ShelleyKey) UtxoInternal))
+        , (8, elements $ take 25 (ourAddresses (Proxy @ShelleyKey) MutableAccount))
         , (8, elements $ take 25 (ourAddresses (Proxy @IcarusKey) UtxoExternal))
         , (8, elements $ take 25 (ourAddresses (Proxy @IcarusKey) UtxoInternal))
         , (8, elements $ take 25 (ourAddresses (Proxy @IcarusKey) MutableAccount))
@@ -701,7 +701,7 @@ instance
         InfiniteList statuses _ <- arbitrary
         return $ mkAddressPool @'Mainnet ourAccount g (zip addrs statuses)
 
-instance Arbitrary (SeqState 'Mainnet JormungandrKey) where
+instance Arbitrary (SeqState 'Mainnet ShelleyKey) where
     shrink (SeqState intPool extPool ixs rwd prefix) =
         (\(i, e) -> SeqState i e ixs rwd prefix) <$> shrink (intPool, extPool)
     arbitrary = do

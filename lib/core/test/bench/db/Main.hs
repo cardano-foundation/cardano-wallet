@@ -78,8 +78,8 @@ import Cardano.Wallet.Primitive.AddressDerivation
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey (..) )
-import Cardano.Wallet.Primitive.AddressDerivation.Jormungandr
-    ( JormungandrKey (..), generateKeyFromSeed, unsafeGenerateKeyFromSeed )
+import Cardano.Wallet.Primitive.AddressDerivation.Shelley
+    ( ShelleyKey (..), generateKeyFromSeed, unsafeGenerateKeyFromSeed )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( DerivationPath, RndState (..), mkRndState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
@@ -336,7 +336,7 @@ benchPutSeqState DBLayer{..} cps = do
 
 mkPool
     :: forall c. (Typeable c)
-    => Int -> Int -> AddressPool c JormungandrKey
+    => Int -> Int -> AddressPool c ShelleyKey
 mkPool numAddrs i = mkAddressPool ourAccount defaultAddressPoolGap addrs
   where
     addrs = [ force (mkAddress i j, Unused) | j <- [1..numAddrs] ]
@@ -738,9 +738,9 @@ benchDiskSize tr action = bracket (setupDB tr) cleanupDB $ \(f, ctx, db) -> do
 ----------------------------------------------------------------------------
 -- Mock data to use for benchmarks
 
-type DBLayerBench = DBLayer IO (SeqState 'Mainnet JormungandrKey) JormungandrKey
+type DBLayerBench = DBLayer IO (SeqState 'Mainnet ShelleyKey) ShelleyKey
 type DBLayerBenchByron = DBLayer IO (RndState 'Mainnet) ByronKey
-type WalletBench = Wallet (SeqState 'Mainnet JormungandrKey)
+type WalletBench = Wallet (SeqState 'Mainnet ShelleyKey)
 type WalletBenchByron = Wallet (RndState 'Mainnet)
 
 instance NFData (DBLayer m s k) where
@@ -756,7 +756,7 @@ testCpByron :: WalletBenchByron
 testCpByron = snd $ initWallet block0 dummyGenesisParameters initDummyRndState
 
 {-# NOINLINE initDummySeqState #-}
-initDummySeqState :: SeqState 'Mainnet JormungandrKey
+initDummySeqState :: SeqState 'Mainnet ShelleyKey
 initDummySeqState =
     mkSeqStateFromRootXPrv (xprv, mempty) purposeCIP1852 defaultAddressPoolGap
   where
@@ -795,12 +795,12 @@ defaultPrefix = DerivationPrefix
     , minBound
     )
 
-ourAccount :: JormungandrKey 'AccountK XPub
+ourAccount :: ShelleyKey 'AccountK XPub
 ourAccount = publicKey $ unsafeGenerateKeyFromSeed (seed, Nothing) mempty
   where
     seed = someDummyMnemonic (Proxy @15)
 
-rewardAccount :: JormungandrKey 'AddressK XPub
+rewardAccount :: ShelleyKey 'AddressK XPub
 rewardAccount = publicKey $ unsafeGenerateKeyFromSeed (seed, Nothing) mempty
   where
     seed = someDummyMnemonic (Proxy @15)
@@ -824,7 +824,7 @@ withMovingSlot i b@(Block h _ _) = b
 mkAddress :: Int -> Int -> Address
 mkAddress i j =
     delegationAddress @'Mainnet
-        (JormungandrKey $ unsafeXPub $ B8.pack $ take 64 $ randoms $ mkStdGen seed)
+        (ShelleyKey $ unsafeXPub $ B8.pack $ take 64 $ randoms $ mkStdGen seed)
         rewardAccount
   where
     -- Generate a seed using two prime numbers and a pair of index. This should

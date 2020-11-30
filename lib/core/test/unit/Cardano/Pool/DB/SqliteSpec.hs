@@ -22,7 +22,7 @@ import Cardano.Pool.DB
 import Cardano.Pool.DB.Log
     ( PoolDbLog (..) )
 import Cardano.Pool.DB.Properties
-    ( properties, withDB )
+    ( properties )
 import Cardano.Pool.DB.Sqlite
     ( newDBLayer, withDBLayer )
 import Cardano.Wallet.DummyTarget.Primitive.Types
@@ -38,7 +38,7 @@ import System.FilePath
 import System.IO.Temp
     ( withSystemTempDirectory )
 import Test.Hspec
-    ( Spec, describe, it, shouldBe )
+    ( Spec, before, describe, it, parallel, shouldBe )
 import Test.Utils.Paths
     ( getTestData )
 import Test.Utils.Trace
@@ -57,9 +57,9 @@ newMemoryDBLayer' = do
     ti = return . runIdentity . dummyTimeInterpreter
 
 spec :: Spec
-spec = do
-    withDB newMemoryDBLayer $ do
-        describe "Sqlite" properties
+spec = parallel $ do
+    before newMemoryDBLayer $ do
+        parallel $ describe "Sqlite" properties
 
     describe "Migration Regressions" $ do
         test_migrationFromv20191216
