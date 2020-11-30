@@ -40,7 +40,7 @@ import Prelude
 import Cardano.Address.Derivation
     ( XPrv, XPub, xpubFromBytes, xpubToBytes )
 import Cardano.Address.Script
-    ( KeyHash (..), ScriptHash (..) )
+    ( ScriptHash (..) )
 import Cardano.DB.Sqlite
     ( DBField (..)
     , DBLog (..)
@@ -80,6 +80,7 @@ import Cardano.Wallet.DB.Sqlite.TH
     , RndStatePendingAddress (..)
     , SeqState (..)
     , SeqStateAddress (..)
+    , SeqStateKeyHash (..)
     , SeqStatePendingIx (..)
     , SeqStateScriptHash (..)
     , StakeKeyCertificate (..)
@@ -1810,8 +1811,8 @@ insertScriptPool
     -> SqlPersistT IO ()
 insertScriptPool wid sl pool = do
     void $ dbChunked insertMany_
-        [ SeqStateAddress wid sl (W.Address payload) (getIndex ix) W.MultisigScript state
-        | (KeyHash payload, (ix, state) )
+        [ SeqStateKeyHash wid sl keyHash (getIndex ix) state
+        | (keyHash, (ix, state) )
         <- Map.toList (Seq.verPoolIndexedKeys pool)
         ]
     void $ dbChunked insertMany_ $
@@ -1836,10 +1837,9 @@ selectScriptPool
     -> SqlPersistT IO (Seq.VerificationKeyPool k)
 selectScriptPool wid sl gap xpub = do
     verKeys <- fmap entityVal <$> selectList
-        [ SeqStateAddressWalletId ==. wid
-        , SeqStateAddressSlot ==. sl
-        , SeqStateAddressRole ==. W.MultisigScript
-        ] [Asc SeqStateAddressIndex]
+        [ SeqStateKeyHashWalletId ==. wid
+        , SeqStateKeyHashSlot ==. sl
+        ] [Asc SeqStateKeyHashIndex]
     scripts <- fmap entityVal <$> selectList
         [ SeqStateScriptHashWalletId ==. wid
         , SeqStateScriptHashSlot ==. sl
@@ -1848,9 +1848,9 @@ selectScriptPool wid sl gap xpub = do
   where
     verKeyMap =
         Map.fromList .
-        map (\x -> ( coerce $ seqStateAddressAddress x
-                   , ( W.Index $ seqStateAddressIndex x
-                     , seqStateAddressStatus x
+        map (\x -> ( seqStateKeyHashKeyHash x
+                   , ( W.Index $ seqStateKeyHashIndex x
+                     , seqStateKeyHashStatus x
                      )))
     insertIfNotNothing k xpubM i = case xpubM of
         Just xpub' -> Map.insertWith (++) k [(i, liftRawKey xpub')]
@@ -1865,7 +1865,7 @@ selectScriptPool wid sl gap xpub = do
                     , seqStateScriptHashIndex x)))
         Map.empty
     scriptPoolFromEntities
-        :: [SeqStateAddress]
+        :: [SeqStateKeyHash]
         -> [SeqStateScriptHash]
         -> Seq.VerificationKeyPool k
     scriptPoolFromEntities verKeys scripts
