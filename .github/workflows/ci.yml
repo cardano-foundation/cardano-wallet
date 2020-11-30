@@ -116,5 +116,3 @@ jobs:
         if: github.ref == 'ref/heads/master'
         shell: bash
         run: 'bash .buildkite/push-branch.sh windows-tests-pass linux-tests-pass all-tests-pass'
-        env:
-          ACTIONS_SSH_KEY: "${{ secrets.ACTIONS_SSH_KEY }}"

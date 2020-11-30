@@ -21,17 +21,23 @@ if [ -z "$common_branch" ]; then
   exit 1
 fi
 
-# Load SSH key from GitHub secrets if run under GitHub actions.
-if [ -n "${ACTIONS_SSH_KEY:-}" ]; then
-  sshkey=$(mktemp)
-  echo "${ACTIONS_SSH_KEY:-}" > $sshkey
-fi
-
 # Load SSH key from standard location on Buildkite.
 : "${sshkey:=/run/keys/buildkite-cardano-wallet-ssh-private}"
 
-# SSH name of our git repo
-remote="git@github.com:input-output-hk/cardano-wallet.git"
+if [ -n "${GITHUB_WORKFLOW:-}" ]; then
+  # If running under GitHub actions, it's possible to push to origin
+  # remote.
+  remote=origin
+elif [ -e "$sshkey" ]; then
+  echo "Authenticating push using SSH with $sshkey"
+  export GIT_SSH_COMMAND="ssh -i $sshkey -F /dev/null"
+
+  # SSH name of our git repo
+  remote="git@github.com:input-output-hk/cardano-wallet.git"
+else
+  remote=""
+fi
+
 
 advance_branch() {
   branch="$1"
@@ -60,12 +66,10 @@ if [ -n "$common_ref" ]; then
   advance_branch "$common_branch" "$common_ref"
 fi
 
-if [ -e $sshkey ]; then
-  echo "Authenticating using SSH with $sshkey"
-  export GIT_SSH_COMMAND="ssh -i $sshkey -F /dev/null"
-  git push $remote "$head:refs/heads/$this_branch"
+if [ -n "$remote" ]; then
+  git push "$remote" "$head:refs/heads/$this_branch"
   if [ -n "$common_ref" ]; then
-    git push $remote "$common_ref:refs/heads/$common_branch"
+    git push "$remote" "$common_ref:refs/heads/$common_branch"
   fi
   exit 0
 else
