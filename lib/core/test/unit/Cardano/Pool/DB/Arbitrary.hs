@@ -91,6 +91,8 @@ import Test.QuickCheck
     )
 import Test.QuickCheck.Arbitrary.Generic
     ( genericArbitrary, genericShrink )
+import Test.QuickCheck.Extra
+    ( reasonablySized )
 
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
@@ -255,7 +257,7 @@ instance Arbitrary SinglePoolCertificateSequence where
             -- We must start with a registration certificate:
             certificates <- (:)
                 <$> (Registration <$> arbitrary)
-                <*> scale (min 10) arbitrary
+                <*> reasonablySized arbitrary
             pure $ SinglePoolCertificateSequence sharedPoolId $
                 setPoolCertificatePoolId sharedPoolId <$> certificates
 
@@ -313,7 +315,7 @@ newtype ManyPoolCertificates cert
 
 instance Arbitrary cert => Arbitrary (ManyPoolCertificates cert) where
     shrink = genericShrink
-    arbitrary = ManyPoolCertificates <$> scale (min 10) arbitrary
+    arbitrary = ManyPoolCertificates <$> reasonablySized arbitrary
 
 -- Interleaves the given list of lists together in a fair way.
 --
