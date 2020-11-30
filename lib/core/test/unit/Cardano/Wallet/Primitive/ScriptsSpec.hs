@@ -64,6 +64,8 @@ import Cardano.Wallet.Unsafe
     ( unsafeXPub )
 import Control.Monad
     ( replicateM )
+import Data.Coerce
+    ( coerce )
 import Data.Map.Strict
     ( Map )
 import Data.Ord
@@ -150,7 +152,7 @@ prop_scriptUpdatesStateProperly (AccountXPubWithScripts accXPub' scripts') = do
     let seqState = initializeState accXPub'
     let (_, seqState') = isShared script seqState
     let scriptKeyHashesInMap =
-            Set.fromList . map (toVerKeyHash . projectKey) <$>
+            Set.fromList . map (deriveKeyHash accXPub') <$>
             Map.lookup (toScriptHash script) (getKnownScripts seqState')
     scriptKeyHashesInMap === Just (Set.fromList (L.nub sciptKeyHashes))
 
@@ -230,10 +232,10 @@ prop_verKeysConsistent
 prop_verKeysConsistent (AccountXPubWithScripts accXPub' scripts') = do
     let seqState0 = initializeState accXPub'
     let seqState = foldr (\script s -> snd $ isShared script s) seqState0 scripts'
-    let verKeys = L.nub $ concat $ Map.elems $ getKnownScripts seqState
+    let verKeyIxs = L.nub $ concat $ Map.elems $ getKnownScripts seqState
     let verKeyHashes =  Map.keys $ Map.filter (\(_, isUsed) -> isUsed == Used) $
             getVerKeyMap seqState
-    Set.fromList verKeyHashes  === Set.fromList (map toVerKeyHash verKeys)
+    Set.fromList verKeyHashes  === Set.fromList (map (deriveKeyHash accXPub') verKeyIxs)
 
 data AccountXPubWithScripts = AccountXPubWithScripts
     { accXPub :: ShelleyKey 'AccountK XPub
@@ -260,9 +262,6 @@ defaultPrefix = DerivationPrefix
 dummyRewardAccount :: ShelleyKey 'AddressK XPub
 dummyRewardAccount = ShelleyKey $ unsafeXPub $ B8.replicate 64 '0'
 
-projectKey :: ShelleyKey 'ScriptK XPub -> ShelleyKey 'AddressK XPub
-projectKey (ShelleyKey k) = ShelleyKey k
-
 initializeState
     :: ShelleyKey 'AccountK XPub
     -> SeqState 'Mainnet ShelleyKey
@@ -274,7 +273,7 @@ initializeState accXPub' =
 
 getKnownScripts
     :: SeqState 'Mainnet ShelleyKey
-    -> Map ScriptHash [ShelleyKey 'ScriptK XPub]
+    -> Map ScriptHash [Index 'Soft 'ScriptK]
 getKnownScripts (SeqState _ _ _ _ _ verKeyPool) =
     verPoolKnownScripts verKeyPool
 
@@ -283,6 +282,13 @@ getVerKeyMap
     -> Map KeyHash (Index 'Soft 'ScriptK, AddressState)
 getVerKeyMap (SeqState _ _ _ _ _ verKeyPool) =
     verPoolIndexedKeys verKeyPool
+
+deriveKeyHash
+    :: ShelleyKey 'AccountK XPub
+    -> Index 'Soft 'ScriptK
+    -> KeyHash
+deriveKeyHash accXPub' =
+    toVerKeyHash . deriveAddressPublicKey accXPub' MultisigScript . coerce
 
 {-------------------------------------------------------------------------------
                                 Arbitrary Instances

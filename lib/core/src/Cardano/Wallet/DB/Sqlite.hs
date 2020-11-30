@@ -38,7 +38,7 @@ module Cardano.Wallet.DB.Sqlite
 import Prelude
 
 import Cardano.Address.Derivation
-    ( XPrv, XPub, xpubFromBytes, xpubToBytes )
+    ( XPrv, XPub )
 import Cardano.Address.Script
     ( ScriptHash (..) )
 import Cardano.DB.Sqlite
@@ -1804,8 +1804,7 @@ selectSeqStatePendingIxs wid =
     fromRes = fmap (W.Index . seqStatePendingIxIndex . entityVal)
 
 insertScriptPool
-    :: forall k . WalletKey k
-    => W.WalletId
+    :: W.WalletId
     -> W.SlotNo
     -> Seq.VerificationKeyPool k
     -> SqlPersistT IO ()
@@ -1818,9 +1817,8 @@ insertScriptPool wid sl pool = do
     void $ dbChunked insertMany_ $
         concatMap toDB $ Map.toList (Seq.verPoolKnownScripts pool)
   where
-    toAddress = W.Address . xpubToBytes . getRawKey
-    toDB (scriptHash, verKeys) =
-        zipWith (SeqStateScriptHash wid sl scriptHash . toAddress) verKeys [0..]
+    toDB (scriptHash, verKeyIxs) =
+        zipWith (SeqStateScriptHash wid sl scriptHash . getIndex) verKeyIxs [0..]
 
 instance Ord ScriptHash where
     compare (ScriptHash sh1) (ScriptHash sh2) = compare sh1 sh2
@@ -1852,17 +1850,13 @@ selectScriptPool wid sl gap xpub = do
                    , ( W.Index $ seqStateKeyHashIndex x
                      , seqStateKeyHashStatus x
                      )))
-    insertIfNotNothing k xpubM i = case xpubM of
-        Just xpub' -> Map.insertWith (++) k [(i, liftRawKey xpub')]
-        Nothing -> id
     knownScripts =
         Map.map (map snd . sortOn fst) .
         foldr
-        ((\ (sh, vK, i) -> insertIfNotNothing sh vK i)
+        ((\ (sh, kIx, lIx) -> Map.insertWith (++) sh [(lIx,kIx)] )
          . (\ x -> (  seqStateScriptHashScriptHash x
-                    , xpubFromBytes $ W.unAddress $
-                      seqStateScriptHashVerificationKey x
-                    , seqStateScriptHashIndex x)))
+                    , W.Index $ seqStateScriptHashVerificationKeyIndex x
+                    , seqStateScriptHashKeysIndex x)))
         Map.empty
     scriptPoolFromEntities
         :: [SeqStateKeyHash]

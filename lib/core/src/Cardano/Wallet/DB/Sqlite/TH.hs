@@ -288,18 +288,18 @@ SeqStateKeyHash
 -- Mapping of discovered script hashes to our verification keys, and the slot
 -- when they were discovered.
 SeqStateScriptHash
-    seqStateScriptHashWalletId         W.WalletId         sql=wallet_id
-    seqStateScriptHashSlot             SlotNo             sql=slot
-    seqStateScriptHashScriptHash       ScriptHash         sql=script_hash
-    seqStateScriptHashVerificationKey  W.Address          sql=verification_key
-    seqStateScriptHashIndex            Word32             sql=verification_key_ix
+    seqStateScriptHashWalletId              W.WalletId         sql=wallet_id
+    seqStateScriptHashSlot                  SlotNo             sql=slot
+    seqStateScriptHashScriptHash            ScriptHash         sql=script_hash
+    seqStateScriptHashVerificationKeyIndex  Word32             sql=verification_key_ix
+    seqStateScriptHashKeysIndex             Word32             sql=keys_ix
 
     Primary
         seqStateScriptHashWalletId
         seqStateScriptHashSlot
         seqStateScriptHashScriptHash
-        seqStateScriptHashVerificationKey
-        seqStateScriptHashIndex
+        seqStateScriptHashVerificationKeyIndex
+        seqStateScriptHashKeysIndex
     Foreign Checkpoint seq_state_script_hash seqStateScriptHashWalletId seqStateScriptHashSlot ! ON DELETE CASCADE
     deriving Show Generic
 

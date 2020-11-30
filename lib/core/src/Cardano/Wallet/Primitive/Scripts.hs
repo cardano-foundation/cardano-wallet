@@ -65,11 +65,11 @@ isShared
 isShared script (SeqState !s1 !s2 !ixs !rpk !prefix !s3) =
     let verKeysInScript = retrieveAllVerKeyHashes script
         toVerKey = deriveAddressPublicKey (verPoolAccountPubKey s3) MultisigScript
-        ourVerKeysInScript =
-            map (\(_,(ix,_)) -> toVerKey (coerce ix) ) $
+        ourVerKeysIxInScript =
+            L.nub $
+            map (\(_,(ix,_)) -> coerce ix ) $
             filter (\(keyH,_) -> keyH `elem` verKeysInScript) $
             Map.toList (verPoolIndexedKeys s3)
-        scriptXPubs = L.nub $ map coerce ourVerKeysInScript
         updateAddressState k current =
             if k `elem` verKeysInScript then
                 Used
@@ -80,14 +80,14 @@ isShared script (SeqState !s1 !s2 !ixs !rpk !prefix !s3) =
             (verPoolIndexedKeys s3)
         insertIf predicate k v = if predicate v then Map.insert k v else id
         knownScripts =
-            insertIf (not . null) (toScriptHash script) scriptXPubs
+            insertIf (not . null) (toScriptHash script) ourVerKeysIxInScript
             (verPoolKnownScripts s3)
 
         -- if there are no gap number of consecutive NotUsed verification keys
         -- then we extend the verification key pool
         s3' = mkVerificationKeyPool (verPoolAccountPubKey s3) (verPoolGap s3)
               indexedKeys knownScripts
-    in ( scriptXPubs
+    in ( map (coerce . toVerKey . coerce) ourVerKeysIxInScript
        , SeqState s1 s2 ixs rpk prefix s3'
        )
 

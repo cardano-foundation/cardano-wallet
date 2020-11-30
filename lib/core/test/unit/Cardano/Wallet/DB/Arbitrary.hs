@@ -511,7 +511,7 @@ genVerificationKeyPool accXPub = do
             [0 .. maximum verKeysIxs]
     knownScripts <- vectorOf nVerKeys' arbitrary
     let knownScriptsMap =
-            zipWith (\s k -> (s,[k])) knownScripts (coerce . toVerKey <$> verKeysIxs)
+            zipWith (\s k -> (s,[k])) knownScripts (Index <$> verKeysIxs)
     pure $ mkVerificationKeyPool accXPub defaultAddressPoolGap
         (Map.fromList indexedKeysMap) (Map.fromList knownScriptsMap)
 

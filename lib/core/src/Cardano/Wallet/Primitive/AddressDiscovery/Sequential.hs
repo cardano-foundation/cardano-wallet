@@ -288,8 +288,9 @@ data VerificationKeyPool (key :: Depth -> * -> *) = VerificationKeyPool {
     -- ^ The actual gap for the pool. This can't change for a given pool.
     , verPoolIndexedKeys
         :: !(Map KeyHash (Index 'Soft 'ScriptK, AddressState))
-    , verPoolKnownScripts :: !(Map ScriptHash [key 'ScriptK XPub])
+    , verPoolKnownScripts :: !(Map ScriptHash [Index 'Soft 'ScriptK])
         -- ^ Known script hashes that contain our verification key hashes
+        -- represented here by corresponding indices
     } deriving (Generic)
 
 deriving instance (Show (key 'AccountK XPub), Show (key 'ScriptK XPub))
@@ -326,7 +327,7 @@ mkVerificationKeyPool
     => k 'AccountK XPub
     -> AddressPoolGap
     -> Map KeyHash (Index 'Soft 'ScriptK, AddressState)
-    -> Map ScriptHash [k 'ScriptK XPub]
+    -> Map ScriptHash [Index 'Soft 'ScriptK]
     -> VerificationKeyPool k
 mkVerificationKeyPool accXPub num@(AddressPoolGap g) vkPoolMap knownScripts = VerificationKeyPool
     { verPoolAccountPubKey = accXPub
