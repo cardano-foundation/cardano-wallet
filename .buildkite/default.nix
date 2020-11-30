@@ -8,8 +8,7 @@ with pkgs;
 let
   buildTools = [
     gnused gnugrep coreutils git nix gnumake gnutar gzip lz4
-    stack walletPackages.commonLib.stack-hpc-coveralls
-    haskellPackages.weeder
+    stack haskellPackages.weeder
   ];
   libs = ps: with ps; [turtle safe transformers extra async];
   ghc' = haskellPackages.ghcWithPackages libs;

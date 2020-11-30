@@ -17,8 +17,10 @@ let
   # use our own nixpkgs if it exists in our sources,
   # otherwise use iohkNix default nixpkgs.
   nixpkgs = if (sources ? nixpkgs)
-    then (builtins.trace "Not using IOHK default nixpkgs (use 'niv drop nixpkgs' to use default for better sharing)"
-      sources.nixpkgs)
+    then sources.nixpkgs
+      # TODO: after updating to ghc-8.10, go back to default nixpkgs-20.09
+      # (builtins.trace "Not using IOHK default nixpkgs (use 'niv drop nixpkgs' to use default for better sharing)"
+      # sources.nixpkgs)
     else iohkNixMain.nixpkgs;
 
   # for inclusion in pkgs:
@@ -40,6 +42,8 @@ let
           # also expose our sources and overlays
           // { inherit overlays sources; };
       })
+      # cardano-node packages
+      (import ./cardano-node-overlay.nix)
       # And, of course, our haskell-nix-ified stack project:
       (import ./pkgs.nix { inherit system crossSystem config; })
     ];

@@ -19,7 +19,7 @@ mkShell rec {
   meta.platforms = lib.platforms.unix;
 
   ghc = if (compiler == null)
-    then walletPackages.haskellPackages._config.ghc.package
+    then walletPackages.project.pkg-set.config.ghc.package
     else haskell-nix.compiler.${compiler};
 
   tools = [

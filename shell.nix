@@ -12,7 +12,10 @@
 #
 ######################################################################
 
-{ walletPackages ? import ./default.nix { inherit sourcesOverride; }
+{ walletPackages ? import ./default.nix { inherit system crossSystem config sourcesOverride; }
+, system ? builtins.currentSystem
+, crossSystem ? null
+, config ? {}
 , pkgs ? walletPackages.pkgs
 , profiling ? false  # enable profiling in haskell dependencies
 , sourcesOverride ? {}  # see sourcesOverride in nix/default.nix
@@ -23,7 +26,7 @@ with pkgs.lib;
 with pkgs.haskell-nix.haskellLib;
 
 let
-  mkShell = name: hp: hp.shellFor rec {
+  mkShell = name: project: project.shellFor rec {
     inherit name;
     packages = ps: attrValues (selectProjectPackages ps);
     buildInputs = (with walletPackages; [
@@ -33,6 +36,7 @@ let
         cardano-tx
         bech32
       ]) ++ (with pkgs; [
+        haskellPackages.ghcid
         niv
         pkgconfig
         python3Packages.openapi-spec-validator
@@ -62,13 +66,13 @@ let
       #   nix-shell --arg checkMaterialization true
       #
       mkTool = name: args: args // {
-        index-state = "2020-10-20T00:00:00Z";
+        index-state = "2020-11-20T00:00:00Z";
         inherit checkMaterialization;
         materialized = ./nix/materialized + "/${name}";
       };
     in mapAttrs mkTool {
       cabal.version                   = "3.2.0.0";
-      haskell-language-server.version = "0.5.1";
+      haskell-language-server.version = "0.6.0";
       hoogle.version                  = "5.0.18";
       hlint.version                   = "3.2";
       lentil.version                  = "1.3.2.0";
@@ -76,7 +80,7 @@ let
       weeder.version                  = "1.0.9";
     };
 
-    CARDANO_NODE_CONFIGS = walletPackages.cardano-node.deployments;
+    CARDANO_NODE_CONFIGS = pkgs.cardano-node-deployments;
 
     # If any build input has bash completions, add it to the search
     # path for shell completions.
@@ -91,5 +95,5 @@ let
   };
 in
   if profiling
-    then mkShell "cardano-wallet-shell-profiled" walletPackages.profiledHaskellPackages
-    else mkShell "cardano-wallet-shell" walletPackages.haskellPackages
+    then mkShell "cardano-wallet-shell-profiled" walletPackages.profiledProject
+    else mkShell "cardano-wallet-shell" walletPackages.project

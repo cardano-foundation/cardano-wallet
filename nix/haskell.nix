@@ -72,7 +72,11 @@ let
       })
 
       # Provide configuration and dependencies to cardano-wallet components
-      {
+      ({ config, ...}: let
+        cardanoNodeExes = with config.hsPkgs;
+          [ cardano-node.components.exes.cardano-node
+            cardano-cli.components.exes.cardano-cli ];
+      in {
         packages.cardano-wallet.components.tests = {
           # Only run integration tests on non-PR jobsets. Note that
           # the master branch jobset will just re-use the cached Bors
@@ -117,13 +121,13 @@ let
           '';
 
           # provide cardano-node & cardano-cli to tests
-          unit.build-tools = [ pkgs.cardano-node pkgs.cardano-cli ];
-          integration.build-tools = [ pkgs.cardano-node pkgs.cardano-cli ];
+          unit.build-tools = cardanoNodeExes;
+          integration.build-tools = cardanoNodeExes;
           unit.postInstall = libSodiumPostInstall;
         };
 
         # Add node backend to the PATH of the latency benchmarks
-        packages.cardano-wallet.components.benchmarks.latency = wrapBench [ pkgs.cardano-node pkgs.cardano-cli ];
+        packages.cardano-wallet.components.benchmarks.latency = wrapBench cardanoNodeExes;
 
         # Add cardano-node to the PATH of the byroon restore benchmark.
         # cardano-node will want to write logs to a subdirectory of the working directory.
@@ -133,8 +137,8 @@ let
             build-tools = [ pkgs.makeWrapper ];
             postInstall = ''
               wrapProgram $out/bin/restore \
-                --set CARDANO_NODE_CONFIGS ${pkgs.cardano-node.deployments} \
-                --prefix PATH : ${pkgs.cardano-node}/bin
+                --set CARDANO_NODE_CONFIGS ${pkgs.cardano-node-deployments} \
+                --prefix PATH : ${lib.makeBinPath cardanoNodeExes}
             '';
           };
 
@@ -152,7 +156,7 @@ let
             postInstall = ''
               wrapProgram $out/bin/shelley-test-cluster \
                 --set SHELLEY_TEST_DATA ${testData} \
-                --prefix PATH : ${lib.makeBinPath [pkgs.cardano-node pkgs.cardano-cli]}
+                --prefix PATH : ${lib.makeBinPath cardanoNodeExes}
             '';
           };
 
@@ -161,16 +165,20 @@ let
         packages.cardano-wallet.components.exes.cardano-wallet.postInstall = optparseCompletionPostInstall + libSodiumPostInstall;
         packages.cardano-wallet-core.components.tests.unit.postInstall = libSodiumPostInstall;
         packages.cardano-wallet-cli.components.tests.unit.postInstall = libSodiumPostInstall;
-      }
+      })
 
-      {
+      ({ config, ...}: let
+        setGitRevPostInstall = ''
+          ${buildPackages.commonLib.haskell-nix-extra-packages.haskellBuildUtils.package}/bin/set-git-rev "${config.packages.cardano-node.src.rev}" $out/bin/* || true
+        '';
+      in {
         # Add shell completions for tools.
-        packages.cardano-node.components.exes.cardano-cli.postInstall = optparseCompletionPostInstall + libSodiumPostInstall;
-        packages.cardano-node.components.exes.cardano-node.postInstall = optparseCompletionPostInstall + libSodiumPostInstall;
+        packages.cardano-cli.components.exes.cardano-cli.postInstall = optparseCompletionPostInstall + libSodiumPostInstall + setGitRevPostInstall;
+        packages.cardano-node.components.exes.cardano-node.postInstall = optparseCompletionPostInstall + libSodiumPostInstall + setGitRevPostInstall;
         packages.cardano-addresses-cli.components.exes.cardano-address.postInstall = optparseCompletionPostInstall;
         packages.cardano-transactions.components.exes.cardano-tx.postInstall = optparseCompletionPostInstall;
         packages.bech32.components.exes.bech32.postInstall = optparseCompletionPostInstall;
-      }
+      })
 
       # Provide the swagger file in an environment variable for
       # tests because it is located outside of the Cabal package
@@ -234,6 +242,7 @@ let
 
         # systemd can't be statically linked - disable lobemo-scribe-journal
         packages.cardano-config.flags.systemd = false;
+        packages.cardano-node.flags.systemd = false;
 
         # Haddock not working for cross builds and is not needed anyway
         doHaddock = false;
@@ -305,14 +314,8 @@ let
       '';
     };
 
-  proj = haskell.addProjectAndPackageAttrs {
+in
+  haskell.addProjectAndPackageAttrs {
     inherit pkg-set;
     inherit (pkg-set.config) hsPkgs;
-  };
-
-in
-  proj.hsPkgs // {
-    _config = proj.pkg-set.config;
-    #_roots = haskell.roots proj.pkg-set.config.ghc;
-    testCoverageReport = proj.projectCoverageReport;
   }

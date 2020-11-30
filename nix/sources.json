@@ -1,26 +1,14 @@
 {
-    "cardano-node": {
-        "branch": "refs/tags/1.21.1",
-        "description": null,
-        "homepage": null,
-        "owner": "input-output-hk",
-        "repo": "cardano-node",
-        "rev": "a819311473563cb2ab3cd91543cf0f63facdf43e",
-        "sha256": "1zj780z3j11rwbvazg79ja5110cgvskzdls81ms0dv3qy7lw4iyr",
-        "type": "tarball",
-        "url": "https://github.com/input-output-hk/cardano-node/archive/a819311473563cb2ab3cd91543cf0f63facdf43e.tar.gz",
-        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
-    },
     "haskell.nix": {
         "branch": "master",
         "description": "Alternative Haskell Infrastructure for Nixpkgs",
         "homepage": "https://input-output-hk.github.io/haskell.nix",
         "owner": "input-output-hk",
         "repo": "haskell.nix",
-        "rev": "4b8e94f837b22eaa7557f27c02034de38d5b3948",
-        "sha256": "0h25z5f74c50pin8wyvhl54s5y157khvbbs9j2j2x6ghhp1prr4j",
+        "rev": "c0931c9a562fe01e9a2f7abb62780f37466bef6a",
+        "sha256": "138cax4p778z3l9yi054kjv1d6r7l2igbpf5bzmhqqy19309gdbb",
         "type": "tarball",
-        "url": "https://github.com/input-output-hk/haskell.nix/archive/4b8e94f837b22eaa7557f27c02034de38d5b3948.tar.gz",
+        "url": "https://github.com/input-output-hk/haskell.nix/archive/c0931c9a562fe01e9a2f7abb62780f37466bef6a.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "iohk-nix": {
@@ -29,10 +17,10 @@
         "homepage": null,
         "owner": "input-output-hk",
         "repo": "iohk-nix",
-        "rev": "f4790863d0d4e3f9018f012ec6575432c7952a48",
-        "sha256": "0jds3j5fqcwbgpmbddrp9cxia5mxz8kw7sqsw6jcq9bq5mv1x00d",
+        "rev": "2e569616fd89a36f19e7cbc00fb35330787d8fdf",
+        "sha256": "0kxzdk6x36p2viap4hff8psz8mq7zpbnf1rd28n16n5kc63d20sy",
         "type": "tarball",
-        "url": "https://github.com/input-output-hk/iohk-nix/archive/f4790863d0d4e3f9018f012ec6575432c7952a48.tar.gz",
+        "url": "https://github.com/input-output-hk/iohk-nix/archive/2e569616fd89a36f19e7cbc00fb35330787d8fdf.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "niv": {
@@ -45,6 +33,18 @@
         "sha256": "1w8n54hapd4x9f1am33icvngkqns7m3hl9yair38yqq08ffwg0kn",
         "type": "tarball",
         "url": "https://github.com/nmattia/niv/archive/98c74a80934123cb4c3bf3314567f67311eb711a.tar.gz",
+        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
+    },
+    "nixpkgs": {
+        "branch": "nixpkgs-20.03-darwin",
+        "description": "Nix Packages collection",
+        "homepage": "",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "732684b720f829056dcb62380c2c17e4d3ebd947",
+        "sha256": "1fyrgpgpn906c96bhm4ad5n4qq27flhnfpiv395iryk3zsyig4dk",
+        "type": "tarball",
+        "url": "https://github.com/NixOS/nixpkgs/archive/732684b720f829056dcb62380c2c17e4d3ebd947.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "nixpkgs-19.03": {

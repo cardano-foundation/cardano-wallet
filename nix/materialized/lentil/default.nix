@@ -17,7 +17,7 @@
         "clock".flags.llvm = false;
         "megaparsec".revision = (((hackage."megaparsec")."8.0.0").revisions).default;
         "megaparsec".flags.dev = false;
-        "QuickCheck".revision = (((hackage."QuickCheck")."2.14.1").revisions).default;
+        "QuickCheck".revision = (((hackage."QuickCheck")."2.14.2").revisions).default;
         "QuickCheck".flags.templatehaskell = true;
         "QuickCheck".flags.old-random = false;
         "scientific".revision = (((hackage."scientific")."0.3.6.2").revisions).default;
@@ -27,7 +27,7 @@
         "deepseq".revision = (((hackage."deepseq")."1.4.4.0").revisions).default;
         "random".revision = (((hackage."random")."1.2.0").revisions).default;
         "optparse-applicative".revision = (((hackage."optparse-applicative")."0.15.1.0").revisions).default;
-        "splitmix".revision = (((hackage."splitmix")."0.1.0.2").revisions).default;
+        "splitmix".revision = (((hackage."splitmix")."0.1.0.3").revisions).default;
         "splitmix".flags.optimised-mixer = false;
         "dlist".revision = (((hackage."dlist")."0.8.0.8").revisions).default;
         "csv".revision = (((hackage."csv")."0.1.2").revisions).default;
@@ -43,7 +43,7 @@
         "semigroups".flags.deepseq = true;
         "semigroups".flags.bytestring-builder = false;
         "semigroups".flags.template-haskell = true;
-        "HUnit".revision = (((hackage."HUnit")."1.6.0.0").revisions).default;
+        "HUnit".revision = (((hackage."HUnit")."1.6.1.0").revisions).default;
         "natural-sort".revision = (((hackage."natural-sort")."0.1.2").revisions).default;
         "parsec".revision = (((hackage."parsec")."3.1.13.0").revisions).default;
         "hsc2hs".revision = (((hackage."hsc2hs")."0.68.7").revisions).default;
@@ -65,7 +65,7 @@
         "ansi-terminal".revision = (((hackage."ansi-terminal")."0.11").revisions).default;
         "ansi-terminal".flags.example = false;
         "containers".revision = (((hackage."containers")."0.6.0.1").revisions).default;
-        "integer-logarithms".revision = (((hackage."integer-logarithms")."1.0.3").revisions).default;
+        "integer-logarithms".revision = (((hackage."integer-logarithms")."1.0.3.1").revisions).default;
         "integer-logarithms".flags.check-bounds = false;
         "integer-logarithms".flags.integer-gmp = true;
         "bytestring".revision = (((hackage."bytestring")."0.10.8.2").revisions).default;

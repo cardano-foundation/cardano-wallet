@@ -23,8 +23,8 @@
 #   - migration-tests - tests db migrations from previous versions
 #   - dockerImage - tarballs of the docker images
 #     - shelley
-#   - shell - imported by shell.nix
-#   - haskellPackages - a Haskell.nix package set of all packages and their dependencies
+#   - shell - import of shell.nix
+#   - project.hsPkgs - a Haskell.nix package set of all packages and their dependencies
 #     - cardano-wallet-core.components.library
 #     - etc (layout is PACKAGE-NAME.components.COMPONENT-TYPE.COMPONENT-NAME)
 #
@@ -60,44 +60,47 @@ let
     filter = removeSocketFilesFilter;
   };
 
-  buildHaskellPackages = args: import ./nix/haskell.nix ({
+  buildHaskellProject = args: import ./nix/haskell.nix ({
     inherit config lib stdenv pkgs buildPackages;
     inherit (pkgs) haskell-nix;
     inherit src pr gitrev;
   } // args);
-  haskellPackages = buildHaskellPackages {};
-  profiledHaskellPackages = buildHaskellPackages { profiling = true; };
-  coveredHaskellPackages = buildHaskellPackages { coverage = true; };
+  project = buildHaskellProject {};
+  profiledProject = buildHaskellProject { profiling = true; };
+  coveredProject = buildHaskellProject { coverage = true; };
 
   getPackageChecks = mapAttrs (_: package: package.checks);
 
   self = {
-    inherit pkgs commonLib src haskellPackages profiledHaskellPackages coveredHaskellPackages;
-    # expose cardano-node, so daedalus can ship it without needing to pin cardano-node
-    inherit (pkgs) cardano-node cardano-cli;
-    inherit (haskellPackages.cardano-wallet-core.identifier) version;
+    inherit pkgs commonLib src project profiledProject coveredProject;
+    inherit (project.hsPkgs.cardano-wallet-core.identifier) version;
+    # Cardano
+    inherit (project.hsPkgs.cardano-cli.components.exes) cardano-cli;
+    cardano-node = project.hsPkgs.cardano-node.components.exes.cardano-node // {
+      deployments = pkgs.cardano-node-deployments;
+    };
     # expose db-converter, so daedalus can ship it without needing to pin a ouroborus-network rev
-    inherit (haskellPackages.ouroboros-consensus-byron.components.exes) db-converter;
+    inherit (project.hsPkgs.ouroboros-consensus-byron.components.exes) db-converter;
     # adrestia tool belt
-    inherit (haskellPackages.bech32.components.exes) bech32;
-    inherit (haskellPackages.cardano-addresses-cli.components.exes) cardano-address;
-    inherit (haskellPackages.cardano-transactions.components.exes) cardano-tx;
+    inherit (project.hsPkgs.bech32.components.exes) bech32;
+    inherit (project.hsPkgs.cardano-addresses-cli.components.exes) cardano-address;
+    inherit (project.hsPkgs.cardano-transactions.components.exes) cardano-tx;
 
     cardano-wallet = import ./nix/package-cardano-node.nix {
       inherit pkgs gitrev;
       haskellBuildUtils = haskellBuildUtils.package;
-      exe = haskellPackages.cardano-wallet.components.exes.cardano-wallet;
+      exe = project.hsPkgs.cardano-wallet.components.exes.cardano-wallet;
       inherit (self) cardano-node;
     };
 
     # `tests` are the test suites which have been built.
-    tests = collectComponents "tests" isProjectPackage coveredHaskellPackages;
+    tests = collectComponents "tests" isProjectPackage coveredProject.hsPkgs;
     # `checks` are the result of executing the tests.
-    checks = pkgs.recurseIntoAttrs (getPackageChecks (selectProjectPackages coveredHaskellPackages));
+    checks = pkgs.recurseIntoAttrs (getPackageChecks (selectProjectPackages coveredProject.hsPkgs));
     # Combined project coverage report
-    inherit (coveredHaskellPackages) testCoverageReport;
+    testCoverageReport = coveredProject.projectCoverageReport;
     # `benchmarks` are only built, not run.
-    benchmarks = collectComponents "benchmarks" isProjectPackage haskellPackages;
+    benchmarks = collectComponents "benchmarks" isProjectPackage project.hsPkgs;
 
     dockerImage = let
       mkDockerImage = backend: exe: pkgs.callPackage ./nix/docker.nix { inherit backend exe; };
@@ -113,9 +116,6 @@ let
     # This is the ./nix/regenerate.sh script. Put it here so that it's
     # built and cached on CI.
     inherit stackNixRegenerate;
-    # This attribute ensures that every single derivation required for
-    # evaluation of the haskell package set is built and cached on CI.
-    # haskellNixRoots = haskellPackages._roots;
   };
 
 in

@@ -11,7 +11,7 @@
     flags = { agpl = true; pedantic = false; };
     package = {
       specVersion = "2.2";
-      identifier = { name = "haskell-language-server"; version = "0.5.1.0"; };
+      identifier = { name = "haskell-language-server"; version = "0.6.0.0"; };
       license = "Apache-2.0";
       copyright = "Alan Zimmerman";
       maintainer = "alan.zimm@gmail.com";
@@ -86,7 +86,9 @@
             (hsPkgs."hashable" or (errorHandler.buildDepError "hashable"))
             (hsPkgs."haskell-language-server" or (errorHandler.buildDepError "haskell-language-server"))
             (hsPkgs."haskell-lsp" or (errorHandler.buildDepError "haskell-lsp"))
+            (hsPkgs."hls-hlint-plugin" or (errorHandler.buildDepError "hls-hlint-plugin"))
             (hsPkgs."hls-plugin-api" or (errorHandler.buildDepError "hls-plugin-api"))
+            (hsPkgs."hls-tactics-plugin" or (errorHandler.buildDepError "hls-tactics-plugin"))
             (hsPkgs."lens" or (errorHandler.buildDepError "lens"))
             (hsPkgs."ormolu" or (errorHandler.buildDepError "ormolu"))
             (hsPkgs."regex-tdfa" or (errorHandler.buildDepError "regex-tdfa"))
@@ -98,14 +100,9 @@
             (hsPkgs."shake" or (errorHandler.buildDepError "shake"))
             (hsPkgs."stylish-haskell" or (errorHandler.buildDepError "stylish-haskell"))
             (hsPkgs."temporary" or (errorHandler.buildDepError "temporary"))
-            (hsPkgs."syb" or (errorHandler.buildDepError "syb"))
             (hsPkgs."time" or (errorHandler.buildDepError "time"))
             (hsPkgs."transformers" or (errorHandler.buildDepError "transformers"))
             (hsPkgs."unordered-containers" or (errorHandler.buildDepError "unordered-containers"))
-            (hsPkgs."ghc-source-gen" or (errorHandler.buildDepError "ghc-source-gen"))
-            (hsPkgs."refinery" or (errorHandler.buildDepError "refinery"))
-            (hsPkgs."ghc-exactprint" or (errorHandler.buildDepError "ghc-exactprint"))
-            (hsPkgs."fingertree" or (errorHandler.buildDepError "fingertree"))
             ] ++ (pkgs.lib).optional (flags.agpl) (hsPkgs."brittany" or (errorHandler.buildDepError "brittany"));
           buildable = true;
           modules = [
@@ -115,25 +112,13 @@
             "Ide/Plugin/Floskell"
             "Ide/Plugin/Fourmolu"
             "Ide/Plugin/ImportLens"
+            "Ide/Plugin/ModuleName"
             "Ide/Plugin/Ormolu"
             "Ide/Plugin/Pragmas"
             "Ide/Plugin/Retrie"
             "Ide/Plugin/StylishHaskell"
-            "Ide/Plugin/Tactic"
-            "Ide/Plugin/Tactic/CodeGen"
-            "Ide/Plugin/Tactic/Context"
-            "Ide/Plugin/Tactic/Debug"
-            "Ide/Plugin/Tactic/GHC"
-            "Ide/Plugin/Tactic/Judgements"
-            "Ide/Plugin/Tactic/Machinery"
-            "Ide/Plugin/Tactic/Naming"
-            "Ide/Plugin/Tactic/Range"
-            "Ide/Plugin/Tactic/Tactics"
-            "Ide/Plugin/Tactic/Types"
-            "Ide/Plugin/Tactic/TestTypes"
-            "Ide/TreeTransform"
             ] ++ (pkgs.lib).optional (flags.agpl) "Ide/Plugin/Brittany";
-          hsSourceDirs = [ "exe" "plugins/default/src" "plugins/tactics/src" ];
+          hsSourceDirs = [ "exe" "plugins/default/src" ];
           includeDirs = [ "include" ];
           mainPath = (([
             "Main.hs"
@@ -215,6 +200,7 @@
             "FunctionalLiquid"
             "HieBios"
             "Highlight"
+            "ModuleName"
             "Progress"
             "Reference"
             "Rename"
@@ -258,6 +244,7 @@
             (hsPkgs."process" or (errorHandler.buildDepError "process"))
             (hsPkgs."tasty" or (errorHandler.buildDepError "tasty"))
             (hsPkgs."tasty-ant-xml" or (errorHandler.buildDepError "tasty-ant-xml"))
+            (hsPkgs."tasty-rerun" or (errorHandler.buildDepError "tasty-rerun"))
             ];
           build-tools = [
             (hsPkgs.buildPackages.haskell-language-server or (pkgs.buildPackages.haskell-language-server or (errorHandler.buildToolDepError "haskell-language-server")))

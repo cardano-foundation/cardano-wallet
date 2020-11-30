@@ -42,7 +42,7 @@
         "semigroups".flags.deepseq = true;
         "semigroups".flags.bytestring-builder = false;
         "semigroups".flags.template-haskell = true;
-        "HUnit".revision = (((hackage."HUnit")."1.6.0.0").revisions).default;
+        "HUnit".revision = (((hackage."HUnit")."1.6.1.0").revisions).default;
         "parsec".revision = (((hackage."parsec")."3.1.13.0").revisions).default;
         "directory".revision = (((hackage."directory")."1.3.3.0").revisions).default;
         "transformers-compat".revision = (((hackage."transformers-compat")."0.6.6").revisions).default;
@@ -62,7 +62,7 @@
         "call-stack".revision = (((hackage."call-stack")."0.2.0").revisions).default;
         "primitive".revision = (((hackage."primitive")."0.7.1.0").revisions).default;
         "base-compat".revision = (((hackage."base-compat")."0.11.2").revisions).default;
-        "time-compat".revision = (((hackage."time-compat")."1.9.3").revisions).default;
+        "time-compat".revision = (((hackage."time-compat")."1.9.4").revisions).default;
         "time-compat".flags.old-locale = false;
         "ansi-terminal".revision = (((hackage."ansi-terminal")."0.10.3").revisions).default;
         "ansi-terminal".flags.example = false;
@@ -71,7 +71,7 @@
         "tagged".flags.deepseq = true;
         "haskell-src-exts".revision = (((hackage."haskell-src-exts")."1.23.1").revisions).default;
         "containers".revision = (((hackage."containers")."0.6.0.1").revisions).default;
-        "integer-logarithms".revision = (((hackage."integer-logarithms")."1.0.3").revisions).default;
+        "integer-logarithms".revision = (((hackage."integer-logarithms")."1.0.3.1").revisions).default;
         "integer-logarithms".flags.check-bounds = false;
         "integer-logarithms".flags.integer-gmp = true;
         "these".revision = (((hackage."these")."1.1.1.1").revisions).default;

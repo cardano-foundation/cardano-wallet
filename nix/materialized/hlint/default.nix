@@ -41,16 +41,14 @@
         "deepseq".revision = (((hackage."deepseq")."1.4.4.0").revisions).default;
         "random".revision = (((hackage."random")."1.2.0").revisions).default;
         "uuid-types".revision = (((hackage."uuid-types")."1.0.3").revisions).default;
-        "splitmix".revision = (((hackage."splitmix")."0.1.0.2").revisions).default;
+        "splitmix".revision = (((hackage."splitmix")."0.1.0.3").revisions).default;
         "splitmix".flags.optimised-mixer = false;
         "dlist".revision = (((hackage."dlist")."1.0").revisions).default;
         "dlist".flags.werror = false;
         "conduit".revision = (((hackage."conduit")."1.3.3").revisions).default;
         "data-default".revision = (((hackage."data-default")."0.7.1.1").revisions).default;
         "data-default-instances-old-locale".revision = (((hackage."data-default-instances-old-locale")."0.0.1").revisions).default;
-        "uniplate".revision = (((hackage."uniplate")."1.6.12").revisions).default;
-        "uniplate".flags.separate_syb = true;
-        "uniplate".flags.typeable_fingerprint = true;
+        "uniplate".revision = (((hackage."uniplate")."1.6.13").revisions).default;
         "parsec".revision = (((hackage."parsec")."3.1.13.0").revisions).default;
         "directory".revision = (((hackage."directory")."1.3.3.0").revisions).default;
         "yaml".revision = (((hackage."yaml")."0.11.5.0").revisions).default;
@@ -73,7 +71,7 @@
         "vector".flags.boundschecks = true;
         "primitive".revision = (((hackage."primitive")."0.7.1.0").revisions).default;
         "base-compat".revision = (((hackage."base-compat")."0.11.2").revisions).default;
-        "time-compat".revision = (((hackage."time-compat")."1.9.3").revisions).default;
+        "time-compat".revision = (((hackage."time-compat")."1.9.4").revisions).default;
         "time-compat".flags.old-locale = false;
         "ansi-terminal".revision = (((hackage."ansi-terminal")."0.11").revisions).default;
         "ansi-terminal".flags.example = false;
@@ -83,7 +81,7 @@
         "unliftio-core".revision = (((hackage."unliftio-core")."0.2.0.1").revisions).default;
         "ghc-lib-parser".revision = (((hackage."ghc-lib-parser")."8.10.2.20200916").revisions).default;
         "containers".revision = (((hackage."containers")."0.6.0.1").revisions).default;
-        "integer-logarithms".revision = (((hackage."integer-logarithms")."1.0.3").revisions).default;
+        "integer-logarithms".revision = (((hackage."integer-logarithms")."1.0.3.1").revisions).default;
         "integer-logarithms".flags.check-bounds = false;
         "integer-logarithms".flags.integer-gmp = true;
         "these".revision = (((hackage."these")."1.1.1.1").revisions).default;
