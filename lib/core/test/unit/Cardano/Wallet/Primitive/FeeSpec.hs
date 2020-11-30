@@ -350,7 +350,7 @@ spec = do
             }) (Right $ FeeOutput
             { csInps = [2,2]
             , csOuts = []
-            , csChngs = [1]
+            , csChngs = []
             })
 
     parallel $ describe "Fee Calculation: Generators" $ do
