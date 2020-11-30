@@ -585,7 +585,7 @@ migrateManually tr proxy defaultFieldValues =
             TableMissing ->
                 traceWith tr $ MsgManualMigrationNotNeeded roleField
             ColumnMissing -> do
-                traceWith tr $ MsgManualMigrationNotNeeded roleField
+                traceWith tr $ MsgManualMigrationNeeded roleField "accounting_style"
                 query <- Sqlite.prepare conn $ T.unwords
                     [ "ALTER TABLE", tableName roleField
                     , "RENAME COLUMN accounting_style TO"
@@ -605,10 +605,7 @@ migrateManually tr proxy defaultFieldValues =
     addScriptAddressGapIfMissing conn =
         addColumn_ conn True (DBField SeqStateScriptGap) value
       where
-        value = case defaultScriptPoolGap defaultFieldValues of
-            Nothing ->
-                T.pack $ show $ Seq.getAddressPoolGap Seq.defaultAddressPoolGap
-            Just v -> T.pack $ show $ Seq.getAddressPoolGap v
+        value = T.pack $ show $ Seq.getAddressPoolGap Seq.defaultAddressPoolGap
 
     -- | Determines whether a field is present in its parent table.
     isFieldPresent :: Sqlite.Connection -> DBField -> IO SqlColumnStatus
@@ -673,7 +670,7 @@ migrateManually tr proxy defaultFieldValues =
             TableMissing ->
                 traceWith tr $ MsgManualMigrationNotNeeded field
             ColumnMissing -> do
-                traceWith tr $ MsgManualMigrationNeeded field new
+                traceWith tr $ MsgManualMigrationNotNeeded field
             ColumnPresent -> do
                 query <- Sqlite.prepare conn $ T.unwords
                     [ "UPDATE", tableName field
@@ -697,7 +694,6 @@ data DefaultFieldValues = DefaultFieldValues
     , defaultDesiredNumberOfPool :: Word16
     , defaultMinimumUTxOValue :: W.Coin
     , defaultHardforkEpoch :: Maybe W.EpochNo
-    , defaultScriptPoolGap :: Maybe Seq.AddressPoolGap
     }
 
 -- | Sets up a connection to the SQLite database.

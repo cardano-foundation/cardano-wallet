@@ -312,7 +312,7 @@ testMigrationRole dbName = do
                     [wid] <- listWallets
                     readCheckpoint wid
         let migrationMsg = filter isMsgManualMigration logs
-        length migrationMsg `shouldBe` 2
+        length migrationMsg `shouldBe` 3
         length (knownAddresses $ getState cp) `shouldBe` 69
   where
     isMsgManualMigration :: DBLog -> Bool
@@ -838,7 +838,6 @@ defaultFieldValues = DefaultFieldValues
     , defaultDesiredNumberOfPool = 0
     , defaultMinimumUTxOValue = Coin 0
     , defaultHardforkEpoch = Nothing
-    , defaultScriptPoolGap = Nothing
     }
 
 newDBLayer'
