@@ -250,6 +250,37 @@ UTxO                                sql=utxo
     Foreign Checkpoint utxo utxoWalletId utxoSlot ! ON DELETE CASCADE
     deriving Show Generic
 
+-- A token quantity associated with a UTxO entry.
+--
+-- Each row within UTxO can have many associated rows within UTxOToken.
+-- Each row within UTxOToken refers to just a single row within UTxO.
+--
+UTxOToken
+    utxoTokenWalletId  W.WalletId        sql=wallet_id
+    utxoTokenSlot      SlotNo            sql=slot
+    utxoTokenTxId      TxId              sql=tx_id
+    utxoTokenTxIndex   Word32            sql=tx_index
+    utxoTokenPolicyId  TP.TokenPolicyId  sql=token_policy_id
+    utxoTokenName      TP.TokenName      sql=token_name
+    utxoTokenQuantity  TQ.TokenQuantity  sql=token_quantity
+
+    Primary
+        utxoTokenWalletId
+        utxoTokenSlot
+        utxoTokenTxId
+        utxoTokenTxIndex
+        utxoTokenPolicyId
+        utxoTokenName
+    Foreign
+        UTxO
+        token_utxo
+        utxoTokenWalletId
+        utxoTokenSlot
+        utxoTokenTxId
+        utxoTokenTxIndex
+        ! ON DELETE CASCADE
+    deriving Show Generic
+
 -- Sequential scheme address discovery state
 -- which does not belong to a particular checkpoint.
 SeqState
