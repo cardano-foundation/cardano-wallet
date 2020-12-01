@@ -52,7 +52,7 @@ import Cardano.Pool.Metadata
 import Cardano.Wallet
     ( ErrListPools (..) )
 import Cardano.Wallet.Api.Types
-    ( ApiT (..) )
+    ( ApiT (..), toApiEpochInfo )
 import Cardano.Wallet.Byron.Compatibility
     ( toByronBlockHeader )
 import Cardano.Wallet.Network
@@ -65,12 +65,7 @@ import Cardano.Wallet.Network
     , follow
     )
 import Cardano.Wallet.Primitive.Slotting
-    ( PastHorizonException (..)
-    , TimeInterpreter
-    , epochOf
-    , firstSlotInEpoch
-    , startTime
-    )
+    ( PastHorizonException (..), TimeInterpreter, epochOf )
 import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
     , BlockHeader (..)
@@ -438,7 +433,7 @@ combineDbAndLsqData ti nOpt lsqData =
         -> m Api.ApiStakePool
     mkApiPool pid (PoolLsqData prew pstk psat) dbData = do
         let mRetirementEpoch = retirementEpoch <$> retirementCert dbData
-        retirementEpochInfo <- traverse toApiEpochInfo mRetirementEpoch
+        retirementEpochInfo <- traverse (ti . toApiEpochInfo) mRetirementEpoch
         pure $ Api.ApiStakePool
             { Api.id = (ApiT pid)
             , Api.metrics = Api.ApiStakePoolMetrics
@@ -461,10 +456,6 @@ combineDbAndLsqData ti nOpt lsqData =
             , Api.flags =
                 [ Api.Delisted | delisted dbData ]
             }
-
-    toApiEpochInfo ep = do
-        time <- ti $ startTime =<< firstSlotInEpoch ep
-        return $ Api.ApiEpochInfo (ApiT ep) time
 
 -- | Combines all the LSQ data into a single map.
 --
@@ -687,9 +678,10 @@ monitorStakePools tr gp nl DBLayer{..} =
     -- that occurred two epochs ago that has not subsquently been superseded,
     -- it should be safe to garbage collect that pool.
     --
-    garbageCollectPools currentSlot latestGarbageCollectionEpochRef = do
-        -- #2196: We need the try. Arguably we shouldn't need it.
-        liftIO (try @SomeException (timeInterpreter nl (epochOf currentSlot))) >>= \case
+    garbageCollectPools currentSlot latestGarbageCollectionEpochRef =
+        -- Perform this action if the epoch number for currentSlot can be
+        -- determined. Otherwise, do nothing.
+        liftIO (try @PastHorizonException (timeInterpreter nl (epochOf currentSlot))) >>= \case
             Left _ -> return ()
             Right currentEpoch | currentEpoch < 2 -> return ()
             Right currentEpoch -> do

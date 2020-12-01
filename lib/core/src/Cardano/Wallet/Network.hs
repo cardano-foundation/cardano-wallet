@@ -269,10 +269,9 @@ getSlottingParametersForTip nl = do
     -- This requires code changes in the shelley ledger.
     let getActiveSlotCoeff = pure (ActiveSlotCoefficient 1.0)
 
-    SlottingParameters
-        <$> timeInterpreter nl (querySlotLength tip)
-        <*> timeInterpreter nl (queryEpochLength tip)
-        <*> getActiveSlotCoeff
+    (slotLen, epLen) <- timeInterpreter nl
+        ((,) <$> querySlotLength tip <*> queryEpochLength tip)
+    SlottingParameters slotLen epLen <$> getActiveSlotCoeff
 
 {-------------------------------------------------------------------------------
                                 Chain Sync

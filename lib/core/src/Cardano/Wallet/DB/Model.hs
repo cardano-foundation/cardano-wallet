@@ -69,7 +69,7 @@ import Prelude
 import Cardano.Wallet.Primitive.Model
     ( Wallet, currentTip, utxo )
 import Cardano.Wallet.Primitive.Slotting
-    ( TimeInterpreter, epochOf, startTime )
+    ( TimeInterpreter, epochOf, slotToUTCTime )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (blockHeight, slotNo)
     , DelegationCertificate (..)
@@ -426,7 +426,7 @@ mReadTxHistory
 mReadTxHistory ti wid minWithdrawal order range mstatus db@(Database wallets txs) =
     (Right res, db)
   where
-    slotStartTime' = runIdentity . ti . startTime
+    slotStartTime' = runIdentity . ti . slotToUTCTime
     res = fromMaybe mempty $ do
         wal <- Map.lookup wid wallets
         (_, cp) <- Map.lookupMax (checkpoints wal)

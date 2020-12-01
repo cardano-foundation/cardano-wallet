@@ -221,6 +221,7 @@ import Cardano.Wallet.Api.Types
     , WalletPutData (..)
     , WalletPutPassphraseData (..)
     , getApiMnemonicT
+    , toApiEpochInfo
     , toApiNetworkParameters
     , toApiUtxoStatistics
     )
@@ -280,12 +281,13 @@ import Cardano.Wallet.Primitive.Model
     ( Wallet, availableBalance, currentTip, getState, totalBalance )
 import Cardano.Wallet.Primitive.Slotting
     ( PastHorizonException
+    , RelativeTime
     , TimeInterpreter
     , currentEpoch
-    , endTimeOfEpoch
-    , firstSlotInEpoch
+    , currentRelativeTime
     , ongoingSlotAt
-    , startTime
+    , slotToUTCTime
+    , timeOfEpoch
     , toSlotId
     )
 import Cardano.Wallet.Primitive.SyncProgress
@@ -348,12 +350,8 @@ import Control.Monad.Catch
     ( handle, try )
 import Control.Monad.IO.Class
     ( MonadIO, liftIO )
-import Control.Monad.Trans.Class
-    ( lift )
 import Control.Monad.Trans.Except
     ( ExceptT (..), runExceptT, throwE, withExceptT )
-import Control.Monad.Trans.Maybe
-    ( MaybeT (..) )
 import Control.Tracer
     ( Tracer )
 import Data.Aeson
@@ -398,8 +396,6 @@ import Data.Text.Class
     ( FromText (..), ToText (..) )
 import Data.Time
     ( UTCTime )
-import Data.Time.Clock
-    ( getCurrentTime )
 import Data.Void
     ( Void )
 import Data.Word
@@ -458,7 +454,6 @@ import qualified Cardano.Wallet.Api.Types as Api
 import qualified Cardano.Wallet.Network as NW
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Byron as Byron
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Icarus as Icarus
-import qualified Cardano.Wallet.Primitive.Slotting as S
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Cardano.Wallet.Registry as Registry
@@ -720,7 +715,7 @@ mkShelleyWallet ctx wid cp meta pending progress = do
     ti :: TimeInterpreter IO
     ti = timeInterpreter (ctx ^. networkLayer @t)
 
-    -- This may fail
+    -- The epoch to utc time conversion may fail
     -- 1. In Byron when running Byron;Shelley
     -- 2. In Shelley when running Byron;Shelley;SomethingElse
     --
@@ -731,13 +726,9 @@ mkShelleyWallet ctx wid cp meta pending progress = do
     -- 2. We are currently only targeting Byron;Shelley.
     --
     -- so it shouldn't be a problem.
-    toApiEpochInfo ep = do
-        time <- ti (firstSlotInEpoch ep >>= startTime)
-        return $ ApiEpochInfo (ApiT ep) time
-
     toApiWalletDelegation W.WalletDelegation{active,next} = do
         apiNext <- forM next $ \W.WalletDelegationNext{status,changesAt} -> do
-            info <- toApiEpochInfo changesAt
+            info <- ti $ toApiEpochInfo changesAt
             return $ toApiWalletDelegationNext (Just info) status
 
         return $ ApiWalletDelegation
@@ -1752,19 +1743,15 @@ assignMigrationAddresses addrs selections =
 -------------------------------------------------------------------------------}
 
 data ErrCurrentEpoch
-    = ErrUnableToDetermineCurrentEpoch
+    = ErrUnableToDetermineCurrentEpoch  -- fixme: unused
     | ErrCurrentEpochPastHorizonException PastHorizonException
 
 getCurrentEpoch
     :: forall ctx s t k . (ctx ~ ApiLayer s t k)
     => ctx
     -> Handler W.EpochNo
-getCurrentEpoch ctx = do
-    res <- liftIO $ try $ currentEpoch ti
-    case res of
-        Right Nothing  -> liftE ErrUnableToDetermineCurrentEpoch
-        Right (Just x) -> pure x
-        Left e@(S.PastHorizon{}) -> liftE (ErrCurrentEpochPastHorizonException e)
+getCurrentEpoch ctx = liftIO (try $ currentEpoch ti) >>=
+    either (liftE . ErrCurrentEpochPastHorizonException) pure
   where
     ti :: TimeInterpreter IO
     ti = timeInterpreter (ctx ^. networkLayer @t)
@@ -1775,10 +1762,11 @@ getNetworkInformation
     -> NetworkLayer IO t Block
     -> Handler ApiNetworkInformation
 getNetworkInformation st nl = do
-    now <- liftIO getCurrentTime
-    nodeTip <-  liftHandler (NW.currentNodeTip nl)
+    now <- liftIO $ currentRelativeTime ti
+    nodeTip <- liftHandler (NW.currentNodeTip nl)
     apiNodeTip <- liftIO $ makeApiBlockReferenceFromHeader ti nodeTip
-    nowInfo <- liftIO $ runMaybeT $ networkTipInfo now
+    nowInfo <- handle (\(_ :: PastHorizonException) -> pure Nothing)
+        $ liftIO $ Just <$> networkTipInfo now
     progress <- handle (\(_ :: PastHorizonException) -> pure NotResponding)
         $ liftIO (syncProgress st ti nodeTip now)
     pure $ Api.ApiNetworkInformation
@@ -1793,22 +1781,16 @@ getNetworkInformation st nl = do
 
     -- (network tip, next epoch)
     -- May be unavailible if the node is still syncing.
-    networkTipInfo :: UTCTime -> MaybeT IO (ApiSlotReference, ApiEpochInfo)
-    networkTipInfo now = handle handlePastHorizonException $ do
-        networkTipSlot <- MaybeT (ti $ ongoingSlotAt now)
-        tip <- lift $ makeApiSlotReference ti networkTipSlot
+    networkTipInfo :: RelativeTime -> IO (ApiSlotReference, ApiEpochInfo)
+    networkTipInfo now = do
+        networkTipSlot <- ti $ ongoingSlotAt now
+        tip <- makeApiSlotReference ti networkTipSlot
         let curEpoch = tip ^. #slotId . #epochNumber . #getApiT
-        nextEpochStart <- lift $ ti $ endTimeOfEpoch curEpoch
+        (_, nextEpochStart) <- ti $ timeOfEpoch curEpoch
         let nextEpoch = ApiEpochInfo
                 (ApiT $ succ curEpoch)
                 nextEpochStart
         return (tip, nextEpoch)
-      where
-        handlePastHorizonException
-            :: PastHorizonException
-            -> MaybeT IO (ApiSlotReference, ApiEpochInfo)
-        handlePastHorizonException _ =
-            MaybeT (pure Nothing)
 
 getNetworkParameters
     :: (Block, NetworkParameters, SyncTolerance)
@@ -1821,9 +1803,7 @@ getNetworkParameters (_block0, genesisNp, _st) nl = do
             { protocolParameters = pp, slottingParameters = sp }
     case epochNoM of
         Just epochNo -> do
-            epochStartTime <-
-                liftIO $ timeInterpreter nl
-                (firstSlotInEpoch epochNo >>= startTime)
+            (epochStartTime, _) <- liftIO $ timeInterpreter nl $ timeOfEpoch epochNo
             pure $ apiNetworkParams
                 { hardforkAt = Just $
                     ApiEpochInfo (ApiT epochNo) epochStartTime }
@@ -2104,7 +2084,7 @@ makeApiBlockReference
     -> m ApiBlockReference
 makeApiBlockReference ti sl height = do
     slotId <- ti (toSlotId sl)
-    slotTime <- ti (startTime sl)
+    slotTime <- ti (slotToUTCTime sl)
     return $ ApiBlockReference
         { absoluteSlotNumber = ApiT sl
         , slotId = apiSlotId slotId
@@ -2121,14 +2101,13 @@ makeApiBlockReferenceFromHeader ti tip =
     makeApiBlockReference ti (tip ^. #slotNo) (natural $ tip ^. #blockHeight)
 
 makeApiSlotReference
-    :: Monad m
-    => TimeInterpreter m
+    :: TimeInterpreter m
     -> SlotNo
     -> m ApiSlotReference
 makeApiSlotReference ti sl =
-    ApiSlotReference (ApiT sl)
-        <$> fmap apiSlotId (ti $ toSlotId sl)
-        <*> ti (startTime sl)
+    ti (ApiSlotReference (ApiT sl)
+        <$> fmap apiSlotId (toSlotId sl)
+        <*> slotToUTCTime sl)
 
 getWalletTip
     :: Monad m

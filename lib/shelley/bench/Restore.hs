@@ -106,7 +106,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
 import Cardano.Wallet.Primitive.Model
     ( Wallet, currentTip, getState, totalUTxO )
 import Cardano.Wallet.Primitive.Slotting
-    ( TimeInterpreter )
+    ( TimeInterpreter, currentRelativeTime )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..), mkSyncTolerance, syncProgress )
 import Cardano.Wallet.Primitive.Types
@@ -721,12 +721,12 @@ waitForWalletsSyncTo
     -> IO ()
 waitForWalletsSyncTo targetSync tr proxy walletLayer wids gp vData = do
     let tolerance = mkSyncTolerance 3600
-    now  <- getCurrentTime
+    now <- currentRelativeTime ti
     posixNow <- utcTimeToPOSIXSeconds <$> getCurrentTime
     progress <- forM wids $ \wid -> do
         w <- fmap fst' <$> unsafeRunExceptT $ W.readWallet walletLayer wid
         let Quantity bh = blockHeight $ currentTip w
-        prog <- syncProgress tolerance (timeInterpreter nl) (currentTip w) now
+        prog <- syncProgress tolerance ti (currentTip w) now
         return (prog, bh)
     traceWith tr $ MsgRestorationTick posixNow (map fst progress)
     threadDelay 1000000
@@ -736,6 +736,7 @@ waitForWalletsSyncTo targetSync tr proxy walletLayer wids gp vData = do
     else waitForWalletsSyncTo targetSync tr proxy walletLayer wids gp vData
   where
     WalletLayer _ _ nl _ _ = walletLayer
+    ti = timeInterpreter nl
     fst' (x,_,_) = x
 
 -- | Poll the network tip until it reaches the slot corresponding to the current
@@ -751,8 +752,9 @@ waitForNodeSync tr nw = loop 10
     loop retries = runExceptT (currentNodeTip nw) >>= \case
         Right nodeTip -> do
             let tolerance = mkSyncTolerance 300
-            now  <- getCurrentTime
-            prog <- syncProgress tolerance (timeInterpreter nw) nodeTip now
+            let ti = timeInterpreter nw
+            now <- currentRelativeTime ti
+            prog <- syncProgress tolerance ti nodeTip now
             traceWith tr $ MsgNodeTipTick nodeTip prog
             if prog == Ready
                 then pure (slotNo nodeTip)

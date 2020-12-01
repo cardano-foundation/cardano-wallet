@@ -96,7 +96,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
 import Cardano.Wallet.Primitive.Model
     ( Wallet, initWallet, unsafeInitWallet )
 import Cardano.Wallet.Primitive.Slotting
-    ( singleEraInterpreter )
+    ( mkSingleEraInterpreter )
 import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
     , Block (..)
@@ -602,7 +602,7 @@ setupDB tr = do
     (ctx, db) <- newDBLayer tr defaultFieldValues (Just f) ti
     pure (f, ctx, db)
   where
-    ti = pure . runIdentity . singleEraInterpreter
+    ti = pure . runIdentity . mkSingleEraInterpreter
         (StartTime $ posixSecondsToUTCTime 0)
         (SlottingParameters
         { getSlotLength = SlotLength 1

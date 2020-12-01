@@ -900,8 +900,8 @@ selectPoolProduction
     -> EpochNo
     -> SqlPersistT IO [PoolProduction]
 selectPoolProduction timeInterpreter epoch = do
-    e <- liftIO $ timeInterpreter $ firstSlotInEpoch epoch
-    eplus1 <- liftIO $ timeInterpreter $ firstSlotInEpoch (epoch + 1)
+    (e, eplus1) <- liftIO $ timeInterpreter
+        ((,) <$> firstSlotInEpoch epoch <*> firstSlotInEpoch (epoch + 1))
     fmap entityVal <$> selectList
         [ PoolProductionSlot >=. e
         , PoolProductionSlot <. eplus1 ]
