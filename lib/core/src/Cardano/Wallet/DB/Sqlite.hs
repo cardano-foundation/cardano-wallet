@@ -85,6 +85,7 @@ import Cardano.Wallet.DB.Sqlite.TH
     , TxOutToken (..)
     , TxWithdrawal (..)
     , UTxO (..)
+    , UTxOToken (..)
     , Wallet (..)
     , migrateAll
     , unWalletKey
@@ -1116,9 +1117,9 @@ privateKeyFromEntity (PrivateKey _ k h) =
 mkCheckpointEntity
     :: W.WalletId
     -> W.Wallet s
-    -> (Checkpoint, [UTxO])
+    -> (Checkpoint, [UTxO], [UTxOToken])
 mkCheckpointEntity wid wal =
-    (cp, utxo)
+    (cp, utxo, utxoTokens)
   where
     header = W.currentTip wal
     sl = header ^. #slotNo
@@ -1140,8 +1141,13 @@ mkCheckpointEntity wid wal =
         , checkpointTxMaxSizeUnused = 0
         }
     utxo =
-        [ UTxO wid sl (TxId input) ix addr (TB.getCoin coin)
-        | (W.TxIn input ix, W.TxOut addr coin) <- utxoMap
+        [ UTxO wid sl (TxId input) ix addr (TB.getCoin tokens)
+        | (W.TxIn input ix, W.TxOut addr tokens) <- utxoMap
+        ]
+    utxoTokens =
+        [ UTxOToken wid sl (TxId input) ix policy token quantity
+        | (W.TxIn input ix, W.TxOut {tokens}) <- utxoMap
+        , (TB.AssetId policy token, quantity) <- snd (TB.toFlatList tokens)
         ]
     utxoMap = Map.assocs (W.getUTxO (W.utxo wal))
 
@@ -1387,11 +1393,12 @@ insertCheckpoint
     -> W.Wallet s
     -> SqlPersistT IO ()
 insertCheckpoint wid wallet = do
-    let (cp, utxo) = mkCheckpointEntity wid wallet
+    let (cp, utxo, utxoTokens) = mkCheckpointEntity wid wallet
     let sl = (W.currentTip wallet) ^. #slotNo
     deleteCheckpoints wid [CheckpointSlot ==. sl]
     insert_ cp
     dbChunked insertMany_ utxo
+    dbChunked insertMany_ utxoTokens
     insertState (wid, sl) (W.getState wallet)
 
 -- | Delete one or all checkpoints associated with a wallet.
