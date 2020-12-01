@@ -57,7 +57,7 @@ import Cardano.Wallet.DB.Sqlite.Types
 import Cardano.Wallet.Logging
     ( bracketTracer )
 import Cardano.Wallet.Primitive.Slotting
-    ( TimeInterpreter, epochOf, firstSlotInEpoch )
+    ( TimeInterpreter, epochOf, firstSlotInEpoch, interpretQuery )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
     , CertificatePublicationTime (..)
@@ -200,11 +200,11 @@ withDecoratedDBLayer
     -> (DBLayer IO -> IO a)
        -- ^ Action to run.
     -> IO a
-withDecoratedDBLayer dbDecorator trace fp timeInterpreter action = do
+withDecoratedDBLayer dbDecorator trace fp ti action = do
     traceWith trace (MsgGeneric $ MsgWillOpenDB fp)
     bracket before after (action . decorateDBLayer dbDecorator . snd)
   where
-    before = newDBLayer trace fp timeInterpreter
+    before = newDBLayer trace fp ti
     after = destroyDBLayer . fst
 
 -- | Sets up a connection to the SQLite database.
@@ -224,7 +224,7 @@ newDBLayer
        -- ^ Database file location, or Nothing for in-memory database
     -> TimeInterpreter IO
     -> IO (SqliteContext, DBLayer IO)
-newDBLayer trace fp timeInterpreter = do
+newDBLayer trace fp ti = do
     let io = startSqliteBackend
             (migrateManually trace)
             migrateAll
@@ -242,7 +242,7 @@ newDBLayer trace fp timeInterpreter = do
 
         readPoolProduction epoch = do
             production <- fmap fromPoolProduction
-                <$> selectPoolProduction timeInterpreter epoch
+                <$> selectPoolProduction ti epoch
 
             let toMap :: Ord a => Map a [b] -> (a,b) -> Map a [b]
                 toMap m (k, v) = Map.alter (alter v) k m
@@ -483,7 +483,7 @@ newDBLayer trace fp timeInterpreter = do
             -- TODO(ADP-356): What if the conversion blocks or fails?
             --
             -- Missing a rollback would be bad.
-            EpochNo epoch <- liftIO $ timeInterpreter (epochOf point)
+            EpochNo epoch <- liftIO $ interpretQuery ti (epochOf point)
             deleteWhere [ StakeDistributionEpoch >. fromIntegral epoch ]
 
             deleteWhere [ PoolProductionSlot >. point ]
@@ -899,8 +899,8 @@ selectPoolProduction
     :: TimeInterpreter IO
     -> EpochNo
     -> SqlPersistT IO [PoolProduction]
-selectPoolProduction timeInterpreter epoch = do
-    (e, eplus1) <- liftIO $ timeInterpreter
+selectPoolProduction ti epoch = do
+    (e, eplus1) <- liftIO $ interpretQuery ti
         ((,) <$> firstSlotInEpoch epoch <*> firstSlotInEpoch (epoch + 1))
     fmap entityVal <$> selectList
         [ PoolProductionSlot >=. e

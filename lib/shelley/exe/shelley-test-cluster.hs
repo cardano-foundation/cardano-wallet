@@ -17,7 +17,7 @@ import Cardano.BM.Data.Tracer
 import Cardano.CLI
     ( LogOutput (..), withLoggingNamed )
 import Cardano.Startup
-    ( withUtf8Encoding )
+    ( setDefaultFilePermissions, withUtf8Encoding )
 import Cardano.Wallet.Api.Types
     ( EncodeAddress (..) )
 import Cardano.Wallet.Logging
@@ -190,8 +190,9 @@ import qualified Data.Text as T
 -- - NO_CLEANUP: If set, the temporary directory used as a state directory for
 --               nodes and wallet data won't be cleaned up.
 main :: IO ()
-main = do
+main = withUtf8Encoding $ do
     hSetBuffering stdout LineBuffering
+    setDefaultFilePermissions
 
     nodeMinSeverity    <- nodeMinSeverityFromEnv
     walletMinSeverity  <- walletMinSeverityFromEnv
@@ -206,8 +207,7 @@ main = do
             ]
 
     poolConfigs <- poolConfigsFromEnv
-    withUtf8Encoding
-        $ withLoggingNamed "cardano-wallet" walletLogs
+    withLoggingNamed "cardano-wallet" walletLogs
         $ \(_, trWallet) -> withLoggingNamed "test-cluster" clusterLogs
         $ \(_, trCluster) -> withSystemTempDir (trMessageText trCluster) "testCluster"
         $ \dir -> withTempDir (trMessageText trCluster) dir "wallets"

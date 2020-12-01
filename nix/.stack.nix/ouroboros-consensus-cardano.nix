@@ -34,9 +34,9 @@
           (hsPkgs."cborg" or (errorHandler.buildDepError "cborg"))
           (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
           (hsPkgs."mtl" or (errorHandler.buildDepError "mtl"))
+          (hsPkgs."nothunks" or (errorHandler.buildDepError "nothunks"))
           (hsPkgs."serialise" or (errorHandler.buildDepError "serialise"))
           (hsPkgs."text" or (errorHandler.buildDepError "text"))
-          (hsPkgs."cardano-prelude" or (errorHandler.buildDepError "cardano-prelude"))
           (hsPkgs."cardano-binary" or (errorHandler.buildDepError "cardano-binary"))
           (hsPkgs."cardano-crypto-class" or (errorHandler.buildDepError "cardano-crypto-class"))
           (hsPkgs."cardano-crypto-wrapper" or (errorHandler.buildDepError "cardano-crypto-wrapper"))
@@ -44,6 +44,7 @@
           (hsPkgs."cardano-prelude" or (errorHandler.buildDepError "cardano-prelude"))
           (hsPkgs."cardano-slotting" or (errorHandler.buildDepError "cardano-slotting"))
           (hsPkgs."shelley-spec-ledger" or (errorHandler.buildDepError "shelley-spec-ledger"))
+          (hsPkgs."cardano-ledger-shelley-ma" or (errorHandler.buildDepError "cardano-ledger-shelley-ma"))
           (hsPkgs."ouroboros-network" or (errorHandler.buildDepError "ouroboros-network"))
           (hsPkgs."ouroboros-consensus" or (errorHandler.buildDepError "ouroboros-consensus"))
           (hsPkgs."ouroboros-consensus-byron" or (errorHandler.buildDepError "ouroboros-consensus-byron"))
@@ -60,7 +61,6 @@
             (hsPkgs."cardano-binary" or (errorHandler.buildDepError "cardano-binary"))
             (hsPkgs."cardano-crypto-wrapper" or (errorHandler.buildDepError "cardano-crypto-wrapper"))
             (hsPkgs."cardano-ledger" or (errorHandler.buildDepError "cardano-ledger"))
-            (hsPkgs."cardano-slotting" or (errorHandler.buildDepError "cardano-slotting"))
             (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
             (hsPkgs."contra-tracer" or (errorHandler.buildDepError "contra-tracer"))
             (hsPkgs."directory" or (errorHandler.buildDepError "directory"))
@@ -82,8 +82,8 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/ouroboros-network";
-      rev = "9e498e0962044c582df0cbf2f81fa0450a67d5f7";
-      sha256 = "000ypfbdc6i6plc91vrcywj4yrw5vvafn7c6993xn1pvd18xjm5g";
+      rev = "7753b7775a3fdcec50a147eb0ecb8b4bac5f0e65";
+      sha256 = "0bgi494ywb211yxj9bs3j6xbrvq1ndp6hj7xbxar7hhcr74kf1z7";
       });
     postUnpack = "sourceRoot+=/ouroboros-consensus-cardano; echo source root reset to \$sourceRoot";
     }

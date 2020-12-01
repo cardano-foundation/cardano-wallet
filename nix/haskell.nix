@@ -206,10 +206,6 @@ let
 
         # split data output for ekg to reduce closure size
         packages.ekg.components.library.enableSeparateDataOutput = true;
-
-        # Workaround until a build fix is released.
-        # https://github.com/input-output-hk/cardano-node/pull/1934
-        packages.cardano-api.doHaddock = false;
       }
 
       # Enable profiling on executables if the profiling argument is set.

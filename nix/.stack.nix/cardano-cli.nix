@@ -11,7 +11,7 @@
     flags = { unexpected_thunks = false; };
     package = {
       specVersion = "2.4";
-      identifier = { name = "cardano-cli"; version = "1.21.1"; };
+      identifier = { name = "cardano-cli"; version = "1.22.1"; };
       license = "Apache-2.0";
       copyright = "";
       maintainer = "operations@iohk.io";
@@ -87,6 +87,7 @@
             (hsPkgs."base" or (errorHandler.buildDepError "base"))
             (hsPkgs."cardano-cli" or (errorHandler.buildDepError "cardano-cli"))
             (hsPkgs."cardano-config" or (errorHandler.buildDepError "cardano-config"))
+            (hsPkgs."cardano-crypto-class" or (errorHandler.buildDepError "cardano-crypto-class"))
             (hsPkgs."cardano-prelude" or (errorHandler.buildDepError "cardano-prelude"))
             (hsPkgs."optparse-applicative" or (errorHandler.buildDepError "optparse-applicative"))
             (hsPkgs."text" or (errorHandler.buildDepError "text"))
@@ -155,8 +156,8 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/cardano-node";
-      rev = "a819311473563cb2ab3cd91543cf0f63facdf43e";
-      sha256 = "1zj780z3j11rwbvazg79ja5110cgvskzdls81ms0dv3qy7lw4iyr";
+      rev = "f13d1330dbe89c03a50cdb79f132e28e0723fd99";
+      sha256 = "0kwb66kcx45f7ms2mdqawlmi830l88ar8gms8qc6f01vxd5lh7jv";
       });
     postUnpack = "sourceRoot+=/cardano-cli; echo source root reset to \$sourceRoot";
     }

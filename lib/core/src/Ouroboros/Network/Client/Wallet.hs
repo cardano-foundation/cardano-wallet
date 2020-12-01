@@ -58,7 +58,7 @@ import Control.Monad.Class.MonadSTM
     , TQueue
     , atomically
     , isEmptyTQueue
-    , newEmptyTMVarM
+    , newEmptyTMVarIO
     , putTMVar
     , readTQueue
     , takeTMVar
@@ -81,7 +81,7 @@ import Network.TypedProtocol.Pipelined
     ( N (..), Nat (..), natToInt )
 import Numeric.Natural
     ( Natural )
-import Ouroboros.Consensus.Ledger.Abstract
+import Ouroboros.Consensus.HardFork.Combinator.Ledger.Query
     ( Query )
 import Ouroboros.Network.Block
     ( BlockNo (..)
@@ -133,14 +133,14 @@ chainSyncFollowTip
     :: forall m block. (Monad m)
     => (Tip block -> m ())
     -- ^ Callback for when the tip changes.
-    -> ChainSyncClient (Serialised block) (Tip (block)) m Void
+    -> ChainSyncClient (Serialised block) (Point block) (Tip block) m Void
 chainSyncFollowTip onTipUpdate =
     ChainSyncClient (clientStIdle False)
   where
     -- Client in the state 'Idle'. We immediately request the next block.
     clientStIdle
         :: Bool
-        -> m (ClientStIdle (Serialised block) (Tip block) m Void)
+        -> m (ClientStIdle (Serialised block) (Point block) (Tip block) m Void)
     clientStIdle synced = pure $ SendMsgRequestNext
         (clientStNext synced)
         (pure $ clientStNext synced)
@@ -151,7 +151,7 @@ chainSyncFollowTip onTipUpdate =
     -- server to send AwaitReply most of the time.
     clientStNext
         :: Bool
-        -> ClientStNext (Serialised block) (Tip block) m Void
+        -> ClientStNext (Serialised block) (Point block) (Tip block) m Void
     clientStNext False = ClientStNext
             { recvMsgRollBackward = const findIntersect
             , recvMsgRollForward = const findIntersect
@@ -172,7 +172,7 @@ chainSyncFollowTip onTipUpdate =
     -- After an intersection is found, we return to idle with the sync flag
     -- set.
     clientStIntersect
-        :: ClientStIntersect (Serialised block) (Tip block) m Void
+        :: ClientStIntersect (Serialised block) (Point block) (Tip block) m Void
     clientStIntersect = ClientStIntersect
         { recvMsgIntersectFound = \_intersection _tip ->
             ChainSyncClient $ clientStIdle True
@@ -223,7 +223,7 @@ data ChainSyncCmd block (m :: * -> *)
 -- | A little type-alias to ease signatures in 'chainSyncWithBlocks'
 type RequestNextStrategy m n block
     =  (NextBlocksResult (Point block) block -> m ())
-    -> P.ClientPipelinedStIdle n block (Tip block) m Void
+    -> P.ClientPipelinedStIdle n block (Point block) (Tip block) m Void
 
 -- | Client for the 'Chain Sync' mini-protocol.
 --
@@ -281,7 +281,7 @@ chainSyncWithBlocks
         -- poped from this buffer if not empty, otherwise they'll simply trigger
         -- an exchange with the node.
 
-    -> ChainSyncClientPipelined block (Tip block) m Void
+    -> ChainSyncClientPipelined block (Point block) (Tip block) m Void
 chainSyncWithBlocks tr fromTip queue responseBuffer =
     ChainSyncClientPipelined $ clientStIdle oneByOne
   where
@@ -302,7 +302,7 @@ chainSyncWithBlocks tr fromTip queue responseBuffer =
     -- before finally returning to 'Idle', waiting for the next command.
     clientStIdle
         :: RequestNextStrategy m 'Z block
-        -> m (P.ClientPipelinedStIdle 'Z block (Tip block) m Void)
+        -> m (P.ClientPipelinedStIdle 'Z block (Point block) (Tip block) m Void)
     clientStIdle strategy = atomically (readTQueue queue) >>= \case
         CmdFindIntersection points respond -> pure $
             P.SendMsgFindIntersect points (clientStIntersect respond)
@@ -320,7 +320,7 @@ chainSyncWithBlocks tr fromTip queue responseBuffer =
     -- so any buffered responses no longer apply and must be discarded.
     clientStIntersect
         :: (Maybe (Point block) -> m ())
-        -> P.ClientPipelinedStIntersect block (Tip block) m Void
+        -> P.ClientPipelinedStIntersect block (Point block) (Tip block) m Void
     clientStIntersect respond = P.ClientPipelinedStIntersect
         { recvMsgIntersectFound = \intersection _tip -> do
             respond (Just intersection)
@@ -360,7 +360,7 @@ chainSyncWithBlocks tr fromTip queue responseBuffer =
         :: (NextBlocksResult (Point block) block -> m ())
         -> [block]
         -> Nat n
-        -> P.ClientStNext n block (Tip block) m Void
+        -> P.ClientStNext n block (Point block) (Tip block) m Void
     collectResponses respond blocks Zero = P.ClientStNext
         { P.recvMsgRollForward = \block tip -> do
             traceWith tr $ MsgChainRollForward block (getTipPoint tip)
@@ -474,12 +474,12 @@ localStateQuery
         -- outside of the network client to the client itself.
         -- Requests are pushed to the queue which are then transformed into
         -- messages to keep the state-machine moving.
-    -> LocalStateQueryClient block (Query block) m Void
+    -> LocalStateQueryClient block (Point block) (Query block) m Void
 localStateQuery queue =
     LocalStateQueryClient clientStIdle
   where
     clientStIdle
-        :: m (LSQ.ClientStIdle block (Query block) m Void)
+        :: m (LSQ.ClientStIdle block (Point block) (Query block) m Void)
     clientStIdle = awaitNextCmd <&> \case
         CmdQueryLocalState pt query respond ->
             LSQ.SendMsgAcquire pt (clientStAcquiring query respond)
@@ -487,7 +487,7 @@ localStateQuery queue =
     clientStAcquiring
         :: forall state. Query block state
         -> (LocalStateQueryResult state -> m ())
-        -> LSQ.ClientStAcquiring block (Query block) m Void
+        -> LSQ.ClientStAcquiring block (Point block) (Query block) m Void
     clientStAcquiring query respond = LSQ.ClientStAcquiring
         { recvMsgAcquired = clientStAcquired query respond
         , recvMsgFailure = \failure -> do
@@ -498,21 +498,21 @@ localStateQuery queue =
     clientStAcquired
         :: forall state. Query block state
         -> (LocalStateQueryResult state -> m ())
-        -> LSQ.ClientStAcquired block (Query block) m Void
+        -> LSQ.ClientStAcquired block (Point block) (Query block) m Void
     clientStAcquired query respond =
         LSQ.SendMsgQuery query (clientStQuerying respond)
 
     -- By re-acquiring rather releasing the state with 'MsgRelease' it
     -- enables optimisations on the server side.
     clientStAcquiredAgain
-        :: m (LSQ.ClientStAcquired block (Query block) m Void)
+        :: m (LSQ.ClientStAcquired block (Point block) (Query block) m Void)
     clientStAcquiredAgain = awaitNextCmd <&> \case
         CmdQueryLocalState pt query respond ->
             LSQ.SendMsgReAcquire pt (clientStAcquiring query respond)
 
     clientStQuerying
         :: forall state. (LocalStateQueryResult state -> m ())
-        -> LSQ.ClientStQuerying block (Query block) m Void state
+        -> LSQ.ClientStQuerying block (Point block) (Query block) m Void state
     clientStQuerying respond = LSQ.ClientStQuerying
         { recvMsgResult = \result -> do
             respond (Right result)
@@ -594,7 +594,7 @@ send
     -> ((a -> m ()) -> cmd m)
     -> m a
 send queue cmd = do
-    tvar <- newEmptyTMVarM
+    tvar <- newEmptyTMVarIO
     atomically $ writeTQueue queue (cmd (atomically . putTMVar tvar))
     atomically $ takeTMVar tvar
 

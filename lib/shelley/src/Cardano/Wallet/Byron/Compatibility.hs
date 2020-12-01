@@ -21,13 +21,8 @@
 -- Conversion functions and static chain settings for Byron.
 
 module Cardano.Wallet.Byron.Compatibility
-    ( NodeVersionData
-
-      -- * Chain Parameters
-    , mainnetVersionData
-    , testnetVersionData
-
-    , mainnetNetworkParameters
+    ( -- * Chain Parameters
+      mainnetNetworkParameters
 
       -- * Genesis
     , emptyGenesis
@@ -91,8 +86,6 @@ import Data.Coerce
     ( coerce )
 import Data.Quantity
     ( Quantity (..) )
-import Data.Text
-    ( Text )
 import Data.Time.Clock.POSIX
     ( posixSecondsToUTCTime )
 import Data.Word
@@ -120,12 +113,8 @@ import Ouroboros.Network.Block
     , getTipPoint
     , legacyTip
     )
-import Ouroboros.Network.CodecCBORTerm
-    ( CodecCBORTerm )
 import Ouroboros.Network.Magic
     ( NetworkMagic (..) )
-import Ouroboros.Network.NodeToClient
-    ( NodeToClientVersionData (..), nodeToClientCodecCBORTerm )
 import Ouroboros.Network.Point
     ( WithOrigin (..) )
 
@@ -144,9 +133,6 @@ import qualified Data.Map.Strict as Map
 import qualified Ouroboros.Consensus.Block as O
 import qualified Ouroboros.Network.Block as O
 import qualified Ouroboros.Network.Point as Point
-
-type NodeVersionData =
-    (NodeToClientVersionData, CodecCBORTerm Text NodeToClientVersionData)
 
 --------------------------------------------------------------------------------
 --
@@ -246,33 +232,6 @@ genesisBlockFromTxOuts gp outs = W.Block
   where
     mkTx out@(W.TxOut (W.Address bytes) _) =
         W.Tx (W.Hash $ blake2b256 bytes) [] [out] mempty Nothing
-
---------------------------------------------------------------------------------
---
--- Network Parameters
-
--- | Settings for configuring a MainNet network client
-mainnetVersionData
-    :: NodeVersionData
-mainnetVersionData =
-    ( NodeToClientVersionData
-        { networkMagic =
-            NetworkMagic $ fromIntegral $ W.getProtocolMagic W.mainnetMagic
-        }
-    , nodeToClientCodecCBORTerm
-    )
-
--- | Settings for configuring a TestNet network client
-testnetVersionData
-    :: W.ProtocolMagic
-    -> NodeVersionData
-testnetVersionData pm =
-    ( NodeToClientVersionData
-        { networkMagic =
-            NetworkMagic $ fromIntegral $ W.getProtocolMagic pm
-        }
-    , nodeToClientCodecCBORTerm
-    )
 
 --------------------------------------------------------------------------------
 --

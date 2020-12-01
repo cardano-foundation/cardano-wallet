@@ -22,8 +22,6 @@ import Prelude
 
 import Cardano.Wallet.Gen
     ( genPercentage, genSlotNo, shrinkSlotNo )
-import Cardano.Wallet.Primitive.Slotting
-    ( unsafeEpochNo )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
     , CertificatePublicationTime (..)
@@ -38,7 +36,6 @@ import Cardano.Wallet.Primitive.Types
     , Settings (..)
     , SlotInEpoch (..)
     , SlotNo (..)
-    , SlotNo (..)
     , SmashServer
     , StakePoolMetadata (..)
     , StakePoolMetadataHash (..)
@@ -46,6 +43,7 @@ import Cardano.Wallet.Primitive.Types
     , StakePoolTicker (..)
     , getPoolCertificatePoolId
     , setPoolCertificatePoolId
+    , unsafeEpochNo
     )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )

@@ -91,6 +91,8 @@ import Cardano.Launcher.Node
     )
 import Cardano.Pool.Metadata
     ( SMASHPoolId (..) )
+import Cardano.Startup
+    ( restrictFileMode )
 import Cardano.Wallet.Api.Server
     ( Listen (..) )
 import Cardano.Wallet.Logging
@@ -180,7 +182,10 @@ import Ouroboros.Consensus.Shelley.Node
 import Ouroboros.Network.Magic
     ( NetworkMagic (..) )
 import Ouroboros.Network.NodeToClient
-    ( NodeToClientVersionData (..), nodeToClientCodecCBORTerm )
+    ( NodeToClientVersion (..)
+    , NodeToClientVersionData (..)
+    , nodeToClientCodecCBORTerm
+    )
 import System.Directory
     ( copyFile, createDirectory, createDirectoryIfMissing, makeAbsolute )
 import System.Environment
@@ -205,6 +210,7 @@ import Test.Utils.StaticServer
 import qualified Cardano.Chain.Common as Byron
 import qualified Cardano.Chain.UTxO as Legacy
 import qualified Cardano.Wallet.Byron.Compatibility as Byron
+import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Shelley.Compatibility as Shelley
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Types as Aeson
@@ -310,10 +316,15 @@ parseGenesisData
         (SomeNetworkDiscriminant, NetworkParameters, NodeVersionData, Block)
 parseGenesisData = \case
     MainnetConfig -> do
+        let nm = NetworkMagic $ fromIntegral $ W.getProtocolMagic W.mainnetMagic
+        let mainnetVersionData =
+                ( NodeToClientVersionData nm
+                , nodeToClientCodecCBORTerm NodeToClientV_3
+                )
         pure
             ( SomeNetworkDiscriminant $ Proxy @'Mainnet
             , Byron.mainnetNetworkParameters
-            , Byron.mainnetVersionData
+            , mainnetVersionData
             , Byron.emptyGenesis (genesisParameters Byron.mainnetNetworkParameters)
             )
 
@@ -663,6 +674,12 @@ withBFTNode tr baseDir params action =
         createDirectoryIfMissing False dir
         source <- getShelleyTestDataPath
 
+        let copyKeyFile f = do
+                let dst = dir </> f
+                copyFile (source </> f) dst
+                restrictFileMode dst
+                pure dst
+
         [bftCert, bftPrv, vrfPrv, kesPrv, opCert] <- forM
             [ "bft-leader" <> ".byron.cert"
             , "bft-leader" <> ".byron.skey"
@@ -670,7 +687,7 @@ withBFTNode tr baseDir params action =
             , "bft-leader" <> ".kes.skey"
             , "bft-leader" <> ".opcert"
             ]
-            (\f -> copyFile (source </> f) (dir </> f) $> (dir </> f))
+            copyKeyFile
 
         let extraLogFile = (fmap (first (</> (name ++ ".log"))) logDir)
         (config, block0, networkParams, versionData)
@@ -1014,7 +1031,7 @@ genConfig dir severity mExtraLogFile systemStart = do
     let shelleyParams = fst $ Shelley.fromGenesisData shelleyGenesis []
     let versionData =
             ( NodeToClientVersionData $ NetworkMagic networkMagic
-            , nodeToClientCodecCBORTerm
+            , nodeToClientCodecCBORTerm NodeToClientV_3
             )
 
     pure
@@ -1430,7 +1447,7 @@ waitUntilRegistered :: Tracer IO ClusterLog -> String -> FilePath -> IO ()
 waitUntilRegistered tr name opPub = do
     poolId <- init <$> cli tr
         [ "shelley", "stake-pool", "id"
-        , "--verification-key-file", opPub
+        , "--stake-pool-verification-key-file", opPub
         ]
     (exitCode, distribution, err) <- readProcessWithExitCode "cardano-cli"
         [ "shelley", "query", "stake-distribution"
@@ -1617,14 +1634,6 @@ updateSystemStart
     -> Aeson.Object
 updateSystemStart systemStart =
     HM.insert "systemStart" (toJSON systemStart)
-
--- | Add a "GenesisFile" field in a given object with the current path of
--- genesis.json in tmp dir as value.
-addGenesisFilePath
-    :: Text
-    -> Aeson.Object
-    -> Aeson.Object
-addGenesisFilePath path = HM.insert "ShelleyGenesisFile" (toJSON path)
 
 -- | Add a @setupScribes[1].scMinSev@ field in a given config object.
 -- The full lens library would be quite helpful here.

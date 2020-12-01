@@ -35,7 +35,10 @@
           (hsPkgs."cryptonite" or (errorHandler.buildDepError "cryptonite"))
           (hsPkgs."deepseq" or (errorHandler.buildDepError "deepseq"))
           (hsPkgs."integer-gmp" or (errorHandler.buildDepError "integer-gmp"))
+          (hsPkgs."ghc-prim" or (errorHandler.buildDepError "ghc-prim"))
           (hsPkgs."memory" or (errorHandler.buildDepError "memory"))
+          (hsPkgs."nothunks" or (errorHandler.buildDepError "nothunks"))
+          (hsPkgs."primitive" or (errorHandler.buildDepError "primitive"))
           (hsPkgs."text" or (errorHandler.buildDepError "text"))
           (hsPkgs."transformers" or (errorHandler.buildDepError "transformers"))
           (hsPkgs."vector" or (errorHandler.buildDepError "vector"))
@@ -49,6 +52,7 @@
         "test-memory-example" = {
           depends = [
             (hsPkgs."base" or (errorHandler.buildDepError "base"))
+            (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
             (hsPkgs."cardano-crypto-class" or (errorHandler.buildDepError "cardano-crypto-class"))
             ] ++ (pkgs.lib).optional (system.isLinux || system.isOsx) (hsPkgs."unix" or (errorHandler.buildDepError "unix"));
           buildable = true;
@@ -58,8 +62,8 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/cardano-base";
-      rev = "13f44ad35d2762dbf98b3d3be56b7ba2adf515f4";
-      sha256 = "0sl7adyrjf3w6025gvljxyr222s53avin0sv0gzhdypmj9wg5ml6";
+      rev = "9e95b500486f59d6c34c97356e2a7b074b39d021";
+      sha256 = "15k48xdqdclf9gipz7j58g3sxwn7888giwz2rpi6i60j265vix08";
       });
     postUnpack = "sourceRoot+=/cardano-crypto-class; echo source root reset to \$sourceRoot";
     }

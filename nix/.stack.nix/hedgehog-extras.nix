@@ -33,6 +33,7 @@
           (hsPkgs."deepseq" or (errorHandler.buildDepError "deepseq"))
           (hsPkgs."directory" or (errorHandler.buildDepError "directory"))
           (hsPkgs."exceptions" or (errorHandler.buildDepError "exceptions"))
+          (hsPkgs."filepath" or (errorHandler.buildDepError "filepath"))
           (hsPkgs."hedgehog" or (errorHandler.buildDepError "hedgehog"))
           (hsPkgs."mmorph" or (errorHandler.buildDepError "mmorph"))
           (hsPkgs."mtl" or (errorHandler.buildDepError "mtl"))
@@ -56,8 +57,8 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/cardano-node";
-      rev = "a819311473563cb2ab3cd91543cf0f63facdf43e";
-      sha256 = "1zj780z3j11rwbvazg79ja5110cgvskzdls81ms0dv3qy7lw4iyr";
+      rev = "f13d1330dbe89c03a50cdb79f132e28e0723fd99";
+      sha256 = "0kwb66kcx45f7ms2mdqawlmi830l88ar8gms8qc6f01vxd5lh7jv";
       });
     postUnpack = "sourceRoot+=/hedgehog-extras; echo source root reset to \$sourceRoot";
     }

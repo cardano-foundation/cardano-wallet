@@ -97,6 +97,8 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( SeqState )
+import Cardano.Wallet.Primitive.Slotting
+    ( neverFails )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncTolerance )
 import Cardano.Wallet.Primitive.Types
@@ -335,7 +337,8 @@ serveWallet
                 poolDatabaseDecorator
                 poolsDbTracer
                 (Pool.defaultFilePath <$> dir)
-                (timeInterpreter nl)
+                (neverFails "withPoolsMonitoring never forecasts into the future"
+                    $ timeInterpreter nl)
                 $ \db@DBLayer{..} -> do
 
             gcStatus <- newTVarIO NotStarted
@@ -376,7 +379,8 @@ serveWallet
                     hardforkEpochNo pp
                 }
             )
-            (timeInterpreter nl)
+            (neverFails "db layer should never forecast into the future"
+                $ timeInterpreter nl)
             databaseDir
         Server.newApiLayer walletEngineTracer params nl' tl db coworker
       where

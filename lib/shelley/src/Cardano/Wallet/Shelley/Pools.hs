@@ -68,7 +68,12 @@ import Cardano.Wallet.Network
     , follow
     )
 import Cardano.Wallet.Primitive.Slotting
-    ( PastHorizonException (..), TimeInterpreter, epochOf )
+    ( PastHorizonException (..)
+    , TimeInterpreter
+    , epochOf
+    , interpretQuery
+    , unsafeExtendSafeZone
+    )
 import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
     , BlockHeader (..)
@@ -116,14 +121,13 @@ import Control.Exception
     , bracket
     , finally
     , mask_
-    , try
     )
 import Control.Monad
     ( forM, forM_, forever, void, when )
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Except
-    ( ExceptT (..), mapExceptT, runExceptT, throwE, withExceptT )
+    ( ExceptT (..), mapExceptT, runExceptT, withExceptT )
 import Control.Monad.Trans.State
     ( State, evalState, state )
 import Control.Retry
@@ -280,8 +284,7 @@ newStakePoolLayer gcStatus nl db@DBLayer {..} worker = do
         let lsqData = combineLsqData rawLsqData
         dbData <- liftIO $ readPoolDbData db currentEpoch
         seed <- liftIO $ atomically readSystemSeed
-        r <- liftIO $ try $
-            sortByReward seed
+        liftIO $ sortByReward seed
             . map snd
             . Map.toList
             <$> combineDbAndLsqData
@@ -289,10 +292,6 @@ newStakePoolLayer gcStatus nl db@DBLayer {..} worker = do
                 (nOpt rawLsqData)
                 lsqData
                 dbData
-        case r of
-            Left e@(PastHorizon{}) ->
-                throwE (ErrListPoolsPastHorizonException e)
-            Right r' -> pure r'
       where
         fromErrCurrentNodeTip :: ErrCurrentNodeTip -> ErrListPools
         fromErrCurrentNodeTip = \case
@@ -384,12 +383,11 @@ data PoolDbData = PoolDbData
 
 -- | Top level combine-function that merges DB and LSQ data.
 combineDbAndLsqData
-    :: forall m. (Monad m)
-    => TimeInterpreter m
+    :: TimeInterpreter (ExceptT PastHorizonException IO)
     -> Int -- ^ nOpt; desired number of pools
     -> Map PoolId PoolLsqData
     -> Map PoolId PoolDbData
-    -> m (Map PoolId Api.ApiStakePool)
+    -> IO (Map PoolId Api.ApiStakePool)
 combineDbAndLsqData ti nOpt lsqData =
     Map.mergeA lsqButNoDb dbButNoLsq bothPresent lsqData
   where
@@ -433,10 +431,12 @@ combineDbAndLsqData ti nOpt lsqData =
         :: PoolId
         -> PoolLsqData
         -> PoolDbData
-        -> m Api.ApiStakePool
+        -> IO Api.ApiStakePool
     mkApiPool pid (PoolLsqData prew pstk psat) dbData = do
         let mRetirementEpoch = retirementEpoch <$> retirementCert dbData
-        retirementEpochInfo <- traverse (ti . toApiEpochInfo) mRetirementEpoch
+        retirementEpochInfo <- traverse
+            (interpretQuery (unsafeExtendSafeZone ti) . toApiEpochInfo)
+            mRetirementEpoch
         pure $ Api.ApiStakePool
             { Api.id = (ApiT pid)
             , Api.metrics = Api.ApiStakePoolMetrics
@@ -629,12 +629,20 @@ monitorStakePools tr gp nl DBLayer{..} =
                 handleErr (putPoolProduction header (getProducer blk))
                 garbageCollectPools slot latestGarbageCollectionEpochRef
                 putPoolCertificates slot certificates
+            BlockMary _ ->
+                error "TODO: unimplemented mary era"
+            BlockAllegra _ ->
+                error "TODO: unimplemented allegra era"
 
         forLastBlock = \case
             BlockByron blk ->
                 putHeader (toByronBlockHeader gp blk)
             BlockShelley blk ->
                 putHeader (toShelleyBlockHeader getGenesisBlockHash blk)
+            BlockMary _ ->
+                error "TODO: unimplemented mary era"
+            BlockAllegra _ ->
+                error "TODO: unimplemented allegra era"
 
         handleErr action = runExceptT action
             >>= \case
@@ -681,10 +689,9 @@ monitorStakePools tr gp nl DBLayer{..} =
     -- that occurred two epochs ago that has not subsquently been superseded,
     -- it should be safe to garbage collect that pool.
     --
-    garbageCollectPools currentSlot latestGarbageCollectionEpochRef =
-        -- Perform this action if the epoch number for currentSlot can be
-        -- determined. Otherwise, do nothing.
-        liftIO (try @PastHorizonException (timeInterpreter nl (epochOf currentSlot))) >>= \case
+    garbageCollectPools currentSlot latestGarbageCollectionEpochRef = do
+        let ti = timeInterpreter nl
+        liftIO (runExceptT (interpretQuery ti (epochOf currentSlot))) >>= \case
             Left _ -> return ()
             Right currentEpoch | currentEpoch < 2 -> return ()
             Right currentEpoch -> do

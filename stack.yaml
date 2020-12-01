@@ -1,4 +1,4 @@
-resolver: https://raw.githubusercontent.com/input-output-hk/cardano-haskell/aaf316ac9c39466a6eccf53f2f3aabb5a266b62e/snapshots/cardano-1.21.1.yaml
+resolver: cardano-1.22.1.yaml # Contains tweaked consensus revision with unsafeExtendSafeZone
 
 packages:
 - lib/core
@@ -62,9 +62,9 @@ extra-deps:
     - command-line
     - core
 
-# cardano-transactions-2.0.0
+# cardano-transactions master branch
 - git: https://github.com/input-output-hk/cardano-transactions
-  commit: 218cdc2dfea34b0261f96c96c7b937d620a8780e
+  commit: 9fd020c934cd9ff5a0d82613ef8f85a1889f0c6a
 
 flags:
   # Avoid a system library which causes difficulty with cross-compilation

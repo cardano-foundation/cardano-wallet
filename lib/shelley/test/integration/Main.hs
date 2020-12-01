@@ -25,7 +25,7 @@ import Cardano.CLI
 import Cardano.Launcher
     ( ProcessHasExited (..) )
 import Cardano.Startup
-    ( withUtf8Encoding )
+    ( setDefaultFilePermissions, withUtf8Encoding )
 import Cardano.Wallet.Api.Server
     ( Listen (..) )
 import Cardano.Wallet.Api.Types
@@ -144,6 +144,7 @@ instance KnownCommand Shelley where
 main :: forall t n . (t ~ Shelley, n ~ 'Mainnet) => IO ()
 main = withUtf8Encoding $ withTracers $ \tracers -> do
     hSetBuffering stdout LineBuffering
+    setDefaultFilePermissions
     nix <- inNixBuild
     hspec $ do
         describe "No backend required" $

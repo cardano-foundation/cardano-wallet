@@ -76,8 +76,6 @@ import Cardano.Wallet.Primitive.Model
     , unsafeInitWallet
     , utxo
     )
-import Cardano.Wallet.Primitive.Slotting
-    ( unsafeEpochNo )
 import Cardano.Wallet.Primitive.Types
     ( Block (..)
     , BlockHeader (..)
@@ -101,6 +99,7 @@ import Cardano.Wallet.Primitive.Types
     , WalletName (..)
     , WalletPassphraseInfo (..)
     , rangeIsValid
+    , unsafeEpochNo
     , wholeRange
     )
 import Cardano.Wallet.Primitive.Types.Address

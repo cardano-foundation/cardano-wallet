@@ -8,21 +8,18 @@
   , config
   , ... }:
   {
-    flags = { asserts = false; };
+    flags = {};
     package = {
-      specVersion = "1.10";
-      identifier = {
-        name = "ouroboros-consensus-shelley";
-        version = "0.1.0.0";
-        };
+      specVersion = "2.2";
+      identifier = { name = "cardano-ledger-shelley-ma"; version = "0.1.0.0"; };
       license = "Apache-2.0";
-      copyright = "2019 Input Output (Hong Kong) Ltd.";
-      maintainer = "operations@iohk.io";
-      author = "IOHK Engineering Team";
+      copyright = "2020 Input Output (Hong Kong) Ltd.";
+      maintainer = "formal.methods@iohk.io";
+      author = "IOHK Formal Methods Team";
       homepage = "";
       url = "";
-      synopsis = "Shelley ledger integration in the Ouroboros consensus layer";
-      description = "";
+      synopsis = "Shelley ledger with multiasset and time lock support.";
+      description = "This package extends the Shelley ledger with support for\nnative tokens and timelocks.";
       buildType = "Simple";
       isLocal = true;
       };
@@ -36,27 +33,22 @@
           (hsPkgs."cardano-crypto-praos" or (errorHandler.buildDepError "cardano-crypto-praos"))
           (hsPkgs."cardano-prelude" or (errorHandler.buildDepError "cardano-prelude"))
           (hsPkgs."cardano-slotting" or (errorHandler.buildDepError "cardano-slotting"))
-          (hsPkgs."cborg" or (errorHandler.buildDepError "cborg"))
           (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
-          (hsPkgs."mtl" or (errorHandler.buildDepError "mtl"))
+          (hsPkgs."deepseq" or (errorHandler.buildDepError "deepseq"))
+          (hsPkgs."groups" or (errorHandler.buildDepError "groups"))
           (hsPkgs."nothunks" or (errorHandler.buildDepError "nothunks"))
-          (hsPkgs."serialise" or (errorHandler.buildDepError "serialise"))
-          (hsPkgs."text" or (errorHandler.buildDepError "text"))
-          (hsPkgs."transformers" or (errorHandler.buildDepError "transformers"))
           (hsPkgs."shelley-spec-ledger" or (errorHandler.buildDepError "shelley-spec-ledger"))
-          (hsPkgs."shelley-spec-non-integral" or (errorHandler.buildDepError "shelley-spec-non-integral"))
           (hsPkgs."small-steps" or (errorHandler.buildDepError "small-steps"))
-          (hsPkgs."ouroboros-network" or (errorHandler.buildDepError "ouroboros-network"))
-          (hsPkgs."ouroboros-consensus" or (errorHandler.buildDepError "ouroboros-consensus"))
+          (hsPkgs."transformers" or (errorHandler.buildDepError "transformers"))
           ];
         buildable = true;
         };
       };
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
-      url = "https://github.com/input-output-hk/ouroboros-network";
-      rev = "7753b7775a3fdcec50a147eb0ecb8b4bac5f0e65";
-      sha256 = "0bgi494ywb211yxj9bs3j6xbrvq1ndp6hj7xbxar7hhcr74kf1z7";
+      url = "https://github.com/input-output-hk/cardano-ledger-specs";
+      rev = "d6179d72c52588460c1d57b932a2fd0724c5db32";
+      sha256 = "0fwhnib6raiq2lisbabchdd45wmlj1kfd21a3zbdmgc468j16clw";
       });
-    postUnpack = "sourceRoot+=/ouroboros-consensus-shelley; echo source root reset to \$sourceRoot";
+    postUnpack = "sourceRoot+=/shelley-ma/impl; echo source root reset to \$sourceRoot";
     }

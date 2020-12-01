@@ -48,6 +48,7 @@
           (hsPkgs."filepath" or (errorHandler.buildDepError "filepath"))
           (hsPkgs."formatting" or (errorHandler.buildDepError "formatting"))
           (hsPkgs."mtl" or (errorHandler.buildDepError "mtl"))
+          (hsPkgs."nothunks" or (errorHandler.buildDepError "nothunks"))
           (hsPkgs."quiet" or (errorHandler.buildDepError "quiet"))
           (hsPkgs."resourcet" or (errorHandler.buildDepError "resourcet"))
           (hsPkgs."streaming" or (errorHandler.buildDepError "streaming"))
@@ -116,6 +117,7 @@
             (hsPkgs."filepath" or (errorHandler.buildDepError "filepath"))
             (hsPkgs."formatting" or (errorHandler.buildDepError "formatting"))
             (hsPkgs."hedgehog" or (errorHandler.buildDepError "hedgehog"))
+            (hsPkgs."nothunks" or (errorHandler.buildDepError "nothunks"))
             (hsPkgs."optparse-applicative" or (errorHandler.buildDepError "optparse-applicative"))
             (hsPkgs."resourcet" or (errorHandler.buildDepError "resourcet"))
             (hsPkgs."silently" or (errorHandler.buildDepError "silently"))
@@ -130,8 +132,8 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/cardano-ledger-specs";
-      rev = "a6ce8feddc09bf78c4378c9b4592c6509bfddc81";
-      sha256 = "1f8149wynplf83haqnx124jw89kg45i3wbsm8chl7g68qkw7xhzq";
+      rev = "d6179d72c52588460c1d57b932a2fd0724c5db32";
+      sha256 = "0fwhnib6raiq2lisbabchdd45wmlj1kfd21a3zbdmgc468j16clw";
       });
     postUnpack = "sourceRoot+=/byron/ledger/impl; echo source root reset to \$sourceRoot";
     }

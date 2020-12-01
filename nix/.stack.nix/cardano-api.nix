@@ -11,7 +11,7 @@
     flags = {};
     package = {
       specVersion = "2.4";
-      identifier = { name = "cardano-api"; version = "1.21.1"; };
+      identifier = { name = "cardano-api"; version = "1.22.1"; };
       license = "Apache-2.0";
       copyright = "";
       maintainer = "operations@iohk.io";
@@ -55,6 +55,7 @@
           (hsPkgs."network" or (errorHandler.buildDepError "network"))
           (hsPkgs."network-mux" or (errorHandler.buildDepError "network-mux"))
           (hsPkgs."network-uri" or (errorHandler.buildDepError "network-uri"))
+          (hsPkgs."nothunks" or (errorHandler.buildDepError "nothunks"))
           (hsPkgs."ouroboros-consensus" or (errorHandler.buildDepError "ouroboros-consensus"))
           (hsPkgs."ouroboros-consensus-byron" or (errorHandler.buildDepError "ouroboros-consensus-byron"))
           (hsPkgs."ouroboros-consensus-cardano" or (errorHandler.buildDepError "ouroboros-consensus-cardano"))
@@ -85,8 +86,10 @@
             (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
             (hsPkgs."cardano-api" or (errorHandler.buildDepError "cardano-api"))
             (hsPkgs."cardano-binary" or (errorHandler.buildDepError "cardano-binary"))
+            (hsPkgs."cardano-crypto" or (errorHandler.buildDepError "cardano-crypto"))
             (hsPkgs."cardano-crypto-class" or (errorHandler.buildDepError "cardano-crypto-class"))
             (hsPkgs."cardano-crypto-test" or (errorHandler.buildDepError "cardano-crypto-test"))
+            (hsPkgs."cardano-crypto-tests" or (errorHandler.buildDepError "cardano-crypto-tests"))
             (hsPkgs."cardano-crypto-wrapper" or (errorHandler.buildDepError "cardano-crypto-wrapper"))
             (hsPkgs."cardano-ledger-test" or (errorHandler.buildDepError "cardano-ledger-test"))
             (hsPkgs."cardano-prelude" or (errorHandler.buildDepError "cardano-prelude"))
@@ -98,8 +101,12 @@
             (hsPkgs."ouroboros-consensus" or (errorHandler.buildDepError "ouroboros-consensus"))
             (hsPkgs."ouroboros-consensus-shelley" or (errorHandler.buildDepError "ouroboros-consensus-shelley"))
             (hsPkgs."ouroboros-network" or (errorHandler.buildDepError "ouroboros-network"))
+            (hsPkgs."QuickCheck" or (errorHandler.buildDepError "QuickCheck"))
             (hsPkgs."shelley-spec-ledger" or (errorHandler.buildDepError "shelley-spec-ledger"))
             (hsPkgs."shelley-spec-ledger-test" or (errorHandler.buildDepError "shelley-spec-ledger-test"))
+            (hsPkgs."tasty" or (errorHandler.buildDepError "tasty"))
+            (hsPkgs."tasty-hedgehog" or (errorHandler.buildDepError "tasty-hedgehog"))
+            (hsPkgs."tasty-quickcheck" or (errorHandler.buildDepError "tasty-quickcheck"))
             (hsPkgs."text" or (errorHandler.buildDepError "text"))
             (hsPkgs."time" or (errorHandler.buildDepError "time"))
             (hsPkgs."unordered-containers" or (errorHandler.buildDepError "unordered-containers"))
@@ -111,8 +118,8 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/cardano-node";
-      rev = "a819311473563cb2ab3cd91543cf0f63facdf43e";
-      sha256 = "1zj780z3j11rwbvazg79ja5110cgvskzdls81ms0dv3qy7lw4iyr";
+      rev = "f13d1330dbe89c03a50cdb79f132e28e0723fd99";
+      sha256 = "0kwb66kcx45f7ms2mdqawlmi830l88ar8gms8qc6f01vxd5lh7jv";
       });
     postUnpack = "sourceRoot+=/cardano-api; echo source root reset to \$sourceRoot";
     }

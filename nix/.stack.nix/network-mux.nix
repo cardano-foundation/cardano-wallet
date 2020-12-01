@@ -10,7 +10,7 @@
   {
     flags = { asserts = false; ipv6 = false; };
     package = {
-      specVersion = "1.10";
+      specVersion = "2.2";
       identifier = { name = "network-mux"; version = "0.1.0.0"; };
       license = "Apache-2.0";
       copyright = "2019 Input Output (Hong Kong) Ltd.";
@@ -68,6 +68,21 @@
               ]);
           buildable = true;
           };
+        "cardano-ping" = {
+          depends = [
+            (hsPkgs."base" or (errorHandler.buildDepError "base"))
+            (hsPkgs."aeson" or (errorHandler.buildDepError "aeson"))
+            (hsPkgs."network-mux" or (errorHandler.buildDepError "network-mux"))
+            (hsPkgs."io-sim-classes" or (errorHandler.buildDepError "io-sim-classes"))
+            (hsPkgs."contra-tracer" or (errorHandler.buildDepError "contra-tracer"))
+            (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
+            (hsPkgs."cborg" or (errorHandler.buildDepError "cborg"))
+            (hsPkgs."network" or (errorHandler.buildDepError "network"))
+            (hsPkgs."tdigest" or (errorHandler.buildDepError "tdigest"))
+            (hsPkgs."text" or (errorHandler.buildDepError "text"))
+            ];
+          buildable = if system.isWindows then false else true;
+          };
         };
       tests = {
         "test-network-mux" = {
@@ -104,8 +119,8 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/ouroboros-network";
-      rev = "9e498e0962044c582df0cbf2f81fa0450a67d5f7";
-      sha256 = "000ypfbdc6i6plc91vrcywj4yrw5vvafn7c6993xn1pvd18xjm5g";
+      rev = "7753b7775a3fdcec50a147eb0ecb8b4bac5f0e65";
+      sha256 = "0bgi494ywb211yxj9bs3j6xbrvq1ndp6hj7xbxar7hhcr74kf1z7";
       });
     postUnpack = "sourceRoot+=/network-mux; echo source root reset to \$sourceRoot";
     }

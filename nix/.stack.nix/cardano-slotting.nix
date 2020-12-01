@@ -28,14 +28,12 @@
         depends = [
           (hsPkgs."aeson" or (errorHandler.buildDepError "aeson"))
           (hsPkgs."base" or (errorHandler.buildDepError "base"))
-          (hsPkgs."cardano-prelude" or (errorHandler.buildDepError "cardano-prelude"))
           (hsPkgs."cardano-binary" or (errorHandler.buildDepError "cardano-binary"))
           (hsPkgs."cborg" or (errorHandler.buildDepError "cborg"))
-          (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
+          (hsPkgs."deepseq" or (errorHandler.buildDepError "deepseq"))
           (hsPkgs."mmorph" or (errorHandler.buildDepError "mmorph"))
-          (hsPkgs."mtl" or (errorHandler.buildDepError "mtl"))
+          (hsPkgs."nothunks" or (errorHandler.buildDepError "nothunks"))
           (hsPkgs."serialise" or (errorHandler.buildDepError "serialise"))
-          (hsPkgs."transformers" or (errorHandler.buildDepError "transformers"))
           (hsPkgs."quiet" or (errorHandler.buildDepError "quiet"))
           ];
         buildable = true;
@@ -44,8 +42,8 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/cardano-base";
-      rev = "13f44ad35d2762dbf98b3d3be56b7ba2adf515f4";
-      sha256 = "0sl7adyrjf3w6025gvljxyr222s53avin0sv0gzhdypmj9wg5ml6";
+      rev = "9e95b500486f59d6c34c97356e2a7b074b39d021";
+      sha256 = "15k48xdqdclf9gipz7j58g3sxwn7888giwz2rpi6i60j265vix08";
       });
     postUnpack = "sourceRoot+=/slotting; echo source root reset to \$sourceRoot";
     }

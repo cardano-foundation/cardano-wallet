@@ -19,7 +19,7 @@ module Cardano.Wallet.DummyTarget.Primitive.Types
 import Prelude
 
 import Cardano.Wallet.Primitive.Slotting
-    ( TimeInterpreter, mkSingleEraInterpreter )
+    ( TimeInterpreter, hoistTimeInterpreter, mkSingleEraInterpreter )
 import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
     , Block (..)
@@ -98,9 +98,8 @@ dummySlottingParameters = SlottingParameters
     }
 
 dummyTimeInterpreter :: Monad m => TimeInterpreter m
-dummyTimeInterpreter = pure
-    . runIdentity
-    . mkSingleEraInterpreter
+dummyTimeInterpreter = hoistTimeInterpreter (pure . runIdentity)
+    $ mkSingleEraInterpreter
         (getGenesisBlockDate dummyGenesisParameters)
         dummySlottingParameters
 

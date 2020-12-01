@@ -39,12 +39,14 @@ import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)
     , Payload (..)
+    , counterexample
     , emptyRandomWallet
     , eventually
     , expectField
     , expectResponseCode
     , getFromResponse
     , request
+    , unsafeResponse
     , verify
     , (.>)
     )
@@ -63,17 +65,18 @@ spec = describe "COMMON_NETWORK" $ do
                 Link.getNetworkInfo Default Empty
             expectResponseCode @IO HTTP.status200 r
             let i = getFromResponse id r
-            (epochStartTime <$> nextEpoch i) .> Just now
             verify r
                 [ expectField (#syncProgress . #getApiT) (`shouldBe` Ready)
                 , expectField (#nodeTip . #absoluteSlotNumber . #getApiT) (`shouldNotBe` 0)
+                , \x -> (epochStartTime <$> nextEpoch (unsafeResponse x)) .> Just now
                 ]
-
-            let Just currentEpochNum =
-                    view (#slotId . #epochNumber . #getApiT) <$> (i ^. #networkTip)
-            let Just nextEpochNum =
-                    view (#epochNumber . #getApiT) <$> getFromResponse #nextEpoch r
-            nextEpochNum `shouldBe` currentEpochNum + 1
+            counterexample (show r) $ do
+                (epochStartTime <$> nextEpoch i) .> Just now
+                let Just currentEpochNum =
+                        view (#slotId . #epochNumber . #getApiT) <$> (i ^. #networkTip)
+                let Just nextEpochNum =
+                        view (#epochNumber . #getApiT) <$> getFromResponse #nextEpoch r
+                nextEpochNum `shouldBe` currentEpochNum + 1
 
     it "NETWORK_BYRON - Byron wallet has the same tip as network/information" $
         \ctx -> runResourceT @IO $ do
