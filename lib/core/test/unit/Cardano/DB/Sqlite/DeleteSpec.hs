@@ -1,3 +1,5 @@
+{-# LANGUAGE NumericUnderscores #-}
+
 -- |
 -- Copyright: © 2018-2020 IOHK
 -- License: Apache-2.0
@@ -36,13 +38,13 @@ spec = describe "RefCount" $ do
         closed <- newEmptyMVar
 
         let conn = withRef ref testId $ do
-                threadDelay 500000
+                threadDelay 500_000
                 putMVar closed ()
         let rm = waitForFree' nullTracer testPol ref testId $ \n -> do
                 n `shouldBe` 0
                 isEmptyMVar closed
 
-        concurrently conn (threadDelay 10 >> rm) `shouldReturn` ((), False)
+        concurrently conn (threadDelay 50_000 >> rm) `shouldReturn` ((), False)
 
     it "waitForFree uses correct id" $ do
         ref <- newRefCount
