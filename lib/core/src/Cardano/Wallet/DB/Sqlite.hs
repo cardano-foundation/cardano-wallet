@@ -1863,7 +1863,8 @@ selectScriptPool wid sl gap xpub = do
         -> [SeqStateScriptHash]
         -> Seq.VerificationKeyPool k
     scriptPoolFromEntities verKeys scripts
-        = Seq.mkVerificationKeyPool xpub gap (verKeyMap verKeys) (knownScripts scripts)
+        = Seq.unsafeVerificationKeyPool xpub gap
+          (verKeyMap verKeys) (knownScripts scripts)
 
 {-------------------------------------------------------------------------------
                           HD Random address discovery

@@ -66,7 +66,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     , mkSeqStateFromAccountXPub
     , mkSeqStateFromRootXPrv
     , mkUnboundedAddressPoolGap
-    , mkVerificationKeyPool
+    , newVerificationKeyPool
     , purposeCIP1852
     , purposeCIP1852
     , role
@@ -133,7 +133,6 @@ import Test.Text.Roundtrip
 
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Icarus as Icarus
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Shelley
-import qualified Data.Map.Strict as Map
 
 spec :: Spec
 spec = do
@@ -479,7 +478,7 @@ prop_changeIsOnlyKnownAfterGeneration
     -> Property
 prop_changeIsOnlyKnownAfterGeneration (intPool, extPool) =
     let
-        sPool = mkVerificationKeyPool (accountPubKey extPool) (gap extPool) Map.empty Map.empty
+        sPool = newVerificationKeyPool (accountPubKey extPool) (gap extPool)
         s0 :: SeqState 'Mainnet ShelleyKey
         s0 = SeqState intPool extPool emptyPendingIxs rewardAccount defaultPrefix sPool
         addrs0 = fst <$> knownAddresses s0
@@ -710,7 +709,7 @@ instance Arbitrary (SeqState 'Mainnet ShelleyKey) where
     arbitrary = do
         intPool <- arbitrary
         extPool <- arbitrary
-        let sPool = mkVerificationKeyPool (accountPubKey extPool) (gap extPool) Map.empty Map.empty
+        let sPool = newVerificationKeyPool (accountPubKey extPool) (gap extPool)
         return $ SeqState intPool extPool emptyPendingIxs rewardAccount defaultPrefix sPool
 
 -- | Wrapper to encapsulate accounting style proxies that are so-to-speak,

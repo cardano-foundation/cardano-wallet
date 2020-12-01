@@ -48,7 +48,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     , emptyPendingIxs
     , getAddressPoolGap
     , mkAddressPool
-    , mkVerificationKeyPool
+    , newVerificationKeyPool
     , purposeCIP1852
     , purposeCIP1852
     , toVerKeyHash
@@ -267,7 +267,7 @@ initializeState
 initializeState accXPub' =
     let intPool = mkAddressPool accXPub' defaultAddressPoolGap []
         extPool = mkAddressPool accXPub' defaultAddressPoolGap []
-        sPool = mkVerificationKeyPool accXPub' defaultAddressPoolGap Map.empty Map.empty
+        sPool = newVerificationKeyPool accXPub' defaultAddressPoolGap
     in SeqState intPool extPool emptyPendingIxs dummyRewardAccount defaultPrefix sPool
 
 getKnownScripts

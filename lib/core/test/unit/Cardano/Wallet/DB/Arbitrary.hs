@@ -73,9 +73,9 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     , coinTypeAda
     , defaultAddressPoolGap
     , mkAddressPool
-    , mkVerificationKeyPool
     , purposeCIP1852
     , toVerKeyHash
+    , unsafeVerificationKeyPool
     )
 import Cardano.Wallet.Primitive.Model
     ( Wallet
@@ -87,8 +87,6 @@ import Cardano.Wallet.Primitive.Model
     )
 import Cardano.Wallet.Primitive.Scripts
     ()
-import Cardano.Wallet.Primitive.Slotting
-    ( unsafeEpochNo )
 import Cardano.Wallet.Primitive.Types
     ( Block (..)
     , BlockHeader (..)
@@ -512,7 +510,7 @@ genVerificationKeyPool accXPub = do
     knownScripts <- vectorOf nVerKeys' arbitrary
     let knownScriptsMap =
             zipWith (\s k -> (s,[k])) knownScripts (Index <$> verKeysIxs)
-    pure $ mkVerificationKeyPool accXPub defaultAddressPoolGap
+    pure $ unsafeVerificationKeyPool accXPub defaultAddressPoolGap
         (Map.fromList indexedKeysMap) (Map.fromList knownScriptsMap)
 
 instance Arbitrary (ShelleyKey 'RootK XPrv) where

@@ -51,7 +51,8 @@ module Cardano.Wallet.Primitive.AddressDiscovery.Sequential
 
     -- ** Verification Key Pool
     , VerificationKeyPool
-    , mkVerificationKeyPool
+    , unsafeVerificationKeyPool
+    , newVerificationKeyPool
     , lookupKeyHash
     , updateKnownScripts
     , toVerKeyHash
@@ -344,7 +345,7 @@ updateKnownScripts
     -> VerificationKeyPool k
 updateKnownScripts trKnownScripts (VerificationKeyPool accXPub g indexedHashKeys knownScripts) =
     let knownScripts' = trKnownScripts knownScripts
-    in mkVerificationKeyPool accXPub g indexedHashKeys knownScripts'
+    in unsafeVerificationKeyPool accXPub g indexedHashKeys knownScripts'
 
 toVerKeyHash
     :: WalletKey k
@@ -353,16 +354,25 @@ toVerKeyHash
 toVerKeyHash = KeyHash . blake2b224 . xpubPublicKey . getRawKey
 
 -- | Create a new VerificationKey pool.
+newVerificationKeyPool
+    :: (SoftDerivation k, WalletKey k)
+    => k 'AccountK XPub
+    -> AddressPoolGap
+    -> VerificationKeyPool k
+newVerificationKeyPool accXPub addrPoolGap =
+    unsafeVerificationKeyPool accXPub addrPoolGap Map.empty Map.empty
+
+-- | Create a new VerificationKey pool.
 -- The extension to the pool is done by adding next adjacent indices,
 -- marking them as unused and their corresponding public keys.
-mkVerificationKeyPool
+unsafeVerificationKeyPool
     :: (SoftDerivation k, WalletKey k)
     => k 'AccountK XPub
     -> AddressPoolGap
     -> Map KeyHash (Index 'Soft 'ScriptK, AddressState)
     -> Map ScriptHash [Index 'Soft 'ScriptK]
     -> VerificationKeyPool k
-mkVerificationKeyPool accXPub num@(AddressPoolGap g) vkPoolMap knownScripts = VerificationKeyPool
+unsafeVerificationKeyPool accXPub num@(AddressPoolGap g) vkPoolMap knownScripts = VerificationKeyPool
     { verPoolAccountPubKey = accXPub
     , verPoolGap = num
     , verPoolIndexedKeys =
@@ -785,7 +795,7 @@ mkSeqStateFromRootXPrv (rootXPrv, pwd) purpose g =
         intPool =
             mkAddressPool @n (publicKey accXPrv) g []
         multiPool =
-            mkVerificationKeyPool (publicKey accXPrv) g Map.empty Map.empty
+            newVerificationKeyPool (publicKey accXPrv) g
         prefix =
             DerivationPrefix ( purpose, coinTypeAda, minBound )
     in
@@ -814,7 +824,7 @@ mkSeqStateFromAccountXPub accXPub purpose g =
         intPool =
             mkAddressPool @n accXPub g []
         multiPool =
-            mkVerificationKeyPool accXPub g Map.empty Map.empty
+            newVerificationKeyPool accXPub g
         prefix =
             DerivationPrefix ( purpose, coinTypeAda, minBound )
     in
