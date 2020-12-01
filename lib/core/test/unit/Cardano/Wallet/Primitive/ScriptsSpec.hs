@@ -44,6 +44,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     , VerificationKeyPool (..)
     , coinTypeAda
     , defaultAddressPoolGap
+    , deriveKeyHash
     , emptyPendingIxs
     , getAddressPoolGap
     , mkAddressPool
@@ -64,8 +65,6 @@ import Cardano.Wallet.Unsafe
     ( unsafeXPub )
 import Control.Monad
     ( replicateM )
-import Data.Coerce
-    ( coerce )
 import Data.Map.Strict
     ( Map )
 import Data.Ord
@@ -282,13 +281,6 @@ getVerKeyMap
     -> Map KeyHash (Index 'Soft 'ScriptK, AddressState)
 getVerKeyMap (SeqState _ _ _ _ _ verKeyPool) =
     verPoolIndexedKeys verKeyPool
-
-deriveKeyHash
-    :: ShelleyKey 'AccountK XPub
-    -> Index 'Soft 'ScriptK
-    -> KeyHash
-deriveKeyHash accXPub' =
-    toVerKeyHash . deriveAddressPublicKey accXPub' MultisigScript . coerce
 
 {-------------------------------------------------------------------------------
                                 Arbitrary Instances

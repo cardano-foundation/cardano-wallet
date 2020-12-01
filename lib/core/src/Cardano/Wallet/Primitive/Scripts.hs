@@ -7,6 +7,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
@@ -36,60 +37,56 @@ import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( SeqState (..)
+    , lookupKeyHash
     , mkVerificationKeyPool
     , verPoolAccountPubKey
     , verPoolGap
     , verPoolIndexedKeys
     , verPoolKnownScripts
     )
-import Cardano.Wallet.Primitive.Types.Address
-    ( AddressState (..) )
+import Control.Arrow
+    ( first )
 import Control.Monad
     ( foldM )
+import Control.Monad.Trans.State.Strict
+    ( runState, state )
 import Data.Coerce
     ( coerce )
+import Data.Function
+    ( (&) )
 import Data.Functor.Identity
     ( Identity (..) )
+import Data.Maybe
+    ( catMaybes )
 
-import qualified Data.List as L
 import qualified Data.Map.Strict as Map
 
-instance Ord ScriptHash where
-    compare (ScriptHash sh1) (ScriptHash sh2) = compare sh1 sh2
+deriving instance Ord ScriptHash
 
 isShared
     :: (k ~ ShelleyKey, SoftDerivation k)
     => Script
     -> SeqState n k
     -> ([k 'ScriptK XPub], SeqState n k)
-isShared script (SeqState !s1 !s2 !ixs !rpk !prefix !s3) =
-    let verKeysInScript = retrieveAllVerKeyHashes script
-        toVerKey = deriveAddressPublicKey (verPoolAccountPubKey s3) MultisigScript
-        ourVerKeysIxInScript =
-            L.nub $
-            map (\(_,(ix,_)) -> coerce ix ) $
-            filter (\(keyH,_) -> keyH `elem` verKeysInScript) $
-            Map.toList (verPoolIndexedKeys s3)
-        updateAddressState k current =
-            if k `elem` verKeysInScript then
-                Used
-            else
-                current
-        indexedKeys =
-            Map.mapWithKey (\keyH (ix,isUsed) -> (ix, updateAddressState keyH isUsed) )
-            (verPoolIndexedKeys s3)
+isShared script (SeqState !s1 !s2 !pending !rpk !prefix !s3) =
+    let
+        hashes = retrieveAllVerKeyHashes script
         insertIf predicate k v = if predicate v then Map.insert k v else id
-        knownScripts =
-            insertIf (not . null) (toScriptHash script) ourVerKeysIxInScript
-            (verPoolKnownScripts s3)
+        accXPub = verPoolAccountPubKey s3
+        toVerKey = coerce . deriveAddressPublicKey accXPub MultisigScript . coerce
 
-        -- if there are no gap number of consecutive NotUsed verification keys
-        -- then we extend the verification key pool
-        s3' = mkVerificationKeyPool (verPoolAccountPubKey s3) (verPoolGap s3)
-              indexedKeys knownScripts
-    in ( map (coerce . toVerKey . coerce) ourVerKeysIxInScript
-       , SeqState s1 s2 ixs rpk prefix s3'
-       )
+        (ixs, s3') = s3
+            & runState (mapM (state . lookupKeyHash) hashes)
+            & first catMaybes
+            & \(ixs', s3'') ->
+                ( ixs'
+                , mkVerificationKeyPool accXPub (verPoolGap s3'') (verPoolIndexedKeys s3'')
+                  (insertIf (not . null) (toScriptHash script) ixs' (verPoolKnownScripts s3''))
+                )
+    in
+        ( toVerKey <$> ixs
+        , SeqState s1 s2 pending rpk prefix s3'
+        )
 
 retrieveAllVerKeyHashes :: Script -> [KeyHash]
 retrieveAllVerKeyHashes = foldScript (:) []

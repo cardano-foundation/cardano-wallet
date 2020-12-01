@@ -52,7 +52,9 @@ module Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     -- ** Verification Key Pool
     , VerificationKeyPool
     , mkVerificationKeyPool
+    , lookupKeyHash
     , toVerKeyHash
+    , deriveKeyHash
     , verPoolAccountPubKey
     , verPoolGap
     , verPoolIndexedKeys
@@ -313,6 +315,27 @@ instance ((PersistPublicKey (key 'AccountK)))
 
 deriving instance Ord KeyHash
 
+deriveKeyHash
+    :: (WalletKey k, SoftDerivation k)
+    => k 'AccountK XPub
+    -> Index 'Soft 'ScriptK
+    -> KeyHash
+deriveKeyHash accXPub' =
+    toVerKeyHash . deriveAddressPublicKey accXPub' MultisigScript . coerce
+
+lookupKeyHash
+    :: KeyHash
+    -> VerificationKeyPool k
+    -> (Maybe (Index 'Soft 'ScriptK), VerificationKeyPool k)
+lookupKeyHash keyHash pool@(VerificationKeyPool accXPub g indexedHashKeys scripts) =
+    let updateKey (ix, _) = (ix, Used)
+    in case Map.lookup keyHash indexedHashKeys of
+        Nothing -> (Nothing, pool)
+        Just (ix, _) ->
+            ( Just ix
+            , VerificationKeyPool accXPub g
+                (Map.adjust updateKey keyHash indexedHashKeys) scripts)
+
 toVerKeyHash
     :: WalletKey k
     => k (depth:: Depth) XPub
@@ -344,14 +367,12 @@ mkVerificationKeyPool accXPub num@(AddressPoolGap g) vkPoolMap knownScripts = Ve
         Map.elems vkPoolMap
     firstIndexToAdd = minIndex + L.length (Map.keys vkPoolMap)
     newIndicesToAdd = fromInteger (toInteger g) - L.length lastNotUsedIndices
-    deriveScriptXPub = deriveAddressPublicKey accXPub MultisigScript
-    deriveVerKeyH = toVerKeyHash . deriveScriptXPub
     toIndex = toEnum . fromInteger . toInteger
     indices =
         [firstIndexToAdd .. firstIndexToAdd + newIndicesToAdd - 1]
     vkPoolMap' =
         Map.fromList $
-        map (\ix -> (deriveVerKeyH (toIndex ix), (coerce $ toIndex ix, Unused)) )
+        map (\ix -> (deriveKeyHash accXPub (toIndex ix), (coerce $ toIndex ix, Unused)) )
         indices
 
 -- | Bring a 'Role' type back to the term-level. This requires a type
