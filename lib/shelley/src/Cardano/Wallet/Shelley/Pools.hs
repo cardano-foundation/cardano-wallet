@@ -4,6 +4,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE MultiWayIf #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
@@ -45,14 +46,16 @@ import Cardano.Pool.Metadata
     , defaultManagerSettings
     , fetchDelistedPools
     , fetchFromRemote
+    , healthCheck
     , identityUrlBuilder
     , newManager
     , registryUrlBuilder
+    , toHealthCheckSMASH
     )
 import Cardano.Wallet
     ( ErrListPools (..) )
 import Cardano.Wallet.Api.Types
-    ( ApiT (..), toApiEpochInfo )
+    ( ApiT (..), HealthCheckSMASH (..), toApiEpochInfo )
 import Cardano.Wallet.Byron.Compatibility
     ( toByronBlockHeader )
 import Cardano.Wallet.Network
@@ -123,6 +126,8 @@ import Control.Monad.Trans.Except
     ( ExceptT (..), mapExceptT, runExceptT, throwE, withExceptT )
 import Control.Monad.Trans.State
     ( State, evalState, state )
+import Control.Retry
+    ( RetryStatus (..), constantDelay, retrying )
 import Control.Tracer
     ( Tracer, contramap, traceWith )
 import Data.Bifunctor
@@ -163,8 +168,6 @@ import GHC.Conc
     ( TVar, ThreadId, killThread, newTVarIO, readTVarIO, writeTVar )
 import GHC.Generics
     ( Generic )
-import Network.URI
-    ( URI (..) )
 import Ouroboros.Consensus.Cardano.Block
     ( CardanoBlock, HardForkBlock (..) )
 import System.Random
@@ -732,40 +735,51 @@ monitorMetadata gcStatus tr sp db@(DBLayer{..}) = do
     settings <- atomically readSettings
     manager <- newManager defaultManagerSettings
 
-    let fetcher fetchStrategies = fetchFromRemote trFetch fetchStrategies manager
-        loop getPoolMetadata = forever $ do
-            (refs, successes) <- getPoolMetadata
-            when (null refs || null successes) $ do
-                traceWith tr $ MsgFetchTakeBreak blockFrequency
-                threadDelay blockFrequency
+    health <- case poolMetadataSource settings of
+        FetchSMASH uri -> do
+            let checkHealth _ = toHealthCheckSMASH
+                    <$> healthCheck trFetch (unSmashServer uri) manager
 
-    case poolMetadataSource settings of
-        FetchNone -> do
-            STM.atomically $ writeTVar gcStatus NotApplicable
-            loop (pure ([], [])) -- TODO: exit loop?
-        FetchDirect -> do
-            STM.atomically $ writeTVar gcStatus NotApplicable
-            loop (fetchThem $ fetcher [identityUrlBuilder])
-        FetchSMASH (unSmashServer -> uri) -> do
-            STM.atomically $ writeTVar gcStatus NotStarted
-            let getDelistedPools =
-                    fetchDelistedPools trFetch (toDelistedPoolsURI uri) manager
-            tid <- forkFinally
-                (gcDelistedPools gcStatus tr db getDelistedPools)
-                onExit
-            flip finally (killThread tid) $
-                loop (fetchThem $ fetcher [registryUrlBuilder uri])
+                maxRetries = 8
+                retryCheck RetryStatus{rsIterNumber} b
+                    | rsIterNumber < maxRetries = pure
+                        (b == Unavailable || b == Unreachable)
+                    | otherwise = pure False
+
+                ms = (* 1_000_000)
+                baseSleepTime = ms 15
+
+            retrying (constantDelay baseSleepTime) retryCheck checkHealth
+
+        _ -> pure NoSmashConfigured
+
+    if  | health == Available || health == NoSmashConfigured -> do
+            let fetcher fetchStrategies = fetchFromRemote trFetch fetchStrategies manager
+                loop getPoolMetadata = forever $ do
+                    (refs, successes) <- getPoolMetadata
+                    when (null refs || null successes) $ do
+                        traceWith tr $ MsgFetchTakeBreak blockFrequency
+                        threadDelay blockFrequency
+
+            case poolMetadataSource settings of
+                FetchNone -> do
+                    STM.atomically $ writeTVar gcStatus NotApplicable
+                    loop (pure ([], [])) -- TODO: exit loop?
+                FetchDirect -> do
+                    STM.atomically $ writeTVar gcStatus NotApplicable
+                    loop (fetchThem $ fetcher [identityUrlBuilder])
+                FetchSMASH (unSmashServer -> uri) -> do
+                    STM.atomically $ writeTVar gcStatus NotStarted
+                    let getDelistedPools =
+                            fetchDelistedPools trFetch uri manager
+                    tid <- forkFinally
+                        (gcDelistedPools gcStatus tr db getDelistedPools)
+                        onExit
+                    flip finally (killThread tid) $
+                        loop (fetchThem $ fetcher [registryUrlBuilder uri])
+        | otherwise -> traceWith tr MsgSMASHUnreachable
 
   where
-    -- Currently the SMASH url points to the full API path, e.g.
-    --   https://smash.cardano-testnet.iohkdev.io/api/v1/monitorMetadata
-    -- so we need to recover/infer the delisted pools url.
-    -- TODO:
-    --   - require the smash URL to only specify scheme and host
-    --   - use smash servant types to call the endpoints
-    toDelistedPoolsURI uri =
-        uri { uriPath = "/api/v1/delisted" , uriQuery = "", uriFragment = "" }
-
     trFetch = contramap MsgFetchPoolMetadata tr
     -- We mask this entire section just in case, although the database
     -- operations runs masked anyway. Unfortunately we cannot run
@@ -849,6 +863,7 @@ data StakePoolLog
     | MsgGCThreadKilled
     | MsgGCUserInterrupt
     | MsgGCUnhandledException Text
+    | MsgSMASHUnreachable
     deriving (Show, Eq)
 
 data PoolGarbageCollectionInfo = PoolGarbageCollectionInfo
@@ -881,6 +896,7 @@ instance HasSeverityAnnotation StakePoolLog where
         MsgGCThreadKilled{} -> Debug
         MsgGCUserInterrupt{} -> Debug
         MsgGCUnhandledException{} -> Debug
+        MsgSMASHUnreachable{} -> Warning
 
 instance ToText StakePoolLog where
     toText = \case
@@ -933,3 +949,7 @@ instance ToText StakePoolLog where
         MsgGCUserInterrupt -> "GC thread has exited: killed by user."
         MsgGCUnhandledException err ->
             "GC thread has exited unexpectedly: " <> err
+        MsgSMASHUnreachable -> mconcat
+            ["The SMASH server is unreachable or unhealthy."
+            , "Metadata monitoring thread aborting."
+            ]

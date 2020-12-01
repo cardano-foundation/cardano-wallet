@@ -63,6 +63,7 @@ import Cardano.Wallet.Api.Types
     , ApiEpochInfo (..)
     , ApiErrorCode (..)
     , ApiFee (..)
+    , ApiHealthCheck (..)
     , ApiMaintenanceAction (..)
     , ApiMaintenanceActionPostData (..)
     , ApiMnemonicT (..)
@@ -106,6 +107,7 @@ import Cardano.Wallet.Api.Types
     , DecodeStakeAddress (..)
     , EncodeAddress (..)
     , EncodeStakeAddress (..)
+    , HealthCheckSMASH (..)
     , Iso8601Time (..)
     , NtpSyncingStatus (..)
     , PostExternalTransactionData (..)
@@ -352,6 +354,7 @@ spec = parallel $ do
             jsonRoundtripAndGolden $ Proxy @ApiNetworkParameters
             jsonRoundtripAndGolden $ Proxy @ApiNetworkClock
             jsonRoundtripAndGolden $ Proxy @ApiWalletDelegation
+            jsonRoundtripAndGolden $ Proxy @ApiHealthCheck
             jsonRoundtripAndGolden $ Proxy @ApiWalletDelegationStatus
             jsonRoundtripAndGolden $ Proxy @ApiWalletDelegationNext
             jsonRoundtripAndGolden $ Proxy @(ApiT (Hash "Genesis"))
@@ -1722,6 +1725,14 @@ instance Arbitrary ApiAddressInspect where
             , "stake_reference" .= Aeson.String stake
             ]
 
+instance Arbitrary HealthCheckSMASH where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
+
+instance Arbitrary ApiHealthCheck where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
+
 {-------------------------------------------------------------------------------
                    Specification / Servant-Swagger Machinery
 
@@ -1785,6 +1796,12 @@ instance ToSchema (ApiPutAddressesData t) where
 
 instance ToSchema (ApiSelectCoinsData n) where
     declareNamedSchema _ = declareSchemaForDefinition "ApiSelectCoinsData"
+
+instance ToSchema (ApiT SmashServer) where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiSmashServer"
+
+instance ToSchema ApiHealthCheck where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiHealthCheck"
 
 instance ToSchema (ApiSelectCoinsPayments n) where
     declareNamedSchema _ = declareSchemaForDefinition "ApiSelectCoinsPayments"

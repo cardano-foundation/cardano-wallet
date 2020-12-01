@@ -23,6 +23,8 @@ import Prelude
 
 import Cardano.Address
     ( unAddress )
+import Cardano.Pool.Metadata
+    ( defaultManagerSettings, healthCheck, newManager, toHealthCheckSMASH )
 import Cardano.Wallet
     ( ErrCreateRandomAddress (..)
     , ErrNotASequentialWallet (..)
@@ -43,6 +45,7 @@ import Cardano.Wallet.Api
     , CoinSelections
     , Network
     , Proxy_
+    , SMASH
     , Settings
     , ShelleyMigrations
     , StakePools
@@ -106,12 +109,14 @@ import Cardano.Wallet.Api.Types
     , ApiAddressInspectData (..)
     , ApiCredential (..)
     , ApiErrorCode (..)
+    , ApiHealthCheck (..)
     , ApiMaintenanceAction (..)
     , ApiMaintenanceActionPostData (..)
     , ApiSelectCoinsAction (..)
     , ApiSelectCoinsData (..)
     , ApiStakePool
     , ApiT (..)
+    , HealthCheckSMASH (..)
     , MaintenanceAction (..)
     , SettingsPutData (..)
     , SomeByronWalletPostData (..)
@@ -128,6 +133,8 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( SeqState )
+import Cardano.Wallet.Primitive.Types
+    ( PoolMetadataSource (..), SmashServer (..), poolMetadataSource )
 import Cardano.Wallet.Shelley.Compatibility
     ( HasNetworkId (..), NetworkId, inspectAddress )
 import Cardano.Wallet.Shelley.Pools
@@ -203,6 +210,7 @@ server byron icarus shelley spl ntp =
     :<|> network'
     :<|> proxy
     :<|> settingS
+    :<|> smash
   where
     wallets :: Server Wallets
     wallets = deleteWallet shelley
@@ -426,6 +434,21 @@ server byron icarus shelley spl ntp =
                 pure NoContent
         getSettings'
             = Handler $ fmap ApiT $ liftIO $ getSettings spl
+
+    smash :: Server SMASH
+    smash = getCurrentSmashHealth
+      where
+        getHealth smashServer = liftIO $ do
+            manager <- newManager defaultManagerSettings
+            health' <- healthCheck mempty (unSmashServer smashServer) manager
+            pure $ ApiHealthCheck $ toHealthCheckSMASH health'
+
+        getCurrentSmashHealth (Just (ApiT smashServer)) = Handler $ getHealth smashServer
+        getCurrentSmashHealth Nothing = Handler $ do
+            settings' <- liftIO $ getSettings spl
+            case poolMetadataSource settings' of
+                FetchSMASH smashServer -> getHealth smashServer
+                _ -> pure (ApiHealthCheck NoSmashConfigured)
 
 postAnyAddress
     :: NetworkId

@@ -100,6 +100,7 @@ module Cardano.Wallet.Api
         , GetNetworkInformation
         , GetNetworkParameters
         , GetNetworkClock
+    , SMASH
 
     , Proxy_
         , PostExternalTransaction
@@ -126,6 +127,7 @@ import Cardano.Wallet.Api.Types
     , ApiByronWallet
     , ApiCoinSelectionT
     , ApiFee
+    , ApiHealthCheck
     , ApiMaintenanceAction
     , ApiMaintenanceActionPostData
     , ApiNetworkClock
@@ -166,7 +168,12 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncTolerance )
 import Cardano.Wallet.Primitive.Types
-    ( Block, NetworkParameters, SortOrder (..), WalletId (..) )
+    ( Block
+    , NetworkParameters
+    , SmashServer (..)
+    , SortOrder (..)
+    , WalletId (..)
+    )
 import Cardano.Wallet.Primitive.Types.Address
     ( AddressState )
 import Cardano.Wallet.Primitive.Types.Coin
@@ -233,6 +240,7 @@ type Api n apiPool =
     :<|> Network
     :<|> Proxy_
     :<|> Settings
+    :<|> SMASH
 
 {-------------------------------------------------------------------------------
                                   Wallets
@@ -708,6 +716,18 @@ type GetNetworkClock = "network"
     :> "clock"
     :> QueryFlag "forceNtpCheck"
     :> Get '[JSON] ApiNetworkClock
+
+{-------------------------------------------------------------------------------
+                                  SMASH
+
+-------------------------------------------------------------------------------}
+
+type SMASH = GetCurrentSMASHHealth
+
+type GetCurrentSMASHHealth = "smash"
+    :> "health"
+    :> QueryParam "url" (ApiT SmashServer)
+    :> Get '[JSON] ApiHealthCheck
 
 {-------------------------------------------------------------------------------
                                    Proxy_

@@ -127,7 +127,7 @@ import Cardano.Wallet.Shelley.Network
     ( NetworkLayerLog, withNetworkLayer )
 import Cardano.Wallet.Shelley.Pools
     ( StakePoolLayer (..)
-    , StakePoolLog
+    , StakePoolLog (..)
     , monitorMetadata
     , monitorStakePools
     , newStakePoolLayer
@@ -162,6 +162,8 @@ import Network.Ntp
     ( NtpClient (..), NtpTrace, withWalletNtpClient )
 import Network.Socket
     ( SockAddr, Socket, getSocketName )
+import Network.URI
+    ( URI (..), uriToString )
 import Network.Wai.Handler.Warp
     ( setBeforeMainLoop )
 import Network.Wai.Middleware.Logging
@@ -338,6 +340,7 @@ serveWallet
 
             gcStatus <- newTVarIO NotStarted
             forM_ settings $ atomically . putSettings
+
             void $ forkFinally (monitorStakePools tr gp nl db) onExit
             spl <- newStakePoolLayer gcStatus nl db
                 $ forkFinally (monitorMetadata gcStatus tr sp db) onExit
@@ -402,6 +405,7 @@ data ApplicationLog
     = MsgStarting FilePath
     | MsgNetworkName Text
     | MsgServerStartupError ListenError
+    | MsgFailedConnectSMASH URI
     deriving (Generic, Show, Eq)
 
 instance ToText ApplicationLog where
@@ -427,6 +431,11 @@ instance ToText ApplicationLog where
             ListenErrorOperationNotPermitted -> mempty
                 <> "Cannot listen on the given port. "
                 <> "The operation is not permitted."
+        MsgFailedConnectSMASH uri -> T.unwords
+            [ "Failed connect to the given smash server or validate a healthy status."
+            , "SMASH uri was: "
+            , T.pack $ uriToString id uri ""
+            ]
 
 instance HasPrivacyAnnotation ApplicationLog
 instance HasSeverityAnnotation ApplicationLog where
@@ -434,6 +443,7 @@ instance HasSeverityAnnotation ApplicationLog where
         MsgStarting _ -> Info
         MsgNetworkName _ -> Info
         MsgServerStartupError _ -> Alert
+        MsgFailedConnectSMASH _ -> Warning
 
 {-------------------------------------------------------------------------------
                                     Tracers
