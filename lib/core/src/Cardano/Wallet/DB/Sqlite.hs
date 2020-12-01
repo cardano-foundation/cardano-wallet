@@ -1298,13 +1298,9 @@ txHistoryFromEntity ti tip metas ins outs ws =
             { W.txInfoId =
                 getTxId txid
             , W.txInfoInputs =
-                map mkTxIn
-                    $ filter ((== txid) . txInputTxId . fst)
-                    $ fmap (fmap (fmap fst)) ins
+                mkTxIn <$> filter ((== txid) . txInputTxId . fst) ins
             , W.txInfoOutputs =
-                map mkTxOut
-                    $ filter ((== txid) . txOutputTxId)
-                    $ fmap fst outs
+                mkTxOut <$> filter ((== txid) . txOutputTxId . fst) outs
             , W.txInfoWithdrawals =
                 Map.fromList
                     $ map mkTxWithdrawal
@@ -1329,10 +1325,15 @@ txHistoryFromEntity ti tip metas ins outs ws =
         , txInputSourceAmount tx
         , mkTxOut <$> out
         )
-    mkTxOut tx = W.TxOut
-        { W.address = txOutputAddress tx
-        , W.tokens = TB.fromCoin $ txOutputAmount tx
+    mkTxOut (out, tokens) = W.TxOut
+        { W.address = txOutputAddress out
+        , W.tokens =
+            TB.fromFlatList (txOutputAmount out) (mkTxOutToken <$> tokens)
         }
+    mkTxOutToken token =
+        ( TB.AssetId (txOutTokenPolicyId token) (txOutTokenName token)
+        , txOutTokenQuantity token
+        )
     mkTxWithdrawal w =
         ( txWithdrawalAccount w
         , txWithdrawalAmount w
