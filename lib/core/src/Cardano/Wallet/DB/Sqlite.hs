@@ -1178,9 +1178,15 @@ checkpointFromEntity cp utxo s =
         ) = cp
     header = (W.BlockHeader slot (Quantity bh) headerHash parentHeaderHash)
     utxo' = W.UTxO . Map.fromList $
-        [ (W.TxIn input ix, W.TxOut addr (TB.fromCoin coin))
-        | UTxO _ _ (TxId input) ix addr coin <- fst <$> utxo
+        [ (W.TxIn input ix, W.TxOut addr (mkTokenBundle coin tokens))
+        | (UTxO _ _ (TxId input) ix addr coin, tokens) <- utxo
         ]
+    mkTokenBundle coin tokens =
+        TB.fromFlatList coin (mkTokenEntry <$> tokens)
+    mkTokenEntry token =
+        ( TB.AssetId (utxoTokenPolicyId token) (utxoTokenName token)
+        , utxoTokenQuantity token
+        )
     gp = W.GenesisParameters
         { getGenesisBlockHash = coerce genesisHash
         , getGenesisBlockDate = W.StartTime genesisStart
