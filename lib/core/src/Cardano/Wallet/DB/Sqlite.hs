@@ -1155,7 +1155,7 @@ mkCheckpointEntity wid wal =
 -- and TxOut records must already by sorted by index.
 checkpointFromEntity
     :: Checkpoint
-    -> [UTxO]
+    -> [(UTxO, [UTxOToken])]
     -> s
     -> W.Wallet s
 checkpointFromEntity cp utxo s =
@@ -1179,7 +1179,7 @@ checkpointFromEntity cp utxo s =
     header = (W.BlockHeader slot (Quantity bh) headerHash parentHeaderHash)
     utxo' = W.UTxO . Map.fromList $
         [ (W.TxIn input ix, W.TxOut addr (TB.fromCoin coin))
-        | UTxO _ _ (TxId input) ix addr coin <- utxo
+        | UTxO _ _ (TxId input) ix addr coin <- fst <$> utxo
         ]
     gp = W.GenesisParameters
         { getGenesisBlockHash = coerce genesisHash
@@ -1504,12 +1504,20 @@ deleteDelegationCertificates wid filters = do
 
 selectUTxO
     :: Checkpoint
-    -> SqlPersistT IO [UTxO]
-selectUTxO cp = fmap entityVal <$>
-    selectList
-        [ UtxoWalletId ==. checkpointWalletId cp
-        , UtxoSlot ==. checkpointSlot cp
-        ] []
+    -> SqlPersistT IO [(UTxO, [UTxOToken])]
+selectUTxO cp = do
+    utxos <- fmap entityVal <$>
+        selectList
+            [ UtxoWalletId ==. checkpointWalletId cp
+            , UtxoSlot ==. checkpointSlot cp
+            ] []
+    forM utxos $ \utxo -> do
+        (utxo, ) . fmap entityVal <$> selectList
+            [ UtxoTokenWalletId ==. utxoWalletId utxo
+            , UtxoTokenSlot ==. utxoSlot utxo
+            , UtxoTokenTxId ==. utxoInputId utxo
+            , UtxoTokenTxIndex ==. utxoInputIndex utxo
+            ] []
 
 -- This relies on available information from the database to reconstruct coin
 -- selection information for __outgoing__ payments. We can't however guarantee
