@@ -53,6 +53,7 @@ module Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     , VerificationKeyPool
     , mkVerificationKeyPool
     , lookupKeyHash
+    , updateKnownScripts
     , toVerKeyHash
     , deriveKeyHash
     , verPoolAccountPubKey
@@ -335,6 +336,15 @@ lookupKeyHash keyHash pool@(VerificationKeyPool accXPub g indexedHashKeys script
             ( Just ix
             , VerificationKeyPool accXPub g
                 (Map.adjust updateKey keyHash indexedHashKeys) scripts)
+
+updateKnownScripts
+    :: (WalletKey k, SoftDerivation k)
+    => (Map ScriptHash [Index 'Soft 'ScriptK] -> Map ScriptHash [Index 'Soft 'ScriptK])
+    -> VerificationKeyPool k
+    -> VerificationKeyPool k
+updateKnownScripts trKnownScripts (VerificationKeyPool accXPub g indexedHashKeys knownScripts) =
+    let knownScripts' = trKnownScripts knownScripts
+    in mkVerificationKeyPool accXPub g indexedHashKeys knownScripts'
 
 toVerKeyHash
     :: WalletKey k

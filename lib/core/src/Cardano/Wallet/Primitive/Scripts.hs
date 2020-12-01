@@ -36,14 +36,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
-    ( SeqState (..)
-    , lookupKeyHash
-    , mkVerificationKeyPool
-    , verPoolAccountPubKey
-    , verPoolGap
-    , verPoolIndexedKeys
-    , verPoolKnownScripts
-    )
+    ( SeqState (..), lookupKeyHash, updateKnownScripts, verPoolAccountPubKey )
 import Control.Arrow
     ( first )
 import Control.Monad
@@ -56,6 +49,8 @@ import Data.Function
     ( (&) )
 import Data.Functor.Identity
     ( Identity (..) )
+import Data.Map.Strict
+    ( Map )
 import Data.Maybe
     ( catMaybes )
 
@@ -71,7 +66,6 @@ isShared
 isShared script (SeqState !s1 !s2 !pending !rpk !prefix !s3) =
     let
         hashes = retrieveAllVerKeyHashes script
-        insertIf predicate k v = if predicate v then Map.insert k v else id
         accXPub = verPoolAccountPubKey s3
         toVerKey = coerce . deriveAddressPublicKey accXPub MultisigScript . coerce
 
@@ -80,13 +74,17 @@ isShared script (SeqState !s1 !s2 !pending !rpk !prefix !s3) =
             & first catMaybes
             & \(ixs', s3'') ->
                 ( ixs'
-                , mkVerificationKeyPool accXPub (verPoolGap s3'') (verPoolIndexedKeys s3'')
-                  (insertIf (not . null) (toScriptHash script) ixs' (verPoolKnownScripts s3''))
+                , updateKnownScripts
+                  (insertIf (not . null) (toScriptHash script) ixs' )
+                  s3''
                 )
     in
         ( toVerKey <$> ixs
         , SeqState s1 s2 pending rpk prefix s3'
         )
+
+insertIf :: Ord k => (v -> Bool) -> k -> v -> Map k v -> Map k v
+insertIf predicate k v = if predicate v then Map.insert k v else id
 
 retrieveAllVerKeyHashes :: Script -> [KeyHash]
 retrieveAllVerKeyHashes = foldScript (:) []
