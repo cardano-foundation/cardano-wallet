@@ -33,7 +33,7 @@ let
         cardano-cli
         cardano-address
         bech32
-      ]) ++ (with pkgs; [
+      ]) ++ (with pkgs.buildPackages.buildPackages; [
         go-jira
         haskellPackages.ghcid
         niv
@@ -44,7 +44,7 @@ let
         yq
       ]) ++ lib.filter
         (drv: lib.isDerivation drv && drv.name != "regenerate-materialized-nix")
-        (lib.attrValues pkgs.haskell-build-tools);
+        (lib.attrValues pkgs.buildPackages.buildPackages.haskell-build-tools);
 
     # fixme: this is needed to prevent Haskell.nix double-evaluating hoogle
     tools.hoogle = {
