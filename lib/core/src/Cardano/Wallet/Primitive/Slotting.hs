@@ -90,7 +90,7 @@ import Control.Monad.Trans.Except
 import Control.Monad.Trans.Reader
     ( ReaderT, ask, runReaderT )
 import Control.Tracer
-    ( Tracer, contramap, nullTracer, traceWith )
+    ( Tracer, contramap, natTracer, nullTracer, traceWith )
 import Data.Coerce
     ( coerce )
 import Data.Functor.Identity
@@ -308,9 +308,8 @@ getCurrentTimeRelativeFromStart start =
 -- If the current time is before the system start (this would only happen when
 -- launching testnets), the relative time is reported as 0.
 currentRelativeTime :: MonadIO m => TimeInterpreter n -> m RelativeTime
-currentRelativeTime ti = liftIO $ getCurrentTimeRelativeFromStart st
-  where
-    st = blockchainStartTime ti
+currentRelativeTime =
+    liftIO . getCurrentTimeRelativeFromStart . blockchainStartTime
 
 -- | Note: This fails when the node is far enough behind that we in the present
 -- are beyond its safe zone.
@@ -328,22 +327,14 @@ currentEpoch ti = do
 data TimeInterpreter m = forall eras. TimeInterpreter
     { interpreter :: m (Interpreter eras)
     , blockchainStartTime :: StartTime
-    , tracer :: Tracer IO TimeInterpreterLog
-
-      -- | To allow the tracer to be transformed by @TimeInterpreter@
-      -- combinators, we need to pass in a new @Tracer@ value here, supplied by
-      -- @interpretQuery@. We could also have the reference be the entire
-      -- @TimeInTimeInterpreter@, but for now that is not needed.
-    , handler
-        :: forall a. Tracer IO TimeInterpreterLog
-        -> Either HF.PastHorizonException a
-        -> m a
+    , tracer :: Tracer m TimeInterpreterLog
+    , handleResult :: forall a. Either PastHorizonException a -> m a
     }
 
 data TimeInterpreterLog
     = MsgInterpreterPastHorizon
         (Maybe String) -- ^ Reason for why the failure should be impossible
-        HF.PastHorizonException
+        PastHorizonException
 
 instance HasSeverityAnnotation TimeInterpreterLog where
     getSeverityAnnotation = \case
@@ -374,7 +365,11 @@ interpretQuery
     -> m a
 interpretQuery (TimeInterpreter getI start tr handleRes) qry = do
     i <- getI
-    handleRes tr $ HF.interpretQuery i $ runReaderT qry start
+    let res = HF.interpretQuery i $ runReaderT qry start
+    case res of
+        Left e -> traceWith tr $ MsgInterpreterPastHorizon Nothing e
+        Right _ -> pure ()
+    handleRes res
 
 -- | An 'Interpreter' for a single era, where the @SlottingParameters@ cannot
 -- change.
@@ -385,20 +380,19 @@ mkSingleEraInterpreter
     => StartTime
     -> SlottingParameters
     -> TimeInterpreter Identity
-mkSingleEraInterpreter start sp =
-    TimeInterpreter
-        { interpreter = pure int
-        , blockchainStartTime = start
-        , tracer = nullTracer
-        , handler = \_tr -> neverFails'
-        }
+mkSingleEraInterpreter start sp = TimeInterpreter
+    { interpreter = pure int
+    , blockchainStartTime = start
+    , tracer = nullTracer
+    , handleResult = either bomb pure
+    }
   where
     int = mkInterpreter summary
     summary = neverForksSummary sz len
     sz = Cardano.EpochSize $ fromIntegral $ unEpochLength $ sp ^. #getEpochLength
     len = Cardano.mkSlotLength $ unSlotLength $ sp ^. #getSlotLength
-    neverFails' = either bomb pure
-    bomb x = error $ "singleEraInterpreter: the impossible happened: " <> show x
+
+    bomb x = error $ "mkSingleEraInterpreter: the impossible happened: " <> show x
 
 -- | Set up a 'TimeInterpreter' for a given start time, and an 'Interpreter'
 -- queried from the ledger layer.
@@ -406,19 +400,13 @@ mkTimeInterpreter
     :: Tracer IO TimeInterpreterLog
     -> StartTime
     -> IO (Interpreter eras)
-    -> TimeInterpreter (ExceptT HF.PastHorizonException IO)
+    -> TimeInterpreter (ExceptT PastHorizonException IO)
 mkTimeInterpreter tr start int = TimeInterpreter
-        { interpreter = liftIO int
-        , blockchainStartTime = coerce start
-        , tracer = tr
-        , handler = \tr' x -> ExceptT $ do
-            case x of
-                Left e -> liftIO $ traceWith tr' $
-                    MsgInterpreterPastHorizon Nothing e
-                Right _ -> return ()
-            pure x
-        }
-
+    { interpreter = liftIO int
+    , blockchainStartTime = start
+    , tracer = natTracer liftIO tr
+    , handleResult = ExceptT . pure
+    }
 
 {-------------------------------------------------------------------------------
                         Time Interpreter combinators
@@ -431,7 +419,7 @@ mkTimeInterpreter tr start int = TimeInterpreter
 -- Error severity along with the provided motivation.
 neverFails
     :: String
-    -> TimeInterpreter (ExceptT HF.PastHorizonException IO)
+    -> TimeInterpreter (ExceptT PastHorizonException IO)
     -> TimeInterpreter IO
 neverFails reason = f . hoistTimeInterpreter (runExceptT >=> eitherToIO)
   where
@@ -442,7 +430,7 @@ neverFails reason = f . hoistTimeInterpreter (runExceptT >=> eitherToIO)
         { interpreter = getI
         , blockchainStartTime = ss
         , tracer = contramap (setReason reason) tr
-        , handler = h
+        , handleResult = h
         }
     setReason r (MsgInterpreterPastHorizon _ e)
         = MsgInterpreterPastHorizon (Just r) e
@@ -452,7 +440,7 @@ neverFails reason = f . hoistTimeInterpreter (runExceptT >=> eitherToIO)
 -- Will /not/ cause @PastHorizonException@ to be tracer with Error severity,
 -- unlike @neverFails@.
 expectAndThrowFailures
-    :: TimeInterpreter (ExceptT HF.PastHorizonException IO)
+    :: TimeInterpreter (ExceptT PastHorizonException IO)
     -> TimeInterpreter IO
 expectAndThrowFailures = hoistTimeInterpreter (runExceptT >=> eitherToIO)
   where
@@ -470,8 +458,8 @@ hoistTimeInterpreter f (TimeInterpreter getI ss tr h) = TimeInterpreter
      -- NOTE: interpreter ti cannot throw PastHorizonException, but
      -- this way we don't have to carry around yet another type parameter.
     , blockchainStartTime = ss
-    , tracer = tr
-    , handler = \tr' -> f . h tr'
+    , tracer = natTracer f tr
+    , handleResult = f . h
     }
 
 -- | Extend the safe zone to make the TimeInterpreter return predictions where
@@ -493,14 +481,14 @@ hoistTimeInterpreter f (TimeInterpreter getI ss tr h) = TimeInterpreter
 -- hard forks, and the results produced by the 'Interpreter' can thus be
 -- incorrect.
 unsafeExtendSafeZone
-    :: TimeInterpreter (ExceptT HF.PastHorizonException IO)
+    :: TimeInterpreter (ExceptT PastHorizonException IO)
     -> TimeInterpreter IO
 unsafeExtendSafeZone = f . neverFails r
   where
-    f (TimeInterpreter i b t h) = TimeInterpreter
-        { interpreter = HF.unsafeExtendSafeZone <$> i
-        , blockchainStartTime = b
-        , tracer = t
-        , handler = h
+    f (TimeInterpreter getI ss tr h) = TimeInterpreter
+        { interpreter = HF.unsafeExtendSafeZone <$> getI
+        , blockchainStartTime = ss
+        , tracer = tr
+        , handleResult = h
         }
     r = "unsafeExtendSafeZone should make PastHorizonExceptions impossible."
