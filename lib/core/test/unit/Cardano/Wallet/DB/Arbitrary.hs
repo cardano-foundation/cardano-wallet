@@ -193,7 +193,6 @@ import Test.Utils.Time
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Byron as Byron
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Shelley
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Sequential as Seq
-import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TB
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
@@ -394,7 +393,7 @@ instance Arbitrary TxIn where
 instance Arbitrary TxOut where
     arbitrary = TxOut
         <$> arbitrary
-        <*> fmap TB.fromCoin genStrictlyPositiveCoin
+        <*> arbitrary
 
 instance Arbitrary TxMeta where
     arbitrary = do
