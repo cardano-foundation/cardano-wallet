@@ -76,6 +76,10 @@ flags:
   cardano-crypto-praos:
     external-libsodium-vrf: false
 
+  # Disables highly inconvenient -Werror=deprecations flag
+  cardano-ledger:
+    development: true
+
   # Using RDRAND instead of /dev/urandom as an entropy source for key
   # generation is dubious. Set the flag so we use /dev/urandom by default.
   cryptonite:

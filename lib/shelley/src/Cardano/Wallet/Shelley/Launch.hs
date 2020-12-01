@@ -540,6 +540,10 @@ data RunningNode = RunningNode
 -- registering pools. Passing `0` as a number of pool will simply start a single
 -- BFT node.
 --
+-- The cluster is configured to automatically hard fork to Shelley at epoch 1
+-- and then to Allegra at epoch 2. Callback actions can be provided to run
+-- a little time after the hard forks are scheduled.
+--
 -- The callback actions are not guaranteed to use the same node.
 withCluster
     :: Tracer IO ClusterLog
@@ -552,15 +556,16 @@ withCluster
     -- ^ Parent state directory for cluster
     -> Maybe (FilePath, Severity)
     -> (RunningNode -> IO ())
-    -- ^ Action to run when Byron is up
+    -- ^ Action to run when the Byron BFT node is up
     -> (RunningNode -> IO ())
-    -- ^ Action to run when we have transitioned to shelley.
+    -- ^ Action to run when we have transitioned to the Shelley era.
     --
     -- Can be used to transfer byron faucet funds to shelley faucets.
     -> (RunningNode -> IO a)
-    -- ^ Action to run when stake pools are running
+    -- ^ Action to run when we have transitioned to the Allegra era and
+    -- stake pools are running
     -> IO a
-withCluster tr severity poolConfigs dir logFile onByron onFork onClusterStart =
+withCluster tr severity poolConfigs dir logFile onByron onShelley onClusterStart =
     bracketTracer' tr "withCluster" $ do
         traceWith tr $ MsgStartingCluster dir
         let poolCount = length poolConfigs
@@ -571,10 +576,9 @@ withCluster tr severity poolConfigs dir logFile onByron onFork onClusterStart =
             let runningBftNode = RunningNode bftSocket block0 params
             waitForSocket tr bftSocket *> onByron runningBftNode
 
-            traceWith tr MsgWaitingForFork
-            updateVersion tr dir
             let sp = slottingParameters $ fst params
-            waitForHardFork bftSocket sp 1 *> onFork runningBftNode
+            traceWith tr $ MsgWaitingForFork "Byron -> Shelley"
+            waitForHardFork bftSocket sp 1 *> onShelley runningBftNode
 
             setEnv "CARDANO_NODE_SOCKET_PATH" bftSocket
             (rawTx, faucetPrv) <- prepareKeyRegistration tr dir
@@ -619,6 +623,8 @@ withCluster tr severity poolConfigs dir logFile onByron onFork onClusterStart =
                     ("cluster didn't start correctly: " <> errors)
                     (ExitFailure 1)
             else do
+                traceWith tr $ MsgWaitingForFork "Shelley -> Allegra"
+                waitForHardFork bftSocket sp 2
                 let cfg = NodeParams severity systemStart (port0, ports) logFile
                 withRelayNode tr dir cfg $ \socket -> do
                     let runningRelay = RunningNode socket block0 params
@@ -1101,7 +1107,7 @@ genKesKeyPair tr dir = do
     let kesPub = dir </> "kes.pub"
     let kesPrv = dir </> "kes.prv"
     void $ cli tr
-        [ "shelley", "node", "key-gen-KES"
+        [ "node", "key-gen-KES"
         , "--verification-key-file", kesPub
         , "--signing-key-file", kesPrv
         ]
@@ -1113,7 +1119,7 @@ genVrfKeyPair tr dir = do
     let vrfPub = dir </> "vrf.pub"
     let vrfPrv = dir </> "vrf.prv"
     void $ cli tr
-        [ "shelley", "node", "key-gen-VRF"
+        [ "node", "key-gen-VRF"
         , "--verification-key-file", vrfPub
         , "--signing-key-file", vrfPrv
         ]
@@ -1125,7 +1131,7 @@ genStakeAddrKeyPair tr dir = do
     let stakePub = dir </> "stake.pub"
     let stakePrv = dir </> "stake.prv"
     void $ cli tr
-        [ "shelley", "stake-address", "key-gen"
+        [ "stake-address", "key-gen"
         , "--verification-key-file", stakePub
         , "--signing-key-file", stakePrv
         ]
@@ -1136,7 +1142,7 @@ issueOpCert :: Tracer IO ClusterLog -> FilePath -> FilePath -> FilePath -> FileP
 issueOpCert tr dir kesPub opPrv opCount = do
     let file = dir </> "op.cert"
     void $ cli tr
-        [ "shelley", "node", "issue-op-cert"
+        [ "node", "issue-op-cert"
         , "--kes-verification-key-file", kesPub
         , "--cold-signing-key-file", opPrv
         , "--operational-certificate-issue-counter-file", opCount
@@ -1155,7 +1161,7 @@ issueStakeCert
 issueStakeCert tr dir prefix stakePub = do
     let file = dir </> prefix <> "-stake.cert"
     void $ cli tr
-        [ "shelley", "stake-address", "registration-certificate"
+        [ "stake-address", "registration-certificate"
         , "--staking-verification-key-file", stakePub
         , "--out-file", file
         ]
@@ -1178,7 +1184,7 @@ issuePoolRegistrationCert
         let bytes = Aeson.encode metadata
         BL8.writeFile (dir </> "metadata.json") bytes
         void $ cli tr
-            [ "shelley", "stake-pool", "registration-certificate"
+            [ "stake-pool", "registration-certificate"
             , "--cold-verification-key-file", opPub
             , "--vrf-verification-key-file", vrfPub
             , "--pool-pledge", show pledgeAmt
@@ -1202,7 +1208,7 @@ issuePoolRetirementCert
 issuePoolRetirementCert tr dir opPub retirementEpoch = do
     let file  = dir </> "pool-retirement.cert"
     void $ cli tr
-        [ "shelley", "stake-pool", "deregistration-certificate"
+        [ "stake-pool", "deregistration-certificate"
         , "--cold-verification-key-file", opPub
         , "--epoch", show (unEpochNo retirementEpoch)
         , "--out-file", file
@@ -1214,7 +1220,7 @@ issueDlgCert :: Tracer IO ClusterLog -> FilePath -> FilePath -> FilePath -> IO F
 issueDlgCert tr dir stakePub opPub = do
     let file = dir </> "dlg.cert"
     void $ cli tr
-        [ "shelley", "stake-address", "delegation-certificate"
+        [ "stake-address", "delegation-certificate"
         , "--staking-verification-key-file", stakePub
         , "--stake-pool-verification-key-file", opPub
         , "--out-file", file
@@ -1235,12 +1241,12 @@ preparePoolRegistration tr dir stakePub certs pledgeAmt = do
     let sinkPrv = dir </> "sink.prv"
     let sinkPub = dir </> "sink.pub"
     void $ cli tr
-        [ "shelley", "address", "key-gen"
+        [ "address", "key-gen"
         , "--signing-key-file", sinkPrv
         , "--verification-key-file", sinkPub
         ]
     addr <- cli tr
-        [ "shelley", "address", "build"
+        [ "address", "build"
         , "--payment-verification-key-file", sinkPub
         , "--stake-verification-key-file", stakePub
         , "--mainnet"
@@ -1248,7 +1254,7 @@ preparePoolRegistration tr dir stakePub certs pledgeAmt = do
 
     (faucetInput, faucetPrv) <- takeFaucet
     void $ cli tr $
-        [ "shelley", "transaction", "build-raw"
+        [ "transaction", "build-raw"
         , "--tx-in", faucetInput
         , "--tx-out", init addr <> "+" <> show pledgeAmt
         , "--ttl", "400"
@@ -1276,7 +1282,7 @@ sendFaucetFundsTo tr dir allTargets = do
         when (total > faucetAmt) $ error "sendFaucetFundsTo: too much to pay"
 
         void $ cli tr $
-            [ "shelley", "transaction", "build-raw"
+            [ "transaction", "build-raw"
             , "--tx-in", faucetInput
             , "--ttl", "600"
             , "--fee", show (faucetAmt - total)
@@ -1311,7 +1317,7 @@ moveInstantaneousRewardsTo tr dir targets = do
     sink <- genSinkAddress tr dir
 
     void $ cli tr $
-        [ "shelley", "transaction", "build-raw"
+        [ "transaction", "build-raw"
         , "--tx-in", faucetInput
         , "--ttl", "600"
         , "--fee", show (faucetAmt - 1_000_000 - totalDeposit)
@@ -1346,7 +1352,7 @@ moveInstantaneousRewardsTo tr dir targets = do
         let mirCert = dir </> pub <> ".mir"
         stakeCert <- issueStakeCert tr dir pub stakeVK
         void $ cli tr
-            [ "shelley", "governance", "create-mir-certificate"
+            [ "governance", "create-mir-certificate"
             , "--reserves"
             , "--reward", show reward
             , "--stake-verification-key-file", stakeVK
@@ -1372,7 +1378,7 @@ prepareKeyRegistration tr dir = do
     sink <- genSinkAddress tr dir
 
     void $ cli tr
-        [ "shelley", "transaction", "build-raw"
+        [ "transaction", "build-raw"
         , "--tx-in", faucetInput
         , "--tx-out", sink <> "+" <> "1000000"
         , "--ttl", "400"
@@ -1390,12 +1396,12 @@ genSinkAddress tr dir = do
     let sinkPrv = dir </> "sink.prv"
     let sinkPub = dir </> "sink.pub"
     void $ cli tr
-        [ "shelley", "address", "key-gen"
+        [ "address", "key-gen"
         , "--signing-key-file", sinkPrv
         , "--verification-key-file", sinkPub
         ]
     addr <- cli tr
-        [ "shelley", "address", "build"
+        [ "address", "build"
         , "--payment-verification-key-file", sinkPub
         , "--mainnet"
         ]
@@ -1411,7 +1417,7 @@ signTx
 signTx tr dir rawTx keys = do
     let file = dir </> "tx.signed"
     void $ cli tr $
-        [ "shelley", "transaction", "sign"
+        [ "transaction", "sign"
         , "--tx-body-file", rawTx
         , "--mainnet"
         , "--out-file", file
@@ -1422,7 +1428,7 @@ signTx tr dir rawTx keys = do
 submitTx :: Tracer IO ClusterLog -> String -> FilePath -> IO ()
 submitTx tr name signedTx = do
     void $ cliRetry tr ("Submitting transaction for " ++ name)
-        [ "shelley", "transaction", "submit"
+        [ "transaction", "submit"
         , "--tx-file", signedTx
         , "--mainnet", "--cardano-mode"
         ]
@@ -1441,7 +1447,7 @@ waitForSocket tr socketPath = do
     let msg = "Checking for usable socket file " <> socketPath
     -- TODO: check whether querying the tip works just as well.
     void $ cliRetry tr msg
-        ["shelley", "query", "tip"
+        ["query", "tip"
         , "--mainnet"
         --, "--testnet-magic", "764824073"
         , "--cardano-mode"
@@ -1452,11 +1458,11 @@ waitForSocket tr socketPath = do
 waitUntilRegistered :: Tracer IO ClusterLog -> String -> FilePath -> IO ()
 waitUntilRegistered tr name opPub = do
     poolId <- init <$> cli tr
-        [ "shelley", "stake-pool", "id"
+        [ "stake-pool", "id"
         , "--stake-pool-verification-key-file", opPub
         ]
     (exitCode, distribution, err) <- readProcessWithExitCode "cardano-cli"
-        [ "shelley", "query", "stake-distribution"
+        [ "query", "stake-distribution"
         , "--mainnet"
         , "--cardano-mode"
         ] mempty
@@ -1744,7 +1750,7 @@ withSystemTempDir tr name action = do
 
 data ClusterLog
     = MsgRegisteringStakePools Int -- ^ How many pools
-    | MsgWaitingForFork
+    | MsgWaitingForFork Text
     | MsgStartingCluster FilePath
     | MsgLauncher String LauncherLog
     | MsgStartedStaticServer String FilePath
@@ -1764,8 +1770,8 @@ instance ToText ClusterLog where
     toText = \case
         MsgStartingCluster dir ->
             "Configuring cluster in " <> T.pack dir
-        MsgWaitingForFork ->
-            "Transitioning from Byron to Shelley... Please wait 20s..."
+        MsgWaitingForFork fork ->
+            "Transitioning from " <> fork <> " ... Please wait 20s..."
         MsgRegisteringStakePools 0 -> mconcat
                 [ "Not registering any stake pools due to "
                 , "NO_POOLS=1. Some tests may fail."
@@ -1813,7 +1819,7 @@ instance HasSeverityAnnotation ClusterLog where
     getSeverityAnnotation = \case
         MsgStartingCluster _ -> Notice
         MsgRegisteringStakePools _ -> Notice
-        MsgWaitingForFork -> Notice
+        MsgWaitingForFork{} -> Notice
         MsgLauncher _ _ -> Info
         MsgStartedStaticServer _ _ -> Info
         MsgTempNoCleanup _ -> Notice
