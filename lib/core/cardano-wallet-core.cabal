@@ -327,6 +327,7 @@ test-suite unit
       Cardano.Wallet.Primitive.Types.HashSpec
       Cardano.Wallet.Primitive.Types.TokenBundleSpec
       Cardano.Wallet.Primitive.Types.TokenBundle.TokenMapSpec
+      Cardano.Wallet.Primitive.Types.TokenBundle.TokenMapSpec.TypeErrorSpec
       Cardano.Wallet.Primitive.Types.TokenQuantitySpec
       Cardano.Wallet.RegistrySpec
       Cardano.Wallet.TransactionSpec
