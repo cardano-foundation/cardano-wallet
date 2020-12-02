@@ -93,6 +93,8 @@ import Control.Tracer
     ( Tracer, contramap, natTracer, nullTracer, traceWith )
 import Data.Coerce
     ( coerce )
+import Data.Either
+    ( isRight )
 import Data.Functor.Identity
     ( Identity )
 import Data.Generics.Internal.VL.Lens
@@ -467,6 +469,10 @@ hoistTimeInterpreter f (TimeInterpreter getI ss tr h) = TimeInterpreter
 -- used with great caution, and if we can get away from it, that would also be
 -- great. Also ADP-575.
 --
+-- NOTE: If the time interpreter / node is out of date (the current time is past
+-- the horizon), the safe-zone will /not/ be extended and queries will still
+-- fail.
+--
 -- From the underlying ouroboros-consensus function:
 --
 -- UNSAFE: extend the safe zone of the current era of the given 'Interpreter'
@@ -482,13 +488,22 @@ hoistTimeInterpreter f (TimeInterpreter getI ss tr h) = TimeInterpreter
 -- incorrect.
 unsafeExtendSafeZone
     :: TimeInterpreter (ExceptT PastHorizonException IO)
-    -> TimeInterpreter IO
-unsafeExtendSafeZone = f . neverFails r
-  where
-    f (TimeInterpreter getI ss tr h) = TimeInterpreter
-        { interpreter = HF.unsafeExtendSafeZone <$> getI
-        , blockchainStartTime = ss
-        , tracer = tr
-        , handleResult = h
-        }
-    r = "unsafeExtendSafeZone should make PastHorizonExceptions impossible."
+    -> TimeInterpreter (ExceptT PastHorizonException IO)
+unsafeExtendSafeZone ti@(TimeInterpreter getI ss tr h) = TimeInterpreter
+    { interpreter = do
+        -- NOTE: this function is only called by interpretQuery when the
+        -- query is run. Decisions based on @currentRelativeTime@ won't get
+        -- out of date, as future interpretQuery calls will re-try the
+        -- decision.
+        let currentTimeInHorizon = do
+                q <- ongoingSlotAt <$> currentRelativeTime ti
+                fmap isRight . liftIO . runExceptT
+                    $ interpretQuery (ti { tracer = nullTracer }) q
+
+        currentTimeInHorizon >>= \case
+            False -> getI
+            True -> HF.unsafeExtendSafeZone <$> getI
+    , blockchainStartTime = ss
+    , tracer = tr
+    , handleResult = h
+    }

@@ -285,7 +285,8 @@ newStakePoolLayer gcStatus nl db@DBLayer {..} worker = do
         let lsqData = combineLsqData rawLsqData
         dbData <- liftIO $ readPoolDbData db currentEpoch
         seed <- liftIO $ atomically readSystemSeed
-        liftIO $ sortByReward seed
+        withExceptT ErrListPoolsPastHorizonException
+            $ sortByReward seed
             . map snd
             . Map.toList
             <$> combineDbAndLsqData
@@ -388,7 +389,7 @@ combineDbAndLsqData
     -> Int -- ^ nOpt; desired number of pools
     -> Map PoolId PoolLsqData
     -> Map PoolId PoolDbData
-    -> IO (Map PoolId Api.ApiStakePool)
+    -> ExceptT PastHorizonException IO (Map PoolId Api.ApiStakePool)
 combineDbAndLsqData ti nOpt lsqData =
     Map.mergeA lsqButNoDb dbButNoLsq bothPresent lsqData
   where
@@ -432,7 +433,7 @@ combineDbAndLsqData ti nOpt lsqData =
         :: PoolId
         -> PoolLsqData
         -> PoolDbData
-        -> IO Api.ApiStakePool
+        -> ExceptT PastHorizonException IO Api.ApiStakePool
     mkApiPool pid (PoolLsqData prew pstk psat) dbData = do
         let mRetirementEpoch = retirementEpoch <$> retirementCert dbData
         retirementEpochInfo <- traverse

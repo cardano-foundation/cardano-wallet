@@ -711,8 +711,11 @@ mkShelleyWallet ctx wid cp meta pending progress = do
     --
     -- But ultimately, we might want to make the uncertainty transparent to API
     -- users. TODO: ADP-575
+    --
+    -- NOTE: If the node is out of sync, the exception will be thrown rather
+    -- than the result being extrapolated, resulting in a 503 HTTP code.
     apiDelegation <- liftIO $ toApiWalletDelegation (meta ^. #delegation)
-        (unsafeExtendSafeZone ti)
+        (expectAndThrowFailures $ unsafeExtendSafeZone ti)
 
     tip' <- liftIO $ getWalletTip
         (neverFails "getWalletTip wallet tip should be behind node tip" ti)
@@ -2024,7 +2027,8 @@ mkApiTransaction ti txid ins outs ws (meta, timestamp) txMeta setTimeReference =
   where
     -- Since tx expiry can be far in the future, we use unsafeExtendSafeZone for
     -- now.
-    makeApiSlotReference' = makeApiSlotReference (unsafeExtendSafeZone ti)
+    makeApiSlotReference' = makeApiSlotReference
+        (expectAndThrowFailures $ unsafeExtendSafeZone ti)
     tx :: ApiTransaction n
     tx = ApiTransaction
         { id = ApiT txid

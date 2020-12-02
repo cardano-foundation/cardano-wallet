@@ -1626,7 +1626,7 @@ signPayment
     -> CoinSelection
     -> ExceptT ErrSignPayment IO (Tx, TxMeta, UTCTime, SealedTx)
 signPayment ctx wid argGenChange mkRewardAccount pwd md ttl cs = db & \DBLayer{..} -> do
-    txExp <- liftIO $ getTxExpiry ti ttl
+    txExp <- withExceptT ErrSignPaymentIncorrectTTL $ getTxExpiry ti ttl
     era <- liftIO $ currentNodeEra nl
     withRootKey @_ @s ctx wid pwd ErrSignPaymentWithRootKey $ \xprv scheme -> do
         let pwdP = preparePassphrase scheme pwd
@@ -1662,7 +1662,7 @@ getTxExpiry
     -- ^ Context for time to slot calculation.
     -> Maybe NominalDiffTime
     -- ^ Time to live (TTL) in seconds from now.
-    -> IO SlotNo
+    -> ExceptT PastHorizonException IO SlotNo
 getTxExpiry ti maybeTTL = do
     expTime <- addRelTime ttl <$> currentRelativeTime (unsafeExtendSafeZone ti)
     interpretQuery (unsafeExtendSafeZone ti) $ ceilingSlotAt expTime
@@ -1696,7 +1696,7 @@ signTx
     -> UnsignedTx (TxIn, TxOut) TxOut Void
     -> ExceptT ErrSignPayment IO (Tx, TxMeta, UTCTime, SealedTx)
 signTx ctx wid pwd md ttl (UnsignedTx inpsNE outs _change) = db & \DBLayer{..} -> do
-    txExp <- liftIO $ getTxExpiry ti ttl
+    txExp <- withExceptT ErrSignPaymentIncorrectTTL $ getTxExpiry ti ttl
     era <- liftIO $ currentNodeEra nl
     withRootKey @_ @s ctx wid pwd ErrSignPaymentWithRootKey $ \xprv scheme -> do
         let pwdP = preparePassphrase scheme pwd
@@ -1812,7 +1812,7 @@ signDelegation
     -> DelegationAction
     -> ExceptT ErrSignDelegation IO (Tx, TxMeta, UTCTime, SealedTx)
 signDelegation ctx wid argGenChange pwd coinSel action = db & \DBLayer{..} -> do
-    expirySlot <- liftIO $ getTxExpiry ti Nothing
+    expirySlot <- withExceptT ErrSignDelegationIncorrectTTL $ getTxExpiry ti Nothing
     era <- liftIO $ currentNodeEra nl
     withRootKey @_ @s ctx wid pwd ErrSignDelegationWithRootKey $ \xprv scheme -> do
         let pwdP = preparePassphrase scheme pwd
