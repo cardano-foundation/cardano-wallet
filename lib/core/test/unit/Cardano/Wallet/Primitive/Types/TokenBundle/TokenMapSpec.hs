@@ -374,8 +374,11 @@ testZeroValuedTokenQuantityFlat =
     token = TP.mkTokenName "DUMMY-TOKEN"
     json =
         [aesonQQ|
-          [ { "asset": {"policy": #{policy}, "token": #{token}}
-            , "quantity": 0 }]
+          [ { "policy": #{policy}
+            , "token": #{token}
+            , "quantity": 0
+            }
+          ]
         |]
     message = unwords
         [ failurePreamble
@@ -395,7 +398,9 @@ testZeroValuedTokenQuantityNested =
     json =
         [aesonQQ|
           [ { "policy": #{policy}
-            , "tokens": [{"name": #{token}, "quantity": 0}]}]
+            , "tokens": [{"token": #{token}, "quantity": 0}]
+            }
+          ]
         |]
     message = unwords
         [ failurePreamble
@@ -429,7 +434,7 @@ testJsonDataDirectory =
         </> "Wallet"
         </> "Primitive"
         </> "Types"
-        </> "TokenBundle")
+        </> "TokenMap")
 
 --------------------------------------------------------------------------------
 -- Textual serialization
@@ -461,21 +466,17 @@ testMapData =
 testMapPrettyFlat :: Text
 testMapPrettyFlat = [s|
 tokens:
-  - asset:
-      policy: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-      token: APPLE
+  - policy: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+    token: APPLE
     quantity: -2
-  - asset:
-      policy: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-      token: AVOCADO
+  - policy: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+    token: AVOCADO
     quantity: -1
-  - asset:
-      policy: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
-      token: BANANA
+  - policy: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+    token: BANANA
     quantity: 1
-  - asset:
-      policy: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
-      token: BLUEBERRY
+  - policy: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+    token: BLUEBERRY
     quantity: 2
 |]
 
@@ -484,15 +485,15 @@ testMapPrettyNested = [s|
 tokens:
   - policy: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
     tokens:
-      - name: APPLE
+      - token: APPLE
         quantity: -2
-      - name: AVOCADO
+      - token: AVOCADO
         quantity: -1
   - policy: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
     tokens:
-      - name: BANANA
+      - token: BANANA
         quantity: 1
-      - name: BLUEBERRY
+      - token: BLUEBERRY
         quantity: 2
 |]
 

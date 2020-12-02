@@ -186,17 +186,13 @@ instance Buildable (Flat TokenMap) where
             [ ("tokens",
                 buildList buildAssetQuantity $ toFlatList b)
             ]
-        buildAssetQuantity (_asset, _quantity) = buildMap
-            [ ("asset",
-                buildAssetId _asset)
-            , ("quantity",
-                build _quantity)
-            ]
-        buildAssetId (AssetId policy token) = buildMap
+        buildAssetQuantity (AssetId policy token, quantity) = buildMap
             [ ("policy",
                 build policy)
             , ("token",
                 build token)
+            , ("quantity",
+                build quantity)
             ]
 
 instance Buildable (Nested TokenMap) where
@@ -212,11 +208,11 @@ instance Buildable (Nested TokenMap) where
             , ("tokens",
                 buildList buildTokenQuantity (NEMap.toList assetMap))
             ]
-        buildTokenQuantity (_tokenName, _tokenQuantity) = buildMap
-            [ ("name",
-                build _tokenName)
+        buildTokenQuantity (token, quantity) = buildMap
+            [ ("token",
+                build token)
             , ("quantity",
-                build _tokenQuantity)
+                build quantity)
             ]
 
 buildList :: Foldable f => (a -> Builder) -> f a -> Builder
@@ -258,37 +254,27 @@ jsonFailWithZeroValueTokenQuantity policy token = jsonFailWith $ unwords
 instance ToJSON (Flat TokenMap) where
     toJSON = toJSON . fmap fromTuple . toFlatList . getFlat
       where
-        fromTuple (AssetId p t, q) = FlatAssetQuantity (FlatAssetId p t) q
+        fromTuple (AssetId p t, q) = FlatAssetQuantity p t q
 
 instance FromJSON (Flat TokenMap) where
     parseJSON =
         fmap (Flat . fromFlatList) . sequence . fmap parseTuple <=< parseJSON
       where
         parseTuple :: FlatAssetQuantity -> Parser (AssetId, TokenQuantity)
-        parseTuple (FlatAssetQuantity (FlatAssetId p t) q) = do
+        parseTuple (FlatAssetQuantity p t q) = do
             when (TQ.isZero q) $ jsonFailWithZeroValueTokenQuantity p t
             pure (AssetId p t, q)
 
 -- Used for JSON serialization only: not exported.
 data FlatAssetQuantity = FlatAssetQuantity
-    { _asset :: !FlatAssetId
-    , _quantity :: !TokenQuantity
-    } deriving Generic
-
--- Used for JSON serialization only: not exported.
-data FlatAssetId = FlatAssetId
     { _policy :: !TokenPolicyId
     , _token :: !TokenName
+    , _quantity :: !TokenQuantity
     } deriving Generic
 
 instance FromJSON FlatAssetQuantity where
     parseJSON = genericParseJSON jsonOptions
 instance ToJSON FlatAssetQuantity where
-    toJSON = genericToJSON jsonOptions
-
-instance FromJSON FlatAssetId where
-    parseJSON = genericParseJSON jsonOptions
-instance ToJSON FlatAssetId where
     toJSON = genericToJSON jsonOptions
 
 --------------------------------------------------------------------------------
@@ -332,7 +318,7 @@ data NestedMapEntry = NestedMapEntry
 
 -- Used for JSON serialization only: not exported.
 data NestedTokenQuantity = NestedTokenQuantity
-    { _name :: !TokenName
+    { _token :: !TokenName
     , _quantity :: !TokenQuantity
     } deriving Generic
 
