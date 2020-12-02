@@ -251,6 +251,15 @@ x-amount: &amount
       enum:
         - lovelace
 
+x-scriptStatus: &scriptStatus
+  type: string
+  enum:
+    - awaits_signatures
+    - spendable
+    - stakable
+    - spent
+    - staked
+
 x-stakeAddress: &stakeAddress
   type: string
   format: bech32
@@ -1409,12 +1418,37 @@ components:
           type: array
           items: *ApiWalletDelegationNext
 
+    AnyAddress: &AnyAddress
+      type: object
+      required:
+        - address
+      properties:
+        address: *anyAddress
+
+    ApiSharedScripts: &ApiSharedScripts
+      description: Discovered scripts that contain our keys
+      type: object
+      required:
+        - script_address
+        - our_keys
+        - funds_status
+        - funds_available
+      properties:
+        script_address: *AnyAddress
+        our_keys:
+          type: array
+          minItems: 1
+          items: *ApiVerificationKey
+        funds_status: *scriptStatus
+        funds_available: *amount
+
     ApiWallet: &ApiWallet
       type: object
       required:
         - id
         - address_pool_gap
         - balance
+        - shared_scripts
         - delegation
         - name
         - state
@@ -1423,6 +1457,7 @@ components:
         id: *walletId
         address_pool_gap: *walletAddressPoolGap
         balance: *walletBalance
+        shared_scripts: *ApiSharedScripts
         delegation: *ApiWalletDelegation
         name: *walletName
         passphrase: *walletPassphraseInfo
@@ -1582,13 +1617,6 @@ components:
 
     ApiPubKey: &ApiPubKey
       <<: *credentialPubKey
-
-    AnyAddress: &AnyAddress
-      type: object
-      required:
-        - address
-      properties:
-        address: *anyAddress
 
     ApiCredential: &ApiCredential
       <<: *CredentialValue

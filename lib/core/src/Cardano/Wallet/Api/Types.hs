@@ -523,10 +523,29 @@ data ApiCoinSelectionOutput (n :: NetworkDiscriminant) = ApiCoinSelectionOutput
     } deriving (Eq, Ord, Generic, Show)
       deriving anyclass NFData
 
+-- TO-DO add AwaitsSignaturesBefore t1 and AwaitsSignaturesAfter t1
+-- could also add info about how many, when spent, when staked
+data ApiScriptStatus =
+      AwaitsSignatures
+    | Spendable
+    | Stakable
+    | Spent
+    | Staked
+    deriving (Eq, Generic, Show)
+
+data ApiSharedScripts = ApiSharedScripts
+    { scriptAddress : !AnyAddress
+    , ourKeys :: [ApiVerificationKey]
+    , fundsStatus :: ApiScriptStatus
+    , fundsAvailable :: !(Quantity "lovelace" Natural)
+    } deriving (Eq, Generic, Show)
+      deriving anyclass NFData
+
 data ApiWallet = ApiWallet
     { id :: !(ApiT WalletId)
     , addressPoolGap :: !(ApiT AddressPoolGap)
     , balance :: !(ApiT WalletBalance)
+    , sharedScripts :: !ApiSharedScripts
     , delegation :: !ApiWalletDelegation
     , name :: !(ApiT WalletName)
     , passphrase :: !(Maybe ApiWalletPassphraseInfo)
@@ -2212,4 +2231,3 @@ instance FromJSON (ApiT SmashServer) where
 
 instance ToJSON (ApiT SmashServer) where
     toJSON = toJSON . toText . getApiT
-
