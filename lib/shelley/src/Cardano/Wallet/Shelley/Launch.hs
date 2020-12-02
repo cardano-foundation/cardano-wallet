@@ -95,6 +95,8 @@ import Cardano.Startup
     ( restrictFileMode )
 import Cardano.Wallet.Api.Server
     ( Listen (..) )
+import Cardano.Wallet.Api.Types
+    ( HealthStatusSMASH (..) )
 import Cardano.Wallet.Logging
     ( BracketLog, bracketTracer )
 import Cardano.Wallet.Network.Ports
@@ -898,6 +900,10 @@ withSMASH tr action =
                 "b45768c1a2da4bd13ebcaa1ea51408eda31dcc21765ccbd407cda9f2")]
             bytes = Aeson.encode delisted
         BL8.writeFile (baseDir </> "delisted") bytes
+
+        -- health check
+        let health = Aeson.encode (HealthStatusSMASH "OK" "1.2.0")
+        BL8.writeFile (baseDir </> "status") health
 
         withStaticServer fp $ \baseUrl -> do
             setEnv envVar baseUrl

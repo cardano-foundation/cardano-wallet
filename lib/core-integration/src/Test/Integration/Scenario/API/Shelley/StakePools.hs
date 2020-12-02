@@ -1150,9 +1150,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                 ctx Link.getCurrentSMASHHealth
                 Default Empty
             expectResponseCode HTTP.status200 r
-            -- TODO: We may consider adding healthcheck API to SMASH stub
-            -- and then expect Available
-            expectField #health (`shouldBe` Unreachable) r
+            expectField #health (`shouldBe` Available) r
 
     describe "STAKE_POOLS_SMASH_HEALTH_02 - Cannot check SMASH health when not configured" $
         forM_ ["direct", "none"] $ \fetching -> it fetching $
@@ -1172,7 +1170,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
 
             r <- request @ApiHealthCheck ctx link Default Empty
             expectResponseCode HTTP.status200 r
-            expectField #health (`shouldBe` Unreachable) r
+            expectField #health (`shouldBe` Available) r
 
     describe "STAKE_POOLS_SMASH_HEALTH_04 - SMASH url needs to be valid" $ do
         let m = [ ("ftp://localhost", "only http/https is supported")
