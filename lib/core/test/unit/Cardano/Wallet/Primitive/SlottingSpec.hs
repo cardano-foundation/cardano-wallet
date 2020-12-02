@@ -11,19 +11,31 @@ module Cardano.Wallet.Primitive.SlottingSpec
 
 import Prelude
 
+import Cardano.BM.Data.Severity
+    ( Severity (..) )
+import Cardano.BM.Data.Tracer
+    ( HasSeverityAnnotation (..) )
+import Cardano.BM.Trace
+    ( traceInTVarIO )
 import Cardano.Slotting.Slot
     ( SlotNo (..) )
 import Cardano.Wallet.Gen
     ( genActiveSlotCoefficient, shrinkActiveSlotCoefficient )
 import Cardano.Wallet.Primitive.Slotting
-    ( Qry
+    ( PastHorizonException
+    , Qry
+    , TimeInterpreterLog (..)
     , epochOf
+    , expectAndThrowFailures
     , firstSlotInEpoch
     , interpretQuery
     , mkSingleEraInterpreter
+    , mkTimeInterpreter
+    , neverFails
     , slotRangeFromTimeRange
     , slotToUTCTime
     , timeOfEpoch
+    , unsafeExtendSafeZone
     )
 import Cardano.Wallet.Primitive.Slotting.Legacy
     ( SlotParameters (..)
@@ -45,6 +57,14 @@ import Cardano.Wallet.Primitive.Types
     )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
+import Control.Concurrent.STM.TVar
+    ( newTVarIO, readTVarIO )
+import Control.Exception
+    ( try )
+import Control.Monad.Trans.Except
+    ( runExceptT )
+import Data.Either
+    ( isLeft, isRight )
 import Data.Functor.Identity
     ( runIdentity )
 import Data.Generics.Internal.VL.Lens
@@ -53,16 +73,29 @@ import Data.Quantity
     ( Quantity (..) )
 import Data.Time
     ( UTCTime )
+import Data.Time.Clock
+    ( getCurrentTime )
 import Data.Word
     ( Word32 )
+import Ouroboros.Consensus.BlockchainTime.WallClock.Types
+    ( RelativeTime (..), mkSlotLength )
+import Ouroboros.Consensus.Config.SecurityParam
+    ( SecurityParam (..) )
+import Ouroboros.Consensus.Util.Counting
+    ( exactlyOne )
 import Test.Hspec
-    ( Spec, describe, it, parallel )
+    ( Spec, before, describe, it, parallel, runIO, shouldBe, shouldSatisfy )
 import Test.QuickCheck
     ( Arbitrary (..), Property, choose, property, withMaxSuccess, (===) )
 import Test.QuickCheck.Arbitrary.Generic
     ( genericArbitrary, genericShrink )
 import Test.Utils.Time
     ( genUniformTime )
+
+import qualified Cardano.Slotting.Slot as Cardano
+import qualified Ouroboros.Consensus.HardFork.History.EraParams as HF
+import qualified Ouroboros.Consensus.HardFork.History.Qry as HF
+import qualified Ouroboros.Consensus.HardFork.History.Summary as HF
 
 spec :: Spec
 spec = do
@@ -110,6 +143,74 @@ spec = do
 
                 run (endTimeOfEpoch e)
                     === run (slotToUTCTime =<< firstSlotInEpoch (e + 1))
+
+        let setupTestLogging = do
+                tvar <- newTVarIO []
+                let tr = traceInTVarIO tvar
+                return (tr, tvar)
+
+        before setupTestLogging $
+            describe "TimeInterpreter conversions beyond the safe zone" $ do
+
+            startTime <- runIO $ StartTime <$> getCurrentTime
+            let failingQry = slotToUTCTime (SlotNo 100000)
+
+            it "normally fails and logs failures as Notice" $ \(tr, tvar) -> do
+                let ti = mkTimeInterpreter tr startTime (pure forkInterpreter)
+                res <- runExceptT $ interpretQuery ti failingQry
+
+                logs <- readTVarIO tvar
+                res `shouldSatisfy` isLeft
+                logs `shouldSatisfy` (\case
+                    [MsgInterpreterPastHorizon Nothing _] -> True
+                    _ -> False)
+                getSeverityAnnotation (head logs) `shouldBe` Notice
+
+            it "(neverFails \"because\" ti) logs failures as Error" $ \(tr, tvar) -> do
+                let ti = neverFails "because" $
+                        mkTimeInterpreter tr startTime (pure forkInterpreter)
+                res <- try @PastHorizonException $ interpretQuery ti failingQry
+
+                logs <- readTVarIO tvar
+                res `shouldSatisfy` isLeft
+                logs `shouldSatisfy` (\case
+                    [MsgInterpreterPastHorizon (Just "because") _] -> True
+                    _ -> False)
+                getSeverityAnnotation (head logs) `shouldBe` Error
+
+            it "(unsafeExtendSafeZone ti) doesn't fail nor log" $ \(tr, tvar) -> do
+                let ti = unsafeExtendSafeZone $
+                        mkTimeInterpreter tr startTime (pure forkInterpreter)
+                res <- try @PastHorizonException $ interpretQuery ti failingQry
+
+                res `shouldSatisfy` isRight
+                logs <- readTVarIO tvar
+                logs `shouldBe` []
+
+            it "(expectAndThrowFailures ti) fails and logs as Notice" $ \(tr, tvar) -> do
+                let ti = expectAndThrowFailures $
+                        mkTimeInterpreter tr startTime (pure forkInterpreter)
+                res <- try @PastHorizonException $ interpretQuery ti failingQry
+
+                res `shouldSatisfy` isLeft
+                logs <- readTVarIO tvar
+                logs `shouldSatisfy` (\case
+                    [MsgInterpreterPastHorizon Nothing _] -> True
+                    _ -> False)
+                getSeverityAnnotation (head logs) `shouldBe` Notice
+  where
+    forkInterpreter =
+        let
+            start = HF.initBound
+            end = HF.Bound
+                    (RelativeTime 20)
+                    (SlotNo 20)
+                    (Cardano.EpochNo 1)
+
+            era1Params = HF.defaultEraParams (SecurityParam 2) (mkSlotLength 1)
+            summary = HF.summaryWithExactly $ exactlyOne $
+                HF.EraSummary start (HF.EraEnd end) era1Params
+        in HF.mkInterpreter summary
 
 legacySlottingTest
     :: (Eq a, Show a)
