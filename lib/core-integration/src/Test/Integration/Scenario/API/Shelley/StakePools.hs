@@ -17,6 +17,7 @@ import Prelude
 
 import Cardano.Wallet.Api.Types
     ( ApiCertificate (JoinPool, QuitPool, RegisterRewardAccount)
+    , ApiHealthCheck
     , ApiStakePool (flags)
     , ApiStakePoolFlag (..)
     , ApiT (..)
@@ -26,6 +27,7 @@ import Cardano.Wallet.Api.Types
     , DecodeAddress
     , DecodeStakeAddress
     , EncodeAddress
+    , HealthCheckSMASH (..)
     , WalletStyle (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -1140,6 +1142,51 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                             `shouldBe` []
                     ]
 
+    it "STAKE_POOLS_SMASH_HEALTH_01 - Can check SMASH health when configured" $
+        \ctx -> runResourceT $ bracketSettings ctx $ do
+            smashUrl <- liftIO $ getEnv "CARDANO_WALLET_SMASH_URL"
+            updateMetadataSource ctx (T.pack smashUrl)
+            r <- request @ApiHealthCheck
+                ctx Link.getCurrentSMASHHealth
+                Default Empty
+            expectResponseCode HTTP.status200 r
+            -- TODO: We may consider adding healthcheck API to SMASH stub
+            -- and then expect Available
+            expectField #health (`shouldBe` Unreachable) r
+
+    describe "STAKE_POOLS_SMASH_HEALTH_02 - Cannot check SMASH health when not configured" $
+        forM_ ["direct", "none"] $ \fetching -> it fetching $
+            \ctx -> runResourceT $ bracketSettings ctx $ do
+                updateMetadataSource ctx (T.pack fetching)
+                r <- request @ApiHealthCheck
+                    ctx Link.getCurrentSMASHHealth
+                    Default Empty
+                expectResponseCode HTTP.status200 r
+                expectField #health (`shouldBe` NoSmashConfigured) r
+
+    it "STAKE_POOLS_SMASH_HEALTH_03 - Can check SMASH health via url" $
+        \ctx -> runResourceT $ do
+            smashUrl <- liftIO $ getEnv "CARDANO_WALLET_SMASH_URL"
+            let withUrl f (method, link) = (method, link <> "?url=" <> T.pack f)
+            let link = withUrl smashUrl Link.getCurrentSMASHHealth
+
+            r <- request @ApiHealthCheck ctx link Default Empty
+            expectResponseCode HTTP.status200 r
+            expectField #health (`shouldBe` Unreachable) r
+
+    describe "STAKE_POOLS_SMASH_HEALTH_04 - SMASH url needs to be valid" $ do
+        let m = [ ("ftp://localhost", "only http/https is supported")
+                , ("thats_not_link", "Not a valid absolute URI")
+                ]
+        forM_ m $ \(url, message) -> it url $ \ctx -> runResourceT $ do
+            let withUrl f (method, link) = (method, link <> "?url=" <> T.pack f)
+            let link = withUrl url Link.getCurrentSMASHHealth
+
+            r <- request @ApiHealthCheck ctx link Default Empty
+            verify r
+                [ expectResponseCode HTTP.status400
+                , expectErrorMessage message
+                ]
   where
     metadataPossible = Set.fromList
         [ StakePoolMetadata

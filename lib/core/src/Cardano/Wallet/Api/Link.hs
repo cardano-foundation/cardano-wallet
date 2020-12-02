@@ -93,6 +93,10 @@ module Cardano.Wallet.Api.Link
     , putSettings
     , getSettings
 
+      -- * Utils
+
+    , getCurrentSMASHHealth
+
     , PostWallet
     , Discriminate
     ) where
@@ -111,7 +115,7 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.Primitive.AddressDerivation
     ( AccountingStyle, DerivationIndex, NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.Types
-    ( PoolId, SortOrder, WalletId (..) )
+    ( PoolId, SmashServer, SortOrder, WalletId (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( AddressState )
 import Cardano.Wallet.Primitive.Types.Coin
@@ -578,6 +582,19 @@ getSettings
     :: (Method, Text)
 getSettings =
     endpoint @Api.GetSettings id
+
+--
+-- Utils
+--
+getCurrentSMASHHealth
+    :: (Method, Text)
+getCurrentSMASHHealth = getCurrentSMASHHealth' Nothing
+
+getCurrentSMASHHealth'
+    :: Maybe SmashServer
+    -> (Method, Text)
+getCurrentSMASHHealth' smash =
+    endpoint @Api.GetCurrentSMASHHealth (\mk -> mk (ApiT <$> smash))
 
 --
 -- Internals
