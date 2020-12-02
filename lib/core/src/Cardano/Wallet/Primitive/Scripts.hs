@@ -32,7 +32,7 @@ import Cardano.Address.Script
 import Cardano.Crypto.Wallet
     ( XPub )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..), Index (..), Role (..), SoftDerivation (..) )
+    ( Depth (..), SoftDerivation, deriveVerificationKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
@@ -43,8 +43,6 @@ import Control.Monad
     ( foldM )
 import Control.Monad.Trans.State.Strict
     ( runState, state )
-import Data.Coerce
-    ( coerce )
 import Data.Function
     ( (&) )
 import Data.Functor.Identity
@@ -67,7 +65,6 @@ isShared script (SeqState !s1 !s2 !pending !rpk !prefix !s3) =
     let
         hashes = retrieveAllVerKeyHashes script
         accXPub = verPoolAccountPubKey s3
-        toVerKey = coerce . deriveAddressPublicKey accXPub MultisigScript . coerce
 
         (ixs, s3') = s3
             & runState (mapM (state . lookupKeyHash) hashes)
@@ -79,7 +76,7 @@ isShared script (SeqState !s1 !s2 !pending !rpk !prefix !s3) =
                   s3''
                 )
     in
-        ( toVerKey <$> ixs
+        ( deriveVerificationKey accXPub <$> ixs
         , SeqState s1 s2 pending rpk prefix s3'
         )
 

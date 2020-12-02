@@ -51,9 +51,9 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , Index (..)
     , NetworkDiscriminant (..)
     , Passphrase (..)
-    , Role (..)
-    , SoftDerivation (..)
     , WalletKey (..)
+    , calculateVerificationKeyHash
+    , deriveVerificationKey
     , publicKey
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
@@ -74,7 +74,6 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     , defaultAddressPoolGap
     , mkAddressPool
     , purposeCIP1852
-    , toVerKeyHash
     , unsafeVerificationKeyPool
     )
 import Cardano.Wallet.Primitive.Model
@@ -495,8 +494,9 @@ genVerificationKeyPool
 genVerificationKeyPool accXPub = do
     nVerKeys <- choose (5,10)
     let minIndex = getIndex @'Soft minBound
-    let toVerKey ix =
-            deriveAddressPublicKey accXPub MultisigScript
+    let toVerKeyHash ix =
+            calculateVerificationKeyHash $
+            deriveVerificationKey accXPub
             (toEnum (fromInteger $ toInteger $ minIndex + ix))
     verKeysIxs <- L.nub <$> vectorOf nVerKeys (choose (0, 15))
     let nVerKeys' = L.length verKeysIxs
@@ -505,7 +505,7 @@ genVerificationKeyPool accXPub = do
                 Used
             else
                 Unused
-    let indexedKeysMap = map (\ix -> (toVerKeyHash $ toVerKey ix, (Index ix, setUsed ix)))
+    let indexedKeysMap = map (\ix -> (toVerKeyHash ix, (Index ix, setUsed ix)))
             [0 .. maximum verKeysIxs]
     knownScripts <- vectorOf nVerKeys' arbitrary
     let knownScriptsMap =

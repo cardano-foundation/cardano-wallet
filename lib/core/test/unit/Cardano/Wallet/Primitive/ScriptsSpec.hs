@@ -30,9 +30,10 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , Passphrase (..)
     , PassphraseMaxLength (..)
     , PassphraseMinLength (..)
-    , Role (..)
-    , SoftDerivation (..)
+    , SoftDerivation
     , WalletKey (..)
+    , calculateVerificationKeyHash
+    , deriveVerificationKey
     , preparePassphrase
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
@@ -44,14 +45,12 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     , VerificationKeyPool (..)
     , coinTypeAda
     , defaultAddressPoolGap
-    , deriveKeyHash
     , emptyPendingIxs
     , getAddressPoolGap
     , mkAddressPool
     , newVerificationKeyPool
     , purposeCIP1852
     , purposeCIP1852
-    , toVerKeyHash
     , verPoolIndexedKeys
     , verPoolKnownScripts
     )
@@ -130,7 +129,8 @@ prop_scriptFromOurVerKeys (AccountXPubWithScripts accXPub' scripts') = do
     let sciptKeyHashes = retrieveAllVerKeyHashes script
     let seqState = initializeState accXPub'
     let (ourSharedKeys, _) = isShared script seqState
-    L.sort (L.nub $ map toVerKeyHash ourSharedKeys) === L.sort (L.nub sciptKeyHashes)
+    L.sort (L.nub $ map calculateVerificationKeyHash ourSharedKeys) ===
+        L.sort (L.nub sciptKeyHashes)
 
 prop_scriptFromNotOurVerKeys
     :: ShelleyKey 'AccountK XPub
@@ -258,6 +258,14 @@ defaultPrefix = DerivationPrefix
     , minBound
     )
 
+deriveKeyHash
+    :: (SoftDerivation k, WalletKey k)
+    => k 'AccountK XPub
+    -> Index 'Soft 'ScriptK
+    -> KeyHash
+deriveKeyHash accXPub' =
+    calculateVerificationKeyHash . (deriveVerificationKey accXPub')
+
 dummyRewardAccount :: ShelleyKey 'AddressK XPub
 dummyRewardAccount = ShelleyKey $ unsafeXPub $ B8.replicate 64 '0'
 
@@ -307,11 +315,10 @@ genScript keyHashes =
 prepareVerKeys
     :: ShelleyKey 'AccountK XPub
     -> [Word32]
-    -> [ShelleyKey 'AddressK XPub]
+    -> [ShelleyKey 'ScriptK XPub]
 prepareVerKeys accXPub' =
-    let toVerKey = deriveAddressPublicKey accXPub' MultisigScript
-        minIndex = getIndex @'Soft minBound
-    in map (\ix -> toVerKey (toEnum (fromInteger $ toInteger $ minIndex + ix)))
+    let minIndex = getIndex @'Soft minBound
+    in map (\ix -> deriveVerificationKey accXPub' (toEnum (fromInteger $ toInteger $ minIndex + ix)))
 
 instance Arbitrary (ShelleyKey 'AccountK XPub) where
     arbitrary = do
@@ -325,7 +332,7 @@ instance Arbitrary AccountXPubWithScripts where
         accXPub' <- arbitrary
         let g = getAddressPoolGap defaultAddressPoolGap
         kNum <- choose (2, g - 1)
-        let verKeyHashes = map toVerKeyHash (prepareVerKeys accXPub' [0 .. kNum])
+        let verKeyHashes = map calculateVerificationKeyHash (prepareVerKeys accXPub' [0 .. kNum])
         scriptsNum <- choose (1,10)
         AccountXPubWithScripts accXPub' <$> vectorOf scriptsNum (genScript verKeyHashes)
 
@@ -336,13 +343,13 @@ instance Arbitrary AccountXPubWithScriptExtension where
         -- the first script is expected to trigger extension to scriptPool
         let g = getAddressPoolGap defaultAddressPoolGap
         scriptTipping <-
-            genScript (toVerKeyHash <$> (prepareVerKeys accXPub' [g - 1]))
+            genScript (calculateVerificationKeyHash <$> (prepareVerKeys accXPub' [g - 1]))
 
         -- the next script is using extended indices that were not possible to be discovered
         -- earlier, but are supposed to be discovered now
         kNum <- choose (2,8)
         let verKeysNext = prepareVerKeys accXPub' [g .. g + kNum]
-        scriptNext <- genScript (toVerKeyHash <$> verKeysNext)
+        scriptNext <- genScript (calculateVerificationKeyHash <$> verKeysNext)
 
         pure $ AccountXPubWithScriptExtension accXPub' [scriptTipping, scriptNext]
 
@@ -351,7 +358,7 @@ instance Arbitrary AccountXPubWithScriptBeyond where
         accXPub' <- arbitrary
         kNum <- choose (2,8)
         let g = getAddressPoolGap defaultAddressPoolGap
-        let verKeyHashes = map toVerKeyHash (prepareVerKeys accXPub' [g .. g + kNum])
+        let verKeyHashes = map calculateVerificationKeyHash (prepareVerKeys accXPub' [g .. g + kNum])
         AccountXPubWithScriptBeyond accXPub' <$> genScript verKeyHashes
 
 instance Arbitrary (Passphrase "raw") where

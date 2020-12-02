@@ -55,8 +55,6 @@ module Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     , newVerificationKeyPool
     , lookupKeyHash
     , updateKnownScripts
-    , toVerKeyHash
-    , deriveKeyHash
     , verPoolAccountPubKey
     , verPoolGap
     , verPoolIndexedKeys
@@ -84,8 +82,6 @@ module Cardano.Wallet.Primitive.AddressDiscovery.Sequential
 
 import Prelude
 
-import Cardano.Address.Derivation
-    ( xpubPublicKey )
 import Cardano.Address.Script
     ( KeyHash (..), ScriptHash )
 import Cardano.Crypto.Wallet
@@ -106,7 +102,9 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , Role (..)
     , SoftDerivation (..)
     , WalletKey (..)
+    , calculateVerificationKeyHash
     , deriveRewardAccount
+    , deriveVerificationKey
     , utxoExternal
     , utxoInternal
     )
@@ -129,12 +127,8 @@ import Control.DeepSeq
     ( NFData, deepseq )
 import Control.Monad
     ( unless )
-import Crypto.Hash.Utils
-    ( blake2b224 )
 import Data.Bifunctor
     ( first )
-import Data.Coerce
-    ( coerce )
 import Data.Digest.CRC32
     ( crc32 )
 import Data.Function
@@ -317,16 +311,9 @@ instance ((PersistPublicKey (key 'AccountK)))
 
 deriving instance Ord KeyHash
 
-deriveKeyHash
-    :: (WalletKey k, SoftDerivation k)
-    => k 'AccountK XPub
-    -> Index 'Soft 'ScriptK
-    -> KeyHash
-deriveKeyHash accXPub' =
-    toVerKeyHash . deriveAddressPublicKey accXPub' MultisigScript . coerce
-
 lookupKeyHash
-    :: KeyHash
+    :: (SoftDerivation k, WalletKey k)
+    => KeyHash
     -> VerificationKeyPool k
     -> (Maybe (Index 'Soft 'ScriptK), VerificationKeyPool k)
 lookupKeyHash keyHash pool@(VerificationKeyPool accXPub g indexedHashKeys scripts) =
@@ -335,7 +322,7 @@ lookupKeyHash keyHash pool@(VerificationKeyPool accXPub g indexedHashKeys script
         Nothing -> (Nothing, pool)
         Just (ix, _) ->
             ( Just ix
-            , VerificationKeyPool accXPub g
+            , unsafeVerificationKeyPool accXPub g
                 (Map.adjust updateKey keyHash indexedHashKeys) scripts)
 
 updateKnownScripts
@@ -346,12 +333,6 @@ updateKnownScripts
 updateKnownScripts trKnownScripts (VerificationKeyPool accXPub g indexedHashKeys knownScripts) =
     let knownScripts' = trKnownScripts knownScripts
     in unsafeVerificationKeyPool accXPub g indexedHashKeys knownScripts'
-
-toVerKeyHash
-    :: WalletKey k
-    => k (depth:: Depth) XPub
-    -> KeyHash
-toVerKeyHash = KeyHash . blake2b224 . xpubPublicKey . getRawKey
 
 -- | Create a new VerificationKey pool.
 newVerificationKeyPool
@@ -388,12 +369,12 @@ unsafeVerificationKeyPool accXPub num@(AddressPoolGap g) vkPoolMap knownScripts 
     firstIndexToAdd = minIndex + L.length (Map.keys vkPoolMap)
     newIndicesToAdd = fromInteger (toInteger g) - L.length lastNotUsedIndices
     toIndex = toEnum . fromInteger . toInteger
-    indices =
-        [firstIndexToAdd .. firstIndexToAdd + newIndicesToAdd - 1]
     vkPoolMap' =
         Map.fromList $
-        map (\ix -> (deriveKeyHash accXPub (toIndex ix), (coerce $ toIndex ix, Unused)) )
-        indices
+        map (\ix -> ( calculateVerificationKeyHash $
+                        deriveVerificationKey accXPub (toIndex ix)
+                    , (toIndex ix, Unused)) )
+        [firstIndexToAdd .. firstIndexToAdd + newIndicesToAdd - 1]
 
 -- | Bring a 'Role' type back to the term-level. This requires a type
 -- application and either a scoped type variable, or an explicit passing of a

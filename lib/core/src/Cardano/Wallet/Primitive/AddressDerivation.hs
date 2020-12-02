@@ -46,6 +46,8 @@ module Cardano.Wallet.Primitive.AddressDerivation
     , DerivationPrefix (..)
     , DerivationIndex (..)
     , liftIndex
+    , deriveVerificationKey
+    , calculateVerificationKeyHash
 
     -- * Delegation
     , RewardAccount (..)
@@ -85,7 +87,9 @@ module Cardano.Wallet.Primitive.AddressDerivation
 import Prelude
 
 import Cardano.Address.Derivation
-    ( XPrv, XPub )
+    ( XPrv, XPub, xpubPublicKey )
+import Cardano.Address.Script
+    ( KeyHash (..) )
 import Cardano.Mnemonic
     ( SomeMnemonic )
 import Cardano.Wallet.Primitive.Types
@@ -103,7 +107,7 @@ import Control.Monad
 import Crypto.Hash
     ( Digest, HashAlgorithm )
 import Crypto.Hash.Utils
-    ( blake2b256 )
+    ( blake2b224, blake2b256 )
 import Crypto.KDF.PBKDF2
     ( Parameters (..), fastPBKDF2_SHA512 )
 import Crypto.Random.Types
@@ -489,6 +493,21 @@ deriveRewardAccount
 deriveRewardAccount pwd rootPrv =
     let accPrv = deriveAccountPrivateKey pwd rootPrv minBound
     in deriveAddressPrivateKey pwd accPrv MutableAccount minBound
+
+deriveVerificationKey
+    :: (SoftDerivation k, WalletKey k)
+    => k 'AccountK XPub
+    -> Index 'Soft 'ScriptK
+    -> k 'ScriptK XPub
+deriveVerificationKey accXPub =
+    liftRawKey . getRawKey . deriveAddressPublicKey accXPub MultisigScript . coerce
+
+calculateVerificationKeyHash
+    :: WalletKey k
+    => k 'ScriptK XPub
+    -> KeyHash
+calculateVerificationKeyHash =
+    KeyHash . blake2b224 . xpubPublicKey . getRawKey
 
 {-------------------------------------------------------------------------------
                                  Passphrases
