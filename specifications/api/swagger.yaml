@@ -3152,6 +3152,8 @@ x-responsesPostSignatures: &responsesPostSignatures
             format: binary
 
 x-responsesGetSmashHealth: &responsesGetSmashHealth
+  <<: *responsesErr400
+  <<: *responsesErr406
   200:
     description: Ok
     content:

@@ -101,6 +101,7 @@ module Cardano.Wallet.Api
         , GetNetworkParameters
         , GetNetworkClock
     , SMASH
+        , GetCurrentSMASHHealth
 
     , Proxy_
         , PostExternalTransaction
