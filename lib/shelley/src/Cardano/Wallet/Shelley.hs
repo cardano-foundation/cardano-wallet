@@ -121,7 +121,7 @@ import Cardano.Wallet.Shelley.Api.Server
 import Cardano.Wallet.Shelley.Compatibility
     ( CardanoBlock
     , HasNetworkId (..)
-    , Shelley
+    , ShelleyEra
     , StandardCrypto
     , fromCardanoBlock
     )
@@ -213,7 +213,7 @@ deriving instance Show SomeNetworkDiscriminant
 -- which was passed from the CLI and environment and starts all components of
 -- the wallet.
 serveWallet
-    :: forall t. t ~ IO Shelley
+    :: forall t. t ~ IO ShelleyEra
     => SomeNetworkDiscriminant
     -- ^ Proxy for the network discriminant
     -> Tracers IO

@@ -27,7 +27,7 @@ import Prelude
 
 import Cardano.Address.Derivation
     ( xpubFromBytes )
-import Cardano.Api.MetaData
+import Cardano.Api.Typed
     ( TxMetadata (..)
     , TxMetadataJsonSchema (..)
     , TxMetadataValue (..)

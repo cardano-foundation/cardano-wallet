@@ -101,10 +101,11 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Shelley.Compatibility
-    ( Shelley
+    ( ShelleyEra
     , StandardCrypto
+    , fromAllegraBlock
+    , fromShelleyBlock
     , getProducer
-    , poolCertsFromShelleyBlock
     , toCardanoBlockHeader
     , toShelleyBlockHeader
     )
@@ -222,7 +223,7 @@ data StakePoolLayer = StakePoolLayer
 newStakePoolLayer
     :: forall sc. ()
     => TVar PoolMetadataGCStatus
-    -> NetworkLayer IO (IO Shelley) (CardanoBlock sc)
+    -> NetworkLayer IO (IO ShelleyEra) (CardanoBlock sc)
     -> DBLayer IO
     -> IO ThreadId
     -> IO StakePoolLayer
@@ -624,25 +625,28 @@ monitorStakePools tr gp nl DBLayer{..} =
             BlockByron _ -> do
                 pure ()
             BlockShelley blk -> do
-                let (slot, certificates) = poolCertsFromShelleyBlock blk
-                let header = toShelleyBlockHeader getGenesisBlockHash blk
-                handleErr (putPoolProduction header (getProducer blk))
-                garbageCollectPools slot latestGarbageCollectionEpochRef
-                putPoolCertificates slot certificates
-            BlockMary _ ->
-                error "TODO: unimplemented mary era"
-            BlockAllegra _ ->
-                error "TODO: unimplemented allegra era"
+                forEachShelleyBlock (fromShelleyBlock gp blk) (getProducer blk)
+            BlockAllegra blk ->
+                forEachShelleyBlock (fromAllegraBlock gp blk) (getProducer blk)
+            BlockMary _blk ->
+                error "TODO: forAllBlocks, BlockMary"
 
         forLastBlock = \case
             BlockByron blk ->
                 putHeader (toByronBlockHeader gp blk)
             BlockShelley blk ->
                 putHeader (toShelleyBlockHeader getGenesisBlockHash blk)
-            BlockMary _ ->
-                error "TODO: unimplemented mary era"
-            BlockAllegra _ ->
-                error "TODO: unimplemented allegra era"
+            BlockAllegra blk ->
+                putHeader (toShelleyBlockHeader getGenesisBlockHash blk)
+            BlockMary blk ->
+                putHeader (toShelleyBlockHeader getGenesisBlockHash blk)
+
+        forEachShelleyBlock (blk, certificates) poolId = do
+            let header = view #header blk
+            let slot = view #slotNo header
+            handleErr (putPoolProduction header poolId)
+            garbageCollectPools slot latestGarbageCollectionEpochRef
+            putPoolCertificates slot certificates
 
         handleErr action = runExceptT action
             >>= \case

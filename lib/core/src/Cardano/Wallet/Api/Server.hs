@@ -2433,6 +2433,8 @@ instance LiftHandler ErrMkTx where
                 , "input address I should keep track of: ", showT addr, ". "
                 , "Retrying may work, but something really went wrong..."
                 ]
+        ErrConstructedInvalidTx hint ->
+            apiError err500 CreatedInvalidTransaction hint
 
 instance LiftHandler ErrSignPayment where
     handler = \case

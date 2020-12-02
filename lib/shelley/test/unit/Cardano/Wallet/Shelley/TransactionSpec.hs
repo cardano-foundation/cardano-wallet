@@ -63,7 +63,7 @@ import Cardano.Wallet.Primitive.Types.Tx
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
 import Cardano.Wallet.Shelley.Compatibility
-    ( Shelley, sealShelleyTx )
+    ( ShelleyEra, sealShelleyTx )
 import Cardano.Wallet.Shelley.Transaction
     ( TxWitnessTagFor
     , mkByronWitness
@@ -208,7 +208,7 @@ spec = do
                   mkByronWitness' unsignedTx (_, (TxOut addr _)) =
                       mkByronWitness unsignedTx Cardano.Mainnet addr
                   addrWits = zipWith (mkByronWitness' unsigned) inps pairs
-                  unsigned = mkUnsignedTx slotNo cs md mempty []
+                  Right unsigned = mkUnsignedTx slotNo cs md mempty []
                   cs = mempty { CS.inputs = inps, CS.outputs = outs }
                   inps = Map.toList $ getUTxO utxo
         it "1 input, 2 outputs" $ do
@@ -290,7 +290,7 @@ spec = do
                   mkByronWitness' unsignedTx (_, (TxOut addr _)) =
                       mkByronWitness unsignedTx net addr
                   addrWits = zipWith (mkByronWitness' unsigned) inps pairs
-                  unsigned = mkUnsignedTx slotNo cs md mempty []
+                  Right unsigned = mkUnsignedTx slotNo cs md mempty []
                   cs = mempty { CS.inputs = inps, CS.outputs = outs }
                   inps = Map.toList $ getUTxO utxo
         it "1 input, 2 outputs" $ do
@@ -392,7 +392,7 @@ prop_decodeSignedShelleyTxRoundtrip
 prop_decodeSignedShelleyTxRoundtrip (DecodeShelleySetup utxo outs md slotNo pairs) = do
     let inps = Map.toList $ getUTxO utxo
     let cs = mempty { CS.inputs = inps, CS.outputs = outs }
-    let unsigned = mkUnsignedTx slotNo cs md mempty []
+    let Right unsigned = mkUnsignedTx slotNo cs md mempty []
     let addrWits = map (mkShelleyWitness unsigned) pairs
     let wits = addrWits
     let ledgerTx = Cardano.makeSignedTransaction wits unsigned
@@ -405,7 +405,7 @@ prop_decodeSignedByronTxRoundtrip
 prop_decodeSignedByronTxRoundtrip (DecodeByronSetup utxo outs slotNo ntwrk pairs) = do
     let inps = Map.toList $ getUTxO utxo
     let cs = mempty { CS.inputs = inps, CS.outputs = outs }
-    let unsigned = mkUnsignedTx slotNo cs Nothing mempty []
+    let Right unsigned = mkUnsignedTx slotNo cs Nothing mempty []
     let byronWits = zipWith (mkByronWitness' unsigned) inps pairs
     let ledgerTx = Cardano.makeSignedTransaction byronWits unsigned
 
@@ -467,7 +467,7 @@ testFeeOpts = feeOpts testTxLayer Nothing Nothing txParams (Coin 0) mempty
     feePolicy = LinearFee (Quantity 155381) (Quantity 44) (Quantity 0)
     txMaxSize = Quantity maxBound
 
-testTxLayer :: TransactionLayer (IO Shelley) ShelleyKey
+testTxLayer :: TransactionLayer (IO ShelleyEra) ShelleyKey
 testTxLayer = newTransactionLayer @ShelleyKey Cardano.Mainnet
 
 data DecodeShelleySetup = DecodeShelleySetup

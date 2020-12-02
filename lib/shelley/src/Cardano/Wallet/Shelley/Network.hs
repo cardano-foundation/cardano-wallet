@@ -59,7 +59,7 @@ import Cardano.Wallet.Network
 import Cardano.Wallet.Primitive.Slotting
     ( TimeInterpreter, TimeInterpreterLog, mkTimeInterpreter )
 import Cardano.Wallet.Shelley.Compatibility
-    ( Shelley
+    ( ShelleyEra
     , StandardCrypto
     , fromCardanoHash
     , fromChainHash
@@ -273,7 +273,7 @@ import qualified Shelley.Spec.Ledger.LedgerState as SL
 
 -- | Network layer cursor for Shelley. Mostly useless since the protocol itself is
 -- stateful and the node's keep track of the associated connection's cursor.
-data instance Cursor (m Shelley) = Cursor
+data instance Cursor (m ShelleyEra) = Cursor
     (Async ())
     (Point (CardanoBlock StandardCrypto))
     (TQueue m (ChainSyncCmd (CardanoBlock StandardCrypto) m))
@@ -289,7 +289,7 @@ withNetworkLayer
         -- ^ Socket for communicating with the node
     -> (NodeToClientVersionData, CodecCBORTerm Text NodeToClientVersionData)
         -- ^ Codecs for the node's client
-    -> (NetworkLayer IO (IO Shelley) (CardanoBlock StandardCrypto) -> IO a)
+    -> (NetworkLayer IO (IO ShelleyEra) (CardanoBlock StandardCrypto) -> IO a)
         -- ^ Callback function with the network layer
     -> IO a
 withNetworkLayer tr np addrInfo (versionData, _) action = do
@@ -385,7 +385,7 @@ withNetworkLayer tr np addrInfo (versionData, _) action = do
         link =<< async (connectClient tr handlers cl versionData addrInfo)
         pure cmdQ
 
-    _initCursor :: HasCallStack => [W.BlockHeader] -> IO (Cursor (IO Shelley))
+    _initCursor :: HasCallStack => [W.BlockHeader] -> IO (Cursor (IO ShelleyEra))
     _initCursor headers = do
         chainSyncQ <- atomically newTQueue
         client <- mkWalletClient (contramap MsgChainSyncCmd tr) cfg gp chainSyncQ
@@ -487,7 +487,7 @@ withNetworkLayer tr np addrInfo (versionData, _) action = do
         let readInterpreter = liftIO $ atomically $ readTMVar var
         mkTimeInterpreter (contramap MsgInterpreterLog tr) getGenesisBlockDate readInterpreter
 
-type instance GetStakeDistribution (IO Shelley) m =
+type instance GetStakeDistribution (IO ShelleyEra) m =
       W.BlockHeader
    -> W.Coin
    -> ExceptT ErrNetworkUnavailable m NodePoolLsqData
@@ -552,7 +552,7 @@ mkWalletClient tr cfg gp chainSyncQ = do
         , localStateQueryProtocol =
             doNothingProtocol
         })
-        NodeToClientV_3
+        NodeToClientV_5
   where
     tr' = contramap (mapChainSyncLog showB showP) tr
     showB = showP . blockPoint
@@ -590,7 +590,7 @@ mkDelegationRewardsClient tr cfg queryRewardQ =
                 $ localStateQueryClientPeer
                 $ localStateQuery queryRewardQ
         })
-        NodeToClientV_3
+        NodeToClientV_5
   where
     tr' = contramap (MsgLocalStateQuery DelegationRewardsClient) tr
     codec = cStateQueryCodec (serialisedCodecs cfg)
@@ -601,7 +601,7 @@ mkDelegationRewardsClient tr cfg queryRewardQ =
 
 -- | The protocol client version. Distinct from the codecs version.
 nodeToClientVersion :: NodeToClientVersion
-nodeToClientVersion = NodeToClientV_3
+nodeToClientVersion = NodeToClientV_5
 
 codecVersion :: BlockNodeToClientVersion (CardanoBlock StandardCrypto)
 codecVersion = verMap ! nodeToClientVersion
@@ -766,7 +766,7 @@ mkTipSyncClient tr np localTxSubmissionQ onTipUpdate onPParamsUpdate onInterpret
                 $ localStateQueryClientPeer
                 $ localStateQuery localStateQueryQ
         })
-        NodeToClientV_3
+        NodeToClientV_5
 
 -- Reward Account Balances
 

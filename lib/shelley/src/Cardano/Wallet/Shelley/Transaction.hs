@@ -40,7 +40,7 @@ import Prelude
 import Cardano.Address.Derivation
     ( XPrv, toXPub )
 import Cardano.Api.Typed
-    ( NetworkId, SerialiseAsCBOR (..), TxExtraContent (..) )
+    ( NetworkId, SerialiseAsCBOR (..) )
 import Cardano.Binary
     ( serialize' )
 import Cardano.Crypto.Wallet
@@ -68,7 +68,7 @@ import Cardano.Wallet.Primitive.Types.Hash
 import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx (..), Tx (..), TxIn (..), TxMetadata, TxOut (..) )
 import Cardano.Wallet.Shelley.Compatibility
-    ( Shelley
+    ( ShelleyEra
     , sealShelleyTx
     , toCardanoLovelace
     , toCardanoStakeCredential
@@ -86,6 +86,8 @@ import Cardano.Wallet.Transaction
     , ErrValidateSelection
     , TransactionLayer (..)
     )
+import Control.Arrow
+    ( left )
 import Control.Monad
     ( forM )
 import Data.ByteString
@@ -164,7 +166,7 @@ instance TxWitnessTagFor ByronKey where
 mkTx
     :: forall k. (TxWitnessTagFor k, WalletKey k)
     => Cardano.NetworkId
-    -> TxPayload Cardano.Shelley
+    -> TxPayload ShelleyEra
     -> SlotNo
     -- ^ Slot at which the transaction will expire.
     -> (XPrv, Passphrase "encryption")
@@ -178,7 +180,7 @@ mkTx networkId (TxPayload md certs mkExtraWits) expirySlot (rewardAcnt, pwdAcnt)
             (toRewardAccountRaw . toXPub $ rewardAcnt)
             (withdrawal cs)
 
-    let unsigned = mkUnsignedTx expirySlot cs md wdrls certs
+    unsigned <- mkUnsignedTx expirySlot cs md wdrls certs
 
     wits <- case (txWitnessTagFor @k) of
         TxWitnessShelleyUTxO -> do
@@ -204,7 +206,7 @@ mkTx networkId (TxPayload md certs mkExtraWits) expirySlot (rewardAcnt, pwdAcnt)
 
 newTransactionLayer
     :: forall k t.
-        ( t ~ IO Shelley
+        ( t ~ IO ShelleyEra
         , TxWitnessTagFor k
         , WalletKey k
         )
@@ -674,25 +676,35 @@ lookupPrivateKey
 lookupPrivateKey keyFrom addr =
     maybe (Left $ ErrKeyNotFoundForAddress addr) Right (keyFrom addr)
 
+-- FIXME: Make this a Allegra or Shelley transaction depending on the era we're
+-- in. However, quoting Duncan:
+--
+--    "Yes, you can submit Shelley format transactions in the Allegra era.The
+--    proper way to do that is marking it as a Shelley tx using GenTxShelley.
+--    The improper way is to submit it as a GenTxAllegra. The latter should
+--    still work since the binary formats are upwards compatible."
+--
+-- Which suggests that we may get away with Shelley-only transactions for now?
 mkUnsignedTx
     :: Cardano.SlotNo
     -> CoinSelection
     -> Maybe Cardano.TxMetadata
     -> [(Cardano.StakeAddress, Cardano.Lovelace)]
     -> [Cardano.Certificate]
-    -> Cardano.TxBody Cardano.Shelley
+    -> Either ErrMkTx (Cardano.TxBody ShelleyEra)
 mkUnsignedTx ttl cs md wdrls certs =
-        Cardano.makeShelleyTransaction
-            TxExtraContent
-                { txMetadata = md
-                , txWithdrawals = wdrls
-                , txCertificates = certs
-                , txUpdateProposal = Nothing
-                }
-            ttl
-            (toCardanoLovelace $ Coin $ feeBalance cs)
-            (toCardanoTxIn . fst <$> CS.inputs cs)
-            (map toCardanoTxOut $ CS.outputs cs)
+    left toErrMkTx $ Cardano.makeShelleyTransaction
+        (toCardanoTxIn . fst <$> CS.inputs cs)
+        (map toCardanoTxOut $ CS.outputs cs)
+        ttl
+        (toCardanoLovelace $ Coin $ feeBalance cs)
+        certs
+        wdrls
+        md
+        Nothing -- update proposals
+  where
+    toErrMkTx :: Cardano.TxBodyError ShelleyEra -> ErrMkTx
+    toErrMkTx = ErrConstructedInvalidTx . T.pack . Cardano.displayError
 
 mkWithdrawals
     :: NetworkId
@@ -707,9 +719,9 @@ mkWithdrawals networkId acc amount
     stakeAddress = Cardano.makeStakeAddress networkId cred
 
 mkShelleyWitness
-    :: Cardano.TxBody Cardano.Shelley
+    :: Cardano.TxBody ShelleyEra
     -> (XPrv, Passphrase "encryption")
-    -> Cardano.Witness Cardano.Shelley
+    -> Cardano.Witness ShelleyEra
 mkShelleyWitness body key =
     Cardano.makeShelleyKeyWitness body (unencrypt key)
   where
@@ -718,13 +730,13 @@ mkShelleyWitness body key =
         $ Crypto.HD.xPrvChangePass pwd BS.empty xprv
 
 mkByronWitness
-    :: Cardano.TxBody Cardano.Shelley
+    :: Cardano.TxBody ShelleyEra
     -> Cardano.NetworkId
     -> Address
     -> (XPrv, Passphrase "encryption")
-    -> Cardano.Witness Cardano.Shelley
-mkByronWitness (Cardano.ShelleyTxBody body _) nw addr encryptedKey =
-    Cardano.ShelleyBootstrapWitness $
+    -> Cardano.Witness ShelleyEra
+mkByronWitness (Cardano.ShelleyTxBody era body _) nw addr encryptedKey =
+    Cardano.ShelleyBootstrapWitness era $
         SL.makeBootstrapWitness txHash (unencrypt encryptedKey) addrAttr
   where
     txHash = Crypto.castHash $ Crypto.hashWith serialize' body
@@ -740,4 +752,4 @@ mkByronWitness (Cardano.ShelleyTxBody body _) nw addr encryptedKey =
 -- Extra validations on coin selection
 --
 
-type instance ErrValidateSelection (IO Shelley) = ()
+type instance ErrValidateSelection (IO ShelleyEra) = ()

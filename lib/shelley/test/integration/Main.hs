@@ -48,7 +48,7 @@ import Cardano.Wallet.Shelley
     , tracerSeverities
     )
 import Cardano.Wallet.Shelley.Compatibility
-    ( Shelley )
+    ( ShelleyEra )
 import Cardano.Wallet.Shelley.Faucet
     ( initFaucet )
 import Cardano.Wallet.Shelley.Launch
@@ -138,10 +138,10 @@ import qualified Test.Integration.Scenario.CLI.Shelley.Transactions as Transacti
 import qualified Test.Integration.Scenario.CLI.Shelley.Wallets as WalletsCLI
 
 -- | Define the actual executable name for the bridge CLI
-instance KnownCommand Shelley where
+instance KnownCommand ShelleyEra where
     commandName = "cardano-wallet"
 
-main :: forall t n . (t ~ Shelley, n ~ 'Mainnet) => IO ()
+main :: forall t n . (t ~ ShelleyEra, n ~ 'Mainnet) => IO ()
 main = withUtf8Encoding $ withTracers $ \tracers -> do
     hSetBuffering stdout LineBuffering
     setDefaultFilePermissions
@@ -190,11 +190,11 @@ main = withUtf8Encoding $ withTracers $ \tracers -> do
 
 specWithServer
     :: (Tracer IO TestsLog, Tracers IO)
-    -> SpecWith (Context Shelley)
+    -> SpecWith (Context ShelleyEra)
     -> Spec
 specWithServer (tr, tracers) = aroundAll withContext
   where
-    withContext :: (Context Shelley -> IO ()) -> IO ()
+    withContext :: (Context ShelleyEra -> IO ()) -> IO ()
     withContext action = bracketTracer' tr "withContext" $ do
         ctx <- newEmptyMVar
         poolGarbageCollectionEvents <- newIORef []
@@ -280,7 +280,7 @@ specWithServer (tr, tracers) = aroundAll withContext
         -- NOTE: We may want to keep a wallet running across the fork, but
         -- having three callbacks like this might not work well for that.
         withTempDir tr' dir "wallets" $ \db -> do
-            serveWallet @(IO Shelley)
+            serveWallet @(IO ShelleyEra)
                 (SomeNetworkDiscriminant $ Proxy @'Mainnet)
                 tracers
                 (SyncTolerance 10)

@@ -177,7 +177,9 @@ data ErrDecodeSignedTx
     deriving (Show, Eq)
 
 -- | Possible signing error
-newtype ErrMkTx
+data ErrMkTx
     = ErrKeyNotFoundForAddress Address
     -- ^ We tried to sign a transaction with inputs that are unknown to us?
+    | ErrConstructedInvalidTx Text
+    -- ^ We failed to construct a transaction for some reasons.
     deriving (Eq, Show)

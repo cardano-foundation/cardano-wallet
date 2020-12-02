@@ -163,10 +163,12 @@ import Cardano.Address.Derivation
     ( XPrv, XPub, xpubFromBytes, xpubToBytes )
 import Cardano.Address.Script
     ( Script )
-import Cardano.Api.MetaData
-    ( TxMetadataJsonSchema (..), metadataFromJson, metadataToJson )
 import Cardano.Api.Typed
-    ( displayError )
+    ( TxMetadataJsonSchema (..)
+    , displayError
+    , metadataFromJson
+    , metadataToJson
+    )
 import Cardano.Mnemonic
     ( MkSomeMnemonic (..)
     , MkSomeMnemonicError (..)

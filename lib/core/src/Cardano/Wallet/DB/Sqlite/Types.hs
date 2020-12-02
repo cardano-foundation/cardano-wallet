@@ -21,10 +21,12 @@ module Cardano.Wallet.DB.Sqlite.Types where
 
 import Prelude
 
-import Cardano.Api.MetaData
-    ( TxMetadataJsonSchema (..), metadataFromJson, metadataToJson )
 import Cardano.Api.Typed
-    ( displayError )
+    ( TxMetadataJsonSchema (..)
+    , displayError
+    , metadataFromJson
+    , metadataToJson
+    )
 import Cardano.Slotting.Slot
     ( SlotNo (..) )
 import Cardano.Wallet.Primitive.AddressDerivation

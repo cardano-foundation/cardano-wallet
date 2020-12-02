@@ -60,7 +60,7 @@ import Cardano.Wallet.Shelley
     , serveWallet
     )
 import Cardano.Wallet.Shelley.Compatibility
-    ( Shelley )
+    ( ShelleyEra )
 import Cardano.Wallet.Shelley.Faucet
     ( initFaucet )
 import Cardano.Wallet.Shelley.Launch
@@ -129,7 +129,7 @@ import qualified Cardano.Wallet.Api.Link as Link
 import qualified Data.Text as T
 import qualified Network.HTTP.Types.Status as HTTP
 
-main :: forall t n. (t ~ Shelley, n ~ 'Mainnet) => IO ()
+main :: forall t n. (t ~ ShelleyEra, n ~ 'Mainnet) => IO ()
 main = withUtf8Encoding $
     withLatencyLogging setupTracers $ \tracers capture ->
         withShelleyServer tracers $ \ctx -> do
@@ -140,7 +140,7 @@ main = withUtf8Encoding $
         { apiServerTracer = trMessage $ contramap snd (traceInTVarIO tvar) }
 
 walletApiBench
-    :: forall t (n :: NetworkDiscriminant). (t ~ Shelley, n ~ 'Mainnet)
+    :: forall t (n :: NetworkDiscriminant). (t ~ ShelleyEra, n ~ 'Mainnet)
     => LogCaptureFunc ApiLog ()
     -> Context t
     -> IO ()
@@ -341,7 +341,7 @@ walletApiBench capture ctx = do
 
 withShelleyServer
     :: Tracers IO
-    -> (Context Shelley -> IO ())
+    -> (Context ShelleyEra -> IO ())
     -> IO ()
 withShelleyServer tracers action = do
     ctx <- newEmptyMVar
@@ -389,7 +389,7 @@ withShelleyServer tracers action = do
         -- NOTE: We may want to keep a wallet running across the fork, but
         -- having three callbacks like this might not work well for that.
         withTempDir nullTracer dir "wallets" $ \db -> do
-            serveWallet @(IO Shelley)
+            serveWallet @(IO ShelleyEra)
                 (SomeNetworkDiscriminant $ Proxy @'Mainnet)
                 tracers
                 (SyncTolerance 10)

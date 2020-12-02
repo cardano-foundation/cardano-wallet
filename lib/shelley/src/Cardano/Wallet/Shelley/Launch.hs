@@ -321,7 +321,7 @@ parseGenesisData = \case
         let nm = NetworkMagic $ fromIntegral $ W.getProtocolMagic W.mainnetMagic
         let mainnetVersionData =
                 ( NodeToClientVersionData nm
-                , nodeToClientCodecCBORTerm NodeToClientV_3
+                , nodeToClientCodecCBORTerm NodeToClientV_5
                 )
         pure
             ( SomeNetworkDiscriminant $ Proxy @'Mainnet
@@ -1037,7 +1037,7 @@ genConfig dir severity mExtraLogFile systemStart = do
     let shelleyParams = fst $ Shelley.fromGenesisData shelleyGenesis []
     let versionData =
             ( NodeToClientVersionData $ NetworkMagic networkMagic
-            , nodeToClientCodecCBORTerm NodeToClientV_3
+            , nodeToClientCodecCBORTerm NodeToClientV_5
             )
 
     pure
