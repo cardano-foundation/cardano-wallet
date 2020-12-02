@@ -20,6 +20,22 @@
 module Data.Map.NonEmpty.Strict.Internal
     (
     -- * Map type
+
+      -- Important:
+      --
+      -- The default data constructor for 'NonEmptyMap' is not exported, by
+      -- design, as the internal data structure has an invariant that must be
+      -- preserved across all operations.
+      --
+      -- Exporting the default constructor would make it possible for functions
+      -- outside this module to break the invariant, opening the door to subtle
+      -- regressions.
+      --
+      -- See the definition of 'NonEmptyMap' for more details of the invariant.
+      --
+      -- To construct a 'NonEmptyMap', use one of the provided constructors,
+      -- all of which are tested to check that they respect the invariant.
+      --
       NonEmptyMap
 
     -- * Construction

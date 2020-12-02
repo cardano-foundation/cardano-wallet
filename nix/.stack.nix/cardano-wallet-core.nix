@@ -167,6 +167,7 @@
             (hsPkgs."scrypt" or (errorHandler.buildDepError "scrypt"))
             (hsPkgs."servant" or (errorHandler.buildDepError "servant"))
             (hsPkgs."servant-server" or (errorHandler.buildDepError "servant-server"))
+            (hsPkgs."should-not-typecheck" or (errorHandler.buildDepError "should-not-typecheck"))
             (hsPkgs."stm" or (errorHandler.buildDepError "stm"))
             (hsPkgs."openapi3" or (errorHandler.buildDepError "openapi3"))
             (hsPkgs."servant-openapi3" or (errorHandler.buildDepError "servant-openapi3"))

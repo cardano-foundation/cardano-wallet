@@ -257,6 +257,7 @@ test-suite unit
     , scrypt
     , servant
     , servant-server
+    , should-not-typecheck
     , stm
     , openapi3 >= 3.0.0.1
     , servant-openapi3
@@ -332,6 +333,7 @@ test-suite unit
       Cardano.WalletSpec
       Data.Function.UtilsSpec
       Data.Map.NonEmpty.StrictSpec
+      Data.Map.NonEmpty.StrictSpec.TypeErrorSpec
       Data.QuantitySpec
       Data.Time.TextSpec
       Data.Time.UtilsSpec
