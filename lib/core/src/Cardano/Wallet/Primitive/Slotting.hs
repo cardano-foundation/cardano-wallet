@@ -51,8 +51,11 @@ module Cardano.Wallet.Primitive.Slotting
     , interpretQuery
     , TimeInterpreterLog (..)
 
+    -- * Run queries unsafely assuming no forks
+    , interpretAssumingNoForks
+    , beyondShelley
+
       -- ** Combinators for running queries
-    , unsafeExtendSafeZone
     , neverFails
     , hoistTimeInterpreter
     , expectAndThrowFailures
@@ -371,6 +374,64 @@ interpretQuery (TimeInterpreter getI start tr handleRes) qry = do
         Right _ -> pure ()
     handleRes res
 
+
+-- | Opaque type for use with @interpretAssumingNoForks@. Only constructor is
+-- @beyondShelley@.
+newtype ExtendSafeZoneCondition = EraGreaterThan Int
+
+-- | Condition to allow us to extrapolate from Shelley to Allegra and Mary, but
+-- not from Byron.
+--
+--
+beyondShelley :: ExtendSafeZoneCondition
+beyondShelley = EraGreaterThan 1
+
+-- | Run a query while extending the safe-zone if the @ExtendSafeZoneCondition@
+-- is met. This turns PastHorizonExceptions into predictions. This should be
+-- used with great caution.
+--
+-- If we can avoid doing this, it would be great. (see ADP-575)
+--
+-- From the underlying ouroboros-consensus function:
+--
+-- UNSAFE: extend the safe zone of the current era of the given 'Interpreter'
+-- to be /unbounded/, ignoring any future hard forks.
+--
+-- This only has effect when the 'Interpreter' was obtained in an era that was
+-- /not the final one/ (in the final era, this is a no-op). The 'Interpreter'
+-- will be made to believe that the current era is the final era, making its
+-- horizon unbounded, and thus never returning a 'PastHorizonException'.
+--
+-- Use of this function is /strongly discouraged/, as it will ignore any future
+-- hard forks, and the results produced by the 'Interpreter' can thus be
+-- incorrect.
+interpretAssumingNoForks
+    :: HasCallStack
+    => ExtendSafeZoneCondition
+    -> Monad m
+    => TimeInterpreter m
+    -> Qry a
+    -> m a
+interpretAssumingNoForks
+    (EraGreaterThan eraIx)
+    (TimeInterpreter getI start tr handleRes)
+    qry = do
+    i <- getI
+    let normal = HF.interpretQuery i $ runReaderT qry start
+    let extended = HF.interpretQuery (HF.unsafeExtendSafeZone i) $ runReaderT qry start
+    handleRes =<< case (normal, extended) of
+        (Right r, _) -> pure $ Right r
+        (Left e, Right r)
+            | length (pastHorizonSummary e) > eraIx -> do
+                pure $ Right r
+            | otherwise                         -> do
+                traceWith tr $ MsgInterpreterPastHorizon Nothing e
+                pure $ Left e
+        (Left _, Left e) -> do
+                let impossible = Just "unsafeExtendSafeZone was used."
+                traceWith tr $ MsgInterpreterPastHorizon impossible e
+                pure $ Left e
+
 -- | An 'Interpreter' for a single era, where the @SlottingParameters@ cannot
 -- change.
 --
@@ -462,33 +523,3 @@ hoistTimeInterpreter f (TimeInterpreter getI ss tr h) = TimeInterpreter
     , handleResult = f . h
     }
 
--- | Extend the safe zone to make the TimeInterpreter return predictions where
--- it otherwise would have failed with @PastHorizonException@. This should be
--- used with great caution, and if we can get away from it, that would also be
--- great. Also ADP-575.
---
--- From the underlying ouroboros-consensus function:
---
--- UNSAFE: extend the safe zone of the current era of the given 'Interpreter'
--- to be /unbounded/, ignoring any future hard forks.
---
--- This only has effect when the 'Interpreter' was obtained in an era that was
--- /not the final one/ (in the final era, this is a no-op). The 'Interpreter'
--- will be made to believe that the current era is the final era, making its
--- horizon unbounded, and thus never returning a 'PastHorizonException'.
---
--- Use of this function is /strongly discouraged/, as it will ignore any future
--- hard forks, and the results produced by the 'Interpreter' can thus be
--- incorrect.
-unsafeExtendSafeZone
-    :: TimeInterpreter (ExceptT PastHorizonException IO)
-    -> TimeInterpreter IO
-unsafeExtendSafeZone = f . neverFails r
-  where
-    f (TimeInterpreter getI ss tr h) = TimeInterpreter
-        { interpreter = HF.unsafeExtendSafeZone <$> getI
-        , blockchainStartTime = ss
-        , tracer = tr
-        , handleResult = h
-        }
-    r = "unsafeExtendSafeZone should make PastHorizonExceptions impossible."

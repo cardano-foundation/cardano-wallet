@@ -293,7 +293,6 @@ import Cardano.Wallet.Primitive.Slotting
     , slotToUTCTime
     , timeOfEpoch
     , toSlotId
-    , unsafeExtendSafeZone
     )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..), SyncTolerance, syncProgress )
