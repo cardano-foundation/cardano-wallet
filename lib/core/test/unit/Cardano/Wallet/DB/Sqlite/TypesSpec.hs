@@ -17,6 +17,10 @@ import Cardano.Wallet.Gen
     ( genSlotNo, shrinkSlotNo )
 import Cardano.Wallet.Primitive.Types
     ( EpochNo (..), SlotInEpoch (..), SlotNo )
+import Cardano.Wallet.Primitive.Types.TokenQuantity
+    ( TokenQuantity (..) )
+import Cardano.Wallet.Primitive.Types.TokenQuantitySpec
+    ()
 import Data.Proxy
     ( Proxy (..) )
 import Data.Time.Clock.POSIX
@@ -32,7 +36,10 @@ import Test.Hspec
 import Test.QuickCheck
     ( Arbitrary (..)
     , NonNegative (..)
+    , Property
     , arbitrarySizedBoundedIntegral
+    , checkCoverage
+    , cover
     , property
     , shrinkIntegral
     , (===)
@@ -43,6 +50,11 @@ spec = do
     describe "Values can be persisted and unpersisted successfully" $ do
         persistRoundtrip $ Proxy @SlotNo
         persistRoundtrip $ Proxy @POSIXTime
+        persistRoundtrip $ Proxy @TokenQuantity
+
+    describe "Coverage checks for generators" $ do
+        it "TokenQuantity" $
+            property $ prop_checkTokenQuantityCoverage
 
 -- | Constructs a test to check that roundtrip persistence and unpersistence is
 --   possible for values of the given type.
@@ -56,6 +68,25 @@ persistRoundtrip proxy = it
         <> "'")
     (property $ \a ->
         fromPersistValue (toPersistValue @a a) === Right a)
+
+prop_checkTokenQuantityCoverage :: TokenQuantity -> Property
+prop_checkTokenQuantityCoverage q = checkCoverage
+    $ cover 2 (q == TokenQuantity 0)
+        "token quantity is zero"
+    $ cover 2 (TokenQuantity 0 < q && q < TokenQuantity smallPositiveValue)
+        "token quantity is small and positive"
+    $ cover 2 (TokenQuantity 0 > q && q > TokenQuantity smallNegativeValue)
+        "token quantity is small and negative"
+    $ cover 2 (q > TokenQuantity largePositiveValue)
+        "token quantity is very large and positive"
+    $ cover 2 (q < TokenQuantity largeNegativeValue)
+        "token quantity is very large and negative"
+    $ True
+  where
+    smallPositiveValue = 10
+    smallNegativeValue = negate smallPositiveValue
+    largePositiveValue = (10 :: Integer) ^ (100 :: Integer)
+    largeNegativeValue = negate largePositiveValue
 
 {-------------------------------------------------------------------------------
                               Arbitrary Instances
