@@ -723,6 +723,7 @@ mkShelleyWallet ctx wid cp meta pending progress = do
             , total = Quantity $ totalBalance pending reward cp
             , reward
             }
+        , sharedScripts = []
         , delegation = apiDelegation
         , id = ApiT wid
         , name = ApiT $ meta ^. #name

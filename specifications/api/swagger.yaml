@@ -254,9 +254,7 @@ x-amount: &amount
 x-scriptStatus: &scriptStatus
   type: string
   enum:
-    - awaits_signatures
-    - spendable
-    - stakable
+    - awaits_signing
     - spent
     - staked
 
@@ -1425,8 +1423,8 @@ components:
       properties:
         address: *anyAddress
 
-    ApiSharedScripts: &ApiSharedScripts
-      description: Discovered scripts that contain our keys
+    ApiSharedScript: &ApiSharedScript
+      description: Discovered script that contains our keys
       type: object
       required:
         - script_address
@@ -1457,7 +1455,9 @@ components:
         id: *walletId
         address_pool_gap: *walletAddressPoolGap
         balance: *walletBalance
-        shared_scripts: *ApiSharedScripts
+        shared_scripts:
+          type: array
+          items: *ApiSharedScript
         delegation: *ApiWalletDelegation
         name: *walletName
         passphrase: *walletPassphraseInfo

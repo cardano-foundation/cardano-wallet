@@ -111,6 +111,8 @@ module Cardano.Wallet.Api.Types
     , ApiWithdrawal (..)
     , ApiWalletSignData (..)
     , ApiVerificationKey (..)
+    , ApiSharedScript (..)
+    , ApiScriptStatus (..)
 
     -- * API Types (Byron)
     , ApiByronWallet (..)
@@ -448,13 +450,15 @@ data ApiAddressData =
 data AnyAddressType =
       EnterpriseDelegating
     | RewardAccount
-    deriving (Eq, Show, Bounded, Enum)
+    deriving (Eq, Show, Bounded, Enum, Generic)
+    deriving anyclass NFData
 
 data AnyAddress = AnyAddress
     { payload :: ByteString
     , flavour :: AnyAddressType
     , network :: Int
     } deriving (Eq, Generic, Show)
+      deriving anyclass NFData
 
 data ApiEpochInfo = ApiEpochInfo
     { epochNumber :: !(ApiT EpochNo)
@@ -526,15 +530,14 @@ data ApiCoinSelectionOutput (n :: NetworkDiscriminant) = ApiCoinSelectionOutput
 -- TO-DO add AwaitsSignaturesBefore t1 and AwaitsSignaturesAfter t1
 -- could also add info about how many, when spent, when staked
 data ApiScriptStatus =
-      AwaitsSignatures
-    | Spendable
-    | Stakable
+      AwaitsSigning
     | Spent
     | Staked
     deriving (Eq, Generic, Show)
+    deriving anyclass NFData
 
-data ApiSharedScripts = ApiSharedScripts
-    { scriptAddress : !AnyAddress
+data ApiSharedScript = ApiSharedScript
+    { scriptAddress :: !AnyAddress
     , ourKeys :: [ApiVerificationKey]
     , fundsStatus :: ApiScriptStatus
     , fundsAvailable :: !(Quantity "lovelace" Natural)
@@ -545,7 +548,7 @@ data ApiWallet = ApiWallet
     { id :: !(ApiT WalletId)
     , addressPoolGap :: !(ApiT AddressPoolGap)
     , balance :: !(ApiT WalletBalance)
-    , sharedScripts :: !ApiSharedScripts
+    , sharedScripts :: ![ApiSharedScript]
     , delegation :: !ApiWalletDelegation
     , name :: !(ApiT WalletName)
     , passphrase :: !(Maybe ApiWalletPassphraseInfo)
@@ -1303,6 +1306,16 @@ instance FromJSON (ApiT AddressState) where
     parseJSON = fmap ApiT . genericParseJSON defaultSumTypeOptions
 instance ToJSON (ApiT AddressState) where
     toJSON = genericToJSON defaultSumTypeOptions . getApiT
+
+instance FromJSON ApiScriptStatus where
+    parseJSON = genericParseJSON defaultSumTypeOptions
+instance ToJSON ApiScriptStatus where
+    toJSON = genericToJSON defaultSumTypeOptions
+
+instance FromJSON ApiSharedScript where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance ToJSON ApiSharedScript where
+    toJSON = genericToJSON defaultRecordTypeOptions
 
 instance FromJSON ApiWallet where
     parseJSON = genericParseJSON defaultRecordTypeOptions
