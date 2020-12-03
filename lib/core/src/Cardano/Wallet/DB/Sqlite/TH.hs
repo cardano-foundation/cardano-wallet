@@ -252,7 +252,7 @@ UTxO                                sql=utxo
 -- Each row within UTxO can have many associated rows within UTxOToken.
 -- Each row within UTxOToken refers to just a single row within UTxO.
 --
-UTxOToken
+UTxOToken                                sql=utxo_token
     utxoTokenWalletId  W.WalletId        sql=wallet_id
     utxoTokenSlot      SlotNo            sql=slot
     utxoTokenTxId      TxId              sql=tx_id
@@ -268,14 +268,24 @@ UTxOToken
         utxoTokenTxIndex
         utxoTokenPolicyId
         utxoTokenName
-    Foreign
-        UTxO
-        token_utxo
-        utxoTokenWalletId
-        utxoTokenSlot
-        utxoTokenTxId
-        utxoTokenTxIndex
-        ! ON DELETE CASCADE
+
+    -- FIXME:
+    --
+    -- Ideally, we'd like to define a foreign key constraint on the UTxO table,
+    -- as each row in UTxOToken refers to a unique row in UTxO.
+    --
+    -- Unfortunately, there's a bug in our version of persistent that breaks
+    -- foreign key constraints where the foreign table has a manually-defined
+    -- table name. In the case of the UTxO, the table name is "utxo", and not
+    -- "u_tx_o" (which is what the auto-generated table name would be).
+    --
+    -- To work around this bug, we instead define a foreign key constraint on
+    -- the Checkpoint table. Under the current design of rollback, this gives
+    -- equivalent behaviour, as we always delete UTxO entries by deleting their
+    -- parent checkpoints.
+    --
+    Foreign Checkpoint utxot utxoTokenWalletId utxoTokenSlot ! ON DELETE CASCADE
+
     deriving Show Generic
 
 -- Sequential scheme address discovery state
