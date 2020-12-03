@@ -614,19 +614,19 @@ data StakePoolMetadata = StakePoolMetadata
 instance FromJSON StakePoolMetadata where
     parseJSON = withObject "StakePoolMetadta" $ \obj -> do
         ticker <- obj .: "ticker"
+        let tickerLen = T.length . unStakePoolTicker $ ticker
+        when (tickerLen > 5 || tickerLen < 3)
+            $ fail "ticker length must be between 3 and 5 characters"
 
         name <- obj .: "name"
         when (T.length name > 50)
             $ fail "name exceeds max length of 50 chars"
 
         description <- obj .:? "description"
-        when ((T.length <$> description) > Just 250)
-            $ fail "description exceeds max length of 250 characters"
+        when ((T.length <$> description) > Just 255)
+            $ fail "description exceeds max length of 255 characters"
 
         homepage <- obj .: "homepage"
-        when (T.length homepage > 100)
-            $ fail "homepage exceeds max length of 100 characters"
-
 
         pure $ StakePoolMetadata{ticker,name,description,homepage}
 
