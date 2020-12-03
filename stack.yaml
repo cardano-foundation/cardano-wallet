@@ -64,7 +64,7 @@ extra-deps:
 
 # cardano-transactions master branch
 - git: https://github.com/input-output-hk/cardano-transactions
-  commit: 4364c83066b43aa4e6730f3949f94a0d6743e56e
+  commit: efc3914f950438b70ebe20919bf6c0ecf93b3bbc
 
 flags:
   # Avoid a system library which causes difficulty with cross-compilation

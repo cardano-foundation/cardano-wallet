@@ -178,6 +178,8 @@ import Data.Coerce
     ( coerce )
 import Data.Foldable
     ( toList )
+import Data.Foldable
+    ( asum )
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
@@ -989,14 +991,17 @@ toCardanoLovelace (W.Coin c) = Cardano.Lovelace $ safeCast c
 
 toCardanoTxOut :: W.TxOut -> Cardano.TxOut AllegraEra
 toCardanoTxOut (W.TxOut (W.Address addr) coin) =
-    Cardano.TxOut
-        (Cardano.AddressInEra addrInEra addr')
-        (adaOnly $ toCardanoLovelace coin)
+    Cardano.TxOut addrInEra (adaOnly $ toCardanoLovelace coin)
   where
     adaOnly = Cardano.TxOutAdaOnly Cardano.AdaOnlyInAllegraEra
-    addrInEra = Cardano.ShelleyAddressInEra Cardano.ShelleyBasedEraAllegra
-    addr' = fromMaybe (error "toCardanoTxOut: malformed address")
-        $ deserialiseFromRawBytes AsShelleyAddress addr
+    addrInEra = fromMaybe (error "toCardanoTxOut: malformed address") $
+        asum
+        [ Cardano.AddressInEra (Cardano.ShelleyAddressInEra Cardano.ShelleyBasedEraAllegra)
+            <$> deserialiseFromRawBytes AsShelleyAddress addr
+
+        , Cardano.AddressInEra Cardano.ByronAddressInAnyEra
+            <$> deserialiseFromRawBytes AsByronAddress addr
+        ]
 
 -- | Convert from reward account address (which is a hash of a public key)
 -- to a shelley ledger stake credential.
