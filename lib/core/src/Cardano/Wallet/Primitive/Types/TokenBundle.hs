@@ -4,6 +4,7 @@
 {-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -49,6 +50,10 @@ module Cardano.Wallet.Primitive.Types.TokenBundle
     -- * Policies
     , hasPolicy
 
+    -- * Serialization
+    , Flat (..)
+    , Nested (..)
+
     ) where
 
 import Prelude hiding
@@ -57,15 +62,19 @@ import Prelude hiding
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle.TokenMap
-    ( AssetId (..), TokenMap )
+    ( AssetId (..), Flat (..), Nested (..), TokenMap )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenName, TokenPolicyId )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Control.DeepSeq
     ( NFData )
+import Data.Bifunctor
+    ( first )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
+import Fmt
+    ( Buildable (..), Builder, blockMapF )
 import GHC.Generics
     ( Generic )
 import GHC.TypeLits
@@ -106,6 +115,31 @@ instance NFData TokenBundle
 
 instance Semigroup TokenBundle where
     (<>) = add
+
+--------------------------------------------------------------------------------
+-- Text serialization
+--------------------------------------------------------------------------------
+
+instance Buildable (Flat TokenBundle) where
+    build = buildBundle Flat . getFlat
+
+instance Buildable (Nested TokenBundle) where
+    build = buildBundle Nested . getNested
+
+buildBundle
+    :: Buildable (style TokenMap)
+    => (TokenMap -> style TokenMap)
+    -> TokenBundle
+    -> Builder
+buildBundle style TokenBundle {coin, tokens} = buildMap
+    [ ("coin"
+      , build coin)
+    , ("tokens"
+      , build $ style tokens)
+    ]
+
+buildMap :: [(String, Builder)] -> Builder
+buildMap = blockMapF . fmap (first $ id @String)
 
 --------------------------------------------------------------------------------
 -- Construction
