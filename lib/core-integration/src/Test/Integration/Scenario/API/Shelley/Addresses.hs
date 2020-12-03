@@ -1,5 +1,6 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE QuasiQuotes #-}
@@ -32,6 +33,8 @@ import Cardano.Wallet.Primitive.Types.Address
     ( AddressState (..) )
 import Control.Monad
     ( forM, forM_ )
+import Control.Monad.IO.Class
+    ( liftIO )
 import Control.Monad.Trans.Resource
     ( runResourceT )
 import Data.Aeson
@@ -61,6 +64,7 @@ import Test.Integration.Framework.DSL
     , expectResponseCode
     , fixtureWallet
     , getFromResponse
+    , getWallet
     , json
     , listAddresses
     , minUTxOValue
@@ -77,6 +81,7 @@ import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Lens as Aeson
 import qualified Data.Text as T
 import qualified Network.HTTP.Types.Status as HTTP
+import qualified Test.Hspec as Hspec
 import qualified Test.Hspec.Expectations.Lifted as Expectations
 
 spec :: forall n.
@@ -252,6 +257,85 @@ spec = describe "SHELLEY_ADDRESSES" $ do
             , expectListField 0 (Aeson.key "id" . Aeson._String)
                 (`shouldNotSatisfy` T.isPrefixOf "addr_test")
             ]
+
+    Hspec.it "ADDRESS_LIST_06 - Used change addresses are listed after a transaction is no longer pending" $ \ctx -> runResourceT @IO $ do
+        let initPoolGap = 10
+            toDestVal = 10 * minUTxOValue
+            backToSrcVal = fmap (1 * minUTxOValue +)
+
+        let verifyAddrs i p addr = do
+                liftIO (length (filter ((== Used) . (^. (#state . #getApiT))) addr)
+                    `shouldBe` p)
+                liftIO (length addr `shouldBe` i)
+
+        -- 1. create shelley wallet
+        wSrc <- fixtureWallet ctx
+        wDest <- emptyWalletWith ctx ("Wallet", "cardano-wallet", initPoolGap)
+
+        -- 2. list addresses of that wallet (for later comparison)
+        listAddresses @n ctx wSrc >>= verifyAddrs 30 10
+
+        -- 3. send a transaction from that wallet
+        addrs <- listAddresses @n ctx wDest
+        verifyAddrs 10 0 addrs
+        let destination = (head addrs) ^. #id
+        let payload = Json [json|{
+                "payments": [{
+                    "address": #{destination},
+                    "amount": {
+                        "quantity": #{toDestVal},
+                        "unit": "lovelace"
+                    }
+                }],
+                "passphrase": "cardano-wallet"
+            }|]
+
+        request @(ApiTransaction n) ctx
+            (Link.createTransaction @'Shelley wSrc) Default payload
+            >>= flip verify
+                [ expectResponseCode HTTP.status202 ]
+
+        -- 4. wait for transaction to be inserted
+        eventually "Wallet balance = minUTxOValue" $ do
+            rb <- request @ApiWallet ctx
+                (Link.getWallet @'Shelley wDest) Default Empty
+            expectField
+                (#balance . #getApiT . #available)
+                (`shouldBe` Quantity toDestVal)
+                rb
+
+        -- 5. Check that change address is still there as unused
+        -- and the gap moved.
+        listAddresses @n ctx wSrc >>= verifyAddrs 31 11
+
+        -- 6. send another transaction from the destination wallet
+        listAddresses @n ctx wDest >>= verifyAddrs 11 1
+        addrs' <- listAddresses @n ctx wSrc
+        let destination' = (addrs' !! 5) ^. #id
+        let payload' = Json [json|{
+                "payments": [{
+                    "address": #{destination'},
+                    "amount": {
+                        "quantity": #{minUTxOValue},
+                        "unit": "lovelace"
+                    }
+                }],
+                "passphrase": "cardano-wallet"
+            }|]
+        currentSrcWallet <- getWallet ctx wSrc
+        let currentSrcWalletBalance = currentSrcWallet ^. (#balance . #getApiT . #available)
+        request @(ApiTransaction n) ctx
+            (Link.createTransaction @'Shelley wDest) Default payload'
+            >>= flip verify
+                [ expectResponseCode HTTP.status202 ]
+        eventually "Wallet balance = minUTxOValue + current" $ do
+            rb <- request @ApiWallet ctx
+                (Link.getWallet @'Shelley wSrc) Default Empty
+            expectField
+                (#balance . #getApiT . #available)
+                (`shouldBe` backToSrcVal currentSrcWalletBalance)
+                rb
+        listAddresses @n ctx wDest >>= verifyAddrs 12 2
 
     it "ADDRESS_INSPECT_01 - Address inspect OK" $ \ctx -> do
         let str = "Ae2tdPwUPEYz6ExfbWubiXPB6daUuhJxikMEb4eXRp5oKZBKZwrbJ2k7EZe"

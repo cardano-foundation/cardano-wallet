@@ -481,7 +481,7 @@ prop_changeIsOnlyKnownAfterGeneration (intPool, extPool) =
         sPool = newVerificationKeyPool (accountPubKey extPool) (gap extPool)
         s0 :: SeqState 'Mainnet ShelleyKey
         s0 = SeqState intPool extPool emptyPendingIxs rewardAccount defaultPrefix sPool
-        addrs0 = fst <$> knownAddresses s0
+        addrs0 = knownAddresses s0
         (change, s1) = genChange (\k _ -> paymentAddress @'Mainnet k) s0
         addrs1 = fst <$> knownAddresses s1
     in conjoin
@@ -490,9 +490,13 @@ prop_changeIsOnlyKnownAfterGeneration (intPool, extPool) =
         ]
   where
     prop_addrsNotInInternalPool addrs =
-        map (\x -> (ShowFmt x, isNothing $ fst $ lookupAddress id x intPool)) addrs
+        map (\(x, s) ->
+                let notInPool = isNothing $ fst $ lookupAddress id x intPool
+                    isUsed = s == Used
+                in (ShowFmt x, notInPool || isUsed))
+            addrs
         ===
-        map (\x -> (ShowFmt x, True)) addrs
+        map (\(x, _) -> (ShowFmt x, True)) addrs
     prop_changeAddressIsKnown addr addrs =
         counterexample
             (show (ShowFmt addr) <> " not in " <> show (ShowFmt <$> addrs))
