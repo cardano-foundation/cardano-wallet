@@ -175,7 +175,7 @@ instance Buildable s => Buildable (Wallet s) where
     build (Wallet u tip s gp) = "Wallet s\n"
         <> indentF 4 ("Tip: " <> build tip)
         <> indentF 4 ("Parameters:\n" <> indentF 4 (build gp))
-        <> indentF 4 ("UTxO: " <> build u)
+        <> indentF 4 ("UTxO:\n" <> indentF 4 (build u))
         <> indentF 4 (build s)
 
 {-------------------------------------------------------------------------------
