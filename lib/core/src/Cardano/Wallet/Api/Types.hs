@@ -533,7 +533,7 @@ data ApiScriptStatus =
       AwaitsSigning
     | Spent
     | Staked
-    deriving (Eq, Generic, Show)
+    deriving (Eq, Generic, Show, Enum, Bounded)
     deriving anyclass NFData
 
 data ApiSharedScript = ApiSharedScript

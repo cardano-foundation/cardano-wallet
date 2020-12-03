@@ -73,9 +73,11 @@ import Cardano.Wallet.Api.Types
     , ApiNtpStatus (..)
     , ApiPostRandomAddressData
     , ApiPutAddressesData (..)
+    , ApiScriptStatus
     , ApiSelectCoinsAction (..)
     , ApiSelectCoinsData (..)
     , ApiSelectCoinsPayments (..)
+    , ApiSharedScript (..)
     , ApiSlotId (..)
     , ApiSlotReference (..)
     , ApiStakePool (..)
@@ -364,6 +366,7 @@ spec = parallel $ do
             jsonRoundtripAndGolden $ Proxy @(ApiTransaction ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @(ApiPutAddressesData ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @ApiWallet
+            jsonRoundtripAndGolden $ Proxy @ApiSharedScript
             jsonRoundtripAndGolden $ Proxy @ApiByronWallet
             jsonRoundtripAndGolden $ Proxy @ApiByronWalletBalance
             jsonRoundtripAndGolden $ Proxy @ApiWalletMigrationInfo
@@ -717,6 +720,7 @@ spec = parallel $ do
                     { id = id (x :: ApiWallet)
                     , addressPoolGap = addressPoolGap (x :: ApiWallet)
                     , balance = balance (x :: ApiWallet)
+                    , sharedScripts = sharedScripts (x :: ApiWallet)
                     , delegation = delegation (x :: ApiWallet)
                     , name = name (x :: ApiWallet)
                     , passphrase = passphrase (x :: ApiWallet)
@@ -1136,6 +1140,16 @@ instance Arbitrary (Quantity "lovelace" Natural) where
 instance Arbitrary (Quantity "percent" Percentage) where
     shrink (Quantity p) = Quantity <$> shrinkPercentage p
     arbitrary = Quantity <$> genPercentage
+
+instance Arbitrary ApiScriptStatus where
+    arbitrary = arbitraryBoundedEnum
+
+instance Arbitrary ApiSharedScript where
+    arbitrary = do
+        verKeyN <- choose (1,10)
+        ApiSharedScript <$> arbitrary <*> vectorOf verKeyN arbitrary
+            <*> arbitrary <*> arbitrary
+    shrink = genericShrink
 
 instance Arbitrary ApiWallet where
     arbitrary = genericArbitrary
@@ -1940,8 +1954,11 @@ instance ToSchema AnyAddress where
 instance ToSchema ApiNetworkParameters where
     declareNamedSchema _ = declareSchemaForDefinition "ApiNetworkParameters"
 
+instance ToSchema ApiSharedScript where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiNetworkParameters"
+
 instance ToSchema ApiSlotReference where
-    declareNamedSchema _ = declareSchemaForDefinition "ApiSlotReference"
+    declareNamedSchema _ = declareSchemaForDefinition "ApiSharedScript"
 
 instance ToSchema ApiBlockReference where
     declareNamedSchema _ = declareSchemaForDefinition "ApiBlockReference"
