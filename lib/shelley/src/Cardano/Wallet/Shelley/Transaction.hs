@@ -68,7 +68,9 @@ import Cardano.Wallet.Primitive.Types.Hash
 import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx (..), Tx (..), TxIn (..), TxMetadata, TxOut (..) )
 import Cardano.Wallet.Shelley.Compatibility
-    ( ShelleyEra
+    ( AllegraEra
+    , ShelleyEra
+    , fromAllegraTx
     , sealShelleyTx
     , toCardanoLovelace
     , toCardanoStakeCredential
@@ -166,7 +168,7 @@ instance TxWitnessTagFor ByronKey where
 mkTx
     :: forall k. (TxWitnessTagFor k, WalletKey k)
     => Cardano.NetworkId
-    -> TxPayload ShelleyEra
+    -> TxPayload AllegraEra
     -> SlotNo
     -- ^ Slot at which the transaction will expire.
     -> (XPrv, Passphrase "encryption")
@@ -202,7 +204,7 @@ mkTx networkId (TxPayload md certs mkExtraWits) expirySlot (rewardAcnt, pwdAcnt)
             pure $ bootstrapWits <> mkExtraWits unsigned
 
     let signed = Cardano.makeSignedTransaction wits unsigned
-    return $ sealShelleyTx signed
+    return $ sealShelleyTx fromAllegraTx signed
 
 newTransactionLayer
     :: forall k t.
@@ -344,9 +346,9 @@ _decodeSignedTx
     :: ByteString
     -> Either ErrDecodeSignedTx (Tx, SealedTx)
 _decodeSignedTx bytes = do
-    case Cardano.deserialiseFromCBOR Cardano.AsShelleyTx bytes of
+    case Cardano.deserialiseFromCBOR (Cardano.AsTx Cardano.AsAllegraEra) bytes of
         Right txValid ->
-            pure $ sealShelleyTx txValid
+            pure $ sealShelleyTx fromAllegraTx txValid
         Left decodeErr ->
             Left $ ErrDecodeSignedTxWrongPayload (T.pack $ show decodeErr)
 
@@ -691,19 +693,49 @@ mkUnsignedTx
     -> Maybe Cardano.TxMetadata
     -> [(Cardano.StakeAddress, Cardano.Lovelace)]
     -> [Cardano.Certificate]
-    -> Either ErrMkTx (Cardano.TxBody ShelleyEra)
+    -> Either ErrMkTx (Cardano.TxBody AllegraEra)
 mkUnsignedTx ttl cs md wdrls certs =
-    left toErrMkTx $ Cardano.makeShelleyTransaction
-        (toCardanoTxIn . fst <$> CS.inputs cs)
-        (map toCardanoTxOut $ CS.outputs cs)
-        ttl
-        (toCardanoLovelace $ Coin $ feeBalance cs)
-        certs
-        wdrls
-        md
-        Nothing -- update proposals
+    left toErrMkTx $ Cardano.makeTransactionBody $ Cardano.TxBodyContent
+        { Cardano.txIns =
+            toCardanoTxIn . fst <$> CS.inputs cs
+
+        , Cardano.txOuts =
+            toCardanoTxOut <$> CS.outputs cs
+
+        , Cardano.txWithdrawals =
+            Cardano.TxWithdrawals Cardano.WithdrawalsInAllegraEra wdrls
+
+        , Cardano.txCertificates =
+            Cardano.TxCertificates Cardano.CertificatesInAllegraEra certs
+
+        , Cardano.txFee =
+            Cardano.TxFeeExplicit Cardano.TxFeesExplicitInAllegraEra fee
+
+        , Cardano.txValidityRange =
+            ( Cardano.TxValidityNoLowerBound
+            , Cardano.TxValidityUpperBound Cardano.ValidityUpperBoundInAllegraEra ttl
+            )
+
+        , Cardano.txMetadata =
+            maybe
+                Cardano.TxMetadataNone
+                (Cardano.TxMetadataInEra Cardano.TxMetadataInAllegraEra)
+                md
+
+        , Cardano.txAuxScripts =
+            Cardano.TxAuxScriptsNone
+
+        , Cardano.txUpdateProposal =
+            Cardano.TxUpdateProposalNone
+
+        , Cardano.txMintValue =
+            Cardano.TxMintNone
+        }
   where
-    toErrMkTx :: Cardano.TxBodyError ShelleyEra -> ErrMkTx
+    fee :: Cardano.Lovelace
+    fee = toCardanoLovelace $ Coin $ feeBalance cs
+
+    toErrMkTx :: Cardano.TxBodyError AllegraEra -> ErrMkTx
     toErrMkTx = ErrConstructedInvalidTx . T.pack . Cardano.displayError
 
 mkWithdrawals
@@ -719,9 +751,9 @@ mkWithdrawals networkId acc amount
     stakeAddress = Cardano.makeStakeAddress networkId cred
 
 mkShelleyWitness
-    :: Cardano.TxBody ShelleyEra
+    :: Cardano.TxBody AllegraEra
     -> (XPrv, Passphrase "encryption")
-    -> Cardano.Witness ShelleyEra
+    -> Cardano.Witness AllegraEra
 mkShelleyWitness body key =
     Cardano.makeShelleyKeyWitness body (unencrypt key)
   where
@@ -730,11 +762,11 @@ mkShelleyWitness body key =
         $ Crypto.HD.xPrvChangePass pwd BS.empty xprv
 
 mkByronWitness
-    :: Cardano.TxBody ShelleyEra
+    :: Cardano.TxBody AllegraEra
     -> Cardano.NetworkId
     -> Address
     -> (XPrv, Passphrase "encryption")
-    -> Cardano.Witness ShelleyEra
+    -> Cardano.Witness AllegraEra
 mkByronWitness (Cardano.ShelleyTxBody era body _) nw addr encryptedKey =
     Cardano.ShelleyBootstrapWitness era $
         SL.makeBootstrapWitness txHash (unencrypt encryptedKey) addrAttr

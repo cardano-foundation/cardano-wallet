@@ -73,7 +73,14 @@ import Cardano.Chain.Slotting
 import Cardano.Chain.Update
     ( ProtocolParameters (..) )
 import Cardano.Chain.UTxO
-    ( Tx (..), TxAux, TxIn (..), TxOut (..), annotateTxAux, taTx, unTxPayload )
+    ( ATxAux (..)
+    , Tx (..)
+    , TxIn (..)
+    , TxOut (..)
+    , annotateTxAux
+    , taTx
+    , unTxPayload
+    )
 import Cardano.Crypto
     ( serializeCborHash )
 import Cardano.Crypto.ProtocolMagic
@@ -306,7 +313,7 @@ toByronBlockHeader gp blk = W.BlockHeader
         headerPrevHash (O.getHeader blk)
     }
 
-fromTxAux :: TxAux -> W.Tx
+fromTxAux :: ATxAux a -> W.Tx
 fromTxAux txAux = case taTx txAux of
     tx@(UnsafeTx inputs outputs _attributes) -> W.Tx
         { txId = W.Hash $ CC.hashToBytes $ serializeCborHash tx

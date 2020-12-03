@@ -63,7 +63,7 @@ import Cardano.Wallet.Primitive.Types.Tx
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
 import Cardano.Wallet.Shelley.Compatibility
-    ( ShelleyEra, sealShelleyTx )
+    ( ShelleyEra, fromAllegraTx, sealShelleyTx )
 import Cardano.Wallet.Shelley.Transaction
     ( TxWitnessTagFor
     , mkByronWitness
@@ -397,7 +397,7 @@ prop_decodeSignedShelleyTxRoundtrip (DecodeShelleySetup utxo outs md slotNo pair
     let wits = addrWits
     let ledgerTx = Cardano.makeSignedTransaction wits unsigned
     _decodeSignedTx (Cardano.serialiseToCBOR ledgerTx)
-        === Right (sealShelleyTx ledgerTx)
+        === Right (sealShelleyTx fromAllegraTx ledgerTx)
 
 prop_decodeSignedByronTxRoundtrip
     :: DecodeByronSetup
@@ -410,7 +410,7 @@ prop_decodeSignedByronTxRoundtrip (DecodeByronSetup utxo outs slotNo ntwrk pairs
     let ledgerTx = Cardano.makeSignedTransaction byronWits unsigned
 
     _decodeSignedTx (Cardano.serialiseToCBOR ledgerTx)
-        === Right (sealShelleyTx ledgerTx)
+        === Right (sealShelleyTx fromAllegraTx ledgerTx)
   where
     mkByronWitness' unsigned (_, (TxOut addr _)) =
         mkByronWitness unsigned ntwrk addr

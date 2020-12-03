@@ -437,7 +437,7 @@ withNetworkLayer tr np addrInfo (versionData, _) action = do
     -- are deserialised as shelley transactions before submitting.
     _postSealedTx localTxSubmissionQ tx = do
         liftIO $ traceWith tr $ MsgPostSealedTx tx
-        _postTx localTxSubmissionQ (unsealShelleyTx tx)
+        _postTx localTxSubmissionQ (unsealShelleyTx GenTxAllegra tx)
 
     handleQueryFailure :: forall e r. Show e => IO (Either e r) -> ExceptT ErrNetworkUnavailable IO r
     handleQueryFailure =
