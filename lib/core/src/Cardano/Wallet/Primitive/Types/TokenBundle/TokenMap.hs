@@ -198,10 +198,8 @@ newtype Nested a = Nested { getNested :: a }
 instance Buildable (Flat TokenMap) where
     build = buildTokenMap . getFlat
       where
-        buildTokenMap b = buildMap
-            [ ("tokens",
-                buildList buildAssetQuantity $ toFlatList b)
-            ]
+        buildTokenMap =
+            buildList buildAssetQuantity . toFlatList
         buildAssetQuantity (AssetId policy token, quantity) = buildMap
             [ ("policy",
                 build policy)
@@ -214,10 +212,8 @@ instance Buildable (Flat TokenMap) where
 instance Buildable (Nested TokenMap) where
     build = buildTokenMap . unTokenMap . getNested
       where
-        buildTokenMap b = buildMap
-            [ ("tokens",
-                buildList buildPolicy $ Map.toList b)
-            ]
+        buildTokenMap =
+            buildList buildPolicy . Map.toList
         buildPolicy (policy, assetMap) = buildMap
             [ ("policy",
                 build policy)
