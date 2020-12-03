@@ -70,11 +70,11 @@ import Cardano.Wallet.Shelley.Launch
 import Control.Arrow
     ( first )
 import Control.Concurrent.Async
-    ( race )
+    ( AsyncCancelled, race )
 import Control.Concurrent.MVar
     ( newEmptyMVar, putMVar, takeMVar )
 import Control.Exception
-    ( throwIO )
+    ( SomeException, fromException, handle, throwIO )
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Tracer
@@ -275,11 +275,10 @@ specWithServer (tr, tracers) = aroundAll withContext
                 concatMap genRewardAccounts mirMnemonics
         moveInstantaneousRewardsTo tr' dir rewards
 
-    onClusterStart
-        action dir dbDecorator (RunningNode socketPath block0 (gp, vData)) = do
+    onClusterStart action dir dbDecorator node = do
         -- NOTE: We may want to keep a wallet running across the fork, but
         -- having three callbacks like this might not work well for that.
-        withTempDir tr' dir "wallets" $ \db -> do
+        withTempDir tr' dir "wallets" $ \db -> handle onClusterExit $
             serveWallet @(IO ShelleyEra)
                 (SomeNetworkDiscriminant $ Proxy @'Mainnet)
                 tracers
@@ -294,6 +293,13 @@ specWithServer (tr, tracers) = aroundAll withContext
                 block0
                 (gp, vData)
                 (action gp)
+      where
+        RunningNode socketPath block0 (gp, vData) = node
+
+    onClusterExit e =
+        case fromException e of
+            Just (_ :: AsyncCancelled) -> throwIO e
+            _ -> traceWith tr (MsgServerError e) >> throwIO e
 
 {-------------------------------------------------------------------------------
                                     Logging
@@ -305,6 +311,7 @@ data TestsLog
     | MsgSettingUpFaucet
     | MsgCluster ClusterLog
     | MsgPoolGarbageCollectionEvent PoolGarbageCollectionEvent
+    | MsgServerError SomeException
     deriving (Show)
 
 instance ToText TestsLog where
@@ -324,6 +331,7 @@ instance ToText TestsLog where
                     , T.unwords (T.pack . show <$> ps)
                     ]
             ]
+        MsgServerError e -> T.pack (show e)
 
 instance HasPrivacyAnnotation TestsLog
 instance HasSeverityAnnotation TestsLog where
@@ -333,6 +341,7 @@ instance HasSeverityAnnotation TestsLog where
         MsgBaseUrl _ -> Notice
         MsgCluster msg -> getSeverityAnnotation msg
         MsgPoolGarbageCollectionEvent _ -> Info
+        MsgServerError{} -> Critical
 
 withTracers
     :: ((Tracer IO TestsLog, Tracers IO) -> IO a)
