@@ -2,6 +2,7 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
 -- |
@@ -43,6 +44,8 @@ import Cardano.Wallet.Primitive.Types.Tx
     ( TxIn, TxOut (..), txOutCoin )
 import Control.DeepSeq
     ( NFData (..) )
+import Data.Bifunctor
+    ( first )
 import Data.List
     ( foldl' )
 import Data.List.NonEmpty
@@ -54,7 +57,7 @@ import Data.Set
 import Data.Word
     ( Word64 )
 import Fmt
-    ( Buildable (..), blockListF', padRightF, tupleF )
+    ( Buildable (..), blockListF', blockMapF, padRightF, tupleF )
 import GHC.Generics
     ( Generic )
 import Numeric.Natural
@@ -89,7 +92,13 @@ instance Buildable UTxO where
     build (UTxO utxo) =
         blockListF' "-" utxoF (Map.toList utxo)
       where
-        utxoF (inp, out) = build inp <> " => " <> build out
+        utxoF (inp, out) = buildMap
+            [ ("input"
+              , build inp)
+            , ("output"
+              , build out)
+            ]
+        buildMap = blockMapF . fmap (first $ id @String)
 
 -- | Pick a random element from a UTxO, returns 'Nothing' if the UTxO is empty.
 -- Otherwise, returns the selected entry and, the UTxO minus the selected one.

@@ -64,6 +64,8 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity )
 import Control.DeepSeq
     ( NFData (..) )
+import Data.Bifunctor
+    ( first )
 import Data.ByteArray
     ( ByteArrayAccess )
 import Data.ByteString
@@ -98,6 +100,7 @@ import Data.Word
 import Fmt
     ( Buildable (..)
     , blockListF'
+    , blockMapF
     , fixedF
     , nameF
     , ordinalF
@@ -233,14 +236,21 @@ data TxChange derivationPath = TxChange
 instance NFData TxOut
 
 instance Buildable TxOut where
-    build txout = mempty
-        <> build (txOutCoin txout)
-        <> " @ "
-        <> prefixF 8 addrF
-        <> "..."
-        <> suffixF 8 addrF
+    build txOut = buildMap
+        [ ("address"
+          , addressShort)
+        , ("coin"
+          , build (txOutCoin txOut))
+        , ("tokens"
+          , build (TM.Nested $ view (#tokens . #tokens) txOut))
+        ]
       where
-        addrF = build $ view #address txout
+        addressShort = mempty
+            <> prefixF 8 addressFull
+            <> "..."
+            <> suffixF 8 addressFull
+        addressFull = build $ view #address txOut
+        buildMap = blockMapF . fmap (first $ id @String)
 
 instance Buildable (TxIn, TxOut) where
     build (txin, txout) = build txin <> " ==> " <> build txout
