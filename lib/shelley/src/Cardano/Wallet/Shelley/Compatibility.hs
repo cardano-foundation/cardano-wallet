@@ -541,7 +541,7 @@ fromMaxTxSize :: Natural -> Quantity "byte" Word16
 fromMaxTxSize =
     Quantity . fromIntegral
 
-fromShelleyPParams :: Maybe Bound -> SL.PParams (SL.ShelleyEra c) -> W.ProtocolParameters
+fromShelleyPParams :: Maybe Bound -> SL.PParams era -> W.ProtocolParameters
 fromShelleyPParams bound pp = W.ProtocolParameters
     { decentralizationLevel =
         decentralizationLevelFromPParams pp
@@ -577,7 +577,7 @@ fromShelleyPParams bound pp = W.ProtocolParameters
 -- convert it into a percentage.
 --
 decentralizationLevelFromPParams
-    :: SL.PParams (SL.ShelleyEra c)
+    :: SL.PParams era
     -> W.DecentralizationLevel
 decentralizationLevelFromPParams pp =
     W.DecentralizationLevel $ fromUnitInterval
@@ -587,7 +587,7 @@ decentralizationLevelFromPParams pp =
     d = SL._d pp
 
 txParametersFromPParams
-    :: SL.PParams (SL.ShelleyEra c)
+    :: SL.PParams era
     -> W.TxParameters
 txParametersFromPParams pp = W.TxParameters
     { getFeePolicy = W.LinearFee
@@ -604,12 +604,12 @@ txParametersFromPParams pp = W.TxParameters
     coinToDouble (SL.Coin c) = fromIntegral c
 
 desiredNumberOfStakePoolsFromPParams
-    :: SL.PParams (SL.ShelleyEra c)
+    :: SL.PParams era
     -> Word16
 desiredNumberOfStakePoolsFromPParams pp = fromIntegral (SL._nOpt pp)
 
 minimumUTxOvalueFromPParams
-    :: SL.PParams (SL.ShelleyEra c)
+    :: SL.PParams era
     -> W.Coin
 minimumUTxOvalueFromPParams pp = toWalletCoin $ SL._minUTxOValue pp
 
@@ -711,7 +711,7 @@ fromNonMyopicMemberRewards =
     . Map.mapKeys (bimap fromShelleyCoin fromStakeCredential)
     . O.unNonMyopicMemberRewards
 
-optimumNumberOfPools :: SL.PParams (SL.ShelleyEra c) -> Int
+optimumNumberOfPools :: SL.PParams era -> Int
 optimumNumberOfPools = unsafeConvert . SL._nOpt
   where
     -- A value of ~100 can be expected, so should be fine.

@@ -249,7 +249,6 @@ import Ouroboros.Network.Protocol.LocalTxSubmission.Type
 import System.IO.Error
     ( isDoesNotExistError )
 
-import qualified Cardano.Ledger.Shelley as SL
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
@@ -445,14 +444,15 @@ withNetworkLayer tr np addrInfo (versionData, _) action = do
 
     _stakeDistribution queue bh coin = do
         let pt = toPoint getGenesisBlockHash bh
+        -- TODO: Use Shelley queries when in Shelley
         stakeMap <- handleQueryFailure $ timeQryAndLog "GetStakeDistribution" tr
-            (queue `send` CmdQueryLocalState pt (QueryIfCurrentShelley Shelley.GetStakeDistribution))
+            (queue `send` CmdQueryLocalState pt (QueryIfCurrentAllegra Shelley.GetStakeDistribution))
         let toStake = Set.singleton $ Left $ toShelleyCoin coin
         liftIO $ traceWith tr $ MsgWillQueryRewardsForStake coin
         rewardsPerAccount <- handleQueryFailure $ timeQryAndLog "GetNonMyopicMemberRewards" tr
-            (queue `send` CmdQueryLocalState pt (QueryIfCurrentShelley (Shelley.GetNonMyopicMemberRewards toStake)))
+            (queue `send` CmdQueryLocalState pt (QueryIfCurrentAllegra (Shelley.GetNonMyopicMemberRewards toStake)))
         pparams <- handleQueryFailure $ timeQryAndLog "GetCurrentPParams" tr
-            (queue `send` CmdQueryLocalState pt (QueryIfCurrentShelley Shelley.GetCurrentPParams))
+            (queue `send` CmdQueryLocalState pt (QueryIfCurrentAllegra Shelley.GetCurrentPParams))
 
         let fromJustRewards = fromMaybe (error "stakeDistribution: requested rewards not included in response")
         let getRewardMap = fromJustRewards . Map.lookup (Left coin) . fromNonMyopicMemberRewards
@@ -675,10 +675,10 @@ mkTipSyncClient tr np localTxSubmissionQ onTipUpdate onPParamsUpdate onInterpret
             -> m ()
         queryLocalState pt = do
             mb <- timeQryAndLog "GetEraStart" tr $ localStateQueryQ `send`
-                CmdQueryLocalState pt (QueryAnytimeShelley GetEraStart)
+                CmdQueryLocalState pt (QueryAnytimeAllegra GetEraStart)
 
             pp <- timeQryAndLog "GetCurrentPParams" tr $ localStateQueryQ `send`
-                CmdQueryLocalState pt (QueryIfCurrentShelley Shelley.GetCurrentPParams)
+                CmdQueryLocalState pt (QueryIfCurrentAllegra Shelley.GetCurrentPParams)
 
             sequence (handleParamsUpdate fromShelleyPParams <$> mb <*> pp)
                 >>= handleAcquireFailure
@@ -803,7 +803,7 @@ newRewardBalanceFetcher tr gp queryRewardQ =
         liftIO $ traceWith tr $
             MsgGetRewardAccountBalance (fromTip' gp tip) accounts
         let creds = Set.map toStakeCredential accounts
-        let q = QueryIfCurrentShelley (Shelley.GetFilteredDelegationsAndRewardAccounts creds)
+        let q = QueryIfCurrentAllegra (Shelley.GetFilteredDelegationsAndRewardAccounts creds)
         let cmd = CmdQueryLocalState (getTipPoint tip) q
 
         res <- liftIO . timeQryAndLog "getAccountBalance" tr $
@@ -1086,8 +1086,8 @@ data NetworkLayerLog where
         -> Set W.RewardAccount
         -> NetworkLayerLog
     MsgAccountDelegationAndRewards
-        :: (Map (SL.Credential 'SL.Staking (SL.ShelleyEra StandardCrypto)) (SL.KeyHash 'SL.StakePool StandardCrypto))
-        -> SL.RewardAccounts (SL.ShelleyEra StandardCrypto)
+        :: forall era. (Map (SL.Credential 'SL.Staking era) (SL.KeyHash 'SL.StakePool StandardCrypto))
+        -> SL.RewardAccounts era
         -> NetworkLayerLog
     MsgDestroyCursor :: ThreadId -> NetworkLayerLog
     MsgWillQueryRewardsForStake :: W.Coin -> NetworkLayerLog
