@@ -87,7 +87,6 @@ import Ouroboros.Network.Block
     ( BlockNo (..)
     , HasHeader (..)
     , Point (..)
-    , Serialised (..)
     , Tip (..)
     , blockNo
     , blockPoint
@@ -130,17 +129,18 @@ import qualified Ouroboros.Network.Protocol.LocalStateQuery.Client as LSQ
 -- This is used in the same way as 'chainSyncWithBlocks', except that only one
 -- of these clients is necessary, rather than one client per wallet.
 chainSyncFollowTip
-    :: forall m block. (Monad m)
-    => (Tip block -> m ())
+    :: forall m block era. (Monad m)
+    => (block -> era)
+    -> (Maybe era -> Tip block -> m ())
     -- ^ Callback for when the tip changes.
-    -> ChainSyncClient (Serialised block) (Point block) (Tip block) m Void
-chainSyncFollowTip onTipUpdate =
+    -> ChainSyncClient block (Point block) (Tip block) m Void
+chainSyncFollowTip toCardanoEra onTipUpdate =
     ChainSyncClient (clientStIdle False)
   where
     -- Client in the state 'Idle'. We immediately request the next block.
     clientStIdle
         :: Bool
-        -> m (ClientStIdle (Serialised block) (Point block) (Tip block) m Void)
+        -> m (ClientStIdle block (Point block) (Tip block) m Void)
     clientStIdle synced = pure $ SendMsgRequestNext
         (clientStNext synced)
         (pure $ clientStNext synced)
@@ -151,7 +151,7 @@ chainSyncFollowTip onTipUpdate =
     -- server to send AwaitReply most of the time.
     clientStNext
         :: Bool
-        -> ClientStNext (Serialised block) (Point block) (Tip block) m Void
+        -> ClientStNext block (Point block) (Tip block) m Void
     clientStNext False = ClientStNext
             { recvMsgRollBackward = const findIntersect
             , recvMsgRollForward = const findIntersect
@@ -160,19 +160,28 @@ chainSyncFollowTip onTipUpdate =
         findIntersect tip = ChainSyncClient $
             pure $ SendMsgFindIntersect [getTipPoint $ castTip tip] clientStIntersect
 
+    -- On tip update, we'll also propagate the era inferred from blocks we
+    -- received. In case of rollback, we only have a 'Point' and they are
+    -- era-agnostic (for now at least!) which isn't a big deal really because
+    -- the era will simply be updated on the next RollForward which follows
+    -- immediately after.
     clientStNext True = ClientStNext
-            { recvMsgRollBackward = const doUpdate
-            , recvMsgRollForward = const doUpdate
+            { recvMsgRollBackward = doUpdate . const Nothing
+            , recvMsgRollForward  = doUpdate . Just . toCardanoEra
             }
       where
-        doUpdate tip = ChainSyncClient $ do
-            onTipUpdate (castTip tip)
+        doUpdate
+            :: Maybe era
+            -> Tip block
+            -> ChainSyncClient block (Point block) (Tip block) m Void
+        doUpdate era tip = ChainSyncClient $ do
+            onTipUpdate era (castTip tip)
             clientStIdle True
 
     -- After an intersection is found, we return to idle with the sync flag
     -- set.
     clientStIntersect
-        :: ClientStIntersect (Serialised block) (Point block) (Tip block) m Void
+        :: ClientStIntersect block (Point block) (Tip block) m Void
     clientStIntersect = ClientStIntersect
         { recvMsgIntersectFound = \_intersection _tip ->
             ChainSyncClient $ clientStIdle True

@@ -59,7 +59,9 @@ import Cardano.Wallet.Network
 import Cardano.Wallet.Primitive.Slotting
     ( TimeInterpreter, TimeInterpreterLog, mkTimeInterpreter )
 import Cardano.Wallet.Shelley.Compatibility
-    ( ShelleyEra
+    ( AnyCardanoEra (..)
+    , CardanoEra (..)
+    , ShelleyEra
     , StandardCrypto
     , fromCardanoHash
     , fromChainHash
@@ -71,11 +73,14 @@ import Cardano.Wallet.Shelley.Compatibility
     , fromTip
     , fromTip'
     , optimumNumberOfPools
+    , toCardanoEra
     , toPoint
     , toShelleyCoin
     , toStakeCredential
     , unsealShelleyTx
     )
+import Control.Applicative
+    ( liftA3 )
 import Control.Concurrent
     ( ThreadId )
 import Control.Concurrent.Async
@@ -262,8 +267,7 @@ import qualified Data.Text.Encoding as T
 import qualified Ouroboros.Consensus.Byron.Ledger as Byron
 import qualified Ouroboros.Consensus.Shelley.Ledger as Shelley
 import qualified Ouroboros.Network.Point as Point
-import qualified Shelley.Spec.Ledger.Credential as SL
-import qualified Shelley.Spec.Ledger.Keys as SL
+import qualified Shelley.Spec.Ledger.API as SL
 import qualified Shelley.Spec.Ledger.LedgerState as SL
 
 {- HLINT ignore "Use readTVarIO" -}
@@ -305,18 +309,34 @@ withNetworkLayer tr np addrInfo (versionData, _) action = do
     (nodeTipChan, protocolParamsVar, interpreterVar, localTxSubmissionQ) <-
         connectNodeTipClient handlers
 
-    (rewardsObserver,refreshRewards) <- newRewardBalanceFetcher tr gp queryRewardQ
+    (rewardsObserver, refreshRewards) <-
+        newRewardBalanceFetcher tr gp queryRewardQ
 
+    -- We store the last known tip and last known era in TVars. The only writer
+    -- of this TVar is 'updateNodeTip' just below, but many reads from them in
+    -- the network layer.
     nodeTipVar <- atomically $ newTVar TipGenesis
-    let updateNodeTip = do
-            tip <- readChan nodeTipChan
-            atomically $ writeTVar nodeTipVar tip
-            refreshRewards tip
+    nodeEraVar <- atomically $ newTVar (AnyCardanoEra ByronEra)
 
+    let updateNodeTip = do
+            (maybeEra, tip) <- readChan nodeTipChan
+            atomically $ writeTVar nodeTipVar tip
+            -- If the node just rolled back, we'll get only a tip and no era and
+            -- we'll only update the era on the next roll forward. So it may
+            -- happen that for a short time, there's an era mismatch if we make
+            -- a request right after a rollback that crossed two eras.
+            --
+            -- Worse that can happen though is the query being invalid or in the
+            -- wrong era which is handled everywhere already.
+            era <- case maybeEra of
+                Just era -> era <$ atomically (writeTVar nodeEraVar era)
+                Nothing  -> atomically $ readTVar nodeEraVar
+            refreshRewards (era, tip)
     link =<< async (forever updateNodeTip)
 
     action $ NetworkLayer
             { currentNodeTip = liftIO $ _currentNodeTip nodeTipVar
+            , currentNodeEra = _currentNodeEra nodeEraVar
             , watchNodeTip = _watchNodeTip nodeTipChan
             , nextBlocks = _nextBlocks
             , initCursor = _initCursor
@@ -324,14 +344,14 @@ withNetworkLayer tr np addrInfo (versionData, _) action = do
             , cursorSlotNo = _cursorSlotNo
             , getProtocolParameters = atomically $ readTVar protocolParamsVar
             , postTx = _postSealedTx localTxSubmissionQ
-            , stakeDistribution = _stakeDistribution queryRewardQ
+            , stakeDistribution = _stakeDistribution queryRewardQ nodeEraVar
             , getAccountBalance = \k -> liftIO $ do
                 -- TODO(#2042): Make wallets call manually, with matching
                 -- stopObserving.
                 startObserving rewardsObserver k
                 coinToQuantity . fromMaybe (W.Coin 0)
                     <$> query rewardsObserver k
-            , timeInterpreter = _timeInterpreterQuery interpreterVar
+            , timeInterpreter = _timeInterpreter interpreterVar
             }
   where
     coinToQuantity (W.Coin x) = Quantity $ fromIntegral x
@@ -352,7 +372,7 @@ withNetworkLayer tr np addrInfo (versionData, _) action = do
     connectNodeTipClient
         :: HasCallStack
         => RetryHandlers
-        -> IO ( Chan (Tip (CardanoBlock StandardCrypto))
+        -> IO ( Chan (Maybe AnyCardanoEra, Tip (CardanoBlock StandardCrypto))
               , TVar IO W.ProtocolParameters
               , TMVar IO (CardanoInterpreter StandardCrypto)
               , TQueue IO (LocalTxSubmissionCmd
@@ -420,10 +440,11 @@ withNetworkLayer tr np addrInfo (versionData, _) action = do
     _cursorSlotNo (Cursor _ point _) = do
         fromWithOrigin (SlotNo 0) $ pointSlot point
 
-
     _currentNodeTip nodeTipVar =
-        fromTip getGenesisBlockHash <$>
-            atomically (readTVar nodeTipVar)
+        fromTip getGenesisBlockHash <$> atomically (readTVar nodeTipVar)
+
+    _currentNodeEra nodeEraVar =
+        atomically (readTVar nodeEraVar)
 
     _postTx localTxSubmissionQ tx = do
         liftIO $ traceWith tr $ MsgPostTx tx
@@ -438,52 +459,91 @@ withNetworkLayer tr np addrInfo (versionData, _) action = do
         liftIO $ traceWith tr $ MsgPostSealedTx tx
         _postTx localTxSubmissionQ (unsealShelleyTx GenTxAllegra tx)
 
-    handleQueryFailure :: forall e r. Show e => IO (Either e r) -> ExceptT ErrNetworkUnavailable IO r
-    handleQueryFailure =
-        withExceptT (\e -> ErrNetworkUnreachable $ T.pack $ "Unexpected " ++ show e) . ExceptT
-
-    _stakeDistribution queue bh coin = do
-        let pt = toPoint getGenesisBlockHash bh
-        -- TODO: Use Shelley queries when in Shelley
-        stakeMap <- handleQueryFailure $ timeQryAndLog "GetStakeDistribution" tr
-            (queue `send` CmdQueryLocalState pt (QueryIfCurrentAllegra Shelley.GetStakeDistribution))
-        let toStake = Set.singleton $ Left $ toShelleyCoin coin
+    _stakeDistribution queue eraVar bh coin = do
         liftIO $ traceWith tr $ MsgWillQueryRewardsForStake coin
-        rewardsPerAccount <- handleQueryFailure $ timeQryAndLog "GetNonMyopicMemberRewards" tr
-            (queue `send` CmdQueryLocalState pt (QueryIfCurrentAllegra (Shelley.GetNonMyopicMemberRewards toStake)))
-        pparams <- handleQueryFailure $ timeQryAndLog "GetCurrentPParams" tr
-            (queue `send` CmdQueryLocalState pt (QueryIfCurrentAllegra Shelley.GetCurrentPParams))
 
-        let fromJustRewards = fromMaybe (error "stakeDistribution: requested rewards not included in response")
-        let getRewardMap = fromJustRewards . Map.lookup (Left coin) . fromNonMyopicMemberRewards
+        era <- liftIO $ atomically $ readTVar eraVar
+        let pt = toPoint getGenesisBlockHash bh
+
+        mres <- liftA3 (liftA3 NodePoolLsqData)
+            (getNOpt pt era)
+            (queryNonMyopicMemberRewards pt era)
+            (queryStakeDistribution pt era)
 
         -- The result will be Nothing if query occurs during the byron era
-        let mres = eitherToMaybe $ NodePoolLsqData
-                <$> fmap optimumNumberOfPools pparams
-                <*> fmap getRewardMap rewardsPerAccount
-                <*> fmap fromPoolDistr stakeMap
-        liftIO $ traceWith tr $ MsgFetchedNodePoolLsqData mres
+        liftIO $ traceWith tr $ MsgFetchedNodePoolLsqData (eitherToMaybe mres)
         case mres of
-            Just res -> do
+            Right res -> do
                 liftIO $ traceWith tr $ MsgFetchedNodePoolLsqDataSummary
                     (Map.size $ stake res)
                     (Map.size $ rewards res)
                 return res
-            Nothing -> pure $ NodePoolLsqData 0 mempty mempty
+            Left{} -> pure $ NodePoolLsqData 0 mempty mempty
+      where
+        handleQueryFailure :: forall e r. Show e => IO (Either e r) -> ExceptT ErrNetworkUnavailable IO r
+        handleQueryFailure =
+            withExceptT (\e -> ErrNetworkUnreachable $ T.pack $ "Unexpected " ++ show e) . ExceptT
+
+        queryStakeDistribution pt = \case
+            AnyCardanoEra ShelleyEra -> do
+                let cmd = CmdQueryLocalState pt (QueryIfCurrentShelley Shelley.GetStakeDistribution)
+                result <- handleQueryFailure $ timeQryAndLog "GetStakeDistribution" tr
+                    (queue `send` cmd)
+                return $ fromPoolDistr <$> result
+
+            ________________________ -> do
+                let cmd = CmdQueryLocalState pt (QueryIfCurrentAllegra Shelley.GetStakeDistribution)
+                result <- handleQueryFailure $ timeQryAndLog "GetStakeDistribution" tr
+                    (queue `send` cmd)
+                return $ fromPoolDistr <$> result
+
+        getNOpt pt = \case
+            AnyCardanoEra ShelleyEra -> do
+                let cmd = CmdQueryLocalState pt (QueryIfCurrentShelley Shelley.GetCurrentPParams)
+                result <- handleQueryFailure $ timeQryAndLog "GetCurrentPParams" tr
+                    (queue `send` cmd)
+                return $ optimumNumberOfPools <$> result
+
+            ________________________ -> do
+                let cmd = CmdQueryLocalState pt (QueryIfCurrentAllegra Shelley.GetCurrentPParams)
+                result <- handleQueryFailure $ timeQryAndLog "GetCurrentPParams" tr
+                    (queue `send` cmd)
+                return $ optimumNumberOfPools <$> result
+
+        queryNonMyopicMemberRewards pt = \case
+            AnyCardanoEra ShelleyEra -> do
+                let cmd = CmdQueryLocalState pt (QueryIfCurrentShelley (Shelley.GetNonMyopicMemberRewards stake))
+                result <- handleQueryFailure $ timeQryAndLog "GetNonMyopicMemberRewards" tr
+                    (queue `send` cmd)
+                return $ getRewardMap . fromNonMyopicMemberRewards <$> result
+
+            ________________________ -> do
+                let cmd = CmdQueryLocalState pt (QueryIfCurrentAllegra (Shelley.GetNonMyopicMemberRewards stake))
+                result <- handleQueryFailure $ timeQryAndLog "GetNonMyopicMemberRewards" tr
+                    (queue `send` cmd)
+                return $ getRewardMap . fromNonMyopicMemberRewards <$> result
+          where
+            stake :: Set (Either SL.Coin a)
+            stake = Set.singleton $ Left $ toShelleyCoin coin
+
+            fromJustRewards = fromMaybe
+                (error "stakeDistribution: requested rewards not included in response")
+            getRewardMap =
+                fromJustRewards . Map.lookup (Left coin)
 
     _watchNodeTip nodeTipChan cb = do
         chan <- dupChan nodeTipChan
         let toBlockHeader = fromTip getGenesisBlockHash
         forever $ do
-            header <- toBlockHeader <$> readChan chan
+            header <- toBlockHeader . snd <$> readChan chan
             bracketTracer (contramap (MsgWatcherUpdate header) tr) $
                 cb header
 
-    _timeInterpreterQuery
+    _timeInterpreter
         :: HasCallStack
         => TMVar IO (CardanoInterpreter sc)
         -> TimeInterpreter (ExceptT PastHorizonException IO)
-    _timeInterpreterQuery var = do
+    _timeInterpreter var = do
         let readInterpreter = liftIO $ atomically $ readTMVar var
         mkTimeInterpreter (contramap MsgInterpreterLog tr) getGenesisBlockDate readInterpreter
 
@@ -654,7 +714,7 @@ mkTipSyncClient
             (CardanoApplyTxErr StandardCrypto)
             m)
         -- ^ Communication channel with the LocalTxSubmission client
-    -> (Tip (CardanoBlock StandardCrypto) -> m ())
+    -> ((Maybe AnyCardanoEra, Tip (CardanoBlock StandardCrypto)) -> m ())
         -- ^ Notifier callback for when tip changes
     -> (W.ProtocolParameters -> m ())
         -- ^ Notifier callback for when parameters for tip change.
@@ -671,23 +731,37 @@ mkTipSyncClient tr np localTxSubmissionQ onTipUpdate onPParamsUpdate onInterpret
 
     let
         queryLocalState
-            :: Point (CardanoBlock StandardCrypto)
+            :: Maybe AnyCardanoEra
+            -> Point (CardanoBlock StandardCrypto)
             -> m ()
-        queryLocalState pt = do
+        queryLocalState Nothing    __ = return ()
+        queryLocalState (Just era) pt = do
             mb <- timeQryAndLog "GetEraStart" tr $ localStateQueryQ `send`
-                CmdQueryLocalState pt (QueryAnytimeAllegra GetEraStart)
+                (case era of
+                    AnyCardanoEra ShelleyEra ->
+                        CmdQueryLocalState pt (QueryAnytimeShelley GetEraStart)
+                    ________________________ ->
+                        CmdQueryLocalState pt (QueryAnytimeAllegra GetEraStart)
+                )
 
-            pp <- timeQryAndLog "GetCurrentPParams" tr $ localStateQueryQ `send`
-                CmdQueryLocalState pt (QueryIfCurrentAllegra Shelley.GetCurrentPParams)
+            case era of
+                AnyCardanoEra ByronEra -> do
+                    st <- timeQryAndLog "GetUpdateInterfaceState" tr $ localStateQueryQ `send`
+                        CmdQueryLocalState pt (QueryIfCurrentByron Byron.GetUpdateInterfaceState)
+                    sequence (handleParamsUpdate protocolParametersFromUpdateState <$> mb <*> st)
+                        >>= handleAcquireFailure
 
-            sequence (handleParamsUpdate fromShelleyPParams <$> mb <*> pp)
-                >>= handleAcquireFailure
+                AnyCardanoEra ShelleyEra -> do
+                    pp <- timeQryAndLog "GetCurrentPParams" tr $ localStateQueryQ `send`
+                        (CmdQueryLocalState pt (QueryIfCurrentShelley Shelley.GetCurrentPParams))
+                    sequence (handleParamsUpdate fromShelleyPParams <$> mb <*> pp)
+                        >>= handleAcquireFailure
 
-            st <- timeQryAndLog "GetUpdateInterfaceState" tr $ localStateQueryQ `send`
-                CmdQueryLocalState pt (QueryIfCurrentByron Byron.GetUpdateInterfaceState)
-
-            sequence (handleParamsUpdate protocolParametersFromUpdateState <$> mb <*> st)
-                >>= handleAcquireFailure
+                ________________________ -> do
+                    pp <- timeQryAndLog "GetCurrentPParams" tr $ localStateQueryQ `send`
+                        (CmdQueryLocalState pt (QueryIfCurrentAllegra Shelley.GetCurrentPParams))
+                    sequence (handleParamsUpdate fromShelleyPParams <$> mb <*> pp)
+                        >>= handleAcquireFailure
 
         handleAcquireFailure
             :: Either AcquireFailure ()
@@ -726,12 +800,14 @@ mkTipSyncClient tr np localTxSubmissionQ onTipUpdate onPParamsUpdate onInterpret
              } = W.genesisParameters np
         cfg = codecConfig (W.slottingParameters np)
 
-    onTipUpdate' <- debounce @(Tip (CardanoBlock StandardCrypto)) @m $ \tip' -> do
+    onTipUpdate' <- debounce @_ @m $ \(era, tip') -> do
+        -- FIXME: Store / replace / keep track of the era and make it available
+        -- for other functions.
         let tip = castTip tip'
         traceWith tr $ MsgNodeTip $
             fromTip getGenesisBlockHash tip
-        onTipUpdate tip
-        queryLocalState (getTipPoint tip)
+        onTipUpdate (era, tip)
+        queryLocalState era (getTipPoint tip)
         -- NOTE: interpeter is updated every block. This is far more often than
         -- necessary.
         queryInterpreter (getTipPoint tip)
@@ -739,12 +815,12 @@ mkTipSyncClient tr np localTxSubmissionQ onTipUpdate onPParamsUpdate onInterpret
     pure $ nodeToClientProtocols (const $ return $ NodeToClientProtocols
         { localChainSyncProtocol =
             let
-                codec = cChainSyncCodec $ serialisedCodecs @m cfg
+                codec = cChainSyncCodec $ codecs cfg
             in
             InitiatorProtocolOnly $ MuxPeerRaw
                 $ \channel -> runPeer nullTracer codec channel
                 $ chainSyncClientPeer
-                $ chainSyncFollowTip onTipUpdate'
+                $ chainSyncFollowTip toCardanoEra (curry onTipUpdate')
 
         , localTxSubmissionProtocol =
             let
@@ -789,45 +865,73 @@ newRewardBalanceFetcher
     -- ^ Used to convert tips for logging
     -> TQueue IO (LocalStateQueryCmd (CardanoBlock StandardCrypto) IO)
     -> IO ( Observer IO W.RewardAccount W.Coin
-          , Tip (CardanoBlock StandardCrypto) -> IO ()
+          , (AnyCardanoEra, Tip (CardanoBlock StandardCrypto)) -> IO ()
             -- Call on tip-change to refresh
           )
 newRewardBalanceFetcher tr gp queryRewardQ =
     newObserver (contramap MsgObserverLog tr) fetch
   where
     fetch
-        :: Tip (CardanoBlock StandardCrypto)
+        :: (AnyCardanoEra, Tip (CardanoBlock StandardCrypto))
         -> Set W.RewardAccount
         -> IO (Maybe (Map W.RewardAccount W.Coin))
-    fetch tip accounts = do
+    fetch (era, tip) accounts = do
         liftIO $ traceWith tr $
             MsgGetRewardAccountBalance (fromTip' gp tip) accounts
-        let creds = Set.map toStakeCredential accounts
-        let q = QueryIfCurrentAllegra (Shelley.GetFilteredDelegationsAndRewardAccounts creds)
-        let cmd = CmdQueryLocalState (getTipPoint tip) q
-
-        res <- liftIO . timeQryAndLog "getAccountBalance" tr $
-            queryRewardQ `send` cmd
-        case res of
-            Right (Right (deleg, rewardAccounts)) -> do
-                liftIO $ traceWith tr $ MsgAccountDelegationAndRewards deleg rewardAccounts
-                return $ Just $ Map.mapKeys fromStakeCredential
-                    $ Map.map fromShelleyCoin rewardAccounts
-
-            Right (Left _) -> -- wrong era
-                return
-                    . Just
-                    . Map.fromList
-                    . map (, minBound)
-                    $ Set.toList accounts
-            Left acqFail -> do
-                -- NOTE: this could possibly happen in rare circumstances when
-                -- the chain is switched and the local state query is made
-                -- before the node tip variable is updated.
-                liftIO $ traceWith tr $
-                    MsgLocalStateQueryError DelegationRewardsClient $
-                    show acqFail
+        case era of
+            AnyCardanoEra ByronEra -> do
+                return (Just defaultValue)
+            AnyCardanoEra ShelleyEra -> do
+                let creds = Set.map toStakeCredential accounts
+                let q = QueryIfCurrentShelley (Shelley.GetFilteredDelegationsAndRewardAccounts creds)
+                let cmd = CmdQueryLocalState (getTipPoint tip) q
+                res <- liftIO . timeQryAndLog loggerName tr $ queryRewardQ `send` cmd
+                handleQueryResult defaultValue res
+            AnyCardanoEra AllegraEra -> do
+                let creds = Set.map toStakeCredential accounts
+                let q = QueryIfCurrentAllegra (Shelley.GetFilteredDelegationsAndRewardAccounts creds)
+                let cmd = CmdQueryLocalState (getTipPoint tip) q
+                res <- liftIO . timeQryAndLog loggerName tr $ queryRewardQ `send` cmd
+                handleQueryResult defaultValue res
+            AnyCardanoEra MaryEra -> do
+                let msg = MsgLocalStateQueryError DelegationRewardsClient "MaryEra Not implemented"
+                liftIO $ traceWith tr msg
                 return Nothing
+      where
+        defaultValue :: Map W.RewardAccount W.Coin
+        defaultValue = Map.fromList . map (, minBound) $ Set.toList accounts
+
+        loggerName :: String
+        loggerName = "getAccountBalance"
+
+    handleQueryResult
+        :: Map W.RewardAccount W.Coin
+        -> Either AcquireFailure
+            (Either
+                ( MismatchEraInfo (CardanoEras StandardCrypto))
+                ( Map (SL.Credential 'SL.Staking crypto)
+                     (SL.KeyHash 'SL.StakePool StandardCrypto)
+                , SL.RewardAccounts crypto
+                )
+            )
+        -> IO (Maybe (Map W.RewardAccount W.Coin))
+    handleQueryResult defaultValue = \case
+        Right (Right (deleg, rewardAccounts)) -> do
+            liftIO $ traceWith tr $ MsgAccountDelegationAndRewards deleg rewardAccounts
+            let convert = Map.mapKeys fromStakeCredential . Map.map fromShelleyCoin
+            return $ Just $ convert rewardAccounts
+
+        Right (Left mismatch) -> do
+            liftIO $ traceWith tr $ MsgLocalStateQueryEraMismatch mismatch
+            return (Just defaultValue)
+
+        Left acqFail -> do
+            -- NOTE: this could possibly happen in rare circumstances when
+            -- the chain is switched and the local state query is made
+            -- before the node tip variable is updated.
+            let msg = MsgLocalStateQueryError DelegationRewardsClient $ show acqFail
+            liftIO $ traceWith tr msg
+            return Nothing
 
 data ObserverLog key value
     = MsgWillFetch (Set key)

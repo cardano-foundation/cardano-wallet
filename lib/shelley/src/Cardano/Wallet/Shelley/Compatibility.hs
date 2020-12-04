@@ -29,7 +29,9 @@
 -- Conversion functions and static chain settings for Shelley.
 
 module Cardano.Wallet.Shelley.Compatibility
-    ( ShelleyEra
+    ( AnyCardanoEra(..)
+    , CardanoEra(..)
+    , ShelleyEra
     , AllegraEra
     , CardanoBlock
     , NetworkId
@@ -76,6 +78,7 @@ module Cardano.Wallet.Shelley.Compatibility
     , HasNetworkId (..)
     , fromBlockNo
     , fromCardanoBlock
+    , toCardanoEra
     , toCardanoBlockHeader
     , toShelleyBlockHeader
     , fromShelleyHash
@@ -117,7 +120,9 @@ import Cardano.Api.Shelley.Genesis
     ( ShelleyGenesis (..) )
 import Cardano.Api.Typed
     ( AllegraEra
+    , AnyCardanoEra (..)
     , AsType (..)
+    , CardanoEra (..)
     , NetworkId
     , ShelleyEra
     , StandardShelley
@@ -177,9 +182,7 @@ import Data.ByteString.Short
 import Data.Coerce
     ( coerce )
 import Data.Foldable
-    ( toList )
-import Data.Foldable
-    ( asum )
+    ( asum, toList )
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
@@ -438,6 +441,13 @@ fromCardanoBlock gp = \case
     BlockMary _blk ->
         error "TODO: fromCardanoBlock, BlockMary"
 
+toCardanoEra :: CardanoBlock c -> AnyCardanoEra
+toCardanoEra = \case
+    BlockByron{}   -> AnyCardanoEra ByronEra
+    BlockShelley{} -> AnyCardanoEra ShelleyEra
+    BlockAllegra{} -> AnyCardanoEra AllegraEra
+    BlockMary{}    -> AnyCardanoEra MaryEra
+
 fromShelleyBlock
     :: forall c. (SL.Crypto c)
     => W.GenesisParameters
@@ -689,11 +699,12 @@ fromNetworkMagic (NetworkMagic magic) =
 -- Stake pools
 --
 
-fromPoolId :: SL.KeyHash 'SL.StakePool crypto -> W.PoolId
+fromPoolId :: forall crypto. SL.KeyHash 'SL.StakePool crypto -> W.PoolId
 fromPoolId (SL.KeyHash x) = W.PoolId $ hashToBytes x
 
 fromPoolDistr
-    :: SL.PoolDistr crypto
+    :: forall crypto. ()
+    => SL.PoolDistr crypto
     -> Map W.PoolId Percentage
 fromPoolDistr =
     Map.map (unsafeMkPercentage . SL.individualPoolStake)
@@ -702,7 +713,8 @@ fromPoolDistr =
 
 -- NOTE: This function disregards results that are using staking keys
 fromNonMyopicMemberRewards
-    :: O.NonMyopicMemberRewards crypto
+    :: forall era. ()
+    => O.NonMyopicMemberRewards era
     -> Map
         (Either W.Coin W.RewardAccount)
         (Map W.PoolId (Quantity "lovelace" Word64))
@@ -711,7 +723,7 @@ fromNonMyopicMemberRewards =
     . Map.mapKeys (bimap fromShelleyCoin fromStakeCredential)
     . O.unNonMyopicMemberRewards
 
-optimumNumberOfPools :: SL.PParams era -> Int
+optimumNumberOfPools :: forall era. SL.PParams era -> Int
 optimumNumberOfPools = unsafeConvert . SL._nOpt
   where
     -- A value of ~100 can be expected, so should be fine.
