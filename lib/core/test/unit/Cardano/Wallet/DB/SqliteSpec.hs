@@ -5,6 +5,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
@@ -215,7 +216,6 @@ import Test.Hspec
     , describe
     , it
     , parallel
-    , pendingWith
     , shouldBe
     , shouldNotBe
     , shouldNotContain
@@ -563,21 +563,19 @@ fileModeSpec =  do
                 listDirectory dir `shouldReturn` mempty
 
         it "removeDatabase waits for connections to close" $ do
-            pendingWith
-                "Temporarily disabled: See https://jira.iohk.io/browse/ADP-595"
-
             withDBFactory $ \_ DBFactory{..} -> do
                 closed <- newEmptyMVar
 
                 let conn =
                         withDatabase testWid $ \(DBLayer{..} :: TestDBSeq) -> do
-                            threadDelay 500000
+                            threadDelay 500_000
                             putMVar closed ()
                 let rm = do
                         removeDatabase testWid
                         isEmptyMVar closed
 
-                concurrently conn (threadDelay 10 >> rm) `shouldReturn` ((), False)
+                concurrently conn (threadDelay 50_000 >> rm)
+                    `shouldReturn` ((), False)
 
     describe "Sqlite database file" $ do
         let writeSomething DBLayer{..} = do
