@@ -149,6 +149,8 @@ executable shelley-test-cluster
     , cardano-wallet
     , contra-tracer
     , iohk-monitoring
+    , directory
+    , filepath
     , text
     , text-class
   hs-source-dirs:

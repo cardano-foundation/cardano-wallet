@@ -347,22 +347,19 @@ withTracers
     :: ((Tracer IO TestsLog, Tracers IO) -> IO a)
     -> IO a
 withTracers action = do
-    walletMinSeverity <- walletMinSeverityFromEnv
-    testMinSeverity <- testMinSeverityFromEnv
+    let getLogOutputs getMinSev name = do
+            minSev <- getMinSev
+            logDir <- testLogDirFromEnv
+            let logToFile dir = LogToFile (dir </> name) (min minSev Info)
+            pure (LogToStdout minSev:maybe [] (pure . logToFile) logDir)
 
-    let extraOutput name = (maybe [] (\f -> [LogToFile (f </> name) Info]))
-            <$> testLogDirFromEnv
-
-    walletLogOutputs <- ([LogToStdout walletMinSeverity] ++) <$>
-        extraOutput "wallet.log"
-    testLogOutputs <- ([LogToStdout testMinSeverity] ++) <$>
-        extraOutput "test.log"
+    walletLogOutputs <- getLogOutputs walletMinSeverityFromEnv "wallet.log"
+    testLogOutputs <- getLogOutputs testMinSeverityFromEnv "test.log"
 
     withLogging walletLogOutputs $ \(_, walTr) -> do
         withLogging testLogOutputs $ \(_, testTr) -> do
             let trTests = appendName "integration" testTr
-            let tracers = setupTracers
-                    (tracerSeverities (Just Info)) walTr
+            let tracers = setupTracers (tracerSeverities (Just Info)) walTr
             action (trMessageText trTests, tracers)
 
 bracketTracer' :: Tracer IO TestsLog -> Text -> IO a -> IO a
