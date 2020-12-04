@@ -30,6 +30,8 @@ import Prelude
 
 import Cardano.Address.Derivation
     ( XPrv )
+import Cardano.Api.Typed
+    ( AnyCardanoEra )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..), Passphrase )
 import Cardano.Wallet.Primitive.CoinSelection
@@ -55,7 +57,9 @@ import GHC.Generics
 
 data TransactionLayer t k = TransactionLayer
     { mkStdTx
-        :: (XPrv, Passphrase "encryption")
+        :: AnyCardanoEra
+            -- Era for which the transaction should be created.
+        -> (XPrv, Passphrase "encryption")
             -- Reward account
         -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
             -- Key store
@@ -76,7 +80,9 @@ data TransactionLayer t k = TransactionLayer
         -- key corresponding to a particular address.
 
     , mkDelegationJoinTx
-        :: PoolId
+        :: AnyCardanoEra
+            -- Era for which the transaction should be created.
+        -> PoolId
             -- Pool Id to which we're planning to delegate
         -> (XPrv, Passphrase "encryption")
             -- Reward account
@@ -96,7 +102,9 @@ data TransactionLayer t k = TransactionLayer
         -- HD account keys are something different)
 
     , mkDelegationQuitTx
-        :: (XPrv, Passphrase "encryption")
+        :: AnyCardanoEra
+            -- Era for which the transaction should be created.
+        -> (XPrv, Passphrase "encryption")
             -- Reward account
         -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
             -- Key store
@@ -155,7 +163,9 @@ data TransactionLayer t k = TransactionLayer
       -- on its side doesn't support more than 255 inputs or outputs.
 
     , decodeSignedTx
-        :: ByteString -> Either ErrDecodeSignedTx (Tx, SealedTx)
+        :: AnyCardanoEra
+        -> ByteString
+        -> Either ErrDecodeSignedTx (Tx, SealedTx)
         -- ^ Decode an externally-signed transaction to the chain producer
     }
 
@@ -182,4 +192,7 @@ data ErrMkTx
     -- ^ We tried to sign a transaction with inputs that are unknown to us?
     | ErrConstructedInvalidTx Text
     -- ^ We failed to construct a transaction for some reasons.
+    | ErrInvalidEra AnyCardanoEra
+    -- ^ Should never happen, means that that we have programmatically provided
+    -- an invalid era.
     deriving (Eq, Show)

@@ -1627,6 +1627,7 @@ signPayment
     -> ExceptT ErrSignPayment IO (Tx, TxMeta, UTCTime, SealedTx)
 signPayment ctx wid argGenChange mkRewardAccount pwd md ttl cs = db & \DBLayer{..} -> do
     txExp <- liftIO $ getTxExpiry ti ttl
+    era <- liftIO $ currentNodeEra nl
     withRootKey @_ @s ctx wid pwd ErrSignPaymentWithRootKey $ \xprv scheme -> do
         let pwdP = preparePassphrase scheme pwd
         mapExceptT atomically $ do
@@ -1641,7 +1642,7 @@ signPayment ctx wid argGenChange mkRewardAccount pwd md ttl cs = db & \DBLayer{.
             let rewardAcnt = mkRewardAccount (xprv, pwdP)
 
             (tx, sealedTx) <- withExceptT ErrSignPaymentMkTx $ ExceptT $
-                pure $ mkStdTx tl rewardAcnt keyFrom txExp md cs'
+                pure $ mkStdTx tl era rewardAcnt keyFrom txExp md cs'
 
             (time, meta) <- liftIO $ mkTxMeta ti (currentTip cp) s' tx cs' txExp
             return (tx, meta, time, sealedTx)
@@ -1696,6 +1697,7 @@ signTx
     -> ExceptT ErrSignPayment IO (Tx, TxMeta, UTCTime, SealedTx)
 signTx ctx wid pwd md ttl (UnsignedTx inpsNE outs _change) = db & \DBLayer{..} -> do
     txExp <- liftIO $ getTxExpiry ti ttl
+    era <- liftIO $ currentNodeEra nl
     withRootKey @_ @s ctx wid pwd ErrSignPaymentWithRootKey $ \xprv scheme -> do
         let pwdP = preparePassphrase scheme pwd
         mapExceptT atomically $ do
@@ -1707,7 +1709,7 @@ signTx ctx wid pwd md ttl (UnsignedTx inpsNE outs _change) = db & \DBLayer{..} -
             let keyFrom = isOwned (getState cp) (xprv, pwdP)
             let rewardAcnt = getRawKey $ deriveRewardAccount @k pwdP xprv
             (tx, sealedTx) <- withExceptT ErrSignPaymentMkTx $ ExceptT $
-                pure $ mkStdTx tl (rewardAcnt, pwdP) keyFrom txExp md cs
+                pure $ mkStdTx tl era (rewardAcnt, pwdP) keyFrom txExp md cs
 
             (time, meta) <- liftIO $
                 mkTxMeta ti (currentTip cp) (getState cp) tx cs txExp
@@ -1811,6 +1813,7 @@ signDelegation
     -> ExceptT ErrSignDelegation IO (Tx, TxMeta, UTCTime, SealedTx)
 signDelegation ctx wid argGenChange pwd coinSel action = db & \DBLayer{..} -> do
     expirySlot <- liftIO $ getTxExpiry ti Nothing
+    era <- liftIO $ currentNodeEra nl
     withRootKey @_ @s ctx wid pwd ErrSignDelegationWithRootKey $ \xprv scheme -> do
         let pwdP = preparePassphrase scheme pwd
         mapExceptT atomically $ do
@@ -1827,14 +1830,18 @@ signDelegation ctx wid argGenChange pwd coinSel action = db & \DBLayer{..} -> do
             (tx, sealedTx) <- withExceptT ErrSignDelegationMkTx $ ExceptT $ pure $
                 case action of
                     RegisterKeyAndJoin poolId ->
-                        mkDelegationJoinTx tl poolId
+                        mkDelegationJoinTx tl
+                            era
+                            poolId
                             (rewardAcnt, pwdP)
                             keyFrom
                             expirySlot
                             coinSel'
 
                     Join poolId ->
-                        mkDelegationJoinTx tl poolId
+                        mkDelegationJoinTx tl
+                            era
+                            poolId
                             (rewardAcnt, pwdP)
                             keyFrom
                             expirySlot
@@ -1842,6 +1849,7 @@ signDelegation ctx wid argGenChange pwd coinSel action = db & \DBLayer{..} -> do
 
                     Quit ->
                         mkDelegationQuitTx tl
+                            era
                             (rewardAcnt, pwdP)
                             keyFrom
                             expirySlot
@@ -1940,8 +1948,9 @@ submitExternalTx
     -> ByteString
     -> ExceptT ErrSubmitExternalTx IO Tx
 submitExternalTx ctx bytes = do
+    era <- liftIO $ currentNodeEra nw
     (tx,binary) <- withExceptT ErrSubmitExternalTxDecode $ except $
-        decodeSignedTx tl bytes
+        decodeSignedTx tl era bytes
     withExceptT ErrSubmitExternalTxNetwork $ postTx nw binary
     return tx
   where

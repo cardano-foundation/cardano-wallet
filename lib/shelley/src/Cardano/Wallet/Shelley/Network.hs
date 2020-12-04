@@ -169,7 +169,6 @@ import Ouroboros.Consensus.Cardano
 import Ouroboros.Consensus.Cardano.Block
     ( CardanoApplyTxErr
     , CardanoEras
-    , CardanoGenTx
     , CodecConfig (..)
     , GenTx (..)
     , Query (..)
@@ -343,7 +342,7 @@ withNetworkLayer tr np addrInfo (versionData, _) action = do
             , destroyCursor = _destroyCursor
             , cursorSlotNo = _cursorSlotNo
             , getProtocolParameters = atomically $ readTVar protocolParamsVar
-            , postTx = _postSealedTx localTxSubmissionQ
+            , postTx = _postTx localTxSubmissionQ nodeEraVar
             , stakeDistribution = _stakeDistribution queryRewardQ nodeEraVar
             , getAccountBalance = \k -> liftIO $ do
                 -- TODO(#2042): Make wallets call manually, with matching
@@ -446,18 +445,38 @@ withNetworkLayer tr np addrInfo (versionData, _) action = do
     _currentNodeEra nodeEraVar =
         atomically (readTVar nodeEraVar)
 
-    _postTx localTxSubmissionQ tx = do
-        liftIO $ traceWith tr $ MsgPostTx tx
-        result <- liftIO $ localTxSubmissionQ `send` CmdSubmitTx tx
-        case result of
-            SubmitSuccess -> pure ()
-            SubmitFail err -> throwE $ ErrPostTxBadRequest $ T.pack (show err)
-
-    -- NOTE: only shelley transactions can be submitted like this, because they
+    -- NOTE1: only shelley transactions can be submitted like this, because they
     -- are deserialised as shelley transactions before submitting.
-    _postSealedTx localTxSubmissionQ tx = do
-        liftIO $ traceWith tr $ MsgPostSealedTx tx
-        _postTx localTxSubmissionQ (unsealShelleyTx GenTxAllegra tx)
+    --
+    -- NOTE2: It is not ideal to query the current era again here because we
+    -- should in practice use the same era as the one used to construct the
+    -- transaction. However, when turning transactions to 'SealedTx', we loose
+    -- all form of type-level indicator about the era. The 'SealedTx' type
+    -- shouldn't be needed anymore since we've dropped jormungandr, so we could
+    -- instead carry a transaction from cardano-api types with proper typing.
+    _postTx localTxSubmissionQ nodeEraVar tx = do
+        era <- liftIO $ atomically $ readTVar nodeEraVar
+        liftIO $ traceWith tr $ MsgPostTx tx
+        case era of
+            AnyCardanoEra ByronEra ->
+                throwE $ ErrPostTxProtocolFailure "Invalid era: Byron"
+
+            AnyCardanoEra ShelleyEra -> do
+                let cmd = CmdSubmitTx $ unsealShelleyTx GenTxShelley tx
+                result <- liftIO $ localTxSubmissionQ `send` cmd
+                case result of
+                    SubmitSuccess -> pure ()
+                    SubmitFail err -> throwE $ ErrPostTxBadRequest $ T.pack (show err)
+
+            AnyCardanoEra AllegraEra -> do
+                let cmd = CmdSubmitTx $ unsealShelleyTx GenTxAllegra tx
+                result <- liftIO $ localTxSubmissionQ `send` cmd
+                case result of
+                    SubmitSuccess -> pure ()
+                    SubmitFail err -> throwE $ ErrPostTxBadRequest $ T.pack (show err)
+
+            AnyCardanoEra MaryEra ->
+                throwE $ ErrPostTxProtocolFailure "Invalid era: Mary"
 
     _stakeDistribution queue eraVar bh coin = do
         liftIO $ traceWith tr $ MsgWillQueryRewardsForStake coin
@@ -1179,8 +1198,7 @@ data NetworkLayerLog where
     MsgFindIntersection :: [W.BlockHeader] -> NetworkLayerLog
     MsgIntersectionFound :: (W.Hash "BlockHeader") -> NetworkLayerLog
     MsgFindIntersectionTimeout :: NetworkLayerLog
-    MsgPostTx :: CardanoGenTx StandardCrypto -> NetworkLayerLog
-    MsgPostSealedTx :: W.SealedTx -> NetworkLayerLog
+    MsgPostTx :: W.SealedTx -> NetworkLayerLog
     MsgNodeTip :: W.BlockHeader -> NetworkLayerLog
     MsgProtocolParameters :: W.ProtocolParameters -> NetworkLayerLog
     MsgLocalStateQueryError :: QueryClientName -> String -> NetworkLayerLog
@@ -1240,13 +1258,9 @@ instance ToText NetworkLayerLog where
             ]
         MsgIntersectionFound point -> T.unwords
             [ "Intersection found:", pretty point ]
-        MsgPostSealedTx (W.SealedTx bytes) -> T.unwords
+        MsgPostTx (W.SealedTx bytes) -> T.unwords
             [ "Posting transaction, serialized as:"
             , T.decodeUtf8 $ convertToBase Base16 bytes
-            ]
-        MsgPostTx genTx -> T.unwords
-            [ "Posting transaction:"
-            , T.pack $ show genTx
             ]
         MsgLocalStateQuery client msg ->
             T.pack (show client <> " " <> show msg)
@@ -1315,7 +1329,6 @@ instance HasSeverityAnnotation NetworkLayerLog where
         MsgFindIntersectionTimeout         -> Warning
         MsgFindIntersection{}              -> Info
         MsgIntersectionFound{}             -> Info
-        MsgPostSealedTx{}                  -> Debug
         MsgPostTx{}                        -> Debug
         MsgLocalStateQuery{}               -> Debug
         MsgNodeTip{}                       -> Debug

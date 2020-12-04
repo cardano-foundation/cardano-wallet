@@ -55,7 +55,8 @@ module Cardano.Wallet.Shelley.Compatibility
     , toPoint
     , toCardanoTxId
     , toCardanoTxIn
-    , toCardanoTxOut
+    , toShelleyTxOut
+    , toAllegraTxOut
     , toCardanoLovelace
     , sealShelleyTx
     , toStakeKeyRegCert
@@ -1001,8 +1002,22 @@ toCardanoLovelace (W.Coin c) = Cardano.Lovelace $ safeCast c
     safeCast :: Word64 -> Integer
     safeCast = fromIntegral
 
-toCardanoTxOut :: W.TxOut -> Cardano.TxOut AllegraEra
-toCardanoTxOut (W.TxOut (W.Address addr) coin) =
+toShelleyTxOut :: W.TxOut -> Cardano.TxOut ShelleyEra
+toShelleyTxOut (W.TxOut (W.Address addr) coin) =
+    Cardano.TxOut addrInEra (adaOnly $ toCardanoLovelace coin)
+  where
+    adaOnly = Cardano.TxOutAdaOnly Cardano.AdaOnlyInShelleyEra
+    addrInEra = fromMaybe (error "toCardanoTxOut: malformed address") $
+        asum
+        [ Cardano.AddressInEra (Cardano.ShelleyAddressInEra Cardano.ShelleyBasedEraShelley)
+            <$> deserialiseFromRawBytes AsShelleyAddress addr
+
+        , Cardano.AddressInEra Cardano.ByronAddressInAnyEra
+            <$> deserialiseFromRawBytes AsByronAddress addr
+        ]
+
+toAllegraTxOut :: W.TxOut -> Cardano.TxOut AllegraEra
+toAllegraTxOut (W.TxOut (W.Address addr) coin) =
     Cardano.TxOut addrInEra (adaOnly $ toCardanoLovelace coin)
   where
     adaOnly = Cardano.TxOutAdaOnly Cardano.AdaOnlyInAllegraEra
