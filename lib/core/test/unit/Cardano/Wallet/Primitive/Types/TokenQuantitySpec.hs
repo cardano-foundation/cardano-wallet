@@ -25,7 +25,7 @@ import Data.Typeable
 import System.FilePath
     ( (</>) )
 import Test.Hspec
-    ( Spec, describe, it )
+    ( Spec, describe, it, parallel )
 import Test.Hspec.Core.QuickCheck
     ( modifyMaxSuccess )
 import Test.QuickCheck
@@ -56,7 +56,7 @@ spec =
     describe "Token quantity properties" $
     modifyMaxSuccess (const 1000) $ do
 
-    describe "Class instances obey laws" $ do
+    parallel $ describe "Class instances obey laws" $ do
         testLawsMany @TokenQuantity
             [ eqLaws
             , monoidLaws
@@ -66,7 +66,7 @@ spec =
             , showReadLaws
             ]
 
-    describe "Operations" $ do
+    parallel $ describe "Operations" $ do
 
         it "prop_negate" $
             property prop_negate
@@ -77,12 +77,12 @@ spec =
         it "prop_succ_pred" $
             property prop_succ_pred
 
-    describe "JSON serialization" $ do
+    parallel $ describe "JSON serialization" $ do
 
         describe "Roundtrip tests" $ do
             testJson $ Proxy @TokenQuantity
 
-    describe "Text serialization" $ do
+    parallel $ describe "Text serialization" $ do
 
         describe "Roundtrip tests" $ do
             textRoundtrip $ Proxy @TokenQuantity

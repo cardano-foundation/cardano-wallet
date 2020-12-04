@@ -27,7 +27,7 @@ import Data.List.NonEmpty
 import Data.Map.NonEmpty.Strict.Internal
     ( NonEmptyMap, invariantHolds )
 import Test.Hspec
-    ( Spec, describe, it )
+    ( Spec, describe, it, parallel )
 import Test.Hspec.Core.QuickCheck
     ( modifyMaxSuccess )
 import Test.QuickCheck
@@ -46,7 +46,7 @@ spec = describe "Data.Map.NonEmpty.Strict.NonEmptyMap" $
 
     modifyMaxSuccess (const 1000) $ do
 
-        describe "Class instances obey laws" $ do
+        parallel $ describe "Class instances obey laws" $ do
             testLawsMany @(NonEmptyMap Int Int)
                 [ eqLaws
                 , showLaws
@@ -57,7 +57,7 @@ spec = describe "Data.Map.NonEmpty.Strict.NonEmptyMap" $
                 , traversableLaws
                 ]
 
-        describe "Construction and deconstruction" $ do
+        parallel $ describe "Construction and deconstruction" $ do
 
             it "prop_fromList_invariant" $
                 property prop_fromList_invariant
@@ -72,7 +72,7 @@ spec = describe "Data.Map.NonEmpty.Strict.NonEmptyMap" $
             it "prop_singleton_toList" $
                 property prop_singleton_toList
 
-        describe "Modification" $ do
+        parallel $ describe "Modification" $ do
 
             it "prop_insert_invariant" $
                 property prop_insert_invariant
@@ -81,12 +81,12 @@ spec = describe "Data.Map.NonEmpty.Strict.NonEmptyMap" $
             it "prop_delete" $
                 property prop_delete
 
-        describe "Lookup" $ do
+        parallel $ describe "Lookup" $ do
 
             it "prop_lookup" $
                 property prop_lookup
 
-        describe "Combination" $ do
+        parallel $ describe "Combination" $ do
 
             it "prop_unionWith_invariant" $
                 property prop_unionWith_invariant
