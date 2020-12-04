@@ -1,4 +1,4 @@
-:warning: _in progress_ :warning:
+:warning: _in progress_ https://github.com/input-output-hk/cardano-wallet/pull/2322 :warning:
 
 It is possible to enable EKG and Prometheus monitoring on cardano-wallet server, by setting environment variables that configure ports and host names for those services:
 ```
