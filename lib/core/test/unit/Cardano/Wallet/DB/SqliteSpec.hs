@@ -215,6 +215,7 @@ import Test.Hspec
     , describe
     , it
     , parallel
+    , pendingWith
     , shouldBe
     , shouldNotBe
     , shouldNotContain
@@ -562,6 +563,9 @@ fileModeSpec =  do
                 listDirectory dir `shouldReturn` mempty
 
         it "removeDatabase waits for connections to close" $ do
+            pendingWith
+                "Temporarily disabled: See https://jira.iohk.io/browse/ADP-595"
+
             withDBFactory $ \_ DBFactory{..} -> do
                 closed <- newEmptyMVar
 
