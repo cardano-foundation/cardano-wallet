@@ -251,13 +251,6 @@ x-amount: &amount
       enum:
         - lovelace
 
-x-scriptStatus: &scriptStatus
-  type: string
-  enum:
-    - awaits_signing
-    - spent
-    - staked
-
 x-stakeAddress: &stakeAddress
   type: string
   format: bech32
@@ -1427,17 +1420,17 @@ components:
       description: Discovered script that contains our keys
       type: object
       required:
-        - script_address
+        - address
+        - script
         - our_keys
-        - funds_status
         - funds_available
       properties:
-        script_address: *AnyAddress
+        address: *anyAddress
+        script: *script
         our_keys:
           type: array
           minItems: 1
           items: *ApiVerificationKey
-        funds_status: *scriptStatus
         funds_available: *amount
 
     ApiWallet: &ApiWallet

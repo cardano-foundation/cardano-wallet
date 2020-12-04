@@ -112,7 +112,6 @@ module Cardano.Wallet.Api.Types
     , ApiWalletSignData (..)
     , ApiVerificationKey (..)
     , ApiSharedScript (..)
-    , ApiScriptStatus (..)
 
     -- * API Types (Byron)
     , ApiByronWallet (..)
@@ -527,19 +526,10 @@ data ApiCoinSelectionOutput (n :: NetworkDiscriminant) = ApiCoinSelectionOutput
     } deriving (Eq, Ord, Generic, Show)
       deriving anyclass NFData
 
--- TO-DO add AwaitsSignaturesBefore t1 and AwaitsSignaturesAfter t1
--- could also add info about how many, when spent, when staked
-data ApiScriptStatus =
-      AwaitsSigning
-    | Spent
-    | Staked
-    deriving (Eq, Generic, Show, Enum, Bounded)
-    deriving anyclass NFData
-
 data ApiSharedScript = ApiSharedScript
-    { scriptAddress :: !AnyAddress
+    { address :: !AnyAddress
+    , script :: !Script
     , ourKeys :: [ApiVerificationKey]
-    , fundsStatus :: ApiScriptStatus
     , fundsAvailable :: !(Quantity "lovelace" Natural)
     } deriving (Eq, Generic, Show)
       deriving anyclass NFData
@@ -1307,15 +1297,30 @@ instance FromJSON (ApiT AddressState) where
 instance ToJSON (ApiT AddressState) where
     toJSON = genericToJSON defaultSumTypeOptions . getApiT
 
-instance FromJSON ApiScriptStatus where
-    parseJSON = genericParseJSON defaultSumTypeOptions
-instance ToJSON ApiScriptStatus where
-    toJSON = genericToJSON defaultSumTypeOptions
-
 instance FromJSON ApiSharedScript where
-    parseJSON = genericParseJSON defaultRecordTypeOptions
+    parseJSON obj = do
+        addr <- parseFromText "AnyAddress" "address" obj
+        (scr, keys, avail) <-
+            (withObject "ApiSharedScript" $ \o -> do
+                    scr <- parseJSON <$> o .: "script"
+                    keys <- parseJSON <$> o .: "our_keys"
+                    avail <- parseJSON <$> o .: "funds_available"
+                    pure $ (scr, keys, avail)) obj
+        ApiSharedScript addr <$> scr <*> keys <*> avail
+
 instance ToJSON ApiSharedScript where
-    toJSON = genericToJSON defaultRecordTypeOptions
+    toJSON (ApiSharedScript (AnyAddress p addrType net) scr keys avail) =
+        object [ "address" .= T.decodeUtf8 (encode (EBech32 hrp) p)
+               , "script" .= toJSON scr
+               , "our_keys" .= toJSON keys
+               , "funds_available" .= toJSON avail ]
+      where
+        Right hrp = Bech32.humanReadablePartFromText (prefix <> suffix)
+        prefix = case addrType of
+                EnterpriseDelegating -> "addr"
+                RewardAccount -> "stake"
+        suffix = if net == mainnetId then "" else "_test"
+        mainnetId = 1 :: Int
 
 instance FromJSON ApiWallet where
     parseJSON = genericParseJSON defaultRecordTypeOptions

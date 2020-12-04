@@ -73,7 +73,6 @@ import Cardano.Wallet.Api.Types
     , ApiNtpStatus (..)
     , ApiPostRandomAddressData
     , ApiPutAddressesData (..)
-    , ApiScriptStatus
     , ApiSelectCoinsAction (..)
     , ApiSelectCoinsData (..)
     , ApiSelectCoinsPayments (..)
@@ -1141,18 +1140,35 @@ instance Arbitrary (Quantity "percent" Percentage) where
     shrink (Quantity p) = Quantity <$> shrinkPercentage p
     arbitrary = Quantity <$> genPercentage
 
-instance Arbitrary ApiScriptStatus where
-    arbitrary = arbitraryBoundedEnum
-
 instance Arbitrary ApiSharedScript where
     arbitrary = do
         verKeyN <- choose (1,10)
-        ApiSharedScript <$> arbitrary <*> vectorOf verKeyN arbitrary
-            <*> arbitrary <*> arbitrary
+        ApiSharedScript
+            <$> arbitrary
+            <*> arbitrary
+            <*> vectorOf verKeyN arbitrary
+            <*> arbitrary
     shrink = genericShrink
 
 instance Arbitrary ApiWallet where
-    arbitrary = genericArbitrary
+    arbitrary = do
+        nScripts <- choose (0,5)
+        ApiWallet
+            <$> arbitrary
+            <*> arbitrary
+            <*> arbitrary
+            <*> vectorOf nScripts arbitrary
+            <*> arbitrary
+            <*> arbitrary
+            <*> arbitrary
+            <*> arbitrary
+            <*> arbitrary
+    shrink = genericShrink
+
+instance {-# OVERLAPS #-} Arbitrary [ApiWallet] where
+    arbitrary = do
+        n <- choose (0,5)
+        vectorOf n arbitrary
     shrink = genericShrink
 
 instance Arbitrary ApiByronWallet where
@@ -1827,7 +1843,9 @@ instance ToSchema (ApiCoinSelection n) where
     declareNamedSchema _ = declareSchemaForDefinition "ApiCoinSelection"
 
 instance ToSchema ApiWallet where
-    declareNamedSchema _ = declareSchemaForDefinition "ApiWallet"
+    declareNamedSchema _ = do
+        addDefinition =<< declareSchemaForDefinition "ScriptValue"
+        declareSchemaForDefinition "ApiWallet"
 
 instance ToSchema ApiByronWallet where
     declareNamedSchema _ = declareSchemaForDefinition "ApiByronWallet"
@@ -1955,10 +1973,10 @@ instance ToSchema ApiNetworkParameters where
     declareNamedSchema _ = declareSchemaForDefinition "ApiNetworkParameters"
 
 instance ToSchema ApiSharedScript where
-    declareNamedSchema _ = declareSchemaForDefinition "ApiNetworkParameters"
+    declareNamedSchema _ = declareSchemaForDefinition "ApiSharedScript"
 
 instance ToSchema ApiSlotReference where
-    declareNamedSchema _ = declareSchemaForDefinition "ApiSharedScript"
+    declareNamedSchema _ = declareSchemaForDefinition "ApiSlotReference"
 
 instance ToSchema ApiBlockReference where
     declareNamedSchema _ = declareSchemaForDefinition "ApiBlockReference"
