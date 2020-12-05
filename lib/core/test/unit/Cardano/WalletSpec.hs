@@ -20,6 +20,8 @@ import Prelude
 
 import Cardano.Address.Derivation
     ( XPrv, xpubToBytes )
+import Cardano.API
+    ( AnyCardanoEra (..), CardanoEra (..) )
 import Cardano.BM.Trace
     ( nullTracer )
 import Cardano.Mnemonic
@@ -760,6 +762,8 @@ dummyNetworkLayer = NetworkLayer
         error "dummyNetworkLayer: cursorSlotNo not implemented"
     , currentNodeTip =
         pure dummyTip
+    , currentNodeEra =
+        pure (AnyCardanoEra AllegraEra)
     , getProtocolParameters =
         error "dummyNetworkLayer: getProtocolParameters not implemented"
     , postTx =
