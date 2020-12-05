@@ -64,7 +64,7 @@ import Cardano.Wallet.Primitive.Types.Tx
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
 import Cardano.Wallet.Shelley.Compatibility
-    ( ShelleyEra, fromAllegraTx, sealShelleyTx )
+    ( ShelleyEra, fromAllegraTx, fromShelleyTx, sealShelleyTx )
 import Cardano.Wallet.Shelley.Transaction
     ( TxWitnessTagFor
     , mkByronWitness
@@ -75,7 +75,7 @@ import Cardano.Wallet.Shelley.Transaction
     , _estimateMaxNumberOfInputs
     )
 import Cardano.Wallet.Transaction
-    ( TransactionLayer (..) )
+    ( ErrDecodeSignedTx (..), TransactionLayer (..) )
 import Control.Monad
     ( forM_, replicateM )
 import Control.Monad.Trans.Except
@@ -130,7 +130,10 @@ import qualified Data.Text.Encoding as T
 spec :: Spec
 spec = do
     describe "decodeSignedTx testing" $ do
-        prop "roundtrip for Shelley witnesses" prop_decodeSignedShelleyTxRoundtrip
+        prop "roundtrip for Shelley witnesses" $
+            prop_decodeSignedShelleyTxRoundtrip Cardano.ShelleyBasedEraShelley
+        prop "roundtrip for Shelley witnesses Allegra" $
+            prop_decodeSignedShelleyTxRoundtrip Cardano.ShelleyBasedEraAllegra
         prop "roundtrip for Byron witnesses" prop_decodeSignedByronTxRoundtrip
 
     estimateMaxInputsTests @ShelleyKey
@@ -391,26 +394,30 @@ estimateMaxInputsTests cases = do
             (prop_biggerMaxSizeMeansMoreInputs @k)
 
 prop_decodeSignedShelleyTxRoundtrip
-    :: DecodeShelleySetup
+    :: forall era. (Cardano.IsCardanoEra era, Cardano.IsShelleyBasedEra era)
+    => Cardano.ShelleyBasedEra era
+    -> DecodeShelleySetup
     -> Property
-prop_decodeSignedShelleyTxRoundtrip (DecodeShelleySetup utxo outs md slotNo pairs) = do
-    let era = Cardano.AnyCardanoEra Cardano.AllegraEra -- fixme: parameterise
-    let shelleyEra = Cardano.ShelleyBasedEraAllegra -- fixme: dup
-    -- let Cardano.InAnyShelleyBasedEra _ shelleyEra = era
+prop_decodeSignedShelleyTxRoundtrip shelleyEra (DecodeShelleySetup utxo outs md slotNo pairs) = do
+    let anyEra = Cardano.anyCardanoEra (Cardano.cardanoEra @era)
     let inps = Map.toList $ getUTxO utxo
     let cs = mempty { CS.inputs = inps, CS.outputs = outs }
     let Right unsigned = mkUnsignedTx shelleyEra slotNo cs md mempty []
     let addrWits = map (mkShelleyWitness unsigned) pairs
     let wits = addrWits
     let ledgerTx = Cardano.makeSignedTransaction wits unsigned
-    _decodeSignedTx era (Cardano.serialiseToCBOR ledgerTx)
-        === Right (sealShelleyTx fromAllegraTx ledgerTx)
+    let expected = case shelleyEra of
+            Cardano.ShelleyBasedEraShelley -> Right $ sealShelleyTx fromShelleyTx ledgerTx
+            Cardano.ShelleyBasedEraAllegra -> Right $ sealShelleyTx fromAllegraTx ledgerTx
+            Cardano.ShelleyBasedEraMary    -> Left ErrDecodeSignedTxNotSupported
+
+    _decodeSignedTx anyEra (Cardano.serialiseToCBOR ledgerTx) === expected
 
 prop_decodeSignedByronTxRoundtrip
     :: DecodeByronSetup
     -> Property
 prop_decodeSignedByronTxRoundtrip (DecodeByronSetup utxo outs slotNo ntwrk pairs) = do
-    let era = Cardano.AnyCardanoEra Cardano.AllegraEra -- fixme: parameterise
+    let era = Cardano.AnyCardanoEra Cardano.AllegraEra
     let shelleyEra = Cardano.ShelleyBasedEraAllegra
     let inps = Map.toList $ getUTxO utxo
     let cs = mempty { CS.inputs = inps, CS.outputs = outs }
