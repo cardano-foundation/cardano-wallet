@@ -1,6 +1,7 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE NumericUnderscores #-}
@@ -198,6 +199,9 @@ spec = do
 
         res `shouldBe` Right (FeeEstimation 166029 166029)
 
+    -- fixme: it would be nice to repeat the tests for multiple eras
+    let era = Cardano.ShelleyBasedEraAllegra
+
     describe "tx binary calculations - Byron witnesses - mainnet" $ do
         let slotNo = SlotNo 7750
             md = Nothing
@@ -208,7 +212,7 @@ spec = do
                   mkByronWitness' unsignedTx (_, (TxOut addr _)) =
                       mkByronWitness unsignedTx Cardano.Mainnet addr
                   addrWits = zipWith (mkByronWitness' unsigned) inps pairs
-                  Right unsigned = mkUnsignedTx slotNo cs md mempty []
+                  Right unsigned = mkUnsignedTx era slotNo cs md mempty []
                   cs = mempty { CS.inputs = inps, CS.outputs = outs }
                   inps = Map.toList $ getUTxO utxo
         it "1 input, 2 outputs" $ do
@@ -290,7 +294,7 @@ spec = do
                   mkByronWitness' unsignedTx (_, (TxOut addr _)) =
                       mkByronWitness unsignedTx net addr
                   addrWits = zipWith (mkByronWitness' unsigned) inps pairs
-                  Right unsigned = mkUnsignedTx slotNo cs md mempty []
+                  Right unsigned = mkUnsignedTx era slotNo cs md mempty []
                   cs = mempty { CS.inputs = inps, CS.outputs = outs }
                   inps = Map.toList $ getUTxO utxo
         it "1 input, 2 outputs" $ do
@@ -390,26 +394,31 @@ prop_decodeSignedShelleyTxRoundtrip
     :: DecodeShelleySetup
     -> Property
 prop_decodeSignedShelleyTxRoundtrip (DecodeShelleySetup utxo outs md slotNo pairs) = do
+    let era = Cardano.AnyCardanoEra Cardano.AllegraEra -- fixme: parameterise
+    let shelleyEra = Cardano.ShelleyBasedEraAllegra -- fixme: dup
+    -- let Cardano.InAnyShelleyBasedEra _ shelleyEra = era
     let inps = Map.toList $ getUTxO utxo
     let cs = mempty { CS.inputs = inps, CS.outputs = outs }
-    let Right unsigned = mkUnsignedTx slotNo cs md mempty []
+    let Right unsigned = mkUnsignedTx shelleyEra slotNo cs md mempty []
     let addrWits = map (mkShelleyWitness unsigned) pairs
     let wits = addrWits
     let ledgerTx = Cardano.makeSignedTransaction wits unsigned
-    _decodeSignedTx (Cardano.serialiseToCBOR ledgerTx)
+    _decodeSignedTx era (Cardano.serialiseToCBOR ledgerTx)
         === Right (sealShelleyTx fromAllegraTx ledgerTx)
 
 prop_decodeSignedByronTxRoundtrip
     :: DecodeByronSetup
     -> Property
 prop_decodeSignedByronTxRoundtrip (DecodeByronSetup utxo outs slotNo ntwrk pairs) = do
+    let era = Cardano.AnyCardanoEra Cardano.AllegraEra -- fixme: parameterise
+    let shelleyEra = Cardano.ShelleyBasedEraAllegra
     let inps = Map.toList $ getUTxO utxo
     let cs = mempty { CS.inputs = inps, CS.outputs = outs }
-    let Right unsigned = mkUnsignedTx slotNo cs Nothing mempty []
+    let Right unsigned = mkUnsignedTx shelleyEra slotNo cs Nothing mempty []
     let byronWits = zipWith (mkByronWitness' unsigned) inps pairs
     let ledgerTx = Cardano.makeSignedTransaction byronWits unsigned
 
-    _decodeSignedTx (Cardano.serialiseToCBOR ledgerTx)
+    _decodeSignedTx era (Cardano.serialiseToCBOR ledgerTx)
         === Right (sealShelleyTx fromAllegraTx ledgerTx)
   where
     mkByronWitness' unsigned (_, (TxOut addr _)) =

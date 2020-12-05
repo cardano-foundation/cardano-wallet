@@ -715,7 +715,7 @@ setupFixture (wid, wname, wstate) = do
 -- implements a fake signer that still produces sort of witnesses
 dummyTransactionLayer :: TransactionLayer DummyTarget ShelleyKey
 dummyTransactionLayer = TransactionLayer
-    { mkStdTx = \_ keyFrom _slot _md cs -> do
+    { mkStdTx = \_ _ keyFrom _slot _md cs -> do
         let inps' = map (second coin) (CS.inputs cs)
         let tid = mkTxId inps' (CS.outputs cs) mempty Nothing
         let tx = Tx tid inps' (CS.outputs cs) mempty Nothing
