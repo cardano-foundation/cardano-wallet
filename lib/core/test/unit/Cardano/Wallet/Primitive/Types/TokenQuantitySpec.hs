@@ -14,6 +14,8 @@ import Prelude
 
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
+import Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
+    ( genTokenQuantityMixed, shrinkTokenQuantityMixed )
 import Data.Aeson
     ( FromJSON (..), ToJSON (..) )
 import Data.Proxy
@@ -29,7 +31,7 @@ import Test.Hspec
 import Test.Hspec.Core.QuickCheck
     ( modifyMaxSuccess )
 import Test.QuickCheck
-    ( Arbitrary (..), Property, choose, elements, oneof, property, (===) )
+    ( Arbitrary (..), Property, property, (===) )
 import Test.QuickCheck.Classes
     ( eqLaws
     , monoidLaws
@@ -139,34 +141,12 @@ prop_toText_noQuotes q = property $ case text of
     text = T.unpack $ toText q
 
 --------------------------------------------------------------------------------
--- Test constants
---------------------------------------------------------------------------------
-
-smallNegativeValue :: Integer
-smallNegativeValue = Prelude.negate smallPositiveValue
-
-smallPositiveValue :: Integer
-smallPositiveValue = 100
-
-largeNegativeValue :: Integer
-largeNegativeValue = Prelude.negate largePositiveValue
-
-largePositiveValue :: Integer
-largePositiveValue = (10 :: Integer) ^ (1000 :: Integer)
-
---------------------------------------------------------------------------------
 -- Arbitrary instances
 --------------------------------------------------------------------------------
 
 instance Arbitrary TokenQuantity where
-    -- Note that we generate token quantities with a variety of magnitudes.
-    -- In particular, we need to be sure that roundtrip serialization works
-    -- with token quantities of all magnitudes.
-    arbitrary = TokenQuantity <$> oneof
-        [ elements [-1, 0, 1]
-        , elements [largeNegativeValue, largePositiveValue]
-        , choose (smallNegativeValue, smallPositiveValue)
-        , choose (largeNegativeValue, largePositiveValue)
-        ]
-    shrink (TokenQuantity q) =
-        TokenQuantity <$> shrink q
+    -- We test with token quantities of a variety of magnitudes to ensure that
+    -- roundtrip serialization works even with large values, both positive and
+    -- negative.
+    arbitrary = genTokenQuantityMixed
+    shrink = shrinkTokenQuantityMixed

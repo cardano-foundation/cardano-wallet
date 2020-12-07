@@ -90,14 +90,14 @@ import Cardano.Wallet.Primitive.Types.Address
     ( Address (..), AddressState (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..), isValidCoin )
+import Cardano.Wallet.Primitive.Types.Coin.Gen
+    ( genCoinSmall )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.HashSpec
     ()
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..) )
-import Cardano.Wallet.Primitive.Types.TokenBundleSpec
-    ()
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..)
     , Tx (..)
@@ -171,7 +171,6 @@ import Test.Hspec
     )
 import Test.QuickCheck
     ( Arbitrary (..)
-    , Gen
     , NonNegative (..)
     , NonZero (..)
     , Property
@@ -1113,10 +1112,7 @@ instance Arbitrary AddressState where
 
 instance Arbitrary Coin where
     -- No Shrinking
-    arbitrary = genSmallCoin
-
-genSmallCoin :: Gen Coin
-genSmallCoin = Coin <$> choose (0, 3)
+    arbitrary = genCoinSmall
 
 instance (Arbitrary a, Ord a) => Arbitrary (Range a) where
     arbitrary =
@@ -1156,7 +1152,7 @@ instance Arbitrary TxOut where
     -- No Shrinking
     arbitrary = TxOut
         <$> arbitrary
-        <*> fmap TB.fromCoin genSmallCoin
+        <*> fmap TB.fromCoin genCoinSmall
 
 instance Arbitrary TxIn where
     -- No Shrinking

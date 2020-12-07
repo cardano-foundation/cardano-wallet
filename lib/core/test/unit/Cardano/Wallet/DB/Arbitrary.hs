@@ -110,12 +110,14 @@ import Cardano.Wallet.Primitive.Types.Address
     ( Address (..), AddressState (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
+import Cardano.Wallet.Primitive.Types.Coin.Gen
+    ( genCoinLargePositive )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..) )
-import Cardano.Wallet.Primitive.Types.TokenBundleSpec
-    ()
+import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
+    ( genTokenBundleSmallRange )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..)
     , Tx (..)
@@ -395,7 +397,7 @@ instance Arbitrary TxIn where
 instance Arbitrary TxOut where
     arbitrary = TxOut
         <$> arbitrary
-        <*> arbitrary
+        <*> genTokenBundleSmallRange
 
 instance Arbitrary TxMeta where
     arbitrary = do
@@ -415,10 +417,7 @@ instance Arbitrary TxMetadata where
     shrink = shrinkTxMetadata
 
 instance Arbitrary Coin where
-    arbitrary = genStrictlyPositiveCoin
-
-genStrictlyPositiveCoin :: Gen Coin
-genStrictlyPositiveCoin = Coin <$> choose (1, 100_000)
+    arbitrary = genCoinLargePositive
 
 instance Arbitrary UTxO where
     shrink (UTxO u) =

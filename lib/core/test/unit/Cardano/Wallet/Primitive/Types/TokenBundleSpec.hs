@@ -9,20 +9,16 @@ module Cardano.Wallet.Primitive.Types.TokenBundleSpec
 
 import Prelude
 
-import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle
-    ( TokenBundle (..) )
-import Cardano.Wallet.Primitive.Types.TokenBundle.TokenMapSpec
-    ()
-import Control.Monad
-    ( join )
+    ( TokenBundle )
+import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
+    ( genTokenBundleSmallRange, shrinkTokenBundleSmallRange )
 import Test.Hspec
     ( Spec, describe )
 import Test.Hspec.Core.QuickCheck
     ( modifyMaxSuccess )
 import Test.QuickCheck
-    ( Arbitrary (..), Gen, choose )
+    ( Arbitrary (..) )
 import Test.QuickCheck.Classes
     ( eqLaws, semigroupLaws )
 import Test.Utils.Laws
@@ -43,19 +39,6 @@ spec =
 -- Arbitrary instances
 --------------------------------------------------------------------------------
 
-genStrictlyPositiveCoin :: Gen Coin
-genStrictlyPositiveCoin = Coin <$> choose (1, 64)
-
-shrinkStrictlyPositiveCoin :: Coin -> [Coin]
-shrinkStrictlyPositiveCoin (Coin c) = Coin <$> filter (> 0) (shrink c)
-
 instance Arbitrary TokenBundle where
-    arbitrary = TokenBundle <$> genStrictlyPositiveCoin <*> arbitrary
-    shrink TokenBundle {coin, tokens} = join
-        [ [ TokenBundle coin' tokens
-          | coin' <- shrinkStrictlyPositiveCoin coin
-          ]
-        , [ TokenBundle coin tokens'
-          | tokens' <- shrink tokens
-          ]
-        ]
+    arbitrary = genTokenBundleSmallRange
+    shrink = shrinkTokenBundleSmallRange

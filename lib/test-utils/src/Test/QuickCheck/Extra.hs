@@ -9,6 +9,7 @@
 
 module Test.QuickCheck.Extra
     ( reasonablySized
+    , shrinkInterleaved
     ) where
 
 import Prelude
@@ -36,3 +37,17 @@ import Test.QuickCheck
 --
 reasonablySized :: Gen a -> Gen a
 reasonablySized = scale (ceiling . sqrt @Double . fromIntegral)
+
+-- | Shrink the given pair in interleaved fashion.
+--
+-- Successive shrinks of the left and right hand sides are interleaved in the
+-- resulting sequence, to avoid biasing either side.
+--
+shrinkInterleaved :: (a, a -> [a]) -> (b, b -> [b]) -> [(a, b)]
+shrinkInterleaved (a, shrinkA) (b, shrinkB) = interleave
+    [ (a', b ) | a' <- shrinkA a ]
+    [ (a , b') | b' <- shrinkB b ]
+  where
+    interleave (x : xs) (y : ys) = x : y : interleave xs ys
+    interleave xs [] = xs
+    interleave [] ys = ys

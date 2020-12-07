@@ -34,10 +34,10 @@ import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
+import Cardano.Wallet.Primitive.Types.Coin.Gen
+    ( genCoinLargePositive )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
-import Cardano.Wallet.Primitive.Types.TokenBundleSpec
-    ()
 import Cardano.Wallet.Primitive.Types.Tx
     ( TxIn (..), TxOut (..), UnsignedTx (..), txOutCoin )
 import Cardano.Wallet.Primitive.Types.UTxO
@@ -46,6 +46,8 @@ import Control.Monad.Trans.Except
     ( ExceptT, runExceptT )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
+import Data.Maybe
+    ( catMaybes )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Vector.Shuffle
@@ -324,6 +326,12 @@ instance Arbitrary CoinSelectionOptions where
 instance Show CoinSelectionOptions where
     show _ = "CoinSelectionOptions"
 
+instance Arbitrary a => Arbitrary (NonEmpty a) where
+    shrink xs = catMaybes (NE.nonEmpty <$> shrink (NE.toList xs))
+    arbitrary = do
+        n <- choose (1, 10)
+        NE.fromList <$> vector n
+
 instance Arbitrary CoinSelProp where
     shrink (CoinSelProp utxo wdrl outs) =
         [ CoinSelProp utxo' wdrl outs | utxo' <- shrink utxo ]
@@ -371,10 +379,7 @@ instance Arbitrary Address where
 
 instance Arbitrary Coin where
     -- No Shrinking
-    arbitrary = genStrictlyPositiveCoin
-
-genStrictlyPositiveCoin :: Gen Coin
-genStrictlyPositiveCoin = Coin <$> choose (1, 100_000)
+    arbitrary = genCoinLargePositive
 
 instance Arbitrary TxIn where
     -- No Shrinking
@@ -393,7 +398,7 @@ instance Arbitrary TxOut where
     -- No Shrinking
     arbitrary = TxOut
         <$> arbitrary
-        <*> fmap TB.fromCoin genStrictlyPositiveCoin
+        <*> fmap TB.fromCoin genCoinLargePositive
 
 instance Arbitrary UTxO where
     shrink (UTxO utxo) = UTxO <$> shrink utxo

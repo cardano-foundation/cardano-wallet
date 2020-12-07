@@ -52,14 +52,14 @@ import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
+import Cardano.Wallet.Primitive.Types.Coin.Gen
+    ( genCoinLargePositive, shrinkCoinLargePositive )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle
-    ( AssetId (..), TokenBundle )
-import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( TokenName, TokenPolicyId )
-import Cardano.Wallet.Primitive.Types.TokenQuantity
-    ( TokenQuantity (..) )
+    ( TokenBundle )
+import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
+    ( genTokenBundleSmallRange, shrinkTokenBundleSmallRange )
 import Cardano.Wallet.Primitive.Types.Tx
     ( TxIn (..)
     , TxMetadata (..)
@@ -82,8 +82,6 @@ import Cardano.Wallet.Shelley.Transaction
     )
 import Cardano.Wallet.Transaction
     ( ErrDecodeSignedTx (..), TransactionLayer (..) )
-import Cardano.Wallet.Unsafe
-    ( unsafeFromHex )
 import Control.Monad
     ( forM_, replicateM )
 import Control.Monad.Trans.Except
@@ -108,10 +106,8 @@ import Test.Hspec.QuickCheck
     ( prop )
 import Test.QuickCheck
     ( Arbitrary (..)
-    , Gen
     , InfiniteList (..)
     , Property
-    , Small (..)
     , arbitraryPrintableChar
     , choose
     , classify
@@ -130,7 +126,6 @@ import qualified Cardano.Api.Typed as Cardano
 import qualified Cardano.Wallet.Primitive.CoinSelection as CS
 import qualified Cardano.Wallet.Primitive.CoinSelection.Random as CS
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TB
-import qualified Cardano.Wallet.Primitive.Types.TokenPolicy as TP
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
@@ -560,61 +555,17 @@ instance Arbitrary (Hash "Tx") where
 -- transactions.
 --
 instance Arbitrary Coin where
-    arbitrary = genStrictlyPositiveCoin
-    shrink = shrinkStrictlyPositiveCoin
-
-genStrictlyPositiveCoin :: Gen Coin
-genStrictlyPositiveCoin = Coin <$> choose (1, 200_000)
-
-shrinkStrictlyPositiveCoin :: Coin -> [Coin]
-shrinkStrictlyPositiveCoin (Coin c) = Coin <$> filter (> 0) (shrink c)
+    arbitrary = genCoinLargePositive
+    shrink = shrinkCoinLargePositive
 
 instance Arbitrary TxOut where
-    arbitrary = TxOut addr <$> arbitrary
+    arbitrary = TxOut addr <$> genTokenBundleSmallRange
       where
         addr = Address $ BS.pack (1:replicate 64 0)
 
-instance Arbitrary AssetId where
-    arbitrary = AssetId <$> arbitrary <*> arbitrary
-
 instance Arbitrary TokenBundle where
-    arbitrary = TB.fromFlatList <$> arbitrary <*> arbitrary
-    shrink b = uncurry TB.fromFlatList <$> shrink (TB.toFlatList b)
-
-instance Arbitrary TokenName where
-    -- We generate token names from a small range in order to increase the
-    -- chance of collisions, which are useful.
-    arbitrary = mkTokenName <$> elements ['A' .. 'D']
-      where
-        mkTokenName = TP.mkTokenName . ("Token" `T.snoc`)
-
-instance Arbitrary TokenPolicyId where
-    -- We generate token policy identifiers from a small range in order to
-    -- increase the chance of collisions, which are useful.
-    arbitrary = dummyTokenPolicyId <$> elements ['A' .. 'D']
-
-dummyTokenPolicyId :: Char -> TokenPolicyId
-dummyTokenPolicyId
-    = TP.mkTokenPolicyId
-    . unsafeFromHex
-    . B8.replicate tokenPolicyIdHexStringLength
-
-tokenPolicyIdHexStringLength :: Int
-tokenPolicyIdHexStringLength = 56
-
-instance Arbitrary TokenQuantity where
-
-    -- We generate small token quantities in order to increase the chance of
-    -- generating zero-valued tokens, either directly (through the generator
-    -- itself), or indirectly (as the result of operations that adjust or
-    -- combine existing token bundles).
-    --
-    -- The generation of zero-valued tokens is useful, as it allows us to
-    -- verify that the token bundle invariant (that a bundle contains no
-    -- zero-valued tokens) is maintained.
-
-    arbitrary = TokenQuantity . getSmall <$> arbitrary
-    shrink (TokenQuantity q) = TokenQuantity <$> shrink q
+    arbitrary = genTokenBundleSmallRange
+    shrink = shrinkTokenBundleSmallRange
 
 instance Arbitrary TxMetadata where
     arbitrary = TxMetadata <$> arbitrary
