@@ -178,6 +178,7 @@
             (hsPkgs."hspec" or (errorHandler.buildDepError "hspec"))
             (hsPkgs."http-client" or (errorHandler.buildDepError "http-client"))
             (hsPkgs."iohk-monitoring" or (errorHandler.buildDepError "iohk-monitoring"))
+            (hsPkgs."lobemo-backend-ekg" or (errorHandler.buildDepError "lobemo-backend-ekg"))
             (hsPkgs."text" or (errorHandler.buildDepError "text"))
             (hsPkgs."text-class" or (errorHandler.buildDepError "text-class"))
             ];
