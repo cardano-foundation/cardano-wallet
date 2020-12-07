@@ -174,7 +174,7 @@ buildStep dryRun bk nightly = do
                 QuickTest -> skip "integration"
                 FullTest -> mempty
                 NightlyTest -> mempty
-            , ta (jobs 8)
+            , ta (jobs 3)
             , args
             ]
 

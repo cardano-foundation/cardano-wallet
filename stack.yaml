@@ -1,4 +1,4 @@
-resolver: cardano-1.22.1.yaml # Contains tweaked consensus revision with unsafeExtendSafeZone
+resolver: https://raw.githubusercontent.com/input-output-hk/cardano-haskell/940b9e4bb23fb7c38ce54a7b29174bf49d9390d8/snapshots/cardano-1.24.1.yaml
 
 packages:
 - lib/core
@@ -64,7 +64,7 @@ extra-deps:
 
 # cardano-transactions master branch
 - git: https://github.com/input-output-hk/cardano-transactions
-  commit: 9fd020c934cd9ff5a0d82613ef8f85a1889f0c6a
+  commit: efc3914f950438b70ebe20919bf6c0ecf93b3bbc
 
 flags:
   # Avoid a system library which causes difficulty with cross-compilation
@@ -75,6 +75,10 @@ flags:
   # This still requires the host system to have the 'standard' libsodium installed.
   cardano-crypto-praos:
     external-libsodium-vrf: false
+
+  # Disables highly inconvenient -Werror=deprecations flag
+  cardano-ledger:
+    development: true
 
   # Using RDRAND instead of /dev/urandom as an entropy source for key
   # generation is dubious. Set the flag so we use /dev/urandom by default.

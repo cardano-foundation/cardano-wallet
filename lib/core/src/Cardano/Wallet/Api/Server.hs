@@ -2433,6 +2433,15 @@ instance LiftHandler ErrMkTx where
                 , "input address I should keep track of: ", showT addr, ". "
                 , "Retrying may work, but something really went wrong..."
                 ]
+        ErrConstructedInvalidTx hint ->
+            apiError err500 CreatedInvalidTransaction hint
+        ErrInvalidEra _era ->
+            apiError err500 CreatedInvalidTransaction $ mconcat
+                [ "Whoops, it seems like I just experienced a hard-fork in the "
+                , "middle of other tasks. This is a pretty rare situation but "
+                , "as a result, I must throw-away what I was doing. Please "
+                , "retry whatever you were doing in a short delay."
+                ]
 
 instance LiftHandler ErrSignPayment where
     handler = \case

@@ -35,7 +35,7 @@ import Cardano.Wallet.Shelley
     , tracerSeverities
     )
 import Cardano.Wallet.Shelley.Compatibility
-    ( Shelley )
+    ( ShelleyEra )
 import Cardano.Wallet.Shelley.Launch
     ( ClusterLog (..)
     , RunningNode (..)
@@ -49,7 +49,6 @@ import Cardano.Wallet.Shelley.Launch
     , walletMinSeverityFromEnv
     , withCluster
     , withSystemTempDir
-    , withTempDir
     )
 import Control.Arrow
     ( first )
@@ -63,6 +62,10 @@ import Data.Text
     ( Text )
 import Data.Text.Class
     ( ToText (..) )
+import System.Directory
+    ( createDirectory )
+import System.FilePath
+    ( (</>) )
 import System.IO
     ( BufferMode (..), hSetBuffering, stdout )
 import Test.Integration.Faucet
@@ -198,20 +201,19 @@ main = withUtf8Encoding $ do
     walletMinSeverity  <- walletMinSeverityFromEnv
     clusterMinSeverity <- testMinSeverityFromEnv
 
-    let walletLogs =
-            [ LogToStdout walletMinSeverity
-            ]
-
     let clusterLogs =
             [ LogToStdout clusterMinSeverity
             ]
+    let walletLogs dir =
+            [ LogToStdout walletMinSeverity
+            , LogToFile (dir </> "wallet.log")
+                (min walletMinSeverity Info)
+            ]
 
     poolConfigs <- poolConfigsFromEnv
-    withLoggingNamed "cardano-wallet" walletLogs
-        $ \(_, trWallet) -> withLoggingNamed "test-cluster" clusterLogs
-        $ \(_, trCluster) -> withSystemTempDir (trMessageText trCluster) "testCluster"
-        $ \dir -> withTempDir (trMessageText trCluster) dir "wallets"
-        $ \db -> withCluster
+    withLoggingNamed "test-cluster" clusterLogs $ \(_, trCluster) ->
+        withSystemTempDir (trMessageText trCluster) "test-cluster" $ \dir ->
+        withCluster
             (contramap MsgCluster $ trMessageText trCluster)
             nodeMinSeverity
             poolConfigs
@@ -219,7 +221,7 @@ main = withUtf8Encoding $ do
             Nothing
             whenByron
             (whenShelley dir (trMessageText trCluster))
-            (whenReady trWallet (trMessageText trCluster) db)
+            (whenReady dir (trMessageText trCluster) (walletLogs dir))
   where
     whenByron _ = pure ()
 
@@ -233,23 +235,26 @@ main = withUtf8Encoding $ do
         sendFaucetFundsTo trCluster' dir addresses
         moveInstantaneousRewardsTo trCluster' dir rewards
 
-    whenReady tr trCluster db (RunningNode socketPath block0 (gp, vData)) = do
-        let tracers = setupTracers (tracerSeverities (Just Info)) tr
-        listen <- walletListenFromEnv
-        void $ serveWallet @(IO Shelley)
-            (SomeNetworkDiscriminant $ Proxy @'Mainnet)
-            tracers
-            (SyncTolerance 10)
-            (Just db)
-            Nothing
-            "127.0.0.1"
-            listen
-            Nothing
-            Nothing
-            socketPath
-            block0
-            (gp, vData)
-            (traceWith trCluster . MsgBaseUrl . T.pack . show)
+    whenReady dir trCluster logs (RunningNode socketPath block0 (gp, vData)) =
+        withLoggingNamed "cardano-wallet" logs $ \(_, tr) -> do
+            let tracers = setupTracers (tracerSeverities (Just Info)) tr
+            let db = dir </> "wallets"
+            createDirectory db
+            listen <- walletListenFromEnv
+            void $ serveWallet @(IO ShelleyEra)
+                (SomeNetworkDiscriminant $ Proxy @'Mainnet)
+                tracers
+                (SyncTolerance 10)
+                (Just db)
+                Nothing
+                "127.0.0.1"
+                listen
+                Nothing
+                Nothing
+                socketPath
+                block0
+                (gp, vData)
+                (traceWith trCluster . MsgBaseUrl . T.pack . show)
 
 -- Logging
 

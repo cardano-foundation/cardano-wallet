@@ -40,6 +40,8 @@ module Cardano.Wallet.Network
 
 import Prelude
 
+import Cardano.Api.Typed
+    ( AnyCardanoEra )
 import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
@@ -138,6 +140,10 @@ data NetworkLayer m target block = NetworkLayer
     , currentNodeTip
         :: ExceptT ErrCurrentNodeTip m BlockHeader
         -- ^ Get the current tip from the chain producer
+        --
+    , currentNodeEra
+        :: IO AnyCardanoEra
+        -- ^ Get the era the node is currently in.
 
     , watchNodeTip
         :: (BlockHeader -> m ())

@@ -61,6 +61,8 @@
             (hsPkgs."cardano-binary" or (errorHandler.buildDepError "cardano-binary"))
             (hsPkgs."cardano-crypto-wrapper" or (errorHandler.buildDepError "cardano-crypto-wrapper"))
             (hsPkgs."cardano-ledger" or (errorHandler.buildDepError "cardano-ledger"))
+            (hsPkgs."cardano-ledger-shelley-ma" or (errorHandler.buildDepError "cardano-ledger-shelley-ma"))
+            (hsPkgs."cardano-prelude" or (errorHandler.buildDepError "cardano-prelude"))
             (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
             (hsPkgs."contra-tracer" or (errorHandler.buildDepError "contra-tracer"))
             (hsPkgs."directory" or (errorHandler.buildDepError "directory"))
@@ -82,8 +84,8 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/ouroboros-network";
-      rev = "7753b7775a3fdcec50a147eb0ecb8b4bac5f0e65";
-      sha256 = "0bgi494ywb211yxj9bs3j6xbrvq1ndp6hj7xbxar7hhcr74kf1z7";
+      rev = "c2bd6814e231bfd48059f306ef486b830e524aa8";
+      sha256 = "0sjp5i4szp5nf1dkwang5w8pydjx5p22by8wisihs1410rxgwd7n";
       });
     postUnpack = "sourceRoot+=/ouroboros-consensus-cardano; echo source root reset to \$sourceRoot";
     }

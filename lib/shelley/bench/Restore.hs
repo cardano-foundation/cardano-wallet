@@ -134,7 +134,7 @@ import Cardano.Wallet.Shelley
 import Cardano.Wallet.Shelley.Compatibility
     ( HasNetworkId (..)
     , NodeVersionData
-    , Shelley
+    , ShelleyEra
     , emptyGenesis
     , fromCardanoBlock
     )
@@ -416,7 +416,7 @@ instance ToJSON BenchRndResults where
 benchmarksRnd
     :: forall (n :: NetworkDiscriminant) s t k p.
         ( s ~ RndAnyState n p
-        , t ~ IO Shelley
+        , t ~ IO ShelleyEra
         , k ~ ByronKey
         , PaymentAddress n k
         , NetworkDiscriminantVal n
@@ -504,7 +504,7 @@ instance ToJSON BenchSeqResults where
 benchmarksSeq
     :: forall (n :: NetworkDiscriminant) s t k p.
         ( s ~ SeqAnyState n k p
-        , t ~ IO Shelley
+        , t ~ IO ShelleyEra
         , k ~ ShelleyKey
         , PaymentAddress n k
         , NetworkDiscriminantVal n
@@ -568,7 +568,7 @@ bench_restoration
         , NetworkDiscriminantVal n
         , HasNetworkId n
         , TxWitnessTagFor k
-        , t ~ IO Shelley
+        , t ~ IO ShelleyEra
         , Buildable results
         , ToJSON results
         )
@@ -587,7 +587,7 @@ bench_restoration
 bench_restoration proxy tr socket np vData benchname wallets traceToDisk targetSync benchmarks = do
     putStrLn $ "*** " ++ T.unpack benchname
     let networkId = networkIdVal proxy
-    let tl = newTransactionLayer @k @(IO Shelley) networkId
+    let tl = newTransactionLayer @k @(IO ShelleyEra) networkId
     withNetworkLayer nullTracer np socket vData $ \nw' -> do
         let gp = genesisParameters np
         let convert = fromCardanoBlock gp
@@ -751,7 +751,7 @@ waitForWalletsSyncTo targetSync tr proxy walletLayer wids gp vData = do
 waitForNodeSync
     :: forall n. (NetworkDiscriminantVal n)
     => Tracer IO (BenchmarkLog n)
-    -> NetworkLayer IO (IO Shelley) Block
+    -> NetworkLayer IO (IO ShelleyEra) Block
     -> IO SlotNo
 waitForNodeSync tr nw = loop 10
   where

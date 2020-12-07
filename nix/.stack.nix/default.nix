@@ -26,6 +26,7 @@
         "base-compat-batteries" = (((hackage.base-compat-batteries)."0.11.2").revisions).default;
         "indexed-profunctors" = (((hackage.indexed-profunctors)."0.1").revisions).default;
         "base16" = (((hackage.base16)."0.1.2.1").revisions).default;
+        "base16-bytestring" = (((hackage.base16-bytestring)."1.0.1.0").revisions).default;
         "base58-bytestring" = (((hackage.base58-bytestring)."0.1.0").revisions).default;
         "base64" = (((hackage.base64)."0.4.2").revisions).default;
         "bech32" = (((hackage.bech32)."1.1.0").revisions).default;
@@ -56,7 +57,7 @@
         "libsystemd-journal" = (((hackage.libsystemd-journal)."1.4.4").revisions).default;
         "micro-recursion-schemes" = (((hackage.micro-recursion-schemes)."5.0.2.2").revisions).default;
         "moo" = (((hackage.moo)."1.2").revisions).default;
-        "network" = (((hackage.network)."3.1.1.1").revisions).default;
+        "network" = (((hackage.network)."3.1.2.1").revisions).default;
         "partial-order" = (((hackage.partial-order)."0.2.0.0").revisions).default;
         "primitive" = (((hackage.primitive)."0.7.1.0").revisions).default;
         "prometheus" = (((hackage.prometheus)."2.1.2").revisions).default;
@@ -64,17 +65,21 @@
         "quickcheck-instances" = (((hackage.quickcheck-instances)."0.3.19").revisions).default;
         "QuickCheck" = (((hackage.QuickCheck)."2.12.6.1").revisions).default;
         "quiet" = (((hackage.quiet)."0.2").revisions).default;
+        "semialign" = (((hackage.semialign)."1.1.0.1").revisions).default;
         "snap-core" = (((hackage.snap-core)."1.0.4.1").revisions).default;
         "snap-server" = (((hackage.snap-server)."1.1.1.1").revisions).default;
         "sop-core" = (((hackage.sop-core)."0.5.0.1").revisions).default;
         "statistics-linreg" = (((hackage.statistics-linreg)."0.3").revisions).default;
-        "streaming-binary" = (((hackage.streaming-binary)."0.3.0.1").revisions).default;
+        "streaming-binary" = (((hackage.streaming-binary)."0.2.2.0").revisions).default;
+        "streaming-bytestring" = (((hackage.streaming-bytestring)."0.2.0").revisions).default;
         "systemd" = (((hackage.systemd)."2.3.0").revisions).default;
         "tasty-hedgehog" = (((hackage.tasty-hedgehog)."1.0.0.2").revisions).default;
         "text" = (((hackage.text)."1.2.4.0").revisions).default;
         "text-ansi" = (((hackage.text-ansi)."0.1.0").revisions).default;
+        "text-conversions" = (((hackage.text-conversions)."0.3.1").revisions).default;
         "text-zipper" = (((hackage.text-zipper)."0.10.1").revisions).default;
         "th-lift-instances" = (((hackage.th-lift-instances)."0.1.14").revisions).default;
+        "these" = (((hackage.these)."1.1.1.1").revisions).default;
         "time-units" = (((hackage.time-units)."1.0.0").revisions).default;
         "transformers-except" = (((hackage.transformers-except)."0.1.1").revisions).default;
         "unordered-containers" = (((hackage.unordered-containers)."0.2.12.0").revisions).default;
@@ -115,6 +120,7 @@
         shelley-spec-ledger-test = ./shelley-spec-ledger-test.nix;
         cardano-ledger-shelley-ma = ./cardano-ledger-shelley-ma.nix;
         cardano-api = ./cardano-api.nix;
+        cardano-api-test = ./cardano-api-test.nix;
         cardano-cli = ./cardano-cli.nix;
         cardano-config = ./cardano-config.nix;
         cardano-node = ./cardano-node.nix;
@@ -160,6 +166,9 @@
             flags = { "external-libsodium-vrf" = lib.mkOverride 900 false; };
             };
           "zip" = { flags = { "disable-bzip2" = lib.mkOverride 900 true; }; };
+          "cardano-ledger" = {
+            flags = { "development" = lib.mkOverride 900 true; };
+            };
           "cryptonite" = {
             flags = { "support_rdrand" = lib.mkOverride 900 false; };
             };

@@ -183,6 +183,7 @@ spec = describe "API Server" $ do
         , initCursor = error "initCursor: not implemented"
         , destroyCursor = error "destroyCursor: not implemented"
         , cursorSlotNo = error "cursorSlotNo: not implemented"
+        , currentNodeEra = error "currentNodeEra: not implemented"
         , currentNodeTip = return $
                 BlockHeader
                     sl

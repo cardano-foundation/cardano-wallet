@@ -36,7 +36,7 @@
         buildable = true;
         };
       tests = {
-        "test-sim" = {
+        "test" = {
           depends = [
             (hsPkgs."base" or (errorHandler.buildDepError "base"))
             (hsPkgs."array" or (errorHandler.buildDepError "array"))
@@ -55,8 +55,8 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/ouroboros-network";
-      rev = "7753b7775a3fdcec50a147eb0ecb8b4bac5f0e65";
-      sha256 = "0bgi494ywb211yxj9bs3j6xbrvq1ndp6hj7xbxar7hhcr74kf1z7";
+      rev = "c2bd6814e231bfd48059f306ef486b830e524aa8";
+      sha256 = "0sjp5i4szp5nf1dkwang5w8pydjx5p22by8wisihs1410rxgwd7n";
       });
     postUnpack = "sourceRoot+=/io-sim; echo source root reset to \$sourceRoot";
     }

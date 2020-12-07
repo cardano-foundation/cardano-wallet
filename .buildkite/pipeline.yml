@@ -34,14 +34,6 @@ steps:
     agents:
       system: x86_64-linux
 
-  - label: 'Check Cabal Configure'
-    command:
-      - 'nix-shell nix/cabal-shell.nix --run "cabal v2-update"'
-      - 'nix-shell nix/cabal-shell.nix --run "cabal v2-configure --enable-tests --enable-benchmarks"'
-      - 'nix-shell nix/cabal-shell.nix --run "cabal v2-configure -frelease --enable-tests --enable-benchmarks"'
-    agents:
-      system: x86_64-linux
-
   - label: 'Check auto-generated Nix'
     command: './nix/regenerate.sh && nix-build ./nix -A iohkNix.checkStackProject -o check-stack-project.sh && ./check-stack-project.sh'
     agents:

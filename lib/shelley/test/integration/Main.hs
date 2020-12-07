@@ -48,7 +48,7 @@ import Cardano.Wallet.Shelley
     , tracerSeverities
     )
 import Cardano.Wallet.Shelley.Compatibility
-    ( Shelley )
+    ( ShelleyEra )
 import Cardano.Wallet.Shelley.Faucet
     ( initFaucet )
 import Cardano.Wallet.Shelley.Launch
@@ -70,11 +70,11 @@ import Cardano.Wallet.Shelley.Launch
 import Control.Arrow
     ( first )
 import Control.Concurrent.Async
-    ( race )
+    ( AsyncCancelled, race )
 import Control.Concurrent.MVar
     ( newEmptyMVar, putMVar, takeMVar )
 import Control.Exception
-    ( throwIO )
+    ( SomeException, fromException, handle, throwIO )
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Tracer
@@ -138,10 +138,10 @@ import qualified Test.Integration.Scenario.CLI.Shelley.Transactions as Transacti
 import qualified Test.Integration.Scenario.CLI.Shelley.Wallets as WalletsCLI
 
 -- | Define the actual executable name for the bridge CLI
-instance KnownCommand Shelley where
+instance KnownCommand ShelleyEra where
     commandName = "cardano-wallet"
 
-main :: forall t n . (t ~ Shelley, n ~ 'Mainnet) => IO ()
+main :: forall t n . (t ~ ShelleyEra, n ~ 'Mainnet) => IO ()
 main = withUtf8Encoding $ withTracers $ \tracers -> do
     hSetBuffering stdout LineBuffering
     setDefaultFilePermissions
@@ -190,11 +190,11 @@ main = withUtf8Encoding $ withTracers $ \tracers -> do
 
 specWithServer
     :: (Tracer IO TestsLog, Tracers IO)
-    -> SpecWith (Context Shelley)
+    -> SpecWith (Context ShelleyEra)
     -> Spec
 specWithServer (tr, tracers) = aroundAll withContext
   where
-    withContext :: (Context Shelley -> IO ()) -> IO ()
+    withContext :: (Context ShelleyEra -> IO ()) -> IO ()
     withContext action = bracketTracer' tr "withContext" $ do
         ctx <- newEmptyMVar
         poolGarbageCollectionEvents <- newIORef []
@@ -275,12 +275,11 @@ specWithServer (tr, tracers) = aroundAll withContext
                 concatMap genRewardAccounts mirMnemonics
         moveInstantaneousRewardsTo tr' dir rewards
 
-    onClusterStart
-        action dir dbDecorator (RunningNode socketPath block0 (gp, vData)) = do
+    onClusterStart action dir dbDecorator node = do
         -- NOTE: We may want to keep a wallet running across the fork, but
         -- having three callbacks like this might not work well for that.
-        withTempDir tr' dir "wallets" $ \db -> do
-            serveWallet @(IO Shelley)
+        withTempDir tr' dir "wallets" $ \db -> handle onClusterExit $
+            serveWallet @(IO ShelleyEra)
                 (SomeNetworkDiscriminant $ Proxy @'Mainnet)
                 tracers
                 (SyncTolerance 10)
@@ -294,6 +293,13 @@ specWithServer (tr, tracers) = aroundAll withContext
                 block0
                 (gp, vData)
                 (action gp)
+      where
+        RunningNode socketPath block0 (gp, vData) = node
+
+    onClusterExit e =
+        case fromException e of
+            Just (_ :: AsyncCancelled) -> throwIO e
+            _ -> traceWith tr (MsgServerError e) >> throwIO e
 
 {-------------------------------------------------------------------------------
                                     Logging
@@ -305,6 +311,7 @@ data TestsLog
     | MsgSettingUpFaucet
     | MsgCluster ClusterLog
     | MsgPoolGarbageCollectionEvent PoolGarbageCollectionEvent
+    | MsgServerError SomeException
     deriving (Show)
 
 instance ToText TestsLog where
@@ -324,6 +331,7 @@ instance ToText TestsLog where
                     , T.unwords (T.pack . show <$> ps)
                     ]
             ]
+        MsgServerError e -> T.pack (show e)
 
 instance HasPrivacyAnnotation TestsLog
 instance HasSeverityAnnotation TestsLog where
@@ -333,27 +341,25 @@ instance HasSeverityAnnotation TestsLog where
         MsgBaseUrl _ -> Notice
         MsgCluster msg -> getSeverityAnnotation msg
         MsgPoolGarbageCollectionEvent _ -> Info
+        MsgServerError{} -> Critical
 
 withTracers
     :: ((Tracer IO TestsLog, Tracers IO) -> IO a)
     -> IO a
 withTracers action = do
-    walletMinSeverity <- walletMinSeverityFromEnv
-    testMinSeverity <- testMinSeverityFromEnv
+    let getLogOutputs getMinSev name = do
+            minSev <- getMinSev
+            logDir <- testLogDirFromEnv
+            let logToFile dir = LogToFile (dir </> name) (min minSev Info)
+            pure (LogToStdout minSev:maybe [] (pure . logToFile) logDir)
 
-    let extraOutput name = (maybe [] (\f -> [LogToFile (f </> name) Info]))
-            <$> testLogDirFromEnv
-
-    walletLogOutputs <- ([LogToStdout walletMinSeverity] ++) <$>
-        extraOutput "wallet.log"
-    testLogOutputs <- ([LogToStdout testMinSeverity] ++) <$>
-        extraOutput "test.log"
+    walletLogOutputs <- getLogOutputs walletMinSeverityFromEnv "wallet.log"
+    testLogOutputs <- getLogOutputs testMinSeverityFromEnv "test.log"
 
     withLogging walletLogOutputs $ \(_, walTr) -> do
         withLogging testLogOutputs $ \(_, testTr) -> do
             let trTests = appendName "integration" testTr
-            let tracers = setupTracers
-                    (tracerSeverities (Just Info)) walTr
+            let tracers = setupTracers (tracerSeverities (Just Info)) walTr
             action (trMessageText trTests, tracers)
 
 bracketTracer' :: Tracer IO TestsLog -> Text -> IO a -> IO a

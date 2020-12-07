@@ -12,7 +12,7 @@
     package = {
       specVersion = "1.8";
       identifier = { name = "shelley-spec-ledger-test"; version = "0.1.0.0"; };
-      license = "NONE";
+      license = "Apache-2.0";
       copyright = "";
       maintainer = "formal.methods@iohk.io";
       author = "IOHK Formal Methods Team";
@@ -39,7 +39,6 @@
           (hsPkgs."cardano-crypto-test" or (errorHandler.buildDepError "cardano-crypto-test"))
           (hsPkgs."cardano-crypto-wrapper" or (errorHandler.buildDepError "cardano-crypto-wrapper"))
           (hsPkgs."cardano-crypto" or (errorHandler.buildDepError "cardano-crypto"))
-          (hsPkgs."cardano-ledger-shelley-ma" or (errorHandler.buildDepError "cardano-ledger-shelley-ma"))
           (hsPkgs."cardano-ledger-test" or (errorHandler.buildDepError "cardano-ledger-test"))
           (hsPkgs."cardano-ledger" or (errorHandler.buildDepError "cardano-ledger"))
           (hsPkgs."cardano-prelude-test" or (errorHandler.buildDepError "cardano-prelude-test"))
@@ -84,10 +83,10 @@
             (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
             (hsPkgs."cardano-binary" or (errorHandler.buildDepError "cardano-binary"))
             (hsPkgs."cardano-crypto-class" or (errorHandler.buildDepError "cardano-crypto-class"))
+            (hsPkgs."cardano-crypto-praos" or (errorHandler.buildDepError "cardano-crypto-praos"))
             (hsPkgs."cardano-crypto-test" or (errorHandler.buildDepError "cardano-crypto-test"))
             (hsPkgs."cardano-crypto-wrapper" or (errorHandler.buildDepError "cardano-crypto-wrapper"))
             (hsPkgs."cardano-crypto" or (errorHandler.buildDepError "cardano-crypto"))
-            (hsPkgs."cardano-ledger-shelley-ma" or (errorHandler.buildDepError "cardano-ledger-shelley-ma"))
             (hsPkgs."cardano-ledger-test" or (errorHandler.buildDepError "cardano-ledger-test"))
             (hsPkgs."cardano-ledger" or (errorHandler.buildDepError "cardano-ledger"))
             (hsPkgs."cardano-prelude-test" or (errorHandler.buildDepError "cardano-prelude-test"))
@@ -170,8 +169,8 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/cardano-ledger-specs";
-      rev = "d6179d72c52588460c1d57b932a2fd0724c5db32";
-      sha256 = "0fwhnib6raiq2lisbabchdd45wmlj1kfd21a3zbdmgc468j16clw";
+      rev = "581767d1329f3f702e332af08355e81a0f85333e";
+      sha256 = "198p4v2bi36y6x512w35qycvjm7nds7jf8qh7r84pj1qsy43vf7w";
       });
     postUnpack = "sourceRoot+=/shelley/chain-and-ledger/shelley-spec-ledger-test; echo source root reset to \$sourceRoot";
     }
