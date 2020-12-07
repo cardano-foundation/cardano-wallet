@@ -14,8 +14,16 @@ import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
+import Cardano.BM.Plugin
+    ( loadPlugin )
 import Cardano.CLI
-    ( LogOutput (..), withLoggingNamed )
+    ( LogOutput (..)
+    , Port
+    , ekgEnabled
+    , getEKGURL
+    , getPrometheusURL
+    , withLoggingNamed
+    )
 import Cardano.Startup
     ( setDefaultFilePermissions, withUtf8Encoding )
 import Cardano.Wallet.Api.Types
@@ -53,7 +61,7 @@ import Cardano.Wallet.Shelley.Launch
 import Control.Arrow
     ( first )
 import Control.Monad
-    ( void )
+    ( void, when )
 import Control.Tracer
     ( contramap, traceWith )
 import Data.Proxy
@@ -71,6 +79,7 @@ import System.IO
 import Test.Integration.Faucet
     ( genRewardAccounts, mirMnemonics, shelleyIntegrationTestFunds )
 
+import qualified Cardano.BM.Backend.EKGView as EKG
 import qualified Data.Text as T
 
 -- |
@@ -211,7 +220,7 @@ main = withUtf8Encoding $ do
             ]
 
     poolConfigs <- poolConfigsFromEnv
-    withLoggingNamed "test-cluster" clusterLogs $ \(_, trCluster) ->
+    withLoggingNamed "test-cluster" clusterLogs $ \(_, (_, trCluster)) ->
         withSystemTempDir (trMessageText trCluster) "test-cluster" $ \dir ->
         withCluster
             (contramap MsgCluster $ trMessageText trCluster)
@@ -236,11 +245,23 @@ main = withUtf8Encoding $ do
         moveInstantaneousRewardsTo trCluster' dir rewards
 
     whenReady dir trCluster logs (RunningNode socketPath block0 (gp, vData)) =
-        withLoggingNamed "cardano-wallet" logs $ \(_, tr) -> do
+        withLoggingNamed "cardano-wallet" logs $ \(sb, (cfg, tr)) -> do
+            ekgEnabled >>= flip when (EKG.plugin cfg tr sb >>= loadPlugin sb)
+
             let tracers = setupTracers (tracerSeverities (Just Info)) tr
             let db = dir </> "wallets"
             createDirectory db
             listen <- walletListenFromEnv
+
+            prometheusUrl <- (maybe "none"
+                    (\(h, p) -> T.pack h <> ":" <> toText @(Port "Prometheus") p)
+                )
+                <$> getPrometheusURL
+            ekgUrl <- (maybe "none"
+                    (\(h, p) -> T.pack h <> ":" <> toText @(Port "EKG") p)
+                )
+                <$> getEKGURL
+
             void $ serveWallet @(IO ShelleyEra)
                 (SomeNetworkDiscriminant $ Proxy @'Mainnet)
                 tracers
@@ -254,20 +275,24 @@ main = withUtf8Encoding $ do
                 socketPath
                 block0
                 (gp, vData)
-                (traceWith trCluster . MsgBaseUrl . T.pack . show)
+                (\u -> traceWith trCluster $ MsgBaseUrl (T.pack . show $ u)
+                    ekgUrl prometheusUrl)
 
 -- Logging
 
 data TestsLog
-    = MsgBaseUrl Text
+    = MsgBaseUrl Text Text Text -- wallet url, ekg url, prometheus url
     | MsgSettingUpFaucet
     | MsgCluster ClusterLog
     deriving (Show)
 
 instance ToText TestsLog where
     toText = \case
-        MsgBaseUrl addr ->
-            "Wallet backend server listening on " <> T.pack (show addr)
+        MsgBaseUrl walletUrl ekgUrl prometheusUrl -> mconcat
+            [ "Wallet url: " , walletUrl
+            , ", EKG url: " , ekgUrl
+            , ", Prometheus url:", prometheusUrl
+            ]
         MsgSettingUpFaucet -> "Setting up faucet..."
         MsgCluster msg -> toText msg
 
@@ -275,5 +300,5 @@ instance HasPrivacyAnnotation TestsLog
 instance HasSeverityAnnotation TestsLog where
     getSeverityAnnotation = \case
         MsgSettingUpFaucet -> Notice
-        MsgBaseUrl _ -> Notice
+        MsgBaseUrl {} -> Notice
         MsgCluster msg -> getSeverityAnnotation msg

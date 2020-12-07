@@ -353,7 +353,7 @@ divvyFee (Fee f0) outs = go f0 [] outs
 -- return an empty list.
 coalesceDust :: Coin -> [Coin] -> [Coin]
 coalesceDust threshold coins
-    | balance coins < getCoin threshold =
+    | balance coins <= getCoin threshold =
         []
     | otherwise =
         let

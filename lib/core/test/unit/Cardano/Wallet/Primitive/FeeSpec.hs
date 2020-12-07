@@ -350,7 +350,7 @@ spec = do
             }) (Right $ FeeOutput
             { csInps = [2,2]
             , csOuts = []
-            , csChngs = [1]
+            , csChngs = []
             })
 
     parallel $ describe "Fee Calculation: Generators" $ do
@@ -382,6 +382,35 @@ spec = do
             $ property
             $ withMaxSuccess 2000
             $ forAllBlind genSelection' prop_rebalanceSelection
+        it "If change is a coin equal the dust threshold, fee balancing still converges, wrt #2118" $
+            let dt = Coin {getCoin = 114754}
+                cs = CoinSelection {inputs = [
+                (TxIn {inputId = Hash {getHash = mconcat [
+                    "P\145\135\197\182\&1\f\210\207\188\&8\240\234"
+                    ,",\186\136\159q\204\224Bi\210\137\159\203\148\ETB\190\191\129V"
+                    ] }
+                    , inputIx = 0}
+                ,TxOut {address = Address {unAddress = "addr-2"}
+                    , coin = Coin {getCoin = 197140}})
+                ]
+                , withdrawal = 502225
+                , reclaim = 3567
+                , outputs = [
+                    TxOut {address = Address {unAddress = "addr-3"}
+                        , coin = Coin {getCoin = 72698}}
+                    ,TxOut {address = Address {unAddress = "addr-2"}
+                        , coin = Coin {getCoin = 175789}}
+                    ,TxOut {address = Address {unAddress = "addr-2"}
+                        , coin = Coin {getCoin = 2336}}
+                    ,TxOut {address = Address {unAddress = "addr-3"}
+                        , coin = Coin {getCoin = 86104}}
+                    ,TxOut {address = Address {unAddress = "addr-0"}
+                        , coin = Coin {getCoin = 74851}}
+                ]
+                , change = [dt]
+                , deposit = 0}
+            in property $ prop_rebalanceSelection cs dt
+
 
 {-------------------------------------------------------------------------------
                          Fee Adjustment - Properties
