@@ -47,7 +47,7 @@ module Cardano.Wallet.Primitive.AddressDerivation
     , DerivationIndex (..)
     , liftIndex
     , deriveVerificationKey
-    , calculateVerificationKeyHash
+    , hashVerificationKey
 
     -- * Delegation
     , RewardAccount (..)
@@ -502,11 +502,11 @@ deriveVerificationKey
 deriveVerificationKey accXPub =
     liftRawKey . getRawKey . deriveAddressPublicKey accXPub MultisigScript . coerce
 
-calculateVerificationKeyHash
+hashVerificationKey
     :: WalletKey k
     => k 'ScriptK XPub
     -> KeyHash
-calculateVerificationKeyHash =
+hashVerificationKey =
     KeyHash . blake2b224 . xpubPublicKey . getRawKey
 
 {-------------------------------------------------------------------------------

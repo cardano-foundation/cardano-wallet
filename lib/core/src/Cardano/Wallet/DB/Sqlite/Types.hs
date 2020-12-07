@@ -23,8 +23,6 @@ import Prelude
 
 import Cardano.Address.Script
     ( KeyHash (..), ScriptHash (..) )
-import Cardano.Api.MetaData
-    ( TxMetadataJsonSchema (..), metadataFromJson, metadataToJson )
 import Cardano.Api.Typed
     ( TxMetadataJsonSchema (..)
     , displayError

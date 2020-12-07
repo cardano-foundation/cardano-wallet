@@ -102,9 +102,9 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , Role (..)
     , SoftDerivation (..)
     , WalletKey (..)
-    , calculateVerificationKeyHash
     , deriveRewardAccount
     , deriveVerificationKey
+    , hashVerificationKey
     , utxoExternal
     , utxoInternal
     )
@@ -371,7 +371,7 @@ unsafeVerificationKeyPool accXPub num@(AddressPoolGap g) vkPoolMap knownScripts 
     toIndex = toEnum . fromInteger . toInteger
     vkPoolMap' =
         Map.fromList $
-        map (\ix -> ( calculateVerificationKeyHash $
+        map (\ix -> ( hashVerificationKey $
                         deriveVerificationKey accXPub (toIndex ix)
                     , (toIndex ix, Unused)) )
         [firstIndexToAdd .. firstIndexToAdd + newIndicesToAdd - 1]

@@ -292,14 +292,14 @@ SeqStateScriptHash
     seqStateScriptHashSlot                  SlotNo             sql=slot
     seqStateScriptHashScriptHash            ScriptHash         sql=script_hash
     seqStateScriptHashVerificationKeyIndex  Word32             sql=verification_key_ix
-    seqStateScriptHashKeysIndex             Word32             sql=keys_ix
+    seqStateScriptHashKeyIndexInArray       Word32             sql=array_ix
 
     Primary
         seqStateScriptHashWalletId
         seqStateScriptHashSlot
         seqStateScriptHashScriptHash
         seqStateScriptHashVerificationKeyIndex
-        seqStateScriptHashKeysIndex
+        seqStateScriptHashKeyIndexInArray
     Foreign Checkpoint seq_state_script_hash seqStateScriptHashWalletId seqStateScriptHashSlot ! ON DELETE CASCADE
     deriving Show Generic
 

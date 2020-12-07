@@ -40,7 +40,7 @@ import Prelude
 import Cardano.Address.Derivation
     ( XPrv, XPub )
 import Cardano.Address.Script
-    ( ScriptHash (..) )
+    ( KeyHash, ScriptHash (..) )
 import Cardano.DB.Sqlite
     ( DBField (..)
     , DBLog (..)
@@ -217,7 +217,8 @@ import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Cardano.Wallet.Primitive.Types.UTxO as W
-import qualified Data.Map as Map
+import qualified Data.List as L
+import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
 import qualified Database.Sqlite as Sqlite
 
@@ -1809,14 +1810,13 @@ insertScriptPool
     -> Seq.VerificationKeyPool k
     -> SqlPersistT IO ()
 insertScriptPool wid sl pool = do
-    void $ dbChunked insertMany_
-        [ SeqStateKeyHash wid sl keyHash (getIndex ix) state
-        | (keyHash, (ix, state) )
-        <- Map.toList (Seq.verPoolIndexedKeys pool)
-        ]
+    void $ dbChunked insertMany_ $
+        Map.foldMapWithKey toSeqStateKeyHash (Seq.verPoolIndexedKeys pool)
     void $ dbChunked insertMany_ $
         concatMap toDB $ Map.toList (Seq.verPoolKnownScripts pool)
   where
+    toSeqStateKeyHash keyHash (ix, state) =
+        [SeqStateKeyHash wid sl keyHash (getIndex ix) state]
     toDB (scriptHash, verKeyIxs) =
         zipWith (SeqStateScriptHash wid sl scriptHash . getIndex) verKeyIxs [0..]
 
@@ -1841,23 +1841,27 @@ selectScriptPool wid sl gap xpub = do
     scripts <- fmap entityVal <$> selectList
         [ SeqStateScriptHashWalletId ==. wid
         , SeqStateScriptHashSlot ==. sl
-        ] []
+        ] [Asc SeqStateScriptHashScriptHash, Desc SeqStateScriptHashKeyIndexInArray]
     pure $ scriptPoolFromEntities verKeys scripts
   where
+    updateVerKeyMap
+        :: SeqStateKeyHash
+        -> Map KeyHash (Index 'Soft 'ScriptK, W.AddressState)
+        -> Map KeyHash (Index 'Soft 'ScriptK, W.AddressState)
+    updateVerKeyMap x = Map.insert (seqStateKeyHashKeyHash x)
+        (W.Index $ seqStateKeyHashIndex x, seqStateKeyHashStatus x)
     verKeyMap =
-        Map.fromList .
-        map (\x -> ( seqStateKeyHashKeyHash x
-                   , ( W.Index $ seqStateKeyHashIndex x
-                     , seqStateKeyHashStatus x
-                     )))
+        L.foldr updateVerKeyMap Map.empty
+    updateKnowScript
+        :: SeqStateScriptHash
+        -> Map ScriptHash [Index 'Soft 'ScriptK]
+        -> Map ScriptHash [Index 'Soft 'ScriptK]
+    updateKnowScript =
+        (\(sh, keyIndex) -> Map.insertWith (++) sh [keyIndex] ) .
+        (\scriptH -> (seqStateScriptHashScriptHash scriptH
+        , W.Index $ seqStateScriptHashVerificationKeyIndex scriptH) )
     knownScripts =
-        Map.map (map snd . sortOn fst) .
-        foldr
-        ((\ (sh, kIx, lIx) -> Map.insertWith (++) sh [(lIx,kIx)] )
-         . (\ x -> (  seqStateScriptHashScriptHash x
-                    , W.Index $ seqStateScriptHashVerificationKeyIndex x
-                    , seqStateScriptHashKeysIndex x)))
-        Map.empty
+        L.foldr updateKnowScript Map.empty
     scriptPoolFromEntities
         :: [SeqStateKeyHash]
         -> [SeqStateScriptHash]

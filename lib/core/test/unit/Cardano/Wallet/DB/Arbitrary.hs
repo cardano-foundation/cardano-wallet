@@ -52,8 +52,8 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , NetworkDiscriminant (..)
     , Passphrase (..)
     , WalletKey (..)
-    , calculateVerificationKeyHash
     , deriveVerificationKey
+    , hashVerificationKey
     , publicKey
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
@@ -495,7 +495,7 @@ genVerificationKeyPool accXPub = do
     nVerKeys <- choose (5,10)
     let minIndex = getIndex @'Soft minBound
     let toVerKeyHash ix =
-            calculateVerificationKeyHash $
+            hashVerificationKey $
             deriveVerificationKey accXPub
             (toEnum (fromInteger $ toInteger $ minIndex + ix))
     verKeysIxs <- L.nub <$> vectorOf nVerKeys (choose (0, 15))

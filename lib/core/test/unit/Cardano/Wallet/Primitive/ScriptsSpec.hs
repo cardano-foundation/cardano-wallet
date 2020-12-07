@@ -32,8 +32,8 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , PassphraseMinLength (..)
     , SoftDerivation
     , WalletKey (..)
-    , calculateVerificationKeyHash
     , deriveVerificationKey
+    , hashVerificationKey
     , preparePassphrase
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
@@ -129,7 +129,7 @@ prop_scriptFromOurVerKeys (AccountXPubWithScripts accXPub' scripts') = do
     let sciptKeyHashes = retrieveAllVerKeyHashes script
     let seqState = initializeState accXPub'
     let (ourSharedKeys, _) = isShared script seqState
-    L.sort (L.nub $ map calculateVerificationKeyHash ourSharedKeys) ===
+    L.sort (L.nub $ map hashVerificationKey ourSharedKeys) ===
         L.sort (L.nub sciptKeyHashes)
 
 prop_scriptFromNotOurVerKeys
@@ -264,7 +264,7 @@ deriveKeyHash
     -> Index 'Soft 'ScriptK
     -> KeyHash
 deriveKeyHash accXPub' =
-    calculateVerificationKeyHash . (deriveVerificationKey accXPub')
+    hashVerificationKey . (deriveVerificationKey accXPub')
 
 dummyRewardAccount :: ShelleyKey 'AddressK XPub
 dummyRewardAccount = ShelleyKey $ unsafeXPub $ B8.replicate 64 '0'
@@ -332,7 +332,7 @@ instance Arbitrary AccountXPubWithScripts where
         accXPub' <- arbitrary
         let g = getAddressPoolGap defaultAddressPoolGap
         kNum <- choose (2, g - 1)
-        let verKeyHashes = map calculateVerificationKeyHash (prepareVerKeys accXPub' [0 .. kNum])
+        let verKeyHashes = map hashVerificationKey (prepareVerKeys accXPub' [0 .. kNum])
         scriptsNum <- choose (1,10)
         AccountXPubWithScripts accXPub' <$> vectorOf scriptsNum (genScript verKeyHashes)
 
@@ -343,13 +343,13 @@ instance Arbitrary AccountXPubWithScriptExtension where
         -- the first script is expected to trigger extension to scriptPool
         let g = getAddressPoolGap defaultAddressPoolGap
         scriptTipping <-
-            genScript (calculateVerificationKeyHash <$> (prepareVerKeys accXPub' [g - 1]))
+            genScript (hashVerificationKey <$> (prepareVerKeys accXPub' [g - 1]))
 
         -- the next script is using extended indices that were not possible to be discovered
         -- earlier, but are supposed to be discovered now
         kNum <- choose (2,8)
         let verKeysNext = prepareVerKeys accXPub' [g .. g + kNum]
-        scriptNext <- genScript (calculateVerificationKeyHash <$> verKeysNext)
+        scriptNext <- genScript (hashVerificationKey <$> verKeysNext)
 
         pure $ AccountXPubWithScriptExtension accXPub' [scriptTipping, scriptNext]
 
@@ -358,7 +358,7 @@ instance Arbitrary AccountXPubWithScriptBeyond where
         accXPub' <- arbitrary
         kNum <- choose (2,8)
         let g = getAddressPoolGap defaultAddressPoolGap
-        let verKeyHashes = map calculateVerificationKeyHash (prepareVerKeys accXPub' [g .. g + kNum])
+        let verKeyHashes = map hashVerificationKey (prepareVerKeys accXPub' [g .. g + kNum])
         AccountXPubWithScriptBeyond accXPub' <$> genScript verKeyHashes
 
 instance Arbitrary (Passphrase "raw") where
