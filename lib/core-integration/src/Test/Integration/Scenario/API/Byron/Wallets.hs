@@ -99,13 +99,13 @@ import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Network.HTTP.Types.Status as HTTP
 
-spec :: forall n t.
+spec :: forall n.
     ( DecodeAddress n
     , DecodeStakeAddress n
     , EncodeAddress n
     , PaymentAddress n IcarusKey
     , PaymentAddress n ByronKey
-    ) => SpecWith (Context t)
+    ) => SpecWith Context
 spec = describe "BYRON_WALLETS" $ do
     it "BYRON_GET_04, DELETE_01 - Deleted wallet is not available" $ \ctx -> runResourceT $ do
         w <- emptyRandomWallet ctx

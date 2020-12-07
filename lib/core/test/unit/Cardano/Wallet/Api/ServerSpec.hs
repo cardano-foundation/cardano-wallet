@@ -177,7 +177,7 @@ spec = describe "API Server" $ do
     dummyNetworkLayer
         :: SlotNo
         -> TimeInterpreter (ExceptT PastHorizonException IO)
-        -> NetworkLayer IO () Block
+        -> NetworkLayer IO Block
     dummyNetworkLayer sl ti = NetworkLayer
         { nextBlocks = error "nextBlocks: not implemented"
         , initCursor = error "initCursor: not implemented"

@@ -140,14 +140,14 @@ import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Network.HTTP.Types as HTTP
 
-spec :: forall n t.
+spec :: forall n.
     ( DecodeAddress n
     , DecodeStakeAddress n
     , EncodeAddress n
     , PaymentAddress n ShelleyKey
     , PaymentAddress n IcarusKey
     , PaymentAddress n ByronKey
-    ) => SpecWith (Context t)
+    ) => SpecWith Context
 spec = describe "SHELLEY_WALLETS" $ do
     it "WALLETS_CREATE_01 - Create a wallet" $ \ctx -> runResourceT $ do
         m15 <- liftIO $ genMnemonics M15

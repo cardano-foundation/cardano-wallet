@@ -132,12 +132,7 @@ import Cardano.Wallet.Primitive.Types.UTxO
 import Cardano.Wallet.Shelley
     ( SomeNetworkDiscriminant (..) )
 import Cardano.Wallet.Shelley.Compatibility
-    ( HasNetworkId (..)
-    , NodeVersionData
-    , ShelleyEra
-    , emptyGenesis
-    , fromCardanoBlock
-    )
+    ( HasNetworkId (..), NodeVersionData, emptyGenesis, fromCardanoBlock )
 import Cardano.Wallet.Shelley.Launch
     ( NetworkConfiguration (..), parseGenesisData )
 import Cardano.Wallet.Shelley.Network
@@ -414,16 +409,15 @@ instance ToJSON BenchRndResults where
     toJSON = genericToJSON Aeson.defaultOptions
 
 benchmarksRnd
-    :: forall (n :: NetworkDiscriminant) s t k p.
+    :: forall (n :: NetworkDiscriminant) s k p.
         ( s ~ RndAnyState n p
-        , t ~ IO ShelleyEra
         , k ~ ByronKey
         , PaymentAddress n k
         , NetworkDiscriminantVal n
         , KnownNat p
         )
     => Proxy n
-    -> WalletLayer s t k
+    -> WalletLayer s k
     -> WalletId
     -> WalletName
     -> Text
@@ -445,11 +439,11 @@ benchmarksRnd _ w wid wname benchname restoreTime = do
     (transactions, listTransactionsTime) <- bench "list transactions"
         $ fmap (fromIntegral . length)
         $ unsafeRunExceptT
-        $ W.listTransactions @_ @s @k @t w wid Nothing Nothing Nothing Descending
+        $ W.listTransactions @_ @s @k w wid Nothing Nothing Nothing Descending
 
     (_, estimateFeesTime) <- bench "estimate tx fee" $ do
         let out = TxOut (dummyAddress @n) (Coin 1)
-        runExceptT $ withExceptT show $ W.estimateFeeForPayment @_ @s @t @k
+        runExceptT $ withExceptT show $ W.estimateFeeForPayment @_ @s @k
             w wid (out :| []) (Quantity 0) Nothing
 
     oneAddress <- genAddresses 1 cp
@@ -502,16 +496,15 @@ instance ToJSON BenchSeqResults where
     toJSON = genericToJSON Aeson.defaultOptions
 
 benchmarksSeq
-    :: forall (n :: NetworkDiscriminant) s t k p.
+    :: forall (n :: NetworkDiscriminant) s k p.
         ( s ~ SeqAnyState n k p
-        , t ~ IO ShelleyEra
         , k ~ ShelleyKey
         , PaymentAddress n k
         , NetworkDiscriminantVal n
         , KnownNat p
         )
     => Proxy n
-    -> WalletLayer s t k
+    -> WalletLayer s k
     -> WalletId
     -> WalletName
     -> Text -- ^ Bench name
@@ -533,11 +526,11 @@ benchmarksSeq _ w wid _wname benchname restoreTime = do
     (transactions, listTransactionsTime) <- bench "list transactions"
         $ fmap (fromIntegral . length)
         $ unsafeRunExceptT
-        $ W.listTransactions @_ @s @k @t w wid Nothing Nothing Nothing Descending
+        $ W.listTransactions @_ @s @k w wid Nothing Nothing Nothing Descending
 
     (_, estimateFeesTime) <- bench "estimate tx fee" $ do
         let out = TxOut (dummyAddress @n) (Coin 1)
-        runExceptT $ withExceptT show $ W.estimateFeeForPayment @_ @s @t @k
+        runExceptT $ withExceptT show $ W.estimateFeeForPayment @_ @s @k
             w wid (out :| []) (Quantity 0) Nothing
 
     let walletOverview = WalletOverview{utxo,addresses,transactions}
@@ -554,7 +547,7 @@ benchmarksSeq _ w wid _wname benchname restoreTime = do
 
 {- HLINT ignore bench_restoration "Use camelCase" -}
 bench_restoration
-    :: forall (n :: NetworkDiscriminant) (k :: Depth -> * -> *) s t results.
+    :: forall (n :: NetworkDiscriminant) (k :: Depth -> * -> *) s results.
         ( IsOurs s Address
         , IsOurs s RewardAccount
         , IsOwned s k
@@ -568,7 +561,6 @@ bench_restoration
         , NetworkDiscriminantVal n
         , HasNetworkId n
         , TxWitnessTagFor k
-        , t ~ IO ShelleyEra
         , Buildable results
         , ToJSON results
         )
@@ -582,12 +574,12 @@ bench_restoration
     -> [(WalletId, WalletName, s)]
     -> Bool -- ^ If @True@, will trace detailed progress to a .timelog file.
     -> Percentage -- ^ Target sync progress
-    -> (Proxy n -> WalletLayer s t k -> WalletId -> WalletName -> Text -> Time -> IO results)
+    -> (Proxy n -> WalletLayer s k -> WalletId -> WalletName -> Text -> Time -> IO results)
     -> IO SomeBenchmarkResults
 bench_restoration proxy tr socket np vData benchname wallets traceToDisk targetSync benchmarks = do
     putStrLn $ "*** " ++ T.unpack benchname
     let networkId = networkIdVal proxy
-    let tl = newTransactionLayer @k @(IO ShelleyEra) networkId
+    let tl = newTransactionLayer @k networkId
     withNetworkLayer nullTracer np socket vData $ \nw' -> do
         let gp = genesisParameters np
         let convert = fromCardanoBlock gp
@@ -605,7 +597,7 @@ bench_restoration proxy tr socket np vData benchname wallets traceToDisk targetS
 
                 forM_ wallets $ \(wid, wname, s) -> do
                     _ <- unsafeRunExceptT $ W.createWallet w wid wname s
-                    void $ forkIO $ unsafeRunExceptT $ W.restoreWallet @_ @s @t @k w wid
+                    void $ forkIO $ unsafeRunExceptT $ W.restoreWallet @_ @s @k w wid
 
                 -- NOTE: This is now the time to restore /all/ wallets.
                 (_, restorationTime) <- bench "restoration" $ do
@@ -712,11 +704,11 @@ prepareNode tr proxy socketPath np vData = do
 -- | Regularly poll the wallets to monitor syncing progress. Block until all
 -- wallets reach the given percentage.
 waitForWalletsSyncTo
-    :: forall s t k n. (NetworkDiscriminantVal n)
+    :: forall s k n. (NetworkDiscriminantVal n)
     => Percentage
     -> Tracer IO (BenchmarkLog n)
     -> Proxy n
-    -> WalletLayer s t k
+    -> WalletLayer s k
     -> [WalletId]
     -> GenesisParameters
     -> NodeVersionData
@@ -751,7 +743,7 @@ waitForWalletsSyncTo targetSync tr proxy walletLayer wids gp vData = do
 waitForNodeSync
     :: forall n. (NetworkDiscriminantVal n)
     => Tracer IO (BenchmarkLog n)
-    -> NetworkLayer IO (IO ShelleyEra) Block
+    -> NetworkLayer IO Block
     -> IO SlotNo
 waitForNodeSync tr nw = loop 10
   where

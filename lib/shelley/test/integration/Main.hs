@@ -55,8 +55,6 @@ import Cardano.Wallet.Shelley
     , setupTracers
     , tracerSeverities
     )
-import Cardano.Wallet.Shelley.Compatibility
-    ( ShelleyEra )
 import Cardano.Wallet.Shelley.Faucet
     ( initFaucet )
 import Cardano.Wallet.Shelley.Launch
@@ -115,8 +113,6 @@ import Test.Integration.Faucet
     ( genRewardAccounts, mirMnemonics, shelleyIntegrationTestFunds )
 import Test.Integration.Framework.Context
     ( Context (..), PoolGarbageCollectionEvent (..) )
-import Test.Integration.Framework.DSL
-    ( KnownCommand (..) )
 import Test.Utils.Paths
     ( inNixBuild )
 
@@ -148,19 +144,15 @@ import qualified Test.Integration.Scenario.CLI.Shelley.HWWallets as HWWalletsCLI
 import qualified Test.Integration.Scenario.CLI.Shelley.Transactions as TransactionsCLI
 import qualified Test.Integration.Scenario.CLI.Shelley.Wallets as WalletsCLI
 
--- | Define the actual executable name for the bridge CLI
-instance KnownCommand ShelleyEra where
-    commandName = "cardano-wallet"
-
-main :: forall t n . (t ~ ShelleyEra, n ~ 'Mainnet) => IO ()
+main :: forall n. (n ~ 'Mainnet) => IO ()
 main = withUtf8Encoding $ withTracers $ \tracers -> do
     hSetBuffering stdout LineBuffering
     setDefaultFilePermissions
     nix <- inNixBuild
     hspec $ do
         describe "No backend required" $
-            parallelIf (not nix) $ describe "Miscellaneous CLI tests" $
-                MiscellaneousCLI.spec @t
+            parallelIf (not nix) $ describe "Miscellaneous CLI tests"
+                MiscellaneousCLI.spec
         specWithServer tracers $ do
             describe "API Specifications" $ do
                 parallel $ do
@@ -193,19 +185,19 @@ main = withUtf8Encoding $ withTracers $ \tracers -> do
                 TransactionsCLI.spec @n
                 WalletsCLI.spec @n
                 HWWalletsCLI.spec @n
-                PortCLI.spec @t
-                NetworkCLI.spec @t
+                PortCLI.spec
+                NetworkCLI.spec
   where
     parallelIf :: forall a. Bool -> SpecWith a -> SpecWith a
     parallelIf flag = if flag then parallel else id
 
 specWithServer
     :: (Tracer IO TestsLog, Tracers IO)
-    -> SpecWith (Context ShelleyEra)
+    -> SpecWith Context
     -> Spec
 specWithServer (tr, tracers) = aroundAll withContext
   where
-    withContext :: (Context ShelleyEra -> IO ()) -> IO ()
+    withContext :: (Context -> IO ()) -> IO ()
     withContext action = bracketTracer' tr "withContext" $ do
         ctx <- newEmptyMVar
         poolGarbageCollectionEvents <- newIORef []
@@ -230,7 +222,6 @@ specWithServer (tr, tracers) = aroundAll withContext
                     , _faucet = faucet
                     , _feeEstimator = error "feeEstimator: unused in shelley specs"
                     , _networkParameters = np
-                    , _target = Proxy
                     , _poolGarbageCollectionEvents = poolGarbageCollectionEvents
                     }
         let action' = bracketTracer' tr "spec" . action
@@ -292,7 +283,7 @@ specWithServer (tr, tracers) = aroundAll withContext
         -- NOTE: We may want to keep a wallet running across the fork, but
         -- having three callbacks like this might not work well for that.
         withTempDir tr' dir "wallets" $ \db -> handle onClusterExit $
-            serveWallet @(IO ShelleyEra)
+            serveWallet
                 (SomeNetworkDiscriminant $ Proxy @'Mainnet)
                 tracers
                 (SyncTolerance 10)

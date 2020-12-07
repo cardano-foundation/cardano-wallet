@@ -22,14 +22,14 @@ import Test.Hspec
 import Test.Hspec.Expectations.Lifted
     ( shouldBe, shouldContain )
 import Test.Integration.Framework.DSL
-    ( KnownCommand, cardanoWalletCLI )
+    ( cardanoWalletCLI )
 
 import qualified Data.List as L
 
-spec :: forall t. KnownCommand t => SpecWith ()
+spec :: SpecWith ()
 spec = describe "COMMON_CLI_MISC" $ do
     it "CLI_VERSION - cardano-wallet shows version" $ do
-        (Exit c, Stdout out) <- cardanoWalletCLI @t @_ @IO ["version"]
+        (Exit c, Stdout out) <- cardanoWalletCLI @_ @IO ["version"]
         let v = L.dropWhileEnd (== '\n') out
         v `shouldContain` (showVersion version <> " (git revision: " )
         c `shouldBe` ExitSuccess
@@ -100,14 +100,14 @@ spec = describe "COMMON_CLI_MISC" $ do
                 , "network information --port"
                 ]
         forM_ badArgs $ \args -> it args $ \_ -> do
-            (Exit c, Stdout o, Stderr e) <- cardanoWalletCLI @t @_ @IO $ words args
+            (Exit c, Stdout o, Stderr e) <- cardanoWalletCLI @_ @IO $ words args
             c `shouldBe` ExitFailure 1
             o `shouldBe` ""
             e `shouldContain` "Usage:"
 
     describe "CLI_HELP - cardano-wallet shows help with" $  do
         let test option = it option $ do
-                (Exit c, Stdout o, Stderr e) <- cardanoWalletCLI @t @_ @IO [option]
+                (Exit c, Stdout o, Stderr e) <- cardanoWalletCLI @_ @IO [option]
                 e `shouldBe` ""
                 o `shouldContain` "Usage:"
                 o `shouldContain` "Available options:"

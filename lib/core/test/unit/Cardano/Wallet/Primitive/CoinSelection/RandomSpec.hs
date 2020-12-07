@@ -18,10 +18,7 @@ import Cardano.Wallet.Primitive.CoinSelectionSpec
     ( CoinSelProp (..)
     , CoinSelectionFixture (..)
     , CoinSelectionResult (..)
-    , ErrValidation (..)
-    , alwaysFail
     , coinSelectionUnitTest
-    , noValidation
     )
 import Control.Monad.Trans.Except
     ( runExceptT )
@@ -52,7 +49,6 @@ spec = do
                 })
             (CoinSelectionFixture
                 { maxNumOfInputs = 100
-                , validateSelection = noValidation
                 , utxoInputs = [1,1,1,1,1,1]
                 , txOutputs = 2 :| []
                 , totalWithdrawal = 0
@@ -66,7 +62,6 @@ spec = do
                 })
             (CoinSelectionFixture
                 { maxNumOfInputs = 100
-                , validateSelection = noValidation
                 , utxoInputs = [1,1,1,1,1,1]
                 , txOutputs = 2 :| [1]
                 , totalWithdrawal = 0
@@ -80,7 +75,6 @@ spec = do
                 })
             (CoinSelectionFixture
                 { maxNumOfInputs = 100
-                , validateSelection = noValidation
                 , utxoInputs = [1,1,1,1,1]
                 , txOutputs = 2 :| [1]
                 , totalWithdrawal = 0
@@ -94,7 +88,6 @@ spec = do
                 })
             (CoinSelectionFixture
                 { maxNumOfInputs = 100
-                , validateSelection = noValidation
                 , utxoInputs = [1,1,1,1]
                 , txOutputs = 2 :| [1]
                 , totalWithdrawal = 0
@@ -108,7 +101,6 @@ spec = do
                 })
             (CoinSelectionFixture
                 { maxNumOfInputs = 100
-                , validateSelection = noValidation
                 , utxoInputs = [5,5,5]
                 , txOutputs = 2 :| []
                 , totalWithdrawal = 0
@@ -123,7 +115,6 @@ spec = do
             )
             (CoinSelectionFixture
                 { maxNumOfInputs = 100
-                , validateSelection = noValidation
                 , utxoInputs = [10,10,10]
                 , txOutputs = 2 :| [2]
                 , totalWithdrawal = 0
@@ -137,7 +128,6 @@ spec = do
                 })
             (CoinSelectionFixture
                 { maxNumOfInputs = 4
-                , validateSelection = noValidation
                 , utxoInputs = [1,1,1,1,1,1]
                 , txOutputs = 3 :| []
                 , totalWithdrawal = 0
@@ -151,7 +141,6 @@ spec = do
                 })
             (CoinSelectionFixture
                 { maxNumOfInputs = 4
-                , validateSelection = noValidation
                 , utxoInputs = [oneAda, oneAda, oneAda, oneAda]
                 , txOutputs = 2*oneAda :| [oneAda `div` 2]
                 , totalWithdrawal = 0
@@ -165,7 +154,6 @@ spec = do
                 })
             (CoinSelectionFixture
                 { maxNumOfInputs = 100
-                , validateSelection = noValidation
                 , utxoInputs = [1]
                 , txOutputs = 2 :| []
                 , totalWithdrawal = 1
@@ -179,7 +167,6 @@ spec = do
                 })
             (CoinSelectionFixture
                 { maxNumOfInputs = 100
-                , validateSelection = noValidation
                 , utxoInputs = [1,1]
                 , txOutputs = 2 :| [2]
                 , totalWithdrawal = 2
@@ -197,7 +184,6 @@ spec = do
                 })
             (CoinSelectionFixture
                 { maxNumOfInputs = 100
-                , validateSelection = noValidation
                 , utxoInputs = [1]
                 , txOutputs = 10 :| [10]
                 , totalWithdrawal = 20
@@ -224,7 +210,6 @@ spec = do
                 })
             (CoinSelectionFixture
                 { maxNumOfInputs = 100
-                , validateSelection = noValidation
                 , utxoInputs = [5,5]
                 , txOutputs = 10 :| [1]
                 , totalWithdrawal = 10
@@ -238,7 +223,6 @@ spec = do
                 })
             (CoinSelectionFixture
                 { maxNumOfInputs = 100
-                , validateSelection = noValidation
                 , utxoInputs = [1]
                 , txOutputs = 1 :| [1,1,1,1,1]
                 , totalWithdrawal = 5
@@ -248,7 +232,6 @@ spec = do
             (Left ErrInputsDepleted)
             (CoinSelectionFixture
                 { maxNumOfInputs = 100
-                , validateSelection = noValidation
                 , utxoInputs = []
                 , txOutputs = 1 :| []
                 , totalWithdrawal = 10
@@ -258,7 +241,6 @@ spec = do
             (Left $ ErrNotEnoughMoney 11 100)
             (CoinSelectionFixture
                 { maxNumOfInputs = 100
-                , validateSelection = noValidation
                 , utxoInputs = [1]
                 , txOutputs = 100 :| []
                 , totalWithdrawal = 10
@@ -268,7 +250,6 @@ spec = do
             (Left $ ErrMaximumInputsReached 2)
             (CoinSelectionFixture
                 { maxNumOfInputs = 2
-                , validateSelection = noValidation
                 , utxoInputs = [1,1,1,1,1,1]
                 , txOutputs = 3 :| []
                 , totalWithdrawal = 0
@@ -278,7 +259,6 @@ spec = do
             (Left $ ErrMaximumInputsReached 9)
             (CoinSelectionFixture
                 { maxNumOfInputs = 9
-                , validateSelection = noValidation
                 , utxoInputs = replicate 100 1
                 , txOutputs = NE.fromList (replicate 100 1)
                 , totalWithdrawal = 0
@@ -288,7 +268,6 @@ spec = do
             (Left $ ErrMaximumInputsReached 9)
             (CoinSelectionFixture
                 { maxNumOfInputs = 9
-                , validateSelection = noValidation
                 , utxoInputs = replicate 100 1
                 , txOutputs = NE.fromList (replicate 10 10)
                 , totalWithdrawal = 0
@@ -298,7 +277,6 @@ spec = do
             (Left $ ErrNotEnoughMoney 39 40)
             (CoinSelectionFixture
                 { maxNumOfInputs = 100
-                , validateSelection = noValidation
                 , utxoInputs = [12,10,17]
                 , txOutputs = 40 :| []
                 , totalWithdrawal = 0
@@ -308,19 +286,8 @@ spec = do
             (Left $ ErrNotEnoughMoney 39 43)
             (CoinSelectionFixture
                 { maxNumOfInputs = 100
-                , validateSelection = noValidation
                 , utxoInputs = [12,10,17]
                 , txOutputs = 40 :| [1,1,1]
-                , totalWithdrawal = 0
-                })
-
-        coinSelectionUnitTest random "custom validation"
-            (Left $ ErrInvalidSelection ErrValidation)
-            (CoinSelectionFixture
-                { maxNumOfInputs = 100
-                , validateSelection = alwaysFail
-                , utxoInputs = [1,1]
-                , txOutputs = 2 :| []
                 , totalWithdrawal = 0
                 })
 
@@ -340,7 +307,7 @@ propFragmentation
     :: CoinSelProp
     -> Property
 propFragmentation (CoinSelProp utxo wdrl txOuts) = monadicIO $ do
-    let opts = CoinSelectionOptions (const 100) noValidation
+    let opts = CoinSelectionOptions (const 100)
     selection1 <- run $ runExceptT $ random opts txOuts wdrl utxo
     selection2 <- run $ runExceptT $ largestFirst opts txOuts wdrl utxo
     pre (isRight selection1)
@@ -356,7 +323,7 @@ propErrors
     :: CoinSelProp
     -> Property
 propErrors (CoinSelProp utxo wdrl txOuts) = monadicIO $ do
-    let opts = CoinSelectionOptions (const 1) noValidation
+    let opts = CoinSelectionOptions (const 1)
     selection1 <- run $ runExceptT $ random opts txOuts wdrl utxo
     selection2 <- run $ runExceptT $ largestFirst opts txOuts wdrl utxo
     pre (isLeft selection1)

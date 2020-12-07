@@ -28,7 +28,6 @@ import Cardano.Pool.Metadata
 import Cardano.Wallet
     ( ErrCreateRandomAddress (..)
     , ErrNotASequentialWallet (..)
-    , ErrValidateSelection
     , genesisData
     , networkLayer
     , normalizeDelegationAddress
@@ -161,8 +160,6 @@ import Data.Proxy
     ( Proxy (..) )
 import Data.Text.Class
     ( TextDecodingError (..) )
-import Fmt
-    ( Buildable )
 import Network.Ntp
     ( NtpClient )
 import Servant
@@ -180,17 +177,16 @@ import qualified Data.ByteString as BS
 import qualified Data.Text as T
 
 server
-    :: forall t n.
-        ( Buildable (ErrValidateSelection t)
-        , PaymentAddress n IcarusKey
+    :: forall n.
+        ( PaymentAddress n IcarusKey
         , PaymentAddress n ByronKey
         , DelegationAddress n ShelleyKey
         , Typeable n
         , HasNetworkId n
         )
-    => ApiLayer (RndState n) t ByronKey
-    -> ApiLayer (SeqState n IcarusKey) t IcarusKey
-    -> ApiLayer (SeqState n ShelleyKey) t ShelleyKey
+    => ApiLayer (RndState n) ByronKey
+    -> ApiLayer (SeqState n IcarusKey) IcarusKey
+    -> ApiLayer (SeqState n ShelleyKey) ShelleyKey
     -> StakePoolLayer
     -> NtpClient
     -> Server (Api n ApiStakePool)
@@ -246,14 +242,14 @@ server byron icarus shelley spl ntp =
             selectCoins shelley (delegationAddress @n) wid ascp
         (ApiSelectForDelegation (ApiSelectCoinsAction (ApiT action))) ->
             case action of
-                Join pid -> selectCoinsForJoin @_ @()
+                Join pid -> selectCoinsForJoin
                     shelley
                     (knownPools spl)
                     (getPoolLifeCycleStatus spl)
                     pid
                     (getApiT wid)
                 RegisterKeyAndJoin _ -> throwError err400
-                Quit -> selectCoinsForQuit @_ @() shelley wid
+                Quit -> selectCoinsForQuit shelley wid
         )
 
     transactions :: Server (Transactions n)
@@ -266,7 +262,7 @@ server byron icarus shelley spl ntp =
 
     shelleyMigrations :: Server (ShelleyMigrations n)
     shelleyMigrations =
-             getMigrationInfo @_ @_ @_ @n shelley
+             getMigrationInfo @_ @_ @n shelley
         :<|> migrateWallet shelley
 
     stakePools :: Server (StakePools n ApiStakePool)
@@ -306,7 +302,7 @@ server byron icarus shelley spl ntp =
             SomeTrezorWallet x -> postTrezorWallet icarus x
             SomeLedgerWallet x -> postLedgerWallet icarus x
             SomeAccount x ->
-                postAccountWallet icarus (mkLegacyWallet @_ @_ @_ @t) IcarusKey idleWorker x
+                postAccountWallet icarus mkLegacyWallet IcarusKey idleWorker x
         )
         :<|> (\wid -> withLegacyLayer wid
                 (byron , deleteWallet byron wid)
@@ -314,20 +310,20 @@ server byron icarus shelley spl ntp =
              )
         :<|> (\wid -> withLegacyLayer' wid
                 ( byron
-                , fst <$> getWallet byron (mkLegacyWallet @_ @_ @_ @t) wid
-                , const (fst <$> getWallet byron (mkLegacyWallet @_ @_ @_ @t) wid)
+                , fst <$> getWallet byron mkLegacyWallet wid
+                , const (fst <$> getWallet byron mkLegacyWallet wid)
                 )
                 ( icarus
-                , fst <$> getWallet icarus (mkLegacyWallet @_ @_ @_ @t) wid
-                , const (fst <$> getWallet icarus (mkLegacyWallet @_ @_ @_ @t) wid)
+                , fst <$> getWallet icarus mkLegacyWallet wid
+                , const (fst <$> getWallet icarus mkLegacyWallet wid)
                 )
              )
         :<|> liftA2 (\xs ys -> fmap fst $ sortOn snd $ xs ++ ys)
-            (listWallets byron  (mkLegacyWallet @_ @_ @_ @t))
-            (listWallets icarus (mkLegacyWallet @_ @_ @_ @t))
+            (listWallets byron  mkLegacyWallet)
+            (listWallets icarus mkLegacyWallet)
         :<|> (\wid name -> withLegacyLayer wid
-                (byron , putWallet byron (mkLegacyWallet @_ @_ @_ @t) wid name)
-                (icarus, putWallet icarus (mkLegacyWallet @_ @_ @_ @t) wid name)
+                (byron , putWallet byron mkLegacyWallet wid name)
+                (icarus, putWallet icarus mkLegacyWallet wid name)
              )
         :<|> (\wid -> withLegacyLayer wid
                 (byron , getUTxOsStatistics byron wid)
@@ -405,8 +401,8 @@ server byron icarus shelley spl ntp =
     byronMigrations :: Server (ByronMigrations n)
     byronMigrations =
              (\wid -> withLegacyLayer wid
-                (byron , getMigrationInfo @_ @_ @_ @n byron wid)
-                (icarus, getMigrationInfo @_ @_ @_ @n icarus wid)
+                (byron , getMigrationInfo @_ @_ @n byron wid)
+                (icarus, getMigrationInfo @_ @_ @n icarus wid)
              )
         :<|> (\wid m -> withLegacyLayer wid
                 (byron , migrateWallet byron wid m)
@@ -419,7 +415,7 @@ server byron icarus shelley spl ntp =
         :<|> getNetworkParameters genesis nl
         :<|> getNetworkClock ntp
       where
-        nl = icarus ^. networkLayer @t
+        nl = icarus ^. networkLayer
         genesis@(_,_,syncTolerance) = icarus ^. genesisData
 
     proxy :: Server Proxy_

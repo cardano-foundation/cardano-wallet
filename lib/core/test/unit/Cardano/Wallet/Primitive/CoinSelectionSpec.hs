@@ -12,10 +12,7 @@ module Cardano.Wallet.Primitive.CoinSelectionSpec
     , CoinSelectionFixture(..)
     , CoinSelectionResult(..)
     , CoinSelProp(..)
-    , ErrValidation(..)
     , coinSelectionUnitTest
-    , noValidation
-    , alwaysFail
     ) where
 
 -- | This module contains shared logic between the coin selection tests. They
@@ -247,8 +244,6 @@ instance Buildable CoinSelProp where
 data CoinSelectionFixture = CoinSelectionFixture
     { maxNumOfInputs :: Word8
         -- ^ Maximum number of inputs that can be selected
-    , validateSelection :: CoinSelection -> Either ErrValidation ()
-        -- ^ A extra validation function on the resulting selection
     , utxoInputs :: [Word64]
         -- ^ Value (in Lovelace) & number of available coins in the UTxO
     , txOutputs :: NonEmpty Word64
@@ -258,17 +253,6 @@ data CoinSelectionFixture = CoinSelectionFixture
         -- outputs.
     }
 
--- | A dummy error for testing extra validation
-data ErrValidation = ErrValidation deriving (Eq, Show)
-
--- | Smart constructor for the validation function that always succeed
-noValidation :: CoinSelection -> Either ErrValidation ()
-noValidation = const (Right ())
-
--- | Smart constructor for the validation function that always fail
-alwaysFail :: CoinSelection -> Either ErrValidation ()
-alwaysFail = const (Left ErrValidation)
-
 -- | Testing-friendly format for 'CoinSelection' results of unit tests
 data CoinSelectionResult = CoinSelectionResult
     { rsInputs :: [Word64]
@@ -276,26 +260,25 @@ data CoinSelectionResult = CoinSelectionResult
     , rsOutputs :: [Word64]
     } deriving (Eq, Show)
 
-
 -- | Generate a 'UTxO' and 'TxOut' matching the given 'Fixture', and perform
 -- given coin selection on it.
 coinSelectionUnitTest
-    :: ( CoinSelectionOptions ErrValidation
+    :: ( CoinSelectionOptions
          -> NonEmpty TxOut
          -> Quantity "lovelace" Word64
          -> UTxO
-         -> ExceptT (ErrCoinSelection ErrValidation) IO (CoinSelection, UTxO)
+         -> ExceptT ErrCoinSelection IO (CoinSelection, UTxO)
        )
     -> String
-    -> Either (ErrCoinSelection ErrValidation) CoinSelectionResult
+    -> Either ErrCoinSelection CoinSelectionResult
     -> CoinSelectionFixture
     -> SpecWith ()
-coinSelectionUnitTest run lbl expected (CoinSelectionFixture n fn utxoF outsF w) =
+coinSelectionUnitTest run lbl expected (CoinSelectionFixture n utxoF outsF w) =
     it title $ do
         (utxo,txOuts) <- setup
         result <- runExceptT $ do
             cs <- fst <$> run
-                (CoinSelectionOptions (const n) fn) txOuts (Quantity w) utxo
+                (CoinSelectionOptions (const n)) txOuts (Quantity w) utxo
             return $ CoinSelectionResult
                 { rsInputs  = map (getCoin . coin . snd) (inputs cs)
                 , rsChange  = map getCoin (change cs)
@@ -323,7 +306,7 @@ coinSelectionUnitTest run lbl expected (CoinSelectionFixture n fn utxoF outsF w)
 
 deriving instance Arbitrary a => Arbitrary (ShowFmt a)
 
-instance Arbitrary (CoinSelectionOptions e) where
+instance Arbitrary CoinSelectionOptions where
     arbitrary = do
         -- NOTE Functions have to be decreasing functions
         fn <- elements
@@ -334,9 +317,9 @@ instance Arbitrary (CoinSelectionOptions e) where
                     else maxBound - (2 * x)
             , const 42
             ]
-        pure $ CoinSelectionOptions fn (const (pure ()))
+        pure $ CoinSelectionOptions fn
 
-instance Show (CoinSelectionOptions e) where
+instance Show CoinSelectionOptions where
     show _ = "CoinSelectionOptions"
 
 instance Arbitrary a => Arbitrary (NonEmpty a) where

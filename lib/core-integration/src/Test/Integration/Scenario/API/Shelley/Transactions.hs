@@ -179,12 +179,12 @@ data TestCase a = TestCase
     , assertions :: [(HTTP.Status, Either RequestException a) -> IO ()]
     }
 
-spec :: forall n t.
+spec :: forall n.
     ( DecodeAddress n
     , DecodeStakeAddress n
     , EncodeAddress n
     , PaymentAddress n IcarusKey
-    ) => SpecWith (Context t)
+    ) => SpecWith Context
 spec = describe "SHELLEY_TRANSACTIONS" $ do
     it "TRANS_MIN_UTXO_01 - I cannot spend less than minUTxOValue" $ \ctx -> runResourceT $ do
       wSrc <- fixtureWallet ctx
@@ -2653,9 +2653,9 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
 
     txDeleteFromDifferentWalletTest
         :: (HasType (ApiT WalletId) wal)
-        => (Context t -> ResourceT IO wal)
+        => (Context -> ResourceT IO wal)
         -> String
-        -> SpecWith (Context t)
+        -> SpecWith Context
     txDeleteFromDifferentWalletTest eWallet resource =
         it resource $ \ctx -> runResourceT $ do
             -- post tx
@@ -2678,7 +2678,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
 
     postTx
         :: (MonadIO m, MonadCatch m)
-        => Context t
+        => Context
         -> (wal, wal -> (Method, Text), Text)
         -> ApiWallet
         -> Natural
@@ -2702,7 +2702,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
 
     mkTxPayload
         :: (MonadIO m, MonadCatch m)
-        => Context t
+        => Context
         -> ApiWallet
         -> Natural
         -> Text
@@ -2733,7 +2733,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
     addTxMetadata _ _ = error "can't do that"
 
     mkMultipleTxPayload
-        :: Context t
+        :: Context
         -> ApiWallet
         -> Natural
         -> Natural

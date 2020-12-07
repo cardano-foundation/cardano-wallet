@@ -147,12 +147,12 @@ import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Network.HTTP.Types.Status as HTTP
 
-spec :: forall n t.
+spec :: forall n.
     ( DecodeAddress n
     , DecodeStakeAddress n
     , EncodeAddress n
     , PaymentAddress n ShelleyKey
-    ) => SpecWith (Context t)
+    ) => SpecWith Context
 spec = describe "SHELLEY_STAKE_POOLS" $ do
     let listPools ctx stake = request @[ApiStakePool] ctx
                 (Link.listStakePools stake) Default Empty
@@ -1220,7 +1220,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
     setOf :: Ord b => [a] -> (a -> b) -> Set b
     setOf xs f = Set.fromList $ map f xs
 
-    depositAmt :: Context t -> Natural
+    depositAmt :: Context -> Natural
     depositAmt ctx =
         let
             pp = ctx ^. #_networkParameters . #protocolParameters
@@ -1228,16 +1228,16 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
         in
             round c
 
-    costOfJoining :: Context t -> Natural
+    costOfJoining :: Context -> Natural
     costOfJoining = costOf (\coeff cst -> 370 * coeff + cst)
 
-    costOfQuitting :: Context t -> Natural
+    costOfQuitting :: Context -> Natural
     costOfQuitting = costOf (\coeff cst -> 303 * coeff + cst)
 
-    costOfChange :: Context t -> Natural
+    costOfChange :: Context -> Natural
     costOfChange = costOf (\coeff _cst -> 133 * coeff)
 
-    costOf :: (Natural -> Natural -> Natural) -> Context t -> Natural
+    costOf :: (Natural -> Natural -> Natural) -> Context -> Natural
     costOf withCoefficients ctx =
         withCoefficients coeff cst
       where

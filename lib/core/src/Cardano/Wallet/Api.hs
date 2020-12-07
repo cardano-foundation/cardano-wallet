@@ -749,20 +749,20 @@ type PostExternalTransaction = "proxy"
                                Api Layer
 -------------------------------------------------------------------------------}
 
-data ApiLayer s t (k :: Depth -> * -> *)
+data ApiLayer s (k :: Depth -> * -> *)
     = ApiLayer
         (Tracer IO (WorkerLog WalletId WalletLog))
         (Block, NetworkParameters, SyncTolerance)
-        (NetworkLayer IO t (Block))
-        (TransactionLayer t k)
+        (NetworkLayer IO (Block))
+        (TransactionLayer k)
         (DBFactory IO s k)
         (WorkerRegistry WalletId (DBLayer IO s k))
     deriving (Generic)
 
-instance HasWorkerCtx (DBLayer IO s k) (ApiLayer s t k) where
-    type WorkerCtx (ApiLayer s t k) = WalletLayer s t k
-    type WorkerMsg (ApiLayer s t k) = WalletLog
-    type WorkerKey (ApiLayer s t k) = WalletId
+instance HasWorkerCtx (DBLayer IO s k) (ApiLayer s k) where
+    type WorkerCtx (ApiLayer s k) = WalletLayer s k
+    type WorkerMsg (ApiLayer s k) = WalletLog
+    type WorkerKey (ApiLayer s k) = WalletId
     hoistResource db transform (ApiLayer tr gp nw tl _ _) =
         WalletLayer (contramap transform tr) gp nw tl db
 

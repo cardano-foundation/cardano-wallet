@@ -32,7 +32,7 @@ import Test.Integration.Faucet
 
 -- | Context for integration tests.
 --
-data Context t = Context
+data Context = Context
     { _cleanup
         :: IO ()
         -- ^ A cleanup action.
@@ -49,8 +49,6 @@ data Context t = Context
         -- ^ A fee estimator.
     , _networkParameters :: NetworkParameters
         -- ^ Blockchain parameters for the underlying chain.
-    , _target
-        :: Proxy t
     , _poolGarbageCollectionEvents
         :: IORef [PoolGarbageCollectionEvent]
         -- ^ The complete list of pool garbage collection events.

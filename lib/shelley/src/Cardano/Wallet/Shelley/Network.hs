@@ -28,8 +28,6 @@ module Cardano.Wallet.Shelley.Network
       pattern Cursor
     , withNetworkLayer
 
-    , NodePoolLsqData (..)
-
     , Observer (query,startObserving,stopObserving)
     , newObserver
     , ObserverLog (..)
@@ -52,7 +50,6 @@ import Cardano.Wallet.Network
     ( Cursor
     , ErrNetworkUnavailable (..)
     , ErrPostTx (..)
-    , GetStakeDistribution
     , NetworkLayer (..)
     , mapCursor
     )
@@ -61,7 +58,6 @@ import Cardano.Wallet.Primitive.Slotting
 import Cardano.Wallet.Shelley.Compatibility
     ( AnyCardanoEra (..)
     , CardanoEra (..)
-    , ShelleyEra
     , StandardCrypto
     , fromCardanoHash
     , fromChainHash
@@ -145,7 +141,7 @@ import Data.Maybe
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
-    ( Percentage, Quantity (..) )
+    ( Quantity (..) )
 import Data.Set
     ( Set )
 import Data.Text
@@ -156,10 +152,8 @@ import Data.Time.Clock
     ( NominalDiffTime, diffUTCTime, getCurrentTime )
 import Data.Void
     ( Void )
-import Data.Word
-    ( Word64 )
 import Fmt
-    ( Buildable (..), fmt, listF, listF', mapF, pretty )
+    ( Buildable (..), fmt, listF, mapF, pretty )
 import GHC.Stack
     ( HasCallStack )
 import Network.Mux
@@ -275,10 +269,10 @@ import qualified Shelley.Spec.Ledger.LedgerState as SL
 
 -- | Network layer cursor for Shelley. Mostly useless since the protocol itself is
 -- stateful and the node's keep track of the associated connection's cursor.
-data instance Cursor (m ShelleyEra) = Cursor
+data instance Cursor = Cursor
     (Async ())
     (Point (CardanoBlock StandardCrypto))
-    (TQueue m (ChainSyncCmd (CardanoBlock StandardCrypto) m))
+    (TQueue IO (ChainSyncCmd (CardanoBlock StandardCrypto) IO))
 
 -- | Create an instance of the network layer
 withNetworkLayer
@@ -291,7 +285,7 @@ withNetworkLayer
         -- ^ Socket for communicating with the node
     -> (NodeToClientVersionData, CodecCBORTerm Text NodeToClientVersionData)
         -- ^ Codecs for the node's client
-    -> (NetworkLayer IO (IO ShelleyEra) (CardanoBlock StandardCrypto) -> IO a)
+    -> (NetworkLayer IO (CardanoBlock StandardCrypto) -> IO a)
         -- ^ Callback function with the network layer
     -> IO a
 withNetworkLayer tr np addrInfo (versionData, _) action = do
@@ -403,7 +397,7 @@ withNetworkLayer tr np addrInfo (versionData, _) action = do
         link =<< async (connectClient tr handlers cl versionData addrInfo)
         pure cmdQ
 
-    _initCursor :: HasCallStack => [W.BlockHeader] -> IO (Cursor (IO ShelleyEra))
+    _initCursor :: HasCallStack => [W.BlockHeader] -> IO Cursor
     _initCursor headers = do
         chainSyncQ <- atomically newTQueue
         client <- mkWalletClient (contramap MsgChainSyncCmd tr) cfg gp chainSyncQ
@@ -484,20 +478,20 @@ withNetworkLayer tr np addrInfo (versionData, _) action = do
         era <- liftIO $ atomically $ readTVar eraVar
         let pt = toPoint getGenesisBlockHash bh
 
-        mres <- liftA3 (liftA3 NodePoolLsqData)
+        mres <- liftA3 (liftA3 W.StakePoolsSummary)
             (getNOpt pt era)
             (queryNonMyopicMemberRewards pt era)
             (queryStakeDistribution pt era)
 
         -- The result will be Nothing if query occurs during the byron era
-        liftIO $ traceWith tr $ MsgFetchedNodePoolLsqData (eitherToMaybe mres)
+        liftIO $ traceWith tr $ MsgFetchStakePoolsData (eitherToMaybe mres)
         case mres of
-            Right res -> do
-                liftIO $ traceWith tr $ MsgFetchedNodePoolLsqDataSummary
-                    (Map.size $ stake res)
-                    (Map.size $ rewards res)
+            Right res@W.StakePoolsSummary{rewards,stake} -> do
+                liftIO $ traceWith tr $ MsgFetchStakePoolsDataSummary
+                    (Map.size stake)
+                    (Map.size rewards)
                 return res
-            Left{} -> pure $ NodePoolLsqData 0 mempty mempty
+            Left{} -> pure $ W.StakePoolsSummary 0 mempty mempty
       where
         handleQueryFailure :: forall e r. Show e => IO (Either e r) -> ExceptT ErrNetworkUnavailable IO r
         handleQueryFailure =
@@ -565,24 +559,6 @@ withNetworkLayer tr np addrInfo (versionData, _) action = do
     _timeInterpreter var = do
         let readInterpreter = liftIO $ atomically $ readTMVar var
         mkTimeInterpreter (contramap MsgInterpreterLog tr) getGenesisBlockDate readInterpreter
-
-type instance GetStakeDistribution (IO ShelleyEra) m =
-      W.BlockHeader
-   -> W.Coin
-   -> ExceptT ErrNetworkUnavailable m NodePoolLsqData
-
-data NodePoolLsqData = NodePoolLsqData
-    { nOpt :: Int
-    , rewards :: Map W.PoolId (Quantity "lovelace" Word64)
-    , stake :: Map W.PoolId Percentage
-    } deriving (Show, Eq)
-
-instance Buildable NodePoolLsqData where
-    build NodePoolLsqData{nOpt,rewards,stake} = listF' id
-        [ "Stake: " <> mapF (Map.toList stake)
-        , "Non-myopic member rewards: " <> mapF (Map.toList rewards)
-        , "Optimum number of pools: " <> pretty nOpt
-        ]
 
 --------------------------------------------------------------------------------
 --
@@ -1213,8 +1189,8 @@ data NetworkLayerLog where
         -> NetworkLayerLog
     MsgDestroyCursor :: ThreadId -> NetworkLayerLog
     MsgWillQueryRewardsForStake :: W.Coin -> NetworkLayerLog
-    MsgFetchedNodePoolLsqData :: Maybe NodePoolLsqData -> NetworkLayerLog
-    MsgFetchedNodePoolLsqDataSummary :: Int -> Int -> NetworkLayerLog
+    MsgFetchStakePoolsData :: Maybe W.StakePoolsSummary -> NetworkLayerLog
+    MsgFetchStakePoolsDataSummary :: Int -> Int -> NetworkLayerLog
       -- ^ Number of pools in stake distribution, and rewards map,
       -- respectively.
     MsgWatcherUpdate :: W.BlockHeader -> BracketLog -> NetworkLayerLog
@@ -1297,9 +1273,9 @@ instance ToText NetworkLayerLog where
             ]
         MsgWillQueryRewardsForStake c ->
             "Will query non-myopic rewards using the stake " <> pretty c
-        MsgFetchedNodePoolLsqData d ->
+        MsgFetchStakePoolsData d ->
             "Fetched pool data from node tip using LSQ: " <> pretty d
-        MsgFetchedNodePoolLsqDataSummary inStake inRewards -> mconcat
+        MsgFetchStakePoolsDataSummary inStake inRewards -> mconcat
             [ "Fetched pool data from node tip using LSQ. Got "
             , T.pack (show inStake)
             , " pools in the stake distribution, and "
@@ -1339,8 +1315,8 @@ instance HasSeverityAnnotation NetworkLayerLog where
         MsgAccountDelegationAndRewards{}   -> Info
         MsgDestroyCursor{}                 -> Notice
         MsgWillQueryRewardsForStake{}      -> Info
-        MsgFetchedNodePoolLsqData{}        -> Debug
-        MsgFetchedNodePoolLsqDataSummary{} -> Info
+        MsgFetchStakePoolsData{}           -> Debug
+        MsgFetchStakePoolsDataSummary{}    -> Info
         MsgWatcherUpdate{}                 -> Debug
         MsgChainSyncCmd cmd                -> getSeverityAnnotation cmd
         MsgInterpreter{}                   -> Debug

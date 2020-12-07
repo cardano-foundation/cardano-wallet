@@ -56,7 +56,7 @@ import Test.Utils.Paths
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Network.HTTP.Types.Status as HTTP
 
-spec :: forall t. SpecWith (Context t)
+spec :: SpecWith Context
 spec = describe "COMMON_NETWORK" $ do
     it "NETWORK - Can query network information" $ \ctx -> do
         eventually "wallet's syncProgress = Ready" $ do

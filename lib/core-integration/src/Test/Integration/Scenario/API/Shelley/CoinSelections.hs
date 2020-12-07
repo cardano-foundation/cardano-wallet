@@ -81,14 +81,14 @@ import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
 import qualified Network.HTTP.Types as HTTP
 
-spec :: forall n t.
+spec :: forall n.
     ( DecodeAddress n
     , DecodeStakeAddress n
     , EncodeAddress n
     , PaymentAddress n ShelleyKey
     , PaymentAddress n IcarusKey
     , PaymentAddress n ByronKey
-    ) => SpecWith (Context t)
+    ) => SpecWith Context
 spec = describe "SHELLEY_COIN_SELECTION" $ do
 
     it "WALLETS_COIN_SELECTION_01 - \

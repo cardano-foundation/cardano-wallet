@@ -42,7 +42,6 @@ import Test.Hspec.Extra
     ( it )
 import Test.Integration.Framework.DSL
     ( Context (..)
-    , KnownCommand
     , cardanoWalletCLI
     , eventually
     , expectCliField
@@ -53,7 +52,7 @@ import Test.Integration.Framework.TestData
 import Test.Utils.Paths
     ( inNixBuild )
 
-spec :: forall t. KnownCommand t => SpecWith (Context t)
+spec :: SpecWith Context
 spec = describe "COMMON_CLI_NETWORK" $ do
     it "CLI_NETWORK - cardano-wallet network information" $ \ctx -> do
         info <- getNetworkInfoViaCLI ctx
@@ -75,33 +74,33 @@ spec = describe "COMMON_CLI_NETWORK" $ do
                 (`shouldBe` NtpSyncingStatusAvailable) clock
   where
       getNetworkParamsViaCli
-          :: Context t
+          :: Context
           -> IO ApiNetworkParameters
       getNetworkParamsViaCli ctx = do
           let port = show (ctx ^. typed @(Port "wallet"))
-          (Exit c, Stderr e, Stdout o) <- cardanoWalletCLI @t
+          (Exit c, Stderr e, Stdout o) <- cardanoWalletCLI
               ["network", "parameters", "--port", port ]
           c `shouldBe` ExitSuccess
           e `shouldContain` cmdOk
           expectValidJSON (Proxy @ApiNetworkParameters) o
 
       getNetworkInfoViaCLI
-          :: Context t
+          :: Context
           -> IO ApiNetworkInformation
       getNetworkInfoViaCLI ctx = do
           let port = show (ctx ^. typed @(Port "wallet"))
-          (Exit c, Stderr e, Stdout o) <- cardanoWalletCLI @t
+          (Exit c, Stderr e, Stdout o) <- cardanoWalletCLI
               ["network", "information", "--port", port ]
           c `shouldBe` ExitSuccess
           e `shouldContain` cmdOk
           expectValidJSON (Proxy @ApiNetworkInformation) o
 
       getNetworkClockViaCLI
-          :: Context t
+          :: Context
           -> IO ApiNetworkClock
       getNetworkClockViaCLI ctx = do
           let port = show (ctx ^. typed @(Port "wallet"))
-          (Exit c, Stderr e, Stdout o) <- cardanoWalletCLI @t
+          (Exit c, Stderr e, Stdout o) <- cardanoWalletCLI
               ["network", "clock", "--port", port ]
           c `shouldBe` ExitSuccess
           e `shouldContain` cmdOk

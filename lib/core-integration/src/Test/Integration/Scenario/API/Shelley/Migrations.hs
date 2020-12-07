@@ -99,14 +99,14 @@ import qualified Data.Map.Strict as Map
 import qualified Network.HTTP.Types.Status as HTTP
 import qualified Test.Hspec as Hspec
 
-spec :: forall n t.
+spec :: forall n.
     ( DecodeAddress n
     , DecodeStakeAddress n
     , EncodeAddress n
     , PaymentAddress n ShelleyKey
     , PaymentAddress n IcarusKey
     , PaymentAddress n ByronKey
-    ) => SpecWith (Context t)
+    ) => SpecWith Context
 spec = describe "SHELLEY_MIGRATIONS" $ do
     it "SHELLEY_CALCULATE_01 - \
         \for non-empty wallet calculated fee is > zero."

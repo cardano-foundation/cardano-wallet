@@ -754,7 +754,7 @@ genDeposit sup
 
 genSelectionFor :: NonEmpty TxOut -> Gen CoinSelection
 genSelectionFor outs = do
-    let opts = CS.CoinSelectionOptions (const 100) (const $ pure ())
+    let opts = CS.CoinSelectionOptions (const 100)
     utxo <- vector (NE.length outs * 3) >>= genUTxO
     withdrawal_ <- genWithdrawal
     case runIdentity $ runExceptT $ largestFirst opts outs (Quantity withdrawal_) utxo of

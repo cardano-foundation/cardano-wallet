@@ -59,8 +59,6 @@ import Cardano.Wallet.Shelley
     , nullTracers
     , serveWallet
     )
-import Cardano.Wallet.Shelley.Compatibility
-    ( ShelleyEra )
 import Cardano.Wallet.Shelley.Faucet
     ( initFaucet )
 import Cardano.Wallet.Shelley.Launch
@@ -129,20 +127,20 @@ import qualified Cardano.Wallet.Api.Link as Link
 import qualified Data.Text as T
 import qualified Network.HTTP.Types.Status as HTTP
 
-main :: forall t n. (t ~ ShelleyEra, n ~ 'Mainnet) => IO ()
+main :: forall n. (n ~ 'Mainnet) => IO ()
 main = withUtf8Encoding $
     withLatencyLogging setupTracers $ \tracers capture ->
         withShelleyServer tracers $ \ctx -> do
-            walletApiBench @t @n capture ctx
+            walletApiBench @n capture ctx
   where
     setupTracers :: TVar [LogObject ApiLog] -> Tracers IO
     setupTracers tvar = nullTracers
         { apiServerTracer = trMessage $ contramap snd (traceInTVarIO tvar) }
 
 walletApiBench
-    :: forall t (n :: NetworkDiscriminant). (t ~ ShelleyEra, n ~ 'Mainnet)
+    :: forall (n :: NetworkDiscriminant). (n ~ 'Mainnet)
     => LogCaptureFunc ApiLog ()
-    -> Context t
+    -> Context
     -> IO ()
 walletApiBench capture ctx = do
     fmtTitle "Non-cached run"
@@ -341,7 +339,7 @@ walletApiBench capture ctx = do
 
 withShelleyServer
     :: Tracers IO
-    -> (Context ShelleyEra -> IO ())
+    -> (Context -> IO ())
     -> IO ()
 withShelleyServer tracers action = do
     ctx <- newEmptyMVar
@@ -360,7 +358,6 @@ withShelleyServer tracers action = do
                 , _faucet = faucet
                 , _feeEstimator = \_ -> error "feeEstimator not available"
                 , _networkParameters = np
-                , _target = Proxy
                 , _poolGarbageCollectionEvents =
                     error "poolGarbageCollectionEvents not available"
                 }
@@ -389,7 +386,7 @@ withShelleyServer tracers action = do
         -- NOTE: We may want to keep a wallet running across the fork, but
         -- having three callbacks like this might not work well for that.
         withTempDir nullTracer dir "wallets" $ \db -> do
-            serveWallet @(IO ShelleyEra)
+            serveWallet
                 (SomeNetworkDiscriminant $ Proxy @'Mainnet)
                 tracers
                 (SyncTolerance 10)

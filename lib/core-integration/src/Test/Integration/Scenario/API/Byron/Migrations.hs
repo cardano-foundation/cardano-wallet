@@ -51,8 +51,6 @@ import Data.Quantity
     ( Quantity (..) )
 import Data.Text
     ( Text )
-import Data.Typeable
-    ( Typeable )
 import Data.Word
     ( Word64 )
 import Test.Hspec
@@ -99,15 +97,14 @@ import qualified Network.HTTP.Types.Status as HTTP
 import qualified Test.Hspec as Hspec
 
 
-spec :: forall n t.
+spec :: forall n.
     ( DecodeAddress n
     , DecodeStakeAddress n
     , EncodeAddress n
     , PaymentAddress n ShelleyKey
     , PaymentAddress n IcarusKey
     , PaymentAddress n ByronKey
-    , Typeable t
-    ) => SpecWith (Context t)
+    ) => SpecWith Context
 spec = describe "BYRON_MIGRATIONS" $ do
     it "BYRON_CALCULATE_01 - \
         \for non-empty wallet calculated fee is > zero."

@@ -30,14 +30,10 @@ import Cardano.Wallet.Primitive.Types.Tx
     ( TxIn, TxOut (..) )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
-import Control.Arrow
-    ( left )
 import Control.Monad
     ( when )
 import Control.Monad.Trans.Except
-    ( ExceptT (..), except, throwE )
-import Data.Functor
-    ( ($>) )
+    ( ExceptT (..), throwE )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Ord
@@ -53,12 +49,12 @@ import qualified Data.Map.Strict as Map
 
 -- | Largest-first input selection policy
 largestFirst
-    :: forall m e. Monad m
-    => CoinSelectionOptions e
+    :: forall m. Monad m
+    => CoinSelectionOptions
     -> NonEmpty TxOut
     -> Quantity "lovelace" Word64
     -> UTxO
-    -> ExceptT (ErrCoinSelection e) m (CoinSelection, UTxO)
+    -> ExceptT ErrCoinSelection m (CoinSelection, UTxO)
 largestFirst opt outs withdrawal utxo = do
     let nOuts = fromIntegral $ NE.length outs
     let maxN = fromIntegral $ maximumNumberOfInputs opt nOuts
@@ -66,11 +62,10 @@ largestFirst opt outs withdrawal utxo = do
             . L.sortOn (Down . coin . snd)
             . Map.toList
             . getUTxO
-    let guard = except . left ErrInvalidSelection . validate opt
 
     case atLeast (nLargest utxo) withdrawal (NE.toList outs) of
         Just (utxo', s) ->
-            guard s $> (s, UTxO $ Map.fromList utxo')
+            pure (s, UTxO $ Map.fromList utxo')
         Nothing -> do
             let moneyRequested = sum $ (getCoin . coin) <$> outs
             let utxoList = Map.toList $ getUTxO utxo

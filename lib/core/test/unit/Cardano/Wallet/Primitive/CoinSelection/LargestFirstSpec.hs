@@ -16,10 +16,7 @@ import Cardano.Wallet.Primitive.CoinSelectionSpec
     ( CoinSelProp (..)
     , CoinSelectionFixture (..)
     , CoinSelectionResult (..)
-    , ErrValidation (..)
-    , alwaysFail
     , coinSelectionUnitTest
-    , noValidation
     )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
@@ -58,7 +55,6 @@ spec = do
                 })
             (CoinSelectionFixture
                 { maxNumOfInputs = 100
-                , validateSelection = noValidation
                 , utxoInputs = [10,10,17]
                 , txOutputs = 17 :| []
                 , totalWithdrawal = 0
@@ -72,7 +68,6 @@ spec = do
                 })
             (CoinSelectionFixture
                 { maxNumOfInputs = 100
-                , validateSelection = noValidation
                 , utxoInputs = [12,10,17]
                 , txOutputs = 1 :| []
                 , totalWithdrawal = 0
@@ -86,7 +81,6 @@ spec = do
                 })
             (CoinSelectionFixture
                 { maxNumOfInputs = 100
-                , validateSelection = noValidation
                 , utxoInputs = [12,10,17]
                 , txOutputs = 18 :| []
                 , totalWithdrawal = 0
@@ -100,7 +94,6 @@ spec = do
                 })
             (CoinSelectionFixture
                 { maxNumOfInputs = 100
-                , validateSelection = noValidation
                 , utxoInputs = [12,10,17]
                 , txOutputs = 30 :| []
                 , totalWithdrawal = 0
@@ -114,7 +107,6 @@ spec = do
                 })
             (CoinSelectionFixture
                 { maxNumOfInputs = 3
-                , validateSelection = noValidation
                 , utxoInputs = [1,2,10,6,5]
                 , txOutputs = 11 :| [1]
                 , totalWithdrawal = 0
@@ -128,7 +120,6 @@ spec = do
                 })
             (CoinSelectionFixture
                 { maxNumOfInputs = 100
-                , validateSelection = noValidation
                 , utxoInputs = [1]
                 , txOutputs = 100 :| []
                 , totalWithdrawal = 99
@@ -142,7 +133,6 @@ spec = do
                 })
             (CoinSelectionFixture
                 { maxNumOfInputs = 100
-                , validateSelection = noValidation
                 , utxoInputs = [10,30]
                 , txOutputs = 40 :| []
                 , totalWithdrawal = 50
@@ -152,7 +142,6 @@ spec = do
             (Left ErrInputsDepleted)
             (CoinSelectionFixture
                 { maxNumOfInputs = 100
-                , validateSelection = noValidation
                 , utxoInputs = []
                 , txOutputs = 1 :| []
                 , totalWithdrawal = 10
@@ -162,7 +151,6 @@ spec = do
             (Left $ ErrNotEnoughMoney 39 40)
             (CoinSelectionFixture
                 { maxNumOfInputs = 100
-                , validateSelection = noValidation
                 , utxoInputs = [12,10,17]
                 , txOutputs = 40 :| []
                 , totalWithdrawal = 0
@@ -172,7 +160,6 @@ spec = do
             (Left $ ErrNotEnoughMoney 39 43)
             (CoinSelectionFixture
                 { maxNumOfInputs = 100
-                , validateSelection = noValidation
                 , utxoInputs = [12,10,17]
                 , txOutputs = 40 :| [1,1,1]
                 , totalWithdrawal = 0
@@ -186,7 +173,6 @@ spec = do
                 })
             (CoinSelectionFixture
                 { maxNumOfInputs = 100
-                , validateSelection = noValidation
                 , utxoInputs = [12,20,17]
                 , txOutputs = 40 :| [1,1,1]
                 , totalWithdrawal = 0
@@ -201,7 +187,6 @@ spec = do
                 })
             (CoinSelectionFixture
                 { maxNumOfInputs = 100
-                , validateSelection = noValidation
                 , utxoInputs = [12,20,17]
                 , txOutputs = 40 :| [1]
                 , totalWithdrawal = 0
@@ -211,7 +196,6 @@ spec = do
             (Left $ ErrMaximumInputsReached 9)
             (CoinSelectionFixture
                 { maxNumOfInputs = 9
-                , validateSelection = noValidation
                 , utxoInputs = replicate 100 1
                 , txOutputs = NE.fromList (replicate 100 1)
                 , totalWithdrawal = 0
@@ -221,19 +205,8 @@ spec = do
             (Left $ ErrMaximumInputsReached 9)
             (CoinSelectionFixture
                 { maxNumOfInputs = 9
-                , validateSelection = noValidation
                 , utxoInputs = replicate 100 1
                 , txOutputs = NE.fromList (replicate 10 10)
-                , totalWithdrawal = 0
-                })
-
-        coinSelectionUnitTest largestFirst "custom validation"
-            (Left $ ErrInvalidSelection ErrValidation)
-            (CoinSelectionFixture
-                { maxNumOfInputs = 100
-                , validateSelection = alwaysFail
-                , utxoInputs = [1,1]
-                , txOutputs = 2 :| []
                 , totalWithdrawal = 0
                 })
 
@@ -256,7 +229,7 @@ propDeterministic
     :: CoinSelProp
     -> Property
 propDeterministic (CoinSelProp utxo wdrl txOuts) = do
-    let opts = CoinSelectionOptions (const 100) noValidation
+    let opts = CoinSelectionOptions (const 100)
     let resultOne = runIdentity $ runExceptT $ largestFirst opts txOuts wdrl utxo
     let resultTwo = runIdentity $ runExceptT $ largestFirst opts txOuts wdrl utxo
     resultOne === resultTwo
@@ -270,7 +243,7 @@ propAtLeast (CoinSelProp utxo wdrl txOuts) =
     prop cs =
         L.length (inputs cs) `shouldSatisfy` (>= NE.length txOuts)
     selection = runIdentity $ runExceptT $ do
-        let opts = CoinSelectionOptions (const 100) noValidation
+        let opts = CoinSelectionOptions (const 100)
         largestFirst opts txOuts wdrl utxo
 
 propInputDecreasingOrder
@@ -289,5 +262,5 @@ propInputDecreasingOrder (CoinSelProp utxo wdrl txOuts) =
             (>= (getExtremumValue L.maximum utxo'))
     getExtremumValue f = f . map (getCoin . coin . snd)
     selection = runIdentity $ runExceptT $ do
-        let opts = CoinSelectionOptions (const 100) noValidation
+        let opts = CoinSelectionOptions (const 100)
         largestFirst opts txOuts wdrl utxo

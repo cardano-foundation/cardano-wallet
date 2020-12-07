@@ -22,7 +22,6 @@ module Cardano.Wallet.Transaction
 
     -- * Errors
     , ErrMkTx (..)
-    , ErrValidateSelection
     , ErrDecodeSignedTx (..)
     ) where
 
@@ -55,7 +54,7 @@ import Data.Word
 import GHC.Generics
     ( Generic )
 
-data TransactionLayer t k = TransactionLayer
+data TransactionLayer k = TransactionLayer
     { mkStdTx
         :: AnyCardanoEra
             -- Era for which the transaction should be created.
@@ -154,14 +153,6 @@ data TransactionLayer t k = TransactionLayer
         -- This estimate will err on the side of permitting more inputs,
         -- resulting in a transaction which may be too large.
 
-    , validateSelection
-      :: CoinSelection -> Either (ErrValidateSelection t) ()
-      -- ^ Validate coin selection regarding rules that may be specific to a
-      -- particular backend implementation.
-      --
-      -- For example, Byron nodes do not allow null output amounts. Jörmungandr
-      -- on its side doesn't support more than 255 inputs or outputs.
-
     , decodeSignedTx
         :: AnyCardanoEra
         -> ByteString
@@ -172,13 +163,6 @@ data TransactionLayer t k = TransactionLayer
 -- | Whether the user is attempting any particular delegation action.
 data DelegationAction = RegisterKeyAndJoin PoolId | Join PoolId | Quit
     deriving (Show, Eq, Generic)
-
--- | A type family for validations that are specific to a particular backend
--- type. This demands an instantiation of the family for a particular backend:
---
---     type instance (ErrValidateSelection MyBackend) = MyCustomError
---
-type family ErrValidateSelection t
 
 -- | Error while trying to decode externally signed transaction
 data ErrDecodeSignedTx

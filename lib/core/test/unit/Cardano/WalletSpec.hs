@@ -38,12 +38,7 @@ import Cardano.Wallet
 import Cardano.Wallet.DB
     ( DBLayer (..), ErrNoSuchWallet (..), PrimaryKey (..), putTxHistory )
 import Cardano.Wallet.DummyTarget.Primitive.Types
-    ( DummyTarget
-    , block0
-    , dummyNetworkParameters
-    , dummyTimeInterpreter
-    , mkTxId
-    )
+    ( block0, dummyNetworkParameters, dummyTimeInterpreter, mkTxId )
 import Cardano.Wallet.Gen
     ( genMnemonic, genSlotNo, genTxMetadata, shrinkTxMetadata )
 import Cardano.Wallet.Network
@@ -209,7 +204,7 @@ spec :: Spec
 spec = parallel $ do
     parallel $ describe "Pointless tests to cover 'Show' instances for errors" $ do
         let wid = WalletId (hash @ByteString "arbitrary")
-        it (show $ ErrSelectForPaymentNoSuchWallet @() (ErrNoSuchWallet wid)) True
+        it (show $ ErrSelectForPaymentNoSuchWallet (ErrNoSuchWallet wid)) True
         it (show $ ErrSignPaymentNoSuchWallet (ErrNoSuchWallet wid)) True
         it (show $ ErrSubmitTxNoSuchWallet (ErrNoSuchWallet wid)) True
         it (show $ ErrUpdatePassphraseNoSuchWallet (ErrNoSuchWallet wid)) True
@@ -540,10 +535,10 @@ walletKeyIsReencrypted (wid, wname) (xprv, pwd) newPwd =
         let credentials (rootK, pwdP) =
                 (getRawKey $ deriveRewardAccount pwdP rootK, pwdP)
         (_,_,_,txOld) <- unsafeRunExceptT $
-            W.signPayment @_ @_ @DummyTarget wl wid () credentials (coerce pwd) Nothing Nothing selection
+            W.signPayment @_ @_ wl wid () credentials (coerce pwd) Nothing Nothing selection
         unsafeRunExceptT $ W.updateWalletPassphrase wl wid (coerce pwd, newPwd)
         (_,_,_,txNew) <- unsafeRunExceptT $
-            W.signPayment @_ @_ @DummyTarget wl wid () credentials newPwd Nothing Nothing selection
+            W.signPayment @_ @_ wl wid () credentials newPwd Nothing Nothing selection
         txOld `shouldBe` txNew
   where
     selection = mempty
@@ -567,7 +562,7 @@ walletListTransactionsSorted wallet@(wid, _, _) _order (_mstart, _mend) history 
         (WalletLayerFixture DBLayer{..} wl _ slotNoTime) <- liftIO $ setupFixture wallet
         atomically $ unsafeRunExceptT $ putTxHistory (PrimaryKey wid) history
         txs <- unsafeRunExceptT $
-            W.listTransactions @_ @_ @_ @DummyTarget wl wid Nothing Nothing Nothing Descending
+            W.listTransactions @_ @_ @_ wl wid Nothing Nothing Nothing Descending
         length txs `shouldBe` L.length history
         -- With the 'Down'-wrapper, the sort is descending.
         txs `shouldBe` L.sortOn (Down . slotNo . txInfoMeta) txs
@@ -689,7 +684,7 @@ instance Arbitrary CoinSelectionGuard where
 
 data WalletLayerFixture = WalletLayerFixture
     { _fixtureDBLayer :: DBLayer IO DummyState ShelleyKey
-    , _fixtureWalletLayer :: WalletLayer DummyState DummyTarget ShelleyKey
+    , _fixtureWalletLayer :: WalletLayer DummyState ShelleyKey
     , _fixtureWallet :: [WalletId]
     , _fixtureSlotNoTime :: SlotNo -> UTCTime
     }
@@ -715,7 +710,7 @@ setupFixture (wid, wname, wstate) = do
 
 -- | A dummy transaction layer to see the effect of a root private key. It
 -- implements a fake signer that still produces sort of witnesses
-dummyTransactionLayer :: TransactionLayer DummyTarget ShelleyKey
+dummyTransactionLayer :: TransactionLayer ShelleyKey
 dummyTransactionLayer = TransactionLayer
     { mkStdTx = \_ _ keyFrom _slot _md cs -> do
         let inps' = map (second coin) (CS.inputs cs)
@@ -741,8 +736,6 @@ dummyTransactionLayer = TransactionLayer
         error "dummyTransactionLayer: minimumFee not implemented"
     , estimateMaxNumberOfInputs =
         error "dummyTransactionLayer: estimateMaxNumberOfInputs not implemented"
-    , validateSelection =
-        error "dummyTransactionLayer: validateSelection not implemented"
     , decodeSignedTx =
         error "dummyTransactionLayer: decodeSignedTx not implemented"
     }
@@ -750,7 +743,7 @@ dummyTransactionLayer = TransactionLayer
     withEither :: e -> Maybe a -> Either e a
     withEither e = maybe (Left e) Right
 
-dummyNetworkLayer :: Monad m => NetworkLayer m t block
+dummyNetworkLayer :: Monad m => NetworkLayer m block
 dummyNetworkLayer = NetworkLayer
     { nextBlocks =
         error "dummyNetworkLayer: nextBlocks not implemented"

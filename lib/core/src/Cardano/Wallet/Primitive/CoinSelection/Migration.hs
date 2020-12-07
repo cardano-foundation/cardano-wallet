@@ -170,7 +170,7 @@ depleteUTxO feeOpts batchSize utxo =
 
 -- | Try to find a fix "ideal" number of input transactions that would generate
 -- rather balanced transactions.
-idealBatchSize :: CoinSelectionOptions e -> Word8
+idealBatchSize :: CoinSelectionOptions -> Word8
 idealBatchSize coinselOpts = fixPoint 1
   where
     fixPoint :: Word8 -> Word8

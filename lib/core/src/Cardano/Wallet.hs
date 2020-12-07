@@ -33,9 +33,6 @@
 --   values for this parameter are described in 'Cardano.Wallet.AddressDiscovery' sub-modules.
 --   For instance @SeqState@ or @Rnd State@.
 --
--- - @t@: A __t__arget backend which captures details specific to a particular chain
---   producer (binary formats, fee policy, networking layer).
---
 -- - @k@: A __k__ey derivation scheme intrisically connected to the underlying discovery
 --   state @s@. This describes how the hierarchical structure of a wallet is
 --   defined as well as the relationship between secret keys and public
@@ -113,7 +110,6 @@ module Cardano.Wallet
     , ErrSignPayment (..)
     , ErrCoinSelection (..)
     , ErrAdjustForFee (..)
-    , ErrValidateSelection
     , ErrNotASequentialWallet (..)
     , ErrUTxOTooSmall (..)
     , ErrWithdrawalNotWorth (..)
@@ -354,7 +350,6 @@ import Cardano.Wallet.Transaction
     ( DelegationAction (..)
     , ErrDecodeSignedTx (..)
     , ErrMkTx (..)
-    , ErrValidateSelection
     , TransactionLayer (..)
     )
 import Cardano.Wallet.Unsafe
@@ -469,14 +464,14 @@ import qualified Data.Vector as V
 --
 -- - @db = ctx ^. dbLayer \@s \\@k@ for the 'DBLayer'.
 -- - @tr = ctx ^. logger@ for the Logger.
--- - @nw = ctx ^. networkLayer \@t@ for the 'NetworkLayer'.
+-- - @nw = ctx ^. networkLayer@ for the 'NetworkLayer'.
 -- - @tl = ctx ^. transactionLayer \\@k@ for the 'TransactionLayer'.
 -- - @re = ctx ^. workerRegistry@ for the 'WorkerRegistry'.
 --
 -- __TroubleShooting__
 --
 -- @
--- • Overlapping instances for HasType (DBLayer IO s t k) ctx
+-- • Overlapping instances for HasType (DBLayer IO s k) ctx
 --     arising from a use of ‘myFunction’
 --   Matching instances:
 -- @
@@ -486,7 +481,7 @@ import qualified Data.Vector as V
 -- `myFunction` needs its surrounding context `ctx` to have a `DBLayer` but
 -- the constraint is missing from its host function.
 --
--- __Fix__: Add "@HasDBLayer s t k@" as a class-constraint to the surrounding function.
+-- __Fix__: Add "@HasDBLayer s k@" as a class-constraint to the surrounding function.
 --
 -- @
 -- • Overlapping instances for HasType (DBLayer IO s t0 k0) ctx
@@ -501,12 +496,12 @@ import qualified Data.Vector as V
 --
 -- __Fix__: Add type-applications at the call-site "@myFunction \@ctx \@s \\@k@"
 
-data WalletLayer s t (k :: Depth -> * -> *)
+data WalletLayer s (k :: Depth -> * -> *)
     = WalletLayer
         (Tracer IO WalletLog)
         (Block, NetworkParameters, SyncTolerance)
-        (NetworkLayer IO t Block)
-        (TransactionLayer t k)
+        (NetworkLayer IO Block)
+        (TransactionLayer k)
         (DBLayer IO s k)
     deriving (Generic)
 
@@ -524,8 +519,8 @@ data WalletLayer s t (k :: Depth -> * -> *)
 --
 -- @
 -- listWallets
---     :: forall ctx s t k.
---         ( HasDBLayer s t k ctx
+--     :: forall ctx s k.
+--         ( HasDBLayer s k ctx
 --         )
 --     => ctx
 --     -> IO [WalletId]
@@ -548,9 +543,9 @@ type HasLogger msg = HasType (Tracer IO msg)
 
 -- | This module is only interested in one block-, and tx-type. This constraint
 -- hides that choice, for some ease of use.
-type HasNetworkLayer t = HasType (NetworkLayer IO t Block)
+type HasNetworkLayer = HasType (NetworkLayer IO Block)
 
-type HasTransactionLayer t k = HasType (TransactionLayer t k)
+type HasTransactionLayer k = HasType (TransactionLayer k)
 
 dbLayer
     :: forall s k ctx. HasDBLayer s k ctx
@@ -571,16 +566,16 @@ logger =
     typed @(Tracer IO msg)
 
 networkLayer
-    :: forall t ctx. (HasNetworkLayer t ctx)
-    => Lens' ctx (NetworkLayer IO t Block)
+    :: forall ctx. (HasNetworkLayer ctx)
+    => Lens' ctx (NetworkLayer IO Block)
 networkLayer =
-    typed @(NetworkLayer IO t Block)
+    typed @(NetworkLayer IO Block)
 
 transactionLayer
-    :: forall t k ctx. (HasTransactionLayer t k ctx)
-    => Lens' ctx (TransactionLayer t k)
+    :: forall k ctx. (HasTransactionLayer k ctx)
+    => Lens' ctx (TransactionLayer k)
 transactionLayer =
-    typed @(TransactionLayer t k)
+    typed @(TransactionLayer k)
 
 {-------------------------------------------------------------------------------
                                    Wallet
@@ -707,9 +702,9 @@ readWalletProtocolParameters ctx wid = db & \DBLayer{..} ->
     db = ctx ^. dbLayer @s @k
 
 walletSyncProgress
-    :: forall ctx s t.
+    :: forall ctx s.
         ( HasGenesisData ctx
-        , HasNetworkLayer t ctx
+        , HasNetworkLayer ctx
         , HasCallStack
         )
     => ctx
@@ -724,7 +719,7 @@ walletSyncProgress ctx w = do
     ti :: TimeInterpreter IO
     ti = neverFails
             "walletSyncProgress only converts times at the tip or before"
-            (timeInterpreter $ ctx ^. networkLayer @t)
+            (timeInterpreter $ ctx ^. networkLayer)
 
 -- | Update a wallet's metadata with the given update function.
 updateWallet
@@ -782,9 +777,9 @@ listUtxoStatistics ctx wid = do
 -- background that will fetch and apply remaining blocks until the
 -- network tip is reached or until failure.
 restoreWallet
-    :: forall ctx s t k.
+    :: forall ctx s k.
         ( HasLogger WalletLog ctx
-        , HasNetworkLayer t ctx
+        , HasNetworkLayer ctx
         , HasDBLayer s k ctx
         , HasGenesisData ctx
         , IsOurs s Address
@@ -796,19 +791,19 @@ restoreWallet
 restoreWallet ctx wid = db & \DBLayer{..} -> do
     cps <- liftIO $ atomically $ listCheckpoints (PrimaryKey wid)
     let forward bs (h, ps) = run $ do
-            restoreBlocks @ctx @s @k @t ctx wid bs h
+            restoreBlocks @ctx @s @k ctx wid bs h
             saveParams @ctx @s @k ctx wid ps
     liftIO (follow nw tr cps forward (view #header)) >>= \case
         FollowInterrupted ->
             pure ()
         FollowFailure ->
-            restoreWallet @ctx @s @t @k ctx wid
+            restoreWallet @ctx @s @k ctx wid
         FollowRollback point -> do
             rollbackBlocks @ctx @s @k ctx wid point
-            restoreWallet @ctx @s @t @k ctx wid
+            restoreWallet @ctx @s @k ctx wid
   where
     db = ctx ^. dbLayer @s @k
-    nw = ctx ^. networkLayer @t
+    nw = ctx ^. networkLayer
     tr = contramap MsgFollow (ctx ^. logger @WalletLog)
 
     run :: ExceptT ErrNoSuchWallet IO () -> IO (FollowAction ErrNoSuchWallet)
@@ -836,13 +831,13 @@ rollbackBlocks ctx wid point = db & \DBLayer{..} -> do
 -- | Apply the given blocks to the wallet and update the wallet state,
 -- transaction history and corresponding metadata.
 restoreBlocks
-    :: forall ctx s k t.
+    :: forall ctx s k.
         ( HasLogger WalletLog ctx
         , HasDBLayer s k ctx
         , HasGenesisData ctx
         , IsOurs s Address
         , IsOurs s RewardAccount
-        , HasNetworkLayer t ctx
+        , HasNetworkLayer ctx
         )
     => ctx
     -> WalletId
@@ -908,7 +903,7 @@ restoreBlocks ctx wid blocks nodeTip = db & \DBLayer{..} -> mapExceptT atomicall
     prune (PrimaryKey wid)
 
     liftIO $ do
-        progress <- walletSyncProgress @ctx @s @t ctx (NE.last cps)
+        progress <- walletSyncProgress @ctx @s ctx (NE.last cps)
         traceWith tr $ MsgWalletMetadata meta
         traceWith tr $ MsgSyncProgress progress
         traceWith tr $ MsgDiscoveredTxs txs
@@ -979,9 +974,9 @@ fetchRewardBalance ctx wid = db & \DBLayer{..} ->
 -- b) The current reward value is too small to be considered (adding it would
 -- cost more than its value).
 readNextWithdrawal
-    :: forall ctx s t k.
+    :: forall ctx s k.
         ( HasDBLayer s k ctx
-        , HasTransactionLayer t k ctx
+        , HasTransactionLayer k ctx
         )
     => ctx
     -> WalletId
@@ -1006,7 +1001,7 @@ readNextWithdrawal ctx wid (Quantity withdrawal) = db & \DBLayer{..} -> do
                 else Quantity withdrawal
   where
     db = ctx ^. dbLayer @s @k
-    tl = ctx ^. transactionLayer @t @k
+    tl = ctx ^. transactionLayer @k
 
     minFee :: FeePolicy -> CoinSelection -> Integer
     minFee policy =
@@ -1043,8 +1038,8 @@ readRewardAccount ctx wid = db & \DBLayer{..} -> do
 -- Rather than force all callers of 'readWallet' to wait for fetching the
 -- account balance (via the 'NetworkLayer'), we expose this function for it.
 queryRewardBalance
-    :: forall ctx t.
-        ( HasNetworkLayer t ctx
+    :: forall ctx.
+        ( HasNetworkLayer ctx
         )
     => ctx
     -> RewardAccount
@@ -1052,7 +1047,7 @@ queryRewardBalance
 queryRewardBalance ctx acct = do
     mapExceptT (fmap handleErr) $ getAccountBalance nw acct
   where
-    nw = ctx ^. networkLayer @t
+    nw = ctx ^. networkLayer
     handleErr = \case
         Right x -> Right x
         Left (ErrGetAccountBalanceAccountNotFound _) ->
@@ -1061,11 +1056,10 @@ queryRewardBalance ctx acct = do
             Left $ ErrFetchRewardsNetworkUnreachable e
 
 manageRewardBalance
-    :: forall ctx s t k (n :: NetworkDiscriminant).
+    :: forall ctx s k (n :: NetworkDiscriminant).
         ( HasLogger WalletLog ctx
-        , HasNetworkLayer t ctx
+        , HasNetworkLayer ctx
         , HasDBLayer s k ctx
-        , ctx ~ WalletLayer s t k
         , Typeable s
         , Typeable n
         )
@@ -1079,7 +1073,7 @@ manageRewardBalance _ ctx wid = db & \DBLayer{..} -> do
          query <- runExceptT $ do
             (acct, _) <- withExceptT ErrFetchRewardsReadRewardAccount $
                 readRewardAccount @ctx @s @k @n ctx wid
-            queryRewardBalance @ctx @t ctx acct
+            queryRewardBalance @ctx ctx acct
          traceWith tr $ MsgRewardBalanceResult query
          case query of
             Right amt -> do
@@ -1099,7 +1093,7 @@ manageRewardBalance _ ctx wid = db & \DBLayer{..} -> do
   where
     pk = PrimaryKey wid
     db = ctx ^. dbLayer @s @k
-    NetworkLayer{watchNodeTip} = ctx ^. networkLayer @t
+    NetworkLayer{watchNodeTip} = ctx ^. networkLayer
     tr = ctx ^. logger @WalletLog
 
 {-------------------------------------------------------------------------------
@@ -1241,17 +1235,16 @@ normalizeDelegationAddress s addr = do
 -------------------------------------------------------------------------------}
 
 coinSelOpts
-    :: TransactionLayer t k
+    :: TransactionLayer k
     -> Quantity "byte" Word16
     -> Maybe TxMetadata
-    -> CoinSelectionOptions (ErrValidateSelection t)
+    -> CoinSelectionOptions
 coinSelOpts tl txMaxSize md = CoinSelectionOptions
     { maximumNumberOfInputs = estimateMaxNumberOfInputs tl txMaxSize md
-    , validate = validateSelection tl
     }
 
 feeOpts
-    :: TransactionLayer t k
+    :: TransactionLayer k
     -> Maybe DelegationAction
     -> Maybe TxMetadata
     -> W.TxParameters
@@ -1286,18 +1279,17 @@ feeOpts tl action md txp minUtxo cs = FeeOptions
 -- coin selection for the given outputs. In order to construct (and
 -- sign) an actual transaction, use 'signPayment'.
 selectCoinsForPayment
-    :: forall ctx s t k e.
-        ( HasTransactionLayer t k ctx
+    :: forall ctx s k.
+        ( HasTransactionLayer k ctx
         , HasLogger WalletLog ctx
         , HasDBLayer s k ctx
-        , e ~ ErrValidateSelection t
         )
     => ctx
     -> WalletId
     -> NonEmpty TxOut
     -> Quantity "lovelace" Word64
     -> Maybe TxMetadata
-    -> ExceptT (ErrSelectForPayment e) IO CoinSelection
+    -> ExceptT ErrSelectForPayment IO CoinSelection
 selectCoinsForPayment ctx wid recipients withdrawal md = do
     (utxo, pending, txp, minUtxo) <-
         withExceptT ErrSelectForPaymentNoSuchWallet $
@@ -1307,7 +1299,7 @@ selectCoinsForPayment ctx wid recipients withdrawal md = do
     when (withdrawal /= Quantity 0 && isJust pendingWithdrawal) $ throwE $
         ErrSelectForPaymentAlreadyWithdrawing (fromJust pendingWithdrawal)
 
-    cs <- selectCoinsForPaymentFromUTxO @ctx @t @k @e
+    cs <- selectCoinsForPaymentFromUTxO @ctx @k
         ctx utxo txp minUtxo recipients withdrawal md
     withExceptT ErrSelectForPaymentMinimumUTxOValue $ except $
         guardCoinSelection minUtxo cs
@@ -1333,10 +1325,9 @@ selectCoinsSetup ctx wid = do
     return (utxo, pending, txp, minUTxO)
 
 selectCoinsForPaymentFromUTxO
-    :: forall ctx t k e.
-        ( HasTransactionLayer t k ctx
+    :: forall ctx k.
+        ( HasTransactionLayer k ctx
         , HasLogger WalletLog ctx
-        , e ~ ErrValidateSelection t
         )
     => ctx
     -> W.UTxO
@@ -1345,7 +1336,7 @@ selectCoinsForPaymentFromUTxO
     -> NonEmpty TxOut
     -> Quantity "lovelace" Word64
     -> Maybe TxMetadata
-    -> ExceptT (ErrSelectForPayment e) IO CoinSelection
+    -> ExceptT ErrSelectForPayment IO CoinSelection
 selectCoinsForPaymentFromUTxO ctx utxo txp minUtxo recipients withdrawal md = do
     lift . traceWith tr $ MsgPaymentCoinSelectionStart utxo txp recipients
     (sel, utxo') <- withExceptT handleCoinSelError $ do
@@ -1359,7 +1350,7 @@ selectCoinsForPaymentFromUTxO ctx utxo txp minUtxo recipients withdrawal md = do
         lift . traceWith tr $ MsgPaymentCoinSelectionAdjusted balancedSel
         pure balancedSel
   where
-    tl = ctx ^. transactionLayer @t @k
+    tl = ctx ^. transactionLayer @k
     tr = ctx ^. logger @WalletLog
     handleCoinSelError = \case
         ErrMaximumInputsReached maxN ->
@@ -1369,8 +1360,8 @@ selectCoinsForPaymentFromUTxO ctx utxo txp minUtxo recipients withdrawal md = do
 -- | Select necessary coins to cover for a single delegation request (including
 -- one certificate).
 selectCoinsForDelegation
-    :: forall ctx s t k.
-        ( HasTransactionLayer t k ctx
+    :: forall ctx s k.
+        ( HasTransactionLayer k ctx
         , HasLogger WalletLog ctx
         , HasDBLayer s k ctx
         )
@@ -1381,11 +1372,11 @@ selectCoinsForDelegation
 selectCoinsForDelegation ctx wid action = do
     (utxo, _, txp, minUtxo) <- withExceptT ErrSelectForDelegationNoSuchWallet $
         selectCoinsSetup @ctx @s @k ctx wid
-    selectCoinsForDelegationFromUTxO @_ @t @k ctx utxo txp minUtxo action
+    selectCoinsForDelegationFromUTxO @_ @k ctx utxo txp minUtxo action
 
 selectCoinsForDelegationFromUTxO
-    :: forall ctx t k.
-        ( HasTransactionLayer t k ctx
+    :: forall ctx k.
+        ( HasTransactionLayer k ctx
         , HasLogger WalletLog ctx
         )
     => ctx
@@ -1402,13 +1393,13 @@ selectCoinsForDelegationFromUTxO ctx utxo txp minUtxo action = do
         lift $ traceWith tr $ MsgDelegationCoinSelection balancedSel
         pure balancedSel
   where
-    tl = ctx ^. transactionLayer @t @k
+    tl = ctx ^. transactionLayer @k
     tr = ctx ^. logger @WalletLog
 
 -- | Estimate fee for 'selectCoinsForDelegation'.
 estimateFeeForDelegation
-    :: forall ctx s t k.
-        ( HasTransactionLayer t k ctx
+    :: forall ctx s k.
+        ( HasTransactionLayer k ctx
         , HasLogger WalletLog ctx
         , HasDBLayer s k ctx
         )
@@ -1424,7 +1415,7 @@ estimateFeeForDelegation ctx wid = db & \DBLayer{..} -> do
         $ isStakeKeyRegistered (PrimaryKey wid)
 
     let action = if isKeyReg then Join pid else RegisterKeyAndJoin pid
-    let selectCoins = selectCoinsForDelegationFromUTxO @_ @t @k
+    let selectCoins = selectCoinsForDelegationFromUTxO @_ @k
             ctx utxo txp minUtxo action
     estimateFeeForCoinSelection $ Fee . feeBalance <$> selectCoins
   where
@@ -1439,8 +1430,8 @@ estimateFeeForDelegation ctx wid = db & \DBLayer{..} -> do
 -- transactions will have the effect of migrating all funds from the given
 -- source wallet to the specified target wallet.
 selectCoinsForMigration
-    :: forall ctx s t k n.
-        ( HasTransactionLayer t k ctx
+    :: forall ctx s k n.
+        ( HasTransactionLayer k ctx
         , HasLogger WalletLog ctx
         , HasDBLayer s k ctx
         , PaymentAddress n ByronKey
@@ -1455,11 +1446,11 @@ selectCoinsForMigration
 selectCoinsForMigration ctx wid = do
     (utxo, _, txp, minUtxo) <- withExceptT ErrSelectForMigrationNoSuchWallet $
         selectCoinsSetup @ctx @s @k ctx wid
-    selectCoinsForMigrationFromUTxO @ctx @t @k @n ctx utxo txp minUtxo wid
+    selectCoinsForMigrationFromUTxO @ctx @k @n ctx utxo txp minUtxo wid
 
 selectCoinsForMigrationFromUTxO
-    :: forall ctx t k n.
-        ( HasTransactionLayer t k ctx
+    :: forall ctx k n.
+        ( HasTransactionLayer k ctx
         , HasLogger WalletLog ctx
         , PaymentAddress n ByronKey
         )
@@ -1494,7 +1485,7 @@ selectCoinsForMigrationFromUTxO ctx utxo txp minUtxo wid = do
             pure (cs, Quantity leftovers)
         _ -> throwE (ErrSelectForMigrationEmptyWallet wid)
   where
-    tl = ctx ^. transactionLayer @t @k
+    tl = ctx ^. transactionLayer @k
     tr = ctx ^. logger
 
     getCoins :: CoinSelection -> [Word64]
@@ -1522,23 +1513,22 @@ selectCoinsForMigrationFromUTxO ctx utxo txp minUtxo wid = do
 
 -- | Estimate fee for 'selectCoinsForPayment'.
 estimateFeeForPayment
-    :: forall ctx s t k e.
-        ( HasTransactionLayer t k ctx
+    :: forall ctx s k.
+        ( HasTransactionLayer k ctx
         , HasLogger WalletLog ctx
         , HasDBLayer s k ctx
-        , e ~ ErrValidateSelection t
         )
     => ctx
     -> WalletId
     -> NonEmpty TxOut
     -> Quantity "lovelace" Word64
     -> Maybe TxMetadata
-    -> ExceptT (ErrSelectForPayment e) IO FeeEstimation
+    -> ExceptT ErrSelectForPayment IO FeeEstimation
 estimateFeeForPayment ctx wid recipients withdrawal md = do
     (utxo, _, txp, minUtxo) <- withExceptT ErrSelectForPaymentNoSuchWallet $
         selectCoinsSetup @ctx @s @k ctx wid
 
-    let selectCoins = selectCoinsForPaymentFromUTxO @ctx @t @k @e
+    let selectCoins = selectCoinsForPaymentFromUTxO @ctx @k
             ctx utxo txp minUtxo recipients withdrawal md
 
     cs <- selectCoins `catchE` handleNotSuccessfulCoinSelection
@@ -1557,8 +1547,8 @@ handleCannotCover
     => UTxO
     -> Quantity "lovelace" Word64
     -> NonEmpty TxOut
-    -> ErrSelectForPayment e
-    -> ExceptT (ErrSelectForPayment e) m Fee
+    -> ErrSelectForPayment
+    -> ExceptT ErrSelectForPayment m Fee
 handleCannotCover utxo (Quantity withdrawal) outs = \case
     ErrSelectForPaymentFee (ErrCannotCoverFee missing) -> do
         let available
@@ -1573,8 +1563,8 @@ handleCannotCover utxo (Quantity withdrawal) outs = \case
 
 handleNotSuccessfulCoinSelection
     :: Monad m
-    => ErrSelectForPayment e
-    -> ExceptT (ErrSelectForPayment e) m CoinSelection
+    => ErrSelectForPayment
+    -> ExceptT ErrSelectForPayment m CoinSelection
 handleNotSuccessfulCoinSelection _ =
     pure (mempty :: CoinSelection)
 
@@ -1607,10 +1597,10 @@ assignChangeAddresses argGenChange =
 -- the root private key. Note that this doesn't broadcast the
 -- transaction to the network. In order to do so, use 'submitTx'.
 signPayment
-    :: forall ctx s t k.
-        ( HasTransactionLayer t k ctx
+    :: forall ctx s k.
+        ( HasTransactionLayer k ctx
         , HasDBLayer s k ctx
-        , HasNetworkLayer t ctx
+        , HasNetworkLayer ctx
         , IsOurs s RewardAccount
         , IsOwned s k
         , GenChange s
@@ -1648,8 +1638,8 @@ signPayment ctx wid argGenChange mkRewardAccount pwd md ttl cs = db & \DBLayer{.
             return (tx, meta, time, sealedTx)
   where
     db = ctx ^. dbLayer @s @k
-    tl = ctx ^. transactionLayer @t @k
-    nl = ctx ^. networkLayer @t
+    tl = ctx ^. transactionLayer @k
+    nl = ctx ^. networkLayer
     ti = timeInterpreter nl
 
 -- | Calculate the transaction expiry slot, given a 'TimeInterpreter', and an
@@ -1674,10 +1664,10 @@ getTxExpiry ti maybeTTL = do
 
 -- | Very much like 'signPayment', but doesn't not generate change addresses.
 signTx
-    :: forall ctx s t k.
-        ( HasTransactionLayer t k ctx
+    :: forall ctx s k.
+        ( HasTransactionLayer k ctx
         , HasDBLayer s k ctx
-        , HasNetworkLayer t ctx
+        , HasNetworkLayer ctx
         , IsOurs s RewardAccount
         , IsOwned s k
         , HardDerivation k
@@ -1716,21 +1706,21 @@ signTx ctx wid pwd md ttl (UnsignedTx inpsNE outs _change) = db & \DBLayer{..} -
             return (tx, meta, time, sealedTx)
   where
     db = ctx ^. dbLayer @s @k
-    tl = ctx ^. transactionLayer @t @k
-    nl = ctx ^. networkLayer @t
+    tl = ctx ^. transactionLayer @k
+    nl = ctx ^. networkLayer
     ti = timeInterpreter nl
     inps = NE.toList inpsNE
 
 -- | Makes a fully-resolved coin selection for the given set of payments.
 selectCoinsExternal
-    :: forall ctx s k error e input output change.
+    :: forall ctx s k e input output change.
         ( GenChange s
         , HasDBLayer s k ctx
         , IsOurs s Address
         , input ~ (TxIn, TxOut, NonEmpty DerivationIndex)
         , output ~ TxOut
         , change ~ TxChange (NonEmpty DerivationIndex)
-        , e ~ ErrSelectCoinsExternal error
+        , e ~ ErrSelectCoinsExternal
         )
     => ctx
     -> WalletId
@@ -1784,19 +1774,19 @@ selectCoinsExternal ctx wid argGenChange selectCoins = do
       where
         mkChange (TxOut address amount, derivationPath) = TxChange {..}
 
-data ErrSelectCoinsExternal e
+data ErrSelectCoinsExternal
     = ErrSelectCoinsExternalNoSuchWallet ErrNoSuchWallet
-    | ErrSelectCoinsExternalForPayment (ErrSelectForPayment e)
+    | ErrSelectCoinsExternalForPayment ErrSelectForPayment
     | ErrSelectCoinsExternalForDelegation ErrSelectForDelegation
     | ErrSelectCoinsExternalUnableToAssignChange CoinSelection
     | ErrSelectCoinsExternalUnableToAssignInputs CoinSelection
     deriving (Eq, Show)
 
 signDelegation
-    :: forall ctx s t k.
-        ( HasTransactionLayer t k ctx
+    :: forall ctx s k.
+        ( HasTransactionLayer k ctx
         , HasDBLayer s k ctx
-        , HasNetworkLayer t ctx
+        , HasNetworkLayer ctx
         , IsOwned s k
         , IsOurs s RewardAccount
         , GenChange s
@@ -1860,8 +1850,8 @@ signDelegation ctx wid argGenChange pwd coinSel action = db & \DBLayer{..} -> do
             return (tx, meta, time, sealedTx)
   where
     db = ctx ^. dbLayer @s @k
-    tl = ctx ^. transactionLayer @t @k
-    nl = ctx ^. networkLayer @t
+    tl = ctx ^. transactionLayer @k
+    nl = ctx ^. networkLayer
     ti = timeInterpreter nl
 
 -- | Construct transaction metadata for a pending transaction from the block
@@ -1921,8 +1911,8 @@ mkTxMeta ti' blockHeader wState tx cs expiry =
 
 -- | Broadcast a (signed) transaction to the network.
 submitTx
-    :: forall ctx s t k.
-        ( HasNetworkLayer t ctx
+    :: forall ctx s k.
+        ( HasNetworkLayer ctx
         , HasDBLayer s k ctx
         )
     => ctx
@@ -1936,13 +1926,13 @@ submitTx ctx wid (tx, meta, binary) = db & \DBLayer{..} -> do
         putTxHistory (PrimaryKey wid) [(tx, meta)]
   where
     db = ctx ^. dbLayer @s @k
-    nw = ctx ^. networkLayer @t
+    nw = ctx ^. networkLayer
 
 -- | Broadcast an externally-signed transaction to the network.
 submitExternalTx
-    :: forall ctx t k.
-        ( HasNetworkLayer t ctx
-        , HasTransactionLayer t k ctx
+    :: forall ctx k.
+        ( HasNetworkLayer ctx
+        , HasTransactionLayer k ctx
         )
     => ctx
     -> ByteString
@@ -1954,8 +1944,8 @@ submitExternalTx ctx bytes = do
     withExceptT ErrSubmitExternalTxNetwork $ postTx nw binary
     return tx
   where
-    nw = ctx ^. networkLayer @t
-    tl = ctx ^. transactionLayer @t @k
+    nw = ctx ^. networkLayer
+    tl = ctx ^. transactionLayer @k
 
 -- | Remove a pending or expired transaction from the transaction history. This
 -- happens at the request of the user. If the transaction is already on chain,
@@ -1978,9 +1968,9 @@ forgetTx ctx wid tid = db & \DBLayer{..} -> do
 
 -- | List all transactions and metadata from history for a given wallet.
 listTransactions
-    :: forall ctx s k t.
+    :: forall ctx s k.
         ( HasDBLayer s k ctx
-        , HasNetworkLayer t ctx
+        , HasNetworkLayer ctx
         )
     => ctx
     -> WalletId
@@ -2002,7 +1992,7 @@ listTransactions ctx wid mMinWithdrawal mStart mEnd order = db & \DBLayer{..} ->
             (\r -> lift (readTxHistory pk mMinWithdrawal order r Nothing))
   where
     ti :: TimeInterpreter (ExceptT PastHorizonException IO)
-    ti = timeInterpreter (ctx ^. networkLayer @t)
+    ti = timeInterpreter (ctx ^. networkLayer)
 
     db = ctx ^. dbLayer @s @k
 
@@ -2388,9 +2378,9 @@ data ErrUTxOTooSmall
     deriving (Show, Eq)
 
 -- | Errors that can occur when creating an unsigned transaction.
-data ErrSelectForPayment e
+data ErrSelectForPayment
     = ErrSelectForPaymentNoSuchWallet ErrNoSuchWallet
-    | ErrSelectForPaymentCoinSelection (ErrCoinSelection e)
+    | ErrSelectForPaymentCoinSelection ErrCoinSelection
     | ErrSelectForPaymentFee ErrAdjustForFee
     | ErrSelectForPaymentMinimumUTxOValue ErrUTxOTooSmall
     | ErrSelectForPaymentAlreadyWithdrawing Tx

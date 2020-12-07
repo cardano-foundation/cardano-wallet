@@ -99,7 +99,6 @@ import Cardano.Wallet.Transaction
     ( DelegationAction (..)
     , ErrDecodeSignedTx (..)
     , ErrMkTx (..)
-    , ErrValidateSelection
     , TransactionLayer (..)
     )
 import Control.Arrow
@@ -242,13 +241,12 @@ mkTx networkId payload expirySlot (rewardAcnt, pwdAcnt) keyFrom cs era = do
         ShelleyBasedEraMary    -> Left  $ ErrInvalidEra (AnyCardanoEra MaryEra)
 
 newTransactionLayer
-    :: forall k t.
-        ( t ~ IO ShelleyEra
-        , TxWitnessTagFor k
+    :: forall k.
+        ( TxWitnessTagFor k
         , WalletKey k
         )
     => NetworkId
-    -> TransactionLayer t k
+    -> TransactionLayer k
 newTransactionLayer networkId = TransactionLayer
     { mkStdTx = \era acc ks tip md cs ->
         withShelleyBasedEra era $ mkTx networkId (stdTxPayload md) tip acc ks cs
@@ -264,8 +262,6 @@ newTransactionLayer networkId = TransactionLayer
         _minimumFee @k
     , estimateMaxNumberOfInputs =
         _estimateMaxNumberOfInputs @k
-    , validateSelection =
-        const $ return ()
     }
   where
     _initDelegationSelection
@@ -901,9 +897,3 @@ mkByronWitness (Cardano.ShelleyTxBody era body _) nw addr encryptedKey =
     addrAttr = Byron.mkAttributes $ Byron.AddrAttributes
         (toHDPayloadAddress addr)
         (Cardano.toByronNetworkMagic nw)
-
---------------------------------------------------------------------------------
--- Extra validations on coin selection
---
-
-type instance ErrValidateSelection (IO ShelleyEra) = ()

@@ -197,12 +197,12 @@ rawRequest ctx (verb, path) reqHeaders body = do
 
 -- | Makes a request to the API, but throws if it fails.
 unsafeRequest
-    :: forall a m t.
+    :: forall a m.
         ( FromJSON a
         , MonadIO m
         , MonadCatch m
         )
-    => Context t
+    => Context
     -> (Method, Text)
     -> Payload
     -> m (HTTP.Status, a)

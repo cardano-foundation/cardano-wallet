@@ -64,7 +64,7 @@ import Cardano.Wallet.Primitive.Types.Tx
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
 import Cardano.Wallet.Shelley.Compatibility
-    ( ShelleyEra, fromAllegraTx, fromShelleyTx, sealShelleyTx )
+    ( fromAllegraTx, fromShelleyTx, sealShelleyTx )
 import Cardano.Wallet.Shelley.Transaction
     ( TxWitnessTagFor
     , mkByronWitness
@@ -473,7 +473,7 @@ prop_biggerMaxSizeMeansMoreInputs (Quantity size) nOuts
         <=
         _estimateMaxNumberOfInputs @k (Quantity (size * 2)) Nothing nOuts
 
-testCoinSelOpts :: CoinSelectionOptions ()
+testCoinSelOpts :: CoinSelectionOptions
 testCoinSelOpts = coinSelOpts testTxLayer (Quantity 4096) Nothing
 
 testFeeOpts :: FeeOptions
@@ -483,7 +483,7 @@ testFeeOpts = feeOpts testTxLayer Nothing Nothing txParams (Coin 0) mempty
     feePolicy = LinearFee (Quantity 155381) (Quantity 44) (Quantity 0)
     txMaxSize = Quantity maxBound
 
-testTxLayer :: TransactionLayer (IO ShelleyEra) ShelleyKey
+testTxLayer :: TransactionLayer ShelleyKey
 testTxLayer = newTransactionLayer @ShelleyKey Cardano.Mainnet
 
 data DecodeShelleySetup = DecodeShelleySetup

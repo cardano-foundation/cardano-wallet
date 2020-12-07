@@ -75,10 +75,10 @@ data TestCase a = TestCase
     , assertions :: [(HTTP.Status, Either RequestException a) -> IO ()]
     }
 
-spec :: forall n t.
+spec :: forall n.
     ( DecodeAddress n
     , DecodeStakeAddress n
-    ) => SpecWith (Context t)
+    ) => SpecWith Context
 spec = describe "BYRON_MIGRATIONS" $ do
 
     it "BYRON_RESTORE_08 - Icarus wallet with high indexes" $ \ctx -> runResourceT $ do

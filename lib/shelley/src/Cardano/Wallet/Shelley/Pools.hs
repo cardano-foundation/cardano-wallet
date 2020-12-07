@@ -94,6 +94,7 @@ import Cardano.Wallet.Primitive.Types
     , SlottingParameters (..)
     , StakePoolMetadata
     , StakePoolMetadataHash
+    , StakePoolsSummary (..)
     , getPoolRegistrationCertificate
     , getPoolRetirementCertificate
     , unSmashServer
@@ -101,16 +102,13 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Shelley.Compatibility
-    ( ShelleyEra
-    , StandardCrypto
+    ( StandardCrypto
     , fromAllegraBlock
     , fromShelleyBlock
     , getProducer
     , toCardanoBlockHeader
     , toShelleyBlockHeader
     )
-import Cardano.Wallet.Shelley.Network
-    ( NodePoolLsqData (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeMkPercentage )
 import Control.Concurrent
@@ -223,7 +221,7 @@ data StakePoolLayer = StakePoolLayer
 newStakePoolLayer
     :: forall sc. ()
     => TVar PoolMetadataGCStatus
-    -> NetworkLayer IO (IO ShelleyEra) (CardanoBlock sc)
+    -> NetworkLayer IO (CardanoBlock sc)
     -> DBLayer IO
     -> IO ThreadId
     -> IO StakePoolLayer
@@ -469,9 +467,9 @@ combineDbAndLsqData ti nOpt lsqData =
 -- Calculating e.g. the nonMyopicMemberRewards ourselves through chain-following
 -- would be completely impractical.
 combineLsqData
-    :: NodePoolLsqData
+    :: StakePoolsSummary
     -> Map PoolId PoolLsqData
-combineLsqData NodePoolLsqData{nOpt, rewards, stake} =
+combineLsqData StakePoolsSummary{nOpt, rewards, stake} =
     Map.merge stakeButNoRewards rewardsButNoStake bothPresent stake rewards
   where
     -- calculate the saturation from the relative stake
@@ -562,10 +560,9 @@ readPoolDbData DBLayer {..} currentEpoch = atomically $ do
 --
 
 monitorStakePools
-    :: forall t.
-       Tracer IO StakePoolLog
+    :: Tracer IO StakePoolLog
     -> GenesisParameters
-    -> NetworkLayer IO t (CardanoBlock StandardCrypto)
+    -> NetworkLayer IO (CardanoBlock StandardCrypto)
     -> DBLayer IO
     -> IO ()
 monitorStakePools tr gp nl DBLayer{..} =

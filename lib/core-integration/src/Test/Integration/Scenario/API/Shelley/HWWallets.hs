@@ -88,11 +88,11 @@ import qualified Data.List.NonEmpty as NE
 import qualified Network.HTTP.Types.Status as HTTP
 
 
-spec :: forall n t.
+spec :: forall n.
     ( DecodeAddress n
     , DecodeStakeAddress n
     , EncodeAddress n
-    ) => SpecWith (Context t)
+    ) => SpecWith Context
 spec = describe "SHELLEY_HW_WALLETS" $ do
     it "HW_WALLETS_01 - Restoration from account public key preserves funds" $ \ctx -> runResourceT $ do
         wSrc <- fixtureWallet ctx

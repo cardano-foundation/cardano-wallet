@@ -30,7 +30,7 @@ import Test.Integration.Framework.DSL
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Network.HTTP.Types.Status as HTTP
 
-spec :: forall t. SpecWith (Context t)
+spec :: SpecWith Context
 spec = describe "BYRON_NETWORK" $ do
     it "NETWORK_PARAMS - Able to fetch network parameters" $ \ctx -> do
         r <- request @ApiNetworkParameters ctx Link.getNetworkParams Default Empty

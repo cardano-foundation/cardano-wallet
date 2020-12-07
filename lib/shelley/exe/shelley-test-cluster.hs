@@ -42,8 +42,6 @@ import Cardano.Wallet.Shelley
     , setupTracers
     , tracerSeverities
     )
-import Cardano.Wallet.Shelley.Compatibility
-    ( ShelleyEra )
 import Cardano.Wallet.Shelley.Launch
     ( ClusterLog (..)
     , RunningNode (..)
@@ -262,7 +260,7 @@ main = withUtf8Encoding $ do
                 )
                 <$> getEKGURL
 
-            void $ serveWallet @(IO ShelleyEra)
+            void $ serveWallet
                 (SomeNetworkDiscriminant $ Proxy @'Mainnet)
                 tracers
                 (SyncTolerance 10)

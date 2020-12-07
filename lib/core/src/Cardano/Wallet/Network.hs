@@ -19,7 +19,6 @@ module Cardano.Wallet.Network
     , follow
     , FollowAction (..)
     , FollowExit (..)
-    , GetStakeDistribution
     , getSlottingParametersForTip
 
     -- * Errors
@@ -60,7 +59,10 @@ import Cardano.Wallet.Primitive.Types
     , ProtocolParameters
     , SlotNo (..)
     , SlottingParameters (..)
+    , StakePoolsSummary
     )
+import Cardano.Wallet.Primitive.Types.Coin
+    ( Coin )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.RewardAccount
@@ -108,10 +110,10 @@ import UnliftIO.Exception
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Text as T
 
-data NetworkLayer m target block = NetworkLayer
+data NetworkLayer m block = NetworkLayer
     { nextBlocks
-        :: Cursor target
-        -> ExceptT ErrGetBlock m (NextBlocksResult (Cursor target) block)
+        :: Cursor
+        -> ExceptT ErrGetBlock m (NextBlocksResult Cursor block)
         -- ^ Starting from the given 'Cursor', fetches a contiguous sequence of
         -- blocks from the node, if they are available. An updated cursor will
         -- be returned with a 'RollFoward' result.
@@ -125,16 +127,16 @@ data NetworkLayer m target block = NetworkLayer
         -- return 'RollBackward' with a new cursor.
 
     , initCursor
-        :: [BlockHeader] -> m (Cursor target)
+        :: [BlockHeader] -> m Cursor
         -- ^ Creates a cursor from the given block header so that 'nextBlocks'
         -- can be used to fetch blocks.
 
     , destroyCursor
-        :: Cursor target -> m ()
+        :: Cursor -> m ()
         -- ^ Cleanup network connection once we're done with them.
 
     , cursorSlotNo
-        :: Cursor target -> SlotNo
+        :: Cursor -> SlotNo
         -- ^ Get the slot corresponding to a cursor.
 
     , currentNodeTip
@@ -160,7 +162,11 @@ data NetworkLayer m target block = NetworkLayer
         -- ^ Broadcast a transaction to the chain producer
 
     , stakeDistribution
-        :: GetStakeDistribution target m
+        :: BlockHeader
+        -- ^ Point of interest
+        -> Coin
+        -- ^ Stake to consider for rewards
+        -> ExceptT ErrNetworkUnavailable m StakePoolsSummary
 
     , getAccountBalance
         :: RewardAccount
@@ -170,7 +176,7 @@ data NetworkLayer m target block = NetworkLayer
         :: TimeInterpreter (ExceptT PastHorizonException m)
     }
 
-instance Functor m => Functor (NetworkLayer m target) where
+instance Functor m => Functor (NetworkLayer m) where
     fmap f nl = nl
         { nextBlocks = fmap (fmap f) . nextBlocks nl
         }
@@ -262,14 +268,12 @@ defaultRetryPolicy =
                                  Queries
 -------------------------------------------------------------------------------}
 
-type family GetStakeDistribution target (m :: * -> *) :: *
-
 -- | Use the HFC history interpreter to get the slot and epoch lengths current
 -- for the network tip.
 --
 -- This may throw a 'PastHorizonException' in some cases.
 getSlottingParametersForTip
-    :: NetworkLayer IO target block
+    :: NetworkLayer IO block
     -> IO SlottingParameters
 getSlottingParametersForTip nl = do
     tip <- either (const 0) slotNo <$> runExceptT (currentNodeTip nl)
@@ -290,10 +294,10 @@ getSlottingParametersForTip nl = do
                                 Chain Sync
 -------------------------------------------------------------------------------}
 
--- | A cursor is local state kept by the chain consumer to use as the starting
--- position for 'nextBlocks'. The actual type is opaque and determined by the
--- backend @target@.
-data family Cursor target
+--- | A cursor is local state kept by the chain consumer to use as the starting
+--- position for 'nextBlocks'. The actual type is opaque and determined by the
+--- backend target.
+data family Cursor
 
 -- | The result of 'nextBlocks', which is instructions for what the chain
 -- consumer should do next.
@@ -365,8 +369,8 @@ data FollowExit
 --
 -- Exits with 'Nothing' in case of error.
 follow
-    :: forall target block e. (Show e)
-    => NetworkLayer IO target block
+    :: forall block e. (Show e)
+    => NetworkLayer IO block
     -- ^ The @NetworkLayer@ used to poll for new blocks.
     -> Tracer IO FollowLog
     -- ^ Logger trace
@@ -394,7 +398,7 @@ follow nl tr cps yield header =
     -- | Wait a short delay before querying for blocks again. We also take this
     -- opportunity to refresh the chain tip as it has probably increased in
     -- order to refine our syncing status.
-    sleep :: Int -> Bool -> Cursor target -> IO FollowExit
+    sleep :: Int -> Bool -> Cursor -> IO FollowExit
     sleep delay hasRolledForward cursor = handle retry $ do
         when (delay > 0) (threadDelay delay)
         step delay hasRolledForward cursor
@@ -415,7 +419,7 @@ follow nl tr cps yield header =
           where
             eT = T.pack (show e)
 
-    step :: Int -> Bool -> Cursor target -> IO FollowExit
+    step :: Int -> Bool -> Cursor -> IO FollowExit
     step delay hasRolledForward cursor = runExceptT (nextBlocks nl cursor) >>= \case
         Left e -> do
             traceWith tr $ MsgNextBlockFailed e
@@ -468,7 +472,7 @@ follow nl tr cps yield header =
             -- 2. Stop forcing @follow@ to quit on rollback
       where
         continueWith
-            :: Cursor target
+            :: Cursor
             -> Bool
             -> FollowAction e
             -> IO FollowExit

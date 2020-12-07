@@ -34,18 +34,14 @@ import Cardano.Wallet.Primitive.Types.Tx
     ( TxIn, TxOut (..) )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..), pickRandom )
-import Control.Arrow
-    ( left )
 import Control.Monad
     ( foldM )
 import Control.Monad.Trans.Class
     ( lift )
 import Control.Monad.Trans.Except
-    ( ExceptT (..), except )
+    ( ExceptT (..) )
 import Control.Monad.Trans.Maybe
     ( MaybeT (..), runMaybeT )
-import Data.Functor
-    ( ($>) )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Ord
@@ -113,12 +109,11 @@ data TargetRange = TargetRange
 -- we set.
 -- @
 random
-    :: forall e. ()
-    => CoinSelectionOptions e
+    :: CoinSelectionOptions
     -> NonEmpty TxOut
     -> Quantity "lovelace" Word64
     -> UTxO
-    -> ExceptT (ErrCoinSelection e) IO (CoinSelection, UTxO)
+    -> ExceptT ErrCoinSelection IO (CoinSelection, UTxO)
 random opt outs (Quantity withdrawal) utxo = do
     let descending = NE.toList . NE.sortBy (flip $ comparing coin)
     let nOuts = fromIntegral $ NE.length outs
@@ -131,11 +126,9 @@ random opt outs (Quantity withdrawal) utxo = do
             (_, sel, remUtxo) <- lift $
                 foldM improveTxOut (maxN', mempty, utxo') (reverse res)
             let result = sel { withdrawal }
-            guard result $> (result, remUtxo)
+            pure (result, remUtxo)
         Nothing ->
             largestFirst opt outs (Quantity withdrawal) utxo
-  where
-    guard = except . left ErrInvalidSelection . validate opt
 
 -- A little type-alias to ease signature below
 data SelectionState = SelectionState

@@ -100,12 +100,12 @@ import qualified Data.Text.Encoding as T
 import qualified Network.HTTP.Types.Status as HTTP
 
 
-spec :: forall n t.
+spec :: forall n.
     ( DecodeAddress n
     , DecodeStakeAddress n
     , EncodeAddress n
     , PaymentAddress n IcarusKey
-    ) => SpecWith (Context t)
+    ) => SpecWith Context
 spec = describe "BYRON_HW_WALLETS" $ do
     it "HW_WALLETS_01 - Restoration from account public key preserves funds" $ \ctx -> runResourceT $ do
         wSrc <- fixtureIcarusWallet ctx

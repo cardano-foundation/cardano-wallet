@@ -79,11 +79,11 @@ import qualified Data.Text as T
 import qualified Network.HTTP.Types.Status as HTTP
 import qualified Test.Hspec.Expectations.Lifted as Expectations
 
-spec :: forall n t.
+spec :: forall n.
     ( DecodeAddress n
     , DecodeStakeAddress n
     , EncodeAddress n
-    ) => SpecWith (Context t)
+    ) => SpecWith Context
 spec = describe "SHELLEY_ADDRESSES" $ do
     it "BYRON_ADDRESS_LIST - Byron wallet on Shelley ep" $ \ctx -> runResourceT $ do
         w <- emptyRandomWallet ctx

@@ -42,7 +42,6 @@ import Test.Hspec.Extra
     ( it )
 import Test.Integration.Framework.DSL
     ( Context (..)
-    , KnownCommand
     , deleteWalletViaCLI
     , emptyRandomWallet
     , emptyWallet
@@ -63,17 +62,16 @@ import Test.Integration.Framework.TestData
 
 import qualified Data.Text as T
 
-spec :: forall n t.
-    ( KnownCommand t
-    , DecodeAddress n
+spec :: forall n.
+    ( DecodeAddress n
     , EncodeAddress n
-    ) => SpecWith (Context t)
+    ) => SpecWith Context
 spec = describe "SHELLEY_CLI_ADDRESSES" $ do
 
     it "ADDRESS_LIST_01 - Can list addresses - default poolGap" $ \ctx -> runResourceT $ do
         let g = fromIntegral $ getAddressPoolGap defaultAddressPoolGap
         walId <- emptyWallet' ctx
-        (Exit c, Stdout out, Stderr err) <- listAddressesViaCLI @t ctx [walId]
+        (Exit c, Stdout out, Stderr err) <- listAddressesViaCLI ctx [walId]
         err `shouldBe` "Ok.\n"
         c `shouldBe` ExitSuccess
         json <- expectValidJSON (Proxy @[ApiAddress n]) out
@@ -86,7 +84,7 @@ spec = describe "SHELLEY_CLI_ADDRESSES" $ do
         let addrPoolGap = 60
         walId <- emptyWalletWith' ctx
                     ("This is Wallet, OK?", "cardano-wallet", addrPoolGap)
-        (Exit c, Stdout out, Stderr err) <- listAddressesViaCLI @t ctx [walId]
+        (Exit c, Stdout out, Stderr err) <- listAddressesViaCLI ctx [walId]
         err `shouldBe` "Ok.\n"
         c `shouldBe` ExitSuccess
         json <- expectValidJSON (Proxy @[ApiAddress n]) out
@@ -99,7 +97,7 @@ spec = describe "SHELLEY_CLI_ADDRESSES" $ do
         let g = fromIntegral $ getAddressPoolGap defaultAddressPoolGap
         walId <- fixtureWallet' ctx
         (Exit c1, Stdout o1, Stderr e1)
-            <- listAddressesViaCLI @t ctx ["--state", "used", walId]
+            <- listAddressesViaCLI ctx ["--state", "used", walId]
         e1 `shouldBe` "Ok.\n"
         c1 `shouldBe` ExitSuccess
         j1 <- expectValidJSON (Proxy @[ApiAddress n]) o1
@@ -108,7 +106,7 @@ spec = describe "SHELLEY_CLI_ADDRESSES" $ do
             expectCliListField
                 addrNum (#state . #getApiT) (`shouldBe` Used) j1
         (Exit c2, Stdout o2, Stderr e2)
-            <- listAddressesViaCLI @t ctx ["--state", "unused", walId]
+            <- listAddressesViaCLI ctx ["--state", "unused", walId]
         e2 `shouldBe` "Ok.\n"
         c2 `shouldBe` ExitSuccess
         j2 <- expectValidJSON (Proxy @[ApiAddress n]) o2
@@ -121,14 +119,14 @@ spec = describe "SHELLEY_CLI_ADDRESSES" $ do
         $ \ctx -> runResourceT $ do
         walId <- emptyWallet' ctx
         (Exit c1, Stdout o1, Stderr e1)
-            <- listAddressesViaCLI @t ctx ["--state", "used", walId]
+            <- listAddressesViaCLI ctx ["--state", "used", walId]
         e1 `shouldBe` "Ok.\n"
         c1 `shouldBe` ExitSuccess
         j1 <- expectValidJSON (Proxy @[ApiAddress n]) o1
         length j1 `shouldBe` 0
 
         (Exit c2, Stdout o2, Stderr e2)
-            <- listAddressesViaCLI @t ctx ["--state", "unused", walId]
+            <- listAddressesViaCLI ctx ["--state", "unused", walId]
         e2 `shouldBe` "Ok.\n"
         c2 `shouldBe` ExitSuccess
         j2 <- expectValidJSON (Proxy @[ApiAddress n]) o2
@@ -152,7 +150,7 @@ spec = describe "SHELLEY_CLI_ADDRESSES" $ do
         forM_ filters $ \fil -> it ("--state=" <> fil) $ \ctx -> runResourceT $ do
             walId <- emptyWallet' ctx
             (Exit c, Stdout o, Stderr e)
-                <- listAddressesViaCLI @t ctx ["--state", fil, walId]
+                <- listAddressesViaCLI ctx ["--state", fil, walId]
             let err = "Unable to decode the given text value. Please\
                     \ specify one of the following values: used, unused."
             e `shouldContain` err
@@ -166,7 +164,7 @@ spec = describe "SHELLEY_CLI_ADDRESSES" $ do
         let widDest = T.unpack $ wDest ^. walletId
 
         -- make sure all addresses in address_pool_gap are 'Unused'
-        (Exit c, Stdout o, Stderr e) <- listAddressesViaCLI @t ctx [widDest]
+        (Exit c, Stdout o, Stderr e) <- listAddressesViaCLI ctx [widDest]
         e `shouldBe` "Ok.\n"
         c `shouldBe` ExitSuccess
         j <- expectValidJSON (Proxy @[ApiAddress n]) o
@@ -179,18 +177,18 @@ spec = describe "SHELLEY_CLI_ADDRESSES" $ do
         forM_ [0..initPoolGap - 1] $ \addrNum -> do
             let dest = encodeAddress @n (getApiT $ fst $ (j !! addrNum) ^. #id)
             let args = [wSrc, "--payment" , (show minUTxOValue) <> "@" <> (T.unpack dest)]
-            (cTx, _, _) <- postTransactionViaCLI @t ctx "cardano-wallet" args
+            (cTx, _, _) <- postTransactionViaCLI ctx "cardano-wallet" args
             cTx `shouldBe` ExitSuccess
 
         eventually "all transactions are in ledger" $ do
-            Stdout o2 <- getWalletViaCLI @t ctx $ T.unpack (wDest ^. walletId)
+            Stdout o2 <- getWalletViaCLI ctx $ T.unpack (wDest ^. walletId)
             w <- expectValidJSON (Proxy @ApiWallet) o2
             expectCliField
                 (#balance . #getApiT . #available)
                 (`shouldBe` Quantity (10 * 1_000_000)) w
 
         -- verify new address_pool_gap has been created
-        (Exit c1, Stdout o1, Stderr e1) <- listAddressesViaCLI @t ctx [widDest]
+        (Exit c1, Stdout o1, Stderr e1) <- listAddressesViaCLI ctx [widDest]
         e1 `shouldBe` "Ok.\n"
         c1 `shouldBe` ExitSuccess
         j1 <- expectValidJSON (Proxy @[ApiAddress n]) o1
@@ -204,7 +202,7 @@ spec = describe "SHELLEY_CLI_ADDRESSES" $ do
 
     describe "ADDRESS_LIST_04 - False wallet ids" $ do
         forM_ falseWalletIds $ \(title, walId) -> it title $ \ctx -> runResourceT $ do
-            (Exit c, Stdout o, Stderr e) <- listAddressesViaCLI @t ctx [walId]
+            (Exit c, Stdout o, Stderr e) <- listAddressesViaCLI ctx [walId]
             o `shouldBe` ""
             c `shouldBe` ExitFailure 1
             if (title == "40 chars hex") then
@@ -216,7 +214,7 @@ spec = describe "SHELLEY_CLI_ADDRESSES" $ do
 
     it "ADDRESS_LIST_04 - 'almost' valid walletId" $ \ctx -> runResourceT $ do
         wid <- emptyWallet' ctx
-        (Exit c, Stdout o, Stderr e) <- listAddressesViaCLI @t ctx [wid ++ "0"]
+        (Exit c, Stdout o, Stderr e) <- listAddressesViaCLI ctx [wid ++ "0"]
         e `shouldContain`
             "wallet id should be a hex-encoded string of 40 characters"
         o `shouldBe` ""
@@ -224,31 +222,31 @@ spec = describe "SHELLEY_CLI_ADDRESSES" $ do
 
     it "ADDRESS_LIST_04 - Deleted wallet" $ \ctx -> runResourceT $ do
         wid <- emptyWallet' ctx
-        Exit d <- deleteWalletViaCLI @t ctx wid
+        Exit d <- deleteWalletViaCLI ctx wid
         d `shouldBe` ExitSuccess
 
-        (Exit c, Stdout o, Stderr e) <- listAddressesViaCLI @t ctx [wid]
+        (Exit c, Stdout o, Stderr e) <- listAddressesViaCLI ctx [wid]
         e `shouldContain` errMsg404NoWallet (T.pack wid)
         o `shouldBe` ""
         c `shouldBe` ExitFailure 1
 
     it "BYRON_ADDRESS_LIST - Byron wallet on Shelley CLI" $ \ctx -> runResourceT $ do
         wid <- emptyRandomWallet' ctx
-        (Exit c, Stdout o, Stderr e) <- listAddressesViaCLI @t ctx [wid]
+        (Exit c, Stdout o, Stderr e) <- listAddressesViaCLI ctx [wid]
         e `shouldContain` errMsg404NoWallet (T.pack wid)
         o `shouldBe` ""
         c `shouldBe` ExitFailure 1
 
   where
-    emptyRandomWallet' :: Context t -> ResourceT IO String
+    emptyRandomWallet' :: Context -> ResourceT IO String
     emptyRandomWallet' = fmap (T.unpack . view walletId) . emptyRandomWallet
 
-    emptyWallet' :: Context t -> ResourceT IO String
+    emptyWallet' :: Context -> ResourceT IO String
     emptyWallet' = fmap (T.unpack . view walletId) . emptyWallet
 
-    emptyWalletWith' :: Context t -> (Text, Text, Int) -> ResourceT IO String
+    emptyWalletWith' :: Context -> (Text, Text, Int) -> ResourceT IO String
     emptyWalletWith' ctx (name, pass, pg) =
         fmap (T.unpack . view walletId) (emptyWalletWith ctx (name, pass, pg))
 
-    fixtureWallet' :: Context t -> ResourceT IO String
+    fixtureWallet' :: Context -> ResourceT IO String
     fixtureWallet' = fmap (T.unpack . view walletId) . fixtureWallet

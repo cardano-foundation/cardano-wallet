@@ -88,9 +88,9 @@ module Cardano.Wallet.Primitive.Types
 
     -- * Stake Pools
     , StakePool(..)
+    , StakePoolsSummary (..)
     , PoolId(..)
     , PoolOwner(..)
-    , StakeDistribution (..)
     , poolIdBytesLength
     , decodePoolIdBech32
     , encodePoolIdBech32
@@ -193,6 +193,8 @@ import Data.Int
     ( Int32 )
 import Data.List
     ( intercalate )
+import Data.Map.Strict
+    ( Map )
 import Data.Maybe
     ( isJust, isNothing )
 import Data.Proxy
@@ -228,6 +230,7 @@ import Fmt
     , fmt
     , indentF
     , listF'
+    , mapF
     , prefixF
     , pretty
     , suffixF
@@ -246,6 +249,7 @@ import Numeric.Natural
 import qualified Codec.Binary.Bech32 as Bech32
 import qualified Codec.Binary.Bech32.TH as Bech32
 import qualified Data.ByteString as BS
+import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 
@@ -744,11 +748,18 @@ instance FromJSON PoolOwner where
 instance ToJSON PoolOwner where
     toJSON = toJSON . toText
 
-data StakeDistribution = StakeDistribution
-    { dangling :: Quantity "lovelace" Word64
-    , pools :: [(PoolId, Quantity "lovelace" Word64)]
-    , unassigned :: Quantity "lovelace" Word64
-    } deriving (Eq, Show, Generic)
+data StakePoolsSummary = StakePoolsSummary
+    { nOpt :: Int
+    , rewards :: Map PoolId (Quantity "lovelace" Word64)
+    , stake :: Map PoolId Percentage
+    } deriving (Show, Eq)
+
+instance Buildable StakePoolsSummary where
+    build StakePoolsSummary{nOpt,rewards,stake} = listF' id
+        [ "Stake: " <> mapF (Map.toList stake)
+        , "Non-myopic member rewards: " <> mapF (Map.toList rewards)
+        , "Optimum number of pools: " <> pretty nOpt
+        ]
 
 {-------------------------------------------------------------------------------
                                     Block

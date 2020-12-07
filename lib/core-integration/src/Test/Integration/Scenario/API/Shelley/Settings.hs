@@ -60,14 +60,14 @@ import Test.Integration.Framework.DSL
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Network.HTTP.Types.Status as HTTP
 
-spec :: forall n t.
+spec :: forall n.
     ( DecodeAddress n
     , DecodeStakeAddress n
     , EncodeAddress n
     , PaymentAddress n ShelleyKey
     , PaymentAddress n IcarusKey
     , PaymentAddress n ByronKey
-    ) => SpecWith (Context t)
+    ) => SpecWith Context
 spec = describe "SHELLEY_SETTINGS" $ do
     it "SETTINGS_01 - Can put and read settings" $ \ctx -> do
         let uri = "http://smash.it"

@@ -4,8 +4,7 @@
 {-# LANGUAGE TypeApplications #-}
 
 module Cardano.Wallet.DummyTarget.Primitive.Types
-    ( DummyTarget
-    , block0
+    ( block0
     , dummyNetworkParameters
     , dummyGenesisParameters
     , dummyProtocolParameters
@@ -57,16 +56,9 @@ import Data.Quantity
     ( Quantity (..) )
 import Data.Time.Clock.POSIX
     ( posixSecondsToUTCTime )
-import Fmt
-    ( Buildable (..) )
 
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString.Char8 as B8
-
-data DummyTarget
-
-instance Buildable DummyTarget where
-    build _ = mempty
 
 genesisHash :: Hash "Genesis"
 genesisHash = Hash (B8.replicate 32 '0')

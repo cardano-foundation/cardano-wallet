@@ -119,12 +119,7 @@ import Cardano.Wallet.Registry
 import Cardano.Wallet.Shelley.Api.Server
     ( server )
 import Cardano.Wallet.Shelley.Compatibility
-    ( CardanoBlock
-    , HasNetworkId (..)
-    , ShelleyEra
-    , StandardCrypto
-    , fromCardanoBlock
-    )
+    ( CardanoBlock, HasNetworkId (..), StandardCrypto, fromCardanoBlock )
 import Cardano.Wallet.Shelley.Network
     ( NetworkLayerLog, withNetworkLayer )
 import Cardano.Wallet.Shelley.Pools
@@ -213,8 +208,7 @@ deriving instance Show SomeNetworkDiscriminant
 -- which was passed from the CLI and environment and starts all components of
 -- the wallet.
 serveWallet
-    :: forall t. t ~ IO ShelleyEra
-    => SomeNetworkDiscriminant
+    :: SomeNetworkDiscriminant
     -- ^ Proxy for the network discriminant
     -> Tracers IO
     -- ^ Logging config.
@@ -312,9 +306,9 @@ serveWallet
             )
         => Proxy n
         -> Socket
-        -> ApiLayer (RndState n) t ByronKey
-        -> ApiLayer (SeqState n IcarusKey) t IcarusKey
-        -> ApiLayer (SeqState n ShelleyKey) t ShelleyKey
+        -> ApiLayer (RndState n) ByronKey
+        -> ApiLayer (SeqState n IcarusKey) IcarusKey
+        -> ApiLayer (SeqState n ShelleyKey) ShelleyKey
         -> StakePoolLayer
         -> NtpClient
         -> IO ()
@@ -329,7 +323,7 @@ serveWallet
     withPoolsMonitoring
         :: Maybe FilePath
         -> NetworkParameters
-        -> NetworkLayer IO t (CardanoBlock StandardCrypto)
+        -> NetworkLayer IO (CardanoBlock StandardCrypto)
         -> (StakePoolLayer -> IO a)
         -> IO a
     withPoolsMonitoring dir (NetworkParameters gp sp _) nl action =
@@ -360,10 +354,10 @@ serveWallet
             , PersistPrivateKey (k 'RootK)
             , WalletKey k
             )
-        => TransactionLayer t k
-        -> NetworkLayer IO t (CardanoBlock StandardCrypto)
-        -> (WorkerCtx (ApiLayer s t k) -> WalletId -> IO ())
-        -> IO (ApiLayer s t k)
+        => TransactionLayer k
+        -> NetworkLayer IO (CardanoBlock StandardCrypto)
+        -> (WorkerCtx (ApiLayer s k) -> WalletId -> IO ())
+        -> IO (ApiLayer s k)
     apiLayer tl nl coworker = do
         let params = (block0, np, sTolerance)
         db <- Sqlite.newDBFactory

@@ -32,7 +32,7 @@ import Test.QuickCheck
 -------------------------------------------------------------------------------}
 
 propMaxNumberOfInputsEstimation
-    :: TransactionLayer t key
+    :: TransactionLayer key
     -> Quantity "byte" Word16
     -> Quantity "byte" Word16
     -> Word8

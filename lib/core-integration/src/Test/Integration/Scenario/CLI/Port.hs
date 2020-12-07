@@ -33,8 +33,8 @@ import Test.Hspec.Expectations.Lifted
 import Test.Hspec.Extra
     ( it )
 import Test.Integration.Framework.DSL
-    ( KnownCommand (..)
-    , cardanoWalletCLI
+    ( cardanoWalletCLI
+    , commandName
     , createWalletViaCLI
     , deleteWalletViaCLI
     , generateMnemonicsViaCLI
@@ -50,7 +50,7 @@ import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
 
 spec
-    :: forall t s. (HasType (Port "wallet") s, KnownCommand t)
+    :: forall s. (HasType (Port "wallet") s)
     => SpecWith s
 spec = describe "COMMON_CLI_PORTS" $ do
     let overPort :: forall sym. HasType (Port sym) s => (Int -> Int) -> s -> s
@@ -59,7 +59,7 @@ spec = describe "COMMON_CLI_PORTS" $ do
     it "PORT_01 - Can't reach server with wrong port (wallet list)" $ \ctx -> do
         let ctx' = overPort @"wallet" (+1) ctx
         (c :: ExitCode, Stdout (_ :: String), Stderr _) <-
-            listWalletsViaCLI @t ctx'
+            listWalletsViaCLI ctx'
         -- on Windows seems that not whole stderr is available to Stderr
         -- hence asserting only for exit code
         c `shouldBe` ExitFailure 1
@@ -67,10 +67,10 @@ spec = describe "COMMON_CLI_PORTS" $ do
     it "PORT_01 - Can't reach server with wrong port (wallet create)" $ \ctx -> do
         let ctx' = overPort @"wallet" (+1) ctx
         let name = "Wallet created via CLI"
-        Stdout mnemonics <- generateMnemonicsViaCLI @t ["--size", "15"]
+        Stdout mnemonics <- generateMnemonicsViaCLI ["--size", "15"]
         let pwd = "Secure passphrase"
         (c :: ExitCode, _, _) <-
-            createWalletViaCLI @t ctx' [name] mnemonics "\n" pwd
+            createWalletViaCLI ctx' [name] mnemonics "\n" pwd
         -- on Windows seems that not whole stderr is available to Stderr
         -- hence asserting only for exit code
         c `shouldBe` ExitFailure 1
@@ -79,7 +79,7 @@ spec = describe "COMMON_CLI_PORTS" $ do
         let ctx' = overPort @"wallet" (+1) ctx
         let wid = replicate 40 '0'
         (c :: ExitCode, Stdout (_ :: String), Stderr _) <-
-            getWalletViaCLI @t ctx' wid
+            getWalletViaCLI ctx' wid
         -- on Windows seems that not whole stderr is available to Stderr
         -- hence asserting only for exit code
         c `shouldBe` ExitFailure 1
@@ -88,7 +88,7 @@ spec = describe "COMMON_CLI_PORTS" $ do
         let ctx' = overPort @"wallet" (+1) ctx
         let wid = replicate 40 '0'
         (c :: ExitCode, Stdout (_ :: String), Stderr _) <-
-            deleteWalletViaCLI @t ctx' wid
+            deleteWalletViaCLI ctx' wid
         -- on Windows seems that not whole stderr is available to Stderr
         -- hence asserting only for exit code
         c `shouldBe` ExitFailure 1
@@ -97,7 +97,7 @@ spec = describe "COMMON_CLI_PORTS" $ do
         let ctx' = overPort @"wallet" (+1) ctx
         let wid = replicate 40 '0'
         (c :: ExitCode, Stdout (_ :: String), Stderr _) <-
-            updateWalletNameViaCLI @t ctx' [wid, "My Wallet"]
+            updateWalletNameViaCLI ctx' [wid, "My Wallet"]
         -- on Windows seems that not whole stderr is available to Stderr
         -- hence asserting only for exit code
         c `shouldBe` ExitFailure 1
@@ -108,7 +108,7 @@ spec = describe "COMMON_CLI_PORTS" $ do
                 "37btjrVyb4KFjfnPUjgDKLiATLxgwBbeMAEr4vxgkq4Ea5nR6evtX99x2\
                 \QFcF8ApLM4aqCLGvhHQyRJ4JHk4zVKxNeEtTJaPCeB86LndU2YvKUTEEm"
         (c :: ExitCode, _, _) <-
-            postTransactionViaCLI @t ctx' passphrase
+            postTransactionViaCLI ctx' passphrase
                 [ replicate 40 '0'
                 , "--payment", "14@" <> addr
                 ]
@@ -120,21 +120,21 @@ spec = describe "COMMON_CLI_PORTS" $ do
         let ctx' = overPort @"wallet" (+1) ctx
         let wid = replicate 40 '0'
         (c :: ExitCode, Stdout (_ :: String), Stderr _) <-
-            listAddressesViaCLI @t ctx' [wid]
+            listAddressesViaCLI ctx' [wid]
         -- on Windows seems that not whole stderr is available to Stderr
         -- hence asserting only for exit code
         c `shouldBe` ExitFailure 1
 
     it "PORT_03 - Cannot omit --port when server uses random port (wallet list)" $ \_ -> do
         (_ :: ExitCode, Stdout (_ :: String), Stderr err) <-
-            cardanoWalletCLI @t ["wallet", "list"]
+            cardanoWalletCLI ["wallet", "list"]
         err `shouldContain` errConnectionRefused
 
     it "PORT_03 - Cannot omit --port when server uses random port (wallet create)" $ \_ -> do
         let args = ["wallet", "create", "from-recovery-phrase", "myWallet"]
-        Stdout mnemonics <- generateMnemonicsViaCLI @t ["--size", "15"]
+        Stdout mnemonics <- generateMnemonicsViaCLI ["--size", "15"]
         let pwd = "Secure passphrase"
-        let process = proc' (commandName @t) args
+        let process = proc' commandName args
         withCreateProcess process $ \(Just stdin) (Just _) (Just stderr) h -> do
             hPutStr stdin mnemonics
             hPutStr stdin "\n"
@@ -149,19 +149,19 @@ spec = describe "COMMON_CLI_PORTS" $ do
     it "PORT_03 - Cannot omit --port when server uses random port (wallet get)" $ \_ -> do
         let wid = replicate 40 '0'
         (_ :: ExitCode, Stdout (_ :: String), Stderr err) <-
-            cardanoWalletCLI @t ["wallet", "get", wid]
+            cardanoWalletCLI ["wallet", "get", wid]
         err `shouldContain` errConnectionRefused
 
     it "PORT_03 - Cannot omit --port when server uses random port (wallet delete)" $ \_ -> do
         let wid = replicate 40 '0'
         (_ :: ExitCode, Stdout (_ :: String), Stderr err) <-
-            cardanoWalletCLI @t ["wallet", "delete", wid]
+            cardanoWalletCLI ["wallet", "delete", wid]
         err `shouldContain` errConnectionRefused
 
     it "PORT_03 - Cannot omit --port when server uses random port (wallet update)" $ \_ -> do
         let wid = replicate 40 '0'
         (_ :: ExitCode, Stdout (_ :: String), Stderr err) <-
-            cardanoWalletCLI @t ["wallet", "update", "name", wid, "My Wallet"]
+            cardanoWalletCLI ["wallet", "update", "name", wid, "My Wallet"]
         err `shouldContain` errConnectionRefused
 
     it "PORT_03 - Cannot omit --port when server uses random port (transaction create)" $ \_ -> do
@@ -172,7 +172,7 @@ spec = describe "COMMON_CLI_PORTS" $ do
                 [ "transaction", "create"
                 , replicate 40 '0' , "--payment", "14@" <> addr
                 ]
-        let process = proc' (commandName @t) args
+        let process = proc' commandName args
         withCreateProcess process $ \(Just stdin) (Just _) (Just stderr) h -> do
             hPutStr stdin (passphrase ++ "\n")
             hFlush stdin
@@ -184,7 +184,7 @@ spec = describe "COMMON_CLI_PORTS" $ do
     it "PORT_03 - Cannot omit --port when server uses random port (address list)" $ \_ -> do
         let wid = replicate 40 '0'
         (_ :: ExitCode, Stdout (_ :: String), Stderr err) <-
-            cardanoWalletCLI @t ["address", "list", wid]
+            cardanoWalletCLI ["address", "list", wid]
         err `shouldContain` errConnectionRefused
 
     describe "PORT_04 - Fail nicely when port is out-of-bounds" $ do
@@ -194,7 +194,7 @@ spec = describe "COMMON_CLI_PORTS" $ do
                 ]
         forM_ tests $ \(cmd, opt, port) -> let args = [cmd, opt, show port] in
             it (unwords args) $ \_ -> do
-                (exit, Stdout (_ :: String), Stderr err) <- cardanoWalletCLI @t args
+                (exit, Stdout (_ :: String), Stderr err) <- cardanoWalletCLI args
                 exit `shouldBe` ExitFailure 1
                 err `shouldContain`
                     (  "expected a TCP port number between "

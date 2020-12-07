@@ -65,7 +65,6 @@ import Test.Hspec.Extra
     ( it )
 import Test.Integration.Framework.DSL
     ( Context (..)
-    , KnownCommand
     , cardanoWalletCLI
     , createWalletViaCLI
     , deleteWalletViaCLI
@@ -104,16 +103,15 @@ import Test.Integration.Framework.TestData
 
 import qualified Data.Text as T
 
-spec :: forall n t.
-    ( KnownCommand t
-    , DecodeAddress n
+spec :: forall n.
+    ( DecodeAddress n
     , DecodeStakeAddress n
     , EncodeAddress n
-    ) => SpecWith (Context t)
+    ) => SpecWith Context
 spec = describe "SHELLEY_CLI_WALLETS" $ do
     it "BYRON_GET_03 - Shelley CLI does not show Byron wallet" $ \ctx -> runResourceT $ do
         wid <- emptyRandomWallet' ctx
-        (Exit c, Stdout out, Stderr err) <- getWalletViaCLI @t ctx wid
+        (Exit c, Stdout out, Stderr err) <- getWalletViaCLI ctx wid
         out `shouldBe` ""
         c `shouldBe` ExitFailure 1
         err `shouldContain` errMsg404NoWallet (T.pack wid)
@@ -121,7 +119,7 @@ spec = describe "SHELLEY_CLI_WALLETS" $ do
     it "BYRON_LIST_03 - Shelley CLI does not list Byron wallet" $ \ctx -> runResourceT $ do
         byronWid <- emptyRandomWallet' ctx
         shelleyWid <- emptyWallet' ctx
-        (Exit c, Stdout out, Stderr err) <- listWalletsViaCLI @t ctx
+        (Exit c, Stdout out, Stderr err) <- listWalletsViaCLI ctx
         c `shouldBe` ExitSuccess
         err `shouldBe` cmdOk
         j <- expectValidJSON (Proxy @[ApiWallet]) out
@@ -131,7 +129,7 @@ spec = describe "SHELLEY_CLI_WALLETS" $ do
 
     it "BYRON_DELETE_03 - Shelley CLI does not delete Byron wallet" $ \ctx -> runResourceT $ do
         wid <- emptyRandomWallet' ctx
-        (Exit c, Stdout out, Stderr err) <- deleteWalletViaCLI @t ctx wid
+        (Exit c, Stdout out, Stderr err) <- deleteWalletViaCLI ctx wid
         out `shouldBe` ""
         c `shouldBe` ExitFailure 1
         err `shouldContain` errMsg404NoWallet (T.pack wid)
@@ -139,7 +137,7 @@ spec = describe "SHELLEY_CLI_WALLETS" $ do
     it "BYRON_WALLETS_UTXO -\
         \ Cannot show Byron wal utxo with shelley CLI" $ \ctx -> runResourceT $ do
         wid <- emptyRandomWallet' ctx
-        (Exit c, Stdout o, Stderr e) <- getWalletUtxoStatisticsViaCLI @t ctx wid
+        (Exit c, Stdout o, Stderr e) <- getWalletUtxoStatisticsViaCLI ctx wid
         c `shouldBe` ExitFailure 1
         e `shouldContain` errMsg404NoWallet (T.pack wid)
         o `shouldBe` mempty
@@ -151,7 +149,7 @@ spec = describe "SHELLEY_CLI_WALLETS" $ do
         let args = T.unpack <$>
                 [ "wallet", "update", "passphrase"
                 , "--port", port, T.pack wid ]
-        (Exit c, Stdout out, Stderr err) <- cardanoWalletCLI @t args
+        (Exit c, Stdout out, Stderr err) <- cardanoWalletCLI args
         out `shouldBe` ""
         c `shouldBe` ExitFailure 1
         err `shouldContain` errMsg404NoWallet (T.pack wid)
@@ -163,14 +161,14 @@ spec = describe "SHELLEY_CLI_WALLETS" $ do
         let args = T.unpack <$>
                 [ "wallet", "update", "name"
                 , "--port", port, T.pack wid, "name" ]
-        (Exit c, Stdout out, Stderr err) <- cardanoWalletCLI @t args
+        (Exit c, Stdout out, Stderr err) <- cardanoWalletCLI args
         out `shouldBe` ""
         c `shouldBe` ExitFailure 1
         err `shouldContain` errMsg404NoWallet (T.pack wid)
 
     it "WALLETS_CREATE_01,08 - Can create a wallet" $ \ctx -> runResourceT $ do
-        Stdout m <- generateMnemonicsViaCLI @t []
-        (c, out, err) <- createWalletViaCLI @t ctx ["n"] m "\n" "secure-passphrase"
+        Stdout m <- generateMnemonicsViaCLI []
+        (c, out, err) <- createWalletViaCLI ctx ["n"] m "\n" "secure-passphrase"
         c `shouldBe` ExitSuccess
         T.unpack err `shouldContain` cmdOk
         j <- expectValidJSON (Proxy @ApiWallet) out
@@ -186,7 +184,7 @@ spec = describe "SHELLEY_CLI_WALLETS" $ do
             ]
 
         eventually "Wallet state = Ready" $ do
-            Stdout og <- getWalletViaCLI @t ctx $ T.unpack (j ^. walletId)
+            Stdout og <- getWalletViaCLI ctx $ T.unpack (j ^. walletId)
             jg <- expectValidJSON (Proxy @ApiWallet) og
             expectCliField (#state . #getApiT) (`shouldBe` Ready) jg
 
@@ -194,8 +192,8 @@ spec = describe "SHELLEY_CLI_WALLETS" $ do
         wSrc <- fixtureWallet ctx
 
         -- create a wallet
-        Stdout m <- generateMnemonicsViaCLI @t []
-        (c1, o1, e1) <- liftIO $ createWalletViaCLI @t ctx ["n"] m "\n" "secure-passphrase"
+        Stdout m <- generateMnemonicsViaCLI []
+        (c1, o1, e1) <- liftIO $ createWalletViaCLI ctx ["n"] m "\n" "secure-passphrase"
         c1 `shouldBe` ExitSuccess
         T.unpack e1 `shouldContain` cmdOk
         wDest <- expectValidJSON (Proxy @ApiWallet) o1
@@ -215,13 +213,13 @@ spec = describe "SHELLEY_CLI_WALLETS" $ do
                 , "--payment", T.pack (show amount) <> "@" <> addr
                 ]
 
-        (cp, op, ep) <- postTransactionViaCLI @t ctx "cardano-wallet" args
+        (cp, op, ep) <- postTransactionViaCLI ctx "cardano-wallet" args
         T.unpack ep `shouldContain` cmdOk
         _ <- expectValidJSON (Proxy @(ApiTransaction n)) op
         cp `shouldBe` ExitSuccess
 
         eventually "Wallet balance is as expected" $ do
-            Stdout og <- getWalletViaCLI @t ctx $ T.unpack (wDest ^. walletId)
+            Stdout og <- getWalletViaCLI ctx $ T.unpack (wDest ^. walletId)
             jg <- expectValidJSON (Proxy @ApiWallet) og
             expectCliField (#balance . #getApiT . #available)
                 (`shouldBe` Quantity amount) jg
@@ -229,22 +227,22 @@ spec = describe "SHELLEY_CLI_WALLETS" $ do
                 (`shouldBe` Quantity amount) jg
 
         -- delete wallet
-        Exit cd <- deleteWalletViaCLI @t ctx $ T.unpack (wDest ^. walletId)
+        Exit cd <- deleteWalletViaCLI ctx $ T.unpack (wDest ^. walletId)
         cd `shouldBe` ExitSuccess
 
         -- restore wallet
-        (c2, o2, e2) <- createWalletViaCLI @t ctx ["n"] m "\n" "secure-passphraseX"
+        (c2, o2, e2) <- createWalletViaCLI ctx ["n"] m "\n" "secure-passphraseX"
         c2 `shouldBe` ExitSuccess
         T.unpack e2 `shouldContain` cmdOk
         wRestored <- expectValidJSON (Proxy @ApiWallet) o2
         expectCliField walletId (`shouldBe` wDest ^. walletId) wRestored
         eventually "Wallet is fully restored" $ do
-            Stdout og2 <- getWalletViaCLI @t ctx $ T.unpack (wDest ^. walletId)
+            Stdout og2 <- getWalletViaCLI ctx $ T.unpack (wDest ^. walletId)
             jg2 <- expectValidJSON (Proxy @ApiWallet) og2
             expectCliField (#state . #getApiT) (`shouldBe` Ready) jg2
 
         -- make sure funds are there
-        Stdout o3 <- getWalletViaCLI @t ctx $ T.unpack (wRestored ^. walletId)
+        Stdout o3 <- getWalletViaCLI ctx $ T.unpack (wRestored ^. walletId)
         justRestored <- expectValidJSON (Proxy @ApiWallet) o3
         verify justRestored
             [ expectCliField
@@ -255,16 +253,16 @@ spec = describe "SHELLEY_CLI_WALLETS" $ do
             ]
 
     it "WALLETS_CREATE_03 - Cannot create wallet that exists" $ \ctx -> runResourceT $ do
-        Stdout m1 <- generateMnemonicsViaCLI @t ["--size", "24"]
-        Stdout m2 <- generateMnemonicsViaCLI @t ["--size", "12"]
+        Stdout m1 <- generateMnemonicsViaCLI ["--size", "24"]
+        Stdout m2 <- generateMnemonicsViaCLI ["--size", "12"]
 
-        (c1, o1, e1) <- createWalletViaCLI @t ctx ["n1"] m1 m2 "secure-passphrase"
+        (c1, o1, e1) <- createWalletViaCLI ctx ["n1"] m1 m2 "secure-passphrase"
         c1 `shouldBe` ExitSuccess
         T.unpack e1 `shouldContain` cmdOk
         j <- expectValidJSON (Proxy @ApiWallet) o1
         expectCliField (#name . #getApiT . #getWalletName) (`shouldBe` "n1") j
 
-        (c2, o2, e2) <- createWalletViaCLI @t ctx ["n2"] m1 m2 "Xsecure-passphraseX"
+        (c2, o2, e2) <- createWalletViaCLI ctx ["n2"] m1 m2 "Xsecure-passphraseX"
         c2 `shouldBe` ExitFailure 1
         o2 `shouldBe` ""
         T.unpack e2 `shouldContain` "This operation would yield a wallet with \
@@ -273,8 +271,8 @@ spec = describe "SHELLEY_CLI_WALLETS" $ do
 
     describe "WALLETS_CREATE_04 - Wallet names" $ do
         forM_ walletNames $ \(title, n) -> it title $ \ctx -> runResourceT $ do
-            Stdout m <- generateMnemonicsViaCLI @t ["--size", "18"]
-            (c, o, e) <- createWalletViaCLI @t ctx [n] m "\n" "secure-passphrase"
+            Stdout m <- generateMnemonicsViaCLI ["--size", "18"]
+            (c, o, e) <- createWalletViaCLI ctx [n] m "\n" "secure-passphrase"
             c `shouldBe` ExitSuccess
             T.unpack e `shouldContain` cmdOk
             j <- expectValidJSON (Proxy @ApiWallet) o
@@ -283,8 +281,8 @@ spec = describe "SHELLEY_CLI_WALLETS" $ do
 
     describe "WALLETS_CREATE_04 - Wallet names invalid" $ do
         forM_ walletNamesInvalid $ \(name, expects) -> it expects $ \ctx -> runResourceT $ do
-            Stdout m <- generateMnemonicsViaCLI @t ["--size", "18"]
-            (c, o, e) <- createWalletViaCLI @t ctx [name] m "\n" "secure-passphrase"
+            Stdout m <- generateMnemonicsViaCLI ["--size", "18"]
+            (c, o, e) <- createWalletViaCLI ctx [name] m "\n" "secure-passphrase"
             c `shouldBe` ExitFailure 1
             T.unpack e `shouldContain` expects
             o `shouldBe` ""
@@ -292,10 +290,10 @@ spec = describe "SHELLEY_CLI_WALLETS" $ do
     describe "WALLETS_CREATE_05 - Can create wallet with different mnemonic sizes" $ do
         forM_ ["15", "18", "21", "24"] $ \(size) -> it size $ \ctx -> runResourceT $ do
             let name = "Wallet created via CLI "
-            Stdout mnemonics <- generateMnemonicsViaCLI @t ["--size", size]
+            Stdout mnemonics <- generateMnemonicsViaCLI ["--size", size]
             let pwd = "Secure passphrase"
             (c, out, err) <-
-                createWalletViaCLI @t ctx [name] mnemonics "\n" pwd
+                createWalletViaCLI ctx [name] mnemonics "\n" pwd
             c `shouldBe` ExitSuccess
             T.unpack err `shouldContain` cmdOk
             j <- expectValidJSON (Proxy @ApiWallet) out
@@ -305,11 +303,11 @@ spec = describe "SHELLEY_CLI_WALLETS" $ do
     describe "WALLETS_CREATE_05 - Can't create wallet with wrong size of mnemonic" $ do
         forM_ ["9", "12"] $ \(size) -> it size $ \ctx -> runResourceT $ do
             let name = "Wallet created via CLI"
-            Stdout m1 <- generateMnemonicsViaCLI @t ["--size", size]
-            Stdout m2 <- generateMnemonicsViaCLI @t ["--size", size]
+            Stdout m1 <- generateMnemonicsViaCLI ["--size", size]
+            Stdout m2 <- generateMnemonicsViaCLI ["--size", size]
             let pwd = "Secure passphrase"
             (c, out, err) <-
-                createWalletViaCLI @t ctx [name] m1 m2 pwd
+                createWalletViaCLI ctx [name] m1 m2 pwd
             c `shouldBe` (ExitFailure 1)
             out `shouldBe` ""
             T.unpack err `shouldContain` "Invalid number of words: 15, 18, 21\
@@ -318,10 +316,10 @@ spec = describe "SHELLEY_CLI_WALLETS" $ do
     describe "WALLETS_CREATE_06 - Can create wallet with different mnemonic snd factor sizes" $ do
         forM_ ["9", "12"] $ \(size) -> it size $ \ctx -> runResourceT $ do
             let name = "Wallet created via CLI"
-            Stdout m1 <- generateMnemonicsViaCLI @t []
-            Stdout m2 <- generateMnemonicsViaCLI @t ["--size", size]
+            Stdout m1 <- generateMnemonicsViaCLI []
+            Stdout m2 <- generateMnemonicsViaCLI ["--size", size]
             let pwd = "Secure passphrase"
-            (c, out, err) <- createWalletViaCLI @t ctx [name] m1 m2 pwd
+            (c, out, err) <- createWalletViaCLI ctx [name] m1 m2 pwd
             c `shouldBe` ExitSuccess
             T.unpack err `shouldContain` cmdOk
             j <- expectValidJSON (Proxy @ApiWallet) out
@@ -331,10 +329,10 @@ spec = describe "SHELLEY_CLI_WALLETS" $ do
     describe "WALLETS_CREATE_06 - Can't create wallet with wrong size of mnemonic snd factor" $ do
         forM_ ["15", "18", "21", "24"] $ \(size) -> it size $ \ctx -> runResourceT $ do
             let name = "Wallet created via CLI"
-            Stdout m1 <- generateMnemonicsViaCLI @t ["--size", size]
-            Stdout m2 <- generateMnemonicsViaCLI @t ["--size", size]
+            Stdout m1 <- generateMnemonicsViaCLI ["--size", size]
+            Stdout m2 <- generateMnemonicsViaCLI ["--size", size]
             let pwd = "Secure passphrase"
-            (c, out, err) <- createWalletViaCLI @t ctx [name] m1 m2 pwd
+            (c, out, err) <- createWalletViaCLI ctx [name] m1 m2 pwd
             c `shouldBe` (ExitFailure 1)
             out `shouldBe` ""
             T.unpack err `shouldContain` "Invalid number of words: 9 or 12\
@@ -356,8 +354,8 @@ spec = describe "SHELLEY_CLI_WALLETS" $ do
                 , ( "Kanji", "亜哀挨愛曖悪握圧扱宛嵐")
                 ]
         forM_ matrix $ \(title, pass) -> it title $ \ctx -> runResourceT $ do
-            Stdout m <- generateMnemonicsViaCLI @t []
-            (c, o, e) <- createWalletViaCLI @t ctx ["Wallet name"] m "\n" pass
+            Stdout m <- generateMnemonicsViaCLI []
+            (c, o, e) <- createWalletViaCLI ctx ["Wallet name"] m "\n" pass
             c `shouldBe` ExitSuccess
             T.unpack e `shouldContain` cmdOk
             j <- expectValidJSON (Proxy @ApiWallet) o
@@ -377,8 +375,8 @@ spec = describe "SHELLEY_CLI_WALLETS" $ do
                 , ( "Pass above max length", passAboveMax, passMaxWarn )
                 ]
         forM_ matrix $ \(title, pass, warn) -> it title $ \ctx -> runResourceT $ do
-            Stdout m <- generateMnemonicsViaCLI @t []
-            (c, o, e) <- createWalletViaCLI @t ctx ["Wallet name"] m "\n" pass
+            Stdout m <- generateMnemonicsViaCLI []
+            (c, o, e) <- createWalletViaCLI ctx ["Wallet name"] m "\n" pass
             c `shouldBe` ExitFailure 1
             o `shouldBe` ""
             T.unpack e `shouldContain` warn
@@ -416,14 +414,14 @@ spec = describe "SHELLEY_CLI_WALLETS" $ do
                 ]
 
         forM_ matrix $ \(title, gap, expects) -> it title $ \ctx -> runResourceT $ do
-            Stdout m <- generateMnemonicsViaCLI @t []
-            (c, o, e) <- createWalletViaCLI @t ctx ["n", "--address-pool-gap", gap]
+            Stdout m <- generateMnemonicsViaCLI []
+            (c, o, e) <- createWalletViaCLI ctx ["n", "--address-pool-gap", gap]
                             m "\n" "secure-passphraze"
             expects c o e gap
 
     it "WALLETS_GET_01 - Can get a wallet" $ \ctx -> runResourceT $ do
         walId <- emptyWallet' ctx
-        (Exit c, Stdout out, Stderr err) <- getWalletViaCLI @t ctx walId
+        (Exit c, Stdout out, Stderr err) <- getWalletViaCLI ctx walId
         c `shouldBe` ExitSuccess
         err `shouldBe` cmdOk
         j <- expectValidJSON (Proxy @ApiWallet) out
@@ -443,13 +441,13 @@ spec = describe "SHELLEY_CLI_WALLETS" $ do
             ]
 
         eventually "Wallet state = Ready" $ do
-            Stdout og <- getWalletViaCLI @t ctx walId
+            Stdout og <- getWalletViaCLI ctx walId
             jg <- expectValidJSON (Proxy @ApiWallet) og
             expectCliField (#state . #getApiT) (`shouldBe` Ready) jg
 
     describe "WALLETS_GET_03,04 - Cannot get wallets with false ids" $ do
         forM_ falseWalletIds $ \(title, walId) -> it title $ \ctx -> runResourceT $ do
-            (Exit c, Stdout out, Stderr err) <- getWalletViaCLI @t ctx walId
+            (Exit c, Stdout out, Stderr err) <- getWalletViaCLI ctx walId
             out `shouldBe` ""
             c `shouldBe` ExitFailure 1
             if (title == "40 chars hex") then
@@ -463,7 +461,7 @@ spec = describe "SHELLEY_CLI_WALLETS" $ do
         let name2 = prefix <> "#2"
         w1 <- emptyWalletWith' ctx (name1, "secure-passphrase", 21)
         _ <- emptyWalletWith' ctx (name2, "secure-passphrase", 21)
-        (Exit c, Stdout out, Stderr err) <- listWalletsViaCLI @t ctx
+        (Exit c, Stdout out, Stderr err) <- listWalletsViaCLI ctx
         c `shouldBe` ExitSuccess
         err `shouldBe` cmdOk
         let walFromThisTest w =
@@ -490,7 +488,7 @@ spec = describe "SHELLEY_CLI_WALLETS" $ do
         w1 <- emptyWalletWith' ctx (prefix <> "1", "secure-passphrase", 20)
         w2 <- emptyWalletWith' ctx (prefix <> "2", "secure-passphrase", 20)
         w3 <- emptyWalletWith' ctx (prefix <> "3", "secure-passphrase", 20)
-        (Exit c, Stdout out, Stderr err) <- listWalletsViaCLI @t ctx
+        (Exit c, Stdout out, Stderr err) <- listWalletsViaCLI ctx
         c `shouldBe` ExitSuccess
         err `shouldBe` cmdOk
         let walFromThisTest w =
@@ -508,7 +506,7 @@ spec = describe "SHELLEY_CLI_WALLETS" $ do
             wid <- emptyWallet' ctx
             let args = [wid, n]
             (Exit c, Stdout out, Stderr err) <-
-                updateWalletNameViaCLI @t ctx args
+                updateWalletNameViaCLI ctx args
             c `shouldBe` ExitSuccess
             err `shouldBe` cmdOk
             j <- expectValidJSON (Proxy @ApiWallet) out
@@ -527,13 +525,13 @@ spec = describe "SHELLEY_CLI_WALLETS" $ do
 
             --update pass
             (exitCode, out, err) <-
-                updateWalletPassphraseViaCLI @t ctx wid ppOld ppNew ppNew
+                updateWalletPassphraseViaCLI ctx wid ppOld ppNew ppNew
             out `shouldBe` "\n"
             T.unpack err `shouldContain` cmdOk
             exitCode `shouldBe` ExitSuccess
 
             --verify passphraseLastUpdate was updated
-            Stdout o <- getWalletViaCLI @t ctx wid
+            Stdout o <- getWalletViaCLI ctx wid
             j <- expectValidJSON (Proxy @ApiWallet) o
             expectCliField #passphrase (`shouldNotBe` initPassUpdateTime) j
 
@@ -577,7 +575,7 @@ spec = describe "SHELLEY_CLI_WALLETS" $ do
             let addrPoolMin = fromIntegral @_ @Int $ getAddressPoolGap minBound
             wid <- emptyWalletWith' ctx (name, T.pack ppOld, addrPoolMin)
             (exitCode, out, err) <-
-                updateWalletPassphraseViaCLI @t ctx wid ppOld ppNew ppNew
+                updateWalletPassphraseViaCLI ctx wid ppOld ppNew ppNew
             expectations (exitCode, out, err)
 
     it "WALLETS_UPDATE_PASS_02 - \
@@ -590,7 +588,7 @@ spec = describe "SHELLEY_CLI_WALLETS" $ do
             let addrPoolMin = fromIntegral @_ @Int $ getAddressPoolGap minBound
             wid <- emptyWalletWith' ctx (name, T.pack ppOld, addrPoolMin)
             (exitCode, out, err) <-
-                updateWalletPassphraseViaCLI @t ctx wid ppOld ppNew1 ppNew2
+                updateWalletPassphraseViaCLI ctx wid ppOld ppNew1 ppNew2
             out `shouldBe` mempty
             T.unpack err `shouldContain` "Passphrases don't match"
             exitCode `shouldBe` ExitFailure 1
@@ -624,7 +622,7 @@ spec = describe "SHELLEY_CLI_WALLETS" $ do
             wid <- emptyWalletWith' ctx
                 (name, T.pack ppOldRight, addrPoolMin)
             (exitCode, out, err) <-
-                updateWalletPassphraseViaCLI @t ctx wid ppOldWrong ppNew ppNew
+                updateWalletPassphraseViaCLI ctx wid ppOldWrong ppNew ppNew
             expectations (exitCode, out, err)
 
     describe "WALLETS_UPDATE_PASS_03 - \
@@ -648,7 +646,7 @@ spec = describe "SHELLEY_CLI_WALLETS" $ do
             wid <- emptyWalletWith' ctx
                 (name, T.pack ppOldRight, addrPoolMin)
             (exitCode, out, err) <-
-                updateWalletPassphraseViaCLI @t ctx wid ppOldRight ppNew ppNew
+                updateWalletPassphraseViaCLI ctx wid ppOldRight ppNew ppNew
             expectations (exitCode, out, err)
 
     describe "WALLETS_UPDATE_PASS_04 - Cannot update pass of wallets with false ids" $ do
@@ -656,7 +654,7 @@ spec = describe "SHELLEY_CLI_WALLETS" $ do
             let ppOld = "right secure passphrase"
             let ppNew = "new secure passphrase"
             (c, out, err) <-
-                updateWalletPassphraseViaCLI @t ctx wid ppOld ppNew ppNew
+                updateWalletPassphraseViaCLI ctx wid ppOld ppNew ppNew
             out `shouldBe` ""
             c `shouldBe` ExitFailure 1
             if (title == "40 chars hex") then
@@ -688,7 +686,7 @@ spec = describe "SHELLEY_CLI_WALLETS" $ do
             addr:_ <- listAddresses @n ctx wDest
             let wid = T.unpack $ wSrc ^. walletId
             (c, out, err) <-
-                updateWalletPassphraseViaCLI @t ctx wid oldPass newPass newPass
+                updateWalletPassphraseViaCLI ctx wid oldPass newPass newPass
             expect (ExitSuccess, "\n", cmdOk) (c, out, err)
 
             let addrStr = encodeAddress @n (getApiT $ fst $ addr ^. #id)
@@ -697,16 +695,16 @@ spec = describe "SHELLEY_CLI_WALLETS" $ do
                     , "--payment", T.pack (show minUTxOValue) <> "@" <> addrStr
                     ]
 
-            (cTx, outTx, errTx) <- postTransactionViaCLI @t ctx pass args
+            (cTx, outTx, errTx) <- postTransactionViaCLI ctx pass args
             expectations (cTx, outTx, errTx)
 
     it "WALLETS_DELETE_01, WALLETS_LIST_02 - Can delete wallet" $ \ctx -> runResourceT $ do
         walId <- emptyWallet' ctx
-        (Exit c, Stdout out, Stderr err) <- deleteWalletViaCLI @t ctx walId
+        (Exit c, Stdout out, Stderr err) <- deleteWalletViaCLI ctx walId
         err `shouldBe` cmdOk
         c `shouldBe` ExitSuccess
         out `shouldBe` "\n"
-        (Stdout o, Stderr e) <- listWalletsViaCLI @t ctx
+        (Stdout o, Stderr e) <- listWalletsViaCLI ctx
         wids <- map (T.unpack . view walletId)
             <$> expectValidJSON (Proxy @[ApiWallet]) o
         wids `shouldNotContain` [walId]
@@ -714,7 +712,7 @@ spec = describe "SHELLEY_CLI_WALLETS" $ do
 
     it "WALLETS_UTXO_01 - Wallet's inactivity is reflected in utxo" $ \ctx -> runResourceT $ do
         wid <- emptyWallet' ctx
-        (Exit c, Stdout o, Stderr e) <- getWalletUtxoStatisticsViaCLI @t ctx wid
+        (Exit c, Stdout o, Stderr e) <- getWalletUtxoStatisticsViaCLI ctx wid
         c `shouldBe` ExitSuccess
         e `shouldBe` cmdOk
         utxoStats <- expectValidJSON (Proxy @ApiUtxoStatistics) o
@@ -733,12 +731,12 @@ spec = describe "SHELLEY_CLI_WALLETS" $ do
                 ["--payment", show c <> "@" <> T.unpack addr ]
         let args = T.unpack (wSrc ^. walletId) : mconcat payments
 
-        (cp, op, ep) <- postTransactionViaCLI @t ctx "cardano-wallet" args
+        (cp, op, ep) <- postTransactionViaCLI ctx "cardano-wallet" args
         T.unpack ep `shouldContain` cmdOk
         _ <- expectValidJSON (Proxy @(ApiTransaction n)) op
         cp `shouldBe` ExitSuccess
         eventually "Wallet balance is as expected" $ do
-            Stdout og <- getWalletViaCLI @t ctx $ T.unpack (wDest ^. walletId)
+            Stdout og <- getWalletViaCLI ctx $ T.unpack (wDest ^. walletId)
             jg <- expectValidJSON (Proxy @ApiWallet) og
             expectCliField (#balance . #getApiT . #available)
                 (`shouldBe` Quantity (fromIntegral $ sum coins)) jg
@@ -747,7 +745,7 @@ spec = describe "SHELLEY_CLI_WALLETS" $ do
 
         --verify utxo
         (Exit c, Stdout o, Stderr e) <-
-            getWalletUtxoStatisticsViaCLI @t ctx $ T.unpack (wDest ^. walletId)
+            getWalletUtxoStatisticsViaCLI ctx $ T.unpack (wDest ^. walletId)
         c `shouldBe` ExitSuccess
         e `shouldBe` cmdOk
         utxoStats1 <- expectValidJSON (Proxy @ApiUtxoStatistics) o
@@ -755,7 +753,7 @@ spec = describe "SHELLEY_CLI_WALLETS" $ do
 
     describe "WALLETS_UTXO_03 - non-existing wallets" $ do
         forM_ falseWalletIds $ \(title, walId) -> it title $ \ctx -> runResourceT $ do
-            (Exit c, Stdout out, Stderr err) <- getWalletUtxoStatisticsViaCLI @t ctx walId
+            (Exit c, Stdout out, Stderr err) <- getWalletUtxoStatisticsViaCLI ctx walId
             out `shouldBe` mempty
             c `shouldBe` ExitFailure 1
             if (title == "40 chars hex") then
@@ -765,10 +763,10 @@ spec = describe "SHELLEY_CLI_WALLETS" $ do
 
     it "WALLETS_UTXO_03 - Deleted wallet is not available for utxo" $ \ctx -> runResourceT $ do
         wid <- emptyWallet' ctx
-        Exit cd <- deleteWalletViaCLI @t ctx wid
+        Exit cd <- deleteWalletViaCLI ctx wid
         cd `shouldBe` ExitSuccess
 
-        (Exit c, Stdout o, Stderr e) <- getWalletUtxoStatisticsViaCLI @t ctx wid
+        (Exit c, Stdout o, Stderr e) <- getWalletUtxoStatisticsViaCLI ctx wid
         c `shouldBe` ExitFailure 1
         e `shouldContain` errMsg404NoWallet (T.pack wid)
         o `shouldBe` mempty
@@ -776,7 +774,7 @@ spec = describe "SHELLEY_CLI_WALLETS" $ do
     it "WALLETS_UTXO_03 - 'almost' valid walletId" $ \ctx -> runResourceT $ do
         wid <- emptyWallet' ctx
         (Exit c, Stdout o, Stderr e)
-                <- getWalletUtxoStatisticsViaCLI @t ctx (wid ++ "1")
+                <- getWalletUtxoStatisticsViaCLI ctx (wid ++ "1")
         c `shouldBe` ExitFailure 1
         e `shouldContain` errMsg400WalletIdEncoding
         o `shouldBe` mempty
@@ -789,16 +787,16 @@ spec = describe "SHELLEY_CLI_WALLETS" $ do
 
 emptyRandomWallet'
     :: (MonadIO m, MonadCatch m)
-    => Context t
+    => Context
     -> ResourceT m String
 emptyRandomWallet' = fmap (T.unpack . view walletId) . emptyRandomWallet
 
-emptyWallet' :: (MonadIO m, MonadCatch m) => Context t -> ResourceT m String
+emptyWallet' :: (MonadIO m, MonadCatch m) => Context -> ResourceT m String
 emptyWallet' = fmap (T.unpack . view walletId) . emptyWallet
 
 emptyWalletWith'
     :: (MonadIO m, MonadCatch m)
-    => Context t -> (Text, Text, Int) -> ResourceT m String
+    => Context -> (Text, Text, Int) -> ResourceT m String
 emptyWalletWith' ctx (name, pass, pg) =
     fmap (T.unpack . view walletId) (emptyWalletWith ctx (name, pass, pg))
 
