@@ -28,6 +28,7 @@
         depends = [
           (hsPkgs."base" or (errorHandler.buildDepError "base"))
           (hsPkgs."aeson" or (errorHandler.buildDepError "aeson"))
+          (hsPkgs."base16-bytestring" or (errorHandler.buildDepError "base16-bytestring"))
           (hsPkgs."base64-bytestring" or (errorHandler.buildDepError "base64-bytestring"))
           (hsPkgs."base64-bytestring-type" or (errorHandler.buildDepError "base64-bytestring-type"))
           (hsPkgs."binary" or (errorHandler.buildDepError "binary"))
@@ -70,8 +71,8 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/cardano-ledger-specs";
-      rev = "d6179d72c52588460c1d57b932a2fd0724c5db32";
-      sha256 = "0fwhnib6raiq2lisbabchdd45wmlj1kfd21a3zbdmgc468j16clw";
+      rev = "581767d1329f3f702e332af08355e81a0f85333e";
+      sha256 = "198p4v2bi36y6x512w35qycvjm7nds7jf8qh7r84pj1qsy43vf7w";
       });
     postUnpack = "sourceRoot+=/byron/crypto; echo source root reset to \$sourceRoot";
     }

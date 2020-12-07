@@ -12,7 +12,7 @@
     package = {
       specVersion = "2.0";
       identifier = { name = "byron-spec-ledger"; version = "0.1.0.0"; };
-      license = "MIT";
+      license = "Apache-2.0";
       copyright = "";
       maintainer = "formal.methods@iohk.io";
       author = "IOHK Formal Methods Team";
@@ -88,8 +88,8 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/cardano-ledger-specs";
-      rev = "d6179d72c52588460c1d57b932a2fd0724c5db32";
-      sha256 = "0fwhnib6raiq2lisbabchdd45wmlj1kfd21a3zbdmgc468j16clw";
+      rev = "581767d1329f3f702e332af08355e81a0f85333e";
+      sha256 = "198p4v2bi36y6x512w35qycvjm7nds7jf8qh7r84pj1qsy43vf7w";
       });
     postUnpack = "sourceRoot+=/byron/ledger/executable-spec; echo source root reset to \$sourceRoot";
     }

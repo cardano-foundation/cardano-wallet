@@ -31,6 +31,7 @@
           (hsPkgs."cardano-binary" or (errorHandler.buildDepError "cardano-binary"))
           (hsPkgs."cardano-crypto-class" or (errorHandler.buildDepError "cardano-crypto-class"))
           (hsPkgs."cardano-crypto-praos" or (errorHandler.buildDepError "cardano-crypto-praos"))
+          (hsPkgs."cardano-prelude" or (errorHandler.buildDepError "cardano-prelude"))
           (hsPkgs."cborg" or (errorHandler.buildDepError "cborg"))
           (hsPkgs."cryptonite" or (errorHandler.buildDepError "cryptonite"))
           (hsPkgs."formatting" or (errorHandler.buildDepError "formatting"))
@@ -39,6 +40,7 @@
           (hsPkgs."quickcheck-instances" or (errorHandler.buildDepError "quickcheck-instances"))
           (hsPkgs."tasty" or (errorHandler.buildDepError "tasty"))
           (hsPkgs."tasty-quickcheck" or (errorHandler.buildDepError "tasty-quickcheck"))
+          (hsPkgs."criterion" or (errorHandler.buildDepError "criterion"))
           ];
         buildable = true;
         };
@@ -53,12 +55,29 @@
           buildable = true;
           };
         };
+      benchmarks = {
+        "bench-crypto" = {
+          depends = [
+            (hsPkgs."base" or (errorHandler.buildDepError "base"))
+            (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
+            (hsPkgs."cardano-binary" or (errorHandler.buildDepError "cardano-binary"))
+            (hsPkgs."cardano-crypto-class" or (errorHandler.buildDepError "cardano-crypto-class"))
+            (hsPkgs."cardano-crypto-praos" or (errorHandler.buildDepError "cardano-crypto-praos"))
+            (hsPkgs."cardano-crypto-tests" or (errorHandler.buildDepError "cardano-crypto-tests"))
+            (hsPkgs."cborg" or (errorHandler.buildDepError "cborg"))
+            (hsPkgs."cryptonite" or (errorHandler.buildDepError "cryptonite"))
+            (hsPkgs."formatting" or (errorHandler.buildDepError "formatting"))
+            (hsPkgs."criterion" or (errorHandler.buildDepError "criterion"))
+            ];
+          buildable = true;
+          };
+        };
       };
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/cardano-base";
-      rev = "9e95b500486f59d6c34c97356e2a7b074b39d021";
-      sha256 = "15k48xdqdclf9gipz7j58g3sxwn7888giwz2rpi6i60j265vix08";
+      rev = "2574600da11065937c1f07e4b234ecb451016a2e";
+      sha256 = "0nq8bpzsr3fd2i59a6s6qb6slpymjh47zv57wlifjfvhh0xlgmpx";
       });
     postUnpack = "sourceRoot+=/cardano-crypto-tests; echo source root reset to \$sourceRoot";
     }

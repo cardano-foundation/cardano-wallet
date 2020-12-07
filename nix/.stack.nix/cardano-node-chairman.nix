@@ -11,7 +11,7 @@
     flags = {};
     package = {
       specVersion = "2.4";
-      identifier = { name = "cardano-node-chairman"; version = "1.22.1"; };
+      identifier = { name = "cardano-node-chairman"; version = "1.24.1"; };
       license = "Apache-2.0";
       copyright = "";
       maintainer = "operations@iohk.io";
@@ -151,8 +151,8 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/cardano-node";
-      rev = "f13d1330dbe89c03a50cdb79f132e28e0723fd99";
-      sha256 = "0kwb66kcx45f7ms2mdqawlmi830l88ar8gms8qc6f01vxd5lh7jv";
+      rev = "196ba716c425a0b7c75741c168f6a6d7edaee1fc";
+      sha256 = "0i6l645hsa1dih1rqc6kz51c906k5f9zj5aq095gkwby3f0hzikp";
       });
     postUnpack = "sourceRoot+=/cardano-node-chairman; echo source root reset to \$sourceRoot";
     }
