@@ -111,7 +111,7 @@ depleteUTxO feeOpts batchSize utxo =
       where
         noDust :: TxOut -> Maybe Coin
         noDust (TxOut _ c)
-            | c <= dustThreshold feeOpts = Nothing
+            | c < dustThreshold feeOpts = Nothing
             | otherwise = Just c
 
     -- | Attempt to balance the coin selection by reducing or increasing the

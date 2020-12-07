@@ -239,7 +239,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
             Empty >>= flip verify
             [ expectField
                 #distribution
-                ((`shouldBe` (Just 99)) . Map.lookup 100_000_000_000)
+                ((`shouldBe` (Just 100)) . Map.lookup 100_000_000_000)
             ]
 
     it "SHELLEY_MIGRATE_02 - \
