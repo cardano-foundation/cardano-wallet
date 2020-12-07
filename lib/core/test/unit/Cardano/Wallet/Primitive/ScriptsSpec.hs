@@ -126,11 +126,11 @@ prop_scriptFromOurVerKeys
     -> Property
 prop_scriptFromOurVerKeys (AccountXPubWithScripts accXPub' scripts') = do
     let (script:_) = scripts'
-    let sciptKeyHashes = retrieveAllVerKeyHashes script
+    let scriptKeyHashes = retrieveAllVerKeyHashes script
     let seqState = initializeState accXPub'
     let (ourSharedKeys, _) = isShared script seqState
     L.sort (L.nub $ map hashVerificationKey ourSharedKeys) ===
-        L.sort (L.nub sciptKeyHashes)
+        L.sort (L.nub scriptKeyHashes)
 
 prop_scriptFromNotOurVerKeys
     :: ShelleyKey 'AccountK XPub

@@ -36,7 +36,12 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
-    ( SeqState (..), lookupKeyHash, updateKnownScripts, verPoolAccountPubKey )
+    ( SeqState (..)
+    , extendVerificationKeyPool
+    , lookupKeyHash
+    , updateKnownScripts
+    , verPoolAccountPubKey
+    )
 import Control.Arrow
     ( first )
 import Control.Monad
@@ -76,9 +81,16 @@ isShared script (SeqState !s1 !s2 !pending !rpk !prefix !s3) =
                   s3''
                 )
     in
-        ( deriveVerificationKey accXPub <$> ixs
-        , SeqState s1 s2 pending rpk prefix s3'
-        )
+        if null ixs then
+            ( []
+            , SeqState s1 s2 pending rpk prefix s3
+            )
+        else
+            ( deriveVerificationKey accXPub <$> ixs
+            , SeqState s1 s2 pending rpk prefix
+              (extendVerificationKeyPool (maximum ixs) s3')
+            )
+
 
 insertIf :: Ord k => (v -> Bool) -> k -> v -> Map k v -> Map k v
 insertIf predicate k v = if predicate v then Map.insert k v else id

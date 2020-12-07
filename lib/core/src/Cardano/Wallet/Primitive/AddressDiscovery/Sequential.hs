@@ -53,6 +53,7 @@ module Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     , VerificationKeyPool
     , unsafeVerificationKeyPool
     , newVerificationKeyPool
+    , extendVerificationKeyPool
     , lookupKeyHash
     , updateKnownScripts
     , verPoolAccountPubKey
@@ -137,8 +138,6 @@ import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Map.Strict
     ( Map )
-import Data.Ord
-    ( Down (..) )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Text.Class
@@ -312,22 +311,23 @@ instance ((PersistPublicKey (key 'AccountK)))
 deriving instance Ord KeyHash
 
 lookupKeyHash
-    :: (SoftDerivation k, WalletKey k)
-    => KeyHash
+    :: KeyHash
     -> VerificationKeyPool k
     -> (Maybe (Index 'Soft 'ScriptK), VerificationKeyPool k)
 lookupKeyHash keyHash pool@(VerificationKeyPool accXPub g indexedHashKeys scripts) =
     let updateKey (ix, _) = (ix, Used)
     in case Map.lookup keyHash indexedHashKeys of
         Nothing -> (Nothing, pool)
-        Just (ix, _) ->
+        Just (ix, Unused) ->
             ( Just ix
             , unsafeVerificationKeyPool accXPub g
                 (Map.adjust updateKey keyHash indexedHashKeys) scripts)
+        Just (ix, Used) ->
+            ( Just ix
+            , unsafeVerificationKeyPool accXPub g indexedHashKeys scripts)
 
 updateKnownScripts
-    :: (WalletKey k, SoftDerivation k)
-    => (Map ScriptHash [Index 'Soft 'ScriptK] -> Map ScriptHash [Index 'Soft 'ScriptK])
+    :: (Map ScriptHash [Index 'Soft 'ScriptK] -> Map ScriptHash [Index 'Soft 'ScriptK])
     -> VerificationKeyPool k
     -> VerificationKeyPool k
 updateKnownScripts trKnownScripts (VerificationKeyPool accXPub g indexedHashKeys knownScripts) =
@@ -341,40 +341,55 @@ newVerificationKeyPool
     -> AddressPoolGap
     -> VerificationKeyPool k
 newVerificationKeyPool accXPub addrPoolGap =
-    unsafeVerificationKeyPool accXPub addrPoolGap Map.empty Map.empty
+    let startVerKeyMap =
+            Map.fromList $ map (createPristineMapEntry accXPub) $
+            L.take (fromEnum addrPoolGap) $ L.iterate succ minBound
+    in unsafeVerificationKeyPool accXPub addrPoolGap startVerKeyMap Map.empty
 
--- | Create a new VerificationKey pool.
--- The extension to the pool is done by adding next adjacent indices,
--- marking them as unused and their corresponding public keys.
+-- | Create a VerificationKey pool from the all ingredients.
+-- There is no validation and it is unsafe way.
 unsafeVerificationKeyPool
-    :: (SoftDerivation k, WalletKey k)
-    => k 'AccountK XPub
+    :: k 'AccountK XPub
     -> AddressPoolGap
     -> Map KeyHash (Index 'Soft 'ScriptK, AddressState)
     -> Map ScriptHash [Index 'Soft 'ScriptK]
     -> VerificationKeyPool k
-unsafeVerificationKeyPool accXPub num@(AddressPoolGap g) vkPoolMap knownScripts = VerificationKeyPool
+unsafeVerificationKeyPool accXPub poolGap vkPoolMap knownScripts = VerificationKeyPool
     { verPoolAccountPubKey = accXPub
-    , verPoolGap = num
-    , verPoolIndexedKeys =
-            Map.union vkPoolMap vkPoolMap'
+    , verPoolGap = poolGap
+    , verPoolIndexedKeys = vkPoolMap
     , verPoolKnownScripts = knownScripts
     }
+
+createPristineMapEntry
+    :: (SoftDerivation k, WalletKey k)
+    => k 'AccountK XPub
+    -> Index 'Soft 'ScriptK
+    -> (KeyHash, (Index 'Soft 'ScriptK, AddressState))
+createPristineMapEntry accXPub ix =
+    ( hashVerificationKey $ deriveVerificationKey accXPub ix
+    , (ix, Unused) )
+
+-- | The extension to the VerificationKey pool is done by adding next adjacent
+-- indices and their corresponding public keys, marking them as Unused.
+-- The number of added entries is determined by pool gap, and the start index is
+-- the next to the the specified index.
+extendVerificationKeyPool
+    :: (SoftDerivation k, WalletKey k)
+    => Index 'Soft 'ScriptK
+    -> VerificationKeyPool k
+    -> VerificationKeyPool k
+extendVerificationKeyPool ix pool
+    | isOnEdge  = pool { verPoolIndexedKeys = Map.union (verPoolIndexedKeys pool) next }
+    | otherwise = pool
   where
-    minIndex = fromIntegral $ toInteger $ getIndex @'Soft minBound
-    lastNotUsedIndices =
-        L.takeWhile (\(_,isUsed) -> isUsed == Unused) $
-        L.sortOn (Down . fst) $
-        Map.elems vkPoolMap
-    firstIndexToAdd = minIndex + L.length (Map.keys vkPoolMap)
-    newIndicesToAdd = fromInteger (toInteger g) - L.length lastNotUsedIndices
-    toIndex = toEnum . fromInteger . toInteger
-    vkPoolMap' =
-        Map.fromList $
-        map (\ix -> ( hashVerificationKey $
-                        deriveVerificationKey accXPub (toIndex ix)
-                    , (toIndex ix, Unused)) )
-        [firstIndexToAdd .. firstIndexToAdd + newIndicesToAdd - 1]
+    edge = Map.size (verPoolIndexedKeys pool)
+    isOnEdge = edge - fromEnum ix <= fromEnum (verPoolGap pool)
+    next =
+        if ix == maxBound then mempty
+        else
+            Map.fromList $ map (createPristineMapEntry (verPoolAccountPubKey pool)) $
+            L.take (fromEnum $ verPoolGap pool) $ L.iterate succ (succ ix)
 
 -- | Bring a 'Role' type back to the term-level. This requires a type
 -- application and either a scoped type variable, or an explicit passing of a

@@ -1712,7 +1712,6 @@ instance
     , MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
     , PaymentAddress n k
     , SoftDerivation k
-    , WalletKey k
     ) => PersistState (Seq.SeqState n k) where
     insertState (wid, sl) st = do
         let (intPool, extPool, sPool) =
@@ -1824,11 +1823,7 @@ instance Ord ScriptHash where
     compare (ScriptHash sh1) (ScriptHash sh2) = compare sh1 sh2
 
 selectScriptPool
-    :: forall k .
-        ( SoftDerivation k
-        , WalletKey k
-        )
-    => W.WalletId
+    :: forall k . W.WalletId
     -> W.SlotNo
     -> Seq.AddressPoolGap
     -> k 'AccountK XPub
