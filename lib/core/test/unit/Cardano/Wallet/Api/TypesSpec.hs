@@ -175,12 +175,12 @@ import Cardano.Wallet.Primitive.Types.Address
     ( Address (..), AddressState (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
+import Cardano.Wallet.Primitive.Types.Coin.Gen
+    ( genCoinLargePositive )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..) )
-import Cardano.Wallet.Primitive.Types.TokenBundleSpec
-    ()
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..)
     , TxIn (..)
@@ -1400,6 +1400,10 @@ instance Arbitrary a => Arbitrary (ApiT a) where
     arbitrary = ApiT <$> arbitrary
     shrink = fmap ApiT . shrink . getApiT
 
+instance Arbitrary a => Arbitrary (NonEmpty a) where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
+
 -- | The initial seed has to be vector or length multiple of 4 bytes and shorter
 -- than 64 bytes. Note that this is good for testing or examples, but probably
 -- not for generating truly random Mnemonic words.
@@ -1654,10 +1658,7 @@ instance Arbitrary RewardAccount where
 
 instance Arbitrary Coin where
     -- No Shrinking
-    arbitrary = genStrictlyPositiveCoin
-
-genStrictlyPositiveCoin :: Gen Coin
-genStrictlyPositiveCoin = Coin <$> choose (1, 1_000_000_000_000_000)
+    arbitrary = genCoinLargePositive
 
 instance Arbitrary UTxO where
     shrink (UTxO utxo) = UTxO <$> shrink utxo
@@ -1672,7 +1673,7 @@ instance Arbitrary TxOut where
     -- No Shrinking
     arbitrary = TxOut
         <$> arbitrary
-        <*> fmap TB.fromCoin genStrictlyPositiveCoin
+        <*> fmap TB.fromCoin genCoinLargePositive
 
 instance Arbitrary TxIn where
     -- No Shrinking

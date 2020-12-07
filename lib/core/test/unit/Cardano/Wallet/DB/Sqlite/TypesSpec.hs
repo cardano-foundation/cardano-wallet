@@ -19,8 +19,8 @@ import Cardano.Wallet.Primitive.Types
     ( EpochNo (..), SlotInEpoch (..), SlotNo )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
-import Cardano.Wallet.Primitive.Types.TokenQuantitySpec
-    ()
+import Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
+    ( genTokenQuantityMixed, shrinkTokenQuantityMixed )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Time.Clock.POSIX
@@ -112,3 +112,7 @@ instance Arbitrary SlotInEpoch where
 instance Arbitrary Word31 where
     arbitrary = arbitrarySizedBoundedIntegral
     shrink = shrinkIntegral
+
+instance Arbitrary TokenQuantity where
+    arbitrary = genTokenQuantityMixed
+    shrink = shrinkTokenQuantityMixed

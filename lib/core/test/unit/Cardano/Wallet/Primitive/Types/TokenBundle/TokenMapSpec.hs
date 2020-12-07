@@ -13,10 +13,24 @@ import Prelude
 
 import Cardano.Wallet.Primitive.Types.TokenBundle.TokenMap
     ( AssetId (..), Flat (..), Nested (..), TokenMap )
+import Cardano.Wallet.Primitive.Types.TokenBundle.TokenMap.Gen
+    ( genAssetIdSmallRange
+    , genTokenMapSmallRange
+    , shrinkAssetIdSmallRange
+    , shrinkTokenMapSmallRange
+    )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenName, TokenPolicyId )
+import Cardano.Wallet.Primitive.Types.TokenPolicy.Gen
+    ( genTokenNameSmallRange
+    , genTokenPolicyIdSmallRange
+    , shrinkTokenNameSmallRange
+    , shrinkTokenPolicyIdSmallRange
+    )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
+import Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
+    ( genTokenQuantitySmall, shrinkTokenQuantitySmall )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex )
 import Data.Aeson
@@ -50,15 +64,7 @@ import Test.Hspec
 import Test.Hspec.Core.QuickCheck
     ( modifyMaxSuccess )
 import Test.QuickCheck
-    ( Arbitrary (..)
-    , Property
-    , Small (..)
-    , checkCoverage
-    , cover
-    , elements
-    , property
-    , (===)
-    )
+    ( Arbitrary (..), Property, checkCoverage, cover, property, (===) )
 import Test.QuickCheck.Classes
     ( eqLaws, monoidLaws, semigroupLaws, semigroupMonoidLaws )
 import Test.Utils.Laws
@@ -74,7 +80,6 @@ import qualified Data.ByteString.Char8 as B8
 import qualified Data.Foldable as F
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
-import qualified Data.Text as T
 import qualified Test.Utils.Roundtrip as Roundtrip
 
 spec :: Spec
@@ -525,26 +530,22 @@ instance Arbitrary a => Arbitrary (NonEmpty a) where
     shrink = catMaybes . fmap NE.nonEmpty . shrink . NE.toList
 
 instance Arbitrary AssetId where
-    arbitrary = AssetId <$> arbitrary <*> arbitrary
+    arbitrary = genAssetIdSmallRange
+    shrink = shrinkAssetIdSmallRange
 
 instance Arbitrary TokenMap where
-    arbitrary = TM.fromFlatList <$> arbitrary
-    shrink b = TM.fromFlatList <$> shrink (TM.toFlatList b)
+    arbitrary = genTokenMapSmallRange
+    shrink = shrinkTokenMapSmallRange
 
 instance Arbitrary TokenName where
-    -- We generate token names from a small range in order to increase the
-    -- chance of collisions, which are useful.
-    arbitrary = mkTokenName <$> elements ['A' .. 'D']
-      where
-        mkTokenName = TP.mkTokenName . ("Token" `T.snoc`)
+    arbitrary = genTokenNameSmallRange
+    shrink = shrinkTokenNameSmallRange
 
 instance Arbitrary TokenPolicyId where
-    -- We generate token policy identifiers from a small range in order to
-    -- increase the chance of collisions, which are useful.
-    arbitrary = dummyTokenPolicyId <$> elements ['A' .. 'D']
+    arbitrary = genTokenPolicyIdSmallRange
+    shrink = shrinkTokenPolicyIdSmallRange
 
 instance Arbitrary TokenQuantity where
-
     -- We generate small token quantities in order to increase the chance of
     -- generating zero-valued tokens, either directly (through the generator
     -- itself), or indirectly (as the result of operations that adjust or
@@ -553,6 +554,5 @@ instance Arbitrary TokenQuantity where
     -- The generation of zero-valued tokens is useful, as it allows us to
     -- verify that the token map invariant (that a map contains no
     -- zero-valued tokens) is maintained.
-
-    arbitrary = TokenQuantity . getSmall <$> arbitrary
-    shrink (TokenQuantity q) = TokenQuantity <$> shrink q
+    arbitrary = genTokenQuantitySmall
+    shrink = shrinkTokenQuantitySmall

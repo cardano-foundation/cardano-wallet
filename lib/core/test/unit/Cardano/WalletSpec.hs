@@ -89,6 +89,8 @@ import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
+import Cardano.Wallet.Primitive.Types.Coin.Gen
+    ( genCoinLargePositive )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.RewardAccount
@@ -161,7 +163,6 @@ import Test.Hspec
     ( Spec, describe, it, parallel, shouldBe, shouldNotBe, shouldSatisfy )
 import Test.QuickCheck
     ( Arbitrary (..)
-    , Gen
     , NonEmptyList (..)
     , Positive (..)
     , Property
@@ -869,10 +870,7 @@ instance Arbitrary (Hash "Tx") where
 
 instance Arbitrary Coin where
     shrink _ = []
-    arbitrary = Coin <$> arbitrary
-
-genStrictlyPositiveCoin :: Gen Coin
-genStrictlyPositiveCoin = Coin <$> choose (1, 100_000)
+    arbitrary = genCoinLargePositive
 
 instance Arbitrary Tx where
     shrink (Tx tid ins outs wdrls md) = mconcat
@@ -912,7 +910,7 @@ instance Arbitrary TxIn where
 
 instance Arbitrary TxOut where
     arbitrary =
-        TxOut (Address "address") . TB.fromCoin <$> genStrictlyPositiveCoin
+        TxOut (Address "address") . TB.fromCoin <$> genCoinLargePositive
 
 instance Arbitrary TxMeta where
     shrink _ = []
