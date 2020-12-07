@@ -15,8 +15,6 @@ import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
     ( HasSeverityAnnotation (..) )
-import Cardano.BM.Trace
-    ( traceInTVarIO )
 import Cardano.Slotting.Slot
     ( SlotNo (..) )
 import Cardano.Wallet.Gen
@@ -57,8 +55,6 @@ import Cardano.Wallet.Primitive.Types
     )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
-import Control.Concurrent.STM.TVar
-    ( newTVarIO, readTVarIO )
 import Control.Exception
     ( try )
 import Control.Monad.Trans.Except
@@ -84,13 +80,15 @@ import Ouroboros.Consensus.Config.SecurityParam
 import Ouroboros.Consensus.Util.Counting
     ( exactlyOne )
 import Test.Hspec
-    ( Spec, before, describe, it, parallel, runIO, shouldBe, shouldSatisfy )
+    ( Spec, describe, it, parallel, runIO, shouldBe, shouldSatisfy )
 import Test.QuickCheck
     ( Arbitrary (..), Property, choose, property, withMaxSuccess, (===) )
 import Test.QuickCheck.Arbitrary.Generic
     ( genericArbitrary, genericShrink )
 import Test.Utils.Time
     ( genUniformTime )
+import Test.Utils.Trace
+    ( captureLogging )
 
 import qualified Cardano.Slotting.Slot as Cardano
 import qualified Ouroboros.Consensus.HardFork.History.EraParams as HF
@@ -144,56 +142,53 @@ spec = do
                 run (endTimeOfEpoch e)
                     === run (slotToUTCTime =<< firstSlotInEpoch (e + 1))
 
-        let setupTestLogging = do
-                tvar <- newTVarIO []
-                let tr = traceInTVarIO tvar
-                return (tr, tvar)
-
-        before setupTestLogging $
-            describe "TimeInterpreter conversions beyond the safe zone" $ do
+        describe "TimeInterpreter conversions beyond the safe zone" $ do
 
             startTime <- runIO $ StartTime <$> getCurrentTime
             let failingQry = slotToUTCTime (SlotNo 100000)
 
-            it "normally fails and logs failures as Notice" $ \(tr, tvar) -> do
-                let ti = mkTimeInterpreter tr startTime (pure forkInterpreter)
-                res <- runExceptT $ interpretQuery ti failingQry
+            it "normally fails and logs failures as Notice" $ do
+                (logs, res) <- captureLogging $ \tr -> do
+                    let ti = mkTimeInterpreter tr startTime (pure forkInterpreter)
+                    runExceptT $ interpretQuery ti failingQry
 
-                logs <- readTVarIO tvar
                 res `shouldSatisfy` isLeft
                 logs `shouldSatisfy` (\case
                     [MsgInterpreterPastHorizon Nothing _] -> True
                     _ -> False)
                 getSeverityAnnotation (head logs) `shouldBe` Notice
 
-            it "(neverFails \"because\" ti) logs failures as Error" $ \(tr, tvar) -> do
-                let ti = neverFails "because" $
-                        mkTimeInterpreter tr startTime (pure forkInterpreter)
-                res <- try @PastHorizonException $ interpretQuery ti failingQry
+            it "(neverFails \"because\" ti) logs failures as Error" $ do
+                (logs, res) <- captureLogging $ \tr -> do
+                    let ti = neverFails "because" $
+                            mkTimeInterpreter tr startTime $
+                            pure forkInterpreter
+                    try @PastHorizonException $ interpretQuery ti failingQry
 
-                logs <- readTVarIO tvar
                 res `shouldSatisfy` isLeft
                 logs `shouldSatisfy` (\case
                     [MsgInterpreterPastHorizon (Just "because") _] -> True
                     _ -> False)
                 getSeverityAnnotation (head logs) `shouldBe` Error
 
-            it "(unsafeExtendSafeZone ti) doesn't fail nor log" $ \(tr, tvar) -> do
-                let ti = unsafeExtendSafeZone $
-                        mkTimeInterpreter tr startTime (pure forkInterpreter)
-                res <- try @PastHorizonException $ interpretQuery ti failingQry
+            it "(unsafeExtendSafeZone ti) doesn't fail nor log" $ do
+                (logs, res) <- captureLogging $ \tr -> do
+                    let ti = unsafeExtendSafeZone $
+                            mkTimeInterpreter tr startTime $
+                            pure forkInterpreter
+                    try @PastHorizonException $ interpretQuery ti failingQry
 
                 res `shouldSatisfy` isRight
-                logs <- readTVarIO tvar
                 logs `shouldBe` []
 
-            it "(expectAndThrowFailures ti) fails and logs as Notice" $ \(tr, tvar) -> do
-                let ti = expectAndThrowFailures $
-                        mkTimeInterpreter tr startTime (pure forkInterpreter)
-                res <- try @PastHorizonException $ interpretQuery ti failingQry
+            it "(expectAndThrowFailures ti) fails and logs as Notice" $ do
+                (logs, res) <- captureLogging $ \tr -> do
+                    let ti = expectAndThrowFailures $
+                            mkTimeInterpreter tr startTime $
+                            pure forkInterpreter
+                    try @PastHorizonException $ interpretQuery ti failingQry
 
                 res `shouldSatisfy` isLeft
-                logs <- readTVarIO tvar
                 logs `shouldSatisfy` (\case
                     [MsgInterpreterPastHorizon Nothing _] -> True
                     _ -> False)
