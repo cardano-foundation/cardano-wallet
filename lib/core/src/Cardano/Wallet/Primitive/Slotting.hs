@@ -335,6 +335,7 @@ data TimeInterpreterLog
     = MsgInterpreterPastHorizon
         (Maybe String) -- ^ Reason for why the failure should be impossible
         PastHorizonException
+    deriving (Eq, Show)
 
 instance HasSeverityAnnotation TimeInterpreterLog where
     getSeverityAnnotation = \case
