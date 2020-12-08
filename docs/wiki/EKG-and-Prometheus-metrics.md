@@ -21,6 +21,9 @@ cardano-wallet serve --port 8090 \
 
 Following the example above metrics would be available in `localhost` under corresponding ports:
  - EKG: http://localhost:8070
+
+![](https://raw.githubusercontent.com/wiki/input-output-hk/cardano-wallet/ekg.png)
+
  ```
  $ curl -H "Accept: application/json" http://localhost:8070/ | jq
 {
