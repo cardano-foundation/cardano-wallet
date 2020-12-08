@@ -21,13 +21,13 @@ set -euo pipefail
 # Use trailing zeros for the date in the git tag, but
 # do not use trailing zeros for the Cabal version.
 # i.e. v2020-11-03 and not 2020.11.03 but 2020.11.3
-OLD_GIT_TAG="v2020-11-17"
-OLD_CABAL_VERSION="2020.11.17"
+OLD_GIT_TAG="v2020-11-26"
+OLD_CABAL_VERSION="2020.11.26"
 
-GIT_TAG="v2020-11-26"
-CABAL_VERSION="2020.11.26"
+GIT_TAG="v2020-12-08"
+CABAL_VERSION="2020.12.8"
 
-CARDANO_NODE_TAG="1.21.1"
+CARDANO_NODE_TAG="1.24.2"
 ################################################################################
 OLD_DATE="${OLD_GIT_TAG//v}"
 CHANGELOG=GENERATED_CHANGELOG.md
@@ -54,7 +54,6 @@ sed -e "s/{{GIT_TAG}}/$GIT_TAG/g"                   \
     -e "/{{CHANGELOG}}/r $CHANGELOG"                \
     -e "/{{CHANGELOG}}/d"                           \
     .github/RELEASE_TEMPLATE.md > $OUT
-
 read -p "Do you want to create a commit and release-tag? (y/n) " -n 1 -r
 echo
 if [[ $REPLY =~ ^[Yy]$ ]]
