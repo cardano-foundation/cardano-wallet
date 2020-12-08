@@ -267,6 +267,7 @@ import qualified Cardano.Wallet.Primitive.Types.Address as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.RewardAccount as W
+import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TB
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Codec.Binary.Bech32 as Bech32
 import qualified Codec.Binary.Bech32.TH as Bech32
@@ -693,7 +694,10 @@ fromGenesisData g initialFunds =
         mkTx (addr, c) = W.Tx
             pseudoHash
             []
-            [W.TxOut (fromShelleyAddress addr) (fromShelleyCoin c)]
+            [W.TxOut
+                (fromShelleyAddress addr)
+                (TB.fromCoin $ fromShelleyCoin c)
+            ]
             mempty
             Nothing
           where
@@ -763,7 +767,7 @@ fromShelleyTxOut
     => SL.TxOut era
     -> W.TxOut
 fromShelleyTxOut (SL.TxOut addr amount) =
-  W.TxOut (fromShelleyAddress addr) (fromShelleyCoin amount)
+  W.TxOut (fromShelleyAddress addr) (TB.fromCoin $ fromShelleyCoin amount)
 
 fromShelleyAddress :: SL.Addr e -> W.Address
 fromShelleyAddress = W.Address
@@ -1011,13 +1015,14 @@ toCardanoLovelace (W.Coin c) = Cardano.Lovelace $ safeCast c
     safeCast = fromIntegral
 
 toShelleyTxOut :: W.TxOut -> Cardano.TxOut ShelleyEra
-toShelleyTxOut (W.TxOut (W.Address addr) coin) =
-    Cardano.TxOut addrInEra (adaOnly $ toCardanoLovelace coin)
+toShelleyTxOut (W.TxOut (W.Address addr) tokens) =
+    Cardano.TxOut addrInEra (adaOnly $ toCardanoLovelace $ TB.getCoin tokens)
   where
     adaOnly = Cardano.TxOutAdaOnly Cardano.AdaOnlyInShelleyEra
     addrInEra = fromMaybe (error "toCardanoTxOut: malformed address") $
         asum
-        [ Cardano.AddressInEra (Cardano.ShelleyAddressInEra Cardano.ShelleyBasedEraShelley)
+        [ Cardano.AddressInEra
+            (Cardano.ShelleyAddressInEra Cardano.ShelleyBasedEraShelley)
             <$> deserialiseFromRawBytes AsShelleyAddress addr
 
         , Cardano.AddressInEra Cardano.ByronAddressInAnyEra
@@ -1025,13 +1030,14 @@ toShelleyTxOut (W.TxOut (W.Address addr) coin) =
         ]
 
 toAllegraTxOut :: W.TxOut -> Cardano.TxOut AllegraEra
-toAllegraTxOut (W.TxOut (W.Address addr) coin) =
-    Cardano.TxOut addrInEra (adaOnly $ toCardanoLovelace coin)
+toAllegraTxOut (W.TxOut (W.Address addr) tokens) =
+    Cardano.TxOut addrInEra (adaOnly $ toCardanoLovelace $ TB.getCoin tokens)
   where
     adaOnly = Cardano.TxOutAdaOnly Cardano.AdaOnlyInAllegraEra
     addrInEra = fromMaybe (error "toCardanoTxOut: malformed address") $
         asum
-        [ Cardano.AddressInEra (Cardano.ShelleyAddressInEra Cardano.ShelleyBasedEraAllegra)
+        [ Cardano.AddressInEra
+            (Cardano.ShelleyAddressInEra Cardano.ShelleyBasedEraAllegra)
             <$> deserialiseFromRawBytes AsShelleyAddress addr
 
         , Cardano.AddressInEra Cardano.ByronAddressInAnyEra

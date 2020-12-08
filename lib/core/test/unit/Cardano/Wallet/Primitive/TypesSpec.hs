@@ -96,6 +96,8 @@ import Cardano.Wallet.Primitive.Types.HashSpec
     ()
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..) )
+import Cardano.Wallet.Primitive.Types.TokenBundleSpec
+    ()
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..)
     , Tx (..)
@@ -169,11 +171,11 @@ import Test.Hspec
     )
 import Test.QuickCheck
     ( Arbitrary (..)
+    , Gen
     , NonNegative (..)
     , NonZero (..)
     , Property
     , Small (..)
-    , applyArbitrary2
     , applyArbitrary4
     , arbitraryBoundedEnum
     , arbitraryBoundedIntegral
@@ -198,13 +200,18 @@ import Test.QuickCheck
     )
 import Test.QuickCheck.Arbitrary.Generic
     ( genericArbitrary, genericShrink )
+import Test.QuickCheck.Classes
+    ( eqLaws, ordLaws )
 import Test.QuickCheck.Monadic
     ( monadicIO, run )
 import Test.Text.Roundtrip
     ( textRoundtrip )
+import Test.Utils.Laws
+    ( testLawsMany )
 import Test.Utils.Time
     ( genUniformTime, genUniformTimeWithinRange, getUniformTime )
 
+import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TB
 import qualified Data.ByteString as BS
 import qualified Data.Map
 import qualified Data.Map.Strict as Map
@@ -215,6 +222,12 @@ spec :: Spec
 spec = do
     parallel $ describe "Generators are valid" $ do
         it "Arbitrary Coin" $ property isValidCoin
+
+    describe "Class instances obey laws" $ do
+        testLawsMany @TxOut
+            [ eqLaws
+            , ordLaws
+            ]
 
     parallel $ describe "Can perform roundtrip textual encoding & decoding" $ do
         textRoundtrip $ Proxy @Address
@@ -297,7 +310,7 @@ spec = do
 
         it "UTxOStatistics" $ do
             let txin h = TxIn (Hash h) 0
-            let txout c = TxOut (Address "") (Coin c)
+            let txout c = TxOut (Address "") (TB.fromCoin $ Coin c)
             let ada l = l * 1000*1000
             let utxo = UTxO $ Map.fromList
                     [ (txin "a", txout 1)
@@ -1100,7 +1113,10 @@ instance Arbitrary AddressState where
 
 instance Arbitrary Coin where
     -- No Shrinking
-    arbitrary = Coin <$> choose (0, 3)
+    arbitrary = genSmallCoin
+
+genSmallCoin :: Gen Coin
+genSmallCoin = Coin <$> choose (0, 3)
 
 instance (Arbitrary a, Ord a) => Arbitrary (Range a) where
     arbitrary =
@@ -1138,7 +1154,9 @@ makeNonSingletonRangeValid (NonSingletonRange r)
 
 instance Arbitrary TxOut where
     -- No Shrinking
-    arbitrary = applyArbitrary2 TxOut
+    arbitrary = TxOut
+        <$> arbitrary
+        <*> fmap TB.fromCoin genSmallCoin
 
 instance Arbitrary TxIn where
     -- No Shrinking

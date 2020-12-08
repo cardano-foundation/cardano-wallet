@@ -36,6 +36,7 @@ module Cardano.Wallet.Primitive.Types.Tx
     , toTxHistory
     , txIns
     , txMetadataIsNull
+    , txOutCoin
 
     ) where
 
@@ -55,6 +56,8 @@ import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..) )
+import Cardano.Wallet.Primitive.Types.TokenBundle
+    ( TokenBundle )
 import Control.DeepSeq
     ( NFData (..) )
 import Data.ByteArray
@@ -99,6 +102,7 @@ import GHC.Generics
 import Numeric.Natural
     ( Natural )
 
+import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TB
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Text.Lazy.Builder as Builder
@@ -176,9 +180,29 @@ instance Buildable TxIn where
 data TxOut = TxOut
     { address
         :: !Address
-    , coin
-        :: !Coin
-    } deriving (Show, Generic, Eq, Ord)
+    , tokens
+        :: !TokenBundle
+    } deriving (Show, Generic, Eq)
+
+-- Gets the current 'Coin' value from a transaction output.
+--
+-- 'Coin' values correspond to the ada asset, represented by the 'adaAssetId'
+-- constant.
+--
+txOutCoin :: TxOut -> Coin
+txOutCoin = TB.getCoin . view #tokens
+
+-- Since the 'TokenBundle' type deliberately does not provide an 'Ord' instance
+-- (as that would lead to arithmetically invalid orderings), this means we can't
+-- automatically derive an 'Ord' instance for the 'TxOut' type.
+--
+-- Instead, we define an 'Ord' instance that makes comparisons based on the list
+-- representation of a 'TokenBundle'.
+--
+instance Ord TxOut where
+    compare output1 output2 = compare
+        (view #address output1, TB.toNestedList $ tokens output1)
+        (view #address output2, TB.toNestedList $ tokens output2)
 
 data TxChange derivationPath = TxChange
     { address
@@ -193,7 +217,7 @@ instance NFData TxOut
 
 instance Buildable TxOut where
     build txout = mempty
-        <> build (coin txout)
+        <> build (txOutCoin txout)
         <> " @ "
         <> prefixF 8 addrF
         <> "..."

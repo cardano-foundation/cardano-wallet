@@ -238,6 +238,7 @@ import Test.Utils.Trace
 
 import qualified Cardano.Wallet.DB.Sqlite.TH as DB
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Seq
+import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TB
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.List as L
@@ -758,12 +759,12 @@ fileModeSpec =  do
                             unsafeRunExceptT $ prune testPk (Quantity 2160)
 
                 let mockApplyBlock1 = mockApply (dummyHash "block1")
-                            [ Tx (dummyHash "tx1")
-                                [(TxIn (dummyHash "faucet") 0, Coin 4)]
-                                [ TxOut (fst $ head ourAddrs) (Coin 4) ]
-                                mempty
-                                Nothing
-                            ]
+                        [ Tx (dummyHash "tx1")
+                            [(TxIn (dummyHash "faucet") 0, Coin 4)]
+                            [TxOut (fst $ head ourAddrs) (TB.fromCoin $ Coin 4)]
+                            mempty
+                            Nothing
+                        ]
 
                 -- Slot 1 0
                 mockApplyBlock1
@@ -771,15 +772,15 @@ fileModeSpec =  do
 
                 -- Slot 200
                 mockApply (dummyHash "block2a")
-                            [ Tx
-                                (dummyHash "tx2a")
-                                [ (TxIn (dummyHash "tx1") 0, Coin 4) ]
-                                [ TxOut (dummyAddr "faucetAddr2") (Coin 2)
-                                , TxOut (fst $ ourAddrs !! 1) (Coin 2)
-                                ]
-                                mempty
-                                Nothing
-                            ]
+                    [ Tx
+                        (dummyHash "tx2a")
+                        [ (TxIn (dummyHash "tx1") 0, Coin 4) ]
+                        [ TxOut (dummyAddr "faucetAddr2") (TB.fromCoin $ Coin 2)
+                        , TxOut (fst $ ourAddrs !! 1) (TB.fromCoin $ Coin 2)
+                        ]
+                        mempty
+                        Nothing
+                    ]
 
                 -- Slot 300
                 mockApply (dummyHash "block3a") []
@@ -1015,10 +1016,11 @@ testTxs :: [(Tx, TxMeta)]
 testTxs =
     [ ( Tx (mockHash @String "tx2")
         [ (TxIn (mockHash @String "tx1") 0, Coin 1)]
-        [ TxOut (Address "addr") (Coin 1) ]
+        [ TxOut (Address "addr") (TB.fromCoin $ Coin 1) ]
         mempty
         Nothing
-      , TxMeta InLedger Incoming (SlotNo 140) (Quantity 0) (Quantity 1337144) Nothing
+      , TxMeta
+        InLedger Incoming (SlotNo 140) (Quantity 0) (Quantity 1337144) Nothing
       )
     ]
 

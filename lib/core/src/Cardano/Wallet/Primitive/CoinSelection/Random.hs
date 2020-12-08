@@ -31,7 +31,7 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( TxIn, TxOut (..) )
+    ( TxIn, TxOut (..), txOutCoin )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..), pickRandom )
 import Control.Monad
@@ -115,7 +115,7 @@ random
     -> UTxO
     -> ExceptT ErrCoinSelection IO (CoinSelection, UTxO)
 random opt outs (Quantity withdrawal) utxo = do
-    let descending = NE.toList . NE.sortBy (flip $ comparing coin)
+    let descending = NE.toList . NE.sortBy (flip $ comparing txOutCoin)
     let nOuts = fromIntegral $ NE.length outs
     let maxN = fromIntegral $ maximumNumberOfInputs opt nOuts
     randomMaybe <- lift $ runMaybeT $ do
@@ -152,7 +152,7 @@ makeSelection (SelectionState maxN utxo0 withdrawal0 selection0) txout = do
         , _selection = selection' : selection0
         }
   where
-    TargetRange{targetMin} = mkTargetRange $ unCoin $ coin txout
+    TargetRange{targetMin} = mkTargetRange $ unCoin $ txOutCoin txout
 
     coverRandomly
         :: ([(TxIn, TxOut)], UTxO)
@@ -202,7 +202,7 @@ improveTxOut (maxN0, selection, utxo0) (CoinSelection inps0 withdraw _ outs _ _)
         , utxo
         )
   where
-    target = mkTargetRange $ sum $ unCoin . coin <$> outs
+    target = mkTargetRange $ sum $ unCoin . txOutCoin <$> outs
 
     improve
         :: (Word64, [(TxIn, TxOut)], UTxO)
@@ -269,7 +269,7 @@ mkTargetRange base = TargetRange
 mkChange :: Quantity "lovelace" Word64 -> [TxOut] -> [(TxIn, TxOut)] -> [Coin]
 mkChange withdraw outs inps =
     let
-        out = sum $ unCoin . coin <$> outs
+        out = sum $ unCoin . txOutCoin <$> outs
         selected = invariant
             "mkChange: output is smaller than selected inputs!"
             (totalBalance withdraw inps)
