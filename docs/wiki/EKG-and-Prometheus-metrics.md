@@ -68,8 +68,8 @@ For instance:
 ```
 CARDANO_WALLET_EKG_PORT=8070 \
 CARDANO_WALLET_PROMETHEUS_PORT=8080 \
-CARDANO_WALLET_EKG_HOST = 0.0.0.0 \
-CARDANO_WALLET_PROMETHEUS_HOST = 0.0.0.0 \
+CARDANO_WALLET_EKG_HOST=0.0.0.0 \
+CARDANO_WALLET_PROMETHEUS_HOST=0.0.0.0 \
 cardano-wallet serve --port 8090 \
   --node-socket /path_to/cardano-node.socket \
   --mainnet \
