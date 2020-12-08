@@ -35,7 +35,6 @@ let
     # our own overlays:
     ++ [
       (pkgs: _: with pkgs; {
-
         # commonLib: mix pkgs.lib with iohk-nix utils and our own:
         commonLib = lib // iohkNix
           // import ./util.nix { inherit lib haskell-nix; }
@@ -44,7 +43,7 @@ let
       })
       # cardano-node packages
       (import ./cardano-node-overlay.nix)
-      # And, of course, our haskell-nix-ified stack project:
+      # Other package overlays
       (import ./pkgs.nix { inherit system crossSystem config; })
     ];
 
