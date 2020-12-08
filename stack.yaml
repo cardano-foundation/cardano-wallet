@@ -1,3 +1,8 @@
+# This resolver file contains a ghc-8.6.5-based stackage LTS, with a
+# released cardano-node version, and supporting libraries.
+#
+# NOTE: Remember to update the version matrix in README.md when
+# bumping the Cardano version.
 resolver: https://raw.githubusercontent.com/input-output-hk/cardano-haskell/5ed4af4df2a609361260f159cd0e47e1c4073e2c/snapshots/cardano-1.24.2.yaml
 
 packages:
