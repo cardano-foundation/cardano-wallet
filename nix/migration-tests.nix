@@ -56,7 +56,7 @@ let
       sha256 = "1v2l46g0f8bkas7mhm624l3kmxz3g80095f4vqicz736bv7vsijc"; }
     { rev = "v2020-11-17";
       sha256 = "1y4sfykqkdijv2rx4758nc1b2f262cn89qfsv48xrv4irwi7x5mr"; }
-    { rev = "v2020.12.8";
+    { rev = "v2020-11-26";
       sha256 = "1262mangwrc2ykr9qwbcj57h2z2ib2sn0haipm2md4246f7b97v7"; }
   ];
 
