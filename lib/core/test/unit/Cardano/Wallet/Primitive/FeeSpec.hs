@@ -3,6 +3,7 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
@@ -382,35 +383,47 @@ spec = do
             $ property
             $ withMaxSuccess 2000
             $ forAllBlind genSelection' prop_rebalanceSelection
-        it "If change is a coin equal the dust threshold, fee balancing still converges, wrt #2118" $
-            let dt = Coin {getCoin = 114754}
-                cs = CoinSelection {inputs = [
-                (TxIn {inputId = Hash {getHash = mconcat [
-                    "P\145\135\197\182\&1\f\210\207\188\&8\240\234"
-                    ,",\186\136\159q\204\224Bi\210\137\159\203\148\ETB\190\191\129V"
-                    ] }
-                    , inputIx = 0}
-                ,TxOut {address = Address {unAddress = "addr-2"}
-                    , coin = Coin {getCoin = 197140}})
-                ]
-                , withdrawal = 502225
-                , reclaim = 3567
-                , outputs = [
-                    TxOut {address = Address {unAddress = "addr-3"}
-                        , coin = Coin {getCoin = 72698}}
-                    ,TxOut {address = Address {unAddress = "addr-2"}
-                        , coin = Coin {getCoin = 175789}}
-                    ,TxOut {address = Address {unAddress = "addr-2"}
-                        , coin = Coin {getCoin = 2336}}
-                    ,TxOut {address = Address {unAddress = "addr-3"}
-                        , coin = Coin {getCoin = 86104}}
-                    ,TxOut {address = Address {unAddress = "addr-0"}
-                        , coin = Coin {getCoin = 74851}}
-                ]
-                , change = [dt]
-                , deposit = 0}
-            in property $ prop_rebalanceSelection cs dt
 
+        it "If change is a coin equal the dust threshold, \
+            \fee balancing still converges, wrt #2118" $
+            let changeCoin = Coin 114754
+                inputId = Hash $ mconcat
+                    [ "P\145\135\197\182\&1\f\210\207\188\&8\240\234,\186\136"
+                    , "\159q\204\224Bi\210\137\159\203\148\ETB\190\191\129V"
+                    ]
+                cs = CoinSelection
+                    { inputs =
+                        [ ( TxIn
+                              { inputId
+                              , inputIx = 0 }
+                          , TxOut
+                              { address = Address "addr-2"
+                              , coin = Coin 197140 }
+                          )
+                        ]
+                    , outputs =
+                        [ TxOut
+                            { address = Address "addr-3"
+                            , coin = Coin 72698 }
+                        , TxOut
+                            { address = Address "addr-2"
+                            , coin = Coin 175789 }
+                        , TxOut
+                            { address = Address "addr-2"
+                            , coin = Coin 2336 }
+                        , TxOut
+                            { address = Address "addr-3"
+                            , coin = Coin 86104 }
+                        , TxOut
+                            { address = Address "addr-0"
+                            , coin = Coin 74851 }
+                        ]
+                    , change = [changeCoin]
+                    , withdrawal = 502225
+                    , reclaim = 3567
+                    , deposit = 0
+                    }
+            in property $ prop_rebalanceSelection cs changeCoin
 
 {-------------------------------------------------------------------------------
                          Fee Adjustment - Properties
