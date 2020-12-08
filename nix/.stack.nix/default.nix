@@ -166,9 +166,6 @@
             flags = { "external-libsodium-vrf" = lib.mkOverride 900 false; };
             };
           "zip" = { flags = { "disable-bzip2" = lib.mkOverride 900 true; }; };
-          "cardano-ledger" = {
-            flags = { "development" = lib.mkOverride 900 true; };
-            };
           "cryptonite" = {
             flags = { "support_rdrand" = lib.mkOverride 900 false; };
             };

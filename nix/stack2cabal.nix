@@ -8,7 +8,7 @@ let
   latest-haskell-nix-index-state = pkgs.lib.last (builtins.attrNames index-state-hashes);
   # Doesn't build with ghc-8.6.5
   stack2cabal = pkgs.haskell-nix.tool "ghc884" "stack2cabal" {
-    version = "1.0.11";
+    version = "1.0.12";
     index-state = latest-haskell-nix-index-state;
   };
 in
