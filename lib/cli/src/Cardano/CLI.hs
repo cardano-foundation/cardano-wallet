@@ -1638,7 +1638,7 @@ initTracer loggerName outputs = do
     cfg <- do
         c <- defaultConfigStdout
         CM.setSetupBackends c [CM.KatipBK, CM.AggregationBK, CM.EKGViewBK, CM.EditorBK]
-        CM.setDefaultBackends c [CM.KatipBK, CM.EKGViewBK]
+        CM.setDefaultBackends c [CM.KatipBK]
         CM.setSetupScribes c $ map mkScribe outputs
         CM.setDefaultScribes c $ map mkScribeId outputs
         CM.setBackends c "test-cluster.metrics" (Just [CM.EKGViewBK])
