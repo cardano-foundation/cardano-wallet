@@ -61,7 +61,7 @@ import Prelude hiding
 
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
-import Cardano.Wallet.Primitive.Types.TokenBundle.TokenMap
+import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId (..), Flat (..), Nested (..), TokenMap )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenName, TokenPolicyId )
@@ -80,7 +80,7 @@ import GHC.Generics
 import GHC.TypeLits
     ( ErrorMessage (..), TypeError )
 
-import qualified Cardano.Wallet.Primitive.Types.TokenBundle.TokenMap as TM
+import qualified Cardano.Wallet.Primitive.Types.TokenMap as TM
 
 --------------------------------------------------------------------------------
 -- Types

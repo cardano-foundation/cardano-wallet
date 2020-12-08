@@ -5,15 +5,15 @@
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-module Cardano.Wallet.Primitive.Types.TokenBundle.TokenMapSpec
+module Cardano.Wallet.Primitive.Types.TokenMapSpec
     ( spec
     ) where
 
 import Prelude
 
-import Cardano.Wallet.Primitive.Types.TokenBundle.TokenMap
+import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId (..), Flat (..), Nested (..), TokenMap )
-import Cardano.Wallet.Primitive.Types.TokenBundle.TokenMap.Gen
+import Cardano.Wallet.Primitive.Types.TokenMap.Gen
     ( genAssetIdSmallRange
     , genTokenMapSmallRange
     , shrinkAssetIdSmallRange
@@ -72,7 +72,7 @@ import Test.Utils.Laws
 import Test.Utils.Paths
     ( getTestData )
 
-import qualified Cardano.Wallet.Primitive.Types.TokenBundle.TokenMap as TM
+import qualified Cardano.Wallet.Primitive.Types.TokenMap as TM
 import qualified Cardano.Wallet.Primitive.Types.TokenPolicy as TP
 import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as TQ
 import qualified Data.Aeson.Types as Aeson

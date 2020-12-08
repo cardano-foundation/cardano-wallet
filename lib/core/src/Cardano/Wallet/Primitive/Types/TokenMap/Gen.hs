@@ -1,4 +1,4 @@
-module Cardano.Wallet.Primitive.Types.TokenBundle.TokenMap.Gen
+module Cardano.Wallet.Primitive.Types.TokenMap.Gen
     ( genAssetIdSmallRange
     , genTokenMapSmallRange
     , shrinkAssetIdSmallRange
@@ -7,7 +7,7 @@ module Cardano.Wallet.Primitive.Types.TokenBundle.TokenMap.Gen
 
 import Prelude
 
-import Cardano.Wallet.Primitive.Types.TokenBundle.TokenMap
+import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId (..), TokenMap )
 import Cardano.Wallet.Primitive.Types.TokenPolicy.Gen
     ( genTokenNameSmallRange
@@ -24,7 +24,7 @@ import Test.QuickCheck
 import Test.QuickCheck.Extra
     ( shrinkInterleaved )
 
-import qualified Cardano.Wallet.Primitive.Types.TokenBundle.TokenMap as TM
+import qualified Cardano.Wallet.Primitive.Types.TokenMap as TM
 
 --------------------------------------------------------------------------------
 -- Asset identifiers chosen from a small range (to allow collisions)
