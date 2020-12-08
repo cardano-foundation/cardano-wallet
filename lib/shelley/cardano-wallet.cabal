@@ -227,7 +227,6 @@ test-suite integration
   build-depends:
       base
     , async
-    , cardano-api
     , cardano-wallet-cli
     , cardano-wallet-core
     , cardano-wallet-core-integration

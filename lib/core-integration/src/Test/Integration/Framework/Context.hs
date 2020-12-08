@@ -17,8 +17,6 @@ import Cardano.Wallet.Transaction
     ( DelegationAction )
 import Data.IORef
     ( IORef )
-import Data.Proxy
-    ( Proxy (..) )
 import Data.Text
     ( Text )
 import GHC.Generics
