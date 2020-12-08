@@ -6,6 +6,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE Rank2Types #-}
 {-# LANGUAGE RoleAnnotations #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -124,6 +125,7 @@ import qualified Cardano.Crypto.Hash.Class as Crypto
 import qualified Cardano.Crypto.Wallet as Crypto.HD
 import qualified Cardano.Ledger.Core as SL
 import qualified Cardano.Wallet.Primitive.CoinSelection as CS
+import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TB
 import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Write as CBOR
 import qualified Data.ByteString as BS
@@ -383,7 +385,7 @@ dummyCoinSel nInps nOuts = mempty
     }
   where
     dummyTxIn   = TxIn (Hash $ BS.pack (1:replicate 64 0)) . fromIntegral
-    dummyTxOut  = TxOut dummyAddr (Coin 1)
+    dummyTxOut  = TxOut dummyAddr (TB.fromCoin $ Coin 1)
     dummyAddr   = Address $ BS.pack (1:replicate 64 0)
 
 _decodeSignedTx
@@ -566,10 +568,10 @@ estimateTxSize witTag md action cs =
 
     -- transaction_output =
     --   [address, amount : coin]
-    sizeOf_Output (TxOut addr c)
+    sizeOf_Output TxOut {address, tokens}
         = sizeOf_SmallArray
-        + sizeOf_Address addr
-        + sizeOf_Coin c
+        + sizeOf_Address address
+        + sizeOf_Coin (TB.getCoin tokens)
 
     sizeOf_ChangeOutput c
         = sizeOf_SmallArray
@@ -626,7 +628,11 @@ estimateTxSize witTag md action cs =
     --
     -- So, for outputs, since we have the values, we can compute it accurately.
     sizeOf_Coin
-        = toInteger . BS.length . CBOR.toStrictByteString . CBOR.encodeWord64 . getCoin
+        = toInteger
+        . BS.length
+        . CBOR.toStrictByteString
+        . CBOR.encodeWord64
+        . unCoin
 
     -- withdrawals =
     --   { * reward_account => coin }

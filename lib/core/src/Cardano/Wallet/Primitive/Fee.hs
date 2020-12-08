@@ -47,7 +47,7 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..), isValidCoin )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( TxIn, TxOut (..) )
+    ( TxIn, TxOut (..), txOutCoin )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..), pickRandom )
 import Control.Monad
@@ -235,8 +235,9 @@ coverRemainingFee maxN (Fee fee) = go [] 0 where
         | otherwise = do
             -- We ignore the size of the fee, and just pick randomly
             StateT (lift . pickRandom) >>= \case
-                Just input@(_, out) ->
-                    go (input : additionalInputs) (unCoin (coin out) + surplus)
+                Just input@(_, out) -> go
+                    (input : additionalInputs)
+                    (unCoin (txOutCoin out) + surplus)
                 Nothing -> do
                     lift $ throwE $ ErrCannotCoverFee (fee - surplus)
 

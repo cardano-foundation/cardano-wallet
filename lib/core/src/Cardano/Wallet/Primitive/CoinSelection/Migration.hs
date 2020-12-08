@@ -64,6 +64,7 @@ import Data.Word
     ( Word8 )
 
 import qualified Cardano.Wallet.Primitive.CoinSelection as CS
+import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TB
 import qualified Data.Map.Strict as Map
 
 -- | Construct a list of coin selections / transactions to transfer the totality
@@ -111,8 +112,8 @@ depleteUTxO feeOpts batchSize utxo =
       where
         noDust :: TxOut -> Maybe Coin
         noDust (TxOut _ c)
-            | c < dustThreshold feeOpts = Nothing
-            | otherwise = Just c
+            | TB.getCoin c < dustThreshold feeOpts = Nothing
+            | otherwise = Just $ TB.getCoin c
 
     -- | Attempt to balance the coin selection by reducing or increasing the
     -- change values based on the computed fees.

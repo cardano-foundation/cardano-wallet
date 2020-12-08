@@ -209,6 +209,7 @@ import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Address as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
+import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TB
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Cardano.Wallet.Primitive.Types.UTxO as W
 import qualified Data.Map as Map
@@ -1135,7 +1136,7 @@ mkCheckpointEntity wid wal =
         , checkpointTxMaxSizeUnused = 0
         }
     utxo =
-        [ UTxO wid sl (TxId input) ix addr coin
+        [ UTxO wid sl (TxId input) ix addr (TB.getCoin coin)
         | (W.TxIn input ix, W.TxOut addr coin) <- utxoMap
         ]
     utxoMap = Map.assocs (W.getUTxO (W.utxo wal))
@@ -1167,7 +1168,7 @@ checkpointFromEntity cp utxo s =
         ) = cp
     header = (W.BlockHeader slot (Quantity bh) headerHash parentHeaderHash)
     utxo' = W.UTxO . Map.fromList $
-        [ (W.TxIn input ix, W.TxOut addr coin)
+        [ (W.TxIn input ix, W.TxOut addr (TB.fromCoin coin))
         | UTxO _ _ (TxId input) ix addr coin <- utxo
         ]
     gp = W.GenesisParameters
@@ -1218,7 +1219,7 @@ mkTxInputsOutputs tx =
         { txOutputTxId = TxId tid
         , txOutputIndex = ix
         , txOutputAddress = view #address txOut
-        , txOutputAmount = W.coin txOut
+        , txOutputAmount = W.txOutCoin txOut
         }
     ordered f = fmap (zip [0..] . f)
     -- | Distribute `a` accross many `b`s using the given function.
@@ -1308,7 +1309,7 @@ txHistoryFromEntity ti tip metas ins outs ws =
         )
     mkTxOut tx = W.TxOut
         { W.address = txOutputAddress tx
-        , W.coin = txOutputAmount tx
+        , W.tokens = TB.fromCoin $ txOutputAmount tx
         }
     mkTxWithdrawal w =
         ( txWithdrawalAccount w

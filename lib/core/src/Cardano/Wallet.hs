@@ -342,6 +342,7 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxStatus (..)
     , UnsignedTx (..)
     , fromTransactionInfo
+    , txOutCoin
     , withdrawals
     )
 import Cardano.Wallet.Primitive.Types.UTxO
@@ -444,6 +445,7 @@ import qualified Cardano.Wallet.Primitive.AddressDiscovery.Sequential as Seq
 import qualified Cardano.Wallet.Primitive.CoinSelection.Random as CoinSelection
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
+import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TB
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Cardano.Wallet.Primitive.Types.UTxO as W
 import qualified Data.ByteArray as BA
@@ -1490,7 +1492,7 @@ selectCoinsForMigrationFromUTxO ctx utxo txp minUtxo wid = do
 
     getCoins :: CoinSelection -> [Word64]
     getCoins CoinSelection{change,outputs} =
-        (unCoin <$> change) ++ (unCoin . coin <$> outputs)
+        (unCoin <$> change) ++ (unCoin . txOutCoin <$> outputs)
 
     -- When performing a selection for migration, at this stage, we do not know
     -- exactly to which address we're going to assign which change. It could be
@@ -1502,7 +1504,7 @@ selectCoinsForMigrationFromUTxO ctx utxo txp minUtxo wid = do
     worstCase :: CoinSelection -> CoinSelection
     worstCase cs = cs
         { change = mempty
-        , outputs = TxOut worstCaseAddress <$> change cs
+        , outputs = TxOut worstCaseAddress . TB.fromCoin <$> change cs
         }
       where
         worstCaseAddress :: Address
@@ -1555,7 +1557,7 @@ handleCannotCover utxo (Quantity withdrawal) outs = \case
                 = fromIntegral (W.balance utxo)
                 + fromIntegral withdrawal
         let payment
-                = sum (unCoin . coin <$> outs)
+                = sum (unCoin . txOutCoin <$> outs)
         pure $ Fee $
             available + missing - payment
     e ->
@@ -1590,7 +1592,7 @@ assignChangeAddresses
     :: forall s m. (GenChange s, Monad m)
     => ArgGenChange s -> [Coin] -> StateT s m [TxOut]
 assignChangeAddresses argGenChange =
-    mapM $ \coin -> flip TxOut coin <$> state (genChange argGenChange)
+    mapM $ \c -> flip TxOut (TB.fromCoin c) <$> state (genChange argGenChange)
 
 -- | Produce witnesses and construct a transaction from a given
 -- selection. Requires the encryption passphrase in order to decrypt
@@ -1772,7 +1774,9 @@ selectCoinsExternal ctx wid argGenChange selectCoins = do
     fullyQualifiedChange s txouts e =
         fmap mkChange <$> qualifyAddresses s e (view #address) txouts
       where
-        mkChange (TxOut address amount, derivationPath) = TxChange {..}
+        mkChange (TxOut address tokens, derivationPath) = TxChange {..}
+          where
+            amount = TB.getCoin tokens
 
 data ErrSelectCoinsExternal
     = ErrSelectCoinsExternalNoSuchWallet ErrNoSuchWallet
@@ -1874,7 +1878,7 @@ mkTxMeta ti' blockHeader wState tx cs expiry =
             sum (mapMaybe ourCoins (outputs cs))
 
         amtInps
-            = sum (fromIntegral . unCoin . coin . snd <$> (inputs cs))
+            = sum (fromIntegral . unCoin . txOutCoin . snd <$> (inputs cs))
             + sum (mapMaybe ourWithdrawal $ Map.toList $ withdrawals tx)
             + fromIntegral (reclaim cs)
     in do
@@ -1898,9 +1902,9 @@ mkTxMeta ti' blockHeader wState tx cs expiry =
                 ti'
 
     ourCoins :: TxOut -> Maybe Natural
-    ourCoins (TxOut addr (Coin val)) =
+    ourCoins (TxOut addr tokens) =
         case fst (isOurs addr wState) of
-            Just{}  -> Just (fromIntegral val)
+            Just{}  -> Just (fromIntegral $ unCoin $ TB.getCoin tokens)
             Nothing -> Nothing
 
     ourWithdrawal :: (RewardAccount, Coin) -> Maybe Natural
@@ -2613,11 +2617,11 @@ guardCoinSelection
 guardCoinSelection minUtxoValue cs@CoinSelection{outputs, change} = do
     when (cs == mempty) $
         Right ()
-    let outputCoins = map (\(TxOut _ c) -> c) outputs
+    let outputCoins = map (\(TxOut _ c) -> TB.getCoin c) outputs
     let invalidTxOuts =
             filter (< minUtxoValue) (outputCoins ++ change)
-    unless (L.null invalidTxOuts) $
-        Left (ErrUTxOTooSmall (unCoin minUtxoValue) (unCoin <$> invalidTxOuts))
+    unless (L.null invalidTxOuts) $ Left
+        (ErrUTxOTooSmall (unCoin minUtxoValue) (unCoin <$> invalidTxOuts))
 
 ensureNonEmpty
     :: forall a e m . (Monad m)

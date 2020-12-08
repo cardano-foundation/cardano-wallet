@@ -30,7 +30,7 @@ import Prelude
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( TxIn, TxOut (..) )
+    ( TxIn, TxOut (..), txOutCoin )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( balance' )
 import Data.List
@@ -126,7 +126,7 @@ totalBalance :: Quantity "lovelace" Word64 -> [(TxIn, TxOut)] -> Word64
 totalBalance (Quantity withdraw) inps = balance' inps + withdraw
 
 addTxOut :: Integral a => a -> TxOut -> a
-addTxOut total = addCoin total . coin
+addTxOut total = addCoin total . txOutCoin
 
 addCoin :: Integral a => a -> Coin -> a
 addCoin total c = total + (fromIntegral (unCoin c))

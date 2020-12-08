@@ -192,6 +192,7 @@ import System.Random
 import qualified Cardano.BM.Configuration.Model as CM
 import qualified Cardano.BM.Data.BackendKind as CM
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Byron as Byron
+import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TB
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
@@ -549,7 +550,7 @@ mkInputs prefix n =
 mkOutputs :: Int -> Int -> [TxOut]
 mkOutputs prefix n =
     [ force
-        (TxOut (mkAddress prefix i) (Coin 1))
+        (TxOut (mkAddress prefix i) (TB.fromCoin $ Coin 1))
     | !i <- [1..n]
     ]
 

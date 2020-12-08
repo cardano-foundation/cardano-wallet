@@ -4,6 +4,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
@@ -61,6 +62,7 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxOut (..)
     , txId
     , txIns
+    , txOutCoin
     )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( Dom (..), UTxO (..), balance, excluding, restrictedTo )
@@ -119,6 +121,7 @@ import Test.QuickCheck
     , (===)
     )
 
+import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TB
 import qualified Data.ByteString as BS
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
@@ -266,7 +269,7 @@ prop_countRewardsOnce (WithPending wallet pending rewards)
       else property (totalWithPending == totalWithoutPending)
   where
     pendingBalance =
-        sum $ (unCoin . coin) <$> concatMap outputs (Set.elems pending)
+        sum $ (unCoin . txOutCoin) <$> concatMap outputs (Set.elems pending)
     totalWithPending =
         totalBalance pending rewardsQ wallet
     totalWithoutPending =
@@ -437,7 +440,8 @@ instance Arbitrary (WithPending WalletState) where
                             { withdrawals =
                                 Map.singleton ourRewardAccount rewards
                             , outputs =
-                                out { coin = rewards } : outputs tx
+                                out { tokens = TB.fromCoin rewards }
+                                    : outputs tx
                             }
                       )
                     ]
@@ -452,10 +456,11 @@ instance Arbitrary (WithPending WalletState) where
                 -- - Sometimes, we also add a withdrawal by creating another
                 --   change output and an explicit withdrawal in the
                 --   transaction.
+                let tokens = TB.fromCoin $ simulateFee $ txOutCoin out
                 let pending = withWithdrawal $ Tx
                         { txId = arbitraryHash
-                        , resolvedInputs = [(inp, coin out)]
-                        , outputs = [out { coin = simulateFee (coin out) }]
+                        , resolvedInputs = [(inp, txOutCoin out)]
+                        , outputs = [out {tokens}]
                         , withdrawals = mempty
                         , metadata = Nothing
                         }
@@ -519,11 +524,11 @@ blockchain =
                 , outputs =
                     [ TxOut
                         { address = Address "\130\216\CANXB\131X\FS\251\STX\v\235\129\179\243k\185\131Eq\190\239\137\143\ETB\167\&7\GS\131\&1\215R\202!\US\205\161\SOHX\RSX\FSq=\137+\197\151g\151-\158\222\RS\246\190\155\EOTz\242\202H\SUB\237\227\167)\fo\198\NUL\SUBw\218X/"
-                        , coin = Coin 21063
+                        , tokens = TB.fromCoin $ Coin 21063
                         }
                     , TxOut
                         { address = Address "\130\216\CANXB\131X\FS\132X0\144p\144\ENQ\145\&2\224\&3\149hLk\221\152l\142>O\154\210\133\148\211\152\138\161\SOHX\RSX\FS\202>U<\156c\197o\203\t\188C_\254\205\ETXj\237\193\192\144\210KJyU\DEL\240\NUL\SUB\139\185\251\n"
-                        , coin = Coin 3844423800000
+                        , tokens = TB.fromCoin $ Coin 3844423800000
                         }
                     ]
                 , withdrawals = mempty
@@ -551,11 +556,11 @@ blockchain =
                 , outputs =
                     [ TxOut
                         { address = Address "\130\216\CANXB\131X\FS\211Yn9s*R\243\193x\166T\178\189%i\182X\179!\ESC\tf\t;\CAN8\GS\161\SOHX\RSX\FS\202>U<\156c\197M\234W\ETBC\f\177\235\163\254\194\RS\225\ESC\\\244\b\255\164\CAN\201\NUL\SUB\166\230\137["
-                        , coin = Coin 3860802399001
+                        , tokens = TB.fromCoin $ Coin 3860802399001
                         }
                     , TxOut
                         { address = Address "\130\216\CANXB\131X\FS\149\244~\254\146>\133\160ic\137LqZ\152|N\185\207\CANun\252*\158\\\ACK\NUL\161\SOHX\RSX\FSR\128\f\225\232\SO\196\204\225Dz\SOH\145\129)t\175k\191\148Am\NAK\156\&4\DC2\166q\NUL\SUB\238\180t\198"
-                        , coin = Coin 3351830178
+                        , tokens = TB.fromCoin $ Coin 3351830178
                         }
                     ]
                 , withdrawals = mempty
@@ -572,11 +577,11 @@ blockchain =
                 , outputs =
                      [ TxOut
                         { address = Address "\130\216\CANXB\131X\FS)/\216\137\&7\187\235\136\159m[g\DC2\156\193v\EM\169^\GS\176\128\rh\186\234\EM\NUL\161\SOHX\RSX\FS\202>U<\156c\197\SYN!\161_C\135\ACK\210/\193|\STX\158f\138C\234\221\RS\134\231\NUL\SUB\190\&2?C"
-                        , coin = Coin 3844424216795
+                        , tokens = TB.fromCoin $ Coin 3844424216795
                         }
                     , TxOut
                         { address = Address "\130\216\CANXB\131X\FS\ACK\218k\189\250\189\129\229A\128>`V\153\144EyN\187T\\\151 \171;\251(\t\161\SOHX\RSX\FS\197\217I\176.##'\217l\226i{\200'\176\&32I\150\166\SI+\143\138\GS\SOH+\NUL\SUB7\206\156`"
-                        , coin = Coin 19999800000
+                        , tokens = TB.fromCoin $ Coin 19999800000
                         }
                     ]
                 , withdrawals = mempty
@@ -604,11 +609,11 @@ blockchain =
                 , outputs =
                     [ TxOut
                         { address = Address "\130\216\CANXB\131X\FS\ACK\142\129o\164[teM\222\&2`\153\STX'\DC4\190\n\194\156:6\DC3\223\184\150[\249\161\SOHX\RSX\FS\202>U<\156c\197\f\132y\163C>\252]w\f\STXb\GS\150\130\255\215`\140\212\CAN\NUL\SUB\135\214\245\224"
-                        , coin = Coin 3844425617319
+                        , tokens = TB.fromCoin $ Coin 3844425617319
                         }
                     , TxOut
                         { address = Address "\130\216\CANXB\131X\FS\184&\170\193\237\196\242-9\168)Pg\NUL\217\149\&6\169\158U\177c'/\172\221\148\232\161\SOHX\RSX\FS\202>U<\156c\197{\209\173\167C\204n~C\188\169&\217c\212'\131Nm<\150\NUL\SUB=\147\148z"
-                        , coin = Coin 3495800000
+                        , tokens = TB.fromCoin $ Coin 3495800000
                         }
                     ]
                 , withdrawals = mempty
@@ -625,11 +630,11 @@ blockchain =
                 , outputs =
                     [ TxOut
                         { address = Address "\130\216\CANXB\131X\FSY\128\ETX4\191\170\EOT\144\195#\f]\ESCy\nSe\216+f\132\210\232x\168\160''\161\SOHX\RSX\FS\202>U<\156c\197E\160\162\181C\f|\SO\223\170\DC4\253.R\248R+'\162\172\166\NUL\SUB\220\192\171)"
-                        , coin = Coin 3817943388680
+                        , tokens = TB.fromCoin $ Coin 3817943388680
                         }
                     , TxOut
                         { address = Address "\130\216\CANXB\131X\FScS\243q\152\237Vv\197\162\RS\168\238\130}\172\&0_=\142n\170]\198EH@l\161\SOHX\RSX\FS(}\ETB\129*k\253\173\&2\177\131V0`\219\243\212*\153\212\159@\128\149\209s\143(\NUL\SUB\"\175\195<"
-                        , coin = Coin 29999800000
+                        , tokens = TB.fromCoin $ Coin 29999800000
                         }
                     ]
                 , withdrawals = mempty
@@ -657,11 +662,11 @@ blockchain =
                 , outputs =
                     [ TxOut
                         { address = Address "\130\216\CANXB\131X\FSJ:Kh-\227hW$\139\165\194\192\249\251f\250\NAKf\207\146\131\193\248\242%\153\180\161\SOHX\RSX\FS\202>U<\156c\197\US\196\DC3\208C*1\176\172\138(\EOTd\b\179\157\135e\171#\136\NUL\SUB)\228M*"
-                        , coin = Coin 3844435857860
+                        , tokens = TB.fromCoin $ Coin 3844435857860
                         }
                     , TxOut
                         { address = Address "\130\216\CANXB\131X\FS\135:\161F\145\151\189z\134\231\254\143\134\129\227I\251\193\129\&8\161\208\236\US[\203e\211\161\SOHX\RSX\FS\142\&2M\NAK\156,\206r\v\237\129;u\168\&3\215\243Kyd\143\EM0\240\182\DC4dE\NUL\SUB\195\DEL\204\176"
-                        , coin = Coin 500000000
+                        , tokens = TB.fromCoin $ Coin 500000000
                         }
                     ]
                 , withdrawals = mempty
@@ -699,11 +704,11 @@ blockchain =
                 , outputs =
                     [ TxOut
                       { address = Address "\130\216\CANXB\131X\FSUh\206'\198\237\161R3\214L\145\245P'\197\230\&6\206\152\173\EOTI:\152\vX&\161\SOHX\RSX\FS\202>U<\156c\197|\227M\202Cv\136\\\253\176\130\185b9G\188_\179\&4\253Y\NUL\SUB\176\EOT\165s"
-                      , coin = Coin 3834435886614
+                      , tokens = TB.fromCoin $ Coin 3834435886614
                       }
                     , TxOut
                       { address = Address "\130\216\CANXB\131X\FSq4\137\215\171\175Z\ENQ\242\216^\239\197\244^s\230\170}\183}\136\143\218\150\ENQ\137\255\161\SOHX\RSX\FS\173y\SI\234\169\ETB\\\251\238\175\128\178\191a\128\142?(\FSD\148\182\192\250\221\&5;7\NUL\SUB\241\244w\194"
-                      , coin = Coin 9999800000
+                      , tokens = TB.fromCoin $ Coin 9999800000
                       }
                     ]
                 , withdrawals = mempty
@@ -730,11 +735,11 @@ blockchain =
                 , outputs =
                     [ TxOut
                         { address = Address "\130\216\CANXB\131X\FS\255-+\179k\202\194\212\206\224\248\243\158\b\188 \212\141$\189\194&\252\162\166\162jq\161\SOHX\RSX\FS\202>U<\156c\197QM\140\ACKCk=\238\239\134^w\CAN$\253\FSqL\198\128\200\NUL\SUB\f\219\163/"
-                        , coin = Coin 3841151724910
+                        , tokens = TB.fromCoin $ Coin 3841151724910
                         }
                     , TxOut
                         { address = Address "\130\216\CANXB\131X\FS\n\aGD6\206\202\&2K\n\203%\180\249\227\229\216n\130\218\&6\147\SYN/\SUBq\231\210\161\SOHX\RSX\FS?\DLE\204\131\217-\176\181^\169#?Jn~\137\153\ENQc0<\225\SOH)\DEL\150\163\136\NUL\SUB\b\215\236\238"
-                        , coin = Coin 3273721339
+                        , tokens = TB.fromCoin $ Coin 3273721339
                         }
                     ]
                 , withdrawals = mempty
@@ -762,11 +767,11 @@ blockchain =
                 , outputs =
                     [ TxOut
                         { address = Address { unAddress = "\130\216\CANXB\131X\FS!\148\NULDcB\r\237\202\255)\DLEe`\159\a\\-IG\"P\218\136\219i\244\134\161\SOHX\RSX\FS\202>U<\156c\197;\236\EOT\STXC\209\173\138\205B\EOT.\ENQ\ACKG@\174\206\185\ESC\206\NUL\SUB\230\150\192\165" }
-                        , coin = Coin 3824424245549
+                        , tokens = TB.fromCoin $ Coin 3824424245549
                         }
                     , TxOut
                         { address = Address "\130\216\CANXB\131X\FS\ACK\218k\189\250\189\129\229A\128>`V\153\144EyN\187T\\\151 \171;\251(\t\161\SOHX\RSX\FS\197\217I\176.##'\217l\226i{\200'\176\&32I\150\166\SI+\143\138\GS\SOH+\NUL\SUB7\206\156`"
-                        , coin = Coin 19999800000
+                        , tokens = TB.fromCoin $ Coin 19999800000
                         }
                     ]
                 , withdrawals = mempty
@@ -808,11 +813,11 @@ blockchain =
                 , outputs =
                     [ TxOut
                         { address = Address "\130\216\CANXB\131X\FS%\ENQ\163x'\DC3\DC1\222\157\197 4*\200v\219\f\201\215\197\136\188\128\243\216\NAKe\214\161\SOHX\RSX\FS\197\217I\176.##LD\224\179i\142\&3\220\162\250\221:F\227\NAK$\156|\EOTY\228\NUL\SUBr\a\134\146"
-                        , coin = Coin 15908
+                        , tokens = TB.fromCoin $ Coin 15908
                         }
                     , TxOut
                         { address = Address "\130\216\CANXB\131X\FS\SI\DC4f\168\210\188\164\SUBF\239\212\201,\DLE\238\230<r\187A+w\b\222\155\ETB\226m\161\SOHX\RSX\FS\234\DC4%\204\221d\155\200\136\211o~\SOH\229t\229\178p\146\188\214X\237\151T\183\&4\247\NUL\SUBx\242\186\182"
-                        , coin = Coin 12999433909
+                        , tokens = TB.fromCoin $ Coin 12999433909
                         }
                     ]
                 , withdrawals = mempty
@@ -880,11 +885,11 @@ blockchain =
                 , outputs =
                     [ TxOut
                         { address = Address "\130\216\CANXB\131X\FS\DC3\136\135t\199V\160\217\173\r\235\229\193\&03q{\178'\f\DLE\137k\222P\180\DC3\224\161\SOHX\RSX\FS\202>U<\156c\197<\211\197>C_\207\225?\146\134\160\ETB\207!X\139\250N\220\ESC\NUL\SUB\186\217]\175"
-                        , coin = Coin 3827577253906
+                        , tokens = TB.fromCoin $ Coin 3827577253906
                         }
                     , TxOut
                         { address = Address "\130\216\CANXB\131X\FS\167\219!{\ETX\157lP>i~\158\225\DEL\141!.I\248\"\183(\DC13\231\185pU\161\SOHX\RSX\FS\SOH\131\136&\ESC\236\240\200\rw\255.\153\252\&6'\174\159vs\CAN\255\153\USf\155\173\223\NUL\SUB\214\237\RS\248"
-                        , coin = Coin 16837395907
+                        , tokens = TB.fromCoin $ Coin 16837395907
                         }
                     ]
                 , withdrawals = mempty
@@ -901,11 +906,11 @@ blockchain =
                 , outputs =
                     [ TxOut
                         { address = Address "\130\216\CANXB\131X\FS!f\151\SYN\189\218\167\236\206\253\&9UW%\CAN\238\139\205<\246\132\&1\SOH\164\SUBR\237\DC4\161\SOHX\RSX\FS\202>U<\156c\197T\188\198\219C5_\246\194@\227\217\151\235\139\216(2p\173\236\NUL\SUB0\147sX"
-                        , coin = Coin 3843675297120
+                        , tokens = TB.fromCoin $ Coin 3843675297120
                         }
                     , TxOut
                         { address = Address "\130\216\CANXB\131X\FS\ETBb\215X\172)\244\139Tp\DC4b\194\DC3\SUB\157\STXqr\172/\175q\244\153\140\214`\161\SOHX\RSX\FSCGQbc\253u+\vF\192XT\185\233e\150}\173\139\199\CAN\215\134\159\166\GS\216\NUL\SUBA}\137A"
-                        , coin = Coin 748331810
+                        , tokens = TB.fromCoin $ Coin 748331810
                         }
                     ]
                 , withdrawals = mempty
@@ -933,11 +938,11 @@ blockchain =
                 , outputs =
                     [ TxOut
                         { address = Address "\130\216\CANXB\131X\FS\233\219\220^Zp\135\EOT\205&#\226S\232\&0\160\252\164\&9\224\&2\152\RS\197F\191\193\223\161\SOHX\RSX\FS\202>U<\156c\197\&5\201\210\140C\v\216\253\150\235\177\189*\211E\241\201;L;t\NUL\SUB||\158\&1"
-                        , coin = Coin 3842710635646
+                        , tokens = TB.fromCoin $ Coin 3842710635646
                         }
                     , TxOut
                         { address = Address "\130\216\CANXB\131X\FS\197\251\223.\192>\179\168\236}\242\180\188$\173\161\229\165\157#\190\USo{]BO\191\161\SOHX\RSX\FSA\162\195Z4\CANj\174\148\160\&34\USo\ETB\179\a\133Te\ACK\131\182y\248\236\211c\NUL\SUB\225\153\247\212"
-                        , coin = Coin 1499800000
+                        , tokens = TB.fromCoin $ Coin 1499800000
                         }
                     ]
                 , withdrawals = mempty
@@ -954,11 +959,11 @@ blockchain =
                 , outputs =
                     [ TxOut
                         { address = Address "\130\216\CANXB\131X\FS\203\242{\247\221*[\182a\171/`\151,\130\&4\246\219\245I\t\240\&6\ACK\159wg\186\161\SOHX\RSX\FS\202>U<\156c\197\CAN\250\154\238C \170\214\202\244y\140!\189\SYN]\157\132\ETXt\245\NUL\SUB\155\210\\\173"
-                        , coin = Coin 3842940911894
+                        , tokens = TB.fromCoin $ Coin 3842940911894
                         }
                     , TxOut
                         { address = Address "\130\216\CANXB\131X\FS~\133V\SYN\DEL\211\165\ACK\239\a\182\131\143'\253On\210d\169kc\145\179\156\142\230\140\161\SOHX\RSX\FS\179@nvQ\155\209\149n\214\226y\166\133\170\207\134\131t\219\&7&\246m_Jv\DC2\NUL\SUB\218\132l\235"
-                        , coin = Coin 1345293520
+                        , tokens = TB.fromCoin $ Coin 1345293520
                         }
                     ]
                 , withdrawals = mempty
@@ -1046,11 +1051,11 @@ blockchain =
                 , outputs =
                     [ TxOut
                         { address = Address "\130\216\CANXB\131X\FS\197\CAN\DELP\160W\144\&8\GSW\189\&7m\b\233Y\216I\176\159\250\144\EM\155|\219\n\231\161\SOHX\RSX\FS\202>U<\156c\197\&6\149=XC\217L\SOH\255\166\228\138\221\157\&0\ACK&]`z\DC2\NUL\SUB\149\157\191\162"
-                        , coin = Coin 3832107959251
+                        , tokens = TB.fromCoin $ Coin 3832107959251
                         }
                     , TxOut
                         { address = Address "\130\216\CANXB\131X\FSI\SI\165\f\DLE\223\214\209\206\187y\128F\SUB\248.\203\186/\244\143m1]\n\132\234\"\161\SOHX\RSX\FSv\SI\240\133L\130\194\DC2\191}\189;5\141\252t]\132}[\244\ESC&\SI\EOT[{\238\NUL\SUB\159\236eZ"
-                        , coin = Coin 11823271860
+                        , tokens = TB.fromCoin $ Coin 11823271860
                         }
                     ]
                 , withdrawals = mempty
@@ -1067,11 +1072,11 @@ blockchain =
                   , outputs =
                       [ TxOut
                           { address = Address "\130\216\CANXB\131X\FSe$;\SO\178g\161\226>1w\159M\NAK\141d\173\210\202\192Bn\250\176C(\DC2\ENQ\161\SOHX\RSX\FS\202>U<\156c\197\SUB\225\157\&1C\209\253\183\USuz\163\193\209\196\217:\155!\167!\NUL\SUB\137\240\187\159"
-                          , coin = Coin 3841254542346
+                          , tokens = TB.fromCoin $ Coin 3841254542346
                           }
                       , TxOut
                           { address = Address "\130\216\CANXB\131X\FS\161\243^\nQ`\DLE\151\147n\153j\STX\215]\SOr7\136\211\222y\US*\157%\DEL\ETB\161\SOHX\RSX\FS\201\SUB\170\156Oe\155)D\US\143\CAN\237\193\244vKM\160\SOH\166&\161\213\188KD\142\NUL\SUB\144\192\240\146"
-                          , coin = Coin 2700667457
+                          , tokens = TB.fromCoin $ Coin 2700667457
                           }
                       ]
                 , withdrawals = mempty
@@ -1099,11 +1104,11 @@ blockchain =
                 , outputs =
                     [ TxOut
                         { address = Address "\130\216\CANXB\131X\FS\147\ACKn\246.n\DLE\233Y\166)\207c\v\248\183\235\212\EOTV\243h\192\190T\150'\196\161\SOHX\RSX\FS\202>U<\156c\197&\DC3S\235C\198\245\163\204=\214fa\201\t\205\248\204\226r%\NUL\SUB\174\187\&7\t"
-                        , coin = Coin 3823755953610
+                        , tokens = TB.fromCoin $ Coin 3823755953610
                         }
                     , TxOut
                         { address = Address "\130\216\CANXB\131X\FS\ACK\218k\189\250\189\129\229A\128>`V\153\144EyN\187T\\\151 \171;\251(\t\161\SOHX\RSX\FS\197\217I\176.##'\217l\226i{\200'\176\&32I\150\166\SI+\143\138\GS\SOH+\NUL\SUB7\206\156`"
-                        , coin = Coin 19999800000
+                        , tokens = TB.fromCoin $ Coin 19999800000
                         }
                     ]
                 , withdrawals = mempty

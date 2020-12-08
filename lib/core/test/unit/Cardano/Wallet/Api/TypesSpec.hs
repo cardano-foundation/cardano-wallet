@@ -179,6 +179,8 @@ import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..) )
+import Cardano.Wallet.Primitive.Types.TokenBundleSpec
+    ()
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..)
     , TxIn (..)
@@ -316,6 +318,7 @@ import Web.HttpApiData
     ( FromHttpApiData (..) )
 
 import qualified Cardano.Wallet.Api.Types as Api
+import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TB
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Types as Aeson
 import qualified Data.ByteArray as BA
@@ -1397,10 +1400,6 @@ instance Arbitrary a => Arbitrary (ApiT a) where
     arbitrary = ApiT <$> arbitrary
     shrink = fmap ApiT . shrink . getApiT
 
-instance Arbitrary a => Arbitrary (NonEmpty a) where
-    arbitrary = genericArbitrary
-    shrink = genericShrink
-
 -- | The initial seed has to be vector or length multiple of 4 bytes and shorter
 -- than 64 bytes. Note that this is good for testing or examples, but probably
 -- not for generating truly random Mnemonic words.
@@ -1655,7 +1654,10 @@ instance Arbitrary RewardAccount where
 
 instance Arbitrary Coin where
     -- No Shrinking
-    arbitrary = Coin <$> choose (0, 1_000_000_000_000_000)
+    arbitrary = genStrictlyPositiveCoin
+
+genStrictlyPositiveCoin :: Gen Coin
+genStrictlyPositiveCoin = Coin <$> choose (1, 1_000_000_000_000_000)
 
 instance Arbitrary UTxO where
     shrink (UTxO utxo) = UTxO <$> shrink utxo
@@ -1668,7 +1670,9 @@ instance Arbitrary UTxO where
 
 instance Arbitrary TxOut where
     -- No Shrinking
-    arbitrary = applyArbitrary2 TxOut
+    arbitrary = TxOut
+        <$> arbitrary
+        <*> fmap TB.fromCoin genStrictlyPositiveCoin
 
 instance Arbitrary TxIn where
     -- No Shrinking

@@ -110,6 +110,8 @@ import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..) )
+import Cardano.Wallet.Primitive.Types.TokenBundleSpec
+    ()
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..)
     , Tx (..)
@@ -191,6 +193,7 @@ import Test.Utils.Time
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Byron as Byron
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Shelley
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Sequential as Seq
+import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TB
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
@@ -391,7 +394,7 @@ instance Arbitrary TxIn where
 instance Arbitrary TxOut where
     arbitrary = TxOut
         <$> arbitrary
-        <*> arbitrary
+        <*> fmap TB.fromCoin genStrictlyPositiveCoin
 
 instance Arbitrary TxMeta where
     arbitrary = do
@@ -411,7 +414,10 @@ instance Arbitrary TxMetadata where
     shrink = shrinkTxMetadata
 
 instance Arbitrary Coin where
-    arbitrary = Coin <$> choose (1, 100000)
+    arbitrary = genStrictlyPositiveCoin
+
+genStrictlyPositiveCoin :: Gen Coin
+genStrictlyPositiveCoin = Coin <$> choose (1, 100_000)
 
 instance Arbitrary UTxO where
     shrink (UTxO u) =
@@ -422,7 +428,6 @@ instance Arbitrary UTxO where
             <$> vector n
             <*> vector n
         return $ UTxO $ Map.fromList u
-
 
 instance (Ord a, Arbitrary a) => Arbitrary (Range a) where
     arbitrary = Range <$> arbitrary <*> arbitrary
