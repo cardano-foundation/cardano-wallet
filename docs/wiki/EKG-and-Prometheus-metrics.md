@@ -59,7 +59,7 @@ cardano_wallet_metrics_Stat_cminflt_int 0
 
 ### Binding monitoring
 
-By default both EKG and Prometheus monitoring is bound to `localhost`. One can bind it to different hostname using:
+By default both EKG and Prometheus monitoring is bound to `localhost`. One can bind it to different hostname or external ip using:
 
 ```
 CARDANO_WALLET_EKG_HOST
