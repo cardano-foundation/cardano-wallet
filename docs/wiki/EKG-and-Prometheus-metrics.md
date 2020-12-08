@@ -6,6 +6,10 @@ CARDANO_WALLET_PROMETHEUS_PORT
 CARDANO_WALLET_EKG_HOST
 CARDANO_WALLET_PROMETHEUS_HOST
 ```
+
+> :information_source: Monitoring is disabled by default. It is enabled by setting `CARDANO_WALLET_EKG_PORT` and/or `CARDANO_WALLET_PROMETHEUS_PORT` respectively. 
+> 
+
 ### Enabling monitoring
 To enable monitoring one can simply set environment variables with `cardano-wallet serve` command as follows:
 ```
