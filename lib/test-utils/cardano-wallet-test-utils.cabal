@@ -1,5 +1,5 @@
 name:                cardano-wallet-test-utils
-version:             2020.11.26
+version:             2020.12.8
 synopsis:            Shared utilities for writing unit and property tests.
 description:         Shared utilities for writing unit and property tests.
 homepage:            https://github.com/input-output-hk/cardano-wallet
