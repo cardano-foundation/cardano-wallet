@@ -178,7 +178,7 @@ library
       Cardano.Wallet.Primitive.Types.Hash
       Cardano.Wallet.Primitive.Types.RewardAccount
       Cardano.Wallet.Primitive.Types.TokenBundle
-      Cardano.Wallet.Primitive.Types.TokenBundle.TokenMap
+      Cardano.Wallet.Primitive.Types.TokenMap
       Cardano.Wallet.Primitive.Types.TokenPolicy
       Cardano.Wallet.Primitive.Types.TokenQuantity
       Cardano.Wallet.Primitive.Types.Tx
@@ -209,7 +209,7 @@ library
         --
       Cardano.Wallet.Primitive.Types.Coin.Gen
       Cardano.Wallet.Primitive.Types.TokenBundle.Gen
-      Cardano.Wallet.Primitive.Types.TokenBundle.TokenMap.Gen
+      Cardano.Wallet.Primitive.Types.TokenMap.Gen
       Cardano.Wallet.Primitive.Types.TokenPolicy.Gen
       Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
   other-modules:
@@ -350,9 +350,9 @@ test-suite unit
       Cardano.Wallet.Primitive.SlottingSpec
       Cardano.Wallet.Primitive.SyncProgressSpec
       Cardano.Wallet.Primitive.Types.HashSpec
-      Cardano.Wallet.Primitive.Types.TokenBundle.TokenMapSpec
-      Cardano.Wallet.Primitive.Types.TokenBundle.TokenMapSpec.TypeErrorSpec
       Cardano.Wallet.Primitive.Types.TokenBundleSpec
+      Cardano.Wallet.Primitive.Types.TokenMapSpec
+      Cardano.Wallet.Primitive.Types.TokenMapSpec.TypeErrorSpec
       Cardano.Wallet.Primitive.Types.TokenQuantitySpec
       Cardano.Wallet.Primitive.TypesSpec
       Cardano.Wallet.RegistrySpec

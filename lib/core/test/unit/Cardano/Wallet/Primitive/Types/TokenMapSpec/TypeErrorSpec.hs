@@ -4,13 +4,13 @@
 {-# OPTIONS_GHC -fno-warn-dodgy-imports #-}
 {-# OPTIONS_GHC -fno-warn-unused-imports #-}
 
-module Cardano.Wallet.Primitive.Types.TokenBundle.TokenMapSpec.TypeErrorSpec
+module Cardano.Wallet.Primitive.Types.TokenMapSpec.TypeErrorSpec
     ( spec
     ) where
 
 import Prelude
 
-import Cardano.Wallet.Primitive.Types.TokenBundle.TokenMap
+import Cardano.Wallet.Primitive.Types.TokenMap
     ( TokenMap (..) )
 import Test.Hspec
     ( Expectation, Spec, describe, it )

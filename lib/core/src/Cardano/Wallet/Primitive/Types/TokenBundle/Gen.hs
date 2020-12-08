@@ -11,7 +11,7 @@ import Cardano.Wallet.Primitive.Types.Coin.Gen
     ( genCoinSmall, shrinkCoinSmall )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle (..) )
-import Cardano.Wallet.Primitive.Types.TokenBundle.TokenMap.Gen
+import Cardano.Wallet.Primitive.Types.TokenMap.Gen
     ( genTokenMapSmallRange, shrinkTokenMapSmallRange )
 import Test.QuickCheck
     ( Gen )

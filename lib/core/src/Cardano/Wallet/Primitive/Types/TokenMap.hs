@@ -11,7 +11,7 @@
 -- | Provides the 'TokenMap' type, which represents a map of named non-zero
 --   token quantities scoped by token policy.
 --
-module Cardano.Wallet.Primitive.Types.TokenBundle.TokenMap
+module Cardano.Wallet.Primitive.Types.TokenMap
     (
     -- * Types
 

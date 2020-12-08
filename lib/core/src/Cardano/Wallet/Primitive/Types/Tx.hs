@@ -114,7 +114,7 @@ import Numeric.Natural
     ( Natural )
 
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TB
-import qualified Cardano.Wallet.Primitive.Types.TokenBundle.TokenMap as TM
+import qualified Cardano.Wallet.Primitive.Types.TokenMap as TM
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Text.Lazy.Builder as Builder
