@@ -950,15 +950,29 @@ instance
                 pendingChangeIxs s
             internalGap =
                 fromEnum . getAddressPoolGap . gap . internalPool $ s
-            discardUndiscoveredChange xs =
-                take (length ixs) $ drop (length xs - internalGap) xs
-            changeAddresses =
-                discardUndiscoveredChange $
-                    addresses (liftPaymentAddress @n @k) (internalPool s)
+
+            changeAddresses = addresses (liftPaymentAddress @n @k) (internalPool s)
+            -- pick as many unused change addresses as there are pending
+            -- transactions
+            changeAddressesForPending =
+                -- the last `gap` addresses are all unused
+                let availUnusedChangeAddresses = drop (length changeAddresses - internalGap)
+                        changeAddresses
+                in take (length ixs)
+                    availUnusedChangeAddresses
+            usedChangeAddresses = filter ((== Used) . snd) changeAddresses
+
             nonChangeAddresses =
                 addresses (liftPaymentAddress @n @k) (externalPool s)
+
+            -- Instead of only showing as many unused change addresses as there
+            -- are pending transactions (as previously), we also show all used ones.
+            -- Also see https://jira.iohk.io/browse/ADP-500
+            visibleChangeAddresses = usedChangeAddresses <> changeAddressesForPending
+
+            visibleNonChangeAddresses = nonChangeAddresses
         in
-            nonChangeAddresses <> changeAddresses
+            visibleNonChangeAddresses <> visibleChangeAddresses
 
 --------------------------------------------------------------------------------
 --
