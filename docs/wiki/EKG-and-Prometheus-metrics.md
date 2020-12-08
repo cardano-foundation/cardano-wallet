@@ -45,7 +45,7 @@ Following the example above metrics would be available in `localhost` under corr
  ```
  - Prometheus: http://localhost:7777/metrics  
  ```
- $ curl http://localhost:6666/metrics 
+ $ curl http://localhost:7777/metrics 
 cardano_wallet_metrics_Stat_rtpriority_int 0
 cardano_wallet_metrics_Stat_itrealvalue_int 0
 rts_gc_par_max_bytes_copied 0
