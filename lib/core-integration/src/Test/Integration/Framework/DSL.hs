@@ -118,6 +118,7 @@ module Test.Integration.Framework.DSL
     , fixturePassphrase
     , fixturePassphraseEncrypted
     , waitForNextEpoch
+    , waitForTxImmutability
     , waitAllTxsInLedger
     , toQueryString
     , withMethod
@@ -707,6 +708,46 @@ waitForNextEpoch ctx = do
         epoch' <- getFromResponse (#nodeTip . #slotId . #epochNumber) <$>
             request @ApiNetworkInformation ctx Link.getNetworkInfo Default Empty
         unless (getApiT epoch' > getApiT epoch) $ expectationFailure "not yet"
+
+-- Sometimes, we need to wait long-enough for transactions to become immutable.
+-- What long enough is rather empirical here, but it must satisfies one important
+-- criteria: it must be long-enough to assume that all transactions are no longer
+-- in mempools AND, for those who've been inserted, they are now deep enough to
+-- not be affected by rollbacks.
+--
+-- The stability windows in Praos is defined as: `3k/f` slots, thus we can consider
+-- transactions immutable after:
+--
+--    ---> 3k / f * slot_length
+--
+-- (about 12s with the current parameters for the test cluster).
+--
+-- Beside, everything runs on the same machine and the information is propagated
+-- rather fast; transactions are usually inserted within a few blocks. We'll
+-- therefore consider that transactions are typically inserted within 10 blocks
+-- yet still consider an extra delay of:
+--
+--    ---> 10 / f * slot_length
+--
+-- (about 4s with the current parameters for the test cluster).
+waitForTxImmutability :: (MonadIO m) => Context -> m ()
+waitForTxImmutability _ctx = liftIO $ do
+    -- FIXME: #2226
+    --
+    -- (_, params) <- unsafeRequest @ApiNetworkParameters ctx Link.getNetworkParams Empty
+    --
+    -- let picoToMicro = (`div` 1_000_000)
+    --
+    -- let sl = params ^. (#slotLength . #getQuantity) & fromEnum & picoToMicro & fromIntegral
+    -- let k  = params ^. (#epochStability . #getQuantity) & fromIntegral
+    -- let f  = params ^. (#activeSlotCoefficient . #getQuantity) / 100
+    --
+    -- let stabilityDelay   = round (sl * 3 * k / f)
+    -- let txInsertionDelay = round (sl * 10 / f)
+    let stabilityDelay   = 12 * oneSecond
+    let txInsertionDelay = 4 * oneSecond
+
+    threadDelay $ stabilityDelay + txInsertionDelay
 
 between :: (Ord a, Show a) => (a, a) -> a -> Expectation
 between (min', max') x
