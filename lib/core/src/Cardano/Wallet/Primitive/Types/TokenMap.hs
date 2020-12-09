@@ -8,8 +8,15 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE UndecidableInstances #-}
 
--- | Provides the 'TokenMap' type, which represents a map of named non-zero
+-- | Provides the 'TokenMap' type, which represents a map of named non-ada
 --   token quantities scoped by token policy.
+--
+-- The 'TokenMap' type does not provide a way to store ada quantities. If you
+-- also need to store ada quantities, use the 'TokenBundle' type.
+--
+-- This module is meant to be imported qualified. For example:
+--
+-- >>> import qualified Cardano.Wallet.Primitive.Types.TokenMap as TM
 --
 module Cardano.Wallet.Primitive.Types.TokenMap
     (
