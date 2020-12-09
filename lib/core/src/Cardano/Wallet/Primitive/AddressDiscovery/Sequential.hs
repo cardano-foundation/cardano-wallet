@@ -385,9 +385,9 @@ extendVerificationKeyPool ix pool
   where
     edge = Map.size (verPoolIndexedKeys pool)
     isOnEdge = edge - fromEnum ix <= fromEnum (verPoolGap pool)
-    next =
-        if ix == maxBound then mempty
-        else
+    next
+      | ix == maxBound = mempty
+      | otherwise =
             Map.fromList $ map (createPristineMapEntry (verPoolAccountPubKey pool)) $
             L.take (fromEnum $ verPoolGap pool) $ L.iterate succ (succ ix)
 
@@ -702,6 +702,7 @@ data SeqState (n :: NetworkDiscriminant) k = SeqState
     , derivationPrefix :: DerivationPrefix
         -- ^ Derivation path prefix from a root key up to the internal account
     , scriptPool :: !(VerificationKeyPool k)
+        -- ^ Verification key pool that tracts the keys in the discovered scripts
     }
     deriving stock (Generic)
 
@@ -711,6 +712,13 @@ deriving instance
     , Show (k 'ScriptK XPub)
     , Show (KeyFingerprint "payment" k)
     ) => Show (SeqState n k)
+
+deriving instance
+    ( Eq (k 'AccountK XPub)
+    , Eq (k 'AddressK XPub)
+    , Eq (k 'ScriptK XPub)
+    , Eq (KeyFingerprint "payment" k)
+    ) => Eq (SeqState n k)
 
 instance
     ( NFData (k 'AccountK XPub)

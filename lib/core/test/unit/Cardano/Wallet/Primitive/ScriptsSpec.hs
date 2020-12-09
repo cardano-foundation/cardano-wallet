@@ -70,6 +70,8 @@ import Data.Ord
     ( Down (..) )
 import Data.Proxy
     ( Proxy (..) )
+import Data.Set
+    ( Set )
 import Data.Word
     ( Word32 )
 import Test.Hspec
@@ -86,6 +88,7 @@ import Test.QuickCheck
     , scale
     , sized
     , vectorOf
+    , (.&&.)
     , (===)
     )
 
@@ -110,12 +113,12 @@ spec = do
             (property prop_scriptUpdatesStateProperly)
         it "scripts with our verification keys are discovered properly"
             (property prop_scriptsDiscovered)
+        it "scripts with two account key verification keys are discovered properly"
+            (property prop_scriptDiscoveredByTwo)
         it "discovering our verification keys make them mark Used"
             (property prop_markingDiscoveredVerKeys)
         it "discovering works after pool extension"
             (property prop_poolExtension)
-        it "our verification keys beyond pool gap are not discovered"
-            (property prop_scriptsOutsideNotDiscovered)
         it "before and after discovery pool number of last consequitive Unused keys stays the same"
             (property prop_unusedVerKeysConstant)
         it "discovered verification keys in scripts are consistent between knownScripts and indexedKeys"
@@ -150,10 +153,8 @@ prop_scriptUpdatesStateProperly (AccountXPubWithScripts accXPub' scripts') = do
     let sciptKeyHashes = retrieveAllVerKeyHashes script
     let seqState = initializeState accXPub'
     let (_, seqState') = isShared script seqState
-    let scriptKeyHashesInMap =
-            Set.fromList . map (deriveKeyHash accXPub') <$>
-            Map.lookup (toScriptHash script) (getKnownScripts seqState')
-    scriptKeyHashesInMap === Just (Set.fromList (L.nub sciptKeyHashes))
+    scriptKeyHashesInMap script accXPub' seqState'
+        === Just (Set.fromList (L.nub sciptKeyHashes))
 
 prop_scriptDiscoveredTwice
     :: AccountXPubWithScripts
@@ -163,7 +164,7 @@ prop_scriptDiscoveredTwice (AccountXPubWithScripts accXPub' scripts') = do
     let seqState = initializeState accXPub'
     let (_, seqState') = isShared script seqState
     let (_, seqState'') = isShared script seqState'
-    getKnownScripts seqState' === getKnownScripts seqState''
+    seqState' === seqState''
 
 prop_scriptsDiscovered
     :: AccountXPubWithScripts
@@ -173,6 +174,20 @@ prop_scriptsDiscovered (AccountXPubWithScripts accXPub' scripts') = do
     let seqState = foldr (\script s -> snd $ isShared script s) seqState0 scripts'
     let scriptHashes = Set.fromList $ Map.keys $ getKnownScripts seqState
     scriptHashes === Set.fromList (map toScriptHash scripts')
+
+prop_scriptDiscoveredByTwo
+    :: TwoAccountXPubsWithScript
+    -> Property
+prop_scriptDiscoveredByTwo (TwoAccountXPubsWithScript accXPub' accXPub'' script) = do
+    let seqState0' = initializeState accXPub'
+    let seqState0'' = initializeState accXPub''
+    let (_, seqState') = isShared script seqState0'
+    let (_, seqState'') = isShared script seqState0''
+    let sciptKeyHashes = retrieveAllVerKeyHashes script
+    let scriptKeyHashes' = scriptKeyHashesInMap script accXPub' seqState'
+    let scriptKeyHashes'' = scriptKeyHashesInMap script accXPub'' seqState''
+    (scriptKeyHashes' <> scriptKeyHashes'')
+        === Just (Set.fromList (L.nub sciptKeyHashes))
 
 prop_markingDiscoveredVerKeys
     :: AccountXPubWithScripts
@@ -194,22 +209,15 @@ prop_poolExtension
     :: AccountXPubWithScriptExtension
     -> Property
 prop_poolExtension (AccountXPubWithScriptExtension accXPub' scripts') = do
-    scriptHashes === Set.fromList (map toScriptHash scripts')
+    scriptHashes == Set.fromList (map toScriptHash scripts') .&&.
+        seqState3 == seqState0
   where
     seqState0 = initializeState accXPub'
     [script1,script2] = scripts'
     seqState1 = snd $ isShared script1 seqState0
     seqState2 = snd $ isShared script2 seqState1
+    seqState3 = snd $ isShared script2 seqState0
     scriptHashes = Set.fromList $ Map.keys $ getKnownScripts seqState2
-
-prop_scriptsOutsideNotDiscovered
-    :: AccountXPubWithScriptBeyond
-    -> Property
-prop_scriptsOutsideNotDiscovered (AccountXPubWithScriptBeyond accXPub' script) = do
-    let seqState0 = initializeState accXPub'
-    let seqState = snd $ isShared script seqState0
-    let scriptHashes = Map.keys $ getKnownScripts seqState
-    null scriptHashes === True
 
 prop_unusedVerKeysConstant
     :: AccountXPubWithScripts
@@ -246,8 +254,9 @@ data AccountXPubWithScriptExtension = AccountXPubWithScriptExtension
     , scripts :: [Script]
     } deriving (Eq, Show)
 
-data AccountXPubWithScriptBeyond = AccountXPubWithScriptBeyond
-    { accXPub :: ShelleyKey 'AccountK XPub
+data TwoAccountXPubsWithScript = TwoAccountXPubsWithScript
+    { accXPub1 :: ShelleyKey 'AccountK XPub
+    , accXPub2 :: ShelleyKey 'AccountK XPub
     , scripts :: Script
     } deriving (Eq, Show)
 
@@ -289,6 +298,15 @@ getVerKeyMap
     -> Map KeyHash (Index 'Soft 'ScriptK, AddressState)
 getVerKeyMap (SeqState _ _ _ _ _ verKeyPool) =
     verPoolIndexedKeys verKeyPool
+
+scriptKeyHashesInMap
+    :: Script
+    -> ShelleyKey 'AccountK XPub
+    -> SeqState 'Mainnet ShelleyKey
+    -> Maybe (Set KeyHash)
+scriptKeyHashesInMap script' accXPub' s =
+    Set.fromList . map (deriveKeyHash accXPub') <$>
+    Map.lookup (toScriptHash script') (getKnownScripts s)
 
 {-------------------------------------------------------------------------------
                                 Arbitrary Instances
@@ -353,13 +371,17 @@ instance Arbitrary AccountXPubWithScriptExtension where
 
         pure $ AccountXPubWithScriptExtension accXPub' [scriptTipping, scriptNext]
 
-instance Arbitrary AccountXPubWithScriptBeyond where
+instance Arbitrary TwoAccountXPubsWithScript where
     arbitrary = do
-        accXPub' <- arbitrary
-        kNum <- choose (2,8)
+        accXPub1' <- arbitrary
+        accXPub2' <- arbitrary
         let g = getAddressPoolGap defaultAddressPoolGap
-        let verKeyHashes = map hashVerificationKey (prepareVerKeys accXPub' [g .. g + kNum])
-        AccountXPubWithScriptBeyond accXPub' <$> genScript verKeyHashes
+        kNum <- choose (1, g - 1)
+        let verKeyHashes accXPub' =
+                map hashVerificationKey (prepareVerKeys accXPub' [0 .. kNum])
+        let bothVerKeyHashes =
+                verKeyHashes accXPub1' ++ verKeyHashes accXPub2'
+        TwoAccountXPubsWithScript accXPub1' accXPub2' <$> genScript bothVerKeyHashes
 
 instance Arbitrary (Passphrase "raw") where
     arbitrary = do

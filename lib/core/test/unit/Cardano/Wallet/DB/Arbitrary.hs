@@ -643,8 +643,6 @@ instance (Integral a, Arbitrary a) => Arbitrary (Quantity n a) where
 
 deriving instance Arbitrary a => Arbitrary (ShowFmt a)
 
-deriving instance Eq (SeqState 'Mainnet ShelleyKey)
-
 -- Necessary unsound Show instance for QuickCheck failure reporting
 instance Show XPrv where
     show = const "XPrv"
