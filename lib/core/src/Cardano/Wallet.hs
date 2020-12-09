@@ -330,6 +330,7 @@ import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..)
+    , Metadata (..)
     , SealedTx (..)
     , TransactionInfo (..)
     , Tx
@@ -444,7 +445,6 @@ import qualified Cardano.Wallet.Primitive.AddressDiscovery.Sequential as Seq
 import qualified Cardano.Wallet.Primitive.CoinSelection.Random as CoinSelection
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
-import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Cardano.Wallet.Primitive.Types.UTxO as W
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
@@ -1291,7 +1291,7 @@ selectCoinsForPayment
     -> WalletId
     -> NonEmpty TxOut
     -> Quantity "lovelace" Word64
-    -> Maybe TxMetadata
+    -> Maybe Metadata
     -> ExceptT ErrSelectForPayment IO CoinSelection
 selectCoinsForPayment ctx wid recipients withdrawal md = do
     (utxo, pending, txp, minUtxo) <-
@@ -1338,16 +1338,20 @@ selectCoinsForPaymentFromUTxO
     -> W.Coin
     -> NonEmpty TxOut
     -> Quantity "lovelace" Word64
-    -> Maybe TxMetadata
+    -> Maybe Metadata
     -> ExceptT ErrSelectForPayment IO CoinSelection
 selectCoinsForPaymentFromUTxO ctx utxo txp minUtxo recipients withdrawal md = do
     lift . traceWith tr $ MsgPaymentCoinSelectionStart utxo txp recipients
+    let md' = case md of
+            Just (MetaBlob metadata) -> Just metadata
+            _ -> Nothing
+            --TO_DO
     (sel, utxo') <- withExceptT handleCoinSelError $ do
-        let opts = coinSelOpts tl (txp ^. #getTxMaxSize) md
+        let opts = coinSelOpts tl (txp ^. #getTxMaxSize) md'
         CoinSelection.random opts recipients withdrawal utxo
 
     lift . traceWith tr $ MsgPaymentCoinSelection sel
-    let feePolicy = feeOpts tl Nothing md txp minUtxo sel
+    let feePolicy = feeOpts tl Nothing md' txp minUtxo sel
     withExceptT ErrSelectForPaymentFee $ do
         balancedSel <- adjustForFee feePolicy utxo' sel
         lift . traceWith tr $ MsgPaymentCoinSelectionAdjusted balancedSel
@@ -1525,7 +1529,7 @@ estimateFeeForPayment
     -> WalletId
     -> NonEmpty TxOut
     -> Quantity "lovelace" Word64
-    -> Maybe TxMetadata
+    -> Maybe Metadata
     -> ExceptT ErrSelectForPayment IO FeeEstimation
 estimateFeeForPayment ctx wid recipients withdrawal md = do
     (utxo, _, txp, minUtxo) <- withExceptT ErrSelectForPaymentNoSuchWallet $
@@ -1614,7 +1618,7 @@ signPayment
     -> ((k 'RootK XPrv, Passphrase "encryption") -> (XPrv, Passphrase "encryption"))
        -- ^ Reward account derived from the root key (or somewhere else).
     -> Passphrase "raw"
-    -> Maybe W.TxMetadata
+    -> Maybe Metadata
     -> Maybe NominalDiffTime
     -> CoinSelection
     -> ExceptT ErrSignPayment IO (Tx, TxMeta, UTCTime, SealedTx)
@@ -1680,7 +1684,7 @@ signTx
     => ctx
     -> WalletId
     -> Passphrase "raw"
-    -> Maybe TxMetadata
+    -> Maybe Metadata
     -> Maybe NominalDiffTime
     -- This function is currently only used in contexts where all change outputs
     -- have been assigned with addresses and are included in the set of ordinary

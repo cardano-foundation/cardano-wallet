@@ -85,7 +85,7 @@ module Cardano.Wallet.Api.Types
     , ApiFee (..)
     , ApiTxId (..)
     , ApiTxInput (..)
-    , ApiTxMetadata (..)
+    , ApiMetadata (..)
     , AddressAmount (..)
     , ApiAddressInspect (..)
     , ApiAddressInspectData (..)
@@ -228,7 +228,13 @@ import Cardano.Wallet.Primitive.Types.Coin
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( Direction (..), TxIn (..), TxMetadata, TxStatus (..), txMetadataIsNull )
+    ( Direction (..)
+    , Metadata (..)
+    , TxIn (..)
+    , TxMetadata
+    , TxStatus (..)
+    , metadataIsNull
+    )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( BoundType, HistogramBar (..), UTxOStatistics (..) )
 import Cardano.Wallet.Transaction
@@ -689,14 +695,14 @@ data PostTransactionData (n :: NetworkDiscriminant) = PostTransactionData
     { payments :: !(NonEmpty (AddressAmount (ApiT Address, Proxy n)))
     , passphrase :: !(ApiT (Passphrase "lenient"))
     , withdrawal :: !(Maybe ApiWithdrawalPostData)
-    , metadata :: !(Maybe (ApiT TxMetadata))
+    , metadata :: !(Maybe (ApiT Metadata))
     , timeToLive :: !(Maybe (Quantity "second" NominalDiffTime))
     } deriving (Eq, Generic, Show)
 
 data PostTransactionFeeData (n :: NetworkDiscriminant) = PostTransactionFeeData
     { payments :: (NonEmpty (AddressAmount (ApiT Address, Proxy n)))
     , withdrawal :: !(Maybe ApiWithdrawalPostData)
-    , metadata :: !(Maybe (ApiT TxMetadata))
+    , metadata :: !(Maybe (ApiT Metadata))
     , timeToLive :: !(Maybe (Quantity "second" NominalDiffTime))
     } deriving (Eq, Generic, Show)
 
@@ -765,12 +771,12 @@ data ApiTransaction (n :: NetworkDiscriminant) = ApiTransaction
     , outputs :: ![AddressAmount (ApiT Address, Proxy n)]
     , withdrawals :: ![ApiWithdrawal n]
     , status :: !(ApiT TxStatus)
-    , metadata :: !ApiTxMetadata
+    , metadata :: !ApiMetadata
     } deriving (Eq, Generic, Show)
       deriving anyclass NFData
 
-newtype ApiTxMetadata = ApiTxMetadata
-    { getApiTxMetadata :: Maybe (ApiT TxMetadata)
+newtype ApiMetadata = ApiMetadata
+    { getApiMetadata :: Maybe (ApiT Metadata)
     } deriving (Eq, Generic, Show)
       deriving anyclass NFData
 
@@ -1801,6 +1807,15 @@ instance
   where
     toJSON = genericToJSON defaultRecordTypeOptions
 
+instance FromJSON (ApiT Metadata) where
+    parseJSON = fmap (ApiT . MetaBlob)
+        . either (fail . displayError) pure
+        . metadataFromJson TxMetadataJsonDetailedSchema
+
+instance ToJSON (ApiT Metadata) where
+    toJSON (ApiT (MetaBlob md)) = metadataToJson TxMetadataJsonDetailedSchema md
+    --TO_DO
+
 instance FromJSON (ApiT TxMetadata) where
     parseJSON = fmap ApiT
         . either (fail . displayError) pure
@@ -1809,14 +1824,17 @@ instance FromJSON (ApiT TxMetadata) where
 instance ToJSON (ApiT TxMetadata) where
     toJSON = metadataToJson TxMetadataJsonDetailedSchema . getApiT
 
-instance FromJSON ApiTxMetadata where
-    parseJSON Aeson.Null = pure $ ApiTxMetadata Nothing
-    parseJSON v = ApiTxMetadata . Just <$> parseJSON v
-instance ToJSON ApiTxMetadata where
-    toJSON (ApiTxMetadata x) = case x of
+instance FromJSON ApiMetadata where
+    parseJSON Aeson.Null = pure $ ApiMetadata Nothing
+    parseJSON v = ApiMetadata . Just <$> parseJSON v
+    --TO_DO
+instance ToJSON ApiMetadata where
+    toJSON (ApiMetadata x) = case x of
         Nothing -> Aeson.Null
-        Just (ApiT md) | txMetadataIsNull md -> Aeson.Null
-        Just md -> toJSON md
+        Just (ApiT md) | metadataIsNull md -> Aeson.Null
+        Just (md@(ApiT (MetaBlob _))) -> toJSON md
+        --TO_DO
+        Just (ApiT (MetaScript _)) -> Aeson.Null
 
 instance (DecodeAddress n , PassphraseMaxLength s , PassphraseMinLength s) => FromJSON (ApiWalletMigrationPostData n s)
   where

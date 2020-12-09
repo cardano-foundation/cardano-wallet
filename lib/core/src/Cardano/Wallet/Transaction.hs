@@ -42,7 +42,7 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( SealedTx (..), Tx (..), TxMetadata )
+    ( Metadata, SealedTx (..), Tx (..), TxMetadata )
 import Data.ByteString
     ( ByteString )
 import Data.Quantity
@@ -64,7 +64,7 @@ data TransactionLayer k = TransactionLayer
             -- Key store
         -> SlotNo
             -- Transaction expiry (TTL) slot.
-        -> Maybe TxMetadata
+        -> Maybe Metadata
             -- User or application-defined metadata to embed in the transaction.
         -> CoinSelection
             -- A balanced coin selection where all change addresses have been

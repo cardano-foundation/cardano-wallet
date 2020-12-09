@@ -7,6 +7,8 @@
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE TypeApplications #-}
 
+{-# OPTIONS_GHC -fno-warn-orphans #-}
+
 -- |
 -- Copyright: © 2018-2020 IOHK
 -- License: Apache-2.0
@@ -28,6 +30,7 @@ module Cardano.Wallet.Primitive.Types.Tx
     , UnsignedTx (..)
     , TransactionInfo (..)
     , Direction (..)
+    , Metadata (..)
 
     -- * Functions
     , fromTransactionInfo
@@ -35,12 +38,14 @@ module Cardano.Wallet.Primitive.Types.Tx
     , isPending
     , toTxHistory
     , txIns
-    , txMetadataIsNull
+    , metadataIsNull
 
     ) where
 
 import Prelude
 
+import Cardano.Address.Script
+    ( Script )
 import Cardano.Api.Typed
     ( TxMetadata (..), TxMetadataValue (..) )
 import Cardano.Slotting.Slot
@@ -101,6 +106,7 @@ import Numeric.Natural
 
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
+import qualified Data.Text as T
 import qualified Data.Text.Lazy.Builder as Builder
 
 -- | Primitive @Tx@-type.
@@ -130,9 +136,9 @@ data Tx = Tx
         -- ^ Withdrawals (of funds from a registered reward account) embedded in
         -- a transaction. The order does not matter.
     , metadata
-        :: !(Maybe TxMetadata)
+        :: !(Maybe Metadata)
         -- ^ Semi-structured application-specific extension data stored in the
-        -- transaction on chain.
+        -- transaction on chain. Scripts are distinguished from the rest.
         --
         -- This is not to be confused with 'TxMeta', which is information about
         -- a transaction derived from the ledger.
@@ -150,7 +156,18 @@ instance Buildable Tx where
         <> blockListF' "inputs" build (fst <$> ins)
         <> blockListF' "outputs" build outs
         <> blockListF' "withdrawals" tupleF (Map.toList ws)
-        <> nameF "metadata" (maybe "" build md)
+        <> case md of
+               Just (MetaBlob b) -> nameF "metadata" (build b)
+               Just (MetaScript s) -> nameF "script" (build . T.pack $ show s)
+               Nothing -> mempty
+
+instance Ord Script where
+    _ `compare` _ = EQ
+
+data Metadata = MetaBlob TxMetadata | MetaScript Script
+    deriving (Show, Generic, Ord, Eq)
+
+instance NFData Metadata
 
 txIns :: Set Tx -> Set TxIn
 txIns = foldMap (Set.fromList . inputs)
@@ -319,7 +336,7 @@ data TransactionInfo = TransactionInfo
     -- ^ Number of slots since the transaction slot.
     , txInfoTime :: UTCTime
     -- ^ Creation time of the block including this transaction.
-    , txInfoMetadata :: !(Maybe TxMetadata)
+    , txInfoMetadata :: !(Maybe Metadata)
     -- ^ Application-specific extension data.
     } deriving (Generic, Show, Eq)
 
@@ -336,8 +353,9 @@ fromTransactionInfo info = Tx
     }
 
 -- | Test whether the given metadata map is empty.
-txMetadataIsNull :: TxMetadata -> Bool
-txMetadataIsNull (TxMetadata md) = Map.null md
+metadataIsNull :: Metadata -> Bool
+metadataIsNull (MetaBlob (TxMetadata md)) = Map.null md
+metadataIsNull (MetaScript _) = False
 
 -- | Drop time-specific information
 toTxHistory :: TransactionInfo -> (Tx, TxMeta)

@@ -177,6 +177,7 @@ import Cardano.Wallet.Api.Types
     , ApiEpochInfo (ApiEpochInfo)
     , ApiErrorCode (..)
     , ApiFee (..)
+    , ApiMetadata (..)
     , ApiMnemonicT (..)
     , ApiNetworkClock (..)
     , ApiNetworkInformation
@@ -191,7 +192,6 @@ import Cardano.Wallet.Api.Types
     , ApiTransaction (..)
     , ApiTxId (..)
     , ApiTxInput (..)
-    , ApiTxMetadata (..)
     , ApiUtxoStatistics (..)
     , ApiVerificationKey (..)
     , ApiWallet (..)
@@ -2004,7 +2004,7 @@ mkApiTransaction
     -> [TxOut]
     -> Map RewardAccount Coin
     -> (W.TxMeta, UTCTime)
-    -> Maybe W.TxMetadata
+    -> Maybe W.Metadata
     -> Lens' (ApiTransaction n) (Maybe ApiBlockReference)
     -> IO (ApiTransaction n)
 mkApiTransaction ti txid ins outs ws (meta, timestamp) txMeta setTimeReference = do
@@ -2033,7 +2033,7 @@ mkApiTransaction ti txid ins outs ws (meta, timestamp) txMeta setTimeReference =
         , outputs = toAddressAmount <$> outs
         , withdrawals = mkApiWithdrawal @n <$> Map.toList ws
         , status = ApiT (meta ^. #status)
-        , metadata = ApiTxMetadata $ ApiT <$> txMeta
+        , metadata = ApiMetadata $ ApiT <$> txMeta
         }
 
     toAddressAmount :: TxOut -> AddressAmount (ApiT Address, Proxy n)

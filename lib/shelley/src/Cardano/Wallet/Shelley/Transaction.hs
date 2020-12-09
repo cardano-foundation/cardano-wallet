@@ -78,7 +78,7 @@ import Cardano.Wallet.Primitive.Types.Coin
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( SealedTx (..), Tx (..), TxIn (..), TxMetadata, TxOut (..) )
+    ( Metadata(..), SealedTx (..), Tx (..), TxIn (..), TxMetadata, TxOut (..) )
 import Cardano.Wallet.Shelley.Compatibility
     ( AllegraEra
     , ShelleyEra
@@ -153,8 +153,10 @@ data TxPayload era = TxPayload
 emptyTxPayload :: TxPayload c
 emptyTxPayload = TxPayload Nothing mempty mempty
 
-stdTxPayload :: Maybe TxMetadata -> TxPayload c
-stdTxPayload md = TxPayload md mempty mempty
+stdTxPayload :: Maybe Metadata -> TxPayload c
+stdTxPayload (Just (MetaBlob md)) = TxPayload (Just md) mempty mempty
+stdTxPayload _ = TxPayload Nothing mempty mempty
+--TO_DO
 
 data TxWitnessTag
     = TxWitnessByronUTxO WalletStyle

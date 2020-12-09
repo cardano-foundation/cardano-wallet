@@ -44,7 +44,12 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( Direction (..), TxMetadata (..), TxMetadataValue (..), TxStatus (..) )
+    ( Direction (..)
+    , Metadata (..)
+    , TxMetadata (..)
+    , TxMetadataValue (..)
+    , TxStatus (..)
+    )
 import Control.Concurrent
     ( threadDelay )
 import Control.Monad
@@ -297,7 +302,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 between (feeMin + amt, feeMax + amt)
             , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
             , expectField (#status . #getApiT) (`shouldBe` Pending)
-            , expectField (#metadata . #getApiTxMetadata) (`shouldBe` Nothing)
+            , expectField (#metadata . #getApiMetadata) (`shouldBe` Nothing)
             ]
 
         ra <- request @ApiWallet ctx (Link.getWallet @'Shelley wa) Default Empty
@@ -745,7 +750,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         basePayload <- mkTxPayload ctx wb amt fixturePassphrase
 
         let txMeta = [json|{ "1": { "string": "hello" } }|]
-        let expected = TxMetadata $ Map.singleton 1 $ TxMetaText "hello"
+        let expected = MetaBlob $ TxMetadata $ Map.singleton 1 $ TxMetaText "hello"
         let payload = addTxMetadata txMeta basePayload
 
         ra <- request @(ApiTransaction n) ctx
@@ -756,7 +761,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             , expectResponseCode HTTP.status202
             , expectField (#status . #getApiT) (`shouldBe` Pending)
             , expectField
-                (#metadata . #getApiTxMetadata)
+                (#metadata . #getApiMetadata)
                 (`shouldBe` Just (ApiT expected))
             ]
 
@@ -769,7 +774,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 , expectListField 0 (#status . #getApiT) (`shouldBe` InLedger)
                 , expectListField 0 (#direction . #getApiT) (`shouldBe` Outgoing)
                 , expectListField 0
-                    (#metadata . #getApiTxMetadata)
+                    (#metadata . #getApiMetadata)
                     (`shouldBe` Just (ApiT expected))
                 ]
             -- on dst wallet
@@ -780,7 +785,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 , expectListField 0 (#status . #getApiT) (`shouldBe` InLedger)
                 , expectListField 0 (#direction . #getApiT) (`shouldBe` Incoming)
                 , expectListField 0
-                    (#metadata . #getApiTxMetadata)
+                    (#metadata . #getApiMetadata)
                     (`shouldBe` Just (ApiT expected))
                 ]
 
@@ -794,7 +799,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
                 , expectField (#status . #getApiT) (`shouldBe` InLedger)
                 , expectField
-                    (#metadata . #getApiTxMetadata)
+                    (#metadata . #getApiMetadata)
                     (`shouldBe` Just (ApiT expected))
                 ]
           -- on dst wallet
@@ -805,7 +810,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 , expectField (#direction . #getApiT) (`shouldBe` Incoming)
                 , expectField (#status . #getApiT) (`shouldBe` InLedger)
                 , expectField
-                    (#metadata . #getApiTxMetadata)
+                    (#metadata . #getApiMetadata)
                     (`shouldBe` Just (ApiT expected))
                 ]
 

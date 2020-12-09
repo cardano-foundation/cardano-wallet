@@ -150,11 +150,11 @@ import Cardano.Wallet.Api.Types
     , AllowedMnemonics
     , ApiAccountPublicKey
     , ApiByronWallet
+    , ApiMetadata (..)
     , ApiMnemonicT (..)
     , ApiPostRandomAddressData (..)
     , ApiT (..)
     , ApiTxId (ApiTxId)
-    , ApiTxMetadata (..)
     , ApiWallet
     , ByronWalletPostData (..)
     , ByronWalletStyle (..)
@@ -751,7 +751,7 @@ data TransactionCreateArgs t = TransactionCreateArgs
     { _port :: Port "Wallet"
     , _id :: WalletId
     , _payments :: NonEmpty Text
-    , _metadata :: ApiTxMetadata
+    , _metadata :: ApiMetadata
     , _timeToLive :: Maybe (Quantity "second" NominalDiffTime)
     }
 
@@ -774,7 +774,7 @@ cmdTransactionCreate isShelley mkTxClient mkWalletClient =
         <$> portOption
         <*> walletIdArgument
         <*> fmap NE.fromList (some paymentOption)
-        <*> whenShelley (ApiTxMetadata Nothing) metadataOption isShelley
+        <*> whenShelley (ApiMetadata Nothing) metadataOption isShelley
         <*> whenShelley Nothing timeToLiveOption isShelley
     exec (TransactionCreateArgs wPort wId wAddressAmounts md ttl) = do
         wPayments <- either (fail . getTextDecodingError) pure $
@@ -810,7 +810,7 @@ cmdTransactionFees isShelley mkTxClient mkWalletClient =
         <$> portOption
         <*> walletIdArgument
         <*> fmap NE.fromList (some paymentOption)
-        <*> whenShelley (ApiTxMetadata Nothing) metadataOption isShelley
+        <*> whenShelley (ApiMetadata Nothing) metadataOption isShelley
         <*> whenShelley Nothing timeToLiveOption isShelley
     exec (TransactionCreateArgs wPort wId wAddressAmounts md ttl) = do
         wPayments <- either (fail . getTextDecodingError) pure $
@@ -1429,17 +1429,17 @@ transactionSubmitPayloadArgument = argumentT $ mempty
 -- | [--metadata=JSON]
 --
 -- Note: we decode the JSON just so that we can validate more client-side.
-metadataOption :: Parser ApiTxMetadata
-metadataOption = option txMetadataReader $ mempty
+metadataOption :: Parser ApiMetadata
+metadataOption = option metadataReader $ mempty
     <> long "metadata"
     <> metavar "JSON"
-    <> value (ApiTxMetadata Nothing)
+    <> value (ApiMetadata Nothing)
     <> help ("Application-specific transaction metadata as a JSON object. "
              <> "The value must match the schema defined in the "
              <> "cardano-wallet OpenAPI specification.")
 
-txMetadataReader :: ReadM ApiTxMetadata
-txMetadataReader = eitherReader (Aeson.eitherDecode' . BL8.pack)
+metadataReader :: ReadM ApiMetadata
+metadataReader = eitherReader (Aeson.eitherDecode' . BL8.pack)
 
 -- | [--ttl=DURATION]
 timeToLiveOption :: Parser (Maybe (Quantity "second" NominalDiffTime))

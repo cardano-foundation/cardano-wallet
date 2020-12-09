@@ -27,7 +27,12 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.Primitive.Types
     ( SortOrder (..) )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( Direction (..), TxMetadata (..), TxMetadataValue (..), TxStatus (..) )
+    ( Direction (..)
+    , Metadata (..)
+    , TxMetadata (..)
+    , TxMetadataValue (..)
+    , TxStatus (..)
+    )
 import Control.Monad
     ( forM_, join )
 import Control.Monad.Catch
@@ -133,7 +138,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
                 (between (feeMin + amt, feeMax + amt))
             , expectCliField (#direction . #getApiT) (`shouldBe` Outgoing)
             , expectCliField (#status . #getApiT) (`shouldBe` Pending)
-            , expectCliField (#metadata . #getApiTxMetadata) (`shouldBe` Nothing)
+            , expectCliField (#metadata . #getApiMetadata) (`shouldBe` Nothing)
             ]
 
         -- verify balance on src wallet
@@ -313,7 +318,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
         (wSrc, wDest) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
         let amt = 10_000_000
         let md = Just "{ \"1\": { \"string\": \"hello\" } }"
-        let expected = Just $ ApiT $ TxMetadata $
+        let expected = Just $ ApiT $ MetaBlob $ TxMetadata $
                 Map.singleton 1 (TxMetaText "hello")
 
         args <- postTxArgs ctx wSrc wDest amt md Nothing
@@ -326,7 +331,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
                 (between (feeMin + amt, feeMax + amt))
             , expectCliField (#direction . #getApiT) (`shouldBe` Outgoing)
             , expectCliField (#status . #getApiT) (`shouldBe` Pending)
-            , expectCliField (#metadata . #getApiTxMetadata) (`shouldBe` expected)
+            , expectCliField (#metadata . #getApiMetadata) (`shouldBe` expected)
             ]
 
         eventually "metadata is confirmed in transaction list" $ do
@@ -336,7 +341,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
             code `shouldBe` ExitSuccess
             outJson <- expectValidJSON (Proxy @([ApiTransaction n])) out
             verify outJson
-                [ expectCliListField 0 (#metadata . #getApiTxMetadata) (`shouldBe` expected)
+                [ expectCliListField 0 (#metadata . #getApiMetadata) (`shouldBe` expected)
                 , expectCliListField 0 (#status . #getApiT) (`shouldBe` InLedger)
                 ]
 
