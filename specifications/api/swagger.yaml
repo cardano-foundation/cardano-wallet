@@ -1960,6 +1960,7 @@ x-parametersAddressId:  &parametersAddressId
 x-parametersRole: &parametersRole
   in: path
   name: role
+  required: true
   schema:
     type: string
     enum:
@@ -1971,6 +1972,7 @@ x-parametersRole: &parametersRole
 x-parametersDerivationSegment: &parametersDerivationSegment
   in: path
   name: index
+  required: true
   schema: *derivationSegment
 
 x-parametersStartDate: &parametersStartDate
