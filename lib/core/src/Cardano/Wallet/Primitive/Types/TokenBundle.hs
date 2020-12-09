@@ -9,8 +9,8 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE UndecidableInstances #-}
 
--- | Provides the 'TokenBundle' type, which represents a bundle of named
---   non-zero token quantities scoped by token policy.
+-- | Provides the 'TokenBundle' type, which combines a 'Coin' (lovelace) value
+--   with a map of named token quantities, scoped by token policy.
 --
 -- This module is meant to be imported qualified. For example:
 --
