@@ -1,15 +1,15 @@
 {
-    "seed": 7198365694500283627,
+    "seed": 6242820687609615706,
     "samples": [
         "pending",
+        "pending",
+        "expired",
+        "pending",
+        "expired",
         "in_ledger",
         "pending",
-        "pending",
-        "pending",
+        "expired",
         "in_ledger",
-        "in_ledger",
-        "pending",
-        "pending",
-        "pending"
+        "in_ledger"
     ]
 }
