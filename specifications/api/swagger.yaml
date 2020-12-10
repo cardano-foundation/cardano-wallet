@@ -1199,7 +1199,7 @@ components:
         - blockchain_start_time
         - slot_length
         - epoch_length
-        - epoch_stability
+        - security_parameter
         - active_slot_coefficient
         - decentralization_level
         - desired_pool_number
@@ -1209,7 +1209,7 @@ components:
         blockchain_start_time: *date
         slot_length: *numberOfSeconds
         epoch_length: *numberOfSlots
-        epoch_stability: *numberOfBlocks
+        security_parameter: *numberOfBlocks
         active_slot_coefficient: *percentage
         decentralization_level: *percentage
         desired_pool_number: *stakePoolsNumber

@@ -71,6 +71,8 @@ Wallet
     walName                     Text                      sql=name
     walPassphraseLastUpdatedAt  UTCTime Maybe             sql=passphrase_last_updated_at
     walPassphraseScheme         W.PassphraseScheme Maybe  sql=passphrase_scheme
+    walGenesisHash              BlockId                   sql=genesis_hash
+    walGenesisStart             UTCTime                   sql=genesis_start
 
     Primary walId
     deriving Show Generic
@@ -158,14 +160,6 @@ Checkpoint
     checkpointHeaderHash        BlockId      sql=header_hash
     checkpointParentHash        BlockId      sql=parent_header_hash
     checkpointBlockHeight       Word32       sql=block_height
-    checkpointGenesisHash       BlockId      sql=genesis_hash
-    checkpointGenesisStart      UTCTime      sql=genesis_start
-    checkpointFeePolicyUnused   Text         sql=fee_policy
-    checkpointSlotLengthUnused  Word64       sql=slot_length
-    checkpointEpochLengthUnused Word32       sql=epoch_length
-    checkpointTxMaxSizeUnused   Word16       sql=tx_max_size
-    checkpointEpochStability    Word32       sql=epoch_stability
-    checkpointActiveSlotCoeffUnused Double       sql=active_slot_coeff
 
     Primary checkpointWalletId checkpointSlot
     Foreign Wallet checkpoint checkpointWalletId ! ON DELETE CASCADE
@@ -179,6 +173,7 @@ ProtocolParameters
     protocolParametersDesiredNumberOfPools  Word16          sql=desired_pool_number
     protocolParametersMinimumUtxoValue      W.Coin          sql=minimum_utxo_value
     protocolParametersHardforkEpoch         W.EpochNo Maybe sql=hardfork_epoch
+
     Primary protocolParametersWalletId
     Foreign Wallet fk_wallet_protocol_parameters protocolParametersWalletId ! ON DELETE CASCADE
     deriving Show Generic

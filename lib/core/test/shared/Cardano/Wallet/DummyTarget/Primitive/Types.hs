@@ -79,7 +79,6 @@ dummyGenesisParameters :: GenesisParameters
 dummyGenesisParameters = GenesisParameters
     { getGenesisBlockHash = genesisHash
     , getGenesisBlockDate = StartTime $ posixSecondsToUTCTime 0
-    , getEpochStability = Quantity 2160
     }
 
 dummySlottingParameters :: SlottingParameters
@@ -87,6 +86,7 @@ dummySlottingParameters = SlottingParameters
     { getSlotLength = SlotLength 1
     , getEpochLength = EpochLength 21600
     , getActiveSlotCoefficient = ActiveSlotCoefficient 1
+    , getSecurityParameter = Quantity 2160
     }
 
 dummyTimeInterpreter :: Monad m => TimeInterpreter m

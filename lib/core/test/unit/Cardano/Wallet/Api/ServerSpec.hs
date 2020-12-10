@@ -191,7 +191,8 @@ spec = describe "API Server" $ do
                     (Hash "header hash")
                     (Hash "prevHeaderHash")
         , watchNodeTip = error "todo"
-        , getProtocolParameters = error "getProtocolParameters: not implemented"
+        , currentProtocolParameters = error "currentProtocolParameters: not implemented"
+        , currentSlottingParameters = error "currentSlottingParameters: not implemented"
         , postTx = error "postTx: not implemented"
         , stakeDistribution = error "stakeDistribution: not implemented"
         , getAccountBalance = error "getAccountBalance: not implemented"

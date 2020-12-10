@@ -274,7 +274,6 @@ import Cardano.Wallet.Primitive.Model
     ( Wallet
     , applyBlocks
     , availableUTxO
-    , blockchainParameters
     , currentTip
     , getState
     , initWallet
@@ -309,6 +308,7 @@ import Cardano.Wallet.Primitive.Types
     , ProtocolParameters (..)
     , Range (..)
     , Signature (..)
+    , SlottingParameters (..)
     , SortOrder (..)
     , WalletDelegation (..)
     , WalletDelegationStatus (..)
@@ -595,7 +595,7 @@ createWallet
     -> s
     -> ExceptT ErrWalletAlreadyExists IO WalletId
 createWallet ctx wid wname s = db & \DBLayer{..} -> do
-    let (hist, cp) = initWallet block0 gp s
+    let (hist, cp) = initWallet block0 s
     now <- lift getCurrentTime
     let meta = WalletMetadata
             { name = wname
@@ -604,7 +604,7 @@ createWallet ctx wid wname s = db & \DBLayer{..} -> do
             , delegation = WalletDelegation NotDelegating []
             }
     mapExceptT atomically $
-        initializeWallet (PrimaryKey wid) cp meta hist pp $> wid
+        initializeWallet (PrimaryKey wid) cp meta hist gp pp $> wid
   where
     db = ctx ^. dbLayer @s @k
     (block0, NetworkParameters gp _sp pp, _) = ctx ^. genesisData
@@ -631,7 +631,7 @@ createIcarusWallet
 createIcarusWallet ctx wid wname credentials = db & \DBLayer{..} -> do
     let s = mkSeqStateFromRootXPrv @n credentials purposeBIP44 $
             mkUnboundedAddressPoolGap 10000
-    let (hist, cp) = initWallet block0 gp s
+    let (hist, cp) = initWallet block0 s
     let addrs = map (view #address) . concatMap (view #outputs . fst) $ hist
     let g  = defaultAddressPoolGap
     let s' = Seq.SeqState
@@ -650,7 +650,7 @@ createIcarusWallet ctx wid wname credentials = db & \DBLayer{..} -> do
             }
     let pk = PrimaryKey wid
     mapExceptT atomically $
-        initializeWallet pk (updateState s' cp) meta hist pp $> wid
+        initializeWallet pk (updateState s' cp) meta hist gp pp $> wid
   where
     db = ctx ^. dbLayer @s @k
     (block0, NetworkParameters gp _sp pp, _) = ctx ^. genesisData
@@ -663,12 +663,13 @@ checkWalletIntegrity
     -> GenesisParameters
     -> ExceptT ErrCheckWalletIntegrity IO ()
 checkWalletIntegrity ctx wid gp = db & \DBLayer{..} -> mapExceptT atomically $ do
-    cp <- withExceptT ErrCheckWalletIntegrityNoSuchWallet $ withNoSuchWallet wid $
-        readCheckpoint (PrimaryKey wid)
-    whenDifferentGenesis (blockchainParameters cp) gp $ throwE $
+    gp' <- withExceptT ErrCheckWalletIntegrityNoSuchWallet $ withNoSuchWallet wid $
+        readGenesisParameters (PrimaryKey wid)
+
+    whenDifferentGenesis gp gp $ throwE $
         ErrCheckIntegrityDifferentGenesis
             (getGenesisBlockHash gp)
-            (getGenesisBlockHash (blockchainParameters cp))
+            (getGenesisBlockHash gp')
   where
     db = ctx ^. dbLayer @s @k
     whenDifferentGenesis bp1 bp2 = when $
@@ -835,10 +836,10 @@ restoreBlocks
     :: forall ctx s k.
         ( HasLogger WalletLog ctx
         , HasDBLayer s k ctx
+        , HasNetworkLayer ctx
         , HasGenesisData ctx
         , IsOurs s Address
         , IsOurs s RewardAccount
-        , HasNetworkLayer ctx
         )
     => ctx
     -> WalletId
@@ -848,7 +849,7 @@ restoreBlocks
 restoreBlocks ctx wid blocks nodeTip = db & \DBLayer{..} -> mapExceptT atomically $ do
     cp   <- withNoSuchWallet wid (readCheckpoint $ PrimaryKey wid)
     meta <- withNoSuchWallet wid (readWalletMeta $ PrimaryKey wid)
-    let gp = blockchainParameters cp
+    sp   <- liftIO $ currentSlottingParameters nl
 
     unless (cp `isParentOf` NE.head blocks) $ fail $ T.unpack $ T.unwords
         [ "restoreBlocks: given chain isn't a valid continuation."
@@ -866,7 +867,7 @@ restoreBlocks ctx wid blocks nodeTip = db & \DBLayer{..} -> mapExceptT atomicall
             , cert <- certs
             ]
     let txs = fold $ view #transactions <$> filteredBlocks
-    let k = gp ^. #getEpochStability
+    let epochStability = (3*) <$> getSecurityParameter sp
     let localTip = currentTip $ NE.last cps
 
     putTxHistory (PrimaryKey wid) txs
@@ -890,7 +891,7 @@ restoreBlocks ctx wid blocks nodeTip = db & \DBLayer{..} -> mapExceptT atomicall
                 -- Rollback may still occur during this short period, but
                 -- rolling back from a few hundred blocks is relatively fast
                 -- anyway.
-                cfg = (defaultSparseCheckpointsConfig k) { edgeSize = 0 }
+                cfg = (defaultSparseCheckpointsConfig epochStability) { edgeSize = 0 }
 
     forM_ (NE.init cps) $ \cp' -> do
         let (Quantity h) = currentTip cp' ^. #blockHeight
@@ -901,7 +902,7 @@ restoreBlocks ctx wid blocks nodeTip = db & \DBLayer{..} -> mapExceptT atomicall
     liftIO $ logCheckpoint (NE.last cps)
     putCheckpoint (PrimaryKey wid) (NE.last cps)
 
-    prune (PrimaryKey wid)
+    prune (PrimaryKey wid) epochStability
 
     liftIO $ do
         progress <- walletSyncProgress @ctx @s ctx (NE.last cps)
@@ -912,6 +913,7 @@ restoreBlocks ctx wid blocks nodeTip = db & \DBLayer{..} -> mapExceptT atomicall
         traceWith tr $ MsgBlocks blocks
         traceWith tr $ MsgDiscoveredTxsContent txs
   where
+    nl = ctx ^. networkLayer
     db = ctx ^. dbLayer @s @k
     tr = ctx ^. logger @WalletLog
 

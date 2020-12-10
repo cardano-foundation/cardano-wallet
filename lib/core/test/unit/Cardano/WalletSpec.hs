@@ -757,8 +757,10 @@ dummyNetworkLayer = NetworkLayer
         pure dummyTip
     , currentNodeEra =
         pure (AnyCardanoEra AllegraEra)
-    , getProtocolParameters =
-        error "dummyNetworkLayer: getProtocolParameters not implemented"
+    , currentProtocolParameters =
+        error "dummyNetworkLayer: currentProtocolParameters not implemented"
+    , currentSlottingParameters =
+        error "dummyNetworkLayer: currentSlottingParameters not implemented"
     , postTx =
         error "dummyNetworkLayer: postTx not implemented"
     , stakeDistribution =

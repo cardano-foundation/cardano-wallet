@@ -84,6 +84,7 @@ import Cardano.Wallet.DB.Model
     , mPutWalletMeta
     , mReadCheckpoint
     , mReadDelegationRewardBalance
+    , mReadGenesisParameters
     , mReadPrivateKey
     , mReadProtocolParameters
     , mReadTxHistory
@@ -94,7 +95,7 @@ import Cardano.Wallet.DB.Model
     , mUpdatePendingTxForExpiry
     )
 import Cardano.Wallet.DummyTarget.Primitive.Types
-    ( dummyTimeInterpreter )
+    ( dummyGenesisParameters, dummyTimeInterpreter )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..), NetworkDiscriminant (..), PersistPrivateKey (..), Role (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
@@ -113,7 +114,7 @@ import Cardano.Wallet.Primitive.Types
     , DelegationCertificate
     , EpochNo (..)
     , FeePolicy
-    , GenesisParameters
+    , GenesisParameters (..)
     , PoolId (..)
     , ProtocolParameters (..)
     , Range (..)
@@ -304,7 +305,7 @@ instance MockPrivKey (ByronKey 'RootK) where
 
 data Cmd s wid
     = CleanDB
-    | CreateWallet MWid (Wallet s) WalletMetadata TxHistory ProtocolParameters
+    | CreateWallet MWid (Wallet s) WalletMetadata TxHistory GenesisParameters ProtocolParameters
     | RemoveWallet wid
     | ListWallets
     | PutCheckpoint wid (Wallet s)
@@ -322,6 +323,7 @@ data Cmd s wid
     | ReadPrivateKey wid
     | PutProtocolParameters wid ProtocolParameters
     | ReadProtocolParameters wid
+    | ReadGenesisParameters wid
     | RollbackTo wid SlotNo
     | RemovePendingTx wid (Hash "Tx")
     | UpdatePendingTxForExpiry wid SlotNo
@@ -340,6 +342,7 @@ data Success s wid
     | TxHistory [TransactionInfo]
     | PrivateKey (Maybe MPrivKey)
     | ProtocolParams (Maybe ProtocolParameters)
+    | GenesisParams (Maybe GenesisParameters)
     | BlockHeaders [BlockHeader]
     | Point SlotNo
     | DelegationRewardBalance (Quantity "lovelace" Word64)
@@ -368,9 +371,9 @@ runMock :: Cmd s MWid -> Mock s -> (Resp s MWid, Mock s)
 runMock = \case
     CleanDB ->
         first (Resp . fmap Unit) . mCleanDB
-    CreateWallet wid wal meta txs pp ->
+    CreateWallet wid wal meta txs gp pp ->
         first (Resp . fmap (const (NewWallet wid)))
-            . mInitializeWallet wid wal meta txs pp
+            . mInitializeWallet wid wal meta txs gp pp
     RemoveWallet wid ->
         first (Resp . fmap Unit) . mRemoveWallet wid
     ListWallets ->
@@ -402,6 +405,8 @@ runMock = \case
         first (Resp . fmap Unit) . mPutProtocolParameters wid pp
     ReadProtocolParameters wid ->
         first (Resp . fmap ProtocolParams) . mReadProtocolParameters wid
+    ReadGenesisParameters wid ->
+        first (Resp . fmap GenesisParams) . mReadGenesisParameters wid
     PutDelegationRewardBalance wid amt ->
         first (Resp . fmap Unit) . mPutDelegationRewardBalance wid amt
     ReadDelegationRewardBalance wid ->
@@ -437,10 +442,10 @@ runIO db@DBLayer{..} = fmap Resp . go
     go = \case
         CleanDB -> do
             Right . Unit <$> cleanDB db
-        CreateWallet wid wal meta txs pp ->
+        CreateWallet wid wal meta txs gp pp ->
             catchWalletAlreadyExists (const (NewWallet (unMockWid wid))) $
             mapExceptT atomically $
-            initializeWallet (widPK wid) wal meta txs pp
+            initializeWallet (widPK wid) wal meta txs gp pp
         RemoveWallet wid -> catchNoSuchWallet Unit $
             mapExceptT atomically $ removeWallet (PrimaryKey wid)
         ListWallets -> Right . WalletIds . fmap unPrimaryKey <$>
@@ -475,6 +480,8 @@ runIO db@DBLayer{..} = fmap Resp . go
             mapExceptT atomically $ putProtocolParameters (PrimaryKey wid) pp
         ReadProtocolParameters wid -> Right . ProtocolParams <$>
             atomically (readProtocolParameters $ PrimaryKey wid)
+        ReadGenesisParameters wid -> Right . GenesisParams <$>
+            atomically (readGenesisParameters $ PrimaryKey wid)
         PutDelegationRewardBalance wid amt -> catchNoSuchWallet Unit $
             mapExceptT atomically $ putDelegationRewardBalance (PrimaryKey wid) amt
         ReadDelegationRewardBalance wid -> Right . DelegationRewardBalance <$>
@@ -611,6 +618,7 @@ generatorWithoutId =
             <*> (getInitialCheckpoint <$> arbitrary)
             <*> arbitrary
             <*> fmap unGenTxHistory arbitrary
+            <*> pure dummyGenesisParameters
             <*> arbitrary
     ]
   where
@@ -659,6 +667,8 @@ generatorWithWid wids =
         $ ReadPrivateKey <$> genId
     , declareGenerator "RollbackTo" 1
         $ RollbackTo <$> genId <*> arbitrary
+    , declareGenerator "ReadGenesisParameters" 1
+        $ ReadGenesisParameters <$> genId
     ]
   where
     genId :: Gen (Reference WalletId r)
@@ -694,8 +704,8 @@ shrinker (At cmd) = case cmd of
         [ At $ PutTxHistory wid h'
         | h' <- map unGenTxHistory . shrink . GenTxHistory $ h
         ]
-    CreateWallet wid wal met txs pp ->
-        [ At $ CreateWallet wid wal' met' (unGenTxHistory txs') pp'
+    CreateWallet wid wal met txs gp pp ->
+        [ At $ CreateWallet wid wal' met' (unGenTxHistory txs') gp pp'
         | (txs', wal', met', pp') <- shrink (GenTxHistory txs, wal, met, pp)
         ]
     PutWalletMeta wid met ->
@@ -792,6 +802,7 @@ instance CommandNames (At (Cmd s)) where
     cmdName (At ReadPrivateKey{}) = "ReadPrivateKey"
     cmdName (At PutProtocolParameters{}) = "PutProtocolParameters"
     cmdName (At ReadProtocolParameters{}) = "ReadProtocolParameters"
+    cmdName (At ReadGenesisParameters{}) = "ReadGenesisParameters"
     cmdName (At PutDelegationRewardBalance{}) = "PutDelegationRewardBalance"
     cmdName (At ReadDelegationRewardBalance{}) = "ReadDelegationRewardBalance"
     cmdName (At RollbackTo{}) = "RollbackTo"
@@ -806,7 +817,7 @@ instance CommandNames (At (Cmd s)) where
         , "PutTxHistory", "ReadTxHistory"
         , "RemovePendingTx", "UpdatePendingTxForExpiry"
         , "PutPrivateKey", "ReadPrivateKey"
-        , "PutProtocolParameters", "ReadProtocolParameters"
+        , "PutProtocolParameters", "ReadProtocolParameters", "ReadGenesisParameters"
         , "PutDelegationRewardBalance", "ReadDelegationRewardBalance"
         ]
 
@@ -1037,7 +1048,7 @@ tag = Foldl.fold $ catMaybes <$> sequenceA
         update :: Set MWid -> Event s Symbolic -> Set MWid
         update created ev =
             case (cmd ev, mockResp ev) of
-                (At (CreateWallet wid _ _ _ _), Resp (Right _)) ->
+                (At (CreateWallet wid _ _ _ _ _), Resp (Right _)) ->
                     Set.insert wid created
                 _otherwise ->
                     created
@@ -1052,7 +1063,7 @@ tag = Foldl.fold $ catMaybes <$> sequenceA
       where
         match :: Event s Symbolic -> Maybe MWid
         match ev = case (cmd ev, mockResp ev) of
-            (At (CreateWallet wid _ _ _ _), Resp _) -> Just wid
+            (At (CreateWallet wid _ _ _ _ _), Resp _) -> Just wid
             _otherwise -> Nothing
 
     removeWalletTwice :: Fold (Event s Symbolic) (Maybe Tag)
@@ -1108,7 +1119,7 @@ tag = Foldl.fold $ catMaybes <$> sequenceA
         update :: Map MWid Bool -> Event s Symbolic -> Map MWid Bool
         update created ev =
             case (cmd ev, mockResp ev) of
-                (At (CreateWallet wid _ _ _ _), Resp (Right _)) ->
+                (At (CreateWallet wid _ _ _ _ _), Resp (Right _)) ->
                     Map.insert wid False created
                 (At ListWallets, Resp (Right (WalletIds wids))) ->
                     foldr (Map.adjust (const True)) created wids

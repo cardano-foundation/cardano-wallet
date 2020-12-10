@@ -702,7 +702,7 @@ data ApiNetworkParameters = ApiNetworkParameters
     , blockchainStartTime :: !(ApiT StartTime)
     , slotLength :: !(Quantity "second" NominalDiffTime)
     , epochLength :: !(Quantity "slot" Word32)
-    , epochStability :: !(Quantity "block" Word32)
+    , securityParam :: !(Quantity "block" Word32)
     , activeSlotCoefficient :: !(Quantity "percent" Double)
     , decentralizationLevel :: !(Quantity "percent" Percentage)
     , desiredPoolNumber :: !Word16
@@ -720,7 +720,7 @@ toApiNetworkParameters (NetworkParameters gp sp pp) = (np, view #hardforkEpochNo
         , blockchainStartTime = ApiT $ getGenesisBlockDate gp
         , slotLength = Quantity $ unSlotLength $ getSlotLength sp
         , epochLength = Quantity $ unEpochLength $ getEpochLength sp
-        , epochStability = getEpochStability gp
+        , securityParam = getSecurityParameter sp
         , activeSlotCoefficient = Quantity
             $ (*100)
             $ unActiveSlotCoefficient

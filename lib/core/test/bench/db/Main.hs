@@ -275,7 +275,6 @@ mkCheckpoints numCheckpoints utxoSize =
             (Hash $ label "headerHash" i)
         )
         initDummySeqState
-        dummyGenesisParameters
 
     utxo i = Map.fromList $ zip
         (map fst $ mkInputs i utxoSize)
@@ -324,7 +323,7 @@ bgroupWriteSeqState db = bgroup "SeqState"
         cps :: [WalletBench]
         cps =
             [ let extPool = mkPool a i
-              in snd $ initWallet (withMovingSlot i block0) dummyGenesisParameters $
+              in snd $ initWallet (withMovingSlot i block0) $
                 SeqState
                     (mkPool a i)
                     extPool
@@ -372,7 +371,7 @@ bgroupWriteRndState db = bgroup "RndState"
             pure cps
         cps :: [Wallet (RndState 'Mainnet)]
         cps =
-            [ snd $ initWallet (withMovingSlot i block0) dummyGenesisParameters $
+            [ snd $ initWallet (withMovingSlot i block0) $
                 RndState
                     { hdPassphrase = dummyPassphrase
                     , accountIndex = minBound
@@ -613,6 +612,7 @@ setupDB tr = do
         { getSlotLength = SlotLength 1
         , getEpochLength = EpochLength 21600
         , getActiveSlotCoefficient = ActiveSlotCoefficient 1
+        , getSecurityParameter = Quantity 2160
         })
 
 defaultFieldValues :: DefaultFieldValues
@@ -653,6 +653,7 @@ walletFixture db@DBLayer{..} = do
         testCp
         testMetadata
         mempty
+        dummyGenesisParameters
         dummyProtocolParameters
 
 walletFixtureByron :: DBLayerBenchByron -> IO ()
@@ -663,6 +664,7 @@ walletFixtureByron db@DBLayer{..} = do
         testCpByron
         testMetadata
         mempty
+        dummyGenesisParameters
         dummyProtocolParameters
 
 ----------------------------------------------------------------------------
@@ -755,10 +757,10 @@ instance NFData SqliteContext where
     rnf _ = ()
 
 testCp :: WalletBench
-testCp = snd $ initWallet block0 dummyGenesisParameters initDummySeqState
+testCp = snd $ initWallet block0 initDummySeqState
 
 testCpByron :: WalletBenchByron
-testCpByron = snd $ initWallet block0 dummyGenesisParameters initDummyRndState
+testCpByron = snd $ initWallet block0 initDummyRndState
 
 {-# NOINLINE initDummySeqState #-}
 initDummySeqState :: SeqState 'Mainnet ShelleyKey
