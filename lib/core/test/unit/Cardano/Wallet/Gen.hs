@@ -23,12 +23,16 @@ module Cardano.Wallet.Gen
     , genSmallMetadata
     , genTxMetadata
     , shrinkTxMetadata
+    , genScript
+    , genKeyHash
     ) where
 
 import Prelude
 
 import Cardano.Address.Derivation
     ( xpubFromBytes )
+import Cardano.Address.Script
+    ( KeyHash (..), Script (..) )
 import Cardano.Api.Typed
     ( TxMetadata (..)
     , TxMetadataJsonSchema (..)
@@ -74,6 +78,7 @@ import GHC.TypeLits
 import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
+    , Positive (..)
     , PrintableString (..)
     , choose
     , elements
@@ -83,6 +88,7 @@ import Test.QuickCheck
     , resize
     , scale
     , shrinkList
+    , sized
     , suchThat
     , vector
     , vectorOf
@@ -223,15 +229,29 @@ shrinkText t
 guardText :: Text -> Bool
 guardText t = not ("0x" `T.isPrefixOf` t)
 
+genKeyHash :: Gen KeyHash
+genKeyHash = KeyHash . BS.pack <$> vectorOf 28 arbitrary
+
+genScript :: Gen Script
+genScript = Test.QuickCheck.scale (`div` 3) $ sized scriptTree
+    where
+        scriptTree 0 = RequireSignatureOf <$> genKeyHash
+        scriptTree n = do
+            Positive m <- arbitrary
+            let n' = n `div` (m + 1)
+            scripts <- vectorOf m (scriptTree n')
+            atLeast <- choose (1, fromIntegral m)
+            elements
+                [ RequireAllOf scripts
+                , RequireAnyOf scripts
+                , RequireSomeOf atLeast scripts
+                ]
+
 genMetadata :: Gen Metadata
-genMetadata = do
-    let (maxBreadth, maxDepth) = (3, 3)
-    d <- scale (`mod` maxBreadth) $ listOf1 (sizedMetadataValue maxDepth)
-    i <- vectorOf @Word (length d) arbitrary
-    let json = toJSON $ HM.fromList $ zip i d
-    case metadataFromJson TxMetadataJsonNoSchema json of
-        Left e -> fail $ show e <> ": " <> show (Aeson.encode json)
-        Right metadata -> pure $ MetaBlob metadata
+genMetadata =
+    oneof [ MetaBlob <$> genTxMetadata
+          , MetaScript <$> genScript
+          ]
 
 genTxMetadata :: Gen TxMetadata
 genTxMetadata = do

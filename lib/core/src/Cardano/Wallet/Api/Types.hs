@@ -1808,13 +1808,20 @@ instance
     toJSON = genericToJSON defaultRecordTypeOptions
 
 instance FromJSON (ApiT Metadata) where
-    parseJSON = fmap (ApiT . MetaBlob)
-        . either (fail . displayError) pure
-        . metadataFromJson TxMetadataJsonDetailedSchema
+    parseJSON v =
+        parseScript v <|> parseMetaData v
+      where
+        parseScript val = do
+            script' <- parseJSON val :: Aeson.Parser Script
+            pure $ ApiT $ MetaScript script'
+        parseMetaData =
+            fmap (ApiT . MetaBlob)
+            . either (fail . displayError) pure
+            . metadataFromJson TxMetadataJsonDetailedSchema
 
 instance ToJSON (ApiT Metadata) where
     toJSON (ApiT (MetaBlob md)) = metadataToJson TxMetadataJsonDetailedSchema md
-    --TO_DO
+    toJSON (ApiT (MetaScript s)) = toJSON s
 
 instance FromJSON (ApiT TxMetadata) where
     parseJSON = fmap ApiT
@@ -1827,14 +1834,12 @@ instance ToJSON (ApiT TxMetadata) where
 instance FromJSON ApiMetadata where
     parseJSON Aeson.Null = pure $ ApiMetadata Nothing
     parseJSON v = ApiMetadata . Just <$> parseJSON v
-    --TO_DO
 instance ToJSON ApiMetadata where
     toJSON (ApiMetadata x) = case x of
         Nothing -> Aeson.Null
         Just (ApiT md) | metadataIsNull md -> Aeson.Null
         Just (md@(ApiT (MetaBlob _))) -> toJSON md
-        --TO_DO
-        Just (ApiT (MetaScript _)) -> Aeson.Null
+        Just (s@(ApiT (MetaScript _))) -> toJSON s
 
 instance (DecodeAddress n , PassphraseMaxLength s , PassphraseMinLength s) => FromJSON (ApiWalletMigrationPostData n s)
   where

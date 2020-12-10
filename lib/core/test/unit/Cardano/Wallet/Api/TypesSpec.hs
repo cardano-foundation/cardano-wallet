@@ -123,9 +123,11 @@ import Cardano.Wallet.Api.Types
     , WalletPutPassphraseData (..)
     )
 import Cardano.Wallet.Gen
-    ( genMetadata
+    ( genKeyHash
+    , genMetadata
     , genMnemonic
     , genPercentage
+    , genScript
     , genTxMetadata
     , shrinkMetadata
     , shrinkPercentage
@@ -283,7 +285,6 @@ import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
     , InfiniteList (..)
-    , Positive (..)
     , applyArbitrary2
     , applyArbitrary4
     , arbitraryBoundedEnum
@@ -297,7 +298,6 @@ import Test.QuickCheck
     , property
     , scale
     , shrinkIntegral
-    , sized
     , vector
     , vectorOf
     , (.&&.)
@@ -1035,23 +1035,11 @@ instance Arbitrary ApiEpochInfo where
     shrink _ = []
 
 instance Arbitrary Script where
-    arbitrary = Test.QuickCheck.scale (`div` 3) $ sized scriptTree
-      where
-        scriptTree 0 = RequireSignatureOf <$> arbitrary
-        scriptTree n = do
-            Positive m <- arbitrary
-            let n' = n `div` (m + 1)
-            scripts <- vectorOf m (scriptTree n')
-            atLeast <- choose (1, fromIntegral m)
-            elements
-                [ RequireAllOf scripts
-                , RequireAnyOf scripts
-                , RequireSomeOf atLeast scripts
-                ]
+    arbitrary = genScript
     shrink = genericShrink
 
 instance Arbitrary KeyHash where
-    arbitrary = KeyHash . BS.pack <$> vectorOf 28 arbitrary
+    arbitrary = genKeyHash
 
 instance Arbitrary ApiCredential where
     arbitrary = do
