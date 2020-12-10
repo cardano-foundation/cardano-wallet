@@ -37,6 +37,7 @@ import Test.QuickCheck.Classes
 import Test.Utils.Laws
     ( testLawsMany )
 
+{- HLINT ignore "Avoid restricted qualification" -}
 import qualified Data.List.NonEmpty as NonEmptyList
 import qualified Data.Map.NonEmpty.Strict.Internal as NonEmptyMap
 import qualified Data.Map.Strict as Map

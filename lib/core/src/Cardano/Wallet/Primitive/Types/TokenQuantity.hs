@@ -1,5 +1,4 @@
 {-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE TypeApplications #-}
 
@@ -42,7 +41,7 @@ import GHC.Generics
 import Quiet
     ( Quiet (..) )
 
-import qualified Prelude as Prelude
+import qualified Prelude
 
 --------------------------------------------------------------------------------
 -- Type

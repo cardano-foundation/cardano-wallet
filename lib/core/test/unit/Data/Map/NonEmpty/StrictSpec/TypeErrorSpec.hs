@@ -20,7 +20,7 @@ import Test.ShouldNotTypecheck
 spec :: Spec
 spec = describe "Strict non-empty map type error tests" $
 
-    it "Default data constructor is not exported" $
+    it "Default data constructor is not exported"
         testDefaultDataConstructorNotExported
 
 -- Test that the default data constructor for 'NonEmptyMap' is not exported.

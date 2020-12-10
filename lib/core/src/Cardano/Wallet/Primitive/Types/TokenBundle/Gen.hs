@@ -1,5 +1,3 @@
-{-# LANGUAGE NamedFieldPuns #-}
-
 module Cardano.Wallet.Primitive.Types.TokenBundle.Gen
     ( genTokenBundleSmallRange
     , shrinkTokenBundleSmallRange

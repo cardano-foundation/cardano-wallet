@@ -1,6 +1,5 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -276,7 +275,7 @@ instance ToJSON (Flat TokenMap) where
 
 instance FromJSON (Flat TokenMap) where
     parseJSON =
-        fmap (Flat . fromFlatList) . sequence . fmap parseTuple <=< parseJSON
+        fmap (Flat . fromFlatList) . mapM parseTuple <=< parseJSON
       where
         parseTuple :: FlatAssetQuantity -> Parser (AssetId, TokenQuantity)
         parseTuple (FlatAssetQuantity p t q) = do
