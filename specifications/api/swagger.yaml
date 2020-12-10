@@ -1347,6 +1347,11 @@ components:
       properties:
         id: *transactionId
 
+    ApiMetadata: &ApiMetadata
+      oneOf:
+        - <<: *script
+        - <<: *transactionMetadata
+
     ApiTransaction: &ApiTransaction
       type: object
       required:
@@ -1369,7 +1374,7 @@ components:
         outputs: *transactionOutputs
         withdrawals: *transactionWithdrawals
         status: *transactionStatus
-        metadata: *transactionMetadata
+        metadata: *ApiMetadata
 
     ApiWalletDelegationNext: &ApiWalletDelegationNext
       type: object
@@ -1792,7 +1797,7 @@ components:
           description: The wallet's master passphrase.
         payments: *transactionOutputs
         withdrawal: *transactionWithdrawalRequestSelf
-        metadata: *transactionMetadata
+        metadata: *ApiMetadata
         time_to_live: *transactionTTL
 
     ApiPostRedemptionData: &ApiPostRedemptionData
@@ -1822,7 +1827,7 @@ components:
       properties:
         payments: *transactionOutputs
         withdrawal: *transactionWithdrawalRequestSelf
-        metadata: *transactionMetadata
+        metadata: *ApiMetadata
         time_to_live: *transactionTTL
 
     ApiPostRedemptionFeeData: &ApiPostRedemptionFeeData

@@ -1915,20 +1915,26 @@ instance ToSchema ByronWalletPutPassphraseData where
         declareSchemaForDefinition "ApiByronWalletPutPassphraseData"
 
 instance ToSchema ApiMetadata where
-    declareNamedSchema _ = declareSchemaForDefinition "TransactionMetadataValue"
+    declareNamedSchema _ = do
+        addDefinition =<< declareSchemaForDefinition "ScriptValue"
+        addDefinition =<< declareSchemaForDefinition "TransactionMetadataValue"
+        declareSchemaForDefinition "ApiMetadata"
 
 instance ToSchema (PostTransactionData t) where
     declareNamedSchema _ = do
+        addDefinition =<< declareSchemaForDefinition "ScriptValue"
         addDefinition =<< declareSchemaForDefinition "TransactionMetadataValue"
         declareSchemaForDefinition "ApiPostTransactionData"
 
 instance ToSchema (PostTransactionFeeData t) where
     declareNamedSchema _ = do
+        addDefinition =<< declareSchemaForDefinition "ScriptValue"
         addDefinition =<< declareSchemaForDefinition "TransactionMetadataValue"
         declareSchemaForDefinition "ApiPostTransactionFeeData"
 
 instance ToSchema (ApiTransaction t) where
     declareNamedSchema _ = do
+        addDefinition =<< declareSchemaForDefinition "ScriptValue"
         addDefinition =<< declareSchemaForDefinition "TransactionMetadataValue"
         declareSchemaForDefinition "ApiTransaction"
 

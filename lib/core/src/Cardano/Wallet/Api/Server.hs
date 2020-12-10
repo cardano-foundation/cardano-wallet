@@ -1348,7 +1348,7 @@ postTransaction
 postTransaction ctx genChange (ApiT wid) body = do
     let pwd = coerce $ body ^. #passphrase . #getApiT
     let outs = coerceCoin <$> body ^. #payments
-    let md = body ^? #metadata . traverse . #getApiT
+    let md = body ^? #metadata . #getApiMetadata . traverse . #getApiT
     let mTTL = body ^? #timeToLive . traverse . #getQuantity
 
     let selfRewardCredentials (rootK, pwdP) =
@@ -1471,7 +1471,7 @@ postTransactionFee
     -> Handler ApiFee
 postTransactionFee ctx (ApiT wid) body = do
     let outs = coerceCoin <$> body ^. #payments
-    let md = getApiT <$> body ^. #metadata
+    let md = getApiT <$> body ^. #metadata . #getApiMetadata
 
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         wdrl <- case body ^. #withdrawal of
