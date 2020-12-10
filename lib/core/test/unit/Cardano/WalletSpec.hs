@@ -40,7 +40,7 @@ import Cardano.Wallet.DB
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( block0, dummyNetworkParameters, dummyTimeInterpreter, mkTxId )
 import Cardano.Wallet.Gen
-    ( genMnemonic, genSlotNo, genTxMetadata, shrinkTxMetadata )
+    ( genMetadata, genMnemonic, genSlotNo, shrinkMetadata )
 import Cardano.Wallet.Network
     ( NetworkLayer (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -94,13 +94,13 @@ import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..)
+    , Metadata
     , SealedTx (..)
     , TransactionInfo (txInfoMeta)
     , TransactionInfo (..)
     , Tx (..)
     , TxIn (..)
     , TxMeta (..)
-    , TxMetadata
     , TxOut (..)
     , TxStatus (..)
     , txId
@@ -916,6 +916,6 @@ instance Arbitrary TxMeta where
         <*> fmap (Quantity . fromIntegral) (arbitrary @Word32)
         <*> liftArbitrary genSlotNo
 
-instance Arbitrary TxMetadata where
-    shrink = shrinkTxMetadata
-    arbitrary = genTxMetadata
+instance Arbitrary Metadata where
+    shrink = shrinkMetadata
+    arbitrary = genMetadata

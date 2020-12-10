@@ -66,6 +66,7 @@ import Cardano.Wallet.Api.Types
     , ApiHealthCheck (..)
     , ApiMaintenanceAction (..)
     , ApiMaintenanceActionPostData (..)
+    , ApiMetadata (..)
     , ApiMnemonicT (..)
     , ApiNetworkClock (..)
     , ApiNetworkInformation (..)
@@ -86,7 +87,6 @@ import Cardano.Wallet.Api.Types
     , ApiTransaction (..)
     , ApiTxId (..)
     , ApiTxInput (..)
-    , ApiTxMetadata (..)
     , ApiUtxoStatistics (..)
     , ApiVerificationKey (..)
     , ApiWallet (..)
@@ -123,9 +123,11 @@ import Cardano.Wallet.Api.Types
     , WalletPutPassphraseData (..)
     )
 import Cardano.Wallet.Gen
-    ( genMnemonic
+    ( genMetadata
+    , genMnemonic
     , genPercentage
     , genTxMetadata
+    , shrinkMetadata
     , shrinkPercentage
     , shrinkTxMetadata
     )
@@ -182,9 +184,9 @@ import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..)
+    , Metadata (..)
     , TxIn (..)
     , TxIn (..)
-    , TxMetadata (..)
     , TxMetadata (..)
     , TxOut (..)
     , TxStatus (..)
@@ -394,7 +396,7 @@ spec = parallel $ do
             jsonRoundtripAndGolden $ Proxy @(ApiT Address, Proxy ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @(ApiT AddressPoolGap)
             jsonRoundtripAndGolden $ Proxy @(ApiT Direction)
-            jsonRoundtripAndGolden $ Proxy @(ApiT TxMetadata)
+            jsonRoundtripAndGolden $ Proxy @(ApiT Metadata)
             jsonRoundtripAndGolden $ Proxy @(ApiT TxStatus)
             jsonRoundtripAndGolden $ Proxy @(ApiT WalletBalance)
             jsonRoundtripAndGolden $ Proxy @(ApiT WalletId)
@@ -403,7 +405,7 @@ spec = parallel $ do
             jsonRoundtripAndGolden $ Proxy @(ApiT SyncProgress)
             jsonRoundtripAndGolden $ Proxy @(ApiT StakePoolMetadata)
             jsonRoundtripAndGolden $ Proxy @ApiPostRandomAddressData
-            jsonRoundtripAndGolden $ Proxy @ApiTxMetadata
+            jsonRoundtripAndGolden $ Proxy @ApiMetadata
             jsonRoundtripAndGolden $ Proxy @ApiMaintenanceAction
             jsonRoundtripAndGolden $ Proxy @ApiMaintenanceActionPostData
 
@@ -1629,11 +1631,15 @@ instance Arbitrary PostExternalTransactionData where
     shrink (PostExternalTransactionData bytes) =
         PostExternalTransactionData . BS.pack <$> shrink (BS.unpack bytes)
 
+instance Arbitrary Metadata where
+    arbitrary = genMetadata
+    shrink = shrinkMetadata
+
 instance Arbitrary TxMetadata where
     arbitrary = genTxMetadata
     shrink = shrinkTxMetadata
 
-instance Arbitrary ApiTxMetadata where
+instance Arbitrary ApiMetadata where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
@@ -1920,7 +1926,7 @@ instance ToSchema ByronWalletPutPassphraseData where
     declareNamedSchema _ =
         declareSchemaForDefinition "ApiByronWalletPutPassphraseData"
 
-instance ToSchema ApiTxMetadata where
+instance ToSchema ApiMetadata where
     declareNamedSchema _ = declareSchemaForDefinition "TransactionMetadataValue"
 
 instance ToSchema (PostTransactionData t) where

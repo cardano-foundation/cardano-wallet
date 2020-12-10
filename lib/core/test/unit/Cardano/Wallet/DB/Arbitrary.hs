@@ -44,7 +44,7 @@ import Cardano.Wallet.DB.Model
 import Cardano.Wallet.DummyTarget.Primitive.Types as DummyTarget
     ( block0, mkTx, mockHash )
 import Cardano.Wallet.Gen
-    ( genMnemonic, genSmallTxMetadata, shrinkSlotNo, shrinkTxMetadata )
+    ( genMnemonic, genSmallMetadata, shrinkMetadata, shrinkSlotNo )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , DerivationType (..)
@@ -116,10 +116,10 @@ import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..)
+    , Metadata
     , Tx (..)
     , TxIn (..)
     , TxMeta (..)
-    , TxMetadata
     , TxOut (..)
     , TxStatus (..)
     , isPending
@@ -408,9 +408,9 @@ instance Arbitrary TxMeta where
 instance Arbitrary TxStatus where
     arbitrary = elements [Pending, InLedger]
 
-instance Arbitrary TxMetadata where
-    arbitrary = genSmallTxMetadata
-    shrink = shrinkTxMetadata
+instance Arbitrary Metadata where
+    arbitrary = genSmallMetadata
+    shrink = shrinkMetadata
 
 instance Arbitrary Coin where
     arbitrary = Coin <$> choose (1, 100000)

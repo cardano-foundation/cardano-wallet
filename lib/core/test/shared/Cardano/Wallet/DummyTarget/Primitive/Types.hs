@@ -41,7 +41,7 @@ import Cardano.Wallet.Primitive.Types.Hash
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..) )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( Tx (..), TxIn (..), TxMetadata (..), TxOut (..) )
+    ( Metadata (..), Tx (..), TxIn (..), TxOut (..) )
 import Crypto.Hash
     ( Blake2b_256, hash )
 import Data.ByteString
@@ -122,7 +122,7 @@ mkTx
     :: [(TxIn, Coin)]
     -> [TxOut]
     -> Map RewardAccount Coin
-    -> Maybe TxMetadata
+    -> Maybe Metadata
     -> Tx
 mkTx ins outs wdrls md = Tx (mkTxId ins outs wdrls md) ins outs wdrls md
 
@@ -131,7 +131,7 @@ mkTxId
     :: [(TxIn, Coin)]
     -> [TxOut]
     -> Map RewardAccount Coin
-    -> Maybe TxMetadata -> Hash "Tx"
+    -> Maybe Metadata -> Hash "Tx"
 mkTxId ins outs wdrls md = mockHash (ins, outs, wdrls, md)
 
 -- | Construct a good-enough hash for testing

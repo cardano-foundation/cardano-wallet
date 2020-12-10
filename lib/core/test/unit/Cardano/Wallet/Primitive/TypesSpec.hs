@@ -20,11 +20,11 @@ import Cardano.Address.Derivation
 import Cardano.Wallet.Gen
     ( genActiveSlotCoefficient
     , genBlockHeader
+    , genMetadata
     , genSlotNo
-    , genTxMetadata
     , shrinkActiveSlotCoefficient
+    , shrinkMetadata
     , shrinkSlotNo
-    , shrinkTxMetadata
     )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..), WalletKey (..), digest, publicKey )
@@ -98,6 +98,7 @@ import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..)
+    , Metadata (..)
     , Tx (..)
     , TxIn (..)
     , TxMeta (..)
@@ -1179,9 +1180,9 @@ instance Arbitrary Tx where
           , Hash "Tx3"
           ]
 
-instance Arbitrary TxMetadata where
-    shrink = shrinkTxMetadata
-    arbitrary = genTxMetadata
+instance Arbitrary Metadata where
+    shrink = shrinkMetadata
+    arbitrary = genMetadata
 
 instance Arbitrary RewardAccount where
     arbitrary = RewardAccount . BS.pack <$> vector 28

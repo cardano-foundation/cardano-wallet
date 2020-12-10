@@ -1311,7 +1311,7 @@ instance FromJSON ApiSharedScript where
                     scr <- parseJSON <$> o .: "script"
                     keys <- parseJSON <$> o .: "our_keys"
                     avail <- parseJSON <$> o .: "funds_available"
-                    pure $ (scr, keys, avail)) obj
+                    pure (scr, keys, avail)) obj
         ApiSharedScript addr <$> scr <*> keys <*> avail
 
 instance ToJSON ApiSharedScript where

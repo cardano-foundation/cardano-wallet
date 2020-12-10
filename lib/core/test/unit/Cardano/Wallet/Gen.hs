@@ -18,9 +18,11 @@ module Cardano.Wallet.Gen
     , shrinkActiveSlotCoefficient
     , genSlotNo
     , shrinkSlotNo
+    , genMetadata
+    , shrinkMetadata
+    , genSmallMetadata
     , genTxMetadata
     , shrinkTxMetadata
-    , genSmallTxMetadata
     ) where
 
 import Prelude
@@ -45,6 +47,8 @@ import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
+import Cardano.Wallet.Primitive.Types.Tx
+    ( Metadata (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex, unsafeMkEntropy, unsafeMkPercentage )
 import Data.Aeson
@@ -219,6 +223,16 @@ shrinkText t
 guardText :: Text -> Bool
 guardText t = not ("0x" `T.isPrefixOf` t)
 
+genMetadata :: Gen Metadata
+genMetadata = do
+    let (maxBreadth, maxDepth) = (3, 3)
+    d <- scale (`mod` maxBreadth) $ listOf1 (sizedMetadataValue maxDepth)
+    i <- vectorOf @Word (length d) arbitrary
+    let json = toJSON $ HM.fromList $ zip i d
+    case metadataFromJson TxMetadataJsonNoSchema json of
+        Left e -> fail $ show e <> ": " <> show (Aeson.encode json)
+        Right metadata -> pure $ MetaBlob metadata
+
 genTxMetadata :: Gen TxMetadata
 genTxMetadata = do
     let (maxBreadth, maxDepth) = (3, 3)
@@ -229,9 +243,9 @@ genTxMetadata = do
         Left e -> fail $ show e <> ": " <> show (Aeson.encode json)
         Right metadata -> pure metadata
 
--- | Generates a 'TxMetadata' containing only simple values.
-genSmallTxMetadata :: Gen TxMetadata
-genSmallTxMetadata = TxMetadata <$>
+-- | Generates a 'Metadata' containing only simple values.
+genSmallMetadata :: Gen Metadata
+genSmallMetadata = MetaBlob . TxMetadata <$>
     (Map.singleton <$> arbitrary <*> genSimpleTxMetadataValue)
 
 genSimpleTxMetadataValue :: Gen TxMetadataValue
@@ -241,8 +255,15 @@ genSimpleTxMetadataValue = oneof
     , TxMetaText <$> genText
     ]
 
+shrinkMetadata :: Metadata -> [Metadata]
+shrinkMetadata (MetaBlob (TxMetadata m)) = MetaBlob . TxMetadata . Map.fromList
+    <$> shrinkList shrinkTxMetadataEntry (Map.toList m)
+  where
+    shrinkTxMetadataEntry (k, v) = (k,) <$> shrinkTxMetadataValue v
+shrinkMetadata (MetaScript _) = []
+
 shrinkTxMetadata :: TxMetadata -> [TxMetadata]
-shrinkTxMetadata (TxMetadata m) = TxMetadata . Map.fromList
+shrinkTxMetadata (TxMetadata m) =TxMetadata . Map.fromList
     <$> shrinkList shrinkTxMetadataEntry (Map.toList m)
   where
     shrinkTxMetadataEntry (k, v) = (k,) <$> shrinkTxMetadataValue v

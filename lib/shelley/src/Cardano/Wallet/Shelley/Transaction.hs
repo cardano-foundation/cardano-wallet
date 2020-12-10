@@ -78,7 +78,13 @@ import Cardano.Wallet.Primitive.Types.Coin
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( Metadata(..), SealedTx (..), Tx (..), TxIn (..), TxMetadata, TxOut (..) )
+    ( Metadata (..)
+    , SealedTx (..)
+    , Tx (..)
+    , TxIn (..)
+    , TxMetadata
+    , TxOut (..)
+    )
 import Cardano.Wallet.Shelley.Compatibility
     ( AllegraEra
     , ShelleyEra
