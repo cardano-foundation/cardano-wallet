@@ -79,13 +79,11 @@ library
     , persistent
     , persistent-sqlite
     , persistent-template
-    , process
     , quiet
     , random
     , random-shuffle
     , retry
     , safe
-    , safe-exceptions
     , scientific
     , scrypt
     , servant
@@ -105,6 +103,7 @@ library
     , transformers
     , typed-protocols
     , unliftio
+    , unliftio-core
     , unordered-containers
     , vector
     , wai
@@ -199,6 +198,7 @@ library
       Network.Wai.Middleware.ServerError
       Network.Wai.Middleware.Logging
       Ouroboros.Network.Client.Wallet
+      UnliftIO.Compat
         -- TODO:
         --
         -- Move all test-related code out of the main library and into a
@@ -232,7 +232,6 @@ test-suite unit
       base
     , aeson
     , aeson-qq
-    , async
     , bytestring
     , cardano-addresses
     , cardano-api
@@ -294,6 +293,7 @@ test-suite unit
     , time
     , transformers
     , tree-diff
+    , unliftio
     , unordered-containers
     , x509
     , x509-store
@@ -399,6 +399,7 @@ benchmark db
     , text
     , time
     , transformers
+    , unliftio
   type:
      exitcode-stdio-1.0
   hs-source-dirs:

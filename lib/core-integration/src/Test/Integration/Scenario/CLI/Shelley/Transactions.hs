@@ -1,5 +1,6 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -30,12 +31,10 @@ import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..), TxMetadata (..), TxMetadataValue (..), TxStatus (..) )
 import Control.Monad
     ( forM_, join )
-import Control.Monad.Catch
-    ( MonadCatch )
-import Control.Monad.Fail
-    ( MonadFail )
 import Control.Monad.IO.Class
     ( MonadIO )
+import Control.Monad.IO.Unlift
+    ( MonadUnliftIO (..) )
 import Control.Monad.Trans.Resource
     ( ResourceT, runResourceT )
 import Data.Generics.Internal.VL.Lens
@@ -54,6 +53,8 @@ import Data.Text.Class
     ( showT )
 import Data.Time.Utils
     ( utcTimePred, utcTimeSucc )
+import GHC.Stack
+    ( HasCallStack )
 import Numeric.Natural
     ( Natural )
 import System.Command
@@ -108,6 +109,8 @@ import Test.Integration.Framework.TestData
     , polishWalletName
     , wildcardsWalletName
     )
+import UnliftIO.Exception
+    ( throwString )
 
 import qualified Data.Map as Map
 import qualified Data.Text as T
@@ -868,7 +871,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
             c `shouldBe` ExitFailure 1
   where
       postTxViaCLI
-          :: (MonadIO m, MonadFail m, MonadCatch m)
+          :: (MonadIO m, MonadUnliftIO m)
           => Context
           -> ApiWallet
           -> ApiWallet
@@ -886,7 +889,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
           expectValidJSON (Proxy @(ApiTransaction n)) out
 
       postTxArgs
-        :: (MonadIO m, MonadFail m, MonadCatch m)
+        :: (MonadIO m, MonadUnliftIO m)
         => Context
         -> ApiWallet
         -> ApiWallet
@@ -895,7 +898,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
         -> Maybe Text
         -> m [String]
       postTxArgs ctx wSrc wDest amt md ttl = do
-          addr:_ <- listAddresses @n ctx wDest
+          addr <- headMayIO =<< listAddresses @n ctx wDest
           let addrStr = encodeAddress @n (getApiT $ fst $ addr ^. #id)
           return $ T.unpack <$>
               [ wSrc ^. walletId
@@ -955,3 +958,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
           , ("string with wildcards", wildcardsWalletName, parseErr)
           , ("no amount", "", errNum)
           ]
+
+headMayIO :: (HasCallStack, MonadIO m) => [a] -> m a
+headMayIO [] = throwString "List was empty, but expected non-empty"
+headMayIO (x:_) = pure x

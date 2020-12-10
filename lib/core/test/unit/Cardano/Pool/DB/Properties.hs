@@ -59,8 +59,6 @@ import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
 import Control.Arrow
     ( second )
-import Control.Exception
-    ( evaluate )
 import Control.Monad
     ( forM, forM_, replicateM, unless, void )
 import Control.Monad.IO.Class
@@ -121,6 +119,8 @@ import Test.QuickCheck
     )
 import Test.QuickCheck.Monadic
     ( PropertyM, assert, monadicIO, monitor, pick, run )
+import UnliftIO.Exception
+    ( evaluate )
 
 import qualified Cardano.Pool.DB.MVar as MVar
 import qualified Data.List as L

@@ -70,12 +70,12 @@ import Control.Concurrent.MVar
     ( MVar, modifyMVar, newMVar, withMVar )
 import Control.DeepSeq
     ( NFData, deepseq )
-import Control.Exception
-    ( Exception, throwIO )
 import Control.Monad.Trans.Except
     ( ExceptT (..) )
 import Data.Functor.Identity
     ( Identity (..) )
+import UnliftIO.Exception
+    ( Exception, throwIO )
 
 -- | Instantiate a new in-memory "database" layer that simply stores data in
 -- a local MVar. Data vanishes if the software is shut down.

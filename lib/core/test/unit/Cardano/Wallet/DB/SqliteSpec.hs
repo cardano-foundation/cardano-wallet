@@ -158,12 +158,8 @@ import Cardano.Wallet.Unsafe
     ( unsafeFromHex, unsafeRunExceptT )
 import Control.Concurrent
     ( forkIO, killThread, threadDelay )
-import Control.Concurrent.Async
-    ( concurrently, concurrently_ )
 import Control.Concurrent.MVar
     ( isEmptyMVar, newEmptyMVar, putMVar, takeMVar )
-import Control.Exception
-    ( SomeException, handle, throwIO )
 import Control.Monad
     ( forM_, forever, replicateM_, unless, void )
 import Control.Monad.IO.Class
@@ -239,6 +235,10 @@ import Test.Utils.Paths
     ( getTestData )
 import Test.Utils.Trace
     ( captureLogging )
+import UnliftIO.Async
+    ( concurrently, concurrently_ )
+import UnliftIO.Exception
+    ( SomeException, handle, throwIO )
 
 import qualified Cardano.Wallet.DB.Sqlite.TH as DB
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Seq
@@ -611,7 +611,7 @@ fileModeSpec =  do
                 -- Start a concurrent worker which makes action on the DB in
                 -- parallel to simulate activity.
                 pid <- forkIO $ withDatabase testWid $ \(DBLayer{..} :: TestDBSeq) -> do
-                    handle @SomeException (const (pure ())) $ forever $ do
+                    handle @IO @SomeException (const (pure ())) $ forever $ do
                         atomically $ do
                             liftIO $ threadDelay 10000
                             void $ readCheckpoint $ PrimaryKey testWid

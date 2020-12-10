@@ -33,7 +33,6 @@ library
     , QuickCheck
     , aeson
     , aeson-qq
-    , async
     , base
     , base58-bytestring
     , bech32
@@ -52,7 +51,6 @@ library
     , cryptonite
     , deepseq
     , directory
-    , exceptions
     , extra
     , filepath
     , fmt
@@ -77,6 +75,8 @@ library
     , text
     , text-class
     , time
+    , unliftio
+    , unliftio-core
   hs-source-dirs:
       src
   exposed-modules:

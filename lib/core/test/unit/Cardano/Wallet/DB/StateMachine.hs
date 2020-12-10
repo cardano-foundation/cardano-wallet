@@ -156,10 +156,6 @@ import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
 import Control.Concurrent
     ( threadDelay )
-import Control.Concurrent.Async
-    ( race )
-import Control.Exception
-    ( evaluate )
 import Control.Foldl
     ( Fold (..) )
 import Control.Monad
@@ -243,6 +239,10 @@ import Test.StateMachine
     )
 import Test.StateMachine.Types
     ( Command (..), Commands (..), ParallelCommands, ParallelCommandsF (..) )
+import UnliftIO.Async
+    ( race )
+import UnliftIO.Exception
+    ( evaluate )
 
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Control.Foldl as Foldl

@@ -32,8 +32,6 @@ import Cardano.Launcher
     )
 import Control.Concurrent
     ( threadDelay )
-import Control.Concurrent.Async
-    ( async, race_, waitAnyCancel )
 import Control.Concurrent.MVar
     ( modifyMVar_
     , newEmptyMVar
@@ -43,8 +41,6 @@ import Control.Concurrent.MVar
     , takeMVar
     , tryReadMVar
     )
-import Control.Exception
-    ( bracket )
 import Control.Monad
     ( forever )
 import Control.Monad.IO.Class
@@ -80,6 +76,10 @@ import Test.Hspec
     )
 import Test.Utils.Windows
     ( isWindows, pendingOnWine )
+import UnliftIO.Async
+    ( async, race_, waitAnyCancel )
+import UnliftIO.Exception
+    ( bracket )
 
 {- HLINT ignore spec "Use head" -}
 

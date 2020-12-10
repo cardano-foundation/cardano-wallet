@@ -29,8 +29,6 @@ import Cardano.BM.Setup
     ( setupTrace_, shutdown )
 import Control.Concurrent.STM.TVar
     ( TVar, newTVarIO, readTVarIO, writeTVar )
-import Control.Exception
-    ( bracket, onException )
 import Control.Monad
     ( mapM_, replicateM_ )
 import Control.Monad.STM
@@ -45,6 +43,8 @@ import Fmt
     ( Builder, build, fixedF, fmt, fmtLn, indentF, padLeftF, (+|), (|+) )
 import Network.Wai.Middleware.Logging
     ( ApiLog (..), HandlerLog (..) )
+import UnliftIO.Exception
+    ( bracket, onException )
 
 import qualified Cardano.BM.Configuration.Model as CM
 

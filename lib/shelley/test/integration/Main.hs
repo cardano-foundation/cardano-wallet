@@ -76,11 +76,9 @@ import Cardano.Wallet.Shelley.Launch
 import Control.Arrow
     ( first )
 import Control.Concurrent.Async
-    ( AsyncCancelled, race )
+    ( AsyncCancelled )
 import Control.Concurrent.MVar
     ( newEmptyMVar, putMVar, takeMVar )
-import Control.Exception
-    ( SomeException, fromException, handle, throwIO )
 import Control.Monad
     ( when )
 import Control.Monad.IO.Class
@@ -115,6 +113,10 @@ import Test.Integration.Framework.Context
     ( Context (..), PoolGarbageCollectionEvent (..) )
 import Test.Utils.Paths
     ( inNixBuild )
+import UnliftIO.Async
+    ( race )
+import UnliftIO.Exception
+    ( SomeException, fromException, handle, throwIO )
 
 import qualified Cardano.BM.Backend.EKGView as EKG
 import qualified Cardano.Pool.DB as Pool

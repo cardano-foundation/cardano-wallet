@@ -199,8 +199,6 @@ import Control.Arrow
     ( first, left )
 import Control.Concurrent
     ( threadDelay )
-import Control.Exception
-    ( bracket, catch )
 import Control.Monad
     ( forM_, forever, join, unless, void, when )
 import Control.Monad.IO.Class
@@ -324,13 +322,14 @@ import System.IO
     , stdin
     , stdout
     )
+import UnliftIO.Exception
+    ( bracket, catch )
 
 import qualified Cardano.BM.Configuration.Model as CM
 import qualified Cardano.BM.Data.BackendKind as CM
 import qualified Cardano.BM.Data.Observable as Obs
 import qualified Command.Key as Key
 import qualified Command.RecoveryPhrase as RecoveryPhrase
-import qualified Control.Concurrent.Async as Async
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Encode.Pretty as Aeson
 import qualified Data.Aeson.Types as Aeson
@@ -341,6 +340,7 @@ import qualified Data.List.NonEmpty as NE
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.Text.IO as TIO
+import qualified UnliftIO.Async as Async
 
 {-------------------------------------------------------------------------------
                                    CLI

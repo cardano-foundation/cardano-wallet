@@ -139,14 +139,10 @@ import Control.Arrow
     ( first, second )
 import Control.Concurrent
     ( threadDelay )
-import Control.Concurrent.Async
-    ( async, link, race )
 import Control.Concurrent.Chan
     ( newChan, readChan, writeChan )
 import Control.Concurrent.MVar
     ( MVar, modifyMVar, newMVar, putMVar, readMVar, takeMVar )
-import Control.Exception
-    ( SomeException, finally, handle, throwIO )
 import Control.Monad
     ( forM, forM_, replicateM, replicateM_, unless, void, when, (>=>) )
 import Control.Monad.Fail
@@ -234,6 +230,10 @@ import Test.Utils.Paths
     ( getTestData )
 import Test.Utils.StaticServer
     ( withStaticServer )
+import UnliftIO.Async
+    ( async, link, race )
+import UnliftIO.Exception
+    ( SomeException, finally, handle, throwIO )
 
 import qualified Cardano.Chain.Common as Byron
 import qualified Cardano.Chain.UTxO as Legacy

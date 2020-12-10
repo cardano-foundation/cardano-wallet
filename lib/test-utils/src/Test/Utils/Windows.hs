@@ -19,8 +19,6 @@ module Test.Utils.Windows
 
 import Prelude
 
-import Control.Exception
-    ( IOException, handle, throwIO )
 import Control.Monad
     ( when )
 import System.Exit
@@ -33,6 +31,8 @@ import Test.Hspec.Core.Spec
     ( ResultStatus (..), pendingWith )
 import Test.Hspec.Expectations
     ( Expectation, HasCallStack )
+import UnliftIO.Exception
+    ( IOException, handle, throwIO )
 
 skipOnWindows :: HasCallStack => String -> Expectation
 skipOnWindows _reason = whenWindows $ throwIO Success

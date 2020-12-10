@@ -49,10 +49,10 @@ import Control.Concurrent
     ( threadDelay )
 import Control.Monad
     ( forM_ )
-import Control.Monad.Catch
-    ( MonadCatch )
 import Control.Monad.IO.Class
     ( MonadIO, liftIO )
+import Control.Monad.IO.Unlift
+    ( MonadUnliftIO (..) )
 import Control.Monad.Trans.Resource
     ( ResourceT, runResourceT )
 import Data.Aeson
@@ -2692,7 +2692,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             expectErrorMessage (errMsg404CannotFindTx txid) ra
 
     postTx
-        :: (MonadIO m, MonadCatch m)
+        :: (MonadIO m, MonadUnliftIO m)
         => Context
         -> (wal, wal -> (Method, Text), Text)
         -> ApiWallet
@@ -2716,7 +2716,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         return r
 
     mkTxPayload
-        :: (MonadIO m, MonadCatch m)
+        :: (MonadIO m, MonadUnliftIO m)
         => Context
         -> ApiWallet
         -> Natural

@@ -18,14 +18,14 @@ import Cardano.Slotting.Slot
     ( SlotNo (..) )
 import Control.DeepSeq
     ( NFData (..) )
-import Control.Exception
-    ( displayException )
 import Data.Ord
     ( comparing )
 import Fmt
     ( Buildable (..), blockListF, hexF, nameF, unlinesF )
 import Ouroboros.Consensus.HardFork.History.Qry
     ( PastHorizonException )
+import UnliftIO.Exception
+    ( displayException )
 
 import qualified Data.Map as Map
 

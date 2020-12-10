@@ -17,10 +17,6 @@ import Cardano.Startup
     ( ShutdownHandlerLog (..), withShutdownHandler' )
 import Control.Concurrent
     ( threadDelay )
-import Control.Concurrent.Async
-    ( race )
-import Control.Exception
-    ( IOException, bracket, catch, throwIO )
 import Control.Monad
     ( unless )
 import Control.Tracer
@@ -41,6 +37,10 @@ import Test.Utils.Trace
     ( captureLogging )
 import Test.Utils.Windows
     ( nullFileName, pendingOnWindows )
+import UnliftIO.Async
+    ( race )
+import UnliftIO.Exception
+    ( IOException, bracket, catch, throwIO )
 
 #if defined(WINDOWS)
 import Control.Concurrent

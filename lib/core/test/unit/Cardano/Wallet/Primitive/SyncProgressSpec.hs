@@ -35,8 +35,6 @@ import Cardano.Wallet.Unsafe
     ( unsafeMkPercentage )
 import Control.DeepSeq
     ( deepseq )
-import Control.Exception
-    ( SomeException (..), evaluate, try )
 import Control.Monad
     ( forM_ )
 import Data.Either
@@ -53,6 +51,8 @@ import Test.QuickCheck
     ( Arbitrary (..), counterexample, property, withMaxSuccess )
 import Test.QuickCheck.Monadic
     ( assert, monadicIO, monitor, run )
+import UnliftIO.Exception
+    ( SomeException (..), evaluate, try )
 
 spec :: Spec
 spec = do
@@ -168,7 +168,7 @@ spec = do
         it "syncProgress should never crash" $ withMaxSuccess 10000
             $ property $ \tip dt -> monadicIO $ do
                 let x = runIdentity $ syncProgress tolerance ti tip dt
-                res <- run (try @SomeException $ evaluate x)
+                res <- run (try @IO @SomeException $ evaluate x)
                 monitor (counterexample $ "Result: " ++ show res)
                 assert (isRight res)
 

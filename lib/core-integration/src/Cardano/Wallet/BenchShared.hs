@@ -50,8 +50,6 @@ import Control.Concurrent
     ( threadDelay )
 import Control.DeepSeq
     ( NFData, rnf )
-import Control.Exception
-    ( evaluate )
 import Control.Monad
     ( forM, mapM_, void )
 import Criterion.Measurement
@@ -98,6 +96,8 @@ import System.IO
     ( BufferMode (..), hSetBuffering, stderr, stdout )
 import System.IO.Temp
     ( withSystemTempDirectory )
+import UnliftIO.Exception
+    ( evaluate )
 
 import qualified Cardano.BM.Configuration.Model as CM
 import qualified Cardano.BM.Data.BackendKind as CM

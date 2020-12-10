@@ -47,6 +47,7 @@ library
     , stm
     , template-haskell
     , time
+    , unliftio
     , wai-app-static
     , warp
   hs-source-dirs:

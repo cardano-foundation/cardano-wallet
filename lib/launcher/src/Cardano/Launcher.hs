@@ -33,12 +33,8 @@ import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Control.Concurrent
     ( forkIO )
-import Control.Concurrent.Async
-    ( race )
 import Control.Concurrent.MVar
     ( newEmptyMVar, putMVar, takeMVar )
-import Control.Exception
-    ( Exception, IOException, finally, onException, tryJust )
 import Control.Monad
     ( join, void )
 import Control.Tracer
@@ -78,6 +74,10 @@ import System.Process
     , waitForProcess
     , withCreateProcess
     )
+import UnliftIO.Async
+    ( race )
+import UnliftIO.Exception
+    ( Exception, IOException, finally, onException, tryJust )
 
 import qualified Data.Text as T
 

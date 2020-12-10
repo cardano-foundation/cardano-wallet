@@ -36,10 +36,10 @@ import Cardano.BM.Trace
     ( Trace, traceNamedItem )
 import Control.Monad
     ( when )
-import Control.Monad.Catch
-    ( MonadCatch, onException )
 import Control.Monad.IO.Class
     ( MonadIO (..) )
+import Control.Monad.IO.Unlift
+    ( MonadUnliftIO )
 import Control.Tracer
     ( Tracer (..), contramap, nullTracer, traceWith )
 import Data.Aeson
@@ -50,6 +50,8 @@ import Data.Text.Class
     ( ToText (..) )
 import GHC.Generics
     ( Generic )
+import UnliftIO.Exception
+    ( onException )
 
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.Text.Encoding as T
@@ -140,7 +142,7 @@ instance ToText BracketLog where
         BracketException -> "exception"
 
 -- | Run a monadic action with 'BracketLog' traced around it.
-bracketTracer :: MonadCatch m => Tracer m BracketLog -> m a -> m a
+bracketTracer :: MonadUnliftIO m => Tracer m BracketLog -> m a -> m a
 bracketTracer tr action = do
     traceWith tr BracketStart
     res <- action `onException` traceWith tr BracketException

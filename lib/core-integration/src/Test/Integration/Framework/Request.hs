@@ -19,10 +19,10 @@ module Test.Integration.Framework.Request
 
 import Prelude
 
-import Control.Monad.Catch
-    ( Exception (..), MonadCatch (..), throwM )
 import Control.Monad.IO.Class
     ( MonadIO, liftIO )
+import Control.Monad.IO.Unlift
+    ( MonadUnliftIO (..) )
 import Data.Aeson
     ( FromJSON )
 import Data.ByteString.Lazy
@@ -54,6 +54,8 @@ import Network.HTTP.Types.Status
     ( status400, status500 )
 import Test.Integration.Framework.Context
     ( Context )
+import UnliftIO.Exception
+    ( Exception (..), fromEither, handle, throwIO )
 
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString.Lazy.Char8 as BL8
@@ -92,7 +94,7 @@ request
     :: forall a m s.
         ( FromJSON a
         , MonadIO m
-        , MonadCatch m
+        , MonadUnliftIO m
         , HasType (Text, Manager) s
         )
     => s
@@ -105,9 +107,9 @@ request
     -> m (HTTP.Status, Either RequestException a)
 request ctx (verb, path) reqHeaders body = do
     let (base, manager) = ctx ^. typed @(Text, Manager)
-    req <- parseRequest $ T.unpack $ base <> path
-    let io = handleResponse <$> liftIO (httpLbs (prepareReq req) manager)
-    catch io handleException
+    handle handleException $ do
+        req <- fromEither $ parseRequest $ T.unpack $ base <> path
+        handleResponse <$> liftIO (httpLbs (prepareReq req) manager)
   where
     prepareReq :: HTTP.Request -> HTTP.Request
     prepareReq req = req
@@ -139,7 +141,7 @@ request ctx (verb, path) reqHeaders body = do
 
     handleException = \case
         e@InvalidUrlException{} ->
-            throwM e
+            throwIO e
         HttpExceptionRequest _ e ->
             return (status500, Left (HttpException e))
 
@@ -150,7 +152,7 @@ request ctx (verb, path) reqHeaders body = do
 rawRequest
     :: forall m s.
         ( MonadIO m
-        , MonadCatch m
+        , MonadUnliftIO m
         , HasType (Text, Manager) s
         )
     => s
@@ -163,9 +165,9 @@ rawRequest
     -> m (HTTP.Status, Either RequestException ByteString)
 rawRequest ctx (verb, path) reqHeaders body = do
     let (base, manager) = ctx ^. typed @(Text, Manager)
-    req <- parseRequest $ T.unpack $ base <> path
-    let io = handleResponse <$> liftIO (httpLbs (prepareReq req) manager)
-    catch io handleException
+    handle handleException $ do
+        req <- fromEither $ parseRequest $ T.unpack $ base <> path
+        handleResponse <$> liftIO (httpLbs (prepareReq req) manager)
   where
     prepareReq :: HTTP.Request -> HTTP.Request
     prepareReq req = req
@@ -190,7 +192,7 @@ rawRequest ctx (verb, path) reqHeaders body = do
 
     handleException = \case
         e@InvalidUrlException{} ->
-            throwM e
+            throwIO e
         HttpExceptionRequest _ e ->
             return (status500, Left (HttpException e))
 
@@ -200,7 +202,7 @@ unsafeRequest
     :: forall a m.
         ( FromJSON a
         , MonadIO m
-        , MonadCatch m
+        , MonadUnliftIO m
         )
     => Context
     -> (Method, Text)
@@ -208,4 +210,4 @@ unsafeRequest
     -> m (HTTP.Status, a)
 unsafeRequest ctx req body = do
     (s, res) <- request ctx req Default body
-    either throwM (pure . (s,)) res
+    either throwIO (pure . (s,)) res

@@ -13,7 +13,7 @@
       specVersion = "1.10";
       identifier = {
         name = "cardano-wallet-test-utils";
-        version = "2020.12.21";
+        version = "2020.12.8";
         };
       license = "Apache-2.0";
       copyright = "2018-2020 IOHK";
@@ -43,7 +43,6 @@
           (hsPkgs."iohk-monitoring" or (errorHandler.buildDepError "iohk-monitoring"))
           (hsPkgs."process" or (errorHandler.buildDepError "process"))
           (hsPkgs."QuickCheck" or (errorHandler.buildDepError "QuickCheck"))
-          (hsPkgs."quickcheck-classes" or (errorHandler.buildDepError "quickcheck-classes"))
           (hsPkgs."stm" or (errorHandler.buildDepError "stm"))
           (hsPkgs."template-haskell" or (errorHandler.buildDepError "template-haskell"))
           (hsPkgs."time" or (errorHandler.buildDepError "time"))

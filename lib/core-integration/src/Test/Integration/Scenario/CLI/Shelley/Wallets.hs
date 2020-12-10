@@ -35,10 +35,10 @@ import Cardano.Wallet.Primitive.Types
     ( getWalletName, walletNameMaxLength, walletNameMinLength )
 import Control.Monad
     ( forM_ )
-import Control.Monad.Catch
-    ( MonadCatch )
 import Control.Monad.IO.Class
     ( MonadIO, liftIO )
+import Control.Monad.IO.Unlift
+    ( MonadUnliftIO (..) )
 import Control.Monad.Trans.Resource
     ( ResourceT, runResourceT )
 import Data.Generics.Internal.VL.Lens
@@ -786,16 +786,16 @@ spec = describe "SHELLEY_CLI_WALLETS" $ do
               T.unpack err `shouldContain` expErr
 
 emptyRandomWallet'
-    :: (MonadIO m, MonadCatch m)
+    :: (MonadIO m, MonadUnliftIO m)
     => Context
     -> ResourceT m String
 emptyRandomWallet' = fmap (T.unpack . view walletId) . emptyRandomWallet
 
-emptyWallet' :: (MonadIO m, MonadCatch m) => Context -> ResourceT m String
+emptyWallet' :: (MonadIO m, MonadUnliftIO m) => Context -> ResourceT m String
 emptyWallet' = fmap (T.unpack . view walletId) . emptyWallet
 
 emptyWalletWith'
-    :: (MonadIO m, MonadCatch m)
+    :: (MonadIO m, MonadUnliftIO m)
     => Context -> (Text, Text, Int) -> ResourceT m String
 emptyWalletWith' ctx (name, pass, pg) =
     fmap (T.unpack . view walletId) (emptyWalletWith ctx (name, pass, pg))

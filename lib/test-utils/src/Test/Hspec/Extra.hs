@@ -22,11 +22,9 @@ import Prelude
 import Control.Concurrent
     ( threadDelay )
 import Control.Concurrent.Async
-    ( AsyncCancelled, async, race, wait )
+    ( AsyncCancelled )
 import Control.Concurrent.MVar
     ( MVar, newEmptyMVar, putMVar, takeMVar )
-import Control.Exception
-    ( SomeException, catch, throwIO )
 import System.Environment
     ( lookupEnv )
 import Test.Hspec
@@ -42,6 +40,10 @@ import Test.Hspec
     , pendingWith
     , specify
     )
+import UnliftIO.Async
+    ( async, race, wait )
+import UnliftIO.Exception
+    ( SomeException, catch, throwIO )
 
 -- | Run a 'bracket' resource acquisition function around all the specs. The
 -- bracket opens before the first test case and closes after the last test case.

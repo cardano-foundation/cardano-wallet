@@ -147,8 +147,6 @@ import Control.Concurrent
     ( forkIO, threadDelay )
 import Control.DeepSeq
     ( NFData )
-import Control.Exception
-    ( bracket, evaluate, throwIO )
 import Control.Monad
     ( forM, forM_, void )
 import Control.Monad.IO.Class
@@ -201,6 +199,8 @@ import System.IO
     ( IOMode (..), hFlush, withFile )
 import System.IO.Temp
     ( withSystemTempFile )
+import UnliftIO.Exception
+    ( bracket, evaluate, throwIO )
 
 import qualified Cardano.Wallet as W
 import qualified Cardano.Wallet.DB.Sqlite as Sqlite

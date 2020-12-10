@@ -357,8 +357,6 @@ import Cardano.Wallet.Unsafe
     ( unsafeXPrv )
 import Control.DeepSeq
     ( NFData )
-import Control.Exception
-    ( Exception )
 import Control.Monad
     ( forM_, replicateM, unless, when )
 import Control.Monad.IO.Class
@@ -438,6 +436,8 @@ import Statistics.Quantile
     ( medianUnbiased, quantiles )
 import Type.Reflection
     ( Typeable, typeRep )
+import UnliftIO.Exception
+    ( Exception )
 
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Random as Rnd
