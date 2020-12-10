@@ -69,6 +69,7 @@ import Cardano.Wallet.Shelley.Compatibility
     , fromTip
     , fromTip'
     , optimumNumberOfPools
+    , slottingParametersFromGenesis
     , toCardanoEra
     , toPoint
     , toShelleyCoin
@@ -180,7 +181,7 @@ import Ouroboros.Consensus.Network.NodeToClient
 import Ouroboros.Consensus.Node.NetworkProtocolVersion
     ( HasNetworkProtocolVersion (..), SupportedNetworkProtocolVersion (..) )
 import Ouroboros.Consensus.Shelley.Ledger.Config
-    ( CodecConfig (..) )
+    ( CodecConfig (..), getCompactGenesis )
 import Ouroboros.Network.Block
     ( Point
     , SlotNo (..)
@@ -299,7 +300,7 @@ withNetworkLayer tr np addrInfo (versionData, _) action = do
 
     queryRewardQ <- connectDelegationRewardsClient handlers
 
-    (nodeTipChan, protocolParamsVar, interpreterVar, localTxSubmissionQ) <-
+    (nodeTipChan, networkParamsVar, interpreterVar, localTxSubmissionQ) <-
         connectNodeTipClient handlers
 
     (rewardsObserver, refreshRewards) <-
@@ -328,24 +329,33 @@ withNetworkLayer tr np addrInfo (versionData, _) action = do
     link =<< async (forever updateNodeTip)
 
     action $ NetworkLayer
-            { currentNodeTip = liftIO $ _currentNodeTip nodeTipVar
-            , currentNodeEra = _currentNodeEra nodeEraVar
-            , watchNodeTip = _watchNodeTip nodeTipChan
-            , nextBlocks = _nextBlocks
-            , initCursor = _initCursor
-            , destroyCursor = _destroyCursor
-            , cursorSlotNo = _cursorSlotNo
-            , getProtocolParameters = atomically $ readTVar protocolParamsVar
-            , postTx = _postTx localTxSubmissionQ nodeEraVar
-            , stakeDistribution = _stakeDistribution queryRewardQ nodeEraVar
-            , getAccountBalance = \k -> liftIO $ do
-                -- TODO(#2042): Make wallets call manually, with matching
-                -- stopObserving.
-                startObserving rewardsObserver k
-                coinToQuantity . fromMaybe (W.Coin 0)
-                    <$> query rewardsObserver k
-            , timeInterpreter = _timeInterpreter interpreterVar
-            }
+        { currentNodeTip =
+            liftIO $ _currentNodeTip nodeTipVar
+        , currentNodeEra =
+            _currentNodeEra nodeEraVar
+        , watchNodeTip =
+            _watchNodeTip nodeTipChan
+        , nextBlocks =
+            _nextBlocks
+        , initCursor =
+            _initCursor
+        , destroyCursor =
+            _destroyCursor
+        , cursorSlotNo =
+            _cursorSlotNo
+        , currentProtocolParameters =
+            fst <$> atomically (readTVar networkParamsVar)
+        , currentSlottingParameters =
+            snd <$> atomically (readTVar networkParamsVar)
+        , postTx =
+            _postTx localTxSubmissionQ nodeEraVar
+        , stakeDistribution =
+            _stakeDistribution queryRewardQ nodeEraVar
+        , getAccountBalance =
+            _getAccountBalance rewardsObserver
+        , timeInterpreter =
+            _timeInterpreter interpreterVar
+        }
   where
     coinToQuantity (W.Coin x) = Quantity $ fromIntegral x
 
@@ -366,7 +376,7 @@ withNetworkLayer tr np addrInfo (versionData, _) action = do
         :: HasCallStack
         => RetryHandlers
         -> IO ( Chan (Maybe AnyCardanoEra, Tip (CardanoBlock StandardCrypto))
-              , TVar IO W.ProtocolParameters
+              , TVar IO (W.ProtocolParameters, W.SlottingParameters)
               , TMVar IO (CardanoInterpreter StandardCrypto)
               , TQueue IO (LocalTxSubmissionCmd
                   (GenTx (CardanoBlock StandardCrypto))
@@ -376,15 +386,18 @@ withNetworkLayer tr np addrInfo (versionData, _) action = do
     connectNodeTipClient handlers = do
         localTxSubmissionQ <- atomically newTQueue
         nodeTipChan <- newChan
-        protocolParamsVar <- atomically $ newTVar $ W.protocolParameters np
+        networkParamsVar <- atomically $ newTVar
+            ( W.protocolParameters np
+            , W.slottingParameters np
+            )
         interpreterVar <- atomically newEmptyTMVar
         nodeTipClient <- mkTipSyncClient tr np
             localTxSubmissionQ
             (writeChan nodeTipChan)
-            (atomically . writeTVar protocolParamsVar)
+            (curry (atomically . writeTVar networkParamsVar))
             (atomically . repsertTMVar interpreterVar)
         link =<< async (connectClient tr handlers nodeTipClient versionData addrInfo)
-        pure (nodeTipChan, protocolParamsVar, interpreterVar, localTxSubmissionQ)
+        pure (nodeTipChan, networkParamsVar, interpreterVar, localTxSubmissionQ)
 
     connectDelegationRewardsClient
         :: HasCallStack
@@ -552,6 +565,12 @@ withNetworkLayer tr np addrInfo (versionData, _) action = do
             bracketTracer (contramap (MsgWatcherUpdate header) tr) $
                 cb header
 
+    -- TODO(#2042): Make wallets call manually, with matching
+    -- stopObserving.
+    _getAccountBalance rewardsObserver k = liftIO $ do
+        startObserving rewardsObserver k
+        coinToQuantity . fromMaybe (W.Coin 0) <$> query rewardsObserver k
+
     _timeInterpreter
         :: HasCallStack
         => TMVar IO (CardanoInterpreter sc)
@@ -711,7 +730,7 @@ mkTipSyncClient
         -- ^ Communication channel with the LocalTxSubmission client
     -> ((Maybe AnyCardanoEra, Tip (CardanoBlock StandardCrypto)) -> m ())
         -- ^ Notifier callback for when tip changes
-    -> (W.ProtocolParameters -> m ())
+    -> (W.ProtocolParameters -> W.SlottingParameters -> m ())
         -- ^ Notifier callback for when parameters for tip change.
     -> (CardanoInterpreter StandardCrypto -> m ())
         -- ^ Notifier callback for when time interpreter is updated.
@@ -719,10 +738,10 @@ mkTipSyncClient
 mkTipSyncClient tr np localTxSubmissionQ onTipUpdate onPParamsUpdate onInterpreterUpdate = do
     localStateQueryQ <- atomically newTQueue
 
-    (onPParamsUpdate' :: W.ProtocolParameters -> m ()) <-
-        debounce $ \pp -> do
-            traceWith tr $ MsgProtocolParameters pp
-            onPParamsUpdate pp
+    (onPParamsUpdate' :: (W.ProtocolParameters, W.SlottingParameters) -> m ()) <-
+        debounce $ \(pp, sp) -> do
+            traceWith tr $ MsgProtocolParameters pp sp
+            onPParamsUpdate pp sp
 
     let
         queryLocalState
@@ -739,23 +758,37 @@ mkTipSyncClient tr np localTxSubmissionQ onTipUpdate onPParamsUpdate onInterpret
                         CmdQueryLocalState pt (QueryAnytimeAllegra GetEraStart)
                 )
 
+            sp <- case era of
+                AnyCardanoEra ByronEra ->
+                    pure $ pure $ pure $ W.slottingParameters np
+
+                AnyCardanoEra ShelleyEra -> do
+                    let cmd = CmdQueryLocalState pt (QueryIfCurrentShelley Shelley.GetGenesisConfig)
+                    gp <- timeQryAndLog "GetGenesisParams" tr $ localStateQueryQ `send` cmd
+                    pure (fmap (slottingParametersFromGenesis . getCompactGenesis) <$> gp)
+
+                AnyCardanoEra _ -> do
+                    let cmd = CmdQueryLocalState pt (QueryIfCurrentAllegra Shelley.GetGenesisConfig)
+                    gp <- timeQryAndLog "GetGenesisParams" tr $ localStateQueryQ `send` cmd
+                    pure (fmap (slottingParametersFromGenesis . getCompactGenesis) <$> gp)
+
             case era of
                 AnyCardanoEra ByronEra -> do
                     st <- timeQryAndLog "GetUpdateInterfaceState" tr $ localStateQueryQ `send`
                         CmdQueryLocalState pt (QueryIfCurrentByron Byron.GetUpdateInterfaceState)
-                    sequence (handleParamsUpdate protocolParametersFromUpdateState <$> mb <*> st)
+                    sequence (handleParamsUpdate protocolParametersFromUpdateState <$> mb <*> st <*> sp)
                         >>= handleAcquireFailure
 
                 AnyCardanoEra ShelleyEra -> do
                     pp <- timeQryAndLog "GetCurrentPParams" tr $ localStateQueryQ `send`
                         (CmdQueryLocalState pt (QueryIfCurrentShelley Shelley.GetCurrentPParams))
-                    sequence (handleParamsUpdate fromShelleyPParams <$> mb <*> pp)
+                    sequence (handleParamsUpdate fromShelleyPParams <$> mb <*> pp <*> sp)
                         >>= handleAcquireFailure
 
                 ________________________ -> do
                     pp <- timeQryAndLog "GetCurrentPParams" tr $ localStateQueryQ `send`
                         (CmdQueryLocalState pt (QueryIfCurrentAllegra Shelley.GetCurrentPParams))
-                    sequence (handleParamsUpdate fromShelleyPParams <$> mb <*> pp)
+                    sequence (handleParamsUpdate fromShelleyPParams <$> mb <*> pp <*> sp)
                         >>= handleAcquireFailure
 
         handleAcquireFailure
@@ -771,11 +804,16 @@ mkTipSyncClient tr np localTxSubmissionQ onTipUpdate onPParamsUpdate onInterpret
             :: (Maybe Bound -> p -> W.ProtocolParameters)
             -> (Maybe Bound)
             -> (Either (MismatchEraInfo (CardanoEras StandardCrypto)) p)
+            -> (Either (MismatchEraInfo (CardanoEras StandardCrypto)) W.SlottingParameters)
             -> m ()
-        handleParamsUpdate convert boundM = \case
-            Right ls -> do
-                onPParamsUpdate' $ convert boundM ls
-            Left mismatch -> do
+        handleParamsUpdate convert boundM epp esp = case (epp, esp) of
+            (Right pp, Right sp) -> do
+                onPParamsUpdate' (convert boundM pp, sp)
+
+            (Left mismatch, _) ->
+                traceWith tr $ MsgLocalStateQueryEraMismatch mismatch
+
+            (_, Left mismatch) ->
                 traceWith tr $ MsgLocalStateQueryEraMismatch mismatch
 
         queryInterpreter
@@ -1176,7 +1214,7 @@ data NetworkLayerLog where
     MsgFindIntersectionTimeout :: NetworkLayerLog
     MsgPostTx :: W.SealedTx -> NetworkLayerLog
     MsgNodeTip :: W.BlockHeader -> NetworkLayerLog
-    MsgProtocolParameters :: W.ProtocolParameters -> NetworkLayerLog
+    MsgProtocolParameters :: W.ProtocolParameters -> W.SlottingParameters -> NetworkLayerLog
     MsgLocalStateQueryError :: QueryClientName -> String -> NetworkLayerLog
     MsgLocalStateQueryEraMismatch :: MismatchEraInfo (CardanoEras StandardCrypto) -> NetworkLayerLog
     MsgGetRewardAccountBalance
@@ -1244,9 +1282,11 @@ instance ToText NetworkLayerLog where
             [ "Network node tip is"
             , pretty bh
             ]
-        MsgProtocolParameters params -> T.unlines
+        MsgProtocolParameters pparams sparams -> T.unlines
             [ "Protocol parameters for tip are:"
-            , pretty params
+            , pretty pparams
+            , "Slotting parameters for tip are:"
+            , pretty sparams
             ]
         MsgLocalStateQueryError client e -> T.pack $ mconcat
             [ "Error when querying local state parameters for "

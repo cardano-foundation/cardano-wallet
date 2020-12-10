@@ -80,6 +80,7 @@ import Cardano.Wallet.Primitive.Types
     , CertificatePublicationTime (..)
     , EpochNo (..)
     , GenesisParameters (..)
+    , NetworkParameters (..)
     , PoolCertificate (..)
     , PoolId
     , PoolLifeCycleStatus (..)
@@ -91,6 +92,7 @@ import Cardano.Wallet.Primitive.Types
     , Settings (..)
     , SlotLength (..)
     , SlotNo (..)
+    , SlottingParameters (..)
     , SlottingParameters (..)
     , StakePoolMetadata
     , StakePoolMetadataHash
@@ -561,11 +563,11 @@ readPoolDbData DBLayer {..} currentEpoch = atomically $ do
 
 monitorStakePools
     :: Tracer IO StakePoolLog
-    -> GenesisParameters
+    -> NetworkParameters
     -> NetworkLayer IO (CardanoBlock StandardCrypto)
     -> DBLayer IO
     -> IO ()
-monitorStakePools tr gp nl DBLayer{..} =
+monitorStakePools tr (NetworkParameters gp sp _pp) nl DBLayer{..} =
     monitor =<< mkLatestGarbageCollectionEpochRef
   where
     monitor latestGarbageCollectionEpochRef = loop
@@ -585,10 +587,8 @@ monitorStakePools tr gp nl DBLayer{..} =
                     liftIO . atomically $ rollbackTo point
                     loop
 
-    GenesisParameters
-        { getGenesisBlockHash
-        , getEpochStability
-        } = gp
+    GenesisParameters  { getGenesisBlockHash  } = gp
+    SlottingParameters { getSecurityParameter } = sp
 
     -- In order to prevent the pool database from growing too large over time,
     -- we regularly perform garbage collection by removing retired pools from
@@ -604,7 +604,7 @@ monitorStakePools tr gp nl DBLayer{..} =
 
     initCursor :: IO [BlockHeader]
     initCursor = atomically $ listHeaders (max 100 k)
-      where k = fromIntegral $ getQuantity getEpochStability
+      where k = fromIntegral $ getQuantity getSecurityParameter
 
     getHeader :: CardanoBlock StandardCrypto -> BlockHeader
     getHeader = toCardanoBlockHeader gp

@@ -152,8 +152,6 @@ mainnetNetworkParameters = W.NetworkParameters
             "5f20df933584822601f9e3f8c024eb5eb252fe8cefb24d1317dc3d432e940ebb"
         , getGenesisBlockDate =
             W.StartTime $ posixSecondsToUTCTime 1506203091
-        , getEpochStability =
-            Quantity 2160
         }
     , slottingParameters = W.SlottingParameters
         { getSlotLength =
@@ -162,6 +160,8 @@ mainnetNetworkParameters = W.NetworkParameters
             W.EpochLength 21600
         , getActiveSlotCoefficient =
             W.ActiveSlotCoefficient 1.0
+        , getSecurityParameter =
+            Quantity 2160
         }
     , protocolParameters = W.ProtocolParameters
         { decentralizationLevel =
@@ -448,8 +448,6 @@ fromGenesisData (genesisData, genesisHash) =
                 W.Hash . CC.hashToBytes . unGenesisHash $ genesisHash
             , getGenesisBlockDate =
                 W.StartTime . gdStartTime $ genesisData
-            , getEpochStability =
-                Quantity . fromIntegral . unBlockCount . gdK $ genesisData
             }
         , slottingParameters = W.SlottingParameters
             { getSlotLength =
@@ -458,6 +456,8 @@ fromGenesisData (genesisData, genesisHash) =
                 fromBlockCount . gdK $ genesisData
             , getActiveSlotCoefficient =
                 W.ActiveSlotCoefficient 1.0
+            , getSecurityParameter =
+                Quantity . fromIntegral . unBlockCount . gdK $ genesisData
             }
         , protocolParameters =
             (protocolParametersFromPP Nothing) . gdProtocolParameters $ genesisData

@@ -2216,10 +2216,12 @@ getSlotParams ctx = do
     let (Quantity slotL) = getFromResponse #slotLength r2
     let (Quantity epochL) = getFromResponse #epochLength r2
     let (Quantity coeff) = getFromResponse #activeSlotCoefficient r2
+    let (Quantity k) = getFromResponse #securityParameter r2
     let sp = SlottingParameters
             (SlotLength slotL)
             (EpochLength epochL)
             (ActiveSlotCoefficient coeff)
+            (Quantity k)
 
     return (currentEpoch, sp)
 
