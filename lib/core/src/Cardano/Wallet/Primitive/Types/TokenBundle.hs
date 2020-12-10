@@ -57,7 +57,7 @@ module Cardano.Wallet.Primitive.Types.TokenBundle
     ) where
 
 import Prelude hiding
-    ( negate, null, subtract )
+    ( negate, null )
 
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )

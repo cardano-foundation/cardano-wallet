@@ -113,8 +113,6 @@ spec =
             property prop_fromNestedList_invariant
         it "prop_add_invariant" $
             property prop_add_invariant
-        it "prop_subtract_invariant" $
-            property prop_subtract_invariant
         it "prop_setQuantity_invariant" $
             property prop_setQuantity_invariant
         it "prop_adjustQuantity_invariant" $
@@ -141,10 +139,6 @@ spec =
             property prop_add_commutative
         it "prop_add_associative" $
             property prop_add_associative
-        it "prop_add_subtract_associative" $
-            property prop_add_subtract_associative
-        it "prop_subtract_null" $
-            property prop_subtract_null
 
     parallel $ describe "Quantities" $ do
 
@@ -214,9 +208,6 @@ prop_fromNestedList_invariant entries =
 
 prop_add_invariant :: TokenMap -> TokenMap -> Property
 prop_add_invariant b1 b2 = property $ invariantHolds $ TM.add b1 b2
-
-prop_subtract_invariant :: TokenMap -> TokenMap -> Property
-prop_subtract_invariant b1 b2 = property $ invariantHolds $ TM.subtract b1 b2
 
 prop_setQuantity_invariant
     :: TokenMap -> AssetId -> TokenQuantity -> Property
@@ -303,16 +294,6 @@ prop_add_associative :: TokenMap -> TokenMap -> TokenMap -> Property
 prop_add_associative b1 b2 b3 = (===)
     ((b1 `TM.add` b2) `TM.add` b3)
     (b1 `TM.add` (b2 `TM.add` b3))
-
-prop_add_subtract_associative
-    :: TokenMap -> TokenMap -> TokenMap -> Property
-prop_add_subtract_associative b1 b2 b3 = (===)
-    ((b1 `TM.add` b2) `TM.subtract` b3)
-    (b1 `TM.add` (b2 `TM.subtract` b3))
-
-prop_subtract_null :: TokenMap -> Property
-prop_subtract_null b =
-    b `TM.subtract` b === TM.empty
 
 --------------------------------------------------------------------------------
 -- Quantity properties
