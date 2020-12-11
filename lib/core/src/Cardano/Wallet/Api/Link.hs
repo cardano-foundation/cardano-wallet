@@ -113,7 +113,7 @@ import Cardano.Wallet.Api.Types
     , WalletStyle (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( AccountingStyle, DerivationIndex, NetworkDiscriminant (..) )
+    ( DerivationIndex, NetworkDiscriminant (..), Role )
 import Cardano.Wallet.Primitive.Types
     ( PoolId, SmashServer, SortOrder, WalletId (..) )
 import Cardano.Wallet.Primitive.Types.Address
@@ -281,7 +281,7 @@ getWalletKey
         ( HasType (ApiT WalletId) w
         )
     => w
-    -> AccountingStyle
+    -> Role
     -> DerivationIndex
     -> (Method, Text)
 getWalletKey w role_ index =
@@ -294,7 +294,7 @@ signMetadata
         ( HasType (ApiT WalletId) w
         )
     => w
-    -> AccountingStyle
+    -> Role
     -> DerivationIndex
     -> (Method, Text)
 signMetadata w role_ index =

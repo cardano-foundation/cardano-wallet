@@ -21,8 +21,7 @@ import Cardano.Mnemonic
 import Cardano.Wallet.Gen
     ( genLegacyAddress )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( AccountingStyle (..)
-    , Depth (..)
+    ( Depth (..)
     , DerivationType (..)
     , DerivationType (..)
     , HardDerivation (..)
@@ -31,6 +30,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , NetworkDiscriminant (..)
     , Passphrase (..)
     , PaymentAddress (..)
+    , Role (..)
     , SoftDerivation (..)
     , WalletKey (..)
     )
@@ -93,7 +93,7 @@ spec = do
 prop_publicChildKeyDerivation
     :: SomeMnemonic
     -> Passphrase "encryption"
-    -> AccountingStyle
+    -> Role
     -> Index 'Soft 'AddressK
     -> Property
 prop_publicChildKeyDerivation seed encPwd cc ix =
@@ -130,7 +130,7 @@ prop_roundtripFingerprintLift addr =
                              Arbitrary Instances
 -------------------------------------------------------------------------------}
 
-instance Arbitrary AccountingStyle where
+instance Arbitrary Role where
     shrink _ = []
     arbitrary = arbitraryBoundedEnum
 

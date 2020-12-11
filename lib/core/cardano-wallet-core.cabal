@@ -158,6 +158,7 @@ library
       Cardano.Wallet.Primitive.CoinSelection.Random
       Cardano.Wallet.Primitive.Fee
       Cardano.Wallet.Primitive.Model
+      Cardano.Wallet.Primitive.Scripts
       Cardano.Wallet.Primitive.Types
       Cardano.Wallet.Primitive.Types.Address
       Cardano.Wallet.Primitive.Types.Coin
@@ -309,6 +310,7 @@ test-suite unit
       Cardano.Wallet.Primitive.CoinSelectionSpec
       Cardano.Wallet.Primitive.FeeSpec
       Cardano.Wallet.Primitive.ModelSpec
+      Cardano.Wallet.Primitive.ScriptsSpec
       Cardano.Wallet.Primitive.Slotting.Legacy
       Cardano.Wallet.Primitive.SlottingSpec
       Cardano.Wallet.Primitive.SyncProgressSpec

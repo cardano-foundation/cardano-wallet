@@ -21,6 +21,8 @@ module Cardano.Wallet.DB.Sqlite.Types where
 
 import Prelude
 
+import Cardano.Address.Script
+    ( KeyHash (..), ScriptHash (..) )
 import Cardano.Api.Typed
     ( TxMetadataJsonSchema (..)
     , displayError
@@ -30,7 +32,7 @@ import Cardano.Api.Typed
 import Cardano.Slotting.Slot
     ( SlotNo (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( AccountingStyle (..), Passphrase (..), PassphraseScheme (..) )
+    ( Passphrase (..), PassphraseScheme (..), Role (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPoolGap (..)
     , DerivationPrefix
@@ -119,6 +121,7 @@ import Web.PathPieces
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
 
 ----------------------------------------------------------------------------
 
@@ -423,6 +426,48 @@ instance PersistFieldSql Address where
     sqlType _ = sqlType (Proxy @Text)
 
 ----------------------------------------------------------------------------
+-- ScriptHash
+
+instance ToText ScriptHash where
+    toText (ScriptHash sh) =
+        T.decodeUtf8 $ convertToBase Base16 sh
+
+instance FromText ScriptHash where
+    fromText = bimap textDecodingError ScriptHash
+        . convertFromBase Base16
+        . T.encodeUtf8
+      where
+        textDecodingError = TextDecodingError . show
+
+instance PersistField ScriptHash where
+    toPersistValue = toPersistValue . toText
+    fromPersistValue = fromPersistValueFromText
+
+instance PersistFieldSql ScriptHash where
+    sqlType _ = sqlType (Proxy @Text)
+
+----------------------------------------------------------------------------
+-- KeyHash
+
+instance ToText KeyHash where
+    toText (KeyHash sh) =
+        T.decodeUtf8 $ convertToBase Base16 sh
+
+instance FromText KeyHash where
+    fromText = bimap textDecodingError KeyHash
+        . convertFromBase Base16
+        . T.encodeUtf8
+      where
+        textDecodingError = TextDecodingError . show
+
+instance PersistField KeyHash where
+    toPersistValue = toPersistValue . toText
+    fromPersistValue = fromPersistValueFromText
+
+instance PersistFieldSql KeyHash where
+    sqlType _ = sqlType (Proxy @Text)
+
+----------------------------------------------------------------------------
 -- AddressPoolGap
 
 instance PersistField AddressPoolGap where
@@ -437,13 +482,13 @@ instance PersistFieldSql AddressPoolGap where
     sqlType _ = sqlType (Proxy @Word32)
 
 ----------------------------------------------------------------------------
--- AccountingStyle
+-- Role
 
-instance PersistField AccountingStyle where
+instance PersistField Role where
     toPersistValue = toPersistValue . toText
     fromPersistValue = fromPersistValueFromText
 
-instance PersistFieldSql AccountingStyle where
+instance PersistFieldSql Role where
     sqlType _ = sqlType (Proxy @Text)
 
 ----------------------------------------------------------------------------

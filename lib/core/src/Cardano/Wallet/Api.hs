@@ -165,7 +165,7 @@ import Cardano.Wallet.DB
 import Cardano.Wallet.Network
     ( NetworkLayer )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( AccountingStyle, Depth, DerivationIndex )
+    ( Depth, DerivationIndex, Role )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncTolerance )
 import Cardano.Wallet.Primitive.Types
@@ -310,7 +310,7 @@ type WalletKeys =
 type GetWalletKey = "wallets"
     :> Capture "walletId" (ApiT WalletId)
     :> "keys"
-    :> Capture "role" (ApiT AccountingStyle)
+    :> Capture "role" (ApiT Role)
     :> Capture "index" (ApiT DerivationIndex)
     :> Get '[JSON] ApiVerificationKey
 
@@ -318,7 +318,7 @@ type GetWalletKey = "wallets"
 type SignMetadata = "wallets"
     :> Capture "walletId" (ApiT WalletId)
     :> "signatures"
-    :> Capture "role" (ApiT AccountingStyle)
+    :> Capture "role" (ApiT Role)
     :> Capture "index" (ApiT DerivationIndex)
     :> ReqBody '[JSON] ApiWalletSignData
     :> Post '[OctetStream] ByteString

@@ -24,6 +24,8 @@ module Cardano.Wallet.DB.Sqlite.TH where
 
 import Prelude
 
+import Cardano.Address.Script
+    ( KeyHash, ScriptHash )
 import Cardano.Slotting.Slot
     ( SlotNo )
 import Cardano.Wallet.DB.Sqlite.Types
@@ -241,6 +243,7 @@ SeqState
     seqStateAccountXPub       B8.ByteString      sql=account_xpub
     seqStateRewardXPub        B8.ByteString      sql=reward_xpub
     seqStateDerivationPrefix  W.DerivationPrefix sql=derivation_prefix
+    seqStateScriptGap         W.AddressPoolGap   sql=script_gap
 
     Primary seqStateWalletId
     Foreign Wallet seq_state seqStateWalletId ! ON DELETE CASCADE
@@ -253,7 +256,7 @@ SeqStateAddress
     seqStateAddressSlot             SlotNo             sql=slot
     seqStateAddressAddress          W.Address          sql=address
     seqStateAddressIndex            Word32             sql=address_ix
-    seqStateAddressAccountingStyle  W.AccountingStyle  sql=accounting_style
+    seqStateAddressRole             W.Role             sql=role
     seqStateAddressStatus           W.AddressState     sql=status
 
     Primary
@@ -261,8 +264,43 @@ SeqStateAddress
         seqStateAddressSlot
         seqStateAddressAddress
         seqStateAddressIndex
-        seqStateAddressAccountingStyle
+        seqStateAddressRole
     Foreign Checkpoint seq_state_address seqStateAddressWalletId seqStateAddressSlot ! ON DELETE CASCADE
+    deriving Show Generic
+
+-- Mapping of pool verification key hashes to indices, and the slot
+-- when they were discovered.
+SeqStateKeyHash
+    seqStateKeyHashWalletId         W.WalletId         sql=wallet_id
+    seqStateKeyHashSlot             SlotNo             sql=slot
+    seqStateKeyHashKeyHash          KeyHash            sql=verification_key_hash
+    seqStateKeyHashIndex            Word32             sql=verification_key_hash_ix
+    seqStateKeyHashStatus           W.AddressState     sql=status
+
+    Primary
+        seqStateKeyHashWalletId
+        seqStateKeyHashSlot
+        seqStateKeyHashKeyHash
+        seqStateKeyHashIndex
+    Foreign Checkpoint seq_state_key_hash seqStateKeyHashWalletId seqStateKeyHashSlot ! ON DELETE CASCADE
+    deriving Show Generic
+
+-- Mapping of discovered script hashes to our verification keys, and the slot
+-- when they were discovered.
+SeqStateScriptHash
+    seqStateScriptHashWalletId              W.WalletId         sql=wallet_id
+    seqStateScriptHashSlot                  SlotNo             sql=slot
+    seqStateScriptHashScriptHash            ScriptHash         sql=script_hash
+    seqStateScriptHashVerificationKeyIndex  Word32             sql=verification_key_ix
+    seqStateScriptHashKeyIndexInArray       Word32             sql=array_ix
+
+    Primary
+        seqStateScriptHashWalletId
+        seqStateScriptHashSlot
+        seqStateScriptHashScriptHash
+        seqStateScriptHashVerificationKeyIndex
+        seqStateScriptHashKeyIndexInArray
+    Foreign Checkpoint seq_state_script_hash seqStateScriptHashWalletId seqStateScriptHashSlot ! ON DELETE CASCADE
     deriving Show Generic
 
 -- Sequential address discovery scheme -- pending change indexes

@@ -31,6 +31,8 @@ import Prelude
 
 import Cardano.Address.Derivation
     ( XPrv, XPub )
+import Cardano.Address.Script
+    ( ScriptHash (..) )
 import Cardano.Crypto.Wallet
     ( unXPrv )
 import Cardano.Mnemonic
@@ -50,6 +52,8 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , NetworkDiscriminant (..)
     , Passphrase (..)
     , WalletKey (..)
+    , deriveVerificationKey
+    , hashVerificationKey
     , publicKey
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
@@ -64,9 +68,13 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPool
     , DerivationPrefix (..)
     , SeqState (..)
+    , VerificationKeyPool
+    , accountPubKey
     , coinTypeAda
+    , defaultAddressPoolGap
     , mkAddressPool
     , purposeCIP1852
+    , unsafeVerificationKeyPool
     )
 import Cardano.Wallet.Primitive.Model
     ( Wallet
@@ -76,6 +84,8 @@ import Cardano.Wallet.Primitive.Model
     , unsafeInitWallet
     , utxo
     )
+import Cardano.Wallet.Primitive.Scripts
+    ()
 import Cardano.Wallet.Primitive.Types
     ( Block (..)
     , BlockHeader (..)
@@ -455,14 +465,17 @@ instance Arbitrary (Index 'WholeDomain depth) where
 -------------------------------------------------------------------------------}
 
 instance Arbitrary (SeqState 'Mainnet ShelleyKey) where
-    shrink (SeqState intPool extPool ixs rwd prefix) =
-        (\(i, e, x) -> SeqState i e x rwd prefix) <$> shrink (intPool, extPool, ixs)
-    arbitrary = SeqState
-        <$> arbitrary
-        <*> arbitrary
-        <*> arbitrary
-        <*> pure arbitraryRewardAccount
-        <*> pure defaultSeqStatePrefix
+    shrink (SeqState intPool extPool ixs rwd prefix sPool) =
+        (\(i, e, x) -> SeqState i e x rwd prefix sPool) <$> shrink (intPool, extPool, ixs)
+    arbitrary = do
+        extPool <- arbitrary
+        SeqState
+            <$> arbitrary
+            <*> pure extPool
+            <*> arbitrary
+            <*> pure arbitraryRewardAccount
+            <*> pure defaultSeqStatePrefix
+            <*> genVerificationKeyPool (accountPubKey extPool)
 
 defaultSeqStatePrefix :: DerivationPrefix
 defaultSeqStatePrefix = DerivationPrefix
@@ -470,6 +483,35 @@ defaultSeqStatePrefix = DerivationPrefix
     , coinTypeAda
     , minBound
     )
+
+instance Arbitrary ScriptHash where
+    arbitrary =
+        pure $ ScriptHash (BS.replicate 28 0)
+
+genVerificationKeyPool
+    :: ShelleyKey 'AccountK XPub
+    -> Gen (VerificationKeyPool ShelleyKey)
+genVerificationKeyPool accXPub = do
+    nVerKeys <- choose (5,10)
+    let minIndex = getIndex @'Soft minBound
+    let toVerKeyHash ix =
+            hashVerificationKey $
+            deriveVerificationKey accXPub
+            (toEnum (fromInteger $ toInteger $ minIndex + ix))
+    verKeysIxs <- L.nub <$> vectorOf nVerKeys (choose (0, 15))
+    let nVerKeys' = L.length verKeysIxs
+    let setUsed ix =
+            if ix `elem` verKeysIxs then
+                Used
+            else
+                Unused
+    let indexedKeysMap = map (\ix -> (toVerKeyHash ix, (Index ix, setUsed ix)))
+            [0 .. maximum verKeysIxs]
+    knownScripts <- vectorOf nVerKeys' arbitrary
+    let knownScriptsMap =
+            zipWith (\s k -> (s,[k])) knownScripts (Index <$> verKeysIxs)
+    pure $ unsafeVerificationKeyPool accXPub defaultAddressPoolGap
+        (Map.fromList indexedKeysMap) (Map.fromList knownScriptsMap)
 
 instance Arbitrary (ShelleyKey 'RootK XPrv) where
     shrink _ = []
@@ -600,8 +642,6 @@ instance (Integral a, Arbitrary a) => Arbitrary (Quantity n a) where
 -------------------------------------------------------------------------------}
 
 deriving instance Arbitrary a => Arbitrary (ShowFmt a)
-
-deriving instance Eq (SeqState 'Mainnet ShelleyKey)
 
 -- Necessary unsound Show instance for QuickCheck failure reporting
 instance Show XPrv where

@@ -12,6 +12,8 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
+{-# OPTIONS_GHC -fno-warn-orphans #-}
+
 {- HLINT ignore "Redundant flip" -}
 
 -- |
@@ -37,6 +39,8 @@ import Prelude
 
 import Cardano.Address.Derivation
     ( XPrv, XPub )
+import Cardano.Address.Script
+    ( KeyHash, ScriptHash (..) )
 import Cardano.DB.Sqlite
     ( DBField (..)
     , DBLog (..)
@@ -76,7 +80,9 @@ import Cardano.Wallet.DB.Sqlite.TH
     , RndStatePendingAddress (..)
     , SeqState (..)
     , SeqStateAddress (..)
+    , SeqStateKeyHash (..)
     , SeqStatePendingIx (..)
+    , SeqStateScriptHash (..)
     , StakeKeyCertificate (..)
     , TxIn (..)
     , TxMeta (..)
@@ -104,7 +110,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
-    ( ShelleyKey )
+    ( ShelleyKey (..) )
 import Cardano.Wallet.Primitive.Slotting
     ( TimeInterpreter
     , epochOf
@@ -211,7 +217,8 @@ import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Cardano.Wallet.Primitive.Types.UTxO as W
-import qualified Data.Map as Map
+import qualified Data.List as L
+import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
 import qualified Database.Sqlite as Sqlite
 
@@ -380,7 +387,11 @@ migrateManually tr proxy defaultFieldValues =
 
         addSeqStateDerivationPrefixIfMissing conn
 
-        renameAccountingStyle conn
+        renameRoleColumn conn
+
+        renameRoleFields conn
+
+        addScriptAddressGapIfMissing conn
   where
     -- NOTE
     -- Wallets created before the 'PassphraseScheme' was introduced have no
@@ -549,7 +560,6 @@ migrateManually tr proxy defaultFieldValues =
         shelleyPrefix = T.pack $ show $ toText
             $ Seq.DerivationPrefix (Seq.purposeCIP1852, Seq.coinTypeAda, minBound)
 
-    -- The 'AccountingStyle' constructors used to be respectively:
     --
     --   - UTxOInternal
     --   - UTxOExternal
@@ -562,24 +572,54 @@ migrateManually tr proxy defaultFieldValues =
     -- which is pretty lame. This was changed later on, but already
     -- serialized data may subsist on for quite a while. Hence this little
     -- pirouette here.
-    renameAccountingStyle :: Sqlite.Connection -> IO ()
-    renameAccountingStyle conn = do
-        renameColumn conn (DBField SeqStateAddressAccountingStyle)
+    renameRoleFields :: Sqlite.Connection -> IO ()
+    renameRoleFields conn = do
+        renameColumnField conn (DBField SeqStateAddressRole)
             "u_tx_o_internal" "utxo_internal"
-        renameColumn conn (DBField SeqStateAddressAccountingStyle)
+        renameColumnField conn (DBField SeqStateAddressRole)
             "u_tx_o_external" "utxo_external"
+
+    -- | Rename column table of SeqStateAddress from 'accounting_style' to `role`
+    -- if needed.
+    renameRoleColumn :: Sqlite.Connection -> IO ()
+    renameRoleColumn conn =
+        isFieldPresent conn roleField >>= \case
+            TableMissing ->
+                traceWith tr $ MsgManualMigrationNotNeeded roleField
+            ColumnMissing -> do
+                traceWith tr $ MsgManualMigrationNeeded roleField "accounting_style"
+                query <- Sqlite.prepare conn $ T.unwords
+                    [ "ALTER TABLE", tableName roleField
+                    , "RENAME COLUMN accounting_style TO"
+                    , fieldName roleField
+                    , ";"
+                    ]
+                Sqlite.step query *> Sqlite.finalize query
+            ColumnPresent ->
+                traceWith tr $ MsgManualMigrationNotNeeded roleField
+      where
+        roleField = DBField SeqStateAddressRole
+
+    -- | Adds an 'script_gap' column to the 'SeqState'
+    -- table if it is missing.
+    --
+    addScriptAddressGapIfMissing :: Sqlite.Connection -> IO ()
+    addScriptAddressGapIfMissing conn =
+        addColumn_ conn True (DBField SeqStateScriptGap) value
+      where
+        value = T.pack $ show $ Seq.getAddressPoolGap Seq.defaultAddressPoolGap
 
     -- | Determines whether a field is present in its parent table.
     isFieldPresent :: Sqlite.Connection -> DBField -> IO SqlColumnStatus
     isFieldPresent conn field = do
-        getCheckpointTableInfo <- Sqlite.prepare conn $ mconcat
+        getTableInfo <- Sqlite.prepare conn $ mconcat
             [ "SELECT sql FROM sqlite_master "
             , "WHERE type = 'table' "
             , "AND name = '" <> tableName field <> "';"
             ]
-        row <- Sqlite.step getCheckpointTableInfo
-            >> Sqlite.columns getCheckpointTableInfo
-        Sqlite.finalize getCheckpointTableInfo
+        row <- Sqlite.step getTableInfo
+            >> Sqlite.columns getTableInfo
+        Sqlite.finalize getTableInfo
         pure $ case row of
             [PersistText t]
                 | fieldName field `T.isInfixOf` t -> ColumnPresent
@@ -621,13 +661,13 @@ migrateManually tr proxy defaultFieldValues =
             ColumnPresent ->
                 traceWith tr $ MsgManualMigrationNotNeeded field
 
-    renameColumn
+    renameColumnField
         :: Sqlite.Connection
         -> DBField
         -> Text -- Old Value
         -> Text -- New Value
         -> IO ()
-    renameColumn conn field old new = do
+    renameColumnField conn field old new = do
         isFieldPresent conn field >>= \case
             TableMissing ->
                 traceWith tr $ MsgManualMigrationNotNeeded field
@@ -1674,13 +1714,15 @@ instance
     , SoftDerivation k
     ) => PersistState (Seq.SeqState n k) where
     insertState (wid, sl) st = do
-        let (intPool, extPool) = (Seq.internalPool st, Seq.externalPool st)
+        let (intPool, extPool, sPool) =
+                (Seq.internalPool st, Seq.externalPool st, Seq.scriptPool st)
         let (accountXPub, _) = W.invariant
                 "Internal & External pool use different account public keys!"
                 (Seq.accountPubKey intPool, Seq.accountPubKey extPool)
                 (uncurry (==))
         let eGap = Seq.gap extPool
         let iGap = Seq.gap intPool
+        let sGap = Seq.verPoolGap sPool
         repsert (SeqStateKey wid) $ SeqState
             { seqStateWalletId = wid
             , seqStateExternalGap = eGap
@@ -1688,9 +1730,11 @@ instance
             , seqStateAccountXPub = serializeXPub accountXPub
             , seqStateRewardXPub = serializeXPub (Seq.rewardAccountKey st)
             , seqStateDerivationPrefix = Seq.derivationPrefix st
+            , seqStateScriptGap = sGap
             }
         insertAddressPool @n wid sl intPool
         insertAddressPool @n wid sl extPool
+        insertScriptPool wid sl sPool
         deleteWhere [SeqStatePendingWalletId ==. wid]
         dbChunked
             insertMany_
@@ -1698,13 +1742,14 @@ instance
 
     selectState (wid, sl) = runMaybeT $ do
         st <- MaybeT $ selectFirst [SeqStateWalletId ==. wid] []
-        let SeqState _ eGap iGap accountBytes rewardBytes prefix = entityVal st
+        let SeqState _ eGap iGap accountBytes rewardBytes prefix sGap = entityVal st
         let accountXPub = unsafeDeserializeXPub accountBytes
         let rewardXPub = unsafeDeserializeXPub rewardBytes
         intPool <- lift $ selectAddressPool @n wid sl iGap accountXPub
         extPool <- lift $ selectAddressPool @n wid sl eGap accountXPub
+        sPool <- lift $ selectScriptPool wid sl sGap accountXPub
         pendingChangeIxs <- lift $ selectSeqStatePendingIxs wid
-        pure $ Seq.SeqState intPool extPool pendingChangeIxs rewardXPub prefix
+        pure $ Seq.SeqState intPool extPool pendingChangeIxs rewardXPub prefix sPool
 
 insertAddressPool
     :: forall n k c. (PaymentAddress n k, Typeable c)
@@ -1714,7 +1759,7 @@ insertAddressPool
     -> SqlPersistT IO ()
 insertAddressPool wid sl pool =
     void $ dbChunked insertMany_
-        [ SeqStateAddress wid sl addr ix (Seq.accountingStyle @c) state
+        [ SeqStateAddress wid sl addr ix (Seq.role @c) state
         | (ix, (addr, state))
         <- zip [0..] (Seq.addresses (liftPaymentAddress @n) pool)
         ]
@@ -1735,7 +1780,7 @@ selectAddressPool wid sl gap xpub = do
     addrs <- fmap entityVal <$> selectList
         [ SeqStateAddressWalletId ==. wid
         , SeqStateAddressSlot ==. sl
-        , SeqStateAddressAccountingStyle ==. Seq.accountingStyle @c
+        , SeqStateAddressRole ==. Seq.role @c
         ] [Asc SeqStateAddressIndex]
     pure $ addressPoolFromEntity addrs
   where
@@ -1757,6 +1802,68 @@ selectSeqStatePendingIxs wid =
         [Desc SeqStatePendingIxIndex]
   where
     fromRes = fmap (W.Index . seqStatePendingIxIndex . entityVal)
+
+insertScriptPool
+    :: W.WalletId
+    -> W.SlotNo
+    -> Seq.VerificationKeyPool k
+    -> SqlPersistT IO ()
+insertScriptPool wid sl pool = do
+    void $ dbChunked insertMany_ $
+        Map.foldMapWithKey toSeqStateKeyHash (Seq.verPoolIndexedKeys pool)
+    void $ dbChunked insertMany_ $
+        concatMap toDB $ Map.toList (Seq.verPoolKnownScripts pool)
+  where
+    toSeqStateKeyHash keyHash (ix, state) =
+        [SeqStateKeyHash wid sl keyHash (getIndex ix) state]
+    toDB (scriptHash, verKeyIxs) =
+        zipWith (SeqStateScriptHash wid sl scriptHash . getIndex) verKeyIxs [0..]
+
+instance Ord ScriptHash where
+    compare (ScriptHash sh1) (ScriptHash sh2) = compare sh1 sh2
+
+selectScriptPool
+    :: forall k . W.WalletId
+    -> W.SlotNo
+    -> Seq.AddressPoolGap
+    -> k 'AccountK XPub
+    -> SqlPersistT IO (Seq.VerificationKeyPool k)
+selectScriptPool wid sl gap xpub = do
+    verKeys <- fmap entityVal <$> selectList
+        [ SeqStateKeyHashWalletId ==. wid
+        , SeqStateKeyHashSlot ==. sl
+        ] [Asc SeqStateKeyHashIndex]
+    scripts <- fmap entityVal <$> selectList
+        [ SeqStateScriptHashWalletId ==. wid
+        , SeqStateScriptHashSlot ==. sl
+        ] [Asc SeqStateScriptHashScriptHash, Desc SeqStateScriptHashKeyIndexInArray]
+    pure $ scriptPoolFromEntities verKeys scripts
+  where
+    updateVerKeyMap
+        :: SeqStateKeyHash
+        -> Map KeyHash (Index 'Soft 'ScriptK, W.AddressState)
+        -> Map KeyHash (Index 'Soft 'ScriptK, W.AddressState)
+    updateVerKeyMap x = Map.insert (seqStateKeyHashKeyHash x)
+        (W.Index $ seqStateKeyHashIndex x, seqStateKeyHashStatus x)
+    verKeyMap =
+        L.foldr updateVerKeyMap Map.empty
+    updateKnowScript
+        :: SeqStateScriptHash
+        -> Map ScriptHash [Index 'Soft 'ScriptK]
+        -> Map ScriptHash [Index 'Soft 'ScriptK]
+    updateKnowScript =
+        (\(sh, keyIndex) -> Map.insertWith (++) sh [keyIndex] ) .
+        (\scriptH -> (seqStateScriptHashScriptHash scriptH
+        , W.Index $ seqStateScriptHashVerificationKeyIndex scriptH) )
+    knownScripts =
+        L.foldr updateKnowScript Map.empty
+    scriptPoolFromEntities
+        :: [SeqStateKeyHash]
+        -> [SeqStateScriptHash]
+        -> Seq.VerificationKeyPool k
+    scriptPoolFromEntities verKeys scripts
+        = Seq.unsafeVerificationKeyPool xpub gap
+          (verKeyMap verKeys) (knownScripts scripts)
 
 {-------------------------------------------------------------------------------
                           HD Random address discovery

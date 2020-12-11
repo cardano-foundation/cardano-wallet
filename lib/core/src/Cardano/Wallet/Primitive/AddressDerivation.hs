@@ -34,7 +34,7 @@ module Cardano.Wallet.Primitive.AddressDerivation
     -- * HD Derivation
       Depth (..)
     , Index (..)
-    , AccountingStyle (..)
+    , Role (..)
     , utxoExternal
     , utxoInternal
     , mutableAccount
@@ -46,6 +46,8 @@ module Cardano.Wallet.Primitive.AddressDerivation
     , DerivationPrefix (..)
     , DerivationIndex (..)
     , liftIndex
+    , deriveVerificationKey
+    , hashVerificationKey
 
     -- * Delegation
     , RewardAccount (..)
@@ -85,7 +87,9 @@ module Cardano.Wallet.Primitive.AddressDerivation
 import Prelude
 
 import Cardano.Address.Derivation
-    ( XPrv, XPub )
+    ( XPrv, XPub, xpubPublicKey )
+import Cardano.Address.Script
+    ( KeyHash (..) )
 import Cardano.Mnemonic
     ( SomeMnemonic )
 import Cardano.Wallet.Primitive.Types
@@ -103,7 +107,7 @@ import Control.Monad
 import Crypto.Hash
     ( Digest, HashAlgorithm )
 import Crypto.Hash.Utils
-    ( blake2b256 )
+    ( blake2b224, blake2b256 )
 import Crypto.KDF.PBKDF2
     ( Parameters (..), fastPBKDF2_SHA512 )
 import Crypto.Random.Types
@@ -163,47 +167,47 @@ import qualified Data.Text.Encoding as T
 --
 -- @m | purpose' | cointype' | account' | role | address@
 data Depth
-    = RootK | PurposeK | CoinTypeK | AccountK | RoleK | AddressK
+    = RootK | PurposeK | CoinTypeK | AccountK | RoleK | AddressK | ScriptK
 
--- | Marker for addresses type engaged. We want to handle three cases here.
--- The first two are pertinent to UTxO accounting
--- and the last one handles rewards from participation in staking.
+-- | Marker for addresses type engaged. We want to handle four cases here.
+-- The first two are pertinent to UTxO accounting,
+-- next handles rewards from participation in staking
+-- the last one is used for getting verification keys used in scripts.
 -- (a) external chain is used for addresses that are part of the 'advertised'
 --     targets of a given transaction
 -- (b) internal change is for addresses used to handle the change of a
 --     the transaction within a given wallet
 -- (c) the addresses for a reward account
---
--- FIXME: rename this to 'Role' or 'HDRole'
-data AccountingStyle
+-- (d) used for keys used inside scripts
+data Role
     = UtxoExternal
     | UtxoInternal
     | MutableAccount
     | MultisigScript
     deriving (Generic, Typeable, Show, Eq, Ord, Bounded)
 
-instance NFData AccountingStyle
+instance NFData Role
 
 -- Not deriving 'Enum' because this could have a dramatic impact if we were
 -- to assign the wrong index to the corresponding constructor (by swapping
 -- around the constructor above for instance).
-instance Enum AccountingStyle where
+instance Enum Role where
     toEnum = \case
         0 -> UtxoExternal
         1 -> UtxoInternal
         2 -> MutableAccount
         3 -> MultisigScript
-        _ -> error "AccountingStyle.toEnum: bad argument"
+        _ -> error "Role.toEnum: bad argument"
     fromEnum = \case
         UtxoExternal -> 0
         UtxoInternal -> 1
         MutableAccount -> 2
         MultisigScript -> 3
 
-instance ToText AccountingStyle where
+instance ToText Role where
     toText = toTextFromBoundedEnum SnakeLowerCase
 
-instance FromText AccountingStyle where
+instance FromText Role where
     fromText = fromTextToBoundedEnum SnakeLowerCase
 
 -- | smart-constructor for getting a derivation index that refers to external
@@ -453,7 +457,7 @@ class HardDerivation (key :: Depth -> * -> *) where
     deriveAddressPrivateKey
         :: Passphrase "encryption"
         -> key 'AccountK XPrv
-        -> AccountingStyle
+        -> Role
         -> Index (AddressIndexDerivationType key) 'AddressK
         -> key 'AddressK XPrv
 
@@ -466,7 +470,7 @@ class HardDerivation key => SoftDerivation (key :: Depth -> * -> *) where
     -- This is the preferred way of deriving new sequential address public keys.
     deriveAddressPublicKey
         :: key 'AccountK XPub
-        -> AccountingStyle
+        -> Role
         -> Index 'Soft 'AddressK
         -> key 'AddressK XPub
 
@@ -489,6 +493,21 @@ deriveRewardAccount
 deriveRewardAccount pwd rootPrv =
     let accPrv = deriveAccountPrivateKey pwd rootPrv minBound
     in deriveAddressPrivateKey pwd accPrv MutableAccount minBound
+
+deriveVerificationKey
+    :: (SoftDerivation k, WalletKey k)
+    => k 'AccountK XPub
+    -> Index 'Soft 'ScriptK
+    -> k 'ScriptK XPub
+deriveVerificationKey accXPub =
+    liftRawKey . getRawKey . deriveAddressPublicKey accXPub MultisigScript . coerce
+
+hashVerificationKey
+    :: WalletKey k
+    => k 'ScriptK XPub
+    -> KeyHash
+hashVerificationKey =
+    KeyHash . blake2b224 . xpubPublicKey . getRawKey
 
 {-------------------------------------------------------------------------------
                                  Passphrases
@@ -703,6 +722,11 @@ class WalletKey (key :: Depth -> * -> *) where
     getRawKey
         :: key depth raw
         -> raw
+
+    -- | Lift 'XPrv' or 'XPub' to 'WalletKey'.
+    liftRawKey
+        :: raw
+        -> key depth raw
 
 -- | Encoding of addresses for certain key types and backend targets.
 class MkKeyFingerprint key Address

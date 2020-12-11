@@ -233,8 +233,7 @@ import Cardano.Wallet.Network
     , timeInterpreter
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( AccountingStyle
-    , DelegationAddress (..)
+    ( DelegationAddress (..)
     , Depth (..)
     , DerivationIndex (..)
     , DerivationType (..)
@@ -245,6 +244,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , Passphrase (..)
     , PaymentAddress (..)
     , RewardAccount (..)
+    , Role
     , SoftDerivation (..)
     , WalletKey (..)
     , deriveRewardAccount
@@ -1826,7 +1826,7 @@ signMetadata
         )
     => ctx
     -> ApiT WalletId
-    -> ApiT AccountingStyle
+    -> ApiT Role
     -> ApiT DerivationIndex
     -> ApiWalletSignData
     -> Handler ByteString
@@ -1847,7 +1847,7 @@ derivePublicKey
         )
     => ctx
     -> ApiT WalletId
-    -> ApiT AccountingStyle
+    -> ApiT Role
     -> ApiT DerivationIndex
     -> Handler ApiVerificationKey
 derivePublicKey ctx (ApiT wid) (ApiT role_) (ApiT ix) = do

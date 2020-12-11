@@ -268,9 +268,9 @@ spec = parallel $ do
                 , minBound
                 )
 
-        it "'migrate' db with old text serialization for 'AccountingStyle'" $
-            testMigrationAccountingStyle @ShelleyKey
-                "shelleyAccountingStyle-v2020-10-13.sqlite"
+        it "'migrate' db with old text serialization for 'Role'" $
+            testMigrationRole @ShelleyKey
+                "shelleyRole-v2020-10-13.sqlite"
 
 sqliteSpecSeq :: Spec
 sqliteSpecSeq = do
@@ -289,7 +289,7 @@ sqliteSpecRnd = do
             it "Sequential state machine tests"
                 (prop_sequential :: TestDBRnd -> Property)
 
-testMigrationAccountingStyle
+testMigrationRole
     :: forall k s.
         ( s ~ SeqState 'Mainnet k
         , WalletKey k
@@ -299,7 +299,7 @@ testMigrationAccountingStyle
         )
     => String
     -> IO ()
-testMigrationAccountingStyle dbName = do
+testMigrationRole dbName = do
     let orig = $(getTestData) </> dbName
     withSystemTempDirectory "migration-db" $ \dir -> do
         let path = dir </> "db.sqlite"
@@ -312,7 +312,7 @@ testMigrationAccountingStyle dbName = do
                     [wid] <- listWallets
                     readCheckpoint wid
         let migrationMsg = filter isMsgManualMigration logs
-        length migrationMsg `shouldBe` 2
+        length migrationMsg `shouldBe` 3
         length (knownAddresses $ getState cp) `shouldBe` 69
   where
     isMsgManualMigration :: DBLog -> Bool
@@ -322,7 +322,7 @@ testMigrationAccountingStyle dbName = do
         _ ->
             False
       where
-        fieldInDb = fieldDB $ persistFieldDef DB.SeqStateAddressAccountingStyle
+        fieldInDb = fieldDB $ persistFieldDef DB.SeqStateAddressRole
 
 testMigrationSeqStateDerivationPrefix
     :: forall k s.

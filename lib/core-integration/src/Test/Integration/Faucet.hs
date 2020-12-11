@@ -48,11 +48,11 @@ import Cardano.Mnemonic
     , mnemonicToText
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( AccountingStyle (..)
-    , DerivationType (..)
+    ( DerivationType (..)
     , HardDerivation (..)
     , NetworkDiscriminant (..)
     , PaymentAddress (..)
+    , Role (..)
     , WalletKey (..)
     , deriveRewardAccount
     , liftIndex
