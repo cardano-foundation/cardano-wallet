@@ -215,11 +215,24 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
         pool:_ <- map (view #id) . snd <$>
             unsafeRequest @[ApiStakePool] ctx
             (Link.listStakePools arbitraryStake) Empty
-        joinStakePool @n ctx pool (src, fixturePassphrase) >>= flip verify
+        rJoin <- joinStakePool @n ctx pool (src, fixturePassphrase)
+        verify rJoin
             [ expectResponseCode HTTP.status202
             , expectField (#status . #getApiT) (`shouldBe` Pending)
             , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
+            , expectField #deposits (`shouldBe` [Quantity 1000000])
             ]
+        eventually "Wallet has joined pool and deposit info persists" $ do
+            rJoin' <- request @(ApiTransaction n) ctx
+                (Link.getTransaction @'Shelley src
+                    (getFromResponse Prelude.id rJoin))
+                Default Empty
+            verify rJoin'
+                [ expectResponseCode HTTP.status200
+                , expectField (#status . #getApiT) (`shouldBe` InLedger)
+                , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
+                , expectField #deposits (`shouldBe` [Quantity 1000000])
+                ]
 
         -- Earn rewards
         waitForNextEpoch ctx
