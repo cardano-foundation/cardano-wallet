@@ -21,8 +21,10 @@ import Control.Concurrent.STM.TVar
     ( newTVarIO, readTVarIO )
 import Control.Tracer
     ( Tracer )
-import Data.Generics.Internal.VL.Prism
-    ( Prism', (^?) )
+import Control.Lens.Prism
+    ( Prism' )
+import Control.Lens.Operators
+    ( (^?) )
 import Data.Maybe
     ( isJust )
 

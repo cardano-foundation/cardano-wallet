@@ -35,7 +35,7 @@ library
     , contra-tracer
     , filepath
     , file-embed
-    , generic-lens >=1.1.0.0 && < 1.2.0.0
+    , lens
     , hspec
     , hspec-core
     , hspec-expectations
