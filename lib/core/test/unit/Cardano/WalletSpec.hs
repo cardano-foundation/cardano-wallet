@@ -925,6 +925,7 @@ instance Arbitrary TxMeta where
         <*> fmap Quantity arbitrary
         <*> fmap (Quantity . fromIntegral) (arbitrary @Word32)
         <*> liftArbitrary genSlotNo
+        <*> (fmap . fmap) Quantity arbitrary
 
 instance Arbitrary TxMetadata where
     shrink = shrinkTxMetadata

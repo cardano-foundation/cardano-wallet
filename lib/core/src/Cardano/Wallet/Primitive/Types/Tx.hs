@@ -267,17 +267,20 @@ data TxMeta = TxMeta
     , expiry :: !(Maybe SlotNo)
       -- ^ The slot at which a pending transaction will no longer be accepted
       -- into mempools.
+    , deposit :: !(Maybe (Quantity "lovelace" Coin))
     } deriving (Show, Eq, Ord, Generic)
 
 instance NFData TxMeta
 
 instance Buildable TxMeta where
-    build (TxMeta s d sl (Quantity bh) (Quantity a) mex) = mempty
+    build (TxMeta s d sl (Quantity bh) (Quantity a) mex dep) = mempty
         <> (case d of; Incoming -> "+"; Outgoing -> "-")
         <> fixedF @Double 6 (fromIntegral a / 1e6)
         <> " " <> build s
         <> " since " <> build sl <> "#" <> build bh
         <> maybe mempty (\ex -> " (expires slot " <> build ex <> ")") mex
+        <> maybe mempty (\(Quantity (Coin dq)) -> " deposit of "
+            <> fixedF @Double 6 (fromIntegral dq / 1e6)) dep
 
 data TxStatus
     = Pending

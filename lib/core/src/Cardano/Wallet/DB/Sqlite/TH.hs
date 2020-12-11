@@ -110,6 +110,7 @@ TxMeta
     txMetaAmount            Natural             sql=amount
     txMetaData              W.TxMetadata Maybe  sql=data
     txMetaSlotExpires       SlotNo Maybe        sql=slot_expires
+    txMetaDeposit           W.Coin Maybe        sql=deposit
 
     Primary txMetaTxId txMetaWalletId
     Foreign Wallet fk_wallet_tx_meta txMetaWalletId ! ON DELETE CASCADE

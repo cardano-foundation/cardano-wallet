@@ -1908,6 +1908,7 @@ mkTxMeta ti' blockHeader wState tx cs expiry =
                 , blockHeight = blockHeader ^. #blockHeight
                 , amount = Quantity $ distance amtInps amtOuts
                 , expiry = Just expiry
+                , deposit = Just . Quantity . Coin $ (cs ^. #deposit)
                 }
             )
   where

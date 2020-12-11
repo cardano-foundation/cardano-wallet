@@ -1073,7 +1073,7 @@ testTxs =
         mempty
         Nothing
       , TxMeta
-        InLedger Incoming (SlotNo 140) (Quantity 0) (Quantity 1337144) Nothing
+        InLedger Incoming (SlotNo 140) (Quantity 0) (Quantity 1337144) Nothing Nothing
       )
     ]
 
