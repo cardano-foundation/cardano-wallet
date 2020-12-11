@@ -40,11 +40,11 @@ import Cardano.Wallet.Api.Client
     , walletClient
     )
 import Cardano.Wallet.Api.Types
-    ( ApiT (..), ApiTxMetadata (..) )
+    ( ApiMetadata (..), ApiT (..) )
 import Cardano.Wallet.Primitive.Types
     ( PoolMetadataSource )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( TxMetadata (..), TxMetadataValue (..) )
+    ( Metadata (..), TxMetadata (..), TxMetadataValue (..) )
 import Control.Concurrent
     ( forkFinally )
 import Control.Concurrent.MVar
@@ -679,8 +679,8 @@ spec = do
     describe "Tx Metadata JSON option" $ do
         let parse arg = execParserPure defaultPrefs
                 (info metadataOption mempty) ["--metadata", arg]
-        let md = ApiT (TxMetadata (Map.singleton 42 (TxMetaText "hi")))
-        let ok ex (Success res) = ex == getApiTxMetadata res
+        let md = ApiT (MetaBlob $ TxMetadata (Map.singleton 42 (TxMetaText "hi")))
+        let ok ex (Success res) = ex == getApiMetadata res
             ok _ _ = False
         let err (Failure _) = True
             err _ = False
@@ -692,7 +692,7 @@ spec = do
             , ("invalid", "{ \"json\": true }", err)
             , ("null 1", "{ \"0\": null }", err)
             , ("null 2", "null", ok Nothing)
-            , ("null 3", "{ }", ok (Just (ApiT mempty)))
+            , ("null 3", "{ }", ok (Just (ApiT (MetaBlob mempty))))
             ]
 
     describe "Tx TTL option" $ do
