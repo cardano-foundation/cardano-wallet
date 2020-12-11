@@ -17,35 +17,57 @@ set -euo pipefail
 
 ################################################################################
 # Release-specific parameters (Change when you bump the version)
-#
-# Use trailing zeros for the date in the git tag, but
-# do not use trailing zeros for the Cabal version.
-# i.e. v2020-11-03 and not 2020.11.03 but 2020.11.3
+# Release tags must follow format vYYYY-MM-DD.
 OLD_GIT_TAG="v2020-12-08"
-OLD_CABAL_VERSION="2020.12.8"
-
 GIT_TAG="v2020-12-21"
-CABAL_VERSION="2020.12.21"
 
 CARDANO_NODE_TAG="1.24.2"
+
 ################################################################################
-OLD_DATE="${OLD_GIT_TAG//v}"
-CHANGELOG=GENERATED_CHANGELOG.md
-OUT=GENERATED_RELEASE_NOTES-$GIT_TAG.md
-REPO="input-output-hk/cardano-wallet"
-WIKI_COMMIT=$(git ls-remote https://github.com/$REPO.wiki.git HEAD | cut -f1)
+# Tag munging functions
+
+# date from git tag
+tag_date() {
+  echo "${1##v}"
+}
+# cabal version from git tag
+tag_cabal_ver() {
+  tag_date "$1" | sed -e s/-0/-/g -e s/-/./g
+}
+# cabal version regular expression from git tag (escaped .)
+tag_cabal_ver_re() {
+  tag_cabal_ver "$1" | sed -e 's/\./\\./g'
+}
+
+################################################################################
+# Update versions
+
+OLD_DATE=$(tag_date $OLD_GIT_TAG)
+OLD_CABAL_VERSION=$(tag_cabal_ver $OLD_GIT_TAG)
+OLD_CABAL_VERSION_RE=$(tag_cabal_ver_re $OLD_GIT_TAG)
+CABAL_VERSION=$(tag_cabal_ver $GIT_TAG)
 
 echo ""
 echo "Replacing $OLD_CABAL_VERSION with $CABAL_VERSION"
-sed -i "s/$OLD_CABAL_VERSION/$CABAL_VERSION/" \
-    $(git ls-files '*.nix:!:nix/migration-tests.nix'; git ls-files '*.cabal'; git ls-files '*swagger.yaml') docker-compose.yml
-echo "Looking for remaining references to old version:"
-git grep $OLD_CABAL_VERSION
+sed -i "s/$OLD_CABAL_VERSION_RE/$CABAL_VERSION/" \
+    $(git ls-files '*.nix'; git ls-files '*.cabal'; git ls-files '*swagger.yaml') docker-compose.yml
 echo ""
 
 echo "Updating docker-compose.yml with $CARDANO_NODE_TAG cardano-node tag"
 sed -i "s|inputoutput/cardano-node:.*|inputoutput/cardano-node:$CARDANO_NODE_TAG|" docker-compose.yml
 echo ""
+
+echo "Looking for remaining references to old version $OLD_CABAL_VERSION:"
+git grep "$OLD_CABAL_VERSION_RE" || echo "Nothing - good."
+echo ""
+
+################################################################################
+# ChangeLog
+
+CHANGELOG=GENERATED_CHANGELOG.md
+OUT=GENERATED_RELEASE_NOTES-$GIT_TAG.md
+REPO="input-output-hk/cardano-wallet"
+WIKI_COMMIT=$(git ls-remote https://github.com/$REPO.wiki.git HEAD | cut -f1)
 
 echo "Generating changelog..."
 ./scripts/make_changelog.sh $OLD_DATE > $CHANGELOG
@@ -58,11 +80,15 @@ sed -e "s/{{GIT_TAG}}/$GIT_TAG/g"                   \
     -e "/{{CHANGELOG}}/r $CHANGELOG"                \
     -e "/{{CHANGELOG}}/d"                           \
     .github/RELEASE_TEMPLATE.md > $OUT
+
+################################################################################
+# Commit and tag
+
 read -p "Do you want to create a commit and release-tag? (y/n) " -n 1 -r
 echo
 if [[ $REPLY =~ ^[Yy]$ ]]
 then
   msg="Bump version from $OLD_CABAL_VERSION to $CABAL_VERSION"
   git diff --quiet || git commit -am "$msg"
-  git tag -s -m $GIT_TAG $GIT_TAG
+  git tag -s -m "$GIT_TAG" "$GIT_TAG"
 fi
