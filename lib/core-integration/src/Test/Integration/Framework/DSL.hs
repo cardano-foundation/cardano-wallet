@@ -587,7 +587,7 @@ slotLengthValue = 0.2
 
 -- | Parameter in test cluster genesis.
 epochLengthValue :: Word32
-epochLengthValue = 200
+epochLengthValue = 50
 
 -- | Wallet server's chosen transaction TTL value (in seconds) when none is
 -- given.

@@ -271,13 +271,13 @@ specWithServer (tr, tracers) = aroundAll withContext
     onByron _ = pure ()
     afterFork dir _ = do
         traceWith tr MsgSettingUpFaucet
+        let rewards = (,Coin $ fromIntegral oneMillionAda) <$>
+                concatMap genRewardAccounts mirMnemonics
+        moveInstantaneousRewardsTo tr' dir rewards
         let encodeAddr = T.unpack . encodeAddress @'Mainnet
         let addresses = map (first encodeAddr) shelleyIntegrationTestFunds
         sendFaucetFundsTo tr' dir addresses
 
-        let rewards = (,Coin $ fromIntegral oneMillionAda) <$>
-                concatMap genRewardAccounts mirMnemonics
-        moveInstantaneousRewardsTo tr' dir rewards
 
     onClusterStart action dir dbDecorator node = do
         -- NOTE: We may want to keep a wallet running across the fork, but
