@@ -624,7 +624,7 @@ withCluster tr severity poolConfigs dir logFile onByron onShelley onClusterStart
                     (ExitFailure 1)
             else do
                 traceWith tr $ MsgWaitingForFork "Shelley -> Allegra"
-                waitForHardFork bftSocket sp 2
+                --waitForHardFork bftSocket sp 2
                 let cfg = NodeParams severity systemStart (port0, ports) logFile
                 withRelayNode tr dir cfg $ \socket -> do
                     let runningRelay = RunningNode socket block0 params
@@ -646,7 +646,7 @@ waitForHardFork _socket sp epoch = threadDelay (ceiling (1e6 * delay))
     EpochLength epLen = getEpochLength sp
     SlotLength slotDur = getSlotLength sp
     -- add two seconds just to make sure.
-    fuzz = 2
+    fuzz = 0
 
 -- | Configuration parameters which update the @node.config@ test data file.
 data NodeParams = NodeParams

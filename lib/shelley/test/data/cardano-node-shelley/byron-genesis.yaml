@@ -21,7 +21,7 @@ blockVersionData:
     multiplier: '43000000000'
   unlockStakeEpoch: '18446744073709551615'
 protocolConsts:
-  k: 8
+  k: 5
   protocolMagic: 764824073
 
 bootStakeholders:
