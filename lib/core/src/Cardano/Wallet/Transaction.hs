@@ -42,7 +42,7 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( Metadata, SealedTx (..), Tx (..), TxMetadata )
+    ( Metadata, SealedTx (..), Tx (..) )
 import Data.ByteString
     ( ByteString )
 import Data.Quantity
@@ -130,7 +130,7 @@ data TransactionLayer k = TransactionLayer
     , minimumFee
         :: FeePolicy
         -> Maybe DelegationAction
-        -> Maybe TxMetadata
+        -> Maybe Metadata
         -> CoinSelection
         -> Fee
         -- ^ Compute a minimal fee amount necessary to pay for a given
@@ -139,7 +139,7 @@ data TransactionLayer k = TransactionLayer
     , estimateMaxNumberOfInputs
         :: Quantity "byte" Word16
             -- Max tx size
-        -> Maybe TxMetadata
+        -> Maybe Metadata
             -- Metadata associated with the transaction
         -> Word8
             -- desired number of outputs

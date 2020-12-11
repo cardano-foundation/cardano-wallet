@@ -82,7 +82,6 @@ import Cardano.Wallet.Primitive.Types.Tx
     , SealedTx (..)
     , Tx (..)
     , TxIn (..)
-    , TxMetadata
     , TxOut (..)
     )
 import Cardano.Wallet.Shelley.Compatibility
@@ -100,6 +99,7 @@ import Cardano.Wallet.Shelley.Compatibility
     , toStakeKeyDeregCert
     , toStakeKeyRegCert
     , toStakePoolDlgCert
+    , toCardanoScriptV1
     )
 import Cardano.Wallet.Transaction
     ( DelegationAction (..)
@@ -142,7 +142,7 @@ import qualified Shelley.Spec.Ledger.Address.Bootstrap as SL
 -- Designed to allow us to have /one/ @mkTx@ which doesn't care whether we
 -- include certificates or not.
 data TxPayload era = TxPayload
-    { _metadata :: Maybe Cardano.TxMetadata
+    { _metadata :: Maybe Metadata
       -- ^ User or application-defined metadata to be included in the
       -- transaction.
 
@@ -160,9 +160,8 @@ emptyTxPayload :: TxPayload c
 emptyTxPayload = TxPayload Nothing mempty mempty
 
 stdTxPayload :: Maybe Metadata -> TxPayload c
-stdTxPayload (Just (MetaBlob md)) = TxPayload (Just md) mempty mempty
+stdTxPayload (Just md) = TxPayload (Just md) mempty mempty
 stdTxPayload _ = TxPayload Nothing mempty mempty
---TO_DO
 
 data TxWitnessTag
     = TxWitnessByronUTxO WalletStyle
@@ -359,7 +358,7 @@ _estimateMaxNumberOfInputs
     :: forall k. TxWitnessTagFor k
     => Quantity "byte" Word16
      -- ^ Transaction max size in bytes
-    -> Maybe TxMetadata
+    -> Maybe Metadata
      -- ^ Metadata associated with the transaction.
     -> Word8
     -- ^ Number of outputs in transaction
@@ -421,7 +420,7 @@ _minimumFee
     :: forall k. TxWitnessTagFor k
     => FeePolicy
     -> Maybe DelegationAction
-    -> Maybe TxMetadata
+    -> Maybe Metadata
     -> CoinSelection
     -> Fee
 _minimumFee policy action md cs =
@@ -441,7 +440,7 @@ _minimumFee policy action md cs =
 -- All sizes below are in bytes.
 estimateTxSize
     :: TxWitnessTag
-    -> Maybe Cardano.TxMetadata
+    -> Maybe Metadata
     -> Maybe DelegationAction
     -> CoinSelection
     -> Integer
@@ -561,7 +560,11 @@ estimateTxSize witTag md action cs =
     -- measure the serialize data since we have it anyway. When it's "empty",
     -- metadata are represented by a special "null byte" in CBOR `F6`.
     sizeOf_Metadata
-        = maybe 1 (toInteger . BS.length . serialiseToCBOR) md
+        = case md of
+              (Just (MetaBlob blob)) ->
+                  toInteger $ BS.length $ serialiseToCBOR blob
+              (Just (MetaScript _script)) -> 1 --TO_DO
+              Nothing -> 1
 
     -- transaction_input =
     --   [ transaction_id : $hash32
@@ -767,7 +770,7 @@ mkUnsignedTx
     :: ShelleyBasedEra era
     -> Cardano.SlotNo
     -> CoinSelection
-    -> Maybe Cardano.TxMetadata
+    -> Maybe Metadata
     -> [(Cardano.StakeAddress, Cardano.Lovelace)]
     -> [Cardano.Certificate]
     -> Either ErrMkTx (Cardano.TxBody era)
@@ -802,11 +805,10 @@ mkUnsignedTx era ttl cs md wdrls certs =
             , Cardano.TxValidityUpperBound Cardano.ValidityUpperBoundInShelleyEra ttl
             )
 
-        , Cardano.txMetadata =
-            maybe
-                Cardano.TxMetadataNone
-                (Cardano.TxMetadataInEra Cardano.TxMetadataInShelleyEra)
-                md
+        , Cardano.txMetadata = case md of
+                Just (MetaBlob md') ->
+                    Cardano.TxMetadataInEra Cardano.TxMetadataInShelleyEra md'
+                _ -> Cardano.TxMetadataNone
 
         , Cardano.txAuxScripts =
             Cardano.TxAuxScriptsNone
@@ -843,14 +845,16 @@ mkUnsignedTx era ttl cs md wdrls certs =
             , Cardano.TxValidityUpperBound Cardano.ValidityUpperBoundInAllegraEra ttl
             )
 
-        , Cardano.txMetadata =
-            maybe
-                Cardano.TxMetadataNone
-                (Cardano.TxMetadataInEra Cardano.TxMetadataInAllegraEra)
-                md
+        , Cardano.txMetadata = case md of
+                Just (MetaBlob md') ->
+                    Cardano.TxMetadataInEra Cardano.TxMetadataInAllegraEra md'
+                _ -> Cardano.TxMetadataNone
 
-        , Cardano.txAuxScripts =
-            Cardano.TxAuxScriptsNone
+        , Cardano.txAuxScripts = case md of
+                Just (MetaScript s) ->
+                    Cardano.TxAuxScripts Cardano.AuxScriptsInAllegraEra
+                    [Cardano.ScriptInEra Cardano.SimpleScriptV1InAllegra (toCardanoScriptV1 s)]
+                _ -> Cardano.TxAuxScriptsNone
 
         , Cardano.txUpdateProposal =
             Cardano.TxUpdateProposalNone

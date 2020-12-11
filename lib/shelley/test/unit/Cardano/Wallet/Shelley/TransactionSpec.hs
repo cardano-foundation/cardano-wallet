@@ -55,11 +55,12 @@ import Cardano.Wallet.Primitive.Types.Coin
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( TxIn (..)
+    ( Metadata (..)
+    , TxIn (..)
     , TxMetadata (..)
     , TxMetadataValue (..)
     , TxOut (..)
-    , txMetadataIsNull
+    , metadataIsNull
     )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
@@ -147,7 +148,7 @@ spec = do
         let policy :: FeePolicy
             policy = LinearFee (Quantity 100_000) (Quantity 100) (Quantity 0)
 
-            minFee :: Maybe TxMetadata -> CoinSelection -> Integer
+            minFee :: Maybe Metadata -> CoinSelection -> Integer
             minFee md = fromIntegral . getFee . minimumFee tl policy Nothing md
               where tl = testTxLayer
 
@@ -176,7 +177,7 @@ spec = do
                 marginalCost = costWith - costWithout
             in
                 property (marginalCost > 0)
-                & classify (txMetadataIsNull md) "null metadata"
+                & classify (metadataIsNull md) "null metadata"
                 & counterexample ("cost of metadata: " <> show marginalCost)
                 & counterexample ("cost with: " <> show costWith)
                 & counterexample ("cost without: " <> show costWithout)
@@ -489,7 +490,7 @@ testTxLayer = newTransactionLayer @ShelleyKey Cardano.Mainnet
 data DecodeShelleySetup = DecodeShelleySetup
     { inputs :: UTxO
     , outputs :: [TxOut]
-    , metadata :: Maybe TxMetadata
+    , metadata :: Maybe Metadata
     , ttl :: SlotNo
     , keyPasswd :: [(XPrv, Passphrase "encryption")]
     } deriving Show
@@ -556,6 +557,11 @@ instance Arbitrary TxOut where
 instance Arbitrary TxMetadata where
     arbitrary = TxMetadata <$> arbitrary
     shrink (TxMetadata md) = TxMetadata <$> shrink md
+
+instance Arbitrary Metadata where
+    arbitrary = MetaBlob <$> arbitrary
+    shrink (MetaBlob txMetadata) = MetaBlob <$> shrink txMetadata
+    shrink _ = []
 
 instance Arbitrary TxMetadataValue where
     -- Note: test generation at the integration level is very simple. More

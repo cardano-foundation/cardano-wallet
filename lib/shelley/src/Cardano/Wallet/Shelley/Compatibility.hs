@@ -68,6 +68,7 @@ module Cardano.Wallet.Shelley.Compatibility
     , fromShelleyCoin
     , toHDPayloadAddress
     , toCardanoStakeCredential
+    , toCardanoScriptV1
 
       -- ** Stake pools
     , fromPoolId
@@ -116,6 +117,8 @@ import Cardano.Address
     ( unsafeMkAddress )
 import Cardano.Address.Derivation
     ( XPub, xpubPublicKey )
+import Cardano.Address.Script
+    ( KeyHash (..), Script (..) )
 import Cardano.Api.Shelley
     ( fromShelleyMetaData )
 import Cardano.Api.Shelley.Genesis
@@ -157,6 +160,8 @@ import Cardano.Wallet.Unsafe
     ( unsafeDeserialiseCbor, unsafeMkPercentage )
 import Codec.Binary.Bech32
     ( dataPartFromBytes, dataPartToBytes )
+import Codec.Binary.Encoding
+    ( AbstractEncoding (..), encode )
 import Control.Applicative
     ( (<|>) )
 import Control.Arrow
@@ -1280,6 +1285,28 @@ instance KnownNat protocolMagic => HasNetworkId ('Testnet protocolMagic) where
 
 instance HasNetworkId ('Staging protocolMagic) where
     networkIdVal _ = Cardano.Mainnet
+
+toCardanoScriptV1 :: Script -> Cardano.Script Cardano.SimpleScriptV1
+toCardanoScriptV1 script' = fromSimpleScript (simpleScript script')
+  where
+    fromSimpleScript = Cardano.SimpleScript Cardano.SimpleScriptV1
+    convertFromKeyHash :: KeyHash -> Cardano.Hash Cardano.PaymentKey
+    convertFromKeyHash k@(KeyHash payload) =
+        case Cardano.deserialiseFromRawBytesHex (Cardano.AsHash Cardano.AsPaymentKey)
+             $ encode EBase16 payload of
+            Just payKeyHash -> payKeyHash
+            Nothing -> error $ "toCardanoScriptV1: Error deserialising payment key hash: "
+                       <> show k
+    simpleScript s = case s of
+        RequireSignatureOf kh ->
+            Cardano.RequireSignature (convertFromKeyHash kh)
+        RequireAllOf scripts ->
+            Cardano.RequireAllOf $ simpleScript <$> scripts
+        RequireAnyOf scripts ->
+            Cardano.RequireAnyOf $ simpleScript <$> scripts
+        RequireSomeOf n scripts ->
+            Cardano.RequireMOf (fromInteger $ toInteger n) $
+            simpleScript <$> scripts
 
 {-------------------------------------------------------------------------------
                                     Logging

@@ -1240,7 +1240,7 @@ normalizeDelegationAddress s addr = do
 coinSelOpts
     :: TransactionLayer k
     -> Quantity "byte" Word16
-    -> Maybe TxMetadata
+    -> Maybe Metadata
     -> CoinSelectionOptions
 coinSelOpts tl txMaxSize md = CoinSelectionOptions
     { maximumNumberOfInputs = estimateMaxNumberOfInputs tl txMaxSize md
@@ -1249,7 +1249,7 @@ coinSelOpts tl txMaxSize md = CoinSelectionOptions
 feeOpts
     :: TransactionLayer k
     -> Maybe DelegationAction
-    -> Maybe TxMetadata
+    -> Maybe Metadata
     -> W.TxParameters
     -> W.Coin
     -> CoinSelection
@@ -1342,16 +1342,12 @@ selectCoinsForPaymentFromUTxO
     -> ExceptT ErrSelectForPayment IO CoinSelection
 selectCoinsForPaymentFromUTxO ctx utxo txp minUtxo recipients withdrawal md = do
     lift . traceWith tr $ MsgPaymentCoinSelectionStart utxo txp recipients
-    let md' = case md of
-            Just (MetaBlob metadata) -> Just metadata
-            _ -> Nothing
-            --TO_DO
     (sel, utxo') <- withExceptT handleCoinSelError $ do
-        let opts = coinSelOpts tl (txp ^. #getTxMaxSize) md'
+        let opts = coinSelOpts tl (txp ^. #getTxMaxSize) md
         CoinSelection.random opts recipients withdrawal utxo
 
     lift . traceWith tr $ MsgPaymentCoinSelection sel
-    let feePolicy = feeOpts tl Nothing md' txp minUtxo sel
+    let feePolicy = feeOpts tl Nothing md txp minUtxo sel
     withExceptT ErrSelectForPaymentFee $ do
         balancedSel <- adjustForFee feePolicy utxo' sel
         lift . traceWith tr $ MsgPaymentCoinSelectionAdjusted balancedSel
