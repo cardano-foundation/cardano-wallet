@@ -10,7 +10,6 @@
 module Test.Utils.Trace
      ( withLogging
      , captureLogging
-     , countMsg
      ) where
 
 import Prelude
@@ -21,12 +20,6 @@ import Control.Concurrent.STM.TVar
     ( newTVarIO, readTVarIO )
 import Control.Tracer
     ( Tracer )
-import Control.Lens.Prism
-    ( Prism' )
-import Control.Lens.Operators
-    ( (^?) )
-import Data.Maybe
-    ( isJust )
 
 -- | Run an action with a logging 'Trace' object, and a function to get all
 -- messages that have been traced.
@@ -43,22 +36,3 @@ captureLogging action = withLogging $ \(tr, getMsgs) -> do
     res <- action tr
     msgs <- getMsgs
     pure (msgs, res)
-
--- | Count elements in the list matching the given Prism. Handy for counting log
--- messages which are typically constructed as sum types with many constructors.
---
--- A Prism look scary but can be obtained very easily if the target type is
--- deriving 'Generic'. From there, use
---
--- `Data.Generics.Sum.Constructor#_Ctor` from `generic-lens`.
---
--- __Example:__
---
--- >>> data MySumType = MyConstructor | MyOtherConstructor deriving Generic
---
--- >>> xs = [ MyConstructor, MyOtherConstructor, MyConstructor ]
---
--- >>> count (_Ctor @"MyConstructor") xs
--- 2
-countMsg :: Prism' s a -> [s] -> Int
-countMsg prism = length . filter (\x -> isJust (x ^? prism))
