@@ -35,7 +35,6 @@
           (hsPkgs."contra-tracer" or (errorHandler.buildDepError "contra-tracer"))
           (hsPkgs."filepath" or (errorHandler.buildDepError "filepath"))
           (hsPkgs."file-embed" or (errorHandler.buildDepError "file-embed"))
-          (hsPkgs."generic-lens" or (errorHandler.buildDepError "generic-lens"))
           (hsPkgs."hspec" or (errorHandler.buildDepError "hspec"))
           (hsPkgs."hspec-core" or (errorHandler.buildDepError "hspec-core"))
           (hsPkgs."hspec-expectations" or (errorHandler.buildDepError "hspec-expectations"))
