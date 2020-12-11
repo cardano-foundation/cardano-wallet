@@ -290,6 +290,8 @@ fetchFromRemote
     -> IO (Maybe StakePoolMetadata)
 fetchFromRemote tr builders manager pid url hash = runExceptTLog $ do
     chunk <- getChunk `fromFirst` builders
+    when (BS.length chunk > 512) $ throwE
+        "Metadata exceeds max length of 512 bytes"
     when (blake2b256 chunk /= coerce hash) $ throwE $ mconcat
         [ "Metadata hash mismatch. Saw: "
         , B8.unpack $ hex $ blake2b256 chunk
@@ -335,17 +337,17 @@ fetchFromRemote tr builders manager pid url hash = runExceptTLog $ do
             -- Metadata are _supposed to_ be made of:
             --
             -- - A name (at most 50 UTF-8 bytes)
-            -- - An optional description (at most 250 UTF-8 bytes)
-            -- - A ticker (at most 5 UTF-8 bytes)
-            -- - A homepage (at most 100 UTF-8 bytes)
+            -- - An optional description (at most 255 UTF-8 bytes)
+            -- - A ticker (between 3 and 5 UTF-8 bytes)
             --
             -- So, the total, including a pretty JSON encoding with newlines ought
-            -- to be less than 512 bytes. For security reasons, we only download the
-            -- first 512 bytes.
+            -- to be less than or equal to 512 bytes. For security reasons, we only
+            -- download the first 513 bytes and check the length at the
+            -- call-site.
             case responseStatus res of
                 s | s == status200 -> do
                     let body = responseBody res
-                    Right . Just . BL.toStrict <$> brReadSome body 512
+                    Right . Just . BL.toStrict <$> brReadSome body 513
 
                 s | s == status404 -> do
                     pure $ Left "There's no known metadata for this pool."

@@ -168,7 +168,7 @@ import Control.DeepSeq
 import Control.Error.Util
     ( (??) )
 import Control.Monad
-    ( guard, (<=<), (>=>) )
+    ( when, (<=<), (>=>) )
 import Control.Monad.Except
     ( runExceptT )
 import Control.Monad.Trans.Except
@@ -614,15 +614,19 @@ data StakePoolMetadata = StakePoolMetadata
 instance FromJSON StakePoolMetadata where
     parseJSON = withObject "StakePoolMetadta" $ \obj -> do
         ticker <- obj .: "ticker"
+        let tickerLen = T.length . unStakePoolTicker $ ticker
+        when (tickerLen > 5 || tickerLen < 3)
+            $ fail "ticker length must be between 3 and 5 characters"
 
         name <- obj .: "name"
-        guard (T.length name <= 50)
+        when (T.length name > 50)
+            $ fail "name exceeds max length of 50 chars"
 
         description <- obj .:? "description"
-        guard ((T.length <$> description) <= Just 250)
+        when ((T.length <$> description) > Just 255)
+            $ fail "description exceeds max length of 255 characters"
 
         homepage <- obj .: "homepage"
-        guard (T.length homepage <= 100)
 
         pure $ StakePoolMetadata{ticker,name,description,homepage}
 

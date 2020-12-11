@@ -19,7 +19,8 @@ import Prelude
 import Cardano.Mnemonic
     ( entropyToMnemonic, genEntropy )
 import Cardano.Wallet.Api.Types
-    ( ApiTransaction
+    ( ApiT (..)
+    , ApiTransaction
     , ApiUtxoStatistics
     , ApiWallet
     , ApiWalletMigrationInfo (..)
@@ -36,10 +37,12 @@ import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey )
-import Control.Concurrent
-    ( threadDelay )
+import Cardano.Wallet.Primitive.Types.Address
+    ( Address )
+import Cardano.Wallet.Primitive.Types.Tx
+    ( TxStatus (..) )
 import Control.Monad
-    ( forM_ )
+    ( forM_, void, when )
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Resource
@@ -48,6 +51,8 @@ import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
 import Data.Maybe
     ( mapMaybe )
+import Data.Proxy
+    ( Proxy )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text
@@ -77,12 +82,13 @@ import Test.Integration.Framework.DSL
     , icarusAddresses
     , json
     , listAddresses
-    , oneSecond
     , postWallet
     , randomAddresses
     , request
+    , unsafeRequest
     , unsafeResponse
     , verify
+    , waitForTxImmutability
     , walletId
     , (.>)
     )
@@ -202,39 +208,39 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
         addrs <- listAddresses @n ctx wNew
         let addr1 = (addrs !! 1) ^. #id
 
-        let payloadMigrate =
-                Json [json|
-                    { passphrase: #{fixturePassphrase}
-                    , addresses: [#{addr1}]
-                    }|]
-        liftIO $ request @[ApiTransaction n] ctx
-            (Link.migrateWallet @'Shelley wOld)
-            Default
-            payloadMigrate >>= flip verify
-            [ expectResponseCode HTTP.status202
-            , expectField id ((`shouldBe` 14) . length)
-            ]
 
-        -- Check that funds become available in the target wallet:
-        let expectedBalance = originalBalance - expectedFee - leftovers
-        eventually "wallet balance = expectedBalance" $ do
+        -- NOTE
+        -- The migration typically involves many transactions being sent one by
+        -- one. It may happen that one of these transaction is rolled back and
+        -- simply discarded entirely from mem pools. There's no retry mechanism
+        -- from the wallet _yet_, which means that such transactions must be
+        -- manually retried by clients.
+        --
+        -- This 'migrateWallet' function does exactly this, and will try to make
+        -- sure that rolledback functions are canceled and retried up until the
+        -- full migration is done.
+        liftIO $ migrateWallet ctx wOld [addr1]
+
+        -- Check that funds become available in the target wallet: Because
+        -- there's a bit of non-determinism in how the migration is really done,
+        -- we can expect the final balance with exactitude. Yet, we still expect
+        -- it to be not too far away from an ideal value.
+        let expectedMinBalance = originalBalance - 2 * expectedFee - leftovers
+        eventually "wallet balance ~ expectedBalance" $ do
             request @ApiWallet ctx
                 (Link.getWallet @'Shelley wNew)
                 Default
                 Empty >>= flip verify
                 [ expectField
                         (#balance . #getApiT . #available)
-                        ( `shouldBe` Quantity expectedBalance)
+                        (.> (Quantity expectedMinBalance))
                 , expectField
                         (#balance . #getApiT . #total)
-                        ( `shouldBe` Quantity expectedBalance)
+                        (.> (Quantity expectedMinBalance))
                 ]
 
-        -- #2238 quick fix to reduce likelihood of rollback.
-        liftIO $ threadDelay $ 10 * oneSecond
-
         -- Analyze the target wallet UTxO distribution
-        liftIO $ request @ApiUtxoStatistics ctx (Link.getUTxOsStatistics @'Shelley wNew)
+        request @ApiUtxoStatistics ctx (Link.getUTxOsStatistics @'Shelley wNew)
             Default
             Empty >>= flip verify
             [ expectField
@@ -433,6 +439,45 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
             . sum
             . fmap (view (#amount . #getQuantity))
             . view #outputs
+
+    migrateWallet
+        :: Context
+        -> ApiWallet
+        -> [(ApiT Address, Proxy n)]
+        -> IO ()
+    migrateWallet ctx src targets = do
+        (st, _) <- request @ApiWalletMigrationInfo ctx endpointInfo Default Empty
+        when (st == HTTP.status200) $ do -- returns '403 Nothing to Migrate' when done
+            -- 1/ Forget all pending transactions to unlock any locked UTxO
+            (_, txs) <- unsafeRequest @[ApiTransaction n] ctx endpointListTxs Empty
+            forM_ txs $ forgetTxIf ((== ApiT Pending) . view #status)
+
+            -- 2/ Attempt to migrate
+            _ <- request @[ApiTransaction n] ctx endpointMigration Default payload
+
+            -- 3/ Wait "long-enough" for transactions to have been inserted.
+            waitForTxImmutability ctx
+
+            -- 4/ Recurse, until the server tells us there's nothing left to migrate
+            migrateWallet ctx src targets
+      where
+        endpointInfo =
+            Link.getMigrationInfo @'Shelley src
+        endpointMigration =
+            Link.migrateWallet @'Shelley src
+        endpointListTxs =
+            Link.listTransactions @'Shelley src
+        endpointForget =
+            Link.deleteTransaction @'Shelley src
+
+        payload = Json
+            [json|{"passphrase": #{fixturePassphrase}, "addresses": #{targets}}|]
+
+        forgetTxIf predicate tx
+            | predicate tx =
+                void $ unsafeRequest @() ctx (endpointForget tx) Empty
+            | otherwise =
+                pure ()
 
     testAddressCycling addrNum =
         it ("Migration from Shelley wallet to " ++ show addrNum ++ " addresses")
