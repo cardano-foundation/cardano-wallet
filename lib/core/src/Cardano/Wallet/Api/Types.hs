@@ -111,6 +111,7 @@ module Cardano.Wallet.Api.Types
     , ApiWithdrawal (..)
     , ApiWalletSignData (..)
     , ApiVerificationKey (..)
+    , toVerificationKeyHash
     , ApiSharedScript (..)
 
     -- * API Types (Byron)
@@ -163,7 +164,7 @@ import Prelude
 import Cardano.Address.Derivation
     ( XPrv, XPub, xpubFromBytes, xpubToBytes )
 import Cardano.Address.Script
-    ( Script )
+    ( KeyHash (..), Script )
 import Cardano.Api.Typed
     ( TxMetadataJsonSchema (..)
     , displayError
@@ -253,6 +254,10 @@ import Control.DeepSeq
     ( NFData )
 import Control.Monad
     ( guard, (>=>) )
+import Crypto.Hash
+    ( hash )
+import Crypto.Hash.Algorithms
+    ( Blake2b_224 (..) )
 import Data.Aeson
     ( FromJSON (..)
     , SumEncoding (..)
@@ -344,6 +349,7 @@ import qualified Codec.Binary.Bech32 as Bech32
 import qualified Codec.Binary.Bech32.TH as Bech32
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Types as Aeson
+import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.HashMap.Strict as HM
@@ -904,6 +910,11 @@ newtype ApiVerificationKey = ApiVerificationKey
     { getApiVerificationKey :: (ByteString, Role)
     } deriving (Eq, Generic, Show)
       deriving anyclass NFData
+
+toVerificationKeyHash
+    :: ApiVerificationKey -> KeyHash
+toVerificationKeyHash (ApiVerificationKey (bs, _)) =
+    KeyHash $ BA.convert $ hash @_ @Blake2b_224 bs
 
 -- | Error codes returned by the API, in the form of snake_cased strings
 data ApiErrorCode

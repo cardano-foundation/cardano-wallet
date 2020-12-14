@@ -17,6 +17,8 @@ module Test.Integration.Scenario.API.Shelley.Transactions
 
 import Prelude
 
+import Cardano.Address.Script
+    ( Script (..) )
 import Cardano.Mnemonic
     ( entropyToMnemonic, genEntropy, mnemonicToText )
 import Cardano.Wallet.Api.Types
@@ -27,6 +29,7 @@ import Cardano.Wallet.Api.Types
     , ApiT (..)
     , ApiTransaction
     , ApiTxId (..)
+    , ApiVerificationKey (..)
     , ApiWallet
     , DecodeAddress
     , DecodeStakeAddress
@@ -34,9 +37,10 @@ import Cardano.Wallet.Api.Types
     , WalletStyle (..)
     , insertedAt
     , pendingSince
+    , toVerificationKeyHash
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( PaymentAddress )
+    ( DerivationIndex (..), PaymentAddress, Role (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
 import Cardano.Wallet.Primitive.Types
@@ -2644,6 +2648,34 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         verify rTx
             [ expectResponseCode HTTP.status403
             , expectErrorMessage errMsg403NotEnoughMoney_
+            ]
+
+    it "TRANSCRIPT_CREATE_01 - Transaction with our script" $ \ctx -> runResourceT $ do
+        wa <- fixtureWallet ctx
+
+        let link = Link.getWalletKey wa MultisigScript (DerivationIndex 10)
+        rGetVerKey <- request @ApiVerificationKey ctx link Default Empty
+        verify rGetVerKey
+            [ expectResponseCode HTTP.status200 ]
+        let keyHash =
+                toVerificationKeyHash (getFromResponse Prelude.id rGetVerKey)
+        --script with one verification key
+        let script = RequireSignatureOf keyHash
+
+        let amt = (minUTxOValue :: Natural)
+        basePayload <- mkTxPayload ctx wa amt fixturePassphrase
+        let payload = addTxMetadata (Aeson.toJSON script) basePayload
+        ra <- request @(ApiTransaction n) ctx
+            (Link.createTransaction @'Shelley wa) Default payload
+
+        let expected = MetaScript script
+        verify ra
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            , expectField (#status . #getApiT) (`shouldBe` Pending)
+            , expectField
+                (#metadata . #getApiMetadata)
+                (`shouldBe` Just (ApiT expected))
             ]
   where
     txDeleteNotExistsingTxIdTest eWallet resource =
