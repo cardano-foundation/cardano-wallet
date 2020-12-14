@@ -563,7 +563,8 @@ estimateTxSize witTag md action cs =
         = case md of
               (Just (MetaBlob blob)) ->
                   toInteger $ BS.length $ serialiseToCBOR blob
-              (Just (MetaScript _script)) -> 1 --TO_DO
+              (Just (MetaScript s)) ->
+                  toInteger $ BS.length $ serialiseToCBOR (toCardanoScriptV1 s)
               Nothing -> 1
 
     -- transaction_input =
