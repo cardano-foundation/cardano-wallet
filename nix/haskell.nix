@@ -13,8 +13,10 @@
 , coverage ? config.haskellNix.coverage or false
 # Project top-level source tree
 , src
-# GitHub PR number (when building on Hydra)
+# GitHub PR number (when building a PR jobset on Hydra)
 , pr ? null
+# Bors job type (when building a bors jobset on Hydra)
+, borsBuild ? null
 # Git revision of sources
 , gitrev ? null
 }:
@@ -77,6 +79,10 @@ let
           [ cardano-node.components.exes.cardano-node
             cardano-cli.components.exes.cardano-cli ];
       in {
+        packages.cardano-wallet-core.components.tests = {
+          unit.preCheck = noCacheOnBorsCookie;
+        };
+
         packages.cardano-wallet.components.tests = {
           # Only run integration tests on non-PR jobsets. Note that
           # the master branch jobset will just re-use the cached Bors
@@ -87,25 +93,22 @@ let
           # because ouroboros-network doesn't fully work under Wine.
           integration.testWrapper = lib.mkIf pkgs.stdenv.hostPlatform.isWindows ["echo"];
 
-          # cardano-node socket path becomes too long otherwise
-          unit.preCheck = lib.optionalString stdenv.isDarwin "export TMPDIR=/tmp";
+          unit.preCheck = noCacheOnBorsCookie +
+            lib.optionalString stdenv.isDarwin ''
+              # cardano-node socket path becomes too long otherwise
+              export TMPDIR=/tmp
+            '';
 
           # Force more integration tests to run in parallel than the
           # default number of build cores.
           integration.testFlags = ["-j" "3"];
 
-          integration.preCheck = ''
+          integration.preCheck = noCacheCookie + ''
             # Variables picked up by integration tests
             export CARDANO_NODE_TRACING_MIN_SEVERITY=notice
 
             # Integration tests will place logs here
             export TESTS_LOGDIR=$(mktemp -d)/logs
-
-            # Causes integration tests to be re-run whenever the git revision
-            # changes, even if everything else is identical.
-            # Since these tests tend to fail a lot, we don't want
-            # to cache false failures.
-            echo "Git revision is ${toString gitrev}"
           '' + lib.optionalString stdenv.isDarwin ''
             export TMPDIR=/tmp
           '';
@@ -275,6 +278,21 @@ let
 
   # Hydra will pass the GitHub PR number as a string argument to release.nix.
   isHydraPRJobset = toString pr != "";
+  isHydraBorsJobset = toString borsBuild != "";
+
+  # Add this string to a tests preCheck to prevent test results from
+  # being cached.
+  #
+  # It is useful to have when your tests are flaky and fail a lot --
+  # we don't want to cache false failures.
+  noCacheCookie = ''
+    # Causes tests to be re-run whenever the git revision
+    # changes, even if everything else is identical.
+    echo "Git revision is ${toString gitrev}"
+  '';
+
+  # Sets the anti-cache cookie only when building a jobset for bors.
+  noCacheOnBorsCookie = lib.optionalString isHydraBorsJobset noCacheCookie;
 
   # Make sure that the libsodium DLL is available beside the EXEs of
   # the windows build.

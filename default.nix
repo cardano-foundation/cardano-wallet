@@ -48,6 +48,8 @@
 , sourcesOverride ? {}
 # GitHub PR number (as a string), set when building a Hydra PR jobset.
 , pr ? null
+# Bors job type (as a string), set when building a Hydra bors jobset.
+, borsBuild ? null
 }:
 
 # commonLib includes iohk-nix utilities, our util.nix and nixpkgs lib.
