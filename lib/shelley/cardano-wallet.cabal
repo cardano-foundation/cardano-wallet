@@ -46,6 +46,7 @@ library
     , cardano-wallet-launcher
     , cardano-ledger
     , cardano-ledger-shelley-ma
+    , cardano-prelude
     , cardano-slotting
     , cardano-wallet-cli
     , cardano-wallet-core

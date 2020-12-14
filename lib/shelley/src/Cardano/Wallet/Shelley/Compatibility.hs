@@ -68,7 +68,7 @@ module Cardano.Wallet.Shelley.Compatibility
     , fromShelleyCoin
     , toHDPayloadAddress
     , toCardanoStakeCredential
-    , toCardanoScriptV1
+    , toCardanoScriptVer
 
       -- ** Stake pools
     , fromPoolId
@@ -256,6 +256,7 @@ import Shelley.Spec.Ledger.BaseTypes
 import Type.Reflection
     ( Typeable, typeRep )
 
+
 import qualified Cardano.Address.Style.Shelley as CA
 import qualified Cardano.Api.Typed as Cardano
 import qualified Cardano.Byron.Codec.Cbor as CBOR
@@ -266,6 +267,7 @@ import qualified Cardano.Ledger.Shelley as SL
 import qualified Cardano.Ledger.Shelley.Constraints as SL
 import qualified Cardano.Ledger.ShelleyMA as MA
 import qualified Cardano.Ledger.ShelleyMA.Metadata as MA
+import qualified Cardano.Ledger.ShelleyMA.Timelocks as MA
 import qualified Cardano.Ledger.ShelleyMA.TxBody as MA
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Address as W
@@ -282,6 +284,7 @@ import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString.Short as SBS
 import qualified Data.Map.Strict as Map
+import qualified Data.Sequence.Strict as SeqStrict
 import qualified Data.Set as Set
 import qualified Data.Text.Encoding as T
 import qualified Ouroboros.Consensus.Shelley.Ledger as O
@@ -434,7 +437,7 @@ getProducer (ShelleyBlock (SL.Block (SL.BHeader header _) _) _) =
     fromPoolKeyHash $ SL.hashKey (SL.bheaderVk header)
 
 fromCardanoBlock
-    :: forall c. (SL.Crypto c)
+    :: forall c. c ~ StandardCrypto
     => W.GenesisParameters
     -> CardanoBlock c
     -> W.Block
@@ -473,7 +476,7 @@ fromShelleyBlock gp blk@(ShelleyBlock (SL.Block _ (SL.TxSeq txs')) _) =
         )
 
 fromAllegraBlock
-    :: forall c. (SL.Crypto c)
+    :: forall c. (SL.Crypto c, c ~ StandardCrypto)
     => W.GenesisParameters
     -> ShelleyBlock (MA.ShelleyMAEra 'MA.Allegra c)
     -> (W.Block, [W.PoolCertificate])
@@ -805,7 +808,7 @@ fromShelleyTx tx =
         (map ((,W.Coin 0) . fromShelleyTxIn) (toList ins))
         (map fromShelleyTxOut (toList outs))
         (fromShelleyWdrl wdrls)
-        (W.MetaBlob . fromShelleyMD <$> SL.strictMaybeToMaybe mmd)
+        (fromShelleyMD' <$> SL.strictMaybeToMaybe mmd)
     , mapMaybe fromShelleyDelegationCert (toList certs)
     , mapMaybe fromShelleyRegistrationCert (toList certs)
     )
@@ -813,10 +816,9 @@ fromShelleyTx tx =
     SL.Tx bod@(SL.TxBody ins outs certs wdrls _ _ _ _) _ mmd = tx
 
 fromAllegraTx
-    :: ( SL.ShelleyBased era
-       , SL.Core.TxBody era ~ MA.TxBody era
-       , SL.Core.Value era ~ SL.Coin
-       , SL.Core.Metadata era ~ MA.Metadata era
+    :: forall c era . ( c ~ StandardCrypto
+       , era ~ MA.ShelleyMAEra 'MA.Allegra c
+       , SL.ShelleyBased era
        , Ord (SL.Core.Script era)
        )
     => SL.Tx era
@@ -830,26 +832,35 @@ fromAllegraTx tx =
         (map ((,W.Coin 0) . fromShelleyTxIn) (toList ins))
         (map fromShelleyTxOut (toList outs))
         (fromShelleyWdrl wdrls)
-        (W.MetaBlob . fromShelleyMD . toSLMetadata <$> SL.strictMaybeToMaybe mmd)
+        (fromAuxiliaryMD . toAuxiliaryData <$> SL.strictMaybeToMaybe mmd)
     , mapMaybe fromShelleyDelegationCert (toList certs)
     , mapMaybe fromShelleyRegistrationCert (toList certs)
     )
   where
     SL.Tx bod@(MA.TxBody ins outs certs wdrls _ _ _ _ _) _ mmd = tx
 
-    -- FIXME (ADP-525): It is fine for now since we do not look at script
-    -- pre-images. But this is precisely what we want as part of the
-    -- multisig/script balance reporting.
-    toSLMetadata (MA.Metadata blob _scripts) = SL.MetaData blob
+    -- Probably we need to handle situation when both blob and scripts are coming
+    toAuxiliaryData (MA.Metadata blob scripts) = case SeqStrict.lookup 0 scripts of
+        Nothing -> Left $ SL.MetaData blob
+        Just script' -> Right script'
+
+fromShelleyMD' :: SL.MetaData -> W.Metadata
+fromShelleyMD' (SL.MetaData m) =
+    W.MetaBlob . Cardano.makeTransactionMetadata . fromShelleyMetaData $ m
+
+fromAuxiliaryMD
+    :: forall c . c ~ StandardCrypto
+    => Either SL.MetaData (MA.Timelock (MA.ShelleyMAEra 'MA.Allegra c))
+    -> W.Metadata
+fromAuxiliaryMD = \case
+    Left m -> fromShelleyMD' m
+    Right s -> W.MetaScript $ fromCardanoScriptVer Cardano.SimpleScriptV2 $
+        Cardano.fromAllegraTimelock Cardano.TimeLocksInSimpleScriptV2 s
 
 fromShelleyWdrl :: SL.Wdrl crypto -> Map W.RewardAccount W.Coin
 fromShelleyWdrl (SL.Wdrl wdrl) = Map.fromList $
     bimap (fromStakeCredential . SL.getRwdCred) fromShelleyCoin
         <$> Map.toList wdrl
-
-fromShelleyMD :: SL.MetaData -> Cardano.TxMetadata
-fromShelleyMD (SL.MetaData m) =
-    Cardano.makeTransactionMetadata . fromShelleyMetaData $ m
 
 -- Convert & filter Shelley certificate into delegation certificate. Returns
 -- 'Nothing' if certificates aren't delegation certificate.
@@ -1286,10 +1297,13 @@ instance KnownNat protocolMagic => HasNetworkId ('Testnet protocolMagic) where
 instance HasNetworkId ('Staging protocolMagic) where
     networkIdVal _ = Cardano.Mainnet
 
-toCardanoScriptV1 :: Script -> Cardano.Script Cardano.SimpleScriptV1
-toCardanoScriptV1 script' = fromSimpleScript (simpleScript script')
+toCardanoScriptVer
+    :: forall lang . Cardano.SimpleScriptVersion lang
+    -> Script
+    -> Cardano.Script lang
+toCardanoScriptVer version script' = fromSimpleScript (simpleScript script')
   where
-    fromSimpleScript = Cardano.SimpleScript Cardano.SimpleScriptV1
+    fromSimpleScript = Cardano.SimpleScript version
     convertFromKeyHash :: KeyHash -> Cardano.Hash Cardano.PaymentKey
     convertFromKeyHash k@(KeyHash payload) =
         case Cardano.deserialiseFromRawBytesHex (Cardano.AsHash Cardano.AsPaymentKey)
@@ -1298,6 +1312,7 @@ toCardanoScriptV1 script' = fromSimpleScript (simpleScript script')
             Nothing -> error $ "toCardanoScriptV1: Error deserialising payment key hash: "
                        <> show k
     simpleScript s = case s of
+        --TO_DO when script with timelocks ready add two more constuctors here as a function of version
         RequireSignatureOf kh ->
             Cardano.RequireSignature (convertFromKeyHash kh)
         RequireAllOf scripts ->
@@ -1307,6 +1322,25 @@ toCardanoScriptV1 script' = fromSimpleScript (simpleScript script')
         RequireSomeOf n scripts ->
             Cardano.RequireMOf (fromInteger $ toInteger n) $
             simpleScript <$> scripts
+
+fromCardanoScriptVer
+    :: forall lang . Cardano.SimpleScriptVersion lang
+    -> Cardano.SimpleScript lang
+    -> Script
+fromCardanoScriptVer _version simpleScript = processScript simpleScript
+  where
+    processScript s = case s of
+        Cardano.RequireSignature (Cardano.PaymentKeyHash (SL.KeyHash bytes)) ->
+            RequireSignatureOf (KeyHash $ hashToBytes bytes)
+        Cardano.RequireAllOf scripts ->
+            RequireAllOf $ processScript <$> scripts
+        Cardano.RequireAnyOf scripts ->
+            RequireAnyOf $ processScript <$> scripts
+        Cardano.RequireMOf n scripts ->
+            RequireSomeOf (fromInteger $ toInteger n) $
+            processScript <$> scripts
+        Cardano.RequireTimeBefore _ _ -> error "not supported in Script"
+        Cardano.RequireTimeAfter _ _ -> error "not supported in Script"
 
 {-------------------------------------------------------------------------------
                                     Logging

@@ -99,7 +99,7 @@ import Cardano.Wallet.Shelley.Compatibility
     , toStakeKeyDeregCert
     , toStakeKeyRegCert
     , toStakePoolDlgCert
-    , toCardanoScriptV1
+    , toCardanoScriptVer
     )
 import Cardano.Wallet.Transaction
     ( DelegationAction (..)
@@ -564,7 +564,8 @@ estimateTxSize witTag md action cs =
               (Just (MetaBlob blob)) ->
                   toInteger $ BS.length $ serialiseToCBOR blob
               (Just (MetaScript s)) ->
-                  toInteger $ BS.length $ serialiseToCBOR (toCardanoScriptV1 s)
+                  toInteger $ BS.length $
+                  serialiseToCBOR (toCardanoScriptVer Cardano.SimpleScriptV2 s)
               Nothing -> 1
 
     -- transaction_input =
@@ -812,7 +813,7 @@ mkUnsignedTx era ttl cs md wdrls certs =
                 _ -> Cardano.TxMetadataNone
 
         , Cardano.txAuxScripts =
-            Cardano.TxAuxScriptsNone
+                Cardano.TxAuxScriptsNone
 
         , Cardano.txUpdateProposal =
             Cardano.TxUpdateProposalNone
@@ -854,7 +855,8 @@ mkUnsignedTx era ttl cs md wdrls certs =
         , Cardano.txAuxScripts = case md of
                 Just (MetaScript s) ->
                     Cardano.TxAuxScripts Cardano.AuxScriptsInAllegraEra
-                    [Cardano.ScriptInEra Cardano.SimpleScriptV1InAllegra (toCardanoScriptV1 s)]
+                    [ Cardano.ScriptInEra Cardano.SimpleScriptV2InAllegra
+                      (toCardanoScriptVer Cardano.SimpleScriptV2 s)]
                 _ -> Cardano.TxAuxScriptsNone
 
         , Cardano.txUpdateProposal =
