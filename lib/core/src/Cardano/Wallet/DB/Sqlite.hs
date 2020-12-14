@@ -1691,27 +1691,16 @@ selectTxs = fmap concatUnzip . mapM select . chunksOf chunkSize
             [Asc TxInputTxId, Asc TxInputOrder]
 
         resolvedInputs <- fmap toOutputMap $
-            combineChunked inputs $ \inputsChunk -> do
-                outs <- fmap entityVal <$> selectList
-                    [TxOutputTxId <-. (txInputSourceTxId <$> inputsChunk)]
-                    [Asc TxOutputTxId, Asc TxOutputIndex]
-                forM outs $ \out ->
-                    (out,) . fmap entityVal <$> selectList
-                        [ TxOutTokenTxId ==. txOutputTxId out
-                        , TxOutTokenTxIndex ==. txOutputIndex out
-                        ]
-                        []
+            combineChunked inputs $ \inputsChunk ->
+                traverse readTxOutTokens . fmap entityVal =<<
+                    selectList
+                        [TxOutputTxId <-. (txInputSourceTxId <$> inputsChunk)]
+                        [Asc TxOutputTxId, Asc TxOutputIndex]
 
-        outputs <- do
-            outs <- fmap entityVal <$> selectList
+        outputs <- traverse readTxOutTokens . fmap entityVal =<<
+            selectList
                 [TxOutputTxId <-. txids]
                 [Asc TxOutputTxId, Asc TxOutputIndex]
-            forM outs $ \out ->
-                (out,) . fmap entityVal <$> selectList
-                    [ TxOutTokenTxId ==. txOutputTxId out
-                    , TxOutTokenTxIndex ==. txOutputIndex out
-                    ]
-                    []
 
         withdrawals <- fmap entityVal <$> selectList
             [TxWithdrawalTxId <-. txids]
@@ -1722,6 +1711,15 @@ selectTxs = fmap concatUnzip . mapM select . chunksOf chunkSize
             , outputs
             , withdrawals
             )
+
+    -- Fetch the complete set of tokens associated with a TxOut.
+    --
+    readTxOutTokens :: TxOut -> SqlPersistT IO (TxOut, [TxOutToken])
+    readTxOutTokens out = (out,) . fmap entityVal <$> selectList
+        [ TxOutTokenTxId ==. txOutputTxId out
+        , TxOutTokenTxIndex ==. txOutputIndex out
+        ]
+        []
 
     toOutputMap
         :: [(TxOut, [TxOutToken])]
