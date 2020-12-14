@@ -289,14 +289,14 @@ instance PersistFieldSql TokenPolicyId where
     sqlType _ = sqlType (Proxy @Text)
 
 instance PersistField TokenQuantity where
-    -- The `persistent-sqlite` package has no big number type, so we use a
-    -- textual representation instead.
+    -- SQLite has no big integer type, so we use a textual representation
+    -- instead.
     toPersistValue = toPersistValue . toText
     fromPersistValue = fromPersistValueFromText
 
 instance PersistFieldSql TokenQuantity where
-    -- The `persistent-sqlite` package has no big number type, so we use a
-    -- textual representation instead.
+    -- SQLite has no big integer type, so we use a textual representation
+    -- instead.
     sqlType _ = sqlType (Proxy @Text)
 
 ----------------------------------------------------------------------------
