@@ -314,14 +314,70 @@ walletApiBench capture ctx = do
             (Link.getTransactionFee @'Shelley wal1) Default payload
         fmtResult "postTransactionFee " t6
 
-        t7 <- measureApiLogs capture $ request @[ApiStakePool] ctx
+        let payloadTx = Json [json|{
+                "payments": [{
+                    "address": #{destination},
+                    "amount": {
+                        "quantity": #{amt},
+                        "unit": "lovelace"
+                    }
+                }],
+                "passphrase": #{fixturePassphrase}
+            }|]
+        t7 <- measureApiLogs capture $ request @(ApiTransaction n) ctx
+            (Link.createTransaction @'Shelley wal1) Default payloadTx
+        fmtResult "postTransaction    " t7
+
+        let payloadTxTo5Addr = Json [json|{
+                "payments": [{
+                    "address": #{destination},
+                    "amount": {
+                        "quantity": #{amt},
+                        "unit": "lovelace"
+                    }
+                },
+                {
+                    "address": #{destination},
+                    "amount": {
+                        "quantity": #{amt},
+                        "unit": "lovelace"
+                    }
+                },
+                {
+                    "address": #{destination},
+                    "amount": {
+                        "quantity": #{amt},
+                        "unit": "lovelace"
+                    }
+                },
+                {
+                    "address": #{destination},
+                    "amount": {
+                        "quantity": #{amt},
+                        "unit": "lovelace"
+                    }
+                },
+                {
+                    "address": #{destination},
+                    "amount": {
+                        "quantity": #{amt},
+                        "unit": "lovelace"
+                    }
+                }],
+                "passphrase": #{fixturePassphrase}
+            }|]
+        t7a <- measureApiLogs capture $ request @(ApiTransaction n) ctx
+            (Link.createTransaction @'Shelley wal2) Default payloadTxTo5Addr
+        fmtResult "postTransTo5Addrs  " t7a
+
+        t8 <- measureApiLogs capture $ request @[ApiStakePool] ctx
             (Link.listStakePools arbitraryStake) Default Empty
 
-        fmtResult "listStakePools     " t7
+        fmtResult "listStakePools     " t8
 
-        t8 <- measureApiLogs capture $ request @ApiNetworkInformation ctx
+        t9 <- measureApiLogs capture $ request @ApiNetworkInformation ctx
             Link.getNetworkInfo Default Empty
-        fmtResult "getNetworkInfo     " t8
+        fmtResult "getNetworkInfo     " t9
 
         pure ()
      where
