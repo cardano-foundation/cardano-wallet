@@ -54,8 +54,8 @@ import qualified Cardano.Wallet.Primitive.AddressDiscovery.Sequential as W
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Address as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
-import qualified Cardano.Wallet.Primitive.Types.TokenPolicy as TP
-import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as TQ
+import qualified Cardano.Wallet.Primitive.Types.TokenPolicy as W
+import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Data.ByteString.Char8 as B8
 
@@ -150,9 +150,9 @@ TxOut
 TxOutToken
     txOutTokenTxId      TxId              sql=tx_id
     txOutTokenTxIndex   Word32            sql=tx_index
-    txOutTokenPolicyId  TP.TokenPolicyId  sql=token_policy_id
-    txOutTokenName      TP.TokenName      sql=token_name
-    txOutTokenQuantity  TQ.TokenQuantity  sql=token_quantity
+    txOutTokenPolicyId  W.TokenPolicyId   sql=token_policy_id
+    txOutTokenName      W.TokenName       sql=token_name
+    txOutTokenQuantity  W.TokenQuantity   sql=token_quantity
 
     Primary txOutTokenTxId txOutTokenTxIndex txOutTokenPolicyId txOutTokenName
     Foreign TxOut txOut txOutTokenTxId txOutTokenTxIndex ! ON DELETE CASCADE
@@ -252,14 +252,14 @@ UTxO                                sql=utxo
 -- Each row within UTxO can have many associated rows within UTxOToken.
 -- Each row within UTxOToken refers to just a single row within UTxO.
 --
-UTxOToken                                sql=utxo_token
-    utxoTokenWalletId  W.WalletId        sql=wallet_id
-    utxoTokenSlot      SlotNo            sql=slot
-    utxoTokenTxId      TxId              sql=tx_id
-    utxoTokenTxIndex   Word32            sql=tx_index
-    utxoTokenPolicyId  TP.TokenPolicyId  sql=token_policy_id
-    utxoTokenName      TP.TokenName      sql=token_name
-    utxoTokenQuantity  TQ.TokenQuantity  sql=token_quantity
+UTxOToken                               sql=utxo_token
+    utxoTokenWalletId  W.WalletId       sql=wallet_id
+    utxoTokenSlot      SlotNo           sql=slot
+    utxoTokenTxId      TxId             sql=tx_id
+    utxoTokenTxIndex   Word32           sql=tx_index
+    utxoTokenPolicyId  W.TokenPolicyId  sql=token_policy_id
+    utxoTokenName      W.TokenName      sql=token_name
+    utxoTokenQuantity  W.TokenQuantity  sql=token_quantity
 
     Primary
         utxoTokenWalletId
