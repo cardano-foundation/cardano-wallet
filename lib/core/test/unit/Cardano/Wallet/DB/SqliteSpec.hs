@@ -122,12 +122,13 @@ import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
     , Block (..)
     , BlockHeader (..)
-    , GenesisParameters
+    , GenesisParameters (..)
     , PassphraseScheme (..)
     , ProtocolParameters
     , Range
     , SlotNo (..)
     , SortOrder (..)
+    , StartTime (..)
     , WalletDelegation (..)
     , WalletDelegationStatus (..)
     , WalletId (..)
@@ -152,7 +153,7 @@ import Cardano.Wallet.Primitive.Types.Tx
     , toTxHistory
     )
 import Cardano.Wallet.Unsafe
-    ( unsafeRunExceptT )
+    ( unsafeFromHex, unsafeRunExceptT )
 import Control.Concurrent
     ( forkIO, killThread, threadDelay )
 import Control.Concurrent.Async
@@ -187,6 +188,8 @@ import Data.Text.Class
     ( fromText )
 import Data.Time.Clock
     ( getCurrentTime )
+import Data.Time.Clock.POSIX
+    ( posixSecondsToUTCTime )
 import Database.Persist.Sql
     ( DBName (..), PersistEntity (..), fieldDB )
 import GHC.Conc
@@ -273,6 +276,26 @@ spec = parallel $ do
             testMigrationRole @ShelleyKey
                 "shelleyRole-v2020-10-13.sqlite"
 
+        it "'migrate' db with unused protocol parameters in checkpoints" $
+            testMigrationCleanupCheckpoints @ShelleyKey
+                "shelleyDerivationPrefix-v2020-10-07.sqlite"
+                (GenesisParameters
+                    { getGenesisBlockHash = Hash $ unsafeFromHex
+                        "5f20df933584822601f9e3f8c024eb5eb252fe8cefb24d1317dc3d432e940ebb"
+                    , getGenesisBlockDate =
+                        StartTime $ posixSecondsToUTCTime 1506203091
+                    }
+                )
+                (BlockHeader
+                    { slotNo = SlotNo 1125119
+                    , blockHeight = Quantity 1124949
+                    , headerHash = Hash $ unsafeFromHex
+                        "3b309f1ca388459f0ce2c4ccca20ea646b75e6fc1447be032a41d43f209ecb50"
+                    , parentHeaderHash = Hash $ unsafeFromHex
+                        "e9414e08d8c5ca177dd0cb6a9e4bf868e1ea03389c31f5f7a6b099a3bcdfdedf"
+                    }
+                )
+
 sqliteSpecSeq :: Spec
 sqliteSpecSeq = do
     validateGenerators @(SeqState 'Mainnet ShelleyKey)
@@ -289,6 +312,48 @@ sqliteSpecRnd = do
         parallel $ describe "Sqlite State machine (RndState)" $ do
             it "Sequential state machine tests"
                 (prop_sequential :: TestDBRnd -> Property)
+
+testMigrationCleanupCheckpoints
+    :: forall k s.
+        ( s ~ SeqState 'Mainnet k
+        , k ~ ShelleyKey
+        , WalletKey k
+        , PersistState s
+        , PersistPrivateKey (k 'RootK)
+        , PaymentAddress 'Mainnet k
+        )
+    => String
+    -> GenesisParameters
+    -> BlockHeader
+    -> IO ()
+testMigrationCleanupCheckpoints dbName genesisParameters tip = do
+    let orig = $(getTestData) </> dbName
+    withSystemTempDirectory "migration-db" $ \dir -> do
+        let path = dir </> "db.sqlite"
+        let ti = dummyTimeInterpreter
+        copyFile orig path
+        (logs, result) <- captureLogging $ \tr -> do
+            withDBLayer @s @k tr defaultFieldValues (Just path) ti
+                $ \(_ctx, db) -> db & \DBLayer{..} -> atomically
+                $ do
+                    [wid] <- listWallets
+                    (,) <$> readGenesisParameters wid <*> readCheckpoint wid
+
+        length (filter (isMsgManualMigration fieldGenesisHash) logs) `shouldBe` 1
+        length (filter (isMsgManualMigration fieldGenesisStart) logs) `shouldBe` 1
+
+        (fst result) `shouldBe` Just genesisParameters
+        (currentTip <$> snd result) `shouldBe` Just tip
+  where
+    fieldGenesisHash = fieldDB $ persistFieldDef DB.WalGenesisHash
+    fieldGenesisStart = fieldDB $ persistFieldDef DB.WalGenesisStart
+
+    isMsgManualMigration :: DBName -> DBLog -> Bool
+    isMsgManualMigration fieldInDb = \case
+        MsgManualMigrationNeeded field _ ->
+            fieldName field == unDBName fieldInDb
+        _ ->
+            False
 
 testMigrationRole
     :: forall k s.

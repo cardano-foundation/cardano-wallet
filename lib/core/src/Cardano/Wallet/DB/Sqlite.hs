@@ -151,7 +151,7 @@ import Data.List.Split
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
-    ( catMaybes )
+    ( catMaybes, mapMaybe )
 import Data.Ord
     ( Down (..) )
 import Data.Proxy
@@ -197,7 +197,7 @@ import Database.Persist.Sql
 import Database.Persist.Sqlite
     ( SqlPersistT )
 import Database.Persist.Types
-    ( PersistValue (PersistText), fromPersistValueText )
+    ( PersistValue (..), fromPersistValueText )
 import Fmt
     ( pretty )
 import Numeric.Natural
@@ -365,6 +365,8 @@ migrateManually
     -> ManualMigration
 migrateManually tr proxy defaultFieldValues =
     ManualMigration $ \conn -> do
+        cleanupCheckpointTable conn
+
         assignDefaultPassphraseScheme conn
 
         addDesiredPoolNumberIfMissing conn
@@ -391,6 +393,107 @@ migrateManually tr proxy defaultFieldValues =
 
         addScriptAddressGapIfMissing conn
   where
+    -- NOTE
+    -- We originally stored protocol parameters in the 'Checkpoint' table, and
+    -- later moved them to a new dedicatd table. However, removing a column is
+    -- not something straightforward in SQLite, so we initially simply marked
+    -- most parameters as _unused. Later, we did rework how genesis and protocol
+    -- parameters were stored and shared between wallets and completely removed
+    -- them from the database. At the same time, we also introduced
+    -- 'genesis_hash' and 'genesis_start' in the 'Wallet' table which we use is
+    -- as a discriminator for the migration.
+    cleanupCheckpointTable :: Sqlite.Connection -> IO ()
+    cleanupCheckpointTable conn = do
+        let field = DBField WalGenesisHash
+        isFieldPresent conn field >>= \case
+            TableMissing ->
+                traceWith tr $ MsgManualMigrationNotNeeded field
+
+            ColumnPresent -> do
+                traceWith tr $ MsgManualMigrationNotNeeded field
+
+            ColumnMissing -> do
+                let orig = "checkpoint"
+                let tmp = orig <> "_tmp"
+
+                -- 1. Add genesis_hash and genesis_start to the 'wallet' table.
+                [defaults] <- runSql conn $ select ["genesis_hash", "genesis_start"] orig
+                let [PersistText genesisHash, PersistText genesisStart] = defaults
+                addColumn_ conn True (DBField WalGenesisHash) (quotes genesisHash)
+                addColumn_ conn True (DBField WalGenesisStart) (quotes genesisStart)
+
+                -- 2. Drop columns from the 'checkpoint' table
+                info <- runSql conn $ getTableInfo orig
+                let filtered = mapMaybe (filterColumn excluding) info
+                      where
+                        excluding =
+                            [ "genesis_hash", "genesis_start", "fee_policy"
+                            , "slot_length", "epoch_length", "tx_max_size"
+                            , "epoch_stability", "active_slot_coeff"
+                            ]
+                _ <- runSql conn $ createTable tmp filtered
+                _ <- runSql conn $ copyTable orig tmp filtered
+                _ <- runSql conn $ dropTable orig
+                _ <- runSql conn $ renameTable tmp orig
+
+                return ()
+      where
+        select fields table = mconcat
+            [ "SELECT ", T.intercalate ", " fields
+            , " FROM ", table
+            , " ORDER BY slot ASC LIMIT 1;"
+            ]
+
+        getTableInfo table = mconcat
+            [ "PRAGMA table_info(", table, ");"
+            ]
+
+        createTable table cols = mconcat
+            [ "CREATE TABLE ", table, " ("
+            , T.intercalate ", " (mapMaybe createColumn cols)
+            , ");"
+            ]
+
+        copyTable source destination cols = mconcat
+            [ "INSERT INTO ", destination, " SELECT "
+            , T.intercalate ", " (mapMaybe selectColumn cols)
+            , " FROM ", source
+            , ";"
+            ]
+
+        dropTable table = mconcat
+            [ "DROP TABLE " <> table <> ";"
+            ]
+
+        renameTable from to = mconcat
+            [ "ALTER TABLE ", from, " RENAME TO ", to, ";" ]
+
+        filterColumn :: [Text] -> [PersistValue] -> Maybe [PersistValue]
+        filterColumn excluding = \case
+            [ _, PersistText colName, PersistText colType, colNull, _, _] ->
+                if colName `elem` excluding then
+                    Nothing
+                else
+                    Just [PersistText colName, PersistText colType, colNull]
+            _ ->
+                Nothing
+
+        selectColumn :: [PersistValue] -> Maybe Text
+        selectColumn = \case
+            [ PersistText colName, _ , _ ] ->
+                Just colName
+            _ ->
+                Nothing
+
+        createColumn :: [PersistValue] -> Maybe Text
+        createColumn = \case
+            [ PersistText colName, PersistText colType, PersistInt64 1 ] ->
+                Just $ T.unwords [ colName, colType, "NOT NULL" ]
+            [ PersistText colName, PersistText colType, _ ] ->
+                Just $ T.unwords [ colName, colType ]
+            _ ->
+                Nothing
+
     -- NOTE
     -- Wallets created before the 'PassphraseScheme' was introduced have no
     -- passphrase scheme set in the database. Yet, their passphrase is known
@@ -672,8 +775,27 @@ migrateManually tr proxy defaultFieldValues =
                     then MsgManualMigrationNeeded field old
                     else MsgManualMigrationNotNeeded field
                 Sqlite.finalize query
-      where
-        quotes x = "\"" <> x <> "\""
+
+    quotes :: Text -> Text
+    quotes x = "\"" <> x <> "\""
+
+-- | Unsafe, execute a raw SQLite query. Used only in migration when really
+-- needed.
+runSql :: Sqlite.Connection -> Text -> IO [[PersistValue]]
+runSql conn raw = do
+    query <- Sqlite.prepare conn raw
+    result <- collect query []
+    Sqlite.finalize query
+    return result
+  where
+    collect query acc = do
+        step <- Sqlite.step query
+        case step of
+            Sqlite.Row -> do
+                result <- Sqlite.columns query
+                collect query (result : acc)
+            Sqlite.Done -> do
+                return (reverse acc)
 
 -- | A set of default field values that can be consulted when performing a
 --   database migration.
