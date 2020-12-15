@@ -2677,6 +2677,19 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 (#metadata . #getApiMetadata)
                 (`shouldBe` Just (ApiT expected))
             ]
+
+        let txid = getFromResponse #id ra
+        eventually "script is confirmed in transaction get" $ do
+            let linkSrc = Link.getTransaction @'Shelley wa (ApiTxId txid)
+            rg1 <- request @(ApiTransaction n) ctx linkSrc Default Empty
+            verify rg1
+                [ expectResponseCode HTTP.status200
+                , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
+                , expectField (#status . #getApiT) (`shouldBe` InLedger)
+                , expectField
+                    (#metadata . #getApiMetadata)
+                    (`shouldBe` Just (ApiT expected))
+                ]
   where
     txDeleteNotExistsingTxIdTest eWallet resource =
         it resource $ \ctx -> runResourceT $ do

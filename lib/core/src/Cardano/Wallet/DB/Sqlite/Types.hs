@@ -22,7 +22,7 @@ module Cardano.Wallet.DB.Sqlite.Types where
 import Prelude
 
 import Cardano.Address.Script
-    ( KeyHash (..), ScriptHash (..) )
+    ( KeyHash (..), Script, ScriptHash (..) )
 import Cardano.Api.Typed
     ( TxMetadataJsonSchema (..)
     , displayError
@@ -397,6 +397,23 @@ instance PersistField TxMetadata where
                     Left{} -> Left e
 
 instance PersistFieldSql TxMetadata where
+    sqlType _ = sqlType (Proxy @Text)
+
+----------------------------------------------------------------------------
+-- Script
+
+instance PersistField Script where
+    toPersistValue =
+        toPersistValue .
+        decodeUtf8 .
+        BL.toStrict .
+        Aeson.encode .
+        toJSON
+    fromPersistValue =
+        (left T.pack . Aeson.eitherDecode . BL.fromStrict . encodeUtf8) <=<
+        fromPersistValue
+
+instance PersistFieldSql Script where
     sqlType _ = sqlType (Proxy @Text)
 
 ----------------------------------------------------------------------------

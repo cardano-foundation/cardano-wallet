@@ -25,7 +25,7 @@ module Cardano.Wallet.DB.Sqlite.TH where
 import Prelude
 
 import Cardano.Address.Script
-    ( KeyHash, ScriptHash )
+    ( KeyHash, Script, ScriptHash )
 import Cardano.Slotting.Slot
     ( SlotNo )
 import Cardano.Wallet.DB.Sqlite.Types
@@ -108,6 +108,7 @@ TxMeta
     txMetaAmount            Natural             sql=amount
     txMetaData              W.TxMetadata Maybe  sql=data
     txMetaSlotExpires       SlotNo Maybe        sql=slot_expires
+    txMetaScript            Script Maybe        sql=script
 
     Primary txMetaTxId txMetaWalletId
     Foreign Wallet fk_wallet_tx_meta txMetaWalletId ! ON DELETE CASCADE

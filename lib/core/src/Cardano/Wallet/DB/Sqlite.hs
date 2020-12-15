@@ -1391,7 +1391,10 @@ mkTxMetaEntity wid txid meta derived = TxMeta
     , txMetaData =
             case meta of
                 Just (W.MetaBlob b) -> Just b
-                -- TO_DO
+                _ -> Nothing
+    , txMetaScript =
+            case meta of
+                Just (W.MetaScript s) -> Just s
                 _ -> Nothing
     }
 
@@ -1410,7 +1413,9 @@ txHistoryFromEntity ti tip metas ins outs ws =
     mapM mkItem metas
   where
     startTime' = interpretQuery ti . slotToUTCTime
-    mkItem m = mkTxWith (txMetaTxId m) (W.MetaBlob <$> txMetaData m) (mkTxDerived m)
+    mkItem m = mkTxWith (txMetaTxId m)
+               (W.MetaBlob <$> txMetaData m, W.MetaScript <$> txMetaScript m)
+               (mkTxDerived m)
     mkTxWith txid meta derived = do
         t <- startTime' (derived ^. #slotNo)
         return $ W.TransactionInfo
@@ -1425,7 +1430,10 @@ txHistoryFromEntity ti tip metas ins outs ws =
             , W.txInfoMeta =
                 derived
             , W.txInfoMetadata =
-                meta
+                case meta of
+                    (Just blob, Nothing) -> Just blob
+                    (Nothing, Just s) -> Just s
+                    _ -> Nothing --TO_DO what when both blob and script present?
             , W.txInfoDepth =
                 Quantity $ fromIntegral $ if tipH > txH then tipH - txH else 0
             , W.txInfoTime =
