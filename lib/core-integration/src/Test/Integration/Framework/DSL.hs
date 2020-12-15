@@ -54,6 +54,7 @@ module Test.Integration.Framework.DSL
     -- * Constants
     , minUTxOValue
     , slotLengthValue
+    , securityParameterValue
     , epochLengthValue
     , defaultTxTTL
 
@@ -583,8 +584,16 @@ minUTxOValue :: Natural
 minUTxOValue = 1_000_000
 
 -- | Parameter in test cluster genesis.
+--
+-- FIXME: Adding this line to create a merge-conflict with #2391 to remind
+-- whoever resolving this merge conflict to also update the newly introduced
+-- 'securityParameterValue'. Cheers.
 slotLengthValue :: NominalDiffTime
-slotLengthValue = 0.2
+slotLengthValue =  0.2
+
+-- | Parameter in test cluster genesis.
+securityParameterValue :: Word32
+securityParameterValue = 10
 
 -- | Parameter in test cluster genesis.
 epochLengthValue :: Word32
