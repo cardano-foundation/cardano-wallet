@@ -1442,9 +1442,9 @@ txHistoryFromEntity ti tip metas ins outs ws =
             { W.txInfoId =
                 getTxId txid
             , W.txInfoInputs =
-                mkTxIn <$> filter ((== txid) . txInputTxId . fst) ins
+                map mkTxIn $ filter ((== txid) . txInputTxId . fst) ins
             , W.txInfoOutputs =
-                mkTxOut <$> filter ((== txid) . txOutputTxId . fst) outs
+                map mkTxOut $ filter ((== txid) . txOutputTxId . fst) outs
             , W.txInfoWithdrawals =
                 Map.fromList
                     $ map mkTxWithdrawal
