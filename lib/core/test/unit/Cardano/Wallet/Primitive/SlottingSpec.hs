@@ -14,7 +14,7 @@ import Prelude
 import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
-    ( HasSeverityAnnotation (..) )
+    ( HasSeverityAnnotation (..), nullTracer )
 import Cardano.Slotting.Slot
     ( SlotNo (..) )
 import Cardano.Wallet.Gen
@@ -78,9 +78,17 @@ import Ouroboros.Consensus.BlockchainTime.WallClock.Types
 import Ouroboros.Consensus.Config.SecurityParam
     ( SecurityParam (..) )
 import Ouroboros.Consensus.Util.Counting
-    ( exactlyOne )
+    ( exactlyTwo )
 import Test.Hspec
-    ( Spec, describe, it, parallel, runIO, shouldBe, shouldSatisfy )
+    ( Spec
+    , describe
+    , it
+    , parallel
+    , runIO
+    , shouldBe
+    , shouldReturn
+    , shouldSatisfy
+    )
 import Test.QuickCheck
     ( Arbitrary (..), Property, choose, property, withMaxSuccess, (===) )
 import Test.QuickCheck.Arbitrary.Generic
@@ -129,6 +137,19 @@ spec = do
 
                     res === legacy
 
+            it "Can interpret queries for multiple eras at once (regression for ADP-626)" $ do
+                let tr = nullTracer
+                startTime <- StartTime <$> getCurrentTime
+                let ti = mkTimeInterpreter tr startTime (pure forkInterpreter)
+                runExceptT (interpretQuery ti (epochOf 1))
+                    `shouldReturn` Right (EpochNo 0)
+
+                runExceptT (interpretQuery ti (epochOf 20))
+                    `shouldReturn` Right (EpochNo 1)
+
+                runExceptT (interpretQuery ti (epochOf 1 >> epochOf 20))
+                    `shouldReturn` Right (EpochNo 1)
+
         it "endTimeOfEpoch e == (slotToUTCTime =<< firstSlotInEpoch (e + 1)) \
            \ (always true using mkSingleEraInterpreter)"
             $ withMaxSuccess 10000 $ property $ \t0 sp e -> do
@@ -154,7 +175,7 @@ spec = do
 
                 res `shouldSatisfy` isLeft
                 logs `shouldSatisfy` (\case
-                    [MsgInterpreterPastHorizon Nothing _] -> True
+                    [MsgInterpreterPastHorizon Nothing _ _] -> True
                     _ -> False)
                 getSeverityAnnotation (head logs) `shouldBe` Notice
 
@@ -167,7 +188,7 @@ spec = do
 
                 res `shouldSatisfy` isLeft
                 logs `shouldSatisfy` (\case
-                    [MsgInterpreterPastHorizon (Just "because") _] -> True
+                    [MsgInterpreterPastHorizon (Just "because") _ _] -> True
                     _ -> False)
                 getSeverityAnnotation (head logs) `shouldBe` Error
 
@@ -190,21 +211,26 @@ spec = do
 
                 res `shouldSatisfy` isLeft
                 logs `shouldSatisfy` (\case
-                    [MsgInterpreterPastHorizon Nothing _] -> True
+                    [MsgInterpreterPastHorizon Nothing _ _] -> True
                     _ -> False)
                 getSeverityAnnotation (head logs) `shouldBe` Notice
   where
     forkInterpreter =
         let
-            start = HF.initBound
-            end = HF.Bound
+            t0 = HF.initBound
+            t1 = HF.Bound
                     (RelativeTime 20)
                     (SlotNo 20)
                     (Cardano.EpochNo 1)
+            t2 = HF.Bound
+                    (RelativeTime 40)
+                    (SlotNo 40)
+                    (Cardano.EpochNo 2)
 
             era1Params = HF.defaultEraParams (SecurityParam 2) (mkSlotLength 1)
-            summary = HF.summaryWithExactly $ exactlyOne $
-                HF.EraSummary start (HF.EraEnd end) era1Params
+            summary = HF.summaryWithExactly $ exactlyTwo
+                (HF.EraSummary t0 (HF.EraEnd t1) era1Params)
+                (HF.EraSummary t1 (HF.EraEnd t2) era1Params)
         in HF.mkInterpreter summary
 
 legacySlottingTest
