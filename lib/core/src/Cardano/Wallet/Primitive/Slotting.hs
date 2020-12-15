@@ -105,8 +105,10 @@ import Data.Time.Clock
     ( NominalDiffTime, UTCTime, addUTCTime, getCurrentTime )
 import Data.Word
     ( Word32, Word64 )
+import Fmt
+    ( blockListF', build, fmt, indentF )
 import GHC.Stack
-    ( HasCallStack )
+    ( HasCallStack, getCallStack, prettyCallStack, prettySrcLoc )
 import Ouroboros.Consensus.BlockchainTime.WallClock.Types
     ( RelativeTime (..), SystemStart (..), addRelTime )
 import Ouroboros.Consensus.HardFork.History.Qry
@@ -128,6 +130,7 @@ import qualified Cardano.Slotting.Slot as Cardano
 import qualified Data.Text as T
 import qualified Ouroboros.Consensus.BlockchainTime.WallClock.Types as Cardano
 import qualified Ouroboros.Consensus.HardFork.History.Qry as HF
+import qualified Ouroboros.Consensus.HardFork.History.Summary as HF
 
 {-------------------------------------------------------------------------------
                                     Queries
@@ -334,28 +337,61 @@ data TimeInterpreter m = forall eras. TimeInterpreter
 data TimeInterpreterLog
     = MsgInterpreterPastHorizon
         (Maybe String) -- ^ Reason for why the failure should be impossible
+        StartTime
         PastHorizonException
     deriving (Eq, Show)
 
 instance HasSeverityAnnotation TimeInterpreterLog where
     getSeverityAnnotation = \case
-        MsgInterpreterPastHorizon Nothing _ -> Notice
-        MsgInterpreterPastHorizon _ _ -> Error
+        MsgInterpreterPastHorizon Nothing _ _ -> Notice
+        MsgInterpreterPastHorizon{} -> Error
 
 instance ToText TimeInterpreterLog where
     toText = \case
-        MsgInterpreterPastHorizon Nothing e -> mconcat
+        MsgInterpreterPastHorizon Nothing t0 e -> mconcat
             [ "Time interpreter queried past the horizon. "
-            , "Full error is: "
-            , T.pack (show e)
+            , "Full error is:"
+            , renderPastHorizonException e
+            , "\nt0 = "
+            , T.pack $ show t0
             ]
-        MsgInterpreterPastHorizon (Just reason) e -> mconcat
+        MsgInterpreterPastHorizon (Just reason) t0 e -> mconcat
             [ "Time interpreter queried past the horizon. "
             , "This should not happen because "
             , T.pack reason
-            , " Full error is: "
-            , T.pack (show e)
+            , " Full error is:"
+            , renderPastHorizonException e
+            , "\nt0 = "
+            , T.pack $ show t0
             ]
+      where
+        renderPastHorizonException (PastHorizon callStack expr eras) = mconcat
+            [ "\nCalled from:\n"
+            , T.pack $ show $ prettySrcLoc $ snd $ last $ getCallStack callStack
+            , "\nConverting expression:\n"
+            , T.pack $ show expr
+            , "\n\nWith knowledge about the following eras:\n"
+            , fmt $ indentF 4 $ blockListF' "-" renderEraSummary eras
+            ]
+        renderEraSummary (HF.EraSummary start end _params) = mconcat
+            [ renderBound start
+            , " to "
+            , renderEnd end
+            ]
+
+
+        renderEnd (HF.EraEnd b) = renderBound b
+        renderEnd (HF.EraUnbounded) = "<unbounded>"
+
+        renderBound (HF.Bound _time _slot epoch) = mconcat
+            [ build $ show epoch
+--            , "( "
+--            , build $ show slot
+--            , ", "
+--            , build $ show time
+--            , ")"
+            ]
+
 
 -- | Run a query.
 interpretQuery
@@ -368,7 +404,8 @@ interpretQuery (TimeInterpreter getI start tr handleRes) qry = do
     i <- getI
     let res = HF.interpretQuery i $ runReaderT qry start
     case res of
-        Left e -> traceWith tr $ MsgInterpreterPastHorizon Nothing e
+        Left e -> do
+            traceWith tr $ MsgInterpreterPastHorizon Nothing start e
         Right _ -> pure ()
     handleRes res
 
@@ -433,8 +470,8 @@ neverFails reason = f . hoistTimeInterpreter (runExceptT >=> eitherToIO)
         , tracer = contramap (setReason reason) tr
         , handleResult = h
         }
-    setReason r (MsgInterpreterPastHorizon _ e)
-        = MsgInterpreterPastHorizon (Just r) e
+    setReason r (MsgInterpreterPastHorizon _ t0 e)
+        = MsgInterpreterPastHorizon (Just r) t0 e
 
 -- | Makes @PastHorizonException@ be thrown in @IO@.
 --
