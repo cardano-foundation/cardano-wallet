@@ -48,7 +48,6 @@ module Cardano.Wallet.Primitive.Model
     , totalUTxO
     , availableUTxO
     , utxo
-    , blockchainParameters
     ) where
 
 import Prelude
@@ -59,7 +58,6 @@ import Cardano.Wallet.Primitive.Types
     ( Block (..)
     , BlockHeader (..)
     , DelegationCertificate (..)
-    , GenesisParameters (..)
     , distance
     , dlgCertAccount
     )
@@ -158,23 +156,18 @@ data Wallet s = Wallet
 
       -- | Address discovery state
     , getState :: s
-
-      -- | Parameters may change over time via protocol updates, so we keep
-      -- track of them as part of the wallet checkpoints.
-    , blockchainParameters :: GenesisParameters
     } deriving (Generic, Eq, Show)
 
 instance NFData s => NFData (Wallet s) where
-    rnf (Wallet u sl s gp) =
+    rnf (Wallet u sl s) =
         deepseq (rnf u) $
         deepseq (rnf sl) $
-        deepseq (rnf s) $
-        deepseq (rnf gp) ()
+        deepseq (rnf s)
+        ()
 
 instance Buildable s => Buildable (Wallet s) where
-    build (Wallet u tip s gp) = "Wallet s\n"
+    build (Wallet u tip s) = "Wallet s\n"
         <> indentF 4 ("Tip: " <> build tip)
-        <> indentF 4 ("Parameters:\n" <> indentF 4 (build gp))
         <> indentF 4 ("UTxO: " <> build u)
         <> indentF 4 (build s)
 
@@ -189,16 +182,14 @@ initWallet
     :: (IsOurs s Address, IsOurs s RewardAccount)
     => Block
         -- ^ The genesis block
-    -> GenesisParameters
-        -- ^ Initial blockchain parameters
     -> s
         -- ^ Initial address discovery state
     -> ([(Tx, TxMeta)], Wallet s)
-initWallet block gp s =
+initWallet block s =
     let
         ((FilteredBlock _ txs, u), s') = prefilterBlock block mempty s
     in
-        (txs, Wallet u (header block) s' gp)
+        (txs, Wallet u (header block) s')
 
 -- | Constructs a wallet from the exact given state. Using this function instead
 -- of 'initWallet' and 'applyBlock' allows the wallet invariants to be
@@ -212,8 +203,6 @@ unsafeInitWallet
     -- ^ Header of the latest applied block (current tip)
     -> s
     -- ^ Address discovery state
-    -> GenesisParameters
-    -- ^ Blockchain parameters
     -> Wallet s
 unsafeInitWallet = Wallet
 
@@ -222,7 +211,7 @@ updateState
     :: s
     -> Wallet s
     -> Wallet s
-updateState s (Wallet u tip _ gp) = Wallet u tip s gp
+updateState s (Wallet u tip _) = Wallet u tip s
 
 -- | Represents the subset of data from a single block that are relevant to a
 --   particular wallet, discovered when applying a block to that wallet.
@@ -247,8 +236,8 @@ applyBlock
     => Block
     -> Wallet s
     -> (FilteredBlock, Wallet s)
-applyBlock !b (Wallet !u _ s gp) =
-    (filteredBlock, Wallet u' (b ^. #header) s' gp)
+applyBlock !b (Wallet !u _ s) =
+    (filteredBlock, Wallet u' (b ^. #header) s')
   where
     ((filteredBlock, u'), s') = prefilterBlock b u s
 
@@ -299,7 +288,7 @@ totalBalance
     -> Quantity "lovelace" Natural
     -> Wallet s
     -> Natural
-totalBalance pending (Quantity rewards) wallet@(Wallet _ _ s _) =
+totalBalance pending (Quantity rewards) wallet@(Wallet _ _ s) =
     balance (totalUTxO pending wallet) +
         if hasPendingWithdrawals pending
         then 0
@@ -316,7 +305,7 @@ availableUTxO
     :: Set Tx
     -> Wallet s
     -> UTxO
-availableUTxO pending (Wallet u _ _ _) =
+availableUTxO pending (Wallet u _ _) =
     u  `excluding` txIns pending
 
 -- | Total UTxO = 'availableUTxO' @<>@ 'changeUTxO'
@@ -325,7 +314,7 @@ totalUTxO
     => Set Tx
     -> Wallet s
     -> UTxO
-totalUTxO pending wallet@(Wallet _ _ s _) =
+totalUTxO pending wallet@(Wallet _ _ s) =
     availableUTxO pending wallet <> changeUTxO pending s
 
 {-------------------------------------------------------------------------------

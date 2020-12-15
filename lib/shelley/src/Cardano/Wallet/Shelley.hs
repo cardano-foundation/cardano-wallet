@@ -325,7 +325,7 @@ serveWallet
         -> NetworkLayer IO (CardanoBlock StandardCrypto)
         -> (StakePoolLayer -> IO a)
         -> IO a
-    withPoolsMonitoring dir (NetworkParameters gp sp _) nl action =
+    withPoolsMonitoring dir (NetworkParameters _ sp _) nl action =
         Pool.withDecoratedDBLayer
                 poolDatabaseDecorator
                 poolsDbTracer
@@ -337,7 +337,7 @@ serveWallet
             gcStatus <- newTVarIO NotStarted
             forM_ settings $ atomically . putSettings
 
-            void $ forkFinally (monitorStakePools tr gp nl db) onExit
+            void $ forkFinally (monitorStakePools tr np nl db) onExit
             spl <- newStakePoolLayer gcStatus nl db
                 $ forkFinally (monitorMetadata gcStatus tr sp db) onExit
             action spl

@@ -61,6 +61,7 @@ spec = do
             { getEpochLength = EpochLength 21600
             , getSlotLength  = SlotLength 10
             , getActiveSlotCoefficient = 1
+            , getSecurityParameter = Quantity 2160
             }
     let st = SyncTolerance 10
 

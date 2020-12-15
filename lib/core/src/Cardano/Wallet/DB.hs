@@ -43,6 +43,7 @@ import Cardano.Wallet.Primitive.Model
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader
     , DelegationCertificate
+    , GenesisParameters
     , ProtocolParameters
     , Range (..)
     , SlotNo (..)
@@ -121,6 +122,7 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         -> Wallet s
         -> WalletMetadata
         -> [(Tx, TxMeta)]
+        -> GenesisParameters
         -> ProtocolParameters
         -> ExceptT ErrWalletAlreadyExists stm ()
         -- ^ Initialize a database entry for a given wallet. 'putCheckpoint',
@@ -283,6 +285,11 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         -> stm (Maybe ProtocolParameters)
         -- ^ Read the previously stored node tip protocol parameters.
 
+    , readGenesisParameters
+        :: PrimaryKey WalletId
+        -> stm (Maybe GenesisParameters)
+        -- ^ Read the *Byron* genesis parameters.
+
     , rollbackTo
         :: PrimaryKey WalletId
         -> SlotNo
@@ -296,8 +303,12 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
 
     , prune
         :: PrimaryKey WalletId
+        -> Quantity "block" Word32
         -> ExceptT ErrNoSuchWallet stm ()
         -- ^ Prune database entities and remove entities that can be discarded.
+        --
+        -- The second argument represents the stability window, or said
+        -- length of the deepest rollback.
 
     , atomically
         :: forall a. stm a -> m a

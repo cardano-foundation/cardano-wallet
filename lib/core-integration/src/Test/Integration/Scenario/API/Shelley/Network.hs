@@ -29,6 +29,7 @@ import Test.Integration.Framework.DSL
     , expectResponseCode
     , minUTxOValue
     , request
+    , securityParameterValue
     , slotLengthValue
     , verify
     )
@@ -53,8 +54,6 @@ spec = describe "SHELLEY_NETWORK" $ do
             , expectField #hardforkAt (`shouldNotBe` Nothing)
             , expectField #slotLength (`shouldBe` Quantity slotLengthValue)
             , expectField #epochLength (`shouldBe` Quantity epochLengthValue)
-            -- TODO: ADP-554 query activeSlotCoefficient from ledger
-            -- This value is hardcoded for mainnet (1.0 = 100%).
-            -- The integration test cluster value is (0.5 = 50%).
-            , expectField #activeSlotCoefficient (`shouldBe` Quantity 100.0)
+            , expectField #securityParameter (`shouldBe` Quantity securityParameterValue)
+            , expectField #activeSlotCoefficient (`shouldBe` Quantity 50.0)
             ]

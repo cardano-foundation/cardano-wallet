@@ -19,7 +19,6 @@ module Cardano.Wallet.Network
     , follow
     , FollowAction (..)
     , FollowExit (..)
-    , getSlottingParametersForTip
 
     -- * Errors
     , ErrNetworkUnavailable (..)
@@ -46,16 +45,9 @@ import Cardano.BM.Data.Severity
 import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.Wallet.Primitive.Slotting
-    ( PastHorizonException
-    , TimeInterpreter
-    , interpretQuery
-    , neverFails
-    , queryEpochLength
-    , querySlotLength
-    )
+    ( PastHorizonException, TimeInterpreter )
 import Cardano.Wallet.Primitive.Types
-    ( ActiveSlotCoefficient (..)
-    , BlockHeader (..)
+    ( BlockHeader (..)
     , ProtocolParameters
     , SlotNo (..)
     , SlottingParameters (..)
@@ -144,8 +136,18 @@ data NetworkLayer m block = NetworkLayer
         -- ^ Get the current tip from the chain producer
         --
     , currentNodeEra
-        :: IO AnyCardanoEra
+        :: m AnyCardanoEra
         -- ^ Get the era the node is currently in.
+
+    , currentProtocolParameters
+        :: m ProtocolParameters
+        -- ^ Get the last known protocol parameters. In principle, these can
+        -- only change once per epoch.
+
+    , currentSlottingParameters
+        :: m SlottingParameters
+        -- ^ Get the last known slotting parameters. In principle, these can
+        -- only change once per era.
 
     , watchNodeTip
         :: (BlockHeader -> m ())
@@ -153,9 +155,6 @@ data NetworkLayer m block = NetworkLayer
         -- ^ Register a callback for when the node tip changes.
         -- This function should never finish, unless the callback throws an
         -- exception, which will be rethrown by this function.
-
-    , getProtocolParameters
-        :: m ProtocolParameters
 
     , postTx
         :: SealedTx -> ExceptT ErrPostTx m ()
@@ -261,32 +260,6 @@ defaultRetryPolicy =
     limitRetriesByCumulativeDelay (3600 * second) (constantDelay second)
   where
     second = 1000*1000
-
-{-------------------------------------------------------------------------------
-                                 Queries
--------------------------------------------------------------------------------}
-
--- | Use the HFC history interpreter to get the slot and epoch lengths current
--- for the network tip.
---
--- This may throw a 'PastHorizonException' in some cases.
-getSlottingParametersForTip
-    :: NetworkLayer IO block
-    -> IO SlottingParameters
-getSlottingParametersForTip nl = do
-    tip <- either (const 0) slotNo <$> runExceptT (currentNodeTip nl)
-
-    -- TODO: #2226 Query activeSlotCoeff from ledger.
-    -- This requires code changes in the shelley ledger.
-    let getActiveSlotCoeff = pure (ActiveSlotCoefficient 1.0)
-
-    let ti :: TimeInterpreter IO
-        ti =  neverFails "tip in getSlottingParametersForTip can't be more than\
-                \ the timeInterpreter tip, and thus never outside the safe-zone"
-                (timeInterpreter nl)
-    (slotLen, epLen) <- interpretQuery ti
-        ((,) <$> querySlotLength tip <*> queryEpochLength tip)
-    SlottingParameters slotLen epLen <$> getActiveSlotCoeff
 
 {-------------------------------------------------------------------------------
                                 Chain Sync
@@ -434,7 +407,7 @@ follow nl tr cps yield header =
         Right (RollForward cursor' tip (blockFirst : blocksRest)) -> do
             let blocks = blockFirst :| blocksRest
             traceWith tr $ MsgApplyBlocks (header <$> blocks)
-            params <- getProtocolParameters nl
+            params <- currentProtocolParameters nl
             action <- yield blocks (tip, params)
             traceWith tr $ MsgFollowAction (fmap show action)
             continueWith cursor' True action

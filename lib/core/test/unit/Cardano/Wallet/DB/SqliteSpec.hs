@@ -122,11 +122,13 @@ import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
     , Block (..)
     , BlockHeader (..)
+    , GenesisParameters (..)
     , PassphraseScheme (..)
     , ProtocolParameters
     , Range
     , SlotNo (..)
     , SortOrder (..)
+    , StartTime (..)
     , WalletDelegation (..)
     , WalletDelegationStatus (..)
     , WalletId (..)
@@ -151,7 +153,7 @@ import Cardano.Wallet.Primitive.Types.Tx
     , toTxHistory
     )
 import Cardano.Wallet.Unsafe
-    ( unsafeRunExceptT )
+    ( unsafeFromHex, unsafeRunExceptT )
 import Control.Concurrent
     ( forkIO, killThread, threadDelay )
 import Control.Concurrent.Async
@@ -186,6 +188,8 @@ import Data.Text.Class
     ( fromText )
 import Data.Time.Clock
     ( getCurrentTime )
+import Data.Time.Clock.POSIX
+    ( posixSecondsToUTCTime )
 import Database.Persist.Sql
     ( DBName (..), PersistEntity (..), fieldDB )
 import GHC.Conc
@@ -272,6 +276,26 @@ spec = parallel $ do
             testMigrationRole @ShelleyKey
                 "shelleyRole-v2020-10-13.sqlite"
 
+        it "'migrate' db with unused protocol parameters in checkpoints" $
+            testMigrationCleanupCheckpoints @ShelleyKey
+                "shelleyDerivationPrefix-v2020-10-07.sqlite"
+                (GenesisParameters
+                    { getGenesisBlockHash = Hash $ unsafeFromHex
+                        "5f20df933584822601f9e3f8c024eb5eb252fe8cefb24d1317dc3d432e940ebb"
+                    , getGenesisBlockDate =
+                        StartTime $ posixSecondsToUTCTime 1506203091
+                    }
+                )
+                (BlockHeader
+                    { slotNo = SlotNo 1125119
+                    , blockHeight = Quantity 1124949
+                    , headerHash = Hash $ unsafeFromHex
+                        "3b309f1ca388459f0ce2c4ccca20ea646b75e6fc1447be032a41d43f209ecb50"
+                    , parentHeaderHash = Hash $ unsafeFromHex
+                        "e9414e08d8c5ca177dd0cb6a9e4bf868e1ea03389c31f5f7a6b099a3bcdfdedf"
+                    }
+                )
+
 sqliteSpecSeq :: Spec
 sqliteSpecSeq = do
     validateGenerators @(SeqState 'Mainnet ShelleyKey)
@@ -288,6 +312,48 @@ sqliteSpecRnd = do
         parallel $ describe "Sqlite State machine (RndState)" $ do
             it "Sequential state machine tests"
                 (prop_sequential :: TestDBRnd -> Property)
+
+testMigrationCleanupCheckpoints
+    :: forall k s.
+        ( s ~ SeqState 'Mainnet k
+        , k ~ ShelleyKey
+        , WalletKey k
+        , PersistState s
+        , PersistPrivateKey (k 'RootK)
+        , PaymentAddress 'Mainnet k
+        )
+    => String
+    -> GenesisParameters
+    -> BlockHeader
+    -> IO ()
+testMigrationCleanupCheckpoints dbName genesisParameters tip = do
+    let orig = $(getTestData) </> dbName
+    withSystemTempDirectory "migration-db" $ \dir -> do
+        let path = dir </> "db.sqlite"
+        let ti = dummyTimeInterpreter
+        copyFile orig path
+        (logs, result) <- captureLogging $ \tr -> do
+            withDBLayer @s @k tr defaultFieldValues (Just path) ti
+                $ \(_ctx, db) -> db & \DBLayer{..} -> atomically
+                $ do
+                    [wid] <- listWallets
+                    (,) <$> readGenesisParameters wid <*> readCheckpoint wid
+
+        length (filter (isMsgManualMigration fieldGenesisHash) logs) `shouldBe` 1
+        length (filter (isMsgManualMigration fieldGenesisStart) logs) `shouldBe` 1
+
+        (fst result) `shouldBe` Just genesisParameters
+        (currentTip <$> snd result) `shouldBe` Just tip
+  where
+    fieldGenesisHash = fieldDB $ persistFieldDef DB.WalGenesisHash
+    fieldGenesisStart = fieldDB $ persistFieldDef DB.WalGenesisStart
+
+    isMsgManualMigration :: DBName -> DBLog -> Bool
+    isMsgManualMigration fieldInDb = \case
+        MsgManualMigrationNeeded field _ ->
+            fieldName field == unDBName fieldInDb
+        _ ->
+            False
 
 testMigrationRole
     :: forall k s.
@@ -434,13 +500,13 @@ loggingSpec = withLoggingDB @(SeqState 'Mainnet ShelleyKey) @ShelleyKey $ do
     describe "Sqlite query logging" $ do
         it "should log queries at DEBUG level" $ \(getLogs, DBLayer{..}) -> do
             atomically $ unsafeRunExceptT $
-                initializeWallet testPk testCpSeq testMetadata mempty pp
+                initializeWallet testPk testCpSeq testMetadata mempty gp pp
             logs <- getLogs
             logs `shouldHaveMsgQuery` "INSERT"
 
         it "should not log query parameters" $ \(getLogs, DBLayer{..}) -> do
             atomically $ unsafeRunExceptT $
-                initializeWallet testPk testCpSeq testMetadata mempty pp
+                initializeWallet testPk testCpSeq testMetadata mempty gp pp
             let walletName = T.unpack $ coerce $ name testMetadata
             msgs <- T.unlines . mapMaybe getMsgQuery <$> getLogs
             T.unpack msgs `shouldNotContain` walletName
@@ -580,7 +646,7 @@ fileModeSpec =  do
     describe "Sqlite database file" $ do
         let writeSomething DBLayer{..} = do
                 atomically $ unsafeRunExceptT $
-                    initializeWallet testPk testCpSeq testMetadata mempty pp
+                    initializeWallet testPk testCpSeq testMetadata mempty gp pp
                 atomically listWallets `shouldReturn` [testPk]
             tempFilesAbsent fp = do
                 doesFileExist fp `shouldReturn` True
@@ -599,7 +665,7 @@ fileModeSpec =  do
         it "create and list wallet works" $ \f -> do
             (ctx, DBLayer{..}) <- newDBLayer' (Just f)
             atomically $ unsafeRunExceptT $
-                initializeWallet testPk testCp testMetadata mempty pp
+                initializeWallet testPk testCp testMetadata mempty gp pp
             destroyDBLayer ctx
             testOpeningCleaning f listWallets' [testPk] []
 
@@ -609,14 +675,14 @@ fileModeSpec =  do
             let meta = testMetadata
                    { passphraseInfo = Just $ WalletPassphraseInfo now EncryptWithPBKDF2 }
             atomically $ unsafeRunExceptT $
-                initializeWallet testPk testCp meta mempty pp
+                initializeWallet testPk testCp meta mempty gp pp
             destroyDBLayer ctx
             testOpeningCleaning f (`readWalletMeta'` testPk) (Just meta) Nothing
 
         it "create and get private key" $ \f-> do
             (ctx, db@DBLayer{..}) <- newDBLayer' (Just f)
             atomically $ unsafeRunExceptT $
-                initializeWallet testPk testCp testMetadata mempty pp
+                initializeWallet testPk testCp testMetadata mempty gp pp
             (k, h) <- unsafeRunExceptT $ attachPrivateKey db testPk
             destroyDBLayer ctx
             testOpeningCleaning f (`readPrivateKey'` testPk) (Just (k, h)) Nothing
@@ -625,7 +691,7 @@ fileModeSpec =  do
             (ctx, DBLayer{..}) <- newDBLayer' (Just f)
             atomically $ do
                 unsafeRunExceptT $
-                    initializeWallet testPk testCp testMetadata mempty pp
+                    initializeWallet testPk testCp testMetadata mempty gp pp
                 unsafeRunExceptT $ putTxHistory testPk testTxs
             destroyDBLayer ctx
             testOpeningCleaning
@@ -638,7 +704,7 @@ fileModeSpec =  do
             (ctx, DBLayer{..}) <- newDBLayer' (Just f)
             atomically $ do
                 unsafeRunExceptT $
-                    initializeWallet testPk testCp testMetadata mempty pp
+                    initializeWallet testPk testCp testMetadata mempty gp pp
                 unsafeRunExceptT $ putTxHistory testPk testTxs
             destroyDBLayer ctx
             testOpeningCleaning
@@ -651,7 +717,7 @@ fileModeSpec =  do
             (ctx, DBLayer{..}) <- newDBLayer' (Just f)
             atomically $ do
                 unsafeRunExceptT $
-                    initializeWallet testPk testCp testMetadata mempty pp
+                    initializeWallet testPk testCp testMetadata mempty gp pp
                 unsafeRunExceptT $ putCheckpoint testPk testCp
             destroyDBLayer ctx
             testOpeningCleaning f (`readCheckpoint'` testPk) (Just testCp) Nothing
@@ -667,7 +733,7 @@ fileModeSpec =  do
                 let ourAddrs = knownAddresses (getState testCp)
 
                 atomically $ unsafeRunExceptT $ initializeWallet
-                    testPk testCp testMetadata mempty pp
+                    testPk testCp testMetadata mempty gp pp
 
                 let mockApply h mockTxs = do
                         Just cpA <- atomically $ readCheckpoint testPk
@@ -689,7 +755,7 @@ fileModeSpec =  do
                         atomically $ do
                             unsafeRunExceptT $ putCheckpoint testPk cpB
                             unsafeRunExceptT $ putTxHistory testPk txs
-                            unsafeRunExceptT $ prune testPk
+                            unsafeRunExceptT $ prune testPk (Quantity 2160)
 
                 let mockApplyBlock1 = mockApply (dummyHash "block1")
                             [ Tx (dummyHash "tx1")
@@ -763,7 +829,7 @@ prop_randomOpChunks (KeyValPairs pairs) =
             unsafeRunExceptT $ putCheckpoint k cp
             unsafeRunExceptT $ putWalletMeta k meta
         else do
-            atomically $ unsafeRunExceptT $ initializeWallet k cp meta mempty pp
+            atomically $ unsafeRunExceptT $ initializeWallet k cp meta mempty gp pp
             Set.fromList <$> atomically listWallets
                 `shouldReturn` Set.fromList (k:keys)
 
@@ -923,7 +989,7 @@ cutRandomly = iter []
 -------------------------------------------------------------------------------}
 
 testCp :: Wallet (SeqState 'Mainnet ShelleyKey)
-testCp = snd $ initWallet block0 dummyGenesisParameters initDummyState
+testCp = snd $ initWallet block0 initDummyState
   where
     initDummyState :: SeqState 'Mainnet ShelleyKey
     initDummyState = mkSeqStateFromRootXPrv (xprv, mempty) purposeCIP1852 defaultAddressPoolGap
@@ -959,6 +1025,9 @@ testTxs =
 pp :: ProtocolParameters
 pp = dummyProtocolParameters
 
+gp :: GenesisParameters
+gp = dummyGenesisParameters
+
 {-------------------------------------------------------------------------------
                     Helpers for golden rollback tests
 -------------------------------------------------------------------------------}
@@ -981,7 +1050,7 @@ getTxsInLedger DBLayer {..} = do
 -------------------------------------------------------------------------------}
 
 testCpSeq :: Wallet (SeqState 'Mainnet ShelleyKey)
-testCpSeq = snd $ initWallet block0 dummyGenesisParameters initDummyStateSeq
+testCpSeq = snd $ initWallet block0 initDummyStateSeq
 
 initDummyStateSeq :: SeqState 'Mainnet ShelleyKey
 initDummyStateSeq = mkSeqStateFromRootXPrv (xprv, mempty) purposeCIP1852 defaultAddressPoolGap

@@ -46,6 +46,7 @@ import Cardano.Wallet.DB.Model
     , mPutWalletMeta
     , mReadCheckpoint
     , mReadDelegationRewardBalance
+    , mReadGenesisParameters
     , mReadPrivateKey
     , mReadProtocolParameters
     , mReadTxHistory
@@ -91,9 +92,9 @@ newDBLayer timeInterpreter = do
                                       Wallets
         -----------------------------------------------------------------------}
 
-        { initializeWallet = \pk cp meta txs txp -> ExceptT $ do
+        { initializeWallet = \pk cp meta txs gp txp -> ExceptT $ do
             cp `deepseq` meta `deepseq`
-                alterDB errWalletAlreadyExists db (mInitializeWallet pk cp meta txs txp)
+                alterDB errWalletAlreadyExists db (mInitializeWallet pk cp meta txs gp txp)
 
         , removeWallet = ExceptT . alterDB errNoSuchWallet db . mRemoveWallet
 
@@ -113,7 +114,7 @@ newDBLayer timeInterpreter = do
         , rollbackTo = \pk pt -> ExceptT $
             alterDB errNoSuchWallet db (mRollbackTo pk pt)
 
-        , prune = \_ -> error "MVar.prune: not implemented"
+        , prune = \_ _ -> error "MVar.prune: not implemented"
 
         {-----------------------------------------------------------------------
                                    Wallet Metadata
@@ -193,6 +194,8 @@ newDBLayer timeInterpreter = do
                 alterDB errNoSuchWallet db (mPutProtocolParameters pk txp)
 
         , readProtocolParameters = readDB db . mReadProtocolParameters
+
+        , readGenesisParameters = readDB db . mReadGenesisParameters
 
         {-----------------------------------------------------------------------
                                  Delegation Rewards

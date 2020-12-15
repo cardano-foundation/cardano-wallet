@@ -1778,8 +1778,8 @@ getNetworkParameters
     -> NetworkLayer IO Block
     -> Handler ApiNetworkParameters
 getNetworkParameters (_block0, genesisNp, _st) nl = do
-    pp <- liftIO $ NW.getProtocolParameters nl
-    sp <- liftIO $ NW.getSlottingParametersForTip nl
+    pp <- liftIO $ NW.currentProtocolParameters nl
+    sp <- liftIO $ NW.currentSlottingParameters nl
     let (apiNetworkParams, epochNoM) = toApiNetworkParameters genesisNp
             { protocolParameters = pp, slottingParameters = sp }
     case epochNoM of

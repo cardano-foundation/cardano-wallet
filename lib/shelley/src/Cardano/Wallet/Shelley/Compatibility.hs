@@ -98,6 +98,7 @@ module Cardano.Wallet.Shelley.Compatibility
     , fromAllegraTx
     , fromShelleyBlock
     , fromAllegraBlock
+    , slottingParametersFromGenesis
 
       -- * Internal Conversions
     , decentralizationLevelFromPParams
@@ -624,6 +625,21 @@ minimumUTxOvalueFromPParams
     -> W.Coin
 minimumUTxOvalueFromPParams pp = toWalletCoin $ SL._minUTxOValue pp
 
+slottingParametersFromGenesis
+    :: ShelleyGenesis e
+    -> W.SlottingParameters
+slottingParametersFromGenesis g =
+    W.SlottingParameters
+        { getSlotLength =
+            W.SlotLength $ sgSlotLength g
+        , getEpochLength =
+            W.EpochLength . fromIntegral . unEpochSize . sgEpochLength $ g
+        , getActiveSlotCoefficient =
+            W.ActiveSlotCoefficient . fromRational . sgActiveSlotsCoeff $ g
+        , getSecurityParameter =
+            Quantity . fromIntegral . sgSecurityParam $ g
+        }
+
 -- | Convert genesis data into blockchain params and an initial set of UTxO
 fromGenesisData
     :: forall e crypto. (Era e, e ~ SL.ShelleyEra crypto)
@@ -636,17 +652,9 @@ fromGenesisData g initialFunds =
             { getGenesisBlockHash = dummyGenesisHash
             , getGenesisBlockDate =
                 W.StartTime . sgSystemStart $ g
-            , getEpochStability =
-                Quantity . fromIntegral . sgSecurityParam $ g
             }
-        , slottingParameters = W.SlottingParameters
-            { getSlotLength =
-                W.SlotLength $ sgSlotLength g
-            , getEpochLength =
-                W.EpochLength . fromIntegral . unEpochSize . sgEpochLength $ g
-            , getActiveSlotCoefficient =
-                W.ActiveSlotCoefficient . fromRational . sgActiveSlotsCoeff $ g
-            }
+        , slottingParameters =
+            slottingParametersFromGenesis g
         , protocolParameters =
             (fromShelleyPParams Nothing) . sgProtocolParams $ g
         }

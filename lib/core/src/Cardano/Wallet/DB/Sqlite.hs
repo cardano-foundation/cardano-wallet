@@ -151,7 +151,7 @@ import Data.List.Split
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
-    ( catMaybes )
+    ( catMaybes, mapMaybe )
 import Data.Ord
     ( Down (..) )
 import Data.Proxy
@@ -197,7 +197,7 @@ import Database.Persist.Sql
 import Database.Persist.Sqlite
     ( SqlPersistT )
 import Database.Persist.Types
-    ( PersistValue (PersistText), fromPersistValueText )
+    ( PersistValue (..), fromPersistValueText )
 import Fmt
     ( pretty )
 import Numeric.Natural
@@ -365,9 +365,9 @@ migrateManually
     -> ManualMigration
 migrateManually tr proxy defaultFieldValues =
     ManualMigration $ \conn -> do
-        assignDefaultPassphraseScheme conn
+        cleanupCheckpointTable conn
 
-        addActiveSlotCoefficientIfMissing conn
+        assignDefaultPassphraseScheme conn
 
         addDesiredPoolNumberIfMissing conn
 
@@ -393,6 +393,107 @@ migrateManually tr proxy defaultFieldValues =
 
         addScriptAddressGapIfMissing conn
   where
+    -- NOTE
+    -- We originally stored protocol parameters in the 'Checkpoint' table, and
+    -- later moved them to a new dedicatd table. However, removing a column is
+    -- not something straightforward in SQLite, so we initially simply marked
+    -- most parameters as _unused. Later, we did rework how genesis and protocol
+    -- parameters were stored and shared between wallets and completely removed
+    -- them from the database. At the same time, we also introduced
+    -- 'genesis_hash' and 'genesis_start' in the 'Wallet' table which we use is
+    -- as a discriminator for the migration.
+    cleanupCheckpointTable :: Sqlite.Connection -> IO ()
+    cleanupCheckpointTable conn = do
+        let field = DBField WalGenesisHash
+        isFieldPresent conn field >>= \case
+            TableMissing ->
+                traceWith tr $ MsgManualMigrationNotNeeded field
+
+            ColumnPresent -> do
+                traceWith tr $ MsgManualMigrationNotNeeded field
+
+            ColumnMissing -> do
+                let orig = "checkpoint"
+                let tmp = orig <> "_tmp"
+
+                -- 1. Add genesis_hash and genesis_start to the 'wallet' table.
+                [defaults] <- runSql conn $ select ["genesis_hash", "genesis_start"] orig
+                let [PersistText genesisHash, PersistText genesisStart] = defaults
+                addColumn_ conn True (DBField WalGenesisHash) (quotes genesisHash)
+                addColumn_ conn True (DBField WalGenesisStart) (quotes genesisStart)
+
+                -- 2. Drop columns from the 'checkpoint' table
+                info <- runSql conn $ getTableInfo orig
+                let filtered = mapMaybe (filterColumn excluding) info
+                      where
+                        excluding =
+                            [ "genesis_hash", "genesis_start", "fee_policy"
+                            , "slot_length", "epoch_length", "tx_max_size"
+                            , "epoch_stability", "active_slot_coeff"
+                            ]
+                _ <- runSql conn $ createTable tmp filtered
+                _ <- runSql conn $ copyTable orig tmp filtered
+                _ <- runSql conn $ dropTable orig
+                _ <- runSql conn $ renameTable tmp orig
+
+                return ()
+      where
+        select fields table = mconcat
+            [ "SELECT ", T.intercalate ", " fields
+            , " FROM ", table
+            , " ORDER BY slot ASC LIMIT 1;"
+            ]
+
+        getTableInfo table = mconcat
+            [ "PRAGMA table_info(", table, ");"
+            ]
+
+        createTable table cols = mconcat
+            [ "CREATE TABLE ", table, " ("
+            , T.intercalate ", " (mapMaybe createColumn cols)
+            , ");"
+            ]
+
+        copyTable source destination cols = mconcat
+            [ "INSERT INTO ", destination, " SELECT "
+            , T.intercalate ", " (mapMaybe selectColumn cols)
+            , " FROM ", source
+            , ";"
+            ]
+
+        dropTable table = mconcat
+            [ "DROP TABLE " <> table <> ";"
+            ]
+
+        renameTable from to = mconcat
+            [ "ALTER TABLE ", from, " RENAME TO ", to, ";" ]
+
+        filterColumn :: [Text] -> [PersistValue] -> Maybe [PersistValue]
+        filterColumn excluding = \case
+            [ _, PersistText colName, PersistText colType, colNull, _, _] ->
+                if colName `elem` excluding then
+                    Nothing
+                else
+                    Just [PersistText colName, PersistText colType, colNull]
+            _ ->
+                Nothing
+
+        selectColumn :: [PersistValue] -> Maybe Text
+        selectColumn = \case
+            [ PersistText colName, _ , _ ] ->
+                Just colName
+            _ ->
+                Nothing
+
+        createColumn :: [PersistValue] -> Maybe Text
+        createColumn = \case
+            [ PersistText colName, PersistText colType, PersistInt64 1 ] ->
+                Just $ T.unwords [ colName, colType, "NOT NULL" ]
+            [ PersistText colName, PersistText colType, _ ] ->
+                Just $ T.unwords [ colName, colType ]
+            _ ->
+                Nothing
+
     -- NOTE
     -- Wallets created before the 'PassphraseScheme' was introduced have no
     -- passphrase scheme set in the database. Yet, their passphrase is known
@@ -470,17 +571,6 @@ migrateManually tr proxy defaultFieldValues =
       where
         hardLowerBound = toText $ fromEnum $ minBound @(Index 'Hardened _)
         rndAccountIx   = DBField RndStateAddressAccountIndex
-
-    -- | Adds a placeholder 'active_slot_coeff' column to the 'checkpoint' table
-    --   if it is missing.
-    --
-    addActiveSlotCoefficientIfMissing :: Sqlite.Connection -> IO ()
-    addActiveSlotCoefficientIfMissing conn =
-        addColumn_ conn True (DBField CheckpointActiveSlotCoeffUnused) value
-      where
-        value = toText
-            $ W.unActiveSlotCoefficient
-            $ defaultActiveSlotCoefficient defaultFieldValues
 
     -- | Adds an 'desired_pool_number' column to the 'protocol_parameters'
     -- table if it is missing.
@@ -685,8 +775,27 @@ migrateManually tr proxy defaultFieldValues =
                     then MsgManualMigrationNeeded field old
                     else MsgManualMigrationNotNeeded field
                 Sqlite.finalize query
-      where
-        quotes x = "\"" <> x <> "\""
+
+    quotes :: Text -> Text
+    quotes x = "\"" <> x <> "\""
+
+-- | Unsafe, execute a raw SQLite query. Used only in migration when really
+-- needed.
+runSql :: Sqlite.Connection -> Text -> IO [[PersistValue]]
+runSql conn raw = do
+    query <- Sqlite.prepare conn raw
+    result <- collect query []
+    Sqlite.finalize query
+    return result
+  where
+    collect query acc = do
+        step <- Sqlite.step query
+        case step of
+            Sqlite.Row -> do
+                result <- Sqlite.columns query
+                collect query (result : acc)
+            Sqlite.Done -> do
+                return (reverse acc)
 
 -- | A set of default field values that can be consulted when performing a
 --   database migration.
@@ -798,9 +907,9 @@ newDBLayer trace defaultFieldValues mDatabaseFile ti = do
                                       Wallets
         -----------------------------------------------------------------------}
 
-        { initializeWallet = \(PrimaryKey wid) cp meta txs pp -> ExceptT $ do
+        { initializeWallet = \(PrimaryKey wid) cp meta txs gp pp -> ExceptT $ do
             res <- handleConstraint (ErrWalletAlreadyExists wid) $
-                insert_ (mkWalletEntity wid meta)
+                insert_ (mkWalletEntity wid meta gp)
             when (isRight res) $ do
                 insertCheckpoint wid cp <* writeCache wid (Just cp)
                 let (metas, txins, txouts, ws) = mkTxHistory wid txs
@@ -869,11 +978,11 @@ newDBLayer trace defaultFieldValues mDatabaseFile ti = do
                     invalidateCache wid
                     pure (Right nearestPoint)
 
-        , prune = \(PrimaryKey wid) -> ExceptT $ do
+        , prune = \(PrimaryKey wid) epochStability -> ExceptT $ do
             selectLatestCheckpoint wid >>= \case
                 Nothing -> pure $ Left $ ErrNoSuchWallet wid
                 Just cp -> Right <$> do
-                    pruneCheckpoints wid cp
+                    pruneCheckpoints wid epochStability cp
                     deleteLooseTransactions
 
         {-----------------------------------------------------------------------
@@ -1013,6 +1122,9 @@ newDBLayer trace defaultFieldValues mDatabaseFile ti = do
         , readProtocolParameters =
             \(PrimaryKey wid) -> selectProtocolParameters wid
 
+        , readGenesisParameters =
+            \(PrimaryKey wid) -> selectGenesisParameters wid
+
         {-----------------------------------------------------------------------
                                  Delegation Rewards
         -----------------------------------------------------------------------}
@@ -1091,13 +1203,15 @@ toWalletDelegationStatus = \case
     DelegationCertificate _ _ (Just pool) ->
         W.Delegating pool
 
-mkWalletEntity :: W.WalletId -> W.WalletMetadata -> Wallet
-mkWalletEntity wid meta = Wallet
+mkWalletEntity :: W.WalletId -> W.WalletMetadata -> W.GenesisParameters -> Wallet
+mkWalletEntity wid meta gp = Wallet
     { walId = wid
     , walName = meta ^. #name . coerce
     , walCreationTime = meta ^. #creationTime
     , walPassphraseLastUpdatedAt = W.lastUpdatedAt <$> meta ^. #passphraseInfo
     , walPassphraseScheme = W.passphraseScheme <$> meta ^. #passphraseInfo
+    , walGenesisHash = BlockId (coerce (gp ^. #getGenesisBlockHash))
+    , walGenesisStart = coerce (gp ^. #getGenesisBlockDate)
     }
 
 mkWalletMetadataUpdate :: W.WalletMetadata -> [Update Wallet]
@@ -1158,21 +1272,12 @@ mkCheckpointEntity wid wal =
     header = W.currentTip wal
     sl = header ^. #slotNo
     (Quantity bh) = header ^. #blockHeight
-    gp = W.blockchainParameters wal
     cp = Checkpoint
         { checkpointWalletId = wid
         , checkpointSlot = sl
         , checkpointParentHash = BlockId (header ^. #parentHeaderHash)
         , checkpointHeaderHash = BlockId (header ^. #headerHash)
         , checkpointBlockHeight = bh
-        , checkpointGenesisHash = BlockId (coerce (gp ^. #getGenesisBlockHash))
-        , checkpointGenesisStart = coerce (gp ^. #getGenesisBlockDate)
-        , checkpointEpochStability = coerce (gp ^. #getEpochStability)
-        , checkpointSlotLengthUnused = 0
-        , checkpointEpochLengthUnused = 0
-        , checkpointActiveSlotCoeffUnused = 0
-        , checkpointFeePolicyUnused = ""
-        , checkpointTxMaxSizeUnused = 0
         }
     utxo =
         [ UTxO wid sl (TxId input) ix addr coin
@@ -1187,8 +1292,8 @@ checkpointFromEntity
     -> [UTxO]
     -> s
     -> W.Wallet s
-checkpointFromEntity cp utxo s =
-    W.unsafeInitWallet utxo' header s gp
+checkpointFromEntity cp utxo =
+    W.unsafeInitWallet utxo' header
   where
     (Checkpoint
         _walletId
@@ -1196,25 +1301,12 @@ checkpointFromEntity cp utxo s =
         (BlockId headerHash)
         (BlockId parentHeaderHash)
         bh
-        (BlockId genesisHash)
-        genesisStart
-        _feePolicyUnused
-        _slotLengthUnused
-        _epochLengthUnused
-        _txMaxSizeUnused
-        epochStability
-        _activeSlotCoeffUnused
         ) = cp
     header = (W.BlockHeader slot (Quantity bh) headerHash parentHeaderHash)
     utxo' = W.UTxO . Map.fromList $
         [ (W.TxIn input ix, W.TxOut addr coin)
         | UTxO _ _ (TxId input) ix addr coin <- utxo
         ]
-    gp = W.GenesisParameters
-        { getGenesisBlockHash = coerce genesisHash
-        , getGenesisBlockDate = W.StartTime genesisStart
-        , getEpochStability = Quantity epochStability
-        }
 
 mkTxHistory
     :: W.WalletId
@@ -1389,6 +1481,15 @@ protocolParametersFromEntity (ProtocolParameters _ fp mx dl poolNum minUTxO epoc
         minUTxO
         epochNo
 
+genesisParametersFromEntity
+    :: Wallet
+    -> W.GenesisParameters
+genesisParametersFromEntity (Wallet _ _ _ _ _ hash startTime) =
+    W.GenesisParameters
+        { W.getGenesisBlockHash = coerce (getBlockId hash)
+        , W.getGenesisBlockDate = W.StartTime startTime
+        }
+
 {-------------------------------------------------------------------------------
                                    DB Queries
 -------------------------------------------------------------------------------}
@@ -1421,11 +1522,11 @@ deleteCheckpoints wid filters = do
 -- | Prune checkpoints in the database to keep it tidy
 pruneCheckpoints
     :: W.WalletId
+    -> Quantity "block" Word32
     -> W.Wallet s
     -> SqlPersistT IO ()
-pruneCheckpoints wid cp = do
+pruneCheckpoints wid epochStability cp = do
     let height = cp ^. #currentTip . #blockHeight
-    let epochStability = cp ^. #blockchainParameters . #getEpochStability
     let cfg = defaultSparseCheckpointsConfig epochStability
     let cps = sparseCheckpoints cfg height
     deleteCheckpoints wid [ CheckpointBlockHeight /<-. cps ]
@@ -1657,6 +1758,14 @@ selectProtocolParameters
 selectProtocolParameters wid = do
     pp <- selectFirst [ProtocolParametersWalletId ==. wid] []
     pure $ (protocolParametersFromEntity . entityVal) <$> pp
+
+selectGenesisParameters
+    :: MonadIO m
+    => W.WalletId
+    -> SqlPersistT m (Maybe W.GenesisParameters)
+selectGenesisParameters wid = do
+    gp <- selectFirst [WalId ==. wid] []
+    pure $ (genesisParametersFromEntity . entityVal) <$> gp
 
 -- | Find the nearest 'Checkpoint' that is either at the given point or before.
 findNearestPoint

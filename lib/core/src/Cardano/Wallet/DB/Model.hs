@@ -59,6 +59,7 @@ module Cardano.Wallet.DB.Model
     , mReadPrivateKey
     , mPutProtocolParameters
     , mReadProtocolParameters
+    , mReadGenesisParameters
     , mPutDelegationRewardBalance
     , mReadDelegationRewardBalance
     , mCheckWallet
@@ -74,6 +75,7 @@ import Cardano.Wallet.Primitive.Types
     ( BlockHeader (blockHeight, slotNo)
     , DelegationCertificate (..)
     , EpochNo (..)
+    , GenesisParameters (..)
     , PoolId
     , ProtocolParameters (..)
     , Range (..)
@@ -157,6 +159,7 @@ data WalletDatabase s xprv = WalletDatabase
     , metadata :: !WalletMetadata
     , txHistory :: !(Map (Hash "Tx") TxMeta)
     , xprv :: !(Maybe xprv)
+    , genesisParameters :: !GenesisParameters
     , protocolParameters :: !ProtocolParameters
     , rewardAccountBalance :: !(Quantity "lovelace" Word64)
     } deriving (Show, Eq, Generic)
@@ -204,9 +207,10 @@ mInitializeWallet
     -> Wallet s
     -> WalletMetadata
     -> TxHistory
+    -> GenesisParameters
     -> ProtocolParameters
     -> ModelOp wid s xprv ()
-mInitializeWallet wid cp meta txs0 pp db@Database{wallets,txs}
+mInitializeWallet wid cp meta txs0 gp pp db@Database{wallets,txs}
     | wid `Map.member` wallets = (Left (WalletAlreadyExists wid), db)
     | otherwise =
         let
@@ -217,6 +221,7 @@ mInitializeWallet wid cp meta txs0 pp db@Database{wallets,txs}
                 , metadata = meta
                 , txHistory = history
                 , xprv = Nothing
+                , genesisParameters = gp
                 , protocolParameters = pp
                 , rewardAccountBalance = minBound
                 }
@@ -487,6 +492,11 @@ mReadProtocolParameters
     :: Ord wid => wid -> ModelOp wid s xprv (Maybe ProtocolParameters)
 mReadProtocolParameters wid db@(Database wallets _) =
     (Right (protocolParameters <$> Map.lookup wid wallets), db)
+
+mReadGenesisParameters
+    :: Ord wid => wid -> ModelOp wid s xprv (Maybe GenesisParameters)
+mReadGenesisParameters wid db@(Database wallets _) =
+    (Right (genesisParameters <$> Map.lookup wid wallets), db)
 
 mPutDelegationRewardBalance
     :: Ord wid => wid -> Quantity "lovelace" Word64 -> ModelOp wid s xprv ()

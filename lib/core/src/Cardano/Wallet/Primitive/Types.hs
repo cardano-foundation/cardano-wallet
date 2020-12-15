@@ -906,8 +906,6 @@ data GenesisParameters = GenesisParameters
         -- ^ Hash of the very first block
     , getGenesisBlockDate :: StartTime
         -- ^ Start time of the chain.
-    , getEpochStability :: Quantity "block" Word32
-        -- ^ Length of the suffix of the chain considered unstable
     } deriving (Generic, Show, Eq)
 
 instance NFData GenesisParameters
@@ -917,12 +915,10 @@ instance Buildable GenesisParameters where
         [ "Genesis block hash: " <> genesisF (getGenesisBlockHash gp)
         , "Genesis block date: " <> startTimeF (getGenesisBlockDate
             (gp :: GenesisParameters))
-        , "Epoch stability:    " <> epochStabilityF (getEpochStability gp)
         ]
       where
         genesisF = build . T.decodeUtf8 . convertToBase Base16 . getHash
         startTimeF (StartTime s) = build s
-        epochStabilityF (Quantity s) = build s
 
 data SlottingParameters = SlottingParameters
     { getSlotLength :: SlotLength
@@ -930,8 +926,16 @@ data SlottingParameters = SlottingParameters
     , getEpochLength :: EpochLength
         -- ^ Number of slots in a single epoch.
     , getActiveSlotCoefficient :: ActiveSlotCoefficient
-        -- ^ In Genesis/Praos, corresponds to the % of active slots
+        -- ^ a.k.a 'f', in Genesis/Praos, corresponds to the % of active slots
         -- (i.e. slots for which someone can be elected as leader).
+    , getSecurityParameter :: Quantity "block" Word32
+        -- ^ a.k.a 'k', used to compute the 'stability window' on the chain
+        -- (i.e. the longest possible chain fork in slots).
+        --
+        -- In Byron, this stability window is equal to 2k slots
+        -- In Shelley, this stability window is equal to 3k/f slots
+        --
+        -- where 'f' is the active slot coefficient.
     } deriving (Generic, Show, Eq)
 
 instance NFData SlottingParameters
@@ -943,6 +947,7 @@ instance Buildable SlottingParameters where
         , "Epoch length:       " <> epochLengthF (getEpochLength
             (gp :: SlottingParameters))
         , "Active slot coeff:  " <> build (gp ^. #getActiveSlotCoefficient)
+        , "Security parameter: " <> build (gp ^. #getSecurityParameter)
         ]
       where
         slotLengthF (SlotLength s) = build s

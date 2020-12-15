@@ -939,8 +939,8 @@ spec = parallel $ do
                         slotLength (x :: ApiNetworkParameters)
                     , epochLength =
                         epochLength (x :: ApiNetworkParameters)
-                    , epochStability =
-                        epochStability (x :: ApiNetworkParameters)
+                    , securityParameter =
+                        securityParameter (x :: ApiNetworkParameters)
                     , activeSlotCoefficient =
                         activeSlotCoefficient (x :: ApiNetworkParameters)
                     , decentralizationLevel =
