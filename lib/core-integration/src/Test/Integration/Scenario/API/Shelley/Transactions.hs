@@ -2690,6 +2690,14 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                     (#metadata . #getApiMetadata)
                     (`shouldBe` Just (ApiT expected))
                 ]
+
+        eventually "script is discovered api wallet" $ do
+            r <- request @ApiWallet ctx (Link.getWallet @'Shelley wa) Default Empty
+            verify r
+                [ expectSuccess
+                , expectField #sharedScripts (`shouldSatisfy` ((==1) . length))
+                ]
+
   where
     txDeleteNotExistsingTxIdTest eWallet resource =
         it resource $ \ctx -> runResourceT $ do

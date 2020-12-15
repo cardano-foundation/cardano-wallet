@@ -23,6 +23,8 @@ import Prelude
 
 import Cardano.Address
     ( unAddress )
+import Cardano.Address.Script
+    ( Script )
 import Cardano.Pool.Metadata
     ( defaultManagerSettings, healthCheck, newManager, toHealthCheckSMASH )
 import Cardano.Wallet
@@ -128,6 +130,8 @@ import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey (..), generateKeyFromSeed )
+import Cardano.Wallet.Primitive.AddressDiscovery
+    ( IsOurs )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
@@ -183,6 +187,9 @@ server
         , DelegationAddress n ShelleyKey
         , Typeable n
         , HasNetworkId n
+        , IsOurs (RndState n) Script
+        , IsOurs (SeqState n IcarusKey) Script
+        , IsOurs (SeqState n ShelleyKey) Script
         )
     => ApiLayer (RndState n) ByronKey
     -> ApiLayer (SeqState n IcarusKey) IcarusKey

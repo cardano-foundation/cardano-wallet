@@ -20,6 +20,8 @@ import Prelude
 
 import Cardano.Address.Derivation
     ( XPrv, xpubToBytes )
+import Cardano.Address.Script
+    ( Script )
 import Cardano.API
     ( AnyCardanoEra (..), CardanoEra (..) )
 import Cardano.BM.Trace
@@ -793,6 +795,9 @@ instance IsOurs DummyState Address where
     isOurs _ s = (Just (DerivationIndex 0 :| []), s)
 
 instance IsOurs DummyState RewardAccount where
+    isOurs _ s = (Nothing, s)
+
+instance IsOurs DummyState Script where
     isOurs _ s = (Nothing, s)
 
 instance IsOwned DummyState ShelleyKey where

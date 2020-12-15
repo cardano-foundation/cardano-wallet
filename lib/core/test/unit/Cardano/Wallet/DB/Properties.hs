@@ -21,6 +21,8 @@ module Cardano.Wallet.DB.Properties
 
 import Prelude
 
+import Cardano.Address.Script
+    ( Script )
 import Cardano.Wallet.DB
     ( DBLayer (..)
     , ErrNoSuchWallet (..)
@@ -45,6 +47,8 @@ import Cardano.Wallet.DummyTarget.Primitive.Types
     ( dummyGenesisParameters, dummyProtocolParameters )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey (..) )
+import Cardano.Wallet.Primitive.AddressDiscovery
+    ( IsOurs )
 import Cardano.Wallet.Primitive.Model
     ( Wallet, applyBlock, currentTip )
 import Cardano.Wallet.Primitive.Types
@@ -134,7 +138,7 @@ import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 
 properties
-    :: (GenState s, Eq s)
+    :: (GenState s, Eq s, IsOurs s Script)
     => SpecWith (DBLayer IO s ShelleyKey)
 properties = do
     describe "Extra Properties about DB initialization" $ do
@@ -776,7 +780,7 @@ prop_parallelPut putOp readOp resolve db@DBLayer{..} (KeyValPairs pairs) =
 
 -- | Can rollback to any particular checkpoint previously stored
 prop_rollbackCheckpoint
-    :: forall s k. (GenState s, Eq s)
+    :: forall s k. (GenState s, Eq s, IsOurs s Script)
     => DBLayer IO s k
     -> Wallet s
     -> MockChain

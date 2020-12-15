@@ -16,6 +16,8 @@ module Cardano.Wallet.Primitive.ModelSpec
 
 import Prelude
 
+import Cardano.Address.Script
+    ( Script )
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( block0 )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -389,6 +391,9 @@ instance IsOurs WalletState RewardAccount where
         ( guard (account == ourRewardAccount) $> (DerivationIndex 0 :| [])
         , s
         )
+
+instance IsOurs WalletState Script where
+    isOurs _script s = (Nothing, s)
 
 instance Arbitrary WalletState where
     shrink = genericShrink

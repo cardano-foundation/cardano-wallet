@@ -43,6 +43,8 @@ module Cardano.Wallet.Shelley
 
 import Prelude
 
+import Cardano.Address.Script
+    ( Script )
 import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
@@ -197,6 +199,9 @@ data SomeNetworkDiscriminant where
             , DecodeStakeAddress n
             , EncodeStakeAddress n
             , Typeable n
+            , IsOurs (SeqState n ShelleyKey) Script
+            , IsOurs (RndState n) Script
+            , IsOurs (SeqState n IcarusKey) Script
             )
         => Proxy n
         -> SomeNetworkDiscriminant
@@ -302,6 +307,9 @@ serveWallet
             , EncodeStakeAddress n
             , Typeable n
             , HasNetworkId n
+            , IsOurs (RndState n) Script
+            , IsOurs (SeqState n IcarusKey) Script
+            , IsOurs (SeqState n ShelleyKey) Script
             )
         => Proxy n
         -> Socket
@@ -349,6 +357,7 @@ serveWallet
         :: forall s k.
             ( IsOurs s Address
             , IsOurs s RewardAccount
+            , IsOurs s Script
             , PersistState s
             , PersistPrivateKey (k 'RootK)
             , WalletKey k

@@ -52,6 +52,8 @@ module Cardano.Wallet.Primitive.Model
 
 import Prelude
 
+import Cardano.Address.Script
+    ( Script )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( IsOurs (..) )
 import Cardano.Wallet.Primitive.Types
@@ -69,6 +71,7 @@ import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..)
+    , Metadata (..)
     , Tx (..)
     , TxIn (..)
     , TxMeta (..)
@@ -179,7 +182,7 @@ instance Buildable s => Buildable (Wallet s) where
 --
 -- The wallet tip will be set to the header of the applied genesis block.
 initWallet
-    :: (IsOurs s Address, IsOurs s RewardAccount)
+    :: (IsOurs s Address, IsOurs s RewardAccount, IsOurs s Script)
     => Block
         -- ^ The genesis block
     -> s
@@ -232,7 +235,7 @@ data FilteredBlock = FilteredBlock
 -- that were discovered while applying the block.
 --
 applyBlock
-    :: (IsOurs s Address, IsOurs s RewardAccount)
+    :: (IsOurs s Address, IsOurs s RewardAccount, IsOurs s Script)
     => Block
     -> Wallet s
     -> (FilteredBlock, Wallet s)
@@ -265,7 +268,7 @@ applyBlock !b (Wallet !u _ s) =
 --   __@w@__.
 --
 applyBlocks
-    :: (IsOurs s Address, IsOurs s RewardAccount)
+    :: (IsOurs s Address, IsOurs s RewardAccount, IsOurs s Script)
     => NonEmpty (Block)
     -> Wallet s
     -> NonEmpty (FilteredBlock, Wallet s)
@@ -343,7 +346,7 @@ totalUTxO pending wallet@(Wallet _ _ s) =
 -- in order, starting from the known inputs that can be spent (from the previous
 -- UTxO) and collect resolved tx outputs that are ours as we apply transactions.
 prefilterBlock
-    :: (IsOurs s Address, IsOurs s RewardAccount)
+    :: (IsOurs s Address, IsOurs s RewardAccount, IsOurs s Script)
     => Block
     -> UTxO
     -> s
@@ -369,6 +372,14 @@ prefilterBlock b u0 = runState $ do
         state (isOurs acct) <&> \case
             Nothing -> Nothing
             Just{}  -> Just (acct, amt)
+    ourVerKeys
+        :: IsOurs s Script
+        => Maybe Metadata
+        -> State s ()
+    ourVerKeys = \case
+        Just (MetaScript s) ->
+            state (isOurs s) <&> \_ -> ()
+        _ -> pure ()
     mkTxMeta :: Natural -> Direction -> TxMeta
     mkTxMeta amt dir = TxMeta
         { status = InLedger
@@ -379,7 +390,7 @@ prefilterBlock b u0 = runState $ do
         , expiry = Nothing
         }
     applyTx
-        :: (IsOurs s Address, IsOurs s RewardAccount)
+        :: (IsOurs s Address, IsOurs s RewardAccount, IsOurs s Script)
         => ([(Tx, TxMeta)], UTxO)
         -> Tx
         -> State s ([(Tx, TxMeta)], UTxO)
@@ -394,6 +405,7 @@ prefilterBlock b u0 = runState $ do
         let hasKnownInput = ourIns /= mempty
         let hasKnownOutput = ourU /= mempty
         let hasKnownWithdrawal = ourWithdrawals /= mempty
+        _ <- ourVerKeys (metadata tx)
         return $ if hasKnownOutput && not hasKnownInput then
             ( (tx, mkTxMeta received Incoming) : txs
             , u'

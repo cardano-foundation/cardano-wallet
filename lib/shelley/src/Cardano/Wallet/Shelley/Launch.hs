@@ -1,7 +1,9 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE PackageImports #-}
@@ -103,6 +105,8 @@ import Cardano.Wallet.Network.Ports
     ( randomUnusedTCPPorts )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..), hex )
+import Cardano.Wallet.Primitive.Scripts
+    ()
 import Cardano.Wallet.Primitive.Types
     ( Block (..)
     , EpochLength (..)

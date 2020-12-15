@@ -99,6 +99,8 @@ import Prelude
 
 import Cardano.Address.Derivation
     ( XPrv, XPub, xpubPublicKey )
+import Cardano.Address.Script
+    ( Script (..), ScriptHash )
 import Cardano.Mnemonic
     ( SomeMnemonic )
 import Cardano.Wallet
@@ -163,6 +165,8 @@ import Cardano.Wallet.Api.Server.Tls
 import Cardano.Wallet.Api.Types
     ( AccountPostData (..)
     , AddressAmount (..)
+    , AnyAddress (..)
+    , AnyAddressType (..)
     , ApiAccountPublicKey (..)
     , ApiAddress (..)
     , ApiBlockInfo (..)
@@ -186,6 +190,7 @@ import Cardano.Wallet.Api.Types
     , ApiPostRandomAddressData (..)
     , ApiPutAddressesData (..)
     , ApiSelectCoinsPayments
+    , ApiSharedScript (..)
     , ApiSlotId (..)
     , ApiSlotReference (..)
     , ApiT (..)
@@ -244,11 +249,13 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , Passphrase (..)
     , PaymentAddress (..)
     , RewardAccount (..)
-    , Role
+    , Role (..)
     , SoftDerivation (..)
     , WalletKey (..)
     , deriveRewardAccount
+    , deriveVerificationKey
     , digest
+    , hashVerificationKey
     , preparePassphrase
     , publicKey
     )
@@ -599,6 +606,7 @@ postWallet
         , HasDBFactory s k ctx
         , HasWorkerRegistry s k ctx
         , IsOurs s RewardAccount
+        , IsOurs s Script
         , Typeable s
         , Typeable n
         )
@@ -626,6 +634,7 @@ postShelleyWallet
         , HasDBFactory s k ctx
         , HasWorkerRegistry s k ctx
         , IsOurs s RewardAccount
+        , IsOurs s Script
         , Typeable s
         , Typeable n
         )
@@ -661,6 +670,7 @@ postAccountWallet
         , WalletKey k
         , HasWorkerRegistry s k ctx
         , IsOurs s RewardAccount
+        , IsOurs s Script
         )
     => ctx
     -> MkApiWallet ctx s w
@@ -687,6 +697,8 @@ mkShelleyWallet
     :: forall ctx s k n.
         ( ctx ~ ApiLayer s k
         , s ~ SeqState n k
+        , WalletKey k
+        , SoftDerivation k
         , IsOurs s Address
         , IsOurs s RewardAccount
         , HasWorkerRegistry s k ctx
@@ -723,7 +735,10 @@ mkShelleyWallet ctx wid cp meta pending progress = do
             , total = Quantity $ totalBalance pending reward cp
             , reward
             }
-        , sharedScripts = []
+        , sharedScripts =
+                toApiSharedScripts
+                (getState cp ^. #scriptPool . #verPoolAccountPubKey)
+                (getState cp ^. #scriptPool . #verPoolKnownScripts)
         , delegation = apiDelegation
         , id = ApiT wid
         , name = ApiT $ meta ^. #name
@@ -756,6 +771,21 @@ mkShelleyWallet ctx wid cp meta pending progress = do
             , changesAt = mepochInfo
             }
 
+    toApiSharedScripts
+        :: k 'AccountK XPub
+        -> Map ScriptHash [Index 'Soft 'ScriptK]
+        -> [ApiSharedScript]
+    toApiSharedScripts accXPub scriptHashMap =
+        let toEntity _sh ixs = ApiSharedScript
+                (AnyAddress "something to add here" EnterpriseDelegating 0) -- TO_DO
+                (RequireSignatureOf (toVerKeyHash $ head ixs)) --TO_DO
+                (map toVerKey ixs)
+                (Quantity 0) --TO_DO
+            toVerKey ix = ApiVerificationKey
+                (xpubPublicKey $ getRawKey $ deriveVerificationKey accXPub ix, MultisigScript)
+            toVerKeyHash =
+                hashVerificationKey . (deriveVerificationKey accXPub)
+        in Map.elems $ Map.mapWithKey toEntity scriptHashMap
 
 --------------------- Legacy
 
@@ -765,6 +795,7 @@ postLegacyWallet
         , KnownDiscovery s
         , IsOurs s RewardAccount
         , IsOurs s Address
+        , IsOurs s Script
         , HasNetworkLayer ctx
         , WalletKey k
         )
@@ -852,6 +883,7 @@ postRandomWallet
         ( ctx ~ ApiLayer s k
         , s ~ RndState n
         , k ~ ByronKey
+        , IsOurs s Script
         )
     => ctx
     -> ByronWalletPostData '[12,15,18,21,24]
@@ -872,6 +904,7 @@ postRandomWalletFromXPrv
         , s ~ RndState n
         , k ~ ByronKey
         , HasNetworkLayer ctx
+        , IsOurs s Script
         )
     => ctx
     -> ByronWalletFromXPrvPostData
@@ -899,6 +932,7 @@ postIcarusWallet
         , k ~ IcarusKey
         , HasWorkerRegistry s k ctx
         , PaymentAddress n IcarusKey
+        , IsOurs s Script
         )
     => ctx
     -> ByronWalletPostData '[12,15,18,21,24]
@@ -919,6 +953,7 @@ postTrezorWallet
         , k ~ IcarusKey
         , HasWorkerRegistry s k ctx
         , PaymentAddress n IcarusKey
+        , IsOurs s Script
         )
     => ctx
     -> ByronWalletPostData '[12,15,18,21,24]
@@ -939,6 +974,7 @@ postLedgerWallet
         , k ~ IcarusKey
         , HasWorkerRegistry s k ctx
         , PaymentAddress n IcarusKey
+        , IsOurs s Script
         )
     => ctx
     -> ByronWalletPostData '[12,15,18,21,24]
@@ -2115,6 +2151,7 @@ newApiLayer
         ( ctx ~ ApiLayer s k
         , IsOurs s RewardAccount
         , IsOurs s Address
+        , IsOurs s Script
         )
     => Tracer IO (WorkerLog WalletId WalletLog)
     -> (Block, NetworkParameters, SyncTolerance)
@@ -2136,6 +2173,7 @@ registerWorker
         ( ctx ~ ApiLayer s k
         , IsOurs s RewardAccount
         , IsOurs s Address
+        , IsOurs s Script
         )
     => ApiLayer s k
     -> (WorkerCtx ctx -> WalletId -> IO ())

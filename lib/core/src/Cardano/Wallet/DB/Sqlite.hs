@@ -222,6 +222,7 @@ import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
 import qualified Database.Sqlite as Sqlite
 
+
 -- | Runs an action with a connection to the SQLite database.
 --
 -- Database migrations are run to create tables if necessary.

@@ -183,6 +183,8 @@ import Prelude hiding
 
 import Cardano.Address.Derivation
     ( XPrv, XPub )
+import Cardano.Address.Script
+    ( Script )
 import Cardano.Api.Typed
     ( serialiseToCBOR )
 import Cardano.BM.Data.Severity
@@ -588,6 +590,7 @@ createWallet
         , HasDBLayer s k ctx
         , IsOurs s Address
         , IsOurs s RewardAccount
+        , IsOurs s Script
         )
     => ctx
     -> WalletId
@@ -622,6 +625,7 @@ createIcarusWallet
         , PaymentAddress n k
         , k ~ IcarusKey
         , s ~ SeqState n k
+        , IsOurs s Script
         )
     => ctx
     -> WalletId
@@ -786,6 +790,7 @@ restoreWallet
         , HasGenesisData ctx
         , IsOurs s Address
         , IsOurs s RewardAccount
+        , IsOurs s Script
         )
     => ctx
     -> WalletId
@@ -840,6 +845,7 @@ restoreBlocks
         , HasGenesisData ctx
         , IsOurs s Address
         , IsOurs s RewardAccount
+        , IsOurs s Script
         )
     => ctx
     -> WalletId

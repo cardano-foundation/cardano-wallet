@@ -33,8 +33,14 @@ import Cardano.Crypto.Wallet
     ( XPub )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..), SoftDerivation, deriveVerificationKey )
+import Cardano.Wallet.Primitive.AddressDerivation.Icarus
+    ( IcarusKey (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey (..) )
+import Cardano.Wallet.Primitive.AddressDiscovery
+    ( IsOurs (..) )
+import Cardano.Wallet.Primitive.AddressDiscovery.Random
+    ( RndState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( SeqState (..)
     , extendVerificationKeyPool
@@ -60,6 +66,18 @@ import Data.Maybe
 import qualified Data.Map.Strict as Map
 
 deriving instance Ord ScriptHash
+
+instance IsOurs (SeqState n IcarusKey) Script
+  where
+    isOurs _ s = (Nothing, s)
+
+instance IsOurs (SeqState n ShelleyKey) Script
+  where
+    isOurs script s = (Nothing, snd $ isShared script s)
+
+instance IsOurs (RndState n) Script
+  where
+    isOurs _ s = (Nothing, s)
 
 isShared
     :: (k ~ ShelleyKey, SoftDerivation k)
