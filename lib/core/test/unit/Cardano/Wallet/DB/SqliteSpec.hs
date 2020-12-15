@@ -307,7 +307,9 @@ spec = parallel $ do
 
         it "'migrate' db with new FeePolicy" $
             testMigrationUpdateFeeValue @ShelleyKey
-                "shelleyAccountingStyle-v2020-10-13.sqlite"
+                "shelleyRole-v2020-10-13.sqlite"
+                (LinearFee (Quantity 155381.0)  (Quantity 44.0))
+                (Coin 2000000)
 
 sqliteSpecSeq :: Spec
 sqliteSpecSeq = do
@@ -512,8 +514,10 @@ testMigrationUpdateFeeValue
         , PersistPrivateKey (k 'RootK)
         )
     => String
+    -> FeePolicy
+    -> Coin
     -> IO ()
-testMigrationUpdateFeeValue dbName = do
+testMigrationUpdateFeeValue dbName expectedFeePolicy expectedKeyDeposit = do
     let orig = $(getTestData) </> dbName
     withSystemTempDirectory "migration-db" $ \dir -> do
         let path = dir </> "db.sqlite"
@@ -527,11 +531,9 @@ testMigrationUpdateFeeValue dbName = do
                     readProtocolParameters wid
         let migrationMsg = filter isMsgManualMigration logs
         length migrationMsg `shouldBe` 1
-        (getFeePolicy . txParameters <$> pp') `shouldBe`
-            (Just (LinearFee (Quantity 155381.0)  (Quantity 44.0)))
+        (getFeePolicy . txParameters <$> pp') `shouldBe` Just expectedFeePolicy
 
-        (stakeKeyDeposit <$> pp') `shouldBe`
-            (Just (Coin 2000000))
+        (stakeKeyDeposit <$> pp') `shouldBe` Just expectedKeyDeposit
   where
     isMsgManualMigration :: DBLog -> Bool
     isMsgManualMigration = \case

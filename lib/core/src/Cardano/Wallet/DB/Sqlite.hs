@@ -609,6 +609,13 @@ migrateManually tr proxy defaultFieldValues =
             Nothing -> "NULL"
             Just v -> T.pack $ show $ W.unEpochNo v
 
+    -- | Adds a 'key_deposit column to the 'protocol_parameters' table if it is
+    -- missing.
+    --
+    addKeyDepositIfMissing :: Sqlite.Connection -> Text -> IO ()
+    addKeyDepositIfMissing conn =
+        addColumn_ conn True (DBField ProtocolParametersKeyDeposit)
+
     -- | This table became @protocol_parameters@.
     removeOldTxParametersTable :: Sqlite.Connection -> IO ()
     removeOldTxParametersTable conn = do
@@ -677,106 +684,81 @@ migrateManually tr proxy defaultFieldValues =
         renameColumnField conn (DBField SeqStateAddressRole)
             "u_tx_o_external" "utxo_external"
 
+    -- | Rename column table of SeqStateAddress from 'accounting_style' to `role`
+    -- if needed.
+    renameRoleColumn :: Sqlite.Connection -> IO ()
+    renameRoleColumn conn =
+        isFieldPresent conn roleField >>= \case
+            TableMissing ->
+                traceWith tr $ MsgManualMigrationNotNeeded roleField
+            ColumnMissing -> do
+                traceWith tr $ MsgManualMigrationNeeded roleField "accounting_style"
+                query <- Sqlite.prepare conn $ T.unwords
+                    [ "ALTER TABLE", tableName roleField
+                    , "RENAME COLUMN accounting_style TO"
+                    , fieldName roleField
+                    , ";"
+                    ]
+                Sqlite.step query *> Sqlite.finalize query
+            ColumnPresent ->
+                traceWith tr $ MsgManualMigrationNotNeeded roleField
+      where
+        roleField = DBField SeqStateAddressRole
+
+    -- | Adds an 'script_gap' column to the 'SeqState'
+    -- table if it is missing.
+    --
+    addScriptAddressGapIfMissing :: Sqlite.Connection -> IO ()
+    addScriptAddressGapIfMissing conn =
+        addColumn_ conn True (DBField SeqStateScriptGap) value
+     where
+        value = T.pack $ show $ Seq.getAddressPoolGap Seq.defaultAddressPoolGap
+
     -- | Since key deposit and fee value are intertwined, we migrate them both
     -- here.
     updateFeeValueAndAddKeyDeposit :: Sqlite.Connection -> IO ()
     updateFeeValueAndAddKeyDeposit conn = do
-        let field = (DBField ProtocolParametersFeePolicy)
-            defaultValue = "0 + 0x"
-
-        isFieldPresent conn field >>= \case
-            TableMissing ->
-                traceWith tr $ MsgManualMigrationNotNeeded field
+        isFieldPresent conn fieldKeyDeposit >>= \case
             ColumnMissing -> do
-                -- there are no fee values, so we don't know anything about
-                -- the key deposit and must add a default value
-                addKeyDepositIfMissing
-
-                traceWith tr $ MsgManualMigrationNeeded field defaultValue
-                query <- Sqlite.prepare conn $ T.unwords
-                    [ "ALTER TABLE", tableName field
-                    , "ADD COLUMN", fieldName field
-                    , fieldType field, "NOT NULL"
-                    , "DEFAULT", defaultValue
+                -- If the key deposit is missing, we need to add it, but also
+                -- and first, we also need to update the fee policy and drop
+                -- the third component of the fee policy which is now captured
+                -- by the stake key deposit.
+                feePolicyInfo <- Sqlite.prepare conn $ T.unwords
+                    [ "SELECT", fieldName fieldFeePolicy
+                    , "FROM", tableName fieldFeePolicy
                     , ";"
                     ]
-                _ <- Sqlite.step query
-                Sqlite.finalize query
+                row <- Sqlite.step feePolicyInfo >> Sqlite.columns feePolicyInfo
+                Sqlite.finalize feePolicyInfo
 
-            -- adding key deposit in this case can be delayed, because we
-            -- can pull out the info from the fee values
-            ColumnPresent -> do
-                fee_policyInfo <- Sqlite.prepare conn $ T.unwords
-                    [ "SELECT"
-                    , fieldName field
-                    , "FROM"
-                    , tableName field
-                    , ";"
-                    ]
-                row <- Sqlite.step fee_policyInfo
-                    >> Sqlite.columns fee_policyInfo
-                Sqlite.finalize fee_policyInfo
                 case filter (/= PersistNull) row of
-                    [PersistText t] -> do
-                        traceWith tr $ MsgManualMigrationNeeded field t
-                        (a:b:rest) <- pure (T.splitOn " + " t)
+                    [PersistText t] -> case T.splitOn " + " t of
+                        [a,b,c] -> do
+                            traceWith tr $ MsgManualMigrationNeeded fieldFeePolicy t
+                            -- update fee policy
+                            let newVal = a <> " + " <> b
+                            query <- Sqlite.prepare conn $ T.unwords
+                                [ "UPDATE", tableName fieldFeePolicy
+                                , "SET", fieldName fieldFeePolicy, "= '" <> newVal <> "'"
+                                , ";"
+                                ]
+                            Sqlite.step query *> Sqlite.finalize query
+                            let (Right stakeKeyVal) = W.Coin . round <$> fromText @Double (T.dropEnd 1 c)
+                            addKeyDepositIfMissing conn (toText stakeKeyVal)
+                        _ ->
+                            fail ("Unexpected row result when querying fee value: " <> T.unpack t)
+                    _ ->
+                        return ()
 
-                        -- update fee policy
-                        let newVal = a <> " + " <> b
-                        query <- Sqlite.prepare conn $ T.unwords
-                            [ "UPDATE"
-                            , tableName field
-                            , "SET"
-                            , fieldName field
-                            , "= '" <> newVal <> "'"
-                            , ";"
-                            ]
-                        Sqlite.step query *> Sqlite.finalize query
-
-                        -- update key deposit
-                        case rest of
-                            [c] -> updateKeyDeposit c
-                            _ -> pure ()
-
-                    [] -> addKeyDepositIfMissing
-                    xs -> fail ("Unexpected row result when querying fee value: " <> show xs)
+            -- If the protocol_parameters table is missing, or if if the key
+            -- deposit exists, there's nothing to do in this migration.
+            _ -> do
+                traceWith tr $ MsgManualMigrationNotNeeded fieldFeePolicy
+                traceWith tr $ MsgManualMigrationNotNeeded fieldKeyDeposit
       where
-        -- | Adds a 'key_deposit column to the 'protocol_parameters'
-        -- table if it is missing.
-        --
-        addKeyDepositIfMissing :: IO ()
-        addKeyDepositIfMissing = do
-            addColumn_ conn True (DBField ProtocolParametersKeyDeposit) value
-          where
-            value = toText $ defaultKeyDeposit defaultFieldValues
-
-        updateKeyDeposit
-            :: Text  -- ^ e.g. "2000000.0y"
-            -> IO ()
-        updateKeyDeposit c = do
-            -- convert to coin
-            (Right stakeKeyVal) <- pure $ (W.Coin . round)
-                <$> fromText @Double (T.dropEnd 1 c)
-
-            isFieldPresent conn stakeField >>= \case
-                TableMissing ->
-                    -- this invariant must hold due to the parent context
-                    fail "ProtocolParameters table missing"
-                ColumnMissing -> do
-                    addColumn_ conn True stakeField (toText stakeKeyVal)
-                ColumnPresent -> do
-                    -- update stake key deposit
-                    query' <- Sqlite.prepare conn $ T.unwords
-                        [ "UPDATE"
-                        , tableName stakeField
-                        , "SET"
-                        , fieldName stakeField
-                        , "= '" <> toText stakeKeyVal <> "'"
-                        , ";"
-                        ]
-                    Sqlite.step query' *> Sqlite.finalize query'
-          where
-            stakeField = DBField ProtocolParametersKeyDeposit
+        fieldFeePolicy  = DBField ProtocolParametersFeePolicy
+        fieldKeyDeposit = DBField ProtocolParametersKeyDeposit
 
     -- | Determines whether a field is present in its parent table.
     isFieldPresent :: Sqlite.Connection -> DBField -> IO SqlColumnStatus
