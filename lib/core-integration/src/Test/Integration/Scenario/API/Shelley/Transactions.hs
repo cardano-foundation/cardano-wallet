@@ -87,6 +87,8 @@ import Network.HTTP.Types.Method
     ( Method )
 import Numeric.Natural
     ( Natural )
+import System.TimeIt
+    ( timeIt )
 import Test.Hspec
     ( SpecWith, describe )
 import Test.Hspec.Expectations.Lifted
@@ -616,6 +618,47 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             expectField
                 (#balance . #available)
                 (`shouldBe` Quantity (faucetAmt - feeEstMax - amt)) ra2
+
+    describe "TRANS_CREATE_10 - Single Output Transaction with non-Shelley witnesses" $
+        it "Byron wallet - 250k address" $ \ctx -> runResourceT $ do
+
+        (wByron, wByron') <- (,) <$> fixtureRandomWallet ctx <*> emptyRandomWallet ctx
+
+        timeIt $ forM_ [0::Int .. 10000]  $ \ix -> do
+            let ix' = 2147483648 + ix
+            let payload = Json [json|
+                    { "passphrase": #{fixturePassphrase}
+                    , "address_index": #{ix'}
+                    }|]
+            r <- request @(ApiAddress n) ctx (Link.postRandomAddress wByron') Default payload
+            verify r
+                [ expectResponseCode HTTP.status201
+                ]
+
+        r1 <- request @[ApiAddress n] ctx (Link.listAddresses @'Byron wByron') Default Empty
+        verify r1 [ expectResponseCode HTTP.status200 ]
+        let byronAddr = head $ getFromResponse Prelude.id r1
+
+        let amt = minUTxOValue :: Natural
+        let destination = byronAddr ^. #id
+        let payload1 = Json [json|{
+                "payments": [{
+                    "address": #{destination},
+                    "amount": {
+                        "quantity": #{amt},
+                        "unit": "lovelace"
+                    }
+                }]
+            }|]
+
+        rFeeEst <- request @ApiFee ctx
+            (Link.getTransactionFee @'Byron wByron) Default payload1
+        verify rFeeEst
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            ]
+        --let (Quantity feeEstMin) = getFromResponse #estimatedMin rFeeEst
+        --let (Quantity feeEstMax) = getFromResponse #estimatedMax rFeeEst
 
     let absSlotB = view (#absoluteSlotNumber . #getApiT)
     let absSlotS = view (#absoluteSlotNumber . #getApiT)
