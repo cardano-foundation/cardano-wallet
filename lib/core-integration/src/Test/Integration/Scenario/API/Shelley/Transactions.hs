@@ -626,13 +626,13 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 (`shouldBe` Quantity (faucetAmt - feeEstMax - amt)) ra2
 
     describe "TRANS_CREATE_10 - Single Output Transaction with non-Shelley witnesses" $
-        it "Byron wallet - 150k addresses" $ \ctx -> runResourceT $ do
+        it "Byron wallet - 200k addresses" $ \ctx -> runResourceT $ do
 
         wByron <- fixtureRandomWallet ctx
         (wByron', mw) <- emptyRandomWalletMws ctx
         wShelley <- fixtureWallet ctx
 
-        let addrNum = 150000
+        let addrNum = 200000
         let addrs = map (\num -> encodeAddress @n $ randomAddresses @n mw !! num)
                     [1 .. addrNum]
         let ep = Link.putRandomAddresses wByron'
@@ -653,10 +653,10 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             verify r1
                 [ expectResponseCode HTTP.status200
                 , expectListSize addrNum ]
-            return$ head $ getFromResponse Prelude.id r1
+            return $ getFromResponse Prelude.id r1
 
         let amt = minUTxOValue :: Natural
-        let destination = byronAddr ^. #id
+        let destination = (byronAddr !! (addrNum `div` 2)) ^. #id
         let payload2 = Json [json|{
                 "payments": [{
                     "address": #{destination},
