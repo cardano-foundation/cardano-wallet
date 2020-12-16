@@ -80,15 +80,11 @@ import Cardano.Wallet.Primitive.Types
 import Control.Exception
     ( throwIO )
 import Control.Monad
-    ( join, (>=>) )
+    ( ap, join, liftM, (>=>) )
 import Control.Monad.IO.Class
     ( MonadIO, liftIO )
-import Control.Monad.Trans.Class
-    ( lift )
 import Control.Monad.Trans.Except
     ( ExceptT (..), runExceptT )
-import Control.Monad.Trans.Reader
-    ( ReaderT, ask, runReaderT )
 import Control.Tracer
     ( Tracer, contramap, natTracer, nullTracer, traceWith )
 import Data.Coerce
@@ -108,7 +104,7 @@ import Data.Word
 import Fmt
     ( blockListF', build, fmt, indentF )
 import GHC.Stack
-    ( HasCallStack, getCallStack, prettyCallStack, prettySrcLoc )
+    ( HasCallStack, getCallStack, prettySrcLoc )
 import Ouroboros.Consensus.BlockchainTime.WallClock.Types
     ( RelativeTime (..), SystemStart (..), addRelTime )
 import Ouroboros.Consensus.HardFork.History.Qry
@@ -136,14 +132,70 @@ import qualified Ouroboros.Consensus.HardFork.History.Summary as HF
                                     Queries
 -------------------------------------------------------------------------------}
 
--- | This is 'Ouroboros.Consensus.HardFork.History.Qry.Qry' wrapped in a reader
--- to provide the blockchain system start time as context.
-type Qry = ReaderT StartTime HF.Qry
+-- | A query for time, slot and epoch conversions. Can be interpreted using
+-- @interpretQuery@.
+--
+-- == Differences to the underlying consensus 'Ouroboros.Consensus.HardFork.History.Qry.Qry'
+--
+-- @HF.Qry@ can only be interpreted in a
+-- single era. If you have
+--
+-- @
+--     q1 = epochOf someSlotInByron
+--     q2 = epochOf someSlotInShelley
+-- @
+--
+-- @HF.interpretQuery@ could interpret both individually, but
+--
+-- @
+--    q3 = q1 >> q2
+-- @
+--
+-- would fail.
+--
+-- This wrapper exists to fix this.
+--
+-- We also provide @QStartTime@.
+--
+data Qry :: * -> * where
+    -- | A @HF.Qry@ can only be run inside a single era.
+    EraContainedQry :: HF.Qry a -> Qry a
+    QStartTime :: Qry StartTime
+    QPure :: a -> Qry a
+    QBind :: Qry a -> (a -> Qry b) -> Qry b
+
+instance Functor Qry where
+    fmap = liftM
+
+instance Applicative Qry where
+    pure  = QPure
+    (<*>) = ap
+
+instance Monad Qry where
+    return = pure
+    (>>=)  = QBind
+
+runQuery
+     :: HasCallStack
+     => StartTime
+     -> Interpreter xs
+     -> Qry a
+     -> Either HF.PastHorizonException a
+runQuery startTime int = go
+  where
+     go :: Qry a -> Either HF.PastHorizonException a
+     go (EraContainedQry q) = HF.interpretQuery int q
+     go (QPure a) =
+          return a
+     go (QBind x f) = do
+          go x >>= go . f
+     go (QStartTime) =
+        return startTime
 
 -- | Query the blockchain start time. This is part of the 'TimeInterpreter'
 -- environment.
 getStartTime :: Qry StartTime
-getStartTime = ask
+getStartTime = QStartTime
 
 -- | Query the epoch corresponding to a flat slot number.
 epochOf :: SlotNo -> Qry EpochNo
@@ -153,7 +205,7 @@ epochOf slot = epochNumber <$> toSlotId slot
 -- and the local slot index.
 toSlotId :: SlotNo -> Qry SlotId
 toSlotId slot = do
-    (e, s) <- lift $ slotToEpoch' slot
+    (e, s) <- EraContainedQry $ slotToEpoch' slot
     return $ SlotId
         (EpochNo $ fromIntegral $ Cardano.unEpochNo e)
         (SlotInEpoch $ downCast s)
@@ -167,7 +219,7 @@ slotToUTCTime sl = slotToRelTime sl >>= fromRelativeTime
 
 -- | Query the relative time at which a slot starts.
 slotToRelTime :: SlotNo -> Qry RelativeTime
-slotToRelTime = lift . fmap fst . slotToWallclock
+slotToRelTime = EraContainedQry . fmap fst . slotToWallclock
 
 -- | Query the absolute times at which an epoch starts and ends.
 --
@@ -178,8 +230,8 @@ timeOfEpoch :: EpochNo -> Qry (UTCTime, UTCTime)
 timeOfEpoch epoch = do
     ref <- firstSlotInEpoch epoch
     refTime <- slotToUTCTime ref
-    el <- lift $ qryFromExpr $ EEpochSize $ ELit $ toCardanoEpochNo epoch
-    sl <- lift $ qryFromExpr $ ESlotLength $ ELit ref
+    el <- EraContainedQry $ qryFromExpr $ EEpochSize $ ELit $ toCardanoEpochNo epoch
+    sl <- EraContainedQry $ qryFromExpr $ ESlotLength $ ELit ref
 
     let convert = fromRational . toRational
     let el' = convert $ Cardano.unEpochSize el
@@ -193,7 +245,7 @@ timeOfEpoch epoch = do
 
 -- | Translate 'EpochNo' to the 'SlotNo' of the first slot in that epoch
 firstSlotInEpoch :: EpochNo -> Qry SlotNo
-firstSlotInEpoch = lift . epochToSlot' . convertEpochNo
+firstSlotInEpoch = EraContainedQry . epochToSlot' . convertEpochNo
   where
     convertEpochNo (EpochNo e) = Cardano.EpochNo $ fromIntegral e
 
@@ -232,17 +284,17 @@ ceilingSlotAt = fmap ceil2 . slotAtTimeDetailed
 -- | Helper that returns @(slot, elapsedTimeInSlot)@ for a
 -- given @UTCTime@.
 slotAtTimeDetailed :: RelativeTime -> Qry (SlotNo, NominalDiffTime)
-slotAtTimeDetailed = lift . fmap dropThird . wallclockToSlot
+slotAtTimeDetailed = EraContainedQry . fmap dropThird . wallclockToSlot
   where
     dropThird (a, b, _) = (a, b)
 
 querySlotLength :: SlotNo -> Qry SlotLength
 querySlotLength sl =
-    lift $ fmap (SlotLength . Cardano.getSlotLength) $
-    qryFromExpr $ ESlotLength $ ELit sl
+    EraContainedQry $ fmap (SlotLength . Cardano.getSlotLength) $
+        qryFromExpr $ ESlotLength $ ELit sl
 
 queryEpochLength :: SlotNo -> Qry EpochLength
-queryEpochLength sl = lift $ toEpochLength <$> do
+queryEpochLength sl = EraContainedQry $ toEpochLength <$> do
     (e, _) <- slotToEpoch' sl
     epochToSize e
   where
@@ -350,46 +402,36 @@ instance ToText TimeInterpreterLog where
     toText = \case
         MsgInterpreterPastHorizon Nothing t0 e -> mconcat
             [ "Time interpreter queried past the horizon. "
-            , "Full error is:"
-            , renderPastHorizonException e
-            , "\nt0 = "
-            , T.pack $ show t0
+            , renderPastHorizonException e t0
             ]
         MsgInterpreterPastHorizon (Just reason) t0 e -> mconcat
             [ "Time interpreter queried past the horizon. "
             , "This should not happen because "
             , T.pack reason
-            , " Full error is:"
-            , renderPastHorizonException e
-            , "\nt0 = "
-            , T.pack $ show t0
+            , renderPastHorizonException e t0
             ]
       where
-        renderPastHorizonException (PastHorizon callStack expr eras) = mconcat
+        renderPastHorizonException (PastHorizon callStack expr eras) t0 = mconcat
             [ "\nCalled from:\n"
             , T.pack $ show $ prettySrcLoc $ snd $ last $ getCallStack callStack
             , "\nConverting expression:\n"
             , T.pack $ show expr
             , "\n\nWith knowledge about the following eras:\n"
-            , fmt $ indentF 4 $ blockListF' "-" renderEraSummary eras
+            , fmt $ indentF 4 $ blockListF' "-" eraSummaryF eras
+            , "\nt0 = "
+            , T.pack $ show t0
             ]
-        renderEraSummary (HF.EraSummary start end _params) = mconcat
-            [ renderBound start
+        eraSummaryF (HF.EraSummary start end _params) = mconcat
+            [ boundF start
             , " to "
-            , renderEnd end
+            , endF end
             ]
 
+        endF (HF.EraEnd b) = boundF b
+        endF (HF.EraUnbounded) = "<unbounded>"
 
-        renderEnd (HF.EraEnd b) = renderBound b
-        renderEnd (HF.EraUnbounded) = "<unbounded>"
-
-        renderBound (HF.Bound _time _slot epoch) = mconcat
+        boundF (HF.Bound _time _slot epoch) = mconcat
             [ build $ show epoch
---            , "( "
---            , build $ show slot
---            , ", "
---            , build $ show time
---            , ")"
             ]
 
 
@@ -402,7 +444,7 @@ interpretQuery
     -> m a
 interpretQuery (TimeInterpreter getI start tr handleRes) qry = do
     i <- getI
-    let res = HF.interpretQuery i $ runReaderT qry start
+    let res = runQuery start i qry
     case res of
         Left e -> do
             traceWith tr $ MsgInterpreterPastHorizon Nothing start e
