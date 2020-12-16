@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
@@ -496,8 +497,12 @@ withNetworkLayerBase tr np addrInfo (versionData, _) action = do
                     SubmitSuccess -> pure ()
                     SubmitFail err -> throwE $ ErrPostTxBadRequest $ T.pack (show err)
 
-            AnyCardanoEra MaryEra ->
-                throwE $ ErrPostTxProtocolFailure "Invalid era: Mary"
+            AnyCardanoEra MaryEra -> do
+                let cmd = CmdSubmitTx $ unsealShelleyTx GenTxMary tx
+                result <- liftIO $ localTxSubmissionQ `send` cmd
+                case result of
+                    SubmitSuccess -> pure ()
+                    SubmitFail err -> throwE $ ErrPostTxBadRequest $ T.pack (show err)
 
     _stakeDistribution queue eraVar bh coin = do
         liftIO $ traceWith tr $ MsgWillQueryRewardsForStake coin
@@ -538,9 +543,19 @@ withNetworkLayerBase tr np addrInfo (versionData, _) action = do
                     (queue `send` cmd)
                 return $ fromPoolDistr <$> result
 
-            ________________________ -> do
+            AnyCardanoEra AllegraEra -> do
                 let cmd = CmdQueryLocalState pt (QueryIfCurrentAllegra Shelley.GetStakeDistribution)
                 result <- handleQueryResult "GetStakeDistribution"
+                    (queue `send` cmd)
+                return $ fromPoolDistr <$> result
+
+            _ -> do
+
+                -- NOTE: Will fail if the era is byron. Making this explicit in
+                -- the pattern match would be nicer, but not sure what error we
+                -- should return.
+                let cmd = CmdQueryLocalState pt (QueryIfCurrentMary Shelley.GetStakeDistribution)
+                result <- handleQueryFailure $ timeQryAndLog "GetStakeDistribution" tr
                     (queue `send` cmd)
                 return $ fromPoolDistr <$> result
 
@@ -553,7 +568,7 @@ withNetworkLayerBase tr np addrInfo (versionData, _) action = do
 
             ________________________ -> do
                 let cmd = CmdQueryLocalState pt (QueryIfCurrentAllegra Shelley.GetCurrentPParams)
-                result <- handleQueryResult "GetCurrentPParams"
+                result <- handleQueryFailure $ timeQryAndLog "GetCurrentPParams" tr
                     (queue `send` cmd)
                 return $ optimumNumberOfPools <$> result
 
@@ -566,7 +581,7 @@ withNetworkLayerBase tr np addrInfo (versionData, _) action = do
 
             ________________________ -> do
                 let cmd = CmdQueryLocalState pt (QueryIfCurrentAllegra (Shelley.GetNonMyopicMemberRewards stake))
-                result <- handleQueryResult "GetNonMyopicMemberRewards"
+                result <- handleQueryFailure $ timeQryAndLog "GetNonMyopicMemberRewards" tr
                     (queue `send` cmd)
                 return $ getRewardMap . fromNonMyopicMemberRewards <$> result
           where
@@ -648,7 +663,7 @@ mkWalletClient tr cfg gp chainSyncQ = do
         , localStateQueryProtocol =
             doNothingProtocol
         })
-        NodeToClientV_5
+        NodeToClientV_6
   where
     tr' = contramap (mapChainSyncLog showB showP) tr
     showB = showP . blockPoint
@@ -686,7 +701,7 @@ mkDelegationRewardsClient tr cfg queryRewardQ =
                 $ localStateQueryClientPeer
                 $ localStateQuery queryRewardQ
         })
-        NodeToClientV_5
+        nodeToClientVersion
   where
     tr' = contramap (MsgLocalStateQuery DelegationRewardsClient) tr
     codec = cStateQueryCodec (serialisedCodecs cfg)
@@ -697,7 +712,7 @@ mkDelegationRewardsClient tr cfg queryRewardQ =
 
 -- | The protocol client version. Distinct from the codecs version.
 nodeToClientVersion :: NodeToClientVersion
-nodeToClientVersion = NodeToClientV_5
+nodeToClientVersion = NodeToClientV_6
 
 codecVersion :: BlockNodeToClientVersion (CardanoBlock StandardCrypto)
 codecVersion = verMap ! nodeToClientVersion
@@ -773,11 +788,13 @@ mkTipSyncClient tr np localTxSubmissionQ onTipUpdate onPParamsUpdate onInterpret
         queryLocalState Nothing    __ = return ()
         queryLocalState (Just era) pt = do
             mb <- bracketQuery "GetEraStart" tr $ localStateQueryQ `send`
+                -- TODO: What should this code actually do? Return the most
+                -- recent hard-fork?
                 (case era of
                     AnyCardanoEra ShelleyEra ->
                         CmdQueryLocalState pt (QueryAnytimeShelley GetEraStart)
-                    ________________________ ->
-                        CmdQueryLocalState pt (QueryAnytimeAllegra GetEraStart)
+                    _ ->
+                        CmdQueryLocalState pt (QueryAnytimeMary GetEraStart)
                 )
 
             sp <- case era of
@@ -790,7 +807,7 @@ mkTipSyncClient tr np localTxSubmissionQ onTipUpdate onPParamsUpdate onInterpret
                     pure (fmap (slottingParametersFromGenesis . getCompactGenesis) <$> gp)
 
                 AnyCardanoEra _ -> do
-                    let cmd = CmdQueryLocalState pt (QueryIfCurrentAllegra Shelley.GetGenesisConfig)
+                    let cmd = CmdQueryLocalState pt (QueryIfCurrentMary Shelley.GetGenesisConfig)
                     gp <- bracketQuery "GetGenesisParams" tr $ localStateQueryQ `send` cmd
                     pure (fmap (slottingParametersFromGenesis . getCompactGenesis) <$> gp)
 
@@ -806,10 +823,14 @@ mkTipSyncClient tr np localTxSubmissionQ onTipUpdate onPParamsUpdate onInterpret
                         (CmdQueryLocalState pt (QueryIfCurrentShelley Shelley.GetCurrentPParams))
                     sequence (handleParamsUpdate fromShelleyPParams <$> mb <*> pp <*> sp)
                         >>= handleAcquireFailure
-
-                ________________________ -> do
-                    pp <- bracketQuery "GetCurrentPParams" tr $ localStateQueryQ `send`
+                AnyCardanoEra AllegraEra -> do
+                    pp <- brackettQuery "GetCurrentPParams" tr $ localStateQueryQ `send`
                         (CmdQueryLocalState pt (QueryIfCurrentAllegra Shelley.GetCurrentPParams))
+                    sequence (handleParamsUpdate fromShelleyPParams <$> mb <*> pp <*> sp)
+                        >>= handleAcquireFailure
+                AnyCardanoEra MaryEra -> do
+                    pp <- timeQryAndLog "GetCurrentPParams" tr $ localStateQueryQ `send`
+                        (CmdQueryLocalState pt (QueryIfCurrentMary Shelley.GetCurrentPParams))
                     sequence (handleParamsUpdate fromShelleyPParams <$> mb <*> pp <*> sp)
                         >>= handleAcquireFailure
 
@@ -897,7 +918,7 @@ mkTipSyncClient tr np localTxSubmissionQ onTipUpdate onPParamsUpdate onInterpret
                 $ localStateQueryClientPeer
                 $ localStateQuery localStateQueryQ
         })
-        NodeToClientV_5
+        nodeToClientVersion
 
 -- Reward Account Balances
 
@@ -949,9 +970,11 @@ newRewardBalanceFetcher tr gp queryRewardQ =
                 res <- bracketQuery queryName tr (queryRewardQ `send` cmd)
                 handleBalanceResult defaultValue res
             AnyCardanoEra MaryEra -> do
-                let msg = MsgLocalStateQueryError DelegationRewardsClient "MaryEra Not implemented"
-                liftIO $ traceWith tr msg
-                return Nothing
+                let creds = Set.map toStakeCredential accounts
+                let q = QueryIfCurrentMary (Shelley.GetFilteredDelegationsAndRewardAccounts creds)
+                let cmd = CmdQueryLocalState (getTipPoint tip) q
+                res <- liftIO . timeQryAndLog loggerName tr $ queryRewardQ `send` cmd
+                handleQueryResult defaultValue res
       where
         defaultValue :: Map W.RewardAccount W.Coin
         defaultValue = Map.fromList . map (, minBound) $ Set.toList accounts
@@ -1213,6 +1236,7 @@ handleMuxError tr onResourceVanished = pure . errorType >=> \case
         traceWith tr Nothing
         pure onResourceVanished
     MuxCleanShutdown -> pure False
+    MuxBlockedOnCompletionVar _ -> pure False -- TODO: Is this correct?
 
 {-------------------------------------------------------------------------------
                                     Logging

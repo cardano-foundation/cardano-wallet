@@ -20,7 +20,7 @@ import Prelude
 
 import Cardano.Address.Derivation
     ( XPrv, xpubToBytes )
-import Cardano.API
+import Cardano.Api
     ( AnyCardanoEra (..), CardanoEra (..) )
 import Cardano.BM.Trace
     ( nullTracer )

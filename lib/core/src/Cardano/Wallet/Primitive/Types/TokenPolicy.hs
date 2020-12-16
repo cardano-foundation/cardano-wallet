@@ -5,10 +5,10 @@
 module Cardano.Wallet.Primitive.Types.TokenPolicy
     (
       -- * Token Policies
-      TokenPolicyId
+      TokenPolicyId (..)
 
       -- * Token Names
-    , TokenName
+    , TokenName (..)
 
     ) where
 

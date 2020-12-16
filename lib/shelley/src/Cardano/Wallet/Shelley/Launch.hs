@@ -81,7 +81,7 @@ import Cardano.BM.Data.Output
 import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
-    ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..), nullTracer )
+    ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.Chain.Genesis
     ( GenesisData (..), readGenesisData )
 import Cardano.CLI
@@ -94,8 +94,6 @@ import Cardano.Launcher.Node
     , NodePort (..)
     , withCardanoNode
     )
-import Cardano.Ledger.Shelley
-    ( ShelleyEra )
 import Cardano.Pool.Metadata
     ( SMASHPoolId (..) )
 import Cardano.Startup
@@ -110,14 +108,6 @@ import Cardano.Wallet.Network.Ports
     ( randomUnusedTCPPorts )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..), hex )
-import Cardano.Wallet.Primitive.Slotting
-    ( TimeInterpreter
-    , currentRelativeTime
-    , hoistTimeInterpreter
-    , interpretQuery
-    , mkTimeInterpreter
-    , timeUntilEpoch
-    )
 import Cardano.Wallet.Primitive.Types
     ( Block (..)
     , EpochNo (..)
@@ -144,7 +134,7 @@ import Control.Monad.Fail
 import Control.Monad.IO.Unlift
     ( MonadUnliftIO, liftIO )
 import Control.Monad.Trans.Except
-    ( ExceptT (..), runExceptT, withExceptT )
+    ( ExceptT (..), withExceptT )
 import Control.Retry
     ( constantDelay, limitRetriesByCumulativeDelay, retrying )
 import Control.Tracer
@@ -160,23 +150,17 @@ import Data.ByteString
 import Data.ByteString.Base58
     ( bitcoinAlphabet, decodeBase58 )
 import Data.Either
-    ( fromRight, isLeft, isRight )
-import Data.Fixed
-    ( Micro )
+    ( isLeft, isRight )
 import Data.Function
     ( (&) )
 import Data.Functor
     ( ($>), (<&>) )
-import Data.Functor.Identity
-    ( Identity (..) )
 import Data.List
     ( isInfixOf, isPrefixOf, nub, permutations, sort )
 import Data.Maybe
     ( catMaybes, fromMaybe, isJust )
 import Data.Proxy
     ( Proxy (..) )
-import Data.Quantity
-    ( getQuantity )
 import Data.Text
     ( Text )
 import Data.Text.Class
@@ -185,20 +169,12 @@ import Data.Time.Clock
     ( UTCTime, addUTCTime, getCurrentTime )
 import Data.Time.Clock.POSIX
     ( posixSecondsToUTCTime, utcTimeToPOSIXSeconds )
-import Fmt
-    ( fmt, secondsF )
 import GHC.TypeLits
     ( KnownNat, Nat, SomeNat (..), someNatVal )
 import Options.Applicative
     ( Parser, eitherReader, flag', help, long, metavar, option, (<|>) )
-import Ouroboros.Consensus.BlockchainTime.WallClock.Types
-    ( RelativeTime (..), mkSlotLength )
-import Ouroboros.Consensus.Config.SecurityParam
-    ( SecurityParam (..) )
 import Ouroboros.Consensus.Shelley.Node
     ( sgNetworkMagic )
-import Ouroboros.Consensus.Util.Counting
-    ( exactlyTwo )
 import Ouroboros.Network.Magic
     ( NetworkMagic (..) )
 import Ouroboros.Network.NodeToClient
@@ -241,7 +217,6 @@ import UnliftIO.Temporary
 
 import qualified Cardano.Chain.Common as Byron
 import qualified Cardano.Chain.UTxO as Legacy
-import qualified Cardano.Slotting.Slot as Cardano
 import qualified Cardano.Wallet.Byron.Compatibility as Byron
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Shelley.Compatibility as Shelley
@@ -257,9 +232,6 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.Vector as V
 import qualified Data.Yaml as Yaml
-import qualified Ouroboros.Consensus.HardFork.History.EraParams as HF
-import qualified Ouroboros.Consensus.HardFork.History.Qry as HF
-import qualified Ouroboros.Consensus.HardFork.History.Summary as HF
 
 -- | Shelley hard fork network configuration has two genesis datas.
 -- As a special case for mainnet, we hardcode the byron genesis data.
@@ -355,7 +327,7 @@ parseGenesisData = \case
         let nm = NetworkMagic $ fromIntegral $ W.getProtocolMagic W.mainnetMagic
         let mainnetVersionData =
                 ( NodeToClientVersionData nm
-                , nodeToClientCodecCBORTerm NodeToClientV_5
+                , nodeToClientCodecCBORTerm NodeToClientV_6
                 )
         pure
             ( SomeNetworkDiscriminant $ Proxy @'Mainnet
@@ -1006,7 +978,7 @@ genConfig dir severity mExtraLogFile systemStart = do
     let shelleyParams = fst $ Shelley.fromGenesisData shelleyGenesis []
     let versionData =
             ( NodeToClientVersionData $ NetworkMagic networkMagic
-            , nodeToClientCodecCBORTerm NodeToClientV_5
+            , nodeToClientCodecCBORTerm NodeToClientV_6
             )
 
     pure
@@ -1223,6 +1195,7 @@ preparePoolRegistration tr dir stakePub certs pledgeAmt = do
         , "--ttl", "400"
         , "--fee", show (faucetAmt - pledgeAmt - depositAmt)
         , "--out-file", file
+        , "--mary-era"
         ] ++ mconcat ((\cert -> ["--certificate-file",cert]) <$> certs)
 
     pure (file, faucetPrv)
@@ -1250,6 +1223,7 @@ sendFaucetFundsTo tr dir allTargets = do
             , "--ttl", "600"
             , "--fee", show (faucetAmt - total)
             , "--out-file", file
+            , "--mary-era"
             ] ++ outputs
 
         tx <- signTx tr dir file [faucetPrv]
@@ -1286,6 +1260,7 @@ moveInstantaneousRewardsTo tr dir targets = do
         , "--fee", show (faucetAmt - 1_000_000 - totalDeposit)
         , "--tx-out", sink <> "+" <> "1000000"
         , "--out-file", file
+        , "--mary-era"
         ] ++ concatMap (\x -> ["--certificate-file", x]) (mconcat certs)
 
     testData <- getShelleyTestDataPath
@@ -1348,6 +1323,7 @@ prepareKeyRegistration tr dir = do
         , "--fee", show (faucetAmt - depositAmt - 1_000_000)
         , "--certificate-file", cert
         , "--out-file", file
+        , "--mary-era"
         ]
     pure (file, faucetPrv)
 
@@ -1427,7 +1403,7 @@ waitUntilRegistered tr name opPub = do
     (exitCode, distribution, err) <- readProcessWithExitCode "cardano-cli"
         [ "query", "stake-distribution"
         , "--mainnet"
-        , "--cardano-mode"
+        , "--mary-era"
         ] mempty
     traceWith tr $ MsgStakeDistribution name exitCode distribution err
     unless (poolId `isInfixOf` distribution) $ do

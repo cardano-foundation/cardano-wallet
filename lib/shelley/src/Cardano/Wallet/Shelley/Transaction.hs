@@ -82,8 +82,10 @@ import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx (..), Tx (..), TxIn (..), TxMetadata, TxOut (..), txOutCoin )
 import Cardano.Wallet.Shelley.Compatibility
     ( AllegraEra
+    , CardanoEra (MaryEra)
     , ShelleyEra
     , fromAllegraTx
+    , fromMaryTx
     , fromShelleyTx
     , sealShelleyTx
     , toAllegraTxOut
@@ -91,6 +93,7 @@ import Cardano.Wallet.Shelley.Compatibility
     , toCardanoStakeCredential
     , toCardanoTxIn
     , toHDPayloadAddress
+    , toMaryTxOut
     , toShelleyTxOut
     , toStakeKeyDeregCert
     , toStakeKeyRegCert
@@ -191,7 +194,6 @@ instance TxWitnessTagFor IcarusKey where
 instance TxWitnessTagFor ByronKey where
     txWitnessTagFor = TxWitnessByronUTxO Byron
 
-
 mkTx
     :: forall k era.
         ( TxWitnessTagFor k
@@ -238,13 +240,10 @@ mkTx networkId payload expirySlot (rewardAcnt, pwdAcnt) keyFrom cs era = do
 
     let signed = Cardano.makeSignedTransaction wits unsigned
     let withResolvedInputs tx = tx { resolvedInputs = second txOutCoin <$> CS.inputs cs }
-    case era of
-        ShelleyBasedEraShelley ->
-            Right $ first withResolvedInputs $ sealShelleyTx fromShelleyTx signed
-        ShelleyBasedEraAllegra ->
-            Right $ first withResolvedInputs $ sealShelleyTx fromAllegraTx signed
-        ShelleyBasedEraMary    ->
-            Left  $ ErrInvalidEra (AnyCardanoEra MaryEra)
+    Right $ first withResolvedInputs $ case era of
+        ShelleyBasedEraShelley -> sealShelleyTx fromShelleyTx signed
+        ShelleyBasedEraAllegra -> sealShelleyTx fromAllegraTx signed
+        ShelleyBasedEraMary    -> sealShelleyTx fromMaryTx signed
 
 newTransactionLayer
     :: forall k.
@@ -777,7 +776,7 @@ mkUnsignedTx era ttl cs md wdrls certs =
     case era of
         ShelleyBasedEraShelley -> mkShelleyTx
         ShelleyBasedEraAllegra -> mkAllegraTx
-        ShelleyBasedEraMary    -> Left (ErrInvalidEra (AnyCardanoEra MaryEra))
+        ShelleyBasedEraMary    -> mkMaryTx
   where
     fees :: Cardano.Lovelace
     fees = toCardanoLovelace $ Coin $ feeBalance cs
@@ -862,6 +861,46 @@ mkUnsignedTx era ttl cs md wdrls certs =
         }
       where
         toErrMkTx :: Cardano.TxBodyError AllegraEra -> ErrMkTx
+        toErrMkTx = ErrConstructedInvalidTx . T.pack . Cardano.displayError
+
+
+    mkMaryTx = left toErrMkTx $ Cardano.makeTransactionBody $ Cardano.TxBodyContent
+        { Cardano.txIns =
+            toCardanoTxIn . fst <$> CS.inputs cs
+
+        , Cardano.txOuts =
+            toMaryTxOut <$> CS.outputs cs
+
+        , Cardano.txWithdrawals =
+            Cardano.TxWithdrawals Cardano.WithdrawalsInMaryEra wdrls
+
+        , Cardano.txCertificates =
+            Cardano.TxCertificates Cardano.CertificatesInMaryEra certs
+
+        , Cardano.txFee =
+            Cardano.TxFeeExplicit Cardano.TxFeesExplicitInMaryEra fees
+
+        , Cardano.txValidityRange =
+            ( Cardano.TxValidityNoLowerBound
+            , Cardano.TxValidityUpperBound Cardano.ValidityUpperBoundInMaryEra ttl
+            )
+
+        , Cardano.txMetadata =
+            maybe
+                Cardano.TxMetadataNone
+                (Cardano.TxMetadataInEra Cardano.TxMetadataInMaryEra)
+                md
+
+        , Cardano.txAuxScripts =
+            Cardano.TxAuxScriptsNone
+
+        , Cardano.txUpdateProposal =
+            Cardano.TxUpdateProposalNone
+
+        , Cardano.txMintValue =
+            Cardano.TxMintNone
+        }
+      where
         toErrMkTx = ErrConstructedInvalidTx . T.pack . Cardano.displayError
 
 mkWithdrawals
