@@ -265,9 +265,8 @@ spec = do
                     , blockHeight = Quantity 37
                     , amount = Quantity 1337
                     , expiry = Just (SlotNo 2442)
-                    , deposit = Just (Quantity $ Coin 10)
                     }
-            "-0.001337 pending since 1442#37 (expires slot 2442) deposit of 0.000010"
+            "-0.001337 pending since 1442#37 (expires slot 2442)"
                 === pretty @_ @Text txMeta
         it "TxMeta (2)" $ do
             let txMeta = TxMeta
@@ -277,7 +276,6 @@ spec = do
                     , blockHeight = Quantity 1
                     , amount = Quantity 13371442
                     , expiry = Nothing
-                    , deposit = Nothing
                     }
             "+13.371442 in ledger since 140#1" === pretty @_ @Text txMeta
 
@@ -1173,18 +1171,19 @@ instance Arbitrary UTxO where
         return $ UTxO $ Map.fromList utxo
 
 instance Arbitrary Tx where
-    shrink (Tx tid ins outs wdrls md) = mconcat
-        [ (\ins' -> Tx tid ins' outs wdrls md) <$> shrink ins
-        , (\outs' -> Tx tid ins outs' wdrls md) <$> shrink outs
-        , (\wdrls' -> Tx tid ins outs (Map.fromList wdrls') md) <$> shrink (Map.toList wdrls)
-        , Tx tid ins outs wdrls <$> shrink md
+    shrink (Tx tid fees ins outs wdrls md) = mconcat
+        [ (\ins' -> Tx tid fees ins' outs wdrls md) <$> shrink ins
+        , (\outs' -> Tx tid fees ins outs' wdrls md) <$> shrink outs
+        , (\wdrls' -> Tx tid fees ins outs (Map.fromList wdrls') md) <$> shrink (Map.toList wdrls)
+        , Tx tid fees ins outs wdrls <$> shrink md
         ]
     arbitrary = do
         ins <- choose (1, 3) >>= vector
         outs <- choose (1, 3) >>= vector
         wdrls <- choose (1,3) >>= vector
+        fees <- arbitrary
         tid <- genHash
-        Tx tid ins outs (Map.fromList wdrls) <$> arbitrary
+        Tx tid fees ins outs (Map.fromList wdrls) <$> arbitrary
       where
         genHash = elements
           [ Hash "Tx1"

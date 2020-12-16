@@ -699,7 +699,7 @@ newtype PostExternalTransactionData = PostExternalTransactionData
 data ApiFee = ApiFee
     { estimatedMin :: !(Quantity "lovelace" Natural)
     , estimatedMax :: !(Quantity "lovelace" Natural)
-    , deposits :: ![Quantity "lovelace" Natural]
+    , deposit :: !(Quantity "lovelace" Natural)
     } deriving (Eq, Generic, Show)
 
 data ApiNetworkParameters = ApiNetworkParameters
@@ -749,6 +749,8 @@ newtype ApiTxId = ApiTxId
 data ApiTransaction (n :: NetworkDiscriminant) = ApiTransaction
     { id :: !(ApiT (Hash "Tx"))
     , amount :: !(Quantity "lovelace" Natural)
+    , fee :: !(Quantity "lovelace" Natural)
+    , deposit :: !(Quantity "lovelace" Natural)
     , insertedAt :: !(Maybe ApiBlockReference)
     , pendingSince :: !(Maybe ApiBlockReference)
     , expiresAt :: !(Maybe ApiSlotReference)
@@ -759,7 +761,6 @@ data ApiTransaction (n :: NetworkDiscriminant) = ApiTransaction
     , withdrawals :: ![ApiWithdrawal n]
     , status :: !(ApiT TxStatus)
     , metadata :: !ApiTxMetadata
-    , deposits :: ![Quantity "lovelace" Natural]
     } deriving (Eq, Generic, Show)
       deriving anyclass NFData
 

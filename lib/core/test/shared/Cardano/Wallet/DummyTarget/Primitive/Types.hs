@@ -120,12 +120,14 @@ dummyProtocolParameters = ProtocolParameters
 
 -- | Construct a @Tx@, computing its hash using the dummy @mkTxId@.
 mkTx
-    :: [(TxIn, Coin)]
+    :: Maybe Coin
+    -> [(TxIn, Coin)]
     -> [TxOut]
     -> Map RewardAccount Coin
     -> Maybe TxMetadata
     -> Tx
-mkTx ins outs wdrls md = Tx (mkTxId ins outs wdrls md) ins outs wdrls md
+mkTx fees ins outs wdrls md =
+    Tx (mkTxId ins outs wdrls md) fees ins outs wdrls md
 
 -- | txId calculation for testing purposes.
 mkTxId

@@ -220,7 +220,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
             [ expectResponseCode HTTP.status202
             , expectField (#status . #getApiT) (`shouldBe` Pending)
             , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
-            , expectField #deposits (`shouldBe` [Quantity 1000000])
+            , expectField #deposit (`shouldBe` Quantity 1000000)
             ]
         eventually "Wallet has joined pool and deposit info persists" $ do
             rJoin' <- request @(ApiTransaction n) ctx
@@ -231,7 +231,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                 [ expectResponseCode HTTP.status200
                 , expectField (#status . #getApiT) (`shouldBe` InLedger)
                 , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
-                , expectField #deposits (`shouldBe` [Quantity 1000000])
+                , expectField #deposit (`shouldBe` Quantity 1000000)
                 ]
 
         -- Earn rewards

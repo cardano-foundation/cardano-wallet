@@ -344,7 +344,7 @@ txOutsOurs txs =
 -- the transaction outputs to be ordered correctly, since they become available
 -- inputs for the subsequent blocks.
 utxoFromTx :: Tx -> UTxO
-utxoFromTx tx@(Tx _ _ outs _ _) =
+utxoFromTx tx@(Tx _ _ _ outs _ _) =
     UTxO $ Map.fromList $ zip (TxIn (txId tx) <$> [0..]) outs
 
 
@@ -463,6 +463,7 @@ instance Arbitrary (WithPending WalletState) where
                 let tokens = TokenBundle.fromCoin $ simulateFee $ txOutCoin out
                 let pending = withWithdrawal $ Tx
                         { txId = arbitraryHash
+                        , fee = Nothing
                         , resolvedInputs = [(inp, txOutCoin out)]
                         , outputs = [out {tokens}]
                         , withdrawals = mempty
@@ -518,6 +519,7 @@ blockchain =
         , transactions =
             [ Tx
                 { txId = Hash "97928516bb05fce234d26e99b22b2e68c81841730fb5bd1d835b67374f1de8d7"
+                , fee = Nothing
                 , resolvedInputs =
                     [ (TxIn
                         { inputId = Hash "\199D\198\229\227\196\204\231\178\166m\226\134\211\DC1}\243[\204\DC4\171\213\230\246\SOHy\229\t\167\184\235g"
@@ -554,6 +556,7 @@ blockchain =
         , transactions =
             [ Tx
                 { txId = Hash "cd6f2081fdd619c623c71e5cd2a3b5f22289e598b727f325dbba9681ea723079"
+                , fee = Nothing
                 , resolvedInputs =
                     [ (TxIn
                         { inputId = Hash "+\253\232\DC3\132\"M\NULf\EM\228\bh)\STX\171W\215@#\198\a\228\229Z2]\156_fjg"
@@ -575,6 +578,7 @@ blockchain =
                 }
             , Tx
                 { txId = Hash "b17ca3d2b8a991ea4680d1ebd9940a03449b1b6261fbe625d5cae6599726ea41"
+                , fee = Nothing
                 , resolvedInputs =
                     [ (TxIn
                         { inputId = Hash "\137\150\&8\141\164l\v\ACK\132\198\SI\GS7\201\&3Dd\177fM,\GS)\EM\DC4\242#\211'3\233\163"
@@ -607,6 +611,7 @@ blockchain =
         , transactions =
             [ Tx
                 { txId = Hash "73a5d20740d511e01090247f8aca90e1e550564244173235a1a47589007b9e76"
+                , fee = Nothing
                 , resolvedInputs =
                     [ (TxIn
                         { inputId = Hash "(\EM#\f\165\236\169=\227\163>MY\225ts\192\SYN\137=\145\155~\212.\252\130l\166v0\SOH"
@@ -628,6 +633,7 @@ blockchain =
                 }
             , Tx
                 { txId = Hash "6ed51b05821f0dc130a9411f0d63a241a624fbc8a9c8a2a13da8194ce3c463f4"
+                , fee = Nothing
                 , resolvedInputs =
                     [ ( TxIn
                         { inputId = Hash "\128\168muc\212\EMP\238\\\173w\203\159N\205T:\230V\134\164w\143>\192\134\153\SUB$cD"
@@ -660,6 +666,7 @@ blockchain =
         , transactions =
             [ Tx
                 { txId = Hash "bbc7a1f0de24085ac48a52ee6f89d1815145845a8712547350a7e492385974ab"
+                , fee = Nothing
                 , resolvedInputs =
                     [ (TxIn
                         { inputId = Hash "\164\254\137\218h\f\DLE\245\141u\SYN\248~\253n;\202\144\150\v\229\177\218\195\238\157\230\158\241O\153\215"
@@ -702,6 +709,7 @@ blockchain =
         , transactions =
             [ Tx
                 { txId = Hash "fd545d055c2241802d1518b7fd9f8842c217b54c73364e519ccada5cda07612a"
+                , fee = Nothing
                 , resolvedInputs =
                     [ (TxIn
                         { inputId = Hash "\187\199\161\240\222$\bZ\196\138R\238o\137\209\129QE\132Z\135\DC2TsP\167\228\146\&8Yt\171"
@@ -734,6 +742,7 @@ blockchain =
         , transactions =
             [ Tx
                 { txId = Hash "dffbcd7ca494c4695cc2fd4ec525ffca0861bafb221ee185711f99ca49ae7c11"
+                , fee = Nothing
                 , resolvedInputs =
                     [ (TxIn
                         { inputId = Hash "s\165\210\a@\213\DC1\224\DLE\144$\DEL\138\202\144\225\229PVBD\ETB25\161\164u\137\NUL{\158v"
@@ -765,6 +774,7 @@ blockchain =
         , transactions =
             [ Tx
                 { txId = Hash "c430d9ae438b9fe1c0898e9c131f3ca2c64c34ef75b202a834b6eabe248eac88"
+                , fee = Nothing
                 , resolvedInputs =
                     [ (TxIn
                         { inputId = Hash "\177|\163\210\184\169\145\234F\128\209\235\217\148\n\ETXD\155\ESCba\251\230%\213\202\230Y\151&\234A"
@@ -807,6 +817,7 @@ blockchain =
         , transactions =
             [ Tx
                 { txId = Hash "b5af444a0d95ebd1a55185a0aee2b19835da1c86fc2b43f453f04c002bbc708e"
+                , fee = Nothing
                 , resolvedInputs =
                     [ ( TxIn
                         { inputId = Hash "\195\242\DEL-\232v(c\SI+\172\163\245\142\189\214aiB#4\139\172\166\237\167\ETB9\246\150\185\219"
@@ -883,6 +894,7 @@ blockchain =
         , transactions =
             [ Tx
                 { txId = Hash "e65862828230aa340878c8d593f84d59397f10dfa0b183d2d15bea0a5db8ccaf"
+                , fee = Nothing
                 , resolvedInputs =
                     [ ( TxIn
                         { inputId = Hash "\ETXX\189\235\195q81{D\DC3\DLE\228\237(\251\184`l\226\229\184\FSG\132\217\224\202\222\249\246J"
@@ -904,6 +916,7 @@ blockchain =
                 }
             , Tx
                 { txId = Hash "611ce641f0f9282a35b1678fcd996016833c0de9e83a04bfa1178c8f045196ea"
+                , fee = Nothing
                 , resolvedInputs =
                     [ ( TxIn
                         { inputId = Hash "\151\146\133\SYN\187\ENQ\252\226\&4\210n\153\178+.h\200\CANAs\SI\181\189\GS\131[g7O\GS\232\215"
@@ -936,6 +949,7 @@ blockchain =
         , transactions =
             [ Tx
                 { txId = Hash "0a5232f1683aaba994fb3774a5e123e2ed4f2842457b67b5309b825550a5f55d"
+                , fee = Nothing
                 , resolvedInputs =
                     [ ( TxIn
                         { inputId = Hash "_>\240.\159\145\US\NUL1\158r\231\&8\214\241\134\&2\DC4\ETB\160\134\237z\143D\229d\DC4\245\208\DC3?"
@@ -957,6 +971,7 @@ blockchain =
                 }
             , Tx
                 { txId = Hash "b8e9699ffff40c993d6778f586110b78cd30826feaa5314adf3a2e9894b9313a"
+                , fee = Nothing
                 , resolvedInputs =
                     [ ( TxIn
                         { inputId = Hash "\187\177J\189\132K\n\175\130\148\&3[\150\193zL\153\191Qjcl\n\162B\241G)>\151\DC4\225"
@@ -1049,6 +1064,7 @@ blockchain =
         , transactions =
             [ Tx
                 { txId = Hash "387b98d4cde710b78ce19e9077b61d6b7a2dff52fd16dcb884b31cd576904c86"
+                , fee = Nothing
                 , resolvedInputs =
                     [ ( TxIn
                         { inputId = Hash "\150\225pI\SUB\251n\189W\159\213|v\198\132\242$6\248\204:\145#\151\221\177\201\197\ESC\134\251S"
@@ -1070,6 +1086,7 @@ blockchain =
                 }
               , Tx
                   { txId = Hash "7726526b5cc003f71d9629c611397285004b5438eac9a118c2b20e2810e0783e"
+                  , fee = Nothing
                   , resolvedInputs =
                       [ ( TxIn
                           { inputId = Hash "\249\DC2\146\&0\GSK\177\182\224@\206\205\255@0\149\155I\201^}\174\bw\130\221U\139\235\182f\138"
@@ -1102,6 +1119,7 @@ blockchain =
         , transactions =
             [ Tx
                 { txId = Hash "9c6fed8fef3b296d4dee6e62ca72b180bf0ed1c13eb5f0445099b2a146235e77"
+                , fee = Nothing
                 , resolvedInputs =
                     [ (TxIn
                         { inputId = Hash "\194\157>\160\221\163\&4\218\149\215\178\161]p\185\246\208\198\ENQ \188\216\242\160\190\236\137\151\DC3\134\"\DC4"

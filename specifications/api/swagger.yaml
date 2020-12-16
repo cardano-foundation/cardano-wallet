@@ -1321,11 +1321,11 @@ components:
       required:
         - estimated_min
         - estimated_max
-        - deposits
+        - deposit
       properties:
         estimated_min: *transactionAmount
         estimated_max: *transactionAmount
-        deposits: *deposits
+        deposit: *transactionAmount
 
     ApiPutAddressesData: &ApiPutAddressesData
       type: object
@@ -1353,15 +1353,18 @@ components:
       required:
         - id
         - amount
+        - fee
+        - deposit
         - direction
         - inputs
         - outputs
         - withdrawals
         - status
-        - deposits
       properties:
         id: *transactionId
         amount: *transactionAmount
+        fee: *transactionAmount
+        deposit: *transactionAmount
         inserted_at: *transactionInsertedAt
         expires_at: *transactionExpiresAt
         pending_since: *transactionPendingSince
@@ -1372,7 +1375,6 @@ components:
         withdrawals: *transactionWithdrawals
         status: *transactionStatus
         metadata: *transactionMetadata
-        deposits: *deposits
 
     ApiWalletDelegationNext: &ApiWalletDelegationNext
       type: object

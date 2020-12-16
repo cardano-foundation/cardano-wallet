@@ -695,6 +695,7 @@ fromGenesisData g initialFunds =
       where
         mkTx (addr, c) = W.Tx
             pseudoHash
+            Nothing
             []
             [W.TxOut
                 (fromShelleyAddress addr)
@@ -804,6 +805,7 @@ fromShelleyTx
 fromShelleyTx tx =
     ( W.Tx
         (fromShelleyTxId $ SL.txid bod)
+        (Just $ fromShelleyCoin fee)
         (map ((,W.Coin 0) . fromShelleyTxIn) (toList ins))
         (map fromShelleyTxOut (toList outs))
         (fromShelleyWdrl wdrls)
@@ -812,7 +814,7 @@ fromShelleyTx tx =
     , mapMaybe fromShelleyRegistrationCert (toList certs)
     )
   where
-    SL.Tx bod@(SL.TxBody ins outs certs wdrls _ _ _ _) _ mmd = tx
+    SL.Tx bod@(SL.TxBody ins outs certs wdrls fee _ _ _) _ mmd = tx
 
 fromAllegraTx
     :: ( SL.ShelleyBased era
@@ -829,6 +831,7 @@ fromAllegraTx
 fromAllegraTx tx =
     ( W.Tx
         (fromShelleyTxId $ SL.txid bod)
+        (Just $ fromShelleyCoin fee)
         (map ((,W.Coin 0) . fromShelleyTxIn) (toList ins))
         (map fromShelleyTxOut (toList outs))
         (fromShelleyWdrl wdrls)
@@ -837,7 +840,7 @@ fromAllegraTx tx =
     , mapMaybe fromShelleyRegistrationCert (toList certs)
     )
   where
-    SL.Tx bod@(MA.TxBody ins outs certs wdrls _ _ _ _ _) _ mmd = tx
+    SL.Tx bod@(MA.TxBody ins outs certs wdrls fee _ _ _ _) _ mmd = tx
 
     -- FIXME (ADP-525): It is fine for now since we do not look at script
     -- pre-images. But this is precisely what we want as part of the

@@ -128,7 +128,8 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
         let amt = fromIntegral minUTxOValue
         args <- postTxArgs ctx wSrc wDest amt Nothing Nothing
         Stdout feeOut <- postTransactionFeeViaCLI ctx args
-        ApiFee (Quantity feeMin) (Quantity feeMax) [Quantity 0] <- expectValidJSON Proxy feeOut
+        ApiFee (Quantity feeMin) (Quantity feeMax) (Quantity 0) <-
+            expectValidJSON Proxy feeOut
 
         txJson <- postTxViaCLI ctx wSrc wDest amt Nothing Nothing
         verify txJson

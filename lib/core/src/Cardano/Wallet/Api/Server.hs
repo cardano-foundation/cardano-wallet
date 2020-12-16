@@ -377,7 +377,7 @@ import Data.List.NonEmpty
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
-    ( catMaybes, isJust, maybeToList )
+    ( catMaybes, fromMaybe, isJust, mapMaybe, maybeToList )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -1384,6 +1384,7 @@ postTransaction ctx genChange (ApiT wid) body = do
     liftIO $ mkApiTransaction
         (timeInterpreter $ ctx ^. networkLayer)
         (txId tx)
+        (tx ^. #fee)
         (fmap Just <$> selection ^. #inputs)
         (tx ^. #outputs)
         (tx ^. #withdrawals)
@@ -1441,9 +1442,9 @@ mkApiTransactionFromInfo
     => TimeInterpreter (ExceptT PastHorizonException IO)
     -> TransactionInfo
     -> m (ApiTransaction n)
-mkApiTransactionFromInfo ti (TransactionInfo txid ins outs ws meta depth txtime txmeta) = do
-    apiTx <- liftIO $ mkApiTransaction ti txid (drop2nd <$> ins) outs ws (meta, txtime) txmeta
-        $ case meta ^. #status of
+mkApiTransactionFromInfo ti (TransactionInfo txid fee ins outs ws meta depth txtime txmeta) = do
+    apiTx <- liftIO $ mkApiTransaction ti txid fee (drop2nd <$> ins) outs ws (meta, txtime) txmeta $
+        case meta ^. #status of
             Pending  -> #pendingSince
             InLedger -> #insertedAt
             Expired  -> #pendingSince
@@ -1456,7 +1457,7 @@ mkApiTransactionFromInfo ti (TransactionInfo txid ins outs ws meta depth txtime 
 
 apiFee :: FeeEstimation -> ApiFee
 apiFee (FeeEstimation estMin estMax deposit) =
-    ApiFee (qty estMin) (qty estMax) (qty <$> maybeToList deposit)
+    ApiFee (qty estMin) (qty estMax) (qty $ fromMaybe 0 deposit)
   where qty = Quantity . fromIntegral
 
 postTransactionFee
@@ -1542,6 +1543,7 @@ joinStakePool ctx knownPools getPoolStatus apiPoolId (ApiT wid) body = do
     liftIO $ mkApiTransaction
         (timeInterpreter (ctx ^. networkLayer))
         (txId tx)
+        (tx ^. #fee)
         (second (const Nothing) <$> tx ^. #resolvedInputs)
         (tx ^. #outputs)
         (tx ^. #withdrawals)
@@ -1603,6 +1605,7 @@ quitStakePool ctx (ApiT wid) body = do
     liftIO $ mkApiTransaction
         (timeInterpreter (ctx ^. networkLayer))
         (txId tx)
+        (tx ^. #fee)
         (second (const Nothing) <$> tx ^. #resolvedInputs)
         (tx ^. #outputs)
         (tx ^. #withdrawals)
@@ -1674,6 +1677,7 @@ migrateWallet ctx (ApiT wid) migrateData = do
         liftIO $ mkApiTransaction
             (timeInterpreter (ctx ^. networkLayer))
             (txId tx)
+            (tx ^. #fee)
             (fmap Just <$> NE.toList (W.unsignedInputs cs))
             (W.unsignedOutputs cs)
             (tx ^. #withdrawals)
@@ -2007,6 +2011,7 @@ mkApiTransaction
     :: forall n. ()
     => TimeInterpreter (ExceptT PastHorizonException IO)
     -> Hash "Tx"
+    -> Maybe Coin
     -> [(TxIn, Maybe TxOut)]
     -> [TxOut]
     -> Map RewardAccount Coin
@@ -2014,7 +2019,7 @@ mkApiTransaction
     -> Maybe W.TxMetadata
     -> Lens' (ApiTransaction n) (Maybe ApiBlockReference)
     -> IO (ApiTransaction n)
-mkApiTransaction ti txid ins outs ws (meta, timestamp) txMeta setTimeReference = do
+mkApiTransaction ti txid mfee ins outs ws (meta, timestamp) txMeta setTimeReference = do
     timeRef <- (#time .~ timestamp) <$> makeApiBlockReference
         (neverFails "makeApiBlockReference shouldn't fail getting the time of \
             \transactions with slots in the past" ti)
@@ -2027,10 +2032,13 @@ mkApiTransaction ti txid ins outs ws (meta, timestamp) txMeta setTimeReference =
     -- Since tx expiry can be far in the future, we use unsafeExtendSafeZone for
     -- now.
     makeApiSlotReference' = makeApiSlotReference (unsafeExtendSafeZone ti)
+
     tx :: ApiTransaction n
     tx = ApiTransaction
         { id = ApiT txid
         , amount = meta ^. #amount
+        , fee = maybe (Quantity 0) (Quantity . fromIntegral . getCoin) mfee
+        , deposit = Quantity depositIfAny
         , insertedAt = Nothing
         , pendingSince = Nothing
         , expiresAt = Nothing
@@ -2041,8 +2049,62 @@ mkApiTransaction ti txid ins outs ws (meta, timestamp) txMeta setTimeReference =
         , withdrawals = mkApiWithdrawal @n <$> Map.toList ws
         , status = ApiT (meta ^. #status)
         , metadata = ApiTxMetadata $ ApiT <$> txMeta
-        , deposits = maybeToList (fmap (fromIntegral . getCoin) <$> (meta ^. #deposit))
         }
+
+    depositIfAny :: Natural
+    depositIfAny
+        -- NOTE: totalIn will be zero for incoming transactions where inputs are
+        -- unknown, in which case, we also give no visibility on the deposit.
+        --
+        -- For outgoing transactions however, the total in is garanteed to be
+        -- greater or equal to totalOut; any reminder is actually a
+        -- deposit. Said differently, if totalIn > 0, then necessarily 'fee' on
+        -- metadata should be 'Just{}'
+        | meta ^. #direction == W.Outgoing =
+            if totalIn < totalOut
+            then 0 -- This should not be possible in practice. See FIXME below.
+            else totalIn - totalOut
+        | otherwise = 0
+      where
+        -- FIXME: ADP-460
+        --
+        -- In theory, the input side can't be smaller than the output side.
+        -- However, since we do not yet track 'reclaims', we may end up in
+        -- situation here where we no longer know that there's a reclaim on a
+        -- transaction and numbers do not add up. Ideally, we would like to
+        -- change the `then` clause above to be `invariantViolation` instead of
+        -- `0` but we can't do that until we acknowledge for reclaims up until
+        -- here too.
+        --
+        -- `0` is an okay-ish placeholder in the meantime because we know that
+        -- (at least at the moment of writing this comment) the wallet never
+        -- registers a key and deregister a key at the same time. Thus, if we
+        -- are in the case where the apparent total in is smaller than the
+        -- total out, then necessary the deposit is null.
+        --
+        -- invariantViolation :: HasCallStack => a
+        -- invariantViolation = error $ unlines
+        --     [ "invariant violated: outputs larger than inputs"
+        --     , "direction:   " <> show (meta ^. #direction)
+        --     , "fee:         " <> show (getQuantity <$> (meta ^. #fee))
+        --     , "inputs:      " <> show (fmap (view (#coin . #getCoin)) . snd <$> ins)
+        --     , "reclaims:    " <> ...
+        --     , "withdrawals: " <> show (view #getCoin <$> Map.elems ws)
+        --     , "outputs:     " <> show (view (#coin . #getCoin) <$> outs)
+        --     ]
+        totalIn :: Natural
+        totalIn
+            = sum (txOutValue <$> mapMaybe snd ins)
+            + sum (fromIntegral . getCoin <$> Map.elems ws)
+            -- FIXME: ADP-460 + reclaims.
+
+        totalOut :: Natural
+        totalOut
+            = sum (txOutValue <$> outs)
+            + maybe 0 (fromIntegral . getCoin) mfee
+
+        txOutValue :: TxOut -> Natural
+        txOutValue = fromIntegral . view (#coin . #getCoin)
 
     toAddressAmount :: TxOut -> AddressAmount (ApiT Address, Proxy n)
     toAddressAmount (TxOut addr tokens) = AddressAmount

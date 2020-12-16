@@ -1908,7 +1908,6 @@ mkTxMeta ti' blockHeader wState tx cs expiry =
                 , blockHeight = blockHeader ^. #blockHeight
                 , amount = Quantity $ distance amtInps amtOuts
                 , expiry = Just expiry
-                , deposit = Just . Quantity . Coin $ (cs ^. #deposit)
                 }
             )
   where
@@ -2153,8 +2152,8 @@ estimateFeeForCoinSelection
     => Maybe Word64
     -> ExceptT err m Fee
     -> ExceptT err m FeeEstimation
-estimateFeeForCoinSelection
-    deposit' = fmap deciles
+estimateFeeForCoinSelection deposit'
+    = fmap deciles
     . handleErrors
     . replicateM repeats
     . runExceptT

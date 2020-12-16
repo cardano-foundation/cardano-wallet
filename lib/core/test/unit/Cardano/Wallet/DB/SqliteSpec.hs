@@ -810,12 +810,29 @@ fileModeSpec =  do
                             unsafeRunExceptT $ prune testPk (Quantity 2160)
 
                 let mockApplyBlock1 = mockApply (dummyHash "block1")
+<<<<<<< HEAD
                         [ Tx (dummyHash "tx1")
                             [(TxIn (dummyHash "faucet") 0, Coin 4)]
                             [TxOut (fst $ head ourAddrs) (coinToBundle 4)]
                             mempty
                             Nothing
                         ]
+||||||| parent of 371a57d63 (store and return explicit tx fee instead of deposits)
+                            [ Tx (dummyHash "tx1")
+                                [(TxIn (dummyHash "faucet") 0, Coin 4)]
+                                [ TxOut (fst $ head ourAddrs) (Coin 4) ]
+                                mempty
+                                Nothing
+                            ]
+=======
+                            [ Tx (dummyHash "tx1")
+                                Nothing
+                                [(TxIn (dummyHash "faucet") 0, Coin 4)]
+                                [ TxOut (fst $ head ourAddrs) (Coin 4) ]
+                                mempty
+                                Nothing
+                            ]
+>>>>>>> 371a57d63 (store and return explicit tx fee instead of deposits)
 
                 -- Slot 1 0
                 mockApplyBlock1
@@ -823,6 +840,7 @@ fileModeSpec =  do
 
                 -- Slot 200
                 mockApply (dummyHash "block2a")
+<<<<<<< HEAD
                     [ Tx
                         (dummyHash "tx2a")
                         [ (TxIn (dummyHash "tx1") 0, Coin 4) ]
@@ -832,6 +850,28 @@ fileModeSpec =  do
                         mempty
                         Nothing
                     ]
+||||||| parent of 371a57d63 (store and return explicit tx fee instead of deposits)
+                            [ Tx
+                                (dummyHash "tx2a")
+                                [ (TxIn (dummyHash "tx1") 0, Coin 4) ]
+                                [ TxOut (dummyAddr "faucetAddr2") (Coin 2)
+                                , TxOut (fst $ ourAddrs !! 1) (Coin 2)
+                                ]
+                                mempty
+                                Nothing
+                            ]
+=======
+                            [ Tx
+                                (dummyHash "tx2a")
+                                Nothing
+                                [ (TxIn (dummyHash "tx1") 0, Coin 4) ]
+                                [ TxOut (dummyAddr "faucetAddr2") (Coin 2)
+                                , TxOut (fst $ ourAddrs !! 1) (Coin 2)
+                                ]
+                                mempty
+                                Nothing
+                            ]
+>>>>>>> 371a57d63 (store and return explicit tx fee instead of deposits)
 
                 -- Slot 300
                 mockApply (dummyHash "block3a") []
@@ -1070,12 +1110,13 @@ testPk = PrimaryKey testWid
 testTxs :: [(Tx, TxMeta)]
 testTxs =
     [ ( Tx (mockHash @String "tx2")
+        Nothing
         [ (TxIn (mockHash @String "tx1") 0, Coin 1)]
         [ TxOut (Address "addr") (coinToBundle 1) ]
         mempty
         Nothing
       , TxMeta
-        InLedger Incoming (SlotNo 140) (Quantity 0) (Quantity 1337144) Nothing Nothing
+        InLedger Incoming (SlotNo 140) (Quantity 0) (Quantity 1337144) Nothing
       )
     ]
 

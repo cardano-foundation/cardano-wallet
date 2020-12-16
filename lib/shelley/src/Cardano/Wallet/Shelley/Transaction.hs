@@ -775,8 +775,8 @@ mkUnsignedTx era ttl cs md wdrls certs =
         ShelleyBasedEraAllegra -> mkAllegraTx
         ShelleyBasedEraMary    -> Left (ErrInvalidEra (AnyCardanoEra MaryEra))
   where
-    fee :: Cardano.Lovelace
-    fee = toCardanoLovelace $ Coin $ feeBalance cs
+    fees :: Cardano.Lovelace
+    fees = toCardanoLovelace $ Coin $ feeBalance cs
 
     mkShelleyTx :: Either ErrMkTx (Cardano.TxBody ShelleyEra)
     mkShelleyTx = left toErrMkTx $ Cardano.makeTransactionBody $ Cardano.TxBodyContent
@@ -793,7 +793,7 @@ mkUnsignedTx era ttl cs md wdrls certs =
             Cardano.TxCertificates Cardano.CertificatesInShelleyEra certs
 
         , Cardano.txFee =
-            Cardano.TxFeeExplicit Cardano.TxFeesExplicitInShelleyEra fee
+            Cardano.TxFeeExplicit Cardano.TxFeesExplicitInShelleyEra fees
 
         , Cardano.txValidityRange =
             ( Cardano.TxValidityNoLowerBound
@@ -834,7 +834,7 @@ mkUnsignedTx era ttl cs md wdrls certs =
             Cardano.TxCertificates Cardano.CertificatesInAllegraEra certs
 
         , Cardano.txFee =
-            Cardano.TxFeeExplicit Cardano.TxFeesExplicitInAllegraEra fee
+            Cardano.TxFeeExplicit Cardano.TxFeesExplicitInAllegraEra fees
 
         , Cardano.txValidityRange =
             ( Cardano.TxValidityNoLowerBound

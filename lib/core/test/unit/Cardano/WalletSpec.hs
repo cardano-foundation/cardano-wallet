@@ -151,7 +151,7 @@ import Data.Time.Clock
 import Data.Time.Clock.POSIX
     ( posixSecondsToUTCTime )
 import Data.Word
-    ( Word32, Word64 )
+    ( Word64 )
 import Data.Word.Odd
     ( Word31 )
 import GHC.Generics
@@ -724,7 +724,7 @@ dummyTransactionLayer = TransactionLayer
     { mkStdTx = \_ _ keyFrom _slot _md cs -> do
         let inps' = map (second txOutCoin) (CS.inputs cs)
         let tid = mkTxId inps' (CS.outputs cs) mempty Nothing
-        let tx = Tx tid inps' (CS.outputs cs) mempty Nothing
+        let tx = Tx tid Nothing inps' (CS.outputs cs) mempty Nothing
         wit <- forM (CS.inputs cs) $ \(_, TxOut addr _) -> do
             (xprv, Passphrase pwd) <- withEither
                 (ErrKeyNotFoundForAddress addr) $ keyFrom addr
@@ -877,20 +877,20 @@ instance Arbitrary Coin where
     arbitrary = genCoinLargePositive
 
 instance Arbitrary Tx where
-    shrink (Tx tid ins outs wdrls md) = mconcat
-        [ [ Tx tid ins' outs  wdrls md
+    shrink (Tx tid fees ins outs wdrls md) = mconcat
+        [ [ Tx tid fees ins' outs  wdrls md
           | ins' <- shrinkList' ins
           ]
 
-        , [ Tx tid ins  outs' wdrls md
+        , [ Tx tid fees ins  outs' wdrls md
           | outs' <- shrinkList' outs
           ]
 
-        , [ Tx tid ins  outs (Map.fromList wdrls') md
+        , [ Tx tid fees ins  outs (Map.fromList wdrls') md
           | wdrls' <- shrinkList' (Map.toList wdrls)
           ]
 
-        , [ Tx tid ins  outs wdrls md'
+        , [ Tx tid fees ins  outs wdrls md'
           | md' <- shrink md
           ]
         ]
@@ -899,6 +899,7 @@ instance Arbitrary Tx where
             [ take n xs | Positive n <- shrink (Positive $ length xs) ]
     arbitrary = Tx
         <$> arbitrary
+        <*> arbitrary
         <*> fmap (L.nub . L.take 5 . getNonEmpty) arbitrary
         <*> fmap (L.take 5 . getNonEmpty) arbitrary
         <*> fmap (Map.fromList . L.take 5) arbitrary
@@ -923,9 +924,8 @@ instance Arbitrary TxMeta where
         <*> elements [Incoming, Outgoing]
         <*> genSlotNo
         <*> fmap Quantity arbitrary
-        <*> fmap (Quantity . fromIntegral) (arbitrary @Word32)
+        <*> fmap (Quantity . fromIntegral . getCoin) arbitrary
         <*> liftArbitrary genSlotNo
-        <*> (fmap . fmap) Quantity arbitrary
 
 instance Arbitrary TxMetadata where
     shrink = shrinkTxMetadata

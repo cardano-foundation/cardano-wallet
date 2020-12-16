@@ -714,6 +714,29 @@ migrateManually tr proxy defaultFieldValues =
      where
         value = T.pack $ show $ Seq.getAddressPoolGap Seq.defaultAddressPoolGap
 
+--    addFeeToTransaction :: Sqlite.Connection -> IO ()
+--    addFeeToTransaction conn = do
+--        isFieldPresent conn fieldFee >>= \case
+--            ColumnMissing -> do
+--                addColumn_ conn True fieldFee "0"
+--                rows <- runSql conn $ mconcat
+--                    [ "SELECT tx_id, totalIn + totalWdrl - totalOut FROM tx"
+--                    , " JOIN (SELECT tx_id, SUM(amount) AS totalIn   FROM tx_in  GROUP_BY tx_id)"
+--                    , " JOIN (SELECT tx_id, SUM(amount) AS totalOut  FROM tx_out GROUP_BY tx_id)"
+--                    , " JOIN (SELECT tx_id, SUM(AMOUNT) AS totalWdrl FROM tx_withdrawal GROUP_BY tx_id)"
+--                    , ";"
+--                    ]
+--
+--                    SELECT tx.tx_id, totalIn - totalOut FROM tx
+--                        JOIN (SELECT tx_id, SUM(amount) AS totalIn  FROM txin  GROUP BY tx_id) USING (tx_id)
+--                        JOIN (SELECT tx_id, SUM(amount) AS totalOut FROM txout GROUP BY tx_id) USING (tx_id)
+--                    ;
+--
+--            _ ->
+--                return ()
+--      where
+--        fieldFee = DBField TxMetaFee
+
     -- | Since key deposit and fee value are intertwined, we migrate them both
     -- here.
     updateFeeValueAndAddKeyDeposit :: Sqlite.Connection -> IO ()
@@ -1389,7 +1412,7 @@ mkTxHistory
     -> [(W.Tx, W.TxMeta)]
     -> ([TxMeta], [TxIn], [TxOut], [TxOutToken], [TxWithdrawal])
 mkTxHistory wid txs = flatTxHistory
-    [ ( mkTxMetaEntity wid txid (W.metadata tx) derived
+    [ ( mkTxMetaEntity wid txid (W.fee tx) (W.metadata tx) derived
       , mkTxInputsOutputs (txid, tx)
       , mkTxWithdrawals (txid, tx)
       )
@@ -1464,10 +1487,11 @@ mkTxWithdrawals (txid, tx) =
 mkTxMetaEntity
     :: W.WalletId
     -> W.Hash "Tx"
+    -> Maybe W.Coin
     -> Maybe W.TxMetadata
     -> W.TxMeta
     -> TxMeta
-mkTxMetaEntity wid txid meta derived = TxMeta
+mkTxMetaEntity wid txid mfee meta derived = TxMeta
     { txMetaTxId = TxId txid
     , txMetaWalletId = wid
     , txMetaStatus = derived ^. #status
@@ -1475,9 +1499,9 @@ mkTxMetaEntity wid txid meta derived = TxMeta
     , txMetaSlot = derived ^. #slotNo
     , txMetaBlockHeight = getQuantity (derived ^. #blockHeight)
     , txMetaAmount = getQuantity (derived ^. #amount)
+    , txMetaFee = fromIntegral . W.getCoin <$> mfee
     , txMetaSlotExpires = derived ^. #expiry
     , txMetaData = meta
-    , txMetaDeposit = getQuantity <$> (derived ^. #deposit)
     }
 
 -- note: TxIn records must already be sorted by order
@@ -1495,12 +1519,14 @@ txHistoryFromEntity ti tip metas ins outs ws =
     mapM mkItem metas
   where
     startTime' = interpretQuery ti . slotToUTCTime
-    mkItem m = mkTxWith (txMetaTxId m) (txMetaData m) (mkTxDerived m)
-    mkTxWith txid meta derived = do
+    mkItem m = mkTxWith (txMetaTxId m) (txMetaFee m) (txMetaData m) (mkTxDerived m)
+    mkTxWith txid mfee meta derived = do
         t <- startTime' (derived ^. #slotNo)
         return $ W.TransactionInfo
             { W.txInfoId =
                 getTxId txid
+            , W.txInfoFee =
+                W.Coin . fromIntegral <$> mfee
             , W.txInfoInputs =
                 map mkTxIn $ filter ((== txid) . txInputTxId . fst) ins
             , W.txInfoOutputs =
@@ -1550,7 +1576,6 @@ txHistoryFromEntity ti tip metas ins outs ws =
         , W.blockHeight = Quantity (txMetaBlockHeight m)
         , W.amount = Quantity (txMetaAmount m)
         , W.expiry = txMetaSlotExpires m
-        , W.deposit = Quantity <$> (txMetaDeposit m)
         }
 
 mkProtocolParametersEntity

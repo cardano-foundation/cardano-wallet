@@ -524,7 +524,7 @@ benchReadTxHistory sortOrder (inf, sup) mstatus DBLayer{..} =
 mkTxHistory :: Int -> Int -> Int -> [Word64] -> [(Tx, TxMeta)]
 mkTxHistory numTx numInputs numOutputs range =
     [ force
-        ( (Tx (mkTxId inps outs mempty Nothing) inps outs mempty) Nothing
+        ( (Tx (mkTxId inps outs mempty Nothing) Nothing inps outs mempty) Nothing
         , TxMeta
             { status = [InLedger, Pending] !! (i `mod` 2)
             , direction = Incoming

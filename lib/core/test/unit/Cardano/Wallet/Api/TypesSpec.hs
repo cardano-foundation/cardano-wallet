@@ -785,7 +785,7 @@ spec = parallel $ do
                 x' = ApiFee
                     { estimatedMin = estimatedMin (x :: ApiFee)
                     , estimatedMax = estimatedMax (x :: ApiFee)
-                    , deposits = deposits (x :: ApiFee)
+                    , deposit = deposit (x :: ApiFee)
                     }
             in
                 x' === x .&&. show x' === show x
@@ -870,6 +870,8 @@ spec = parallel $ do
                 x' = ApiTransaction
                     { id = id (x :: ApiTransaction ('Testnet 0))
                     , amount = amount (x :: ApiTransaction ('Testnet 0))
+                    , fee = fee (x :: ApiTransaction ('Testnet 0))
+                    , deposit = deposit (x :: ApiTransaction ('Testnet 0))
                     , insertedAt = insertedAt (x :: ApiTransaction ('Testnet 0))
                     , pendingSince = pendingSince (x :: ApiTransaction ('Testnet 0))
                     , expiresAt = expiresAt (x :: ApiTransaction ('Testnet 0))
@@ -880,7 +882,6 @@ spec = parallel $ do
                     , status = status (x :: ApiTransaction ('Testnet 0))
                     , withdrawals = withdrawals (x :: ApiTransaction ('Testnet 0))
                     , metadata = metadata (x :: ApiTransaction ('Testnet 0))
-                    , deposits = deposits (x :: ApiTransaction ('Testnet 0))
                     }
             in
                 x' === x .&&. show x' === show x
@@ -1638,6 +1639,8 @@ instance Arbitrary (ApiTransaction t) where
         ApiTransaction
             <$> arbitrary
             <*> arbitrary
+            <*> arbitrary
+            <*> arbitrary
             <*> pure txInsertedAt
             <*> pure txPendingSince
             <*> pure txExpiresAt
@@ -1648,15 +1651,12 @@ instance Arbitrary (ApiTransaction t) where
             <*> genWithdrawals
             <*> pure txStatus
             <*> arbitrary
-            <*> genDeposits
       where
         genInputs =
             Test.QuickCheck.scale (`mod` 3) arbitrary
         genOutputs =
             Test.QuickCheck.scale (`mod` 3) arbitrary
         genWithdrawals =
-            Test.QuickCheck.scale (`mod` 3) arbitrary
-        genDeposits =
             Test.QuickCheck.scale (`mod` 3) arbitrary
 
 instance Arbitrary (ApiWithdrawal (t :: NetworkDiscriminant)) where
