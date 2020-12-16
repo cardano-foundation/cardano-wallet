@@ -24,6 +24,7 @@ import Cardano.Wallet.Api.Types
     , ApiAddress
     , ApiByronWallet
     , ApiFee (..)
+    , ApiPutAddressesData
     , ApiT (..)
     , ApiTransaction
     , ApiTxId (..)
@@ -37,6 +38,8 @@ import Cardano.Wallet.Api.Types
     )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( PaymentAddress )
+import Cardano.Wallet.Primitive.AddressDerivation.Byron
+    ( ByronKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
 import Cardano.Wallet.Primitive.Types
@@ -104,6 +107,7 @@ import Test.Integration.Framework.DSL
     , defaultTxTTL
     , emptyByronWalletWith
     , emptyRandomWallet
+    , emptyRandomWalletMws
     , emptyWallet
     , eventually
     , expectErrorMessage
@@ -129,6 +133,7 @@ import Test.Integration.Framework.DSL
     , minUTxOValue
     , oneSecond
     , postWallet
+    , randomAddresses
     , request
     , rewardWallet
     , toQueryString
@@ -185,6 +190,7 @@ spec :: forall n.
     ( DecodeAddress n
     , DecodeStakeAddress n
     , EncodeAddress n
+    , PaymentAddress n ByronKey
     , PaymentAddress n IcarusKey
     ) => SpecWith Context
 spec = describe "SHELLEY_TRANSACTIONS" $ do
@@ -620,45 +626,96 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 (`shouldBe` Quantity (faucetAmt - feeEstMax - amt)) ra2
 
     describe "TRANS_CREATE_10 - Single Output Transaction with non-Shelley witnesses" $
-        it "Byron wallet - 250k address" $ \ctx -> runResourceT $ do
+        it "Byron wallet - 150k addresses" $ \ctx -> runResourceT $ do
 
-        (wByron, wByron') <- (,) <$> fixtureRandomWallet ctx <*> emptyRandomWallet ctx
+        wByron <- fixtureRandomWallet ctx
+        (wByron', mw) <- emptyRandomWalletMws ctx
+        wShelley <- fixtureWallet ctx
 
-        timeIt $ forM_ [0::Int .. 10000]  $ \ix -> do
-            let ix' = 2147483648 + ix
-            let payload = Json [json|
-                    { "passphrase": #{fixturePassphrase}
-                    , "address_index": #{ix'}
+        let addrNum = 150000
+        let addrs = map (\num -> encodeAddress @n $ randomAddresses @n mw !! num)
+                    [1 .. addrNum]
+        let ep = Link.putRandomAddresses wByron'
+        let payload =
+                Json [json|
+                    { addresses: #{addrs}
                     }|]
-            r <- request @(ApiAddress n) ctx (Link.postRandomAddress wByron') Default payload
-            verify r
-                [ expectResponseCode HTTP.status201
+        -- 1. Importing Unused random addresses
+        timeIt $ do
+            r0 <- request @(ApiPutAddressesData n) ctx ep Default payload
+            verify r0
+                [ expectResponseCode HTTP.status204
                 ]
 
-        r1 <- request @[ApiAddress n] ctx (Link.listAddresses @'Byron wByron') Default Empty
-        verify r1 [ expectResponseCode HTTP.status200 ]
-        let byronAddr = head $ getFromResponse Prelude.id r1
+        -- 2. Get of one just imported Unused random address
+        byronAddr <- timeIt $ do
+            r1 <- request @[ApiAddress n] ctx (Link.listAddresses @'Byron wByron') Default Empty
+            verify r1
+                [ expectResponseCode HTTP.status200
+                , expectListSize addrNum ]
+            return$ head $ getFromResponse Prelude.id r1
 
         let amt = minUTxOValue :: Natural
         let destination = byronAddr ^. #id
-        let payload1 = Json [json|{
+        let payload2 = Json [json|{
                 "payments": [{
                     "address": #{destination},
+                    "amount": {
+                        "quantity": #{10*amt},
+                        "unit": "lovelace"
+                    }
+                }],
+                "passphrase": #{fixturePassphrase}
+            }|]
+
+        -- 3. Send money to this address
+        timeIt $ do
+                r1 <- request @(ApiTransaction n) ctx (Link.createTransaction @'Byron wByron) Default payload2
+                expectResponseCode HTTP.status202 r1
+        eventually "wByron' balance is as expected" $ do
+            ra <- request @ApiByronWallet ctx
+                (Link.getWallet @'Byron wByron') Default Empty
+            expectField
+                (#balance . #available)
+                (`shouldBe` Quantity (10*amt)) ra
+
+        -- 4. Estimate tx fee using byron wallet
+        addrsShelley <- listAddresses @n ctx wShelley
+        let destinationShelley = (addrsShelley !! 1) ^. #id
+        let payloadEst = Json [json|{
+                "payments": [{
+                    "address": #{destinationShelley},
                     "amount": {
                         "quantity": #{amt},
                         "unit": "lovelace"
                     }
                 }]
             }|]
+        timeIt $ do
+            rFeeEst <- request @ApiFee ctx
+                (Link.getTransactionFee @'Byron wByron') Default payloadEst
+            verify rFeeEst
+                [ expectSuccess
+                , expectResponseCode HTTP.status202
+                ]
 
-        rFeeEst <- request @ApiFee ctx
-            (Link.getTransactionFee @'Byron wByron) Default payload1
-        verify rFeeEst
-            [ expectSuccess
-            , expectResponseCode HTTP.status202
-            ]
-        --let (Quantity feeEstMin) = getFromResponse #estimatedMin rFeeEst
-        --let (Quantity feeEstMax) = getFromResponse #estimatedMax rFeeEst
+       -- 5. Submit tx fee using byron wallet
+        timeIt $ do
+            r2 <- postTx ctx
+                (wByron', Link.createTransaction @'Byron, fixturePassphrase)
+                wShelley
+                amt
+            verify r2
+                [ expectSuccess
+                , expectResponseCode HTTP.status202
+                ]
+
+        eventually "wShelley balance is as expected" $ do
+            r' <- request @ApiWallet ctx
+                (Link.getWallet @'Shelley wShelley) Default Empty
+            expectField
+                (#balance . #getApiT . #available)
+                (`shouldBe` Quantity (faucetAmt + amt)) r'
 
     let absSlotB = view (#absoluteSlotNumber . #getApiT)
     let absSlotS = view (#absoluteSlotNumber . #getApiT)
