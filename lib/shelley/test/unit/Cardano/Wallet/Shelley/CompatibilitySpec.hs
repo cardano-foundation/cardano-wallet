@@ -17,6 +17,8 @@ import Prelude
 
 import Cardano.Address.Derivation
     ( XPrv, XPub )
+import Cardano.Address.Script
+    ( Script (..), ScriptHash (..), keyHashFromBytes, toScriptHash )
 import Cardano.Crypto.Hash.Class
     ( digest )
 import Cardano.Ledger.Crypto
@@ -71,6 +73,8 @@ import Cardano.Wallet.Unsafe
     ( unsafeMkEntropy )
 import Codec.Binary.Bech32.TH
     ( humanReadablePart )
+import Codec.Binary.Encoding
+    ( fromBase16 )
 import Control.Monad
     ( forM_ )
 import Data.ByteArray.Encoding
@@ -99,6 +103,8 @@ import Ouroboros.Network.Block
     ( BlockNo (..), Point, SlotNo (..), Tip (..), getTipPoint )
 import Test.Hspec
     ( Spec, describe, it, shouldBe, shouldSatisfy )
+import Test.Hspec.Core.Spec
+    ( SpecM )
 import Test.Hspec.QuickCheck
     ( prop )
 import Test.QuickCheck
@@ -117,6 +123,7 @@ import Test.QuickCheck
     , (===)
     )
 
+import qualified Cardano.Api.Typed as Cardano
 import qualified Cardano.Ledger.Shelley as SL
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Byron as Byron
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Shelley
@@ -308,6 +315,42 @@ spec = do
 
         forM_ matrix $ \(title, addr, predicate) ->
             it title $ inspectAddress addr `shouldSatisfy` predicate
+
+    describe "Script hashes for diffent versions" $ do
+        testScripts Cardano.SimpleScriptV1
+        testScripts Cardano.SimpleScriptV2
+
+testScripts
+    :: forall lang . Cardano.SimpleScriptVersion lang
+    -> SpecM () ()
+testScripts version = do
+    let hashKeyTxt1 = "deeae4e895d8d57378125ed4fd540f9bf245d59f7936a504379cfc1e"
+
+    let toKeyHash txt = case fromBase16 (T.encodeUtf8 txt) of
+            Right bs -> case keyHashFromBytes bs of
+                Just kh -> kh
+                Nothing -> error "Hash key not valid"
+            Left _ -> error "Hash key not valid"
+
+    let toPaymentHash txt =
+            case Cardano.deserialiseFromRawBytesHex (Cardano.AsHash Cardano.AsPaymentKey) (T.encodeUtf8 txt) of
+                Just payKeyHash -> payKeyHash
+                Nothing -> error "Hash key not valid"
+
+    let toSimpleScript = Cardano.SimpleScript version
+
+    let matrix =
+            [ ( show version <> " RequireSignatureOf"
+              , RequireSignatureOf (toKeyHash hashKeyTxt1)
+              , toSimpleScript $
+                  Cardano.RequireSignature (toPaymentHash hashKeyTxt1)
+              )
+            ]
+
+    forM_ matrix $ \(title, adrestiaScript, nodeScript) ->
+        it title $ do
+        (unScriptHash $ toScriptHash adrestiaScript) `shouldBe`
+            (Cardano.serialiseToRawBytes $ Cardano.hashScript nodeScript)
 
 instance Arbitrary (Hash "Genesis") where
     arbitrary = Hash . BS.pack <$> vector 32
