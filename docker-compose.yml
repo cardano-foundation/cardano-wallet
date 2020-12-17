@@ -2,7 +2,7 @@ version: "3.5"
 
 services:
   cardano-node:
-    image: inputoutput/cardano-node:1.18.0
+    image: inputoutput/cardano-node:1.24.2
     environment:
       NETWORK:
     volumes:
@@ -18,7 +18,7 @@ services:
         max-size: "50m"
 
   cardano-wallet:
-    image: inputoutput/cardano-wallet:latest
+    image: inputoutput/cardano-wallet:2020.12.8-shelley
     volumes:
       - wallet-${NETWORK}-db:/wallet-db
       - node-ipc:/ipc
