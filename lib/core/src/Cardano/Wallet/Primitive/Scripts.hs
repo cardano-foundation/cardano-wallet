@@ -28,7 +28,7 @@ module Cardano.Wallet.Primitive.Scripts
 import Prelude
 
 import Cardano.Address.Script
-    ( KeyHash (..), Script (..), ScriptHash (..), foldScript, toScriptHash )
+    ( KeyHash (..), Script (..), foldScript, toScriptHash )
 import Cardano.Crypto.Wallet
     ( XPub )
 import Cardano.Wallet.Primitive.AddressDerivation

@@ -302,6 +302,7 @@ import Test.QuickCheck
     , arbitraryBoundedEnum
     , arbitraryPrintableChar
     , arbitrarySizedBoundedIntegral
+    , arbitrarySizedNatural
     , choose
     , counterexample
     , elements
@@ -1067,7 +1068,10 @@ instance Arbitrary ApiEpochInfo where
 instance Arbitrary Script where
     arbitrary = Test.QuickCheck.scale (`div` 3) $ sized scriptTree
       where
-        scriptTree 0 = RequireSignatureOf <$> arbitrary
+        scriptTree 0 = oneof
+            [ RequireSignatureOf <$> arbitrary
+            , ValidFromSlot <$> arbitrary
+            , ValidFromSlot <$> arbitrary ]
         scriptTree n = do
             Positive m <- arbitrary
             let n' = n `div` (m + 1)
@@ -1810,6 +1814,10 @@ instance Arbitrary ApiAccountKey where
         pubKey <- BS.pack <$> replicateM 32 arbitrary
         oneof [ pure $ ApiAccountKey pubKey False
               , pure $ ApiAccountKey xpubKey True ]
+
+instance Arbitrary Natural where
+    shrink = shrinkIntegral
+    arbitrary = arbitrarySizedNatural
 
 {-------------------------------------------------------------------------------
                    Specification / Servant-Swagger Machinery
