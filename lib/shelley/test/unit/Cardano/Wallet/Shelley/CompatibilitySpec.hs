@@ -325,25 +325,100 @@ testScripts
     -> SpecM () ()
 testScripts version = do
     let hashKeyTxt1 = "deeae4e895d8d57378125ed4fd540f9bf245d59f7936a504379cfc1e"
+    let hashKeyTxt2 = "60a3bf69aa748f9934b64357d9f1ca202f1a768aaf57263aedca8d5f"
+    let hashKeyTxt3 = "ffcbb72393215007d9a0aa02b7430080409cd8c053fd4f5b4d905053"
+    let hashKeyTxt4 = "96834025cdca063ce9c32dfae6bc6a3e47f8da07ee4fb8e1a3901559"
 
     let toKeyHash txt = case fromBase16 (T.encodeUtf8 txt) of
             Right bs -> case keyHashFromBytes bs of
-                Just kh -> kh
+                Just kh -> RequireSignatureOf kh
                 Nothing -> error "Hash key not valid"
             Left _ -> error "Hash key not valid"
 
     let toPaymentHash txt =
             case Cardano.deserialiseFromRawBytesHex (Cardano.AsHash Cardano.AsPaymentKey) (T.encodeUtf8 txt) of
-                Just payKeyHash -> payKeyHash
+                Just payKeyHash -> Cardano.RequireSignature payKeyHash
                 Nothing -> error "Hash key not valid"
 
     let toSimpleScript = Cardano.SimpleScript version
 
     let matrix =
             [ ( show version <> " RequireSignatureOf"
-              , RequireSignatureOf (toKeyHash hashKeyTxt1)
+              , toKeyHash hashKeyTxt1
+              , toSimpleScript $ toPaymentHash hashKeyTxt1
+              )
+            , ( show version <> " RequireSignatureOf"
+              , toKeyHash hashKeyTxt2
+              , toSimpleScript $ toPaymentHash hashKeyTxt2
+              )
+            , ( show version <> " RequireSignatureOf"
+              , toKeyHash hashKeyTxt3
+              , toSimpleScript $ toPaymentHash hashKeyTxt3
+              )
+            , ( show version <> " RequireSignatureOf"
+              , toKeyHash hashKeyTxt4
+              , toSimpleScript $ toPaymentHash hashKeyTxt4
+              )
+            , ( show version <> " RequireAllOf"
+              , RequireAllOf [toKeyHash hashKeyTxt1, toKeyHash hashKeyTxt2]
               , toSimpleScript $
-                  Cardano.RequireSignature (toPaymentHash hashKeyTxt1)
+                  Cardano.RequireAllOf [toPaymentHash hashKeyTxt1, toPaymentHash hashKeyTxt2]
+              )
+            , ( show version <> " RequireAllOf"
+              , RequireAllOf [toKeyHash hashKeyTxt1, toKeyHash hashKeyTxt2, toKeyHash hashKeyTxt3]
+              , toSimpleScript $
+                  Cardano.RequireAllOf [toPaymentHash hashKeyTxt1, toPaymentHash hashKeyTxt2, toPaymentHash hashKeyTxt3]
+              )
+            , ( show version <> " RequireAnyOf"
+              , RequireAnyOf [toKeyHash hashKeyTxt1, toKeyHash hashKeyTxt2]
+              , toSimpleScript $
+                  Cardano.RequireAnyOf [toPaymentHash hashKeyTxt1, toPaymentHash hashKeyTxt2]
+              )
+            , ( show version <> " RequireAnyOf"
+              , RequireAnyOf [toKeyHash hashKeyTxt1, toKeyHash hashKeyTxt2, toKeyHash hashKeyTxt3]
+              , toSimpleScript $
+                  Cardano.RequireAnyOf [toPaymentHash hashKeyTxt1, toPaymentHash hashKeyTxt2, toPaymentHash hashKeyTxt3]
+              )
+            , ( show version <> " RequireSomeOf"
+              , RequireSomeOf 2 [toKeyHash hashKeyTxt1, toKeyHash hashKeyTxt2, toKeyHash hashKeyTxt3]
+              , toSimpleScript $
+                  Cardano.RequireMOf 2 [toPaymentHash hashKeyTxt1, toPaymentHash hashKeyTxt2, toPaymentHash hashKeyTxt3]
+              )
+            , ( show version <> " RequireSomeOf"
+              , RequireSomeOf 2 [toKeyHash hashKeyTxt1, toKeyHash hashKeyTxt2, toKeyHash hashKeyTxt3, toKeyHash hashKeyTxt4]
+              , toSimpleScript $
+                  Cardano.RequireMOf 2 [toPaymentHash hashKeyTxt1, toPaymentHash hashKeyTxt2, toPaymentHash hashKeyTxt3, toPaymentHash hashKeyTxt4]
+              )
+            , ( show version <> " nested 1"
+              , RequireSomeOf 2 [ toKeyHash hashKeyTxt1, toKeyHash hashKeyTxt2
+                                , RequireAllOf [toKeyHash hashKeyTxt3, toKeyHash hashKeyTxt4]
+                                ]
+              , toSimpleScript $
+                  Cardano.RequireMOf 2 [ toPaymentHash hashKeyTxt1, toPaymentHash hashKeyTxt2
+                                       , Cardano.RequireAllOf [toPaymentHash hashKeyTxt3, toPaymentHash hashKeyTxt4]
+                                       ]
+              )
+            , ( show version <> " nested 2"
+              , RequireAllOf [ toKeyHash hashKeyTxt1
+                             , RequireAnyOf [toKeyHash hashKeyTxt2, toKeyHash hashKeyTxt3, toKeyHash hashKeyTxt4]
+                             ]
+              , toSimpleScript $
+                  Cardano.RequireAllOf [ toPaymentHash hashKeyTxt1
+                                       , Cardano.RequireAnyOf [toPaymentHash hashKeyTxt2, toPaymentHash hashKeyTxt3, toPaymentHash hashKeyTxt4]
+                                       ]
+              )
+            , ( show version <> " nested 3"
+              , RequireSomeOf 1 [ toKeyHash hashKeyTxt1
+                                , RequireAllOf [ toKeyHash hashKeyTxt2
+                                               , RequireAnyOf [toKeyHash hashKeyTxt3, toKeyHash hashKeyTxt4 ]
+                                               ]
+                                ]
+              , toSimpleScript $
+                  Cardano.RequireMOf 1 [ toPaymentHash hashKeyTxt1
+                                       , Cardano.RequireAllOf [ toPaymentHash hashKeyTxt2
+                                                              , Cardano.RequireAnyOf [toPaymentHash hashKeyTxt3, toPaymentHash hashKeyTxt4]
+                                                              ]
+                                       ]
               )
             ]
 
