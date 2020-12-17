@@ -108,7 +108,7 @@ TxMeta
     txMetaSlot              SlotNo              sql=slot
     txMetaBlockHeight       Word32              sql=block_height
     txMetaAmount            Natural             sql=amount
-    txMetaData              W.TxMetadata Maybe  sql=data
+    txMetadata              W.TxMetadata Maybe  sql=data
     txMetaSlotExpires       SlotNo Maybe        sql=slot_expires
     txMetaFee               Natural Maybe       sql=fee
 

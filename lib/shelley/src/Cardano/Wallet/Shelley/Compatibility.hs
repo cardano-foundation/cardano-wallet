@@ -935,9 +935,9 @@ fromShelleyWdrl (SL.Wdrl wdrl) = Map.fromList $
     bimap (fromStakeCredential . SL.getRwdCred) fromShelleyCoin
         <$> Map.toList wdrl
 
-fromShelleyMD :: SL.MetaData -> Cardano.TxMetadata
-fromShelleyMD (SL.MetaData m) =
-    Cardano.makeTransactionMetadata . fromShelleyMetaData $ m
+fromShelleyMD :: SL.Metadata -> Cardano.TxMetadata
+fromShelleyMD (SL.Metadata m) =
+    Cardano.makeTransactionMetadata . fromShelleyMetadata $ m
 
 -- Convert & filter Shelley certificate into delegation certificate. Returns
 -- 'Nothing' if certificates aren't delegation certificate.
@@ -972,7 +972,7 @@ fromShelleyRegistrationCert = \case
             , W.poolMargin = fromUnitInterval (SL._poolMargin pp)
             , W.poolCost = lovelaceFromCoin (SL._poolCost pp)
             , W.poolPledge = lovelaceFromCoin (SL._poolPledge pp)
-            , W.poolMetadata = fromPoolMetaData <$> strictMaybeToMaybe (SL._poolMD pp)
+            , W.poolMetadata = fromPoolMetadata <$> strictMaybeToMaybe (SL._poolMD pp)
             }
         )
 
@@ -994,8 +994,8 @@ toWalletCoin = W.Coin . unsafeCoinToWord64
 unsafeCoinToWord64 :: SL.Coin -> Word64
 unsafeCoinToWord64 (SL.Coin c) = fromIntegral c
 
-fromPoolMetaData :: SL.PoolMetaData -> (W.StakePoolMetadataUrl, W.StakePoolMetadataHash)
-fromPoolMetaData meta =
+fromPoolMetadata :: SL.PoolMetadata -> (W.StakePoolMetadataUrl, W.StakePoolMetadataHash)
+fromPoolMetadata meta =
     ( W.StakePoolMetadataUrl (urlToText (SL._poolMDUrl meta))
     , W.StakePoolMetadataHash (SL._poolMDHash meta)
     )
