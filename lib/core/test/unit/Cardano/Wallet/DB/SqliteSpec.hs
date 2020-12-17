@@ -5,6 +5,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
@@ -149,6 +150,7 @@ import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..)
+    , TransactionInfo (..)
     , Tx (..)
     , TxIn (..)
     , TxMeta (TxMeta, amount, direction)
@@ -174,14 +176,18 @@ import Data.Function
     ( (&) )
 import Data.Functor
     ( ($>) )
+import Data.Generics.Internal.VL.Lens
+    ( (^.) )
+import Data.Generics.Labels
+    ()
 import Data.Maybe
-    ( fromMaybe, mapMaybe )
+    ( fromMaybe, isJust, isNothing, mapMaybe )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text
     ( Text )
 import Data.Text.Class
-    ( fromText )
+    ( fromText, toText )
 import Data.Time.Clock
     ( getCurrentTime )
 import Data.Time.Clock.POSIX
@@ -220,6 +226,7 @@ import Test.Hspec
     , shouldNotBe
     , shouldNotContain
     , shouldReturn
+    , shouldSatisfy
     , shouldThrow
     , xit
     )
@@ -311,6 +318,104 @@ spec = parallel $ do
                 (LinearFee (Quantity 155381.0)  (Quantity 44.0))
                 (Coin 2000000)
 
+        it "'migrate' db to add fees to transactions" $
+            testMigrationTxMetaFee @ShelleyKey
+                "metaFee-v2020-11-26.sqlite"
+                129 -- number of transactions
+
+                -- This one (chosen for its stake key registration) has:
+                --
+                -- - one input of 1000000000
+                -- - one output of 997825743.
+                --
+                -- which gives a delta of 2174257, which means
+                --
+                -- - 2000000 of key deposit
+                -- -  174257 of fee
+                --
+                [ ( Hash $ unsafeFromHex "00058d433a73574a64d0b4a3c37f1e460697fa8f1e3265a51e95eb9e9573b5ab"
+                  , Coin 174257
+                  )
+
+                -- This one (chosen because of its very round fee) has:
+                --
+                -- - two inputs of 1000000 each
+                -- - one output of 1000000
+                --
+                -- which gives a delta (and fee) of 1000000
+
+                , ( Hash $ unsafeFromHex "8f79e7f79ddeb7a7494121259832c0180c1b6bb746d8b2337cd1f4fb5b0d8216"
+                  , Coin 1000000
+                  )
+
+                -- This one (chosen for its withdrawal) has:
+                --
+                -- - one input of 909199523
+                -- - one withdrawal of 863644
+                -- - two outputs of 1000000 and 908888778
+                --
+                -- which gives a delta (and fee) of 174389
+
+                , ( Hash $ unsafeFromHex "eefa06dfa8ce91237117f9b4bdc4f6970c31de54906313b545dafb7ca6235171"
+                  , Coin 174389
+                  )
+
+                -- This one (chosen for its high fee) has:
+                --
+                -- - one input of 997825743
+                -- - two outputs of 1000000 and 995950742
+                --
+                -- which gives a delta (and fee) of 875001
+                , ( Hash $ unsafeFromHex "8943f9fa4b56b32cd44ab9c22d46693882f0bbca1bc3f0705124e75c2e40b9c2"
+                  , Coin 875001
+                  )
+
+                -- This one (chosen for having many inputs and many outputs) has:
+                --
+                -- - 10 inputs:
+                --     - 1654330
+                --     - 2111100
+                --     - 2234456
+                --     - 9543345
+                --     - 1826766
+                --     - 8871831
+                --     - 3823766
+                --     - 6887025
+                --     - 1958037
+                --     - 3575522
+                --
+                -- - 10 outputs:
+                --      - 4000000
+                --      - 7574304
+                --      - 9000000
+                --      - 1000000
+                --      - 1164635
+                --      - 6752132
+                --      - 1000000
+                --      - 8596880
+                --      - 2000000
+                --      - 1707865
+                --
+                -- - 1 withdrawal:
+                --      - 565251
+                --
+                -- which gives a delta (and fee) of 255613
+                , ( Hash $ unsafeFromHex "99907bf6ac73f6fe6fe25bd6b68bae6776425b9d15a7c46c7a49b85b8b03f291"
+                  , Coin 255613
+                  )
+
+                -- This one (chosen for its high ratio input:output) has:
+                --
+                -- - 1 input of 1000000000
+                -- - 33 relatively small outputs
+                -- - 1 withdrawal of 561120
+                --
+                -- which gives a delta (and fee) of 267537
+                , ( Hash $ unsafeFromHex "15940a7c1df8696279282046ebdb1ee890d4e9ac3c5d7213f360921648b36666"
+                  , Coin 267537
+                  )
+                ]
+
 sqliteSpecSeq :: Spec
 sqliteSpecSeq = do
     validateGenerators @(SeqState 'Mainnet ShelleyKey)
@@ -327,6 +432,62 @@ sqliteSpecRnd = do
         parallel $ describe "Sqlite State machine (RndState)" $ do
             it "Sequential state machine tests"
                 (prop_sequential :: TestDBRnd -> Property)
+
+testMigrationTxMetaFee
+    :: forall k s.
+        ( s ~ SeqState 'Mainnet k
+        , k ~ ShelleyKey
+        , WalletKey k
+        , PersistState s
+        , PersistPrivateKey (k 'RootK)
+        , PaymentAddress 'Mainnet k
+        )
+    => String
+    -> Int
+    -> [(Hash "Tx", Coin)]
+    -> IO ()
+testMigrationTxMetaFee dbName expectedLength caseByCase = do
+    let orig = $(getTestData) </> dbName
+    withSystemTempDirectory "migration-db" $ \dir -> do
+        let path = dir </> "db.sqlite"
+        let ti = dummyTimeInterpreter
+        copyFile orig path
+        (logs, result) <- captureLogging $ \tr -> do
+            withDBLayer @s @k tr defaultFieldValues (Just path) ti
+                $ \(_ctx, db) -> db & \DBLayer{..} -> atomically
+                $ do
+                    [wid] <- listWallets
+                    readTxHistory wid Nothing Descending wholeRange Nothing
+
+        -- Check that we've indeed logged a needed migration for 'fee'
+        length (filter isMsgManualMigration logs) `shouldBe` 1
+
+        -- Check that the migrated history has the correct length.
+        length result `shouldBe` expectedLength
+
+        -- Verify that all incoming transactions have no fees set, and that all
+        -- outgoing ones do.
+        forM_ result $ \TransactionInfo{txInfoFee,txInfoMeta} -> do
+            case txInfoMeta ^. #direction of
+                Incoming -> txInfoFee `shouldSatisfy` isNothing
+                Outgoing -> txInfoFee `shouldSatisfy` isJust
+
+        -- Also verify a few hand-picked transactions
+        forM_ caseByCase $ \(txid, expectedFee) -> do
+            case L.find ((== txid) . txInfoId) result of
+                Nothing ->
+                    fail $ "tx not found: " <> T.unpack (toText txid)
+                Just TransactionInfo{txInfoFee} ->
+                    txInfoFee `shouldBe` Just expectedFee
+  where
+    isMsgManualMigration :: DBLog -> Bool
+    isMsgManualMigration = \case
+        MsgManualMigrationNeeded field _ ->
+            fieldName field == unDBName fieldInDb
+        _ ->
+            False
+      where
+        fieldInDb = fieldDB $ persistFieldDef DB.TxMetaFee
 
 testMigrationCleanupCheckpoints
     :: forall k s.
@@ -994,9 +1155,9 @@ defaultFieldValues :: DefaultFieldValues
 defaultFieldValues = DefaultFieldValues
     { defaultActiveSlotCoefficient = ActiveSlotCoefficient 1.0
     , defaultDesiredNumberOfPool = 0
-    , defaultMinimumUTxOValue = Coin 0
+    , defaultMinimumUTxOValue = Coin 1_000_000
     , defaultHardforkEpoch = Nothing
-    , defaultKeyDeposit = Coin 0
+    , defaultKeyDeposit = Coin 2_000_000
     }
 
 newDBLayer'

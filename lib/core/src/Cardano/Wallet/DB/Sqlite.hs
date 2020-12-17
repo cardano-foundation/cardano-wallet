@@ -124,7 +124,7 @@ import Cardano.Wallet.Primitive.Slotting
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId (..) )
 import Control.Monad
-    ( forM, unless, void, when )
+    ( forM, forM_, unless, void, when )
 import Control.Monad.Extra
     ( concatMapM )
 import Control.Monad.IO.Class
@@ -141,6 +141,8 @@ import Data.Coerce
     ( coerce )
 import Data.Either
     ( isRight )
+import Data.Functor
+    ( (<&>) )
 import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
 import Data.IORef
@@ -400,6 +402,8 @@ migrateManually tr proxy defaultFieldValues =
         addScriptAddressGapIfMissing conn
 
         updateFeeValueAndAddKeyDeposit conn
+
+        addFeeToTransaction conn
   where
     -- NOTE
     -- We originally stored protocol parameters in the 'Checkpoint' table, and
@@ -714,28 +718,121 @@ migrateManually tr proxy defaultFieldValues =
      where
         value = T.pack $ show $ Seq.getAddressPoolGap Seq.defaultAddressPoolGap
 
---    addFeeToTransaction :: Sqlite.Connection -> IO ()
---    addFeeToTransaction conn = do
---        isFieldPresent conn fieldFee >>= \case
---            ColumnMissing -> do
---                addColumn_ conn True fieldFee "0"
---                rows <- runSql conn $ mconcat
---                    [ "SELECT tx_id, totalIn + totalWdrl - totalOut FROM tx"
---                    , " JOIN (SELECT tx_id, SUM(amount) AS totalIn   FROM tx_in  GROUP_BY tx_id)"
---                    , " JOIN (SELECT tx_id, SUM(amount) AS totalOut  FROM tx_out GROUP_BY tx_id)"
---                    , " JOIN (SELECT tx_id, SUM(AMOUNT) AS totalWdrl FROM tx_withdrawal GROUP_BY tx_id)"
---                    , ";"
---                    ]
---
---                    SELECT tx.tx_id, totalIn - totalOut FROM tx
---                        JOIN (SELECT tx_id, SUM(amount) AS totalIn  FROM txin  GROUP BY tx_id) USING (tx_id)
---                        JOIN (SELECT tx_id, SUM(amount) AS totalOut FROM txout GROUP BY tx_id) USING (tx_id)
---                    ;
---
---            _ ->
---                return ()
---      where
---        fieldFee = DBField TxMetaFee
+    -- This migration is rather delicate. Indeed, we need to introduce an
+    -- explicit 'fee' on known transactions, so only do we need to add the new
+    -- column (easy), but we also need to find the right value for that new
+    -- column (delicate).
+    --
+    -- Note that it is not possible to recover explicit fees on incoming
+    -- transactions without having access to the entire ledger (we do not know
+    -- the _amount_ from inputs of incoming transactions). Therefore, by
+    -- convention it has been decided that incoming transactions will have fee
+    -- equals to 0.
+    --
+    -- For outgoing transaction, it is possible to recalculate fees by
+    -- calculating the delta between the total input value minus the total
+    -- output value. The delta (inputs - output) is necessarily positive
+    -- (by definition of 'outgoing' transactions) and comprised of:
+    --
+    -- - Fees
+    -- - Total deposits if any
+    --
+    -- To substract deposit values from fees, we consider that any transaction
+    -- that has one or less output and fees greater than the key deposit (or min
+    -- utxo value) is a key registration transaction and the key deposit value
+    -- can be substracted from the delta to deduce the fees.
+    --
+    -- Note that ideally, we would do this in a single `UPDATE ... FROM` query
+    -- but the `FROM` syntax is only supported in SQLite >= 3.33 which is only
+    -- supported in the latest version of persistent-sqlite (2.11.0.0). So
+    -- instead, we queries all transactions which require an update in memory,
+    -- and update them one by one. This may be quite long on some database but
+    -- it is in the end a one-time cost paid on start-up.
+    addFeeToTransaction :: Sqlite.Connection -> IO ()
+    addFeeToTransaction conn = do
+        isFieldPresent conn fieldFee >>= \case
+            TableMissing  ->
+                traceWith tr $ MsgManualMigrationNotNeeded fieldFee
+            ColumnPresent ->
+                traceWith tr $ MsgManualMigrationNotNeeded fieldFee
+            ColumnMissing -> do
+                traceWith tr $ MsgManualMigrationNeeded fieldFee "NULL"
+
+                rows <- fmap unwrapRows (mkQuery >>= runSql conn)
+
+                _ <- runSql conn $ T.unwords
+                    [ "ALTER TABLE", tableName fieldFee
+                    , "ADD COLUMN", fieldName fieldFee
+                    , fieldType fieldFee
+                    , ";"
+                    ]
+
+                forM_ rows $ \(txid, nOuts, delta) -> do
+                    let fee = T.pack $ show $
+                            if isKeyRegistration nOuts delta
+                            then delta - keyDepositValue
+                            else delta
+
+                    runSql conn $ T.unwords
+                        [ "UPDATE", tableName fieldFee
+                        , "SET", fieldName fieldFee, "=", quotes fee
+                        , "WHERE", fieldName fieldTxId, "=", quotes txid
+                        , ";"
+                        ]
+      where
+        fieldFee  = DBField TxMetaFee
+        fieldTxId = DBField TxMetaTxId
+
+        unwrapRows = fmap $ \[PersistText txid, PersistInt64 nOuts, PersistInt64 delta] ->
+            (txid, nOuts, delta)
+
+        isKeyRegistration nOuts delta =
+            nOuts <= 1 && delta > max keyDepositValue minUtxoValue
+
+        minUtxoValue
+            = fromIntegral
+            $ W.getCoin
+            $ defaultMinimumUTxOValue defaultFieldValues
+
+        keyDepositValue
+            = fromIntegral
+            $ W.getCoin
+            $ defaultKeyDeposit defaultFieldValues
+
+        mkQuery = isFieldPresent conn (DBField TxWithdrawalTxId) <&> \case
+            -- On rather old databases, the tx_withdrawal table doesn't even exists.
+            TableMissing -> T.unwords
+                [ "SELECT tx_id, num_out, total_in - total_out FROM tx_meta"
+                , "JOIN (" <> resolvedInputsQuery <> ") USING (tx_id)"
+                , "JOIN (" <> outputsQuery <> ") USING (tx_id)"
+                , "WHERE direction = 0"
+                , ";"
+                ]
+
+            _ -> T.unwords
+                [ "SELECT tx_id, num_out, total_in + IFNULL(total_wdrl, 0) - total_out FROM tx_meta"
+                , "JOIN (" <> resolvedInputsQuery <> ") USING (tx_id)"
+                , "LEFT JOIN (" <> withdrawalsQuery <> ") USING (tx_id)"
+                , "JOIN (" <> outputsQuery <> ") USING (tx_id)"
+                , "WHERE direction = 0"
+                , ";"
+                ]
+
+        resolvedInputsQuery = T.unwords
+            [ "SELECT tx_in.tx_id, SUM(tx_out.amount) AS total_in FROM tx_in"
+            , "JOIN tx_out ON tx_out.tx_id = tx_in.source_tx_id AND tx_out.'index' = tx_in.source_index"
+            , "GROUP BY tx_in.tx_id"
+            ]
+
+        withdrawalsQuery = T.unwords
+            [ "SELECT tx_id, SUM(amount) AS total_wdrl FROM tx_withdrawal"
+            , "GROUP BY tx_id"
+            ]
+
+        outputsQuery = T.unwords
+            [ "SELECT tx_id, SUM(amount) AS total_out, COUNT(*) AS num_out FROM tx_out"
+            , "GROUP BY tx_id"
+            ]
 
     -- | Since key deposit and fee value are intertwined, we migrate them both
     -- here.
