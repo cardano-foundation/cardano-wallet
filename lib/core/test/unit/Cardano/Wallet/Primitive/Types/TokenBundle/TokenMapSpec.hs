@@ -46,7 +46,7 @@ import Fmt
 import System.FilePath
     ( (</>) )
 import Test.Hspec
-    ( Expectation, Spec, describe, it, shouldBe )
+    ( Expectation, Spec, describe, it, parallel, shouldBe )
 import Test.Hspec.Core.QuickCheck
     ( modifyMaxSuccess )
 import Test.QuickCheck
@@ -82,7 +82,7 @@ spec =
     describe "Token map properties" $
     modifyMaxSuccess (const 1000) $ do
 
-    describe "Class instances obey laws" $ do
+    parallel $ describe "Class instances obey laws" $ do
         testLawsMany @TokenMap
             [ eqLaws
             , monoidLaws
@@ -90,7 +90,7 @@ spec =
             , semigroupMonoidLaws
             ]
 
-    describe
+    parallel $ describe
         "All operations preserve the invariant: \
         \all token quantities held within a map are non-zero" $ do
 
@@ -115,7 +115,7 @@ spec =
         it "prop_adjustQuantity_invariant" $
             property prop_adjustQuantity_invariant
 
-    describe "Construction and deconstruction" $ do
+    parallel $ describe "Construction and deconstruction" $ do
 
         it "prop_fromFlatList" $
             property prop_fromFlatList
@@ -130,7 +130,7 @@ spec =
         it "prop_toNestedList_fromNestedList" $
             property prop_toNestedList_fromNestedList
 
-    describe "Arithmetic" $ do
+    parallel $ describe "Arithmetic" $ do
 
         it "prop_add_commutative" $
             property prop_add_commutative
@@ -141,7 +141,7 @@ spec =
         it "prop_subtract_null" $
             property prop_subtract_null
 
-    describe "Quantities" $ do
+    parallel $ describe "Quantities" $ do
 
         it "prop_removeQuantity_isEmpty" $
             property prop_removeQuantity_isEmpty
@@ -154,7 +154,7 @@ spec =
         it "prop_adjustQuantity_hasQuantity" $
             property prop_adjustQuantity_hasQuantity
 
-    describe "JSON serialization" $ do
+    parallel $ describe "JSON serialization" $ do
 
         describe "Roundtrip tests" $ do
             testJson $ Proxy @(Flat TokenMap)
@@ -168,7 +168,7 @@ spec =
             it "Empty token list" $
                 testEmptyTokenList
 
-    describe "Textual serialization" $ do
+    parallel $ describe "Textual serialization" $ do
         it "Flat style" $
             property testPrettyFlat
         it "Nested style" $
