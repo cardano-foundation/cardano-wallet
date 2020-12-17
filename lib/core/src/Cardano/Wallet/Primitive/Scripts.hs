@@ -28,7 +28,7 @@ module Cardano.Wallet.Primitive.Scripts
 import Prelude
 
 import Cardano.Address.Script
-    ( KeyHash (..), Script (..), ScriptHash (..), toScriptHash )
+    ( KeyHash (..), Script (..), ScriptHash (..), foldScript, toScriptHash )
 import Cardano.Crypto.Wallet
     ( XPub )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -44,22 +44,16 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     )
 import Control.Arrow
     ( first )
-import Control.Monad
-    ( foldM )
 import Control.Monad.Trans.State.Strict
     ( runState, state )
 import Data.Function
     ( (&) )
-import Data.Functor.Identity
-    ( Identity (..) )
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
     ( catMaybes )
 
 import qualified Data.Map.Strict as Map
-
-deriving instance Ord ScriptHash
 
 isShared
     :: (k ~ ShelleyKey, SoftDerivation k)
@@ -97,13 +91,3 @@ insertIf predicate k v = if predicate v then Map.insert k v else id
 
 retrieveAllVerKeyHashes :: Script -> [KeyHash]
 retrieveAllVerKeyHashes = foldScript (:) []
-
-foldScript :: (KeyHash -> b -> b) -> b -> Script -> b
-foldScript fn zero = \case
-    RequireSignatureOf k -> fn k zero
-    RequireAllOf xs      -> foldMScripts xs
-    RequireAnyOf xs      -> foldMScripts xs
-    RequireSomeOf _ xs   -> foldMScripts xs
-  where
-    foldMScripts =
-        runIdentity . foldM (\acc -> Identity . foldScript fn acc) zero

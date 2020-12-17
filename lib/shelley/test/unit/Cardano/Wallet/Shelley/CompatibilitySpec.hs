@@ -104,7 +104,7 @@ import Ouroboros.Network.Block
 import Test.Hspec
     ( Spec, describe, it, shouldBe, shouldSatisfy )
 import Test.Hspec.Core.Spec
-    ( SpecM )
+    ( SpecM, SpecWith )
 import Test.Hspec.QuickCheck
     ( prop )
 import Test.QuickCheck
@@ -317,28 +317,40 @@ spec = do
             it title $ inspectAddress addr `shouldSatisfy` predicate
 
     describe "Script hashes for diffent versions" $ do
-        testScripts Cardano.SimpleScriptV1
-        testScripts Cardano.SimpleScriptV2
+        testScriptsAllLangs Cardano.SimpleScriptV1
+        testScriptsAllLangs Cardano.SimpleScriptV2
+        testScriptsTimelockLang
 
-testScripts
+toKeyHash :: Text -> Script
+toKeyHash txt = case fromBase16 (T.encodeUtf8 txt) of
+    Right bs -> case keyHashFromBytes bs of
+        Just kh -> RequireSignatureOf kh
+        Nothing -> error "Hash key not valid"
+    Left _ -> error "Hash key not valid"
+
+toPaymentHash :: Text -> Cardano.SimpleScript lang
+toPaymentHash txt =
+    case Cardano.deserialiseFromRawBytesHex (Cardano.AsHash Cardano.AsPaymentKey) (T.encodeUtf8 txt) of
+        Just payKeyHash -> Cardano.RequireSignature payKeyHash
+        Nothing -> error "Hash key not valid"
+
+checkScriptHashes
+    :: String
+    -> Script
+    -> Cardano.Script lang
+    -> SpecWith ()
+checkScriptHashes title adrestiaScript nodeScript = it title $
+    (unScriptHash $ toScriptHash adrestiaScript) `shouldBe`
+    (Cardano.serialiseToRawBytes $ Cardano.hashScript nodeScript)
+
+testScriptsAllLangs
     :: forall lang . Cardano.SimpleScriptVersion lang
     -> SpecM () ()
-testScripts version = do
+testScriptsAllLangs version = do
     let hashKeyTxt1 = "deeae4e895d8d57378125ed4fd540f9bf245d59f7936a504379cfc1e"
     let hashKeyTxt2 = "60a3bf69aa748f9934b64357d9f1ca202f1a768aaf57263aedca8d5f"
     let hashKeyTxt3 = "ffcbb72393215007d9a0aa02b7430080409cd8c053fd4f5b4d905053"
     let hashKeyTxt4 = "96834025cdca063ce9c32dfae6bc6a3e47f8da07ee4fb8e1a3901559"
-
-    let toKeyHash txt = case fromBase16 (T.encodeUtf8 txt) of
-            Right bs -> case keyHashFromBytes bs of
-                Just kh -> RequireSignatureOf kh
-                Nothing -> error "Hash key not valid"
-            Left _ -> error "Hash key not valid"
-
-    let toPaymentHash txt =
-            case Cardano.deserialiseFromRawBytesHex (Cardano.AsHash Cardano.AsPaymentKey) (T.encodeUtf8 txt) of
-                Just payKeyHash -> Cardano.RequireSignature payKeyHash
-                Nothing -> error "Hash key not valid"
 
     let toSimpleScript = Cardano.SimpleScript version
 
@@ -423,9 +435,39 @@ testScripts version = do
             ]
 
     forM_ matrix $ \(title, adrestiaScript, nodeScript) ->
-        it title $ do
-        (unScriptHash $ toScriptHash adrestiaScript) `shouldBe`
-            (Cardano.serialiseToRawBytes $ Cardano.hashScript nodeScript)
+        checkScriptHashes title adrestiaScript nodeScript
+
+testScriptsTimelockLang :: SpecM () ()
+testScriptsTimelockLang = do
+    let hashKeyTxt1 = "deeae4e895d8d57378125ed4fd540f9bf245d59f7936a504379cfc1e"
+    let hashKeyTxt2 = "60a3bf69aa748f9934b64357d9f1ca202f1a768aaf57263aedca8d5f"
+
+    let toSimpleScript = Cardano.SimpleScript Cardano.SimpleScriptV2
+
+    let matrix =
+            [ ( "SimpleScriptV2 StartSlot"
+              , RequireAllOf [toKeyHash hashKeyTxt1, StartSlot 120]
+              , toSimpleScript $
+                  Cardano.RequireAllOf [toPaymentHash hashKeyTxt1, Cardano.RequireTimeAfter Cardano.TimeLocksInSimpleScriptV2 (SlotNo 120)]
+              )
+            , ( "SimpleScriptV2 ExpireSlot"
+              , RequireAllOf [toKeyHash hashKeyTxt1, ExpireSlot 120]
+              , toSimpleScript $
+                  Cardano.RequireAllOf [toPaymentHash hashKeyTxt1, Cardano.RequireTimeBefore Cardano.TimeLocksInSimpleScriptV2 (SlotNo 120)]
+              )
+            , ( "SimpleScriptV2 ExpireSlot and StartSlot"
+              , RequireAllOf [StartSlot 120, ExpireSlot 150, RequireAnyOf [toKeyHash hashKeyTxt1, toKeyHash hashKeyTxt2]]
+              , toSimpleScript $
+                  Cardano.RequireAllOf
+                  [ Cardano.RequireTimeAfter Cardano.TimeLocksInSimpleScriptV2 (SlotNo 120)
+                  , Cardano.RequireTimeBefore Cardano.TimeLocksInSimpleScriptV2 (SlotNo 150)
+                  , Cardano.RequireAnyOf [toPaymentHash hashKeyTxt1, toPaymentHash hashKeyTxt2 ]
+                  ]
+              )
+            ]
+
+    forM_ matrix $ \(title, adrestiaScript, nodeScript) ->
+        checkScriptHashes title adrestiaScript nodeScript
 
 instance Arbitrary (Hash "Genesis") where
     arbitrary = Hash . BS.pack <$> vector 32

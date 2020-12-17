@@ -2198,9 +2198,6 @@ insertScriptPool wid sl pool = do
     toDB (scriptHash, verKeyIxs) =
         zipWith (SeqStateScriptHash wid sl scriptHash . getIndex) verKeyIxs [0..]
 
-instance Ord ScriptHash where
-    compare (ScriptHash sh1) (ScriptHash sh2) = compare sh1 sh2
-
 selectScriptPool
     :: forall k . W.WalletId
     -> W.SlotNo

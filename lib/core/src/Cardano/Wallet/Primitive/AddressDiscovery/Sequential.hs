@@ -308,8 +308,6 @@ instance ((PersistPublicKey (key 'AccountK)))
         xpubF = hexF $ serializeXPub acct
         acctF = prefixF 8 xpubF <> "..." <> suffixF 8 xpubF
 
-deriving instance Ord KeyHash
-
 lookupKeyHash
     :: KeyHash
     -> VerificationKeyPool k
