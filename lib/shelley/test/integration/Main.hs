@@ -290,13 +290,10 @@ specWithServer testDir (tr, tracers) = aroundAll withContext
                 testPoolConfigs
                 testDir
                 extraLogDir
-                onByron
-                afterFork
                 (onClusterStart (onReady $ T.pack smashUrl) dbDecorator)
 
     tr' = contramap MsgCluster tr
-    onByron _ = pure ()
-    afterFork _ = do
+    setupFaucet = do
         traceWith tr MsgSettingUpFaucet
         let rewards = (,Coin $ fromIntegral oneMillionAda) <$>
                 concatMap genRewardAccounts mirMnemonics
@@ -306,12 +303,10 @@ specWithServer testDir (tr, tracers) = aroundAll withContext
         sendFaucetFundsTo tr' testDir addresses
 
     onClusterStart action dbDecorator node = do
+        setupFaucet
         let db = testDir </> "wallets"
         createDirectory db
         listen <- walletListenFromEnv
-
-        -- NOTE: We may want to keep a wallet running across the fork, but
-        -- having three callbacks like this might not work well for that.
         serveWallet
             (SomeNetworkDiscriminant $ Proxy @'Mainnet)
             tracers

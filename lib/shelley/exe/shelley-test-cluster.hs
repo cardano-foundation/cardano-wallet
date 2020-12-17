@@ -208,13 +208,9 @@ main = withLocalClusterSetup $ \dir clusterLogs walletLogs ->
             poolConfigs
             dir
             Nothing
-            whenByron
-            (whenShelley dir (trMessageText trCluster))
             (whenReady dir (trMessageText trCluster) walletLogs)
   where
-    whenByron _ = pure ()
-
-    whenShelley dir trCluster _ = do
+    setupFaucet dir trCluster = do
         traceWith trCluster MsgSettingUpFaucet
         let trCluster' = contramap MsgCluster trCluster
         let encodeAddr = T.unpack . encodeAddress @'Mainnet
@@ -226,6 +222,8 @@ main = withLocalClusterSetup $ \dir clusterLogs walletLogs ->
 
     whenReady dir trCluster logs (RunningNode socketPath block0 (gp, vData)) =
         withLoggingNamed "cardano-wallet" logs $ \(sb, (cfg, tr)) -> do
+            setupFaucet dir trCluster
+
             ekgEnabled >>= flip when (EKG.plugin cfg tr sb >>= loadPlugin sb)
 
             let tracers = setupTracers (tracerSeverities (Just Debug)) tr
