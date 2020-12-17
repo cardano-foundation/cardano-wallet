@@ -54,7 +54,7 @@ spec = do
 
     describe "Coverage checks for generators" $ do
         it "TokenQuantity" $
-            property $ prop_checkTokenQuantityCoverage
+            property prop_checkTokenQuantityCoverage
 
 -- | Constructs a test to check that roundtrip persistence and unpersistence is
 --   possible for values of the given type.
@@ -81,7 +81,7 @@ prop_checkTokenQuantityCoverage q = checkCoverage
         "token quantity is very large and positive"
     $ cover 2 (q < TokenQuantity largeNegativeValue)
         "token quantity is very large and negative"
-    $ True
+    True
   where
     smallPositiveValue = 10
     smallNegativeValue = negate smallPositiveValue

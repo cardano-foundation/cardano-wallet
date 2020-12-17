@@ -44,7 +44,7 @@ import Data.Function
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Maybe
-    ( catMaybes )
+    ( mapMaybe )
 import Data.Proxy
     ( Proxy (..) )
 import Data.String.QQ
@@ -166,11 +166,11 @@ spec =
             testJson $ Proxy @(Nested TokenMap)
 
         describe "Negative tests" $ do
-            it "Zero-valued token quantity (from flat representation)" $
+            it "Zero-valued token quantity (from flat representation)"
                 testZeroValuedTokenQuantityFlat
-            it "Zero-valued token quantity (from nested representation)" $
+            it "Zero-valued token quantity (from nested representation)"
                 testZeroValuedTokenQuantityNested
-            it "Empty token list" $
+            it "Empty token list"
                 testEmptyTokenList
 
     parallel $ describe "Textual serialization" $ do
@@ -197,7 +197,7 @@ prop_shrink_invariant :: TokenMap -> Property
 prop_shrink_invariant b = property $ all invariantHolds $ shrink b
 
 prop_empty_invariant :: Property
-prop_empty_invariant = property $ invariantHolds $ TM.empty
+prop_empty_invariant = property $ invariantHolds TM.empty
 
 prop_singleton_invariant :: (AssetId, TokenQuantity) -> Property
 prop_singleton_invariant (asset, quantity) = property $
@@ -527,7 +527,7 @@ instance Arbitrary a => Arbitrary (Nested a) where
 
 instance Arbitrary a => Arbitrary (NonEmpty a) where
     arbitrary = (:|) <$> arbitrary <*> arbitrary
-    shrink = catMaybes . fmap NE.nonEmpty . shrink . NE.toList
+    shrink = mapMaybe NE.nonEmpty . shrink . NE.toList
 
 instance Arbitrary AssetId where
     arbitrary = genAssetIdSmallRange
