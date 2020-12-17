@@ -11,3 +11,9 @@ nix/sources.nix linguist-generated=true
 
 # Hide the Cabal freeze file
 cabal.project.freeze linguist-generated=true
+
+# Hide golden JSON files used for tests
+# - they clog up the GitHub PR review page.
+# Also set the "binary" merge mode for Git,
+# because textual merging of auto-generated JSON rarely works well.
+lib/core/test/data/Cardano/Wallet/Api/*.json linguist-generated=true merge=binary
