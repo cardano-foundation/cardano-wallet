@@ -119,8 +119,6 @@ import Cardano.Address
     ( unsafeMkAddress )
 import Cardano.Address.Derivation
     ( XPub, xpubPublicKey )
-import Cardano.Api.Shelley
-    ( fromShelleyMetaData )
 import Cardano.Api.Shelley.Genesis
     ( ShelleyGenesis (..) )
 import Cardano.Api.Typed
@@ -133,6 +131,7 @@ import Cardano.Api.Typed
     , ShelleyEra
     , StandardShelley
     , deserialiseFromRawBytes
+    , fromShelleyMetadata
     )
 import Cardano.Binary
     ( fromCBOR, serialize' )
