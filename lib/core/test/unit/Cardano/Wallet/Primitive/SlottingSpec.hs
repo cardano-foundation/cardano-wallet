@@ -144,10 +144,19 @@ spec = do
                 runExceptT (interpretQuery ti (epochOf 1))
                     `shouldReturn` Right (EpochNo 0)
 
+                runExceptT (interpretQuery ti (epochOf 1 >> epochOf 19))
+                    `shouldReturn` Right (EpochNo 0)
+
                 runExceptT (interpretQuery ti (epochOf 20))
                     `shouldReturn` Right (EpochNo 1)
 
+                runExceptT (interpretQuery ti (epochOf 20 >> epochOf 39))
+                    `shouldReturn` Right (EpochNo 1)
+
                 runExceptT (interpretQuery ti (epochOf 1 >> epochOf 20))
+                    `shouldReturn` Right (EpochNo 1)
+
+                runExceptT (interpretQuery ti (epochOf 1 >> epochOf 21))
                     `shouldReturn` Right (EpochNo 1)
 
         it "endTimeOfEpoch e == (slotToUTCTime =<< firstSlotInEpoch (e + 1)) \
