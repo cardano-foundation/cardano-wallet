@@ -31,14 +31,14 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
     ( genTokenQuantitySmall, shrinkTokenQuantitySmall )
-import Cardano.Wallet.Unsafe
-    ( unsafeFromHex )
 import Data.Aeson
     ( FromJSON (..), ToJSON (..) )
 import Data.Aeson.QQ
     ( aesonQQ )
 import Data.Bifunctor
     ( bimap, first, second )
+import Data.Either
+    ( fromRight )
 import Data.Function
     ( (&) )
 import Data.List.NonEmpty
@@ -52,7 +52,7 @@ import Data.String.QQ
 import Data.Text
     ( Text )
 import Data.Text.Class
-    ( toText )
+    ( fromText, toText )
 import Data.Typeable
     ( Typeable )
 import Fmt
@@ -73,13 +73,12 @@ import Test.Utils.Paths
     ( getTestData )
 
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TM
-import qualified Cardano.Wallet.Primitive.Types.TokenPolicy as TP
 import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as TQ
 import qualified Data.Aeson.Types as Aeson
-import qualified Data.ByteString.Char8 as B8
 import qualified Data.Foldable as F
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
+import qualified Data.Text as T
 import qualified Test.Utils.Roundtrip as Roundtrip
 
 spec :: Spec
@@ -357,7 +356,7 @@ testZeroValuedTokenQuantityFlat =
         Left message
   where
     policy = dummyTokenPolicyId 'A'
-    token = TP.mkTokenName "DUMMY-TOKEN"
+    token = dummyTokenName "DUMMY-TOKEN"
     json =
         [aesonQQ|
           [ { "policy": #{policy}
@@ -380,7 +379,7 @@ testZeroValuedTokenQuantityNested =
         Left message
   where
     policy = dummyTokenPolicyId 'A'
-    token = TP.mkTokenName "DUMMY-TOKEN"
+    token = dummyTokenName "DUMMY-TOKEN"
     json =
         [aesonQQ|
           [ { "policy": #{policy}
@@ -437,7 +436,7 @@ testPrettyNested =
 testMap :: TokenMap
 testMap = testMapData
     & fmap (second TokenQuantity)
-    & fmap (first (bimap dummyTokenPolicyId TP.mkTokenName))
+    & fmap (first (bimap dummyTokenPolicyId dummyTokenName))
     & fmap (first (uncurry AssetId))
     & TM.fromFlatList
 
@@ -485,11 +484,23 @@ testMapPrettyNested = [s|
 -- Utilities
 --------------------------------------------------------------------------------
 
+dummyTokenName :: Text -> TokenName
+dummyTokenName t = fromRight reportError $ fromText t
+  where
+    reportError = error $
+        "Unable to construct dummy token name from text: " <> show t
+
+-- The input must be a character in the range [0-9] or [A-Z].
+--
 dummyTokenPolicyId :: Char -> TokenPolicyId
-dummyTokenPolicyId
-    = TP.mkTokenPolicyId
-    . unsafeFromHex
-    . B8.replicate tokenPolicyIdHexStringLength
+dummyTokenPolicyId c
+    = fromRight reportError
+    $ fromText
+    $ T.pack
+    $ replicate tokenPolicyIdHexStringLength c
+  where
+    reportError = error $
+        "Unable to construct dummy token policy id from character: " <> show c
 
 tokenPolicyIdHexStringLength :: Int
 tokenPolicyIdHexStringLength = 56

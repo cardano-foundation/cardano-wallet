@@ -6,11 +6,9 @@ module Cardano.Wallet.Primitive.Types.TokenPolicy
     (
       -- * Token Policies
       TokenPolicyId
-    , mkTokenPolicyId
 
       -- * Token Names
     , TokenName
-    , mkTokenName
 
     ) where
 
@@ -24,8 +22,6 @@ import Control.Monad
     ( (>=>) )
 import Data.Aeson
     ( FromJSON (..), ToJSON (..) )
-import Data.ByteString
-    ( ByteString )
 import Data.Text
     ( Text )
 import Data.Text.Class
@@ -63,9 +59,6 @@ instance ToText TokenPolicyId where
 instance FromText TokenPolicyId where
     fromText = fmap TokenPolicyId . fromText
 
-mkTokenPolicyId :: ByteString -> TokenPolicyId
-mkTokenPolicyId = TokenPolicyId . Hash
-
 --------------------------------------------------------------------------------
 -- Token names
 --------------------------------------------------------------------------------
@@ -91,6 +84,3 @@ instance ToText TokenName where
 
 instance FromText TokenName where
     fromText = pure . TokenName
-
-mkTokenName :: Text -> TokenName
-mkTokenName = TokenName
