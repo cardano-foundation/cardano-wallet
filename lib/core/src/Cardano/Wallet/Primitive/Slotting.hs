@@ -95,6 +95,8 @@ import Data.Generics.Internal.VL.Lens
     ( (^.) )
 import Data.Maybe
     ( fromMaybe )
+import Data.Text
+    ( Text )
 import Data.Text.Class
     ( ToText (..) )
 import Data.Time.Clock
@@ -104,7 +106,7 @@ import Data.Word
 import Fmt
     ( blockListF', build, fmt, indentF )
 import GHC.Stack
-    ( HasCallStack, getCallStack, prettySrcLoc )
+    ( CallStack, HasCallStack, getCallStack, prettySrcLoc )
 import Ouroboros.Consensus.BlockchainTime.WallClock.Types
     ( RelativeTime (..), SystemStart (..), addRelTime )
 import Ouroboros.Consensus.HardFork.History.Qry
@@ -413,7 +415,7 @@ instance ToText TimeInterpreterLog where
       where
         renderPastHorizonException (PastHorizon callStack expr eras) t0 = mconcat
             [ "\nCalled from:\n"
-            , T.pack $ show $ prettySrcLoc $ snd $ last $ getCallStack callStack
+            , prettyCallStackTop callStack
             , "\nConverting expression:\n"
             , T.pack $ show expr
             , "\n\nWith knowledge about the following eras:\n"
@@ -421,6 +423,13 @@ instance ToText TimeInterpreterLog where
             , "\nt0 = "
             , T.pack $ show t0
             ]
+
+        prettyCallStackTop :: CallStack -> Text
+        prettyCallStackTop callStack =
+            case reverse (getCallStack callStack) of
+                ((_, srcLoc):_rest) -> T.pack $ show $ prettySrcLoc srcLoc
+                _ -> "Unknown"
+
         eraSummaryF (HF.EraSummary start end _params) = mconcat
             [ boundF start
             , " to "
