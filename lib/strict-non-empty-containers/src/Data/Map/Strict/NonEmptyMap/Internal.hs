@@ -134,13 +134,13 @@ insert k v m
 --
 -- When the key is not a member of the map, the original map is returned.
 --
--- Since this function may reduce the number of elements to zero, it returns
--- an ordinary map.
+-- This function returns 'Nothing' if the delete operation reduces the number
+-- of elements to zero.
 --
-delete :: Ord k => k -> NonEmptyMap k a -> Map k a
+delete :: Ord k => k -> NonEmptyMap k a -> Maybe (NonEmptyMap k a)
 delete k m
-    | k == fst (least m) = rest m
-    | otherwise = uncurry Map.insert (least m) $ Map.delete k (rest m)
+    | k == fst (least m) = fromMap $ rest m
+    | otherwise = Just m { rest = Map.delete k $ rest m }
 
 -- | Looks up the value of a key in the map.
 --

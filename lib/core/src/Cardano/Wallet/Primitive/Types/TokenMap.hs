@@ -470,7 +470,7 @@ setQuantity originalMap@(TokenMap m) (AssetId policy token) quantity =
         $ NEMap.singleton token quantity
 
     removeQuantityFromPolicyMap policyMap =
-        case NEMap.fromMap (NEMap.delete token policyMap) of
+        case NEMap.delete token policyMap of
             Nothing ->
                 TokenMap $ Map.delete policy m
             Just newPolicyMap ->

@@ -79,6 +79,8 @@ spec = describe "Data.Map.Strict.NonEmptyMap" $
                 property prop_insert_invariant
             it "prop_insert" $
                 property prop_insert
+            it "prop_delete_invariant" $
+                property prop_delete_invariant
             it "prop_delete" $
                 property prop_delete
 
@@ -145,12 +147,19 @@ prop_insert m (k, v) =
     expected = Map.insert k v $ NonEmptyMap.toMap m
     actual = NonEmptyMap.toMap $ NonEmptyMap.insert k v m
 
+prop_delete_invariant :: NonEmptyMap Int Int -> Int -> Property
+prop_delete_invariant kvs k = property $
+    maybe True invariantHolds (NonEmptyMap.delete k kvs)
+
 prop_delete :: NonEmpty (Int, Int) -> Int -> Property
 prop_delete kvs k =
     expected === actual
   where
     expected = Map.delete k $ Map.fromList $ NonEmptyList.toList kvs
-    actual = NonEmptyMap.delete k $ NonEmptyMap.fromList kvs
+    actual
+        = maybe mempty NonEmptyMap.toMap
+        $ NonEmptyMap.delete k
+        $ NonEmptyMap.fromList kvs
 
 --------------------------------------------------------------------------------
 -- Lookup properties
