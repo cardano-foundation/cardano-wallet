@@ -52,7 +52,6 @@
         "cardano-prelude-test-suite" = {
           depends = [
             (hsPkgs."base" or (errorHandler.buildDepError "base"))
-            (hsPkgs."base16-bytestring" or (errorHandler.buildDepError "base16-bytestring"))
             (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
             (hsPkgs."cardano-prelude" or (errorHandler.buildDepError "cardano-prelude"))
             (hsPkgs."cardano-prelude-test" or (errorHandler.buildDepError "cardano-prelude-test"))
@@ -68,8 +67,8 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/cardano-prelude";
-      rev = "742e8525b96bf4b66fb61a00c8298d75d7931d5e";
-      sha256 = "1132r58bjgdcf7yz3n77nlrkanqcmpn5b5km4nw151yar2dgifsv";
+      rev = "ee4e7b547a991876e6b05ba542f4e62909f4a571";
+      sha256 = "0dg6ihgrn5mgqp95c4f11l6kh9k3y75lwfqf47hdp554w7wyvaw6";
       });
     postUnpack = "sourceRoot+=/cardano-prelude-test; echo source root reset to \$sourceRoot";
     }

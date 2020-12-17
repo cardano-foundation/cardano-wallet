@@ -90,6 +90,7 @@
         "word-wrap" = (((hackage.word-wrap)."0.4.1").revisions).default;
         "websockets" = (((hackage.websockets)."0.12.6.1").revisions).default;
         "Win32" = (((hackage.Win32)."2.6.2.0").revisions).default;
+        "nothunks" = (((hackage.nothunks)."0.1.2").revisions).default;
         cardano-wallet-core = ./cardano-wallet-core.nix;
         cardano-wallet-core-integration = ./cardano-wallet-core-integration.nix;
         cardano-wallet-cli = ./cardano-wallet-cli.nix;
@@ -158,7 +159,6 @@
         ntp-client = ./ntp-client.nix;
         ouroboros-consensus-mock = ./ouroboros-consensus-mock.nix;
         http-client = ./http-client.nix;
-        nothunks = ./nothunks.nix;
         };
       };
   resolver = "lts-14.25";
