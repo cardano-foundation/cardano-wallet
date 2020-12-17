@@ -38,9 +38,13 @@ WIKI_COMMIT=$(git ls-remote https://github.com/$REPO.wiki.git HEAD | cut -f1)
 echo ""
 echo "Replacing $OLD_CABAL_VERSION with $CABAL_VERSION"
 sed -i "s/$OLD_CABAL_VERSION/$CABAL_VERSION/" \
-    $(git ls-files '*.nix:!:nix/migration-tests.nix'; git ls-files '*.cabal'; git ls-files '*swagger.yaml')
+    $(git ls-files '*.nix:!:nix/migration-tests.nix'; git ls-files '*.cabal'; git ls-files '*swagger.yaml') docker-compose.yml
 echo "Looking for remaining references to old version:"
 git grep $OLD_CABAL_VERSION
+echo ""
+
+echo "Updating docker-compose.yml with $CARDANO_NODE_TAG cardano-node tag"
+sed -i "s|inputoutput/cardano-node:.*|inputoutput/cardano-node:$CARDANO_NODE_TAG|" docker-compose.yml
 echo ""
 
 echo "Generating changelog..."
