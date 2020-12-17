@@ -13,6 +13,7 @@ packages:
 - lib/text-class
 - lib/test-utils
 - lib/shelley
+- lib/strict-non-empty-containers
 
 extra-deps:
 # Miscellaneous

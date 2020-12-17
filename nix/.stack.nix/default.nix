@@ -97,6 +97,7 @@
         text-class = ./text-class.nix;
         cardano-wallet-test-utils = ./cardano-wallet-test-utils.nix;
         cardano-wallet = ./cardano-wallet.nix;
+        strict-non-empty-containers = ./strict-non-empty-containers.nix;
         persistent = ./persistent.nix;
         persistent-sqlite = ./persistent-sqlite.nix;
         persistent-template = ./persistent-template.nix;
