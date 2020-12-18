@@ -80,6 +80,8 @@ import Control.Monad
     ( mapM_, replicateM, replicateM_ )
 import Control.Monad.IO.Class
     ( liftIO )
+import Data.Aeson
+    ( Value )
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
 import Data.Proxy
@@ -328,44 +330,20 @@ walletApiBench capture ctx = do
             (Link.createTransaction @'Shelley wal1) Default payloadTx
         fmtResult "postTransaction    " t7
 
+        let addresses = replicate 5 destination
+        let coins = replicate 5 amt
+        let payments = flip map (zip coins addresses) $ \(amount, address) -> [json|{
+                "address": #{address},
+                "amount": {
+                    "quantity": #{amount},
+                    "unit": "lovelace"
+                }
+            }|]
         let payloadTxTo5Addr = Json [json|{
-                "payments": [{
-                    "address": #{destination},
-                    "amount": {
-                        "quantity": #{amt},
-                        "unit": "lovelace"
-                    }
-                },
-                {
-                    "address": #{destination},
-                    "amount": {
-                        "quantity": #{amt},
-                        "unit": "lovelace"
-                    }
-                },
-                {
-                    "address": #{destination},
-                    "amount": {
-                        "quantity": #{amt},
-                        "unit": "lovelace"
-                    }
-                },
-                {
-                    "address": #{destination},
-                    "amount": {
-                        "quantity": #{amt},
-                        "unit": "lovelace"
-                    }
-                },
-                {
-                    "address": #{destination},
-                    "amount": {
-                        "quantity": #{amt},
-                        "unit": "lovelace"
-                    }
-                }],
+                "payments": #{payments :: [Value]},
                 "passphrase": #{fixturePassphrase}
             }|]
+
         t7a <- measureApiLogs capture $ request @(ApiTransaction n) ctx
             (Link.createTransaction @'Shelley wal2) Default payloadTxTo5Addr
         fmtResult "postTransTo5Addrs  " t7a
