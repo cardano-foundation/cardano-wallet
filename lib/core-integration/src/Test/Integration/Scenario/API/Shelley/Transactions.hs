@@ -632,7 +632,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         (wByron', mw) <- emptyRandomWalletMws ctx
         wShelley <- fixtureWallet ctx
 
-        let addrNum = 150000
+        let addrNum = 100000
         let addrs = map (\num -> encodeAddress @n $ randomAddresses @n mw !! num)
                     [1 .. addrNum]
         let ep = Link.putRandomAddresses wByron'
@@ -682,6 +682,42 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             expectField
                 (#balance . #available)
                 (`shouldBe` Quantity (10*amt)) ra
+        timeIt $ do
+                r1 <- request @(ApiTransaction n) ctx (Link.createTransaction @'Byron wByron) Default payload1
+                expectResponseCode HTTP.status202 r1
+        eventually "wByron' balance is as expected" $ do
+            ra <- request @ApiByronWallet ctx
+                (Link.getWallet @'Byron wByron') Default Empty
+            expectField
+                (#balance . #available)
+                (`shouldBe` Quantity (20*amt)) ra
+        timeIt $ do
+                r1 <- request @(ApiTransaction n) ctx (Link.createTransaction @'Byron wByron) Default payload1
+                expectResponseCode HTTP.status202 r1
+        eventually "wByron' balance is as expected" $ do
+            ra <- request @ApiByronWallet ctx
+                (Link.getWallet @'Byron wByron') Default Empty
+            expectField
+                (#balance . #available)
+                (`shouldBe` Quantity (30*amt)) ra
+        timeIt $ do
+                r1 <- request @(ApiTransaction n) ctx (Link.createTransaction @'Byron wByron) Default payload1
+                expectResponseCode HTTP.status202 r1
+        eventually "wByron' balance is as expected" $ do
+            ra <- request @ApiByronWallet ctx
+                (Link.getWallet @'Byron wByron') Default Empty
+            expectField
+                (#balance . #available)
+                (`shouldBe` Quantity (40*amt)) ra
+        timeIt $ do
+                r1 <- request @(ApiTransaction n) ctx (Link.createTransaction @'Byron wByron) Default payload1
+                expectResponseCode HTTP.status202 r1
+        eventually "wByron' balance is as expected" $ do
+            ra <- request @ApiByronWallet ctx
+                (Link.getWallet @'Byron wByron') Default Empty
+            expectField
+                (#balance . #available)
+                (`shouldBe` Quantity (50*amt)) ra
 
         -- 4. Estimate tx fee using byron wallet
         addrsShelley <- listAddresses @n ctx wShelley
@@ -712,13 +748,25 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         timeIt $ do
                 r1 <- request @(ApiTransaction n) ctx (Link.createTransaction @'Byron wByron') Default payload2
                 expectResponseCode HTTP.status202 r1
+        timeIt $ do
+                r1 <- request @(ApiTransaction n) ctx (Link.createTransaction @'Byron wByron') Default payload2
+                expectResponseCode HTTP.status202 r1
+        timeIt $ do
+                r1 <- request @(ApiTransaction n) ctx (Link.createTransaction @'Byron wByron') Default payload2
+                expectResponseCode HTTP.status202 r1
+        timeIt $ do
+                r1 <- request @(ApiTransaction n) ctx (Link.createTransaction @'Byron wByron') Default payload2
+                expectResponseCode HTTP.status202 r1
+        timeIt $ do
+                r1 <- request @(ApiTransaction n) ctx (Link.createTransaction @'Byron wByron') Default payload2
+                expectResponseCode HTTP.status202 r1
 
         eventually "wShelley balance is as expected" $ do
             r' <- request @ApiWallet ctx
                 (Link.getWallet @'Shelley wShelley) Default Empty
             expectField
                 (#balance . #getApiT . #available)
-                (`shouldBe` Quantity (faucetAmt + 9*amt)) r'
+                (`shouldBe` Quantity (faucetAmt + 5*9*amt)) r'
 
     let absSlotB = view (#absoluteSlotNumber . #getApiT)
     let absSlotS = view (#absoluteSlotNumber . #getApiT)
