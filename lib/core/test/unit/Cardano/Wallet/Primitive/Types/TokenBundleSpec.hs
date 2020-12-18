@@ -22,6 +22,8 @@ import Test.QuickCheck.Classes
     ( eqLaws, semigroupLaws )
 import Test.Utils.Laws
     ( testLawsMany )
+import Test.Utils.Laws.PartialOrd
+    ( partialOrdLaws )
 
 spec :: Spec
 spec =
@@ -31,6 +33,7 @@ spec =
     describe "Class instances obey laws" $ do
         testLawsMany @TokenBundle
             [ eqLaws
+            , partialOrdLaws
             , semigroupLaws
             ]
 

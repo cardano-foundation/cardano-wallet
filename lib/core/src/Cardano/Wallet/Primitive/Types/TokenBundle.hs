@@ -60,6 +60,8 @@ module Cardano.Wallet.Primitive.Types.TokenBundle
 import Prelude hiding
     ( negate, null )
 
+import Algebra.PartialOrd
+    ( PartialOrd (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.TokenMap
@@ -113,6 +115,11 @@ data TokenBundle = TokenBundle
 instance TypeError ('Text "Ord not supported for token bundles")
         => Ord TokenBundle where
     compare = error "Ord not supported for token bundles"
+
+instance PartialOrd TokenBundle where
+    b1 `leq` b2 = (&&)
+        (coin b1 <= coin b2)
+        (tokens b1 `leq` tokens b2)
 
 instance NFData TokenBundle
 
