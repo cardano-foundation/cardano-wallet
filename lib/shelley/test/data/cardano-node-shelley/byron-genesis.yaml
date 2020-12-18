@@ -2,7 +2,7 @@ avvmDistr: {}
 
 blockVersionData:
   scriptVersion: 0
-  slotDuration: '250'
+  slotDuration: '100'
   maxBlockSize: '2000000'
   maxHeaderSize: '2000000'
   maxTxSize: '4096'
@@ -21,7 +21,7 @@ blockVersionData:
     multiplier: '43000000000'
   unlockStakeEpoch: '18446744073709551615'
 protocolConsts:
-  k: 8
+  k: 5
   protocolMagic: 764824073
 
 bootStakeholders:

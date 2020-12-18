@@ -336,7 +336,7 @@ import Numeric.Natural
     ( Natural )
 import Prelude
 import System.Command
-    ( CmdResult, Stderr, Stdout (..), command )
+    ( CmdOption (..), CmdResult, Stderr, Stdout (..), command )
 import System.Directory
     ( doesPathExist )
 import System.Exit
@@ -583,21 +583,19 @@ walletId =
 minUTxOValue :: Natural
 minUTxOValue = 1_000_000
 
--- | Parameter in test cluster genesis.
+-- | Parameter in test cluster shelley genesis.
 --
--- FIXME: Adding this line to create a merge-conflict with #2391 to remind
--- whoever resolving this merge conflict to also update the newly introduced
--- 'securityParameterValue'. Cheers.
+-- This space left blank intentionally.
 slotLengthValue :: NominalDiffTime
 slotLengthValue =  0.2
 
--- | Parameter in test cluster genesis.
+-- | Parameter in test cluster shelley genesis.
 securityParameterValue :: Word32
-securityParameterValue = 10
+securityParameterValue = 5
 
--- | Parameter in test cluster genesis.
+-- | Parameter in test cluster shelley genesis.
 epochLengthValue :: Word32
-epochLengthValue = 200
+epochLengthValue = 50
 
 -- | Wallet server's chosen transaction TTL value (in seconds) when none is
 -- given.
@@ -1884,7 +1882,7 @@ cardanoWalletCLI
     :: forall r m. (CmdResult r, MonadIO m)
     => [String]
     -> m r
-cardanoWalletCLI = liftIO . command [] commandName
+cardanoWalletCLI = liftIO . command [EchoStderr False] commandName
 
 generateMnemonicsViaCLI
     :: forall r m. (CmdResult r, MonadIO m)

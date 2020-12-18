@@ -31,6 +31,7 @@ module Cardano.Wallet.Primitive.Slotting
     , getStartTime
     , querySlotLength
     , queryEpochLength
+    , timeUntilEpoch
 
       -- ** Blockchain-relative times
     , RelativeTime
@@ -83,6 +84,8 @@ import Control.Monad
     ( ap, join, liftM, (>=>) )
 import Control.Monad.IO.Class
     ( MonadIO, liftIO )
+import Control.Monad.Trans.Class
+    ( lift )
 import Control.Monad.Trans.Except
     ( ExceptT (..), runExceptT )
 import Control.Tracer
@@ -108,7 +111,7 @@ import Fmt
 import GHC.Stack
     ( CallStack, HasCallStack, getCallStack, prettySrcLoc )
 import Ouroboros.Consensus.BlockchainTime.WallClock.Types
-    ( RelativeTime (..), SystemStart (..), addRelTime )
+    ( RelativeTime (..), SystemStart (..), addRelTime, diffRelTime )
 import Ouroboros.Consensus.HardFork.History.Qry
     ( Expr (..)
     , Interpreter
@@ -322,6 +325,13 @@ slotRangeFromTimeRange :: Range UTCTime -> Qry (Maybe (Range SlotNo))
 slotRangeFromTimeRange range = mapM slotRangeFromRelativeTimeRange
     =<< (toRelativeTimeRange range <$> getStartTime)
 
+-- | Returns the @NominalDiffTime@ to reach the start of the given epoch, or 0
+-- if it already passed.
+timeUntilEpoch :: EpochNo -> RelativeTime -> Qry NominalDiffTime
+timeUntilEpoch e tNow = do
+    tEpoch <- slotToRelTime =<< firstSlotInEpoch e
+    return $ max 0 $ tEpoch `diffRelTime` tNow
+
 {-------------------------------------------------------------------------------
                             Blockchain-relative time
 -------------------------------------------------------------------------------}
@@ -486,14 +496,15 @@ mkSingleEraInterpreter start sp = TimeInterpreter
 -- | Set up a 'TimeInterpreter' for a given start time, and an 'Interpreter'
 -- queried from the ledger layer.
 mkTimeInterpreter
-    :: Tracer IO TimeInterpreterLog
+    :: Monad m
+    => Tracer m TimeInterpreterLog
     -> StartTime
-    -> IO (Interpreter eras)
-    -> TimeInterpreter (ExceptT PastHorizonException IO)
+    -> m (Interpreter eras)
+    -> TimeInterpreter (ExceptT PastHorizonException m)
 mkTimeInterpreter tr start int = TimeInterpreter
-    { interpreter = liftIO int
+    { interpreter = lift int
     , blockchainStartTime = start
-    , tracer = natTracer liftIO tr
+    , tracer = natTracer lift tr
     , handleResult = ExceptT . pure
     }
 
