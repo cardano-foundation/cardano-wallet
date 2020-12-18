@@ -65,7 +65,7 @@ let
   buildHaskellProject = args: import ./nix/haskell.nix ({
     inherit config lib stdenv pkgs buildPackages;
     inherit (pkgs) haskell-nix;
-    inherit src pr gitrev;
+    inherit src gitrev pr borsBuild;
   } // args);
   project = buildHaskellProject {};
   profiledProject = buildHaskellProject { profiling = true; };

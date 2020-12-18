@@ -87,7 +87,6 @@ module Cardano.Wallet.Primitive.Types
     , IsDelegatingTo (..)
 
     -- * Stake Pools
-    , StakePool(..)
     , StakePoolsSummary (..)
     , PoolId(..)
     , PoolOwner(..)
@@ -542,18 +541,6 @@ isSubrangeOf r1 r2 =
 {-------------------------------------------------------------------------------
                                   Stake Pools
 -------------------------------------------------------------------------------}
-
-data StakePool = StakePool
-    { poolId :: PoolId
-    , stake :: Quantity "lovelace" Word64
-    , production :: Quantity "block" Word64
-    , performance :: Double
-    , desirability :: Double
-    , cost :: Quantity "lovelace" Word64
-    , margin :: Percentage
-    , pledge :: Quantity "lovelace" Word64
-    , saturation :: Double
-    } deriving (Show, Generic)
 
 -- Status encoding of the metadata GC thread, which queries
 -- the SMASH server for delisted pools.

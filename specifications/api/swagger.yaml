@@ -963,14 +963,6 @@ x-stakePoolSaturation: &stakePoolSaturation
 
   example: 0.74
 
-x-stakePoolDesirability: &stakePoolDesirability
-  type: number
-  minimum: 0
-  description: |
-    How desirable / attractive a pool is. To determine a pool's _rank_, we order pools by decreasing desirability.
-    The most desirable pool gets rank 1, the second most desirable pool gets rank 2 and so on.
-  example: 42
-
 x-non-myopic-member-rewards: &nonMyopicMemberRewards
   <<: *amount
   description: |
