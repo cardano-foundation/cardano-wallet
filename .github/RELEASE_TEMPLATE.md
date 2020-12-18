@@ -2,6 +2,12 @@
 
 Compatible with [`cardano-node@{{CARDANO_NODE_TAG}}`](https://github.com/input-output-hk/cardano-node/releases/tag/{{CARDANO_NODE_TAG}}).
 
+
+## API Changes
+
+<!-- Copy-paste most recent diff excerpt from https://bump.sh/doc/cardano-wallet-diff/changes -->
+
+
 <!-- A CHANGELOG, organized in three sections:
 
  - New Features

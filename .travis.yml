@@ -2,7 +2,7 @@
 sudo: false
 
 # Choose a build environment:
-dist: xenial
+dist: focal
 
 # Only clone the repository tip & track all branches
 git:
@@ -49,6 +49,13 @@ jobs:
     if: type != pull_request AND (tag =~ ^v OR commit_message =~ /TRAVIS_TRIGGER_RELEASE/)
     name: "Executables"
     script:
+    # Upload swagger to bump.sh
+    - gem install bump-cli
+    - sudo snap install yq
+    - yq r -j specifications/api/swagger.yaml > specifications/api/swagger.json
+    - bump validate --doc $BUMP_SH_DOC_ID --token $BUMP_SH_TOKEN specifications/api/swagger.json
+    - bump deploy --doc $BUMP_SH_DOC_ID --token $BUMP_SH_TOKEN specifications/api/swagger.json
+
     # Fetch the builds from Hydra
     - nvm install 12.18.3 && nvm use 12.18.3
     - npm install --no-save axios@0.19.2 lodash@4.17.20
