@@ -583,19 +583,17 @@ walletId =
 minUTxOValue :: Natural
 minUTxOValue = 1_000_000
 
--- | Parameter in test cluster genesis.
+-- | Parameter in test cluster shelley genesis.
 --
--- FIXME: Adding this line to create a merge-conflict with #2391 to remind
--- whoever resolving this merge conflict to also update the newly introduced
--- 'securityParameterValue'. Cheers.
+-- This space left blank intentionally.
 slotLengthValue :: NominalDiffTime
 slotLengthValue =  0.2
 
--- | Parameter in test cluster genesis.
+-- | Parameter in test cluster shelley genesis.
 securityParameterValue :: Word32
-securityParameterValue = 10
+securityParameterValue = 5
 
--- | Parameter in test cluster genesis.
+-- | Parameter in test cluster shelley genesis.
 epochLengthValue :: Word32
 epochLengthValue = 50
 
