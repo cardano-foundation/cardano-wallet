@@ -208,7 +208,7 @@ specWithServer (tr, tracers) = aroundAll withContext
                 prometheusUrl <- (maybe "none" (\(h, p) -> T.pack h <> ":" <> toText @(Port "Prometheus") p)) <$> getPrometheusURL
                 ekgUrl <- (maybe "none" (\(h, p) -> T.pack h <> ":" <> toText @(Port "EKG") p)) <$> getEKGURL
                 traceWith tr $ MsgBaseUrl baseUrl ekgUrl prometheusUrl
-                let fiveMinutes = 300*1000*1000 -- 5 minutes in microseconds
+                let fiveMinutes = 1000*1000*1000 -- 5 minutes in microseconds
                 manager <- (baseUrl,) <$> newManager (defaultManagerSettings
                     { managerResponseTimeout =
                         responseTimeoutMicro fiveMinutes

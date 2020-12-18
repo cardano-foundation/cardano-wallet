@@ -59,7 +59,7 @@ import Control.Monad.IO.Class
 import Control.Monad.Trans.Resource
     ( ResourceT, runResourceT )
 import Data.Aeson
-    ( (.=) )
+    ( Value, (.=) )
 import Data.ByteArray.Encoding
     ( Base (Base16, Base64), convertFromBase, convertToBase )
 import Data.ByteString.Base58
@@ -626,13 +626,13 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 (`shouldBe` Quantity (faucetAmt - feeEstMax - amt)) ra2
 
     describe "TRANS_CREATE_10 - Single Output Transaction with non-Shelley witnesses" $
-        it "Byron wallet - 200k addresses" $ \ctx -> runResourceT $ do
+        it "Byron wallet - 150k addresses" $ \ctx -> runResourceT $ do
 
         wByron <- fixtureRandomWallet ctx
         (wByron', mw) <- emptyRandomWalletMws ctx
         wShelley <- fixtureWallet ctx
 
-        let addrNum = 200000
+        let addrNum = 150000
         let addrs = map (\num -> encodeAddress @n $ randomAddresses @n mw !! num)
                     [1 .. addrNum]
         let ep = Link.putRandomAddresses wByron'
@@ -656,21 +656,25 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             return $ getFromResponse Prelude.id r1
 
         let amt = minUTxOValue :: Natural
-        let destination = (byronAddr !! (addrNum `div` 2)) ^. #id
-        let payload2 = Json [json|{
-                "payments": [{
-                    "address": #{destination},
-                    "amount": {
-                        "quantity": #{10*amt},
-                        "unit": "lovelace"
-                    }
-                }],
+        let destination ix = (byronAddr !! ix) ^. #id
+        let addresses1 = map destination [10,100,500,1000,1500,2000,2500,3000,3500,4000]
+        let coins1 = replicate 10 amt
+        let mkPayment coins addresses = flip map (zip coins addresses) $ \(amount', address') -> [json|{
+                "address": #{address'},
+                "amount": {
+                    "quantity": #{amount'},
+                    "unit": "lovelace"
+                }
+            }|]
+        let payment1 = mkPayment coins1 addresses1
+        let payload1 = Json [json|{
+                "payments": #{payment1 :: [Value]},
                 "passphrase": #{fixturePassphrase}
             }|]
 
         -- 3. Send money to this address
         timeIt $ do
-                r1 <- request @(ApiTransaction n) ctx (Link.createTransaction @'Byron wByron) Default payload2
+                r1 <- request @(ApiTransaction n) ctx (Link.createTransaction @'Byron wByron) Default payload1
                 expectResponseCode HTTP.status202 r1
         eventually "wByron' balance is as expected" $ do
             ra <- request @ApiByronWallet ctx
@@ -681,16 +685,15 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
 
         -- 4. Estimate tx fee using byron wallet
         addrsShelley <- listAddresses @n ctx wShelley
-        let destinationShelley = (addrsShelley !! 1) ^. #id
+        let destinationShelley ix = (addrsShelley !! ix) ^. #id
+        let addresses2 = map destinationShelley [1..9]
+        let coins2 = replicate 9 amt
+        let payment2 = mkPayment coins2 addresses2
         let payloadEst = Json [json|{
-                "payments": [{
-                    "address": #{destinationShelley},
-                    "amount": {
-                        "quantity": #{amt},
-                        "unit": "lovelace"
-                    }
-                }]
+                "payments": #{payment2 :: [Value]},
+                "passphrase": #{fixturePassphrase}
             }|]
+
         timeIt $ do
             rFeeEst <- request @ApiFee ctx
                 (Link.getTransactionFee @'Byron wByron') Default payloadEst
@@ -700,22 +703,22 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 ]
 
        -- 5. Submit tx fee using byron wallet
+        let payload2 = Json [json|{
+                "payments": #{payment2 :: [Value]},
+                "passphrase": #{fixturePassphrase}
+            }|]
+
+        -- 3. Send money to this address
         timeIt $ do
-            r2 <- postTx ctx
-                (wByron', Link.createTransaction @'Byron, fixturePassphrase)
-                wShelley
-                amt
-            verify r2
-                [ expectSuccess
-                , expectResponseCode HTTP.status202
-                ]
+                r1 <- request @(ApiTransaction n) ctx (Link.createTransaction @'Byron wByron') Default payload2
+                expectResponseCode HTTP.status202 r1
 
         eventually "wShelley balance is as expected" $ do
             r' <- request @ApiWallet ctx
                 (Link.getWallet @'Shelley wShelley) Default Empty
             expectField
                 (#balance . #getApiT . #available)
-                (`shouldBe` Quantity (faucetAmt + amt)) r'
+                (`shouldBe` Quantity (faucetAmt + 9*amt)) r'
 
     let absSlotB = view (#absoluteSlotNumber . #getApiT)
     let absSlotS = view (#absoluteSlotNumber . #getApiT)
