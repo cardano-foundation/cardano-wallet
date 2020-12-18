@@ -103,7 +103,7 @@ import Cardano.Wallet.Transaction
     , TransactionLayer (..)
     )
 import Control.Arrow
-    ( left )
+    ( first, left, second )
 import Control.Monad
     ( forM )
 import Data.ByteString
@@ -237,10 +237,14 @@ mkTx networkId payload expirySlot (rewardAcnt, pwdAcnt) keyFrom cs era = do
             pure $ bootstrapWits <> mkExtraWits unsigned
 
     let signed = Cardano.makeSignedTransaction wits unsigned
+    let withResolvedInputs tx = tx { resolvedInputs = second coin <$> CS.inputs cs }
     case era of
-        ShelleyBasedEraShelley -> Right $ sealShelleyTx fromShelleyTx signed
-        ShelleyBasedEraAllegra -> Right $ sealShelleyTx fromAllegraTx signed
-        ShelleyBasedEraMary    -> Left  $ ErrInvalidEra (AnyCardanoEra MaryEra)
+        ShelleyBasedEraShelley ->
+            Right $ first withResolvedInputs $ sealShelleyTx fromShelleyTx signed
+        ShelleyBasedEraAllegra ->
+            Right $ first withResolvedInputs $ sealShelleyTx fromAllegraTx signed
+        ShelleyBasedEraMary    ->
+            Left  $ ErrInvalidEra (AnyCardanoEra MaryEra)
 
 newTransactionLayer
     :: forall k.

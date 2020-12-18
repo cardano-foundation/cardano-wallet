@@ -1385,7 +1385,7 @@ postTransaction ctx genChange (ApiT wid) body = do
         (timeInterpreter $ ctx ^. networkLayer)
         (txId tx)
         (tx ^. #fee)
-        (fmap Just <$> selection ^. #inputs)
+        (second Just <$> selection ^. #inputs)
         (tx ^. #outputs)
         (tx ^. #withdrawals)
         (meta, time)
@@ -1524,7 +1524,7 @@ joinStakePool ctx knownPools getPoolStatus apiPoolId (ApiT wid) body = do
     pools <- liftIO knownPools
     curEpoch <- getCurrentEpoch ctx
 
-    (tx, txMeta, txTime) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+    (cs, tx, txMeta, txTime) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         (action, _) <- liftHandler
             $ W.joinStakePool @_ @s @k @n wrk curEpoch pools pid poolStatus wid
 
@@ -1538,13 +1538,13 @@ joinStakePool ctx knownPools getPoolStatus apiPoolId (ApiT wid) body = do
             $ W.submitTx @_ @s @k wrk
                 wid (tx, txMeta, sealedTx)
 
-        pure (tx, txMeta, txTime)
+        pure (cs, tx, txMeta, txTime)
 
     liftIO $ mkApiTransaction
         (timeInterpreter (ctx ^. networkLayer))
         (txId tx)
         (tx ^. #fee)
-        (second (const Nothing) <$> tx ^. #resolvedInputs)
+        (second Just <$> cs ^. #inputs)
         (tx ^. #outputs)
         (tx ^. #withdrawals)
         (txMeta, txTime)
@@ -1585,7 +1585,7 @@ quitStakePool
 quitStakePool ctx (ApiT wid) body = do
     let pwd = coerce $ getApiT $ body ^. #passphrase
 
-    (tx, txMeta, txTime) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+    (cs, tx, txMeta, txTime) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         action <- liftHandler
             $ W.quitStakePool @_ @s @k @n wrk wid
 
@@ -1599,14 +1599,14 @@ quitStakePool ctx (ApiT wid) body = do
             $ W.submitTx @_ @s @k wrk
                 wid (tx, txMeta, sealedTx)
 
-        pure (tx, txMeta, txTime)
+        pure (cs, tx, txMeta, txTime)
 
 
     liftIO $ mkApiTransaction
         (timeInterpreter (ctx ^. networkLayer))
         (txId tx)
         (tx ^. #fee)
-        (second (const Nothing) <$> tx ^. #resolvedInputs)
+        (second Just <$> cs ^. #inputs)
         (tx ^. #outputs)
         (tx ^. #withdrawals)
         (txMeta, txTime)
