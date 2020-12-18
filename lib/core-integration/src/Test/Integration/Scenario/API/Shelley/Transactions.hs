@@ -78,7 +78,7 @@ import Data.Text
 import Data.Text.Class
     ( FromText (..), ToText (..) )
 import Data.Time.Clock
-    ( NominalDiffTime, UTCTime, addUTCTime )
+    ( NominalDiffTime, UTCTime, addUTCTime, getCurrentTime )
 import Data.Time.Utils
     ( utcTimePred, utcTimeSucc )
 import Data.Word
@@ -208,6 +208,21 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
       r <- request @(ApiTransaction n) ctx (ep wSrc) Default payload
       expectResponseCode HTTP.status403 r
       expectErrorMessage (errMsg404MinUTxOValue minUTxOValue) r
+
+    it "Regression ADP-626 - Filtering transactions between eras" $ do
+        \ctx -> runResourceT $ do
+            w <- fixtureWallet ctx
+            let startTimeBeforeShelley = T.pack "2009-09-09T09:09:09Z"
+            currTime <- liftIO getCurrentTime
+            let endTimeAfterShelley = utcIso8601ToText currTime
+            let link = Link.listTransactions' @'Shelley w
+                    Nothing
+                    (either (const Nothing) Just $ fromText startTimeBeforeShelley)
+                    (either (const Nothing) Just $ fromText endTimeAfterShelley)
+                    Nothing
+            r <- request @([ApiTransaction n]) ctx link Default Empty
+            expectResponseCode HTTP.status200 r
+            expectListSize 1 r
 
     it "Regression #1004 -\
         \ Transaction to self shows only fees as a tx amount\
