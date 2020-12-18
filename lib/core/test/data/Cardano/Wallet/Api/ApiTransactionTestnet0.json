@@ -1,0 +1,364 @@
+{
+    "seed": 1537873458211850609,
+    "samples": [
+        {
+            "status": "in_ledger",
+            "withdrawals": [],
+            "amount": {
+                "quantity": 240,
+                "unit": "lovelace"
+            },
+            "inputs": [],
+            "direction": "outgoing",
+            "fee": {
+                "quantity": 62,
+                "unit": "lovelace"
+            },
+            "outputs": [],
+            "metadata": {
+                "0": {
+                    "list": [
+                        {
+                            "int": -3
+                        },
+                        {
+                            "int": -1
+                        }
+                    ]
+                }
+            },
+            "id": "10767e166a2d9b01453e04362750a6809a466b36404a741c55179a78e43c1a2d",
+            "deposit": {
+                "quantity": 113,
+                "unit": "lovelace"
+            }
+        },
+        {
+            "status": "pending",
+            "withdrawals": [],
+            "amount": {
+                "quantity": 76,
+                "unit": "lovelace"
+            },
+            "inputs": [],
+            "direction": "outgoing",
+            "fee": {
+                "quantity": 146,
+                "unit": "lovelace"
+            },
+            "outputs": [],
+            "expires_at": {
+                "time": "1885-03-06T15:00:00Z",
+                "epoch_number": 17712,
+                "absolute_slot_number": 3784909,
+                "slot_number": 32456
+            },
+            "metadata": null,
+            "depth": {
+                "quantity": 13528,
+                "unit": "block"
+            },
+            "id": "6507d9700dfa5d0bb23e8b3972344e7e2e1d523c0f132935095d385c3b183b40",
+            "deposit": {
+                "quantity": 194,
+                "unit": "lovelace"
+            }
+        },
+        {
+            "inserted_at": {
+                "height": {
+                    "quantity": 10093,
+                    "unit": "block"
+                },
+                "time": "1898-07-15T01:00:00Z",
+                "epoch_number": 12074,
+                "absolute_slot_number": 8097941,
+                "slot_number": 21029
+            },
+            "status": "in_ledger",
+            "withdrawals": [],
+            "amount": {
+                "quantity": 90,
+                "unit": "lovelace"
+            },
+            "inputs": [],
+            "direction": "incoming",
+            "fee": {
+                "quantity": 149,
+                "unit": "lovelace"
+            },
+            "outputs": [],
+            "metadata": {
+                "25": {
+                    "string": ""
+                }
+            },
+            "depth": {
+                "quantity": 4348,
+                "unit": "block"
+            },
+            "id": "336f1e141a603d16752d6e0f295d4966bec748b83e373d4245f75f421123344a",
+            "deposit": {
+                "quantity": 42,
+                "unit": "lovelace"
+            }
+        },
+        {
+            "status": "pending",
+            "withdrawals": [],
+            "amount": {
+                "quantity": 18,
+                "unit": "lovelace"
+            },
+            "inputs": [],
+            "direction": "outgoing",
+            "fee": {
+                "quantity": 81,
+                "unit": "lovelace"
+            },
+            "outputs": [],
+            "expires_at": {
+                "time": "1868-12-23T16:58:25.019404839061Z",
+                "epoch_number": 2852,
+                "absolute_slot_number": 5748567,
+                "slot_number": 3265
+            },
+            "pending_since": {
+                "height": {
+                    "quantity": 18660,
+                    "unit": "block"
+                },
+                "time": "1872-04-03T00:18:36Z",
+                "epoch_number": 30858,
+                "absolute_slot_number": 2809409,
+                "slot_number": 20446
+            },
+            "metadata": {
+                "15": {
+                    "string": ""
+                }
+            },
+            "depth": {
+                "quantity": 15440,
+                "unit": "block"
+            },
+            "id": "422b987e2c67590f2f11660e781d220e6003ae3a088d5b46435864a3620c1e21",
+            "deposit": {
+                "quantity": 166,
+                "unit": "lovelace"
+            }
+        },
+        {
+            "inserted_at": {
+                "height": {
+                    "quantity": 25647,
+                    "unit": "block"
+                },
+                "time": "1896-03-02T00:00:00Z",
+                "epoch_number": 28654,
+                "absolute_slot_number": 952990,
+                "slot_number": 11960
+            },
+            "status": "in_ledger",
+            "withdrawals": [],
+            "amount": {
+                "quantity": 63,
+                "unit": "lovelace"
+            },
+            "inputs": [],
+            "direction": "outgoing",
+            "fee": {
+                "quantity": 65,
+                "unit": "lovelace"
+            },
+            "outputs": [],
+            "metadata": {
+                "20": {
+                    "map": []
+                }
+            },
+            "depth": {
+                "quantity": 20101,
+                "unit": "block"
+            },
+            "id": "797a536d73482a7fd25e2f7f716c00759bbd143154303b317a0a22760e32070a",
+            "deposit": {
+                "quantity": 202,
+                "unit": "lovelace"
+            }
+        },
+        {
+            "status": "pending",
+            "withdrawals": [],
+            "amount": {
+                "quantity": 202,
+                "unit": "lovelace"
+            },
+            "inputs": [],
+            "direction": "incoming",
+            "fee": {
+                "quantity": 188,
+                "unit": "lovelace"
+            },
+            "outputs": [],
+            "metadata": null,
+            "id": "784c3f2520235d31522a007ab16c433f0217134b117111510a3b7d26586d3e5f",
+            "deposit": {
+                "quantity": 214,
+                "unit": "lovelace"
+            }
+        },
+        {
+            "status": "in_ledger",
+            "withdrawals": [],
+            "amount": {
+                "quantity": 216,
+                "unit": "lovelace"
+            },
+            "inputs": [],
+            "direction": "outgoing",
+            "fee": {
+                "quantity": 205,
+                "unit": "lovelace"
+            },
+            "outputs": [],
+            "metadata": {
+                "10": {
+                    "bytes": "77620916a7fb7c5066521d407b30702b2a2b582c2b"
+                }
+            },
+            "depth": {
+                "quantity": 26035,
+                "unit": "block"
+            },
+            "id": "2801683aa57752909b52633145e5829664a4ee5524677e0e6c5c3d16024a011c",
+            "deposit": {
+                "quantity": 78,
+                "unit": "lovelace"
+            }
+        },
+        {
+            "status": "expired",
+            "withdrawals": [],
+            "amount": {
+                "quantity": 3,
+                "unit": "lovelace"
+            },
+            "inputs": [],
+            "direction": "incoming",
+            "fee": {
+                "quantity": 116,
+                "unit": "lovelace"
+            },
+            "outputs": [],
+            "expires_at": {
+                "time": "1886-03-22T13:58:10.210298131432Z",
+                "epoch_number": 31746,
+                "absolute_slot_number": 219361,
+                "slot_number": 11388
+            },
+            "pending_since": {
+                "height": {
+                    "quantity": 31027,
+                    "unit": "block"
+                },
+                "time": "1882-06-25T01:53:14Z",
+                "epoch_number": 3843,
+                "absolute_slot_number": 371556,
+                "slot_number": 15462
+            },
+            "metadata": null,
+            "depth": {
+                "quantity": 23147,
+                "unit": "block"
+            },
+            "id": "2b80794c3f42483561341361de066a2d49a9025a0b3e92ea710395376878420c",
+            "deposit": {
+                "quantity": 191,
+                "unit": "lovelace"
+            }
+        },
+        {
+            "status": "expired",
+            "withdrawals": [],
+            "amount": {
+                "quantity": 182,
+                "unit": "lovelace"
+            },
+            "inputs": [],
+            "direction": "incoming",
+            "fee": {
+                "quantity": 241,
+                "unit": "lovelace"
+            },
+            "outputs": [],
+            "expires_at": {
+                "time": "1892-08-06T03:43:26.104293656102Z",
+                "epoch_number": 8763,
+                "absolute_slot_number": 12766565,
+                "slot_number": 28652
+            },
+            "pending_since": {
+                "height": {
+                    "quantity": 7162,
+                    "unit": "block"
+                },
+                "time": "1863-01-31T18:22:54Z",
+                "epoch_number": 21734,
+                "absolute_slot_number": 3374044,
+                "slot_number": 8640
+            },
+            "metadata": null,
+            "id": "a2285b21250e5b6fb0323e2d4f5c0edb071055161219494003201734454a600c",
+            "deposit": {
+                "quantity": 55,
+                "unit": "lovelace"
+            }
+        },
+        {
+            "status": "pending",
+            "withdrawals": [],
+            "amount": {
+                "quantity": 156,
+                "unit": "lovelace"
+            },
+            "inputs": [],
+            "direction": "outgoing",
+            "fee": {
+                "quantity": 62,
+                "unit": "lovelace"
+            },
+            "outputs": [],
+            "expires_at": {
+                "time": "1865-02-16T13:00:00Z",
+                "epoch_number": 29192,
+                "absolute_slot_number": 11441238,
+                "slot_number": 31337
+            },
+            "pending_since": {
+                "height": {
+                    "quantity": 784,
+                    "unit": "block"
+                },
+                "time": "1889-06-18T17:06:39.055976841657Z",
+                "epoch_number": 28041,
+                "absolute_slot_number": 9869550,
+                "slot_number": 28242
+            },
+            "metadata": {
+                "20": {
+                    "map": []
+                }
+            },
+            "depth": {
+                "quantity": 16448,
+                "unit": "block"
+            },
+            "id": "5e23134c09ba2245147d63401659db445e236d167c7e39867cf6607f461d5722",
+            "deposit": {
+                "quantity": 236,
+                "unit": "lovelace"
+            }
+        }
+    ]
+}

@@ -302,6 +302,8 @@ import Test.QuickCheck
     )
 import Test.QuickCheck.Arbitrary.Generic
     ( genericArbitrary, genericShrink )
+import Test.QuickCheck.Extra
+    ( reasonablySized )
 import Test.Text.Roundtrip
     ( textRoundtrip )
 import Test.Utils.Paths
@@ -1106,11 +1108,11 @@ instance Arbitrary ApiCertificate where
 
 instance Arbitrary (ApiCoinSelection n) where
     arbitrary = ApiCoinSelection
-        <$> arbitrary
-        <*> arbitrary
-        <*> arbitrary
-        <*> arbitrary
-        <*> arbitrary
+        <$> reasonablySized arbitrary
+        <*> reasonablySized arbitrary
+        <*> reasonablySized arbitrary
+        <*> reasonablySized arbitrary
+        <*> reasonablySized arbitrary
     shrink = genericShrink
 
 instance Arbitrary (ApiCoinSelectionChange n) where
