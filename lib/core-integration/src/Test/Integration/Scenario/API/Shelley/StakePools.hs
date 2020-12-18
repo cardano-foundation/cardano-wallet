@@ -22,6 +22,8 @@ import Cardano.Wallet.Api.Types
     , ApiStakePoolFlag (..)
     , ApiT (..)
     , ApiTransaction
+    , ApiTxId (..)
+    , ApiTxInput (..)
     , ApiWallet
     , ApiWalletDelegationStatus (..)
     , DecodeAddress
@@ -221,6 +223,8 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
             , expectField (#status . #getApiT) (`shouldBe` Pending)
             , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
             , expectField #deposit (`shouldBe` Quantity 1000000)
+            , expectField #inputs $ \inputs' -> do
+                inputs' `shouldSatisfy` all (isJust . source)
             ]
         eventually "Wallet has joined pool and deposit info persists" $ do
             rJoin' <- request @(ApiTransaction n) ctx
@@ -232,6 +236,21 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                 , expectField (#status . #getApiT) (`shouldBe` InLedger)
                 , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
                 , expectField #deposit (`shouldBe` Quantity 1000000)
+                ]
+
+        let txId = getFromResponse #id rJoin
+        let link = Link.getTransaction @'Shelley src (ApiTxId txId)
+        eventually "delegation transaction is in ledger" $ do
+            rSrc <- request @(ApiTransaction n) ctx link Default Empty
+            verify rSrc
+                [ expectResponseCode HTTP.status200
+                -- all tx inputs have address and amount
+                , expectField #inputs $ \inputs' -> do
+                    let addrAmt = (fmap source inputs')
+                    addrAmt `shouldSatisfy` (all isJust)
+                , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
+                , expectField (#status . #getApiT) (`shouldBe` InLedger)
+                , expectField (#metadata . #getApiTxMetadata) (`shouldBe` Nothing)
                 ]
 
         -- Earn rewards
@@ -497,21 +516,32 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
             <$> unsafeRequest @[ApiStakePool]
                 ctx (Link.listStakePools arbitraryStake) Empty
 
-        joinStakePool @n ctx pool1 (w, fixturePassphrase) >>= flip verify
+        rJoin <- joinStakePool @n ctx pool1 (w, fixturePassphrase)
+        verify rJoin
             [ expectResponseCode HTTP.status202
             , expectField (#status . #getApiT) (`shouldBe` Pending)
             , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
+            -- all tx inputs have address and amount
+            , expectField #inputs $ \inputs' -> do
+                let addrAmt = (fmap source inputs')
+                addrAmt `shouldSatisfy` (all isJust)
             ]
 
+        let txId = getFromResponse #id rJoin
+        let link = Link.getTransaction @'Shelley w (ApiTxId txId)
         -- Wait for the certificate to be inserted
         eventually "Certificates are inserted" $ do
-            let ep = Link.listTransactions @'Shelley w
-            request @[ApiTransaction n] ctx ep Default Empty >>= flip verify
-                [ expectListField 0
-                    (#direction . #getApiT) (`shouldBe` Outgoing)
-                , expectListField 0
-                    (#status . #getApiT) (`shouldBe` InLedger)
-                ]
+          rSrc <- request @(ApiTransaction n) ctx link Default Empty
+          verify rSrc
+              [ expectResponseCode HTTP.status200
+              -- all tx inputs have address and amount
+              , expectField #inputs $ \inputs' -> do
+                  let addrAmt = (fmap source inputs')
+                  addrAmt `shouldSatisfy` (all isJust)
+              , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
+              , expectField (#status . #getApiT) (`shouldBe` InLedger)
+              , expectField (#metadata . #getApiTxMetadata) (`shouldBe` Nothing)
+              ]
 
         request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty
             >>= flip verify
@@ -859,9 +889,31 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                     [ expectField #delegation (`shouldBe` delegating pool [])
                     ]
 
-            quitStakePool @n ctx (w, fixturePassphrase) >>= flip verify
+            rQuit <- quitStakePool @n ctx (w, fixturePassphrase)
+            verify rQuit
                 [ expectResponseCode HTTP.status202
+                , expectField (#status . #getApiT) (`shouldBe` Pending)
+                , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
+                -- all tx inputs have address and amount
+                , expectField #inputs $ \inputs' -> do
+                    let addrAmt = (fmap source inputs')
+                    addrAmt `shouldSatisfy` (all isJust)
                 ]
+
+            let txId = getFromResponse #id rQuit
+            let link = Link.getTransaction @'Shelley w (ApiTxId txId)
+            eventually "delegation transaction is in ledger" $ do
+                rSrc <- request @(ApiTransaction n) ctx link Default Empty
+                verify rSrc
+                    [ expectResponseCode HTTP.status200
+                    -- all tx inputs have address and amount
+                    , expectField #inputs $ \inputs' -> do
+                        let addrAmt = (fmap source inputs')
+                        addrAmt `shouldSatisfy` (all isJust)
+                    , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
+                    , expectField (#status . #getApiT) (`shouldBe` InLedger)
+                    , expectField (#metadata . #getApiTxMetadata) (`shouldBe` Nothing)
+                    ]
             eventually "Wallet is not delegating and it got his deposit back" $
                 do
                 request @ApiWallet ctx (Link.getWallet @'Shelley w)

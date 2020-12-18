@@ -341,8 +341,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             verify rDst
                 [ expectSuccess
                 , expectResponseCode HTTP.status200
-                , expectField (#amount . #getQuantity) $
-                    (`shouldBe` amt)
+                , expectField (#amount . #getQuantity) (`shouldBe` amt)
                 -- all tx inputs have NO address and amount
                 -- as the tx is incoming
                 , expectField #inputs $ \inputs' -> do
@@ -446,8 +445,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             verify rDst
                 [ expectSuccess
                 , expectResponseCode HTTP.status200
-                , expectField (#amount . #getQuantity) $
-                    (`shouldBe` (2 * amt) )
+                , expectField (#amount . #getQuantity) (`shouldBe` (2 * amt))
                 -- all tx inputs have NO address and amount
                 -- as the tx is incoming
                 , expectField #inputs $ \inputs' -> do
