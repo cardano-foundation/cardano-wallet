@@ -84,6 +84,8 @@ import Control.Monad
     ( ap, join, liftM, (>=>) )
 import Control.Monad.IO.Class
     ( MonadIO, liftIO )
+import Control.Monad.Trans.Class
+    ( lift )
 import Control.Monad.Trans.Except
     ( ExceptT (..), runExceptT )
 import Control.Tracer

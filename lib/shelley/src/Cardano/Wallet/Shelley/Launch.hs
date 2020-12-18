@@ -117,13 +117,13 @@ import Cardano.Wallet.Primitive.Types
     ( Block (..)
     , EpochLength (unEpochLength)
     , EpochNo (..)
-    , GenesisParameters (getEpochStability)
     , NetworkParameters (..)
     , PoolId (..)
     , ProtocolMagic (..)
     , SlotLength (..)
     , SlottingParameters (..)
     , StartTime (..)
+    , stabilityWindowByron
     )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
@@ -1899,18 +1899,11 @@ timeInterpreterFromTestingConfig genesisParams dir = do
 
     let startTime = StartTime $ sgSystemStart shelleyGenesis
 
-    let byronSl =
-            unSlotLength $ getSlotLength $ slottingParameters genesisParams
-    let byronEl = getEpochLength $ slottingParameters genesisParams
-    let byronSlotLength =
-            unSlotLength $ getSlotLength $ slottingParameters genesisParams
-    let byronK =
-            SecurityParam
-            . fromIntegral
-            . getQuantity
-            . getEpochStability
-            . genesisParameters
-            $ genesisParams
+    let sp = slottingParameters genesisParams
+    let byronSl = unSlotLength $ getSlotLength sp
+    let byronEl = getEpochLength sp
+    let byronSlotLength = unSlotLength $ getSlotLength sp
+    let byronK = SecurityParam $ getQuantity $ stabilityWindowByron sp
     let byronParams = HF.defaultEraParams byronK (mkSlotLength byronSl)
 
     let shelleyEl = sgEpochLength shelleyGenesis
