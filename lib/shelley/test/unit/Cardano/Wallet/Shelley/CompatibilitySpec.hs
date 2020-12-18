@@ -445,18 +445,18 @@ testScriptsTimelockLang = do
     let toSimpleScript = Cardano.SimpleScript Cardano.SimpleScriptV2
 
     let matrix =
-            [ ( "SimpleScriptV2 ValidFromSlot"
-              , RequireAllOf [toKeyHash hashKeyTxt1, ValidFromSlot 120]
+            [ ( "SimpleScriptV2 ActiveFromSlot"
+              , RequireAllOf [toKeyHash hashKeyTxt1, ActiveFromSlot 120]
               , toSimpleScript $
                   Cardano.RequireAllOf [toPaymentHash hashKeyTxt1, Cardano.RequireTimeAfter Cardano.TimeLocksInSimpleScriptV2 (SlotNo 120)]
               )
-            , ( "SimpleScriptV2 ValidUntilSlot"
-              , RequireAllOf [toKeyHash hashKeyTxt1, ValidUntilSlot 120]
+            , ( "SimpleScriptV2 ActiveUntilSlot"
+              , RequireAllOf [toKeyHash hashKeyTxt1, ActiveUntilSlot 120]
               , toSimpleScript $
                   Cardano.RequireAllOf [toPaymentHash hashKeyTxt1, Cardano.RequireTimeBefore Cardano.TimeLocksInSimpleScriptV2 (SlotNo 120)]
               )
-            , ( "SimpleScriptV2 ValidFromSlot and ValidUntilSlot"
-              , RequireAllOf [ValidFromSlot 120, ValidUntilSlot 150, RequireAnyOf [toKeyHash hashKeyTxt1, toKeyHash hashKeyTxt2]]
+            , ( "SimpleScriptV2 ActiveFromSlot and ActiveUntilSlot"
+              , RequireAllOf [ActiveFromSlot 120, ActiveUntilSlot 150, RequireAnyOf [toKeyHash hashKeyTxt1, toKeyHash hashKeyTxt2]]
               , toSimpleScript $
                   Cardano.RequireAllOf
                   [ Cardano.RequireTimeAfter Cardano.TimeLocksInSimpleScriptV2 (SlotNo 120)

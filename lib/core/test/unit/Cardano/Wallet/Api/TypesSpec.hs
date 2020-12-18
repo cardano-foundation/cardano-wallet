@@ -1070,8 +1070,8 @@ instance Arbitrary Script where
       where
         scriptTree 0 = oneof
             [ RequireSignatureOf <$> arbitrary
-            , ValidFromSlot <$> arbitrary
-            , ValidFromSlot <$> arbitrary ]
+            , ActiveFromSlot <$> arbitrary
+            , ActiveFromSlot <$> arbitrary ]
         scriptTree n = do
             Positive m <- arbitrary
             let n' = n `div` (m + 1)
