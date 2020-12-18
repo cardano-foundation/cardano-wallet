@@ -100,7 +100,7 @@ data TokenBundle = TokenBundle
     , tokens
         :: !TokenMap
     }
-    deriving stock (Eq, Generic, Show)
+    deriving stock (Eq, Generic, Read, Show)
 
 -- | Token bundles can be partially ordered, but there is no total ordering of
 --   token bundles that's consistent with their arithmetic properties.

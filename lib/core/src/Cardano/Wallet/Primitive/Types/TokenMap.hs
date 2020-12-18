@@ -149,7 +149,7 @@ newtype TokenMap = TokenMap
         :: Map TokenPolicyId (NonEmptyMap TokenName TokenQuantity)
     }
     deriving stock (Eq, Generic)
-    deriving Show via (Quiet TokenMap)
+    deriving (Read, Show) via (Quiet TokenMap)
 
 -- | Token maps can be partially ordered, but there is no total ordering of
 --   token maps that's consistent with their arithmetic properties.
@@ -187,7 +187,7 @@ data AssetId = AssetId
     , tokenName
         :: !TokenName
     }
-    deriving stock (Eq, Generic, Ord, Show)
+    deriving stock (Eq, Generic, Ord, Read, Show)
 
 instance NFData AssetId
 

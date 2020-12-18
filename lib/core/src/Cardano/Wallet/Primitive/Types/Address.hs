@@ -84,7 +84,7 @@ import qualified Data.Text.Encoding as T
 --
 newtype Address = Address
     { unAddress :: ByteString
-    } deriving (Show, Generic, Eq, Ord)
+    } deriving (Read, Show, Generic, Eq, Ord)
 
 instance NFData Address
 
