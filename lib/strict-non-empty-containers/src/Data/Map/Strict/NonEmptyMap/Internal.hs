@@ -86,7 +86,7 @@ data NonEmptyMap k v = NonEmptyMap
     , rest
         :: !(Map.Map k v)
     }
-    deriving (Eq, Foldable, Functor, Generic, Show, Traversable)
+    deriving (Eq, Foldable, Functor, Generic, Read, Show, Traversable)
 
 instance (NFData k, NFData v) => NFData (NonEmptyMap k v)
 
