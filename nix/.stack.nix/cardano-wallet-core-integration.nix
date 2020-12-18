@@ -77,6 +77,7 @@
           (hsPkgs."text" or (errorHandler.buildDepError "text"))
           (hsPkgs."text-class" or (errorHandler.buildDepError "text-class"))
           (hsPkgs."time" or (errorHandler.buildDepError "time"))
+          (hsPkgs."timeit" or (errorHandler.buildDepError "timeit"))
           ];
         buildable = true;
         };
