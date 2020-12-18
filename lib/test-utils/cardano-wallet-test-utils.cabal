@@ -41,6 +41,7 @@ library
     , http-api-data
     , HUnit
     , iohk-monitoring
+    , lattices
     , QuickCheck
     , quickcheck-classes
     , say
@@ -56,6 +57,7 @@ library
       Test.QuickCheck.Extra
       Test.Utils.FilePath
       Test.Utils.Laws
+      Test.Utils.Laws.PartialOrd
       Test.Utils.Paths
       Test.Utils.Roundtrip
       Test.Utils.StaticServer
