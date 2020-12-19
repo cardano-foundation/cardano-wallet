@@ -152,6 +152,7 @@
             (hsPkgs."http-media" or (errorHandler.buildDepError "http-media"))
             (hsPkgs."http-types" or (errorHandler.buildDepError "http-types"))
             (hsPkgs."iohk-monitoring" or (errorHandler.buildDepError "iohk-monitoring"))
+            (hsPkgs."lattices" or (errorHandler.buildDepError "lattices"))
             (hsPkgs."lens" or (errorHandler.buildDepError "lens"))
             (hsPkgs."memory" or (errorHandler.buildDepError "memory"))
             (hsPkgs."network" or (errorHandler.buildDepError "network"))

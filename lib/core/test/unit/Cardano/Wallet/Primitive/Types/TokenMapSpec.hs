@@ -11,6 +11,8 @@ module Cardano.Wallet.Primitive.Types.TokenMapSpec
 
 import Prelude
 
+import Algebra.PartialOrd
+    ( PartialOrd (..) )
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId (..), Flat (..), Nested (..), TokenMap )
 import Cardano.Wallet.Primitive.Types.TokenMap.Gen
@@ -66,7 +68,7 @@ import Test.Hspec
 import Test.Hspec.Core.QuickCheck
     ( modifyMaxSuccess )
 import Test.QuickCheck
-    ( Arbitrary (..), Property, checkCoverage, cover, property, (===) )
+    ( Arbitrary (..), Property, checkCoverage, cover, property, (===), (==>) )
 import Test.QuickCheck.Classes
     ( eqLaws, monoidLaws, semigroupLaws, semigroupMonoidLaws )
 import Test.Utils.Laws
@@ -117,6 +119,8 @@ spec =
             property prop_fromNestedList_invariant
         it "prop_add_invariant" $
             property prop_add_invariant
+        it "prop_subtract_invariant" $
+            property prop_subtract_invariant
         it "prop_setQuantity_invariant" $
             property prop_setQuantity_invariant
         it "prop_adjustQuantity_invariant" $
@@ -143,6 +147,10 @@ spec =
             property prop_add_commutative
         it "prop_add_associative" $
             property prop_add_associative
+        it "prop_add_subtract_associative" $
+            property prop_add_subtract_associative
+        it "prop_subtract_null" $
+            property prop_subtract_null
 
     parallel $ describe "Quantities" $ do
 
@@ -213,6 +221,12 @@ prop_fromNestedList_invariant entries =
 
 prop_add_invariant :: TokenMap -> TokenMap -> Property
 prop_add_invariant b1 b2 = property $ invariantHolds $ TokenMap.add b1 b2
+
+prop_subtract_invariant :: TokenMap -> TokenMap -> Property
+prop_subtract_invariant m1 m2 =
+    -- We must take care to not produce negative quantities:
+    m2 `leq` m1 ==>
+        property $ invariantHolds $ TokenMap.subtract m1 m2
 
 prop_setQuantity_invariant
     :: TokenMap -> AssetId -> TokenQuantity -> Property
@@ -300,6 +314,18 @@ prop_add_associative :: TokenMap -> TokenMap -> TokenMap -> Property
 prop_add_associative b1 b2 b3 = (===)
     ((b1 `TokenMap.add` b2) `TokenMap.add` b3)
     (b1 `TokenMap.add` (b2 `TokenMap.add` b3))
+
+prop_add_subtract_associative
+    :: TokenMap -> TokenMap -> TokenMap -> Property
+prop_add_subtract_associative m1 m2 m3 =
+    -- We must take care to not produce negative quantities:
+    m3 `leq` m2 ==> (===)
+        ((m1 `TokenMap.add` m2) `TokenMap.subtract` m3)
+        (m1 `TokenMap.add` (m2 `TokenMap.subtract` m3))
+
+prop_subtract_null :: TokenMap -> Property
+prop_subtract_null m =
+    m `TokenMap.subtract` m === TokenMap.empty
 
 --------------------------------------------------------------------------------
 -- Quantity properties

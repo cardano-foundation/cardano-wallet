@@ -51,6 +51,7 @@ module Cardano.Wallet.Primitive.Types.TokenMap
 
     -- * Arithmetic
     , add
+    , subtract
 
     -- * Tests
     , isEmpty
@@ -76,7 +77,7 @@ module Cardano.Wallet.Primitive.Types.TokenMap
     ) where
 
 import Prelude hiding
-    ( negate, null )
+    ( negate, null, subtract )
 
 import Algebra.PartialOrd
     ( PartialOrd (..) )
@@ -436,6 +437,14 @@ add a b = F.foldl' acc a $ toFlatList b
   where
     acc c (asset, quantity) =
         adjustQuantity c asset (`TokenQuantity.add` quantity)
+
+-- | Subtracts one token map from another.
+--
+subtract :: TokenMap -> TokenMap -> TokenMap
+subtract a b = F.foldl' acc a $ toFlatList b
+  where
+    acc c (asset, quantity) =
+        adjustQuantity c asset (`TokenQuantity.subtract` quantity)
 
 --------------------------------------------------------------------------------
 -- Tests
