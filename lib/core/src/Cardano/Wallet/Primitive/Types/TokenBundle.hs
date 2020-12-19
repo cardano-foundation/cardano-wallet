@@ -37,6 +37,7 @@ module Cardano.Wallet.Primitive.Types.TokenBundle
 
     -- * Arithmetic
     , add
+    , subtract
 
     -- * Quantities
     , getQuantity
@@ -58,7 +59,7 @@ module Cardano.Wallet.Primitive.Types.TokenBundle
     ) where
 
 import Prelude hiding
-    ( negate, null )
+    ( negate, null, subtract )
 
 import Algebra.PartialOrd
     ( PartialOrd (..) )
@@ -247,6 +248,12 @@ setCoin b c = b { coin = c }
 add :: TokenBundle -> TokenBundle -> TokenBundle
 add (TokenBundle (Coin c1) m1) (TokenBundle (Coin c2) m2) =
     TokenBundle (Coin $ c1 + c2) (TokenMap.add m1 m2)
+
+-- | Subtracts one token bundle from another.
+--
+subtract :: TokenBundle -> TokenBundle -> TokenBundle
+subtract (TokenBundle (Coin c1) m1) (TokenBundle (Coin c2) m2) =
+    TokenBundle (Coin $ c1 - c2) (TokenMap.subtract m1 m2)
 
 --------------------------------------------------------------------------------
 -- Quantities
