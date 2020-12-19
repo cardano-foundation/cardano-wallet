@@ -52,6 +52,9 @@ module Cardano.Wallet.Primitive.Types.TokenBundle
     , Flat (..)
     , Nested (..)
 
+    -- * Queries
+    , getAssets
+
     ) where
 
 import Prelude hiding
@@ -71,6 +74,8 @@ import Data.Bifunctor
     ( first )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
+import Data.Set
+    ( Set )
 import Fmt
     ( Buildable (..), Builder, blockMapF )
 import GHC.Generics
@@ -283,3 +288,10 @@ removeQuantity b a = b { tokens = TokenMap.removeQuantity (tokens b) a }
 --
 hasPolicy :: TokenBundle -> TokenPolicyId -> Bool
 hasPolicy = TokenMap.hasPolicy . tokens
+
+--------------------------------------------------------------------------------
+-- Queries
+--------------------------------------------------------------------------------
+
+getAssets :: TokenBundle -> Set AssetId
+getAssets = TokenMap.getAssets . tokens
