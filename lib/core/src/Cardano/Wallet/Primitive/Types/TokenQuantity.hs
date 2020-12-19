@@ -12,6 +12,7 @@ module Cardano.Wallet.Primitive.Types.TokenQuantity
 
       -- * Operations
     , add
+    , subtract
     , pred
     , succ
 
@@ -22,7 +23,7 @@ module Cardano.Wallet.Primitive.Types.TokenQuantity
     ) where
 
 import Prelude hiding
-    ( pred, succ )
+    ( pred, subtract, succ )
 
 import Control.DeepSeq
     ( NFData (..) )
@@ -98,6 +99,9 @@ zero = TokenQuantity 0
 
 add :: TokenQuantity -> TokenQuantity -> TokenQuantity
 add (TokenQuantity x) (TokenQuantity y) = TokenQuantity $ x + y
+
+subtract :: TokenQuantity -> TokenQuantity -> TokenQuantity
+subtract (TokenQuantity x) (TokenQuantity y) = TokenQuantity $ x - y
 
 pred :: TokenQuantity -> TokenQuantity
 pred (TokenQuantity q) = TokenQuantity $ Prelude.pred q
