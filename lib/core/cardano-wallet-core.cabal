@@ -68,6 +68,7 @@ library
     , iohk-monitoring
     , lattices
     , memory
+    , MonadRandom
     , monad-logger
     , mtl
     , network
@@ -183,6 +184,8 @@ library
       Cardano.Wallet.Primitive.Types.TokenQuantity
       Cardano.Wallet.Primitive.Types.Tx
       Cardano.Wallet.Primitive.Types.UTxO
+      Cardano.Wallet.Primitive.Types.UTxOIndex
+      Cardano.Wallet.Primitive.Types.UTxOIndex.Internal
       Cardano.Wallet.Registry
       Cardano.Wallet.Transaction
       Cardano.Wallet.Unsafe
@@ -269,6 +272,7 @@ test-suite unit
     , lattices
     , lens
     , memory
+    , MonadRandom
     , network
     , network-uri
     , persistent
@@ -357,6 +361,8 @@ test-suite unit
       Cardano.Wallet.Primitive.Types.TokenMapSpec
       Cardano.Wallet.Primitive.Types.TokenMapSpec.TypeErrorSpec
       Cardano.Wallet.Primitive.Types.TokenQuantitySpec
+      Cardano.Wallet.Primitive.Types.UTxOIndexSpec
+      Cardano.Wallet.Primitive.Types.UTxOIndex.TypeErrorSpec
       Cardano.Wallet.Primitive.TypesSpec
       Cardano.Wallet.RegistrySpec
       Cardano.Wallet.TransactionSpec
