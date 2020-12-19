@@ -36,6 +36,7 @@ library
   exposed-modules:
       Data.Map.Strict.NonEmptyMap
       Data.Map.Strict.NonEmptyMap.Internal
+      Data.Set.Strict.NonEmptySet
 
 test-suite unit
   default-language:
