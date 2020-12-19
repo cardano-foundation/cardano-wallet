@@ -19,7 +19,7 @@ import Test.Hspec.Core.QuickCheck
 import Test.QuickCheck
     ( Arbitrary (..) )
 import Test.QuickCheck.Classes
-    ( eqLaws, semigroupLaws )
+    ( eqLaws, monoidLaws, semigroupLaws, semigroupMonoidLaws )
 import Test.Utils.Laws
     ( testLawsMany )
 import Test.Utils.Laws.PartialOrd
@@ -33,8 +33,10 @@ spec =
     describe "Class instances obey laws" $ do
         testLawsMany @TokenBundle
             [ eqLaws
+            , monoidLaws
             , partialOrdLaws
             , semigroupLaws
+            , semigroupMonoidLaws
             ]
 
 --------------------------------------------------------------------------------

@@ -126,6 +126,9 @@ instance NFData TokenBundle
 instance Semigroup TokenBundle where
     (<>) = add
 
+instance Monoid TokenBundle where
+    mempty = empty
+
 --------------------------------------------------------------------------------
 -- Text serialization
 --------------------------------------------------------------------------------
@@ -154,6 +157,11 @@ buildMap = blockMapF . fmap (first $ id @String)
 --------------------------------------------------------------------------------
 -- Construction
 --------------------------------------------------------------------------------
+
+-- | The empty token bundle.
+--
+empty :: TokenBundle
+empty = TokenBundle (Coin 0) mempty
 
 -- | Creates a token bundle from a coin and a flat list of token quantities.
 --
