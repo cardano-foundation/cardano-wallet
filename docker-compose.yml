@@ -18,7 +18,7 @@ services:
         max-size: "50m"
 
   cardano-wallet:
-    image: inputoutput/cardano-wallet:2020.12.8-shelley
+    image: inputoutput/cardano-wallet:2020.12.21-shelley
     volumes:
       - wallet-${NETWORK}-db:/wallet-db
       - node-ipc:/ipc
