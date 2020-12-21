@@ -21,11 +21,11 @@ set -euo pipefail
 # Use trailing zeros for the date in the git tag, but
 # do not use trailing zeros for the Cabal version.
 # i.e. v2020-11-03 and not 2020.11.03 but 2020.11.3
-OLD_GIT_TAG="v2020-11-26"
-OLD_CABAL_VERSION="2020.11.26"
+OLD_GIT_TAG="v2020-12-08"
+OLD_CABAL_VERSION="2020.12.8"
 
-GIT_TAG="v2020-12-08"
-CABAL_VERSION="2020.12.8"
+GIT_TAG="v2020-12-21"
+CABAL_VERSION="2020.12.21"
 
 CARDANO_NODE_TAG="1.24.2"
 ################################################################################
