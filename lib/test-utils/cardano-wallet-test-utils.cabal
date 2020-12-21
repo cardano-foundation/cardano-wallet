@@ -31,7 +31,6 @@ library
   build-depends:
       base
     , aeson
-    , async
     , contra-tracer
     , filepath
     , file-embed
@@ -40,10 +39,11 @@ library
     , hspec-expectations
     , hspec-golden-aeson
     , http-api-data
+    , HUnit
     , iohk-monitoring
-    , process
     , QuickCheck
     , quickcheck-classes
+    , say
     , stm
     , template-haskell
     , time

@@ -89,6 +89,7 @@ spec = do
         stripTime = unlines
                 . filter (not . ("Finished in" `isPrefixOf`))
                 . filter (not . ("Randomized" `isPrefixOf`))
+                . filter (not . ("retry:" `isPrefixOf`))
                 . lines
 
     -- | Returns an IO action that is different every time you run it!,

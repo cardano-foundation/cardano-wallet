@@ -1,7 +1,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TupleSections #-}
 
 -- |
 -- Copyright: © 2018-2020 IOHK
@@ -21,10 +20,10 @@ import Prelude
 
 import Control.Concurrent
     ( threadDelay )
-import Control.Concurrent.Async
-    ( AsyncCancelled )
-import Control.Concurrent.MVar
-    ( MVar, newEmptyMVar, putMVar, takeMVar )
+import Control.Monad
+    ( void )
+import Say
+    ( sayString )
 import System.Environment
     ( lookupEnv )
 import Test.Hspec
@@ -36,14 +35,17 @@ import Test.Hspec
     , afterAll
     , beforeAll
     , beforeWith
-    , expectationFailure
     , pendingWith
     , specify
     )
+import Test.HUnit.Lang
+    ( HUnitFailure (..), assertFailure, formatFailureReason )
 import UnliftIO.Async
     ( async, race, wait )
 import UnliftIO.Exception
-    ( SomeException, catch, throwIO )
+    ( catch, finally, throwIO )
+import UnliftIO.MVar
+    ( MVar, newEmptyMVar, putMVar, takeMVar, tryPutMVar, tryTakeMVar )
 
 -- | Run a 'bracket' resource acquisition function around all the specs. The
 -- bracket opens before the first test case and closes after the last test case.
@@ -112,14 +114,15 @@ aroundAll acquire =
                 unlock release
                 await done
 
+
 -- | A drop-in replacement for 'it' that'll automatically retry a scenario once
 -- if it fails, to cope with potentially flaky tests.
 --
 -- It also has a timeout of 10 minutes.
 it :: HasCallStack => String -> ActionWith ctx -> SpecWith ctx
-it = itWithCustomTimeout (10*minute)
+it = itWithCustomTimeout (60*minutes)
   where
-    minute = 60
+    minutes = 10
 
 -- | Like @it@ but with a custom timeout, which makes it realistic to test.
 itWithCustomTimeout
@@ -128,20 +131,34 @@ itWithCustomTimeout
     -> String
     -> ActionWith ctx
     -> SpecWith ctx
-itWithCustomTimeout sec title action = specify title $ \ctx -> timeout sec $ do
-    action ctx
-        `catch` (\(_ :: AsyncCancelled) -> return ())
-        `catch` (\(e :: SomeException)  -> action ctx
-        `catch` (\(_ :: SomeException)  -> throwIO e))
+itWithCustomTimeout sec title action = specify title $ \ctx -> do
+    e <- newEmptyMVar
+    race (timer >> tryTakeMVar e) (action' (void . tryPutMVar e) ctx) >>= \case
+       Left Nothing ->
+           assertFailure $ "timed out in " <> show sec <> " seconds"
+       Left (Just firstException) ->
+           throwIO firstException
+       Right () ->
+           pure ()
   where
-    timeout t act =
-        race (threadDelay (micro t)) act >>= \case
-            Right () ->
-                return ()
-            Left () ->
-                expectationFailure $  "timed out in " <> show t <> " seconds"
-      where
-        micro = (* 1000) . (* 1000)
+    timer = threadDelay (sec * 1000 * 1000)
+
+    -- Run the action, if it fails try again. If it fails again, report the
+    -- original exception.
+    action' save ctx = action ctx
+        `catch` (\e -> save e >> reportFirst e >> action ctx
+        `catch` (\f -> reportSecond e f >> throwIO e))
+
+    reportFirst (HUnitFailure _ reason) = do
+        report (formatFailureReason reason)
+        report "Retrying failed test."
+    reportSecond (HUnitFailure _ reason1) (HUnitFailure _ reason2)
+        | reason1 == reason2 = report "Test failed again in the same way."
+        | otherwise = do
+              report (formatFailureReason reason2)
+              report "Test failed again; will report the first error."
+
+    report = mapM_ (sayString . ("retry: " ++)) . lines
 
 -- | Some helper to help readability on the thread synchronization above.
 await :: MVar () -> IO ()
