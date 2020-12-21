@@ -8,28 +8,29 @@
 #
 ############################################################################
 
-{ runtimeShell, writeScriptBin, writeTextFile, runCommand, dockerTools
+{ lib, stdenv
+, runtimeShell, writeScriptBin, writeTextFile, dockerTools
 
-# The main contents of the image.
-, exe
-# Short name of the backend, e.g. shelley
-, backend
-
+# The main contents of the image: cardano-wallet executables
+, exes
+# Executables to include in the image as a base layer: node and utilities
+, base ? []
 # Other things to include in the image.
-, glibcLocales, iana-etc, cacert
-, bashInteractive, coreutils, utillinux, iproute, iputils, curl, socat
+, iana-etc, cacert, bashInteractive
+, glibcLocales ? null
 
 # Used to generate the docker image names
 , repoName ? "inputoutput/cardano-wallet"
 }:
 
+
 let
+  version = (lib.head exes).version;
+
   defaultPort = "8090";
   dataDir = "/data";
 
-  suffix = if backend == "shelley" then "" else "-" + backend;
-  walletExeName = "cardano-wallet" + suffix;
-  startScript = writeScriptBin "start-wallet" ''
+  startScript = writeScriptBin "start-cardano-wallet" ''
     #!${runtimeShell}
     set -euo pipefail
 
@@ -38,9 +39,15 @@ let
     mkdir -p ${dataDir}
     ln -s ${dataDir} /cardano-wallet
 
-    export LOCALE_ARCHIVE="${glibcLocales}/lib/locale/locale-archive"
-    exec ${exe}/bin/${walletExeName} "$@"
+    ${lib.optionalString haveGlibcLocales ''
+      export LOCALE_ARCHIVE="${glibcLocales}/lib/locale/locale-archive"
+    ''}
+
+    exec /bin/cardano-wallet "$@"
   '';
+
+  haveGlibcLocales = glibcLocales != null &&
+    stdenv.hostPlatform.libc == "glibc";
 
   # Config file needed for container/host resolution.
   nsswitch-conf = writeTextFile {
@@ -49,31 +56,37 @@ let
     destination = "/etc/nsswitch.conf";
   };
 
-  # Layer of tools which aren't going to change much between versions.
-  baseImage = dockerTools.buildImage {
+  # System environment layer, which isn't going to change much between
+  # versions.
+  envImage = dockerTools.buildImage {
     name = "${repoName}-env";
     contents = [
-      glibcLocales iana-etc cacert nsswitch-conf
-      bashInteractive coreutils utillinux iproute iputils curl socat
-    ];
+      iana-etc cacert bashInteractive
+      nsswitch-conf
+    ] ++ lib.optional haveGlibcLocales glibcLocales;
+
     # set up /tmp (override with TMPDIR variable)
     extraCommands = "mkdir -m 0777 tmp";
+  };
+
+  # Layer containing cardano-node backend and Adrestia toolbelt.
+  baseImage = dockerTools.buildImage {
+    name = "${repoName}-base";
+    contents = base;
+    fromImage = envImage;
   };
 
 in
   dockerTools.buildImage {
     name = repoName;
-    tag = "${exe.version}-${backend}";
+    tag = version;
     fromImage = baseImage;
-    contents = [
-      exe
-      startScript
-    ];
+    contents = exes ++ [ startScript ];
     config = {
-      EntryPoint = [ "start-wallet" ];
+      EntryPoint = [ "start-cardano-wallet" ];
       ExposedPorts = {
         "${defaultPort}/tcp" = {}; # wallet api
       };
       Volume = [ dataDir ];
     };
-  } // { inherit (exe) version; inherit backend; }
+  } // { inherit version; }

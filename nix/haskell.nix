@@ -187,7 +187,7 @@ let
 
       ({ config, ...}: let
         setGitRevPostInstall = ''
-          ${buildPackages.commonLib.haskell-nix-extra-packages.haskellBuildUtils.package}/bin/set-git-rev "${config.packages.cardano-node.src.rev}" $out/bin/* || true
+          ${buildPackages.haskellBuildUtils}/bin/set-git-rev "${config.packages.cardano-node.src.rev}" $out/bin/* || true
         '';
       in {
         # Add shell completions for tools.
@@ -336,4 +336,5 @@ in
   haskell.addProjectAndPackageAttrs {
     inherit pkg-set;
     inherit (pkg-set.config) hsPkgs;
+    roots = haskell.roots pkg-set.config.compiler.nix-name;
   }

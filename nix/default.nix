@@ -1,4 +1,3 @@
-
 { system ? builtins.currentSystem
 , crossSystem ? null
 # Lets you customise ghc and profiling (see ./haskell.nix):
@@ -6,7 +5,7 @@
 # Lets you override niv dependencies of the project without
 # modifications to the source.
 # eg. to test build against a local checkout of cardano-node:
-#   nix-build default.nix -A cardano-wallet --arg sourcesOverride '{ cardano-node = ../cardano-node; }'
+#   nix-build default.nix -A cardano-wallet --arg sourcesOverride '{ nixpkgs = ../nixpkgs; }'
 , sourcesOverride ? {}
 }:
 let
@@ -42,9 +41,9 @@ let
     # our own overlays:
     ++ [
       (pkgs: _: with pkgs; {
-        # commonLib: mix pkgs.lib with iohk-nix utils and our own:
-        commonLib = lib // iohkNix
-          // import ./util.nix { inherit lib haskell-nix; }
+        # commonLib: iohk-nix utils and our own:
+        commonLib = iohkNix
+          // import ./util.nix { inherit lib; }
           # also expose our sources and overlays
           // { inherit overlays sources; };
       })

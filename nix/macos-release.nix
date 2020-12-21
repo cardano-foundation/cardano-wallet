@@ -24,7 +24,7 @@ in pkgs.stdenv.mkDerivation {
     gnutar
     gzip
     binutils
-    commonLib.haskell-nix-extra-packages.haskellBuildUtils.package
+    haskellBuildUtils
     nix
   ];
   checkInputs = with pkgs.buildPackages; [

@@ -16,7 +16,7 @@
 , system ? builtins.currentSystem
 , crossSystem ? null
 , config ? {}
-, pkgs ? walletPackages.pkgs
+, pkgs ? walletPackages.private.pkgs
 , profiling ? false  # enable profiling in haskell dependencies
 , sourcesOverride ? {}  # see sourcesOverride in nix/default.nix
 }:
@@ -68,6 +68,7 @@ let
     meta.platforms = lib.platforms.unix;
   };
 in
+  with walletPackages.private;
   if profiling
-    then mkShell "cardano-wallet-shell-profiled" walletPackages.profiledProject
-    else mkShell "cardano-wallet-shell" walletPackages.project
+    then mkShell "cardano-wallet-shell-profiled" profiledProject
+    else mkShell "cardano-wallet-shell" project
