@@ -71,7 +71,6 @@ library
     , ouroboros-consensus-shelley
     , ouroboros-network
     , ouroboros-network-framework
-    , process
     , random
     , retry
     , servant-server

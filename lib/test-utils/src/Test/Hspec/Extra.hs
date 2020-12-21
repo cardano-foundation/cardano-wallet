@@ -43,7 +43,7 @@ import Test.HUnit.Lang
 import UnliftIO.Async
     ( async, race, wait )
 import UnliftIO.Exception
-    ( catch, finally, throwIO )
+    ( catch, finally, throwIO, throwString )
 import UnliftIO.MVar
     ( MVar, newEmptyMVar, putMVar, takeMVar, tryPutMVar, tryTakeMVar )
 
@@ -101,19 +101,23 @@ aroundAll acquire =
         release  <- newEmptyMVar
         done     <- newEmptyMVar
 
-        pid <- async $ do
-            acquire $ \a -> do
-                putMVar resource a
-                await release
-            unlock done
+        pid <- async $ flip finally (unlock done) $ acquire $ \a -> do
+            putMVar resource a
+            await release
 
-        race (wait pid) (takeMVar resource) >>= \case
-            Left _ ->
-                throwIO $ userError "aroundAll: failed to setup"
-            Right a -> pure $ (a,) $ do
+        let cleanup = do
                 unlock release
                 await done
 
+        race (wait pid) (takeMVar resource) >>= \case
+            Left _ -> throwString "aroundAll: failed to setup"
+            Right a -> pure (a, cleanup)
+
+    await :: MVar () -> IO ()
+    await = takeMVar
+
+    unlock  :: MVar () -> IO ()
+    unlock = flip putMVar ()
 
 -- | A drop-in replacement for 'it' that'll automatically retry a scenario once
 -- if it fails, to cope with potentially flaky tests.
@@ -159,14 +163,6 @@ itWithCustomTimeout sec title action = specify title $ \ctx -> do
               report "Test failed again; will report the first error."
 
     report = mapM_ (sayString . ("retry: " ++)) . lines
-
--- | Some helper to help readability on the thread synchronization above.
-await :: MVar () -> IO ()
-await = takeMVar
-
--- | Some helper to help readability on the thread synchronization above.
-unlock  :: MVar () -> IO ()
-unlock = flip putMVar ()
 
 -- | Mark a test pending because of flakiness, with given reason. Unless the
 -- RUN_FLAKY_TESTS environment variable is set.
