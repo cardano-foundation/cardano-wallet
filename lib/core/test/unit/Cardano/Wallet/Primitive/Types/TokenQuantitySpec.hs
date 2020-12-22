@@ -31,7 +31,7 @@ import Test.Hspec
 import Test.Hspec.Core.QuickCheck
     ( modifyMaxSuccess )
 import Test.QuickCheck
-    ( Arbitrary (..), Property, property, (===) )
+    ( Arbitrary (..), Property, property, (===), (==>) )
 import Test.QuickCheck.Classes
     ( eqLaws
     , monoidLaws
@@ -70,10 +70,6 @@ spec =
 
     parallel $ describe "Operations" $ do
 
-        it "prop_negate" $
-            property prop_negate
-        it "prop_negate_negate" $
-            property prop_negate_negate
         it "prop_pred_succ" $
             property prop_pred_succ
         it "prop_succ_pred" $
@@ -95,20 +91,8 @@ spec =
 -- Operations
 --------------------------------------------------------------------------------
 
-prop_negate :: TokenQuantity -> Property
-prop_negate = property . \case
-    q | TQ.isStrictlyNegative q ->
-        TQ.isStrictlyPositive $ TQ.negate q
-    q | TQ.isStrictlyPositive q ->
-        TQ.isStrictlyNegative $ TQ.negate q
-    q ->
-        TQ.isZero q
-
-prop_negate_negate :: TokenQuantity -> Property
-prop_negate_negate q = TQ.negate (TQ.negate q) === q
-
 prop_pred_succ :: TokenQuantity -> Property
-prop_pred_succ q =
+prop_pred_succ q = q > TQ.zero ==>
     TQ.succ (TQ.pred q) === q
 
 prop_succ_pred :: TokenQuantity -> Property

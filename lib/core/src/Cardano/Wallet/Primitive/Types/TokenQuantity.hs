@@ -12,20 +12,17 @@ module Cardano.Wallet.Primitive.Types.TokenQuantity
 
       -- * Operations
     , add
-    , negate
     , pred
     , succ
 
       -- * Tests
-    , isStrictlyPositive
-    , isStrictlyNegative
     , isNonZero
     , isZero
 
     ) where
 
 import Prelude hiding
-    ( negate, pred, succ )
+    ( pred, succ )
 
 import Control.DeepSeq
     ( NFData (..) )
@@ -37,6 +34,8 @@ import Fmt
     ( Buildable (..) )
 import GHC.Generics
     ( Generic )
+import Numeric.Natural
+    ( Natural )
 import Quiet
     ( Quiet (..) )
 
@@ -46,8 +45,17 @@ import qualified Prelude
 -- Type
 --------------------------------------------------------------------------------
 
+-- | Represents an integral quantity of tokens.
+--
+-- At present, we use 'Natural' as our underlying type, as the only use case
+-- for these quantities is to be included in token bundles held within
+-- transaction outputs, and these must never be negative.
+--
+-- When we build support for minting and burning of tokens, we may wish to
+-- parameterize this type and allow it to be instantiated with 'Integer'.
+--
 newtype TokenQuantity = TokenQuantity
-    { unTokenQuantity :: Integer }
+    { unTokenQuantity :: Natural }
     deriving stock (Eq, Ord, Generic)
     deriving (Read, Show) via (Quiet TokenQuantity)
 
@@ -91,9 +99,6 @@ zero = TokenQuantity 0
 add :: TokenQuantity -> TokenQuantity -> TokenQuantity
 add (TokenQuantity x) (TokenQuantity y) = TokenQuantity $ x + y
 
-negate :: TokenQuantity -> TokenQuantity
-negate (TokenQuantity x) = TokenQuantity (Prelude.negate x)
-
 pred :: TokenQuantity -> TokenQuantity
 pred (TokenQuantity q) = TokenQuantity $ Prelude.pred q
 
@@ -103,12 +108,6 @@ succ (TokenQuantity q) = TokenQuantity $ Prelude.succ q
 --------------------------------------------------------------------------------
 -- Tests
 --------------------------------------------------------------------------------
-
-isStrictlyNegative :: TokenQuantity -> Bool
-isStrictlyNegative = (< zero)
-
-isStrictlyPositive :: TokenQuantity -> Bool
-isStrictlyPositive = (> zero)
 
 isNonZero :: TokenQuantity -> Bool
 isNonZero = (/= zero)

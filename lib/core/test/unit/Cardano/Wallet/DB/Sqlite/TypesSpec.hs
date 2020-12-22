@@ -20,7 +20,12 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
-    ( genTokenQuantityMixed, shrinkTokenQuantityMixed )
+    ( genTokenQuantityMixed
+    , shrinkTokenQuantityMixed
+    , tokenQuantityLarge
+    , tokenQuantityMassive
+    , tokenQuantitySmall
+    )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Time.Clock.POSIX
@@ -44,6 +49,8 @@ import Test.QuickCheck
     , shrinkIntegral
     , (===)
     )
+
+import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as TQ
 
 spec :: Spec
 spec = do
@@ -71,22 +78,19 @@ persistRoundtrip proxy = it
 
 prop_checkTokenQuantityCoverage :: TokenQuantity -> Property
 prop_checkTokenQuantityCoverage q = checkCoverage
-    $ cover 2 (q == TokenQuantity 0)
+    $ cover 2 (TQ.isZero q)
         "token quantity is zero"
-    $ cover 2 (TokenQuantity 0 < q && q < TokenQuantity smallPositiveValue)
-        "token quantity is small and positive"
-    $ cover 2 (TokenQuantity 0 > q && q > TokenQuantity smallNegativeValue)
-        "token quantity is small and negative"
-    $ cover 2 (q > TokenQuantity largePositiveValue)
-        "token quantity is very large and positive"
-    $ cover 2 (q < TokenQuantity largeNegativeValue)
-        "token quantity is very large and negative"
+    $ cover 2 isSmall
+        "token quantity is small"
+    $ cover 2 isLarge
+        "token quantity is large"
+    $ cover 2 isMassive
+        "token quantity is massive"
     True
   where
-    smallPositiveValue = 10
-    smallNegativeValue = negate smallPositiveValue
-    largePositiveValue = (10 :: Integer) ^ (100 :: Integer)
-    largeNegativeValue = negate largePositiveValue
+    isSmall   = TokenQuantity    0 < q && q <= tokenQuantitySmall
+    isLarge   = tokenQuantitySmall < q && q <= tokenQuantityLarge
+    isMassive = tokenQuantityLarge < q && q <= tokenQuantityMassive
 
 {-------------------------------------------------------------------------------
                               Arbitrary Instances

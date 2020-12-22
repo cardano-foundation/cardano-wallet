@@ -57,6 +57,8 @@ import Data.Typeable
     ( Typeable )
 import Fmt
     ( pretty )
+import Numeric.Natural
+    ( Natural )
 import System.FilePath
     ( (</>) )
 import Test.Hspec
@@ -218,8 +220,7 @@ prop_adjustQuantity_invariant b asset = property $
     invariantHolds $ TM.adjustQuantity b asset adjust
   where
     adjust quantity
-        | TQ.isStrictlyNegative quantity = TQ.succ quantity
-        | TQ.isStrictlyPositive quantity = TQ.pred quantity
+        | quantity > TQ.zero = TQ.pred quantity
         | otherwise = quantity
 
 --------------------------------------------------------------------------------
@@ -324,8 +325,7 @@ prop_adjustQuantity_getQuantity b asset =
   where
     quantityOriginal = TM.getQuantity b asset
     adjust quantity
-        | TQ.isStrictlyNegative quantity = TQ.succ quantity
-        | TQ.isStrictlyPositive quantity = TQ.pred quantity
+        | quantity > TQ.zero = TQ.pred quantity
         | otherwise = quantity
 
 prop_adjustQuantity_hasQuantity
@@ -336,8 +336,7 @@ prop_adjustQuantity_hasQuantity b asset =
   where
     quantityOriginal = TM.getQuantity b asset
     adjust quantity
-        | TQ.isStrictlyNegative quantity = TQ.succ quantity
-        | TQ.isStrictlyPositive quantity = TQ.pred quantity
+        | quantity > TQ.zero = TQ.pred quantity
         | otherwise = quantity
 
 --------------------------------------------------------------------------------
@@ -440,28 +439,28 @@ testMap = testMapData
     & fmap (first (uncurry AssetId))
     & TM.fromFlatList
 
-testMapData :: [((Char, Text), Integer)]
+testMapData :: [((Char, Text), Natural)]
 testMapData =
-    [ (('A', "APPLE"    ), -2)
-    , (('A', "AVOCADO"  ), -1)
-    , (('B', "BANANA"   ),  1)
-    , (('B', "BLUEBERRY"),  2)
+    [ (('A', "APPLE"    ), 1)
+    , (('A', "AVOCADO"  ), 2)
+    , (('B', "BANANA"   ), 3)
+    , (('B', "BLUEBERRY"), 4)
     ]
 
 testMapPrettyFlat :: Text
 testMapPrettyFlat = [s|
 - policy: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
   token: APPLE
-  quantity: -2
+  quantity: 1
 - policy: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
   token: AVOCADO
-  quantity: -1
+  quantity: 2
 - policy: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
   token: BANANA
-  quantity: 1
+  quantity: 3
 - policy: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
   token: BLUEBERRY
-  quantity: 2
+  quantity: 4
 |]
 
 testMapPrettyNested :: Text
@@ -469,15 +468,15 @@ testMapPrettyNested = [s|
 - policy: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
   tokens:
     - token: APPLE
-      quantity: -2
+      quantity: 1
     - token: AVOCADO
-      quantity: -1
+      quantity: 2
 - policy: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
   tokens:
     - token: BANANA
-      quantity: 1
+      quantity: 3
     - token: BLUEBERRY
-      quantity: 2
+      quantity: 4
 |]
 
 --------------------------------------------------------------------------------
