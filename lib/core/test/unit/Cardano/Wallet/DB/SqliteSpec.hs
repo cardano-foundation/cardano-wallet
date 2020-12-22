@@ -143,6 +143,8 @@ import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
+import Cardano.Wallet.Primitive.Types.TokenBundle
+    ( TokenBundle )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..)
     , Tx (..)
@@ -190,6 +192,8 @@ import Data.Time.Clock
     ( getCurrentTime )
 import Data.Time.Clock.POSIX
     ( posixSecondsToUTCTime )
+import Data.Word
+    ( Word64 )
 import Database.Persist.Sql
     ( DBName (..), PersistEntity (..), fieldDB )
 import GHC.Conc
@@ -238,6 +242,7 @@ import Test.Utils.Trace
 
 import qualified Cardano.Wallet.DB.Sqlite.TH as DB
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Seq
+import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.List as L
@@ -758,12 +763,12 @@ fileModeSpec =  do
                             unsafeRunExceptT $ prune testPk (Quantity 2160)
 
                 let mockApplyBlock1 = mockApply (dummyHash "block1")
-                            [ Tx (dummyHash "tx1")
-                                [(TxIn (dummyHash "faucet") 0, Coin 4)]
-                                [ TxOut (fst $ head ourAddrs) (Coin 4) ]
-                                mempty
-                                Nothing
-                            ]
+                        [ Tx (dummyHash "tx1")
+                            [(TxIn (dummyHash "faucet") 0, Coin 4)]
+                            [TxOut (fst $ head ourAddrs) (coinToBundle 4)]
+                            mempty
+                            Nothing
+                        ]
 
                 -- Slot 1 0
                 mockApplyBlock1
@@ -771,15 +776,15 @@ fileModeSpec =  do
 
                 -- Slot 200
                 mockApply (dummyHash "block2a")
-                            [ Tx
-                                (dummyHash "tx2a")
-                                [ (TxIn (dummyHash "tx1") 0, Coin 4) ]
-                                [ TxOut (dummyAddr "faucetAddr2") (Coin 2)
-                                , TxOut (fst $ ourAddrs !! 1) (Coin 2)
-                                ]
-                                mempty
-                                Nothing
-                            ]
+                    [ Tx
+                        (dummyHash "tx2a")
+                        [ (TxIn (dummyHash "tx1") 0, Coin 4) ]
+                        [ TxOut (dummyAddr "faucetAddr2") (coinToBundle 2)
+                        , TxOut (fst $ ourAddrs !! 1) (coinToBundle 2)
+                        ]
+                        mempty
+                        Nothing
+                    ]
 
                 -- Slot 300
                 mockApply (dummyHash "block3a") []
@@ -988,6 +993,9 @@ cutRandomly = iter []
                                    Test data
 -------------------------------------------------------------------------------}
 
+coinToBundle :: Word64 -> TokenBundle
+coinToBundle = TokenBundle.fromCoin . Coin
+
 testCp :: Wallet (SeqState 'Mainnet ShelleyKey)
 testCp = snd $ initWallet block0 initDummyState
   where
@@ -1015,10 +1023,11 @@ testTxs :: [(Tx, TxMeta)]
 testTxs =
     [ ( Tx (mockHash @String "tx2")
         [ (TxIn (mockHash @String "tx1") 0, Coin 1)]
-        [ TxOut (Address "addr") (Coin 1) ]
+        [ TxOut (Address "addr") (coinToBundle 1) ]
         mempty
         Nothing
-      , TxMeta InLedger Incoming (SlotNo 140) (Quantity 0) (Quantity 1337144) Nothing
+      , TxMeta
+        InLedger Incoming (SlotNo 140) (Quantity 0) (Quantity 1337144) Nothing
       )
     ]
 

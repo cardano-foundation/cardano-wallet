@@ -133,6 +133,14 @@ import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..) )
+import Cardano.Wallet.Primitive.Types.TokenBundle
+    ( TokenBundle )
+import Cardano.Wallet.Primitive.Types.TokenMap
+    ( TokenMap )
+import Cardano.Wallet.Primitive.Types.TokenPolicy
+    ( TokenName, TokenPolicyId )
+import Cardano.Wallet.Primitive.Types.TokenQuantity
+    ( TokenQuantity )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..)
     , TransactionInfo (..)
@@ -174,6 +182,8 @@ import Data.List.Extra
     ( enumerate )
 import Data.Map
     ( Map )
+import Data.Map.Strict.NonEmptyMap
+    ( NonEmptyMap )
 import Data.Maybe
     ( catMaybes, fromJust, isJust, isNothing )
 import Data.Quantity
@@ -686,7 +696,7 @@ generatorWithWid wids =
     genMinWithdrawal :: Gen (Maybe (Quantity "lovelace" Natural))
     genMinWithdrawal = frequency
         [ (10, pure Nothing)
-        , (1, (Just . Quantity . fromIntegral . getCoin) <$> arbitrary)
+        , (1, (Just . Quantity . fromIntegral . unCoin) <$> arbitrary)
         ]
 
 isUnordered :: Ord x => [x] -> Bool
@@ -848,6 +858,9 @@ deriving instance ToExpr s => ToExpr (Model s Concrete)
 instance ToExpr s => ToExpr (Mock s) where
     toExpr = genericToExpr
 
+instance (ToExpr k, ToExpr v) => ToExpr (NonEmptyMap k v) where
+    toExpr = genericToExpr
+
 instance ToExpr WalletId where
     toExpr = defaultExprViaShow
 
@@ -913,6 +926,21 @@ instance ToExpr Coin where
     toExpr = genericToExpr
 
 instance ToExpr TxOut where
+    toExpr = genericToExpr
+
+instance ToExpr TokenBundle where
+    toExpr = genericToExpr
+
+instance ToExpr TokenMap where
+    toExpr = genericToExpr
+
+instance ToExpr TokenName where
+    toExpr = genericToExpr
+
+instance ToExpr TokenPolicyId where
+    toExpr = genericToExpr
+
+instance ToExpr TokenQuantity where
     toExpr = genericToExpr
 
 instance ToExpr Address where

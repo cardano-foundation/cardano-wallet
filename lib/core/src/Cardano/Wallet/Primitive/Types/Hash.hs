@@ -1,6 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE KindSignatures #-}
@@ -37,14 +37,17 @@ import GHC.Generics
     ( Generic )
 import GHC.TypeLits
     ( KnownSymbol, Symbol, symbolVal )
+import Quiet
+    ( Quiet (..) )
 
 import qualified Data.ByteString as BS
 import qualified Data.Char as C
 import qualified Data.Text.Encoding as T
 
 newtype Hash (tag :: Symbol) = Hash { getHash :: ByteString }
-    deriving stock (Show, Generic, Eq, Ord)
+    deriving stock (Generic, Eq, Ord)
     deriving newtype (ByteArrayAccess)
+    deriving (Read, Show) via (Quiet (Hash tag))
 
 instance NFData (Hash tag)
 
@@ -63,6 +66,7 @@ instance FromText (Hash "Genesis")       where fromText = hashFromText 32
 instance FromText (Hash "Block")         where fromText = hashFromText 32
 instance FromText (Hash "BlockHeader")   where fromText = hashFromText 32
 instance FromText (Hash "RewardAccount") where fromText = hashFromText 28
+instance FromText (Hash "TokenPolicy")   where fromText = hashFromText 28
 
 hashFromText
     :: forall t. (KnownSymbol t)

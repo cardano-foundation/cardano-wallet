@@ -3,6 +3,7 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
@@ -39,7 +40,7 @@ import Cardano.Wallet.Primitive.Types.Coin
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( TxIn (..), TxOut (..) )
+    ( TxIn (..), TxOut (..), txOutCoin )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
 import Control.Arrow
@@ -93,6 +94,7 @@ import Test.QuickCheck.Monadic
     ( assert, monadicIO, pre, run )
 
 import qualified Cardano.Wallet.Primitive.CoinSelection as CS
+import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Data.ByteString as BS
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
@@ -298,7 +300,7 @@ spec = do
             , csChngs = [1]
             })
 
-        let c = getCoin maxBound
+        let c = unCoin maxBound
 
         -- New BIG inputs selected causes change to overflow
         feeUnitTest id (FeeFixture
@@ -382,35 +384,48 @@ spec = do
             $ property
             $ withMaxSuccess 2000
             $ forAllBlind genSelection' prop_rebalanceSelection
-        it "If change is a coin equal the dust threshold, fee balancing still converges, wrt #2118" $
-            let dt = Coin {getCoin = 114754}
-                cs = CoinSelection {inputs = [
-                (TxIn {inputId = Hash {getHash = mconcat [
-                    "P\145\135\197\182\&1\f\210\207\188\&8\240\234"
-                    ,",\186\136\159q\204\224Bi\210\137\159\203\148\ETB\190\191\129V"
-                    ] }
-                    , inputIx = 0}
-                ,TxOut {address = Address {unAddress = "addr-2"}
-                    , coin = Coin {getCoin = 197140}})
-                ]
-                , withdrawal = 502225
-                , reclaim = 3567
-                , outputs = [
-                    TxOut {address = Address {unAddress = "addr-3"}
-                        , coin = Coin {getCoin = 72698}}
-                    ,TxOut {address = Address {unAddress = "addr-2"}
-                        , coin = Coin {getCoin = 175789}}
-                    ,TxOut {address = Address {unAddress = "addr-2"}
-                        , coin = Coin {getCoin = 2336}}
-                    ,TxOut {address = Address {unAddress = "addr-3"}
-                        , coin = Coin {getCoin = 86104}}
-                    ,TxOut {address = Address {unAddress = "addr-0"}
-                        , coin = Coin {getCoin = 74851}}
-                ]
-                , change = [dt]
-                , deposit = 0}
-            in property $ prop_rebalanceSelection cs dt
 
+        it "If change is a coin equal the dust threshold, \
+            \fee balancing still converges, wrt #2118" $
+            let changeCoin = Coin 114754
+                coinToBundle = TokenBundle.fromCoin . Coin
+                inputId = Hash $ mconcat
+                    [ "P\145\135\197\182\&1\f\210\207\188\&8\240\234,\186\136"
+                    , "\159q\204\224Bi\210\137\159\203\148\ETB\190\191\129V"
+                    ]
+                cs = CoinSelection
+                    { inputs =
+                        [ ( TxIn
+                              { inputId
+                              , inputIx = 0 }
+                          , TxOut
+                              { address = Address "addr-2"
+                              , tokens = coinToBundle 197140 }
+                          )
+                        ]
+                    , outputs =
+                        [ TxOut
+                            { address = Address "addr-3"
+                            , tokens = coinToBundle 72698 }
+                        , TxOut
+                            { address = Address "addr-2"
+                            , tokens = coinToBundle 175789 }
+                        , TxOut
+                            { address = Address "addr-2"
+                            , tokens = coinToBundle 2336 }
+                        , TxOut
+                            { address = Address "addr-3"
+                            , tokens = coinToBundle 86104 }
+                        , TxOut
+                            { address = Address "addr-0"
+                            , tokens = coinToBundle 74851 }
+                        ]
+                    , change = [changeCoin]
+                    , withdrawal = 502225
+                    , reclaim = 3567
+                    , deposit = 0
+                    }
+            in property $ prop_rebalanceSelection cs changeCoin
 
 {-------------------------------------------------------------------------------
                          Fee Adjustment - Properties
@@ -420,9 +435,9 @@ spec = do
 isValidSelection :: CoinSelection -> Bool
 isValidSelection cs =
     let
-        oAmt = sum $ map (fromIntegral . getCoin . coin) (outputs cs)
-        cAmt = sum $ map (fromIntegral . getCoin) (change cs)
-        iAmt = sum $ map (fromIntegral . getCoin . coin . snd) (inputs cs)
+        oAmt = sum $ map (fromIntegral . unCoin . txOutCoin) (outputs cs)
+        cAmt = sum $ map (fromIntegral . unCoin) (change cs)
+        iAmt = sum $ map (fromIntegral . unCoin . txOutCoin . snd) (inputs cs)
     in
         iAmt + (withdrawal cs) + (reclaim cs) >= oAmt + cAmt + (deposit cs)
 
@@ -463,8 +478,8 @@ propReducedChanges (ShowFmt (FeeProp coinSel utxo (fee, dust)))
         coinSel' <- run $ runExceptT $ adjustForFee feeOpt utxo coinSel
         pre (isRight coinSel')
         let Right s = coinSel'
-        let chgs' = sum $ map getCoin $ change s
-        let chgs = sum $ map getCoin $ change coinSel
+        let chgs' = sum $ map unCoin $ change s
+        let chgs = sum $ map unCoin $ change coinSel
         let inps' = CS.inputs s
         let inps = CS.inputs coinSel
         assert (chgs' < chgs || length inps' >= length inps)
@@ -643,9 +658,9 @@ feeUnitTest adjustOpts fixture expected = it title $ do
     result <- runExceptT $ do
         cs' <- adjustForFee (adjustOpts $ feeOptions feeF dustF) utxo cs
         return $ FeeOutput
-            { csInps  = map (getCoin . coin . snd) (inputs cs')
-            , csOuts  = map (getCoin . coin) (outputs cs')
-            , csChngs = map getCoin (change cs')
+            { csInps  = map (unCoin . txOutCoin . snd) (inputs cs')
+            , csOuts  = map (unCoin . txOutCoin) (outputs cs')
+            , csChngs = map unCoin (change cs')
             }
     result `shouldBe` expected
   where
@@ -710,7 +725,7 @@ genTxOut :: [Coin] -> Gen [TxOut]
 genTxOut coins = do
     let n = length coins
     outs <- vector n
-    return $ zipWith TxOut outs coins
+    return $ zipWith TxOut outs (TokenBundle.fromCoin <$> coins)
 
 genSelection :: Gen CoinSelection
 genSelection = do
@@ -777,7 +792,7 @@ instance Arbitrary Coin where
 
 instance Arbitrary Fee where
     shrink (Fee c) = Fee <$> filter (> 0) (shrink $ fromIntegral c)
-    arbitrary = Fee . getCoin <$> arbitrary
+    arbitrary = Fee . unCoin <$> arbitrary
 
 instance Arbitrary FeeProp where
     shrink (FeeProp cs utxo opts) =

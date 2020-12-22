@@ -55,6 +55,7 @@ import Test.QuickCheck
 import Test.QuickCheck.Monadic
     ( monadicIO, monitor, pick )
 
+import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -133,7 +134,7 @@ spec = parallel $ do
                         }
                       , TxOut
                         { address = Address "ADDR03"
-                        , coin = Coin 2
+                        , tokens = TokenBundle.fromCoin $ Coin 2
                         }
                       )
                     ]
@@ -264,7 +265,7 @@ genUTxO r (Coin dust) = do
 
     genTxOut :: Int -> Gen [TxOut]
     genTxOut n = do
-        coins <- vectorOf n genCoin
+        coins <- fmap TokenBundle.fromCoin <$> vectorOf n genCoin
         addrs <- vectorOf n (Address <$> genBytes 8)
         pure $ zipWith TxOut addrs coins
 

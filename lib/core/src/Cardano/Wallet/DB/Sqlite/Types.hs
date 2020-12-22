@@ -62,6 +62,10 @@ import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..) )
+import Cardano.Wallet.Primitive.Types.TokenPolicy
+    ( TokenName, TokenPolicyId )
+import Cardano.Wallet.Primitive.Types.TokenQuantity
+    ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..), TxMetadata, TxStatus (..) )
 import Control.Arrow
@@ -266,6 +270,35 @@ instance PathPiece TxId where
     toPathPiece = toText . getTxId
     fromPathPiece = fmap TxId . fromTextMaybe
 
+--------------------------------------------------------------------------------
+-- Tokens
+--------------------------------------------------------------------------------
+
+instance PersistField TokenName where
+    toPersistValue = toPersistValue . toText
+    fromPersistValue = fromPersistValueFromText
+
+instance PersistFieldSql TokenName where
+    sqlType _ = sqlType (Proxy @Text)
+
+instance PersistField TokenPolicyId where
+    toPersistValue = toPersistValue . toText
+    fromPersistValue = fromPersistValueFromText
+
+instance PersistFieldSql TokenPolicyId where
+    sqlType _ = sqlType (Proxy @Text)
+
+instance PersistField TokenQuantity where
+    -- SQLite has no big integer type, so we use a textual representation
+    -- instead.
+    toPersistValue = toPersistValue . toText
+    fromPersistValue = fromPersistValueFromText
+
+instance PersistFieldSql TokenQuantity where
+    -- SQLite has no big integer type, so we use a textual representation
+    -- instead.
+    sqlType _ = sqlType (Proxy @Text)
+
 ----------------------------------------------------------------------------
 -- BlockId
 
@@ -409,7 +442,7 @@ mkCoin n
     where c = Coin n
 
 instance PersistField Coin where
-    toPersistValue = toPersistValue . getCoin
+    toPersistValue = toPersistValue . unCoin
     fromPersistValue = fromPersistValue >=> mkCoin
 
 instance PersistFieldSql Coin where

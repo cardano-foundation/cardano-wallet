@@ -88,6 +88,8 @@ import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
+import Cardano.Wallet.Primitive.Types.Coin.Gen
+    ( genCoinLargePositive )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.RewardAccount
@@ -104,6 +106,7 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxOut (..)
     , TxStatus (..)
     , txId
+    , txOutCoin
     )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
@@ -193,6 +196,7 @@ import qualified Cardano.Wallet as W
 import qualified Cardano.Wallet.DB.MVar as MVar
 import qualified Cardano.Wallet.DB.Sqlite as Sqlite
 import qualified Cardano.Wallet.Primitive.CoinSelection as CS
+import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
@@ -544,11 +548,11 @@ walletKeyIsReencrypted (wid, wname) (xprv, pwd) newPwd =
     selection = mempty
         { CS.inputs =
             [ ( TxIn (Hash "eb4ab6028bd0ac971809d514c92db1") 1
-              , TxOut (Address "source") (Coin 42)
+              , TxOut (Address "source") (TokenBundle.fromCoin $ Coin 42)
               )
             ]
         , CS.outputs =
-            [ TxOut (Address "destination") (Coin 14) ]
+            [ TxOut (Address "destination") (TokenBundle.fromCoin $ Coin 14) ]
         }
 
 walletListTransactionsSorted
@@ -618,7 +622,7 @@ prop_estimateFee (NonEmpty results) = case actual of
     count p = length . filter p
 
     -- get the coin amount from a Right FeeGen, or a default value otherwise.
-    getRight d = either (const d) (getCoin . unFeeGen)
+    getRight d = either (const d) (unCoin . unFeeGen)
 
     -- Two fractions are close to each other if they are within 20% either way.
     closeTo a b =
@@ -634,9 +638,14 @@ instance Arbitrary FeeGen where
 -- | Manufacture a coin selection that would result in the given fee.
 coinSelectionForFee :: FeeGen -> CoinSelection
 coinSelectionForFee (FeeGen (Coin fee)) = mempty
-    { CS.inputs  = [(TxIn (Hash "") 0, TxOut (Address "") (Coin (1 + fee)))]
-    , CS.outputs = [TxOut (Address "") (Coin 1)]
+    { CS.inputs =
+        [(TxIn (Hash "") 0, TxOut (Address "") (coinToBundle (1 + fee)))]
+    , CS.outputs =
+        [TxOut (Address "") (coinToBundle 1)]
     }
+  where
+    coinToBundle = TokenBundle.fromCoin . Coin
+
 {-------------------------------------------------------------------------------
                       Tests machinery, Arbitrary instances
 -------------------------------------------------------------------------------}
@@ -675,7 +684,7 @@ instance Arbitrary CoinSelectionGuard where
     arbitrary = do
         minVal <- Coin <$> choose (0, 100)
         txIntxOuts <- Map.toList . getUTxO <$> arbitrary
-        let chgs = map (\(_, TxOut _ c) -> c) txIntxOuts
+        let chgs = map (\(_, TxOut _ c) -> TokenBundle.getCoin c) txIntxOuts
         let cs = mempty
                 { CS.inputs = txIntxOuts
                 , CS.change = chgs
@@ -713,7 +722,7 @@ setupFixture (wid, wname, wstate) = do
 dummyTransactionLayer :: TransactionLayer ShelleyKey
 dummyTransactionLayer = TransactionLayer
     { mkStdTx = \_ _ keyFrom _slot _md cs -> do
-        let inps' = map (second coin) (CS.inputs cs)
+        let inps' = map (second txOutCoin) (CS.inputs cs)
         let tid = mkTxId inps' (CS.outputs cs) mempty Nothing
         let tx = Tx tid inps' (CS.outputs cs) mempty Nothing
         wit <- forM (CS.inputs cs) $ \(_, TxOut addr _) -> do
@@ -865,7 +874,7 @@ instance Arbitrary (Hash "Tx") where
 
 instance Arbitrary Coin where
     shrink _ = []
-    arbitrary = Coin <$> arbitrary
+    arbitrary = genCoinLargePositive
 
 instance Arbitrary Tx where
     shrink (Tx tid ins outs wdrls md) = mconcat
@@ -904,7 +913,8 @@ instance Arbitrary TxIn where
         <*> scale (`mod` 3) arbitrary
 
 instance Arbitrary TxOut where
-    arbitrary = TxOut (Address "address") . Coin <$> choose (1, 100000)
+    arbitrary = TxOut (Address "address") . TokenBundle.fromCoin
+        <$> genCoinLargePositive
 
 instance Arbitrary TxMeta where
     shrink _ = []

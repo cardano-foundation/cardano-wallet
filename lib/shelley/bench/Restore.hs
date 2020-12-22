@@ -206,6 +206,7 @@ import qualified Cardano.Wallet as W
 import qualified Cardano.Wallet.DB.Sqlite as Sqlite
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Byron as Byron
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Shelley
+import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
@@ -442,7 +443,7 @@ benchmarksRnd _ w wid wname benchname restoreTime = do
         $ W.listTransactions @_ @s @k w wid Nothing Nothing Nothing Descending
 
     (_, estimateFeesTime) <- bench "estimate tx fee" $ do
-        let out = TxOut (dummyAddress @n) (Coin 1)
+        let out = TxOut (dummyAddress @n) (TokenBundle.fromCoin $ Coin 1)
         runExceptT $ withExceptT show $ W.estimateFeeForPayment @_ @s @k
             w wid (out :| []) (Quantity 0) Nothing
 
@@ -529,7 +530,7 @@ benchmarksSeq _ w wid _wname benchname restoreTime = do
         $ W.listTransactions @_ @s @k w wid Nothing Nothing Nothing Descending
 
     (_, estimateFeesTime) <- bench "estimate tx fee" $ do
-        let out = TxOut (dummyAddress @n) (Coin 1)
+        let out = TxOut (dummyAddress @n) (TokenBundle.fromCoin $ Coin 1)
         runExceptT $ withExceptT show $ W.estimateFeeForPayment @_ @s @k
             w wid (out :| []) (Quantity 0) Nothing
 

@@ -1,5 +1,5 @@
 {-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE TypeApplications #-}
 
@@ -36,17 +36,20 @@ import GHC.Generics
     ( Generic )
 import Numeric.Natural
     ( Natural )
+import Quiet
+    ( Quiet (..) )
 
 import qualified Data.Text as T
 
 -- | A 'Coin' represents a quantity of lovelace.
 --
--- Reminder: 1 Lovelace = 1,000,000 ADA
+-- Reminder: 1 ada = 1,000,000 lovelace.
 --
 newtype Coin = Coin
-    { getCoin :: Word64
+    { unCoin :: Word64
     }
-    deriving stock (Show, Ord, Eq, Generic)
+    deriving stock (Ord, Eq, Generic)
+    deriving Show via (Quiet Coin)
 
 instance ToText Coin where
     toText (Coin c) = T.pack $ show c
@@ -67,7 +70,7 @@ instance Bounded Coin where
     maxBound = Coin 45_000_000_000_000_000
 
 instance Buildable Coin where
-    build = build . getCoin
+    build = build . unCoin
 
 isValidCoin :: Coin -> Bool
 isValidCoin c = c >= minBound && c <= maxBound

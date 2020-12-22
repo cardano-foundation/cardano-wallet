@@ -1,0 +1,258 @@
+{
+    "seed": -3539641455139500764,
+    "samples": [
+        [
+            {
+                "tokens": [
+                    {
+                        "quantity": 2,
+                        "token": "TokenA"
+                    }
+                ],
+                "policy": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+            },
+            {
+                "tokens": [
+                    {
+                        "quantity": 4,
+                        "token": "TokenC"
+                    }
+                ],
+                "policy": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+            },
+            {
+                "tokens": [
+                    {
+                        "quantity": 3,
+                        "token": "TokenA"
+                    }
+                ],
+                "policy": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+            }
+        ],
+        [],
+        [
+            {
+                "tokens": [
+                    {
+                        "quantity": 9,
+                        "token": "TokenA"
+                    },
+                    {
+                        "quantity": 2,
+                        "token": "TokenB"
+                    }
+                ],
+                "policy": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            },
+            {
+                "tokens": [
+                    {
+                        "quantity": 2,
+                        "token": "TokenB"
+                    },
+                    {
+                        "quantity": 5,
+                        "token": "TokenC"
+                    }
+                ],
+                "policy": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+            },
+            {
+                "tokens": [
+                    {
+                        "quantity": 3,
+                        "token": "TokenC"
+                    },
+                    {
+                        "quantity": 1,
+                        "token": "TokenD"
+                    }
+                ],
+                "policy": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+            }
+        ],
+        [
+            {
+                "tokens": [
+                    {
+                        "quantity": 4,
+                        "token": "TokenD"
+                    }
+                ],
+                "policy": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+            }
+        ],
+        [
+            {
+                "tokens": [
+                    {
+                        "quantity": 8,
+                        "token": "TokenA"
+                    }
+                ],
+                "policy": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+            },
+            {
+                "tokens": [
+                    {
+                        "quantity": 5,
+                        "token": "TokenB"
+                    }
+                ],
+                "policy": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+            }
+        ],
+        [
+            {
+                "tokens": [
+                    {
+                        "quantity": 4,
+                        "token": "TokenA"
+                    },
+                    {
+                        "quantity": 7,
+                        "token": "TokenD"
+                    }
+                ],
+                "policy": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            },
+            {
+                "tokens": [
+                    {
+                        "quantity": 2,
+                        "token": "TokenB"
+                    }
+                ],
+                "policy": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+            },
+            {
+                "tokens": [
+                    {
+                        "quantity": 10,
+                        "token": "TokenA"
+                    },
+                    {
+                        "quantity": 3,
+                        "token": "TokenC"
+                    },
+                    {
+                        "quantity": 7,
+                        "token": "TokenD"
+                    }
+                ],
+                "policy": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+            },
+            {
+                "tokens": [
+                    {
+                        "quantity": 7,
+                        "token": "TokenC"
+                    },
+                    {
+                        "quantity": 6,
+                        "token": "TokenD"
+                    }
+                ],
+                "policy": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+            }
+        ],
+        [
+            {
+                "tokens": [
+                    {
+                        "quantity": 7,
+                        "token": "TokenD"
+                    }
+                ],
+                "policy": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+            }
+        ],
+        [
+            {
+                "tokens": [
+                    {
+                        "quantity": 5,
+                        "token": "TokenC"
+                    }
+                ],
+                "policy": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+            },
+            {
+                "tokens": [
+                    {
+                        "quantity": 5,
+                        "token": "TokenA"
+                    },
+                    {
+                        "quantity": 7,
+                        "token": "TokenC"
+                    }
+                ],
+                "policy": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+            },
+            {
+                "tokens": [
+                    {
+                        "quantity": 9,
+                        "token": "TokenC"
+                    }
+                ],
+                "policy": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+            }
+        ],
+        [
+            {
+                "tokens": [
+                    {
+                        "quantity": 5,
+                        "token": "TokenB"
+                    }
+                ],
+                "policy": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+            },
+            {
+                "tokens": [
+                    {
+                        "quantity": 5,
+                        "token": "TokenD"
+                    }
+                ],
+                "policy": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+            }
+        ],
+        [
+            {
+                "tokens": [
+                    {
+                        "quantity": 5,
+                        "token": "TokenB"
+                    }
+                ],
+                "policy": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            },
+            {
+                "tokens": [
+                    {
+                        "quantity": 1,
+                        "token": "TokenD"
+                    }
+                ],
+                "policy": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+            },
+            {
+                "tokens": [
+                    {
+                        "quantity": 5,
+                        "token": "TokenC"
+                    },
+                    {
+                        "quantity": 2,
+                        "token": "TokenD"
+                    }
+                ],
+                "policy": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+            }
+        ]
+    ]
+}

@@ -27,7 +27,7 @@ import Cardano.Wallet.Primitive.CoinSelection
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( TxIn, TxOut (..) )
+    ( TxIn, TxOut (..), txOutCoin )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
 import Control.Monad
@@ -59,7 +59,7 @@ largestFirst opt outs withdrawal utxo = do
     let nOuts = fromIntegral $ NE.length outs
     let maxN = fromIntegral $ maximumNumberOfInputs opt nOuts
     let nLargest = take maxN
-            . L.sortOn (Down . coin . snd)
+            . L.sortOn (Down . txOutCoin . snd)
             . Map.toList
             . getUTxO
 
@@ -67,7 +67,7 @@ largestFirst opt outs withdrawal utxo = do
         Just (utxo', s) ->
             pure (s, UTxO $ Map.fromList utxo')
         Nothing -> do
-            let moneyRequested = sum $ (getCoin . coin) <$> outs
+            let moneyRequested = sum $ (unCoin . txOutCoin) <$> outs
             let utxoList = Map.toList $ getUTxO utxo
             let total = totalBalance withdrawal utxoList
             let nUtxo = fromIntegral $ Map.size $ getUTxO utxo
@@ -102,7 +102,7 @@ atLeast
     -> [TxOut]
     -> Maybe ([(TxIn, TxOut)], CoinSelection)
 atLeast utxo0 (Quantity withdrawal) outs =
-    coverOutput (toInteger $ sum $ getCoin . coin <$> outs, mempty) utxo0
+    coverOutput (toInteger $ sum $ unCoin . txOutCoin <$> outs, mempty) utxo0
   where
     coverOutput
         :: (Integer, [(TxIn, TxOut)])
@@ -125,7 +125,7 @@ atLeast utxo0 (Quantity withdrawal) outs =
         | otherwise =
             let
                 (inp, out):utxo' = utxo
-                outAmount = getCoin (coin out)
+                outAmount = unCoin (txOutCoin out)
                 -- NOTE: For the /first/ selected input, we also use the entire
                 -- withdrawal. If it's not enough, new inputs will be selected.
                 target'

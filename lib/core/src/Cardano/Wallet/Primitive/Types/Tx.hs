@@ -36,6 +36,7 @@ module Cardano.Wallet.Primitive.Types.Tx
     , toTxHistory
     , txIns
     , txMetadataIsNull
+    , txOutCoin
 
     ) where
 
@@ -55,12 +56,22 @@ import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..) )
+import Cardano.Wallet.Primitive.Types.TokenBundle
+    ( TokenBundle )
+import Cardano.Wallet.Primitive.Types.TokenPolicy
+    ( TokenName, TokenPolicyId )
+import Cardano.Wallet.Primitive.Types.TokenQuantity
+    ( TokenQuantity )
 import Control.DeepSeq
     ( NFData (..) )
+import Data.Bifunctor
+    ( first )
 import Data.ByteArray
     ( ByteArrayAccess )
 import Data.ByteString
     ( ByteString )
+import Data.Function
+    ( (&) )
 import Data.Generics.Internal.VL.Lens
     ( view )
 import Data.Generics.Labels
@@ -69,6 +80,8 @@ import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Map.Strict
     ( Map )
+import Data.Ord
+    ( comparing )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Set
@@ -87,6 +100,7 @@ import Data.Word
 import Fmt
     ( Buildable (..)
     , blockListF'
+    , blockMapF
     , fixedF
     , nameF
     , ordinalF
@@ -99,6 +113,8 @@ import GHC.Generics
 import Numeric.Natural
     ( Natural )
 
+import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
+import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Text.Lazy.Builder as Builder
@@ -176,9 +192,37 @@ instance Buildable TxIn where
 data TxOut = TxOut
     { address
         :: !Address
-    , coin
-        :: !Coin
-    } deriving (Show, Generic, Eq, Ord)
+    , tokens
+        :: !TokenBundle
+    } deriving (Show, Generic, Eq)
+
+-- Gets the current 'Coin' value from a transaction output.
+--
+-- 'Coin' values correspond to the ada asset.
+--
+txOutCoin :: TxOut -> Coin
+txOutCoin = TokenBundle.getCoin . view #tokens
+
+-- Since the 'TokenBundle' type deliberately does not provide an 'Ord' instance
+-- (as that would lead to arithmetically invalid orderings), this means we can't
+-- automatically derive an 'Ord' instance for the 'TxOut' type.
+--
+-- Instead, we define an 'Ord' instance that makes comparisons based on the list
+-- representation of a 'TokenBundle'.
+--
+instance Ord TxOut where
+    compare = comparing projection
+      where
+        projection :: TxOut ->
+            ( Address
+            , Coin
+            , [(TokenPolicyId, NonEmpty (TokenName, TokenQuantity))]
+            )
+        projection out =
+            ( out & view #address
+            , out & view (#tokens . #coin)
+            , out & view (#tokens . #tokens) & TokenMap.toNestedList
+            )
 
 data TxChange derivationPath = TxChange
     { address
@@ -192,14 +236,21 @@ data TxChange derivationPath = TxChange
 instance NFData TxOut
 
 instance Buildable TxOut where
-    build txout = mempty
-        <> build (coin txout)
-        <> " @ "
-        <> prefixF 8 addrF
-        <> "..."
-        <> suffixF 8 addrF
+    build txOut = buildMap
+        [ ("address"
+          , addressShort)
+        , ("coin"
+          , build (txOutCoin txOut))
+        , ("tokens"
+          , build (TokenMap.Nested $ view (#tokens . #tokens) txOut))
+        ]
       where
-        addrF = build $ view #address txout
+        addressShort = mempty
+            <> prefixF 8 addressFull
+            <> "..."
+            <> suffixF 8 addressFull
+        addressFull = build $ view #address txOut
+        buildMap = blockMapF . fmap (first $ id @String)
 
 instance Buildable (TxIn, TxOut) where
     build (txin, txout) = build txin <> " ==> " <> build txout

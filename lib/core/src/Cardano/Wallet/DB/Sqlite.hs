@@ -8,6 +8,7 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -87,8 +88,10 @@ import Cardano.Wallet.DB.Sqlite.TH
     , TxIn (..)
     , TxMeta (..)
     , TxOut (..)
+    , TxOutToken (..)
     , TxWithdrawal (..)
     , UTxO (..)
+    , UTxOToken (..)
     , Wallet (..)
     , migrateAll
     , unWalletKey
@@ -118,6 +121,8 @@ import Cardano.Wallet.Primitive.Slotting
     , interpretQuery
     , slotToUTCTime
     )
+import Cardano.Wallet.Primitive.Types.TokenMap
+    ( AssetId (..) )
 import Control.Concurrent.MVar
     ( modifyMVar, modifyMVar_, newMVar, readMVar )
 import Control.Exception
@@ -215,6 +220,7 @@ import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Address as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
+import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Cardano.Wallet.Primitive.Types.UTxO as W
 import qualified Data.List as L
@@ -588,7 +594,7 @@ migrateManually tr proxy defaultFieldValues =
     addMinimumUTxOValueIfMissing conn = do
         addColumn_ conn True (DBField ProtocolParametersMinimumUtxoValue) value
       where
-        value = T.pack $ show $ W.getCoin $ defaultMinimumUTxOValue defaultFieldValues
+        value = T.pack $ show $ W.unCoin $ defaultMinimumUTxOValue defaultFieldValues
 
     -- | Adds an 'hardfork_epoch' column to the 'protocol_parameters'
     -- table if it is missing.
@@ -912,8 +918,9 @@ newDBLayer trace defaultFieldValues mDatabaseFile ti = do
                 insert_ (mkWalletEntity wid meta gp)
             when (isRight res) $ do
                 insertCheckpoint wid cp <* writeCache wid (Just cp)
-                let (metas, txins, txouts, ws) = mkTxHistory wid txs
-                putTxs metas txins txouts ws
+                let (metas, txins, txouts, txoutTokens, ws) =
+                        mkTxHistory wid txs
+                putTxs metas txins txouts txoutTokens ws
                 insert_ (mkProtocolParametersEntity wid pp)
             pure res
 
@@ -1046,8 +1053,9 @@ newDBLayer trace defaultFieldValues mDatabaseFile ti = do
             selectWallet wid >>= \case
                 Nothing -> pure $ Left $ ErrNoSuchWallet wid
                 Just _ -> do
-                    let (metas, txins, txouts, ws) = mkTxHistory wid txs
-                    putTxs metas txins txouts ws
+                    let (metas, txins, txouts, txoutTokens, ws) =
+                            mkTxHistory wid txs
+                    putTxs metas txins txouts txoutTokens ws
                     pure $ Right ()
 
         , readTxHistory = \(PrimaryKey wid) minWithdrawal order range status -> do
@@ -1265,9 +1273,9 @@ privateKeyFromEntity (PrivateKey _ k h) =
 mkCheckpointEntity
     :: W.WalletId
     -> W.Wallet s
-    -> (Checkpoint, [UTxO])
+    -> (Checkpoint, [UTxO], [UTxOToken])
 mkCheckpointEntity wid wal =
-    (cp, utxo)
+    (cp, utxo, utxoTokens)
   where
     header = W.currentTip wal
     sl = header ^. #slotNo
@@ -1280,8 +1288,14 @@ mkCheckpointEntity wid wal =
         , checkpointBlockHeight = bh
         }
     utxo =
-        [ UTxO wid sl (TxId input) ix addr coin
-        | (W.TxIn input ix, W.TxOut addr coin) <- utxoMap
+        [ UTxO wid sl (TxId input) ix addr (TokenBundle.getCoin tokens)
+        | (W.TxIn input ix, W.TxOut addr tokens) <- utxoMap
+        ]
+    utxoTokens =
+        [ UTxOToken wid sl (TxId input) ix policy token quantity
+        | (W.TxIn input ix, W.TxOut {tokens}) <- utxoMap
+        , let tokenList = snd (TokenBundle.toFlatList tokens)
+        , (AssetId policy token, quantity) <- tokenList
         ]
     utxoMap = Map.assocs (W.getUTxO (W.utxo wal))
 
@@ -1289,7 +1303,7 @@ mkCheckpointEntity wid wal =
 -- and TxOut records must already by sorted by index.
 checkpointFromEntity
     :: Checkpoint
-    -> [UTxO]
+    -> [(UTxO, [UTxOToken])]
     -> s
     -> W.Wallet s
 checkpointFromEntity cp utxo =
@@ -1304,14 +1318,20 @@ checkpointFromEntity cp utxo =
         ) = cp
     header = (W.BlockHeader slot (Quantity bh) headerHash parentHeaderHash)
     utxo' = W.UTxO . Map.fromList $
-        [ (W.TxIn input ix, W.TxOut addr coin)
-        | UTxO _ _ (TxId input) ix addr coin <- utxo
+        [ (W.TxIn input ix, W.TxOut addr (mkTokenBundle coin tokens))
+        | (UTxO _ _ (TxId input) ix addr coin, tokens) <- utxo
         ]
+    mkTokenBundle coin tokens =
+        TokenBundle.fromFlatList coin (mkTokenEntry <$> tokens)
+    mkTokenEntry token =
+        ( AssetId (utxoTokenPolicyId token) (utxoTokenName token)
+        , utxoTokenQuantity token
+        )
 
 mkTxHistory
     :: W.WalletId
     -> [(W.Tx, W.TxMeta)]
-    -> ([TxMeta], [TxIn], [TxOut], [TxWithdrawal])
+    -> ([TxMeta], [TxIn], [TxOut], [TxOutToken], [TxWithdrawal])
 mkTxHistory wid txs = flatTxHistory
     [ ( mkTxMetaEntity wid txid (W.metadata tx) derived
       , mkTxInputsOutputs (txid, tx)
@@ -1323,18 +1343,19 @@ mkTxHistory wid txs = flatTxHistory
   where
     -- | Make flat lists of entities from the result of 'mkTxHistory'.
     flatTxHistory
-        :: [(TxMeta, ([TxIn], [TxOut]), [TxWithdrawal])]
-        -> ([TxMeta], [TxIn], [TxOut], [TxWithdrawal])
+        :: [(TxMeta, ([TxIn], [(TxOut, [TxOutToken])]), [TxWithdrawal])]
+        -> ([TxMeta], [TxIn], [TxOut], [TxOutToken], [TxWithdrawal])
     flatTxHistory entities =
         ( map (\(a,_,_) -> a) entities
         , concatMap (fst . (\(_,b,_) -> b)) entities
-        , concatMap (snd . (\(_,b,_) -> b)) entities
+        , fst <$> concatMap (snd . (\(_,b,_) -> b)) entities
+        , snd =<< concatMap (snd . (\(_,b,_) -> b)) entities
         , concatMap (\(_,_,c) -> c) entities
         )
 
 mkTxInputsOutputs
     :: (W.Hash "Tx", W.Tx)
-    -> ([TxIn], [TxOut])
+    -> ([TxIn], [(TxOut, [TxOutToken])])
 mkTxInputsOutputs tx =
     ( (dist mkTxIn . ordered W.resolvedInputs) tx
     , (dist mkTxOut . ordered W.outputs) tx )
@@ -1346,11 +1367,22 @@ mkTxInputsOutputs tx =
         , txInputSourceIndex = W.inputIx txIn
         , txInputSourceAmount = amt
         }
-    mkTxOut tid (ix, txOut) = TxOut
-        { txOutputTxId = TxId tid
-        , txOutputIndex = ix
-        , txOutputAddress = view #address txOut
-        , txOutputAmount = W.coin txOut
+    mkTxOut tid (ix, txOut) = (out, tokens)
+      where
+        out = TxOut
+            { txOutputTxId = TxId tid
+            , txOutputIndex = ix
+            , txOutputAddress = view #address txOut
+            , txOutputAmount = W.txOutCoin txOut
+            }
+        tokens = mkTxOutToken tid ix <$>
+            snd (TokenBundle.toFlatList $ view #tokens txOut)
+    mkTxOutToken tid ix (AssetId policy token, quantity) = TxOutToken
+        { txOutTokenTxId = TxId tid
+        , txOutTokenTxIndex = ix
+        , txOutTokenPolicyId = policy
+        , txOutTokenName = token
+        , txOutTokenQuantity = quantity
         }
     ordered f = fmap (zip [0..] . f)
     -- | Distribute `a` accross many `b`s using the given function.
@@ -1398,8 +1430,8 @@ txHistoryFromEntity
     => TimeInterpreter m
     -> W.BlockHeader
     -> [TxMeta]
-    -> [(TxIn, Maybe TxOut)]
-    -> [TxOut]
+    -> [(TxIn, Maybe (TxOut, [TxOutToken]))]
+    -> [(TxOut, [TxOutToken])]
     -> [TxWithdrawal]
     -> m [W.TransactionInfo]
 txHistoryFromEntity ti tip metas ins outs ws =
@@ -1415,9 +1447,11 @@ txHistoryFromEntity ti tip metas ins outs ws =
             , W.txInfoInputs =
                 map mkTxIn $ filter ((== txid) . txInputTxId . fst) ins
             , W.txInfoOutputs =
-                map mkTxOut $ filter ((== txid) . txOutputTxId) outs
+                map mkTxOut $ filter ((== txid) . txOutputTxId . fst) outs
             , W.txInfoWithdrawals =
-                Map.fromList $ map mkTxWithdrawal $ filter ((== txid) . txWithdrawalTxId) ws
+                Map.fromList
+                    $ map mkTxWithdrawal
+                    $ filter ((== txid) . txWithdrawalTxId) ws
             , W.txInfoMeta =
                 derived
             , W.txInfoMetadata =
@@ -1438,10 +1472,16 @@ txHistoryFromEntity ti tip metas ins outs ws =
         , txInputSourceAmount tx
         , mkTxOut <$> out
         )
-    mkTxOut tx = W.TxOut
-        { W.address = txOutputAddress tx
-        , W.coin = txOutputAmount tx
+    mkTxOut (out, tokens) = W.TxOut
+        { W.address = txOutputAddress out
+        , W.tokens = TokenBundle.fromFlatList
+            (txOutputAmount out)
+            (mkTxOutToken <$> tokens)
         }
+    mkTxOutToken token =
+        ( AssetId (txOutTokenPolicyId token) (txOutTokenName token)
+        , txOutTokenQuantity token
+        )
     mkTxWithdrawal w =
         ( txWithdrawalAccount w
         , txWithdrawalAmount w
@@ -1504,11 +1544,12 @@ insertCheckpoint
     -> W.Wallet s
     -> SqlPersistT IO ()
 insertCheckpoint wid wallet = do
-    let (cp, utxo) = mkCheckpointEntity wid wallet
+    let (cp, utxo, utxoTokens) = mkCheckpointEntity wid wallet
     let sl = (W.currentTip wallet) ^. #slotNo
     deleteCheckpoints wid [CheckpointSlot ==. sl]
     insert_ cp
     dbChunked insertMany_ utxo
+    dbChunked insertMany_ utxoTokens
     insertState (wid, sl) (W.getState wallet)
 
 -- | Delete one or all checkpoints associated with a wallet.
@@ -1557,8 +1598,14 @@ updateTxMetas wid filters =
     updateWhere ((TxMetaWalletId ==. wid) : filters)
 
 -- | Insert multiple transactions, removing old instances first.
-putTxs :: [TxMeta] -> [TxIn] -> [TxOut] -> [TxWithdrawal] -> SqlPersistT IO ()
-putTxs metas txins txouts ws = do
+putTxs
+    :: [TxMeta]
+    -> [TxIn]
+    -> [TxOut]
+    -> [TxOutToken]
+    -> [TxWithdrawal]
+    -> SqlPersistT IO ()
+putTxs metas txins txouts txoutTokens ws = do
     dbChunked repsertMany
         [ (TxMetaKey txMetaTxId txMetaWalletId, m)
         | m@TxMeta{..} <- metas]
@@ -1568,6 +1615,15 @@ putTxs metas txins txouts ws = do
     dbChunked repsertMany
         [ (TxOutKey txOutputTxId txOutputIndex, o)
         | o@TxOut{..} <- txouts ]
+    dbChunked repsertMany
+        [ ( TxOutTokenKey
+            txOutTokenTxId
+            txOutTokenTxIndex
+            txOutTokenPolicyId
+            txOutTokenName
+          , o
+          )
+        | o@TxOutToken{..} <- txoutTokens ]
     dbChunked repsertMany
         [ (TxWithdrawalKey txWithdrawalTxId txWithdrawalAccount, w)
         | w@TxWithdrawal{..} <- ws ]
@@ -1599,25 +1655,38 @@ deleteDelegationCertificates wid filters = do
 
 selectUTxO
     :: Checkpoint
-    -> SqlPersistT IO [UTxO]
-selectUTxO cp = fmap entityVal <$>
-    selectList
-        [ UtxoWalletId ==. checkpointWalletId cp
-        , UtxoSlot ==. checkpointSlot cp
-        ] []
+    -> SqlPersistT IO [(UTxO, [UTxOToken])]
+selectUTxO cp = do
+    utxos <- fmap entityVal <$>
+        selectList
+            [ UtxoWalletId ==. checkpointWalletId cp
+            , UtxoSlot ==. checkpointSlot cp
+            ] []
+    forM utxos $ \utxo -> do
+        (utxo, ) . fmap entityVal <$> selectList
+            [ UtxoTokenWalletId ==. utxoWalletId utxo
+            , UtxoTokenSlot ==. utxoSlot utxo
+            , UtxoTokenTxId ==. utxoInputId utxo
+            , UtxoTokenTxIndex ==. utxoInputIndex utxo
+            ] []
 
--- This relies on available information from the database to reconstruct
--- coin selection information for __outgoing__ payments. We can't however guarantee
+-- This relies on available information from the database to reconstruct coin
+-- selection information for __outgoing__ payments. We can't however guarantee
 -- that we have such information for __incoming__ payments (we usually don't
 -- have it).
 --
--- To reliably provide this information for incoming payment, it should be looked
--- up when applying blocks from the global Ledger, but that is future work
+-- To reliably provide this information for incoming payments, it should be
+-- looked up when applying blocks from the global ledger, but that is future
+-- work.
 --
 -- See also: issue #573.
 selectTxs
     :: [TxId]
-    -> SqlPersistT IO ([(TxIn, Maybe TxOut)], [TxOut], [TxWithdrawal])
+    -> SqlPersistT IO
+        ( [(TxIn, Maybe (TxOut, [TxOutToken]))]
+        , [(TxOut, [TxOutToken])]
+        , [TxWithdrawal]
+        )
 selectTxs = fmap concatUnzip . mapM select . chunksOf chunkSize
   where
     select txids = do
@@ -1625,14 +1694,17 @@ selectTxs = fmap concatUnzip . mapM select . chunksOf chunkSize
             [TxInputTxId <-. txids]
             [Asc TxInputTxId, Asc TxInputOrder]
 
-        resolvedInputs <- toOutputMap . fmap entityVal <$>
-            combineChunked inputs (\inputsChunk -> selectList
-                [TxOutputTxId <-. (txInputSourceTxId <$> inputsChunk)]
-                [Asc TxOutputTxId, Asc TxOutputIndex])
+        resolvedInputs <- fmap toOutputMap $
+            combineChunked inputs $ \inputsChunk ->
+                traverse readTxOutTokens . fmap entityVal =<<
+                    selectList
+                        [TxOutputTxId <-. (txInputSourceTxId <$> inputsChunk)]
+                        [Asc TxOutputTxId, Asc TxOutputIndex]
 
-        outputs <- fmap entityVal <$> selectList
-            [TxOutputTxId <-. txids]
-            [Asc TxOutputTxId, Asc TxOutputIndex]
+        outputs <- traverse readTxOutTokens . fmap entityVal =<<
+            selectList
+                [TxOutputTxId <-. txids]
+                [Asc TxOutputTxId, Asc TxOutputIndex]
 
         withdrawals <- fmap entityVal <$> selectList
             [TxWithdrawalTxId <-. txids]
@@ -1644,11 +1716,25 @@ selectTxs = fmap concatUnzip . mapM select . chunksOf chunkSize
             , withdrawals
             )
 
-    toOutputMap :: [TxOut] -> Map (TxId, Word32) TxOut
-    toOutputMap = Map.fromList . fmap
-        (\out -> let key = (txOutputTxId out, txOutputIndex out) in (key, out))
+    -- Fetch the complete set of tokens associated with a TxOut.
+    --
+    readTxOutTokens :: TxOut -> SqlPersistT IO (TxOut, [TxOutToken])
+    readTxOutTokens out = (out,) . fmap entityVal <$> selectList
+        [ TxOutTokenTxId ==. txOutputTxId out
+        , TxOutTokenTxIndex ==. txOutputIndex out
+        ]
+        []
 
-    resolveWith :: [TxIn] -> Map (TxId, Word32) TxOut -> [(TxIn, Maybe TxOut)]
+    toOutputMap
+        :: [(TxOut, [TxOutToken])]
+        -> Map (TxId, Word32) (TxOut, [TxOutToken])
+    toOutputMap = Map.fromList . fmap toEntry
+      where
+        toEntry (out, tokens) = (key, (out, tokens))
+          where
+            key = (txOutputTxId out, txOutputIndex out)
+
+    resolveWith :: [TxIn] -> Map (TxId, Word32) txOut -> [(TxIn, Maybe txOut)]
     resolveWith inputs resolvedInputs =
         [ (i, Map.lookup key resolvedInputs)
         | i <- inputs

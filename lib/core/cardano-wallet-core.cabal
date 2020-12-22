@@ -80,6 +80,7 @@ library
     , persistent-sqlite
     , persistent-template
     , process
+    , quiet
     , random
     , random-shuffle
     , retry
@@ -94,6 +95,7 @@ library
     , statistics
     , stm
     , streaming-commons
+    , strict-non-empty-containers
     , string-interpolate
     , template-haskell
     , text
@@ -112,6 +114,17 @@ library
     , x509-store
     , x509-validation
     , Win32-network
+    -- TODO:
+    --
+    -- Move all test-related code out of the main library and into a dedicated
+    -- testing library.
+    --
+    -- The following imports are currently necessary to define generators and
+    -- shrinkers that can be imported by both the `cardano-wallet-core` and
+    -- `cardano-wallet` libraries:
+    --
+    , QuickCheck
+    , cardano-wallet-test-utils
   hs-source-dirs:
       src
   exposed-modules:
@@ -164,6 +177,10 @@ library
       Cardano.Wallet.Primitive.Types.Coin
       Cardano.Wallet.Primitive.Types.Hash
       Cardano.Wallet.Primitive.Types.RewardAccount
+      Cardano.Wallet.Primitive.Types.TokenBundle
+      Cardano.Wallet.Primitive.Types.TokenMap
+      Cardano.Wallet.Primitive.Types.TokenPolicy
+      Cardano.Wallet.Primitive.Types.TokenQuantity
       Cardano.Wallet.Primitive.Types.Tx
       Cardano.Wallet.Primitive.Types.UTxO
       Cardano.Wallet.Registry
@@ -182,6 +199,19 @@ library
       Network.Wai.Middleware.ServerError
       Network.Wai.Middleware.Logging
       Ouroboros.Network.Client.Wallet
+        -- TODO:
+        --
+        -- Move all test-related code out of the main library and into a
+        -- dedicated testing library.
+        --
+        -- The following modules define QC generators and shrinkers that can
+        -- be used by both `cardano-wallet-core` and `cardano-wallet`:
+        --
+      Cardano.Wallet.Primitive.Types.Coin.Gen
+      Cardano.Wallet.Primitive.Types.TokenBundle.Gen
+      Cardano.Wallet.Primitive.Types.TokenMap.Gen
+      Cardano.Wallet.Primitive.Types.TokenPolicy.Gen
+      Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
   other-modules:
       Paths_cardano_wallet_core
 
@@ -227,6 +257,7 @@ test-suite unit
     , generic-arbitrary
     , generic-lens
     , hspec
+    , hspec-core
     , http-api-data
     , http-client
     , http-client-tls
@@ -242,6 +273,7 @@ test-suite unit
     , OddWord
     , ouroboros-consensus
     , QuickCheck
+    , quickcheck-classes
     , quickcheck-state-machine >= 0.6.0
     , random
     , retry
@@ -249,9 +281,12 @@ test-suite unit
     , scrypt
     , servant
     , servant-server
+    , should-not-typecheck
     , stm
+    , strict-non-empty-containers
     , openapi3 >= 3.0.0.1
     , servant-openapi3
+    , string-qq
     , temporary
     , text
     , text-class
@@ -314,8 +349,12 @@ test-suite unit
       Cardano.Wallet.Primitive.Slotting.Legacy
       Cardano.Wallet.Primitive.SlottingSpec
       Cardano.Wallet.Primitive.SyncProgressSpec
-      Cardano.Wallet.Primitive.TypesSpec
       Cardano.Wallet.Primitive.Types.HashSpec
+      Cardano.Wallet.Primitive.Types.TokenBundleSpec
+      Cardano.Wallet.Primitive.Types.TokenMapSpec
+      Cardano.Wallet.Primitive.Types.TokenMapSpec.TypeErrorSpec
+      Cardano.Wallet.Primitive.Types.TokenQuantitySpec
+      Cardano.Wallet.Primitive.TypesSpec
       Cardano.Wallet.RegistrySpec
       Cardano.Wallet.TransactionSpec
       Cardano.WalletSpec

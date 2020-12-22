@@ -376,6 +376,7 @@ import qualified Cardano.Wallet.Primitive.AddressDerivation.Byron as Byron
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Icarus as Icarus
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Shelley
 import qualified Cardano.Wallet.Primitive.Types as W
+import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Write as CBOR
 import qualified Crypto.Scrypt as Scrypt
@@ -496,7 +497,7 @@ expectWalletUTxO coins = \case
         let addr = Address "ARBITRARY"
         let constructUtxoEntry idx c =
                 ( TxIn (Hash "ARBITRARY") idx
-                , TxOut addr (Coin c)
+                , TxOut addr (TokenBundle.fromCoin $ Coin c)
                 )
         let utxo = UTxO $ Map.fromList $ zipWith constructUtxoEntry [0..] coins
         let (UTxOStatistics hist stakes bType) =

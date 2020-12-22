@@ -88,6 +88,7 @@ import Data.Word
 import Debug.Trace
     ( traceShow )
 
+import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Codec.CBOR.Decoding as CBOR
 import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Read as CBOR
@@ -305,7 +306,7 @@ decodeTxOut :: CBOR.Decoder s TxOut
 decodeTxOut = do
     _ <- CBOR.decodeListLenCanonicalOf 2
     addr <- decodeAddress
-    TxOut addr . Coin <$> CBOR.decodeWord64
+    TxOut addr . TokenBundle.fromCoin . Coin <$> CBOR.decodeWord64
 
 decodeTxWitness :: CBOR.Decoder s ByteString
 decodeTxWitness = do
@@ -472,10 +473,10 @@ encodeTxIn (TxIn (Hash txid) ix) = mempty
         <> CBOR.encodeWord32 ix
 
 encodeTxOut :: TxOut -> CBOR.Encoding
-encodeTxOut (TxOut (Address addr) (Coin c)) = mempty
+encodeTxOut (TxOut (Address addr) tb) = mempty
     <> CBOR.encodeListLen 2
     <> encodeAddressPayload payload
-    <> CBOR.encodeWord64 c
+    <> CBOR.encodeWord64 (unCoin $ TokenBundle.getCoin tb)
   where
     invariant =
         error $ "encodeTxOut: unable to decode address payload: " <> show addr

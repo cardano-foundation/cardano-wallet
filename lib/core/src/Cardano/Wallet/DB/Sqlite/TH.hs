@@ -54,6 +54,8 @@ import qualified Cardano.Wallet.Primitive.AddressDiscovery.Sequential as W
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Address as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
+import qualified Cardano.Wallet.Primitive.Types.TokenPolicy as W
+import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Data.ByteString.Char8 as B8
 
@@ -138,6 +140,22 @@ TxOut
     txOutputAmount   W.Coin      sql=amount
 
     Primary txOutputTxId txOutputIndex
+    deriving Show Generic
+
+-- A token quantity associated with a TxOut.
+--
+-- Each row within TxOut can have many associated rows within TxOutToken.
+-- Each row within TxOutToken refers to just a single row within TxOut.
+--
+TxOutToken
+    txOutTokenTxId      TxId              sql=tx_id
+    txOutTokenTxIndex   Word32            sql=tx_index
+    txOutTokenPolicyId  W.TokenPolicyId   sql=token_policy_id
+    txOutTokenName      W.TokenName       sql=token_name
+    txOutTokenQuantity  W.TokenQuantity   sql=token_quantity
+
+    Primary txOutTokenTxId txOutTokenTxIndex txOutTokenPolicyId txOutTokenName
+    Foreign TxOut txOut txOutTokenTxId txOutTokenTxIndex ! ON DELETE CASCADE
     deriving Show Generic
 
 -- | A transaction withdrawal associated with TxMeta.
@@ -227,6 +245,47 @@ UTxO                                sql=utxo
 
     Primary utxoWalletId utxoSlot utxoInputId utxoInputIndex
     Foreign Checkpoint utxo utxoWalletId utxoSlot ! ON DELETE CASCADE
+    deriving Show Generic
+
+-- A token quantity associated with a UTxO entry.
+--
+-- Each row within UTxO can have many associated rows within UTxOToken.
+-- Each row within UTxOToken refers to just a single row within UTxO.
+--
+UTxOToken                               sql=utxo_token
+    utxoTokenWalletId  W.WalletId       sql=wallet_id
+    utxoTokenSlot      SlotNo           sql=slot
+    utxoTokenTxId      TxId             sql=tx_id
+    utxoTokenTxIndex   Word32           sql=tx_index
+    utxoTokenPolicyId  W.TokenPolicyId  sql=token_policy_id
+    utxoTokenName      W.TokenName      sql=token_name
+    utxoTokenQuantity  W.TokenQuantity  sql=token_quantity
+
+    Primary
+        utxoTokenWalletId
+        utxoTokenSlot
+        utxoTokenTxId
+        utxoTokenTxIndex
+        utxoTokenPolicyId
+        utxoTokenName
+
+    -- FIXME:
+    --
+    -- Ideally, we'd like to define a foreign key constraint on the UTxO table,
+    -- as each row in UTxOToken refers to a unique row in UTxO.
+    --
+    -- Unfortunately, there's a bug in our version of persistent that breaks
+    -- foreign key constraints where the foreign table has a manually-defined
+    -- table name. In the case of the UTxO, the table name is "utxo", and not
+    -- "u_tx_o" (which is what the auto-generated table name would be).
+    --
+    -- To work around this bug, we instead define a foreign key constraint on
+    -- the Checkpoint table. Under the current design of rollback, this gives
+    -- equivalent behaviour, as we always delete UTxO entries by deleting their
+    -- parent checkpoints.
+    --
+    Foreign Checkpoint utxot utxoTokenWalletId utxoTokenSlot ! ON DELETE CASCADE
+
     deriving Show Generic
 
 -- Sequential scheme address discovery state

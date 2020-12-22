@@ -17,6 +17,15 @@ import Cardano.Wallet.Gen
     ( genSlotNo, shrinkSlotNo )
 import Cardano.Wallet.Primitive.Types
     ( EpochNo (..), SlotInEpoch (..), SlotNo )
+import Cardano.Wallet.Primitive.Types.TokenQuantity
+    ( TokenQuantity (..) )
+import Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
+    ( genTokenQuantityMixed
+    , shrinkTokenQuantityMixed
+    , tokenQuantityLarge
+    , tokenQuantityMassive
+    , tokenQuantitySmall
+    )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Time.Clock.POSIX
@@ -32,17 +41,27 @@ import Test.Hspec
 import Test.QuickCheck
     ( Arbitrary (..)
     , NonNegative (..)
+    , Property
     , arbitrarySizedBoundedIntegral
+    , checkCoverage
+    , cover
     , property
     , shrinkIntegral
     , (===)
     )
+
+import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as TokenQuantity
 
 spec :: Spec
 spec = do
     describe "Values can be persisted and unpersisted successfully" $ do
         persistRoundtrip $ Proxy @SlotNo
         persistRoundtrip $ Proxy @POSIXTime
+        persistRoundtrip $ Proxy @TokenQuantity
+
+    describe "Coverage checks for generators" $ do
+        it "TokenQuantity" $
+            property prop_checkTokenQuantityCoverage
 
 -- | Constructs a test to check that roundtrip persistence and unpersistence is
 --   possible for values of the given type.
@@ -56,6 +75,22 @@ persistRoundtrip proxy = it
         <> "'")
     (property $ \a ->
         fromPersistValue (toPersistValue @a a) === Right a)
+
+prop_checkTokenQuantityCoverage :: TokenQuantity -> Property
+prop_checkTokenQuantityCoverage q = checkCoverage
+    $ cover 2 (TokenQuantity.isZero q)
+        "token quantity is zero"
+    $ cover 2 isSmall
+        "token quantity is small"
+    $ cover 2 isLarge
+        "token quantity is large"
+    $ cover 2 isMassive
+        "token quantity is massive"
+    True
+  where
+    isSmall   = TokenQuantity    0 < q && q <= tokenQuantitySmall
+    isLarge   = tokenQuantitySmall < q && q <= tokenQuantityLarge
+    isMassive = tokenQuantityLarge < q && q <= tokenQuantityMassive
 
 {-------------------------------------------------------------------------------
                               Arbitrary Instances
@@ -81,3 +116,7 @@ instance Arbitrary SlotInEpoch where
 instance Arbitrary Word31 where
     arbitrary = arbitrarySizedBoundedIntegral
     shrink = shrinkIntegral
+
+instance Arbitrary TokenQuantity where
+    arbitrary = genTokenQuantityMixed
+    shrink = shrinkTokenQuantityMixed

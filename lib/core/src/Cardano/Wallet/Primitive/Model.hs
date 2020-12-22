@@ -168,7 +168,7 @@ instance NFData s => NFData (Wallet s) where
 instance Buildable s => Buildable (Wallet s) where
     build (Wallet u tip s) = "Wallet s\n"
         <> indentF 4 ("Tip: " <> build tip)
-        <> indentF 4 ("UTxO: " <> build u)
+        <> indentF 4 ("UTxO:\n" <> indentF 4 (build u))
         <> indentF 4 (build s)
 
 {-------------------------------------------------------------------------------
@@ -387,7 +387,7 @@ prefilterBlock b u0 = runState $ do
         ourU <- state $ utxoOurs tx
         let ourIns = Set.fromList (inputs tx) `Set.intersection` dom (u <> ourU)
         let u' = (u <> ourU) `excluding` ourIns
-        ourWithdrawals <- fmap (fromIntegral . getCoin . snd) <$>
+        ourWithdrawals <- fmap (fromIntegral . unCoin . snd) <$>
             mapMaybeM ourWithdrawal (Map.toList $ withdrawals tx)
         let received = balance ourU
         let spent = balance (u `restrictedBy` ourIns) + sum ourWithdrawals

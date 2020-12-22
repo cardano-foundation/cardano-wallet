@@ -1,0 +1,158 @@
+{
+    "seed": 9089924429611080663,
+    "samples": [
+        [
+            {
+                "quantity": 5,
+                "token": "TokenA",
+                "policy": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            },
+            {
+                "quantity": 3,
+                "token": "TokenB",
+                "policy": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            },
+            {
+                "quantity": 4,
+                "token": "TokenD",
+                "policy": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+            },
+            {
+                "quantity": 10,
+                "token": "TokenA",
+                "policy": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+            },
+            {
+                "quantity": 10,
+                "token": "TokenC",
+                "policy": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+            },
+            {
+                "quantity": 7,
+                "token": "TokenA",
+                "policy": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+            },
+            {
+                "quantity": 9,
+                "token": "TokenD",
+                "policy": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+            }
+        ],
+        [
+            {
+                "quantity": 10,
+                "token": "TokenA",
+                "policy": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            },
+            {
+                "quantity": 4,
+                "token": "TokenB",
+                "policy": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            },
+            {
+                "quantity": 10,
+                "token": "TokenA",
+                "policy": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+            },
+            {
+                "quantity": 5,
+                "token": "TokenD",
+                "policy": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+            },
+            {
+                "quantity": 10,
+                "token": "TokenA",
+                "policy": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+            },
+            {
+                "quantity": 9,
+                "token": "TokenB",
+                "policy": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+            },
+            {
+                "quantity": 3,
+                "token": "TokenD",
+                "policy": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+            }
+        ],
+        [
+            {
+                "quantity": 5,
+                "token": "TokenD",
+                "policy": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+            }
+        ],
+        [
+            {
+                "quantity": 9,
+                "token": "TokenC",
+                "policy": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+            },
+            {
+                "quantity": 4,
+                "token": "TokenD",
+                "policy": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+            },
+            {
+                "quantity": 12,
+                "token": "TokenA",
+                "policy": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+            }
+        ],
+        [],
+        [
+            {
+                "quantity": 10,
+                "token": "TokenB",
+                "policy": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            },
+            {
+                "quantity": 3,
+                "token": "TokenD",
+                "policy": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            },
+            {
+                "quantity": 2,
+                "token": "TokenD",
+                "policy": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+            },
+            {
+                "quantity": 10,
+                "token": "TokenB",
+                "policy": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+            }
+        ],
+        [],
+        [
+            {
+                "quantity": 8,
+                "token": "TokenB",
+                "policy": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+            },
+            {
+                "quantity": 2,
+                "token": "TokenC",
+                "policy": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+            }
+        ],
+        [
+            {
+                "quantity": 19,
+                "token": "TokenD",
+                "policy": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            },
+            {
+                "quantity": 10,
+                "token": "TokenB",
+                "policy": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+            }
+        ],
+        [
+            {
+                "quantity": 2,
+                "token": "TokenD",
+                "policy": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+            }
+        ]
+    ]
+}

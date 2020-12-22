@@ -2,6 +2,7 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
 -- |
@@ -40,9 +41,11 @@ import Prelude
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( TxIn, TxOut (..) )
+    ( TxIn, TxOut (..), txOutCoin )
 import Control.DeepSeq
     ( NFData (..) )
+import Data.Bifunctor
+    ( first )
 import Data.List
     ( foldl' )
 import Data.List.NonEmpty
@@ -54,7 +57,7 @@ import Data.Set
 import Data.Word
     ( Word64 )
 import Fmt
-    ( Buildable (..), blockListF', padRightF, tupleF )
+    ( Buildable (..), blockListF', blockMapF, padRightF, tupleF )
 import GHC.Generics
     ( Generic )
 import Numeric.Natural
@@ -89,7 +92,13 @@ instance Buildable UTxO where
     build (UTxO utxo) =
         blockListF' "-" utxoF (Map.toList utxo)
       where
-        utxoF (inp, out) = build inp <> " => " <> build out
+        utxoF (inp, out) = buildMap
+            [ ("input"
+              , build inp)
+            , ("output"
+              , build out)
+            ]
+        buildMap = blockMapF . fmap (first $ id @String)
 
 -- | Pick a random element from a UTxO, returns 'Nothing' if the UTxO is empty.
 -- Otherwise, returns the selected entry and, the UTxO minus the selected one.
@@ -109,7 +118,7 @@ balance =
     Map.foldl' fn 0 . getUTxO
   where
     fn :: Natural -> TxOut -> Natural
-    fn tot out = tot + fromIntegral (getCoin (coin out))
+    fn tot out = tot + fromIntegral (unCoin (txOutCoin out))
 
 -- | Compute the balance of a unwrapped UTxO
 balance' :: [(TxIn, TxOut)] -> Word64
@@ -117,7 +126,7 @@ balance' =
     foldl' fn 0
   where
     fn :: Word64 -> (TxIn, TxOut) -> Word64
-    fn tot (_, out) = tot + getCoin (coin out)
+    fn tot (_, out) = tot + unCoin (txOutCoin out)
 
 -- | ins⋪ u
 excluding :: UTxO -> Set TxIn ->  UTxO
@@ -220,7 +229,7 @@ log10 = Log10
 -- | Compute UtxoStatistics from UTxOs
 computeUtxoStatistics :: BoundType -> UTxO -> UTxOStatistics
 computeUtxoStatistics btype =
-    computeStatistics (pure . getCoin . coin) btype . Map.elems . getUTxO
+    computeStatistics (pure . unCoin . txOutCoin) btype . Map.elems . getUTxO
 
 -- | A more generic function for computing UTxO statistics on some other type of
 -- data that maps to UTxO's values.

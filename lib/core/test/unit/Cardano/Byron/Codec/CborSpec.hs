@@ -36,6 +36,8 @@ import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
+import Cardano.Wallet.Primitive.Types.TokenBundle
+    ( TokenBundle )
 import Cardano.Wallet.Primitive.Types.Tx
     ( TxIn (..), TxOut (..) )
 import Cardano.Wallet.Unsafe
@@ -45,7 +47,7 @@ import Data.ByteString
 import Data.Text
     ( Text )
 import Data.Word
-    ( Word32 )
+    ( Word32, Word64 )
 import Test.Hspec
     ( Expectation, Spec, describe, it, parallel, shouldBe )
 import Test.QuickCheck
@@ -59,6 +61,7 @@ import Test.QuickCheck
     , (==>)
     )
 
+import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Codec.CBOR.Write as CBOR
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
@@ -214,14 +217,18 @@ instance Arbitrary (Index 'WholeDomain 'AccountK) where
                                   Test Data
 -------------------------------------------------------------------------------}
 
+coinToBundle :: Word64 -> TokenBundle
+coinToBundle = TokenBundle.fromCoin . Coin
 
 -- A mainnet block with a transaction
 txs1 :: [([TxIn], [TxOut])]
-txs1 = [( [ TxIn { inputId = inputId0, inputIx = 3 } ]
-      , [ TxOut { address = address0, coin = Coin  285000000 }
-        , TxOut { address = address1, coin = Coin 1810771919 }
+txs1 =
+    [ ( [ TxIn { inputId = inputId0, inputIx = 3 } ]
+      , [ TxOut { address = address0, tokens = coinToBundle  285000000 }
+        , TxOut { address = address1, tokens = coinToBundle 1810771919 }
         ]
-      )]
+      )
+    ]
   where
     inputId0 = Hash $ unsafeFromHex
         "60dbb2679ee920540c18195a3d92ee9be50aee6ed5f891d92d51db8a76b02cd2"
@@ -236,14 +243,15 @@ txs1 = [( [ TxIn { inputId = inputId0, inputIx = 3 } ]
 
 -- A testnet block with a transaction
 txs2 :: [([TxIn], [TxOut])]
-txs2 = [ ( [ TxIn { inputId = inputId0, inputIx = 1 }
-            , TxIn { inputId = inputId1, inputIx = 0 }
-            ]
-          , [ TxOut { address = address0, coin = Coin 1404176490 }
-            , TxOut { address = address1, coin = Coin 1004099328 }
-            ]
-          )
-      ]
+txs2 =
+    [ ( [ TxIn { inputId = inputId0, inputIx = 1 }
+        , TxIn { inputId = inputId1, inputIx = 0 }
+        ]
+      , [ TxOut { address = address0, tokens = coinToBundle 1404176490 }
+        , TxOut { address = address1, tokens = coinToBundle 1004099328 }
+        ]
+      )
+    ]
   where
     inputId0 = Hash $ unsafeFromHex
         "6967e2b5c3ad5ae07a9bd8d888f1836195a04f7a1cb4b6d083261870068fab1b"

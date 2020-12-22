@@ -175,6 +175,8 @@ import Cardano.Wallet.Primitive.Types.Address
     ( Address (..), AddressState (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
+import Cardano.Wallet.Primitive.Types.Coin.Gen
+    ( genCoinLargePositive )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.RewardAccount
@@ -316,6 +318,7 @@ import Web.HttpApiData
     ( FromHttpApiData (..) )
 
 import qualified Cardano.Wallet.Api.Types as Api
+import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Types as Aeson
 import qualified Data.ByteArray as BA
@@ -578,13 +581,13 @@ spec = parallel $ do
 
         it "AddressAmount (too big)" $ do
             let msg = "Error in $: invalid coin value: value has to be lower \
-                    \than or equal to " <> show (getCoin maxBound)
+                    \than or equal to " <> show (unCoin maxBound)
                     <> " lovelace."
             Aeson.parseEither parseJSON [aesonQQ|
                 { "address": "<addr>"
                 , "amount":
                     { "unit":"lovelace"
-                    ,"quantity":#{getCoin maxBound + 1}
+                    ,"quantity":#{unCoin maxBound + 1}
                     }
                 }
             |] `shouldBe` (Left @String @(AddressAmount (ApiT Address, Proxy ('Testnet 0))) msg)
@@ -1655,7 +1658,7 @@ instance Arbitrary RewardAccount where
 
 instance Arbitrary Coin where
     -- No Shrinking
-    arbitrary = Coin <$> choose (0, 1_000_000_000_000_000)
+    arbitrary = genCoinLargePositive
 
 instance Arbitrary UTxO where
     shrink (UTxO utxo) = UTxO <$> shrink utxo
@@ -1668,7 +1671,9 @@ instance Arbitrary UTxO where
 
 instance Arbitrary TxOut where
     -- No Shrinking
-    arbitrary = applyArbitrary2 TxOut
+    arbitrary = TxOut
+        <$> arbitrary
+        <*> fmap TokenBundle.fromCoin genCoinLargePositive
 
 instance Arbitrary TxIn where
     -- No Shrinking
