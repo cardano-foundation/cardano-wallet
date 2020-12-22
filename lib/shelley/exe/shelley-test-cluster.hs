@@ -29,7 +29,7 @@ import Cardano.Startup
 import Cardano.Wallet.Api.Types
     ( EncodeAddress (..) )
 import Cardano.Wallet.Logging
-    ( trMessageText )
+    ( stdoutTextTracer, trMessageText )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.SyncProgress
@@ -72,8 +72,6 @@ import System.Directory
     ( createDirectory )
 import System.FilePath
     ( (</>) )
-import System.IO
-    ( BufferMode (..), hSetBuffering, stdout )
 import Test.Integration.Faucet
     ( genRewardAccounts, mirMnemonics, shelleyIntegrationTestFunds )
 
@@ -200,26 +198,10 @@ import qualified Data.Text as T
 -- - NO_CLEANUP: If set, the temporary directory used as a state directory for
 --               nodes and wallet data won't be cleaned up.
 main :: IO ()
-main = withUtf8Encoding $ do
-    hSetBuffering stdout LineBuffering
-    setDefaultFilePermissions
-
-    nodeMinSeverity    <- nodeMinSeverityFromEnv
-    walletMinSeverity  <- walletMinSeverityFromEnv
-    clusterMinSeverity <- testMinSeverityFromEnv
-
-    let clusterLogs =
-            [ LogToStdout clusterMinSeverity
-            ]
-    let walletLogs dir =
-            [ LogToStdout walletMinSeverity
-            , LogToFile (dir </> "wallet.log")
-                (min walletMinSeverity Info)
-            ]
-
-    poolConfigs <- poolConfigsFromEnv
-    withLoggingNamed "test-cluster" clusterLogs $ \(_, (_, trCluster)) ->
-        withSystemTempDir (trMessageText trCluster) "test-cluster" $ \dir ->
+main = withLocalClusterSetup $ \dir clusterLogs walletLogs ->
+    withLoggingNamed "test-cluster" clusterLogs $ \(_, (_, trCluster)) -> do
+        poolConfigs <- poolConfigsFromEnv
+        nodeMinSeverity <- nodeMinSeverityFromEnv
         withCluster
             (contramap MsgCluster $ trMessageText trCluster)
             nodeMinSeverity
@@ -228,7 +210,7 @@ main = withUtf8Encoding $ do
             Nothing
             whenByron
             (whenShelley dir (trMessageText trCluster))
-            (whenReady dir (trMessageText trCluster) (walletLogs dir))
+            (whenReady dir (trMessageText trCluster) walletLogs)
   where
     whenByron _ = pure ()
 
@@ -275,6 +257,30 @@ main = withUtf8Encoding $ do
                 (gp, vData)
                 (\u -> traceWith trCluster $ MsgBaseUrl (T.pack . show $ u)
                     ekgUrl prometheusUrl)
+
+-- Do all the program setup required for running the local cluster, create a
+-- temporary directory, log output configurations, and pass these to the given
+-- main action.
+withLocalClusterSetup
+    :: (FilePath -> [LogOutput] -> [LogOutput] -> IO a)
+    -> IO a
+withLocalClusterSetup action = do
+    -- Ensure key files have correct permissions for cardano-cli
+    setDefaultFilePermissions
+
+    -- Set UTF-8, regardless of user locale
+    withUtf8Encoding $
+        -- This temporary directory will contain logs, and all other data
+        -- produced by the local test cluster.
+        withSystemTempDir stdoutTextTracer "test-cluster" $ \dir -> do
+            let logOutputs name minSev =
+                    [ LogToFile (dir </> name) (min minSev Info)
+                    , LogToStdout minSev ]
+
+            clusterLogs <- logOutputs "cluster.log" <$> testMinSeverityFromEnv
+            walletLogs <- logOutputs "wallet.log" <$> walletMinSeverityFromEnv
+
+            action dir clusterLogs walletLogs
 
 -- Logging
 
