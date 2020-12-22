@@ -22,6 +22,8 @@ Compatible with [`cardano-node@{{CARDANO_NODE_TAG}}`](https://github.com/input-o
 
 <!-- Bugs known at the moment of the release, or discovered after and not fixed -->
 
+{{KNOWN_ISSUES}}
+
 ## Documentation
 
 <!-- A snapshot of the documentation at the time of releasing. -->

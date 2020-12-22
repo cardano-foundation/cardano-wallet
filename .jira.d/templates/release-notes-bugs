@@ -1,0 +1,4 @@
+{{/* -*- mode: markdown -*- */ -}}
+{{ range .issues }}* {{ if .fields.priority }}[{{ .fields.priority.name }}]{{ end }} {{ .fields.summary }} ({{ .key }})
+
+{{ end }}

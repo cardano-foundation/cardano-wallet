@@ -1,0 +1,32 @@
+######################################################################
+# Adrestia/cardano-wallet configuration for go-jira.
+#
+# See https://github.com/go-jira/jira for documentation on how to use
+# go-jira and edit these config files.
+# You will need to put your login details in ~/.jira.d/config.yml.
+#
+######################################################################
+
+endpoint: https://jira.iohk.io
+project: ADP
+
+custom-commands:
+  - name: bugs
+    help: List unresolved bug tickets
+    script: |-
+      {{jira}} list --template table --query "type = Bug and resolution = Unresolved and project=$JIRA_PROJECT and component = cardano-wallet ORDER BY priority DESC, updated DESC, rank ASC, created"
+
+  - name: mine
+    help: Display unresolved issues assigned to me
+    script: |-
+      {{jira}} list --template table --query "resolution = Unresolved and assignee=currentuser() and project = $JIRA_PROJECT ORDER BY priority asc, created"
+
+  - name: sprint
+    help: Display issues for active sprint
+    script: |-
+      {{jira}} list --template table --query "sprint in openSprints() and type != epic and resolution = Unresolved and project=$JIRA_PROJECT ORDER BY rank asc, created"
+
+  - name: release-notes-bugs
+    help: Produce unresolved issues list for cardano-wallet release notes
+    script: |-
+      {{jira}} list --template release-notes-bugs --query "type = Bug and resolution = Unresolved and project=$JIRA_PROJECT and component = cardano-wallet ORDER BY priority DESC, created"
