@@ -24,7 +24,7 @@ import Test.QuickCheck
 import Test.QuickCheck.Extra
     ( shrinkInterleaved )
 
-import qualified Cardano.Wallet.Primitive.Types.TokenMap as TM
+import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 
 --------------------------------------------------------------------------------
 -- Asset identifiers chosen from a small range (to allow collisions)
@@ -47,15 +47,17 @@ shrinkAssetIdSmallRange (AssetId p t) = uncurry AssetId <$> shrinkInterleaved
 genTokenMapSmallRange :: Gen TokenMap
 genTokenMapSmallRange = do
     assetCount <- choose (0, 16)
-    TM.fromFlatList <$> replicateM assetCount genAssetQuantity
+    TokenMap.fromFlatList <$> replicateM assetCount genAssetQuantity
   where
     genAssetQuantity = (,)
         <$> genAssetIdSmallRange
         <*> genTokenQuantitySmall
 
 shrinkTokenMapSmallRange :: TokenMap -> [TokenMap]
-shrinkTokenMapSmallRange =
-    fmap TM.fromFlatList . shrinkList shrinkAssetQuantity . TM.toFlatList
+shrinkTokenMapSmallRange
+    = fmap TokenMap.fromFlatList
+    . shrinkList shrinkAssetQuantity
+    . TokenMap.toFlatList
   where
     shrinkAssetQuantity (a, q) = shrinkInterleaved
         (a, shrinkAssetIdSmallRange)

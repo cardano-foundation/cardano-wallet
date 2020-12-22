@@ -196,7 +196,7 @@ import qualified Cardano.Wallet as W
 import qualified Cardano.Wallet.DB.MVar as MVar
 import qualified Cardano.Wallet.DB.Sqlite as Sqlite
 import qualified Cardano.Wallet.Primitive.CoinSelection as CS
-import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TB
+import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
@@ -548,11 +548,11 @@ walletKeyIsReencrypted (wid, wname) (xprv, pwd) newPwd =
     selection = mempty
         { CS.inputs =
             [ ( TxIn (Hash "eb4ab6028bd0ac971809d514c92db1") 1
-              , TxOut (Address "source") (TB.fromCoin $ Coin 42)
+              , TxOut (Address "source") (TokenBundle.fromCoin $ Coin 42)
               )
             ]
         , CS.outputs =
-            [ TxOut (Address "destination") (TB.fromCoin $ Coin 14) ]
+            [ TxOut (Address "destination") (TokenBundle.fromCoin $ Coin 14) ]
         }
 
 walletListTransactionsSorted
@@ -639,10 +639,13 @@ instance Arbitrary FeeGen where
 coinSelectionForFee :: FeeGen -> CoinSelection
 coinSelectionForFee (FeeGen (Coin fee)) = mempty
     { CS.inputs =
-        [(TxIn (Hash "") 0, TxOut (Address "") (TB.fromCoin $ Coin (1 + fee)))]
+        [(TxIn (Hash "") 0, TxOut (Address "") (coinToBundle (1 + fee)))]
     , CS.outputs =
-        [TxOut (Address "") (TB.fromCoin $ Coin 1)]
+        [TxOut (Address "") (coinToBundle 1)]
     }
+  where
+    coinToBundle = TokenBundle.fromCoin . Coin
+
 {-------------------------------------------------------------------------------
                       Tests machinery, Arbitrary instances
 -------------------------------------------------------------------------------}
@@ -681,7 +684,7 @@ instance Arbitrary CoinSelectionGuard where
     arbitrary = do
         minVal <- Coin <$> choose (0, 100)
         txIntxOuts <- Map.toList . getUTxO <$> arbitrary
-        let chgs = map (\(_, TxOut _ c) -> TB.getCoin c) txIntxOuts
+        let chgs = map (\(_, TxOut _ c) -> TokenBundle.getCoin c) txIntxOuts
         let cs = mempty
                 { CS.inputs = txIntxOuts
                 , CS.change = chgs
@@ -910,8 +913,8 @@ instance Arbitrary TxIn where
         <*> scale (`mod` 3) arbitrary
 
 instance Arbitrary TxOut where
-    arbitrary =
-        TxOut (Address "address") . TB.fromCoin <$> genCoinLargePositive
+    arbitrary = TxOut (Address "address") . TokenBundle.fromCoin
+        <$> genCoinLargePositive
 
 instance Arbitrary TxMeta where
     shrink _ = []

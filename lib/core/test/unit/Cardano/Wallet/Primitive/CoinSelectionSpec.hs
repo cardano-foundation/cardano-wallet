@@ -78,7 +78,7 @@ import Test.QuickCheck
 import Test.QuickCheck.Monadic
     ( monadicIO )
 
-import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TB
+import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Data.ByteString as BS
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
@@ -142,12 +142,12 @@ prop_coinValuesPreserved
     -> Property
 prop_coinValuesPreserved (CoinSelectionsSetup cs addrs) = do
     let sels = getCS <$> cs
-    let getCoinValueFromInp =
-            sum . map (\(_, TxOut {tokens}) -> unCoin $ TB.getCoin tokens)
+    let getCoinValueFromInp = sum . map
+            (\(_, TxOut {tokens}) -> unCoin $ TokenBundle.getCoin tokens)
     let selsCoinValue =
             sum $ getCoinValueFromInp . inputs . getCS <$> cs
-    let getCoinValueFromTxOut (UnsignedTx _ txouts _) =
-            sum $ map (\(TxOut {tokens}) -> unCoin $ TB.getCoin tokens) txouts
+    let getCoinValueFromTxOut (UnsignedTx _ txouts _) = sum $ map
+            (\(TxOut {tokens}) -> unCoin $ TokenBundle.getCoin tokens) txouts
     let txsCoinValue =
             sum . map getCoinValueFromTxOut
     txsCoinValue (assignMigrationAddresses addrs sels) === selsCoinValue
@@ -162,11 +162,11 @@ prop_coinValuesPreservedPerTx
     -> Property
 prop_coinValuesPreservedPerTx f (CoinSelectionsSetup cs addrs) = do
     let sels = getCS <$> cs
-    let getCoinValueFromInp =
-            f . map (\(_, TxOut {tokens}) -> unCoin $ TB.getCoin tokens)
+    let getCoinValueFromInp = f . map
+            (\(_, TxOut {tokens}) -> unCoin $ TokenBundle.getCoin tokens)
     let selsCoinValue = getCoinValueFromInp . inputs . getCS <$> cs
-    let getCoinValueFromTxOut (UnsignedTx _ txouts _) =
-            f $ map (\(TxOut {tokens}) -> unCoin $ TB.getCoin tokens) txouts
+    let getCoinValueFromTxOut (UnsignedTx _ txouts _) = f $ map
+            (\(TxOut {tokens}) -> unCoin $ TokenBundle.getCoin tokens) txouts
     let txsCoinValue = map getCoinValueFromTxOut
     txsCoinValue (assignMigrationAddresses addrs sels) === selsCoinValue
 
@@ -347,7 +347,8 @@ instance Arbitrary CoinSelProp where
 instance Arbitrary CoinSelectionForMigration where
     arbitrary = do
         txIntxOuts <- Map.toList . getUTxO <$> arbitrary
-        let chgs = map (\(_, TxOut _ tokens) -> TB.getCoin tokens) txIntxOuts
+        let chgs = map
+                (\(_, TxOut _ tokens) -> TokenBundle.getCoin tokens) txIntxOuts
         pure $ CoinSelectionForMigration $ mempty
             { inputs = txIntxOuts
             , change = chgs
@@ -397,7 +398,7 @@ instance Arbitrary TxOut where
     -- No Shrinking
     arbitrary = TxOut
         <$> arbitrary
-        <*> fmap TB.fromCoin genCoinLargePositive
+        <*> fmap TokenBundle.fromCoin genCoinLargePositive
 
 instance Arbitrary UTxO where
     shrink (UTxO utxo) = UTxO <$> shrink utxo
@@ -419,4 +420,4 @@ genTxOut :: [Word64] -> Gen [TxOut]
 genTxOut coins = do
     let n = length coins
     outs <- vector n
-    return $ zipWith TxOut outs (map (TB.fromCoin . Coin) coins)
+    return $ zipWith TxOut outs (map (TokenBundle.fromCoin . Coin) coins)

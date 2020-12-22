@@ -50,7 +50,7 @@ import Test.QuickCheck
     , (===)
     )
 
-import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as TQ
+import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as TokenQuantity
 
 spec :: Spec
 spec = do
@@ -78,7 +78,7 @@ persistRoundtrip proxy = it
 
 prop_checkTokenQuantityCoverage :: TokenQuantity -> Property
 prop_checkTokenQuantityCoverage q = checkCoverage
-    $ cover 2 (TQ.isZero q)
+    $ cover 2 (TokenQuantity.isZero q)
         "token quantity is zero"
     $ cover 2 isSmall
         "token quantity is small"

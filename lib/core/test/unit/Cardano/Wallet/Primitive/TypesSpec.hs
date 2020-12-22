@@ -210,7 +210,7 @@ import Test.Utils.Laws
 import Test.Utils.Time
     ( genUniformTime, genUniformTimeWithinRange, getUniformTime )
 
-import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TB
+import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Data.ByteString as BS
 import qualified Data.Map
 import qualified Data.Map.Strict as Map
@@ -309,7 +309,7 @@ spec = do
 
         it "UTxOStatistics" $ do
             let txin h = TxIn (Hash h) 0
-            let txout c = TxOut (Address "") (TB.fromCoin $ Coin c)
+            let txout c = TxOut (Address "") (TokenBundle.fromCoin $ Coin c)
             let ada l = l * 1000*1000
             let utxo = UTxO $ Map.fromList
                     [ (txin "a", txout 1)
@@ -1152,7 +1152,7 @@ instance Arbitrary TxOut where
     -- No Shrinking
     arbitrary = TxOut
         <$> arbitrary
-        <*> fmap TB.fromCoin genCoinSmall
+        <*> fmap TokenBundle.fromCoin genCoinSmall
 
 instance Arbitrary TxIn where
     -- No Shrinking

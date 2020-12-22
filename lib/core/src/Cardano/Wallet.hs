@@ -445,7 +445,7 @@ import qualified Cardano.Wallet.Primitive.AddressDiscovery.Sequential as Seq
 import qualified Cardano.Wallet.Primitive.CoinSelection.Random as CoinSelection
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
-import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TB
+import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Cardano.Wallet.Primitive.Types.UTxO as W
 import qualified Data.ByteArray as BA
@@ -1507,7 +1507,7 @@ selectCoinsForMigrationFromUTxO ctx utxo txp minUtxo wid = do
     worstCase :: CoinSelection -> CoinSelection
     worstCase cs = cs
         { change = mempty
-        , outputs = TxOut worstCaseAddress . TB.fromCoin <$> change cs
+        , outputs = TxOut worstCaseAddress . TokenBundle.fromCoin <$> change cs
         }
       where
         worstCaseAddress :: Address
@@ -1595,7 +1595,8 @@ assignChangeAddresses
     :: forall s m. (GenChange s, Monad m)
     => ArgGenChange s -> [Coin] -> StateT s m [TxOut]
 assignChangeAddresses argGenChange =
-    mapM $ \c -> flip TxOut (TB.fromCoin c) <$> state (genChange argGenChange)
+    mapM $ \c ->
+        flip TxOut (TokenBundle.fromCoin c) <$> state (genChange argGenChange)
 
 -- | Produce witnesses and construct a transaction from a given
 -- selection. Requires the encryption passphrase in order to decrypt
@@ -1779,7 +1780,7 @@ selectCoinsExternal ctx wid argGenChange selectCoins = do
       where
         mkChange (TxOut address tokens, derivationPath) = TxChange {..}
           where
-            amount = TB.getCoin tokens
+            amount = TokenBundle.getCoin tokens
 
 data ErrSelectCoinsExternal
     = ErrSelectCoinsExternalNoSuchWallet ErrNoSuchWallet
@@ -1907,7 +1908,7 @@ mkTxMeta ti' blockHeader wState tx cs expiry =
     ourCoins :: TxOut -> Maybe Natural
     ourCoins (TxOut addr tokens) =
         case fst (isOurs addr wState) of
-            Just{}  -> Just (fromIntegral $ unCoin $ TB.getCoin tokens)
+            Just{}  -> Just (fromIntegral $ unCoin $ TokenBundle.getCoin tokens)
             Nothing -> Nothing
 
     ourWithdrawal :: (RewardAccount, Coin) -> Maybe Natural
@@ -2620,7 +2621,7 @@ guardCoinSelection
 guardCoinSelection minUtxoValue cs@CoinSelection{outputs, change} = do
     when (cs == mempty) $
         Right ()
-    let outputCoins = map (\(TxOut _ c) -> TB.getCoin c) outputs
+    let outputCoins = map (\(TxOut _ c) -> TokenBundle.getCoin c) outputs
     let invalidTxOuts =
             filter (< minUtxoValue) (outputCoins ++ change)
     unless (L.null invalidTxOuts) $ Left

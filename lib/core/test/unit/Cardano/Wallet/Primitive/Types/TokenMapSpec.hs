@@ -74,8 +74,8 @@ import Test.Utils.Laws
 import Test.Utils.Paths
     ( getTestData )
 
-import qualified Cardano.Wallet.Primitive.Types.TokenMap as TM
-import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as TQ
+import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
+import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as TokenQuantity
 import qualified Data.Aeson.Types as Aeson
 import qualified Data.Foldable as F
 import qualified Data.List.NonEmpty as NE
@@ -181,7 +181,8 @@ spec =
 -- Tests that all quantities within the given map are non-zero.
 --
 invariantHolds :: TokenMap -> Bool
-invariantHolds b = all TQ.isNonZero $ getQuantity <$> TM.toFlatList b
+invariantHolds b =
+    all TokenQuantity.isNonZero $ getQuantity <$> TokenMap.toFlatList b
   where
     getQuantity (_, q) = q
 
@@ -192,35 +193,35 @@ prop_shrink_invariant :: TokenMap -> Property
 prop_shrink_invariant b = property $ all invariantHolds $ shrink b
 
 prop_empty_invariant :: Property
-prop_empty_invariant = property $ invariantHolds TM.empty
+prop_empty_invariant = property $ invariantHolds TokenMap.empty
 
 prop_singleton_invariant :: (AssetId, TokenQuantity) -> Property
 prop_singleton_invariant (asset, quantity) = property $
-    invariantHolds $ TM.singleton asset quantity
+    invariantHolds $ TokenMap.singleton asset quantity
 
 prop_fromFlatList_invariant :: [(AssetId, TokenQuantity)] -> Property
 prop_fromFlatList_invariant entries =
-    property $ invariantHolds $ TM.fromFlatList entries
+    property $ invariantHolds $ TokenMap.fromFlatList entries
 
 prop_fromNestedList_invariant
     :: [(TokenPolicyId, NonEmpty (TokenName, TokenQuantity))] -> Property
 prop_fromNestedList_invariant entries =
-    property $ invariantHolds $ TM.fromNestedList entries
+    property $ invariantHolds $ TokenMap.fromNestedList entries
 
 prop_add_invariant :: TokenMap -> TokenMap -> Property
-prop_add_invariant b1 b2 = property $ invariantHolds $ TM.add b1 b2
+prop_add_invariant b1 b2 = property $ invariantHolds $ TokenMap.add b1 b2
 
 prop_setQuantity_invariant
     :: TokenMap -> AssetId -> TokenQuantity -> Property
 prop_setQuantity_invariant b asset quantity = property $
-    invariantHolds $ TM.setQuantity b asset quantity
+    invariantHolds $ TokenMap.setQuantity b asset quantity
 
 prop_adjustQuantity_invariant :: TokenMap -> AssetId -> Property
 prop_adjustQuantity_invariant b asset = property $
-    invariantHolds $ TM.adjustQuantity b asset adjust
+    invariantHolds $ TokenMap.adjustQuantity b asset adjust
   where
     adjust quantity
-        | quantity > TQ.zero = TQ.pred quantity
+        | quantity > TokenQuantity.zero = TokenQuantity.pred quantity
         | otherwise = quantity
 
 --------------------------------------------------------------------------------
@@ -235,11 +236,12 @@ prop_fromFlatList assetQuantities = checkCoverage $ property $
         "Some assets have more than one quantity" $
     -- Check that multiple quantities for the same asset are combined
     -- additively:
-    F.all (\(a, q) -> TM.getQuantity tokenMap a == q) combinedAssetQuantities
+    F.all (\(a, q) -> TokenMap.getQuantity tokenMap a == q)
+        combinedAssetQuantities
   where
-    tokenMap = TM.fromFlatList assetQuantities
+    tokenMap = TokenMap.fromFlatList assetQuantities
     combinedAssetQuantities =
-        Map.toList $ Map.fromListWith TQ.add assetQuantities
+        Map.toList $ Map.fromListWith TokenQuantity.add assetQuantities
 
 prop_fromNestedList
     :: [(TokenPolicyId, NonEmpty (TokenName, TokenQuantity))]
@@ -251,11 +253,12 @@ prop_fromNestedList assetQuantities = checkCoverage $ property $
         "Some assets have more than one quantity" $
     -- Check that multiple quantities for the same asset are combined
     -- additively:
-    F.all (\(a, q) -> TM.getQuantity tokenMap a == q) combinedAssetQuantities
+    F.all (\(a, q) -> TokenMap.getQuantity tokenMap a == q)
+        combinedAssetQuantities
   where
-    tokenMap = TM.fromNestedList assetQuantities
-    combinedAssetQuantities =
-        Map.toList $ Map.fromListWith TQ.add flattenedAssetQuantities
+    tokenMap = TokenMap.fromNestedList assetQuantities
+    combinedAssetQuantities = Map.toList $
+        Map.fromListWith TokenQuantity.add flattenedAssetQuantities
     flattenedAssetQuantities =
         [ (AssetId p t, q)
         | (p, tq) <- fmap (fmap NE.toList) assetQuantities
@@ -264,23 +267,23 @@ prop_fromNestedList assetQuantities = checkCoverage $ property $
 
 prop_empty_toFlatList :: Property
 prop_empty_toFlatList =
-    TM.toFlatList TM.empty === []
+    TokenMap.toFlatList TokenMap.empty === []
 
 prop_singleton_toFlatList
     :: (AssetId, TokenQuantity) -> Property
 prop_singleton_toFlatList entry@(asset, quantity) = property $
-    case TM.toFlatList $ TM.singleton asset quantity of
-        [] -> quantity === TQ.zero
+    case TokenMap.toFlatList $ TokenMap.singleton asset quantity of
+        [] -> quantity === TokenQuantity.zero
         [entryRetrieved] -> entryRetrieved === entry
         _ -> error "prop_singleton_toFlatList"
 
 prop_toFlatList_fromFlatList :: TokenMap -> Property
 prop_toFlatList_fromFlatList b =
-    TM.fromFlatList (TM.toFlatList b) === b
+    TokenMap.fromFlatList (TokenMap.toFlatList b) === b
 
 prop_toNestedList_fromNestedList :: TokenMap -> Property
 prop_toNestedList_fromNestedList b =
-    TM.fromNestedList (TM.toNestedList b) === b
+    TokenMap.fromNestedList (TokenMap.toNestedList b) === b
 
 --------------------------------------------------------------------------------
 -- Arithmetic properties
@@ -288,12 +291,12 @@ prop_toNestedList_fromNestedList b =
 
 prop_add_commutative :: TokenMap -> TokenMap -> Property
 prop_add_commutative b1 b2 =
-    b1 `TM.add` b2 === b2 `TM.add` b1
+    b1 `TokenMap.add` b2 === b2 `TokenMap.add` b1
 
 prop_add_associative :: TokenMap -> TokenMap -> TokenMap -> Property
 prop_add_associative b1 b2 b3 = (===)
-    ((b1 `TM.add` b2) `TM.add` b3)
-    (b1 `TM.add` (b2 `TM.add` b3))
+    ((b1 `TokenMap.add` b2) `TokenMap.add` b3)
+    (b1 `TokenMap.add` (b2 `TokenMap.add` b3))
 
 --------------------------------------------------------------------------------
 -- Quantity properties
@@ -301,42 +304,42 @@ prop_add_associative b1 b2 b3 = (===)
 
 prop_removeQuantity_isEmpty :: TokenMap -> Property
 prop_removeQuantity_isEmpty b =
-    F.foldl' TM.removeQuantity b assets === TM.empty
+    F.foldl' TokenMap.removeQuantity b assets === TokenMap.empty
   where
-    assets = fst <$> TM.toFlatList b
+    assets = fst <$> TokenMap.toFlatList b
 
 prop_setQuantity_getQuantity
     :: TokenMap -> AssetId -> TokenQuantity -> Property
 prop_setQuantity_getQuantity b asset quantity =
-    TM.getQuantity (TM.setQuantity b asset quantity) asset
+    TokenMap.getQuantity (TokenMap.setQuantity b asset quantity) asset
         === quantity
 
 prop_setQuantity_hasQuantity
     :: TokenMap -> AssetId -> TokenQuantity -> Property
 prop_setQuantity_hasQuantity b asset quantity =
-    TM.hasQuantity (TM.setQuantity b asset quantity) asset
-        === TQ.isNonZero quantity
+    TokenMap.hasQuantity (TokenMap.setQuantity b asset quantity) asset
+        === TokenQuantity.isNonZero quantity
 
 prop_adjustQuantity_getQuantity
     :: TokenMap -> AssetId -> Property
 prop_adjustQuantity_getQuantity b asset =
-    TM.getQuantity (TM.adjustQuantity b asset adjust) asset
+    TokenMap.getQuantity (TokenMap.adjustQuantity b asset adjust) asset
         === adjust quantityOriginal
   where
-    quantityOriginal = TM.getQuantity b asset
+    quantityOriginal = TokenMap.getQuantity b asset
     adjust quantity
-        | quantity > TQ.zero = TQ.pred quantity
+        | quantity > TokenQuantity.zero = TokenQuantity.pred quantity
         | otherwise = quantity
 
 prop_adjustQuantity_hasQuantity
     :: TokenMap -> AssetId -> Property
 prop_adjustQuantity_hasQuantity b asset =
-    TM.hasQuantity (TM.adjustQuantity b asset adjust) asset
-        === TQ.isNonZero (adjust quantityOriginal)
+    TokenMap.hasQuantity (TokenMap.adjustQuantity b asset adjust) asset
+        === TokenQuantity.isNonZero (adjust quantityOriginal)
   where
-    quantityOriginal = TM.getQuantity b asset
+    quantityOriginal = TokenMap.getQuantity b asset
     adjust quantity
-        | quantity > TQ.zero = TQ.pred quantity
+        | quantity > TokenQuantity.zero = TokenQuantity.pred quantity
         | otherwise = quantity
 
 --------------------------------------------------------------------------------
@@ -437,7 +440,7 @@ testMap = testMapData
     & fmap (second TokenQuantity)
     & fmap (first (bimap dummyTokenPolicyId dummyTokenName))
     & fmap (first (uncurry AssetId))
-    & TM.fromFlatList
+    & TokenMap.fromFlatList
 
 testMapData :: [((Char, Text), Natural)]
 testMapData =

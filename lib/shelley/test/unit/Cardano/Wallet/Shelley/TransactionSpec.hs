@@ -97,7 +97,7 @@ import Data.Quantity
 import Data.Typeable
     ( Typeable, typeRep )
 import Data.Word
-    ( Word16, Word8 )
+    ( Word16, Word64, Word8 )
 import Ouroboros.Network.Block
     ( SlotNo (..) )
 import Test.Hspec
@@ -125,7 +125,7 @@ import Test.QuickCheck
 import qualified Cardano.Api.Typed as Cardano
 import qualified Cardano.Wallet.Primitive.CoinSelection as CS
 import qualified Cardano.Wallet.Primitive.CoinSelection.Random as CS
-import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TB
+import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
@@ -191,11 +191,11 @@ spec = do
     it "regression #1740 - fee estimation at the boundaries" $ do
         let utxo = UTxO $ Map.fromList
                 [ ( TxIn dummyTxId 0
-                  , TxOut (dummyAddress 0) (TB.fromCoin $ Coin 5000000)
+                  , TxOut (dummyAddress 0) (coinToBundle 5000000)
                   )
                 ]
         let recipients = NE.fromList
-                [ TxOut (dummyAddress 0) (TB.fromCoin $ Coin 4834720)
+                [ TxOut (dummyAddress 0) (coinToBundle 4834720)
                 ]
 
         let wdrl = Quantity 0
@@ -233,12 +233,12 @@ spec = do
             let amtChange = amtInp - amtOut - amtFee
             let utxo = UTxO $ Map.fromList
                     [ ( TxIn dummyTxId 0
-                      , TxOut (dummyAddress 0) (TB.fromCoin $ Coin amtInp)
+                      , TxOut (dummyAddress 0) (coinToBundle amtInp)
                       )
                     ]
             let outs =
-                    [ TxOut (dummyAddress 1) (TB.fromCoin $ Coin amtOut)
-                    , TxOut (dummyAddress 2) (TB.fromCoin $ Coin amtChange)
+                    [ TxOut (dummyAddress 1) (coinToBundle amtOut)
+                    , TxOut (dummyAddress 2) (coinToBundle amtChange)
                     ]
             calculateBinary utxo outs pairs `shouldBe`
                 "83a40081825820000000000000000000000000000000000000000000000000\
@@ -261,16 +261,16 @@ spec = do
             let amtChange = 2*amtInp - 2*amtOut - amtFee
             let utxo = UTxO $ Map.fromList
                     [ ( TxIn dummyTxId 0
-                      , TxOut (dummyAddress 0) (TB.fromCoin $ Coin amtInp)
+                      , TxOut (dummyAddress 0) (coinToBundle amtInp)
                       )
                     , ( TxIn dummyTxId 1
-                      , TxOut (dummyAddress 1) (TB.fromCoin $ Coin amtInp)
+                      , TxOut (dummyAddress 1) (coinToBundle amtInp)
                       )
                     ]
             let outs =
-                    [ TxOut (dummyAddress 2) (TB.fromCoin $ Coin amtOut)
-                    , TxOut (dummyAddress 3) (TB.fromCoin $ Coin amtOut)
-                    , TxOut (dummyAddress 4) (TB.fromCoin $ Coin amtChange)
+                    [ TxOut (dummyAddress 2) (coinToBundle amtOut)
+                    , TxOut (dummyAddress 3) (coinToBundle amtOut)
+                    , TxOut (dummyAddress 4) (coinToBundle amtChange)
                     ]
             calculateBinary utxo outs pairs `shouldBe`
                 "83a40082825820000000000000000000000000000000000000000000000000\
@@ -315,12 +315,12 @@ spec = do
             let amtChange = amtInp - amtOut - amtFee
             let utxo = UTxO $ Map.fromList
                     [ ( TxIn dummyTxId 0
-                      , TxOut (dummyAddress 0) (TB.fromCoin $ Coin amtInp)
+                      , TxOut (dummyAddress 0) (coinToBundle amtInp)
                       )
                     ]
             let outs =
-                    [ TxOut (dummyAddress 1) (TB.fromCoin $ Coin amtOut)
-                    , TxOut (dummyAddress 2) (TB.fromCoin $ Coin amtChange)
+                    [ TxOut (dummyAddress 1) (coinToBundle amtOut)
+                    , TxOut (dummyAddress 2) (coinToBundle amtChange)
                     ]
             calculateBinary utxo outs pairs `shouldBe`
                 "83a40081825820000000000000000000000000000000000000000000000000\
@@ -343,16 +343,16 @@ spec = do
             let amtChange = 2*amtInp - 2*amtOut - amtFee
             let utxo = UTxO $ Map.fromList
                     [ ( TxIn dummyTxId 0
-                      , TxOut (dummyAddress 0) (TB.fromCoin $ Coin amtInp)
+                      , TxOut (dummyAddress 0) (coinToBundle amtInp)
                       )
                     , ( TxIn dummyTxId 1
-                      , TxOut (dummyAddress 1) (TB.fromCoin $ Coin amtInp)
+                      , TxOut (dummyAddress 1) (coinToBundle amtInp)
                       )
                     ]
             let outs =
-                    [ TxOut (dummyAddress 2) (TB.fromCoin $ Coin amtOut)
-                    , TxOut (dummyAddress 3) (TB.fromCoin $ Coin amtOut)
-                    , TxOut (dummyAddress 4) (TB.fromCoin $ Coin amtChange)
+                    [ TxOut (dummyAddress 2) (coinToBundle amtOut)
+                    , TxOut (dummyAddress 3) (coinToBundle amtOut)
+                    , TxOut (dummyAddress 4) (coinToBundle amtChange)
                     ]
             calculateBinary utxo outs pairs `shouldBe`
                 "83a40082825820000000000000000000000000000000000000000000000000\
@@ -629,6 +629,9 @@ instance Arbitrary (Quantity "byte" Word16) where
 dummyAddress :: Word8 -> Address
 dummyAddress b =
     Address $ BS.pack $ 1 : replicate 64 b
+
+coinToBundle :: Word64 -> TokenBundle
+coinToBundle = TokenBundle.fromCoin . Coin
 
 dummyWit :: Word8 -> (XPrv, Passphrase "encryption")
 dummyWit b =

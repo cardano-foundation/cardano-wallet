@@ -267,7 +267,7 @@ import qualified Cardano.Wallet.Primitive.Types.Address as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.RewardAccount as W
-import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TB
+import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Codec.Binary.Bech32 as Bech32
 import qualified Codec.Binary.Bech32.TH as Bech32
@@ -696,7 +696,7 @@ fromGenesisData g initialFunds =
             []
             [W.TxOut
                 (fromShelleyAddress addr)
-                (TB.fromCoin $ fromShelleyCoin c)
+                (TokenBundle.fromCoin $ fromShelleyCoin c)
             ]
             mempty
             Nothing
@@ -766,8 +766,9 @@ fromShelleyTxOut
        )
     => SL.TxOut era
     -> W.TxOut
-fromShelleyTxOut (SL.TxOut addr amount) =
-  W.TxOut (fromShelleyAddress addr) (TB.fromCoin $ fromShelleyCoin amount)
+fromShelleyTxOut (SL.TxOut addr amount) = W.TxOut
+    (fromShelleyAddress addr)
+    (TokenBundle.fromCoin $ fromShelleyCoin amount)
 
 fromShelleyAddress :: SL.Addr e -> W.Address
 fromShelleyAddress = W.Address
@@ -1016,7 +1017,10 @@ toCardanoLovelace (W.Coin c) = Cardano.Lovelace $ safeCast c
 
 toShelleyTxOut :: W.TxOut -> Cardano.TxOut ShelleyEra
 toShelleyTxOut (W.TxOut (W.Address addr) tokens) =
-    Cardano.TxOut addrInEra (adaOnly $ toCardanoLovelace $ TB.getCoin tokens)
+    Cardano.TxOut addrInEra
+        $ adaOnly
+        $ toCardanoLovelace
+        $ TokenBundle.getCoin tokens
   where
     adaOnly = Cardano.TxOutAdaOnly Cardano.AdaOnlyInShelleyEra
     addrInEra = fromMaybe (error "toCardanoTxOut: malformed address") $
@@ -1031,7 +1035,10 @@ toShelleyTxOut (W.TxOut (W.Address addr) tokens) =
 
 toAllegraTxOut :: W.TxOut -> Cardano.TxOut AllegraEra
 toAllegraTxOut (W.TxOut (W.Address addr) tokens) =
-    Cardano.TxOut addrInEra (adaOnly $ toCardanoLovelace $ TB.getCoin tokens)
+    Cardano.TxOut addrInEra
+        $ adaOnly
+        $ toCardanoLovelace
+        $ TokenBundle.getCoin tokens
   where
     adaOnly = Cardano.TxOutAdaOnly Cardano.AdaOnlyInAllegraEra
     addrInEra = fromMaybe (error "toCardanoTxOut: malformed address") $

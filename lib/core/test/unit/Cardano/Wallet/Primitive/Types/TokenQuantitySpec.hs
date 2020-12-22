@@ -47,7 +47,7 @@ import Test.Utils.Laws
 import Test.Utils.Paths
     ( getTestData )
 
-import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as TQ
+import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as TokenQuantity
 import qualified Data.Char as Char
 import qualified Data.Foldable as F
 import qualified Data.Text as T
@@ -92,12 +92,12 @@ spec =
 --------------------------------------------------------------------------------
 
 prop_pred_succ :: TokenQuantity -> Property
-prop_pred_succ q = q > TQ.zero ==>
-    TQ.succ (TQ.pred q) === q
+prop_pred_succ q = q > TokenQuantity.zero ==>
+    TokenQuantity.succ (TokenQuantity.pred q) === q
 
 prop_succ_pred :: TokenQuantity -> Property
 prop_succ_pred q =
-    TQ.pred (TQ.succ q) === q
+    TokenQuantity.pred (TokenQuantity.succ q) === q
 
 --------------------------------------------------------------------------------
 -- JSON serialization

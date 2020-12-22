@@ -78,7 +78,7 @@ import GHC.Generics
 import GHC.TypeLits
     ( ErrorMessage (..), TypeError )
 
-import qualified Cardano.Wallet.Primitive.Types.TokenMap as TM
+import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 
 --------------------------------------------------------------------------------
 -- Types
@@ -152,7 +152,7 @@ fromFlatList
     :: Coin
     -> [(AssetId, TokenQuantity)]
     -> TokenBundle
-fromFlatList c = TokenBundle c . TM.fromFlatList
+fromFlatList c = TokenBundle c . TokenMap.fromFlatList
 
 -- | Creates a token bundle from a coin and a nested list of token quantities.
 --
@@ -163,7 +163,7 @@ fromNestedList
     :: Coin
     -> [(TokenPolicyId, NonEmpty (TokenName, TokenQuantity))]
     -> TokenBundle
-fromNestedList c = TokenBundle c . TM.fromNestedList
+fromNestedList c = TokenBundle c . TokenMap.fromNestedList
 
 --------------------------------------------------------------------------------
 -- Deconstruction
@@ -172,14 +172,14 @@ fromNestedList c = TokenBundle c . TM.fromNestedList
 -- | Converts a token bundle to a coin and a flat list of token quantities.
 --
 toFlatList :: TokenBundle -> (Coin, [(AssetId, TokenQuantity)])
-toFlatList (TokenBundle c m) = (c, TM.toFlatList m)
+toFlatList (TokenBundle c m) = (c, TokenMap.toFlatList m)
 
 -- | Converts a token bundle to a coin and a nested list of token quantities.
 --
 toNestedList
     :: TokenBundle
     -> (Coin, [(TokenPolicyId, NonEmpty (TokenName, TokenQuantity))])
-toNestedList (TokenBundle c m) = (c, TM.toNestedList m)
+toNestedList (TokenBundle c m) = (c, TokenMap.toNestedList m)
 
 --------------------------------------------------------------------------------
 -- Coins
@@ -196,14 +196,14 @@ fromCoin c = TokenBundle c mempty
 --
 toCoin :: TokenBundle -> Maybe Coin
 toCoin (TokenBundle c ts)
-    | TM.isEmpty ts = Just c
+    | TokenMap.isEmpty ts = Just c
     | otherwise = Nothing
 
 -- | Indicates 'True' if (and only if) a token bundle has no tokens other than
 --   an ada 'Coin' value.
 --
 isCoin :: TokenBundle -> Bool
-isCoin (TokenBundle _ m) = TM.isEmpty m
+isCoin (TokenBundle _ m) = TokenMap.isEmpty m
 
 -- | Gets the current ada 'Coin' value from a token bundle.
 --
@@ -226,7 +226,7 @@ setCoin b c = b { coin = c }
 --
 add :: TokenBundle -> TokenBundle -> TokenBundle
 add (TokenBundle (Coin c1) m1) (TokenBundle (Coin c2) m2) =
-    TokenBundle (Coin $ c1 + c2) (TM.add m1 m2)
+    TokenBundle (Coin $ c1 + c2) (TokenMap.add m1 m2)
 
 --------------------------------------------------------------------------------
 -- Quantities
@@ -238,7 +238,7 @@ add (TokenBundle (Coin c1) m1) (TokenBundle (Coin c2) m2) =
 -- function returns a value of zero.
 --
 getQuantity :: TokenBundle -> AssetId -> TokenQuantity
-getQuantity = TM.getQuantity . tokens
+getQuantity = TokenMap.getQuantity . tokens
 
 -- | Updates the quantity associated with a given asset.
 --
@@ -246,13 +246,13 @@ getQuantity = TM.getQuantity . tokens
 -- for the given asset.
 --
 setQuantity :: TokenBundle -> AssetId -> TokenQuantity -> TokenBundle
-setQuantity b a q = b { tokens = TM.setQuantity (tokens b) a q }
+setQuantity b a q = b { tokens = TokenMap.setQuantity (tokens b) a q }
 
 -- | Returns true if and only if the given bundle has a non-zero quantity
 --   for the given asset.
 --
 hasQuantity :: TokenBundle -> AssetId -> Bool
-hasQuantity = TM.hasQuantity . tokens
+hasQuantity = TokenMap.hasQuantity . tokens
 
 -- | Uses the specified function to adjust the quantity associated with a
 --   given asset.
@@ -265,14 +265,14 @@ adjustQuantity
     -> AssetId
     -> (TokenQuantity -> TokenQuantity)
     -> TokenBundle
-adjustQuantity b a f = b { tokens = TM.adjustQuantity (tokens b) a f }
+adjustQuantity b a f = b { tokens = TokenMap.adjustQuantity (tokens b) a f }
 
 -- | Removes the quantity associated with the given asset.
 --
 -- This is equivalent to calling 'setQuantity' with a value of zero.
 --
 removeQuantity :: TokenBundle -> AssetId -> TokenBundle
-removeQuantity b a = b { tokens = TM.removeQuantity (tokens b) a }
+removeQuantity b a = b { tokens = TokenMap.removeQuantity (tokens b) a }
 
 --------------------------------------------------------------------------------
 -- Policies
@@ -282,4 +282,4 @@ removeQuantity b a = b { tokens = TM.removeQuantity (tokens b) a }
 --   quantity corresponding to the specified policy.
 --
 hasPolicy :: TokenBundle -> TokenPolicyId -> Bool
-hasPolicy = TM.hasPolicy . tokens
+hasPolicy = TokenMap.hasPolicy . tokens

@@ -113,8 +113,8 @@ import GHC.Generics
 import Numeric.Natural
     ( Natural )
 
-import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TB
-import qualified Cardano.Wallet.Primitive.Types.TokenMap as TM
+import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
+import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Text.Lazy.Builder as Builder
@@ -201,7 +201,7 @@ data TxOut = TxOut
 -- 'Coin' values correspond to the ada asset.
 --
 txOutCoin :: TxOut -> Coin
-txOutCoin = TB.getCoin . view #tokens
+txOutCoin = TokenBundle.getCoin . view #tokens
 
 -- Since the 'TokenBundle' type deliberately does not provide an 'Ord' instance
 -- (as that would lead to arithmetically invalid orderings), this means we can't
@@ -221,7 +221,7 @@ instance Ord TxOut where
         projection out =
             ( out & view #address
             , out & view (#tokens . #coin)
-            , out & view (#tokens . #tokens) & TM.toNestedList
+            , out & view (#tokens . #tokens) & TokenMap.toNestedList
             )
 
 data TxChange derivationPath = TxChange
@@ -242,7 +242,7 @@ instance Buildable TxOut where
         , ("coin"
           , build (txOutCoin txOut))
         , ("tokens"
-          , build (TM.Nested $ view (#tokens . #tokens) txOut))
+          , build (TokenMap.Nested $ view (#tokens . #tokens) txOut))
         ]
       where
         addressShort = mempty

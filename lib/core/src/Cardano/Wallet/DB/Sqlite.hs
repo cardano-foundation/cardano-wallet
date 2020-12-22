@@ -121,6 +121,8 @@ import Cardano.Wallet.Primitive.Slotting
     , interpretQuery
     , slotToUTCTime
     )
+import Cardano.Wallet.Primitive.Types.TokenMap
+    ( AssetId (..) )
 import Control.Concurrent.MVar
     ( modifyMVar, modifyMVar_, newMVar, readMVar )
 import Control.Exception
@@ -218,7 +220,7 @@ import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Address as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
-import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TB
+import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Cardano.Wallet.Primitive.Types.UTxO as W
 import qualified Data.List as L
@@ -1286,13 +1288,14 @@ mkCheckpointEntity wid wal =
         , checkpointBlockHeight = bh
         }
     utxo =
-        [ UTxO wid sl (TxId input) ix addr (TB.getCoin tokens)
+        [ UTxO wid sl (TxId input) ix addr (TokenBundle.getCoin tokens)
         | (W.TxIn input ix, W.TxOut addr tokens) <- utxoMap
         ]
     utxoTokens =
         [ UTxOToken wid sl (TxId input) ix policy token quantity
         | (W.TxIn input ix, W.TxOut {tokens}) <- utxoMap
-        , (TB.AssetId policy token, quantity) <- snd (TB.toFlatList tokens)
+        , let tokenList = snd (TokenBundle.toFlatList tokens)
+        , (AssetId policy token, quantity) <- tokenList
         ]
     utxoMap = Map.assocs (W.getUTxO (W.utxo wal))
 
@@ -1319,9 +1322,9 @@ checkpointFromEntity cp utxo =
         | (UTxO _ _ (TxId input) ix addr coin, tokens) <- utxo
         ]
     mkTokenBundle coin tokens =
-        TB.fromFlatList coin (mkTokenEntry <$> tokens)
+        TokenBundle.fromFlatList coin (mkTokenEntry <$> tokens)
     mkTokenEntry token =
-        ( TB.AssetId (utxoTokenPolicyId token) (utxoTokenName token)
+        ( AssetId (utxoTokenPolicyId token) (utxoTokenName token)
         , utxoTokenQuantity token
         )
 
@@ -1373,8 +1376,8 @@ mkTxInputsOutputs tx =
             , txOutputAmount = W.txOutCoin txOut
             }
         tokens = mkTxOutToken tid ix <$>
-            snd (TB.toFlatList $ view #tokens txOut)
-    mkTxOutToken tid ix (TB.AssetId policy token, quantity) = TxOutToken
+            snd (TokenBundle.toFlatList $ view #tokens txOut)
+    mkTxOutToken tid ix (AssetId policy token, quantity) = TxOutToken
         { txOutTokenTxId = TxId tid
         , txOutTokenTxIndex = ix
         , txOutTokenPolicyId = policy
@@ -1471,11 +1474,12 @@ txHistoryFromEntity ti tip metas ins outs ws =
         )
     mkTxOut (out, tokens) = W.TxOut
         { W.address = txOutputAddress out
-        , W.tokens =
-            TB.fromFlatList (txOutputAmount out) (mkTxOutToken <$> tokens)
+        , W.tokens = TokenBundle.fromFlatList
+            (txOutputAmount out)
+            (mkTxOutToken <$> tokens)
         }
     mkTxOutToken token =
-        ( TB.AssetId (txOutTokenPolicyId token) (txOutTokenName token)
+        ( AssetId (txOutTokenPolicyId token) (txOutTokenName token)
         , txOutTokenQuantity token
         )
     mkTxWithdrawal w =

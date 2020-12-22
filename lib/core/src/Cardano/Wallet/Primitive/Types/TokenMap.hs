@@ -108,7 +108,7 @@ import GHC.TypeLits
 import Quiet
     ( Quiet (..) )
 
-import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as TQ
+import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as TokenQuantity
 import qualified Data.Aeson as Aeson
 import qualified Data.Foldable as F
 import qualified Data.List.NonEmpty as NE
@@ -279,7 +279,8 @@ instance FromJSON (Flat TokenMap) where
       where
         parseTuple :: FlatAssetQuantity -> Parser (AssetId, TokenQuantity)
         parseTuple (FlatAssetQuantity p t q) = do
-            when (TQ.isZero q) $ jsonFailWithZeroValueTokenQuantity p t
+            when (TokenQuantity.isZero q) $
+                jsonFailWithZeroValueTokenQuantity p t
             pure (AssetId p t, q)
 
 -- Used for JSON serialization only: not exported.
@@ -323,7 +324,7 @@ instance FromJSON (Nested TokenMap) where
             -> NestedTokenQuantity
             -> Parser (TokenName, TokenQuantity)
         parseToken policy (NestedTokenQuantity token quantity) = do
-            when (TQ.isZero quantity) $
+            when (TokenQuantity.isZero quantity) $
                 jsonFailWithZeroValueTokenQuantity policy token
             pure (token, quantity)
 
@@ -419,7 +420,7 @@ add :: TokenMap -> TokenMap -> TokenMap
 add a b = F.foldl' acc a $ toFlatList b
   where
     acc c (asset, quantity) =
-        adjustQuantity c asset (`TQ.add` quantity)
+        adjustQuantity c asset (`TokenQuantity.add` quantity)
 
 --------------------------------------------------------------------------------
 -- Tests
@@ -446,7 +447,7 @@ isNotEmpty = (/= empty)
 --
 getQuantity :: TokenMap -> AssetId -> TokenQuantity
 getQuantity (TokenMap m) (AssetId policy token) =
-    fromMaybe TQ.zero $ NEMap.lookup token =<< Map.lookup policy m
+    fromMaybe TokenQuantity.zero $ NEMap.lookup token =<< Map.lookup policy m
 
 -- | Updates the quantity associated with a given asset.
 --
@@ -456,11 +457,11 @@ getQuantity (TokenMap m) (AssetId policy token) =
 setQuantity :: TokenMap -> AssetId -> TokenQuantity -> TokenMap
 setQuantity originalMap@(TokenMap m) (AssetId policy token) quantity =
     case getPolicyMap originalMap policy of
-        Nothing | TQ.isZero quantity ->
+        Nothing | TokenQuantity.isZero quantity ->
             originalMap
         Nothing ->
             createPolicyMap
-        Just policyMap | TQ.isZero quantity ->
+        Just policyMap | TokenQuantity.isZero quantity ->
             removeQuantityFromPolicyMap policyMap
         Just policyMap ->
             updateQuantityInPolicyMap policyMap
@@ -506,7 +507,7 @@ adjustQuantity m asset adjust =
 -- This is equivalent to calling 'setQuantity' with a value of zero.
 --
 removeQuantity :: TokenMap -> AssetId -> TokenMap
-removeQuantity m asset = setQuantity m asset TQ.zero
+removeQuantity m asset = setQuantity m asset TokenQuantity.zero
 
 --------------------------------------------------------------------------------
 -- Policies

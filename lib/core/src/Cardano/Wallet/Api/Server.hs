@@ -459,7 +459,7 @@ import qualified Cardano.Wallet.Network as NW
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Byron as Byron
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Icarus as Icarus
 import qualified Cardano.Wallet.Primitive.Types as W
-import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TB
+import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Cardano.Wallet.Registry as Registry
 import qualified Data.Aeson as Aeson
@@ -1711,7 +1711,7 @@ assignMigrationAddresses addrs selections =
     makeTx :: CoinSelection -> [Address] -> UnsignedTx (TxIn, TxOut) TxOut Void
     makeTx sel addrsSelected = UnsignedTx
         (NE.fromList (sel ^. #inputs))
-        (zipWith TxOut addrsSelected (TB.fromCoin <$> sel ^. #change))
+        (zipWith TxOut addrsSelected (TokenBundle.fromCoin <$> sel ^. #change))
         -- We never return any change:
         []
 
@@ -1977,7 +1977,8 @@ mkApiCoinSelection mcerts (UnsignedTx inputs outputs change) =
             { id = ApiT txid
             , index = index
             , address = (ApiT addr, Proxy @n)
-            , amount = Quantity $ fromIntegral $ unCoin $ TB.getCoin tokens
+            , amount = Quantity $
+                fromIntegral $ unCoin $ TokenBundle.getCoin tokens
             , derivationPath = ApiT <$> path
             }
 
@@ -1985,7 +1986,7 @@ mkApiCoinSelection mcerts (UnsignedTx inputs outputs change) =
     mkApiCoinSelectionOutput (TxOut addr tokens) =
         ApiCoinSelectionOutput
             (ApiT addr, Proxy @n)
-            (Quantity $ fromIntegral $ unCoin $ TB.getCoin tokens)
+            (Quantity $ fromIntegral $ unCoin $ TokenBundle.getCoin tokens)
 
     mkApiCoinSelectionChange :: change -> ApiCoinSelectionChange n
     mkApiCoinSelectionChange txChange =
@@ -2039,8 +2040,9 @@ mkApiTransaction ti txid ins outs ws (meta, timestamp) txMeta setTimeReference =
         }
 
     toAddressAmount :: TxOut -> AddressAmount (ApiT Address, Proxy n)
-    toAddressAmount (TxOut addr tokens) =
-        AddressAmount (ApiT addr, Proxy @n) (mkApiCoin $ TB.getCoin tokens)
+    toAddressAmount (TxOut addr tokens) = AddressAmount
+        (ApiT addr, Proxy @n)
+        (mkApiCoin $ TokenBundle.getCoin tokens)
 
 mkApiCoin
     :: Coin
@@ -2058,7 +2060,7 @@ coerceCoin
     :: forall (n :: NetworkDiscriminant). AddressAmount (ApiT Address, Proxy n)
     -> TxOut
 coerceCoin (AddressAmount (ApiT addr, _) (Quantity c)) =
-    TxOut addr (TB.fromCoin $ Coin $ fromIntegral c)
+    TxOut addr (TokenBundle.fromCoin $ Coin $ fromIntegral c)
 
 natural :: Quantity q Word32 -> Quantity q Natural
 natural = Quantity . fromIntegral . getQuantity
