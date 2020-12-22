@@ -58,6 +58,7 @@ module Cardano.Wallet.Shelley.Launch
 
     -- * Logging
     , ClusterLog (..)
+    , TempDirLog (..)
     ) where
 
 import Prelude
@@ -99,7 +100,7 @@ import Cardano.Wallet.Api.Server
 import Cardano.Wallet.Api.Types
     ( HealthStatusSMASH (..) )
 import Cardano.Wallet.Logging
-    ( BracketLog, bracketTracer )
+    ( BracketLog (..), bracketTracer )
 import Cardano.Wallet.Network.Ports
     ( randomUnusedTCPPorts )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -908,7 +909,7 @@ withSMASH
     -> IO a
     -> IO a
 withSMASH tr action =
-    withSystemTempDir tr "smash" $ \fp -> do
+    withSystemTempDir (contramap MsgTempDir tr) "smash" $ \fp -> do
         let baseDir = fp </> "api/v1"
 
         -- write pool metadatas
@@ -1745,7 +1746,7 @@ isEnvSet = liftIO . fmap (maybe False (not . null)) . lookupEnv
 -- finished -- unless the @NO_CLEANUP@ environment variable has been set.
 withTempDir
     :: MonadUnliftIO m
-    => Tracer m ClusterLog
+    => Tracer m TempDirLog
     -> FilePath -- ^ Parent directory
     -> String -- ^ Directory name template
     -> (FilePath -> m a) -- ^ Callback that can use the directory
@@ -1753,12 +1754,13 @@ withTempDir
 withTempDir tr parent name action = isEnvSet "NO_CLEANUP" >>= \case
     True -> do
         dir <- liftIO $ createTempDirectory parent name
-        action dir `finally` traceWith tr (MsgTempNoCleanup dir)
+        let tr' = contramap (MsgNoCleanup dir) tr
+        bracketTracer tr' $ action dir
     False -> withTempDirectory parent name action
 
 withSystemTempDir
     :: MonadUnliftIO m
-    => Tracer m ClusterLog
+    => Tracer m TempDirLog
     -> String   -- ^ Directory name template
     -> (FilePath -> m a) -- ^ Callback that can use the directory
     -> m a
@@ -1776,7 +1778,7 @@ data ClusterLog
     | MsgStartingCluster FilePath
     | MsgLauncher String LauncherLog
     | MsgStartedStaticServer String FilePath
-    | MsgTempNoCleanup FilePath
+    | MsgTempDir TempDirLog
     | MsgBracket Text BracketLog
     | MsgCLIStatus String ExitCode String String
     | MsgCLIRetry String
@@ -1815,8 +1817,7 @@ instance ToText ClusterLog where
         MsgStartedStaticServer baseUrl fp ->
             "Started a static server for " <> T.pack fp
                 <> " at " <> T.pack baseUrl
-        MsgTempNoCleanup dir ->
-            "NO_CLEANUP of temporary directory " <> T.pack dir
+        MsgTempDir msg -> toText msg
         MsgBracket name b -> name <> ": " <> toText b
         MsgCLIStatus msg st out err -> case st of
             ExitSuccess -> "Successfully finished " <> T.pack msg
@@ -1850,7 +1851,7 @@ instance HasSeverityAnnotation ClusterLog where
         MsgWaitingForEpoch{} -> Notice
         MsgLauncher _ _ -> Info
         MsgStartedStaticServer _ _ -> Info
-        MsgTempNoCleanup _ -> Notice
+        MsgTempDir msg -> getSeverityAnnotation msg
         MsgBracket _ _ -> Debug
         MsgCLIStatus _ ExitSuccess _ _-> Debug
         MsgCLIStatus _ (ExitFailure _) _ _-> Error
@@ -1866,6 +1867,19 @@ instance HasSeverityAnnotation ClusterLog where
         MsgDebug _ -> Debug
         MsgGenOperatorKeyPair _ -> Debug
         MsgCLI _ -> Debug
+
+data TempDirLog = MsgNoCleanup FilePath BracketLog deriving (Show)
+
+instance ToText TempDirLog where
+    toText = \case
+        MsgNoCleanup _ BracketStart -> ""
+        MsgNoCleanup dir _ -> "NO_CLEANUP of temporary directory " <> T.pack dir
+
+instance HasPrivacyAnnotation TempDirLog
+instance HasSeverityAnnotation TempDirLog where
+    getSeverityAnnotation = \case
+        MsgNoCleanup _ BracketStart -> Debug
+        MsgNoCleanup _ _ -> Notice
 
 bracketTracer' :: Tracer IO ClusterLog -> Text -> IO a -> IO a
 bracketTracer' tr name = bracketTracer (contramap (MsgBracket name) tr)
