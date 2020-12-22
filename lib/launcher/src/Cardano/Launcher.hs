@@ -3,6 +3,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 {- HLINT ignore "Unused LANGUAGE pragma" -}
 
@@ -31,16 +32,18 @@ import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
-import Control.Concurrent
-    ( forkIO )
-import Control.Concurrent.MVar
-    ( newEmptyMVar, putMVar, takeMVar )
 import Control.Monad
     ( join, void )
+import Control.Monad.IO.Class
+    ( liftIO )
+import Control.Monad.IO.Unlift
+    ( MonadUnliftIO (..) )
 import Control.Tracer
     ( Tracer, contramap, traceWith )
 import Data.Aeson
     ( ToJSON (..), object, (.=) )
+import Data.Either.Combinators
+    ( whenLeft )
 import Data.List
     ( isPrefixOf )
 import Data.Text
@@ -68,8 +71,12 @@ import System.Process
     ( getPid )
 import UnliftIO.Async
     ( race )
+import UnliftIO.Concurrent
+    ( forkIO )
 import UnliftIO.Exception
     ( Exception, IOException, finally, onException, tryJust )
+import UnliftIO.MVar
+    ( newEmptyMVar, putMVar, takeMVar )
 import UnliftIO.Process
     ( CmdSpec (..)
     , CreateProcess (..)
@@ -149,57 +156,59 @@ instance Exception ProcessHasExited
 -- (see 'withCreateProcess') for details. If the process exits, the action is
 -- cancelled. The return type reflects those two cases.
 withBackendProcess
-    :: Tracer IO LauncherLog
+    :: MonadUnliftIO m
+    => Tracer m LauncherLog
     -- ^ Logging
     -> Command
     -- ^ 'Command' description
-    -> IO a
+    -> m a
     -- ^ Action to execute while process is running.
-    -> IO (Either ProcessHasExited a)
+    -> m (Either ProcessHasExited a)
 withBackendProcess tr cmd = withBackendProcessHandle tr cmd . const . const
 
 -- | A variant of 'withBackendProcess' which also provides the 'ProcessHandle'
 -- and stdin 'Handle' to the given action.
 withBackendProcessHandle
-    :: Tracer IO LauncherLog
+    :: MonadUnliftIO m
+    => Tracer m LauncherLog
     -- ^ Logging
     -> Command
     -- ^ 'Command' description
-    -> (Maybe Handle -> ProcessHandle -> IO a)
+    -> (Maybe Handle -> ProcessHandle -> m a)
     -- ^ Action to execute while process is running.
-    -> IO (Either ProcessHasExited a)
+    -> m (Either ProcessHasExited a)
 withBackendProcessHandle tr (Command name args before std_in std_out) action =
-    before >> withBackendCreateProcess tr process action
+    liftIO before >> withBackendCreateProcess tr process action
   where
-    process = (proc name args)  { std_in, std_out, std_err = std_out }
-
+    process = (proc name args) { std_in, std_out, std_err = std_out }
 
 -- | A variant of 'withBackendProcess' which accepts a general 'CreateProcess'
 -- object.
 withBackendCreateProcess
-    :: Tracer IO LauncherLog
+    :: forall m a. (MonadUnliftIO m)
+    => Tracer m LauncherLog
     -- ^ Logging
     -> CreateProcess
     -- ^ 'Command' description
-    -> (Maybe Handle -> ProcessHandle -> IO a)
+    -> (Maybe Handle -> ProcessHandle -> m a)
     -- ^ Action to execute while process is running.
-    -> IO (Either ProcessHasExited a)
+    -> m (Either ProcessHasExited a)
 withBackendCreateProcess tr process action = do
     traceWith tr $ MsgLauncherStart name args
     res <- fmap join $ tryJust spawnPredicate $
-        withCreateProcess process $ \mstdin _ _ h -> do
-            pid <- maybe "-" (T.pack . show) <$> getPid h
+        withCreateProcess process $ \mstdin _ _ ph -> do
+            pid <- liftIO $ textPid ph
             let tr' = contramap (WithProcessInfo name pid) tr
             traceWith tr' MsgLauncherStarted
 
             let waitForExit =
-                    ProcessHasExited name <$> interruptibleWaitForProcess tr' h
+                    ProcessHasExited name <$> interruptibleWaitForProcess tr' ph
             let runAction = do
                     traceWith tr' MsgLauncherAction
-                    action mstdin h `finally` traceWith tr' MsgLauncherCleanup
+                    action mstdin ph `finally` traceWith tr' MsgLauncherCleanup
 
             race waitForExit runAction
-    either (traceWith tr . MsgLauncherFinish) (const $ pure ()) res
+    whenLeft res (traceWith tr . MsgLauncherFinish)
     pure res
   where
     -- Exceptions resulting from the @exec@ call for this command. The most
@@ -215,9 +224,9 @@ withBackendCreateProcess tr process action = do
     -- behaviour of the process library on Windows where 'waitForProcess' seems
     -- to block all concurrent async actions in the thread.
     interruptibleWaitForProcess
-        :: Tracer IO LaunchedProcessLog
+        :: Tracer m LaunchedProcessLog
         -> ProcessHandle
-        -> IO ExitCode
+        -> m ExitCode
     interruptibleWaitForProcess tr' ph = do
         status <- newEmptyMVar
         void $ forkIO $ waitThread status `onException` continue status
@@ -231,6 +240,8 @@ withBackendCreateProcess tr process action = do
         continue var = do
             traceWith tr' MsgLauncherCancel
             putMVar var (ExitFailure 256)
+
+    textPid = fmap (maybe "-" (T.pack . show)) . getPid
 
     (name, args) = getCreateProcessNameArgs process
 

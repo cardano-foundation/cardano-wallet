@@ -34,6 +34,7 @@ library
     , bytestring
     , code-page
     , contra-tracer
+    , either
     , extra
     , filepath
     , fmt
@@ -42,6 +43,7 @@ library
     , text
     , text-class
     , unliftio
+    , unliftio-core
   hs-source-dirs:
       src
   exposed-modules:
