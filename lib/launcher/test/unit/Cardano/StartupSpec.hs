@@ -25,8 +25,6 @@ import System.IO
     ( Handle, IOMode (..), hClose, hWaitForInput, stdin, withFile )
 import System.IO.Error
     ( isUserError )
-import System.Process
-    ( createPipe )
 import Test.Hspec
     ( Spec, describe, it, shouldBe, shouldContain, shouldReturn, shouldThrow )
 import Test.Hspec.Core.Spec
@@ -41,6 +39,8 @@ import UnliftIO.Async
     ( race )
 import UnliftIO.Exception
     ( IOException, bracket, catch, throwIO )
+import UnliftIO.Process
+    ( createPipe )
 
 #if defined(WINDOWS)
 import Control.Concurrent

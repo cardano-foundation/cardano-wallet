@@ -17,10 +17,10 @@ import System.Exit
     ( ExitCode (..) )
 import System.IO.Error
     ( ioeGetErrorType, isDoesNotExistErrorType )
-import System.Process
-    ( readProcessWithExitCode )
 import UnliftIO.Exception
     ( handleJust )
+import UnliftIO.Process
+    ( readProcessWithExitCode )
 
 -- | Git revision found by running @git rev-parse@. If @git@ could not be
 -- executed, then this will be an empty string.

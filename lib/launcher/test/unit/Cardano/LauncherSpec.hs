@@ -54,8 +54,6 @@ import System.Exit
     ( ExitCode (..) )
 import System.Info
     ( os )
-import System.Process
-    ( ProcessHandle, getProcessExitCode )
 import Test.Hspec
     ( Spec
     , beforeAll
@@ -80,6 +78,8 @@ import UnliftIO.MVar
     , takeMVar
     , tryReadMVar
     )
+import UnliftIO.Process
+    ( ProcessHandle, getProcessExitCode )
 
 {- HLINT ignore spec "Use head" -}
 

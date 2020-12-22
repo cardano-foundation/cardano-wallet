@@ -222,8 +222,6 @@ import System.IO.Temp
     ( createTempDirectory, getCanonicalTemporaryDirectory, withTempDirectory )
 import System.IO.Unsafe
     ( unsafePerformIO )
-import System.Process
-    ( readProcess, readProcessWithExitCode )
 import Test.Utils.Paths
     ( getTestData )
 import Test.Utils.StaticServer
@@ -234,6 +232,8 @@ import UnliftIO.Exception
     ( SomeException, finally, handle, throwIO )
 import UnliftIO.MVar
     ( MVar, modifyMVar, newMVar, putMVar, readMVar, takeMVar )
+import UnliftIO.Process
+    ( readProcess, readProcessWithExitCode )
 
 import qualified Cardano.Chain.Common as Byron
 import qualified Cardano.Chain.UTxO as Legacy

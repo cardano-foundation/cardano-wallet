@@ -24,8 +24,6 @@ import System.Exit
     ( ExitCode (..) )
 import System.IO
     ( hClose, hFlush, hPutStr )
-import System.Process
-    ( waitForProcess, withCreateProcess )
 import Test.Hspec
     ( SpecWith, describe )
 import Test.Hspec.Expectations.Lifted
@@ -45,6 +43,8 @@ import Test.Integration.Framework.DSL
     , proc'
     , updateWalletNameViaCLI
     )
+import UnliftIO.Process
+    ( waitForProcess, withCreateProcess )
 
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO

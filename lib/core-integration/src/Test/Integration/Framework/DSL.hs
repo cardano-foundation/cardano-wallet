@@ -339,13 +339,6 @@ import System.Exit
     ( ExitCode (..) )
 import System.IO
     ( hClose, hFlush, hPutStr )
-import System.Process
-    ( CreateProcess (..)
-    , StdStream (..)
-    , proc
-    , waitForProcess
-    , withCreateProcess
-    )
 import Test.Hspec
     ( Expectation, HasCallStack, expectationFailure )
 import Test.Hspec.Expectations.Lifted
@@ -368,6 +361,13 @@ import UnliftIO.Async
     ( async, race, wait )
 import UnliftIO.Exception
     ( Exception (..), SomeException (..), catch, throwIO )
+import UnliftIO.Process
+    ( CreateProcess (..)
+    , StdStream (..)
+    , proc
+    , waitForProcess
+    , withCreateProcess
+    )
 import Web.HttpApiData
     ( ToHttpApiData (..) )
 

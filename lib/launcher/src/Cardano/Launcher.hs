@@ -65,19 +65,20 @@ import System.Exit
 import System.IO
     ( Handle )
 import System.Process
-    ( CmdSpec (..)
-    , CreateProcess (..)
-    , ProcessHandle
-    , StdStream (..)
-    , getPid
-    , proc
-    , waitForProcess
-    , withCreateProcess
-    )
+    ( getPid )
 import UnliftIO.Async
     ( race )
 import UnliftIO.Exception
     ( Exception, IOException, finally, onException, tryJust )
+import UnliftIO.Process
+    ( CmdSpec (..)
+    , CreateProcess (..)
+    , ProcessHandle
+    , StdStream (..)
+    , proc
+    , waitForProcess
+    , withCreateProcess
+    )
 
 import qualified Data.Text as T
 
