@@ -5,6 +5,9 @@
         "OddWord" = (((hackage.OddWord)."1.0.2.0").revisions).default;
         "command" = (((hackage.command)."0.1.1").revisions).default;
         "wai-extra" = (((hackage.wai-extra)."3.0.29.1").revisions).default;
+        "primitive-addr" = (((hackage.primitive-addr)."0.1.0.2").revisions).default;
+        "quickcheck-classes" = (((hackage.quickcheck-classes)."0.6.4.0").revisions).default;
+        "quickcheck-classes-base" = (((hackage.quickcheck-classes-base)."0.6.1.0").revisions).default;
         "servant" = (((hackage.servant)."0.17").revisions).default;
         "servant-server" = (((hackage.servant-server)."0.17").revisions).default;
         "servant-client-core" = (((hackage.servant-client-core)."0.17").revisions).default;
@@ -94,6 +97,7 @@
         text-class = ./text-class.nix;
         cardano-wallet-test-utils = ./cardano-wallet-test-utils.nix;
         cardano-wallet = ./cardano-wallet.nix;
+        strict-non-empty-containers = ./strict-non-empty-containers.nix;
         persistent = ./persistent.nix;
         persistent-sqlite = ./persistent-sqlite.nix;
         persistent-template = ./persistent-template.nix;
