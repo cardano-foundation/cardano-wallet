@@ -71,6 +71,8 @@ import Test.QuickCheck.Classes
     ( eqLaws, monoidLaws, semigroupLaws, semigroupMonoidLaws )
 import Test.Utils.Laws
     ( testLawsMany )
+import Test.Utils.Laws.PartialOrd
+    ( partialOrdLaws )
 import Test.Utils.Paths
     ( getTestData )
 
@@ -92,6 +94,7 @@ spec =
         testLawsMany @TokenMap
             [ eqLaws
             , monoidLaws
+            , partialOrdLaws
             , semigroupLaws
             , semigroupMonoidLaws
             ]

@@ -66,6 +66,7 @@ library
     , http-types
     , io-sim-classes
     , iohk-monitoring
+    , lattices
     , memory
     , monad-logger
     , mtl

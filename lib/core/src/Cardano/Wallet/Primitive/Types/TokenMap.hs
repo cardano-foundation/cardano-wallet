@@ -78,6 +78,8 @@ module Cardano.Wallet.Primitive.Types.TokenMap
 import Prelude hiding
     ( negate, null )
 
+import Algebra.PartialOrd
+    ( PartialOrd (..) )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenName, TokenPolicyId )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
@@ -100,6 +102,8 @@ import Data.Map.Strict.NonEmptyMap
     ( NonEmptyMap )
 import Data.Maybe
     ( fromMaybe, isJust )
+import Data.Set
+    ( Set )
 import Data.Text.Class
     ( toText )
 import Fmt
@@ -117,6 +121,7 @@ import qualified Data.Foldable as F
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Map.Strict.NonEmptyMap as NEMap
+import qualified Data.Set as Set
 
 --------------------------------------------------------------------------------
 -- Types
@@ -159,6 +164,11 @@ newtype TokenMap = TokenMap
 instance TypeError ('Text "Ord not supported for token maps")
         => Ord TokenMap where
     compare = error "Ord not supported for token maps"
+
+instance PartialOrd TokenMap where
+    m1 `leq` m2 = F.all
+        (\a -> getQuantity m1 a <= getQuantity m2 a)
+        (getAssets m1 `Set.union` getAssets m2)
 
 instance NFData TokenMap
 
