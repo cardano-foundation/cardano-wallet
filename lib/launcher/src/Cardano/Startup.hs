@@ -18,6 +18,7 @@ module Cardano.Startup
     , withShutdownHandler
     , withShutdownHandler'
     , installSignalHandlers
+    , installSignalHandlersNoLogging
     , killProcess
 
     -- * File permissions
@@ -155,3 +156,10 @@ instance HasSeverityAnnotation ShutdownHandlerLog where
         MsgShutdownHandler _ -> Debug
         MsgShutdownEOF -> Notice
         MsgShutdownError _ -> Error
+
+{-------------------------------------------------------------------------------
+                          Termination Signal Handling
+-------------------------------------------------------------------------------}
+
+installSignalHandlersNoLogging :: IO ()
+installSignalHandlersNoLogging = installSignalHandlers (pure ())
