@@ -113,8 +113,6 @@ import Cardano.Wallet.Shelley.Compatibility
     )
 import Cardano.Wallet.Unsafe
     ( unsafeMkPercentage )
-import Control.Concurrent
-    ( forkFinally, threadDelay )
 import Control.Exception.Base
     ( AsyncException (..), asyncExceptionFromException )
 import Control.Monad
@@ -135,8 +133,6 @@ import Data.Function
     ( (&) )
 import Data.Generics.Internal.VL.Lens
     ( view )
-import Data.IORef
-    ( IORef, newIORef, readIORef, writeIORef )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Map
@@ -164,15 +160,21 @@ import Data.Word
 import Fmt
     ( fixedF, pretty )
 import GHC.Conc
-    ( TVar, ThreadId, killThread, newTVarIO, readTVarIO, writeTVar )
+    ( ThreadId, killThread )
 import GHC.Generics
     ( Generic )
 import Ouroboros.Consensus.Cardano.Block
     ( CardanoBlock, HardForkBlock (..) )
 import System.Random
     ( RandomGen, random )
+import UnliftIO.Concurrent
+    ( forkFinally, threadDelay )
 import UnliftIO.Exception
-    ( SomeException (..), bracket, finally, mask_ )
+    ( SomeException (..), finally )
+import UnliftIO.IORef
+    ( IORef, newIORef, readIORef, writeIORef )
+import UnliftIO.STM
+    ( TVar, newTVarIO, readTVarIO, writeTVar )
 
 import qualified Cardano.Wallet.Api.Types as Api
 import qualified Data.List as L
@@ -249,8 +251,10 @@ newStakePoolLayer gcStatus nl db@DBLayer {..} worker = do
     -- In order to apply the settings, we have to restart the
     -- metadata sync thread as well to avoid race conditions.
     _putSettings :: TVar ThreadId -> Settings -> IO ()
-    _putSettings tvTid settings =
-        bracketSyncThread tvTid (atomically (gcMetadata >> writeSettings))
+    _putSettings tvTid settings = do
+        atomically (gcMetadata >> putSettings settings)
+        restartSyncThread tvTid
+
       where
         -- clean up metadata table if the new sync settings suggests so
         gcMetadata = do
@@ -263,8 +267,6 @@ newStakePoolLayer gcStatus nl db@DBLayer {..} worker = do
                 (old, new)
                     | old /= new -> removePoolMetadata
                 _ -> pure ()
-
-        writeSettings = putSettings settings
 
     _getSettings :: IO Settings
     _getSettings = liftIO $ atomically readSettings
@@ -328,34 +330,25 @@ newStakePoolLayer gcStatus nl db@DBLayer {..} worker = do
             (randomWeight, stakePool) = (fst, snd)
 
     _forceMetadataGC :: TVar ThreadId -> IO ()
-    _forceMetadataGC tvTid =
+    _forceMetadataGC tvTid = do
         -- We force a GC by resetting last sync time to 0 (start of POSIX
         -- time) and have the metadata thread restart.
-        bracketSyncThread tvTid $ do
-            lastGC <- atomically readLastMetadataGC
-            case lastGC of
-                Nothing -> STM.atomically $ writeTVar gcStatus NotStarted
-                Just gc -> STM.atomically $ writeTVar gcStatus (Restarting gc)
-            atomically $ putLastMetadataGC $ fromIntegral @Int 0
+        lastGC <- atomically readLastMetadataGC
+        case lastGC of
+            Nothing -> STM.atomically $ writeTVar gcStatus NotStarted
+            Just gc -> STM.atomically $ writeTVar gcStatus (Restarting gc)
+        atomically $ putLastMetadataGC $ fromIntegral @Int 0
+        restartSyncThread tvTid
 
     _getGCMetadataStatus =
         readTVarIO gcStatus
 
-    -- Stop the sync thread, carry out an action, and restart the sync thread.
-    bracketSyncThread :: TVar ThreadId -> IO a -> IO ()
-    bracketSyncThread tvTid action =
-        void $ bracket
-            killSyncThread
-            (\_ -> restartSyncThread)
-            (\_ -> action)
-      where
-        killSyncThread = do
-            tid <- readTVarIO tvTid
-            killThread tid
-
-        restartSyncThread = do
-            tid <- worker
-            STM.atomically $ writeTVar tvTid tid
+    -- Stop the monitorMetadata thread, then start it again.
+    -- fixme: this deadlocks -- disable it and fix properly later.
+    restartSyncThread :: TVar ThreadId -> IO ()
+    restartSyncThread tvTid = when False $ do
+        readTVarIO tvTid >>= killThread
+        worker >>= STM.atomically . writeTVar tvTid
 
 --
 -- Data Combination functions
@@ -785,10 +778,7 @@ monitorMetadata gcStatus tr sp db@(DBLayer{..}) = do
 
   where
     trFetch = contramap MsgFetchPoolMetadata tr
-    -- We mask this entire section just in case, although the database
-    -- operations runs masked anyway. Unfortunately we cannot run
-    -- @fetchMetadata@ from within atomically, so here we go.
-    fetchThem fetchMetadata = mask_ $ do
+    fetchThem fetchMetadata = do
         refs <- atomically (unfetchedPoolMetadataRefs 100)
         successes <- fmap catMaybes $ forM refs $ \(pid, url, hash) -> do
             fetchMetadata pid url hash >>= \case
