@@ -179,6 +179,8 @@ data AssetId = AssetId
     }
     deriving stock (Eq, Generic, Ord, Show)
 
+instance NFData AssetId
+
 --------------------------------------------------------------------------------
 -- Serialization
 --------------------------------------------------------------------------------
