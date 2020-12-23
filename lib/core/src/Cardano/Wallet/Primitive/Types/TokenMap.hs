@@ -70,6 +70,9 @@ module Cardano.Wallet.Primitive.Types.TokenMap
     , Flat (..)
     , Nested (..)
 
+    -- * Queries
+    , getAssets
+
     ) where
 
 import Prelude hiding
@@ -518,6 +521,13 @@ removeQuantity m asset = setQuantity m asset TokenQuantity.zero
 --
 hasPolicy :: TokenMap -> TokenPolicyId -> Bool
 hasPolicy b policy = isJust $ Map.lookup policy $ unTokenMap b
+
+--------------------------------------------------------------------------------
+-- Queries
+--------------------------------------------------------------------------------
+
+getAssets :: TokenMap -> Set AssetId
+getAssets = Set.fromList . fmap fst . toFlatList
 
 --------------------------------------------------------------------------------
 -- Internal functions
