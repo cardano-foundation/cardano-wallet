@@ -22,8 +22,6 @@ import Cardano.Wallet.Api.Server
     ( Listen (..), withListeningSocket )
 import Control.Concurrent
     ( threadDelay )
-import Control.Concurrent.MVar
-    ( newEmptyMVar, putMVar, readMVar )
 import Control.Concurrent.STM.TVar
     ( TVar, newTVarIO, readTVarIO, writeTVar )
 import Control.Monad
@@ -106,6 +104,8 @@ import Test.QuickCheck.Monadic
     ( assert, monadicIO, monitor )
 import UnliftIO.Async
     ( Async, async, cancel, mapConcurrently, replicateConcurrently_ )
+import UnliftIO.MVar
+    ( newEmptyMVar, putMVar, readMVar )
 
 import qualified Data.Aeson as Aeson
 import qualified Data.List as L

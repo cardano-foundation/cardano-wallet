@@ -42,16 +42,6 @@ import Cardano.Wallet
     ( HasLogger, logger )
 import Control.Concurrent
     ( ThreadId, forkFinally, killThread )
-import Control.Concurrent.MVar
-    ( MVar
-    , modifyMVar_
-    , newEmptyMVar
-    , newMVar
-    , putMVar
-    , readMVar
-    , takeMVar
-    , tryPutMVar
-    )
 import Control.Exception.Base
     ( AsyncException (..), asyncExceptionFromException )
 import Control.Monad
@@ -82,6 +72,16 @@ import GHC.Generics
     ( Generic )
 import UnliftIO.Exception
     ( SomeException, finally )
+import UnliftIO.MVar
+    ( MVar
+    , modifyMVar_
+    , newEmptyMVar
+    , newMVar
+    , putMVar
+    , readMVar
+    , takeMVar
+    , tryPutMVar
+    )
 
 {-------------------------------------------------------------------------------
                                 Worker Context

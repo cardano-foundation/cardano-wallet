@@ -63,8 +63,6 @@ import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex, unsafeMkMnemonic )
-import Control.Concurrent.MVar
-    ( MVar, modifyMVar )
 import Control.Monad
     ( forM_, replicateM )
 import Data.ByteArray.Encoding
@@ -77,6 +75,8 @@ import Data.Text
     ( Text )
 import GHC.TypeLits
     ( Nat, Symbol )
+import UnliftIO.MVar
+    ( MVar, modifyMVar )
 
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Byron as Byron
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Icarus as Icarus

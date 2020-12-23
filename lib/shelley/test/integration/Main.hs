@@ -77,8 +77,6 @@ import Control.Arrow
     ( first )
 import Control.Concurrent.Async
     ( AsyncCancelled )
-import Control.Concurrent.MVar
-    ( newEmptyMVar, putMVar, takeMVar )
 import Control.Monad
     ( when )
 import Control.Monad.IO.Class
@@ -117,6 +115,8 @@ import UnliftIO.Async
     ( race )
 import UnliftIO.Exception
     ( SomeException, fromException, handle, throwIO )
+import UnliftIO.MVar
+    ( newEmptyMVar, putMVar, takeMVar )
 
 import qualified Cardano.BM.Backend.EKGView as EKG
 import qualified Cardano.Pool.DB as Pool

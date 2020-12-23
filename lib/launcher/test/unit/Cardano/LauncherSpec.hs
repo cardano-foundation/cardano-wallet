@@ -32,15 +32,6 @@ import Cardano.Launcher
     )
 import Control.Concurrent
     ( threadDelay )
-import Control.Concurrent.MVar
-    ( modifyMVar_
-    , newEmptyMVar
-    , newMVar
-    , putMVar
-    , readMVar
-    , takeMVar
-    , tryReadMVar
-    )
 import Control.Monad
     ( forever )
 import Control.Monad.IO.Class
@@ -80,6 +71,15 @@ import UnliftIO.Async
     ( async, race_, waitAnyCancel )
 import UnliftIO.Exception
     ( bracket )
+import UnliftIO.MVar
+    ( modifyMVar_
+    , newEmptyMVar
+    , newMVar
+    , putMVar
+    , readMVar
+    , takeMVar
+    , tryReadMVar
+    )
 
 {- HLINT ignore spec "Use head" -}
 

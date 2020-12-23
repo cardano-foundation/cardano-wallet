@@ -47,8 +47,6 @@ import Cardano.Wallet.Primitive.Types.Tx
     ( TxMetadata (..), TxMetadataValue (..) )
 import Control.Concurrent
     ( forkFinally )
-import Control.Concurrent.MVar
-    ( newEmptyMVar, putMVar, takeMVar )
 import Control.Monad
     ( mapM_ )
 import Data.Proxy
@@ -98,6 +96,8 @@ import Test.QuickCheck
     )
 import Test.Text.Roundtrip
     ( textRoundtrip )
+import UnliftIO.MVar
+    ( newEmptyMVar, putMVar, takeMVar )
 
 import qualified Data.Map as Map
 import qualified Data.Text as T

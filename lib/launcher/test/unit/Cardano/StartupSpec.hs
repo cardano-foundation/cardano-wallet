@@ -45,7 +45,7 @@ import UnliftIO.Exception
 #if defined(WINDOWS)
 import Control.Concurrent
     ( forkIO )
-import Control.Concurrent.MVar
+import UnliftIO.MVar
     ( MVar, newEmptyMVar, putMVar, takeMVar )
 #endif
 

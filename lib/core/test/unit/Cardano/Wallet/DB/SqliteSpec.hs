@@ -158,8 +158,6 @@ import Cardano.Wallet.Unsafe
     ( unsafeFromHex, unsafeRunExceptT )
 import Control.Concurrent
     ( forkIO, killThread, threadDelay )
-import Control.Concurrent.MVar
-    ( isEmptyMVar, newEmptyMVar, putMVar, takeMVar )
 import Control.Monad
     ( forM_, forever, replicateM_, unless, void )
 import Control.Monad.IO.Class
@@ -239,6 +237,8 @@ import UnliftIO.Async
     ( concurrently, concurrently_ )
 import UnliftIO.Exception
     ( SomeException, handle, throwIO )
+import UnliftIO.MVar
+    ( isEmptyMVar, newEmptyMVar, putMVar, takeMVar )
 
 import qualified Cardano.Wallet.DB.Sqlite.TH as DB
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Seq

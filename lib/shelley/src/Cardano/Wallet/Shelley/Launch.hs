@@ -141,8 +141,6 @@ import Control.Concurrent
     ( threadDelay )
 import Control.Concurrent.Chan
     ( newChan, readChan, writeChan )
-import Control.Concurrent.MVar
-    ( MVar, modifyMVar, newMVar, putMVar, readMVar, takeMVar )
 import Control.Monad
     ( forM, forM_, replicateM, replicateM_, unless, void, when, (>=>) )
 import Control.Monad.Fail
@@ -234,6 +232,8 @@ import UnliftIO.Async
     ( async, link, race )
 import UnliftIO.Exception
     ( SomeException, finally, handle, throwIO )
+import UnliftIO.MVar
+    ( MVar, modifyMVar, newMVar, putMVar, readMVar, takeMVar )
 
 import qualified Cardano.Chain.Common as Byron
 import qualified Cardano.Chain.UTxO as Legacy

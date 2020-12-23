@@ -27,15 +27,6 @@ import Cardano.Wallet.Registry
     )
 import Control.Concurrent
     ( threadDelay, throwTo )
-import Control.Concurrent.MVar
-    ( modifyMVar_
-    , newEmptyMVar
-    , newMVar
-    , putMVar
-    , swapMVar
-    , takeMVar
-    , tryTakeMVar
-    )
 import Control.Exception.Base
     ( AsyncException (..), asyncExceptionFromException )
 import Control.Monad
@@ -58,6 +49,15 @@ import UnliftIO.Async
     ( race )
 import UnliftIO.Exception
     ( SomeException (..), throwIO )
+import UnliftIO.MVar
+    ( modifyMVar_
+    , newEmptyMVar
+    , newMVar
+    , putMVar
+    , swapMVar
+    , takeMVar
+    , tryTakeMVar
+    )
 
 import qualified Data.ByteString as BS
 

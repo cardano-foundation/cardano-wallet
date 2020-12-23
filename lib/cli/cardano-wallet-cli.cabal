@@ -78,6 +78,7 @@ test-suite unit
     , temporary
     , text
     , text-class
+    , unliftio
   build-tools:
       hspec-discover
   type:

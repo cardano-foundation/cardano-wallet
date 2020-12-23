@@ -70,8 +70,6 @@ import Cardano.Wallet.Shelley.Launch
     )
 import Control.Arrow
     ( first )
-import Control.Concurrent.MVar
-    ( newEmptyMVar, putMVar, takeMVar )
 import Control.Concurrent.STM.TVar
     ( TVar )
 import Control.Monad
@@ -124,6 +122,8 @@ import Test.Integration.Framework.DSL
     )
 import UnliftIO.Async
     ( race_ )
+import UnliftIO.MVar
+    ( newEmptyMVar, putMVar, takeMVar )
 
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Data.Text as T

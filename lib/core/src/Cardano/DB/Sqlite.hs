@@ -52,8 +52,6 @@ import Cardano.DB.Sqlite.Delete
     ( DeleteSqliteDatabaseLog )
 import Cardano.Wallet.Logging
     ( BracketLog, bracketTracer )
-import Control.Concurrent.MVar
-    ( newMVar, withMVarMasked )
 import Control.Monad
     ( join, mapM_, when )
 import Control.Monad.IO.Unlift
@@ -109,6 +107,8 @@ import UnliftIO.Compat
     ( handleIf, mkRetryHandler )
 import UnliftIO.Exception
     ( Exception, bracket_, handleJust, tryJust )
+import UnliftIO.MVar
+    ( newMVar, withMVarMasked )
 
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString.Char8 as B8

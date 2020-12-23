@@ -35,8 +35,6 @@ import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Control.Concurrent
     ( forkIO )
-import Control.Concurrent.MVar
-    ( MVar, newEmptyMVar, putMVar, takeMVar )
 import Control.Tracer
     ( Tracer, traceWith )
 import Data.Either.Extra
@@ -61,6 +59,8 @@ import UnliftIO.Async
     ( race )
 import UnliftIO.Exception
     ( IOException, catch, handle, throwIO )
+import UnliftIO.MVar
+    ( MVar, newEmptyMVar, putMVar, takeMVar )
 
 #ifdef WINDOWS
 import Cardano.Startup.Windows
