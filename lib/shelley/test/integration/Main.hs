@@ -75,8 +75,6 @@ import Cardano.Wallet.Shelley.Launch
     )
 import Control.Arrow
     ( first )
-import Control.Concurrent.Async
-    ( AsyncCancelled )
 import Control.Monad
     ( when )
 import Control.Monad.IO.Class
@@ -113,6 +111,8 @@ import Test.Utils.Paths
     ( inNixBuild )
 import UnliftIO.Async
     ( race )
+import UnliftIO.Compat
+    ( AsyncCancelled )
 import UnliftIO.Exception
     ( SomeException, fromException, handle, throwIO )
 import UnliftIO.MVar

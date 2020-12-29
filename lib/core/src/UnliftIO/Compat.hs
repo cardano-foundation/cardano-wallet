@@ -8,14 +8,22 @@
 -- its own definition of exactly the same type.
 
 module UnliftIO.Compat
-     ( coerceHandler
+     ( -- * Handler conversion
+       coerceHandler
      , coerceHandlers
      , mkRetryHandler
+
+       -- * Missing combinators
      , handleIf
+
+       -- * Re-export unsafe things
+     , AsyncCancelled (..)
      ) where
 
 import Prelude
 
+import Control.Concurrent.Async
+    ( AsyncCancelled (..) )
 import Control.Exception.Base
     ( Exception )
 import Control.Monad.IO.Unlift
