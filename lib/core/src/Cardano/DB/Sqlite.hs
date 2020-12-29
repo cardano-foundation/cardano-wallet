@@ -222,6 +222,10 @@ startSqliteBackend manualMigration autoMigration tr fp = do
     lock <- newMVar unsafeBackend
     let observe :: IO a -> IO a
         observe = bracketTracer (contramap MsgRun tr)
+    -- runSqlConn is guarded with a lock because it's not threadsafe in general.
+    -- It is also masked, so that the SqlBackend state is not corrupted if a
+    -- thread gets cancelled while running a query.
+    -- See: https://github.com/yesodweb/persistent/issues/981
     let runQuery :: SqlPersistT IO a -> IO a
         runQuery cmd = withMVarMasked lock $ \backend ->
             observe $ runSqlConn cmd backend
