@@ -183,16 +183,22 @@ let
         packages.bech32.components.exes.bech32.postInstall = optparseCompletionPostInstall;
       })
 
+      # Provide the git revision for cardano-addresses
+      ({ config, ... }:
+      {
+        packages.cardano-addresses-cli.components.library.preBuild = ''
+          export GITREV=${config.hsPkgs.cardano-addresses-cli.src.rev}
+        '';
+      })
+
       # Provide the swagger file in an environment variable for
       # tests because it is located outside of the Cabal package
       # source tree.
-      (let
-        swaggerYamlPreBuild = ''
+      {
+        packages.cardano-wallet-core.components.tests.unit.preBuild = ''
           export SWAGGER_YAML=${src + /specifications/api/swagger.yaml}
         '';
-      in {
-        packages.cardano-wallet-core.components.tests.unit.preBuild = swaggerYamlPreBuild;
-      })
+      }
 
       # Build fixes for library dependencies
       {
