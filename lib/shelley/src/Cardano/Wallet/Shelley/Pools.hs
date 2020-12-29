@@ -180,7 +180,7 @@ import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Merge.Strict as Map
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
-import qualified GHC.Conc as STM
+import qualified UnliftIO.STM as STM
 
 --
 -- Stake Pool Layer

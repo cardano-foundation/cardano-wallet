@@ -188,8 +188,6 @@ import Data.Word
     ( Word64 )
 import Database.Persist.Sql
     ( DBName (..), PersistEntity (..), fieldDB )
-import GHC.Conc
-    ( TVar, newTVarIO, readTVarIO, writeTVar )
 import Numeric.Natural
     ( Natural )
 import System.Directory
@@ -239,6 +237,8 @@ import UnliftIO.Exception
     ( SomeException, handle, throwIO )
 import UnliftIO.MVar
     ( isEmptyMVar, newEmptyMVar, putMVar, takeMVar )
+import UnliftIO.STM
+    ( TVar, newTVarIO, readTVarIO, writeTVar )
 
 import qualified Cardano.Wallet.DB.Sqlite.TH as DB
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Seq
@@ -249,7 +249,7 @@ import qualified Data.List as L
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
-import qualified GHC.Conc as TVar
+import qualified UnliftIO.STM as STM
 
 spec :: Spec
 spec = parallel $ do
@@ -557,7 +557,7 @@ withLoggingDB = beforeAll newMemoryDBLayer' . beforeWith clean
   where
     clean (logs, (_, db)) = do
         cleanDB db
-        TVar.atomically $ writeTVar logs []
+        STM.atomically $ writeTVar logs []
         pure (readTVarIO logs, db)
 
 shouldHaveMsgQuery :: [DBLog] -> Text -> Expectation
