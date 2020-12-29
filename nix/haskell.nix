@@ -106,6 +106,7 @@ let
           integration.preCheck = noCacheCookie + ''
             # Variables picked up by integration tests
             export CARDANO_NODE_TRACING_MIN_SEVERITY=notice
+            export TESTS_RETRY_FAILED=yes
 
             # Integration tests will place logs here
             export TESTS_LOGDIR=$(mktemp -d)/logs

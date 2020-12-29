@@ -6,6 +6,8 @@ import Data.IORef
     ( IORef, newIORef, readIORef, writeIORef )
 import Data.List
     ( isPrefixOf )
+import System.Environment
+    ( setEnv )
 import System.IO.Silently
     ( capture_ )
 import Test.Hspec
@@ -14,6 +16,7 @@ import Test.Hspec
     , Spec
     , SpecWith
     , beforeAll
+    , before_
     , describe
     , expectationFailure
     , it
@@ -29,7 +32,7 @@ import qualified Test.Hspec.Extra as Extra
 
 spec :: Spec
 spec = do
-    describe "Extra.it" $ do
+    describe "Extra.it" $ before_ (setEnv "TESTS_RETRY_FAILED" "y") $ do
         it "equals Hspec.it on success" $ do
             let test = 1 `shouldBe` (1::Int)
             test `shouldMatchHSpecIt` test
