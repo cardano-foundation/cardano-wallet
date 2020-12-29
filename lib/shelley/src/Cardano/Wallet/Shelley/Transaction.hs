@@ -79,7 +79,7 @@ import Cardano.Wallet.Primitive.Types.Coin
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( SealedTx (..), Tx (..), TxIn (..), TxMetadata, TxOut (..) )
+    ( SealedTx (..), Tx (..), TxIn (..), TxMetadata, TxOut (..), txOutCoin )
 import Cardano.Wallet.Shelley.Compatibility
     ( AllegraEra
     , ShelleyEra
@@ -237,7 +237,7 @@ mkTx networkId payload expirySlot (rewardAcnt, pwdAcnt) keyFrom cs era = do
             pure $ bootstrapWits <> mkExtraWits unsigned
 
     let signed = Cardano.makeSignedTransaction wits unsigned
-    let withResolvedInputs tx = tx { resolvedInputs = second coin <$> CS.inputs cs }
+    let withResolvedInputs tx = tx { resolvedInputs = second txOutCoin <$> CS.inputs cs }
     case era of
         ShelleyBasedEraShelley ->
             Right $ first withResolvedInputs $ sealShelleyTx fromShelleyTx signed

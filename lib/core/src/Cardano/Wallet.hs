@@ -1433,7 +1433,7 @@ estimateFeeForDelegation ctx wid = db & \DBLayer{..} -> do
     let selectCoins = selectCoinsForDelegationFromUTxO @_ @k
             ctx utxo txp minUtxo dep action
 
-    estimateFeeForCoinSelection (if isKeyReg then Nothing else Just $ getCoin dep)
+    estimateFeeForCoinSelection (if isKeyReg then Nothing else Just $ unCoin dep)
         $ Fee . feeBalance <$> selectCoins
   where
     db  = ctx ^. dbLayer @s @k

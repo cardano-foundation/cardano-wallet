@@ -1238,7 +1238,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
         let
             c = ctx ^. #_networkParameters . #protocolParameters . #stakeKeyDeposit
         in
-            fromIntegral (getCoin c)
+            fromIntegral (unCoin c)
 
     costOfJoining :: Context -> Natural
     costOfJoining = costOf (\coeff cst -> 370 * coeff + cst)

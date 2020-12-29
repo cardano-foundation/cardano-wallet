@@ -924,7 +924,7 @@ instance Arbitrary TxMeta where
         <*> elements [Incoming, Outgoing]
         <*> genSlotNo
         <*> fmap Quantity arbitrary
-        <*> fmap (Quantity . fromIntegral . getCoin) arbitrary
+        <*> fmap (Quantity . fromIntegral . unCoin) arbitrary
         <*> liftArbitrary genSlotNo
 
 instance Arbitrary TxMetadata where

@@ -324,6 +324,7 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxOut (..)
     , TxStatus (..)
     , UnsignedTx (..)
+    , txOutCoin
     )
 import Cardano.Wallet.Registry
     ( HasWorkerCtx (..)
@@ -2037,7 +2038,7 @@ mkApiTransaction ti txid mfee ins outs ws (meta, timestamp) txMeta setTimeRefere
     tx = ApiTransaction
         { id = ApiT txid
         , amount = meta ^. #amount
-        , fee = maybe (Quantity 0) (Quantity . fromIntegral . getCoin) mfee
+        , fee = maybe (Quantity 0) (Quantity . fromIntegral . unCoin) mfee
         , deposit = Quantity depositIfAny
         , insertedAt = Nothing
         , pendingSince = Nothing
@@ -2056,8 +2057,8 @@ mkApiTransaction ti txid mfee ins outs ws (meta, timestamp) txMeta setTimeRefere
         -- NOTE: totalIn will be zero for incoming transactions where inputs are
         -- unknown, in which case, we also give no visibility on the deposit.
         --
-        -- For outgoing transactions however, the total in is garanteed to be
-        -- greater or equal to totalOut; any reminder is actually a
+        -- For outgoing transactions however, the totalIn is guaranteed to be
+        -- greater or equal to totalOut; any remainder is actually a
         -- deposit. Said differently, if totalIn > 0, then necessarily 'fee' on
         -- metadata should be 'Just{}'
         | meta ^. #direction == W.Outgoing =
@@ -2079,7 +2080,7 @@ mkApiTransaction ti txid mfee ins outs ws (meta, timestamp) txMeta setTimeRefere
         -- `0` is an okay-ish placeholder in the meantime because we know that
         -- (at least at the moment of writing this comment) the wallet never
         -- registers a key and deregister a key at the same time. Thus, if we
-        -- are in the case where the apparent total in is smaller than the
+        -- are in the case where the apparent totalIn is smaller than the
         -- total out, then necessary the deposit is null.
         --
         -- invariantViolation :: HasCallStack => a
@@ -2087,24 +2088,24 @@ mkApiTransaction ti txid mfee ins outs ws (meta, timestamp) txMeta setTimeRefere
         --     [ "invariant violated: outputs larger than inputs"
         --     , "direction:   " <> show (meta ^. #direction)
         --     , "fee:         " <> show (getQuantity <$> (meta ^. #fee))
-        --     , "inputs:      " <> show (fmap (view (#coin . #getCoin)) . snd <$> ins)
+        --     , "inputs:      " <> show (fmap (view (#coin . #unCoin)) . snd <$> ins)
         --     , "reclaims:    " <> ...
-        --     , "withdrawals: " <> show (view #getCoin <$> Map.elems ws)
-        --     , "outputs:     " <> show (view (#coin . #getCoin) <$> outs)
+        --     , "withdrawals: " <> show (view #unCoin <$> Map.elems ws)
+        --     , "outputs:     " <> show (view (#coin . #unCoin) <$> outs)
         --     ]
         totalIn :: Natural
         totalIn
             = sum (txOutValue <$> mapMaybe snd ins)
-            + sum (fromIntegral . getCoin <$> Map.elems ws)
+            + sum (fromIntegral . unCoin <$> Map.elems ws)
             -- FIXME: ADP-460 + reclaims.
 
         totalOut :: Natural
         totalOut
             = sum (txOutValue <$> outs)
-            + maybe 0 (fromIntegral . getCoin) mfee
+            + maybe 0 (fromIntegral . unCoin) mfee
 
         txOutValue :: TxOut -> Natural
-        txOutValue = fromIntegral . view (#coin . #getCoin)
+        txOutValue = fromIntegral . unCoin . txOutCoin
 
     toAddressAmount :: TxOut -> AddressAmount (ApiT Address, Proxy n)
     toAddressAmount (TxOut addr tokens) = AddressAmount

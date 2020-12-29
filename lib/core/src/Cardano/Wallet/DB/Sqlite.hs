@@ -745,7 +745,7 @@ migrateManually tr proxy defaultFieldValues =
     -- Note that ideally, we would do this in a single `UPDATE ... FROM` query
     -- but the `FROM` syntax is only supported in SQLite >= 3.33 which is only
     -- supported in the latest version of persistent-sqlite (2.11.0.0). So
-    -- instead, we queries all transactions which require an update in memory,
+    -- instead, we query all transactions which require an update in memory,
     -- and update them one by one. This may be quite long on some database but
     -- it is in the end a one-time cost paid on start-up.
     addFeeToTransaction :: Sqlite.Connection -> IO ()
@@ -791,12 +791,12 @@ migrateManually tr proxy defaultFieldValues =
 
         minUtxoValue
             = fromIntegral
-            $ W.getCoin
+            $ W.unCoin
             $ defaultMinimumUTxOValue defaultFieldValues
 
         keyDepositValue
             = fromIntegral
-            $ W.getCoin
+            $ W.unCoin
             $ defaultKeyDeposit defaultFieldValues
 
         mkQuery = isFieldPresent conn (DBField TxWithdrawalTxId) <&> \case
@@ -1596,7 +1596,7 @@ mkTxMetaEntity wid txid mfee meta derived = TxMeta
     , txMetaSlot = derived ^. #slotNo
     , txMetaBlockHeight = getQuantity (derived ^. #blockHeight)
     , txMetaAmount = getQuantity (derived ^. #amount)
-    , txMetaFee = fromIntegral . W.getCoin <$> mfee
+    , txMetaFee = fromIntegral . W.unCoin <$> mfee
     , txMetaSlotExpires = derived ^. #expiry
     , txMetaData = meta
     }

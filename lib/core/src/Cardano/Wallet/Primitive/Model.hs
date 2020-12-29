@@ -76,6 +76,7 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxStatus (..)
     , inputs
     , txIns
+    , txOutCoin
     )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( Dom (..), UTxO (..), balance, excluding, restrictedBy )
@@ -408,7 +409,7 @@ prefilterBlock b u0 = runState $ do
 
                 (Nothing, Outgoing) -> -- Byron
                     let
-                        totalOut = sum (fromIntegral . getCoin . coin <$> outputs tx)
+                        totalOut = sum (fromIntegral . unCoin . txOutCoin <$> outputs tx)
 
                         totalIn = spent
                     in
