@@ -45,8 +45,6 @@ import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..), TxMetadata (..), TxMetadataValue (..), TxStatus (..) )
-import Control.Concurrent
-    ( threadDelay )
 import Control.Monad
     ( forM_ )
 import Control.Monad.IO.Class
@@ -158,6 +156,8 @@ import Test.Integration.Framework.TestData
     , errMsg404MinUTxOValue
     , errMsg404NoWallet
     )
+import UnliftIO.Concurrent
+    ( threadDelay )
 import Web.HttpApiData
     ( ToHttpApiData (..) )
 

@@ -15,8 +15,6 @@ import Prelude
 
 import Cardano.Startup
     ( ShutdownHandlerLog (..), withShutdownHandler' )
-import Control.Concurrent
-    ( threadDelay )
 import Control.Monad
     ( unless )
 import Control.Tracer
@@ -37,13 +35,15 @@ import Test.Utils.Windows
     ( nullFileName, pendingOnWindows )
 import UnliftIO.Async
     ( race )
+import UnliftIO.Concurrent
+    ( threadDelay )
 import UnliftIO.Exception
     ( IOException, bracket, catch, throwIO )
 import UnliftIO.Process
     ( createPipe )
 
 #if defined(WINDOWS)
-import Control.Concurrent
+import UnliftIO.Concurrent
     ( forkIO )
 import UnliftIO.MVar
     ( MVar, newEmptyMVar, putMVar, takeMVar )

@@ -46,8 +46,6 @@ import Cardano.Wallet.Logging
     ( trMessageText )
 import Cardano.Wallet.Network.Ports
     ( getRandomPort )
-import Control.Concurrent
-    ( threadDelay )
 import Control.DeepSeq
     ( NFData, rnf )
 import Control.Monad
@@ -96,6 +94,8 @@ import System.IO
     ( BufferMode (..), hSetBuffering, stderr, stdout )
 import System.IO.Temp
     ( withSystemTempDirectory )
+import UnliftIO.Concurrent
+    ( threadDelay )
 import UnliftIO.Exception
     ( evaluate )
 

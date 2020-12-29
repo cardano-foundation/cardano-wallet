@@ -30,8 +30,6 @@ import Cardano.Launcher
     , StdStream (..)
     , withBackendProcessHandle
     )
-import Control.Concurrent
-    ( threadDelay )
 import Control.Monad
     ( forever )
 import Control.Monad.IO.Class
@@ -67,6 +65,8 @@ import Test.Utils.Windows
     ( isWindows, pendingOnWine )
 import UnliftIO.Async
     ( async, race_, waitAnyCancel )
+import UnliftIO.Concurrent
+    ( threadDelay )
 import UnliftIO.Exception
     ( bracket )
 import UnliftIO.MVar

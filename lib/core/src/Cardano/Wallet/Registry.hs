@@ -40,8 +40,6 @@ import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.Wallet
     ( HasLogger, logger )
-import Control.Concurrent
-    ( ThreadId, forkFinally, killThread )
 import Control.Exception.Base
     ( AsyncException (..), asyncExceptionFromException )
 import Control.Monad
@@ -70,6 +68,8 @@ import Fmt
     ( pretty )
 import GHC.Generics
     ( Generic )
+import UnliftIO.Concurrent
+    ( ThreadId, forkFinally, killThread )
 import UnliftIO.Exception
     ( SomeException, finally )
 import UnliftIO.MVar

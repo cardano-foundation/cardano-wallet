@@ -156,8 +156,6 @@ import Cardano.Wallet.Primitive.Types.Tx
     )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex, unsafeRunExceptT )
-import Control.Concurrent
-    ( forkIO, killThread, threadDelay )
 import Control.Monad
     ( forM_, forever, replicateM_, unless, void )
 import Control.Monad.IO.Class
@@ -235,6 +233,8 @@ import Test.Utils.Trace
     ( captureLogging )
 import UnliftIO.Async
     ( concurrently, concurrently_ )
+import UnliftIO.Concurrent
+    ( forkIO, killThread, threadDelay )
 import UnliftIO.Exception
     ( SomeException, handle, throwIO )
 import UnliftIO.MVar

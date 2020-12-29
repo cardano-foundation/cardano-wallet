@@ -338,8 +338,6 @@ import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
 import Control.Arrow
     ( second )
-import Control.Concurrent
-    ( threadDelay )
 import Control.DeepSeq
     ( NFData )
 import Control.Monad
@@ -448,6 +446,8 @@ import Type.Reflection
     ( Typeable )
 import UnliftIO.Async
     ( race_ )
+import UnliftIO.Concurrent
+    ( threadDelay )
 import UnliftIO.Exception
     ( IOException, bracket, throwIO, tryAnyDeep, tryJust )
 

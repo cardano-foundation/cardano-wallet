@@ -44,7 +44,6 @@ library
     , QuickCheck
     , quickcheck-classes
     , say
-    , stm
     , template-haskell
     , time
     , unliftio
@@ -77,10 +76,11 @@ test-suite unit
     ghc-options: -O2 -Werror
   build-depends:
       base
-    , hspec
-    , silently
-    , hspec-core
     , cardano-wallet-test-utils
+    , hspec
+    , hspec-core
+    , silently
+    , unliftio
   build-tools:
       hspec-discover
   type:

@@ -25,8 +25,6 @@ import Cardano.Wallet.Registry
     , register
     , workerThread
     )
-import Control.Concurrent
-    ( threadDelay, throwTo )
 import Control.Exception.Base
     ( AsyncException (..), asyncExceptionFromException )
 import Control.Monad
@@ -47,6 +45,8 @@ import Test.QuickCheck.Monadic
     ( monadicIO, run )
 import UnliftIO.Async
     ( race )
+import UnliftIO.Concurrent
+    ( threadDelay, throwTo )
 import UnliftIO.Exception
     ( SomeException (..), throwIO )
 import UnliftIO.MVar

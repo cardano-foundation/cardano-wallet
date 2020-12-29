@@ -69,7 +69,6 @@ library
     , retry
     , say
     , scrypt
-    , stm
     , template-haskell
     , temporary
     , text

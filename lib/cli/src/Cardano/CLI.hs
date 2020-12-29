@@ -197,8 +197,6 @@ import Control.Applicative
     ( optional, some, (<|>) )
 import Control.Arrow
     ( first, left )
-import Control.Concurrent
-    ( threadDelay )
 import Control.Monad
     ( forM_, forever, join, unless, void, when )
 import Control.Monad.IO.Class
@@ -322,6 +320,8 @@ import System.IO
     , stdin
     , stdout
     )
+import UnliftIO.Concurrent
+    ( threadDelay )
 import UnliftIO.Exception
     ( bracket, catch )
 

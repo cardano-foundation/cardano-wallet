@@ -268,8 +268,6 @@ import Cardano.Wallet.Primitive.Types.UTxO
     )
 import Control.Arrow
     ( second )
-import Control.Concurrent
-    ( threadDelay )
 import Control.Monad
     ( forM_, join, unless, void )
 import Control.Monad.IO.Class
@@ -359,6 +357,8 @@ import Test.Integration.Framework.Request
     )
 import UnliftIO.Async
     ( async, race, wait )
+import UnliftIO.Concurrent
+    ( threadDelay )
 import UnliftIO.Exception
     ( Exception (..), SomeException (..), catch, throwIO )
 import UnliftIO.Process

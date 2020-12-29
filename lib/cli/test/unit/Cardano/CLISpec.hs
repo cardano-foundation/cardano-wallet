@@ -45,8 +45,6 @@ import Cardano.Wallet.Primitive.Types
     ( PoolMetadataSource )
 import Cardano.Wallet.Primitive.Types.Tx
     ( TxMetadata (..), TxMetadataValue (..) )
-import Control.Concurrent
-    ( forkFinally )
 import Control.Monad
     ( mapM_ )
 import Data.Proxy
@@ -96,6 +94,8 @@ import Test.QuickCheck
     )
 import Test.Text.Roundtrip
     ( textRoundtrip )
+import UnliftIO.Concurrent
+    ( forkFinally )
 import UnliftIO.MVar
     ( newEmptyMVar, putMVar, takeMVar )
 

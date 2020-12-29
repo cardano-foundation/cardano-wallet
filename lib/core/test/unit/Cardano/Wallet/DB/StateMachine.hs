@@ -154,8 +154,6 @@ import Cardano.Wallet.Primitive.Types.Tx
     )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
-import Control.Concurrent
-    ( threadDelay )
 import Control.Foldl
     ( Fold (..) )
 import Control.Monad
@@ -241,6 +239,8 @@ import Test.StateMachine.Types
     ( Command (..), Commands (..), ParallelCommands, ParallelCommandsF (..) )
 import UnliftIO.Async
     ( race )
+import UnliftIO.Concurrent
+    ( threadDelay )
 import UnliftIO.Exception
     ( evaluate )
 

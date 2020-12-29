@@ -137,10 +137,6 @@ import Cardano.Wallet.Unsafe
     ( unsafeFromHex, unsafeRunExceptT )
 import Control.Arrow
     ( first, second )
-import Control.Concurrent
-    ( threadDelay )
-import Control.Concurrent.Chan
-    ( newChan, readChan, writeChan )
 import Control.Monad
     ( forM, forM_, replicateM, replicateM_, unless, void, when, (>=>) )
 import Control.Monad.Fail
@@ -228,6 +224,10 @@ import Test.Utils.StaticServer
     ( withStaticServer )
 import UnliftIO.Async
     ( async, link, race )
+import UnliftIO.Chan
+    ( newChan, readChan, writeChan )
+import UnliftIO.Concurrent
+    ( threadDelay )
 import UnliftIO.Exception
     ( SomeException, finally, handle, throwIO )
 import UnliftIO.MVar

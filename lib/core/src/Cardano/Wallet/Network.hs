@@ -61,8 +61,6 @@ import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx )
-import Control.Concurrent
-    ( threadDelay )
 import Control.Concurrent.Async
     ( AsyncCancelled (..) )
 import Control.Exception.Base
@@ -91,6 +89,8 @@ import Fmt
     ( pretty )
 import GHC.Generics
     ( Generic )
+import UnliftIO.Concurrent
+    ( threadDelay )
 import UnliftIO.Exception
     ( Exception (..), SomeException, handle, throwIO )
 

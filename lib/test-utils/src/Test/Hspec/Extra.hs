@@ -18,8 +18,6 @@ module Test.Hspec.Extra
 
 import Prelude
 
-import Control.Concurrent
-    ( threadDelay )
 import Control.Monad
     ( void )
 import Say
@@ -42,6 +40,8 @@ import Test.HUnit.Lang
     ( HUnitFailure (..), assertFailure, formatFailureReason )
 import UnliftIO.Async
     ( async, race, wait )
+import UnliftIO.Concurrent
+    ( threadDelay )
 import UnliftIO.Exception
     ( catch, finally, throwIO, throwString )
 import UnliftIO.MVar

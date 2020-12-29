@@ -78,10 +78,6 @@ import Cardano.Wallet.Shelley.Compatibility
     )
 import Control.Applicative
     ( liftA3 )
-import Control.Concurrent
-    ( ThreadId )
-import Control.Concurrent.Chan
-    ( Chan, dupChan, newChan, readChan, writeChan )
 import Control.Monad
     ( forever, unless, void, when, (>=>) )
 import Control.Monad.Class.MonadAsync
@@ -243,8 +239,12 @@ import System.IO.Error
     ( isDoesNotExistError )
 import UnliftIO.Async
     ( Async, async, asyncThreadId, cancel, link )
+import UnliftIO.Chan
+    ( Chan, dupChan, newChan, readChan, writeChan )
 import UnliftIO.Compat
     ( coerceHandlers )
+import UnliftIO.Concurrent
+    ( ThreadId )
 import UnliftIO.Exception
     ( Handler (..), IOException )
 

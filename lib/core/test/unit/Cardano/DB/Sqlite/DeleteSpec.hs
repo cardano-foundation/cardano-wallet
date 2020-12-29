@@ -10,8 +10,6 @@ import Prelude
 
 import Cardano.DB.Sqlite.Delete
     ( newRefCount, waitForFree', withRef )
-import Control.Concurrent
-    ( threadDelay )
 import Control.Retry
     ( RetryPolicy, constantDelay, limitRetries )
 import Control.Tracer
@@ -20,6 +18,8 @@ import Test.Hspec
     ( Spec, describe, it, shouldBe, shouldReturn )
 import UnliftIO.Async
     ( concurrently )
+import UnliftIO.Concurrent
+    ( threadDelay )
 import UnliftIO.MVar
     ( isEmptyMVar, newEmptyMVar, putMVar )
 

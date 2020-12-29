@@ -91,7 +91,6 @@ library
     , servant-server
     , split
     , statistics
-    , stm
     , streaming-commons
     , strict-non-empty-containers
     , string-interpolate
@@ -281,7 +280,6 @@ test-suite unit
     , servant
     , servant-server
     , should-not-typecheck
-    , stm
     , strict-non-empty-containers
     , openapi3 >= 3.0.0.1
     , servant-openapi3

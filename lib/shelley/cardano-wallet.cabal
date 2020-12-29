@@ -191,7 +191,6 @@ test-suite unit
     , ouroboros-consensus-shelley
     , ouroboros-network
     , shelley-spec-ledger
-    , stm
     , text
     , text-class
     , transformers
@@ -315,7 +314,6 @@ benchmark latency
     , http-types
     , hspec
     , iohk-monitoring
-    , stm
     , text
     , unliftio
   type:

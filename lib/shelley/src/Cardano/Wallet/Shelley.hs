@@ -134,8 +134,6 @@ import Cardano.Wallet.Transaction
     ( TransactionLayer )
 import Control.Applicative
     ( Const (..) )
-import Control.Concurrent
-    ( forkFinally )
 import Control.Monad
     ( forM_, void )
 import Control.Tracer
@@ -174,6 +172,8 @@ import System.IOManager
     ( withIOManager )
 import Type.Reflection
     ( Typeable )
+import UnliftIO.Concurrent
+    ( forkFinally )
 
 import qualified Cardano.Pool.DB.Sqlite as Pool
 import qualified Cardano.Wallet.Api.Server as Server

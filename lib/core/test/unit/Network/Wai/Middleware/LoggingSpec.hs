@@ -20,16 +20,10 @@ import Cardano.BM.Trace
     ( traceInTVarIO )
 import Cardano.Wallet.Api.Server
     ( Listen (..), withListeningSocket )
-import Control.Concurrent
-    ( threadDelay )
-import Control.Concurrent.STM.TVar
-    ( TVar, newTVarIO, readTVarIO, writeTVar )
 import Control.Monad
     ( forM_, void, when )
 import Control.Monad.IO.Class
     ( liftIO )
-import Control.Monad.STM
-    ( atomically )
 import Control.Tracer
     ( Tracer )
 import Data.Aeson
@@ -104,8 +98,12 @@ import Test.QuickCheck.Monadic
     ( assert, monadicIO, monitor )
 import UnliftIO.Async
     ( Async, async, cancel, mapConcurrently, replicateConcurrently_ )
+import UnliftIO.Concurrent
+    ( threadDelay )
 import UnliftIO.MVar
     ( newEmptyMVar, putMVar, readMVar )
+import UnliftIO.STM
+    ( TVar, atomically, newTVarIO, readTVarIO, writeTVar )
 
 import qualified Data.Aeson as Aeson
 import qualified Data.List as L
