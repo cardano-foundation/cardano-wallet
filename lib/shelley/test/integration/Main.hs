@@ -37,8 +37,6 @@ import Cardano.Startup
     , setDefaultFilePermissions
     , withUtf8Encoding
     )
-import Cardano.Wallet.Api.Server
-    ( Listen (..) )
 import Cardano.Wallet.Api.Types
     ( EncodeAddress (..) )
 import Cardano.Wallet.Logging
@@ -70,6 +68,7 @@ import Cardano.Wallet.Shelley.Launch
     , sendFaucetFundsTo
     , testLogDirFromEnv
     , testMinSeverityFromEnv
+    , walletListenFromEnv
     , walletMinSeverityFromEnv
     , withCluster
     , withSMASH
@@ -307,6 +306,8 @@ specWithServer testDir (tr, tracers) = aroundAll withContext
     onClusterStart action dbDecorator node = do
         let db = testDir </> "wallets"
         createDirectory db
+        listen <- walletListenFromEnv
+
         -- NOTE: We may want to keep a wallet running across the fork, but
         -- having three callbacks like this might not work well for that.
         serveWallet
@@ -316,7 +317,7 @@ specWithServer testDir (tr, tracers) = aroundAll withContext
             (Just db)
             (Just dbDecorator)
             "127.0.0.1"
-            ListenOnRandomPort
+            listen
             Nothing
             Nothing
             socketPath
