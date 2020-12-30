@@ -552,14 +552,14 @@ monitorStakePools tr (NetworkParameters gp sp _pp) nl DBLayer{..} =
             let followTrace = contramap MsgFollow tr
             let forwardHandler = forward latestGarbageCollectionEpochRef
             follow nl followTrace cursor forwardHandler getHeader >>= \case
-                FollowInterrupted ->
-                    traceWith tr MsgHaltMonitoring
                 FollowFailure ->
                     traceWith tr MsgCrashMonitoring
                 FollowRollback point -> do
                     traceWith tr $ MsgRollingBackTo point
                     liftIO . atomically $ rollbackTo point
                     loop
+                FollowDone ->
+                    traceWith tr MsgHaltMonitoring
 
     GenesisParameters  { getGenesisBlockHash  } = gp
     SlottingParameters { getSecurityParameter } = sp

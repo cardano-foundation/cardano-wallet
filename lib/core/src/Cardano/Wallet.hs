@@ -798,13 +798,14 @@ restoreWallet ctx wid = db & \DBLayer{..} -> do
             restoreBlocks @ctx @s @k ctx wid bs h
             saveParams @ctx @s @k ctx wid ps
     liftIO (follow nw tr cps forward (view #header)) >>= \case
-        FollowInterrupted ->
-            pure ()
         FollowFailure ->
             restoreWallet @ctx @s @k ctx wid
         FollowRollback point -> do
             rollbackBlocks @ctx @s @k ctx wid point
             restoreWallet @ctx @s @k ctx wid
+        FollowDone ->
+            pure ()
+
   where
     db = ctx ^. dbLayer @s @k
     nw = ctx ^. networkLayer
