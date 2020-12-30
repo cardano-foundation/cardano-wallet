@@ -49,6 +49,7 @@ import Cardano.DB.Sqlite
     , SqliteContext (..)
     , chunkSize
     , dbChunked
+    , dbChunked'
     , destroyDBLayer
     , fieldName
     , fieldType
@@ -1788,16 +1789,16 @@ putTxs
     -> [TxWithdrawal]
     -> SqlPersistT IO ()
 putTxs metas txins txouts txoutTokens ws = do
-    dbChunked repsertMany
+    dbChunked' repsertMany
         [ (TxMetaKey txMetaTxId txMetaWalletId, m)
         | m@TxMeta{..} <- metas]
-    dbChunked repsertMany
+    dbChunked' repsertMany
         [ (TxInKey txInputTxId txInputSourceTxId txInputSourceIndex, i)
         | i@TxIn{..} <- txins ]
-    dbChunked repsertMany
+    dbChunked' repsertMany
         [ (TxOutKey txOutputTxId txOutputIndex, o)
         | o@TxOut{..} <- txouts ]
-    dbChunked repsertMany
+    dbChunked' repsertMany
         [ ( TxOutTokenKey
             txOutTokenTxId
             txOutTokenTxIndex
@@ -1806,7 +1807,7 @@ putTxs metas txins txouts txoutTokens ws = do
           , o
           )
         | o@TxOutToken{..} <- txoutTokens ]
-    dbChunked repsertMany
+    dbChunked' repsertMany
         [ (TxWithdrawalKey txWithdrawalTxId txWithdrawalAccount, w)
         | w@TxWithdrawal{..} <- ws ]
 

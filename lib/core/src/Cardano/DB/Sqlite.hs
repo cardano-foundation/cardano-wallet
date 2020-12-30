@@ -25,6 +25,7 @@ module Cardano.DB.Sqlite
     ( SqliteContext (..)
     , chunkSize
     , dbChunked
+    , dbChunked'
     , destroyDBLayer
     , handleConstraint
     , startSqliteBackend
@@ -88,6 +89,7 @@ import Database.Persist.Sql
     , SqlType (..)
     , close'
     , entityDB
+    , entityFields
     , fieldDB
     , fieldSqlType
     , runMigrationQuiet
@@ -530,8 +532,21 @@ instance ToText DBLog where
 --
 -- We choose a conservative value 'chunkSize' << 999 because there can be
 -- multiple variables per row updated.
-dbChunked :: ([a] -> SqlPersistT IO b) -> [a] -> SqlPersistT IO ()
-dbChunked = chunkedM chunkSize
+dbChunked
+    :: forall record b. PersistEntity record
+    => ([record] -> SqlPersistT IO b)
+    -> [record]
+    -> SqlPersistT IO ()
+dbChunked = chunkedM (chunkSizeFor @record)
+
+-- | Like 'dbChunked', but allows bundling elements with a 'Key'. Useful when
+-- used with 'repsertMany'.
+dbChunked'
+    :: forall record b. PersistEntity record
+    => ([(Key record, record)] -> SqlPersistT IO b)
+    -> [(Key record, record)]
+    -> SqlPersistT IO ()
+dbChunked' = chunkedM (chunkSizeFor @record)
 
 -- | Given an action which takes a list of items, and a list of items, run that
 -- action multiple times with the input list cut into chunks.
@@ -543,7 +558,20 @@ chunkedM
     -> m ()
 chunkedM n f = mapM_ f . chunksOf n
 
--- | Size of chunks when inserting, updating or deleting many rows at once. We
--- only act on `chunkSize` values at a time. See also 'dbChunked'.
+-- | Maximum number of variables allowed in a single SQL statement
+--
+-- See also 'dbChunked'.
 chunkSize :: Int
-chunkSize = 100
+chunkSize = 999
+
+
+-- | Size of chunks when inserting, updating or deleting many rows at once.
+-- Worst-case is when all columns of a particular table gets updated / inserted,
+-- thus to be safe we must ensure that we do not act on more than `chunkSize /
+-- cols` variables.
+--
+-- See also 'dbChunked'.
+chunkSizeFor :: forall record. PersistEntity record => Int
+chunkSizeFor = chunkSize `div` cols
+  where
+    cols = length $ entityFields $ entityDef (Proxy @record)
