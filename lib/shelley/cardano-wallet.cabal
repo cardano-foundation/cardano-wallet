@@ -31,7 +31,6 @@ library
   build-depends:
       base
     , aeson
-    , async
     , base58-bytestring
     , bech32
     , bech32-th
@@ -55,7 +54,6 @@ library
     , containers
     , contra-tracer
     , directory
-    , exceptions
     , extra
     , filepath
     , fmt
@@ -73,7 +71,6 @@ library
     , ouroboros-consensus-shelley
     , ouroboros-network
     , ouroboros-network-framework
-    , process
     , random
     , retry
     , servant-server
@@ -83,6 +80,8 @@ library
     , text-class
     , time
     , transformers
+    , unliftio
+    , unliftio-core
     , unordered-containers
     , vector
     , warp
@@ -173,7 +172,6 @@ test-suite unit
     ghc-options: -O2 -Werror
   build-depends:
       base
-    , async
     , base58-bytestring
     , bech32
     , bech32-th
@@ -194,10 +192,10 @@ test-suite unit
     , ouroboros-consensus-shelley
     , ouroboros-network
     , shelley-spec-ledger
-    , stm
     , text
     , text-class
     , transformers
+    , unliftio
     , QuickCheck
   build-tools:
       hspec-discover
@@ -226,7 +224,6 @@ test-suite integration
     ghc-options: -O2 -Werror
   build-depends:
       base
-    , async
     , cardano-wallet-cli
     , cardano-wallet-core
     , cardano-wallet-core-integration
@@ -234,6 +231,8 @@ test-suite integration
     , cardano-wallet
     , cardano-wallet-test-utils
     , contra-tracer
+    , directory
+    , either
     , filepath
     , hspec
     , http-client
@@ -241,6 +240,7 @@ test-suite integration
     , lobemo-backend-ekg
     , text
     , text-class
+    , unliftio
   build-tools:
       cardano-wallet
   type:
@@ -277,11 +277,11 @@ benchmark restore
     , fmt
     , iohk-monitoring
     , say
-    , temporary
     , text
     , text-class
     , time
     , transformers
+    , unliftio
   type:
      exitcode-stdio-1.0
   hs-source-dirs:
@@ -301,23 +301,22 @@ benchmark latency
   if (flag(release))
     ghc-options: -O2 -Werror
   build-depends:
-     base
-   , aeson
-   , async
-   , cardano-wallet-cli
-   , cardano-wallet-core
-   , cardano-wallet-core-integration
-   , cardano-wallet
-   , cardano-wallet-launcher
-   , directory
-   , filepath
-   , generic-lens
-   , http-client
-   , http-types
-   , hspec
-   , iohk-monitoring
-   , stm
-   , text
+      base
+    , aeson
+    , cardano-wallet-cli
+    , cardano-wallet-core
+    , cardano-wallet-core-integration
+    , cardano-wallet
+    , cardano-wallet-launcher
+    , directory
+    , filepath
+    , generic-lens
+    , http-client
+    , http-types
+    , hspec
+    , iohk-monitoring
+    , text
+    , unliftio
   type:
      exitcode-stdio-1.0
   hs-source-dirs:

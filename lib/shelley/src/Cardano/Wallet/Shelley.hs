@@ -134,8 +134,6 @@ import Cardano.Wallet.Transaction
     ( TransactionLayer )
 import Control.Applicative
     ( Const (..) )
-import Control.Concurrent
-    ( forkFinally )
 import Control.Monad
     ( forM_, void )
 import Control.Tracer
@@ -150,8 +148,6 @@ import Data.Text
     ( Text )
 import Data.Text.Class
     ( ToText (..) )
-import GHC.Conc
-    ( newTVarIO )
 import GHC.Generics
     ( Generic )
 import Network.Ntp
@@ -174,6 +170,12 @@ import System.IOManager
     ( withIOManager )
 import Type.Reflection
     ( Typeable )
+import UnliftIO.Concurrent
+    ( forkFinally, forkIOWithUnmask, killThread )
+import UnliftIO.MVar
+    ( modifyMVar_, newMVar )
+import UnliftIO.STM
+    ( newTVarIO )
 
 import qualified Cardano.Pool.DB.Sqlite as Pool
 import qualified Cardano.Wallet.Api.Server as Server
@@ -338,8 +340,16 @@ serveWallet
             forM_ settings $ atomically . putSettings
 
             void $ forkFinally (monitorStakePools tr np nl db) onExit
-            spl <- newStakePoolLayer gcStatus nl db
-                $ forkFinally (monitorMetadata gcStatus tr sp db) onExit
+
+            -- fixme: needs to be simplified as part of ADP-634
+            let startMetadataThread = forkIOWithUnmask $ \unmask ->
+                    unmask $ monitorMetadata gcStatus tr sp db
+            metadataThread <- newMVar =<< startMetadataThread
+            let restartMetadataThread = modifyMVar_ metadataThread $ \tid -> do
+                    killThread tid
+                    startMetadataThread
+
+            spl <- newStakePoolLayer gcStatus nl db restartMetadataThread
             action spl
       where
         tr = contramap (MsgFromWorker mempty) poolsEngineTracer

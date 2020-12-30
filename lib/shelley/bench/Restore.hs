@@ -143,12 +143,8 @@ import Cardano.Wallet.Unsafe
     ( unsafeMkEntropy, unsafeMkPercentage, unsafeRunExceptT )
 import Control.Arrow
     ( first )
-import Control.Concurrent
-    ( forkIO, threadDelay )
 import Control.DeepSeq
     ( NFData )
-import Control.Exception
-    ( bracket, evaluate, throwIO )
 import Control.Monad
     ( forM, forM_, void )
 import Control.Monad.IO.Class
@@ -199,7 +195,11 @@ import System.FilePath
     ( (</>) )
 import System.IO
     ( IOMode (..), hFlush, withFile )
-import System.IO.Temp
+import UnliftIO.Concurrent
+    ( forkIO, threadDelay )
+import UnliftIO.Exception
+    ( bracket, evaluate, throwIO )
+import UnliftIO.Temporary
     ( withSystemTempFile )
 
 import qualified Cardano.Wallet as W

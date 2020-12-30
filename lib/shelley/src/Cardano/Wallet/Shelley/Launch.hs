@@ -45,7 +45,6 @@ module Cardano.Wallet.Shelley.Launch
     , nodeSocketOption
     , networkConfigurationOption
     , parseGenesisData
-    , withTempDir
     , withSystemTempDir
     , minSeverityFromEnv
     , nodeMinSeverityFromEnv
@@ -137,20 +136,12 @@ import Cardano.Wallet.Unsafe
     ( unsafeFromHex, unsafeRunExceptT )
 import Control.Arrow
     ( first, second )
-import Control.Concurrent
-    ( threadDelay )
-import Control.Concurrent.Async
-    ( async, link, race )
-import Control.Concurrent.Chan
-    ( newChan, readChan, writeChan )
-import Control.Concurrent.MVar
-    ( MVar, modifyMVar, newMVar, putMVar, readMVar, takeMVar )
-import Control.Exception
-    ( SomeException, finally, handle, throwIO )
 import Control.Monad
     ( forM, forM_, replicateM, replicateM_, unless, void, when, (>=>) )
 import Control.Monad.Fail
     ( MonadFail )
+import Control.Monad.IO.Unlift
+    ( MonadUnliftIO, liftIO )
 import Control.Monad.Trans.Except
     ( ExceptT (..), runExceptT, withExceptT )
 import Control.Retry
@@ -225,15 +216,27 @@ import System.FilePath
 import System.Info
     ( os )
 import System.IO.Temp
-    ( createTempDirectory, getCanonicalTemporaryDirectory, withTempDirectory )
+    ( createTempDirectory, getCanonicalTemporaryDirectory )
 import System.IO.Unsafe
     ( unsafePerformIO )
-import System.Process
-    ( readProcess, readProcessWithExitCode )
 import Test.Utils.Paths
     ( getTestData )
 import Test.Utils.StaticServer
     ( withStaticServer )
+import UnliftIO.Async
+    ( async, link, race, wait )
+import UnliftIO.Chan
+    ( newChan, readChan, writeChan )
+import UnliftIO.Concurrent
+    ( threadDelay )
+import UnliftIO.Exception
+    ( SomeException, finally, handle, throwIO )
+import UnliftIO.MVar
+    ( MVar, modifyMVar, newMVar, putMVar, readMVar, takeMVar )
+import UnliftIO.Process
+    ( readProcess, readProcessWithExitCode )
+import UnliftIO.Temporary
+    ( withTempDirectory )
 
 import qualified Cardano.Chain.Common as Byron
 import qualified Cardano.Chain.UTxO as Legacy
@@ -550,10 +553,9 @@ defaultPoolConfigs =
     ]
 
 poolConfigsFromEnv :: IO [PoolConfig]
-poolConfigsFromEnv = lookupEnv "NO_POOLS" >>= \case
-    Nothing -> pure defaultPoolConfigs
-    Just "" -> pure defaultPoolConfigs
-    Just _ -> pure []
+poolConfigsFromEnv = isEnvSet "NO_POOLS" <&> \case
+    False -> defaultPoolConfigs
+    True -> []
 
 data RunningNode = RunningNode
     FilePath
@@ -620,9 +622,6 @@ withCluster tr severity poolConfigs dir logFile onByron onShelley onClusterStart
                     traceWith tr $
                         MsgDebug "waiting for stake pools to register"
                     replicateM poolCount (readChan waitGroup)
-            let cancelAll = do
-                    traceWith tr $ MsgDebug "stopping all stake pools"
-                    replicateM_ poolCount (writeChan doneGroup ())
 
             let onException :: SomeException -> IO ()
                 onException e = do
@@ -633,15 +632,21 @@ withCluster tr severity poolConfigs dir logFile onByron onShelley onClusterStart
 
             let pledgeOf 0 = 2*oneMillionAda
                 pledgeOf _ = oneMillionAda
-            forM_ (zip3 [0..] poolConfigs $ tail $ rotate ports) $
+            asyncs <- forM (zip3 [0..] poolConfigs $ tail $ rotate ports) $
                 \(idx, poolConfig, (port, peers)) -> do
-                    link =<< async (handle onException $ do
+                    async (handle onException $ do
                         let spCfg =
                                 NodeParams severity systemStart (port, peers) logFile
                         withStakePool
                             tr dir idx spCfg (pledgeOf idx) poolConfig $ do
                                 writeChan waitGroup $ Right port
                                 readChan doneGroup)
+            mapM_ link asyncs
+
+            let cancelAll = do
+                    traceWith tr $ MsgDebug "stopping all stake pools"
+                    replicateM_ poolCount (writeChan doneGroup ())
+                    mapM_ wait asyncs
 
             traceWith tr $ MsgRegisteringStakePools poolCount
             group <- waitAll
@@ -1732,35 +1737,34 @@ blake2b256S =
     . convertToBase Base16
     . blake2b256
 
+-- | Returns true iff an environment variable is defined and non-empty.
+isEnvSet :: MonadUnliftIO m => String -> m Bool
+isEnvSet = liftIO . fmap (maybe False (not . null)) . lookupEnv
+
 -- | Create a temporary directory and remove it after the given IO action has
 -- finished -- unless the @NO_CLEANUP@ environment variable has been set.
 withTempDir
-    :: Tracer IO ClusterLog
+    :: MonadUnliftIO m
+    => Tracer m ClusterLog
     -> FilePath -- ^ Parent directory
     -> String -- ^ Directory name template
-    -> (FilePath -> IO a) -- ^ Callback that can use the directory
-    -> IO a
+    -> (FilePath -> m a) -- ^ Callback that can use the directory
+    -> m a
 withTempDir tr parent name action = isEnvSet "NO_CLEANUP" >>= \case
     True -> do
-        dir <- createTempDirectory parent name
-        res <- action dir
-        traceWith tr $ MsgTempNoCleanup dir
-        pure res
+        dir <- liftIO $ createTempDirectory parent name
+        action dir `finally` traceWith tr (MsgTempNoCleanup dir)
     False -> withTempDirectory parent name action
-  where
-    isEnvSet ev = lookupEnv ev <&> \case
-        Nothing -> False
-        Just "" -> False
-        Just _ -> True
 
 withSystemTempDir
-    :: Tracer IO ClusterLog
+    :: MonadUnliftIO m
+    => Tracer m ClusterLog
     -> String   -- ^ Directory name template
-    -> (FilePath -> IO a) -- ^ Callback that can use the directory
-    -> IO a
+    -> (FilePath -> m a) -- ^ Callback that can use the directory
+    -> m a
 withSystemTempDir tr name action = do
-    parent <- getCanonicalTemporaryDirectory
-    withTempDir tr parent name action
+    parent <- liftIO getCanonicalTemporaryDirectory
+    withTempDir tr parent (name <> ".") action
 
 {-------------------------------------------------------------------------------
                                     Logging

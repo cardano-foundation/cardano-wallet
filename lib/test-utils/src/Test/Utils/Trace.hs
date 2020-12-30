@@ -16,10 +16,10 @@ import Prelude
 
 import Cardano.BM.Trace
     ( traceInTVarIO )
-import Control.Concurrent.STM.TVar
-    ( newTVarIO, readTVarIO )
 import Control.Tracer
     ( Tracer )
+import UnliftIO.STM
+    ( newTVarIO, readTVarIO )
 
 -- | Run an action with a logging 'Trace' object, and a function to get all
 -- messages that have been traced.

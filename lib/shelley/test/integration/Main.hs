@@ -71,22 +71,17 @@ import Cardano.Wallet.Shelley.Launch
     , withCluster
     , withSMASH
     , withSystemTempDir
-    , withTempDir
     )
 import Control.Arrow
     ( first )
-import Control.Concurrent.Async
-    ( AsyncCancelled, race )
-import Control.Concurrent.MVar
-    ( newEmptyMVar, putMVar, takeMVar )
-import Control.Exception
-    ( SomeException, fromException, handle, throwIO )
 import Control.Monad
     ( when )
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Tracer
     ( Tracer (..), contramap, traceWith )
+import Data.Either.Combinators
+    ( whenLeft )
 import Data.IORef
     ( IORef, atomicModifyIORef', newIORef )
 import Data.Proxy
@@ -101,6 +96,8 @@ import Network.HTTP.Client
     , newManager
     , responseTimeoutMicro
     )
+import System.Directory
+    ( createDirectory )
 import System.FilePath
     ( (</>) )
 import System.IO
@@ -115,6 +112,12 @@ import Test.Integration.Framework.Context
     ( Context (..), PoolGarbageCollectionEvent (..) )
 import Test.Utils.Paths
     ( inNixBuild )
+import UnliftIO.Async
+    ( race )
+import UnliftIO.Exception
+    ( SomeException, throwIO, withException )
+import UnliftIO.MVar
+    ( newEmptyMVar, putMVar, takeMVar )
 
 import qualified Cardano.BM.Backend.EKGView as EKG
 import qualified Cardano.Pool.DB as Pool
@@ -225,10 +228,10 @@ specWithServer (tr, tracers) = aroundAll withContext
                     , _poolGarbageCollectionEvents = poolGarbageCollectionEvents
                     }
         let action' = bracketTracer' tr "spec" . action
-        race
+        res <- race
+            (withServer dbEventRecorder setupContext)
             (takeMVar ctx >>= action')
-            (withServer dbEventRecorder setupContext) >>=
-            (either pure (throwIO . ProcessHasExited "integration"))
+        whenLeft res (throwIO . ProcessHasExited "integration")
 
     -- A decorator for the pool database that records all calls to the
     -- 'removeRetiredPools' operation.
@@ -280,30 +283,27 @@ specWithServer (tr, tracers) = aroundAll withContext
 
 
     onClusterStart action dir dbDecorator node = do
+        let db = dir </> "wallets"
+        createDirectory db
         -- NOTE: We may want to keep a wallet running across the fork, but
         -- having three callbacks like this might not work well for that.
-        withTempDir tr' dir "wallets" $ \db -> handle onClusterExit $
-            serveWallet
-                (SomeNetworkDiscriminant $ Proxy @'Mainnet)
-                tracers
-                (SyncTolerance 10)
-                (Just db)
-                (Just dbDecorator)
-                "127.0.0.1"
-                ListenOnRandomPort
-                Nothing
-                Nothing
-                socketPath
-                block0
-                (gp, vData)
-                (action gp)
+        serveWallet
+            (SomeNetworkDiscriminant $ Proxy @'Mainnet)
+            tracers
+            (SyncTolerance 10)
+            (Just db)
+            (Just dbDecorator)
+            "127.0.0.1"
+            ListenOnRandomPort
+            Nothing
+            Nothing
+            socketPath
+            block0
+            (gp, vData)
+            (action gp)
+            `withException` (traceWith tr . MsgServerError)
       where
         RunningNode socketPath block0 (gp, vData) = node
-
-    onClusterExit e =
-        case fromException e of
-            Just (_ :: AsyncCancelled) -> throwIO e
-            _ -> traceWith tr (MsgServerError e) >> throwIO e
 
 {-------------------------------------------------------------------------------
                                     Logging

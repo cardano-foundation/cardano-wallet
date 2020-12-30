@@ -31,7 +31,6 @@ library
   build-depends:
       base
     , aeson
-    , async
     , contra-tracer
     , filepath
     , file-embed
@@ -40,13 +39,14 @@ library
     , hspec-expectations
     , hspec-golden-aeson
     , http-api-data
+    , HUnit
     , iohk-monitoring
-    , process
     , QuickCheck
     , quickcheck-classes
-    , stm
+    , say
     , template-haskell
     , time
+    , unliftio
     , wai-app-static
     , warp
   hs-source-dirs:
@@ -76,10 +76,11 @@ test-suite unit
     ghc-options: -O2 -Werror
   build-depends:
       base
-    , hspec
-    , silently
-    , hspec-core
     , cardano-wallet-test-utils
+    , hspec
+    , hspec-core
+    , silently
+    , unliftio
   build-tools:
       hspec-discover
   type:

@@ -59,12 +59,8 @@ import Cardano.Pool.DB.Model
     )
 import Cardano.Wallet.Primitive.Slotting
     ( TimeInterpreter )
-import Control.Concurrent.MVar
-    ( MVar, modifyMVar, newMVar )
 import Control.DeepSeq
     ( deepseq )
-import Control.Exception
-    ( Exception, throwIO )
 import Control.Monad
     ( void )
 import Control.Monad.Trans.Except
@@ -77,6 +73,10 @@ import Data.Functor.Identity
     ( Identity )
 import Data.Tuple
     ( swap )
+import UnliftIO.Exception
+    ( Exception, throwIO )
+import UnliftIO.MVar
+    ( MVar, modifyMVar, newMVar )
 
 -- | Instantiate a new in-memory "database" layer that simply stores data in
 -- a local MVar. Data vanishes if the software is shut down.

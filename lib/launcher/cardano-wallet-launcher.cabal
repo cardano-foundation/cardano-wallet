@@ -30,11 +30,10 @@ library
       -Werror
   build-depends:
       base
-    , aeson
-    , async
     , bytestring
     , code-page
     , contra-tracer
+    , either
     , extra
     , filepath
     , fmt
@@ -42,6 +41,8 @@ library
     , process
     , text
     , text-class
+    , unliftio
+    , unliftio-core
   hs-source-dirs:
       src
   exposed-modules:
@@ -70,7 +71,6 @@ test-suite unit
     ghc-options: -O2 -Werror
   build-depends:
       base
-    , async
     , bytestring
     , cardano-wallet-launcher
     , cardano-wallet-test-utils
@@ -85,6 +85,7 @@ test-suite unit
     , text
     , text-class
     , time
+    , unliftio
   build-tools:
       hspec-discover
   type:

@@ -72,8 +72,6 @@ import Cardano.Wallet.Primitive.Types.Tx
     )
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
-import Control.Concurrent.Async
-    ( forConcurrently_ )
 import Control.Monad
     ( forM, forM_, void )
 import Control.Monad.IO.Class
@@ -128,6 +126,8 @@ import Test.QuickCheck
     )
 import Test.QuickCheck.Monadic
     ( PropertyM, assert, monadicIO, monitor, pick, run )
+import UnliftIO.Async
+    ( forConcurrently_ )
 
 import qualified Data.List as L
 import qualified Data.Map.Strict as Map

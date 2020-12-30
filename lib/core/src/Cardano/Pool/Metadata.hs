@@ -54,8 +54,6 @@ import Cardano.Wallet.Primitive.Types
     , StakePoolMetadataUrl (..)
     , decodePoolIdBech32
     )
-import Control.Exception
-    ( IOException, handle )
 import Control.Monad
     ( forM, when )
 import Control.Monad.IO.Class
@@ -109,6 +107,8 @@ import Network.HTTP.Types.Status
     ( status200, status404 )
 import Network.URI
     ( URI (..), parseURI )
+import UnliftIO.Exception
+    ( IOException, handle )
 
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
@@ -426,4 +426,3 @@ instance ToText StakePoolMetadataFetchLog where
         MsgFetchHealthCheckFailure err -> mconcat
             [ "Failed to check health: ", T.pack err
             ]
-

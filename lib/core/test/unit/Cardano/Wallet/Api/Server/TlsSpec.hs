@@ -10,10 +10,6 @@ import Prelude
 
 import Cardano.Wallet.Api.Server
     ( Listen (..), TlsConfiguration (..), withListeningSocket )
-import Control.Concurrent.Async
-    ( async, link )
-import Control.Exception
-    ( fromException )
 import Control.Tracer
     ( nullTracer )
 import Data.ByteString.Lazy
@@ -68,6 +64,10 @@ import Test.Utils.Paths
     ( getTestData )
 import Test.Utils.Windows
     ( pendingOnWine )
+import UnliftIO.Async
+    ( async, link )
+import UnliftIO.Exception
+    ( fromException )
 
 import qualified Cardano.Wallet.Api.Server as Server
 import qualified Network.HTTP.Types.Status as Http

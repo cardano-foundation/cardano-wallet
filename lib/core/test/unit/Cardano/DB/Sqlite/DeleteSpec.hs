@@ -10,18 +10,18 @@ import Prelude
 
 import Cardano.DB.Sqlite.Delete
     ( newRefCount, waitForFree', withRef )
-import Control.Concurrent
-    ( threadDelay )
-import Control.Concurrent.Async
-    ( concurrently )
-import Control.Concurrent.MVar
-    ( isEmptyMVar, newEmptyMVar, putMVar )
 import Control.Retry
     ( RetryPolicy, constantDelay, limitRetries )
 import Control.Tracer
     ( nullTracer )
 import Test.Hspec
     ( Spec, describe, it, shouldBe, shouldReturn )
+import UnliftIO.Async
+    ( concurrently )
+import UnliftIO.Concurrent
+    ( threadDelay )
+import UnliftIO.MVar
+    ( isEmptyMVar, newEmptyMVar, putMVar )
 
 spec :: Spec
 spec = describe "RefCount" $ do

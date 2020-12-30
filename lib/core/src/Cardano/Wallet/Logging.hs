@@ -34,12 +34,14 @@ import Cardano.BM.Data.Tracer
     )
 import Cardano.BM.Trace
     ( Trace, traceNamedItem )
+import Control.Applicative
+    ( (<*) )
 import Control.Monad
     ( when )
-import Control.Monad.Catch
-    ( MonadCatch, onException )
 import Control.Monad.IO.Class
     ( MonadIO (..) )
+import Control.Monad.IO.Unlift
+    ( MonadUnliftIO )
 import Control.Tracer
     ( Tracer (..), contramap, nullTracer, traceWith )
 import Data.Aeson
@@ -50,6 +52,8 @@ import Data.Text.Class
     ( ToText (..) )
 import GHC.Generics
     ( Generic )
+import UnliftIO.Exception
+    ( SomeException (..), isSyncException, withException )
 
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.Text.Encoding as T
@@ -131,6 +135,8 @@ data BracketLog
     -- ^ Logged after the action finishes.
     | BracketException
     -- ^ Logged when the action throws an exception.
+    | BracketAsyncException
+    -- ^ Logged when the action receives an async exception.
     deriving (Generic, Show, Eq, ToJSON)
 
 instance ToText BracketLog where
@@ -138,11 +144,17 @@ instance ToText BracketLog where
         BracketStart -> "start"
         BracketFinish -> "finish"
         BracketException -> "exception"
+        BracketAsyncException -> "cancelled"
+
+exceptionMsg :: SomeException -> BracketLog
+exceptionMsg e = if isSyncException e
+    then BracketException
+    else BracketAsyncException
 
 -- | Run a monadic action with 'BracketLog' traced around it.
-bracketTracer :: MonadCatch m => Tracer m BracketLog -> m a -> m a
+bracketTracer :: MonadUnliftIO m => Tracer m BracketLog -> m a -> m a
 bracketTracer tr action = do
     traceWith tr BracketStart
-    res <- action `onException` traceWith tr BracketException
-    traceWith tr BracketFinish
-    pure res
+    withException
+        (action <* traceWith tr BracketFinish)
+        (traceWith tr . exceptionMsg)

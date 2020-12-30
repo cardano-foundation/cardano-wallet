@@ -8,6 +8,7 @@ module Cardano.Startup.POSIX
     ( installSignalHandlers
     , setDefaultFilePermissions
     , restrictFileMode
+    , killProcess
     ) where
 
 import Prelude
@@ -23,8 +24,12 @@ import System.Posix.Signals
     , installHandler
     , keyboardSignal
     , raiseSignal
+    , sigKILL
+    , signalProcess
     , softwareTermination
     )
+import System.Process
+    ( Pid )
 
 -- | Convert any SIGTERM received to SIGINT, for which the runtime system has
 -- handlers that will correctly clean up sub-processes.
@@ -46,3 +51,8 @@ setDefaultFilePermissions = void $ setFileCreationMask mask
 -- them.
 restrictFileMode :: FilePath -> IO ()
 restrictFileMode f = setFileMode f ownerReadMode
+
+-- | Kill a process with signal 9. This is used only after previous attempts to
+-- terminate the process did not work.
+killProcess :: Pid -> IO ()
+killProcess = signalProcess sigKILL

@@ -78,18 +78,8 @@ import Cardano.Wallet.Shelley.Compatibility
     )
 import Control.Applicative
     ( liftA3 )
-import Control.Concurrent
-    ( ThreadId )
-import Control.Concurrent.Async
-    ( Async, async, asyncThreadId, cancel, link )
-import Control.Concurrent.Chan
-    ( Chan, dupChan, newChan, readChan, writeChan )
-import Control.Exception
-    ( IOException )
 import Control.Monad
     ( forever, unless, void, when, (>=>) )
-import Control.Monad.Catch
-    ( Handler (..) )
 import Control.Monad.Class.MonadAsync
     ( MonadAsync )
 import Control.Monad.Class.MonadST
@@ -247,6 +237,16 @@ import Ouroboros.Network.Protocol.LocalTxSubmission.Type
     ( LocalTxSubmission, SubmitResult (..) )
 import System.IO.Error
     ( isDoesNotExistError )
+import UnliftIO.Async
+    ( Async, async, asyncThreadId, cancel, link )
+import UnliftIO.Chan
+    ( Chan, dupChan, newChan, readChan, writeChan )
+import UnliftIO.Compat
+    ( coerceHandlers )
+import UnliftIO.Concurrent
+    ( ThreadId )
+import UnliftIO.Exception
+    ( Handler (..), IOException )
 
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
@@ -1111,7 +1111,7 @@ connectClient tr handlers client vData addr = withIOManager $ \iocp -> do
             , nctHandshakeTracer = contramap MsgHandshakeTracer tr
             }
     let socket = localSnocket iocp addr
-    recovering policy handlers $ \status -> do
+    recovering policy (coerceHandlers handlers) $ \status -> do
         traceWith tr $ MsgCouldntConnect (rsIterNumber status)
         connectTo socket tracers versions addr
   where

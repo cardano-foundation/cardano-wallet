@@ -32,7 +32,6 @@ library
       aeson
     , aeson-pretty
     , ansi-terminal
-    , async
     , base
     , bytestring
     , cardano-addresses
@@ -44,12 +43,13 @@ library
     , fmt
     , http-client
     , iohk-monitoring
+    , optparse-applicative
     , servant-client
     , servant-client-core
     , text
     , text-class
     , time
-    , optparse-applicative
+    , unliftio
   hs-source-dirs:
       src
   exposed-modules:
@@ -75,9 +75,9 @@ test-suite unit
     , hspec
     , optparse-applicative
     , QuickCheck
-    , temporary
     , text
     , text-class
+    , unliftio
   build-tools:
       hspec-discover
   type:

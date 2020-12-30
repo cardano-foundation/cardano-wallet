@@ -46,12 +46,8 @@ import Cardano.Wallet.Logging
     ( trMessageText )
 import Cardano.Wallet.Network.Ports
     ( getRandomPort )
-import Control.Concurrent
-    ( threadDelay )
 import Control.DeepSeq
     ( NFData, rnf )
-import Control.Exception
-    ( evaluate )
 import Control.Monad
     ( forM, mapM_, void )
 import Criterion.Measurement
@@ -96,7 +92,11 @@ import System.FilePath
     ( (</>) )
 import System.IO
     ( BufferMode (..), hSetBuffering, stderr, stdout )
-import System.IO.Temp
+import UnliftIO.Concurrent
+    ( threadDelay )
+import UnliftIO.Exception
+    ( evaluate )
+import UnliftIO.Temporary
     ( withSystemTempDirectory )
 
 import qualified Cardano.BM.Configuration.Model as CM

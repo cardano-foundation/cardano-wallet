@@ -123,10 +123,6 @@ import Cardano.Wallet.Primitive.Slotting
     )
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId (..) )
-import Control.Concurrent.MVar
-    ( modifyMVar, modifyMVar_, newMVar, readMVar )
-import Control.Exception
-    ( Exception, bracket, throwIO )
 import Control.Monad
     ( forM, unless, void, when )
 import Control.Monad.Extra
@@ -211,6 +207,10 @@ import System.Directory
     ( doesFileExist, listDirectory )
 import System.FilePath
     ( (</>) )
+import UnliftIO.Exception
+    ( Exception, bracket, throwIO )
+import UnliftIO.MVar
+    ( modifyMVar, modifyMVar_, newMVar, readMVar )
 
 import qualified Cardano.Wallet.Primitive.AddressDerivation as W
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Random as Rnd

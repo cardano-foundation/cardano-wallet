@@ -3,6 +3,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 {- HLINT ignore "Unused LANGUAGE pragma" -}
 
@@ -31,20 +32,18 @@ import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
-import Control.Concurrent
-    ( forkIO )
-import Control.Concurrent.Async
-    ( race )
-import Control.Concurrent.MVar
-    ( newEmptyMVar, putMVar, takeMVar )
-import Control.Exception
-    ( Exception, IOException, finally, onException, tryJust )
+import Cardano.Startup
+    ( killProcess )
 import Control.Monad
-    ( join, void )
+    ( join, mapM_, void )
+import Control.Monad.IO.Class
+    ( liftIO )
+import Control.Monad.IO.Unlift
+    ( MonadUnliftIO (..) )
 import Control.Tracer
     ( Tracer, contramap, traceWith )
-import Data.Aeson
-    ( ToJSON (..), object, (.=) )
+import Data.Either.Combinators
+    ( leftToMaybe )
 import Data.List
     ( isPrefixOf )
 import Data.Text
@@ -69,14 +68,30 @@ import System.Exit
 import System.IO
     ( Handle )
 import System.Process
+    ( cleanupProcess, getPid )
+import UnliftIO.Async
+    ( race )
+import UnliftIO.Concurrent
+    ( forkIO, forkIOWithUnmask, killThread, threadDelay )
+import UnliftIO.Exception
+    ( Exception
+    , IOException
+    , bracket
+    , bracket_
+    , finally
+    , onException
+    , tryJust
+    )
+import UnliftIO.MVar
+    ( newEmptyMVar, putMVar, readMVar )
+import UnliftIO.Process
     ( CmdSpec (..)
     , CreateProcess (..)
     , ProcessHandle
     , StdStream (..)
-    , getPid
+    , createProcess
     , proc
     , waitForProcess
-    , withCreateProcess
     )
 
 import qualified Data.Text as T
@@ -148,57 +163,78 @@ instance Exception ProcessHasExited
 -- (see 'withCreateProcess') for details. If the process exits, the action is
 -- cancelled. The return type reflects those two cases.
 withBackendProcess
-    :: Tracer IO LauncherLog
+    :: MonadUnliftIO m
+    => Tracer m LauncherLog
     -- ^ Logging
     -> Command
     -- ^ 'Command' description
-    -> IO a
+    -> m a
     -- ^ Action to execute while process is running.
-    -> IO (Either ProcessHasExited a)
+    -> m (Either ProcessHasExited a)
 withBackendProcess tr cmd = withBackendProcessHandle tr cmd . const . const
 
 -- | A variant of 'withBackendProcess' which also provides the 'ProcessHandle'
 -- and stdin 'Handle' to the given action.
 withBackendProcessHandle
-    :: Tracer IO LauncherLog
+    :: MonadUnliftIO m
+    => Tracer m LauncherLog
     -- ^ Logging
     -> Command
     -- ^ 'Command' description
-    -> (Maybe Handle -> ProcessHandle -> IO a)
+    -> (Maybe Handle -> ProcessHandle -> m a)
     -- ^ Action to execute while process is running.
-    -> IO (Either ProcessHasExited a)
+    -> m (Either ProcessHasExited a)
 withBackendProcessHandle tr (Command name args before std_in std_out) action =
-    before >> withBackendCreateProcess tr process action
+    liftIO before >> withBackendCreateProcess tr process action
   where
-    process = (proc name args)  { std_in, std_out, std_err = std_out }
-
+    process = (proc name args) { std_in, std_out, std_err = std_out }
 
 -- | A variant of 'withBackendProcess' which accepts a general 'CreateProcess'
--- object.
+-- object. This version also has nicer async properties than
+-- 'System.Process.withCreateProcess'.
+--
+-- This function should ensure:
+--
+-- 1. If the action finishes or throws an exception, then the process is also
+--    terminated.
+--
+-- 2. After the process is sent the signal to terminate, this function will
+--    block until the process has actually exited - unless that takes longer
+--    than the 5 second timeout. After the timeout has lapsed, the process will
+--    be sent a kill signal.
+--
+-- 3. If the process exits, then the action is cancelled.
+--
+-- fixme: This is more or less a reimplementation of
+-- 'System.Process.Typed.withProcessWait' (except for wait timeout). The
+-- launcher code should be converted to use @typed-process@.
 withBackendCreateProcess
-    :: Tracer IO LauncherLog
+    :: forall m a. (MonadUnliftIO m)
+    => Tracer m LauncherLog
     -- ^ Logging
     -> CreateProcess
     -- ^ 'Command' description
-    -> (Maybe Handle -> ProcessHandle -> IO a)
+    -> (Maybe Handle -> ProcessHandle -> m a)
     -- ^ Action to execute while process is running.
-    -> IO (Either ProcessHasExited a)
+    -> m (Either ProcessHasExited a)
 withBackendCreateProcess tr process action = do
     traceWith tr $ MsgLauncherStart name args
-    res <- fmap join $ tryJust spawnPredicate $
-        withCreateProcess process $ \mstdin _ _ h -> do
-            pid <- maybe "-" (T.pack . show) <$> getPid h
-            let tr' = contramap (WithProcessInfo name pid) tr
-            traceWith tr' MsgLauncherStarted
+    exitVar <- newEmptyMVar
+    res <- fmap join $ tryJust spawnPredicate $ bracket
+        (createProcess process)
+        (cleanupProcessAndWait (readMVar exitVar)) $
+            \(mstdin, _, _, ph) -> do
+                pid <- maybe "-" (T.pack . show) <$> liftIO (getPid ph)
+                let tr' = contramap (WithProcessInfo name pid) tr
+                let tr'' = contramap MsgLauncherWait tr'
+                traceWith tr' MsgLauncherStarted
+                interruptibleWaitForProcess tr'' ph (putMVar exitVar)
+                race (ProcessHasExited name <$> readMVar exitVar) $ bracket_
+                    (traceWith tr' MsgLauncherAction)
+                    (traceWith tr' MsgLauncherActionDone)
+                    (action mstdin ph)
 
-            let waitForExit =
-                    ProcessHasExited name <$> interruptibleWaitForProcess tr' h
-            let runAction = do
-                    traceWith tr' MsgLauncherAction
-                    action mstdin h `finally` traceWith tr' MsgLauncherCleanup
-
-            race waitForExit runAction
-    either (traceWith tr . MsgLauncherFinish) (const $ pure ()) res
+    traceWith tr $ MsgLauncherFinish (leftToMaybe res)
     pure res
   where
     -- Exceptions resulting from the @exec@ call for this command. The most
@@ -210,26 +246,43 @@ withBackendCreateProcess tr process action = do
         | name `isPrefixOf` show e = Just (ProcessDidNotStart name e)
         | otherwise = Nothing
 
+     -- Run the 'cleanupProcess' function from the process library, but wait for
+     -- the process to exit, rather than immediately returning. If the process
+     -- doesn't exit after timeout, kill it, to avoid blocking indefinitely.
+    cleanupProcessAndWait getExitStatus ps@(_, _, _, ph) = do
+        traceWith tr MsgLauncherCleanup
+        liftIO $ cleanupProcess ps
+        let timeoutSecs = 5
+        -- Async exceptions are currently masked because this is running in a
+        -- bracket cleanup handler. We fork a thread and unmask so that the
+        -- timeout can be cancelled.
+        tid <- forkIOWithUnmask $ \unmask -> unmask $ do
+            threadDelay (timeoutSecs * 1000 * 1000)
+            traceWith tr (MsgLauncherCleanupTimedOut timeoutSecs)
+            liftIO (getPid ph >>= mapM_ killProcess)
+        void getExitStatus `finally` killThread tid
+        traceWith tr MsgLauncherCleanupFinished
+
     -- Wraps 'waitForProcess' in another thread. This works around the unwanted
     -- behaviour of the process library on Windows where 'waitForProcess' seems
     -- to block all concurrent async actions in the thread.
     interruptibleWaitForProcess
-        :: Tracer IO LaunchedProcessLog
+        :: Tracer m WaitForProcessLog
         -> ProcessHandle
-        -> IO ExitCode
-    interruptibleWaitForProcess tr' ph = do
-        status <- newEmptyMVar
-        void $ forkIO $ waitThread status `onException` continue status
-        takeMVar status
+        -> (ExitCode -> m ())
+        -> m ()
+    interruptibleWaitForProcess tr' ph onExit =
+        void $ forkIO (waitThread `onException` continue)
       where
-        waitThread var = do
-            traceWith tr' MsgLauncherWaitBefore
+        waitThread = do
+            traceWith tr' MsgWaitBefore
             status <- waitForProcess ph
-            traceWith tr' (MsgLauncherWaitAfter $ exitStatus status)
-            putMVar var status
-        continue var = do
-            traceWith tr' MsgLauncherCancel
-            putMVar var (ExitFailure 256)
+            traceWith tr' (MsgWaitAfter status)
+            onExit status
+
+        continue = do
+            traceWith tr' MsgWaitCancelled
+            onExit (ExitFailure 256)
 
     (name, args) = getCreateProcessNameArgs process
 
@@ -246,68 +299,91 @@ getCreateProcessNameArgs process = case cmdspec process of
 data LauncherLog
     = MsgLauncherStart String [String]
     | WithProcessInfo String Text LaunchedProcessLog
-    | MsgLauncherFinish ProcessHasExited
-    deriving (Show, Eq, Generic, ToJSON)
+    | MsgLauncherCleanup
+    | MsgLauncherCleanupTimedOut Int
+    | MsgLauncherCleanupFinished
+    | MsgLauncherFinish (Maybe ProcessHasExited)
+    deriving (Show, Eq, Generic)
 
 data LaunchedProcessLog
     = MsgLauncherStarted
-    | MsgLauncherWaitBefore
-    | MsgLauncherWaitAfter Int
-    | MsgLauncherCancel
     | MsgLauncherAction
-    | MsgLauncherCleanup
-    deriving (Show, Eq, Generic, ToJSON)
+    | MsgLauncherActionDone
+    | MsgLauncherWait WaitForProcessLog
+    deriving (Show, Eq, Generic)
 
-instance ToJSON Command where
-    toJSON (Command name args _ _ _) = toJSON (name:args)
-
-instance ToJSON ProcessHasExited where
-    toJSON (ProcessDidNotStart name e) =
-        object [ "command" .= name, "exception" .= show e ]
-    toJSON (ProcessHasExited name code) =
-        object [ "command" .= name, "status" .= exitStatus code ]
-
-exitStatus :: ExitCode -> Int
-exitStatus ExitSuccess = 0
-exitStatus (ExitFailure n) = n
+data WaitForProcessLog
+    = MsgWaitBefore
+    | MsgWaitAfter ExitCode
+    | MsgWaitCancelled
+    deriving (Show, Eq, Generic)
 
 instance HasPrivacyAnnotation LauncherLog
 instance HasSeverityAnnotation LauncherLog where
     getSeverityAnnotation = \case
         MsgLauncherStart _ _ -> Notice
         WithProcessInfo _ _ msg -> getSeverityAnnotation msg
-        MsgLauncherFinish (ProcessDidNotStart _ _) -> Error
-        MsgLauncherFinish (ProcessHasExited _ st) -> case st of
+        MsgLauncherFinish Nothing -> Debug
+        MsgLauncherFinish (Just (ProcessDidNotStart _ _)) -> Error
+        MsgLauncherFinish (Just (ProcessHasExited _ st)) -> case st of
             ExitSuccess -> Notice
             ExitFailure _ -> Error
+        MsgLauncherCleanup -> Debug
+        MsgLauncherCleanupTimedOut _ -> Notice
+        MsgLauncherCleanupFinished -> Debug
 
 instance HasPrivacyAnnotation LaunchedProcessLog
 instance HasSeverityAnnotation LaunchedProcessLog where
     getSeverityAnnotation = \case
         MsgLauncherStarted -> Info
-        MsgLauncherWaitBefore -> Debug
-        MsgLauncherWaitAfter _ -> Debug
-        MsgLauncherCancel -> Debug
+        MsgLauncherWait msg -> getSeverityAnnotation msg
         MsgLauncherAction -> Debug
-        MsgLauncherCleanup -> Notice
+        MsgLauncherActionDone -> Notice
+
+instance HasPrivacyAnnotation WaitForProcessLog
+instance HasSeverityAnnotation WaitForProcessLog where
+    getSeverityAnnotation = \case
+        MsgWaitBefore -> Debug
+        MsgWaitAfter _ -> Debug
+        MsgWaitCancelled -> Debug
 
 instance ToText LauncherLog where
-    toText = fmt . launcherLogText
+    toText ll = fmt $ case ll of
+        MsgLauncherStart cmd args ->
+            "Starting process "+|buildCommand cmd args|+""
+        WithProcessInfo name pid msg ->
+            "["+|name|+"."+|pid|+"] "+|toText msg|+""
+        MsgLauncherFinish Nothing ->
+            "Action finished"
+        MsgLauncherFinish (Just (ProcessDidNotStart name _e)) ->
+            "Could not start "+|name|+""
+        MsgLauncherFinish (Just (ProcessHasExited name code)) ->
+            "Child process "+|name|+" exited with "+|statusText code|+""
+        MsgLauncherCleanup ->
+            "Begin process cleanup"
+        MsgLauncherCleanupTimedOut t ->
+            "Timed out waiting for process to exit after "+|t|+" seconds"
+        MsgLauncherCleanupFinished ->
+            "Process cleanup finished"
 
-launcherLogText :: LauncherLog -> Builder
-launcherLogText (MsgLauncherStart cmd args) =
-    "Starting process "+|buildCommand cmd args|+""
-launcherLogText (WithProcessInfo name pid msg) =
-    "["+|name|+"."+|pid|+"] "+|launchedProcessText msg|+""
-launcherLogText (MsgLauncherFinish (ProcessDidNotStart name _e)) =
-    "Could not start "+|name|+""
-launcherLogText (MsgLauncherFinish (ProcessHasExited name code)) =
-    "Child process "+|name|+" exited with status "+||exitStatus code||+""
+instance ToText LaunchedProcessLog where
+    toText = \case
+        MsgLauncherStarted -> "Process started"
+        MsgLauncherAction -> "Running withBackend action"
+        MsgLauncherWait msg -> toText msg
+        MsgLauncherActionDone -> "withBackend action done. Terminating child process"
 
-launchedProcessText :: LaunchedProcessLog -> Builder
-launchedProcessText MsgLauncherStarted = "Process started"
-launchedProcessText MsgLauncherWaitBefore = "About to waitForProcess"
-launchedProcessText (MsgLauncherWaitAfter status) = "waitForProcess returned "+||status||+""
-launchedProcessText MsgLauncherCancel = "There was an exception waiting for the process"
-launchedProcessText MsgLauncherAction = "Running withBackend action"
-launchedProcessText MsgLauncherCleanup = "Terminating child process"
+instance ToText WaitForProcessLog where
+    toText = \case
+        MsgWaitBefore ->
+            "Waiting for process to exit"
+        MsgWaitAfter status -> fmt $
+            "Process exited with "+|statusText status|+""
+        MsgWaitCancelled ->
+            "There was an exception waiting for the process"
+
+statusText :: ExitCode -> Text
+statusText ExitSuccess = "success"
+statusText (ExitFailure n)
+    | n >= 0 = fmt $ "code "+||n||+" (failure)"
+    | otherwise = fmt $ "signal "+||(-n)||+""

@@ -40,24 +40,8 @@ import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.Wallet
     ( HasLogger, logger )
-import Control.Concurrent
-    ( ThreadId, forkFinally, killThread )
-import Control.Concurrent.MVar
-    ( MVar
-    , modifyMVar_
-    , newEmptyMVar
-    , newMVar
-    , putMVar
-    , readMVar
-    , takeMVar
-    , tryPutMVar
-    )
-import Control.Exception
-    ( AsyncException (..)
-    , SomeException
-    , asyncExceptionFromException
-    , finally
-    )
+import Control.Exception.Base
+    ( AsyncException (..), asyncExceptionFromException )
 import Control.Monad
     ( void )
 import Control.Monad.IO.Class
@@ -74,17 +58,30 @@ import Data.Generics.Product.Typed
     ( HasType )
 import Data.Map.Strict
     ( Map )
+import qualified Data.Map.Strict as Map
 import Data.Text
     ( Text )
+import qualified Data.Text as T
 import Data.Text.Class
     ( ToText (..) )
 import Fmt
     ( pretty )
 import GHC.Generics
     ( Generic )
-
-import qualified Data.Map.Strict as Map
-import qualified Data.Text as T
+import UnliftIO.Concurrent
+    ( ThreadId, forkFinally, killThread )
+import UnliftIO.Exception
+    ( SomeException, finally )
+import UnliftIO.MVar
+    ( MVar
+    , modifyMVar_
+    , newEmptyMVar
+    , newMVar
+    , putMVar
+    , readMVar
+    , takeMVar
+    , tryPutMVar
+    )
 
 {-------------------------------------------------------------------------------
                                 Worker Context

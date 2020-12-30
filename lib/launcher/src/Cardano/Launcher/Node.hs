@@ -27,7 +27,7 @@ import System.FilePath
     ( takeFileName, (</>) )
 import System.Info
     ( os )
-import System.Process
+import UnliftIO.Process
     ( CreateProcess (..), proc )
 
 -- | Parameters for connecting to the node.

@@ -338,16 +338,8 @@ import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
 import Control.Arrow
     ( second )
-import Control.Concurrent
-    ( threadDelay )
-import Control.Concurrent.Async
-    ( race_ )
 import Control.DeepSeq
     ( NFData )
-import Control.Exception
-    ( IOException, bracket, throwIO, tryJust )
-import Control.Exception.Safe
-    ( tryAnyDeep )
 import Control.Monad
     ( forM, forever, join, void, when, (>=>) )
 import Control.Monad.IO.Class
@@ -452,6 +444,12 @@ import System.Random
     ( getStdRandom, random )
 import Type.Reflection
     ( Typeable )
+import UnliftIO.Async
+    ( race_ )
+import UnliftIO.Concurrent
+    ( threadDelay )
+import UnliftIO.Exception
+    ( IOException, bracket, throwIO, tryAnyDeep, tryJust )
 
 import qualified Cardano.Wallet as W
 import qualified Cardano.Wallet.Api.Types as Api

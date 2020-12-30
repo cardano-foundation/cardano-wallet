@@ -34,10 +34,6 @@ import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
-import Control.Concurrent.MVar
-    ( MVar, modifyMVar, modifyMVar_, newMVar, readMVar )
-import Control.Exception
-    ( bracket_ )
 import Control.Retry
     ( RetryPolicy
     , RetryStatus (..)
@@ -64,6 +60,10 @@ import GHC.Generics
     ( Generic )
 import System.Directory
     ( removePathForcibly )
+import UnliftIO.Exception
+    ( bracket_ )
+import UnliftIO.MVar
+    ( MVar, modifyMVar, modifyMVar_, newMVar, readMVar )
 
 #if defined(mingw32_HOST_OS)
 import Control.Retry

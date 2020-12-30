@@ -15,12 +15,6 @@ import Prelude
 
 import Cardano.Startup
     ( ShutdownHandlerLog (..), withShutdownHandler' )
-import Control.Concurrent
-    ( threadDelay )
-import Control.Concurrent.Async
-    ( race )
-import Control.Exception
-    ( IOException, bracket, catch, throwIO )
 import Control.Monad
     ( unless )
 import Control.Tracer
@@ -29,8 +23,6 @@ import System.IO
     ( Handle, IOMode (..), hClose, hWaitForInput, stdin, withFile )
 import System.IO.Error
     ( isUserError )
-import System.Process
-    ( createPipe )
 import Test.Hspec
     ( Spec, describe, it, shouldBe, shouldContain, shouldReturn, shouldThrow )
 import Test.Hspec.Core.Spec
@@ -41,11 +33,19 @@ import Test.Utils.Trace
     ( captureLogging )
 import Test.Utils.Windows
     ( nullFileName, pendingOnWindows )
+import UnliftIO.Async
+    ( race )
+import UnliftIO.Concurrent
+    ( threadDelay )
+import UnliftIO.Exception
+    ( IOException, bracket, catch, throwIO )
+import UnliftIO.Process
+    ( createPipe )
 
 #if defined(WINDOWS)
-import Control.Concurrent
+import UnliftIO.Concurrent
     ( forkIO )
-import Control.Concurrent.MVar
+import UnliftIO.MVar
     ( MVar, newEmptyMVar, putMVar, takeMVar )
 #endif
 

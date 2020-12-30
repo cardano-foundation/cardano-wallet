@@ -357,8 +357,6 @@ import Cardano.Wallet.Unsafe
     ( unsafeXPrv )
 import Control.DeepSeq
     ( NFData )
-import Control.Exception
-    ( Exception )
 import Control.Monad
     ( forM_, replicateM, unless, when )
 import Control.Monad.IO.Class
@@ -438,6 +436,8 @@ import Statistics.Quantile
     ( medianUnbiased, quantiles )
 import Type.Reflection
     ( Typeable, typeRep )
+import UnliftIO.Exception
+    ( Exception )
 
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Random as Rnd
@@ -798,13 +798,14 @@ restoreWallet ctx wid = db & \DBLayer{..} -> do
             restoreBlocks @ctx @s @k ctx wid bs h
             saveParams @ctx @s @k ctx wid ps
     liftIO (follow nw tr cps forward (view #header)) >>= \case
-        FollowInterrupted ->
-            pure ()
         FollowFailure ->
             restoreWallet @ctx @s @k ctx wid
         FollowRollback point -> do
             rollbackBlocks @ctx @s @k ctx wid point
             restoreWallet @ctx @s @k ctx wid
+        FollowDone ->
+            pure ()
+
   where
     db = ctx ^. dbLayer @s @k
     nw = ctx ^. networkLayer

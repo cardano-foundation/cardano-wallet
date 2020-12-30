@@ -30,21 +30,6 @@ import Cardano.Launcher
     , StdStream (..)
     , withBackendProcessHandle
     )
-import Control.Concurrent
-    ( threadDelay )
-import Control.Concurrent.Async
-    ( async, race_, waitAnyCancel )
-import Control.Concurrent.MVar
-    ( modifyMVar_
-    , newEmptyMVar
-    , newMVar
-    , putMVar
-    , readMVar
-    , takeMVar
-    , tryReadMVar
-    )
-import Control.Exception
-    ( bracket )
 import Control.Monad
     ( forever )
 import Control.Monad.IO.Class
@@ -67,8 +52,6 @@ import System.Exit
     ( ExitCode (..) )
 import System.Info
     ( os )
-import System.Process
-    ( ProcessHandle, getProcessExitCode )
 import Test.Hspec
     ( Spec
     , beforeAll
@@ -79,7 +62,24 @@ import Test.Hspec
     , shouldSatisfy
     )
 import Test.Utils.Windows
-    ( isWindows, pendingOnWine )
+    ( isWindows, pendingOnWine, skipOnWindows )
+import UnliftIO.Async
+    ( async, race_, waitAnyCancel )
+import UnliftIO.Concurrent
+    ( threadDelay )
+import UnliftIO.Exception
+    ( bracket )
+import UnliftIO.MVar
+    ( modifyMVar_
+    , newEmptyMVar
+    , newMVar
+    , putMVar
+    , readMVar
+    , takeMVar
+    , tryReadMVar
+    )
+import UnliftIO.Process
+    ( ProcessHandle, getProcessExitCode )
 
 {- HLINT ignore spec "Use head" -}
 
@@ -179,6 +179,21 @@ spec = beforeAll setupMockCommands $ do
         -- never more that 2 seconds.
         diffUTCTime after before `shouldSatisfy` (< 2)
 
+    it "Misbehaving backend process is killed when Async thread is cancelled" $ \_ -> withTestLogging $ \tr -> do
+        skipOnWindows "Not applicable"
+        mvar <- newEmptyMVar
+        let backend = withBackendProcessHandle tr unkillableCommand $ \_ ph -> do
+                putMVar mvar ph
+                forever $ threadDelay maxBound
+        before <- getCurrentTime
+        race_ backend (threadDelay 1000000)
+        after <- getCurrentTime
+        ph <- takeMVar mvar
+        assertProcessesExited [ph]
+        -- the total time taken should be about 6 seconds
+        -- (the delay plus kill timeout)
+        diffUTCTime after before `shouldSatisfy` (\dt -> dt > 3 && dt < 7)
+
     it "Sanity check System.Info.os" $ \_ ->
         ["linux", "darwin", "mingw32"] `shouldContain` [os]
 
@@ -206,6 +221,10 @@ setupMockCommands
             else Command "CHOICE" ["/T", "1", "/C", "wat", "/D", "w"] before Inherit Inherit
         , foreverCommand = Command "TIMEOUT" ["20"] (pure ()) Inherit Inherit
         }
+
+-- | A command that ignores SIGTERM (POSIX only)
+unkillableCommand :: Command
+unkillableCommand = Command "sh" ["-c", "trap \" \" TERM; sleep 20"] (pure ()) Inherit Inherit
 
 -- | Run a bunch of command in separate processes. Note that, this operation is
 -- blocking and will throw when one of the given commands terminates.

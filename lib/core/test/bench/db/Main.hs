@@ -138,8 +138,6 @@ import Cardano.Wallet.Unsafe
     ( someDummyMnemonic, unsafeRunExceptT )
 import Control.DeepSeq
     ( NFData (..), force )
-import Control.Exception
-    ( bracket, handle )
 import Control.Monad.Trans.Except
     ( mapExceptT )
 import Criterion.Main
@@ -191,6 +189,8 @@ import System.IO.Unsafe
     ( unsafePerformIO )
 import System.Random
     ( mkStdGen, randoms )
+import UnliftIO.Exception
+    ( bracket, handle )
 
 import qualified Cardano.BM.Configuration.Model as CM
 import qualified Cardano.BM.Data.BackendKind as CM

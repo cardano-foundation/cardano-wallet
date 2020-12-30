@@ -2,8 +2,6 @@ module Test.Hspec.ExtraSpec where
 
 import Prelude
 
-import Control.Concurrent
-    ( threadDelay )
 import Data.IORef
     ( IORef, newIORef, readIORef, writeIORef )
 import Data.List
@@ -24,6 +22,8 @@ import Test.Hspec
     )
 import Test.Hspec.Core.Runner
     ( defaultConfig, runSpec )
+import UnliftIO.Concurrent
+    ( threadDelay )
 
 import qualified Test.Hspec.Extra as Extra
 
@@ -89,6 +89,7 @@ spec = do
         stripTime = unlines
                 . filter (not . ("Finished in" `isPrefixOf`))
                 . filter (not . ("Randomized" `isPrefixOf`))
+                . filter (not . ("retry:" `isPrefixOf`))
                 . lines
 
     -- | Returns an IO action that is different every time you run it!,

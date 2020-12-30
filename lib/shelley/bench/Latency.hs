@@ -62,20 +62,9 @@ import Cardano.Wallet.Shelley
 import Cardano.Wallet.Shelley.Faucet
     ( initFaucet )
 import Cardano.Wallet.Shelley.Launch
-    ( RunningNode (..)
-    , sendFaucetFundsTo
-    , withCluster
-    , withSystemTempDir
-    , withTempDir
-    )
+    ( RunningNode (..), sendFaucetFundsTo, withCluster, withSystemTempDir )
 import Control.Arrow
     ( first )
-import Control.Concurrent.Async
-    ( race_ )
-import Control.Concurrent.MVar
-    ( newEmptyMVar, putMVar, takeMVar )
-import Control.Concurrent.STM.TVar
-    ( TVar )
 import Control.Monad
     ( mapM_, replicateM, replicateM_ )
 import Control.Monad.IO.Class
@@ -124,6 +113,12 @@ import Test.Integration.Framework.DSL
     , unsafeRequest
     , verify
     )
+import UnliftIO.Async
+    ( race_ )
+import UnliftIO.MVar
+    ( newEmptyMVar, putMVar, takeMVar )
+import UnliftIO.STM
+    ( TVar )
 
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Data.Text as T
@@ -417,20 +412,21 @@ withShelleyServer tracers action = do
         sendFaucetFundsTo nullTracer dir addresses
 
     onClusterStart act dir (RunningNode socketPath block0 (gp, vData)) = do
+        let db = dir </> "wallets"
+        createDirectory db
         -- NOTE: We may want to keep a wallet running across the fork, but
         -- having three callbacks like this might not work well for that.
-        withTempDir nullTracer dir "wallets" $ \db -> do
-            serveWallet
-                (SomeNetworkDiscriminant $ Proxy @'Mainnet)
-                tracers
-                (SyncTolerance 10)
-                (Just db)
-                Nothing
-                "127.0.0.1"
-                ListenOnRandomPort
-                Nothing
-                Nothing
-                socketPath
-                block0
-                (gp, vData)
-                (act gp)
+        serveWallet
+            (SomeNetworkDiscriminant $ Proxy @'Mainnet)
+            tracers
+            (SyncTolerance 10)
+            (Just db)
+            Nothing
+            "127.0.0.1"
+            ListenOnRandomPort
+            Nothing
+            Nothing
+            socketPath
+            block0
+            (gp, vData)
+            (act gp)

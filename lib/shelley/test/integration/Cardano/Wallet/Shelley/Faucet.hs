@@ -8,10 +8,10 @@ module Cardano.Wallet.Shelley.Faucet
 
 import Prelude
 
-import Control.Concurrent.MVar
-    ( newMVar )
 import Test.Integration.Faucet
     ( Faucet (..), icaMnemonics, mirMnemonics, rndMnemonics, seqMnemonics )
+import UnliftIO.MVar
+    ( newMVar )
 
 initFaucet :: IO Faucet
 initFaucet = Faucet

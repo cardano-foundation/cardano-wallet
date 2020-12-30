@@ -1,7 +1,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TupleSections #-}
 
 -- |
 -- Copyright: © 2018-2020 IOHK
@@ -19,14 +18,10 @@ module Test.Hspec.Extra
 
 import Prelude
 
-import Control.Concurrent
-    ( threadDelay )
-import Control.Concurrent.Async
-    ( AsyncCancelled, async, race, wait )
-import Control.Concurrent.MVar
-    ( MVar, newEmptyMVar, putMVar, takeMVar )
-import Control.Exception
-    ( SomeException, catch, throwIO )
+import Control.Monad
+    ( void )
+import Say
+    ( sayString )
 import System.Environment
     ( lookupEnv )
 import Test.Hspec
@@ -38,10 +33,19 @@ import Test.Hspec
     , afterAll
     , beforeAll
     , beforeWith
-    , expectationFailure
     , pendingWith
     , specify
     )
+import Test.HUnit.Lang
+    ( HUnitFailure (..), assertFailure, formatFailureReason )
+import UnliftIO.Async
+    ( async, race, wait )
+import UnliftIO.Concurrent
+    ( threadDelay )
+import UnliftIO.Exception
+    ( catch, finally, throwIO, throwString )
+import UnliftIO.MVar
+    ( MVar, newEmptyMVar, putMVar, takeMVar, tryPutMVar, tryTakeMVar )
 
 -- | Run a 'bracket' resource acquisition function around all the specs. The
 -- bracket opens before the first test case and closes after the last test case.
@@ -97,27 +101,32 @@ aroundAll acquire =
         release  <- newEmptyMVar
         done     <- newEmptyMVar
 
-        pid <- async $ do
-            acquire $ \a -> do
-                putMVar resource a
-                await release
-            unlock done
+        pid <- async $ flip finally (unlock done) $ acquire $ \a -> do
+            putMVar resource a
+            await release
 
-        race (wait pid) (takeMVar resource) >>= \case
-            Left _ ->
-                throwIO $ userError "aroundAll: failed to setup"
-            Right a -> pure $ (a,) $ do
+        let cleanup = do
                 unlock release
                 await done
+
+        race (wait pid) (takeMVar resource) >>= \case
+            Left _ -> throwString "aroundAll: failed to setup"
+            Right a -> pure (a, cleanup)
+
+    await :: MVar () -> IO ()
+    await = takeMVar
+
+    unlock  :: MVar () -> IO ()
+    unlock = flip putMVar ()
 
 -- | A drop-in replacement for 'it' that'll automatically retry a scenario once
 -- if it fails, to cope with potentially flaky tests.
 --
 -- It also has a timeout of 10 minutes.
 it :: HasCallStack => String -> ActionWith ctx -> SpecWith ctx
-it = itWithCustomTimeout (10*minute)
+it = itWithCustomTimeout (60*minutes)
   where
-    minute = 60
+    minutes = 10
 
 -- | Like @it@ but with a custom timeout, which makes it realistic to test.
 itWithCustomTimeout
@@ -126,28 +135,34 @@ itWithCustomTimeout
     -> String
     -> ActionWith ctx
     -> SpecWith ctx
-itWithCustomTimeout sec title action = specify title $ \ctx -> timeout sec $ do
-    action ctx
-        `catch` (\(_ :: AsyncCancelled) -> return ())
-        `catch` (\(e :: SomeException)  -> action ctx
-        `catch` (\(_ :: SomeException)  -> throwIO e))
+itWithCustomTimeout sec title action = specify title $ \ctx -> do
+    e <- newEmptyMVar
+    race (timer >> tryTakeMVar e) (action' (void . tryPutMVar e) ctx) >>= \case
+       Left Nothing ->
+           assertFailure $ "timed out in " <> show sec <> " seconds"
+       Left (Just firstException) ->
+           throwIO firstException
+       Right () ->
+           pure ()
   where
-    timeout t act =
-        race (threadDelay (micro t)) act >>= \case
-            Right () ->
-                return ()
-            Left () ->
-                expectationFailure $  "timed out in " <> show t <> " seconds"
-      where
-        micro = (* 1000) . (* 1000)
+    timer = threadDelay (sec * 1000 * 1000)
 
--- | Some helper to help readability on the thread synchronization above.
-await :: MVar () -> IO ()
-await = takeMVar
+    -- Run the action, if it fails try again. If it fails again, report the
+    -- original exception.
+    action' save ctx = action ctx
+        `catch` (\e -> save e >> reportFirst e >> action ctx
+        `catch` (\f -> reportSecond e f >> throwIO e))
 
--- | Some helper to help readability on the thread synchronization above.
-unlock  :: MVar () -> IO ()
-unlock = flip putMVar ()
+    reportFirst (HUnitFailure _ reason) = do
+        report (formatFailureReason reason)
+        report "Retrying failed test."
+    reportSecond (HUnitFailure _ reason1) (HUnitFailure _ reason2)
+        | reason1 == reason2 = report "Test failed again in the same way."
+        | otherwise = do
+              report (formatFailureReason reason2)
+              report "Test failed again; will report the first error."
+
+    report = mapM_ (sayString . ("retry: " ++)) . lines
 
 -- | Mark a test pending because of flakiness, with given reason. Unless the
 -- RUN_FLAKY_TESTS environment variable is set.

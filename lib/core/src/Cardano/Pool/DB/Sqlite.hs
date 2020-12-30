@@ -72,8 +72,6 @@ import Cardano.Wallet.Primitive.Types
     )
 import Cardano.Wallet.Unsafe
     ( unsafeMkPercentage )
-import Control.Exception
-    ( bracket, throwIO )
 import Control.Monad
     ( forM, forM_ )
 import Control.Monad.IO.Class
@@ -137,6 +135,8 @@ import System.FilePath
     ( (</>) )
 import System.Random
     ( newStdGen )
+import UnliftIO.Exception
+    ( bracket, throwIO )
 
 import qualified Cardano.Pool.DB.Sqlite.TH as TH
 import qualified Cardano.Wallet.Primitive.Types as W

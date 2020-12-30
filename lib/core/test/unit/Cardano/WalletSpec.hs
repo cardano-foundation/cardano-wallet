@@ -116,8 +116,6 @@ import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
 import Control.Arrow
     ( second )
-import Control.Concurrent
-    ( threadDelay )
 import Control.DeepSeq
     ( NFData (..) )
 import Control.Monad
@@ -190,6 +188,8 @@ import Test.QuickCheck.Monadic
     ( monadicIO )
 import Test.Utils.Time
     ( UniformTime )
+import UnliftIO.Concurrent
+    ( threadDelay )
 
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet as W

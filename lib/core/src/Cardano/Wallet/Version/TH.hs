@@ -11,15 +11,15 @@ module Cardano.Wallet.Version.TH
 
 import Prelude
 
-import Control.Exception
-    ( handleJust )
 import Language.Haskell.TH
     ( Exp (..), Lit (..), Q, runIO )
 import System.Exit
     ( ExitCode (..) )
 import System.IO.Error
     ( ioeGetErrorType, isDoesNotExistErrorType )
-import System.Process
+import UnliftIO.Exception
+    ( handleJust )
+import UnliftIO.Process
     ( readProcessWithExitCode )
 
 -- | Git revision found by running @git rev-parse@. If @git@ could not be

@@ -156,14 +156,6 @@ import Cardano.Wallet.Primitive.Types.Tx
     )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex, unsafeRunExceptT )
-import Control.Concurrent
-    ( forkIO, killThread, threadDelay )
-import Control.Concurrent.Async
-    ( concurrently, concurrently_ )
-import Control.Concurrent.MVar
-    ( isEmptyMVar, newEmptyMVar, putMVar, takeMVar )
-import Control.Exception
-    ( SomeException, handle, throwIO )
 import Control.Monad
     ( forM_, forever, replicateM_, unless, void )
 import Control.Monad.IO.Class
@@ -196,8 +188,6 @@ import Data.Word
     ( Word64 )
 import Database.Persist.Sql
     ( DBName (..), PersistEntity (..), fieldDB )
-import GHC.Conc
-    ( TVar, newTVarIO, readTVarIO, writeTVar )
 import Numeric.Natural
     ( Natural )
 import System.Directory
@@ -209,7 +199,7 @@ import System.IO
 import System.IO.Error
     ( isUserError )
 import System.IO.Temp
-    ( emptySystemTempFile, withSystemTempDirectory, withSystemTempFile )
+    ( emptySystemTempFile )
 import System.IO.Unsafe
     ( unsafePerformIO )
 import System.Random
@@ -239,6 +229,18 @@ import Test.Utils.Paths
     ( getTestData )
 import Test.Utils.Trace
     ( captureLogging )
+import UnliftIO.Async
+    ( concurrently, concurrently_ )
+import UnliftIO.Concurrent
+    ( forkIO, killThread, threadDelay )
+import UnliftIO.Exception
+    ( SomeException, handle, throwIO )
+import UnliftIO.MVar
+    ( isEmptyMVar, newEmptyMVar, putMVar, takeMVar )
+import UnliftIO.STM
+    ( TVar, newTVarIO, readTVarIO, writeTVar )
+import UnliftIO.Temporary
+    ( withSystemTempDirectory, withSystemTempFile )
 
 import qualified Cardano.Wallet.DB.Sqlite.TH as DB
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Seq
@@ -249,7 +251,7 @@ import qualified Data.List as L
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
-import qualified GHC.Conc as TVar
+import qualified UnliftIO.STM as STM
 
 spec :: Spec
 spec = parallel $ do
@@ -557,7 +559,7 @@ withLoggingDB = beforeAll newMemoryDBLayer' . beforeWith clean
   where
     clean (logs, (_, db)) = do
         cleanDB db
-        TVar.atomically $ writeTVar logs []
+        STM.atomically $ writeTVar logs []
         pure (readTVarIO logs, db)
 
 shouldHaveMsgQuery :: [DBLog] -> Text -> Expectation
@@ -611,7 +613,7 @@ fileModeSpec =  do
                 -- Start a concurrent worker which makes action on the DB in
                 -- parallel to simulate activity.
                 pid <- forkIO $ withDatabase testWid $ \(DBLayer{..} :: TestDBSeq) -> do
-                    handle @SomeException (const (pure ())) $ forever $ do
+                    handle @IO @SomeException (const (pure ())) $ forever $ do
                         atomically $ do
                             liftIO $ threadDelay 10000
                             void $ readCheckpoint $ PrimaryKey testWid

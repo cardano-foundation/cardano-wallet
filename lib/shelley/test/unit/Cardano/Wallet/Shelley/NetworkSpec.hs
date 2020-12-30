@@ -24,14 +24,6 @@ import Cardano.Wallet.Shelley.Network
     ( Observer (..), ObserverLog (..), newObserver, withNetworkLayer )
 import Control.Applicative
     ( (<*) )
-import Control.Concurrent.Async
-    ( async, race_, waitAnyCancel )
-import Control.Concurrent.MVar
-    ( newEmptyMVar, putMVar, takeMVar )
-import Control.Concurrent.STM
-    ( atomically )
-import Control.Concurrent.STM.TVar
-    ( TVar, newTVarIO, readTVar, writeTVar )
 import Control.Monad
     ( mapM_, replicateM, unless, void )
 import Control.Tracer
@@ -48,6 +40,12 @@ import Test.QuickCheck
     ( counterexample, property )
 import Test.QuickCheck.Monadic
     ( PropertyM, assert, monadicIO, monitor, run )
+import UnliftIO.Async
+    ( async, race_, waitAnyCancel )
+import UnliftIO.MVar
+    ( newEmptyMVar, putMVar, takeMVar )
+import UnliftIO.STM
+    ( TVar, atomically, newTVarIO, readTVar, writeTVar )
 
 import qualified Data.Map as Map
 import qualified Data.Set as Set

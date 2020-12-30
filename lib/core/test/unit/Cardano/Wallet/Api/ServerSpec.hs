@@ -30,10 +30,6 @@ import Cardano.Wallet.Primitive.Types
     ( Block (..), BlockHeader (..), SlotNo (..), StartTime (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
-import Control.Concurrent
-    ( threadDelay )
-import Control.Concurrent.Async
-    ( concurrently_, race_ )
 import Control.Monad
     ( void )
 import Control.Monad.Trans.Except
@@ -73,6 +69,10 @@ import Test.QuickCheck.Property
     ( counterexample, property )
 import Test.Utils.Windows
     ( skipOnWindows )
+import UnliftIO.Async
+    ( concurrently_, race_ )
+import UnliftIO.Concurrent
+    ( threadDelay )
 
 import qualified Ouroboros.Consensus.HardFork.History.EraParams as HF
 import qualified Ouroboros.Consensus.HardFork.History.Qry as HF

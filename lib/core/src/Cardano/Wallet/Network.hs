@@ -61,17 +61,6 @@ import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx )
-import Control.Concurrent
-    ( threadDelay )
-import Control.Concurrent.Async
-    ( AsyncCancelled (..) )
-import Control.Exception
-    ( AsyncException (..)
-    , Exception (..)
-    , SomeException
-    , asyncExceptionFromException
-    , handle
-    )
 import Control.Monad
     ( when )
 import Control.Monad.Trans.Except
@@ -96,8 +85,10 @@ import Fmt
     ( pretty )
 import GHC.Generics
     ( Generic )
+import UnliftIO.Concurrent
+    ( threadDelay )
 import UnliftIO.Exception
-    ( throwIO )
+    ( Exception (..), SomeException, bracket, handle, throwIO )
 
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Text as T
@@ -323,9 +314,9 @@ data FollowAction err
 -- | Possibly scenarios that would cause 'follow' to exit so that client code
 -- can decide what to do.
 data FollowExit
-    = FollowInterrupted
-    | FollowRollback SlotNo
+    = FollowRollback SlotNo
     | FollowFailure
+    | FollowDone
     deriving (Eq, Show)
 
 
@@ -357,7 +348,7 @@ follow
     -- ^ Getter on the abstract 'block' type
     -> IO FollowExit
 follow nl tr cps yield header =
-    sleep 0 False =<< initCursor nl cps
+    bracket (initCursor nl cps) (destroyCursor nl) (sleep 0 False)
   where
     delay0 :: Int
     delay0 = 500*1000 -- 500ms
@@ -374,21 +365,10 @@ follow nl tr cps yield header =
         when (delay > 0) (threadDelay delay)
         step delay hasRolledForward cursor
       where
-        retry (e :: SomeException) = case asyncExceptionFromException e of
-            Just ThreadKilled -> do
-                destroyCursor nl cursor $> FollowInterrupted
-            Just UserInterrupt -> do
-                destroyCursor nl cursor $> FollowInterrupted
-            Nothing | fromException e == Just AsyncCancelled -> do
-                destroyCursor nl cursor $> FollowInterrupted
-            Just _ -> do
-                traceWith tr $ MsgUnhandledException eT
-                destroyCursor nl cursor $> FollowFailure
-            _ -> do
-                traceWith tr $ MsgUnhandledException eT
-                destroyCursor nl cursor $> FollowFailure
-          where
-            eT = T.pack (show e)
+        retry :: SomeException -> IO FollowExit
+        retry e = do
+            traceWith tr $ MsgUnhandledException $ T.pack $ show e
+            pure FollowFailure
 
     step :: Int -> Bool -> Cursor -> IO FollowExit
     step delay hasRolledForward cursor = runExceptT (nextBlocks nl cursor) >>= \case
@@ -449,7 +429,7 @@ follow nl tr cps yield header =
             -> IO FollowExit
         continueWith cursor' hrf = \case
             ExitWith _ -> -- NOTE error logged as part of `MsgFollowAction`
-                return FollowInterrupted
+                return FollowDone
             Continue ->
                 step delay0 hrf cursor'
             RetryImmediately ->

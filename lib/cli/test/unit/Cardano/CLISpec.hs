@@ -45,10 +45,6 @@ import Cardano.Wallet.Primitive.Types
     ( PoolMetadataSource )
 import Cardano.Wallet.Primitive.Types.Tx
     ( TxMetadata (..), TxMetadataValue (..) )
-import Control.Concurrent
-    ( forkFinally )
-import Control.Concurrent.MVar
-    ( newEmptyMVar, putMVar, takeMVar )
 import Control.Monad
     ( mapM_ )
 import Data.Proxy
@@ -75,8 +71,6 @@ import System.FilePath
     ( (</>) )
 import System.IO
     ( Handle, IOMode (..), hClose, openFile )
-import System.IO.Temp
-    ( withSystemTempDirectory )
 import System.IO.Unsafe
     ( unsafePerformIO )
 import Test.Hspec
@@ -98,6 +92,12 @@ import Test.QuickCheck
     )
 import Test.Text.Roundtrip
     ( textRoundtrip )
+import UnliftIO.Concurrent
+    ( forkFinally )
+import UnliftIO.MVar
+    ( newEmptyMVar, putMVar, takeMVar )
+import UnliftIO.Temporary
+    ( withSystemTempDirectory )
 
 import qualified Data.Map as Map
 import qualified Data.Text as T

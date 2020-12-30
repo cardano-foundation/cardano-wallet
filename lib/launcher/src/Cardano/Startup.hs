@@ -18,6 +18,7 @@ module Cardano.Startup
     , withShutdownHandler
     , withShutdownHandler'
     , installSignalHandlers
+    , killProcess
 
     -- * File permissions
     , setDefaultFilePermissions
@@ -33,14 +34,6 @@ import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
-import Control.Concurrent
-    ( forkIO )
-import Control.Concurrent.Async
-    ( race )
-import Control.Concurrent.MVar
-    ( MVar, newEmptyMVar, putMVar, takeMVar )
-import Control.Exception
-    ( IOException, catch, handle, throwIO )
 import Control.Tracer
     ( Tracer, traceWith )
 import Data.Either.Extra
@@ -61,6 +54,14 @@ import System.IO
     )
 import System.IO.CodePage
     ( withCP65001 )
+import UnliftIO.Async
+    ( race )
+import UnliftIO.Concurrent
+    ( forkIO )
+import UnliftIO.Exception
+    ( IOException, catch, handle, throwIO )
+import UnliftIO.MVar
+    ( MVar, newEmptyMVar, putMVar, takeMVar )
 
 #ifdef WINDOWS
 import Cardano.Startup.Windows

@@ -27,20 +27,20 @@ import Cardano.Pool.DB.Sqlite
     ( newDBLayer, withDBLayer )
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( dummyTimeInterpreter )
-import GHC.Conc
-    ( TVar, newTVarIO )
 import System.Directory
     ( copyFile )
 import System.FilePath
     ( (</>) )
-import System.IO.Temp
-    ( withSystemTempDirectory )
 import Test.Hspec
     ( Spec, before, describe, it, parallel, shouldBe )
 import Test.Utils.Paths
     ( getTestData )
 import Test.Utils.Trace
     ( captureLogging )
+import UnliftIO.STM
+    ( TVar, newTVarIO )
+import UnliftIO.Temporary
+    ( withSystemTempDirectory )
 
 -- | Set up a DBLayer for testing, with the command context, and the logging
 -- variable.

@@ -37,8 +37,6 @@ import Control.Applicative
     ( (<|>) )
 import Control.Arrow
     ( second )
-import Control.Concurrent.MVar
-    ( MVar, modifyMVar, newMVar )
 import Control.Tracer
     ( Tracer, contramap, traceWith )
 import Data.Aeson
@@ -63,6 +61,8 @@ import Network.Wai
     ( Middleware, Request (..), rawPathInfo, rawQueryString, requestMethod )
 import Network.Wai.Internal
     ( Response (..), getRequestBodyChunk )
+import UnliftIO.MVar
+    ( MVar, modifyMVar, newMVar )
 
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BS
