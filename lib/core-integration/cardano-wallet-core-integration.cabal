@@ -70,7 +70,6 @@ library
     , say
     , scrypt
     , template-haskell
-    , temporary
     , text
     , text-class
     , time

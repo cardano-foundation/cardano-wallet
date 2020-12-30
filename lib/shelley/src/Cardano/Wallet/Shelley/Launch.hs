@@ -45,7 +45,6 @@ module Cardano.Wallet.Shelley.Launch
     , nodeSocketOption
     , networkConfigurationOption
     , parseGenesisData
-    , withTempDir
     , withSystemTempDir
     , minSeverityFromEnv
     , nodeMinSeverityFromEnv
@@ -141,6 +140,8 @@ import Control.Monad
     ( forM, forM_, replicateM, replicateM_, unless, void, when, (>=>) )
 import Control.Monad.Fail
     ( MonadFail )
+import Control.Monad.IO.Unlift
+    ( MonadUnliftIO, liftIO )
 import Control.Monad.Trans.Except
     ( ExceptT (..), runExceptT, withExceptT )
 import Control.Retry
@@ -164,7 +165,7 @@ import Data.Fixed
 import Data.Function
     ( (&) )
 import Data.Functor
-    ( ($>), (<&>) )
+    ( ($>) )
 import Data.Functor.Identity
     ( Identity (..) )
 import Data.List
@@ -215,7 +216,7 @@ import System.FilePath
 import System.Info
     ( os )
 import System.IO.Temp
-    ( createTempDirectory, getCanonicalTemporaryDirectory, withTempDirectory )
+    ( createTempDirectory, getCanonicalTemporaryDirectory )
 import System.IO.Unsafe
     ( unsafePerformIO )
 import Test.Utils.Paths
@@ -234,6 +235,8 @@ import UnliftIO.MVar
     ( MVar, modifyMVar, newMVar, putMVar, readMVar, takeMVar )
 import UnliftIO.Process
     ( readProcess, readProcessWithExitCode )
+import UnliftIO.Temporary
+    ( withTempDirectory )
 
 import qualified Cardano.Chain.Common as Byron
 import qualified Cardano.Chain.UTxO as Legacy
@@ -1732,35 +1735,36 @@ blake2b256S =
     . convertToBase Base16
     . blake2b256
 
+-- | Returns true iff an environment variable is defined and non-empty.
+isEnvSet :: MonadUnliftIO m => String -> m Bool
+isEnvSet = liftIO . fmap (maybe False (not . null)) . lookupEnv
+
 -- | Create a temporary directory and remove it after the given IO action has
 -- finished -- unless the @NO_CLEANUP@ environment variable has been set.
 withTempDir
-    :: Tracer IO ClusterLog
+    :: MonadUnliftIO m
+    => Tracer m ClusterLog
     -> FilePath -- ^ Parent directory
     -> String -- ^ Directory name template
-    -> (FilePath -> IO a) -- ^ Callback that can use the directory
-    -> IO a
+    -> (FilePath -> m a) -- ^ Callback that can use the directory
+    -> m a
 withTempDir tr parent name action = isEnvSet "NO_CLEANUP" >>= \case
     True -> do
-        dir <- createTempDirectory parent name
+        dir <- liftIO $ createTempDirectory parent name
         res <- action dir
         traceWith tr $ MsgTempNoCleanup dir
         pure res
     False -> withTempDirectory parent name action
-  where
-    isEnvSet ev = lookupEnv ev <&> \case
-        Nothing -> False
-        Just "" -> False
-        Just _ -> True
 
 withSystemTempDir
-    :: Tracer IO ClusterLog
+    :: MonadUnliftIO m
+    => Tracer m ClusterLog
     -> String   -- ^ Directory name template
-    -> (FilePath -> IO a) -- ^ Callback that can use the directory
-    -> IO a
+    -> (FilePath -> m a) -- ^ Callback that can use the directory
+    -> m a
 withSystemTempDir tr name action = do
-    parent <- getCanonicalTemporaryDirectory
-    withTempDir tr parent name action
+    parent <- liftIO getCanonicalTemporaryDirectory
+    withTempDir tr parent (name <> ".") action
 
 {-------------------------------------------------------------------------------
                                     Logging

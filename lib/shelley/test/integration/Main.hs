@@ -71,7 +71,6 @@ import Cardano.Wallet.Shelley.Launch
     , withCluster
     , withSMASH
     , withSystemTempDir
-    , withTempDir
     )
 import Control.Arrow
     ( first )
@@ -95,6 +94,8 @@ import Network.HTTP.Client
     , newManager
     , responseTimeoutMicro
     )
+import System.Directory
+    ( createDirectory )
 import System.FilePath
     ( (</>) )
 import System.IO
@@ -282,9 +283,11 @@ specWithServer (tr, tracers) = aroundAll withContext
 
 
     onClusterStart action dir dbDecorator node = do
+        let db = dir </> "wallets"
+        createDirectory db
         -- NOTE: We may want to keep a wallet running across the fork, but
         -- having three callbacks like this might not work well for that.
-        withTempDir tr' dir "wallets" $ \db -> handle onClusterExit $
+        handle onClusterExit $
             serveWallet
                 (SomeNetworkDiscriminant $ Proxy @'Mainnet)
                 tracers

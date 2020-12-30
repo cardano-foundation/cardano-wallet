@@ -75,7 +75,6 @@ test-suite unit
     , hspec
     , optparse-applicative
     , QuickCheck
-    , temporary
     , text
     , text-class
     , unliftio

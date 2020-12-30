@@ -92,12 +92,12 @@ import System.FilePath
     ( (</>) )
 import System.IO
     ( BufferMode (..), hSetBuffering, stderr, stdout )
-import System.IO.Temp
-    ( withSystemTempDirectory )
 import UnliftIO.Concurrent
     ( threadDelay )
 import UnliftIO.Exception
     ( evaluate )
+import UnliftIO.Temporary
+    ( withSystemTempDirectory )
 
 import qualified Cardano.BM.Configuration.Model as CM
 import qualified Cardano.BM.Data.BackendKind as CM

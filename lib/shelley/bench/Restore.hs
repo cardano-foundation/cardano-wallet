@@ -195,12 +195,12 @@ import System.FilePath
     ( (</>) )
 import System.IO
     ( IOMode (..), hFlush, withFile )
-import System.IO.Temp
-    ( withSystemTempFile )
 import UnliftIO.Concurrent
     ( forkIO, threadDelay )
 import UnliftIO.Exception
     ( bracket, evaluate, throwIO )
+import UnliftIO.Temporary
+    ( withSystemTempFile )
 
 import qualified Cardano.Wallet as W
 import qualified Cardano.Wallet.DB.Sqlite as Sqlite

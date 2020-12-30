@@ -199,7 +199,7 @@ import System.IO
 import System.IO.Error
     ( isUserError )
 import System.IO.Temp
-    ( emptySystemTempFile, withSystemTempDirectory, withSystemTempFile )
+    ( emptySystemTempFile )
 import System.IO.Unsafe
     ( unsafePerformIO )
 import System.Random
@@ -239,6 +239,8 @@ import UnliftIO.MVar
     ( isEmptyMVar, newEmptyMVar, putMVar, takeMVar )
 import UnliftIO.STM
     ( TVar, newTVarIO, readTVarIO, writeTVar )
+import UnliftIO.Temporary
+    ( withSystemTempDirectory, withSystemTempFile )
 
 import qualified Cardano.Wallet.DB.Sqlite.TH as DB
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Seq

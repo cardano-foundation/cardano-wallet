@@ -81,6 +81,7 @@ library
     , time
     , transformers
     , unliftio
+    , unliftio-core
     , unordered-containers
     , vector
     , warp
@@ -230,6 +231,7 @@ test-suite integration
     , cardano-wallet
     , cardano-wallet-test-utils
     , contra-tracer
+    , directory
     , filepath
     , hspec
     , http-client
@@ -274,7 +276,6 @@ benchmark restore
     , fmt
     , iohk-monitoring
     , say
-    , temporary
     , text
     , text-class
     , time

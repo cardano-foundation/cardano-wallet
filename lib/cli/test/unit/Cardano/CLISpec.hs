@@ -71,8 +71,6 @@ import System.FilePath
     ( (</>) )
 import System.IO
     ( Handle, IOMode (..), hClose, openFile )
-import System.IO.Temp
-    ( withSystemTempDirectory )
 import System.IO.Unsafe
     ( unsafePerformIO )
 import Test.Hspec
@@ -98,6 +96,8 @@ import UnliftIO.Concurrent
     ( forkFinally )
 import UnliftIO.MVar
     ( newEmptyMVar, putMVar, takeMVar )
+import UnliftIO.Temporary
+    ( withSystemTempDirectory )
 
 import qualified Data.Map as Map
 import qualified Data.Text as T
