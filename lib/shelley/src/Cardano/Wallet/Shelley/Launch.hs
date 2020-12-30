@@ -165,7 +165,7 @@ import Data.Fixed
 import Data.Function
     ( (&) )
 import Data.Functor
-    ( ($>) )
+    ( ($>), (<&>) )
 import Data.Functor.Identity
     ( Identity (..) )
 import Data.List
@@ -553,10 +553,9 @@ defaultPoolConfigs =
     ]
 
 poolConfigsFromEnv :: IO [PoolConfig]
-poolConfigsFromEnv = lookupEnv "NO_POOLS" >>= \case
-    Nothing -> pure defaultPoolConfigs
-    Just "" -> pure defaultPoolConfigs
-    Just _ -> pure []
+poolConfigsFromEnv = isEnvSet "NO_POOLS" <&> \case
+    False -> defaultPoolConfigs
+    True -> []
 
 data RunningNode = RunningNode
     FilePath
