@@ -1898,13 +1898,9 @@ initWorker ctx wid createWallet restoreWallet coworker =
   where
     config = MkWorker
         { workerBefore = \ctx' _ -> do
-            -- FIXME:
-            -- Review error handling here
             void $ unsafeRunExceptT $ createWallet ctx'
 
         , workerMain = \ctx' _ -> do
-            -- FIXME:
-            -- Review error handling here
             race_
                 (unsafeRunExceptT $ restoreWallet ctx')
                 (coworker ctx')

@@ -71,7 +71,7 @@ import GHC.Generics
 import UnliftIO.Concurrent
     ( ThreadId, forkFinally, killThread )
 import UnliftIO.Exception
-    ( SomeException, finally )
+    ( SomeException, catch, throwIO )
 import UnliftIO.MVar
     ( MVar
     , modifyMVar_
@@ -223,7 +223,11 @@ register registry ctx k (MkWorker before main after acquire) = do
     mvar <- newEmptyMVar
     let io = acquire $ \resource -> do
             let ctx' = hoistResource resource (MsgFromWorker k) ctx
-            before ctx' k `finally` putMVar mvar (Just resource)
+            before ctx' k `catch` \(e :: SomeException) -> do
+                after tr (Left e)
+                putMVar mvar Nothing
+                throwIO e
+            putMVar mvar (Just resource)
             main ctx' k
     threadId <- forkFinally io (cleanup mvar)
     takeMVar mvar >>= traverse (create threadId)

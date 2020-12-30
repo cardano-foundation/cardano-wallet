@@ -151,7 +151,7 @@ workerFailsGracefullyBefore = do
             void $ swapMVar mvar 14
 
         , _workerAssertion = \res -> do
-            res `shouldBe` WorkerWasInterrupted (SomeException UserInterrupt)
+            res `shouldBe` WorkerNotStarted
             tryTakeMVar mvar `shouldReturn` (Just 42)
         }
 
