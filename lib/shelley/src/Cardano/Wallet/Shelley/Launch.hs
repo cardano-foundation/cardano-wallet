@@ -224,7 +224,7 @@ import Test.Utils.Paths
 import Test.Utils.StaticServer
     ( withStaticServer )
 import UnliftIO.Async
-    ( async, link, race )
+    ( async, link, race, wait )
 import UnliftIO.Chan
     ( newChan, readChan, writeChan )
 import UnliftIO.Concurrent
@@ -622,9 +622,6 @@ withCluster tr severity poolConfigs dir logFile onByron onShelley onClusterStart
                     traceWith tr $
                         MsgDebug "waiting for stake pools to register"
                     replicateM poolCount (readChan waitGroup)
-            let cancelAll = do
-                    traceWith tr $ MsgDebug "stopping all stake pools"
-                    replicateM_ poolCount (writeChan doneGroup ())
 
             let onException :: SomeException -> IO ()
                 onException e = do
@@ -635,15 +632,21 @@ withCluster tr severity poolConfigs dir logFile onByron onShelley onClusterStart
 
             let pledgeOf 0 = 2*oneMillionAda
                 pledgeOf _ = oneMillionAda
-            forM_ (zip3 [0..] poolConfigs $ tail $ rotate ports) $
+            asyncs <- forM (zip3 [0..] poolConfigs $ tail $ rotate ports) $
                 \(idx, poolConfig, (port, peers)) -> do
-                    link =<< async (handle onException $ do
+                    async (handle onException $ do
                         let spCfg =
                                 NodeParams severity systemStart (port, peers) logFile
                         withStakePool
                             tr dir idx spCfg (pledgeOf idx) poolConfig $ do
                                 writeChan waitGroup $ Right port
                                 readChan doneGroup)
+            mapM_ link asyncs
+
+            let cancelAll = do
+                    traceWith tr $ MsgDebug "stopping all stake pools"
+                    replicateM_ poolCount (writeChan doneGroup ())
+                    mapM_ wait asyncs
 
             traceWith tr $ MsgRegisteringStakePools poolCount
             group <- waitAll
@@ -1750,9 +1753,7 @@ withTempDir
 withTempDir tr parent name action = isEnvSet "NO_CLEANUP" >>= \case
     True -> do
         dir <- liftIO $ createTempDirectory parent name
-        res <- action dir
-        traceWith tr $ MsgTempNoCleanup dir
-        pure res
+        action dir `finally` traceWith tr (MsgTempNoCleanup dir)
     False -> withTempDirectory parent name action
 
 withSystemTempDir

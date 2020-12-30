@@ -80,6 +80,8 @@ import Control.Monad.IO.Class
     ( liftIO )
 import Control.Tracer
     ( Tracer (..), contramap, traceWith )
+import Data.Either.Combinators
+    ( whenLeft )
 import Data.IORef
     ( IORef, atomicModifyIORef', newIORef )
 import Data.Proxy
@@ -112,10 +114,8 @@ import Test.Utils.Paths
     ( inNixBuild )
 import UnliftIO.Async
     ( race )
-import UnliftIO.Compat
-    ( AsyncCancelled )
 import UnliftIO.Exception
-    ( SomeException, fromException, handle, throwIO )
+    ( SomeException, throwIO, withException )
 import UnliftIO.MVar
     ( newEmptyMVar, putMVar, takeMVar )
 
@@ -228,10 +228,10 @@ specWithServer (tr, tracers) = aroundAll withContext
                     , _poolGarbageCollectionEvents = poolGarbageCollectionEvents
                     }
         let action' = bracketTracer' tr "spec" . action
-        race
+        res <- race
+            (withServer dbEventRecorder setupContext)
             (takeMVar ctx >>= action')
-            (withServer dbEventRecorder setupContext) >>=
-            (either pure (throwIO . ProcessHasExited "integration"))
+        whenLeft res (throwIO . ProcessHasExited "integration")
 
     -- A decorator for the pool database that records all calls to the
     -- 'removeRetiredPools' operation.
@@ -287,28 +287,23 @@ specWithServer (tr, tracers) = aroundAll withContext
         createDirectory db
         -- NOTE: We may want to keep a wallet running across the fork, but
         -- having three callbacks like this might not work well for that.
-        handle onClusterExit $
-            serveWallet
-                (SomeNetworkDiscriminant $ Proxy @'Mainnet)
-                tracers
-                (SyncTolerance 10)
-                (Just db)
-                (Just dbDecorator)
-                "127.0.0.1"
-                ListenOnRandomPort
-                Nothing
-                Nothing
-                socketPath
-                block0
-                (gp, vData)
-                (action gp)
+        serveWallet
+            (SomeNetworkDiscriminant $ Proxy @'Mainnet)
+            tracers
+            (SyncTolerance 10)
+            (Just db)
+            (Just dbDecorator)
+            "127.0.0.1"
+            ListenOnRandomPort
+            Nothing
+            Nothing
+            socketPath
+            block0
+            (gp, vData)
+            (action gp)
+            `withException` (traceWith tr . MsgServerError)
       where
         RunningNode socketPath block0 (gp, vData) = node
-
-    onClusterExit e =
-        case fromException e of
-            Just (_ :: AsyncCancelled) -> throwIO e
-            _ -> traceWith tr (MsgServerError e) >> throwIO e
 
 {-------------------------------------------------------------------------------
                                     Logging
