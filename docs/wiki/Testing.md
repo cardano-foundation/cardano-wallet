@@ -25,23 +25,40 @@ Alternatively, use `stack test --nix`.
 $ stack test cardano-wallet:integration
 ```
 
-
 Many tests require a cardano network with stake pools. To support
 this, the integration tests run a local `cardano-node` cluster with
 one Ouroboros BFT node and three Ouroboros Praos nodes for the three
 stake pools.
+
+#### Environment Variables
+
+Several environment variables control debugging features of the
+integration tests and test cluster.
+
+| **Variable** | **Type** | **Meaning**                       | **Default** |
+|--------------|----------|-----------------------------------|-------------|
+| `NO_CLEANUP` | bool | Leave the temporary directory after tests have finished. | Delete directory on exit |
+| `CARDANO_WALLET_TRACING_MIN_SEVERITY` | severity | Log level for the cardano-wallet server under test. | Critical |
+| `CARDANO_NODE_TRACING_MIN_SEVERITY` | severity | Log level for the test cluster nodes | Info |
+| `TESTS_TRACING_MIN_SEVERITY` | severity | Log level for test suite and cluster | Notice |
+| `TESTS_LOGDIR` | path | Write log files in the given directory | Log files are written to the tests temp directory |
+| `NO_POOLS` | bool | Don't start any stake pool nodes in the local test cluster. | Pool nodes are started |
+| `TESTS_RETRY_FAILED` | bool | Enable retrying once of failed tests | No retrying |
+
+Here are the possible values of different types of environment variables:
+
+| **Type** | **Values**                                        |
+|----------|---------------------------------------------------|
+| bool     | unset or empty ⇒ _false_, anything else ⇒ _true_ |
+| severity | debug, info, notice, warning, error, critical     |
 
 #### Logging and debugging
 
 If your test has failed, viewing the logs often helps. They are
 written to file in the integration tests temporary directory.
 
-To inspect this directory after the tests have finished, set this
-variable:
-
-```
-export NO_CLEANUP=1
-```
+To inspect this directory after the tests have finished, set the `NO_CLEANUP`
+variable.
 
 <details>
     <summary>Here is an example tree</summary>
@@ -136,21 +153,18 @@ export NO_CLEANUP=1
 │   ├── tx.signed
 │   ├── vrf.prv
 │   └── vrf.pub
-└── wallets-b33cfce13ce1ac74
-    └── stake-pools.sqlite
+├── wallets-b33cfce13ce1ac74
+│   └── stake-pools.sqlite
+├── cluster.log
+└── wallet.log
+
 ```
 </details>
 
-The log files are written with minimum severity Debug.
+The default log level for log files is Info.
 
 Only Error level logs are shown on stdout during test execution. To
-change this, set the following variables:
-
-```
-export CARDANO_WALLET_TRACING_MIN_SEVERITY=debug
-export CARDANO_NODE_TRACING_MIN_SEVERITY=info
-```
-
+change this, set the `*_MIN_SEVERITY` variables shown above.
 
 ## Benchmarks
 
@@ -174,7 +188,7 @@ $ stack bench cardano-wallet-core:db
 
 #### Test
 
-> :warning: Disclaimer :warning: 
+> :warning: Disclaimer :warning:
 >
 > Restoration benchmarks will catch up with the chain before running which can
 > take quite a long time in the case of `mainnet`. For a better experience, make
@@ -212,4 +226,4 @@ Running combined code coverage on all components is pretty easy. This generates 
 $ stack test --coverage --fast --work-dir .stack-work-coverage
 ```
 
-Note that, integration tests are excluded from the basic coverage report because the cardano-wallet server runs in a separate process. It it still possible to combine coverage from various sources (see [this article](https://medium.com/@_KtorZ_/continuous-integration-in-haskell-9ad2a73e8e46) for some examples / details). 
+Note that, integration tests are excluded from the basic coverage report because the cardano-wallet server runs in a separate process. It it still possible to combine coverage from various sources (see [this article](https://medium.com/@_KtorZ_/continuous-integration-in-haskell-9ad2a73e8e46) for some examples / details).
