@@ -18,6 +18,7 @@ module Cardano.Startup
     , withShutdownHandler
     , withShutdownHandler'
     , installSignalHandlers
+    , killProcess
 
     -- * File permissions
     , setDefaultFilePermissions

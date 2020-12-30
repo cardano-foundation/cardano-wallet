@@ -30,7 +30,6 @@ library
       -Werror
   build-depends:
       base
-    , aeson
     , bytestring
     , code-page
     , contra-tracer
