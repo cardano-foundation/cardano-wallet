@@ -36,6 +36,7 @@ let
         cardano-tx
         bech32
       ]) ++ (with pkgs; [
+        go-jira
         haskellPackages.ghcid
         niv
         pkgconfig

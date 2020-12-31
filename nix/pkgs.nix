@@ -13,4 +13,7 @@ in self: super: {
   # Use stack-1.9.3 - something is not quite right with the pipeline
   # script when using 2.3.3.
   inherit (pkgs1903) stack;
+
+  # Use go-jira from latest stable nixpkgs-20.09.
+  inherit (pkgs2009) go-jira;
 }

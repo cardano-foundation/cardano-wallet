@@ -120,7 +120,8 @@ aroundAll acquire =
     unlock = flip putMVar ()
 
 -- | A drop-in replacement for 'it' that'll automatically retry a scenario once
--- if it fails, to cope with potentially flaky tests.
+-- if it fails, to cope with potentially flaky tests, if the environment
+-- variable @TESTS_RETRY_FAILED@ is set.
 --
 -- It also has a timeout of 10 minutes.
 it :: HasCallStack => String -> ActionWith ctx -> SpecWith ctx
@@ -128,7 +129,7 @@ it = itWithCustomTimeout (60*minutes)
   where
     minutes = 10
 
--- | Like @it@ but with a custom timeout, which makes it realistic to test.
+-- | Like @it@ but with a custom timeout, testing of the function possible.
 itWithCustomTimeout
     :: HasCallStack
     => Int -- ^ Timeout in seconds.
@@ -137,7 +138,11 @@ itWithCustomTimeout
     -> SpecWith ctx
 itWithCustomTimeout sec title action = specify title $ \ctx -> do
     e <- newEmptyMVar
-    race (timer >> tryTakeMVar e) (action' (void . tryPutMVar e) ctx) >>= \case
+    shouldRetry <- maybe False (not . null) <$> lookupEnv "TESTS_RETRY_FAILED"
+    let action' = if shouldRetry
+        then actionWithRetry (void . tryPutMVar e)
+        else action
+    race (timer >> tryTakeMVar e) (action' ctx) >>= \case
        Left Nothing ->
            assertFailure $ "timed out in " <> show sec <> " seconds"
        Left (Just firstException) ->
@@ -149,7 +154,7 @@ itWithCustomTimeout sec title action = specify title $ \ctx -> do
 
     -- Run the action, if it fails try again. If it fails again, report the
     -- original exception.
-    action' save ctx = action ctx
+    actionWithRetry save ctx = action ctx
         `catch` (\e -> save e >> reportFirst e >> action ctx
         `catch` (\f -> reportSecond e f >> throwIO e))
 
