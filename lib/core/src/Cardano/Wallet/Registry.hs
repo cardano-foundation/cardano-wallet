@@ -71,7 +71,7 @@ import GHC.Generics
 import UnliftIO.Concurrent
     ( ThreadId, forkFinally, killThread )
 import UnliftIO.Exception
-    ( SomeException, catch, throwIO )
+    ( SomeException, withException )
 import UnliftIO.MVar
     ( MVar
     , modifyMVar_
@@ -181,7 +181,10 @@ data MkWorker key resource msg ctx = MkWorker
         -- ^ A task for the worker, possibly infinite
     , workerAfter
         :: Tracer IO (WorkerLog key msg) -> Either SomeException () -> IO ()
-        -- ^ Action to run when the worker exits
+        -- ^ Action to run when the worker exits. It will be run
+        --   * when the 'workerMain' action exits (successfully or not)
+        --   * if 'workerAcquire' fails
+        --   * or if the 'workerBefore' action throws an exception.
     , workerAcquire :: (resource -> IO ()) -> IO ()
         -- ^ A bracket-style factory to acquire a resource
     }
@@ -220,17 +223,14 @@ register
     -> MkWorker key resource msg ctx
     -> IO (Maybe (Worker key resource))
 register registry ctx k (MkWorker before main after acquire) = do
-    mvar <- newEmptyMVar
-    let io = acquire $ \resource -> do
+    resourceVar <- newEmptyMVar
+    let work = acquire $ \resource -> do
             let ctx' = hoistResource resource (MsgFromWorker k) ctx
-            before ctx' k `catch` \(e :: SomeException) -> do
-                after tr (Left e)
-                putMVar mvar Nothing
-                throwIO e
-            putMVar mvar (Just resource)
+            before ctx' k `withException` (after tr . Left)
+            putMVar resourceVar (Just resource)
             main ctx' k
-    threadId <- forkFinally io (cleanup mvar)
-    takeMVar mvar >>= traverse (create threadId)
+    threadId <- work `forkFinally` cleanup resourceVar
+    takeMVar resourceVar >>= traverse (create threadId)
   where
     tr = ctx ^. logger @(WorkerLog key msg)
     create threadId resource = do
@@ -241,10 +241,10 @@ register registry ctx k (MkWorker before main after acquire) = do
                 }
         registry `insert` worker
         return worker
-    cleanup mvar e = do
+    cleanup resourceVar result = do
         void $ registry `delete` k
-        void $ tryPutMVar mvar Nothing
-        after tr e
+        void $ tryPutMVar resourceVar Nothing
+        after tr result
 
 {-------------------------------------------------------------------------------
                                     Logging
