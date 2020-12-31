@@ -294,9 +294,12 @@ instance ToText MainLog where
         MsgShutdownHandler msg' ->
             toText msg'
         MsgFailedToParseGenesis hint -> T.unwords
-            [ "Failed to parse genesis configuration. You may want to check the"
-            , "filepath given via --genesis and make sure it points to a valid"
-            , "JSON genesis file. Here's (perhaps) some helpful hint:", hint
+            [ "Failed to parse Byron genesis configuration. You may want to check"
+            , "the filepath given via --genesis and make sure it points to a "
+            , "valid JSON Byron genesis file. The genesis file must be Byron, not"
+            , "Shelley as it used to feed the wallet with the initial blockchain"
+            , "parameters."
+            , "Here's (perhaps) some helpful hint:", hint
             ]
 
 withTracers
