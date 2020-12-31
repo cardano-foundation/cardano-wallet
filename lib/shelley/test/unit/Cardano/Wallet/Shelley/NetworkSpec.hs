@@ -19,7 +19,7 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Shelley.Compatibility
     ( NodeVersionData )
 import Cardano.Wallet.Shelley.Launch
-    ( ClusterLog, singleNodeParams, withBFTNode, withSystemTempDir )
+    ( ClusterLog (..), singleNodeParams, withBFTNode, withSystemTempDir )
 import Cardano.Wallet.Shelley.Network
     ( Observer (..), ObserverLog (..), newObserver, withNetworkLayer )
 import Control.Applicative
@@ -27,7 +27,7 @@ import Control.Applicative
 import Control.Monad
     ( mapM_, replicateM, unless, void )
 import Control.Tracer
-    ( Tracer )
+    ( Tracer, contramap )
 import Data.Map
     ( Map )
 import Data.Set
@@ -225,6 +225,6 @@ withTestNode
     -> IO a
 withTestNode tr action = do
     cfg <- singleNodeParams Error Nothing
-    withSystemTempDir tr "network-spec" $ \dir ->
+    withSystemTempDir (contramap MsgTempDir tr) "network-spec" $ \dir ->
         withBFTNode tr dir cfg $ \sock _block0 (np, vData) ->
             action np sock vData

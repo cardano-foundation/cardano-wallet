@@ -39,7 +39,7 @@ import Cardano.Wallet.Api.Server
 import Cardano.Wallet.Api.Types
     ( EncodeAddress (..) )
 import Cardano.Wallet.Logging
-    ( BracketLog (..), bracketTracer, trMessageText )
+    ( BracketLog (..), bracketTracer, stdoutTextTracer, trMessageText )
 import Cardano.Wallet.Network.Ports
     ( unsafePortNumber )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -84,6 +84,8 @@ import Data.Either.Combinators
     ( whenLeft )
 import Data.IORef
     ( IORef, atomicModifyIORef', newIORef )
+import Data.Maybe
+    ( fromMaybe )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Text
@@ -101,7 +103,7 @@ import System.Directory
 import System.FilePath
     ( (</>) )
 import System.IO
-    ( BufferMode (..), hSetBuffering, stdout )
+    ( BufferMode (..), hSetBuffering, stderr, stdout )
 import Test.Hspec
     ( Spec, SpecWith, describe, hspec, parallel )
 import Test.Hspec.Extra
@@ -148,15 +150,13 @@ import qualified Test.Integration.Scenario.CLI.Shelley.Transactions as Transacti
 import qualified Test.Integration.Scenario.CLI.Shelley.Wallets as WalletsCLI
 
 main :: forall n. (n ~ 'Mainnet) => IO ()
-main = withUtf8Encoding $ withTracers $ \tracers -> do
-    hSetBuffering stdout LineBuffering
-    setDefaultFilePermissions
+main = withTestsSetup $ \testDir tracers -> do
     nix <- inNixBuild
     hspec $ do
         describe "No backend required" $
             parallelIf (not nix) $ describe "Miscellaneous CLI tests"
                 MiscellaneousCLI.spec
-        specWithServer tracers $ do
+        specWithServer testDir tracers $ do
             describe "API Specifications" $ do
                 parallel $ do
                     Addresses.spec @n
@@ -194,11 +194,29 @@ main = withUtf8Encoding $ withTracers $ \tracers -> do
     parallelIf :: forall a. Bool -> SpecWith a -> SpecWith a
     parallelIf flag = if flag then parallel else id
 
+-- | Do all the program setup required for integration tests, create a temporary
+-- directory, and pass this info to the main hspec action.
+withTestsSetup :: (FilePath -> (Tracer IO TestsLog, Tracers IO) -> IO a) -> IO a
+withTestsSetup action = do
+    -- Flush test output as soon as a line is printed
+    hSetBuffering stdout LineBuffering
+    hSetBuffering stderr LineBuffering
+    -- Stop cardano-cli complaining about file permissions
+    setDefaultFilePermissions
+    -- Set UTF-8, regardless of user locale
+    withUtf8Encoding $
+        -- This temporary directory will contain logs, and all other data
+        -- produced by the integration tests.
+        withSystemTempDir stdoutTextTracer "test" $ \testDir ->
+        withTracers testDir $ \tracers ->
+        action testDir tracers
+
 specWithServer
-    :: (Tracer IO TestsLog, Tracers IO)
+    :: FilePath
+    -> (Tracer IO TestsLog, Tracers IO)
     -> SpecWith Context
     -> Spec
-specWithServer (tr, tracers) = aroundAll withContext
+specWithServer testDir (tr, tracers) = aroundAll withContext
   where
     withContext :: (Context -> IO ()) -> IO ()
     withContext action = bracketTracer' tr "withContext" $ do
@@ -258,32 +276,31 @@ specWithServer (tr, tracers) = aroundAll withContext
     withServer dbDecorator action = bracketTracer' tr "withServer" $ withSMASH tr' $ do
         minSev <- nodeMinSeverityFromEnv
         testPoolConfigs <- poolConfigsFromEnv
-        withSystemTempDir tr' "test" $ \dir -> do
-            extraLogDir <- (fmap (,Info)) <$> testLogDirFromEnv
-            withCluster
-                tr'
-                minSev
-                testPoolConfigs
-                dir
-                extraLogDir
-                onByron
-                (afterFork dir)
-                (onClusterStart action dir dbDecorator)
+        extraLogDir <- (fmap (,Info)) <$> testLogDirFromEnv
+        withCluster
+            tr'
+            minSev
+            testPoolConfigs
+            testDir
+            extraLogDir
+            onByron
+            afterFork
+            (onClusterStart action dbDecorator)
 
     tr' = contramap MsgCluster tr
     onByron _ = pure ()
-    afterFork dir _ = do
+    afterFork _ = do
         traceWith tr MsgSettingUpFaucet
         let rewards = (,Coin $ fromIntegral oneMillionAda) <$>
                 concatMap genRewardAccounts mirMnemonics
-        moveInstantaneousRewardsTo tr' dir rewards
+        moveInstantaneousRewardsTo tr' testDir rewards
         let encodeAddr = T.unpack . encodeAddress @'Mainnet
         let addresses = map (first encodeAddr) shelleyIntegrationTestFunds
-        sendFaucetFundsTo tr' dir addresses
+        sendFaucetFundsTo tr' testDir addresses
 
 
-    onClusterStart action dir dbDecorator node = do
-        let db = dir </> "wallets"
+    onClusterStart action dbDecorator node = do
+        let db = testDir </> "wallets"
         createDirectory db
         -- NOTE: We may want to keep a wallet running across the fork, but
         -- having three callbacks like this might not work well for that.
@@ -352,14 +369,16 @@ instance HasSeverityAnnotation TestsLog where
         MsgServerError{} -> Critical
 
 withTracers
-    :: ((Tracer IO TestsLog, Tracers IO) -> IO a)
+    :: FilePath
+    -> ((Tracer IO TestsLog, Tracers IO) -> IO a)
     -> IO a
-withTracers action = do
+withTracers testDir action = do
     let getLogOutputs getMinSev name = do
             minSev <- getMinSev
-            logDir <- testLogDirFromEnv
-            let logToFile dir = LogToFile (dir </> name) (min minSev Info)
-            pure (LogToStdout minSev:maybe [] (pure . logToFile) logDir)
+            logDir <- fromMaybe testDir <$> testLogDirFromEnv
+            pure
+                [ LogToFile (logDir </> name) (min minSev Info)
+                , LogToStdout minSev ]
 
     walletLogOutputs <- getLogOutputs walletMinSeverityFromEnv "wallet.log"
     testLogOutputs <- getLogOutputs testMinSeverityFromEnv "test.log"
