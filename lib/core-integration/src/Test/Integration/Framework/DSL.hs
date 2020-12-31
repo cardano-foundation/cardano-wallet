@@ -1675,14 +1675,17 @@ listAddresses ctx w = do
     return addrs
 
 getWallet
-    :: forall m. (MonadIO m, MonadCatch m)
+    :: forall w m.
+        ( MonadIO m
+        , MonadUnliftIO m
+        , HasType (ApiT WalletId) w
+        )
     => Context
-    -> ApiWallet
+    -> w
     -> m ApiWallet
 getWallet ctx w = do
     let link = Link.getWallet @'Shelley w
-    (_, wallet) <- unsafeRequest @ApiWallet ctx
-        link Empty
+    (_, wallet) <- unsafeRequest @ApiWallet ctx link Empty
     return wallet
 
 listAllTransactions
