@@ -244,13 +244,11 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
             rSrc <- request @(ApiTransaction n) ctx link Default Empty
             verify rSrc
                 [ expectResponseCode HTTP.status200
-                -- all tx inputs have address and amount
-                , expectField #inputs $ \inputs' -> do
-                    let addrAmt = (fmap source inputs')
-                    addrAmt `shouldSatisfy` (all isJust)
                 , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
                 , expectField (#status . #getApiT) (`shouldBe` InLedger)
                 , expectField (#metadata . #getApiTxMetadata) (`shouldBe` Nothing)
+                , expectField #inputs $ \inputs' -> do
+                    inputs' `shouldSatisfy` all (isJust . source)
                 ]
 
         -- Earn rewards
@@ -516,32 +514,21 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
             <$> unsafeRequest @[ApiStakePool]
                 ctx (Link.listStakePools arbitraryStake) Empty
 
-        rJoin <- joinStakePool @n ctx pool1 (w, fixturePassphrase)
-        verify rJoin
+        joinStakePool @n ctx pool1 (w, fixturePassphrase) >>= flip verify
             [ expectResponseCode HTTP.status202
             , expectField (#status . #getApiT) (`shouldBe` Pending)
             , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
-            -- all tx inputs have address and amount
-            , expectField #inputs $ \inputs' -> do
-                let addrAmt = (fmap source inputs')
-                addrAmt `shouldSatisfy` (all isJust)
             ]
 
-        let txId = getFromResponse #id rJoin
-        let link = Link.getTransaction @'Shelley w (ApiTxId txId)
         -- Wait for the certificate to be inserted
         eventually "Certificates are inserted" $ do
-          rSrc <- request @(ApiTransaction n) ctx link Default Empty
-          verify rSrc
-              [ expectResponseCode HTTP.status200
-              -- all tx inputs have address and amount
-              , expectField #inputs $ \inputs' -> do
-                  let addrAmt = (fmap source inputs')
-                  addrAmt `shouldSatisfy` (all isJust)
-              , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
-              , expectField (#status . #getApiT) (`shouldBe` InLedger)
-              , expectField (#metadata . #getApiTxMetadata) (`shouldBe` Nothing)
-              ]
+            let ep = Link.listTransactions @'Shelley w
+            request @[ApiTransaction n] ctx ep Default Empty >>= flip verify
+                 [ expectListField 0
+                     (#direction . #getApiT) (`shouldBe` Outgoing)
+                 , expectListField 0
+                     (#status . #getApiT) (`shouldBe` InLedger)
+                 ]
 
         request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty
             >>= flip verify
@@ -894,28 +881,24 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                 [ expectResponseCode HTTP.status202
                 , expectField (#status . #getApiT) (`shouldBe` Pending)
                 , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
-                -- all tx inputs have address and amount
                 , expectField #inputs $ \inputs' -> do
-                    let addrAmt = (fmap source inputs')
-                    addrAmt `shouldSatisfy` (all isJust)
+                    inputs' `shouldSatisfy` all (isJust . source)
                 ]
 
             let txId = getFromResponse #id rQuit
             let link = Link.getTransaction @'Shelley w (ApiTxId txId)
-            eventually "delegation transaction is in ledger" $ do
+            eventually "quit transaction is in ledger" $ do
                 rSrc <- request @(ApiTransaction n) ctx link Default Empty
                 verify rSrc
                     [ expectResponseCode HTTP.status200
-                    -- all tx inputs have address and amount
-                    , expectField #inputs $ \inputs' -> do
-                        let addrAmt = (fmap source inputs')
-                        addrAmt `shouldSatisfy` (all isJust)
-                    , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
+                    , expectField (#direction . #getApiT) (`shouldBe` Incoming)
                     , expectField (#status . #getApiT) (`shouldBe` InLedger)
                     , expectField (#metadata . #getApiTxMetadata) (`shouldBe` Nothing)
+                    , expectField #inputs $ \inputs' -> do
+                        inputs' `shouldSatisfy` all (isJust . source)
                     ]
-            eventually "Wallet is not delegating and it got his deposit back" $
-                do
+
+            eventually "Wallet is not delegating and it got his deposit back" $ do
                 request @ApiWallet ctx (Link.getWallet @'Shelley w)
                     Default Empty >>= flip verify
                     [ expectField #delegation (`shouldBe` notDelegating [])

@@ -294,89 +294,84 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                     pendingSince tx' `shouldBe` pendingSince tx
 
     it "TRANS_CREATE_01x - Single Output Transaction" $ \ctx -> runResourceT $ do
-        (wa, wb) <- (,) <$> fixtureWallet ctx <*> fixtureWallet ctx
+        let initialAmt = 2*minUTxOValue
+        wa <- fixtureWalletWith @n ctx [initialAmt]
+        wb <- fixtureWalletWith @n ctx [initialAmt]
         let amt = (minUTxOValue :: Natural)
 
         payload <- liftIO $ mkTxPayload ctx wb amt fixturePassphrase
 
         (_, ApiFee (Quantity feeMin) (Quantity feeMax) _) <- unsafeRequest ctx
             (Link.getTransactionFee @'Shelley wa) payload
-
-        r <- request @(ApiTransaction n) ctx
+        rTx <- request @(ApiTransaction n) ctx
             (Link.createTransaction @'Shelley wa) Default payload
-        verify r
+        ra <- request @ApiWallet ctx
+            (Link.getWallet @'Shelley wa) Default Empty
+
+        verify rTx
             [ expectSuccess
             , expectResponseCode HTTP.status202
             , expectField (#amount . #getQuantity) $
                 between (feeMin + amt, feeMax + amt)
-            -- all tx inputs have address and amount
             , expectField #inputs $ \inputs' -> do
-                let addrAmt = (fmap source inputs')
-                addrAmt `shouldSatisfy` (all isJust)
+                inputs' `shouldSatisfy` all (isJust . source)
             , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
             , expectField (#status . #getApiT) (`shouldBe` Pending)
             , expectField (#metadata . #getApiTxMetadata) (`shouldBe` Nothing)
             ]
 
-        let txid = getFromResponse #id r
+        verify ra
+            [ expectSuccess
+            , expectField (#balance . #getApiT . #total) $
+                between
+                    ( Quantity (initialAmt - feeMax - amt)
+                    , Quantity (initialAmt - feeMin - amt)
+                    )
+            , expectField
+                    (#balance . #getApiT . #available)
+                    (`shouldBe` Quantity 0)
+            ]
+
+        let txid = getFromResponse #id rTx
         let linkSrc = Link.getTransaction @'Shelley wa (ApiTxId txid)
-        let linkDest = Link.getTransaction @'Shelley wb (ApiTxId txid)
-        eventually "transaction is no longer pending and is OK on both wallets" $ do
+        eventually "transaction is no longer pending on source wallet" $ do
             rSrc <- request @(ApiTransaction n) ctx linkSrc Default Empty
             verify rSrc
-                [ expectSuccess
-                , expectResponseCode HTTP.status200
+                [ expectResponseCode HTTP.status200
                 , expectField (#amount . #getQuantity) $
                     between (feeMin + amt, feeMax + amt)
-                -- all tx inputs have address and amount
                 , expectField #inputs $ \inputs' -> do
-                    let addrAmt = (fmap source inputs')
-                    addrAmt `shouldSatisfy` (all isJust)
+                    inputs' `shouldSatisfy` all (isJust . source)
                 , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
                 , expectField (#status . #getApiT) (`shouldBe` InLedger)
                 , expectField (#metadata . #getApiTxMetadata) (`shouldBe` Nothing)
                 ]
 
+        let linkDest = Link.getTransaction @'Shelley wb (ApiTxId txid)
+        eventually "transaction is discovered by destination wallet" $ do
             rDst <- request @(ApiTransaction n) ctx linkDest Default Empty
             verify rDst
-                [ expectSuccess
-                , expectResponseCode HTTP.status200
+                [ expectResponseCode HTTP.status200
                 , expectField (#amount . #getQuantity) (`shouldBe` amt)
-                -- all tx inputs have NO address and amount
-                -- as the tx is incoming
                 , expectField #inputs $ \inputs' -> do
-                    let addrAmt2 = (fmap source inputs')
-                    addrAmt2 `shouldSatisfy` (all isNothing)
+                    inputs' `shouldSatisfy` all (isNothing . source)
                 , expectField (#direction . #getApiT) (`shouldBe` Incoming)
                 , expectField (#status . #getApiT) (`shouldBe` InLedger)
                 , expectField (#metadata . #getApiTxMetadata) (`shouldBe` Nothing)
                 ]
-
-        ra <- request @ApiWallet ctx (Link.getWallet @'Shelley wa) Default Empty
-        verify ra
-            [ expectSuccess
-            , expectField (#balance . #getApiT . #total) $
-                between
-                    ( Quantity (faucetAmt - feeMax - amt)
-                    , Quantity (faucetAmt - feeMin - amt)
-                    )
-            , expectField
-                    (#balance . #getApiT . #available)
-                    (.>= Quantity (faucetAmt - faucetUtxoAmt))
-            ]
 
         eventually "wa and wb balances are as expected" $ do
             rb <- request @ApiWallet ctx
                 (Link.getWallet @'Shelley wb) Default Empty
             expectField
                 (#balance . #getApiT . #available)
-                (`shouldBe` Quantity (faucetAmt + amt)) rb
+                (`shouldBe` Quantity (initialAmt + amt)) rb
 
             ra2 <- request @ApiWallet ctx
                 (Link.getWallet @'Shelley wa) Default Empty
             expectField
                 (#balance . #getApiT . #available)
-                (`shouldBe` Quantity (faucetAmt - feeMax - amt)) ra2
+                (`shouldBe` Quantity (initialAmt - feeMax - amt)) ra2
 
     it "TRANS_CREATE_02x - Multiple Output Tx to single wallet" $ \ctx -> runResourceT $ do
         wSrc <- fixtureWallet ctx
@@ -409,54 +404,17 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
 
         r <- request @(ApiTransaction n) ctx
             (Link.createTransaction @'Shelley wSrc) Default payload
+
+        ra <- request @ApiWallet ctx (Link.getWallet @'Shelley wSrc) Default Empty
+
         verify r
             [ expectResponseCode HTTP.status202
             , expectField (#amount . #getQuantity) $
                 between (feeMin + (2*amt), feeMax + (2*amt))
-            -- all tx inputs have address and amount
-            , expectField #inputs $ \inputs' -> do
-                let addrAmt = (fmap source inputs')
-                addrAmt `shouldSatisfy` (all isJust)
             , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
             , expectField (#status . #getApiT) (`shouldBe` Pending)
-            , expectField (#metadata . #getApiTxMetadata) (`shouldBe` Nothing)
             ]
 
-        let txid = getFromResponse #id r
-        let linkSrc = Link.getTransaction @'Shelley wSrc (ApiTxId txid)
-        let linkDest = Link.getTransaction @'Shelley wDest (ApiTxId txid)
-        eventually "transaction is no longer pending and is OK on both wallets" $ do
-            rSrc <- request @(ApiTransaction n) ctx linkSrc Default Empty
-            verify rSrc
-                [ expectSuccess
-                , expectResponseCode HTTP.status200
-                , expectField (#amount . #getQuantity) $
-                    between (feeMin + (2*amt), feeMax + (2*amt))
-                -- all tx inputs have address and amount
-                , expectField #inputs $ \inputs' -> do
-                    let addrAmt = (fmap source inputs')
-                    addrAmt `shouldSatisfy` (all isJust)
-                , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
-                , expectField (#status . #getApiT) (`shouldBe` InLedger)
-                , expectField (#metadata . #getApiTxMetadata) (`shouldBe` Nothing)
-                ]
-
-            rDst <- request @(ApiTransaction n) ctx linkDest Default Empty
-            verify rDst
-                [ expectSuccess
-                , expectResponseCode HTTP.status200
-                , expectField (#amount . #getQuantity) (`shouldBe` (2 * amt))
-                -- all tx inputs have NO address and amount
-                -- as the tx is incoming
-                , expectField #inputs $ \inputs' -> do
-                    let addrAmt2 = (fmap source inputs')
-                    addrAmt2 `shouldSatisfy` (all isNothing)
-                , expectField (#direction . #getApiT) (`shouldBe` Incoming)
-                , expectField (#status . #getApiT) (`shouldBe` InLedger)
-                , expectField (#metadata . #getApiTxMetadata) (`shouldBe` Nothing)
-                ]
-
-        ra <- request @ApiWallet ctx (Link.getWallet @'Shelley wSrc) Default Empty
         verify ra
             [ expectField (#balance . #getApiT . #total) $
                 between
