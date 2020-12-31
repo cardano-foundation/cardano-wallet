@@ -945,34 +945,32 @@ instance
     ( PaymentAddress n k
     ) => KnownAddresses (SeqState n k) where
     knownAddresses s =
-        let
-            (PendingIxs ixs) =
-                pendingChangeIxs s
-            internalGap =
-                fromEnum . getAddressPoolGap . gap . internalPool $ s
-
-            changeAddresses = addresses (liftPaymentAddress @n @k) (internalPool s)
-            -- pick as many unused change addresses as there are pending
-            -- transactions
-            changeAddressesForPending =
-                -- the last `gap` addresses are all unused
-                let availUnusedChangeAddresses = drop (length changeAddresses - internalGap)
-                        changeAddresses
-                in take (length ixs)
-                    availUnusedChangeAddresses
-            usedChangeAddresses = filter ((== Used) . snd) changeAddresses
-
+        nonChangeAddresses <> usedChangeAddresses <> pendingChangeAddresses
+      where
             nonChangeAddresses =
                 addresses (liftPaymentAddress @n @k) (externalPool s)
 
-            -- Instead of only showing as many unused change addresses as there
-            -- are pending transactions (as previously), we also show all used ones.
-            -- Also see https://jira.iohk.io/browse/ADP-500
-            visibleChangeAddresses = usedChangeAddresses <> changeAddressesForPending
+            changeAddresses =
+                addresses (liftPaymentAddress @n @k) (internalPool s)
 
-            visibleNonChangeAddresses = nonChangeAddresses
-        in
-            visibleNonChangeAddresses <> visibleChangeAddresses
+            usedChangeAddresses =
+                filter ((== Used) . snd) changeAddresses
+
+            -- pick as many unused change addresses as there are pending
+            -- transactions. Note: the last `internalGap` addresses are all
+            -- unused.
+            pendingChangeAddresses =
+                let
+                    (PendingIxs ixs) =
+                        pendingChangeIxs s
+
+                    internalGap =
+                        fromEnum . getAddressPoolGap . gap . internalPool $ s
+
+                    edgeChangeAddresses =
+                        drop (length changeAddresses - internalGap) changeAddresses
+                in
+                    take (length ixs) edgeChangeAddresses
 
 --------------------------------------------------------------------------------
 --
