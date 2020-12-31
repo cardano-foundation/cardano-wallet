@@ -538,8 +538,8 @@ prop_getTxAfterPutValidTxId db@DBLayer{..} wid txGen =
     prop = do
         let txs = unGenTxHistory txGen
         run $ unsafeRunExceptT $ mapExceptT atomically $ putTxHistory wid txs
-        forM_ txs $ \((Tx txId _ _ _ _), txMeta) -> do
-            (Just (TransactionInfo txId' _ _ _ txMeta' _ _ _)) <-
+        forM_ txs $ \((Tx txId _ _ _ _ _), txMeta) -> do
+            (Just (TransactionInfo txId' _ _ _ _ txMeta' _ _ _)) <-
                 run $ atomically $ unsafeRunExceptT $ getTx wid txId
 
             monitor $ counterexample $
@@ -589,7 +589,7 @@ prop_getTxAfterPutInvalidWalletId db@DBLayer{..} (key, cp, meta) txGen key'@(Pri
     prop = liftIO $ do
         let txs = unGenTxHistory txGen
         atomically (runExceptT $ putTxHistory key txs) `shouldReturn` Right ()
-        forM_ txs $ \((Tx txId _ _ _ _), _) -> do
+        forM_ txs $ \((Tx txId _ _ _ _ _), _) -> do
             let err = ErrNoSuchWallet wid'
             atomically (runExceptT $ getTx key' txId) `shouldReturn` Left err
 

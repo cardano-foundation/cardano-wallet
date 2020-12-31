@@ -107,6 +107,8 @@ import Cardano.Wallet.Api.Types
     , ApiAddressInspect (..)
     , ApiAddressInspectData (..)
     , ApiCredential (..)
+    , ApiDelegationAction (..)
+    , ApiDelegationAction (..)
     , ApiErrorCode (..)
     , ApiHealthCheck (..)
     , ApiMaintenanceAction (..)
@@ -138,8 +140,6 @@ import Cardano.Wallet.Shelley.Compatibility
     ( HasNetworkId (..), NetworkId, inspectAddress )
 import Cardano.Wallet.Shelley.Pools
     ( StakePoolLayer (..) )
-import Cardano.Wallet.Transaction
-    ( DelegationAction (..) )
 import Control.Applicative
     ( liftA2 )
 import Control.Monad.IO.Class
@@ -163,7 +163,7 @@ import Data.Text.Class
 import Network.Ntp
     ( NtpClient )
 import Servant
-    ( (:<|>) (..), Handler (..), NoContent (..), Server, err400, throwError )
+    ( (:<|>) (..), Handler (..), NoContent (..), Server, err400 )
 import Servant.Server
     ( ServerError (..) )
 import Type.Reflection
@@ -240,16 +240,17 @@ server byron icarus shelley spl ntp =
     coinSelections = (\wid ascd -> case ascd of
         (ApiSelectForPayment ascp) ->
             selectCoins shelley (delegationAddress @n) wid ascp
-        (ApiSelectForDelegation (ApiSelectCoinsAction (ApiT action))) ->
+        (ApiSelectForDelegation (ApiSelectCoinsAction action)) ->
             case action of
-                Join pid -> selectCoinsForJoin
-                    shelley
-                    (knownPools spl)
-                    (getPoolLifeCycleStatus spl)
-                    pid
-                    (getApiT wid)
-                RegisterKeyAndJoin _ -> throwError err400
-                Quit -> selectCoinsForQuit shelley wid
+                (Join pid) ->
+                    selectCoinsForJoin
+                        shelley
+                        (knownPools spl)
+                        (getPoolLifeCycleStatus spl)
+                        (getApiT pid)
+                        (getApiT wid)
+                Quit ->
+                    selectCoinsForQuit shelley wid
         )
 
     transactions :: Server (Transactions n)
@@ -284,8 +285,8 @@ server byron icarus shelley spl ntp =
                 , "parameter as it affects the rewards and ranking."
                 ]
 
-        postPoolMaintenance action = do
-            case action of
+        postPoolMaintenance action' = do
+            case action' of
                 ApiMaintenanceActionPostData GcStakePools ->
                     liftIO $ forceMetadataGC spl
             pure NoContent

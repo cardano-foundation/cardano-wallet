@@ -110,6 +110,7 @@ TxMeta
     txMetaAmount            Natural             sql=amount
     txMetaData              W.TxMetadata Maybe  sql=data
     txMetaSlotExpires       SlotNo Maybe        sql=slot_expires
+    txMetaFee               Natural Maybe       sql=fee
 
     Primary txMetaTxId txMetaWalletId
     Foreign Wallet fk_wallet_tx_meta txMetaWalletId ! ON DELETE CASCADE
@@ -191,6 +192,7 @@ ProtocolParameters
     protocolParametersDesiredNumberOfPools  Word16          sql=desired_pool_number
     protocolParametersMinimumUtxoValue      W.Coin          sql=minimum_utxo_value
     protocolParametersHardforkEpoch         W.EpochNo Maybe sql=hardfork_epoch
+    protocolParametersKeyDeposit            W.Coin          sql=key_deposit
 
     Primary protocolParametersWalletId
     Foreign Wallet fk_wallet_protocol_parameters protocolParametersWalletId ! ON DELETE CASCADE

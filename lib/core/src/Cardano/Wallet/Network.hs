@@ -361,12 +361,14 @@ follow nl tr cps yield header =
     -- opportunity to refresh the chain tip as it has probably increased in
     -- order to refine our syncing status.
     sleep :: Int -> Bool -> Cursor -> IO FollowExit
-    sleep delay hasRolledForward cursor = handle retry $ do
+    sleep delay hasRolledForward cursor = handle exitOnAnyException $ do
         when (delay > 0) (threadDelay delay)
         step delay hasRolledForward cursor
       where
-        retry :: SomeException -> IO FollowExit
-        retry e = do
+        -- Any unhandled synchronous exception should be logged and cause the
+        -- chain follower to exit.
+        exitOnAnyException :: SomeException -> IO FollowExit
+        exitOnAnyException e = do
             traceWith tr $ MsgUnhandledException $ T.pack $ show e
             pure FollowFailure
 

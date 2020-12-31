@@ -40,8 +40,6 @@ import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.Wallet
     ( HasLogger, logger )
-import Control.Exception.Base
-    ( AsyncException (..), asyncExceptionFromException )
 import Control.Monad
     ( void )
 import Control.Monad.IO.Class
@@ -71,7 +69,7 @@ import GHC.Generics
 import UnliftIO.Concurrent
     ( ThreadId, forkFinally, killThread )
 import UnliftIO.Exception
-    ( SomeException, finally )
+    ( SomeException, isSyncException, withException )
 import UnliftIO.MVar
     ( MVar
     , modifyMVar_
@@ -181,7 +179,10 @@ data MkWorker key resource msg ctx = MkWorker
         -- ^ A task for the worker, possibly infinite
     , workerAfter
         :: Tracer IO (WorkerLog key msg) -> Either SomeException () -> IO ()
-        -- ^ Action to run when the worker exits
+        -- ^ Action to run when the worker exits. It will be run
+        --   * when the 'workerMain' action exits (successfully or not)
+        --   * if 'workerAcquire' fails
+        --   * or if the 'workerBefore' action throws an exception.
     , workerAcquire :: (resource -> IO ()) -> IO ()
         -- ^ A bracket-style factory to acquire a resource
     }
@@ -192,10 +193,9 @@ defaultWorkerAfter
     -> IO ()
 defaultWorkerAfter tr = traceWith tr . \case
     Right _ -> MsgFinished
-    Left e -> case asyncExceptionFromException e of
-        Just ThreadKilled -> MsgThreadKilled
-        Just UserInterrupt -> MsgUserInterrupt
-        _ -> MsgUnhandledException $ pretty $ show e
+    Left e -> if isSyncException e
+        then MsgUnhandledException $ pretty $ show e
+        else MsgThreadCancelled
 
 -- | Register a new worker for a given key.
 --
@@ -220,13 +220,14 @@ register
     -> MkWorker key resource msg ctx
     -> IO (Maybe (Worker key resource))
 register registry ctx k (MkWorker before main after acquire) = do
-    mvar <- newEmptyMVar
-    let io = acquire $ \resource -> do
+    resourceVar <- newEmptyMVar
+    let work = acquire $ \resource -> do
             let ctx' = hoistResource resource (MsgFromWorker k) ctx
-            before ctx' k `finally` putMVar mvar (Just resource)
+            before ctx' k `withException` (after tr . Left)
+            putMVar resourceVar (Just resource)
             main ctx' k
-    threadId <- forkFinally io (cleanup mvar)
-    takeMVar mvar >>= traverse (create threadId)
+    threadId <- work `forkFinally` cleanup resourceVar
+    takeMVar resourceVar >>= traverse (create threadId)
   where
     tr = ctx ^. logger @(WorkerLog key msg)
     create threadId resource = do
@@ -237,10 +238,10 @@ register registry ctx k (MkWorker before main after acquire) = do
                 }
         registry `insert` worker
         return worker
-    cleanup mvar e = do
+    cleanup resourceVar result = do
         void $ registry `delete` k
-        void $ tryPutMVar mvar Nothing
-        after tr e
+        void $ tryPutMVar resourceVar Nothing
+        after tr result
 
 {-------------------------------------------------------------------------------
                                     Logging
@@ -248,8 +249,7 @@ register registry ctx k (MkWorker before main after acquire) = do
 
 data WorkerLog key msg
     = MsgFinished
-    | MsgThreadKilled
-    | MsgUserInterrupt
+    | MsgThreadCancelled
     | MsgUnhandledException Text
     | MsgFromWorker key msg
     deriving (Show, Eq)
@@ -258,10 +258,8 @@ instance (ToText key, ToText msg) => ToText (WorkerLog key msg) where
     toText = \case
         MsgFinished ->
             "Worker has exited: main action is over."
-        MsgThreadKilled ->
-            "Worker has exited: killed by parent."
-        MsgUserInterrupt ->
-            "Worker has exited: killed by user."
+        MsgThreadCancelled ->
+            "Worker has exited: thread was cancelled."
         MsgUnhandledException err ->
             "Worker has exited unexpectedly: " <> err
         MsgFromWorker key msg
@@ -272,7 +270,6 @@ instance HasPrivacyAnnotation (WorkerLog key msg)
 instance HasSeverityAnnotation msg => HasSeverityAnnotation (WorkerLog key msg) where
     getSeverityAnnotation = \case
         MsgFinished -> Notice
-        MsgThreadKilled -> Notice
-        MsgUserInterrupt -> Notice
+        MsgThreadCancelled -> Notice
         MsgUnhandledException _ -> Error
         MsgFromWorker _ msg -> getSeverityAnnotation msg

@@ -60,6 +60,7 @@ import Cardano.Wallet.Api.Types
     , ApiCoinSelectionInput (..)
     , ApiCoinSelectionOutput (..)
     , ApiCredential (..)
+    , ApiDelegationAction (..)
     , ApiEpochInfo (..)
     , ApiErrorCode (..)
     , ApiFee (..)
@@ -197,8 +198,6 @@ import Cardano.Wallet.Primitive.Types.UTxO
     , computeUtxoStatistics
     , log10
     )
-import Cardano.Wallet.Transaction
-    ( DelegationAction (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeFromText, unsafeXPrv )
 import Control.Lens
@@ -284,7 +283,6 @@ import Test.QuickCheck
     , InfiniteList (..)
     , Positive (..)
     , applyArbitrary2
-    , applyArbitrary4
     , arbitraryBoundedEnum
     , arbitraryPrintableChar
     , arbitrarySizedBoundedIntegral
@@ -304,6 +302,8 @@ import Test.QuickCheck
     )
 import Test.QuickCheck.Arbitrary.Generic
     ( genericArbitrary, genericShrink )
+import Test.QuickCheck.Extra
+    ( reasonablySized )
 import Test.Text.Roundtrip
     ( textRoundtrip )
 import Test.Utils.Paths
@@ -353,6 +353,7 @@ spec = parallel $ do
             jsonRoundtripAndGolden $ Proxy @(ApiCoinSelectionOutput ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @ApiBlockReference
             jsonRoundtripAndGolden $ Proxy @ApiSlotReference
+            jsonRoundtripAndGolden $ Proxy @ApiDelegationAction
             jsonRoundtripAndGolden $ Proxy @ApiNetworkInformation
             jsonRoundtripAndGolden $ Proxy @ApiNetworkParameters
             jsonRoundtripAndGolden $ Proxy @ApiNetworkClock
@@ -673,6 +674,8 @@ spec = parallel $ do
                         (x :: ApiCoinSelection ('Testnet 0))
                     , certificates = certificates
                         (x :: ApiCoinSelection ('Testnet 0))
+                    , deposits = deposits
+                        (x :: ApiCoinSelection ('Testnet 0))
                     }
             in
                 x' === x .&&. show x' === show x
@@ -784,6 +787,7 @@ spec = parallel $ do
                 x' = ApiFee
                     { estimatedMin = estimatedMin (x :: ApiFee)
                     , estimatedMax = estimatedMax (x :: ApiFee)
+                    , deposit = deposit (x :: ApiFee)
                     }
             in
                 x' === x .&&. show x' === show x
@@ -868,6 +872,8 @@ spec = parallel $ do
                 x' = ApiTransaction
                     { id = id (x :: ApiTransaction ('Testnet 0))
                     , amount = amount (x :: ApiTransaction ('Testnet 0))
+                    , fee = fee (x :: ApiTransaction ('Testnet 0))
+                    , deposit = deposit (x :: ApiTransaction ('Testnet 0))
                     , insertedAt = insertedAt (x :: ApiTransaction ('Testnet 0))
                     , pendingSince = pendingSince (x :: ApiTransaction ('Testnet 0))
                     , expiresAt = expiresAt (x :: ApiTransaction ('Testnet 0))
@@ -1077,6 +1083,10 @@ instance Arbitrary (ApiSelectCoinsPayments n) where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
+instance Arbitrary ApiDelegationAction where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
+
 instance Arbitrary ApiSelectCoinsAction where
     arbitrary = genericArbitrary
     shrink = genericShrink
@@ -1084,10 +1094,6 @@ instance Arbitrary ApiSelectCoinsAction where
 instance Arbitrary (ApiSelectCoinsData n) where
     arbitrary = genericArbitrary
     shrink = genericShrink
-
-instance Arbitrary DelegationAction where
-    arbitrary = oneof [Join <$> arbitrary, pure Quit]
-    shrink _ = []
 
 instance Arbitrary ApiCertificate where
     arbitrary =
@@ -1101,7 +1107,12 @@ instance Arbitrary ApiCertificate where
     shrink = genericShrink
 
 instance Arbitrary (ApiCoinSelection n) where
-    arbitrary = applyArbitrary4 ApiCoinSelection
+    arbitrary = ApiCoinSelection
+        <$> reasonablySized arbitrary
+        <*> reasonablySized arbitrary
+        <*> reasonablySized arbitrary
+        <*> reasonablySized arbitrary
+        <*> reasonablySized arbitrary
     shrink = genericShrink
 
 instance Arbitrary (ApiCoinSelectionChange n) where
@@ -1629,6 +1640,8 @@ instance Arbitrary (ApiTransaction t) where
 
         ApiTransaction
             <$> arbitrary
+            <*> arbitrary
+            <*> arbitrary
             <*> arbitrary
             <*> pure txInsertedAt
             <*> pure txPendingSince

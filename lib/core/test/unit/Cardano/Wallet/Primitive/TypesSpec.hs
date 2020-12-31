@@ -788,30 +788,28 @@ spec = do
                 , "1+1x"
                 , "1 +1x"
                 , "1+ 1x"
-                , "1+ 1x + 1y"
-                , "1 +1x + 1y"
-                , "1 + 1x+ 1y"
-                , "1 + 1x +1y"
+                , "1+ 1x"
+                , "1 +1x"
+                , "1 + 1x + 1y" -- old style
                 , "xxxx"
-                , "1 + 6667y + 12x"
-                , "a + bx + cy"
-                , "dasd + asdax + dadsy"
+                , "a + bx"
+                , "dasd + asdax"
                 ]
         forM_ invalidFeePolicyTexts $ \policyText ->
             it ("fail fromText @FeePolicy " <> show policyText) $ do
                 let err =
                         "Unable to decode FeePolicy: \
-                        \Linear equation not in expected format: a + bx + cy \
-                        \where 'a', 'b', and 'c' are numbers"
+                        \Linear equation not in expected format: a + bx \
+                        \where 'a' and 'b' are numbers"
                 fromText @FeePolicy policyText === Left (TextDecodingError err)
 
         let correctPolicyTexts =
-                [ "1 + 6667x + 12y"
-                , "1.12 + 1.4324x + 3.14159265359y"
-                , "1 + 0x + 0y"
-                , "-13 + 3.14159265359x + 1y"
-                , "-3.14159265359 + -  1 x + - 1 y"
-                , "1     +      11    x +  1  y"
+                [ "1 + 6667x"
+                , "1.12 + 1.4324x"
+                , "1 + 0x"
+                , "-13 + 3.14159265359x"
+                , "-3.14159265359 + -  1 x"
+                , "1     +      11    x"
                 ]
         forM_ correctPolicyTexts $ \policyText ->
             it ("correct fromText @FeePolicy " <> show policyText) $ do
@@ -1090,12 +1088,11 @@ instance Arbitrary FeePolicy where
     arbitrary = do
         NonNegative a <- arbitrary
         NonNegative b <- arbitrary
-        NonNegative c <- arbitrary
-        return $ LinearFee (Quantity a) (Quantity b) (Quantity c)
-    shrink (LinearFee (Quantity a) (Quantity b) (Quantity c)) =
-        f <$> shrink (a, b, c)
+        return $ LinearFee (Quantity a) (Quantity b)
+    shrink (LinearFee (Quantity a) (Quantity b)) =
+        f <$> shrink (a, b)
       where
-        f (x, y, z) = LinearFee (Quantity x) (Quantity y) (Quantity z)
+        f (x, y) = LinearFee (Quantity x) (Quantity y)
 
 -- Same for addresses
 instance Arbitrary Address where
@@ -1174,18 +1171,19 @@ instance Arbitrary UTxO where
         return $ UTxO $ Map.fromList utxo
 
 instance Arbitrary Tx where
-    shrink (Tx tid ins outs wdrls md) = mconcat
-        [ (\ins' -> Tx tid ins' outs wdrls md) <$> shrink ins
-        , (\outs' -> Tx tid ins outs' wdrls md) <$> shrink outs
-        , (\wdrls' -> Tx tid ins outs (Map.fromList wdrls') md) <$> shrink (Map.toList wdrls)
-        , Tx tid ins outs wdrls <$> shrink md
+    shrink (Tx tid fees ins outs wdrls md) = mconcat
+        [ (\ins' -> Tx tid fees ins' outs wdrls md) <$> shrink ins
+        , (\outs' -> Tx tid fees ins outs' wdrls md) <$> shrink outs
+        , (\wdrls' -> Tx tid fees ins outs (Map.fromList wdrls') md) <$> shrink (Map.toList wdrls)
+        , Tx tid fees ins outs wdrls <$> shrink md
         ]
     arbitrary = do
         ins <- choose (1, 3) >>= vector
         outs <- choose (1, 3) >>= vector
         wdrls <- choose (1,3) >>= vector
+        fees <- arbitrary
         tid <- genHash
-        Tx tid ins outs (Map.fromList wdrls) <$> arbitrary
+        Tx tid fees ins outs (Map.fromList wdrls) <$> arbitrary
       where
         genHash = elements
           [ Hash "Tx1"

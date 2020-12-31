@@ -49,6 +49,7 @@ import Cardano.DB.Sqlite
     , SqliteContext (..)
     , chunkSize
     , dbChunked
+    , dbChunked'
     , destroyDBLayer
     , fieldName
     , fieldType
@@ -124,7 +125,7 @@ import Cardano.Wallet.Primitive.Slotting
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId (..) )
 import Control.Monad
-    ( forM, unless, void, when )
+    ( forM, forM_, unless, void, when )
 import Control.Monad.Extra
     ( concatMapM )
 import Control.Monad.IO.Class
@@ -141,6 +142,8 @@ import Data.Coerce
     ( coerce )
 import Data.Either
     ( isRight )
+import Data.Functor
+    ( (<&>) )
 import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
 import Data.IORef
@@ -398,6 +401,10 @@ migrateManually tr proxy defaultFieldValues =
         renameRoleFields conn
 
         addScriptAddressGapIfMissing conn
+
+        updateFeeValueAndAddKeyDeposit conn
+
+        addFeeToTransaction conn
   where
     -- NOTE
     -- We originally stored protocol parameters in the 'Checkpoint' table, and
@@ -607,6 +614,13 @@ migrateManually tr proxy defaultFieldValues =
             Nothing -> "NULL"
             Just v -> T.pack $ show $ W.unEpochNo v
 
+    -- | Adds a 'key_deposit column to the 'protocol_parameters' table if it is
+    -- missing.
+    --
+    addKeyDepositIfMissing :: Sqlite.Connection -> Text -> IO ()
+    addKeyDepositIfMissing conn =
+        addColumn_ conn True (DBField ProtocolParametersKeyDeposit)
+
     -- | This table became @protocol_parameters@.
     removeOldTxParametersTable :: Sqlite.Connection -> IO ()
     removeOldTxParametersTable conn = do
@@ -702,8 +716,170 @@ migrateManually tr proxy defaultFieldValues =
     addScriptAddressGapIfMissing :: Sqlite.Connection -> IO ()
     addScriptAddressGapIfMissing conn =
         addColumn_ conn True (DBField SeqStateScriptGap) value
-      where
+     where
         value = T.pack $ show $ Seq.getAddressPoolGap Seq.defaultAddressPoolGap
+
+    -- This migration is rather delicate. Indeed, we need to introduce an
+    -- explicit 'fee' on known transactions, so only do we need to add the new
+    -- column (easy), but we also need to find the right value for that new
+    -- column (delicate).
+    --
+    -- Note that it is not possible to recover explicit fees on incoming
+    -- transactions without having access to the entire ledger (we do not know
+    -- the _amount_ from inputs of incoming transactions). Therefore, by
+    -- convention it has been decided that incoming transactions will have fee
+    -- equals to 0.
+    --
+    -- For outgoing transaction, it is possible to recalculate fees by
+    -- calculating the delta between the total input value minus the total
+    -- output value. The delta (inputs - output) is necessarily positive
+    -- (by definition of 'outgoing' transactions) and comprised of:
+    --
+    -- - Fees
+    -- - Total deposits if any
+    --
+    -- To substract deposit values from fees, we consider that any transaction
+    -- that has one or less output and fees greater than the key deposit (or min
+    -- utxo value) is a key registration transaction and the key deposit value
+    -- can be substracted from the delta to deduce the fees.
+    --
+    -- Note that ideally, we would do this in a single `UPDATE ... FROM` query
+    -- but the `FROM` syntax is only supported in SQLite >= 3.33 which is only
+    -- supported in the latest version of persistent-sqlite (2.11.0.0). So
+    -- instead, we query all transactions which require an update in memory,
+    -- and update them one by one. This may be quite long on some database but
+    -- it is in the end a one-time cost paid on start-up.
+    addFeeToTransaction :: Sqlite.Connection -> IO ()
+    addFeeToTransaction conn = do
+        isFieldPresent conn fieldFee >>= \case
+            TableMissing  ->
+                traceWith tr $ MsgManualMigrationNotNeeded fieldFee
+            ColumnPresent ->
+                traceWith tr $ MsgManualMigrationNotNeeded fieldFee
+            ColumnMissing -> do
+                traceWith tr $ MsgManualMigrationNeeded fieldFee "NULL"
+
+                rows <- fmap unwrapRows (mkQuery >>= runSql conn)
+
+                _ <- runSql conn $ T.unwords
+                    [ "ALTER TABLE", tableName fieldFee
+                    , "ADD COLUMN", fieldName fieldFee
+                    , fieldType fieldFee
+                    , ";"
+                    ]
+
+                forM_ rows $ \(txid, nOuts, delta) -> do
+                    let fee = T.pack $ show $
+                            if isKeyRegistration nOuts delta
+                            then delta - keyDepositValue
+                            else delta
+
+                    runSql conn $ T.unwords
+                        [ "UPDATE", tableName fieldFee
+                        , "SET", fieldName fieldFee, "=", quotes fee
+                        , "WHERE", fieldName fieldTxId, "=", quotes txid
+                        , ";"
+                        ]
+      where
+        fieldFee  = DBField TxMetaFee
+        fieldTxId = DBField TxMetaTxId
+
+        unwrapRows = fmap $ \[PersistText txid, PersistInt64 nOuts, PersistInt64 delta] ->
+            (txid, nOuts, delta)
+
+        isKeyRegistration nOuts delta =
+            nOuts <= 1 && delta > max keyDepositValue minUtxoValue
+
+        minUtxoValue
+            = fromIntegral
+            $ W.unCoin
+            $ defaultMinimumUTxOValue defaultFieldValues
+
+        keyDepositValue
+            = fromIntegral
+            $ W.unCoin
+            $ defaultKeyDeposit defaultFieldValues
+
+        mkQuery = isFieldPresent conn (DBField TxWithdrawalTxId) <&> \case
+            -- On rather old databases, the tx_withdrawal table doesn't even exists.
+            TableMissing -> T.unwords
+                [ "SELECT tx_id, num_out, total_in - total_out FROM tx_meta"
+                , "JOIN (" <> resolvedInputsQuery <> ") USING (tx_id)"
+                , "JOIN (" <> outputsQuery <> ") USING (tx_id)"
+                , "WHERE direction = 0"
+                , ";"
+                ]
+
+            _ -> T.unwords
+                [ "SELECT tx_id, num_out, total_in + IFNULL(total_wdrl, 0) - total_out FROM tx_meta"
+                , "JOIN (" <> resolvedInputsQuery <> ") USING (tx_id)"
+                , "LEFT JOIN (" <> withdrawalsQuery <> ") USING (tx_id)"
+                , "JOIN (" <> outputsQuery <> ") USING (tx_id)"
+                , "WHERE direction = 0"
+                , ";"
+                ]
+
+        resolvedInputsQuery = T.unwords
+            [ "SELECT tx_in.tx_id, SUM(tx_out.amount) AS total_in FROM tx_in"
+            , "JOIN tx_out ON tx_out.tx_id = tx_in.source_tx_id AND tx_out.'index' = tx_in.source_index"
+            , "GROUP BY tx_in.tx_id"
+            ]
+
+        withdrawalsQuery = T.unwords
+            [ "SELECT tx_id, SUM(amount) AS total_wdrl FROM tx_withdrawal"
+            , "GROUP BY tx_id"
+            ]
+
+        outputsQuery = T.unwords
+            [ "SELECT tx_id, SUM(amount) AS total_out, COUNT(*) AS num_out FROM tx_out"
+            , "GROUP BY tx_id"
+            ]
+
+    -- | Since key deposit and fee value are intertwined, we migrate them both
+    -- here.
+    updateFeeValueAndAddKeyDeposit :: Sqlite.Connection -> IO ()
+    updateFeeValueAndAddKeyDeposit conn = do
+        isFieldPresent conn fieldKeyDeposit >>= \case
+            ColumnMissing -> do
+                -- If the key deposit is missing, we need to add it, but also
+                -- and first, we also need to update the fee policy and drop
+                -- the third component of the fee policy which is now captured
+                -- by the stake key deposit.
+                feePolicyInfo <- Sqlite.prepare conn $ T.unwords
+                    [ "SELECT", fieldName fieldFeePolicy
+                    , "FROM", tableName fieldFeePolicy
+                    , ";"
+                    ]
+                row <- Sqlite.step feePolicyInfo >> Sqlite.columns feePolicyInfo
+                Sqlite.finalize feePolicyInfo
+
+                case filter (/= PersistNull) row of
+                    [PersistText t] -> case T.splitOn " + " t of
+                        [a,b,c] -> do
+                            traceWith tr $ MsgManualMigrationNeeded fieldFeePolicy t
+                            -- update fee policy
+                            let newVal = a <> " + " <> b
+                            query <- Sqlite.prepare conn $ T.unwords
+                                [ "UPDATE", tableName fieldFeePolicy
+                                , "SET", fieldName fieldFeePolicy, "= '" <> newVal <> "'"
+                                , ";"
+                                ]
+                            Sqlite.step query *> Sqlite.finalize query
+                            let (Right stakeKeyVal) = W.Coin . round <$> fromText @Double (T.dropEnd 1 c)
+                            addKeyDepositIfMissing conn (toText stakeKeyVal)
+                        _ ->
+                            fail ("Unexpected row result when querying fee value: " <> T.unpack t)
+                    _ ->
+                        return ()
+
+            -- If the protocol_parameters table is missing, or if if the key
+            -- deposit exists, there's nothing to do in this migration.
+            _ -> do
+                traceWith tr $ MsgManualMigrationNotNeeded fieldFeePolicy
+                traceWith tr $ MsgManualMigrationNotNeeded fieldKeyDeposit
+      where
+        fieldFeePolicy  = DBField ProtocolParametersFeePolicy
+        fieldKeyDeposit = DBField ProtocolParametersKeyDeposit
 
     -- | Determines whether a field is present in its parent table.
     isFieldPresent :: Sqlite.Connection -> DBField -> IO SqlColumnStatus
@@ -811,6 +987,7 @@ data DefaultFieldValues = DefaultFieldValues
     , defaultDesiredNumberOfPool :: Word16
     , defaultMinimumUTxOValue :: W.Coin
     , defaultHardforkEpoch :: Maybe W.EpochNo
+    , defaultKeyDeposit :: W.Coin
     }
 
 -- | Sets up a connection to the SQLite database.
@@ -1333,7 +1510,7 @@ mkTxHistory
     -> [(W.Tx, W.TxMeta)]
     -> ([TxMeta], [TxIn], [TxOut], [TxOutToken], [TxWithdrawal])
 mkTxHistory wid txs = flatTxHistory
-    [ ( mkTxMetaEntity wid txid (W.metadata tx) derived
+    [ ( mkTxMetaEntity wid txid (W.fee tx) (W.metadata tx) derived
       , mkTxInputsOutputs (txid, tx)
       , mkTxWithdrawals (txid, tx)
       )
@@ -1408,10 +1585,11 @@ mkTxWithdrawals (txid, tx) =
 mkTxMetaEntity
     :: W.WalletId
     -> W.Hash "Tx"
+    -> Maybe W.Coin
     -> Maybe W.TxMetadata
     -> W.TxMeta
     -> TxMeta
-mkTxMetaEntity wid txid meta derived = TxMeta
+mkTxMetaEntity wid txid mfee meta derived = TxMeta
     { txMetaTxId = TxId txid
     , txMetaWalletId = wid
     , txMetaStatus = derived ^. #status
@@ -1419,6 +1597,7 @@ mkTxMetaEntity wid txid meta derived = TxMeta
     , txMetaSlot = derived ^. #slotNo
     , txMetaBlockHeight = getQuantity (derived ^. #blockHeight)
     , txMetaAmount = getQuantity (derived ^. #amount)
+    , txMetaFee = fromIntegral . W.unCoin <$> mfee
     , txMetaSlotExpires = derived ^. #expiry
     , txMetaData = meta
     }
@@ -1438,12 +1617,14 @@ txHistoryFromEntity ti tip metas ins outs ws =
     mapM mkItem metas
   where
     startTime' = interpretQuery ti . slotToUTCTime
-    mkItem m = mkTxWith (txMetaTxId m) (txMetaData m) (mkTxDerived m)
-    mkTxWith txid meta derived = do
+    mkItem m = mkTxWith (txMetaTxId m) (txMetaFee m) (txMetaData m) (mkTxDerived m)
+    mkTxWith txid mfee meta derived = do
         t <- startTime' (derived ^. #slotNo)
         return $ W.TransactionInfo
             { W.txInfoId =
                 getTxId txid
+            , W.txInfoFee =
+                W.Coin . fromIntegral <$> mfee
             , W.txInfoInputs =
                 map mkTxIn $ filter ((== txid) . txInputTxId . fst) ins
             , W.txInfoOutputs =
@@ -1500,7 +1681,7 @@ mkProtocolParametersEntity
     -> W.ProtocolParameters
     -> ProtocolParameters
 mkProtocolParametersEntity wid pp =
-    ProtocolParameters wid fp (getQuantity mx) dl desiredPoolNum minUTxO epochNo
+    ProtocolParameters wid fp (getQuantity mx) dl desiredPoolNum minUTxO keyDep epochNo
   where
     (W.ProtocolParameters
         (W.DecentralizationLevel dl)
@@ -1508,18 +1689,20 @@ mkProtocolParametersEntity wid pp =
         desiredPoolNum
         minUTxO
         epochNo
+        keyDep
         ) = pp
 
 protocolParametersFromEntity
     :: ProtocolParameters
     -> W.ProtocolParameters
-protocolParametersFromEntity (ProtocolParameters _ fp mx dl poolNum minUTxO epochNo) =
+protocolParametersFromEntity (ProtocolParameters _ fp mx dl poolNum minUTxO keyDep epochNo) =
     W.ProtocolParameters
         (W.DecentralizationLevel dl)
         (W.TxParameters fp (Quantity mx))
         poolNum
         minUTxO
         epochNo
+        keyDep
 
 genesisParametersFromEntity
     :: Wallet
@@ -1606,16 +1789,16 @@ putTxs
     -> [TxWithdrawal]
     -> SqlPersistT IO ()
 putTxs metas txins txouts txoutTokens ws = do
-    dbChunked repsertMany
+    dbChunked' repsertMany
         [ (TxMetaKey txMetaTxId txMetaWalletId, m)
         | m@TxMeta{..} <- metas]
-    dbChunked repsertMany
+    dbChunked' repsertMany
         [ (TxInKey txInputTxId txInputSourceTxId txInputSourceIndex, i)
         | i@TxIn{..} <- txins ]
-    dbChunked repsertMany
+    dbChunked' repsertMany
         [ (TxOutKey txOutputTxId txOutputIndex, o)
         | o@TxOut{..} <- txouts ]
-    dbChunked repsertMany
+    dbChunked' repsertMany
         [ ( TxOutTokenKey
             txOutTokenTxId
             txOutTokenTxIndex
@@ -1624,7 +1807,7 @@ putTxs metas txins txouts txoutTokens ws = do
           , o
           )
         | o@TxOutToken{..} <- txoutTokens ]
-    dbChunked repsertMany
+    dbChunked' repsertMany
         [ (TxWithdrawalKey txWithdrawalTxId txWithdrawalAccount, w)
         | w@TxWithdrawal{..} <- ws ]
 

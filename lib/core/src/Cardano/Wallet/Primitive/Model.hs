@@ -76,6 +76,7 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxStatus (..)
     , inputs
     , txIns
+    , txOutCoin
     )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( Dom (..), UTxO (..), balance, excluding, restrictedBy )
@@ -394,13 +395,37 @@ prefilterBlock b u0 = runState $ do
         let hasKnownInput = ourIns /= mempty
         let hasKnownOutput = ourU /= mempty
         let hasKnownWithdrawal = ourWithdrawals /= mempty
+
+        -- NOTE 1: The only case where fees can be 'Nothing' is when dealing with
+        -- a Byron transaction. In which case fees can actually be calculated as
+        -- the delta between inputs and outputs.
+        --
+        -- NOTE 2: We do not have in practice the actual input amounts, yet we
+        -- do make the assumption that if one input is ours, then all inputs are
+        -- necessarily ours and therefore, known as part of our current UTxO.
+        let actualFee direction = case (tx ^. #fee, direction) of
+                (Just x, Outgoing) -> -- Shelley and beyond.
+                    Just x
+
+                (Nothing, Outgoing) -> -- Byron
+                    let
+                        totalOut = sum (fromIntegral . unCoin . txOutCoin <$> outputs tx)
+
+                        totalIn = spent
+                    in
+                        Just $ Coin $ fromIntegral $ totalIn - totalOut
+
+                (_, Incoming) ->
+                    Nothing
+
         return $ if hasKnownOutput && not hasKnownInput then
-            ( (tx, mkTxMeta received Incoming) : txs
+            let dir = Incoming in
+            ( (tx { fee = actualFee dir }, mkTxMeta received dir) : txs
             , u'
             )
         else if hasKnownInput || hasKnownWithdrawal then
             let dir = if spent > received then Outgoing else Incoming in
-            ( (tx, mkTxMeta (distance spent received) dir) : txs
+            ( (tx { fee = actualFee dir }, mkTxMeta (distance spent received) dir) : txs
             , u'
             )
         else

@@ -79,7 +79,7 @@ import Cardano.Wallet.Primitive.Types.Coin
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( SealedTx (..), Tx (..), TxIn (..), TxMetadata, TxOut (..) )
+    ( SealedTx (..), Tx (..), TxIn (..), TxMetadata, TxOut (..), txOutCoin )
 import Cardano.Wallet.Shelley.Compatibility
     ( AllegraEra
     , ShelleyEra
@@ -103,7 +103,7 @@ import Cardano.Wallet.Transaction
     , TransactionLayer (..)
     )
 import Control.Arrow
-    ( left )
+    ( first, left, second )
 import Control.Monad
     ( forM )
 import Data.ByteString
@@ -237,10 +237,14 @@ mkTx networkId payload expirySlot (rewardAcnt, pwdAcnt) keyFrom cs era = do
             pure $ bootstrapWits <> mkExtraWits unsigned
 
     let signed = Cardano.makeSignedTransaction wits unsigned
+    let withResolvedInputs tx = tx { resolvedInputs = second txOutCoin <$> CS.inputs cs }
     case era of
-        ShelleyBasedEraShelley -> Right $ sealShelleyTx fromShelleyTx signed
-        ShelleyBasedEraAllegra -> Right $ sealShelleyTx fromAllegraTx signed
-        ShelleyBasedEraMary    -> Left  $ ErrInvalidEra (AnyCardanoEra MaryEra)
+        ShelleyBasedEraShelley ->
+            Right $ first withResolvedInputs $ sealShelleyTx fromShelleyTx signed
+        ShelleyBasedEraAllegra ->
+            Right $ first withResolvedInputs $ sealShelleyTx fromAllegraTx signed
+        ShelleyBasedEraMary    ->
+            Left  $ ErrInvalidEra (AnyCardanoEra MaryEra)
 
 newTransactionLayer
     :: forall k.
@@ -267,17 +271,17 @@ newTransactionLayer networkId = TransactionLayer
     }
   where
     _initDelegationSelection
-        :: FeePolicy
-            -- Current fee policy
+        :: Coin
+            -- stake key deposit
         -> DelegationAction
             -- What sort of action is going on
         -> CoinSelection
         -- ^ An initial selection where 'deposit' and/or 'reclaim' have been set
         -- accordingly.
-    _initDelegationSelection (LinearFee _ _ (Quantity c)) = \case
-        Quit{} -> mempty { reclaim = round c }
+    _initDelegationSelection (Coin c) = \case
+        Quit{} -> mempty { reclaim = c }
         Join{} -> mempty
-        RegisterKeyAndJoin{} -> mempty { deposit = round c }
+        RegisterKeyAndJoin{} -> mempty { deposit = c }
 
     _mkDelegationJoinTx
         :: forall era. (EraConstraints era)
@@ -425,7 +429,7 @@ _minimumFee policy action md cs =
     computeFee size =
         Fee $ ceiling (a + b*fromIntegral size)
       where
-        LinearFee (Quantity a) (Quantity b) _unused = policy
+        LinearFee (Quantity a) (Quantity b) = policy
 
 -- Estimate the size of a final transaction by using upper boundaries for cbor
 -- serialized objects according to:
@@ -775,8 +779,8 @@ mkUnsignedTx era ttl cs md wdrls certs =
         ShelleyBasedEraAllegra -> mkAllegraTx
         ShelleyBasedEraMary    -> Left (ErrInvalidEra (AnyCardanoEra MaryEra))
   where
-    fee :: Cardano.Lovelace
-    fee = toCardanoLovelace $ Coin $ feeBalance cs
+    fees :: Cardano.Lovelace
+    fees = toCardanoLovelace $ Coin $ feeBalance cs
 
     mkShelleyTx :: Either ErrMkTx (Cardano.TxBody ShelleyEra)
     mkShelleyTx = left toErrMkTx $ Cardano.makeTransactionBody $ Cardano.TxBodyContent
@@ -793,7 +797,7 @@ mkUnsignedTx era ttl cs md wdrls certs =
             Cardano.TxCertificates Cardano.CertificatesInShelleyEra certs
 
         , Cardano.txFee =
-            Cardano.TxFeeExplicit Cardano.TxFeesExplicitInShelleyEra fee
+            Cardano.TxFeeExplicit Cardano.TxFeesExplicitInShelleyEra fees
 
         , Cardano.txValidityRange =
             ( Cardano.TxValidityNoLowerBound
@@ -834,7 +838,7 @@ mkUnsignedTx era ttl cs md wdrls certs =
             Cardano.TxCertificates Cardano.CertificatesInAllegraEra certs
 
         , Cardano.txFee =
-            Cardano.TxFeeExplicit Cardano.TxFeesExplicitInAllegraEra fee
+            Cardano.TxFeeExplicit Cardano.TxFeesExplicitInAllegraEra fees
 
         , Cardano.txValidityRange =
             ( Cardano.TxValidityNoLowerBound

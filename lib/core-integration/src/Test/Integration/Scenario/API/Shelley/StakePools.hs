@@ -215,11 +215,24 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
         pool:_ <- map (view #id) . snd <$>
             unsafeRequest @[ApiStakePool] ctx
             (Link.listStakePools arbitraryStake) Empty
-        joinStakePool @n ctx pool (src, fixturePassphrase) >>= flip verify
+        rJoin <- joinStakePool @n ctx pool (src, fixturePassphrase)
+        verify rJoin
             [ expectResponseCode HTTP.status202
             , expectField (#status . #getApiT) (`shouldBe` Pending)
             , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
+            , expectField #deposit (`shouldBe` Quantity 1000000)
             ]
+        eventually "Wallet has joined pool and deposit info persists" $ do
+            rJoin' <- request @(ApiTransaction n) ctx
+                (Link.getTransaction @'Shelley src
+                    (getFromResponse Prelude.id rJoin))
+                Default Empty
+            verify rJoin'
+                [ expectResponseCode HTTP.status200
+                , expectField (#status . #getApiT) (`shouldBe` InLedger)
+                , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
+                , expectField #deposit (`shouldBe` Quantity 1000000)
+                ]
 
         -- Earn rewards
         waitForNextEpoch ctx
@@ -1223,10 +1236,9 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
     depositAmt :: Context -> Natural
     depositAmt ctx =
         let
-            pp = ctx ^. #_networkParameters . #protocolParameters
-            LinearFee _ _ (Quantity c) = pp ^. #txParameters . #getFeePolicy
+            c = ctx ^. #_networkParameters . #protocolParameters . #stakeKeyDeposit
         in
-            round c
+            fromIntegral (unCoin c)
 
     costOfJoining :: Context -> Natural
     costOfJoining = costOf (\coeff cst -> 370 * coeff + cst)
@@ -1243,7 +1255,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
       where
         pp = ctx ^. #_networkParameters . #protocolParameters
         (cst, coeff) = (round $ getQuantity a, round $ getQuantity b)
-        LinearFee a b _ = pp ^. #txParameters . #getFeePolicy
+        LinearFee a b = pp ^. #txParameters . #getFeePolicy
 
 -- The complete set of pool identifiers in the static test pool cluster.
 --

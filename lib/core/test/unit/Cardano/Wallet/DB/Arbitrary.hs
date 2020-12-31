@@ -378,8 +378,8 @@ arbitraryChainLength = 10
 -------------------------------------------------------------------------------}
 
 instance Arbitrary Tx where
-    shrink (Tx _tid ins outs wdrls md) =
-        [ mkTx ins' outs' wdrls' md'
+    shrink (Tx _tid fees ins outs wdrls md) =
+        [ mkTx fees ins' outs' wdrls' md'
         | (ins', outs', wdrls', md') <- shrink (ins, outs, wdrls, md)
         ]
 
@@ -387,7 +387,8 @@ instance Arbitrary Tx where
         ins <- fmap (L.nub . L.take 5 . getNonEmpty) arbitrary
         outs <- fmap (L.take 5 . getNonEmpty) arbitrary
         wdrls <- fmap (Map.fromList . L.take 5) arbitrary
-        mkTx ins outs wdrls <$> arbitrary
+        fees <- arbitrary
+        mkTx fees ins outs wdrls <$> arbitrary
 
 instance Arbitrary TxIn where
     arbitrary = TxIn
@@ -406,7 +407,7 @@ instance Arbitrary TxMeta where
             <$> elements [Incoming, Outgoing]
             <*> arbitrary
             <*> fmap Quantity arbitrary
-            <*> fmap (Quantity . fromIntegral) (arbitrary @Word32)
+            <*> fmap (Quantity . fromIntegral . unCoin) arbitrary
             <*> (if st == Pending then Just <$> arbitrary else pure Nothing)
 
 instance Arbitrary TxStatus where
@@ -615,6 +616,7 @@ instance Arbitrary ProtocolParameters where
         <*> choose (0, 100)
         <*> arbitrary
         <*> arbitrary
+        <*> arbitrary
 
 instance Arbitrary TxParameters where
     shrink = genericShrink
@@ -626,7 +628,6 @@ instance Arbitrary FeePolicy where
     arbitrary = LinearFee
         <$> fmap Quantity (choose (0, 1000))
         <*> fmap Quantity (choose (0, 100))
-        <*> pure (Quantity 0)
 
 instance (Integral a, Arbitrary a) => Arbitrary (Quantity n a) where
     shrink (Quantity a) = Quantity <$> shrinkIntegral a

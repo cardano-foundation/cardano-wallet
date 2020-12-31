@@ -104,6 +104,8 @@ import Cardano.Wallet.Version
     ( GitRevision, Version, gitRevision, showFullVersion )
 import Control.Applicative
     ( Const (..), optional )
+import Control.Exception.Base
+    ( AsyncException (..) )
 import Control.Monad
     ( void, when )
 import Control.Monad.Trans.Except
@@ -136,6 +138,8 @@ import System.Environment
     ( getArgs, getExecutablePath )
 import System.Exit
     ( ExitCode (..), exitWith )
+import UnliftIO.Exception
+    ( withException )
 
 import qualified Cardano.BM.Backend.EKGView as EKG
 import qualified Cardano.Wallet.Version as V
@@ -216,7 +220,6 @@ cmdServe = command "serve" $ info (helper <*> helper' <*> cmd) $ mempty
       poolMetadataFetching
       logOpt) = do
         withTracers logOpt $ \tr tracers -> do
-            installSignalHandlers (logNotice tr MsgSigTerm)
             withShutdownHandlerMaybe tr enableShutdownHandler $ do
                 logDebug tr $ MsgServeArgs args
 
@@ -265,12 +268,13 @@ data MainLog
     | MsgServeArgs ServeArgs
     | MsgListenAddress SockAddr
     | MsgSigTerm
+    | MsgSigInt
     | MsgShutdownHandler ShutdownHandlerLog
     | MsgFailedToParseGenesis Text
     deriving (Show)
 
 instance ToText MainLog where
-    toText msg = case msg of
+    toText = \case
         MsgCmdLine exe args ->
             T.pack $ unwords ("Command line:":exe:args)
         MsgVersion ver rev ->
@@ -285,6 +289,8 @@ instance ToText MainLog where
             "Wallet backend server listening on " <> T.pack (show addr)
         MsgSigTerm ->
             "Terminated by signal."
+        MsgSigInt ->
+            "Interrupted by user."
         MsgShutdownHandler msg' ->
             toText msg'
         MsgFailedToParseGenesis hint -> T.unwords
@@ -304,7 +310,10 @@ withTracers logOpt action =
         let tracers = setupTracers (loggingTracers logOpt) tr
         logInfo trMain $ MsgVersion V.version gitRevision
         logInfo trMain =<< MsgCmdLine <$> getExecutablePath <*> getArgs
-        action trMain tracers
+        installSignalHandlers (logNotice trMain MsgSigTerm)
+        let logInterrupt UserInterrupt = logNotice trMain MsgSigInt
+            logInterrupt _ = pure ()
+        action trMain tracers `withException` logInterrupt
 
 
 {-------------------------------------------------------------------------------

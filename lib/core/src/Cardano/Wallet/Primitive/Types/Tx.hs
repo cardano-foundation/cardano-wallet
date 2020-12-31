@@ -131,20 +131,30 @@ data Tx = Tx
         -- the transaction, which includes witnesses. Therefore, we need either
         -- to keep track of the witnesses to be able to re-compute the tx id
         -- every time, or, simply keep track of the id itself.
+
+    , fee
+        :: !(Maybe Coin)
+        -- ^ Explicit fee for that transaction, if available. Fee are available
+        -- explicitly in Shelley, but not in Byron although in Byron they can
+        -- easily be re-computed from the delta between outputs and inputs.
+
     , resolvedInputs
         :: ![(TxIn, Coin)]
         -- ^ NOTE: Order of inputs matters in the transaction representation.
         -- The transaction id is computed from the binary representation of a
         -- tx, for which inputs are serialized in a specific order.
+
     , outputs
         :: ![TxOut]
         -- ^ NOTE: Order of outputs matters in the transaction representations.
         -- Outputs are used as inputs for next transactions which refer to them
         -- using their indexes. It matters also for serialization.
+
     , withdrawals
         :: !(Map RewardAccount Coin)
         -- ^ Withdrawals (of funds from a registered reward account) embedded in
         -- a transaction. The order does not matter.
+
     , metadata
         :: !(Maybe TxMetadata)
         -- ^ Semi-structured application-specific extension data stored in the
@@ -160,7 +170,7 @@ data Tx = Tx
 instance NFData Tx
 
 instance Buildable Tx where
-    build (Tx tid ins outs ws md) = mempty
+    build (Tx tid _fee ins outs ws md) = mempty
         <> build tid
         <> build ("\n" :: String)
         <> blockListF' "inputs" build (fst <$> ins)
@@ -264,6 +274,9 @@ data TxMeta = TxMeta
     , slotNo :: !SlotNo
     , blockHeight :: !(Quantity "block" Word32)
     , amount :: !(Quantity "lovelace" Natural)
+    -- ^ Amount seen from the perspective of the wallet. Refers either to a
+    -- spent value for outgoing transaction, or a received value on incoming
+    -- transaction.
     , expiry :: !(Maybe SlotNo)
       -- ^ The slot at which a pending transaction will no longer be accepted
       -- into mempools.
@@ -320,6 +333,7 @@ data UnsignedTx input output change = UnsignedTx
         -- depending on which input(s) get selected to fuel the transaction, it
         -- may or may not include a change output should its value be less than
         -- the minimal UTxO value set by the network.
+
     , unsignedChange
         :: [change]
     }
@@ -357,6 +371,8 @@ isPending = (== Pending) . (status :: TxMeta -> TxStatus)
 data TransactionInfo = TransactionInfo
     { txInfoId :: !(Hash "Tx")
     -- ^ Transaction ID of this transaction
+    , txInfoFee :: !(Maybe Coin)
+    -- ^ Explicit transaction fee
     , txInfoInputs :: ![(TxIn, Coin, Maybe TxOut)]
     -- ^ Transaction inputs and (maybe) corresponding outputs of the
     -- source. Source information can only be provided for outgoing payments.
@@ -380,6 +396,7 @@ instance NFData TransactionInfo
 fromTransactionInfo :: TransactionInfo -> Tx
 fromTransactionInfo info = Tx
     { txId = txInfoId info
+    , fee = txInfoFee info
     , resolvedInputs = (\(a,b,_) -> (a,b)) <$> txInfoInputs info
     , outputs = txInfoOutputs info
     , withdrawals = txInfoWithdrawals info

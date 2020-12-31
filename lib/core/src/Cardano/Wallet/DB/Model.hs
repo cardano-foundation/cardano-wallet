@@ -451,6 +451,8 @@ mReadTxHistory ti wid minWithdrawal order range mstatus db@(Database wallets txs
     mkTransactionInfo cp (tx, meta) = TransactionInfo
         { txInfoId =
             txId tx
+        , txInfoFee =
+            fee tx
         , txInfoInputs =
             (\(inp, amt) -> (inp, amt, Map.lookup inp $ getUTxO $ utxo cp))
                 <$> resolvedInputs tx

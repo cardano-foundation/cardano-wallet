@@ -169,12 +169,13 @@ mainnetNetworkParameters = W.NetworkParameters
             minBound
         , txParameters = W.TxParameters
             { getFeePolicy =
-                W.LinearFee (Quantity 155381) (Quantity 43.946) (Quantity 0)
+                W.LinearFee (Quantity 155381) (Quantity 43.946)
             , getTxMaxSize =
                 Quantity 4096
             }
         , desiredNumberOfStakePools = 0
         , minimumUTxOvalue = W.Coin 0
+        , stakeKeyDeposit = W.Coin 0
         , hardforkEpochNo = Nothing
         }
     }
@@ -239,7 +240,7 @@ genesisBlockFromTxOuts gp outs = W.Block
     }
   where
     mkTx out@(W.TxOut (W.Address bytes) _) =
-        W.Tx (W.Hash $ blake2b256 bytes) [] [out] mempty Nothing
+        W.Tx (W.Hash $ blake2b256 bytes) Nothing [] [out] mempty Nothing
 
 --------------------------------------------------------------------------------
 --
@@ -319,6 +320,8 @@ fromTxAux txAux = case taTx txAux of
     tx@(UnsafeTx inputs outputs _attributes) -> W.Tx
         { txId = W.Hash $ CC.hashToBytes $ serializeCborHash tx
 
+        , fee = Nothing
+
         -- TODO: Review 'W.Tx' to not require resolved inputs but only inputs
         , resolvedInputs =
             (, W.Coin 0) . fromTxIn <$> NE.toList inputs
@@ -387,7 +390,6 @@ fromTxFeePolicy (TxFeePolicyTxSizeLinear (TxSizeLinear a b)) =
     W.LinearFee
         (Quantity (lovelaceToDouble a))
         (Quantity (rationalToDouble b))
-        (Quantity 0) -- certificates do not exist for Byron
   where
     lovelaceToDouble :: Lovelace -> Double
     lovelaceToDouble = fromIntegral . unsafeGetLovelace
@@ -423,6 +425,7 @@ protocolParametersFromPP bound pp = W.ProtocolParameters
         }
     , desiredNumberOfStakePools = 0
     , minimumUTxOvalue = W.Coin 0
+    , stakeKeyDeposit = W.Coin 0
     , hardforkEpochNo = fromBound <$> bound
     }
   where

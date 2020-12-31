@@ -324,6 +324,7 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxOut (..)
     , TxStatus (..)
     , UnsignedTx (..)
+    , txOutCoin
     )
 import Cardano.Wallet.Registry
     ( HasWorkerCtx (..)
@@ -377,7 +378,7 @@ import Data.List.NonEmpty
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
-    ( catMaybes, isJust )
+    ( catMaybes, fromMaybe, isJust, mapMaybe, maybeToList )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -1157,7 +1158,7 @@ selectCoins
     -> ApiSelectCoinsPayments n
     -> Handler (ApiCoinSelection n)
 selectCoins ctx genChange (ApiT wid) body =
-    fmap (mkApiCoinSelection Nothing)
+    fmap (mkApiCoinSelection [] Nothing)
     $ withWorkerCtx ctx wid liftE liftE
     $ \wrk -> do
         -- TODO:
@@ -1193,8 +1194,9 @@ selectCoinsForJoin ctx knownPools getPoolStatus pid wid = do
     pools <- liftIO knownPools
     curEpoch <- getCurrentEpoch ctx
 
-    (utx, action, path) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
-        action <- liftHandler
+    (utx, action, path, dep) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+        -- we never register stake key here, so deposit is irrelevant
+        (action, dep) <- liftHandler
             $ W.joinStakePool @_ @s @k @n wrk curEpoch pools pid poolStatus wid
 
         utx <- liftHandler
@@ -1205,9 +1207,9 @@ selectCoinsForJoin ctx knownPools getPoolStatus pid wid = do
         (_, path) <- liftHandler
             $ W.readRewardAccount @_ @s @k @n wrk wid
 
-        pure (utx, action, path)
+        pure (utx, action, path, dep)
 
-    pure $ mkApiCoinSelection (Just (action, path)) utx
+    pure $ mkApiCoinSelection (maybeToList dep) (Just (action, path)) utx
   where
     genChange = delegationAddress @n
 
@@ -1239,7 +1241,7 @@ selectCoinsForQuit ctx (ApiT wid) = do
 
         pure (utx, action, path)
 
-    pure $ mkApiCoinSelection (Just (action, path)) utx
+    pure $ mkApiCoinSelection [] (Just (action, path)) utx
   where
     genChange = delegationAddress @n
 
@@ -1383,7 +1385,8 @@ postTransaction ctx genChange (ApiT wid) body = do
     liftIO $ mkApiTransaction
         (timeInterpreter $ ctx ^. networkLayer)
         (txId tx)
-        (fmap Just <$> selection ^. #inputs)
+        (tx ^. #fee)
+        (second Just <$> selection ^. #inputs)
         (tx ^. #outputs)
         (tx ^. #withdrawals)
         (meta, time)
@@ -1440,8 +1443,8 @@ mkApiTransactionFromInfo
     => TimeInterpreter (ExceptT PastHorizonException IO)
     -> TransactionInfo
     -> m (ApiTransaction n)
-mkApiTransactionFromInfo ti (TransactionInfo txid ins outs ws meta depth txtime txmeta) = do
-    apiTx <- liftIO $ mkApiTransaction ti txid (drop2nd <$> ins) outs ws (meta, txtime) txmeta $
+mkApiTransactionFromInfo ti (TransactionInfo txid fee ins outs ws meta depth txtime txmeta) = do
+    apiTx <- liftIO $ mkApiTransaction ti txid fee (drop2nd <$> ins) outs ws (meta, txtime) txmeta $
         case meta ^. #status of
             Pending  -> #pendingSince
             InLedger -> #insertedAt
@@ -1454,8 +1457,9 @@ mkApiTransactionFromInfo ti (TransactionInfo txid ins outs ws meta depth txtime 
       drop2nd (a,_,c) = (a,c)
 
 apiFee :: FeeEstimation -> ApiFee
-apiFee (FeeEstimation estMin estMax) = ApiFee (qty estMin) (qty estMax)
-    where qty = Quantity . fromIntegral
+apiFee (FeeEstimation estMin estMax deposit) =
+    ApiFee (qty estMin) (qty estMax) (qty $ fromMaybe 0 deposit)
+  where qty = Quantity . fromIntegral
 
 postTransactionFee
     :: forall ctx s k n.
@@ -1521,8 +1525,8 @@ joinStakePool ctx knownPools getPoolStatus apiPoolId (ApiT wid) body = do
     pools <- liftIO knownPools
     curEpoch <- getCurrentEpoch ctx
 
-    (tx, txMeta, txTime) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
-        action <- liftHandler
+    (cs, tx, txMeta, txTime) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+        (action, _) <- liftHandler
             $ W.joinStakePool @_ @s @k @n wrk curEpoch pools pid poolStatus wid
 
         cs <- liftHandler
@@ -1535,12 +1539,13 @@ joinStakePool ctx knownPools getPoolStatus apiPoolId (ApiT wid) body = do
             $ W.submitTx @_ @s @k wrk
                 wid (tx, txMeta, sealedTx)
 
-        pure (tx, txMeta, txTime)
+        pure (cs, tx, txMeta, txTime)
 
     liftIO $ mkApiTransaction
         (timeInterpreter (ctx ^. networkLayer))
         (txId tx)
-        (second (const Nothing) <$> tx ^. #resolvedInputs)
+        (tx ^. #fee)
+        (second Just <$> cs ^. #inputs)
         (tx ^. #outputs)
         (tx ^. #withdrawals)
         (txMeta, txTime)
@@ -1581,7 +1586,7 @@ quitStakePool
 quitStakePool ctx (ApiT wid) body = do
     let pwd = coerce $ getApiT $ body ^. #passphrase
 
-    (tx, txMeta, txTime) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+    (cs, tx, txMeta, txTime) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         action <- liftHandler
             $ W.quitStakePool @_ @s @k @n wrk wid
 
@@ -1595,12 +1600,14 @@ quitStakePool ctx (ApiT wid) body = do
             $ W.submitTx @_ @s @k wrk
                 wid (tx, txMeta, sealedTx)
 
-        pure (tx, txMeta, txTime)
+        pure (cs, tx, txMeta, txTime)
+
 
     liftIO $ mkApiTransaction
         (timeInterpreter (ctx ^. networkLayer))
         (txId tx)
-        (second (const Nothing) <$> tx ^. #resolvedInputs)
+        (tx ^. #fee)
+        (second Just <$> cs ^. #inputs)
         (tx ^. #outputs)
         (tx ^. #withdrawals)
         (txMeta, txTime)
@@ -1671,6 +1678,7 @@ migrateWallet ctx (ApiT wid) migrateData = do
         liftIO $ mkApiTransaction
             (timeInterpreter (ctx ^. networkLayer))
             (txId tx)
+            (tx ^. #fee)
             (fmap Just <$> NE.toList (W.unsignedInputs cs))
             (W.unsignedOutputs cs)
             (tx ^. #withdrawals)
@@ -1680,6 +1688,7 @@ migrateWallet ctx (ApiT wid) migrateData = do
   where
     pwd = coerce $ getApiT $ migrateData ^. #passphrase
     addrs = getApiT . fst <$> migrateData ^. #addresses
+
 
 -- | Transform the given set of migration coin selections (for a source wallet)
 --   into a set of coin selections that will migrate funds to the specified
@@ -1889,13 +1898,9 @@ initWorker ctx wid createWallet restoreWallet coworker =
   where
     config = MkWorker
         { workerBefore = \ctx' _ -> do
-            -- FIXME:
-            -- Review error handling here
             void $ unsafeRunExceptT $ createWallet ctx'
 
         , workerMain = \ctx' _ -> do
-            -- FIXME:
-            -- Review error handling here
             race_
                 (unsafeRunExceptT $ restoreWallet ctx')
                 (coworker ctx')
@@ -1938,15 +1943,17 @@ mkApiCoinSelection
         , output ~ TxOut
         , change ~ TxChange (NonEmpty DerivationIndex)
         )
-    => Maybe (DelegationAction, NonEmpty DerivationIndex)
+    => [Coin]
+    -> Maybe (DelegationAction, NonEmpty DerivationIndex)
     -> UnsignedTx input output change
     -> ApiCoinSelection n
-mkApiCoinSelection mcerts (UnsignedTx inputs outputs change) =
+mkApiCoinSelection deps mcerts (UnsignedTx inputs outputs change) =
     ApiCoinSelection
         (mkApiCoinSelectionInput <$> inputs)
         (mkApiCoinSelectionOutput <$> outputs)
         (mkApiCoinSelectionChange <$> change)
         (fmap (uncurry mkCertificates) mcerts)
+        (fmap mkApiCoin deps)
   where
     mkCertificates
         :: DelegationAction
@@ -2001,6 +2008,7 @@ mkApiTransaction
     :: forall n. ()
     => TimeInterpreter (ExceptT PastHorizonException IO)
     -> Hash "Tx"
+    -> Maybe Coin
     -> [(TxIn, Maybe TxOut)]
     -> [TxOut]
     -> Map RewardAccount Coin
@@ -2008,7 +2016,7 @@ mkApiTransaction
     -> Maybe W.TxMetadata
     -> Lens' (ApiTransaction n) (Maybe ApiBlockReference)
     -> IO (ApiTransaction n)
-mkApiTransaction ti txid ins outs ws (meta, timestamp) txMeta setTimeReference = do
+mkApiTransaction ti txid mfee ins outs ws (meta, timestamp) txMeta setTimeReference = do
     timeRef <- (#time .~ timestamp) <$> makeApiBlockReference
         (neverFails "makeApiBlockReference shouldn't fail getting the time of \
             \transactions with slots in the past" ti)
@@ -2021,10 +2029,13 @@ mkApiTransaction ti txid ins outs ws (meta, timestamp) txMeta setTimeReference =
     -- Since tx expiry can be far in the future, we use unsafeExtendSafeZone for
     -- now.
     makeApiSlotReference' = makeApiSlotReference (unsafeExtendSafeZone ti)
+
     tx :: ApiTransaction n
     tx = ApiTransaction
         { id = ApiT txid
         , amount = meta ^. #amount
+        , fee = maybe (Quantity 0) (Quantity . fromIntegral . unCoin) mfee
+        , deposit = Quantity depositIfAny
         , insertedAt = Nothing
         , pendingSince = Nothing
         , expiresAt = Nothing
@@ -2036,6 +2047,61 @@ mkApiTransaction ti txid ins outs ws (meta, timestamp) txMeta setTimeReference =
         , status = ApiT (meta ^. #status)
         , metadata = ApiTxMetadata $ ApiT <$> txMeta
         }
+
+    depositIfAny :: Natural
+    depositIfAny
+        -- NOTE: totalIn will be zero for incoming transactions where inputs are
+        -- unknown, in which case, we also give no visibility on the deposit.
+        --
+        -- For outgoing transactions however, the totalIn is guaranteed to be
+        -- greater or equal to totalOut; any remainder is actually a
+        -- deposit. Said differently, if totalIn > 0, then necessarily 'fee' on
+        -- metadata should be 'Just{}'
+        | meta ^. #direction == W.Outgoing =
+            if totalIn < totalOut
+            then 0 -- This should not be possible in practice. See FIXME below.
+            else totalIn - totalOut
+        | otherwise = 0
+      where
+        -- FIXME: ADP-460
+        --
+        -- In theory, the input side can't be smaller than the output side.
+        -- However, since we do not yet track 'reclaims', we may end up in
+        -- situation here where we no longer know that there's a reclaim on a
+        -- transaction and numbers do not add up. Ideally, we would like to
+        -- change the `then` clause above to be `invariantViolation` instead of
+        -- `0` but we can't do that until we acknowledge for reclaims up until
+        -- here too.
+        --
+        -- `0` is an okay-ish placeholder in the meantime because we know that
+        -- (at least at the moment of writing this comment) the wallet never
+        -- registers a key and deregister a key at the same time. Thus, if we
+        -- are in the case where the apparent totalIn is smaller than the
+        -- total out, then necessary the deposit is null.
+        --
+        -- invariantViolation :: HasCallStack => a
+        -- invariantViolation = error $ unlines
+        --     [ "invariant violated: outputs larger than inputs"
+        --     , "direction:   " <> show (meta ^. #direction)
+        --     , "fee:         " <> show (getQuantity <$> (meta ^. #fee))
+        --     , "inputs:      " <> show (fmap (view (#coin . #unCoin)) . snd <$> ins)
+        --     , "reclaims:    " <> ...
+        --     , "withdrawals: " <> show (view #unCoin <$> Map.elems ws)
+        --     , "outputs:     " <> show (view (#coin . #unCoin) <$> outs)
+        --     ]
+        totalIn :: Natural
+        totalIn
+            = sum (txOutValue <$> mapMaybe snd ins)
+            + sum (fromIntegral . unCoin <$> Map.elems ws)
+            -- FIXME: ADP-460 + reclaims.
+
+        totalOut :: Natural
+        totalOut
+            = sum (txOutValue <$> outs)
+            + maybe 0 (fromIntegral . unCoin) mfee
+
+        txOutValue :: TxOut -> Natural
+        txOutValue = fromIntegral . unCoin . txOutCoin
 
     toAddressAmount :: TxOut -> AddressAmount (ApiT Address, Proxy n)
     toAddressAmount (TxOut addr tokens) = AddressAmount

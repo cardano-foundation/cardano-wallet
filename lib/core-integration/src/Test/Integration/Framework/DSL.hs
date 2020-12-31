@@ -270,10 +270,8 @@ import Control.Arrow
     ( second )
 import Control.Monad
     ( forM_, join, unless, void )
-import Control.Monad.IO.Class
-    ( MonadIO, liftIO )
 import Control.Monad.IO.Unlift
-    ( MonadUnliftIO (..) )
+    ( MonadIO, MonadUnliftIO (..), liftIO )
 import Control.Monad.Trans.Resource
     ( ResourceT, allocate, runResourceT )
 import Control.Retry
@@ -360,7 +358,7 @@ import UnliftIO.Async
 import UnliftIO.Concurrent
     ( threadDelay )
 import UnliftIO.Exception
-    ( Exception (..), SomeException (..), catch, throwIO )
+    ( Exception (..), SomeException (..), catch, throwIO, throwString )
 import UnliftIO.Process
     ( CreateProcess (..)
     , StdStream (..)
@@ -683,12 +681,13 @@ getTxId :: (ApiTransaction n) -> String
 getTxId tx = T.unpack $ toUrlPiece $ ApiTxId (tx ^. #id)
 
 unsafeGetTransactionTime
-    :: [ApiTransaction n]
-    -> UTCTime
+    :: MonadUnliftIO m
+    => [ApiTransaction n]
+    -> m UTCTime
 unsafeGetTransactionTime txs =
     case fmap time . insertedAt <$> txs of
-        (Just t):_ -> t
-        _ -> error "Expected at least one transaction with a time."
+        (Just t):_ -> pure t
+        _ -> throwString "Expected at least one transaction with a time."
 
 waitAllTxsInLedger
     :: forall n m.
