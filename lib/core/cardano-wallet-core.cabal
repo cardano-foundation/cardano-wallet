@@ -86,6 +86,7 @@ library
     , quiet
     , random
     , random-shuffle
+    , resource-pool
     , retry
     , safe
     , scientific

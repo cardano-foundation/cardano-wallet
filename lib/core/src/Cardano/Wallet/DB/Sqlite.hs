@@ -250,11 +250,11 @@ withDBLayer
     -> ((SqliteContext, DBLayer IO s k) -> IO a)
        -- ^ Action to run.
     -> IO a
-withDBLayer trace defaultFieldValues mDatabaseDir ti =
+withDBLayer tr defaultFieldValues mDatabaseDir ti =
     bracket before after
   where
-    before = newDBLayer trace defaultFieldValues mDatabaseDir ti
-    after = destroyDBLayer . fst
+    before = newDBLayer tr defaultFieldValues mDatabaseDir ti
+    after = destroyDBLayer tr . fst
 
 -- | Instantiate a 'DBFactory' from a given directory
 newDBFactory

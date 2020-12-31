@@ -692,8 +692,8 @@ withBenchDBLayer
     -> IO a
 withBenchDBLayer ti tr action =
     withSystemTempFile "bench.db" $ \dbFile _ -> do
-        let before = newDBLayer (trMessageText tr) migrationDefaultValues (Just dbFile) ti
-        let after = destroyDBLayer . fst
+        let before = newDBLayer tr' migrationDefaultValues (Just dbFile) ti
+        let after = destroyDBLayer tr' . fst
         bracket before after $ \(_ctx, db) -> action db
   where
     migrationDefaultValues = Sqlite.DefaultFieldValues
@@ -703,6 +703,7 @@ withBenchDBLayer ti tr action =
         , Sqlite.defaultHardforkEpoch = Nothing
         , Sqlite.defaultKeyDeposit = Coin 0
         }
+    tr' = trMessageText tr
 
 prepareNode
     :: forall n. (NetworkDiscriminantVal n)

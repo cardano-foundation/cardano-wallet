@@ -1006,7 +1006,6 @@ testOpeningCleaning filepath call expectedAfterOpen expectedAfterClean = do
     withDBLayer' (Just filepath) $ \db2 -> do
         call db2 `shouldReturn` expectedAfterClean
 
-
 -- | Run a test action inside withDBLayer, then check assertions.
 withTestDBFile
     :: (DBLayer IO (SeqState 'Mainnet ShelleyKey) ShelleyKey -> IO ())

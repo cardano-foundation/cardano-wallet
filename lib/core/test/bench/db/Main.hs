@@ -49,7 +49,7 @@ import Cardano.BM.Data.Severity
 import Cardano.BM.Data.Trace
     ( Trace )
 import Cardano.BM.Data.Tracer
-    ( Tracer, filterSeverity )
+    ( Tracer, filterSeverity, nullTracer )
 import Cardano.BM.Setup
     ( setupTrace_, shutdown )
 import Cardano.DB.Sqlite
@@ -691,7 +691,7 @@ defaultFieldValues = DefaultFieldValues
 
 cleanupDB :: (FilePath, SqliteContext, DBLayer IO s k) -> IO ()
 cleanupDB (db, ctx, _) = do
-    handle (\SqliteException{} -> pure ()) $ destroyDBLayer ctx
+    handle (\SqliteException{} -> pure ()) $ destroyDBLayer nullTracer ctx
     mapM_ remove [db, db <> "-shm", db <> "-wal"]
   where
     remove f = doesFileExist f >>= \case
@@ -778,7 +778,7 @@ benchDiskSize :: Tracer IO DBLog -> (DBLayerBench -> IO ()) -> IO ()
 benchDiskSize tr action = bracket (setupDB tr) cleanupDB $ \(f, ctx, db) -> do
     action db
     mapM_ (printFileSize "") [f, f <> "-shm", f <> "-wal"]
-    destroyDBLayer ctx
+    destroyDBLayer nullTracer ctx
     printFileSize " (closed)" f
     putStrLn ""
   where

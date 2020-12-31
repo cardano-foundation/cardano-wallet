@@ -201,12 +201,12 @@ withDecoratedDBLayer
     -> (DBLayer IO -> IO a)
        -- ^ Action to run.
     -> IO a
-withDecoratedDBLayer dbDecorator trace fp ti action = do
-    traceWith trace (MsgGeneric $ MsgWillOpenDB fp)
+withDecoratedDBLayer dbDecorator tr fp ti action = do
+    traceWith tr (MsgGeneric $ MsgWillOpenDB fp)
     bracket before after (action . decorateDBLayer dbDecorator . snd)
   where
-    before = newDBLayer trace fp ti
-    after = destroyDBLayer . fst
+    before = newDBLayer tr fp ti
+    after = destroyDBLayer (contramap MsgGeneric tr) . fst
 
 -- | Sets up a connection to the SQLite database.
 --

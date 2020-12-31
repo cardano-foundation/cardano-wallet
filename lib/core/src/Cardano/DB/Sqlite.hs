@@ -73,12 +73,16 @@ import Data.List.Split
     ( chunksOf )
 import Data.Maybe
     ( fromMaybe )
+import Data.Pool
+    ( Pool, createPool, destroyAllResources, withResource )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Text
     ( Text )
 import Data.Text.Class
     ( ToText (..) )
+import Data.Time.Clock
+    ( NominalDiffTime )
 import Database.Persist.Sql
     ( DBName (..)
     , EntityField
@@ -108,9 +112,7 @@ import System.Log.FastLogger
 import UnliftIO.Compat
     ( handleIf, mkRetryHandler )
 import UnliftIO.Exception
-    ( Exception, bracket_, handleJust, tryJust )
-import UnliftIO.MVar
-    ( newMVar, withMVarMasked )
+    ( Exception, bracket_, handleJust, mask_, tryJust )
 
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString.Char8 as B8
@@ -125,14 +127,12 @@ import qualified Database.Sqlite as Sqlite
 
 -- | Context for the SQLite 'DBLayer'.
 data SqliteContext = SqliteContext
-    { getSqlBackend :: SqlBackend
+    { connectionPool :: Pool (SqlBackend, Sqlite.Connection)
     -- ^ A handle to the Persistent SQL backend.
     , runQuery :: forall a. SqlPersistT IO a -> IO a
     -- ^ 'safely' run a query with logging and lock-protection
     , dbFile :: Maybe FilePath
     -- ^ The actual database file, if any. If none, runs in-memory
-    , trace :: Tracer IO DBLog
-    -- ^ A 'Tracer' for logging
     }
 
 -- | Error type for when migrations go wrong after opening a database.
@@ -167,9 +167,59 @@ queryLogFunc tr _loc _source level str = traceWith tr (MsgQuery msg sev)
 handleConstraint :: MonadUnliftIO m => e -> m a -> m (Either e a)
 handleConstraint e = handleJust select handler . fmap Right
   where
-      select (SqliteException ErrorConstraint _ _) = Just ()
-      select _ = Nothing
-      handler = const . pure  . Left $ e
+    select (SqliteException ErrorConstraint _ _) = Just ()
+    select _ = Nothing
+    handler = const . pure  . Left $ e
+
+-- | Free all allocated database connections. See also 'destroySqliteBackend'
+--
+destroyDBLayer :: Tracer IO DBLog -> SqliteContext -> IO ()
+destroyDBLayer tr SqliteContext{connectionPool,dbFile} = do
+    traceWith tr (MsgDestroyConnectionPool dbFile)
+    destroyAllResources connectionPool
+
+{-------------------------------------------------------------------------------
+                           Internal / Database Setup
+-------------------------------------------------------------------------------}
+
+-- | Opens the SQLite database connection, sets up query logging and timing,
+-- runs schema migrations if necessary.
+startSqliteBackend
+    :: ManualMigration
+    -> Migration
+    -> Tracer IO DBLog
+    -> Maybe FilePath
+    -> IO (Either MigrationError SqliteContext)
+startSqliteBackend manualMigration autoMigration tr fp = do
+    pool <- createSqlitePool tr fp manualMigration (queryLogFunc tr)
+    let observe :: IO a -> IO a
+        observe = bracketTracer (contramap MsgRun tr)
+    -- runSqlConn is guarded with a lock because it's not threadsafe in general.
+    -- It is also masked, so that the SqlBackend state is not corrupted if a
+    -- thread gets cancelled while running a query.
+    -- See: https://github.com/yesodweb/persistent/issues/981
+    --
+    -- Note that `withResource` does already mask async exception but only for
+    -- dealing with the pool resource acquisition. The action is then ran
+    -- unmasked with the acquired resource. If an asynchronous exception occurs,
+    -- the resource is NOT placed back in the pool.
+    let runQuery :: SqlPersistT IO a -> IO a
+        runQuery cmd = withResource pool $ \(backend, _) ->
+            observe $ mask_ $ runSqlConn cmd backend
+
+    autoMigrationResult <- withResource pool $ \(backend, connection) -> do
+        withForeignKeysDisabled tr connection
+            $ mask_ (runSqlConn (runMigrationQuiet autoMigration) backend)
+            & tryJust (matchMigrationError @PersistException)
+            & tryJust (matchMigrationError @SqliteException)
+            & fmap join
+    traceWith tr $ MsgMigrations $ fmap length autoMigrationResult
+    let ctx = SqliteContext pool runQuery fp
+    case autoMigrationResult of
+        Left e -> do
+            destroyDBLayer tr ctx
+            pure $ Left e
+        Right _ -> pure $ Right ctx
 
 -- | Finalize database statements and close the database connection.
 --
@@ -178,15 +228,18 @@ handleConstraint e = handleJust select handler . fmap Right
 --
 -- This function is idempotent: if the database connection has already been
 -- closed, calling this function will exit without doing anything.
---
-destroyDBLayer :: SqliteContext -> IO ()
-destroyDBLayer (SqliteContext {getSqlBackend, trace, dbFile}) = do
-    traceWith trace (MsgClosing dbFile)
-    recovering pol (mkRetryHandler isBusy) (const $ close' getSqlBackend)
+destroySqliteBackend
+    :: Tracer IO DBLog
+    -> SqlBackend
+    -> Maybe FilePath
+    -> IO ()
+destroySqliteBackend tr sqlBackend dbFile = do
+    traceWith tr (MsgCloseSingleConnection dbFile)
+    recovering pol (mkRetryHandler isBusy) (const $ close' sqlBackend)
         & handleIf isAlreadyClosed
-            (traceWith trace . MsgIsAlreadyClosed . showT)
+            (traceWith tr . MsgIsAlreadyClosed . showT)
         & handleIf statementAlreadyFinalized
-            (traceWith trace . MsgStatementAlreadyFinalized . showT)
+            (traceWith tr . MsgStatementAlreadyFinalized . showT)
   where
     isAlreadyClosed = \case
         -- Thrown when an attempt is made to close a connection that is already
@@ -206,44 +259,6 @@ destroyDBLayer (SqliteContext {getSqlBackend, trace, dbFile}) = do
     pol = limitRetriesByCumulativeDelay (60000*ms) $ constantDelay (25*ms)
     ms = 1000 -- microseconds in a millisecond
 
-{-------------------------------------------------------------------------------
-                           Internal / Database Setup
--------------------------------------------------------------------------------}
-
--- | Opens the SQLite database connection, sets up query logging and timing,
--- runs schema migrations if necessary.
-startSqliteBackend
-    :: ManualMigration
-    -> Migration
-    -> Tracer IO DBLog
-    -> Maybe FilePath
-    -> IO (Either MigrationError SqliteContext)
-startSqliteBackend manualMigration autoMigration tr fp = do
-    (unsafeBackend, connection) <-
-        createSqliteBackend tr fp manualMigration (queryLogFunc tr)
-    lock <- newMVar unsafeBackend
-    let observe :: IO a -> IO a
-        observe = bracketTracer (contramap MsgRun tr)
-    -- runSqlConn is guarded with a lock because it's not threadsafe in general.
-    -- It is also masked, so that the SqlBackend state is not corrupted if a
-    -- thread gets cancelled while running a query.
-    -- See: https://github.com/yesodweb/persistent/issues/981
-    let runQuery :: SqlPersistT IO a -> IO a
-        runQuery cmd = withMVarMasked lock $ \backend ->
-            observe $ runSqlConn cmd backend
-    autoMigrationResult <-
-        withForeignKeysDisabled tr connection
-            $ runQuery (runMigrationQuiet autoMigration)
-            & tryJust (matchMigrationError @PersistException)
-            & tryJust (matchMigrationError @SqliteException)
-            & fmap join
-    traceWith tr $ MsgMigrations $ fmap length autoMigrationResult
-    let ctx = SqliteContext unsafeBackend runQuery fp tr
-    case autoMigrationResult of
-        Left e -> do
-            destroyDBLayer ctx
-            pure $ Left e
-        Right _ -> pure $ Right ctx
 
 -- | Run the given task in a context where foreign key constraints are
 --   /temporarily disabled/, before re-enabling them.
@@ -345,19 +360,38 @@ instance MatchMigrationError SqliteException where
 newtype ManualMigration = ManualMigration
     { executeManualMigration :: Sqlite.Connection -> IO () }
 
-createSqliteBackend
+createSqlitePool
     :: Tracer IO DBLog
     -> Maybe FilePath
     -> ManualMigration
     -> LogFunc
-    -> IO (SqlBackend, Sqlite.Connection)
-createSqliteBackend trace fp migration logFunc = do
+    -> IO (Pool (SqlBackend, Sqlite.Connection))
+createSqlitePool tr fp migration logFunc = do
     let connStr = sqliteConnStr fp
-    traceWith trace $ MsgConnStr connStr
-    conn <- Sqlite.open connStr
-    executeManualMigration migration conn
-    backend <- wrapConnectionInfo (mkSqliteConnectionInfo connStr) conn logFunc
-    pure (backend, conn)
+    traceWith tr $ MsgConnStr connStr
+
+    let createConnection = do
+            let info = mkSqliteConnectionInfo connStr
+            conn <- Sqlite.open connStr
+            executeManualMigration migration conn
+            backend <- wrapConnectionInfo info conn logFunc
+            pure (backend, conn)
+
+    let destroyConnection = \(backend, _) -> do
+            destroySqliteBackend tr backend fp
+
+    createPool
+        createConnection
+        destroyConnection
+        numberOfStripes
+        timeToLive
+        maximumConnections
+  where
+    numberOfStripes = 1
+    timeToLive = 600 :: NominalDiffTime
+    -- When running in :memory:, we want a single connection that does not get
+    -- cleaned up.
+    maximumConnections = maybe 1 (const 10) fp
 
 sqliteConnStr :: Maybe FilePath -> Text
 sqliteConnStr = maybe ":memory:" T.pack
@@ -371,7 +405,8 @@ data DBLog
     | MsgQuery Text Severity
     | MsgRun BracketLog
     | MsgConnStr Text
-    | MsgClosing (Maybe FilePath)
+    | MsgCloseSingleConnection (Maybe FilePath)
+    | MsgDestroyConnectionPool (Maybe FilePath)
     | MsgWillOpenDB (Maybe FilePath)
     | MsgDatabaseReset
     | MsgIsAlreadyClosed Text
@@ -446,7 +481,8 @@ instance HasSeverityAnnotation DBLog where
         MsgQuery _ sev -> sev
         MsgRun _ -> Debug
         MsgConnStr _ -> Debug
-        MsgClosing _ -> Debug
+        MsgCloseSingleConnection _ -> Debug
+        MsgDestroyConnectionPool _ -> Debug
         MsgWillOpenDB _ -> Info
         MsgDatabaseReset -> Notice
         MsgIsAlreadyClosed _ -> Warning
@@ -473,7 +509,10 @@ instance ToText DBLog where
         MsgRun b -> "Running database action - " <> toText b
         MsgWillOpenDB fp -> "Will open db at " <> (maybe "in-memory" T.pack fp)
         MsgConnStr connStr -> "Using connection string: " <> connStr
-        MsgClosing fp -> "Closing database ("+|fromMaybe "in-memory" fp|+")"
+        MsgCloseSingleConnection fp ->
+            "Closing single database connection ("+|fromMaybe "in-memory" fp|+")"
+        MsgDestroyConnectionPool fp ->
+            "Destroy database connection pool ("+|fromMaybe "in-memory" fp|+")"
         MsgDatabaseReset ->
             "Non backward compatible database found. Removing old database \
             \and re-creating it from scratch. Ignore the previous error."
