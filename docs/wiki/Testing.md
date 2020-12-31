@@ -44,6 +44,7 @@ integration tests and test cluster.
 | `TESTS_LOGDIR` | path | Write log files in the given directory | Log files are written to the tests temp directory |
 | `NO_POOLS` | bool | Don't start any stake pool nodes in the local test cluster. | Pool nodes are started |
 | `TESTS_RETRY_FAILED` | bool | Enable retrying once of failed tests | No retrying |
+| `CARDANO_WALLET_PORT` | number | Set a specific port for the wallet HTTP server | Random unused port |
 
 Here are the possible values of different types of environment variables:
 
