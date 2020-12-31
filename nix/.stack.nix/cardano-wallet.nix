@@ -103,6 +103,7 @@
             (hsPkgs."text" or (errorHandler.buildDepError "text"))
             (hsPkgs."text-class" or (errorHandler.buildDepError "text-class"))
             (hsPkgs."transformers" or (errorHandler.buildDepError "transformers"))
+            (hsPkgs."unliftio" or (errorHandler.buildDepError "unliftio"))
             ];
           buildable = true;
           };

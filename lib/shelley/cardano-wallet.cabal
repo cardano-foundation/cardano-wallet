@@ -124,6 +124,7 @@ executable cardano-wallet
     , text
     , text-class
     , transformers
+    , unliftio
   hs-source-dirs:
       exe
   main-is:
