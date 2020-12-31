@@ -603,7 +603,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
           \ctx -> runResourceT $ do
               w <- fixtureWalletWith @n ctx [minUTxOValue]
               let walId = w ^. walletId
-              t <- unsafeGetTransactionTime <$> listAllTransactions @n ctx w
+              t <- unsafeGetTransactionTime =<< listAllTransactions @n ctx w
               let (te, tl) = (utcTimePred t, utcTimeSucc t)
               let query t1 t2 =
                         [ "--start", utcIso8601ToText t1
@@ -628,7 +628,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
           \ctx -> runResourceT $ do
               w <- fixtureWalletWith @n ctx [minUTxOValue]
               let walId = w ^. walletId
-              t <- unsafeGetTransactionTime <$> listAllTransactions @n ctx w
+              t <- unsafeGetTransactionTime =<< listAllTransactions @n ctx w
               let tl = utcIso8601ToText $ utcTimeSucc t
               Stdout o1  <- listTransactionsViaCLI ctx
                     ( T.unpack <$> [walId, "--start", tl] )
@@ -643,7 +643,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
           \ctx -> runResourceT $ do
               w <- fixtureWalletWith @n ctx [minUTxOValue]
               let walId = w ^. walletId
-              t <- unsafeGetTransactionTime <$> listAllTransactions @n ctx w
+              t <- unsafeGetTransactionTime =<< listAllTransactions @n ctx w
               let te = utcIso8601ToText $ utcTimePred t
               Stdout o1  <- listTransactionsViaCLI ctx
                       ( T.unpack <$> [walId, "--end", te] )
