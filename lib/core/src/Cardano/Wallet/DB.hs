@@ -63,8 +63,8 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxMeta
     , TxStatus
     )
-import Control.Monad.IO.Class
-    ( MonadIO )
+import Control.Monad.IO.Unlift
+    ( MonadIO, MonadUnliftIO )
 import Control.Monad.Trans.Except
     ( ExceptT, runExceptT )
 import Data.Quantity
@@ -76,14 +76,14 @@ import qualified Data.List as L
 
 -- | Instantiate database layers at will
 data DBFactory m s k = DBFactory
-    { withDatabase :: forall a. WalletId -> (DBLayer m s k -> IO a) -> IO a
+    { withDatabase :: forall a. (MonadUnliftIO m) => WalletId -> (DBLayer m s k -> m a) -> m a
         -- ^ Creates a new or use an existing database, maintaining an open
         -- connection so long as necessary
 
-    , removeDatabase :: WalletId -> IO ()
+    , removeDatabase :: MonadUnliftIO m => WalletId -> m ()
         -- ^ Erase any trace of the database
 
-    , listDatabases :: IO [WalletId]
+    , listDatabases :: m [WalletId]
         -- ^ List existing wallet database found on disk.
     }
 
