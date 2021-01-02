@@ -50,12 +50,13 @@ import UnliftIO.Async
 import UnliftIO.Concurrent
     ( threadDelay, throwTo )
 import UnliftIO.Exception
-    ( SomeException (..), throwIO )
+    ( SomeException (..), throwIO, tryAny )
 import UnliftIO.MVar
     ( modifyMVar_
     , newEmptyMVar
     , newMVar
     , putMVar
+    , readMVar
     , swapMVar
     , takeMVar
     , tryTakeMVar
@@ -107,7 +108,7 @@ workerFailsGracefullyAsyncE =
             threadDelay maxBound
 
         , _workerConcurrently = \worker ->
-            throwTo (workerThread worker) UserInterrupt
+            readMVar (workerThread worker) >>= flip throwTo UserInterrupt
 
         , _workerAssertion = \case
             WorkerWasInterrupted someE ->
@@ -283,9 +284,9 @@ workerTest (WorkerTest before main acquire concurrently assertion timeout) = do
             , workerAcquire = acquire
             }
     registry <- empty
-    register registry ctx wid config >>= \case
-        Nothing -> assertion WorkerNotStarted
-        Just worker -> do
+    tryAny (register registry ctx wid config) >>= \case
+        Left _ -> assertion WorkerNotStarted
+        Right worker -> do
             concurrently worker
             race (threadDelay timeout) (takeMVar onExit) >>= \case
                 Right (Right ()) -> assertion WorkerIsDone

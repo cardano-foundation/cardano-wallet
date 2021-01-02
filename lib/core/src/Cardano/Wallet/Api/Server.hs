@@ -93,6 +93,7 @@ module Cardano.Wallet.Api.Server
     -- * Server error responses
     , IsServerError(..)
     , liftHandler
+    , throwE
     , apiError
 
     -- * Internals
@@ -121,7 +122,11 @@ import Cardano.Address.Script
 import Cardano.Api
     ( AnyCardanoEra (..), CardanoEra (..), SerialiseAsCBOR (..) )
 import Cardano.BM.Tracing
-    ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
+    ( HasPrivacyAnnotation (..)
+    , HasSeverityAnnotation (..)
+    , PrivacyAnnotation (..)
+    , Severity (..)
+    )
 import Cardano.Mnemonic
     ( SomeMnemonic )
 import Cardano.Wallet
@@ -417,12 +422,7 @@ import Cardano.Wallet.Primitive.Types.Tx
     , txOutCoin
     )
 import Cardano.Wallet.Registry
-    ( HasWorkerCtx (..)
-    , MkWorker (..)
-    , WorkerLog (..)
-    , defaultWorkerAfter
-    , workerResource
-    )
+    ( HasWorkerCtx (..), MkWorker (..), WorkerLog (..), defaultWorkerAfter )
 import Cardano.Wallet.TokenMetadata
     ( TokenMetadataClient, fillMetadata )
 import Cardano.Wallet.Transaction
@@ -435,8 +435,6 @@ import Cardano.Wallet.Transaction
     , Withdrawal (..)
     , defaultTransactionCtx
     )
-import Cardano.Wallet.Unsafe
-    ( unsafeRunExceptT )
 import Control.Arrow
     ( second )
 import Control.DeepSeq
@@ -444,15 +442,17 @@ import Control.DeepSeq
 import Control.Error.Util
     ( failWith )
 import Control.Monad
-    ( forM, forever, join, void, when, (>=>) )
-import Control.Monad.IO.Class
-    ( MonadIO, liftIO )
+    ( forM, forM_, forever, join, unless, void, when, (>=>) )
+import Control.Monad.IO.Unlift
+    ( MonadIO, MonadUnliftIO (..), liftIO )
+import Control.Monad.Trans.Class
+    ( lift )
 import Control.Monad.Trans.Except
     ( ExceptT (..), runExceptT, throwE, withExceptT )
 import Control.Monad.Trans.Maybe
     ( MaybeT (..), exceptToMaybeT )
 import Control.Tracer
-    ( Tracer, contramap )
+    ( Tracer, contramap, traceWith )
 import Crypto.Hash.Utils
     ( blake2b224 )
 import Data.Aeson
@@ -463,12 +463,14 @@ import Data.ByteString
     ( ByteString )
 import Data.Coerce
     ( coerce )
+import Data.Either.Combinators
+    ( whenLeft )
 import Data.Either.Extra
     ( eitherToMaybe )
 import Data.Function
     ( (&) )
 import Data.Functor
-    ( (<&>) )
+    ( ($>), (<&>) )
 import Data.Functor.Identity
     ( Identity (..) )
 import Data.Generics.Internal.VL.Lens
@@ -552,10 +554,12 @@ import Type.Reflection
     ( Typeable, typeRep )
 import UnliftIO.Async
     ( race_ )
+import UnliftIO.Compat
+    ( unliftIOWith )
 import UnliftIO.Concurrent
     ( threadDelay )
 import UnliftIO.Exception
-    ( IOException, bracket, throwIO, tryAnyDeep, tryJust )
+    ( IOException, bracket, tryAnyDeep, tryJust )
 
 import qualified Cardano.Wallet as W
 import qualified Cardano.Wallet.Api.Types as Api
@@ -2992,13 +2996,20 @@ newApiLayer
     -> IO ctx
 newApiLayer tr g0 nw tl df tokenMeta coworker = do
     re <- Registry.empty
-    let trTx = contramap MsgSubmitSealedTx tr
-    let trW = contramap MsgWalletWorker tr
     let ctx = ApiLayer trTx trW g0 nw tl df re tokenMeta
-    listDatabases df >>= mapM_ (startWalletWorker ctx coworker)
-    return ctx
+    wallets <- listDatabases df
+    forM_ wallets $ \wid -> do
+        res <- runExceptT $ startWalletWorker ctx coworker wid
+        -- Workers which failed to start are logged, but the server will
+        -- continue regardless. API requests which use these wallets will fail.
+        whenLeft res $ traceWith tr . MsgWalletFailedToRegister
+    pure ctx
+  where
+    trTx = contramap MsgSubmitSealedTx tr
+    trW = contramap MsgWalletWorker tr
 
 -- | Register a wallet restoration thread with the worker registry.
+-- This is called at startup for each wallet.
 startWalletWorker
     :: forall ctx s k.
         ( ctx ~ ApiLayer s k
@@ -3009,12 +3020,11 @@ startWalletWorker
     -> (WorkerCtx ctx -> WalletId -> IO ())
         -- ^ Action to run concurrently with restore
     -> WalletId
-    -> IO ()
-startWalletWorker ctx coworker = void . registerWorker ctx before coworker
+    -> ExceptT ErrRegisterWallet IO ()
+startWalletWorker ctx coworker = registerWorker ctx before coworker'
   where
-    before ctx' wid =
-        runExceptT (W.checkWalletIntegrity ctx' wid gp)
-        >>= either throwIO pure
+    before ctx' wid = withExceptT ErrRegisterWalletLoad $ W.checkWalletIntegrity ctx' wid gp
+    coworker' cwCtx = liftIO . coworker cwCtx
     (_, NetworkParameters gp _ _, _) = ctx ^. genesisData
 
 -- | Register a wallet create and restore thread with the worker registry.
@@ -3033,49 +3043,48 @@ createWalletWorker
         -- ^ Create action
     -> (WorkerCtx ctx -> WalletId -> IO ())
         -- ^ Action to run concurrently with restore
-    -> ExceptT ErrCreateWallet IO WalletId
+    -> ExceptT ErrRegisterWallet IO WalletId
 createWalletWorker ctx wid createWallet coworker =
-    liftIO (Registry.lookup re wid) >>= \case
+    Registry.lookup re wid >>= \case
         Just _ ->
-            throwE $ ErrCreateWalletAlreadyExists $ ErrWalletAlreadyExists wid
+            throwE $ ErrRegisterWalletCreate $ ErrWalletAlreadyExists wid
         Nothing ->
-            liftIO (registerWorker ctx before coworker wid) >>= \case
-                Nothing -> throwE ErrCreateWalletFailedToCreateWorker
-                Just _ -> pure wid
+             registerWorker ctx before coworker wid $> wid
   where
-    before ctx' _ = void $ unsafeRunExceptT $ createWallet ctx'
+    before ctx' _ =
+        withExceptT ErrRegisterWalletCreate $ void $ createWallet ctx'
     re = ctx ^. workerRegistry @s @k
 
 -- | Create a worker for an existing wallet, register it, then start the worker
 -- thread. This is used by 'startWalletWorker' and 'createWalletWorker'.
 registerWorker
-    :: forall ctx s k.
+    :: forall ctx s k m.
         ( ctx ~ ApiLayer s k
         , IsOurs s RewardAccount
         , IsOurs s Address
+        , m ~ ExceptT ErrRegisterWallet IO
         )
     => ctx
-    -> (WorkerCtx ctx -> WalletId -> IO ())
+    -> (WorkerCtx ctx -> WalletId -> m ())
         -- ^ First action to run after starting the worker thread.
     -> (WorkerCtx ctx -> WalletId -> IO ())
         -- ^ Action to run concurrently with restore.
     -> WalletId
-    -> IO (Maybe ctx)
+    -> m ()
 registerWorker ctx before coworker wid =
-    fmap (const ctx) <$> Registry.register @_ @ctx re ctx wid config
+    void $ Registry.register @m @_ @ctx re ctx wid config
   where
     re = ctx ^. workerRegistry @s @k
     df = ctx ^. dbFactory
     config = MkWorker
-        { workerAcquire = withDatabase df wid
+        { workerAcquire = unliftIOWith $ withDatabase df wid
         , workerBefore = before
         , workerAfter = defaultWorkerAfter
-        -- fixme: ADP-641 Review error handling here
         , workerMain = \ctx' _ -> race_
-            (unsafeRunExceptT $ W.restoreWallet ctx' wid)
+            (withExceptT ErrRegisterWalletStart $ W.restoreWallet ctx' wid)
             (race_
-                (forever $ W.runLocalTxSubmissionPool txCfg ctx' wid)
-                (coworker ctx' wid))
+                (lift $ forever $ W.runLocalTxSubmissionPool txCfg ctx' wid)
+                (liftIO $ coworker ctx' wid))
         }
     txCfg = W.defaultLocalTxSubmissionConfig
 
@@ -3090,7 +3099,7 @@ withWorkerCtx
     :: forall ctx s k m a.
         ( HasWorkerRegistry s k ctx
         , HasDBFactory s k ctx
-        , MonadIO m
+        , MonadUnliftIO m
         )
     => ctx
         -- ^ A context that has a registry
@@ -3104,15 +3113,15 @@ withWorkerCtx
         -- ^ Do something with the wallet
     -> m a
 withWorkerCtx ctx wid onMissing onNotResponding action =
-    Registry.lookup re wid >>= \case
+    Registry.lookupResource re wid >>= \case
         Nothing -> do
             wids <- liftIO $ listDatabases df
             if wid `elem` wids then
                 onNotResponding (ErrWalletNotResponding wid)
             else
                 onMissing (ErrNoSuchWallet wid)
-        Just wrk ->
-            action $ hoistResource (workerResource wrk) (MsgFromWorker wid) ctx
+        Just resource ->
+            action $ hoistResource resource (MsgFromWorker wid) ctx
   where
     re = ctx ^. workerRegistry @s @k
     df = ctx ^. dbFactory @s @k
@@ -3148,11 +3157,13 @@ apiError err code message = err
 data ErrUnexpectedPoolIdPlaceholder = ErrUnexpectedPoolIdPlaceholder
     deriving (Eq, Show)
 
-data ErrCreateWallet
-    = ErrCreateWalletAlreadyExists ErrWalletAlreadyExists
-        -- ^ Wallet already exists
-    | ErrCreateWalletFailedToCreateWorker
-        -- ^ Somehow, we couldn't create a worker or open a db connection
+data ErrRegisterWallet
+    = ErrRegisterWalletLoad W.ErrCheckWalletIntegrity
+        -- ^ Failed to load existing wallet.
+    | ErrRegisterWalletCreate ErrWalletAlreadyExists
+        -- ^ Attempting to create a wallet that already exists.
+    | ErrRegisterWalletStart ErrNoSuchWallet
+        -- ^ Somehow, we couldn't create a worker or open a db connection.
     deriving (Eq, Show)
 
 data ErrTemporarilyDisabled = ErrTemporarilyDisabled
@@ -3208,10 +3219,10 @@ instance IsServerError ErrWalletAlreadyExists where
                 , " However, I already know of a wallet with this id."
                 ]
 
-instance IsServerError ErrCreateWallet where
+instance IsServerError ErrRegisterWallet where
     toServerError = \case
-        ErrCreateWalletAlreadyExists e -> toServerError e
-        ErrCreateWalletFailedToCreateWorker ->
+        ErrRegisterWalletCreate e -> toServerError e
+        _ ->
             apiError err500 UnexpectedError $ mconcat
                 [ "That's embarrassing. Your wallet looks good, but I couldn't "
                 , "open a new database to store its data. This is unexpected "
@@ -3776,20 +3787,33 @@ instance IsServerError (Request, ServerError) where
 -- may not be associated with a particular worker thread.
 data WalletEngineLog
     = MsgWalletWorker (WorkerLog WalletId W.WalletWorkerLog)
+    | MsgWalletFailedToRegister ErrRegisterWallet
     | MsgSubmitSealedTx TxSubmitLog
     deriving (Show, Eq)
 
 instance ToText WalletEngineLog where
     toText = \case
         MsgWalletWorker msg -> toText msg
+        MsgWalletFailedToRegister regErr -> case regErr of
+            ErrRegisterWalletLoad err ->
+                "Integrity check failed when loading wallet: " <>
+                toText err
+            ErrRegisterWalletCreate (ErrWalletAlreadyExists wid) ->
+                "Attempted to create a wallet " <> toText wid <>
+                " that already exists."
+            ErrRegisterWalletStart (ErrNoSuchWallet wid) ->
+                "Unable to create worker thread for wallet " <>
+                toText wid
         MsgSubmitSealedTx msg -> toText msg
 
 instance HasPrivacyAnnotation WalletEngineLog where
     getPrivacyAnnotation = \case
         MsgWalletWorker msg -> getPrivacyAnnotation msg
+        MsgWalletFailedToRegister _ -> Public
         MsgSubmitSealedTx msg -> getPrivacyAnnotation msg
 
 instance HasSeverityAnnotation WalletEngineLog where
     getSeverityAnnotation = \case
         MsgWalletWorker msg -> getSeverityAnnotation msg
+        MsgWalletFailedToRegister _ -> Error
         MsgSubmitSealedTx msg -> getSeverityAnnotation msg
