@@ -82,8 +82,6 @@ import Data.Text.Class
     ( showT, toText )
 import Numeric.Natural
     ( Natural )
-import System.Environment
-    ( getEnv )
 import Test.Hspec
     ( SpecWith, describe, pendingWith )
 import Test.Hspec.Expectations.Lifted
@@ -1152,8 +1150,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
     it "STAKE_POOLS_SMASH_01 - fetching metadata from SMASH works with delisted pools" $
         \ctx -> runResourceT $ bracketSettings ctx $ do
             liftIO $ flakyBecauseOf "#2337 (theorized)"
-            smashUrl <- liftIO $ getEnv "CARDANO_WALLET_SMASH_URL"
-            updateMetadataSource ctx (T.pack smashUrl)
+            updateMetadataSource ctx (_smashUrl ctx)
             eventually "metadata is fetched" $ do
                 r <- listPools ctx arbitraryStake
                 verify r
@@ -1192,8 +1189,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
 
     it "STAKE_POOLS_SMASH_HEALTH_01 - Can check SMASH health when configured" $
         \ctx -> runResourceT $ bracketSettings ctx $ do
-            smashUrl <- liftIO $ getEnv "CARDANO_WALLET_SMASH_URL"
-            updateMetadataSource ctx (T.pack smashUrl)
+            updateMetadataSource ctx (_smashUrl ctx)
             r <- request @ApiHealthCheck
                 ctx Link.getCurrentSMASHHealth
                 Default Empty
@@ -1212,9 +1208,8 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
 
     it "STAKE_POOLS_SMASH_HEALTH_03 - Can check SMASH health via url" $
         \ctx -> runResourceT $ do
-            smashUrl <- liftIO $ getEnv "CARDANO_WALLET_SMASH_URL"
-            let withUrl f (method, link) = (method, link <> "?url=" <> T.pack f)
-            let link = withUrl smashUrl Link.getCurrentSMASHHealth
+            let withUrl f (method, link) = (method, link <> "?url=" <> f)
+            let link = withUrl (_smashUrl ctx) Link.getCurrentSMASHHealth
 
             r <- request @ApiHealthCheck ctx link Default Empty
             expectResponseCode HTTP.status200 r

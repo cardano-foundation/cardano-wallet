@@ -51,6 +51,8 @@ data Context = Context
         :: IORef [PoolGarbageCollectionEvent]
         -- ^ The complete list of pool garbage collection events.
         -- Most recent events are stored at the head of the list.
+    , _smashUrl :: Text
+        -- ^ Base URL of the mock smash server.
     }
     deriving Generic
 
