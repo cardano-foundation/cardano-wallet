@@ -9,10 +9,10 @@ packages:
   , lib/core-integration/
   , lib/cli/
   , lib/launcher/
-  , lib/strict-non-empty-containers/
   , lib/text-class/
   , lib/test-utils/
   , lib/shelley/
+  , lib/strict-non-empty-containers/
 
 source-repository-package
     type: git
@@ -133,7 +133,6 @@ source-repository-package
     subdir: persistent
             persistent-sqlite
             persistent-template
-
 source-repository-package
     type: git
     location: https://github.com/snoyberg/http-client.git
@@ -155,9 +154,6 @@ package cardano-wallet-cli
 package cardano-wallet-launcher
     ghc-options: -ddump-to-file -ddump-hi
 
-package strict-non-empty-containers
-    ghc-options: -ddump-to-file -ddump-hi
-
 package text-class
     ghc-options: -ddump-to-file -ddump-hi
 
@@ -165,6 +161,9 @@ package cardano-wallet-test-utils
     ghc-options: -ddump-to-file -ddump-hi
 
 package cardano-wallet
+    ghc-options: -ddump-to-file -ddump-hi
+
+package strict-non-empty-containers
     ghc-options: -ddump-to-file -ddump-hi
 
 -- Verbatim
