@@ -25,7 +25,7 @@ import Cardano.CLI
     , withLoggingNamed
     )
 import Cardano.Startup
-    ( setDefaultFilePermissions, withUtf8Encoding )
+    ( installSignalHandlers, setDefaultFilePermissions, withUtf8Encoding )
 import Cardano.Wallet.Api.Types
     ( EncodeAddress (..) )
 import Cardano.Wallet.Logging
@@ -265,6 +265,9 @@ withLocalClusterSetup
     :: (FilePath -> [LogOutput] -> [LogOutput] -> IO a)
     -> IO a
 withLocalClusterSetup action = do
+    -- Handle SIGTERM properly
+    installSignalHandlers (putStrLn "Terminated")
+
     -- Ensure key files have correct permissions for cardano-cli
     setDefaultFilePermissions
 

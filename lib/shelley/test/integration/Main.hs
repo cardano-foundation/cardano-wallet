@@ -33,7 +33,10 @@ import Cardano.CLI
 import Cardano.Launcher
     ( ProcessHasExited (..) )
 import Cardano.Startup
-    ( setDefaultFilePermissions, withUtf8Encoding )
+    ( installSignalHandlersNoLogging
+    , setDefaultFilePermissions
+    , withUtf8Encoding
+    )
 import Cardano.Wallet.Api.Server
     ( Listen (..) )
 import Cardano.Wallet.Api.Types
@@ -198,6 +201,8 @@ main = withTestsSetup $ \testDir tracers -> do
 -- directory, and pass this info to the main hspec action.
 withTestsSetup :: (FilePath -> (Tracer IO TestsLog, Tracers IO) -> IO a) -> IO a
 withTestsSetup action = do
+    -- Handle SIGTERM properly
+    installSignalHandlersNoLogging
     -- Flush test output as soon as a line is printed
     hSetBuffering stdout LineBuffering
     hSetBuffering stderr LineBuffering
