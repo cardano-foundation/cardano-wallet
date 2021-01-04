@@ -1763,7 +1763,7 @@ withSystemTempDir
     -> m a
 withSystemTempDir tr name action = do
     parent <- liftIO getCanonicalTemporaryDirectory
-    withTempDir tr parent (name <> ".") action
+    withTempDir tr parent name action
 
 {-------------------------------------------------------------------------------
                                      Utils
