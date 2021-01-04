@@ -28,6 +28,9 @@
         "base-compat" = (((hackage.base-compat)."0.11.2").revisions).default;
         "base-compat-batteries" = (((hackage.base-compat-batteries)."0.11.2").revisions).default;
         "indexed-profunctors" = (((hackage.indexed-profunctors)."0.1").revisions).default;
+        "persistent" = (((hackage.persistent)."2.11.0.2").revisions).default;
+        "persistent-sqlite" = (((hackage.persistent-sqlite)."2.11.0.0").revisions).default;
+        "persistent-template" = (((hackage.persistent-template)."2.9.1.0").revisions).default;
         "base16" = (((hackage.base16)."0.1.2.1").revisions).default;
         "base16-bytestring" = (((hackage.base16-bytestring)."1.0.1.0").revisions).default;
         "base58-bytestring" = (((hackage.base58-bytestring)."0.1.0").revisions).default;
@@ -98,9 +101,6 @@
         cardano-wallet-test-utils = ./cardano-wallet-test-utils.nix;
         cardano-wallet = ./cardano-wallet.nix;
         strict-non-empty-containers = ./strict-non-empty-containers.nix;
-        persistent = ./persistent.nix;
-        persistent-sqlite = ./persistent-sqlite.nix;
-        persistent-template = ./persistent-template.nix;
         cardano-addresses-cli = ./cardano-addresses-cli.nix;
         cardano-addresses = ./cardano-addresses.nix;
         cardano-transactions = ./cardano-transactions.nix;
