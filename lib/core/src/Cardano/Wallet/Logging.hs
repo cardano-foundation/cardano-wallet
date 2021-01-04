@@ -1,6 +1,7 @@
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RankNTypes #-}
 
@@ -27,6 +28,8 @@ import Prelude
 
 import Cardano.BM.Data.LogItem
     ( LOContent (..), LogObject (..), LoggerName, mkLOMeta )
+import Cardano.BM.Data.Severity
+    ( Severity (..) )
 import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..)
     , HasSeverityAnnotation (..)
@@ -45,7 +48,7 @@ import Control.Monad.IO.Unlift
 import Control.Tracer
     ( Tracer (..), contramap, nullTracer, traceWith )
 import Data.Aeson
-    ( ToJSON )
+    ( ToJSON (..), object, (.=) )
 import Data.Text
     ( Text )
 import Data.Text.Class
@@ -53,9 +56,10 @@ import Data.Text.Class
 import GHC.Generics
     ( Generic )
 import UnliftIO.Exception
-    ( SomeException (..), isSyncException, withException )
+    ( SomeException (..), displayException, isSyncException, withException )
 
 import qualified Data.ByteString.Char8 as B8
+import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 
 -- | Converts a 'Text' trace into any other type of trace that has a 'ToText'
@@ -133,23 +137,45 @@ data BracketLog
     -- ^ Logged before the action starts.
     | BracketFinish
     -- ^ Logged after the action finishes.
-    | BracketException
+    | BracketException LoggedException
     -- ^ Logged when the action throws an exception.
-    | BracketAsyncException
+    | BracketAsyncException LoggedException
     -- ^ Logged when the action receives an async exception.
     deriving (Generic, Show, Eq, ToJSON)
 
 instance ToText BracketLog where
-    toText b = case b of
+    toText = \case
         BracketStart -> "start"
         BracketFinish -> "finish"
-        BracketException -> "exception"
-        BracketAsyncException -> "cancelled"
+        BracketException e -> "exception: " <> toText e
+        BracketAsyncException e -> "cancelled: " <> toText e
+
+instance HasPrivacyAnnotation BracketLog
+instance HasSeverityAnnotation BracketLog where
+    -- | Default severities for 'BracketLog' - the enclosing log message may of
+    -- course use different values.
+    getSeverityAnnotation = \case
+        BracketStart -> Debug
+        BracketFinish -> Debug
+        BracketException _ -> Error
+        BracketAsyncException _ -> Debug
+
+newtype LoggedException = LoggedException SomeException
+    deriving (Generic, Show)
+
+instance ToText LoggedException where
+    toText (LoggedException e) = T.pack $ displayException e
+
+instance Eq LoggedException where
+    a == b = show a == show b
+
+instance ToJSON LoggedException where
+    toJSON e = object ["exception" .= toText e]
 
 exceptionMsg :: SomeException -> BracketLog
 exceptionMsg e = if isSyncException e
-    then BracketException
-    else BracketAsyncException
+    then BracketException $ LoggedException e
+    else BracketAsyncException $ LoggedException e
 
 -- | Run a monadic action with 'BracketLog' traced around it.
 bracketTracer :: MonadUnliftIO m => Tracer m BracketLog -> m a -> m a
