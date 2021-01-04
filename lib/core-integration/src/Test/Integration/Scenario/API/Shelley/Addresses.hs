@@ -1,5 +1,6 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE QuasiQuotes #-}
@@ -16,6 +17,7 @@ import Prelude
 import Cardano.Wallet.Api.Types
     ( AnyAddress
     , ApiAddress
+    , ApiT (..)
     , ApiTransaction
     , ApiVerificationKey
     , ApiWallet
@@ -30,14 +32,18 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( defaultAddressPoolGap, getAddressPoolGap )
 import Cardano.Wallet.Primitive.Types.Address
     ( AddressState (..) )
+import Cardano.Wallet.Primitive.Types.Tx
+    ( TxStatus (..) )
 import Control.Monad
     ( forM, forM_ )
+import Control.Monad.IO.Class
+    ( liftIO )
 import Control.Monad.Trans.Resource
     ( runResourceT )
 import Data.Aeson
     ( ToJSON (..), object, (.=) )
 import Data.Generics.Internal.VL.Lens
-    ( (^.) )
+    ( view, (^.) )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text
@@ -59,6 +65,7 @@ import Test.Integration.Framework.DSL
     , expectListField
     , expectListSize
     , expectResponseCode
+    , fixturePassphrase
     , fixtureWallet
     , getFromResponse
     , json
@@ -105,7 +112,7 @@ spec = describe "SHELLEY_ADDRESSES" $ do
 
     it "ADDRESS_LIST_01 - Can list addresses with non-default pool gap" $ \ctx -> runResourceT $ do
         let g = 15
-        w <- emptyWalletWith ctx ("Wallet", "cardano-wallet", g)
+        w <- emptyWalletWith ctx ("Wallet", fixturePassphrase, g)
         r <- request @[ApiAddress n] ctx
             (Link.listAddresses @'Shelley w) Default Empty
         expectResponseCode HTTP.status200 r
@@ -177,7 +184,7 @@ spec = describe "SHELLEY_ADDRESSES" $ do
     it "ADDRESS_LIST_03 - Generates new address pool gap" $ \ctx -> runResourceT $ do
         let initPoolGap = 10
         wSrc <- fixtureWallet ctx
-        wDest <- emptyWalletWith ctx ("Wallet", "cardano-wallet", initPoolGap)
+        wDest <- emptyWalletWith ctx ("Wallet", fixturePassphrase, initPoolGap)
 
         -- make sure all addresses in address_pool_gap are 'Unused'
         r <- request @[ApiAddress n] ctx
@@ -201,7 +208,7 @@ spec = describe "SHELLEY_ADDRESSES" $ do
                             "unit": "lovelace"
                         }
                     }],
-                    "passphrase": "cardano-wallet"
+                    "passphrase": #{fixturePassphrase}
                 }|]
 
             rTrans <- request @(ApiTransaction n) ctx
@@ -252,6 +259,80 @@ spec = describe "SHELLEY_ADDRESSES" $ do
             , expectListField 0 (Aeson.key "id" . Aeson._String)
                 (`shouldNotSatisfy` T.isPrefixOf "addr_test")
             ]
+
+    it "ADDRESS_LIST_06 - Used change addresses are listed after a transaction is no longer pending" $ \ctx -> runResourceT @IO $ do
+        let verifyAddrs nTotal nUsed addrs = do
+                liftIO (length addrs `shouldBe` nTotal)
+                let onlyUsed = filter ((== Used) . (^. (#state . #getApiT))) addrs
+                liftIO (length onlyUsed `shouldBe` nUsed)
+
+        -- 1. Create Shelley wallets
+        let initialTotalA = 30
+        let initialUsedA  = 10
+        wA <- fixtureWallet ctx
+        listAddresses @n ctx wA
+            >>= verifyAddrs initialTotalA initialUsedA
+
+        let initialTotalB = 20
+        let initialUsedB  = 0
+        wB <- emptyWallet ctx
+        listAddresses @n ctx wB
+            >>= verifyAddrs initialTotalB initialUsedB
+
+        -- 2. Send a transaction from A -> B
+        destination <- view #id . head <$> listAddresses @n ctx wB
+        let amount = 10 * minUTxOValue
+        let payload = Json [json|{
+                "payments": [{
+                    "address": #{destination},
+                    "amount": {
+                        "quantity": #{amount},
+                        "unit": "lovelace"
+                    }
+                }],
+                "passphrase": #{fixturePassphrase}
+            }|]
+        (_, rtx) <- unsafeRequest @(ApiTransaction n) ctx
+            (Link.createTransaction @'Shelley wA) payload
+
+        -- 3. Check that there's one more used addresses on A.
+        --
+        -- Ideally, we would also like to check that there's no used address on
+        -- B yet, but this would make the test quite flaky. Indeed, the integration
+        -- tests produces block very fast and by the time we make this call the
+        -- transaction may have already been inserted in the ledger and
+        -- discovered by B.
+        --
+        -- Similarly, we can't assert the length of used addresses on A. It
+        -- _should_ be 'initialUsedA` but the transaction could have already
+        -- been inserted and discovered by the time the 'listAddresses' call
+        -- resolves.
+        listAddresses @n ctx wA
+            >>= \addrs -> liftIO $ length addrs `shouldBe` (initialTotalA + 1)
+
+        -- 4. Wait for transaction from A -> B to no longer be pending
+        eventually "Transaction from A -> B is discovered on B" $ do
+            request @(ApiTransaction n) ctx
+                (Link.getTransaction @'Shelley wA rtx) Default Empty
+                >>= expectField #status (`shouldBe` ApiT InLedger)
+            request @(ApiTransaction n) ctx
+                (Link.getTransaction @'Shelley wB rtx) Default Empty
+                >>= expectField #status (`shouldBe` ApiT InLedger)
+
+        -- 5. Check that there's one more used and total addresses on the wallets
+        -- A and B.
+        --
+        -- On A: The address comes from the internal pool gap and was hidden up
+        --       until the transaction is created and remains after it is
+        --       inserted.
+        --
+        -- On B: There's a new total address because the address used was the
+        --       first unused address from the consecutive sequence of the address
+        --       pool. Thus the address window was shifted be exactly one.
+        listAddresses @n ctx wA
+            >>= verifyAddrs (initialTotalA + 1) (initialUsedA + 1)
+        listAddresses @n ctx wB
+            >>= verifyAddrs (initialTotalB + 1) (initialUsedB + 1)
 
     it "ADDRESS_INSPECT_01 - Address inspect OK" $ \ctx -> do
         let str = "Ae2tdPwUPEYz6ExfbWubiXPB6daUuhJxikMEb4eXRp5oKZBKZwrbJ2k7EZe"

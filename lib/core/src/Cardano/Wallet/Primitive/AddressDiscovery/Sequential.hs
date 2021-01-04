@@ -945,20 +945,32 @@ instance
     ( PaymentAddress n k
     ) => KnownAddresses (SeqState n k) where
     knownAddresses s =
-        let
-            (PendingIxs ixs) =
-                pendingChangeIxs s
-            internalGap =
-                fromEnum . getAddressPoolGap . gap . internalPool $ s
-            discardUndiscoveredChange xs =
-                take (length ixs) $ drop (length xs - internalGap) xs
-            changeAddresses =
-                discardUndiscoveredChange $
-                    addresses (liftPaymentAddress @n @k) (internalPool s)
+        nonChangeAddresses <> usedChangeAddresses <> pendingChangeAddresses
+      where
             nonChangeAddresses =
                 addresses (liftPaymentAddress @n @k) (externalPool s)
-        in
-            nonChangeAddresses <> changeAddresses
+
+            changeAddresses =
+                addresses (liftPaymentAddress @n @k) (internalPool s)
+
+            usedChangeAddresses =
+                filter ((== Used) . snd) changeAddresses
+
+            -- pick as many unused change addresses as there are pending
+            -- transactions. Note: the last `internalGap` addresses are all
+            -- unused.
+            pendingChangeAddresses =
+                let
+                    (PendingIxs ixs) =
+                        pendingChangeIxs s
+
+                    internalGap =
+                        fromEnum . getAddressPoolGap . gap . internalPool $ s
+
+                    edgeChangeAddresses =
+                        drop (length changeAddresses - internalGap) changeAddresses
+                in
+                    take (length ixs) edgeChangeAddresses
 
 --------------------------------------------------------------------------------
 --
