@@ -54,15 +54,10 @@ extra-deps:
 - base-compat-batteries-0.11.2
 - indexed-profunctors-0.1
 
-# persistent-2.10.2 with CASCADE DELETE support for SQLite.
-#
-# See: https://github.com/input-output-hk/persistent/tree/cardano-wallet
-- git: https://github.com/input-output-hk/persistent
-  commit: 107787ecc4c8a112375493cd66574f788f950fce
-  subdirs:
-    - persistent
-    - persistent-sqlite
-    - persistent-template
+# persistent-2.11.0.2 with CASCADE DELETE support for SQLite.
+- persistent-2.11.0.2
+- persistent-sqlite-2.11.0.0
+- persistent-template-2.9.1.0
 
 # cardano-addresses-3.1.0
 - git: https://github.com/input-output-hk/cardano-addresses

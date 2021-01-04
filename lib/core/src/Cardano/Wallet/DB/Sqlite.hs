@@ -173,6 +173,8 @@ import Data.Word
 import Database.Persist.Class
     ( toPersistValue )
 import Database.Persist.Sql
+    ( OverflowNatural (..) )
+import Database.Persist.Sql
     ( Entity (..)
     , Filter
     , SelectOpt (..)
@@ -1596,8 +1598,8 @@ mkTxMetaEntity wid txid mfee meta derived = TxMeta
     , txMetaDirection = derived ^. #direction
     , txMetaSlot = derived ^. #slotNo
     , txMetaBlockHeight = getQuantity (derived ^. #blockHeight)
-    , txMetaAmount = getQuantity (derived ^. #amount)
-    , txMetaFee = fromIntegral . W.unCoin <$> mfee
+    , txMetaAmount = OverflowNatural $ getQuantity (derived ^. #amount)
+    , txMetaFee = OverflowNatural . fromIntegral . W.unCoin <$> mfee
     , txMetaSlotExpires = derived ^. #expiry
     , txMetaData = meta
     }
@@ -1624,7 +1626,7 @@ txHistoryFromEntity ti tip metas ins outs ws =
             { W.txInfoId =
                 getTxId txid
             , W.txInfoFee =
-                W.Coin . fromIntegral <$> mfee
+                W.Coin . fromIntegral . unOverflowNatural <$> mfee
             , W.txInfoInputs =
                 map mkTxIn $ filter ((== txid) . txInputTxId . fst) ins
             , W.txInfoOutputs =
@@ -1672,7 +1674,7 @@ txHistoryFromEntity ti tip metas ins outs ws =
         , W.direction = txMetaDirection m
         , W.slotNo = txMetaSlot m
         , W.blockHeight = Quantity (txMetaBlockHeight m)
-        , W.amount = Quantity (txMetaAmount m)
+        , W.amount = Quantity (unOverflowNatural $ txMetaAmount m)
         , W.expiry = txMetaSlotExpires m
         }
 
