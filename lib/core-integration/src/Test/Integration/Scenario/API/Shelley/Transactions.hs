@@ -413,6 +413,8 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 between (feeMin + (2*amt), feeMax + (2*amt))
             , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
             , expectField (#status . #getApiT) (`shouldBe` Pending)
+            , expectField #inputs $ \inputs' -> do
+                inputs' `shouldSatisfy` all (isJust . source)
             ]
 
         verify ra
