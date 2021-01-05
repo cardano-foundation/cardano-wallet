@@ -205,12 +205,12 @@ main :: IO ()
 main = withUtf8Encoding $ withLogging $ \trace -> do
     let tr = filterSeverity (pure . const Error) $ trMessageText trace
     defaultMain
-        [ withDB tr bgroupWriteUTxO
-        , withDB tr bgroupReadUTxO
+        [ withDB tr $ bgroupWriteUTxO mkOutputsCoin
+        , withDB tr $ bgroupReadUTxO mkOutputsCoin
         , withDB tr bgroupWriteSeqState
         , withDB tr bgroupWriteRndState
-        , withDB tr bgroupWriteTxHistory
-        , withDB tr bgroupReadTxHistory
+        , withDB tr $ bgroupWriteTxHistory mkOutputsCoin
+        , withDB tr $ bgroupReadTxHistory mkOutputsCoin
         ]
     putStrLn "\n--"
     utxoDiskSpaceTests tr
@@ -224,8 +224,8 @@ main = withUtf8Encoding $ withLogging $ \trace -> do
 --
 -- Currently the DBLayer will only store a single checkpoint (no rollback), so
 -- the #Checkpoints axis is a bit meaningless.
-bgroupWriteUTxO :: DBLayerBench -> Benchmark
-bgroupWriteUTxO db = bgroup "UTxO (Write)"
+bgroupWriteUTxO :: (Int -> Int -> [TxOut]) -> DBLayerBench -> Benchmark
+bgroupWriteUTxO mkOutputs' db = bgroup "UTxO (Write)"
     -- A fragmented wallet will have a large number of UTxO. The coin
     -- selection algorithm tries to prevent fragmentation.
     --
@@ -241,11 +241,11 @@ bgroupWriteUTxO db = bgroup "UTxO (Write)"
     ]
   where
     bUTxO n s = bench lbl $ withCleanDB db walletFixture $
-        benchPutUTxO n s . fst
+        benchPutUTxO mkOutputs' n s . fst
       where lbl = n|+" CP x "+|s|+" UTxO"
 
-bgroupReadUTxO :: DBLayerBench -> Benchmark
-bgroupReadUTxO db = bgroup "UTxO (Read)"
+bgroupReadUTxO :: (Int -> Int -> [TxOut]) -> DBLayerBench -> Benchmark
+bgroupReadUTxO mkOutputs' db = bgroup "UTxO (Read)"
     --      #Checkpoints   UTxO Size
     [ bUTxO            1           0
     , bUTxO            1          10
@@ -255,16 +255,16 @@ bgroupReadUTxO db = bgroup "UTxO (Read)"
     , bUTxO            1      100000
     ]
   where
-    bUTxO n s = bench lbl $ withUTxO db n s benchReadUTxO
+    bUTxO n s = bench lbl $ withUTxO mkOutputs' db n s benchReadUTxO
         where lbl = n|+" CP x "+|s|+" UTxO"
 
-benchPutUTxO :: Int -> Int -> DBLayerBench -> IO ()
-benchPutUTxO numCheckpoints utxoSize DBLayer{..} = do
-    let cps = mkCheckpoints numCheckpoints utxoSize
+benchPutUTxO :: (Int -> Int -> [TxOut]) -> Int -> Int -> DBLayerBench -> IO ()
+benchPutUTxO mkOutputs' numCheckpoints utxoSize DBLayer{..} = do
+    let cps = mkCheckpoints mkOutputs' numCheckpoints utxoSize
     unsafeRunExceptT $ mapExceptT atomically $ mapM_ (putCheckpoint testPk) cps
 
-mkCheckpoints :: Int -> Int -> [WalletBench]
-mkCheckpoints numCheckpoints utxoSize =
+mkCheckpoints :: (Int -> Int -> [TxOut]) -> Int -> Int -> [WalletBench]
+mkCheckpoints mkOutputs' numCheckpoints utxoSize =
     [ force (cp i) | !i <- [1..numCheckpoints] ]
   where
     cp i = unsafeInitWallet
@@ -279,7 +279,7 @@ mkCheckpoints numCheckpoints utxoSize =
 
     utxo i = Map.fromList $ zip
         (map fst $ mkInputs i utxoSize)
-        (mkOutputs i utxoSize)
+        (mkOutputs' i utxoSize)
 
 benchReadUTxO :: DBLayerBench -> IO (Maybe WalletBench)
 benchReadUTxO DBLayer{..} = atomically $ readCheckpoint testPk
@@ -287,17 +287,18 @@ benchReadUTxO DBLayer{..} = atomically $ readCheckpoint testPk
 -- Set up a database with some UTxO in checkpoints.
 withUTxO
     :: NFData b
-    => DBLayerBench
+    => (Int -> Int -> [TxOut])
+    -> DBLayerBench
     -> Int
     -> Int
     -> (DBLayerBench -> IO b)
     -> Benchmarkable
-withUTxO db n s = perRunEnv (utxoFixture db n s $> db)
+withUTxO mkOutputs' db n s = perRunEnv (utxoFixture mkOutputs' db n s $> db)
 
-utxoFixture :: DBLayerBench -> Int -> Int -> IO ()
-utxoFixture db@DBLayer{..} numCheckpoints utxoSize = do
+utxoFixture :: (Int -> Int -> [TxOut]) -> DBLayerBench -> Int -> Int -> IO ()
+utxoFixture mkOutputs' db@DBLayer{..} numCheckpoints utxoSize = do
     walletFixture db
-    let cps = mkCheckpoints numCheckpoints utxoSize
+    let cps = mkCheckpoints mkOutputs' numCheckpoints utxoSize
     unsafeRunExceptT $ mapM_ (mapExceptT atomically . putCheckpoint testPk) cps
 
 ----------------------------------------------------------------------------
@@ -444,8 +445,8 @@ mkRndAddresses numAddrs i =
 --
 -- - 50 inputs
 -- - 100 outputs
-bgroupWriteTxHistory :: DBLayerBench -> Benchmark
-bgroupWriteTxHistory db = bgroup "TxHistory (Write)"
+bgroupWriteTxHistory :: (Int -> Int -> [TxOut]) -> DBLayerBench -> Benchmark
+bgroupWriteTxHistory mkOutputs' db = bgroup "TxHistory (Write)"
     --                   #NTxs #NInputs #NOutputs  #SlotRange
     [ bTxHistory             1        1        1      [1..10]
     , bTxHistory            10        1        1      [1..10]
@@ -463,14 +464,14 @@ bgroupWriteTxHistory db = bgroup "TxHistory (Write)"
   where
     bTxHistory n i o r =
         bench lbl $ withCleanDB db walletFixture $
-            benchPutTxHistory n i o r . fst
+            benchPutTxHistory mkOutputs' n i o r . fst
       where
         lbl = n|+" w/ "+|i|+"i + "+|o|+"o ["+|inf|+".."+|sup|+"]"
         inf = head r
         sup = last r
 
-bgroupReadTxHistory :: DBLayerBench -> Benchmark
-bgroupReadTxHistory db = bgroup "TxHistory (Read)"
+bgroupReadTxHistory :: (Int -> Int -> [TxOut]) -> DBLayerBench -> Benchmark
+bgroupReadTxHistory mkOutputs' db = bgroup "TxHistory (Read)"
     --             #NTxs  #SlotRange  #SortOrder  #Status  #SearchRange
     [ bTxHistory    1000    [1..100]  Descending  Nothing  wholeRange
     , bTxHistory    1000    [1..100]   Ascending  Nothing  wholeRange
@@ -485,7 +486,7 @@ bgroupReadTxHistory db = bgroup "TxHistory (Read)"
     wholeRange = (Nothing, Nothing)
     pending = Just Pending
     bTxHistory n r o st s =
-        bench lbl $ withTxHistory db n r $ benchReadTxHistory o s st
+        bench lbl $ withTxHistory mkOutputs' db n r $ benchReadTxHistory o s st
       where
         lbl = unwords [show n, range, ord, mstatus, search]
         range = let inf = head r in let sup = last r in "["+|inf|+".."+|sup|+"]"
@@ -498,14 +499,15 @@ bgroupReadTxHistory db = bgroup "TxHistory (Read)"
             (Just inf, Just sup) -> inf|+".."+|sup|+""
 
 benchPutTxHistory
-    :: Int
+    :: (Int -> Int -> [TxOut])
+    -> Int
     -> Int
     -> Int
     -> [Word64]
     -> DBLayerBench
     -> IO ()
-benchPutTxHistory numTxs numInputs numOutputs range DBLayer{..} = do
-    let txs = mkTxHistory numTxs numInputs numOutputs range
+benchPutTxHistory mkOutputs' numTxs numInputs numOutputs range DBLayer{..} = do
+    let txs = mkTxHistory mkOutputs' numTxs numInputs numOutputs range
     unsafeRunExceptT $ mapExceptT atomically $ putTxHistory testPk txs
 
 benchReadTxHistory
@@ -521,8 +523,8 @@ benchReadTxHistory sortOrder (inf, sup) mstatus DBLayer{..} =
         (SlotNo . fromIntegral <$> inf)
         (SlotNo . fromIntegral <$> sup)
 
-mkTxHistory :: Int -> Int -> Int -> [Word64] -> [(Tx, TxMeta)]
-mkTxHistory numTx numInputs numOutputs range =
+mkTxHistory :: (Int -> Int -> [TxOut]) -> Int -> Int -> Int -> [Word64] -> [(Tx, TxMeta)]
+mkTxHistory mkOutputs' numTx numInputs numOutputs range =
     [ force
         ( (Tx (mkTxId inps outs mempty Nothing) Nothing inps outs mempty) Nothing
         , TxMeta
@@ -536,7 +538,7 @@ mkTxHistory numTx numInputs numOutputs range =
         )
     | !i <- [1..numTx]
     , let inps = (mkInputs i numInputs)
-    , let outs = (mkOutputs i numOutputs)
+    , let outs = (mkOutputs' i numOutputs)
     ]
   where
     sl i = SlotNo $ range !! (i `mod` length range)
@@ -551,8 +553,10 @@ mkInputs prefix n =
   where
     lbl = show prefix <> "in"
 
-mkOutputs :: Int -> Int -> [TxOut]
-mkOutputs prefix n =
+-- | Returns Output transactions that effectively have no "TokenBundles", but a
+-- single Coin.
+mkOutputsCoin :: Int -> Int -> [TxOut]
+mkOutputsCoin prefix n =
     [ force
         (TxOut (mkAddress prefix i) (TokenBundle.fromCoin $ Coin 1))
     | !i <- [1..n]
@@ -560,22 +564,24 @@ mkOutputs prefix n =
 
 withTxHistory
     :: NFData b
-    => DBLayerBench
+    => (Int -> Int -> [TxOut])
+    -> DBLayerBench
     -> Int
     -> [Word64]
     -> (DBLayerBench -> IO b)
     -> Benchmarkable
-withTxHistory db s r = perRunEnv (txHistoryFixture db s r $> db)
+withTxHistory mkOutputs' db s r = perRunEnv (txHistoryFixture mkOutputs' db s r $> db)
 
 txHistoryFixture
-    :: DBLayerBench
+    :: (Int -> Int -> [TxOut])
+    -> DBLayerBench
     -> Int
     -> [Word64]
     -> IO ()
-txHistoryFixture db@DBLayer{..} bSize range = do
+txHistoryFixture mkOutputs' db@DBLayer{..} bSize range = do
     walletFixture db
     let (nInps, nOuts) = (20, 20)
-    let txs = mkTxHistory bSize nInps nOuts range
+    let txs = mkTxHistory mkOutputs' bSize nInps nOuts range
     atomically $ unsafeRunExceptT $ putTxHistory testPk txs
 
 ----------------------------------------------------------------------------
@@ -696,7 +702,7 @@ utxoDiskSpaceTests tr = do
     bUTxO n s = benchDiskSize tr $ \db -> do
         putStrLn ("File size /"+|n|+" CP x "+|s|+" UTxO")
         walletFixture db
-        benchPutUTxO n s db
+        benchPutUTxO mkOutputsCoin n s db
 
 txHistoryDiskSpaceTests :: Tracer IO DBLog -> IO ()
 txHistoryDiskSpaceTests tr = do
@@ -716,7 +722,7 @@ txHistoryDiskSpaceTests tr = do
     bTxs n i o = benchDiskSize tr $ \db -> do
         putStrLn ("File size /"+|n|+" w/ "+|i|+"i + "+|o|+"o")
         walletFixture db
-        benchPutTxHistory n i o [1..100] db
+        benchPutTxHistory mkOutputsCoin n i o [1..100] db
 
 benchDiskSize :: Tracer IO DBLog -> (DBLayerBench -> IO ()) -> IO ()
 benchDiskSize tr action = bracket (setupDB tr) cleanupDB $ \(f, ctx, db) -> do
