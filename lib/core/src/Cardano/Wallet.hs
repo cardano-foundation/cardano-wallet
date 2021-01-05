@@ -204,6 +204,7 @@ import Cardano.Wallet.Network
     ( ErrGetAccountBalance (..)
     , ErrNetworkUnavailable (..)
     , ErrPostTx (..)
+    , ErrStakeDistribution (..)
     , FollowAction (..)
     , FollowExit (..)
     , FollowLog (..)
@@ -2570,7 +2571,7 @@ data ErrWithdrawalNotWorth
 
 -- | Errors that can occur when trying to list stake pool.
 data ErrListPools
-    = ErrListPoolsNetworkError ErrNetworkUnavailable
+    = ErrListPoolsQueryFailed ErrStakeDistribution
     | ErrListPoolsPastHorizonException PastHorizonException
     deriving (Show)
 {-------------------------------------------------------------------------------

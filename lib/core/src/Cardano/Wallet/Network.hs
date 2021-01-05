@@ -26,6 +26,7 @@ module Cardano.Wallet.Network
     , ErrGetTxParameters (..)
     , ErrPostTx (..)
     , ErrGetAccountBalance (..)
+    , ErrStakeDistribution (..)
 
     -- * Logging
     , FollowLog (..)
@@ -152,7 +153,7 @@ data NetworkLayer m block = NetworkLayer
     , stakeDistribution
         :: BlockHeader -- Point of interest
         -> Coin -- Stake to consider for rewards
-        -> ExceptT ErrNetworkUnavailable m StakePoolsSummary
+        -> ExceptT ErrStakeDistribution m StakePoolsSummary
 
     , getAccountBalance
         :: RewardAccount
@@ -204,6 +205,12 @@ data ErrGetAccountBalance
     = ErrGetAccountBalanceNetworkUnreachable ErrNetworkUnavailable
     | ErrGetAccountBalanceAccountNotFound RewardAccount
     deriving (Generic, Eq, Show)
+
+-- | Error while querying stake distribution from ledger.
+newtype ErrStakeDistribution
+    = ErrStakeDistributionQuery Text
+    -- ^ Query failed.
+    deriving (Generic, Show, Eq)
 
 {-------------------------------------------------------------------------------
                               Initialization

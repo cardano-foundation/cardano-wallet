@@ -48,8 +48,8 @@ import Cardano.Wallet.Logging
     ( BracketLog (..), bracketTracer )
 import Cardano.Wallet.Network
     ( Cursor
-    , ErrNetworkUnavailable (..)
     , ErrPostTx (..)
+    , ErrStakeDistribution (..)
     , NetworkLayer (..)
     , mapCursor
     )
@@ -510,13 +510,11 @@ withNetworkLayer tr np addrInfo (versionData, _) action = do
             :: Show e
             => String
             -> IO (Either e r)
-            -> ExceptT ErrNetworkUnavailable IO r
+            -> ExceptT ErrStakeDistribution IO r
         handleQueryResult label =
             withExceptT mkErr . ExceptT . bracketQuery label tr
           where
-            -- fixme: "network unreachable" is not the best name for this. And
-            -- the exception message is ignored by the API server.
-            mkErr e = ErrNetworkUnreachable $ T.pack $ "Unexpected " ++ show e
+            mkErr = ErrStakeDistributionQuery . T.pack . show
 
         queryStakeDistribution pt = \case
             AnyCardanoEra ShelleyEra -> do
