@@ -16,7 +16,7 @@ import Prelude
 import Cardano.BM.Trace
     ( nullTracer )
 import Cardano.DB.Sqlite
-    ( DBLog (..) )
+    ( DBLog (..), newInMemorySqliteContext )
 import Cardano.Pool.DB
     ( DBLayer (..) )
 import Cardano.Pool.DB.Log
@@ -24,9 +24,13 @@ import Cardano.Pool.DB.Log
 import Cardano.Pool.DB.Properties
     ( properties )
 import Cardano.Pool.DB.Sqlite
-    ( withDBLayer )
+    ( createViews, newDBLayer, withDBLayer )
+import Cardano.Pool.DB.Sqlite.TH
+    ( migrateAll )
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( dummyTimeInterpreter )
+import Control.Tracer
+    ( contramap )
 import System.Directory
     ( copyFile )
 import System.FilePath
@@ -68,7 +72,7 @@ test_migrationFromv20191216 =
                 withDBLayer tr (Just path) ti $ \_ -> pure ()
                 withDBLayer tr (Just path) ti $ \_ -> pure ()
 
-            let databaseConnMsg  = filter isMsgConnStr logs
+            let databaseConnMsg  = filter isMsgWillOpenDB logs
             let databaseResetMsg = filter (== MsgGeneric MsgDatabaseReset) logs
             let migrationErrMsg  = filter isMsgMigrationError logs
 
@@ -76,9 +80,9 @@ test_migrationFromv20191216 =
             length databaseResetMsg `shouldBe` 1
             length migrationErrMsg  `shouldBe` 1
 
-isMsgConnStr :: PoolDbLog -> Bool
-isMsgConnStr (MsgGeneric (MsgConnStr _)) = True
-isMsgConnStr _ = False
+isMsgWillOpenDB :: PoolDbLog -> Bool
+isMsgWillOpenDB (MsgGeneric (MsgWillOpenDB _)) = True
+isMsgWillOpenDB _ = False
 
 isMsgMigrationError :: PoolDbLog -> Bool
 isMsgMigrationError (MsgGeneric (MsgMigrations (Left _))) = True

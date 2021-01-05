@@ -50,10 +50,12 @@ import Cardano.DB.Sqlite
     , chunkSize
     , dbChunked
     , dbChunked'
-    , destroyDBLayer
+    , destroyConnectionPool
     , fieldName
     , fieldType
     , handleConstraint
+    , newConnectionPool
+    , newInMemorySqliteContext
     , newSqliteContext
     , tableName
     )
@@ -124,7 +126,7 @@ import Cardano.Wallet.Primitive.Types.TokenBundle
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId (..) )
 import Control.Monad
-    ( forM, forM_, unless, void, when )
+    ( forM, forM_, unless, void, when, (<=<) )
 import Control.Monad.Extra
     ( concatMapM )
 import Control.Monad.IO.Class
@@ -247,14 +249,23 @@ withDBLayer
     -> Maybe FilePath
        -- ^ Path to database directory, or Nothing for in-memory database
     -> TimeInterpreter IO
-    -> ((SqliteContext, DBLayer IO s k) -> IO a)
+       -- ^ Time interpreter for slot to time conversions
+    -> (DBLayer IO s k -> IO a)
        -- ^ Action to run.
     -> IO a
-withDBLayer tr defaultFieldValues mDatabaseDir ti =
-    bracket before after
-  where
-    before = newDBLayer tr defaultFieldValues mDatabaseDir ti
-    after = destroyDBLayer tr . fst
+withDBLayer tr defaultFieldValues mDatabaseDir ti action =
+    case mDatabaseDir of
+        Nothing -> do
+            db <- newInMemorySqliteContext tr [] migrateAll >>= newDBLayer ti
+            action db
+
+        Just fp -> do
+            let manualMigrations = migrateManually tr (Proxy @k) defaultFieldValues
+            let autoMigrations   = migrateAll
+            let acquirePool      = newConnectionPool tr fp
+            bracket acquirePool destroyConnectionPool $ \pool -> do
+                ctx <- newSqliteContext tr pool manualMigrations autoMigrations fp
+                either throwIO (action <=< newDBLayer ti) ctx
 
 -- | Instantiate a 'DBFactory' from a given directory
 newDBFactory
@@ -268,7 +279,7 @@ newDBFactory
     -> DefaultFieldValues
        -- ^ Default database field values, used during migration.
     -> TimeInterpreter IO
-
+       -- ^ Time interpreter for slot to time conversions
     -> Maybe FilePath
        -- ^ Path to database directory, or Nothing for in-memory database
     -> IO (DBFactory IO s k)
@@ -286,8 +297,8 @@ newDBFactory tr defaultFieldValues ti = \case
                 db <- modifyMVar mvar $ \m -> case Map.lookup wid m of
                     Just (_, db) -> pure (m, db)
                     Nothing -> do
-                        (ctx, db) <-
-                            newDBLayer tr defaultFieldValues Nothing ti
+                        ctx <- newInMemorySqliteContext tr [] migrateAll
+                        db  <- newDBLayer ti ctx
                         pure (Map.insert wid (ctx, db) m, db)
                 action db
             , removeDatabase = \wid -> do
@@ -306,7 +317,7 @@ newDBFactory tr defaultFieldValues ti = \case
                 defaultFieldValues
                 (Just $ databaseFile wid)
                 ti
-                (action . snd)
+                action
             , removeDatabase = \wid -> do
                 let widp = pretty wid
                 -- try to wait for all 'withDatabase' calls to finish before
@@ -1080,23 +1091,19 @@ data CacheBehavior
 -- If the given file path does not exist, it will be created by the sqlite
 -- library.
 --
--- 'getDBLayer' will provide the actual 'DBLayer' implementation. The database
--- should be closed with 'destroyDBLayer'. If you use 'withDBLayer' then both of
--- these things will be handled for you.
+-- 'newDBLayer' will provide the actual 'DBLayer' implementation. It requires an
+-- 'SqliteContext' which can be obtained from a database connection pool. This
+-- is better initialized with 'withDBLayer'.
 newDBLayer
     :: forall s k.
         ( PersistState s
         , PersistPrivateKey (k 'RootK)
-        , WalletKey k
         )
-    => Tracer IO DBLog
-       -- ^ Logging object
-    -> DefaultFieldValues
-       -- ^ Default database field values, used during migration.
-    -> Maybe FilePath
-       -- ^ Path to database file, or Nothing for in-memory database
-    -> TimeInterpreter IO
-    -> IO (SqliteContext, DBLayer IO s k)
+    => TimeInterpreter IO
+       -- ^ Time interpreter for slot to time conversions
+    -> SqliteContext
+       -- ^ A (thread-)safe wrapper for query execution.
+    -> IO (DBLayer IO s k)
 newDBLayer =
     newDBLayerWith @s @k CacheLatestCheckpoint
 
@@ -1105,23 +1112,15 @@ newDBLayerWith
     :: forall s k.
         ( PersistState s
         , PersistPrivateKey (k 'RootK)
-        , WalletKey k
         )
     => CacheBehavior
-    -> Tracer IO DBLog
-    -> DefaultFieldValues
-    -> Maybe FilePath
+       -- ^ Option to disable IORef caching.
     -> TimeInterpreter IO
-    -> IO (SqliteContext, DBLayer IO s k)
-newDBLayerWith cacheBehavior trace defaultFieldValues mDatabaseFile ti = do
-    ctx@SqliteContext{runQuery} <-
-        either throwIO pure =<<
-        newSqliteContext
-            (migrateManually trace (Proxy @k) defaultFieldValues)
-            migrateAll
-            trace
-            mDatabaseFile
-
+       -- ^ Time interpreter for slot to time conversions.
+    -> SqliteContext
+       -- ^ A (thread-)safe wrapper for query execution.
+    -> IO (DBLayer IO s k)
+newDBLayerWith cacheBehavior ti SqliteContext{runQuery} = do
     -- NOTE1
     -- We cache the latest checkpoint for read operation such that we prevent
     -- needless marshalling and unmarshalling with the database. Many handlers
@@ -1190,7 +1189,7 @@ newDBLayerWith cacheBehavior trace defaultFieldValues mDatabaseFile ti = do
             writeCache wid Nothing
             selectLatestCheckpoint wid >>= writeCache wid
 
-    return (ctx, DBLayer
+    return DBLayer
 
         {-----------------------------------------------------------------------
                                       Wallets
@@ -1427,8 +1426,7 @@ newDBLayerWith cacheBehavior trace defaultFieldValues mDatabaseFile ti = do
         -----------------------------------------------------------------------}
 
         , atomically = runQuery
-
-        })
+        }
 
 readWalletMetadata
     :: W.WalletId

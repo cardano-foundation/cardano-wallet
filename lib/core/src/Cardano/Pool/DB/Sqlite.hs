@@ -30,6 +30,7 @@ module Cardano.Pool.DB.Sqlite
     , undecoratedDB
     , defaultFilePath
     , DatabaseView (..)
+    , createViews
     ) where
 
 import Prelude
@@ -38,11 +39,13 @@ import Cardano.DB.Sqlite
     ( DBField (..)
     , DBLog (..)
     , ManualMigration (..)
-    , MigrationError (..)
+    , MigrationError
     , SqliteContext (..)
-    , destroyDBLayer
+    , destroyConnectionPool
     , fieldName
     , handleConstraint
+    , newConnectionPool
+    , newInMemorySqliteContext
     , newSqliteContext
     , tableName
     )
@@ -136,7 +139,7 @@ import System.FilePath
 import System.Random
     ( newStdGen )
 import UnliftIO.Exception
-    ( bracket, throwIO )
+    ( bracket, catch, throwIO )
 
 import qualified Cardano.Pool.DB.Sqlite.TH as TH
 import qualified Cardano.Wallet.Primitive.Types as W
@@ -201,12 +204,22 @@ withDecoratedDBLayer
     -> (DBLayer IO -> IO a)
        -- ^ Action to run.
     -> IO a
-withDecoratedDBLayer dbDecorator tr fp ti action = do
-    traceWith tr (MsgGeneric $ MsgWillOpenDB fp)
-    bracket before after (action . decorateDBLayer dbDecorator . snd)
+withDecoratedDBLayer dbDecorator tr mDatabaseDir ti action = do
+    case mDatabaseDir of
+        Nothing -> do
+            ctx <- newInMemorySqliteContext tr' createViews migrateAll
+            action (decorateDBLayer dbDecorator $ newDBLayer tr ti ctx)
+
+        Just fp -> do
+            let acquirePool = newConnectionPool tr' fp
+            handlingPersistError tr fp $
+                bracket acquirePool destroyConnectionPool $ \pool -> do
+                    ctx <- newSqliteContext tr' pool createViews migrateAll fp
+                    ctx & either
+                        throwIO
+                        (action . decorateDBLayer dbDecorator . newDBLayer tr ti)
   where
-    before = newDBLayer tr fp ti
-    after = destroyDBLayer (contramap MsgGeneric tr) . fst
+    tr' = contramap MsgGeneric tr
 
 -- | Sets up a connection to the SQLite database.
 --
@@ -221,21 +234,13 @@ withDecoratedDBLayer dbDecorator tr fp ti action = do
 newDBLayer
     :: Tracer IO PoolDbLog
        -- ^ Logging object
-    -> Maybe FilePath
-       -- ^ Database file location, or Nothing for in-memory database
     -> TimeInterpreter IO
-    -> IO (SqliteContext, DBLayer IO)
-newDBLayer trace fp ti = do
-    let io = newSqliteContext
-            (migrateManually trace)
-            migrateAll
-            (contramap MsgGeneric trace)
-            fp
-    ctx@SqliteContext{runQuery} <- handlingPersistError trace fp io
-    pure (ctx, mkDBLayer runQuery)
-  where
-    mkDBLayer :: (forall a. SqlPersistT IO a -> IO a) -> DBLayer IO
-    mkDBLayer runQuery = DBLayer {..}
+       -- ^ Time interpreter for slot to time conversions
+    -> SqliteContext
+        -- ^ A (thread-) safe wrapper for running db queries.
+    -> DBLayer IO
+newDBLayer tr ti SqliteContext{runQuery} =
+    DBLayer {..}
       where
         putPoolProduction point pool = ExceptT $
             handleConstraint (ErrPointAlreadyExists point) $
@@ -254,7 +259,7 @@ newDBLayer trace fp ti = do
 
             pure (foldl' toMap Map.empty production)
 
-        readTotalProduction = Map.fromList <$> runRawQuery trace
+        readTotalProduction = Map.fromList <$> runRawQuery tr
             (RawQuery "readTotalProduction" query [] parseRow)
           where
             query = T.unwords
@@ -417,7 +422,7 @@ newDBLayer trace fp ti = do
                 , Desc PoolRegistrationSlotInternalIndex
                 ]
 
-        listRetiredPools epochNo = runRawQuery trace $
+        listRetiredPools epochNo = runRawQuery tr $
             RawQuery "listRetiredPools" query parameters parseRow
           where
             query = T.unwords
@@ -431,7 +436,7 @@ newDBLayer trace fp ti = do
                     <$> fromPersistValue poolId
                     <*> fromPersistValue retirementEpoch
 
-        listPoolLifeCycleData epochNo = runRawQuery trace $ RawQuery
+        listPoolLifeCycleData epochNo = runRawQuery tr $ RawQuery
             "listPoolLifeCycleData" query parameters parseRow
           where
             query = T.unwords
@@ -501,7 +506,7 @@ newDBLayer trace fp ti = do
             fmap (delistedPoolId . entityVal) <$> selectList [] []
 
         removePools = mapM_ $ \pool -> do
-            liftIO $ traceWith trace $ MsgRemovingPool pool
+            liftIO $ traceWith tr $ MsgRemovingPool pool
             deleteWhere [ PoolProductionPoolId ==. pool ]
             deleteWhere [ PoolOwnerPoolId ==. pool ]
             deleteWhere [ PoolRegistrationPoolId ==. pool ]
@@ -515,11 +520,11 @@ newDBLayer trace fp ti = do
                 traceInner retirementCerts
                 removePools (view #poolId <$> retirementCerts)
                 pure retirementCerts
-            traceOuter = trace
+            traceOuter = tr
                 & natTracer liftIO
                 & contramap (MsgRemovingRetiredPoolsForEpoch epoch)
             traceInner = liftIO
-                . traceWith trace
+                . traceWith tr
                 . MsgRemovingRetiredPools
 
         readPoolProductionCursor k = do
@@ -674,22 +679,19 @@ runRawQuery
     => Tracer IO PoolDbLog
     -> RawQuery a b
     -> SqlPersistT IO [b]
-runRawQuery trace q = do
+runRawQuery tr q = do
     (failures, results) <- partitionEithers . fmap (queryParser q) <$> rawSql
         (queryDefinition q)
         (queryParameters q)
     forM_ failures
         $ liftIO
-        . traceWith trace
+        . traceWith tr
         . MsgParseFailure
         . ParseFailure (queryName q)
     pure results
 
-migrateManually
-    :: Tracer IO PoolDbLog
-    -> [ManualMigration]
-migrateManually _tr =
-    ManualMigration <$>
+createViews :: [ManualMigration]
+createViews = ManualMigration <$>
     [ createView activePoolLifeCycleData
     , createView activePoolOwners
     , createView activePoolRegistrations
@@ -858,17 +860,16 @@ activePoolRetirements = DatabaseView "active_pool_retirements" [i|
 handlingPersistError
     :: Tracer IO PoolDbLog
        -- ^ Logging object
-    -> Maybe FilePath
+    -> FilePath
        -- ^ Database file location, or Nothing for in-memory database
-    -> IO (Either MigrationError ctx)
-       -- ^ Action to set up the context.
-    -> IO ctx
-handlingPersistError trace fp action = action >>= \case
-    Right ctx -> pure ctx
-    Left _ -> do
-        traceWith trace $ MsgGeneric MsgDatabaseReset
-        maybe (pure ()) removeFile fp
-        action >>= either throwIO pure
+    -> IO a
+       -- ^ Action to retry
+    -> IO a
+handlingPersistError tr fp action =
+    action `catch` \(_e :: MigrationError) -> do
+        traceWith tr $ MsgGeneric MsgDatabaseReset
+        removeFile fp
+        action
 
 -- | Compute a new date from a base date, with an increasing delay.
 --

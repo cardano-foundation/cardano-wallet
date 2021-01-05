@@ -47,7 +47,12 @@ import Cardano.BM.Trace
 import Cardano.Crypto.Wallet
     ( XPrv )
 import Cardano.DB.Sqlite
-    ( DBLog (..), SqliteContext, fieldName )
+    ( DBLog (..)
+    , SqliteContext
+    , destroyDBLayer
+    , fieldName
+    , newInMemorySqliteContext
+    )
 import Cardano.Mnemonic
     ( SomeMnemonic (..) )
 import Cardano.Wallet.DB
@@ -160,10 +165,6 @@ import Data.ByteString
     ( ByteString )
 import Data.Coerce
     ( coerce )
-import Data.Function
-    ( (&) )
-import Data.Functor
-    ( ($>) )
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
 import Data.Generics.Labels
@@ -406,7 +407,7 @@ spec = parallel $ do
 sqliteSpecSeq :: Spec
 sqliteSpecSeq = do
     validateGenerators @(SeqState 'Mainnet ShelleyKey)
-    around (withDBLayer' Nothing) $ do
+    around (withShelleyDBLayer Nothing) $ do
         parallel $ describe "Sqlite" properties
         parallel $ describe "Sqlite State machine tests" $ do
             it "Sequential" (prop_sequential :: TestDBSeq -> Property)
@@ -441,7 +442,7 @@ testMigrationTxMetaFee dbName expectedLength caseByCase = do
         copyFile orig path
         (logs, result) <- captureLogging $ \tr -> do
             withDBLayer @s @k tr defaultFieldValues (Just path) ti
-                $ \(_, db) -> db & \DBLayer{..} -> atomically
+                $ \DBLayer{..} -> atomically
                 $ do
                     [wid] <- listWallets
                     readTxHistory wid Nothing Descending wholeRange Nothing
@@ -497,7 +498,7 @@ testMigrationCleanupCheckpoints dbName genesisParameters tip = do
         copyFile orig path
         (logs, result) <- captureLogging $ \tr -> do
             withDBLayer @s @k tr defaultFieldValues (Just path) ti
-                $ \(_, db) -> db & \DBLayer{..} -> atomically
+                $ \DBLayer{..} -> atomically
                 $ do
                     [wid] <- listWallets
                     (,) <$> readGenesisParameters wid <*> readCheckpoint wid
@@ -536,7 +537,7 @@ testMigrationRole dbName = do
         copyFile orig path
         (logs, Just cp) <- captureLogging $ \tr -> do
             withDBLayer @s @k tr defaultFieldValues (Just path) ti
-                $ \(_, db) -> db & \DBLayer{..} -> atomically
+                $ \DBLayer{..} -> atomically
                 $ do
                     [wid] <- listWallets
                     readCheckpoint wid
@@ -574,7 +575,7 @@ testMigrationSeqStateDerivationPrefix dbName prefix = do
         copyFile orig path
         (logs, Just cp) <- captureLogging $ \tr -> do
             withDBLayer @s @k tr defaultFieldValues (Just path) ti
-                $ \(_, db) -> db & \DBLayer{..} -> atomically
+                $ \DBLayer{..} -> atomically
                 $ do
                     [wid] <- listWallets
                     readCheckpoint wid
@@ -601,7 +602,7 @@ testMigrationPassphraseScheme = do
         copyFile orig path
         (logs, (a,b,c,d)) <- captureLogging $ \tr -> do
             withDBLayer @s @k tr defaultFieldValues (Just path) ti
-                $ \(_, db) -> db & \DBLayer{..} -> atomically
+                $ \DBLayer{..} -> atomically
                 $ do
                     Just a <- readWalletMeta $ PrimaryKey walNeedMigration
                     Just b <- readWalletMeta $ PrimaryKey walNewScheme
@@ -731,7 +732,7 @@ fileModeSpec =  do
         it "Opening and closing of db works" $ do
             replicateM_ 25 $ do
                 db <- Just <$> temporaryDBFile
-                withDBLayer' @(SeqState 'Mainnet ShelleyKey) db
+                withShelleyDBLayer @(SeqState 'Mainnet ShelleyKey) db
                     (\_ -> pure ())
 
     describe "DBFactory" $ do
@@ -809,13 +810,13 @@ fileModeSpec =  do
         describe "Check db reading/writing from/to file and cleaning" $ do
 
         it "create and list wallet works" $ \f -> do
-            withDBLayer' (Just f) $ \DBLayer{..} -> do
+            withShelleyDBLayer (Just f) $ \DBLayer{..} -> do
                 atomically $ unsafeRunExceptT $
                     initializeWallet testPk testCp testMetadata mempty gp
             testOpeningCleaning f listWallets' [testPk] []
 
         it "create and get meta works" $ \f -> do
-            meta <- withDBLayer' (Just f) $ \DBLayer{..} -> do
+            meta <- withShelleyDBLayer (Just f) $ \DBLayer{..} -> do
                 now <- getCurrentTime
                 let meta = testMetadata
                        { passphraseInfo = Just $ WalletPassphraseInfo now EncryptWithPBKDF2 }
@@ -825,14 +826,14 @@ fileModeSpec =  do
             testOpeningCleaning f (`readWalletMeta'` testPk) (Just meta) Nothing
 
         it "create and get private key" $ \f-> do
-            (k, h) <- withDBLayer' (Just f) $ \db@DBLayer{..} -> do
+            (k, h) <- withShelleyDBLayer (Just f) $ \db@DBLayer{..} -> do
                 atomically $ unsafeRunExceptT $
                     initializeWallet testPk testCp testMetadata mempty gp
                 unsafeRunExceptT $ attachPrivateKey db testPk
             testOpeningCleaning f (`readPrivateKey'` testPk) (Just (k, h)) Nothing
 
         it "put and read tx history (Ascending)" $ \f -> do
-            withDBLayer' (Just f) $ \DBLayer{..} -> do
+            withShelleyDBLayer (Just f) $ \DBLayer{..} -> do
                 atomically $ do
                     unsafeRunExceptT $
                         initializeWallet testPk testCp testMetadata mempty gp
@@ -844,7 +845,7 @@ fileModeSpec =  do
                 mempty
 
         it "put and read tx history (Decending)" $ \f -> do
-            withDBLayer' (Just f) $ \DBLayer{..} -> do
+            withShelleyDBLayer (Just f) $ \DBLayer{..} -> do
                 atomically $ do
                     unsafeRunExceptT $
                         initializeWallet testPk testCp testMetadata mempty gp
@@ -856,7 +857,7 @@ fileModeSpec =  do
                 mempty
 
         it "put and read checkpoint" $ \f -> do
-            withDBLayer' (Just f) $ \DBLayer{..} -> do
+            withShelleyDBLayer (Just f) $ \DBLayer{..} -> do
                 atomically $ do
                     unsafeRunExceptT $
                         initializeWallet testPk testCp testMetadata mempty gp
@@ -868,8 +869,9 @@ fileModeSpec =  do
             let dummyAddr x = Address $ x <> BS.pack (replicate (32 - (BS.length x)) 0)
 
             it "(Regression test #1575) - TxMetas and checkpoints should \
-               \rollback to the same place"
-               $ \f -> withDBLayer' (Just f) $ \db@DBLayer{..} -> do
+               \rollback to the same place" $ \f -> do
+              withShelleyDBLayer (Just f) $ \db@DBLayer{..} -> do
+
                 let ourAddrs = knownAddresses (getState testCp)
 
                 atomically $ unsafeRunExceptT $ initializeWallet
@@ -950,13 +952,12 @@ prop_randomOpChunks (KeyValPairs pairs) =
   where
     prop = do
         filepath <- temporaryDBFile
-        withDBLayer' (Just filepath) $ \dbF -> do
+        withShelleyDBLayer (Just filepath) $ \dbF -> do
             cleanDB dbF
-            withDBLayer' Nothing $ \dbM -> do
+            withShelleyDBLayer Nothing $ \dbM -> do
                 cleanDB dbM
                 forM_ pairs (insertPair dbM)
-                cutRandomly pairs >>= mapM_ (\chunk -> do
-                    withDBLayer' (Just filepath) (forM_ chunk . insertPair))
+                cutRandomly pairs >>= mapM_ (mapM (insertPair dbF))
                 dbF `shouldBeConsistentWith` dbM
 
     insertPair
@@ -999,12 +1000,12 @@ testOpeningCleaning
     -> s
     -> Expectation
 testOpeningCleaning filepath call expectedAfterOpen expectedAfterClean = do
-    withDBLayer' (Just filepath) $ \db1 -> do
-        call db1 `shouldReturn` expectedAfterOpen
-        _ <- cleanDB db1
-        call db1 `shouldReturn` expectedAfterClean
-    withDBLayer' (Just filepath) $ \db2 -> do
-        call db2 `shouldReturn` expectedAfterClean
+    withShelleyDBLayer (Just filepath) $ \db -> do
+        call db `shouldReturn` expectedAfterOpen
+        _ <- cleanDB db
+        call db `shouldReturn` expectedAfterClean
+    withShelleyDBLayer (Just filepath) $ \db -> do
+        call db `shouldReturn` expectedAfterClean
 
 -- | Run a test action inside withDBLayer, then check assertions.
 withTestDBFile
@@ -1022,7 +1023,7 @@ withTestDBFile action expectations = do
             defaultFieldValues
             (Just fp)
             ti
-            (action . snd)
+            action
         expectations fp
   where
     ti = dummyTimeInterpreter
@@ -1039,23 +1040,29 @@ defaultFieldValues = DefaultFieldValues
     , defaultKeyDeposit = Coin 2_000_000
     }
 
-withDBLayer'
-    :: (PersistState s)
-    => Maybe FilePath -- ^ Just for on-disk db, Nothing for in-memory.
-    -> (((DBLayer IO s ShelleyKey) -> IO a) -> IO a)
-withDBLayer' fp = withDBLayer nullTracer defaultFieldValues fp ti . (. snd)
-  where
-    ti = dummyTimeInterpreter
-
 -- Note: Having two separate helpers with concrete key types reduces the need
 -- for type-application everywhere.
 withByronDBLayer
-    :: (PersistState s)
+    :: PersistState s
     => Maybe FilePath -- ^ Just for on-disk db, Nothing for in-memory.
-    -> (((DBLayer IO s ByronKey) -> IO a) -> IO a)
-withByronDBLayer fp = withDBLayer nullTracer defaultFieldValues fp ti . (. snd)
-  where
-    ti = dummyTimeInterpreter
+    -> ((DBLayer IO s ByronKey) -> IO a)
+    -> IO a
+withByronDBLayer fp = withDBLayer
+    nullTracer
+    defaultFieldValues
+    fp
+    dummyTimeInterpreter
+
+withShelleyDBLayer
+    :: PersistState s
+    => Maybe FilePath
+    -> (DBLayer IO s ShelleyKey -> IO a)
+    -> IO a
+withShelleyDBLayer fp = withDBLayer
+    nullTracer
+    defaultFieldValues
+    fp
+    dummyTimeInterpreter
 
 listWallets'
     :: DBLayer m s k

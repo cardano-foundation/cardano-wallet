@@ -96,7 +96,6 @@ library
     , servant-server
     , split
     , statistics
-    , stm
     , streaming-commons
     , strict-non-empty-containers
     , string-interpolate
@@ -404,7 +403,6 @@ benchmark db
     , fmt
     , iohk-monitoring
     , memory
-    , persistent-sqlite
     , random
     , temporary
     , text

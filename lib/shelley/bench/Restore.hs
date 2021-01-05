@@ -53,8 +53,6 @@ import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.BM.Trace
     ( Trace, nullTracer )
-import Cardano.DB.Sqlite
-    ( destroyDBLayer )
 import Cardano.Mnemonic
     ( SomeMnemonic (..), entropyToMnemonic )
 import Cardano.Wallet
@@ -73,7 +71,7 @@ import Cardano.Wallet.BenchShared
 import Cardano.Wallet.DB
     ( DBLayer )
 import Cardano.Wallet.DB.Sqlite
-    ( PersistState, newDBLayer )
+    ( PersistState, withDBLayer )
 import Cardano.Wallet.Logging
     ( trMessageText )
 import Cardano.Wallet.Network
@@ -205,7 +203,7 @@ import Type.Reflection
 import UnliftIO.Concurrent
     ( forkIO, threadDelay )
 import UnliftIO.Exception
-    ( bracket, evaluate, throwString )
+    ( evaluate, throwString )
 import UnliftIO.Temporary
     ( withSystemTempFile )
 
@@ -691,10 +689,8 @@ withBenchDBLayer
     -> (DBLayer IO s k -> IO a)
     -> IO a
 withBenchDBLayer ti tr action =
-    withSystemTempFile "bench.db" $ \dbFile _ -> do
-        let before = newDBLayer tr' migrationDefaultValues (Just dbFile) ti
-        let after = destroyDBLayer tr' . fst
-        bracket before after $ \(_ctx, db) -> action db
+    withSystemTempFile "bench.db" $ \dbFile _ ->
+        withDBLayer tr' migrationDefaultValues (Just dbFile) ti action
   where
     migrationDefaultValues = Sqlite.DefaultFieldValues
         { Sqlite.defaultActiveSlotCoefficient = 1
