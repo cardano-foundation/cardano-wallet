@@ -5,11 +5,7 @@ module Cardano.Wallet.NetworkSpec
 import Prelude
 
 import Cardano.Wallet.Network
-    ( ErrCurrentNodeTip (..)
-    , ErrGetBlock (..)
-    , ErrNetworkUnavailable (..)
-    , ErrPostTx (..)
-    )
+    ( ErrGetBlock (..), ErrNetworkUnavailable (..), ErrPostTx (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Test.Hspec
@@ -20,11 +16,6 @@ spec = do
     describe "Pointless tests to cover 'Show' instances for errors" $ do
         testShow $ ErrNetworkUnreachable mempty
         testShow $ ErrNetworkInvalid mempty
-        testShow $ ErrCurrentNodeTipNetworkUnreachable
-            $ ErrNetworkUnreachable mempty
-        testShow $ ErrCurrentNodeTipNetworkUnreachable
-            $ ErrNetworkInvalid mempty
-        testShow ErrCurrentNodeTipNotFound
         testShow $ ErrGetBlockNetworkUnreachable
             $ ErrNetworkUnreachable mempty
         testShow $ ErrGetBlockNetworkUnreachable

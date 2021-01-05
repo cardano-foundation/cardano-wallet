@@ -158,7 +158,6 @@ module Cardano.Wallet
     , ErrGetTransaction (..)
     , ErrNoSuchTransaction (..)
     , ErrNetworkUnavailable (..)
-    , ErrCurrentNodeTip (..)
     , ErrStartTimeLaterThanEndTime (..)
 
     -- ** Root Key
@@ -202,8 +201,7 @@ import Cardano.Wallet.DB
     , sparseCheckpoints
     )
 import Cardano.Wallet.Network
-    ( ErrCurrentNodeTip (..)
-    , ErrGetAccountBalance (..)
+    ( ErrGetAccountBalance (..)
     , ErrNetworkUnavailable (..)
     , ErrPostTx (..)
     , FollowAction (..)

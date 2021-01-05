@@ -227,11 +227,7 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.DB
     ( DBFactory (..) )
 import Cardano.Wallet.Network
-    ( ErrCurrentNodeTip (..)
-    , ErrNetworkUnavailable (..)
-    , NetworkLayer
-    , timeInterpreter
-    )
+    ( ErrNetworkUnavailable (..), NetworkLayer, timeInterpreter )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( DelegationAddress (..)
     , Depth (..)
@@ -1746,14 +1742,14 @@ getNetworkInformation
     => SyncTolerance
     -> NetworkLayer IO Block
     -> Handler ApiNetworkInformation
-getNetworkInformation st nl = do
-    now <- liftIO $ currentRelativeTime ti
-    nodeTip <- liftHandler (NW.currentNodeTip nl)
-    apiNodeTip <- liftIO $ makeApiBlockReferenceFromHeader
+getNetworkInformation st nl = liftIO $ do
+    now <- currentRelativeTime ti
+    nodeTip <- NW.currentNodeTip nl
+    apiNodeTip <- makeApiBlockReferenceFromHeader
         (neverFails "node tip is within safe-zone" $ timeInterpreter nl)
         nodeTip
-    nowInfo <- liftIO $ runMaybeT $ networkTipInfo now
-    progress <- liftIO $ syncProgress
+    nowInfo <- runMaybeT $ networkTipInfo now
+    progress <- syncProgress
             st
             (neverFails "syncProgress" $ timeInterpreter nl)
             nodeTip
@@ -2661,15 +2657,6 @@ instance LiftHandler ErrNoSuchTransaction where
                 [ "I couldn't find a transaction with the given id: "
                 , toText tid
                 ]
-
-instance LiftHandler ErrCurrentNodeTip where
-    handler = \case
-        ErrCurrentNodeTipNetworkUnreachable e -> handler e
-        ErrCurrentNodeTipNotFound -> apiError err503 NetworkTipNotFound $ mconcat
-            [ "I couldn't get the current network tip at the moment. It's "
-            , "probably because the node is down or not started yet. Retrying "
-            , "in a bit might give better results!"
-            ]
 
 instance LiftHandler ErrSelectForDelegation where
     handler = \case

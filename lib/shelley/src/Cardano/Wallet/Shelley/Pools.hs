@@ -59,9 +59,7 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.Byron.Compatibility
     ( toByronBlockHeader )
 import Cardano.Wallet.Network
-    ( ErrCurrentNodeTip (..)
-    , ErrNetworkUnavailable (..)
-    , FollowAction (..)
+    ( FollowAction (..)
     , FollowExit (..)
     , FollowLog
     , NetworkLayer (..)
@@ -120,7 +118,7 @@ import Control.Monad
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Except
-    ( ExceptT (..), mapExceptT, runExceptT, withExceptT )
+    ( ExceptT (..), mapExceptT, runExceptT )
 import Control.Monad.Trans.State
     ( State, evalState, state )
 import Control.Retry
@@ -271,7 +269,7 @@ newStakePoolLayer gcStatus nl db@DBLayer {..} restartSyncThread = do
         -> Coin
         -> ExceptT ErrListPools IO [Api.ApiStakePool]
     _listPools currentEpoch userStake = do
-        tip <- withExceptT fromErrCurrentNodeTip $ currentNodeTip nl
+        tip <- liftIO $ currentNodeTip nl
         rawLsqData <- mapExceptT (fmap (first ErrListPoolsNetworkError))
             $ stakeDistribution nl tip userStake
         let lsqData = combineLsqData rawLsqData
@@ -286,13 +284,6 @@ newStakePoolLayer gcStatus nl db@DBLayer {..} restartSyncThread = do
                 lsqData
                 dbData
       where
-        fromErrCurrentNodeTip :: ErrCurrentNodeTip -> ErrListPools
-        fromErrCurrentNodeTip = \case
-            ErrCurrentNodeTipNetworkUnreachable e ->
-                ErrListPoolsNetworkError e
-            ErrCurrentNodeTipNotFound ->
-                ErrListPoolsNetworkError $ ErrNetworkUnreachable "tip not found"
-
         -- Sort by non-myopic member rewards, making sure to also randomly sort
         -- pools that have equal rewards.
         --
