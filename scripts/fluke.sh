@@ -14,10 +14,11 @@ fi
 
 set -euo pipefail
 
-x=1
+x=0
 
 time ( while true; do
-  echo "*** fluke run $((x++))"
-  unbuffer "$@" 2>&1 | ts '[%Y-%m-%d %H:%M:%S]'
-  echo -e "\033[0m"
+  echo "*** fluke run $((++x))"
+  unbuffer "$@" 2>&1 | ts "[$x %Y-%m-%d %H:%M:%S]"
+  # reset colours and show cursor
+  echo -en '\033[0m\033[?12l\033[?25h'
 done )
