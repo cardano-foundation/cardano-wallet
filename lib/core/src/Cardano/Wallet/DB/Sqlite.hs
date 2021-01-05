@@ -54,7 +54,7 @@ import Cardano.DB.Sqlite
     , fieldName
     , fieldType
     , handleConstraint
-    , startSqliteBackend
+    , newSqliteContext
     , tableName
     )
 import Cardano.DB.Sqlite.Delete
@@ -368,42 +368,32 @@ migrateManually
     => Tracer IO DBLog
     -> Proxy k
     -> DefaultFieldValues
-    -> ManualMigration
+    -> [ManualMigration]
 migrateManually tr proxy defaultFieldValues =
-    ManualMigration $ \conn -> do
-        cleanupCheckpointTable conn
+    ManualMigration <$>
+    [ cleanupCheckpointTable
+    , assignDefaultPassphraseScheme
+    , addDesiredPoolNumberIfMissing
+    , addMinimumUTxOValueIfMissing
+    , addHardforkEpochIfMissing
 
-        assignDefaultPassphraseScheme conn
+      -- FIXME
+      -- Temporary migration to fix Daedalus flight wallets. This should
+      -- really be removed as soon as we have a fix for the cardano-sl:wallet
+      -- currently in production.
+    , removeSoftRndAddresses
 
-        addDesiredPoolNumberIfMissing conn
-
-        addMinimumUTxOValueIfMissing conn
-
-        addHardforkEpochIfMissing conn
-
-        -- FIXME
-        -- Temporary migration to fix Daedalus flight wallets. This should
-        -- really be removed as soon as we have a fix for the cardano-sl:wallet
-        -- currently in production.
-        removeSoftRndAddresses conn
-
-        removeOldTxParametersTable conn
-
-        addAddressStateIfMissing conn
-
-        addSeqStateDerivationPrefixIfMissing conn
-
-        renameRoleColumn conn
-
-        renameRoleFields conn
-
-        updateFeeValueAndAddKeyDeposit conn
-
-        addFeeToTransaction conn
-
-        moveRndUnusedAddresses conn
-
-        cleanupSeqStateTable conn
+    , removeOldTxParametersTable
+    , addAddressStateIfMissing
+    , addSeqStateDerivationPrefixIfMissing
+    , renameRoleColumn
+    , renameRoleFields
+    , addScriptAddressGapIfMissing
+    , updateFeeValueAndAddKeyDeposit
+    , addFeeToTransaction
+    , moveRndUnusedAddresses
+    , cleanupSeqStateTable
+    ]
   where
     -- NOTE
     -- We originally stored script pool gap inside sequential state in the 'SeqState' table,
@@ -1126,7 +1116,7 @@ newDBLayerWith
 newDBLayerWith cacheBehavior trace defaultFieldValues mDatabaseFile ti = do
     ctx@SqliteContext{runQuery} <-
         either throwIO pure =<<
-        startSqliteBackend
+        newSqliteContext
             (migrateManually trace (Proxy @k) defaultFieldValues)
             migrateAll
             trace

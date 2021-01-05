@@ -43,7 +43,7 @@ import Cardano.DB.Sqlite
     , destroyDBLayer
     , fieldName
     , handleConstraint
-    , startSqliteBackend
+    , newSqliteContext
     , tableName
     )
 import Cardano.Pool.DB
@@ -226,7 +226,7 @@ newDBLayer
     -> TimeInterpreter IO
     -> IO (SqliteContext, DBLayer IO)
 newDBLayer trace fp ti = do
-    let io = startSqliteBackend
+    let io = newSqliteContext
             (migrateManually trace)
             migrateAll
             (contramap MsgGeneric trace)
@@ -687,13 +687,14 @@ runRawQuery trace q = do
 
 migrateManually
     :: Tracer IO PoolDbLog
-    -> ManualMigration
+    -> [ManualMigration]
 migrateManually _tr =
-    ManualMigration $ \conn -> do
-        createView conn activePoolLifeCycleData
-        createView conn activePoolOwners
-        createView conn activePoolRegistrations
-        createView conn activePoolRetirements
+    ManualMigration <$>
+    [ createView activePoolLifeCycleData
+    , createView activePoolOwners
+    , createView activePoolRegistrations
+    , createView activePoolRetirements
+    ]
 
 -- | Represents a database view.
 --
@@ -706,8 +707,8 @@ data DatabaseView = DatabaseView
 
 -- | Creates the specified database view, if it does not already exist.
 --
-createView :: Sqlite.Connection -> DatabaseView -> IO ()
-createView conn (DatabaseView name definition) = do
+createView :: DatabaseView -> Sqlite.Connection -> IO ()
+createView (DatabaseView name definition) conn = do
     deleteQuery <- Sqlite.prepare conn deleteQueryString
     Sqlite.step deleteQuery *> Sqlite.finalize deleteQuery
     createQuery <- Sqlite.prepare conn createQueryString
