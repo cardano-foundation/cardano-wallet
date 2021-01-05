@@ -395,6 +395,7 @@ benchmark db
     , random
     , temporary
     , text
+    , text-class
     , time
     , transformers
     , unliftio

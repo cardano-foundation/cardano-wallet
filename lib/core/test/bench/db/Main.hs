@@ -123,6 +123,8 @@ import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
+import Cardano.Wallet.Primitive.Types.TokenQuantity
+    ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..)
     , TransactionInfo
@@ -138,6 +140,8 @@ import Cardano.Wallet.Unsafe
     ( someDummyMnemonic, unsafeRunExceptT )
 import Control.DeepSeq
     ( NFData (..), force )
+import Control.Monad
+    ( join )
 import Control.Monad.Trans.Except
     ( mapExceptT )
 import Criterion.Main
@@ -153,6 +157,8 @@ import Crypto.Hash
     ( hash )
 import Data.ByteString
     ( ByteString )
+import Data.Either
+    ( fromRight )
 import Data.Functor
     ( ($>) )
 import Data.Functor.Identity
@@ -167,6 +173,8 @@ import Data.Quantity
     ( Quantity (..) )
 import Data.Text
     ( Text )
+import Data.Text.Class
+    ( fromText )
 import Data.Time.Clock.POSIX
     ( posixSecondsToUTCTime )
 import Data.Time.Clock.System
@@ -196,17 +204,21 @@ import qualified Cardano.BM.Configuration.Model as CM
 import qualified Cardano.BM.Data.BackendKind as CM
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Byron as Byron
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
+import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.Map.Strict as Map
+import qualified Data.Text as T
 
 main :: IO ()
 main = withUtf8Encoding $ withLogging $ \trace -> do
     let tr = filterSeverity (pure . const Error) $ trMessageText trace
     defaultMain
-        [ withDB tr $ bgroupWriteUTxO mkOutputsCoin
-        , withDB tr $ bgroupReadUTxO mkOutputsCoin
+        [ withDB tr (bgroupWriteUTxO (mkOutputsToken 100 200) "UTxO (Write)")
+        , withDB tr (bgroupReadUTxO (mkOutputsToken 100 200) "UTxO (Read)")
+        , withDB tr (bgroupWriteUTxO mkOutputsCoin "UTxO ada-only (Write)")
+        , withDB tr (bgroupReadUTxO mkOutputsCoin "UTxO ada-only (Read)")
         , withDB tr bgroupWriteSeqState
         , withDB tr bgroupWriteRndState
         , withDB tr $ bgroupWriteTxHistory mkOutputsCoin
@@ -224,8 +236,8 @@ main = withUtf8Encoding $ withLogging $ \trace -> do
 --
 -- Currently the DBLayer will only store a single checkpoint (no rollback), so
 -- the #Checkpoints axis is a bit meaningless.
-bgroupWriteUTxO :: (Int -> Int -> [TxOut]) -> DBLayerBench -> Benchmark
-bgroupWriteUTxO mkOutputs' db = bgroup "UTxO (Write)"
+bgroupWriteUTxO :: (Int -> Int -> [TxOut]) -> String -> DBLayerBench -> Benchmark
+bgroupWriteUTxO mkOutputs' gn db = bgroup gn
     -- A fragmented wallet will have a large number of UTxO. The coin
     -- selection algorithm tries to prevent fragmentation.
     --
@@ -244,8 +256,8 @@ bgroupWriteUTxO mkOutputs' db = bgroup "UTxO (Write)"
         benchPutUTxO mkOutputs' n s . fst
       where lbl = n|+" CP x "+|s|+" UTxO"
 
-bgroupReadUTxO :: (Int -> Int -> [TxOut]) -> DBLayerBench -> Benchmark
-bgroupReadUTxO mkOutputs' db = bgroup "UTxO (Read)"
+bgroupReadUTxO :: (Int -> Int -> [TxOut]) -> String -> DBLayerBench -> Benchmark
+bgroupReadUTxO mkOutputs' gn db = bgroup gn
     --      #Checkpoints   UTxO Size
     [ bUTxO            1           0
     , bUTxO            1          10
@@ -561,6 +573,37 @@ mkOutputsCoin prefix n =
         (TxOut (mkAddress prefix i) (TokenBundle.fromCoin $ Coin 1))
     | !i <- [1..n]
     ]
+
+-- | Returns Output transactions that also contains non-empty multi asset
+-- tokens.
+mkOutputsToken :: Int -> Int -> Int -> Int -> [TxOut]
+mkOutputsToken assetCount tokenQuantity prefix n =
+    [ force (createTrans i)
+    | !i <- [1..n]
+    ]
+  where
+    createTrans i =
+        let tokenPolicyIdHexStringLength = 56
+            tokens = [
+                let tokenPolicyId =
+                        fromRight (error "Couldn't decode tokenPolicyId")
+                        . fromText
+                        . T.pack
+                        . take tokenPolicyIdHexStringLength
+                        . join
+                        . replicate tokenPolicyIdHexStringLength
+                        . show
+                        $ ac
+                    tokenName = fromRight (error "Couldn't decode tokenName")
+                        . fromText
+                        . T.pack
+                        . show
+                        $ ac
+                in (TokenMap.AssetId tokenPolicyId tokenName
+                    , TokenQuantity $ fromIntegral tokenQuantity)
+                    | !ac <- [1..assetCount] ]
+        in (TxOut (mkAddress prefix i)
+            (TokenBundle.TokenBundle (Coin 1) (TokenMap.fromFlatList tokens)))
 
 withTxHistory
     :: NFData b
