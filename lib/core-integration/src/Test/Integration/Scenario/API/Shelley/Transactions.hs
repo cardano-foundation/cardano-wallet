@@ -27,6 +27,7 @@ import Cardano.Wallet.Api.Types
     , ApiT (..)
     , ApiTransaction
     , ApiTxId (..)
+    , ApiTxInput (..)
     , ApiWallet
     , DecodeAddress
     , DecodeStakeAddress
@@ -66,7 +67,7 @@ import Data.Generics.Internal.VL.Lens
 import Data.Generics.Product.Typed
     ( HasType )
 import Data.Maybe
-    ( fromJust, fromMaybe, isJust )
+    ( fromJust, fromMaybe, isJust, isNothing )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text
@@ -292,55 +293,87 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                     insertedAt tx' `shouldBe` Nothing
                     pendingSince tx' `shouldBe` pendingSince tx
 
-    it "TRANS_CREATE_01 - Single Output Transaction" $ \ctx -> runResourceT $ do
-        (wa, wb) <- (,) <$> fixtureWallet ctx <*> fixtureWallet ctx
+    it "TRANS_CREATE_01x - Single Output Transaction" $ \ctx -> runResourceT $ do
+        let initialAmt = 2*minUTxOValue
+        wa <- fixtureWalletWith @n ctx [initialAmt]
+        wb <- fixtureWalletWith @n ctx [initialAmt]
         let amt = (minUTxOValue :: Natural)
 
         payload <- liftIO $ mkTxPayload ctx wb amt fixturePassphrase
 
         (_, ApiFee (Quantity feeMin) (Quantity feeMax) _) <- unsafeRequest ctx
             (Link.getTransactionFee @'Shelley wa) payload
-
-        r <- request @(ApiTransaction n) ctx
+        rTx <- request @(ApiTransaction n) ctx
             (Link.createTransaction @'Shelley wa) Default payload
+        ra <- request @ApiWallet ctx
+            (Link.getWallet @'Shelley wa) Default Empty
 
-        verify r
+        verify rTx
             [ expectSuccess
             , expectResponseCode HTTP.status202
             , expectField (#amount . #getQuantity) $
                 between (feeMin + amt, feeMax + amt)
+            , expectField #inputs $ \inputs' -> do
+                inputs' `shouldSatisfy` all (isJust . source)
             , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
             , expectField (#status . #getApiT) (`shouldBe` Pending)
             , expectField (#metadata . #getApiTxMetadata) (`shouldBe` Nothing)
             ]
 
-        ra <- request @ApiWallet ctx (Link.getWallet @'Shelley wa) Default Empty
         verify ra
             [ expectSuccess
             , expectField (#balance . #getApiT . #total) $
                 between
-                    ( Quantity (faucetAmt - feeMax - amt)
-                    , Quantity (faucetAmt - feeMin - amt)
+                    ( Quantity (initialAmt - feeMax - amt)
+                    , Quantity (initialAmt - feeMin - amt)
                     )
             , expectField
                     (#balance . #getApiT . #available)
-                    (.>= Quantity (faucetAmt - faucetUtxoAmt))
+                    (`shouldBe` Quantity 0)
             ]
+
+        let txid = getFromResponse #id rTx
+        let linkSrc = Link.getTransaction @'Shelley wa (ApiTxId txid)
+        eventually "transaction is no longer pending on source wallet" $ do
+            rSrc <- request @(ApiTransaction n) ctx linkSrc Default Empty
+            verify rSrc
+                [ expectResponseCode HTTP.status200
+                , expectField (#amount . #getQuantity) $
+                    between (feeMin + amt, feeMax + amt)
+                , expectField #inputs $ \inputs' -> do
+                    inputs' `shouldSatisfy` all (isJust . source)
+                , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
+                , expectField (#status . #getApiT) (`shouldBe` InLedger)
+                , expectField (#metadata . #getApiTxMetadata) (`shouldBe` Nothing)
+                ]
+
+        let linkDest = Link.getTransaction @'Shelley wb (ApiTxId txid)
+        eventually "transaction is discovered by destination wallet" $ do
+            rDst <- request @(ApiTransaction n) ctx linkDest Default Empty
+            verify rDst
+                [ expectResponseCode HTTP.status200
+                , expectField (#amount . #getQuantity) (`shouldBe` amt)
+                , expectField #inputs $ \inputs' -> do
+                    inputs' `shouldSatisfy` all (isNothing . source)
+                , expectField (#direction . #getApiT) (`shouldBe` Incoming)
+                , expectField (#status . #getApiT) (`shouldBe` InLedger)
+                , expectField (#metadata . #getApiTxMetadata) (`shouldBe` Nothing)
+                ]
 
         eventually "wa and wb balances are as expected" $ do
             rb <- request @ApiWallet ctx
                 (Link.getWallet @'Shelley wb) Default Empty
             expectField
                 (#balance . #getApiT . #available)
-                (`shouldBe` Quantity (faucetAmt + amt)) rb
+                (`shouldBe` Quantity (initialAmt + amt)) rb
 
             ra2 <- request @ApiWallet ctx
                 (Link.getWallet @'Shelley wa) Default Empty
             expectField
                 (#balance . #getApiT . #available)
-                (`shouldBe` Quantity (faucetAmt - feeMax - amt)) ra2
+                (`shouldBe` Quantity (initialAmt - feeMax - amt)) ra2
 
-    it "TRANS_CREATE_02 - Multiple Output Tx to single wallet" $ \ctx -> runResourceT $ do
+    it "TRANS_CREATE_02x - Multiple Output Tx to single wallet" $ \ctx -> runResourceT $ do
         wSrc <- fixtureWallet ctx
         wDest <- emptyWallet ctx
         addrs <- listAddresses @n ctx wDest
@@ -373,13 +406,17 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             (Link.createTransaction @'Shelley wSrc) Default payload
 
         ra <- request @ApiWallet ctx (Link.getWallet @'Shelley wSrc) Default Empty
+
         verify r
             [ expectResponseCode HTTP.status202
             , expectField (#amount . #getQuantity) $
                 between (feeMin + (2*amt), feeMax + (2*amt))
             , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
             , expectField (#status . #getApiT) (`shouldBe` Pending)
+            , expectField #inputs $ \inputs' -> do
+                inputs' `shouldSatisfy` all (isJust . source)
             ]
+
         verify ra
             [ expectField (#balance . #getApiT . #total) $
                 between
