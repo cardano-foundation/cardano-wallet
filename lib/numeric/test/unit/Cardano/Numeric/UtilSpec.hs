@@ -1,3 +1,4 @@
+{-# LANGUAGE TypeApplications #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Cardano.Numeric.UtilSpec
@@ -7,11 +8,13 @@ module Cardano.Numeric.UtilSpec
 import Prelude
 
 import Cardano.Numeric.Util
-    ( partitionNatural )
+    ( padCoalesce, partitionNatural )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Maybe
     ( catMaybes )
+import Data.Monoid
+    ( Sum (..) )
 import Data.Ratio
     ( (%) )
 import Numeric.Natural
@@ -37,6 +40,15 @@ import qualified Data.List.NonEmpty as NE
 spec :: Spec
 spec = do
 
+    describe "padCoalesce" $ do
+
+        it "prop_padCoalesce_length" $
+            property $ prop_padCoalesce_length @(Sum Int)
+        it "prop_padCoalesce_sort" $
+            property $ prop_padCoalesce_sort @(Sum Int)
+        it "prop_padCoalesce_sum" $
+            property $ prop_padCoalesce_sum @(Sum Int)
+
     describe "partitionNatural" $ do
 
         it "prop_partitionNatural_length" $
@@ -45,6 +57,27 @@ spec = do
             property prop_partitionNatural_sum
         it "prop_partitionNatural_fair" $
             withMaxSuccess 1000 $ checkCoverage prop_partitionNatural_fair
+
+--------------------------------------------------------------------------------
+-- Coalescing values
+--------------------------------------------------------------------------------
+
+prop_padCoalesce_length
+    :: (Monoid a, Ord a, Show a) => NonEmpty a -> NonEmpty () -> Property
+prop_padCoalesce_length source target =
+    NE.length (padCoalesce source target) === NE.length target
+
+prop_padCoalesce_sort
+    :: (Monoid a, Ord a, Show a) => NonEmpty a -> NonEmpty () -> Property
+prop_padCoalesce_sort source target =
+    NE.sort result === result
+  where
+    result = padCoalesce source target
+
+prop_padCoalesce_sum
+    :: (Monoid a, Ord a, Show a) => NonEmpty a -> NonEmpty () -> Property
+prop_padCoalesce_sum source target =
+    F.fold source === F.fold (padCoalesce source target)
 
 --------------------------------------------------------------------------------
 -- Partitioning natural numbers
