@@ -35,23 +35,31 @@ module Cardano.Wallet.Shelley.Launch
     , poolConfigsFromEnv
     , RunningNode (..)
 
-      -- * Faucets
-    , sendFaucetFundsTo
-    , moveInstantaneousRewardsTo
-    , oneMillionAda
-
-    -- * Utils
-    , NetworkConfiguration (..)
-    , nodeSocketOption
-    , networkConfigurationOption
-    , parseGenesisData
-    , withSystemTempDir
+      -- * Configuration
     , minSeverityFromEnv
     , nodeMinSeverityFromEnv
     , walletMinSeverityFromEnv
     , testMinSeverityFromEnv
     , testLogDirFromEnv
     , walletListenFromEnv
+
+      -- * Faucets
+    , sendFaucetFundsTo
+    , moveInstantaneousRewardsTo
+    , oneMillionAda
+
+    -- * Network
+    , NetworkConfiguration (..)
+    , nodeSocketOption
+    , networkConfigurationOption
+    , parseGenesisData
+
+      -- * Utils
+    , withSystemTempDir
+    , withTempDir
+    , isEnvSet
+    , envFromText
+    , lookupEnvNonEmpty
 
     -- * global vars
     , operators
@@ -172,7 +180,7 @@ import Data.Functor.Identity
 import Data.List
     ( isInfixOf, isPrefixOf, nub, permutations, sort )
 import Data.Maybe
-    ( catMaybes, fromMaybe )
+    ( catMaybes, fromMaybe, isJust )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -180,7 +188,7 @@ import Data.Quantity
 import Data.Text
     ( Text )
 import Data.Text.Class
-    ( ToText (..), fromText )
+    ( FromText (..), TextDecodingError, ToText (..) )
 import Data.Time.Clock
     ( NominalDiffTime, UTCTime, addUTCTime, getCurrentTime )
 import Data.Time.Clock.POSIX
@@ -418,12 +426,6 @@ getShelleyTestDataPath = fromMaybe source <$> lookupEnvNonEmpty var
     source = $(getTestData) </> "cardano-node-shelley"
     var = "SHELLEY_TEST_DATA"
 
-lookupEnvNonEmpty :: String -> IO (Maybe String)
-lookupEnvNonEmpty = fmap nonEmpty . lookupEnv
-  where
-    nonEmpty (Just "") = Nothing
-    nonEmpty m = m
-
 minSeverityFromEnv :: Severity -> String -> IO Severity
 minSeverityFromEnv def var = lookupEnvNonEmpty var >>= \case
     Nothing -> pure def
@@ -448,18 +450,17 @@ testMinSeverityFromEnv =
     minSeverityFromEnv Notice "TESTS_TRACING_MIN_SEVERITY"
 
 -- | Allow configuring which port the wallet server listen to in an integration
--- setup.
+-- setup. Crashes if the variable is not a number.
 walletListenFromEnv :: IO Listen
-walletListenFromEnv = lookupEnv "CARDANO_WALLET_PORT" >>= \case
+walletListenFromEnv = envFromText "CARDANO_WALLET_PORT" >>= \case
     Nothing -> pure ListenOnRandomPort
-    Just x  -> case fromText (T.pack x) of
-        Right port -> pure $ ListenOnPort port
-        Left e -> die (show e)
+    Just (Right port) -> pure $ ListenOnPort port
+    Just (Left e) -> die $ show e
 
 -- | Directory for extra logging. Buildkite will set this environment variable
 -- and upload logs in it automatically.
 testLogDirFromEnv :: IO (Maybe FilePath)
-testLogDirFromEnv = traverse makeAbsolute =<< lookupEnv "TESTS_LOGDIR"
+testLogDirFromEnv = traverse makeAbsolute =<< lookupEnvNonEmpty "TESTS_LOGDIR"
 
 -- NOTE
 -- Fixture wallets we use in integration tests comes from "initialFunds"
@@ -1738,10 +1739,6 @@ blake2b256S =
     . convertToBase Base16
     . blake2b256
 
--- | Returns true iff an environment variable is defined and non-empty.
-isEnvSet :: MonadUnliftIO m => String -> m Bool
-isEnvSet = liftIO . fmap (maybe False (not . null)) . lookupEnv
-
 -- | Create a temporary directory and remove it after the given IO action has
 -- finished -- unless the @NO_CLEANUP@ environment variable has been set.
 withTempDir
@@ -1767,6 +1764,29 @@ withSystemTempDir
 withSystemTempDir tr name action = do
     parent <- liftIO getCanonicalTemporaryDirectory
     withTempDir tr parent (name <> ".") action
+
+{-------------------------------------------------------------------------------
+                                     Utils
+-------------------------------------------------------------------------------}
+
+-- | Looks up an environment variable, treating variables which are defined but
+-- empty the same as variables which are undefined.
+lookupEnvNonEmpty :: MonadUnliftIO m => String -> m (Maybe String)
+lookupEnvNonEmpty = liftIO . fmap nonEmpty . lookupEnv
+  where
+    nonEmpty (Just "") = Nothing
+    nonEmpty m = m
+
+-- | Returns true iff an environment variable is defined and non-empty.
+isEnvSet :: MonadUnliftIO m => String -> m Bool
+isEnvSet = fmap isJust . lookupEnvNonEmpty
+
+-- | Parses an environment variable using text-class.
+envFromText
+    :: (MonadUnliftIO m, FromText a)
+    => String
+    -> m (Maybe (Either TextDecodingError a))
+envFromText = liftIO . fmap (fmap (fromText . T.pack)) . lookupEnv
 
 {-------------------------------------------------------------------------------
                                     Logging

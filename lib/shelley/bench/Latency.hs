@@ -27,8 +27,6 @@ import Cardano.CLI
     ( Port (..) )
 import Cardano.Startup
     ( withUtf8Encoding )
-import Cardano.Wallet.Api.Server
-    ( Listen (..) )
 import Cardano.Wallet.Api.Types
     ( ApiAddress
     , ApiFee
@@ -62,7 +60,12 @@ import Cardano.Wallet.Shelley
 import Cardano.Wallet.Shelley.Faucet
     ( initFaucet )
 import Cardano.Wallet.Shelley.Launch
-    ( RunningNode (..), sendFaucetFundsTo, withCluster, withSystemTempDir )
+    ( RunningNode (..)
+    , sendFaucetFundsTo
+    , walletListenFromEnv
+    , withCluster
+    , withSystemTempDir
+    )
 import Control.Arrow
     ( first )
 import Control.Monad
@@ -414,6 +417,7 @@ withShelleyServer tracers action = do
     onClusterStart act dir (RunningNode socketPath block0 (gp, vData)) = do
         let db = dir </> "wallets"
         createDirectory db
+        listen <- walletListenFromEnv
         -- NOTE: We may want to keep a wallet running across the fork, but
         -- having three callbacks like this might not work well for that.
         serveWallet
@@ -423,7 +427,7 @@ withShelleyServer tracers action = do
             (Just db)
             Nothing
             "127.0.0.1"
-            ListenOnRandomPort
+            listen
             Nothing
             Nothing
             socketPath
