@@ -318,14 +318,14 @@ prop_forbiddenAddreses rnd@(Rnd st rk pwd) addrIx = conjoin
     , (Set.notMember changeAddr (forbidden isOursSt))
     , (Set.member changeAddr (forbidden changeSt))
     , (addr `elem` (fst <$> knownAddresses isOursSt))
-    , (changeAddr `notElem` (fst <$> knownAddresses changeSt))
+    , (changeAddr `elem` (fst <$> knownAddresses changeSt))
     ]
   where
     (_ours, isOursSt) = isOurs addr st
     (changeAddr, changeSt) = genChange (rk, pwd) isOursSt
     addr = mkAddress rnd addrIx
     forbidden s =
-        Set.fromList $ Map.elems $ (fst <$> addresses s) <> pendingAddresses s
+        Set.fromList $ Map.elems $ (fst <$> discoveredAddresses s) <> pendingAddresses s
 
 prop_oursAreUsed
     :: Rnd

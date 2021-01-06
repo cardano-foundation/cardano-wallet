@@ -1187,7 +1187,7 @@ createRandomAddress ctx wid pwd mIx = db & \DBLayer{..} ->
 
             let prepared = preparePassphrase scheme pwd
             let addr = Rnd.deriveRndStateAddress @n xprv prepared path
-            let cp' = updateState (Rnd.addDiscoveredAddress addr Unused path s') cp
+            let cp' = updateState (Rnd.addPendingAddress addr path s') cp
             withExceptT ErrCreateAddrNoSuchWallet $
                 putCheckpoint (PrimaryKey wid) cp'
             pure addr

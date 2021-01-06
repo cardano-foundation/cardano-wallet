@@ -31,7 +31,7 @@ module Cardano.Wallet.Primitive.AddressDiscovery.Random
     -- ** Low-level API
     , importAddress
     , ErrImportAddress(..)
-    , addDiscoveredAddress
+    , addPendingAddress
     , deriveRndStateAddress
     , findUnusedPath
     , unavailablePaths
@@ -112,12 +112,10 @@ class RndStateLike s where
         -> Either ErrImportAddress s
 
     -- Updates a 'RndState' by adding an address and its derivation path to the
-    -- set of discovered addresses. If the address was in the 'pendingAddresses' set
-    -- (i.e. it was a newly generated change address), then it is removed from
-    -- there.
-    addDiscoveredAddress
+    -- set of pending addresses. (i.e. it was a newly generated change address),
+    -- then it is removed from there.
+    addPendingAddress
         :: Address
-        -> AddressState
         -> DerivationPath
         -> s
         -> s
@@ -147,7 +145,7 @@ data RndState (network :: NetworkDiscriminant) = RndState
     -- ^ The account index used for address _generation_ in this wallet. Note
     -- that addresses will be _discovered_ from any and all account indices,
     -- regardless of this value.
-    , addresses :: Map DerivationPath (Address, AddressState)
+    , discoveredAddresses :: Map DerivationPath (Address, AddressState)
     -- ^ The addresses which have so far been discovered, and their
     -- derivation paths.
     , pendingAddresses :: Map DerivationPath Address
@@ -183,18 +181,19 @@ instance RndStateLike (RndState n) where
         case addressToPath addr (hdPassphrase s) of
             Nothing ->
                 Left (ErrAddrDoesNotBelong addr)
-            Just path | Map.member path (addresses s) ->
+            Just path | Map.member path (discoveredAddresses s) ->
+                Right s
+            Just path | Map.member path (pendingAddresses s) ->
                 Right s
             Just path ->
-                Right (addDiscoveredAddress addr Unused path s)
+                Right (addPendingAddress addr path s)
 
-    addDiscoveredAddress addr status path st = st
-        { addresses = Map.insert path (addr, status) (addresses st)
-        , pendingAddresses = Map.delete path (pendingAddresses st)
+    addPendingAddress addr path st = st
+        { pendingAddresses = Map.insert path addr (pendingAddresses st)
         }
 
     unavailablePaths st =
-        Map.keysSet (addresses st) <> Map.keysSet (pendingAddresses st)
+        Map.keysSet (discoveredAddresses st) <> Map.keysSet (pendingAddresses st)
 
     defaultAccountIndex =
         accountIndex
@@ -221,6 +220,21 @@ instance IsOwned (RndState n) ByronKey where
         (, pwd) . deriveAddressKeyFromPath key pwd
             <$> addressToPath addr (hdPassphrase st)
 
+-- Updates a 'RndState' by adding an address and its derivation path to the
+-- set of discovered addresses. If the address was in the 'pendingAddresses' set
+-- (i.e. it was a newly generated change address), then it is removed from
+-- there.
+addDiscoveredAddress
+    :: Address
+    -> AddressState
+    -> DerivationPath
+    -> RndState n
+    -> RndState n
+addDiscoveredAddress addr status path st = st
+    { discoveredAddresses = Map.insert path (addr, status) (discoveredAddresses st)
+    , pendingAddresses = Map.delete path (pendingAddresses st)
+    }
+
 addressToPath
     :: Address
     -> Passphrase "addr-derivation-payload"
@@ -241,7 +255,7 @@ mkRndState :: ByronKey 'RootK XPrv -> Int -> RndState n
 mkRndState key seed = RndState
     { hdPassphrase = payloadPassphrase key
     , accountIndex = minBound
-    , addresses = mempty
+    , discoveredAddresses = mempty
     , pendingAddresses = mempty
     , gen = mkStdGen seed
     }
@@ -319,7 +333,10 @@ instance CompareDiscovery (RndState n) where
     compareDiscovery _ _ _ = EQ
 
 instance KnownAddresses (RndState n) where
-    knownAddresses s = Map.elems (addresses s)
+    knownAddresses s = mconcat
+        [ Map.elems (discoveredAddresses s)
+        , Map.elems ((,Unused) <$> pendingAddresses s)
+        ]
 
 --------------------------------------------------------------------------------
 --
@@ -356,7 +373,7 @@ mkRndAnyState key seed = RndAnyState
     { innerState = RndState
         { hdPassphrase = payloadPassphrase key
         , accountIndex = minBound
-        , addresses = mempty
+        , discoveredAddresses = mempty
         , pendingAddresses = mempty
         , gen = mkStdGen seed
         }
@@ -366,8 +383,8 @@ instance RndStateLike (RndAnyState n p) where
     importAddress addr (RndAnyState inner) =
         RndAnyState <$> importAddress addr inner
 
-    addDiscoveredAddress addr status path (RndAnyState inner) =
-        RndAnyState $ addDiscoveredAddress addr status path inner
+    addPendingAddress addr path (RndAnyState inner) =
+        RndAnyState $ addPendingAddress addr path inner
 
     unavailablePaths (RndAnyState inner) =
         unavailablePaths inner
