@@ -95,6 +95,7 @@
         cardano-wallet-core-integration = ./cardano-wallet-core-integration.nix;
         cardano-wallet-cli = ./cardano-wallet-cli.nix;
         cardano-wallet-launcher = ./cardano-wallet-launcher.nix;
+        cardano-numeric = ./cardano-numeric.nix;
         text-class = ./text-class.nix;
         cardano-wallet-test-utils = ./cardano-wallet-test-utils.nix;
         cardano-wallet = ./cardano-wallet.nix;
