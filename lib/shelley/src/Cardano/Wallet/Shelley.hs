@@ -5,6 +5,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
@@ -111,6 +112,8 @@ import Cardano.Wallet.Primitive.Types
     )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address )
+import Cardano.Wallet.Primitive.Types.Coin
+    ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount )
 import Cardano.Wallet.Registry
@@ -380,8 +383,31 @@ serveWallet
                     minimumUTxOvalue pp
                 , defaultHardforkEpoch =
                     hardforkEpochNo pp
+                -- NOTE: see ADP-643
+                --
+                -- In ADP-470, we've made it possible to distinguish fees from
+                -- deposits in the API. This however required a database
+                -- migration for which the stake key deposit in vigor is needed.
+                -- This value normally comes from the Shelley genesis file, but
+                -- we have no direct access to it, nor can we reliably query the
+                -- network layer to get the current parameters. Indeed, the
+                -- `currentProtocolParameters` and `currentSlottingParameters`
+                -- functions both rely on the LSQ protocol, which would:
+                --
+                --  a) Fail if the wallet and the node are drifting too much
+                --  b) Return potentially outdated information if the node is not synced.
+                --
+                -- Since the migration is only strictly needed for pre-existing
+                -- mainnet and testnet wallet, we currently hard-code the stake
+                -- key deposit value that _should_ be used for the migration
+                -- (which fortunately happens to be the same on both networks).
+                --
+                -- It'll do, but it ain't pretty. Without requiring the Shelley
+                -- genesis to be provided as argument I currently have no better
+                -- and safer idea than hard-coding it. And also have very little
+                -- time to do anything fancier.
                 , defaultKeyDeposit =
-                    stakeKeyDeposit pp
+                    Coin 2_000_000
                 }
             )
             (neverFails "db layer should never forecast into the future"
