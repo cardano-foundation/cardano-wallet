@@ -405,6 +405,8 @@ migrateManually tr proxy defaultFieldValues =
         updateFeeValueAndAddKeyDeposit conn
 
         addFeeToTransaction conn
+
+        moveRndUnusedAddresses conn
   where
     -- NOTE
     -- We originally stored protocol parameters in the 'Checkpoint' table, and
@@ -584,6 +586,56 @@ migrateManually tr proxy defaultFieldValues =
       where
         hardLowerBound = toText $ fromEnum $ minBound @(Index 'Hardened _)
         rndAccountIx   = DBField RndStateAddressAccountIndex
+
+    -- | When we implemented the 'importAddress' and 'createAddress' features,
+    -- we mistakenly added all imported addresses in the discovered section and
+    -- table of the RndState. This makes them affected by rollbacks, which is
+    -- very much an issue. While fixing this, we can also take the opportunity
+    -- to move all existing 'unused' addresses from the 'RndStateAddress' to the
+    -- 'RndStatePendingAddress' table.
+    --
+    -- Arguably, the 'status' column is redundant on the 'RndStateAddress' table
+    -- because any address in that table must be 'Used', by construction.
+    moveRndUnusedAddresses :: Sqlite.Connection -> IO ()
+    moveRndUnusedAddresses conn = do
+        isFieldPresent conn rndStateAddressStatus >>= \case
+            TableMissing -> do
+                traceWith tr $ MsgManualMigrationNotNeeded rndStateAddressStatus
+            ColumnMissing -> do
+                traceWith tr $ MsgManualMigrationNotNeeded rndStateAddressStatus
+            ColumnPresent -> do
+                let unused = quotes $ toText W.Unused
+
+                [[PersistInt64 n]] <- runSql conn $ T.unwords
+                    [ "SELECT COUNT(*)"
+                    , "FROM", tableName rndStateAddressStatus
+                    , "WHERE", fieldName rndStateAddressStatus, "=", unused
+                    , ";"
+                    ]
+
+                if n > 0 then do
+                    traceWith tr $ MsgManualMigrationNeeded rndStateAddressStatus "-"
+
+                    void $ runSql conn $ T.unwords
+                        [ "INSERT INTO", rndStatePendingTable
+                        , "(wallet_id, account_ix, address_ix, address)"
+                        , "SELECT wallet_id, account_ix, address_ix, address"
+                        , "FROM", rndStateDiscoveredTable
+                        , "WHERE", fieldName rndStateAddressStatus, "=", unused
+                        , ";"
+                        ]
+
+                    void $ runSql conn $ T.unwords
+                        [ "DELETE FROM", rndStateDiscoveredTable
+                        , "WHERE", fieldName rndStateAddressStatus, "=", unused
+                        , ";"
+                        ]
+                else do
+                    traceWith tr $ MsgManualMigrationNotNeeded rndStateAddressStatus
+      where
+        rndStateAddressStatus = DBField RndStateAddressStatus
+        rndStateDiscoveredTable = tableName $ DBField RndStateAddressWalletId
+        rndStatePendingTable  = tableName $ DBField RndStatePendingAddressWalletId
 
     -- | Adds an 'desired_pool_number' column to the 'protocol_parameters'
     -- table if it is missing.
@@ -2261,7 +2313,7 @@ instance PersistState (Rnd.RndState t) where
         let gen = st ^. #gen
         let pwd = st ^. #hdPassphrase
         repsert (RndStateKey wid) (RndState wid ix gen (HDPassphrase pwd))
-        insertRndStateAddresses wid sl (Rnd.addresses st)
+        insertRndStateDiscovered wid sl (Rnd.discoveredAddresses st)
         insertRndStatePending wid (Rnd.pendingAddresses st)
 
     selectState (wid, sl) = runMaybeT $ do
@@ -2269,22 +2321,22 @@ instance PersistState (Rnd.RndState t) where
             [ RndStateWalletId ==. wid
             ] []
         let (RndState _ ix gen (HDPassphrase pwd)) = entityVal st
-        addresses <- lift $ selectRndStateAddresses wid sl
+        discoveredAddresses <- lift $ selectRndStateDiscovered wid sl
         pendingAddresses <- lift $ selectRndStatePending wid
         pure $ Rnd.RndState
             { hdPassphrase = pwd
             , accountIndex = W.Index ix
-            , addresses = addresses
+            , discoveredAddresses = discoveredAddresses
             , pendingAddresses = pendingAddresses
             , gen = gen
             }
 
-insertRndStateAddresses
+insertRndStateDiscovered
     :: W.WalletId
     -> W.SlotNo
     -> Map Rnd.DerivationPath (W.Address, W.AddressState)
     -> SqlPersistT IO ()
-insertRndStateAddresses wid sl addresses = do
+insertRndStateDiscovered wid sl addresses = do
     dbChunked insertMany_
         [ RndStateAddress wid sl accIx addrIx addr st
         | ((W.Index accIx, W.Index addrIx), (addr, st)) <- Map.assocs addresses
@@ -2301,11 +2353,11 @@ insertRndStatePending wid addresses = do
         | ((W.Index accIx, W.Index addrIx), addr) <- Map.assocs addresses
         ]
 
-selectRndStateAddresses
+selectRndStateDiscovered
     :: W.WalletId
     -> W.SlotNo
     -> SqlPersistT IO (Map Rnd.DerivationPath (W.Address, W.AddressState))
-selectRndStateAddresses wid sl = do
+selectRndStateDiscovered wid sl = do
     addrs <- fmap entityVal <$> selectList
         [ RndStateAddressWalletId ==. wid
         , RndStateAddressSlot ==. sl

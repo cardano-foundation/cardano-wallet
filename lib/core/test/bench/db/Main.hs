@@ -376,7 +376,7 @@ bgroupWriteRndState db = bgroup "RndState"
                 RndState
                     { hdPassphrase = dummyPassphrase
                     , accountIndex = minBound
-                    , addresses = (,Used) <$> mkRndAddresses a i
+                    , discoveredAddresses = (,Used) <$> mkRndAddresses a i
                     , pendingAddresses = mkRndAddresses p (-i)
                     , gen = mkStdGen 42
                     }
