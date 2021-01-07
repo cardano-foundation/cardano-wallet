@@ -1550,7 +1550,7 @@ operators = unsafePerformIO $ newMVar
 {-# NOINLINE operators #-}
 
 cardanoCliEra :: String
-cardanoCliEra = "--allegra-era"
+cardanoCliEra = "--mary-era"
 
 -- | A public stake key associated with a mnemonic that we pre-registered for
 -- STAKE_POOLS_JOIN_05.
