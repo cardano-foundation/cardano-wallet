@@ -1195,7 +1195,7 @@ preparePoolRegistration tr dir stakePub certs pledgeAmt = do
         , "--ttl", "400"
         , "--fee", show (faucetAmt - pledgeAmt - depositAmt)
         , "--out-file", file
-        , "--mary-era"
+        , cardanoCliEra
         ] ++ mconcat ((\cert -> ["--certificate-file",cert]) <$> certs)
 
     pure (file, faucetPrv)
@@ -1223,7 +1223,7 @@ sendFaucetFundsTo tr dir allTargets = do
             , "--ttl", "600"
             , "--fee", show (faucetAmt - total)
             , "--out-file", file
-            , "--mary-era"
+            , cardanoCliEra
             ] ++ outputs
 
         tx <- signTx tr dir file [faucetPrv]
@@ -1260,7 +1260,7 @@ moveInstantaneousRewardsTo tr dir targets = do
         , "--fee", show (faucetAmt - 1_000_000 - totalDeposit)
         , "--tx-out", sink <> "+" <> "1000000"
         , "--out-file", file
-        , "--mary-era"
+        , cardanoCliEra
         ] ++ concatMap (\x -> ["--certificate-file", x]) (mconcat certs)
 
     testData <- getShelleyTestDataPath
@@ -1323,7 +1323,7 @@ prepareKeyRegistration tr dir = do
         , "--fee", show (faucetAmt - depositAmt - 1_000_000)
         , "--certificate-file", cert
         , "--out-file", file
-        , "--mary-era"
+        , cardanoCliEra
         ]
     pure (file, faucetPrv)
 
@@ -1403,7 +1403,7 @@ waitUntilRegistered tr name opPub = do
     (exitCode, distribution, err) <- readProcessWithExitCode "cardano-cli"
         [ "query", "stake-distribution"
         , "--mainnet"
-        , "--mary-era"
+        , cardanoCliEra
         ] mempty
     traceWith tr $ MsgStakeDistribution name exitCode distribution err
     unless (poolId `isInfixOf` distribution) $ do
@@ -1548,6 +1548,9 @@ operators = unsafePerformIO $ newMVar
       )
     ]
 {-# NOINLINE operators #-}
+
+cardanoCliEra :: String
+cardanoCliEra = "--allegra-era"
 
 -- | A public stake key associated with a mnemonic that we pre-registered for
 -- STAKE_POOLS_JOIN_05.
