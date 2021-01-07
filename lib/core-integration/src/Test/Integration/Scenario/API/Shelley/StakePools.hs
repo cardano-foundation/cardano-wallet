@@ -207,6 +207,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
 
     it "STAKE_POOLS_JOIN_01rewards - \
         \Can join a pool, earn rewards and collect them" $ \ctx -> runResourceT $ do
+        liftIO $ flakyBecauseOf "#2415"
         -- Setup
         src <- fixtureWallet ctx
         dest <- emptyWallet ctx
