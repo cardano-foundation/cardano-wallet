@@ -69,6 +69,8 @@ module Cardano.Wallet.Shelley.Compatibility
     , fromShelleyCoin
     , toHDPayloadAddress
     , toCardanoStakeCredential
+    , toCardanoValue
+    , fromCardanoValue
 
       -- ** Stake pools
     , fromPoolId
@@ -255,12 +257,12 @@ import Type.Reflection
     ( Typeable, typeRep )
 
 import qualified Cardano.Address.Style.Shelley as CA
+import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Api.Typed as Cardano
 import qualified Cardano.Byron.Codec.Cbor as CBOR
 import qualified Cardano.Chain.Common as Byron
 import qualified Cardano.Ledger.Core as SL.Core
 import qualified Cardano.Ledger.Crypto as SL
-import qualified Cardano.Ledger.Mary.Value as Mary
 import qualified Cardano.Ledger.Shelley as SL
 import qualified Cardano.Ledger.Shelley.Constraints as SL
 import qualified Cardano.Ledger.ShelleyMA as MA
@@ -283,7 +285,6 @@ import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString.Short as SBS
-import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Text.Encoding as T
@@ -903,32 +904,41 @@ fromMaryTx tx =
          :: SL.TxOut (Cardano.ShelleyLedgerEra MaryEra)
          -> W.TxOut
     fromMaryTxOut (SL.TxOut addr value) =
-       W.TxOut (fromShelleyAddress addr) (fromMaryValue value)
+        W.TxOut (fromShelleyAddress addr) $
+        fromCardanoValue $ Cardano.fromMaryValue value
 
+fromCardanoValue :: Cardano.Value -> TokenBundle.TokenBundle
+fromCardanoValue = uncurry TokenBundle.fromFlatList . extract
+  where
+    extract value =
+        ( mkCoin $ Cardano.selectLovelace value
+        , mkBundle $ Cardano.valueToList value
+        )
+
+    -- Lovelace to coin. Quantities from ledger should always fit in Word64.
+    mkCoin :: Cardano.Lovelace -> W.Coin
+    mkCoin = W.Coin . unsafeToWord64 . unQuantity . Cardano.lovelaceToQuantity
+
+    -- Do Integer to Natural conversion. Quantities from ledger TxOuts can
+    -- never be negative (but unminted values could be negative).
+    mkQuantity :: Integer -> W.TokenQuantity
+    mkQuantity = W.TokenQuantity . checkBounds
       where
-        fromMaryValue (Mary.Value ada bundle) =
-            TokenBundle.fromNestedList (unsafeCoin ada) $ filterEmpty $
-            [ ( mkPolicyId p
-              , [ (mkTokenName a, unsafeQuantity q)
-                | (a, q) <- Map.toList assets ])
-            | (p, assets) <- Map.toList bundle
-            ]
+        checkBounds n
+          | n >= 0 = fromIntegral n
+          | otherwise = error "Internal error: negative token quantity"
 
-        -- Ledger shouldn't return empty asset maps, but anyway.
-        filterEmpty xs = [ (a,b) | (a, Just b) <- map (fmap NE.nonEmpty) xs ]
+    mkBundle assets =
+        [ (TokenBundle.AssetId (mkPolicyId p) (mkTokenName n) , mkQuantity q)
+        | (Cardano.AssetId p n, Cardano.Quantity q) <- assets
+        ]
 
-        mkPolicyId (Mary.PolicyID (SL.ScriptHash p)) =
-            W.TokenPolicyId (W.Hash $ hashToBytes p)
-        mkTokenName (Mary.AssetName bs) = W.TokenName $
-                  T.decodeUtf8With T.lenientDecode bs
+    mkPolicyId = W.UnsafeTokenPolicyId . W.Hash . Cardano.serialiseToRawBytes
+    mkTokenName = W.UnsafeTokenName
+        . T.decodeUtf8With T.lenientDecode
+        . Cardano.serialiseToRawBytes
 
-        -- TODO: We should check for overflow!
-        unsafeCoin :: Integer -> W.Coin
-        unsafeCoin = W.Coin . fromIntegral
-
-        -- TODO: Underflow is possible - Integer to Natural conversion
-        unsafeQuantity :: Integer -> W.TokenQuantity
-        unsafeQuantity = W.TokenQuantity . fromIntegral
+    unQuantity (Cardano.Quantity q) = q
 
 fromShelleyWdrl :: SL.Wdrl crypto -> Map W.RewardAccount W.Coin
 fromShelleyWdrl (SL.Wdrl wdrl) = Map.fromList $
@@ -990,9 +1000,24 @@ lovelaceFromCoin = Quantity . unsafeCoinToWord64
 toWalletCoin :: SL.Coin -> W.Coin
 toWalletCoin = W.Coin . unsafeCoinToWord64
 
--- | The reverse of 'word64ToCoin', without overflow checks.
+-- | The reverse of 'word64ToCoin', where overflow is fatal.
 unsafeCoinToWord64 :: SL.Coin -> Word64
-unsafeCoinToWord64 (SL.Coin c) = fromIntegral c
+unsafeCoinToWord64 (SL.Coin c) = unsafeToWord64 c
+
+-- | Convert an int to 'Word64'.
+--
+-- Only use it for values which have come from the ledger, and should fit in a
+-- 'Word64', according to the spec.
+--
+-- If this conversion would under/overflow, there is not much we can do except
+-- to hastily exit.
+unsafeToWord64 :: Integral n => n -> Word64
+unsafeToWord64 n
+    | n < 0 = crash "underflow"
+    | n > fromIntegral (maxBound :: Word64) = crash "overflow"
+    | otherwise = fromIntegral n
+  where
+    crash x = error ("Internal error: Word64 " ++ x)
 
 fromPoolMetadata :: SL.PoolMetadata -> (W.StakePoolMetadataUrl, W.StakePoolMetadataHash)
 fromPoolMetadata meta =
@@ -1141,14 +1166,10 @@ toAllegraTxOut (W.TxOut (W.Address addr) tokens) =
 
 toMaryTxOut :: W.TxOut -> Cardano.TxOut MaryEra
 toMaryTxOut (W.TxOut (W.Address addr) tokens) =
-    -- FIXME: Also convert non-ada tokens for full Mary-support.
     Cardano.TxOut addrInEra
-        $ adaOnly
-        $ Cardano.lovelaceToValue
-        $ toCardanoLovelace
-        $ TokenBundle.coin tokens
+        $ Cardano.TxOutValue Cardano.MultiAssetInMaryEra
+        $ toCardanoValue tokens
   where
-    adaOnly = Cardano.TxOutValue Cardano.MultiAssetInMaryEra
     addrInEra = fromMaybe (error "toCardanoTxOut: malformed address") $
         asum
         [ Cardano.AddressInEra (Cardano.ShelleyAddressInEra Cardano.ShelleyBasedEraMary)
@@ -1157,6 +1178,27 @@ toMaryTxOut (W.TxOut (W.Address addr) tokens) =
         , Cardano.AddressInEra Cardano.ByronAddressInAnyEra
             <$> deserialiseFromRawBytes AsByronAddress addr
         ]
+
+toCardanoValue :: TokenBundle.TokenBundle -> Cardano.Value
+toCardanoValue tb = Cardano.valueFromList $
+    (Cardano.AdaAssetId, coinToQuantity coin) :
+    map (bimap toCardanoAssetId toQuantity) bundle
+  where
+    (coin, bundle) = TokenBundle.toFlatList tb
+    toCardanoAssetId (TokenBundle.AssetId pid name) =
+        Cardano.AssetId (toCardanoPolicyId pid) (toCardanoAssetName name)
+
+    toCardanoPolicyId (W.UnsafeTokenPolicyId (W.Hash pid)) = just "PolicyId" $
+        Cardano.deserialiseFromRawBytes Cardano.AsPolicyId pid
+    toCardanoAssetName (W.UnsafeTokenName name) = just "TokenName" $
+        Cardano.deserialiseFromRawBytes Cardano.AsAssetName $ T.encodeUtf8 name
+
+    just :: String -> Maybe a -> a
+    just t = fromMaybe $ error $
+        "toMaryTxOut: Internal error: unable to deserialise " ++ t
+
+    coinToQuantity = fromIntegral . W.unCoin
+    toQuantity = fromIntegral . W.unTokenQuantity
 
 -- | Convert from reward account address (which is a hash of a public key)
 -- to a shelley ledger stake credential.
