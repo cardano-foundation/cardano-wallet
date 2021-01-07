@@ -45,7 +45,7 @@ import Cardano.BM.Data.Tracer
 import Cardano.Wallet.Byron.Compatibility
     ( byronCodecConfig, protocolParametersFromUpdateState )
 import Cardano.Wallet.Logging
-    ( BracketLog (..), bracketTracer )
+    ( BracketLog (..), bracketTracer, combineTracers, produceTimings )
 import Cardano.Wallet.Network
     ( Cursor
     , ErrPostTx (..)
@@ -114,7 +114,7 @@ import Control.Monad.Trans.Except
 import Control.Retry
     ( RetryPolicyM, RetryStatus (..), capDelay, fibonacciBackoff, recovering )
 import Control.Tracer
-    ( Tracer, contramap, nullTracer, traceWith )
+    ( Tracer (..), contramap, nullTracer, traceWith )
 import Data.ByteArray.Encoding
     ( Base (..), convertToBase )
 import Data.ByteString.Lazy
@@ -123,6 +123,8 @@ import Data.Either.Extra
     ( eitherToMaybe )
 import Data.Function
     ( (&) )
+import Data.Functor
+    ( (<$) )
 import Data.List
     ( isInfixOf )
 import Data.Map
@@ -140,7 +142,7 @@ import Data.Text
 import Data.Text.Class
     ( ToText (..) )
 import Data.Time.Clock
-    ( NominalDiffTime )
+    ( DiffTime )
 import Data.Void
     ( Void )
 import Fmt
@@ -289,7 +291,19 @@ withNetworkLayer
     -> (NetworkLayer IO (CardanoBlock StandardCrypto) -> IO a)
         -- ^ Callback function with the network layer
     -> IO a
-withNetworkLayer tr np addrInfo (versionData, _) action = do
+withNetworkLayer trBase np addrInfo ver action = do
+    tr <- addTimings trBase
+    withNetworkLayerBase tr np addrInfo ver action
+
+withNetworkLayerBase
+    :: HasCallStack
+    => Tracer IO NetworkLayerLog
+    -> W.NetworkParameters
+    -> FilePath
+    -> (NodeToClientVersionData, CodecCBORTerm Text NodeToClientVersionData)
+    -> (NetworkLayer IO (CardanoBlock StandardCrypto) -> IO a)
+    -> IO a
+withNetworkLayerBase tr np addrInfo (versionData, _) action = do
     -- NOTE: We keep client connections running for accessing the node tip,
     -- submitting transactions, querying parameters and delegations/rewards.
     --
@@ -354,7 +368,7 @@ withNetworkLayer tr np addrInfo (versionData, _) action = do
         , getAccountBalance =
             _getAccountBalance rewardsObserver
         , timeInterpreter =
-            _timeInterpreter interpreterVar
+            _timeInterpreter (contramap MsgInterpreterLog tr) interpreterVar
         }
   where
     coinToQuantity (W.Coin x) = Quantity $ fromIntegral x
@@ -579,11 +593,12 @@ withNetworkLayer tr np addrInfo (versionData, _) action = do
 
     _timeInterpreter
         :: HasCallStack
-        => TMVar IO (CardanoInterpreter sc)
+        => Tracer IO TimeInterpreterLog
+        -> TMVar IO (CardanoInterpreter sc)
         -> TimeInterpreter (ExceptT PastHorizonException IO)
-    _timeInterpreter var = do
+    _timeInterpreter tr' var = do
         let readInterpreter = liftIO $ atomically $ readTMVar var
-        mkTimeInterpreter (contramap MsgInterpreterLog tr) getGenesisBlockDate readInterpreter
+        mkTimeInterpreter tr' getGenesisBlockDate readInterpreter
 
 --------------------------------------------------------------------------------
 --
@@ -1067,13 +1082,8 @@ debounce action = do
         unless (Just cur == prev) $ action cur
         atomically $ putTMVar mvar (Just cur)
 
--- | Convenience function to measure the time of a LSQ query,
--- and trace the result.
---
--- Such that we can get logs like:
--- >>> Query getAccountBalance took 51.664463s
---
--- fixme: put back time measurements using a tracer transformer
+-- | Convenience function to trace around a local state query.
+-- See 'addTimings'.
 bracketQuery
     :: MonadUnliftIO m
     => String
@@ -1081,6 +1091,18 @@ bracketQuery
     -> m a
     -> m a
 bracketQuery label tr = bracketTracer (contramap (MsgQuery label) tr)
+
+-- | A tracer transformer which processes 'MsgQuery' logs to make new
+-- 'MsgQueryTime' logs, so that we can get logs like:
+--
+-- >>> Query getAccountBalance took 51.664463s
+addTimings :: Tracer IO NetworkLayerLog -> IO (Tracer IO NetworkLayerLog)
+addTimings tr = combineTracers tr <$> produceTimings msgQuery trDiffTime
+  where
+    trDiffTime = contramap (uncurry MsgQueryTime) tr
+    msgQuery = \case
+        MsgQuery l b -> Just (l, b)
+        _ -> Nothing
 
 -- | A protocol client that will never leave the initial state.
 doNothingProtocol
@@ -1233,7 +1255,7 @@ data NetworkLayerLog where
     -- TODO: Combine ^^ and vv
     MsgInterpreterLog :: TimeInterpreterLog -> NetworkLayerLog
     MsgQuery :: String -> BracketLog -> NetworkLayerLog
-    MsgQueryTime :: String -> NominalDiffTime -> NetworkLayerLog
+    MsgQueryTime :: String -> DiffTime -> NetworkLayerLog
     MsgObserverLog
         :: ObserverLog W.RewardAccount W.Coin
         -> NetworkLayerLog
@@ -1360,6 +1382,6 @@ instance HasSeverityAnnotation NetworkLayerLog where
         MsgChainSyncCmd cmd                -> getSeverityAnnotation cmd
         MsgInterpreter{}                   -> Debug
         MsgQuery _ msg                     -> getSeverityAnnotation msg
-        MsgQueryTime{}                     -> Info
+        MsgQueryTime{}                     -> Debug
         MsgInterpreterLog msg              -> getSeverityAnnotation msg
         MsgObserverLog{}                   -> Debug

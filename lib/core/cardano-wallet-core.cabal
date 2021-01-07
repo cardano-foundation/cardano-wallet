@@ -99,6 +99,7 @@ library
     , text-class
     , time
     , tls
+    , tracer-transformers
     , transformers
     , typed-protocols
     , unliftio
