@@ -411,6 +411,13 @@ _decodeSignedTx era bytes = do
                 Left decodeErr ->
                     Left $ ErrDecodeSignedTxWrongPayload (T.pack $ show decodeErr)
 
+        AnyCardanoEra MaryEra ->
+            case Cardano.deserialiseFromCBOR (Cardano.AsTx Cardano.AsMaryEra) bytes of
+                Right txValid ->
+                    pure $ sealShelleyTx fromMaryTx txValid
+                Left decodeErr ->
+                    Left $ ErrDecodeSignedTxWrongPayload (T.pack $ show decodeErr)
+
         _ ->
             Left ErrDecodeSignedTxNotSupported
 
