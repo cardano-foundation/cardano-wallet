@@ -221,8 +221,10 @@ main = withUtf8Encoding $ withLogging $ \trace -> do
         , withDB tr (bgroupReadUTxO mkOutputsCoin "UTxO ada-only (Read)")
         , withDB tr bgroupWriteSeqState
         , withDB tr bgroupWriteRndState
-        , withDB tr $ bgroupWriteTxHistory mkOutputsCoin
-        , withDB tr $ bgroupReadTxHistory mkOutputsCoin
+        , withDB tr (bgroupWriteTxHistory mkOutputsCoin "TxHistory ada-only (Write)")
+        , withDB tr (bgroupReadTxHistory mkOutputsCoin "TxHistory ada-only (Read)")
+        , withDB tr (bgroupWriteTxHistory (mkOutputsToken 100 200) "TxHistory (Write)")
+        , withDB tr (bgroupReadTxHistory (mkOutputsToken 100 200) "TxHistory (Read)")
         ]
     putStrLn "\n--"
     utxoDiskSpaceTests tr
@@ -457,8 +459,8 @@ mkRndAddresses numAddrs i =
 --
 -- - 50 inputs
 -- - 100 outputs
-bgroupWriteTxHistory :: (Int -> Int -> [TxOut]) -> DBLayerBench -> Benchmark
-bgroupWriteTxHistory mkOutputs' db = bgroup "TxHistory (Write)"
+bgroupWriteTxHistory :: (Int -> Int -> [TxOut]) -> String -> DBLayerBench -> Benchmark
+bgroupWriteTxHistory mkOutputs' gn db = bgroup gn
     --                   #NTxs #NInputs #NOutputs  #SlotRange
     [ bTxHistory             1        1        1      [1..10]
     , bTxHistory            10        1        1      [1..10]
@@ -482,8 +484,8 @@ bgroupWriteTxHistory mkOutputs' db = bgroup "TxHistory (Write)"
         inf = head r
         sup = last r
 
-bgroupReadTxHistory :: (Int -> Int -> [TxOut]) -> DBLayerBench -> Benchmark
-bgroupReadTxHistory mkOutputs' db = bgroup "TxHistory (Read)"
+bgroupReadTxHistory :: (Int -> Int -> [TxOut]) -> String -> DBLayerBench -> Benchmark
+bgroupReadTxHistory mkOutputs' gn db = bgroup gn
     --             #NTxs  #SlotRange  #SortOrder  #Status  #SearchRange
     [ bTxHistory    1000    [1..100]  Descending  Nothing  wholeRange
     , bTxHistory    1000    [1..100]   Ascending  Nothing  wholeRange
@@ -535,7 +537,13 @@ benchReadTxHistory sortOrder (inf, sup) mstatus DBLayer{..} =
         (SlotNo . fromIntegral <$> inf)
         (SlotNo . fromIntegral <$> sup)
 
-mkTxHistory :: (Int -> Int -> [TxOut]) -> Int -> Int -> Int -> [Word64] -> [(Tx, TxMeta)]
+mkTxHistory
+    :: (Int -> Int -> [TxOut])
+    -> Int
+    -> Int
+    -> Int
+    -> [Word64]
+    -> [(Tx, TxMeta)]
 mkTxHistory mkOutputs' numTx numInputs numOutputs range =
     [ force
         ( (Tx (mkTxId inps outs mempty Nothing) Nothing inps outs mempty) Nothing
@@ -565,8 +573,7 @@ mkInputs prefix n =
   where
     lbl = show prefix <> "in"
 
--- | Returns Output transactions that effectively have no "TokenBundles", but a
--- single Coin.
+-- | Creates transaction outputs with ada-only token bundles.
 mkOutputsCoin :: Int -> Int -> [TxOut]
 mkOutputsCoin prefix n =
     [ force
@@ -574,36 +581,32 @@ mkOutputsCoin prefix n =
     | !i <- [1..n]
     ]
 
--- | Returns Output transactions that also contains non-empty multi asset
--- tokens.
+-- | Creates transaction outputs with multi-asset token bundles.
 mkOutputsToken :: Int -> Int -> Int -> Int -> [TxOut]
 mkOutputsToken assetCount tokenQuantity prefix n =
-    [ force (createTrans i)
+    [ force (mkTxOut i)
     | !i <- [1..n]
     ]
   where
-    createTrans i =
-        let tokenPolicyIdHexStringLength = 56
-            tokens = [
-                let tokenPolicyId =
-                        fromRight (error "Couldn't decode tokenPolicyId")
-                        . fromText
-                        . T.pack
-                        . take tokenPolicyIdHexStringLength
-                        . join
-                        . replicate tokenPolicyIdHexStringLength
-                        . show
-                        $ ac
-                    tokenName = fromRight (error "Couldn't decode tokenName")
-                        . fromText
-                        . T.pack
-                        . show
-                        $ ac
-                in (TokenMap.AssetId tokenPolicyId tokenName
-                    , TokenQuantity $ fromIntegral tokenQuantity)
-                    | !ac <- [1..assetCount] ]
-        in (TxOut (mkAddress prefix i)
-            (TokenBundle.TokenBundle (Coin 1) (TokenMap.fromFlatList tokens)))
+    mkTxOut i = TxOut
+        (mkAddress prefix i)
+        (TokenBundle.TokenBundle (Coin 1) (TokenMap.fromFlatList tokens))
+    mkTokenName = fromRight (error "Couldn't decode tokenName")
+        . fromText . T.pack . show
+    mkTokenPolicyId = fromRight (error "Couldn't decode tokenPolicyId")
+        . fromText
+        . T.pack
+        . take tokenPolicyIdHexStringLength
+        . join
+        . replicate tokenPolicyIdHexStringLength
+        . show
+    tokenPolicyIdHexStringLength = 56
+    tokens =
+        [ ( TokenMap.AssetId (mkTokenPolicyId ac) (mkTokenName ac)
+          , TokenQuantity $ fromIntegral tokenQuantity
+          )
+        | !ac <- [1 .. assetCount]
+        ]
 
 withTxHistory
     :: NFData b
@@ -613,7 +616,8 @@ withTxHistory
     -> [Word64]
     -> (DBLayerBench -> IO b)
     -> Benchmarkable
-withTxHistory mkOutputs' db s r = perRunEnv (txHistoryFixture mkOutputs' db s r $> db)
+withTxHistory mkOutputs' db s r =
+    perRunEnv (txHistoryFixture mkOutputs' db s r $> db)
 
 txHistoryFixture
     :: (Int -> Int -> [TxOut])
