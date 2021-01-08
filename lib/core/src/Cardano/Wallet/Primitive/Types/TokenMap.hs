@@ -74,10 +74,13 @@ module Cardano.Wallet.Primitive.Types.TokenMap
     -- * Queries
     , getAssets
 
+    -- * Unsafe operations
+    , unsafeSubtract
+
     ) where
 
 import Prelude hiding
-    ( negate, null, subtract )
+    ( subtract )
 
 import Algebra.PartialOrd
     ( PartialOrd (..) )
@@ -88,13 +91,15 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity
 import Control.DeepSeq
     ( NFData )
 import Control.Monad
-    ( mapM, when, (<=<) )
+    ( guard, mapM, when, (<=<) )
 import Data.Aeson
     ( FromJSON (..), ToJSON (..), camelTo2, genericParseJSON, genericToJSON )
 import Data.Aeson.Types
     ( Options (..), Parser )
 import Data.Bifunctor
     ( first )
+import Data.Functor
+    ( ($>) )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Map.Strict
@@ -438,13 +443,13 @@ add a b = F.foldl' acc a $ toFlatList b
     acc c (asset, quantity) =
         adjustQuantity c asset (`TokenQuantity.add` quantity)
 
--- | Subtracts one token map from another.
+-- | Subtracts the second token map from the first.
 --
-subtract :: TokenMap -> TokenMap -> TokenMap
-subtract a b = F.foldl' acc a $ toFlatList b
-  where
-    acc c (asset, quantity) =
-        adjustQuantity c asset (`TokenQuantity.subtract` quantity)
+-- Returns 'Nothing' if the second map is not less than or equal to the first
+-- map when compared with the `leq` function.
+--
+subtract :: TokenMap -> TokenMap -> Maybe TokenMap
+subtract a b = guard (b `leq` a) $> unsafeSubtract a b
 
 --------------------------------------------------------------------------------
 -- Tests
@@ -549,6 +554,23 @@ hasPolicy b policy = isJust $ Map.lookup policy $ unTokenMap b
 
 getAssets :: TokenMap -> Set AssetId
 getAssets = Set.fromList . fmap fst . toFlatList
+
+--------------------------------------------------------------------------------
+-- Unsafe operations
+--------------------------------------------------------------------------------
+
+-- | Subtracts the second token map from the first.
+--
+-- Pre-condition: the second map is less than or equal to the first map when
+-- compared with the `leq` function.
+--
+-- Throws a run-time exception if the pre-condition is violated.
+--
+unsafeSubtract :: TokenMap -> TokenMap -> TokenMap
+unsafeSubtract a b = F.foldl' acc a $ toFlatList b
+  where
+    acc c (asset, quantity) =
+        adjustQuantity c asset (`TokenQuantity.unsafeSubtract` quantity)
 
 --------------------------------------------------------------------------------
 -- Internal functions

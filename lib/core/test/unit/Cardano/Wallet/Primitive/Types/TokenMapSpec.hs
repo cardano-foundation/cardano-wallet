@@ -223,10 +223,10 @@ prop_add_invariant :: TokenMap -> TokenMap -> Property
 prop_add_invariant b1 b2 = property $ invariantHolds $ TokenMap.add b1 b2
 
 prop_subtract_invariant :: TokenMap -> TokenMap -> Property
-prop_subtract_invariant m1 m2 =
-    -- We must take care to not produce negative quantities:
-    m2 `leq` m1 ==>
-        property $ invariantHolds $ TokenMap.subtract m1 m2
+prop_subtract_invariant m1 m2 = property $
+    m2 `leq` m1 ==> invariantHolds result
+  where
+    Just result = TokenMap.subtract m1 m2
 
 prop_setQuantity_invariant
     :: TokenMap -> AssetId -> TokenQuantity -> Property
@@ -318,14 +318,13 @@ prop_add_associative b1 b2 b3 = (===)
 prop_add_subtract_associative
     :: TokenMap -> TokenMap -> TokenMap -> Property
 prop_add_subtract_associative m1 m2 m3 =
-    -- We must take care to not produce negative quantities:
     m3 `leq` m2 ==> (===)
         ((m1 `TokenMap.add` m2) `TokenMap.subtract` m3)
-        (m1 `TokenMap.add` (m2 `TokenMap.subtract` m3))
+        (fmap (m1 `TokenMap.add`) (m2 `TokenMap.subtract` m3))
 
 prop_subtract_null :: TokenMap -> Property
 prop_subtract_null m =
-    m `TokenMap.subtract` m === TokenMap.empty
+    m `TokenMap.subtract` m === Just TokenMap.empty
 
 --------------------------------------------------------------------------------
 -- Quantity properties

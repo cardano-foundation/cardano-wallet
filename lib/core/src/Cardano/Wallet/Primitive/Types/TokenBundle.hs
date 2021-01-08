@@ -56,10 +56,13 @@ module Cardano.Wallet.Primitive.Types.TokenBundle
     -- * Queries
     , getAssets
 
+    -- * Unsafe operations
+    , unsafeSubtract
+
     ) where
 
 import Prelude hiding
-    ( negate, null, subtract )
+    ( subtract )
 
 import Algebra.PartialOrd
     ( PartialOrd (..) )
@@ -73,8 +76,12 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Control.DeepSeq
     ( NFData )
+import Control.Monad
+    ( guard )
 import Data.Bifunctor
     ( first )
+import Data.Functor
+    ( ($>) )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Set
@@ -249,11 +256,13 @@ add :: TokenBundle -> TokenBundle -> TokenBundle
 add (TokenBundle (Coin c1) m1) (TokenBundle (Coin c2) m2) =
     TokenBundle (Coin $ c1 + c2) (TokenMap.add m1 m2)
 
--- | Subtracts one token bundle from another.
+-- | Subtracts the second token bundle from the first.
 --
-subtract :: TokenBundle -> TokenBundle -> TokenBundle
-subtract (TokenBundle (Coin c1) m1) (TokenBundle (Coin c2) m2) =
-    TokenBundle (Coin $ c1 - c2) (TokenMap.subtract m1 m2)
+-- Returns 'Nothing' if the second bundle is not less than or equal to the first
+-- bundle when compared with the `leq` function.
+--
+subtract :: TokenBundle -> TokenBundle -> Maybe TokenBundle
+subtract a b = guard (b `leq` a) $> unsafeSubtract a b
 
 --------------------------------------------------------------------------------
 -- Quantities
@@ -317,3 +326,18 @@ hasPolicy = TokenMap.hasPolicy . tokens
 
 getAssets :: TokenBundle -> Set AssetId
 getAssets = TokenMap.getAssets . tokens
+
+--------------------------------------------------------------------------------
+-- Unsafe operations
+--------------------------------------------------------------------------------
+
+-- | Subtracts the second token bundle from the first.
+--
+-- Pre-condition: the second bundle is less than or equal to the first bundle
+-- when compared with the `leq` function.
+--
+-- Throws a run-time exception if the pre-condition is violated.
+--
+unsafeSubtract :: TokenBundle -> TokenBundle -> TokenBundle
+unsafeSubtract (TokenBundle (Coin c1) m1) (TokenBundle (Coin c2) m2) =
+    TokenBundle (Coin $ c1 - c2) (TokenMap.unsafeSubtract m1 m2)

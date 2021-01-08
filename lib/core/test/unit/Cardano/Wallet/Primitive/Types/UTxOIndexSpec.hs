@@ -219,7 +219,7 @@ prop_delete_balance i u =
         Nothing ->
             UTxOIndex.balance u
         Just o ->
-            UTxOIndex.balance u `TokenBundle.subtract` view #tokens o
+            UTxOIndex.balance u `TokenBundle.unsafeSubtract` view #tokens o
 
 prop_delete_lookup :: TxIn -> UTxOIndex -> Property
 prop_delete_lookup i u =
@@ -250,7 +250,7 @@ prop_insert_balance i o u =
         Nothing ->
             UTxOIndex.balance u
         Just o' ->
-            UTxOIndex.balance u `TokenBundle.subtract` view #tokens o'
+            UTxOIndex.balance u `TokenBundle.unsafeSubtract` view #tokens o'
 
 prop_insert_delete :: TxIn -> TxOut -> UTxOIndex -> Property
 prop_insert_delete i o u =

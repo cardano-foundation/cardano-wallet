@@ -240,7 +240,10 @@ delete i u = case Map.lookup i (utxo u) of
     Nothing -> u
     Just o -> UTxOIndex
         { index = F.foldl' deleteEntry (index u) (txOutAssets o)
-        , balance = balance u `TokenBundle.subtract` view #tokens o
+          -- This operation is safe, since we have already determined that the
+          -- entry is a member of the index, and therefore the balance must be
+          -- greater than or equal to the value of this output:
+        , balance = balance u `TokenBundle.unsafeSubtract` view #tokens o
         , utxo = Map.delete i $ utxo u
         }
   where

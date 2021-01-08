@@ -20,6 +20,9 @@ module Cardano.Wallet.Primitive.Types.TokenQuantity
     , isNonZero
     , isZero
 
+      -- * Unsafe operations
+    , unsafeSubtract
+
     ) where
 
 import Prelude hiding
@@ -27,8 +30,12 @@ import Prelude hiding
 
 import Control.DeepSeq
     ( NFData (..) )
+import Control.Monad
+    ( guard )
 import Data.Aeson
     ( FromJSON (..), ToJSON (..) )
+import Data.Functor
+    ( ($>) )
 import Data.Text.Class
     ( FromText (..), ToText (..) )
 import Fmt
@@ -100,8 +107,12 @@ zero = TokenQuantity 0
 add :: TokenQuantity -> TokenQuantity -> TokenQuantity
 add (TokenQuantity x) (TokenQuantity y) = TokenQuantity $ x + y
 
-subtract :: TokenQuantity -> TokenQuantity -> TokenQuantity
-subtract (TokenQuantity x) (TokenQuantity y) = TokenQuantity $ x - y
+-- | Subtracts the second token quantity from the first.
+--
+-- Returns 'Nothing' if the first quantity is less than the second quantity.
+--
+subtract :: TokenQuantity -> TokenQuantity -> Maybe TokenQuantity
+subtract x y = guard (x >= y) $> unsafeSubtract x y
 
 pred :: TokenQuantity -> TokenQuantity
 pred (TokenQuantity q) = TokenQuantity $ Prelude.pred q
@@ -118,3 +129,16 @@ isNonZero = (/= zero)
 
 isZero :: TokenQuantity -> Bool
 isZero = (== zero)
+
+--------------------------------------------------------------------------------
+-- Unsafe operations
+--------------------------------------------------------------------------------
+
+-- | Subtracts the second token quantity from the first.
+--
+-- Pre-condition: the first quantity is not less than the second quantity.
+--
+-- Throws a run-time exception if the pre-condition is violated.
+--
+unsafeSubtract :: TokenQuantity -> TokenQuantity -> TokenQuantity
+unsafeSubtract (TokenQuantity x) (TokenQuantity y) = TokenQuantity $ x - y
