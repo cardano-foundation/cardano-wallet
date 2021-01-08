@@ -32,8 +32,9 @@
         "unit" = {
           depends = [
             (hsPkgs."base" or (errorHandler.buildDepError "base"))
-            (hsPkgs."hspec" or (errorHandler.buildDepError "hspec"))
             (hsPkgs."cardano-numeric" or (errorHandler.buildDepError "cardano-numeric"))
+            (hsPkgs."hspec" or (errorHandler.buildDepError "hspec"))
+            (hsPkgs."QuickCheck" or (errorHandler.buildDepError "QuickCheck"))
             ];
           build-tools = [
             (hsPkgs.buildPackages.hspec-discover or (pkgs.buildPackages.hspec-discover or (errorHandler.buildToolDepError "hspec-discover")))
