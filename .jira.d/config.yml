@@ -13,8 +13,15 @@ project: ADP
 custom-commands:
   - name: bugs
     help: List unresolved bug tickets
+    options:
+      - name: query
+        short: q
+    args:
+      - name: terms
+        required: false
     script: |-
-      {{jira}} list --template table --query "type = Bug and resolution = Unresolved and project=$JIRA_PROJECT and component = cardano-wallet ORDER BY priority DESC, updated DESC, rank ASC, created"
+      set -x
+      {{jira}} list --template table --query "type = Bug and resolution = Unresolved and project=$JIRA_PROJECT and component = cardano-wallet{{ with args.terms }} and text ~ \"{{ args.terms }}\"{{ end }}{{ with options.query }} and {{ options.query }}{{ end }} ORDER BY priority DESC, updated DESC, rank ASC, created"
 
   - name: mine
     help: Display unresolved issues assigned to me
