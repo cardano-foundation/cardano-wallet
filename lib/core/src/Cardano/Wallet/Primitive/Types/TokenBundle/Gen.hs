@@ -6,7 +6,7 @@ module Cardano.Wallet.Primitive.Types.TokenBundle.Gen
 import Prelude
 
 import Cardano.Wallet.Primitive.Types.Coin.Gen
-    ( genCoinSmall, shrinkCoinSmall )
+    ( genCoinSmallPositive, shrinkCoinSmallPositive )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle (..) )
 import Cardano.Wallet.Primitive.Types.TokenMap.Gen
@@ -22,11 +22,11 @@ import Test.QuickCheck.Extra
 
 genTokenBundleSmallRange :: Gen TokenBundle
 genTokenBundleSmallRange = TokenBundle
-    <$> genCoinSmall
+    <$> genCoinSmallPositive
     <*> genTokenMapSmallRange
 
 shrinkTokenBundleSmallRange :: TokenBundle -> [TokenBundle]
 shrinkTokenBundleSmallRange (TokenBundle c m) =
     uncurry TokenBundle <$> shrinkInterleaved
-        (c, shrinkCoinSmall)
+        (c, shrinkCoinSmallPositive)
         (m, shrinkTokenMapSmallRange)
