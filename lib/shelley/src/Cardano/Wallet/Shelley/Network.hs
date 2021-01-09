@@ -520,10 +520,11 @@ withNetworkLayerBase tr np addrInfo (versionData, _) action = do
                 return res
             Left{} -> pure $ W.StakePoolsSummary 0 mempty mempty
       where
+        -- fixme: ADP-647 AcquireFailure usually means rollback. So this
+        -- function can fail at arbitrary times.
         handleQueryResult
-            :: Show e
-            => String
-            -> IO (Either e r)
+            :: String
+            -> IO (Either AcquireFailure r)
             -> ExceptT ErrStakeDistribution IO r
         handleQueryResult label =
             withExceptT mkErr . ExceptT . bracketQuery label tr
