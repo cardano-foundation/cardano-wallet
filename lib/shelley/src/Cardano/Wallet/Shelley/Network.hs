@@ -1104,6 +1104,10 @@ addTimings tr = combineTracers tr <$> produceTimings msgQuery trDiffTime
         MsgQuery l b -> Just (l, b)
         _ -> Nothing
 
+-- | Consider a "slow query" to be something that takes 100ms or more.
+isSlowQuery :: String -> DiffTime -> Bool
+isSlowQuery _label = (>= 0.1)
+
 -- | A protocol client that will never leave the initial state.
 doNothingProtocol
     :: MonadTimer m => RunMiniProtocol 'InitiatorMode ByteString m a Void
@@ -1347,7 +1351,8 @@ instance ToText NetworkLayerLog where
         MsgQuery label msg ->
             T.pack label <> ": " <> toText msg
         MsgQueryTime qry diffTime ->
-            "Query " <> T.pack qry <> " took " <> T.pack (show diffTime)
+            "Query " <> T.pack qry <> " took " <> T.pack (show diffTime) <>
+            if isSlowQuery qry diffTime then " (too slow)" else ""
         MsgChainSyncCmd a -> toText a
         MsgInterpreter interpreter ->
             "Updated the history interpreter: " <> T.pack (show interpreter)
@@ -1382,6 +1387,8 @@ instance HasSeverityAnnotation NetworkLayerLog where
         MsgChainSyncCmd cmd                -> getSeverityAnnotation cmd
         MsgInterpreter{}                   -> Debug
         MsgQuery _ msg                     -> getSeverityAnnotation msg
-        MsgQueryTime{}                     -> Debug
+        MsgQueryTime qry dt
+            | isSlowQuery qry dt           -> Notice
+            | otherwise                    -> Debug
         MsgInterpreterLog msg              -> getSeverityAnnotation msg
         MsgObserverLog{}                   -> Debug
