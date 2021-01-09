@@ -26,6 +26,7 @@ module Cardano.Wallet.Shelley.Launch
       withCluster
     , LocalClusterConfig (..)
     , localClusterConfigFromEnv
+    , ClusterEra (..)
 
       -- * Node launcher
     , NodeParams (..)
@@ -159,6 +160,8 @@ import Data.ByteString
     ( ByteString )
 import Data.ByteString.Base58
     ( bitcoinAlphabet, decodeBase58 )
+import Data.Char
+    ( toLower )
 import Data.Either
     ( isLeft, isRight )
 import Data.Function
@@ -539,14 +542,45 @@ poolConfigsFromEnv = isEnvSet "NO_POOLS" <&> \case
     False -> defaultPoolConfigs
     True -> []
 
-localClusterConfigFromEnv :: IO LocalClusterConfig
-localClusterConfigFromEnv = LocalClusterConfig
+localClusterConfigFromEnv :: Maybe ClusterEra -> IO LocalClusterConfig
+localClusterConfigFromEnv defaultEra = LocalClusterConfig
     <$> poolConfigsFromEnv
+    <*> clusterEraFromEnv defaultEra
     <*> logFileConfigFromEnv
+
+data ClusterEra
+    = ByronNoHardFork
+    | ShelleyHardFork
+    | AllegraHardFork
+    | MaryHardFork
+    deriving (Show, Read, Eq, Ord, Bounded, Enum)
+
+-- | Defaults to the latest era.
+clusterEraFromEnv :: Maybe ClusterEra -> IO ClusterEra
+clusterEraFromEnv def =
+    fmap withDefault . traverse getEra =<< lookupEnvNonEmpty var
+  where
+    var = "TEST_CLUSTER_ERA"
+    getEra env = case map toLower env of
+        "byron" -> pure ByronNoHardFork
+        "shelley" -> pure ShelleyHardFork
+        "allegra" -> pure AllegraHardFork
+        "mary" -> pure MaryHardFork
+        _ -> die $ var ++ ": unknown era"
+    withDefault = fromMaybe (fromMaybe maxBound def)
+
+clusterEraName :: ClusterEra -> String
+clusterEraName = \case
+    ByronNoHardFork -> "byron"
+    ShelleyHardFork -> "shelley"
+    AllegraHardFork -> "allegra"
+    MaryHardFork -> "mary"
 
 data LocalClusterConfig = LocalClusterConfig
     { cfgStakePools :: [PoolConfig]
     -- ^ Stake pools to register.
+    , cfgLastHardFork :: ClusterEra
+    -- ^ Which era to use.
     , cfgNodeLogging :: LogFileConfig
     -- ^ Log severity for node.
     } deriving (Show)
@@ -586,14 +620,16 @@ withCluster
 withCluster tr dir LocalClusterConfig{..} onClusterStart =
     bracketTracer' tr "withCluster" $ do
         traceWith tr $ MsgStartingCluster dir
+        putClusterEra dir cfgLastHardFork
         let poolCount = length cfgStakePools
         (port0:ports) <- randomUnusedTCPPorts (poolCount + 2)
         systemStart <- addUTCTime 1 <$> getCurrentTime
-        let bftCfg = NodeParams systemStart (head $ rotate ports) cfgNodeLogging
+        let bftCfg = NodeParams systemStart cfgLastHardFork
+                (head $ rotate ports) cfgNodeLogging
         withBFTNode tr dir bftCfg $ \bftSocket block0 params -> do
             waitForSocket tr bftSocket
 
-            (rawTx, faucetPrv) <- prepareKeyRegistration tr dir
+            (rawTx, faucetPrv) <- prepareKeyRegistration tr cfgLastHardFork dir
             tx <- signTx tr dir rawTx [faucetPrv]
             submitTx tr "pre-registered stake key" tx
 
@@ -616,8 +652,8 @@ withCluster tr dir LocalClusterConfig{..} onClusterStart =
             asyncs <- forM (zip3 [0..] cfgStakePools $ tail $ rotate ports) $
                 \(idx, poolConfig, (port, peers)) -> do
                     async (handle onException $ do
-                        let spCfg = NodeParams systemStart (port, peers)
-                                cfgNodeLogging
+                        let spCfg = NodeParams systemStart cfgLastHardFork
+                                (port, peers) cfgNodeLogging
                         withStakePool
                             tr dir idx spCfg (pledgeOf idx) poolConfig $ do
                                 writeChan waitGroup $ Right port
@@ -638,7 +674,8 @@ withCluster tr dir LocalClusterConfig{..} onClusterStart =
                     ("cluster didn't start correctly: " <> errors)
                     (ExitFailure 1)
             else do
-                let cfg = NodeParams systemStart (port0, ports) cfgNodeLogging
+                let cfg = NodeParams systemStart cfgLastHardFork
+                        (port0, ports) cfgNodeLogging
                 withRelayNode tr dir cfg $ \socket -> do
                     let runningRelay = RunningNode socket block0 params
                     onClusterStart runningRelay `finally` cancelAll
@@ -664,6 +701,8 @@ data LogFileConfig = LogFileConfig
 data NodeParams = NodeParams
     { systemStart :: UTCTime
       -- ^ Genesis block start time
+    , nodeHardForks :: ClusterEra
+      -- ^ Era to hard fork into.
     , nodePeers :: (Int, [Int])
       -- ^ A list of ports used by peers and this node
     , nodeLogConfig :: LogFileConfig
@@ -680,7 +719,7 @@ singleNodeParams severity extraLogFile = do
             , extraLogDir = fmap fst extraLogFile
             , minSeverityFile = maybe severity snd extraLogFile
             }
-    pure $ NodeParams systemStart (0, []) logCfg
+    pure $ NodeParams systemStart maxBound (0, []) logCfg
 
 withBFTNode
     :: Tracer IO ClusterLog
@@ -714,7 +753,7 @@ withBFTNode tr baseDir params action =
             copyKeyFile
 
         (config, block0, networkParams, versionData)
-            <- genConfig dir systemStart (setLoggingName name logCfg)
+            <- genConfig dir systemStart hardForks (setLoggingName name logCfg)
         topology <- genTopology dir peers
 
         let cfg = CardanoNodeConfig
@@ -736,7 +775,7 @@ withBFTNode tr baseDir params action =
   where
     name = "bft"
     dir = baseDir </> name
-    NodeParams systemStart (port, peers) logCfg = params
+    NodeParams systemStart hardForks (port, peers) logCfg = params
 
 -- | Launches a @cardano-node@ with the given configuration which will not forge
 -- blocks, but has every other cluster node as its peer. Any transactions
@@ -752,12 +791,12 @@ withRelayNode
     -> (FilePath -> IO a)
     -- ^ Callback function with socket path
     -> IO a
-withRelayNode tr baseDir (NodeParams systemStart (port, peers) logCfg) act =
+withRelayNode tr baseDir params act =
     bracketTracer' tr "withRelayNode" $ do
         createDirectory dir
 
         let logCfg' = setLoggingName name logCfg
-        (config, _, _, _) <- genConfig dir systemStart logCfg'
+        (config, _, _, _) <- genConfig dir systemStart hardForks logCfg'
         topology <- genTopology dir peers
 
         let cfg = CardanoNodeConfig
@@ -779,6 +818,7 @@ withRelayNode tr baseDir (NodeParams systemStart (port, peers) logCfg) act =
   where
     name = "node"
     dir = baseDir </> name
+    NodeParams systemStart hardForks (port, peers) logCfg = params
 
 -- | Populates the configuration directory of a stake pool @cardano-node@.
 --
@@ -803,7 +843,7 @@ setupStakePoolData
     -- ^ Optional retirement epoch.
     -> IO (CardanoNodeConfig, FilePath, FilePath)
 setupStakePoolData tr dir name params url pledgeAmt mRetirementEpoch = do
-    let NodeParams systemStart (port, peers) logCfg = params
+    let NodeParams systemStart hardForks (port, peers) logCfg = params
 
     (opPrv, opPub, opCount, metadata) <- genOperatorKeyPair tr dir
     (vrfPrv, vrfPub) <- genVrfKeyPair tr dir
@@ -819,7 +859,7 @@ setupStakePoolData tr dir name params url pledgeAmt mRetirementEpoch = do
     opCert <- issueOpCert tr dir kesPub opPrv opCount
 
     let logCfg' = setLoggingName name logCfg
-    (config, _, _, _) <- genConfig dir systemStart logCfg'
+    (config, _, _, _) <- genConfig dir systemStart hardForks logCfg'
     topology <- genTopology dir peers
 
     -- In order to get a working stake pool we need to.
@@ -840,7 +880,7 @@ setupStakePoolData tr dir name params url pledgeAmt mRetirementEpoch = do
             , mPoolRetirementCert
             ]
     (rawTx, faucetPrv) <- preparePoolRegistration
-        tr dir stakePub certificates pledgeAmt
+        tr hardForks dir stakePub certificates pledgeAmt
     tx <- signTx tr dir rawTx [faucetPrv, stakePrv, opPrv]
 
     let cfg = CardanoNodeConfig
@@ -887,7 +927,8 @@ withStakePool tr baseDir idx params pledgeAmt poolConfig action =
             withCardanoNodeProcess tr name cfg $ \_ -> do
                 submitTx tr name tx
                 timeout 120
-                    ("pool registration", waitUntilRegistered tr name opPub)
+                    ( "pool registration"
+                    , waitUntilRegistered tr name (nodeHardForks params) opPub )
                 action
   where
     dir = baseDir </> name
@@ -949,10 +990,13 @@ genConfig
     -- ^ A top-level directory where to put the configuration.
     -> UTCTime
     -- ^ Genesis block start time
+    -> ClusterEra
+    -- ^ Last era to hard fork into.
     -> LogFileConfig
     -- ^ Minimum severity level for logging and optional /extra/ logging output
     -> IO (FilePath, Block, NetworkParameters, NodeVersionData)
-genConfig dir systemStart (LogFileConfig severity mExtraLogFile extraSev) = do
+genConfig dir systemStart clusterEra logCfg = do
+    let LogFileConfig severity mExtraLogFile extraSev = logCfg
     let startTime = round @_ @Int . utcTimeToPOSIXSeconds $ systemStart
     let systemStart' = posixSecondsToUTCTime . fromRational . toRational $ startTime
     source <- getShelleyTestDataPath
@@ -967,7 +1011,7 @@ genConfig dir systemStart (LogFileConfig severity mExtraLogFile extraSev) = do
                 , scRotation = Nothing
                 }
 
-    let scribes = map fileScribe $ catMaybes $
+    let scribes = map fileScribe $ catMaybes
             [ Just ("cardano-node.log", severity)
             , (, extraSev) . T.pack <$> mExtraLogFile
             ]
@@ -977,6 +1021,7 @@ genConfig dir systemStart (LogFileConfig severity mExtraLogFile extraSev) = do
     Yaml.decodeFileThrow (source </> "node.config")
         >>= withAddedKey "ShelleyGenesisFile" shelleyGenesisFile
         >>= withAddedKey "ByronGenesisFile" byronGenesisFile
+        >>= withHardForks clusterEra
         >>= withAddedKey "minSeverity" Debug
         >>= withScribes scribes
         >>= withObject (addMinSeverityStdout severity)
@@ -1040,7 +1085,11 @@ genConfig dir systemStart (LogFileConfig severity mExtraLogFile extraSev) = do
 
     -- we need to specify genesis file location every run in tmp
     withAddedKey k v = withObject (pure . HM.insert k (toJSON v))
-
+    withHardForks era = withObject (pure . HM.union (HM.fromList hardForks))
+      where
+        hardForks =
+            [ ("Test" <> T.pack (show hardFork) <> "AtEpoch", Yaml.Number 0)
+            | hardFork <- [ShelleyHardFork .. era] ]
 
 -- | Generate a topology file from a list of peers.
 genTopology :: FilePath -> [Int] -> IO FilePath
@@ -1205,12 +1254,13 @@ issueDlgCert tr dir stakePub opPub = do
 -- automatically delegating 'pledge' amount to the given stake key.
 preparePoolRegistration
     :: Tracer IO ClusterLog
+    -> ClusterEra
     -> FilePath
     -> FilePath
     -> [FilePath]
     -> Integer
     -> IO (FilePath, FilePath)
-preparePoolRegistration tr dir stakePub certs pledgeAmt = do
+preparePoolRegistration tr era dir stakePub certs pledgeAmt = do
     let file = dir </> "tx.raw"
     let sinkPrv = dir </> "sink.prv"
     let sinkPub = dir </> "sink.pub"
@@ -1234,7 +1284,7 @@ preparePoolRegistration tr dir stakePub certs pledgeAmt = do
         , "--ttl", "400"
         , "--fee", show (faucetAmt - pledgeAmt - depositAmt)
         , "--out-file", file
-        , cardanoCliEra
+        , cardanoCliEra era
         ] ++ mconcat ((\cert -> ["--certificate-file",cert]) <$> certs)
 
     pure (file, faucetPrv)
@@ -1256,13 +1306,14 @@ sendFaucetFundsTo tr dir allTargets = do
         let total = fromIntegral $ sum $ map (unCoin . snd) targets
         when (total > faucetAmt) $ error "sendFaucetFundsTo: too much to pay"
 
+        era <- getClusterEra dir
         void $ cli tr $
             [ "transaction", "build-raw"
             , "--tx-in", faucetInput
             , "--ttl", "600"
             , "--fee", show (faucetAmt - total)
             , "--out-file", file
-            , cardanoCliEra
+            , cardanoCliEra era
             ] ++ outputs
 
         tx <- signTx tr dir file [faucetPrv]
@@ -1292,6 +1343,7 @@ moveInstantaneousRewardsTo tr dir targets = do
 
     sink <- genSinkAddress tr dir
 
+    era <- getClusterEra dir
     void $ cli tr $
         [ "transaction", "build-raw"
         , "--tx-in", faucetInput
@@ -1299,7 +1351,7 @@ moveInstantaneousRewardsTo tr dir targets = do
         , "--fee", show (faucetAmt - 1_000_000 - totalDeposit)
         , "--tx-out", sink <> "+" <> "1000000"
         , "--out-file", file
-        , cardanoCliEra
+        , cardanoCliEra era
         ] ++ concatMap (\x -> ["--certificate-file", x]) (mconcat certs)
 
     testData <- getShelleyTestDataPath
@@ -1341,9 +1393,10 @@ moveInstantaneousRewardsTo tr dir targets = do
 -- automatically delegating 'pledge' amount to the given stake key.
 prepareKeyRegistration
     :: Tracer IO ClusterLog
+    -> ClusterEra
     -> FilePath
     -> IO (FilePath, FilePath)
-prepareKeyRegistration tr dir = do
+prepareKeyRegistration tr era dir = do
     let file = dir </> "tx.raw"
 
     let stakePub = dir </> "pre-registered-stake.pub"
@@ -1362,7 +1415,7 @@ prepareKeyRegistration tr dir = do
         , "--fee", show (faucetAmt - depositAmt - 1_000_000)
         , "--certificate-file", cert
         , "--out-file", file
-        , cardanoCliEra
+        , cardanoCliEra era
         ]
     pure (file, faucetPrv)
 
@@ -1433,8 +1486,8 @@ waitForSocket tr socketPath = do
     traceWith tr $ MsgSocketIsReady socketPath
 
 -- | Wait until a stake pool shows as registered on-chain.
-waitUntilRegistered :: Tracer IO ClusterLog -> String -> FilePath -> IO ()
-waitUntilRegistered tr name opPub = do
+waitUntilRegistered :: Tracer IO ClusterLog -> String -> ClusterEra -> FilePath -> IO ()
+waitUntilRegistered tr name era opPub = do
     poolId <- init <$> cli tr
         [ "stake-pool", "id"
         , "--stake-pool-verification-key-file", opPub
@@ -1442,12 +1495,12 @@ waitUntilRegistered tr name opPub = do
     (exitCode, distribution, err) <- readProcessWithExitCode "cardano-cli"
         [ "query", "stake-distribution"
         , "--mainnet"
-        , cardanoCliEra
+        , cardanoCliEra era
         ] mempty
     traceWith tr $ MsgStakeDistribution name exitCode distribution err
     unless (poolId `isInfixOf` distribution) $ do
         threadDelay 5000000
-        waitUntilRegistered tr name opPub
+        waitUntilRegistered tr name era opPub
 
 
 -- | Hard-wired faucets referenced in the genesis file. Purpose is simply to
@@ -1588,8 +1641,14 @@ operators = unsafePerformIO $ newMVar
     ]
 {-# NOINLINE operators #-}
 
-cardanoCliEra :: String
-cardanoCliEra = "--mary-era"
+cardanoCliEra :: ClusterEra -> String
+cardanoCliEra era = "--" ++ clusterEraName era ++ "-era"
+
+getClusterEra :: FilePath -> IO ClusterEra
+getClusterEra dir = read <$> readFile (dir </> "era")
+
+putClusterEra :: FilePath -> ClusterEra -> IO ()
+putClusterEra dir = writeFile (dir </> "era") . show
 
 -- | A public stake key associated with a mnemonic that we pre-registered for
 -- STAKE_POOLS_JOIN_05.

@@ -59,7 +59,8 @@ import Cardano.Wallet.Shelley
 import Cardano.Wallet.Shelley.Faucet
     ( initFaucet )
 import Cardano.Wallet.Shelley.Launch
-    ( ClusterLog
+    ( ClusterEra (..)
+    , ClusterLog
     , RunningNode (..)
     , localClusterConfigFromEnv
     , moveInstantaneousRewardsTo
@@ -76,7 +77,7 @@ import Cardano.Wallet.Shelley.Launch
 import Control.Arrow
     ( first )
 import Control.Monad
-    ( when )
+    ( forM_, when )
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Tracer
@@ -106,7 +107,9 @@ import System.FilePath
 import System.IO
     ( BufferMode (..), hSetBuffering, stderr, stdout )
 import Test.Hspec
-    ( Spec, SpecWith, describe, hspec, parallel )
+    ( hspec )
+import Test.Hspec.Core.Spec
+    ( Spec, SpecWith, describe, parallel, runIO, sequential )
 import Test.Hspec.Extra
     ( aroundAll )
 import Test.Integration.Faucet
@@ -151,49 +154,54 @@ import qualified Test.Integration.Scenario.CLI.Shelley.Transactions as Transacti
 import qualified Test.Integration.Scenario.CLI.Shelley.Wallets as WalletsCLI
 
 main :: forall n. (n ~ 'Mainnet) => IO ()
-main = withTestsSetup $ \testDir tracers -> do
-    nix <- inNixBuild
-    hspec $ do
-        describe "No backend required" $
-            parallelIf (not nix) $ describe "Miscellaneous CLI tests"
-                MiscellaneousCLI.spec
-        specWithServer testDir tracers $ do
-            describe "API Specifications" $ do
-                parallel $ do
-                    Addresses.spec @n
-                    CoinSelections.spec @n
-                    ByronAddresses.spec @n
-                    ByronCoinSelections.spec @n
-                    Wallets.spec @n
-                    ByronWallets.spec @n
-                    HWWallets.spec @n
-                    Migrations.spec @n
-                    ByronMigrations.spec @n
-                    Transactions.spec @n
-                    Network.spec
-                    Network_.spec
-                    StakePools.spec @n
-                    ByronTransactions.spec @n
-                    ByronHWWallets.spec @n
+main = withTestsSetup $ \testDir tracers -> hspec $ do
+    describe "No backend required" $
+        parallel' $ describe "Miscellaneous CLI tests"
+            MiscellaneousCLI.spec
 
-                -- possible conflict with StakePools
-                Settings.spec @n
+    parallel $ testEras $ \era -> specWithServer testDir tracers (Just era) $ do
+        describe "API Specifications" $ do
+            Addresses.spec @n
+            CoinSelections.spec @n
+            ByronAddresses.spec @n
+            ByronCoinSelections.spec @n
+            Wallets.spec @n
+            ByronWallets.spec @n
+            HWWallets.spec @n
+            Migrations.spec @n
+            ByronMigrations.spec @n
+            Transactions.spec @n
+            Network.spec
+            Network_.spec
+            StakePools.spec @n
+            ByronTransactions.spec @n
+            ByronHWWallets.spec @n
 
-            -- Hydra runs tests with code coverage enabled. CLI tests run
-            -- multiple processes. These processes can try to write to the
-            -- same .tix file simultaneously, causing errors.
-            --
-            -- Because of this, don't run the CLI tests in parallel in hydra.
-            parallelIf (not nix) $ describe "CLI Specifications" $ do
-                AddressesCLI.spec @n
-                TransactionsCLI.spec @n
-                WalletsCLI.spec @n
-                HWWalletsCLI.spec @n
-                PortCLI.spec
-                NetworkCLI.spec
+            -- Possible conflict with StakePools - mark as not parallizable
+            sequential $ Settings.spec @n
+
+        parallel' $ describe "CLI Specifications" $ do
+            AddressesCLI.spec @n
+            TransactionsCLI.spec @n
+            WalletsCLI.spec @n
+            HWWalletsCLI.spec @n
+            PortCLI.spec
+            NetworkCLI.spec
   where
-    parallelIf :: forall a. Bool -> SpecWith a -> SpecWith a
-    parallelIf flag = if flag then parallel else id
+    -- Hydra runs tests with code coverage enabled. CLI tests run
+    -- multiple processes. These processes can try to write to the
+    -- same .tix file simultaneously, causing errors.
+    --
+    -- Because of this, don't run the CLI tests in parallel in hydra.
+    parallel' :: forall a. SpecWith a -> SpecWith a
+    parallel' spec = do
+        nix <- runIO inNixBuild
+        parallelIf (not nix) spec
+
+    parallelIf flag = if flag then parallel else sequential
+
+    testEras run = forM_ [MaryHardFork] $
+        \era -> describe (show era) $ run era
 
 -- | Do all the program setup required for integration tests, create a temporary
 -- directory, and pass this info to the main hspec action.
@@ -217,9 +225,10 @@ withTestsSetup action = do
 specWithServer
     :: FilePath
     -> (Tracer IO TestsLog, Tracers IO)
+    -> Maybe ClusterEra
     -> SpecWith Context
     -> Spec
-specWithServer testDir (tr, tracers) = aroundAll withContext
+specWithServer testDir (tr, tracers) era = aroundAll withContext
   where
     withContext :: (Context -> IO ()) -> IO ()
     withContext action = bracketTracer' tr "withContext" $ do

@@ -178,24 +178,32 @@ import qualified Data.Text as T
 -- There are several environment variables that can be set to make debugging
 -- easier if needed:
 --
--- - CARDANO_WALLET_PORT: choose a port for the API to listen on (default: random)
+-- - CARDANO_WALLET_PORT  (default: random)
+--     choose a port for the API to listen on
 --
--- - CARDANO_NODE_TRACING_MIN_SEVERITY: increase or decrease the logging
---                                      severity of the nodes. (default: Info)
+-- - CARDANO_NODE_TRACING_MIN_SEVERITY  (default: Info)
+--     increase or decrease the logging severity of the nodes.
 --
--- - CARDANO_WALLET_TRACING_MIN_SEVERITY: increase or decrease the logging
---                                        severity of cardano-wallet. (default: Info)
+-- - CARDANO_WALLET_TRACING_MIN_SEVERITY  (default: Info)
+--     increase or decrease the logging severity of cardano-wallet.
 --
--- - TESTS_TRACING_MIN_SEVERITY: increase or decrease the logging severity of
---                               the test cluster framework. (default: Notice)
+-- - TESTS_TRACING_MIN_SEVERITY  (default: Notice)
+--     increase or decrease the logging severity of the test cluster framework.
 --
--- - NO_POOLS: If set, the cluster will only start a BFT leader and a relay, no
---             stake pools. This can be used for running test scenarios which do
---             not require delegation-specific features without paying the
---             startup cost of creating and funding pools.
+-- - TEST_CLUSTER_ERA  (default: Mary)
+--     By default, the cluster will start in the latest era by enabling
+--     "virtual hard forks" in the node config files.
+--     The final era can be changed with this variable.
 --
--- - NO_CLEANUP: If set, the temporary directory used as a state directory for
---               nodes and wallet data won't be cleaned up.
+-- - NO_POOLS  (default: stake pools nodes are started and registered)
+--     If set, the cluster will only start a BFT leader and a relay, no
+--     stake pools. This can be used for running test scenarios which do
+--     not require delegation-specific features without paying the
+--     startup cost of creating and funding pools.
+--
+-- - NO_CLEANUP  (default: temp files are cleaned up)
+--     If set, the temporary directory used as a state directory for
+--     nodes and wallet data won't be cleaned up.
 main :: IO ()
 main = withLocalClusterSetup $ \dir clusterLogs walletLogs ->
     withLoggingNamed "test-cluster" clusterLogs $ \(_, (_, trCluster)) -> do
@@ -223,7 +231,7 @@ main = withLocalClusterSetup $ \dir clusterLogs walletLogs ->
             let tracers = setupTracers (tracerSeverities (Just Debug)) tr
             let db = dir </> "wallets"
             createDirectory db
-            listen <- walletListenFromEnv
+            listen <- walletListenFromEnv Nothing
 
             prometheusUrl <- (maybe "none"
                     (\(h, p) -> T.pack h <> ":" <> toText @(Port "Prometheus") p)

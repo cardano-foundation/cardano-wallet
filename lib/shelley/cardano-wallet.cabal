@@ -236,6 +236,7 @@ test-suite integration
     , either
     , filepath
     , hspec
+    , hspec-core
     , http-client
     , iohk-monitoring
     , lobemo-backend-ekg

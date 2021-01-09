@@ -403,7 +403,7 @@ withShelleyServer tracers action = do
             let db = dir </> "wallets"
             createDirectory db
             let logCfg = LogFileConfig Error Nothing Error
-            let clusterCfg = LocalClusterConfig [] logCfg
+            let clusterCfg = LocalClusterConfig [] maxBound logCfg
             withCluster nullTracer dir clusterCfg $
                 onClusterStart act dir
 
