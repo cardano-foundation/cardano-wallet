@@ -78,3 +78,8 @@ steps:
     command: 'nix-shell --run scripts/todo-list.sh'
     agents:
       system: x86_64-linux
+
+  - label: 'Lint bash shell scripts'
+    command: './scripts/shellcheck.sh'
+    agents:
+      system: x86_64-linux
