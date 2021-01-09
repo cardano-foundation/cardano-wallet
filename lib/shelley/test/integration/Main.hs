@@ -400,7 +400,7 @@ withTracers testDir action = do
         ekgEnabled >>= flip when (EKG.plugin cfg walTr sb >>= loadPlugin sb)
         withLogging testLogOutputs $ \(_, (_, testTr)) -> do
             let trTests = appendName "integration" testTr
-            let tracers = setupTracers (tracerSeverities (Just Info)) walTr
+            let tracers = setupTracers (tracerSeverities (Just Debug)) walTr
             action (trMessageText trTests, tracers)
 
 bracketTracer' :: Tracer IO TestsLog -> Text -> IO a -> IO a
