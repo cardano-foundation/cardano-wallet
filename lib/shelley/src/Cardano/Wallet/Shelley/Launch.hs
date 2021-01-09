@@ -7,8 +7,10 @@
 {-# LANGUAGE PackageImports #-}
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
@@ -20,19 +22,26 @@
 -- Provides a function to launch cardano-node for /testing/.
 
 module Cardano.Wallet.Shelley.Launch
-    ( -- * Integration Launcher
+    ( -- * Local test cluster launcher
       withCluster
-    , withBFTNode
-    , withStakePool
-    , withSMASH
+    , LocalClusterConfig (..)
+    , localClusterConfigFromEnv
+
+      -- * Node launcher
     , NodeParams (..)
     , singleNodeParams
+    , RunningNode (..)
+
+      -- * Cluster node launcher
+    , withBFTNode
+    , withStakePool
     , PoolConfig (..)
     , defaultPoolConfigs
     , poolConfigsFromEnv
-    , RunningNode (..)
 
       -- * Configuration
+    , LogFileConfig (..)
+    , logFileConfigFromEnv
     , minSeverityFromEnv
     , nodeMinSeverityFromEnv
     , walletMinSeverityFromEnv
@@ -52,6 +61,7 @@ module Cardano.Wallet.Shelley.Launch
     , parseGenesisData
 
       -- * Utils
+    , withSMASH
     , withSystemTempDir
     , withTempDir
     , isEnvSet
@@ -189,7 +199,7 @@ import System.Environment
 import System.Exit
     ( ExitCode (..), die )
 import System.FilePath
-    ( isValid, (</>) )
+    ( isValid, (<.>), (</>) )
 import System.Info
     ( os )
 import System.IO.Temp
@@ -390,6 +400,12 @@ getShelleyTestDataPath = fromMaybe source <$> lookupEnvNonEmpty var
     source = $(getTestData) </> "cardano-node-shelley"
     var = "SHELLEY_TEST_DATA"
 
+logFileConfigFromEnv :: IO LogFileConfig
+logFileConfigFromEnv = LogFileConfig
+    <$> nodeMinSeverityFromEnv
+    <*> testLogDirFromEnv
+    <*> pure Info
+
 minSeverityFromEnv :: Severity -> String -> IO Severity
 minSeverityFromEnv def var = lookupEnvNonEmpty var >>= \case
     Nothing -> pure def
@@ -523,6 +539,19 @@ poolConfigsFromEnv = isEnvSet "NO_POOLS" <&> \case
     False -> defaultPoolConfigs
     True -> []
 
+localClusterConfigFromEnv :: IO LocalClusterConfig
+localClusterConfigFromEnv = LocalClusterConfig
+    <$> poolConfigsFromEnv
+    <*> logFileConfigFromEnv
+
+data LocalClusterConfig = LocalClusterConfig
+    { cfgStakePools :: [PoolConfig]
+    -- ^ Stake pools to register.
+    , cfgNodeLogging :: LogFileConfig
+    -- ^ Log severity for node.
+    } deriving (Show)
+
+-- | Information about a launched node.
 data RunningNode = RunningNode
     FilePath
     -- ^ Socket path
@@ -545,25 +574,22 @@ data RunningNode = RunningNode
 -- The callback actions are not guaranteed to use the same node.
 withCluster
     :: Tracer IO ClusterLog
-    -- ^ Trace for subprocess control logging
-    -> Severity
-    -- ^ Minimum logging severity for @cardano-node@
-    -> [PoolConfig]
-    -- ^ The configurations of pools to spawn.
+    -- ^ Trace for subprocess control logging.
     -> FilePath
-    -- ^ Parent state directory for cluster
-    -> Maybe (FilePath, Severity)
+    -- ^ Temporary directory to create config files in.
+    -> LocalClusterConfig
+    -- ^ The configurations of pools to spawn.
     -> (RunningNode -> IO a)
     -- ^ Action to run once we have transitioned to the Allegra era and cluster
     -- nodes (stake pools and bft) are running.
     -> IO a
-withCluster tr severity poolConfigs dir logFile onClusterStart =
+withCluster tr dir LocalClusterConfig{..} onClusterStart =
     bracketTracer' tr "withCluster" $ do
         traceWith tr $ MsgStartingCluster dir
-        let poolCount = length poolConfigs
+        let poolCount = length cfgStakePools
         (port0:ports) <- randomUnusedTCPPorts (poolCount + 2)
         systemStart <- addUTCTime 1 <$> getCurrentTime
-        let bftCfg = NodeParams severity systemStart (head $ rotate ports) logFile
+        let bftCfg = NodeParams systemStart (head $ rotate ports) cfgNodeLogging
         withBFTNode tr dir bftCfg $ \bftSocket block0 params -> do
             waitForSocket tr bftSocket
 
@@ -587,11 +613,11 @@ withCluster tr severity poolConfigs dir logFile onClusterStart =
 
             let pledgeOf 0 = 2*oneMillionAda
                 pledgeOf _ = oneMillionAda
-            asyncs <- forM (zip3 [0..] poolConfigs $ tail $ rotate ports) $
+            asyncs <- forM (zip3 [0..] cfgStakePools $ tail $ rotate ports) $
                 \(idx, poolConfig, (port, peers)) -> do
                     async (handle onException $ do
-                        let spCfg =
-                                NodeParams severity systemStart (port, peers) logFile
+                        let spCfg = NodeParams systemStart (port, peers)
+                                cfgNodeLogging
                         withStakePool
                             tr dir idx spCfg (pledgeOf idx) poolConfig $ do
                                 writeChan waitGroup $ Right port
@@ -612,7 +638,7 @@ withCluster tr severity poolConfigs dir logFile onClusterStart =
                     ("cluster didn't start correctly: " <> errors)
                     (ExitFailure 1)
             else do
-                let cfg = NodeParams severity systemStart (port0, ports) logFile
+                let cfg = NodeParams systemStart (port0, ports) cfgNodeLogging
                 withRelayNode tr dir cfg $ \socket -> do
                     let runningRelay = RunningNode socket block0 params
                     onClusterStart runningRelay `finally` cancelAll
@@ -625,23 +651,36 @@ withCluster tr severity poolConfigs dir logFile onClusterStart =
     rotate :: Ord a => [a] -> [(a, [a])]
     rotate = nub . fmap (\(x:xs) -> (x, sort xs)) . permutations
 
+data LogFileConfig = LogFileConfig
+    { minSeverityTerminal :: Severity
+      -- ^ Minimum logging severity
+    , extraLogDir :: Maybe FilePath
+      -- ^ Optional additional output to log file
+    , minSeverityFile :: Severity
+      -- ^ Minimum logging severity for 'extraLogFile'
+    } deriving (Show)
+
 -- | Configuration parameters which update the @node.config@ test data file.
 data NodeParams = NodeParams
-    { minSeverity :: Severity
-      -- ^ Minimum logging severity
-    , systemStart :: UTCTime
+    { systemStart :: UTCTime
       -- ^ Genesis block start time
     , nodePeers :: (Int, [Int])
       -- ^ A list of ports used by peers and this node
-    , extraLogFile :: Maybe (FilePath, Severity)
+    , nodeLogConfig :: LogFileConfig
       -- ^ The node will always log to "cardano-node.log" relative to the
-      -- config. This option can be set for an additional output.
+      -- config. This option can set the minimum severity and add another output
+      -- file.
     } deriving (Show)
 
 singleNodeParams :: Severity -> Maybe (FilePath, Severity) -> IO NodeParams
 singleNodeParams severity extraLogFile = do
     systemStart <- getCurrentTime
-    pure $ NodeParams severity systemStart (0, []) extraLogFile
+    let logCfg = LogFileConfig
+            { minSeverityTerminal = severity
+            , extraLogDir = fmap fst extraLogFile
+            , minSeverityFile = maybe severity snd extraLogFile
+            }
+    pure $ NodeParams systemStart (0, []) logCfg
 
 withBFTNode
     :: Tracer IO ClusterLog
@@ -674,9 +713,8 @@ withBFTNode tr baseDir params action =
             ]
             copyKeyFile
 
-        let extraLogFile = (fmap (first (</> (name ++ ".log"))) logDir)
         (config, block0, networkParams, versionData)
-            <- genConfig dir severity extraLogFile systemStart
+            <- genConfig dir systemStart (setLoggingName name logCfg)
         topology <- genTopology dir peers
 
         let cfg = CardanoNodeConfig
@@ -698,7 +736,7 @@ withBFTNode tr baseDir params action =
   where
     name = "bft"
     dir = baseDir </> name
-    NodeParams severity systemStart (port, peers) logDir = params
+    NodeParams systemStart (port, peers) logCfg = params
 
 -- | Launches a @cardano-node@ with the given configuration which will not forge
 -- blocks, but has every other cluster node as its peer. Any transactions
@@ -714,13 +752,12 @@ withRelayNode
     -> (FilePath -> IO a)
     -- ^ Callback function with socket path
     -> IO a
-withRelayNode tr baseDir (NodeParams severity systemStart (port, peers) logDir) act =
+withRelayNode tr baseDir (NodeParams systemStart (port, peers) logCfg) act =
     bracketTracer' tr "withRelayNode" $ do
         createDirectory dir
 
-        let extraLogFile = (fmap (first (</> (name ++ ".log"))) logDir)
-        (config, _, _, _) <-
-            genConfig dir severity extraLogFile systemStart
+        let logCfg' = setLoggingName name logCfg
+        (config, _, _, _) <- genConfig dir systemStart logCfg'
         topology <- genTopology dir peers
 
         let cfg = CardanoNodeConfig
@@ -766,7 +803,7 @@ setupStakePoolData
     -- ^ Optional retirement epoch.
     -> IO (CardanoNodeConfig, FilePath, FilePath)
 setupStakePoolData tr dir name params url pledgeAmt mRetirementEpoch = do
-    let NodeParams severity systemStart (port, peers) logDir = params
+    let NodeParams systemStart (port, peers) logCfg = params
 
     (opPrv, opPub, opCount, metadata) <- genOperatorKeyPair tr dir
     (vrfPrv, vrfPub) <- genVrfKeyPair tr dir
@@ -781,8 +818,8 @@ setupStakePoolData tr dir name params url pledgeAmt mRetirementEpoch = do
     dlgCert <- issueDlgCert tr dir stakePub opPub
     opCert <- issueOpCert tr dir kesPub opPrv opCount
 
-    let extraLogFile = (fmap (first (</> (name ++ ".log"))) logDir)
-    (config, _, _, _) <- genConfig dir severity extraLogFile systemStart
+    let logCfg' = setLoggingName name logCfg
+    (config, _, _, _) <- genConfig dir systemStart logCfg'
     topology <- genTopology dir peers
 
     -- In order to get a working stake pool we need to.
@@ -903,17 +940,19 @@ withCardanoNodeProcess tr name cfg = withCardanoNode tr' cfg >=> throwErrs
     tr' = contramap (MsgLauncher name) tr
     throwErrs = either throwIO pure
 
+setLoggingName :: String -> LogFileConfig -> LogFileConfig
+setLoggingName name cfg = cfg { extraLogDir = filename <$> extraLogDir cfg }
+    where filename = (</> (name <.> "log"))
+
 genConfig
     :: FilePath
     -- ^ A top-level directory where to put the configuration.
-    -> Severity
-    -- ^ Minimum severity level for logging
-    -> Maybe (FilePath, Severity)
-    -- ^ Optional /extra/ logging output
     -> UTCTime
     -- ^ Genesis block start time
+    -> LogFileConfig
+    -- ^ Minimum severity level for logging and optional /extra/ logging output
     -> IO (FilePath, Block, NetworkParameters, NodeVersionData)
-genConfig dir severity mExtraLogFile systemStart = do
+genConfig dir systemStart (LogFileConfig severity mExtraLogFile extraSev) = do
     let startTime = round @_ @Int . utcTimeToPOSIXSeconds $ systemStart
     let systemStart' = posixSecondsToUTCTime . fromRational . toRational $ startTime
     source <- getShelleyTestDataPath
@@ -928,9 +967,9 @@ genConfig dir severity mExtraLogFile systemStart = do
                 , scRotation = Nothing
                 }
 
-    let scribes = catMaybes
-            [ Just $ fileScribe ("cardano-node.log", severity)
-            , fileScribe . first T.pack <$> mExtraLogFile
+    let scribes = map fileScribe $ catMaybes $
+            [ Just ("cardano-node.log", severity)
+            , (, extraSev) . T.pack <$> mExtraLogFile
             ]
 
     ----

@@ -45,10 +45,9 @@ import Cardano.Wallet.Shelley
 import Cardano.Wallet.Shelley.Launch
     ( ClusterLog (..)
     , RunningNode (..)
+    , localClusterConfigFromEnv
     , moveInstantaneousRewardsTo
-    , nodeMinSeverityFromEnv
     , oneMillionAda
-    , poolConfigsFromEnv
     , sendFaucetFundsTo
     , testMinSeverityFromEnv
     , walletListenFromEnv
@@ -200,15 +199,10 @@ import qualified Data.Text as T
 main :: IO ()
 main = withLocalClusterSetup $ \dir clusterLogs walletLogs ->
     withLoggingNamed "test-cluster" clusterLogs $ \(_, (_, trCluster)) -> do
-        poolConfigs <- poolConfigsFromEnv
-        nodeMinSeverity <- nodeMinSeverityFromEnv
-        withCluster
-            (contramap MsgCluster $ trMessageText trCluster)
-            nodeMinSeverity
-            poolConfigs
-            dir
-            Nothing
-            (whenReady dir (trMessageText trCluster) walletLogs)
+        let tr' = contramap MsgCluster $ trMessageText trCluster
+        clusterCfg <- localClusterConfigFromEnv
+        withCluster tr' dir clusterCfg $
+            whenReady dir (trMessageText trCluster) walletLogs
   where
     setupFaucet dir trCluster = do
         traceWith trCluster MsgSettingUpFaucet

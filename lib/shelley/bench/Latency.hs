@@ -60,7 +60,9 @@ import Cardano.Wallet.Shelley
 import Cardano.Wallet.Shelley.Faucet
     ( initFaucet )
 import Cardano.Wallet.Shelley.Launch
-    ( RunningNode (..)
+    ( LocalClusterConfig (..)
+    , LogFileConfig (..)
+    , RunningNode (..)
     , sendFaucetFundsTo
     , walletListenFromEnv
     , withCluster
@@ -400,13 +402,10 @@ withShelleyServer tracers action = do
     withServer act = withSystemTempDir nullTracer "latency" $ \dir -> do
             let db = dir </> "wallets"
             createDirectory db
-            withCluster
-                nullTracer
-                Error
-                []
-                dir
-                Nothing
-                (onClusterStart act dir)
+            let logCfg = LogFileConfig Error Nothing Error
+            let clusterCfg = LocalClusterConfig [] logCfg
+            withCluster nullTracer dir clusterCfg $
+                onClusterStart act dir
 
     setupFaucet dir = do
         let encodeAddr = T.unpack . encodeAddress @'Mainnet
