@@ -1,4 +1,6 @@
+{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
@@ -19,6 +21,10 @@ module Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     , groupByKey
     , ungroupByKey
 
+    -- * Round-robin processing
+    , runRoundRobin
+    , runRoundRobinM
+
     ) where
 
 import Prelude
@@ -37,6 +43,8 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Data.Function
     ( (&) )
+import Data.Functor.Identity
+    ( Identity (..) )
 import Data.Generics.Internal.VL.Lens
     ( view )
 import Data.Generics.Labels
@@ -57,6 +65,7 @@ import Numeric.Natural
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Data.Foldable as F
+import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
@@ -283,3 +292,21 @@ groupByKey = F.foldl' acc mempty
 
 ungroupByKey :: forall k v. Map k (NonEmpty v) -> [(k, v)]
 ungroupByKey m = [(k, v) | (k, vs) <- Map.toList m, v <- NE.toList vs]
+
+--------------------------------------------------------------------------------
+-- Round-robin processing
+--------------------------------------------------------------------------------
+
+runRoundRobin :: s -> [(s -> Maybe s)] -> s
+runRoundRobin state processors =
+    runIdentity $ runRoundRobinM state $ fmap Identity <$> processors
+
+runRoundRobinM :: Monad m => s -> [(s -> m (Maybe s))] -> m s
+runRoundRobinM state processors = go state processors []
+  where
+    go !s []        [] = pure s
+    go !s []       !qs = go s (L.reverse qs) []
+    go !s (p : ps) !qs = p s >>=
+        \case
+            Nothing -> go s  ps      qs
+            Just s' -> go s' ps (p : qs)
