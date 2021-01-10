@@ -1,7 +1,9 @@
 module Cardano.Wallet.Primitive.Types.TokenPolicy.Gen
     ( genTokenNameSmallRange
+    , genTokenNameMediumRange
     , genTokenPolicyIdSmallRange
     , shrinkTokenNameSmallRange
+    , shrinkTokenNameMediumRange
     , shrinkTokenPolicyIdSmallRange
     ) where
 
@@ -25,13 +27,27 @@ import qualified Data.Text as T
 --------------------------------------------------------------------------------
 
 genTokenNameSmallRange :: Gen TokenName
-genTokenNameSmallRange = elements tokenNames
+genTokenNameSmallRange = elements tokenNamesSmallRange
 
 shrinkTokenNameSmallRange :: TokenName -> [TokenName]
-shrinkTokenNameSmallRange name = filter (< name) tokenNames
+shrinkTokenNameSmallRange name = filter (< name) tokenNamesSmallRange
 
-tokenNames :: [TokenName]
-tokenNames = mkTokenName . ("Token" `T.snoc`) <$> ['A' .. 'D']
+tokenNamesSmallRange :: [TokenName]
+tokenNamesSmallRange = mkTokenName . ("Token" `T.snoc`) <$> ['A' .. 'D']
+
+--------------------------------------------------------------------------------
+-- Token names chosen from a medium-sized range (to minimize the risk of
+-- collisions)
+--------------------------------------------------------------------------------
+
+genTokenNameMediumRange :: Gen TokenName
+genTokenNameMediumRange = elements tokenNamesMediumRange
+
+shrinkTokenNameMediumRange :: TokenName -> [TokenName]
+shrinkTokenNameMediumRange name = filter (< name) tokenNamesMediumRange
+
+tokenNamesMediumRange :: [TokenName]
+tokenNamesMediumRange = mkTokenName . ("Token" `T.snoc`) <$> ['A' .. 'Z']
 
 --------------------------------------------------------------------------------
 -- Token policy identifiers chosen from a small range (to allow collisions)
