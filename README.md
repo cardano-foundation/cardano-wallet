@@ -35,7 +35,7 @@ start with Daedalus.
 
 > :information_source: This source code repository contains the next major version of Cardano
 > Wallet, which has been completely rewritten for the
-> [Shelley](https://cardanoroadmap.com/) phase.
+> [Shelley](https://roadmap.cardano.org/) phase.
 >
 > :bulb: The Byron version of Cardano Wallet is in the
 > [cardano-sl](https://github.com/input-output-hk/cardano-sl)
