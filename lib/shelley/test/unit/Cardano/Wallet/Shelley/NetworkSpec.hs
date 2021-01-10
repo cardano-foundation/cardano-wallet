@@ -19,7 +19,12 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Shelley.Compatibility
     ( NodeVersionData )
 import Cardano.Wallet.Shelley.Launch
-    ( ClusterLog (..), singleNodeParams, withBFTNode, withSystemTempDir )
+    ( CardanoNodeConn
+    , ClusterLog (..)
+    , singleNodeParams
+    , withBFTNode
+    , withSystemTempDir
+    )
 import Cardano.Wallet.Shelley.Network
     ( Observer (..), ObserverLog (..), newObserver, withNetworkLayer )
 import Control.Applicative
@@ -221,7 +226,7 @@ spec = describe "NetworkLayer regression test #1708" $ do
 
 withTestNode
     :: Tracer IO ClusterLog
-    -> (NetworkParameters -> FilePath -> NodeVersionData -> IO a)
+    -> (NetworkParameters -> CardanoNodeConn -> NodeVersionData -> IO a)
     -> IO a
 withTestNode tr action = do
     cfg <- singleNodeParams Error Nothing

@@ -62,6 +62,7 @@ import Cardano.Wallet.Shelley.Launch
     ( ClusterEra (..)
     , ClusterLog
     , RunningNode (..)
+    , clusterEraName
     , localClusterConfigFromEnv
     , moveInstantaneousRewardsTo
     , oneMillionAda
@@ -159,34 +160,35 @@ main = withTestsSetup $ \testDir tracers -> hspec $ do
         parallel' $ describe "Miscellaneous CLI tests"
             MiscellaneousCLI.spec
 
-    parallel $ testEras $ \era -> specWithServer testDir tracers (Just era) $ do
-        describe "API Specifications" $ do
-            Addresses.spec @n
-            CoinSelections.spec @n
-            ByronAddresses.spec @n
-            ByronCoinSelections.spec @n
-            Wallets.spec @n
-            ByronWallets.spec @n
-            HWWallets.spec @n
-            Migrations.spec @n
-            ByronMigrations.spec @n
-            Transactions.spec @n
-            Network.spec
-            Network_.spec
-            StakePools.spec @n
-            ByronTransactions.spec @n
-            ByronHWWallets.spec @n
+    testEras $ \era ->
+        specWithServer (testDir </> clusterEraName era) tracers (Just era) $ do
+            parallel $ describe "API Specifications" $ do
+                Addresses.spec @n
+                CoinSelections.spec @n
+                ByronAddresses.spec @n
+                ByronCoinSelections.spec @n
+                Wallets.spec @n
+                ByronWallets.spec @n
+                HWWallets.spec @n
+                Migrations.spec @n
+                ByronMigrations.spec @n
+                Transactions.spec @n
+                Network.spec
+                Network_.spec
+                StakePools.spec @n
+                ByronTransactions.spec @n
+                ByronHWWallets.spec @n
 
-            -- Possible conflict with StakePools - mark as not parallizable
-            sequential $ Settings.spec @n
+                -- Possible conflict with StakePools - mark as not parallizable
+                sequential $ Settings.spec @n
 
-        parallel' $ describe "CLI Specifications" $ do
-            AddressesCLI.spec @n
-            TransactionsCLI.spec @n
-            WalletsCLI.spec @n
-            HWWalletsCLI.spec @n
-            PortCLI.spec
-            NetworkCLI.spec
+            parallel' $ describe "CLI Specifications" $ do
+                AddressesCLI.spec @n
+                TransactionsCLI.spec @n
+                WalletsCLI.spec @n
+                HWWalletsCLI.spec @n
+                PortCLI.spec
+                NetworkCLI.spec
   where
     -- Hydra runs tests with code coverage enabled. CLI tests run
     -- multiple processes. These processes can try to write to the
@@ -200,7 +202,7 @@ main = withTestsSetup $ \testDir tracers -> hspec $ do
 
     parallelIf flag = if flag then parallel else sequential
 
-    testEras run = forM_ [MaryHardFork] $
+    testEras run = forM_ [MaryHardFork, AllegraHardFork] $
         \era -> describe (show era) $ run era
 
 -- | Do all the program setup required for integration tests, create a temporary
@@ -219,11 +221,10 @@ withTestsSetup action = do
         -- This temporary directory will contain logs, and all other data
         -- produced by the integration tests.
         withSystemTempDir stdoutTextTracer "test" $ \testDir ->
-        withTracers testDir $ \tracers ->
-        action testDir tracers
+            withTracers testDir $ action testDir
 
 specWithServer
-    :: FilePath
+    :: FilePath  -- ^ Temporary directory, will be created.
     -> (Tracer IO TestsLog, Tracers IO)
     -> Maybe ClusterEra
     -> SpecWith Context
@@ -232,6 +233,7 @@ specWithServer testDir (tr, tracers) era = aroundAll withContext
   where
     withContext :: (Context -> IO ()) -> IO ()
     withContext action = bracketTracer' tr "withContext" $ do
+        createDirectory testDir
         ctx <- newEmptyMVar
         poolGarbageCollectionEvents <- newIORef []
         let dbEventRecorder =
@@ -240,18 +242,16 @@ specWithServer testDir (tr, tracers) era = aroundAll withContext
                 let baseUrl = "http://" <> T.pack (show wAddr) <> "/"
                 prometheusUrl <- (maybe "none" (\(h, p) -> T.pack h <> ":" <> toText @(Port "Prometheus") p)) <$> getPrometheusURL
                 ekgUrl <- (maybe "none" (\(h, p) -> T.pack h <> ":" <> toText @(Port "EKG") p)) <$> getEKGURL
-                traceWith tr $
-                    MsgBaseUrl baseUrl ekgUrl prometheusUrl smashUrl
-                let fiveMinutes = 300*1000*1000 -- 5 minutes in microseconds
-                manager <- (baseUrl,) <$> newManager (defaultManagerSettings
-                    { managerResponseTimeout =
-                        responseTimeoutMicro fiveMinutes
-                    })
+                traceWith tr $ MsgBaseUrl baseUrl ekgUrl prometheusUrl smashUrl
+                let fiveMinutes = 300 * 1000 * 1000 -- 5 minutes in microseconds
+                manager <- newManager $ defaultManagerSettings
+                    { managerResponseTimeout = responseTimeoutMicro fiveMinutes
+                    }
                 faucet <- initFaucet
 
                 putMVar ctx $ Context
                     { _cleanup = pure ()
-                    , _manager = manager
+                    , _manager = (baseUrl, manager)
                     , _walletPort = Port . fromIntegral $ unsafePortNumber wAddr
                     , _faucet = faucet
                     , _feeEstimator = error "feeEstimator: unused in shelley specs"
@@ -284,7 +284,7 @@ specWithServer testDir (tr, tracers) era = aroundAll withContext
                 let event = PoolGarbageCollectionEvent epochNo certificates
                 liftIO $ do
                     traceWith tr $ MsgPoolGarbageCollectionEvent event
-                    atomicModifyIORef' eventsRef ((, ()) . (event :))
+                    atomicModifyIORef' eventsRef ((,()) . (event :))
                 pure certificates
 
     withServer dbDecorator onReady = bracketTracer' tr "withServer" $
@@ -294,17 +294,17 @@ specWithServer testDir (tr, tracers) era = aroundAll withContext
                 onClusterStart (onReady $ T.pack smashUrl) dbDecorator
 
     tr' = contramap MsgCluster tr
-    setupFaucet = do
+    setupFaucet conn = do
         traceWith tr MsgSettingUpFaucet
         let rewards = (,Coin $ fromIntegral oneMillionAda) <$>
                 concatMap genRewardAccounts mirMnemonics
-        moveInstantaneousRewardsTo tr' testDir rewards
+        moveInstantaneousRewardsTo tr' conn testDir rewards
         let encodeAddr = T.unpack . encodeAddress @'Mainnet
         let addresses = map (first encodeAddr) shelleyIntegrationTestFunds
-        sendFaucetFundsTo tr' testDir addresses
+        sendFaucetFundsTo tr' conn testDir addresses
 
-    onClusterStart action dbDecorator node = do
-        setupFaucet
+    onClusterStart action dbDecorator (RunningNode conn block0 (gp, vData)) = do
+        setupFaucet conn
         let db = testDir </> "wallets"
         createDirectory db
         listen <- walletListenFromEnv
@@ -318,13 +318,11 @@ specWithServer testDir (tr, tracers) era = aroundAll withContext
             listen
             Nothing
             Nothing
-            socketPath
+            conn
             block0
             (gp, vData)
             (action gp)
             `withException` (traceWith tr . MsgServerError)
-      where
-        RunningNode socketPath block0 (gp, vData) = node
 
 {-------------------------------------------------------------------------------
                                     Logging
@@ -387,7 +385,8 @@ withTracers testDir action = do
             logDir <- fromMaybe testDir <$> testLogDirFromEnv
             pure
                 [ LogToFile (logDir </> name) (min minSev Info)
-                , LogToStdout minSev ]
+                , LogToStdout minSev
+                ]
 
     walletLogOutputs <- getLogOutputs walletMinSeverityFromEnv "wallet.log"
     testLogOutputs <- getLogOutputs testMinSeverityFromEnv "test.log"

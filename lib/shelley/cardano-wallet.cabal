@@ -80,6 +80,7 @@ library
     , text-class
     , time
     , transformers
+    , typed-process
     , unliftio
     , unliftio-core
     , unordered-containers

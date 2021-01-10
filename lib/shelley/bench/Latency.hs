@@ -405,16 +405,16 @@ withShelleyServer tracers action = do
             let logCfg = LogFileConfig Error Nothing Error
             let clusterCfg = LocalClusterConfig [] maxBound logCfg
             withCluster nullTracer dir clusterCfg $
-                onClusterStart act dir
+                onClusterStart act dir db
 
-    setupFaucet dir = do
+    setupFaucet conn dir = do
         let encodeAddr = T.unpack . encodeAddress @'Mainnet
         let addresses = map (first encodeAddr) shelleyIntegrationTestFunds
-        sendFaucetFundsTo nullTracer dir addresses
+        sendFaucetFundsTo nullTracer conn dir addresses
 
-    onClusterStart act db (RunningNode socketPath block0 (gp, vData)) = do
+    onClusterStart act dir db (RunningNode conn block0 (np, vData)) = do
         listen <- walletListenFromEnv
-        setupFaucet db
+        setupFaucet conn dir
         serveWallet
             (SomeNetworkDiscriminant $ Proxy @'Mainnet)
             tracers
@@ -425,7 +425,7 @@ withShelleyServer tracers action = do
             listen
             Nothing
             Nothing
-            socketPath
+            conn
             block0
-            (gp, vData)
-            (act gp)
+            (np, vData)
+            (act np)

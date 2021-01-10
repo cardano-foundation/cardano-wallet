@@ -52,6 +52,8 @@ import Cardano.BM.Trace
     ( Trace, appendName, nullTracer )
 import Cardano.DB.Sqlite
     ( DBLog )
+import Cardano.Launcher.Node
+    ( CardanoNodeConn )
 import Cardano.Pool.DB
     ( DBLayer (..) )
 import Cardano.Pool.DB.Log
@@ -230,7 +232,7 @@ serveWallet
     -- ^ An optional TLS configuration
     -> Maybe Settings
     -- ^ Settings to be set at application start, will be written into DB.
-    -> FilePath
+    -> CardanoNodeConn
     -- ^ Socket for communicating with the node
     -> Block
     -- ^ The genesis block, or some starting point.
@@ -255,12 +257,12 @@ serveWallet
   listen
   tlsConfig
   settings
-  socketPath
+  conn
   block0
   (np, vData)
   beforeMainLoop = do
     let ntwrk = networkDiscriminantValFromProxy proxy
-    traceWith applicationTracer $ MsgStarting socketPath
+    traceWith applicationTracer $ MsgStarting conn
     traceWith applicationTracer $ MsgNetworkName ntwrk
     Server.withListeningSocket hostPref listen $ \case
         Left e -> handleApiServerStartupError e
@@ -269,7 +271,7 @@ serveWallet
     poolDatabaseDecorator = fromMaybe Pool.undecoratedDB mPoolDatabaseDecorator
 
     serveApp socket = withIOManager $ \io -> do
-        withNetworkLayer networkTracer np socketPath vData $ \nl -> do
+        withNetworkLayer networkTracer np conn vData $ \nl -> do
             withWalletNtpClient io ntpClientTracer $ \ntpClient -> do
                 let net = networkIdVal proxy
                 randomApi <- apiLayer (newTransactionLayer net) nl
@@ -437,7 +439,7 @@ exitCodeApiServer = \case
 
 -- | Log messages related to application startup and shutdown.
 data ApplicationLog
-    = MsgStarting FilePath
+    = MsgStarting CardanoNodeConn
     | MsgNetworkName Text
     | MsgServerStartupError ListenError
     | MsgFailedConnectSMASH URI
@@ -445,9 +447,8 @@ data ApplicationLog
 
 instance ToText ApplicationLog where
     toText = \case
-        MsgStarting socket ->
-            let addr = T.pack $ show socket
-            in "Wallet backend server starting. Using " <> addr <> "."
+        MsgStarting conn ->
+            "Wallet backend server starting. Using " <> toText conn <> "."
         MsgNetworkName network ->
             "Node is Haskell Node on " <> network <> "."
         MsgServerStartupError startupErr -> case startupErr of

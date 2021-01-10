@@ -208,30 +208,30 @@ main :: IO ()
 main = withLocalClusterSetup $ \dir clusterLogs walletLogs ->
     withLoggingNamed "test-cluster" clusterLogs $ \(_, (_, trCluster)) -> do
         let tr' = contramap MsgCluster $ trMessageText trCluster
-        clusterCfg <- localClusterConfigFromEnv
+        clusterCfg <- localClusterConfigFromEnv Nothing
         withCluster tr' dir clusterCfg $
             whenReady dir (trMessageText trCluster) walletLogs
   where
-    setupFaucet dir trCluster = do
+    setupFaucet dir trCluster socketPath = do
         traceWith trCluster MsgSettingUpFaucet
         let trCluster' = contramap MsgCluster trCluster
         let encodeAddr = T.unpack . encodeAddress @'Mainnet
         let addresses = map (first encodeAddr) shelleyIntegrationTestFunds
         let accts = concatMap genRewardAccounts mirMnemonics
         let rewards = (,Coin $ fromIntegral oneMillionAda) <$> accts
-        sendFaucetFundsTo trCluster' dir addresses
-        moveInstantaneousRewardsTo trCluster' dir rewards
+        sendFaucetFundsTo trCluster' socketPath dir addresses
+        moveInstantaneousRewardsTo trCluster' socketPath dir rewards
 
     whenReady dir trCluster logs (RunningNode socketPath block0 (gp, vData)) =
         withLoggingNamed "cardano-wallet" logs $ \(sb, (cfg, tr)) -> do
-            setupFaucet dir trCluster
+            setupFaucet dir trCluster socketPath
 
             ekgEnabled >>= flip when (EKG.plugin cfg tr sb >>= loadPlugin sb)
 
             let tracers = setupTracers (tracerSeverities (Just Debug)) tr
             let db = dir </> "wallets"
             createDirectory db
-            listen <- walletListenFromEnv Nothing
+            listen <- walletListenFromEnv
 
             prometheusUrl <- (maybe "none"
                     (\(h, p) -> T.pack h <> ":" <> toText @(Port "Prometheus") p)

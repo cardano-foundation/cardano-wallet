@@ -27,6 +27,7 @@ module Cardano.Wallet.Shelley.Launch
     , LocalClusterConfig (..)
     , localClusterConfigFromEnv
     , ClusterEra (..)
+    , clusterEraName
 
       -- * Node launcher
     , NodeParams (..)
@@ -57,6 +58,7 @@ module Cardano.Wallet.Shelley.Launch
 
     -- * Network
     , NetworkConfiguration (..)
+    , CardanoNodeConn
     , nodeSocketOption
     , networkConfigurationOption
     , parseGenesisData
@@ -101,8 +103,11 @@ import Cardano.Launcher
     ( LauncherLog, ProcessHasExited (..) )
 import Cardano.Launcher.Node
     ( CardanoNodeConfig (..)
-    , CardanoNodeConn (..)
+    , CardanoNodeConn
     , NodePort (..)
+    , cardanoNodeConn
+    , isWindows
+    , nodeSocketFile
     , withCardanoNode
     )
 import Cardano.Pool.Metadata
@@ -136,8 +141,6 @@ import Cardano.Wallet.Shelley.Compatibility
     ( NodeVersionData, StandardShelley )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex, unsafeRunExceptT )
-import Control.Arrow
-    ( first, second )
 import Control.Monad
     ( forM, forM_, replicateM, replicateM_, unless, void, when, (>=>) )
 import Control.Monad.Fail
@@ -154,6 +157,8 @@ import Crypto.Hash.Utils
     ( blake2b256 )
 import Data.Aeson
     ( FromJSON (..), toJSON, (.:), (.=) )
+import Data.Bifunctor
+    ( first, second )
 import Data.ByteArray.Encoding
     ( Base (..), convertToBase )
 import Data.ByteString
@@ -169,7 +174,7 @@ import Data.Function
 import Data.Functor
     ( ($>), (<&>) )
 import Data.List
-    ( isInfixOf, isPrefixOf, nub, permutations, sort )
+    ( nub, permutations, sort )
 import Data.Maybe
     ( catMaybes, fromMaybe, isJust )
 import Data.Proxy
@@ -198,17 +203,23 @@ import Ouroboros.Network.NodeToClient
 import System.Directory
     ( copyFile, createDirectory, createDirectoryIfMissing, makeAbsolute )
 import System.Environment
-    ( lookupEnv, setEnv )
+    ( getEnvironment, lookupEnv )
 import System.Exit
     ( ExitCode (..), die )
 import System.FilePath
-    ( isValid, (<.>), (</>) )
-import System.Info
-    ( os )
+    ( (<.>), (</>) )
 import System.IO.Temp
     ( createTempDirectory, getCanonicalTemporaryDirectory )
 import System.IO.Unsafe
     ( unsafePerformIO )
+import System.Process.Typed
+    ( ProcessConfig
+    , proc
+    , readProcess
+    , readProcessStdout_
+    , setEnv
+    , setEnvInherit
+    )
 import Test.Utils.Paths
     ( getTestData )
 import Test.Utils.StaticServer
@@ -222,9 +233,7 @@ import UnliftIO.Concurrent
 import UnliftIO.Exception
     ( SomeException, finally, handle, throwIO )
 import UnliftIO.MVar
-    ( MVar, modifyMVar, newMVar, putMVar, readMVar, takeMVar )
-import UnliftIO.Process
-    ( readProcess, readProcessWithExitCode )
+    ( MVar, modifyMVar, newMVar, putMVar, swapMVar, takeMVar )
 import UnliftIO.Temporary
     ( withTempDirectory )
 
@@ -243,6 +252,7 @@ import qualified Data.HashMap.Strict as HM
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
+import qualified Data.Text.Encoding.Error as T
 import qualified Data.Vector as V
 import qualified Data.Yaml as Yaml
 
@@ -267,36 +277,19 @@ data NetworkConfiguration where
   deriving (Show, Eq)
 
 -- | --node-socket=FILE
-nodeSocketOption :: Parser FilePath
-nodeSocketOption = option (eitherReader check) $ mempty
+nodeSocketOption :: Parser CardanoNodeConn
+nodeSocketOption = option (eitherReader (addHelp . cardanoNodeConn)) $ mempty
     <> long "node-socket"
     <> metavar (if isWindows then "PIPENAME" else "FILE")
     <> help helpText
   where
-    check :: String -> Either String FilePath
-    check name
-        | isWindows = if isValidWindowsPipeName name
-            then Right name
-            else Left ("Invalid pipe name. " ++ pipeHelp)
-        | otherwise = if isValid name
-            then Right name
-            else Left "Invalid file path"
-
     helpText = mconcat
         [ "Path to the node's domain socket file (POSIX) "
         , "or pipe name (Windows). "
         , "Note: Maximum length for POSIX socket files is approx. 100 bytes. "
-        , "Note: ", pipeHelp ]
-    pipeHelp = "Windows named pipes are of the form \\\\.\\pipe\\cardano-node"
-
-isWindows :: Bool
-isWindows = os == "mingw32"
-
-isValidWindowsPipeName :: FilePath -> Bool
-isValidWindowsPipeName name = slashPipe `isPrefixOf` name
-    && isValid (drop (length slashPipe) name)
-  where
-    slashPipe = "\\\\.\\pipe\\"
+        , "Note:", pipeHelp ]
+    pipeHelp = " Windows named pipes are of the form \\\\.\\pipe\\cardano-node"
+    addHelp = first (if isWindows then (++ pipeHelp) else id)
 
 -- | --mainnet --shelley-genesis=FILE
 -- --testnet --byron-genesis=FILE --shelley-genesis=FILE
@@ -479,37 +472,74 @@ instance FromJSON PreserveInitialFundsOrdering where
 -- For Integration
 --------------------------------------------------------------------------------
 
+-- | Make a 'ProcessConfig' for running @cardano-cli@. The program must be on
+-- the @PATH@, as normal. Sets @CARDANO_NODE_SOCKET_PATH@ for the subprocess, if
+-- a 'CardanoNodeConn' is provided.
+cliConfigBase
+    :: Tracer IO ClusterLog -- ^ for logging the command
+    -> Maybe CardanoNodeConn -- ^ optional cardano-node socket path
+    -> [String] -- ^ command-line arguments
+    -> IO (ProcessConfig () () ())
+cliConfigBase tr conn args = do
+    traceWith tr (MsgCLI args)
+    env <- getEnvironment
+    let mkEnv c = ("CARDANO_NODE_SOCKET_PATH", nodeSocketFile c):env
+    let cliEnv = maybe setEnvInherit (setEnv . mkEnv) conn
+    pure $ cliEnv $ proc "cardano-cli" args
+
+cliConfigNode
+    :: Tracer IO ClusterLog -- ^ for logging the command
+    -> CardanoNodeConn -- ^ cardano-node socket path
+    -> [String] -- ^ command-line arguments
+    -> IO (ProcessConfig () () ())
+cliConfigNode tr conn = cliConfigBase tr (Just conn)
+
+cliConfig
+    :: Tracer IO ClusterLog -- ^ for logging the command
+    -> [String] -- ^ command-line arguments
+    -> IO (ProcessConfig () () ())
+cliConfig tr = cliConfigBase tr Nothing
+
 -- | A quick helper to interact with the 'cardano-cli'. Assumes the cardano-cli
 -- is available in PATH.
-cli :: Tracer IO ClusterLog -> [String] -> IO String
-cli tr args = do
-    traceWith tr $ MsgCLI args
-    readProcess "cardano-cli" args stdin
-  where
-    stdin = ""
+cli :: Tracer IO ClusterLog -> [String] -> IO ()
+cli tr = cliConfig tr >=> void . readProcessStdout_
+
+cliLine :: Tracer IO ClusterLog -> [String] -> IO String
+cliLine tr = cliConfig tr >=>
+    fmap (BL8.unpack . getFirstLine) . readProcessStdout_
+
+getFirstLine :: BL8.ByteString -> BL8.ByteString
+getFirstLine = BL8.takeWhile (\c -> c /= '\r' && c /= '\n')
+
+-- | Like 'cli', but sets the node socket path.
+cliNode
+    :: Tracer IO ClusterLog
+    -> CardanoNodeConn
+    -> [String]
+    -> IO (ExitCode, BL8.ByteString, BL8.ByteString)
+cliNode tr conn = cliConfigNode tr conn >=> readProcess
 
 -- | Runs a @cardano-cli@ command and retries for up to 30 seconds if the
 -- command failed.
 --
--- Assumes @cardano-cli@ is available in @PATH@ and that the env var
--- @CARDANO_NODE_SOCKET_PATH@ has already been set.
+-- Assumes @cardano-cli@ is available in @PATH@.
 cliRetry
     :: Tracer IO ClusterLog
-    -> String -- ^ message to print before running command
-    -> [String] -- ^ arguments to @cardano-cli@
-    -> IO String
-cliRetry tr msg args = do
+    -> Text -- ^ message to print before running command
+    -> ProcessConfig () a b
+    -> IO ()
+cliRetry tr msg processConfig = do
     (st, out, err) <- retrying pol (const isFail) (const cmd)
     traceWith tr $ MsgCLIStatus msg st out err
     case st of
-        ExitSuccess -> pure out
+        ExitSuccess -> pure ()
         ExitFailure _ -> throwIO $ ProcessHasExited
-            (unwords (prog:args) <> " failed: " <> err) st
+            ("cardano-cli failed: " <> BL8.unpack err) st
   where
-    prog = "cardano-cli"
     cmd = do
         traceWith tr $ MsgCLIRetry msg
-        (st, out, err) <- readProcessWithExitCode "cardano-cli" args mempty
+        (st, out, err) <- readProcess processConfig
         case st of
             ExitSuccess -> pure ()
             ExitFailure code -> traceWith tr (MsgCLIRetryResult msg code err)
@@ -587,7 +617,7 @@ data LocalClusterConfig = LocalClusterConfig
 
 -- | Information about a launched node.
 data RunningNode = RunningNode
-    FilePath
+    CardanoNodeConn
     -- ^ Socket path
     Block
     -- ^ Genesis block
@@ -620,6 +650,7 @@ withCluster
 withCluster tr dir LocalClusterConfig{..} onClusterStart =
     bracketTracer' tr "withCluster" $ do
         traceWith tr $ MsgStartingCluster dir
+        resetGlobals
         putClusterEra dir cfgLastHardFork
         let poolCount = length cfgStakePools
         (port0:ports) <- randomUnusedTCPPorts (poolCount + 2)
@@ -631,7 +662,7 @@ withCluster tr dir LocalClusterConfig{..} onClusterStart =
 
             (rawTx, faucetPrv) <- prepareKeyRegistration tr cfgLastHardFork dir
             tx <- signTx tr dir rawTx [faucetPrv]
-            submitTx tr "pre-registered stake key" tx
+            submitTx tr bftSocket "pre-registered stake key" tx
 
             waitGroup <- newChan
             doneGroup <- newChan
@@ -729,7 +760,7 @@ withBFTNode
     -- this.
     -> NodeParams
     -- ^ Parameters used to generate config files.
-    -> (FilePath -> Block -> (NetworkParameters, NodeVersionData) -> IO a)
+    -> (CardanoNodeConn -> Block -> (NetworkParameters, NodeVersionData) -> IO a)
     -- ^ Callback function with genesis parameters
     -> IO a
 withBFTNode tr baseDir params action =
@@ -770,7 +801,7 @@ withBFTNode tr baseDir params action =
                 , nodeLoggingHostname = Just name
                 }
 
-        withCardanoNodeProcess tr name cfg $ \(CardanoNodeConn socket) -> do
+        withCardanoNodeProcess tr name cfg $ \socket ->
             action socket block0 (networkParams, versionData)
   where
     name = "bft"
@@ -788,7 +819,7 @@ withRelayNode
     -- this.
     -> NodeParams
     -- ^ Parameters used to generate config files.
-    -> (FilePath -> IO a)
+    -> (CardanoNodeConn -> IO a)
     -- ^ Callback function with socket path
     -> IO a
 withRelayNode tr baseDir params act =
@@ -813,8 +844,7 @@ withRelayNode tr baseDir params act =
                 , nodeLoggingHostname = Just name
                 }
 
-        withCardanoNodeProcess tr name cfg $ \(CardanoNodeConn socket) ->
-            act socket
+        withCardanoNodeProcess tr name cfg act
   where
     name = "node"
     dir = baseDir </> name
@@ -924,11 +954,11 @@ withStakePool tr baseDir idx params pledgeAmt poolConfig action =
             traceWith tr $ MsgStartedStaticServer dir url
             (cfg, opPub, tx) <- setupStakePoolData
                 tr dir name params url pledgeAmt (retirementEpoch poolConfig)
-            withCardanoNodeProcess tr name cfg $ \_ -> do
-                submitTx tr name tx
+            withCardanoNodeProcess tr name cfg $ \socket -> do
+                submitTx tr socket name tx
                 timeout 120
                     ( "pool registration"
-                    , waitUntilRegistered tr name (nodeHardForks params) opPub )
+                    , waitUntilRegistered tr socket name (nodeHardForks params) opPub )
                 action
   where
     dir = baseDir </> name
@@ -946,8 +976,7 @@ withSMASH parentDir action = do
     let baseDir = staticDir </> "api" </> "v1"
 
     -- write pool metadatas
-    pools <- readMVar operators
-    forM_ pools $ \(poolId, _, _, _, metadata) -> do
+    forM_ operatorsFixture $ \(poolId, _, _, _, metadata) -> do
         let bytes = Aeson.encode metadata
 
         let metadataDir = baseDir </> "metadata"
@@ -1129,7 +1158,7 @@ genKesKeyPair :: Tracer IO ClusterLog -> FilePath -> IO (FilePath, FilePath)
 genKesKeyPair tr dir = do
     let kesPub = dir </> "kes.pub"
     let kesPrv = dir </> "kes.prv"
-    void $ cli tr
+    cli tr
         [ "node", "key-gen-KES"
         , "--verification-key-file", kesPub
         , "--signing-key-file", kesPrv
@@ -1141,7 +1170,7 @@ genVrfKeyPair :: Tracer IO ClusterLog -> FilePath -> IO (FilePath, FilePath)
 genVrfKeyPair tr dir = do
     let vrfPub = dir </> "vrf.pub"
     let vrfPrv = dir </> "vrf.prv"
-    void $ cli tr
+    cli tr
         [ "node", "key-gen-VRF"
         , "--verification-key-file", vrfPub
         , "--signing-key-file", vrfPrv
@@ -1153,7 +1182,7 @@ genStakeAddrKeyPair :: Tracer IO ClusterLog -> FilePath -> IO (FilePath, FilePat
 genStakeAddrKeyPair tr dir = do
     let stakePub = dir </> "stake.pub"
     let stakePrv = dir </> "stake.prv"
-    void $ cli tr
+    cli tr
         [ "stake-address", "key-gen"
         , "--verification-key-file", stakePub
         , "--signing-key-file", stakePrv
@@ -1164,7 +1193,7 @@ genStakeAddrKeyPair tr dir = do
 issueOpCert :: Tracer IO ClusterLog -> FilePath -> FilePath -> FilePath -> FilePath -> IO FilePath
 issueOpCert tr dir kesPub opPrv opCount = do
     let file = dir </> "op.cert"
-    void $ cli tr
+    cli tr
         [ "node", "issue-op-cert"
         , "--kes-verification-key-file", kesPub
         , "--cold-signing-key-file", opPrv
@@ -1183,7 +1212,7 @@ issueStakeCert
     -> IO FilePath
 issueStakeCert tr dir prefix stakePub = do
     let file = dir </> prefix <> "-stake.cert"
-    void $ cli tr
+    cli tr
         [ "stake-address", "registration-certificate"
         , "--staking-verification-key-file", stakePub
         , "--out-file", file
@@ -1206,7 +1235,7 @@ issuePoolRegistrationCert
         let file  = dir </> "pool.cert"
         let bytes = Aeson.encode metadata
         BL8.writeFile (dir </> "metadata.json") bytes
-        void $ cli tr
+        cli tr
             [ "stake-pool", "registration-certificate"
             , "--cold-verification-key-file", opPub
             , "--vrf-verification-key-file", vrfPub
@@ -1230,7 +1259,7 @@ issuePoolRetirementCert
     -> IO FilePath
 issuePoolRetirementCert tr dir opPub retirementEpoch = do
     let file  = dir </> "pool-retirement.cert"
-    void $ cli tr
+    cli tr
         [ "stake-pool", "deregistration-certificate"
         , "--cold-verification-key-file", opPub
         , "--epoch", show (unEpochNo retirementEpoch)
@@ -1242,7 +1271,7 @@ issuePoolRetirementCert tr dir opPub retirementEpoch = do
 issueDlgCert :: Tracer IO ClusterLog -> FilePath -> FilePath -> FilePath -> IO FilePath
 issueDlgCert tr dir stakePub opPub = do
     let file = dir </> "dlg.cert"
-    void $ cli tr
+    cli tr
         [ "stake-address", "delegation-certificate"
         , "--staking-verification-key-file", stakePub
         , "--stake-pool-verification-key-file", opPub
@@ -1264,12 +1293,12 @@ preparePoolRegistration tr era dir stakePub certs pledgeAmt = do
     let file = dir </> "tx.raw"
     let sinkPrv = dir </> "sink.prv"
     let sinkPub = dir </> "sink.pub"
-    void $ cli tr
+    cli tr
         [ "address", "key-gen"
         , "--signing-key-file", sinkPrv
         , "--verification-key-file", sinkPub
         ]
-    addr <- cli tr
+    addr <- cliLine tr
         [ "address", "build"
         , "--payment-verification-key-file", sinkPub
         , "--stake-verification-key-file", stakePub
@@ -1277,10 +1306,10 @@ preparePoolRegistration tr era dir stakePub certs pledgeAmt = do
         ]
 
     (faucetInput, faucetPrv) <- takeFaucet
-    void $ cli tr $
+    cli tr $
         [ "transaction", "build-raw"
         , "--tx-in", faucetInput
-        , "--tx-out", init addr <> "+" <> show pledgeAmt
+        , "--tx-out", addr <> "+" <> show pledgeAmt
         , "--ttl", "400"
         , "--fee", show (faucetAmt - pledgeAmt - depositAmt)
         , "--out-file", file
@@ -1291,10 +1320,11 @@ preparePoolRegistration tr era dir stakePub certs pledgeAmt = do
 
 sendFaucetFundsTo
     :: Tracer IO ClusterLog
+    -> CardanoNodeConn
     -> FilePath
     -> [(String, Coin)]
     -> IO ()
-sendFaucetFundsTo tr dir allTargets = do
+sendFaucetFundsTo tr conn dir allTargets = do
     forM_ (group 80 allTargets) sendBatch
   where
     sendBatch targets = do
@@ -1307,7 +1337,7 @@ sendFaucetFundsTo tr dir allTargets = do
         when (total > faucetAmt) $ error "sendFaucetFundsTo: too much to pay"
 
         era <- getClusterEra dir
-        void $ cli tr $
+        cli tr $
             [ "transaction", "build-raw"
             , "--tx-in", faucetInput
             , "--ttl", "600"
@@ -1317,7 +1347,7 @@ sendFaucetFundsTo tr dir allTargets = do
             ] ++ outputs
 
         tx <- signTx tr dir file [faucetPrv]
-        submitTx tr "faucet tx" tx
+        submitTx tr conn "faucet tx" tx
 
     -- TODO: Use split package?
     -- https://stackoverflow.com/questions/12876384/grouping-a-list-into-lists-of-n-elements-in-haskell
@@ -1329,10 +1359,11 @@ sendFaucetFundsTo tr dir allTargets = do
 
 moveInstantaneousRewardsTo
     :: Tracer IO ClusterLog
+    -> CardanoNodeConn
     -> FilePath
     -> [(XPub, Coin)]
     -> IO ()
-moveInstantaneousRewardsTo tr dir targets = do
+moveInstantaneousRewardsTo tr conn dir targets = do
     certs <- mapM (mkVerificationKey >=> mkMIRCertificate) targets
     (faucetInput, faucetPrv) <- takeFaucet
     let file = dir </> "mir-tx.raw"
@@ -1344,7 +1375,7 @@ moveInstantaneousRewardsTo tr dir targets = do
     sink <- genSinkAddress tr dir
 
     era <- getClusterEra dir
-    void $ cli tr $
+    cli tr $
         [ "transaction", "build-raw"
         , "--tx-in", faucetInput
         , "--ttl", "600"
@@ -1358,7 +1389,7 @@ moveInstantaneousRewardsTo tr dir targets = do
     let bftPrv = testData </> "bft-leader" <> ".skey"
 
     tx <- signTx tr dir file [faucetPrv, bftPrv]
-    submitTx tr "MIR certificates" tx
+    submitTx tr conn "MIR certificates" tx
   where
     mkVerificationKey
         :: (XPub, Coin)
@@ -1380,7 +1411,7 @@ moveInstantaneousRewardsTo tr dir targets = do
     mkMIRCertificate (pub, stakeVK, Coin reward) = do
         let mirCert = dir </> pub <> ".mir"
         stakeCert <- issueStakeCert tr dir pub stakeVK
-        void $ cli tr
+        cli tr
             [ "governance", "create-mir-certificate"
             , "--reserves"
             , "--reward", show reward
@@ -1407,7 +1438,7 @@ prepareKeyRegistration tr era dir = do
     cert <- issueStakeCert tr dir "pre-registered" stakePub
     sink <- genSinkAddress tr dir
 
-    void $ cli tr
+    cli tr
         [ "transaction", "build-raw"
         , "--tx-in", faucetInput
         , "--tx-out", sink <> "+" <> "1000000"
@@ -1426,17 +1457,16 @@ genSinkAddress
 genSinkAddress tr dir = do
     let sinkPrv = dir </> "sink.prv"
     let sinkPub = dir </> "sink.pub"
-    void $ cli tr
+    cli tr
         [ "address", "key-gen"
         , "--signing-key-file", sinkPrv
         , "--verification-key-file", sinkPub
         ]
-    addr <- cli tr
+    cliLine tr
         [ "address", "build"
         , "--payment-verification-key-file", sinkPub
         , "--mainnet"
         ]
-    pure (init addr)
 
 -- | Sign a transaction with all the necessary signatures.
 signTx
@@ -1447,7 +1477,7 @@ signTx
     -> IO FilePath
 signTx tr dir rawTx keys = do
     let file = dir </> "tx.signed"
-    void $ cli tr $
+    cli tr $
         [ "transaction", "sign"
         , "--tx-body-file", rawTx
         , "--mainnet"
@@ -1456,9 +1486,10 @@ signTx tr dir rawTx keys = do
     pure file
 
 -- | Submit a transaction through a running node.
-submitTx :: Tracer IO ClusterLog -> String -> FilePath -> IO ()
-submitTx tr name signedTx = do
-    void $ cliRetry tr ("Submitting transaction for " ++ name)
+submitTx :: Tracer IO ClusterLog -> CardanoNodeConn -> String -> FilePath -> IO ()
+submitTx tr conn name signedTx =
+    cliRetry tr ("Submitting transaction for " <> T.pack name) =<<
+        cliConfigNode tr conn
         [ "transaction", "submit"
         , "--tx-file", signedTx
         , "--mainnet", "--cardano-mode"
@@ -1469,38 +1500,34 @@ submitTx tr name signedTx = do
 --
 -- It retries every second, for up to 30 seconds. An exception is thrown if
 -- it has waited for too long.
---
--- As a side effect, after this subroutine finishes, the environment variable
--- @CARDANO_NODE_SOCKET_PATH@ is set.
-waitForSocket :: Tracer IO ClusterLog -> FilePath -> IO ()
-waitForSocket tr socketPath = do
-    setEnv "CARDANO_NODE_SOCKET_PATH" socketPath
-    let msg = "Checking for usable socket file " <> socketPath
+waitForSocket :: Tracer IO ClusterLog -> CardanoNodeConn -> IO ()
+waitForSocket tr conn = do
+    let msg = "Checking for usable socket file " <> toText conn
     -- TODO: check whether querying the tip works just as well.
-    void $ cliRetry tr msg
+    cliRetry tr msg =<< cliConfigNode tr conn
         ["query", "tip"
         , "--mainnet"
         --, "--testnet-magic", "764824073"
         , "--cardano-mode"
         ]
-    traceWith tr $ MsgSocketIsReady socketPath
+    traceWith tr $ MsgSocketIsReady conn
 
 -- | Wait until a stake pool shows as registered on-chain.
-waitUntilRegistered :: Tracer IO ClusterLog -> String -> ClusterEra -> FilePath -> IO ()
-waitUntilRegistered tr name era opPub = do
-    poolId <- init <$> cli tr
+waitUntilRegistered :: Tracer IO ClusterLog -> CardanoNodeConn -> String -> ClusterEra -> FilePath -> IO ()
+waitUntilRegistered tr conn name era opPub = do
+    poolId <- fmap getFirstLine . readProcessStdout_ =<< cliConfig tr
         [ "stake-pool", "id"
         , "--stake-pool-verification-key-file", opPub
         ]
-    (exitCode, distribution, err) <- readProcessWithExitCode "cardano-cli"
+    (exitCode, distribution, err) <- cliNode tr conn
         [ "query", "stake-distribution"
         , "--mainnet"
         , cardanoCliEra era
-        ] mempty
+        ]
     traceWith tr $ MsgStakeDistribution name exitCode distribution err
-    unless (poolId `isInfixOf` distribution) $ do
+    unless (BL8.toStrict poolId `BS.isInfixOf` BL8.toStrict distribution) $ do
         threadDelay 5000000
-        waitUntilRegistered tr name era opPub
+        waitUntilRegistered tr conn name era opPub
 
 
 -- | Hard-wired faucets referenced in the genesis file. Purpose is simply to
@@ -1529,7 +1556,11 @@ faucetIndex = unsafePerformIO $ newMVar 1
 {-# NOINLINE faucetIndex #-}
 
 operators :: MVar [(PoolId, Aeson.Value, Aeson.Value, Aeson.Value, Aeson.Value)]
-operators = unsafePerformIO $ newMVar
+operators = unsafePerformIO $ newMVar operatorsFixture
+{-# NOINLINE operators #-}
+
+operatorsFixture :: [(PoolId, Aeson.Value, Aeson.Value, Aeson.Value, Aeson.Value)]
+operatorsFixture =
     [ ( PoolId $ unsafeFromHex
           "ec28f33dcbe6d6400a1e5e339bd0647c0973ca6c0cf9c2bbe6838dc6"
       , Aeson.object
@@ -1639,7 +1670,12 @@ operators = unsafePerformIO $ newMVar
           ]
       )
     ]
-{-# NOINLINE operators #-}
+
+-- | Allow running the test cluster a second time in the same process.
+resetGlobals :: IO ()
+resetGlobals = do
+    void $ swapMVar faucetIndex 1
+    void $ swapMVar operators operatorsFixture
 
 cardanoCliEra :: ClusterEra -> String
 cardanoCliEra era = "--" ++ clusterEraName era ++ "-era"
@@ -1814,11 +1850,11 @@ data ClusterLog
     | MsgStartedStaticServer String FilePath
     | MsgTempDir TempDirLog
     | MsgBracket Text BracketLog
-    | MsgCLIStatus String ExitCode String String
-    | MsgCLIRetry String
-    | MsgCLIRetryResult String Int String
-    | MsgSocketIsReady FilePath
-    | MsgStakeDistribution String ExitCode String String
+    | MsgCLIStatus Text ExitCode BL8.ByteString BL8.ByteString
+    | MsgCLIRetry Text
+    | MsgCLIRetryResult Text Int BL8.ByteString
+    | MsgSocketIsReady CardanoNodeConn
+    | MsgStakeDistribution String ExitCode BL8.ByteString BL8.ByteString
     | MsgDebug Text
     | MsgGenOperatorKeyPair FilePath
     | MsgCLI [String]
@@ -1845,15 +1881,15 @@ instance ToText ClusterLog where
         MsgTempDir msg -> toText msg
         MsgBracket name b -> name <> ": " <> toText b
         MsgCLIStatus msg st out err -> case st of
-            ExitSuccess -> "Successfully finished " <> T.pack msg
-            ExitFailure code -> "Failed " <> T.pack msg <> " with exit code " <>
+            ExitSuccess -> "Successfully finished " <> msg
+            ExitFailure code -> "Failed " <> msg <> " with exit code " <>
                 T.pack (show code)  <> ":\n" <> indent out <> "\n" <> indent err
-        MsgCLIRetry msg -> T.pack msg
+        MsgCLIRetry msg -> msg
         MsgCLIRetryResult msg code err ->
-            "Failed " <> T.pack msg <> " with exit code " <>
+            "Failed " <> msg <> " with exit code " <>
                 T.pack (show code) <> ":\n" <> indent err
-        MsgSocketIsReady socketPath ->
-            T.pack socketPath <> " is ready."
+        MsgSocketIsReady conn ->
+            toText conn <> " is ready."
         MsgStakeDistribution name st out err -> case st of
             ExitSuccess ->
                 "Stake distribution query for " <> T.pack name <>
@@ -1866,7 +1902,7 @@ instance ToText ClusterLog where
             "Generating stake pool operator key pair in " <> T.pack dir
         MsgCLI args -> T.pack $ unwords ("cardano-cli":args)
       where
-        indent = T.unlines . map ("  " <>) . T.lines . T.pack
+        indent = T.unlines . map ("  " <>) . T.lines . T.decodeUtf8With T.lenientDecode . BL8.toStrict
 
 instance HasPrivacyAnnotation ClusterLog
 instance HasSeverityAnnotation ClusterLog where
