@@ -37,7 +37,6 @@ library
     , cardano-addresses
     , cardano-addresses-cli
     , cardano-wallet-core
-    , contra-tracer
     , directory
     , filepath
     , fmt

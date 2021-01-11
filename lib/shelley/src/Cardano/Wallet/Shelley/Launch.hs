@@ -906,42 +906,39 @@ withStakePool tr baseDir idx params pledgeAmt poolConfig action =
 
 -- | Run a SMASH stub server, serving some delisted pool IDs.
 withSMASH
-    :: Tracer IO ClusterLog
+    :: FilePath
+    -- ^ Parent directory to store static files
+    -> (String -> IO a)
+    -- ^ Action, taking base URL
     -> IO a
-    -> IO a
-withSMASH tr action =
-    withSystemTempDir (contramap MsgTempDir tr) "smash" $ \fp -> do
-        let baseDir = fp </> "api/v1"
+withSMASH parentDir action = do
+    let staticDir = parentDir </> "smash"
+    let baseDir = staticDir </> "api" </> "v1"
 
-        -- write pool metadatas
-        pools <- readMVar operators
-        forM_ pools $ \(poolId, _, _, _, metadata) -> do
-            let bytes = Aeson.encode metadata
+    -- write pool metadatas
+    pools <- readMVar operators
+    forM_ pools $ \(poolId, _, _, _, metadata) -> do
+        let bytes = Aeson.encode metadata
 
-            let metadataDir = baseDir </> "metadata"
-                poolDir = metadataDir </> T.unpack (toText poolId)
-                hash = blake2b256S (BL.toStrict bytes)
-                hashFile = poolDir </> hash
+        let metadataDir = baseDir </> "metadata"
+            poolDir = metadataDir </> T.unpack (toText poolId)
+            hash = blake2b256S (BL.toStrict bytes)
+            hashFile = poolDir </> hash
 
-            createDirectoryIfMissing True poolDir
-            BL8.writeFile (poolDir </> hashFile) bytes
+        createDirectoryIfMissing True poolDir
+        BL8.writeFile (poolDir </> hashFile) bytes
 
-        -- write delisted pools
-        let delisted = [SMASHPoolId (T.pack
-                "b45768c1a2da4bd13ebcaa1ea51408eda31dcc21765ccbd407cda9f2")]
-            bytes = Aeson.encode delisted
-        BL8.writeFile (baseDir </> "delisted") bytes
+    -- write delisted pools
+    let delisted = [SMASHPoolId (T.pack
+            "b45768c1a2da4bd13ebcaa1ea51408eda31dcc21765ccbd407cda9f2")]
+        bytes = Aeson.encode delisted
+    BL8.writeFile (baseDir </> "delisted") bytes
 
-        -- health check
-        let health = Aeson.encode (HealthStatusSMASH "OK" "1.2.0")
-        BL8.writeFile (baseDir </> "status") health
+    -- health check
+    let health = Aeson.encode (HealthStatusSMASH "OK" "1.2.0")
+    BL8.writeFile (baseDir </> "status") health
 
-        withStaticServer fp $ \baseUrl -> do
-            setEnv envVar baseUrl
-            action
-  where
-    envVar :: String
-    envVar = "CARDANO_WALLET_SMASH_URL"
+    withStaticServer staticDir action
 
 updateVersion :: Tracer IO ClusterLog -> FilePath -> IO ()
 updateVersion tr tmpDir = do
@@ -1763,7 +1760,7 @@ withSystemTempDir
     -> m a
 withSystemTempDir tr name action = do
     parent <- liftIO getCanonicalTemporaryDirectory
-    withTempDir tr parent (name <> ".") action
+    withTempDir tr parent name action
 
 {-------------------------------------------------------------------------------
                                      Utils

@@ -911,7 +911,7 @@ data ApiErrorCode
     | InvalidCoinSelection
     | NetworkUnreachable
     | NetworkMisconfigured
-    | NetworkTipNotFound
+    | NetworkQueryFailed
     | CreatedInvalidTransaction
     | RejectedByCoreNode
     | BadRequest
@@ -2221,4 +2221,3 @@ instance FromJSON (ApiT SmashServer) where
 
 instance ToJSON (ApiT SmashServer) where
     toJSON = toJSON . toText . getApiT
-

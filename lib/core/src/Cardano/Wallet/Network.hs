@@ -22,18 +22,17 @@ module Cardano.Wallet.Network
 
     -- * Errors
     , ErrNetworkUnavailable (..)
-    , ErrCurrentNodeTip (..)
     , ErrGetBlock (..)
     , ErrGetTxParameters (..)
     , ErrPostTx (..)
     , ErrGetAccountBalance (..)
+    , ErrStakeDistribution (..)
 
     -- * Logging
     , FollowLog (..)
 
     -- * Initialization
     , defaultRetryPolicy
-    , waitForNetwork
     ) where
 
 import Prelude
@@ -66,7 +65,7 @@ import Control.Monad
 import Control.Monad.Trans.Except
     ( ExceptT (..), runExceptT )
 import Control.Retry
-    ( RetryPolicyM, constantDelay, limitRetriesByCumulativeDelay, retrying )
+    ( RetryPolicyM, constantDelay, limitRetriesByCumulativeDelay )
 import Control.Tracer
     ( Tracer, traceWith )
 import Data.Functor
@@ -88,7 +87,7 @@ import GHC.Generics
 import UnliftIO.Concurrent
     ( threadDelay )
 import UnliftIO.Exception
-    ( Exception (..), SomeException, bracket, handle, throwIO )
+    ( Exception (..), SomeException, bracket, handle )
 
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Text as T
@@ -123,7 +122,7 @@ data NetworkLayer m block = NetworkLayer
         -- ^ Get the slot corresponding to a cursor.
 
     , currentNodeTip
-        :: ExceptT ErrCurrentNodeTip m BlockHeader
+        :: m BlockHeader
         -- ^ Get the current tip from the chain producer
         --
     , currentNodeEra
@@ -154,7 +153,7 @@ data NetworkLayer m block = NetworkLayer
     , stakeDistribution
         :: BlockHeader -- Point of interest
         -> Coin -- Stake to consider for rewards
-        -> ExceptT ErrNetworkUnavailable m StakePoolsSummary
+        -> ExceptT ErrStakeDistribution m StakePoolsSummary
 
     , getAccountBalance
         :: RewardAccount
@@ -181,16 +180,6 @@ data ErrNetworkUnavailable
       -- ^ Network backend reports that the requested network is invalid.
     deriving (Generic, Show, Eq)
 
-instance Exception ErrNetworkUnavailable
-
--- | Error while trying to get the node tip
-data ErrCurrentNodeTip
-    = ErrCurrentNodeTipNetworkUnreachable ErrNetworkUnavailable
-    | ErrCurrentNodeTipNotFound
-    deriving (Generic, Show, Eq)
-
-instance Exception ErrCurrentNodeTip
-
 -- | Error while trying to get one or more blocks
 data ErrGetBlock
     = ErrGetBlockNetworkUnreachable ErrNetworkUnavailable
@@ -199,12 +188,9 @@ data ErrGetBlock
 
 -- | Error while querying local parameters state.
 data ErrGetTxParameters
-    = ErrGetTxParametersTip ErrCurrentNodeTip
-    | ErrGetTxParametersNetworkUnreachable ErrNetworkUnavailable
+    = ErrGetTxParametersNetworkUnreachable ErrNetworkUnavailable
     | ErrGetTxParametersNotFound
     deriving (Generic, Show, Eq)
-
-instance Exception ErrGetTxParameters
 
 -- | Error while trying to send a transaction
 data ErrPostTx
@@ -220,29 +206,15 @@ data ErrGetAccountBalance
     | ErrGetAccountBalanceAccountNotFound RewardAccount
     deriving (Generic, Eq, Show)
 
+-- | Error while querying stake distribution from ledger.
+newtype ErrStakeDistribution
+    = ErrStakeDistributionQuery Text
+    -- ^ Query failed.
+    deriving (Generic, Show, Eq)
+
 {-------------------------------------------------------------------------------
                               Initialization
 -------------------------------------------------------------------------------}
-
--- | Wait until 'currentNodeTip networkLayer' succeeds according to a given
--- retry policy. Throws an exception otherwise.
-waitForNetwork
-    :: ExceptT ErrNetworkUnavailable IO ()
-    -> RetryPolicyM IO
-    -> IO ()
-waitForNetwork getStatus policy = do
-    r <- retrying policy shouldRetry (const $ runExceptT getStatus)
-    case r of
-        Right _ -> return ()
-        Left e -> throwIO e
-  where
-    shouldRetry _ = \case
-        Right _ ->
-            return False
-        Left ErrNetworkInvalid{} ->
-            return False
-        Left ErrNetworkUnreachable{} ->
-            return True
 
 -- | A default 'RetryPolicy' with a delay that starts short, and that retries
 -- for no longer than a minute.

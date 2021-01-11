@@ -45,11 +45,11 @@ import Cardano.BM.Data.Tracer
 import Cardano.Wallet.Byron.Compatibility
     ( byronCodecConfig, protocolParametersFromUpdateState )
 import Cardano.Wallet.Logging
-    ( BracketLog, bracketTracer )
+    ( BracketLog (..), bracketTracer, combineTracers, produceTimings )
 import Cardano.Wallet.Network
     ( Cursor
-    , ErrNetworkUnavailable (..)
     , ErrPostTx (..)
+    , ErrStakeDistribution (..)
     , NetworkLayer (..)
     , mapCursor
     )
@@ -107,14 +107,14 @@ import Control.Monad.Class.MonadThrow
     ( MonadThrow )
 import Control.Monad.Class.MonadTimer
     ( MonadTimer, threadDelay )
-import Control.Monad.IO.Class
-    ( MonadIO, liftIO )
+import Control.Monad.IO.Unlift
+    ( MonadUnliftIO, liftIO )
 import Control.Monad.Trans.Except
     ( ExceptT (..), throwE, withExceptT )
 import Control.Retry
     ( RetryPolicyM, RetryStatus (..), capDelay, fibonacciBackoff, recovering )
 import Control.Tracer
-    ( Tracer, contramap, nullTracer, traceWith )
+    ( Tracer (..), contramap, nullTracer, traceWith )
 import Data.ByteArray.Encoding
     ( Base (..), convertToBase )
 import Data.ByteString.Lazy
@@ -123,6 +123,8 @@ import Data.Either.Extra
     ( eitherToMaybe )
 import Data.Function
     ( (&) )
+import Data.Functor
+    ( (<$) )
 import Data.List
     ( isInfixOf )
 import Data.Map
@@ -140,7 +142,7 @@ import Data.Text
 import Data.Text.Class
     ( ToText (..) )
 import Data.Time.Clock
-    ( NominalDiffTime, diffUTCTime, getCurrentTime )
+    ( DiffTime )
 import Data.Void
     ( Void )
 import Fmt
@@ -289,7 +291,19 @@ withNetworkLayer
     -> (NetworkLayer IO (CardanoBlock StandardCrypto) -> IO a)
         -- ^ Callback function with the network layer
     -> IO a
-withNetworkLayer tr np addrInfo (versionData, _) action = do
+withNetworkLayer trBase np addrInfo ver action = do
+    tr <- addTimings trBase
+    withNetworkLayerBase tr np addrInfo ver action
+
+withNetworkLayerBase
+    :: HasCallStack
+    => Tracer IO NetworkLayerLog
+    -> W.NetworkParameters
+    -> FilePath
+    -> (NodeToClientVersionData, CodecCBORTerm Text NodeToClientVersionData)
+    -> (NetworkLayer IO (CardanoBlock StandardCrypto) -> IO a)
+    -> IO a
+withNetworkLayerBase tr np addrInfo (versionData, _) action = do
     -- NOTE: We keep client connections running for accessing the node tip,
     -- submitting transactions, querying parameters and delegations/rewards.
     --
@@ -354,7 +368,7 @@ withNetworkLayer tr np addrInfo (versionData, _) action = do
         , getAccountBalance =
             _getAccountBalance rewardsObserver
         , timeInterpreter =
-            _timeInterpreter interpreterVar
+            _timeInterpreter (contramap MsgInterpreterLog tr) interpreterVar
         }
   where
     coinToQuantity (W.Coin x) = Quantity $ fromIntegral x
@@ -506,46 +520,53 @@ withNetworkLayer tr np addrInfo (versionData, _) action = do
                 return res
             Left{} -> pure $ W.StakePoolsSummary 0 mempty mempty
       where
-        handleQueryFailure :: forall e r. Show e => IO (Either e r) -> ExceptT ErrNetworkUnavailable IO r
-        handleQueryFailure =
-            withExceptT (\e -> ErrNetworkUnreachable $ T.pack $ "Unexpected " ++ show e) . ExceptT
+        -- fixme: ADP-647 AcquireFailure usually means rollback. So this
+        -- function can fail at arbitrary times.
+        handleQueryResult
+            :: String
+            -> IO (Either AcquireFailure r)
+            -> ExceptT ErrStakeDistribution IO r
+        handleQueryResult label =
+            withExceptT mkErr . ExceptT . bracketQuery label tr
+          where
+            mkErr = ErrStakeDistributionQuery . T.pack . show
 
         queryStakeDistribution pt = \case
             AnyCardanoEra ShelleyEra -> do
                 let cmd = CmdQueryLocalState pt (QueryIfCurrentShelley Shelley.GetStakeDistribution)
-                result <- handleQueryFailure $ timeQryAndLog "GetStakeDistribution" tr
+                result <- handleQueryResult "GetStakeDistribution"
                     (queue `send` cmd)
                 return $ fromPoolDistr <$> result
 
             ________________________ -> do
                 let cmd = CmdQueryLocalState pt (QueryIfCurrentAllegra Shelley.GetStakeDistribution)
-                result <- handleQueryFailure $ timeQryAndLog "GetStakeDistribution" tr
+                result <- handleQueryResult "GetStakeDistribution"
                     (queue `send` cmd)
                 return $ fromPoolDistr <$> result
 
         getNOpt pt = \case
             AnyCardanoEra ShelleyEra -> do
                 let cmd = CmdQueryLocalState pt (QueryIfCurrentShelley Shelley.GetCurrentPParams)
-                result <- handleQueryFailure $ timeQryAndLog "GetCurrentPParams" tr
+                result <- handleQueryResult "GetCurrentPParams"
                     (queue `send` cmd)
                 return $ optimumNumberOfPools <$> result
 
             ________________________ -> do
                 let cmd = CmdQueryLocalState pt (QueryIfCurrentAllegra Shelley.GetCurrentPParams)
-                result <- handleQueryFailure $ timeQryAndLog "GetCurrentPParams" tr
+                result <- handleQueryResult "GetCurrentPParams"
                     (queue `send` cmd)
                 return $ optimumNumberOfPools <$> result
 
         queryNonMyopicMemberRewards pt = \case
             AnyCardanoEra ShelleyEra -> do
                 let cmd = CmdQueryLocalState pt (QueryIfCurrentShelley (Shelley.GetNonMyopicMemberRewards stake))
-                result <- handleQueryFailure $ timeQryAndLog "GetNonMyopicMemberRewards" tr
+                result <- handleQueryResult "GetNonMyopicMemberRewards"
                     (queue `send` cmd)
                 return $ getRewardMap . fromNonMyopicMemberRewards <$> result
 
             ________________________ -> do
                 let cmd = CmdQueryLocalState pt (QueryIfCurrentAllegra (Shelley.GetNonMyopicMemberRewards stake))
-                result <- handleQueryFailure $ timeQryAndLog "GetNonMyopicMemberRewards" tr
+                result <- handleQueryResult "GetNonMyopicMemberRewards"
                     (queue `send` cmd)
                 return $ getRewardMap . fromNonMyopicMemberRewards <$> result
           where
@@ -573,11 +594,12 @@ withNetworkLayer tr np addrInfo (versionData, _) action = do
 
     _timeInterpreter
         :: HasCallStack
-        => TMVar IO (CardanoInterpreter sc)
+        => Tracer IO TimeInterpreterLog
+        -> TMVar IO (CardanoInterpreter sc)
         -> TimeInterpreter (ExceptT PastHorizonException IO)
-    _timeInterpreter var = do
+    _timeInterpreter tr' var = do
         let readInterpreter = liftIO $ atomically $ readTMVar var
-        mkTimeInterpreter (contramap MsgInterpreterLog tr) getGenesisBlockDate readInterpreter
+        mkTimeInterpreter tr' getGenesisBlockDate readInterpreter
 
 --------------------------------------------------------------------------------
 --
@@ -717,7 +739,7 @@ type CardanoInterpreter sc = Interpreter (CardanoEras sc)
 --  * Tracking the latest protocol parameters state.
 --  * Querying the history interpreter as necessary.
 mkTipSyncClient
-    :: forall m. (HasCallStack, MonadIO m, MonadThrow m, MonadST m, MonadTimer m)
+    :: forall m. (HasCallStack, MonadUnliftIO m, MonadThrow m, MonadST m, MonadTimer m)
     => Tracer m NetworkLayerLog
         -- ^ Base trace for underlying protocols
     -> W.NetworkParameters
@@ -750,7 +772,7 @@ mkTipSyncClient tr np localTxSubmissionQ onTipUpdate onPParamsUpdate onInterpret
             -> m ()
         queryLocalState Nothing    __ = return ()
         queryLocalState (Just era) pt = do
-            mb <- timeQryAndLog "GetEraStart" tr $ localStateQueryQ `send`
+            mb <- bracketQuery "GetEraStart" tr $ localStateQueryQ `send`
                 (case era of
                     AnyCardanoEra ShelleyEra ->
                         CmdQueryLocalState pt (QueryAnytimeShelley GetEraStart)
@@ -764,29 +786,29 @@ mkTipSyncClient tr np localTxSubmissionQ onTipUpdate onPParamsUpdate onInterpret
 
                 AnyCardanoEra ShelleyEra -> do
                     let cmd = CmdQueryLocalState pt (QueryIfCurrentShelley Shelley.GetGenesisConfig)
-                    gp <- timeQryAndLog "GetGenesisParams" tr $ localStateQueryQ `send` cmd
+                    gp <- bracketQuery "GetGenesisParams" tr $ localStateQueryQ `send` cmd
                     pure (fmap (slottingParametersFromGenesis . getCompactGenesis) <$> gp)
 
                 AnyCardanoEra _ -> do
                     let cmd = CmdQueryLocalState pt (QueryIfCurrentAllegra Shelley.GetGenesisConfig)
-                    gp <- timeQryAndLog "GetGenesisParams" tr $ localStateQueryQ `send` cmd
+                    gp <- bracketQuery "GetGenesisParams" tr $ localStateQueryQ `send` cmd
                     pure (fmap (slottingParametersFromGenesis . getCompactGenesis) <$> gp)
 
             case era of
                 AnyCardanoEra ByronEra -> do
-                    st <- timeQryAndLog "GetUpdateInterfaceState" tr $ localStateQueryQ `send`
+                    st <- bracketQuery "GetUpdateInterfaceState" tr $ localStateQueryQ `send`
                         CmdQueryLocalState pt (QueryIfCurrentByron Byron.GetUpdateInterfaceState)
                     sequence (handleParamsUpdate protocolParametersFromUpdateState <$> mb <*> st <*> sp)
                         >>= handleAcquireFailure
 
                 AnyCardanoEra ShelleyEra -> do
-                    pp <- timeQryAndLog "GetCurrentPParams" tr $ localStateQueryQ `send`
+                    pp <- bracketQuery "GetCurrentPParams" tr $ localStateQueryQ `send`
                         (CmdQueryLocalState pt (QueryIfCurrentShelley Shelley.GetCurrentPParams))
                     sequence (handleParamsUpdate fromShelleyPParams <$> mb <*> pp <*> sp)
                         >>= handleAcquireFailure
 
                 ________________________ -> do
-                    pp <- timeQryAndLog "GetCurrentPParams" tr $ localStateQueryQ `send`
+                    pp <- bracketQuery "GetCurrentPParams" tr $ localStateQueryQ `send`
                         (CmdQueryLocalState pt (QueryIfCurrentAllegra Shelley.GetCurrentPParams))
                     sequence (handleParamsUpdate fromShelleyPParams <$> mb <*> pp <*> sp)
                         >>= handleAcquireFailure
@@ -918,14 +940,14 @@ newRewardBalanceFetcher tr gp queryRewardQ =
                 let creds = Set.map toStakeCredential accounts
                 let q = QueryIfCurrentShelley (Shelley.GetFilteredDelegationsAndRewardAccounts creds)
                 let cmd = CmdQueryLocalState (getTipPoint tip) q
-                res <- liftIO . timeQryAndLog loggerName tr $ queryRewardQ `send` cmd
-                handleQueryResult defaultValue res
+                res <- bracketQuery queryName tr (queryRewardQ `send` cmd)
+                handleBalanceResult defaultValue res
             AnyCardanoEra AllegraEra -> do
                 let creds = Set.map toStakeCredential accounts
                 let q = QueryIfCurrentAllegra (Shelley.GetFilteredDelegationsAndRewardAccounts creds)
                 let cmd = CmdQueryLocalState (getTipPoint tip) q
-                res <- liftIO . timeQryAndLog loggerName tr $ queryRewardQ `send` cmd
-                handleQueryResult defaultValue res
+                res <- bracketQuery queryName tr (queryRewardQ `send` cmd)
+                handleBalanceResult defaultValue res
             AnyCardanoEra MaryEra -> do
                 let msg = MsgLocalStateQueryError DelegationRewardsClient "MaryEra Not implemented"
                 liftIO $ traceWith tr msg
@@ -934,10 +956,10 @@ newRewardBalanceFetcher tr gp queryRewardQ =
         defaultValue :: Map W.RewardAccount W.Coin
         defaultValue = Map.fromList . map (, minBound) $ Set.toList accounts
 
-        loggerName :: String
-        loggerName = "getAccountBalance"
+        queryName :: String
+        queryName = "getAccountBalance"
 
-    handleQueryResult
+    handleBalanceResult
         :: Map W.RewardAccount W.Coin
         -> Either AcquireFailure
             (Either
@@ -948,7 +970,7 @@ newRewardBalanceFetcher tr gp queryRewardQ =
                 )
             )
         -> IO (Maybe (Map W.RewardAccount W.Coin))
-    handleQueryResult defaultValue = \case
+    handleBalanceResult defaultValue = \case
         Right (Right (deleg, rewardAccounts)) -> do
             liftIO $ traceWith tr $ MsgAccountDelegationAndRewards deleg rewardAccounts
             let convert = Map.mapKeys fromStakeCredential . Map.map fromShelleyCoin
@@ -1061,30 +1083,31 @@ debounce action = do
         unless (Just cur == prev) $ action cur
         atomically $ putTMVar mvar (Just cur)
 
--- | Convenience function to measure the time of a LSQ query,
--- and trace the result.
---
--- Such that we can get logs like:
--- >>> Query getAccountBalance took 51.664463s
---
--- Failures that stop the >>= continuation will cause the corresponding
--- measuremens /not/ to be logged.
-timeQryAndLog
-    :: MonadIO m
+-- | Convenience function to trace around a local state query.
+-- See 'addTimings'.
+bracketQuery
+    :: MonadUnliftIO m
     => String
-    -- ^ Label to identify the query
     -> Tracer m NetworkLayerLog
-    -- ^ Tracer to which the measurement will be logged
     -> m a
-    -- ^ The action that submits the query.
     -> m a
-timeQryAndLog label tr act = do
-    t0 <- liftIO getCurrentTime
-    a <- act
-    t1 <- liftIO getCurrentTime
-    let diff = t1 `diffUTCTime` t0
-    traceWith tr $ MsgQueryTime label diff
-    return a
+bracketQuery label tr = bracketTracer (contramap (MsgQuery label) tr)
+
+-- | A tracer transformer which processes 'MsgQuery' logs to make new
+-- 'MsgQueryTime' logs, so that we can get logs like:
+--
+-- >>> Query getAccountBalance took 51.664463s
+addTimings :: Tracer IO NetworkLayerLog -> IO (Tracer IO NetworkLayerLog)
+addTimings tr = combineTracers tr <$> produceTimings msgQuery trDiffTime
+  where
+    trDiffTime = contramap (uncurry MsgQueryTime) tr
+    msgQuery = \case
+        MsgQuery l b -> Just (l, b)
+        _ -> Nothing
+
+-- | Consider a "slow query" to be something that takes 100ms or more.
+isSlowQuery :: String -> DiffTime -> Bool
+isSlowQuery _label = (>= 0.1)
 
 -- | A protocol client that will never leave the initial state.
 doNothingProtocol
@@ -1236,7 +1259,8 @@ data NetworkLayerLog where
     MsgInterpreter :: CardanoInterpreter StandardCrypto -> NetworkLayerLog
     -- TODO: Combine ^^ and vv
     MsgInterpreterLog :: TimeInterpreterLog -> NetworkLayerLog
-    MsgQueryTime :: String -> NominalDiffTime -> NetworkLayerLog
+    MsgQuery :: String -> BracketLog -> NetworkLayerLog
+    MsgQueryTime :: String -> DiffTime -> NetworkLayerLog
     MsgObserverLog
         :: ObserverLog W.RewardAccount W.Coin
         -> NetworkLayerLog
@@ -1325,8 +1349,11 @@ instance ToText NetworkLayerLog where
         MsgWatcherUpdate tip b ->
             "Update watcher with tip: " <> pretty tip <>
             ". Callback " <> toText b <> "."
+        MsgQuery label msg ->
+            T.pack label <> ": " <> toText msg
         MsgQueryTime qry diffTime ->
-            "Query " <> T.pack qry <> " took " <> T.pack (show diffTime)
+            "Query " <> T.pack qry <> " took " <> T.pack (show diffTime) <>
+            if isSlowQuery qry diffTime then " (too slow)" else ""
         MsgChainSyncCmd a -> toText a
         MsgInterpreter interpreter ->
             "Updated the history interpreter: " <> T.pack (show interpreter)
@@ -1360,6 +1387,9 @@ instance HasSeverityAnnotation NetworkLayerLog where
         MsgWatcherUpdate{}                 -> Debug
         MsgChainSyncCmd cmd                -> getSeverityAnnotation cmd
         MsgInterpreter{}                   -> Debug
-        MsgQueryTime{}                     -> Info
+        MsgQuery _ msg                     -> getSeverityAnnotation msg
+        MsgQueryTime qry dt
+            | isSlowQuery qry dt           -> Notice
+            | otherwise                    -> Debug
         MsgInterpreterLog msg              -> getSeverityAnnotation msg
         MsgObserverLog{}                   -> Debug

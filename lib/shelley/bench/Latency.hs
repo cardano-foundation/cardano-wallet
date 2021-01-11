@@ -392,6 +392,7 @@ withShelleyServer tracers action = do
                 , _networkParameters = np
                 , _poolGarbageCollectionEvents =
                     error "poolGarbageCollectionEvents not available"
+                , _smashUrl = ""
                 }
     race_ (takeMVar ctx >>= action) (withServer setupContext)
 

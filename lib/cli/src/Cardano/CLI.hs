@@ -94,11 +94,9 @@ module Cardano.CLI
     , requireFilePath
     , getDataDir
     , setupDirectory
-    , waitForService
     , getPrometheusURL
     , getEKGURL
     , ekgEnabled
-    , WaitForServiceLog (..)
     ) where
 
 import Prelude hiding
@@ -127,8 +125,6 @@ import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.SubTrace
     ( SubTrace (..) )
-import Cardano.BM.Data.Tracer
-    ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.BM.Setup
     ( setupTrace_, shutdown )
 import Cardano.BM.Trace
@@ -167,8 +163,6 @@ import Cardano.Wallet.Api.Types
     , WalletPutPassphraseData (..)
     , fmtAllowedWords
     )
-import Cardano.Wallet.Network
-    ( ErrNetworkUnavailable (..) )
 import Cardano.Wallet.Orphans
     ()
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -201,8 +195,6 @@ import Control.Monad
     ( forM_, forever, join, unless, void, when )
 import Control.Monad.IO.Class
     ( MonadIO )
-import Control.Tracer
-    ( Tracer, traceWith )
 import Data.Aeson
     ( ToJSON (..), (.:), (.=) )
 import Data.Bifunctor
@@ -323,7 +315,7 @@ import System.IO
 import UnliftIO.Concurrent
     ( threadDelay )
 import UnliftIO.Exception
-    ( bracket, catch )
+    ( bracket )
 
 import qualified Cardano.BM.Configuration.Model as CM
 import qualified Cardano.BM.Data.BackendKind as CM
@@ -1962,68 +1954,3 @@ optionalE
 optionalE parse = \case
     m | m == mempty -> Right Nothing
     m  -> Just <$> parse m
-
-{-------------------------------------------------------------------------------
-                        Polling for service availability
--------------------------------------------------------------------------------}
-
--- | Wait for a service to become available on a given TCP port. Exit on failure
--- with a proper error message.
-waitForService
-    :: Service
-        -- ^ Name of the service
-    -> Tracer IO WaitForServiceLog
-        -- ^ A 'Trace' for logging
-    -> Port "node"
-        -- ^ TCP Port of the service
-    -> IO ()
-        -- ^ Service we're waiting after.
-    -> IO ()
-waitForService service tracer port action = do
-    let handler (ErrNetworkInvalid net) = do
-            traceWith tracer $ MsgServiceErrNetworkInvalid net
-            exitFailure
-        handler _ = do
-            traceWith tracer $ MsgServiceTimedOut service
-            exitFailure
-
-    traceWith tracer $ MsgServiceWaiting service port
-    action `catch` handler
-    traceWith tracer $ MsgServiceReady service
-
--- | Log messages from 'waitForService'
-data WaitForServiceLog
-    = MsgServiceWaiting Service (Port "node")
-    | MsgServiceReady Service
-    | MsgServiceTimedOut Service
-    | MsgServiceErrNetworkInvalid Text
-    deriving (Show, Eq)
-
-instance ToText WaitForServiceLog where
-    toText = \case
-        MsgServiceWaiting (Service service) port -> mconcat
-            [ "Waiting for "
-            , service
-            , " to be ready on tcp/"
-            , T.pack (showT port)
-            ]
-        MsgServiceReady (Service service) ->
-            service <> " is ready."
-        MsgServiceTimedOut (Service service) -> mconcat
-             [ "Waited too long for "
-             , service
-             , " to become available. Giving up!"
-             ]
-        MsgServiceErrNetworkInvalid net -> mconcat
-            [ "The node backend is not running on the \"", net, "\" "
-            , "network. Please start the wallet server and the node "
-            , "backend on the same network. Exiting now."
-            ]
-
-instance HasPrivacyAnnotation WaitForServiceLog
-instance HasSeverityAnnotation WaitForServiceLog where
-    getSeverityAnnotation = \case
-        MsgServiceWaiting _ _ -> Info
-        MsgServiceReady _ -> Info
-        MsgServiceTimedOut _ -> Info
-        MsgServiceErrNetworkInvalid _ -> Info

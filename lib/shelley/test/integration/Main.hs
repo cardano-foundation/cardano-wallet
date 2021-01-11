@@ -119,7 +119,7 @@ import Test.Utils.Paths
 import UnliftIO.Async
     ( race )
 import UnliftIO.Exception
-    ( SomeException, throwIO, withException )
+    ( SomeException, isAsyncException, throwIO, withException )
 import UnliftIO.MVar
     ( newEmptyMVar, putMVar, takeMVar )
 
@@ -228,11 +228,12 @@ specWithServer testDir (tr, tracers) = aroundAll withContext
         poolGarbageCollectionEvents <- newIORef []
         let dbEventRecorder =
                 recordPoolGarbageCollectionEvents poolGarbageCollectionEvents
-        let setupContext np wAddr = bracketTracer' tr "setupContext" $ do
+        let setupContext smashUrl np wAddr = bracketTracer' tr "setupContext" $ do
                 let baseUrl = "http://" <> T.pack (show wAddr) <> "/"
                 prometheusUrl <- (maybe "none" (\(h, p) -> T.pack h <> ":" <> toText @(Port "Prometheus") p)) <$> getPrometheusURL
                 ekgUrl <- (maybe "none" (\(h, p) -> T.pack h <> ":" <> toText @(Port "EKG") p)) <$> getEKGURL
-                traceWith tr $ MsgBaseUrl baseUrl ekgUrl prometheusUrl
+                traceWith tr $
+                    MsgBaseUrl baseUrl ekgUrl prometheusUrl smashUrl
                 let fiveMinutes = 300*1000*1000 -- 5 minutes in microseconds
                 manager <- (baseUrl,) <$> newManager (defaultManagerSettings
                     { managerResponseTimeout =
@@ -248,6 +249,7 @@ specWithServer testDir (tr, tracers) = aroundAll withContext
                     , _feeEstimator = error "feeEstimator: unused in shelley specs"
                     , _networkParameters = np
                     , _poolGarbageCollectionEvents = poolGarbageCollectionEvents
+                    , _smashUrl = smashUrl
                     }
         let action' = bracketTracer' tr "spec" . action
         res <- race
@@ -277,19 +279,20 @@ specWithServer testDir (tr, tracers) = aroundAll withContext
                     atomicModifyIORef' eventsRef ((, ()) . (event :))
                 pure certificates
 
-    withServer dbDecorator action = bracketTracer' tr "withServer" $ withSMASH tr' $ do
-        minSev <- nodeMinSeverityFromEnv
-        testPoolConfigs <- poolConfigsFromEnv
-        extraLogDir <- (fmap (,Info)) <$> testLogDirFromEnv
-        withCluster
-            tr'
-            minSev
-            testPoolConfigs
-            testDir
-            extraLogDir
-            onByron
-            afterFork
-            (onClusterStart action dbDecorator)
+    withServer dbDecorator onReady = bracketTracer' tr "withServer" $
+        withSMASH testDir $ \smashUrl -> do
+            minSev <- nodeMinSeverityFromEnv
+            testPoolConfigs <- poolConfigsFromEnv
+            extraLogDir <- (fmap (,Info)) <$> testLogDirFromEnv
+            withCluster
+                tr'
+                minSev
+                testPoolConfigs
+                testDir
+                extraLogDir
+                onByron
+                afterFork
+                (onClusterStart (onReady $ T.pack smashUrl) dbDecorator)
 
     tr' = contramap MsgCluster tr
     onByron _ = pure ()
@@ -301,7 +304,6 @@ specWithServer testDir (tr, tracers) = aroundAll withContext
         let encodeAddr = T.unpack . encodeAddress @'Mainnet
         let addresses = map (first encodeAddr) shelleyIntegrationTestFunds
         sendFaucetFundsTo tr' testDir addresses
-
 
     onClusterStart action dbDecorator node = do
         let db = testDir </> "wallets"
@@ -334,7 +336,7 @@ specWithServer testDir (tr, tracers) = aroundAll withContext
 
 data TestsLog
     = MsgBracket Text BracketLog
-    | MsgBaseUrl Text Text Text
+    | MsgBaseUrl Text Text Text Text
     | MsgSettingUpFaucet
     | MsgCluster ClusterLog
     | MsgPoolGarbageCollectionEvent PoolGarbageCollectionEvent
@@ -344,10 +346,11 @@ data TestsLog
 instance ToText TestsLog where
     toText = \case
         MsgBracket name b -> name <> ": " <> toText b
-        MsgBaseUrl walletUrl ekgUrl prometheusUrl -> mconcat
-            [ "Wallet url: " , walletUrl
-            , ", EKG url: " , ekgUrl
-            , ", Prometheus url:", prometheusUrl
+        MsgBaseUrl walletUrl ekgUrl prometheusUrl smashUrl -> T.unlines
+            [ "Wallet url: " <> walletUrl
+            , "EKG url: " <> ekgUrl
+            , "Prometheus url: " <> prometheusUrl
+            , "SMASH url: " <> smashUrl
             ]
         MsgSettingUpFaucet -> "Setting up faucet..."
         MsgCluster msg -> toText msg
@@ -362,7 +365,9 @@ instance ToText TestsLog where
                     , T.unwords (T.pack . show <$> ps)
                     ]
             ]
-        MsgServerError e -> T.pack (show e)
+        MsgServerError e
+            | isAsyncException e -> "Server thread cancelled"
+            | otherwise -> T.pack (show e)
 
 instance HasPrivacyAnnotation TestsLog
 instance HasSeverityAnnotation TestsLog where
@@ -372,7 +377,9 @@ instance HasSeverityAnnotation TestsLog where
         MsgBaseUrl {} -> Notice
         MsgCluster msg -> getSeverityAnnotation msg
         MsgPoolGarbageCollectionEvent _ -> Info
-        MsgServerError{} -> Critical
+        MsgServerError e
+            | isAsyncException e -> Info
+            | otherwise -> Critical
 
 withTracers
     :: FilePath
@@ -393,7 +400,7 @@ withTracers testDir action = do
         ekgEnabled >>= flip when (EKG.plugin cfg walTr sb >>= loadPlugin sb)
         withLogging testLogOutputs $ \(_, (_, testTr)) -> do
             let trTests = appendName "integration" testTr
-            let tracers = setupTracers (tracerSeverities (Just Info)) walTr
+            let tracers = setupTracers (tracerSeverities (Just Debug)) walTr
             action (trMessageText trTests, tracers)
 
 bracketTracer' :: Tracer IO TestsLog -> Text -> IO a -> IO a

@@ -95,6 +95,7 @@
           (hsPkgs."text-class" or (errorHandler.buildDepError "text-class"))
           (hsPkgs."time" or (errorHandler.buildDepError "time"))
           (hsPkgs."tls" or (errorHandler.buildDepError "tls"))
+          (hsPkgs."tracer-transformers" or (errorHandler.buildDepError "tracer-transformers"))
           (hsPkgs."transformers" or (errorHandler.buildDepError "transformers"))
           (hsPkgs."typed-protocols" or (errorHandler.buildDepError "typed-protocols"))
           (hsPkgs."unliftio" or (errorHandler.buildDepError "unliftio"))

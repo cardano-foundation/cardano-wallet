@@ -228,7 +228,7 @@ main = withLocalClusterSetup $ \dir clusterLogs walletLogs ->
         withLoggingNamed "cardano-wallet" logs $ \(sb, (cfg, tr)) -> do
             ekgEnabled >>= flip when (EKG.plugin cfg tr sb >>= loadPlugin sb)
 
-            let tracers = setupTracers (tracerSeverities (Just Info)) tr
+            let tracers = setupTracers (tracerSeverities (Just Debug)) tr
             let db = dir </> "wallets"
             createDirectory db
             listen <- walletListenFromEnv

@@ -198,7 +198,7 @@ import System.IO
 import UnliftIO.Concurrent
     ( forkIO, threadDelay )
 import UnliftIO.Exception
-    ( bracket, evaluate, throwIO )
+    ( bracket, evaluate, throwString )
 import UnliftIO.Temporary
     ( withSystemTempFile )
 
@@ -750,8 +750,9 @@ waitForNodeSync
 waitForNodeSync tr nw = loop 10
   where
     loop :: Int -> IO SlotNo
-    loop retries = runExceptT (currentNodeTip nw) >>= \case
-        Right nodeTip -> do
+    loop retries = do
+        nodeTip <- currentNodeTip nw
+        if slotNo nodeTip /= 0 then do
             let tolerance = mkSyncTolerance 300
             let ti = neverFails "syncProgress never forecasts into the future"
                     $ timeInterpreter nw
@@ -764,12 +765,13 @@ waitForNodeSync tr nw = loop 10
                     -- 2 seconds poll interval
                     threadDelay 2000000
                     loop retries
-        Left e | retries > 0 -> do
-                     let delay = 15000000
-                     traceWith tr $ MsgRetryShortly delay
-                     threadDelay delay
-                     loop (retries - 1)
-               | otherwise -> throwIO e
+        else
+            if retries > 0 then do
+                 let delay = 15000000
+                 traceWith tr $ MsgRetryShortly delay
+                 threadDelay delay
+                 loop (retries - 1)
+            else throwString "Gave up waitForNodeSync"
 
 data BenchmarkLog (n :: NetworkDiscriminant)
     = MsgNodeTipTick BlockHeader SyncProgress

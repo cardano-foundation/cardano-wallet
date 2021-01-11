@@ -17,7 +17,7 @@ steps:
 
   - label: 'Stack Rebuild'
     command:
-      - "mkdir -p $TESTS_LOGDIR"
+      - "rm -rf $TESTS_LOGDIR && mkdir $TESTS_LOGDIR"
       - "nix-build .buildkite/default.nix -o sr"
       - "./sr/bin/rebuild --build-dir=$BUILD_DIR --cache-dir=$CACHE_DIR"
     timeout_in_minutes: 120

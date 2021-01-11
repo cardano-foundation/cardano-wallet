@@ -227,8 +227,8 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.DB
     ( DBFactory (..) )
 import Cardano.Wallet.Network
-    ( ErrCurrentNodeTip (..)
-    , ErrNetworkUnavailable (..)
+    ( ErrNetworkUnavailable (..)
+    , ErrStakeDistribution (..)
     , NetworkLayer
     , timeInterpreter
     )
@@ -1746,14 +1746,14 @@ getNetworkInformation
     => SyncTolerance
     -> NetworkLayer IO Block
     -> Handler ApiNetworkInformation
-getNetworkInformation st nl = do
-    now <- liftIO $ currentRelativeTime ti
-    nodeTip <- liftHandler (NW.currentNodeTip nl)
-    apiNodeTip <- liftIO $ makeApiBlockReferenceFromHeader
+getNetworkInformation st nl = liftIO $ do
+    now <- currentRelativeTime ti
+    nodeTip <- NW.currentNodeTip nl
+    apiNodeTip <- makeApiBlockReferenceFromHeader
         (neverFails "node tip is within safe-zone" $ timeInterpreter nl)
         nodeTip
-    nowInfo <- liftIO $ runMaybeT $ networkTipInfo now
-    progress <- liftIO $ syncProgress
+    nowInfo <- runMaybeT $ networkTipInfo now
+    progress <- syncProgress
             st
             (neverFails "syncProgress" $ timeInterpreter nl)
             nodeTip
@@ -2662,15 +2662,6 @@ instance LiftHandler ErrNoSuchTransaction where
                 , toText tid
                 ]
 
-instance LiftHandler ErrCurrentNodeTip where
-    handler = \case
-        ErrCurrentNodeTipNetworkUnreachable e -> handler e
-        ErrCurrentNodeTipNotFound -> apiError err503 NetworkTipNotFound $ mconcat
-            [ "I couldn't get the current network tip at the moment. It's "
-            , "probably because the node is down or not started yet. Retrying "
-            , "in a bit might give better results!"
-            ]
-
 instance LiftHandler ErrSelectForDelegation where
     handler = \case
         ErrSelectForDelegationNoSuchWallet e -> handler e
@@ -2799,8 +2790,17 @@ instance LiftHandler ErrWithdrawalNotWorth where
 
 instance LiftHandler ErrListPools where
     handler = \case
-        ErrListPoolsNetworkError e -> handler e
+        ErrListPoolsQueryFailed e -> handler e
         ErrListPoolsPastHorizonException e -> handler e
+
+instance LiftHandler ErrStakeDistribution where
+    handler = \case
+        ErrStakeDistributionQuery _e ->
+            apiError err503 NetworkQueryFailed $ mconcat
+                [ "Unable to query the ledger at the moment. "
+                , "This error has been logged. "
+                , "Trying again in a bit might work."
+                ]
 
 instance LiftHandler ErrSignMetadataWith where
     handler = \case
