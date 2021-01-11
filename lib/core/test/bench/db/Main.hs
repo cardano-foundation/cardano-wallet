@@ -221,10 +221,14 @@ main = withUtf8Encoding $ withLogging $ \trace -> do
         , withDB tr (bgroupReadUTxO mkOutputsCoin "UTxO ada-only (Read)")
         , withDB tr bgroupWriteSeqState
         , withDB tr bgroupWriteRndState
-        , withDB tr (bgroupWriteTxHistory mkOutputsCoin "TxHistory ada-only (Write)")
-        , withDB tr (bgroupReadTxHistory mkOutputsCoin "TxHistory ada-only (Read)")
-        , withDB tr (bgroupWriteTxHistory (mkOutputsToken 100 200) "TxHistory (Write)")
-        , withDB tr (bgroupReadTxHistory (mkOutputsToken 100 200) "TxHistory (Read)")
+        , withDB tr $ bgroupWriteTxHistory mkOutputsCoin
+            "TxHistory ada-only (Write)"
+        , withDB tr $ bgroupReadTxHistory mkOutputsCoin
+            "TxHistory ada-only (Read)"
+        , withDB tr $ bgroupWriteTxHistory (mkOutputsToken 100 200)
+            "TxHistory (Write)"
+        , withDB tr $ bgroupReadTxHistory (mkOutputsToken 100 200)
+            "TxHistory (Read)"
         ]
     putStrLn "\n--"
     utxoDiskSpaceTests tr
@@ -238,7 +242,11 @@ main = withUtf8Encoding $ withLogging $ \trace -> do
 --
 -- Currently the DBLayer will only store a single checkpoint (no rollback), so
 -- the #Checkpoints axis is a bit meaningless.
-bgroupWriteUTxO :: (Int -> Int -> [TxOut]) -> String -> DBLayerBench -> Benchmark
+bgroupWriteUTxO
+    :: (Int -> Int -> [TxOut])
+    -> String
+    -> DBLayerBench
+    -> Benchmark
 bgroupWriteUTxO mkOutputs gn db = bgroup gn
     -- A fragmented wallet will have a large number of UTxO. The coin
     -- selection algorithm tries to prevent fragmentation.
@@ -258,7 +266,11 @@ bgroupWriteUTxO mkOutputs gn db = bgroup gn
         benchPutUTxO mkOutputs n s . fst
       where lbl = n|+" CP x "+|s|+" UTxO"
 
-bgroupReadUTxO :: (Int -> Int -> [TxOut]) -> String -> DBLayerBench -> Benchmark
+bgroupReadUTxO
+    :: (Int -> Int -> [TxOut])
+    -> String
+    -> DBLayerBench
+    -> Benchmark
 bgroupReadUTxO mkOutputs gn db = bgroup gn
     --      #Checkpoints   UTxO Size
     [ bUTxO            1           0
@@ -459,7 +471,11 @@ mkRndAddresses numAddrs i =
 --
 -- - 50 inputs
 -- - 100 outputs
-bgroupWriteTxHistory :: (Int -> Int -> [TxOut]) -> String -> DBLayerBench -> Benchmark
+bgroupWriteTxHistory
+    :: (Int -> Int -> [TxOut])
+    -> String
+    -> DBLayerBench
+    -> Benchmark
 bgroupWriteTxHistory mkOutputs gn db = bgroup gn
     --                   #NTxs #NInputs #NOutputs  #SlotRange
     [ bTxHistory             1        1        1      [1..10]
@@ -484,7 +500,11 @@ bgroupWriteTxHistory mkOutputs gn db = bgroup gn
         inf = head r
         sup = last r
 
-bgroupReadTxHistory :: (Int -> Int -> [TxOut]) -> String -> DBLayerBench -> Benchmark
+bgroupReadTxHistory
+    :: (Int -> Int -> [TxOut])
+    -> String
+    -> DBLayerBench
+    -> Benchmark
 bgroupReadTxHistory mkOutputs gn db = bgroup gn
     --             #NTxs  #SlotRange  #SortOrder  #Status  #SearchRange
     [ bTxHistory    1000    [1..100]  Descending  Nothing  wholeRange
