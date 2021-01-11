@@ -480,7 +480,7 @@ prop_selectRandomSetMember_coversRangeUniformly i j =
         assert $ selected `Set.member` set
   where
     confidence = stdConfidence {tolerance = 0.99}
-    elementCount = greatest - smallest
+    elementCount = greatest - smallest + 1
     greatest = max i j
     inLowerHalf r = fromIntegral r % 1 <= midpoint
     inUpperHalf r = fromIntegral r % 1 >= midpoint
