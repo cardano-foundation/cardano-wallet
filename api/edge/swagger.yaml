@@ -2273,16 +2273,16 @@ x-errNetworkMisconfigured: &errNetworkMisconfigured
       enum: ['network_misconfigured']
 
 # TODO: Map this error to the place it belongs.
-x-errNetworkTipNotFound: &errNetworkTipNotFound
+x-errNetworkQueryFailed: &errNetworkQueryFailed
   <<: *responsesErr
-  title: network_tip_not_found
+  title: network_query_failed
   properties:
     message:
       type: string
-      description: May occur when the connection with the node is lost or not responding.
+      description: Occurs when a ledger query fails in an unexpected manner.
     code:
       type: string
-      enum: ['network_tip_not_found']
+      enum: ['network_query_failed']
 
 x-errCreatedInvalidTransaction: &errCreatedInvalidTransaction
   <<: *responsesErr
