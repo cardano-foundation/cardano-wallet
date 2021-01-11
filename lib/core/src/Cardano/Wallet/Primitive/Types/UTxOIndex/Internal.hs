@@ -154,9 +154,9 @@ instance NFData UTxOIndex
 --
 empty :: UTxOIndex
 empty = UTxOIndex
-    { index = mempty
-    , balance = mempty
-    , utxo = mempty
+    { index = Map.empty
+    , balance = TokenBundle.empty
+    , utxo = Map.empty
     }
 
 -- | Creates a singleton index from the specified input and output.
