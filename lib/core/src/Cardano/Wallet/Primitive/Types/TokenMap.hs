@@ -171,6 +171,35 @@ instance TypeError ('Text "Ord not supported for token maps")
         => Ord TokenMap where
     compare = error "Ord not supported for token maps"
 
+-- | Partial ordering for token maps.
+--
+-- There is no total ordering of token maps that's consistent with their
+-- arithmetic properties.
+--
+-- To see why this is true, consider how we might order the following maps:
+--
+--     >>> p = fromFlatList [(assetA, 2), (assetB, 1)]
+--     >>> q = fromFlatList [(assetA, 1), (assetB, 2)]
+--
+-- One possibility would be to use a lexicographic ordering, but this is not
+-- arithmetically useful.
+--
+-- Instead, we define a partial order, where map 'x' is less than or equal
+-- to map 'y' if (and only if):
+--
+--     - all the quantities in map 'x' are less than or equal to their
+--       corresponding quantities in map 'y';
+--
+--     - all the quantities in map 'y' are greater than or equal to their
+--       corresponding quantities in map 'x'.
+--
+-- For example, consider the following pair of maps:
+--
+--     >>> x = fromFlatList [(assetA, 1)]
+--     >>> y = fromFlatList [(assetA, 2), (assetB, 1)]
+--
+-- In the above example, map 'x' is strictly less than map 'y'.
+--
 instance PartialOrd TokenMap where
     m1 `leq` m2 = F.all
         (\a -> getQuantity m1 a <= getQuantity m2 a)
