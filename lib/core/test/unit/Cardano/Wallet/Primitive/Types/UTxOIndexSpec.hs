@@ -213,6 +213,11 @@ prop_toList_fromSequence u =
 
 prop_delete_balance :: TxIn -> UTxOIndex -> Property
 prop_delete_balance i u =
+    checkCoverage $
+    cover 30 (UTxOIndex.member i u)
+        "input is a member of the index" $
+    cover 30 (not $ UTxOIndex.member i u)
+        "input is not a member of the index" $
     UTxOIndex.balance (UTxOIndex.delete i u) === expected
   where
     expected = case UTxOIndex.lookup i u of
@@ -227,6 +232,11 @@ prop_delete_lookup i u =
 
 prop_delete_size :: TxIn -> UTxOIndex -> Property
 prop_delete_size i u =
+    checkCoverage $
+    cover 30 (UTxOIndex.member i u)
+        "input is a member of the index" $
+    cover 30 (not $ UTxOIndex.member i u)
+        "input is not a member of the index" $
     UTxOIndex.size (UTxOIndex.delete i u) === expected
   where
     expected = case UTxOIndex.lookup i u of
@@ -244,6 +254,11 @@ prop_insert_assets i o u =
 
 prop_insert_balance :: TxIn -> TxOut -> UTxOIndex -> Property
 prop_insert_balance i o u =
+    checkCoverage $
+    cover 30 (UTxOIndex.member i u)
+        "input is already a member of the index" $
+    cover 30 (not $ UTxOIndex.member i u)
+        "input is not already a member of the index" $
     UTxOIndex.balance (UTxOIndex.insert i o u) === expected
   where
     expected = view #tokens o `TokenBundle.add` case UTxOIndex.lookup i u of
@@ -254,6 +269,11 @@ prop_insert_balance i o u =
 
 prop_insert_delete :: TxIn -> TxOut -> UTxOIndex -> Property
 prop_insert_delete i o u =
+    checkCoverage $
+    cover 30 (UTxOIndex.member i u)
+        "input is already a member of the index" $
+    cover 30 (not $ UTxOIndex.member i u)
+        "input is not already a member of the index" $
     UTxOIndex.delete i (UTxOIndex.insert i o u) === expected
   where
     expected =
@@ -265,6 +285,11 @@ prop_insert_lookup i o u =
 
 prop_insert_size :: TxIn -> TxOut -> UTxOIndex -> Property
 prop_insert_size i o u =
+    checkCoverage $
+    cover 30 (UTxOIndex.member i u)
+        "input is already a member of the index" $
+    cover 30 (not $ UTxOIndex.member i u)
+        "input is not already a member of the index" $
     UTxOIndex.size (UTxOIndex.insert i o u) === expected
   where
     expected = case UTxOIndex.lookup i u of
