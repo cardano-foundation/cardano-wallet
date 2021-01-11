@@ -4,6 +4,10 @@ The metadata hash is part of the transaction body, so is covered by all transact
 
 The cardano-wallet API server uses a JSON representation of transaction metadata, isomorphic to the binary encoding on chain.
 
+:warning: **WARNING** :warning: 
+
+_Please note that metadata provided in a transaction will be stored on the blockchain forever. Make sure not to include any sensitive data, in particular personally identifiable information (PII)._
+
 ## Metadata structure on chain
 
 The **top level** is a map from metadata keys to metadata values.
