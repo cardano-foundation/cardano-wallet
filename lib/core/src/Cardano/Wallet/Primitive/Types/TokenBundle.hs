@@ -21,6 +21,7 @@ module Cardano.Wallet.Primitive.Types.TokenBundle
     , AssetId (..)
 
     -- * Construction
+    , empty
     , fromFlatList
     , fromNestedList
 
