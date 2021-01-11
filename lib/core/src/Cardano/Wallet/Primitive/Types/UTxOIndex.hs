@@ -1,5 +1,5 @@
 -- |
--- Copyright: © 2018-2020 IOHK
+-- Copyright: © 2018-2021 IOHK
 -- License: Apache-2.0
 --
 -- Provides the 'UTxOIndex' type, which stores a UTxO set indexed by asset ID.

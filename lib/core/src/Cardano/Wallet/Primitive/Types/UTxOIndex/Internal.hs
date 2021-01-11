@@ -3,7 +3,7 @@
 {-# LANGUAGE OverloadedLabels #-}
 
 -- |
--- Copyright: © 2018-2020 IOHK
+-- Copyright: © 2018-2021 IOHK
 -- License: Apache-2.0
 --
 -- Provides internal functions for the 'UTxOIndex' type, which stores a UTxO
