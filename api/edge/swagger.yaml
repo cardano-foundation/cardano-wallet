@@ -796,6 +796,12 @@ x-transactionStatus: &transactionStatus
 
 x-transactionMetadata: &transactionMetadata
   description: |
+    **⚠️ WARNING ⚠️**
+
+    _Please note that metadata provided in a transaction will be
+    stored on the blockchain forever. Make sure not to include any sensitive data,
+    in particular personally identifiable information (PII)._
+
     Extra application data attached to the transaction.
 
     Cardano allows users and developers to embed their own
