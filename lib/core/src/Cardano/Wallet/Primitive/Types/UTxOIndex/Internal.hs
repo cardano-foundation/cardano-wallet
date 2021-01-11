@@ -397,10 +397,16 @@ selectRandomSetMember s
 --
 data InvariantStatus
     = InvariantHolds
+      -- ^ Indicates a successful check of the invariant.
     | InvariantBalanceError BalanceError
+      -- ^ Indicates that the cached 'balance' value is incorrect.
     | InvariantIndexIncomplete
+      -- ^ Indicates that the 'index' is missing one or more entries.
     | InvariantIndexNonMinimal
+      -- ^ Indicates that the 'index' has one or more unnecessary entries.
     | InvariantAssetsInconsistent
+      -- ^ Indicates that the 'index' and the cached 'balance' value disagree
+      --   about which assets are included.
     deriving (Eq, Show)
 
 -- | Checks whether or not the invariant holds.
@@ -421,14 +427,14 @@ checkInvariant u
     balanceStatus = checkBalance u
     BalanceIncorrect balanceError = balanceStatus
 
--- | Indicates whether on not the stored balance is correct.
+-- | Indicates whether on not the stored 'balance' value is correct.
 --
 data BalanceStatus
     = BalanceCorrect
     | BalanceIncorrect BalanceError
     deriving (Eq, Show)
 
--- | Indicates that the stored balance is not correct.
+-- | Indicates that the stored 'balance' value is not correct.
 --
 data BalanceError = BalanceError
     { balanceComputed
@@ -451,8 +457,8 @@ checkBalance u
     balanceComputed = F.foldMap (view #tokens) (utxo u)
     balanceStored = balance u
 
--- | Checks that every entry in the UTxO has a corresponding set of entries in
---   the index.
+-- | Checks that every entry in the 'utxo' map has a corresponding set of
+--   entries in the 'index'.
 --
 indexIsComplete :: UTxOIndex -> Bool
 indexIsComplete u = F.all entryIndexed $ Map.toList $ utxo u
@@ -467,7 +473,8 @@ indexIsComplete u = F.all entryIndexed $ Map.toList $ utxo u
             Nothing -> False
             Just is -> NonEmptySet.member i is
 
--- | Checks that every entry in the index is required by some entry in the UTxO.
+-- | Checks that every entry in the 'index' is required by some entry in the
+--   'utxo' map.
 --
 indexIsMinimal :: UTxOIndex -> Bool
 indexIsMinimal u = F.all assetIsMinimal $ Map.toList $ index u
@@ -485,7 +492,7 @@ indexIsMinimal u = F.all assetIsMinimal $ Map.toList $ index u
                 Set.member asset $ TokenBundle.getAssets $ view #tokens o
 
 -- | Checks that the set of assets in the cached 'balance' is equal to the set
---   of assets in the index.
+--   of assets in the 'index'.
 --
 assetsConsistent :: UTxOIndex -> Bool
 assetsConsistent u =
