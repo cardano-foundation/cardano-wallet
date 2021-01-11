@@ -132,6 +132,8 @@ spec =
 
     parallel $ describe "Index Selection" $ do
 
+        it "prop_SelectionFilter_coverage" $
+            property prop_SelectionFilter_coverage
         it "prop_selectRandom_empty" $
             property prop_selectRandom_empty
         it "prop_selectRandom_singleton" $
@@ -301,6 +303,21 @@ prop_insert_size i o u =
 --------------------------------------------------------------------------------
 -- Index selection properties
 --------------------------------------------------------------------------------
+
+prop_SelectionFilter_coverage :: SelectionFilter -> Property
+prop_SelectionFilter_coverage selectionFilter = checkCoverage $ property
+    $ cover 30 selectionFilterAny
+        "selectionFilter: Any"
+    $ cover 30 selectionFilterWithAsset
+        "selectionFilter: WithAsset"
+    True
+  where
+    selectionFilterAny = case selectionFilter of
+        Any -> True
+        _   -> False
+    selectionFilterWithAsset = case selectionFilter of
+        WithAsset _ -> True
+        _           -> False
 
 -- | Attempt to select a random entry from an empty index.
 --
