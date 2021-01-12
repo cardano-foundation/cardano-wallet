@@ -217,6 +217,7 @@
             (hsPkgs."random" or (errorHandler.buildDepError "random"))
             (hsPkgs."temporary" or (errorHandler.buildDepError "temporary"))
             (hsPkgs."text" or (errorHandler.buildDepError "text"))
+            (hsPkgs."text-class" or (errorHandler.buildDepError "text-class"))
             (hsPkgs."time" or (errorHandler.buildDepError "time"))
             (hsPkgs."transformers" or (errorHandler.buildDepError "transformers"))
             (hsPkgs."unliftio" or (errorHandler.buildDepError "unliftio"))
