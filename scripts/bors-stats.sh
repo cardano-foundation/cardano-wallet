@@ -57,7 +57,7 @@ DATA=$(echo $QUERY \
           | . + {succeded: (.bodyText | contains("Build succeeded"))}
 
           # Extract lines starting with # as tags. Mostly for linking to issues.
-          | . + {tags: (.bodyText | split("\n") | map (select(startswith("#"))) | map(split(" ") | .[0]) )}
+          | . + {tags: (.bodyText | split("\n") | map (select(startswith("#") or startswith("ADP-"))) | map(split(" ") | .[0]) )}
         )
       ')
 
