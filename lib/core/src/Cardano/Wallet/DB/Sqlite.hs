@@ -1651,7 +1651,7 @@ mkTxMetaEntity wid txid mfee meta derived = TxMeta
     , txMetaAmount = getQuantity (derived ^. #amount)
     , txMetaFee = fromIntegral . W.unCoin <$> mfee
     , txMetaSlotExpires = derived ^. #expiry
-    , txMetaData = meta
+    , txMetadata = meta
     }
 
 -- note: TxIn records must already be sorted by order
@@ -1669,7 +1669,7 @@ txHistoryFromEntity ti tip metas ins outs ws =
     mapM mkItem metas
   where
     startTime' = interpretQuery ti . slotToUTCTime
-    mkItem m = mkTxWith (txMetaTxId m) (txMetaFee m) (txMetaData m) (mkTxDerived m)
+    mkItem m = mkTxWith (txMetaTxId m) (txMetaFee m) (txMetadata m) (mkTxDerived m)
     mkTxWith txid mfee meta derived = do
         t <- startTime' (derived ^. #slotNo)
         return $ W.TransactionInfo

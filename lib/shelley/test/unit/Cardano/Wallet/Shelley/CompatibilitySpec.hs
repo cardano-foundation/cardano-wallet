@@ -45,20 +45,26 @@ import Cardano.Wallet.Primitive.Types
     ( DecentralizationLevel (..), SlotId (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
+import Cardano.Wallet.Primitive.Types.Coin
+    ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..) )
+import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
+    ( genTokenBundleSmallRange, shrinkTokenBundleSmallRange )
 import Cardano.Wallet.Shelley.Compatibility
     ( CardanoBlock
     , StandardCrypto
     , decentralizationLevelFromPParams
+    , fromCardanoValue
     , fromTip
     , inspectAddress
     , interval0
     , interval1
     , invertUnitInterval
     , toCardanoHash
+    , toCardanoValue
     , toPoint
     )
 import Cardano.Wallet.Unsafe
@@ -115,6 +121,7 @@ import qualified Cardano.Ledger.Shelley as SL
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Byron as Byron
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Shelley
 import qualified Cardano.Wallet.Primitive.Types as W
+import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Codec.Binary.Bech32 as Bech32
 import qualified Data.ByteString as BS
 import qualified Data.Text.Encoding as T
@@ -144,7 +151,7 @@ spec = do
     describe "Shelley Addresses" $ do
         prop "(Mainnet) can be deserialised by shelley ledger spec" $ \k -> do
             let Address addr = paymentAddress @'Mainnet @ShelleyKey k
-            case SL.deserialiseAddr @(SL.ShelleyEra StandardCrypto) addr of
+            case SL.deserialiseAddr @StandardCrypto addr of
                 Just _ -> property True
                 Nothing -> property False
 
@@ -198,6 +205,14 @@ spec = do
                     & unDecentralizationLevel
                     & toText
             it title $ output `shouldBe` expectedOutput
+
+    describe "Cardano.Api.Value-TokenBundle conversion" $ do
+        it "roundtrips" $ checkCoverage $ property $ \tb ->
+            cover 20 (TokenBundle.getCoin tb /= Coin 0) "has ada" $
+            cover 2 (TokenBundle.getCoin tb == Coin 0) "has no ada" $
+            cover 10 (length (snd $ TokenBundle.toFlatList tb) > 3)
+                "has some assets" $
+            fromCardanoValue (toCardanoValue tb) === tb
 
     describe "Utilities" $ do
 
@@ -367,6 +382,10 @@ genMnemonic = do
 
 instance Show XPrv where
     show _ = "<xprv>"
+
+instance Arbitrary TokenBundle.TokenBundle where
+    arbitrary = genTokenBundleSmallRange
+    shrink = shrinkTokenBundleSmallRange
 
 --
 -- Helpers

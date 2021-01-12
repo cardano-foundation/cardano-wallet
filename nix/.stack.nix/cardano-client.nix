@@ -42,8 +42,8 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/ouroboros-network";
-      rev = "c2bd6814e231bfd48059f306ef486b830e524aa8";
-      sha256 = "0sjp5i4szp5nf1dkwang5w8pydjx5p22by8wisihs1410rxgwd7n";
+      rev = "4fdc309f855792ed30271c30dcd9159232404787";
+      sha256 = "1j03pzqw0n10m9af17q37b6l90x2qdajp30xjpv2247rwpgip31i";
       });
     postUnpack = "sourceRoot+=/cardano-client; echo source root reset to \$sourceRoot";
     }

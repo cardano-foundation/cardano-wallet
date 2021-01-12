@@ -104,6 +104,7 @@ import Cardano.Wallet.Primitive.Types.Coin
 import Cardano.Wallet.Shelley.Compatibility
     ( StandardCrypto
     , fromAllegraBlock
+    , fromMaryBlock
     , fromShelleyBlock
     , getProducer
     , toCardanoBlockHeader
@@ -590,8 +591,8 @@ monitorStakePools tr (NetworkParameters gp sp _pp) nl DBLayer{..} =
                 forEachShelleyBlock (fromShelleyBlock gp blk) (getProducer blk)
             BlockAllegra blk ->
                 forEachShelleyBlock (fromAllegraBlock gp blk) (getProducer blk)
-            BlockMary _blk ->
-                error "TODO: forAllBlocks, BlockMary"
+            BlockMary blk ->
+                forEachShelleyBlock (fromMaryBlock gp blk) (getProducer blk)
 
         forLastBlock = \case
             BlockByron blk ->

@@ -13,9 +13,6 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 
--- NOTE Temporary until we can fully enable the cluster
-{-# OPTIONS_GHC -fno-warn-unused-top-binds #-}
-
 -- |
 -- Copyright: © 2018-2020 IOHK
 -- License: Apache-2.0
@@ -84,7 +81,7 @@ import Cardano.BM.Data.Output
 import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
-    ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..), nullTracer )
+    ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.Chain.Genesis
     ( GenesisData (..), readGenesisData )
 import Cardano.CLI
@@ -97,8 +94,6 @@ import Cardano.Launcher.Node
     , NodePort (..)
     , withCardanoNode
     )
-import Cardano.Ledger.Shelley
-    ( ShelleyEra )
 import Cardano.Pool.Metadata
     ( SMASHPoolId (..) )
 import Cardano.Startup
@@ -113,25 +108,12 @@ import Cardano.Wallet.Network.Ports
     ( randomUnusedTCPPorts )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..), hex )
-import Cardano.Wallet.Primitive.Slotting
-    ( TimeInterpreter
-    , currentRelativeTime
-    , hoistTimeInterpreter
-    , interpretQuery
-    , mkTimeInterpreter
-    , timeUntilEpoch
-    )
 import Cardano.Wallet.Primitive.Types
     ( Block (..)
-    , EpochLength (unEpochLength)
     , EpochNo (..)
     , NetworkParameters (..)
     , PoolId (..)
     , ProtocolMagic (..)
-    , SlotLength (..)
-    , SlottingParameters (..)
-    , StartTime (..)
-    , stabilityWindowByron
     )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
@@ -152,7 +134,7 @@ import Control.Monad.Fail
 import Control.Monad.IO.Unlift
     ( MonadUnliftIO, liftIO )
 import Control.Monad.Trans.Except
-    ( ExceptT (..), runExceptT, withExceptT )
+    ( ExceptT (..), withExceptT )
 import Control.Retry
     ( constantDelay, limitRetriesByCumulativeDelay, retrying )
 import Control.Tracer
@@ -168,45 +150,31 @@ import Data.ByteString
 import Data.ByteString.Base58
     ( bitcoinAlphabet, decodeBase58 )
 import Data.Either
-    ( fromRight, isLeft, isRight )
-import Data.Fixed
-    ( Micro )
+    ( isLeft, isRight )
 import Data.Function
     ( (&) )
 import Data.Functor
     ( ($>), (<&>) )
-import Data.Functor.Identity
-    ( Identity (..) )
 import Data.List
     ( isInfixOf, isPrefixOf, nub, permutations, sort )
 import Data.Maybe
     ( catMaybes, fromMaybe, isJust )
 import Data.Proxy
     ( Proxy (..) )
-import Data.Quantity
-    ( getQuantity )
 import Data.Text
     ( Text )
 import Data.Text.Class
     ( FromText (..), TextDecodingError, ToText (..) )
 import Data.Time.Clock
-    ( NominalDiffTime, UTCTime, addUTCTime, getCurrentTime )
+    ( UTCTime, addUTCTime, getCurrentTime )
 import Data.Time.Clock.POSIX
     ( posixSecondsToUTCTime, utcTimeToPOSIXSeconds )
-import Fmt
-    ( fmt, secondsF )
 import GHC.TypeLits
     ( KnownNat, Nat, SomeNat (..), someNatVal )
 import Options.Applicative
     ( Parser, eitherReader, flag', help, long, metavar, option, (<|>) )
-import Ouroboros.Consensus.BlockchainTime.WallClock.Types
-    ( RelativeTime (..), mkSlotLength )
-import Ouroboros.Consensus.Config.SecurityParam
-    ( SecurityParam (..) )
 import Ouroboros.Consensus.Shelley.Node
     ( sgNetworkMagic )
-import Ouroboros.Consensus.Util.Counting
-    ( exactlyTwo )
 import Ouroboros.Network.Magic
     ( NetworkMagic (..) )
 import Ouroboros.Network.NodeToClient
@@ -249,7 +217,6 @@ import UnliftIO.Temporary
 
 import qualified Cardano.Chain.Common as Byron
 import qualified Cardano.Chain.UTxO as Legacy
-import qualified Cardano.Slotting.Slot as Cardano
 import qualified Cardano.Wallet.Byron.Compatibility as Byron
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Shelley.Compatibility as Shelley
@@ -265,9 +232,6 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.Vector as V
 import qualified Data.Yaml as Yaml
-import qualified Ouroboros.Consensus.HardFork.History.EraParams as HF
-import qualified Ouroboros.Consensus.HardFork.History.Qry as HF
-import qualified Ouroboros.Consensus.HardFork.History.Summary as HF
 
 -- | Shelley hard fork network configuration has two genesis datas.
 -- As a special case for mainnet, we hardcode the byron genesis data.
@@ -363,7 +327,7 @@ parseGenesisData = \case
         let nm = NetworkMagic $ fromIntegral $ W.getProtocolMagic W.mainnetMagic
         let mainnetVersionData =
                 ( NodeToClientVersionData nm
-                , nodeToClientCodecCBORTerm NodeToClientV_5
+                , nodeToClientCodecCBORTerm NodeToClientV_6
                 )
         pure
             ( SomeNetworkDiscriminant $ Proxy @'Mainnet
@@ -589,17 +553,11 @@ withCluster
     -> FilePath
     -- ^ Parent state directory for cluster
     -> Maybe (FilePath, Severity)
-    -> (RunningNode -> IO ())
-    -- ^ Action to run when the Byron BFT node is up
-    -> (RunningNode -> IO ())
-    -- ^ Action to run when we have transitioned to the Shelley era.
-    --
-    -- Can be used to transfer byron faucet funds to shelley faucets.
     -> (RunningNode -> IO a)
-    -- ^ Action to run when we have transitioned to the Allegra era and
-    -- stake pools are running
+    -- ^ Action to run once we have transitioned to the Allegra era and cluster
+    -- nodes (stake pools and bft) are running.
     -> IO a
-withCluster tr severity poolConfigs dir logFile onByron onShelley onClusterStart =
+withCluster tr severity poolConfigs dir logFile onClusterStart =
     bracketTracer' tr "withCluster" $ do
         traceWith tr $ MsgStartingCluster dir
         let poolCount = length poolConfigs
@@ -607,13 +565,8 @@ withCluster tr severity poolConfigs dir logFile onByron onShelley onClusterStart
         systemStart <- addUTCTime 1 <$> getCurrentTime
         let bftCfg = NodeParams severity systemStart (head $ rotate ports) logFile
         withBFTNode tr dir bftCfg $ \bftSocket block0 params -> do
-            let runningBftNode = RunningNode bftSocket block0 params
-            waitForSocket tr bftSocket *> onByron runningBftNode
-            ti <- timeInterpreterFromTestingConfig (fst params) dir
-            waitForEpoch 1 "Shelley" tr ti
-            onShelley runningBftNode
+            waitForSocket tr bftSocket
 
-            setEnv "CARDANO_NODE_SOCKET_PATH" bftSocket
             (rawTx, faucetPrv) <- prepareKeyRegistration tr dir
             tx <- signTx tr dir rawTx [faucetPrv]
             submitTx tr "pre-registered stake key" tx
@@ -659,7 +612,6 @@ withCluster tr severity poolConfigs dir logFile onByron onShelley onClusterStart
                     ("cluster didn't start correctly: " <> errors)
                     (ExitFailure 1)
             else do
-                waitForEpoch 3 "Allegra" tr ti
                 let cfg = NodeParams severity systemStart (port0, ports) logFile
                 withRelayNode tr dir cfg $ \socket -> do
                     let runningRelay = RunningNode socket block0 params
@@ -940,45 +892,6 @@ withSMASH parentDir action = do
 
     withStaticServer staticDir action
 
-updateVersion :: Tracer IO ClusterLog -> FilePath -> IO ()
-updateVersion tr tmpDir = do
-    let updatePath = tmpDir </> "update-proposal"
-    let votePath = tmpDir </> "update-vote"
-    let network = "--mainnet"
-    source <- getShelleyTestDataPath
-    void $ cli tr
-        [ "byron", "create-update-proposal"
-        , "--filepath", updatePath
-        , network
-        , "--signing-key", source </> "bft-leader.byron.skey"
-        , "--protocol-version-major", "1"
-        , "--protocol-version-minor", "0"
-        , "--protocol-version-alt", "0"
-        , "--application-name", "cardano-sl"
-        , "--software-version-num", "1"
-        , "--system-tag", "linux"
-        , "--installer-hash", "0"
-        ]
-    void $ cli tr
-        [ "byron", "create-proposal-vote"
-        , "--proposal-filepath", updatePath
-        , network
-        , "--signing-key", source </> "bft-leader.byron.skey"
-        , "--vote-yes"
-        , "--output-filepath", votePath
-        ]
-
-    void $ cli tr
-        [ "byron", "submit-update-proposal"
-        , network
-        , "--filepath", updatePath
-        ]
-    void $ cli tr
-        [ "byron", "submit-proposal-vote"
-        , network
-        , "--filepath", votePath
-        ]
-
 withCardanoNodeProcess
     :: Tracer IO ClusterLog
     -> String
@@ -1065,7 +978,7 @@ genConfig dir severity mExtraLogFile systemStart = do
     let shelleyParams = fst $ Shelley.fromGenesisData shelleyGenesis []
     let versionData =
             ( NodeToClientVersionData $ NetworkMagic networkMagic
-            , nodeToClientCodecCBORTerm NodeToClientV_5
+            , nodeToClientCodecCBORTerm NodeToClientV_6
             )
 
     pure
@@ -1282,6 +1195,7 @@ preparePoolRegistration tr dir stakePub certs pledgeAmt = do
         , "--ttl", "400"
         , "--fee", show (faucetAmt - pledgeAmt - depositAmt)
         , "--out-file", file
+        , cardanoCliEra
         ] ++ mconcat ((\cert -> ["--certificate-file",cert]) <$> certs)
 
     pure (file, faucetPrv)
@@ -1309,6 +1223,7 @@ sendFaucetFundsTo tr dir allTargets = do
             , "--ttl", "600"
             , "--fee", show (faucetAmt - total)
             , "--out-file", file
+            , cardanoCliEra
             ] ++ outputs
 
         tx <- signTx tr dir file [faucetPrv]
@@ -1345,6 +1260,7 @@ moveInstantaneousRewardsTo tr dir targets = do
         , "--fee", show (faucetAmt - 1_000_000 - totalDeposit)
         , "--tx-out", sink <> "+" <> "1000000"
         , "--out-file", file
+        , cardanoCliEra
         ] ++ concatMap (\x -> ["--certificate-file", x]) (mconcat certs)
 
     testData <- getShelleyTestDataPath
@@ -1407,6 +1323,7 @@ prepareKeyRegistration tr dir = do
         , "--fee", show (faucetAmt - depositAmt - 1_000_000)
         , "--certificate-file", cert
         , "--out-file", file
+        , cardanoCliEra
         ]
     pure (file, faucetPrv)
 
@@ -1486,7 +1403,7 @@ waitUntilRegistered tr name opPub = do
     (exitCode, distribution, err) <- readProcessWithExitCode "cardano-cli"
         [ "query", "stake-distribution"
         , "--mainnet"
-        , "--cardano-mode"
+        , cardanoCliEra
         ] mempty
     traceWith tr $ MsgStakeDistribution name exitCode distribution err
     unless (poolId `isInfixOf` distribution) $ do
@@ -1631,6 +1548,9 @@ operators = unsafePerformIO $ newMVar
       )
     ]
 {-# NOINLINE operators #-}
+
+cardanoCliEra :: String
+cardanoCliEra = "--mary-era"
 
 -- | A public stake key associated with a mnemonic that we pre-registered for
 -- STAKE_POOLS_JOIN_05.
@@ -1791,7 +1711,6 @@ envFromText = liftIO . fmap (fmap (fromText . T.pack)) . lookupEnv
 
 data ClusterLog
     = MsgRegisteringStakePools Int -- ^ How many pools
-    | MsgWaitingForEpoch NominalDiffTime EpochNo Text
     | MsgStartingCluster FilePath
     | MsgLauncher String LauncherLog
     | MsgStartedStaticServer String FilePath
@@ -1811,15 +1730,6 @@ instance ToText ClusterLog where
     toText = \case
         MsgStartingCluster dir ->
             "Configuring cluster in " <> T.pack dir
-        MsgWaitingForEpoch dt (EpochNo e) thing -> mconcat
-            [ "Waiting "
-            , fmt (secondsF 1 dt) <> "s"
-            , " to reach "
-            , thing
-            , " at epoch "
-            , T.pack (show e)
-            , "..."
-            ]
         MsgRegisteringStakePools 0 -> mconcat
                 [ "Not registering any stake pools due to "
                 , "NO_POOLS=1. Some tests may fail."
@@ -1865,7 +1775,6 @@ instance HasSeverityAnnotation ClusterLog where
     getSeverityAnnotation = \case
         MsgStartingCluster _ -> Notice
         MsgRegisteringStakePools _ -> Notice
-        MsgWaitingForEpoch{} -> Notice
         MsgLauncher _ _ -> Info
         MsgStartedStaticServer _ _ -> Info
         MsgTempDir msg -> getSeverityAnnotation msg
@@ -1900,69 +1809,3 @@ instance HasSeverityAnnotation TempDirLog where
 
 bracketTracer' :: Tracer IO ClusterLog -> Text -> IO a -> IO a
 bracketTracer' tr name = bracketTracer (contramap (MsgBracket name) tr)
-
--- | Wait until the given epoch starts.
-waitForEpoch
-    :: EpochNo -- ^ Epoch (start) to wait for.
-    -> Text -- ^ Thing we're waiting for (for log message).
-    -> Tracer IO ClusterLog
-    -> TimeInterpreter Identity
-    -> IO ()
-waitForEpoch e thing tr ti = do
-    now <- currentRelativeTime ti
-    let delta = runIdentity $ interpretQuery ti (timeUntilEpoch e now)
-    traceWith tr $ MsgWaitingForEpoch delta e thing
-    threadDelay . fromIntegral . fromEnum $ realToFrac @_ @Micro delta
-
--- | Return a TimeInterpreter based on the genesis files in the cluster setup
--- directory.
---
--- Assumes era parameters are changed at the shelley fork at epoch 1, but that
--- they are not changed further.
---
--- The purpose is to concentrate the assumions about test cluster slotting to
--- one place, and allow us existing @TimeInterpreter@ queries with it.
-timeInterpreterFromTestingConfig
-    :: NetworkParameters  -- ^ Genesis parameters
-    -> FilePath -- ^ Config dir
-    -> IO (TimeInterpreter Identity)
-timeInterpreterFromTestingConfig genesisParams dir = do
-    (shelleyGenesis :: ShelleyGenesis (ShelleyEra Shelley.StandardCrypto))
-        <- either fail pure
-        =<< Aeson.eitherDecodeFileStrict
-        (dir </> "bft" </> "shelley-genesis.json")
-
-    let startTime = StartTime $ sgSystemStart shelleyGenesis
-
-    let sp = slottingParameters genesisParams
-    let byronSl = unSlotLength $ getSlotLength sp
-    let byronEl = getEpochLength sp
-    let byronSlotLength = unSlotLength $ getSlotLength sp
-    let byronK = SecurityParam $ getQuantity $ stabilityWindowByron sp
-    let byronParams = HF.defaultEraParams byronK (mkSlotLength byronSl)
-
-    let shelleyEl = sgEpochLength shelleyGenesis
-    let shelleyK = SecurityParam $ sgSecurityParam shelleyGenesis
-    let shelleySl = sgSlotLength shelleyGenesis
-    let shelleyParams = (HF.defaultEraParams shelleyK (mkSlotLength shelleySl))
-            { HF.eraEpochSize = shelleyEl }
-
-    let shelleyFork = HF.Bound
-            (RelativeTime
-                (fromRational (toRational $ unEpochLength byronEl)
-                * byronSlotLength))
-            (W.SlotNo $ fromIntegral $ unEpochLength byronEl)
-            (Cardano.EpochNo 1)
-
-    let summary = HF.summaryWithExactly $ exactlyTwo
-             (HF.EraSummary HF.initBound (HF.EraEnd shelleyFork) byronParams)
-             (HF.EraSummary shelleyFork (HF.EraUnbounded) shelleyParams)
-
-    return $ hoistTimeInterpreter neverFails' $ mkTimeInterpreter
-        nullTracer
-        startTime
-        (pure @Identity $ HF.mkInterpreter summary)
-  where
-    neverFails' =
-        fmap (fromRight (error "timeInterpreterFromTestingConfig shouldn't fail"))
-        . runExceptT

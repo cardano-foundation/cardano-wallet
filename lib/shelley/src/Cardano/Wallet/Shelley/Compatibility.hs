@@ -57,6 +57,7 @@ module Cardano.Wallet.Shelley.Compatibility
     , toCardanoTxIn
     , toShelleyTxOut
     , toAllegraTxOut
+    , toMaryTxOut
     , toCardanoLovelace
     , sealShelleyTx
     , toStakeKeyRegCert
@@ -68,6 +69,8 @@ module Cardano.Wallet.Shelley.Compatibility
     , fromShelleyCoin
     , toHDPayloadAddress
     , toCardanoStakeCredential
+    , toCardanoValue
+    , fromCardanoValue
 
       -- ** Stake pools
     , fromPoolId
@@ -99,6 +102,8 @@ module Cardano.Wallet.Shelley.Compatibility
     , fromShelleyBlock
     , fromAllegraBlock
     , slottingParametersFromGenesis
+    , fromMaryBlock
+    , fromMaryTx
 
       -- * Internal Conversions
     , decentralizationLevelFromPParams
@@ -116,8 +121,6 @@ import Cardano.Address
     ( unsafeMkAddress )
 import Cardano.Address.Derivation
     ( XPub, xpubPublicKey )
-import Cardano.Api.Shelley
-    ( fromShelleyMetaData )
 import Cardano.Api.Shelley.Genesis
     ( ShelleyGenesis (..) )
 import Cardano.Api.Typed
@@ -125,10 +128,12 @@ import Cardano.Api.Typed
     , AnyCardanoEra (..)
     , AsType (..)
     , CardanoEra (..)
+    , MaryEra
     , NetworkId
     , ShelleyEra
     , StandardShelley
     , deserialiseFromRawBytes
+    , fromShelleyMetadata
     )
 import Cardano.Binary
     ( fromCBOR, serialize' )
@@ -252,6 +257,7 @@ import Type.Reflection
     ( Typeable, typeRep )
 
 import qualified Cardano.Address.Style.Shelley as CA
+import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Api.Typed as Cardano
 import qualified Cardano.Byron.Codec.Cbor as CBOR
 import qualified Cardano.Chain.Common as Byron
@@ -260,7 +266,7 @@ import qualified Cardano.Ledger.Crypto as SL
 import qualified Cardano.Ledger.Shelley as SL
 import qualified Cardano.Ledger.Shelley.Constraints as SL
 import qualified Cardano.Ledger.ShelleyMA as MA
-import qualified Cardano.Ledger.ShelleyMA.Metadata as MA
+import qualified Cardano.Ledger.ShelleyMA.AuxiliaryData as MA
 import qualified Cardano.Ledger.ShelleyMA.TxBody as MA
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Address as W
@@ -268,6 +274,8 @@ import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.RewardAccount as W
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
+import qualified Cardano.Wallet.Primitive.Types.TokenPolicy as W
+import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as W
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Codec.Binary.Bech32 as Bech32
 import qualified Codec.Binary.Bech32.TH as Bech32
@@ -280,6 +288,7 @@ import qualified Data.ByteString.Short as SBS
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Text.Encoding as T
+import qualified Data.Text.Encoding.Error as T
 import qualified Ouroboros.Consensus.Shelley.Ledger as O
 import qualified Ouroboros.Network.Block as O
 import qualified Ouroboros.Network.Point as Point
@@ -292,6 +301,8 @@ import qualified Shelley.Spec.Ledger.UTxO as SL
 
 type NodeVersionData =
     (NodeToClientVersionData, CodecCBORTerm Text NodeToClientVersionData)
+
+
 
 --------------------------------------------------------------------------------
 --
@@ -349,7 +360,7 @@ mainnetVersionData =
         { networkMagic =
             NetworkMagic $ fromIntegral $ W.getProtocolMagic W.mainnetMagic
         }
-    , nodeToClientCodecCBORTerm NodeToClientV_5
+    , nodeToClientCodecCBORTerm NodeToClientV_6
     )
 
 -- | Settings for configuring a TestNet network client
@@ -361,7 +372,7 @@ testnetVersionData pm =
         { networkMagic =
             NetworkMagic $ fromIntegral $ W.getProtocolMagic pm
         }
-    , nodeToClientCodecCBORTerm NodeToClientV_5
+    , nodeToClientCodecCBORTerm NodeToClientV_6
     )
 
 --------------------------------------------------------------------------------
@@ -401,8 +412,8 @@ toCardanoBlockHeader gp = \case
         toShelleyBlockHeader (W.getGenesisBlockHash gp) blk
     BlockAllegra blk ->
         toShelleyBlockHeader (W.getGenesisBlockHash gp) blk
-    BlockMary _blk ->
-        error "FIXME: toCardanoBlockHeader, BlockMary"
+    BlockMary blk ->
+        toShelleyBlockHeader (W.getGenesisBlockHash gp) blk
 
 toShelleyBlockHeader
     :: Era e
@@ -430,9 +441,8 @@ getProducer (ShelleyBlock (SL.Block (SL.BHeader header _) _) _) =
     fromPoolKeyHash $ SL.hashKey (SL.bheaderVk header)
 
 fromCardanoBlock
-    :: forall c. (SL.Crypto c)
-    => W.GenesisParameters
-    -> CardanoBlock c
+    :: W.GenesisParameters
+    -> CardanoBlock StandardCrypto
     -> W.Block
 fromCardanoBlock gp = \case
     BlockByron blk ->
@@ -441,8 +451,8 @@ fromCardanoBlock gp = \case
         fst $ fromShelleyBlock gp blk
     BlockAllegra blk ->
         fst $ fromAllegraBlock gp blk
-    BlockMary _blk ->
-        error "TODO: fromCardanoBlock, BlockMary"
+    BlockMary blk ->
+        fst $ fromMaryBlock gp blk
 
 toCardanoEra :: CardanoBlock c -> AnyCardanoEra
 toCardanoEra = \case
@@ -476,6 +486,23 @@ fromAllegraBlock
 fromAllegraBlock gp blk@(ShelleyBlock (SL.Block _ (SL.TxSeq txs')) _) =
     let
        (txs, dlgCerts, poolCerts) = unzip3 $ map fromAllegraTx $ toList txs'
+    in
+        ( W.Block
+            { header = toShelleyBlockHeader (W.getGenesisBlockHash gp) blk
+            , transactions = txs
+            , delegations  = mconcat dlgCerts
+            }
+        , mconcat poolCerts
+        )
+
+
+fromMaryBlock
+    :: W.GenesisParameters
+    -> ShelleyBlock (MA.ShelleyMAEra 'MA.Mary StandardCrypto)
+    -> (W.Block, [W.PoolCertificate])
+fromMaryBlock gp blk@(ShelleyBlock (SL.Block _ (SL.TxSeq txs')) _) =
+    let
+       (txs, dlgCerts, poolCerts) = unzip3 $ map fromMaryTx $ toList txs'
     in
         ( W.Block
             { header = toShelleyBlockHeader (W.getGenesisBlockHash gp) blk
@@ -647,7 +674,7 @@ slottingParametersFromGenesis g =
 fromGenesisData
     :: forall e crypto. (Era e, e ~ SL.ShelleyEra crypto)
     => ShelleyGenesis e
-    -> [(SL.Addr e, SL.Coin)]
+    -> [(SL.Addr crypto, SL.Coin)]
     -> (W.NetworkParameters, W.Block)
 fromGenesisData g initialFunds =
     ( W.NetworkParameters
@@ -677,7 +704,7 @@ fromGenesisData g initialFunds =
     -- The genesis data on haskell nodes is not a block at all, unlike the
     -- block0 on jormungandr. This function is a method to deal with the
     -- discrepancy.
-    genesisBlockFromTxOuts :: [(SL.Addr e, SL.Coin)] -> W.Block
+    genesisBlockFromTxOuts :: [(SL.Addr crypto, SL.Coin)] -> W.Block
     genesisBlockFromTxOuts outs = W.Block
         { delegations  = []
         , header = W.BlockHeader
@@ -705,7 +732,7 @@ fromGenesisData g initialFunds =
             Nothing
           where
             W.TxIn pseudoHash _ = fromShelleyTxIn $
-                SL.initialFundsPseudoTxIn @e addr
+                SL.initialFundsPseudoTxIn @crypto addr
 
 fromNetworkMagic :: NetworkMagic -> W.ProtocolMagic
 fromNetworkMagic (NetworkMagic magic) =
@@ -754,8 +781,8 @@ fromShelleyTxId :: SL.TxId crypto -> W.Hash "Tx"
 fromShelleyTxId (SL.TxId (UnsafeHash h)) = W.Hash $ fromShort h
 
 fromShelleyTxIn
-    :: Era era
-    => SL.TxIn era
+    :: SL.Crypto crypto
+    => SL.TxIn crypto
     -> W.TxIn
 fromShelleyTxIn (SL.TxIn txid ix) =
     W.TxIn (fromShelleyTxId txid) (unsafeCast ix)
@@ -773,7 +800,7 @@ fromShelleyTxOut (SL.TxOut addr amount) = W.TxOut
     (fromShelleyAddress addr)
     (TokenBundle.fromCoin $ fromShelleyCoin amount)
 
-fromShelleyAddress :: SL.Addr e -> W.Address
+fromShelleyAddress :: SL.Addr crypto -> W.Address
 fromShelleyAddress = W.Address
     . SL.serialiseAddr
 
@@ -795,7 +822,7 @@ fromShelleyTx
     :: ( SL.ShelleyBased era
        , SL.Core.TxBody era ~ SL.TxBody era
        , SL.Core.Value era ~ SL.Coin
-       , SL.Core.Metadata era ~ SL.MetaData
+       , SL.Core.AuxiliaryData era ~ SL.Metadata
        )
     => SL.Tx era
     -> ( W.Tx
@@ -820,7 +847,7 @@ fromAllegraTx
     :: ( SL.ShelleyBased era
        , SL.Core.TxBody era ~ MA.TxBody era
        , SL.Core.Value era ~ SL.Coin
-       , SL.Core.Metadata era ~ MA.Metadata era
+       , SL.Core.AuxiliaryData era ~ MA.AuxiliaryData era
        , Ord (SL.Core.Script era)
        )
     => SL.Tx era
@@ -845,16 +872,82 @@ fromAllegraTx tx =
     -- FIXME (ADP-525): It is fine for now since we do not look at script
     -- pre-images. But this is precisely what we want as part of the
     -- multisig/script balance reporting.
-    toSLMetadata (MA.Metadata blob _scripts) = SL.MetaData blob
+    toSLMetadata (MA.AuxiliaryData blob _scripts) = SL.Metadata blob
+
+fromMaryTx
+    :: SL.Tx (Cardano.ShelleyLedgerEra MaryEra)
+    -> ( W.Tx
+       , [W.DelegationCertificate]
+       , [W.PoolCertificate]
+       )
+fromMaryTx tx =
+    ( W.Tx
+        (fromShelleyTxId $ SL.txid bod)
+        (Just $ fromShelleyCoin fee)
+        (map ((,W.Coin 0) . fromShelleyTxIn) (toList ins))
+        (map fromMaryTxOut (toList outs))
+        (fromShelleyWdrl wdrls)
+        (fromShelleyMD . toSLMetadata <$> SL.strictMaybeToMaybe mad)
+    , mapMaybe fromShelleyDelegationCert (toList certs)
+    , mapMaybe fromShelleyRegistrationCert (toList certs)
+    )
+  where
+    SL.Tx bod _wits mad = tx
+    MA.TxBody ins outs certs wdrls fee _valid _upd _adh _value = bod
+
+    -- FIXME (ADP-525): It is fine for now since we do not look at script
+    -- pre-images. But this is precisely what we want as part of the
+    -- multisig/script balance reporting.
+    toSLMetadata (MA.AuxiliaryData blob _scripts) = SL.Metadata blob
+
+    fromMaryTxOut
+         :: SL.TxOut (Cardano.ShelleyLedgerEra MaryEra)
+         -> W.TxOut
+    fromMaryTxOut (SL.TxOut addr value) =
+        W.TxOut (fromShelleyAddress addr) $
+        fromCardanoValue $ Cardano.fromMaryValue value
+
+fromCardanoValue :: Cardano.Value -> TokenBundle.TokenBundle
+fromCardanoValue = uncurry TokenBundle.fromFlatList . extract
+  where
+    extract value =
+        ( mkCoin $ Cardano.selectLovelace value
+        , mkBundle $ Cardano.valueToList value
+        )
+
+    -- Lovelace to coin. Quantities from ledger should always fit in Word64.
+    mkCoin :: Cardano.Lovelace -> W.Coin
+    mkCoin = W.Coin . unsafeToWord64 . unQuantity . Cardano.lovelaceToQuantity
+
+    -- Do Integer to Natural conversion. Quantities from ledger TxOuts can
+    -- never be negative (but unminted values could be negative).
+    mkQuantity :: Integer -> W.TokenQuantity
+    mkQuantity = W.TokenQuantity . checkBounds
+      where
+        checkBounds n
+          | n >= 0 = fromIntegral n
+          | otherwise = error "Internal error: negative token quantity"
+
+    mkBundle assets =
+        [ (TokenBundle.AssetId (mkPolicyId p) (mkTokenName n) , mkQuantity q)
+        | (Cardano.AssetId p n, Cardano.Quantity q) <- assets
+        ]
+
+    mkPolicyId = W.UnsafeTokenPolicyId . W.Hash . Cardano.serialiseToRawBytes
+    mkTokenName = W.UnsafeTokenName
+        . T.decodeUtf8With T.lenientDecode
+        . Cardano.serialiseToRawBytes
+
+    unQuantity (Cardano.Quantity q) = q
 
 fromShelleyWdrl :: SL.Wdrl crypto -> Map W.RewardAccount W.Coin
 fromShelleyWdrl (SL.Wdrl wdrl) = Map.fromList $
     bimap (fromStakeCredential . SL.getRwdCred) fromShelleyCoin
         <$> Map.toList wdrl
 
-fromShelleyMD :: SL.MetaData -> Cardano.TxMetadata
-fromShelleyMD (SL.MetaData m) =
-    Cardano.makeTransactionMetadata . fromShelleyMetaData $ m
+fromShelleyMD :: SL.Metadata -> Cardano.TxMetadata
+fromShelleyMD (SL.Metadata m) =
+    Cardano.makeTransactionMetadata . fromShelleyMetadata $ m
 
 -- Convert & filter Shelley certificate into delegation certificate. Returns
 -- 'Nothing' if certificates aren't delegation certificate.
@@ -889,7 +982,7 @@ fromShelleyRegistrationCert = \case
             , W.poolMargin = fromUnitInterval (SL._poolMargin pp)
             , W.poolCost = lovelaceFromCoin (SL._poolCost pp)
             , W.poolPledge = lovelaceFromCoin (SL._poolPledge pp)
-            , W.poolMetadata = fromPoolMetaData <$> strictMaybeToMaybe (SL._poolMD pp)
+            , W.poolMetadata = fromPoolMetadata <$> strictMaybeToMaybe (SL._poolMD pp)
             }
         )
 
@@ -907,12 +1000,27 @@ lovelaceFromCoin = Quantity . unsafeCoinToWord64
 toWalletCoin :: SL.Coin -> W.Coin
 toWalletCoin = W.Coin . unsafeCoinToWord64
 
--- | The reverse of 'word64ToCoin', without overflow checks.
+-- | The reverse of 'word64ToCoin', where overflow is fatal.
 unsafeCoinToWord64 :: SL.Coin -> Word64
-unsafeCoinToWord64 (SL.Coin c) = fromIntegral c
+unsafeCoinToWord64 (SL.Coin c) = unsafeToWord64 c
 
-fromPoolMetaData :: SL.PoolMetaData -> (W.StakePoolMetadataUrl, W.StakePoolMetadataHash)
-fromPoolMetaData meta =
+-- | Convert an int to 'Word64'.
+--
+-- Only use it for values which have come from the ledger, and should fit in a
+-- 'Word64', according to the spec.
+--
+-- If this conversion would under/overflow, there is not much we can do except
+-- to hastily exit.
+unsafeToWord64 :: Integral n => n -> Word64
+unsafeToWord64 n
+    | n < 0 = crash "underflow"
+    | n > fromIntegral (maxBound :: Word64) = crash "overflow"
+    | otherwise = fromIntegral n
+  where
+    crash x = error ("Internal error: Word64 " ++ x)
+
+fromPoolMetadata :: SL.PoolMetadata -> (W.StakePoolMetadataUrl, W.StakePoolMetadataHash)
+fromPoolMetadata meta =
     ( W.StakePoolMetadataUrl (urlToText (SL._poolMDUrl meta))
     , W.StakePoolMetadataHash (SL._poolMDHash meta)
     )
@@ -1056,6 +1164,42 @@ toAllegraTxOut (W.TxOut (W.Address addr) tokens) =
             <$> deserialiseFromRawBytes AsByronAddress addr
         ]
 
+toMaryTxOut :: W.TxOut -> Cardano.TxOut MaryEra
+toMaryTxOut (W.TxOut (W.Address addr) tokens) =
+    Cardano.TxOut addrInEra
+        $ Cardano.TxOutValue Cardano.MultiAssetInMaryEra
+        $ toCardanoValue tokens
+  where
+    addrInEra = fromMaybe (error "toCardanoTxOut: malformed address") $
+        asum
+        [ Cardano.AddressInEra (Cardano.ShelleyAddressInEra Cardano.ShelleyBasedEraMary)
+            <$> deserialiseFromRawBytes AsShelleyAddress addr
+
+        , Cardano.AddressInEra Cardano.ByronAddressInAnyEra
+            <$> deserialiseFromRawBytes AsByronAddress addr
+        ]
+
+toCardanoValue :: TokenBundle.TokenBundle -> Cardano.Value
+toCardanoValue tb = Cardano.valueFromList $
+    (Cardano.AdaAssetId, coinToQuantity coin) :
+    map (bimap toCardanoAssetId toQuantity) bundle
+  where
+    (coin, bundle) = TokenBundle.toFlatList tb
+    toCardanoAssetId (TokenBundle.AssetId pid name) =
+        Cardano.AssetId (toCardanoPolicyId pid) (toCardanoAssetName name)
+
+    toCardanoPolicyId (W.UnsafeTokenPolicyId (W.Hash pid)) = just "PolicyId" $
+        Cardano.deserialiseFromRawBytes Cardano.AsPolicyId pid
+    toCardanoAssetName (W.UnsafeTokenName name) = just "TokenName" $
+        Cardano.deserialiseFromRawBytes Cardano.AsAssetName $ T.encodeUtf8 name
+
+    just :: String -> Maybe a -> a
+    just t = fromMaybe $ error $
+        "toMaryTxOut: Internal error: unable to deserialise " ++ t
+
+    coinToQuantity = fromIntegral . W.unCoin
+    toQuantity = fromIntegral . W.unTokenQuantity
+
 -- | Convert from reward account address (which is a hash of a public key)
 -- to a shelley ledger stake credential.
 toStakeCredential :: W.RewardAccount -> SL.StakeCredential crypto
@@ -1137,7 +1281,7 @@ _decodeStakeAddress
 _decodeStakeAddress serverNetwork txt = do
     (_, dp) <- left (const errBech32) $ Bech32.decodeLenient txt
     bytes <- maybe (Left errBech32) Right $ dataPartToBytes dp
-    rewardAcnt <- runGetOrFail' (SL.getRewardAcnt @(SL.ShelleyEra StandardCrypto)) bytes
+    rewardAcnt <- runGetOrFail' (SL.getRewardAcnt @StandardCrypto) bytes
 
     guardNetwork (SL.getRwdNetwork rewardAcnt) serverNetwork
 
@@ -1224,7 +1368,7 @@ _decodeAddress serverNetwork =
   where
     decodeShelleyAddress :: forall c. (SL.Crypto c) => ByteString -> Either TextDecodingError W.Address
     decodeShelleyAddress bytes = do
-        case SL.deserialiseAddr @(SL.ShelleyEra c) bytes of
+        case SL.deserialiseAddr @c bytes of
             Just (SL.Addr addrNetwork _ _) -> do
                 guardNetwork addrNetwork serverNetwork
                 pure (W.Address bytes)

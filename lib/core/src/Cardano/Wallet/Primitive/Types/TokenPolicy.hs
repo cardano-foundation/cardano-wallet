@@ -5,10 +5,10 @@
 module Cardano.Wallet.Primitive.Types.TokenPolicy
     (
       -- * Token Policies
-      TokenPolicyId
+      TokenPolicyId (..)
 
       -- * Token Names
-    , TokenName
+    , TokenName (..)
 
     ) where
 
@@ -33,12 +33,11 @@ import GHC.Generics
 import Quiet
     ( Quiet (..) )
 
---------------------------------------------------------------------------------
--- Token policy identifiers
---------------------------------------------------------------------------------
-
-newtype TokenPolicyId = TokenPolicyId
-    { unTokenPolicyId :: Hash "TokenPolicy" }
+-- | Token policy identifiers, represented by the hash of the monetary policy
+-- script.
+newtype TokenPolicyId =
+    -- | Construct a 'TokenPolicyId' without any validation.
+    UnsafeTokenPolicyId { unTokenPolicyId :: Hash "TokenPolicy" }
     deriving stock (Eq, Ord, Generic)
     deriving (Read, Show) via (Quiet TokenPolicyId)
 
@@ -57,14 +56,12 @@ instance ToText TokenPolicyId where
     toText = toText . unTokenPolicyId
 
 instance FromText TokenPolicyId where
-    fromText = fmap TokenPolicyId . fromText
+    fromText = fmap UnsafeTokenPolicyId . fromText
 
---------------------------------------------------------------------------------
--- Token names
---------------------------------------------------------------------------------
-
-newtype TokenName = TokenName
-    { unTokenName :: Text }
+-- | Token names, defined by the monetary policy script.
+newtype TokenName =
+    -- | Construct a 'TokenName' without any validation.
+    UnsafeTokenName { unTokenName :: Text }
     deriving stock (Eq, Ord, Generic)
     deriving (Read, Show) via (Quiet TokenName)
 
@@ -83,4 +80,4 @@ instance ToText TokenName where
     toText = unTokenName
 
 instance FromText TokenName where
-    fromText = pure . TokenName
+    fromText = pure . UnsafeTokenName

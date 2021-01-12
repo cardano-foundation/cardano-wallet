@@ -203,12 +203,6 @@ let
 
       # Build fixes for library dependencies
       {
-        # Make the /usr/bin/security tool available because it's
-        # needed at runtime by the x509-system Haskell package.
-        packages.x509-system.components.library.preBuild = lib.optionalString (stdenv.isDarwin) ''
-          substituteInPlace System/X509/MacOS.hs --replace security /usr/bin/security
-        '';
-
         # Packages we wish to ignore version bounds of.
         # This is similar to jailbreakCabal, however it
         # does not require any messing with cabal files.
