@@ -49,15 +49,12 @@ jobs:
     if: type != pull_request AND (tag =~ ^v OR commit_message =~ /TRAVIS_TRIGGER_RELEASE/)
     name: "Executables"
     script:
-     # # Upload swagger to bump.sh
-     # FIXME: This currently fails with 'The command "yq r -j specifications/api/swagger.yaml > specifications/api/swagger.json" exited with 1.'
-     # See: https://travis-ci.org/github/input-output-hk/cardano-wallet/jobs/754099465#L213
-     #
-     # - gem install bump-cli
-     # - sudo snap install yq
-     # - yq r -j specifications/api/swagger.yaml > specifications/api/swagger.json
-     # - bump validate --doc $BUMP_SH_DOC_ID --token $BUMP_SH_TOKEN specifications/api/swagger.json
-     # - bump deploy --doc $BUMP_SH_DOC_ID --token $BUMP_SH_TOKEN specifications/api/swagger.json
+    # Upload swagger to bump.sh
+    - gem install bump-cli
+    - sudo snap install yq
+    - yq eval specifications/api/swagger.yaml -j > specifications/api/swagger.json
+    - bump validate --doc $BUMP_SH_DOC_ID --token $BUMP_SH_TOKEN specifications/api/swagger.json
+    - bump deploy --doc $BUMP_SH_DOC_ID --token $BUMP_SH_TOKEN specifications/api/swagger.json
 
     # Fetch the builds from Hydra
     - nvm install 12.18.3 && nvm use 12.18.3
