@@ -59,6 +59,8 @@ import Cardano.Wallet.Shelley
 import Cardano.Wallet.Shelley.Faucet
     ( initFaucet )
 import Cardano.Wallet.Shelley.Launch
+    ( withSystemTempDir )
+import Cardano.Wallet.Shelley.Launch.Cluster
     ( ClusterEra (..)
     , ClusterLog
     , RunningNode (..)
@@ -73,7 +75,6 @@ import Cardano.Wallet.Shelley.Launch
     , walletMinSeverityFromEnv
     , withCluster
     , withSMASH
-    , withSystemTempDir
     )
 import Control.Arrow
     ( first )

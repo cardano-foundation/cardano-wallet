@@ -43,6 +43,8 @@ import Cardano.Wallet.Shelley
     , tracerSeverities
     )
 import Cardano.Wallet.Shelley.Launch
+    ( withSystemTempDir )
+import Cardano.Wallet.Shelley.Launch.Cluster
     ( ClusterLog (..)
     , RunningNode (..)
     , localClusterConfigFromEnv
@@ -53,7 +55,6 @@ import Cardano.Wallet.Shelley.Launch
     , walletListenFromEnv
     , walletMinSeverityFromEnv
     , withCluster
-    , withSystemTempDir
     )
 import Control.Arrow
     ( first )

@@ -19,12 +19,9 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Shelley.Compatibility
     ( NodeVersionData )
 import Cardano.Wallet.Shelley.Launch
-    ( CardanoNodeConn
-    , ClusterLog (..)
-    , singleNodeParams
-    , withBFTNode
-    , withSystemTempDir
-    )
+    ( CardanoNodeConn, withSystemTempDir )
+import Cardano.Wallet.Shelley.Launch.Cluster
+    ( ClusterLog (..), singleNodeParams, withBFTNode )
 import Cardano.Wallet.Shelley.Network
     ( Observer (..), ObserverLog (..), newObserver, withNetworkLayer )
 import Control.Applicative

@@ -60,13 +60,14 @@ import Cardano.Wallet.Shelley
 import Cardano.Wallet.Shelley.Faucet
     ( initFaucet )
 import Cardano.Wallet.Shelley.Launch
+    ( withSystemTempDir )
+import Cardano.Wallet.Shelley.Launch.Cluster
     ( LocalClusterConfig (..)
     , LogFileConfig (..)
     , RunningNode (..)
     , sendFaucetFundsTo
     , walletListenFromEnv
     , withCluster
-    , withSystemTempDir
     )
 import Control.Arrow
     ( first )
