@@ -23,10 +23,10 @@ import Cardano.Wallet.Primitive.Types.Tx.Gen
     , shrinkTxInSmallRange
     , shrinkTxOutSmallRange
     )
+import Cardano.Wallet.Primitive.Types.UTxOIndex.Gen
+    ( genUTxOIndexSmall, shrinkUTxOIndexSmall )
 import Cardano.Wallet.Primitive.Types.UTxOIndex.Internal
     ( InvariantStatus (..), SelectionFilter (..), UTxOIndex, checkInvariant )
-import Control.Monad
-    ( replicateM )
 import Control.Monad.Random.Class
     ( MonadRandom (..) )
 import Data.Generics.Internal.VL.Lens
@@ -48,21 +48,17 @@ import Test.QuickCheck
     , Property
     , checkCoverage
     , checkCoverageWith
-    , choose
     , conjoin
     , counterexample
     , cover
     , oneof
     , property
-    , shrinkList
     , stdConfidence
     , withMaxSuccess
     , (===)
     )
 import Test.QuickCheck.Classes
     ( eqLaws )
-import Test.QuickCheck.Extra
-    ( shrinkInterleaved )
 import Test.QuickCheck.Monadic
     ( assert, monadicIO, monitor, run )
 import Test.Utils.Laws
@@ -530,24 +526,8 @@ instance Arbitrary AssetId where
     shrink = shrinkAssetIdSmallRange
 
 instance Arbitrary UTxOIndex where
-    arbitrary = do
-        entryCount <- choose (0, 64)
-        UTxOIndex.fromSequence <$> replicateM entryCount genEntrySmallRange
-    shrink
-        = take 16
-        . fmap UTxOIndex.fromSequence
-        . shrinkList shrinkEntrySmallRange
-        . UTxOIndex.toList
-
-genEntrySmallRange :: Gen (TxIn, TxOut)
-genEntrySmallRange = (,)
-    <$> genTxInSmallRange
-    <*> genTxOutSmallRange
-
-shrinkEntrySmallRange :: (TxIn, TxOut) -> [(TxIn, TxOut)]
-shrinkEntrySmallRange (i, o) = uncurry (,) <$> shrinkInterleaved
-    (i, shrinkTxInSmallRange)
-    (o, shrinkTxOutSmallRange)
+    arbitrary = genUTxOIndexSmall
+    shrink = shrinkUTxOIndexSmall
 
 instance Arbitrary TxIn where
     arbitrary = genTxInSmallRange
