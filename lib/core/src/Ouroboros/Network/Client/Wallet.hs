@@ -31,12 +31,15 @@ module Ouroboros.Network.Client.Wallet
     , localTxSubmission
 
       -- * LocalStateQuery
+    , LSQ (..)
     , LocalStateQueryCmd (..)
-    , LocalStateQueryResult
     , localStateQuery
+    , query
+    , currentEra
 
       -- * Helpers
     , send
+    , sendAsync
 
       -- * Logs
     , ChainSyncLog (..)
@@ -45,6 +48,8 @@ module Ouroboros.Network.Client.Wallet
 
 import Prelude
 
+import Cardano.Api
+    ( AnyCardanoEra )
 import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
@@ -53,8 +58,11 @@ import Cardano.Slotting.Slot
     ( WithOrigin (..) )
 import Cardano.Wallet.Network
     ( NextBlocksResult (..) )
+import Control.Monad
+    ( ap, guard, liftM )
 import Control.Monad.Class.MonadSTM
     ( MonadSTM
+    , STM
     , TQueue
     , atomically
     , isEmptyTQueue
@@ -67,6 +75,8 @@ import Control.Monad.Class.MonadSTM
     )
 import Control.Monad.Class.MonadThrow
     ( MonadThrow )
+import Control.Monad.IO.Class
+    ( MonadIO )
 import Control.Tracer
     ( Tracer, traceWith )
 import Data.Functor
@@ -104,12 +114,7 @@ import Ouroboros.Network.Protocol.ChainSync.Client
 import Ouroboros.Network.Protocol.ChainSync.ClientPipelined
     ( ChainSyncClientPipelined (..) )
 import Ouroboros.Network.Protocol.LocalStateQuery.Client
-    ( ClientStAcquiring (..)
-    , ClientStQuerying (..)
-    , LocalStateQueryClient (..)
-    )
-import Ouroboros.Network.Protocol.LocalStateQuery.Type
-    ( AcquireFailure )
+    ( ClientStAcquiring (..), LocalStateQueryClient (..) )
 import Ouroboros.Network.Protocol.LocalTxSubmission.Client
     ( LocalTxClientStIdle (..), LocalTxSubmissionClient (..) )
 import Ouroboros.Network.Protocol.LocalTxSubmission.Type
@@ -131,8 +136,10 @@ import qualified Ouroboros.Network.Protocol.LocalStateQuery.Client as LSQ
 chainSyncFollowTip
     :: forall m block era. (Monad m)
     => (block -> era)
-    -> (Maybe era -> Tip block -> m ())
+    -> (era -> Tip block -> m ())
     -- ^ Callback for when the tip changes.
+    --
+    -- Will not be called on rollbacks(!), but on the subsequent roll-forward.
     -> ChainSyncClient block (Point block) (Tip block) m Void
 chainSyncFollowTip toCardanoEra onTipUpdate =
     ChainSyncClient (clientStIdle False)
@@ -165,13 +172,15 @@ chainSyncFollowTip toCardanoEra onTipUpdate =
     -- era-agnostic (for now at least!) which isn't a big deal really because
     -- the era will simply be updated on the next RollForward which follows
     -- immediately after.
+    --
+    -- NOTE: Let's try not updating the tip on rollbacks?
     clientStNext True = ClientStNext
-            { recvMsgRollBackward = doUpdate . const Nothing
-            , recvMsgRollForward  = doUpdate . Just . toCardanoEra
+            { recvMsgRollBackward = \_ _ -> ChainSyncClient $ clientStIdle True
+            , recvMsgRollForward  = doUpdate . toCardanoEra
             }
       where
         doUpdate
-            :: Maybe era
+            :: era
             -> Tip block
             -> ChainSyncClient block (Point block) (Tip block) m Void
         doUpdate era tip = ChainSyncClient $ do
@@ -440,15 +449,10 @@ chainSyncWithBlocks tr fromTip queue responseBuffer =
 --
 -- LocalStateQuery
 
--- | Command to send to the localStateQuery client. See also 'ChainSyncCmd'.
-data LocalStateQueryCmd block (m :: * -> *)
-    = forall state. CmdQueryLocalState
-        (Point block)
-        (Query block state)
-        (LocalStateQueryResult state -> m ())
-
--- | Shorthand for the possible outcomes of acquiring local state parameters.
-type LocalStateQueryResult state = Either AcquireFailure state
+---- | Command to send to the localStateQuery client. See also 'ChainSyncCmd'.
+data LocalStateQueryCmd block m = forall a. SomeLSQ
+    (LSQ block m a)
+    (a -> m ())
 
 -- | Client for the 'Local State Query' mini-protocol.
 --
@@ -475,61 +479,104 @@ type LocalStateQueryResult state = Either AcquireFailure state
 --        │       ┌───────────┴───┐             ┌────────┴───────┐
 --        └───────┤   Acquired    │────────────>│   Querying     │
 --                └───────────────┘             └────────────────┘
+-- FIXME: I think the diagram is wrong. It is possible to query multiple times
+-- while we're acquired.
 --
+-- NOTE: Using AnyCardanoEra arguably goes against the grain of the abstract
+-- block type. We might be able to use the (Header block) as replacemet for
+-- (AnyCardanoEra, Tip block).
 localStateQuery
-    :: forall m block . (MonadThrow m, MonadSTM m)
-    => TQueue m (LocalStateQueryCmd block m)
+    :: forall m block . (MonadIO m, MonadSTM m, Eq (Point block))
+    => STM m (AnyCardanoEra, Point block)
+       -- ^ A way to fetch the current node tip
+    -> TQueue m (LocalStateQueryCmd block m)
         -- ^ We use a 'TQueue' as a communication channel to drive queries from
         -- outside of the network client to the client itself.
         -- Requests are pushed to the queue which are then transformed into
         -- messages to keep the state-machine moving.
     -> LocalStateQueryClient block (Point block) (Query block) m Void
-localStateQuery queue =
+localStateQuery getTip queue =
     LocalStateQueryClient clientStIdle
   where
     clientStIdle
         :: m (LSQ.ClientStIdle block (Point block) (Query block) m Void)
-    clientStIdle = awaitNextCmd <&> \case
-        CmdQueryLocalState pt query respond ->
-            LSQ.SendMsgAcquire (Just pt) (clientStAcquiring query respond)
+    clientStIdle = do
+        cmd <- awaitNextCmd
+        (era, pt) <- atomically getTip
+        pure $ LSQ.SendMsgAcquire (Just pt) (clientStAcquiring cmd pt era)
 
     clientStAcquiring
-        :: forall state. Query block state
-        -> (LocalStateQueryResult state -> m ())
+        :: LocalStateQueryCmd block m
+        -> Point block
+        -> AnyCardanoEra
         -> LSQ.ClientStAcquiring block (Point block) (Query block) m Void
-    clientStAcquiring query respond = LSQ.ClientStAcquiring
-        { recvMsgAcquired = clientStAcquired query respond
-        , recvMsgFailure = \failure -> do
-                respond (Left failure)
-                clientStIdle
+    clientStAcquiring qry oldPt era = LSQ.ClientStAcquiring
+        { recvMsgAcquired = clientStAcquired qry era
+        , recvMsgFailure = \_failure -> do
+            (newEra, newPt) <- atomically $ do
+                t <- getTip
+                guard (((snd t) /= oldPt))
+                return t
+            pure $ LSQ.SendMsgAcquire (Just newPt) (clientStAcquiring qry newPt newEra)
         }
 
     clientStAcquired
-        :: forall state. Query block state
-        -> (LocalStateQueryResult state -> m ())
-        -> LSQ.ClientStAcquired block (Point block) (Query block) m Void
-    clientStAcquired query respond =
-        LSQ.SendMsgQuery query (clientStQuerying respond)
-
-    -- By re-acquiring rather releasing the state with 'MsgRelease' it
-    -- enables optimisations on the server side.
-    clientStAcquiredAgain
-        :: m (LSQ.ClientStAcquired block (Point block) (Query block) m Void)
-    clientStAcquiredAgain = awaitNextCmd <&> \case
-        CmdQueryLocalState pt query respond ->
-            LSQ.SendMsgReAcquire (Just pt) (clientStAcquiring query respond)
-
-    clientStQuerying
-        :: forall state. (LocalStateQueryResult state -> m ())
-        -> LSQ.ClientStQuerying block (Point block) (Query block) m Void state
-    clientStQuerying respond = LSQ.ClientStQuerying
-        { recvMsgResult = \result -> do
-            respond (Right result)
-            clientStAcquiredAgain
-        }
+        :: LocalStateQueryCmd block m
+        -> AnyCardanoEra
+        -> (LSQ.ClientStAcquired block (Point block) (Query block) m Void)
+    clientStAcquired (SomeLSQ cmd respond) era = go cmd $ \res -> do
+        LSQ.SendMsgRelease (respond res >> clientStIdle)
+            -- We /could/ read all LocalStateQueryCmds from the TQueue, and run
+            -- them against the same tip, if re-acquiring takes a long time. As
+            -- of Jan 2020, it seems like queries themselves take significantly
+            -- longer than the acquiring.
+      where
+          go
+              :: forall a. LSQ block m a
+              -> (a -> (LSQ.ClientStAcquired block (Point block) (Query block) m Void))
+              -> (LSQ.ClientStAcquired block (Point block) (Query block) m Void)
+          go (LSQPure a) cont = cont a
+          go (LSQry qry) cont = LSQ.SendMsgQuery qry $ LSQ.ClientStQuerying $ \res -> do
+              pure $ cont res
+              -- TODO: It would be nice to trace the time it takes to run the
+              -- queries.
+          go (LSQBind ma f) cont = go ma $ \a -> do
+              go (f a) $ \b -> cont b
+          go (LSQEra) cont = cont era
 
     awaitNextCmd :: m (LocalStateQueryCmd block m)
     awaitNextCmd = atomically $ readTQueue queue
+
+-- | Monad for composing local state queries for the node /tip/.
+data LSQ block (m :: * -> *) a where
+    LSQPure :: a -> LSQ block m a
+    LSQBind :: LSQ block m a -> (a -> LSQ block m b) -> LSQ block m b
+
+    -- | A local state query.
+    LSQry :: (Query block res) -> LSQ block m res
+
+    -- | The era of the node tip the query is run against.
+    LSQEra :: LSQ block m AnyCardanoEra
+
+instance Functor (LSQ block m) where
+    fmap = liftM
+
+instance Applicative (LSQ block m) where
+    pure  = LSQPure
+    (<*>) = ap
+
+instance Monad (LSQ block m) where
+    return = pure
+    (>>=)  = LSQBind
+
+--
+-- Helpers
+
+query :: (Query block res) -> LSQ block m res
+query = LSQry
+
+currentEra :: LSQ block m AnyCardanoEra
+currentEra = LSQEra
 
 --------------------------------------------------------------------------------
 --
@@ -606,6 +653,15 @@ send queue cmd = do
     tvar <- newEmptyTMVarIO
     atomically $ writeTQueue queue (cmd (atomically . putTMVar tvar))
     atomically $ takeTMVar tvar
+
+
+sendAsync
+    :: MonadSTM m
+    => TQueue m (cmd m)
+    -> (cmd m)
+    -> m ()
+sendAsync queue cmd = do
+    atomically $ writeTQueue queue cmd
 
 -- Tracing
 
