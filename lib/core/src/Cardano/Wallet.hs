@@ -850,7 +850,6 @@ restoreBlocks
     -> ExceptT ErrNoSuchWallet IO ()
 restoreBlocks ctx wid blocks nodeTip = db & \DBLayer{..} -> mapExceptT atomically $ do
     cp   <- withNoSuchWallet wid (readCheckpoint $ PrimaryKey wid)
-    meta <- withNoSuchWallet wid (readWalletMeta $ PrimaryKey wid)
     sp   <- liftIO $ currentSlottingParameters nl
 
     unless (cp `isParentOf` NE.head blocks) $ fail $ T.unpack $ T.unwords
@@ -908,7 +907,6 @@ restoreBlocks ctx wid blocks nodeTip = db & \DBLayer{..} -> mapExceptT atomicall
 
     liftIO $ do
         progress <- walletSyncProgress @ctx @s ctx (NE.last cps)
-        traceWith tr $ MsgWalletMetadata meta
         traceWith tr $ MsgSyncProgress progress
         traceWith tr $ MsgDiscoveredTxs txs
         traceWith tr $ MsgTip localTip
