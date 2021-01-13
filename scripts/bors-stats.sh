@@ -48,7 +48,7 @@ DATA=$(echo $QUERY \
       | sort_by (.createdAt)
       | map (
           select(.author.login == "iohk-bors")
-          | select(.bodyText | contains("try\nBuild") | not)
+          | select(.bodyText | startswith("try") | not)
           | select(.bodyText | contains("Canceled") | not)
           | select(.bodyText | contains("Merge conflict") | not)
           | select(.bodyText | contains("Rejected by too few approved reviews") | not)
@@ -57,7 +57,7 @@ DATA=$(echo $QUERY \
           | . + {succeded: (.bodyText | contains("Build succeeded"))}
 
           # Extract lines starting with # as tags. Mostly for linking to issues.
-          | . + {tags: (.bodyText | split("\n") | map (select(startswith("#"))) | map(split(" ") | .[0]) )}
+          | . + {tags: (.bodyText | split("\n") | map (select(startswith("#") or startswith("ADP-"))) | map(split(" ") | .[0]) )}
         )
       ')
 
