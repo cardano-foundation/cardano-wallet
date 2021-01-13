@@ -424,7 +424,7 @@ clusterEraFromEnv :: Maybe ClusterEra -> IO ClusterEra
 clusterEraFromEnv def =
     fmap withDefault . traverse getEra =<< lookupEnvNonEmpty var
   where
-    var = "TEST_CLUSTER_ERA"
+    var = "LOCAL_CLUSTER_ERA"
     getEra env = case map toLower env of
         "byron" -> pure ByronNoHardFork
         "shelley" -> pure ShelleyHardFork

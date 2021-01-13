@@ -191,7 +191,7 @@ import qualified Data.Text as T
 -- - TESTS_TRACING_MIN_SEVERITY  (default: Notice)
 --     increase or decrease the logging severity of the test cluster framework.
 --
--- - TEST_CLUSTER_ERA  (default: Mary)
+-- - LOCAL_CLUSTER_ERA  (default: Mary)
 --     By default, the cluster will start in the latest era by enabling
 --     "virtual hard forks" in the node config files.
 --     The final era can be changed with this variable.
@@ -207,7 +207,7 @@ import qualified Data.Text as T
 --     nodes and wallet data won't be cleaned up.
 main :: IO ()
 main = withLocalClusterSetup $ \dir clusterLogs walletLogs ->
-    withLoggingNamed "test-cluster" clusterLogs $ \(_, (_, trCluster)) -> do
+    withLoggingNamed "cluster" clusterLogs $ \(_, (_, trCluster)) -> do
         let tr' = contramap MsgCluster $ trMessageText trCluster
         clusterCfg <- localClusterConfigFromEnv Nothing
         withCluster tr' dir clusterCfg $
