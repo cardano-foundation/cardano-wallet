@@ -132,7 +132,7 @@ executable cardano-wallet
   main-is:
     cardano-wallet.hs
 
-executable shelley-test-cluster
+executable local-cluster
   default-language:
       Haskell2010
   default-extensions:
@@ -160,7 +160,7 @@ executable shelley-test-cluster
   hs-source-dirs:
       exe
   main-is:
-      shelley-test-cluster.hs
+      local-cluster.hs
 
 test-suite unit
   default-language:

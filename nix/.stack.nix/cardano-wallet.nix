@@ -108,7 +108,7 @@
             ];
           buildable = true;
           };
-        "shelley-test-cluster" = {
+        "local-cluster" = {
           depends = [
             (hsPkgs."base" or (errorHandler.buildDepError "base"))
             (hsPkgs."cardano-wallet-cli" or (errorHandler.buildDepError "cardano-wallet-cli"))
