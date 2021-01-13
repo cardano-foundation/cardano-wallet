@@ -66,7 +66,9 @@ library
     , http-types
     , io-sim-classes
     , iohk-monitoring
+    , lattices
     , memory
+    , MonadRandom
     , monad-logger
     , mtl
     , network
@@ -182,6 +184,8 @@ library
       Cardano.Wallet.Primitive.Types.TokenQuantity
       Cardano.Wallet.Primitive.Types.Tx
       Cardano.Wallet.Primitive.Types.UTxO
+      Cardano.Wallet.Primitive.Types.UTxOIndex
+      Cardano.Wallet.Primitive.Types.UTxOIndex.Internal
       Cardano.Wallet.Registry
       Cardano.Wallet.Transaction
       Cardano.Wallet.Unsafe
@@ -207,11 +211,13 @@ library
         -- The following modules define QC generators and shrinkers that can
         -- be used by both `cardano-wallet-core` and `cardano-wallet`:
         --
+      Cardano.Wallet.Primitive.Types.Address.Gen
       Cardano.Wallet.Primitive.Types.Coin.Gen
       Cardano.Wallet.Primitive.Types.TokenBundle.Gen
       Cardano.Wallet.Primitive.Types.TokenMap.Gen
       Cardano.Wallet.Primitive.Types.TokenPolicy.Gen
       Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
+      Cardano.Wallet.Primitive.Types.Tx.Gen
   other-modules:
       Paths_cardano_wallet_core
 
@@ -263,8 +269,10 @@ test-suite unit
     , http-media
     , http-types
     , iohk-monitoring
+    , lattices
     , lens
     , memory
+    , MonadRandom
     , network
     , network-uri
     , persistent
@@ -353,6 +361,8 @@ test-suite unit
       Cardano.Wallet.Primitive.Types.TokenMapSpec
       Cardano.Wallet.Primitive.Types.TokenMapSpec.TypeErrorSpec
       Cardano.Wallet.Primitive.Types.TokenQuantitySpec
+      Cardano.Wallet.Primitive.Types.UTxOIndexSpec
+      Cardano.Wallet.Primitive.Types.UTxOIndex.TypeErrorSpec
       Cardano.Wallet.Primitive.TypesSpec
       Cardano.Wallet.RegistrySpec
       Cardano.Wallet.TransactionSpec

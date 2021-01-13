@@ -49,7 +49,7 @@ newtype Coin = Coin
     { unCoin :: Word64
     }
     deriving stock (Ord, Eq, Generic)
-    deriving Show via (Quiet Coin)
+    deriving (Read, Show) via (Quiet Coin)
 
 instance ToText Coin where
     toText (Coin c) = T.pack $ show c

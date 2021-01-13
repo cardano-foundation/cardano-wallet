@@ -21,6 +21,7 @@ module Cardano.Wallet.Primitive.Types.TokenBundle
     , AssetId (..)
 
     -- * Construction
+    , empty
     , fromFlatList
     , fromNestedList
 
@@ -37,6 +38,7 @@ module Cardano.Wallet.Primitive.Types.TokenBundle
 
     -- * Arithmetic
     , add
+    , subtract
 
     -- * Quantities
     , getQuantity
@@ -52,11 +54,19 @@ module Cardano.Wallet.Primitive.Types.TokenBundle
     , Flat (..)
     , Nested (..)
 
+    -- * Queries
+    , getAssets
+
+    -- * Unsafe operations
+    , unsafeSubtract
+
     ) where
 
 import Prelude hiding
-    ( negate, null )
+    ( subtract )
 
+import Algebra.PartialOrd
+    ( PartialOrd (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.TokenMap
@@ -67,10 +77,16 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Control.DeepSeq
     ( NFData )
+import Control.Monad
+    ( guard )
 import Data.Bifunctor
     ( first )
+import Data.Functor
+    ( ($>) )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
+import Data.Set
+    ( Set )
 import Fmt
     ( Buildable (..), Builder, blockMapF )
 import GHC.Generics
@@ -93,7 +109,7 @@ data TokenBundle = TokenBundle
     , tokens
         :: !TokenMap
     }
-    deriving stock (Eq, Generic, Show)
+    deriving stock (Eq, Generic, Read, Show)
 
 -- | Token bundles can be partially ordered, but there is no total ordering of
 --   token bundles that's consistent with their arithmetic properties.
@@ -109,10 +125,18 @@ instance TypeError ('Text "Ord not supported for token bundles")
         => Ord TokenBundle where
     compare = error "Ord not supported for token bundles"
 
+instance PartialOrd TokenBundle where
+    b1 `leq` b2 = (&&)
+        (coin b1 <= coin b2)
+        (tokens b1 `leq` tokens b2)
+
 instance NFData TokenBundle
 
 instance Semigroup TokenBundle where
     (<>) = add
+
+instance Monoid TokenBundle where
+    mempty = empty
 
 --------------------------------------------------------------------------------
 -- Text serialization
@@ -142,6 +166,11 @@ buildMap = blockMapF . fmap (first $ id @String)
 --------------------------------------------------------------------------------
 -- Construction
 --------------------------------------------------------------------------------
+
+-- | The empty token bundle.
+--
+empty :: TokenBundle
+empty = TokenBundle (Coin 0) mempty
 
 -- | Creates a token bundle from a coin and a flat list of token quantities.
 --
@@ -228,6 +257,14 @@ add :: TokenBundle -> TokenBundle -> TokenBundle
 add (TokenBundle (Coin c1) m1) (TokenBundle (Coin c2) m2) =
     TokenBundle (Coin $ c1 + c2) (TokenMap.add m1 m2)
 
+-- | Subtracts the second token bundle from the first.
+--
+-- Returns 'Nothing' if the second bundle is not less than or equal to the first
+-- bundle when compared with the `leq` function.
+--
+subtract :: TokenBundle -> TokenBundle -> Maybe TokenBundle
+subtract a b = guard (b `leq` a) $> unsafeSubtract a b
+
 --------------------------------------------------------------------------------
 -- Quantities
 --------------------------------------------------------------------------------
@@ -283,3 +320,25 @@ removeQuantity b a = b { tokens = TokenMap.removeQuantity (tokens b) a }
 --
 hasPolicy :: TokenBundle -> TokenPolicyId -> Bool
 hasPolicy = TokenMap.hasPolicy . tokens
+
+--------------------------------------------------------------------------------
+-- Queries
+--------------------------------------------------------------------------------
+
+getAssets :: TokenBundle -> Set AssetId
+getAssets = TokenMap.getAssets . tokens
+
+--------------------------------------------------------------------------------
+-- Unsafe operations
+--------------------------------------------------------------------------------
+
+-- | Subtracts the second token bundle from the first.
+--
+-- Pre-condition: the second bundle is less than or equal to the first bundle
+-- when compared with the `leq` function.
+--
+-- Throws a run-time exception if the pre-condition is violated.
+--
+unsafeSubtract :: TokenBundle -> TokenBundle -> TokenBundle
+unsafeSubtract (TokenBundle (Coin c1) m1) (TokenBundle (Coin c2) m2) =
+    TokenBundle (Coin $ c1 - c2) (TokenMap.unsafeSubtract m1 m2)

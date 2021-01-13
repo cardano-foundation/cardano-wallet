@@ -189,7 +189,7 @@ data TxIn = TxIn
         :: !(Hash "Tx")
     , inputIx
         :: !Word32
-    } deriving (Show, Generic, Eq, Ord)
+    } deriving (Read, Show, Generic, Eq, Ord)
 
 instance NFData TxIn
 
@@ -204,7 +204,7 @@ data TxOut = TxOut
         :: !Address
     , tokens
         :: !TokenBundle
-    } deriving (Show, Generic, Eq)
+    } deriving (Read, Show, Generic, Eq)
 
 -- Gets the current 'Coin' value from a transaction output.
 --

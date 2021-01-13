@@ -41,6 +41,7 @@
           (hsPkgs."http-api-data" or (errorHandler.buildDepError "http-api-data"))
           (hsPkgs."HUnit" or (errorHandler.buildDepError "HUnit"))
           (hsPkgs."iohk-monitoring" or (errorHandler.buildDepError "iohk-monitoring"))
+          (hsPkgs."lattices" or (errorHandler.buildDepError "lattices"))
           (hsPkgs."QuickCheck" or (errorHandler.buildDepError "QuickCheck"))
           (hsPkgs."quickcheck-classes" or (errorHandler.buildDepError "quickcheck-classes"))
           (hsPkgs."say" or (errorHandler.buildDepError "say"))

@@ -51,6 +51,7 @@ module Cardano.Wallet.Primitive.Types.TokenMap
 
     -- * Arithmetic
     , add
+    , subtract
 
     -- * Tests
     , isEmpty
@@ -70,11 +71,19 @@ module Cardano.Wallet.Primitive.Types.TokenMap
     , Flat (..)
     , Nested (..)
 
+    -- * Queries
+    , getAssets
+
+    -- * Unsafe operations
+    , unsafeSubtract
+
     ) where
 
 import Prelude hiding
-    ( negate, null )
+    ( subtract )
 
+import Algebra.PartialOrd
+    ( PartialOrd (..) )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenName, TokenPolicyId )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
@@ -82,13 +91,15 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity
 import Control.DeepSeq
     ( NFData )
 import Control.Monad
-    ( mapM, when, (<=<) )
+    ( guard, mapM, when, (<=<) )
 import Data.Aeson
     ( FromJSON (..), ToJSON (..), camelTo2, genericParseJSON, genericToJSON )
 import Data.Aeson.Types
     ( Options (..), Parser )
 import Data.Bifunctor
     ( first )
+import Data.Functor
+    ( ($>) )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Map.Strict
@@ -97,6 +108,8 @@ import Data.Map.Strict.NonEmptyMap
     ( NonEmptyMap )
 import Data.Maybe
     ( fromMaybe, isJust )
+import Data.Set
+    ( Set )
 import Data.Text.Class
     ( toText )
 import Fmt
@@ -114,6 +127,7 @@ import qualified Data.Foldable as F
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Map.Strict.NonEmptyMap as NEMap
+import qualified Data.Set as Set
 
 --------------------------------------------------------------------------------
 -- Types
@@ -141,7 +155,7 @@ newtype TokenMap = TokenMap
         :: Map TokenPolicyId (NonEmptyMap TokenName TokenQuantity)
     }
     deriving stock (Eq, Generic)
-    deriving Show via (Quiet TokenMap)
+    deriving (Read, Show) via (Quiet TokenMap)
 
 -- | Token maps can be partially ordered, but there is no total ordering of
 --   token maps that's consistent with their arithmetic properties.
@@ -156,6 +170,40 @@ newtype TokenMap = TokenMap
 instance TypeError ('Text "Ord not supported for token maps")
         => Ord TokenMap where
     compare = error "Ord not supported for token maps"
+
+-- | Partial ordering for token maps.
+--
+-- There is no total ordering of token maps that's consistent with their
+-- arithmetic properties.
+--
+-- To see why this is true, consider how we might order the following maps:
+--
+--     >>> p = fromFlatList [(assetA, 2), (assetB, 1)]
+--     >>> q = fromFlatList [(assetA, 1), (assetB, 2)]
+--
+-- One possibility would be to use a lexicographic ordering, but this is not
+-- arithmetically useful.
+--
+-- Instead, we define a partial order, where map 'x' is less than or equal
+-- to map 'y' if (and only if):
+--
+--     - all the quantities in map 'x' are less than or equal to their
+--       corresponding quantities in map 'y';
+--
+--     - all the quantities in map 'y' are greater than or equal to their
+--       corresponding quantities in map 'x'.
+--
+-- For example, consider the following pair of maps:
+--
+--     >>> x = fromFlatList [(assetA, 1)]
+--     >>> y = fromFlatList [(assetA, 2), (assetB, 1)]
+--
+-- In the above example, map 'x' is strictly less than map 'y'.
+--
+instance PartialOrd TokenMap where
+    m1 `leq` m2 = F.all
+        (\a -> getQuantity m1 a <= getQuantity m2 a)
+        (getAssets m1 `Set.union` getAssets m2)
 
 instance NFData TokenMap
 
@@ -174,7 +222,9 @@ data AssetId = AssetId
     , tokenName
         :: !TokenName
     }
-    deriving stock (Eq, Generic, Ord, Show)
+    deriving stock (Eq, Generic, Ord, Read, Show)
+
+instance NFData AssetId
 
 --------------------------------------------------------------------------------
 -- Serialization
@@ -422,6 +472,14 @@ add a b = F.foldl' acc a $ toFlatList b
     acc c (asset, quantity) =
         adjustQuantity c asset (`TokenQuantity.add` quantity)
 
+-- | Subtracts the second token map from the first.
+--
+-- Returns 'Nothing' if the second map is not less than or equal to the first
+-- map when compared with the `leq` function.
+--
+subtract :: TokenMap -> TokenMap -> Maybe TokenMap
+subtract a b = guard (b `leq` a) $> unsafeSubtract a b
+
 --------------------------------------------------------------------------------
 -- Tests
 --------------------------------------------------------------------------------
@@ -518,6 +576,30 @@ removeQuantity m asset = setQuantity m asset TokenQuantity.zero
 --
 hasPolicy :: TokenMap -> TokenPolicyId -> Bool
 hasPolicy b policy = isJust $ Map.lookup policy $ unTokenMap b
+
+--------------------------------------------------------------------------------
+-- Queries
+--------------------------------------------------------------------------------
+
+getAssets :: TokenMap -> Set AssetId
+getAssets = Set.fromList . fmap fst . toFlatList
+
+--------------------------------------------------------------------------------
+-- Unsafe operations
+--------------------------------------------------------------------------------
+
+-- | Subtracts the second token map from the first.
+--
+-- Pre-condition: the second map is less than or equal to the first map when
+-- compared with the `leq` function.
+--
+-- Throws a run-time exception if the pre-condition is violated.
+--
+unsafeSubtract :: TokenMap -> TokenMap -> TokenMap
+unsafeSubtract a b = F.foldl' acc a $ toFlatList b
+  where
+    acc c (asset, quantity) =
+        adjustQuantity c asset (`TokenQuantity.unsafeSubtract` quantity)
 
 --------------------------------------------------------------------------------
 -- Internal functions
