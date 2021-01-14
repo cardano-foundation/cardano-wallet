@@ -291,27 +291,38 @@ runSelection limit available minimumBalance =
     assetSelectionLens (asset, minimumAssetQuantity) = SelectionLens
         { currentQuantity = assetQuantity asset . selected
         , minimumQuantity = unTokenQuantity minimumAssetQuantity
-        , selectQuantity = selectMatchingQuantity limit $ WithAsset asset
+        , selectQuantity = selectMatchingQuantity limit
+            [ WithAsset asset
+            ]
         }
 
     coinSelectionLens :: SelectionLens m SelectionState
     coinSelectionLens = SelectionLens
         { currentQuantity = coinQuantity . selected
         , minimumQuantity = fromIntegral $ unCoin minimumCoinQuantity
-        , selectQuantity = selectMatchingQuantity limit Any
+        , selectQuantity = selectMatchingQuantity limit
+            [ WithAdaOnly
+            , Any
+            ]
         }
 
 selectMatchingQuantity
     :: MonadRandom m
     => SelectionLimit
-    -> SelectionFilter
+    -> [SelectionFilter]
+        -- A list of selection filters, traversed from left to right if previous
+        -- filter failed. This allows for giving some filters priorities over
+        -- others.
     -> SelectionState
     -> m (Maybe SelectionState)
-selectMatchingQuantity limit f s
+selectMatchingQuantity _       []  _ = pure Nothing
+selectMatchingQuantity limit (h:q) s =
     | limitReached =
         pure Nothing
-    | otherwise =
-        fmap updateState <$> UTxOIndex.selectRandom (leftover s) f
+    | otherwise = do
+        UTxOIndex.selectRandom (leftover s) h >>= \case
+            Just s' -> pure $ Just $ updateState s'
+            Nothing -> selectMatchingQuantity limit q s
   where
     limitReached = case limit of
         MaximumInputLimit m -> UTxOIndex.size (selected s) >= m
