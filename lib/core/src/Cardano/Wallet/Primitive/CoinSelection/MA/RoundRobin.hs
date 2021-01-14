@@ -1,13 +1,22 @@
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     (
+    -- * Running a selection
+      runSelection
+    , SelectionState (..)
+
+    -- * Running a selection step
+    , runSelectionStep
+    , SelectionLens (..)
+
     -- * Making change
-      makeChange
+    , makeChange
     , makeChangeForCoin
     , makeChangeForPaymentAssets
     , makeChangeForSurplusAssets
@@ -25,6 +34,9 @@ module Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     , runRoundRobin
     , runRoundRobinM
 
+    -- * Utility functions
+    , distance
+
     ) where
 
 import Prelude
@@ -41,6 +53,10 @@ import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId, TokenMap )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
+import Cardano.Wallet.Primitive.Types.UTxOIndex
+    ( SelectionFilter (..), UTxOIndex (..) )
+import Control.Monad.Random.Class
+    ( MonadRandom (..) )
 import Data.Function
     ( (&) )
 import Data.Functor.Identity
@@ -64,11 +80,115 @@ import Numeric.Natural
 
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
+import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
 import qualified Data.Foldable as F
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
+
+--------------------------------------------------------------------------------
+-- Running a selection
+--------------------------------------------------------------------------------
+
+data SelectionState = SelectionState
+    { selected
+        :: !UTxOIndex
+    , leftover
+        :: !UTxOIndex
+    }
+    deriving (Eq, Show)
+
+runSelection
+    :: forall m. MonadRandom m
+    => UTxOIndex
+        -- ^ UTxO entries available for selection
+    -> TokenBundle
+        -- ^ Minimum balance to cover
+    -> m SelectionState
+        -- ^ Final selection state
+runSelection available minimumBalance =
+    runRoundRobinM initialState selectors
+  where
+    initialState :: SelectionState
+    initialState = SelectionState
+        { selected = UTxOIndex.empty
+        , leftover = available
+        }
+
+    selectors :: [SelectionState -> m (Maybe SelectionState)]
+    selectors = coinSelector : fmap assetSelector minimumAssetQuantities
+      where
+        assetSelector = runSelectionStep . assetSelectionLens
+        coinSelector = runSelectionStep coinSelectionLens
+
+    (minimumCoinQuantity, minimumAssetQuantities) =
+        TokenBundle.toFlatList minimumBalance
+
+    assetSelectionLens
+        :: (AssetId, TokenQuantity) -> SelectionLens m SelectionState
+    assetSelectionLens (asset, minimumAssetQuantity) = SelectionLens
+        { currentQuantity = assetQuantity asset . selected
+        , minimumQuantity = unTokenQuantity minimumAssetQuantity
+        , selectQuantity = selectMatchingQuantity $ WithAsset asset
+        }
+
+    coinSelectionLens :: SelectionLens m SelectionState
+    coinSelectionLens = SelectionLens
+        { currentQuantity = coinQuantity . selected
+        , minimumQuantity = fromIntegral $ unCoin minimumCoinQuantity
+        , selectQuantity = selectMatchingQuantity Any
+        }
+
+selectMatchingQuantity
+    :: MonadRandom m
+    => SelectionFilter
+    -> SelectionState
+    -> m (Maybe SelectionState)
+selectMatchingQuantity f s =
+    fmap updateState <$> UTxOIndex.selectRandom (leftover s) f
+  where
+    updateState ((i, o), remaining) = SelectionState
+        { leftover = remaining
+        , selected = UTxOIndex.insert i o (selected s)
+        }
+
+--------------------------------------------------------------------------------
+-- Running a selection step
+--------------------------------------------------------------------------------
+
+data SelectionLens m state = SelectionLens
+    { currentQuantity
+        :: state -> Natural
+    , selectQuantity
+        :: state -> m (Maybe state)
+    , minimumQuantity
+        :: Natural
+    }
+
+runSelectionStep
+    :: forall m state. Monad m
+    => SelectionLens m state
+    -> state
+    -> m (Maybe state)
+runSelectionStep lens s
+    | currentQuantity s < minimumQuantity =
+        selectQuantity s
+    | otherwise =
+        (requireImprovement =<<) <$> selectQuantity s
+  where
+    SelectionLens {currentQuantity, selectQuantity, minimumQuantity} = lens
+
+    requireImprovement :: state -> Maybe state
+    requireImprovement s'
+        | distanceFromTarget s' < distanceFromTarget s = Just s'
+        | otherwise = Nothing
+
+    distanceFromTarget :: state -> Natural
+    distanceFromTarget = distance targetQuantity . currentQuantity
+
+    targetQuantity :: Natural
+    targetQuantity = minimumQuantity * 2
 
 --------------------------------------------------------------------------------
 -- Making change
@@ -310,3 +430,25 @@ runRoundRobinM state processors = go state processors []
         \case
             Nothing -> go s  ps      qs
             Just s' -> go s' ps (p : qs)
+
+--------------------------------------------------------------------------------
+-- Accessor functions
+--------------------------------------------------------------------------------
+
+assetQuantity :: AssetId -> UTxOIndex -> Natural
+assetQuantity asset =
+    unTokenQuantity . flip TokenBundle.getQuantity asset . view #balance
+
+coinQuantity :: UTxOIndex -> Natural
+coinQuantity =
+    fromIntegral . unCoin . TokenBundle.getCoin . view #balance
+
+--------------------------------------------------------------------------------
+-- Utility functions
+--------------------------------------------------------------------------------
+
+distance :: Natural -> Natural -> Natural
+distance a b
+    | a > b = a - b
+    | a < b = b - a
+    | otherwise = 0

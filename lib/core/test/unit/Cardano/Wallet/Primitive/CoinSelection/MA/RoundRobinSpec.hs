@@ -1,4 +1,8 @@
+{-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
@@ -13,10 +17,14 @@ import Prelude
 import Algebra.PartialOrd
     ( PartialOrd (..) )
 import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
-    ( groupByKey
+    ( SelectionLens (..)
+    , SelectionState (..)
+    , groupByKey
     , makeChange
     , makeChangeForSurplusAssets
     , runRoundRobin
+    , runSelection
+    , runSelectionStep
     , ungroupByKey
     )
 import Cardano.Wallet.Primitive.Types.Coin
@@ -34,13 +42,25 @@ import Cardano.Wallet.Primitive.Types.TokenPolicy
 import Cardano.Wallet.Primitive.Types.TokenPolicy.Gen
     ( genTokenNameMediumRange )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
-    ( TokenQuantity )
+    ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
     ( genTokenQuantitySmallPositive, shrinkTokenQuantitySmallPositive )
+import Cardano.Wallet.Primitive.Types.UTxOIndex
+    ( UTxOIndex )
+import Cardano.Wallet.Primitive.Types.UTxOIndex.Gen
+    ( genUTxOIndexLarge, genUTxOIndexSmall, shrinkUTxOIndexSmall )
 import Control.Monad
     ( replicateM )
+import Data.Bifunctor
+    ( bimap, second )
 import Data.Function
     ( (&) )
+import Data.Functor.Identity
+    ( Identity (..) )
+import Data.Generics.Internal.VL.Lens
+    ( view )
+import Data.Generics.Labels
+    ()
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Map.Strict
@@ -51,6 +71,8 @@ import Data.Tuple
     ( swap )
 import Data.Word
     ( Word8 )
+import Numeric.Natural
+    ( Natural )
 import Safe
     ( tailMay )
 import Test.Hspec
@@ -60,17 +82,25 @@ import Test.Hspec.Core.QuickCheck
 import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
+    , Positive (..)
     , Property
+    , checkCoverage
     , choose
+    , counterexample
+    , cover
     , genericShrink
     , property
     , shrinkList
     , suchThat
+    , withMaxSuccess
     , (===)
     )
+import Test.QuickCheck.Monadic
+    ( assert, monadicIO, monitor, run )
 
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
+import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
 import qualified Data.Foldable as F
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
@@ -81,6 +111,39 @@ spec :: Spec
 spec = describe "Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobinSpec" $
 
     modifyMaxSuccess (const 1000) $ do
+
+    parallel $ describe "Coverage" $ do
+
+        it "prop_Small_UTxOIndex_coverage" $
+            property prop_Small_UTxOIndex_coverage
+        it "prop_Large_UTxOIndex_coverage" $
+            property prop_Large_UTxOIndex_coverage
+
+    parallel $ describe "Running a selection" $ do
+
+        it "prop_runSelection_UTxO_empty" $
+            property prop_runSelection_UTxO_empty
+        it "prop_runSelection_UTxO_notEnough" $
+            property prop_runSelection_UTxO_notEnough
+        it "prop_runSelection_UTxO_exactlyEnough" $
+            property prop_runSelection_UTxO_exactlyEnough
+        it "prop_runSelection_UTxO_moreThanEnough" $
+            property prop_runSelection_UTxO_moreThanEnough
+        it "prop_runSelection_UTxO_muchMoreThanEnough" $
+            property prop_runSelection_UTxO_muchMoreThanEnough
+
+    parallel $ describe "Running a selection step" $ do
+
+        it "prop_runSelectionStep_supplyExhausted" $
+            property prop_runSelectionStep_supplyExhausted
+        it "prop_runSelectionStep_notYetEnoughToSatisfyMinimum" $
+            property prop_runSelectionStep_notYetEnoughToSatisfyMinimum
+        it "prop_runSelectionStep_getsCloserToTargetButDoesNotExceedIt" $
+            property prop_runSelectionStep_getsCloserToTargetButDoesNotExceedIt
+        it "prop_runSelectionStep_getsCloserToTargetAndExceedsIt" $
+            property prop_runSelectionStep_getsCloserToTargetAndExceedsIt
+        it "prop_runSelectionStep_exceedsTargetAndGetsFurtherAway" $
+            property prop_runSelectionStep_exceedsTargetAndGetsFurtherAway
 
     parallel $ describe "Making change" $ do
 
@@ -119,6 +182,239 @@ spec = describe "Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobinSpec" $
             property $ prop_runRoundRobin_generationCount @TokenName @Word8
         it "prop_runRoundRobin_generationOrder" $
             property $ prop_runRoundRobin_generationOrder @TokenName @Word8
+
+--------------------------------------------------------------------------------
+-- Coverage
+--------------------------------------------------------------------------------
+
+prop_Small_UTxOIndex_coverage :: Small UTxOIndex -> Property
+prop_Small_UTxOIndex_coverage (Small index) =
+    checkCoverage $ property
+        -- Asset counts:
+        $ cover 1 (assetCount == 0)
+            "asset count = 0"
+        $ cover 80 (assetCount > 0)
+            "asset count > 0"
+        $ cover 40 (assetCount > 8)
+            "asset count > 8"
+        -- Entry counts:
+        $ cover 1 (entryCount == 0)
+            "UTxO set size = 0 entries"
+        $ cover 60 (entryCount > 16)
+            "UTxO set size > 16 entries"
+        $ cover 20 (entryCount > 32)
+            "UTxO set size > 32 entries"
+        True
+  where
+    assetCount = Set.size $ UTxOIndex.assets index
+    entryCount = UTxOIndex.size index
+
+prop_Large_UTxOIndex_coverage :: Large UTxOIndex -> Property
+prop_Large_UTxOIndex_coverage (Large index) =
+    -- Generation of large UTxO sets takes longer, so limit the number of runs:
+    withMaxSuccess 100 $ checkCoverage $ property
+        -- Asset counts:
+        $ cover 80 (assetCount > 8)
+            "asset count > 8"
+        -- Entry counts:
+        $ cover 80 (entryCount >= 1024)
+            "UTxO set size >= 1024 entries"
+        $ cover 20 (entryCount >= 2048)
+            "UTxO set size >= 2048 entries"
+        $ cover 10 (entryCount >= 3072)
+            "UTxO set size >= 3072 entries"
+        True
+  where
+    assetCount = Set.size $ UTxOIndex.assets index
+    entryCount = UTxOIndex.size index
+
+--------------------------------------------------------------------------------
+-- Running a selection
+--------------------------------------------------------------------------------
+
+prop_runSelection_UTxO_empty
+    :: TokenBundle -> Property
+prop_runSelection_UTxO_empty balanceRequested = monadicIO $ do
+    SelectionState {selected, leftover} <-
+        run $ runSelection UTxOIndex.empty balanceRequested
+    let balanceSelected = view #balance selected
+    let balanceLeftover = view #balance leftover
+    assert $ balanceSelected == TokenBundle.empty
+    assert $ balanceLeftover == TokenBundle.empty
+
+prop_runSelection_UTxO_notEnough
+    :: Small UTxOIndex -> Property
+prop_runSelection_UTxO_notEnough (Small index) = monadicIO $ do
+    SelectionState {selected, leftover} <-
+        run $ runSelection index balanceRequested
+    let balanceSelected = view #balance selected
+    let balanceLeftover = view #balance leftover
+    assert $ balanceSelected == balanceAvailable
+    assert $ balanceLeftover == TokenBundle.empty
+  where
+    balanceAvailable = view #balance index
+    balanceRequested = adjustAllQuantities (* 2) balanceAvailable
+
+prop_runSelection_UTxO_exactlyEnough
+    :: Small UTxOIndex -> Property
+prop_runSelection_UTxO_exactlyEnough (Small index) = monadicIO $ do
+    SelectionState {selected, leftover} <-
+        run $ runSelection index balanceRequested
+    let balanceSelected = view #balance selected
+    let balanceLeftover = view #balance leftover
+    assert $ balanceSelected == balanceRequested
+    assert $ balanceLeftover == TokenBundle.empty
+  where
+    balanceRequested = view #balance index
+
+prop_runSelection_UTxO_moreThanEnough
+    :: Small UTxOIndex -> Property
+prop_runSelection_UTxO_moreThanEnough (Small index) = monadicIO $ do
+    SelectionState {selected, leftover} <-
+        run $ runSelection index balanceRequested
+    let balanceSelected = view #balance selected
+    let balanceLeftover = view #balance leftover
+    monitor $ cover 80
+        (assetsRequested `Set.isProperSubsetOf` assetsAvailable)
+        "assetsRequested ⊂ assetsAvailable"
+    monitor $ cover 50 (Set.size assetsRequested >= 4)
+        "size assetsRequested >= 4"
+    assert $ balanceRequested `leq` balanceSelected
+    assert $ balanceAvailable == balanceSelected <> balanceLeftover
+  where
+    assetsAvailable = TokenBundle.getAssets balanceAvailable
+    assetsRequested = TokenBundle.getAssets balanceRequested
+    balanceAvailable = view #balance index
+    balanceRequested = adjustAllQuantities (`div` 8) $
+        cutAssetSetSizeInHalf balanceAvailable
+
+prop_runSelection_UTxO_muchMoreThanEnough
+    :: Large UTxOIndex -> Property
+prop_runSelection_UTxO_muchMoreThanEnough (Large index) =
+    -- Generation of large UTxO sets takes longer, so limit the number of runs:
+    withMaxSuccess 100 $
+    checkCoverage $
+    monadicIO $ do
+        SelectionState {selected, leftover} <-
+            run $ runSelection index balanceRequested
+        let balanceSelected = view #balance selected
+        let balanceLeftover = view #balance leftover
+        monitor $ cover 80
+            (assetsRequested `Set.isProperSubsetOf` assetsAvailable)
+            "assetsRequested ⊂ assetsAvailable"
+        monitor $ cover 50 (Set.size assetsRequested >= 4)
+            "size assetsRequested >= 4"
+        assert $ balanceRequested `leq` balanceSelected
+        assert $ balanceAvailable == balanceSelected <> balanceLeftover
+  where
+    assetsAvailable = TokenBundle.getAssets balanceAvailable
+    assetsRequested = TokenBundle.getAssets balanceRequested
+    balanceAvailable = view #balance index
+    balanceRequested = adjustAllQuantities (`div` 256) $
+        cutAssetSetSizeInHalf balanceAvailable
+
+--------------------------------------------------------------------------------
+-- Running a selection step
+--------------------------------------------------------------------------------
+
+data MockSelectionStepData = MockSelectionStepData
+    { mockNext :: Maybe Natural
+      -- ^ Quantity to be yielded 'by selectQuantity'.
+    , mockSelected :: Natural
+      -- ^ Quantity already selected.
+    , mockMinimum :: Natural
+      -- ^ Minimum quantity to select.
+    }
+    deriving (Eq, Show)
+
+runMockSelectionStep :: MockSelectionStepData -> Maybe Natural
+runMockSelectionStep d =
+    runIdentity $ runSelectionStep lens $ mockSelected d
+  where
+    lens :: SelectionLens Identity Natural
+    lens = SelectionLens
+        { currentQuantity = id
+        , minimumQuantity = mockMinimum d
+        , selectQuantity = \s -> pure $ (+ s) <$> mockNext d
+        }
+
+prop_runSelectionStep_supplyExhausted
+    :: Positive Word8
+    -> Positive Word8
+    -> Property
+prop_runSelectionStep_supplyExhausted
+    (Positive x) (Positive y) =
+        counterexample (show mockData) $
+        runMockSelectionStep mockData === Nothing
+  where
+    mockData = MockSelectionStepData {..}
+    mockSelected = fromIntegral x
+    mockMinimum = fromIntegral y
+    mockNext = Nothing
+
+prop_runSelectionStep_notYetEnoughToSatisfyMinimum
+    :: Positive Word8
+    -> Positive Word8
+    -> Property
+prop_runSelectionStep_notYetEnoughToSatisfyMinimum
+    (Positive x) (Positive y) =
+        counterexample (show mockData) $
+        runMockSelectionStep mockData === fmap (+ mockSelected) mockNext
+  where
+    p = fromIntegral $ max x y
+    q = fromIntegral $ min x y
+    mockData = MockSelectionStepData {..}
+    mockSelected = p
+    mockMinimum = p + q  + 1
+    mockNext = Just q
+
+prop_runSelectionStep_getsCloserToTargetButDoesNotExceedIt
+    :: Positive Word8
+    -> Positive Word8
+    -> Property
+prop_runSelectionStep_getsCloserToTargetButDoesNotExceedIt
+    (Positive x) (Positive y) =
+        counterexample (show mockData) $
+        runMockSelectionStep mockData === fmap (+ mockSelected) mockNext
+  where
+    p = fromIntegral $ max x y
+    q = fromIntegral $ min x y
+    mockData = MockSelectionStepData {..}
+    mockSelected = p
+    mockMinimum = p
+    mockNext = Just q
+
+prop_runSelectionStep_getsCloserToTargetAndExceedsIt
+    :: Positive Word8
+    -> Positive Word8
+    -> Property
+prop_runSelectionStep_getsCloserToTargetAndExceedsIt
+    (Positive x) (Positive y) =
+        counterexample (show mockData) $
+        runMockSelectionStep mockData === fmap (+ mockSelected) mockNext
+  where
+    p = fromIntegral $ max x y
+    q = fromIntegral $ min x y
+    mockData = MockSelectionStepData {..}
+    mockSelected = (2 * p) - q
+    mockMinimum = p
+    mockNext = Just ((2 * q) - 1)
+
+prop_runSelectionStep_exceedsTargetAndGetsFurtherAway
+    :: Positive Word8
+    -> Positive Word8
+    -> Property
+prop_runSelectionStep_exceedsTargetAndGetsFurtherAway
+    (Positive x) (Positive y) =
+        counterexample (show mockData) $
+        runMockSelectionStep mockData === Nothing
+  where
+    p = fromIntegral $ max x y
+    q = fromIntegral $ min x y
+    mockData = MockSelectionStepData {..}
+    mockSelected = (2 * p) - q
+    mockMinimum = p
+    mockNext = Just ((2 * q) + 1)
 
 --------------------------------------------------------------------------------
 -- Making change
@@ -344,6 +640,28 @@ prop_runRoundRobin_generationOrder initialState = property $
 -- Utility functions
 --------------------------------------------------------------------------------
 
+adjustAllQuantities :: (Natural -> Natural) -> TokenBundle -> TokenBundle
+adjustAllQuantities f b = uncurry TokenBundle.fromFlatList $ bimap
+    (adjustCoin)
+    (fmap (fmap adjustTokenQuantity))
+    (TokenBundle.toFlatList b)
+  where
+    adjustCoin :: Coin -> Coin
+    adjustCoin = Coin . fromIntegral . f . fromIntegral . unCoin
+
+    adjustTokenQuantity :: TokenQuantity -> TokenQuantity
+    adjustTokenQuantity = TokenQuantity . f . unTokenQuantity
+
+cutAssetSetSizeInHalf :: TokenBundle -> TokenBundle
+cutAssetSetSizeInHalf = uncurry TokenBundle.fromFlatList
+    . second cutListInHalf
+    . TokenBundle.toFlatList
+
+cutListInHalf :: [a] -> [a]
+cutListInHalf xs = take half xs
+  where
+    half = length xs `div` 2
+
 consecutivePairs :: [a] -> [(a, a)]
 consecutivePairs xs = case tailMay xs of
     Nothing -> []
@@ -378,3 +696,19 @@ instance Arbitrary TokenBundle where
 instance Arbitrary TokenQuantity where
     arbitrary = genTokenQuantitySmallPositive
     shrink = shrinkTokenQuantitySmallPositive
+
+newtype Large a = Large
+    { getLarge :: a }
+    deriving (Eq, Show)
+
+newtype Small a = Small
+    { getSmall:: a }
+    deriving (Eq, Show)
+
+instance Arbitrary (Large UTxOIndex) where
+    arbitrary = Large <$> genUTxOIndexLarge
+    -- No shrinking
+
+instance Arbitrary (Small UTxOIndex) where
+    arbitrary = Small <$> genUTxOIndexSmall
+    shrink = fmap Small . shrinkUTxOIndexSmall . getSmall
