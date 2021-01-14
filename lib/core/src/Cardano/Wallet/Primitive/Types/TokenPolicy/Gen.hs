@@ -1,7 +1,10 @@
 module Cardano.Wallet.Primitive.Types.TokenPolicy.Gen
     ( genTokenNameSmallRange
+    , tokenNamesSmallRange
     , genTokenNameMediumRange
+    , tokenNamesMediumRange
     , genTokenPolicyIdSmallRange
+    , tokenPolicies
     , shrinkTokenNameSmallRange
     , shrinkTokenNameMediumRange
     , shrinkTokenPolicyIdSmallRange
