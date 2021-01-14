@@ -376,7 +376,9 @@ prefilterBlock b u0 = runState $ do
         , direction = dir
         , slotNo = b ^. #header . #slotNo
         , blockHeight = b ^. #header . #blockHeight
-        , amount = Quantity amt
+        -- fixme: ADP-347
+        -- fixme: why on earth do we have both Coin and Quantity "lovelace" Natural?
+        , amount = Coin (fromIntegral amt)
         , expiry = Nothing
         }
     applyTx

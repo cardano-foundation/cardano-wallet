@@ -104,9 +104,9 @@ spec = describe "SHELLEY_CLI_HW_WALLETS" $ do
         wDest <- expectValidJSON (Proxy @ApiWallet) o1
         verify wDest
             [ expectCliField
-                    (#balance . #getApiT . #available) (`shouldBe` Quantity 0)
+                    (#balance . #available) (`shouldBe` Quantity 0)
             , expectCliField
-                    (#balance . #getApiT . #total) (`shouldBe` Quantity 0)
+                    (#balance . #total) (`shouldBe` Quantity 0)
             ]
 
         --send transaction to the wallet
@@ -126,9 +126,9 @@ spec = describe "SHELLEY_CLI_HW_WALLETS" $ do
         eventually "Wallet balance is as expected" $ do
             Stdout og <- getWalletViaCLI ctx $ T.unpack (wDest ^. walletId)
             jg <- expectValidJSON (Proxy @ApiWallet) og
-            expectCliField (#balance . #getApiT . #available)
+            expectCliField (#balance . #available)
                 (`shouldBe` Quantity amount) jg
-            expectCliField (#balance . #getApiT . #total)
+            expectCliField (#balance . #total)
                 (`shouldBe` Quantity amount) jg
 
         -- delete wallet
@@ -149,10 +149,10 @@ spec = describe "SHELLEY_CLI_HW_WALLETS" $ do
             justRestored <- expectValidJSON (Proxy @ApiWallet) o3
             verify justRestored
                 [ expectCliField
-                        (#balance . #getApiT . #available)
+                        (#balance . #available)
                         (`shouldBe` Quantity amount)
                 , expectCliField
-                        (#balance . #getApiT . #total)
+                        (#balance . #total)
                         (`shouldBe` Quantity amount)
                 ]
 
@@ -174,7 +174,7 @@ spec = describe "SHELLEY_CLI_HW_WALLETS" $ do
                 Stdout o3 <- getWalletViaCLI ctx $ T.unpack (wRestored ^. walletId)
                 justRestored <- expectValidJSON (Proxy @ApiWallet) o3
                 verify justRestored
-                    [ expectCliField (#balance . #getApiT . #available)
+                    [ expectCliField (#balance . #available)
                         (.> Quantity 0)
                     ]
 
@@ -237,7 +237,7 @@ spec = describe "SHELLEY_CLI_HW_WALLETS" $ do
             eventually "Wallet has funds" $ do
                 Stdout og <- getWalletViaCLI ctx $ T.unpack (wRestored ^. walletId)
                 expectValidJSON (Proxy @ApiWallet) og >>= flip verify
-                    [ expectCliField (#balance . #getApiT . #available)
+                    [ expectCliField (#balance . #available)
                         (.> Quantity 0)
                     ]
 

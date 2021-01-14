@@ -50,6 +50,9 @@ module Cardano.Wallet.Api.Server
     , getUTxOsStatistics
     , getWallet
     , joinStakePool
+    , listAssets
+    , getAsset
+    , getAssetDefault
     , listAddresses
     , listTransactions
     , getTransaction
@@ -165,6 +168,7 @@ import Cardano.Wallet.Api.Types
     , AddressAmount (..)
     , ApiAccountPublicKey (..)
     , ApiAddress (..)
+    , ApiAsset (..)
     , ApiBlockInfo (..)
     , ApiBlockReference (..)
     , ApiBlockReference (..)
@@ -195,6 +199,8 @@ import Cardano.Wallet.Api.Types
     , ApiUtxoStatistics (..)
     , ApiVerificationKey (..)
     , ApiWallet (..)
+    , ApiWalletAssetsBalance (..)
+    , ApiWalletBalance (..)
     , ApiWalletDelegation (..)
     , ApiWalletDelegationNext (..)
     , ApiWalletDelegationStatus (..)
@@ -214,12 +220,12 @@ import Cardano.Wallet.Api.Types
     , PostExternalTransactionData (..)
     , PostTransactionData (..)
     , PostTransactionFeeData (..)
-    , WalletBalance (..)
     , WalletOrAccountPostData (..)
     , WalletPostData (..)
     , WalletPutData (..)
     , WalletPutPassphraseData (..)
     , getApiMnemonicT
+    , toApiAsset
     , toApiEpochInfo
     , toApiNetworkParameters
     , toApiUtxoStatistics
@@ -316,6 +322,8 @@ import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
+import Cardano.Wallet.Primitive.Types.TokenPolicy
+    ( TokenName (..), TokenPolicyId (..), nullTokenName )
 import Cardano.Wallet.Primitive.Types.Tx
     ( TransactionInfo (TransactionInfo)
     , Tx (..)
@@ -460,10 +468,12 @@ import qualified Cardano.Wallet.Primitive.AddressDerivation.Icarus as Icarus
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
+import qualified Cardano.Wallet.Primitive.Types.UTxO as W
 import qualified Cardano.Wallet.Registry as Registry
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
+import qualified Data.Foldable as F
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
@@ -718,10 +728,14 @@ mkShelleyWallet ctx wid cp meta pending progress = do
         cp
     pure ApiWallet
         { addressPoolGap = ApiT $ getState cp ^. #externalPool . #gap
-        , balance = ApiT $ WalletBalance
+        , balance = ApiWalletBalance
             { available = Quantity $ availableBalance pending cp
             , total = Quantity $ totalBalance pending reward cp
             , reward
+            }
+        , assets = ApiWalletAssetsBalance
+            { available = mempty  -- fixme: ADP-604
+            , total = mempty  -- fixme: ADP-604
             }
         , delegation = apiDelegation
         , id = ApiT wid
@@ -1244,6 +1258,43 @@ selectCoinsForQuit ctx (ApiT wid) = do
     pure $ mkApiCoinSelection [] (Just (action, path)) utx
   where
     genChange = delegationAddress @n
+
+{-------------------------------------------------------------------------------
+                                     Assets
+-------------------------------------------------------------------------------}
+
+listAssets
+    :: forall ctx s k.
+        ( ctx ~ ApiLayer s k
+        )
+    => ctx
+    -> ApiT WalletId
+    -> Handler [ApiAsset]
+listAssets ctx (ApiT wid) = do
+    utxo <- withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk -> liftHandler $ do
+       (cp, _meta, _pending) <- W.readWallet @_ @s @k wrk wid
+       pure (cp ^. #utxo)
+    pure $ map (toApiAsset metadata) $ F.toList $ W.getAssets utxo
+  where
+    metadata = Nothing  -- TODO: Use data from metadata server
+
+getAsset
+    :: ctx
+    -> ApiT WalletId
+    -> ApiT TokenPolicyId
+    -> ApiT TokenName
+    -> Handler ApiAsset
+getAsset _ctx (ApiT _wid) policyId assetName = pure $
+    ApiAsset { policyId, assetName, metadata }
+  where
+    metadata = Nothing  -- TODO: Use data from metadata server
+
+getAssetDefault
+    :: ctx
+    -> ApiT WalletId
+    -> ApiT TokenPolicyId
+    -> Handler ApiAsset
+getAssetDefault ctx wid policyId = getAsset ctx wid policyId (ApiT nullTokenName)
 
 {-------------------------------------------------------------------------------
                                     Addresses
@@ -2033,9 +2084,10 @@ mkApiTransaction ti txid mfee ins outs ws (meta, timestamp) txMeta setTimeRefere
     tx :: ApiTransaction n
     tx = ApiTransaction
         { id = ApiT txid
-        , amount = meta ^. #amount
+        , amount = Quantity . fromIntegral $ meta ^. #amount . #unCoin
         , fee = maybe (Quantity 0) (Quantity . fromIntegral . unCoin) mfee
         , deposit = Quantity depositIfAny
+        , assets = ApiT mempty
         , insertedAt = Nothing
         , pendingSince = Nothing
         , expiresAt = Nothing
@@ -2044,6 +2096,7 @@ mkApiTransaction ti txid mfee ins outs ws (meta, timestamp) txMeta setTimeRefere
         , inputs = [ApiTxInput (fmap toAddressAmount o) (ApiT i) | (i, o) <- ins]
         , outputs = toAddressAmount <$> outs
         , withdrawals = mkApiWithdrawal @n <$> Map.toList ws
+        , mint = mempty  -- TODO: ADP-xxx
         , status = ApiT (meta ^. #status)
         , metadata = ApiTxMetadata $ ApiT <$> txMeta
         }
@@ -2104,9 +2157,8 @@ mkApiTransaction ti txid mfee ins outs ws (meta, timestamp) txMeta setTimeRefere
         txOutValue = fromIntegral . unCoin . txOutCoin
 
     toAddressAmount :: TxOut -> AddressAmount (ApiT Address, Proxy n)
-    toAddressAmount (TxOut addr tokens) = AddressAmount
-        (ApiT addr, Proxy @n)
-        (mkApiCoin $ TokenBundle.getCoin tokens)
+    toAddressAmount (TxOut addr (TokenBundle.TokenBundle coin assets)) =
+        AddressAmount (ApiT addr, Proxy @n) (mkApiCoin coin) (ApiT assets)
 
 mkApiCoin
     :: Coin
@@ -2123,8 +2175,8 @@ mkApiWithdrawal (acct, c) =
 coerceCoin
     :: forall (n :: NetworkDiscriminant). AddressAmount (ApiT Address, Proxy n)
     -> TxOut
-coerceCoin (AddressAmount (ApiT addr, _) (Quantity c)) =
-    TxOut addr (TokenBundle.fromCoin $ Coin $ fromIntegral c)
+coerceCoin (AddressAmount (ApiT addr, _) (Quantity c) (ApiT assets)) =
+    TxOut addr (TokenBundle.TokenBundle (Coin $ fromIntegral c) assets)
 
 natural :: Quantity q Word32 -> Quantity q Natural
 natural = Quantity . fromIntegral . getQuantity

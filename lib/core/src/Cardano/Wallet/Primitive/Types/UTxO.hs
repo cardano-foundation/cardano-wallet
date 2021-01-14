@@ -33,7 +33,7 @@ module Cardano.Wallet.Primitive.Types.UTxO
     , pickRandom
     , restrictedBy
     , restrictedTo
-
+    , getAssets
     ) where
 
 import Prelude
@@ -264,3 +264,7 @@ computeStatistics getCoins btype utxos =
 
     (^!) :: Word64 -> Word64 -> Word64
     (^!) = (^)
+
+-- | List all assets seen in the UTxO.
+getAssets :: UTxO -> Set TB.AssetId
+getAssets = Set.unions . map (TB.getAssets . view #tokens . snd) . Map.toList . getUTxO

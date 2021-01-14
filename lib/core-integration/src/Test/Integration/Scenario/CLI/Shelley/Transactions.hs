@@ -145,7 +145,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
         gJson <- expectValidJSON (Proxy @ApiWallet) gOutSrc
         verify gJson
             [ expectCliField
-                (#balance . #getApiT . #total)
+                (#balance . #total)
                 (.>= Quantity (faucetAmt - feeMax - amt))
             ]
 
@@ -155,9 +155,9 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
             destJson <- expectValidJSON (Proxy @ApiWallet) gOutDest
             verify destJson
                 [ expectCliField
-                        (#balance . #getApiT . #available) (`shouldBe` Quantity amt)
+                        (#balance . #available) (`shouldBe` Quantity amt)
                 , expectCliField
-                        (#balance . #getApiT . #total) (`shouldBe` Quantity amt)
+                        (#balance . #total) (`shouldBe` Quantity amt)
                 ]
 
     it "TRANS_CREATE_02 - Multiple Output Tx to single wallet via CLI" $ \ctx -> runResourceT $ do
@@ -194,7 +194,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
         gJson <- expectValidJSON (Proxy @ApiWallet) gOutSrc
         verify gJson
             [ expectCliField
-                (#balance . #getApiT . #total)
+                (#balance . #total)
                 (.>= Quantity (faucetAmt - feeMax - (2*amt)))
             ]
 
@@ -204,9 +204,9 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
             destJson <- expectValidJSON (Proxy @ApiWallet) gOutDest
             verify destJson
                 [ expectCliField
-                    (#balance . #getApiT . #available) (`shouldBe` Quantity (2*amt))
+                    (#balance . #available) (`shouldBe` Quantity (2*amt))
                 , expectCliField
-                    (#balance . #getApiT . #total) (`shouldBe` Quantity (2*amt))
+                    (#balance . #total) (`shouldBe` Quantity (2*amt))
                 ]
 
     it "TRANS_CREATE_04 - Wrong password" $ \ctx -> runResourceT $ do
@@ -444,9 +444,9 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
             destJson <- expectValidJSON (Proxy @ApiWallet) gOutDest
             verify destJson
                 [ expectCliField
-                        (#balance . #getApiT . #available) (`shouldBe` Quantity amt)
+                        (#balance . #available) (`shouldBe` Quantity amt)
                 , expectCliField
-                        (#balance . #getApiT . #total) (`shouldBe` Quantity amt)
+                        (#balance . #total) (`shouldBe` Quantity amt)
                 ]
 
         -- Verify Tx list contains Incoming and Outgoing
@@ -678,9 +678,9 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
             destJson <- expectValidJSON (Proxy @ApiWallet) gOutDest
             verify destJson
                 [ expectCliField
-                        (#balance . #getApiT . #available) (`shouldBe` Quantity amt)
+                        (#balance . #available) (`shouldBe` Quantity amt)
                 , expectCliField
-                        (#balance . #getApiT . #total) (`shouldBe` Quantity amt)
+                        (#balance . #total) (`shouldBe` Quantity amt)
                 ]
 
         eventually "Transactions are available and in ledger" $ do

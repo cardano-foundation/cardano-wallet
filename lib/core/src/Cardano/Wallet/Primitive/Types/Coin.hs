@@ -34,7 +34,7 @@ import Data.Text.Class
 import Data.Word
     ( Word64 )
 import Fmt
-    ( Buildable (..) )
+    ( Buildable (..), fixedF )
 import GHC.Generics
     ( Generic )
 import Numeric.Natural
@@ -73,7 +73,7 @@ instance Bounded Coin where
     maxBound = Coin 45_000_000_000_000_000
 
 instance Buildable Coin where
-    build = build . unCoin
+    build (Coin c) = fixedF @Double 6 (fromIntegral c / 1e6)
 
 --------------------------------------------------------------------------------
 -- Operations

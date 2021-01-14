@@ -87,7 +87,7 @@ spec = describe "BYRON_COIN_SELECTION" $ do
         rnW <- emptyRandomWallet ctx
         shW <- emptyWallet ctx
         (addr:_) <- fmap (view #id) <$> listAddresses @n ctx shW
-        let payments = NE.fromList [ AddressAmount addr (Quantity minUTxOValue) ]
+        let payments = NE.fromList [ AddressAmount addr (Quantity minUTxOValue) mempty ]
         selectCoins @_ @'Byron ctx rnW payments >>= flip verify
             [ expectResponseCode HTTP.status403
             , expectErrorMessage errMsg403NotAnIcarusWallet
@@ -100,7 +100,7 @@ spec = describe "BYRON_COIN_SELECTION" $ do
             target <- emptyWallet ctx
             targetAddress : _ <- fmap (view #id) <$> listAddresses @n ctx target
             let amt = Quantity minUTxOValue
-            let payment = AddressAmount targetAddress amt
+            let payment = AddressAmount targetAddress amt mempty
             let output = ApiCoinSelectionOutput targetAddress amt
             let isValidDerivationPath path =
                     ( length path == 5 )
@@ -136,6 +136,7 @@ spec = describe "BYRON_COIN_SELECTION" $ do
             let amounts = Quantity <$> [minUTxOValue ..]
             let payments = NE.fromList
                     $ take paymentCount
+                    $ map ($ mempty)
                     $ zipWith AddressAmount targetAddresses amounts
             let outputs =
                     take paymentCount
@@ -153,7 +154,7 @@ spec = describe "BYRON_COIN_SELECTION" $ do
         icW <- emptyIcarusWallet ctx
         shW <- emptyWallet ctx
         (addr:_) <- fmap (view #id) <$> listAddresses @n ctx shW
-        let payments = NE.fromList [ AddressAmount addr (Quantity minUTxOValue) ]
+        let payments = NE.fromList [ AddressAmount addr (Quantity minUTxOValue) mempty ]
         _ <- request @ApiByronWallet ctx (Link.deleteWallet @'Byron icW) Default Empty
         selectCoins @_ @'Byron ctx icW payments >>= flip verify
             [ expectResponseCode HTTP.status404
@@ -168,7 +169,7 @@ spec = describe "BYRON_COIN_SELECTION" $ do
 
             targetAddress:_ <- fmap (view #id) <$> listAddresses @n ctx target
             let amt = Quantity minUTxOValue
-            let payment = AddressAmount targetAddress amt
+            let payment = AddressAmount targetAddress amt mempty
             let output = ApiCoinSelectionOutput targetAddress amt
             let isValidDerivationPath path =
                     ( length path == 5 )

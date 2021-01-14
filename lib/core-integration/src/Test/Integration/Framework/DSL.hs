@@ -1115,8 +1115,8 @@ rewardWallet ctx = do
     eventually "MIR wallet: wallet is 100% synced " $ do
         rg <- request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty
         verify rg
-            [ expectField (#balance . #getApiT . #available . #getQuantity) (.> 0)
-            , expectField (#balance . #getApiT . #reward . #getQuantity) (.> 0)
+            [ expectField (#balance . #available . #getQuantity) (.> 0)
+            , expectField (#balance . #reward . #getQuantity) (.> 0)
             ]
         pure (getFromResponse id rg, mw)
 
@@ -1184,7 +1184,7 @@ fixtureWalletWithMnemonics ctx = snd <$> allocate create (free . fst)
     checkBalance w = do
         r <- request @ApiWallet ctx
             (Link.getWallet @'Shelley w) Default Empty
-        if getFromResponse (#balance . #getApiT . #available) r > Quantity 0
+        if getFromResponse (#balance . #available) r > Quantity 0
             then return (getFromResponse id r)
             else threadDelay oneSecond *> checkBalance w
 
@@ -1387,7 +1387,7 @@ fixtureWalletWith ctx coins0 = do
             -- ^ Coins to move
         -> IO ()
     moveCoins src dest coins = do
-        balance <- getFromResponse (#balance . #getApiT . #available . #getQuantity)
+        balance <- getFromResponse (#balance . #available . #getQuantity)
             <$> request @ApiWallet ctx
                     (Link.getWallet @'Shelley dest) Default Empty
         addrs <- fmap (view #id) . getFromResponse id
@@ -1411,14 +1411,14 @@ fixtureWalletWith ctx coins0 = do
             rb <- request @ApiWallet ctx
                 (Link.getWallet @'Shelley dest) Default Empty
             expectField
-                (#balance . #getApiT . #available)
+                (#balance . #available)
                 (`shouldBe` Quantity (sum (balance:coins))) rb
             ra <- request @ApiWallet ctx
                 (Link.getWallet @'Shelley src) Default Empty
 
-            getFromResponse (#balance . #getApiT . #available) ra
+            getFromResponse (#balance . #available) ra
                 `shouldBe`
-                    getFromResponse (#balance . #getApiT . #total) ra
+                    getFromResponse (#balance . #total) ra
 
 -- | Move coins from a wallet to another
 moveByronCoins

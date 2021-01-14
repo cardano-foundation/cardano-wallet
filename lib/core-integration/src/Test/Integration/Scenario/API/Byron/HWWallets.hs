@@ -330,7 +330,7 @@ spec = describe "BYRON_HW_WALLETS" $ do
                     icarusAddresses @n mnemonics
             let targetAmounts = take paymentCount $
                     Quantity <$> [minUTxOValue ..]
-            let payments = NE.fromList $
+            let payments = NE.fromList $ map ($ mempty) $
                     zipWith AddressAmount targetAddresses targetAmounts
             let outputs =
                     zipWith ApiCoinSelectionOutput targetAddresses targetAmounts

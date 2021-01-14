@@ -322,13 +322,13 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
 
         verify ra
             [ expectSuccess
-            , expectField (#balance . #getApiT . #total) $
+            , expectField (#balance . #total) $
                 between
                     ( Quantity (initialAmt - feeMax - amt)
                     , Quantity (initialAmt - feeMin - amt)
                     )
             , expectField
-                    (#balance . #getApiT . #available)
+                    (#balance . #available)
                     (`shouldBe` Quantity 0)
             ]
 
@@ -364,13 +364,13 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             rb <- request @ApiWallet ctx
                 (Link.getWallet @'Shelley wb) Default Empty
             expectField
-                (#balance . #getApiT . #available)
+                (#balance . #available)
                 (`shouldBe` Quantity (initialAmt + amt)) rb
 
             ra2 <- request @ApiWallet ctx
                 (Link.getWallet @'Shelley wa) Default Empty
             expectField
-                (#balance . #getApiT . #available)
+                (#balance . #available)
                 (`shouldBe` Quantity (initialAmt - feeMax - amt)) ra2
 
     it "TRANS_CREATE_02x - Multiple Output Tx to single wallet" $ \ctx -> runResourceT $ do
@@ -418,13 +418,13 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             ]
 
         verify ra
-            [ expectField (#balance . #getApiT . #total) $
+            [ expectField (#balance . #total) $
                 between
                     ( Quantity (faucetAmt - feeMax - (2*amt))
                     , Quantity (faucetAmt - feeMin - (2*amt))
                     )
             , expectField
-                    (#balance . #getApiT . #available)
+                    (#balance . #available)
                     (.>= Quantity (faucetAmt - 2 * faucetUtxoAmt))
             ]
         eventually "wDest balance is as expected" $ do
@@ -432,10 +432,10 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 (Link.getWallet @'Shelley wDest) Default Empty
             verify rd
                 [ expectField
-                        (#balance . #getApiT . #available)
+                        (#balance . #available)
                         (`shouldBe` Quantity (2*amt))
                 , expectField
-                        (#balance . #getApiT . #total)
+                        (#balance . #total)
                         (`shouldBe` Quantity (2*amt))
                 ]
 
@@ -470,8 +470,8 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
 
         ra <- request @ApiWallet ctx (Link.getWallet @'Shelley wSrc) Default Empty
         verify ra
-            [ expectField (#balance . #getApiT . #total) (`shouldBe` Quantity 0)
-            , expectField (#balance . #getApiT . #available) (`shouldBe` Quantity 0)
+            [ expectField (#balance . #total) (`shouldBe` Quantity 0)
+            , expectField (#balance . #available) (`shouldBe` Quantity 0)
             ]
 
         eventually "Wallet balance is as expected" $ do
@@ -479,17 +479,17 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 (Link.getWallet @'Shelley wDest) Default Empty
             verify rd
                 [ expectField
-                        (#balance . #getApiT . #available)
+                        (#balance . #available)
                         (`shouldBe` Quantity (2*amt))
                 , expectField
-                        (#balance . #getApiT . #total)
+                        (#balance . #total)
                         (`shouldBe` Quantity (2*amt))
                 ]
 
         ra2 <- request @ApiWallet ctx (Link.getWallet @'Shelley wSrc) Default Empty
         verify ra2
-            [ expectField (#balance . #getApiT . #total) (`shouldBe` Quantity 0)
-            , expectField (#balance . #getApiT . #available) (`shouldBe` Quantity 0)
+            [ expectField (#balance . #total) (`shouldBe` Quantity 0)
+            , expectField (#balance . #available) (`shouldBe` Quantity 0)
             ]
 
     it "TRANS_CREATE_04 - Can't cover fee" $ \ctx -> runResourceT $ do
@@ -644,7 +644,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             rb <- request @ApiWallet ctx
                 (Link.getWallet @'Shelley wShelley) Default Empty
             expectField
-                (#balance . #getApiT . #available)
+                (#balance . #available)
                 (`shouldBe` Quantity (faucetAmt + amt)) rb
 
             ra2 <- request @ApiByronWallet ctx
@@ -976,7 +976,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         verify r1
             [ expectResponseCode HTTP.status201
             , expectField
-                (#balance . #getApiT . #available) (`shouldBe` Quantity 0)
+                (#balance . #available) (`shouldBe` Quantity 0)
             ]
         let wSrc = getFromResponse Prelude.id r1
 
@@ -1014,7 +1014,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
 
         let (Hash txid) = getApiT $ getFromResponse #id r3
         let txix = case getFromResponse #outputs r3 of
-                [(AddressAmount _ (Quantity out1)), (AddressAmount _ (Quantity out2))]
+                [(AddressAmount _ (Quantity out1) _), (AddressAmount _ (Quantity out2) _)]
                     | out1 == amtSrc -> 0
                     | out2 == amtSrc -> 1
                     | otherwise -> error "this should not happen"
@@ -1024,13 +1024,13 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             r' <- request @ApiWallet ctx
                 (Link.getWallet @'Shelley wSrc) Default Empty
             expectField
-                (#balance . #getApiT . #available)
+                (#balance . #available)
                 (`shouldBe` Quantity amtSrc) r'
 
             r'' <- request @ApiWallet ctx
                 (Link.getWallet @'Shelley wFaucet) Default Empty
             expectField
-                (#balance . #getApiT . #available)
+                (#balance . #available)
                 (between wFaucetBalRange) r''
 
         -- #2238 quick fix to reduce likelihood of rollback.
@@ -1053,7 +1053,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             [ expectSuccess
             , expectResponseCode HTTP.status201
             , expectField
-                (#balance . #getApiT . #available) (`shouldBe` Quantity 0)
+                (#balance . #available) (`shouldBe` Quantity 0)
             ]
         let wDest = getFromResponse Prelude.id r4
 
@@ -1115,13 +1115,13 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             r' <- request @ApiWallet ctx
                 (Link.getWallet @'Shelley wDest) Default Empty
             expectField
-                (#balance . #getApiT . #available)
+                (#balance . #available)
                 (`shouldBe` Quantity amtDest) r'
 
             r'' <- request @ApiWallet ctx
                 (Link.getWallet @'Shelley wSrc) Default Empty
             expectField
-                (#balance . #getApiT . #available)
+                (#balance . #available)
                 (`shouldBe` Quantity outChange) r''
 
     it "TRANS_EXTERNAL_02 - Multiple Outputs Transaction - Shelley witnesses" $ \ctx -> runResourceT $ do
@@ -1144,7 +1144,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         verify r1
             [ expectResponseCode HTTP.status201
             , expectField
-                (#balance . #getApiT . #available) (`shouldBe` Quantity 0)
+                (#balance . #available) (`shouldBe` Quantity 0)
             ]
         let wSrc = getFromResponse Prelude.id r1
 
@@ -1188,7 +1188,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
 
         let (Hash txid) = getApiT $ getFromResponse #id r3
         let (txix1, txix2) = case getFromResponse #outputs r3 of
-                [ (AddressAmount _ (Quantity out1)), (AddressAmount _ (Quantity out2)), (AddressAmount _ (Quantity out3)), (AddressAmount _ (Quantity out4))] ->
+                [ (AddressAmount _ (Quantity out1) _), (AddressAmount _ (Quantity out2) _), (AddressAmount _ (Quantity out3) _), (AddressAmount _ (Quantity out4) _)] ->
                     let pairs = [(out1, 0), (out2, 1), (out3, 2), (out4, 3)]
                         (Just ix1) = L.lookup amt1 pairs
                         (Just ix2) = L.lookup amt2 pairs
@@ -1199,14 +1199,14 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             r' <- request @ApiWallet ctx
                 (Link.getWallet @'Shelley wSrc) Default Empty
             expectField
-                (#balance . #getApiT . #available)
+                (#balance . #available)
                 (`shouldBe` Quantity amtSrc) r'
 
             r'' <- request @ApiWallet ctx
                 (Link.getWallet @'Shelley wFaucet) Default Empty
             txs <- listTransactions @n ctx wFaucet Nothing Nothing Nothing
             expectField
-                (#balance . #getApiT . #available)
+                (#balance . #available)
                 (between wFaucetBalRange) r''
                 & counterexample ("fee response: " <> show r2)
                 & counterexample ("faucet txs: " <> show txs)
@@ -1230,7 +1230,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         verify r4
             [ expectResponseCode HTTP.status201
             , expectField
-                (#balance . #getApiT . #available) (`shouldBe` Quantity 0)
+                (#balance . #available) (`shouldBe` Quantity 0)
             ]
         let wDest = getFromResponse Prelude.id r4
 
@@ -1300,13 +1300,13 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             r' <- request @ApiWallet ctx
                 (Link.getWallet @'Shelley wDest) Default Empty
             expectField
-                (#balance . #getApiT . #available)
+                (#balance . #available)
                 (`shouldBe` Quantity amtDest) r'
 
             r'' <- request @ApiWallet ctx
                 (Link.getWallet @'Shelley wSrc) Default Empty
             expectField
-                (#balance . #getApiT . #available)
+                (#balance . #available)
                 (`shouldBe` Quantity outChange) r''
 
     describe "TRANS_EXTERNAL_03 - Single Output Transaction with Byron witness" $ do
@@ -1377,7 +1377,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
 
             let (Hash txid) = getApiT $ getFromResponse #id r2
             let txix = case getFromResponse #outputs r2 of
-                    [(AddressAmount _ (Quantity out1)), (AddressAmount _ (Quantity out2))]
+                    [(AddressAmount _ (Quantity out1) _), (AddressAmount _ (Quantity out2) _)]
                         | out1 == amtSrc -> 0
                         | out2 == amtSrc -> 1
                         | otherwise -> error "this should not happen"
@@ -1458,7 +1458,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 r' <- request @ApiWallet ctx
                     (Link.getWallet @'Shelley wShelley) Default Empty
                 expectField
-                    (#balance . #getApiT . #available)
+                    (#balance . #available)
                     (`shouldBe` Quantity amtDest) r'
 
                 r'' <- request @ApiByronWallet ctx
@@ -1533,7 +1533,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
 
             let (Hash txid) = getApiT $ getFromResponse #id r2
             let txix = case getFromResponse #outputs r2 of
-                    [(AddressAmount _ (Quantity out1)), (AddressAmount _ (Quantity out2))]
+                    [(AddressAmount _ (Quantity out1) _), (AddressAmount _ (Quantity out2) _)]
                         | out1 == amtSrc -> 0
                         | out2 == amtSrc -> 1
                         | otherwise -> error "this should not happen"
@@ -1587,7 +1587,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 r' <- request @ApiWallet ctx
                     (Link.getWallet @'Shelley wShelley) Default Empty
                 expectField
-                    (#balance . #getApiT . #available)
+                    (#balance . #available)
                     (`shouldBe` Quantity amtDest) r'
 
                 r'' <- request @ApiByronWallet ctx
@@ -1632,7 +1632,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
     it "TRANS_ESTIMATE_03b - we see result when we can't cover fee (with withdrawal)" $ \ctx -> runResourceT $ do
         (wSrc, _) <- rewardWallet ctx
         addr:_ <- fmap (view #id) <$> listAddresses @n ctx wSrc
-        let totalBalance = wSrc ^. #balance . #getApiT . #total
+        let totalBalance = wSrc ^. #balance . #total
         let payload = Json [json|{
                 "withdrawal": "self",
                 "payments": [{
@@ -1698,9 +1698,9 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 (Link.getWallet @'Shelley wDest) Default Empty
             verify rGet
                 [ expectField
-                        (#balance . #getApiT . #total) (`shouldBe` Quantity amt)
+                        (#balance . #total) (`shouldBe` Quantity amt)
                 , expectField
-                        (#balance . #getApiT . #available) (`shouldBe` Quantity amt)
+                        (#balance . #available) (`shouldBe` Quantity amt)
                 ]
 
         -- Verify Tx list contains Incoming and Outgoing
@@ -2130,9 +2130,9 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 (Link.getWallet @'Shelley wDest) Default Empty
             verify rGet
                 [ expectField
-                        (#balance . #getApiT . #total) (`shouldBe` Quantity amt)
+                        (#balance . #total) (`shouldBe` Quantity amt)
                 , expectField
-                        (#balance . #getApiT . #available) (`shouldBe` Quantity amt)
+                        (#balance . #available) (`shouldBe` Quantity amt)
                 ]
 
         eventually "Transactions are available and in ledger" $ do
@@ -2205,7 +2205,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         -- forget transaction
         (statusDelete, _) <- request @ApiTxId ctx
             (Link.deleteTransaction @'Shelley wSrc (ApiTxId txid)) Default Empty
-        rBalance <- getFromResponse (#balance . #getApiT . #total)
+        rBalance <- getFromResponse (#balance . #total)
             <$> request @ApiWallet ctx (Link.getWallet @'Shelley wSrc) Default Empty
 
         let assertSourceTx = do
@@ -2424,9 +2424,9 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             rW <- request @ApiWallet ctx
                 (Link.getWallet @'Shelley wSrc) Default payload
             verify rW
-                [ expectField (#balance . #getApiT . #available)
-                    (.> (wSrc ^. #balance . #getApiT . #available))
-                , expectField (#balance . #getApiT . #reward)
+                [ expectField (#balance . #available)
+                    (.> (wSrc ^. #balance . #available))
+                , expectField (#balance . #reward)
                     (`shouldBe` Quantity 0)
                 ]
 
@@ -2463,7 +2463,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             rWOther <- request @ApiWallet ctx
                 (Link.getWallet @'Shelley wOther) Default payload
             verify rWOther
-                [ expectField (#balance . #getApiT . #reward)
+                [ expectField (#balance . #reward)
                     (`shouldBe` Quantity 0)
                 ]
 
@@ -2485,8 +2485,8 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             rWSelf <- request @ApiWallet ctx
                 (Link.getWallet @'Shelley wSelf) Default payload
             verify rWSelf
-                [ expectField (#balance . #getApiT . #available)
-                    (.> (wSelf ^. #balance . #getApiT . #available))
+                [ expectField (#balance . #available)
+                    (.> (wSelf ^. #balance . #available))
                 ]
 
         eventually "withdrawal transaction is listed on self" $ do
@@ -2526,7 +2526,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             rWOther <- request @ApiWallet ctx
                 (Link.getWallet @'Shelley wOther) Default payload
             verify rWOther
-                [ expectField (#balance . #getApiT . #reward)
+                [ expectField (#balance . #reward)
                     (`shouldBe` Quantity 0)
                 ]
 
@@ -2640,7 +2640,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             rWOther <- request @ApiWallet ctx
                 (Link.getWallet @'Shelley wRewards) Default Empty
             verify rWOther
-                [ expectField (#balance . #getApiT . #available)
+                [ expectField (#balance . #available)
                     (`shouldBe` Quantity 0)
                 ]
 
@@ -2777,9 +2777,9 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 (Link.getWallet @'Shelley wallet) Default Empty
             verify rGet
                 [ expectField
-                        (#balance . #getApiT . #total) (`shouldBe` amt)
+                        (#balance . #total) (`shouldBe` amt)
                 , expectField
-                        (#balance . #getApiT . #available) (`shouldBe` amt)
+                        (#balance . #available) (`shouldBe` amt)
                 ]
 
     mkTxPayload

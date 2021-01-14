@@ -1648,7 +1648,7 @@ mkTxMetaEntity wid txid mfee meta derived = TxMeta
     , txMetaDirection = derived ^. #direction
     , txMetaSlot = derived ^. #slotNo
     , txMetaBlockHeight = getQuantity (derived ^. #blockHeight)
-    , txMetaAmount = getQuantity (derived ^. #amount)
+    , txMetaAmount = derived ^. #amount
     , txMetaFee = fromIntegral . W.unCoin <$> mfee
     , txMetaSlotExpires = derived ^. #expiry
     , txMetadata = meta
@@ -1724,7 +1724,7 @@ txHistoryFromEntity ti tip metas ins outs ws =
         , W.direction = txMetaDirection m
         , W.slotNo = txMetaSlot m
         , W.blockHeight = Quantity (txMetaBlockHeight m)
-        , W.amount = Quantity (txMetaAmount m)
+        , W.amount = txMetaAmount m
         , W.expiry = txMetaSlotExpires m
         }
 

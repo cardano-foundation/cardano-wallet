@@ -57,7 +57,7 @@ import Cardano.Wallet.Primitive.Types.Hash
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle
-    ( TokenBundle )
+    ( TokenBundle (..) )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenName, TokenPolicyId )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
@@ -101,7 +101,6 @@ import Fmt
     ( Buildable (..)
     , blockListF'
     , blockMapF
-    , fixedF
     , nameF
     , ordinalF
     , prefixF
@@ -273,12 +272,14 @@ instance Buildable (TxIn, TxOut) where
 -- | Additional information about a transaction, derived from the transaction
 -- and ledger state. This should not be confused with 'TxMetadata' which is
 -- application-specific data included with the transaction.
+--
+-- TODO: TxProperties or TxProps would be a good name for this type.
 data TxMeta = TxMeta
     { status :: !TxStatus
     , direction :: !Direction
     , slotNo :: !SlotNo
     , blockHeight :: !(Quantity "block" Word32)
-    , amount :: !(Quantity "lovelace" Natural)
+    , amount :: !Coin
     -- ^ Amount seen from the perspective of the wallet. Refers either to a
     -- spent value for outgoing transaction, or a received value on incoming
     -- transaction.
@@ -290,9 +291,8 @@ data TxMeta = TxMeta
 instance NFData TxMeta
 
 instance Buildable TxMeta where
-    build (TxMeta s d sl (Quantity bh) (Quantity a) mex) = mempty
-        <> (case d of; Incoming -> "+"; Outgoing -> "-")
-        <> fixedF @Double 6 (fromIntegral a / 1e6)
+    build (TxMeta s d sl (Quantity bh) c mex) = mempty
+        <> build (WithDirection d c)
         <> " " <> build s
         <> " since " <> build sl <> "#" <> build bh
         <> maybe mempty (\ex -> " (expires slot " <> build ex <> ")") mex
@@ -360,6 +360,13 @@ instance FromText Direction where
 
 instance ToText Direction where
     toText = toTextFromBoundedEnum SnakeLowerCase
+
+data WithDirection a = WithDirection Direction a
+
+instance Buildable a => Buildable (WithDirection a) where
+    build (WithDirection d a) = mempty
+        <> (case d of; Incoming -> "+"; Outgoing -> "-")
+        <> build a
 
 -- | @SealedTx@ is a serialised transaction that is ready to be submitted
 -- to the node.

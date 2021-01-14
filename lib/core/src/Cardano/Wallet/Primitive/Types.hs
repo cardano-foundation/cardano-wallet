@@ -85,7 +85,6 @@ module Cardano.Wallet.Primitive.Types
     , WalletDelegationNext (..)
     , WalletPassphraseInfo(..)
     , PassphraseScheme(..)
-    , WalletBalance(..)
     , IsDelegatingTo (..)
 
     -- * Stake Pools
@@ -410,14 +409,6 @@ data PassphraseScheme
     deriving (Generic, Eq, Ord, Show, Read)
 
 instance NFData PassphraseScheme
-
-data WalletBalance = WalletBalance
-    { available :: !(Quantity "lovelace" Natural)
-    , total :: !(Quantity "lovelace" Natural)
-    , reward :: !(Quantity "lovelace" Natural)
-    } deriving (Eq, Generic, Show)
-
-instance NFData WalletBalance
 
 {-------------------------------------------------------------------------------
                                    Queries

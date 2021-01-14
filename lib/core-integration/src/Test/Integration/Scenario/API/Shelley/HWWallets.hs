@@ -103,8 +103,8 @@ spec = describe "SHELLEY_HW_WALLETS" $ do
         rInit <- postWallet ctx payldCrt
         verify rInit
             [ expectResponseCode HTTP.status201
-            , expectField (#balance . #getApiT . #available) (`shouldBe` Quantity 0)
-            , expectField (#balance . #getApiT . #total) (`shouldBe` Quantity 0)
+            , expectField (#balance . #available) (`shouldBe` Quantity 0)
+            , expectField (#balance . #total) (`shouldBe` Quantity 0)
             ]
 
         --send funds
@@ -130,9 +130,9 @@ spec = describe "SHELLEY_HW_WALLETS" $ do
                 (Link.getWallet @'Shelley wDest) Default Empty
             verify rGet
                 [ expectField
-                        (#balance . #getApiT . #total) (`shouldBe` Quantity minUTxOValue)
+                        (#balance . #total) (`shouldBe` Quantity minUTxOValue)
                 , expectField
-                        (#balance . #getApiT . #available) (`shouldBe` Quantity minUTxOValue)
+                        (#balance . #available) (`shouldBe` Quantity minUTxOValue)
                 ]
 
         -- delete wallet
@@ -149,9 +149,9 @@ spec = describe "SHELLEY_HW_WALLETS" $ do
                 (Link.getWallet @'Shelley wDest') Default Empty
             verify rGet
                 [ expectField
-                        (#balance . #getApiT . #total) (`shouldBe` Quantity minUTxOValue)
+                        (#balance . #total) (`shouldBe` Quantity minUTxOValue)
                 , expectField
-                        (#balance . #getApiT . #available) (`shouldBe` Quantity minUTxOValue)
+                        (#balance . #available) (`shouldBe` Quantity minUTxOValue)
                 ]
 
     describe "HW_WALLETS_03 - Cannot do operations requiring private key" $ do
@@ -312,7 +312,7 @@ spec = describe "SHELLEY_HW_WALLETS" $ do
                 fmap (view #id) <$> listAddresses @n ctx target
             let targetAmounts = take paymentCount $
                     Quantity <$> [minUTxOValue ..]
-            let payments = NE.fromList $
+            let payments = NE.fromList $ map ($ mempty) $
                     zipWith AddressAmount targetAddresses targetAmounts
             let outputs =
                     zipWith ApiCoinSelectionOutput targetAddresses targetAmounts

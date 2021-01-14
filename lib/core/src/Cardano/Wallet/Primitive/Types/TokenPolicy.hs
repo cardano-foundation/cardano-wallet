@@ -10,6 +10,8 @@ module Cardano.Wallet.Primitive.Types.TokenPolicy
       -- * Token Names
     , TokenName (..)
 
+      -- * Token Metadata
+    , AssetMetadata (..)
     ) where
 
 import Prelude
@@ -81,3 +83,11 @@ instance ToText TokenName where
 
 instance FromText TokenName where
     fromText = pure . UnsafeTokenName
+
+-- | Information about an asset, from a source external to the chain.
+newtype AssetMetadata = AssetMetadata
+    { name :: Text
+    } deriving stock (Eq, Ord, Generic)
+    deriving (Read, Show) via (Quiet AssetMetadata)
+
+instance NFData AssetMetadata

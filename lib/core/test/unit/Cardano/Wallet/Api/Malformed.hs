@@ -79,6 +79,8 @@ import Cardano.Wallet.Primitive.Types
     ( WalletId, walletNameMaxLength )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
+import Cardano.Wallet.Primitive.Types.TokenPolicy
+    ( TokenName, TokenPolicyId )
 import Control.Arrow
     ( first )
 import Data.Aeson.QQ
@@ -230,6 +232,39 @@ instance Malformed (PathParam (ApiT DerivationIndex)) where
             \Indexes without suffixes are called 'Soft' \
             \Indexes with suffixes are called 'Hardened'."
 
+instance Wellformed (PathParam (ApiT TokenPolicyId)) where
+    wellformed = [PathParam $ T.replicate 64 "0"]
+
+instance Malformed (PathParam (ApiT TokenPolicyId)) where
+    malformed = first PathParam <$>
+        [ ( "faff", msgWrongLength )
+        , ( T.replicate 57 "0", msgWrongLength )
+        , ( T.replicate 56 "x", msgMalformed )
+        , ( "f", msgMalformed )
+        ]
+      where
+        msgMalformed = "Invalid tokenPolicy hash: expecting a hex-encoded value that is 28 bytes in length."
+        msgWrongLength = msgMalformed
+
+instance Wellformed (PathParam (ApiT TokenName)) where
+    wellformed = PathParam <$>
+        [ T.replicate 64 "0"
+        , ""
+        , "FF"
+        , "594f4c4f"
+        , "e29883"
+        ]
+
+instance Malformed (PathParam (ApiT TokenName)) where
+    malformed = first PathParam <$>
+        [ ( T.replicate 65 "0", msgWrongLength )
+        , ( "f", msgWrongLength )
+        , ( "patate", msgMalformed )
+        ]
+      where
+        msgWrongLength = "TokenName is not hex-encoded: base16: input: invalid length"
+        msgMalformed = "TokenName is not hex-encoded: base16: input: invalid encoding at offset: 0"
+
 --
 -- Class instances (BodyParam)
 --
@@ -249,7 +284,7 @@ instance Malformed (BodyParam ApiWalletSignData) where
             { "metadata": { "0": { "string": "metadata" } }
             , "passphrase": 100
             }|]
-          , "Error in $.passphrase: parsing Text failed, expected String, but encountered Number"
+          , "Error in $.passphrase: parsing Passphrase failed, expected String, but encountered Number"
           )
         , ( Aeson.encode [aesonQQ|
             { "metadata": { "0": { "string": "metadata" } }
@@ -419,7 +454,7 @@ instance Malformed (BodyParam SomeByronWalletPostData) where
                 , "mnemonic_sentence": #{mnemonics12}
                 , "passphrase" : 100
                 }|]
-              , "Error in $.passphrase: parsing Text failed, expected String, but encountered Number"
+              , "Error in $.passphrase: parsing Passphrase failed, expected String, but encountered Number"
               )
             , ( [aesonQQ|
                 { "style": "icarus"
@@ -427,7 +462,7 @@ instance Malformed (BodyParam SomeByronWalletPostData) where
                 , "mnemonic_sentence": #{mnemonics15}
                 , "passphrase" :[""]
                 }|]
-              , "Error in $.passphrase: parsing Text failed, expected String, but encountered Array"
+              , "Error in $.passphrase: parsing Passphrase failed, expected String, but encountered Array"
               )
             , ( [aesonQQ|
                 { "style": "trezor"
@@ -625,14 +660,14 @@ instance Malformed (BodyParam WalletOrAccountPostData) where
                 , "mnemonic_sentence": #{mnemonics15}
                 , "passphrase" :#{wPassphrase}
                 }|]
-              , "Error in $.name: parsing Text failed, expected String, but encountered Array"
+              , "Error in $.name: parsing WalletName failed, expected String, but encountered Array"
               )
             , ( [aesonQQ|
                 { "name": 123
                 , "mnemonic_sentence": #{mnemonics15}
                 , "passphrase" :#{wPassphrase}
                 }|]
-              , "Error in $.name: parsing Text failed, expected String, but encountered Number"
+              , "Error in $.name: parsing WalletName failed, expected String, but encountered Number"
               )
             , ( [aesonQQ|
                 { "mnemonic_sentence": #{mnemonics15}
@@ -810,13 +845,13 @@ instance Malformed (BodyParam WalletPutPassphraseData) where
                 { "old_passphrase": #{wPassphrase}
                 , "new_passphrase" : 100
                 }|]
-              , "Error in $['new_passphrase']: parsing Text failed, expected String, but encountered Number"
+              , "Error in $['new_passphrase']: parsing Passphrase failed, expected String, but encountered Number"
               )
             , ( [aesonQQ|
                 { "old_passphrase": []
                 , "new_passphrase" : #{wPassphrase}
                 }|]
-              , "Error in $['old_passphrase']: parsing Text failed, expected String, but encountered Array"
+              , "Error in $['old_passphrase']: parsing Passphrase failed, expected String, but encountered Array"
               )
             , ( [aesonQQ|
                 { "old_passphrase": ""
@@ -868,13 +903,13 @@ instance Malformed (BodyParam ByronWalletPutPassphraseData) where
                 { "old_passphrase": #{wPassphrase}
                 , "new_passphrase" : 100
                 }|]
-              , "Error in $['new_passphrase']: parsing Text failed, expected String, but encountered Number"
+              , "Error in $['new_passphrase']: parsing Passphrase failed, expected String, but encountered Number"
               )
             , ( [aesonQQ|
                 { "old_passphrase": []
                 , "new_passphrase" : #{wPassphrase}
                 }|]
-              , "Error in $['old_passphrase']: parsing Text failed, expected String, but encountered Array"
+              , "Error in $['old_passphrase']: parsing Passphrase failed, expected String, but encountered Array"
               )
             , ( [aesonQQ|
                 { "old_passphrase": #{wPassphrase}
@@ -919,13 +954,13 @@ instance Malformed (BodyParam WalletPutData) where
               , "Error in $.name: name is too long: expected at most 255 characters"
               )
             , ( [aesonQQ| { "name": 123 }|]
-              , "Error in $.name: parsing Text failed, expected String, but encountered Number"
+              , "Error in $.name: parsing WalletName failed, expected String, but encountered Number"
               )
             , ( [aesonQQ| { "name": [] }|]
-              , "Error in $.name: parsing Text failed, expected String, but encountered Array"
+              , "Error in $.name: parsing WalletName failed, expected String, but encountered Array"
               )
             , ( [aesonQQ| { "name": 1.5 }|]
-              , "Error in $.name: parsing Text failed, expected String, but encountered Number"
+              , "Error in $.name: parsing WalletName failed, expected String, but encountered Number"
               )
             ]
 
@@ -943,13 +978,13 @@ instance Malformed (BodyParam ApiWalletPassphrase) where
               , "Error in $.passphrase: passphrase is too long: expected at most 255 characters"
               )
             , ( [aesonQQ| { "passphrase": 123 }|]
-              , "Error in $.passphrase: parsing Text failed, expected String, but encountered Number"
+              , "Error in $.passphrase: parsing Passphrase failed, expected String, but encountered Number"
               )
             , ( [aesonQQ| { "passphrase": [] }|]
-              , "Error in $.passphrase: parsing Text failed, expected String, but encountered Array"
+              , "Error in $.passphrase: parsing Passphrase failed, expected String, but encountered Array"
               )
             , ( [aesonQQ| { "passphrase": 1.5 }|]
-              , "Error in $.passphrase: parsing Text failed, expected String, but encountered Number"
+              , "Error in $.passphrase: parsing Passphrase failed, expected String, but encountered Number"
               )
             ]
 
@@ -1377,7 +1412,7 @@ paymentCases =
             }
            ]
         }|]
-      , "Error in $.payments[0].address: parsing Text failed, expected String, but encountered Number"
+      , "Error in $.payments[0].address: parsing AddressAmount failed, parsing Text failed, expected String, but encountered Number"
       )
     , ( [aesonQQ|
         { "payments": [
@@ -1389,7 +1424,7 @@ paymentCases =
             }
            ]
         }|]
-      , "Error in $.payments[0]: parsing Cardano.Wallet.Api.Types.AddressAmount(AddressAmount) failed, key 'address' not found"
+      , "Error in $.payments[0]: parsing AddressAmount failed, key 'address' not found"
       )
     -- amount
     , ( [aesonQQ|
@@ -1403,7 +1438,7 @@ paymentCases =
             }
            ]
         }|]
-      , "Error in $.payments[0].amount: failed to parse quantified value. Expected value in 'lovelace' (e.g. { 'unit': 'lovelace', 'quantity': ... }) but got something else."
+      , "Error in $.payments[0].amount: parsing AddressAmount failed, failed to parse quantified value. Expected value in 'lovelace' (e.g. { 'unit': 'lovelace', 'quantity': ... }) but got something else."
       )
     , ( [aesonQQ|
         { "payments": [
@@ -1415,7 +1450,7 @@ paymentCases =
             }
            ]
         }|]
-      , "Error in $.payments[0].amount: key 'unit' not found"
+      , "Error in $.payments[0].amount: parsing AddressAmount failed, key 'unit' not found"
       )
     , ( [aesonQQ|
         { "payments": [
@@ -1424,7 +1459,7 @@ paymentCases =
             }
            ]
         }|]
-      , "Error in $.payments[0]: parsing Cardano.Wallet.Api.Types.AddressAmount(AddressAmount) failed, key 'amount' not found"
+      , "Error in $.payments[0]: parsing AddressAmount failed, key 'amount' not found"
       )
     , ( [aesonQQ|
         { "payments": [
@@ -1436,7 +1471,7 @@ paymentCases =
             }
            ]
         }|]
-      , "Error in $.payments[0].amount: key 'quantity' not found"
+      , "Error in $.payments[0].amount: parsing AddressAmount failed, key 'quantity' not found"
       )
     , ( [aesonQQ|
         { "payments": [
@@ -1446,7 +1481,7 @@ paymentCases =
             }
            ]
         }|]
-      , "Error in $.payments[0].amount: parsing Quantity failed, expected Object, but encountered Number"
+      , "Error in $.payments[0].amount: parsing AddressAmount failed, parsing Quantity failed, expected Object, but encountered Number"
       )
     , ( [aesonQQ|
         { "payments": [
@@ -1459,7 +1494,7 @@ paymentCases =
             }
            ]
         }|]
-      , "Error in $.payments[0].amount.quantity: parsing Natural failed, expected Number, but encountered String"
+      , "Error in $.payments[0].amount.quantity: parsing AddressAmount failed, parsing Natural failed, expected Number, but encountered String"
       )
     , ( [aesonQQ|
         { "payments": [
@@ -1472,7 +1507,7 @@ paymentCases =
             }
            ]
         }|]
-      , "Error in $.payments[0].amount.quantity: parsing Natural failed, unexpected negative number -1"
+      , "Error in $.payments[0].amount.quantity: parsing AddressAmount failed, parsing Natural failed, unexpected negative number -1"
       )
     , ( [aesonQQ|
         { "payments": [
@@ -1485,7 +1520,7 @@ paymentCases =
             }
            ]
         }|]
-      , "Error in $.payments[0].amount.quantity: parsing Natural failed, unexpected floating number 4200.12"
+      , "Error in $.payments[0].amount.quantity: parsing AddressAmount failed, parsing Natural failed, unexpected floating number 4200.12"
       )
     , ( [aesonQQ|
         { "payments": [ ]
@@ -1523,13 +1558,13 @@ migrateDataCases =
         { "passphrase": 1
         , "addresses": [ #{addrPlaceholder} ]
         }|]
-      , "Error in $.passphrase: parsing Text failed, expected String, but encountered Number"
+      , "Error in $.passphrase: parsing Passphrase failed, expected String, but encountered Number"
       )
     , ( [aesonQQ|
         { "passphrase": [ ]
         , "addresses": [ #{addrPlaceholder} ]
         }|]
-      , "Error in $.passphrase: parsing Text failed, expected String, but encountered Array"
+      , "Error in $.passphrase: parsing Passphrase failed, expected String, but encountered Array"
       )
     ]
 

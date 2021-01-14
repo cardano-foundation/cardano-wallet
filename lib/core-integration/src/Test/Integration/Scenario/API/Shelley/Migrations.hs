@@ -186,10 +186,10 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                 Default
                 Empty
             verify r
-                [ expectField (#balance . #getApiT . #available) (.> Quantity 0)
+                [ expectField (#balance . #available) (.> Quantity 0)
                 ]
             return $ getFromResponse
-                (#balance . #getApiT . #available . #getQuantity) r
+                (#balance . #available . #getQuantity) r
 
         -- Calculate the expected migration fee:
         rFee <- request @ApiWalletMigrationInfo ctx
@@ -232,10 +232,10 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                 Default
                 Empty >>= flip verify
                 [ expectField
-                        (#balance . #getApiT . #available)
+                        (#balance . #available)
                         (.> (Quantity expectedMinBalance))
                 , expectField
-                        (#balance . #getApiT . #total)
+                        (#balance . #total)
                         (.> (Quantity expectedMinBalance))
                 ]
 
@@ -290,9 +290,9 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                     Default
                     Empty
                 verify rg
-                    [ expectField (#balance . #getApiT . #available) (.> Quantity 0)
+                    [ expectField (#balance . #available) (.> Quantity 0)
                     ]
-                pure $ getFromResponse (#balance . #getApiT. #available . #getQuantity)
+                pure $ getFromResponse (#balance. #available . #getQuantity)
                                  rg
 
             -- Calculate the expected migration fee:
@@ -325,10 +325,10 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                     Default
                     Empty >>= flip verify
                     [ expectField
-                            (#balance . #getApiT . #available)
+                            (#balance . #available)
                             ( `shouldBe` Quantity expectedBalance)
                     , expectField
-                            (#balance . #getApiT . #total)
+                            (#balance . #total)
                             ( `shouldBe` Quantity expectedBalance)
                     ]
 
@@ -485,7 +485,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
             -- Restore a Shelley wallet with funds, to act as a source wallet:
             sourceWallet <- fixtureWallet ctx
             let originalBalance =
-                        view (#balance . #getApiT. #available . #getQuantity)
+                        view (#balance. #available . #getQuantity)
                              sourceWallet
 
             -- Create an empty target wallet:
@@ -524,10 +524,10 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                     (Link.getWallet @'Shelley targetWallet) Default Empty
                 verify r2
                     [ expectField
-                            (#balance . #getApiT . #available)
+                            (#balance . #available)
                             (`shouldBe` Quantity expectedBalance)
                     , expectField
-                            (#balance . #getApiT . #total)
+                            (#balance . #total)
                             (`shouldBe` Quantity expectedBalance)
                     ]
 
@@ -536,9 +536,9 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
                 (Link.getWallet @'Shelley sourceWallet) Default Empty
             verify r3
                 [ expectField
-                        (#balance . #getApiT . #available)
+                        (#balance . #available)
                         (`shouldBe` Quantity 0)
                 , expectField
-                        (#balance . #getApiT . #total)
+                        (#balance . #total)
                         (`shouldBe` Quantity 0)
                 ]
