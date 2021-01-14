@@ -18,7 +18,7 @@ import Cardano.Wallet.Primitive.Types.UTxOIndex
 import Control.Monad
     ( replicateM )
 import Test.QuickCheck
-    ( Gen, choose, shrinkList )
+    ( Gen, choose, frequency, shrinkList )
 import Test.QuickCheck.Extra
     ( shrinkInterleaved )
 
@@ -26,7 +26,11 @@ import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
 
 genUTxOIndexSmall :: Gen UTxOIndex
 genUTxOIndexSmall = do
-    entryCount <- choose (0, 64)
+    entryCount <- frequency
+        [ (1, pure 0)
+        , (1, pure 1)
+        , (32, choose (2, 64))
+        ]
     UTxOIndex.fromSequence <$> replicateM entryCount genEntrySmallRange
 
 shrinkUTxOIndexSmall :: UTxOIndex -> [UTxOIndex]
