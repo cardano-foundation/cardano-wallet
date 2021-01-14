@@ -433,44 +433,104 @@ x-settings: &settings
 
         After update existing metadata will be dropped forcing it to re-sync automatically with the new setting.
 
-x-assetPolicyItem: &assetPolicyItem
+x-assetName: &assetName
   type: string
   description: |
-    The asset on-chain type which acts as a sub-identifier within a policy.
-    Typically an empty string for policies with a single fungible asset item.
-  format: base64
+    The asset on-chain type which acts as a sub-identifier within a
+    policy. Although we call it "asset name", the value needn't be
+    text, and it could even be empty.
+
+    For policies with a single fungible asset item, asset name is
+    typically an empty string.
+
+    This value can be up to 32 bytes of arbitrary data (which is 64
+    hexadecimal digits).
+  format: hex
+  maxLength: 64
+  example: ""
 
 x-assetPolicyId: &assetPolicyId
   type: string
   description: |
-    A unique identifier of the asset policy. It identifies who is able to forge and burn
-    new assets of this kind.
-  format: base64
+    A unique identifier of the asset's monetary policy. The policy
+    controls how assets of this kind are created and destroyed.
 
-x-assetName: &assetName
+    The contents are the blake2b-224 hash of the monetary policy
+    script, encoded in hexadecimal.
+  format: hex
+  minLength: 56
+  maxLength: 56
+  example: 65ab82542b0ca20391caaf66a4d4d7897d281f9c136cd3513136945b
+
+x-assetDisplayName: &assetDisplayName
+  type: string
+  description: |
+    A label for the asset suitable for presentation to users.
+
+    If the asset has a known metadata name, then this is used.
+
+    Otherwise, the display name is taken from the policy item
+    sub-identifier.
+
+    If this sub-identifier is valid UTF-8 text, and non-empty, then it
+    is shown as-is. If the identifier cannot be decoded as UTF-8 text,
+    then the display name will be the sub-identifier encoded in
+    hexadecimal, starting with 0x.
+
+    If the sub-identifier is empty, then the policy ID is used,
+    encoded in hexadecimal, starting with 0x.
+  example: SWAGGERCOIN
+
+x-assetMetadataName: &assetMetadataName
   type: string
   description: |
     A human-readable name for the asset. Good for display in user interfaces.
+  example: SwaggerCoin
 
-x-assetAcronym: &assetAcronym
+x-assetMetadataAcronym: &assetMetadataAcronym
   type: string
   description: |
-    A human-readable name for the asset. Good for display in user interfaces.
-  format: base64
+    A human-readable short name for the asset. Good for display in
+    user interfaces.
+  example: SWAG
 
-x-assetUrl: &assetUrl
+x-assetMetadataUnit: &assetMetadataUnit
+  type: object
+  description: |
+    Defines a larger unit for the asset, in the same way Ada is the
+    larger unit of Lovelace.
+  required:
+    - decimals
+    - name
+  properties:
+    decimals:
+      type: integer
+      description: |
+        The number of digits after the decimal point.
+      minimum: 0
+      maximum: 19
+    name:
+      type: string
+      description: |
+        The human-readable name for the larger unit of the asset. Used
+        for display in user interfaces.
+  example:
+    name: API
+    decimals: 3
+
+x-assetMetadataUrl: &assetMetadataUrl
   type: string
   description: |
     A URL to the policy's owner(s) or the entity website in charge of the asset.
 
-x-assetLogo: &assetLogo
+x-assetMetadataLogo: &assetMetadataLogo
   type: string
   description: |
     A base64-encoded `image/png` for displaying the asset. The end image can be expected
     to be smaller than 64KB.
   format: base64
 
-x-assetDescription: &assetDescription
+x-assetMetadataDescription: &assetMetadataDescription
   type: object
   description: |
     A human-readable description for the asset. Good for display in user interfaces.
@@ -480,6 +540,23 @@ x-assetDescription: &assetDescription
     en:
       type: string
       description: The description, in English (en).
+
+x-assetMetadata: &assetMetadata
+  type: object
+  description: |
+    <p>status: <strong>⚠ under development</strong></p>
+
+    _This field is not implemented yet, and the values will always be empty._
+
+    Additional information about the asset which is not stored
+    on chain. This data is fetched from an external source.
+  properties:
+    name: *assetMetadataName
+    acronym: *assetMetadataAcronym
+    unit: *assetMetadataUnit
+    url: *assetMetadataUrl
+    logo: *assetMetadataLogo
+    description: *assetMetadataDescription
 
 x-walletMnemonicSentence: &walletMnemonicSentence
   description: A list of mnemonic words
@@ -576,29 +653,69 @@ x-walletBalance: &walletBalance
 x-assetQuantity: &assetQuantity
   type: integer
   description: |
-    Number of assets uniquely identified by the `policy_id` and `policy_item`.
+    Number of assets for the given `policy_id` and `asset_name`.
   minimum: 0
 
 x-walletAsset: &walletAsset
   description: |
     An asset on the Cardano blockchain. An asset is uniquely identified by
-    its `type` and `policy_id` (also called _asset id_). Two assets with the same `policy_item`
-    and `policy_id` are fungible together (that is, they are interchangeable).
-    Yet, different assets with a same `policy_id`  but different `policy_item` are treated as separate assets.
+    its `policy_id` and `asset_name` (together, these form the _asset id_).
+
+    Two assets with the same `asset_name` and `policy_id` are
+    interchangeable. Yet, different assets with a same `policy_id` but
+    different `asset_name` are treated as separate assets, as are two
+    assets with the same `asset_name` but different `policy_id`.
   type: object
   required:
-    - policy_item
     - policy_id
+    - asset_name
     - quantity
   properties:
     policy_id: *assetPolicyId
-    policy_item: *assetPolicyItem
+    asset_name: *assetName
     quantity: *assetQuantity
 
 x-walletAssets: &walletAssets
-  description: Wallet assets
+  description: A flat list of assets.
   type: array
   items: *walletAsset
+
+x-assetMint: &assetMint
+  type: object
+  required:
+    - policy_id
+    - asset_name
+    - quantity
+  properties:
+    policy_id: *assetPolicyId
+    asset_name: *assetName
+    quantity:
+      type: integer
+      description: |
+        Positive values mean creation and negative values mean
+        destruction.
+
+x-walletAssetsBalance: &walletAssetsBalance
+  description: |
+    Current non-Ada asset holdings of the wallet.
+
+    The amount of assets available to spend may be less than the total
+    unspent assets due to transaction change amounts which are yet to
+    be fully confirmed (pending).
+  type: object
+  required:
+    - available
+    - total
+  properties:
+    available:
+      <<: *walletAssets
+      description: |
+        Available UTxO asset balances (funds that can be spent without
+        condition).
+    total:
+      <<: *walletAssets
+      description: |
+        Total asset balances (available balances plus pending change balances).
 
 x-byronWalletBalance: &byronWalletBalance
   description: Byron wallet's current balance(s)
@@ -676,8 +793,12 @@ x-addresses: &addresses
 
 x-transactionInputs: &transactionInputs
   description: |
-    A list of transaction inputs. `assets` and `address` are always present for `outgoing`
-    transactions and are generally absent for `incoming` transactions.
+    A list of transaction inputs.
+
+    `assets` and `address` are always present for `outgoing`
+    transactions but generally absent for `incoming`
+    transactions. This information is present on the Cardano explorer,
+    but is not tracked by the wallet.
   type: array
   minItems: 0
   items:
@@ -706,7 +827,7 @@ x-transactionOutputs: &transactionOutputs
     properties:
       address: *addressId
       amount: *amount
-      assets: *walletAsset
+      assets: *walletAssets
 
 x-delegationAction: &delegationAction
   description: |
@@ -789,6 +910,22 @@ x-transactionWithdrawals: &transactionWithdrawals
     properties:
       stake_address: *stakeAddress
       amount: *amount
+
+x-transactionMint: &transactionMint
+  description: |
+    <p>status: <strong>⚠ under development</strong></p>
+
+    _This field is not implemented yet, and will always be empty._
+
+    Assets minted (created) or unminted (destroyed)
+
+    This amount contributes to the total transaction value.
+
+    Positive values denote creation of assets and negative values
+    denote the reverse.
+  type: array
+  minItems: 0
+  items: *assetMint
 
 x-derivationSegment: &derivationSegment
   description: |
@@ -1435,12 +1572,14 @@ components:
       required:
         - id
         - amount
+        - assets
         - fee
         - deposit
         - direction
         - inputs
         - outputs
         - withdrawals
+        - mint
         - status
       properties:
         id: *transactionId
@@ -1457,6 +1596,14 @@ components:
             addresses that belong to the wallet.
         fee: *amount
         deposit: *amount
+        assets:
+          <<: *walletAssets
+          description: |
+            An amount of non-Ada assets spent or received, from the
+            perspective of the wallet.
+
+            Note that transaction fees and delegation rewards are
+            always denominated in Ada.
         inserted_at: *transactionInsertedAt
         expires_at: *transactionExpiresAt
         pending_since: *transactionPendingSince
@@ -1465,6 +1612,7 @@ components:
         inputs: *transactionInputs
         outputs: *transactionOutputs
         withdrawals: *transactionWithdrawals
+        mint: *transactionMint
         status: *transactionStatus
         metadata: *transactionMetadata
 
@@ -1521,7 +1669,7 @@ components:
         id: *walletId
         address_pool_gap: *walletAddressPoolGap
         balance: *walletBalance
-        assets: *walletAssets
+        assets: *walletAssetsBalance
         delegation: *ApiWalletDelegation
         name: *walletName
         passphrase: *walletPassphraseInfo
@@ -1550,17 +1698,13 @@ components:
       type: object
       required:
         - policy_id
-        - policy_item
-        - quantity
+        - asset_name
+        - display_name
       properties:
         policy_id: *assetPolicyId
-        policy_item: *assetPolicyItem
-        quantity: *assetQuantity
-        name: *assetName
-        acronym: *assetAcronym
-        url: *assetUrl
-        logo: *assetLogo
-        description: *assetDescription
+        asset_name: *assetName
+        display_name: *assetDisplayName
+        metadata: *assetMetadata
 
     ApiWalletMigrationInfo: &ApiWalletMigrationInfo
       type: object
@@ -2163,6 +2307,25 @@ x-parametersMinWithdrawal: &parametersMinWithdrawal
   schema:
     type: integer
     minimum: 1
+
+x-parametersPolicyId: &parametersPolicyId
+  in: path
+  name: policyId
+  required: true
+  schema:
+    type: string
+    format: hex
+    maxLength: 56
+    minLength: 56
+
+x-parametersAssetName: &parametersAssetName
+  in: path
+  name: assetName
+  required: true
+  schema:
+    type: string
+    format: hex
+    maxLength: 64
 
 #############################################################################
 #                                                                           #
@@ -3392,10 +3555,16 @@ paths:
       description: |
         <p align="right">status: <strong>under development</strong></p>
 
-        List all assets available in the wallet, with their metadata if any.
+        List all assets associated with the wallet, and their metadata
+        if known.
+
+        An asset is _associated_ with a wallet if it is involved in a
+        transaction of the wallet.
+      parameters:
+        - *parametersWalletId
       responses: *responsesListAssets
 
-  /wallets/{walletId}/assets/{policy_id}/{policy_item}:
+  /wallets/{walletId}/assets/{policyId}/{assetName}:
     get:
       operationId: getAsset
       tags: ["Assets"]
@@ -3403,7 +3572,13 @@ paths:
       description: |
         <p align="right">status: <strong>under development</strong></p>
 
-        Fetch a single asset from its `policy_id` and `policy_item`, with its metadata if any.
+        Fetch a single asset from its `policy_id` and `asset_name`, with its metadata if any.
+
+        The asset must be associated with the wallet.
+      parameters:
+        - *parametersWalletId
+        - *parametersPolicyId
+        - *parametersAssetName
       responses: *responsesGetAsset
 
   /wallets/{walletId}/statistics/utxos:
