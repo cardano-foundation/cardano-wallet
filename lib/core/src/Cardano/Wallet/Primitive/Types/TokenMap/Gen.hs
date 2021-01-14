@@ -20,7 +20,7 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
 import Control.Monad
     ( replicateM )
 import Test.QuickCheck
-    ( Gen, choose, shrinkList )
+    ( Gen, choose, oneof, shrinkList )
 import Test.QuickCheck.Extra
     ( shrinkInterleaved )
 
@@ -46,7 +46,11 @@ shrinkAssetIdSmallRange (AssetId p t) = uncurry AssetId <$> shrinkInterleaved
 
 genTokenMapSmallRange :: Gen TokenMap
 genTokenMapSmallRange = do
-    assetCount <- choose (0, 16)
+    assetCount <- oneof
+        [ pure 0
+        , pure 1
+        , choose (2, 16)
+        ]
     TokenMap.fromFlatList <$> replicateM assetCount genAssetQuantity
   where
     genAssetQuantity = (,)

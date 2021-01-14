@@ -307,6 +307,8 @@ size = Map.size . utxo
 data SelectionFilter
     = Any
         -- ^ Select any UTxO entry from the entire set.
+    | WithAdaOnly
+        -- ^ Select any UTxO entry that only has ada and no other assets.
     | WithAsset AssetId
         -- ^ Select any UTxO entry that has a non-zero quantity of the specified
         -- asset.
@@ -333,6 +335,7 @@ selectRandom u selectionFilter =
     selectionSet :: Set TxIn
     selectionSet = case selectionFilter of
         Any -> Map.keysSet $ utxo u
+        WithAdaOnly -> entriesWithAdaOnly u
         WithAsset a -> entriesWithAsset a u
 
 --------------------------------------------------------------------------------
@@ -342,6 +345,12 @@ selectRandom u selectionFilter =
 --------------------------------------------------------------------------------
 -- Utilities
 --------------------------------------------------------------------------------
+
+entriesWithAdaOnly :: UTxOIndex -> Set TxIn
+entriesWithAdaOnly u = Map.foldl'
+    (Set.difference)
+    (Map.keysSet $ utxo u)
+    (NonEmptySet.toSet <$> index u)
 
 -- | Returns the set of keys for entries that have non-zero quantities of the
 --   given asset.

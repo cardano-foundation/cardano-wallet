@@ -218,6 +218,7 @@ library
       Cardano.Wallet.Primitive.Types.TokenPolicy.Gen
       Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
       Cardano.Wallet.Primitive.Types.Tx.Gen
+      Cardano.Wallet.Primitive.Types.UTxOIndex.Gen
   other-modules:
       Paths_cardano_wallet_core
 
