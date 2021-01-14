@@ -466,8 +466,8 @@ prop_runSelection_UTxO_moreThanEnough (Small index) = monadicIO $ do
         cutAssetSetSizeInHalf balanceAvailable
 
 prop_runSelection_UTxO_muchMoreThanEnough
-    :: Large UTxOIndex -> Property
-prop_runSelection_UTxO_muchMoreThanEnough (Large index) =
+    :: Blind (Large UTxOIndex) -> Property
+prop_runSelection_UTxO_muchMoreThanEnough (Blind (Large index)) =
     -- Generation of large UTxO sets takes longer, so limit the number of runs:
     withMaxSuccess 100 $
     checkCoverage $
