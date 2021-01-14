@@ -262,13 +262,16 @@ runSelection
     :: forall m. MonadRandom m
     => SelectionLimit
         -- ^ A limit to adhere to when performing a selection.
+    -> Maybe Coin
+        -- ^ An extra source of Ada, which can only be used after at least one
+        -- input has been selected.
     -> UTxOIndex
         -- ^ UTxO entries available for selection
     -> TokenBundle
         -- ^ Minimum balance to cover
     -> m SelectionState
         -- ^ Final selection state
-runSelection limit available minimumBalance =
+runSelection limit mExtraSource available minimumBalance =
     runRoundRobinM initialState selectors
   where
     initialState :: SelectionState
@@ -276,6 +279,9 @@ runSelection limit available minimumBalance =
         { selected = UTxOIndex.empty
         , leftover = available
         }
+
+    extraSource :: Natural
+    extraSource = maybe 0 (fromIntegral . unCoin) mExtraSource
 
     selectors :: [SelectionState -> m (Maybe SelectionState)]
     selectors = coinSelector : fmap assetSelector minimumAssetQuantities
@@ -298,7 +304,10 @@ runSelection limit available minimumBalance =
 
     coinSelectionLens :: SelectionLens m SelectionState
     coinSelectionLens = SelectionLens
-        { currentQuantity = coinQuantity . selected
+        { currentQuantity = \s ->
+            coinQuantity (selected s)
+            +
+            if UTxOIndex.null (selected s) then 0 else extraSource
         , minimumQuantity = fromIntegral $ unCoin minimumCoinQuantity
         , selectQuantity = selectMatchingQuantity limit
             [ WithAdaOnly
