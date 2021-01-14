@@ -38,7 +38,7 @@ import Cardano.Wallet.Primitive.Types.Coin
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle )
 import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
-    ( genTokenBundleSmallRange, shrinkTokenBundleSmallRange )
+    ( genTokenBundleSmallRangePositive, shrinkTokenBundleSmallRangePositive )
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId (..) )
 import Cardano.Wallet.Primitive.Types.TokenMap.Gen
@@ -561,8 +561,8 @@ genMakeChangeData = flip suchThat isValidMakeChangeData $ do
   where
     genTokenBundles :: Int -> Gen (NonEmpty TokenBundle)
     genTokenBundles count = (:|)
-        <$> genTokenBundleSmallRange
-        <*> replicateM count genTokenBundleSmallRange
+        <$> genTokenBundleSmallRangePositive
+        <*> replicateM count genTokenBundleSmallRangePositive
 
 prop_makeChange_identity
     :: NonEmpty TokenBundle -> Property
@@ -805,8 +805,8 @@ instance Arbitrary (MockRoundRobinState TokenName Word8) where
     shrink = shrinkMockRoundRobinState shrink
 
 instance Arbitrary TokenBundle where
-    arbitrary = genTokenBundleSmallRange
-    shrink = shrinkTokenBundleSmallRange
+    arbitrary = genTokenBundleSmallRangePositive
+    shrink = shrinkTokenBundleSmallRangePositive
 
 instance Arbitrary TokenQuantity where
     arbitrary = genTokenQuantitySmallPositive
