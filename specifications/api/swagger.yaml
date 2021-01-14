@@ -236,7 +236,7 @@ x-syncClockProgress: &syncClockProgress
     status: pending
 
 x-amount: &amount
-  description: Coins, in Lovelace
+  description: Coins, in Lovelace. Only relates to 'Ada'. Refer to `assets` for multi-assets wallets instead.
   type: object
   required:
     - quantity
@@ -433,6 +433,54 @@ x-settings: &settings
 
         After update existing metadata will be dropped forcing it to re-sync automatically with the new setting.
 
+x-assetPolicyItem: &assetPolicyItem
+  type: string
+  description: |
+    The asset on-chain type which acts as a sub-identifier within a policy.
+    Typically an empty string for policies with a single fungible asset item.
+  format: base64
+
+x-assetPolicyId: &assetPolicyId
+  type: string
+  description: |
+    A unique identifier of the asset policy. It identifies who is able to forge and burn
+    new assets of this kind.
+  format: base64
+
+x-assetName: &assetName
+  type: string
+  description: |
+    A human-readable name for the asset. Good for display in user interfaces.
+
+x-assetAcronym: &assetAcronym
+  type: string
+  description: |
+    A human-readable name for the asset. Good for display in user interfaces.
+  format: base64
+
+x-assetUrl: &assetUrl
+  type: string
+  description: |
+    A URL to the policy's owner(s) or the entity website in charge of the asset.
+
+x-assetLogo: &assetLogo
+  type: string
+  description: |
+    A base64-encoded `image/png` for displaying the asset. The end image can be expected
+    to be smaller than 64KB.
+  format: base64
+
+x-assetDescription: &assetDescription
+  type: object
+  description: |
+    A human-readable description for the asset. Good for display in user interfaces.
+  required:
+    - en
+  properties:
+    en:
+      type: string
+      description: The description, in English (en).
+
 x-walletMnemonicSentence: &walletMnemonicSentence
   description: A list of mnemonic words
   type: array
@@ -508,7 +556,7 @@ x-walletState: &walletState
   description: Whether a wallet is ready to use or still syncing
 
 x-walletBalance: &walletBalance
-  description: Wallet current balance(s)
+  description: Wallet current Ada balance(s).
   type: object
   required:
     - available
@@ -517,13 +565,40 @@ x-walletBalance: &walletBalance
   properties:
     available:
       <<: *amount
-      description: Available UTxO balance (funds that can be spent without condition).
+      description: Available Ada UTxO balance (funds that can be spent without condition).
     reward:
       <<: *amount
-      description: The balance of the reward account for this wallet.
+      description: The Ada balance of the reward account for this wallet.
     total:
       <<: *amount
-      description: Total balance (available balance plus pending change and reward balance).
+      description: Total Ada balance (available balance plus pending change and reward balance).
+
+x-assetQuantity: &assetQuantity
+  type: integer
+  description: |
+    Number of assets uniquely identified by the `policy_id` and `policy_item`.
+  minimum: 0
+
+x-walletAsset: &walletAsset
+  description: |
+    An asset on the Cardano blockchain. An asset is uniquely identified by
+    its `type` and `policy_id` (also called _asset id_). Two assets with the same `policy_item`
+    and `policy_id` are fungible together (that is, they are interchangeable).
+    Yet, different assets with a same `policy_id`  but different `policy_item` are treated as separate assets.
+  type: object
+  required:
+    - policy_item
+    - policy_id
+    - quantity
+  properties:
+    policy_id: *assetPolicyId
+    policy_item: *assetPolicyItem
+    quantity: *assetQuantity
+
+x-walletAssets: &walletAssets
+  description: Wallet assets
+  type: array
+  items: *walletAsset
 
 x-byronWalletBalance: &byronWalletBalance
   description: Byron wallet's current balance(s)
@@ -554,9 +629,6 @@ x-transactionId: &transactionId
   maxLength: 64
   minLength: 64
   example: 1423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db1
-
-x-transactionAmount: &transactionAmount
-  <<: *amount
 
 x-transactionInsertedAt: &transactionInsertedAt
   description: |
@@ -603,7 +675,9 @@ x-addresses: &addresses
   items: *addressId
 
 x-transactionInputs: &transactionInputs
-  description: A list of transaction inputs
+  description: |
+    A list of transaction inputs. `assets` and `address` are always present for `outgoing`
+    transactions and are generally absent for `incoming` transactions.
   type: array
   minItems: 0
   items:
@@ -613,7 +687,8 @@ x-transactionInputs: &transactionInputs
       - index
     properties:
       address: *addressId
-      amount: *transactionAmount
+      amount: *amount
+      assets: *walletAssets
       id: *transactionId
       index:
         type: integer
@@ -630,7 +705,8 @@ x-transactionOutputs: &transactionOutputs
       - amount
     properties:
       address: *addressId
-      amount: *transactionAmount
+      amount: *amount
+      assets: *walletAsset
 
 x-delegationAction: &delegationAction
   description: |
@@ -740,7 +816,7 @@ x-transactionChange: &transactionChange
       - derivation_path
     properties:
       address: *addressId
-      amount: *transactionAmount
+      amount: *amount
       derivation_path: *derivationPath
 
 x-transactionResolvedInputs: &transactionResolvedInputs
@@ -757,7 +833,7 @@ x-transactionResolvedInputs: &transactionResolvedInputs
       - derivation_path
     properties:
       address: *addressId
-      amount: *transactionAmount
+      amount: *amount
       id: *transactionId
       derivation_path: *derivationPath
       index:
@@ -1096,7 +1172,7 @@ x-deposits: &deposits
   description: A list of deposits associated with a transaction.
   type: array
   minItems: 0
-  items: *transactionAmount
+  items: *amount
 
 #############################################################################
 #                                                                           #
@@ -1329,9 +1405,9 @@ components:
         - estimated_max
         - deposit
       properties:
-        estimated_min: *transactionAmount
-        estimated_max: *transactionAmount
-        deposit: *transactionAmount
+        estimated_min: *amount
+        estimated_max: *amount
+        deposit: *amount
 
     ApiPutAddressesData: &ApiPutAddressesData
       type: object
@@ -1368,9 +1444,19 @@ components:
         - status
       properties:
         id: *transactionId
-        amount: *transactionAmount
-        fee: *transactionAmount
-        deposit: *transactionAmount
+        amount:
+          <<: *amount
+          description: |
+            An amount of Ada spent or received, from the perspective of the wallet.
+
+            That is, for outgoing transaction, it represents the amount of Ada consumed
+            as inputs, minus the amount of Ada spent as fees, as deposits or to addresses
+            which do not belong to the wallet.
+
+            For incoming transaction, it represents the total amount of Ada received to
+            addresses that belong to the wallet.
+        fee: *amount
+        deposit: *amount
         inserted_at: *transactionInsertedAt
         expires_at: *transactionExpiresAt
         pending_since: *transactionPendingSince
@@ -1426,6 +1512,7 @@ components:
         - id
         - address_pool_gap
         - balance
+        - assets
         - delegation
         - name
         - state
@@ -1434,6 +1521,7 @@ components:
         id: *walletId
         address_pool_gap: *walletAddressPoolGap
         balance: *walletBalance
+        assets: *walletAssets
         delegation: *ApiWalletDelegation
         name: *walletName
         passphrase: *walletPassphraseInfo
@@ -1457,6 +1545,22 @@ components:
         passphrase: *walletPassphraseInfo
         state: *walletState
         tip: *blockReference
+
+    ApiAsset: &ApiAsset
+      type: object
+      required:
+        - policy_id
+        - policy_item
+        - quantity
+      properties:
+        policy_id: *assetPolicyId
+        policy_item: *assetPolicyItem
+        quantity: *assetQuantity
+        name: *assetName
+        acronym: *assetAcronym
+        url: *assetUrl
+        logo: *assetLogo
+        description: *assetDescription
 
     ApiWalletMigrationInfo: &ApiWalletMigrationInfo
       type: object
@@ -2670,6 +2774,25 @@ x-responsesListWallets: &responsesListWallets
           type: array
           items: *ApiWallet
 
+x-responsesListAssets: &responsesListAssets
+  <<: *responsesErr406
+  200:
+    description: Ok
+    content:
+      application/json:
+        schema:
+          type: array
+          items: *ApiAsset
+
+x-responsesGetAsset: &responsesGetAsset
+  <<: *responsesErr404
+  <<: *responsesErr406
+  200:
+    description: Ok
+    content:
+      application/json:
+        schema: *ApiAsset
+
 x-responsesListByronWallets: &responsesListByronWallets
   <<: *responsesErr406
   200:
@@ -3184,6 +3307,7 @@ x-tagGroups:
   - name: Shelley (Sequential)
     tags:
     - Wallets
+    - Assets
     - Addresses
     - Coin Selections
     - Transactions
@@ -3259,6 +3383,28 @@ paths:
 
         Return a list of known wallets, ordered from oldest to newest.
       responses: *responsesListWallets
+
+  /wallets/{walletId}/assets:
+    get:
+      operationId: listAssets
+      tags: ["Assets"]
+      summary: List Assets
+      description: |
+        <p align="right">status: <strong>under development</strong></p>
+
+        List all assets available in the wallet, with their metadata if any.
+      responses: *responsesListAssets
+
+  /wallets/{walletId}/assets/{policy_id}/{policy_item}:
+    get:
+      operationId: getAsset
+      tags: ["Assets"]
+      summary: Get Asset
+      description: |
+        <p align="right">status: <strong>under development</strong></p>
+
+        Fetch a single asset from its `policy_id` and `policy_item`, with its metadata if any.
+      responses: *responsesGetAsset
 
   /wallets/{walletId}/statistics/utxos:
     get:
