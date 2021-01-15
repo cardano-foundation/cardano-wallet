@@ -17,8 +17,12 @@ import Prelude
 
 import Cardano.Wallet.Primitive.Types.Address.Gen
     ( genAddressSmallRange, shrinkAddressSmallRange )
+import Cardano.Wallet.Primitive.Types.Coin
+    ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
+import Cardano.Wallet.Primitive.Types.TokenBundle
+    ( TokenBundle )
 import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
     ( genTokenBundleSmallRange, shrinkTokenBundleSmallRange )
 import Cardano.Wallet.Primitive.Types.Tx
@@ -32,10 +36,11 @@ import Data.Text.Class
 import Data.Word
     ( Word32 )
 import Test.QuickCheck
-    ( Gen, arbitrary, elements )
+    ( Gen, arbitrary, elements, suchThat )
 import Test.QuickCheck.Extra
     ( shrinkInterleaved )
 
+import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.Text as T
 
@@ -104,12 +109,15 @@ genTxInLargeRange = TxIn
 genTxOutSmallRange :: Gen TxOut
 genTxOutSmallRange = TxOut
     <$> genAddressSmallRange
-    <*> genTokenBundleSmallRange
+    <*> genTokenBundleSmallRange `suchThat` tokenBundleHasNonZeroCoin
 
 shrinkTxOutSmallRange :: TxOut -> [TxOut]
 shrinkTxOutSmallRange (TxOut a b) = uncurry TxOut <$> shrinkInterleaved
     (a, shrinkAddressSmallRange)
-    (b, shrinkTokenBundleSmallRange)
+    (b, filter tokenBundleHasNonZeroCoin . shrinkTokenBundleSmallRange)
+
+tokenBundleHasNonZeroCoin :: TokenBundle -> Bool
+tokenBundleHasNonZeroCoin b = TokenBundle.getCoin b /= Coin 0
 
 --------------------------------------------------------------------------------
 -- Internal utilities
