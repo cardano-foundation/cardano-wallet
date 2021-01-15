@@ -64,7 +64,6 @@ import Cardano.Wallet.Shelley.Launch.Cluster
     ( ClusterEra (..)
     , ClusterLog
     , RunningNode (..)
-    , clusterEraName
     , localClusterConfigFromEnv
     , moveInstantaneousRewardsTo
     , oneMillionAda
@@ -79,7 +78,7 @@ import Cardano.Wallet.Shelley.Launch.Cluster
 import Control.Arrow
     ( first )
 import Control.Monad
-    ( forM_, when )
+    ( when )
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Tracer
@@ -161,35 +160,34 @@ main = withTestsSetup $ \testDir tracers -> hspec $ do
         parallel' $ describe "Miscellaneous CLI tests"
             MiscellaneousCLI.spec
 
-    testEras $ \era ->
-        specWithServer (testDir </> clusterEraName era) tracers (Just era) $ do
-            parallel $ describe "API Specifications" $ do
-                Addresses.spec @n
-                CoinSelections.spec @n
-                ByronAddresses.spec @n
-                ByronCoinSelections.spec @n
-                Wallets.spec @n
-                ByronWallets.spec @n
-                HWWallets.spec @n
-                Migrations.spec @n
-                ByronMigrations.spec @n
-                Transactions.spec @n
-                Network.spec
-                Network_.spec
-                StakePools.spec @n
-                ByronTransactions.spec @n
-                ByronHWWallets.spec @n
+    specWithServer testDir tracers Nothing $ do
+        parallel $ describe "API Specifications" $ do
+            Addresses.spec @n
+            CoinSelections.spec @n
+            ByronAddresses.spec @n
+            ByronCoinSelections.spec @n
+            Wallets.spec @n
+            ByronWallets.spec @n
+            HWWallets.spec @n
+            Migrations.spec @n
+            ByronMigrations.spec @n
+            Transactions.spec @n
+            Network.spec
+            Network_.spec
+            StakePools.spec @n
+            ByronTransactions.spec @n
+            ByronHWWallets.spec @n
 
-                -- Possible conflict with StakePools - mark as not parallizable
-                sequential $ Settings.spec @n
+            -- Possible conflict with StakePools - mark as not parallizable
+            sequential $ Settings.spec @n
 
-            parallel' $ describe "CLI Specifications" $ do
-                AddressesCLI.spec @n
-                TransactionsCLI.spec @n
-                WalletsCLI.spec @n
-                HWWalletsCLI.spec @n
-                PortCLI.spec
-                NetworkCLI.spec
+        parallel' $ describe "CLI Specifications" $ do
+            AddressesCLI.spec @n
+            TransactionsCLI.spec @n
+            WalletsCLI.spec @n
+            HWWalletsCLI.spec @n
+            PortCLI.spec
+            NetworkCLI.spec
   where
     -- Hydra runs tests with code coverage enabled. CLI tests run
     -- multiple processes. These processes can try to write to the
@@ -202,9 +200,6 @@ main = withTestsSetup $ \testDir tracers -> hspec $ do
         parallelIf (not nix) spec
 
     parallelIf flag = if flag then parallel else sequential
-
-    testEras run = forM_ [MaryHardFork, AllegraHardFork] $
-        \era -> describe (show era) $ run era
 
 -- | Do all the program setup required for integration tests, create a temporary
 -- directory, and pass this info to the main hspec action.
