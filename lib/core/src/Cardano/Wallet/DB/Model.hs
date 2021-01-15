@@ -123,11 +123,9 @@ import Data.Ord
 import Data.Quantity
     ( Quantity (..) )
 import Data.Word
-    ( Word32, Word64 )
+    ( Word32 )
 import GHC.Generics
     ( Generic )
-import Numeric.Natural
-    ( Natural )
 
 import qualified Data.Map.Strict as Map
 
@@ -161,7 +159,7 @@ data WalletDatabase s xprv = WalletDatabase
     , xprv :: !(Maybe xprv)
     , genesisParameters :: !GenesisParameters
     , protocolParameters :: !ProtocolParameters
-    , rewardAccountBalance :: !(Quantity "lovelace" Word64)
+    , rewardAccountBalance :: !Coin
     } deriving (Show, Eq, Generic)
 
 -- | Shorthand for the putTxHistory argument type.
@@ -423,7 +421,7 @@ mReadTxHistory
     :: forall wid s xprv . Ord wid
     => TimeInterpreter Identity
     -> wid
-    -> Maybe (Quantity "lovelace" Natural)
+    -> Maybe Coin
     -> SortOrder
     -> Range SlotNo
     -> Maybe TxStatus
@@ -501,12 +499,12 @@ mReadGenesisParameters wid db@(Database wallets _) =
     (Right (genesisParameters <$> Map.lookup wid wallets), db)
 
 mPutDelegationRewardBalance
-    :: Ord wid => wid -> Quantity "lovelace" Word64 -> ModelOp wid s xprv ()
+    :: Ord wid => wid -> Coin -> ModelOp wid s xprv ()
 mPutDelegationRewardBalance wid amt = alterModel wid $ \wal ->
     ((), wal { rewardAccountBalance = amt })
 
 mReadDelegationRewardBalance
-    :: Ord wid => wid -> ModelOp wid s xprv (Quantity "lovelace" Word64)
+    :: Ord wid => wid -> ModelOp wid s xprv Coin
 mReadDelegationRewardBalance wid db@(Database wallets _) =
     (Right (maybe minBound rewardAccountBalance $ Map.lookup wid wallets), db)
 
@@ -541,7 +539,7 @@ alterModelErr wid f db@Database{wallets,txs} =
 -- | Apply optional filters on slotNo and sort using the default sort order
 -- (first time/slotNo, then by TxId) to a 'TxHistory'.
 filterTxHistory
-    :: Maybe (Quantity "lovelace" Natural)
+    :: Maybe Coin
     -> SortOrder
     -> Range SlotNo
     -> TxHistory
@@ -557,8 +555,7 @@ filterTxHistory minWithdrawal order range =
   where
     sortBySlot = sortOn (Down . (slotNo :: TxMeta -> SlotNo) . snd)
     sortByTxId = sortOn (txId . fst)
-    atLeast (Quantity inf) =
-        not . Map.null . Map.filter (>= Coin (fromIntegral inf))
+    atLeast inf = not . Map.null . Map.filter (>= inf)
     filterWithdrawals = maybe
         (const True)
         (\inf -> atLeast inf . withdrawals . fst)

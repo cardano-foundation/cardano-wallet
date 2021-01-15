@@ -832,6 +832,12 @@ data AddressAmount addr = AddressAmount
     } deriving (Eq, Generic, Show)
       deriving anyclass NFData
 
+coinToQuantity :: Integral n => Coin -> Quantity "lovelace" n
+coinToQuantity = Quantity . fromIntegral . unCoin
+
+coinFromQuantity :: Integral n => Quantity "lovelace" n -> Coin
+coinFromQuantity = Coin . fromIntegral . getQuantity
+
 newtype ApiAddressInspect = ApiAddressInspect
     { unApiAddressInspect :: Aeson.Value }
     deriving (Eq, Generic, Show)

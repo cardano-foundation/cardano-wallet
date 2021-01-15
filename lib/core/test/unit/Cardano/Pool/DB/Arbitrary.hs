@@ -45,6 +45,10 @@ import Cardano.Wallet.Primitive.Types
     , setPoolCertificatePoolId
     , unsafeEpochNo
     )
+import Cardano.Wallet.Primitive.Types.Coin
+    ( Coin (..) )
+import Cardano.Wallet.Primitive.Types.Coin.Gen
+    ( genCoinLargePositive, shrinkCoinLargePositive )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Control.Arrow
@@ -137,6 +141,10 @@ instance Arbitrary (Quantity "lovelace" Word64) where
     shrink (Quantity q) = [ Quantity q' | q' <- shrink q ]
     arbitrary = Quantity <$> arbitrary
 
+instance Arbitrary Coin where
+    shrink = shrinkCoinLargePositive
+    arbitrary = genCoinLargePositive
+
 arbitraryEpochLength :: Word32
 arbitraryEpochLength = 100
 
@@ -186,8 +194,8 @@ instance Arbitrary PoolRegistrationCertificate where
         <$> arbitrary
         <*> genOwners
         <*> genPercentage
-        <*> fmap Quantity arbitrary
-        <*> fmap Quantity arbitrary
+        <*> arbitrary
+        <*> arbitrary
         <*> oneof [pure Nothing, Just <$> genMetadata]
       where
         genMetadata = (,)

@@ -864,7 +864,7 @@ prop_rollbackTxHistory db@DBLayer{..} (InitialCheckpoint cp0) (GenTxHistory txs0
                 , pretty (meta ^. #slotNo)
                 , pretty (meta ^. #status)
                 , pretty (meta ^. #direction)
-                , show $ getQuantity ((meta ^. #amount))
+                , pretty (meta ^. #amount)
                 ])
 
     isBefore :: SlotNo -> TxMeta -> Bool

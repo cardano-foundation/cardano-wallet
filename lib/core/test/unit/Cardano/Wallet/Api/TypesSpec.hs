@@ -185,6 +185,10 @@ import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..) )
+import Cardano.Wallet.Primitive.Types.TokenBundle
+    ( TokenBundle )
+import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
+    ( genTokenBundleSmallRange, shrinkTokenBundleSmallRange )
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( TokenMap )
 import Cardano.Wallet.Primitive.Types.TokenMap.Gen
@@ -326,7 +330,6 @@ import Web.HttpApiData
     ( FromHttpApiData (..) )
 
 import qualified Cardano.Wallet.Api.Types as Api
-import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Types as Aeson
 import qualified Data.ByteArray as BA
@@ -1306,10 +1309,6 @@ instance Arbitrary ApiWalletAssetsBalance where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
-instance Arbitrary TokenMap where
-    arbitrary = genTokenMapSmallRange
-    shrink = shrinkTokenMapSmallRange
-
 instance Arbitrary WalletDelegationStatus where
     arbitrary = genericArbitrary
     shrink = genericShrink
@@ -1668,6 +1667,7 @@ instance Arbitrary (ApiTransaction t) where
             <*> arbitrary
             <*> arbitrary
             <*> arbitrary
+            <*> arbitrary
             <*> pure txInsertedAt
             <*> pure txPendingSince
             <*> pure txExpiresAt
@@ -1676,6 +1676,7 @@ instance Arbitrary (ApiTransaction t) where
             <*> genInputs
             <*> genOutputs
             <*> genWithdrawals
+            <*> arbitrary
             <*> pure txStatus
             <*> arbitrary
       where
@@ -1707,11 +1708,18 @@ instance Arbitrary UTxO where
             <*> vector n
         return $ UTxO $ Map.fromList utxo
 
+instance Arbitrary TokenBundle where
+    shrink = shrinkTokenBundleSmallRange
+    arbitrary = genTokenBundleSmallRange
+
+instance Arbitrary TokenMap where
+    shrink = shrinkTokenMapSmallRange
+    arbitrary = genTokenMapSmallRange
+
 instance Arbitrary TxOut where
-    -- No Shrinking
-    arbitrary = TxOut
-        <$> arbitrary
-        <*> fmap TokenBundle.fromCoin genCoinLargePositive
+    -- Shrink token bundle but not address
+    shrink (TxOut a t) = TxOut a <$> shrink t
+    arbitrary = TxOut <$> arbitrary <*> arbitrary
 
 instance Arbitrary TxIn where
     -- No Shrinking

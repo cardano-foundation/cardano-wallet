@@ -734,7 +734,7 @@ instance ToJSON PoolOwner where
 
 data StakePoolsSummary = StakePoolsSummary
     { nOpt :: Int
-    , rewards :: Map PoolId (Quantity "lovelace" Word64)
+    , rewards :: Map PoolId Coin
     , stake :: Map PoolId Percentage
     } deriving (Show, Eq)
 
@@ -1204,8 +1204,8 @@ data PoolRegistrationCertificate = PoolRegistrationCertificate
     { poolId :: !PoolId
     , poolOwners :: ![PoolOwner]
     , poolMargin :: Percentage
-    , poolCost :: Quantity "lovelace" Word64
-    , poolPledge :: Quantity "lovelace" Word64
+    , poolCost :: Coin
+    , poolPledge :: Coin
     , poolMetadata :: Maybe (StakePoolMetadataUrl, StakePoolMetadataHash)
     } deriving (Generic, Show, Eq, Ord)
 

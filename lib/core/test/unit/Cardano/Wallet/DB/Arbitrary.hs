@@ -407,7 +407,7 @@ instance Arbitrary TxMeta where
             <$> elements [Incoming, Outgoing]
             <*> arbitrary
             <*> fmap Quantity arbitrary
-            <*> fmap (Quantity . fromIntegral . unCoin) arbitrary
+            <*> arbitrary
             <*> (if st == Pending then Just <$> arbitrary else pure Nothing)
 
 instance Arbitrary TxStatus where

@@ -131,7 +131,7 @@ import Data.Maybe
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
-    ( Percentage, Quantity (..) )
+    ( Percentage )
 import Data.Set
     ( Set )
 import Data.Text
@@ -142,8 +142,6 @@ import Data.Time.Clock
     ( DiffTime )
 import Data.Void
     ( Void )
-import Data.Word
-    ( Word64 )
 import Fmt
     ( Buildable (..), fmt, listF, mapF, pretty )
 import GHC.Stack
@@ -350,8 +348,6 @@ withNetworkLayerBase tr np conn (versionData, _) action = do
             _timeInterpreter (contramap MsgInterpreterLog tr) interpreterVar
         }
   where
-    coinToQuantity (W.Coin x) = Quantity $ fromIntegral x
-
     gp@W.GenesisParameters
         { getGenesisBlockHash
         , getGenesisBlockDate
@@ -512,7 +508,7 @@ withNetworkLayerBase tr np conn (versionData, _) action = do
 
         queryNonMyopicMemberRewards
             :: LSQ (CardanoBlock StandardCrypto) IO
-                    (Maybe (Map W.PoolId (Quantity "lovelace" Word64)))
+                    (Maybe (Map W.PoolId W.Coin))
         queryNonMyopicMemberRewards = shelleyBased $
             (getRewardMap . fromNonMyopicMemberRewards)
                 <$> LSQry (Shelley.GetNonMyopicMemberRewards stake)
@@ -526,8 +522,8 @@ withNetworkLayerBase tr np conn (versionData, _) action = do
             getRewardMap
                 :: Map
                     (Either W.Coin W.RewardAccount)
-                    (Map W.PoolId (Quantity "lovelace" Word64))
-                -> Map W.PoolId (Quantity "lovelace" Word64)
+                    (Map W.PoolId W.Coin)
+                -> Map W.PoolId W.Coin
             getRewardMap =
                 fromJustRewards . Map.lookup (Left coin)
 
@@ -540,7 +536,7 @@ withNetworkLayerBase tr np conn (versionData, _) action = do
     -- stopObserving.
     _getAccountBalance rewardsObserver k = liftIO $ do
         startObserving rewardsObserver k
-        coinToQuantity . fromMaybe (W.Coin 0) <$> query rewardsObserver k
+        fromMaybe (W.Coin 0) <$> query rewardsObserver k
 
     _timeInterpreter
         :: HasCallStack

@@ -1238,7 +1238,7 @@ testTxs =
         mempty
         Nothing
       , TxMeta
-        InLedger Incoming (SlotNo 140) (Quantity 0) (Quantity 1337144) Nothing
+        InLedger Incoming (SlotNo 140) (Quantity 0) (Coin 1337144) Nothing
       )
     ]
 
@@ -1252,18 +1252,19 @@ gp = dummyGenesisParameters
                     Helpers for golden rollback tests
 -------------------------------------------------------------------------------}
 
-getAvailableBalance :: DBLayer IO s k -> IO Word
+getAvailableBalance :: DBLayer IO s k -> IO Natural
 getAvailableBalance DBLayer{..} = do
     cp <- fmap (fromMaybe (error "nothing")) <$> atomically $ readCheckpoint testPk
     pend <- atomically $ fmap toTxHistory
         <$> readTxHistory testPk Nothing Descending wholeRange (Just Pending)
-    return $ fromIntegral $ availableBalance (Set.fromList $ map fst pend) cp
+    return $ fromIntegral $ unCoin $ TokenBundle.getCoin $
+        availableBalance (Set.fromList $ map fst pend) cp
 
 getTxsInLedger :: DBLayer IO s k -> IO ([(Direction, Natural)])
 getTxsInLedger DBLayer {..} = do
     pend <- atomically $ fmap toTxHistory
         <$> readTxHistory testPk Nothing Descending wholeRange (Just InLedger)
-    return $ map (\(_, m) -> (direction m, getQuantity $ amount m)) pend
+    return $ map (\(_, m) -> (direction m, fromIntegral $ unCoin $ amount m)) pend
 
 {-------------------------------------------------------------------------------
                            Test data - Sequential AD

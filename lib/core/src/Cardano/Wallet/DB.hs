@@ -51,6 +51,8 @@ import Cardano.Wallet.Primitive.Types
     , WalletId
     , WalletMetadata
     )
+import Cardano.Wallet.Primitive.Types.Coin
+    ( Coin )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash )
 import Cardano.Wallet.Primitive.Types.Tx
@@ -64,9 +66,7 @@ import Control.Monad.Trans.Except
 import Data.Quantity
     ( Quantity (..) )
 import Data.Word
-    ( Word32, Word64, Word8 )
-import Numeric.Natural
-    ( Natural )
+    ( Word32, Word8 )
 
 import qualified Data.List as L
 
@@ -198,7 +198,7 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
 
     , putDelegationRewardBalance
         :: PrimaryKey WalletId
-        -> Quantity "lovelace" Word64
+        -> Coin
         -> ExceptT ErrNoSuchWallet stm ()
         -- ^ Store the latest known reward account balance.
         --
@@ -208,7 +208,7 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
 
     , readDelegationRewardBalance
         :: PrimaryKey WalletId
-        -> stm (Quantity "lovelace" Word64)
+        -> stm Coin
         -- ^ Get the reward account balance.
         --
         -- Returns zero if the wallet isn't found or if wallet hasn't delegated
@@ -227,7 +227,7 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
 
     , readTxHistory
         :: PrimaryKey WalletId
-        -> Maybe (Quantity "lovelace" Natural)
+        -> Maybe Coin
         -> SortOrder
         -> Range SlotNo
         -> Maybe TxStatus

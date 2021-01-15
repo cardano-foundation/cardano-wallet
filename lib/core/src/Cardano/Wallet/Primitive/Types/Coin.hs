@@ -14,6 +14,12 @@ module Cardano.Wallet.Primitive.Types.Coin
     (
     -- * Type
       Coin (..)
+    , coinQuantity
+
+    -- * Operations
+    , sumCoins
+    , addCoins
+    , distance
 
     -- * Operations
     , addCoin
@@ -29,6 +35,10 @@ import Control.DeepSeq
     ( NFData (..) )
 import Control.Monad
     ( (<=<) )
+import Data.Foldable
+    ( foldl' )
+import Data.Quantity
+    ( Quantity (..) )
 import Data.Text.Class
     ( FromText (..), TextDecodingError (..), ToText (..) )
 import Data.Word
@@ -53,6 +63,13 @@ newtype Coin = Coin
     }
     deriving stock (Ord, Eq, Generic)
     deriving (Read, Show) via (Quiet Coin)
+
+instance Semigroup Coin where
+    -- Word64 doesn't have a default Semigroup instance.
+    Coin a <> Coin b = Coin (a + b)
+
+instance Monoid Coin where
+    mempty = Coin 0
 
 instance ToText Coin where
     toText (Coin c) = T.pack $ show c
@@ -104,3 +121,18 @@ addCoin (Coin a) (Coin b) = Coin (a + b)
 
 isValidCoin :: Coin -> Bool
 isValidCoin c = c >= minBound && c <= maxBound
+
+-- | Absolute difference between two coin amounts. The result is never negative.
+distance :: Coin -> Coin -> Coin
+distance (Coin a) (Coin b) = if a < b then Coin (b - a) else Coin (a - b)
+
+addCoins :: Coin -> Coin -> Coin
+addCoins (Coin a) (Coin b) = Coin (a + b)
+
+sumCoins :: Foldable t => t Coin -> Coin
+sumCoins = foldl' addCoins (Coin 0)
+
+-- | Compatibility function to use while 'Quantity' is still used in non-API
+-- parts of the code.
+coinQuantity :: Integral a => Coin -> Quantity n a
+coinQuantity (Coin n) = Quantity (fromIntegral n)

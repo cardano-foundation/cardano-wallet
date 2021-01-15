@@ -204,7 +204,7 @@ prop_applyBlockBasic s =
         in
             (ShowFmt utxo === ShowFmt utxo') .&&.
             (availableBalance mempty wallet === balance utxo') .&&.
-            (totalBalance mempty (Quantity 0) wallet === balance utxo')
+            (totalBalance mempty (Coin 0) wallet === balance utxo')
 
 -- Each transaction must have at least one output belonging to us
 prop_applyBlockTxHistoryIncoming :: WalletState -> Property
@@ -275,11 +275,9 @@ prop_countRewardsOnce (WithPending wallet pending rewards)
     pendingBalance =
         sum $ (unCoin . txOutCoin) <$> concatMap outputs (Set.elems pending)
     totalWithPending =
-        totalBalance pending rewardsQ wallet
+        TokenBundle.getCoin $ totalBalance pending rewards wallet
     totalWithoutPending =
-        totalBalance Set.empty rewardsQ wallet
-    rewardsQ =
-        Quantity $ fromIntegral $ unCoin rewards
+        TokenBundle.getCoin $ totalBalance Set.empty rewards wallet
 
     hasPending =
         not $ Set.null pending
