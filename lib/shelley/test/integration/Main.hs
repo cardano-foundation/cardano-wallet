@@ -110,7 +110,7 @@ import System.IO
 import Test.Hspec
     ( hspec )
 import Test.Hspec.Core.Spec
-    ( Spec, SpecWith, describe, parallel, runIO, sequential )
+    ( Spec, SpecWith, describe, parallel, sequential )
 import Test.Hspec.Extra
     ( aroundAll )
 import Test.Integration.Faucet
