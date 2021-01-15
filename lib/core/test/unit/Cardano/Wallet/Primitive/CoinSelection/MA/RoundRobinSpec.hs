@@ -1,5 +1,6 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RecordWildCards #-}
@@ -17,11 +18,16 @@ import Prelude
 import Algebra.PartialOrd
     ( PartialOrd (..) )
 import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
-    ( SelectionLens (..)
+    ( BalanceInsufficientError (..)
+    , SelectionCriteria (..)
+    , SelectionError (..)
+    , SelectionLens (..)
+    , SelectionResult (..)
     , SelectionState (..)
     , groupByKey
     , makeChange
     , makeChangeForSurplusAssets
+    , performSelection
     , runRoundRobin
     , runSelection
     , runSelectionStep
@@ -45,6 +51,10 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
     ( genTokenQuantitySmallPositive, shrinkTokenQuantitySmallPositive )
+import Cardano.Wallet.Primitive.Types.Tx
+    ( TxOut )
+import Cardano.Wallet.Primitive.Types.Tx.Gen
+    ( genTxOutSmallRange, shrinkTxOutSmallRange )
 import Cardano.Wallet.Primitive.Types.UTxOIndex
     ( UTxOIndex )
 import Cardano.Wallet.Primitive.Types.UTxOIndex.Gen
@@ -71,6 +81,8 @@ import Data.Tuple
     ( swap )
 import Data.Word
     ( Word8 )
+import Fmt
+    ( pretty )
 import Numeric.Natural
     ( Natural )
 import Safe
@@ -81,6 +93,7 @@ import Test.Hspec.Core.QuickCheck
     ( modifyMaxSuccess )
 import Test.QuickCheck
     ( Arbitrary (..)
+    , Blind (..)
     , Gen
     , Positive (..)
     , Property
@@ -119,7 +132,14 @@ spec = describe "Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobinSpec" $
         it "prop_Large_UTxOIndex_coverage" $
             property prop_Large_UTxOIndex_coverage
 
-    parallel $ describe "Running a selection" $ do
+    parallel $ describe "Performing a selection" $ do
+
+        it "prop_performSelection_small" $
+            property prop_performSelection_small
+        it "prop_performSelection_large" $
+            property prop_performSelection_large
+
+    parallel $ describe "Running a selection (without making change)" $ do
 
         it "prop_runSelection_UTxO_empty" $
             property prop_runSelection_UTxO_empty
@@ -229,7 +249,102 @@ prop_Large_UTxOIndex_coverage (Large index) =
     entryCount = UTxOIndex.size index
 
 --------------------------------------------------------------------------------
--- Running a selection
+-- Performing a selection
+--------------------------------------------------------------------------------
+
+genSelectionCriteria :: Gen UTxOIndex -> Gen SelectionCriteria
+genSelectionCriteria genUTxOIndex = do
+    utxoAvailable <- genUTxOIndex
+    outputCount <- max 1 <$>
+        choose (1, UTxOIndex.size utxoAvailable `div` 8)
+    outputsToCover <- NE.fromList <$>
+        replicateM outputCount genTxOutSmallRange
+    pure $ SelectionCriteria {outputsToCover, utxoAvailable}
+
+balanceSufficient :: SelectionCriteria -> Bool
+balanceSufficient SelectionCriteria {outputsToCover, utxoAvailable} =
+    balanceRequired `leq` balanceAvailable
+  where
+    balanceRequired = F.foldMap (view #tokens) outputsToCover
+    balanceAvailable = UTxOIndex.balance utxoAvailable
+
+prop_performSelection_small
+    :: Blind (Small SelectionCriteria)
+    -> Property
+prop_performSelection_small (Blind (Small criteria)) =
+    checkCoverage $
+    cover 30 (balanceSufficient criteria)
+        "balance sufficient" $
+    cover 30 (not $ balanceSufficient criteria)
+        "balance insufficient" $
+    prop_performSelection (Blind criteria)
+
+prop_performSelection_large
+    :: Blind (Large SelectionCriteria)
+    -> Property
+prop_performSelection_large (Blind (Large criteria)) =
+    -- Generation of large UTxO sets takes longer, so limit the number of runs:
+    withMaxSuccess 100 $
+    checkCoverage $
+    cover 50 (balanceSufficient criteria)
+        "balance sufficient" $
+    prop_performSelection (Blind criteria)
+
+prop_performSelection
+    :: Blind SelectionCriteria
+    -> Property
+prop_performSelection (Blind criteria) =
+    monadicIO $
+        either onFailure onSuccess =<< run (performSelection criteria)
+  where
+    SelectionCriteria outputsToCover utxoAvailable = criteria
+
+    onSuccess result = do
+        monitor $ counterexample $ unlines
+            [ "available balance:"
+            , pretty (TokenBundle.Nested balanceAvailable)
+            , "required balance:"
+            , pretty (TokenBundle.Nested balanceRequired)
+            , "selected balance:"
+            , pretty (TokenBundle.Nested balanceSelected)
+            , "change balance:"
+            , pretty (TokenBundle.Nested balanceChange)
+            ]
+        assert $ balanceSufficient criteria
+        assert $ balanceSelected == balanceRequired <> balanceChange
+        assert $ utxoAvailable
+            == UTxOIndex.insertMany inputsSelected utxoRemaining
+        assert $ utxoRemaining
+            == UTxOIndex.deleteMany (fst <$> inputsSelected) utxoAvailable
+      where
+        SelectionResult
+            {inputsSelected, changeGenerated, utxoRemaining} = result
+        balanceSelected =
+            F.foldMap (view #tokens . snd) inputsSelected
+        balanceChange =
+            F.fold changeGenerated
+
+    onFailure = \case
+        BalanceInsufficient e -> onBalanceInsufficient e
+
+    onBalanceInsufficient e = do
+        monitor $ counterexample $ unlines
+            [ "available balance:"
+            , pretty (TokenBundle.Nested balanceAvailable)
+            , "required balance:"
+            , pretty (TokenBundle.Nested balanceRequired)
+            ]
+        assert $ not $ balanceSufficient criteria
+        assert $ balanceAvailable == errorBalanceAvailable
+        assert $ balanceRequired  == errorBalanceRequired
+      where
+        BalanceInsufficientError errorBalanceAvailable errorBalanceRequired = e
+
+    balanceRequired = F.foldMap (view #tokens) outputsToCover
+    balanceAvailable = UTxOIndex.balance utxoAvailable
+
+--------------------------------------------------------------------------------
+-- Running a selection (without making change)
 --------------------------------------------------------------------------------
 
 prop_runSelection_UTxO_empty
@@ -697,6 +812,10 @@ instance Arbitrary TokenQuantity where
     arbitrary = genTokenQuantitySmallPositive
     shrink = shrinkTokenQuantitySmallPositive
 
+instance Arbitrary TxOut where
+    arbitrary = genTxOutSmallRange
+    shrink = shrinkTxOutSmallRange
+
 newtype Large a = Large
     { getLarge :: a }
     deriving (Eq, Show)
@@ -704,6 +823,14 @@ newtype Large a = Large
 newtype Small a = Small
     { getSmall:: a }
     deriving (Eq, Show)
+
+instance Arbitrary (Large SelectionCriteria) where
+    arbitrary = Large <$> genSelectionCriteria genUTxOIndexLarge
+    -- No shrinking
+
+instance Arbitrary (Small SelectionCriteria) where
+    arbitrary = Small <$> genSelectionCriteria genUTxOIndexSmall
+    -- No shrinking
 
 instance Arbitrary (Large UTxOIndex) where
     arbitrary = Large <$> genUTxOIndexLarge

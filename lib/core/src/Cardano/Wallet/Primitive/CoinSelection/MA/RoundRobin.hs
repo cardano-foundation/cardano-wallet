@@ -7,8 +7,15 @@
 
 module Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     (
-    -- * Running a selection
-      runSelection
+    -- * Performing a selection
+      performSelection
+    , SelectionCriteria (..)
+    , SelectionResult (..)
+    , SelectionError (..)
+    , BalanceInsufficientError (..)
+
+    -- * Running a selection (without making change)
+    , runSelection
     , SelectionState (..)
 
     -- * Running a selection step
@@ -53,6 +60,8 @@ import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId, TokenMap )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
+import Cardano.Wallet.Primitive.Types.Tx
+    ( TxIn, TxOut )
 import Cardano.Wallet.Primitive.Types.UTxOIndex
     ( SelectionFilter (..), UTxOIndex (..) )
 import Control.Monad.Random.Class
@@ -88,7 +97,109 @@ import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 
 --------------------------------------------------------------------------------
--- Running a selection
+-- Performing a selection
+--------------------------------------------------------------------------------
+
+-- | Criteria for performing a selection.
+--
+data SelectionCriteria = SelectionCriteria
+    { outputsToCover
+        :: NonEmpty TxOut
+    , utxoAvailable
+        :: !UTxOIndex
+    }
+    deriving (Eq, Show)
+
+-- | The result of performing a successful selection.
+--
+data SelectionResult = SelectionResult
+    { inputsSelected
+        :: !(NonEmpty (TxIn, TxOut))
+    , changeGenerated
+        :: !(NonEmpty TokenBundle)
+    , utxoRemaining
+        :: !UTxOIndex
+    }
+    deriving (Eq, Show)
+
+-- | Represents the set of errors that may occur while performing a selection.
+--
+newtype SelectionError
+    = BalanceInsufficient BalanceInsufficientError
+
+-- | Indicates that the balance of 'utxoAvailable' is insufficient to cover the
+--   balance of 'outputsToCover'.
+--
+data BalanceInsufficientError = BalanceInsufficientError
+    { balanceAvailable
+        :: TokenBundle
+      -- ^ The balance of 'utxoAvailable'.
+    , balanceRequired
+        :: TokenBundle
+      -- ^ The balance of 'outputsToCover'.
+    }
+
+-- | Performs a coin selection and generates change bundles in one step.
+--
+-- Returns 'BalanceInsufficient' if the total balance of 'utxoAvailable' is not
+-- strictly greater than or equal to the total balance of 'outputsToCover'.
+--
+-- Provided that the total balance of 'utxoAvailable' is sufficient to cover
+-- the total balance of 'outputsToCover', this function guarantees to return
+-- an 'inputsSelected' value that satisfies:
+--
+--    balance inputsSelected >= balance outputsToCover
+--    balance inputsSelected == balance outputsToCover + balance changeGenerated
+--
+-- Finally, this function guarantees that:
+--
+--    inputsSelected ∪ utxoRemaining == utxoAvailable
+--    inputsSelected ∩ utxoRemaining == ∅
+--
+performSelection
+    :: forall m. (HasCallStack, MonadRandom m)
+    => SelectionCriteria
+    -> m (Either SelectionError SelectionResult)
+performSelection SelectionCriteria {outputsToCover, utxoAvailable}
+    | not (balanceRequired `leq` balanceAvailable) =
+        pure $ Left $ BalanceInsufficient $ BalanceInsufficientError
+            {balanceAvailable, balanceRequired}
+    | otherwise =
+        Right . mkResult <$> runSelection utxoAvailable balanceRequired
+  where
+    balanceAvailable :: TokenBundle
+    balanceAvailable = view #balance utxoAvailable
+
+    balanceRequired :: TokenBundle
+    balanceRequired = F.foldMap (view #tokens) outputsToCover
+
+    mkResult :: SelectionState -> SelectionResult
+    mkResult SelectionState {selected, leftover} =
+        case NE.nonEmpty (UTxOIndex.toList selected) of
+            Nothing ->
+                unableToSelectAnyInputsError
+            Just inputsSelected ->
+                SelectionResult
+                    { inputsSelected
+                    , utxoRemaining = leftover
+                    , changeGenerated = makeChange
+                        (view #tokens . snd <$> inputsSelected)
+                        (view #tokens <$> outputsToCover)
+                    }
+
+    unableToSelectAnyInputsError =
+        -- This should be impossible, as we have already determined
+        -- that the UTxO balance is sufficient to cover the outputs.
+        error $ unlines
+            [ "performSelection: unable to select any inputs!"
+            , "balance required:"
+            , show balanceRequired
+            , "balance available:"
+            , show balanceAvailable
+            ]
+
+--------------------------------------------------------------------------------
+-- Running a selection (without making change)
 --------------------------------------------------------------------------------
 
 data SelectionState = SelectionState
