@@ -26,9 +26,12 @@ import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     , SelectionLimit (..)
     , SelectionResult (..)
     , SelectionState (..)
+    , addCoin
     , groupByKey
     , makeChange
-    , makeChangeForSurplusAssets
+    , makeChangeForCoins
+    , makeChangeForKnownAsset
+    , makeChangeForUnknownAsset
     , performSelection
     , runRoundRobin
     , runSelection
@@ -38,17 +41,23 @@ import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Coin.Gen
-    ( genCoinSmallPositive, shrinkCoinSmallPositive )
+    ( genCoinSmall, genCoinSmallPositive, shrinkCoinSmallPositive )
+import Cardano.Wallet.Primitive.Types.Hash
+    ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle
-    ( TokenBundle )
+    ( Flat (..), TokenBundle (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
     ( genTokenBundleSmallRangePositive, shrinkTokenBundleSmallRangePositive )
 import Cardano.Wallet.Primitive.Types.TokenMap
-    ( AssetId (..) )
+    ( AssetId (..), TokenMap )
 import Cardano.Wallet.Primitive.Types.TokenMap.Gen
-    ( genAssetIdSmallRange, shrinkAssetIdSmallRange )
+    ( genAssetIdSmallRange
+    , genTokenMapSmallRange
+    , shrinkAssetIdSmallRange
+    , shrinkTokenMapSmallRange
+    )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( TokenName )
+    ( TokenName (..), TokenPolicyId (..) )
 import Cardano.Wallet.Primitive.Types.TokenPolicy.Gen
     ( genTokenNameMediumRange )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
@@ -64,7 +73,7 @@ import Cardano.Wallet.Primitive.Types.UTxOIndex
 import Cardano.Wallet.Primitive.Types.UTxOIndex.Gen
     ( genUTxOIndexLarge, genUTxOIndexSmall, shrinkUTxOIndexSmall )
 import Control.Monad
-    ( replicateM )
+    ( forM_, replicateM )
 import Data.Bifunctor
     ( bimap, second )
 import Data.Function
@@ -86,13 +95,13 @@ import Data.Tuple
 import Data.Word
     ( Word8 )
 import Fmt
-    ( pretty )
+    ( blockListF, pretty )
 import Numeric.Natural
     ( Natural )
 import Safe
     ( tailMay )
 import Test.Hspec
-    ( Spec, describe, it, parallel )
+    ( Expectation, Spec, SpecWith, describe, it, parallel, shouldBe )
 import Test.Hspec.Core.QuickCheck
     ( modifyMaxSuccess )
 import Test.QuickCheck
@@ -101,16 +110,22 @@ import Test.QuickCheck
     , Gen
     , Positive (..)
     , Property
+    , arbitraryBoundedEnum
     , checkCoverage
     , choose
+    , conjoin
     , counterexample
     , cover
+    , disjoin
     , frequency
     , genericShrink
+    , label
+    , oneof
     , property
     , shrinkList
     , suchThat
     , withMaxSuccess
+    , (.&&.)
     , (===)
     )
 import Test.QuickCheck.Monadic
@@ -178,17 +193,39 @@ spec = describe "Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobinSpec" $
             property prop_makeChange_identity
         it "prop_makeChange_length" $
             property prop_makeChange_length
-        it "prop_makeChange_sum" $
-            property prop_makeChange_sum
+        it "prop_makeChange" $
+            property prop_makeChange
 
-    parallel $ describe "Making change for surplus assets" $ do
+    parallel $ describe "Making change for coins" $ do
+        it "prop_makeChangeForCoins_sum" $
+            property prop_makeChangeForCoins_sum
+        it "prop_makeChangeForCoins_length" $
+            property prop_makeChangeForCoins_length
+        unitTests "makeChangeForCoins" unit_makeChangeForCoins
 
-        it "prop_makeChangeForSurplusAssets_length" $
-            property prop_makeChangeForSurplusAssets_length
-        it "prop_makeChangeForSurplusAssets_sort" $
-            property prop_makeChangeForSurplusAssets_sort
-        it "prop_makeChangeForSurplusAssets_sum" $
-            property prop_makeChangeForSurplusAssets_sum
+    parallel $ describe "Making change for unknown assets" $ do
+        it "prop_makeChangeForUnknownAsset_sum" $
+            property prop_makeChangeForUnknownAsset_sum
+        it "prop_makeChangeForUnknownAsset_length" $
+            property prop_makeChangeForUnknownAsset_length
+        unitTests "makeChangeForUnknownAsset" unit_makeChangeForUnknownAsset
+
+    parallel $ describe "Making change for known assets" $ do
+        it "prop_makeChangeForKnownAsset_sum" $
+            property prop_makeChangeForKnownAsset_sum
+        it "prop_makeChangeForKnownAsset_length" $
+            property prop_makeChangeForKnownAsset_length
+        unitTests "makeChangeForKnownAsset" unit_makeChangeForKnownAsset
+
+
+--    parallel $ describe "Making change for surplus assets" $ do
+--
+--        it "prop_makeChangeForSurplusAssets_length" $
+--            property prop_makeChangeForSurplusAssets_length
+--        it "prop_makeChangeForSurplusAssets_sort" $
+--            property prop_makeChangeForSurplusAssets_sort
+--        it "prop_makeChangeForSurplusAssets_sum" $
+--            property prop_makeChangeForSurplusAssets_sum
 
     parallel $ describe "Grouping and ungrouping" $ do
 
@@ -456,29 +493,30 @@ prop_runSelection_UTxO_extraSourceUsed
     :: Maybe Coin
     -> Small UTxOIndex
     -> Property
-prop_runSelection_UTxO_extraSourceUsed extraSource (Small index) =
-    monadicIO $ case almostEverything of
-        Nothing ->
-            assert True
-        Just balanceRequested | balanceRequested == TokenBundle.empty -> do
-            SelectionState {selected,leftover} <-
-                run $ runSelection extraSource index balanceRequested
-            let balanceSelected = view #balance selected
-            let balanceLeftover = view #balance leftover
-            assert $ balanceLeftover == view #balance index
-            assert $ balanceSelected == TokenBundle.empty
-        Just balanceRequested -> do
-            monitor (cover 80 True "sometimes there are Ada")
-            SelectionState {selected} <-
-                run $ runSelection extraSource index balanceRequested
-            let balanceSelected = view #balance selected
-            let coinSelected = TokenBundle.coin $
-                    addExtraSource extraSource balanceSelected
-            monitor $ counterexample $ unlines
-                [ "balance selected: " <> show balanceSelected
-                ]
-            assert $ coinSelected >= TokenBundle.coin balanceRequested
-            assert $ balanceSelected /= TokenBundle.empty
+prop_runSelection_UTxO_extraSourceUsed extraSource (Small index) = do
+    let hasSomeAda = maybe False (/= TokenBundle.empty) almostEverything
+    cover 80 hasSomeAda "sometimes there are Ada" $ monadicIO $
+        case almostEverything of
+            Nothing ->
+                assert True
+            Just balanceRequested | hasSomeAda -> do
+                SelectionState {selected,leftover} <-
+                    run $ runSelection extraSource index balanceRequested
+                let balanceSelected = view #balance selected
+                let balanceLeftover = view #balance leftover
+                assert $ balanceLeftover == view #balance index
+                assert $ balanceSelected == TokenBundle.empty
+            Just balanceRequested -> do
+                SelectionState {selected} <-
+                    run $ runSelection extraSource index balanceRequested
+                let balanceSelected = view #balance selected
+                let coinSelected = TokenBundle.coin $
+                        addExtraSource extraSource balanceSelected
+                monitor $ counterexample $ unlines
+                    [ "balance selected: " <> pretty (Flat balanceSelected)
+                    ]
+                assert $ coinSelected >= TokenBundle.coin balanceRequested
+                assert $ balanceSelected /= TokenBundle.empty
   where
     almostEverything = TokenBundle.subtract
         (view #balance index)
@@ -499,10 +537,10 @@ prop_runSelection_UTxO_moreThanEnough extraSource (Small index) = monadicIO $ do
     monitor $ cover 50 (Set.size assetsRequested >= 4)
         "size assetsRequested >= 4"
     monitor $ counterexample $ unlines
-        [ "balance available: " <> show balanceAvailable
-        , "balance requested: " <> show balanceRequested
-        , "balance selected:  " <> show balanceSelected
-        , "balance leftover:  " <> show balanceLeftover
+        [ "balance available: " <> pretty (Flat balanceAvailable)
+        , "balance requested: " <> pretty (Flat balanceRequested)
+        , "balance selected:  " <> pretty (Flat balanceSelected)
+        , "balance leftover:  " <> pretty (Flat balanceLeftover)
         ]
     assert $ balanceRequested `leq` addExtraSource extraSource balanceSelected
     assert $ balanceAvailable == balanceSelected <> balanceLeftover
@@ -653,11 +691,43 @@ prop_runSelectionStep_exceedsTargetAndGetsFurtherAway
 -- Making change
 --------------------------------------------------------------------------------
 
+data MinCoinValueFor
+    = NoMinCoin
+    | LinearMinCoin
+    deriving (Eq, Show, Bounded, Enum)
+
+mkMinCoinValueFor
+    :: MinCoinValueFor
+    -> (TokenMap -> Coin)
+mkMinCoinValueFor = \case
+    NoMinCoin -> noMinCoin
+    LinearMinCoin -> linearMinCoin
+
+-- | A dummy function for calculating the minimum Ada value to pay for a
+-- TokenMap. The only property we want this function to have is that is becomes
+-- more expensive with the number of tokens (types) in the map. So, looking at
+-- the size of the asset set is enough.
+linearMinCoin :: TokenMap -> Coin
+linearMinCoin m =
+    Coin (1 + fromIntegral (Set.size (TokenMap.getAssets m)))
+
+noMinCoin :: TokenMap -> Coin
+noMinCoin = const (Coin 0)
+
+noCost :: Coin
+noCost = Coin 0
+
 data MakeChangeData = MakeChangeData
     { inputBundles
         :: NonEmpty TokenBundle
+    , extraCoinSource
+        :: Maybe Coin
     , outputBundles
         :: NonEmpty TokenBundle
+    , cost
+        :: Coin
+    , minCoinValueDef
+        :: MinCoinValueFor
     } deriving (Eq, Show)
 
 isValidMakeChangeData :: MakeChangeData -> Bool
@@ -665,7 +735,9 @@ isValidMakeChangeData p = (&&)
     (totalOutputValue `leq` totalInputValue)
     (totalOutputCoinValue > Coin 0)
   where
-    totalInputValue = F.fold $ inputBundles p
+    totalInputValue = TokenBundle.add
+        (F.fold $ inputBundles p)
+        (maybe TokenBundle.empty TokenBundle.fromCoin (extraCoinSource p))
     totalOutputValue = F.fold $ outputBundles p
     totalOutputCoinValue = TokenBundle.getCoin totalOutputValue
 
@@ -675,58 +747,348 @@ genMakeChangeData = flip suchThat isValidMakeChangeData $ do
     let inputBundleCount = outputBundleCount * 4
     MakeChangeData
         <$> genTokenBundles inputBundleCount
+        <*> oneof [pure Nothing, Just <$> genCoinSmallPositive]
         <*> genTokenBundles outputBundleCount
+        <*> genCoinSmall
+        <*> arbitrary
   where
     genTokenBundles :: Int -> Gen (NonEmpty TokenBundle)
     genTokenBundles count = (:|)
         <$> genTokenBundleSmallRangePositive
         <*> replicateM count genTokenBundleSmallRangePositive
 
+makeChangeWith
+    :: MakeChangeData
+    -> Maybe (NonEmpty TokenBundle)
+makeChangeWith p = makeChange
+    (mkMinCoinValueFor $ minCoinValueDef p)
+    (cost p)
+    (extraCoinSource p) (inputBundles p)
+    (outputBundles p)
+
 prop_makeChange_identity
     :: NonEmpty TokenBundle -> Property
-prop_makeChange_identity bundles =
-    F.fold (makeChange bundles bundles) === TokenBundle.empty
+prop_makeChange_identity bundles = (===)
+    (F.fold <$> makeChange (const (Coin 0)) (Coin 0) Nothing bundles bundles)
+    (Just TokenBundle.empty)
 
 prop_makeChange_length
-    :: MakeChangeData -> Property
-prop_makeChange_length p = (===)
-    (length $ outputBundles p)
-    (length $ makeChange (inputBundles p) (outputBundles p))
-
-prop_makeChange_sum
-    :: MakeChangeData -> Property
-prop_makeChange_sum p =
-    totalInputValue === totalOutputValue <> totalChangeValue
+    :: MakeChangeData
+    -> Property
+prop_makeChange_length p =
+    case change of
+        Nothing -> property False
+        Just xs -> length xs === length (outputBundles p)
   where
-    change = makeChange (inputBundles p) (outputBundles p)
-    totalInputValue = F.fold $ inputBundles p
-    totalOutputValue = F.fold $ outputBundles p
-    totalChangeValue = F.fold change
+    change = makeChange noMinCoin noCost
+        (extraCoinSource p) (inputBundles p) (outputBundles p)
+
+prop_makeChange
+    :: MakeChangeData
+    -> Property
+prop_makeChange p =
+    case makeChangeWith p of
+        Nothing -> disjoin
+            [ prop_makeChange_fail_costTooBig p     & label "cost too big"
+            , prop_makeChange_fail_minValueTooBig p & label "min value too big"
+            ]
+        Just change -> conjoin
+            [ prop_makeChange_success_delta p change
+            , prop_makeChange_success_minValueRespected p change
+            ] & label "success"
+
+-- Check that on successful calls to `makeChange`, the difference between input
+-- and all outputs with change is exactly equal to the required cost of the
+-- transaction. This property expects the second argument to be the result to
+-- `makeChange` with `p` as argument.
+--
+-- See also `prop_makeChange` as a top-level property driver.
+prop_makeChange_success_delta
+    :: MakeChangeData
+    -> NonEmpty TokenBundle
+    -> Property
+prop_makeChange_success_delta p change =
+    let
+        totalOutputWithChange = TokenBundle.add
+            totalOutputValue
+            (F.fold change)
+
+        delta = TokenBundle.unsafeSubtract
+            totalInputValue
+            totalOutputWithChange
+
+        totalChangeCoin =
+            TokenBundle.getCoin (F.fold change)
+    in
+        (delta === TokenBundle.fromCoin (cost p))
+            & counterexample ("totalChangeValue: " <> pretty totalChangeCoin)
+            & counterexample ("totalOutputValue: " <> pretty totalOutputCoin)
+            & counterexample ("totalInputValue:  " <> pretty totalInputCoin)
+  where
+    totalInputValue = TokenBundle.add
+        (F.fold (inputBundles p))
+        (maybe TokenBundle.empty TokenBundle.fromCoin (extraCoinSource p))
+    totalInputCoin =
+        TokenBundle.getCoin totalInputValue
+    totalOutputValue =
+        F.fold $ outputBundles p
+    totalOutputCoin =
+        TokenBundle.getCoin totalOutputValue
+
+-- Check that on a successful result of 'makeChange', all change outputs
+-- generated satisfy the min coin value set as input.
+--
+-- See also `prop_makeChange` as a top-level property driver.
+prop_makeChange_success_minValueRespected
+    :: MakeChangeData
+    -> NonEmpty TokenBundle
+    -> Property
+prop_makeChange_success_minValueRespected p =
+    F.foldr ((.&&.) . checkMinValue) (property True)
+  where
+    minCoinValueFor :: TokenMap -> Coin
+    minCoinValueFor = mkMinCoinValueFor (minCoinValueDef p)
+
+    checkMinValue :: TokenBundle -> Property
+    checkMinValue m@TokenBundle{coin,tokens} =
+        let
+            minCoinValue = minCoinValueFor tokens
+        in
+            coin >= minCoinValue
+                & counterexample ("bundle: " <> pretty (Flat m))
+                & counterexample ("minCoinValue: " <> pretty minCoinValue)
+
+-- The 'makeChange' function may fail when the required cost for a transaction
+-- are too big. When this occurs, it means that the delta between input and
+-- output (without change) is larger than the required cost.
+--
+-- See also `prop_makeChange` as a top-level property driver.
+prop_makeChange_fail_costTooBig
+    :: MakeChangeData
+    -> Property
+prop_makeChange_fail_costTooBig p =
+    let
+        deltaCoin = TokenBundle.getCoin $ TokenBundle.unsafeSubtract
+            totalInputValue
+            totalOutputValue
+    in
+        deltaCoin < cost p
+            & counterexample ("delta: " <> pretty deltaCoin)
+  where
+    totalInputValue = TokenBundle.add
+        (F.fold (inputBundles p))
+        (maybe TokenBundle.empty TokenBundle.fromCoin (extraCoinSource p))
+    totalOutputValue =
+        F.fold $ outputBundles p
+
+-- The 'makeChange' function may fail when there are not enough coins to assign
+-- all required change output. Indeed, each output must satisfy a minimum UTxO
+-- value, which is paid in Ada.
+--
+-- See also `prop_makeChange` as a top-level property driver.
+prop_makeChange_fail_minValueTooBig
+    :: MakeChangeData
+    -> Property
+prop_makeChange_fail_minValueTooBig p =
+    case makeChangeWith (p { cost = noCost, minCoinValueDef = NoMinCoin }) of
+        Nothing ->
+            property False & counterexample "makeChange failed with no cost!"
+        -- If 'makeChange' failed to generate change, we try to re-run it with
+        -- noCost and noMinValue requirement. The result _must_ be `Just`.
+        --
+        -- From there, we can manually compute the total deposit needed for all
+        -- change generated and make sure that, there was indeed not enough
+        -- coins available to generate all change outputs.
+        Just change ->
+            let
+                deltaCoin = TokenBundle.getCoin $ TokenBundle.unsafeSubtract
+                    totalInputValue
+                    totalOutputValue
+
+                minCoinValueFor = mkMinCoinValueFor (minCoinValueDef p)
+
+                totalMinCoinDeposit = F.foldr addCoin (Coin 0)
+                    (minCoinValueFor . view #tokens <$> change)
+            in
+                conjoin
+                    [ deltaCoin < (totalMinCoinDeposit `addCoin` cost p)
+                    , deltaCoin >= cost p
+                    ]
+                    & counterexample
+                        ("change: " <> pretty (blockListF (Flat <$> change)))
+                    & counterexample
+                        ("delta: " <> pretty deltaCoin)
+                    & counterexample
+                        ("totalMinCoinDeposit: " <> pretty totalMinCoinDeposit)
+  where
+    totalInputValue = TokenBundle.add
+        (F.fold (inputBundles p))
+        (maybe TokenBundle.empty TokenBundle.fromCoin (extraCoinSource p))
+    totalOutputValue =
+        F.fold $ outputBundles p
 
 --------------------------------------------------------------------------------
--- Making change for surplus assets
+-- Making change for coins
 --------------------------------------------------------------------------------
 
-prop_makeChangeForSurplusAssets_length
-    :: Map AssetId (NonEmpty TokenQuantity) -> NonEmpty () -> Property
-prop_makeChangeForSurplusAssets_length assetQuantities target =
-    NE.length (makeChangeForSurplusAssets assetQuantities target)
-        === NE.length target
-
-prop_makeChangeForSurplusAssets_sort
-    :: Map AssetId (NonEmpty TokenQuantity) -> NonEmpty () -> Property
-prop_makeChangeForSurplusAssets_sort assetQuantities target = property $
-    inAscendingPartialOrder (makeChangeForSurplusAssets assetQuantities target)
-
-prop_makeChangeForSurplusAssets_sum
-    :: Map AssetId (NonEmpty TokenQuantity) -> NonEmpty () -> Property
-prop_makeChangeForSurplusAssets_sum assetQuantities target =
-    sumActual === sumExpected
+prop_makeChangeForCoins_sum :: NonEmpty Coin -> Coin -> Property
+prop_makeChangeForCoins_sum weights surplus =
+    surplus === F.foldr addCoin (Coin 0) changes
   where
-    sumActual =
-        F.fold $ makeChangeForSurplusAssets assetQuantities target
-    sumExpected =
-        TokenMap.fromFlatList $ Map.toList $ F.fold <$> assetQuantities
+    changes = makeChangeForCoins weights surplus
+
+prop_makeChangeForCoins_length :: NonEmpty Coin -> Coin -> Property
+prop_makeChangeForCoins_length weights surplus =
+    F.length changes === F.length weights
+  where
+    changes = makeChangeForCoins weights surplus
+
+unit_makeChangeForCoins
+    :: [Expectation]
+unit_makeChangeForCoins =
+    [ makeChangeForCoins weights surplus `shouldBe` expectation
+    | (weights, surplus, expectation) <- matrix
+    ]
+  where
+    matrix =
+        [ ( Coin <$> 1 :| [], Coin 1
+          , Coin <$> 1 :| []
+          )
+
+        , ( Coin <$> 1 :| [2, 3], Coin 12
+          , Coin <$> 2 :| [4, 6]
+          )
+
+        , ( Coin <$> 1 :| [2, 3], Coin 5
+          , Coin <$> 1 :| [2, 2]
+          )
+        ]
+
+--------------------------------------------------------------------------------
+-- Making change for unknown asset
+--------------------------------------------------------------------------------
+
+prop_makeChangeForUnknownAsset_sum
+    :: NonEmpty TokenMap
+    -> (AssetId, NonEmpty TokenQuantity)
+    -> Property
+prop_makeChangeForUnknownAsset_sum weights (asset, quantities) =
+    F.fold quantities === F.fold ((`TokenMap.getQuantity` asset) <$> changes)
+  where
+    changes = makeChangeForUnknownAsset weights (asset, quantities)
+
+prop_makeChangeForUnknownAsset_length
+    :: NonEmpty TokenMap
+    -> (AssetId, NonEmpty TokenQuantity)
+    -> Property
+prop_makeChangeForUnknownAsset_length weights surplus =
+    F.length changes === F.length weights
+  where
+    changes = makeChangeForUnknownAsset weights surplus
+
+unit_makeChangeForUnknownAsset
+    :: [Expectation]
+unit_makeChangeForUnknownAsset =
+    [ makeChangeForUnknownAsset weights surplus `shouldBe` expectation
+    | (weights, surplus, expectation) <- matrix
+    ]
+  where
+    matrix =
+        [ ( m [(assetA, q 1)] :| [m [(assetB, q 1)]]
+          , (assetC, q <$> 1 :| [1])
+          , m [(assetC, q 1)] :| [m [(assetC, q 1)]]
+          )
+
+        , ( m [(assetA, q 1)] :| [m [(assetB, q 1)]]
+          , (assetC, q <$> 1 :| [1, 1])
+          , m [(assetC, q 1)] :| [m [(assetC, q 2)]]
+          )
+
+        , ( m [(assetA, q 1)] :| [m [(assetB, q 1)]]
+          , (assetC, q <$> 1 :| [])
+          , m [(assetC, q 0)] :| [m [(assetC, q 1)]]
+          )
+        ]
+
+    q :: Natural -> TokenQuantity
+    q = TokenQuantity
+
+    m :: [(AssetId, TokenQuantity)] -> TokenMap
+    m = TokenMap.fromFlatList
+
+    assetA :: AssetId
+    assetA = AssetId (UnsafeTokenPolicyId $ Hash "A") (UnsafeTokenName "1")
+
+    assetB :: AssetId
+    assetB = AssetId (UnsafeTokenPolicyId $ Hash "B") (UnsafeTokenName "")
+
+    assetC :: AssetId
+    assetC = AssetId (UnsafeTokenPolicyId $ Hash "A") (UnsafeTokenName "2")
+
+--------------------------------------------------------------------------------
+-- Making change for known asset
+--------------------------------------------------------------------------------
+
+prop_makeChangeForKnownAsset_sum
+    :: NonEmpty TokenMap
+    -> (AssetId, TokenQuantity)
+    -> Property
+prop_makeChangeForKnownAsset_sum weights (asset, quantity) =
+    if any (`TokenMap.hasQuantity` asset) weights then
+        quantity === totalChangeValue
+    else
+        totalChangeValue === TokenQuantity 0
+  where
+    changes = makeChangeForKnownAsset weights (asset, quantity)
+    totalChangeValue = F.fold ((`TokenMap.getQuantity` asset) <$> changes)
+
+prop_makeChangeForKnownAsset_length
+    :: NonEmpty TokenMap
+    -> (AssetId, TokenQuantity)
+    -> Property
+prop_makeChangeForKnownAsset_length weights surplus =
+    F.length changes === F.length weights
+  where
+    changes = makeChangeForKnownAsset weights surplus
+
+unit_makeChangeForKnownAsset
+    :: [Expectation]
+unit_makeChangeForKnownAsset =
+    [ makeChangeForKnownAsset weights surplus `shouldBe` expectation
+    | (weights, surplus, expectation) <- matrix
+    ]
+  where
+    matrix =
+        [ ( m [(assetA, q 1)] :| []
+          , (assetA, q 3)
+          , m [(assetA, q 3)] :| []
+          )
+
+        , ( m [(assetA, q 1)] :| [m [(assetA, q 2), (assetB, q 1)]]
+          , (assetA, q 3)
+          , m [(assetA, q 1)] :| [m [(assetA, q 2)]]
+          )
+
+        , ( m [(assetA, q 1)] :| [m [(assetB, q 1)]]
+          , (assetC, q 1)
+          , m [(assetA, q 0)] :| [m [(assetA, q 0)]]
+          )
+        ]
+
+    q :: Natural -> TokenQuantity
+    q = TokenQuantity
+
+    m :: [(AssetId, TokenQuantity)] -> TokenMap
+    m = TokenMap.fromFlatList
+
+    assetA :: AssetId
+    assetA = AssetId (UnsafeTokenPolicyId $ Hash "A") (UnsafeTokenName "1")
+
+    assetB :: AssetId
+    assetB = AssetId (UnsafeTokenPolicyId $ Hash "B") (UnsafeTokenName "")
+
+    assetC :: AssetId
+    assetC = AssetId (UnsafeTokenPolicyId $ Hash "A") (UnsafeTokenName "2")
 
 --------------------------------------------------------------------------------
 -- Grouping and ungrouping
@@ -900,13 +1262,15 @@ consecutivePairs xs = case tailMay xs of
     Nothing -> []
     Just ys -> xs `zip` ys
 
-inAscendingPartialOrder :: (Foldable f, PartialOrd a) => f a -> Bool
-inAscendingPartialOrder = all (uncurry leq) . consecutivePairs . F.toList
-
 addExtraSource :: Maybe Coin -> TokenBundle -> TokenBundle
 addExtraSource extraSource =
     TokenBundle.add
         (maybe TokenBundle.empty TokenBundle.fromCoin extraSource)
+
+unitTests :: String -> [Expectation] -> SpecWith ()
+unitTests lbl cases =
+    forM_ (zip [1..] cases) $ \(i, test) ->
+        it (lbl <> " example #" <> show @Int i) test
 
 --------------------------------------------------------------------------------
 -- Arbitraries
@@ -930,6 +1294,10 @@ instance Arbitrary (MockRoundRobinState TokenName Word8) where
 instance Arbitrary TokenBundle where
     arbitrary = genTokenBundleSmallRangePositive
     shrink = shrinkTokenBundleSmallRangePositive
+
+instance Arbitrary TokenMap where
+    arbitrary = genTokenMapSmallRange
+    shrink = shrinkTokenMapSmallRange
 
 instance Arbitrary TokenQuantity where
     arbitrary = genTokenQuantitySmallPositive
@@ -966,3 +1334,9 @@ instance Arbitrary (Small UTxOIndex) where
 instance Arbitrary Coin where
     arbitrary = genCoinSmallPositive
     shrink = shrinkCoinSmallPositive
+
+instance Arbitrary MinCoinValueFor where
+    arbitrary = arbitraryBoundedEnum
+    shrink = \case
+        NoMinCoin -> []
+        LinearMinCoin -> [NoMinCoin]

@@ -37,14 +37,9 @@ module Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
 
     -- * Making change
     , makeChange
-    , makeChangeForCoin
-    , makeChangeForPaymentAssets
-    , makeChangeForSurplusAssets
-
-    -- * Partitioning
-    , partitionCoin
-    , partitionTokenQuantity
-    , partitionValue
+    , makeChangeForCoins
+    , makeChangeForKnownAsset
+    , makeChangeForUnknownAsset
 
     -- * Grouping and ungrouping
     , groupByKey
@@ -56,7 +51,8 @@ module Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
 
     -- * Utility functions
     , distance
-
+    , subtractCoin
+    , addCoin
     ) where
 
 import Prelude
@@ -68,7 +64,7 @@ import Cardano.Numeric.Util
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle
-    ( TokenBundle )
+    ( TokenBundle (..) )
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId, TokenMap )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
@@ -79,8 +75,8 @@ import Cardano.Wallet.Primitive.Types.UTxOIndex
     ( SelectionFilter (..), UTxOIndex (..) )
 import Control.Monad.Random.Class
     ( MonadRandom (..) )
-import Data.Function
-    ( (&) )
+import Control.Monad.Trans.State
+    ( StateT (..) )
 import Data.Functor.Identity
     ( Identity (..) )
 import Data.Generics.Internal.VL.Lens
@@ -271,7 +267,7 @@ runSelection
         -- ^ Minimum balance to cover
     -> m SelectionState
         -- ^ Final selection state
-runSelection limit mExtraSource available minimumBalance =
+runSelection limit mExtraCoinSource available minimumBalance =
     runRoundRobinM initialState selectors
   where
     initialState :: SelectionState
@@ -279,9 +275,6 @@ runSelection limit mExtraSource available minimumBalance =
         { selected = UTxOIndex.empty
         , leftover = available
         }
-
-    extraSource :: Natural
-    extraSource = maybe 0 (fromIntegral . unCoin) mExtraSource
 
     selectors :: [SelectionState -> m (Maybe SelectionState)]
     selectors = coinSelector : fmap assetSelector minimumAssetQuantities
@@ -307,13 +300,16 @@ runSelection limit mExtraSource available minimumBalance =
         { currentQuantity = \s ->
             coinQuantity (selected s)
             +
-            if UTxOIndex.null (selected s) then 0 else extraSource
+            if UTxOIndex.null (selected s) then 0 else extraCoinSource
         , minimumQuantity = fromIntegral $ unCoin minimumCoinQuantity
         , selectQuantity = selectMatchingQuantity limit
             [ WithAdaOnly
             , Any
             ]
         }
+      where
+        extraCoinSource :: Natural
+        extraCoinSource = maybe 0 (fromIntegral . unCoin) mExtraCoinSource
 
 selectMatchingQuantity
     :: MonadRandom m
@@ -383,211 +379,206 @@ runSelectionStep lens s
 -- Making change
 --------------------------------------------------------------------------------
 
+-- | Calculate change bundles from a set of selected inputs and outputs. Returns
+-- 'Nothing' if there are not enough 'Ada' inputs to satisfy minimum delta and
+-- minimum values in each token bundle. However, generate runtime errors if:
+--
+-- 1. The total input value is lesser than the total output value
+-- 2. The total output value is null
+--
+-- The pre-condition (1) should be satisfied by any result coming from
+-- `runSelection`. The pre-condition (2) is a undirect consequence of assigning
+-- a minimum UTxO value to every output token bundle.
 makeChange
-    :: NonEmpty TokenBundle
+    :: (TokenMap -> Coin)
+        -- A function which computes the minimum required Ada coins for a
+        -- particular output.
+    -> Coin
+        -- ^ The minimal (and optimal) delta between the total Ada inputs and
+        -- total Ada outputs. This typically captures fees plus key deposits.
+    -> Maybe Coin
+        -- ^ An extra source of Ada, if any.
+    -> NonEmpty TokenBundle
         -- ^ Token bundles of selected inputs
     -> NonEmpty TokenBundle
         -- ^ Token bundles of original outputs
-    -> NonEmpty TokenBundle
-        -- ^ Change bundles
-makeChange inputBundles outputBundles
+    -> Maybe (NonEmpty TokenBundle)
+        -- ^ Change bundles.
+makeChange minCoinValueFor requiredCost mExtraCoinSource inputBundles outputBundles
     | not (totalOutputValue `leq` totalInputValue) =
         totalInputValueInsufficient
-    | totalOutputCoinValue == Coin 0 =
+    | TokenBundle.getCoin totalOutputValue == Coin 0 =
         totalOutputCoinValueIsZero
-    | otherwise =
-        change
+    | otherwise = do
+            -- The following subtraction is safe, as we have already checked
+            -- that the total input value is greater than the total output value
+        let excess :: TokenBundle
+            excess = totalInputValue `TokenBundle.unsafeSubtract` totalOutputValue
+
+        let (excessCoin, excessAssets) = TokenBundle.toFlatList excess
+
+        let unknownAssets =
+                Map.toList $ F.foldr discardKnownAssets mempty inputBundles
+
+        let changeForKnownAssets :: NonEmpty TokenMap
+            changeForKnownAssets = F.foldr
+                (NE.zipWith (<>) . makeChangeForKnownAsset outputTokens)
+                (TokenMap.empty <$ outputTokens)
+                excessAssets
+
+        let changeForUnknownAssets :: NonEmpty TokenMap
+            changeForUnknownAssets = F.foldr
+                (NE.zipWith (<>) . makeChangeForUnknownAsset outputTokens)
+                (TokenMap.empty <$ outputTokens)
+                unknownAssets
+
+        let change :: NonEmpty TokenMap
+            change = NE.zipWith (<>) changeForKnownAssets changeForUnknownAssets
+
+        (bundles, remainder) <-
+            excessCoin `subtractCoin` requiredCost
+            >>=
+            runStateT (sequence (StateT . assignCoin minCoinValueFor <$> change))
+
+        let changeForCoins :: NonEmpty TokenBundle
+            changeForCoins = TokenBundle.fromCoin
+                <$> makeChangeForCoins outputCoins remainder
+
+        pure (NE.zipWith (<>) bundles changeForCoins)
   where
     totalInputValueInsufficient = error
         "makeChange: not (totalOutputValue <= totalInputValue)"
     totalOutputCoinValueIsZero = error
         "makeChange: not (totalOutputCoinValue > 0)"
 
+    outputTokens :: NonEmpty TokenMap
+    outputTokens = view #tokens <$> outputBundles
+
+    outputCoins :: NonEmpty Coin
+    outputCoins = view #coin <$> outputBundles
+
     totalInputValue :: TokenBundle
-    totalInputValue = F.fold inputBundles
+    totalInputValue = TokenBundle.add
+        (F.fold inputBundles)
+        (maybe TokenBundle.empty TokenBundle.fromCoin mExtraCoinSource)
 
     totalOutputValue :: TokenBundle
     totalOutputValue = F.fold outputBundles
 
-    totalOutputCoinValue :: Coin
-    totalOutputCoinValue = TokenBundle.getCoin totalOutputValue
-
-    excess :: TokenBundle
-    excess =
-        -- The following subtraction is safe, as we have already checked that
-        -- the total input value is greater than the total output value:
-        totalInputValue `TokenBundle.unsafeSubtract` totalOutputValue
-
-    change :: NonEmpty TokenBundle
-    change
-        = TokenBundle.fromCoin <$> changeForCoin
-        & NE.zipWith (<>) (TokenBundle.fromTokenMap <$> changeForPaymentAssets)
-        -- Here we sort in ascending order of coin value so that surplus assets
-        -- and coin values are in increasing order in the resulting bundles:
-        & NE.sortWith TokenBundle.getCoin
-        & NE.zipWith (<>) (TokenBundle.fromTokenMap <$> changeForSurplusAssets)
-
-    -- Change for the excess coin quantity.
-    changeForCoin :: NonEmpty Coin
-    changeForCoin = makeChangeForCoin
-        (TokenBundle.getCoin excess)
-        (TokenBundle.getCoin <$> outputBundles)
-
-    -- Change for excess quantities of assets included in outputs.
-    changeForPaymentAssets :: NonEmpty TokenMap
-    changeForPaymentAssets = makeChangeForPaymentAssets
-        (TokenMap.filter (`Set.member` paymentAssetIds) (view #tokens excess))
-        (view #tokens <$> outputBundles)
-
-    -- Change for excess quantities of assets NOT included in outputs.
-    changeForSurplusAssets :: NonEmpty TokenMap
-    changeForSurplusAssets =
-        makeChangeForSurplusAssets surplusAssetsGrouped outputBundles
-      where
-        surplusAssetsGrouped :: Map AssetId (NonEmpty TokenQuantity)
-        surplusAssetsGrouped = groupByKey surplusAssets
-
-        surplusAssets :: [(AssetId, TokenQuantity)]
-        surplusAssets = filter
-            ((`Set.notMember` paymentAssetIds) . fst)
-            (TokenMap.toFlatList . view #tokens =<< NE.toList inputBundles)
-
     -- Identifiers of assets included in outputs.
-    paymentAssetIds :: Set AssetId
-    paymentAssetIds = TokenBundle.getAssets totalOutputValue
+    knownAssetIds :: Set AssetId
+    knownAssetIds = TokenBundle.getAssets totalOutputValue
 
--- | Makes change for the excess quantity of ada.
---
-makeChangeForCoin
-    :: HasCallStack
-    => Coin
-    -> NonEmpty Coin
-    -> NonEmpty Coin
-makeChangeForCoin = partitionCoin
+    discardKnownAssets
+        :: TokenBundle
+        -> Map AssetId (NonEmpty TokenQuantity)
+        -> Map AssetId (NonEmpty TokenQuantity)
+    discardKnownAssets (TokenBundle _ tokens) m =
+        foldr (\(k, v) -> Map.insertWith (<>) k (v :| [])) m filtered
+      where
+        filtered = filter
+            ((`Set.notMember` knownAssetIds) . fst)
+            (TokenMap.toFlatList tokens)
 
--- | Makes change for excess quantities of assets included in the outputs.
+-- | Construct change outputs for known assets based on a distribution given as
+-- input. If the provided 'AssetId' figures nowhere in the given distribution,
+-- then a list of empty token maps is returned. Otherwise, the given
+-- 'TokenQuantity' is distributed in a list proportionally to the input
+-- distribution.
 --
-makeChangeForPaymentAssets
-    :: HasCallStack
-    => TokenMap
-        -- ^ Excess to be distributed
+-- The output list has always the same size as the input list, and the sum of
+-- its values is either zero, or exactly the 'TokenQuantity' given as 2nd
+-- argument.
+makeChangeForKnownAsset
+    :: NonEmpty TokenMap
+        -- ^ A list of weights for the distribution. Conveniently captures both
+        -- the weights, and the number of elements amongst which the surplus
+        -- should be distributed.
+    -> (AssetId, TokenQuantity)
+        -- ^ A surplus token to distribute
     -> NonEmpty TokenMap
-        -- ^ Maps from original outputs
-    -> NonEmpty TokenMap
-        -- ^ Change maps
-makeChangeForPaymentAssets excess outputMaps =
-    F.foldl'
-        (NE.zipWith (<>))
-        (TokenMap.empty <$ outputMaps)
-        (changeForAsset <$> assetsToConsider)
+makeChangeForKnownAsset targets (asset, TokenQuantity excess) =
+    let
+        partition = fromMaybe zeros (partitionNatural excess weights)
+    in
+        TokenMap.singleton asset . TokenQuantity <$> partition
   where
-    assetsToConsider :: [AssetId]
-    assetsToConsider = F.toList $ TokenMap.getAssets excess
+    weights :: NonEmpty Natural
+    weights = byAsset asset <$> targets
+      where
+        byAsset :: AssetId -> TokenMap -> Natural
+        byAsset x = unTokenQuantity . flip TokenMap.getQuantity x
 
-    changeForAsset :: AssetId -> NonEmpty TokenMap
-    changeForAsset asset = TokenMap.singleton asset <$>
-        partitionTokenQuantity
-            (TokenMap.getQuantity excess asset)
-            (flip TokenMap.getQuantity asset <$> outputMaps)
+    zeros :: NonEmpty Natural
+    zeros = 0 :| replicate (length targets - 1) 0
 
--- | Makes change for excess quantities of assets NOT included in the outputs.
+-- | Construct a list of change outputs based by preserving as much as
+-- possible the input distribution. Note that only the length of the first
+-- argument is used.
 --
--- Distributes quantities to a number of token maps, where the number of token
--- maps to create is equal to the length of the target list.
---
--- If a given asset has fewer quantities than the target length, each of these
--- quantities will be distributed without modification to a separate token map.
---
--- If a given asset has more quantities than the target length, the smallest of
--- these quantities will be repeatedly coalesced together before distributing
--- them to token maps.
---
--- This function guarantees that:
---
---    - The total value of each asset is preserved.
---
---    - The resulting list of token maps is sorted in ascending order, so that
---      each token map in the list is less than or equal to its immediate
---      successor, when compared with the 'PartialOrder.leq' function.
---
--- Examples (shown with pseudo-code):
---
--- >>> makeChangeForSurplusAssets [("A", [1, 2])] [1]
--- [ TokenMap [("A", 3)] ]
---
--- >>> makeChangeForSurplusAssets [("A", [1, 2])] [1 .. 3]
--- [ TokenMap [        ]
--- , TokenMap [("A", 1)]
--- , TokenMap [("A", 2)]
--- ]
---
--- >>> makeChangeForSurplusAssets [("A", [1]), ("B", [2, 3, 4])] [1 .. 2]
--- [ TokenMap [          ("B", 4)]
--- , TokenMap [("A", 1), ("B", 5)]
--- ]
---
-makeChangeForSurplusAssets
-    :: Map AssetId (NonEmpty TokenQuantity)
-    -- ^ Asset quantities
-    -> NonEmpty a
-    -- ^ Target list (denotes the desired length of the result)
+-- The output list has always the same size as the input list, and the sum of
+-- its values is always exactly the sum of all 'TokenQuantity' given as 2nd
+-- argument.
+makeChangeForUnknownAsset
+    :: NonEmpty TokenMap
+        -- ^ A list of weights for the distribution. The list is only used for
+        -- its number of elements.
+    -> (AssetId, NonEmpty TokenQuantity)
+        -- ^ An asset to distribute
     -> NonEmpty TokenMap
-makeChangeForSurplusAssets assetQuantities target =
-    F.foldl'
-        (NE.zipWith (<>))
-        (TokenMap.empty <$ target)
-        (Map.mapWithKey distribute assetQuantities)
-  where
-    distribute :: AssetId -> NonEmpty TokenQuantity -> NonEmpty TokenMap
-    distribute asset quantities =
-        TokenMap.singleton asset <$> padCoalesce quantities target
+makeChangeForUnknownAsset n (asset, quantities) =
+    TokenMap.singleton asset <$> padCoalesce quantities n
 
---------------------------------------------------------------------------------
--- Partitioning
---------------------------------------------------------------------------------
-
-partitionCoin
+-- | Construct a list of coin change outputs based on a distribution given as
+-- first input. If the input distribution is filled with 0, this function throws
+-- a runtime error.
+--
+-- The output list has always the same size as the input list, and the sum of
+-- its values is always exactly equal to the 'Coin' value given as 2nd argument.
+makeChangeForCoins
     :: HasCallStack
-    => Coin
-        -- ^ Target
+    => NonEmpty Coin
+        -- ^ A list of weights for the distribution. Conveniently captures both
+        -- the weights, and the number of elements amongst which the surplus
+        -- should be distributed.
+    -> Coin
+        -- ^ A surplus Ada value which needs to be distributed
     -> NonEmpty Coin
-        -- ^ Weights
-    -> NonEmpty Coin
-partitionCoin = partitionValue coinToNatural naturalToCoin
+makeChangeForCoins targets excess =
+    maybe zeroWeightSum (fmap naturalToCoin)
+        (partitionNatural (coinToNatural excess) weights)
   where
+    zeroWeightSum :: HasCallStack => a
+    zeroWeightSum = error
+        "partitionValue: The specified weights must have a non-zero sum."
+
+    weights :: NonEmpty Natural
+    weights = coinToNatural <$> targets
+
+    coinToNatural :: Coin -> Natural
+    coinToNatural = fromIntegral . unCoin
+
     -- This conversion is safe, because 'partitionValue' guarantees to produce
     -- a list where every entry is less than or equal to the target value.
     naturalToCoin :: Natural -> Coin
     naturalToCoin = Coin . fromIntegral
 
-    coinToNatural :: Coin -> Natural
-    coinToNatural = fromIntegral . unCoin
-
-partitionTokenQuantity
-    :: HasCallStack
-    => TokenQuantity
-        -- ^ Target
-    -> NonEmpty TokenQuantity
-        -- ^ Weights
-    -> NonEmpty TokenQuantity
-partitionTokenQuantity = partitionValue unTokenQuantity TokenQuantity
-
-partitionValue
-    :: forall a. HasCallStack
-    => (a -> Natural) -> (Natural -> a)
-    -> a
-    -> NonEmpty a
-    -> NonEmpty a
-partitionValue toNatural fromNatural target weights =
-    fromMaybe zeroWeightSum maybeResult
+-- Create a 'TokenBundle' from a 'TokenMap' by assigning it a minimum required
+-- Ada value from a coin source. Returns 'Nothing' if there's not enough 'Coin'
+-- to cover the minimum amount, and return a 'TokenBundle' and the remainder
+-- coins otherwise.
+assignCoin
+    :: (TokenMap -> Coin)
+    -> TokenMap
+    -> Coin
+    -> Maybe (TokenBundle, Coin)
+assignCoin minCoinValueFor tokens availableCoins@(Coin c)
+    | availableCoins < minCoin =
+        Nothing
+    | otherwise =
+        Just (TokenBundle minCoin tokens, Coin (c - m))
   where
-    maybeResult :: Maybe (NonEmpty a)
-    maybeResult =
-        fmap fromNatural <$> partitionNatural
-            (toNatural target)
-            (toNatural <$> weights)
-    zeroWeightSum = error
-        "partitionValue: The specified weights must have a non-zero sum."
+    minCoin@(Coin m) = minCoinValueFor tokens
 
 --------------------------------------------------------------------------------
 -- Grouping and ungrouping
@@ -641,3 +632,11 @@ distance a b
     | a > b = a - b
     | a < b = b - a
     | otherwise = 0
+
+subtractCoin :: Coin -> Coin -> Maybe Coin
+subtractCoin (Coin a) (Coin b)
+    | a >= b    = Just $ Coin (a - b)
+    | otherwise = Nothing
+
+addCoin :: Coin -> Coin -> Coin
+addCoin (Coin a) (Coin b) = Coin (a + b)
