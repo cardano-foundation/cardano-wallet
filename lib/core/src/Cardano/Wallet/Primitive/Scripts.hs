@@ -57,7 +57,7 @@ import qualified Data.Map.Strict as Map
 
 isShared
     :: (k ~ ShelleyKey, SoftDerivation k)
-    => Script
+    => Script KeyHash
     -> SeqState n k
     -> ([k 'ScriptK XPub], SeqState n k)
 isShared script (SeqState !s1 !s2 !pending !rpk !prefix !s3) =
@@ -89,5 +89,5 @@ isShared script (SeqState !s1 !s2 !pending !rpk !prefix !s3) =
 insertIf :: Ord k => (v -> Bool) -> k -> v -> Map k v -> Map k v
 insertIf predicate k v = if predicate v then Map.insert k v else id
 
-retrieveAllVerKeyHashes :: Script -> [KeyHash]
+retrieveAllVerKeyHashes :: Script KeyHash -> [KeyHash]
 retrieveAllVerKeyHashes = foldScript (:) []

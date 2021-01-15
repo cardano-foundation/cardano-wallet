@@ -175,7 +175,7 @@ import Prelude
 import Cardano.Address.Derivation
     ( XPrv, XPub, xpubFromBytes, xpubToBytes )
 import Cardano.Address.Script
-    ( Script )
+    ( KeyHash, Script )
 import Cardano.Api.Typed
     ( TxMetadataJsonSchema (..)
     , displayError
@@ -463,7 +463,7 @@ data ApiAddress (n :: NetworkDiscriminant) = ApiAddress
 
 data ApiCredential =
       CredentialPubKey ByteString
-    | CredentialScript Script
+    | CredentialScript (Script KeyHash)
     deriving (Eq, Generic, Show)
 
 data ApiAddressData =
