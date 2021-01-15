@@ -155,50 +155,47 @@ import qualified Test.Integration.Scenario.CLI.Shelley.Transactions as Transacti
 import qualified Test.Integration.Scenario.CLI.Shelley.Wallets as WalletsCLI
 
 main :: forall n. (n ~ 'Mainnet) => IO ()
-main = withTestsSetup $ \testDir tracers -> hspec $ do
-    describe "No backend required" $
-        parallel' $ describe "Miscellaneous CLI tests"
-            MiscellaneousCLI.spec
-
-    specWithServer testDir tracers Nothing $ do
-        parallel $ describe "API Specifications" $ do
-            Addresses.spec @n
-            CoinSelections.spec @n
-            ByronAddresses.spec @n
-            ByronCoinSelections.spec @n
-            Wallets.spec @n
-            ByronWallets.spec @n
-            HWWallets.spec @n
-            Migrations.spec @n
-            ByronMigrations.spec @n
-            Transactions.spec @n
-            Network.spec
-            Network_.spec
-            StakePools.spec @n
-            ByronTransactions.spec @n
-            ByronHWWallets.spec @n
+main = withTestsSetup $ \testDir tracers -> do
+    nix <- inNixBuild
+    hspec $ do
+        describe "No backend required" $
+            parallelIf (not nix) $ describe "Miscellaneous CLI tests"
+                MiscellaneousCLI.spec
+        specWithServer testDir tracers Nothing $ do
+            describe "API Specifications" $ do
+                parallel $ do
+                    Addresses.spec @n
+                    CoinSelections.spec @n
+                    ByronAddresses.spec @n
+                    ByronCoinSelections.spec @n
+                    Wallets.spec @n
+                    ByronWallets.spec @n
+                    HWWallets.spec @n
+                    Migrations.spec @n
+                    ByronMigrations.spec @n
+                    Transactions.spec @n
+                    Network.spec
+                    Network_.spec
+                    StakePools.spec @n
+                    ByronTransactions.spec @n
+                    ByronHWWallets.spec @n
 
             -- Possible conflict with StakePools - mark as not parallizable
             sequential $ Settings.spec @n
 
-        parallel' $ describe "CLI Specifications" $ do
-            AddressesCLI.spec @n
-            TransactionsCLI.spec @n
-            WalletsCLI.spec @n
-            HWWalletsCLI.spec @n
-            PortCLI.spec
-            NetworkCLI.spec
+            -- Hydra runs tests with code coverage enabled. CLI tests run
+            -- multiple processes. These processes can try to write to the
+            -- same .tix file simultaneously, causing errors.
+            --
+            -- Because of this, don't run the CLI tests in parallel in hydra.
+            parallelIf (not nix) $ describe "CLI Specifications" $ do
+                AddressesCLI.spec @n
+                TransactionsCLI.spec @n
+                WalletsCLI.spec @n
+                HWWalletsCLI.spec @n
+                PortCLI.spec
+                NetworkCLI.spec
   where
-    -- Hydra runs tests with code coverage enabled. CLI tests run
-    -- multiple processes. These processes can try to write to the
-    -- same .tix file simultaneously, causing errors.
-    --
-    -- Because of this, don't run the CLI tests in parallel in hydra.
-    parallel' :: forall a. SpecWith a -> SpecWith a
-    parallel' spec = do
-        nix <- runIO inNixBuild
-        parallelIf (not nix) spec
-
     parallelIf flag = if flag then parallel else sequential
 
 -- | Do all the program setup required for integration tests, create a temporary
@@ -220,7 +217,7 @@ withTestsSetup action = do
             withTracers testDir $ action testDir
 
 specWithServer
-    :: FilePath  -- ^ Temporary directory, will be created.
+    :: FilePath
     -> (Tracer IO TestsLog, Tracers IO)
     -> Maybe ClusterEra
     -> SpecWith Context
@@ -229,7 +226,6 @@ specWithServer testDir (tr, tracers) era = aroundAll withContext
   where
     withContext :: (Context -> IO ()) -> IO ()
     withContext action = bracketTracer' tr "withContext" $ do
-        createDirectory testDir
         ctx <- newEmptyMVar
         poolGarbageCollectionEvents <- newIORef []
         let dbEventRecorder =
@@ -302,6 +298,7 @@ specWithServer testDir (tr, tracers) era = aroundAll withContext
     onClusterStart action dbDecorator (RunningNode conn block0 (gp, vData)) = do
         setupFaucet conn
         let db = testDir </> "wallets"
+        putStrLn $ "creating" <> show db
         createDirectory db
         listen <- walletListenFromEnv
         serveWallet
