@@ -702,7 +702,9 @@ waitAllTxsInLedger
     -> m ()
 waitAllTxsInLedger ctx w = eventually "waitAllTxsInLedger: all txs in ledger" $ do
     let ep = Link.listTransactions @'Shelley w
-    (_, txs) <- unsafeRequest @[ApiTransaction n] ctx ep Empty
+    r <- request @[ApiTransaction n] ctx ep Default Empty
+    expectResponseCode HTTP.status200 r
+    let txs = getFromResponse id r
     view (#status . #getApiT) <$> txs `shouldSatisfy` all (== InLedger)
 
 waitForNextEpoch
@@ -1167,8 +1169,10 @@ fixtureWalletWithMnemonics ctx = snd <$> allocate create (free . fst)
                 "mnemonic_sentence": #{mnemonics},
                 "passphrase": #{fixturePassphrase}
                 } |]
-        (_, w) <- unsafeRequest @ApiWallet ctx
-            (Link.postWallet @'Shelley) payload
+        r <- request @ApiWallet ctx
+            (Link.postWallet @'Shelley) Default payload
+        expectResponseCode HTTP.status201 r
+        let w = getFromResponse id r
         race (threadDelay sixtySeconds) (checkBalance w) >>= \case
             Left _ -> expectationFailure'
                 "fixtureWallet: waited too long for initial transaction"
@@ -1239,8 +1243,10 @@ fixtureRandomWalletWith ctx coins0 = do
     liftIO $ mapM_ (moveByronCoins @n ctx src (dest, addrs)) (groupsOf 10 coins0)
     void $ request @() ctx
         (Link.deleteWallet @'Byron src) Default Empty
-    snd <$> unsafeRequest @ApiByronWallet ctx
-        (Link.getWallet @'Byron dest) Empty
+    r <- request @ApiByronWallet ctx
+        (Link.getWallet @'Byron dest) Default Empty
+    expectResponseCode HTTP.status200 r
+    pure (getFromResponse id r)
 
 -- | Restore a faucet Icarus wallet and wait until funds are available.
 fixtureIcarusWalletMws
@@ -1297,8 +1303,10 @@ fixtureIcarusWalletWith ctx coins0 = do
     liftIO $ mapM_ (moveByronCoins @n ctx src (dest, addrs)) (groupsOf 10 coins0)
     void $ request @() ctx
         (Link.deleteWallet @'Byron src) Default Empty
-    snd <$> unsafeRequest @ApiByronWallet ctx
-        (Link.getWallet @'Byron dest) Empty
+    r <- request @ApiByronWallet ctx
+        (Link.getWallet @'Byron dest) Default Empty
+    expectResponseCode HTTP.status200 r
+    pure (getFromResponse id r)
 
 
 -- | Restore a legacy wallet (Byron or Icarus)
@@ -1317,8 +1325,9 @@ fixtureLegacyWallet ctx style mnemonics = snd <$> allocate create free
                 "passphrase": #{fixturePassphrase},
                 "style": #{style}
                 } |]
-        (_, w) <- unsafeRequest @ApiByronWallet ctx
-            (Link.postWallet @'Byron) payload
+        r <- request @ApiByronWallet ctx (Link.postWallet @'Byron) Default payload
+        expectResponseCode HTTP.status201 r
+        let w = getFromResponse id r
         liftIO $ race (threadDelay sixtySeconds) (checkBalance w) >>= \case
             Left _ ->
                 expectationFailure'
@@ -1360,9 +1369,13 @@ fixtureWalletWith ctx coins0 = do
     liftIO $ mapM_ (moveCoins src dest) (groupsOf 10 coins0)
     liftIO $ void $ request @() ctx
         (Link.deleteWallet @'Shelley src) Default Empty
+
     waitForTxImmutability ctx
-    snd <$> unsafeRequest @ApiWallet ctx
-        (Link.getWallet @'Shelley dest) Empty
+
+    r <- request @ApiWallet ctx
+        (Link.getWallet @'Shelley dest) Default Empty
+    expectResponseCode HTTP.status200 r
+    pure (getFromResponse id r)
   where
     -- | Move coins from a wallet to another
     moveCoins
@@ -1671,8 +1684,9 @@ listAddresses
     -> m [ApiAddress n]
 listAddresses ctx w = do
     let link = Link.listAddresses @'Shelley w
-    (_, addrs) <- unsafeRequest @[ApiAddress n] ctx link Empty
-    return addrs
+    r <- request @[ApiAddress n] ctx link Default Empty
+    expectResponseCode HTTP.status200 r
+    return (getFromResponse id r)
 
 getWallet
     :: forall w m.
@@ -1685,8 +1699,9 @@ getWallet
     -> m ApiWallet
 getWallet ctx w = do
     let link = Link.getWallet @'Shelley w
-    (_, wallet) <- unsafeRequest @ApiWallet ctx link Empty
-    return wallet
+    r <- request @ApiWallet ctx link Default Empty
+    expectResponseCode HTTP.status200 r
+    return (getFromResponse id r)
 
 listAllTransactions
     :: forall n w m.
@@ -1717,7 +1732,9 @@ listTransactions
     -> Maybe SortOrder
     -> m [ApiTransaction n]
 listTransactions ctx wallet mStart mEnd mOrder = do
-    (_, txs) <- unsafeRequest @[ApiTransaction n] ctx path Empty
+    r <- request @[ApiTransaction n] ctx path Default Empty
+    expectResponseCode HTTP.status200 r
+    let txs = getFromResponse id r
     return txs
   where
     path = Link.listTransactions' @'Shelley wallet
