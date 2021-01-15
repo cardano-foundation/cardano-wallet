@@ -35,7 +35,7 @@
 -- @
 --      stack bench cardano-wallet:bench:restore
 --          --ba 'mainnet -c $CONFIGURATION_DIR
---          --running-node $SOCKET_PATH
+--          --running-node $CARDANO_NODE_SOCKET_PATH
 -- @
 --
 -- This makes iteration easy, but requires you to have the configuration
@@ -134,7 +134,7 @@ import Cardano.Wallet.Shelley
 import Cardano.Wallet.Shelley.Compatibility
     ( HasNetworkId (..), NodeVersionData, emptyGenesis, fromCardanoBlock )
 import Cardano.Wallet.Shelley.Launch
-    ( NetworkConfiguration (..), parseGenesisData )
+    ( CardanoNodeConn, NetworkConfiguration (..), parseGenesisData )
 import Cardano.Wallet.Shelley.Network
     ( withNetworkLayer )
 import Cardano.Wallet.Shelley.Transaction
@@ -229,7 +229,7 @@ argsNetworkConfig args = case argNetworkName args of
         TestnetConfig (argsNetworkDir args </> "genesis-byron.json")
 
 -- | Run all available benchmarks.
-cardanoRestoreBench :: Trace IO Text -> NetworkConfiguration -> FilePath -> IO ()
+cardanoRestoreBench :: Trace IO Text -> NetworkConfiguration -> CardanoNodeConn -> IO ()
 cardanoRestoreBench tr c socketFile = do
     (SomeNetworkDiscriminant networkProxy, np, vData, _b)
         <- unsafeRunExceptT $ parseGenesisData c
@@ -567,8 +567,7 @@ bench_restoration
         )
     => Proxy n
     -> Tracer IO (BenchmarkLog n)
-    -> FilePath
-       -- ^ Socket path
+    -> CardanoNodeConn  -- ^ Socket path
     -> NetworkParameters
     -> NodeVersionData
     -> Text -- ^ Benchmark name (used for naming resulting files)
@@ -690,7 +689,7 @@ prepareNode
     :: forall n. (NetworkDiscriminantVal n)
     => Tracer IO (BenchmarkLog n)
     -> Proxy n
-    -> FilePath
+    -> CardanoNodeConn
     -> NetworkParameters
     -> NodeVersionData
     -> IO ()

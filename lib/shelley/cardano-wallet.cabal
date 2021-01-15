@@ -80,6 +80,7 @@ library
     , text-class
     , time
     , transformers
+    , typed-process
     , unliftio
     , unliftio-core
     , unordered-containers
@@ -97,6 +98,7 @@ library
       Cardano.Wallet.Shelley.Network
       Cardano.Wallet.Shelley.Transaction
       Cardano.Wallet.Shelley.Launch
+      Cardano.Wallet.Shelley.Launch.Cluster
       Cardano.Wallet.Shelley.Pools
 
 executable cardano-wallet
@@ -130,7 +132,7 @@ executable cardano-wallet
   main-is:
     cardano-wallet.hs
 
-executable shelley-test-cluster
+executable local-cluster
   default-language:
       Haskell2010
   default-extensions:
@@ -158,7 +160,7 @@ executable shelley-test-cluster
   hs-source-dirs:
       exe
   main-is:
-      shelley-test-cluster.hs
+      local-cluster.hs
 
 test-suite unit
   default-language:
@@ -236,6 +238,7 @@ test-suite integration
     , either
     , filepath
     , hspec
+    , hspec-core
     , http-client
     , iohk-monitoring
     , lobemo-backend-ekg

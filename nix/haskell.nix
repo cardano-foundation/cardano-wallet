@@ -147,7 +147,7 @@ let
           };
 
 
-        packages.cardano-wallet.components.exes.shelley-test-cluster = let
+        packages.cardano-wallet.components.exes.local-cluster = let
           testData = src + /lib/shelley/test/data/cardano-node-shelley;
         in
           if (stdenv.hostPlatform.isWindows) then {
@@ -158,7 +158,7 @@ let
           } else {
             build-tools = [ pkgs.makeWrapper ];
             postInstall = ''
-              wrapProgram $out/bin/shelley-test-cluster \
+              wrapProgram $out/bin/local-cluster \
                 --set SHELLEY_TEST_DATA ${testData} \
                 --prefix PATH : ${lib.makeBinPath cardanoNodeExes}
             '';

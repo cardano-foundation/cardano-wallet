@@ -36,8 +36,9 @@ import Cardano.BM.Trace
     ( Trace, nullTracer )
 import Cardano.Launcher.Node
     ( CardanoNodeConfig (..)
-    , CardanoNodeConn (..)
+    , CardanoNodeConn
     , NodePort (..)
+    , cardanoNodeConn
     , withCardanoNode
     )
 import Cardano.Startup
@@ -68,12 +69,14 @@ import Options.Applicative
     ( HasValue
     , Mod
     , Parser
+    , eitherReader
     , execParser
     , help
     , helper
     , info
     , long
     , metavar
+    , option
     , optional
     , short
     , showDefaultWith
@@ -88,6 +91,8 @@ import System.Directory
     ( createDirectoryIfMissing )
 import System.Environment
     ( lookupEnv )
+import System.Exit
+    ( die )
 import System.FilePath
     ( (</>) )
 import System.IO
@@ -109,7 +114,7 @@ import qualified Cardano.BM.Data.BackendKind as CM
 execBenchWithNode
     :: (RestoreBenchArgs -> cfg)
     -- ^ Get backend-specific network configuration from args
-    -> (Trace IO Text -> cfg -> FilePath -> IO ())
+    -> (Trace IO Text -> cfg -> CardanoNodeConn -> IO ())
     -- ^ Action to run
     -> IO ()
 execBenchWithNode networkConfig action = do
@@ -123,12 +128,12 @@ execBenchWithNode networkConfig action = do
     installSignalHandlers (return ())
 
     case argUseAlreadyRunningNodeSocketPath args of
-        Just socket ->
-            action tr (networkConfig args) socket
+        Just conn ->
+            action tr (networkConfig args) conn
         Nothing -> do
             void $ withNetworkConfiguration args $ \nodeConfig ->
-                withCardanoNode (trMessageText tr) nodeConfig $ \cp ->
-                    action tr (networkConfig args) (nodeSocketFile cp)
+                withCardanoNode (trMessageText tr) nodeConfig $
+                    action tr (networkConfig args)
 
 withNetworkConfiguration :: RestoreBenchArgs -> (CardanoNodeConfig -> IO a) -> IO a
 withNetworkConfiguration args action = do
@@ -166,7 +171,7 @@ data RestoreBenchArgs = RestoreBenchArgs
     { argNetworkName :: String
     , argConfigsDir :: FilePath
     , argNodeDatabaseDir :: Maybe FilePath
-    , argUseAlreadyRunningNodeSocketPath :: Maybe FilePath
+    , argUseAlreadyRunningNodeSocketPath :: Maybe CardanoNodeConn
     , argQuiet :: Bool
     } deriving (Show, Eq)
 
@@ -174,8 +179,9 @@ restoreBenchArgsParser
     :: Maybe String
     -> Maybe FilePath
     -> Maybe FilePath
+    -> Maybe CardanoNodeConn
     -> Parser RestoreBenchArgs
-restoreBenchArgsParser envNetwork envConfigsDir envNodeDatabaseDir = RestoreBenchArgs
+restoreBenchArgsParser envNetwork envConfigsDir envNodeDatabaseDir envNodeSocket = RestoreBenchArgs
     <$> strArgument
         ( metavar "NETWORK"
           <> envDefault "NETWORK" envNetwork
@@ -194,12 +200,12 @@ restoreBenchArgsParser envNetwork envConfigsDir envNodeDatabaseDir = RestoreBenc
           <> envDefault "NODE_DB" envNodeDatabaseDir
           <> help "Directory to put cardano-node state. Defaults to $NODE_DB, \
               \falls back to temporary directory"))
-    <*> optional (strOption
+    <*> optional (option (eitherReader cardanoNodeConn)
         ( long "running-node"
           <> metavar "SOCKET"
-          <> envDefault "CARDANO_NODE_SOCKET" envNodeDatabaseDir
+          <> envDefault "CARDANO_NODE_SOCKET_PATH" envNodeSocket
           <> help "Path to the socket of an already running cardano-node. \
-                  \Also set by $CARDANO_NODE_SOCKET. If not set, cardano-node \
+              \Also set by $CARDANO_NODE_SOCKET_PATH. If not set, cardano-node \
               \will automatically be started."))
     <*> switch
         ( long ("quiet")
@@ -216,11 +222,14 @@ getRestoreBenchArgsParser = restoreBenchArgsParser
     <$> lookupEnv' "NETWORK"
     <*> lookupEnv' "CARDANO_NODE_CONFIGS"
     <*> lookupEnv' "NODE_DB"
+    <*> parseEnv cardanoNodeConn "CARDANO_NODE_SOCKET"
   where
     lookupEnv' k = lookupEnv k <&> \case
         Just "" -> Nothing
         Just v -> Just v
         Nothing -> Nothing
+    parseEnv p k = lookupEnv' k >>= traverse (either exit pure . p)
+        where exit err = die (k ++ ": " ++ err)
 
 getRestoreBenchArgs :: IO RestoreBenchArgs
 getRestoreBenchArgs = do

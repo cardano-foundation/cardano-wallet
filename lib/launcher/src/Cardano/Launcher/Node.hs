@@ -6,11 +6,17 @@
 -- Provides a function to launch @cardano-node@.
 
 module Cardano.Launcher.Node
-    ( withCardanoNode
+    ( -- * Startup
+      withCardanoNode
     , CardanoNodeConfig (..)
     , defaultCardanoNodeConfig
-    , CardanoNodeConn (..)
     , NodePort (..)
+
+      -- * cardano-node Snockets
+    , CardanoNodeConn
+    , cardanoNodeConn
+    , nodeSocketFile
+    , isWindows
     ) where
 
 import Prelude
@@ -19,21 +25,59 @@ import Cardano.Launcher
     ( LauncherLog, ProcessHasExited, withBackendCreateProcess )
 import Control.Tracer
     ( Tracer (..) )
+import Data.Bifunctor
+    ( first )
+import Data.List
+    ( isPrefixOf )
 import Data.Maybe
     ( maybeToList )
+import Data.Text.Class
+    ( FromText (..), TextDecodingError (..), ToText (..) )
 import System.Environment
     ( getEnvironment )
 import System.FilePath
-    ( takeFileName, (</>) )
+    ( isValid, takeFileName, (</>) )
 import System.Info
     ( os )
 import UnliftIO.Process
     ( CreateProcess (..), proc )
 
+import qualified Data.Text as T
+
 -- | Parameters for connecting to the node.
-newtype CardanoNodeConn = CardanoNodeConn
-    { nodeSocketFile :: FilePath
-    } deriving (Show, Eq)
+newtype CardanoNodeConn = CardanoNodeConn FilePath
+    deriving (Show, Eq)
+
+-- | Gets the socket filename or pipe name from 'CardanoNodeConn'. Whether it's
+-- a unix socket or named pipe depends on the value of 'isWindows'.
+nodeSocketFile :: CardanoNodeConn -> FilePath
+nodeSocketFile (CardanoNodeConn name) = name
+
+-- | Produces a 'CardanoNodeConn' if the socket path or pipe name (depending on
+-- 'isWindows') is valid.
+cardanoNodeConn :: FilePath -> Either String CardanoNodeConn
+cardanoNodeConn name
+    | isWindows = if isValidWindowsPipeName name
+        then Right $ CardanoNodeConn name
+        else Left "Invalid pipe name."
+    | otherwise = if isValid name
+        then Right $ CardanoNodeConn name
+        else Left "Invalid file path."
+
+isWindows :: Bool
+isWindows = os == "mingw32"
+
+isValidWindowsPipeName :: FilePath -> Bool
+isValidWindowsPipeName name = slashPipe `isPrefixOf` name
+    && isValid (drop (length slashPipe) name)
+  where
+    slashPipe = "\\\\.\\pipe\\"
+
+instance ToText CardanoNodeConn where
+    toText = T.pack . nodeSocketFile
+
+instance FromText CardanoNodeConn where
+    fromText = first TextDecodingError . cardanoNodeConn . T.unpack
 
 newtype NodePort = NodePort { unNodePort :: Int }
     deriving (Show, Eq)

@@ -62,6 +62,8 @@ import Cardano.CLI
     , tlsOption
     , withLogging
     )
+import Cardano.Launcher.Node
+    ( CardanoNodeConn )
 import Cardano.Startup
     ( ShutdownHandlerLog
     , installSignalHandlers
@@ -179,7 +181,7 @@ data ServeArgs = ServeArgs
     { _hostPreference :: HostPreference
     , _listen :: Listen
     , _tlsConfig :: Maybe TlsConfiguration
-    , _nodeSocket :: FilePath
+    , _nodeSocket :: CardanoNodeConn
     , _networkConfiguration :: NetworkConfiguration
     , _database :: Maybe FilePath
     , _syncTolerance :: SyncTolerance
@@ -212,7 +214,7 @@ cmdServe = command "serve" $ info (helper <*> helper' <*> cmd) $ mempty
       host
       listen
       tlsConfig
-      nodeSocket
+      conn
       networkConfig
       databaseDir
       sTolerance
@@ -241,7 +243,7 @@ cmdServe = command "serve" $ info (helper <*> helper' <*> cmd) $ mempty
                     listen
                     tlsConfig
                     (fmap Settings poolMetadataFetching)
-                    nodeSocket
+                    conn
                     block0
                     (gp, vData)
                     (beforeMainLoop tr)

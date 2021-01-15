@@ -43,6 +43,8 @@ import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
+import Cardano.Launcher.Node
+    ( CardanoNodeConn, nodeSocketFile )
 import Cardano.Wallet.Byron.Compatibility
     ( byronCodecConfig, protocolParametersFromUpdateState )
 import Cardano.Wallet.Logging
@@ -287,26 +289,26 @@ withNetworkLayer
         -- ^ Logging of network layer startup
     -> W.NetworkParameters
         -- ^ Initial blockchain parameters
-    -> FilePath
+    -> CardanoNodeConn
         -- ^ Socket for communicating with the node
     -> (NodeToClientVersionData, CodecCBORTerm Text NodeToClientVersionData)
         -- ^ Codecs for the node's client
     -> (NetworkLayer IO (CardanoBlock StandardCrypto) -> IO a)
         -- ^ Callback function with the network layer
     -> IO a
-withNetworkLayer trBase np addrInfo ver action = do
+withNetworkLayer trBase np conn ver action = do
     tr <- addTimings trBase
-    withNetworkLayerBase tr np addrInfo ver action
+    withNetworkLayerBase tr np conn ver action
 
 withNetworkLayerBase
     :: HasCallStack
     => Tracer IO NetworkLayerLog
     -> W.NetworkParameters
-    -> FilePath
+    -> CardanoNodeConn
     -> (NodeToClientVersionData, CodecCBORTerm Text NodeToClientVersionData)
     -> (NetworkLayer IO (CardanoBlock StandardCrypto) -> IO a)
     -> IO a
-withNetworkLayerBase tr np addrInfo (versionData, _) action = do
+withNetworkLayerBase tr np conn (versionData, _) action = do
     -- NOTE: We keep client connections running for accessing the node tip,
     -- submitting transactions, querying parameters and delegations/rewards.
     --
@@ -413,7 +415,7 @@ withNetworkLayerBase tr np addrInfo (versionData, _) action = do
             (writeChan nodeTipChan)
             (curry (atomically . writeTVar networkParamsVar))
             (atomically . repsertTMVar interpreterVar)
-        link =<< async (connectClient tr handlers nodeTipClient versionData addrInfo)
+        link =<< async (connectClient tr handlers nodeTipClient versionData conn)
         pure (nodeTipChan, networkParamsVar, interpreterVar, localTxSubmissionQ)
 
     connectDelegationRewardsClient
@@ -424,7 +426,7 @@ withNetworkLayerBase tr np addrInfo (versionData, _) action = do
     connectDelegationRewardsClient handlers = do
         cmdQ <- atomically newTQueue
         let cl = mkDelegationRewardsClient tr cfg cmdQ
-        link =<< async (connectClient tr handlers cl versionData addrInfo)
+        link =<< async (connectClient tr handlers cl versionData conn)
         pure cmdQ
 
     _initCursor :: HasCallStack => [W.BlockHeader] -> IO Cursor
@@ -432,7 +434,7 @@ withNetworkLayerBase tr np addrInfo (versionData, _) action = do
         chainSyncQ <- atomically newTQueue
         client <- mkWalletClient (contramap MsgChainSyncCmd tr) cfg gp chainSyncQ
         let handlers = failOnConnectionLost tr
-        thread <- async (connectClient tr handlers client versionData addrInfo)
+        thread <- async (connectClient tr handlers client versionData conn)
         link thread
         let points = reverse $ genesisPoint :
                 (toPoint getGenesisBlockHash <$> headers)
@@ -1184,24 +1186,24 @@ doNothingProtocol =
 -- Connect a client to a network, see `mkWalletClient` to construct a network
 -- client interface.
 --
--- >>> connectClient (mkWalletClient tr gp queue) mainnetVersionData addrInfo
+-- >>> connectClient (mkWalletClient tr gp queue) mainnetVersionData conn
 connectClient
     :: Tracer IO NetworkLayerLog
     -> RetryHandlers
     -> NetworkClient IO
     -> NodeToClientVersionData
-    -> FilePath
+    -> CardanoNodeConn
     -> IO ()
-connectClient tr handlers client vData addr = withIOManager $ \iocp -> do
+connectClient tr handlers client vData conn = withIOManager $ \iocp -> do
     let versions = simpleSingletonVersions nodeToClientVersion vData client
     let tracers = NetworkConnectTracers
             { nctMuxTracer = nullTracer
             , nctHandshakeTracer = contramap MsgHandshakeTracer tr
             }
-    let socket = localSnocket iocp addr
+    let socket = localSnocket iocp (nodeSocketFile conn)
     recovering policy (coerceHandlers handlers) $ \status -> do
         traceWith tr $ MsgCouldntConnect (rsIterNumber status)
-        connectTo socket tracers versions addr
+        connectTo socket tracers versions (nodeSocketFile conn)
   where
     -- .25s -> .25s -> .5s → .75s → 1.25s → 2s
     policy :: RetryPolicyM IO

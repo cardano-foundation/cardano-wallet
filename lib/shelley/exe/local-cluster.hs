@@ -43,18 +43,18 @@ import Cardano.Wallet.Shelley
     , tracerSeverities
     )
 import Cardano.Wallet.Shelley.Launch
+    ( withSystemTempDir )
+import Cardano.Wallet.Shelley.Launch.Cluster
     ( ClusterLog (..)
     , RunningNode (..)
+    , localClusterConfigFromEnv
     , moveInstantaneousRewardsTo
-    , nodeMinSeverityFromEnv
     , oneMillionAda
-    , poolConfigsFromEnv
     , sendFaucetFundsTo
     , testMinSeverityFromEnv
     , walletListenFromEnv
     , walletMinSeverityFromEnv
     , withCluster
-    , withSystemTempDir
     )
 import Control.Arrow
     ( first )
@@ -179,50 +179,53 @@ import qualified Data.Text as T
 -- There are several environment variables that can be set to make debugging
 -- easier if needed:
 --
--- - CARDANO_WALLET_PORT: choose a port for the API to listen on (default: random)
+-- - CARDANO_WALLET_PORT  (default: random)
+--     choose a port for the API to listen on
 --
--- - CARDANO_NODE_TRACING_MIN_SEVERITY: increase or decrease the logging
---                                      severity of the nodes. (default: Info)
+-- - CARDANO_NODE_TRACING_MIN_SEVERITY  (default: Info)
+--     increase or decrease the logging severity of the nodes.
 --
--- - CARDANO_WALLET_TRACING_MIN_SEVERITY: increase or decrease the logging
---                                        severity of cardano-wallet. (default: Info)
+-- - CARDANO_WALLET_TRACING_MIN_SEVERITY  (default: Info)
+--     increase or decrease the logging severity of cardano-wallet.
 --
--- - TESTS_TRACING_MIN_SEVERITY: increase or decrease the logging severity of
---                               the test cluster framework. (default: Notice)
+-- - TESTS_TRACING_MIN_SEVERITY  (default: Notice)
+--     increase or decrease the logging severity of the test cluster framework.
 --
--- - NO_POOLS: If set, the cluster will only start a BFT leader and a relay, no
---             stake pools. This can be used for running test scenarios which do
---             not require delegation-specific features without paying the
---             startup cost of creating and funding pools.
+-- - LOCAL_CLUSTER_ERA  (default: Mary)
+--     By default, the cluster will start in the latest era by enabling
+--     "virtual hard forks" in the node config files.
+--     The final era can be changed with this variable.
 --
--- - NO_CLEANUP: If set, the temporary directory used as a state directory for
---               nodes and wallet data won't be cleaned up.
+-- - NO_POOLS  (default: stake pools nodes are started and registered)
+--     If set, the cluster will only start a BFT leader and a relay, no
+--     stake pools. This can be used for running test scenarios which do
+--     not require delegation-specific features without paying the
+--     startup cost of creating and funding pools.
+--
+-- - NO_CLEANUP  (default: temp files are cleaned up)
+--     If set, the temporary directory used as a state directory for
+--     nodes and wallet data won't be cleaned up.
 main :: IO ()
 main = withLocalClusterSetup $ \dir clusterLogs walletLogs ->
-    withLoggingNamed "test-cluster" clusterLogs $ \(_, (_, trCluster)) -> do
-        poolConfigs <- poolConfigsFromEnv
-        nodeMinSeverity <- nodeMinSeverityFromEnv
-        withCluster
-            (contramap MsgCluster $ trMessageText trCluster)
-            nodeMinSeverity
-            poolConfigs
-            dir
-            Nothing
-            (whenReady dir (trMessageText trCluster) walletLogs)
+    withLoggingNamed "cluster" clusterLogs $ \(_, (_, trCluster)) -> do
+        let tr' = contramap MsgCluster $ trMessageText trCluster
+        clusterCfg <- localClusterConfigFromEnv Nothing
+        withCluster tr' dir clusterCfg $
+            whenReady dir (trMessageText trCluster) walletLogs
   where
-    setupFaucet dir trCluster = do
+    setupFaucet dir trCluster socketPath = do
         traceWith trCluster MsgSettingUpFaucet
         let trCluster' = contramap MsgCluster trCluster
         let encodeAddr = T.unpack . encodeAddress @'Mainnet
         let addresses = map (first encodeAddr) shelleyIntegrationTestFunds
         let accts = concatMap genRewardAccounts mirMnemonics
         let rewards = (,Coin $ fromIntegral oneMillionAda) <$> accts
-        sendFaucetFundsTo trCluster' dir addresses
-        moveInstantaneousRewardsTo trCluster' dir rewards
+        sendFaucetFundsTo trCluster' socketPath dir addresses
+        moveInstantaneousRewardsTo trCluster' socketPath dir rewards
 
     whenReady dir trCluster logs (RunningNode socketPath block0 (gp, vData)) =
         withLoggingNamed "cardano-wallet" logs $ \(sb, (cfg, tr)) -> do
-            setupFaucet dir trCluster
+            setupFaucet dir trCluster socketPath
 
             ekgEnabled >>= flip when (EKG.plugin cfg tr sb >>= loadPlugin sb)
 
