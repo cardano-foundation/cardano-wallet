@@ -1739,13 +1739,27 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
     -- +---+----------+----------+------------+--------------+
     it "TRANS_LIST_02,03x - Can limit/order results with start, end and order"
         $ \ctx -> runResourceT $ do
-        let a1 = Quantity $ sum $ replicate 10 minUTxOValue
-        let a2 = Quantity $ sum $ replicate 10 (2 * minUTxOValue)
-        w <- fixtureWalletWith @n ctx $ mconcat
-                [ replicate 10 minUTxOValue
-                , replicate 10 (2 * minUTxOValue)
-                ]
-        txs <- listAllTransactions @n ctx w
+        let a1 = Quantity minUTxOValue
+        let a2 = Quantity (2 * minUTxOValue)
+        (wSrc, w) <- (,) <$> fixtureWallet ctx <*> emptyWallet ctx
+        -- post txs
+        let linkTx = (wSrc, Link.createTransaction @'Shelley, "cardano-wallet")
+        _ <- postTx ctx linkTx w minUTxOValue
+        verifyWalletBalance ctx w (Quantity minUTxOValue)
+
+        _ <- postTx ctx linkTx w (2 * minUTxOValue)
+        verifyWalletBalance ctx w (Quantity (3 * minUTxOValue))
+
+        txs <- eventually "I make sure there are exactly 2 transactions" $ do
+            let linkList = Link.listTransactions' @'Shelley w
+                    Nothing
+                    Nothing
+                    Nothing
+                    Nothing
+            rl <- request @([ApiTransaction n]) ctx linkList Default Empty
+            verify rl [expectListSize 2]
+            pure (getFromResponse Prelude.id rl)
+
         let [Just t2, Just t1] = fmap (fmap (view #time) . insertedAt) txs
         let matrix :: [TestCase [ApiTransaction n]] =
                 [ TestCase -- 1
@@ -2750,6 +2764,23 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         r <- request @(ApiTransaction n) ctx (postTxEndp wSrc) Default payload
         expectResponseCode HTTP.status202 r
         return r
+
+    verifyWalletBalance
+        :: (MonadIO m, MonadUnliftIO m)
+        => Context
+        -> ApiWallet
+        -> Quantity "lovelace" Natural
+        -> m ()
+    verifyWalletBalance ctx wallet amt = do
+        eventually "Wallet balance is as expected" $ do
+            rGet <- request @ApiWallet ctx
+                (Link.getWallet @'Shelley wallet) Default Empty
+            verify rGet
+                [ expectField
+                        (#balance . #getApiT . #total) (`shouldBe` amt)
+                , expectField
+                        (#balance . #getApiT . #available) (`shouldBe` amt)
+                ]
 
     mkTxPayload
         :: (MonadIO m, MonadUnliftIO m)
