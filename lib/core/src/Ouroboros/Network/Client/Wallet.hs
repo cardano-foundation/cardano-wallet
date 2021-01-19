@@ -136,10 +136,8 @@ import qualified Ouroboros.Network.Protocol.LocalStateQuery.Client as LSQ
 chainSyncFollowTip
     :: forall m block era. (Monad m)
     => (block -> era)
-    -> (era -> Tip block -> m ())
+    -> (Maybe era -> Tip block -> m ())
     -- ^ Callback for when the tip changes.
-    --
-    -- Will not be called on rollbacks(!), but on the subsequent roll-forward.
     -> ChainSyncClient block (Point block) (Tip block) m Void
 chainSyncFollowTip toCardanoEra onTipUpdate =
     ChainSyncClient (clientStIdle False)
@@ -172,15 +170,13 @@ chainSyncFollowTip toCardanoEra onTipUpdate =
     -- era-agnostic (for now at least!) which isn't a big deal really because
     -- the era will simply be updated on the next RollForward which follows
     -- immediately after.
-    --
-    -- NOTE: Let's try not updating the tip on rollbacks?
     clientStNext True = ClientStNext
-            { recvMsgRollBackward = \_ _ -> ChainSyncClient $ clientStIdle True
-            , recvMsgRollForward  = doUpdate . toCardanoEra
+            { recvMsgRollBackward = doUpdate . const Nothing
+            , recvMsgRollForward  = doUpdate . Just . toCardanoEra
             }
       where
         doUpdate
-            :: era
+            :: Maybe era
             -> Tip block
             -> ChainSyncClient block (Point block) (Tip block) m Void
         doUpdate era tip = ChainSyncClient $ do
