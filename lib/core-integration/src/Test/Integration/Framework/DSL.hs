@@ -1360,6 +1360,7 @@ fixtureWalletWith ctx coins0 = do
     liftIO $ mapM_ (moveCoins src dest) (groupsOf 10 coins0)
     liftIO $ void $ request @() ctx
         (Link.deleteWallet @'Shelley src) Default Empty
+    waitForTxImmutability ctx
     snd <$> unsafeRequest @ApiWallet ctx
         (Link.getWallet @'Shelley dest) Empty
   where
