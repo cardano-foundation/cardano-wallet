@@ -852,29 +852,31 @@ newRewardBalanceFetcher tr gp queryRewardQ =
         liftIO $ traceWith tr $
             MsgGetRewardAccountBalance (fromTip' gp tip) accounts
 
-        let qry = byronOrShelleyBased
-                (pure defaultValue)
-                (fromBalanceResult <$>
-                    LSQry (Shelley.GetFilteredDelegationsAndRewardAccounts
-                        $ Set.map toStakeCredential accounts))
+        let qry = byronOrShelleyBased (pure (byronValue, [])) $
+                   fmap fromBalanceResult
+                    . LSQry
+                    . Shelley.GetFilteredDelegationsAndRewardAccounts
+                    $ Set.map toStakeCredential accounts
 
-        -- FIXME: Re-add trace
-        --liftIO $ traceWith tr $ MsgAccountDelegationAndRewards deleg rewardAccounts
-        Just <$> bracketQuery "queryRewards" tr (send queryRewardQ (SomeLSQ qry))
+        (res,logs) <- bracketQuery "queryRewards" tr (send queryRewardQ (SomeLSQ qry))
+        liftIO $ mapM_ (traceWith tr) logs
+        return $ Just res
 
       where
-        defaultValue :: Map W.RewardAccount W.Coin
-        defaultValue = Map.fromList . map (, minBound) $ Set.toList accounts
+        byronValue :: Map W.RewardAccount W.Coin
+        byronValue = Map.fromList . map (, minBound) $ Set.toList accounts
 
     fromBalanceResult
         :: ( Map (SL.Credential 'SL.Staking crypto)
                  (SL.KeyHash 'SL.StakePool crypto)
             , SL.RewardAccounts crypto
             )
-        -> Map W.RewardAccount W.Coin
-    fromBalanceResult (_deleg, rewardAccounts) =
-        Map.mapKeys fromStakeCredential $
+        -> (Map W.RewardAccount W.Coin, [NetworkLayerLog])
+    fromBalanceResult (deleg, rewardAccounts) =
+        ( Map.mapKeys fromStakeCredential $
             Map.map fromShelleyCoin rewardAccounts
+        , [MsgAccountDelegationAndRewards deleg rewardAccounts]
+        )
 
 data ObserverLog key value
     = MsgWillFetch (Set key)
@@ -1134,7 +1136,7 @@ data NetworkLayerLog where
         -> Set W.RewardAccount
         -> NetworkLayerLog
     MsgAccountDelegationAndRewards
-        :: forall era. (Map (SL.Credential 'SL.Staking era) (SL.KeyHash 'SL.StakePool StandardCrypto))
+        :: forall era crypto. (Map (SL.Credential 'SL.Staking era) (SL.KeyHash 'SL.StakePool crypto))
         -> SL.RewardAccounts era
         -> NetworkLayerLog
     MsgDestroyCursor :: ThreadId -> NetworkLayerLog
