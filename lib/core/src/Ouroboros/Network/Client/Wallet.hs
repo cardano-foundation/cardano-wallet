@@ -534,8 +534,9 @@ localStateQuery getTip queue =
           go (LSQPure a) cont = cont a
           go (LSQry qry) cont = LSQ.SendMsgQuery qry $ LSQ.ClientStQuerying $ \res -> do
               pure $ cont res
-              -- TODO: It would be nice to trace the time it takes to run the
-              -- queries.
+              -- It would be nice to trace the time it takes to run the
+              -- queries. We don't have a good opportunity to run IO after a
+              -- point is acquired, but before the query is send, however.
           go (LSQBind ma f) cont = go ma $ \a -> do
               go (f a) $ \b -> cont b
           go (LSQEra) cont = cont era
@@ -544,6 +545,9 @@ localStateQuery getTip queue =
     awaitNextCmd = atomically $ readTQueue queue
 
 -- | Monad for composing local state queries for the node /tip/.
+--
+-- /Warning/: Partial functions inside the @LSQ@ monad may cause the entire
+-- wallet to crash when interpreted by @localStateQuery@.
 data LSQ block (m :: * -> *) a where
     LSQPure :: a -> LSQ block m a
     LSQBind :: LSQ block m a -> (a -> LSQ block m b) -> LSQ block m b
