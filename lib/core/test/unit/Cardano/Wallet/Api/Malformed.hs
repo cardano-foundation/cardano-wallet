@@ -233,7 +233,7 @@ instance Malformed (PathParam (ApiT DerivationIndex)) where
             \Indexes with suffixes are called 'Hardened'."
 
 instance Wellformed (PathParam (ApiT TokenPolicyId)) where
-    wellformed = [PathParam $ T.replicate 64 "0"]
+    wellformed = [PathParam $ T.replicate 56 "0"]
 
 instance Malformed (PathParam (ApiT TokenPolicyId)) where
     malformed = first PathParam <$>

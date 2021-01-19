@@ -289,7 +289,6 @@ import qualified Data.ByteString.Short as SBS
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Text.Encoding as T
-import qualified Data.Text.Encoding.Error as T
 import qualified Ouroboros.Consensus.Shelley.Ledger as O
 import qualified Ouroboros.Network.Block as O
 import qualified Ouroboros.Network.Point as Point
@@ -922,9 +921,7 @@ fromCardanoValue = uncurry TokenBundle.fromFlatList . extract
         ]
 
     mkPolicyId = W.UnsafeTokenPolicyId . W.Hash . Cardano.serialiseToRawBytes
-    mkTokenName = W.UnsafeTokenName
-        . T.decodeUtf8With T.lenientDecode
-        . Cardano.serialiseToRawBytes
+    mkTokenName = W.UnsafeTokenName . Cardano.serialiseToRawBytes
 
     unQuantity (Cardano.Quantity q) = q
 
@@ -1176,7 +1173,7 @@ toCardanoValue tb = Cardano.valueFromList $
     toCardanoPolicyId (W.UnsafeTokenPolicyId (W.Hash pid)) = just "PolicyId" $
         Cardano.deserialiseFromRawBytes Cardano.AsPolicyId pid
     toCardanoAssetName (W.UnsafeTokenName name) = just "TokenName" $
-        Cardano.deserialiseFromRawBytes Cardano.AsAssetName $ T.encodeUtf8 name
+        Cardano.deserialiseFromRawBytes Cardano.AsAssetName name
 
     just :: String -> Maybe a -> a
     just t = fromMaybe $ error $

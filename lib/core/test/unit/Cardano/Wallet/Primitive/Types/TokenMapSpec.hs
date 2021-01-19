@@ -23,7 +23,7 @@ import Cardano.Wallet.Primitive.Types.TokenMap.Gen
     , shrinkTokenMapSmallRange
     )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( TokenName, TokenPolicyId )
+    ( TokenName, TokenPolicyId, mkTokenName )
 import Cardano.Wallet.Primitive.Types.TokenPolicy.Gen
     ( genTokenNameSmallRange
     , genTokenPolicyIdSmallRange
@@ -40,6 +40,8 @@ import Data.Aeson.QQ
     ( aesonQQ )
 import Data.Bifunctor
     ( bimap, first, second )
+import Data.ByteString
+    ( ByteString )
 import Data.Either
     ( fromRight )
 import Data.Function
@@ -450,8 +452,8 @@ testZeroValuedTokenQuantityFlat =
     token = dummyTokenName "DUMMY-TOKEN"
     json =
         [aesonQQ|
-          [ { "policy": #{policy}
-            , "token": #{token}
+          [ { "policy_id": #{policy}
+            , "asset_name": #{token}
             , "quantity": 0
             }
           ]
@@ -473,8 +475,8 @@ testZeroValuedTokenQuantityNested =
     token = dummyTokenName "DUMMY-TOKEN"
     json =
         [aesonQQ|
-          [ { "policy": #{policy}
-            , "tokens": [{"token": #{token}, "quantity": 0}]
+          [ { "policy_id": #{policy}
+            , "tokens": [{"asset_name": #{token}, "quantity": 0}]
             }
           ]
         |]
@@ -492,7 +494,7 @@ testEmptyTokenList =
         Left message
   where
     policy = dummyTokenPolicyId 'A'
-    json = [aesonQQ|[{"policy": #{policy}, "tokens": []}]|]
+    json = [aesonQQ|[{"policy_id": #{policy}, "tokens": []}]|]
     message = unwords
         [ failurePreamble
         , "Encountered empty token list for policy"
@@ -531,7 +533,7 @@ testMap = testMapData
     & fmap (first (uncurry AssetId))
     & TokenMap.fromFlatList
 
-testMapData :: [((Char, Text), Natural)]
+testMapData :: [((Char, ByteString), Natural)]
 testMapData =
     [ (('A', "APPLE"    ), 1)
     , (('A', "AVOCADO"  ), 2)
@@ -542,16 +544,16 @@ testMapData =
 testMapPrettyFlat :: Text
 testMapPrettyFlat = [s|
 - policy: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-  token: APPLE
+  token: 4150504c45
   quantity: 1
 - policy: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-  token: AVOCADO
+  token: 41564f4341444f
   quantity: 2
 - policy: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
-  token: BANANA
+  token: 42414e414e41
   quantity: 3
 - policy: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
-  token: BLUEBERRY
+  token: 424c55454245525259
   quantity: 4
 |]
 
@@ -559,15 +561,15 @@ testMapPrettyNested :: Text
 testMapPrettyNested = [s|
 - policy: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
   tokens:
-    - token: APPLE
+    - token: 4150504c45
       quantity: 1
-    - token: AVOCADO
+    - token: 41564f4341444f
       quantity: 2
 - policy: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
   tokens:
-    - token: BANANA
+    - token: 42414e414e41
       quantity: 3
-    - token: BLUEBERRY
+    - token: 424c55454245525259
       quantity: 4
 |]
 
@@ -575,11 +577,11 @@ testMapPrettyNested = [s|
 -- Utilities
 --------------------------------------------------------------------------------
 
-dummyTokenName :: Text -> TokenName
-dummyTokenName t = fromRight reportError $ fromText t
+dummyTokenName :: ByteString -> TokenName
+dummyTokenName t = fromRight reportError $ mkTokenName t
   where
     reportError = error $
-        "Unable to construct dummy token name from text: " <> show t
+        "Unable to construct dummy token name from bytes: " <> show t
 
 -- The input must be a character in the range [0-9] or [A-Z].
 --

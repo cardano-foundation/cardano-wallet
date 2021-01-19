@@ -1676,7 +1676,6 @@ instance FromJSON ApiWalletAssetsBalance where
 instance ToJSON ApiWalletAssetsBalance where
     toJSON = genericToJSON defaultRecordTypeOptions
 
--- fixme: doesn't quite match the spec
 instance FromJSON (ApiT W.TokenMap) where
     parseJSON = fmap (ApiT . W.getFlat) . parseJSON
 instance ToJSON (ApiT W.TokenMap) where
