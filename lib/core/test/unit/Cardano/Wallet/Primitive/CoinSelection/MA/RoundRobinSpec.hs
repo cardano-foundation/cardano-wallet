@@ -28,6 +28,7 @@ import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     , SelectionResult (..)
     , SelectionSkeleton (..)
     , SelectionState (..)
+    , UnableToConstructChangeError (..)
     , fullBalance
     , groupByKey
     , makeChange
@@ -450,8 +451,8 @@ prop_performSelection minCoinValueFor costFor (Blind criteria) coverage =
             onSelectionInsufficient e
         InsufficientMinCoinValues es ->
             onInsufficientMinCoinValues es
-        UnableToConstructChange ->
-            onUnableToConstructChange
+        UnableToConstructChange e ->
+            onUnableToConstructChange e
 
     onBalanceInsufficient e = do
         monitor $ counterexample $ unlines
@@ -485,8 +486,7 @@ prop_performSelection minCoinValueFor costFor (Blind criteria) coverage =
 
     onInsufficientMinCoinValues es = do
         monitor $ counterexample $ unlines
-            [ "InsufficientMinCoinValueError(s):"
-            , show es
+            [ show es
             , "expected / actual:"
             , show $ NE.zip
                 (expectedMinCoinValue <$> es)
@@ -497,8 +497,19 @@ prop_performSelection minCoinValueFor costFor (Blind criteria) coverage =
         actualMinCoinValue
             = txOutCoin . insufficientlyCoveredOutput
 
-    onUnableToConstructChange =
-        assert True -- TODO
+    onUnableToConstructChange e = do
+        monitor $ counterexample $ show e
+        assert (missingCoins e > Coin 0)
+        let criteria' = criteria { selectionLimit = NoLimit }
+        run (performSelection noMinCoin (const noCost) criteria') >>= \case
+            Left e' -> do
+                monitor $ counterexample $ unlines
+                    [ "Failed to re-run selection with no cost!"
+                    , show e'
+                    ]
+                assert False
+            Right{} -> do
+                assert True
 
     balanceRequired  = F.foldMap (view #tokens) outputsToCover
     balanceAvailable = fullBalance utxoAvailable extraCoinSource
@@ -809,7 +820,7 @@ genMakeChangeData = flip suchThat isValidMakeChangeData $ do
 
 makeChangeWith
     :: MakeChangeData
-    -> Maybe (NonEmpty TokenBundle)
+    -> Either UnableToConstructChangeError (NonEmpty TokenBundle)
 makeChangeWith p = makeChange
     (mkMinCoinValueFor $ minCoinValueDef p)
     (cost p)
@@ -820,15 +831,15 @@ prop_makeChange_identity
     :: NonEmpty TokenBundle -> Property
 prop_makeChange_identity bundles = (===)
     (F.fold <$> makeChange (const (Coin 0)) (Coin 0) Nothing bundles bundles)
-    (Just TokenBundle.empty)
+    (Right TokenBundle.empty)
 
 prop_makeChange_length
     :: MakeChangeData
     -> Property
 prop_makeChange_length p =
     case change of
-        Nothing -> property False
-        Just xs -> length xs === length (outputBundles p)
+        Left{} -> property False
+        Right xs -> length xs === length (outputBundles p)
   where
     change = makeChange noMinCoin noCost
         (extraInputCoins p) (inputBundles p) (outputBundles p)
@@ -838,11 +849,11 @@ prop_makeChange
     -> Property
 prop_makeChange p =
     case makeChangeWith p of
-        Nothing -> disjoin
+        Left{} -> disjoin
             [ prop_makeChange_fail_costTooBig p     & label "cost too big"
             , prop_makeChange_fail_minValueTooBig p & label "min value too big"
             ]
-        Just change -> conjoin
+        Right change -> conjoin
             [ prop_makeChange_success_delta p change
             , prop_makeChange_success_minValueRespected p change
             ] & label "success"
@@ -941,7 +952,7 @@ prop_makeChange_fail_minValueTooBig
     -> Property
 prop_makeChange_fail_minValueTooBig p =
     case makeChangeWith (p { cost = noCost, minCoinValueDef = NoMinCoin }) of
-        Nothing ->
+        Left{} ->
             property False & counterexample "makeChange failed with no cost!"
         -- If 'makeChange' failed to generate change, we try to re-run it with
         -- noCost and noMinValue requirement. The result _must_ be `Just`.
@@ -949,7 +960,7 @@ prop_makeChange_fail_minValueTooBig p =
         -- From there, we can manually compute the total deposit needed for all
         -- change generated and make sure that, there was indeed not enough
         -- coins available to generate all change outputs.
-        Just change ->
+        Right change ->
             let
                 deltaCoin = TokenBundle.getCoin $ TokenBundle.unsafeSubtract
                     totalInputValue

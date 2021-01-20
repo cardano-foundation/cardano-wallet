@@ -31,6 +31,7 @@ module Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     , BalanceInsufficientError (..)
     , SelectionInsufficientError (..)
     , InsufficientMinCoinValueError (..)
+    , UnableToConstructChangeError (..)
 
     -- * Running a selection (without making change)
     , runSelection
@@ -84,8 +85,6 @@ import Control.Monad.Random.Class
     ( MonadRandom (..) )
 import Control.Monad.Trans.State
     ( StateT (..) )
-import Data.Functor
-    ( (<&>) )
 import Data.Functor.Identity
     ( Identity (..) )
 import Data.Generics.Internal.VL.Lens
@@ -184,7 +183,7 @@ data SelectionError
     | InsufficientMinCoinValues
         (NonEmpty InsufficientMinCoinValueError)
     | UnableToConstructChange
-        -- ^ TODO: See if we can report how much ada is missing
+        UnableToConstructChangeError
     deriving (Generic, Eq, Show)
 
 -- | Indicates that the balance of inputs actually selected was insufficient to
@@ -223,6 +222,13 @@ data InsufficientMinCoinValueError = InsufficientMinCoinValueError
     , expectedMinCoinValue
         :: !Coin
         -- ^ The minimum coin value expected for this output.
+    } deriving (Generic, Eq, Show)
+
+newtype UnableToConstructChangeError = UnableToConstructChangeError
+    { missingCoins
+        :: Coin
+        -- ^ The coin quantity missing to cover the selection cost and minimum
+        -- coin values in change outputs.
     } deriving (Generic, Eq, Show)
 
 -- | Prepare a set of outputs requested by users into valid Cardano outputs.
@@ -289,17 +295,13 @@ performSelection minCoinValueFor costFor criteria
         let balanceSelected = fullBalance (selected state) extraCoinSource
         if balanceRequired `leq` balanceSelected then do
             let predictedChange = predictChange (selected state)
-            makeChangeRepeatedly predictedChange state <&> \case
-                Nothing -> -- Running out of ada-only UTxO to pay for cost
-                    Left UnableToConstructChange
-                Just result ->
-                    Right result
+            makeChangeRepeatedly predictedChange state
+
         else
             pure $ Left $ SelectionInsufficient $ SelectionInsufficientError
                 { inputsSelected = UTxOIndex.toList (selected state)
                 , balanceRequired
                 }
-
   where
     SelectionCriteria
         { outputsToCover
@@ -363,8 +365,8 @@ performSelection minCoinValueFor costFor criteria
     predictChange
         :: UTxOIndex
         -> NonEmpty (Set AssetId)
-    predictChange inputsPreSelected = maybe
-        (invariantResultWithNoCost inputsPreSelected)
+    predictChange inputsPreSelected = either
+        (const $ invariantResultWithNoCost inputsPreSelected)
         (fmap (TokenMap.getAssets . view #tokens))
         (makeChange noMinimumCoin noCost
             extraCoinSource
@@ -386,7 +388,7 @@ performSelection minCoinValueFor costFor criteria
     makeChangeRepeatedly
         :: NonEmpty (Set AssetId)
         -> SelectionState
-        -> m (Maybe SelectionResult)
+        -> m (Either SelectionError SelectionResult)
     makeChangeRepeatedly changeSkeleton s@SelectionState{selected,leftover} = do
         let inputsSelected = mkInputsSelected selected
 
@@ -396,24 +398,28 @@ performSelection minCoinValueFor costFor criteria
                 , changeSkeleton
                 }
 
-        let mChangeGenerated :: Maybe (NonEmpty TokenBundle)
+        let mChangeGenerated
+                :: Either UnableToConstructChangeError (NonEmpty TokenBundle)
             mChangeGenerated = makeChange minCoinValueFor cost
                 extraCoinSource
                 (view #tokens . snd <$> inputsSelected)
                 (view #tokens <$> outputsToCover)
 
         case mChangeGenerated of
-            Just changeGenerated -> pure . Just $
+            Right changeGenerated -> pure . Right $
                 SelectionResult
                     { inputsSelected
                     , changeGenerated
                     , utxoRemaining = leftover
                     }
 
-            Nothing -> do
-                selectMatchingQuantity selectionLimit [WithAdaOnly] s
-                >>=
-                maybe (pure Nothing) (makeChangeRepeatedly changeSkeleton)
+            Left changeErr ->
+                let
+                    selectionErr = Left $ UnableToConstructChange changeErr
+                in
+                    selectMatchingQuantity selectionLimit [WithAdaOnly] s
+                    >>=
+                    maybe (pure selectionErr) (makeChangeRepeatedly changeSkeleton)
 
     invariantSelectAnyInputs =
         -- This should be impossible, as we have already determined
@@ -600,7 +606,7 @@ makeChange
         -- ^ Token bundles of selected inputs
     -> NonEmpty TokenBundle
         -- ^ Token bundles of original outputs
-    -> Maybe (NonEmpty TokenBundle)
+    -> Either UnableToConstructChangeError (NonEmpty TokenBundle)
         -- ^ Change bundles.
 makeChange minCoinValueFor requiredCost mExtraCoinSource inputBundles outputBundles
     | not (totalOutputValue `leq` totalInputValue) =
@@ -633,7 +639,7 @@ makeChange minCoinValueFor requiredCost mExtraCoinSource inputBundles outputBund
         let change :: NonEmpty TokenMap
             change = NE.zipWith (<>) changeForKnownAssets changeForUnknownAssets
 
-        (bundles, remainder) <-
+        (bundles, remainder) <- maybe (Left $ changeError excessCoin change) Right $
             excessCoin `subtractCoin` requiredCost
             >>=
             runStateT (sequence (StateT . assignCoin minCoinValueFor <$> change))
@@ -648,6 +654,24 @@ makeChange minCoinValueFor requiredCost mExtraCoinSource inputBundles outputBund
         "makeChange: not (totalOutputValue <= totalInputValue)"
     totalOutputCoinValueIsZero = error
         "makeChange: not (totalOutputCoinValue > 0)"
+
+    changeError
+        :: Coin
+        -> NonEmpty TokenMap
+        -> UnableToConstructChangeError
+    changeError excessCoin change =
+        UnableToConstructChangeError
+            { missingCoins =
+                -- This conversion is safe because we know that the distance is
+                -- small-ish. If it wasn't, we would have have enough coins to
+                -- construct the change.
+                unsafeNaturalToCoin $ distance
+                    (coinToNatural excessCoin)
+                    (coinToNatural requiredCost + totalMinCoinValue)
+            }
+      where
+        totalMinCoinValue =
+            F.sum $ (coinToNatural . minCoinValueFor) <$> change
 
     outputTokens :: NonEmpty TokenMap
     outputTokens = view #tokens <$> outputBundles
@@ -743,7 +767,10 @@ makeChangeForCoin
         -- ^ A surplus Ada value which needs to be distributed
     -> NonEmpty Coin
 makeChangeForCoin targets excess =
-    maybe zeroWeightSum (fmap naturalToCoin)
+    -- The Natural -> Coin conversion is safe, because 'partitionNatural'
+    -- guarantees to produce a list where every entry is less than or equal to
+    -- the target value.
+    maybe zeroWeightSum (fmap unsafeNaturalToCoin)
         (partitionNatural (coinToNatural excess) weights)
   where
     zeroWeightSum :: HasCallStack => a
@@ -752,14 +779,6 @@ makeChangeForCoin targets excess =
 
     weights :: NonEmpty Natural
     weights = coinToNatural <$> targets
-
-    coinToNatural :: Coin -> Natural
-    coinToNatural = fromIntegral . unCoin
-
-    -- This conversion is safe, because 'partitionValue' guarantees to produce
-    -- a list where every entry is less than or equal to the target value.
-    naturalToCoin :: Natural -> Coin
-    naturalToCoin = Coin . fromIntegral
 
 -- Create a 'TokenBundle' from a 'TokenMap' by assigning it a minimum required
 -- Ada value from a coin source. Returns 'Nothing' if there's not enough 'Coin'
@@ -833,6 +852,12 @@ fullBalance index extraSource
 --------------------------------------------------------------------------------
 -- Utility functions
 --------------------------------------------------------------------------------
+
+coinToNatural :: Coin -> Natural
+coinToNatural = fromIntegral . unCoin
+
+unsafeNaturalToCoin :: Natural -> Coin
+unsafeNaturalToCoin = Coin . fromIntegral
 
 distance :: Natural -> Natural -> Natural
 distance a b
