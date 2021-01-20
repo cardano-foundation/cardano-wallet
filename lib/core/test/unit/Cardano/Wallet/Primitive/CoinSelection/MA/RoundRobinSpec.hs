@@ -174,8 +174,6 @@ spec = describe "Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobinSpec" $
             property prop_runSelection_UTxO_notEnough
         it "prop_runSelection_UTxO_exactlyEnough" $
             property prop_runSelection_UTxO_exactlyEnough
-        it "prop_runSelection_UTxO_extraSourceUsed" $
-            property prop_runSelection_UTxO_extraSourceUsed
         it "prop_runSelection_UTxO_moreThanEnough" $
             property prop_runSelection_UTxO_moreThanEnough
         it "prop_runSelection_UTxO_muchMoreThanEnough" $
@@ -536,50 +534,23 @@ prop_runSelection_UTxO_notEnough (Small index) = monadicIO $ do
     balanceRequested = adjustAllQuantities (* 2) balanceAvailable
 
 prop_runSelection_UTxO_exactlyEnough
-    :: Small UTxOIndex
+    :: Maybe Coin
+    -> Small UTxOIndex
     -> Property
-prop_runSelection_UTxO_exactlyEnough (Small index) = monadicIO $ do
+prop_runSelection_UTxO_exactlyEnough extraSource (Small index) = monadicIO $ do
     SelectionState {selected, leftover} <-
         run $ runSelection NoLimit Nothing index balanceRequested
     let balanceSelected = view #balance selected
     let balanceLeftover = view #balance leftover
-    assert $ balanceSelected == balanceRequested
     assert $ balanceLeftover == TokenBundle.empty
+    if UTxOIndex.null index then
+        assert $ balanceSelected == TokenBundle.empty
+    else
+        assert $ addExtraSource extraSource balanceSelected == balanceRequested
   where
-    balanceRequested = view #balance index
-
-prop_runSelection_UTxO_extraSourceUsed
-    :: Maybe Coin
-    -> Small UTxOIndex
-    -> Property
-prop_runSelection_UTxO_extraSourceUsed extraSource (Small index) = do
-    let hasSomeAda = maybe False (/= TokenBundle.empty) almostEverything
-    cover 80 hasSomeAda "sometimes there are Ada" $ monadicIO $
-        case almostEverything of
-            Nothing ->
-                assert True
-            Just balanceRequested | hasSomeAda -> do
-                SelectionState {selected,leftover} <-
-                    run $ runSelection NoLimit extraSource index balanceRequested
-                let balanceSelected = view #balance selected
-                let balanceLeftover = view #balance leftover
-                assert $ balanceLeftover == view #balance index
-                assert $ balanceSelected == TokenBundle.empty
-            Just balanceRequested -> do
-                SelectionState {selected} <-
-                    run $ runSelection NoLimit extraSource index balanceRequested
-                let balanceSelected = view #balance selected
-                let coinSelected = TokenBundle.coin $
-                        addExtraSource extraSource balanceSelected
-                monitor $ counterexample $ unlines
-                    [ "balance selected: " <> pretty (Flat balanceSelected)
-                    ]
-                assert $ coinSelected >= TokenBundle.coin balanceRequested
-                assert $ balanceSelected /= TokenBundle.empty
-  where
-    almostEverything = TokenBundle.subtract
-        (view #balance index)
-        (TokenBundle.fromCoin (Coin 1))
+    balanceRequested = case extraSource of
+        Nothing -> view #balance index
+        Just c  -> TokenBundle.add (view #balance index) (TokenBundle.fromCoin c)
 
 prop_runSelection_UTxO_moreThanEnough
     :: Maybe Coin
