@@ -219,7 +219,7 @@ data BalanceInsufficientError = BalanceInsufficientError
 data InsufficientMinCoinValueError = InsufficientMinCoinValueError
     { insufficientlyCoveredOutput
         :: !TxOut
-        -- ^ The invalid output which doesn't hold enough coin.
+        -- ^ The invalid output which doesn't have a high enough coin value.
     , expectedMinCoinValue
         :: !Coin
         -- ^ The minimum coin value expected for this output.
@@ -231,9 +231,9 @@ data InsufficientMinCoinValueError = InsufficientMinCoinValueError
 --
 -- However, users do not typically specify a minimum ada value themselves.
 -- One would rather send '10 Apple' and not '10 Apple & 1.2 Ada'. Therefore,
--- unless a coin value is explicitely specified, we do assign a coin value
--- manually for each non-ada output. That value is the minimum value
--- possible to make a particular output valid.
+-- unless a coin value is explicitly specified, we assign a coin value manually
+-- for each non-ada output. That value is the minimum value possible to make a
+-- particular output valid.
 prepareOutputsWith
     :: (TokenMap -> Coin)
     -> NonEmpty TxOut
@@ -270,7 +270,7 @@ performSelection
         -- particular output.
     -> (SelectionSkeleton -> Coin)
         -- ^ A function which computes the extra cost corresponding to a given
-        -- selection. This function must not depends on the value of each change
+        -- selection. This function must not depend on the value of each change
         -- output.
     -> SelectionCriteria
         -- ^ The selection goal we're trying to satify.
@@ -341,14 +341,25 @@ performSelection minCoinValueFor costFor criteria
     --
     -- So, in order to not duplicate the logic from 'makeChange', we first
     -- calculate a pre-selection considering the case where we have no fees to
-    -- pay, and no minimum value. This is guaranteed to succeed and will yield
-    -- the final shape of the change outputs (modulo amounts).
+    -- pay, and no minimum value. This is *guaranteed to succeed* and to yield
+    -- a selection with change outputs in the final shape (modulo amounts).
     --
-    -- From there, we can successively re-iterate and construct a final
-    -- unbalanced selection that is leaving enough money out for fees. For this
-    -- method to work (efficiently), the function that estimates the cost of a
-    -- selection MUST NOT depend on change token quantity. That is, increasing
-    -- the token quantities of a change output must not make it more expensive.
+    -- Said differently, given a UTxO index which corresponds to a valid
+    -- selection covering 'outputsToCover', 'predictChange' will yield a
+    -- NonEmpty list of assets expected for change outputs. In particular, if we
+    -- call 'predictedChange' the result of calling 'predictChange' with a valid
+    -- input selection, we have:
+    --
+    --     length predictedChange === length outputsToCover
+    --
+    --     flat predictChange `isSubsetOf` assets selectedInputs
+    --
+    --     ∃criteria. / isRight (performSelection criteria) =>
+    --         Right predictedChange === assets <$> performSelection criteria
+    --
+    --     (That is, the predicted change is necessarily equal to the change
+    --     assets on the final resulting selection).
+    --
     predictChange
         :: UTxOIndex
         -> NonEmpty (Set AssetId)
@@ -444,7 +455,7 @@ runSelection
     => SelectionLimit
         -- ^ A limit to adhere to when performing a selection.
     -> Maybe Coin
-        -- ^ An extra source of Ada, which can only be used after at least one
+        -- ^ An extra source of ada, which can only be used after at least one
         -- input has been selected.
     -> UTxOIndex
         -- ^ UTxO entries available for selection
@@ -494,9 +505,9 @@ selectMatchingQuantity
     :: MonadRandom m
     => SelectionLimit
     -> [SelectionFilter]
-        -- A list of selection filters, traversed from left to right if previous
-        -- filter failed. This allows for giving some filters priorities over
-        -- others.
+        -- A list of selection filters, traversed from left to right if the
+        -- previous filter failed. This allows for giving some filters
+        -- priorities over others.
     -> SelectionState
     -> m (Maybe SelectionState)
 selectMatchingQuantity _       []  _ = pure Nothing
@@ -559,7 +570,7 @@ runSelectionStep lens s
 --------------------------------------------------------------------------------
 
 -- | Calculate change bundles from a set of selected inputs and outputs. Returns
--- 'Nothing' if there are not enough 'Ada' inputs to satisfy minimum delta and
+-- 'Nothing' if there are not enough ada inputs to satisfy minimum delta and
 -- minimum values in each token bundle. However, generate runtime errors if:
 --
 -- 1. The total input value is lesser than the total output value
