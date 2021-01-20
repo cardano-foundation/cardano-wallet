@@ -160,6 +160,17 @@ spec = describe "Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobinSpec" $
         it "prop_Large_UTxOIndex_coverage" $
             property prop_Large_UTxOIndex_coverage
 
+    parallel $ describe "Preparing outputs" $ do
+
+        it "prop_prepareOutputWith_twice" $
+            property prop_prepareOutputsWith_twice
+        it "prop_prepareOutputsWith_length" $
+            property prop_prepareOutputsWith_length
+        it "prop_prepareOutputsWith_assetsUnchanged" $
+            property prop_prepareOutputsWith_assetsUnchanged
+        it "prop_prepareOutputsWith_preparedOrExistedBefore" $
+            property prop_prepareOutputsWith_preparedOrExistedBefore
+
     parallel $ describe "Performing a selection" $ do
 
         it "prop_performSelection_small" $
@@ -292,6 +303,57 @@ prop_Large_UTxOIndex_coverage (Large index) =
   where
     assetCount = Set.size $ UTxOIndex.assets index
     entryCount = UTxOIndex.size index
+
+--------------------------------------------------------------------------------
+-- Preparing outputs
+--------------------------------------------------------------------------------
+
+prop_prepareOutputsWith_twice
+    :: MinCoinValueFor
+    -> NonEmpty TxOut
+    -> Property
+prop_prepareOutputsWith_twice minCoinValueDef outs =
+    once === twice
+  where
+    minCoinValueFor = mkMinCoinValueFor minCoinValueDef
+    (_:once:twice:_) = iterate (prepareOutputsWith minCoinValueFor) outs
+
+prop_prepareOutputsWith_length
+    :: MinCoinValueFor
+    -> NonEmpty TxOut
+    -> Property
+prop_prepareOutputsWith_length minCoinValueDef outs =
+    F.length (prepareOutputsWith minCoinValueFor outs) === F.length outs
+  where
+    minCoinValueFor = mkMinCoinValueFor minCoinValueDef
+
+prop_prepareOutputsWith_assetsUnchanged
+    :: MinCoinValueFor
+    -> NonEmpty TxOut
+    -> Property
+prop_prepareOutputsWith_assetsUnchanged minCoinValueDef outs =
+    (txOutAssets <$> (prepareOutputsWith minCoinValueFor outs))
+    ===
+    (txOutAssets <$> outs)
+  where
+    minCoinValueFor = mkMinCoinValueFor minCoinValueDef
+    txOutAssets = TokenBundle.getAssets . view #tokens
+
+prop_prepareOutputsWith_preparedOrExistedBefore
+    :: MinCoinValueFor
+    -> NonEmpty TxOut
+    -> Property
+prop_prepareOutputsWith_preparedOrExistedBefore minCoinValueDef outs =
+    property $ F.all isPreparedOrExistedBefore (NE.zip outs outs')
+  where
+    minCoinValueFor = mkMinCoinValueFor minCoinValueDef
+    outs' = prepareOutputsWith minCoinValueFor outs
+
+    isPreparedOrExistedBefore :: (TxOut, TxOut) -> Bool
+    isPreparedOrExistedBefore (before, after) =
+        if txOutCoin before /= Coin 0
+        then txOutCoin after == txOutCoin before
+        else txOutCoin after == minCoinValueFor (view (#tokens . #tokens) before)
 
 --------------------------------------------------------------------------------
 -- Performing a selection
