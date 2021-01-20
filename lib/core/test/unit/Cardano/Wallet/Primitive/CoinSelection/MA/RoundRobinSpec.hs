@@ -327,7 +327,31 @@ prop_performSelection_small minCoinValueFor costFor (Blind (Small criteria)) =
         "balance sufficient" $
     cover 30 (not $ balanceSufficient criteria)
         "balance insufficient" $
-    prop_performSelection minCoinValueFor costFor (Blind criteria)
+    prop_performSelection minCoinValueFor costFor (Blind criteria) $ \result ->
+        cover 10 (selectionUnlimited && selectionSufficient result)
+            "selection unlimited and sufficient"
+        . cover 10 (selectionLimited && selectionSufficient result)
+            "selection limited but sufficient"
+        . cover 10 (selectionLimited && selectionInsufficient result)
+            "selection limited and insufficient"
+  where
+    selectionLimited :: Bool
+    selectionLimited = case selectionLimit criteria of
+        MaximumInputLimit _ -> True
+        NoLimit -> False
+
+    selectionUnlimited :: Bool
+    selectionUnlimited = not selectionLimited
+
+    selectionSufficient :: Either SelectionError SelectionResult -> Bool
+    selectionSufficient = \case
+        Right _ -> True
+        _ -> False
+
+    selectionInsufficient :: Either SelectionError SelectionResult -> Bool
+    selectionInsufficient = \case
+        Left (SelectionInsufficient _) -> True
+        _ -> False
 
 prop_performSelection_large
     :: MinCoinValueFor
@@ -340,14 +364,15 @@ prop_performSelection_large minCoinValueFor costFor (Blind (Large criteria)) =
     checkCoverage $
     cover 50 (balanceSufficient criteria)
         "balance sufficient" $
-    prop_performSelection minCoinValueFor costFor (Blind criteria)
+    prop_performSelection minCoinValueFor costFor (Blind criteria) (const id)
 
 prop_performSelection
     :: MinCoinValueFor
     -> CostFor
     -> Blind SelectionCriteria
+    -> (Either SelectionError SelectionResult -> Property -> Property)
     -> Property
-prop_performSelection minCoinValueFor costFor (Blind criteria) =
+prop_performSelection minCoinValueFor costFor (Blind criteria) coverage =
     monadicIO $ do
         monitor $ counterexample $ unlines
             [ "extraCoinSource: " <> show extraCoinSource
@@ -357,12 +382,7 @@ prop_performSelection minCoinValueFor costFor (Blind criteria) =
             (mkMinCoinValueFor minCoinValueFor)
             (mkCostFor costFor)
             criteria)
-        monitor $ cover 10 (selectionUnlimited && selectionSufficient result)
-            "selection unlimited and sufficient"
-        monitor $ cover 10 (selectionLimited && selectionSufficient result)
-            "selection limited but sufficient"
-        monitor $ cover 10 (selectionLimited && selectionInsufficient result)
-            "selection limited and insufficient"
+        monitor (coverage result)
         either onFailure onSuccess result
   where
     SelectionCriteria
@@ -476,24 +496,6 @@ prop_performSelection minCoinValueFor costFor (Blind criteria) =
 
     balanceRequired  = F.foldMap (view #tokens) outputsToCover
     balanceAvailable = fullBalance utxoAvailable extraCoinSource
-
-    selectionLimited :: Bool
-    selectionLimited = case selectionLimit of
-        MaximumInputLimit _ -> True
-        NoLimit -> False
-
-    selectionUnlimited :: Bool
-    selectionUnlimited = not selectionLimited
-
-    selectionSufficient :: Either SelectionError SelectionResult -> Bool
-    selectionSufficient = \case
-        Right _ -> True
-        _ -> False
-
-    selectionInsufficient :: Either SelectionError SelectionResult -> Bool
-    selectionInsufficient = \case
-        Left (SelectionInsufficient _) -> True
-        _ -> False
 
 --------------------------------------------------------------------------------
 -- Running a selection (without making change)
