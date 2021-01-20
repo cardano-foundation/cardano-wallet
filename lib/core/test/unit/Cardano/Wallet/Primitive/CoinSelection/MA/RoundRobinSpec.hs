@@ -111,9 +111,11 @@ import Test.Hspec.Core.QuickCheck
 import Test.QuickCheck
     ( Arbitrary (..)
     , Blind (..)
+    , Fun
     , Gen
     , Positive (..)
     , Property
+    , applyFun
     , arbitraryBoundedEnum
     , checkCoverage
     , choose
@@ -142,6 +144,7 @@ import qualified Data.Foldable as F
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
+import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 
 spec :: Spec
@@ -240,6 +243,11 @@ spec = describe "Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobinSpec" $
             property $ prop_runRoundRobin_generationCount @TokenName @Word8
         it "prop_runRoundRobin_generationOrder" $
             property $ prop_runRoundRobin_generationOrder @TokenName @Word8
+
+    parallel $ describe "Utility functions" $ do
+
+        it "prop_mapMaybe_oracle" $
+            property prop_mapMaybe_oracle
 
 --------------------------------------------------------------------------------
 -- Coverage
@@ -1301,6 +1309,17 @@ prop_runRoundRobin_generationOrder initialState = property $
         & fmap swap
         & groupByKey
         & fmap (Set.fromList . F.toList)
+
+--------------------------------------------------------------------------------
+-- Testing utility functions
+--------------------------------------------------------------------------------
+
+-- | Behaves the same as the original 'mapMaybe' on list.
+prop_mapMaybe_oracle :: NonEmpty Int -> Fun Int (Maybe Int) -> Property
+prop_mapMaybe_oracle xs fn =
+    Maybe.mapMaybe (applyFun fn) (NE.toList xs)
+    ===
+    mapMaybe (applyFun fn) xs
 
 --------------------------------------------------------------------------------
 -- Utility functions
