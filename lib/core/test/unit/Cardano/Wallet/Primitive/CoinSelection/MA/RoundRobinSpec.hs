@@ -29,7 +29,7 @@ import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     , SelectionSkeleton (..)
     , SelectionState (..)
     , addCoin
-    , availableBalance
+    , fullBalance
     , groupByKey
     , makeChange
     , makeChangeForCoin
@@ -315,7 +315,7 @@ balanceSufficient SelectionCriteria{outputsToCover,utxoAvailable,extraCoinSource
     balanceRequired `leq` balanceAvailable
   where
     balanceRequired = F.foldMap (view #tokens) outputsToCover
-    balanceAvailable = availableBalance utxoAvailable extraCoinSource
+    balanceAvailable = fullBalance utxoAvailable extraCoinSource
 
 prop_performSelection_small
     :: MinCoinValueFor
@@ -350,6 +350,10 @@ prop_performSelection
     -> Property
 prop_performSelection minCoinValueFor costFor (Blind criteria) =
     monadicIO $ do
+        monitor $ counterexample $ unlines
+            [ "extraCoinSource: " <> show extraCoinSource
+            , "selectionLimit:  " <> show selectionLimit
+            ]
         result <- run (performSelection
             (mkMinCoinValueFor minCoinValueFor)
             (mkCostFor costFor)
@@ -408,7 +412,7 @@ prop_performSelection minCoinValueFor costFor (Blind criteria) =
                 fmap (TokenMap.getAssets . view #tokens) changeGenerated
             }
         balanceSelected =
-            availableBalance (inputsSkeleton skeleton) extraCoinSource
+            fullBalance (inputsSkeleton skeleton) extraCoinSource
         balanceChange =
             F.fold changeGenerated
         expectedCost =
@@ -472,7 +476,7 @@ prop_performSelection minCoinValueFor costFor (Blind criteria) =
         assert True -- TODO
 
     balanceRequired  = F.foldMap (view #tokens) outputsToCover
-    balanceAvailable = availableBalance utxoAvailable extraCoinSource
+    balanceAvailable = fullBalance utxoAvailable extraCoinSource
 
     selectionLimited :: Bool
     selectionLimited = case selectionLimit of
@@ -547,14 +551,14 @@ prop_runSelection_UTxO_extraSourceUsed extraSource (Small index) = do
                 assert True
             Just balanceRequested | hasSomeAda -> do
                 SelectionState {selected,leftover} <-
-                    run $ runSelection extraSource index balanceRequested
+                    run $ runSelection NoLimit extraSource index balanceRequested
                 let balanceSelected = view #balance selected
                 let balanceLeftover = view #balance leftover
                 assert $ balanceLeftover == view #balance index
                 assert $ balanceSelected == TokenBundle.empty
             Just balanceRequested -> do
                 SelectionState {selected} <-
-                    run $ runSelection extraSource index balanceRequested
+                    run $ runSelection NoLimit extraSource index balanceRequested
                 let balanceSelected = view #balance selected
                 let coinSelected = TokenBundle.coin $
                         addExtraSource extraSource balanceSelected

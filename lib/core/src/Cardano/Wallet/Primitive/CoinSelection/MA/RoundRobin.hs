@@ -1,6 +1,6 @@
 {-# LANGUAGE BangPatterns #-}
-{-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE LambdaCase #-}
@@ -55,7 +55,7 @@ module Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     , runRoundRobinM
 
     -- * Accessors
-    , availableBalance
+    , fullBalance
 
     -- * Utility functions
     , distance
@@ -150,7 +150,6 @@ data SelectionSkeleton = SelectionSkeleton
         :: !(NonEmpty TxOut)
     , changeSkeleton
         :: !(NonEmpty (Set AssetId))
->>>>>>> 14b144304 (update 'performSelection' to work with fees, withdrawals, deposits and minimum coin value)
     }
     deriving (Eq, Show)
 
@@ -189,6 +188,19 @@ data SelectionError
     | UnableToConstructChange
         -- ^ TODO: See if we can report how much ada is missing
     deriving (Generic, Eq, Show)
+
+-- | Indicates that the balance of inputs actually selected was insufficient to
+--   cover the balance of 'outputsToCover'.
+--
+data SelectionInsufficientError = SelectionInsufficientError
+    { balanceRequired
+        :: !TokenBundle
+      -- ^ The balance of 'outputsToCover'.
+    , inputsSelected
+        :: ![(TxIn, TxOut)]
+      -- ^ The inputs that could be selected while satisfying the
+      -- 'selectionLimit'.
+    } deriving (Generic, Eq, Show)
 
 -- | Indicates that the balance of 'utxoAvailable' is insufficient to cover the
 --   balance of 'outputsToCover'.
@@ -235,20 +247,7 @@ prepareOutputsWith minCoinValueFor = fmap $ \out ->
         if TokenBundle.getCoin bundle == Coin 0
         then bundle { coin = minCoinValueFor (view #tokens bundle) }
         else bundle
-
--- | Indicates that the balance of inputs actually selected was insufficient to
---   cover the balance of 'outputsToCover'.
 --
-data SelectionInsufficientError = SelectionInsufficientError
-    { balanceRequired
-        :: !TokenBundle
-      -- ^ The balance of 'outputsToCover'.
-    , inputsSelected
-        :: ![(TxIn, TxOut)]
-      -- ^ The inputs that could be selected while satisfying the
-      -- 'selectionLimit'.
-    }
-
 -- | Performs a coin selection and generates change bundles in one step.
 --
 -- Returns 'BalanceInsufficient' if the total balance of 'utxoAvailable' is not
@@ -289,19 +288,20 @@ performSelection minCoinValueFor costFor criteria
 
     | otherwise = do
         state <- runSelection selectionLimit extraCoinSource utxoAvailable balanceRequired
-        if UTxOIndex.balance (selected state) `leq` balanceRequired then
-            pure $ Left $ SelectionInsufficient $ SelectionInsufficientError
-                { inputsSelected = UTxOIndex.toList (selected state)
-                , balanceRequired
-                }
-
-        else do
+        let balanceSelected = fullBalance (selected state) extraCoinSource
+        if balanceRequired `leq` balanceSelected then do
             let predictedChange = predictChange (selected state)
             makeChangeRepeatedly predictedChange state <&> \case
                 Nothing -> -- Running out of ada-only UTxO to pay for cost
                     Left UnableToConstructChange
                 Just result ->
                     Right result
+        else
+            pure $ Left $ SelectionInsufficient $ SelectionInsufficientError
+                { inputsSelected = UTxOIndex.toList (selected state)
+                , balanceRequired
+                }
+
   where
     SelectionCriteria
         { outputsToCover
@@ -315,7 +315,7 @@ performSelection minCoinValueFor costFor criteria
         fromMaybe invariantSelectAnyInputs . NE.nonEmpty . UTxOIndex.toList
 
     balanceAvailable :: TokenBundle
-    balanceAvailable = availableBalance utxoAvailable extraCoinSource
+    balanceAvailable = fullBalance utxoAvailable extraCoinSource
 
     balanceRequired :: TokenBundle
     balanceRequired = F.foldMap (view #tokens) outputsToCover
@@ -402,7 +402,7 @@ performSelection minCoinValueFor costFor criteria
                     }
 
             Nothing -> do
-                selectMatchingQuantity [WithAdaOnly] s
+                selectMatchingQuantity selectionLimit [WithAdaOnly] s
                 >>=
                 maybe (pure Nothing) (makeChangeRepeatedly changeSkeleton)
 
@@ -502,7 +502,7 @@ selectMatchingQuantity
     -> SelectionState
     -> m (Maybe SelectionState)
 selectMatchingQuantity _       []  _ = pure Nothing
-selectMatchingQuantity limit (h:q) s =
+selectMatchingQuantity limit (h:q) s
     | limitReached =
         pure Nothing
     | otherwise = do
@@ -810,10 +810,10 @@ assetQuantity asset =
 
 coinQuantity :: UTxOIndex -> Maybe Coin -> Natural
 coinQuantity index =
-    fromIntegral . unCoin . TokenBundle.getCoin . availableBalance index
+    fromIntegral . unCoin . TokenBundle.getCoin . fullBalance index
 
-availableBalance :: UTxOIndex -> Maybe Coin -> TokenBundle
-availableBalance index extraSource
+fullBalance :: UTxOIndex -> Maybe Coin -> TokenBundle
+fullBalance index extraSource
     | UTxOIndex.null index =
         TokenBundle.empty
     | otherwise =
