@@ -483,16 +483,26 @@ x-assetDisplayName: &assetDisplayName
 
 x-assetMetadataName: &assetMetadataName
   type: string
+  maxLength: 50
+  minLength: 1
   description: |
     A human-readable name for the asset. Good for display in user interfaces.
   example: SwaggerCoin
 
 x-assetMetadataAcronym: &assetMetadataAcronym
   type: string
+  maxLength: 4
+  minLength: 2
   description: |
     A human-readable short name for the asset. Good for display in
     user interfaces.
   example: SWAG
+
+x-assetMetadataDescription: &assetMetadataDescription
+  description: |
+    A human-readable description for the asset. Good for display in user interfaces.
+  type: string
+  maxLength: 500
 
 x-assetMetadataUnit: &assetMetadataUnit
   type: object
@@ -502,6 +512,7 @@ x-assetMetadataUnit: &assetMetadataUnit
   required:
     - decimals
     - name
+  additionalProperties: false
   properties:
     decimals:
       type: integer
@@ -511,6 +522,8 @@ x-assetMetadataUnit: &assetMetadataUnit
       maximum: 19
     name:
       type: string
+      minLength: 1
+      maxLength: 30
       description: |
         The human-readable name for the larger unit of the asset. Used
         for display in user interfaces.
@@ -519,44 +532,51 @@ x-assetMetadataUnit: &assetMetadataUnit
     decimals: 3
 
 x-assetMetadataUrl: &assetMetadataUrl
-  type: string
   description: |
     A URL to the policy's owner(s) or the entity website in charge of the asset.
+  type: string
+  format: uri
+  pattern: "^https://.+"
+  maxLength: 250
 
 x-assetMetadataLogo: &assetMetadataLogo
-  type: string
   description: |
     A base64-encoded `image/png` for displaying the asset. The end image can be expected
     to be smaller than 64KB.
+  type: string
   format: base64
-
-x-assetMetadataDescription: &assetMetadataDescription
-  type: object
-  description: |
-    A human-readable description for the asset. Good for display in user interfaces.
-  required:
-    - en
-  properties:
-    en:
-      type: string
-      description: The description, in English (en).
+  maxLength: 87400
 
 x-assetMetadata: &assetMetadata
-  type: object
+  title: Native Assets Metadata
   description: |
     <p>status: <strong>⚠ under development</strong></p>
 
     _This field is not implemented yet, and the values will always be empty._
 
-    Additional information about the asset which is not stored
-    on chain. This data is fetched from an external source.
+    In the Mary era of Cardano, UTxO may contain native assets. These
+    assets are represented on-chain by opaque identifiers which are
+    meaningless to end-users. Therefore, user-facing metadata
+    regarding each token must be stored off-chain, in a metadata
+    registry.
+
+    Token creators may publish metadata into the registry and client
+    applications can consume these metadata for display to end
+    users. This will work in a similar way to how it is done for stake
+    pool metadata.
+  type: object
+  additionalProperties: false
+  required:
+    - name
+    - acronym
+    - description
   properties:
     name: *assetMetadataName
     acronym: *assetMetadataAcronym
+    description: *assetMetadataDescription
     unit: *assetMetadataUnit
     url: *assetMetadataUrl
     logo: *assetMetadataLogo
-    description: *assetMetadataDescription
 
 x-walletMnemonicSentence: &walletMnemonicSentence
   description: A list of mnemonic words
