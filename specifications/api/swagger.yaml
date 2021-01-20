@@ -3592,13 +3592,30 @@ paths:
       description: |
         <p align="right">status: <strong>under development</strong></p>
 
-        Fetch a single asset from its `policy_id` and `asset_name`, with its metadata if any.
+        Fetch a single asset from its `policy_id` and `asset_name`,
+        with its metadata if any.
 
         The asset must be associated with the wallet.
       parameters:
         - *parametersWalletId
         - *parametersPolicyId
         - *parametersAssetName
+      responses: *responsesGetAsset
+
+  /wallets/{walletId}/assets/{policyId}:
+    get:
+      operationId: getAssetDefault
+      tags: ["Assets"]
+      summary: Get Asset (empty name)
+      description: |
+        <p align="right">status: <strong>under development</strong></p>
+
+        Fetch the the asset from `policy_id` with an empty name.
+
+        The asset must be associated with the wallet.
+      parameters:
+        - *parametersWalletId
+        - *parametersPolicyId
       responses: *responsesGetAsset
 
   /wallets/{walletId}/statistics/utxos:
