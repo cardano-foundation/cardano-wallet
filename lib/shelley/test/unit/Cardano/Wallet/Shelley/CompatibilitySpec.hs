@@ -18,7 +18,7 @@ import Prelude
 import Cardano.Address.Derivation
     ( XPrv, XPub )
 import Cardano.Address.Script
-    ( Script (..), ScriptHash (..), keyHashFromBytes, toScriptHash )
+    ( KeyHash, Script (..), ScriptHash (..), keyHashFromBytes, toScriptHash )
 import Cardano.Crypto.Hash.Class
     ( digest )
 import Cardano.Ledger.Crypto
@@ -321,7 +321,7 @@ spec = do
         testScriptsAllLangs Cardano.SimpleScriptV2
         testScriptsTimelockLang
 
-toKeyHash :: Text -> Script
+toKeyHash :: Text -> Script KeyHash
 toKeyHash txt = case fromBase16 (T.encodeUtf8 txt) of
     Right bs -> case keyHashFromBytes bs of
         Just kh -> RequireSignatureOf kh
@@ -336,7 +336,7 @@ toPaymentHash txt =
 
 checkScriptHashes
     :: String
-    -> Script
+    -> Script KeyHash
     -> Cardano.Script lang
     -> SpecWith ()
 checkScriptHashes title adrestiaScript nodeScript = it title $

@@ -2,6 +2,7 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
@@ -9,6 +10,7 @@
 
 module Cardano.Wallet.Primitive.ScriptsSpec
     ( spec
+    , genScript
     ) where
 
 import Prelude
@@ -17,27 +19,20 @@ import Cardano.Address.Derivation
     ( XPub )
 import Cardano.Address.Script
     ( KeyHash (..), Script (..), ScriptHash, toScriptHash )
-import Cardano.Mnemonic
-    ( SomeMnemonic (..) )
-import Cardano.Wallet.Gen
-    ( genMnemonic )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , DerivationType (..)
-    , HardDerivation (..)
     , Index (..)
     , NetworkDiscriminant (..)
-    , Passphrase (..)
-    , PassphraseMaxLength (..)
-    , PassphraseMinLength (..)
     , SoftDerivation
     , WalletKey (..)
     , deriveVerificationKey
     , hashVerificationKey
-    , preparePassphrase
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
-    ( ShelleyKey (..), generateKeyFromSeed )
+    ( ShelleyKey (..) )
+import Cardano.Wallet.Primitive.AddressDerivationSpec
+    ()
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPoolGap (..)
     , DerivationPrefix (..)
@@ -56,24 +51,20 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     )
 import Cardano.Wallet.Primitive.Scripts
     ( isShared, retrieveAllVerKeyHashes )
-import Cardano.Wallet.Primitive.Types
-    ( PassphraseScheme (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( AddressState (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeXPub )
-import Control.Monad
-    ( replicateM )
 import Data.Map.Strict
     ( Map )
 import Data.Ord
     ( Down (..) )
-import Data.Proxy
-    ( Proxy (..) )
 import Data.Set
     ( Set )
 import Data.Word
     ( Word32 )
+import Numeric.Natural
+    ( Natural )
 import Test.Hspec
     ( Spec, describe, it )
 import Test.QuickCheck
@@ -81,24 +72,24 @@ import Test.QuickCheck
     , Gen
     , Positive (..)
     , Property
-    , arbitraryPrintableChar
+    , arbitrarySizedNatural
     , choose
     , elements
+    , oneof
     , property
     , scale
+    , shrinkIntegral
     , sized
     , vectorOf
     , (.&&.)
     , (===)
+    , (==>)
     )
 
-import qualified Data.ByteArray as BA
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.List as L
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
-import qualified Data.Text as T
-import qualified Data.Text.Encoding as T
 
 spec :: Spec
 spec = do
@@ -153,8 +144,11 @@ prop_scriptUpdatesStateProperly (AccountXPubWithScripts accXPub' scripts') = do
     let sciptKeyHashes = retrieveAllVerKeyHashes script
     let seqState = initializeState accXPub'
     let (_, seqState') = isShared script seqState
-    scriptKeyHashesInMap script accXPub' seqState'
-        === Just (Set.fromList (L.nub sciptKeyHashes))
+    let expected =
+            if L.length sciptKeyHashes == 0 then
+                Nothing
+            else Just (Set.fromList (L.nub sciptKeyHashes))
+    scriptKeyHashesInMap script accXPub' seqState' === expected
 
 prop_scriptDiscoveredTwice
     :: AccountXPubWithScripts
@@ -173,7 +167,9 @@ prop_scriptsDiscovered (AccountXPubWithScripts accXPub' scripts') = do
     let seqState0 = initializeState accXPub'
     let seqState = foldr (\script s -> snd $ isShared script s) seqState0 scripts'
     let scriptHashes = Set.fromList $ Map.keys $ getKnownScripts seqState
-    scriptHashes === Set.fromList (map toScriptHash scripts')
+    let scriptsWithKeyHashes =
+            L.filter (\s -> L.length (retrieveAllVerKeyHashes s) > 0) scripts'
+    scriptHashes === Set.fromList (map toScriptHash scriptsWithKeyHashes)
 
 prop_scriptDiscoveredByTwo
     :: TwoAccountXPubsWithScript
@@ -186,8 +182,11 @@ prop_scriptDiscoveredByTwo (TwoAccountXPubsWithScript accXPub' accXPub'' script)
     let sciptKeyHashes = retrieveAllVerKeyHashes script
     let scriptKeyHashes' = scriptKeyHashesInMap script accXPub' seqState'
     let scriptKeyHashes'' = scriptKeyHashesInMap script accXPub'' seqState''
-    (scriptKeyHashes' <> scriptKeyHashes'')
-        === Just (Set.fromList (L.nub sciptKeyHashes))
+    let expected =
+            if L.length sciptKeyHashes == 0 then
+                Nothing
+            else Just (Set.fromList (L.nub sciptKeyHashes))
+    (scriptKeyHashes' <> scriptKeyHashes'') === expected
 
 prop_markingDiscoveredVerKeys
     :: AccountXPubWithScripts
@@ -208,7 +207,8 @@ prop_markingDiscoveredVerKeys (AccountXPubWithScripts accXPub' scripts') = do
 prop_poolExtension
     :: AccountXPubWithScriptExtension
     -> Property
-prop_poolExtension (AccountXPubWithScriptExtension accXPub' scripts') = do
+prop_poolExtension (AccountXPubWithScriptExtension accXPub' scripts') =
+    all (\s -> L.length (retrieveAllVerKeyHashes s) > 0)  scripts' ==>
     scriptHashes == Set.fromList (map toScriptHash scripts') .&&.
         seqState3 == seqState0
   where
@@ -246,18 +246,18 @@ prop_verKeysConsistent (AccountXPubWithScripts accXPub' scripts') = do
 
 data AccountXPubWithScripts = AccountXPubWithScripts
     { accXPub :: ShelleyKey 'AccountK XPub
-    , scripts :: [Script]
+    , scripts :: [Script KeyHash]
     } deriving (Eq, Show)
 
 data AccountXPubWithScriptExtension = AccountXPubWithScriptExtension
     { accXPub :: ShelleyKey 'AccountK XPub
-    , scripts :: [Script]
+    , scripts :: [Script KeyHash]
     } deriving (Eq, Show)
 
 data TwoAccountXPubsWithScript = TwoAccountXPubsWithScript
     { accXPub1 :: ShelleyKey 'AccountK XPub
     , accXPub2 :: ShelleyKey 'AccountK XPub
-    , scripts :: Script
+    , scripts :: Script KeyHash
     } deriving (Eq, Show)
 
 defaultPrefix :: DerivationPrefix
@@ -300,7 +300,7 @@ getVerKeyMap (SeqState _ _ _ _ _ verKeyPool) =
     verPoolIndexedKeys verKeyPool
 
 scriptKeyHashesInMap
-    :: Script
+    :: Script KeyHash
     -> ShelleyKey 'AccountK XPub
     -> SeqState 'Mainnet ShelleyKey
     -> Maybe (Set KeyHash)
@@ -312,23 +312,50 @@ scriptKeyHashesInMap script' accXPub' s =
                                 Arbitrary Instances
 -------------------------------------------------------------------------------}
 
-genScript :: [KeyHash] -> Gen Script
-genScript keyHashes =
-    scale (`div` 3) $ sized scriptTree
-      where
-        scriptTree 0 = do
-            keyH <- elements keyHashes
-            pure $ RequireSignatureOf keyH
+instance Arbitrary Natural where
+    shrink = shrinkIntegral
+    arbitrary = arbitrarySizedNatural
+
+genScript :: [KeyHash] -> Gen (Script KeyHash)
+genScript keyHashes = scale (`div` 3) $ sized scriptTree
+    where
+        scriptTree 0 = oneof
+            [ RequireSignatureOf <$> elements keyHashes
+            , ActiveFromSlot <$> arbitrary
+            , ActiveUntilSlot <$> arbitrary
+            ]
         scriptTree n = do
             Positive m <- arbitrary
             let n' = n `div` (m + 1)
             scripts' <- vectorOf m (scriptTree n')
-            atLeast <- choose (1, fromIntegral (m + 1))
-            elements
-                [ RequireAllOf scripts'
-                , RequireAnyOf scripts'
-                , RequireSomeOf atLeast scripts'
-                ]
+            let hasTimelocks = \case
+                    ActiveFromSlot _ -> True
+                    ActiveUntilSlot _ -> True
+                    _ -> False
+            let scriptsWithValidTimelocks = case L.partition hasTimelocks scripts' of
+                    ([], rest) -> rest
+                    ([ActiveFromSlot s1, ActiveUntilSlot s2], rest) ->
+                        if s2 <= s1 then
+                            rest ++ [ActiveFromSlot s2, ActiveUntilSlot s1]
+                        else
+                            scripts'
+                    ([ActiveUntilSlot s2, ActiveFromSlot s1], rest) ->
+                        if s2 <= s1 then
+                            rest ++ [ActiveFromSlot s2, ActiveUntilSlot s1]
+                        else
+                            scripts'
+                    ([ActiveFromSlot _], _) -> scripts'
+                    ([ActiveUntilSlot _], _) -> scripts'
+                    (_,rest) -> rest
+            case fromIntegral (L.length (filter (not . hasTimelocks) scriptsWithValidTimelocks)) of
+                0 -> scriptTree 0
+                num -> do
+                    atLeast <- choose (1, num)
+                    elements
+                        [ RequireAllOf scriptsWithValidTimelocks
+                        , RequireAnyOf scriptsWithValidTimelocks
+                        , RequireSomeOf atLeast scriptsWithValidTimelocks
+                        ]
 
 prepareVerKeys
     :: ShelleyKey 'AccountK XPub
@@ -337,13 +364,6 @@ prepareVerKeys
 prepareVerKeys accXPub' =
     let minIndex = getIndex @'Soft minBound
     in map (\ix -> deriveVerificationKey accXPub' (toEnum (fromInteger $ toInteger $ minIndex + ix)))
-
-instance Arbitrary (ShelleyKey 'AccountK XPub) where
-    arbitrary = do
-        mnemonics <- SomeMnemonic <$> genMnemonic @12
-        encPwd <- arbitrary
-        let rootXPrv = generateKeyFromSeed (mnemonics, Nothing) encPwd
-        pure $ publicKey $ deriveAccountPrivateKey encPwd rootXPrv minBound
 
 instance Arbitrary AccountXPubWithScripts where
     arbitrary = do
@@ -382,24 +402,3 @@ instance Arbitrary TwoAccountXPubsWithScript where
         let bothVerKeyHashes =
                 verKeyHashes accXPub1' ++ verKeyHashes accXPub2'
         TwoAccountXPubsWithScript accXPub1' accXPub2' <$> genScript bothVerKeyHashes
-
-instance Arbitrary (Passphrase "raw") where
-    arbitrary = do
-        n <- choose (passphraseMinLength p, passphraseMaxLength p)
-        bytes <- T.encodeUtf8 . T.pack <$> replicateM n arbitraryPrintableChar
-        return $ Passphrase $ BA.convert bytes
-      where p = Proxy :: Proxy "raw"
-
-    shrink (Passphrase bytes)
-        | BA.length bytes <= passphraseMinLength p = []
-        | otherwise =
-            [ Passphrase
-            $ BA.convert
-            $ B8.take (passphraseMinLength p)
-            $ BA.convert bytes
-            ]
-      where p = Proxy :: Proxy "raw"
-
-instance Arbitrary (Passphrase "encryption") where
-    arbitrary = preparePassphrase EncryptWithPBKDF2
-        <$> arbitrary @(Passphrase "raw")

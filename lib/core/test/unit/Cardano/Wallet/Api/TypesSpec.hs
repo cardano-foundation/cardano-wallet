@@ -156,6 +156,8 @@ import Cardano.Wallet.Primitive.AddressDerivationSpec
     ()
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPoolGap, getAddressPoolGap )
+import Cardano.Wallet.Primitive.ScriptsSpec
+    ( genScript )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..) )
 import Cardano.Wallet.Primitive.Types
@@ -296,13 +298,11 @@ import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
     , InfiniteList (..)
-    , Positive (..)
     , applyArbitrary2
     , applyArbitrary3
     , arbitraryBoundedEnum
     , arbitraryPrintableChar
     , arbitrarySizedBoundedIntegral
-    , arbitrarySizedNatural
     , choose
     , counterexample
     , elements
@@ -311,7 +311,6 @@ import Test.QuickCheck
     , property
     , scale
     , shrinkIntegral
-    , sized
     , vector
     , vectorOf
     , (.&&.)
@@ -1065,23 +1064,10 @@ instance Arbitrary ApiEpochInfo where
     arbitrary = ApiEpochInfo <$> arbitrary <*> genUniformTime
     shrink _ = []
 
-instance Arbitrary Script where
-    arbitrary = Test.QuickCheck.scale (`div` 3) $ sized scriptTree
-      where
-        scriptTree 0 = oneof
-            [ RequireSignatureOf <$> arbitrary
-            , ActiveFromSlot <$> arbitrary
-            , ActiveFromSlot <$> arbitrary ]
-        scriptTree n = do
-            Positive m <- arbitrary
-            let n' = n `div` (m + 1)
-            scripts <- vectorOf m (scriptTree n')
-            atLeast <- choose (1, fromIntegral m)
-            elements
-                [ RequireAllOf scripts
-                , RequireAnyOf scripts
-                , RequireSomeOf atLeast scripts
-                ]
+instance Arbitrary (Script KeyHash) where
+    arbitrary = do
+        keyHashes <- vectorOf 10 arbitrary
+        genScript keyHashes
     shrink = genericShrink
 
 instance Arbitrary KeyHash where
