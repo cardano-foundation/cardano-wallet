@@ -28,7 +28,6 @@ import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     , SelectionResult (..)
     , SelectionSkeleton (..)
     , SelectionState (..)
-    , addCoin
     , fullBalance
     , groupByKey
     , makeChange
@@ -44,7 +43,7 @@ import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     , ungroupByKey
     )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+    ( Coin (..), addCoin )
 import Cardano.Wallet.Primitive.Types.Coin.Gen
     ( genCoinSmall, genCoinSmallPositive, shrinkCoinSmallPositive )
 import Cardano.Wallet.Primitive.Types.Hash

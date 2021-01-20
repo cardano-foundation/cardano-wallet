@@ -60,8 +60,6 @@ module Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     -- * Utility functions
     , distance
     , mapMaybe
-    , subtractCoin
-    , addCoin
     ) where
 
 import Prelude
@@ -71,7 +69,7 @@ import Algebra.PartialOrd
 import Cardano.Numeric.Util
     ( padCoalesce, partitionNatural )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+    ( Coin (..), subtractCoin )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle (..) )
 import Cardano.Wallet.Primitive.Types.TokenMap
@@ -839,11 +837,3 @@ mapMaybe predicate (x :| xs) = go (x:xs)
         case predicate a of
             Just b  -> b : go as
             Nothing -> go as
-
-subtractCoin :: Coin -> Coin -> Maybe Coin
-subtractCoin (Coin a) (Coin b)
-    | a >= b    = Just $ Coin (a - b)
-    | otherwise = Nothing
-
-addCoin :: Coin -> Coin -> Coin
-addCoin (Coin a) (Coin b) = Coin (a + b)
