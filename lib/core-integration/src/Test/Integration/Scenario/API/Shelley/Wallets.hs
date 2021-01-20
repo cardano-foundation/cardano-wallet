@@ -550,7 +550,9 @@ spec = describe "SHELLEY_WALLETS" $ do
                 "passphrase": #{fixturePassphrase},
                 "address_pool_gap": 20
                 } |]
-        wid <- getFromResponse walletId <$> postWallet ctx payload
+        rp <- postWallet ctx payload
+        expectResponseCode HTTP.status201 rp
+        let wid = getFromResponse walletId rp
         rl <- listFilteredWallets (Set.singleton wid) ctx
         verify rl
             [ expectResponseCode HTTP.status200
@@ -577,7 +579,9 @@ spec = describe "SHELLEY_WALLETS" $ do
                     , ("3", m21)]
         wids <- forM walletDetails $ \(name, mnemonics) -> do
             let payload = payloadWith name mnemonics
-            getFromResponse walletId <$> postWallet ctx payload
+            rp <- postWallet ctx payload
+            expectResponseCode HTTP.status201 rp
+            pure (getFromResponse walletId rp)
 
         rl <- listFilteredWallets (Set.fromList wids) ctx
         verify rl

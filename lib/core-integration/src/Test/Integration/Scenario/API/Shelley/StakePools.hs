@@ -504,14 +504,13 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
 
     it "STAKE_POOLS_JOIN_01 - Can rejoin another stakepool" $ \ctx -> runResourceT $ do
         w <- fixtureWallet ctx
-
-        -- make sure we are at the beginning of new epoch
-        (currentEpoch, _) <- getSlotParams ctx
-        waitForNextEpoch ctx
-
         pool1:pool2:_ <- map (view #id) . snd
             <$> unsafeRequest @[ApiStakePool]
                 ctx (Link.listStakePools arbitraryStake) Empty
+
+        -- make sure we are at the beginning of new epoch
+        waitForNextEpoch ctx
+        (currentEpoch, _) <- getSlotParams ctx
 
         joinStakePool @n ctx pool1 (w, fixturePassphrase) >>= flip verify
             [ expectResponseCode HTTP.status202
@@ -539,11 +538,12 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                             (dlg ^. #target) `shouldBe`
                                 Just pool1
                             (view #epochNumber <$> dlg ^. #changesAt) `shouldBe`
-                                Just (ApiT $ currentEpoch + 3)
+                                Just (ApiT $ currentEpoch + 2)
                         _ ->
                             fail "next delegation should contain exactly one element"
                     )
                 ]
+
         eventually "Wallet is delegating to p1" $ do
             request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty
                 >>= flip verify
