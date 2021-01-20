@@ -1,4 +1,5 @@
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
@@ -20,9 +21,11 @@ module Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     -- * Performing a selection
       performSelection
     , SelectionCriteria (..)
+    , SelectionLimit (..)
     , SelectionResult (..)
     , SelectionError (..)
     , BalanceInsufficientError (..)
+    , SelectionInsufficientError (..)
 
     -- * Running a selection (without making change)
     , runSelection
@@ -117,7 +120,17 @@ data SelectionCriteria = SelectionCriteria
         :: NonEmpty TxOut
     , utxoAvailable
         :: !UTxOIndex
+    , selectionLimit
+        :: !SelectionLimit
     }
+    deriving (Eq, Show)
+
+-- | Specifies a limit to adhere to when performing a selection.
+data SelectionLimit
+    = NoLimit
+      -- ^ Indicates that there is no limit.
+    | MaximumInputLimit Int
+      -- ^ Indicates a maximum limit on the number of inputs to select.
     deriving (Eq, Show)
 
 -- | The result of performing a successful selection.
@@ -134,8 +147,11 @@ data SelectionResult = SelectionResult
 
 -- | Represents the set of errors that may occur while performing a selection.
 --
-newtype SelectionError
-    = BalanceInsufficient BalanceInsufficientError
+data SelectionError
+    = BalanceInsufficient
+        BalanceInsufficientError
+    | SelectionInsufficient
+        SelectionInsufficientError
 
 -- | Indicates that the balance of 'utxoAvailable' is insufficient to cover the
 --   balance of 'outputsToCover'.
@@ -147,6 +163,19 @@ data BalanceInsufficientError = BalanceInsufficientError
     , balanceRequired
         :: TokenBundle
       -- ^ The balance of 'outputsToCover'.
+    }
+
+-- | Indicates that the balance of inputs actually selected was insufficient to
+--   cover the balance of 'outputsToCover'.
+--
+data SelectionInsufficientError = SelectionInsufficientError
+    { balanceRequired
+        :: !TokenBundle
+      -- ^ The balance of 'outputsToCover'.
+    , inputsSelected
+        :: ![(TxIn, TxOut)]
+      -- ^ The inputs that could be selected while satisfying the
+      -- 'selectionLimit'.
     }
 
 -- | Performs a coin selection and generates change bundles in one step.
@@ -170,32 +199,41 @@ performSelection
     :: forall m. (HasCallStack, MonadRandom m)
     => SelectionCriteria
     -> m (Either SelectionError SelectionResult)
-performSelection SelectionCriteria {outputsToCover, utxoAvailable}
+performSelection criteria
     | not (balanceRequired `leq` balanceAvailable) =
         pure $ Left $ BalanceInsufficient $ BalanceInsufficientError
             {balanceAvailable, balanceRequired}
     | otherwise =
-        Right . mkResult <$> runSelection utxoAvailable balanceRequired
+        mkResult <$>
+            runSelection selectionLimit utxoAvailable balanceRequired
   where
+    SelectionCriteria
+        {outputsToCover, utxoAvailable, selectionLimit} = criteria
+
     balanceAvailable :: TokenBundle
     balanceAvailable = view #balance utxoAvailable
 
     balanceRequired :: TokenBundle
     balanceRequired = F.foldMap (view #tokens) outputsToCover
 
-    mkResult :: SelectionState -> SelectionResult
-    mkResult SelectionState {selected, leftover} =
-        case NE.nonEmpty (UTxOIndex.toList selected) of
-            Nothing ->
-                unableToSelectAnyInputsError
-            Just inputsSelected ->
-                SelectionResult
+    mkResult :: SelectionState -> Either SelectionError SelectionResult
+    mkResult SelectionState {selected, leftover}
+        | not (balanceRequired `leq` balanceSelected) =
+            Left $ SelectionInsufficient $ SelectionInsufficientError
+                {inputsSelected = UTxOIndex.toList selected, balanceRequired}
+        | otherwise =
+            case NE.nonEmpty (UTxOIndex.toList selected) of
+                Nothing ->
+                    unableToSelectAnyInputsError
+                Just inputsSelected -> Right SelectionResult
                     { inputsSelected
                     , utxoRemaining = leftover
                     , changeGenerated = makeChange
                         (view #tokens . snd <$> inputsSelected)
                         (view #tokens <$> outputsToCover)
                     }
+      where
+        balanceSelected = UTxOIndex.balance selected
 
     unableToSelectAnyInputsError =
         -- This should be impossible, as we have already determined
@@ -222,13 +260,15 @@ data SelectionState = SelectionState
 
 runSelection
     :: forall m. MonadRandom m
-    => UTxOIndex
+    => SelectionLimit
+        -- ^ A limit to adhere to when performing a selection.
+    -> UTxOIndex
         -- ^ UTxO entries available for selection
     -> TokenBundle
         -- ^ Minimum balance to cover
     -> m SelectionState
         -- ^ Final selection state
-runSelection available minimumBalance =
+runSelection limit available minimumBalance =
     runRoundRobinM initialState selectors
   where
     initialState :: SelectionState
@@ -251,24 +291,32 @@ runSelection available minimumBalance =
     assetSelectionLens (asset, minimumAssetQuantity) = SelectionLens
         { currentQuantity = assetQuantity asset . selected
         , minimumQuantity = unTokenQuantity minimumAssetQuantity
-        , selectQuantity = selectMatchingQuantity $ WithAsset asset
+        , selectQuantity = selectMatchingQuantity limit $ WithAsset asset
         }
 
     coinSelectionLens :: SelectionLens m SelectionState
     coinSelectionLens = SelectionLens
         { currentQuantity = coinQuantity . selected
         , minimumQuantity = fromIntegral $ unCoin minimumCoinQuantity
-        , selectQuantity = selectMatchingQuantity Any
+        , selectQuantity = selectMatchingQuantity limit Any
         }
 
 selectMatchingQuantity
     :: MonadRandom m
-    => SelectionFilter
+    => SelectionLimit
+    -> SelectionFilter
     -> SelectionState
     -> m (Maybe SelectionState)
-selectMatchingQuantity f s =
-    fmap updateState <$> UTxOIndex.selectRandom (leftover s) f
+selectMatchingQuantity limit f s
+    | limitReached =
+        pure Nothing
+    | otherwise =
+        fmap updateState <$> UTxOIndex.selectRandom (leftover s) f
   where
+    limitReached = case limit of
+        MaximumInputLimit m -> UTxOIndex.size (selected s) >= m
+        NoLimit -> False
+
     updateState ((i, o), remaining) = SelectionState
         { leftover = remaining
         , selected = UTxOIndex.insert i o (selected s)

@@ -21,7 +21,9 @@ import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     ( BalanceInsufficientError (..)
     , SelectionCriteria (..)
     , SelectionError (..)
+    , SelectionInsufficientError (..)
     , SelectionLens (..)
+    , SelectionLimit (..)
     , SelectionResult (..)
     , SelectionState (..)
     , groupByKey
@@ -101,6 +103,7 @@ import Test.QuickCheck
     , choose
     , counterexample
     , cover
+    , frequency
     , genericShrink
     , property
     , shrinkList
@@ -259,7 +262,15 @@ genSelectionCriteria genUTxOIndex = do
         choose (1, UTxOIndex.size utxoAvailable `div` 8)
     outputsToCover <- NE.fromList <$>
         replicateM outputCount genTxOutSmallRange
-    pure $ SelectionCriteria {outputsToCover, utxoAvailable}
+    selectionLimit <- frequency
+        [ (5, pure NoLimit)
+        , (1, pure $ MaximumInputLimit 0)
+        , (1, pure $ MaximumInputLimit (UTxOIndex.size utxoAvailable))
+        , (4, MaximumInputLimit <$> choose
+            (1, UTxOIndex.size utxoAvailable `div` 8)
+          )
+        ]
+    pure $ SelectionCriteria {outputsToCover, utxoAvailable, selectionLimit}
 
 balanceSufficient :: SelectionCriteria -> Bool
 balanceSufficient SelectionCriteria {outputsToCover, utxoAvailable} =
@@ -294,10 +305,18 @@ prop_performSelection
     :: Blind SelectionCriteria
     -> Property
 prop_performSelection (Blind criteria) =
-    monadicIO $
-        either onFailure onSuccess =<< run (performSelection criteria)
+    monadicIO $ do
+        result <- run (performSelection criteria)
+        monitor $ cover 10 (selectionUnlimited && selectionSufficient result)
+            "selection unlimited and sufficient"
+        monitor $ cover 10 (selectionLimited && selectionSufficient result)
+            "selection limited but sufficient"
+        monitor $ cover 10 (selectionLimited && selectionInsufficient result)
+            "selection limited and insufficient"
+        either onFailure onSuccess result
   where
-    SelectionCriteria outputsToCover utxoAvailable = criteria
+    SelectionCriteria
+        {outputsToCover, utxoAvailable, selectionLimit} = criteria
 
     onSuccess result = do
         monitor $ counterexample $ unlines
@@ -312,10 +331,15 @@ prop_performSelection (Blind criteria) =
             ]
         assert $ balanceSufficient criteria
         assert $ balanceSelected == balanceRequired <> balanceChange
-        assert $ utxoAvailable
-            == UTxOIndex.insertMany inputsSelected utxoRemaining
-        assert $ utxoRemaining
-            == UTxOIndex.deleteMany (fst <$> inputsSelected) utxoAvailable
+        assert $ utxoAvailable ==
+            UTxOIndex.insertMany inputsSelected utxoRemaining
+        assert $ utxoRemaining ==
+            UTxOIndex.deleteMany (fst <$> inputsSelected) utxoAvailable
+        case selectionLimit of
+            MaximumInputLimit limit ->
+                assert $ NE.length inputsSelected <= limit
+            NoLimit ->
+                assert True
       where
         SelectionResult
             {inputsSelected, changeGenerated, utxoRemaining} = result
@@ -325,7 +349,10 @@ prop_performSelection (Blind criteria) =
             F.fold changeGenerated
 
     onFailure = \case
-        BalanceInsufficient e -> onBalanceInsufficient e
+        BalanceInsufficient e ->
+            onBalanceInsufficient e
+        SelectionInsufficient e ->
+            onSelectionInsufficient e
 
     onBalanceInsufficient e = do
         monitor $ counterexample $ unlines
@@ -340,8 +367,43 @@ prop_performSelection (Blind criteria) =
       where
         BalanceInsufficientError errorBalanceAvailable errorBalanceRequired = e
 
+    onSelectionInsufficient e = do
+        monitor $ counterexample $ unlines
+            [ "required balance:"
+            , pretty (TokenBundle.Nested errorBalanceRequired)
+            , "selected balance:"
+            , pretty (TokenBundle.Nested errorBalanceSelected)
+            ]
+        assert $ selectionLimit ==
+            MaximumInputLimit (length errorInputsSelected)
+        assert $ not (errorBalanceRequired `leq` errorBalanceSelected)
+        assert $ balanceRequired == errorBalanceRequired
+      where
+        SelectionInsufficientError
+            errorBalanceRequired errorInputsSelected = e
+        errorBalanceSelected =
+            F.foldMap (view #tokens . snd) errorInputsSelected
+
     balanceRequired = F.foldMap (view #tokens) outputsToCover
     balanceAvailable = UTxOIndex.balance utxoAvailable
+
+    selectionLimited :: Bool
+    selectionLimited = case selectionLimit of
+        MaximumInputLimit _ -> True
+        NoLimit -> False
+
+    selectionUnlimited :: Bool
+    selectionUnlimited = not selectionLimited
+
+    selectionSufficient :: Either SelectionError SelectionResult -> Bool
+    selectionSufficient = \case
+        Right _ -> True
+        _ -> False
+
+    selectionInsufficient :: Either SelectionError SelectionResult -> Bool
+    selectionInsufficient = \case
+        Left (SelectionInsufficient _) -> True
+        _ -> False
 
 --------------------------------------------------------------------------------
 -- Running a selection (without making change)
@@ -351,7 +413,7 @@ prop_runSelection_UTxO_empty
     :: TokenBundle -> Property
 prop_runSelection_UTxO_empty balanceRequested = monadicIO $ do
     SelectionState {selected, leftover} <-
-        run $ runSelection UTxOIndex.empty balanceRequested
+        run $ runSelection NoLimit UTxOIndex.empty balanceRequested
     let balanceSelected = view #balance selected
     let balanceLeftover = view #balance leftover
     assert $ balanceSelected == TokenBundle.empty
@@ -361,7 +423,7 @@ prop_runSelection_UTxO_notEnough
     :: Small UTxOIndex -> Property
 prop_runSelection_UTxO_notEnough (Small index) = monadicIO $ do
     SelectionState {selected, leftover} <-
-        run $ runSelection index balanceRequested
+        run $ runSelection NoLimit index balanceRequested
     let balanceSelected = view #balance selected
     let balanceLeftover = view #balance leftover
     assert $ balanceSelected == balanceAvailable
@@ -374,7 +436,7 @@ prop_runSelection_UTxO_exactlyEnough
     :: Small UTxOIndex -> Property
 prop_runSelection_UTxO_exactlyEnough (Small index) = monadicIO $ do
     SelectionState {selected, leftover} <-
-        run $ runSelection index balanceRequested
+        run $ runSelection NoLimit index balanceRequested
     let balanceSelected = view #balance selected
     let balanceLeftover = view #balance leftover
     assert $ balanceSelected == balanceRequested
@@ -386,7 +448,7 @@ prop_runSelection_UTxO_moreThanEnough
     :: Small UTxOIndex -> Property
 prop_runSelection_UTxO_moreThanEnough (Small index) = monadicIO $ do
     SelectionState {selected, leftover} <-
-        run $ runSelection index balanceRequested
+        run $ runSelection NoLimit index balanceRequested
     let balanceSelected = view #balance selected
     let balanceLeftover = view #balance leftover
     monitor $ cover 80
@@ -411,7 +473,7 @@ prop_runSelection_UTxO_muchMoreThanEnough (Large index) =
     checkCoverage $
     monadicIO $ do
         SelectionState {selected, leftover} <-
-            run $ runSelection index balanceRequested
+            run $ runSelection NoLimit index balanceRequested
         let balanceSelected = view #balance selected
         let balanceLeftover = view #balance leftover
         monitor $ cover 80
