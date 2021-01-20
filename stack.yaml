@@ -10,6 +10,7 @@ packages:
 - lib/core-integration
 - lib/cli
 - lib/launcher
+- lib/numeric
 - lib/text-class
 - lib/test-utils
 - lib/shelley

@@ -9,6 +9,7 @@ packages:
   , lib/core-integration/
   , lib/cli/
   , lib/launcher/
+  , lib/numeric/
   , lib/text-class/
   , lib/test-utils/
   , lib/shelley/
@@ -142,6 +143,9 @@ source-repository-package
 
 allow-older: *
 allow-newer: *
+
+package cardano-numeric
+    ghc-options: -ddump-to-file -ddump-hi
 
 package cardano-wallet-core
     ghc-options: -ddump-to-file -ddump-hi

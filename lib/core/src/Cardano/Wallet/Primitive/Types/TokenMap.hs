@@ -49,6 +49,9 @@ module Cardano.Wallet.Primitive.Types.TokenMap
     , toFlatList
     , toNestedList
 
+    -- * Filtering
+    , filter
+
     -- * Arithmetic
     , add
     , subtract
@@ -80,7 +83,7 @@ module Cardano.Wallet.Primitive.Types.TokenMap
     ) where
 
 import Prelude hiding
-    ( subtract )
+    ( filter, subtract )
 
 import Algebra.PartialOrd
     ( PartialOrd (..) )
@@ -124,6 +127,7 @@ import Quiet
 import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as TokenQuantity
 import qualified Data.Aeson as Aeson
 import qualified Data.Foldable as F
+import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Map.Strict.NonEmptyMap as NEMap
@@ -459,6 +463,13 @@ toNestedList
     :: TokenMap -> [(TokenPolicyId, NonEmpty (TokenName, TokenQuantity))]
 toNestedList =
     fmap (fmap NEMap.toList) . Map.toList . unTokenMap
+
+--------------------------------------------------------------------------------
+-- Filtering
+--------------------------------------------------------------------------------
+
+filter :: (AssetId -> Bool) -> TokenMap -> TokenMap
+filter f = fromFlatList . L.filter (f . fst) . toFlatList
 
 --------------------------------------------------------------------------------
 -- Arithmetic
