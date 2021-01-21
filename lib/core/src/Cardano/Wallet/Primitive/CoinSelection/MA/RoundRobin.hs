@@ -307,7 +307,8 @@ performSelection minCoinValueFor costFor criteria
             NE.fromList insufficientMinCoinValues
 
     | otherwise = do
-        state <- runSelection selectionLimit extraCoinSource utxoAvailable balanceRequired
+        state <- runSelection
+            selectionLimit extraCoinSource utxoAvailable balanceRequired
         let balanceSelected = fullBalance (selected state) extraCoinSource
         if balanceRequired `leq` balanceSelected then do
             let predictedChange = predictChange (selected state)
@@ -442,7 +443,9 @@ performSelection minCoinValueFor costFor criteria
                 in
                     selectMatchingQuantity selectionLimit [WithAdaOnly] s
                     >>=
-                    maybe (pure selectionErr) (makeChangeRepeatedly changeSkeleton)
+                    maybe
+                        (pure selectionErr)
+                        (makeChangeRepeatedly changeSkeleton)
 
     invariantSelectAnyInputs =
         -- This should be impossible, as we have already determined
@@ -681,7 +684,8 @@ makeChange
         -- ^ Token bundles of original outputs.
     -> Either UnableToConstructChangeError (NonEmpty TokenBundle)
         -- ^ Generated change bundles.
-makeChange minCoinValueFor requiredCost mExtraCoinSource inputBundles outputBundles
+makeChange
+    minCoinValueFor requiredCost mExtraCoinSource inputBundles outputBundles
     | not (totalOutputValue `leq` totalInputValue) =
         totalInputValueInsufficient
     | TokenBundle.getCoin totalOutputValue == Coin 0 =
@@ -691,7 +695,8 @@ makeChange minCoinValueFor requiredCost mExtraCoinSource inputBundles outputBund
             -- that the total input value is greater than the total output
             -- value:
         let excess :: TokenBundle
-            excess = totalInputValue `TokenBundle.unsafeSubtract` totalOutputValue
+            excess =
+                totalInputValue `TokenBundle.unsafeSubtract` totalOutputValue
 
         let (excessCoin, excessAssets) = TokenBundle.toFlatList excess
 
@@ -713,10 +718,12 @@ makeChange minCoinValueFor requiredCost mExtraCoinSource inputBundles outputBund
         let change :: NonEmpty TokenMap
             change = NE.zipWith (<>) changeForKnownAssets changeForUnknownAssets
 
-        (bundles, remainder) <- maybe (Left $ changeError excessCoin change) Right $
-            excessCoin `subtractCoin` requiredCost
-            >>=
-            runStateT (sequence (StateT . assignCoin minCoinValueFor <$> change))
+        (bundles, remainder) <-
+            maybe (Left $ changeError excessCoin change) Right $
+                excessCoin `subtractCoin` requiredCost
+                >>=
+                runStateT
+                    (sequence (StateT . assignCoin minCoinValueFor <$> change))
 
         let changeForCoins :: NonEmpty TokenBundle
             changeForCoins = TokenBundle.fromCoin

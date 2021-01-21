@@ -350,10 +350,11 @@ prop_prepareOutputsWith_preparedOrExistedBefore minCoinValueDef outs =
     outs' = prepareOutputsWith minCoinValueFor outs
 
     isPreparedOrExistedBefore :: (TxOut, TxOut) -> Bool
-    isPreparedOrExistedBefore (before, after) =
-        if txOutCoin before /= Coin 0
-        then txOutCoin after == txOutCoin before
-        else txOutCoin after == minCoinValueFor (view (#tokens . #tokens) before)
+    isPreparedOrExistedBefore (before, after)
+        | txOutCoin before /= Coin 0 =
+            txOutCoin after == txOutCoin before
+        | otherwise =
+            txOutCoin after == minCoinValueFor (view (#tokens . #tokens) before)
 
 --------------------------------------------------------------------------------
 -- Performing a selection
@@ -379,9 +380,11 @@ genSelectionCriteria genUTxOIndex = do
         { outputsToCover, utxoAvailable, extraCoinSource, selectionLimit }
 
 balanceSufficient :: SelectionCriteria -> Bool
-balanceSufficient SelectionCriteria{outputsToCover,utxoAvailable,extraCoinSource} =
+balanceSufficient criteria =
     balanceRequired `leq` balanceAvailable
   where
+    SelectionCriteria {outputsToCover, utxoAvailable, extraCoinSource}
+        = criteria
     balanceRequired = F.foldMap (view #tokens) outputsToCover
     balanceAvailable = fullBalance utxoAvailable extraCoinSource
 
@@ -623,7 +626,7 @@ prop_runSelection_UTxO_exactlyEnough extraSource (Small index) = monadicIO $ do
   where
     balanceRequested = case extraSource of
         Nothing -> view #balance index
-        Just c  -> TokenBundle.add (view #balance index) (TokenBundle.fromCoin c)
+        Just c -> TokenBundle.add (view #balance index) (TokenBundle.fromCoin c)
 
 prop_runSelection_UTxO_moreThanEnough
     :: Maybe Coin
@@ -678,8 +681,10 @@ prop_runSelection_UTxO_muchMoreThanEnough extraSource (Blind (Large index)) =
             , "balance selected:  " <> show balanceSelected
             , "balance leftover:  " <> show balanceLeftover
             ]
-        assert $ balanceRequested `leq` addExtraSource extraSource balanceSelected
-        assert $ balanceAvailable == balanceSelected <> balanceLeftover
+        assert $
+            balanceRequested `leq` addExtraSource extraSource balanceSelected
+        assert $
+            balanceAvailable == balanceSelected <> balanceLeftover
   where
     assetsAvailable = TokenBundle.getAssets balanceAvailable
     assetsRequested = TokenBundle.getAssets balanceRequested
