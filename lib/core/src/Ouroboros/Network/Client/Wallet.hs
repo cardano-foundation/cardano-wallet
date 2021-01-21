@@ -491,7 +491,7 @@ localStateQuery queue =
         :: m (LSQ.ClientStIdle block (Point block) (Query block) m Void)
     clientStIdle = awaitNextCmd <&> \case
         CmdQueryLocalState pt query respond ->
-            LSQ.SendMsgAcquire pt (clientStAcquiring query respond)
+            LSQ.SendMsgAcquire (Just pt) (clientStAcquiring query respond)
 
     clientStAcquiring
         :: forall state. Query block state
@@ -517,7 +517,7 @@ localStateQuery queue =
         :: m (LSQ.ClientStAcquired block (Point block) (Query block) m Void)
     clientStAcquiredAgain = awaitNextCmd <&> \case
         CmdQueryLocalState pt query respond ->
-            LSQ.SendMsgReAcquire pt (clientStAcquiring query respond)
+            LSQ.SendMsgReAcquire (Just pt) (clientStAcquiring query respond)
 
     clientStQuerying
         :: forall state. (LocalStateQueryResult state -> m ())
