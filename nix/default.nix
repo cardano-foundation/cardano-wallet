@@ -13,7 +13,15 @@ let
   sources = import ./sources.nix { inherit pkgs; }
     // sourcesOverride;
   iohkNixMain = import sources.iohk-nix {};
-  haskellNix = (import sources."haskell.nix" { inherit system sourcesOverride; }).nixpkgsArgs;
+  haskellNix = (import sources."haskell.nix" {
+    inherit system;
+    # if niv sources hackage or stackage are present, pass them
+    # through to Haskell.nix.
+    sourcesOverride =
+      (if builtins.hasAttr "hackage" sources then { inherit (sources) hackage; } else {}) //
+      (if builtins.hasAttr "stackage" sources then { inherit (sources) stackage; } else {})
+      // sourcesOverride;
+  }).nixpkgsArgs;
   # use our own nixpkgs if it exists in our sources,
   # otherwise use iohkNix default nixpkgs.
   nixpkgs = if (sources ? nixpkgs)
