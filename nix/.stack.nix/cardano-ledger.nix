@@ -77,8 +77,6 @@
             (hsPkgs."cardano-prelude-test" or (errorHandler.buildDepError "cardano-prelude-test"))
             (hsPkgs."cborg" or (errorHandler.buildDepError "cborg"))
             (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
-            (hsPkgs."contra-tracer" or (errorHandler.buildDepError "contra-tracer"))
-            (hsPkgs."cryptonite" or (errorHandler.buildDepError "cryptonite"))
             (hsPkgs."byron-spec-chain" or (errorHandler.buildDepError "byron-spec-chain"))
             (hsPkgs."byron-spec-ledger" or (errorHandler.buildDepError "byron-spec-ledger"))
             (hsPkgs."directory" or (errorHandler.buildDepError "directory"))
@@ -87,8 +85,6 @@
             (hsPkgs."generic-monoid" or (errorHandler.buildDepError "generic-monoid"))
             (hsPkgs."hedgehog" or (errorHandler.buildDepError "hedgehog"))
             (hsPkgs."microlens" or (errorHandler.buildDepError "microlens"))
-            (hsPkgs."mtl" or (errorHandler.buildDepError "mtl"))
-            (hsPkgs."optparse-applicative" or (errorHandler.buildDepError "optparse-applicative"))
             (hsPkgs."resourcet" or (errorHandler.buildDepError "resourcet"))
             (hsPkgs."small-steps" or (errorHandler.buildDepError "small-steps"))
             (hsPkgs."small-steps-test" or (errorHandler.buildDepError "small-steps-test"))
@@ -107,18 +103,12 @@
             (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
             (hsPkgs."cardano-binary" or (errorHandler.buildDepError "cardano-binary"))
             (hsPkgs."cardano-ledger" or (errorHandler.buildDepError "cardano-ledger"))
-            (hsPkgs."cardano-crypto-test" or (errorHandler.buildDepError "cardano-crypto-test"))
             (hsPkgs."cardano-crypto-wrapper" or (errorHandler.buildDepError "cardano-crypto-wrapper"))
             (hsPkgs."cardano-prelude" or (errorHandler.buildDepError "cardano-prelude"))
             (hsPkgs."cardano-prelude-test" or (errorHandler.buildDepError "cardano-prelude-test"))
-            (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
-            (hsPkgs."contra-tracer" or (errorHandler.buildDepError "contra-tracer"))
             (hsPkgs."directory" or (errorHandler.buildDepError "directory"))
             (hsPkgs."filepath" or (errorHandler.buildDepError "filepath"))
-            (hsPkgs."formatting" or (errorHandler.buildDepError "formatting"))
             (hsPkgs."hedgehog" or (errorHandler.buildDepError "hedgehog"))
-            (hsPkgs."nothunks" or (errorHandler.buildDepError "nothunks"))
-            (hsPkgs."optparse-applicative" or (errorHandler.buildDepError "optparse-applicative"))
             (hsPkgs."resourcet" or (errorHandler.buildDepError "resourcet"))
             (hsPkgs."silently" or (errorHandler.buildDepError "silently"))
             (hsPkgs."streaming" or (errorHandler.buildDepError "streaming"))
@@ -132,8 +122,8 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/cardano-ledger-specs";
-      rev = "a638b9fa854fced8b8165631885268e3814f2d90";
-      sha256 = "0jfdiha2xjjvqqi3dy410whzjiyhs3vxyic423ddlpbi1pdr3xdd";
+      rev = "097890495cbb0e8b62106bcd090a5721c3f4b36f";
+      sha256 = "0i3y9n0rsyarvhfqzzzjccqnjgwb9fbmbs6b7vj40afjhimf5hcj";
       });
     postUnpack = "sourceRoot+=/byron/ledger/impl; echo source root reset to \$sourceRoot";
     }

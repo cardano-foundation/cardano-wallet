@@ -62,6 +62,7 @@
         "moo" = (((hackage.moo)."1.2").revisions).default;
         "network" = (((hackage.network)."3.1.2.1").revisions).default;
         "partial-order" = (((hackage.partial-order)."0.2.0.0").revisions).default;
+        "prettyprinter" = (((hackage.prettyprinter)."1.7.0").revisions).default;
         "primitive" = (((hackage.primitive)."0.7.1.0").revisions).default;
         "prometheus" = (((hackage.prometheus)."2.1.2").revisions).default;
         "protolude" = (((hackage.protolude)."0.3.0").revisions).default;
