@@ -37,7 +37,7 @@ module Cardano.Wallet.Primitive.Types.Tx
     , txIns
     , txMetadataIsNull
     , txOutCoin
-
+    , txOutIsCoin
     ) where
 
 import Prelude
@@ -212,6 +212,11 @@ data TxOut = TxOut
 --
 txOutCoin :: TxOut -> Coin
 txOutCoin = TokenBundle.getCoin . view #tokens
+
+-- | Check whether a given TxOut is "ada-only", that is, it doesn't contain any
+-- native assets.
+txOutIsCoin :: TxOut -> Bool
+txOutIsCoin = TokenBundle.isCoin . view #tokens
 
 -- Since the 'TokenBundle' type deliberately does not provide an 'Ord' instance
 -- (as that would lead to arithmetically invalid orderings), this means we can't
