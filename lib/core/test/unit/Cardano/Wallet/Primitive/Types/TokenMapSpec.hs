@@ -327,8 +327,7 @@ prop_toNestedList_fromNestedList b =
 -- Filtering properties
 --------------------------------------------------------------------------------
 
--- | Verify that all 'AssetId' on the resulting filtered map do validate the
--- predicate.
+-- | Verify that all assets in the resulting filtered map satisfy the predicate.
 prop_filter_conjoin :: Fun AssetIdF Bool -> TokenMap -> Property
 prop_filter_conjoin f b =
     let

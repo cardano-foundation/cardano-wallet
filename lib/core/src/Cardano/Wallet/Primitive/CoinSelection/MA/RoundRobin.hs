@@ -125,20 +125,28 @@ import qualified Data.Set as Set
 data SelectionCriteria = SelectionCriteria
     { outputsToCover
         :: !(NonEmpty TxOut)
+        -- ^ The complete set of outputs to be covered.
     , utxoAvailable
         :: !UTxOIndex
+        -- ^ A UTxO set from which inputs can be selected.
     , selectionLimit
         :: !SelectionLimit
+        -- ^ Specifies a limit to be adhered to when performing selection.
     , extraCoinSource
         :: !(Maybe Coin)
+        -- ^ An optional extra source of ada.
     }
     deriving (Eq, Show)
 
--- | An almost complete selection, which can be used to estimate the cost of a
--- final selection. Changes outputs are purposely stripped from any quantities
--- because the fee estimation must be agnostic to the value of each change
--- output. Increasing or decreasing a particular change quantity must not change
--- the estimation.
+-- | A skeleton selection that can be used to estimate the cost of a final
+--   selection.
+--
+-- Change outputs are deliberately stripped of their asset quantities, as the
+-- fee estimation function must be agnostic to the magnitudes of these
+-- quantities.
+--
+-- Increasing or decreasing the quantity of a particular asset in a change
+-- output must not change the estimated cost of a selection.
 --
 data SelectionSkeleton = SelectionSkeleton
     { inputsSkeleton
@@ -151,6 +159,7 @@ data SelectionSkeleton = SelectionSkeleton
     deriving (Eq, Show)
 
 -- | Specifies a limit to adhere to when performing a selection.
+--
 data SelectionLimit
     = NoLimit
       -- ^ Indicates that there is no limit.
@@ -163,13 +172,14 @@ data SelectionLimit
 data SelectionResult = SelectionResult
     { inputsSelected
         :: !(NonEmpty (TxIn, TxOut))
-        -- ^ A (non-empty) list of selected inputs from the wallet's UTxO.
+        -- ^ A (non-empty) list of inputs selected from 'utxoAvailable'.
     , changeGenerated
         :: !(NonEmpty TokenBundle)
         -- ^ A (non-empty) list of generated change outputs.
     , utxoRemaining
         :: !UTxOIndex
-        -- ^ UTxO remaining after performing a requested selection.
+        -- ^ The subset of 'utxoAvailable' that remains after performing
+        -- the selection.
     }
     deriving (Eq, Show)
 
@@ -211,35 +221,41 @@ data BalanceInsufficientError = BalanceInsufficientError
       -- ^ The balance of 'outputsToCover'.
     } deriving (Generic, Eq, Show)
 
--- | Indicates that some of the specified outputs aren't valid and do not
--- contain the minimum coin value expected by the protocol.
+-- | Indicates that a particular output does not have the minimum coin quantity
+--   expected by the protocol.
 --
 -- See also: 'prepareOutputs'.
+--
 data InsufficientMinCoinValueError = InsufficientMinCoinValueError
     { insufficientlyCoveredOutput
         :: !TxOut
-        -- ^ The invalid output which doesn't have a high enough coin value.
+        -- ^ The particular output that does not have the minimum coin quantity
+        -- expected by the protocol.
     , expectedMinCoinValue
         :: !Coin
-        -- ^ The minimum coin value expected for this output.
+        -- ^ The minimum coin quantity expected for this output.
     } deriving (Generic, Eq, Show)
 
 newtype UnableToConstructChangeError = UnableToConstructChangeError
     { missingCoins
         :: Coin
-        -- ^ The coin quantity missing to cover the selection cost and minimum
-        -- coin values in change outputs.
+        -- ^ The additional coin quantity that would be required to cover the
+        -- selection cost and minimum coin quantity of each change output.
     } deriving (Generic, Eq, Show)
 
--- | Prepare a set of outputs requested by users into valid Cardano outputs.
--- That is, any output in Cardano needs to hold a minimum coin quantity (to
--- prevent a certain kind of attack flooding the network with worthless UTxOs).
+-- | Transforms a set of outputs (provided by users) into valid Cardano outputs.
 --
--- However, users do not typically specify a minimum ada value themselves.
--- One would rather send '10 Apple' and not '10 Apple & 1.2 Ada'. Therefore,
--- unless a coin value is explicitly specified, we assign a coin value manually
--- for each non-ada output. That value is the minimum value possible to make a
--- particular output valid.
+-- Every output in Cardano needs to have a minimum quantity of ada, in order to
+-- prevent attacks that flood the network with worthless UTxOs.
+--
+-- However, we do not require users to specify the minimum ada quantity
+-- themselves. Most users would prefer to send '10 Apple' rather than
+-- '10 Apple & 1.2 Ada'.
+--
+-- Therefore, unless a coin quantity is explicitly specified, we assign a coin
+-- quantity manually for each non-ada output. That quantity is the minimum
+-- quantity required to make a particular output valid.
+--
 prepareOutputsWith
     :: (TokenMap -> Coin)
     -> NonEmpty TxOut
@@ -272,14 +288,14 @@ prepareOutputsWith minCoinValueFor = fmap $ \out ->
 performSelection
     :: forall m. (HasCallStack, MonadRandom m)
     => (TokenMap -> Coin)
-        -- ^ A function which computes the minimum required ada quantity for a
-        -- particular output.
+        -- ^ A function that computes the minimum ada quantity required by the
+        -- protocol for a particular output.
     -> (SelectionSkeleton -> Coin)
-        -- ^ A function which computes the extra cost corresponding to a given
-        -- selection. This function must not depend on the value of each change
-        -- output.
+        -- ^ A function that computes the extra cost corresponding to a given
+        -- selection. This function must not depend on the magnitudes of
+        -- individual asset quantities held within each change output.
     -> SelectionCriteria
-        -- ^ The selection goal we're trying to satify.
+        -- ^ The selection goal to satisfy.
     -> m (Either SelectionError SelectionResult)
 performSelection minCoinValueFor costFor criteria
     | not (balanceRequired `leq` balanceAvailable) =
@@ -336,31 +352,33 @@ performSelection minCoinValueFor costFor criteria
           where
             expectedMinCoinValue = minCoinValueFor (view (#tokens . #tokens) o)
 
+    -- Given a UTxO index that corresponds to a valid selection covering
+    -- 'outputsToCover', 'predictChange' yields a non-empty list of assets
+    -- expected for change outputs.
+    --
     -- There's a chicken-and-egg situation when it comes to calculating
-    -- transaction fees. On the one hand, we need to know the shape of the final
-    -- transaction to calculate its cost. But in order to construct the
+    -- transaction fees. On the one hand, we need to know the shape of the
+    -- final transaction to calculate its cost. But in order to construct the
     -- transaction, we need to know what its cost is.
     --
     -- So, in order to not duplicate the logic from 'makeChange', we first
     -- calculate a pre-selection considering the case where we have no fees to
-    -- pay, and no minimum value. This is *guaranteed to succeed* and to yield
-    -- a selection with change outputs in the final shape (modulo amounts).
+    -- pay, and no minimum value. This is *guaranteed to succeed* and will
+    -- yield a selection with change outputs in the final shape (modulo
+    -- amounts).
     --
-    -- Said differently, given a UTxO index which corresponds to a valid
-    -- selection covering 'outputsToCover', 'predictChange' will yield a
-    -- NonEmpty list of assets expected for change outputs. In particular, if we
-    -- call 'predictedChange' the result of calling 'predictChange' with a valid
-    -- input selection, we have:
+    -- The result of calling 'predictChange' with a valid input selection
+    -- should satisfy:
     --
     --     length predictedChange === length outputsToCover
     --
     --     flat predictChange `isSubsetOf` assets selectedInputs
     --
-    --     ∃criteria. / isRight (performSelection criteria) =>
+    --     ∃ criteria. / isRight (performSelection criteria) =>
     --         Right predictedChange === assets <$> performSelection criteria
     --
     --     (That is, the predicted change is necessarily equal to the change
-    --     assets on the final resulting selection).
+    --     assets of the final resulting selection).
     --
     predictChange
         :: UTxOIndex
@@ -380,11 +398,16 @@ performSelection minCoinValueFor costFor criteria
         noCost :: Coin
         noCost = Coin 0
 
-    -- | This function starts from an initial pre-selection as a way to evaluate
-    -- the cost of a final selection, and then calls 'makeChange' repeatedly until
-    -- it succeeds. Between each call, it selects an extra ada-only input to
-    -- inject additional ada to construct change outputs. Eventually it returns
-    -- just a final selection, or nothing if it runs out of ada-only inputs.
+    -- This function takes the given selection skeleton as a way to evaluate
+    -- the cost of a final selection, and then calls 'makeChange' repeatedly
+    -- until it succeeds.
+    --
+    -- Between each call, it selects an extra ada-only input to inject
+    -- additional ada to construct change outputs.
+    --
+    -- Eventually it returns just a final selection, or 'Nothing' if no more
+    -- ada-only inputs are available.
+    --
     makeChangeRepeatedly
         :: NonEmpty (Set AssetId)
         -> SelectionState
@@ -433,10 +456,10 @@ performSelection minCoinValueFor costFor criteria
             ]
 
     invariantResultWithNoCost inputs_ = error $ unlines
-        -- This should be impossible, as the 'makeChange' function should always
-        -- succeed if there's no extra cost or minimum value to assign because
-        -- it is fed with the result of 'runSelection' which only terminates
-        -- successfully when the target was satisfied.
+        -- This should be impossible, as the 'makeChange' function should
+        -- always succeed if there's no extra cost or minimum value to assign.
+        -- This is because it is called with the result of 'runSelection',
+        -- which only terminates successfully if the target was satisfied.
         [ "performSelection: couldn't construct change for a selection with no "
         , "minimum coin value and no cost!"
         , "inputs: " <> show inputs_
@@ -464,11 +487,11 @@ runSelection
         -- ^ An extra source of ada, which can only be used after at least one
         -- input has been selected.
     -> UTxOIndex
-        -- ^ UTxO entries available for selection
+        -- ^ UTxO entries available for selection.
     -> TokenBundle
-        -- ^ Minimum balance to cover
+        -- ^ Minimum balance to cover.
     -> m SelectionState
-        -- ^ Final selection state
+        -- ^ Final selection state.
 runSelection limit mExtraCoinSource available minimumBalance =
     runRoundRobinM initialState selectors
   where
@@ -507,15 +530,34 @@ runSelection limit mExtraCoinSource available minimumBalance =
             ]
         }
 
+-- | Selects a UTxO entry that matches one of the specified filters.
+--
+-- This function traverses the specified list of filters from left to right, in
+-- descending order of priority.
+--
+-- When considering a particular filter:
+--
+--    - if the function is able to select a UTxO entry that matches, it
+--      terminates with an updated selection state that includes the entry.
+--
+--    - if the function is not able to select a UTxO entry that matches, it
+--      traverses to the next filter available.
+--
+-- This function returns 'Nothing' if (and only if) it traverses the entire
+-- list of filters without successfully selecting a UTxO entry.
+--
 selectMatchingQuantity
     :: MonadRandom m
     => SelectionLimit
+        -- ^ A limit to adhere to when selecting entries.
     -> [SelectionFilter]
-        -- A list of selection filters, traversed from left to right if the
-        -- previous filter failed. This allows for giving some filters
-        -- priorities over others.
+        -- ^ A list of selection filters to be traversed from left-to-right,
+        -- in descending order of priority.
     -> SelectionState
+        -- ^ The current selection state.
     -> m (Maybe SelectionState)
+        -- ^ An updated selection state that includes a matching UTxO entry,
+        -- or 'Nothing' if no such entry could be found.
 selectMatchingQuantity _       []  _ = pure Nothing
 selectMatchingQuantity limit (h:q) s
     | limitReached =
@@ -538,6 +580,11 @@ selectMatchingQuantity limit (h:q) s
 -- Running a selection step
 --------------------------------------------------------------------------------
 
+-- | Provides a lens on the current selection state.
+--
+-- A 'SelectionLens' gives 'runSelectionStep' just the information it needs to
+-- make a decision, and no more.
+--
 data SelectionLens m state = SelectionLens
     { currentQuantity
         :: state -> Natural
@@ -547,6 +594,23 @@ data SelectionLens m state = SelectionLens
         :: Natural
     }
 
+-- | Runs just a single step of a coin selection.
+--
+-- It returns an updated state if (and only if) the updated selection
+-- represents an improvement over the selection in the previous state.
+--
+-- An improvement, for a given token quantity, is defined in the following way:
+--
+--    - If the total selected token quantity of the previous selection had
+--      not yet reached 100% of the output token quantity, any additional
+--      selection is considered to be an improvement.
+--
+--    - If the total selected token quantity of the previous selection had
+--      already reached or surpassed 100% of the output token quantity, any
+--      additional selection is considered to be an improvement if and only
+--      if it takens the total selected token quantity closer to 200% of the
+--      output token quantity, but not further away.
+--
 runSelectionStep
     :: forall m state. Monad m
     => SelectionLens m state
@@ -575,19 +639,28 @@ runSelectionStep lens s
 -- Making change
 --------------------------------------------------------------------------------
 
--- | Calculate change bundles from a set of selected inputs and outputs. Returns
--- 'Nothing' if there are not enough ada inputs to satisfy minimum delta and
--- minimum values in each token bundle. However, generate runtime errors if:
+-- | Constructs change bundles for a set of selected inputs and outputs.
 --
--- 1. The total input value is lesser than the total output value
--- 2. The total output value is null
+-- Returns 'Nothing' if the specified inputs do not provide enough ada to
+-- satisfy the minimum delta and minimum ada quantities of the change bundles
+-- generated.
 --
--- The pre-condition (1) should be satisfied by any result coming from
--- `runSelection`. The pre-condition (2) is a undirect consequence of assigning
--- a minimum UTxO value to every output token bundle.
+-- This function will generate runtime errors if:
+--
+--    1.  The total balance of all outputs is not less than or equal to the
+--        total balance of all inputs.
+--
+--    2.  The total ada balance of all outputs is zero.
+--
+-- Pre-condition (1) should be satisfied by any result produced by the
+-- 'runSelection' function.
+--
+-- Pre-condition (2) should be satisfied by assigning a minimum ada quantity
+-- to every output token bundle.
+--
 makeChange
     :: (TokenMap -> Coin)
-        -- A function which computes the minimum required Ada coins for a
+        -- A function that computes the minimum required ada quantity for a
         -- particular output.
     -> Coin
         -- ^ The minimal (and optimal) delta between the total ada balance
@@ -601,13 +674,13 @@ makeChange
         -- This typically captures fees plus key deposits.
         --
     -> Maybe Coin
-        -- ^ An extra source of Ada, if any.
+        -- ^ An optional extra source of ada.
     -> NonEmpty TokenBundle
-        -- ^ Token bundles of selected inputs
+        -- ^ Token bundles of selected inputs.
     -> NonEmpty TokenBundle
-        -- ^ Token bundles of original outputs
+        -- ^ Token bundles of original outputs.
     -> Either UnableToConstructChangeError (NonEmpty TokenBundle)
-        -- ^ Change bundles.
+        -- ^ Generated change bundles.
 makeChange minCoinValueFor requiredCost mExtraCoinSource inputBundles outputBundles
     | not (totalOutputValue `leq` totalInputValue) =
         totalInputValueInsufficient
@@ -615,7 +688,8 @@ makeChange minCoinValueFor requiredCost mExtraCoinSource inputBundles outputBund
         totalOutputCoinValueIsZero
     | otherwise = do
             -- The following subtraction is safe, as we have already checked
-            -- that the total input value is greater than the total output value
+            -- that the total input value is greater than the total output
+            -- value:
         let excess :: TokenBundle
             excess = totalInputValue `TokenBundle.unsafeSubtract` totalOutputValue
 
@@ -702,22 +776,25 @@ makeChange minCoinValueFor requiredCost mExtraCoinSource inputBundles outputBund
             ((`Set.notMember` knownAssetIds) . fst)
             (TokenMap.toFlatList tokens)
 
--- | Construct change outputs for known assets based on a distribution given as
--- input. If the provided 'AssetId' figures nowhere in the given distribution,
--- then a list of empty token maps is returned. Otherwise, the given
--- 'TokenQuantity' is distributed in a list proportionally to the input
--- distribution.
+-- | Constructs change outputs for an asset that was present in the original
+--   set of outputs, based on the given weight distribution.
 --
--- The output list has always the same size as the input list, and the sum of
--- its values is either zero, or exactly the 'TokenQuantity' given as 2nd
--- argument.
+-- If the given asset does not appear in the given distribution, this function
+-- returns a list of empty token maps. Otherwise, the given token quantity is
+-- partitioned into a list of quantities that are proportional to the weights
+-- within the given input distribution, modulo rounding.
+--
+-- The length of the output list is always the same as the the length of the
+-- input list, and the sum of its quantities is either zero, or exactly equal
+-- to the token quantity in the second argument.
+--
 makeChangeForKnownAsset
     :: NonEmpty TokenMap
         -- ^ A list of weights for the distribution. Conveniently captures both
-        -- the weights, and the number of elements amongst which the surplus
+        -- the weights, and the number of elements amongst which the quantity
         -- should be distributed.
     -> (AssetId, TokenQuantity)
-        -- ^ A surplus token to distribute
+        -- ^ A surplus token quantity to distribute.
     -> NonEmpty TokenMap
 makeChangeForKnownAsset targets (asset, TokenQuantity excess) =
     let
@@ -734,40 +811,47 @@ makeChangeForKnownAsset targets (asset, TokenQuantity excess) =
     zeros :: NonEmpty Natural
     zeros = 0 :| replicate (length targets - 1) 0
 
--- | Construct a list of change outputs based by preserving as much as
--- possible the input distribution. Note that only the length of the first
+-- | Constructs change outputs for an asset that was not present in the original
+--   set of outputs.
+--
+-- This function constructs a list of change outputs by preserving the input
+-- distribution as much as possible. Note that only the length of the first
 -- argument is used.
 --
--- The output list has always the same size as the input list, and the sum of
--- its values is always exactly the sum of all 'TokenQuantity' given as 2nd
--- argument.
+-- The length of the output list is always the same as the length of the input
+-- list, and the sum of its quantities is always exactly equal to the sum of
+-- all token quantities given in the second argument.
+--
 makeChangeForUnknownAsset
     :: NonEmpty TokenMap
         -- ^ A list of weights for the distribution. The list is only used for
         -- its number of elements.
     -> (AssetId, NonEmpty TokenQuantity)
-        -- ^ An asset to distribute
+        -- ^ An asset quantity to distribute.
     -> NonEmpty TokenMap
 makeChangeForUnknownAsset n (asset, quantities) =
     TokenMap.singleton asset <$> padCoalesce quantities n
 
--- | Construct a list of coin change outputs based on a distribution given as
--- first input. If the input distribution is filled with 0, this function throws
--- a runtime error.
+-- | Constructs a list of ada change outputs based on the given distribution.
 --
--- The output list has always the same size as the input list, and the sum of
--- its values is always exactly equal to the 'Coin' value given as 2nd argument.
+-- If the sum of weights in given distribution is equal to zero, this function
+-- throws a runtime error.
+--
+-- The length of the output list is always the same as the length of the input
+-- list, and the sum of its quantities is always exactly equal to the 'Coin'
+-- value given as the second argument.
+--
 makeChangeForCoin
     :: HasCallStack
     => NonEmpty Coin
         -- ^ A list of weights for the distribution. Conveniently captures both
         -- the weights, and the number of elements amongst which the surplus
-        -- should be distributed.
+        -- ada quantity should be distributed.
     -> Coin
-        -- ^ A surplus Ada value which needs to be distributed
+        -- ^ A surplus ada quantity to be distributed.
     -> NonEmpty Coin
 makeChangeForCoin targets excess =
-    -- The Natural -> Coin conversion is safe, because 'partitionNatural'
+    -- The 'Natural -> Coin' conversion is safe, because 'partitionNatural'
     -- guarantees to produce a list where every entry is less than or equal to
     -- the target value.
     maybe zeroWeightSum (fmap unsafeNaturalToCoin)
@@ -780,10 +864,15 @@ makeChangeForCoin targets excess =
     weights :: NonEmpty Natural
     weights = coinToNatural <$> targets
 
--- Create a 'TokenBundle' from a 'TokenMap' by assigning it a minimum required
--- Ada value from a coin source. Returns 'Nothing' if there's not enough 'Coin'
--- to cover the minimum amount, and return a 'TokenBundle' and the remainder
--- coins otherwise.
+-- | Creates a 'TokenBundle' from a 'TokenMap' by assigning it the minimum
+--   ada quantity required by the protocol, using the given 'Coin' as a source
+--   of ada.
+--
+-- Returns both the constructed 'TokenBundle' and the leftover 'Coin' quantity.
+--
+-- Returns 'Nothing' if the given source of ada is not enough to safisfy the
+-- minimum quantity required by the protocol.
+--
 assignCoin
     :: (TokenMap -> Coin)
     -> TokenMap

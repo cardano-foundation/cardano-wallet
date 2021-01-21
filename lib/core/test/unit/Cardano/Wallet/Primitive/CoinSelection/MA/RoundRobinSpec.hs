@@ -806,10 +806,13 @@ mkMinCoinValueFor = \case
     NoMinCoin -> noMinCoin
     LinearMinCoin -> linearMinCoin
 
--- | A dummy function for calculating the minimum Ada value to pay for a
--- TokenMap. The only property we want this function to have is that is becomes
--- more expensive with the number of tokens (types) in the map. So, looking at
--- the size of the asset set is enough.
+-- | A dummy function for calculating the minimum ada quantity to pay for a
+--   token map.
+--
+-- The only property we want this function to have is that is becomes more
+-- expensive with the number of unique assets in the map. So, looking at the
+-- size of the asset set is enough.
+--
 linearMinCoin :: TokenMap -> Coin
 linearMinCoin m =
     Coin (1 + fromIntegral (Set.size (TokenMap.getAssets m)))
@@ -920,12 +923,12 @@ prop_makeChange p =
             , prop_makeChange_success_minValueRespected p change
             ] & label "success"
 
--- Check that on successful calls to `makeChange`, the difference between input
--- and all outputs with change is exactly equal to the required cost of the
--- transaction. This property expects the second argument to be the result to
--- `makeChange` with `p` as argument.
+-- Checks that on successful calls to 'makeChange', the difference between all
+-- inputs and all outputs with change is exactly equal to the required cost of
+-- the transaction. This property expects the second argument to be the result
+-- to 'makeChange' with 'p' as argument.
 --
--- See also `prop_makeChange` as a top-level property driver.
+-- See also 'prop_makeChange' as a top-level property driver.
 prop_makeChange_success_delta
     :: MakeChangeData
     -> NonEmpty TokenBundle
@@ -958,8 +961,8 @@ prop_makeChange_success_delta p change =
     totalOutputCoin =
         TokenBundle.getCoin totalOutputValue
 
--- Check that on a successful result of 'makeChange', all change outputs
--- generated satisfy the min coin value set as input.
+-- Checks that after a successful call to 'makeChange', all generated change
+-- outputs satisfy the minimum required coin quantity provided.
 --
 -- See also `prop_makeChange` as a top-level property driver.
 prop_makeChange_success_minValueRespected
@@ -982,8 +985,8 @@ prop_makeChange_success_minValueRespected p =
                 & counterexample ("minCoinValue: " <> pretty minCoinValue)
 
 -- The 'makeChange' function may fail when the required cost for a transaction
--- are too big. When this occurs, it means that the delta between input and
--- output (without change) is larger than the required cost.
+-- is too big. When this occurs, it means that the delta between inputs and
+-- outputs (without change) is larger than the required cost.
 --
 -- See also `prop_makeChange` as a top-level property driver.
 prop_makeChange_fail_costTooBig
@@ -1004,9 +1007,9 @@ prop_makeChange_fail_costTooBig p =
     totalOutputValue =
         F.fold $ outputBundles p
 
--- The 'makeChange' function may fail when there are not enough coins to assign
--- all required change output. Indeed, each output must satisfy a minimum UTxO
--- value, which is paid in Ada.
+-- The 'makeChange' function will fail if there is not enough ada to assign
+-- to all the generated change outputs. Indeed, each output must include a
+-- minimum quantity of ada.
 --
 -- See also `prop_makeChange` as a top-level property driver.
 prop_makeChange_fail_minValueTooBig
@@ -1017,10 +1020,10 @@ prop_makeChange_fail_minValueTooBig p =
         Left{} ->
             property False & counterexample "makeChange failed with no cost!"
         -- If 'makeChange' failed to generate change, we try to re-run it with
-        -- noCost and noMinValue requirement. The result _must_ be `Just`.
+        -- noCost and noMinValue requirement. The result _must_ be 'Just'.
         --
         -- From there, we can manually compute the total deposit needed for all
-        -- change generated and make sure that, there was indeed not enough
+        -- change generated and make sure that there was indeed not enough
         -- coins available to generate all change outputs.
         Right change ->
             let
@@ -1088,7 +1091,7 @@ unit_makeChangeForCoin =
         ]
 
 --------------------------------------------------------------------------------
--- Making change for unknown asset
+-- Making change for unknown assets
 --------------------------------------------------------------------------------
 
 prop_makeChangeForUnknownAsset_sum
@@ -1149,7 +1152,7 @@ unit_makeChangeForUnknownAsset =
     assetC = AssetId (UnsafeTokenPolicyId $ Hash "A") (UnsafeTokenName "2")
 
 --------------------------------------------------------------------------------
--- Making change for known asset
+-- Making change for known assets
 --------------------------------------------------------------------------------
 
 prop_makeChangeForKnownAsset_sum
