@@ -66,6 +66,7 @@ module Cardano.Wallet.Primitive.Types.TokenMap
     , hasQuantity
     , adjustQuantity
     , removeQuantity
+    , maximumQuantity
 
     -- * Policies
     , hasPolicy
@@ -577,6 +578,22 @@ adjustQuantity m asset adjust =
 --
 removeQuantity :: TokenMap -> AssetId -> TokenMap
 removeQuantity m asset = setQuantity m asset TokenQuantity.zero
+
+-- | Get the largest quantity from this map.
+--
+maximumQuantity :: TokenMap -> TokenQuantity
+maximumQuantity =
+    Map.foldl' (\a -> Map.foldr findMaximum a . NEMap.toMap) zero . unTokenMap
+  where
+    zero :: TokenQuantity
+    zero = TokenQuantity 0
+
+    findMaximum :: TokenQuantity -> TokenQuantity -> TokenQuantity
+    findMaximum challenger champion
+        | challenger > champion =
+            challenger
+        | otherwise =
+            champion
 
 --------------------------------------------------------------------------------
 -- Policies

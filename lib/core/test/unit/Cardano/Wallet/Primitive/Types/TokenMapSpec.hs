@@ -185,6 +185,8 @@ spec =
             property prop_adjustQuantity_getQuantity
         it "prop_adjustQuantity_hasQuantity" $
             property prop_adjustQuantity_hasQuantity
+        it "prop_maximumQuantity_all" $
+            property prop_maximumQuantity_all
 
     parallel $ describe "JSON serialization" $ do
 
@@ -421,6 +423,13 @@ prop_adjustQuantity_hasQuantity b asset =
     adjust quantity
         | quantity > TokenQuantity.zero = TokenQuantity.pred quantity
         | otherwise = quantity
+
+prop_maximumQuantity_all
+    :: TokenMap -> Property
+prop_maximumQuantity_all b =
+    property $ all (<= maxQ) (snd <$> TokenMap.toFlatList b)
+  where
+    maxQ = TokenMap.maximumQuantity b
 
 --------------------------------------------------------------------------------
 -- JSON serialization tests

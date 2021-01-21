@@ -756,8 +756,29 @@ makeChange
         totalMinCoinValue =
             F.sum $ (coinToNatural . minCoinValueFor) <$> change
 
+    -- Outputs tokens are ordered in such way that to the greatest extent
+    -- possible, small (resp. large) quantities of non user-defined change assets
+    -- will be merged with small (resp. large) quantities of user-defined change
+    -- assets.
+    --
+    -- There's no simple way to define a total order on 'TokenMap', so we opt
+    -- for the following approach:
+    --
+    --     - If there exists a partial order as defined in the TokenMap module,
+    --       we use it.
+    --
+    --     - Otherwise, we order them using the maximum quantity of one of their
+    --       assets.
+    --
+    -- Over time, this should tend to bundle small (resp. large) bundles together.
     outputTokens :: NonEmpty TokenMap
-    outputTokens = view #tokens <$> outputBundles
+    outputTokens = NE.sortBy totalOrder (view #tokens <$> outputBundles)
+      where
+        totalOrder m1 m2
+            | m1 `leq` m2 = LT
+            | otherwise   = compare
+                (TokenMap.maximumQuantity m1)
+                (TokenMap.maximumQuantity m2)
 
     outputCoins :: NonEmpty Coin
     outputCoins = view #coin <$> outputBundles

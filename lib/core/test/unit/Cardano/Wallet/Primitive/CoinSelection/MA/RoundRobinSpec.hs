@@ -98,7 +98,7 @@ import Data.Set
 import Data.Tuple
     ( swap )
 import Data.Word
-    ( Word8 )
+    ( Word64, Word8 )
 import Fmt
     ( blockListF, pretty )
 import Numeric.Natural
@@ -212,15 +212,20 @@ spec = describe "Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobinSpec" $
             property prop_makeChange_length
         it "prop_makeChange" $
             property prop_makeChange
+        unitTests "makeChange"
+            unit_makeChange
 
     parallel $ describe "Making change for coins" $ do
+
         it "prop_makeChangeForCoin_sum" $
             property prop_makeChangeForCoin_sum
         it "prop_makeChangeForCoin_length" $
             property prop_makeChangeForCoin_length
-        unitTests "makeChangeForCoin" unit_makeChangeForCoin
+        unitTests "makeChangeForCoin"
+            unit_makeChangeForCoin
 
     parallel $ describe "Making change for non user-defined assets" $ do
+
         it "prop_makeChangeForNonUserDefinedAsset_sum" $
             property prop_makeChangeForNonUserDefinedAsset_sum
         it "prop_makeChangeForNonUserDefinedAsset_length" $
@@ -229,6 +234,7 @@ spec = describe "Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobinSpec" $
             unit_makeChangeForNonUserDefinedAsset
 
     parallel $ describe "Making change for user-defined assets" $ do
+
         it "prop_makeChangeForUserDefinedAsset_sum" $
             property prop_makeChangeForUserDefinedAsset_sum
         it "prop_makeChangeForUserDefinedAsset_length" $
@@ -1059,6 +1065,52 @@ prop_makeChange_fail_minValueTooBig p =
         (maybe TokenBundle.empty TokenBundle.fromCoin (extraInputCoins p))
     totalOutputValue =
         F.fold $ outputBundles p
+
+unit_makeChange
+    :: [Expectation]
+unit_makeChange =
+    [ makeChange minCoinValueFor cost extraSource i o `shouldBe` expectation
+    | (minCoinValueFor, cost, extraSource, i, o, expectation) <- matrix
+    ]
+  where
+    matrix =
+        -- Simple, only ada, should construct a single change output with 1 ada.
+        [ ( noMinCoin, noCost
+          , Nothing
+          , b 2 [] :| []
+          , b 1 [] :| []
+          , Right $ b 1 [] :| []
+          )
+
+        -- Two outputs, no cost, changes are proportional, no extra assets
+        , ( noMinCoin, noCost
+          , Nothing
+          , b 9 [(assetA, 9), (assetB, 6)] :| []
+          , b 2 [(assetA, 1)] :| [b 1 [(assetA, 2), (assetB, 3)]]
+          , Right $ b 4 [(assetA, 2)] :| [b 2 [(assetA, 4), (assetB, 3)]]
+          )
+
+        -- Extra non user-specified assets. Large assets end up in 'large'
+        -- bundles and small extra assets in smaller bundles.
+        , ( noMinCoin, noCost
+          , Nothing
+          , b 1 [(assetA, 10), (assetC, 1)] :| [b 1 [(assetB, 2), (assetC, 8)]]
+          , b 1 [(assetA, 5)] :| [b 1 [(assetB, 1)]]
+          , Right $ b 0 [(assetB, 1), (assetC, 1)] :| [b 0 [(assetA, 5), (assetC, 8)]]
+          )
+        ]
+
+    b :: Word64 -> [(AssetId, Natural)] -> TokenBundle
+    b c = TokenBundle (Coin c) . TokenMap.fromFlatList . fmap (second TokenQuantity)
+
+    assetA :: AssetId
+    assetA = AssetId (UnsafeTokenPolicyId $ Hash "A") (UnsafeTokenName "1")
+
+    assetB :: AssetId
+    assetB = AssetId (UnsafeTokenPolicyId $ Hash "B") (UnsafeTokenName "")
+
+    assetC :: AssetId
+    assetC = AssetId (UnsafeTokenPolicyId $ Hash "A") (UnsafeTokenName "2")
 
 --------------------------------------------------------------------------------
 -- Making change for coins
