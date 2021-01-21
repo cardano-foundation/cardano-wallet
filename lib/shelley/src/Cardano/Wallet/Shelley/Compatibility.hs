@@ -462,9 +462,8 @@ toCardanoEra = \case
     BlockMary{}    -> AnyCardanoEra MaryEra
 
 fromShelleyBlock
-    :: forall c. (SL.Crypto c)
-    => W.GenesisParameters
-    -> ShelleyBlock (SL.ShelleyEra c)
+    :: W.GenesisParameters
+    -> ShelleyBlock (SL.ShelleyEra StandardCrypto)
     -> (W.Block, [W.PoolCertificate])
 fromShelleyBlock gp blk@(ShelleyBlock (SL.Block _ (SL.TxSeq txs')) _) =
     let
@@ -479,9 +478,8 @@ fromShelleyBlock gp blk@(ShelleyBlock (SL.Block _ (SL.TxSeq txs')) _) =
         )
 
 fromAllegraBlock
-    :: forall c. (SL.Crypto c)
-    => W.GenesisParameters
-    -> ShelleyBlock (MA.ShelleyMAEra 'MA.Allegra c)
+    :: W.GenesisParameters
+    -> ShelleyBlock (MA.ShelleyMAEra 'MA.Allegra StandardCrypto)
     -> (W.Block, [W.PoolCertificate])
 fromAllegraBlock gp blk@(ShelleyBlock (SL.Block _ (SL.TxSeq txs')) _) =
     let
@@ -819,12 +817,7 @@ toShelleyCoin (W.Coin c) = SL.Coin $ safeCast c
 
 -- NOTE: For resolved inputs we have to pass in a dummy value of 0.
 fromShelleyTx
-    :: ( SL.ShelleyBased era
-       , SL.Core.TxBody era ~ SL.TxBody era
-       , SL.Core.Value era ~ SL.Coin
-       , SL.Core.AuxiliaryData era ~ SL.Metadata
-       )
-    => SL.Tx era
+    :: SL.Tx (Cardano.ShelleyLedgerEra ShelleyEra)
     -> ( W.Tx
        , [W.DelegationCertificate]
        , [W.PoolCertificate]
@@ -844,13 +837,7 @@ fromShelleyTx tx =
     SL.Tx bod@(SL.TxBody ins outs certs wdrls fee _ _ _) _ mmd = tx
 
 fromAllegraTx
-    :: ( SL.ShelleyBased era
-       , SL.Core.TxBody era ~ MA.TxBody era
-       , SL.Core.Value era ~ SL.Coin
-       , SL.Core.AuxiliaryData era ~ MA.AuxiliaryData era
-       , Ord (SL.Core.Script era)
-       )
-    => SL.Tx era
+    :: SL.Tx (Cardano.ShelleyLedgerEra AllegraEra)
     -> ( W.Tx
        , [W.DelegationCertificate]
        , [W.PoolCertificate]
