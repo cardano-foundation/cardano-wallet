@@ -321,18 +321,8 @@ withNetworkLayerBase tr np conn (versionData, _) action = do
 
     queryRewardQ <- connectDelegationRewardsClient handlers readNodeEraAndTip'
 
-    (rewardsObserver, refreshRewards) <-
-        newRewardBalanceFetcher tr gp queryRewardQ
-
-    let refreshRewardLoop :: (Maybe AnyCardanoEra, Tip (CardanoBlock StandardCrypto)) -> IO ()
-        refreshRewardLoop oldTip = do
-            tip <- atomically $ do
-                tip <- readNodeEraAndTip
-                guard (oldTip /= tip)
-                return tip
-            refreshRewards tip
-            refreshRewardLoop tip
-    link =<< async (refreshRewardLoop (Just $ AnyCardanoEra ByronEra, TipGenesis ))
+    rewardsObserver <-
+        newRewardBalanceFetcher tr gp readNodeEraAndTip queryRewardQ
 
     let readCurrentNodeEra = fst <$> atomically readNodeEraAndTip'
     let readCurrentNodeTip = snd <$> atomically readNodeEraAndTip
@@ -836,13 +826,24 @@ newRewardBalanceFetcher
     :: Tracer IO NetworkLayerLog
     -> W.GenesisParameters
     -- ^ Used to convert tips for logging
+    -> STM IO (Maybe AnyCardanoEra, Tip (CardanoBlock StandardCrypto))
+    -- ^ STM action for observing the current tip
     -> TQueue IO (LocalStateQueryCmd (CardanoBlock StandardCrypto) IO)
-    -> IO ( Observer IO W.RewardAccount W.Coin
-          , (Maybe AnyCardanoEra, Tip (CardanoBlock StandardCrypto)) -> IO ()
-            -- Call on tip-change to refresh
-          )
-newRewardBalanceFetcher tr gp queryRewardQ =
-    newObserver (contramap MsgObserverLog tr) fetch
+    -> IO (Observer IO W.RewardAccount W.Coin)
+newRewardBalanceFetcher tr gp readNodeEraAndTip queryRewardQ = do
+    (ob, refresh) <- newObserver (contramap MsgObserverLog tr) fetch
+    let refreshRewardLoop
+            :: (Maybe AnyCardanoEra, Tip (CardanoBlock StandardCrypto))
+            -> IO ()
+        refreshRewardLoop oldTip = do
+            tip <- atomically $ do
+                tip <- readNodeEraAndTip
+                guard (oldTip /= tip)
+                return tip
+            refresh tip
+            refreshRewardLoop tip
+    link =<< async (refreshRewardLoop (Just $ AnyCardanoEra ByronEra, TipGenesis))
+    return ob
   where
     fetch
         :: (Maybe AnyCardanoEra, Tip (CardanoBlock StandardCrypto))
