@@ -76,7 +76,11 @@ import Cardano.Wallet.Primitive.Types.Tx.Gen
 import Cardano.Wallet.Primitive.Types.UTxOIndex
     ( UTxOIndex )
 import Cardano.Wallet.Primitive.Types.UTxOIndex.Gen
-    ( genUTxOIndexLarge, genUTxOIndexSmall, shrinkUTxOIndexSmall )
+    ( genUTxOIndexLarge
+    , genUTxOIndexLargeN
+    , genUTxOIndexSmall
+    , shrinkUTxOIndexSmall
+    )
 import Control.Monad
     ( forM_, replicateM )
 import Data.Bifunctor
@@ -125,7 +129,9 @@ import Test.QuickCheck
     , cover
     , disjoin
     , frequency
+    , generate
     , genericShrink
+    , ioProperty
     , label
     , oneof
     , property
@@ -177,6 +183,18 @@ spec = describe "Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobinSpec" $
             property prop_performSelection_small
         it "prop_performSelection_large" $
             property prop_performSelection_large
+        it "prop_performSelection_huge" $ ioProperty $ do
+            -- The UTxO index is generated outside of the property here to avoid
+            -- the cost of re-generating it on every pass. This would still
+            -- generate interesting cases since the selection within that large
+            -- index is random. Plus, other selection criteria still vary.
+            utxoAvailable <- generate (genUTxOIndexLargeN 50000)
+            pure $ property $ \minCoin costFor (Large criteria) ->
+                let
+                    criteria' = Blind $ criteria { utxoAvailable }
+                in
+                    prop_performSelection minCoin costFor criteria' (const id)
+                        & withMaxSuccess 5
 
     parallel $ describe "Running a selection (without making change)" $ do
 
