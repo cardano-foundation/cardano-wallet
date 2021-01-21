@@ -544,7 +544,8 @@ withNetworkLayerBase tr np conn (versionData, _) action = do
                     tip <- readNodeEraAndTip
                     guard (oldTip /= tip)
                     return tip
-                cb (toBlockHeader . snd $ tip)
+                let header = toBlockHeader . snd $ tip
+                bracketTracer (contramap (MsgWatcherUpdate header) tr) $ cb header
                 go tip
         go (Just $ AnyCardanoEra ByronEra, TipGenesis )
 
