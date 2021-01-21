@@ -321,8 +321,7 @@ withNetworkLayerBase tr np conn (versionData, _) action = do
 
     queryRewardQ <- connectDelegationRewardsClient handlers readNodeEraAndTip'
 
-    rewardsObserver <-
-        newRewardBalanceFetcher tr gp readNodeEraAndTip queryRewardQ
+    rewardsObserver <- newRewardBalanceFetcher tr readNodeEraAndTip queryRewardQ
 
     let readCurrentNodeEra = fst <$> atomically readNodeEraAndTip'
     let readCurrentNodeTip = snd <$> atomically readNodeEraAndTip
@@ -824,13 +823,12 @@ data Observer m key value = Observer
 
 newRewardBalanceFetcher
     :: Tracer IO NetworkLayerLog
-    -> W.GenesisParameters
     -- ^ Used to convert tips for logging
     -> STM IO (Maybe AnyCardanoEra, Tip (CardanoBlock StandardCrypto))
     -- ^ STM action for observing the current tip
     -> TQueue IO (LocalStateQueryCmd (CardanoBlock StandardCrypto) IO)
     -> IO (Observer IO W.RewardAccount W.Coin)
-newRewardBalanceFetcher tr gp readNodeEraAndTip queryRewardQ = do
+newRewardBalanceFetcher tr readNodeEraAndTip queryRewardQ = do
     (ob, refresh) <- newObserver (contramap MsgObserverLog tr) fetch
     let refreshRewardLoop
             :: (Maybe AnyCardanoEra, Tip (CardanoBlock StandardCrypto))
@@ -849,9 +847,12 @@ newRewardBalanceFetcher tr gp readNodeEraAndTip queryRewardQ = do
         :: (Maybe AnyCardanoEra, Tip (CardanoBlock StandardCrypto))
         -> Set W.RewardAccount
         -> IO (Maybe (Map W.RewardAccount W.Coin))
-    fetch (_era, tip) accounts = do
+    fetch _tip accounts = do
+        -- NOTE: We no longer need the tip to run LSQ queries. The local state
+        -- query client will automatically acquire the latest tip.
+
         liftIO $ traceWith tr $
-            MsgGetRewardAccountBalance (fromTip' gp tip) accounts
+            MsgGetRewardAccountBalance accounts
 
         let qry = byronOrShelleyBased (pure (byronValue, [])) $
                    fmap fromBalanceResult
@@ -1133,8 +1134,7 @@ data NetworkLayerLog where
     MsgLocalStateQueryError :: QueryClientName -> String -> NetworkLayerLog
     MsgLocalStateQueryEraMismatch :: MismatchEraInfo (CardanoEras StandardCrypto) -> NetworkLayerLog
     MsgGetRewardAccountBalance
-        :: W.BlockHeader
-        -> Set W.RewardAccount
+        :: Set W.RewardAccount
         -> NetworkLayerLog
     MsgAccountDelegationAndRewards
         :: forall era crypto. (Map (SL.Credential 'SL.Staking era) (SL.KeyHash 'SL.StakePool crypto))
@@ -1213,11 +1213,9 @@ instance ToText NetworkLayerLog where
         MsgLocalStateQueryEraMismatch mismatch ->
             "Local state query for the wrong era - this is fine. " <>
             T.pack (show mismatch)
-        MsgGetRewardAccountBalance tip accts -> T.unwords
+        MsgGetRewardAccountBalance accts -> T.unwords
             [ "Querying the reward account balance for"
             , fmt $ listF accts
-            , "at"
-            , pretty tip
             ]
         MsgAccountDelegationAndRewards delegations rewards -> T.unlines
             [ "  delegations = " <> T.pack (show delegations)
