@@ -557,7 +557,7 @@ prop_performSelection minCoinValueFor costFor (Blind criteria) coverage =
         assert $ all (\e -> expectedMinCoinValue e > actualMinCoinValue e) es
       where
         actualMinCoinValue
-            = txOutCoin . insufficientlyCoveredOutput
+            = txOutCoin . outputWithInsufficientAda
 
     onUnableToConstructChange e = do
         monitor $ counterexample $ show e

@@ -227,7 +227,7 @@ data BalanceInsufficientError = BalanceInsufficientError
 -- See also: 'prepareOutputs'.
 --
 data InsufficientMinCoinValueError = InsufficientMinCoinValueError
-    { insufficientlyCoveredOutput
+    { outputWithInsufficientAda
         :: !TxOut
         -- ^ The particular output that does not have the minimum coin quantity
         -- expected by the protocol.
@@ -348,7 +348,7 @@ performSelection minCoinValueFor costFor criteria
                 Nothing
             | otherwise =
                 Just $ InsufficientMinCoinValueError
-                    { expectedMinCoinValue, insufficientlyCoveredOutput = o }
+                    { expectedMinCoinValue, outputWithInsufficientAda = o }
           where
             expectedMinCoinValue = minCoinValueFor (view (#tokens . #tokens) o)
 
