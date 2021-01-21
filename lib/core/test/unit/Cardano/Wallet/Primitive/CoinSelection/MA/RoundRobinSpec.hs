@@ -467,13 +467,13 @@ prop_performSelection minCoinValueFor costFor (Blind criteria) coverage =
     onSuccess result = do
         monitor $ counterexample $ unlines
             [ "available balance:"
-            , pretty (TokenBundle.Nested balanceAvailable)
+            , pretty (Flat balanceAvailable)
             , "required balance:"
-            , pretty (TokenBundle.Nested balanceRequired)
+            , pretty (Flat balanceRequired)
             , "selected balance:"
-            , pretty (TokenBundle.Nested balanceSelected)
+            , pretty (Flat balanceSelected)
             , "change balance:"
-            , pretty (TokenBundle.Nested balanceChange)
+            , pretty (Flat balanceChange)
             ]
         let delta = TokenBundle.unsafeSubtract
                 balanceSelected
@@ -522,9 +522,9 @@ prop_performSelection minCoinValueFor costFor (Blind criteria) coverage =
     onBalanceInsufficient e = do
         monitor $ counterexample $ unlines
             [ "available balance:"
-            , pretty (TokenBundle.Nested balanceAvailable)
+            , pretty (Flat balanceAvailable)
             , "required balance:"
-            , pretty (TokenBundle.Nested balanceRequired)
+            , pretty (Flat balanceRequired)
             ]
         assert $ not $ balanceSufficient criteria
         assert $ balanceAvailable == errorBalanceAvailable
@@ -535,9 +535,9 @@ prop_performSelection minCoinValueFor costFor (Blind criteria) coverage =
     onSelectionInsufficient e = do
         monitor $ counterexample $ unlines
             [ "required balance:"
-            , pretty (TokenBundle.Nested errorBalanceRequired)
+            , pretty (Flat errorBalanceRequired)
             , "selected balance:"
-            , pretty (TokenBundle.Nested errorBalanceSelected)
+            , pretty (Flat errorBalanceSelected)
             ]
         assert $ selectionLimit ==
             MaximumInputLimit (length errorInputsSelected)
@@ -676,10 +676,10 @@ prop_runSelection_UTxO_muchMoreThanEnough extraSource (Blind (Large index)) =
         monitor $ cover 50 (Set.size assetsRequested >= 4)
             "size assetsRequested >= 4"
         monitor $ counterexample $ unlines
-            [ "balance available: " <> show balanceAvailable
-            , "balance requested: " <> show balanceRequested
-            , "balance selected:  " <> show balanceSelected
-            , "balance leftover:  " <> show balanceLeftover
+            [ "balance available: " <> pretty (Flat balanceAvailable)
+            , "balance requested: " <> pretty (Flat balanceRequested)
+            , "balance selected:  " <> pretty (Flat balanceSelected)
+            , "balance leftover:  " <> pretty (Flat balanceLeftover)
             ]
         assert $
             balanceRequested `leq` addExtraSource extraSource balanceSelected
