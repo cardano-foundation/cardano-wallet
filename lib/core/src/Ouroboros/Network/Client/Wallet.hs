@@ -524,7 +524,7 @@ localStateQuery getTip queue =
         LSQ.SendMsgRelease (respond res >> clientStIdle)
             -- We /could/ read all LocalStateQueryCmds from the TQueue, and run
             -- them against the same tip, if re-acquiring takes a long time. As
-            -- of Jan 2020, it seems like queries themselves take significantly
+            -- of Jan 2021, it seems like queries themselves take significantly
             -- longer than the acquiring.
       where
           go
