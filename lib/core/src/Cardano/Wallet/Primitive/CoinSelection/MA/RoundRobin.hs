@@ -44,8 +44,8 @@ module Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     -- * Making change
     , makeChange
     , makeChangeForCoin
-    , makeChangeForKnownAsset
-    , makeChangeForUnknownAsset
+    , makeChangeForUserDefinedAsset
+    , makeChangeForNonUserDefinedAsset
 
     -- * Grouping and ungrouping
     , groupByKey
@@ -700,23 +700,25 @@ makeChange
 
         let (excessCoin, excessAssets) = TokenBundle.toFlatList excess
 
-        let unknownAssets =
-                Map.toList $ F.foldr discardKnownAssets mempty inputBundles
+        let nonUserDefinedAssets =
+                Map.toList $ F.foldr discardUserDefinedAssets mempty inputBundles
 
-        let changeForKnownAssets :: NonEmpty TokenMap
-            changeForKnownAssets = F.foldr
-                (NE.zipWith (<>) . makeChangeForKnownAsset outputTokens)
+        let changeForUserDefinedAssets :: NonEmpty TokenMap
+            changeForUserDefinedAssets = F.foldr
+                (NE.zipWith (<>) . makeChangeForUserDefinedAsset outputTokens)
                 (TokenMap.empty <$ outputTokens)
                 excessAssets
 
-        let changeForUnknownAssets :: NonEmpty TokenMap
-            changeForUnknownAssets = F.foldr
-                (NE.zipWith (<>) . makeChangeForUnknownAsset outputTokens)
+        let changeForNonUserDefinedAssets :: NonEmpty TokenMap
+            changeForNonUserDefinedAssets = F.foldr
+                (NE.zipWith (<>) . makeChangeForNonUserDefinedAsset outputTokens)
                 (TokenMap.empty <$ outputTokens)
-                unknownAssets
+                nonUserDefinedAssets
 
         let change :: NonEmpty TokenMap
-            change = NE.zipWith (<>) changeForKnownAssets changeForUnknownAssets
+            change = NE.zipWith (<>)
+                changeForUserDefinedAssets
+                changeForNonUserDefinedAssets
 
         (bundles, remainder) <-
             maybe (Left $ changeError excessCoin change) Right $
@@ -772,11 +774,11 @@ makeChange
     knownAssetIds :: Set AssetId
     knownAssetIds = TokenBundle.getAssets totalOutputValue
 
-    discardKnownAssets
+    discardUserDefinedAssets
         :: TokenBundle
         -> Map AssetId (NonEmpty TokenQuantity)
         -> Map AssetId (NonEmpty TokenQuantity)
-    discardKnownAssets (TokenBundle _ tokens) m =
+    discardUserDefinedAssets (TokenBundle _ tokens) m =
         foldr (\(k, v) -> Map.insertWith (<>) k (v :| [])) m filtered
       where
         filtered = filter
@@ -795,7 +797,7 @@ makeChange
 -- input list, and the sum of its quantities is either zero, or exactly equal
 -- to the token quantity in the second argument.
 --
-makeChangeForKnownAsset
+makeChangeForUserDefinedAsset
     :: NonEmpty TokenMap
         -- ^ A list of weights for the distribution. Conveniently captures both
         -- the weights, and the number of elements amongst which the quantity
@@ -803,7 +805,7 @@ makeChangeForKnownAsset
     -> (AssetId, TokenQuantity)
         -- ^ A surplus token quantity to distribute.
     -> NonEmpty TokenMap
-makeChangeForKnownAsset targets (asset, TokenQuantity excess) =
+makeChangeForUserDefinedAsset targets (asset, TokenQuantity excess) =
     let
         partition = fromMaybe zeros (partitionNatural excess weights)
     in
@@ -829,14 +831,14 @@ makeChangeForKnownAsset targets (asset, TokenQuantity excess) =
 -- list, and the sum of its quantities is always exactly equal to the sum of
 -- all token quantities given in the second argument.
 --
-makeChangeForUnknownAsset
+makeChangeForNonUserDefinedAsset
     :: NonEmpty TokenMap
         -- ^ A list of weights for the distribution. The list is only used for
         -- its number of elements.
     -> (AssetId, NonEmpty TokenQuantity)
         -- ^ An asset quantity to distribute.
     -> NonEmpty TokenMap
-makeChangeForUnknownAsset n (asset, quantities) =
+makeChangeForNonUserDefinedAsset n (asset, quantities) =
     TokenMap.singleton asset <$> padCoalesce quantities n
 
 -- | Constructs a list of ada change outputs based on the given distribution.
