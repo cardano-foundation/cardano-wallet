@@ -115,7 +115,6 @@ module Cardano.Wallet
     , ErrWithdrawalNotWorth (..)
 
     -- ** Migration
-    , selectCoinsForMigration
     , ErrSelectForMigration (..)
 
     -- ** Delegation
@@ -146,7 +145,6 @@ module Cardano.Wallet
     , listTransactions
     , getTransaction
     , submitExternalTx
-    , signTx
     , submitTx
     , ErrMkTx (..)
     , ErrSubmitTx (..)
@@ -261,8 +259,6 @@ import Cardano.Wallet.Primitive.CoinSelection
     , ErrCoinSelection (..)
     , feeBalance
     )
-import Cardano.Wallet.Primitive.CoinSelection.Migration
-    ( depleteUTxO, idealBatchSize )
 import Cardano.Wallet.Primitive.Fee
     ( ErrAdjustForFee (..), Fee (..), FeeOptions (..), adjustForFee )
 import Cardano.Wallet.Primitive.Model
@@ -1406,90 +1402,6 @@ estimateFeeForDelegation ctx wid = db & \DBLayer{..} -> do
     nl = ctx ^. networkLayer
     pid = PoolId (error "Dummy pool id for estimation. Never evaluated.")
 
--- | Constructs a set of coin selections that select all funds from the given
---   source wallet, returning them as change.
---
--- If the coin selections returned by this function are used to create
--- transactions from the given wallet to a target wallet, executing those
--- transactions will have the effect of migrating all funds from the given
--- source wallet to the specified target wallet.
-selectCoinsForMigration
-    :: forall ctx s k n.
-        ( HasTransactionLayer k ctx
-        , HasLogger WalletLog ctx
-        , HasDBLayer s k ctx
-        , PaymentAddress n ByronKey
-        , HasNetworkLayer ctx
-        )
-    => ctx
-    -> WalletId
-       -- ^ The source wallet ID.
-    -> ExceptT ErrSelectForMigration IO ([CoinSelection], Coin)
-selectCoinsForMigration ctx wid = do
-    (utxo, _, txp, minUtxo) <- withExceptT ErrSelectForMigrationNoSuchWallet $
-        selectCoinsSetup @ctx @s @k ctx wid
-    selectCoinsForMigrationFromUTxO @ctx @k @n ctx utxo txp minUtxo wid
-
-selectCoinsForMigrationFromUTxO
-    :: forall ctx k n.
-        ( HasTransactionLayer k ctx
-        , HasLogger WalletLog ctx
-        , PaymentAddress n ByronKey
-        )
-    => ctx
-    -> W.UTxO
-    -> W.TxParameters
-    -> W.Coin
-    -> WalletId
-       -- ^ The source wallet ID.
-    -> ExceptT ErrSelectForMigration IO ([CoinSelection], Coin)
-selectCoinsForMigrationFromUTxO ctx utxo txp minUtxo wid = do
-    let feePolicy@(LinearFee (Quantity a) _) = txp ^. #getFeePolicy
-    let feeOptions = (feeOpts tl Nothing Nothing txp minBound mempty)
-            { estimateFee = minimumFee tl feePolicy Nothing Nothing . worstCase
-            , dustThreshold = max (Coin $ ceiling a) minUtxo
-            }
-    let selOptions = coinSelOpts tl (txp ^. #getTxMaxSize) Nothing
-    let previousDistribution = W.computeUtxoStatistics W.log10 utxo
-    liftIO $ traceWith tr $ MsgMigrationUTxOBefore previousDistribution
-    case depleteUTxO feeOptions (idealBatchSize selOptions) utxo of
-        cs | not (null cs) -> do
-            let resultDistribution = W.computeStatistics getCoins W.log10 cs
-            liftIO $ traceWith tr $ MsgMigrationUTxOAfter resultDistribution
-            liftIO $ traceWith tr $ MsgMigrationResult cs
-            let leftovers =
-                    unCoin (TokenBundle.getCoin $ W.balance utxo)
-                    -
-                    W.balance' (concatMap inputs cs)
-            pure (cs, Coin leftovers)
-        _ -> throwE (ErrSelectForMigrationEmptyWallet wid)
-  where
-    tl = ctx ^. transactionLayer @k
-    tr = ctx ^. logger
-
-    getCoins :: CoinSelection -> [Word64]
-    getCoins CoinSelection{change,outputs} =
-        (unCoin <$> change) ++ (unCoin . txOutCoin <$> outputs)
-
-    -- When performing a selection for migration, at this stage, we do not know
-    -- exactly to which address we're going to assign which change. It could be
-    -- an Icarus address, a Byron address or anything else. But, depending on
-    -- the address, we get to pay more-or-less as fees!
-    --
-    -- Therefore, we assume the worse, which are byron payment addresses, this
-    -- will create __slightly__ overpriced selections but.. meh.
-    worstCase :: CoinSelection -> CoinSelection
-    worstCase cs = cs
-        { change = mempty
-        , outputs = TxOut worstCaseAddress . TokenBundle.fromCoin <$> change cs
-        }
-      where
-        worstCaseAddress :: Address
-        worstCaseAddress = paymentAddress @n @ByronKey $ publicKey $
-            unsafeMkByronKeyFromMasterKey
-                (minBound, minBound)
-                (unsafeXPrv $ BS.replicate 128 0)
-
 -- | Estimate fee for 'selectCoinsForPayment'.
 estimateFeeForPayment
     :: forall ctx s k.
@@ -1639,55 +1551,6 @@ getTxExpiry ti maybeTTL = do
 
     defaultTTL :: NominalDiffTime
     defaultTTL = 7200  -- that's 2 hours
-
--- | Very much like 'signPayment', but doesn't not generate change addresses.
-signTx
-    :: forall ctx s k.
-        ( HasTransactionLayer k ctx
-        , HasDBLayer s k ctx
-        , HasNetworkLayer ctx
-        , IsOurs s RewardAccount
-        , IsOwned s k
-        , HardDerivation k
-        , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
-        , WalletKey k
-        )
-    => ctx
-    -> WalletId
-    -> Passphrase "raw"
-    -> Maybe TxMetadata
-    -> Maybe NominalDiffTime
-    -- This function is currently only used in contexts where all change outputs
-    -- have been assigned with addresses and are included in the set of ordinary
-    -- outputs. We use the 'Void' type here to prevent callers from accidentally
-    -- passing change values into this function:
-    -> UnsignedTx (TxIn, TxOut) TxOut Void
-    -> ExceptT ErrSignPayment IO (Tx, TxMeta, UTCTime, SealedTx)
-signTx ctx wid pwd md ttl (UnsignedTx inpsNE outs _change) = db & \DBLayer{..} -> do
-    txExp <- liftIO $ getTxExpiry ti ttl
-    era <- liftIO $ currentNodeEra nl
-    withRootKey @_ @s ctx wid pwd ErrSignPaymentWithRootKey $ \xprv scheme -> do
-        let pwdP = preparePassphrase scheme pwd
-        mapExceptT atomically $ do
-            cp <- withExceptT ErrSignPaymentNoSuchWallet $
-                withNoSuchWallet wid $
-                readCheckpoint (PrimaryKey wid)
-
-            let cs = mempty { inputs = inps, outputs = outs }
-            let keyFrom = isOwned (getState cp) (xprv, pwdP)
-            let rewardAcnt = getRawKey $ deriveRewardAccount @k pwdP xprv
-            (tx, sealedTx) <- withExceptT ErrSignPaymentMkTx $ ExceptT $
-                pure $ mkStdTx tl era (rewardAcnt, pwdP) keyFrom txExp md cs
-
-            (time, meta) <- liftIO $
-                mkTxMeta ti (currentTip cp) (getState cp) tx cs txExp
-            return (tx, meta, time, sealedTx)
-  where
-    db = ctx ^. dbLayer @s @k
-    tl = ctx ^. transactionLayer @k
-    nl = ctx ^. networkLayer
-    ti = timeInterpreter nl
-    inps = NE.toList inpsNE
 
 -- | Makes a fully-resolved coin selection for the given set of payments.
 selectCoinsExternal
