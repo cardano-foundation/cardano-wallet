@@ -462,25 +462,6 @@ x-assetPolicyId: &assetPolicyId
   maxLength: 56
   example: 65ab82542b0ca20391caaf66a4d4d7897d281f9c136cd3513136945b
 
-x-assetDisplayName: &assetDisplayName
-  type: string
-  description: |
-    A label for the asset suitable for presentation to users.
-
-    If the asset has a known metadata name, then this is used.
-
-    Otherwise, the display name is taken from the policy item
-    sub-identifier.
-
-    If this sub-identifier is valid UTF-8 text, and non-empty, then it
-    is shown as-is. If the identifier cannot be decoded as UTF-8 text,
-    then the display name will be the sub-identifier encoded in
-    hexadecimal, starting with 0x.
-
-    If the sub-identifier is empty, then the policy ID is used,
-    encoded in hexadecimal, starting with 0x.
-  example: SWAGGERCOIN
-
 x-assetMetadataName: &assetMetadataName
   type: string
   maxLength: 50
@@ -1719,11 +1700,9 @@ components:
       required:
         - policy_id
         - asset_name
-        - display_name
       properties:
         policy_id: *assetPolicyId
         asset_name: *assetName
-        display_name: *assetDisplayName
         metadata: *assetMetadata
 
     ApiWalletMigrationInfo: &ApiWalletMigrationInfo
