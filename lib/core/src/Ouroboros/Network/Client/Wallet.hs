@@ -38,7 +38,6 @@ module Ouroboros.Network.Client.Wallet
 
       -- * Helpers
     , send
-    , sendAsync
 
       -- * Logs
     , ChainSyncLog (..)
@@ -631,15 +630,6 @@ send queue cmd = do
     tvar <- newEmptyTMVarIO
     atomically $ writeTQueue queue (cmd (atomically . putTMVar tvar))
     atomically $ takeTMVar tvar
-
-
-sendAsync
-    :: MonadSTM m
-    => TQueue m (cmd m)
-    -> (cmd m)
-    -> m ()
-sendAsync queue cmd = do
-    atomically $ writeTQueue queue cmd
 
 -- Tracing
 

@@ -176,7 +176,6 @@ import Ouroboros.Network.Block
     , SlotNo (..)
     , Tip (..)
     , blockPoint
-    , castTip
     , genesisPoint
     , getPoint
     , pointHash
@@ -194,7 +193,6 @@ import Ouroboros.Network.Client.Wallet
     , localTxSubmission
     , mapChainSyncLog
     , send
-    , sendAsync
     )
 import Ouroboros.Network.CodecCBORTerm
     ( CodecCBORTerm )
@@ -534,16 +532,9 @@ withNetworkLayerBase tr np conn (versionData, _) action = do
                 fromJustRewards . Map.lookup (Left coin)
 
     _watchNodeTip readNodeEraAndTip cb = do
-        let toBlockHeader = fromTip getGenesisBlockHash
-        let go oldTip = do
-                tip <- atomically $ do
-                    tip <- readNodeEraAndTip
-                    guard (oldTip /= tip)
-                    return tip
-                let header = toBlockHeader . snd $ tip
-                bracketTracer (contramap (MsgWatcherUpdate header) tr) $ cb header
-                go tip
-        go (Just $ AnyCardanoEra ByronEra, TipGenesis )
+        observeForever readNodeEraAndTip $ \(_era, tip) -> do
+            let header = fromTip getGenesisBlockHash tip
+            bracketTracer (contramap (MsgWatcherUpdate header) tr) $ cb header
 
     -- TODO(#2042): Make wallets call manually, with matching
     -- stopObserving.
@@ -740,28 +731,19 @@ mkTipSyncClient tr np localTxSubmissionQ onPParamsUpdate onInterpreterUpdate = d
 
     let queryInterpreter = LSQry (QueryHardFork GetInterpreter)
 
-    let W.GenesisParameters
-             { getGenesisBlockHash
-             } = W.genesisParameters np
     let cfg = codecConfig (W.slottingParameters np)
 
-    onTipUpdate' <- debounce @_ @m $ \(era, tip') -> do
-        -- FIXME: Store / replace / keep track of the era and make it available
-        -- for other functions.
-        let tip = castTip tip'
-        traceWith tr $ MsgNodeTip $
-            fromTip getGenesisBlockHash tip
+    -- NOTE: These are updated every block. This is far more often than
+    -- necessary.
+    --
+    -- By blocking (with `send`) we ensure we don't queue multiple queries.
+    let onTipUpdate _tip = do
+            let qry = (,) <$> queryParams <*> queryInterpreter
+            (pparams, int) <- localStateQueryQ `send` (SomeLSQ qry)
+            onPParamsUpdate' pparams
+            onInterpreterUpdate int
+    link =<< async (observeForever (readTVar tipVar) onTipUpdate)
 
-        atomically $ writeTVar tipVar (era, tip)
-
-        -- NOTE: If these queries are not sent with sendAsync, we'd cause
-        -- deadlock, as the local state query client might need to waiy for the
-        -- tip client to find a new tip.
-        --
-        -- NOTE 2: interpeter is updated every block. This is far more often than
-        -- necessary.
-        sendAsync localStateQueryQ $ SomeLSQ queryParams onPParamsUpdate'
-        sendAsync localStateQueryQ $ SomeLSQ queryInterpreter onInterpreterUpdate
 
     let client = nodeToClientProtocols (const $ return $ NodeToClientProtocols
             { localChainSyncProtocol =
@@ -771,7 +753,7 @@ mkTipSyncClient tr np localTxSubmissionQ onPParamsUpdate onInterpreterUpdate = d
                 InitiatorProtocolOnly $ MuxPeerRaw
                     $ \channel -> runPeer nullTracer codec channel
                     $ chainSyncClientPeer
-                    $ chainSyncFollowTip toCardanoEra (curry onTipUpdate')
+                    $ chainSyncFollowTip toCardanoEra (curry (atomically . writeTVar tipVar))
 
             , localTxSubmissionProtocol =
                 let
@@ -820,17 +802,7 @@ newRewardBalanceFetcher
     -> IO (Observer IO W.RewardAccount W.Coin)
 newRewardBalanceFetcher tr readNodeEraAndTip queryRewardQ = do
     (ob, refresh) <- newObserver (contramap MsgObserverLog tr) fetch
-    let refreshRewardLoop
-            :: (Maybe AnyCardanoEra, Tip (CardanoBlock StandardCrypto))
-            -> IO ()
-        refreshRewardLoop oldTip = do
-            tip <- atomically $ do
-                tip <- readNodeEraAndTip
-                guard (oldTip /= tip)
-                return tip
-            refresh tip
-            refreshRewardLoop tip
-    link =<< async (refreshRewardLoop (Just $ AnyCardanoEra ByronEra, TipGenesis))
+    link =<< async (observeForever readNodeEraAndTip refresh)
     return ob
   where
     fetch
@@ -1273,6 +1245,22 @@ instance HasSeverityAnnotation NetworkLayerLog where
             | otherwise                    -> Debug
         MsgInterpreterLog msg              -> getSeverityAnnotation msg
         MsgObserverLog{}                   -> Debug
+
+
+
+-- | Trigger an action initially, and when the value changes.
+--
+-- There's no guarantee that we will see every intermediate value.
+observeForever :: (MonadSTM m, Eq a) => STM m a -> (a -> m ()) -> m ()
+observeForever readVal action = go Nothing
+  where
+    go old = do
+        new <- atomically $ do
+            new <- readVal
+            guard (old /= Just new)
+            return new
+        action new
+        go (Just new)
 
 --
 -- LSQ Helpers
