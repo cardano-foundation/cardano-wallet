@@ -104,10 +104,8 @@ import Cardano.Address.Derivation
 import Cardano.Mnemonic
     ( SomeMnemonic )
 import Cardano.Wallet
-    ( ErrAdjustForFee (..)
-    , ErrCannotJoin (..)
+    ( ErrCannotJoin (..)
     , ErrCannotQuit (..)
-    , ErrCoinSelection (..)
     , ErrCreateRandomAddress (..)
     , ErrDecodeSignedTx (..)
     , ErrDerivePublicKey (..)
@@ -127,17 +125,12 @@ import Cardano.Wallet
     , ErrQuitStakePool (..)
     , ErrReadRewardAccount (..)
     , ErrRemoveTx (..)
-    , ErrSelectCoinsExternal (..)
-    , ErrSelectForDelegation (..)
-    , ErrSelectForMigration (..)
-    , ErrSelectForPayment (..)
-    , ErrSignDelegation (..)
+    , ErrSelectAssets (..)
     , ErrSignMetadataWith (..)
     , ErrSignPayment (..)
     , ErrStartTimeLaterThanEndTime (..)
     , ErrSubmitExternalTx (..)
     , ErrSubmitTx (..)
-    , ErrUTxOTooSmall (..)
     , ErrUpdatePassphrase (..)
     , ErrWalletAlreadyExists (..)
     , ErrWalletNotResponding (..)
@@ -276,8 +269,12 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     , mkSeqStateFromRootXPrv
     , purposeCIP1852
     )
-import Cardano.Wallet.Primitive.CoinSelection
-    ( CoinSelection (..), changeBalance, inputBalance )
+import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
+    ( BalanceInsufficientError (..)
+    , SelectionError (..)
+    , SelectionInsufficientError (..)
+    , UnableToConstructChangeError (..)
+    )
 import Cardano.Wallet.Primitive.Model
     ( Wallet, availableBalance, currentTip, getState, totalBalance )
 import Cardano.Wallet.Primitive.Slotting
@@ -338,7 +335,7 @@ import Cardano.Wallet.Registry
     , workerResource
     )
 import Cardano.Wallet.Transaction
-    ( DelegationAction (..), TransactionLayer )
+    ( DelegationAction (..), TransactionCtx (..), TransactionLayer )
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
 import Control.Arrow
@@ -357,8 +354,6 @@ import Control.Tracer
     ( Tracer )
 import Data.Aeson
     ( (.=) )
-import Data.Bifunctor
-    ( first )
 import Data.ByteString
     ( ByteString )
 import Data.Coerce
@@ -397,10 +392,8 @@ import Data.Text.Class
     ( FromText (..), ToText (..) )
 import Data.Time
     ( UTCTime )
-import Data.Void
-    ( Void )
 import Data.Word
-    ( Word32, Word64 )
+    ( Word32 )
 import Fmt
     ( pretty )
 import GHC.Stack
@@ -433,6 +426,7 @@ import Servant
     , err404
     , err409
     , err500
+    , err501
     , err503
     , serve
     )
@@ -1162,8 +1156,8 @@ getUTxOsStatistics ctx (ApiT wid) = do
 selectCoins
     :: forall ctx s k n.
         ( s ~ SeqState n k
-        , SoftDerivation k
         , ctx ~ ApiLayer s k
+        , SoftDerivation k
         , IsOurs s Address
         )
     => ctx
@@ -1171,29 +1165,39 @@ selectCoins
     -> ApiT WalletId
     -> ApiSelectCoinsPayments n
     -> Handler (ApiCoinSelection n)
-selectCoins ctx genChange (ApiT wid) body =
-    fmap (mkApiCoinSelection [] Nothing)
-    $ withWorkerCtx ctx wid liftE liftE
-    $ \wrk -> do
-        -- TODO:
+selectCoins ctx genChange (ApiT wid) body = do
+    withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+        -- TODO 1:
         -- Allow representing withdrawals as part of external coin selections.
-        let withdrawal = Coin 0
+        --
+        -- TODO 2:
+        -- Allow passing around metadata as part of external coin selections.
+        let txCtx = TransactionCtx
+                { txWithdrawal = Coin 0
+                , txMetadata = Nothing
+                , txTimeToLive = maxBound
+                , txDelegationAction = Nothing
+                }
         let outs = coerceCoin <$> body ^. #payments
-        liftHandler
-            $ W.selectCoinsExternal @_ @s @k wrk wid genChange
-            $ withExceptT ErrSelectCoinsExternalForPayment
-            $ W.selectCoinsForPayment
-                @_ @s @k wrk wid outs withdrawal Nothing
+
+        (_, sel) <- liftHandler
+            $ W.selectAssets  @_ @s @k wrk wid txCtx outs
+        utx <- liftHandler
+            $ W.selectionToUnsignedTx @_ @s @k wrk wid genChange sel
+
+        pure $ mkApiCoinSelection [] Nothing utx
 
 selectCoinsForJoin
     :: forall ctx s n k.
         ( s ~ SeqState n k
         , ctx ~ ApiLayer s k
-        , SoftDerivation k
+        , AddressIndexDerivationType k ~ 'Soft
         , DelegationAddress n k
         , MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
-        , Typeable s
+        , SoftDerivation k
         , Typeable n
+        , Typeable s
+        , WalletKey k
         )
     => ctx
     -> IO (Set PoolId)
@@ -1208,56 +1212,62 @@ selectCoinsForJoin ctx knownPools getPoolStatus pid wid = do
     pools <- liftIO knownPools
     curEpoch <- getCurrentEpoch ctx
 
-    (utx, action, path, dep) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
-        -- we never register stake key here, so deposit is irrelevant
-        (action, dep) <- liftHandler
+    withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+        (action, deposit) <- liftHandler
             $ W.joinStakePool @_ @s @k @n wrk curEpoch pools pid poolStatus wid
 
-        utx <- liftHandler
-            $ W.selectCoinsExternal @_ @s @k wrk wid genChange
-            $ withExceptT ErrSelectCoinsExternalForDelegation
-            $ W.selectCoinsForDelegation @_ @s @k wrk wid action
+        (wdrl, _mkRwdAcct) <- mkRewardAccountBuilder @_ @s @k @n ctx wid Nothing
+        let txCtx = TransactionCtx
+                { txWithdrawal = wdrl
+                , txMetadata = Nothing
+                , txTimeToLive = maxBound
+                , txDelegationAction = Just action
+                }
 
+        (_, sel) <- liftHandler
+            $ W.selectAssetsNoOutputs @_ @s @k wrk wid txCtx
+        utx <- liftHandler
+            $ W.selectionToUnsignedTx @_ @s @k wrk wid (delegationAddress @n) sel
         (_, path) <- liftHandler
             $ W.readRewardAccount @_ @s @k @n wrk wid
 
-        pure (utx, action, path, dep)
-
-    pure $ mkApiCoinSelection (maybeToList dep) (Just (action, path)) utx
-  where
-    genChange = delegationAddress @n
+        pure $ mkApiCoinSelection (maybeToList deposit) (Just (action, path)) utx
 
 selectCoinsForQuit
     :: forall ctx s n k.
         ( s ~ SeqState n k
         , ctx ~ ApiLayer s k
-        , SoftDerivation k
+        , AddressIndexDerivationType k ~ 'Soft
         , DelegationAddress n k
         , MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
-        , Typeable s
+        , SoftDerivation k
         , Typeable n
+        , Typeable s
+        , WalletKey k
         )
     => ctx
     -> ApiT WalletId
     -> Handler (Api.ApiCoinSelection n)
 selectCoinsForQuit ctx (ApiT wid) = do
-    (utx, action, path) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+    withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         action <- liftHandler
             $ W.quitStakePool @_ @s @k @n wrk wid
 
+        (wdrl, _mkRwdAcct) <- mkRewardAccountBuilder @_ @s @k @n ctx wid Nothing
+        let txCtx = TransactionCtx
+                { txWithdrawal = wdrl
+                , txMetadata = Nothing
+                , txTimeToLive = maxBound
+                , txDelegationAction = Just action
+                }
+        (_, sel) <- liftHandler
+            $ W.selectAssetsNoOutputs @_ @s @k wrk wid txCtx
         utx <- liftHandler
-            $ W.selectCoinsExternal @_ @s @k wrk wid genChange
-            $ withExceptT ErrSelectCoinsExternalForDelegation
-            $ W.selectCoinsForDelegation @_ @s @k wrk wid action
-
+            $ W.selectionToUnsignedTx @_ @s @k wrk wid (delegationAddress @n) sel
         (_, path) <- liftHandler
             $ W.readRewardAccount @_ @s @k @n wrk wid
 
-        pure (utx, action, path)
-
-    pure $ mkApiCoinSelection [] (Just (action, path)) utx
-  where
-    genChange = delegationAddress @n
+        pure $ mkApiCoinSelection [] (Just (action, path)) utx
 
 {-------------------------------------------------------------------------------
                                      Assets
@@ -1380,16 +1390,15 @@ listAddresses ctx normalize (ApiT wid) stateFilter = do
 
 postTransaction
     :: forall ctx s k n.
-        ( GenChange s
-        , HasNetworkLayer ctx
-        , IsOurs s RewardAccount
-        , IsOwned s k
-        , ctx ~ ApiLayer s k
-        , HardDerivation k
+        ( ctx ~ ApiLayer s k
         , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
-        , WalletKey k
-        , Typeable s
+        , GenChange s
+        , HardDerivation k
+        , HasNetworkLayer ctx
+        , IsOwned s k
         , Typeable n
+        , Typeable s
+        , WalletKey k
         )
     => ctx
     -> ArgGenChange s
@@ -1402,47 +1411,39 @@ postTransaction ctx genChange (ApiT wid) body = do
     let md = body ^? #metadata . traverse . #getApiT
     let mTTL = body ^? #timeToLive . traverse . #getQuantity
 
-    let selfRewardCredentials (rootK, pwdP) =
-            (getRawKey $ deriveRewardAccount @k pwdP rootK, pwdP)
+    (wdrl, mkRwdAcct) <-
+        mkRewardAccountBuilder @_ @s @_ @n ctx wid (body ^. #withdrawal)
 
-    (selection, credentials) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
-        (wdrl, credentials) <- case body ^. #withdrawal of
-            Nothing ->
-                pure (Coin 0, selfRewardCredentials)
+    ttl <- liftIO $ W.getTxExpiry ti mTTL
+    let txCtx = TransactionCtx
+            { txWithdrawal = wdrl
+            , txMetadata = md
+            , txTimeToLive = ttl
+            , txDelegationAction = Nothing
+            }
 
-            Just SelfWithdrawal -> do
-                (acct, _) <- liftHandler $ W.readRewardAccount @_ @s @k @n wrk wid
-                wdrl <- liftHandler $ W.queryRewardBalance @_ wrk acct
-                (, selfRewardCredentials)
-                    <$> liftIO (W.readNextWithdrawal @_ @s @k wrk wid wdrl)
-
-            Just (ExternalWithdrawal (ApiMnemonicT mw)) -> do
-                let (xprv, acct) = W.someRewardAccount @ShelleyKey mw
-                wdrl <- liftHandler (W.queryRewardBalance @_ wrk acct)
-                    >>= liftIO . W.readNextWithdrawal @_ @s @k wrk wid
-                when (wdrl == Coin 0) $ do
-                    liftHandler $ throwE ErrWithdrawalNotWorth
-                pure (wdrl, const (xprv, mempty))
-
-        selection <- liftHandler $ W.selectCoinsForPayment @_ @s wrk wid outs wdrl md
-        pure (selection, credentials)
-
-    (tx, meta, time, wit) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
-        W.signPayment @_ @s @k wrk wid genChange credentials pwd md mTTL selection
-
-    withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
-        W.submitTx @_ @s @k wrk wid (tx, meta, wit)
+    (sel, tx, txMeta, txTime) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+        (_, sel) <- liftHandler
+            $ W.selectAssets @_ @s @k wrk wid txCtx outs
+        (tx, txMeta, txTime, sealedTx) <- liftHandler
+            $ W.signTransaction @_ @s @k wrk wid genChange mkRwdAcct pwd txCtx sel
+        liftHandler
+            $ W.submitTx @_ @s @k wrk wid (tx, txMeta, sealedTx)
+        pure (sel, tx, txMeta, txTime)
 
     liftIO $ mkApiTransaction
         (timeInterpreter $ ctx ^. networkLayer)
         (txId tx)
         (tx ^. #fee)
-        (second Just <$> selection ^. #inputs)
+        (NE.toList $ second Just <$> sel ^. #inputsSelected)
         (tx ^. #outputs)
         (tx ^. #withdrawals)
-        (meta, time)
+        (txMeta, txTime)
         (tx ^. #metadata)
         #pendingSince
+  where
+    ti :: TimeInterpreter (ExceptT PastHorizonException IO)
+    ti = timeInterpreter (ctx ^. networkLayer)
 
 deleteTransaction
     :: forall ctx s k. ctx ~ ApiLayer s k
@@ -1510,46 +1511,41 @@ mkApiTransactionFromInfo ti (TransactionInfo txid fee ins outs ws meta depth txt
 postTransactionFee
     :: forall ctx s k n.
         ( ctx ~ ApiLayer s k
-        , Typeable s
+        , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
+        , HardDerivation k
         , Typeable n
+        , Typeable s
+        , WalletKey k
         )
     => ctx
     -> ApiT WalletId
     -> PostTransactionFeeData n
     -> Handler ApiFee
 postTransactionFee ctx (ApiT wid) body = do
-    let outs = coerceCoin <$> body ^. #payments
-    let md = getApiT <$> body ^. #metadata
-
+    (wdrl, _) <- mkRewardAccountBuilder @_ @s @_ @n ctx wid Nothing
+    let txCtx = TransactionCtx
+            { txWithdrawal = wdrl
+            , txMetadata = getApiT <$> body ^. #metadata
+            , txTimeToLive = maxBound
+            , txDelegationAction = Nothing
+            }
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
-        wdrl <- case body ^. #withdrawal of
-            Nothing ->
-                pure (Coin 0)
-
-            Just SelfWithdrawal -> do
-                (acct, _) <- liftHandler $ W.readRewardAccount @_ @s @k @n wrk wid
-                wdrl <- liftHandler $ W.queryRewardBalance @_ wrk acct
-                liftIO $ W.readNextWithdrawal @_ @s @k wrk wid wdrl
-
-            Just (ExternalWithdrawal (ApiMnemonicT mw)) -> do
-                let (_, acct) = W.someRewardAccount @ShelleyKey mw
-                wdrl <- liftHandler $ W.queryRewardBalance @_ wrk acct
-                liftIO $ W.readNextWithdrawal @_ @s @k wrk wid wdrl
-
-        fee <- liftHandler $ W.estimateFeeForPayment @_ @s @k wrk wid outs wdrl md
-        pure $ mkApiFee fee Nothing
+        let runSelection = W.selectAssets @_ @s @k wrk wid txCtx outs
+              where outs = coerceCoin <$> body ^. #payments
+        liftHandler $ mkApiFee Nothing <$> W.estimateFee (fst <$> runSelection)
 
 joinStakePool
     :: forall ctx s n k.
-        ( DelegationAddress n k
+        ( ctx ~ ApiLayer s k
         , s ~ SeqState n k
-        , IsOurs s RewardAccount
-        , IsOwned s k
-        , GenChange s
-        , SoftDerivation k
         , AddressIndexDerivationType k ~ 'Soft
+        , DelegationAddress n k
+        , GenChange s
+        , IsOwned s k
+        , SoftDerivation k
+        , Typeable n
+        , Typeable s
         , WalletKey k
-        , ctx ~ ApiLayer s k
         )
     => ctx
     -> IO (Set PoolId)
@@ -1571,33 +1567,42 @@ joinStakePool ctx knownPools getPoolStatus apiPoolId (ApiT wid) body = do
     pools <- liftIO knownPools
     curEpoch <- getCurrentEpoch ctx
 
-    (cs, tx, txMeta, txTime) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+    (sel, tx, txMeta, txTime) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         (action, _) <- liftHandler
             $ W.joinStakePool @_ @s @k @n wrk curEpoch pools pid poolStatus wid
 
-        cs <- liftHandler
-            $ W.selectCoinsForDelegation @_ @s @k wrk wid action
+        (wdrl, mkRwdAcct) <- mkRewardAccountBuilder @_ @s @_ @n ctx wid Nothing
+        ttl <- liftIO $ W.getTxExpiry ti Nothing
+        let txCtx = TransactionCtx
+                { txWithdrawal = wdrl
+                , txMetadata = Nothing
+                , txTimeToLive = ttl
+                , txDelegationAction = Just action
+                }
 
+        (_, sel) <- liftHandler
+            $ W.selectAssetsNoOutputs @_ @s @k wrk wid txCtx
         (tx, txMeta, txTime, sealedTx) <- liftHandler
-            $ W.signDelegation @_ @s @k wrk wid genChange pwd cs action
-
+            $ W.signTransaction @_ @s @k wrk wid genChange mkRwdAcct pwd txCtx sel
         liftHandler
-            $ W.submitTx @_ @s @k wrk
-                wid (tx, txMeta, sealedTx)
+            $ W.submitTx @_ @s @k wrk wid (tx, txMeta, sealedTx)
 
-        pure (cs, tx, txMeta, txTime)
+        pure (sel, tx, txMeta, txTime)
 
     liftIO $ mkApiTransaction
         (timeInterpreter (ctx ^. networkLayer))
         (txId tx)
         (tx ^. #fee)
-        (second Just <$> cs ^. #inputs)
+        (NE.toList $ second Just <$> sel ^. #inputsSelected)
         (tx ^. #outputs)
         (tx ^. #withdrawals)
         (txMeta, txTime)
         Nothing
         #pendingSince
   where
+    ti :: TimeInterpreter (ExceptT PastHorizonException IO)
+    ti = timeInterpreter (ctx ^. networkLayer)
+
     genChange = delegationAddress @n
 
 delegationFee
@@ -1609,21 +1614,33 @@ delegationFee
     -> ApiT WalletId
     -> Handler ApiFee
 delegationFee ctx (ApiT wid) = do
-    withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
-         apiFee <$> W.estimateFeeForDelegation @_ @s @k wrk wid
+    withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+        let runSelection = W.selectAssetsNoOutputs @_ @s @k wrk wid txCtx
+        liftHandler $ mkApiFee
+            <$> (Just <$> W.calcMinimumDeposit @_ @s @k wrk wid)
+            <*> W.estimateFee (fst <$> runSelection)
+  where
+    txCtx :: TransactionCtx
+    txCtx = TransactionCtx
+        { txWithdrawal = Coin 0
+        , txMetadata = Nothing
+        , txTimeToLive = maxBound
+        , txDelegationAction = Nothing
+        }
 
 quitStakePool
     :: forall ctx s n k.
-        ( DelegationAddress n k
+        ( ctx ~ ApiLayer s k
         , s ~ SeqState n k
-        , IsOurs s RewardAccount
-        , IsOwned s k
+        , AddressIndexDerivationType k ~ 'Soft
+        , DelegationAddress n k
         , GenChange s
         , HasNetworkLayer ctx
-        , AddressIndexDerivationType k ~ 'Soft
-        , WalletKey k
+        , IsOwned s k
         , SoftDerivation k
-        , ctx ~ ApiLayer s k
+        , Typeable n
+        , Typeable s
+        , WalletKey k
         )
     => ctx
     -> ApiT WalletId
@@ -1632,34 +1649,42 @@ quitStakePool
 quitStakePool ctx (ApiT wid) body = do
     let pwd = coerce $ getApiT $ body ^. #passphrase
 
-    (cs, tx, txMeta, txTime) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+    (sel, tx, txMeta, txTime) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         action <- liftHandler
             $ W.quitStakePool @_ @s @k @n wrk wid
 
-        cs <- liftHandler
-            $ W.selectCoinsForDelegation @_ @s @k wrk wid action
+        (wdrl, mkRwdAcct) <- mkRewardAccountBuilder @_ @s @_ @n ctx wid Nothing
+        ttl <- liftIO $ W.getTxExpiry ti Nothing
+        let txCtx = TransactionCtx
+                { txWithdrawal = wdrl
+                , txMetadata = Nothing
+                , txTimeToLive = ttl
+                , txDelegationAction = Just action
+                }
 
+        (_, sel) <- liftHandler
+            $ W.selectAssetsNoOutputs @_ @s @k wrk wid txCtx
         (tx, txMeta, txTime, sealedTx) <- liftHandler
-            $ W.signDelegation @_ @s @k wrk wid genChange pwd cs action
-
+            $ W.signTransaction @_ @s @k wrk wid genChange mkRwdAcct pwd txCtx sel
         liftHandler
-            $ W.submitTx @_ @s @k wrk
-                wid (tx, txMeta, sealedTx)
+            $ W.submitTx @_ @s @k wrk wid (tx, txMeta, sealedTx)
 
-        pure (cs, tx, txMeta, txTime)
-
+        pure (sel, tx, txMeta, txTime)
 
     liftIO $ mkApiTransaction
         (timeInterpreter (ctx ^. networkLayer))
         (txId tx)
         (tx ^. #fee)
-        (second Just <$> cs ^. #inputs)
+        (NE.toList $ second Just <$> sel ^. #inputsSelected)
         (tx ^. #outputs)
         (tx ^. #withdrawals)
         (txMeta, txTime)
         Nothing
         #pendingSince
   where
+    ti :: TimeInterpreter (ExceptT PastHorizonException IO)
+    ti = timeInterpreter (ctx ^. networkLayer)
+
     genChange = delegationAddress @n
 
 {-------------------------------------------------------------------------------
@@ -1667,26 +1692,17 @@ quitStakePool ctx (ApiT wid) body = do
 -------------------------------------------------------------------------------}
 
 getMigrationInfo
-    :: forall s k n.
-        ( PaymentAddress n ByronKey
-        )
+    :: forall s k. ()
     => ApiLayer s k
         -- ^ Source wallet context
     -> ApiT WalletId
         -- ^ Source wallet
     -> Handler ApiWalletMigrationInfo
 getMigrationInfo _ctx _wid = do
-    throwE ErrTemporarilyDisabled
+    liftHandler $ throwE ErrTemporarilyDisabled
 
 migrateWallet
-    :: forall s k n p.
-        ( IsOurs s RewardAccount
-        , IsOwned s k
-        , HardDerivation k
-        , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
-        , PaymentAddress n ByronKey
-        , WalletKey k
-        )
+    :: forall s k n p. ()
     => ApiLayer s k
         -- ^ Source wallet context
     -> ApiT WalletId
@@ -1910,6 +1926,46 @@ rndStateChange ctx (ApiT wid) pwd =
         W.withRootKey @_ @s @k wrk wid pwd ErrSignPaymentWithRootKey $ \xprv scheme ->
             pure (xprv, preparePassphrase scheme pwd)
 
+type RewardAccountBuilder k
+        =  (k 'RootK XPrv, Passphrase "encryption")
+        -> (XPrv, Passphrase "encryption")
+
+mkRewardAccountBuilder
+    :: forall ctx s k (n :: NetworkDiscriminant).
+        ( ctx ~ ApiLayer s k
+        , HardDerivation k
+        , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
+        , WalletKey k
+        , Typeable s
+        , Typeable n
+        )
+    => ctx
+    -> WalletId
+    -> Maybe ApiWithdrawalPostData
+    -> Handler (Coin, RewardAccountBuilder k)
+mkRewardAccountBuilder ctx wid withdrawal = do
+    let selfRewardCredentials (rootK, pwdP) =
+            (getRawKey $ deriveRewardAccount @k pwdP rootK, pwdP)
+
+    withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+        case withdrawal of
+           Nothing ->
+               pure (Coin 0, selfRewardCredentials)
+
+           Just SelfWithdrawal -> do
+               (acct, _) <- liftHandler $ W.readRewardAccount @_ @s @k @n wrk wid
+               wdrl <- liftHandler $ W.queryRewardBalance @_ wrk acct
+               (, selfRewardCredentials)
+                   <$> liftIO (W.readNextWithdrawal @_ @s @k wrk wid wdrl)
+
+           Just (ExternalWithdrawal (ApiMnemonicT mw)) -> do
+               let (xprv, acct) = W.someRewardAccount @ShelleyKey mw
+               wdrl <- liftHandler (W.queryRewardBalance @_ wrk acct)
+                   >>= liftIO . W.readNextWithdrawal @_ @s @k wrk wid
+               when (wdrl == Coin 0) $ do
+                   liftHandler $ throwE ErrWithdrawalNotWorth
+               pure (wdrl, const (xprv, mempty))
+
 -- | Makes an 'ApiCoinSelection' from the given 'UnsignedTx'.
 mkApiCoinSelection
     :: forall n input output change.
@@ -1956,7 +2012,8 @@ mkApiCoinSelection deps mcerts (UnsignedTx inputs outputs change) =
             { id = ApiT txid
             , index = index
             , address = (ApiT addr, Proxy @n)
-            , amount = coinToQuantity $ TokenBundle.getCoin tokens
+            , amount = Quantity $
+                fromIntegral $ unCoin $ TokenBundle.getCoin tokens
             , derivationPath = ApiT <$> path
             }
 
@@ -2369,99 +2426,6 @@ instance LiftHandler ErrWithRootKey where
                 , toText wid
                 ]
 
-instance LiftHandler ErrSelectCoinsExternal where
-    handler = \case
-        ErrSelectCoinsExternalNoSuchWallet e ->
-            handler e
-        ErrSelectCoinsExternalForPayment e ->
-            handler e
-        ErrSelectCoinsExternalForDelegation e ->
-            handler e
-        ErrSelectCoinsExternalUnableToAssignInputs e ->
-            apiError err500 UnableToAssignInputOutput $ mconcat
-                [ "I'm unable to assign inputs from coin selection: "
-                , pretty e
-                ]
-        ErrSelectCoinsExternalUnableToAssignChange e ->
-            apiError err500 UnexpectedError $ mconcat
-                [ "I was unable to assign change from the coin selection: "
-                , pretty e
-                ]
-
-instance LiftHandler ErrCoinSelection where
-    handler = \case
-        ErrNotEnoughMoney utxo payment ->
-            apiError err403 NotEnoughMoney $ mconcat
-                [ "I can't process this payment because there's not enough "
-                , "UTxO available in the wallet. The total UTxO sums up to "
-                , showT utxo, " Lovelace, but I need ", showT payment
-                , " Lovelace (excluding fee amount) in order to proceed "
-                , " with the payment."
-                ]
-        ErrMaximumInputsReached n ->
-            apiError err403 TransactionIsTooBig $ mconcat
-                [ "I had to select ", showT n, " inputs to construct the "
-                , "requested transaction. Unfortunately, this would create a "
-                , "transaction that is too big, and this would consequently "
-                , "be rejected by a core node. Try sending a smaller amount."
-                ]
-        ErrInputsDepleted ->
-            apiError err403 InputsDepleted $ mconcat
-                [ "I cannot select enough UTxO from your wallet to construct "
-                , "an adequate transaction. Try sending a smaller amount or "
-                , "increasing the number of available UTxO."
-                ]
-
-instance LiftHandler ErrAdjustForFee where
-    handler = \case
-        ErrCannotCoverFee missing ->
-            apiError err403 CannotCoverFee $ mconcat
-                [ "I'm unable to adjust the given transaction to cover the "
-                , "associated fee! In order to do so, I'd have to select one "
-                , "or more additional inputs, but I can't do that without "
-                , "increasing the size of the transaction beyond the "
-                , "acceptable limit. Note that I am only missing "
-                , showT missing, " Lovelace."
-                ]
-
-instance LiftHandler ErrUTxOTooSmall where
-    handler = \case
-        ErrUTxOTooSmall minUtxoValue invalidUTxO ->
-            apiError err403 UtxoTooSmall $ mconcat
-                [ "I'm unable to construct the given transaction as some "
-                , "outputs or changes are too small! Each output and change is "
-                , "expected to be >= ", showT minUtxoValue, " Lovelace. "
-                , "In the current transaction the following pieces are not "
-                , "satisfying this condition : ", showT invalidUTxO, " ."
-                ]
-
-instance LiftHandler ErrSelectForPayment where
-    handler = \case
-        ErrSelectForPaymentNoSuchWallet e -> handler e
-        ErrSelectForPaymentCoinSelection e -> handler e
-        ErrSelectForPaymentFee e -> handler e
-        ErrSelectForPaymentMinimumUTxOValue e -> handler e
-        ErrSelectForPaymentAlreadyWithdrawing tx ->
-            apiError err403 AlreadyWithdrawing $ mconcat
-                [ "I already know of a pending transaction with withdrawals: "
-                , toText (txId tx), ". Note that when I withdraw rewards, I "
-                , "need to withdraw them fully for the Ledger to accept it. "
-                , "There's therefore no point creating another conflicting "
-                , "transaction; if, for some reason, you really want a new "
-                , "transaction, then cancel the previous one first."
-                ]
-        ErrSelectForPaymentTxTooLarge maxSize maxN  ->
-            apiError err403 TransactionIsTooBig $ mconcat
-                [ "I am afraid that the transaction you're trying to submit is "
-                , "too large! The network allows transactions only as large as "
-                , pretty maxSize, "s! As it stands, the current transaction only "
-                , "allows me to select up to ", showT maxN, " inputs. Note "
-                , "that I am selecting inputs randomly, so retrying *may work* "
-                , "provided I end up choosing bigger inputs sufficient to cover "
-                , "the transaction cost. Alternatively, try sending to less "
-                , "recipients or with smaller metadata."
-                ]
-
 instance LiftHandler ErrListUTxOStatistics where
     handler = \case
         ErrListUTxOStatisticsNoSuchWallet e -> handler e
@@ -2641,35 +2605,9 @@ instance LiftHandler ErrNoSuchTransaction where
                 , toText tid
                 ]
 
-instance LiftHandler ErrSelectForDelegation where
-    handler = \case
-        ErrSelectForDelegationNoSuchWallet e -> handler e
-        ErrSelectForDelegationFee (ErrCannotCoverFee cost) ->
-            apiError err403 CannotCoverFee $ mconcat
-                [ "I'm unable to select enough coins to pay for a "
-                , "delegation certificate. I need: ", showT cost, " Lovelace."
-                ]
-
-instance LiftHandler ErrSignDelegation where
-    handler = \case
-        ErrSignDelegationMkTx e -> handler e
-        ErrSignDelegationNoSuchWallet e -> (handler e)
-            { errHTTPCode = 404
-            , errReasonPhrase = errReasonPhrase err404
-            }
-        ErrSignDelegationWithRootKey e@ErrWithRootKeyNoRootKey{} -> (handler e)
-            { errHTTPCode = 403
-            , errReasonPhrase = errReasonPhrase err403
-            }
-        ErrSignDelegationWithRootKey e@ErrWithRootKeyWrongPassphrase{} -> handler e
-        ErrSignDelegationIncorrectTTL e -> handler e
-
 instance LiftHandler ErrJoinStakePool where
     handler = \case
         ErrJoinStakePoolNoSuchWallet e -> handler e
-        ErrJoinStakePoolSubmitTx e -> handler e
-        ErrJoinStakePoolSignDelegation e -> handler e
-        ErrJoinStakePoolSelectCoin e -> handler e
         ErrJoinStakePoolCannotJoin e -> case e of
             ErrAlreadyDelegating pid ->
                 apiError err403 PoolAlreadyJoined $ mconcat
@@ -2702,9 +2640,6 @@ instance LiftHandler ErrReadRewardAccount where
 instance LiftHandler ErrQuitStakePool where
     handler = \case
         ErrQuitStakePoolNoSuchWallet e -> handler e
-        ErrQuitStakePoolSelectCoin e -> handler e
-        ErrQuitStakePoolSignDelegation e -> handler e
-        ErrQuitStakePoolSubmitTx e -> handler e
         ErrQuitStakePoolCannotQuit e -> case e of
             ErrNotDelegatingOrAboutTo ->
                 apiError err403 NotDelegatingTo $ mconcat
@@ -2788,6 +2723,65 @@ instance LiftHandler ErrInvalidDerivationIndex where
                 , "between 0 and ", pretty maxIx, " without a suffix."
                 ]
 
+instance LiftHandler ErrSelectAssets where
+    handler = \case
+        ErrSelectAssetsNoSuchWallet e -> handler e
+        ErrSelectAssetsAlreadyWithdrawing tx ->
+            apiError err403 AlreadyWithdrawing $ mconcat
+                [ "I already know of a pending transaction with withdrawals: "
+                , toText (txId tx), ". Note that when I withdraw rewards, I "
+                , "need to withdraw them fully for the Ledger to accept it. "
+                , "There's therefore no point creating another conflicting "
+                , "transaction; if, for some reason, you really want a new "
+                , "transaction, then cancel the previous one first."
+                ]
+        ErrSelectAssetsSelectionError selectionError ->
+            case selectionError of
+                BalanceInsufficient e ->
+                    let
+                        BalanceInsufficientError
+                            { balanceRequired
+                            , balanceAvailable
+                            } = e
+
+                        missing
+                            = TokenBundle.Flat
+                            $ fromMaybe TokenBundle.empty
+                            $ TokenBundle.subtract
+                                balanceRequired balanceAvailable
+                    in
+                        apiError err403 NotEnoughMoney $ mconcat
+                            [ "I can't process this payment because there's not "
+                            , "enough funds available in the wallet. I am only "
+                            , "missing: ", pretty missing
+                            ]
+                SelectionInsufficient e ->
+                    apiError err403 TransactionIsTooBig $ mconcat
+                        [ "I am not able to finalize the transaction "
+                        , "because I need to select additional inputs and "
+                        , "doing so will make the transaction too big. Try "
+                        , "sending a smaller amount. I had already selected "
+                        , showT (length $ inputsSelected e), " inputs."
+                        ]
+                InsufficientMinCoinValues xs ->
+                    apiError err403 UtxoTooSmall $ mconcat
+                        [ "Some outputs specifies an Ada value that is too small. "
+                        , "Indeed, there's a minimum Ada value specified by the "
+                        , "protocol that each output must satisfy. I'll handle "
+                        , "that minimum value myself when you do not explicitly "
+                        , "specify an Ada value for outputs. Otherwise, you "
+                        , "must specify enough Ada. Here are the problematic "
+                        , "outputs: " <> showT xs
+                        ]
+                UnableToConstructChange e ->
+                    apiError err403 CannotCoverFee $ mconcat
+                        [ "I am unable to finalize the transaction as there are "
+                        , "not enough Ada I can use to pay for either fees, or "
+                        , "minimum Ada value in change outputs. I need about "
+                        , pretty (missingCoins e), " Lovelace to proceed; try "
+                        , "increasing your wallet balance as such, or try "
+                        , "sending a different, smaller payment."
+                        ]
 
 instance LiftHandler (Request, ServerError) where
     handler (req, err@(ServerError code _ body headers))
