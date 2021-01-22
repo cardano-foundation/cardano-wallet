@@ -16,7 +16,8 @@ import Algebra.PartialOrd
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId (..), Flat (..), Nested (..), TokenMap )
 import Cardano.Wallet.Primitive.Types.TokenMap.Gen
-    ( genAssetIdSmallRange
+    ( AssetIdF (..)
+    , genAssetIdSmallRange
     , genTokenMapSmallRange
     , shrinkAssetIdSmallRange
     , shrinkTokenMapSmallRange
@@ -68,7 +69,16 @@ import Test.Hspec
 import Test.Hspec.Core.QuickCheck
     ( modifyMaxSuccess )
 import Test.QuickCheck
-    ( Arbitrary (..), Property, checkCoverage, cover, property, (===), (==>) )
+    ( Arbitrary (..)
+    , Fun
+    , Property
+    , applyFun
+    , checkCoverage
+    , cover
+    , property
+    , (===)
+    , (==>)
+    )
 import Test.QuickCheck.Classes
     ( eqLaws, monoidLaws, semigroupLaws, semigroupMonoidLaws )
 import Test.Utils.Laws
@@ -84,8 +94,10 @@ import qualified Data.Aeson.Types as Aeson
 import qualified Data.Foldable as F
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
+import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Test.Utils.Roundtrip as Roundtrip
+
 
 spec :: Spec
 spec =
@@ -141,6 +153,15 @@ spec =
         it "prop_toNestedList_fromNestedList" $
             property prop_toNestedList_fromNestedList
 
+    parallel $ describe "Filtering" $ do
+
+        it "prop_filter_conjoin" $
+            property prop_filter_conjoin
+        it "prop_filter_partition" $
+            property prop_filter_partition
+        it "prop_filter_twice" $
+            property prop_filter_twice
+
     parallel $ describe "Arithmetic" $ do
 
         it "prop_add_commutative" $
@@ -164,6 +185,8 @@ spec =
             property prop_adjustQuantity_getQuantity
         it "prop_adjustQuantity_hasQuantity" $
             property prop_adjustQuantity_hasQuantity
+        it "prop_maximumQuantity_all" $
+            property prop_maximumQuantity_all
 
     parallel $ describe "JSON serialization" $ do
 
@@ -303,6 +326,37 @@ prop_toNestedList_fromNestedList b =
     TokenMap.fromNestedList (TokenMap.toNestedList b) === b
 
 --------------------------------------------------------------------------------
+-- Filtering properties
+--------------------------------------------------------------------------------
+
+-- | Verify that all assets in the resulting filtered map satisfy the predicate.
+prop_filter_conjoin :: Fun AssetIdF Bool -> TokenMap -> Property
+prop_filter_conjoin f b =
+    let
+        as = TokenMap.getAssets $ TokenMap.filter (applyFun f . AssetIdF) b
+    in
+        Set.foldr ((&&) . applyFun f . AssetIdF) True as === True
+
+-- | Verify that we can partition the token map using the predicate, and recover
+-- the original map by computing the union of both partitions.
+prop_filter_partition :: Fun AssetIdF Bool -> TokenMap -> Property
+prop_filter_partition f b =
+    let
+        l = TokenMap.filter (applyFun f . AssetIdF) b
+        r = TokenMap.filter (not . applyFun f . AssetIdF) b
+    in
+        (l <> r) === b
+
+-- | Verify that filtering twice has the same effect as filtering once.
+prop_filter_twice :: Fun AssetIdF Bool -> TokenMap -> Property
+prop_filter_twice f b =
+    let
+        once  = TokenMap.filter (applyFun f . AssetIdF) b
+        twice = TokenMap.filter (applyFun f . AssetIdF) once
+    in
+        once === twice
+
+--------------------------------------------------------------------------------
 -- Arithmetic properties
 --------------------------------------------------------------------------------
 
@@ -369,6 +423,13 @@ prop_adjustQuantity_hasQuantity b asset =
     adjust quantity
         | quantity > TokenQuantity.zero = TokenQuantity.pred quantity
         | otherwise = quantity
+
+prop_maximumQuantity_all
+    :: TokenMap -> Property
+prop_maximumQuantity_all b =
+    property $ all (<= maxQ) (snd <$> TokenMap.toFlatList b)
+  where
+    maxQ = TokenMap.maximumQuantity b
 
 --------------------------------------------------------------------------------
 -- JSON serialization tests

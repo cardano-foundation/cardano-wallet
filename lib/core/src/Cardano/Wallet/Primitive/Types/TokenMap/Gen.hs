@@ -1,8 +1,12 @@
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE NamedFieldPuns #-}
+
 module Cardano.Wallet.Primitive.Types.TokenMap.Gen
     ( genAssetIdSmallRange
     , genTokenMapSmallRange
     , shrinkAssetIdSmallRange
     , shrinkTokenMapSmallRange
+    , AssetIdF (..)
     ) where
 
 import Prelude
@@ -14,13 +18,29 @@ import Cardano.Wallet.Primitive.Types.TokenPolicy.Gen
     , genTokenPolicyIdSmallRange
     , shrinkTokenNameSmallRange
     , shrinkTokenPolicyIdSmallRange
+    , tokenNamesMediumRange
+    , tokenPolicies
     )
 import Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
     ( genTokenQuantitySmall, shrinkTokenQuantitySmall )
 import Control.Monad
     ( replicateM )
+import Data.List
+    ( elemIndex )
+import Data.Maybe
+    ( fromMaybe )
+import GHC.Generics
+    ( Generic )
 import Test.QuickCheck
-    ( Gen, choose, oneof, shrinkList )
+    ( CoArbitrary (..)
+    , Function (..)
+    , Gen
+    , choose
+    , functionMap
+    , oneof
+    , shrinkList
+    , variant
+    )
 import Test.QuickCheck.Extra
     ( shrinkInterleaved )
 
@@ -66,3 +86,19 @@ shrinkTokenMapSmallRange
     shrinkAssetQuantity (a, q) = shrinkInterleaved
         (a, shrinkAssetIdSmallRange)
         (q, shrinkTokenQuantitySmall)
+
+--------------------------------------------------------------------------------
+-- Filtering functions
+--------------------------------------------------------------------------------
+
+newtype AssetIdF = AssetIdF AssetId
+    deriving (Generic, Eq, Show, Read)
+
+instance Function AssetIdF where
+    function = functionMap show read
+
+instance CoArbitrary AssetIdF where
+    coarbitrary (AssetIdF AssetId{tokenName, tokenPolicyId}) genB = do
+        let n = fromMaybe 0 (elemIndex tokenName tokenNamesMediumRange)
+        let m = fromMaybe 0 (elemIndex tokenPolicyId tokenPolicies)
+        variant (n+m) genB

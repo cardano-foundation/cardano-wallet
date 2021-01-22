@@ -19,34 +19,51 @@ import Algebra.PartialOrd
     ( PartialOrd (..) )
 import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     ( BalanceInsufficientError (..)
+    , GreatestTokenQuantity (..)
+    , InsufficientMinCoinValueError (..)
     , SelectionCriteria (..)
     , SelectionError (..)
     , SelectionInsufficientError (..)
     , SelectionLens (..)
     , SelectionLimit (..)
     , SelectionResult (..)
+    , SelectionSkeleton (..)
     , SelectionState (..)
+    , UnableToConstructChangeError (..)
+    , fullBalance
     , groupByKey
     , makeChange
-    , makeChangeForSurplusAssets
+    , makeChangeForCoin
+    , makeChangeForNonUserSpecifiedAsset
+    , makeChangeForUserSpecifiedAsset
+    , mapMaybe
     , performSelection
+    , prepareOutputsWith
     , runRoundRobin
     , runSelection
     , runSelectionStep
     , ungroupByKey
     )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+    ( Coin (..), addCoin )
+import Cardano.Wallet.Primitive.Types.Coin.Gen
+    ( genCoinSmall, genCoinSmallPositive, shrinkCoinSmallPositive )
+import Cardano.Wallet.Primitive.Types.Hash
+    ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle
-    ( TokenBundle )
+    ( Flat (..), TokenBundle (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
     ( genTokenBundleSmallRangePositive, shrinkTokenBundleSmallRangePositive )
 import Cardano.Wallet.Primitive.Types.TokenMap
-    ( AssetId (..) )
+    ( AssetId (..), TokenMap )
 import Cardano.Wallet.Primitive.Types.TokenMap.Gen
-    ( genAssetIdSmallRange, shrinkAssetIdSmallRange )
+    ( genAssetIdSmallRange
+    , genTokenMapSmallRange
+    , shrinkAssetIdSmallRange
+    , shrinkTokenMapSmallRange
+    )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( TokenName )
+    ( TokenName (..), TokenPolicyId (..) )
 import Cardano.Wallet.Primitive.Types.TokenPolicy.Gen
     ( genTokenNameMediumRange )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
@@ -54,19 +71,23 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity
 import Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
     ( genTokenQuantitySmallPositive, shrinkTokenQuantitySmallPositive )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( TxOut )
+    ( TxOut, txOutCoin )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
     ( genTxOutSmallRange, shrinkTxOutSmallRange )
 import Cardano.Wallet.Primitive.Types.UTxOIndex
     ( UTxOIndex )
 import Cardano.Wallet.Primitive.Types.UTxOIndex.Gen
-    ( genUTxOIndexLarge, genUTxOIndexSmall, shrinkUTxOIndexSmall )
+    ( genUTxOIndexLarge
+    , genUTxOIndexLargeN
+    , genUTxOIndexSmall
+    , shrinkUTxOIndexSmall
+    )
 import Control.Monad
-    ( replicateM )
+    ( forM_, replicateM )
 import Data.Bifunctor
     ( bimap, second )
 import Data.Function
-    ( (&) )
+    ( on, (&) )
 import Data.Functor.Identity
     ( Identity (..) )
 import Data.Generics.Internal.VL.Lens
@@ -82,37 +103,51 @@ import Data.Set
 import Data.Tuple
     ( swap )
 import Data.Word
-    ( Word8 )
+    ( Word64, Word8 )
 import Fmt
-    ( pretty )
+    ( blockListF, pretty )
 import Numeric.Natural
     ( Natural )
 import Safe
     ( tailMay )
 import Test.Hspec
-    ( Spec, describe, it, parallel )
+    ( Expectation, Spec, SpecWith, describe, it, parallel, shouldBe )
 import Test.Hspec.Core.QuickCheck
     ( modifyMaxSuccess )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Blind (..)
+    , Fun
     , Gen
     , Positive (..)
     , Property
+    , applyFun
+    , arbitraryBoundedEnum
     , checkCoverage
     , choose
+    , conjoin
     , counterexample
     , cover
+    , disjoin
     , frequency
+    , generate
     , genericShrink
+    , ioProperty
+    , label
+    , oneof
     , property
     , shrinkList
     , suchThat
     , withMaxSuccess
+    , (.&&.)
     , (===)
     )
+import Test.QuickCheck.Classes
+    ( eqLaws, ordLaws )
 import Test.QuickCheck.Monadic
     ( assert, monadicIO, monitor, run )
+import Test.Utils.Laws
+    ( testLawsMany )
 
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
@@ -121,6 +156,7 @@ import qualified Data.Foldable as F
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
+import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 
 spec :: Spec
@@ -135,12 +171,42 @@ spec = describe "Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobinSpec" $
         it "prop_Large_UTxOIndex_coverage" $
             property prop_Large_UTxOIndex_coverage
 
+    parallel $ describe "Class instances respect laws" $ do
+
+        testLawsMany @(GreatestTokenQuantity TokenMap)
+            [ eqLaws
+            , ordLaws
+            ]
+
+    parallel $ describe "Preparing outputs" $ do
+
+        it "prop_prepareOutputWith_twice" $
+            property prop_prepareOutputsWith_twice
+        it "prop_prepareOutputsWith_length" $
+            property prop_prepareOutputsWith_length
+        it "prop_prepareOutputsWith_assetsUnchanged" $
+            property prop_prepareOutputsWith_assetsUnchanged
+        it "prop_prepareOutputsWith_preparedOrExistedBefore" $
+            property prop_prepareOutputsWith_preparedOrExistedBefore
+
     parallel $ describe "Performing a selection" $ do
 
         it "prop_performSelection_small" $
             property prop_performSelection_small
         it "prop_performSelection_large" $
             property prop_performSelection_large
+        it "prop_performSelection_huge" $ ioProperty $ do
+            -- The UTxO index is generated outside of the property here to avoid
+            -- the cost of re-generating it on every pass. This would still
+            -- generate interesting cases since the selection within that large
+            -- index is random. Plus, other selection criteria still vary.
+            utxoAvailable <- generate (genUTxOIndexLargeN 50000)
+            pure $ property $ \minCoin costFor (Large criteria) ->
+                let
+                    criteria' = Blind $ criteria { utxoAvailable }
+                in
+                    prop_performSelection minCoin costFor criteria' (const id)
+                        & withMaxSuccess 5
 
     parallel $ describe "Running a selection (without making change)" $ do
 
@@ -174,17 +240,39 @@ spec = describe "Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobinSpec" $
             property prop_makeChange_identity
         it "prop_makeChange_length" $
             property prop_makeChange_length
-        it "prop_makeChange_sum" $
-            property prop_makeChange_sum
+        it "prop_makeChange" $
+            property prop_makeChange
+        unitTests "makeChange"
+            unit_makeChange
 
-    parallel $ describe "Making change for surplus assets" $ do
+    parallel $ describe "Making change for coins" $ do
 
-        it "prop_makeChangeForSurplusAssets_length" $
-            property prop_makeChangeForSurplusAssets_length
-        it "prop_makeChangeForSurplusAssets_sort" $
-            property prop_makeChangeForSurplusAssets_sort
-        it "prop_makeChangeForSurplusAssets_sum" $
-            property prop_makeChangeForSurplusAssets_sum
+        it "prop_makeChangeForCoin_sum" $
+            property prop_makeChangeForCoin_sum
+        it "prop_makeChangeForCoin_length" $
+            property prop_makeChangeForCoin_length
+        unitTests "makeChangeForCoin"
+            unit_makeChangeForCoin
+
+    parallel $ describe "Making change for non-user-specified assets" $ do
+
+        it "prop_makeChangeForNonUserSpecifiedAsset_sum" $
+            property prop_makeChangeForNonUserSpecifiedAsset_sum
+        it "prop_makeChangeForNonUserSpecifiedAsset_order" $
+            property prop_makeChangeForNonUserSpecifiedAsset_order
+        it "prop_makeChangeForNonUserSpecifiedAsset_length" $
+            property prop_makeChangeForNonUserSpecifiedAsset_length
+        unitTests "makeChangeForNonUserSpecifiedAsset"
+            unit_makeChangeForNonUserSpecifiedAsset
+
+    parallel $ describe "Making change for user-specified assets" $ do
+
+        it "prop_makeChangeForUserSpecifiedAsset_sum" $
+            property prop_makeChangeForUserSpecifiedAsset_sum
+        it "prop_makeChangeForUserSpecifiedAsset_length" $
+            property prop_makeChangeForUserSpecifiedAsset_length
+        unitTests "makeChangeForUserSpecifiedAsset"
+            unit_makeChangeForUserSpecifiedAsset
 
     parallel $ describe "Grouping and ungrouping" $ do
 
@@ -205,6 +293,11 @@ spec = describe "Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobinSpec" $
             property $ prop_runRoundRobin_generationCount @TokenName @Word8
         it "prop_runRoundRobin_generationOrder" $
             property $ prop_runRoundRobin_generationOrder @TokenName @Word8
+
+    parallel $ describe "Utility functions" $ do
+
+        it "prop_mapMaybe_oracle" $
+            property prop_mapMaybe_oracle
 
 --------------------------------------------------------------------------------
 -- Coverage
@@ -252,6 +345,58 @@ prop_Large_UTxOIndex_coverage (Large index) =
     entryCount = UTxOIndex.size index
 
 --------------------------------------------------------------------------------
+-- Preparing outputs
+--------------------------------------------------------------------------------
+
+prop_prepareOutputsWith_twice
+    :: MinCoinValueFor
+    -> NonEmpty TxOut
+    -> Property
+prop_prepareOutputsWith_twice minCoinValueDef outs =
+    once === twice
+  where
+    minCoinValueFor = mkMinCoinValueFor minCoinValueDef
+    (_:once:twice:_) = iterate (prepareOutputsWith minCoinValueFor) outs
+
+prop_prepareOutputsWith_length
+    :: MinCoinValueFor
+    -> NonEmpty TxOut
+    -> Property
+prop_prepareOutputsWith_length minCoinValueDef outs =
+    F.length (prepareOutputsWith minCoinValueFor outs) === F.length outs
+  where
+    minCoinValueFor = mkMinCoinValueFor minCoinValueDef
+
+prop_prepareOutputsWith_assetsUnchanged
+    :: MinCoinValueFor
+    -> NonEmpty TxOut
+    -> Property
+prop_prepareOutputsWith_assetsUnchanged minCoinValueDef outs =
+    (txOutAssets <$> (prepareOutputsWith minCoinValueFor outs))
+    ===
+    (txOutAssets <$> outs)
+  where
+    minCoinValueFor = mkMinCoinValueFor minCoinValueDef
+    txOutAssets = TokenBundle.getAssets . view #tokens
+
+prop_prepareOutputsWith_preparedOrExistedBefore
+    :: MinCoinValueFor
+    -> NonEmpty TxOut
+    -> Property
+prop_prepareOutputsWith_preparedOrExistedBefore minCoinValueDef outs =
+    property $ F.all isPreparedOrExistedBefore (NE.zip outs outs')
+  where
+    minCoinValueFor = mkMinCoinValueFor minCoinValueDef
+    outs' = prepareOutputsWith minCoinValueFor outs
+
+    isPreparedOrExistedBefore :: (TxOut, TxOut) -> Bool
+    isPreparedOrExistedBefore (before, after)
+        | txOutCoin before /= Coin 0 =
+            txOutCoin after == txOutCoin before
+        | otherwise =
+            txOutCoin after == minCoinValueFor (view (#tokens . #tokens) before)
+
+--------------------------------------------------------------------------------
 -- Performing a selection
 --------------------------------------------------------------------------------
 
@@ -270,125 +415,40 @@ genSelectionCriteria genUTxOIndex = do
             (1, UTxOIndex.size utxoAvailable `div` 8)
           )
         ]
-    pure $ SelectionCriteria {outputsToCover, utxoAvailable, selectionLimit}
+    extraCoinSource <- oneof [ pure Nothing, Just <$> genCoinSmall ]
+    pure $ SelectionCriteria
+        { outputsToCover, utxoAvailable, extraCoinSource, selectionLimit }
 
 balanceSufficient :: SelectionCriteria -> Bool
-balanceSufficient SelectionCriteria {outputsToCover, utxoAvailable} =
+balanceSufficient criteria =
     balanceRequired `leq` balanceAvailable
   where
+    SelectionCriteria {outputsToCover, utxoAvailable, extraCoinSource}
+        = criteria
     balanceRequired = F.foldMap (view #tokens) outputsToCover
-    balanceAvailable = UTxOIndex.balance utxoAvailable
+    balanceAvailable = fullBalance utxoAvailable extraCoinSource
 
 prop_performSelection_small
-    :: Blind (Small SelectionCriteria)
+    :: MinCoinValueFor
+    -> CostFor
+    -> Blind (Small SelectionCriteria)
     -> Property
-prop_performSelection_small (Blind (Small criteria)) =
+prop_performSelection_small minCoinValueFor costFor (Blind (Small criteria)) =
     checkCoverage $
     cover 30 (balanceSufficient criteria)
         "balance sufficient" $
     cover 30 (not $ balanceSufficient criteria)
         "balance insufficient" $
-    prop_performSelection (Blind criteria)
-
-prop_performSelection_large
-    :: Blind (Large SelectionCriteria)
-    -> Property
-prop_performSelection_large (Blind (Large criteria)) =
-    -- Generation of large UTxO sets takes longer, so limit the number of runs:
-    withMaxSuccess 100 $
-    checkCoverage $
-    cover 50 (balanceSufficient criteria)
-        "balance sufficient" $
-    prop_performSelection (Blind criteria)
-
-prop_performSelection
-    :: Blind SelectionCriteria
-    -> Property
-prop_performSelection (Blind criteria) =
-    monadicIO $ do
-        result <- run (performSelection criteria)
-        monitor $ cover 10 (selectionUnlimited && selectionSufficient result)
+    prop_performSelection minCoinValueFor costFor (Blind criteria) $ \result ->
+        cover 10 (selectionUnlimited && selectionSufficient result)
             "selection unlimited and sufficient"
-        monitor $ cover 10 (selectionLimited && selectionSufficient result)
+        . cover 10 (selectionLimited && selectionSufficient result)
             "selection limited but sufficient"
-        monitor $ cover 10 (selectionLimited && selectionInsufficient result)
+        . cover 10 (selectionLimited && selectionInsufficient result)
             "selection limited and insufficient"
-        either onFailure onSuccess result
   where
-    SelectionCriteria
-        {outputsToCover, utxoAvailable, selectionLimit} = criteria
-
-    onSuccess result = do
-        monitor $ counterexample $ unlines
-            [ "available balance:"
-            , pretty (TokenBundle.Nested balanceAvailable)
-            , "required balance:"
-            , pretty (TokenBundle.Nested balanceRequired)
-            , "selected balance:"
-            , pretty (TokenBundle.Nested balanceSelected)
-            , "change balance:"
-            , pretty (TokenBundle.Nested balanceChange)
-            ]
-        assert $ balanceSufficient criteria
-        assert $ balanceSelected == balanceRequired <> balanceChange
-        assert $ utxoAvailable ==
-            UTxOIndex.insertMany inputsSelected utxoRemaining
-        assert $ utxoRemaining ==
-            UTxOIndex.deleteMany (fst <$> inputsSelected) utxoAvailable
-        case selectionLimit of
-            MaximumInputLimit limit ->
-                assert $ NE.length inputsSelected <= limit
-            NoLimit ->
-                assert True
-      where
-        SelectionResult
-            {inputsSelected, changeGenerated, utxoRemaining} = result
-        balanceSelected =
-            F.foldMap (view #tokens . snd) inputsSelected
-        balanceChange =
-            F.fold changeGenerated
-
-    onFailure = \case
-        BalanceInsufficient e ->
-            onBalanceInsufficient e
-        SelectionInsufficient e ->
-            onSelectionInsufficient e
-
-    onBalanceInsufficient e = do
-        monitor $ counterexample $ unlines
-            [ "available balance:"
-            , pretty (TokenBundle.Nested balanceAvailable)
-            , "required balance:"
-            , pretty (TokenBundle.Nested balanceRequired)
-            ]
-        assert $ not $ balanceSufficient criteria
-        assert $ balanceAvailable == errorBalanceAvailable
-        assert $ balanceRequired  == errorBalanceRequired
-      where
-        BalanceInsufficientError errorBalanceAvailable errorBalanceRequired = e
-
-    onSelectionInsufficient e = do
-        monitor $ counterexample $ unlines
-            [ "required balance:"
-            , pretty (TokenBundle.Nested errorBalanceRequired)
-            , "selected balance:"
-            , pretty (TokenBundle.Nested errorBalanceSelected)
-            ]
-        assert $ selectionLimit ==
-            MaximumInputLimit (length errorInputsSelected)
-        assert $ not (errorBalanceRequired `leq` errorBalanceSelected)
-        assert $ balanceRequired == errorBalanceRequired
-      where
-        SelectionInsufficientError
-            errorBalanceRequired errorInputsSelected = e
-        errorBalanceSelected =
-            F.foldMap (view #tokens . snd) errorInputsSelected
-
-    balanceRequired = F.foldMap (view #tokens) outputsToCover
-    balanceAvailable = UTxOIndex.balance utxoAvailable
-
     selectionLimited :: Bool
-    selectionLimited = case selectionLimit of
+    selectionLimited = case selectionLimit criteria of
         MaximumInputLimit _ -> True
         NoLimit -> False
 
@@ -405,25 +465,182 @@ prop_performSelection (Blind criteria) =
         Left (SelectionInsufficient _) -> True
         _ -> False
 
+prop_performSelection_large
+    :: MinCoinValueFor
+    -> CostFor
+    -> Blind (Large SelectionCriteria)
+    -> Property
+prop_performSelection_large minCoinValueFor costFor (Blind (Large criteria)) =
+    -- Generation of large UTxO sets takes longer, so limit the number of runs:
+    withMaxSuccess 100 $
+    checkCoverage $
+    cover 50 (balanceSufficient criteria)
+        "balance sufficient" $
+    prop_performSelection minCoinValueFor costFor (Blind criteria) (const id)
+
+prop_performSelection
+    :: MinCoinValueFor
+    -> CostFor
+    -> Blind SelectionCriteria
+    -> (Either SelectionError SelectionResult -> Property -> Property)
+    -> Property
+prop_performSelection minCoinValueFor costFor (Blind criteria) coverage =
+    monadicIO $ do
+        monitor $ counterexample $ unlines
+            [ "extraCoinSource: " <> show extraCoinSource
+            , "selectionLimit:  " <> show selectionLimit
+            ]
+        result <- run (performSelection
+            (mkMinCoinValueFor minCoinValueFor)
+            (mkCostFor costFor)
+            criteria)
+        monitor (coverage result)
+        either onFailure onSuccess result
+  where
+    SelectionCriteria
+        { outputsToCover
+        , utxoAvailable
+        , extraCoinSource
+        , selectionLimit
+        } = criteria
+
+    onSuccess result = do
+        monitor $ counterexample $ unlines
+            [ "available balance:"
+            , pretty (Flat balanceAvailable)
+            , "required balance:"
+            , pretty (Flat balanceRequired)
+            , "selected balance:"
+            , pretty (Flat balanceSelected)
+            , "change balance:"
+            , pretty (Flat balanceChange)
+            ]
+        let delta = TokenBundle.unsafeSubtract
+                balanceSelected
+                (balanceRequired <> balanceChange)
+        assert $ balanceSufficient criteria
+        assert $ on (==) (view #tokens)
+            balanceSelected (balanceRequired <> balanceChange)
+        assert $ TokenBundle.getCoin delta == expectedCost
+        assert $ utxoAvailable
+            == UTxOIndex.insertMany inputsSelected utxoRemaining
+        assert $ utxoRemaining
+            == UTxOIndex.deleteMany (fst <$> inputsSelected) utxoAvailable
+        case selectionLimit of
+            MaximumInputLimit limit ->
+                assert $ NE.length inputsSelected <= limit
+            NoLimit ->
+                assert True
+      where
+        SelectionResult
+            {inputsSelected, changeGenerated, utxoRemaining} = result
+        skeleton = SelectionSkeleton
+            { inputsSkeleton =
+                UTxOIndex.fromSequence inputsSelected
+            , outputsSkeleton =
+                outputsToCover
+            , changeSkeleton  =
+                fmap (TokenMap.getAssets . view #tokens) changeGenerated
+            }
+        balanceSelected =
+            fullBalance (inputsSkeleton skeleton) extraCoinSource
+        balanceChange =
+            F.fold changeGenerated
+        expectedCost =
+            mkCostFor costFor skeleton
+
+    onFailure = \case
+        BalanceInsufficient e ->
+            onBalanceInsufficient e
+        SelectionInsufficient e ->
+            onSelectionInsufficient e
+        InsufficientMinCoinValues es ->
+            onInsufficientMinCoinValues es
+        UnableToConstructChange e ->
+            onUnableToConstructChange e
+
+    onBalanceInsufficient e = do
+        monitor $ counterexample $ unlines
+            [ "available balance:"
+            , pretty (Flat balanceAvailable)
+            , "required balance:"
+            , pretty (Flat balanceRequired)
+            ]
+        assert $ not $ balanceSufficient criteria
+        assert $ balanceAvailable == errorBalanceAvailable
+        assert $ balanceRequired  == errorBalanceRequired
+      where
+        BalanceInsufficientError errorBalanceAvailable errorBalanceRequired = e
+
+    onSelectionInsufficient e = do
+        monitor $ counterexample $ unlines
+            [ "required balance:"
+            , pretty (Flat errorBalanceRequired)
+            , "selected balance:"
+            , pretty (Flat errorBalanceSelected)
+            ]
+        assert $ selectionLimit ==
+            MaximumInputLimit (length errorInputsSelected)
+        assert $ not (errorBalanceRequired `leq` errorBalanceSelected)
+        assert $ balanceRequired == errorBalanceRequired
+      where
+        SelectionInsufficientError
+            errorBalanceRequired errorInputsSelected = e
+        errorBalanceSelected =
+            F.foldMap (view #tokens . snd) errorInputsSelected
+
+    onInsufficientMinCoinValues es = do
+        monitor $ counterexample $ unlines
+            [ show es
+            , "expected / actual:"
+            , show $ NE.zip
+                (expectedMinCoinValue <$> es)
+                (actualMinCoinValue <$> es)
+            ]
+        assert $ all (\e -> expectedMinCoinValue e > actualMinCoinValue e) es
+      where
+        actualMinCoinValue
+            = txOutCoin . outputWithInsufficientAda
+
+    onUnableToConstructChange e = do
+        monitor $ counterexample $ show e
+        assert (missingCoins e > Coin 0)
+        let criteria' = criteria { selectionLimit = NoLimit }
+        run (performSelection noMinCoin (const noCost) criteria') >>= \case
+            Left e' -> do
+                monitor $ counterexample $ unlines
+                    [ "Failed to re-run selection with no cost!"
+                    , show e'
+                    ]
+                assert False
+            Right{} -> do
+                assert True
+
+    balanceRequired  = F.foldMap (view #tokens) outputsToCover
+    balanceAvailable = fullBalance utxoAvailable extraCoinSource
+
 --------------------------------------------------------------------------------
 -- Running a selection (without making change)
 --------------------------------------------------------------------------------
 
 prop_runSelection_UTxO_empty
-    :: TokenBundle -> Property
-prop_runSelection_UTxO_empty balanceRequested = monadicIO $ do
+    :: Maybe Coin
+    -> TokenBundle
+    -> Property
+prop_runSelection_UTxO_empty extraSource balanceRequested = monadicIO $ do
     SelectionState {selected, leftover} <-
-        run $ runSelection NoLimit UTxOIndex.empty balanceRequested
+        run $ runSelection NoLimit extraSource UTxOIndex.empty balanceRequested
     let balanceSelected = view #balance selected
     let balanceLeftover = view #balance leftover
     assert $ balanceSelected == TokenBundle.empty
     assert $ balanceLeftover == TokenBundle.empty
 
 prop_runSelection_UTxO_notEnough
-    :: Small UTxOIndex -> Property
+    :: Small UTxOIndex
+    -> Property
 prop_runSelection_UTxO_notEnough (Small index) = monadicIO $ do
     SelectionState {selected, leftover} <-
-        run $ runSelection NoLimit index balanceRequested
+        run $ runSelection NoLimit Nothing index balanceRequested
     let balanceSelected = view #balance selected
     let balanceLeftover = view #balance leftover
     assert $ balanceSelected == balanceAvailable
@@ -433,22 +650,31 @@ prop_runSelection_UTxO_notEnough (Small index) = monadicIO $ do
     balanceRequested = adjustAllQuantities (* 2) balanceAvailable
 
 prop_runSelection_UTxO_exactlyEnough
-    :: Small UTxOIndex -> Property
-prop_runSelection_UTxO_exactlyEnough (Small index) = monadicIO $ do
+    :: Maybe Coin
+    -> Small UTxOIndex
+    -> Property
+prop_runSelection_UTxO_exactlyEnough extraSource (Small index) = monadicIO $ do
     SelectionState {selected, leftover} <-
-        run $ runSelection NoLimit index balanceRequested
+        run $ runSelection NoLimit Nothing index balanceRequested
     let balanceSelected = view #balance selected
     let balanceLeftover = view #balance leftover
-    assert $ balanceSelected == balanceRequested
     assert $ balanceLeftover == TokenBundle.empty
+    if UTxOIndex.null index then
+        assert $ balanceSelected == TokenBundle.empty
+    else
+        assert $ addExtraSource extraSource balanceSelected == balanceRequested
   where
-    balanceRequested = view #balance index
+    balanceRequested = case extraSource of
+        Nothing -> view #balance index
+        Just c -> TokenBundle.add (view #balance index) (TokenBundle.fromCoin c)
 
 prop_runSelection_UTxO_moreThanEnough
-    :: Small UTxOIndex -> Property
-prop_runSelection_UTxO_moreThanEnough (Small index) = monadicIO $ do
+    :: Maybe Coin
+    -> Small UTxOIndex
+    -> Property
+prop_runSelection_UTxO_moreThanEnough extraSource (Small index) = monadicIO $ do
     SelectionState {selected, leftover} <-
-        run $ runSelection NoLimit index balanceRequested
+        run $ runSelection NoLimit extraSource index balanceRequested
     let balanceSelected = view #balance selected
     let balanceLeftover = view #balance leftover
     monitor $ cover 80
@@ -456,7 +682,13 @@ prop_runSelection_UTxO_moreThanEnough (Small index) = monadicIO $ do
         "assetsRequested ⊂ assetsAvailable"
     monitor $ cover 50 (Set.size assetsRequested >= 4)
         "size assetsRequested >= 4"
-    assert $ balanceRequested `leq` balanceSelected
+    monitor $ counterexample $ unlines
+        [ "balance available: " <> pretty (Flat balanceAvailable)
+        , "balance requested: " <> pretty (Flat balanceRequested)
+        , "balance selected:  " <> pretty (Flat balanceSelected)
+        , "balance leftover:  " <> pretty (Flat balanceLeftover)
+        ]
+    assert $ balanceRequested `leq` addExtraSource extraSource balanceSelected
     assert $ balanceAvailable == balanceSelected <> balanceLeftover
   where
     assetsAvailable = TokenBundle.getAssets balanceAvailable
@@ -466,14 +698,16 @@ prop_runSelection_UTxO_moreThanEnough (Small index) = monadicIO $ do
         cutAssetSetSizeInHalf balanceAvailable
 
 prop_runSelection_UTxO_muchMoreThanEnough
-    :: Large UTxOIndex -> Property
-prop_runSelection_UTxO_muchMoreThanEnough (Large index) =
+    :: Maybe Coin
+    -> Blind (Large UTxOIndex)
+    -> Property
+prop_runSelection_UTxO_muchMoreThanEnough extraSource (Blind (Large index)) =
     -- Generation of large UTxO sets takes longer, so limit the number of runs:
     withMaxSuccess 100 $
     checkCoverage $
     monadicIO $ do
         SelectionState {selected, leftover} <-
-            run $ runSelection NoLimit index balanceRequested
+            run $ runSelection NoLimit extraSource index balanceRequested
         let balanceSelected = view #balance selected
         let balanceLeftover = view #balance leftover
         monitor $ cover 80
@@ -481,8 +715,16 @@ prop_runSelection_UTxO_muchMoreThanEnough (Large index) =
             "assetsRequested ⊂ assetsAvailable"
         monitor $ cover 50 (Set.size assetsRequested >= 4)
             "size assetsRequested >= 4"
-        assert $ balanceRequested `leq` balanceSelected
-        assert $ balanceAvailable == balanceSelected <> balanceLeftover
+        monitor $ counterexample $ unlines
+            [ "balance available: " <> pretty (Flat balanceAvailable)
+            , "balance requested: " <> pretty (Flat balanceRequested)
+            , "balance selected:  " <> pretty (Flat balanceSelected)
+            , "balance leftover:  " <> pretty (Flat balanceLeftover)
+            ]
+        assert $
+            balanceRequested `leq` addExtraSource extraSource balanceSelected
+        assert $
+            balanceAvailable == balanceSelected <> balanceLeftover
   where
     assetsAvailable = TokenBundle.getAssets balanceAvailable
     assetsRequested = TokenBundle.getAssets balanceRequested
@@ -597,11 +839,66 @@ prop_runSelectionStep_exceedsTargetAndGetsFurtherAway
 -- Making change
 --------------------------------------------------------------------------------
 
+data MinCoinValueFor
+    = NoMinCoin
+    | LinearMinCoin
+    deriving (Eq, Show, Bounded, Enum)
+
+mkMinCoinValueFor
+    :: MinCoinValueFor
+    -> (TokenMap -> Coin)
+mkMinCoinValueFor = \case
+    NoMinCoin -> noMinCoin
+    LinearMinCoin -> linearMinCoin
+
+-- | A dummy function for calculating the minimum ada quantity to pay for a
+--   token map.
+--
+-- The only property we want this function to have is that is becomes more
+-- expensive with the number of unique assets in the map. So, looking at the
+-- size of the asset set is enough.
+--
+linearMinCoin :: TokenMap -> Coin
+linearMinCoin m =
+    Coin (1 + fromIntegral (Set.size (TokenMap.getAssets m)))
+
+noMinCoin :: TokenMap -> Coin
+noMinCoin = const (Coin 0)
+
+data CostFor
+    = NoCost
+    | LinearCost
+    deriving (Eq, Show, Bounded, Enum)
+
+mkCostFor
+    :: CostFor
+    -> (SelectionSkeleton -> Coin)
+mkCostFor = \case
+    NoCost -> const noCost
+    LinearCost -> linearCost
+
+noCost :: Coin
+noCost = Coin 0
+
+linearCost :: SelectionSkeleton -> Coin
+linearCost SelectionSkeleton{inputsSkeleton, outputsSkeleton, changeSkeleton}
+    = Coin
+    $ fromIntegral
+    $ UTxOIndex.size inputsSkeleton
+    + NE.length outputsSkeleton
+    + NE.length changeSkeleton
+
 data MakeChangeData = MakeChangeData
     { inputBundles
         :: NonEmpty TokenBundle
+    , extraInputCoins
+        :: Maybe Coin
     , outputBundles
         :: NonEmpty TokenBundle
+    , cost
+        :: Coin
+    , minCoinValueDef
+        :: MinCoinValueFor
     } deriving (Eq, Show)
 
 isValidMakeChangeData :: MakeChangeData -> Bool
@@ -609,7 +906,9 @@ isValidMakeChangeData p = (&&)
     (totalOutputValue `leq` totalInputValue)
     (totalOutputCoinValue > Coin 0)
   where
-    totalInputValue = F.fold $ inputBundles p
+    totalInputValue = TokenBundle.add
+        (F.fold $ inputBundles p)
+        (maybe TokenBundle.empty TokenBundle.fromCoin (extraInputCoins p))
     totalOutputValue = F.fold $ outputBundles p
     totalOutputCoinValue = TokenBundle.getCoin totalOutputValue
 
@@ -619,58 +918,402 @@ genMakeChangeData = flip suchThat isValidMakeChangeData $ do
     let inputBundleCount = outputBundleCount * 4
     MakeChangeData
         <$> genTokenBundles inputBundleCount
+        <*> oneof [pure Nothing, Just <$> genCoinSmallPositive]
         <*> genTokenBundles outputBundleCount
+        <*> genCoinSmall
+        <*> arbitrary
   where
     genTokenBundles :: Int -> Gen (NonEmpty TokenBundle)
     genTokenBundles count = (:|)
         <$> genTokenBundleSmallRangePositive
         <*> replicateM count genTokenBundleSmallRangePositive
 
+makeChangeWith
+    :: MakeChangeData
+    -> Either UnableToConstructChangeError (NonEmpty TokenBundle)
+makeChangeWith p = makeChange
+    (mkMinCoinValueFor $ minCoinValueDef p)
+    (cost p)
+    (extraInputCoins p) (inputBundles p)
+    (outputBundles p)
+
 prop_makeChange_identity
     :: NonEmpty TokenBundle -> Property
-prop_makeChange_identity bundles =
-    F.fold (makeChange bundles bundles) === TokenBundle.empty
+prop_makeChange_identity bundles = (===)
+    (F.fold <$> makeChange (const (Coin 0)) (Coin 0) Nothing bundles bundles)
+    (Right TokenBundle.empty)
 
 prop_makeChange_length
-    :: MakeChangeData -> Property
-prop_makeChange_length p = (===)
-    (length $ outputBundles p)
-    (length $ makeChange (inputBundles p) (outputBundles p))
-
-prop_makeChange_sum
-    :: MakeChangeData -> Property
-prop_makeChange_sum p =
-    totalInputValue === totalOutputValue <> totalChangeValue
+    :: MakeChangeData
+    -> Property
+prop_makeChange_length p =
+    case change of
+        Left{} -> property False
+        Right xs -> length xs === length (outputBundles p)
   where
-    change = makeChange (inputBundles p) (outputBundles p)
-    totalInputValue = F.fold $ inputBundles p
-    totalOutputValue = F.fold $ outputBundles p
-    totalChangeValue = F.fold change
+    change = makeChange noMinCoin noCost
+        (extraInputCoins p) (inputBundles p) (outputBundles p)
+
+prop_makeChange
+    :: MakeChangeData
+    -> Property
+prop_makeChange p =
+    case makeChangeWith p of
+        Left{} -> disjoin
+            [ prop_makeChange_fail_costTooBig p     & label "cost too big"
+            , prop_makeChange_fail_minValueTooBig p & label "min value too big"
+            ]
+        Right change -> conjoin
+            [ prop_makeChange_success_delta p change
+            , prop_makeChange_success_minValueRespected p change
+            ] & label "success"
+
+-- Checks that on successful calls to 'makeChange', the difference between all
+-- inputs and all outputs with change is exactly equal to the required cost of
+-- the transaction. This property expects the second argument to be the result
+-- to 'makeChange' with 'p' as argument.
+--
+-- See also 'prop_makeChange' as a top-level property driver.
+prop_makeChange_success_delta
+    :: MakeChangeData
+    -> NonEmpty TokenBundle
+    -> Property
+prop_makeChange_success_delta p change =
+    let
+        totalOutputWithChange = TokenBundle.add
+            totalOutputValue
+            (F.fold change)
+
+        delta = TokenBundle.unsafeSubtract
+            totalInputValue
+            totalOutputWithChange
+
+        totalChangeCoin =
+            TokenBundle.getCoin (F.fold change)
+    in
+        (delta === TokenBundle.fromCoin (cost p))
+            & counterexample ("totalChangeValue: " <> pretty totalChangeCoin)
+            & counterexample ("totalOutputValue: " <> pretty totalOutputCoin)
+            & counterexample ("totalInputValue:  " <> pretty totalInputCoin)
+  where
+    totalInputValue = TokenBundle.add
+        (F.fold (inputBundles p))
+        (maybe TokenBundle.empty TokenBundle.fromCoin (extraInputCoins p))
+    totalInputCoin =
+        TokenBundle.getCoin totalInputValue
+    totalOutputValue =
+        F.fold $ outputBundles p
+    totalOutputCoin =
+        TokenBundle.getCoin totalOutputValue
+
+-- Checks that after a successful call to 'makeChange', all generated change
+-- outputs satisfy the minimum required coin quantity provided.
+--
+-- See also `prop_makeChange` as a top-level property driver.
+prop_makeChange_success_minValueRespected
+    :: MakeChangeData
+    -> NonEmpty TokenBundle
+    -> Property
+prop_makeChange_success_minValueRespected p =
+    F.foldr ((.&&.) . checkMinValue) (property True)
+  where
+    minCoinValueFor :: TokenMap -> Coin
+    minCoinValueFor = mkMinCoinValueFor (minCoinValueDef p)
+
+    checkMinValue :: TokenBundle -> Property
+    checkMinValue m@TokenBundle{coin,tokens} =
+        let
+            minCoinValue = minCoinValueFor tokens
+        in
+            coin >= minCoinValue
+                & counterexample ("bundle: " <> pretty (Flat m))
+                & counterexample ("minCoinValue: " <> pretty minCoinValue)
+
+-- The 'makeChange' function may fail when the required cost for a transaction
+-- is too big. When this occurs, it means that the delta between inputs and
+-- outputs (without change) is larger than the required cost.
+--
+-- See also `prop_makeChange` as a top-level property driver.
+prop_makeChange_fail_costTooBig
+    :: MakeChangeData
+    -> Property
+prop_makeChange_fail_costTooBig p =
+    let
+        deltaCoin = TokenBundle.getCoin $ TokenBundle.unsafeSubtract
+            totalInputValue
+            totalOutputValue
+    in
+        deltaCoin < cost p
+            & counterexample ("delta: " <> pretty deltaCoin)
+  where
+    totalInputValue = TokenBundle.add
+        (F.fold (inputBundles p))
+        (maybe TokenBundle.empty TokenBundle.fromCoin (extraInputCoins p))
+    totalOutputValue =
+        F.fold $ outputBundles p
+
+-- The 'makeChange' function will fail if there is not enough ada to assign
+-- to all the generated change outputs. Indeed, each output must include a
+-- minimum quantity of ada.
+--
+-- See also `prop_makeChange` as a top-level property driver.
+prop_makeChange_fail_minValueTooBig
+    :: MakeChangeData
+    -> Property
+prop_makeChange_fail_minValueTooBig p =
+    case makeChangeWith (p { cost = noCost, minCoinValueDef = NoMinCoin }) of
+        Left{} ->
+            property False & counterexample "makeChange failed with no cost!"
+        -- If 'makeChange' failed to generate change, we try to re-run it with
+        -- noCost and noMinValue requirement. The result _must_ be 'Just'.
+        --
+        -- From there, we can manually compute the total deposit needed for all
+        -- change generated and make sure that there were indeed not enough
+        -- coins available to generate all change outputs.
+        Right change ->
+            let
+                deltaCoin = TokenBundle.getCoin $ TokenBundle.unsafeSubtract
+                    totalInputValue
+                    totalOutputValue
+
+                minCoinValueFor = mkMinCoinValueFor (minCoinValueDef p)
+
+                totalMinCoinDeposit = F.foldr addCoin (Coin 0)
+                    (minCoinValueFor . view #tokens <$> change)
+            in
+                conjoin
+                    [ deltaCoin < (totalMinCoinDeposit `addCoin` cost p)
+                    , deltaCoin >= cost p
+                    ]
+                    & counterexample
+                        ("change: " <> pretty (blockListF (Flat <$> change)))
+                    & counterexample
+                        ("delta: " <> pretty deltaCoin)
+                    & counterexample
+                        ("totalMinCoinDeposit: " <> pretty totalMinCoinDeposit)
+  where
+    totalInputValue = TokenBundle.add
+        (F.fold (inputBundles p))
+        (maybe TokenBundle.empty TokenBundle.fromCoin (extraInputCoins p))
+    totalOutputValue =
+        F.fold $ outputBundles p
+
+unit_makeChange
+    :: [Expectation]
+unit_makeChange =
+    [ makeChange minCoinValueFor cost extraSource i o `shouldBe` expectation
+    | (minCoinValueFor, cost, extraSource, i, o, expectation) <- matrix
+    ]
+  where
+    matrix =
+        -- Simple, only ada, should construct a single change output with 1 ada.
+        [ ( noMinCoin, noCost
+          , Nothing
+          , b 2 [] :| []
+          , b 1 [] :| []
+          , Right $ b 1 [] :| []
+          )
+
+        -- Two outputs, no cost, changes are proportional, no extra assets
+        , ( noMinCoin, noCost
+          , Nothing
+          , b 9 [(assetA, 9), (assetB, 6)] :| []
+          , b 2 [(assetA, 1)] :| [b 1 [(assetA, 2), (assetB, 3)]]
+          , Right $ b 4 [(assetA, 2)] :| [b 2 [(assetA, 4), (assetB, 3)]]
+          )
+
+        -- Extra non-user-specified assets. Large assets end up in 'large'
+        -- bundles and small extra assets in smaller bundles.
+        , ( noMinCoin, noCost
+          , Nothing
+          , b 1 [(assetA, 10), (assetC, 1)] :| [b 1 [(assetB, 2), (assetC, 8)]]
+          , b 1 [(assetA, 5)] :| [b 1 [(assetB, 1)]]
+          , Right $ b 0 [(assetB, 1), (assetC, 1)] :| [b 0 [(assetA, 5), (assetC, 8)]]
+          )
+        ]
+
+    b :: Word64 -> [(AssetId, Natural)] -> TokenBundle
+    b c = TokenBundle (Coin c) . TokenMap.fromFlatList . fmap (second TokenQuantity)
+
+    assetA :: AssetId
+    assetA = AssetId (UnsafeTokenPolicyId $ Hash "A") (UnsafeTokenName "1")
+
+    assetB :: AssetId
+    assetB = AssetId (UnsafeTokenPolicyId $ Hash "B") (UnsafeTokenName "")
+
+    assetC :: AssetId
+    assetC = AssetId (UnsafeTokenPolicyId $ Hash "A") (UnsafeTokenName "2")
 
 --------------------------------------------------------------------------------
--- Making change for surplus assets
+-- Making change for coins
 --------------------------------------------------------------------------------
 
-prop_makeChangeForSurplusAssets_length
-    :: Map AssetId (NonEmpty TokenQuantity) -> NonEmpty () -> Property
-prop_makeChangeForSurplusAssets_length assetQuantities target =
-    NE.length (makeChangeForSurplusAssets assetQuantities target)
-        === NE.length target
-
-prop_makeChangeForSurplusAssets_sort
-    :: Map AssetId (NonEmpty TokenQuantity) -> NonEmpty () -> Property
-prop_makeChangeForSurplusAssets_sort assetQuantities target = property $
-    inAscendingPartialOrder (makeChangeForSurplusAssets assetQuantities target)
-
-prop_makeChangeForSurplusAssets_sum
-    :: Map AssetId (NonEmpty TokenQuantity) -> NonEmpty () -> Property
-prop_makeChangeForSurplusAssets_sum assetQuantities target =
-    sumActual === sumExpected
+prop_makeChangeForCoin_sum :: NonEmpty Coin -> Coin -> Property
+prop_makeChangeForCoin_sum weights surplus =
+    surplus === F.foldr addCoin (Coin 0) changes
   where
-    sumActual =
-        F.fold $ makeChangeForSurplusAssets assetQuantities target
-    sumExpected =
-        TokenMap.fromFlatList $ Map.toList $ F.fold <$> assetQuantities
+    changes = makeChangeForCoin weights surplus
+
+prop_makeChangeForCoin_length :: NonEmpty Coin -> Coin -> Property
+prop_makeChangeForCoin_length weights surplus =
+    F.length changes === F.length weights
+  where
+    changes = makeChangeForCoin weights surplus
+
+unit_makeChangeForCoin
+    :: [Expectation]
+unit_makeChangeForCoin =
+    [ makeChangeForCoin weights surplus `shouldBe` expectation
+    | (weights, surplus, expectation) <- matrix
+    ]
+  where
+    matrix =
+        [ ( Coin <$> 1 :| [], Coin 1
+          , Coin <$> 1 :| []
+          )
+
+        , ( Coin <$> 1 :| [2, 3], Coin 12
+          , Coin <$> 2 :| [4, 6]
+          )
+
+        , ( Coin <$> 1 :| [2, 3], Coin 5
+          , Coin <$> 1 :| [2, 2]
+          )
+        ]
+
+--------------------------------------------------------------------------------
+-- Making change for unknown assets
+--------------------------------------------------------------------------------
+
+prop_makeChangeForNonUserSpecifiedAsset_sum
+    :: NonEmpty TokenMap
+    -> (AssetId, NonEmpty TokenQuantity)
+    -> Property
+prop_makeChangeForNonUserSpecifiedAsset_sum weights (asset, quantities) =
+    F.fold quantities === F.fold ((`TokenMap.getQuantity` asset) <$> changes)
+  where
+    changes = makeChangeForNonUserSpecifiedAsset weights (asset, quantities)
+
+prop_makeChangeForNonUserSpecifiedAsset_order
+    :: NonEmpty TokenMap
+    -> (AssetId, NonEmpty TokenQuantity)
+    -> Property
+prop_makeChangeForNonUserSpecifiedAsset_order weights assetQuantities =
+    property $ inAscendingPartialOrder
+        $ makeChangeForNonUserSpecifiedAsset weights assetQuantities
+
+prop_makeChangeForNonUserSpecifiedAsset_length
+    :: NonEmpty TokenMap
+    -> (AssetId, NonEmpty TokenQuantity)
+    -> Property
+prop_makeChangeForNonUserSpecifiedAsset_length weights surplus =
+    F.length changes === F.length weights
+  where
+    changes = makeChangeForNonUserSpecifiedAsset weights surplus
+
+unit_makeChangeForNonUserSpecifiedAsset
+    :: [Expectation]
+unit_makeChangeForNonUserSpecifiedAsset =
+    [ makeChangeForNonUserSpecifiedAsset weights surplus `shouldBe` expectation
+    | (weights, surplus, expectation) <- matrix
+    ]
+  where
+    matrix =
+        [ ( m [(assetA, q 1)] :| [m [(assetB, q 1)]]
+          , (assetC, q <$> 1 :| [1])
+          , m [(assetC, q 1)] :| [m [(assetC, q 1)]]
+          )
+
+        , ( m [(assetA, q 1)] :| [m [(assetB, q 1)]]
+          , (assetC, q <$> 1 :| [1, 1])
+          , m [(assetC, q 1)] :| [m [(assetC, q 2)]]
+          )
+
+        , ( m [(assetA, q 1)] :| [m [(assetB, q 1)]]
+          , (assetC, q <$> 1 :| [])
+          , m [(assetC, q 0)] :| [m [(assetC, q 1)]]
+          )
+        ]
+
+    q :: Natural -> TokenQuantity
+    q = TokenQuantity
+
+    m :: [(AssetId, TokenQuantity)] -> TokenMap
+    m = TokenMap.fromFlatList
+
+    assetA :: AssetId
+    assetA = AssetId (UnsafeTokenPolicyId $ Hash "A") (UnsafeTokenName "1")
+
+    assetB :: AssetId
+    assetB = AssetId (UnsafeTokenPolicyId $ Hash "B") (UnsafeTokenName "")
+
+    assetC :: AssetId
+    assetC = AssetId (UnsafeTokenPolicyId $ Hash "A") (UnsafeTokenName "2")
+
+--------------------------------------------------------------------------------
+-- Making change for known assets
+--------------------------------------------------------------------------------
+
+prop_makeChangeForUserSpecifiedAsset_sum
+    :: NonEmpty TokenMap
+    -> (AssetId, TokenQuantity)
+    -> Property
+prop_makeChangeForUserSpecifiedAsset_sum weights (asset, quantity) =
+    if any (`TokenMap.hasQuantity` asset) weights then
+        quantity === totalChangeValue
+    else
+        totalChangeValue === TokenQuantity 0
+  where
+    changes = makeChangeForUserSpecifiedAsset weights (asset, quantity)
+    totalChangeValue = F.fold ((`TokenMap.getQuantity` asset) <$> changes)
+
+prop_makeChangeForUserSpecifiedAsset_length
+    :: NonEmpty TokenMap
+    -> (AssetId, TokenQuantity)
+    -> Property
+prop_makeChangeForUserSpecifiedAsset_length weights surplus =
+    F.length changes === F.length weights
+  where
+    changes = makeChangeForUserSpecifiedAsset weights surplus
+
+unit_makeChangeForUserSpecifiedAsset
+    :: [Expectation]
+unit_makeChangeForUserSpecifiedAsset =
+    [ makeChangeForUserSpecifiedAsset weights surplus `shouldBe` expectation
+    | (weights, surplus, expectation) <- matrix
+    ]
+  where
+    matrix =
+        [ ( m [(assetA, q 1)] :| []
+          , (assetA, q 3)
+          , m [(assetA, q 3)] :| []
+          )
+
+        , ( m [(assetA, q 1)] :| [m [(assetA, q 2), (assetB, q 1)]]
+          , (assetA, q 3)
+          , m [(assetA, q 1)] :| [m [(assetA, q 2)]]
+          )
+
+        , ( m [(assetA, q 1)] :| [m [(assetB, q 1)]]
+          , (assetC, q 1)
+          , m [(assetA, q 0)] :| [m [(assetA, q 0)]]
+          )
+        ]
+
+    q :: Natural -> TokenQuantity
+    q = TokenQuantity
+
+    m :: [(AssetId, TokenQuantity)] -> TokenMap
+    m = TokenMap.fromFlatList
+
+    assetA :: AssetId
+    assetA = AssetId (UnsafeTokenPolicyId $ Hash "A") (UnsafeTokenName "1")
+
+    assetB :: AssetId
+    assetB = AssetId (UnsafeTokenPolicyId $ Hash "B") (UnsafeTokenName "")
+
+    assetC :: AssetId
+    assetC = AssetId (UnsafeTokenPolicyId $ Hash "A") (UnsafeTokenName "2")
 
 --------------------------------------------------------------------------------
 -- Grouping and ungrouping
@@ -814,6 +1457,17 @@ prop_runRoundRobin_generationOrder initialState = property $
         & fmap (Set.fromList . F.toList)
 
 --------------------------------------------------------------------------------
+-- Testing utility functions
+--------------------------------------------------------------------------------
+
+-- | Behaves the same as the original 'mapMaybe' on list.
+prop_mapMaybe_oracle :: NonEmpty Int -> Fun Int (Maybe Int) -> Property
+prop_mapMaybe_oracle xs fn =
+    Maybe.mapMaybe (applyFun fn) (NE.toList xs)
+    ===
+    mapMaybe (applyFun fn) xs
+
+--------------------------------------------------------------------------------
 -- Utility functions
 --------------------------------------------------------------------------------
 
@@ -847,6 +1501,16 @@ consecutivePairs xs = case tailMay xs of
 inAscendingPartialOrder :: (Foldable f, PartialOrd a) => f a -> Bool
 inAscendingPartialOrder = all (uncurry leq) . consecutivePairs . F.toList
 
+addExtraSource :: Maybe Coin -> TokenBundle -> TokenBundle
+addExtraSource extraSource =
+    TokenBundle.add
+        (maybe TokenBundle.empty TokenBundle.fromCoin extraSource)
+
+unitTests :: String -> [Expectation] -> SpecWith ()
+unitTests lbl cases =
+    forM_ (zip [1..] cases) $ \(i, test) ->
+        it (lbl <> " example #" <> show @Int i) test
+
 --------------------------------------------------------------------------------
 -- Arbitraries
 --------------------------------------------------------------------------------
@@ -854,6 +1518,10 @@ inAscendingPartialOrder = all (uncurry leq) . consecutivePairs . F.toList
 instance Arbitrary a => Arbitrary (NonEmpty a) where
     arbitrary = (:|) <$> arbitrary <*> arbitrary
     shrink = genericShrink
+
+instance Arbitrary a => Arbitrary (GreatestTokenQuantity a) where
+    arbitrary = GreatestTokenQuantity <$> arbitrary
+    shrink = fmap GreatestTokenQuantity . shrink . unGreatestTokenQuantity
 
 instance Arbitrary AssetId where
     arbitrary = genAssetIdSmallRange
@@ -869,6 +1537,10 @@ instance Arbitrary (MockRoundRobinState TokenName Word8) where
 instance Arbitrary TokenBundle where
     arbitrary = genTokenBundleSmallRangePositive
     shrink = shrinkTokenBundleSmallRangePositive
+
+instance Arbitrary TokenMap where
+    arbitrary = genTokenMapSmallRange
+    shrink = shrinkTokenMapSmallRange
 
 instance Arbitrary TokenQuantity where
     arbitrary = genTokenQuantitySmallPositive
@@ -901,3 +1573,19 @@ instance Arbitrary (Large UTxOIndex) where
 instance Arbitrary (Small UTxOIndex) where
     arbitrary = Small <$> genUTxOIndexSmall
     shrink = fmap Small . shrinkUTxOIndexSmall . getSmall
+
+instance Arbitrary Coin where
+    arbitrary = genCoinSmallPositive
+    shrink = shrinkCoinSmallPositive
+
+instance Arbitrary MinCoinValueFor where
+    arbitrary = arbitraryBoundedEnum
+    shrink = \case
+        NoMinCoin -> []
+        LinearMinCoin -> [NoMinCoin]
+
+instance Arbitrary CostFor where
+    arbitrary = arbitraryBoundedEnum
+    shrink = \case
+        NoCost -> []
+        LinearCost -> [NoCost]

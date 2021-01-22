@@ -1,6 +1,7 @@
 module Cardano.Wallet.Primitive.Types.UTxOIndex.Gen
     ( genUTxOIndexSmall
     , genUTxOIndexLarge
+    , genUTxOIndexLargeN
     , shrinkUTxOIndexSmall
     ) where
 
@@ -63,6 +64,10 @@ shrinkEntrySmallRange (i, o) = uncurry (,) <$> shrinkInterleaved
 genUTxOIndexLarge :: Gen UTxOIndex
 genUTxOIndexLarge = do
     entryCount <- choose (1024, 4096)
+    genUTxOIndexLargeN entryCount
+
+genUTxOIndexLargeN :: Int -> Gen UTxOIndex
+genUTxOIndexLargeN entryCount = do
     UTxOIndex.fromSequence <$> replicateM entryCount genEntryLargeRange
 
 genEntryLargeRange :: Gen (TxIn, TxOut)

@@ -85,13 +85,15 @@ import Cardano.Wallet.Primitive.Types.TokenBundle
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( TxIn, TxOut )
+    ( TxIn, TxOut, txOutIsCoin )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
 import Control.DeepSeq
     ( NFData )
 import Control.Monad.Random.Class
     ( MonadRandom (..) )
+import Data.Function
+    ( (&) )
 import Data.Generics.Internal.VL.Lens
     ( view )
 import Data.Generics.Labels
@@ -141,6 +143,8 @@ import qualified Data.Set.Strict.NonEmptySet as NonEmptySet
 data UTxOIndex = UTxOIndex
     { index
         :: !(Map AssetId (NonEmptySet TxIn))
+    , coins
+        :: !(Set TxIn)
     , balance
         :: !TokenBundle
     , utxo
@@ -159,6 +163,7 @@ instance NFData UTxOIndex
 empty :: UTxOIndex
 empty = UTxOIndex
     { index = Map.empty
+    , coins = Set.empty
     , balance = TokenBundle.empty
     , utxo = Map.empty
     }
@@ -247,6 +252,7 @@ delete i u = case Map.lookup i (utxo u) of
           -- This operation is safe, since we have already determined that the
           -- entry is a member of the index, and therefore the balance must be
           -- greater than or equal to the value of this output:
+        , coins = Set.delete i (coins u)
         , balance = balance u `TokenBundle.unsafeSubtract` view #tokens o
         , utxo = Map.delete i $ utxo u
         }
@@ -347,10 +353,7 @@ selectRandom u selectionFilter =
 --------------------------------------------------------------------------------
 
 entriesWithAdaOnly :: UTxOIndex -> Set TxIn
-entriesWithAdaOnly u = Map.foldl'
-    (Set.difference)
-    (Map.keysSet $ utxo u)
-    (NonEmptySet.toSet <$> index u)
+entriesWithAdaOnly = coins
 
 -- | Returns the set of keys for entries that have non-zero quantities of the
 --   given asset.
@@ -367,6 +370,7 @@ entriesWithAsset a = maybe mempty NonEmptySet.toSet . Map.lookup a . index
 insertUnsafe :: TxIn -> TxOut -> UTxOIndex -> UTxOIndex
 insertUnsafe i o u = UTxOIndex
     { index = F.foldl' insertEntry (index u) (txOutAssets o)
+    , coins = coins u & if txOutIsCoin o then Set.insert i else id
     , balance = balance u `TokenBundle.add` view #tokens o
     , utxo = Map.insert i o $ utxo u
     }
@@ -416,6 +420,8 @@ data InvariantStatus
     | InvariantAssetsInconsistent
       -- ^ Indicates that the 'index' and the cached 'balance' value disagree
       --   about which assets are included.
+    | InvariantIndexedCoinsAreNotCoins
+      -- ^ Indicates that at least one member of 'coins' is not ada-only.
     deriving (Eq, Show)
 
 -- | Checks whether or not the invariant holds.
@@ -430,6 +436,8 @@ checkInvariant u
         InvariantIndexNonMinimal
     | not (assetsConsistent u) =
         InvariantAssetsInconsistent
+    | not (indexedCoinsAreIndeedCoins u) =
+        InvariantIndexedCoinsAreNotCoins
     | otherwise =
         InvariantHolds
   where
@@ -473,8 +481,11 @@ indexIsComplete :: UTxOIndex -> Bool
 indexIsComplete u = F.all entryIndexed $ Map.toList $ utxo u
   where
     entryIndexed :: (TxIn, TxOut) -> Bool
-    entryIndexed (i, o) =
-        F.all (indexed i) (TokenBundle.getAssets $ view #tokens o)
+    entryIndexed (i, o)
+        | txOutIsCoin o =
+            i `Set.member` coins u
+        | otherwise =
+            F.all (indexed i) (TokenBundle.getAssets $ view #tokens o)
 
     indexed :: TxIn -> AssetId -> Bool
     indexed i asset =
@@ -506,3 +517,9 @@ indexIsMinimal u = F.all assetIsMinimal $ Map.toList $ index u
 assetsConsistent :: UTxOIndex -> Bool
 assetsConsistent u =
     Map.keysSet (index u) == TokenBundle.getAssets (balance u)
+
+-- | Checks that the indexed set of 'coins' only refers to ada-only outputs.
+--
+indexedCoinsAreIndeedCoins :: UTxOIndex -> Bool
+indexedCoinsAreIndeedCoins u =
+    F.all (maybe False txOutIsCoin . flip Map.lookup (utxo u)) (coins u)

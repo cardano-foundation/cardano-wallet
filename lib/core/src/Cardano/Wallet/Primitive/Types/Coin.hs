@@ -15,9 +15,12 @@ module Cardano.Wallet.Primitive.Types.Coin
     -- * Type
       Coin (..)
 
+    -- * Operations
+    , addCoin
+    , subtractCoin
+
     -- * Checks
     , isValidCoin
-
     ) where
 
 import Prelude
@@ -71,6 +74,33 @@ instance Bounded Coin where
 
 instance Buildable Coin where
     build = build . unCoin
+
+--------------------------------------------------------------------------------
+-- Operations
+--------------------------------------------------------------------------------
+
+-- | Subtracts the second coin from the first.
+--
+-- Returns 'Nothing' if the second coin is strictly greater than the first.
+--
+subtractCoin :: Coin -> Coin -> Maybe Coin
+subtractCoin (Coin a) (Coin b)
+    | a >= b    = Just $ Coin (a - b)
+    | otherwise = Nothing
+
+-- | Adds the given coins together.
+--
+-- NOTE: It is generally safe to add coins and stay in the same domain because
+-- the max supply is known (45B), which easily fits within a 'Word64'. So for
+-- the vast majority of usages of this function within cardano-wallet, it is a
+-- safe operation.
+--
+addCoin :: Coin -> Coin -> Coin
+addCoin (Coin a) (Coin b) = Coin (a + b)
+
+--------------------------------------------------------------------------------
+-- Checks
+--------------------------------------------------------------------------------
 
 isValidCoin :: Coin -> Bool
 isValidCoin c = c >= minBound && c <= maxBound
