@@ -2,6 +2,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
@@ -58,6 +59,9 @@ module Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     -- * Accessors
     , fullBalance
 
+    -- * Utility classes
+    , GreatestTokenQuantity (..)
+
     -- * Utility functions
     , distance
     , mapMaybe
@@ -97,6 +101,8 @@ import Data.Map.Strict
     ( Map )
 import Data.Maybe
     ( fromMaybe )
+import Data.Ord
+    ( comparing )
 import Data.Set
     ( Set )
 import GHC.Generics
@@ -708,8 +714,8 @@ makeChange
         let changeForUserSpecifiedAssets :: NonEmpty TokenMap
             changeForUserSpecifiedAssets = F.foldr
                 (NE.zipWith (<>)
-                    . makeChangeForUserSpecifiedAsset outputTokens)
-                (TokenMap.empty <$ outputTokens)
+                    . makeChangeForUserSpecifiedAsset outputMapsOrdered)
+                (TokenMap.empty <$ outputMapsOrdered)
                 excessAssets
 
         -- Change for non-user-specified assets: assets that were not present
@@ -717,8 +723,8 @@ makeChange
         let changeForNonUserSpecifiedAssets :: NonEmpty TokenMap
             changeForNonUserSpecifiedAssets = F.foldr
                 (NE.zipWith (<>)
-                    . makeChangeForNonUserSpecifiedAsset outputTokens)
-                (TokenMap.empty <$ outputTokens)
+                    . makeChangeForNonUserSpecifiedAsset outputMapsOrdered)
+                (TokenMap.empty <$ outputMapsOrdered)
                 nonUserSpecifiedAssets
 
         let change :: NonEmpty TokenMap
@@ -762,29 +768,22 @@ makeChange
         totalMinCoinValue =
             F.sum $ (coinToNatural . minCoinValueFor) <$> change
 
-    -- Outputs tokens are ordered in such way that to the greatest extent
-    -- possible, small (resp. large) quantities of non-user-specified assets
-    -- will be merged with small (resp. large) quantities of user-specified
-    -- assets.
+    -- We aim, to the greatest extent possible, to generate change bundles
+    -- where small quantities of non-user-specified assets are bundled together
+    -- with other small quantities, and large quantities of non-user-specified
+    -- assets are bundled together with other large quantities.
     --
-    -- There's no simple way to define a total order on 'TokenMap', so we opt
-    -- for the following approach:
+    -- To achieve this, we start by sorting the set of output maps into
+    -- ascending order of greatest token quantity.
     --
-    --     - If there exists a partial order as defined in the TokenMap module,
-    --       we use it.
+    -- Since change bundles for non-user-specified assets are also generated in
+    -- ascending order of token quantities, this should tend to produce an
+    -- outcome where smaller quantities are bundled together, and larger
+    -- quantities are bundled together in the final change bundles.
     --
-    --     - Otherwise, we order them using the maximum quantity of one of their
-    --       assets.
-    --
-    -- Over time, this should tend to bundle small (resp. large) bundles together.
-    outputTokens :: NonEmpty TokenMap
-    outputTokens = NE.sortBy totalOrder (view #tokens <$> outputBundles)
-      where
-        totalOrder m1 m2
-            | m1 `leq` m2 = LT
-            | otherwise   = compare
-                (TokenMap.maximumQuantity m1)
-                (TokenMap.maximumQuantity m2)
+    outputMapsOrdered :: NonEmpty TokenMap
+    outputMapsOrdered =
+        NE.sortWith GreatestTokenQuantity (view #tokens <$> outputBundles)
 
     outputCoins :: NonEmpty Coin
     outputCoins = view #coin <$> outputBundles
@@ -973,6 +972,29 @@ fullBalance index extraSource
         TokenBundle.add
             (view #balance index)
             (maybe TokenBundle.empty TokenBundle.fromCoin extraSource)
+
+--------------------------------------------------------------------------------
+-- Utility types
+--------------------------------------------------------------------------------
+
+-- | A total ordering on token maps based on the greatest token quantity of each
+--   map.
+--
+-- If two maps have the same greatest quantity, then we fall back to ordinary
+-- lexicographic ordering as a tie-breaker.
+--
+instance Ord (GreatestTokenQuantity TokenMap) where
+    compare (GreatestTokenQuantity m1) (GreatestTokenQuantity m2) =
+        case compare (greatest m1) (greatest m2) of
+            LT -> LT
+            GT -> GT
+            EQ -> comparing TokenMap.toNestedList m1 m2
+      where
+        greatest = TokenMap.maximumQuantity
+
+newtype GreatestTokenQuantity a = GreatestTokenQuantity
+    { unGreatestTokenQuantity :: a }
+    deriving (Eq, Show)
 
 --------------------------------------------------------------------------------
 -- Utility functions

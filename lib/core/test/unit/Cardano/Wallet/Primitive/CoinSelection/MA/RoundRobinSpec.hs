@@ -19,6 +19,7 @@ import Algebra.PartialOrd
     ( PartialOrd (..) )
 import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     ( BalanceInsufficientError (..)
+    , GreatestTokenQuantity (..)
     , InsufficientMinCoinValueError (..)
     , SelectionCriteria (..)
     , SelectionError (..)
@@ -141,8 +142,12 @@ import Test.QuickCheck
     , (.&&.)
     , (===)
     )
+import Test.QuickCheck.Classes
+    ( eqLaws, ordLaws )
 import Test.QuickCheck.Monadic
     ( assert, monadicIO, monitor, run )
+import Test.Utils.Laws
+    ( testLawsMany )
 
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
@@ -165,6 +170,13 @@ spec = describe "Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobinSpec" $
             property prop_Small_UTxOIndex_coverage
         it "prop_Large_UTxOIndex_coverage" $
             property prop_Large_UTxOIndex_coverage
+
+    parallel $ describe "Class instances respect laws" $ do
+
+        testLawsMany @(GreatestTokenQuantity TokenMap)
+            [ eqLaws
+            , ordLaws
+            ]
 
     parallel $ describe "Preparing outputs" $ do
 
@@ -1054,7 +1066,7 @@ prop_makeChange_fail_minValueTooBig p =
         -- noCost and noMinValue requirement. The result _must_ be 'Just'.
         --
         -- From there, we can manually compute the total deposit needed for all
-        -- change generated and make sure that there was indeed not enough
+        -- change generated and make sure that there were indeed not enough
         -- coins available to generate all change outputs.
         Right change ->
             let
@@ -1493,6 +1505,10 @@ unitTests lbl cases =
 instance Arbitrary a => Arbitrary (NonEmpty a) where
     arbitrary = (:|) <$> arbitrary <*> arbitrary
     shrink = genericShrink
+
+instance Arbitrary a => Arbitrary (GreatestTokenQuantity a) where
+    arbitrary = GreatestTokenQuantity <$> arbitrary
+    shrink = fmap GreatestTokenQuantity . shrink . unGreatestTokenQuantity
 
 instance Arbitrary AssetId where
     arbitrary = genAssetIdSmallRange
