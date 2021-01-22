@@ -80,6 +80,7 @@ module Cardano.Wallet.Api.Server
     , selectCoinsForJoin
     , selectCoinsForQuit
     , signMetadata
+    , getAccountPublicKey
 
     -- * Internals
     , LiftHandler(..)
@@ -159,6 +160,7 @@ import Cardano.Wallet.Api.Server.Tls
 import Cardano.Wallet.Api.Types
     ( AccountPostData (..)
     , AddressAmount (..)
+    , ApiAccountKey
     , ApiAccountPublicKey (..)
     , ApiAddress (..)
     , ApiAsset (..)
@@ -1848,6 +1850,19 @@ derivePublicKey ctx (ApiT wid) (ApiT role_) (ApiT ix) = do
     withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk -> do
         k <- liftHandler $ W.derivePublicKey @_ @s @k @n wrk wid role_ ix
         pure $ ApiVerificationKey (xpubPublicKey $ getRawKey k, role_)
+
+getAccountPublicKey
+    :: forall ctx s k n.
+        ( s ~ SeqState n k
+        , ctx ~ ApiLayer s k
+        , SoftDerivation k
+        , WalletKey k
+        )
+    => ctx
+    -> ApiT WalletId
+    -> ApiT DerivationIndex
+    -> Handler ApiAccountKey
+getAccountPublicKey _ctx (ApiT _wid) (ApiT _ix) = undefined
 
 {-------------------------------------------------------------------------------
                                   Helpers

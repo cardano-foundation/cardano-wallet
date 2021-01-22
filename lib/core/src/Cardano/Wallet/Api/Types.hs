@@ -118,6 +118,7 @@ module Cardano.Wallet.Api.Types
     , ApiWithdrawal (..)
     , ApiWalletSignData (..)
     , ApiVerificationKey (..)
+    , ApiAccountKey (..)
 
     -- * API Types (Byron)
     , ApiByronWallet (..)
@@ -253,8 +254,8 @@ import Control.Arrow
 import Control.DeepSeq
     ( NFData )
 import Control.Monad
-    ( guard, (>=>) )
-import Data.Aeson.Types
+    ( guard, unless, (>=>) )
+import Data.Aeson
     ( FromJSON (..)
     , SumEncoding (..)
     , ToJSON (..)
@@ -973,6 +974,11 @@ newtype ApiVerificationKey = ApiVerificationKey
     } deriving (Eq, Generic, Show)
       deriving anyclass NFData
 
+newtype ApiAccountKey = ApiAccountKey
+    { getApiAccountKey :: ByteString
+    } deriving (Eq, Generic, Show)
+      deriving anyclass NFData
+
 -- | Error codes returned by the API, in the form of snake_cased strings
 data ApiErrorCode
     = NoSuchWallet
@@ -1288,6 +1294,37 @@ instance FromJSON ApiVerificationKey where
                 pure bytes
             | otherwise =
                 fail "Not a valid Ed25519 public key. Must be 32 bytes, without chain code"
+
+instance ToJSON ApiAccountKey where
+    toJSON (ApiAccountKey pub) =
+        toJSON $ Bech32.encodeLenient hrp $ dataPartFromBytes pub
+      where
+        hrp = [humanReadablePart|acct_xvk|]
+
+instance FromJSON ApiAccountKey where
+    parseJSON value = do
+        (hrp, bytes) <- parseJSON value >>= parseBech32
+        unless (hrp == [humanReadablePart|acct_xvk|]) $
+            fail "Wrong human-readable part. Expected : \"acct_xvk\"."
+        ApiAccountKey <$> parsePub bytes
+      where
+        parseBech32 =
+            either (const $ fail errBech32) parseDataPart . Bech32.decodeLenient
+          where
+            errBech32 =
+                "Malformed extended account public key. Expected a bech32-encoded key."
+
+        parseDataPart =
+            maybe (fail errDataPart) pure . traverse dataPartToBytes
+          where
+            errDataPart =
+                "Couldn't decode data-part to valid UTF-8 bytes."
+
+        parsePub bytes
+            | BS.length bytes == 64 =
+                pure bytes
+            | otherwise =
+                fail "Not a valid Ed25519 extended public key. Must be 64 bytes, with chain code"
 
 instance FromJSON ApiEpochInfo where
     parseJSON = genericParseJSON defaultRecordTypeOptions

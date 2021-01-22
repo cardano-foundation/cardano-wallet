@@ -1597,6 +1597,11 @@ components:
       format: bech32
       pattern: "^((addr_vk)|(stake_vk)|(script_vk))1[0-9a-z]*$"
 
+    ApiAccountKey: &ApiAccountKey
+      type: string
+      format: bech32
+      pattern: "^(acct_xvk)1[0-9a-z]*$"
+
     ApiTxId: &ApiTxId
       type: object
       required:
@@ -2203,17 +2208,6 @@ x-parametersWalletId: &parametersWalletId
     format: hex
     maxLength: 40
     minLength: 40
-
-x-parametersAccountIx: &parametersAccountIx
-  in: path
-  name: accountIx
-  required: true
-  schema:
-    type: integer
-    minimum: 2147483648
-    maximum: 4294967295
-  description: |
-    The account index for Shelley account uses hard derivation, ie., indices (2 ^ 31, 2 ^ 32 - 1).
 
 x-parametersIntendedStakeAmount: &parametersIntendedStakeAmount
   in: query
@@ -3330,6 +3324,16 @@ x-responsesGetKey: &responsesGetKey
       application/json:
         schema: *ApiVerificationKey
 
+x-responsesGetAccountKey: &responsesGetAccountKey
+  <<: *responsesErr400
+  <<: *responsesErr404
+  <<: *responsesErr406
+  200:
+    description: Ok
+    content:
+      application/json:
+        schema: *ApiAccountKey
+
 x-responsesListStakePools: &responsesListStakePools
   400:
     description: Bad Request
@@ -3827,7 +3831,7 @@ paths:
         - *parametersAddressState
       responses: *responsesListAddresses
 
-  /wallets/{walletId}/keys/{accountIx}:
+  /wallets/{walletId}/keys/{index}:
     get:
       operationId: getAccountExtendedKey
       tags: ["Keys"]
@@ -3835,11 +3839,11 @@ paths:
       description: |
         <p align="right">status: <strong>stable</strong></p>
 
-        Return an extended account public key for a given account index.
+        Return an extended account public key for a given account index (hard derivation is used).
       parameters:
         - *parametersWalletId
-        - *parametersAccountIx
-      responses: *responsesGetKey
+        - *parametersDerivationSegment
+      responses: *responsesGetAccountKey
 
   /wallets/{walletId}/keys/{role}/{index}:
     get:

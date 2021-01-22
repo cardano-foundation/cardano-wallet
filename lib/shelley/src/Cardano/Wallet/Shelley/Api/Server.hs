@@ -59,6 +59,7 @@ import Cardano.Wallet.Api.Server
     , deleteTransaction
     , deleteWallet
     , derivePublicKey
+    , getAccountPublicKey
     , getAsset
     , getAssetDefault
     , getCurrentEpoch
@@ -225,6 +226,7 @@ server byron icarus shelley spl ntp =
     walletKeys :: Server WalletKeys
     walletKeys = derivePublicKey shelley
         :<|> signMetadata shelley
+        :<|> getAccountPublicKey shelley
 
     assets :: Server Assets
     assets = listAssets shelley :<|> getAsset shelley :<|> getAssetDefault shelley
