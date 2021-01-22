@@ -182,6 +182,17 @@ data SelectionResult change = SelectionResult
     , extraCoinSource
         :: !(Maybe Coin)
         -- ^ An optional extra source of ada.
+    , outputsCovered
+        :: ![TxOut]
+        -- ^ A list of ouputs covered.
+        -- FIXME: Left as a list to allow to work-around the limitation of
+        -- 'performSelection' which cannot run for no output targets (e.g. in
+        -- the context of a delegation transaction). This allows callers to
+        -- specify a dummy 'TxOut' as argument, and remove it later in the
+        -- result; Ideally, we want to handle this in a better way by allowing
+        -- 'performSelection' to work with empty output targets. At the moment
+        -- of writing these lines, I've already been yak-shaving for a while and
+        -- this is the last remaining obstacle, not worth the effort _yet_.
     , changeGenerated
         :: !(NonEmpty change)
         -- ^ A (non-empty) list of generated change outputs.
@@ -444,6 +455,7 @@ performSelection minCoinValueFor costFor criteria
                     { inputsSelected
                     , extraCoinSource
                     , changeGenerated
+                    , outputsCovered = NE.toList outputsToCover
                     , utxoRemaining = leftover
                     }
 
