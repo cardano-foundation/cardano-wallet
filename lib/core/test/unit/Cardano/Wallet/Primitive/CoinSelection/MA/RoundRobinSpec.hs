@@ -258,6 +258,8 @@ spec = describe "Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobinSpec" $
 
         it "prop_makeChangeForNonUserSpecifiedAsset_sum" $
             property prop_makeChangeForNonUserSpecifiedAsset_sum
+        it "prop_makeChangeForNonUserSpecifiedAsset_order" $
+            property prop_makeChangeForNonUserSpecifiedAsset_order
         it "prop_makeChangeForNonUserSpecifiedAsset_length" $
             property prop_makeChangeForNonUserSpecifiedAsset_length
         unitTests "makeChangeForNonUserSpecifiedAsset"
@@ -1192,6 +1194,14 @@ prop_makeChangeForNonUserSpecifiedAsset_sum weights (asset, quantities) =
   where
     changes = makeChangeForNonUserSpecifiedAsset weights (asset, quantities)
 
+prop_makeChangeForNonUserSpecifiedAsset_order
+    :: NonEmpty TokenMap
+    -> (AssetId, NonEmpty TokenQuantity)
+    -> Property
+prop_makeChangeForNonUserSpecifiedAsset_order weights assetQuantities =
+    property $ inAscendingPartialOrder
+        $ makeChangeForNonUserSpecifiedAsset weights assetQuantities
+
 prop_makeChangeForNonUserSpecifiedAsset_length
     :: NonEmpty TokenMap
     -> (AssetId, NonEmpty TokenQuantity)
@@ -1487,6 +1497,9 @@ consecutivePairs :: [a] -> [(a, a)]
 consecutivePairs xs = case tailMay xs of
     Nothing -> []
     Just ys -> xs `zip` ys
+
+inAscendingPartialOrder :: (Foldable f, PartialOrd a) => f a -> Bool
+inAscendingPartialOrder = all (uncurry leq) . consecutivePairs . F.toList
 
 addExtraSource :: Maybe Coin -> TokenBundle -> TokenBundle
 addExtraSource extraSource =

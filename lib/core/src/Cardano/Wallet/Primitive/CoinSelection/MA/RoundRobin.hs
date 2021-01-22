@@ -857,6 +857,9 @@ makeChangeForUserSpecifiedAsset targets (asset, TokenQuantity excess) =
 -- list, and the sum of its quantities is always exactly equal to the sum of
 -- all token quantities given in the second argument.
 --
+-- The resultant list is sorted into ascending order when maps are compared
+-- with the `leq` function.
+--
 makeChangeForNonUserSpecifiedAsset
     :: NonEmpty TokenMap
         -- ^ A list of weights for the distribution. The list is only used for
