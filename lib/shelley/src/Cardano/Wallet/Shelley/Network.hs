@@ -160,7 +160,7 @@ import Ouroboros.Consensus.Cardano.Block
     , Query (..)
     )
 import Ouroboros.Consensus.HardFork.Combinator
-    ( QueryAnytime (..), QueryHardFork (..) )
+    ( QueryAnytime (..), QueryHardFork (..), eraIndexToInt )
 import Ouroboros.Consensus.HardFork.Combinator.AcrossEras
     ( MismatchEraInfo )
 import Ouroboros.Consensus.HardFork.History.Qry
@@ -179,7 +179,6 @@ import Ouroboros.Network.Block
     , castTip
     , genesisPoint
     , getPoint
-    , getTipPoint
     , pointHash
     , pointSlot
     )
@@ -191,7 +190,6 @@ import Ouroboros.Network.Client.Wallet
     , LocalTxSubmissionCmd (..)
     , chainSyncFollowTip
     , chainSyncWithBlocks
-    , currentEra
     , localStateQuery
     , localTxSubmission
     , mapChainSyncLog
@@ -313,17 +311,16 @@ withNetworkLayerBase tr np conn (versionData, _) action = do
     (readNodeEraAndTip, networkParamsVar, interpreterVar, localTxSubmissionQ) <-
         connectNodeTipClient handlers
 
-    -- Alternative read-action which waits for the era to be Just and uses Point
-    -- instead of Tip.
-    let readNodeEraAndTip' = readNodeEraAndTip >>= \case
-            (Just era, tip) -> pure (era, getTipPoint tip)
-            (Nothing, _) -> retry
-
-    queryRewardQ <- connectDelegationRewardsClient handlers readNodeEraAndTip'
+    queryRewardQ <- connectDelegationRewardsClient handlers
 
     rewardsObserver <- newRewardBalanceFetcher tr readNodeEraAndTip queryRewardQ
 
-    let readCurrentNodeEra = fst <$> atomically readNodeEraAndTip'
+    -- Retries until the era is know. The era might not be known on startup,
+    -- until we get a RollForward message in the tip sync client when the tip
+    -- changes.
+    let readCurrentNodeEra = atomically $ readNodeEraAndTip >>= \case
+            (Just era, _) -> pure era
+            (Nothing, _) -> retry
     let readCurrentNodeTip = snd <$> atomically readNodeEraAndTip
 
     action $ NetworkLayer
@@ -399,12 +396,11 @@ withNetworkLayerBase tr np conn (versionData, _) action = do
     connectDelegationRewardsClient
         :: HasCallStack
         => RetryHandlers
-        -> STM IO (AnyCardanoEra, Point (CardanoBlock StandardCrypto))
         -> IO (TQueue IO
                 (LocalStateQueryCmd (CardanoBlock StandardCrypto) IO))
-    connectDelegationRewardsClient handlers readNodeTip = do
+    connectDelegationRewardsClient handlers = do
         cmdQ <- atomically newTQueue
-        let cl = mkDelegationRewardsClient tr readNodeTip cfg cmdQ
+        let cl = mkDelegationRewardsClient tr cfg cmdQ
         link =<< async (connectClient tr handlers cl versionData conn)
         pure cmdQ
 
@@ -631,12 +627,11 @@ mkDelegationRewardsClient
     :: forall m. (MonadThrow m, MonadST m, MonadTimer m, MonadIO m)
     => Tracer m NetworkLayerLog
         -- ^ Base trace for underlying protocols
-    -> STM m (AnyCardanoEra, Point (CardanoBlock StandardCrypto))
     -> CodecConfig (CardanoBlock StandardCrypto)
     -> TQueue m (LocalStateQueryCmd (CardanoBlock StandardCrypto) m)
         -- ^ Communication channel with the LocalStateQuery client
     -> NetworkClient m
-mkDelegationRewardsClient tr readNodeTip cfg queryRewardQ =
+mkDelegationRewardsClient tr cfg queryRewardQ =
     nodeToClientProtocols (const $ return $ NodeToClientProtocols
         { localChainSyncProtocol =
             doNothingProtocol
@@ -648,7 +643,7 @@ mkDelegationRewardsClient tr readNodeTip cfg queryRewardQ =
             InitiatorProtocolOnly $ MuxPeerRaw
                 $ \channel -> runPeer tr' codec channel
                 $ localStateQueryClientPeer
-                $ localStateQuery readNodeTip queryRewardQ
+                $ localStateQuery queryRewardQ
         })
         nodeToClientVersion
   where
@@ -796,16 +791,10 @@ mkTipSyncClient tr np localTxSubmissionQ onPParamsUpdate onInterpreterUpdate = d
                 InitiatorProtocolOnly $ MuxPeerRaw
                     $ \channel -> runPeer tr' codec channel
                     $ localStateQueryClientPeer
-                    $ localStateQuery (readNodeEraAndTip' tipVar) localStateQueryQ
+                    $ localStateQuery localStateQueryQ
             })
             nodeToClientVersion
     return (client, readTVar tipVar)
-
-  where
-    -- Waits for the era to be Just
-    readNodeEraAndTip' var = readTVar var >>= \case
-        (Just era, tip) -> pure (era, getTipPoint tip)
-        (Nothing, _) -> retry
 
 -- Reward Account Balances
 
@@ -1312,14 +1301,33 @@ byronOrShelleyBased onByron onShelleyBased = currentEra >>= \case
     mapQuery _ (LSQPure x) = LSQPure x
     mapQuery f (LSQBind ma f') = LSQBind (mapQuery f ma) (mapQuery f . f')
     mapQuery f (LSQry q) = unwrap <$> LSQry (f q)
-    mapQuery _ LSQEra = LSQEra
 
     unwrap = either (error "impossible: byronOrShelleyBased query resulted in an \
         \era mismatch") id
 
+-- | Return Nothings in Byron, or @Just result@ in Shelley.
 shelleyBased
     :: (forall shelleyEra. LSQ (Shelley.ShelleyBlock (shelleyEra StandardCrypto)) m a)
     -> LSQ (CardanoBlock StandardCrypto) m (Maybe a)
 shelleyBased onShelleyBased = byronOrShelleyBased
     (pure Nothing) -- on byron
     (Just <$> onShelleyBased)
+
+
+-- NOTE:
+-- In theory we should be able to know the current era from the tip sync
+-- client. But there are is a problem from the combination of:
+-- 1. We can't tell the era from a rollback message
+-- 2. The initial tip we get is from a rollback message
+--
+-- which would make us unable to send Local State Queries until the node has
+-- updated its tip once.
+currentEra :: LSQ (CardanoBlock StandardCrypto) m AnyCardanoEra
+currentEra = intToEra . eraIndexToInt <$> LSQry (QueryHardFork GetCurrentEra)
+  where
+    -- NOTE: We could presumably map the EraIndex to a QueryIfCurrent in a
+    -- type-safe way.
+    --
+    -- If this were to be messed up, our integration tests would tell
+    -- immediately though.
+    intToEra = toEnum . fromEnum

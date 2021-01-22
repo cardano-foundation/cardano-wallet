@@ -35,7 +35,6 @@ module Ouroboros.Network.Client.Wallet
     , LocalStateQueryCmd (..)
     , localStateQuery
     , query
-    , currentEra
 
       -- * Helpers
     , send
@@ -48,8 +47,6 @@ module Ouroboros.Network.Client.Wallet
 
 import Prelude
 
-import Cardano.Api
-    ( AnyCardanoEra )
 import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
@@ -59,10 +56,9 @@ import Cardano.Slotting.Slot
 import Cardano.Wallet.Network
     ( NextBlocksResult (..) )
 import Control.Monad
-    ( ap, guard, liftM )
+    ( ap, liftM )
 import Control.Monad.Class.MonadSTM
     ( MonadSTM
-    , STM
     , TQueue
     , atomically
     , isEmptyTQueue
@@ -482,45 +478,34 @@ data LocalStateQueryCmd block m = forall a. SomeLSQ
 -- block type. We might be able to use the (Header block) as replacemet for
 -- (AnyCardanoEra, Tip block).
 localStateQuery
-    :: forall m block . (MonadIO m, MonadSTM m, Eq (Point block))
-    => STM m (AnyCardanoEra, Point block)
-       -- ^ A way to fetch the current node tip
-    -> TQueue m (LocalStateQueryCmd block m)
+    :: forall m block . (MonadIO m, MonadSTM m)
+    => TQueue m (LocalStateQueryCmd block m)
         -- ^ We use a 'TQueue' as a communication channel to drive queries from
         -- outside of the network client to the client itself.
         -- Requests are pushed to the queue which are then transformed into
         -- messages to keep the state-machine moving.
     -> LocalStateQueryClient block (Point block) (Query block) m Void
-localStateQuery getTip queue =
+localStateQuery queue =
     LocalStateQueryClient clientStIdle
   where
     clientStIdle
         :: m (LSQ.ClientStIdle block (Point block) (Query block) m Void)
-    clientStIdle = do
-        cmd <- awaitNextCmd
-        (era, pt) <- atomically getTip
-        pure $ LSQ.SendMsgAcquire (Just pt) (clientStAcquiring cmd pt era)
+    clientStIdle =
+        LSQ.SendMsgAcquire Nothing . clientStAcquiring <$> awaitNextCmd
 
     clientStAcquiring
         :: LocalStateQueryCmd block m
-        -> Point block
-        -> AnyCardanoEra
         -> LSQ.ClientStAcquiring block (Point block) (Query block) m Void
-    clientStAcquiring qry oldPt era = LSQ.ClientStAcquiring
-        { recvMsgAcquired = clientStAcquired qry era
+    clientStAcquiring qry = LSQ.ClientStAcquiring
+        { recvMsgAcquired = clientStAcquired qry
         , recvMsgFailure = \_failure -> do
-            (newEra, newPt) <- atomically $ do
-                t <- getTip
-                guard (((snd t) /= oldPt))
-                return t
-            pure $ LSQ.SendMsgAcquire (Just newPt) (clientStAcquiring qry newPt newEra)
+            pure $ LSQ.SendMsgAcquire Nothing (clientStAcquiring qry)
         }
 
     clientStAcquired
         :: LocalStateQueryCmd block m
-        -> AnyCardanoEra
         -> (LSQ.ClientStAcquired block (Point block) (Query block) m Void)
-    clientStAcquired (SomeLSQ cmd respond) era = go cmd $ \res -> do
+    clientStAcquired (SomeLSQ cmd respond) = go cmd $ \res -> do
         LSQ.SendMsgRelease (respond res >> clientStIdle)
             -- We /could/ read all LocalStateQueryCmds from the TQueue, and run
             -- them against the same tip, if re-acquiring takes a long time. As
@@ -539,7 +524,6 @@ localStateQuery getTip queue =
               -- point is acquired, but before the query is send, however.
           go (LSQBind ma f) cont = go ma $ \a -> do
               go (f a) $ \b -> cont b
-          go (LSQEra) cont = cont era
 
     awaitNextCmd :: m (LocalStateQueryCmd block m)
     awaitNextCmd = atomically $ readTQueue queue
@@ -554,9 +538,6 @@ data LSQ block (m :: * -> *) a where
 
     -- | A local state query.
     LSQry :: (Query block res) -> LSQ block m res
-
-    -- | The era of the node tip the query is run against.
-    LSQEra :: LSQ block m AnyCardanoEra
 
 instance Functor (LSQ block m) where
     fmap = liftM
@@ -574,9 +555,6 @@ instance Monad (LSQ block m) where
 
 query :: (Query block res) -> LSQ block m res
 query = LSQry
-
-currentEra :: LSQ block m AnyCardanoEra
-currentEra = LSQEra
 
 --------------------------------------------------------------------------------
 --
