@@ -2204,6 +2204,17 @@ x-parametersWalletId: &parametersWalletId
     maxLength: 40
     minLength: 40
 
+x-parametersAccountIx: &parametersAccountIx
+  in: path
+  name: accountIx
+  required: true
+  schema:
+    type: integer
+    minimum: 2147483648
+    maximum: 4294967295
+  description: |
+    The account index for Shelley account uses hard derivation, ie., indices (2 ^ 31, 2 ^ 32 - 1).
+
 x-parametersIntendedStakeAmount: &parametersIntendedStakeAmount
   in: query
   name: stake
@@ -3815,6 +3826,20 @@ paths:
         - *parametersWalletId
         - *parametersAddressState
       responses: *responsesListAddresses
+
+  /wallets/{walletId}/keys/{accountIx}:
+    get:
+      operationId: getAccountExtendedKey
+      tags: ["Keys"]
+      summary: Get Account Extended Public Key
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+
+        Return an extended account public key for a given account index.
+      parameters:
+        - *parametersWalletId
+        - *parametersAccountIx
+      responses: *responsesGetKey
 
   /wallets/{walletId}/keys/{role}/{index}:
     get:
