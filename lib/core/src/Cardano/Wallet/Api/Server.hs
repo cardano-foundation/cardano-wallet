@@ -1510,11 +1510,6 @@ mkApiTransactionFromInfo ti (TransactionInfo txid fee ins outs ws meta depth txt
   where
       drop2nd (a,_,c) = (a,c)
 
-apiFee :: FeeEstimation -> ApiFee
-apiFee (FeeEstimation estMin estMax deposit) =
-    ApiFee (qty estMin) (qty estMax) (qty $ fromMaybe 0 deposit)
-  where qty = Quantity . fromIntegral
-
 postTransactionFee
     :: forall ctx s k n.
         ( ctx ~ ApiLayer s k
@@ -1545,7 +1540,7 @@ postTransactionFee ctx (ApiT wid) body = do
                 liftIO $ W.readNextWithdrawal @_ @s @k wrk wdrl
 
         fee <- liftHandler $ W.estimateFeeForPayment @_ @s @k wrk wid outs wdrl md
-        pure $ apiFee fee
+        pure $ mkApiFee fee Nothing
 
 joinStakePool
     :: forall ctx s n k.
@@ -2094,6 +2089,11 @@ mkApiCoin
     :: Coin
     -> Quantity "lovelace" Natural
 mkApiCoin (Coin c) = Quantity $ fromIntegral c
+
+mkApiFee :: Maybe Coin -> FeeEstimation -> ApiFee
+mkApiFee deposit (FeeEstimation estMin estMax) =
+    ApiFee (qty estMin) (qty estMax) (qty $ unCoin $ fromMaybe (Coin 0) deposit)
+  where qty = Quantity . fromIntegral
 
 mkApiWithdrawal
     :: forall (n :: NetworkDiscriminant). ()
