@@ -30,6 +30,7 @@ module Cardano.Wallet.Primitive.Types.TokenBundle
     -- * Deconstruction
     , toFlatList
     , toNestedList
+    , toNestedMap
 
     -- * Coins
     , fromCoin
@@ -87,6 +88,10 @@ import Data.Functor
     ( ($>) )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
+import Data.Map.Strict
+    ( Map )
+import Data.Map.Strict.NonEmptyMap
+    ( NonEmptyMap )
 import Data.Set
     ( Set )
 import Fmt
@@ -217,6 +222,13 @@ toNestedList
     :: TokenBundle
     -> (Coin, [(TokenPolicyId, NonEmpty (TokenName, TokenQuantity))])
 toNestedList (TokenBundle c m) = (c, TokenMap.toNestedList m)
+
+-- | Converts a token bundle to a coin and a nested map.
+--
+toNestedMap
+    :: TokenBundle
+    -> (Coin, Map TokenPolicyId (NonEmptyMap TokenName TokenQuantity))
+toNestedMap (TokenBundle c m) = (c, TokenMap.toNestedMap m)
 
 --------------------------------------------------------------------------------
 -- Coins
