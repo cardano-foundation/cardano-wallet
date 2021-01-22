@@ -175,12 +175,12 @@ data SelectionLimit
 
 -- | The result of performing a successful selection.
 --
-data SelectionResult = SelectionResult
+data SelectionResult change = SelectionResult
     { inputsSelected
         :: !(NonEmpty (TxIn, TxOut))
         -- ^ A (non-empty) list of inputs selected from 'utxoAvailable'.
     , changeGenerated
-        :: !(NonEmpty TokenBundle)
+        :: !(NonEmpty change)
         -- ^ A (non-empty) list of generated change outputs.
     , utxoRemaining
         :: !UTxOIndex
@@ -302,7 +302,7 @@ performSelection
         -- individual asset quantities held within each change output.
     -> SelectionCriteria
         -- ^ The selection goal to satisfy.
-    -> m (Either SelectionError SelectionResult)
+    -> m (Either SelectionError (SelectionResult TokenBundle))
 performSelection minCoinValueFor costFor criteria
     | not (balanceRequired `leq` balanceAvailable) =
         pure $ Left $ BalanceInsufficient $ BalanceInsufficientError
@@ -418,7 +418,7 @@ performSelection minCoinValueFor costFor criteria
     makeChangeRepeatedly
         :: NonEmpty (Set AssetId)
         -> SelectionState
-        -> m (Either SelectionError SelectionResult)
+        -> m (Either SelectionError (SelectionResult TokenBundle))
     makeChangeRepeatedly changeSkeleton s@SelectionState{selected,leftover} = do
         let inputsSelected = mkInputsSelected selected
 
