@@ -1987,27 +1987,44 @@ data FeeEstimation = FeeEstimation
     -- ^ Most coin selections will result in a fee higher than this.
     , estMaxFee :: Word64
     -- ^ Most coin selections will result in a fee lower than this.
-    , deposit :: Maybe Word64
-    -- ^ Deposit if stake key was registered,
     } deriving (Show, Eq, Generic)
 
 instance NFData FeeEstimation
+
+-- | Calculate the minimum deposit necessary if a given wallet wanted to
+-- delegate to a pool. Said differently, this return either 0, or the value of
+-- the key deposit protocol parameters if the wallet has no registered stake
+-- key.
+calcMinimumDeposit
+    :: forall ctx s k.
+        ( HasDBLayer s k ctx
+        )
+    => ctx
+    -> WalletId
+    -> ExceptT ErrNoSuchWallet IO Coin
+calcMinimumDeposit ctx wid = db & \DBLayer{..} -> do
+    mapExceptT atomically (isStakeKeyRegistered $ PrimaryKey wid) >>= \case
+        True ->
+            pure $ Coin 0
+        False ->
+            stakeKeyDeposit <$> readWalletProtocolParameters @ctx @s @k ctx wid
+  where
+    db  = ctx ^. dbLayer @s @k
 
 -- | Estimate the transaction fee for a given coin selection algorithm by
 -- repeatedly running it (100 times) and collecting the results. In the returned
 -- 'FeeEstimation', the minimum fee is that which 90% of the sampled fees are
 -- greater than. The maximum fee is the highest fee observed in the samples.
-estimateFeeForCoinSelection
+estimateFee
     :: forall m err. Monad m
-    => Maybe Word64
-    -> ExceptT err m Fee
+    => ExceptT err m Coin
     -> ExceptT err m FeeEstimation
-estimateFeeForCoinSelection deposit'
+estimateFee
     = fmap deciles
     . handleErrors
     . replicateM repeats
     . runExceptT
-    . fmap getFee
+    . fmap unCoin
   where
     -- Use method R-8 from to get top 90%.
     -- https://en.wikipedia.org/wiki/Quantile#Estimating_quantiles_from_a_sample
@@ -2017,7 +2034,7 @@ estimateFeeForCoinSelection deposit'
         . quantiles medianUnbiased (V.fromList [1, 10]) 10
         . V.fromList
         . map fromIntegral
-    mkFeeEstimation [a,b] = FeeEstimation a b deposit'
+    mkFeeEstimation [a,b] = FeeEstimation a b
     mkFeeEstimation _ = error "estimateFeeForCoinSelection: impossible"
 
     -- Remove failed coin selections from samples. Unless they all failed, in
