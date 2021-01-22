@@ -18,6 +18,8 @@ module Cardano.Wallet.BenchShared
     -- * Main function
     , execBenchWithNode
 
+    , initBenchmarkLogging
+
     -- * Benchmark runner
     , runBenchmarks
     , bench
@@ -123,7 +125,7 @@ execBenchWithNode networkConfig action = do
     hSetBuffering stdout NoBuffering
     hSetBuffering stderr NoBuffering
 
-    (_logCfg, tr') <- initBenchmarkLogging Info
+    (_logCfg, tr') <- initBenchmarkLogging "bench-restore" Info
     let tr = if argQuiet args then nullTracer else tr'
     installSignalHandlers (return ())
 
@@ -269,10 +271,10 @@ bench benchName action = do
     let t = Time $ finish - start
     (res, t) <$ sayErr (pretty $ nameF (build benchName) (build t))
 
-initBenchmarkLogging :: Severity -> IO (CM.Configuration, Trace IO Text)
-initBenchmarkLogging minSeverity = do
+initBenchmarkLogging :: Text -> Severity -> IO (CM.Configuration, Trace IO Text)
+initBenchmarkLogging name minSeverity = do
     c <- defaultConfigStdout
     CM.setMinSeverity c minSeverity
     CM.setSetupBackends c [CM.KatipBK, CM.AggregationBK]
-    (tr, _sb) <- setupTrace_ c "bench-restore"
+    (tr, _sb) <- setupTrace_ c name
     pure (c, tr)
