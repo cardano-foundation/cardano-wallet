@@ -322,7 +322,7 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..), AddressState (..) )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..), addCoins, coinQuantity, sumCoins )
+    ( Coin (..), addCoin, coinQuantity, sumCoins )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.RewardAccount
@@ -1561,7 +1561,7 @@ handleCannotCover
     -> ExceptT ErrSelectForPayment m Fee
 handleCannotCover utxo withdrawal outs = \case
     ErrSelectForPaymentFee (ErrCannotCoverFee missing) -> do
-        let available = addCoins withdrawal
+        let available = addCoin withdrawal
                 (TokenBundle.getCoin $ W.balance utxo)
         let payment = sumCoins (txOutCoin <$> outs)
         pure $ Fee $ unCoin available + missing - unCoin payment

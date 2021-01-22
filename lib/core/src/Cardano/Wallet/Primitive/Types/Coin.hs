@@ -11,22 +11,19 @@
 -- lovelace.
 --
 module Cardano.Wallet.Primitive.Types.Coin
-    (
-    -- * Type
+    ( -- * Type
       Coin (..)
     , coinQuantity
 
-    -- * Operations
-    , sumCoins
-    , addCoins
-    , distance
+      -- * Checks
+    , isValidCoin
 
-    -- * Operations
+      -- * Operations
     , addCoin
     , subtractCoin
+    , sumCoins
+    , distance
 
-    -- * Checks
-    , isValidCoin
     ) where
 
 import Prelude
@@ -58,6 +55,12 @@ import qualified Data.Text as T
 --
 -- Reminder: 1 ada = 1,000,000 lovelace.
 --
+-- NOTE: The 'Coin' value is stored as a 64-bit unsigned integer. The maximum
+-- supply of lovelace is less than 2^56, so there is ample space to store any
+-- circulating amount of Ada.
+--
+-- However be careful when summing coins, for example, if calculating historical
+-- volumes traded, because this may overflow.
 newtype Coin = Coin
     { unCoin :: Word64
     }
@@ -92,9 +95,22 @@ instance Bounded Coin where
 instance Buildable Coin where
     build (Coin c) = fixedF @Double 6 (fromIntegral c / 1e6)
 
---------------------------------------------------------------------------------
--- Operations
---------------------------------------------------------------------------------
+-- | Compatibility function to use while 'Quantity' is still used in non-API
+-- parts of the code.
+coinQuantity :: Integral a => Coin -> Quantity n a
+coinQuantity (Coin n) = Quantity (fromIntegral n)
+
+{-------------------------------------------------------------------------------
+                                     Checks
+-------------------------------------------------------------------------------}
+
+-- | Whether the coin amount is less than the total amount of Ada.
+isValidCoin :: Coin -> Bool
+isValidCoin c = c >= minBound && c <= maxBound
+
+{-------------------------------------------------------------------------------
+                                   Operations
+-------------------------------------------------------------------------------}
 
 -- | Subtracts the second coin from the first.
 --
@@ -105,7 +121,7 @@ subtractCoin (Coin a) (Coin b)
     | a >= b    = Just $ Coin (a - b)
     | otherwise = Nothing
 
--- | Adds the given coins together.
+-- | Calculate the combined value of two coins.
 --
 -- NOTE: It is generally safe to add coins and stay in the same domain because
 -- the max supply is known (45B), which easily fits within a 'Word64'. So for
@@ -115,24 +131,11 @@ subtractCoin (Coin a) (Coin b)
 addCoin :: Coin -> Coin -> Coin
 addCoin (Coin a) (Coin b) = Coin (a + b)
 
---------------------------------------------------------------------------------
--- Checks
---------------------------------------------------------------------------------
+-- | Add a list of coins together.
+sumCoins :: Foldable t => t Coin -> Coin
+sumCoins = foldl' addCoin (Coin 0)
 
-isValidCoin :: Coin -> Bool
-isValidCoin c = c >= minBound && c <= maxBound
 
 -- | Absolute difference between two coin amounts. The result is never negative.
 distance :: Coin -> Coin -> Coin
 distance (Coin a) (Coin b) = if a < b then Coin (b - a) else Coin (a - b)
-
-addCoins :: Coin -> Coin -> Coin
-addCoins (Coin a) (Coin b) = Coin (a + b)
-
-sumCoins :: Foldable t => t Coin -> Coin
-sumCoins = foldl' addCoins (Coin 0)
-
--- | Compatibility function to use while 'Quantity' is still used in non-API
--- parts of the code.
-coinQuantity :: Integral a => Coin -> Quantity n a
-coinQuantity (Coin n) = Quantity (fromIntegral n)
