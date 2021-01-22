@@ -458,25 +458,25 @@ data LocalStateQueryCmd block m = forall a. SomeLSQ
 --     Server has agency*                | Acquiring, Querying
 --     * A peer has agency if it is expected to send the next message.
 --
---
---                ┌───────────────┐    Done      ┌───────────────┐
---        ┌──────▶│     Idle      ├─────────────▶│     Done      │
---        │       └───┬───────────┘              └───────────────┘
+--                ┌───────────────┐    Done      ┌──────────┐
+--        ┌──────▶│     Idle      ├─────────────▶│   Done   │
+--        │       └───┬───────────┘              └──────────┘
 --        │           │       ▲
 --        │   Acquire │       │
 --        │           │       │ Failure
 --        │           ▼       │
---        │       ┌───────────┴───┐              Result
---        │       │   Acquiring   │◀─────────────────────┐
---        │       └───┬───────────┘                      │
--- Release│           │       ▲                          │
---        │           │       │                          │
---        │  Acquired ▼       │ ReAcquire                │
---        │       ┌───────────┴───┐             ┌────────┴───────┐
---        └───────┤   Acquired    │────────────>│   Querying     │
---                └───────────────┘             └────────────────┘
--- FIXME: I think the diagram is wrong. It is possible to query multiple times
--- while we're acquired.
+--        │       ┌───────────┴───┐
+--        │       │   Acquiring   │
+--        │       └───┬───────────┘
+-- Release│           │       ▲
+--        │           │       │
+--        │  Acquired │       │ ReAcquire
+--        │           │       │
+--        │           ▼       │
+--        │       ┌───────────┴───┐   Query     ┌──────────┐
+--        └───────┤   Acquired    ├────────────▶│ Querying │
+--                │               │◀────────────┤          │
+--                └───────────────┘     Result  └──────────┘
 --
 -- NOTE: Using AnyCardanoEra arguably goes against the grain of the abstract
 -- block type. We might be able to use the (Header block) as replacemet for
