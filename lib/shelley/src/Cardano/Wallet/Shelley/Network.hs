@@ -71,6 +71,7 @@ import Cardano.Wallet.Shelley.Compatibility
     , fromStakeCredential
     , fromTip
     , fromTip'
+    , nodeToClientVersion
     , optimumNumberOfPools
     , slottingParametersFromGenesis
     , toCardanoEra
@@ -219,7 +220,7 @@ import Ouroboros.Network.NodeToClient
     , LocalAddress
     , NetworkConnectTracers (..)
     , NodeToClientProtocols (..)
-    , NodeToClientVersion (..)
+    , NodeToClientVersion
     , NodeToClientVersionData (..)
     , connectTo
     , localSnocket
@@ -702,7 +703,7 @@ mkWalletClient tr cfg gp chainSyncQ = do
         , localStateQueryProtocol =
             doNothingProtocol
         })
-        NodeToClientV_6
+        nodeToClientVersion
   where
     tr' = contramap (mapChainSyncLog showB showP) tr
     showB = showP . blockPoint
@@ -748,10 +749,6 @@ mkDelegationRewardsClient tr cfg queryRewardQ =
 {-------------------------------------------------------------------------------
                                      Codecs
 -------------------------------------------------------------------------------}
-
--- | The protocol client version. Distinct from the codecs version.
-nodeToClientVersion :: NodeToClientVersion
-nodeToClientVersion = NodeToClientV_6
 
 codecVersion :: BlockNodeToClientVersion (CardanoBlock StandardCrypto)
 codecVersion = verMap ! nodeToClientVersion

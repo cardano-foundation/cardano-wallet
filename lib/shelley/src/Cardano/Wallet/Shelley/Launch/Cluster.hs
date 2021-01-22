@@ -114,7 +114,7 @@ import Cardano.Wallet.Primitive.Types.Coin
 import Cardano.Wallet.Primitive.Types.Tx
     ( TxOut )
 import Cardano.Wallet.Shelley.Compatibility
-    ( NodeVersionData, StandardShelley )
+    ( NodeVersionData, StandardShelley, nodeToClientVersion )
 import Cardano.Wallet.Shelley.Launch
     ( TempDirLog (..), envFromText, isEnvSet, lookupEnvNonEmpty )
 import Cardano.Wallet.Unsafe
@@ -166,10 +166,7 @@ import Ouroboros.Consensus.Shelley.Node
 import Ouroboros.Network.Magic
     ( NetworkMagic (..) )
 import Ouroboros.Network.NodeToClient
-    ( NodeToClientVersion (..)
-    , NodeToClientVersionData (..)
-    , nodeToClientCodecCBORTerm
-    )
+    ( NodeToClientVersionData (..), nodeToClientCodecCBORTerm )
 import System.Directory
     ( copyFile, createDirectory, createDirectoryIfMissing, makeAbsolute )
 import System.Environment
@@ -925,7 +922,7 @@ genConfig dir systemStart clusterEra logCfg = do
     let shelleyParams = fst $ Shelley.fromGenesisData shelleyGenesis []
     let versionData =
             ( NodeToClientVersionData $ NetworkMagic networkMagic
-            , nodeToClientCodecCBORTerm NodeToClientV_6
+            , nodeToClientCodecCBORTerm nodeToClientVersion
             )
 
     pure
@@ -1623,7 +1620,7 @@ blake2b256S =
     . T.decodeUtf8
     . convertToBase Base16
     . blake2b256
-    
+
 {-------------------------------------------------------------------------------
                                     Logging
 -------------------------------------------------------------------------------}
