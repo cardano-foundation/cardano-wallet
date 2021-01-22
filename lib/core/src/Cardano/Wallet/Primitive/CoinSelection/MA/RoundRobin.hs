@@ -179,6 +179,9 @@ data SelectionResult change = SelectionResult
     { inputsSelected
         :: !(NonEmpty (TxIn, TxOut))
         -- ^ A (non-empty) list of inputs selected from 'utxoAvailable'.
+    , extraCoinSource
+        :: !(Maybe Coin)
+        -- ^ An optional extra source of ada.
     , changeGenerated
         :: !(NonEmpty change)
         -- ^ A (non-empty) list of generated change outputs.
@@ -439,6 +442,7 @@ performSelection minCoinValueFor costFor criteria
             Right changeGenerated -> pure . Right $
                 SelectionResult
                     { inputsSelected
+                    , extraCoinSource
                     , changeGenerated
                     , utxoRemaining = leftover
                     }
