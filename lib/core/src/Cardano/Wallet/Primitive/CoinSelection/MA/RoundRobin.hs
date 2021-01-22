@@ -27,6 +27,7 @@ module Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     , SelectionCriteria (..)
     , SelectionLimit (..)
     , SelectionSkeleton (..)
+    , emptySkeleton
     , SelectionResult (..)
     , SelectionError (..)
     , BalanceInsufficientError (..)
@@ -105,6 +106,8 @@ import Data.Ord
     ( comparing )
 import Data.Set
     ( Set )
+import Fmt
+    ( Buildable (..), Builder, blockListF, blockListF', nameF, tupleF )
 import GHC.Generics
     ( Generic )
 import GHC.Stack
@@ -158,11 +161,20 @@ data SelectionSkeleton = SelectionSkeleton
     { inputsSkeleton
         :: !UTxOIndex
     , outputsSkeleton
-        :: !(NonEmpty TxOut)
+        :: ![TxOut]
     , changeSkeleton
-        :: !(NonEmpty (Set AssetId))
+        :: ![Set AssetId]
     }
     deriving (Eq, Show)
+
+-- | Creates an empty 'SelectionSkeleton' with no inputs, no outputs and no
+-- change.
+emptySkeleton :: SelectionSkeleton
+emptySkeleton = SelectionSkeleton
+    { inputsSkeleton  = UTxOIndex.empty
+    , outputsSkeleton = mempty
+    , changeSkeleton  = mempty
+    }
 
 -- | Specifies a limit to adhere to when performing a selection.
 --
@@ -201,7 +213,32 @@ data SelectionResult change = SelectionResult
         -- ^ The subset of 'utxoAvailable' that remains after performing
         -- the selection.
     }
-    deriving (Eq, Show)
+    deriving (Generic, Eq, Show)
+
+instance Buildable (SelectionResult TokenBundle) where
+    build = buildSelectionResult (blockListF . fmap TokenBundle.Flat)
+
+instance Buildable (SelectionResult TxOut) where
+    build = buildSelectionResult (blockListF . fmap build)
+
+buildSelectionResult
+    :: (NonEmpty change -> Builder)
+    -> SelectionResult change
+    -> Builder
+buildSelectionResult changeF s@SelectionResult{inputsSelected,extraCoinSource} =
+    mconcat
+        [ nameF "inputs selected"  (inputsF inputsSelected)
+        , nameF "extra coin input" (build extraCoinSource)
+        , nameF "outputs covered"  (build $ outputsCovered s)
+        , nameF "change generated" (changeF $ changeGenerated s)
+        , nameF "size utxo remaining" (build $ UTxOIndex.size $ utxoRemaining s)
+        ]
+  where
+    inputsF :: NonEmpty (TxIn, TxOut) -> Builder
+    inputsF = blockListF' "+" tupleF
+
+        changeF :: NonEmpty TokenBundle -> Builder
+        changeF = blockListF . fmap TokenBundle.Flat
 
 -- | Represents the set of errors that may occur while performing a selection.
 --
@@ -331,7 +368,7 @@ performSelection minCoinValueFor costFor criteria
             selectionLimit extraCoinSource utxoAvailable balanceRequired
         let balanceSelected = fullBalance (selected state) extraCoinSource
         if balanceRequired `leq` balanceSelected then do
-            let predictedChange = predictChange (selected state)
+            let predictedChange = NE.toList $ predictChange (selected state)
             makeChangeRepeatedly predictedChange state
 
         else
@@ -430,7 +467,7 @@ performSelection minCoinValueFor costFor criteria
     -- ada-only inputs are available.
     --
     makeChangeRepeatedly
-        :: NonEmpty (Set AssetId)
+        :: [Set AssetId]
         -> SelectionState
         -> m (Either SelectionError (SelectionResult TokenBundle))
     makeChangeRepeatedly changeSkeleton s@SelectionState{selected,leftover} = do
@@ -438,7 +475,7 @@ performSelection minCoinValueFor costFor criteria
 
         let cost = costFor SelectionSkeleton
                 { inputsSkeleton  = selected
-                , outputsSkeleton = outputsToCover
+                , outputsSkeleton = NE.toList outputsToCover
                 , changeSkeleton
                 }
 
