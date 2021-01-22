@@ -169,7 +169,8 @@ spec = describe "SHELLEY_WALLETS" $ do
             , expectField (#balance . #available) (`shouldBe` Quantity 0)
             , expectField (#balance . #total) (`shouldBe` Quantity 0)
             , expectField (#balance . #reward) (`shouldBe` Quantity 0)
-
+            , expectField (#assets . #total) (`shouldBe` mempty)
+            , expectField (#assets . #available) (`shouldBe` mempty)
             , expectField #delegation (`shouldBe` notDelegating [])
             , expectField #passphrase (`shouldNotBe` Nothing)
             ]
@@ -230,6 +231,8 @@ spec = describe "SHELLEY_WALLETS" $ do
             [ expectResponseCode HTTP.status201
             , expectField (#balance . #available) (`shouldBe` Quantity 0)
             , expectField (#balance . #total) (`shouldBe` Quantity 0)
+            , expectField (#assets . #available) (`shouldBe` mempty)
+            , expectField (#assets . #total) (`shouldBe` mempty)
             ]
 
         --send funds
@@ -254,10 +257,14 @@ spec = describe "SHELLEY_WALLETS" $ do
             rGet <- request @ApiWallet ctx
                 (Link.getWallet @'Shelley wDest) Default Empty
             verify rGet
-                [ expectField
-                        (#balance . #total) (`shouldBe` Quantity minUTxOValue)
-                , expectField
-                        (#balance . #available) (`shouldBe` Quantity minUTxOValue)
+                [ expectField (#balance . #total)
+                    (`shouldBe` Quantity minUTxOValue)
+                , expectField (#balance . #available)
+                    (`shouldBe` Quantity minUTxOValue)
+                , expectField (#assets . #available)
+                    (`shouldBe` mempty)
+                , expectField (#assets . #total)
+                    (`shouldBe` mempty)
                 ]
 
         -- delete wallet

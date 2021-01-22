@@ -2772,7 +2772,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         -> Quantity "lovelace" Natural
         -> m ()
     verifyWalletBalance ctx wallet amt = do
-        eventually "Wallet balance is as expected" $ do
+        eventually "Wallet Ada balance is as expected" $ do
             rGet <- request @ApiWallet ctx
                 (Link.getWallet @'Shelley wallet) Default Empty
             verify rGet
@@ -2780,6 +2780,10 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                         (#balance . #total) (`shouldBe` amt)
                 , expectField
                         (#balance . #available) (`shouldBe` amt)
+                , expectField
+                        (#assets . #total) (`shouldBe` mempty)
+                , expectField
+                        (#assets . #available) (`shouldBe` mempty)
                 ]
 
     mkTxPayload
