@@ -19,6 +19,7 @@ module Cardano.Wallet.Transaction
     -- * Interface
       TransactionLayer (..)
     , DelegationAction (..)
+    , TransactionCtx (..)
 
     -- * Errors
     , ErrMkTx (..)
@@ -33,22 +34,26 @@ import Cardano.Api.Typed
     ( AnyCardanoEra )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..), Passphrase )
-import Cardano.Wallet.Primitive.CoinSelection
-    ( CoinSelection (..) )
-import Cardano.Wallet.Primitive.Fee
-    ( Fee, FeePolicy )
+import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
+    ( SelectionCriteria, SelectionResult, SelectionSkeleton )
 import Cardano.Wallet.Primitive.Types
-    ( PoolId, SlotNo (..) )
+    ( PoolId, ProtocolParameters, SlotNo (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
+import Cardano.Wallet.Primitive.Types.TokenMap
+    ( TokenMap )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( SealedTx (..), Tx (..), TxMetadata )
+    ( SealedTx (..), Tx (..), TxMetadata, TxOut )
+import Cardano.Wallet.Primitive.Types.UTxOIndex
+    ( UTxOIndex )
 import Data.ByteString
     ( ByteString )
+import Data.List.NonEmpty
+    ( NonEmpty )
 import Data.Quantity
-    ( Quantity (..) )
+    ( Quantity )
 import Data.Text
     ( Text )
 import Data.Word
@@ -57,18 +62,18 @@ import GHC.Generics
     ( Generic )
 
 data TransactionLayer k = TransactionLayer
-    { mkStdTx
+    { mkTransaction
         :: AnyCardanoEra
             -- Era for which the transaction should be created.
         -> (XPrv, Passphrase "encryption")
             -- Reward account
         -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
             -- Key store
-        -> SlotNo
-            -- Transaction expiry (TTL) slot.
-        -> Maybe TxMetadata
-            -- User or application-defined metadata to embed in the transaction.
-        -> CoinSelection
+        -> ProtocolParameters
+            -- Current protocol parameters
+        -> TransactionCtx
+            -- An additional context about the transaction
+        -> SelectionResult TxOut
             -- A balanced coin selection where all change addresses have been
             -- assigned.
         -> Either ErrMkTx (Tx, SealedTx)
@@ -80,80 +85,45 @@ data TransactionLayer k = TransactionLayer
         -- This expects as a first argument a mean to compute or lookup private
         -- key corresponding to a particular address.
 
-    , mkDelegationJoinTx
-        :: AnyCardanoEra
-            -- Era for which the transaction should be created.
-        -> PoolId
-            -- Pool Id to which we're planning to delegate
-        -> (XPrv, Passphrase "encryption")
-            -- Reward account
-        -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
-            -- Key store
-        -> SlotNo
-            -- Transaction expiry (TTL) slot.
-        -> CoinSelection
-            -- A balanced coin selection where all change addresses have been
-            -- assigned.
-        -> Either ErrMkTx (Tx, SealedTx)
-        -- ^ Construct a transaction containing a certificate for delegating to
-        -- a stake pool.
-        --
-        -- The certificate is a combination of the 'PoolId' and the public key
-        -- of the reward account. (Note that this is an address key and
-        -- HD account keys are something different)
+    , initSelectionCriteria
+        :: ProtocolParameters
+            -- Current protocol parameters
+        -> TransactionCtx
+            -- Additional information about the transaction
+        -> UTxOIndex
+            -- Available UTxO from which inputs should be selected.
+        -> NonEmpty TxOut
+            -- A list of target outputs
+        -> SelectionCriteria
 
-    , mkDelegationQuitTx
-        :: AnyCardanoEra
-            -- Era for which the transaction should be created.
-        -> (XPrv, Passphrase "encryption")
-            -- Reward account
-        -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
-            -- Key store
-        -> SlotNo
-            -- Transaction expiry (TTL) slot.
-        -> CoinSelection
-            -- A balanced coin selection where all change addresses have been
-            -- assigned.
-        -> Either ErrMkTx (Tx, SealedTx)
-        -- ^ Construct a transaction containing a certificate for quiting from
-        -- a stake pool.
-        --
-        -- The certificate is the public key of the reward account.
+    , calcMinimumCost
+        :: ProtocolParameters
+            -- Current protocol parameters
+        -> TransactionCtx
+            -- Additional information about the transaction
+        -> SelectionSkeleton
+            -- An intermediate representation of an ongoing selection
+        -> Coin
+        -- ^ Compute a minimal fee amount necessary to pay for a given selection
+        -- This also include necessary deposits.
 
-    , initDelegationSelection
-        :: Coin
-            -- Current fee policy
-        -> DelegationAction
-            -- What sort of action is going on
-        -> CoinSelection
-        -- ^ An initial selection where 'deposit' and/or 'reclaim' have been set
-        -- accordingly.
-
-    , minimumFee
-        :: FeePolicy
-        -> Maybe DelegationAction
-        -> Maybe TxMetadata
-        -> CoinSelection
-        -> Fee
-        -- ^ Compute a minimal fee amount necessary to pay for a given
-        -- coin-selection.
+    , calcMinimumCoinValue
+        :: ProtocolParameters
+            -- Current protocol parameters
+        -> TokenMap
+            -- A bundle of native assets
+        -> Coin
+        -- ^ The minimum ada value needed in a UTxO carrying the asset bundle
 
     , estimateMaxNumberOfInputs
         :: Quantity "byte" Word16
-            -- Max tx size
+         -- Transaction max size in bytes
         -> Maybe TxMetadata
-            -- Metadata associated with the transaction
+         -- Metadata associated with the transaction.
         -> Word8
-            -- desired number of outputs
+        -- Number of outputs in transaction
         -> Word8
-        -- ^ Calculate a "theoretical" maximum number of inputs given a maximum
-        -- transaction size and desired number of outputs.
-        --
-        -- The actual transaction size cannot be known until it has been fully
-        -- determined by coin selection.
-        --
-        -- This estimate will err on the side of permitting more inputs,
-        -- resulting in a transaction which may be too large.
+        -- ^ Approximate maximum number of inputs.
 
     , decodeSignedTx
         :: AnyCardanoEra
@@ -161,6 +131,20 @@ data TransactionLayer k = TransactionLayer
         -> Either ErrDecodeSignedTx (Tx, SealedTx)
         -- ^ Decode an externally-signed transaction to the chain producer
     }
+
+-- | Some additional context about a transaction. This typically contains
+-- details that are known upfront about the transaction and are used to
+-- construct it from inputs selected from the wallet's UTxO.
+data TransactionCtx = TransactionCtx
+    { txWithdrawal :: Coin
+    -- ^ Withdrawal amount from a reward account, can be zero.
+    , txMetadata :: Maybe TxMetadata
+    -- ^ User or application-defined metadata to embed in the transaction.
+    , txTimeToLive :: SlotNo
+    -- ^ Transaction expiry (TTL) slot.
+    , txDelegationAction :: Maybe DelegationAction
+    -- ^ An additional delegation to take.
+    } deriving (Show, Eq)
 
 -- | Whether the user is attempting any particular delegation action.
 data DelegationAction = RegisterKeyAndJoin PoolId | Join PoolId | Quit
