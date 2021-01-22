@@ -89,7 +89,6 @@ module Cardano.Wallet.Api.Server
     , withLegacyLayer
     , withLegacyLayer'
     , rndStateChange
-    , assignMigrationAddresses
     , withWorkerCtx
     , getCurrentEpoch
 
@@ -1681,23 +1680,8 @@ getMigrationInfo
     -> ApiT WalletId
         -- ^ Source wallet
     -> Handler ApiWalletMigrationInfo
-getMigrationInfo ctx (ApiT wid) = do
-    (cs, leftovers) <- fmap coinToQuantity <$> getSelections
-    let migrationCost = costFromSelections cs
-    pure $ ApiWalletMigrationInfo{migrationCost,leftovers}
-  where
-    costFromSelections :: [CoinSelection] -> Quantity "lovelace" Natural
-    costFromSelections = Quantity
-        . fromIntegral
-        . sum
-        . fmap selectionFee
-
-    selectionFee :: CoinSelection -> Word64
-    selectionFee s = inputBalance s - changeBalance s
-
-    getSelections :: Handler ([CoinSelection], Coin)
-    getSelections = withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
-        W.selectCoinsForMigration @_ @s @k @n wrk wid
+getMigrationInfo _ctx _wid = do
+    throwE ErrTemporarilyDisabled
 
 migrateWallet
     :: forall s k n p.
@@ -1714,65 +1698,8 @@ migrateWallet
         -- ^ Source wallet
     -> ApiWalletMigrationPostData n p
     -> Handler [ApiTransaction n]
-migrateWallet ctx (ApiT wid) migrateData = do
-    -- TODO: check if addrs are not empty
-
-    migration <- do
-        withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $ do
-            (cs, _) <- W.selectCoinsForMigration @_ @_ @_ @n wrk wid
-            pure $ assignMigrationAddresses addrs cs
-
-    forM migration $ \cs -> do
-        (tx, meta, time, wit) <- withWorkerCtx ctx wid liftE liftE
-            $ \wrk -> liftHandler $ W.signTx @_ @s @k wrk wid pwd Nothing Nothing cs
-        withWorkerCtx ctx wid liftE liftE
-            $ \wrk -> liftHandler $ W.submitTx @_ @_ wrk wid (tx, meta, wit)
-        liftIO $ mkApiTransaction
-            (timeInterpreter (ctx ^. networkLayer))
-            (txId tx)
-            (tx ^. #fee)
-            (fmap Just <$> NE.toList (W.unsignedInputs cs))
-            (W.unsignedOutputs cs)
-            (tx ^. #withdrawals)
-            (meta, time)
-            Nothing
-            #pendingSince
-  where
-    pwd = coerce $ getApiT $ migrateData ^. #passphrase
-    addrs = getApiT . fst <$> migrateData ^. #addresses
-
-
--- | Transform the given set of migration coin selections (for a source wallet)
---   into a set of coin selections that will migrate funds to the specified
---   target addresses.
---
--- Each change entry in the specified set of coin selections is replaced with a
--- corresponding output entry in the returned set, where the output entry has a
--- address from specified addresses.
---
--- If the number of outputs in the specified coin selection is greater than
--- the number of addresses in the specified address list, addresses will be
--- recycled in order of their appearance in the original list.
-assignMigrationAddresses
-    :: [Address]
-    -- ^ Target addresses
-    -> [CoinSelection]
-    -- ^ Migration data for the source wallet.
-    -> [UnsignedTx (TxIn, TxOut) TxOut Void]
-    -- ^ Unsigned transactions without change, indicated with Void.
-assignMigrationAddresses addrs selections =
-    fst $ foldr accumulate ([], cycle addrs) selections
-  where
-    accumulate sel (txs, addrsAvailable) = first
-        (\addrsSelected -> makeTx sel addrsSelected : txs)
-        (splitAt (length $ view #change sel) addrsAvailable)
-
-    makeTx :: CoinSelection -> [Address] -> UnsignedTx (TxIn, TxOut) TxOut Void
-    makeTx sel addrsSelected = UnsignedTx
-        (NE.fromList (sel ^. #inputs))
-        (zipWith TxOut addrsSelected (TokenBundle.fromCoin <$> sel ^. #change))
-        -- We never return any change:
-        []
+migrateWallet _ctx _wid _migrateData = do
+    liftHandler $ throwE ErrTemporarilyDisabled
 
 {-------------------------------------------------------------------------------
                                     Network
@@ -2354,9 +2281,20 @@ data ErrCreateWallet
         -- ^ Somehow, we couldn't create a worker or open a db connection
     deriving (Eq, Show)
 
+data ErrTemporarilyDisabled = ErrTemporarilyDisabled
+    deriving (Eq, Show)
+
 -- | Small helper to easy show things to Text
 showT :: Show a => a -> Text
 showT = T.pack . show
+
+instance LiftHandler ErrTemporarilyDisabled where
+    handler = \case
+        ErrTemporarilyDisabled ->
+            apiError err501 NotImplemented $ mconcat
+                [ "This endpoint is temporarily disabled. It'll be made "
+                , "accessible again in future releases."
+                ]
 
 instance LiftHandler ErrCurrentEpoch where
     handler = \case
@@ -2373,17 +2311,6 @@ instance LiftHandler ErrUnexpectedPoolIdPlaceholder where
             apiError err400 BadRequest (pretty msg)
       where
         Left msg = fromText @PoolId "INVALID"
-
-instance LiftHandler ErrSelectForMigration where
-    handler = \case
-        ErrSelectForMigrationNoSuchWallet e -> handler e
-        ErrSelectForMigrationEmptyWallet wid ->
-            apiError err403 NothingToMigrate $ mconcat
-                [ "I can't migrate the wallet with the given id: "
-                , toText wid
-                , ", because it's either empty or full of small coins "
-                , "which wouldn't be worth migrating."
-                ]
 
 instance LiftHandler ErrNoSuchWallet where
     handler = \case
