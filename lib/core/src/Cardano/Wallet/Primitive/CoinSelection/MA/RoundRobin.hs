@@ -44,8 +44,8 @@ module Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     -- * Making change
     , makeChange
     , makeChangeForCoin
-    , makeChangeForUserDefinedAsset
-    , makeChangeForNonUserDefinedAsset
+    , makeChangeForUserSpecifiedAsset
+    , makeChangeForNonUserSpecifiedAsset
 
     -- * Grouping and ungrouping
     , groupByKey
@@ -700,25 +700,31 @@ makeChange
 
         let (excessCoin, excessAssets) = TokenBundle.toFlatList excess
 
-        let nonUserDefinedAssets =
-                Map.toList $ F.foldr discardUserDefinedAssets mempty inputBundles
+        let nonUserSpecifiedAssets = Map.toList $
+                F.foldr discardUserSpecifiedAssets mempty inputBundles
 
-        let changeForUserDefinedAssets :: NonEmpty TokenMap
-            changeForUserDefinedAssets = F.foldr
-                (NE.zipWith (<>) . makeChangeForUserDefinedAsset outputTokens)
+        -- Change for user-specified assets: assets that were present in the
+        -- original set of user-specified outputs ('outputsToCover').
+        let changeForUserSpecifiedAssets :: NonEmpty TokenMap
+            changeForUserSpecifiedAssets = F.foldr
+                (NE.zipWith (<>)
+                    . makeChangeForUserSpecifiedAsset outputTokens)
                 (TokenMap.empty <$ outputTokens)
                 excessAssets
 
-        let changeForNonUserDefinedAssets :: NonEmpty TokenMap
-            changeForNonUserDefinedAssets = F.foldr
-                (NE.zipWith (<>) . makeChangeForNonUserDefinedAsset outputTokens)
+        -- Change for non-user-specified assets: assets that were not present
+        -- in the original set of user-specified outputs ('outputsToCover').
+        let changeForNonUserSpecifiedAssets :: NonEmpty TokenMap
+            changeForNonUserSpecifiedAssets = F.foldr
+                (NE.zipWith (<>)
+                    . makeChangeForNonUserSpecifiedAsset outputTokens)
                 (TokenMap.empty <$ outputTokens)
-                nonUserDefinedAssets
+                nonUserSpecifiedAssets
 
         let change :: NonEmpty TokenMap
             change = NE.zipWith (<>)
-                changeForUserDefinedAssets
-                changeForNonUserDefinedAssets
+                changeForUserSpecifiedAssets
+                changeForNonUserSpecifiedAssets
 
         (bundles, remainder) <-
             maybe (Left $ changeError excessCoin change) Right $
@@ -757,8 +763,8 @@ makeChange
             F.sum $ (coinToNatural . minCoinValueFor) <$> change
 
     -- Outputs tokens are ordered in such way that to the greatest extent
-    -- possible, small (resp. large) quantities of non user-defined change assets
-    -- will be merged with small (resp. large) quantities of user-defined change
+    -- possible, small (resp. large) quantities of non-user-specified assets
+    -- will be merged with small (resp. large) quantities of user-specified
     -- assets.
     --
     -- There's no simple way to define a total order on 'TokenMap', so we opt
@@ -795,19 +801,19 @@ makeChange
     knownAssetIds :: Set AssetId
     knownAssetIds = TokenBundle.getAssets totalOutputValue
 
-    discardUserDefinedAssets
+    discardUserSpecifiedAssets
         :: TokenBundle
         -> Map AssetId (NonEmpty TokenQuantity)
         -> Map AssetId (NonEmpty TokenQuantity)
-    discardUserDefinedAssets (TokenBundle _ tokens) m =
+    discardUserSpecifiedAssets (TokenBundle _ tokens) m =
         foldr (\(k, v) -> Map.insertWith (<>) k (v :| [])) m filtered
       where
         filtered = filter
             ((`Set.notMember` knownAssetIds) . fst)
             (TokenMap.toFlatList tokens)
 
--- | Constructs change outputs for an asset that was present in the original
---   set of outputs, based on the given weight distribution.
+-- | Constructs change outputs for a user-specified asset: an asset that was
+--   present in the original set of outputs.
 --
 -- If the given asset does not appear in the given distribution, this function
 -- returns a list of empty token maps. Otherwise, the given token quantity is
@@ -818,7 +824,7 @@ makeChange
 -- input list, and the sum of its quantities is either zero, or exactly equal
 -- to the token quantity in the second argument.
 --
-makeChangeForUserDefinedAsset
+makeChangeForUserSpecifiedAsset
     :: NonEmpty TokenMap
         -- ^ A list of weights for the distribution. Conveniently captures both
         -- the weights, and the number of elements amongst which the quantity
@@ -826,7 +832,7 @@ makeChangeForUserDefinedAsset
     -> (AssetId, TokenQuantity)
         -- ^ A surplus token quantity to distribute.
     -> NonEmpty TokenMap
-makeChangeForUserDefinedAsset targets (asset, TokenQuantity excess) =
+makeChangeForUserSpecifiedAsset targets (asset, TokenQuantity excess) =
     let
         partition = fromMaybe zeros (partitionNatural excess weights)
     in
@@ -841,8 +847,8 @@ makeChangeForUserDefinedAsset targets (asset, TokenQuantity excess) =
     zeros :: NonEmpty Natural
     zeros = 0 :| replicate (length targets - 1) 0
 
--- | Constructs change outputs for an asset that was not present in the original
---   set of outputs.
+-- | Constructs change outputs for a non-user-specified asset: an asset that
+--   was not present in the original set of outputs.
 --
 -- This function constructs a list of change outputs by preserving the input
 -- distribution as much as possible. Note that only the length of the first
@@ -852,14 +858,14 @@ makeChangeForUserDefinedAsset targets (asset, TokenQuantity excess) =
 -- list, and the sum of its quantities is always exactly equal to the sum of
 -- all token quantities given in the second argument.
 --
-makeChangeForNonUserDefinedAsset
+makeChangeForNonUserSpecifiedAsset
     :: NonEmpty TokenMap
         -- ^ A list of weights for the distribution. The list is only used for
         -- its number of elements.
     -> (AssetId, NonEmpty TokenQuantity)
         -- ^ An asset quantity to distribute.
     -> NonEmpty TokenMap
-makeChangeForNonUserDefinedAsset n (asset, quantities) =
+makeChangeForNonUserSpecifiedAsset n (asset, quantities) =
     TokenMap.singleton asset <$> padCoalesce quantities n
 
 -- | Constructs a list of ada change outputs based on the given distribution.

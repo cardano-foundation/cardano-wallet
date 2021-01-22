@@ -33,8 +33,8 @@ import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     , groupByKey
     , makeChange
     , makeChangeForCoin
-    , makeChangeForNonUserDefinedAsset
-    , makeChangeForUserDefinedAsset
+    , makeChangeForNonUserSpecifiedAsset
+    , makeChangeForUserSpecifiedAsset
     , mapMaybe
     , performSelection
     , prepareOutputsWith
@@ -242,23 +242,23 @@ spec = describe "Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobinSpec" $
         unitTests "makeChangeForCoin"
             unit_makeChangeForCoin
 
-    parallel $ describe "Making change for non user-defined assets" $ do
+    parallel $ describe "Making change for non-user-specified assets" $ do
 
-        it "prop_makeChangeForNonUserDefinedAsset_sum" $
-            property prop_makeChangeForNonUserDefinedAsset_sum
-        it "prop_makeChangeForNonUserDefinedAsset_length" $
-            property prop_makeChangeForNonUserDefinedAsset_length
-        unitTests "makeChangeForNonUserDefinedAsset"
-            unit_makeChangeForNonUserDefinedAsset
+        it "prop_makeChangeForNonUserSpecifiedAsset_sum" $
+            property prop_makeChangeForNonUserSpecifiedAsset_sum
+        it "prop_makeChangeForNonUserSpecifiedAsset_length" $
+            property prop_makeChangeForNonUserSpecifiedAsset_length
+        unitTests "makeChangeForNonUserSpecifiedAsset"
+            unit_makeChangeForNonUserSpecifiedAsset
 
-    parallel $ describe "Making change for user-defined assets" $ do
+    parallel $ describe "Making change for user-specified assets" $ do
 
-        it "prop_makeChangeForUserDefinedAsset_sum" $
-            property prop_makeChangeForUserDefinedAsset_sum
-        it "prop_makeChangeForUserDefinedAsset_length" $
-            property prop_makeChangeForUserDefinedAsset_length
-        unitTests "makeChangeForUserDefinedAsset"
-            unit_makeChangeForUserDefinedAsset
+        it "prop_makeChangeForUserSpecifiedAsset_sum" $
+            property prop_makeChangeForUserSpecifiedAsset_sum
+        it "prop_makeChangeForUserSpecifiedAsset_length" $
+            property prop_makeChangeForUserSpecifiedAsset_length
+        unitTests "makeChangeForUserSpecifiedAsset"
+            unit_makeChangeForUserSpecifiedAsset
 
     parallel $ describe "Grouping and ungrouping" $ do
 
@@ -1108,7 +1108,7 @@ unit_makeChange =
           , Right $ b 4 [(assetA, 2)] :| [b 2 [(assetA, 4), (assetB, 3)]]
           )
 
-        -- Extra non user-specified assets. Large assets end up in 'large'
+        -- Extra non-user-specified assets. Large assets end up in 'large'
         -- bundles and small extra assets in smaller bundles.
         , ( noMinCoin, noCost
           , Nothing
@@ -1171,28 +1171,28 @@ unit_makeChangeForCoin =
 -- Making change for unknown assets
 --------------------------------------------------------------------------------
 
-prop_makeChangeForNonUserDefinedAsset_sum
+prop_makeChangeForNonUserSpecifiedAsset_sum
     :: NonEmpty TokenMap
     -> (AssetId, NonEmpty TokenQuantity)
     -> Property
-prop_makeChangeForNonUserDefinedAsset_sum weights (asset, quantities) =
+prop_makeChangeForNonUserSpecifiedAsset_sum weights (asset, quantities) =
     F.fold quantities === F.fold ((`TokenMap.getQuantity` asset) <$> changes)
   where
-    changes = makeChangeForNonUserDefinedAsset weights (asset, quantities)
+    changes = makeChangeForNonUserSpecifiedAsset weights (asset, quantities)
 
-prop_makeChangeForNonUserDefinedAsset_length
+prop_makeChangeForNonUserSpecifiedAsset_length
     :: NonEmpty TokenMap
     -> (AssetId, NonEmpty TokenQuantity)
     -> Property
-prop_makeChangeForNonUserDefinedAsset_length weights surplus =
+prop_makeChangeForNonUserSpecifiedAsset_length weights surplus =
     F.length changes === F.length weights
   where
-    changes = makeChangeForNonUserDefinedAsset weights surplus
+    changes = makeChangeForNonUserSpecifiedAsset weights surplus
 
-unit_makeChangeForNonUserDefinedAsset
+unit_makeChangeForNonUserSpecifiedAsset
     :: [Expectation]
-unit_makeChangeForNonUserDefinedAsset =
-    [ makeChangeForNonUserDefinedAsset weights surplus `shouldBe` expectation
+unit_makeChangeForNonUserSpecifiedAsset =
+    [ makeChangeForNonUserSpecifiedAsset weights surplus `shouldBe` expectation
     | (weights, surplus, expectation) <- matrix
     ]
   where
@@ -1232,32 +1232,32 @@ unit_makeChangeForNonUserDefinedAsset =
 -- Making change for known assets
 --------------------------------------------------------------------------------
 
-prop_makeChangeForUserDefinedAsset_sum
+prop_makeChangeForUserSpecifiedAsset_sum
     :: NonEmpty TokenMap
     -> (AssetId, TokenQuantity)
     -> Property
-prop_makeChangeForUserDefinedAsset_sum weights (asset, quantity) =
+prop_makeChangeForUserSpecifiedAsset_sum weights (asset, quantity) =
     if any (`TokenMap.hasQuantity` asset) weights then
         quantity === totalChangeValue
     else
         totalChangeValue === TokenQuantity 0
   where
-    changes = makeChangeForUserDefinedAsset weights (asset, quantity)
+    changes = makeChangeForUserSpecifiedAsset weights (asset, quantity)
     totalChangeValue = F.fold ((`TokenMap.getQuantity` asset) <$> changes)
 
-prop_makeChangeForUserDefinedAsset_length
+prop_makeChangeForUserSpecifiedAsset_length
     :: NonEmpty TokenMap
     -> (AssetId, TokenQuantity)
     -> Property
-prop_makeChangeForUserDefinedAsset_length weights surplus =
+prop_makeChangeForUserSpecifiedAsset_length weights surplus =
     F.length changes === F.length weights
   where
-    changes = makeChangeForUserDefinedAsset weights surplus
+    changes = makeChangeForUserSpecifiedAsset weights surplus
 
-unit_makeChangeForUserDefinedAsset
+unit_makeChangeForUserSpecifiedAsset
     :: [Expectation]
-unit_makeChangeForUserDefinedAsset =
-    [ makeChangeForUserDefinedAsset weights surplus `shouldBe` expectation
+unit_makeChangeForUserSpecifiedAsset =
+    [ makeChangeForUserSpecifiedAsset weights surplus `shouldBe` expectation
     | (weights, surplus, expectation) <- matrix
     ]
   where
