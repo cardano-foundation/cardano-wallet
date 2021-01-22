@@ -40,7 +40,8 @@ module Cardano.Wallet.Shelley.Compatibility
     , StandardCrypto
     , StandardShelley
 
-      -- * Chain Parameters
+      -- * Protocol Parameters
+    , nodeToClientVersion
     , mainnetVersionData
     , testnetVersionData
 
@@ -302,8 +303,6 @@ import qualified Shelley.Spec.Ledger.UTxO as SL
 type NodeVersionData =
     (NodeToClientVersionData, CodecCBORTerm Text NodeToClientVersionData)
 
-
-
 --------------------------------------------------------------------------------
 --
 -- Chain Parameters
@@ -352,6 +351,10 @@ genesisTip = legacyTip genesisPoint genesisBlockNo
 --
 -- Network Parameters
 
+-- | The protocol client version. Distinct from the codecs version.
+nodeToClientVersion :: NodeToClientVersion
+nodeToClientVersion = NodeToClientV_8
+
 -- | Settings for configuring a MainNet network client
 mainnetVersionData
     :: NodeVersionData
@@ -360,7 +363,7 @@ mainnetVersionData =
         { networkMagic =
             NetworkMagic $ fromIntegral $ W.getProtocolMagic W.mainnetMagic
         }
-    , nodeToClientCodecCBORTerm NodeToClientV_6
+    , nodeToClientCodecCBORTerm nodeToClientVersion
     )
 
 -- | Settings for configuring a TestNet network client
@@ -372,7 +375,7 @@ testnetVersionData pm =
         { networkMagic =
             NetworkMagic $ fromIntegral $ W.getProtocolMagic pm
         }
-    , nodeToClientCodecCBORTerm NodeToClientV_6
+    , nodeToClientCodecCBORTerm nodeToClientVersion
     )
 
 --------------------------------------------------------------------------------

@@ -56,7 +56,7 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Shelley
     ( SomeNetworkDiscriminant (..) )
 import Cardano.Wallet.Shelley.Compatibility
-    ( NodeVersionData )
+    ( NodeVersionData, nodeToClientVersion )
 import Control.Monad.IO.Unlift
     ( MonadUnliftIO, liftIO )
 import Control.Monad.Trans.Except
@@ -80,10 +80,7 @@ import Options.Applicative
 import Ouroboros.Network.Magic
     ( NetworkMagic (..) )
 import Ouroboros.Network.NodeToClient
-    ( NodeToClientVersion (..)
-    , NodeToClientVersionData (..)
-    , nodeToClientCodecCBORTerm
-    )
+    ( NodeToClientVersionData (..), nodeToClientCodecCBORTerm )
 import System.Environment
     ( lookupEnv )
 import System.Exit
@@ -178,7 +175,7 @@ parseGenesisData = \case
         let nm = NetworkMagic $ fromIntegral $ W.getProtocolMagic W.mainnetMagic
         let mainnetVersionData =
                 ( NodeToClientVersionData nm
-                , nodeToClientCodecCBORTerm NodeToClientV_6
+                , nodeToClientCodecCBORTerm nodeToClientVersion
                 )
         pure
             ( SomeNetworkDiscriminant $ Proxy @'Mainnet
