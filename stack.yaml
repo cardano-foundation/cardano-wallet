@@ -3,7 +3,7 @@
 #
 # NOTE: Remember to update the version matrix in README.md when
 # bumping the Cardano version.
-resolver: cardano-1.25.0-pre.yaml
+resolver: https://raw.githubusercontent.com/input-output-hk/cardano-haskell/44ed8a4c9013d10a4081a696340eaa4e64ad25e2/snapshots/cardano-1.25.0.yaml
 
 packages:
 - lib/core
@@ -90,7 +90,6 @@ flags:
   # generation is dubious. Set the flag so we use /dev/urandom by default.
   cryptonite:
     support_rdrand: false
-
 
 # Generate files required by Weeder.
 # See https://github.com/ndmitchell/weeder/issues/53

@@ -13,7 +13,7 @@
       specVersion = "1.10";
       identifier = { name = "cardano-binary"; version = "1.5.0"; };
       license = "Apache-2.0";
-      copyright = "2019 IOHK";
+      copyright = "2019-2021 IOHK";
       maintainer = "operations@iohk.io";
       author = "IOHK";
       homepage = "";
@@ -32,6 +32,7 @@
           (hsPkgs."cardano-prelude" or (errorHandler.buildDepError "cardano-prelude"))
           (hsPkgs."cborg" or (errorHandler.buildDepError "cborg"))
           (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
+          (hsPkgs."data-fix" or (errorHandler.buildDepError "data-fix"))
           (hsPkgs."digest" or (errorHandler.buildDepError "digest"))
           (hsPkgs."formatting" or (errorHandler.buildDepError "formatting"))
           (hsPkgs."nothunks" or (errorHandler.buildDepError "nothunks"))
@@ -72,8 +73,8 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/cardano-base";
-      rev = "6a6ea9695ee898dd7d4fd7a5d2cc639d7d5764f7";
-      sha256 = "1hkq5i9fjjr4picx3plq3s09isrmx6jifpqf57c7viqfdrwlhjnj";
+      rev = "b364d925e0a72689ecba40dd1f4899f76170b894";
+      sha256 = "0igb4gnzlwxy1h40vy5s1aysmaa04wypxn7sn67qy6din7ysmad3";
       });
     postUnpack = "sourceRoot+=/binary; echo source root reset to \$sourceRoot";
     }

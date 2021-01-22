@@ -769,7 +769,7 @@ codecs
     :: MonadST m
     => CodecConfig (CardanoBlock StandardCrypto)
     -> ClientCodecs (CardanoBlock StandardCrypto) m
-codecs cfg = clientCodecs cfg codecVersion
+codecs cfg = clientCodecs cfg codecVersion nodeToClientVersion
 
 -- | A group of codecs which won't deserialise block data. Often only the block
 -- headers are needed. It's more efficient and easier not to deserialise.
@@ -777,7 +777,7 @@ serialisedCodecs
     :: MonadST m
     => CodecConfig (CardanoBlock StandardCrypto)
     -> DefaultCodecs (CardanoBlock StandardCrypto) m
-serialisedCodecs cfg = defaultCodecs cfg codecVersion
+serialisedCodecs cfg = defaultCodecs cfg codecVersion nodeToClientVersion
 
 {-------------------------------------------------------------------------------
                                      Tip sync

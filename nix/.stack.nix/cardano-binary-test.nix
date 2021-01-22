@@ -13,7 +13,7 @@
       specVersion = "1.10";
       identifier = { name = "cardano-binary-test"; version = "1.3.0"; };
       license = "MIT";
-      copyright = "2019 IOHK";
+      copyright = "2019-2021 IOHK";
       maintainer = "operations@iohk.io";
       author = "IOHK";
       homepage = "";
@@ -48,8 +48,8 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/cardano-base";
-      rev = "6a6ea9695ee898dd7d4fd7a5d2cc639d7d5764f7";
-      sha256 = "1hkq5i9fjjr4picx3plq3s09isrmx6jifpqf57c7viqfdrwlhjnj";
+      rev = "b364d925e0a72689ecba40dd1f4899f76170b894";
+      sha256 = "0igb4gnzlwxy1h40vy5s1aysmaa04wypxn7sn67qy6din7ysmad3";
       });
     postUnpack = "sourceRoot+=/binary/test; echo source root reset to \$sourceRoot";
     }
