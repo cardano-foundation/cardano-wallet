@@ -293,10 +293,10 @@ spec = describe "BYRON_MIGRATIONS" $ do
                 Default
                 Empty >>= flip verify
                 [ expectField
-                        (#balance . #getApiT . #available)
+                        (#balance . #available)
                         (.> (Quantity expectedMinBalance))
                 , expectField
-                        (#balance . #getApiT . #total)
+                        (#balance . #total)
                         (.> (Quantity expectedMinBalance))
                 ]
 
@@ -564,9 +564,9 @@ spec = describe "BYRON_MIGRATIONS" $ do
                     (Link.getWallet @'Shelley targetWallet) Default Empty
                 verify r2
                     [ expectField
-                            (#balance . #getApiT . #available)
+                            (#balance . #available)
                             (`shouldBe` Quantity expectedBalance)
                     , expectField
-                            (#balance . #getApiT . #total)
+                            (#balance . #total)
                             (`shouldBe` Quantity expectedBalance)
                     ]

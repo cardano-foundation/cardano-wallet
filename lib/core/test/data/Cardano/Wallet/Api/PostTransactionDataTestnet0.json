@@ -18,42 +18,48 @@
                         "quantity": 150,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 146,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 32,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 247,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 28,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 150,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 }
             ]
         },
@@ -70,161 +76,184 @@
                         "quantity": 182,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 181,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 64,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 102,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 176,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 18,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 192,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 62,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 72,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 242,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 112,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 198,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 74,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 48,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 227,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 25,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 179,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 6,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 74,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 163,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 190,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 8,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 47,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 }
             ]
         },
@@ -246,196 +275,224 @@
                         "quantity": 35,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 219,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 39,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 187,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 130,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 55,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 6,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 129,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 98,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 111,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 212,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 233,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 119,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 114,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 164,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 133,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 154,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 135,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 4,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 252,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 107,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 215,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 194,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 255,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 46,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 129,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 243,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 150,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 }
             ]
         },
@@ -453,21 +510,24 @@
                         "quantity": 109,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 83,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 138,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 }
             ]
         },
@@ -489,126 +549,144 @@
                         "quantity": 177,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 2,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 211,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 221,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 134,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 211,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 92,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 165,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 222,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 212,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 89,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 86,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 217,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 216,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 88,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 188,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 192,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 252,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 }
             ]
         },
@@ -624,84 +702,96 @@
                         "quantity": 225,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 131,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 19,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 179,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 172,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 18,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 191,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 195,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 4,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 199,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 98,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 144,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 }
             ]
         },
@@ -723,161 +813,184 @@
                         "quantity": 28,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 238,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 17,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 27,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 163,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 207,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 111,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 162,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 2,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 56,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 14,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 218,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 71,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 24,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 143,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 228,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 140,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 126,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 144,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 146,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 99,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 137,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 118,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 }
             ]
         },
@@ -915,49 +1028,56 @@
                         "quantity": 152,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 125,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 32,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 193,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 124,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 66,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 129,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 }
             ]
         },
@@ -987,126 +1107,144 @@
                         "quantity": 127,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 12,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 115,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 78,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 82,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 199,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 49,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 245,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 85,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 112,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 215,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 77,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 26,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 212,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 197,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 22,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 186,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 60,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 }
             ]
         },
@@ -1128,133 +1266,152 @@
                         "quantity": 226,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 35,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 165,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 145,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 252,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 41,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 106,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 220,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 213,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 202,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 13,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 145,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 147,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 194,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 25,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 19,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 150,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 122,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 },
                 {
                     "amount": {
                         "quantity": 184,
                         "unit": "lovelace"
                     },
-                    "address": "<addr>"
+                    "address": "<addr>",
+                    "assets": []
                 }
             ]
         }

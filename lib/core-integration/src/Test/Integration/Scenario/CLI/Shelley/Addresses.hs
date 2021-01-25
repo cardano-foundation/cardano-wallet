@@ -184,7 +184,7 @@ spec = describe "SHELLEY_CLI_ADDRESSES" $ do
             Stdout o2 <- getWalletViaCLI ctx $ T.unpack (wDest ^. walletId)
             w <- expectValidJSON (Proxy @ApiWallet) o2
             expectCliField
-                (#balance . #getApiT . #available)
+                (#balance . #available)
                 (`shouldBe` Quantity (10 * 1_000_000)) w
 
         -- verify new address_pool_gap has been created

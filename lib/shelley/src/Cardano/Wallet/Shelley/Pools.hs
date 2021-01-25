@@ -333,7 +333,7 @@ newStakePoolLayer gcStatus nl db@DBLayer {..} restartSyncThread = do
 -- | Stake pool-related data that has been read from the node using a local
 --   state query.
 data PoolLsqData = PoolLsqData
-    { nonMyopicMemberRewards :: Quantity "lovelace" Word64
+    { nonMyopicMemberRewards :: Coin
     , relativeStake :: Percentage
     , saturation :: Double
     } deriving (Eq, Show, Generic)
@@ -380,11 +380,11 @@ combineDbAndLsqData ti nOpt lsqData =
     -- any leader schedule, we assign them the average reward of the top @k@
     -- pools.
     freshmanMemberRewards
-        = Quantity
+        = Coin
         $ average
         $ L.take nOpt
         $ L.sort
-        $ map (Down . getQuantity . nonMyopicMemberRewards)
+        $ map (Down . unCoin . nonMyopicMemberRewards)
         $ Map.elems lsqData
       where
         average [] = 0
@@ -406,7 +406,7 @@ combineDbAndLsqData ti nOpt lsqData =
         pure $ Api.ApiStakePool
             { Api.id = (ApiT pid)
             , Api.metrics = Api.ApiStakePoolMetrics
-                { Api.nonMyopicMemberRewards = fmap fromIntegral prew
+                { Api.nonMyopicMemberRewards = Api.coinToQuantity prew
                 , Api.relativeStake = Quantity pstk
                 , Api.saturation = psat
                 , Api.producedBlocks =
@@ -415,9 +415,9 @@ combineDbAndLsqData ti nOpt lsqData =
             , Api.metadata =
                 ApiT <$> metadata dbData
             , Api.cost =
-                fmap fromIntegral $ poolCost $ registrationCert dbData
+                Api.coinToQuantity $ poolCost $ registrationCert dbData
             , Api.pledge =
-                fmap fromIntegral $ poolPledge $ registrationCert dbData
+                Api.coinToQuantity $ poolPledge $ registrationCert dbData
             , Api.margin =
                 Quantity $ poolMargin $ registrationCert dbData
             , Api.retirement =
@@ -446,9 +446,9 @@ combineLsqData StakePoolsSummary{nOpt, rewards, stake} =
     -- balance of 0, the resulting map will be empty. So we set the rewards
     -- to 0 here:
     stakeButNoRewards = traverseMissing $ \_k s -> pure $ PoolLsqData
-        { nonMyopicMemberRewards = Quantity 0
+        { nonMyopicMemberRewards = Coin 0
         , relativeStake = s
-        , saturation = (sat s)
+        , saturation = sat s
         }
 
     -- TODO: This case seems possible on shelley_testnet, but why, and how

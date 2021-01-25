@@ -33,9 +33,7 @@ import Data.ByteString
 import Data.Function
     ( (&) )
 import Data.Word
-    ( Word8 )
-import Numeric.Natural
-    ( Natural )
+    ( Word64, Word8 )
 import Test.Hspec
     ( Spec, SpecWith, describe, it, parallel, shouldSatisfy )
 import Test.QuickCheck
@@ -77,17 +75,17 @@ spec = parallel $ do
                 feeOpts <- pick (genFeeOptions dust)
                 let selections = depleteUTxO feeOpts batchSize utxo
                 monitor $ label $ accuracy dust
-                    (balance utxo)
-                    (fromIntegral $ sum $ inputBalance <$> selections)
+                    (TokenBundle.getCoin $ balance utxo)
+                    (sum $ inputBalance <$> selections)
               where
                 title :: String
                 title = "dust=" <> show (round (100 * r) :: Int) <> "%"
 
-                accuracy :: Coin -> Natural -> Natural -> String
-                accuracy (Coin dust) sup real
+                accuracy :: Coin -> Coin -> Word64 -> String
+                accuracy (Coin dust) (Coin sup) real
                     | a >= 1.0 =
                         "PERFECT  (== 100%)"
-                    | a > 0.99 || (sup - real) < fromIntegral dust =
+                    | a > 0.99 || (sup - real) < dust =
                         "OKAY     (>   99%)"
                     | otherwise =
                         "MEDIOCRE (<=  99%)"
@@ -177,8 +175,8 @@ prop_inputsGreaterThanOutputs
 prop_inputsGreaterThanOutputs feeOpts batchSize utxo = do
     let selections  = depleteUTxO feeOpts batchSize utxo
     let totalChange = sum (changeBalance <$> selections)
-    let balanceUTxO = balance utxo
-    property (balanceUTxO >= fromIntegral totalChange)
+    let Coin balanceUTxO = TokenBundle.getCoin $ balance utxo
+    property (balanceUTxO >= totalChange)
         & counterexample ("Total change balance: " <> show totalChange)
         & counterexample ("Total UTxO balance: " <> show balanceUTxO)
         & counterexample ("Selections: " <> show selections)

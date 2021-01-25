@@ -298,7 +298,6 @@ specWithServer testDir (tr, tracers) era = aroundAll withContext
     onClusterStart action dbDecorator (RunningNode conn block0 (gp, vData)) = do
         setupFaucet conn
         let db = testDir </> "wallets"
-        putStrLn $ "creating" <> show db
         createDirectory db
         listen <- walletListenFromEnv
         serveWallet

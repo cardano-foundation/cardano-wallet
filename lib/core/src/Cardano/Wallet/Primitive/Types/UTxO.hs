@@ -2,6 +2,7 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
@@ -25,6 +26,7 @@ module Cardano.Wallet.Primitive.Types.UTxO
     -- * Functions
     , balance
     , balance'
+    , coinBalance
     , computeStatistics
     , computeUtxoStatistics
     , excluding
@@ -33,19 +35,23 @@ module Cardano.Wallet.Primitive.Types.UTxO
     , pickRandom
     , restrictedBy
     , restrictedTo
-
+    , getAssets
     ) where
 
 import Prelude
 
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
+import Cardano.Wallet.Primitive.Types.TokenBundle
+    ( TokenBundle )
 import Cardano.Wallet.Primitive.Types.Tx
     ( TxIn, TxOut (..), txOutCoin )
 import Control.DeepSeq
     ( NFData (..) )
 import Data.Bifunctor
     ( first )
+import Data.Generics.Internal.VL.Lens
+    ( view )
 import Data.List
     ( foldl' )
 import Data.List.NonEmpty
@@ -60,11 +66,10 @@ import Fmt
     ( Buildable (..), blockListF', blockMapF, padRightF, tupleF )
 import GHC.Generics
     ( Generic )
-import Numeric.Natural
-    ( Natural )
 import System.Random
     ( randomRIO )
 
+import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TB
 import qualified Control.Foldl as F
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
@@ -113,12 +118,15 @@ pickRandom (UTxO utxo)
         return (Just $ Map.elemAt ix utxo, UTxO $ Map.deleteAt ix utxo)
 
 -- | Compute the balance of a UTxO
-balance :: UTxO -> Natural
+balance :: UTxO -> TokenBundle
 balance =
-    Map.foldl' fn 0 . getUTxO
+    Map.foldl' fn mempty . getUTxO
   where
-    fn :: Natural -> TxOut -> Natural
-    fn tot out = tot + fromIntegral (unCoin (txOutCoin out))
+    fn :: TokenBundle -> TxOut -> TokenBundle
+    fn tot out = tot `TB.add` view #tokens out
+
+coinBalance :: UTxO -> Coin
+coinBalance = TB.getCoin . balance
 
 -- | Compute the balance of a unwrapped UTxO
 balance' :: [(TxIn, TxOut)] -> Word64
@@ -264,3 +272,7 @@ computeStatistics getCoins btype utxos =
 
     (^!) :: Word64 -> Word64 -> Word64
     (^!) = (^)
+
+-- | List all assets seen in the UTxO.
+getAssets :: UTxO -> Set TB.AssetId
+getAssets = Set.unions . map (TB.getAssets . view #tokens . snd) . Map.toList . getUTxO

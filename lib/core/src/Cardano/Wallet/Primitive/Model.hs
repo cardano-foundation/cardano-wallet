@@ -58,15 +58,16 @@ import Cardano.Wallet.Primitive.Types
     ( Block (..)
     , BlockHeader (..)
     , DelegationCertificate (..)
-    , distance
     , dlgCertAccount
     )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+    ( Coin (..), distance, sumCoins )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..) )
+import Cardano.Wallet.Primitive.Types.TokenBundle
+    ( TokenBundle )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..)
     , Tx (..)
@@ -98,17 +99,14 @@ import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Maybe
     ( catMaybes, isJust )
-import Data.Quantity
-    ( Quantity (..) )
 import Data.Set
     ( Set )
 import Fmt
     ( Buildable (..), indentF )
 import GHC.Generics
     ( Generic )
-import Numeric.Natural
-    ( Natural )
 
+import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TB
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -278,7 +276,7 @@ applyBlocks (block0 :| blocks) cp =
 -------------------------------------------------------------------------------}
 
 -- | Available balance = 'balance' . 'availableUTxO'
-availableBalance :: Set Tx -> Wallet s -> Natural
+availableBalance :: Set Tx -> Wallet s -> TokenBundle
 availableBalance pending =
     balance . availableUTxO pending
 
@@ -286,15 +284,16 @@ availableBalance pending =
 totalBalance
     :: (IsOurs s Address, IsOurs s RewardAccount)
     => Set Tx
-    -> Quantity "lovelace" Natural
+    -> Coin
     -> Wallet s
-    -> Natural
-totalBalance pending (Quantity rewards) wallet@(Wallet _ _ s) =
-    balance (totalUTxO pending wallet) +
-        if hasPendingWithdrawals pending
-        then 0
-        else rewards
+    -> TokenBundle
+totalBalance pending rewards wallet@(Wallet _ _ s) =
+    balance (totalUTxO pending wallet) `TB.add` rewardsBalance
   where
+    rewardsBalance
+        | hasPendingWithdrawals pending = mempty
+        | otherwise = TB.fromCoin rewards
+
     hasPendingWithdrawals =
         anyS (anyM (\acct _ -> isJust $ fst (isOurs acct s)) . withdrawals)
       where
@@ -370,13 +369,13 @@ prefilterBlock b u0 = runState $ do
         state (isOurs acct) <&> \case
             Nothing -> Nothing
             Just{}  -> Just (acct, amt)
-    mkTxMeta :: Natural -> Direction -> TxMeta
-    mkTxMeta amt dir = TxMeta
+    mkTxMeta :: Coin -> Direction -> TxMeta
+    mkTxMeta amount dir = TxMeta
         { status = InLedger
         , direction = dir
         , slotNo = b ^. #header . #slotNo
         , blockHeight = b ^. #header . #blockHeight
-        , amount = Quantity amt
+        , amount = amount
         , expiry = Nothing
         }
     applyTx
@@ -388,10 +387,10 @@ prefilterBlock b u0 = runState $ do
         ourU <- state $ utxoOurs tx
         let ourIns = Set.fromList (inputs tx) `Set.intersection` dom (u <> ourU)
         let u' = (u <> ourU) `excluding` ourIns
-        ourWithdrawals <- fmap (fromIntegral . unCoin . snd) <$>
+        ourWithdrawals <- Coin . sum . fmap (unCoin . snd) <$>
             mapMaybeM ourWithdrawal (Map.toList $ withdrawals tx)
         let received = balance ourU
-        let spent = balance (u `restrictedBy` ourIns) + sum ourWithdrawals
+        let spent = balance (u `restrictedBy` ourIns) `TB.add` TB.fromCoin ourWithdrawals
         let hasKnownInput = ourIns /= mempty
         let hasKnownOutput = ourU /= mempty
         let hasKnownWithdrawal = ourWithdrawals /= mempty
@@ -409,25 +408,30 @@ prefilterBlock b u0 = runState $ do
 
                 (Nothing, Outgoing) -> -- Byron
                     let
-                        totalOut = sum (fromIntegral . unCoin . txOutCoin <$> outputs tx)
+                        totalOut = sumCoins (txOutCoin <$> outputs tx)
 
-                        totalIn = spent
+                        totalIn = TB.getCoin spent
                     in
-                        Just $ Coin $ fromIntegral $ totalIn - totalOut
+                        Just $ distance totalIn totalOut
 
                 (_, Incoming) ->
                     Nothing
 
         return $ if hasKnownOutput && not hasKnownInput then
             let dir = Incoming in
-            ( (tx { fee = actualFee dir }, mkTxMeta received dir) : txs
+            ( (tx { fee = actualFee dir }, mkTxMeta (TB.getCoin received) dir) : txs
             , u'
             )
         else if hasKnownInput || hasKnownWithdrawal then
-            let dir = if spent > received then Outgoing else Incoming in
-            ( (tx { fee = actualFee dir }, mkTxMeta (distance spent received) dir) : txs
-            , u'
-            )
+            let
+                adaSpent = TB.getCoin spent
+                adaReceived = TB.getCoin received
+                dir = if adaSpent > adaReceived then Outgoing else Incoming
+                amount = distance adaSpent adaReceived
+            in
+                ( (tx { fee = actualFee dir }, mkTxMeta amount dir) : txs
+                , u'
+                )
         else
             (txs, u)
 

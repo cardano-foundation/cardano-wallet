@@ -322,7 +322,7 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..), AddressState (..) )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+    ( Coin (..), addCoin, coinQuantity, sumCoins )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.RewardAccount
@@ -965,7 +965,7 @@ fetchRewardBalance
         )
     => ctx
     -> WalletId
-    -> IO (Quantity "lovelace" Word64)
+    -> IO Coin
 fetchRewardBalance ctx wid = db & \DBLayer{..} ->
     atomically $ readDelegationRewardBalance pk
   where
@@ -985,13 +985,13 @@ readNextWithdrawal
         )
     => ctx
     -> WalletId
-    -> Quantity "lovelace" Word64
-    -> IO (Quantity "lovelace" Word64)
-readNextWithdrawal ctx wid (Quantity withdrawal) = db & \DBLayer{..} -> do
+    -> Coin
+    -> IO Coin
+readNextWithdrawal ctx wid (Coin withdrawal) = db & \DBLayer{..} -> do
     liftIO (atomically $ readProtocolParameters $ PrimaryKey wid) <&> \case
         -- May happen if done very early, in which case, rewards are probably
         -- not woth considering anyway.
-        Nothing -> Quantity 0
+        Nothing -> Coin 0
         Just ProtocolParameters{txParameters} ->
             let policy = W.getFeePolicy txParameters
 
@@ -1002,8 +1002,8 @@ readNextWithdrawal ctx wid (Quantity withdrawal) = db & \DBLayer{..} -> do
 
             in
                 if toInteger withdrawal < 2 * costOfWithdrawal
-                then Quantity 0
-                else Quantity withdrawal
+                then Coin 0
+                else Coin withdrawal
   where
     db = ctx ^. dbLayer @s @k
     tl = ctx ^. transactionLayer @k
@@ -1048,7 +1048,7 @@ queryRewardBalance
         )
     => ctx
     -> RewardAccount
-    -> ExceptT ErrFetchRewards IO (Quantity "lovelace" Word64)
+    -> ExceptT ErrFetchRewards IO Coin
 queryRewardBalance ctx acct = do
     mapExceptT (fmap handleErr) $ getAccountBalance nw acct
   where
@@ -1056,7 +1056,7 @@ queryRewardBalance ctx acct = do
     handleErr = \case
         Right x -> Right x
         Left (ErrGetAccountBalanceAccountNotFound _) ->
-            Right $ Quantity 0
+            Right $ Coin 0
         Left (ErrGetAccountBalanceNetworkUnreachable e) ->
             Left $ ErrFetchRewardsNetworkUnreachable e
 
@@ -1292,7 +1292,7 @@ selectCoinsForPayment
     => ctx
     -> WalletId
     -> NonEmpty TxOut
-    -> Quantity "lovelace" Word64
+    -> Coin
     -> Maybe TxMetadata
     -> ExceptT ErrSelectForPayment IO CoinSelection
 selectCoinsForPayment ctx wid recipients withdrawal md = do
@@ -1301,7 +1301,7 @@ selectCoinsForPayment ctx wid recipients withdrawal md = do
         selectCoinsSetup @ctx @s @k ctx wid
 
     let pendingWithdrawal = Set.lookupMin $ Set.filter hasWithdrawal pending
-    when (withdrawal /= Quantity 0 && isJust pendingWithdrawal) $ throwE $
+    when (withdrawal /= Coin 0 && isJust pendingWithdrawal) $ throwE $
         ErrSelectForPaymentAlreadyWithdrawing (fromJust pendingWithdrawal)
 
     cs <- selectCoinsForPaymentFromUTxO @ctx @k
@@ -1339,14 +1339,14 @@ selectCoinsForPaymentFromUTxO
     -> W.TxParameters
     -> W.Coin
     -> NonEmpty TxOut
-    -> Quantity "lovelace" Word64
+    -> Coin
     -> Maybe TxMetadata
     -> ExceptT ErrSelectForPayment IO CoinSelection
 selectCoinsForPaymentFromUTxO ctx utxo txp minUtxo recipients withdrawal md = do
     lift . traceWith tr $ MsgPaymentCoinSelectionStart utxo txp recipients
     (sel, utxo') <- withExceptT handleCoinSelError $ do
         let opts = coinSelOpts tl (txp ^. #getTxMaxSize) md
-        CoinSelection.random opts recipients withdrawal utxo
+        CoinSelection.random opts recipients (coinQuantity withdrawal) utxo
 
     lift . traceWith tr $ MsgPaymentCoinSelection sel
     let feePolicy = feeOpts tl Nothing md txp minUtxo sel
@@ -1455,10 +1455,7 @@ selectCoinsForMigration
     => ctx
     -> WalletId
        -- ^ The source wallet ID.
-    -> ExceptT ErrSelectForMigration IO
-        ( [CoinSelection]
-        , Quantity "lovelace" Natural
-        )
+    -> ExceptT ErrSelectForMigration IO ([CoinSelection], Coin)
 selectCoinsForMigration ctx wid = do
     (utxo, _, txp, minUtxo) <- withExceptT ErrSelectForMigrationNoSuchWallet $
         selectCoinsSetup @ctx @s @k ctx wid
@@ -1476,10 +1473,7 @@ selectCoinsForMigrationFromUTxO
     -> W.Coin
     -> WalletId
        -- ^ The source wallet ID.
-    -> ExceptT ErrSelectForMigration IO
-        ( [CoinSelection]
-        , Quantity "lovelace" Natural
-        )
+    -> ExceptT ErrSelectForMigration IO ([CoinSelection], Coin)
 selectCoinsForMigrationFromUTxO ctx utxo txp minUtxo wid = do
     let feePolicy@(LinearFee (Quantity a) _) = txp ^. #getFeePolicy
     let feeOptions = (feeOpts tl Nothing Nothing txp minBound mempty)
@@ -1495,10 +1489,10 @@ selectCoinsForMigrationFromUTxO ctx utxo txp minUtxo wid = do
             liftIO $ traceWith tr $ MsgMigrationUTxOAfter resultDistribution
             liftIO $ traceWith tr $ MsgMigrationResult cs
             let leftovers =
-                    W.balance utxo
+                    unCoin (TokenBundle.getCoin $ W.balance utxo)
                     -
-                    fromIntegral (W.balance' $ concatMap inputs cs)
-            pure (cs, Quantity leftovers)
+                    W.balance' (concatMap inputs cs)
+            pure (cs, Coin leftovers)
         _ -> throwE (ErrSelectForMigrationEmptyWallet wid)
   where
     tl = ctx ^. transactionLayer @k
@@ -1537,7 +1531,7 @@ estimateFeeForPayment
     => ctx
     -> WalletId
     -> NonEmpty TxOut
-    -> Quantity "lovelace" Word64
+    -> Coin
     -> Maybe TxMetadata
     -> ExceptT ErrSelectForPayment IO FeeEstimation
 estimateFeeForPayment ctx wid recipients withdrawal md = do
@@ -1561,19 +1555,16 @@ estimateFeeForPayment ctx wid recipients withdrawal md = do
 handleCannotCover
     :: Monad m
     => UTxO
-    -> Quantity "lovelace" Word64
+    -> Coin
     -> NonEmpty TxOut
     -> ErrSelectForPayment
     -> ExceptT ErrSelectForPayment m Fee
-handleCannotCover utxo (Quantity withdrawal) outs = \case
+handleCannotCover utxo withdrawal outs = \case
     ErrSelectForPaymentFee (ErrCannotCoverFee missing) -> do
-        let available
-                = fromIntegral (W.balance utxo)
-                + fromIntegral withdrawal
-        let payment
-                = sum (unCoin . txOutCoin <$> outs)
-        pure $ Fee $
-            available + missing - payment
+        let available = addCoin withdrawal
+                (TokenBundle.getCoin $ W.balance utxo)
+        let payment = sumCoins (txOutCoin <$> outs)
+        pure $ Fee $ unCoin available + missing - unCoin payment
     e ->
         throwE e
 
@@ -1905,7 +1896,7 @@ mkTxMeta ti' blockHeader wState tx cs expiry =
                 , direction = if amtInps > amtOuts then Outgoing else Incoming
                 , slotNo = blockHeader ^. #slotNo
                 , blockHeight = blockHeader ^. #blockHeight
-                , amount = Quantity $ distance amtInps amtOuts
+                , amount = Coin $ fromIntegral $ distance amtInps amtOuts
                 , expiry = Just expiry
                 }
             )
@@ -1993,7 +1984,7 @@ listTransactions
         )
     => ctx
     -> WalletId
-    -> Maybe (Quantity "lovelace" Natural)
+    -> Maybe Coin
         -- Inclusive minimum value of at least one withdrawal in each transaction
     -> Maybe UTCTime
         -- Inclusive minimum time bound.
@@ -2002,7 +1993,7 @@ listTransactions
     -> SortOrder
     -> ExceptT ErrListTransactions IO [TransactionInfo]
 listTransactions ctx wid mMinWithdrawal mStart mEnd order = db & \DBLayer{..} -> do
-    when (Just True == ( (<(Quantity 1)) <$> mMinWithdrawal )) $
+    when (Just True == ( (<(Coin 1)) <$> mMinWithdrawal )) $
         throwE ErrListTransactionsMinWithdrawalWrong
     let pk = PrimaryKey wid
     mapExceptT atomically $ do
@@ -2535,7 +2526,7 @@ data ErrCannotJoin
 
 data ErrCannotQuit
     = ErrNotDelegatingOrAboutTo
-    | ErrNonNullRewards (Quantity "lovelace" Word64)
+    | ErrNonNullRewards Coin
     deriving (Generic, Eq, Show)
 
 -- | Can't perform given operation because the wallet died.
@@ -2620,7 +2611,7 @@ guardJoin knownPools delegation pid mRetirementEpochInfo = do
 
 guardQuit
     :: WalletDelegation
-    -> Quantity "lovelace" Word64
+    -> Coin
     -> Either ErrCannotQuit ()
 guardQuit WalletDelegation{active,next} rewards = do
     let last_ = maybe active (view #status) $ lastMay next
@@ -2628,7 +2619,7 @@ guardQuit WalletDelegation{active,next} rewards = do
     unless (isDelegatingTo anyone last_) $
         Left ErrNotDelegatingOrAboutTo
 
-    unless (rewards == Quantity 0) $
+    unless (rewards == Coin 0) $
         Left $ ErrNonNullRewards rewards
   where
     anyone = const True
@@ -2680,7 +2671,7 @@ data WalletLog
     | MsgMigrationUTxOAfter UTxOStatistics
     | MsgMigrationResult [CoinSelection]
     | MsgRewardBalanceQuery BlockHeader
-    | MsgRewardBalanceResult (Either ErrFetchRewards (Quantity "lovelace" Word64))
+    | MsgRewardBalanceResult (Either ErrFetchRewards Coin)
     | MsgRewardBalanceNoSuchWallet ErrNoSuchWallet
     | MsgRewardBalanceExited
     deriving (Show, Eq)

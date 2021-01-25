@@ -13,16 +13,15 @@ module Cardano.Wallet.Primitive.Types.TokenPolicy.Gen
 import Prelude
 
 import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( TokenName, TokenPolicyId )
+    ( TokenName (..), TokenPolicyId )
 import Data.Either
     ( fromRight )
-import Data.Text
-    ( Text )
 import Data.Text.Class
     ( FromText (..) )
 import Test.QuickCheck
     ( Gen, elements )
 
+import qualified Data.ByteString.Char8 as B8
 import qualified Data.Text as T
 
 --------------------------------------------------------------------------------
@@ -36,7 +35,7 @@ shrinkTokenNameSmallRange :: TokenName -> [TokenName]
 shrinkTokenNameSmallRange name = filter (< name) tokenNamesSmallRange
 
 tokenNamesSmallRange :: [TokenName]
-tokenNamesSmallRange = mkTokenName . ("Token" `T.snoc`) <$> ['A' .. 'D']
+tokenNamesSmallRange = UnsafeTokenName . B8.snoc "Token" <$> ['A' .. 'D']
 
 --------------------------------------------------------------------------------
 -- Token names chosen from a medium-sized range (to minimize the risk of
@@ -50,7 +49,7 @@ shrinkTokenNameMediumRange :: TokenName -> [TokenName]
 shrinkTokenNameMediumRange name = filter (< name) tokenNamesMediumRange
 
 tokenNamesMediumRange :: [TokenName]
-tokenNamesMediumRange = mkTokenName . ("Token" `T.snoc`) <$> ['A' .. 'Z']
+tokenNamesMediumRange = UnsafeTokenName . B8.snoc "Token" <$> ['A' .. 'Z']
 
 --------------------------------------------------------------------------------
 -- Token policy identifiers chosen from a small range (to allow collisions)
@@ -68,12 +67,6 @@ tokenPolicies = mkTokenPolicyId <$> ['A' .. 'D']
 --------------------------------------------------------------------------------
 -- Internal utilities
 --------------------------------------------------------------------------------
-
-mkTokenName :: Text -> TokenName
-mkTokenName t = fromRight reportError $ fromText t
-  where
-    reportError = error $
-        "Unable to generate token name from text: " <> show t
 
 -- The input must be a character in the range [0-9] or [A-Z].
 --

@@ -51,7 +51,7 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+    ( Coin (..), coinQuantity )
 import Cardano.Wallet.Primitive.Types.Coin.Gen
     ( genCoinLargePositive, shrinkCoinLargePositive )
 import Cardano.Wallet.Primitive.Types.Hash
@@ -198,11 +198,11 @@ spec = do
                 [ TxOut (dummyAddress 0) (coinToBundle 4834720)
                 ]
 
-        let wdrl = Quantity 0
+        let wdrl = Coin 0
 
         let selectCoins = flip catchE (handleCannotCover utxo wdrl recipients) $ do
                 (sel, utxo') <- withExceptT ErrSelectForPaymentCoinSelection $ do
-                    CS.random testCoinSelOpts recipients wdrl utxo
+                    CS.random testCoinSelOpts recipients (coinQuantity wdrl) utxo
                 withExceptT ErrSelectForPaymentFee $
                     (Fee . CS.feeBalance) <$> adjustForFee testFeeOpts utxo' sel
         res <- runExceptT $ estimateFeeForCoinSelection Nothing selectCoins

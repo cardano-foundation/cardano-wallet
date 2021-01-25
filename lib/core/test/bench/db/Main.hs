@@ -572,7 +572,7 @@ mkTxHistory mkOutputs numTx numInputs numOutputs range =
             , direction = Incoming
             , slotNo = sl i
             , blockHeight = Quantity $ fromIntegral i
-            , amount = Quantity (fromIntegral numOutputs)
+            , amount = Coin (fromIntegral numOutputs)
             , expiry = Nothing
             }
         )

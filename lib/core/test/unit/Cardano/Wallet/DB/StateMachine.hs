@@ -186,12 +186,8 @@ import Data.Set
     ( Set )
 import Data.TreeDiff
     ( ToExpr (..), defaultExprViaShow, genericToExpr )
-import Data.Word
-    ( Word64 )
 import GHC.Generics
     ( Generic )
-import Numeric.Natural
-    ( Natural )
 import System.Random
     ( getStdRandom, randomR )
 import Test.Hspec
@@ -325,7 +321,7 @@ data Cmd s wid
     | ReadWalletMeta wid
     | PutTxHistory wid TxHistory
     | ReadTxHistory wid
-        (Maybe (Quantity "lovelace" Natural))
+        (Maybe Coin)
         SortOrder
         (Range SlotNo)
         (Maybe TxStatus)
@@ -339,7 +335,7 @@ data Cmd s wid
     | UpdatePendingTxForExpiry wid SlotNo
     | PutDelegationCertificate wid DelegationCertificate SlotNo
     | IsStakeKeyRegistered wid
-    | PutDelegationRewardBalance wid (Quantity "lovelace" Word64)
+    | PutDelegationRewardBalance wid Coin
     | ReadDelegationRewardBalance wid
     deriving (Show, Functor, Foldable, Traversable)
 
@@ -355,7 +351,7 @@ data Success s wid
     | GenesisParams (Maybe GenesisParameters)
     | BlockHeaders [BlockHeader]
     | Point SlotNo
-    | DelegationRewardBalance (Quantity "lovelace" Word64)
+    | DelegationRewardBalance Coin
     | StakeKeyStatus Bool
     deriving (Show, Eq, Functor, Foldable, Traversable)
 
@@ -693,10 +689,10 @@ generatorWithWid wids =
     genRange :: Gen (Range SlotNo)
     genRange = applyArbitrary2 Range
 
-    genMinWithdrawal :: Gen (Maybe (Quantity "lovelace" Natural))
+    genMinWithdrawal :: Gen (Maybe Coin)
     genMinWithdrawal = frequency
         [ (10, pure Nothing)
-        , (1, (Just . Quantity . fromIntegral . unCoin) <$> arbitrary)
+        , (1, Just <$> arbitrary)
         ]
 
 isUnordered :: Ord x => [x] -> Bool

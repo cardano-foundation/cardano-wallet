@@ -50,6 +50,9 @@ module Cardano.Wallet.Api.Server
     , getUTxOsStatistics
     , getWallet
     , joinStakePool
+    , listAssets
+    , getAsset
+    , getAssetDefault
     , listAddresses
     , listTransactions
     , getTransaction
@@ -165,6 +168,7 @@ import Cardano.Wallet.Api.Types
     , AddressAmount (..)
     , ApiAccountPublicKey (..)
     , ApiAddress (..)
+    , ApiAsset (..)
     , ApiBlockInfo (..)
     , ApiBlockReference (..)
     , ApiBlockReference (..)
@@ -195,6 +199,8 @@ import Cardano.Wallet.Api.Types
     , ApiUtxoStatistics (..)
     , ApiVerificationKey (..)
     , ApiWallet (..)
+    , ApiWalletAssetsBalance (..)
+    , ApiWalletBalance (..)
     , ApiWalletDelegation (..)
     , ApiWalletDelegationNext (..)
     , ApiWalletDelegationStatus (..)
@@ -214,12 +220,14 @@ import Cardano.Wallet.Api.Types
     , PostExternalTransactionData (..)
     , PostTransactionData (..)
     , PostTransactionFeeData (..)
-    , WalletBalance (..)
     , WalletOrAccountPostData (..)
     , WalletPostData (..)
     , WalletPutData (..)
     , WalletPutPassphraseData (..)
+    , coinFromQuantity
+    , coinToQuantity
     , getApiMnemonicT
+    , toApiAsset
     , toApiEpochInfo
     , toApiNetworkParameters
     , toApiUtxoStatistics
@@ -316,6 +324,8 @@ import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
+import Cardano.Wallet.Primitive.Types.TokenPolicy
+    ( TokenName (..), TokenPolicyId (..), nullTokenName )
 import Cardano.Wallet.Primitive.Types.Tx
     ( TransactionInfo (TransactionInfo)
     , Tx (..)
@@ -460,10 +470,12 @@ import qualified Cardano.Wallet.Primitive.AddressDerivation.Icarus as Icarus
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
+import qualified Cardano.Wallet.Primitive.Types.UTxO as W
 import qualified Cardano.Wallet.Registry as Registry
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
+import qualified Data.Foldable as F
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
@@ -695,7 +707,7 @@ mkShelleyWallet
 mkShelleyWallet ctx wid cp meta pending progress = do
     reward <- withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk ->
         -- never fails - returns zero if balance not found
-        liftIO $ fmap fromIntegral <$> W.fetchRewardBalance @_ @s @k wrk wid
+        liftIO $ W.fetchRewardBalance @_ @s @k wrk wid
 
     let ti = timeInterpreter $ ctx ^. networkLayer
 
@@ -716,12 +728,18 @@ mkShelleyWallet ctx wid cp meta pending progress = do
     tip' <- liftIO $ getWalletTip
         (neverFails "getWalletTip wallet tip should be behind node tip" ti)
         cp
+    let available = availableBalance pending cp
+    let total = totalBalance pending reward cp
     pure ApiWallet
         { addressPoolGap = ApiT $ getState cp ^. #externalPool . #gap
-        , balance = ApiT $ WalletBalance
-            { available = Quantity $ availableBalance pending cp
-            , total = Quantity $ totalBalance pending reward cp
-            , reward
+        , balance = ApiWalletBalance
+            { available = coinToQuantity (available ^. #coin)
+            , total = coinToQuantity (total ^. #coin)
+            , reward = coinToQuantity reward
+            }
+        , assets = ApiWalletAssetsBalance
+            { available = ApiT (available ^. #tokens)
+            , total = ApiT (total ^. #tokens)
             }
         , delegation = apiDelegation
         , id = ApiT wid
@@ -824,10 +842,12 @@ mkLegacyWallet ctx wid cp meta pending progress = do
                     Left{} -> pure $ Just $ ApiWalletPassphraseInfo time
 
     tip' <- liftIO $ getWalletTip (expectAndThrowFailures ti) cp
+    let available = availableBalance pending cp
+    let total = totalBalance pending (Coin 0) cp
     pure ApiByronWallet
         { balance = ApiByronWalletBalance
-            { available = Quantity $ availableBalance pending cp
-            , total = Quantity $ totalBalance pending (Quantity 0) cp
+            { available = coinToQuantity $ TokenBundle.getCoin available
+            , total = coinToQuantity $ TokenBundle.getCoin total
             }
         , id = ApiT wid
         , name = ApiT $ meta ^. #name
@@ -1163,7 +1183,7 @@ selectCoins ctx genChange (ApiT wid) body =
     $ \wrk -> do
         -- TODO:
         -- Allow representing withdrawals as part of external coin selections.
-        let withdrawal = Quantity 0
+        let withdrawal = Coin 0
         let outs = coerceCoin <$> body ^. #payments
         liftHandler
             $ W.selectCoinsExternal @_ @s @k wrk wid genChange
@@ -1244,6 +1264,43 @@ selectCoinsForQuit ctx (ApiT wid) = do
     pure $ mkApiCoinSelection [] (Just (action, path)) utx
   where
     genChange = delegationAddress @n
+
+{-------------------------------------------------------------------------------
+                                     Assets
+-------------------------------------------------------------------------------}
+
+listAssets
+    :: forall ctx s k.
+        ( ctx ~ ApiLayer s k
+        )
+    => ctx
+    -> ApiT WalletId
+    -> Handler [ApiAsset]
+listAssets ctx (ApiT wid) = do
+    utxo <- withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk -> liftHandler $ do
+       (cp, _meta, _pending) <- W.readWallet @_ @s @k wrk wid
+       pure (cp ^. #utxo)
+    pure $ map (toApiAsset metadata) $ F.toList $ W.getAssets utxo
+  where
+    metadata = Nothing  -- TODO: Use data from metadata server
+
+getAsset
+    :: ctx
+    -> ApiT WalletId
+    -> ApiT TokenPolicyId
+    -> ApiT TokenName
+    -> Handler ApiAsset
+getAsset _ctx (ApiT _wid) policyId assetName = pure $
+    ApiAsset { policyId, assetName, metadata }
+  where
+    metadata = Nothing  -- TODO: Use data from metadata server
+
+getAssetDefault
+    :: ctx
+    -> ApiT WalletId
+    -> ApiT TokenPolicyId
+    -> Handler ApiAsset
+getAssetDefault ctx wid policyId = getAsset ctx wid policyId (ApiT nullTokenName)
 
 {-------------------------------------------------------------------------------
                                     Addresses
@@ -1357,7 +1414,7 @@ postTransaction ctx genChange (ApiT wid) body = do
     (selection, credentials) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         (wdrl, credentials) <- case body ^. #withdrawal of
             Nothing ->
-                pure (Quantity 0, selfRewardCredentials)
+                pure (Coin 0, selfRewardCredentials)
 
             Just SelfWithdrawal -> do
                 (acct, _) <- liftHandler $ W.readRewardAccount @_ @s @k @n wrk wid
@@ -1369,7 +1426,7 @@ postTransaction ctx genChange (ApiT wid) body = do
                 let (xprv, acct) = W.someRewardAccount @ShelleyKey mw
                 wdrl <- liftHandler (W.queryRewardBalance @_ wrk acct)
                     >>= liftIO . W.readNextWithdrawal @_ @s @k wrk wid
-                when (wdrl == Quantity 0) $ do
+                when (wdrl == Coin 0) $ do
                     liftHandler $ throwE ErrWithdrawalNotWorth
                 pure (wdrl, const (xprv, mempty))
 
@@ -1416,7 +1473,7 @@ listTransactions
 listTransactions ctx (ApiT wid) mMinWithdrawal mStart mEnd mOrder = do
     txs <- withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
         W.listTransactions @_ @_ @_ wrk wid
-            (Quantity . getMinWithdrawal <$> mMinWithdrawal)
+            (Coin . fromIntegral . getMinWithdrawal <$> mMinWithdrawal)
             (getIso8601Time <$> mStart)
             (getIso8601Time <$> mEnd)
             (maybe defaultSortOrder getApiT mOrder)
@@ -1478,7 +1535,7 @@ postTransactionFee ctx (ApiT wid) body = do
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         wdrl <- case body ^. #withdrawal of
             Nothing ->
-                pure (Quantity 0)
+                pure (Coin 0)
 
             Just SelfWithdrawal -> do
                 (acct, _) <- liftHandler $ W.readRewardAccount @_ @s @k @n wrk wid
@@ -1630,7 +1687,7 @@ getMigrationInfo
         -- ^ Source wallet
     -> Handler ApiWalletMigrationInfo
 getMigrationInfo ctx (ApiT wid) = do
-    (cs, leftovers) <- getSelections
+    (cs, leftovers) <- fmap coinToQuantity <$> getSelections
     let migrationCost = costFromSelections cs
     pure $ ApiWalletMigrationInfo{migrationCost,leftovers}
   where
@@ -1643,7 +1700,7 @@ getMigrationInfo ctx (ApiT wid) = do
     selectionFee :: CoinSelection -> Word64
     selectionFee s = inputBalance s - changeBalance s
 
-    getSelections :: Handler ([CoinSelection], Quantity "lovelace" Natural)
+    getSelections :: Handler ([CoinSelection], Coin)
     getSelections = withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
         W.selectCoinsForMigration @_ @s @k @n wrk wid
 
@@ -1982,8 +2039,7 @@ mkApiCoinSelection deps mcerts (UnsignedTx inputs outputs change) =
             { id = ApiT txid
             , index = index
             , address = (ApiT addr, Proxy @n)
-            , amount = Quantity $
-                fromIntegral $ unCoin $ TokenBundle.getCoin tokens
+            , amount = coinToQuantity $ TokenBundle.getCoin tokens
             , derivationPath = ApiT <$> path
             }
 
@@ -2033,9 +2089,10 @@ mkApiTransaction ti txid mfee ins outs ws (meta, timestamp) txMeta setTimeRefere
     tx :: ApiTransaction n
     tx = ApiTransaction
         { id = ApiT txid
-        , amount = meta ^. #amount
+        , amount = Quantity . fromIntegral $ meta ^. #amount . #unCoin
         , fee = maybe (Quantity 0) (Quantity . fromIntegral . unCoin) mfee
         , deposit = Quantity depositIfAny
+        , assets = ApiT mempty
         , insertedAt = Nothing
         , pendingSince = Nothing
         , expiresAt = Nothing
@@ -2044,6 +2101,7 @@ mkApiTransaction ti txid mfee ins outs ws (meta, timestamp) txMeta setTimeRefere
         , inputs = [ApiTxInput (fmap toAddressAmount o) (ApiT i) | (i, o) <- ins]
         , outputs = toAddressAmount <$> outs
         , withdrawals = mkApiWithdrawal @n <$> Map.toList ws
+        , mint = mempty  -- TODO: ADP-xxx
         , status = ApiT (meta ^. #status)
         , metadata = ApiTxMetadata $ ApiT <$> txMeta
         }
@@ -2104,9 +2162,8 @@ mkApiTransaction ti txid mfee ins outs ws (meta, timestamp) txMeta setTimeRefere
         txOutValue = fromIntegral . unCoin . txOutCoin
 
     toAddressAmount :: TxOut -> AddressAmount (ApiT Address, Proxy n)
-    toAddressAmount (TxOut addr tokens) = AddressAmount
-        (ApiT addr, Proxy @n)
-        (mkApiCoin $ TokenBundle.getCoin tokens)
+    toAddressAmount (TxOut addr (TokenBundle.TokenBundle coin assets)) =
+        AddressAmount (ApiT addr, Proxy @n) (mkApiCoin coin) (ApiT assets)
 
 mkApiCoin
     :: Coin
@@ -2123,8 +2180,8 @@ mkApiWithdrawal (acct, c) =
 coerceCoin
     :: forall (n :: NetworkDiscriminant). AddressAmount (ApiT Address, Proxy n)
     -> TxOut
-coerceCoin (AddressAmount (ApiT addr, _) (Quantity c)) =
-    TxOut addr (TokenBundle.fromCoin $ Coin $ fromIntegral c)
+coerceCoin (AddressAmount (ApiT addr, _) c (ApiT assets)) =
+    TxOut addr (TokenBundle.TokenBundle (coinFromQuantity c) assets)
 
 natural :: Quantity q Word32 -> Quantity q Natural
 natural = Quantity . fromIntegral . getQuantity
@@ -2733,7 +2790,7 @@ instance LiftHandler ErrQuitStakePool where
                     , "although you're not even delegating, nor won't be in an "
                     , "immediate future."
                     ]
-            ErrNonNullRewards (Quantity rewards) ->
+            ErrNonNullRewards (Coin rewards) ->
                 apiError err403 NonNullRewards $ mconcat
                     [ "It seems that you're trying to retire from delegation "
                     , "although you've unspoiled rewards in your rewards "

@@ -1,33 +1,152 @@
 {
-    "seed": -3539641455139500764,
+    "seed": -4443153308519667051,
     "samples": [
         [
             {
                 "tokens": [
                     {
-                        "quantity": 2,
-                        "token": "TokenA"
+                        "asset_name": "546f6b656e5f43",
+                        "quantity": 7
                     }
                 ],
-                "policy": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+                "policy_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
             },
             {
                 "tokens": [
                     {
-                        "quantity": 4,
-                        "token": "TokenC"
+                        "asset_name": "546f6b656e5f41",
+                        "quantity": 2
+                    },
+                    {
+                        "asset_name": "546f6b656e5f43",
+                        "quantity": 8
                     }
                 ],
-                "policy": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+                "policy_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
             },
             {
                 "tokens": [
                     {
-                        "quantity": 3,
-                        "token": "TokenA"
+                        "asset_name": "546f6b656e5f44",
+                        "quantity": 5
                     }
                 ],
-                "policy": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+                "policy_id": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+            },
+            {
+                "tokens": [
+                    {
+                        "asset_name": "546f6b656e5f41",
+                        "quantity": 2
+                    },
+                    {
+                        "asset_name": "546f6b656e5f42",
+                        "quantity": 9
+                    }
+                ],
+                "policy_id": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+            }
+        ],
+        [
+            {
+                "tokens": [
+                    {
+                        "asset_name": "546f6b656e5f43",
+                        "quantity": 1
+                    }
+                ],
+                "policy_id": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+            }
+        ],
+        [
+            {
+                "tokens": [
+                    {
+                        "asset_name": "546f6b656e5f44",
+                        "quantity": 3
+                    }
+                ],
+                "policy_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            },
+            {
+                "tokens": [
+                    {
+                        "asset_name": "546f6b656e5f41",
+                        "quantity": 3
+                    }
+                ],
+                "policy_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+            }
+        ],
+        [
+            {
+                "tokens": [
+                    {
+                        "asset_name": "546f6b656e5f43",
+                        "quantity": 9
+                    }
+                ],
+                "policy_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+            }
+        ],
+        [
+            {
+                "tokens": [
+                    {
+                        "asset_name": "546f6b656e5f41",
+                        "quantity": 13
+                    },
+                    {
+                        "asset_name": "546f6b656e5f42",
+                        "quantity": 1
+                    },
+                    {
+                        "asset_name": "546f6b656e5f44",
+                        "quantity": 7
+                    }
+                ],
+                "policy_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            },
+            {
+                "tokens": [
+                    {
+                        "asset_name": "546f6b656e5f42",
+                        "quantity": 7
+                    }
+                ],
+                "policy_id": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+            },
+            {
+                "tokens": [
+                    {
+                        "asset_name": "546f6b656e5f41",
+                        "quantity": 4
+                    },
+                    {
+                        "asset_name": "546f6b656e5f42",
+                        "quantity": 11
+                    },
+                    {
+                        "asset_name": "546f6b656e5f44",
+                        "quantity": 4
+                    }
+                ],
+                "policy_id": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+            }
+        ],
+        [
+            {
+                "tokens": [
+                    {
+                        "asset_name": "546f6b656e5f41",
+                        "quantity": 10
+                    },
+                    {
+                        "asset_name": "546f6b656e5f44",
+                        "quantity": 4
+                    }
+                ],
+                "policy_id": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
             }
         ],
         [],
@@ -35,224 +154,54 @@
             {
                 "tokens": [
                     {
-                        "quantity": 9,
-                        "token": "TokenA"
-                    },
-                    {
-                        "quantity": 2,
-                        "token": "TokenB"
+                        "asset_name": "546f6b656e5f44",
+                        "quantity": 7
                     }
                 ],
-                "policy": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                "policy_id": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
             },
             {
                 "tokens": [
                     {
-                        "quantity": 2,
-                        "token": "TokenB"
-                    },
-                    {
-                        "quantity": 5,
-                        "token": "TokenC"
+                        "asset_name": "546f6b656e5f44",
+                        "quantity": 10
                     }
                 ],
-                "policy": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-            },
-            {
-                "tokens": [
-                    {
-                        "quantity": 3,
-                        "token": "TokenC"
-                    },
-                    {
-                        "quantity": 1,
-                        "token": "TokenD"
-                    }
-                ],
-                "policy": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+                "policy_id": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
             }
         ],
         [
             {
                 "tokens": [
                     {
-                        "quantity": 4,
-                        "token": "TokenD"
-                    }
-                ],
-                "policy": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-            }
-        ],
-        [
-            {
-                "tokens": [
-                    {
-                        "quantity": 8,
-                        "token": "TokenA"
-                    }
-                ],
-                "policy": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
-            },
-            {
-                "tokens": [
-                    {
-                        "quantity": 5,
-                        "token": "TokenB"
-                    }
-                ],
-                "policy": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
-            }
-        ],
-        [
-            {
-                "tokens": [
-                    {
-                        "quantity": 4,
-                        "token": "TokenA"
+                        "asset_name": "546f6b656e5f41",
+                        "quantity": 7
                     },
                     {
-                        "quantity": 7,
-                        "token": "TokenD"
+                        "asset_name": "546f6b656e5f42",
+                        "quantity": 1
+                    },
+                    {
+                        "asset_name": "546f6b656e5f44",
+                        "quantity": 1
                     }
                 ],
-                "policy": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                "policy_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
             },
             {
                 "tokens": [
                     {
-                        "quantity": 2,
-                        "token": "TokenB"
-                    }
-                ],
-                "policy": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-            },
-            {
-                "tokens": [
-                    {
-                        "quantity": 10,
-                        "token": "TokenA"
+                        "asset_name": "546f6b656e5f41",
+                        "quantity": 14
                     },
                     {
-                        "quantity": 3,
-                        "token": "TokenC"
-                    },
-                    {
-                        "quantity": 7,
-                        "token": "TokenD"
+                        "asset_name": "546f6b656e5f42",
+                        "quantity": 10
                     }
                 ],
-                "policy": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
-            },
-            {
-                "tokens": [
-                    {
-                        "quantity": 7,
-                        "token": "TokenC"
-                    },
-                    {
-                        "quantity": 6,
-                        "token": "TokenD"
-                    }
-                ],
-                "policy": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+                "policy_id": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
             }
         ],
-        [
-            {
-                "tokens": [
-                    {
-                        "quantity": 7,
-                        "token": "TokenD"
-                    }
-                ],
-                "policy": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-            }
-        ],
-        [
-            {
-                "tokens": [
-                    {
-                        "quantity": 5,
-                        "token": "TokenC"
-                    }
-                ],
-                "policy": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-            },
-            {
-                "tokens": [
-                    {
-                        "quantity": 5,
-                        "token": "TokenA"
-                    },
-                    {
-                        "quantity": 7,
-                        "token": "TokenC"
-                    }
-                ],
-                "policy": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
-            },
-            {
-                "tokens": [
-                    {
-                        "quantity": 9,
-                        "token": "TokenC"
-                    }
-                ],
-                "policy": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
-            }
-        ],
-        [
-            {
-                "tokens": [
-                    {
-                        "quantity": 5,
-                        "token": "TokenB"
-                    }
-                ],
-                "policy": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-            },
-            {
-                "tokens": [
-                    {
-                        "quantity": 5,
-                        "token": "TokenD"
-                    }
-                ],
-                "policy": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
-            }
-        ],
-        [
-            {
-                "tokens": [
-                    {
-                        "quantity": 5,
-                        "token": "TokenB"
-                    }
-                ],
-                "policy": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-            },
-            {
-                "tokens": [
-                    {
-                        "quantity": 1,
-                        "token": "TokenD"
-                    }
-                ],
-                "policy": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-            },
-            {
-                "tokens": [
-                    {
-                        "quantity": 5,
-                        "token": "TokenC"
-                    },
-                    {
-                        "quantity": 2,
-                        "token": "TokenD"
-                    }
-                ],
-                "policy": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
-            }
-        ]
+        []
     ]
 }

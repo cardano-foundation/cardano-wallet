@@ -258,13 +258,13 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                     Default Empty
                 verify r
                     [ expectField
-                        (#balance . #getApiT . #reward)
+                        (#balance . #reward)
                         (.> (Quantity 0))
                     ]
                 let availableBalance =
-                        getFromResponse (#balance . #getApiT . #available) r
+                        getFromResponse (#balance . #available) r
                 let rewardBalance =
-                        getFromResponse (#balance . #getApiT . #reward) r
+                        getFromResponse (#balance . #reward) r
                 pure (availableBalance, rewardBalance)
 
         -- Try to use rewards
@@ -299,7 +299,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
           request @ApiWallet ctx (Link.getWallet @'Shelley src) Default Empty
               >>= flip verify
                   [ expectField
-                      (#balance . #getApiT . #reward) (`shouldBe` walletRewards)
+                      (#balance . #reward) (`shouldBe` walletRewards)
                   ]
 
         -- there's currently no withdrawals in the wallet
@@ -338,10 +338,10 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
             request @ApiWallet ctx (Link.getWallet @'Shelley src) Default Empty
                 >>= flip verify
                     [ expectField
-                        (#balance . #getApiT . #reward)
+                        (#balance . #reward)
                         (`shouldBe` (Quantity 0))
                     , expectField
-                        (#balance . #getApiT . #available)
+                        (#balance . #available)
                         (.> previousBalance)
                     ]
 
@@ -600,7 +600,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
         eventually "Wallet gets rewards" $ do
             request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty
                 >>= flip verify
-                    [ expectField (#balance . #getApiT . #reward)
+                    [ expectField (#balance . #reward)
                         (.> (Quantity 0))
                     ]
 
@@ -902,10 +902,10 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                     Default Empty >>= flip verify
                     [ expectField #delegation (`shouldBe` notDelegating [])
                     , expectField
-                        (#balance . #getApiT . #total)
+                        (#balance . #total)
                             (`shouldSatisfy` (== (Quantity (depositAmt ctx + change))))
                     , expectField
-                        (#balance . #getApiT . #available)
+                        (#balance . #available)
                             (`shouldSatisfy` (== (Quantity (depositAmt ctx + change))))
                     ]
 

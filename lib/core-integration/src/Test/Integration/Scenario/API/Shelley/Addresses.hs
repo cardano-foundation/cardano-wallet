@@ -220,7 +220,7 @@ spec = describe "SHELLEY_ADDRESSES" $ do
             rb <- request @ApiWallet ctx
                 (Link.getWallet @'Shelley wDest) Default Empty
             expectField
-                (#balance . #getApiT . #available)
+                (#balance . #available)
                 (`shouldBe` Quantity (10 * 1_000_000))
                 rb
 

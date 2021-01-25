@@ -204,8 +204,6 @@ import Database.Persist.Types
     ( PersistValue (..), fromPersistValueText )
 import Fmt
     ( pretty )
-import Numeric.Natural
-    ( Natural )
 import System.Directory
     ( doesFileExist, listDirectory )
 import System.FilePath
@@ -1367,7 +1365,7 @@ newDBLayer trace defaultFieldValues mDatabaseFile ti = do
         -----------------------------------------------------------------------}
 
         , putDelegationRewardBalance =
-            \(PrimaryKey wid) (Quantity amt) -> ExceptT $ do
+            \(PrimaryKey wid) (W.Coin amt) -> ExceptT $ do
             selectWallet wid >>= \case
                 Nothing -> pure $ Left $ ErrNoSuchWallet wid
                 Just _  -> Right <$> repsert
@@ -1376,7 +1374,7 @@ newDBLayer trace defaultFieldValues mDatabaseFile ti = do
 
         , readDelegationRewardBalance =
             \(PrimaryKey wid) ->
-                maybe minBound (Quantity . rewardAccountBalance . entityVal) <$>
+                W.Coin . maybe 0 (rewardAccountBalance . entityVal) <$>
                 selectFirst [RewardWalletId ==. wid] []
 
         {-----------------------------------------------------------------------
@@ -1648,7 +1646,7 @@ mkTxMetaEntity wid txid mfee meta derived = TxMeta
     , txMetaDirection = derived ^. #direction
     , txMetaSlot = derived ^. #slotNo
     , txMetaBlockHeight = getQuantity (derived ^. #blockHeight)
-    , txMetaAmount = getQuantity (derived ^. #amount)
+    , txMetaAmount = derived ^. #amount
     , txMetaFee = fromIntegral . W.unCoin <$> mfee
     , txMetaSlotExpires = derived ^. #expiry
     , txMetadata = meta
@@ -1724,7 +1722,7 @@ txHistoryFromEntity ti tip metas ins outs ws =
         , W.direction = txMetaDirection m
         , W.slotNo = txMetaSlot m
         , W.blockHeight = Quantity (txMetaBlockHeight m)
-        , W.amount = Quantity (txMetaAmount m)
+        , W.amount = txMetaAmount m
         , W.expiry = txMetaSlotExpires m
         }
 
@@ -1991,7 +1989,7 @@ selectTxHistory
     :: W.Wallet s
     -> TimeInterpreter IO
     -> W.WalletId
-    -> Maybe (Quantity "lovelace" Natural)
+    -> Maybe W.Coin
     -> W.SortOrder
     -> [Filter TxMeta]
     -> SqlPersistT IO [W.TransactionInfo]
@@ -1999,8 +1997,7 @@ selectTxHistory cp ti wid minWithdrawal order conditions = do
     let txMetaFilter = (TxMetaWalletId ==. wid):conditions
     metas <- case minWithdrawal of
         Nothing -> fmap entityVal <$> selectList txMetaFilter sortOpt
-        Just inf -> do
-            let coin = W.Coin $ fromIntegral $ getQuantity inf
+        Just coin -> do
             txids <- fmap (txWithdrawalTxId . entityVal)
                 <$> selectList [ TxWithdrawalAmount >=. coin ] []
             ms <- combineChunked (nub txids) (\chunk -> selectList

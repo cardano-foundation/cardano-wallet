@@ -98,7 +98,7 @@ spec = describe "SHELLEY_COIN_SELECTION" $ do
             target <- emptyWallet ctx
             targetAddress : _ <- fmap (view #id) <$> listAddresses @n ctx target
             let amount = Quantity minUTxOValue
-            let payment = AddressAmount targetAddress amount
+            let payment = AddressAmount targetAddress amount mempty
             let output = ApiCoinSelectionOutput targetAddress amount
             let isValidDerivationPath path =
                     ( length path == 5 )
@@ -134,6 +134,7 @@ spec = describe "SHELLEY_COIN_SELECTION" $ do
             let amounts = Quantity <$> [minUTxOValue ..]
             let payments = NE.fromList
                     $ take paymentCount
+                    $ map ($ mempty)
                     $ zipWith AddressAmount targetAddresses amounts
             let outputs =
                     take paymentCount
@@ -150,7 +151,7 @@ spec = describe "SHELLEY_COIN_SELECTION" $ do
         \Deleted wallet is not available for selection" $ \ctx -> runResourceT $ do
         w <- emptyWallet ctx
         (addr:_) <- fmap (view #id) <$> listAddresses @n ctx w
-        let payments = NE.fromList [ AddressAmount addr (Quantity minUTxOValue) ]
+        let payments = NE.fromList [ AddressAmount addr (Quantity minUTxOValue) mempty ]
         _ <- request @ApiWallet ctx (Link.deleteWallet @'Shelley w) Default Empty
         selectCoins @_ @'Shelley ctx w payments >>= flip verify
             [ expectResponseCode HTTP.status404
@@ -161,7 +162,7 @@ spec = describe "SHELLEY_COIN_SELECTION" $ do
         \Wrong selection method (not 'random')" $ \ctx -> runResourceT $ do
         w <- fixtureWallet ctx
         (addr:_) <- fmap (view #id) <$> listAddresses @n ctx w
-        let payments = NE.fromList [ AddressAmount addr (Quantity minUTxOValue) ]
+        let payments = NE.fromList [ AddressAmount addr (Quantity minUTxOValue) mempty ]
         let payload = Json [json| { "payments": #{payments} } |]
         let wid = toText $ getApiT $ w ^. #id
         let endpoints = ("POST",) . mconcat <$>
@@ -209,7 +210,7 @@ spec = describe "SHELLEY_COIN_SELECTION" $ do
         forM_ matrix $ \(title, headers, expectations) -> it title $ \ctx -> runResourceT $ do
             w <- fixtureWallet ctx
             (addr:_) <- fmap (view #id) <$> listAddresses @n ctx w
-            let payments = NE.fromList [ AddressAmount addr (Quantity minUTxOValue) ]
+            let payments = NE.fromList [ AddressAmount addr (Quantity minUTxOValue) mempty ]
             let payload = Json [json| { "payments": #{payments} } |]
             r <- request @(ApiCoinSelection n) ctx
                 (Link.selectCoins @'Shelley w) headers payload
@@ -224,17 +225,17 @@ spec = describe "SHELLEY_COIN_SELECTION" $ do
                     (Link.getWallet @'Shelley source) Default Empty
                 verify rGet
                     [ expectField
-                            (#balance . #getApiT . #total)
+                            (#balance . #total)
                             (`shouldBe` Quantity (2 * minUTxOValue))
                     , expectField
-                            (#balance . #getApiT . #available)
+                            (#balance . #available)
                             (`shouldBe` Quantity (2 * minUTxOValue))
                     ]
             target <- emptyWallet ctx
 
             targetAddress:_ <- fmap (view #id) <$> listAddresses @n ctx target
             let amount = Quantity minUTxOValue
-            let payment = AddressAmount targetAddress amount
+            let payment = AddressAmount targetAddress amount mempty
             let output = ApiCoinSelectionOutput targetAddress amount
             let isValidDerivationPath path =
                     ( length path == 5 )

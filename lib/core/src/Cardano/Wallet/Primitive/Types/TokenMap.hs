@@ -340,8 +340,8 @@ instance FromJSON (Flat TokenMap) where
 
 -- Used for JSON serialization only: not exported.
 data FlatAssetQuantity = FlatAssetQuantity
-    { _policy :: !TokenPolicyId
-    , _token :: !TokenName
+    { _policyId :: !TokenPolicyId
+    , _assetName :: !TokenName
     , _quantity :: !TokenQuantity
     } deriving Generic
 
@@ -385,13 +385,13 @@ instance FromJSON (Nested TokenMap) where
 
 -- Used for JSON serialization only: not exported.
 data NestedMapEntry = NestedMapEntry
-    { _policy :: !TokenPolicyId
+    { _policyId :: !TokenPolicyId
     , _tokens :: ![NestedTokenQuantity]
     } deriving Generic
 
 -- Used for JSON serialization only: not exported.
 data NestedTokenQuantity = NestedTokenQuantity
-    { _token :: !TokenName
+    { _assetName :: !TokenName
     , _quantity :: !TokenQuantity
     } deriving Generic
 

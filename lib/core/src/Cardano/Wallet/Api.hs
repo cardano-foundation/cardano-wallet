@@ -33,6 +33,10 @@ module Cardano.Wallet.Api
         , GetWalletKey
         , SignMetadata
 
+    , Assets
+        , ListAssets
+        , GetAsset
+
     , Addresses
         , ListAddresses
         , InspectAddress
@@ -125,6 +129,7 @@ import Cardano.Wallet.Api.Types
     , ApiAddressInspect
     , ApiAddressInspectData
     , ApiAddressT
+    , ApiAsset
     , ApiByronWallet
     , ApiCoinSelectionT
     , ApiFee
@@ -179,6 +184,8 @@ import Cardano.Wallet.Primitive.Types.Address
     ( AddressState )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
+import Cardano.Wallet.Primitive.Types.TokenPolicy
+    ( TokenName, TokenPolicyId )
 import Cardano.Wallet.Registry
     ( HasWorkerCtx (..), WorkerLog, WorkerRegistry )
 import Cardano.Wallet.Transaction
@@ -228,6 +235,7 @@ type ApiV2 n apiPool = "v2" :> Api n apiPool
 type Api n apiPool =
          Wallets
     :<|> WalletKeys
+    :<|> Assets
     :<|> Addresses n
     :<|> CoinSelections n
     :<|> Transactions n
@@ -322,6 +330,38 @@ type SignMetadata = "wallets"
     :> Capture "index" (ApiT DerivationIndex)
     :> ReqBody '[JSON] ApiWalletSignData
     :> Post '[OctetStream] ByteString
+
+{-------------------------------------------------------------------------------
+                                  Assets
+
+  See also: https://input-output-hk.github.io/cardano-wallet/api/#tag/Assets
+-------------------------------------------------------------------------------}
+
+type Assets =
+    ListAssets
+    :<|> GetAsset
+    :<|> GetAssetDefault
+
+-- | https://input-output-hk.github.io/cardano-wallet/api/#operation/listAssets
+type ListAssets = "wallets"
+    :> Capture "walletId" (ApiT WalletId)
+    :> "assets"
+    :> Get '[JSON] [ApiAsset]
+
+-- | https://input-output-hk.github.io/cardano-wallet/api/#operation/getAsset
+type GetAsset = "wallets"
+    :> Capture "walletId" (ApiT WalletId)
+    :> "assets"
+    :> Capture "policyId" (ApiT TokenPolicyId)
+    :> Capture "assetName" (ApiT TokenName)
+    :> Get '[JSON] ApiAsset
+
+-- | https://input-output-hk.github.io/cardano-wallet/api/#operation/getAsset
+type GetAssetDefault = "wallets"
+    :> Capture "walletId" (ApiT WalletId)
+    :> "assets"
+    :> Capture "policyId" (ApiT TokenPolicyId)
+    :> Get '[JSON] ApiAsset
 
 {-------------------------------------------------------------------------------
                                   Addresses

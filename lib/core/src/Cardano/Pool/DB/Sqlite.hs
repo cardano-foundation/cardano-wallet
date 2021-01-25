@@ -140,6 +140,7 @@ import UnliftIO.Exception
 
 import qualified Cardano.Pool.DB.Sqlite.TH as TH
 import qualified Cardano.Wallet.Primitive.Types as W
+import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
 import qualified Database.Sqlite as Sqlite
@@ -300,8 +301,8 @@ newDBLayer trace fp ti = do
                         $ getPercentage $ poolMargin cert)
                     (fromIntegral $ denominator
                         $ getPercentage $ poolMargin cert)
-                    (getQuantity $ poolCost cert)
-                    (getQuantity $ poolPledge cert)
+                    (W.unCoin $ poolCost cert)
+                    (W.unCoin $ poolPledge cert)
                     (fst <$> poolMetadata cert)
                     (snd <$> poolMetadata cert)
             _ <- repsert poolRegistrationKey poolRegistrationRow
@@ -459,8 +460,8 @@ newDBLayer trace fp ti = do
                     <$> fromPersistValue fieldPoolId
                     <*> fromPersistValue fieldOwners
                     <*> parseMargin
-                    <*> (Quantity <$> fromPersistValue fieldCost)
-                    <*> (Quantity <$> fromPersistValue fieldPledge)
+                    <*> (W.Coin <$> fromPersistValue fieldCost)
+                    <*> (W.Coin <$> fromPersistValue fieldPledge)
                     <*> parseMetadata
 
                 parseRetirementCertificate = do
@@ -601,8 +602,8 @@ newDBLayer trace fp ti = do
                         poolMetadataHash = entityVal meta
                 let poolMargin = unsafeMkPercentage $
                         toRational $ marginNum % marginDen
-                let poolCost = Quantity poolCost_
-                let poolPledge = Quantity poolPledge_
+                let poolCost = W.Coin poolCost_
+                let poolPledge = W.Coin poolPledge_
                 let poolMetadata = (,) <$> poolMetadataUrl <*> poolMetadataHash
                 poolOwners <- fmap (poolOwnerOwner . entityVal) <$>
                     selectList

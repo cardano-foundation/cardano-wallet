@@ -289,7 +289,6 @@ import qualified Data.ByteString.Short as SBS
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Text.Encoding as T
-import qualified Data.Text.Encoding.Error as T
 import qualified Ouroboros.Consensus.Shelley.Ledger as O
 import qualified Ouroboros.Network.Block as O
 import qualified Ouroboros.Network.Point as Point
@@ -759,11 +758,9 @@ fromPoolDistr =
 fromNonMyopicMemberRewards
     :: forall era. ()
     => O.NonMyopicMemberRewards era
-    -> Map
-        (Either W.Coin W.RewardAccount)
-        (Map W.PoolId (Quantity "lovelace" Word64))
+    -> Map (Either W.Coin W.RewardAccount) (Map W.PoolId W.Coin)
 fromNonMyopicMemberRewards =
-    Map.map (Map.map lovelaceFromCoin . Map.mapKeys fromPoolId)
+    Map.map (Map.map toWalletCoin . Map.mapKeys fromPoolId)
     . Map.mapKeys (bimap fromShelleyCoin fromStakeCredential)
     . O.unNonMyopicMemberRewards
 
@@ -924,9 +921,7 @@ fromCardanoValue = uncurry TokenBundle.fromFlatList . extract
         ]
 
     mkPolicyId = W.UnsafeTokenPolicyId . W.Hash . Cardano.serialiseToRawBytes
-    mkTokenName = W.UnsafeTokenName
-        . T.decodeUtf8With T.lenientDecode
-        . Cardano.serialiseToRawBytes
+    mkTokenName = W.UnsafeTokenName . Cardano.serialiseToRawBytes
 
     unQuantity (Cardano.Quantity q) = q
 
@@ -970,8 +965,8 @@ fromShelleyRegistrationCert = \case
             { W.poolId = fromPoolKeyHash $ SL._poolId pp
             , W.poolOwners = fromOwnerKeyHash <$> Set.toList (SL._poolOwners pp)
             , W.poolMargin = fromUnitInterval (SL._poolMargin pp)
-            , W.poolCost = lovelaceFromCoin (SL._poolCost pp)
-            , W.poolPledge = lovelaceFromCoin (SL._poolPledge pp)
+            , W.poolCost = toWalletCoin (SL._poolCost pp)
+            , W.poolPledge = toWalletCoin (SL._poolPledge pp)
             , W.poolMetadata = fromPoolMetadata <$> strictMaybeToMaybe (SL._poolMD pp)
             }
         )
@@ -983,9 +978,6 @@ fromShelleyRegistrationCert = \case
     SL.DCertDeleg{}   -> Nothing
     SL.DCertGenesis{} -> Nothing
     SL.DCertMir{}     -> Nothing
-
-lovelaceFromCoin :: SL.Coin -> Quantity "lovelace" Word64
-lovelaceFromCoin = Quantity . unsafeCoinToWord64
 
 toWalletCoin :: SL.Coin -> W.Coin
 toWalletCoin = W.Coin . unsafeCoinToWord64
@@ -1181,7 +1173,7 @@ toCardanoValue tb = Cardano.valueFromList $
     toCardanoPolicyId (W.UnsafeTokenPolicyId (W.Hash pid)) = just "PolicyId" $
         Cardano.deserialiseFromRawBytes Cardano.AsPolicyId pid
     toCardanoAssetName (W.UnsafeTokenName name) = just "TokenName" $
-        Cardano.deserialiseFromRawBytes Cardano.AsAssetName $ T.encodeUtf8 name
+        Cardano.deserialiseFromRawBytes Cardano.AsAssetName name
 
     just :: String -> Maybe a -> a
     just t = fromMaybe $ error $

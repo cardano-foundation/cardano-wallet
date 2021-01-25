@@ -66,7 +66,7 @@ instance FromText (Hash "Genesis")       where fromText = hashFromText 32
 instance FromText (Hash "Block")         where fromText = hashFromText 32
 instance FromText (Hash "BlockHeader")   where fromText = hashFromText 32
 instance FromText (Hash "RewardAccount") where fromText = hashFromText 28
-instance FromText (Hash "TokenPolicy")   where fromText = hashFromText 28
+instance FromText (Hash "TokenPolicy")   where fromText = hashFromText 28 -- Script Hash
 
 hashFromText
     :: forall t. (KnownSymbol t)

@@ -85,7 +85,6 @@ module Cardano.Wallet.Primitive.Types
     , WalletDelegationNext (..)
     , WalletPassphraseInfo(..)
     , PassphraseScheme(..)
-    , WalletBalance(..)
     , IsDelegatingTo (..)
 
     -- * Stake Pools
@@ -411,14 +410,6 @@ data PassphraseScheme
 
 instance NFData PassphraseScheme
 
-data WalletBalance = WalletBalance
-    { available :: !(Quantity "lovelace" Natural)
-    , total :: !(Quantity "lovelace" Natural)
-    , reward :: !(Quantity "lovelace" Natural)
-    } deriving (Eq, Generic, Show)
-
-instance NFData WalletBalance
-
 {-------------------------------------------------------------------------------
                                    Queries
 -------------------------------------------------------------------------------}
@@ -743,7 +734,7 @@ instance ToJSON PoolOwner where
 
 data StakePoolsSummary = StakePoolsSummary
     { nOpt :: Int
-    , rewards :: Map PoolId (Quantity "lovelace" Word64)
+    , rewards :: Map PoolId Coin
     , stake :: Map PoolId Percentage
     } deriving (Show, Eq)
 
@@ -1213,8 +1204,8 @@ data PoolRegistrationCertificate = PoolRegistrationCertificate
     { poolId :: !PoolId
     , poolOwners :: ![PoolOwner]
     , poolMargin :: Percentage
-    , poolCost :: Quantity "lovelace" Word64
-    , poolPledge :: Quantity "lovelace" Word64
+    , poolCost :: Coin
+    , poolPledge :: Coin
     , poolMetadata :: Maybe (StakePoolMetadataUrl, StakePoolMetadataHash)
     } deriving (Generic, Show, Eq, Ord)
 

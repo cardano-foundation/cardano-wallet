@@ -236,7 +236,7 @@ walletApiBench capture ctx = do
             verify rWal1
                 [ expectSuccess
                 , expectField
-                        (#balance . #getApiT . #available . #getQuantity)
+                        (#balance . #available . #getQuantity)
                         (`shouldBe` (minUTxOValue * (fromIntegral utxoNumber)))
                 ]
 
@@ -255,7 +255,7 @@ walletApiBench capture ctx = do
             verify rWal1
                 [ expectSuccess
                 , expectField
-                    (#balance . #getApiT . #available . #getQuantity)
+                    (#balance . #available . #getQuantity)
                     (`shouldBe` amtExp)
                 ]
         rDel <- request @ApiWallet  ctx (Link.deleteWallet @'Shelley wSrc) Default Empty

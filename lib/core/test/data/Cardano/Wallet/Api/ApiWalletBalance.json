@@ -1,0 +1,145 @@
+{
+    "seed": 27252381885193408,
+    "samples": [
+        {
+            "reward": {
+                "quantity": 6,
+                "unit": "lovelace"
+            },
+            "total": {
+                "quantity": 3,
+                "unit": "lovelace"
+            },
+            "available": {
+                "quantity": 248,
+                "unit": "lovelace"
+            }
+        },
+        {
+            "reward": {
+                "quantity": 63,
+                "unit": "lovelace"
+            },
+            "total": {
+                "quantity": 228,
+                "unit": "lovelace"
+            },
+            "available": {
+                "quantity": 84,
+                "unit": "lovelace"
+            }
+        },
+        {
+            "reward": {
+                "quantity": 202,
+                "unit": "lovelace"
+            },
+            "total": {
+                "quantity": 26,
+                "unit": "lovelace"
+            },
+            "available": {
+                "quantity": 129,
+                "unit": "lovelace"
+            }
+        },
+        {
+            "reward": {
+                "quantity": 40,
+                "unit": "lovelace"
+            },
+            "total": {
+                "quantity": 175,
+                "unit": "lovelace"
+            },
+            "available": {
+                "quantity": 6,
+                "unit": "lovelace"
+            }
+        },
+        {
+            "reward": {
+                "quantity": 19,
+                "unit": "lovelace"
+            },
+            "total": {
+                "quantity": 4,
+                "unit": "lovelace"
+            },
+            "available": {
+                "quantity": 76,
+                "unit": "lovelace"
+            }
+        },
+        {
+            "reward": {
+                "quantity": 197,
+                "unit": "lovelace"
+            },
+            "total": {
+                "quantity": 94,
+                "unit": "lovelace"
+            },
+            "available": {
+                "quantity": 156,
+                "unit": "lovelace"
+            }
+        },
+        {
+            "reward": {
+                "quantity": 245,
+                "unit": "lovelace"
+            },
+            "total": {
+                "quantity": 151,
+                "unit": "lovelace"
+            },
+            "available": {
+                "quantity": 241,
+                "unit": "lovelace"
+            }
+        },
+        {
+            "reward": {
+                "quantity": 117,
+                "unit": "lovelace"
+            },
+            "total": {
+                "quantity": 6,
+                "unit": "lovelace"
+            },
+            "available": {
+                "quantity": 5,
+                "unit": "lovelace"
+            }
+        },
+        {
+            "reward": {
+                "quantity": 149,
+                "unit": "lovelace"
+            },
+            "total": {
+                "quantity": 5,
+                "unit": "lovelace"
+            },
+            "available": {
+                "quantity": 195,
+                "unit": "lovelace"
+            }
+        },
+        {
+            "reward": {
+                "quantity": 228,
+                "unit": "lovelace"
+            },
+            "total": {
+                "quantity": 216,
+                "unit": "lovelace"
+            },
+            "available": {
+                "quantity": 20,
+                "unit": "lovelace"
+            }
+        }
+    ]
+}

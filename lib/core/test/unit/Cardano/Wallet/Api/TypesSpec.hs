@@ -50,6 +50,7 @@ import Cardano.Wallet.Api.Types
     , ApiAddress (..)
     , ApiAddressData (..)
     , ApiAddressInspect (..)
+    , ApiAsset (..)
     , ApiBlockInfo (..)
     , ApiBlockReference (..)
     , ApiByronWallet (..)
@@ -90,6 +91,8 @@ import Cardano.Wallet.Api.Types
     , ApiUtxoStatistics (..)
     , ApiVerificationKey (..)
     , ApiWallet (..)
+    , ApiWalletAssetsBalance (..)
+    , ApiWalletBalance (..)
     , ApiWalletDelegation (..)
     , ApiWalletDelegationNext (..)
     , ApiWalletDelegationStatus (..)
@@ -116,11 +119,11 @@ import Cardano.Wallet.Api.Types
     , PostTransactionFeeData (..)
     , SettingsPutData (..)
     , SomeByronWalletPostData (..)
-    , WalletBalance (..)
     , WalletOrAccountPostData (..)
     , WalletPostData (..)
     , WalletPutData (..)
     , WalletPutPassphraseData (..)
+    , toApiAsset
     )
 import Cardano.Wallet.Gen
     ( genMnemonic
@@ -182,6 +185,14 @@ import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..) )
+import Cardano.Wallet.Primitive.Types.TokenBundle
+    ( TokenBundle )
+import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
+    ( genTokenBundleSmallRange, shrinkTokenBundleSmallRange )
+import Cardano.Wallet.Primitive.Types.TokenMap
+    ( TokenMap )
+import Cardano.Wallet.Primitive.Types.TokenMap.Gen
+    ( genAssetIdSmallRange, genTokenMapSmallRange, shrinkTokenMapSmallRange )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..)
     , TxIn (..)
@@ -283,6 +294,7 @@ import Test.QuickCheck
     , InfiniteList (..)
     , Positive (..)
     , applyArbitrary2
+    , applyArbitrary3
     , arbitraryBoundedEnum
     , arbitraryPrintableChar
     , arbitrarySizedBoundedIntegral
@@ -318,7 +330,6 @@ import Web.HttpApiData
     ( FromHttpApiData (..) )
 
 import qualified Cardano.Wallet.Api.Types as Api
-import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Types as Aeson
 import qualified Data.ByteArray as BA
@@ -398,7 +409,7 @@ spec = parallel $ do
             jsonRoundtripAndGolden $ Proxy @(ApiT Direction)
             jsonRoundtripAndGolden $ Proxy @(ApiT TxMetadata)
             jsonRoundtripAndGolden $ Proxy @(ApiT TxStatus)
-            jsonRoundtripAndGolden $ Proxy @(ApiT WalletBalance)
+            jsonRoundtripAndGolden $ Proxy @(ApiWalletBalance)
             jsonRoundtripAndGolden $ Proxy @(ApiT WalletId)
             jsonRoundtripAndGolden $ Proxy @(ApiT WalletName)
             jsonRoundtripAndGolden $ Proxy @ApiWalletPassphraseInfo
@@ -572,7 +583,8 @@ spec = parallel $ do
             |] `shouldBe` (Left @String @(ApiT WalletId) msg)
 
         it "AddressAmount (too small)" $ do
-            let msg = "Error in $.amount.quantity: parsing Natural failed, \
+            let msg = "Error in $.amount.quantity: \
+                    \parsing AddressAmount failed, parsing Natural failed, \
                     \unexpected negative number -14"
             Aeson.parseEither parseJSON [aesonQQ|
                 { "address": "<addr>"
@@ -581,7 +593,8 @@ spec = parallel $ do
             |] `shouldBe` (Left @String @(AddressAmount (ApiT Address, Proxy ('Testnet 0))) msg)
 
         it "AddressAmount (too big)" $ do
-            let msg = "Error in $: invalid coin value: value has to be lower \
+            let msg = "Error in $: parsing AddressAmount failed, \
+                    \invalid coin value: value has to be lower \
                     \than or equal to " <> show (unCoin maxBound)
                     <> " lovelace."
             Aeson.parseEither parseJSON [aesonQQ|
@@ -723,6 +736,7 @@ spec = parallel $ do
                     { id = id (x :: ApiWallet)
                     , addressPoolGap = addressPoolGap (x :: ApiWallet)
                     , balance = balance (x :: ApiWallet)
+                    , assets = assets (x :: ApiWallet)
                     , delegation = delegation (x :: ApiWallet)
                     , name = name (x :: ApiWallet)
                     , passphrase = passphrase (x :: ApiWallet)
@@ -874,6 +888,7 @@ spec = parallel $ do
                     , amount = amount (x :: ApiTransaction ('Testnet 0))
                     , fee = fee (x :: ApiTransaction ('Testnet 0))
                     , deposit = deposit (x :: ApiTransaction ('Testnet 0))
+                    , assets = assets (x :: ApiTransaction ('Testnet 0))
                     , insertedAt = insertedAt (x :: ApiTransaction ('Testnet 0))
                     , pendingSince = pendingSince (x :: ApiTransaction ('Testnet 0))
                     , expiresAt = expiresAt (x :: ApiTransaction ('Testnet 0))
@@ -883,6 +898,7 @@ spec = parallel $ do
                     , outputs = outputs (x :: ApiTransaction ('Testnet 0))
                     , status = status (x :: ApiTransaction ('Testnet 0))
                     , withdrawals = withdrawals (x :: ApiTransaction ('Testnet 0))
+                    , mint = mint (x :: ApiTransaction ('Testnet 0))
                     , metadata = metadata (x :: ApiTransaction ('Testnet 0))
                     }
             in
@@ -899,6 +915,7 @@ spec = parallel $ do
                 x' = AddressAmount
                     { address = address (x :: AddressAmount (ApiT Address, Proxy ('Testnet 0)))
                     , amount = amount (x :: AddressAmount (ApiT Address, Proxy ('Testnet 0)))
+                    , assets = assets (x :: AddressAmount (ApiT Address, Proxy ('Testnet 0)))
                     }
             in
                 x' === x .&&. show x' === show x
@@ -1284,7 +1301,11 @@ instance Arbitrary ByronWalletPutPassphraseData where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
-instance Arbitrary WalletBalance where
+instance Arbitrary ApiWalletBalance where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
+
+instance Arbitrary ApiWalletAssetsBalance where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
@@ -1576,8 +1597,11 @@ instance Arbitrary Word31 where
     arbitrary = arbitrarySizedBoundedIntegral
     shrink = shrinkIntegral
 
+instance Arbitrary ApiAsset where
+    arbitrary = toApiAsset Nothing <$> genAssetIdSmallRange
+
 instance Arbitrary a => Arbitrary (AddressAmount a) where
-    arbitrary = applyArbitrary2 AddressAmount
+    arbitrary = applyArbitrary3 AddressAmount
     shrink _ = []
 
 instance Arbitrary (PostTransactionData t) where
@@ -1643,6 +1667,7 @@ instance Arbitrary (ApiTransaction t) where
             <*> arbitrary
             <*> arbitrary
             <*> arbitrary
+            <*> arbitrary
             <*> pure txInsertedAt
             <*> pure txPendingSince
             <*> pure txExpiresAt
@@ -1651,6 +1676,7 @@ instance Arbitrary (ApiTransaction t) where
             <*> genInputs
             <*> genOutputs
             <*> genWithdrawals
+            <*> arbitrary
             <*> pure txStatus
             <*> arbitrary
       where
@@ -1682,11 +1708,18 @@ instance Arbitrary UTxO where
             <*> vector n
         return $ UTxO $ Map.fromList utxo
 
+instance Arbitrary TokenBundle where
+    shrink = shrinkTokenBundleSmallRange
+    arbitrary = genTokenBundleSmallRange
+
+instance Arbitrary TokenMap where
+    shrink = shrinkTokenMapSmallRange
+    arbitrary = genTokenMapSmallRange
+
 instance Arbitrary TxOut where
-    -- No Shrinking
-    arbitrary = TxOut
-        <$> arbitrary
-        <*> fmap TokenBundle.fromCoin genCoinLargePositive
+    -- Shrink token bundle but not address
+    shrink (TxOut a t) = TxOut a <$> shrink t
+    arbitrary = TxOut <$> arbitrary <*> arbitrary
 
 instance Arbitrary TxIn where
     -- No Shrinking
@@ -1860,6 +1893,9 @@ instance ToSchema ApiStakePoolMetrics where
 
 instance ToSchema ApiFee where
     declareNamedSchema _ = declareSchemaForDefinition "ApiFee"
+
+instance ToSchema ApiAsset where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiAsset"
 
 instance ToSchema ApiTxId where
     declareNamedSchema _ = declareSchemaForDefinition "ApiTxId"

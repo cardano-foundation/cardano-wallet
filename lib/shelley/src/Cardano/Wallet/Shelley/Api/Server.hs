@@ -36,6 +36,7 @@ import Cardano.Wallet.Api
     ( Addresses
     , Api
     , ApiLayer (..)
+    , Assets
     , ByronAddresses
     , ByronCoinSelections
     , ByronMigrations
@@ -58,6 +59,8 @@ import Cardano.Wallet.Api.Server
     , deleteTransaction
     , deleteWallet
     , derivePublicKey
+    , getAsset
+    , getAssetDefault
     , getCurrentEpoch
     , getMigrationInfo
     , getNetworkClock
@@ -70,6 +73,7 @@ import Cardano.Wallet.Api.Server
     , joinStakePool
     , liftHandler
     , listAddresses
+    , listAssets
     , listTransactions
     , listWallets
     , migrateWallet
@@ -193,6 +197,7 @@ server
 server byron icarus shelley spl ntp =
          wallets
     :<|> walletKeys
+    :<|> assets
     :<|> addresses
     :<|> coinSelections
     :<|> transactions
@@ -220,6 +225,9 @@ server byron icarus shelley spl ntp =
     walletKeys :: Server WalletKeys
     walletKeys = derivePublicKey shelley
         :<|> signMetadata shelley
+
+    assets :: Server Assets
+    assets = listAssets shelley :<|> getAsset shelley :<|> getAssetDefault shelley
 
     addresses :: Server (Addresses n)
     addresses = listAddresses shelley (normalizeDelegationAddress @_ @ShelleyKey @n)
