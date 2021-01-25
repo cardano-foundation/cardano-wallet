@@ -2,7 +2,8 @@
 {-# LANGUAGE NamedFieldPuns #-}
 
 module Cardano.Wallet.Primitive.Types.TokenMap.Gen
-    ( genAssetIdSmallRange
+    ( genAssetIdLargeRange
+    , genAssetIdSmallRange
     , genTokenMapSmallRange
     , shrinkAssetIdSmallRange
     , shrinkTokenMapSmallRange
@@ -14,7 +15,9 @@ import Prelude
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId (..), TokenMap )
 import Cardano.Wallet.Primitive.Types.TokenPolicy.Gen
-    ( genTokenNameSmallRange
+    ( genTokenNameLargeRange
+    , genTokenNameSmallRange
+    , genTokenPolicyIdLargeRange
     , genTokenPolicyIdSmallRange
     , shrinkTokenNameSmallRange
     , shrinkTokenPolicyIdSmallRange
@@ -59,6 +62,15 @@ shrinkAssetIdSmallRange :: AssetId -> [AssetId]
 shrinkAssetIdSmallRange (AssetId p t) = uncurry AssetId <$> shrinkInterleaved
     (p, shrinkTokenPolicyIdSmallRange)
     (t, shrinkTokenNameSmallRange)
+
+--------------------------------------------------------------------------------
+-- Asset identifiers chosen from a large range (to minimize collisions)
+--------------------------------------------------------------------------------
+
+genAssetIdLargeRange :: Gen AssetId
+genAssetIdLargeRange = AssetId
+    <$> genTokenPolicyIdLargeRange
+    <*> genTokenNameLargeRange
 
 --------------------------------------------------------------------------------
 -- Token maps with assets and quantities chosen from small ranges
