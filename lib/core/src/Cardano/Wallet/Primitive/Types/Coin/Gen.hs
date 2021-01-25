@@ -16,14 +16,14 @@ import Prelude
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Test.QuickCheck
-    ( Gen, arbitraryBoundedEnum, choose, shrink )
+    ( Gen, choose, shrink )
 
 --------------------------------------------------------------------------------
 -- Coins chosen from the full range available
 --------------------------------------------------------------------------------
 
 genCoinAny :: Gen Coin
-genCoinAny = Coin <$> arbitraryBoundedEnum
+genCoinAny = Coin <$> choose (unCoin minBound, unCoin maxBound)
 
 shrinkCoinAny :: Coin -> [Coin]
 shrinkCoinAny (Coin c) = Coin <$> shrink c
