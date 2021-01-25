@@ -4,7 +4,6 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE Rank2Types #-}
@@ -25,7 +24,6 @@ module Cardano.Wallet.Shelley.Transaction
     ( newTransactionLayer
 
     -- * Internals
-    , _minimumFee
     , _decodeSignedTx
     , _estimateMaxNumberOfInputs
     , mkUnsignedTx
@@ -66,18 +64,28 @@ import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey, toRewardAccountRaw )
-import Cardano.Wallet.Primitive.CoinSelection
-    ( CoinSelection (..), feeBalance )
+import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
+    ( SelectionCriteria (..)
+    , SelectionLimit (..)
+    , SelectionResult (changeGenerated, inputsSelected, outputsCovered)
+    , SelectionSkeleton (..)
+    , prepareOutputsWith
+    , selectionDelta
+    )
 import Cardano.Wallet.Primitive.Fee
-    ( Fee (..), FeePolicy (..) )
+    ( FeePolicy (..) )
 import Cardano.Wallet.Primitive.Types
-    ( PoolId (..) )
+    ( ProtocolParameters (..), TxParameters (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+    ( Coin (..), addCoin, subtractCoin )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
+import Cardano.Wallet.Primitive.Types.TokenMap
+    ( AssetId (..), TokenMap )
+import Cardano.Wallet.Primitive.Types.TokenPolicy
+    ( TokenName (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx (..), Tx (..), TxIn (..), TxMetadata, TxOut (..), txOutCoin )
 import Cardano.Wallet.Shelley.Compatibility
@@ -103,6 +111,7 @@ import Cardano.Wallet.Transaction
     ( DelegationAction (..)
     , ErrDecodeSignedTx (..)
     , ErrMkTx (..)
+    , TransactionCtx (..)
     , TransactionLayer (..)
     )
 import Control.Arrow
@@ -116,7 +125,11 @@ import Data.Quantity
 import Data.Type.Equality
     ( type (==) )
 import Data.Word
-    ( Word16, Word64, Word8 )
+    ( Word16, Word8 )
+import Fmt
+    ( Buildable, pretty )
+import GHC.Stack
+    ( HasCallStack )
 import Ouroboros.Network.Block
     ( SlotNo )
 
@@ -127,11 +140,14 @@ import qualified Cardano.Crypto.DSIGN as DSIGN
 import qualified Cardano.Crypto.Hash.Class as Crypto
 import qualified Cardano.Crypto.Wallet as Crypto.HD
 import qualified Cardano.Ledger.Core as SL
-import qualified Cardano.Wallet.Primitive.CoinSelection as CS
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
+import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
 import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Write as CBOR
 import qualified Data.ByteString as BS
+import qualified Data.Foldable as F
+import qualified Data.List.NonEmpty as NE
+import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Shelley.Spec.Ledger.Address.Bootstrap as SL
 
@@ -157,9 +173,6 @@ data TxPayload era = TxPayload
 
 emptyTxPayload :: TxPayload c
 emptyTxPayload = TxPayload Nothing mempty mempty
-
-stdTxPayload :: Maybe TxMetadata -> TxPayload c
-stdTxPayload md = TxPayload md mempty mempty
 
 data TxWitnessTag
     = TxWitnessByronUTxO WalletStyle
@@ -207,21 +220,27 @@ mkTx
     -> (XPrv, Passphrase "encryption")
     -- ^ Reward account
     -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
-    -> CoinSelection
+    -- ^ Key store
+    -> Coin
+    -- ^ An optional withdrawal amount, can be zero
+    -> SelectionResult TxOut
+    -- ^ Finalized asset selection
+    -> Coin
+    -- ^ Explicit fee amount
     -> ShelleyBasedEra era
     -> Either ErrMkTx (Tx, SealedTx)
-mkTx networkId payload expirySlot (rewardAcnt, pwdAcnt) keyFrom cs era = do
+mkTx networkId payload ttl (rewardAcnt, pwdAcnt) keyFrom wdrl cs fees era = do
     let TxPayload md certs mkExtraWits = payload
     let wdrls = mkWithdrawals
             networkId
             (toRewardAccountRaw . toXPub $ rewardAcnt)
-            (withdrawal cs)
+            wdrl
 
-    unsigned <- mkUnsignedTx era expirySlot cs md wdrls certs
+    unsigned <- mkUnsignedTx era ttl cs md wdrls certs (toCardanoLovelace fees)
 
     wits <- case (txWitnessTagFor @k) of
         TxWitnessShelleyUTxO -> do
-            addrWits <- forM (CS.inputs cs) $ \(_, TxOut addr _) -> do
+            addrWits <- forM (inputsSelected cs) $ \(_, TxOut addr _) -> do
                 (k, pwd) <- lookupPrivateKey keyFrom addr
                 pure $ mkShelleyWitness unsigned (getRawKey k, pwd)
 
@@ -230,16 +249,18 @@ mkTx networkId payload expirySlot (rewardAcnt, pwdAcnt) keyFrom cs era = do
                     | otherwise =
                       [mkShelleyWitness unsigned (rewardAcnt, pwdAcnt)]
 
-            pure $ mkExtraWits unsigned <> addrWits <> wdrlsWits
+            pure $ mkExtraWits unsigned <> F.toList addrWits <> wdrlsWits
 
         TxWitnessByronUTxO{} -> do
-            bootstrapWits <- forM (CS.inputs cs) $ \(_, TxOut addr _) -> do
+            bootstrapWits <- forM (inputsSelected cs) $ \(_, TxOut addr _) -> do
                 (k, pwd) <- lookupPrivateKey keyFrom addr
                 pure $ mkByronWitness unsigned networkId addr (getRawKey k, pwd)
-            pure $ bootstrapWits <> mkExtraWits unsigned
+            pure $ F.toList bootstrapWits <> mkExtraWits unsigned
 
     let signed = Cardano.makeSignedTransaction wits unsigned
-    let withResolvedInputs tx = tx { resolvedInputs = second txOutCoin <$> CS.inputs cs }
+    let withResolvedInputs tx = tx
+            { resolvedInputs = second txOutCoin <$> F.toList (inputsSelected cs)
+            }
     Right $ first withResolvedInputs $ case era of
         ShelleyBasedEraShelley -> sealShelleyTx fromShelleyTx signed
         ShelleyBasedEraAllegra -> sealShelleyTx fromAllegraTx signed
@@ -253,88 +274,90 @@ newTransactionLayer
     => NetworkId
     -> TransactionLayer k
 newTransactionLayer networkId = TransactionLayer
-    { mkStdTx = \era acc ks tip md cs ->
-        withShelleyBasedEra era $ mkTx networkId (stdTxPayload md) tip acc ks cs
-    , initDelegationSelection =
-        _initDelegationSelection
-    , mkDelegationJoinTx = \era poolId acc ks ttl cs ->
-        withShelleyBasedEra era $ _mkDelegationJoinTx poolId acc ks ttl cs
-    , mkDelegationQuitTx = \era acc ks ttl cs ->
-        withShelleyBasedEra era $ _mkDelegationQuitTx acc ks ttl cs
-    , decodeSignedTx =
-        _decodeSignedTx
-    , minimumFee =
-        _minimumFee @k
+    { mkTransaction = \era stakeCreds keystore pp ctx selection -> do
+        let ttl   = txTimeToLive ctx
+        let wdrl  = txWithdrawal ctx
+        let delta = selectionDelta txOutCoin selection
+        case txDelegationAction ctx of
+            Nothing -> do
+                withShelleyBasedEra era $ do
+                    let payload = TxPayload (txMetadata ctx) mempty mempty
+                    let fees = delta
+                    mkTx networkId payload ttl stakeCreds keystore wdrl selection fees
+
+            Just action -> do
+                withShelleyBasedEra era $ do
+                    let stakeXPub = toXPub $ fst stakeCreds
+                    let certs = mkDelegationCertificates action stakeXPub
+                    let mkWits unsigned =
+                            [ mkShelleyWitness unsigned stakeCreds
+                            ]
+                    let payload = TxPayload (txMetadata ctx) certs mkWits
+                    let fees = case action of
+                            RegisterKeyAndJoin{} ->
+                                unsafeSubtractCoin selection delta (stakeKeyDeposit pp)
+                            _ ->
+                                delta
+                    mkTx networkId payload ttl stakeCreds keystore wdrl selection fees
+
+    , initSelectionCriteria = \pp ctx utxoAvailable outputsUnprepared ->
+        let
+            selectionLimit = MaximumInputLimit $ fromIntegral $
+                _estimateMaxNumberOfInputs @k
+                    (getTxMaxSize $ txParameters pp)
+                    (txMetadata ctx)
+                    (fromIntegral $ NE.length outputsToCover)
+
+            extraCoinSource = Just $ addCoin
+                (txWithdrawal ctx)
+                ( case txDelegationAction ctx of
+                    Just Quit -> stakeKeyDeposit pp
+                    _ -> Coin 0
+                )
+
+            outputsToCover = prepareOutputsWith
+                (_calcMinimumCoinValue pp)
+                outputsUnprepared
+        in
+            SelectionCriteria
+                { outputsToCover
+                , utxoAvailable
+                , selectionLimit
+                , extraCoinSource
+                }
+
+    , calcMinimumCost = \pp ctx skeleton ->
+        let
+            LinearFee (Quantity a) (Quantity b) =
+                getFeePolicy $ txParameters pp
+
+            computeFee :: Integer -> Coin
+            computeFee size =
+                Coin $ ceiling (a + b*fromIntegral size)
+        in
+            computeFee $ estimateTxSize (txWitnessTagFor @k) ctx skeleton
+
+    , calcMinimumCoinValue =
+        _calcMinimumCoinValue
+
     , estimateMaxNumberOfInputs =
         _estimateMaxNumberOfInputs @k
+
+    , decodeSignedTx =
+        _decodeSignedTx
     }
   where
-    _initDelegationSelection
-        :: Coin
-            -- stake key deposit
-        -> DelegationAction
-            -- What sort of action is going on
-        -> CoinSelection
-        -- ^ An initial selection where 'deposit' and/or 'reclaim' have been set
-        -- accordingly.
-    _initDelegationSelection (Coin c) = \case
-        Quit{} -> mempty { reclaim = c }
-        Join{} -> mempty
-        RegisterKeyAndJoin{} -> mempty { deposit = c }
-
-    _mkDelegationJoinTx
-        :: forall era. (EraConstraints era)
-        => PoolId
-            -- ^ Pool Id to which we're planning to delegate
-        -> (XPrv, Passphrase "encryption")
-            -- ^ Reward account
-        -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
-            -- ^ Key store
-        -> SlotNo
-            -- ^ TTL slot
-        -> CoinSelection
-            -- ^ A balanced coin selection where all change addresses have been
-            -- assigned.
-        -> ShelleyBasedEra era
-            -- ^ Era for which the transaction should be created.
-        -> Either ErrMkTx (Tx, SealedTx)
-    _mkDelegationJoinTx poolId acc@(accXPrv, pwd') keyFrom ttl cs era = do
-        let accXPub = toXPub accXPrv
-        let certs =
-                if deposit cs > 0
-                then mkDelegationCertificates (RegisterKeyAndJoin poolId) accXPub
-                else mkDelegationCertificates (Join poolId) accXPub
-
-        let mkWits unsigned =
-                [ mkShelleyWitness unsigned (accXPrv, pwd')
-                ]
-
-        let payload = TxPayload Nothing certs mkWits
-        mkTx networkId payload ttl acc keyFrom cs era
-
-    _mkDelegationQuitTx
-        :: forall era. (EraConstraints era)
-        => (XPrv, Passphrase "encryption")
-            -- reward account
-        -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
-            -- Key store
-        -> SlotNo
-            -- TTL slot
-        -> CoinSelection
-            -- A balanced coin selection where all change addresses have been
-            -- assigned.
-        -> ShelleyBasedEra era
-            -- ^ Era for which the transaction should be created.
-        -> Either ErrMkTx (Tx, SealedTx)
-    _mkDelegationQuitTx acc@(accXPrv, pwd') keyFrom ttl cs era = do
-        let accXPub = toXPub accXPrv
-        let certs = [toStakeKeyDeregCert accXPub]
-        let mkWits unsigned =
-                [ mkShelleyWitness unsigned (accXPrv, pwd')
-                ]
-
-        let payload = TxPayload Nothing certs mkWits
-        mkTx networkId payload ttl acc keyFrom cs era
+    unsafeSubtractCoin
+        :: (HasCallStack, Buildable ctx) => ctx -> Coin -> Coin -> Coin
+    unsafeSubtractCoin ctx a b = case a `subtractCoin` b of
+        Nothing -> error $ unlines
+            [ "unsafeSubtractCoin: got a negative value. Tried to subtract "
+            <> show b <> " from " <> show a <> "."
+            , "In the context of: "
+            , pretty ctx
+            ]
+        Just c ->
+            c
 
 mkDelegationCertificates
     :: DelegationAction
@@ -352,6 +375,14 @@ mkDelegationCertificates da accXPub =
                ]
        Quit -> [toStakeKeyDeregCert accXPub]
 
+_calcMinimumCoinValue
+    :: ProtocolParameters
+    -> TokenMap
+    -> Coin
+_calcMinimumCoinValue pp _assets =
+    -- FIXME: ADP-506 / PR #2461
+    minimumUTxOvalue pp
+
 _estimateMaxNumberOfInputs
     :: forall k. TxWitnessTagFor k
     => Quantity "byte" Word16
@@ -361,7 +392,7 @@ _estimateMaxNumberOfInputs
     -> Word8
     -- ^ Number of outputs in transaction
     -> Word8
-_estimateMaxNumberOfInputs txMaxSize md nOuts =
+_estimateMaxNumberOfInputs txMaxSize txMetadata nOuts =
     findLargestUntil ((> maxSize) . txSizeGivenInputs) 0
   where
     -- | Find the largest amount of inputs that doesn't make the tx too big.
@@ -377,19 +408,38 @@ _estimateMaxNumberOfInputs txMaxSize md nOuts =
 
     txSizeGivenInputs nInps = size
       where
-        size = estimateTxSize (txWitnessTagFor @k) md Nothing sel
-        sel  = dummyCoinSel (fromIntegral nInps) (fromIntegral nOuts)
+        size = estimateTxSize (txWitnessTagFor @k) ctx sel
+        sel  = dummySkeleton (fromIntegral nInps) (fromIntegral nOuts)
+        ctx  = TransactionCtx
+            { txWithdrawal = Coin 0
+            , txMetadata
+            , txTimeToLive = maxBound
+            , txDelegationAction = Nothing
+            }
 
-dummyCoinSel :: Int -> Int -> CoinSelection
-dummyCoinSel nInps nOuts = mempty
-    { CS.inputs = map (\ix -> (dummyTxIn ix, dummyTxOut)) [0..nInps-1]
-    , CS.outputs = replicate nOuts dummyTxOut
-    , CS.change = replicate nOuts (Coin 1)
+-- FIXME: This dummy skeleton does not account for multi-asset outputs. So
+-- the final estimation can end up being much larger than it should in
+-- practice. With the introduction of multi-assets, it is no longer possible
+-- to accurately estimate the maximum number of inputs from a number of
+-- outputs only. We have to know also the shape of outputs.
+--
+-- Yet, this function will still yield a relevant number that can gives us a
+-- way to cap the selection to a given limit (which is known to be higher
+-- than the real value). So it suffices to check the result of a selection
+-- to see whether it has grown too large or not.
+dummySkeleton :: Int -> Int -> SelectionSkeleton
+dummySkeleton nInps nOuts = SelectionSkeleton
+    { inputsSkeleton = UTxOIndex.fromSequence $
+        map (\ix -> (dummyTxIn ix, dummyTxOut)) [0..nInps-1]
+    , outputsSkeleton =
+        replicate nOuts dummyTxOut
+    , changeSkeleton =
+        replicate nOuts Set.empty
     }
   where
-    dummyTxIn   = TxIn (Hash $ BS.pack (1:replicate 64 0)) . fromIntegral
-    dummyTxOut  = TxOut dummyAddr (TokenBundle.fromCoin $ Coin 1)
-    dummyAddr   = Address $ BS.pack (1:replicate 64 0)
+    dummyTxIn  = TxIn (Hash $ BS.pack (1:replicate 64 0)) . fromIntegral
+    dummyTxOut = TxOut dummyAddr (TokenBundle.fromCoin $ Coin 1)
+    dummyAddr  = Address $ BS.pack (1:replicate 64 0)
 
 _decodeSignedTx
     :: AnyCardanoEra
@@ -421,22 +471,6 @@ _decodeSignedTx era bytes = do
         _ ->
             Left ErrDecodeSignedTxNotSupported
 
-_minimumFee
-    :: forall k. TxWitnessTagFor k
-    => FeePolicy
-    -> Maybe DelegationAction
-    -> Maybe TxMetadata
-    -> CoinSelection
-    -> Fee
-_minimumFee policy action md cs =
-    computeFee $ estimateTxSize (txWitnessTagFor @k) md action cs
-  where
-    computeFee :: Integer -> Fee
-    computeFee size =
-        Fee $ ceiling (a + b*fromIntegral size)
-      where
-        LinearFee (Quantity a) (Quantity b) = policy
-
 -- Estimate the size of a final transaction by using upper boundaries for cbor
 -- serialized objects according to:
 --
@@ -445,24 +479,29 @@ _minimumFee policy action md cs =
 -- All sizes below are in bytes.
 estimateTxSize
     :: TxWitnessTag
-    -> Maybe Cardano.TxMetadata
-    -> Maybe DelegationAction
-    -> CoinSelection
+    -> TransactionCtx
+    -> SelectionSkeleton
     -> Integer
-estimateTxSize witTag md action cs =
+estimateTxSize witnessTag ctx (SelectionSkeleton inps outs chgs) =
     sizeOf_Transaction
   where
+    TransactionCtx
+        { txMetadata
+        , txDelegationAction
+        , txWithdrawal
+        } = ctx
+
     numberOf_Inputs
-        = toInteger $ length $ CS.inputs cs
+        = toInteger $ UTxOIndex.size inps
 
     numberOf_CertificateSignatures
-        = maybe 0 (const 1) action
+        = maybe 0 (const 1) txDelegationAction
 
     numberOf_Withdrawals
-        = if CS.withdrawal cs > 0 then 1 else 0
+        = if txWithdrawal > Coin 0 then 1 else 0
 
     numberOf_VkeyWitnesses
-        = case witTag of
+        = case witnessTag of
             TxWitnessByronUTxO{} -> 0
             TxWitnessShelleyUTxO ->
                 numberOf_Inputs
@@ -470,7 +509,7 @@ estimateTxSize witTag md action cs =
                 + numberOf_CertificateSignatures
 
     numberOf_BootstrapWitnesses
-        = case witTag of
+        = case witnessTag of
             TxWitnessByronUTxO{} -> numberOf_Inputs
             TxWitnessShelleyUTxO -> 0
 
@@ -516,8 +555,8 @@ estimateTxSize witTag md action cs =
         sizeOf_Outputs
             = sizeOf_SmallUInt
             + sizeOf_Array
-            + sum (sizeOf_Output <$> CS.outputs cs)
-            + sum (sizeOf_ChangeOutput <$> CS.change cs)
+            + F.sum (sizeOf_Output <$> outs)
+            + F.sum (sizeOf_ChangeOutput <$> chgs)
 
         -- 2 => fee
         sizeOf_Fee
@@ -531,7 +570,7 @@ estimateTxSize witTag md action cs =
 
         -- ?4 => [* certificates ]
         sizeOf_Certificates
-            = case action of
+            = case txDelegationAction of
                 Nothing ->
                     0
                 Just RegisterKeyAndJoin{} ->
@@ -559,13 +598,13 @@ estimateTxSize witTag md action cs =
 
         -- ?7 => metadata_hash
         sizeOf_MetadataHash
-            = maybe 0 (const (sizeOf_SmallUInt + sizeOf_Hash32)) md
+            = maybe 0 (const (sizeOf_SmallUInt + sizeOf_Hash32)) txMetadata
 
     -- For metadata, we can't choose a reasonable upper bound, so it's easier to
     -- measure the serialize data since we have it anyway. When it's "empty",
     -- metadata are represented by a special "null byte" in CBOR `F6`.
     sizeOf_Metadata
-        = maybe 1 (toInteger . BS.length . serialiseToCBOR) md
+        = maybe 1 (toInteger . BS.length . serialiseToCBOR) txMetadata
 
     -- transaction_input =
     --   [ transaction_id : $hash32
@@ -577,16 +616,26 @@ estimateTxSize witTag md action cs =
         + sizeOf_UInt
 
     -- transaction_output =
-    --   [address, amount : coin]
+    --   [address, amount : value]
+    -- value =
+    --   coin / [coin,multiasset<uint>]
     sizeOf_Output TxOut {address, tokens}
         = sizeOf_SmallArray
         + sizeOf_Address address
+        + sizeOf_SmallArray
         + sizeOf_Coin (TokenBundle.getCoin tokens)
+        + F.foldl' (\t -> (t +) . sizeOf_NativeAsset) 0 (TokenBundle.getAssets tokens)
 
-    sizeOf_ChangeOutput c
+    -- transaction_output =
+    --   [address, amount : value]
+    -- value =
+    --   coin / [coin,multiasset<uint>]
+    sizeOf_ChangeOutput xs
         = sizeOf_SmallArray
         + sizeOf_ChangeAddress
-        + sizeOf_Coin c
+        + sizeOf_SmallArray
+        + sizeOf_LargeUInt
+        + F.foldl' (\t -> (t +) . sizeOf_NativeAsset) 0 xs
 
     -- stake_registration =
     --   (0, stake_credential)
@@ -628,9 +677,23 @@ estimateTxSize witTag md action cs =
     -- discriminate based on the network as well since testnet addresses are
     -- larger than mainnet ones. But meh.
     sizeOf_ChangeAddress
-        = case witTag of
+        = case witnessTag of
             TxWitnessByronUTxO{} -> 85
             TxWitnessShelleyUTxO -> 59
+
+    -- multiasset<a> = { * policy_id => { * asset_name => a } }
+    -- policy_id = scripthash
+    -- asset_name = bytes .size (0..32)
+    sizeOf_NativeAsset AssetId{tokenName}
+        = sizeOf_SmallMap -- NOTE: Assuming < 23 policies per output
+        + sizeOf_Hash28
+        + sizeOf_SmallMap -- NOTE: Assuming < 23 assets per policy
+        + sizeOf_AssetName tokenName
+        + sizeOf_LargeUInt
+
+    -- asset_name = bytes .size (0..32)
+    sizeOf_AssetName name
+        = 2 + toInteger (BS.length $ unTokenName name)
 
     -- Coins can really vary so it's very punishing to always assign them the
     -- upper bound. They will typically be between 3 and 9 bytes (only 6 bytes
@@ -774,27 +837,25 @@ withShelleyBasedEra era fn = case era of
 mkUnsignedTx
     :: ShelleyBasedEra era
     -> Cardano.SlotNo
-    -> CoinSelection
+    -> SelectionResult TxOut
     -> Maybe Cardano.TxMetadata
     -> [(Cardano.StakeAddress, Cardano.Lovelace)]
     -> [Cardano.Certificate]
+    -> Cardano.Lovelace
     -> Either ErrMkTx (Cardano.TxBody era)
-mkUnsignedTx era ttl cs md wdrls certs =
+mkUnsignedTx era ttl cs md wdrls certs fees =
     case era of
         ShelleyBasedEraShelley -> mkShelleyTx
         ShelleyBasedEraAllegra -> mkAllegraTx
         ShelleyBasedEraMary    -> mkMaryTx
   where
-    fees :: Cardano.Lovelace
-    fees = toCardanoLovelace $ Coin $ feeBalance cs
-
     mkShelleyTx :: Either ErrMkTx (Cardano.TxBody ShelleyEra)
     mkShelleyTx = left toErrMkTx $ Cardano.makeTransactionBody $ Cardano.TxBodyContent
         { Cardano.txIns =
-            toCardanoTxIn . fst <$> CS.inputs cs
+            toCardanoTxIn . fst <$> F.toList (inputsSelected cs)
 
         , Cardano.txOuts =
-            toShelleyTxOut <$> CS.outputs cs
+            toShelleyTxOut <$> (outputsCovered cs ++ F.toList (changeGenerated cs))
 
         , Cardano.txWithdrawals =
             Cardano.TxWithdrawals Cardano.WithdrawalsInShelleyEra wdrls
@@ -832,10 +893,10 @@ mkUnsignedTx era ttl cs md wdrls certs =
     mkAllegraTx :: Either ErrMkTx (Cardano.TxBody AllegraEra)
     mkAllegraTx = left toErrMkTx $ Cardano.makeTransactionBody $ Cardano.TxBodyContent
         { Cardano.txIns =
-            toCardanoTxIn . fst <$> CS.inputs cs
+            toCardanoTxIn . fst <$> F.toList (inputsSelected cs)
 
         , Cardano.txOuts =
-            toAllegraTxOut <$> CS.outputs cs
+            toAllegraTxOut <$> (outputsCovered cs ++ F.toList (changeGenerated cs))
 
         , Cardano.txWithdrawals =
             Cardano.TxWithdrawals Cardano.WithdrawalsInAllegraEra wdrls
@@ -873,10 +934,10 @@ mkUnsignedTx era ttl cs md wdrls certs =
 
     mkMaryTx = left toErrMkTx $ Cardano.makeTransactionBody $ Cardano.TxBodyContent
         { Cardano.txIns =
-            toCardanoTxIn . fst <$> CS.inputs cs
+            toCardanoTxIn . fst <$> F.toList (inputsSelected cs)
 
         , Cardano.txOuts =
-            toMaryTxOut <$> CS.outputs cs
+            toMaryTxOut <$> (outputsCovered cs ++ F.toList (changeGenerated cs))
 
         , Cardano.txWithdrawals =
             Cardano.TxWithdrawals Cardano.WithdrawalsInMaryEra wdrls
@@ -913,11 +974,11 @@ mkUnsignedTx era ttl cs md wdrls certs =
 mkWithdrawals
     :: NetworkId
     -> RewardAccount
-    -> Word64
+    -> Coin
     -> [(Cardano.StakeAddress, Cardano.Lovelace)]
 mkWithdrawals networkId acc amount
-    | amount == 0 = mempty
-    | otherwise   = [ (stakeAddress, toCardanoLovelace $ Coin amount) ]
+    | amount == Coin 0 = mempty
+    | otherwise = [ (stakeAddress, toCardanoLovelace amount) ]
   where
     cred = toCardanoStakeCredential acc
     stakeAddress = Cardano.makeStakeAddress networkId cred

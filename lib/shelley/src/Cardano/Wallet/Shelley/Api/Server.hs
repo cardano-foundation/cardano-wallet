@@ -271,7 +271,7 @@ server byron icarus shelley spl ntp =
 
     shelleyMigrations :: Server (ShelleyMigrations n)
     shelleyMigrations =
-             getMigrationInfo @_ @_ @n shelley
+             getMigrationInfo @_ @_ shelley
         :<|> migrateWallet shelley
 
     stakePools :: Server (StakePools n ApiStakePool)
@@ -410,8 +410,8 @@ server byron icarus shelley spl ntp =
     byronMigrations :: Server (ByronMigrations n)
     byronMigrations =
              (\wid -> withLegacyLayer wid
-                (byron , getMigrationInfo @_ @_ @n byron wid)
-                (icarus, getMigrationInfo @_ @_ @n icarus wid)
+                (byron , getMigrationInfo @_ @_ byron wid)
+                (icarus, getMigrationInfo @_ @_ icarus wid)
              )
         :<|> (\wid m -> withLegacyLayer wid
                 (byron , migrateWallet byron wid m)
