@@ -119,7 +119,7 @@ import Control.Monad
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Except
-    ( ExceptT (..), mapExceptT, runExceptT )
+    ( ExceptT (..), runExceptT )
 import Control.Monad.Trans.State
     ( State, evalState, state )
 import Control.Retry
@@ -270,8 +270,7 @@ newStakePoolLayer gcStatus nl db@DBLayer {..} restartSyncThread = do
         -> Coin
         -> ExceptT ErrListPools IO [Api.ApiStakePool]
     _listPools currentEpoch userStake = do
-        rawLsqData <- mapExceptT (fmap (first ErrListPoolsQueryFailed))
-            $ stakeDistribution nl userStake
+        rawLsqData <- liftIO $ stakeDistribution nl userStake
         let lsqData = combineLsqData rawLsqData
         dbData <- liftIO $ readPoolDbData db currentEpoch
         seed <- liftIO $ atomically readSystemSeed

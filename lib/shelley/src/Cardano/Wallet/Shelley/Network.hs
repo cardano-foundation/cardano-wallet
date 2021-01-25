@@ -343,7 +343,7 @@ withNetworkLayerBase tr np conn (versionData, _) action = do
             era <- liftIO readCurrentNodeEra
             _postTx localTxSubmissionQ era sealed
         , stakeDistribution =
-            liftIO . _stakeDistribution queryRewardQ
+            _stakeDistribution queryRewardQ
         , getAccountBalance =
             _getAccountBalance rewardsObserver
         , timeInterpreter =
@@ -490,7 +490,7 @@ withNetworkLayerBase tr np conn (versionData, _) action = do
             queue `send` (SomeLSQ qry )
 
         -- The result will be Nothing if query occurs during the byron era
-        liftIO $ traceWith tr $ MsgFetchStakePoolsData mres
+        traceWith tr $ MsgFetchStakePoolsData mres
         case mres of
             Just res@W.StakePoolsSummary{rewards,stake} -> do
                 liftIO $ traceWith tr $ MsgFetchStakePoolsDataSummary

@@ -227,11 +227,7 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.DB
     ( DBFactory (..) )
 import Cardano.Wallet.Network
-    ( ErrNetworkUnavailable (..)
-    , ErrStakeDistribution (..)
-    , NetworkLayer
-    , timeInterpreter
-    )
+    ( ErrNetworkUnavailable (..), NetworkLayer, timeInterpreter )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( DelegationAddress (..)
     , Depth (..)
@@ -2790,17 +2786,7 @@ instance LiftHandler ErrWithdrawalNotWorth where
 
 instance LiftHandler ErrListPools where
     handler = \case
-        ErrListPoolsQueryFailed e -> handler e
         ErrListPoolsPastHorizonException e -> handler e
-
-instance LiftHandler ErrStakeDistribution where
-    handler = \case
-        ErrStakeDistributionQuery _e ->
-            apiError err503 NetworkQueryFailed $ mconcat
-                [ "Unable to query the ledger at the moment. "
-                , "This error has been logged. "
-                , "Trying again in a bit might work."
-                ]
 
 instance LiftHandler ErrSignMetadataWith where
     handler = \case
