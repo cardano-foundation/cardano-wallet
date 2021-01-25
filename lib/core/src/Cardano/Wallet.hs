@@ -156,7 +156,7 @@ module Cardano.Wallet
     , ErrWrongPassphrase (..)
     , ErrSignMetadataWith (..)
     , ErrDerivePublicKey(..)
-    , ErrGetAccountPublicKey(..)
+    , ErrReadAccountPublicKey(..)
     , ErrInvalidDerivationIndex(..)
 
     -- * Logging
@@ -1949,42 +1949,27 @@ derivePublicKey ctx wid role_ ix = db & \DBLayer{..} -> do
 readPublicAccountKey
     :: forall ctx s k n.
         ( HasDBLayer s k ctx
+        , HardDerivation k
+        , WalletKey k
         , s ~ SeqState n k
         )
     => ctx
     -> WalletId
     -> Passphrase "raw"
     -> DerivationIndex
-    -> ExceptT ErrGetAccountPublicKey IO (k 'AccountK XPub)
-readPublicAccountKey ctx _wid _pwd ix = db & \DBLayer{..} -> do
-    _accIx <- withExceptT ErrGetAccountPublicKeyInvalidIndex $ guardHardIndex ix
-    undefined
-{--
+    -> ExceptT ErrReadAccountPublicKey IO (k 'AccountK XPub)
+readPublicAccountKey ctx wid pwd ix = db & \DBLayer{..} -> do
+    acctIx <- withExceptT ErrReadAccountPublicKeyInvalidIndex $ guardHardIndex ix
+
     _cp <- mapExceptT atomically
-        $ withExceptT ErrGetAccountPublicKeyNoSuchWallet
+        $ withExceptT ErrReadAccountPublicKeyNoSuchWallet
         $ withNoSuchWallet wid
         $ readCheckpoint (PrimaryKey wid)
 
-    withRootKey @ctx @s @k ctx wid pwd ErrSignMetadataWithRootKey
+    withRootKey @ctx @s @k ctx wid pwd ErrReadAccountPublicKeyRootKey
         $ \rootK scheme -> do
             let encPwd = preparePassphrase scheme pwd
-            let DerivationPrefix (_, _, acctIx) = derivationPrefix (getState cp)
-            let acctK = deriveAccountPrivateKey encPwd rootK acctIx
-            let addrK = deriveAddressPrivateKey encPwd acctK role_ addrIx
-            let msg   = serialiseToCBOR metadata
-            pure $ Signature $ BA.convert $ CC.sign encPwd (getRawKey addrK) msg
-  where
-    db = ctx ^. dbLayer @s @k
-
-    cp <- mapExceptT atomically
-        $ withExceptT ErrGetAccountPublicKeyNoSuchWallet
-        $ withNoSuchWallet wid
-        $ readCheckpoint (PrimaryKey wid)
-
-    let acctK = Seq.accountPubKey $ Seq.externalPool $ getState cp
-
-    return acctK
---}
+            pure $ publicKey $ deriveAccountPrivateKey encPwd rootK acctIx
   where
     db = ctx ^. dbLayer @s @k
 
@@ -2028,25 +2013,19 @@ data ErrDerivePublicKey
         -- ^ User provided a derivation index outside of the 'Soft' domain
     deriving (Eq, Show)
 
-data ErrGetAccountPublicKey
-    = ErrGetAccountPublicKeyNoSuchWallet ErrNoSuchWallet
+data ErrReadAccountPublicKey
+    = ErrReadAccountPublicKeyNoSuchWallet ErrNoSuchWallet
         -- ^ The wallet doesn't exist?
-    | ErrGetAccountPublicKeyInvalidIndex (ErrInvalidDerivationIndex 'Hardened 'AccountK)
+    | ErrReadAccountPublicKeyInvalidIndex (ErrInvalidDerivationIndex 'Hardened 'AccountK)
         -- ^ User provided a derivation index outside of the 'Hard' domain
-    | ErrGetAccountPublicKeyRootKey ErrWithRootKey
+    | ErrReadAccountPublicKeyRootKey ErrWithRootKey
         -- ^ The wallet exists, but there's no root key attached to it
     deriving (Eq, Show)
 
-{--
-data ErrInvalidDerivationIndex
-    = ErrIndexTooHigh (Index 'Soft 'AddressK) DerivationIndex
-    deriving (Eq, Show)
---}
 data ErrInvalidDerivationIndex derivation level
     = ErrIndexTooHigh (Index derivation level) DerivationIndex
     | ErrIndexTooLow (Index derivation level) DerivationIndex
     deriving (Eq, Show)
-
 
 -- | Errors that can occur when listing UTxO statistics.
 newtype ErrListUTxOStatistics

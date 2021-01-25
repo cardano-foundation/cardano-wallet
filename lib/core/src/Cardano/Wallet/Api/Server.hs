@@ -113,7 +113,6 @@ import Cardano.Wallet
     , ErrDecodeSignedTx (..)
     , ErrDerivePublicKey (..)
     , ErrFetchRewards (..)
-    , ErrGetAccountPublicKey (..)
     , ErrGetTransaction (..)
     , ErrImportAddress (..)
     , ErrImportRandomAddress (..)
@@ -127,6 +126,7 @@ import Cardano.Wallet
     , ErrNotASequentialWallet (..)
     , ErrPostTx (..)
     , ErrQuitStakePool (..)
+    , ErrReadAccountPublicKey (..)
     , ErrReadRewardAccount (..)
     , ErrRemoveTx (..)
     , ErrSelectAssets (..)
@@ -1857,6 +1857,7 @@ postAccountPublicKey
     :: forall ctx s k n.
         ( s ~ SeqState n k
         , ctx ~ ApiLayer s k
+        , HardDerivation k
         , WalletKey k
         )
     => ctx
@@ -2723,11 +2724,11 @@ instance LiftHandler ErrSignMetadataWith where
         ErrSignMetadataWithNoSuchWallet e -> handler e
         ErrSignMetadataWithInvalidIndex e -> handler e
 
-instance LiftHandler ErrGetAccountPublicKey where
+instance LiftHandler ErrReadAccountPublicKey where
     handler = \case
-        ErrGetAccountPublicKeyRootKey e -> handler e
-        ErrGetAccountPublicKeyNoSuchWallet e -> handler e
-        ErrGetAccountPublicKeyInvalidIndex e -> handler e
+        ErrReadAccountPublicKeyRootKey e -> handler e
+        ErrReadAccountPublicKeyNoSuchWallet e -> handler e
+        ErrReadAccountPublicKeyInvalidIndex e -> handler e
 
 instance LiftHandler ErrDerivePublicKey where
     handler = \case
