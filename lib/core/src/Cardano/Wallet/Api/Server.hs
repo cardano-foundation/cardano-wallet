@@ -1420,12 +1420,12 @@ postTransaction ctx genChange (ApiT wid) body = do
                 (acct, _) <- liftHandler $ W.readRewardAccount @_ @s @k @n wrk wid
                 wdrl <- liftHandler $ W.queryRewardBalance @_ wrk acct
                 (, selfRewardCredentials)
-                    <$> liftIO (W.readNextWithdrawal @_ @s @k wrk wid wdrl)
+                    <$> liftIO (W.readNextWithdrawal @_ @s @k wrk wdrl)
 
             Just (ExternalWithdrawal (ApiMnemonicT mw)) -> do
                 let (xprv, acct) = W.someRewardAccount @ShelleyKey mw
                 wdrl <- liftHandler (W.queryRewardBalance @_ wrk acct)
-                    >>= liftIO . W.readNextWithdrawal @_ @s @k wrk wid
+                    >>= liftIO . W.readNextWithdrawal @_ @s @k wrk
                 when (wdrl == Coin 0) $ do
                     liftHandler $ throwE ErrWithdrawalNotWorth
                 pure (wdrl, const (xprv, mempty))
@@ -1540,12 +1540,12 @@ postTransactionFee ctx (ApiT wid) body = do
             Just SelfWithdrawal -> do
                 (acct, _) <- liftHandler $ W.readRewardAccount @_ @s @k @n wrk wid
                 wdrl <- liftHandler $ W.queryRewardBalance @_ wrk acct
-                liftIO $ W.readNextWithdrawal @_ @s @k wrk wid wdrl
+                liftIO $ W.readNextWithdrawal @_ @s @k wrk wdrl
 
             Just (ExternalWithdrawal (ApiMnemonicT mw)) -> do
                 let (_, acct) = W.someRewardAccount @ShelleyKey mw
                 wdrl <- liftHandler $ W.queryRewardBalance @_ wrk acct
-                liftIO $ W.readNextWithdrawal @_ @s @k wrk wid wdrl
+                liftIO $ W.readNextWithdrawal @_ @s @k wrk wdrl
 
         fee <- liftHandler $ W.estimateFeeForPayment @_ @s @k wrk wid outs wdrl md
         pure $ apiFee fee
@@ -1845,16 +1845,8 @@ getNetworkParameters
 getNetworkParameters (_block0, genesisNp, _st) nl = do
     pp <- liftIO $ NW.currentProtocolParameters nl
     sp <- liftIO $ NW.currentSlottingParameters nl
-    let (apiNetworkParams, epochNoM) = toApiNetworkParameters genesisNp
-            { protocolParameters = pp, slottingParameters = sp }
-    case epochNoM of
-        Just epochNo -> do
-            (epochStartTime, _) <- liftIO $ interpretQuery ti $ timeOfEpoch epochNo
-            pure $ apiNetworkParams
-                { hardforkAt = Just $
-                    ApiEpochInfo (ApiT epochNo) epochStartTime }
-        Nothing ->
-            pure apiNetworkParams
+    let np = genesisNp { protocolParameters = pp, slottingParameters = sp }
+    liftIO $ toApiNetworkParameters np (interpretQuery ti . toApiEpochInfo)
   where
     ti :: TimeInterpreter IO
     ti = neverFails

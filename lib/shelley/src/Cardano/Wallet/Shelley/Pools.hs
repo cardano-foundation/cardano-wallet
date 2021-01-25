@@ -86,7 +86,6 @@ import Cardano.Wallet.Primitive.Types
     , PoolMetadataSource (..)
     , PoolRegistrationCertificate (..)
     , PoolRetirementCertificate (..)
-    , ProtocolParameters (..)
     , Settings (..)
     , SlotLength (..)
     , SlotNo (..)
@@ -577,7 +576,7 @@ monitorStakePools tr (NetworkParameters gp sp _pp) nl DBLayer{..} =
     forward
         :: IORef EpochNo
         -> NonEmpty (CardanoBlock StandardCrypto)
-        -> (BlockHeader, ProtocolParameters)
+        -> BlockHeader
         -> IO (FollowAction ())
     forward latestGarbageCollectionEpochRef blocks _ = do
         atomically $ forAllAndLastM blocks forAllBlocks forLastBlock

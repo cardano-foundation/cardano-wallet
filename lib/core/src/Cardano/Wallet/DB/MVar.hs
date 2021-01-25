@@ -41,14 +41,12 @@ import Cardano.Wallet.DB.Model
     , mPutDelegationCertificate
     , mPutDelegationRewardBalance
     , mPutPrivateKey
-    , mPutProtocolParameters
     , mPutTxHistory
     , mPutWalletMeta
     , mReadCheckpoint
     , mReadDelegationRewardBalance
     , mReadGenesisParameters
     , mReadPrivateKey
-    , mReadProtocolParameters
     , mReadTxHistory
     , mReadWalletMeta
     , mRemovePendingOrExpiredTx
@@ -92,9 +90,9 @@ newDBLayer timeInterpreter = do
                                       Wallets
         -----------------------------------------------------------------------}
 
-        { initializeWallet = \pk cp meta txs gp txp -> ExceptT $ do
+        { initializeWallet = \pk cp meta txs gp -> ExceptT $ do
             cp `deepseq` meta `deepseq`
-                alterDB errWalletAlreadyExists db (mInitializeWallet pk cp meta txs gp txp)
+                alterDB errWalletAlreadyExists db (mInitializeWallet pk cp meta txs gp)
 
         , removeWallet = ExceptT . alterDB errNoSuchWallet db . mRemoveWallet
 
@@ -188,12 +186,6 @@ newDBLayer timeInterpreter = do
         {-----------------------------------------------------------------------
                                  Protocol Parameters
         -----------------------------------------------------------------------}
-
-        , putProtocolParameters = \pk txp -> ExceptT $ do
-            txp `deepseq`
-                alterDB errNoSuchWallet db (mPutProtocolParameters pk txp)
-
-        , readProtocolParameters = readDB db . mReadProtocolParameters
 
         , readGenesisParameters = readDB db . mReadGenesisParameters
 

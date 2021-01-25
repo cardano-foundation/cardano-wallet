@@ -57,8 +57,6 @@ module Cardano.Wallet.DB.Model
     , mRemovePendingOrExpiredTx
     , mPutPrivateKey
     , mReadPrivateKey
-    , mPutProtocolParameters
-    , mReadProtocolParameters
     , mReadGenesisParameters
     , mPutDelegationRewardBalance
     , mReadDelegationRewardBalance
@@ -77,7 +75,6 @@ import Cardano.Wallet.Primitive.Types
     , EpochNo (..)
     , GenesisParameters (..)
     , PoolId
-    , ProtocolParameters (..)
     , Range (..)
     , SlotNo (..)
     , SortOrder (..)
@@ -158,7 +155,6 @@ data WalletDatabase s xprv = WalletDatabase
     , txHistory :: !(Map (Hash "Tx") TxMeta)
     , xprv :: !(Maybe xprv)
     , genesisParameters :: !GenesisParameters
-    , protocolParameters :: !ProtocolParameters
     , rewardAccountBalance :: !Coin
     } deriving (Show, Eq, Generic)
 
@@ -206,9 +202,8 @@ mInitializeWallet
     -> WalletMetadata
     -> TxHistory
     -> GenesisParameters
-    -> ProtocolParameters
     -> ModelOp wid s xprv ()
-mInitializeWallet wid cp meta txs0 gp pp db@Database{wallets,txs}
+mInitializeWallet wid cp meta txs0 gp db@Database{wallets,txs}
     | wid `Map.member` wallets = (Left (WalletAlreadyExists wid), db)
     | otherwise =
         let
@@ -220,7 +215,6 @@ mInitializeWallet wid cp meta txs0 gp pp db@Database{wallets,txs}
                 , txHistory = history
                 , xprv = Nothing
                 , genesisParameters = gp
-                , protocolParameters = pp
                 , rewardAccountBalance = minBound
                 }
             txs' = Map.fromList $ (\(tx, _) -> (txId tx, tx)) <$> txs0
@@ -482,16 +476,6 @@ mPutPrivateKey wid pk = alterModel wid $ \wal ->
 mReadPrivateKey :: Ord wid => wid -> ModelOp wid s xprv (Maybe xprv)
 mReadPrivateKey wid db@(Database wallets _) =
     (Right (Map.lookup wid wallets >>= xprv), db)
-
-mPutProtocolParameters
-    :: Ord wid => wid -> ProtocolParameters -> ModelOp wid s xprv ()
-mPutProtocolParameters wid pp = alterModel wid $ \wal ->
-    ((), wal { protocolParameters = pp })
-
-mReadProtocolParameters
-    :: Ord wid => wid -> ModelOp wid s xprv (Maybe ProtocolParameters)
-mReadProtocolParameters wid db@(Database wallets _) =
-    (Right (protocolParameters <$> Map.lookup wid wallets), db)
 
 mReadGenesisParameters
     :: Ord wid => wid -> ModelOp wid s xprv (Maybe GenesisParameters)

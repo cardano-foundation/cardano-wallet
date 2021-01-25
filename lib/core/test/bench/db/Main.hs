@@ -63,7 +63,7 @@ import Cardano.Wallet.DB
 import Cardano.Wallet.DB.Sqlite
     ( DefaultFieldValues (..), PersistState, newDBLayer )
 import Cardano.Wallet.DummyTarget.Primitive.Types
-    ( block0, dummyGenesisParameters, dummyProtocolParameters, mkTxId )
+    ( block0, dummyGenesisParameters, mkTxId )
 import Cardano.Wallet.Logging
     ( trMessageText )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -729,7 +729,6 @@ walletFixture db@DBLayer{..} = do
         testMetadata
         mempty
         dummyGenesisParameters
-        dummyProtocolParameters
 
 walletFixtureByron :: DBLayerBenchByron -> IO ()
 walletFixtureByron db@DBLayer{..} = do
@@ -740,7 +739,6 @@ walletFixtureByron db@DBLayer{..} = do
         testMetadata
         mempty
         dummyGenesisParameters
-        dummyProtocolParameters
 
 ----------------------------------------------------------------------------
 -- Disk space usage tests
