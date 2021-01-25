@@ -278,7 +278,7 @@ server byron icarus shelley spl ntp =
         listStakePools_ = \case
             Just (ApiT stake) -> do
                 currentEpoch <- getCurrentEpoch shelley
-                liftHandler $ listStakePools spl currentEpoch stake
+                liftIO $ listStakePools spl currentEpoch stake
             Nothing -> Handler $ throwE $ apiError err400 QueryParamMissing $
                 mconcat
                 [ "The stake intended to delegate must be provided as a query "

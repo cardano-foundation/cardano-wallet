@@ -52,8 +52,6 @@ import Cardano.Pool.Metadata
     , registryUrlBuilder
     , toHealthCheckSMASH
     )
-import Cardano.Wallet
-    ( ErrListPools (..) )
 import Cardano.Wallet.Api.Types
     ( ApiT (..), HealthCheckSMASH (..), toApiEpochInfo )
 import Cardano.Wallet.Byron.Compatibility
@@ -204,7 +202,7 @@ data StakePoolLayer = StakePoolLayer
         :: EpochNo
         -- Exclude all pools that retired in or before this epoch.
         -> Coin
-        -> ExceptT ErrListPools IO [Api.ApiStakePool]
+        -> IO [Api.ApiStakePool]
 
     , forceMetadataGC :: IO ()
 
@@ -268,7 +266,7 @@ newStakePoolLayer gcStatus nl db@DBLayer {..} restartSyncThread = do
         :: EpochNo
         -- Exclude all pools that retired in or before this epoch.
         -> Coin
-        -> ExceptT ErrListPools IO [Api.ApiStakePool]
+        -> IO [Api.ApiStakePool]
     _listPools currentEpoch userStake = do
         rawLsqData <- liftIO $ stakeDistribution nl userStake
         let lsqData = combineLsqData rawLsqData

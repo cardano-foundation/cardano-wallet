@@ -115,7 +115,6 @@ import Cardano.Wallet
     , ErrImportRandomAddress (..)
     , ErrInvalidDerivationIndex (..)
     , ErrJoinStakePool (..)
-    , ErrListPools (..)
     , ErrListTransactions (..)
     , ErrListUTxOStatistics (..)
     , ErrMkTx (..)
@@ -2783,10 +2782,6 @@ instance LiftHandler ErrWithdrawalNotWorth where
                 , "enough to deserve being withdrawn. I won't proceed with that "
                 , "request."
                 ]
-
-instance LiftHandler ErrListPools where
-    handler = \case
-        ErrListPoolsPastHorizonException e -> handler e
 
 instance LiftHandler ErrSignMetadataWith where
     handler = \case

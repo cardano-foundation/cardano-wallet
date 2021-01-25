@@ -172,9 +172,6 @@ module Cardano.Wallet
 
     -- * Logging
     , WalletLog (..)
-
-    -- * Stake pool listing
-    , ErrListPools (..)
     ) where
 
 import Prelude hiding
@@ -2568,10 +2565,6 @@ data ErrWithdrawalNotWorth
     = ErrWithdrawalNotWorth
     deriving (Generic, Eq, Show)
 
--- | Errors that can occur when trying to list stake pool.
-newtype ErrListPools
-    = ErrListPoolsPastHorizonException PastHorizonException
-    deriving (Show)
 {-------------------------------------------------------------------------------
                                    Utils
 -------------------------------------------------------------------------------}
