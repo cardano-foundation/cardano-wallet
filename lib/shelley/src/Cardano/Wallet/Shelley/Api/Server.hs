@@ -80,6 +80,7 @@ import Cardano.Wallet.Api.Server
     , migrateWallet
     , mkLegacyWallet
     , mkShelleyWallet
+    , postAccountPublicKey
     , postAccountWallet
     , postExternalTransaction
     , postIcarusWallet
@@ -226,7 +227,7 @@ server byron icarus shelley spl ntp =
     walletKeys :: Server WalletKeys
     walletKeys = derivePublicKey shelley
         :<|> signMetadata shelley
-        :<|> getAccountPublicKey shelley
+        :<|> postAccountPublicKey shelley
 
     assets :: Server Assets
     assets = listAssets shelley :<|> getAsset shelley :<|> getAssetDefault shelley

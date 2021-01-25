@@ -150,11 +150,13 @@ module Cardano.Wallet
     -- ** Root Key
     , withRootKey
     , derivePublicKey
+    , readPublicAccountKey
     , signMetadataWith
     , ErrWithRootKey (..)
     , ErrWrongPassphrase (..)
     , ErrSignMetadataWith (..)
     , ErrDerivePublicKey(..)
+    , ErrGetAccountPublicKey(..)
     , ErrInvalidDerivationIndex(..)
 
     -- * Logging
@@ -1914,7 +1916,7 @@ signMetadataWith ctx wid pwd (role_, ix) metadata = db & \DBLayer{..} -> do
   where
     db = ctx ^. dbLayer @s @k
 
--- | Derive public key of a wallet's account.
+-- | Derive public key from a wallet's account key.
 derivePublicKey
     :: forall ctx s k n.
         ( HasDBLayer s k ctx
@@ -1943,13 +1945,67 @@ derivePublicKey ctx wid role_ ix = db & \DBLayer{..} -> do
   where
     db = ctx ^. dbLayer @s @k
 
+-- | Retrieve public account key of a wallet.
+readPublicAccountKey
+    :: forall ctx s k n.
+        ( HasDBLayer s k ctx
+        , s ~ SeqState n k
+        )
+    => ctx
+    -> WalletId
+    -> Passphrase "raw"
+    -> DerivationIndex
+    -> ExceptT ErrGetAccountPublicKey IO (k 'AccountK XPub)
+readPublicAccountKey ctx _wid _pwd ix = db & \DBLayer{..} -> do
+    _accIx <- withExceptT ErrGetAccountPublicKeyInvalidIndex $ guardHardIndex ix
+    undefined
+{--
+    _cp <- mapExceptT atomically
+        $ withExceptT ErrGetAccountPublicKeyNoSuchWallet
+        $ withNoSuchWallet wid
+        $ readCheckpoint (PrimaryKey wid)
+
+    withRootKey @ctx @s @k ctx wid pwd ErrSignMetadataWithRootKey
+        $ \rootK scheme -> do
+            let encPwd = preparePassphrase scheme pwd
+            let DerivationPrefix (_, _, acctIx) = derivationPrefix (getState cp)
+            let acctK = deriveAccountPrivateKey encPwd rootK acctIx
+            let addrK = deriveAddressPrivateKey encPwd acctK role_ addrIx
+            let msg   = serialiseToCBOR metadata
+            pure $ Signature $ BA.convert $ CC.sign encPwd (getRawKey addrK) msg
+  where
+    db = ctx ^. dbLayer @s @k
+
+    cp <- mapExceptT atomically
+        $ withExceptT ErrGetAccountPublicKeyNoSuchWallet
+        $ withNoSuchWallet wid
+        $ readCheckpoint (PrimaryKey wid)
+
+    let acctK = Seq.accountPubKey $ Seq.externalPool $ getState cp
+
+    return acctK
+--}
+  where
+    db = ctx ^. dbLayer @s @k
+
 guardSoftIndex
     :: Monad m
     => DerivationIndex
-    -> ExceptT ErrInvalidDerivationIndex m (Index 'Soft whatever)
+    -> ExceptT (ErrInvalidDerivationIndex 'Soft 'AddressK) m (Index 'Soft whatever)
 guardSoftIndex ix =
     if ix > DerivationIndex (getIndex @'Soft maxBound)
     then throwE $ ErrIndexTooHigh maxBound ix
+    else pure (Index $ getDerivationIndex ix)
+
+guardHardIndex
+    :: Monad m
+    => DerivationIndex
+    -> ExceptT (ErrInvalidDerivationIndex 'Hardened 'AccountK) m (Index 'Hardened whatever)
+guardHardIndex ix =
+    if ix > DerivationIndex (getIndex @'Hardened maxBound)
+    then throwE $ ErrIndexTooHigh maxBound ix
+    else if ix <= DerivationIndex (getIndex @'Soft maxBound)
+    then throwE $ ErrIndexTooLow minBound ix
     else pure (Index $ getDerivationIndex ix)
 
 {-------------------------------------------------------------------------------
@@ -1961,20 +2017,36 @@ data ErrSignMetadataWith
         -- ^ The wallet exists, but there's no root key attached to it
     | ErrSignMetadataWithNoSuchWallet ErrNoSuchWallet
         -- ^ The wallet doesn't exist?
-    | ErrSignMetadataWithInvalidIndex ErrInvalidDerivationIndex
+    | ErrSignMetadataWithInvalidIndex (ErrInvalidDerivationIndex 'Soft 'AddressK)
         -- ^ User provided a derivation index outside of the 'Soft' domain
     deriving (Eq, Show)
 
 data ErrDerivePublicKey
     = ErrDerivePublicKeyNoSuchWallet ErrNoSuchWallet
         -- ^ The wallet doesn't exist?
-    | ErrDerivePublicKeyInvalidIndex ErrInvalidDerivationIndex
+    | ErrDerivePublicKeyInvalidIndex (ErrInvalidDerivationIndex 'Soft 'AddressK)
         -- ^ User provided a derivation index outside of the 'Soft' domain
     deriving (Eq, Show)
 
+data ErrGetAccountPublicKey
+    = ErrGetAccountPublicKeyNoSuchWallet ErrNoSuchWallet
+        -- ^ The wallet doesn't exist?
+    | ErrGetAccountPublicKeyInvalidIndex (ErrInvalidDerivationIndex 'Hardened 'AccountK)
+        -- ^ User provided a derivation index outside of the 'Hard' domain
+    | ErrGetAccountPublicKeyRootKey ErrWithRootKey
+        -- ^ The wallet exists, but there's no root key attached to it
+    deriving (Eq, Show)
+
+{--
 data ErrInvalidDerivationIndex
     = ErrIndexTooHigh (Index 'Soft 'AddressK) DerivationIndex
     deriving (Eq, Show)
+--}
+data ErrInvalidDerivationIndex derivation level
+    = ErrIndexTooHigh (Index derivation level) DerivationIndex
+    | ErrIndexTooLow (Index derivation level) DerivationIndex
+    deriving (Eq, Show)
+
 
 -- | Errors that can occur when listing UTxO statistics.
 newtype ErrListUTxOStatistics

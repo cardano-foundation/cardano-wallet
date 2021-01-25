@@ -586,6 +586,10 @@ x-walletPassphrase: &walletPassphrase
   maxLength: 255
   example: Secure Passphrase
 
+x-keyExtended: &keyExtended
+  description: Determines whether extended (with chain code) or normal (without chain code) key is requested
+  type: boolean
+
 x-lenientPassphrase: &lenientPassphrase
   description: A master passphrase to lock and protect the wallet for sensitive operation (e.g. sending funds)
   type: string
@@ -1600,7 +1604,7 @@ components:
     ApiAccountKey: &ApiAccountKey
       type: string
       format: bech32
-      pattern: "^(acct_xvk)1[0-9a-z]*$"
+      pattern: "^((acct_xvk)|(acct_vk))1[0-9a-z]*$"
 
     ApiTxId: &ApiTxId
       type: object
@@ -1984,6 +1988,17 @@ components:
       type: object
       properties:
         name: *walletName
+
+    ApiPostAccountKeyData: &ApiPostAccountKeyData
+      type: object
+      required:
+        - index
+        - passphrase
+        - extended
+      properties:
+        index: *derivationSegment
+        passphrase: *walletPassphrase
+        extended: *keyExtended
 
     ApiSettingsPutData: &ApiSettingsPutData
       type: object
@@ -3324,12 +3339,12 @@ x-responsesGetKey: &responsesGetKey
       application/json:
         schema: *ApiVerificationKey
 
-x-responsesGetAccountKey: &responsesGetAccountKey
+x-responsesPostAccountKey: &responsesPostAccountKey
   <<: *responsesErr400
-  <<: *responsesErr404
   <<: *responsesErr406
-  200:
-    description: Ok
+  <<: *responsesErr415
+  202:
+    description: Accepted
     content:
       application/json:
         schema: *ApiAccountKey
@@ -3831,19 +3846,23 @@ paths:
         - *parametersAddressState
       responses: *responsesListAddresses
 
-  /wallets/{walletId}/keys/{index}:
-    get:
-      operationId: getAccountExtendedKey
+  /wallets/{walletId}/keys:
+    post:
+      operationId: postAccountKey
       tags: ["Keys"]
-      summary: Get Account Extended Public Key
+      summary: Create
       description: |
         <p align="right">status: <strong>stable</strong></p>
 
-        Return an extended account public key for a given account index (hard derivation is used).
+        Retrieve account public key from the wallet.
       parameters:
         - *parametersWalletId
-        - *parametersDerivationSegment
-      responses: *responsesGetAccountKey
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: *ApiPostAccountKeyData
+      responses: *responsesPostAccountKey
 
   /wallets/{walletId}/keys/{role}/{index}:
     get:

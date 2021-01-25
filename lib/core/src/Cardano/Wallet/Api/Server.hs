@@ -80,7 +80,7 @@ module Cardano.Wallet.Api.Server
     , selectCoinsForJoin
     , selectCoinsForQuit
     , signMetadata
-    , getAccountPublicKey
+    , postAccountPublicKey
 
     -- * Internals
     , LiftHandler(..)
@@ -101,7 +101,7 @@ module Cardano.Wallet.Api.Server
 import Prelude
 
 import Cardano.Address.Derivation
-    ( XPrv, XPub, xpubPublicKey )
+    ( XPrv, XPub, xpubPublicKey, xpubToBytes )
 import Cardano.Api.Typed
     ( AnyCardanoEra (..), CardanoEra (..) )
 import Cardano.Mnemonic
@@ -113,6 +113,7 @@ import Cardano.Wallet
     , ErrDecodeSignedTx (..)
     , ErrDerivePublicKey (..)
     , ErrFetchRewards (..)
+    , ErrGetAccountPublicKey (..)
     , ErrGetTransaction (..)
     , ErrImportAddress (..)
     , ErrImportRandomAddress (..)
@@ -160,7 +161,7 @@ import Cardano.Wallet.Api.Server.Tls
 import Cardano.Wallet.Api.Types
     ( AccountPostData (..)
     , AddressAmount (..)
-    , ApiAccountKey
+    , ApiAccountKey (..)
     , ApiAccountPublicKey (..)
     , ApiAddress (..)
     , ApiAsset (..)
@@ -182,6 +183,7 @@ import Cardano.Wallet.Api.Types
     , ApiNetworkInformation
     , ApiNetworkParameters (..)
     , ApiPoolId (..)
+    , ApiPostAccountKeyData (..)
     , ApiPostRandomAddressData (..)
     , ApiPutAddressesData (..)
     , ApiSelectCoinsPayments
@@ -1851,18 +1853,21 @@ derivePublicKey ctx (ApiT wid) (ApiT role_) (ApiT ix) = do
         k <- liftHandler $ W.derivePublicKey @_ @s @k @n wrk wid role_ ix
         pure $ ApiVerificationKey (xpubPublicKey $ getRawKey k, role_)
 
-getAccountPublicKey
+postAccountPublicKey
     :: forall ctx s k n.
         ( s ~ SeqState n k
         , ctx ~ ApiLayer s k
-        , SoftDerivation k
         , WalletKey k
         )
     => ctx
     -> ApiT WalletId
-    -> ApiT DerivationIndex
+    -> ApiPostAccountKeyData
     -> Handler ApiAccountKey
-getAccountPublicKey _ctx (ApiT _wid) (ApiT _ix) = undefined
+postAccountPublicKey ctx (ApiT wid) (ApiPostAccountKeyData (ApiT ix) (ApiT pwd) extd) = do
+    withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk -> do
+        k <- liftHandler $ W.readPublicAccountKey @_ @s @k @n wrk wid pwd ix
+        let toBytes = if extd then xpubToBytes else xpubPublicKey
+        pure $ ApiAccountKey (toBytes $ getRawKey k) extd
 
 {-------------------------------------------------------------------------------
                                   Helpers
@@ -2718,12 +2723,18 @@ instance LiftHandler ErrSignMetadataWith where
         ErrSignMetadataWithNoSuchWallet e -> handler e
         ErrSignMetadataWithInvalidIndex e -> handler e
 
+instance LiftHandler ErrGetAccountPublicKey where
+    handler = \case
+        ErrGetAccountPublicKeyRootKey e -> handler e
+        ErrGetAccountPublicKeyNoSuchWallet e -> handler e
+        ErrGetAccountPublicKeyInvalidIndex e -> handler e
+
 instance LiftHandler ErrDerivePublicKey where
     handler = \case
         ErrDerivePublicKeyNoSuchWallet e -> handler e
         ErrDerivePublicKeyInvalidIndex e -> handler e
 
-instance LiftHandler ErrInvalidDerivationIndex where
+instance LiftHandler (ErrInvalidDerivationIndex 'Soft level) where
     handler = \case
         ErrIndexTooHigh maxIx _ix ->
             apiError err403 SoftDerivationRequired $ mconcat
@@ -2731,6 +2742,13 @@ instance LiftHandler ErrInvalidDerivationIndex where
                 , "out of bound. The index is well-formed, but I require "
                 , "indexes valid for soft derivation only. That is, indexes "
                 , "between 0 and ", pretty maxIx, " without a suffix."
+                ]
+        ErrIndexTooLow minIx _ix ->
+            apiError err403 SoftDerivationRequired $ mconcat
+                [ "It looks like you've provided a derivation index that is "
+                , "out of bound. The index is well-formed, but I require "
+                , "indexes valid for soft derivation only. That is, indexes "
+                , "between ", pretty minIx, " and 2147483647 without a suffix."
                 ]
 
 instance LiftHandler ErrSelectAssets where
@@ -2792,6 +2810,25 @@ instance LiftHandler ErrSelectAssets where
                         , "proceed; try increasing your wallet balance as such, "
                         , "or try sending a different, smaller payment."
                         ]
+
+instance LiftHandler (ErrInvalidDerivationIndex 'Hardened level) where
+    handler = \case
+        ErrIndexTooHigh maxIx _ix ->
+            apiError err403 HardenedDerivationRequired $ mconcat
+                [ "It looks like you've provided a derivation index that is "
+                , "out of bound. The index is well-formed, but I require "
+                , "indexes valid for hardened derivation only. That is, indexes "
+                , "between 2147483648 (0H) and ", pretty maxIx, "(2147483647H) "
+                , "with a suffix 'H'."
+                ]
+        ErrIndexTooLow minIx _ix ->
+            apiError err403 HardenedDerivationRequired $ mconcat
+                [ "It looks like you've provided a derivation index that is "
+                , "out of bound. The index is well-formed, but I require "
+                , "indexes valid for soft derivation only. That is, indexes "
+                , "between ", pretty minIx, " (0H) and 4294967295 (2147483647H) "
+                , "with a suffix 'H'."
+                ]
 
 instance LiftHandler (Request, ServerError) where
     handler (req, err@(ServerError code _ body headers))
