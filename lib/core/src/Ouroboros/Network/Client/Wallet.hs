@@ -473,9 +473,6 @@ data LocalStateQueryCmd block m = forall a. SomeLSQ
 --                │               │◀────────────┤          │
 --                └───────────────┘     Result  └──────────┘
 --
--- NOTE: Using AnyCardanoEra arguably goes against the grain of the abstract
--- block type. We might be able to use the (Header block) as replacemet for
--- (AnyCardanoEra, Tip block).
 localStateQuery
     :: forall m block . (MonadIO m, MonadSTM m)
     => TQueue m (LocalStateQueryCmd block m)
