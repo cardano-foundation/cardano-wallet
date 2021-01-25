@@ -151,8 +151,7 @@ data NetworkLayer m block = NetworkLayer
         -- ^ Broadcast a transaction to the chain producer
 
     , stakeDistribution
-        :: BlockHeader -- Point of interest
-        -> Coin -- Stake to consider for rewards
+        :: Coin -- Stake to consider for rewards
         -> ExceptT ErrStakeDistribution m StakePoolsSummary
 
     , getAccountBalance

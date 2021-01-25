@@ -270,9 +270,8 @@ newStakePoolLayer gcStatus nl db@DBLayer {..} restartSyncThread = do
         -> Coin
         -> ExceptT ErrListPools IO [Api.ApiStakePool]
     _listPools currentEpoch userStake = do
-        tip <- liftIO $ currentNodeTip nl
         rawLsqData <- mapExceptT (fmap (first ErrListPoolsQueryFailed))
-            $ stakeDistribution nl tip userStake
+            $ stakeDistribution nl userStake
         let lsqData = combineLsqData rawLsqData
         dbData <- liftIO $ readPoolDbData db currentEpoch
         seed <- liftIO $ atomically readSystemSeed

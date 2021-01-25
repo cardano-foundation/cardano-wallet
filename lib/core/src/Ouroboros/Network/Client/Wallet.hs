@@ -31,9 +31,10 @@ module Ouroboros.Network.Client.Wallet
     , localTxSubmission
 
       -- * LocalStateQuery
+    , LSQ (..)
     , LocalStateQueryCmd (..)
-    , LocalStateQueryResult
     , localStateQuery
+    , query
 
       -- * Helpers
     , send
@@ -53,6 +54,8 @@ import Cardano.Slotting.Slot
     ( WithOrigin (..) )
 import Cardano.Wallet.Network
     ( NextBlocksResult (..) )
+import Control.Monad
+    ( ap, liftM )
 import Control.Monad.Class.MonadSTM
     ( MonadSTM
     , TQueue
@@ -67,6 +70,8 @@ import Control.Monad.Class.MonadSTM
     )
 import Control.Monad.Class.MonadThrow
     ( MonadThrow )
+import Control.Monad.IO.Class
+    ( MonadIO )
 import Control.Tracer
     ( Tracer, traceWith )
 import Data.Functor
@@ -104,12 +109,7 @@ import Ouroboros.Network.Protocol.ChainSync.Client
 import Ouroboros.Network.Protocol.ChainSync.ClientPipelined
     ( ChainSyncClientPipelined (..) )
 import Ouroboros.Network.Protocol.LocalStateQuery.Client
-    ( ClientStAcquiring (..)
-    , ClientStQuerying (..)
-    , LocalStateQueryClient (..)
-    )
-import Ouroboros.Network.Protocol.LocalStateQuery.Type
-    ( AcquireFailure )
+    ( ClientStAcquiring (..), LocalStateQueryClient (..) )
 import Ouroboros.Network.Protocol.LocalTxSubmission.Client
     ( LocalTxClientStIdle (..), LocalTxSubmissionClient (..) )
 import Ouroboros.Network.Protocol.LocalTxSubmission.Type
@@ -440,15 +440,10 @@ chainSyncWithBlocks tr fromTip queue responseBuffer =
 --
 -- LocalStateQuery
 
--- | Command to send to the localStateQuery client. See also 'ChainSyncCmd'.
-data LocalStateQueryCmd block (m :: * -> *)
-    = forall state. CmdQueryLocalState
-        (Point block)
-        (Query block state)
-        (LocalStateQueryResult state -> m ())
-
--- | Shorthand for the possible outcomes of acquiring local state parameters.
-type LocalStateQueryResult state = Either AcquireFailure state
+---- | Command to send to the localStateQuery client. See also 'ChainSyncCmd'.
+data LocalStateQueryCmd block m = forall a. SomeLSQ
+    (LSQ block m a)
+    (a -> m ())
 
 -- | Client for the 'Local State Query' mini-protocol.
 --
@@ -458,26 +453,28 @@ type LocalStateQueryResult state = Either AcquireFailure state
 --     Server has agency*                | Acquiring, Querying
 --     * A peer has agency if it is expected to send the next message.
 --
---
---                ┌───────────────┐    Done      ┌───────────────┐
---        ┌──────▶│     Idle      ├─────────────▶│     Done      │
---        │       └───┬───────────┘              └───────────────┘
+--                ┌───────────────┐    Done      ┌──────────┐
+--        ┌──────▶│     Idle      ├─────────────▶│   Done   │
+--        │       └───┬───────────┘              └──────────┘
 --        │           │       ▲
 --        │   Acquire │       │
 --        │           │       │ Failure
 --        │           ▼       │
---        │       ┌───────────┴───┐              Result
---        │       │   Acquiring   │◀─────────────────────┐
---        │       └───┬───────────┘                      │
--- Release│           │       ▲                          │
---        │           │       │                          │
---        │  Acquired ▼       │ ReAcquire                │
---        │       ┌───────────┴───┐             ┌────────┴───────┐
---        └───────┤   Acquired    │────────────>│   Querying     │
---                └───────────────┘             └────────────────┘
+--        │       ┌───────────┴───┐
+--        │       │   Acquiring   │
+--        │       └───┬───────────┘
+-- Release│           │       ▲
+--        │           │       │
+--        │  Acquired │       │ ReAcquire
+--        │           │       │
+--        │           ▼       │
+--        │       ┌───────────┴───┐   Query     ┌──────────┐
+--        └───────┤   Acquired    ├────────────▶│ Querying │
+--                │               │◀────────────┤          │
+--                └───────────────┘     Result  └──────────┘
 --
 localStateQuery
-    :: forall m block . (MonadThrow m, MonadSTM m)
+    :: forall m block . (MonadIO m, MonadSTM m)
     => TQueue m (LocalStateQueryCmd block m)
         -- ^ We use a 'TQueue' as a communication channel to drive queries from
         -- outside of the network client to the client itself.
@@ -489,47 +486,71 @@ localStateQuery queue =
   where
     clientStIdle
         :: m (LSQ.ClientStIdle block (Point block) (Query block) m Void)
-    clientStIdle = awaitNextCmd <&> \case
-        CmdQueryLocalState pt query respond ->
-            LSQ.SendMsgAcquire (Just pt) (clientStAcquiring query respond)
+    clientStIdle =
+        LSQ.SendMsgAcquire Nothing . clientStAcquiring <$> awaitNextCmd
 
     clientStAcquiring
-        :: forall state. Query block state
-        -> (LocalStateQueryResult state -> m ())
+        :: LocalStateQueryCmd block m
         -> LSQ.ClientStAcquiring block (Point block) (Query block) m Void
-    clientStAcquiring query respond = LSQ.ClientStAcquiring
-        { recvMsgAcquired = clientStAcquired query respond
-        , recvMsgFailure = \failure -> do
-                respond (Left failure)
-                clientStIdle
+    clientStAcquiring qry = LSQ.ClientStAcquiring
+        { recvMsgAcquired = clientStAcquired qry
+        , recvMsgFailure = \_failure -> do
+            pure $ LSQ.SendMsgAcquire Nothing (clientStAcquiring qry)
         }
 
     clientStAcquired
-        :: forall state. Query block state
-        -> (LocalStateQueryResult state -> m ())
-        -> LSQ.ClientStAcquired block (Point block) (Query block) m Void
-    clientStAcquired query respond =
-        LSQ.SendMsgQuery query (clientStQuerying respond)
-
-    -- By re-acquiring rather releasing the state with 'MsgRelease' it
-    -- enables optimisations on the server side.
-    clientStAcquiredAgain
-        :: m (LSQ.ClientStAcquired block (Point block) (Query block) m Void)
-    clientStAcquiredAgain = awaitNextCmd <&> \case
-        CmdQueryLocalState pt query respond ->
-            LSQ.SendMsgReAcquire (Just pt) (clientStAcquiring query respond)
-
-    clientStQuerying
-        :: forall state. (LocalStateQueryResult state -> m ())
-        -> LSQ.ClientStQuerying block (Point block) (Query block) m Void state
-    clientStQuerying respond = LSQ.ClientStQuerying
-        { recvMsgResult = \result -> do
-            respond (Right result)
-            clientStAcquiredAgain
-        }
+        :: LocalStateQueryCmd block m
+        -> (LSQ.ClientStAcquired block (Point block) (Query block) m Void)
+    clientStAcquired (SomeLSQ cmd respond) = go cmd $ \res -> do
+        LSQ.SendMsgRelease (respond res >> clientStIdle)
+            -- We /could/ read all LocalStateQueryCmds from the TQueue, and run
+            -- them against the same tip, if re-acquiring takes a long time. As
+            -- of Jan 2021, it seems like queries themselves take significantly
+            -- longer than the acquiring.
+      where
+          go
+              :: forall a. LSQ block m a
+              -> (a -> (LSQ.ClientStAcquired block (Point block) (Query block) m Void))
+              -> (LSQ.ClientStAcquired block (Point block) (Query block) m Void)
+          go (LSQPure a) cont = cont a
+          go (LSQry qry) cont = LSQ.SendMsgQuery qry $ LSQ.ClientStQuerying $ \res -> do
+              pure $ cont res
+              -- It would be nice to trace the time it takes to run the
+              -- queries. We don't have a good opportunity to run IO after a
+              -- point is acquired, but before the query is send, however.
+          go (LSQBind ma f) cont = go ma $ \a -> do
+              go (f a) $ \b -> cont b
 
     awaitNextCmd :: m (LocalStateQueryCmd block m)
     awaitNextCmd = atomically $ readTQueue queue
+
+-- | Monad for composing local state queries for the node /tip/.
+--
+-- /Warning/: Partial functions inside the @LSQ@ monad may cause the entire
+-- wallet to crash when interpreted by @localStateQuery@.
+data LSQ block (m :: * -> *) a where
+    LSQPure :: a -> LSQ block m a
+    LSQBind :: LSQ block m a -> (a -> LSQ block m b) -> LSQ block m b
+
+    -- | A local state query.
+    LSQry :: (Query block res) -> LSQ block m res
+
+instance Functor (LSQ block m) where
+    fmap = liftM
+
+instance Applicative (LSQ block m) where
+    pure  = LSQPure
+    (<*>) = ap
+
+instance Monad (LSQ block m) where
+    return = pure
+    (>>=)  = LSQBind
+
+--
+-- Helpers
+
+query :: (Query block res) -> LSQ block m res
+query = LSQry
 
 --------------------------------------------------------------------------------
 --
