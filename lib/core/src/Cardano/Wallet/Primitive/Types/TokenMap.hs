@@ -44,6 +44,7 @@ module Cardano.Wallet.Primitive.Types.TokenMap
     , singleton
     , fromFlatList
     , fromNestedList
+    , fromNestedMap
 
     -- * Deconstruction
     , toFlatList
@@ -445,6 +446,13 @@ fromNestedList entries = fromFlatList
     | (policy, tokenQuantities) <- entries
     , (token, quantity) <- NE.toList tokenQuantities
     ]
+
+-- | Creates a token map from a nested map.
+--
+fromNestedMap
+    :: Map TokenPolicyId (NonEmptyMap TokenName TokenQuantity)
+    -> TokenMap
+fromNestedMap = fromNestedList . Map.toList . fmap NEMap.toList
 
 --------------------------------------------------------------------------------
 -- Deconstruction

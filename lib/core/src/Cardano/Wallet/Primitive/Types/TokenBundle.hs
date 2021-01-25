@@ -24,6 +24,7 @@ module Cardano.Wallet.Primitive.Types.TokenBundle
     , empty
     , fromFlatList
     , fromNestedList
+    , fromNestedMap
     , fromTokenMap
     , fromTokenQuantity
 
@@ -200,6 +201,11 @@ fromNestedList
     -> [(TokenPolicyId, NonEmpty (TokenName, TokenQuantity))]
     -> TokenBundle
 fromNestedList c = TokenBundle c . TokenMap.fromNestedList
+
+fromNestedMap
+    :: (Coin, Map TokenPolicyId (NonEmptyMap TokenName TokenQuantity))
+    -> TokenBundle
+fromNestedMap (c, m) = TokenBundle c (TokenMap.fromNestedMap m)
 
 fromTokenMap :: TokenMap -> TokenBundle
 fromTokenMap = TokenBundle (Coin 0)
