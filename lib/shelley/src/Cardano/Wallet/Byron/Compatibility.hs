@@ -176,7 +176,7 @@ mainnetNetworkParameters = W.NetworkParameters
         , desiredNumberOfStakePools = 0
         , minimumUTxOvalue = W.Coin 0
         , stakeKeyDeposit = W.Coin 0
-        , hardforkEpochNo = Nothing
+        , eras = W.emptyEraInfo
         }
     }
 
@@ -414,10 +414,10 @@ fromMaxTxSize =
     Quantity . fromIntegral
 
 protocolParametersFromPP
-    :: Maybe Bound
+    :: W.EraInfo Bound
     -> Update.ProtocolParameters
     -> W.ProtocolParameters
-protocolParametersFromPP bound pp = W.ProtocolParameters
+protocolParametersFromPP eraInfo pp = W.ProtocolParameters
     { decentralizationLevel = minBound
     , txParameters = W.TxParameters
         { getFeePolicy = fromTxFeePolicy $ Update.ppTxFeePolicy pp
@@ -426,7 +426,7 @@ protocolParametersFromPP bound pp = W.ProtocolParameters
     , desiredNumberOfStakePools = 0
     , minimumUTxOvalue = W.Coin 0
     , stakeKeyDeposit = W.Coin 0
-    , hardforkEpochNo = fromBound <$> bound
+    , eras = fromBound <$> eraInfo
     }
   where
     fromBound (Bound _relTime _slotNo (O.EpochNo e)) =
@@ -434,7 +434,10 @@ protocolParametersFromPP bound pp = W.ProtocolParameters
 
 -- | Extract the protocol parameters relevant to the wallet out of the
 --   cardano-chain update state record.
-protocolParametersFromUpdateState :: Maybe Bound -> Update.State -> W.ProtocolParameters
+protocolParametersFromUpdateState
+    :: W.EraInfo Bound
+    -> Update.State
+    -> W.ProtocolParameters
 protocolParametersFromUpdateState b =
     (protocolParametersFromPP b) . Update.adoptedProtocolParameters
 
@@ -464,7 +467,8 @@ fromGenesisData (genesisData, genesisHash) =
                 Quantity . fromIntegral . unBlockCount . gdK $ genesisData
             }
         , protocolParameters =
-            (protocolParametersFromPP Nothing) . gdProtocolParameters $ genesisData
+            -- emptyEraInfo contains no info about byron. Should we add it?
+            (protocolParametersFromPP W.emptyEraInfo) . gdProtocolParameters $ genesisData
         }
     , fromNonAvvmBalances . gdNonAvvmBalances $ genesisData
     )

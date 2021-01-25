@@ -63,6 +63,7 @@ import Cardano.Wallet.Api.Types
     , ApiCredential (..)
     , ApiDelegationAction (..)
     , ApiEpochInfo (..)
+    , ApiEraInfo (..)
     , ApiErrorCode (..)
     , ApiFee (..)
     , ApiHealthCheck (..)
@@ -367,6 +368,7 @@ spec = parallel $ do
             jsonRoundtripAndGolden $ Proxy @ApiDelegationAction
             jsonRoundtripAndGolden $ Proxy @ApiNetworkInformation
             jsonRoundtripAndGolden $ Proxy @ApiNetworkParameters
+            jsonRoundtripAndGolden $ Proxy @ApiEraInfo
             jsonRoundtripAndGolden $ Proxy @ApiNetworkClock
             jsonRoundtripAndGolden $ Proxy @ApiWalletDelegation
             jsonRoundtripAndGolden $ Proxy @ApiHealthCheck
@@ -975,8 +977,8 @@ spec = parallel $ do
                         desiredPoolNumber (x :: ApiNetworkParameters)
                     , minimumUtxoValue =
                         minimumUtxoValue (x :: ApiNetworkParameters)
-                    , hardforkAt =
-                        hardforkAt (x :: ApiNetworkParameters)
+                    , eras =
+                        eras (x :: ApiNetworkParameters)
                     }
             in
             x' === x .&&. show x' === show x
@@ -1581,6 +1583,10 @@ instance Arbitrary ApiNetworkParameters where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
+instance Arbitrary ApiEraInfo where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
+
 instance Arbitrary SlotId where
     arbitrary = applyArbitrary2 SlotId
     shrink = genericShrink
@@ -1993,6 +1999,9 @@ instance ToSchema AnyAddress where
 
 instance ToSchema ApiNetworkParameters where
     declareNamedSchema _ = declareSchemaForDefinition "ApiNetworkParameters"
+
+instance ToSchema ApiEraInfo where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiEraInfo"
 
 instance ToSchema ApiSlotReference where
     declareNamedSchema _ = declareSchemaForDefinition "ApiSlotReference"

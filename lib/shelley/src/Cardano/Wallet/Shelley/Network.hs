@@ -709,19 +709,20 @@ mkTipSyncClient tr np localTxSubmissionQ onPParamsUpdate onInterpreterUpdate = d
             onPParamsUpdate pp sp
 
     let queryParams = do
-            mb <- currentEra >>= \case
-                AnyCardanoEra ShelleyEra ->
-                    LSQry $ QueryAnytimeShelley GetEraStart
-                _ ->
-                    LSQry $ QueryAnytimeMary GetEraStart
+            eraBounds <- W.EraInfo
+                <$> LSQry (QueryAnytimeByron GetEraStart)
+                <*> LSQry (QueryAnytimeShelley GetEraStart)
+                <*> LSQry (QueryAnytimeAllegra GetEraStart)
+                <*> LSQry (QueryAnytimeMary GetEraStart)
+
             sp <- byronOrShelleyBased
                 (pure $ W.slottingParameters np)
                 ((slottingParametersFromGenesis . getCompactGenesis)
                     <$> LSQry Shelley.GetGenesisConfig)
             pp <- byronOrShelleyBased
-                (protocolParametersFromUpdateState mb
+                (protocolParametersFromUpdateState eraBounds
                     <$> LSQry Byron.GetUpdateInterfaceState)
-                (fromShelleyPParams mb
+                (fromShelleyPParams eraBounds
                     <$> LSQry Shelley.GetCurrentPParams)
             return (pp, sp)
 

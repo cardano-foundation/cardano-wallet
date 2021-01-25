@@ -1410,6 +1410,33 @@ components:
     ApiNetworkClock: &ApiNetworkClock
       <<: *networkInformationNtpStatus
 
+    nullableEpochInfo: &nullableEpochInfo
+      <<: *epochInfo
+      nullable: True
+
+    ApiEraInfo: &ApiEraInfo
+      type: object
+      required:
+        - byron
+        - shelley
+        - allegra
+        - mary
+      properties:
+        byron: *nullableEpochInfo
+        shelley: *nullableEpochInfo
+        allegra: *nullableEpochInfo
+        mary: *nullableEpochInfo
+      description: |
+
+        If and when each era started or will start.
+
+        The object is keyed by era names. The values either describe the epoch boundary
+        when the era starts (can be in the future or in the past), or are null if not yet
+        confirmed on-chain.
+
+        If you need to know the current era, see the `node_era` field of
+        `GET /network/information`.
+
     ApiNetworkParameters: &ApiNetworkParameters
       type: object
       required:
@@ -1432,7 +1459,7 @@ components:
         decentralization_level: *percentage
         desired_pool_number: *stakePoolsNumber
         minimum_utxo_value: *amount
-        hardfork_at: *epochInfo
+        eras: *ApiEraInfo
 
     ApiSelectCoinsPayments: &ApiSelectCoinsPayments
       type: object

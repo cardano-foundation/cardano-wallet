@@ -13,6 +13,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE PackageImports #-}
 {-# LANGUAGE PolyKinds #-}
@@ -106,6 +107,7 @@ module Cardano.Wallet.Api.Types
     , MinWithdrawal (..)
     , ApiNetworkParameters (..)
     , toApiNetworkParameters
+    , ApiEraInfo (..)
     , ApiWalletDelegation (..)
     , ApiWalletDelegationStatus (..)
     , ApiWalletDelegationNext (..)
@@ -288,7 +290,7 @@ import Data.Either.Extra
 import Data.Function
     ( (&) )
 import Data.Generics.Internal.VL.Lens
-    ( view )
+    ( view, (^.) )
 import Data.List
     ( intercalate )
 import Data.List.NonEmpty
@@ -749,15 +751,30 @@ data ApiNetworkParameters = ApiNetworkParameters
     , decentralizationLevel :: !(Quantity "percent" Percentage)
     , desiredPoolNumber :: !Word16
     , minimumUtxoValue :: !(Quantity "lovelace" Natural)
-    , hardforkAt :: !(Maybe ApiEpochInfo)
+    , eras :: !ApiEraInfo
+    } deriving (Eq, Generic, Show)
+
+data ApiEraInfo = ApiEraInfo
+    { byron :: !(Maybe ApiEpochInfo)
+    , shelley :: !(Maybe ApiEpochInfo)
+    , allegra :: !(Maybe ApiEpochInfo)
+    , mary :: !(Maybe ApiEpochInfo)
     } deriving (Eq, Generic, Show)
 
 toApiNetworkParameters
-    :: NetworkParameters
-    -> (ApiNetworkParameters, Maybe EpochNo)
-toApiNetworkParameters (NetworkParameters gp sp pp) = (np, view #hardforkEpochNo pp)
-  where
-    np = ApiNetworkParameters
+    :: Monad m
+    => NetworkParameters
+    -> (EpochNo -> m ApiEpochInfo)
+    -> m ApiNetworkParameters
+toApiNetworkParameters (NetworkParameters gp sp pp) toEpochInfo = do
+    byron <- traverse toEpochInfo (pp ^. #eras . #byron)
+    shelley <- traverse toEpochInfo (pp ^. #eras . #shelley)
+    allegra <- traverse toEpochInfo (pp ^. #eras . #allegra)
+    mary <- traverse toEpochInfo (pp ^. #eras . #mary)
+
+    let apiEras = ApiEraInfo { byron, shelley, allegra, mary }
+
+    return $ ApiNetworkParameters
         { genesisBlockHash = ApiT $ getGenesisBlockHash gp
         , blockchainStartTime = ApiT $ getGenesisBlockDate gp
         , slotLength = Quantity $ unSlotLength $ getSlotLength sp
@@ -775,7 +792,7 @@ toApiNetworkParameters (NetworkParameters gp sp pp) = (np, view #hardforkEpochNo
             $ fromIntegral
             $ unCoin
             $ view #minimumUTxOvalue pp
-        , hardforkAt = Nothing
+        , eras = apiEras
         }
 
 newtype ApiTxId = ApiTxId
@@ -1964,6 +1981,11 @@ instance FromJSON (ApiT (Hash "Genesis")) where
 instance ToJSON (ApiT (Hash "Genesis")) where
     toJSON = toTextJSON
 
+instance FromJSON ApiEraInfo where
+    parseJSON = genericParseJSON explicitNothingRecordTypeOptions
+instance ToJSON ApiEraInfo where
+    toJSON = genericToJSON explicitNothingRecordTypeOptions
+
 instance FromJSON ApiNetworkParameters where
     parseJSON = genericParseJSON defaultRecordTypeOptions
 instance ToJSON ApiNetworkParameters where
@@ -2167,6 +2189,11 @@ defaultRecordTypeOptions = Aeson.defaultOptions
 taggedSumTypeOptions :: Aeson.Options -> TaggedObjectOptions -> Aeson.Options
 taggedSumTypeOptions base opts = base
     { sumEncoding = TaggedObject (_tagFieldName opts) (_contentsFieldName opts)
+    }
+
+explicitNothingRecordTypeOptions :: Aeson.Options
+explicitNothingRecordTypeOptions = defaultRecordTypeOptions
+    { omitNothingFields = False
     }
 
 {-------------------------------------------------------------------------------
