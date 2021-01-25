@@ -50,6 +50,7 @@ import Cardano.Wallet.Shelley.Launch.Cluster
     , localClusterConfigFromEnv
     , moveInstantaneousRewardsTo
     , oneMillionAda
+    , sendFaucetAssetsTo
     , sendFaucetFundsTo
     , testMinSeverityFromEnv
     , walletListenFromEnv
@@ -73,7 +74,11 @@ import System.Directory
 import System.FilePath
     ( (</>) )
 import Test.Integration.Faucet
-    ( genRewardAccounts, mirMnemonics, shelleyIntegrationTestFunds )
+    ( genRewardAccounts
+    , mirMnemonics
+    , shelleyIntegrationTestAssets
+    , shelleyIntegrationTestFunds
+    )
 
 import qualified Cardano.BM.Backend.EKGView as EKG
 import qualified Data.Text as T
@@ -218,9 +223,11 @@ main = withLocalClusterSetup $ \dir clusterLogs walletLogs ->
         let trCluster' = contramap MsgCluster trCluster
         let encodeAddr = T.unpack . encodeAddress @'Mainnet
         let addresses = map (first encodeAddr) shelleyIntegrationTestFunds
+        let assetAddresses = map (first encodeAddr) shelleyIntegrationTestAssets
         let accts = concatMap genRewardAccounts mirMnemonics
         let rewards = (,Coin $ fromIntegral oneMillionAda) <$> accts
         sendFaucetFundsTo trCluster' socketPath dir addresses
+        sendFaucetAssetsTo trCluster' socketPath dir assetAddresses
         moveInstantaneousRewardsTo trCluster' socketPath dir rewards
 
     whenReady dir trCluster logs (RunningNode socketPath block0 (gp, vData)) =

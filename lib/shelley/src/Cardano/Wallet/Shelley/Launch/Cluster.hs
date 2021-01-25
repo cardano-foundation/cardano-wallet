@@ -56,6 +56,8 @@ module Cardano.Wallet.Shelley.Launch.Cluster
 
       -- * Faucets
     , sendFaucetFundsTo
+    , sendFaucetAssetsTo
+    , sendAssetsTo
     , moveInstantaneousRewardsTo
     , oneMillionAda
 
@@ -113,6 +115,12 @@ import Cardano.Wallet.Primitive.Types
     ( Block (..), EpochNo (..), NetworkParameters (..), PoolId (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
+import Cardano.Wallet.Primitive.Types.TokenBundle
+    ( AssetId (..), TokenBundle (..) )
+import Cardano.Wallet.Primitive.Types.TokenPolicy
+    ( TokenName (..) )
+import Cardano.Wallet.Primitive.Types.TokenQuantity
+    ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( TxOut )
 import Cardano.Wallet.Shelley.Compatibility
@@ -134,7 +142,7 @@ import Control.Tracer
 import Crypto.Hash.Utils
     ( blake2b256 )
 import Data.Aeson
-    ( FromJSON (..), toJSON, (.:), (.=) )
+    ( FromJSON (..), object, toJSON, (.:), (.=) )
 import Data.Bifunctor
     ( first, second )
 import Data.ByteArray.Encoding
@@ -152,7 +160,7 @@ import Data.Function
 import Data.Functor
     ( ($>), (<&>) )
 import Data.List
-    ( nub, permutations, sort )
+    ( intercalate, nub, permutations, sort )
 import Data.Maybe
     ( catMaybes, fromMaybe )
 import Data.Text
@@ -205,6 +213,8 @@ import UnliftIO.MVar
 import qualified Cardano.Chain.Common as Byron
 import qualified Cardano.Chain.UTxO as Legacy
 import qualified Cardano.Wallet.Byron.Compatibility as Byron
+import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
+import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Shelley.Compatibility as Shelley
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Types as Aeson
@@ -502,7 +512,7 @@ withCluster tr dir LocalClusterConfig{..} onClusterStart =
             waitForSocket tr bftSocket
 
             (rawTx, faucetPrv) <- prepareKeyRegistration tr cfgLastHardFork dir
-            tx <- signTx tr dir rawTx [faucetPrv]
+            tx <- signTx tr dir rawTx [] [faucetPrv]
             submitTx tr bftSocket "pre-registered stake key" tx
 
             waitGroup <- newChan
@@ -752,7 +762,7 @@ setupStakePoolData tr dir name params url pledgeAmt mRetirementEpoch = do
             ]
     (rawTx, faucetPrv) <- preparePoolRegistration
         tr hardForks dir stakePub certificates pledgeAmt
-    tx <- signTx tr dir rawTx [faucetPrv, stakePrv, opPrv]
+    tx <- signTx tr dir rawTx [] [faucetPrv, stakePrv, opPrv]
 
     let cfg = CardanoNodeConfig
             { nodeDir = dir
@@ -1132,20 +1142,7 @@ preparePoolRegistration
     -> IO (FilePath, FilePath)
 preparePoolRegistration tr era dir stakePub certs pledgeAmt = do
     let file = dir </> "tx.raw"
-    let sinkPrv = dir </> "sink.prv"
-    let sinkPub = dir </> "sink.pub"
-    cli tr
-        [ "address", "key-gen"
-        , "--signing-key-file", sinkPrv
-        , "--verification-key-file", sinkPub
-        ]
-    addr <- cliLine tr
-        [ "address", "build"
-        , "--payment-verification-key-file", sinkPub
-        , "--stake-verification-key-file", stakePub
-        , "--mainnet"
-        ]
-
+    addr <- genSinkAddress tr dir (Just stakePub)
     (faucetInput, faucetPrv) <- takeFaucet
     cli tr $
         [ "transaction", "build-raw"
@@ -1159,37 +1156,163 @@ preparePoolRegistration tr era dir stakePub certs pledgeAmt = do
 
     pure (file, faucetPrv)
 
+-- | For creating test fixtures. Returns MPS signing key, the script, and the
+-- policyId.
+genMonetaryPolicyScript
+    :: Tracer IO ClusterLog
+    -> FilePath
+    -> IO (FilePath, FilePath, String)
+genMonetaryPolicyScript tr dir = do
+    let policyPub = dir </> "policy.pub"
+    let policyPrv = dir </> "policy.prv"
+
+    cli tr
+        [ "address", "key-gen"
+        , "--verification-key-file", policyPub
+        , "--signing-key-file", policyPrv
+        ]
+    keyHash <- cliLine tr
+        [ "address", "key-hash"
+        , "--payment-verification-key-file", policyPub
+        ]
+
+    let script = dir </> "policy.script"
+    writeMonetaryPolicyScriptFile script keyHash
+
+    policyId <- cliLine tr
+        [ "transaction", "policyid"
+        , "--script-file", script
+        ]
+
+    pure (policyPrv, script, policyId)
+
+writeMonetaryPolicyScriptFile :: FilePath -> String -> IO ()
+writeMonetaryPolicyScriptFile script =
+    BS.writeFile script . encodeMonetaryPolicyScript
+
+encodeMonetaryPolicyScript :: String -> ByteString
+encodeMonetaryPolicyScript keyHash = BL.toStrict $ Aeson.encode $ object
+    [ "type" .= Aeson.String "sig"
+    , "keyHash" .= keyHash
+    ]
+
+writePolicySigningKey :: FilePath -> String -> IO ()
+writePolicySigningKey dest cborHex = Aeson.encodeFile dest $ object
+    [ "type" .= Aeson.String "PaymentSigningKeyShelley_ed25519"
+    , "description" .= Aeson.String "Payment Signing Key"
+    , "cborHex" .= cborHex
+    ]
+
+-- | Generate a signed transaction for minting coins for a ma policy
+-- script. Also returns the policy signing key.
+prepareMonetaryPolicyScript
+    :: Tracer IO ClusterLog
+    -> ClusterEra
+    -> FilePath
+    -> [String]
+    -> IO (FilePath, FilePath)
+prepareMonetaryPolicyScript tr era parentDir addrs = do
+    let dir = parentDir </> "ma"
+    createDirectoryIfMissing False dir
+    (policyPrv, script, policyId) <- genMonetaryPolicyScript tr dir
+
+    (faucetInput, faucetPrv) <- takeFaucet
+
+    let numAddrs = fromIntegral (length addrs)
+    let numTokens = 5_000_000
+    let amt = faucetAmt `div` (numAddrs + 1)
+    let assetId = policyId <> ".adrestiacoin"
+    let txOut addr = unwords
+            [ addr <> " " <> show amt <> "+" <> show numTokens
+            , assetId ]
+
+    let rawTx = dir </> "tx.raw"
+    cli tr $
+        [ "transaction", "build-raw"
+        , "--fee", show (faucetAmt - amt * numAddrs)
+        , "--tx-in", faucetInput
+        , "--mint", show (numTokens * numAddrs) <> " " <> assetId
+        , "--out-file", rawTx
+        , cardanoCliEra era
+        ] ++ mconcat [["--tx-out", txOut addr] | addr <- addrs]
+
+    tx <- signTx tr dir rawTx [script] [faucetPrv, policyPrv]
+
+    pure (tx, policyPrv)
+
 sendFaucetFundsTo
     :: Tracer IO ClusterLog
     -> CardanoNodeConn
     -> FilePath
     -> [(String, Coin)]
     -> IO ()
-sendFaucetFundsTo tr conn dir allTargets = do
-    forM_ (group 80 allTargets) sendBatch
+sendFaucetFundsTo tr conn dir targets = batch 80 targets
+    (sendFaucet tr conn dir . map (fmap (\c -> (TokenBundle.fromCoin c, []))))
+
+sendFaucetAssetsTo
+    :: Tracer IO ClusterLog
+    -> CardanoNodeConn
+    -> FilePath
+    -> [(String, (TokenBundle, [(String, String)]))]
+    -> IO ()
+sendFaucetAssetsTo tr conn dir targets = batch 20 targets
+    (sendFaucet tr conn dir)
+
+sendFaucet
+    :: Tracer IO ClusterLog
+    -> CardanoNodeConn
+    -> FilePath
+    -> [(String, (TokenBundle, [(String, String)]))]
+    -> IO ()
+sendFaucet tr conn dir targets = do
+    (faucetInput, faucetPrv) <- takeFaucet
+    let file = dir </> "faucet-tx.raw"
+
+    let mkOutput addr (TokenBundle (Coin c) tokens) =
+            [ "--tx-out"
+            , unwords $ [ addr, show c, "lovelace"] ++
+                map (("+ " ++) . cliAsset) (TokenMap.toFlatList tokens)
+            ]
+        cliAsset (aid, (TokenQuantity q)) = unwords [show q, cliAssetId aid]
+        cliAssetId (AssetId pid (UnsafeTokenName name)) =
+            T.unpack (toText pid) ++
+            (if BS.null name then "" else "." ++ B8.unpack name)
+        mkMint [] = []
+        mkMint assets = ["--mint", intercalate " + " (map cliAsset assets)]
+
+    let total = fromIntegral $ sum $
+            map (unCoin . TokenBundle.getCoin . fst . snd) targets
+    when (total > faucetAmt) $ error "sendFaucetFundsTo: too much to pay"
+
+    let targetAssets = concatMap (snd . TokenBundle.toFlatList . fst . snd) targets
+
+    era <- getClusterEra dir
+    cli tr $
+        [ "transaction", "build-raw"
+        , "--tx-in", faucetInput
+        , "--ttl", "600"
+        , "--fee", show (faucetAmt - total)
+        , "--out-file", file
+        , cardanoCliEra era
+        ] ++
+        concatMap (uncurry mkOutput . fmap fst) targets ++
+        mkMint targetAssets
+
+    policyKeys <- forM (concatMap (snd . snd) targets) $ \(skey, keyHash) -> do
+        let keyFile = dir </> keyHash <.> "skey"
+        writePolicySigningKey keyFile skey
+        pure keyFile
+    scripts <- forM (concatMap (map snd . snd . snd) targets) $ \keyHash -> do
+        let scriptFile = dir </> keyHash <.> "script"
+        writeMonetaryPolicyScriptFile scriptFile keyHash
+        pure scriptFile
+
+    tx <- signTx tr dir file scripts (faucetPrv:policyKeys)
+    submitTx tr conn "faucet tx" tx
+
+batch :: Int -> [a] -> ([a] -> IO b) -> IO ()
+batch s xs = forM_ (group s xs)
   where
-    sendBatch targets = do
-        (faucetInput, faucetPrv) <- takeFaucet
-        let file = dir </> "faucet-tx.raw"
-        let outputs = flip concatMap targets $ \(addr, (Coin c)) ->
-                ["--tx-out", addr <> "+" <> show c]
-
-        let total = fromIntegral $ sum $ map (unCoin . snd) targets
-        when (total > faucetAmt) $ error "sendFaucetFundsTo: too much to pay"
-
-        era <- getClusterEra dir
-        cli tr $
-            [ "transaction", "build-raw"
-            , "--tx-in", faucetInput
-            , "--ttl", "600"
-            , "--fee", show (faucetAmt - total)
-            , "--out-file", file
-            , cardanoCliEra era
-            ] ++ outputs
-
-        tx <- signTx tr dir file [faucetPrv]
-        submitTx tr conn "faucet tx" tx
-
     -- TODO: Use split package?
     -- https://stackoverflow.com/questions/12876384/grouping-a-list-into-lists-of-n-elements-in-haskell
     group :: Int -> [a] -> [[a]]
@@ -1197,6 +1320,17 @@ sendFaucetFundsTo tr conn dir allTargets = do
     group n l
       | n > 0 = (take n l) : (group n (drop n l))
       | otherwise = error "Negative or zero n"
+
+sendAssetsTo
+    :: Tracer IO ClusterLog
+    -> CardanoNodeConn
+    -> FilePath
+    -> [String]
+    -> IO ()
+sendAssetsTo tr conn dir allTargets = batch 20 allTargets $ \addrs -> do
+    era <- getClusterEra dir
+    (tx, _) <- prepareMonetaryPolicyScript tr era dir addrs
+    submitTx tr conn "assets tx" tx
 
 moveInstantaneousRewardsTo
     :: Tracer IO ClusterLog
@@ -1213,7 +1347,7 @@ moveInstantaneousRewardsTo tr conn dir targets = do
     let totalDeposit = fromIntegral (length targets) * depositAmt
     when (total > faucetAmt) $ error "moveInstantaneousRewardsTo: too much to pay"
 
-    sink <- genSinkAddress tr dir
+    sink <- genSinkAddress tr dir Nothing
 
     era <- getClusterEra dir
     cli tr $
@@ -1229,7 +1363,7 @@ moveInstantaneousRewardsTo tr conn dir targets = do
     testData <- getShelleyTestDataPath
     let bftPrv = testData </> "bft-leader" <> ".skey"
 
-    tx <- signTx tr dir file [faucetPrv, bftPrv]
+    tx <- signTx tr dir file [] [faucetPrv, bftPrv]
     submitTx tr conn "MIR certificates" tx
   where
     mkVerificationKey
@@ -1277,7 +1411,7 @@ prepareKeyRegistration tr era dir = do
     (faucetInput, faucetPrv) <- takeFaucet
 
     cert <- issueStakeCert tr dir "pre-registered" stakePub
-    sink <- genSinkAddress tr dir
+    sink <- genSinkAddress tr dir Nothing
 
     cli tr
         [ "transaction", "build-raw"
@@ -1293,9 +1427,10 @@ prepareKeyRegistration tr era dir = do
 
 genSinkAddress
     :: Tracer IO ClusterLog
-    -> FilePath
+    -> FilePath -- ^ Directory to put keys
+    -> Maybe FilePath -- ^ Stake pub
     -> IO String
-genSinkAddress tr dir = do
+genSinkAddress tr dir stakePub = do
     let sinkPrv = dir </> "sink.prv"
     let sinkPub = dir </> "sink.pub"
     cli tr
@@ -1303,27 +1438,30 @@ genSinkAddress tr dir = do
         , "--signing-key-file", sinkPrv
         , "--verification-key-file", sinkPub
         ]
-    cliLine tr
+    cliLine tr $
         [ "address", "build"
-        , "--payment-verification-key-file", sinkPub
         , "--mainnet"
-        ]
+        , "--payment-verification-key-file", sinkPub
+        ] ++ maybe [] (\key -> ["--stake-verification-key-file", key]) stakePub
 
 -- | Sign a transaction with all the necessary signatures.
 signTx
     :: Tracer IO ClusterLog
-    -> FilePath
-    -> FilePath
-    -> [FilePath]
+    -> FilePath -- ^ Output directory
+    -> FilePath -- ^ Tx body file
+    -> [FilePath] -- ^ Script files
+    -> [FilePath] -- ^ Signing keys for witnesses
     -> IO FilePath
-signTx tr dir rawTx keys = do
+signTx tr dir rawTx scripts keys = do
     let file = dir </> "tx.signed"
     cli tr $
         [ "transaction", "sign"
         , "--tx-body-file", rawTx
         , "--mainnet"
         , "--out-file", file
-        ] ++ mconcat ((\key -> ["--signing-key-file", key]) <$> keys)
+        ]
+        ++ concatMap (\s -> ["--script-file", s]) scripts
+        ++ concatMap (\key -> ["--signing-key-file", key]) keys
     pure file
 
 -- | Submit a transaction through a running node.

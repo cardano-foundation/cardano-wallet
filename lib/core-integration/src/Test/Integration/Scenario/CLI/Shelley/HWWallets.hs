@@ -159,7 +159,7 @@ spec = describe "SHELLEY_CLI_HW_WALLETS" $ do
     describe "HW_WALLETS_03 - Cannot do operations requiring private key" $ do
         it "Cannot send tx" $ \ctx -> runResourceT $ do
             -- create wallet from pubKey with funds
-            (w, mnemonics) <- fixtureWalletWithMnemonics ctx
+            (w, mnemonics) <- fixtureWalletWithMnemonics (Proxy @"shelley") ctx
             let pubKey = T.unpack $ pubKeyFromMnemonics mnemonics
             Exit cd <- deleteWalletViaCLI ctx $ T.unpack (w ^. walletId)
             cd `shouldBe` ExitSuccess
@@ -223,7 +223,7 @@ spec = describe "SHELLEY_CLI_HW_WALLETS" $ do
 
         it "Can get tx fee" $ \ctx -> runResourceT $ do
             -- create wallet from pubKey with funds
-            (w, mnemonics) <- fixtureWalletWithMnemonics ctx
+            (w, mnemonics) <- fixtureWalletWithMnemonics (Proxy @"shelley") ctx
             let pubKey = T.unpack $ pubKeyFromMnemonics mnemonics
             Exit cd <- deleteWalletViaCLI ctx $ T.unpack (w ^. walletId)
             cd `shouldBe` ExitSuccess

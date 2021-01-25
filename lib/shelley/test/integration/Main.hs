@@ -68,6 +68,7 @@ import Cardano.Wallet.Shelley.Launch.Cluster
     , localClusterConfigFromEnv
     , moveInstantaneousRewardsTo
     , oneMillionAda
+    , sendFaucetAssetsTo
     , sendFaucetFundsTo
     , testLogDirFromEnv
     , testMinSeverityFromEnv
@@ -115,7 +116,11 @@ import Test.Hspec.Core.Spec
 import Test.Hspec.Extra
     ( aroundAll )
 import Test.Integration.Faucet
-    ( genRewardAccounts, mirMnemonics, shelleyIntegrationTestFunds )
+    ( genRewardAccounts
+    , mirMnemonics
+    , shelleyIntegrationTestAssets
+    , shelleyIntegrationTestFunds
+    )
 import Test.Integration.Framework.Context
     ( Context (..), PoolGarbageCollectionEvent (..) )
 import Test.Utils.Paths
@@ -296,7 +301,9 @@ specWithServer testDir (tr, tracers) = aroundAll withContext
         moveInstantaneousRewardsTo tr' conn testDir rewards
         let encodeAddr = T.unpack . encodeAddress @'Mainnet
         let addresses = map (first encodeAddr) shelleyIntegrationTestFunds
+        let assetAddresses = map (first encodeAddr) shelleyIntegrationTestAssets
         sendFaucetFundsTo tr' conn testDir addresses
+        sendFaucetAssetsTo tr' conn testDir assetAddresses
 
     onClusterStart action dbDecorator (RunningNode conn block0 (gp, vData)) = do
         setupFaucet conn

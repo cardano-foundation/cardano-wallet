@@ -9,6 +9,7 @@
 
 module Test.Integration.Faucet
     ( Faucet (..)
+    , NextWallet
     , nextWallet
     , nextTxBuilder
 
@@ -17,9 +18,11 @@ module Test.Integration.Faucet
     , icaMnemonics
     , rndMnemonics
     , mirMnemonics
+    , maMnemonics
 
       -- * Integration test funds
     , shelleyIntegrationTestFunds
+    , shelleyIntegrationTestAssets
 
       -- * Internals
     , genByronFaucets
@@ -61,10 +64,18 @@ import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
+import Cardano.Wallet.Primitive.Types.TokenBundle
+    ( TokenBundle )
+import Cardano.Wallet.Primitive.Types.TokenPolicy
+    ( TokenName (..), nullTokenName )
+import Cardano.Wallet.Primitive.Types.TokenQuantity
+    ( TokenQuantity (..) )
 import Cardano.Wallet.Unsafe
-    ( unsafeFromHex, unsafeMkMnemonic )
+    ( unsafeFromHex, unsafeFromText, unsafeMkMnemonic )
 import Control.Monad
     ( forM_, replicateM )
+import Data.Bifunctor
+    ( first )
 import Data.ByteArray.Encoding
     ( Base (..), convertToBase )
 import Data.ByteString
@@ -81,6 +92,8 @@ import UnliftIO.MVar
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Byron as Byron
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Icarus as Icarus
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Shelley
+import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
+import qualified Data.List.NonEmpty as NE
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.Text.IO as TIO
@@ -91,6 +104,7 @@ data Faucet = Faucet
     , icarus  :: MVar [Mnemonic 15]
     , random  :: MVar [Mnemonic 12]
     , reward  :: MVar [Mnemonic 24]
+    , ma      :: MVar [Mnemonic 15]
     , txBuilder :: MVar [(Address, Coin) -> IO ByteString]
     }
 
@@ -111,25 +125,29 @@ takeNext mvar = do
 
 instance NextWallet "shelley" where
     type MnemonicSize "shelley" = 15
-    nextWallet (Faucet mvar _ _ _ _) = takeNext mvar
+    nextWallet (Faucet mvar _ _ _ _ _) = takeNext mvar
 
 instance NextWallet "icarus" where
     type MnemonicSize "icarus" = 15
-    nextWallet (Faucet _ mvar _ _ _) = takeNext mvar
+    nextWallet (Faucet _ mvar _ _ _ _) = takeNext mvar
 
 instance NextWallet "random" where
     type MnemonicSize "random" = 12
-    nextWallet (Faucet _ _ mvar _ _) = takeNext mvar
+    nextWallet (Faucet _ _ mvar _ _ _) = takeNext mvar
 
 instance NextWallet "reward" where
     type MnemonicSize "reward" = 24
-    nextWallet (Faucet _ _ _ mvar _) = takeNext mvar
+    nextWallet (Faucet _ _ _ mvar _ _) = takeNext mvar
+
+instance NextWallet "ma" where
+    type MnemonicSize "ma" = 15
+    nextWallet = takeNext . ma
 
 -- | Get a raw transaction builder. It constructs and sign a transaction via an
 -- private key that is owned "externally". Returns a bytes string ready to be
 -- sent to a node.
 nextTxBuilder :: Faucet -> IO ((Address, Coin) -> IO ByteString)
-nextTxBuilder (Faucet _ _ _ _ mvar) = takeNext mvar
+nextTxBuilder (Faucet _ _ _ _ _ mvar) = takeNext mvar
 
 seqMnemonics :: [Mnemonic 15]
 seqMnemonics = unsafeMkMnemonic <$>
@@ -921,6 +939,23 @@ seqMnemonics = unsafeMkMnemonic <$>
       , "fan", "heavy", "jazz", "quit", "describe"
       , "spirit", "amazing", "stomach", "luggage", "poet"
       ]
+    ]
+
+maMnemonics :: [Mnemonic 15]
+maMnemonics = unsafeMkMnemonic <$>
+    [ [ "vintage", "poem", "topic", "machine", "hazard"
+      , "cement", "dune", "glimpse", "fix", "brief"
+      , "account", "badge", "mass", "silly", "business"
+      ]
+    , [ "shift", "mistake", "rural", "security", "inspire"
+      , "loyal", "wink", "special", "blast", "retreat"
+      , "crouch", "noise", "dirt", "around", "drastic"
+      ]
+    , [ "soldier", "this", "verb", "copper", "immune"
+      , "unveil", "engine", "know", "tower", "only"
+      , "foot", "riot", "orchard", "member", "guitar"
+      ]
+
     , [ "risk", "danger", "trumpet", "pottery", "run"
       , "enforce", "fit", "dream", "focus", "hope"
       , "side", "festival", "desert", "logic", "net"
@@ -2007,7 +2042,6 @@ bigDustWallet = unsafeMkMnemonic
 shelleyIntegrationTestFunds :: [(Address, Coin)]
 shelleyIntegrationTestFunds = mconcat
     [ seqMnemonics >>= (take 10 . map (, defaultAmt) . addresses . SomeMnemonic)
-
     , zip
          (addresses $ SomeMnemonic onlyDustWallet)
          (map Coin
@@ -2031,6 +2065,7 @@ shelleyIntegrationTestFunds = mconcat
 
     , mirWallets
     ]
+
   where
     defaultAmt = Coin 100000000000
     addresses = genShelleyAddresses
@@ -2051,6 +2086,48 @@ shelleyIntegrationTestFunds = mconcat
 
     mirWallets = (,defaultAmt) . head . genShelleyAddresses . SomeMnemonic
         <$> mirMnemonics
+
+
+-- | A list of pre-generated policyIds, signing keys and key hashes
+maryAssetScripts :: [(String, (String, String))]
+maryAssetScripts =
+    [ ( "4bfe7acae1bd2599649962b146a1e47d2e14933809b367e804c61f86"
+      , ("5820c5b0fff479beae303743c8ca2ac1b94a79309ac5a19bd968a5a7117447a71e3a"
+        , "41ba83cad5cef09350b0bea49eca8cbfc0179d1e4b151b614fd1673b" ) )
+    , ( "f4137b0691b01c7ca46c2fc05576f4f0ab8eebb8f8e4946cb9107e0f"
+      , ("582014d4e21a4128e6df919179be768b27a872e48d6192fd1afe609e02c7203affb1"
+        , "3e4b7054a74ea2168522ce5bf59aff8ff3bed46096d15cdb3fe3bbc1" ) )
+    , ( "b3579e6306a5b3f49ba91ed4c5fd79dbe92d54867433ff6f92d47b40"
+      , ("58209e1caa45500051163e03176099f53dd85aff98331d6fc2c857226d6c406fe2dc"
+        , "31fe7edd49aaca7982a28cfb917f8af01b9c1088bff300b1bc784f03" ) )
+    ]
+
+-- | A token bundle, along with the keys and scripts necessary to mint the
+-- bundle.
+type MintTokenBundle = (TokenBundle, [(String, String)])
+
+maryTokenBundles :: [MintTokenBundle]
+maryTokenBundles = tokenBundles maryAssetScripts
+
+tokenBundles :: [(String, (String, String))] -> [MintTokenBundle]
+tokenBundles = zipWith mint [simple, fruit, combined]
+    . map (first (unsafeFromText . T.pack))
+  where
+    mint mk (pid, info) = (mk pid, [info])
+    bundle p assets = TokenBundle.fromNestedList (Coin 10_000_000) [(p, NE.fromList assets)]
+    simple p = bundle p [(nullTokenName, TokenQuantity 1_000_000_000)]
+    fruit p = bundle p
+        [ (UnsafeTokenName "apple", TokenQuantity 65_000_000)
+        , (UnsafeTokenName "banana", TokenQuantity 66_000_000)
+        , (UnsafeTokenName "cherry", TokenQuantity 67_000_000)
+        ]
+    combined p = TokenBundle.setCoin
+        (simple p `TokenBundle.add` fruit p)
+        (Coin 10_000_000)
+
+shelleyIntegrationTestAssets :: [(Address, MintTokenBundle)]
+shelleyIntegrationTestAssets = maMnemonics >>=
+    (flip zip maryTokenBundles . genShelleyAddresses . SomeMnemonic)
 
 --
 -- Helpers

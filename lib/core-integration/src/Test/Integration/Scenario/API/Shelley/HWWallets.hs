@@ -41,6 +41,8 @@ import Control.Monad.Trans.Resource
     ( runResourceT )
 import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
+import Data.Proxy
+    ( Proxy (..) )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text
@@ -156,7 +158,7 @@ spec = describe "SHELLEY_HW_WALLETS" $ do
 
     describe "HW_WALLETS_03 - Cannot do operations requiring private key" $ do
         it "Cannot send tx" $ \ctx -> runResourceT $ do
-            (w, mnemonics) <- fixtureWalletWithMnemonics ctx
+            (w, mnemonics) <- fixtureWalletWithMnemonics (Proxy @"shelley") ctx
             let pubKey = pubKeyFromMnemonics mnemonics
             r <- request @ApiWallet ctx (Link.deleteWallet @'Shelley w) Default Empty
             expectResponseCode HTTP.status204 r
@@ -213,7 +215,7 @@ spec = describe "SHELLEY_HW_WALLETS" $ do
                 rGet
 
         it "Can get tx fee" $ \ctx -> runResourceT $ do
-            (w, mnemonics) <- fixtureWalletWithMnemonics ctx
+            (w, mnemonics) <- fixtureWalletWithMnemonics (Proxy @"shelley") ctx
             let pubKey = pubKeyFromMnemonics mnemonics
             r <- request @ApiWallet ctx (Link.deleteWallet @'Shelley w) Default Empty
             expectResponseCode HTTP.status204 r
@@ -299,7 +301,7 @@ spec = describe "SHELLEY_HW_WALLETS" $ do
             expectListSize 0 rt
 
         it "Can get coin selection" $ \ctx -> runResourceT $ do
-            (w, mnemonics) <- fixtureWalletWithMnemonics ctx
+            (w, mnemonics) <- fixtureWalletWithMnemonics (Proxy @"shelley") ctx
             let pubKey = pubKeyFromMnemonics mnemonics
             r <- request
                 @ApiWallet ctx (Link.deleteWallet @'Shelley w) Default Empty

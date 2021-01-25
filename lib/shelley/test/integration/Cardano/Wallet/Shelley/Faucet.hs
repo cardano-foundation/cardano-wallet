@@ -9,7 +9,13 @@ module Cardano.Wallet.Shelley.Faucet
 import Prelude
 
 import Test.Integration.Faucet
-    ( Faucet (..), icaMnemonics, mirMnemonics, rndMnemonics, seqMnemonics )
+    ( Faucet (..)
+    , icaMnemonics
+    , maMnemonics
+    , mirMnemonics
+    , rndMnemonics
+    , seqMnemonics
+    )
 import UnliftIO.MVar
     ( newMVar )
 
@@ -19,4 +25,5 @@ initFaucet = Faucet
     <*> newMVar icaMnemonics
     <*> newMVar rndMnemonics
     <*> newMVar mirMnemonics
+    <*> newMVar maMnemonics
     <*> newMVar [] -- FIXME: txBuilder for external transaction.
