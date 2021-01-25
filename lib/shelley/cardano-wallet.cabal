@@ -75,6 +75,7 @@ library
     , retry
     , servant-server
     , shelley-spec-ledger
+    , strict-non-empty-containers
     , temporary
     , text
     , text-class
@@ -95,6 +96,7 @@ library
       Cardano.Wallet.Shelley
       Cardano.Wallet.Shelley.Api.Server
       Cardano.Wallet.Shelley.Compatibility
+      Cardano.Wallet.Shelley.Compatibility.Ledger
       Cardano.Wallet.Shelley.Network
       Cardano.Wallet.Shelley.Transaction
       Cardano.Wallet.Shelley.Launch
@@ -188,6 +190,7 @@ test-suite unit
     , containers
     , contra-tracer
     , fmt
+    , hspec-core
     , iohk-monitoring
     , hspec
     , memory
@@ -210,6 +213,7 @@ test-suite unit
       Main.hs
   other-modules:
       Cardano.Wallet.Shelley.CompatibilitySpec
+      Cardano.Wallet.Shelley.Compatibility.LedgerSpec
       Cardano.Wallet.Shelley.LaunchSpec
       Cardano.Wallet.Shelley.NetworkSpec
       Cardano.Wallet.Shelley.TransactionSpec
