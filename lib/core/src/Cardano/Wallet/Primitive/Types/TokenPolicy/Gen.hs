@@ -26,8 +26,8 @@ import Data.Text.Class
 import Test.QuickCheck
     ( Gen, elements, vector )
 
-import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString as BS
+import qualified Data.ByteString.Char8 as B8
 import qualified Data.Text as T
 
 --------------------------------------------------------------------------------

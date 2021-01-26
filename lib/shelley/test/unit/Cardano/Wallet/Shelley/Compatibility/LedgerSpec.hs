@@ -29,7 +29,7 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity
 import Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
     ( genTokenQuantityMixed, shrinkTokenQuantityMixed )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
-    ( HasLedgerType (..), computeMinimumAdaQuantity )
+    ( Convert (..), computeMinimumAdaQuantity )
 import Control.Monad
     ( replicateM )
 import Data.Bifunctor
@@ -240,11 +240,11 @@ adjustAllQuantities f b = uncurry TokenBundle.fromFlatList $ bimap
     adjustTokenQuantity = TokenQuantity . f . unTokenQuantity
 
 ledgerRoundtrip
-    :: forall a b. (Arbitrary a, Eq a, Show a, HasLedgerType a b, Typeable a)
-    => Proxy a
+    :: forall w l. (Arbitrary w, Eq w, Show w, Typeable w, Convert w l)
+    => Proxy w
     -> Spec
 ledgerRoundtrip proxy = it title $
-    property $ \a -> fromLedger (toLedger @a a) === a
+    property $ \a -> toWallet (toLedger @w a) === a
   where
     title = mconcat
         [ "Can perform roundtrip conversion for values of type '"
