@@ -587,8 +587,13 @@ runSelection limit mExtraCoinSource available minimumBalance =
         , leftover = available
         }
 
+    -- NOTE: We run the 'coinSelector' last, because we know that there are
+    -- necessarily coins in all inputs. Therefore, after having ran the other
+    -- selectors, we may already have covered for coins and need not to select
+    -- extra inputs.
     selectors :: [SelectionState -> m (Maybe SelectionState)]
-    selectors = coinSelector : fmap assetSelector minimumAssetQuantities
+    selectors =
+        reverse (coinSelector : fmap assetSelector minimumAssetQuantities)
       where
         assetSelector = runSelectionStep . assetSelectionLens
         coinSelector = runSelectionStep coinSelectionLens
