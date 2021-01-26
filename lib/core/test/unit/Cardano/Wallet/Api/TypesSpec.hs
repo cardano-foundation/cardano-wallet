@@ -132,6 +132,7 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.Gen
     ( genMnemonic
     , genPercentage
+    , genScript
     , genTxMetadata
     , shrinkPercentage
     , shrinkTxMetadata
@@ -156,8 +157,6 @@ import Cardano.Wallet.Primitive.AddressDerivationSpec
     ()
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPoolGap, getAddressPoolGap )
-import Cardano.Wallet.Primitive.ScriptsSpec
-    ( genScript )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..) )
 import Cardano.Wallet.Primitive.Types

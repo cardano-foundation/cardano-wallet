@@ -1,8 +1,11 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
+
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 
 -- | Shared QuickCheck generators for wallet types.
 --
@@ -21,12 +24,15 @@ module Cardano.Wallet.Gen
     , genTxMetadata
     , shrinkTxMetadata
     , genSmallTxMetadata
+    , genScript
     ) where
 
 import Prelude
 
 import Cardano.Address.Derivation
     ( xpubFromBytes )
+import Cardano.Address.Script
+    ( KeyHash (..), Script (..) )
 import Cardano.Api.Typed
     ( TxMetadata (..)
     , TxMetadataJsonSchema (..)
@@ -67,10 +73,14 @@ import Data.Word
     ( Word, Word32 )
 import GHC.TypeLits
     ( natVal )
+import Numeric.Natural
+    ( Natural )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
+    , Positive (..)
     , PrintableString (..)
+    , arbitrarySizedNatural
     , choose
     , elements
     , listOf
@@ -78,7 +88,9 @@ import Test.QuickCheck
     , oneof
     , resize
     , scale
+    , shrinkIntegral
     , shrinkList
+    , sized
     , suchThat
     , vector
     , vectorOf
@@ -90,6 +102,7 @@ import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.HashMap.Strict as HM
+import qualified Data.List as L
 import qualified Data.Map as Map
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
@@ -259,3 +272,48 @@ shrinkTxMetadataValue (TxMetaList xs) =
 shrinkTxMetadataValue (TxMetaNumber i) = TxMetaNumber <$> shrink i
 shrinkTxMetadataValue (TxMetaBytes b) = TxMetaBytes <$> shrinkByteString b
 shrinkTxMetadataValue (TxMetaText s) = TxMetaText <$> shrinkText s
+
+instance Arbitrary Natural where
+    shrink = shrinkIntegral
+    arbitrary = arbitrarySizedNatural
+
+genScript :: [KeyHash] -> Gen (Script KeyHash)
+genScript keyHashes = scale (`div` 3) $ sized scriptTree
+    where
+        scriptTree 0 = oneof
+            [ RequireSignatureOf <$> elements keyHashes
+            , ActiveFromSlot <$> arbitrary
+            , ActiveUntilSlot <$> arbitrary
+            ]
+        scriptTree n = do
+            Positive m <- arbitrary
+            let n' = n `div` (m + 1)
+            scripts' <- vectorOf m (scriptTree n')
+            let hasTimelocks = \case
+                    ActiveFromSlot _ -> True
+                    ActiveUntilSlot _ -> True
+                    _ -> False
+            let scriptsWithValidTimelocks = case L.partition hasTimelocks scripts' of
+                    ([], rest) -> rest
+                    ([ActiveFromSlot s1, ActiveUntilSlot s2], rest) ->
+                        if s2 <= s1 then
+                            rest ++ [ActiveFromSlot s2, ActiveUntilSlot s1]
+                        else
+                            scripts'
+                    ([ActiveUntilSlot s2, ActiveFromSlot s1], rest) ->
+                        if s2 <= s1 then
+                            rest ++ [ActiveFromSlot s2, ActiveUntilSlot s1]
+                        else
+                            scripts'
+                    ([ActiveFromSlot _], _) -> scripts'
+                    ([ActiveUntilSlot _], _) -> scripts'
+                    (_,rest) -> rest
+            case fromIntegral (L.length (filter (not . hasTimelocks) scriptsWithValidTimelocks)) of
+                0 -> scriptTree 0
+                num -> do
+                    atLeast <- choose (1, num)
+                    elements
+                        [ RequireAllOf scriptsWithValidTimelocks
+                        , RequireAnyOf scriptsWithValidTimelocks
+                        , RequireSomeOf atLeast scriptsWithValidTimelocks
+                        ]
