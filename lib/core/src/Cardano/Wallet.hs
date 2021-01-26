@@ -245,6 +245,7 @@ import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     , SelectionResult (..)
     , emptySkeleton
     , performSelection
+    , selectionDelta
     )
 import Cardano.Wallet.Primitive.Model
     ( Wallet
@@ -1283,7 +1284,7 @@ selectAssets ctx wid tx outs = do
         :: Functor f
         => f (SelectionResult TokenBundle)
         -> f (Coin, SelectionResult TokenBundle)
-    withFee = fmap $ \s -> (calcSelectionDelta s, s)
+    withFee = fmap $ \s -> (selectionDelta TokenBundle.getCoin s, s)
 
     -- Ensure that there's no existing pending withdrawals. Indeed, a withdrawal
     -- is necessarily withdrawing rewards in their totality. So, after a first
@@ -1300,24 +1301,6 @@ selectAssets ctx wid tx outs = do
       where
         hasWithdrawal :: Tx -> Bool
         hasWithdrawal = not . null . withdrawals
-
--- | Calculate the actual difference between the total outputs (incl. change)
--- and total inputs of a particular selection. By construction, this should be
--- greater than total fees and deposits.
-calcSelectionDelta
-    :: SelectionResult TokenBundle
-    -> Coin
-calcSelectionDelta sel =
-    let
-        totalOut
-            = sumCoins (TokenBundle.getCoin <$> changeGenerated sel)
-            & addCoin  (sumCoins (txOutCoin <$> outputsCovered sel))
-
-        totalIn
-            = sumCoins (txOutCoin . snd <$> (inputsSelected sel))
-            & addCoin (fromMaybe (Coin 0) (extraCoinSource sel))
-    in
-        Coin.distance totalIn totalOut
 
 -- | Produce witnesses and construct a transaction from a given
 -- selection. Requires the encryption passphrase in order to decrypt
