@@ -33,7 +33,7 @@ import Cardano.Wallet.Shelley.Compatibility.Ledger
 import Control.Monad
     ( replicateM )
 import Data.Bifunctor
-    ( bimap )
+    ( second )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Typeable
@@ -56,10 +56,12 @@ import Test.QuickCheck
     , Property
     , checkCoverage
     , choose
+    , conjoin
     , counterexample
     , cover
     , property
     , withMaxSuccess
+    , (=/=)
     , (===)
     )
 
@@ -115,47 +117,64 @@ prop_computeMinimumAdaQuantity_forCoin
 prop_computeMinimumAdaQuantity_agnosticToAdaQuantity
     :: Blind TokenBundle
     -> ProtocolMinimum Coin
-    -> Coin
     -> Property
 prop_computeMinimumAdaQuantity_agnosticToAdaQuantity
-    (Blind bundle) (ProtocolMinimum protocolMinimum) newCoin =
-        checkCoverage $
-        cover 90 (newCoin /= TokenBundle.getCoin bundle)
-            "Coin value is different" $
-        counterexample counterexampleText $
-        compute bundle === compute (TokenBundle.setCoin bundle newCoin)
+    (Blind bundle) (ProtocolMinimum protocolMinimum) =
+        counterexample counterexampleText $ conjoin
+            [ compute bundle === compute bundleWithCoinMinimized
+            , compute bundle === compute bundleWithCoinMaximized
+            , bundleWithCoinMinimized =/= bundleWithCoinMaximized
+            ]
   where
+    bundleWithCoinMinimized = TokenBundle.setCoin bundle minBound
+    bundleWithCoinMaximized = TokenBundle.setCoin bundle maxBound
     compute = computeMinimumAdaQuantity protocolMinimum
     counterexampleText = unlines
         [ "bundle:"
         , pretty (Flat bundle)
+        , "bundle minimized:"
+        , pretty (Flat bundleWithCoinMinimized)
+        , "bundle maximized:"
+        , pretty (Flat bundleWithCoinMaximized)
         ]
 
 prop_computeMinimumAdaQuantity_agnosticToAssetQuantities
     :: Blind TokenBundle
     -> ProtocolMinimum Coin
-    -> Positive Int
     -> Property
 prop_computeMinimumAdaQuantity_agnosticToAssetQuantities
-    (Blind bundle) (ProtocolMinimum protocolMinimum) (Positive scalingFactor) =
+    (Blind bundle) (ProtocolMinimum protocolMinimum) =
         checkCoverage $
-        cover 50 (scalingFactor > 1)
-            "Scaling factor is greater than 1" $
         cover 40 (assetCount >= 1)
             "Token bundle has at least 1 non-ada asset" $
         cover 20 (assetCount >= 2)
             "Token bundle has at least 2 non-ada assets" $
         cover 10 (assetCount >= 4)
             "Token bundle has at least 4 non-ada assets" $
-        counterexample counterexampleText $
-        compute bundle === compute (scaleAllQuantities bundle)
+        counterexample counterexampleText $ conjoin
+            [ compute bundle === compute bundleMinimized
+            , compute bundle === compute bundleMaximized
+            , assetCount === assetCountMinimized
+            , assetCount === assetCountMaximized
+            , if assetCount == 0
+                then bundleMinimized === bundleMaximized
+                else bundleMinimized =/= bundleMaximized
+            ]
   where
     assetCount = Set.size $ TokenBundle.getAssets bundle
+    assetCountMinimized = Set.size $ TokenBundle.getAssets bundleMinimized
+    assetCountMaximized = Set.size $ TokenBundle.getAssets bundleMaximized
+    bundleMinimized = bundle `setAllQuantitiesTo` txOutMinTokenQuantity
+    bundleMaximized = bundle `setAllQuantitiesTo` txOutMaxTokenQuantity
     compute = computeMinimumAdaQuantity protocolMinimum
-    scaleAllQuantities = adjustAllQuantities (* fromIntegral scalingFactor)
+    setAllQuantitiesTo = flip (adjustAllQuantities . const)
     counterexampleText = unlines
         [ "bundle:"
         , pretty (Flat bundle)
+        , "bundle minimized:"
+        , pretty (Flat bundleMinimized)
+        , "bundle maximized:"
+        , pretty (Flat bundleMaximized)
         ]
 
 --------------------------------------------------------------------------------
@@ -193,12 +212,12 @@ genFixedSizeTokenBundle fixedAssetCount
         <$> genAssetIdLargeRange
         <*> genTokenQuantity
     genCoin = Coin
-        <$> choose (1, unCoin maxBound)
-    genTokenQuantity = TokenQuantity . fromIntegral
-        -- Although the ledger specification allows token quantities of
-        -- unlimited sizes, in practice we'll only see transaction outputs
-        -- where the token quantities are bounded by the size of a 'Word64'.
-        <$> choose (1, maxBound :: Word64)
+        <$> choose (unCoin minBound, unCoin maxBound)
+    genTokenQuantity = TokenQuantity . fromIntegral @Integer @Natural
+        <$> choose
+            ( fromIntegral $ unTokenQuantity txOutMinTokenQuantity
+            , fromIntegral $ unTokenQuantity txOutMaxTokenQuantity
+            )
 
 unit_computeMinimumAdaQuantity_emptyBundle :: Property
 unit_computeMinimumAdaQuantity_emptyBundle =
@@ -227,17 +246,11 @@ unit_computeMinimumAdaQuantity_fixedSizeBundle_256 (Blind (FixedSize256 b)) =
 -- Utilities
 --------------------------------------------------------------------------------
 
-adjustAllQuantities :: (Natural -> Natural) -> TokenBundle -> TokenBundle
-adjustAllQuantities f b = uncurry TokenBundle.fromFlatList $ bimap
-    (adjustCoin)
-    (fmap (fmap adjustTokenQuantity))
+adjustAllQuantities
+    :: (TokenQuantity -> TokenQuantity) -> TokenBundle -> TokenBundle
+adjustAllQuantities adjust b = uncurry TokenBundle.fromFlatList $ second
+    (fmap (fmap adjust))
     (TokenBundle.toFlatList b)
-  where
-    adjustCoin :: Coin -> Coin
-    adjustCoin = Coin . fromIntegral . f . fromIntegral . unCoin
-
-    adjustTokenQuantity :: TokenQuantity -> TokenQuantity
-    adjustTokenQuantity = TokenQuantity . f . unTokenQuantity
 
 ledgerRoundtrip
     :: forall w l. (Arbitrary w, Eq w, Show w, Typeable w, Convert w l)
@@ -267,6 +280,26 @@ newtype FixedSize64 a = FixedSize64 { unFixedSize64 :: a }
 
 newtype FixedSize256 a = FixedSize256 { unFixedSize256 :: a }
     deriving (Eq, Show)
+
+--------------------------------------------------------------------------------
+-- Constants
+--------------------------------------------------------------------------------
+
+-- | The smallest token quantity that can appear in a transaction output's
+--   token bundle.
+--
+txOutMinTokenQuantity :: TokenQuantity
+txOutMinTokenQuantity = TokenQuantity 1
+
+-- | The greatest token quantity that can appear in a transaction output's
+--   token bundle.
+--
+-- Although the ledger specification allows token quantities of unlimited
+-- sizes, in practice we'll only see transaction outputs where the token
+-- quantities are bounded by the size of a 'Word64'.
+--
+txOutMaxTokenQuantity :: TokenQuantity
+txOutMaxTokenQuantity = TokenQuantity $ fromIntegral @Word64 $ maxBound
 
 --------------------------------------------------------------------------------
 -- Arbitraries
