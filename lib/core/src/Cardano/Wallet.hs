@@ -103,6 +103,7 @@ module Cardano.Wallet
     , getTxExpiry
     , selectAssets
     , selectAssetsNoOutputs
+    , assignChangeAddresses
     , selectionToUnsignedTx
     , signTransaction
     , ErrSelectAssets(..)
@@ -246,7 +247,6 @@ import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     , UnableToConstructChangeError (..)
     , emptySkeleton
     , performSelection
-    , selectionDelta
     )
 import Cardano.Wallet.Primitive.Model
     ( Wallet
@@ -338,7 +338,7 @@ import Control.DeepSeq
 import Control.Monad
     ( forM, forM_, replicateM, unless, when )
 import Control.Monad.IO.Class
-    ( MonadIO, liftIO )
+    ( liftIO )
 import Control.Monad.Trans.Class
     ( lift )
 import Control.Monad.Trans.Except
@@ -353,7 +353,7 @@ import Control.Monad.Trans.Except
 import Control.Monad.Trans.Maybe
     ( MaybeT (..), maybeToExceptT )
 import Control.Monad.Trans.State
-    ( runStateT, state )
+    ( runState, state )
 import Control.Tracer
     ( Tracer, contramap, traceWith )
 import Data.ByteString
@@ -1217,41 +1217,65 @@ normalizeDelegationAddress s addr = do
 -- to change outputs to which new addresses are being assigned to. This updates
 -- the wallet state as it needs to keep track of new pending change addresses.
 assignChangeAddresses
-    :: forall s m.
-        ( GenChange s
-        , MonadIO m
-        )
+    :: forall s.  (GenChange s)
     => ArgGenChange s
     -> SelectionResult TokenBundle
     -> s
-    -> m (SelectionResult TxOut, s)
-assignChangeAddresses argGenChange sel = runStateT $ do
+    -> (SelectionResult TxOut, s)
+assignChangeAddresses argGenChange sel = runState $ do
     changeOuts <- forM (changeGenerated sel) $ \bundle -> do
         addr <- state (genChange argGenChange)
         pure $ TxOut addr bundle
     pure $ sel { changeGenerated = changeOuts }
 
 selectionToUnsignedTx
-    :: forall ctx s k input output change.
-        ( GenChange s
-        , HasDBLayer s k ctx
-        , IsOurs s Address
+    :: forall s input output change.
+        ( IsOurs s Address
         , input ~ (TxIn, TxOut, NonEmpty DerivationIndex)
         , output ~ TxOut
         , change ~ TxChange (NonEmpty DerivationIndex)
         )
-    => ctx
-    -> WalletId
-    -> ArgGenChange s
-    -> SelectionResult TokenBundle
-    -> ExceptT ErrNoSuchWallet IO (UnsignedTx input output change)
-selectionToUnsignedTx ctx argGenChange wid sel = do
-    error "FIXME: selectionToUnsignedTx"
+    => SelectionResult TxOut
+    -> s
+    -> UnsignedTx input output change
+selectionToUnsignedTx sel s =
+    UnsignedTx
+        (fullyQualifiedInputs $ inputsSelected sel)
+        (outputsCovered sel)
+        (fullyQualifiedChange $ NE.toList $ changeGenerated sel)
   where
-    db = ctx ^. dbLayer @s @k
+    qualifyAddresses
+        :: forall a t. (Traversable t)
+        => (a -> Address)
+        -> t a
+        -> t (a, NonEmpty DerivationIndex)
+    qualifyAddresses getAddress hasAddresses =
+        case traverse withDerivationPath hasAddresses of
+            Just as -> as
+            Nothing -> error
+                "selectionToUnsignedTx: unable to find derivation path of a \
+                \known input or change address. This is impossible."
+      where
+        withDerivationPath hasAddress =
+            (hasAddress,) <$> fst (isOurs (getAddress hasAddress) s)
+
+    fullyQualifiedInputs :: Traversable t => t (TxIn, TxOut) -> t input
+    fullyQualifiedInputs =
+        fmap mkInput . qualifyAddresses (view #address . snd)
+      where
+        mkInput ((txin, txout), path) = (txin, txout, path)
+
+    fullyQualifiedChange :: Traversable t => t TxOut -> t change
+    fullyQualifiedChange =
+        fmap mkChange . qualifyAddresses (view #address)
+      where
+        mkChange (TxOut address bundle, derivationPath) = TxChange {..}
+          where
+            amount = view #coin   bundle
+            assets = view #tokens bundle
 
 selectAssetsNoOutputs
-    :: forall ctx s k.
+    :: forall ctx s k result.
         ( HasTransactionLayer k ctx
         , HasLogger WalletLog ctx
         , HasDBLayer s k ctx
@@ -1259,8 +1283,9 @@ selectAssetsNoOutputs
     => ctx
     -> WalletId
     -> TransactionCtx
-    -> ExceptT ErrSelectAssets IO (Coin, SelectionResult TokenBundle)
-selectAssetsNoOutputs ctx wid tx = do
+    -> (s -> SelectionResult TokenBundle -> result)
+    -> ExceptT ErrSelectAssets IO result
+selectAssetsNoOutputs ctx wid tx transform = do
     -- NOTE:
     -- Could be made nicer by allowing 'performSelection' to run with no target
     -- outputs, but to satisfy a minimum Ada target.
@@ -1271,17 +1296,18 @@ selectAssetsNoOutputs ctx wid tx = do
     -- least the size of the deposit (in practice, slightly bigger because this
     -- extra outputs also increases the apparent minimum fee).
     deposit <- calcMinimumDeposit @_ @s @k ctx wid
-    let dummyAddress = Address "-- selectAssetsNoOutputs --"
+    let dummyAddress = Address ""
     let dummyOutput  = TxOut dummyAddress (TokenBundle.fromCoin deposit)
-    (actualFee, res) <- selectAssets @ctx @s @k ctx wid tx (dummyOutput :| [])
-    pure (actualFee, res { outputsCovered = [] })
+    let outs = dummyOutput :| []
+    selectAssets @ctx @s @k ctx wid tx outs $ \s sel ->
+        transform s (sel { outputsCovered = mempty })
 
 -- | Selects assets from the wallet's UTxO to satisfy the requested outputs in
 -- the given transaction context. In case of success, returns the selection
 -- and its associated cost. That is, the cost is equal to the difference between
 -- inputs and outputs.
 selectAssets
-    :: forall ctx s k.
+    :: forall ctx s k result.
         ( HasTransactionLayer k ctx
         , HasLogger WalletLog ctx
         , HasDBLayer s k ctx
@@ -1290,10 +1316,12 @@ selectAssets
     -> WalletId
     -> TransactionCtx
     -> NonEmpty TxOut
-    -> ExceptT ErrSelectAssets IO (Coin, SelectionResult TokenBundle)
-selectAssets ctx wid tx outs = do
+    -> (s -> SelectionResult TokenBundle -> result)
+    -> ExceptT ErrSelectAssets IO result
+selectAssets ctx wid tx outs transform = do
     (cp, _, pending) <- withExceptT ErrSelectAssetsNoSuchWallet $
         readWallet @ctx @s @k ctx wid
+    let s = getState cp
 
     guardWithdrawal pending
 
@@ -1309,16 +1337,10 @@ selectAssets ctx wid tx outs = do
         (calcMinimumCost tl pp tx)
         (initSelectionCriteria tl pp tx utxo outs)
     liftIO $ traceWith tr $ MsgSelectionDone sel
-    withExceptT ErrSelectAssetsSelectionError $ except (withFee sel)
+    withExceptT ErrSelectAssetsSelectionError $ except (transform s <$> sel)
   where
     tl = ctx ^. transactionLayer @k
     tr = ctx ^. logger
-
-    withFee
-        :: Functor f
-        => f (SelectionResult TokenBundle)
-        -> f (Coin, SelectionResult TokenBundle)
-    withFee = fmap $ \s -> (selectionDelta TokenBundle.getCoin s, s)
 
     -- Ensure that there's no existing pending withdrawals. Indeed, a withdrawal
     -- is necessarily withdrawing rewards in their totality. So, after a first
@@ -1366,7 +1388,7 @@ signTransaction ctx wid argGenChange mkRwdAcct pwd txCtx sel = db & \DBLayer{..}
                 readCheckpoint (PrimaryKey wid)
             pp <- withExceptT ErrSignPaymentNoSuchWallet $ withNoSuchWallet wid $
                 readProtocolParameters (PrimaryKey wid)
-            (sel', s') <- assignChangeAddresses argGenChange sel (getState cp)
+            let (sel', s') = assignChangeAddresses argGenChange sel (getState cp)
             withExceptT ErrSignPaymentNoSuchWallet $
                 putCheckpoint (PrimaryKey wid) (updateState s' cp)
 

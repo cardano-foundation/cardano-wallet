@@ -814,7 +814,7 @@ makeChange minCoinValueFor requiredCost mExtraCoinSource inputBundles outputBund
                 changeForNonUserSpecifiedAssets
 
         (bundles, remainder) <-
-            maybe (Left $ changeError requiredCost excessCoin change) Right $
+            maybe (Left $ changeError excessCoin change) Right $
                 excessCoin `subtractCoin` requiredCost
                 >>=
                 runStateT
@@ -833,10 +833,9 @@ makeChange minCoinValueFor requiredCost mExtraCoinSource inputBundles outputBund
 
     changeError
         :: Coin
-        -> Coin
         -> NonEmpty TokenMap
         -> UnableToConstructChangeError
-    changeError cost excessCoin change =
+    changeError excessCoin change =
         UnableToConstructChangeError
             { requiredCost
             , missingCoins =
