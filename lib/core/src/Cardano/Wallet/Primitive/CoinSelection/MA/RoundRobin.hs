@@ -313,9 +313,13 @@ data InsufficientMinCoinValueError = InsufficientMinCoinValueError
         -- ^ The minimum coin quantity expected for this output.
     } deriving (Generic, Eq, Show)
 
-newtype UnableToConstructChangeError = UnableToConstructChangeError
-    { missingCoins
-        :: Coin
+data UnableToConstructChangeError = UnableToConstructChangeError
+    { requiredCost
+        :: !Coin
+        -- ^ The minimal required cost needed for the transaction to be
+        -- considered valid. This does not include min Ada values.
+    , missingCoins
+        :: !Coin
         -- ^ The additional coin quantity that would be required to cover the
         -- selection cost and minimum coin quantity of each change output.
     } deriving (Generic, Eq, Show)
@@ -763,8 +767,7 @@ makeChange
         -- ^ Token bundles of original outputs.
     -> Either UnableToConstructChangeError (NonEmpty TokenBundle)
         -- ^ Generated change bundles.
-makeChange
-    minCoinValueFor requiredCost mExtraCoinSource inputBundles outputBundles
+makeChange minCoinValueFor requiredCost mExtraCoinSource inputBundles outputBundles
     | not (totalOutputValue `leq` totalInputValue) =
         totalInputValueInsufficient
     | TokenBundle.getCoin totalOutputValue == Coin 0 =
@@ -806,7 +809,7 @@ makeChange
                 changeForNonUserSpecifiedAssets
 
         (bundles, remainder) <-
-            maybe (Left $ changeError excessCoin change) Right $
+            maybe (Left $ changeError requiredCost excessCoin change) Right $
                 excessCoin `subtractCoin` requiredCost
                 >>=
                 runStateT
@@ -825,11 +828,13 @@ makeChange
 
     changeError
         :: Coin
+        -> Coin
         -> NonEmpty TokenMap
         -> UnableToConstructChangeError
-    changeError excessCoin change =
+    changeError cost excessCoin change =
         UnableToConstructChangeError
-            { missingCoins =
+            { requiredCost
+            , missingCoins =
                 -- This conversion is safe because we know that the distance is
                 -- small-ish. If it wasn't, we would have have enough coins to
                 -- construct the change.
