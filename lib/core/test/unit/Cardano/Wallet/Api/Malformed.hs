@@ -1003,13 +1003,13 @@ instance Malformed (BodyParam ApiPostAccountKeyData) where
               , "Error in $.passphrase: passphrase is too long: expected at most 255 characters"
               )
             , ( [aesonQQ| { "passphrase": 123, "extended": true }|]
-              , "Error in $.passphrase: parsing Text failed, expected String, but encountered Number"
+              , "Error in $.passphrase: parsing Passphrase failed, expected String, but encountered Number"
               )
             , ( [aesonQQ| { "passphrase": [], "extended": true }|]
-              , "Error in $.passphrase: parsing Text failed, expected String, but encountered Array"
+              , "Error in $.passphrase: parsing Passphrase failed, expected String, but encountered Array"
               )
             , ( [aesonQQ| { "passphrase": 1.5, "extended": true }|]
-              , "Error in $.passphrase: parsing Text failed, expected String, but encountered Number"
+              , "Error in $.passphrase: parsing Passphrase failed, expected String, but encountered Number"
               )
             , ( [aesonQQ| { "extended": true }|]
               , "Error in $: parsing Cardano.Wallet.Api.Types.ApiPostAccountKeyData(ApiPostAccountKeyData) failed, key 'passphrase' not found"

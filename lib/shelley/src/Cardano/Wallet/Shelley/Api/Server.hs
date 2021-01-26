@@ -59,7 +59,6 @@ import Cardano.Wallet.Api.Server
     , deleteTransaction
     , deleteWallet
     , derivePublicKey
-    , getAccountPublicKey
     , getAsset
     , getAssetDefault
     , getCurrentEpoch
@@ -80,6 +79,7 @@ import Cardano.Wallet.Api.Server
     , migrateWallet
     , mkLegacyWallet
     , mkShelleyWallet
+    , postAccountPublicKey
     , postAccountPublicKey
     , postAccountWallet
     , postExternalTransaction

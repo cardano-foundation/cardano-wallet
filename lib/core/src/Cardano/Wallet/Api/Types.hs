@@ -256,7 +256,7 @@ import Control.DeepSeq
     ( NFData )
 import Control.Monad
     ( guard, (>=>) )
-import Data.Aeson
+import Data.Aeson.Types
     ( FromJSON (..)
     , SumEncoding (..)
     , ToJSON (..)

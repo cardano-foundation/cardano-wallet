@@ -2738,19 +2738,12 @@ instance LiftHandler ErrDerivePublicKey where
 
 instance LiftHandler (ErrInvalidDerivationIndex 'Soft level) where
     handler = \case
-        ErrIndexTooHigh maxIx _ix ->
+        ErrIndexOutOfBound minIx maxIx _ix ->
             apiError err403 SoftDerivationRequired $ mconcat
                 [ "It looks like you've provided a derivation index that is "
                 , "out of bound. The index is well-formed, but I require "
                 , "indexes valid for soft derivation only. That is, indexes "
-                , "between 0 and ", pretty maxIx, " without a suffix."
-                ]
-        ErrIndexTooLow minIx _ix ->
-            apiError err403 SoftDerivationRequired $ mconcat
-                [ "It looks like you've provided a derivation index that is "
-                , "out of bound. The index is well-formed, but I require "
-                , "indexes valid for soft derivation only. That is, indexes "
-                , "between ", pretty minIx, " and 2147483647 without a suffix."
+                , "between ", pretty minIx, " and ", pretty maxIx, " without a suffix."
                 ]
 
 instance LiftHandler ErrSelectAssets where
@@ -2815,21 +2808,12 @@ instance LiftHandler ErrSelectAssets where
 
 instance LiftHandler (ErrInvalidDerivationIndex 'Hardened level) where
     handler = \case
-        ErrIndexTooHigh maxIx _ix ->
+        ErrIndexOutOfBound minIx maxIx _ix ->
             apiError err403 HardenedDerivationRequired $ mconcat
                 [ "It looks like you've provided a derivation index that is "
                 , "out of bound. The index is well-formed, but I require "
                 , "indexes valid for hardened derivation only. That is, indexes "
-                , "between 2147483648 (0H) and ", pretty maxIx, "(2147483647H) "
-                , "with a suffix 'H'."
-                ]
-        ErrIndexTooLow minIx _ix ->
-            apiError err403 HardenedDerivationRequired $ mconcat
-                [ "It looks like you've provided a derivation index that is "
-                , "out of bound. The index is well-formed, but I require "
-                , "indexes valid for soft derivation only. That is, indexes "
-                , "between ", pretty minIx, " (0H) and 4294967295 (2147483647H) "
-                , "with a suffix 'H'."
+                , "between ", pretty minIx, " and ", pretty maxIx, " with a suffix 'H'."
                 ]
 
 instance LiftHandler (Request, ServerError) where

@@ -1978,8 +1978,8 @@ guardSoftIndex
     => DerivationIndex
     -> ExceptT (ErrInvalidDerivationIndex 'Soft 'AddressK) m (Index 'Soft whatever)
 guardSoftIndex ix =
-    if ix > DerivationIndex (getIndex @'Soft maxBound)
-    then throwE $ ErrIndexTooHigh maxBound ix
+    if ix > DerivationIndex (getIndex @'Soft maxBound) || ix < DerivationIndex (getIndex @'Soft minBound)
+    then throwE $ ErrIndexOutOfBound minBound maxBound ix
     else pure (Index $ getDerivationIndex ix)
 
 guardHardIndex
@@ -1987,10 +1987,8 @@ guardHardIndex
     => DerivationIndex
     -> ExceptT (ErrInvalidDerivationIndex 'Hardened 'AccountK) m (Index 'Hardened whatever)
 guardHardIndex ix =
-    if ix > DerivationIndex (getIndex @'Hardened maxBound)
-    then throwE $ ErrIndexTooHigh maxBound ix
-    else if ix <= DerivationIndex (getIndex @'Soft maxBound)
-    then throwE $ ErrIndexTooLow minBound ix
+    if ix > DerivationIndex (getIndex @'Hardened maxBound) || ix < DerivationIndex (getIndex @'Hardened minBound)
+    then throwE $ ErrIndexOutOfBound minBound maxBound ix
     else pure (Index $ getDerivationIndex ix)
 
 {-------------------------------------------------------------------------------
@@ -2023,8 +2021,7 @@ data ErrReadAccountPublicKey
     deriving (Eq, Show)
 
 data ErrInvalidDerivationIndex derivation level
-    = ErrIndexTooHigh (Index derivation level) DerivationIndex
-    | ErrIndexTooLow (Index derivation level) DerivationIndex
+    = ErrIndexOutOfBound (Index derivation level) (Index derivation level) DerivationIndex
     deriving (Eq, Show)
 
 -- | Errors that can occur when listing UTxO statistics.
