@@ -243,6 +243,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
 import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     ( SelectionError (..)
     , SelectionResult (..)
+    , UnableToConstructChangeError (..)
     , emptySkeleton
     , performSelection
     , selectionDelta
@@ -341,7 +342,14 @@ import Control.Monad.IO.Class
 import Control.Monad.Trans.Class
     ( lift )
 import Control.Monad.Trans.Except
-    ( ExceptT (..), except, mapExceptT, runExceptT, throwE, withExceptT )
+    ( ExceptT (..)
+    , catchE
+    , except
+    , mapExceptT
+    , runExceptT
+    , throwE
+    , withExceptT
+    )
 import Control.Monad.Trans.Maybe
     ( MaybeT (..), maybeToExceptT )
 import Control.Monad.Trans.State
@@ -1644,15 +1652,16 @@ calcMinimumDeposit ctx wid = db & \DBLayer{..} ->
 -- 'FeeEstimation', the minimum fee is that which 90% of the sampled fees are
 -- greater than. The maximum fee is the highest fee observed in the samples.
 estimateFee
-    :: forall m err. Monad m
-    => ExceptT err m Coin
-    -> ExceptT err m FeeEstimation
+    :: forall m. Monad m
+    => ExceptT ErrSelectAssets m Coin
+    -> ExceptT ErrSelectAssets m FeeEstimation
 estimateFee
     = fmap deciles
     . handleErrors
     . replicateM repeats
     . runExceptT
     . fmap unCoin
+    . (`catchE` handleCannotCover)
   where
     -- Use method R-8 from to get top 90%.
     -- https://en.wikipedia.org/wiki/Quantile#Estimating_quantiles_from_a_sample
@@ -1679,6 +1688,20 @@ estimateFee
                 Right samples'
 
     repeats = 100 -- TODO: modify repeats based on data
+
+    -- | When estimating fee, it is rather cumbersome to return "cannot cover fee"
+    -- whereas clients are just asking for an estimation. Therefore, we convert
+    -- cannot cover errors into the necessary fee amount, even though there isn't
+    -- enough in the wallet to cover for these fees.
+    handleCannotCover :: ErrSelectAssets -> ExceptT ErrSelectAssets m Coin
+    handleCannotCover = \case
+        e@(ErrSelectAssetsSelectionError se) -> case se of
+            UnableToConstructChange UnableToConstructChangeError{requiredCost} ->
+                pure requiredCost
+            _ ->
+                throwE  e
+        e ->
+            throwE e
 
 {-------------------------------------------------------------------------------
                                   Key Store
