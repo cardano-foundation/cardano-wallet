@@ -7,28 +7,30 @@
 -- Copyright: © 2020 IOHK
 -- License: Apache-2.0
 --
--- Exposes a wallet-friendly interface to ledger types and functions.
+-- Exposes a wallet-friendly interface to types and functions exported by the
+-- ledger specification.
 --
 module Cardano.Wallet.Shelley.Compatibility.Ledger
     (
       -- * Exported ledger functions
       computeMinimumAdaQuantity
 
-      -- * Conversions from wallet types to ledger types
+      -- * Conversions from wallet types to ledger specification types
     , toLedgerCoin
     , toLedgerTokenBundle
     , toLedgerTokenPolicyId
     , toLedgerTokenName
     , toLedgerTokenQuantity
 
-      -- * Conversions from ledger types to wallet types
+      -- * Conversions from ledger specification types to wallet types
     , toWalletCoin
     , toWalletTokenBundle
     , toWalletTokenPolicyId
     , toWalletTokenName
     , toWalletTokenQuantity
 
-      -- * Roundtrip-safe conversions between wallet types and ledger types
+      -- * Roundtrip conversion between wallet types and ledger specification
+      --   types
     , Convert (..)
 
     ) where
@@ -91,10 +93,10 @@ computeMinimumAdaQuantity protocolMinimum bundle =
             (toLedgerCoin protocolMinimum)
 
 --------------------------------------------------------------------------------
--- Roundtrip-safe conversions between wallet types and ledger types
+-- Roundtrip conversion between wallet types and ledger specification types
 --------------------------------------------------------------------------------
 
--- | A pairing between a wallet type and its equivalent ledger type.
+-- | Connects a wallet type with its equivalent ledger specification type.
 --
 -- Instances of this class should satisfy the following laws:
 --
@@ -102,10 +104,12 @@ computeMinimumAdaQuantity protocolMinimum bundle =
 -- >>> toWallet . toLedger == id
 --
 class Convert wallet ledger | wallet -> ledger where
-    -- | Converts a value from a wallet type to the equivalent ledger type.
+    -- | Converts a value from a wallet type to the equivalent ledger
+    --   specification type.
     toLedger
         :: HasCallStack => wallet -> ledger
-    -- | Converts a value from a ledger type to the equivalent wallet type.
+    -- | Converts a value from a ledger specification type to the equivalent
+    --   wallet type.
     toWallet
         :: HasCallStack => ledger -> wallet
 
@@ -140,9 +144,9 @@ toWalletCoin (Ledger.Coin c)
 -- Conversions for 'TokenBundle'
 --------------------------------------------------------------------------------
 
--- Values of the ledger 'Value' type are constructed in a similar way to those
--- of the wallet's 'TokenBundle' type. The ada quantity is stored as a separate
--- value, and asset quantities are stored in a nested map.
+-- Values of the ledger specification's 'Value' type are constructed in a way
+-- that is similar to the wallet's 'TokenBundle' type. The ada quantity is
+-- stored as a separate value, and asset quantities are stored in a nested map.
 
 instance Convert TokenBundle (Ledger.Value StandardCrypto) where
     toLedger = toLedgerTokenBundle
