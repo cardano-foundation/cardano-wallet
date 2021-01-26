@@ -42,7 +42,6 @@ module Test.Integration.Framework.TestData
     , errMsg403NotAByronWallet
     , errMsg403NotAnIcarusWallet
     , errMsg403NotEnoughMoney
-    , errMsg403NotEnoughMoney_
     , errMsg403WrongPass
     , errMsg403AlreadyInLedger
     , errMsg404NoSuchPool
@@ -71,9 +70,7 @@ module Test.Integration.Framework.TestData
     , errMsg400MinWithdrawalWrong
     , errMsg403WithdrawalNotWorth
     , errMsg403NotAShelleyWallet
-    , errMsg403InputsDepleted
-    , errMsg404MinUTxOValue
-    , errMsg403TxTooLarge
+    , errMsg403MinUTxOValue
     , errMsg403CouldntIdentifyAddrAsMine
     , errMsg503PastHorizon
     ) where
@@ -225,19 +222,13 @@ versionLine = "Running as v" <> pack (showFullVersion version gitRevision)
 --- Error messages
 ---
 
-errMsg403InputsDepleted :: String
-errMsg403InputsDepleted = "I cannot select enough UTxO from your wallet to construct\
-  \ an adequate transaction. Try sending a smaller amount or increasing the number\
-  \ of available UTxO."
+errMsg403MinUTxOValue :: String
+errMsg403MinUTxOValue =
+    "Some outputs specifies an Ada value that is too small. Indeed, there's a \
+    \minimum Ada value specified by the protocol that each output must satisfy. \
+    \I'll handle that minimum value myself when you do not explicitly specify \
+    \an Ada value for outputs. Otherwise, you must specify enough Ada."
 
-errMsg404MinUTxOValue :: Natural -> String
-errMsg404MinUTxOValue minUTxOValue = mconcat
-    [ "I'm unable to construct the given transaction as some outputs or changes"
-    , " are too small! Each output and change is expected to be >= "
-    , (show minUTxOValue)
-    , " Lovelace. In the current transaction the following pieces are not"
-    , " satisfying this condition"
-    ]
 errMsg409WalletExists :: String -> String
 errMsg409WalletExists walId = "This operation would yield a wallet with the following\
      \ id: " ++ walId ++ " However, I already know of a wallet with this id."
@@ -256,10 +247,9 @@ errMsg400StartTimeLaterThanEndTime startTime endTime = mconcat
     ]
 
 errMsg403Fee :: String
-errMsg403Fee = "I'm unable to adjust the given transaction to cover the\
-    \ associated fee! In order to do so, I'd have to select one or\
-    \ more additional inputs, but I can't do that without increasing\
-    \ the size of the transaction beyond the acceptable limit."
+errMsg403Fee =
+    "I am unable to finalize the transaction as there are not enough Ada I can \
+    \use to pay for either fees, or minimum Ada value in change outputs."
 
 errMsg403DelegationFee :: Natural -> String
 errMsg403DelegationFee n =
@@ -276,26 +266,16 @@ errMsg403NotAnIcarusWallet =
     "I cannot derive new address for this wallet type.\
     \ Make sure to use a sequential wallet style, like Icarus."
 
-errMsg403NotEnoughMoney_ :: String
-errMsg403NotEnoughMoney_ =
-    "I can't process this payment because there's not enough UTxO available in \
+errMsg403NotEnoughMoney :: String
+errMsg403NotEnoughMoney =
+    "I can't process this payment because there's not enough funds available in \
     \the wallet."
 
-errMsg403NotEnoughMoney :: Integral i => i -> i -> String
-errMsg403NotEnoughMoney has needs = "I can't process this payment because there's\
-    \ not enough UTxO available in the wallet. The total UTxO sums up to\
-    \ " ++ has' ++ " Lovelace, but I need " ++ needs' ++ " Lovelace\
-    \ (excluding fee amount) in order to proceed  with the payment."
-
-  where
-    needs' = show (toInteger needs)
-    has' = show (toInteger has)
-
-errMsg403TxTooBig :: Int -> String
-errMsg403TxTooBig n = "I had to select " ++ show n ++ " inputs to construct the\
-    \ requested transaction. Unfortunately, this would create a transaction\
-    \ that is too big, and this would consequently be rejected by a core node.\
-    \ Try sending a smaller amount."
+errMsg403TxTooBig :: String
+errMsg403TxTooBig =
+    "I am not able to finalize the transaction because I need to select \
+    \additional inputs and doing so will make the transaction too big. \
+    \Try sending a smaller amount."
 
 errMsg400MalformedTxPayload :: String
 errMsg400MalformedTxPayload =
@@ -310,10 +290,6 @@ errMsg400WronglyEncodedTxPayload =
 errMsg400TxMetadataStringTooLong :: String
 errMsg400TxMetadataStringTooLong =
     "Text string metadata value must consist of at most 64 UTF8 bytes"
-
-errMsg403TxTooLarge :: String
-errMsg403TxTooLarge =
-    "I am afraid that the transaction you're trying to submit is too large!"
 
 errMsg400ParseError :: String
 errMsg400ParseError = mconcat
