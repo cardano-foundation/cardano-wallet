@@ -24,10 +24,11 @@ module Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     -- * Performing a selection
       performSelection
     , prepareOutputsWith
+    , emptySkeleton
+    , selectionDelta
     , SelectionCriteria (..)
     , SelectionLimit (..)
     , SelectionSkeleton (..)
-    , emptySkeleton
     , SelectionResult (..)
     , SelectionError (..)
     , BalanceInsufficientError (..)
@@ -75,7 +76,7 @@ import Algebra.PartialOrd
 import Cardano.Numeric.Util
     ( padCoalesce, partitionNatural )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..), subtractCoin )
+    ( Coin (..), addCoin, subtractCoin, sumCoins )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle (..) )
 import Cardano.Wallet.Primitive.Types.TokenMap
@@ -83,13 +84,15 @@ import Cardano.Wallet.Primitive.Types.TokenMap
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( TxIn, TxOut )
+    ( TxIn, TxOut, txOutCoin )
 import Cardano.Wallet.Primitive.Types.UTxOIndex
     ( SelectionFilter (..), UTxOIndex (..) )
 import Control.Monad.Random.Class
     ( MonadRandom (..) )
 import Control.Monad.Trans.State
     ( StateT (..) )
+import Data.Function
+    ( (&) )
 import Data.Functor.Identity
     ( Identity (..) )
 import Data.Generics.Internal.VL.Lens
@@ -115,6 +118,7 @@ import GHC.Stack
 import Numeric.Natural
     ( Natural )
 
+import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.Tx as Tx
@@ -237,8 +241,24 @@ buildSelectionResult changeF s@SelectionResult{inputsSelected,extraCoinSource} =
     inputsF :: NonEmpty (TxIn, TxOut) -> Builder
     inputsF = blockListF' "+" tupleF
 
-        changeF :: NonEmpty TokenBundle -> Builder
-        changeF = blockListF . fmap TokenBundle.Flat
+-- | Calculate the actual difference between the total outputs (incl. change)
+-- and total inputs of a particular selection. By construction, this should be
+-- greater than total fees and deposits.
+selectionDelta
+    :: (change -> Coin)
+    -> SelectionResult change
+    -> Coin
+selectionDelta getChangeCoin sel@SelectionResult{inputsSelected,extraCoinSource} =
+    let
+        totalOut
+            = sumCoins (getChangeCoin <$> changeGenerated sel)
+            & addCoin  (sumCoins (txOutCoin <$> outputsCovered sel))
+
+        totalIn
+            = sumCoins (txOutCoin . snd <$> inputsSelected)
+            & addCoin (fromMaybe (Coin 0) extraCoinSource)
+    in
+        Coin.distance totalIn totalOut
 
 -- | Represents the set of errors that may occur while performing a selection.
 --
