@@ -58,6 +58,8 @@ import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle (..) )
+import Cardano.Wallet.Primitive.Types.TokenMap
+    ( TokenMap )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenName, TokenPolicyId )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
@@ -243,6 +245,8 @@ data TxChange derivationPath = TxChange
         :: !Address
     , amount
         :: !Coin
+    , assets
+        :: !TokenMap
     , derivationPath
         :: derivationPath
     } deriving (Show, Generic, Eq, Ord)
@@ -330,7 +334,7 @@ data UnsignedTx input output change = UnsignedTx
         -- transaction body makes it seemingly unique).
 
     , unsignedOutputs
-        :: [TxOut]
+        :: [output]
         -- Unlike inputs, it is perfectly reasonable to have empty outputs. The
         -- main scenario where this might occur is when constructing a
         -- delegation for the sake of submitting a certificate. This type of
