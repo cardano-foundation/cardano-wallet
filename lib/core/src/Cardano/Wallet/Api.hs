@@ -339,6 +339,7 @@ type SignMetadata = "wallets"
 type PostAccountKey = "wallets"
     :> Capture "walletId" (ApiT WalletId)
     :> "keys"
+    :> Capture "index" (ApiT DerivationIndex)
     :> ReqBody '[JSON] ApiPostAccountKeyData
     :> PostAccepted '[JSON] ApiAccountKey
 

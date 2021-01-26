@@ -1992,11 +1992,9 @@ components:
     ApiPostAccountKeyData: &ApiPostAccountKeyData
       type: object
       required:
-        - index
         - passphrase
         - extended
       properties:
-        index: *derivationSegment
         passphrase: *walletPassphrase
         extended: *keyExtended
 
@@ -2414,6 +2412,17 @@ x-errSoftDerivationRequired: &errSoftDerivationRequired
     code:
       type: string
       enum: ['soft_derivation_required']
+
+x-errHardenedDerivationRequired: &errHardenedDerivationRequired
+  <<: *responsesErr
+  title: not_found
+  properties:
+    message:
+      type: string
+      description: A descriptive error message.
+    code:
+      type: string
+      enum: ['hardened_derivation_required']
 
 x-errNoSuchWallet: &errNoSuchWallet
   <<: *responsesErr
@@ -3846,7 +3855,7 @@ paths:
         - *parametersAddressState
       responses: *responsesListAddresses
 
-  /wallets/{walletId}/keys:
+  /wallets/{walletId}/keys/{index}:
     post:
       operationId: postAccountKey
       tags: ["Keys"]
@@ -3857,6 +3866,7 @@ paths:
         Retrieve account public key from the wallet.
       parameters:
         - *parametersWalletId
+        - *parametersDerivationSegment
       requestBody:
         required: true
         content:

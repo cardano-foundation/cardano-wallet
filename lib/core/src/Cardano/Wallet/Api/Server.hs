@@ -1862,9 +1862,10 @@ postAccountPublicKey
         )
     => ctx
     -> ApiT WalletId
+    -> ApiT DerivationIndex
     -> ApiPostAccountKeyData
     -> Handler ApiAccountKey
-postAccountPublicKey ctx (ApiT wid) (ApiPostAccountKeyData (ApiT ix) (ApiT pwd) extd) = do
+postAccountPublicKey ctx (ApiT wid) (ApiT ix) (ApiPostAccountKeyData (ApiT pwd) extd) = do
     withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk -> do
         k <- liftHandler $ W.readPublicAccountKey @_ @s @k @n wrk wid pwd ix
         let toBytes = if extd then xpubToBytes else xpubPublicKey

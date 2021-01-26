@@ -976,8 +976,7 @@ newtype ApiVerificationKey = ApiVerificationKey
       deriving anyclass NFData
 
 data ApiPostAccountKeyData = ApiPostAccountKeyData
-    { index :: ApiT DerivationIndex
-    , passphrase :: ApiT (Passphrase "raw")
+    { passphrase :: ApiT (Passphrase "raw")
     , extended :: Bool
     } deriving (Eq, Generic, Show)
       deriving anyclass NFData
