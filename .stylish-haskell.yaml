@@ -20,3 +20,9 @@ steps:
       align: false
       remove_redundant: true
       style: vertical
+
+language_extensions:
+# Workaround for stylish-haskell bug (jaspervdj/stylish-haskell#230)
+- FlexibleContexts
+# Workaround for stylish-haskell bug (jaspervdj/stylish-haskell#103)
+- MultiParamTypeClasses
