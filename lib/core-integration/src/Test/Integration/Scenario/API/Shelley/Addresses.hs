@@ -16,6 +16,7 @@ import Prelude
 
 import Cardano.Wallet.Api.Types
     ( AnyAddress
+    , ApiAccountKey
     , ApiAddress
     , ApiT (..)
     , ApiTransaction
@@ -77,7 +78,7 @@ import Test.Integration.Framework.DSL
     , walletId
     )
 import Test.Integration.Framework.TestData
-    ( errMsg404NoWallet )
+    ( errMsg403WrongIndex, errMsg404NoWallet )
 
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Data.Aeson as Aeson
@@ -650,6 +651,35 @@ spec = describe "SHELLEY_ADDRESSES" $ do
             r <- request @AnyAddress ctx Link.postAnyAddress Default payload
             expectResponseCode HTTP.status400 r
             expectErrorMessage "must have at least one credential" r
+
+    it "POST_ACCOUNT_01 - Can retrieve account public keys" $ \ctx -> runResourceT $ do
+        let initPoolGap = 10
+        w <- emptyWalletWith ctx ("Wallet", fixturePassphrase, initPoolGap)
+
+        let endpoint = Link.postAccountKey w (DerivationIndex 0)
+        let payload = Json [json|{
+                "passphrase": #{fixturePassphrase},
+                "extended": true
+            }|]
+        resp <- request @ApiAccountKey ctx endpoint Default payload
+        expectErrorMessage errMsg403WrongIndex resp
+
+        -- Request first 10 extended account public keys
+        let indices = [0..9]
+        accountPublicKeys <- forM indices $ \index -> do
+            let accountPath = Link.postAccountKey w (DerivationIndex $ 2147483648 + index)
+            let payload1 = Json [json|{
+                    "passphrase": #{fixturePassphrase},
+                    "extended": true
+                }|]
+            let payload2 = Json [json|{
+                    "passphrase": #{fixturePassphrase},
+                    "extended": false
+                }|]
+            (_, accXPub) <- unsafeRequest @ApiAccountKey ctx accountPath payload1
+            (_, accPub) <- unsafeRequest @ApiAccountKey ctx accountPath payload2
+            pure [accXPub, accPub]
+        length (concat accountPublicKeys) `Expectations.shouldBe` 20
   where
     validateAddr resp expected = do
         let addr = getFromResponse id resp
