@@ -38,7 +38,6 @@ module Test.Integration.Framework.TestData
     , errMsg400WalletIdEncoding
     , errMsg400StartTimeLaterThanEndTime
     , errMsg403Fee
-    , errMsg403DelegationFee
     , errMsg403NotAByronWallet
     , errMsg403NotAnIcarusWallet
     , errMsg403NotEnoughMoney
@@ -83,8 +82,6 @@ import Data.Text
     ( Text, pack, unpack )
 import Data.Word
     ( Word32 )
-import Numeric.Natural
-    ( Natural )
 import Test.Integration.Framework.DSL
     ( Payload (..), fixturePassphrase, json )
 
@@ -250,11 +247,6 @@ errMsg403Fee :: String
 errMsg403Fee =
     "I am unable to finalize the transaction as there are not enough Ada I can \
     \use to pay for either fees, or minimum Ada value in change outputs."
-
-errMsg403DelegationFee :: Natural -> String
-errMsg403DelegationFee n =
-    "I'm unable to select enough coins to pay for a delegation certificate. \
-    \I need: " ++ show n ++ " Lovelace."
 
 errMsg403NotAByronWallet :: String
 errMsg403NotAByronWallet =

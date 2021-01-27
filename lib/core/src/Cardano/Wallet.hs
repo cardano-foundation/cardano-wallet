@@ -1267,8 +1267,30 @@ selectAssetsNoOutputs ctx wid tx transform = do
     let dummyAddress = Address ""
     let dummyOutput  = TxOut dummyAddress (TokenBundle.fromCoin deposit)
     let outs = dummyOutput :| []
-    selectAssets @ctx @s @k ctx wid tx outs $ \s sel ->
-        transform s (sel { outputsCovered = mempty })
+    selectAssets @ctx @s @k ctx wid tx outs $ \s sel -> transform s $ sel
+        { outputsCovered = mempty
+        , changeGenerated =
+            let
+                -- NOTE 1: This subtraction and head are safe because of the
+                -- invariants enforced by the asset selection algorithm. The
+                -- output list has the exact same length as the input list, and
+                -- outputs are at least as large as the specified outputs.
+                --
+                -- NOTE 2: When presented with 0 Ada outputs, the selection
+                -- algorithm will assign a minimum default value to the output.
+                -- So the output covered may be in practice bigger than the
+                -- output specified. This is the case when 'deposit' is null, in
+                -- which case, we want to make sure to add this extra minimum
+                -- value to the resulting change and not completely discard it.
+                reclaim = TokenBundle.unsafeSubtract
+                    (view #tokens (head $ outputsCovered sel))
+                    (TokenBundle.fromCoin deposit)
+            in
+                once (TokenBundle.add reclaim) (changeGenerated sel)
+        }
+  where
+    once :: (a -> a) -> NonEmpty a -> NonEmpty a
+    once fn (a :| as) = fn a :| as
 
 -- | Selects assets from the wallet's UTxO to satisfy the requested outputs in
 -- the given transaction context. In case of success, returns the selection
@@ -1415,17 +1437,17 @@ mkTxMeta ti' blockHeader wState txCtx sel =
             mapMaybe ourCoins (outputsCovered sel)
 
         amtInps
-            = sumCoins (txOutCoin . snd <$> (inputsSelected sel))
-            & addCoin (fromMaybe (Coin 0) (extraCoinSource sel))
+            = sumCoins (txOutCoin . snd <$> inputsSelected sel)
             -- NOTE: In case where rewards were pulled from an external
-            -- source, they are removed from 'our inputs' in the calculation
-            -- because the money is considered to come from outside of the
-            -- wallet; which changes the way we look at transactions (in such
-            -- case, a transaction is considered 'Incoming' since it brings
-            -- extra money to the wallet from elsewhere).
+            -- source, they aren't not added to the calculation because the
+            -- money is considered to come from outside of the wallet; which
+            -- changes the way we look at transactions (in such case, a
+            -- transaction is considered 'Incoming' since it brings extra money
+            -- to the wallet from elsewhere).
             & case txWithdrawal txCtx of
-                WithdrawalExternal c -> (`Coin.distance` c)
-                _ -> Prelude.id
+                WithdrawalSelf c -> addCoin c
+                WithdrawalExternal{} -> Prelude.id
+                NoWithdrawal -> Prelude.id
     in do
         t <- slotStartTime' (blockHeader ^. #slotNo)
         return
