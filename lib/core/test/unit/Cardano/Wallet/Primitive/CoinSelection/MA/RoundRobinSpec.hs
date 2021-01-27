@@ -400,6 +400,13 @@ prop_prepareOutputsWith_preparedOrExistedBefore minCoinValueDef outs =
 -- Performing a selection
 --------------------------------------------------------------------------------
 
+-- | The result of calling 'performSelection'.
+--
+-- We define this type alias to shorten type signatures.
+--
+type PerformSelectionResult =
+    Either SelectionError (SelectionResult TokenBundle)
+
 genSelectionCriteria :: Gen UTxOIndex -> Gen SelectionCriteria
 genSelectionCriteria genUTxOIndex = do
     utxoAvailable <- genUTxOIndex
@@ -455,12 +462,12 @@ prop_performSelection_small minCoinValueFor costFor (Blind (Small criteria)) =
     selectionUnlimited :: Bool
     selectionUnlimited = not selectionLimited
 
-    selectionSufficient :: Either SelectionError SelectionResult -> Bool
+    selectionSufficient :: PerformSelectionResult -> Bool
     selectionSufficient = \case
         Right _ -> True
         _ -> False
 
-    selectionInsufficient :: Either SelectionError SelectionResult -> Bool
+    selectionInsufficient :: PerformSelectionResult -> Bool
     selectionInsufficient = \case
         Left (SelectionInsufficient _) -> True
         _ -> False
@@ -482,7 +489,7 @@ prop_performSelection
     :: MinCoinValueFor
     -> CostFor
     -> Blind SelectionCriteria
-    -> (Either SelectionError SelectionResult -> Property -> Property)
+    -> (PerformSelectionResult -> Property -> Property)
     -> Property
 prop_performSelection minCoinValueFor costFor (Blind criteria) coverage =
     monadicIO $ do
@@ -538,8 +545,8 @@ prop_performSelection minCoinValueFor costFor (Blind criteria) coverage =
             { inputsSkeleton =
                 UTxOIndex.fromSequence inputsSelected
             , outputsSkeleton =
-                outputsToCover
-            , changeSkeleton  =
+                NE.toList outputsToCover
+            , changeSkeleton  = NE.toList $
                 fmap (TokenMap.getAssets . view #tokens) changeGenerated
             }
         balanceSelected =
@@ -885,8 +892,8 @@ linearCost SelectionSkeleton{inputsSkeleton, outputsSkeleton, changeSkeleton}
     = Coin
     $ fromIntegral
     $ UTxOIndex.size inputsSkeleton
-    + NE.length outputsSkeleton
-    + NE.length changeSkeleton
+    + F.length outputsSkeleton
+    + F.length changeSkeleton
 
 data MakeChangeData = MakeChangeData
     { inputBundles
