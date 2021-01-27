@@ -365,6 +365,7 @@ prepareOutputsWith minCoinValueFor = fmap $ \out ->
 --
 --    inputsSelected ∪ utxoRemaining == utxoAvailable
 --    inputsSelected ∩ utxoRemaining == ∅
+--    outputsCovered == outputsToCover
 --
 performSelection
     :: forall m. (HasCallStack, MonadRandom m)

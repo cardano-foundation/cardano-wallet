@@ -533,6 +533,7 @@ prop_performSelection minCoinValueFor costFor (Blind criteria) coverage =
             == UTxOIndex.insertMany inputsSelected utxoRemaining
         assert $ utxoRemaining
             == UTxOIndex.deleteMany (fst <$> inputsSelected) utxoAvailable
+        assert $ view #outputsCovered result == NE.toList outputsToCover
         case selectionLimit of
             MaximumInputLimit limit ->
                 assert $ NE.length inputsSelected <= limit
