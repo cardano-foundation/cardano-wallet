@@ -6,6 +6,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE Rank2Types #-}
 {-# LANGUAGE RoleAnnotations #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -85,7 +86,7 @@ import Cardano.Wallet.Primitive.Types.TokenMap
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenName (..) )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( SealedTx (..), Tx (..), TxIn (..), TxMetadata, TxOut (..), txOutCoin )
+    ( SealedTx (..), Tx (..), TxIn (..), TxOut (..), txOutCoin )
 import Cardano.Wallet.Shelley.Compatibility
     ( AllegraEra
     , CardanoEra (MaryEra)
@@ -113,7 +114,6 @@ import Cardano.Wallet.Transaction
     , ErrMkTx (..)
     , TransactionCtx (..)
     , TransactionLayer (..)
-    , defaultTransactionCtx
     , withdrawalToCoin
     )
 import Control.Arrow
@@ -122,12 +122,16 @@ import Control.Monad
     ( forM )
 import Data.ByteString
     ( ByteString )
+import Data.Generics.Internal.VL.Lens
+    ( view )
+import Data.Generics.Labels
+    ()
 import Data.Quantity
     ( Quantity (..) )
 import Data.Type.Equality
     ( type (==) )
 import Data.Word
-    ( Word16, Word8 )
+    ( Word16 )
 import Fmt
     ( Buildable, pretty )
 import GHC.Stack
@@ -149,7 +153,6 @@ import qualified Codec.CBOR.Write as CBOR
 import qualified Data.ByteString as BS
 import qualified Data.Foldable as F
 import qualified Data.List.NonEmpty as NE
-import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Shelley.Spec.Ledger.Address.Bootstrap as SL
 
@@ -304,11 +307,11 @@ newTransactionLayer networkId = TransactionLayer
 
     , initSelectionCriteria = \pp ctx utxoAvailable outputsUnprepared ->
         let
-            selectionLimit = MaximumInputLimit $ fromIntegral $
-                _estimateMaxNumberOfInputs @k
-                    (getTxMaxSize $ txParameters pp)
-                    (txMetadata ctx)
-                    (fromIntegral $ NE.length outputsToCover)
+            txMaxSize =
+                getTxMaxSize $ txParameters pp
+
+            selectionLimit = MaximumInputLimit $
+                _estimateMaxNumberOfInputs @k txMaxSize ctx (NE.toList outputsToCover)
 
             extraCoinSource = Just $ addCoin
                 (withdrawalToCoin $ txWithdrawal ctx)
@@ -341,9 +344,6 @@ newTransactionLayer networkId = TransactionLayer
 
     , calcMinimumCoinValue =
         _calcMinimumCoinValue
-
-    , estimateMaxNumberOfInputs =
-        _estimateMaxNumberOfInputs @k
 
     , decodeSignedTx =
         _decodeSignedTx
@@ -384,58 +384,62 @@ _calcMinimumCoinValue
 _calcMinimumCoinValue pp =
     computeMinimumAdaQuantity (minimumUTxOvalue pp)
 
+-- NOTE / FIXME: This is an 'estimation' because it is actually quite hard to
+-- estimate what would be the cost of a selecting a particular input. Indeed, an
+-- input may contain any arbitrary assets, which has a direct impact on the
+-- shape of change outputs. In practice, this should work out pretty well
+-- because of other approximations done along the way which should compensate
+-- for possible extra assets in inputs not counted as part of this estimation.
+--
+-- Worse that may happen here is the wallet generating a transaction that is
+-- slightly too big, For a better user experience, we could detect that earlier
+-- before submitting the transaction and return a more user-friendly error.
+--
+-- Or... to be even better, the 'SelectionLimit' from the RoundRobin module
+-- could be a function of the 'SelectionState' already selected. With this
+-- information and the shape of the requested output, we can get down to a
+-- pretty accurate result.
 _estimateMaxNumberOfInputs
     :: forall k. TxWitnessTagFor k
     => Quantity "byte" Word16
      -- ^ Transaction max size in bytes
-    -> Maybe TxMetadata
-     -- ^ Metadata associated with the transaction.
-    -> Word8
-    -- ^ Number of outputs in transaction
-    -> Word8
-_estimateMaxNumberOfInputs txMaxSize txMetadata nOuts =
-    findLargestUntil ((> maxSize) . txSizeGivenInputs) 0
+    -> TransactionCtx
+     -- ^ An additional transaction context
+    -> [TxOut]
+     -- ^ A list of outputs being considered.
+    -> Int
+_estimateMaxNumberOfInputs txMaxSize ctx outs =
+    fromIntegral $ findLargestUntil ((> maxSize) . txSizeGivenInputs) 0
   where
     -- | Find the largest amount of inputs that doesn't make the tx too big.
     -- Tries in sequence from 0 and upward (up to 255, but smaller than 50 in
     -- practice because of the max transaction size).
-    findLargestUntil :: (Word8 -> Bool) -> Word8 -> Word8
+    findLargestUntil :: (Integer -> Bool) -> Integer -> Integer
     findLargestUntil isTxTooLarge inf
-        | inf == maxBound        = maxBound
+        | inf == maxNInps        = maxNInps
         | isTxTooLarge (inf + 1) = inf
         | otherwise              = findLargestUntil isTxTooLarge (inf + 1)
 
-    maxSize = fromIntegral (getQuantity txMaxSize)
+    maxSize  = toInteger (getQuantity txMaxSize)
+    maxNInps = 255 -- Arbitrary, but large enough.
 
     txSizeGivenInputs nInps = size
       where
         size = estimateTxSize (txWitnessTagFor @k) ctx sel
-        sel  = dummySkeleton (fromIntegral nInps) (fromIntegral nOuts)
-        ctx  = defaultTransactionCtx { txMetadata }
+        sel  = dummySkeleton (fromIntegral nInps) outs
 
--- FIXME: This dummy skeleton does not account for multi-asset outputs. So
--- the final estimation can end up being much larger than it should in
--- practice. With the introduction of multi-assets, it is no longer possible
--- to accurately estimate the maximum number of inputs from a number of
--- outputs only. We have to know also the shape of outputs.
---
--- Yet, this function will still yield a relevant number that can gives us a
--- way to cap the selection to a given limit (which is known to be higher
--- than the real value). So it suffices to check the result of a selection
--- to see whether it has grown too large or not.
-dummySkeleton :: Int -> Int -> SelectionSkeleton
-dummySkeleton nInps nOuts = SelectionSkeleton
+dummySkeleton :: Int -> [TxOut] -> SelectionSkeleton
+dummySkeleton nInps outs = SelectionSkeleton
     { inputsSkeleton = UTxOIndex.fromSequence $
         map (\ix -> (dummyTxIn ix, dummyTxOut)) [0..nInps-1]
     , outputsSkeleton =
-        replicate nOuts dummyTxOut
+        outs
     , changeSkeleton =
-        replicate nOuts Set.empty
+        TokenBundle.getAssets . view #tokens <$> outs
     }
   where
     dummyTxIn  = TxIn (Hash $ BS.pack (1:replicate 64 0)) . fromIntegral
-    dummyTxOut = TxOut dummyAddr (TokenBundle.fromCoin $ Coin 1)
-    dummyAddr  = Address $ BS.pack (1:replicate 64 0)
+    dummyTxOut = TxOut (Address "") TokenBundle.empty
 
 _decodeSignedTx
     :: AnyCardanoEra

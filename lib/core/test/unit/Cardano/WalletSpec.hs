@@ -645,8 +645,6 @@ dummyTransactionLayer = TransactionLayer
         error "dummyTransactionLayer: calcMinimumCost not implemented"
     , calcMinimumCoinValue =
         error "dummyTransactionLayer: calcMinimumCoinValue not implemented"
-    , estimateMaxNumberOfInputs =
-        error "dummyTransactionLayer: estimateMaxNumberOfInputs not implemented"
     , decodeSignedTx =
         error "dummyTransactionLayer: decodeSignedTx not implemented"
     }

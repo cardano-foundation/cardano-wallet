@@ -111,6 +111,7 @@ import Test.Hspec.QuickCheck
 import Test.QuickCheck
     ( Arbitrary (..)
     , InfiniteList (..)
+    , NonEmptyList (..)
     , Property
     , arbitraryPrintableChar
     , choose
@@ -125,6 +126,10 @@ import Test.QuickCheck
     , (===)
     , (==>)
     )
+import Test.QuickCheck.Gen
+    ( Gen (..) )
+import Test.QuickCheck.Random
+    ( mkQCGen )
 
 import qualified Cardano.Api.Typed as Cardano
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
@@ -147,11 +152,11 @@ spec = do
         prop "roundtrip for Byron witnesses" prop_decodeSignedByronTxRoundtrip
 
     estimateMaxInputsTests @ShelleyKey
-        [(1,27),(10,19),(20,10),(30,1)]
+        [(1,27),(5,17),(10,12),(20,0),(50,0)]
     estimateMaxInputsTests @ByronKey
-        [(1,17),(10,11),(20,4),(30,0)]
+        [(1,17),(5,10),(10,6),(20,0),(50,0)]
     estimateMaxInputsTests @IcarusKey
-        [(1,17),(10,11),(20,4),(30,0)]
+        [(1,17),(5,10),(10,6),(20,0),(50,0)]
 
     describe "fee calculations" $ do
         let pp :: ProtocolParameters
@@ -402,8 +407,8 @@ spec = do
                 \58200000000000000000000000000000000000000000000000000000000000\
                 \00000044a1024100f6"
 
-newtype GivenNumOutputs = GivenNumOutputs Word8 deriving Num
-newtype ExpectedNumInputs = ExpectedNumInputs Word8 deriving Num
+newtype GivenNumOutputs = GivenNumOutputs Int deriving Num
+newtype ExpectedNumInputs = ExpectedNumInputs Int deriving Num
 
 -- | Set of tests related to `estimateMaxNumberOfInputs` from the transaction
 -- layer.
@@ -416,14 +421,14 @@ estimateMaxInputsTests cases = do
     describe ("estimateMaxNumberOfInputs for "<>k) $ do
         forM_ cases $ \(GivenNumOutputs nOuts, ExpectedNumInputs nInps) -> do
             let (o,i) = (show nOuts, show nInps)
-            it ("order of magnitude, nOuts = " <> o <> " => nInps = " <> i) $
-                _estimateMaxNumberOfInputs @k (Quantity 4096) Nothing nOuts
+            it ("order of magnitude, nOuts = " <> o <> " => nInps = " <> i) $ do
+                let outs = [ generatePure r arbitrary | r <- [ 1 .. nOuts ] ]
+                length outs `shouldBe` nOuts
+                _estimateMaxNumberOfInputs @k (Quantity 4096) defaultTransactionCtx outs
                     `shouldBe` nInps
 
         prop "more outputs ==> less inputs"
             (prop_moreOutputsMeansLessInputs @k)
-        prop "less outputs ==> more inputs"
-            (prop_lessOutputsMeansMoreInputs @k)
         prop "bigger size  ==> more inputs"
             (prop_biggerMaxSizeMeansMoreInputs @k)
 
@@ -486,43 +491,28 @@ prop_decodeSignedByronTxRoundtrip (DecodeByronSetup utxo outs slotNo ntwrk pairs
 prop_moreOutputsMeansLessInputs
     :: forall k. TxWitnessTagFor k
     => Quantity "byte" Word16
-    -> Word8
+    -> NonEmptyList TxOut
     -> Property
-prop_moreOutputsMeansLessInputs size nOuts
+prop_moreOutputsMeansLessInputs size (NonEmpty xs)
     = withMaxSuccess 1000
     $ within 300000
-    $ nOuts < maxBound ==>
-        _estimateMaxNumberOfInputs @k size Nothing nOuts
-        >=
-        _estimateMaxNumberOfInputs @k size Nothing (nOuts + 1)
-
--- | Reducing the number of outputs increases the number of inputs.
-prop_lessOutputsMeansMoreInputs
-    :: forall k. TxWitnessTagFor k
-    => Quantity "byte" Word16
-    -> Word8
-    -> Property
-prop_lessOutputsMeansMoreInputs size nOuts
-    = withMaxSuccess 1000
-    $ within 300000
-    $ nOuts > minBound ==>
-        _estimateMaxNumberOfInputs @k size Nothing (nOuts - 1)
-        >=
-        _estimateMaxNumberOfInputs @k size Nothing nOuts
+    $ _estimateMaxNumberOfInputs @k size defaultTransactionCtx (tail xs)
+      >=
+      _estimateMaxNumberOfInputs @k size defaultTransactionCtx xs
 
 -- | Increasing the max size automatically increased the number of inputs
 prop_biggerMaxSizeMeansMoreInputs
     :: forall k. TxWitnessTagFor k
     => Quantity "byte" Word16
-    -> Word8
+    -> [TxOut]
     -> Property
-prop_biggerMaxSizeMeansMoreInputs (Quantity size) nOuts
+prop_biggerMaxSizeMeansMoreInputs size outs
     = withMaxSuccess 1000
     $ within 300000
-    $ size < maxBound `div` 2 ==>
-        _estimateMaxNumberOfInputs @k (Quantity size) Nothing nOuts
+    $ getQuantity size < maxBound `div` 2 ==>
+        _estimateMaxNumberOfInputs @k size defaultTransactionCtx outs
         <=
-        _estimateMaxNumberOfInputs @k (Quantity (size * 2)) Nothing nOuts
+        _estimateMaxNumberOfInputs @k ((*2) <$> size ) defaultTransactionCtx outs
 
 testTxLayer :: TransactionLayer ShelleyKey
 testTxLayer = newTransactionLayer @ShelleyKey Cardano.Mainnet
@@ -697,3 +687,8 @@ dummyProtocolParameters = ProtocolParameters
     , hardforkEpochNo =
         error "dummyProtocolParameters: hardforkEpochNo"
     }
+
+-- | Like generate, but the random generate is fixed to a particular seed so
+-- that it generates always the same values.
+generatePure :: Int -> Gen a -> a
+generatePure seed (MkGen r) = r (mkQCGen seed) 30

@@ -56,12 +56,8 @@ import Data.ByteString
     ( ByteString )
 import Data.List.NonEmpty
     ( NonEmpty )
-import Data.Quantity
-    ( Quantity )
 import Data.Text
     ( Text )
-import Data.Word
-    ( Word16, Word8 )
 import GHC.Generics
     ( Generic )
 
@@ -118,16 +114,6 @@ data TransactionLayer k = TransactionLayer
             -- A bundle of native assets
         -> Coin
         -- ^ The minimum ada value needed in a UTxO carrying the asset bundle
-
-    , estimateMaxNumberOfInputs
-        :: Quantity "byte" Word16
-         -- Transaction max size in bytes
-        -> Maybe TxMetadata
-         -- Metadata associated with the transaction.
-        -> Word8
-        -- Number of outputs in transaction
-        -> Word8
-        -- ^ Approximate maximum number of inputs.
 
     , decodeSignedTx
         :: AnyCardanoEra
