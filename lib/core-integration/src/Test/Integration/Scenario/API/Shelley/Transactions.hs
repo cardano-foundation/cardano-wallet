@@ -2632,6 +2632,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             ]
 
     it "SHELLEY_TX_REDEEM_06b - Can't redeem rewards if utxo = 0 from self" $ \ctx -> runResourceT $ do
+        liftIO $ pendingWith "Migration endpoints temporarily disabled"
         (wRewards, mw) <- rewardWallet ctx
         wOther  <- emptyWallet ctx
 

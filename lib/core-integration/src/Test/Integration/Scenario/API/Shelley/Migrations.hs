@@ -60,7 +60,7 @@ import Data.Text
 import Data.Word
     ( Word64 )
 import Test.Hspec
-    ( SpecWith, describe )
+    ( SpecWith, describe, pendingWith )
 import Test.Hspec.Expectations.Lifted
     ( shouldBe, shouldSatisfy )
 import Test.Hspec.Extra
@@ -117,6 +117,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
     it "SHELLEY_CALCULATE_01 - \
         \for non-empty wallet calculated fee is > zero."
         $ \ctx -> runResourceT $ do
+            liftIO $ pendingWith "Migration endpoints temporarily disabled."
             w <- fixtureWallet ctx
             let ep = Link.getMigrationInfo @'Shelley w
             r <- request @ApiWalletMigrationInfo ctx ep Default Empty
@@ -129,6 +130,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
     it "SHELLEY_CALCULATE_02 - \
         \Cannot calculate fee for empty wallet."
         $ \ctx -> runResourceT $ do
+            liftIO $ pendingWith "Migration endpoints temporarily disabled."
             w <- emptyWallet ctx
             let ep = Link.getMigrationInfo @'Shelley w
             r <- request @ApiWalletMigrationInfo ctx ep Default Empty
@@ -145,6 +147,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
 
                 it ("Cannot calculate Shelley migration using wallet: " ++ walType)
                     $ \ctx -> runResourceT $ do
+                    liftIO $ pendingWith "Migration endpoints temporarily disabled."
                     w <- byronWallet ctx
                     let ep = Link.getMigrationInfo @'Shelley w
                     r <- request @ApiWalletMigrationInfo ctx ep Default Empty
@@ -162,6 +165,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
 
     Hspec.it "SHELLEY_MIGRATE_01_big_wallet - \
         \ migrate a big wallet requiring more than one tx" $ \ctx -> runResourceT @IO $ do
+        liftIO $ pendingWith "Migration endpoints temporarily disabled."
 
         -- NOTE
         -- Special mnemonic for which 200 shelley funds are attached to in the
@@ -251,6 +255,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
     it "SHELLEY_MIGRATE_02 - \
         \migrating an empty wallet should fail."
         $ \ctx -> runResourceT $ do
+            liftIO $ pendingWith "Migration endpoints temporarily disabled."
             sourceWallet <- emptyWallet ctx
             targetWallet <- emptyWallet ctx
             addrs <- listAddresses @n ctx targetWallet
@@ -271,6 +276,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
     Hspec.it "SHELLEY_MIGRATE_02 - \
         \migrating wallet with 'dust' (that complies with minUTxOValue) should pass."
         $ \ctx -> runResourceT @IO $ do
+            liftIO $ pendingWith "Migration endpoints temporarily disabled."
             -- NOTE
             -- Special mnemonic for which wallet has dust
             -- (10 utxo with 43 ADA)
@@ -335,6 +341,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
     it "SHELLEY_MIGRATE_03 - \
         \actual fee for migration is the same as the predicted fee."
         $ \ctx -> runResourceT $ do
+            liftIO $ pendingWith "Migration endpoints temporarily disabled."
             -- Restore a Shelley wallet with funds.
             sourceWallet <- fixtureWallet ctx
 
@@ -370,6 +377,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
             liftIO $ actualFee `shouldBe` predictedFee
 
     it "SHELLEY_MIGRATE_04 - migration fails with a wrong passphrase" $ \ctx -> runResourceT $ do
+        liftIO $ pendingWith "Migration endpoints temporarily disabled."
         -- Restore a Shelley wallet with funds, to act as a source wallet:
         sourceWallet <- fixtureWallet ctx
 
@@ -391,6 +399,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
 
 
     it "SHELLEY_MIGRATE_05 - I could migrate to any valid address" $ \ctx -> runResourceT $ do
+      liftIO $ pendingWith "Migration endpoints temporarily disabled."
       --shelley address
       wShelley <- emptyWallet ctx
       addrs <- listAddresses @n ctx wShelley
@@ -417,6 +426,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
           ]
 
     it "SHELLEY_MIGRATE_07 - invalid payload, parser error" $ \ctx -> runResourceT $ do
+      liftIO $ pendingWith "Migration endpoints temporarily disabled."
       sourceWallet <- emptyWallet ctx
       r <- request @[ApiTransaction n] ctx
           (Link.migrateWallet @'Shelley sourceWallet)
@@ -482,6 +492,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
     testAddressCycling addrNum =
         it ("Migration from Shelley wallet to " ++ show addrNum ++ " addresses")
             $ \ctx -> runResourceT $ do
+            liftIO $ pendingWith "Migration endpoints temporarily disabled."
             -- Restore a Shelley wallet with funds, to act as a source wallet:
             sourceWallet <- fixtureWallet ctx
             let originalBalance =

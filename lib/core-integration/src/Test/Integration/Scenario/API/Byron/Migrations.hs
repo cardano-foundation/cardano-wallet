@@ -61,7 +61,7 @@ import Data.Text
 import Data.Word
     ( Word64 )
 import Test.Hspec
-    ( SpecWith, describe, shouldBe, shouldSatisfy )
+    ( SpecWith, describe, pendingWith, shouldBe, shouldSatisfy )
 import Test.Hspec.Extra
     ( it )
 import Test.Integration.Framework.DSL
@@ -119,6 +119,7 @@ spec = describe "BYRON_MIGRATIONS" $ do
         \for non-empty wallet calculated fee is > zero."
         $ \ctx -> forM_ [fixtureRandomWallet, fixtureIcarusWallet]
         $ \fixtureByronWallet -> runResourceT $ do
+            liftIO $ pendingWith "Migration endpoints temporarily disabled."
             w <- fixtureByronWallet ctx
             let ep = Link.getMigrationInfo @'Byron w
             r <- request @ApiWalletMigrationInfo ctx ep Default Empty
@@ -132,6 +133,7 @@ spec = describe "BYRON_MIGRATIONS" $ do
         \Cannot calculate fee for empty wallet."
         $ \ctx -> forM_ [emptyRandomWallet, emptyIcarusWallet]
         $ \emptyByronWallet -> runResourceT $ do
+            liftIO $ pendingWith "Migration endpoints temporarily disabled."
             w <- emptyByronWallet ctx
             let ep = Link.getMigrationInfo @'Byron w
             r <- request @ApiWalletMigrationInfo ctx ep Default Empty
@@ -143,6 +145,7 @@ spec = describe "BYRON_MIGRATIONS" $ do
     it "BYRON_CALCULATE_02 - \
         \Cannot calculate fee for wallet with dust, that cannot be migrated."
         $ \ctx -> runResourceT $ do
+            liftIO $ pendingWith "Migration endpoints temporarily disabled."
             -- NOTE
             -- Special mnemonic for which wallet with dust
             -- (5 utxo with 60 lovelace)
@@ -166,6 +169,7 @@ spec = describe "BYRON_MIGRATIONS" $ do
     it "BYRON_CALCULATE_03 - \
         \Cannot estimate migration for Shelley wallet using Byron endpoint"
         $ \ctx -> runResourceT $ do
+            liftIO $ pendingWith "Migration endpoints temporarily disabled."
             w <- emptyWallet ctx
             let ep = Link.getMigrationInfo @'Byron w
             r <- request @ApiWalletMigrationInfo ctx ep Default Empty
@@ -178,6 +182,7 @@ spec = describe "BYRON_MIGRATIONS" $ do
               ] $ \(walType, destWallet) -> do
 
             it ("From wallet type: " ++ walType) $ \ctx -> runResourceT $ do
+                liftIO $ pendingWith "Migration endpoints temporarily disabled."
                 --shelley address
                 wShelley <- emptyWallet ctx
                 addrs <- listAddresses @n ctx wShelley
@@ -204,6 +209,7 @@ spec = describe "BYRON_MIGRATIONS" $ do
                     ]
 
     it "BYRON_MIGRATE_07 - invalid payload, parser error" $ \ctx -> runResourceT $ do
+        liftIO $ pendingWith "Migration endpoints temporarily disabled."
         sourceWallet <- emptyRandomWallet ctx
 
         r <- request @[ApiTransaction n] ctx
@@ -224,6 +230,7 @@ spec = describe "BYRON_MIGRATIONS" $ do
 
     Hspec.it "BYRON_MIGRATE_01 - \
         \ migrate a big wallet requiring more than one tx" $ \ctx -> runResourceT @IO $ do
+        liftIO $ pendingWith "Migration endpoints temporarily disabled."
         -- NOTE
         -- Special mnemonic for which 200 legacy funds are attached to in the
         -- genesis file.
@@ -313,6 +320,7 @@ spec = describe "BYRON_MIGRATIONS" $ do
         \a migration operation removes all funds from the source wallet."
         $ \ctx -> forM_ [fixtureRandomWallet, fixtureIcarusWallet]
         $ \fixtureByronWallet -> runResourceT $ do
+            liftIO $ pendingWith "Migration endpoints temporarily disabled."
             -- Restore a Byron wallet with funds, to act as a source wallet:
             sourceWallet <- fixtureByronWallet ctx
 
@@ -345,6 +353,7 @@ spec = describe "BYRON_MIGRATIONS" $ do
         \migrating an empty wallet should fail."
         $ \ctx -> forM_ [emptyRandomWallet, emptyIcarusWallet]
         $ \emptyByronWallet -> runResourceT $ do
+            liftIO $ pendingWith "Migration endpoints temporarily disabled."
             sourceWallet <- emptyByronWallet ctx
             targetWallet <- emptyWallet ctx
             addrs <- listAddresses @n ctx targetWallet
@@ -365,6 +374,7 @@ spec = describe "BYRON_MIGRATIONS" $ do
     Hspec.it "BYRON_MIGRATE_02 - \
         \migrating wallet with dust should fail."
         $ \ctx -> runResourceT @IO $ do
+            liftIO $ pendingWith "Migration endpoints temporarily disabled."
             -- NOTE
             -- Special mnemonic for which wallet with dust
             -- (5 utxos with 60 lovelace in total)
@@ -408,6 +418,7 @@ spec = describe "BYRON_MIGRATIONS" $ do
         \actual fee for migration is the same as the predicted fee."
         $ \ctx -> forM_ [fixtureRandomWallet, fixtureIcarusWallet]
         $ \fixtureByronWallet -> runResourceT $ do
+            liftIO $ pendingWith "Migration endpoints temporarily disabled."
             -- Restore a Byron wallet with funds.
             sourceWallet <- fixtureByronWallet ctx
 
@@ -445,6 +456,7 @@ spec = describe "BYRON_MIGRATIONS" $ do
     it "BYRON_MIGRATE_04 - migration fails with a wrong passphrase"
         $ \ctx -> forM_ [fixtureRandomWallet, fixtureIcarusWallet]
         $ \fixtureByronWallet -> runResourceT $ do
+        liftIO $ pendingWith "Migration endpoints temporarily disabled."
         -- Restore a Byron wallet with funds, to act as a source wallet:
         sourceWallet <- fixtureByronWallet ctx
 
@@ -522,6 +534,7 @@ spec = describe "BYRON_MIGRATIONS" $ do
     testAddressCycling ctx addrNum =
         forM_ [fixtureRandomWallet, fixtureIcarusWallet]
         $ \fixtureByronWallet -> runResourceT $ do
+            liftIO $ pendingWith "Migration endpoints temporarily disabled."
             -- Restore a Byron wallet with funds, to act as a source wallet:
             sourceWallet <- fixtureByronWallet ctx
             let originalBalance =
