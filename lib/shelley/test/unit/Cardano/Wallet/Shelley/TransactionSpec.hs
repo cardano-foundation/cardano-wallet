@@ -152,11 +152,11 @@ spec = do
         prop "roundtrip for Byron witnesses" prop_decodeSignedByronTxRoundtrip
 
     estimateMaxInputsTests @ShelleyKey
-        [(1,27),(5,17),(10,12),(20,0),(50,0)]
+        [(1,114),(5,104),(10,99),(20,75),(50,34)]
     estimateMaxInputsTests @ByronKey
-        [(1,17),(5,10),(10,6),(20,0),(50,0)]
+        [(1,73),(5,66),(10,62),(20,45),(50,16)]
     estimateMaxInputsTests @IcarusKey
-        [(1,17),(5,10),(10,6),(20,0),(50,0)]
+        [(1,73),(5,66),(10,62),(20,45),(50,16)]
 
     describe "fee calculations" $ do
         let pp :: ProtocolParameters
@@ -424,7 +424,7 @@ estimateMaxInputsTests cases = do
             it ("order of magnitude, nOuts = " <> o <> " => nInps = " <> i) $ do
                 let outs = [ generatePure r arbitrary | r <- [ 1 .. nOuts ] ]
                 length outs `shouldBe` nOuts
-                _estimateMaxNumberOfInputs @k (Quantity 4096) defaultTransactionCtx outs
+                _estimateMaxNumberOfInputs @k (Quantity 16384) defaultTransactionCtx outs
                     `shouldBe` nInps
 
         prop "more outputs ==> less inputs"
