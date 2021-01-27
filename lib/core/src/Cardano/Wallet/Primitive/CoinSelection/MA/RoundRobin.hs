@@ -231,9 +231,9 @@ buildSelectionResult
     -> Builder
 buildSelectionResult changeF s@SelectionResult{inputsSelected,extraCoinSource} =
     mconcat
-        [ nameF "inputs selected"  (inputsF inputsSelected)
+        [ nameF "inputs selected" (inputsF inputsSelected)
         , nameF "extra coin input" (build extraCoinSource)
-        , nameF "outputs covered"  (build $ outputsCovered s)
+        , nameF "outputs covered" (build $ outputsCovered s)
         , nameF "change generated" (changeF $ changeGenerated s)
         , nameF "size utxo remaining" (build $ UTxOIndex.size $ utxoRemaining s)
         ]
@@ -318,7 +318,7 @@ data UnableToConstructChangeError = UnableToConstructChangeError
         :: !Coin
         -- ^ The minimal required cost needed for the transaction to be
         -- considered valid. This does not include min Ada values.
-    , missingCoins
+    , shortfall
         :: !Coin
         -- ^ The additional coin quantity that would be required to cover the
         -- selection cost and minimum coin quantity of each change output.
@@ -588,10 +588,10 @@ runSelection limit mExtraCoinSource available minimumBalance =
         , leftover = available
         }
 
-    -- NOTE: We run the 'coinSelector' last, because we know that there are
-    -- necessarily coins in all inputs. Therefore, after having ran the other
-    -- selectors, we may already have covered for coins and need not to select
-    -- extra inputs.
+    -- NOTE: We run the 'coinSelector' last, because we know that every input
+    -- necessarily has a non-zero ada amount. By running the other selectors
+    -- first, we increase the probability that the coin selector will be able
+    -- to terminate without needing to select an additional coin.
     selectors :: [SelectionState -> m (Maybe SelectionState)]
     selectors =
         reverse (coinSelector : fmap assetSelector minimumAssetQuantities)
@@ -839,7 +839,7 @@ makeChange minCoinValueFor requiredCost mExtraCoinSource inputBundles outputBund
     changeError excessCoin change =
         UnableToConstructChangeError
             { requiredCost
-            , missingCoins =
+            , shortfall =
                 -- This conversion is safe because we know that the distance is
                 -- small-ish. If it wasn't, we would have have enough coins to
                 -- construct the change.

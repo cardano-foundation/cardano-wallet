@@ -612,7 +612,7 @@ prop_performSelection minCoinValueFor costFor (Blind criteria) coverage =
 
     onUnableToConstructChange e = do
         monitor $ counterexample $ show e
-        assert (missingCoins e > Coin 0)
+        assert (shortfall e > Coin 0)
         let criteria' = criteria { selectionLimit = NoLimit }
         run (performSelection noMinCoin (const noCost) criteria') >>= \case
             Left e' -> do

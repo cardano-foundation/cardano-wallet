@@ -2788,7 +2788,7 @@ instance LiftHandler ErrSelectAssets where
                         [ "I am unable to finalize the transaction as there are "
                         , "not enough Ada I can use to pay for either fees, or "
                         , "minimum Ada value in change outputs. I need about "
-                        , pretty (missingCoins e), " Ada to proceed; try "
+                        , pretty (shortfall e), " Ada to proceed; try "
                         , "increasing your wallet balance as such, or try "
                         , "sending a different, smaller payment."
                         ]
