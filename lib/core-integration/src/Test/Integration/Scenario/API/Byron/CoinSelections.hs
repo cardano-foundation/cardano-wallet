@@ -56,7 +56,6 @@ import Test.Integration.Framework.DSL
     , expectField
     , expectResponseCode
     , fixtureIcarusWallet
-    , fixtureIcarusWalletWith
     , listAddresses
     , minUTxOValue
     , request
@@ -160,34 +159,3 @@ spec = describe "BYRON_COIN_SELECTION" $ do
             [ expectResponseCode HTTP.status404
             , expectErrorMessage (errMsg404NoWallet $ icW ^. walletId)
             ]
-
-    it "BYRON_COIN_SELECTION_05 - \
-        \No change when payment fee eats leftovers due to minUTxOValue" $
-        \ctx -> runResourceT $ do
-            source  <- fixtureIcarusWalletWith @n ctx [minUTxOValue, minUTxOValue]
-            target <- emptyWallet ctx
-
-            targetAddress:_ <- fmap (view #id) <$> listAddresses @n ctx target
-            let amt = Quantity minUTxOValue
-            let payment = AddressAmount targetAddress amt mempty
-            let output = ApiCoinSelectionOutput targetAddress amt
-            let isValidDerivationPath path =
-                    ( length path == 5 )
-                    &&
-                    ( [ ApiT $ DerivationIndex $ getIndex purposeBIP44
-                      , ApiT $ DerivationIndex $ getIndex coinTypeAda
-                      , ApiT $ DerivationIndex $ getIndex @'Hardened minBound
-                      ] `isPrefixOf` NE.toList path
-                    )
-            selectCoins @_ @'Byron ctx source (payment :| []) >>= flip verify
-                [ expectResponseCode HTTP.status200
-                , expectField #inputs
-                    (`shouldSatisfy` (not . null))
-                , expectField #inputs
-                    (`shouldSatisfy` all
-                        (isValidDerivationPath . view #derivationPath))
-                , expectField #change
-                    (`shouldSatisfy` null)
-                , expectField #outputs
-                    (`shouldBe` [output])
-                ]
