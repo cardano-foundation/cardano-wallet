@@ -72,10 +72,8 @@ import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     , prepareOutputsWith
     , selectionDelta
     )
-import Cardano.Wallet.Primitive.Fee
-    ( FeePolicy (..) )
 import Cardano.Wallet.Primitive.Types
-    ( ProtocolParameters (..), TxParameters (..) )
+    ( FeePolicy (..), ProtocolParameters (..), TxParameters (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin

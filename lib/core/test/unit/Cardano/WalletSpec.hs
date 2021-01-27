@@ -120,9 +120,7 @@ import Control.Monad
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Except
-    ( ExceptT (..), runExceptT )
-import Control.Monad.Trans.State.Strict
-    ( State, evalState, state )
+    ( runExceptT )
 import Crypto.Hash
     ( hash )
 import Data.ByteString
@@ -164,7 +162,6 @@ import Test.QuickCheck
     , arbitrarySizedBoundedIntegral
     , checkCoverage
     , choose
-    , counterexample
     , cover
     , elements
     , label
@@ -175,7 +172,6 @@ import Test.QuickCheck
     , shrinkIntegral
     , vector
     , withMaxSuccess
-    , (.&&.)
     , (===)
     , (==>)
     )
@@ -525,7 +521,7 @@ walletKeyIsReencrypted (wid, wname) (xprv, pwd) newPwd =
             W.signTransaction @_ @_ wl wid () credentials newPwd ctx selection
         txOld `shouldBe` txNew
   where
-    selection = SelectionResult TxOut
+    selection = SelectionResult
         { inputsSelected = NE.fromList
             [ ( TxIn (Hash "eb4ab6028bd0ac971809d514c92db1") 1
               , TxOut (Address "source") (TokenBundle.fromCoin $ Coin 42)
@@ -536,7 +532,7 @@ walletKeyIsReencrypted (wid, wname) (xprv, pwd) newPwd =
         , outputsCovered =
             [ TxOut (Address "destination") (TokenBundle.fromCoin $ Coin 14) ]
         , changeGenerated = NE.fromList
-            [ TxOut (Address "change") (TokenBundle.fromCoin $ Coin 14) ]
+            [ (TokenBundle.fromCoin $ Coin 1) ]
         , utxoRemaining =
             UTxOIndex.empty
         }
@@ -628,13 +624,13 @@ setupFixture (wid, wname, wstate) = do
 -- implements a fake signer that still produces sort of witnesses
 dummyTransactionLayer :: TransactionLayer ShelleyKey
 dummyTransactionLayer = TransactionLayer
-    { mkStdTx = \_ _ keyFrom _slot _md cs -> do
-        let inps' = map (second txOutCoin) (CS.inputs cs)
-        let tid = mkTxId inps' (CS.outputs cs) mempty Nothing
-        let tx = Tx tid Nothing inps' (CS.outputs cs) mempty Nothing
-        wit <- forM (CS.inputs cs) $ \(_, TxOut addr _) -> do
+    { mkTransaction = \_era _stakeCredentials keystore _pp _ctx cs -> do
+        let inps' = NE.toList $ second txOutCoin <$> inputsSelected cs
+        let tid = mkTxId inps' (outputsCovered cs) mempty Nothing
+        let tx = Tx tid Nothing inps' (outputsCovered cs) mempty Nothing
+        wit <- forM (inputsSelected cs) $ \(_, TxOut addr _) -> do
             (xprv, Passphrase pwd) <- withEither
-                (ErrKeyNotFoundForAddress addr) $ keyFrom addr
+                (ErrKeyNotFoundForAddress addr) $ keystore addr
             let (Hash sigData) = txId tx
             let sig = CC.unXSignature $ CC.sign pwd (getKey xprv) sigData
             return $ xpubToBytes (getKey $ publicKey xprv) <> sig
@@ -642,14 +638,13 @@ dummyTransactionLayer = TransactionLayer
         -- (tx1, wit1) == (tx2, wit2) <==> fakebinary1 == fakebinary2
         let fakeBinary = SealedTx . B8.pack $ show (tx, wit)
         return (tx, fakeBinary)
-    , initDelegationSelection =
-        error "dummyTransactionLayer: initDelegationSelection not implemented"
-    , mkDelegationJoinTx =
-        error "dummyTransactionLayer: mkDelegationJoinTx not implemented"
-    , mkDelegationQuitTx =
-        error "dummyTransactionLayer: mkDelegationQuitTx not implemented"
-    , minimumFee =
-        error "dummyTransactionLayer: minimumFee not implemented"
+
+    , initSelectionCriteria =
+        error "dummyTransactionLayer: initSelectionCriteria not implemented"
+    , calcMinimumCost =
+        error "dummyTransactionLayer: calcMinimumCost not implemented"
+    , calcMinimumCoinValue =
+        error "dummyTransactionLayer: calcMinimumCoinValue not implemented"
     , estimateMaxNumberOfInputs =
         error "dummyTransactionLayer: estimateMaxNumberOfInputs not implemented"
     , decodeSignedTx =

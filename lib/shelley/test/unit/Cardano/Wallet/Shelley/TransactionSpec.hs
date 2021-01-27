@@ -4,6 +4,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
@@ -21,13 +22,7 @@ import Prelude
 import Cardano.Address.Derivation
     ( XPrv, xprvFromBytes, xprvToBytes )
 import Cardano.Wallet
-    ( ErrSelectForPayment (..)
-    , FeeEstimation (..)
-    , coinSelOpts
-    , estimateFeeForCoinSelection
-    , feeOpts
-    , handleCannotCover
-    )
+    ( ErrSelectAssets (..), FeeEstimation (..), estimateFee )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Passphrase (..)
     , PassphraseMaxLength (..)
@@ -42,16 +37,19 @@ import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey )
-import Cardano.Wallet.Primitive.CoinSelection
-    ( CoinSelection, CoinSelectionOptions )
-import Cardano.Wallet.Primitive.Fee
-    ( Fee (..), FeeOptions (..), FeePolicy (..), adjustForFee )
+import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
+    ( SelectionError (..)
+    , SelectionResult (..)
+    , UnableToConstructChangeError (..)
+    , emptySkeleton
+    , selectionDelta
+    )
 import Cardano.Wallet.Primitive.Types
-    ( TxParameters (..) )
+    ( FeePolicy (..), ProtocolParameters (..), TxParameters (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..), coinQuantity )
+    ( Coin (..), coinToInteger )
 import Cardano.Wallet.Primitive.Types.Coin.Gen
     ( genCoinLargePositive, shrinkCoinLargePositive )
 import Cardano.Wallet.Primitive.Types.Hash
@@ -66,11 +64,12 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxMetadataValue (..)
     , TxOut (..)
     , txMetadataIsNull
+    , txOutCoin
     )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
 import Cardano.Wallet.Shelley.Compatibility
-    ( fromAllegraTx, fromShelleyTx, sealShelleyTx )
+    ( fromAllegraTx, fromShelleyTx, sealShelleyTx, toCardanoLovelace )
 import Cardano.Wallet.Shelley.Transaction
     ( TxWitnessTagFor
     , mkByronWitness
@@ -81,11 +80,15 @@ import Cardano.Wallet.Shelley.Transaction
     , _estimateMaxNumberOfInputs
     )
 import Cardano.Wallet.Transaction
-    ( ErrDecodeSignedTx (..), TransactionLayer (..) )
+    ( ErrDecodeSignedTx (..)
+    , TransactionCtx (..)
+    , TransactionLayer (..)
+    , defaultTransactionCtx
+    )
 import Control.Monad
     ( forM_, replicateM )
 import Control.Monad.Trans.Except
-    ( catchE, runExceptT, withExceptT )
+    ( except, runExceptT )
 import Data.Function
     ( on, (&) )
 import Data.Maybe
@@ -123,9 +126,8 @@ import Test.QuickCheck
     )
 
 import qualified Cardano.Api.Typed as Cardano
-import qualified Cardano.Wallet.Primitive.CoinSelection as CS
-import qualified Cardano.Wallet.Primitive.CoinSelection.Random as CS
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
+import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
@@ -151,33 +153,37 @@ spec = do
         [(1,17),(10,11),(20,4),(30,0)]
 
     describe "fee calculations" $ do
-        let policy :: FeePolicy
-            policy = LinearFee (Quantity 100_000) (Quantity 100)
+        let pp :: ProtocolParameters
+            pp = dummyProtocolParameters
+                { txParameters = dummyTxParameters
+                    { getFeePolicy = LinearFee (Quantity 100_000) (Quantity 100)
+                    }
+                }
 
-            minFee :: Maybe TxMetadata -> CoinSelection -> Integer
-            minFee md = fromIntegral . getFee . minimumFee tl policy Nothing md
-              where tl = testTxLayer
+            minFee :: TransactionCtx -> Integer
+            minFee ctx = coinToInteger $ calcMinimumCost testTxLayer pp ctx sel
+              where sel = emptySkeleton
 
-        it "withdrawals incur fees" $ property $ \withdrawal ->
+        it "withdrawals incur fees" $ property $ \txWithdrawal ->
             let
-                costWith = minFee Nothing (mempty { CS.withdrawal = withdrawal })
-                costWithout = minFee Nothing mempty
+                costWith = minFee $ defaultTransactionCtx { txWithdrawal }
+                costWithout = minFee defaultTransactionCtx
 
                 marginalCost :: Integer
                 marginalCost = costWith - costWithout
             in
-                (if withdrawal == 0
+                (if txWithdrawal == Coin 0
                     then property $ marginalCost == 0
                     else property $ marginalCost > 0
-                ) & classify (withdrawal == 0) "null withdrawal"
+                ) & classify (txWithdrawal == Coin 0) "null withdrawal"
                 & counterexample ("marginal cost: " <> show marginalCost)
                 & counterexample ("cost with: " <> show costWith)
                 & counterexample ("cost without: " <> show costWithout)
 
         it "metadata incurs fees" $ property $ \md ->
             let
-                costWith = minFee (Just md) mempty
-                costWithout = minFee Nothing mempty
+                costWith = minFee $ defaultTransactionCtx { txMetadata = Just md }
+                costWithout = minFee defaultTransactionCtx
 
                 marginalCost :: Integer
                 marginalCost = costWith - costWithout
@@ -189,25 +195,17 @@ spec = do
                 & counterexample ("cost without: " <> show costWithout)
 
     it "regression #1740 - fee estimation at the boundaries" $ do
-        let utxo = UTxO $ Map.fromList
-                [ ( TxIn dummyTxId 0
-                  , TxOut (dummyAddress 0) (coinToBundle 5000000)
-                  )
-                ]
-        let recipients = NE.fromList
-                [ TxOut (dummyAddress 0) (coinToBundle 4834720)
-                ]
-
-        let wdrl = Coin 0
-
-        let selectCoins = flip catchE (handleCannotCover utxo wdrl recipients) $ do
-                (sel, utxo') <- withExceptT ErrSelectForPaymentCoinSelection $ do
-                    CS.random testCoinSelOpts recipients (coinQuantity wdrl) utxo
-                withExceptT ErrSelectForPaymentFee $
-                    (Fee . CS.feeBalance) <$> adjustForFee testFeeOpts utxo' sel
-        res <- runExceptT $ estimateFeeForCoinSelection Nothing selectCoins
-
-        res `shouldBe` Right (FeeEstimation 166029 166029 Nothing)
+        let requiredCost = Coin 166029
+        let runSelection = except $ Left
+                $ ErrSelectAssetsSelectionError
+                $ UnableToConstructChange
+                $ UnableToConstructChangeError
+                    { requiredCost
+                    , shortfall = Coin 100000
+                    }
+        result <- runExceptT (estimateFee runSelection)
+        result `shouldBe`
+            Right (FeeEstimation (unCoin requiredCost) (unCoin requiredCost))
 
     -- fixme: it would be nice to repeat the tests for multiple eras
     let era = Cardano.ShelleyBasedEraAllegra
@@ -215,15 +213,23 @@ spec = do
     describe "tx binary calculations - Byron witnesses - mainnet" $ do
         let slotNo = SlotNo 7750
             md = Nothing
-            calculateBinary utxo outs pairs = toBase16 (Cardano.serialiseToCBOR ledgerTx)
+            calculateBinary utxo outs chgs pairs =
+                toBase16 (Cardano.serialiseToCBOR ledgerTx)
               where
                   toBase16 = T.decodeUtf8 . hex
                   ledgerTx = Cardano.makeSignedTransaction addrWits unsigned
                   mkByronWitness' unsignedTx (_, (TxOut addr _)) =
                       mkByronWitness unsignedTx Cardano.Mainnet addr
                   addrWits = zipWith (mkByronWitness' unsigned) inps pairs
-                  Right unsigned = mkUnsignedTx era slotNo cs md mempty []
-                  cs = mempty { CS.inputs = inps, CS.outputs = outs }
+                  fee = toCardanoLovelace $ selectionDelta txOutCoin cs
+                  Right unsigned = mkUnsignedTx era slotNo cs md mempty [] fee
+                  cs = SelectionResult
+                      { inputsSelected = NE.fromList inps
+                      , extraCoinSource = Nothing
+                      , outputsCovered = outs
+                      , changeGenerated = NE.fromList chgs
+                      , utxoRemaining = UTxOIndex.empty
+                      }
                   inps = Map.toList $ getUTxO utxo
         it "1 input, 2 outputs" $ do
             let pairs = [dummyWit 0]
@@ -238,9 +244,11 @@ spec = do
                     ]
             let outs =
                     [ TxOut (dummyAddress 1) (coinToBundle amtOut)
-                    , TxOut (dummyAddress 2) (coinToBundle amtChange)
                     ]
-            calculateBinary utxo outs pairs `shouldBe`
+            let chgs =
+                    [ TxOut (dummyAddress 2) (coinToBundle amtChange)
+                    ]
+            calculateBinary utxo outs chgs pairs `shouldBe`
                 "83a40081825820000000000000000000000000000000000000000000000000\
                 \00000000000000000001828258390101010101010101010101010101010101\
                 \01010101010101010101010101010101010101010101010101010101010101\
@@ -270,9 +278,11 @@ spec = do
             let outs =
                     [ TxOut (dummyAddress 2) (coinToBundle amtOut)
                     , TxOut (dummyAddress 3) (coinToBundle amtOut)
-                    , TxOut (dummyAddress 4) (coinToBundle amtChange)
                     ]
-            calculateBinary utxo outs pairs `shouldBe`
+            let chgs =
+                    [ TxOut (dummyAddress 4) (coinToBundle amtChange)
+                    ]
+            calculateBinary utxo outs chgs pairs `shouldBe`
                 "83a40082825820000000000000000000000000000000000000000000000000\
                 \00000000000000000082582000000000000000000000000000000000000000\
                 \00000000000000000000000000010183825839010202020202020202020202\
@@ -296,7 +306,8 @@ spec = do
     describe "tx binary calculations - Byron witnesses - testnet" $ do
         let slotNo = SlotNo 7750
             md = Nothing
-            calculateBinary utxo outs pairs = toBase16 (Cardano.serialiseToCBOR ledgerTx)
+            calculateBinary utxo outs chgs pairs =
+                toBase16 (Cardano.serialiseToCBOR ledgerTx)
               where
                   toBase16 = T.decodeUtf8 . hex
                   ledgerTx = Cardano.makeSignedTransaction addrWits unsigned
@@ -304,8 +315,15 @@ spec = do
                   mkByronWitness' unsignedTx (_, (TxOut addr _)) =
                       mkByronWitness unsignedTx net addr
                   addrWits = zipWith (mkByronWitness' unsigned) inps pairs
-                  Right unsigned = mkUnsignedTx era slotNo cs md mempty []
-                  cs = mempty { CS.inputs = inps, CS.outputs = outs }
+                  fee = toCardanoLovelace $ selectionDelta txOutCoin cs
+                  Right unsigned = mkUnsignedTx era slotNo cs md mempty [] fee
+                  cs = SelectionResult
+                    { inputsSelected = NE.fromList inps
+                    , extraCoinSource = Nothing
+                    , outputsCovered = outs
+                    , changeGenerated = NE.fromList chgs
+                    , utxoRemaining = UTxOIndex.empty
+                    }
                   inps = Map.toList $ getUTxO utxo
         it "1 input, 2 outputs" $ do
             let pairs = [dummyWit 0]
@@ -320,9 +338,11 @@ spec = do
                     ]
             let outs =
                     [ TxOut (dummyAddress 1) (coinToBundle amtOut)
-                    , TxOut (dummyAddress 2) (coinToBundle amtChange)
                     ]
-            calculateBinary utxo outs pairs `shouldBe`
+            let chgs =
+                    [ TxOut (dummyAddress 2) (coinToBundle amtChange)
+                    ]
+            calculateBinary utxo outs chgs pairs `shouldBe`
                 "83a40081825820000000000000000000000000000000000000000000000000\
                 \00000000000000000001828258390101010101010101010101010101010101\
                 \01010101010101010101010101010101010101010101010101010101010101\
@@ -352,9 +372,11 @@ spec = do
             let outs =
                     [ TxOut (dummyAddress 2) (coinToBundle amtOut)
                     , TxOut (dummyAddress 3) (coinToBundle amtOut)
-                    , TxOut (dummyAddress 4) (coinToBundle amtChange)
                     ]
-            calculateBinary utxo outs pairs `shouldBe`
+            let chgs =
+                    [ TxOut (dummyAddress 4) (coinToBundle amtChange)
+                    ]
+            calculateBinary utxo outs chgs pairs `shouldBe`
                 "83a40082825820000000000000000000000000000000000000000000000000\
                 \00000000000000000082582000000000000000000000000000000000000000\
                 \00000000000000000000000000010183825839010202020202020202020202\
@@ -408,8 +430,9 @@ prop_decodeSignedShelleyTxRoundtrip
 prop_decodeSignedShelleyTxRoundtrip shelleyEra (DecodeShelleySetup utxo outs md slotNo pairs) = do
     let anyEra = Cardano.anyCardanoEra (Cardano.cardanoEra @era)
     let inps = Map.toList $ getUTxO utxo
-    let cs = mempty { CS.inputs = inps, CS.outputs = outs }
-    let Right unsigned = mkUnsignedTx shelleyEra slotNo cs md mempty []
+    let cs = mkSelection inps
+    let fee = toCardanoLovelace $ selectionDelta txOutCoin cs
+    let Right unsigned = mkUnsignedTx shelleyEra slotNo cs md mempty [] fee
     let addrWits = map (mkShelleyWitness unsigned) pairs
     let wits = addrWits
     let ledgerTx = Cardano.makeSignedTransaction wits unsigned
@@ -419,6 +442,14 @@ prop_decodeSignedShelleyTxRoundtrip shelleyEra (DecodeShelleySetup utxo outs md 
             Cardano.ShelleyBasedEraMary    -> Left ErrDecodeSignedTxNotSupported
 
     _decodeSignedTx anyEra (Cardano.serialiseToCBOR ledgerTx) === expected
+  where
+    mkSelection inps = SelectionResult
+        { inputsSelected = NE.fromList inps
+        , extraCoinSource = Nothing
+        , outputsCovered = []
+        , changeGenerated = NE.fromList outs
+        , utxoRemaining = UTxOIndex.empty
+        }
 
 prop_decodeSignedByronTxRoundtrip
     :: DecodeByronSetup
@@ -427,8 +458,9 @@ prop_decodeSignedByronTxRoundtrip (DecodeByronSetup utxo outs slotNo ntwrk pairs
     let era = Cardano.AnyCardanoEra Cardano.AllegraEra
     let shelleyEra = Cardano.ShelleyBasedEraAllegra
     let inps = Map.toList $ getUTxO utxo
-    let cs = mempty { CS.inputs = inps, CS.outputs = outs }
-    let Right unsigned = mkUnsignedTx shelleyEra slotNo cs Nothing mempty []
+    let cs = mkSelection inps
+    let fee = toCardanoLovelace $ selectionDelta txOutCoin cs
+    let Right unsigned = mkUnsignedTx shelleyEra slotNo cs Nothing mempty [] fee
     let byronWits = zipWith (mkByronWitness' unsigned) inps pairs
     let ledgerTx = Cardano.makeSignedTransaction byronWits unsigned
 
@@ -437,6 +469,13 @@ prop_decodeSignedByronTxRoundtrip (DecodeByronSetup utxo outs slotNo ntwrk pairs
   where
     mkByronWitness' unsigned (_, (TxOut addr _)) =
         mkByronWitness unsigned ntwrk addr
+    mkSelection inps = SelectionResult
+        { inputsSelected = NE.fromList inps
+        , extraCoinSource = Nothing
+        , outputsCovered = []
+        , changeGenerated = NE.fromList outs
+        , utxoRemaining = UTxOIndex.empty
+        }
 
 -- | Increasing the number of outputs reduces the number of inputs.
 prop_moreOutputsMeansLessInputs
@@ -479,16 +518,6 @@ prop_biggerMaxSizeMeansMoreInputs (Quantity size) nOuts
         _estimateMaxNumberOfInputs @k (Quantity size) Nothing nOuts
         <=
         _estimateMaxNumberOfInputs @k (Quantity (size * 2)) Nothing nOuts
-
-testCoinSelOpts :: CoinSelectionOptions
-testCoinSelOpts = coinSelOpts testTxLayer (Quantity 4096) Nothing
-
-testFeeOpts :: FeeOptions
-testFeeOpts = feeOpts testTxLayer Nothing Nothing txParams (Coin 0) mempty
-  where
-    txParams  = TxParameters feePolicy txMaxSize
-    feePolicy = LinearFee (Quantity 155381) (Quantity 44)
-    txMaxSize = Quantity maxBound
 
 testTxLayer :: TransactionLayer ShelleyKey
 testTxLayer = newTransactionLayer @ShelleyKey Cardano.Mainnet
@@ -639,3 +668,27 @@ dummyWit b =
 
 dummyTxId :: Hash "Tx"
 dummyTxId = Hash $ BS.pack $ replicate 32 0
+
+dummyTxParameters :: TxParameters
+dummyTxParameters = TxParameters
+    { getFeePolicy =
+        error "dummyTxParameters: getFeePolicy"
+    , getTxMaxSize =
+        error "dummyTxParameters: getTxMaxSize"
+    }
+
+dummyProtocolParameters :: ProtocolParameters
+dummyProtocolParameters = ProtocolParameters
+    { decentralizationLevel =
+        error "dummyProtocolParameters: decentralizationLevel"
+    , txParameters =
+        error "dummyProtocolParameters: txParameters"
+    , desiredNumberOfStakePools =
+        error "dummyProtocolParameters: desiredNumberOfStakePools"
+    , minimumUTxOvalue =
+        error "dummyProtocolParameters: minimumUTxOvalue"
+    , stakeKeyDeposit =
+        error "dummyProtocolParameters: stakeKeyDeposit"
+    , hardforkEpochNo =
+        error "dummyProtocolParameters: hardforkEpochNo"
+    }

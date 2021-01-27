@@ -36,10 +36,9 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( PaymentAddress )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey )
-import Cardano.Wallet.Primitive.Fee
-    ( FeePolicy (..) )
 import Cardano.Wallet.Primitive.Types
-    ( PoolId (..)
+    ( FeePolicy (..)
+    , PoolId (..)
     , PoolMetadataGCStatus (..)
     , PoolMetadataSource (..)
     , StakePoolMetadata (..)

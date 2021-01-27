@@ -104,6 +104,8 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     , mkSeqAnyState
     , purposeCIP1852
     )
+import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
+    ( selectionDelta )
 import Cardano.Wallet.Primitive.Model
     ( Wallet, currentTip, getState, totalUTxO )
 import Cardano.Wallet.Primitive.Slotting
@@ -452,8 +454,10 @@ benchmarksRnd _ w wid wname benchname restoreTime = do
 
     (_, estimateFeesTime) <- bench "estimate tx fee" $ do
         let out = TxOut (dummyAddress @n) (TokenBundle.fromCoin $ Coin 1)
-        runExceptT $ withExceptT show $ W.estimateFeeForPayment @_ @s @k
-            w wid (out :| []) (Coin 0) Nothing
+        let txCtx = defaultTransactionCtx
+        let getFee = const (selectionDelta TokenBundle.getCoin)
+        let runSelection = W.selectAssets @_ @s @k w wid txCtx (out :| []) getFee
+        runExceptT $ withExceptT show $ W.estimateFee runSelection
 
     oneAddress <- genAddresses 1 cp
     (_, importOneAddressTime) <- bench "import one addresses" $ do
@@ -539,8 +543,10 @@ benchmarksSeq _ w wid _wname benchname restoreTime = do
 
     (_, estimateFeesTime) <- bench "estimate tx fee" $ do
         let out = TxOut (dummyAddress @n) (TokenBundle.fromCoin $ Coin 1)
-        runExceptT $ withExceptT show $ W.estimateFeeForPayment @_ @s @k
-            w wid (out :| []) (Coin 0) Nothing
+        let txCtx = defaultTransactionCtx
+        let getFee = const (selectionDelta TokenBundle.getCoin)
+        let runSelection = W.selectAssets @_ @s @k w wid txCtx (out :| []) getFee
+        runExceptT $ withExceptT show $ W.estimateFee runSelection
 
     let walletOverview = WalletOverview{utxo,addresses,transactions}
 
