@@ -29,7 +29,7 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity
 import Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
     ( genTokenQuantityMixed, shrinkTokenQuantityMixed )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
-    ( Convert (..), computeMinimumAdaQuantity )
+    ( Convert (..), computeMinimumAdaQuantityInternal )
 import Control.Monad
     ( replicateM )
 import Data.Bifunctor
@@ -109,10 +109,8 @@ prop_computeMinimumAdaQuantity_forCoin
     :: ProtocolMinimum Coin
     -> Coin
     -> Property
-prop_computeMinimumAdaQuantity_forCoin
-    (ProtocolMinimum protocolMinimum) coin =
-        computeMinimumAdaQuantity protocolMinimum (TokenBundle.fromCoin coin)
-            === protocolMinimum
+prop_computeMinimumAdaQuantity_forCoin (ProtocolMinimum pm) c =
+    computeMinimumAdaQuantityInternal pm (TokenBundle.fromCoin c) === pm
 
 prop_computeMinimumAdaQuantity_agnosticToAdaQuantity
     :: Blind TokenBundle
@@ -128,7 +126,7 @@ prop_computeMinimumAdaQuantity_agnosticToAdaQuantity
   where
     bundleWithCoinMinimized = TokenBundle.setCoin bundle minBound
     bundleWithCoinMaximized = TokenBundle.setCoin bundle maxBound
-    compute = computeMinimumAdaQuantity protocolMinimum
+    compute = computeMinimumAdaQuantityInternal protocolMinimum
     counterexampleText = unlines
         [ "bundle:"
         , pretty (Flat bundle)
@@ -166,7 +164,7 @@ prop_computeMinimumAdaQuantity_agnosticToAssetQuantities
     assetCountMaximized = Set.size $ TokenBundle.getAssets bundleMaximized
     bundleMinimized = bundle `setAllQuantitiesTo` txOutMinTokenQuantity
     bundleMaximized = bundle `setAllQuantitiesTo` txOutMaxTokenQuantity
-    compute = computeMinimumAdaQuantity protocolMinimum
+    compute = computeMinimumAdaQuantityInternal protocolMinimum
     setAllQuantitiesTo = flip (adjustAllQuantities . const)
     counterexampleText = unlines
         [ "bundle:"
@@ -194,7 +192,7 @@ unit_computeMinimumAdaQuantity_fixedSizeBundle
     -> Property
 unit_computeMinimumAdaQuantity_fixedSizeBundle bundle expectation =
     withMaxSuccess 100 $
-    computeMinimumAdaQuantity protocolMinimum bundle === expectation
+    computeMinimumAdaQuantityInternal protocolMinimum bundle === expectation
   where
     protocolMinimum = Coin 1_000_000
 

@@ -33,6 +33,9 @@ module Cardano.Wallet.Shelley.Compatibility.Ledger
       --   types
     , Convert (..)
 
+      -- * Internal functions
+    , computeMinimumAdaQuantityInternal
+
     ) where
 
 import Prelude
@@ -44,7 +47,9 @@ import Cardano.Wallet.Primitive.Types.Coin
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle
-    ( TokenBundle )
+    ( TokenBundle (..) )
+import Cardano.Wallet.Primitive.Types.TokenMap
+    ( TokenMap )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenName (..), TokenPolicyId (..) )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
@@ -73,24 +78,29 @@ import qualified Data.Map.Strict.NonEmptyMap as NonEmptyMap
 import qualified Shelley.Spec.Ledger.API as Ledger
 
 --------------------------------------------------------------------------------
--- Exported functions
+-- Public functions
 --------------------------------------------------------------------------------
 
 -- | Uses the ledger specification to compute the minimum required ada quantity
---   for a token bundle.
+--   for a token map.
 --
 computeMinimumAdaQuantity
     :: Coin
     -- ^ The absolute minimum ada quantity specified by the protocol.
-    -> TokenBundle
-    -- ^ The token bundle to evaluate.
+    -> TokenMap
+    -- ^ The token map to evaluate.
     -> Coin
-    -- ^ The minimum ada quantity for the given token bundle.
-computeMinimumAdaQuantity protocolMinimum bundle =
-    toWalletCoin $
-        Ledger.scaledMinDeposit
-            (toLedgerTokenBundle bundle)
-            (toLedgerCoin protocolMinimum)
+    -- ^ The minimum ada quantity for the given token map.
+computeMinimumAdaQuantity protocolMinimum m =
+    -- Note:
+    --
+    -- We assume here that 'computeMinimumAdaQuantityInternal' has the property
+    -- of being constant w.r.t. to the ada value. Assuming this property holds,
+    -- it is safe to call it with an ada value of 0.
+    --
+    -- See 'prop_computeMinimumAdaQuantity_agnosticToAdaQuantity'.
+    --
+    computeMinimumAdaQuantityInternal protocolMinimum (TokenBundle (Coin 0) m)
 
 --------------------------------------------------------------------------------
 -- Roundtrip conversion between wallet types and ledger specification types
@@ -169,10 +179,10 @@ toLedgerTokenBundle bundle =
 
 toWalletTokenBundle :: Ledger.Value StandardCrypto -> TokenBundle
 toWalletTokenBundle (Ledger.Value ledgerAda ledgerTokens) =
-    TokenBundle.fromNestedMap (ada, tokens)
+    TokenBundle.fromNestedMap (walletAda, walletTokens)
   where
-    ada = toWalletCoin $ Ledger.Coin ledgerAda
-    tokens = ledgerTokens
+    walletAda = toWalletCoin $ Ledger.Coin ledgerAda
+    walletTokens = ledgerTokens
         & Map.mapKeys toWalletTokenPolicyId
         & Map.map mapInner
         & Map.mapMaybe NonEmptyMap.fromMap
@@ -241,3 +251,33 @@ toWalletTokenQuantity q
             , "Unexpected negative value:"
             , pretty q
             ]
+
+--------------------------------------------------------------------------------
+-- Internal functions
+--------------------------------------------------------------------------------
+
+-- | Uses the ledger specification to compute the minimum required ada quantity
+--   for a token bundle.
+--
+-- This function is intended to be constant with respect to:
+--
+--    - the ada quantity;
+--    - the quantities of individual assets.
+--
+-- See the following properties:
+--
+--    - 'prop_computeMinimumAdaQuantity_agnosticToAdaQuantity';
+--    - 'prop_computeMinimumAdaQuantity_agnosticToAssetQuantities'.
+--
+computeMinimumAdaQuantityInternal
+    :: Coin
+    -- ^ The absolute minimum ada quantity specified by the protocol.
+    -> TokenBundle
+    -- ^ The token bundle to evaluate.
+    -> Coin
+    -- ^ The minimum ada quantity for the given token bundle.
+computeMinimumAdaQuantityInternal protocolMinimum bundle =
+    toWalletCoin $
+        Ledger.scaledMinDeposit
+            (toLedgerTokenBundle bundle)
+            (toLedgerCoin protocolMinimum)
