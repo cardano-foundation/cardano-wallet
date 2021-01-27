@@ -334,9 +334,9 @@ withNetworkLayerBase tr np conn (versionData, _) action = do
         , cursorSlotNo =
             _cursorSlotNo
         , currentProtocolParameters =
-            fst <$> atomically (readTVar networkParamsVar)
+            fst <$> atomically (readTMVar networkParamsVar)
         , currentSlottingParameters =
-            snd <$> atomically (readTVar networkParamsVar)
+            snd <$> atomically (readTMVar networkParamsVar)
         , postTx = \sealed -> do
             era <- liftIO readCurrentNodeEra
             _postTx localTxSubmissionQ era sealed
@@ -366,7 +366,7 @@ withNetworkLayerBase tr np conn (versionData, _) action = do
         :: HasCallStack
         => RetryHandlers
         -> IO ( STM IO (Maybe AnyCardanoEra, Tip (CardanoBlock StandardCrypto))
-              , TVar IO (W.ProtocolParameters, W.SlottingParameters)
+              , TMVar IO (W.ProtocolParameters, W.SlottingParameters)
               , TMVar IO (CardanoInterpreter StandardCrypto)
               , TQueue IO (LocalTxSubmissionCmd
                   (GenTx (CardanoBlock StandardCrypto))
@@ -375,14 +375,11 @@ withNetworkLayerBase tr np conn (versionData, _) action = do
               )
     connectNodeTipClient handlers = do
         localTxSubmissionQ <- atomically newTQueue
-        networkParamsVar <- atomically $ newTVar
-            ( W.protocolParameters np
-            , W.slottingParameters np
-            )
+        networkParamsVar <- atomically newEmptyTMVar
         interpreterVar <- atomically newEmptyTMVar
         (nodeTipClient, readTip) <- mkTipSyncClient tr np
             localTxSubmissionQ
-            (curry (atomically . writeTVar networkParamsVar))
+            (curry (atomically . repsertTMVar networkParamsVar))
             (atomically . repsertTMVar interpreterVar)
         link =<< async (connectClient tr handlers nodeTipClient versionData conn)
         pure (readTip, networkParamsVar, interpreterVar, localTxSubmissionQ)
