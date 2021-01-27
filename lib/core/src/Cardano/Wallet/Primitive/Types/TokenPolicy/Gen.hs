@@ -1,26 +1,32 @@
 module Cardano.Wallet.Primitive.Types.TokenPolicy.Gen
-    ( genTokenNameSmallRange
-    , tokenNamesSmallRange
+    ( genTokenNameLargeRange
     , genTokenNameMediumRange
-    , tokenNamesMediumRange
+    , genTokenNameSmallRange
+    , genTokenPolicyIdLargeRange
     , genTokenPolicyIdSmallRange
-    , tokenPolicies
-    , shrinkTokenNameSmallRange
+    , mkTokenPolicyId
     , shrinkTokenNameMediumRange
+    , shrinkTokenNameSmallRange
     , shrinkTokenPolicyIdSmallRange
+    , tokenNamesMediumRange
+    , tokenNamesSmallRange
+    , tokenPolicies
     ) where
 
 import Prelude
 
+import Cardano.Wallet.Primitive.Types.Hash
+    ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( TokenName (..), TokenPolicyId )
+    ( TokenName (..), TokenPolicyId (..) )
 import Data.Either
     ( fromRight )
 import Data.Text.Class
     ( FromText (..) )
 import Test.QuickCheck
-    ( Gen, elements )
+    ( Gen, elements, vector )
 
+import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.Text as T
 
@@ -52,6 +58,13 @@ tokenNamesMediumRange :: [TokenName]
 tokenNamesMediumRange = UnsafeTokenName . B8.snoc "Token" <$> ['A' .. 'Z']
 
 --------------------------------------------------------------------------------
+-- Token names chosen from a large range (to minimize the risk of collisions)
+--------------------------------------------------------------------------------
+
+genTokenNameLargeRange :: Gen TokenName
+genTokenNameLargeRange = UnsafeTokenName . BS.pack <$> vector 32
+
+--------------------------------------------------------------------------------
 -- Token policy identifiers chosen from a small range (to allow collisions)
 --------------------------------------------------------------------------------
 
@@ -63,6 +76,14 @@ shrinkTokenPolicyIdSmallRange policy = filter (< policy) tokenPolicies
 
 tokenPolicies :: [TokenPolicyId]
 tokenPolicies = mkTokenPolicyId <$> ['A' .. 'D']
+
+--------------------------------------------------------------------------------
+-- Token policy identifiers chosen from a large range (to minimize the risk of
+-- collisions)
+--------------------------------------------------------------------------------
+
+genTokenPolicyIdLargeRange :: Gen TokenPolicyId
+genTokenPolicyIdLargeRange = UnsafeTokenPolicyId . Hash . BS.pack <$> vector 28
 
 --------------------------------------------------------------------------------
 -- Internal utilities

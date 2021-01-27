@@ -44,10 +44,12 @@ module Cardano.Wallet.Primitive.Types.TokenMap
     , singleton
     , fromFlatList
     , fromNestedList
+    , fromNestedMap
 
     -- * Deconstruction
     , toFlatList
     , toNestedList
+    , toNestedMap
 
     -- * Filtering
     , filter
@@ -445,6 +447,13 @@ fromNestedList entries = fromFlatList
     , (token, quantity) <- NE.toList tokenQuantities
     ]
 
+-- | Creates a token map from a nested map.
+--
+fromNestedMap
+    :: Map TokenPolicyId (NonEmptyMap TokenName TokenQuantity)
+    -> TokenMap
+fromNestedMap = fromNestedList . Map.toList . fmap NEMap.toList
+
 --------------------------------------------------------------------------------
 -- Deconstruction
 --------------------------------------------------------------------------------
@@ -464,6 +473,13 @@ toNestedList
     :: TokenMap -> [(TokenPolicyId, NonEmpty (TokenName, TokenQuantity))]
 toNestedList =
     fmap (fmap NEMap.toList) . Map.toList . unTokenMap
+
+-- | Converts a token map to a nested map.
+--
+toNestedMap
+    :: TokenMap
+    -> Map TokenPolicyId (NonEmptyMap TokenName TokenQuantity)
+toNestedMap = unTokenMap
 
 --------------------------------------------------------------------------------
 -- Filtering
