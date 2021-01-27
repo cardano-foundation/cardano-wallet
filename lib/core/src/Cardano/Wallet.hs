@@ -1366,7 +1366,7 @@ signTransaction ctx wid argChange mkRwdAcct pwd txCtx sel = db & \DBLayer{..} ->
             (tx, sealedTx) <- withExceptT ErrSignPaymentMkTx $ ExceptT $ pure $
                 mkTransaction tl era rewardAcnt keyFrom pp txCtx sel'
 
-            (time, meta) <- liftIO $ mkTxMeta ti (currentTip cp) txCtx sel'
+            (time, meta) <- liftIO $ mkTxMeta ti (currentTip cp) s' txCtx sel'
             return (tx, meta, time, sealedTx)
   where
     db = ctx ^. dbLayer @s @k
@@ -1400,15 +1400,19 @@ getTxExpiry ti maybeTTL = do
 -- FIXME: There's a logic duplication regarding the calculation of the transaction
 -- amount between right here, and the Primitive.Model (see prefilterBlocks).
 mkTxMeta
-    :: TimeInterpreter (ExceptT PastHorizonException IO)
+    :: IsOurs s Address
+    => TimeInterpreter (ExceptT PastHorizonException IO)
     -> BlockHeader
+    -> s
     -> TransactionCtx
     -> SelectionResult TxOut
     -> IO (UTCTime, TxMeta)
-mkTxMeta ti' blockHeader txCtx sel =
+mkTxMeta ti' blockHeader wState txCtx sel =
     let
-        amtOuts =
-            sumCoins (txOutCoin <$> changeGenerated sel)
+        amtOuts = sumCoins $
+            (txOutCoin <$> NE.toList (changeGenerated sel))
+            ++
+            mapMaybe ourCoins (outputsCovered sel)
 
         amtInps
             = sumCoins (txOutCoin . snd <$> (inputsSelected sel))
@@ -1439,6 +1443,12 @@ mkTxMeta ti' blockHeader txCtx sel =
     slotStartTime' = interpretQuery ti . slotToUTCTime
       where
         ti = neverFails "mkTxMeta slots should never be ahead of the node tip" ti'
+
+    ourCoins :: TxOut -> Maybe Coin
+    ourCoins (TxOut addr tokens) =
+        case fst (isOurs addr wState) of
+            Just{}  -> Just (TokenBundle.getCoin tokens)
+            Nothing -> Nothing
 
 -- | Broadcast a (signed) transaction to the network.
 submitTx
