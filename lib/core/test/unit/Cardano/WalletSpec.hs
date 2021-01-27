@@ -27,8 +27,7 @@ import Cardano.BM.Trace
 import Cardano.Mnemonic
     ( SomeMnemonic (..) )
 import Cardano.Wallet
-    ( ErrSelectForPayment (..)
-    , ErrSignPayment (..)
+    ( ErrSignPayment (..)
     , ErrSubmitTx (..)
     , ErrUpdatePassphrase (..)
     , ErrWithRootKey (..)
@@ -65,10 +64,8 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     , IsOwned (..)
     , KnownAddresses (..)
     )
-import Cardano.Wallet.Primitive.CoinSelection
-    ( CoinSelection, feeBalance )
-import Cardano.Wallet.Primitive.Fee
-    ( Fee (..) )
+import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
+    ( SelectionResult (..) )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncTolerance (..) )
 import Cardano.Wallet.Primitive.Types
@@ -111,7 +108,7 @@ import Cardano.Wallet.Primitive.Types.Tx
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
 import Cardano.Wallet.Transaction
-    ( ErrMkTx (..), TransactionLayer (..) )
+    ( ErrMkTx (..), TransactionCtx (..), TransactionLayer (..) )
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
 import Control.Arrow
@@ -195,12 +192,13 @@ import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet as W
 import qualified Cardano.Wallet.DB.MVar as MVar
 import qualified Cardano.Wallet.DB.Sqlite as Sqlite
-import qualified Cardano.Wallet.Primitive.CoinSelection as CS
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
+import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.List as L
+import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 
@@ -208,7 +206,6 @@ spec :: Spec
 spec = parallel $ do
     parallel $ describe "Pointless tests to cover 'Show' instances for errors" $ do
         let wid = WalletId (hash @ByteString "arbitrary")
-        it (show $ ErrSelectForPaymentNoSuchWallet (ErrNoSuchWallet wid)) True
         it (show $ ErrSignPaymentNoSuchWallet (ErrNoSuchWallet wid)) True
         it (show $ ErrSubmitTxNoSuchWallet (ErrNoSuchWallet wid)) True
         it (show $ ErrUpdatePassphraseNoSuchWallet (ErrNoSuchWallet wid)) True
@@ -243,12 +240,6 @@ spec = parallel $ do
             (withMaxSuccess 10 $ property walletKeyIsReencrypted)
         it "Wallet can list transactions"
             (property walletListTransactionsSorted)
-        it "Coin selection guard is sound"
-            (property prop_guardCoinSelection)
-
-    parallel $ describe "Tx fee estimation" $
-        it "Fee estimates are sound"
-            (property prop_estimateFee)
 
     parallel $ describe "Join/Quit Stake pool properties" $ do
         it "You can quit if you cannot join"
@@ -372,17 +363,6 @@ prop_guardQuitJoin (NonEmpty knownPoolsList) dlg rewards =
         Left W.ErrNonNullRewards{} ->
             label "ErrNonNullRewards"
                 (property $ rewards /= 0)
-
-prop_guardCoinSelection
-    :: CoinSelectionGuard
-    -> Property
-prop_guardCoinSelection (CoinSelectionGuard minVal cs) =
-    case W.guardCoinSelection minVal cs of
-        Right () ->
-            label "Each outputs and change coin selection >= minUTxOvalue"
-            $ property True
-        Left W.ErrUTxOTooSmall{}  ->
-            label "ErrUTxOTooSmall" $ property True
 
 walletCreationProp
     :: (WalletId, WalletName, DummyState)
@@ -539,20 +519,33 @@ walletKeyIsReencrypted (wid, wname) (xprv, pwd) newPwd =
         let credentials (rootK, pwdP) =
                 (getRawKey $ deriveRewardAccount pwdP rootK, pwdP)
         (_,_,_,txOld) <- unsafeRunExceptT $
-            W.signPayment @_ @_ wl wid () credentials (coerce pwd) Nothing Nothing selection
+            W.signTransaction @_ @_ wl wid () credentials (coerce pwd) ctx selection
         unsafeRunExceptT $ W.updateWalletPassphrase wl wid (coerce pwd, newPwd)
         (_,_,_,txNew) <- unsafeRunExceptT $
-            W.signPayment @_ @_ wl wid () credentials newPwd Nothing Nothing selection
+            W.signTransaction @_ @_ wl wid () credentials newPwd ctx selection
         txOld `shouldBe` txNew
   where
-    selection = mempty
-        { CS.inputs =
+    selection = SelectionResult TxOut
+        { inputsSelected = NE.fromList
             [ ( TxIn (Hash "eb4ab6028bd0ac971809d514c92db1") 1
               , TxOut (Address "source") (TokenBundle.fromCoin $ Coin 42)
               )
             ]
-        , CS.outputs =
+        , extraCoinSource =
+            Nothing
+        , outputsCovered =
             [ TxOut (Address "destination") (TokenBundle.fromCoin $ Coin 14) ]
+        , changeGenerated = NE.fromList
+            [ TxOut (Address "change") (TokenBundle.fromCoin $ Coin 14) ]
+        , utxoRemaining =
+            UTxOIndex.empty
+        }
+
+    ctx = TransactionCtx
+        { txWithdrawal = Coin 0
+        , txMetadata = Nothing
+        , txTimeToLive = maxBound
+        , txDelegationAction = Nothing
         }
 
 walletListTransactionsSorted
@@ -575,76 +568,6 @@ walletListTransactionsSorted wallet@(wid, _, _) _order (_mstart, _mend) history 
         let expTimes = Map.fromList $
                 (\(tx, meta) -> (txId tx, slotNoTime (meta ^. #slotNo))) <$> history
         times `shouldBe` expTimes
-
-data CoinSelectionGuard = CoinSelectionGuard
-    { minimumUTxOvalue :: Coin
-    , coinSelection :: CS.CoinSelection
-    } deriving Show
-
-{-------------------------------------------------------------------------------
-                        Properties of tx fee estimation
--------------------------------------------------------------------------------}
-
--- | Properties of 'estimateFeeForCoinSelection':
--- 1. There is no coin selection with a fee above the estimated maximum.
--- 2. The minimum estimated fee is no greater than the maximum estimated fee.
--- 3. Around 10% of fees are below the estimated minimum.
-prop_estimateFee :: NonEmptyList (Either String FeeGen) -> Property
-prop_estimateFee (NonEmpty results) = case actual of
-    Left err -> label "errors: all" $
-        Left err === head results
-    Right estimation@(W.FeeEstimation minFee maxFee _) ->
-        label ("errors: " <> if any isLeft results then "some" else "none") $
-        counterexample (show estimation) $
-            maxFee <= maximum (map (getRight 0) results) .&&.
-            minFee <= maxFee .&&.
-            (proportionBelow minFee results `closeTo` (1/10 :: Double))
-  where
-    actual :: Either String W.FeeEstimation
-    actual = runTest results' (W.estimateFeeForCoinSelection Nothing mockCoinSelection)
-
-    -- infinite list of CoinSelections (or errors) matching the given fee
-    -- amounts.
-    results' = fmap coinSelectionForFee <$> L.cycle results
-
-    -- Pops a pre-canned result off the state and returns it
-    mockCoinSelection
-        :: ExceptT String (State [Either String CoinSelection]) Fee
-    mockCoinSelection = fmap (Fee . feeBalance) $ ExceptT $ state (\(r:rs) -> (r,rs))
-
-    runTest vals action = evalState (runExceptT action) vals
-
-    -- Find the number of results below the "minimum" estimate.
-    countBelow minFee =
-        count ((< minFee) . getRight maxBound)
-    proportionBelow minFee xs = fromIntegral (countBelow minFee xs)
-        / fromIntegral (count isRight xs)
-    count p = length . filter p
-
-    -- get the coin amount from a Right FeeGen, or a default value otherwise.
-    getRight d = either (const d) (unCoin . unFeeGen)
-
-    -- Two fractions are close to each other if they are within 20% either way.
-    closeTo a b =
-        counterexample (show a <> " & " <> show b <> " are not close enough") $
-        property $ abs (a - b) < (1/5)
-
--- | A fee amount that has a uniform random distribution in the range 1-100.
-newtype FeeGen = FeeGen { unFeeGen :: Coin } deriving (Show, Eq)
-
-instance Arbitrary FeeGen where
-    arbitrary = FeeGen . Coin <$> choose (1,100)
-
--- | Manufacture a coin selection that would result in the given fee.
-coinSelectionForFee :: FeeGen -> CoinSelection
-coinSelectionForFee (FeeGen (Coin fee)) = mempty
-    { CS.inputs =
-        [(TxIn (Hash "") 0, TxOut (Address "") (coinToBundle (1 + fee)))]
-    , CS.outputs =
-        [TxOut (Address "") (coinToBundle 1)]
-    }
-  where
-    coinToBundle = TokenBundle.fromCoin . Coin
 
 {-------------------------------------------------------------------------------
                       Tests machinery, Arbitrary instances
@@ -679,17 +602,6 @@ instance Arbitrary UTxO where
             <$> vector n
             <*> vector n
         return $ UTxO $ Map.fromList utxo
-
-instance Arbitrary CoinSelectionGuard where
-    arbitrary = do
-        minVal <- Coin <$> choose (0, 100)
-        txIntxOuts <- Map.toList . getUTxO <$> arbitrary
-        let chgs = map (\(_, TxOut _ c) -> TokenBundle.getCoin c) txIntxOuts
-        let cs = mempty
-                { CS.inputs = txIntxOuts
-                , CS.change = chgs
-                }
-        pure $ CoinSelectionGuard minVal cs
 
 data WalletLayerFixture = WalletLayerFixture
     { _fixtureDBLayer :: DBLayer IO DummyState ShelleyKey

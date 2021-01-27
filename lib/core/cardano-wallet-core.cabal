@@ -166,13 +166,8 @@ library
       Cardano.Wallet.Primitive.Slotting
       Cardano.Wallet.Primitive.AddressDiscovery.Random
       Cardano.Wallet.Primitive.AddressDiscovery.Sequential
-      Cardano.Wallet.Primitive.CoinSelection
       Cardano.Wallet.Primitive.SyncProgress
-      Cardano.Wallet.Primitive.CoinSelection.LargestFirst
       Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
-      Cardano.Wallet.Primitive.CoinSelection.Migration
-      Cardano.Wallet.Primitive.CoinSelection.Random
-      Cardano.Wallet.Primitive.Fee
       Cardano.Wallet.Primitive.Model
       Cardano.Wallet.Primitive.Scripts
       Cardano.Wallet.Primitive.Types
@@ -349,12 +344,7 @@ test-suite unit
       Cardano.Wallet.Primitive.AddressDiscovery.RandomSpec
       Cardano.Wallet.Primitive.AddressDiscovery.SequentialSpec
       Cardano.Wallet.Primitive.AddressDiscoverySpec
-      Cardano.Wallet.Primitive.CoinSelection.LargestFirstSpec
       Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobinSpec
-      Cardano.Wallet.Primitive.CoinSelection.MigrationSpec
-      Cardano.Wallet.Primitive.CoinSelection.RandomSpec
-      Cardano.Wallet.Primitive.CoinSelectionSpec
-      Cardano.Wallet.Primitive.FeeSpec
       Cardano.Wallet.Primitive.ModelSpec
       Cardano.Wallet.Primitive.ScriptsSpec
       Cardano.Wallet.Primitive.Slotting.Legacy
