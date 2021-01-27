@@ -105,6 +105,8 @@ import Cardano.Wallet.Shelley.Compatibility
     , toStakeKeyRegCert
     , toStakePoolDlgCert
     )
+import Cardano.Wallet.Shelley.Compatibility.Ledger
+    ( computeMinimumAdaQuantity )
 import Cardano.Wallet.Transaction
     ( DelegationAction (..)
     , ErrDecodeSignedTx (..)
@@ -379,9 +381,8 @@ _calcMinimumCoinValue
     :: ProtocolParameters
     -> TokenMap
     -> Coin
-_calcMinimumCoinValue pp _assets =
-    -- FIXME: ADP-506 / PR #2461
-    minimumUTxOvalue pp
+_calcMinimumCoinValue pp =
+    computeMinimumAdaQuantity (minimumUTxOvalue pp)
 
 _estimateMaxNumberOfInputs
     :: forall k. TxWitnessTagFor k
