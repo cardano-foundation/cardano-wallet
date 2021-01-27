@@ -332,6 +332,7 @@ import Cardano.Wallet.Transaction
     , ErrMkTx (..)
     , TransactionCtx (..)
     , TransactionLayer (..)
+    , defaultTransactionCtx
     )
 import Control.DeepSeq
     ( NFData )
@@ -949,12 +950,8 @@ readNextWithdrawal ctx wid (Coin withdrawal) = db & \DBLayer{..} -> do
     tl = ctx ^. transactionLayer @k
     nl = ctx ^. networkLayer
 
-    mkTxCtx txWithdrawal = TransactionCtx
-        { txWithdrawal
-        , txMetadata = Nothing
-        , txTimeToLive = maxBound
-        , txDelegationAction = Nothing
-        }
+    mkTxCtx txWithdrawal =
+        defaultTransactionCtx { txWithdrawal }
 
 
 readRewardAccount

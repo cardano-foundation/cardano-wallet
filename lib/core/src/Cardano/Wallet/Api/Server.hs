@@ -339,7 +339,11 @@ import Cardano.Wallet.Registry
     , workerResource
     )
 import Cardano.Wallet.Transaction
-    ( DelegationAction (..), TransactionCtx (..), TransactionLayer )
+    ( DelegationAction (..)
+    , TransactionCtx (..)
+    , TransactionLayer
+    , defaultTransactionCtx
+    )
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
 import Control.Arrow
@@ -1176,12 +1180,7 @@ selectCoins ctx genChange (ApiT wid) body = do
         --
         -- TODO 2:
         -- Allow passing around metadata as part of external coin selections.
-        let txCtx = TransactionCtx
-                { txWithdrawal = Coin 0
-                , txMetadata = Nothing
-                , txTimeToLive = maxBound
-                , txDelegationAction = Nothing
-                }
+        let txCtx = defaultTransactionCtx
         let outs = coerceCoin <$> body ^. #payments
 
         let transform = \s sel ->
@@ -1222,10 +1221,8 @@ selectCoinsForJoin ctx knownPools getPoolStatus pid wid = do
             $ W.joinStakePool @_ @s @k @n wrk curEpoch pools pid poolStatus wid
 
         (wdrl, _mkRwdAcct) <- mkRewardAccountBuilder @_ @s @k @n ctx wid Nothing
-        let txCtx = TransactionCtx
+        let txCtx = defaultTransactionCtx
                 { txWithdrawal = wdrl
-                , txMetadata = Nothing
-                , txTimeToLive = maxBound
                 , txDelegationAction = Just action
                 }
 
@@ -1260,10 +1257,8 @@ selectCoinsForQuit ctx (ApiT wid) = do
             $ W.quitStakePool @_ @s @k @n wrk wid
 
         (wdrl, _mkRwdAcct) <- mkRewardAccountBuilder @_ @s @k @n ctx wid Nothing
-        let txCtx = TransactionCtx
+        let txCtx = defaultTransactionCtx
                 { txWithdrawal = wdrl
-                , txMetadata = Nothing
-                , txTimeToLive = maxBound
                 , txDelegationAction = Just action
                 }
 
@@ -1423,11 +1418,10 @@ postTransaction ctx genChange (ApiT wid) body = do
         mkRewardAccountBuilder @_ @s @_ @n ctx wid (body ^. #withdrawal)
 
     ttl <- liftIO $ W.getTxExpiry ti mTTL
-    let txCtx = TransactionCtx
+    let txCtx = defaultTransactionCtx
             { txWithdrawal = wdrl
             , txMetadata = md
             , txTimeToLive = ttl
-            , txDelegationAction = Nothing
             }
 
     (sel, tx, txMeta, txTime) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
@@ -1531,11 +1525,9 @@ postTransactionFee
     -> Handler ApiFee
 postTransactionFee ctx (ApiT wid) body = do
     (wdrl, _) <- mkRewardAccountBuilder @_ @s @_ @n ctx wid Nothing
-    let txCtx = TransactionCtx
+    let txCtx = defaultTransactionCtx
             { txWithdrawal = wdrl
             , txMetadata = getApiT <$> body ^. #metadata
-            , txTimeToLive = maxBound
-            , txDelegationAction = Nothing
             }
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         let runSelection = W.selectAssets @_ @s @k wrk wid txCtx outs getFee
@@ -1582,9 +1574,8 @@ joinStakePool ctx knownPools getPoolStatus apiPoolId (ApiT wid) body = do
 
         (wdrl, mkRwdAcct) <- mkRewardAccountBuilder @_ @s @_ @n ctx wid Nothing
         ttl <- liftIO $ W.getTxExpiry ti Nothing
-        let txCtx = TransactionCtx
+        let txCtx = defaultTransactionCtx
                 { txWithdrawal = wdrl
-                , txMetadata = Nothing
                 , txTimeToLive = ttl
                 , txDelegationAction = Just action
                 }
@@ -1631,12 +1622,7 @@ delegationFee ctx (ApiT wid) = do
             <*> W.estimateFee runSelection
   where
     txCtx :: TransactionCtx
-    txCtx = TransactionCtx
-        { txWithdrawal = Coin 0
-        , txMetadata = Nothing
-        , txTimeToLive = maxBound
-        , txDelegationAction = Nothing
-        }
+    txCtx = defaultTransactionCtx
 
 quitStakePool
     :: forall ctx s n k.
@@ -1665,9 +1651,8 @@ quitStakePool ctx (ApiT wid) body = do
 
         (wdrl, mkRwdAcct) <- mkRewardAccountBuilder @_ @s @_ @n ctx wid Nothing
         ttl <- liftIO $ W.getTxExpiry ti Nothing
-        let txCtx = TransactionCtx
+        let txCtx = defaultTransactionCtx
                 { txWithdrawal = wdrl
-                , txMetadata = Nothing
                 , txTimeToLive = ttl
                 , txDelegationAction = Just action
                 }

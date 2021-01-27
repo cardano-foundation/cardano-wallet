@@ -20,6 +20,7 @@ module Cardano.Wallet.Transaction
       TransactionLayer (..)
     , DelegationAction (..)
     , TransactionCtx (..)
+    , defaultTransactionCtx
 
     -- * Errors
     , ErrMkTx (..)
@@ -145,6 +146,16 @@ data TransactionCtx = TransactionCtx
     , txDelegationAction :: Maybe DelegationAction
     -- ^ An additional delegation to take.
     } deriving (Show, Eq)
+
+-- | A default context with sensible placeholder. Can be used to reduce
+-- repetition for changing only sub-part of the default context.
+defaultTransactionCtx :: TransactionCtx
+defaultTransactionCtx = TransactionCtx
+    { txWithdrawal = Coin 0
+    , txMetadata = Nothing
+    , txTimeToLive = maxBound
+    , txDelegationAction = Nothing
+    }
 
 -- | Whether the user is attempting any particular delegation action.
 data DelegationAction = RegisterKeyAndJoin PoolId | Join PoolId | Quit

@@ -108,7 +108,7 @@ import Cardano.Wallet.Primitive.Types.Tx
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
 import Cardano.Wallet.Transaction
-    ( ErrMkTx (..), TransactionCtx (..), TransactionLayer (..) )
+    ( ErrMkTx (..), TransactionLayer (..), defaultTransactionCtx )
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
 import Control.Arrow
@@ -541,12 +541,7 @@ walletKeyIsReencrypted (wid, wname) (xprv, pwd) newPwd =
             UTxOIndex.empty
         }
 
-    ctx = TransactionCtx
-        { txWithdrawal = Coin 0
-        , txMetadata = Nothing
-        , txTimeToLive = maxBound
-        , txDelegationAction = Nothing
-        }
+    ctx = defaultTransactionCtx
 
 walletListTransactionsSorted
     :: (WalletId, WalletName, DummyState)
