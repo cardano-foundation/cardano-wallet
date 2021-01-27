@@ -83,6 +83,7 @@ import Cardano.Wallet.Transaction
     ( ErrDecodeSignedTx (..)
     , TransactionCtx (..)
     , TransactionLayer (..)
+    , Withdrawal (..)
     , defaultTransactionCtx
     )
 import Control.Monad
@@ -164,26 +165,30 @@ spec = do
             minFee ctx = coinToInteger $ calcMinimumCost testTxLayer pp ctx sel
               where sel = emptySkeleton
 
-        it "withdrawals incur fees" $ property $ \txWithdrawal ->
+        it "withdrawals incur fees" $ property $ \wdrl ->
             let
-                costWith = minFee $ defaultTransactionCtx { txWithdrawal }
-                costWithout = minFee defaultTransactionCtx
+                costWith =
+                    minFee $ defaultTransactionCtx { txWithdrawal = WithdrawalSelf wdrl }
+                costWithout =
+                    minFee defaultTransactionCtx
 
                 marginalCost :: Integer
                 marginalCost = costWith - costWithout
             in
-                (if txWithdrawal == Coin 0
+                (if wdrl == Coin 0
                     then property $ marginalCost == 0
                     else property $ marginalCost > 0
-                ) & classify (txWithdrawal == Coin 0) "null withdrawal"
+                ) & classify (wdrl == Coin 0) "null withdrawal"
                 & counterexample ("marginal cost: " <> show marginalCost)
                 & counterexample ("cost with: " <> show costWith)
                 & counterexample ("cost without: " <> show costWithout)
 
         it "metadata incurs fees" $ property $ \md ->
             let
-                costWith = minFee $ defaultTransactionCtx { txMetadata = Just md }
-                costWithout = minFee defaultTransactionCtx
+                costWith =
+                    minFee $ defaultTransactionCtx { txMetadata = Just md }
+                costWithout =
+                    minFee defaultTransactionCtx
 
                 marginalCost :: Integer
                 marginalCost = costWith - costWithout

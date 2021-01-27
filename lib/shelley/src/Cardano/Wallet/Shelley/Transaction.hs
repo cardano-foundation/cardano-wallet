@@ -111,6 +111,8 @@ import Cardano.Wallet.Transaction
     , ErrMkTx (..)
     , TransactionCtx (..)
     , TransactionLayer (..)
+    , defaultTransactionCtx
+    , withdrawalToCoin
     )
 import Control.Arrow
     ( first, left, second )
@@ -274,7 +276,7 @@ newTransactionLayer
 newTransactionLayer networkId = TransactionLayer
     { mkTransaction = \era stakeCreds keystore pp ctx selection -> do
         let ttl   = txTimeToLive ctx
-        let wdrl  = txWithdrawal ctx
+        let wdrl  = withdrawalToCoin $ txWithdrawal ctx
         let delta = selectionDelta txOutCoin selection
         case txDelegationAction ctx of
             Nothing -> do
@@ -307,7 +309,7 @@ newTransactionLayer networkId = TransactionLayer
                     (fromIntegral $ NE.length outputsToCover)
 
             extraCoinSource = Just $ addCoin
-                (txWithdrawal ctx)
+                (withdrawalToCoin $ txWithdrawal ctx)
                 ( case txDelegationAction ctx of
                     Just Quit -> stakeKeyDeposit pp
                     _ -> Coin 0
@@ -408,12 +410,7 @@ _estimateMaxNumberOfInputs txMaxSize txMetadata nOuts =
       where
         size = estimateTxSize (txWitnessTagFor @k) ctx sel
         sel  = dummySkeleton (fromIntegral nInps) (fromIntegral nOuts)
-        ctx  = TransactionCtx
-            { txWithdrawal = Coin 0
-            , txMetadata
-            , txTimeToLive = maxBound
-            , txDelegationAction = Nothing
-            }
+        ctx  = defaultTransactionCtx { txMetadata }
 
 -- FIXME: This dummy skeleton does not account for multi-asset outputs. So
 -- the final estimation can end up being much larger than it should in
@@ -496,7 +493,7 @@ estimateTxSize witnessTag ctx (SelectionSkeleton inps outs chgs) =
         = maybe 0 (const 1) txDelegationAction
 
     numberOf_Withdrawals
-        = if txWithdrawal > Coin 0 then 1 else 0
+        = if withdrawalToCoin txWithdrawal > Coin 0 then 1 else 0
 
     numberOf_VkeyWitnesses
         = case witnessTag of

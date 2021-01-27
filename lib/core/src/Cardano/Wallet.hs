@@ -332,7 +332,9 @@ import Cardano.Wallet.Transaction
     , ErrMkTx (..)
     , TransactionCtx (..)
     , TransactionLayer (..)
+    , Withdrawal (..)
     , defaultTransactionCtx
+    , withdrawalToCoin
     )
 import Control.DeepSeq
     ( NFData )
@@ -923,14 +925,13 @@ fetchRewardBalance ctx wid = db & \DBLayer{..} ->
 -- cost more than its value).
 readNextWithdrawal
     :: forall ctx s k.
-        ( HasDBLayer s k ctx
-        , HasTransactionLayer k ctx
+        ( HasTransactionLayer k ctx
         , HasNetworkLayer ctx
         )
     => ctx
     -> Coin
     -> IO Coin
-readNextWithdrawal ctx wid (Coin withdrawal) = db & \DBLayer{..} -> do
+readNextWithdrawal ctx wid (Coin withdrawal) = do
     pp <- currentProtocolParameters nl
 
     let costWith =
@@ -946,13 +947,11 @@ readNextWithdrawal ctx wid (Coin withdrawal) = db & \DBLayer{..} -> do
     then pure (Coin 0)
     else pure (Coin withdrawal)
   where
-    db = ctx ^. dbLayer @s @k
     tl = ctx ^. transactionLayer @k
     nl = ctx ^. networkLayer
 
-    mkTxCtx txWithdrawal =
-        defaultTransactionCtx { txWithdrawal }
-
+    mkTxCtx wdrl =
+        defaultTransactionCtx { txWithdrawal = WithdrawalSelf wdrl }
 
 readRewardAccount
     :: forall ctx s k (n :: NetworkDiscriminant) shelley.
@@ -1320,7 +1319,7 @@ selectAssets ctx wid tx outs transform = do
     guardWithdrawal :: Set Tx -> ExceptT ErrSelectAssets IO ()
     guardWithdrawal pending = do
         case Set.lookupMin $ Set.filter hasWithdrawal pending of
-            Just pendingWithdrawal | txWithdrawal tx /= Coin 0 ->
+            Just pendingWithdrawal | withdrawalToCoin (txWithdrawal tx) /= Coin 0 ->
                 throwE $ ErrSelectAssetsAlreadyWithdrawing pendingWithdrawal
             _otherwise ->
                 pure ()
@@ -1349,7 +1348,7 @@ signTransaction
     -> TransactionCtx
     -> SelectionResult TokenBundle
     -> ExceptT ErrSignPayment IO (Tx, TxMeta, UTCTime, SealedTx)
-signTransaction ctx wid argGenChange mkRwdAcct pwd txCtx sel = db & \DBLayer{..} -> do
+signTransaction ctx wid argChange mkRwdAcct pwd txCtx sel = db & \DBLayer{..} -> do
     era <- liftIO $ currentNodeEra nl
     withRootKey @_ @s ctx wid pwd ErrSignPaymentWithRootKey $ \xprv scheme -> do
         let pwdP = preparePassphrase scheme pwd
@@ -1357,7 +1356,7 @@ signTransaction ctx wid argGenChange mkRwdAcct pwd txCtx sel = db & \DBLayer{..}
             cp <- withExceptT ErrSignPaymentNoSuchWallet $ withNoSuchWallet wid $
                 readCheckpoint (PrimaryKey wid)
             pp <- liftIO $ currentProtocolParameters nl
-            let (sel', s') = assignChangeAddresses argGenChange sel (getState cp)
+            let (sel', s') = assignChangeAddresses argChange sel (getState cp)
             withExceptT ErrSignPaymentNoSuchWallet $
                 putCheckpoint (PrimaryKey wid) (updateState s' cp)
 
@@ -1414,6 +1413,15 @@ mkTxMeta ti' blockHeader txCtx sel =
         amtInps
             = sumCoins (txOutCoin . snd <$> (inputsSelected sel))
             & addCoin (fromMaybe (Coin 0) (extraCoinSource sel))
+            -- NOTE: In case where rewards were pulled from an external
+            -- source, they are removed from 'our inputs' in the calculation
+            -- because the money is considered to come from outside of the
+            -- wallet; which changes the way we look at transactions (in such
+            -- case, a transaction is considered 'Incoming' since it brings
+            -- extra money to the wallet from elsewhere).
+            & case txWithdrawal txCtx of
+                WithdrawalExternal c -> (`Coin.distance` c)
+                _ -> Prelude.id
     in do
         t <- slotStartTime' (blockHeader ^. #slotNo)
         return

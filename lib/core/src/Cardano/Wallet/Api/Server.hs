@@ -342,6 +342,7 @@ import Cardano.Wallet.Transaction
     ( DelegationAction (..)
     , TransactionCtx (..)
     , TransactionLayer
+    , Withdrawal (..)
     , defaultTransactionCtx
     )
 import Cardano.Wallet.Unsafe
@@ -1524,7 +1525,7 @@ postTransactionFee
     -> PostTransactionFeeData n
     -> Handler ApiFee
 postTransactionFee ctx (ApiT wid) body = do
-    (wdrl, _) <- mkRewardAccountBuilder @_ @s @_ @n ctx wid Nothing
+    (wdrl, _) <- mkRewardAccountBuilder @_ @s @_ @n ctx wid (body ^. #withdrawal)
     let txCtx = defaultTransactionCtx
             { txWithdrawal = wdrl
             , txMetadata = getApiT <$> body ^. #metadata
@@ -1937,7 +1938,7 @@ mkRewardAccountBuilder
     => ctx
     -> WalletId
     -> Maybe ApiWithdrawalPostData
-    -> Handler (Coin, RewardAccountBuilder k)
+    -> Handler (Withdrawal, RewardAccountBuilder k)
 mkRewardAccountBuilder ctx wid withdrawal = do
     let selfRewardCredentials (rootK, pwdP) =
             (getRawKey $ deriveRewardAccount @k pwdP rootK, pwdP)
@@ -1945,12 +1946,12 @@ mkRewardAccountBuilder ctx wid withdrawal = do
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         case withdrawal of
            Nothing ->
-               pure (Coin 0, selfRewardCredentials)
+               pure (NoWithdrawal, selfRewardCredentials)
 
            Just SelfWithdrawal -> do
                (acct, _) <- liftHandler $ W.readRewardAccount @_ @s @k @n wrk wid
                wdrl <- liftHandler $ W.queryRewardBalance @_ wrk acct
-               (, selfRewardCredentials)
+               (, selfRewardCredentials) . WithdrawalSelf
                    <$> liftIO (W.readNextWithdrawal @_ @s @k wrk wdrl)
 
            Just (ExternalWithdrawal (ApiMnemonicT mw)) -> do
@@ -1959,7 +1960,7 @@ mkRewardAccountBuilder ctx wid withdrawal = do
                    >>= liftIO . W.readNextWithdrawal @_ @s @k wrk
                when (wdrl == Coin 0) $ do
                    liftHandler $ throwE ErrWithdrawalNotWorth
-               pure (wdrl, const (xprv, mempty))
+               pure (WithdrawalExternal wdrl, const (xprv, mempty))
 
 -- | Makes an 'ApiCoinSelection' from the given 'UnsignedTx'.
 mkApiCoinSelection

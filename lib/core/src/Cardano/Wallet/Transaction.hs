@@ -2,6 +2,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -21,6 +22,8 @@ module Cardano.Wallet.Transaction
     , DelegationAction (..)
     , TransactionCtx (..)
     , defaultTransactionCtx
+    , Withdrawal (..)
+    , withdrawalToCoin
 
     -- * Errors
     , ErrMkTx (..)
@@ -137,7 +140,7 @@ data TransactionLayer k = TransactionLayer
 -- details that are known upfront about the transaction and are used to
 -- construct it from inputs selected from the wallet's UTxO.
 data TransactionCtx = TransactionCtx
-    { txWithdrawal :: Coin
+    { txWithdrawal :: Withdrawal
     -- ^ Withdrawal amount from a reward account, can be zero.
     , txMetadata :: Maybe TxMetadata
     -- ^ User or application-defined metadata to embed in the transaction.
@@ -147,11 +150,23 @@ data TransactionCtx = TransactionCtx
     -- ^ An additional delegation to take.
     } deriving (Show, Eq)
 
+data Withdrawal
+    = WithdrawalSelf !Coin
+    | WithdrawalExternal !Coin
+    | NoWithdrawal
+    deriving (Show, Eq)
+
+withdrawalToCoin :: Withdrawal -> Coin
+withdrawalToCoin = \case
+    WithdrawalSelf c -> c
+    WithdrawalExternal c -> c
+    NoWithdrawal -> Coin 0
+
 -- | A default context with sensible placeholder. Can be used to reduce
 -- repetition for changing only sub-part of the default context.
 defaultTransactionCtx :: TransactionCtx
 defaultTransactionCtx = TransactionCtx
-    { txWithdrawal = Coin 0
+    { txWithdrawal = NoWithdrawal
     , txMetadata = Nothing
     , txTimeToLive = maxBound
     , txDelegationAction = Nothing
