@@ -30,7 +30,6 @@ library
       -Werror
   build-depends:
       HUnit
-    , QuickCheck
     , aeson
     , aeson-qq
     , base
@@ -109,6 +108,5 @@ library
       Test.Integration.Scenario.CLI.Miscellaneous
       Test.Integration.Scenario.CLI.Network
       Test.Integration.Scenario.CLI.Port
-      Cardano.Wallet.TransactionSpecShared
       Cardano.Wallet.LatencyBenchShared
       Cardano.Wallet.BenchShared
