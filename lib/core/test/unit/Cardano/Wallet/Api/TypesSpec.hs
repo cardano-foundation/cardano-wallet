@@ -63,6 +63,7 @@ import Cardano.Wallet.Api.Types
     , ApiCredential (..)
     , ApiDelegationAction (..)
     , ApiEpochInfo (..)
+    , ApiEra (..)
     , ApiEraInfo (..)
     , ApiErrorCode (..)
     , ApiFee (..)
@@ -369,6 +370,7 @@ spec = parallel $ do
             jsonRoundtripAndGolden $ Proxy @ApiNetworkInformation
             jsonRoundtripAndGolden $ Proxy @ApiNetworkParameters
             jsonRoundtripAndGolden $ Proxy @ApiEraInfo
+            jsonRoundtripAndGolden $ Proxy @ApiEra
             jsonRoundtripAndGolden $ Proxy @ApiNetworkClock
             jsonRoundtripAndGolden $ Proxy @ApiWalletDelegation
             jsonRoundtripAndGolden $ Proxy @ApiHealthCheck
@@ -947,6 +949,7 @@ spec = parallel $ do
                     , nextEpoch = nextEpoch (x :: ApiNetworkInformation)
                     , nodeTip = nodeTip (x :: ApiNetworkInformation)
                     , networkTip = networkTip (x :: ApiNetworkInformation)
+                    , nodeEra = nodeEra (x :: ApiNetworkInformation)
                     }
             in
                 x' === x .&&. show x' === show x
@@ -1583,6 +1586,10 @@ instance Arbitrary ApiNetworkParameters where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
+instance Arbitrary ApiEra where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
+
 instance Arbitrary ApiEraInfo where
     arbitrary = genericArbitrary
     shrink = genericShrink
@@ -1999,6 +2006,9 @@ instance ToSchema AnyAddress where
 
 instance ToSchema ApiNetworkParameters where
     declareNamedSchema _ = declareSchemaForDefinition "ApiNetworkParameters"
+
+instance ToSchema ApiEra where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiEra"
 
 instance ToSchema ApiEraInfo where
     declareNamedSchema _ = declareSchemaForDefinition "ApiEraInfo"

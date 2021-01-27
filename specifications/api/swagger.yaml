@@ -1396,16 +1396,26 @@ components:
       <<: *slotReference
       description: The time slot corresponding the network tip.
 
+    ApiEra: &ApiEra
+      type: string
+      enum:
+        - byron
+        - shelley
+        - allegra
+        - mary
+
     ApiNetworkInformation: &ApiNetworkInformation
       type: object
       required:
         - sync_progress
         - node_tip
+        - node_era
       properties:
         sync_progress: *networkInformationSyncProgress
         node_tip: *networkInformationNodeTip
         network_tip: *ApiNetworkTip
         next_epoch: *epochInfo
+        node_era: *ApiEra
 
     ApiNetworkClock: &ApiNetworkClock
       <<: *networkInformationNtpStatus
@@ -1449,6 +1459,7 @@ components:
         - decentralization_level
         - desired_pool_number
         - minimum_utxo_value
+        - eras
       properties:
         genesis_block_hash: *blockId
         blockchain_start_time: *date

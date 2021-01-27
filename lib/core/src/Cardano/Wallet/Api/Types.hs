@@ -96,6 +96,7 @@ module Cardano.Wallet.Api.Types
     , ApiAddressInspectData (..)
     , ApiErrorCode (..)
     , ApiNetworkInformation (..)
+    , ApiEra (..)
     , ApiNtpStatus (..)
     , NtpSyncingStatus (..)
     , ApiNetworkClock (..)
@@ -892,11 +893,27 @@ newtype ApiBlockInfo = ApiBlockInfo
     } deriving (Eq, Generic, Show)
       deriving anyclass NFData
 
+data ApiEra
+    = ApiByron
+    | ApiShelley
+    | ApiAllegra
+    | ApiMary
+    deriving (Show, Eq, Generic, Enum, Ord)
+    deriving anyclass NFData
+
+instance FromJSON ApiEra where
+    parseJSON = genericParseJSON $ Aeson.defaultOptions
+        { constructorTagModifier = drop 4 . camelTo2 '_' }
+instance ToJSON ApiEra where
+    toJSON = genericToJSON $ Aeson.defaultOptions
+        { constructorTagModifier = drop 4 . camelTo2 '_' }
+
 data ApiNetworkInformation = ApiNetworkInformation
     { syncProgress :: !(ApiT SyncProgress)
     , nextEpoch :: !(Maybe ApiEpochInfo)
     , nodeTip :: !ApiBlockReference
     , networkTip :: !(Maybe ApiSlotReference)
+    , nodeEra :: !ApiEra
     } deriving (Eq, Generic, Show)
       deriving anyclass NFData
 

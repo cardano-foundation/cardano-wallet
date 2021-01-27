@@ -1020,7 +1020,7 @@ instance Buildable ProtocolParameters where
         , "Transaction parameters: " <> build (pp ^. #txParameters)
         , "Desired number of pools: " <> build (pp ^. #desiredNumberOfStakePools)
         , "Minimum UTxO value: " <> build (pp ^. #minimumUTxOvalue)
-        , "Eras:" <> indentF 2 (build (pp ^. #eras))
+        , "Eras:\n" <> indentF 2 (build (pp ^. #eras))
         ]
 
 -- | Indicates the current level of decentralization in the network.

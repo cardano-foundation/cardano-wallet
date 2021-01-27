@@ -102,6 +102,8 @@ import Prelude
 
 import Cardano.Address.Derivation
     ( XPrv, XPub, xpubPublicKey )
+import Cardano.Api.Typed
+    ( AnyCardanoEra (..), CardanoEra (..) )
 import Cardano.Mnemonic
     ( SomeMnemonic )
 import Cardano.Wallet
@@ -179,6 +181,7 @@ import Cardano.Wallet.Api.Types
     , ApiCoinSelectionInput (..)
     , ApiCoinSelectionOutput (..)
     , ApiEpochInfo (ApiEpochInfo)
+    , ApiEra (..)
     , ApiErrorCode (..)
     , ApiFee (..)
     , ApiMnemonicT (..)
@@ -1806,6 +1809,7 @@ getNetworkInformation
 getNetworkInformation st nl = liftIO $ do
     now <- currentRelativeTime ti
     nodeTip <- NW.currentNodeTip nl
+    nodeEra <- NW.currentNodeEra nl
     apiNodeTip <- makeApiBlockReferenceFromHeader
         (neverFails "node tip is within safe-zone" $ timeInterpreter nl)
         nodeTip
@@ -1820,10 +1824,17 @@ getNetworkInformation st nl = liftIO $ do
         , Api.nextEpoch = snd <$> nowInfo
         , Api.nodeTip = apiNodeTip
         , Api.networkTip = fst <$> nowInfo
+        , Api.nodeEra = toApiEra nodeEra
         }
   where
     ti :: TimeInterpreter (MaybeT IO)
     ti = hoistTimeInterpreter exceptToMaybeT $ timeInterpreter nl
+
+    toApiEra :: AnyCardanoEra -> ApiEra
+    toApiEra (AnyCardanoEra ByronEra) = ApiByron
+    toApiEra (AnyCardanoEra ShelleyEra) = ApiShelley
+    toApiEra (AnyCardanoEra AllegraEra) = ApiAllegra
+    toApiEra (AnyCardanoEra MaryEra) = ApiMary
 
     -- (network tip, next epoch)
     -- May be unavailible if the node is still syncing.
