@@ -1426,11 +1426,6 @@ components:
 
     ApiEraInfo: &ApiEraInfo
       type: object
-      required:
-        - byron
-        - shelley
-        - allegra
-        - mary
       properties:
         byron: *nullableEpochInfo
         shelley: *nullableEpochInfo
@@ -1446,6 +1441,9 @@ components:
 
         If you need to know the current era, see the `node_era` field of
         `GET /network/information`.
+
+        > Due to complications with our current tooling, we cannot mark the era names
+        > as required, but the keys are in fact always present.
 
     ApiNetworkParameters: &ApiNetworkParameters
       type: object
