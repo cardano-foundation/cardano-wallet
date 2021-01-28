@@ -24,6 +24,8 @@ module Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     -- * Performing a selection
       performSelection
     , prepareOutputsWith
+    , emptySkeleton
+    , selectionDelta
     , SelectionCriteria (..)
     , SelectionLimit (..)
     , SelectionSkeleton (..)
@@ -74,7 +76,7 @@ import Algebra.PartialOrd
 import Cardano.Numeric.Util
     ( padCoalesce, partitionNatural )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..), subtractCoin )
+    ( Coin (..), addCoin, subtractCoin, sumCoins )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle (..) )
 import Cardano.Wallet.Primitive.Types.TokenMap
@@ -82,13 +84,15 @@ import Cardano.Wallet.Primitive.Types.TokenMap
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( TxIn, TxOut )
+    ( TxIn, TxOut, txOutCoin )
 import Cardano.Wallet.Primitive.Types.UTxOIndex
     ( SelectionFilter (..), UTxOIndex (..) )
 import Control.Monad.Random.Class
     ( MonadRandom (..) )
 import Control.Monad.Trans.State
     ( StateT (..) )
+import Data.Function
+    ( (&) )
 import Data.Functor.Identity
     ( Identity (..) )
 import Data.Generics.Internal.VL.Lens
@@ -105,6 +109,8 @@ import Data.Ord
     ( comparing )
 import Data.Set
     ( Set )
+import Fmt
+    ( Buildable (..), Builder, blockListF, blockListF', nameF, tupleF )
 import GHC.Generics
     ( Generic )
 import GHC.Stack
@@ -112,6 +118,7 @@ import GHC.Stack
 import Numeric.Natural
     ( Natural )
 
+import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.Tx as Tx
@@ -158,11 +165,20 @@ data SelectionSkeleton = SelectionSkeleton
     { inputsSkeleton
         :: !UTxOIndex
     , outputsSkeleton
-        :: !(NonEmpty TxOut)
+        :: ![TxOut]
     , changeSkeleton
-        :: !(NonEmpty (Set AssetId))
+        :: ![Set AssetId]
     }
     deriving (Eq, Show)
+
+-- | Creates an empty 'SelectionSkeleton' with no inputs, no outputs and no
+-- change.
+emptySkeleton :: SelectionSkeleton
+emptySkeleton = SelectionSkeleton
+    { inputsSkeleton  = UTxOIndex.empty
+    , outputsSkeleton = mempty
+    , changeSkeleton  = mempty
+    }
 
 -- | Specifies a limit to adhere to when performing a selection.
 --
@@ -175,19 +191,74 @@ data SelectionLimit
 
 -- | The result of performing a successful selection.
 --
-data SelectionResult = SelectionResult
+data SelectionResult change = SelectionResult
     { inputsSelected
         :: !(NonEmpty (TxIn, TxOut))
         -- ^ A (non-empty) list of inputs selected from 'utxoAvailable'.
+    , extraCoinSource
+        :: !(Maybe Coin)
+        -- ^ An optional extra source of ada.
+    , outputsCovered
+        :: ![TxOut]
+        -- ^ A list of ouputs covered.
+        -- FIXME: Left as a list to allow to work-around the limitation of
+        -- 'performSelection' which cannot run for no output targets (e.g. in
+        -- the context of a delegation transaction). This allows callers to
+        -- specify a dummy 'TxOut' as argument, and remove it later in the
+        -- result; Ideally, we want to handle this in a better way by allowing
+        -- 'performSelection' to work with empty output targets. At the moment
+        -- of writing these lines, I've already been yak-shaving for a while and
+        -- this is the last remaining obstacle, not worth the effort _yet_.
     , changeGenerated
-        :: !(NonEmpty TokenBundle)
+        :: !(NonEmpty change)
         -- ^ A (non-empty) list of generated change outputs.
     , utxoRemaining
         :: !UTxOIndex
         -- ^ The subset of 'utxoAvailable' that remains after performing
         -- the selection.
     }
-    deriving (Eq, Show)
+    deriving (Generic, Eq, Show)
+
+instance Buildable (SelectionResult TokenBundle) where
+    build = buildSelectionResult (blockListF . fmap TokenBundle.Flat)
+
+instance Buildable (SelectionResult TxOut) where
+    build = buildSelectionResult (blockListF . fmap build)
+
+buildSelectionResult
+    :: (NonEmpty change -> Builder)
+    -> SelectionResult change
+    -> Builder
+buildSelectionResult changeF s@SelectionResult{inputsSelected,extraCoinSource} =
+    mconcat
+        [ nameF "inputs selected" (inputsF inputsSelected)
+        , nameF "extra coin input" (build extraCoinSource)
+        , nameF "outputs covered" (build $ outputsCovered s)
+        , nameF "change generated" (changeF $ changeGenerated s)
+        , nameF "size utxo remaining" (build $ UTxOIndex.size $ utxoRemaining s)
+        ]
+  where
+    inputsF :: NonEmpty (TxIn, TxOut) -> Builder
+    inputsF = blockListF' "+" tupleF
+
+-- | Calculate the actual difference between the total outputs (incl. change)
+-- and total inputs of a particular selection. By construction, this should be
+-- greater than total fees and deposits.
+selectionDelta
+    :: (change -> Coin)
+    -> SelectionResult change
+    -> Coin
+selectionDelta getChangeCoin sel@SelectionResult{inputsSelected,extraCoinSource} =
+    let
+        totalOut
+            = sumCoins (getChangeCoin <$> changeGenerated sel)
+            & addCoin  (sumCoins (txOutCoin <$> outputsCovered sel))
+
+        totalIn
+            = sumCoins (txOutCoin . snd <$> inputsSelected)
+            & addCoin (fromMaybe (Coin 0) extraCoinSource)
+    in
+        Coin.distance totalIn totalOut
 
 -- | Represents the set of errors that may occur while performing a selection.
 --
@@ -242,9 +313,13 @@ data InsufficientMinCoinValueError = InsufficientMinCoinValueError
         -- ^ The minimum coin quantity expected for this output.
     } deriving (Generic, Eq, Show)
 
-newtype UnableToConstructChangeError = UnableToConstructChangeError
-    { missingCoins
-        :: Coin
+data UnableToConstructChangeError = UnableToConstructChangeError
+    { requiredCost
+        :: !Coin
+        -- ^ The minimal required cost needed for the transaction to be
+        -- considered valid. This does not include min Ada values.
+    , shortfall
+        :: !Coin
         -- ^ The additional coin quantity that would be required to cover the
         -- selection cost and minimum coin quantity of each change output.
     } deriving (Generic, Eq, Show)
@@ -290,6 +365,7 @@ prepareOutputsWith minCoinValueFor = fmap $ \out ->
 --
 --    inputsSelected ∪ utxoRemaining == utxoAvailable
 --    inputsSelected ∩ utxoRemaining == ∅
+--    outputsCovered == outputsToCover
 --
 performSelection
     :: forall m. (HasCallStack, MonadRandom m)
@@ -302,7 +378,7 @@ performSelection
         -- individual asset quantities held within each change output.
     -> SelectionCriteria
         -- ^ The selection goal to satisfy.
-    -> m (Either SelectionError SelectionResult)
+    -> m (Either SelectionError (SelectionResult TokenBundle))
 performSelection minCoinValueFor costFor criteria
     | not (balanceRequired `leq` balanceAvailable) =
         pure $ Left $ BalanceInsufficient $ BalanceInsufficientError
@@ -317,7 +393,7 @@ performSelection minCoinValueFor costFor criteria
             selectionLimit extraCoinSource utxoAvailable balanceRequired
         let balanceSelected = fullBalance (selected state) extraCoinSource
         if balanceRequired `leq` balanceSelected then do
-            let predictedChange = predictChange (selected state)
+            let predictedChange = NE.toList $ predictChange (selected state)
             makeChangeRepeatedly predictedChange state
 
         else
@@ -416,15 +492,15 @@ performSelection minCoinValueFor costFor criteria
     -- ada-only inputs are available.
     --
     makeChangeRepeatedly
-        :: NonEmpty (Set AssetId)
+        :: [Set AssetId]
         -> SelectionState
-        -> m (Either SelectionError SelectionResult)
+        -> m (Either SelectionError (SelectionResult TokenBundle))
     makeChangeRepeatedly changeSkeleton s@SelectionState{selected,leftover} = do
         let inputsSelected = mkInputsSelected selected
 
         let cost = costFor SelectionSkeleton
                 { inputsSkeleton  = selected
-                , outputsSkeleton = outputsToCover
+                , outputsSkeleton = NE.toList outputsToCover
                 , changeSkeleton
                 }
 
@@ -439,7 +515,9 @@ performSelection minCoinValueFor costFor criteria
             Right changeGenerated -> pure . Right $
                 SelectionResult
                     { inputsSelected
+                    , extraCoinSource
                     , changeGenerated
+                    , outputsCovered = NE.toList outputsToCover
                     , utxoRemaining = leftover
                     }
 
@@ -510,8 +588,13 @@ runSelection limit mExtraCoinSource available minimumBalance =
         , leftover = available
         }
 
+    -- NOTE: We run the 'coinSelector' last, because we know that every input
+    -- necessarily has a non-zero ada amount. By running the other selectors
+    -- first, we increase the probability that the coin selector will be able
+    -- to terminate without needing to select an additional coin.
     selectors :: [SelectionState -> m (Maybe SelectionState)]
-    selectors = coinSelector : fmap assetSelector minimumAssetQuantities
+    selectors =
+        reverse (coinSelector : fmap assetSelector minimumAssetQuantities)
       where
         assetSelector = runSelectionStep . assetSelectionLens
         coinSelector = runSelectionStep coinSelectionLens
@@ -690,8 +773,7 @@ makeChange
         -- ^ Token bundles of original outputs.
     -> Either UnableToConstructChangeError (NonEmpty TokenBundle)
         -- ^ Generated change bundles.
-makeChange
-    minCoinValueFor requiredCost mExtraCoinSource inputBundles outputBundles
+makeChange minCoinValueFor requiredCost mExtraCoinSource inputBundles outputBundles
     | not (totalOutputValue `leq` totalInputValue) =
         totalInputValueInsufficient
     | TokenBundle.getCoin totalOutputValue == Coin 0 =
@@ -756,7 +838,8 @@ makeChange
         -> UnableToConstructChangeError
     changeError excessCoin change =
         UnableToConstructChangeError
-            { missingCoins =
+            { requiredCost
+            , shortfall =
                 -- This conversion is safe because we know that the distance is
                 -- small-ish. If it wasn't, we would have have enough coins to
                 -- construct the change.

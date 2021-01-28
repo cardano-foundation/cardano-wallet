@@ -806,7 +806,6 @@ data ApiTransaction (n :: NetworkDiscriminant) = ApiTransaction
     , amount :: !(Quantity "lovelace" Natural)
     , fee :: !(Quantity "lovelace" Natural)
     , deposit :: !(Quantity "lovelace" Natural)
-    , assets :: !(ApiT W.TokenMap)
     , insertedAt :: !(Maybe ApiBlockReference)
     , pendingSince :: !(Maybe ApiBlockReference)
     , expiresAt :: !(Maybe ApiSlotReference)

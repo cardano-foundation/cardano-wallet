@@ -36,10 +36,9 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( PaymentAddress )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey )
-import Cardano.Wallet.Primitive.Fee
-    ( FeePolicy (..) )
 import Cardano.Wallet.Primitive.Types
-    ( PoolId (..)
+    ( FeePolicy (..)
+    , PoolId (..)
     , PoolMetadataGCStatus (..)
     , PoolMetadataSource (..)
     , StakePoolMetadata (..)
@@ -130,11 +129,13 @@ import Test.Integration.Framework.DSL
     , waitForNextEpoch
     , walletId
     , (.>)
+    , (.>=)
     )
 import Test.Integration.Framework.TestData
-    ( errMsg403DelegationFee
+    ( errMsg403Fee
     , errMsg403NonNullReward
     , errMsg403NotDelegating
+    , errMsg403NotEnoughMoney
     , errMsg403PoolAlreadyJoined
     , errMsg403WrongPass
     , errMsg404NoSuchPool
@@ -376,23 +377,19 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
             -- because there is a fee for this tx
             [ expectResponseCode HTTP.status202
             , expectField (#status . #getApiT) (`shouldBe` Pending)
-            , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
+            , expectField (#direction . #getApiT) (`shouldBe` Incoming)
             ]
         let txid = getFromResponse Prelude.id rq
-        let (Quantity quitFeeAmt) = getFromResponse #amount rq
-        let finalQuitAmt = Quantity (depositAmt ctx - quitFeeAmt)
+        let quitFeeAmt = getFromResponse #amount rq
 
         eventually "Certificates are inserted after quiting a pool" $ do
-            -- last made transaction `txid` is for quitting pool and,
-            -- in fact, it becomes incoming because there is
-            -- keyDeposit being returned
             let epg = Link.getTransaction @'Shelley src txid
             rlg <- request @(ApiTransaction n) ctx epg Default Empty
             verify rlg
                 [ expectField
                     (#direction . #getApiT) (`shouldBe` Incoming)
                 , expectField
-                    #amount (`shouldBe` finalQuitAmt)
+                    #amount (`shouldBe` quitFeeAmt)
                 , expectField
                     (#status . #getApiT) (`shouldBe` InLedger)
                 ]
@@ -403,7 +400,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                 [ expectListField 0
                     (#direction . #getApiT) (`shouldBe` Incoming)
                 , expectListField 0
-                    #amount (`shouldBe` finalQuitAmt)
+                    #amount (`shouldBe` quitFeeAmt)
                 , expectListField 0
                     (#status . #getApiT) (`shouldBe` InLedger)
                 , expectListField 1
@@ -823,7 +820,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
     describe "STAKE_POOLS_JOIN_01x - Fee boundary values" $ do
         it "STAKE_POOLS_JOIN_01x - \
             \I can join if I have just the right amount" $ \ctx -> runResourceT $ do
-            w <- fixtureWalletWith @n ctx [costOfJoining ctx + depositAmt ctx]
+            w <- fixtureWalletWith @n ctx [costOfJoining ctx + depositAmt ctx + minUTxOValue]
             pool:_ <- map (view #id) . snd <$>
                 unsafeRequest @[ApiStakePool]
                     ctx (Link.listStakePools arbitraryStake) Empty
@@ -835,13 +832,13 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
 
         it "STAKE_POOLS_JOIN_01x - \
            \I cannot join if I have not enough fee to cover" $ \ctx -> runResourceT $ do
-            w <- fixtureWalletWith @n ctx [costOfJoining ctx + depositAmt ctx - 1]
+            w <- fixtureWalletWith @n ctx [costOfJoining ctx + depositAmt ctx + minUTxOValue - 1]
             pool:_ <- map (view #id) . snd <$>
                 unsafeRequest @[ApiStakePool]
                     ctx (Link.listStakePools arbitraryStake) Empty
             joinStakePool @n ctx pool (w, fixturePassphrase) >>= flip verify
                 [ expectResponseCode HTTP.status403
-                , expectErrorMessage (errMsg403DelegationFee 1)
+                , expectErrorMessage errMsg403Fee
                 ]
 
     describe "STAKE_POOLS_QUIT_01x - Fee boundary values" $ do
@@ -849,13 +846,12 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
         it "STAKE_POOLS_QUIT_01xx - \
             \I can quit if I have enough to cover fee" $ \ctx -> runResourceT $ do
             -- change needed to satisfy minUTxOValue
-            let change = minUTxOValue - costOfQuitting ctx
             let initBalance =
                     [ costOfJoining ctx
                     + depositAmt ctx
+                    + minUTxOValue
                     + costOfQuitting ctx
-                    + change
-                    + costOfChange ctx
+                    + minUTxOValue
                     ]
             w <- fixtureWalletWith @n ctx initBalance
 
@@ -879,7 +875,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
             verify rQuit
                 [ expectResponseCode HTTP.status202
                 , expectField (#status . #getApiT) (`shouldBe` Pending)
-                , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
+                , expectField (#direction . #getApiT) (`shouldBe` Incoming)
                 , expectField #inputs $ \inputs' -> do
                     inputs' `shouldSatisfy` all (isJust . source)
                 ]
@@ -901,17 +897,15 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                 request @ApiWallet ctx (Link.getWallet @'Shelley w)
                     Default Empty >>= flip verify
                     [ expectField #delegation (`shouldBe` notDelegating [])
-                    , expectField
-                        (#balance . #total)
-                            (`shouldSatisfy` (== (Quantity (depositAmt ctx + change))))
-                    , expectField
-                        (#balance . #available)
-                            (`shouldSatisfy` (== (Quantity (depositAmt ctx + change))))
+                    , expectField (#balance . #total)
+                        (.>= Quantity (depositAmt ctx))
+                    , expectField (#balance . #available)
+                        (.>= Quantity (depositAmt ctx))
                     ]
 
         it "STAKE_POOLS_QUIT_01x - \
             \I cannot quit if I have not enough to cover fees" $ \ctx -> runResourceT $ do
-            let initBalance = [ costOfJoining ctx + depositAmt ctx ]
+            let initBalance = [ costOfJoining ctx + depositAmt ctx + minUTxOValue ]
             w <- fixtureWalletWith @n ctx initBalance
 
             pool:_ <- map (view #id) . snd
@@ -932,7 +926,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
 
             quitStakePool @n ctx (w, fixturePassphrase) >>= flip verify
                 [ expectResponseCode HTTP.status403
-                , expectErrorMessage $ errMsg403DelegationFee 116500
+                , expectErrorMessage errMsg403Fee
                 ]
 
     it "STAKE_POOLS_ESTIMATE_FEE_02 - \
@@ -940,7 +934,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
         w <- emptyWallet ctx
         delegationFee ctx w >>= flip verify
             [ expectResponseCode HTTP.status403
-            , expectErrorMessage $ errMsg403DelegationFee 122900
+            , expectErrorMessage errMsg403NotEnoughMoney
             ]
 
     describe "STAKE_POOLS_LIST_01 - List stake pools" $ do
@@ -1272,13 +1266,10 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
             fromIntegral (unCoin c)
 
     costOfJoining :: Context -> Natural
-    costOfJoining = costOf (\coeff cst -> 370 * coeff + cst)
+    costOfJoining = costOf (\coeff cst -> 449 * coeff + cst)
 
     costOfQuitting :: Context -> Natural
     costOfQuitting = costOf (\coeff cst -> 303 * coeff + cst)
-
-    costOfChange :: Context -> Natural
-    costOfChange = costOf (\coeff _cst -> 133 * coeff)
 
     costOf :: (Natural -> Natural -> Natural) -> Context -> Natural
     costOf withCoefficients ctx =

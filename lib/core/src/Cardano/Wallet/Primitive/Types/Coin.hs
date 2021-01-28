@@ -14,6 +14,8 @@ module Cardano.Wallet.Primitive.Types.Coin
     ( -- * Type
       Coin (..)
     , coinQuantity
+    , coinToInteger
+    , coinToNatural
 
       -- * Checks
     , isValidCoin
@@ -99,6 +101,12 @@ instance Buildable Coin where
 -- parts of the code.
 coinQuantity :: Integral a => Coin -> Quantity n a
 coinQuantity (Coin n) = Quantity (fromIntegral n)
+
+coinToInteger :: Coin -> Integer
+coinToInteger = fromIntegral . unCoin
+
+coinToNatural :: Coin -> Natural
+coinToNatural = fromIntegral . unCoin
 
 {-------------------------------------------------------------------------------
                                      Checks

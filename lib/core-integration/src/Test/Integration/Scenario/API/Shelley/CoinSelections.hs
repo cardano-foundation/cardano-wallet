@@ -58,12 +58,10 @@ import Test.Integration.Framework.DSL
     , Headers (..)
     , Payload (..)
     , emptyWallet
-    , eventually
     , expectErrorMessage
     , expectField
     , expectResponseCode
     , fixtureWallet
-    , fixtureWalletWith
     , json
     , listAddresses
     , minUTxOValue
@@ -215,45 +213,3 @@ spec = describe "SHELLEY_COIN_SELECTION" $ do
             r <- request @(ApiCoinSelection n) ctx
                 (Link.selectCoins @'Shelley w) headers payload
             verify r expectations
-
-    it "WALLETS_COIN_SELECTION_05 - \
-        \No change when payment fee eats leftovers due to minUTxOValue" $
-        \ctx -> runResourceT $ do
-            source  <- fixtureWalletWith @n ctx [minUTxOValue, minUTxOValue]
-            eventually "Source wallet balance is as expected" $ do
-                rGet <- request @ApiWallet ctx
-                    (Link.getWallet @'Shelley source) Default Empty
-                verify rGet
-                    [ expectField
-                            (#balance . #total)
-                            (`shouldBe` Quantity (2 * minUTxOValue))
-                    , expectField
-                            (#balance . #available)
-                            (`shouldBe` Quantity (2 * minUTxOValue))
-                    ]
-            target <- emptyWallet ctx
-
-            targetAddress:_ <- fmap (view #id) <$> listAddresses @n ctx target
-            let amount = Quantity minUTxOValue
-            let payment = AddressAmount targetAddress amount mempty
-            let output = ApiCoinSelectionOutput targetAddress amount
-            let isValidDerivationPath path =
-                    ( length path == 5 )
-                    &&
-                    ( [ ApiT $ DerivationIndex $ getIndex purposeCIP1852
-                      , ApiT $ DerivationIndex $ getIndex coinTypeAda
-                      , ApiT $ DerivationIndex $ getIndex @'Hardened minBound
-                      ] `isPrefixOf` NE.toList path
-                    )
-            selectCoins @_ @'Shelley ctx source (payment :| []) >>= flip verify
-                [ expectResponseCode HTTP.status200
-                , expectField #inputs
-                    (`shouldSatisfy` (not . null))
-                , expectField #inputs
-                    (`shouldSatisfy` all
-                        (isValidDerivationPath . view #derivationPath))
-                , expectField #change
-                    (`shouldSatisfy` null)
-                , expectField #outputs
-                    (`shouldBe` [output])
-                ]
