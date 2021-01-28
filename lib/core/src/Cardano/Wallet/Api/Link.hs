@@ -51,6 +51,7 @@ module Cardano.Wallet.Api.Link
      -- * WalletKeys
     , getWalletKey
     , signMetadata
+    , postAccountKey
 
       -- * Addresses
     , postRandomAddress
@@ -299,6 +300,18 @@ signMetadata
     -> (Method, Text)
 signMetadata w role_ index =
     endpoint @Api.SignMetadata (\mk -> mk wid (ApiT role_) (ApiT index))
+  where
+    wid = w ^. typed @(ApiT WalletId)
+
+postAccountKey
+    :: forall w.
+        ( HasType (ApiT WalletId) w
+        )
+    => w
+    -> DerivationIndex
+    -> (Method, Text)
+postAccountKey w index =
+    endpoint @Api.PostAccountKey (\mk -> mk wid (ApiT index))
   where
     wid = w ^. typed @(ApiT WalletId)
 

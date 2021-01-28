@@ -586,6 +586,10 @@ x-walletPassphrase: &walletPassphrase
   maxLength: 255
   example: Secure Passphrase
 
+x-keyExtended: &keyExtended
+  description: Determines whether extended (with chain code) or normal (without chain code) key is requested
+  type: boolean
+
 x-lenientPassphrase: &lenientPassphrase
   description: A master passphrase to lock and protect the wallet for sensitive operation (e.g. sending funds)
   type: string
@@ -1597,6 +1601,11 @@ components:
       format: bech32
       pattern: "^((addr_vk)|(stake_vk)|(script_vk))1[0-9a-z]*$"
 
+    ApiAccountKey: &ApiAccountKey
+      type: string
+      format: bech32
+      pattern: "^((acct_xvk)|(acct_vk))1[0-9a-z]*$"
+
     ApiTxId: &ApiTxId
       type: object
       required:
@@ -1979,6 +1988,15 @@ components:
       type: object
       properties:
         name: *walletName
+
+    ApiPostAccountKeyData: &ApiPostAccountKeyData
+      type: object
+      required:
+        - passphrase
+        - extended
+      properties:
+        passphrase: *walletPassphrase
+        extended: *keyExtended
 
     ApiSettingsPutData: &ApiSettingsPutData
       type: object
@@ -2394,6 +2412,17 @@ x-errSoftDerivationRequired: &errSoftDerivationRequired
     code:
       type: string
       enum: ['soft_derivation_required']
+
+x-errHardenedDerivationRequired: &errHardenedDerivationRequired
+  <<: *responsesErr
+  title: not_found
+  properties:
+    message:
+      type: string
+      description: A descriptive error message.
+    code:
+      type: string
+      enum: ['hardened_derivation_required']
 
 x-errNoSuchWallet: &errNoSuchWallet
   <<: *responsesErr
@@ -3319,6 +3348,16 @@ x-responsesGetKey: &responsesGetKey
       application/json:
         schema: *ApiVerificationKey
 
+x-responsesPostAccountKey: &responsesPostAccountKey
+  <<: *responsesErr400
+  <<: *responsesErr406
+  <<: *responsesErr415
+  202:
+    description: Accepted
+    content:
+      application/json:
+        schema: *ApiAccountKey
+
 x-responsesListStakePools: &responsesListStakePools
   400:
     description: Bad Request
@@ -3815,6 +3854,26 @@ paths:
         - *parametersWalletId
         - *parametersAddressState
       responses: *responsesListAddresses
+
+  /wallets/{walletId}/keys/{index}:
+    post:
+      operationId: postAccountKey
+      tags: ["Keys"]
+      summary: Create
+      description: |
+        <p align="right">status: <strong>stable</strong></p>
+        Retrieve account public key from the wallet.
+
+        <b>Note:</b> Only `Hard` indexes are supported by this endpoint.
+      parameters:
+        - *parametersWalletId
+        - *parametersDerivationSegment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: *ApiPostAccountKeyData
+      responses: *responsesPostAccountKey
 
   /wallets/{walletId}/keys/{role}/{index}:
     get:

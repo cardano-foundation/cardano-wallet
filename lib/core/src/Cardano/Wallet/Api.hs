@@ -32,6 +32,7 @@ module Cardano.Wallet.Api
     , WalletKeys
         , GetWalletKey
         , SignMetadata
+        , PostAccountKey
 
     , Assets
         , ListAssets
@@ -124,6 +125,7 @@ import Cardano.Wallet
     ( WalletLayer (..), WalletLog )
 import Cardano.Wallet.Api.Types
     ( AnyAddress
+    , ApiAccountKey
     , ApiAddressData
     , ApiAddressIdT
     , ApiAddressInspect
@@ -140,6 +142,7 @@ import Cardano.Wallet.Api.Types
     , ApiNetworkInformation
     , ApiNetworkParameters
     , ApiPoolId
+    , ApiPostAccountKeyData
     , ApiPostRandomAddressData
     , ApiPutAddressesDataT
     , ApiSelectCoinsDataT
@@ -313,6 +316,7 @@ type GetUTxOsStatistics = "wallets"
 type WalletKeys =
     GetWalletKey
     :<|> SignMetadata
+    :<|> PostAccountKey
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/getWalletKey
 type GetWalletKey = "wallets"
@@ -330,6 +334,14 @@ type SignMetadata = "wallets"
     :> Capture "index" (ApiT DerivationIndex)
     :> ReqBody '[JSON] ApiWalletSignData
     :> Post '[OctetStream] ByteString
+
+-- | https://input-output-hk.github.io/cardano-wallet/api/#operation/postAccountKey
+type PostAccountKey = "wallets"
+    :> Capture "walletId" (ApiT WalletId)
+    :> "keys"
+    :> Capture "index" (ApiT DerivationIndex)
+    :> ReqBody '[JSON] ApiPostAccountKeyData
+    :> PostAccepted '[JSON] ApiAccountKey
 
 {-------------------------------------------------------------------------------
                                   Assets

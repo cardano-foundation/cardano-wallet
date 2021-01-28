@@ -150,11 +150,13 @@ module Cardano.Wallet
     -- ** Root Key
     , withRootKey
     , derivePublicKey
+    , readPublicAccountKey
     , signMetadataWith
     , ErrWithRootKey (..)
     , ErrWrongPassphrase (..)
     , ErrSignMetadataWith (..)
     , ErrDerivePublicKey(..)
+    , ErrReadAccountPublicKey(..)
     , ErrInvalidDerivationIndex(..)
 
     -- * Logging
@@ -1914,7 +1916,7 @@ signMetadataWith ctx wid pwd (role_, ix) metadata = db & \DBLayer{..} -> do
   where
     db = ctx ^. dbLayer @s @k
 
--- | Derive public key of a wallet's account.
+-- | Derive public key from a wallet's account key.
 derivePublicKey
     :: forall ctx s k n.
         ( HasDBLayer s k ctx
@@ -1943,13 +1945,50 @@ derivePublicKey ctx wid role_ ix = db & \DBLayer{..} -> do
   where
     db = ctx ^. dbLayer @s @k
 
+-- | Retrieve public account key of a wallet.
+readPublicAccountKey
+    :: forall ctx s k n.
+        ( HasDBLayer s k ctx
+        , HardDerivation k
+        , WalletKey k
+        , s ~ SeqState n k
+        )
+    => ctx
+    -> WalletId
+    -> Passphrase "raw"
+    -> DerivationIndex
+    -> ExceptT ErrReadAccountPublicKey IO (k 'AccountK XPub)
+readPublicAccountKey ctx wid pwd ix = db & \DBLayer{..} -> do
+    acctIx <- withExceptT ErrReadAccountPublicKeyInvalidIndex $ guardHardIndex ix
+
+    _cp <- mapExceptT atomically
+        $ withExceptT ErrReadAccountPublicKeyNoSuchWallet
+        $ withNoSuchWallet wid
+        $ readCheckpoint (PrimaryKey wid)
+
+    withRootKey @ctx @s @k ctx wid pwd ErrReadAccountPublicKeyRootKey
+        $ \rootK scheme -> do
+            let encPwd = preparePassphrase scheme pwd
+            pure $ publicKey $ deriveAccountPrivateKey encPwd rootK acctIx
+  where
+    db = ctx ^. dbLayer @s @k
+
 guardSoftIndex
     :: Monad m
     => DerivationIndex
-    -> ExceptT ErrInvalidDerivationIndex m (Index 'Soft whatever)
+    -> ExceptT (ErrInvalidDerivationIndex 'Soft 'AddressK) m (Index 'Soft whatever)
 guardSoftIndex ix =
-    if ix > DerivationIndex (getIndex @'Soft maxBound)
-    then throwE $ ErrIndexTooHigh maxBound ix
+    if ix > DerivationIndex (getIndex @'Soft maxBound) || ix < DerivationIndex (getIndex @'Soft minBound)
+    then throwE $ ErrIndexOutOfBound minBound maxBound ix
+    else pure (Index $ getDerivationIndex ix)
+
+guardHardIndex
+    :: Monad m
+    => DerivationIndex
+    -> ExceptT (ErrInvalidDerivationIndex 'Hardened 'AccountK) m (Index 'Hardened whatever)
+guardHardIndex ix =
+    if ix > DerivationIndex (getIndex @'Hardened maxBound) || ix < DerivationIndex (getIndex @'Hardened minBound)
+    then throwE $ ErrIndexOutOfBound minBound maxBound ix
     else pure (Index $ getDerivationIndex ix)
 
 {-------------------------------------------------------------------------------
@@ -1961,19 +2000,28 @@ data ErrSignMetadataWith
         -- ^ The wallet exists, but there's no root key attached to it
     | ErrSignMetadataWithNoSuchWallet ErrNoSuchWallet
         -- ^ The wallet doesn't exist?
-    | ErrSignMetadataWithInvalidIndex ErrInvalidDerivationIndex
+    | ErrSignMetadataWithInvalidIndex (ErrInvalidDerivationIndex 'Soft 'AddressK)
         -- ^ User provided a derivation index outside of the 'Soft' domain
     deriving (Eq, Show)
 
 data ErrDerivePublicKey
     = ErrDerivePublicKeyNoSuchWallet ErrNoSuchWallet
         -- ^ The wallet doesn't exist?
-    | ErrDerivePublicKeyInvalidIndex ErrInvalidDerivationIndex
+    | ErrDerivePublicKeyInvalidIndex (ErrInvalidDerivationIndex 'Soft 'AddressK)
         -- ^ User provided a derivation index outside of the 'Soft' domain
     deriving (Eq, Show)
 
-data ErrInvalidDerivationIndex
-    = ErrIndexTooHigh (Index 'Soft 'AddressK) DerivationIndex
+data ErrReadAccountPublicKey
+    = ErrReadAccountPublicKeyNoSuchWallet ErrNoSuchWallet
+        -- ^ The wallet doesn't exist?
+    | ErrReadAccountPublicKeyInvalidIndex (ErrInvalidDerivationIndex 'Hardened 'AccountK)
+        -- ^ User provided a derivation index outside of the 'Hard' domain
+    | ErrReadAccountPublicKeyRootKey ErrWithRootKey
+        -- ^ The wallet exists, but there's no root key attached to it
+    deriving (Eq, Show)
+
+data ErrInvalidDerivationIndex derivation level
+    = ErrIndexOutOfBound (Index derivation level) (Index derivation level) DerivationIndex
     deriving (Eq, Show)
 
 -- | Errors that can occur when listing UTxO statistics.

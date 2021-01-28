@@ -46,6 +46,7 @@ import Cardano.Wallet.Api.Types
     ( AccountPostData (..)
     , AddressAmount (..)
     , AnyAddress (..)
+    , ApiAccountKey (..)
     , ApiAccountPublicKey (..)
     , ApiAddress (..)
     , ApiAddressData (..)
@@ -75,6 +76,7 @@ import Cardano.Wallet.Api.Types
     , ApiNetworkInformation (..)
     , ApiNetworkParameters (..)
     , ApiNtpStatus (..)
+    , ApiPostAccountKeyData
     , ApiPostRandomAddressData
     , ApiPutAddressesData (..)
     , ApiSelectCoinsAction (..)
@@ -358,6 +360,8 @@ spec = parallel $ do
             jsonRoundtripAndGolden $ Proxy @ApiCredential
             jsonRoundtripAndGolden $ Proxy @ApiAddressData
             jsonRoundtripAndGolden $ Proxy @(ApiT DerivationIndex)
+            jsonRoundtripAndGolden $ Proxy @ApiPostAccountKeyData
+            jsonRoundtripAndGolden $ Proxy @ApiAccountKey
             jsonRoundtripAndGolden $ Proxy @ApiEpochInfo
             jsonRoundtripAndGolden $ Proxy @(ApiSelectCoinsData ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @(ApiCoinSelection ('Testnet 0))
@@ -1795,6 +1799,17 @@ instance Arbitrary ApiHealthCheck where
     arbitrary = genericArbitrary
     shrink = genericShrink
 
+instance Arbitrary ApiPostAccountKeyData where
+    arbitrary = genericArbitrary
+    shrink = genericShrink
+
+instance Arbitrary ApiAccountKey where
+    arbitrary = do
+        xpubKey <- BS.pack <$> replicateM 64 arbitrary
+        pubKey <- BS.pack <$> replicateM 32 arbitrary
+        oneof [ pure $ ApiAccountKey pubKey False
+              , pure $ ApiAccountKey xpubKey True ]
+
 {-------------------------------------------------------------------------------
                    Specification / Servant-Swagger Machinery
 
@@ -2033,6 +2048,12 @@ instance ToSchema ApiWalletSignData where
     declareNamedSchema _ = do
         addDefinition =<< declareSchemaForDefinition "TransactionMetadataValue"
         declareSchemaForDefinition "ApiWalletSignData"
+
+instance ToSchema ApiPostAccountKeyData where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiPostAccountKeyData"
+
+instance ToSchema ApiAccountKey where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiAccountKey"
 
 -- | Utility function to provide an ad-hoc 'ToSchema' instance for a definition:
 -- we simply look it up within the Swagger specification.
