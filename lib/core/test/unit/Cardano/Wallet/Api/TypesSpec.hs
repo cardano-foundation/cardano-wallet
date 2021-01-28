@@ -892,7 +892,6 @@ spec = parallel $ do
                     , amount = amount (x :: ApiTransaction ('Testnet 0))
                     , fee = fee (x :: ApiTransaction ('Testnet 0))
                     , deposit = deposit (x :: ApiTransaction ('Testnet 0))
-                    , assets = assets (x :: ApiTransaction ('Testnet 0))
                     , insertedAt = insertedAt (x :: ApiTransaction ('Testnet 0))
                     , pendingSince = pendingSince (x :: ApiTransaction ('Testnet 0))
                     , expiresAt = expiresAt (x :: ApiTransaction ('Testnet 0))
@@ -1677,7 +1676,6 @@ instance Arbitrary (ApiTransaction t) where
 
         ApiTransaction
             <$> arbitrary
-            <*> arbitrary
             <*> arbitrary
             <*> arbitrary
             <*> arbitrary

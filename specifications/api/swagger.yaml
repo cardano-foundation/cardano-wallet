@@ -1609,7 +1609,6 @@ components:
       required:
         - id
         - amount
-        - assets
         - fee
         - deposit
         - direction
@@ -1633,14 +1632,6 @@ components:
             addresses that belong to the wallet.
         fee: *amount
         deposit: *amount
-        assets:
-          <<: *walletAssets
-          description: |
-            An amount of non-Ada assets spent or received, from the
-            perspective of the wallet.
-
-            Note that transaction fees and delegation rewards are
-            always denominated in Ada.
         inserted_at: *transactionInsertedAt
         expires_at: *transactionExpiresAt
         pending_since: *transactionPendingSince
