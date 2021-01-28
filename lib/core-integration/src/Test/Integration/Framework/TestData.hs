@@ -221,10 +221,10 @@ versionLine = "Running as v" <> pack (showFullVersion version gitRevision)
 
 errMsg403MinUTxOValue :: String
 errMsg403MinUTxOValue =
-    "Some outputs specifies an Ada value that is too small. Indeed, there's a \
-    \minimum Ada value specified by the protocol that each output must satisfy. \
+    "Some outputs have ada values that are too small. There's a \
+    \minimum ada value specified by the protocol that each output must satisfy. \
     \I'll handle that minimum value myself when you do not explicitly specify \
-    \an Ada value for outputs. Otherwise, you must specify enough Ada."
+    \an ada value for an output. Otherwise, you must specify enough ada."
 
 errMsg409WalletExists :: String -> String
 errMsg409WalletExists walId = "This operation would yield a wallet with the following\
@@ -245,8 +245,9 @@ errMsg400StartTimeLaterThanEndTime startTime endTime = mconcat
 
 errMsg403Fee :: String
 errMsg403Fee =
-    "I am unable to finalize the transaction as there are not enough Ada I can \
-    \use to pay for either fees, or minimum Ada value in change outputs."
+    "I am unable to finalize the transaction, as there is not enough ada I can \
+    \use to pay for fees, or to satisfy the minimum ada quantities of change \
+    \outputs."
 
 errMsg403NotAByronWallet :: String
 errMsg403NotAByronWallet =
@@ -260,7 +261,7 @@ errMsg403NotAnIcarusWallet =
 
 errMsg403NotEnoughMoney :: String
 errMsg403NotEnoughMoney =
-    "I can't process this payment because there's not enough funds available in \
+    "I can't process this payment as there are not enough funds available in \
     \the wallet."
 
 errMsg403TxTooBig :: String

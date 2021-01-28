@@ -1180,8 +1180,8 @@ normalizeDelegationAddress s addr = do
                                   Transaction
 -------------------------------------------------------------------------------}
 
--- | Augments the given outputs with new outputs. These new outputs corresponds
--- to change outputs to which new addresses are being assigned to. This updates
+-- | Augments the given outputs with new outputs. These new outputs correspond
+-- to change outputs to which new addresses have been assigned. This updates
 -- the wallet state as it needs to keep track of new pending change addresses.
 assignChangeAddresses
     :: forall s.  (GenChange s)
@@ -1434,12 +1434,12 @@ mkTxMeta ti' blockHeader wState txCtx sel =
         amtOuts = sumCoins $
             (txOutCoin <$> NE.toList (changeGenerated sel))
             ++
-            mapMaybe ourCoins (outputsCovered sel)
+            mapMaybe ourCoin (outputsCovered sel)
 
         amtInps
             = sumCoins (txOutCoin . snd <$> inputsSelected sel)
             -- NOTE: In case where rewards were pulled from an external
-            -- source, they aren't not added to the calculation because the
+            -- source, they aren't added to the calculation because the
             -- money is considered to come from outside of the wallet; which
             -- changes the way we look at transactions (in such case, a
             -- transaction is considered 'Incoming' since it brings extra money
@@ -1466,8 +1466,8 @@ mkTxMeta ti' blockHeader wState txCtx sel =
       where
         ti = neverFails "mkTxMeta slots should never be ahead of the node tip" ti'
 
-    ourCoins :: TxOut -> Maybe Coin
-    ourCoins (TxOut addr tokens) =
+    ourCoin :: TxOut -> Maybe Coin
+    ourCoin (TxOut addr tokens) =
         case fst (isOurs addr wState) of
             Just{}  -> Just (TokenBundle.getCoin tokens)
             Nothing -> Nothing
@@ -1748,8 +1748,8 @@ estimateFee
     repeats = 100 -- TODO: modify repeats based on data
 
     -- | When estimating fee, it is rather cumbersome to return "cannot cover fee"
-    -- whereas clients are just asking for an estimation. Therefore, we convert
-    -- cannot cover errors into the necessary fee amount, even though there isn't
+    -- if clients are just asking for an estimation. Therefore, we convert
+    -- "cannot cover" errors into the necessary fee amount, even though there isn't
     -- enough in the wallet to cover for these fees.
     handleCannotCover :: ErrSelectAssets -> ExceptT ErrSelectAssets m Coin
     handleCannotCover = \case

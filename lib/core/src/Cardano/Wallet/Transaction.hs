@@ -105,7 +105,7 @@ data TransactionLayer k = TransactionLayer
             -- An intermediate representation of an ongoing selection
         -> Coin
         -- ^ Compute a minimal fee amount necessary to pay for a given selection
-        -- This also include necessary deposits.
+        -- This also includes necessary deposits.
 
     , calcMinimumCoinValue
         :: ProtocolParameters

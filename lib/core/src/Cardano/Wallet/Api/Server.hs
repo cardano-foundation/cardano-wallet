@@ -2747,7 +2747,7 @@ instance LiftHandler ErrSelectAssets where
                                 balanceRequired balanceAvailable
                     in
                         apiError err403 NotEnoughMoney $ mconcat
-                            [ "I can't process this payment because there's not "
+                            [ "I can't process this payment as there are not "
                             , "enough funds available in the wallet. I am only "
                             , "missing: ", pretty missing
                             ]
@@ -2761,22 +2761,22 @@ instance LiftHandler ErrSelectAssets where
                         ]
                 InsufficientMinCoinValues xs ->
                     apiError err403 UtxoTooSmall $ mconcat
-                        [ "Some outputs specifies an Ada value that is too small. "
-                        , "Indeed, there's a minimum Ada value specified by the "
+                        [ "Some outputs have ada values that are too small. "
+                        , "There's a minimum ada value specified by the "
                         , "protocol that each output must satisfy. I'll handle "
                         , "that minimum value myself when you do not explicitly "
-                        , "specify an Ada value for outputs. Otherwise, you "
-                        , "must specify enough Ada. Here are the problematic "
+                        , "specify an ada value for an output. Otherwise, you "
+                        , "must specify enough ada. Here are the problematic "
                         , "outputs: " <> showT xs
                         ]
                 UnableToConstructChange e ->
                     apiError err403 CannotCoverFee $ mconcat
-                        [ "I am unable to finalize the transaction as there are "
-                        , "not enough Ada I can use to pay for either fees, or "
-                        , "minimum Ada value in change outputs. I need about "
-                        , pretty (shortfall e), " Ada to proceed; try "
-                        , "increasing your wallet balance as such, or try "
-                        , "sending a different, smaller payment."
+                        [ "I am unable to finalize the transaction, as there is "
+                        , "not enough ada I can use to pay for fees, or to "
+                        , "satisfy the minimum ada quantities of change outputs. "
+                        , "I need about pretty ", pretty (shortfall e), " ada to "
+                        , "proceed; try increasing your wallet balance as such, "
+                        , "or try sending a different, smaller payment."
                         ]
 
 instance LiftHandler (Request, ServerError) where

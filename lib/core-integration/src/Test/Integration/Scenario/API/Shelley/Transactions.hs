@@ -439,9 +439,9 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
 
     it "TRANS_CREATE_03 - 0 balance after transaction" $ \ctx -> runResourceT $ do
         liftIO $ pendingWith
-            "This test requires to know exactly how the underlying selection \
+            "This test relies on knowing exactly how the underlying selection \
             \implementation works. We may want to revise this test completely \
-            \without what we'll have to update it for every single change in \
+            \otherwise we'll have to update it for every single change in \
             \the fee calculation or selection algorithm."
         let amt = minUTxOValue
 
