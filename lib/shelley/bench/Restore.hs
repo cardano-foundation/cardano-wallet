@@ -67,6 +67,7 @@ import Cardano.Wallet.BenchShared
     , argsNetworkDir
     , bench
     , execBenchWithNode
+    , initBenchmarkLogging
     , runBenchmarks
     )
 import Cardano.Wallet.DB
@@ -234,6 +235,8 @@ cardanoRestoreBench tr c socketFile = do
     (SomeNetworkDiscriminant networkProxy, np, vData, _b)
         <- unsafeRunExceptT $ parseGenesisData c
 
+    (_, walletTr) <- initBenchmarkLogging "wallet" Notice
+
     let network = networkDescription networkProxy
     sayErr $ "Network: " <> network
 
@@ -244,6 +247,7 @@ cardanoRestoreBench tr c socketFile = do
             bench_restoration @_ @ShelleyKey
                 networkProxy
                 (trMessageText tr)
+                walletTr
                 socketFile
                 np
                 vData
@@ -260,6 +264,7 @@ cardanoRestoreBench tr c socketFile = do
             bench_restoration
                 networkProxy
                 (trMessageText tr)
+                walletTr
                 socketFile
                 np
                 vData
@@ -275,6 +280,7 @@ cardanoRestoreBench tr c socketFile = do
             bench_restoration
                 networkProxy
                 (trMessageText tr)
+                walletTr
                 socketFile
                 np
                 vData
@@ -567,6 +573,7 @@ bench_restoration
         )
     => Proxy n
     -> Tracer IO (BenchmarkLog n)
+    -> Trace IO Text -- ^ For wallet tracing
     -> CardanoNodeConn  -- ^ Socket path
     -> NetworkParameters
     -> NodeVersionData
@@ -576,20 +583,20 @@ bench_restoration
     -> Percentage -- ^ Target sync progress
     -> (Proxy n -> WalletLayer s k -> WalletId -> WalletName -> Text -> Time -> IO results)
     -> IO SomeBenchmarkResults
-bench_restoration proxy tr socket np vData benchname wallets traceToDisk targetSync benchmarks = do
+bench_restoration proxy tr wlTr socket np vData benchname wallets traceToDisk targetSync benchmarks = do
     putStrLn $ "*** " ++ T.unpack benchname
     let networkId = networkIdVal proxy
     let tl = newTransactionLayer @k networkId
-    withNetworkLayer nullTracer np socket vData $ \nw' -> do
+    withNetworkLayer (trMessageText wlTr) np socket vData $ \nw' -> do
         let gp = genesisParameters np
         let convert = fromCardanoBlock gp
         let nw = convert <$> nw'
         let ti = neverFails "bench db shouldn't forecast into future"
                 $ timeInterpreter nw
-        withBenchDBLayer @s @k ti $ \db -> do
-            withWalletLayerTracer $ \wlTr -> do
+        withBenchDBLayer @s @k ti wlTr $ \db -> do
+            withWalletLayerTracer $ \progressTrace -> do
                 let w = WalletLayer
-                        wlTr
+                        (trMessageText wlTr <> progressTrace)
                         (emptyGenesis gp, np, mkSyncTolerance 3600)
                         nw
                         tl
@@ -669,11 +676,12 @@ withBenchDBLayer
         , WalletKey k
         )
     => TimeInterpreter IO
+    -> Trace IO Text
     -> (DBLayer IO s k -> IO a)
     -> IO a
-withBenchDBLayer ti action =
+withBenchDBLayer ti tr action =
     withSystemTempFile "bench.db" $ \dbFile _ -> do
-        let before = newDBLayer nullTracer migrationDefaultValues (Just dbFile) ti
+        let before = newDBLayer (trMessageText tr) migrationDefaultValues (Just dbFile) ti
         let after = destroyDBLayer . fst
         bracket before after $ \(_ctx, db) -> action db
   where

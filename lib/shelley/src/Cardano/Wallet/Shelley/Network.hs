@@ -48,7 +48,7 @@ import Cardano.Launcher.Node
 import Cardano.Wallet.Byron.Compatibility
     ( byronCodecConfig, protocolParametersFromUpdateState )
 import Cardano.Wallet.Logging
-    ( BracketLog (..), bracketTracer, combineTracers, produceTimings )
+    ( BracketLog (..), bracketTracer, produceTimings )
 import Cardano.Wallet.Network
     ( Cursor, ErrPostTx (..), NetworkLayer (..), mapCursor )
 import Cardano.Wallet.Primitive.Slotting
@@ -283,9 +283,9 @@ withNetworkLayer
     -> (NetworkLayer IO (CardanoBlock StandardCrypto) -> IO a)
         -- ^ Callback function with the network layer
     -> IO a
-withNetworkLayer trBase np conn ver action = do
-    tr <- addTimings trBase
-    withNetworkLayerBase tr np conn ver action
+withNetworkLayer tr np conn ver action = do
+    trTimings <- traceQueryTimings tr
+    withNetworkLayerBase (tr <> trTimings) np conn ver action
 
 withNetworkLayerBase
     :: HasCallStack
@@ -947,8 +947,8 @@ bracketQuery label tr = bracketTracer (contramap (MsgQuery label) tr)
 -- 'MsgQueryTime' logs, so that we can get logs like:
 --
 -- >>> Query getAccountBalance took 51.664463s
-addTimings :: Tracer IO NetworkLayerLog -> IO (Tracer IO NetworkLayerLog)
-addTimings tr = combineTracers tr <$> produceTimings msgQuery trDiffTime
+traceQueryTimings :: Tracer IO NetworkLayerLog -> IO (Tracer IO NetworkLayerLog)
+traceQueryTimings tr = produceTimings msgQuery trDiffTime
   where
     trDiffTime = contramap (uncurry MsgQueryTime) tr
     msgQuery = \case

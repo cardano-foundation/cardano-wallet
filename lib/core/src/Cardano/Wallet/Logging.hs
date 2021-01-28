@@ -33,7 +33,6 @@ module Cardano.Wallet.Logging
 
       -- * Combinators
     , flatContramapTracer
-    , combineTracers
     ) where
 
 import Prelude
@@ -56,7 +55,7 @@ import Control.Monad
 import Control.Monad.IO.Unlift
     ( MonadIO (..), MonadUnliftIO )
 import Control.Tracer
-    ( Tracer (..), contramap, contramapM, nullTracer, traceWith )
+    ( Tracer (..), contramap, nullTracer, traceWith )
 import Control.Tracer.Transformers.ObserveOutcome
     ( Outcome (..)
     , OutcomeFidelity (..)
@@ -276,8 +275,3 @@ flatContramapTracer
 flatContramapTracer p tr = Tracer $ \a -> case p a of
      Just b -> runTracer tr b
      Nothing -> pure ()
-
--- | Produces a combined tracer of the first tracer messages with messages from
--- the second tracer inserted.
-combineTracers :: Monad m => Tracer m a -> Tracer m a -> Tracer m a
-combineTracers tr = contramapM (\a -> a <$ traceWith tr a)
