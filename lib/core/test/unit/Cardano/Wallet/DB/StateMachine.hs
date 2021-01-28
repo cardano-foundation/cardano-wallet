@@ -157,7 +157,7 @@ import Cardano.Wallet.Primitive.Types.UTxO
 import Control.Foldl
     ( Fold (..) )
 import Control.Monad
-    ( forM_, void )
+    ( forM_, replicateM, void, when )
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Except
@@ -184,6 +184,8 @@ import Data.Quantity
     ( Percentage (..), Quantity (..) )
 import Data.Set
     ( Set )
+import Data.Time.Clock
+    ( NominalDiffTime, diffUTCTime, getCurrentTime )
 import Data.TreeDiff
     ( ToExpr (..), defaultExprViaShow, genericToExpr )
 import GHC.Generics
@@ -234,7 +236,7 @@ import Test.StateMachine
 import Test.StateMachine.Types
     ( Command (..), Commands (..), ParallelCommands, ParallelCommandsF (..) )
 import UnliftIO.Async
-    ( race )
+    ( race_ )
 import UnliftIO.Concurrent
     ( threadDelay )
 import UnliftIO.Exception
@@ -1318,18 +1320,40 @@ validateGenerators
 validateGenerators = describe "Validate generators & shrinkers" $ do
     forM_ allGenerators $ \(name, (_frequency, gen)) -> do
         let titleGen = "Generator for " <> name
-        it titleGen $ race (threadDelay _1s) (sanityCheckGen gen) >>= \case
-            Left{}  -> expectationFailure "Timed out."
-            Right{} -> pure ()
+        it titleGen $ expectWithin 1
+            (pure gen)
+            sanityCheckGen
 
         let titleShrink = "Shrinker for " <> name
-        it titleShrink $ do
-            cmd <- generate (resize 97 gen) -- NOTE: 97 is prime
-            race (threadDelay _1s) (sanityCheckShrink [At cmd]) >>= \case
-                Left{}  -> expectationFailure "Timed out."
-                Right{} -> pure ()
+        it titleShrink $ expectWithin 1
+            -- NOTE: 97 is prime, i.e. not likely a multiple of any 'scale' or
+            -- 'resize' arguments already given to underlying generators.
+            (generate (resize 97 gen))
+            (sanityCheckShrink . pure . At)
   where
-    _1s = 1_000_000
+    expectWithin :: NominalDiffTime -> IO a -> (a -> IO ()) -> IO ()
+    expectWithin delay pre action = do
+        let n = 100
+        start <- getCurrentTime
+        ticks <- replicateM n $ do
+            a <- pre
+            race_ (threadDelay (toMicro delay)) (action a)
+            getCurrentTime
+        let times = zipWith diffUTCTime ticks (start:ticks)
+        let avg = (sum (fromEnum <$> times)) `div` n
+        when (toEnum (withConfidence avg) >= delay) $
+            expectationFailure $ unlines
+                [ "Timed out."
+                , "Min: " <> show (minimum times)
+                , "Max: " <> show (maximum times)
+                , "Avg: " <> show (toEnum @NominalDiffTime avg)
+                ]
+      where
+        toMicro :: NominalDiffTime -> Int
+        toMicro = (`div` 1000000) . fromEnum
+
+        withConfidence :: Int -> Int
+        withConfidence x = x * 12 `div` 10
 
     allGenerators = generatorWithoutId @s ++ generatorWithWid @s wids
       where wids = QSM.reference . unMockWid . MWid <$> ["a", "b", "c"]
