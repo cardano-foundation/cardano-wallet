@@ -38,7 +38,11 @@ genTokenNameSmallRange :: Gen TokenName
 genTokenNameSmallRange = elements tokenNamesSmallRange
 
 shrinkTokenNameSmallRange :: TokenName -> [TokenName]
-shrinkTokenNameSmallRange name = filter (< name) tokenNamesSmallRange
+shrinkTokenNameSmallRange x
+    | x == simplest = []
+    | otherwise = [simplest]
+  where
+    simplest = head tokenNamesSmallRange
 
 tokenNamesSmallRange :: [TokenName]
 tokenNamesSmallRange = UnsafeTokenName . B8.snoc "Token" <$> ['A' .. 'D']
@@ -52,7 +56,11 @@ genTokenNameMediumRange :: Gen TokenName
 genTokenNameMediumRange = elements tokenNamesMediumRange
 
 shrinkTokenNameMediumRange :: TokenName -> [TokenName]
-shrinkTokenNameMediumRange name = filter (< name) tokenNamesMediumRange
+shrinkTokenNameMediumRange x
+    | x == simplest = []
+    | otherwise = [simplest]
+  where
+    simplest = head tokenNamesMediumRange
 
 tokenNamesMediumRange :: [TokenName]
 tokenNamesMediumRange = UnsafeTokenName . B8.snoc "Token" <$> ['A' .. 'Z']
@@ -72,7 +80,11 @@ genTokenPolicyIdSmallRange :: Gen TokenPolicyId
 genTokenPolicyIdSmallRange = elements tokenPolicies
 
 shrinkTokenPolicyIdSmallRange :: TokenPolicyId -> [TokenPolicyId]
-shrinkTokenPolicyIdSmallRange policy = filter (< policy) tokenPolicies
+shrinkTokenPolicyIdSmallRange x
+    | x == simplest = []
+    | otherwise = [simplest]
+  where
+    simplest = head tokenPolicies
 
 tokenPolicies :: [TokenPolicyId]
 tokenPolicies = mkTokenPolicyId <$> ['A' .. 'D']

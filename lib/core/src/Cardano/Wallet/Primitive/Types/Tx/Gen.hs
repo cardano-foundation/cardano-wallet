@@ -52,7 +52,11 @@ genTxHashSmallRange :: Gen (Hash "Tx")
 genTxHashSmallRange = elements txHashes
 
 shrinkTxHashSmallRange :: Hash "Tx" -> [Hash "Tx"]
-shrinkTxHashSmallRange hash = filter (< hash) txHashes
+shrinkTxHashSmallRange x
+    | x == simplest = []
+    | otherwise = [simplest]
+  where
+    simplest = head txHashes
 
 txHashes :: [Hash "Tx"]
 txHashes = mkTxHash <$> ['0' .. '7']
@@ -72,7 +76,8 @@ genTxIndexSmallRange :: Gen Word32
 genTxIndexSmallRange = elements txIndices
 
 shrinkTxIndexSmallRange :: Word32 -> [Word32]
-shrinkTxIndexSmallRange i = filter (< i) txIndices
+shrinkTxIndexSmallRange 0 = []
+shrinkTxIndexSmallRange _ = [0]
 
 txIndices :: [Word32]
 txIndices = [0 .. 7]
