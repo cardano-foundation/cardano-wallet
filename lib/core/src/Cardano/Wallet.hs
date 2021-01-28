@@ -386,7 +386,7 @@ import Data.Foldable
 import Data.Function
     ( (&) )
 import Data.Functor
-    ( ($>), (<&>) )
+    ( ($>) )
 import Data.Generics.Internal.VL.Lens
     ( Lens', view, (^.) )
 import Data.Generics.Labels
@@ -601,10 +601,10 @@ createWallet ctx wid wname s = db & \DBLayer{..} -> do
             , delegation = WalletDelegation NotDelegating []
             }
     mapExceptT atomically $
-        initializeWallet (PrimaryKey wid) cp meta hist gp pp $> wid
+        initializeWallet (PrimaryKey wid) cp meta hist gp $> wid
   where
     db = ctx ^. dbLayer @s @k
-    (block0, NetworkParameters gp _sp pp, _) = ctx ^. genesisData
+    (block0, NetworkParameters gp _sp _pp, _) = ctx ^. genesisData
 
 -- | Initialise and store a new legacy Icarus wallet. These wallets are
 -- intrinsically sequential, but, in the incentivized testnet, we only have
@@ -647,10 +647,10 @@ createIcarusWallet ctx wid wname credentials = db & \DBLayer{..} -> do
             }
     let pk = PrimaryKey wid
     mapExceptT atomically $
-        initializeWallet pk (updateState s' cp) meta hist gp pp $> wid
+        initializeWallet pk (updateState s' cp) meta hist gp $> wid
   where
     db = ctx ^. dbLayer @s @k
-    (block0, NetworkParameters gp _sp pp, _) = ctx ^. genesisData
+    (block0, NetworkParameters gp _sp _pp, _) = ctx ^. genesisData
 
 -- | Check whether a wallet is in good shape when restarting a worker.
 checkWalletIntegrity
@@ -685,18 +685,6 @@ readWallet ctx wid = db & \DBLayer{..} -> mapExceptT atomically $ do
     meta <- withNoSuchWallet wid $ readWalletMeta pk
     pending <- lift $ readTxHistory pk Nothing Descending wholeRange (Just Pending)
     pure (cp, meta, Set.fromList (fromTransactionInfo <$> pending))
-  where
-    db = ctx ^. dbLayer @s @k
-
-readWalletProtocolParameters
-    :: forall ctx s k. HasDBLayer s k ctx
-    => ctx
-    -> WalletId
-    -> ExceptT ErrNoSuchWallet IO ProtocolParameters
-readWalletProtocolParameters ctx wid = db & \DBLayer{..} ->
-    mapExceptT atomically $
-        withNoSuchWallet wid $
-            readProtocolParameters (PrimaryKey wid)
   where
     db = ctx ^. dbLayer @s @k
 
@@ -789,9 +777,8 @@ restoreWallet
     -> ExceptT ErrNoSuchWallet IO ()
 restoreWallet ctx wid = db & \DBLayer{..} -> do
     cps <- liftIO $ atomically $ listCheckpoints (PrimaryKey wid)
-    let forward bs (h, ps) = run $ do
+    let forward bs h = run $ do
             restoreBlocks @ctx @s @k ctx wid bs h
-            saveParams @ctx @s @k ctx wid ps
     liftIO (follow nw tr cps forward (view #header)) >>= \case
         FollowFailure ->
             restoreWallet @ctx @s @k ctx wid
@@ -925,20 +912,6 @@ restoreBlocks ctx wid blocks nodeTip = db & \DBLayer{..} -> mapExceptT atomicall
     isParentOf cp = (== parent) . parentHeaderHash . header
       where parent = headerHash $ currentTip cp
 
--- | Store the node tip params into the wallet database
-saveParams
-    :: forall ctx s k.
-        ( HasDBLayer s k ctx
-        )
-    => ctx
-    -> WalletId
-    -> ProtocolParameters
-    -> ExceptT ErrNoSuchWallet IO ()
-saveParams ctx wid params = db & \DBLayer{..} ->
-   mapExceptT atomically $ putProtocolParameters (PrimaryKey wid) params
-  where
-    db = ctx ^. dbLayer @s @k
-
 -- | Remove an existing wallet. Note that there's no particular work to
 -- be done regarding the restoration worker as it will simply terminate
 -- on the next tick when noticing that the corresponding wallet is gone.
@@ -978,31 +951,27 @@ readNextWithdrawal
     :: forall ctx s k.
         ( HasDBLayer s k ctx
         , HasTransactionLayer k ctx
+        , HasNetworkLayer ctx
         )
     => ctx
-    -> WalletId
     -> Coin
     -> IO Coin
-readNextWithdrawal ctx wid (Coin withdrawal) = db & \DBLayer{..} -> do
-    liftIO (atomically $ readProtocolParameters $ PrimaryKey wid) <&> \case
-        -- May happen if done very early, in which case, rewards are probably
-        -- not woth considering anyway.
-        Nothing -> Coin 0
-        Just ProtocolParameters{txParameters} ->
-            let policy = W.getFeePolicy txParameters
+readNextWithdrawal ctx (Coin withdrawal) = db & \DBLayer{..} -> do
+    ProtocolParameters{txParameters} <- currentProtocolParameters nl
+    let policy = W.getFeePolicy txParameters
 
-                costOfWithdrawal =
-                    minFee policy (mempty { withdrawal })
-                    -
-                    minFee policy mempty
+    let costOfWithdrawal =
+            minFee policy (mempty { withdrawal })
+            -
+            minFee policy mempty
 
-            in
-                if toInteger withdrawal < 2 * costOfWithdrawal
-                then Coin 0
-                else Coin withdrawal
+    if toInteger withdrawal < 2 * costOfWithdrawal
+    then return $ Coin 0
+    else return $ Coin withdrawal
   where
     db = ctx ^. dbLayer @s @k
     tl = ctx ^. transactionLayer @k
+    nl = ctx ^. networkLayer
 
     minFee :: FeePolicy -> CoinSelection -> Integer
     minFee policy =
@@ -1284,6 +1253,7 @@ selectCoinsForPayment
         ( HasTransactionLayer k ctx
         , HasLogger WalletLog ctx
         , HasDBLayer s k ctx
+        , HasNetworkLayer ctx
         )
     => ctx
     -> WalletId
@@ -1313,15 +1283,16 @@ selectCoinsForPayment ctx wid recipients withdrawal md = do
 selectCoinsSetup
     :: forall ctx s k.
         ( HasDBLayer s k ctx
+        , HasNetworkLayer ctx
         )
     => ctx
     -> WalletId
     -> ExceptT ErrNoSuchWallet IO (W.UTxO, Set Tx, W.TxParameters, W.Coin)
 selectCoinsSetup ctx wid = do
     (wal, _, pending) <- readWallet @ctx @s @k ctx wid
-    txp <- txParameters <$> readWalletProtocolParameters @ctx @s @k ctx wid
-    minUTxO <- minimumUTxOvalue <$>
-        readWalletProtocolParameters @ctx @s @k ctx wid
+    pp <- liftIO $ currentProtocolParameters (ctx ^. networkLayer)
+    let txp = txParameters pp
+    let minUTxO = minimumUTxOvalue pp
     let utxo = availableUTxO @s pending wal
     return (utxo, pending, txp, minUTxO)
 
@@ -1365,19 +1336,20 @@ selectCoinsForDelegation
         ( HasTransactionLayer k ctx
         , HasLogger WalletLog ctx
         , HasDBLayer s k ctx
+        , HasNetworkLayer ctx
         )
     => ctx
     -> WalletId
     -> DelegationAction
     -> ExceptT ErrSelectForDelegation IO CoinSelection
 selectCoinsForDelegation ctx wid action = do
-    dep <- fmap stakeKeyDeposit $
-        withExceptT ErrSelectForDelegationNoSuchWallet
-            $ readWalletProtocolParameters @ctx @s @k ctx wid
+    dep <- liftIO $ stakeKeyDeposit <$> currentProtocolParameters nl
 
     (utxo, _, txp, minUtxo) <- withExceptT ErrSelectForDelegationNoSuchWallet $
         selectCoinsSetup @ctx @s @k ctx wid
     selectCoinsForDelegationFromUTxO @_ @k ctx utxo txp minUtxo dep action
+  where
+    nl = ctx ^. networkLayer
 
 selectCoinsForDelegationFromUTxO
     :: forall ctx k.
@@ -1408,6 +1380,7 @@ estimateFeeForDelegation
         ( HasTransactionLayer k ctx
         , HasLogger WalletLog ctx
         , HasDBLayer s k ctx
+        , HasNetworkLayer ctx
         )
     => ctx
     -> WalletId
@@ -1420,9 +1393,7 @@ estimateFeeForDelegation ctx wid = db & \DBLayer{..} -> do
         $ withExceptT ErrSelectForDelegationNoSuchWallet
         $ isStakeKeyRegistered (PrimaryKey wid)
 
-    dep <- fmap stakeKeyDeposit $
-        withExceptT ErrSelectForDelegationNoSuchWallet
-            $ readWalletProtocolParameters @ctx @s @k ctx wid
+    dep <- liftIO $ stakeKeyDeposit <$> currentProtocolParameters nl
 
     let action = if isKeyReg then Join pid else RegisterKeyAndJoin pid
     let selectCoins = selectCoinsForDelegationFromUTxO @_ @k
@@ -1432,6 +1403,7 @@ estimateFeeForDelegation ctx wid = db & \DBLayer{..} -> do
         $ Fee . feeBalance <$> selectCoins
   where
     db  = ctx ^. dbLayer @s @k
+    nl = ctx ^. networkLayer
     pid = PoolId (error "Dummy pool id for estimation. Never evaluated.")
 
 -- | Constructs a set of coin selections that select all funds from the given
@@ -1447,6 +1419,7 @@ selectCoinsForMigration
         , HasLogger WalletLog ctx
         , HasDBLayer s k ctx
         , PaymentAddress n ByronKey
+        , HasNetworkLayer ctx
         )
     => ctx
     -> WalletId
@@ -1523,6 +1496,7 @@ estimateFeeForPayment
         ( HasTransactionLayer k ctx
         , HasLogger WalletLog ctx
         , HasDBLayer s k ctx
+        , HasNetworkLayer ctx
         )
     => ctx
     -> WalletId
@@ -2047,6 +2021,7 @@ joinStakePool
     :: forall ctx s k n.
         ( HasDBLayer s k ctx
         , HasLogger WalletLog ctx
+        , HasNetworkLayer ctx
         , s ~ SeqState n k
         )
     => ctx
@@ -2077,9 +2052,7 @@ joinStakePool ctx currentEpoch knownPools pid poolStatus wid =
 
         liftIO $ traceWith tr $ MsgIsStakeKeyRegistered isKeyReg
 
-        dep <- fmap stakeKeyDeposit $
-            withExceptT ErrJoinStakePoolNoSuchWallet
-                $ readWalletProtocolParameters @ctx @s @k ctx wid
+        dep <- liftIO $ stakeKeyDeposit <$> currentProtocolParameters nl
 
         return $ if isKeyReg
             then (Join pid, Nothing)
@@ -2087,6 +2060,7 @@ joinStakePool ctx currentEpoch knownPools pid poolStatus wid =
   where
     db = ctx ^. dbLayer @s @k
     tr = ctx ^. logger
+    nl = ctx ^. networkLayer
 
 -- | Helper function to factor necessary logic for quitting a stake pool.
 quitStakePool

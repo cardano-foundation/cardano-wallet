@@ -581,8 +581,8 @@ fromMaxTxSize :: Natural -> Quantity "byte" Word16
 fromMaxTxSize =
     Quantity . fromIntegral
 
-fromShelleyPParams :: Maybe Bound -> SL.PParams era -> W.ProtocolParameters
-fromShelleyPParams bound pp = W.ProtocolParameters
+fromShelleyPParams :: W.EraInfo Bound -> SL.PParams era -> W.ProtocolParameters
+fromShelleyPParams eraInfo pp = W.ProtocolParameters
     { decentralizationLevel =
         decentralizationLevelFromPParams pp
     , txParameters =
@@ -592,7 +592,7 @@ fromShelleyPParams bound pp = W.ProtocolParameters
     , minimumUTxOvalue =
         minimumUTxOvalueFromPParams pp
     , stakeKeyDeposit = stakeKeyDepositFromPParams pp
-    , hardforkEpochNo = fromBound <$> bound
+    , eras = fromBound <$> eraInfo
     }
   where
     fromBound (Bound _relTime _slotNo (EpochNo e)) =
@@ -686,12 +686,11 @@ fromGenesisData g initialFunds =
         , slottingParameters =
             slottingParametersFromGenesis g
         , protocolParameters =
-            (fromShelleyPParams Nothing) . sgProtocolParams $ g
+            (fromShelleyPParams W.emptyEraInfo) . sgProtocolParams $ g
         }
     , genesisBlockFromTxOuts initialFunds
     )
   where
-
     -- TODO: There is not yet any agreed upon definition of a
     -- genesis hash for a shelley-only testnet.
     --

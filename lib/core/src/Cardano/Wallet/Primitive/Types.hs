@@ -59,6 +59,8 @@ module Cardano.Wallet.Primitive.Types
     , SlottingParameters (..)
     , ProtocolParameters (..)
     , TxParameters (..)
+    , EraInfo (..)
+    , emptyEraInfo
     , ActiveSlotCoefficient (..)
     , DecentralizationLevel (..)
     , EpochLength (..)
@@ -953,6 +955,38 @@ newtype ActiveSlotCoefficient
 
 instance NFData ActiveSlotCoefficient
 
+-- |
+--
+-- It is expected that there is an order, @byron, shelley, allegra, mary@, by
+-- which the @Maybe@ fields are filled in.
+--
+-- It might be cumbersome to work with this type. /But/ we don't need to. A
+-- product of @Maybe@ is both what we can query from the node, and
+-- what we need to provide in the wallet API.
+data EraInfo info = EraInfo
+    { byron :: Maybe info
+    , shelley :: Maybe info
+    , allegra :: Maybe info
+    , mary :: Maybe info
+    } deriving (Eq, Generic, Show, Functor)
+
+emptyEraInfo :: EraInfo info
+emptyEraInfo = EraInfo Nothing Nothing Nothing Nothing
+
+instance NFData info => NFData (EraInfo info)
+
+instance Buildable (EraInfo EpochNo) where
+    build (EraInfo byron shelley allegra mary) = blockListF' "-" id
+        [ "byron" <> boundF byron
+        , "shelley" <> boundF shelley
+        , "allegra" <> boundF allegra
+        , "mary" <> boundF mary
+        ]
+
+      where
+        boundF (Just e) = " from " <> build e
+        boundF Nothing = " <not started>"
+
 -- | Protocol parameters that can be changed through the update system.
 --
 data ProtocolParameters = ProtocolParameters
@@ -974,9 +1008,8 @@ data ProtocolParameters = ProtocolParameters
         -- ^ Registering a stake key requires storage on the node and as such
         -- needs a deposit. There may be more actions that require deposit
         -- (such as registering a stake pool).
-    , hardforkEpochNo
-        :: Maybe EpochNo
-        -- ^ The hardfork epoch number.
+    , eras
+        :: EraInfo EpochNo
     } deriving (Eq, Generic, Show)
 
 instance NFData ProtocolParameters
@@ -987,11 +1020,7 @@ instance Buildable ProtocolParameters where
         , "Transaction parameters: " <> build (pp ^. #txParameters)
         , "Desired number of pools: " <> build (pp ^. #desiredNumberOfStakePools)
         , "Minimum UTxO value: " <> build (pp ^. #minimumUTxOvalue)
-        , case pp ^. #hardforkEpochNo of
-              Just epochNo ->
-                  "Hardfork occuring at epoch: " <> build epochNo
-              Nothing ->
-                  mempty
+        , "Eras:\n" <> indentF 2 (build (pp ^. #eras))
         ]
 
 -- | Indicates the current level of decentralization in the network.

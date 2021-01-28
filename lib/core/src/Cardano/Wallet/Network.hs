@@ -300,7 +300,7 @@ follow
     -- ^ A list of known tips to start from.
     -- Blocks /after/ the tip will be yielded.
     -> (NE.NonEmpty block
-        -> (BlockHeader, ProtocolParameters)
+        -> BlockHeader
         -> IO (FollowAction e))
     -- ^ Callback with blocks and the current tip of the /node/.
     -- @follow@ stops polling and terminates if the callback errors.
@@ -349,8 +349,7 @@ follow nl tr cps yield header =
         Right (RollForward cursor' tip (blockFirst : blocksRest)) -> do
             let blocks = blockFirst :| blocksRest
             traceWith tr $ MsgApplyBlocks (header <$> blocks)
-            params <- currentProtocolParameters nl
-            action <- yield blocks (tip, params)
+            action <- yield blocks tip
             traceWith tr $ MsgFollowAction (fmap show action)
             continueWith cursor' True action
 

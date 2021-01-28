@@ -8,6 +8,8 @@ module Cardano.Wallet.Api.ServerSpec (spec) where
 
 import Prelude
 
+import Cardano.Api
+    ( AnyCardanoEra (..), CardanoEra (..) )
 import Cardano.BM.Trace
     ( nullTracer )
 import Cardano.Slotting.Slot
@@ -183,7 +185,7 @@ spec = describe "API Server" $ do
         , initCursor = error "initCursor: not implemented"
         , destroyCursor = error "destroyCursor: not implemented"
         , cursorSlotNo = error "cursorSlotNo: not implemented"
-        , currentNodeEra = error "currentNodeEra: not implemented"
+        , currentNodeEra = return $ AnyCardanoEra MaryEra
         , currentNodeTip = return $
                 BlockHeader
                     sl

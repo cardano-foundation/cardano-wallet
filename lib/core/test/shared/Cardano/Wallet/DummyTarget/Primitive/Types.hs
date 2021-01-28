@@ -7,7 +7,6 @@ module Cardano.Wallet.DummyTarget.Primitive.Types
     ( block0
     , dummyNetworkParameters
     , dummyGenesisParameters
-    , dummyProtocolParameters
     , dummyTimeInterpreter
     , genesisHash
     , mockHash
@@ -33,6 +32,7 @@ import Cardano.Wallet.Primitive.Types
     , SlottingParameters (..)
     , StartTime (..)
     , TxParameters (..)
+    , emptyEraInfo
     )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
@@ -115,7 +115,7 @@ dummyProtocolParameters = ProtocolParameters
     , desiredNumberOfStakePools = 100
     , minimumUTxOvalue = Coin 0
     , stakeKeyDeposit = Coin 0
-    , hardforkEpochNo = Nothing
+    , eras = emptyEraInfo
     }
 
 -- | Construct a @Tx@, computing its hash using the dummy @mkTxId@.

@@ -44,7 +44,6 @@ import Cardano.Wallet.Primitive.Types
     ( BlockHeader
     , DelegationCertificate
     , GenesisParameters
-    , ProtocolParameters
     , Range (..)
     , SlotNo (..)
     , SortOrder (..)
@@ -123,7 +122,6 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         -> WalletMetadata
         -> [(Tx, TxMeta)]
         -> GenesisParameters
-        -> ProtocolParameters
         -> ExceptT ErrWalletAlreadyExists stm ()
         -- ^ Initialize a database entry for a given wallet. 'putCheckpoint',
         -- 'putWalletMeta', 'putTxHistory' or 'putProtocolParameters' will
@@ -273,17 +271,6 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         -> stm (Maybe (k 'RootK XPrv, Hash "encryption"))
         -- ^ Read a previously stored private key and its associated passphrase
         -- hash.
-
-    , putProtocolParameters
-        :: PrimaryKey WalletId
-        -> ProtocolParameters
-        -> ExceptT ErrNoSuchWallet stm ()
-        -- ^ Store protocol parameters for the node tip.
-
-    , readProtocolParameters
-        :: PrimaryKey WalletId
-        -> stm (Maybe ProtocolParameters)
-        -- ^ Read the previously stored node tip protocol parameters.
 
     , readGenesisParameters
         :: PrimaryKey WalletId

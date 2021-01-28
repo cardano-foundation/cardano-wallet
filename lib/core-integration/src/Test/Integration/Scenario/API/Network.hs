@@ -12,6 +12,7 @@ import Prelude
 import Cardano.Wallet.Api.Types
     ( ApiByronWallet
     , ApiEpochInfo (..)
+    , ApiEra (..)
     , ApiNetworkClock
     , ApiNetworkInformation
     , NtpSyncingStatus (..)
@@ -67,6 +68,7 @@ spec = describe "COMMON_NETWORK" $ do
             let i = getFromResponse id r
             verify r
                 [ expectField (#syncProgress . #getApiT) (`shouldBe` Ready)
+                , expectField (#nodeEra) (.> ApiByron)
                 , expectField (#nodeTip . #absoluteSlotNumber . #getApiT) (`shouldNotBe` 0)
                 , \x -> (epochStartTime <$> nextEpoch (unsafeResponse x)) .> Just now
                 ]

@@ -102,6 +102,8 @@ import Prelude
 
 import Cardano.Address.Derivation
     ( XPrv, XPub, xpubPublicKey )
+import Cardano.Api.Typed
+    ( AnyCardanoEra (..), CardanoEra (..) )
 import Cardano.Mnemonic
     ( SomeMnemonic )
 import Cardano.Wallet
@@ -178,6 +180,7 @@ import Cardano.Wallet.Api.Types
     , ApiCoinSelectionInput (..)
     , ApiCoinSelectionOutput (..)
     , ApiEpochInfo (ApiEpochInfo)
+    , ApiEra (..)
     , ApiErrorCode (..)
     , ApiFee (..)
     , ApiMnemonicT (..)
@@ -1415,12 +1418,12 @@ postTransaction ctx genChange (ApiT wid) body = do
                 (acct, _) <- liftHandler $ W.readRewardAccount @_ @s @k @n wrk wid
                 wdrl <- liftHandler $ W.queryRewardBalance @_ wrk acct
                 (, selfRewardCredentials)
-                    <$> liftIO (W.readNextWithdrawal @_ @s @k wrk wid wdrl)
+                    <$> liftIO (W.readNextWithdrawal @_ @s @k wrk wdrl)
 
             Just (ExternalWithdrawal (ApiMnemonicT mw)) -> do
                 let (xprv, acct) = W.someRewardAccount @ShelleyKey mw
                 wdrl <- liftHandler (W.queryRewardBalance @_ wrk acct)
-                    >>= liftIO . W.readNextWithdrawal @_ @s @k wrk wid
+                    >>= liftIO . W.readNextWithdrawal @_ @s @k wrk
                 when (wdrl == Coin 0) $ do
                     liftHandler $ throwE ErrWithdrawalNotWorth
                 pure (wdrl, const (xprv, mempty))
@@ -1535,12 +1538,12 @@ postTransactionFee ctx (ApiT wid) body = do
             Just SelfWithdrawal -> do
                 (acct, _) <- liftHandler $ W.readRewardAccount @_ @s @k @n wrk wid
                 wdrl <- liftHandler $ W.queryRewardBalance @_ wrk acct
-                liftIO $ W.readNextWithdrawal @_ @s @k wrk wid wdrl
+                liftIO $ W.readNextWithdrawal @_ @s @k wrk wdrl
 
             Just (ExternalWithdrawal (ApiMnemonicT mw)) -> do
                 let (_, acct) = W.someRewardAccount @ShelleyKey mw
                 wdrl <- liftHandler $ W.queryRewardBalance @_ wrk acct
-                liftIO $ W.readNextWithdrawal @_ @s @k wrk wid wdrl
+                liftIO $ W.readNextWithdrawal @_ @s @k wrk wdrl
 
         fee <- liftHandler $ W.estimateFeeForPayment @_ @s @k wrk wid outs wdrl md
         pure $ apiFee fee
@@ -1801,6 +1804,7 @@ getNetworkInformation
 getNetworkInformation st nl = liftIO $ do
     now <- currentRelativeTime ti
     nodeTip <- NW.currentNodeTip nl
+    nodeEra <- NW.currentNodeEra nl
     apiNodeTip <- makeApiBlockReferenceFromHeader
         (neverFails "node tip is within safe-zone" $ timeInterpreter nl)
         nodeTip
@@ -1815,10 +1819,17 @@ getNetworkInformation st nl = liftIO $ do
         , Api.nextEpoch = snd <$> nowInfo
         , Api.nodeTip = apiNodeTip
         , Api.networkTip = fst <$> nowInfo
+        , Api.nodeEra = toApiEra nodeEra
         }
   where
     ti :: TimeInterpreter (MaybeT IO)
     ti = hoistTimeInterpreter exceptToMaybeT $ timeInterpreter nl
+
+    toApiEra :: AnyCardanoEra -> ApiEra
+    toApiEra (AnyCardanoEra ByronEra) = ApiByron
+    toApiEra (AnyCardanoEra ShelleyEra) = ApiShelley
+    toApiEra (AnyCardanoEra AllegraEra) = ApiAllegra
+    toApiEra (AnyCardanoEra MaryEra) = ApiMary
 
     -- (network tip, next epoch)
     -- May be unavailible if the node is still syncing.
@@ -1840,16 +1851,8 @@ getNetworkParameters
 getNetworkParameters (_block0, genesisNp, _st) nl = do
     pp <- liftIO $ NW.currentProtocolParameters nl
     sp <- liftIO $ NW.currentSlottingParameters nl
-    let (apiNetworkParams, epochNoM) = toApiNetworkParameters genesisNp
-            { protocolParameters = pp, slottingParameters = sp }
-    case epochNoM of
-        Just epochNo -> do
-            (epochStartTime, _) <- liftIO $ interpretQuery ti $ timeOfEpoch epochNo
-            pure $ apiNetworkParams
-                { hardforkAt = Just $
-                    ApiEpochInfo (ApiT epochNo) epochStartTime }
-        Nothing ->
-            pure apiNetworkParams
+    let np = genesisNp { protocolParameters = pp, slottingParameters = sp }
+    liftIO $ toApiNetworkParameters np (interpretQuery ti . toApiEpochInfo)
   where
     ti :: TimeInterpreter IO
     ti = neverFails

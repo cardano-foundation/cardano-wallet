@@ -100,7 +100,6 @@ import Control.Monad.Class.MonadSTM
     , putTMVar
     , readTMVar
     , readTVar
-    , retry
     , takeTMVar
     , writeTVar
     )
@@ -304,27 +303,25 @@ withNetworkLayerBase tr np conn (versionData, _) action = do
     -- doesn't rely on the intersection to be up-to-date.
     let handlers = retryOnConnectionLost tr
 
-    (readNodeEraAndTip, networkParamsVar, interpreterVar, localTxSubmissionQ) <-
-        connectNodeTipClient handlers
+    -- FIXME: Would be nice to remove these multiple vars.
+    -- Not as trivial as it seems, since we'd need to preserve the @debounce@
+    -- behaviour.
+    (readNodeTip, networkParamsVar, interpreterVar, eraVar, localTxSubmissionQ)
+        <- connectNodeTipClient handlers
 
     queryRewardQ <- connectDelegationRewardsClient handlers
 
-    rewardsObserver <- newRewardBalanceFetcher tr readNodeEraAndTip queryRewardQ
-
-    -- Retries until the era is know. The era might not be known on startup,
-    -- until we get a RollForward message in the tip sync client when the tip
-    -- changes.
-    let readCurrentNodeEra = atomically $ readNodeEraAndTip >>= \case
-            (Just era, _) -> pure era
-            (Nothing, _) -> retry
-    let readCurrentNodeTip = snd <$> atomically readNodeEraAndTip
+    rewardsObserver <- newRewardBalanceFetcher tr readNodeTip queryRewardQ
+    let readCurrentNodeEra = atomically $ readTMVar eraVar
 
     action $ NetworkLayer
         { currentNodeTip =
-            fromTip getGenesisBlockHash <$> readCurrentNodeTip
-        , currentNodeEra = readCurrentNodeEra
+            fromTip getGenesisBlockHash <$> atomically readNodeTip
+        , currentNodeEra =
+            -- NOTE: Is not guaranteed to be consistent with @currentNodeTip@
+            readCurrentNodeEra
         , watchNodeTip = do
-            _watchNodeTip readNodeEraAndTip
+            _watchNodeTip readNodeTip
         , nextBlocks =
             _nextBlocks
         , initCursor =
@@ -334,9 +331,9 @@ withNetworkLayerBase tr np conn (versionData, _) action = do
         , cursorSlotNo =
             _cursorSlotNo
         , currentProtocolParameters =
-            fst <$> atomically (readTVar networkParamsVar)
+            fst <$> atomically (readTMVar networkParamsVar)
         , currentSlottingParameters =
-            snd <$> atomically (readTVar networkParamsVar)
+            snd <$> atomically (readTMVar networkParamsVar)
         , postTx = \sealed -> do
             era <- liftIO readCurrentNodeEra
             _postTx localTxSubmissionQ era sealed
@@ -365,9 +362,10 @@ withNetworkLayerBase tr np conn (versionData, _) action = do
     connectNodeTipClient
         :: HasCallStack
         => RetryHandlers
-        -> IO ( STM IO (Maybe AnyCardanoEra, Tip (CardanoBlock StandardCrypto))
-              , TVar IO (W.ProtocolParameters, W.SlottingParameters)
+        -> IO ( STM IO (Tip (CardanoBlock StandardCrypto))
+              , TMVar IO (W.ProtocolParameters, W.SlottingParameters)
               , TMVar IO (CardanoInterpreter StandardCrypto)
+              , TMVar IO AnyCardanoEra
               , TQueue IO (LocalTxSubmissionCmd
                   (GenTx (CardanoBlock StandardCrypto))
                   (CardanoApplyTxErr StandardCrypto)
@@ -375,17 +373,16 @@ withNetworkLayerBase tr np conn (versionData, _) action = do
               )
     connectNodeTipClient handlers = do
         localTxSubmissionQ <- atomically newTQueue
-        networkParamsVar <- atomically $ newTVar
-            ( W.protocolParameters np
-            , W.slottingParameters np
-            )
+        networkParamsVar <- atomically newEmptyTMVar
         interpreterVar <- atomically newEmptyTMVar
+        eraVar <- atomically newEmptyTMVar
         (nodeTipClient, readTip) <- mkTipSyncClient tr np
             localTxSubmissionQ
-            (curry (atomically . writeTVar networkParamsVar))
+            (curry (atomically . repsertTMVar networkParamsVar))
             (atomically . repsertTMVar interpreterVar)
+            (atomically . repsertTMVar eraVar)
         link =<< async (connectClient tr handlers nodeTipClient versionData conn)
-        pure (readTip, networkParamsVar, interpreterVar, localTxSubmissionQ)
+        pure (readTip, networkParamsVar, interpreterVar, eraVar, localTxSubmissionQ)
 
     connectDelegationRewardsClient
         :: HasCallStack
@@ -433,9 +430,6 @@ withNetworkLayerBase tr np conn (versionData, _) action = do
 
     _cursorSlotNo (Cursor _ point _) = do
         fromWithOrigin (SlotNo 0) $ pointSlot point
-
-    _currentNodeEra nodeEraVar =
-        atomically (readTVar nodeEraVar)
 
     -- NOTE1: only shelley transactions can be submitted like this, because they
     -- are deserialised as shelley transactions before submitting.
@@ -527,8 +521,8 @@ withNetworkLayerBase tr np conn (versionData, _) action = do
             getRewardMap =
                 fromJustRewards . Map.lookup (Left coin)
 
-    _watchNodeTip readNodeEraAndTip cb = do
-        observeForever readNodeEraAndTip $ \(_era, tip) -> do
+    _watchNodeTip readTip cb = do
+        observeForever readTip $ \tip -> do
             let header = fromTip getGenesisBlockHash tip
             bracketTracer (contramap (MsgWatcherUpdate header) tr) $ cb header
 
@@ -696,8 +690,10 @@ mkTipSyncClient
         -- ^ Notifier callback for when parameters for tip change.
     -> (CardanoInterpreter StandardCrypto -> m ())
         -- ^ Notifier callback for when time interpreter is updated.
-    -> m (NetworkClient m, STM m (Maybe AnyCardanoEra, Tip (CardanoBlock StandardCrypto)))
-mkTipSyncClient tr np localTxSubmissionQ onPParamsUpdate onInterpreterUpdate = do
+    -> (AnyCardanoEra -> m ())
+        -- ^ Notifier callback for when the era is updated
+    -> m (NetworkClient m, STM m (Tip (CardanoBlock StandardCrypto)))
+mkTipSyncClient tr np localTxSubmissionQ onPParamsUpdate onInterpreterUpdate onEraUpdate = do
     (localStateQueryQ :: TQueue m (LocalStateQueryCmd (CardanoBlock StandardCrypto) m))
         <- atomically newTQueue
 
@@ -709,19 +705,20 @@ mkTipSyncClient tr np localTxSubmissionQ onPParamsUpdate onInterpreterUpdate = d
             onPParamsUpdate pp sp
 
     let queryParams = do
-            mb <- currentEra >>= \case
-                AnyCardanoEra ShelleyEra ->
-                    LSQry $ QueryAnytimeShelley GetEraStart
-                _ ->
-                    LSQry $ QueryAnytimeMary GetEraStart
+            eraBounds <- W.EraInfo
+                <$> LSQry (QueryAnytimeByron GetEraStart)
+                <*> LSQry (QueryAnytimeShelley GetEraStart)
+                <*> LSQry (QueryAnytimeAllegra GetEraStart)
+                <*> LSQry (QueryAnytimeMary GetEraStart)
+
             sp <- byronOrShelleyBased
                 (pure $ W.slottingParameters np)
                 ((slottingParametersFromGenesis . getCompactGenesis)
                     <$> LSQry Shelley.GetGenesisConfig)
             pp <- byronOrShelleyBased
-                (protocolParametersFromUpdateState mb
+                (protocolParametersFromUpdateState eraBounds
                     <$> LSQry Byron.GetUpdateInterfaceState)
-                (fromShelleyPParams mb
+                (fromShelleyPParams eraBounds
                     <$> LSQry Shelley.GetCurrentPParams)
             return (pp, sp)
 
@@ -734,10 +731,12 @@ mkTipSyncClient tr np localTxSubmissionQ onPParamsUpdate onInterpreterUpdate = d
     --
     -- By blocking (with `send`) we ensure we don't queue multiple queries.
     let onTipUpdate _tip = do
-            let qry = (,) <$> queryParams <*> queryInterpreter
-            (pparams, int) <- localStateQueryQ `send` (SomeLSQ qry)
+            let qry = (,,) <$> queryParams <*> queryInterpreter <*> currentEra
+            (pparams, int, era) <- localStateQueryQ `send` (SomeLSQ qry)
             onPParamsUpdate' pparams
             onInterpreterUpdate int
+            onEraUpdate era
+
     link =<< async (observeForever (readTVar tipVar) onTipUpdate)
 
 
@@ -772,7 +771,8 @@ mkTipSyncClient tr np localTxSubmissionQ onPParamsUpdate onInterpreterUpdate = d
                     $ localStateQuery localStateQueryQ
             })
             nodeToClientVersion
-    return (client, readTVar tipVar)
+    return (client, snd <$> readTVar tipVar)
+    -- FIXME: We can remove the era from the tip sync client now.
 
 -- Reward Account Balances
 
@@ -792,17 +792,17 @@ data Observer m key value = Observer
 newRewardBalanceFetcher
     :: Tracer IO NetworkLayerLog
     -- ^ Used to convert tips for logging
-    -> STM IO (Maybe AnyCardanoEra, Tip (CardanoBlock StandardCrypto))
+    -> STM IO (Tip (CardanoBlock StandardCrypto))
     -- ^ STM action for observing the current tip
     -> TQueue IO (LocalStateQueryCmd (CardanoBlock StandardCrypto) IO)
     -> IO (Observer IO W.RewardAccount W.Coin)
-newRewardBalanceFetcher tr readNodeEraAndTip queryRewardQ = do
+newRewardBalanceFetcher tr readNodeTip queryRewardQ = do
     (ob, refresh) <- newObserver (contramap MsgObserverLog tr) fetch
-    link =<< async (observeForever readNodeEraAndTip refresh)
+    link =<< async (observeForever readNodeTip refresh)
     return ob
   where
     fetch
-        :: (Maybe AnyCardanoEra, Tip (CardanoBlock StandardCrypto))
+        :: Tip (CardanoBlock StandardCrypto)
         -> Set W.RewardAccount
         -> IO (Maybe (Map W.RewardAccount W.Coin))
     fetch _tip accounts = do

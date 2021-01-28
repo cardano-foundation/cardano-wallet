@@ -383,8 +383,7 @@ serveWallet
                     desiredNumberOfStakePools pp
                 , defaultMinimumUTxOValue =
                     minimumUTxOvalue pp
-                , defaultHardforkEpoch =
-                    hardforkEpochNo pp
+                , defaultHardforkEpoch = Nothing
                 -- NOTE: see ADP-643
                 --
                 -- In ADP-470, we've made it possible to distinguish fees from

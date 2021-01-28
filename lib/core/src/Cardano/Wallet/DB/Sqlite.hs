@@ -76,7 +76,6 @@ import Cardano.Wallet.DB.Sqlite.TH
     , EntityField (..)
     , Key (..)
     , PrivateKey (..)
-    , ProtocolParameters (..)
     , RndState (..)
     , RndStateAddress (..)
     , RndStatePendingAddress (..)
@@ -1140,7 +1139,7 @@ newDBLayer trace defaultFieldValues mDatabaseFile ti = do
                                       Wallets
         -----------------------------------------------------------------------}
 
-        { initializeWallet = \(PrimaryKey wid) cp meta txs gp pp -> ExceptT $ do
+        { initializeWallet = \(PrimaryKey wid) cp meta txs gp -> ExceptT $ do
             res <- handleConstraint (ErrWalletAlreadyExists wid) $
                 insert_ (mkWalletEntity wid meta gp)
             when (isRight res) $ do
@@ -1148,7 +1147,6 @@ newDBLayer trace defaultFieldValues mDatabaseFile ti = do
                 let (metas, txins, txouts, txoutTokens, ws) =
                         mkTxHistory wid txs
                 putTxs metas txins txouts txoutTokens ws
-                insert_ (mkProtocolParametersEntity wid pp)
             pure res
 
         , removeWallet = \(PrimaryKey wid) -> ExceptT $ do
@@ -1346,16 +1344,6 @@ newDBLayer trace defaultFieldValues mDatabaseFile ti = do
         {-----------------------------------------------------------------------
                                  Blockchain Parameters
         -----------------------------------------------------------------------}
-
-        , putProtocolParameters = \(PrimaryKey wid) pp -> ExceptT $ do
-            selectWallet wid >>= \case
-                Nothing -> pure $ Left $ ErrNoSuchWallet wid
-                Just _  -> Right <$> repsert
-                    (ProtocolParametersKey wid)
-                    (mkProtocolParametersEntity wid pp)
-
-        , readProtocolParameters =
-            \(PrimaryKey wid) -> selectProtocolParameters wid
 
         , readGenesisParameters =
             \(PrimaryKey wid) -> selectGenesisParameters wid
@@ -1726,34 +1714,6 @@ txHistoryFromEntity ti tip metas ins outs ws =
         , W.expiry = txMetaSlotExpires m
         }
 
-mkProtocolParametersEntity
-    :: W.WalletId
-    -> W.ProtocolParameters
-    -> ProtocolParameters
-mkProtocolParametersEntity wid pp =
-    ProtocolParameters wid fp (getQuantity mx) dl desiredPoolNum minUTxO keyDep epochNo
-  where
-    (W.ProtocolParameters
-        (W.DecentralizationLevel dl)
-        (W.TxParameters fp mx)
-        desiredPoolNum
-        minUTxO
-        epochNo
-        keyDep
-        ) = pp
-
-protocolParametersFromEntity
-    :: ProtocolParameters
-    -> W.ProtocolParameters
-protocolParametersFromEntity (ProtocolParameters _ fp mx dl poolNum minUTxO keyDep epochNo) =
-    W.ProtocolParameters
-        (W.DecentralizationLevel dl)
-        (W.TxParameters fp (Quantity mx))
-        poolNum
-        minUTxO
-        epochNo
-        keyDep
-
 genesisParametersFromEntity
     :: Wallet
     -> W.GenesisParameters
@@ -2068,14 +2028,6 @@ selectPrivateKey
 selectPrivateKey wid = do
     keys <- selectFirst [PrivateKeyWalletId ==. wid] []
     pure $ (privateKeyFromEntity . entityVal) <$> keys
-
-selectProtocolParameters
-    :: MonadIO m
-    => W.WalletId
-    -> SqlPersistT m (Maybe W.ProtocolParameters)
-selectProtocolParameters wid = do
-    pp <- selectFirst [ProtocolParametersWalletId ==. wid] []
-    pure $ (protocolParametersFromEntity . entityVal) <$> pp
 
 selectGenesisParameters
     :: MonadIO m
