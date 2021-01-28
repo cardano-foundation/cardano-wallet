@@ -65,7 +65,10 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     , KnownAddresses (..)
     )
 import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
-    ( SelectionResult (..) )
+    ( BalanceInsufficientError (..)
+    , SelectionError (..)
+    , SelectionResult (..)
+    )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncTolerance (..) )
 import Cardano.Wallet.Primitive.Types
@@ -119,8 +122,12 @@ import Control.Monad
     ( forM, forM_, replicateM, void )
 import Control.Monad.IO.Class
     ( liftIO )
+import Control.Monad.Trans.Class
+    ( lift )
 import Control.Monad.Trans.Except
-    ( runExceptT )
+    ( ExceptT, except, runExceptT )
+import Control.Monad.Trans.State.Strict
+    ( State, evalState, get, put )
 import Crypto.Hash
     ( hash )
 import Data.ByteString
@@ -136,7 +143,7 @@ import Data.List.NonEmpty
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
-    ( isJust, isNothing )
+    ( catMaybes, fromMaybe, isJust, isNothing )
 import Data.Ord
     ( Down (..) )
 import Data.Quantity
@@ -162,6 +169,8 @@ import Test.QuickCheck
     , arbitrarySizedBoundedIntegral
     , checkCoverage
     , choose
+    , conjoin
+    , counterexample
     , cover
     , elements
     , label
@@ -236,6 +245,10 @@ spec = parallel $ do
             (withMaxSuccess 10 $ property walletKeyIsReencrypted)
         it "Wallet can list transactions"
             (property walletListTransactionsSorted)
+
+    parallel $ describe "Tx fee estimation" $
+        it "Fee estimates are sound"
+            (property prop_estimateFee)
 
     parallel $ describe "Join/Quit Stake pool properties" $ do
         it "You can quit if you cannot join"
@@ -559,6 +572,60 @@ walletListTransactionsSorted wallet@(wid, _, _) _order (_mstart, _mend) history 
         let expTimes = Map.fromList $
                 (\(tx, meta) -> (txId tx, slotNoTime (meta ^. #slotNo))) <$> history
         times `shouldBe` expTimes
+
+{-------------------------------------------------------------------------------
+                        Properties of tx fee estimation
+-------------------------------------------------------------------------------}
+
+-- | Properties of 'estimateFeeForCoinSelection':
+-- 1. There is no coin selection with a fee above the estimated maximum.
+-- 2. The minimum estimated fee is no greater than the maximum estimated fee.
+-- 3. Around 10% of fees are below the estimated minimum.
+prop_estimateFee
+    :: NonEmptyList (Maybe Coin)
+    -> Property
+prop_estimateFee (NonEmpty coins) =
+    case evalState (runExceptT $ W.estimateFee runSelection) 0 of
+        Left err ->
+            label "errors: all" $ err === genericError
+
+        Right estimation@(W.FeeEstimation minFee maxFee) ->
+            label ("errors: " <> if any isNothing coins then "some" else "none") $
+            counterexample (show estimation) $ conjoin
+                [ property $ maxFee <= unCoin (maximum (catMaybes coins))
+                , property $ minFee <= maxFee
+                , proportionBelow minFee coins
+                    `closeTo` (1/10 :: Double)
+                ]
+  where
+    genericError :: W.ErrSelectAssets
+    genericError
+        = W.ErrSelectAssetsSelectionError
+        $ BalanceInsufficient
+        $ BalanceInsufficientError TokenBundle.empty TokenBundle.empty
+
+    runSelection
+        :: ExceptT W.ErrSelectAssets (State Int) Coin
+    runSelection = do
+        i <- lift get
+        lift $ put $ (i + 1) `mod` length coins
+        case (coins !! i) of
+            Nothing -> except $ Left genericError
+            Just c  -> except $ Right c
+
+    proportionBelow minFee xs =
+        fromIntegral (countBelow minFee xs) / fromIntegral (count isJust xs)
+      where
+        count p = length . filter p
+
+        -- Find the number of results below the "minimum" estimate.
+        countBelow sup =
+            count ((< sup) . unCoin . fromMaybe maxBound)
+
+    -- Two fractions are close to each other if they are within 20% either way.
+    closeTo a b =
+        counterexample (show a <> " & " <> show b <> " are not close enough") $
+        property $ abs (a - b) < (1/5)
 
 {-------------------------------------------------------------------------------
                       Tests machinery, Arbitrary instances
