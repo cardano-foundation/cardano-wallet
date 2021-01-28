@@ -924,14 +924,14 @@ fetchRewardBalance ctx wid = db & \DBLayer{..} ->
 -- b) The current reward value is too small to be considered (adding it would
 -- cost more than its value).
 readNextWithdrawal
-    :: forall ctx s k.
+    :: forall ctx k.
         ( HasTransactionLayer k ctx
         , HasNetworkLayer ctx
         )
     => ctx
     -> Coin
     -> IO Coin
-readNextWithdrawal ctx wid (Coin withdrawal) = do
+readNextWithdrawal ctx (Coin withdrawal) = do
     pp <- currentProtocolParameters nl
 
     let costWith =
@@ -1691,6 +1691,7 @@ instance NFData FeeEstimation
 calcMinimumDeposit
     :: forall ctx s k.
         ( HasDBLayer s k ctx
+        , HasNetworkLayer ctx
         )
     => ctx
     -> WalletId
@@ -1701,9 +1702,10 @@ calcMinimumDeposit ctx wid = db & \DBLayer{..} ->
             True ->
                 pure $ Coin 0
             False ->
-                stakeKeyDeposit <$> readWalletProtocolParameters @ctx @s @k ctx wid
+                liftIO $ stakeKeyDeposit <$> currentProtocolParameters nl
   where
-    db  = ctx ^. dbLayer @s @k
+    db = ctx ^. dbLayer @s @k
+    nl = ctx ^. networkLayer
 
 -- | Estimate the transaction fee for a given coin selection algorithm by
 -- repeatedly running it (100 times) and collecting the results. In the returned

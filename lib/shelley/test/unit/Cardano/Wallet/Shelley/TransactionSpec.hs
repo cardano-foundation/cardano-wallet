@@ -684,8 +684,8 @@ dummyProtocolParameters = ProtocolParameters
         error "dummyProtocolParameters: minimumUTxOvalue"
     , stakeKeyDeposit =
         error "dummyProtocolParameters: stakeKeyDeposit"
-    , hardforkEpochNo =
-        error "dummyProtocolParameters: hardforkEpochNo"
+    , eras =
+        error "dummyProtocolParameters: eras"
     }
 
 -- | Like generate, but the random generate is fixed to a particular seed so

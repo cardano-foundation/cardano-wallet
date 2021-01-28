@@ -1952,12 +1952,12 @@ mkRewardAccountBuilder ctx wid withdrawal = do
                (acct, _) <- liftHandler $ W.readRewardAccount @_ @s @k @n wrk wid
                wdrl <- liftHandler $ W.queryRewardBalance @_ wrk acct
                (, selfRewardCredentials) . WithdrawalSelf
-                   <$> liftIO (W.readNextWithdrawal @_ @s @k wrk wdrl)
+                   <$> liftIO (W.readNextWithdrawal @_ @k wrk wdrl)
 
            Just (ExternalWithdrawal (ApiMnemonicT mw)) -> do
                let (xprv, acct) = W.someRewardAccount @ShelleyKey mw
                wdrl <- liftHandler (W.queryRewardBalance @_ wrk acct)
-                   >>= liftIO . W.readNextWithdrawal @_ @s @k wrk
+                   >>= liftIO . W.readNextWithdrawal @_ @k wrk
                when (wdrl == Coin 0) $ do
                    liftHandler $ throwE ErrWithdrawalNotWorth
                pure (WithdrawalExternal wdrl, const (xprv, mempty))

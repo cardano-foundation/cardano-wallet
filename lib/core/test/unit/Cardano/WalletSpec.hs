@@ -74,6 +74,7 @@ import Cardano.Wallet.Primitive.SyncProgress
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (BlockHeader)
     , EpochNo (..)
+    , NetworkParameters (..)
     , PoolId (..)
     , SlotNo (..)
     , SortOrder (..)
@@ -734,7 +735,7 @@ dummyNetworkLayer = NetworkLayer
     , currentNodeEra =
         pure (AnyCardanoEra AllegraEra)
     , currentProtocolParameters =
-        error "dummyNetworkLayer: currentProtocolParameters not implemented"
+        pure (protocolParameters dummyNetworkParameters)
     , currentSlottingParameters =
         error "dummyNetworkLayer: currentSlottingParameters not implemented"
     , postTx =
