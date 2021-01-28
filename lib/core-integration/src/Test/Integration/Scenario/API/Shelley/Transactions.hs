@@ -111,6 +111,7 @@ import Test.Integration.Framework.DSL
     , faucetUtxoAmt
     , fixtureIcarusWallet
     , fixtureIcarusWalletAddrs
+    , fixtureMultiAssetWallet
     , fixturePassphrase
     , fixtureRandomWallet
     , fixtureWallet
@@ -160,12 +161,15 @@ import Web.HttpApiData
     ( ToHttpApiData (..) )
 
 import qualified Cardano.Wallet.Api.Link as Link
+import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
+import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Codec.Binary.Bech32 as Bech32
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.List as L
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.UTxO.Transaction as CardanoTransactions
@@ -655,6 +659,51 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             expectField
                 (#balance . #available)
                 (`shouldBe` Quantity (faucetAmt - feeEstMax - amt)) ra2
+
+    it "TRANS_CREATE_10 - Multi-asset balance" $ \ctx -> runResourceT $ do
+        w <- fixtureMultiAssetWallet ctx
+        r <- request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty
+        verify r
+            [ expectField (#assets . #available) (`shouldNotBe` mempty)
+            , expectField (#assets . #total) (`shouldNotBe` mempty)
+            ]
+
+    it "TRANS_CREATE_10 - Multi-asset transaction" $ \ctx -> runResourceT $ do
+        liftIO $ pendingWith "fee too small"
+
+        wSrc <- fixtureMultiAssetWallet ctx
+        wDest <- emptyWallet ctx
+        ra <- request @ApiWallet ctx (Link.getWallet @'Shelley wSrc) Default Empty
+        let (_, Right wal) = ra
+
+        -- pick out an asset to send
+        let assetsSrc = wal ^. #assets . #total . #getApiT
+        assetsSrc `shouldNotBe` mempty
+        let TokenBundle.AssetId pid an = Set.elemAt 0 (TokenMap.getAssets assetsSrc)
+        let val = [(toText pid, toText an, minUTxOValue)]
+
+        payload <- liftIO $ mkTxPayloadMA ctx wDest minUTxOValue val fixturePassphrase
+
+        rtx <- request @(ApiTransaction n) ctx
+            (Link.createTransaction @'Shelley wSrc) Default payload
+        expectResponseCode HTTP.status202 rtx
+
+        eventually "Payee wallet balance is as expected" $ do
+            rb <- request @ApiWallet ctx
+                (Link.getWallet @'Shelley wDest) Default Empty
+            verify rb
+                [ expectField (#assets . #available) (`shouldNotBe` mempty)
+                , expectField (#assets . #total) (`shouldNotBe` mempty)
+                ]
+        -- todo: asset balance values more exactly
+        -- todo: assert payer wallet balance
+
+        -- todo: other multi-asset tests to do
+        --  - check tx history
+        --  - asset list
+        --  - asset get - both endpoints
+        --  - minting
+
 
     let absSlotB = view (#absoluteSlotNumber . #getApiT)
     let absSlotS = view (#absoluteSlotNumber . #getApiT)
@@ -2798,7 +2847,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 ]
 
     mkTxPayload
-        :: (MonadIO m, MonadUnliftIO m)
+        :: MonadUnliftIO m
         => Context
         -> ApiWallet
         -> Natural
@@ -2814,6 +2863,34 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                         "quantity": #{amt},
                         "unit": "lovelace"
                     }
+                }],
+                "passphrase": #{passphrase}
+            }|]
+
+    mkTxPayloadMA
+        :: MonadUnliftIO m
+        => Context
+        -> ApiWallet
+        -> Natural
+        -> [(Text, Text, Natural)]
+        -> Text
+        -> m Payload
+    mkTxPayloadMA ctx wDest amt val passphrase = do
+        addrs <- listAddresses @n ctx wDest
+        let destination = (addrs !! 1) ^. #id
+        let assetJson (pid, name, q) = [json|{
+                    "policy_id": #{pid},
+                    "asset_name": #{name},
+                    "quantity": #{q}
+                }|]
+        return $ Json [json|{
+                "payments": [{
+                    "address": #{destination},
+                    "amount": {
+                        "quantity": #{amt},
+                        "unit": "lovelace"
+                    },
+                    "assets": #{map assetJson val}
                 }],
                 "passphrase": #{passphrase}
             }|]
