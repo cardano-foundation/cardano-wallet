@@ -330,7 +330,7 @@ spec = do
     describe "golden tests for script preimages for different versions" $ do
         testScriptPreimages Cardano.SimpleScriptV1
         testScriptPreimages Cardano.SimpleScriptV2
-
+        testTimelockScriptImagesLang
 
 toKeyHash :: Text -> Script KeyHash
 toKeyHash txt = case fromBase16 (T.encodeUtf8 txt) of
@@ -468,37 +468,43 @@ testScriptPreimages version = describe (show version) $ do
     forM_ (scriptMatrix version) $ \(title, adrestiaScript, nodeScript) ->
         checkScriptPreimage title adrestiaScript nodeScript
 
+timelockScriptMatrix
+    :: [(String, Script KeyHash, Cardano.Script Cardano.SimpleScriptV2)]
+timelockScriptMatrix =
+    [ ( "SimpleScriptV2 ActiveFromSlot"
+      , RequireAllOf [toKeyHash hashKeyTxt1, ActiveFromSlot 120]
+      , toSimpleScript $
+          Cardano.RequireAllOf [toPaymentHash hashKeyTxt1, Cardano.RequireTimeAfter Cardano.TimeLocksInSimpleScriptV2 (SlotNo 120)]
+      )
+    , ( "SimpleScriptV2 ActiveUntilSlot"
+      , RequireAllOf [toKeyHash hashKeyTxt1, ActiveUntilSlot 120]
+      , toSimpleScript $
+          Cardano.RequireAllOf [toPaymentHash hashKeyTxt1, Cardano.RequireTimeBefore Cardano.TimeLocksInSimpleScriptV2 (SlotNo 120)]
+      )
+    , ( "SimpleScriptV2 ActiveFromSlot and ActiveUntilSlot"
+      , RequireAllOf [ActiveFromSlot 120, ActiveUntilSlot 150, RequireAnyOf [toKeyHash hashKeyTxt1, toKeyHash hashKeyTxt2]]
+      , toSimpleScript $
+          Cardano.RequireAllOf
+          [ Cardano.RequireTimeAfter Cardano.TimeLocksInSimpleScriptV2 (SlotNo 120)
+          , Cardano.RequireTimeBefore Cardano.TimeLocksInSimpleScriptV2 (SlotNo 150)
+          , Cardano.RequireAnyOf [toPaymentHash hashKeyTxt1, toPaymentHash hashKeyTxt2 ]
+          ]
+      )
+    ]
+  where
+    hashKeyTxt1 = "deeae4e895d8d57378125ed4fd540f9bf245d59f7936a504379cfc1e"
+    hashKeyTxt2 = "60a3bf69aa748f9934b64357d9f1ca202f1a768aaf57263aedca8d5f"
+    toSimpleScript = Cardano.SimpleScript Cardano.SimpleScriptV2
+
 testScriptsTimelockLang :: Spec
-testScriptsTimelockLang = do
-    let hashKeyTxt1 = "deeae4e895d8d57378125ed4fd540f9bf245d59f7936a504379cfc1e"
-    let hashKeyTxt2 = "60a3bf69aa748f9934b64357d9f1ca202f1a768aaf57263aedca8d5f"
-
-    let toSimpleScript = Cardano.SimpleScript Cardano.SimpleScriptV2
-
-    let matrix =
-            [ ( "SimpleScriptV2 ActiveFromSlot"
-              , RequireAllOf [toKeyHash hashKeyTxt1, ActiveFromSlot 120]
-              , toSimpleScript $
-                  Cardano.RequireAllOf [toPaymentHash hashKeyTxt1, Cardano.RequireTimeAfter Cardano.TimeLocksInSimpleScriptV2 (SlotNo 120)]
-              )
-            , ( "SimpleScriptV2 ActiveUntilSlot"
-              , RequireAllOf [toKeyHash hashKeyTxt1, ActiveUntilSlot 120]
-              , toSimpleScript $
-                  Cardano.RequireAllOf [toPaymentHash hashKeyTxt1, Cardano.RequireTimeBefore Cardano.TimeLocksInSimpleScriptV2 (SlotNo 120)]
-              )
-            , ( "SimpleScriptV2 ActiveFromSlot and ActiveUntilSlot"
-              , RequireAllOf [ActiveFromSlot 120, ActiveUntilSlot 150, RequireAnyOf [toKeyHash hashKeyTxt1, toKeyHash hashKeyTxt2]]
-              , toSimpleScript $
-                  Cardano.RequireAllOf
-                  [ Cardano.RequireTimeAfter Cardano.TimeLocksInSimpleScriptV2 (SlotNo 120)
-                  , Cardano.RequireTimeBefore Cardano.TimeLocksInSimpleScriptV2 (SlotNo 150)
-                  , Cardano.RequireAnyOf [toPaymentHash hashKeyTxt1, toPaymentHash hashKeyTxt2 ]
-                  ]
-              )
-            ]
-
-    forM_ matrix $ \(title, adrestiaScript, nodeScript) ->
+testScriptsTimelockLang =
+    forM_ timelockScriptMatrix $ \(title, adrestiaScript, nodeScript) ->
         checkScriptHashes title adrestiaScript nodeScript
+
+testTimelockScriptImagesLang :: Spec
+testTimelockScriptImagesLang =
+    forM_ timelockScriptMatrix $ \(title, adrestiaScript, nodeScript) ->
+        checkScriptPreimage title adrestiaScript nodeScript
 
 instance Arbitrary (Hash "Genesis") where
     arbitrary = Hash . BS.pack <$> vector 32
