@@ -3862,8 +3862,9 @@ paths:
       summary: Create
       description: |
         <p align="right">status: <strong>stable</strong></p>
-
         Retrieve account public key from the wallet.
+
+        <b>Note:</b> Only `Hard` indexes are supported by this endpoint.
       parameters:
         - *parametersWalletId
         - *parametersDerivationSegment
