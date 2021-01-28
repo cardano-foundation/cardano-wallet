@@ -608,7 +608,8 @@ runSelection limit mExtraCoinSource available minimumBalance =
         { currentQuantity = assetQuantity asset . selected
         , minimumQuantity = unTokenQuantity minimumAssetQuantity
         , selectQuantity = selectMatchingQuantity limit
-            [ WithAsset asset
+            [ WithAssetOnly asset
+            , WithAsset asset
             ]
         }
 
