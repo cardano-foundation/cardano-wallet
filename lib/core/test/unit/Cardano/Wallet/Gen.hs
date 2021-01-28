@@ -5,8 +5,6 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
-{-# OPTIONS_GHC -fno-warn-orphans #-}
-
 -- | Shared QuickCheck generators for wallet types.
 --
 -- Our convention is to let each test module define its own @Arbitrary@ orphans.
@@ -25,6 +23,7 @@ module Cardano.Wallet.Gen
     , shrinkTxMetadata
     , genSmallTxMetadata
     , genScript
+    , genNatural
     ) where
 
 import Prelude
@@ -88,7 +87,6 @@ import Test.QuickCheck
     , oneof
     , resize
     , scale
-    , shrinkIntegral
     , shrinkList
     , sized
     , suchThat
@@ -273,17 +271,16 @@ shrinkTxMetadataValue (TxMetaNumber i) = TxMetaNumber <$> shrink i
 shrinkTxMetadataValue (TxMetaBytes b) = TxMetaBytes <$> shrinkByteString b
 shrinkTxMetadataValue (TxMetaText s) = TxMetaText <$> shrinkText s
 
-instance Arbitrary Natural where
-    shrink = shrinkIntegral
-    arbitrary = arbitrarySizedNatural
+genNatural :: Gen Natural
+genNatural = arbitrarySizedNatural
 
 genScript :: [KeyHash] -> Gen (Script KeyHash)
 genScript keyHashes = scale (`div` 3) $ sized scriptTree
     where
         scriptTree 0 = oneof
             [ RequireSignatureOf <$> elements keyHashes
-            , ActiveFromSlot <$> arbitrary
-            , ActiveUntilSlot <$> arbitrary
+            , ActiveFromSlot <$> genNatural
+            , ActiveUntilSlot <$> genNatural
             ]
         scriptTree n = do
             Positive m <- arbitrary

@@ -387,23 +387,23 @@ x-ScriptValue: &ScriptValue
               items:
                 $ref: "#/components/schemas/ScriptValue"
 
-    - title: Active from
+    - title: Active from slot
       type: object
       required:
         - active_from
       properties:
         active_from:
-          description: Transaction has to occur no sooner than a specified slot number.
+          description: Transaction is only valid starting at the specified slot number (`≥ active_from`).
           type: integer
           minimum: 0
 
-    - title: Active until
+    - title: Active until slot
       type: object
       required:
         - active_until
       properties:
         active_until:
-          description: Transaction has to occur before a specified slot number.
+          description: Transaction is only valid before the specified slot number (`< active_until`).
           type: integer
           minimum: 0
 

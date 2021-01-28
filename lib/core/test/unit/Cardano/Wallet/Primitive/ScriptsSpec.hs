@@ -158,8 +158,7 @@ prop_scriptsDiscovered (AccountXPubWithScripts accXPub' scripts') = do
     let seqState0 = initializeState accXPub'
     let seqState = foldr (\script s -> snd $ isShared script s) seqState0 scripts'
     let scriptHashes = Set.fromList $ Map.keys $ getKnownScripts seqState
-    let scriptsWithKeyHashes =
-            L.filter (\s -> L.length (retrieveAllVerKeyHashes s) > 0) scripts'
+    let scriptsWithKeyHashes = filter (not . null . retrieveAllVerKeyHashes) scripts'
     scriptHashes === Set.fromList (map toScriptHash scriptsWithKeyHashes)
 
 prop_scriptDiscoveredByTwo
@@ -174,9 +173,9 @@ prop_scriptDiscoveredByTwo (TwoAccountXPubsWithScript accXPub' accXPub'' script)
     let scriptKeyHashes' = scriptKeyHashesInMap script accXPub' seqState'
     let scriptKeyHashes'' = scriptKeyHashesInMap script accXPub'' seqState''
     let expected =
-            if L.length sciptKeyHashes == 0 then
+            if null sciptKeyHashes then
                 Nothing
-            else Just (Set.fromList (L.nub sciptKeyHashes))
+            else Just (Set.fromList sciptKeyHashes)
     (scriptKeyHashes' <> scriptKeyHashes'') === expected
 
 prop_markingDiscoveredVerKeys
@@ -199,7 +198,7 @@ prop_poolExtension
     :: AccountXPubWithScriptExtension
     -> Property
 prop_poolExtension (AccountXPubWithScriptExtension accXPub' scripts') =
-    all (\s -> L.length (retrieveAllVerKeyHashes s) > 0)  scripts' ==>
+    all (not . null . retrieveAllVerKeyHashes) scripts' ==>
     scriptHashes == Set.fromList (map toScriptHash scripts') .&&.
         seqState3 == seqState0
   where

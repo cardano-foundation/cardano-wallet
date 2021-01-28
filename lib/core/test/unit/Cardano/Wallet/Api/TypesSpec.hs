@@ -1067,7 +1067,6 @@ instance Arbitrary (Script KeyHash) where
     arbitrary = do
         keyHashes <- vectorOf 10 arbitrary
         genScript keyHashes
-    shrink = genericShrink
 
 instance Arbitrary KeyHash where
     arbitrary = KeyHash . BS.pack <$> vectorOf 28 arbitrary
