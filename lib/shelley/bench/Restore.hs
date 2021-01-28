@@ -596,7 +596,7 @@ bench_restoration proxy tr wlTr socket np vData benchname wallets traceToDisk ta
         withBenchDBLayer @s @k ti wlTr $ \db -> do
             withWalletLayerTracer $ \progressTrace -> do
                 let w = WalletLayer
-                        ((trMessageText wlTr) <> progressTrace)
+                        (trMessageText wlTr <> progressTrace)
                         (emptyGenesis gp, np, mkSyncTolerance 3600)
                         nw
                         tl
