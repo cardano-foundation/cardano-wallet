@@ -1396,19 +1396,54 @@ components:
       <<: *slotReference
       description: The time slot corresponding the network tip.
 
+    ApiEra: &ApiEra
+      type: string
+      enum:
+        - byron
+        - shelley
+        - allegra
+        - mary
+
     ApiNetworkInformation: &ApiNetworkInformation
       type: object
       required:
         - sync_progress
         - node_tip
+        - node_era
       properties:
         sync_progress: *networkInformationSyncProgress
         node_tip: *networkInformationNodeTip
         network_tip: *ApiNetworkTip
         next_epoch: *epochInfo
+        node_era: *ApiEra
 
     ApiNetworkClock: &ApiNetworkClock
       <<: *networkInformationNtpStatus
+
+    nullableEpochInfo: &nullableEpochInfo
+      <<: *epochInfo
+      nullable: True
+
+    ApiEraInfo: &ApiEraInfo
+      type: object
+      properties:
+        byron: *nullableEpochInfo
+        shelley: *nullableEpochInfo
+        allegra: *nullableEpochInfo
+        mary: *nullableEpochInfo
+      description: |
+
+        If and when each era started or will start.
+
+        The object is keyed by era names. The values either describe the epoch boundary
+        when the era starts (can be in the future or in the past), or are null if not yet
+        confirmed on-chain.
+
+        If you need to know the current era, see the `node_era` field of
+        `GET /network/information`.
+
+        > Due to complications with our current tooling, we cannot mark the era names
+        > as required, but the keys are in fact always present.
 
     ApiNetworkParameters: &ApiNetworkParameters
       type: object
@@ -1422,6 +1457,7 @@ components:
         - decentralization_level
         - desired_pool_number
         - minimum_utxo_value
+        - eras
       properties:
         genesis_block_hash: *blockId
         blockchain_start_time: *date
@@ -1432,7 +1468,7 @@ components:
         decentralization_level: *percentage
         desired_pool_number: *stakePoolsNumber
         minimum_utxo_value: *amount
-        hardfork_at: *epochInfo
+        eras: *ApiEraInfo
 
     ApiSelectCoinsPayments: &ApiSelectCoinsPayments
       type: object
