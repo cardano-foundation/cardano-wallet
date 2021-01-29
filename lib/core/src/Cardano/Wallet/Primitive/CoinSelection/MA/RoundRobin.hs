@@ -43,6 +43,8 @@ module Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     -- * Running a selection step
     , runSelectionStep
     , SelectionLens (..)
+    , assetSelectionLens
+    , coinSelectionLens
 
     -- * Making change
     , makeChange
@@ -596,32 +598,44 @@ runSelection limit mExtraCoinSource available minimumBalance =
     selectors =
         reverse (coinSelector : fmap assetSelector minimumAssetQuantities)
       where
-        assetSelector = runSelectionStep . assetSelectionLens
-        coinSelector = runSelectionStep coinSelectionLens
+        assetSelector = runSelectionStep .
+            assetSelectionLens limit
+        coinSelector = runSelectionStep $
+            coinSelectionLens limit mExtraCoinSource minimumCoinQuantity
 
     (minimumCoinQuantity, minimumAssetQuantities) =
         TokenBundle.toFlatList minimumBalance
 
-    assetSelectionLens
-        :: (AssetId, TokenQuantity) -> SelectionLens m SelectionState
-    assetSelectionLens (asset, minimumAssetQuantity) = SelectionLens
-        { currentQuantity = assetQuantity asset . selected
-        , minimumQuantity = unTokenQuantity minimumAssetQuantity
-        , selectQuantity = selectMatchingQuantity limit
-            [ WithAssetOnly asset
-            , WithAsset asset
-            ]
-        }
+assetSelectionLens
+    :: MonadRandom m
+    => SelectionLimit
+    -> (AssetId, TokenQuantity)
+    -> SelectionLens m SelectionState
+assetSelectionLens limit (asset, minimumAssetQuantity) = SelectionLens
+    { currentQuantity = assetQuantity asset . selected
+    , minimumQuantity = unTokenQuantity minimumAssetQuantity
+    , selectQuantity = selectMatchingQuantity limit
+        [ WithAssetOnly asset
+        , WithAsset asset
+        ]
+    }
 
-    coinSelectionLens :: SelectionLens m SelectionState
-    coinSelectionLens = SelectionLens
-        { currentQuantity = \s -> coinQuantity (selected s) mExtraCoinSource
-        , minimumQuantity = fromIntegral $ unCoin minimumCoinQuantity
-        , selectQuantity  = selectMatchingQuantity limit
-            [ WithAdaOnly
-            , Any
-            ]
-        }
+coinSelectionLens
+    :: MonadRandom m
+    => SelectionLimit
+    -> Maybe Coin
+    -- An extra source of ada.
+    -> Coin
+    -- ^ Minimum coin quantity.
+    -> SelectionLens m SelectionState
+coinSelectionLens limit mExtraCoinSource minimumCoinQuantity = SelectionLens
+    { currentQuantity = \s -> coinQuantity (selected s) mExtraCoinSource
+    , minimumQuantity = fromIntegral $ unCoin minimumCoinQuantity
+    , selectQuantity  = selectMatchingQuantity limit
+        [ WithAdaOnly
+        , Any
+        ]
+    }
 
 -- | Selects a UTxO entry that matches one of the specified filters.
 --
