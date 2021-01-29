@@ -4025,7 +4025,10 @@ paths:
       tags: ["Migrations"]
       summary: Migrate
       description: |
-        <p align="right">status: <strong>in development</strong></p>
+        <p align="right">status: <strong>disabled</strong></p>
+        <strong>⚠️IMPORTANT⚠️</strong> This endpoint has been temporarily disabled with the introduction of multi-assets UTxO. It will be enabled again soon.
+
+        <hr/>
 
         Submit one or more transactions which transfers all funds from a Shelley
         wallet to a set of addresses.
@@ -4051,7 +4054,10 @@ paths:
       tags: ["Migrations"]
       summary: Calculate Cost
       description: |
-        <p align="right">status: <strong>in development</strong></p>
+        <p align="right">status: <strong>disabled</strong></p>
+        <strong>⚠️IMPORTANT⚠️</strong> This endpoint has been temporarily disabled with the introduction of multi-assets UTxO. It will be enabled again soon.
+
+        <hr/>
 
         Calculate the exact cost of sending all funds from particular Shelley wallet
         to a set of addresses.
@@ -4356,7 +4362,10 @@ paths:
       tags: ["Byron Migrations"]
       summary: Migrate
       description: |
-        <p align="right">status: <strong>stable</strong></p>
+        <p align="right">status: <strong>disabled</strong></p>
+        <strong>⚠️IMPORTANT⚠️</strong> This endpoint has been temporarily disabled with the introduction of multi-assets UTxO. It will be enabled again soon.
+
+        <hr/>
 
         Submit one or more transactions which transfers all funds from a Byron
         wallet to a set of addresses.
@@ -4382,7 +4391,10 @@ paths:
       tags: ["Byron Migrations"]
       summary: Calculate Cost
       description: |
-        <p align="right">status: <strong>stable</strong></p>
+        <p align="right">status: <strong>disabled</strong></p>
+        <strong>⚠️IMPORTANT⚠️</strong> This endpoint has been temporarily disabled with the introduction of multi-assets UTxO. It will be enabled again soon.
+
+        <hr/>
 
         Calculate the exact cost of sending all funds from particular Byron wallet to
         a set of addresses.
