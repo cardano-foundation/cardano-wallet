@@ -53,6 +53,7 @@
 - ignore: {name: "Use ?~"} # It's actually much clearer to do (.~ Just ...) than having to load yet-another-lens-operator
 - ignore: {name: "Redundant multi-way if"} # Using this style might be appropriate given the circumstances.
 - ignore: {name: "Use const"} # Sometimes using a lambda expression is simpler and clearer.
+- ignore: {name: "Redundant id"} # Sometimes this is useful for vertical alignment of elements.
 
 # Add custom hints for this project
 #
