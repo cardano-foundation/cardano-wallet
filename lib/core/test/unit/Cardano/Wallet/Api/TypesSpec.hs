@@ -758,6 +758,7 @@ spec = parallel $ do
                 x' = ApiByronWallet
                     { id = id (x :: ApiByronWallet)
                     , balance = balance (x :: ApiByronWallet)
+                    , assets = assets (x :: ApiByronWallet)
                     , name = name (x :: ApiByronWallet)
                     , passphrase = passphrase (x :: ApiByronWallet)
                     , state = state (x :: ApiByronWallet)

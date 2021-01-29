@@ -850,6 +850,10 @@ mkLegacyWallet ctx wid cp meta pending progress = do
             { available = coinToQuantity $ TokenBundle.getCoin available
             , total = coinToQuantity $ TokenBundle.getCoin total
             }
+        , assets = ApiWalletAssetsBalance
+            { available = ApiT (available ^. #tokens)
+            , total = ApiT (total ^. #tokens)
+            }
         , id = ApiT wid
         , name = ApiT $ meta ^. #name
         , passphrase = pwdInfo

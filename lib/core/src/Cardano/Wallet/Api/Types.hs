@@ -1162,6 +1162,7 @@ instance EncodeAddress n => ToHttpApiData (ApiT Address, Proxy n) where
 data ApiByronWallet = ApiByronWallet
     { id :: !(ApiT WalletId)
     , balance :: !(ApiByronWalletBalance)
+    , assets :: !ApiWalletAssetsBalance
     , discovery :: !ApiWalletDiscovery
     , name :: !(ApiT WalletName)
     , passphrase :: !(Maybe ApiWalletPassphraseInfo)
