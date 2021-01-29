@@ -396,13 +396,22 @@ benchmark latency
     , hspec
     , iohk-monitoring
     , text
+    , time
     , unliftio
+    , memory
+    , fmt
+    , cardano-addresses
+    , bytestring
+    , base58-bytestring
+    , unliftio-core
+    , containers
+    , cborg
+    , HUnit
   type:
      exitcode-stdio-1.0
   hs-source-dirs:
       bench
-      test/integration
   main-is:
       Latency.hs
-  other-modules:
-      Cardano.Wallet.Shelley.Faucet
+--  other-modules:
+--      Cardano.Wallet.Shelley.Faucet
