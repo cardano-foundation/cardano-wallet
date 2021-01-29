@@ -151,6 +151,7 @@ executable local-cluster
     , cardano-wallet-core
     , cardano-wallet-launcher
     , cardano-wallet
+    , integration-framework
     , contra-tracer
     , iohk-monitoring
     , directory
@@ -230,9 +231,7 @@ test-suite integration
     ghc-options: -O2 -Werror
   build-depends:
       base
-    , HUnit
     , aeson
-    , aeson-qq
     , base
     , base58-bytestring
     , bech32
@@ -245,21 +244,17 @@ test-suite integration
     , cardano-wallet-core
     , cardano-wallet-launcher
     , cardano-wallet-test-utils
-    , cborg
     , command
     , containers
     , contra-tracer
-    , criterion-measurement
-    , cryptonite
-    , deepseq
     , directory
     , directory
     , either
     , extra
     , filepath
     , filepath
-    , fmt
     , generic-lens
+    , integration-framework
     , hspec
     , hspec
     , hspec-core
@@ -273,17 +268,18 @@ test-suite integration
     , lens-aeson
     , lobemo-backend-ekg
     , memory
-    , optparse-applicative
-    , process
     , resourcet
     , retry
-    , say
+    , text
+    , text
+    , text-class
+    , command
+    , http-api-data
+    , text-class
+    , resourcet
+    , http-api-data
     , scrypt
     , template-haskell
-    , text
-    , text
-    , text-class
-    , text-class
     , time
     , unliftio
     , unliftio
@@ -297,12 +293,6 @@ test-suite integration
   main-is:
       Main.hs
   other-modules:
-      Cardano.Wallet.Shelley.Faucet
-      Test.Integration.Faucet
-      Test.Integration.Framework.Context
-      Test.Integration.Framework.DSL
-      Test.Integration.Framework.Request
-      Test.Integration.Framework.TestData
       Test.Integration.Scenario.API.Byron.Wallets
       Test.Integration.Scenario.API.Byron.HWWallets
       Test.Integration.Scenario.API.Byron.Addresses
@@ -329,6 +319,140 @@ test-suite integration
       Test.Integration.Scenario.CLI.Miscellaneous
       Test.Integration.Scenario.CLI.Network
       Test.Integration.Scenario.CLI.Port
+
+library integration-framework
+  default-language:
+      Haskell2010
+  default-extensions:
+      NoImplicitPrelude
+      OverloadedStrings
+  ghc-options:
+      -Wall
+      -Wcompat
+      -fwarn-redundant-constraints
+  if (flag(release))
+    ghc-options: -O2 -Werror
+  build-depends:
+      base
+    , aeson
+    , base58-bytestring
+    , bech32
+    , bech32-th
+    , binary
+    , bytestring
+    , cardano-addresses
+    , cardano-api
+    , cardano-binary
+    , cardano-crypto
+    , cardano-crypto-class
+    , cardano-crypto-wrapper
+    , cardano-wallet-launcher
+    , cardano-ledger
+    , cardano-ledger-shelley-ma
+    , cardano-slotting
+    , cardano-wallet-cli
+    , cardano-wallet-core
+    , cardano-wallet-launcher
+    , cardano-wallet-test-utils
+    , cborg
+    , containers
+    , contra-tracer
+    , directory
+    , extra
+    , filepath
+    , fmt
+    , generic-lens
+    , io-sim-classes
+    , iohk-monitoring
+    , memory
+    , network
+    , network-mux
+    , network-uri
+    , optparse-applicative
+    , ouroboros-consensus
+    , ouroboros-consensus-byron
+    , ouroboros-consensus-cardano
+    , ouroboros-consensus-shelley
+    , ouroboros-network
+    , ouroboros-network-framework
+    , random
+    , retry
+    , servant-server
+    , shelley-spec-ledger
+    , strict-non-empty-containers
+    , temporary
+    , text
+    , text-class
+    , time
+    , transformers
+    , typed-process
+    , unliftio
+    , unliftio-core
+    , unordered-containers
+    , vector
+    , warp
+    , yaml
+    , Win32-network
+    , http-client
+    , http-client
+    , http-types
+    , scrypt
+    , http-api-data
+    , hspec-expectations-lifted
+    , HUnit
+    , aeson
+    , aeson-qq
+    , base
+    , base58-bytestring
+    , bech32
+    , bytestring
+    , cardano-addresses
+    , cardano-crypto
+    , cardano-transactions
+    , cardano-wallet-cli
+    , cardano-wallet-core
+    , cardano-wallet-launcher
+    , cardano-wallet-test-utils
+    , cborg
+    , command
+    , containers
+    , criterion-measurement
+    , cryptonite
+    , deepseq
+    , directory
+    , extra
+    , filepath
+    , fmt
+    , generic-lens
+    , hspec
+    , hspec-expectations-lifted
+    , http-api-data
+    , http-client
+    , http-types
+    , iohk-monitoring
+    , lens-aeson
+    , memory
+    , optparse-applicative
+    , process
+    , resourcet
+    , retry
+    , say
+    , scrypt
+    , template-haskell
+    , text
+    , text-class
+    , time
+    , unliftio
+    , unliftio-core
+  hs-source-dirs:
+      test/framework
+  exposed-modules:
+      Test.Integration.Faucet
+      Test.Integration.Framework.Context
+      Test.Integration.Framework.DSL
+      Test.Integration.Framework.Request
+      Test.Integration.Framework.TestData
+      Cardano.Wallet.Shelley.Faucet
 
 benchmark restore
   default-language:
@@ -387,6 +511,7 @@ benchmark latency
     , cardano-wallet-cli
     , cardano-wallet-core
     , cardano-wallet
+    , integration-framework
     , cardano-wallet-launcher
     , directory
     , filepath
@@ -400,18 +525,9 @@ benchmark latency
     , unliftio
     , memory
     , fmt
-    , cardano-addresses
-    , bytestring
-    , base58-bytestring
-    , unliftio-core
-    , containers
-    , cborg
-    , HUnit
   type:
      exitcode-stdio-1.0
   hs-source-dirs:
       bench
   main-is:
       Latency.hs
---  other-modules:
---      Cardano.Wallet.Shelley.Faucet

@@ -7,7 +7,6 @@ resolver: https://raw.githubusercontent.com/input-output-hk/cardano-haskell/1c25
 
 packages:
 - lib/core
-- lib/core-integration
 - lib/cli
 - lib/launcher
 - lib/numeric
