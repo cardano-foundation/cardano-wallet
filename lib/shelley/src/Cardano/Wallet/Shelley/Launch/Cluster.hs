@@ -57,9 +57,9 @@ module Cardano.Wallet.Shelley.Launch.Cluster
       -- * Faucets
     , sendFaucetFundsTo
     , sendFaucetAssetsTo
-    , sendAssetsTo
     , moveInstantaneousRewardsTo
     , oneMillionAda
+    , genMonetaryPolicyScript
 
     -- * Text fixture global vars
     , operators
@@ -206,7 +206,7 @@ import UnliftIO.Chan
 import UnliftIO.Concurrent
     ( threadDelay )
 import UnliftIO.Exception
-    ( SomeException, finally, handle, throwIO )
+    ( SomeException, finally, handle, throwIO, throwString )
 import UnliftIO.MVar
     ( MVar, modifyMVar, newMVar, putMVar, swapMVar, takeMVar )
 
@@ -1156,12 +1156,12 @@ preparePoolRegistration tr era dir stakePub certs pledgeAmt = do
 
     pure (file, faucetPrv)
 
--- | For creating test fixtures. Returns MPS signing key, the script, and the
--- policyId.
+-- | For creating test fixtures. Returns PolicyId, signing key, and verification
+-- key hash, all hex-encoded. Files are put in the given directory.
 genMonetaryPolicyScript
     :: Tracer IO ClusterLog
-    -> FilePath
-    -> IO (FilePath, FilePath, String)
+    -> FilePath -- ^ Directory
+    -> IO (String, (String, String))
 genMonetaryPolicyScript tr dir = do
     let policyPub = dir </> "policy.pub"
     let policyPrv = dir </> "policy.prv"
@@ -1171,74 +1171,51 @@ genMonetaryPolicyScript tr dir = do
         , "--verification-key-file", policyPub
         , "--signing-key-file", policyPrv
         ]
-    keyHash <- cliLine tr
+    skey <- T.unpack <$> readKeyFromFile policyPrv
+    vkeyHash <- cliLine tr
         [ "address", "key-hash"
         , "--payment-verification-key-file", policyPub
         ]
-
-    let script = dir </> "policy.script"
-    writeMonetaryPolicyScriptFile script keyHash
-
+    script <- writeMonetaryPolicyScriptFile dir vkeyHash
     policyId <- cliLine tr
         [ "transaction", "policyid"
         , "--script-file", script
         ]
 
-    pure (policyPrv, script, policyId)
+    pure (policyId, (skey, vkeyHash))
 
-writeMonetaryPolicyScriptFile :: FilePath -> String -> IO ()
-writeMonetaryPolicyScriptFile script =
-    BS.writeFile script . encodeMonetaryPolicyScript
+writeMonetaryPolicyScriptFile
+    :: FilePath -- ^ Destination directory for script file
+    -> String -- ^ The script verification key hash
+    -> IO FilePath -- ^ Returns the filename written
+writeMonetaryPolicyScriptFile dir keyHash = do
+    let scriptFile = dir </> keyHash <.> "script"
+    Aeson.encodeFile scriptFile $ object
+        [ "type" .= Aeson.String "sig"
+        , "keyHash" .= keyHash
+        ]
+    pure scriptFile
 
-encodeMonetaryPolicyScript :: String -> ByteString
-encodeMonetaryPolicyScript keyHash = BL.toStrict $ Aeson.encode $ object
-    [ "type" .= Aeson.String "sig"
-    , "keyHash" .= keyHash
-    ]
+writePolicySigningKey
+    :: FilePath -- ^ destination directory for key file
+    -> String -- ^ Name of file, keyhash perhaps.
+    -> String -- ^ The cbor-encoded key material, encoded in hex
+    -> IO FilePath -- ^ Returns the filename written
+writePolicySigningKey dir keyHash cborHex = do
+    let keyFile = dir </> keyHash <.> "skey"
+    Aeson.encodeFile keyFile $ object
+        [ "type" .= Aeson.String "PaymentSigningKeyShelley_ed25519"
+        , "description" .= Aeson.String "Payment Signing Key"
+        , "cborHex" .= cborHex
+        ]
+    pure keyFile
 
-writePolicySigningKey :: FilePath -> String -> IO ()
-writePolicySigningKey dest cborHex = Aeson.encodeFile dest $ object
-    [ "type" .= Aeson.String "PaymentSigningKeyShelley_ed25519"
-    , "description" .= Aeson.String "Payment Signing Key"
-    , "cborHex" .= cborHex
-    ]
-
--- | Generate a signed transaction for minting coins for a ma policy
--- script. Also returns the policy signing key.
-prepareMonetaryPolicyScript
-    :: Tracer IO ClusterLog
-    -> ClusterEra
-    -> FilePath
-    -> [String]
-    -> IO (FilePath, FilePath)
-prepareMonetaryPolicyScript tr era parentDir addrs = do
-    let dir = parentDir </> "ma"
-    createDirectoryIfMissing False dir
-    (policyPrv, script, policyId) <- genMonetaryPolicyScript tr dir
-
-    (faucetInput, faucetPrv) <- takeFaucet
-
-    let numAddrs = fromIntegral (length addrs)
-    let numTokens = 5_000_000
-    let amt = faucetAmt `div` (numAddrs + 1)
-    let assetId = policyId <> ".adrestiacoin"
-    let txOut addr = unwords
-            [ addr <> " " <> show amt <> "+" <> show numTokens
-            , assetId ]
-
-    let rawTx = dir </> "tx.raw"
-    cli tr $
-        [ "transaction", "build-raw"
-        , "--fee", show (faucetAmt - amt * numAddrs)
-        , "--tx-in", faucetInput
-        , "--mint", show (numTokens * numAddrs) <> " " <> assetId
-        , "--out-file", rawTx
-        , cardanoCliEra era
-        ] ++ mconcat [["--tx-out", txOut addr] | addr <- addrs]
-
-    tx <- signTx tr dir rawTx [script] [faucetPrv, policyPrv]
-
-    pure (tx, policyPrv)
+-- | Dig in to a @cardano-cli@ TextView key file to get the hex-encoded key.
+readKeyFromFile :: FilePath -> IO Text
+readKeyFromFile f = do
+    textView <- either throwString pure =<< Aeson.eitherDecodeFileStrict' f
+    either throwString pure $ Aeson.parseEither
+        (Aeson.withObject "TextView" (.: "cborHex")) textView
 
 sendFaucetFundsTo
     :: Tracer IO ClusterLog
@@ -1246,25 +1223,36 @@ sendFaucetFundsTo
     -> FilePath
     -> [(String, Coin)]
     -> IO ()
-sendFaucetFundsTo tr conn dir targets = batch 80 targets
-    (sendFaucet tr conn dir . map (fmap (\c -> (TokenBundle.fromCoin c, []))))
+sendFaucetFundsTo tr conn dir targets = batch 80 targets $
+    sendFaucet tr conn dir "ada" . map coinBundle
+  where
+    coinBundle = fmap (\c -> (TokenBundle.fromCoin c, []))
 
+-- | Create transactions to fund the given faucet addresses with Ada and assets.
+--
+-- Beside the 'TokenBundle' of Ada and assets, there is a list of
+-- @(signing key, verification key hash)@ pairs needed to sign the
+-- minting transaction.
 sendFaucetAssetsTo
     :: Tracer IO ClusterLog
     -> CardanoNodeConn
     -> FilePath
-    -> [(String, (TokenBundle, [(String, String)]))]
+    -> [(String, (TokenBundle, [(String, String)]))] -- ^ (address, assets)
     -> IO ()
-sendFaucetAssetsTo tr conn dir targets = batch 20 targets
-    (sendFaucet tr conn dir)
+sendFaucetAssetsTo tr conn dir targets = batch 20 targets $
+    sendFaucet tr conn dir "assets"
 
+-- | Build, sign, and send a batch of faucet funding transactions using
+-- @cardano-cli@. This function is used by 'sendFaucetFundsTo' and
+-- 'sendFaucetAssetsTo'.
 sendFaucet
     :: Tracer IO ClusterLog
     -> CardanoNodeConn
     -> FilePath
+    -> String -- ^ label for logging
     -> [(String, (TokenBundle, [(String, String)]))]
     -> IO ()
-sendFaucet tr conn dir targets = do
+sendFaucet tr conn dir what targets = do
     (faucetInput, faucetPrv) <- takeFaucet
     let file = dir </> "faucet-tx.raw"
 
@@ -1298,17 +1286,13 @@ sendFaucet tr conn dir targets = do
         concatMap (uncurry mkOutput . fmap fst) targets ++
         mkMint targetAssets
 
-    policyKeys <- forM (concatMap (snd . snd) targets) $ \(skey, keyHash) -> do
-        let keyFile = dir </> keyHash <.> "skey"
-        writePolicySigningKey keyFile skey
-        pure keyFile
-    scripts <- forM (concatMap (map snd . snd . snd) targets) $ \keyHash -> do
-        let scriptFile = dir </> keyHash <.> "script"
-        writeMonetaryPolicyScriptFile scriptFile keyHash
-        pure scriptFile
+    policyKeys <- forM (nub $ concatMap (snd . snd) targets) $
+        \(skey, keyHash) -> writePolicySigningKey dir keyHash skey
+    scripts <- forM (nub $ concatMap (map snd . snd . snd) targets) $
+        writeMonetaryPolicyScriptFile dir
 
     tx <- signTx tr dir file scripts (faucetPrv:policyKeys)
-    submitTx tr conn "faucet tx" tx
+    submitTx tr conn (what ++ " faucet tx") tx
 
 batch :: Int -> [a] -> ([a] -> IO b) -> IO ()
 batch s xs = forM_ (group s xs)
@@ -1320,17 +1304,6 @@ batch s xs = forM_ (group s xs)
     group n l
       | n > 0 = (take n l) : (group n (drop n l))
       | otherwise = error "Negative or zero n"
-
-sendAssetsTo
-    :: Tracer IO ClusterLog
-    -> CardanoNodeConn
-    -> FilePath
-    -> [String]
-    -> IO ()
-sendAssetsTo tr conn dir allTargets = batch 20 allTargets $ \addrs -> do
-    era <- getClusterEra dir
-    (tx, _) <- prepareMonetaryPolicyScript tr era dir addrs
-    submitTx tr conn "assets tx" tx
 
 moveInstantaneousRewardsTo
     :: Tracer IO ClusterLog

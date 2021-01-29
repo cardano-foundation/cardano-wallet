@@ -75,8 +75,8 @@ import System.FilePath
     ( (</>) )
 import Test.Integration.Faucet
     ( genRewardAccounts
+    , maryIntegrationTestAssets
     , mirMnemonics
-    , shelleyIntegrationTestAssets
     , shelleyIntegrationTestFunds
     )
 
@@ -223,7 +223,7 @@ main = withLocalClusterSetup $ \dir clusterLogs walletLogs ->
         let trCluster' = contramap MsgCluster trCluster
         let encodeAddr = T.unpack . encodeAddress @'Mainnet
         let addresses = map (first encodeAddr) shelleyIntegrationTestFunds
-        let assetAddresses = map (first encodeAddr) shelleyIntegrationTestAssets
+        let assetAddresses = map (first encodeAddr) maryIntegrationTestAssets
         let accts = concatMap genRewardAccounts mirMnemonics
         let rewards = (,Coin $ fromIntegral oneMillionAda) <$> accts
         sendFaucetFundsTo trCluster' socketPath dir addresses

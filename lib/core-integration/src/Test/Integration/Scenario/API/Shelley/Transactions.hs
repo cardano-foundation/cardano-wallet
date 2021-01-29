@@ -22,6 +22,7 @@ import Cardano.Mnemonic
 import Cardano.Wallet.Api.Types
     ( AddressAmount (..)
     , ApiAddress
+    , ApiAsset (..)
     , ApiByronWallet
     , ApiFee (..)
     , ApiT (..)
@@ -42,6 +43,8 @@ import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
 import Cardano.Wallet.Primitive.Types
     ( SortOrder (..), WalletId )
+import Cardano.Wallet.Primitive.Types.Address
+    ( Address )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.Tx
@@ -68,6 +71,8 @@ import Data.Generics.Product.Typed
     ( HasType )
 import Data.Maybe
     ( fromJust, fromMaybe, isJust, isNothing )
+import Data.Proxy
+    ( Proxy )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text
@@ -118,6 +123,7 @@ import Test.Integration.Framework.DSL
     , fixtureWalletWith
     , getFromResponse
     , getTTLSlots
+    , getWallet
     , json
     , listAddresses
     , listAllTransactions
@@ -163,13 +169,13 @@ import Web.HttpApiData
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
+import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as TokenQuantity
 import qualified Codec.Binary.Bech32 as Bech32
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.List as L
 import qualified Data.Map as Map
-import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.UTxO.Transaction as CardanoTransactions
@@ -664,12 +670,11 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         w <- fixtureMultiAssetWallet ctx
         r <- request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty
         verify r
-            [ expectField (#assets . #available) (`shouldNotBe` mempty)
-            , expectField (#assets . #total) (`shouldNotBe` mempty)
+            [ expectField (#assets . #available . #getApiT) (`shouldNotBe` TokenMap.empty)
+            , expectField (#assets . #total . #getApiT) (`shouldNotBe` TokenMap.empty)
             ]
 
-    it "TRANS_CREATE_10 - Multi-asset transaction" $ \ctx -> runResourceT $ do
-        liftIO $ pendingWith "fee too small"
+    it "TRANS_CREATE_10 - Multi-asset transaction with Ada" $ \ctx -> runResourceT $ do
 
         wSrc <- fixtureMultiAssetWallet ctx
         wDest <- emptyWallet ctx
@@ -679,10 +684,12 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         -- pick out an asset to send
         let assetsSrc = wal ^. #assets . #total . #getApiT
         assetsSrc `shouldNotBe` mempty
-        let TokenBundle.AssetId pid an = Set.elemAt 0 (TokenMap.getAssets assetsSrc)
-        let val = [(toText pid, toText an, minUTxOValue)]
+        let val = minUTxOValue <$ pickAnAsset assetsSrc
 
-        payload <- liftIO $ mkTxPayloadMA ctx wDest minUTxOValue val fixturePassphrase
+        -- Allow for a higher minimum utxo coin due to assets
+        let minCoin = minUTxOValue * 2
+
+        payload <- mkTxPayloadMA ctx wDest minCoin [val] fixturePassphrase
 
         rtx <- request @(ApiTransaction n) ctx
             (Link.createTransaction @'Shelley wSrc) Default payload
@@ -692,18 +699,131 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             rb <- request @ApiWallet ctx
                 (Link.getWallet @'Shelley wDest) Default Empty
             verify rb
-                [ expectField (#assets . #available) (`shouldNotBe` mempty)
-                , expectField (#assets . #total) (`shouldNotBe` mempty)
+                [ expectField (#assets . #available . #getApiT)
+                    (`shouldNotBe` TokenMap.empty)
+                , expectField (#assets . #total . #getApiT)
+                    (`shouldNotBe` TokenMap.empty)
+                , expectField (#balance . #total . #getQuantity)
+                    (`shouldBe` minCoin)
                 ]
         -- todo: asset balance values more exactly
         -- todo: assert payer wallet balance
 
-        -- todo: other multi-asset tests to do
-        --  - check tx history
-        --  - asset list
-        --  - asset get - both endpoints
-        --  - minting
+    it "TRANS_CREATE_10 - Multi-asset transaction with small Ada amount" $ \ctx -> runResourceT $ do
+        wSrc <- fixtureMultiAssetWallet ctx
+        wDest <- emptyWallet ctx
+        ra <- request @ApiWallet ctx (Link.getWallet @'Shelley wSrc) Default Empty
+        let (_, Right wal) = ra
 
+        -- pick out an asset to send
+        let assetsSrc = wal ^. #assets . #total . #getApiT
+        assetsSrc `shouldNotBe` mempty
+        let val = minUTxOValue <$ pickAnAsset assetsSrc
+
+        -- This is a non-zero ada amount, but less than the actual minimum utxo
+        -- due to assets in the transaction.
+        let coin = minUTxOValue
+
+        payload <- mkTxPayloadMA ctx wDest coin [val] fixturePassphrase
+
+        rtx <- request @(ApiTransaction n) ctx
+            (Link.createTransaction @'Shelley wSrc) Default payload
+        -- It should fail with InsufficientMinCoinValueError
+        expectResponseCode HTTP.status403 rtx
+
+    it "TRANS_CREATE_10 - Multi-asset transaction without Ada" $ \ctx -> runResourceT $ do
+        wSrc <- fixtureMultiAssetWallet ctx
+        wDest <- emptyWallet ctx
+        ra <- request @ApiWallet ctx (Link.getWallet @'Shelley wSrc) Default Empty
+        let (_, Right wal) = ra
+
+        -- pick out an asset to send
+        let assetsSrc = wal ^. #assets . #total . #getApiT
+        assetsSrc `shouldNotBe` mempty
+        let val = minUTxOValue <$ pickAnAsset assetsSrc
+
+        payload <- mkTxPayloadMA ctx wDest 0 [val] fixturePassphrase
+
+        rtx <- request @(ApiTransaction n) ctx
+            (Link.createTransaction @'Shelley wSrc) Default payload
+        expectResponseCode HTTP.status202 rtx
+
+        eventually "Payee wallet balance is as expected" $ do
+            rb <- request @ApiWallet ctx
+                (Link.getWallet @'Shelley wDest) Default Empty
+            verify rb
+                [ expectField (#assets . #available . #getApiT) (`shouldNotBe` TokenMap.empty)
+                , expectField (#assets . #total . #getApiT) (`shouldNotBe` TokenMap.empty)
+                ]
+
+    let hasAssetOutputs :: [AddressAmount (ApiT Address, Proxy n)] -> Bool
+        hasAssetOutputs = any ((/= mempty) . view #assets)
+
+    it "TRANS_CREATE_10 - Multi-asset tx history" $ \ctx -> runResourceT $ do
+        wSrc <- fixtureMultiAssetWallet ctx
+        wDest <- emptyWallet ctx
+        wal <- getWallet ctx wSrc
+
+        -- pick out an asset to send
+        let assetsSrc = wal ^. #assets . #total . #getApiT
+        assetsSrc `shouldNotBe` mempty
+        let val = minUTxOValue <$ pickAnAsset assetsSrc
+
+        payload <- mkTxPayloadMA ctx wDest 0 [val] fixturePassphrase
+
+        rtx <- request @(ApiTransaction n) ctx
+            (Link.createTransaction @'Shelley wSrc) Default payload
+
+        verify rtx
+            [ expectSuccess
+            , expectField (#status . #getApiT) (`shouldBe` Pending)
+            -- , expectField #assets (`shouldNotBe` mempty) -- TODO: ADP-683
+            , expectField #outputs (`shouldSatisfy` hasAssetOutputs)
+            ]
+
+        eventually "asset transfer is confirmed in transaction list" $ do
+            -- on src wallet
+            let linkSrcList = Link.listTransactions @'Shelley wSrc
+            rla <- request @([ApiTransaction n]) ctx linkSrcList Default Empty
+            verify rla
+                [ expectSuccess
+                , expectListField 0 (#status . #getApiT) (`shouldBe` InLedger)
+                , expectListField 0 (#direction . #getApiT) (`shouldBe` Outgoing)
+                -- TODO: ADP-683
+                --, expectListField 0 #assets (`shouldBe` "fewer than before")
+                , expectListField 0 #outputs (`shouldSatisfy` hasAssetOutputs)
+                ]
+            -- on dst wallet
+            let linkDestList = Link.listTransactions @'Shelley wDest
+            rlb <- request @([ApiTransaction n]) ctx linkDestList Default Empty
+            verify rlb
+                [ expectSuccess
+                , expectListField 0 (#status . #getApiT) (`shouldBe` InLedger)
+                , expectListField 0 (#direction . #getApiT) (`shouldBe` Incoming)
+                -- TODO: ADP-683
+                -- , expectListField 0 #assets (`shouldNotBe` mempty)
+                , expectListField 0 #outputs (`shouldSatisfy` hasAssetOutputs)
+                ]
+
+        eventually "Payee wallet balance is as expected" $ do
+            rb <- request @ApiWallet ctx
+                (Link.getWallet @'Shelley wDest) Default Empty
+            verify rb
+                [ expectField (#assets . #available . #getApiT) (`shouldNotBe` TokenMap.empty)
+                , expectField (#assets . #total . #getApiT) (`shouldNotBe` TokenMap.empty)
+                ]
+
+    it "TRANS_CREATE_10 - Asset list" $ \ctx -> runResourceT $ do
+        wal <- fixtureMultiAssetWallet ctx
+        r <- request @([ApiAsset]) ctx (Link.listAssets wal) Default Empty
+        verify r
+            [ expectSuccess
+            , (`shouldSatisfy` (not . null))
+            ]
+
+        -- todo: other multi-asset tests to do
+        --  - minting
+        --  - asset get - both endpoints
 
     let absSlotB = view (#absoluteSlotNumber . #getApiT)
     let absSlotS = view (#absoluteSlotNumber . #getApiT)
@@ -2846,6 +2966,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                         (#assets . #available) (`shouldBe` mempty)
                 ]
 
+    -- Construct a JSON payment request for the given quantity of lovelace.
     mkTxPayload
         :: MonadUnliftIO m
         => Context
@@ -2867,18 +2988,26 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 "passphrase": #{passphrase}
             }|]
 
+    pickAnAsset :: TokenMap.TokenMap -> ((Text, Text), Natural)
+    pickAnAsset tm = case TokenMap.toFlatList tm of
+        (TokenBundle.AssetId pid an, TokenQuantity.TokenQuantity q):_ ->
+            ((toText pid, toText an), q)
+        _ -> error "pickAnAsset: empty TokenMap"
+
+    -- Like mkTxPayload, except that assets are included in the payment.
+    -- Asset amounts are specified by ((PolicyId Hex, AssetName Hex), amount).
     mkTxPayloadMA
         :: MonadUnliftIO m
         => Context
         -> ApiWallet
         -> Natural
-        -> [(Text, Text, Natural)]
+        -> [((Text, Text), Natural)]
         -> Text
         -> m Payload
-    mkTxPayloadMA ctx wDest amt val passphrase = do
+    mkTxPayloadMA ctx wDest coin val passphrase = do
         addrs <- listAddresses @n ctx wDest
         let destination = (addrs !! 1) ^. #id
-        let assetJson (pid, name, q) = [json|{
+        let assetJson ((pid, name), q) = [json|{
                     "policy_id": #{pid},
                     "asset_name": #{name},
                     "quantity": #{q}
@@ -2887,7 +3016,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 "payments": [{
                     "address": #{destination},
                     "amount": {
-                        "quantity": #{amt},
+                        "quantity": #{coin},
                         "unit": "lovelace"
                     },
                     "assets": #{map assetJson val}
@@ -2899,7 +3028,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
     addTxTTL t (Json (Aeson.Object o)) = Json (Aeson.Object (o <> ttl))
       where
         ttl = "time_to_live" .= [json|{ "quantity": #{t}, "unit": "second"}|]
-    addTxTTL _ _ = error "can't do that"
+    addTxTTL _ _ = error "addTxTTL: can't do that"
 
     addTxMetadata :: Aeson.Value -> Payload -> Payload
     addTxMetadata md (Json (Aeson.Object o)) =

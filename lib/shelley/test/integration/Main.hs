@@ -117,8 +117,8 @@ import Test.Hspec.Extra
     ( aroundAll )
 import Test.Integration.Faucet
     ( genRewardAccounts
+    , maryIntegrationTestAssets
     , mirMnemonics
-    , shelleyIntegrationTestAssets
     , shelleyIntegrationTestFunds
     )
 import Test.Integration.Framework.Context
@@ -301,7 +301,7 @@ specWithServer testDir (tr, tracers) = aroundAll withContext
         moveInstantaneousRewardsTo tr' conn testDir rewards
         let encodeAddr = T.unpack . encodeAddress @'Mainnet
         let addresses = map (first encodeAddr) shelleyIntegrationTestFunds
-        let assetAddresses = map (first encodeAddr) shelleyIntegrationTestAssets
+        let assetAddresses = map (first encodeAddr) maryIntegrationTestAssets
         sendFaucetFundsTo tr' conn testDir addresses
         sendFaucetAssetsTo tr' conn testDir assetAddresses
 
