@@ -469,6 +469,7 @@ import qualified Cardano.Wallet.Network as NW
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Byron as Byron
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Icarus as Icarus
 import qualified Cardano.Wallet.Primitive.Types as W
+import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Cardano.Wallet.Primitive.Types.UTxO as W
@@ -1623,15 +1624,17 @@ delegationFee
     -> ApiT WalletId
     -> Handler ApiFee
 delegationFee ctx (ApiT wid) = do
-    withWorkerCtx ctx wid liftE liftE $ \wrk -> do
-        let calcFee = const (selectionDelta TokenBundle.getCoin)
-        let runSelection = W.selectAssetsNoOutputs @_ @s @k wrk wid txCtx calcFee
-        liftHandler $ mkApiFee
-            <$> (Just <$> W.calcMinimumDeposit @_ @s @k wrk wid)
-            <*> W.estimateFee runSelection
+    withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $ do
+        deposit <- W.calcMinimumDeposit @_ @s @k wrk wid
+        mkApiFee (Just deposit) <$> W.estimateFee (runSelection wrk deposit)
   where
     txCtx :: TransactionCtx
     txCtx = defaultTransactionCtx
+
+    runSelection wrk deposit =
+        W.selectAssetsNoOutputs @_ @s @k wrk wid txCtx calcFee
+      where
+        calcFee _ = Coin.distance deposit . selectionDelta TokenBundle.getCoin
 
 quitStakePool
     :: forall ctx s n k.

@@ -128,6 +128,7 @@ import Test.Integration.Framework.DSL
     , verifyMetadataSource
     , waitForNextEpoch
     , walletId
+    , (.<)
     , (.>)
     , (.>=)
     )
@@ -928,6 +929,15 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                 [ expectResponseCode HTTP.status403
                 , expectErrorMessage errMsg403Fee
                 ]
+
+    it "STAKE_POOLS_ESTIMATE_FEE_01 - can estimate fees" $ \ctx -> runResourceT $ do
+        w <- fixtureWallet ctx
+        delegationFee ctx w >>= flip verify
+            [ expectResponseCode HTTP.status200
+            , expectField (#deposit . #getQuantity) (`shouldBe` depositAmt ctx)
+            , expectField (#estimatedMin . #getQuantity) (.< costOfJoining ctx)
+            , expectField (#estimatedMax . #getQuantity) (.< costOfJoining ctx)
+            ]
 
     it "STAKE_POOLS_ESTIMATE_FEE_02 - \
         \empty wallet cannot estimate fee" $ \ctx -> runResourceT $ do
