@@ -1718,6 +1718,7 @@ components:
       required:
         - id
         - balance
+        - assets
         - discovery
         - name
         - state
@@ -1725,6 +1726,7 @@ components:
       properties:
         id: *walletId
         balance: *byronWalletBalance
+        assets: *walletAssetsBalance
         discovery: *walletDiscovery
         name: *walletName
         passphrase: *walletPassphraseInfo
