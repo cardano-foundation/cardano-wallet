@@ -93,7 +93,6 @@
         "Win32" = (((hackage.Win32)."2.6.2.0").revisions).default;
         "nothunks" = (((hackage.nothunks)."0.1.2").revisions).default;
         cardano-wallet-core = ./cardano-wallet-core.nix;
-        cardano-wallet-core-integration = ./cardano-wallet-core-integration.nix;
         cardano-wallet-cli = ./cardano-wallet-cli.nix;
         cardano-wallet-launcher = ./cardano-wallet-launcher.nix;
         cardano-numeric = ./cardano-numeric.nix;
