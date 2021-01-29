@@ -308,12 +308,10 @@ cardanoRestoreBench tr c socketFile = do
 
         , benchRestoreSeqWithOwnership (Proxy @0)
         , benchRestoreSeqWithOwnership (Proxy @1)
-        , benchRestoreSeqWithOwnership (Proxy @2)
         , benchRestoreSeqWithOwnership (Proxy @4)
 
         , benchRestoreRndWithOwnership (Proxy @0)
         , benchRestoreRndWithOwnership (Proxy @1)
-        , benchRestoreRndWithOwnership (Proxy @2)
         , benchRestoreRndWithOwnership (Proxy @4)
         ]
   where
