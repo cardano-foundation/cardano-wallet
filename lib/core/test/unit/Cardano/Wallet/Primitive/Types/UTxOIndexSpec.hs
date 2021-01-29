@@ -143,12 +143,16 @@ spec =
             property prop_selectRandom_one_withAdaOnly
         it "prop_selectRandom_one_withAsset" $
             property prop_selectRandom_one_withAsset
+        it "prop_selectRandom_one_withAssetOnly" $
+            property prop_selectRandom_one_withAssetOnly
         it "prop_selectRandom_all_any" $
             property prop_selectRandom_all_any
         it "prop_selectRandom_all_withAdaOnly" $
             property prop_selectRandom_all_withAdaOnly
         it "prop_selectRandom_all_withAsset" $
             property prop_selectRandom_all_withAsset
+        it "prop_selectRandom_all_withAssetOnly" $
+            property prop_selectRandom_all_withAssetOnly
 
     parallel $ describe "Set Selection" $ do
 
@@ -307,20 +311,37 @@ prop_insert_size i o u =
 -- Index selection properties
 --------------------------------------------------------------------------------
 
+-- | The set of possible 'SelectionFilter' categories.
+--
+data SelectionFilterCategory
+    = MatchAny
+    | MatchWithAdaOnly
+    | MatchWithAsset
+    | MatchWithAssetOnly
+    deriving (Eq, Show)
+
+-- | Categorizes a 'SelectionFilter', removing its arguments.
+--
+categorizeSelectionFilter :: SelectionFilter -> SelectionFilterCategory
+categorizeSelectionFilter = \case
+    Any             -> MatchAny
+    WithAdaOnly     -> MatchWithAdaOnly
+    WithAsset     _ -> MatchWithAsset
+    WithAssetOnly _ -> MatchWithAssetOnly
+
 prop_SelectionFilter_coverage :: SelectionFilter -> Property
 prop_SelectionFilter_coverage selectionFilter = checkCoverage $ property
-    $ cover 30 selectionFilterAny
-        "selectionFilter: Any"
-    $ cover 30 selectionFilterWithAsset
-        "selectionFilter: WithAsset"
+    $ cover 20 (category == MatchAny)
+        "Any"
+    $ cover 20 (category == MatchWithAdaOnly)
+        "WithAdaOnly"
+    $ cover 20 (category == MatchWithAsset)
+        "WithAsset"
+    $ cover 20 (category == MatchWithAssetOnly)
+        "WithAssetOnly"
     True
   where
-    selectionFilterAny = case selectionFilter of
-        Any -> True
-        _   -> False
-    selectionFilterWithAsset = case selectionFilter of
-        WithAsset _ -> True
-        _           -> False
+    category = categorizeSelectionFilter selectionFilter
 
 -- | Attempt to select a random entry from an empty index.
 --
@@ -351,6 +372,10 @@ prop_selectRandom_singleton selectionFilter i o = monadicIO $ do
         WithAsset a | txOutHasAsset o a ->
             Just ((i, o), UTxOIndex.empty)
         WithAsset _ ->
+            Nothing
+        WithAssetOnly a | txOutHasAssetOnly o a ->
+            Just ((i, o), UTxOIndex.empty)
+        WithAssetOnly _ ->
             Nothing
 
 -- | Attempt to select a random entry with any combination of assets.
@@ -417,6 +442,32 @@ prop_selectRandom_one_withAsset u a = checkCoverage $ monadicIO $ do
             assert $ txOutHasAsset o a
             assert $ u /= u'
 
+-- | Attempt to select a random element with a specific asset and no other
+--   assets.
+--
+-- This should only succeed if there is at least one element with a non-zero
+-- quantity of the asset and no other assets.
+--
+prop_selectRandom_one_withAssetOnly :: UTxOIndex -> AssetId -> Property
+prop_selectRandom_one_withAssetOnly u a = checkCoverage $ monadicIO $ do
+    result <- run $ UTxOIndex.selectRandom u (WithAssetOnly a)
+    monitor $ cover 80 (a `Set.member` UTxOIndex.assets u)
+        "index has the specified asset"
+    monitor $ cover 80 (Set.size (UTxOIndex.assets u) > 1)
+        "index has more than one asset"
+    monitor $ cover 20 (isJust result)
+        "selected an entry"
+    case result of
+        Nothing ->
+            assert True
+        Just ((i, o), u') -> do
+            assert $ UTxOIndex.delete i u == u'
+            assert $ UTxOIndex.insert i o u' == u
+            assert $ UTxOIndex.member i u
+            assert $ not $ UTxOIndex.member i u'
+            assert $ txOutHasAssetOnly o a
+            assert $ u /= u'
+
 -- | Attempt to select all entries from the index.
 --
 -- This should always succeed.
@@ -461,6 +512,22 @@ prop_selectRandom_all_withAsset u a = checkCoverage $ monadicIO $ do
     assert $ UTxOIndex.deleteMany (fst <$> selectedEntries) u == u'
     assert $ UTxOIndex.insertMany selectedEntries u' == u
     assert $ a `Set.notMember` UTxOIndex.assets u'
+
+-- | Attempt to select all entries with only the given asset from the index.
+--
+prop_selectRandom_all_withAssetOnly :: UTxOIndex -> AssetId -> Property
+prop_selectRandom_all_withAssetOnly u a = checkCoverage $ monadicIO $ do
+    (selectedEntries, u') <- run $ selectAll (WithAssetOnly a) u
+    monitor $ cover 80 (a `Set.member` UTxOIndex.assets u)
+        "index has the specified asset"
+    monitor $ cover 80 (Set.size (UTxOIndex.assets u) > 1)
+        "index has more than one asset"
+    monitor $ cover 20 (not (null selectedEntries))
+        "selected at least one entry"
+    assert $ all (\(_, o) -> not (txOutHasAssetOnly o a)) (UTxOIndex.toList u')
+    assert $ all (\(_, o) -> txOutHasAssetOnly o a) selectedEntries
+    assert $ UTxOIndex.deleteMany (fst <$> selectedEntries) u == u'
+    assert $ UTxOIndex.insertMany selectedEntries u' == u
 
 --------------------------------------------------------------------------------
 -- Set selection properties
@@ -560,6 +627,13 @@ selectAll sf = go []
 txOutHasAsset :: TxOut -> AssetId -> Bool
 txOutHasAsset = TokenBundle.hasQuantity . view #tokens
 
+-- | Returns 'True' if (and only if) the given transaction output has a non-zero
+--   quantity of the given asset and no other non-ada assets.
+--
+txOutHasAssetOnly :: TxOut -> AssetId -> Bool
+txOutHasAssetOnly o a = (== [a])
+    $ Set.toList $ TokenBundle.getAssets $ view #tokens o
+
 -- | Returns 'True' if (and only if) the given transaction output contains no
 --   assets other than ada.
 --
@@ -595,6 +669,7 @@ genSelectionFilterSmallRange = oneof
     [ pure Any
     , pure WithAdaOnly
     , WithAsset <$> genAssetIdSmallRange
+    , WithAssetOnly <$> genAssetIdSmallRange
     ]
 
 shrinkSelectionFilterSmallRange :: SelectionFilter -> [SelectionFilter]
@@ -604,4 +679,8 @@ shrinkSelectionFilterSmallRange = \case
     WithAsset a ->
         case WithAsset <$> shrinkAssetIdSmallRange a of
             [] -> [WithAdaOnly]
+            xs -> xs
+    WithAssetOnly a ->
+        case WithAssetOnly <$> shrinkAssetIdSmallRange a of
+            [] -> [WithAsset a]
             xs -> xs
