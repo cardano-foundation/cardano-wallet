@@ -112,7 +112,14 @@ import Data.Ord
 import Data.Set
     ( Set )
 import Fmt
-    ( Buildable (..), Builder, blockListF, blockListF', nameF, tupleF )
+    ( Buildable (..)
+    , Builder
+    , blockListF
+    , blockListF'
+    , nameF
+    , tupleF
+    , unlinesF
+    )
 import GHC.Generics
     ( Generic )
 import GHC.Stack
@@ -314,6 +321,12 @@ data InsufficientMinCoinValueError = InsufficientMinCoinValueError
         :: !Coin
         -- ^ The minimum coin quantity expected for this output.
     } deriving (Generic, Eq, Show)
+
+instance Buildable InsufficientMinCoinValueError where
+    build (InsufficientMinCoinValueError o c) = unlinesF
+        [ nameF "Expected min coin value" (build c)
+        , nameF "TxOut" (build o)
+        ]
 
 data UnableToConstructChangeError = UnableToConstructChangeError
     { requiredCost
