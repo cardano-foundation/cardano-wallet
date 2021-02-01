@@ -29,7 +29,6 @@ import Test.Integration.Framework.DSL
     , RequestException
     , counterexample
     , epochLengthValue
-    , eventually
     , expectField
     , expectResponseCode
     , minUTxOValue
@@ -44,8 +43,7 @@ import qualified Network.HTTP.Types.Status as HTTP
 
 spec :: SpecWith Context
 spec = describe "SHELLEY_NETWORK" $ do
-    it "NETWORK_PARAMS - Able to fetch network parameters" $ \ctx ->
-        eventually "hardfork is detected in network parameters " $ do
+    it "NETWORK_PARAMS - Able to fetch network parameters" $ \ctx -> do
         r <- request @ApiNetworkParameters ctx Link.getNetworkParams Default Empty
         expectResponseCode @IO HTTP.status200 r
         let Right d = Quantity <$> mkPercentage (3 % 4)
