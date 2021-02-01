@@ -2540,6 +2540,14 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                     (`shouldBe` Quantity 0)
                 ]
 
+        -- Even though there are no rewards left, it should be possible to
+        -- estimate the cost of a withdrawal.
+        rFee <- request @ApiFee ctx
+            (Link.getTransactionFee @'Shelley wSelf) Default payload
+        verify rFee
+            [ expectResponseCode HTTP.status202
+            ]
+
         -- Try withdrawing AGAIN, rewards that aren't there anymore.
         rTx <- request @(ApiTransaction n) ctx
             (Link.createTransaction @'Shelley wSelf) Default payload
