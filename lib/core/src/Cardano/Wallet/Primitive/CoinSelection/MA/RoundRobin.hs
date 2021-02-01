@@ -394,9 +394,8 @@ performSelection minCoinValueFor costFor criteria
         state <- runSelection
             selectionLimit extraCoinSource utxoAvailable balanceRequired
         let balanceSelected = fullBalance (selected state) extraCoinSource
-        if balanceRequired `leq` balanceSelected then do
-            let predictedChange = NE.toList $ predictChange (selected state)
-            makeChangeRepeatedly predictedChange state
+        if balanceRequired `leq` balanceSelected then
+            makeChangeRepeatedly state
 
         else
             pure $ Left $ SelectionInsufficient $ SelectionInsufficientError
@@ -494,11 +493,11 @@ performSelection minCoinValueFor costFor criteria
     -- ada-only inputs are available.
     --
     makeChangeRepeatedly
-        :: [Set AssetId]
-        -> SelectionState
+        :: SelectionState
         -> m (Either SelectionError (SelectionResult TokenBundle))
-    makeChangeRepeatedly changeSkeleton s@SelectionState{selected,leftover} = do
+    makeChangeRepeatedly s@SelectionState{selected,leftover} = do
         let inputsSelected = mkInputsSelected selected
+        let changeSkeleton = NE.toList $ predictChange selected
 
         let cost = costFor SelectionSkeleton
                 { inputsSkeleton  = selected
@@ -523,15 +522,14 @@ performSelection minCoinValueFor costFor criteria
                     , utxoRemaining = leftover
                     }
 
-            Left changeErr ->
-                let
-                    selectionErr = Left $ UnableToConstructChange changeErr
-                in
-                    selectMatchingQuantity selectionLimit (WithAdaOnly :| []) s
-                    >>=
-                    maybe
-                        (pure selectionErr)
-                        (makeChangeRepeatedly changeSkeleton)
+            Left changeErr -> do
+                result <- s &
+                    selectMatchingQuantity selectionLimit (WithAdaOnly :| [ Any ])
+                case result of
+                    Nothing ->
+                        pure $ Left $ UnableToConstructChange changeErr
+                    Just s' ->
+                        makeChangeRepeatedly s'
 
     invariantSelectAnyInputs =
         -- This should be impossible, as we have already determined
