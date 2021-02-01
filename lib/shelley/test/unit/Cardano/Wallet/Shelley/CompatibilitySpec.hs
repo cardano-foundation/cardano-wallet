@@ -351,8 +351,8 @@ checkScriptHashes
     -> Cardano.Script lang
     -> SpecWith ()
 checkScriptHashes title adrestiaScript nodeScript = it title $
-    (unScriptHash $ toScriptHash adrestiaScript) `shouldBe`
-    (Cardano.serialiseToRawBytes $ Cardano.hashScript nodeScript)
+    unScriptHash (toScriptHash adrestiaScript) `shouldBe`
+    Cardano.serialiseToRawBytes (Cardano.hashScript nodeScript)
 
 checkScriptPreimage
     :: Cardano.SerialiseAsCBOR (Cardano.Script lang)

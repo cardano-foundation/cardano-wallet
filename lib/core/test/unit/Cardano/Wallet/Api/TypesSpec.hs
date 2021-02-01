@@ -131,6 +131,7 @@ import Cardano.Wallet.Api.Types
     )
 import Cardano.Wallet.Gen
     ( genMnemonic
+    , genNatural
     , genPercentage
     , genScript
     , genTxMetadata
@@ -1801,7 +1802,7 @@ instance Arbitrary ApiAccountKey where
 
 instance Arbitrary Natural where
     shrink = shrinkIntegral
-    arbitrary = arbitrarySizedNatural
+    arbitrary = genNatural
 
 {-------------------------------------------------------------------------------
                    Specification / Servant-Swagger Machinery

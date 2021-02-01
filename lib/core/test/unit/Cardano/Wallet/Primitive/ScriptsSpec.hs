@@ -2,7 +2,6 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
@@ -136,7 +135,7 @@ prop_scriptUpdatesStateProperly (AccountXPubWithScripts accXPub' scripts') = do
     let seqState = initializeState accXPub'
     let (_, seqState') = isShared script seqState
     let expected =
-            if L.length sciptKeyHashes == 0 then
+            if null sciptKeyHashes then
                 Nothing
             else Just (Set.fromList (L.nub sciptKeyHashes))
     scriptKeyHashesInMap script accXPub' seqState' === expected
@@ -198,7 +197,7 @@ prop_poolExtension
     :: AccountXPubWithScriptExtension
     -> Property
 prop_poolExtension (AccountXPubWithScriptExtension accXPub' scripts') =
-    all (not . null . retrieveAllVerKeyHashes) scripts' ==>
+    not (any (null . retrieveAllVerKeyHashes) scripts') ==>
     scriptHashes == Set.fromList (map toScriptHash scripts') .&&.
         seqState3 == seqState0
   where
