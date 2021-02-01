@@ -1533,7 +1533,8 @@ postTransactionFee
     -> PostTransactionFeeData n
     -> Handler ApiFee
 postTransactionFee ctx (ApiT wid) body = do
-    (wdrl, _) <- mkRewardAccountBuilder @_ @s @_ @n ctx wid (body ^. #withdrawal)
+    (wdrl, _) <- mkRewardAccountBuilderWith @_ @s @_ @n ctx
+        (const $ pure ()) wid (body ^. #withdrawal)
     let txCtx = defaultTransactionCtx
             { txWithdrawal = wdrl
             , txMetadata = getApiT <$> body ^. #metadata
@@ -1952,6 +1953,42 @@ type RewardAccountBuilder k
         =  (k 'RootK XPrv, Passphrase "encryption")
         -> (XPrv, Passphrase "encryption")
 
+mkRewardAccountBuilderWith
+    :: forall ctx s k (n :: NetworkDiscriminant).
+        ( ctx ~ ApiLayer s k
+        , HardDerivation k
+        , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
+        , WalletKey k
+        , Typeable s
+        , Typeable n
+        )
+    => ctx
+    -> (Coin -> Handler ())
+    -> WalletId
+    -> Maybe ApiWithdrawalPostData
+    -> Handler (Withdrawal, RewardAccountBuilder k)
+mkRewardAccountBuilderWith ctx onExternalWithdrawal wid withdrawal = do
+    let selfRewardCredentials (rootK, pwdP) =
+            (getRawKey $ deriveRewardAccount @k pwdP rootK, pwdP)
+
+    withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+        case withdrawal of
+            Nothing ->
+                pure (NoWithdrawal, selfRewardCredentials)
+
+            Just SelfWithdrawal -> do
+                (acct, _) <- liftHandler $ W.readRewardAccount @_ @s @k @n wrk wid
+                wdrl <- liftHandler $ W.queryRewardBalance @_ wrk acct
+                (, selfRewardCredentials) . WithdrawalSelf
+                    <$> liftIO (W.readNextWithdrawal @_ @k wrk wdrl)
+
+            Just (ExternalWithdrawal (ApiMnemonicT mw)) -> do
+                let (xprv, acct) = W.someRewardAccount @ShelleyKey mw
+                wdrl <- liftHandler (W.queryRewardBalance @_ wrk acct)
+                    >>= liftIO . W.readNextWithdrawal @_ @k wrk
+                onExternalWithdrawal wdrl
+                pure (WithdrawalExternal wdrl, const (xprv, mempty))
+
 mkRewardAccountBuilder
     :: forall ctx s k (n :: NetworkDiscriminant).
         ( ctx ~ ApiLayer s k
@@ -1965,28 +2002,9 @@ mkRewardAccountBuilder
     -> WalletId
     -> Maybe ApiWithdrawalPostData
     -> Handler (Withdrawal, RewardAccountBuilder k)
-mkRewardAccountBuilder ctx wid withdrawal = do
-    let selfRewardCredentials (rootK, pwdP) =
-            (getRawKey $ deriveRewardAccount @k pwdP rootK, pwdP)
-
-    withWorkerCtx ctx wid liftE liftE $ \wrk -> do
-        case withdrawal of
-           Nothing ->
-               pure (NoWithdrawal, selfRewardCredentials)
-
-           Just SelfWithdrawal -> do
-               (acct, _) <- liftHandler $ W.readRewardAccount @_ @s @k @n wrk wid
-               wdrl <- liftHandler $ W.queryRewardBalance @_ wrk acct
-               (, selfRewardCredentials) . WithdrawalSelf
-                   <$> liftIO (W.readNextWithdrawal @_ @k wrk wdrl)
-
-           Just (ExternalWithdrawal (ApiMnemonicT mw)) -> do
-               let (xprv, acct) = W.someRewardAccount @ShelleyKey mw
-               wdrl <- liftHandler (W.queryRewardBalance @_ wrk acct)
-                   >>= liftIO . W.readNextWithdrawal @_ @k wrk
-               when (wdrl == Coin 0) $ do
-                   liftHandler $ throwE ErrWithdrawalNotWorth
-               pure (WithdrawalExternal wdrl, const (xprv, mempty))
+mkRewardAccountBuilder ctx =
+    mkRewardAccountBuilderWith @ctx @s @k @n ctx $ \wdrl -> do
+       when (wdrl == Coin 0) $ liftHandler $ throwE ErrWithdrawalNotWorth
 
 -- | Makes an 'ApiCoinSelection' from the given 'UnsignedTx'.
 mkApiCoinSelection
