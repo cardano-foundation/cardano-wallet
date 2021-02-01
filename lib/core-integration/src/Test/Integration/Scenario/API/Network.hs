@@ -12,7 +12,6 @@ import Prelude
 import Cardano.Wallet.Api.Types
     ( ApiByronWallet
     , ApiEpochInfo (..)
-    , ApiEra (..)
     , ApiNetworkClock
     , ApiNetworkInformation
     , NtpSyncingStatus (..)

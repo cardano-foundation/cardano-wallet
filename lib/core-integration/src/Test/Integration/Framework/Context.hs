@@ -11,6 +11,8 @@ import Prelude
 
 import Cardano.CLI
     ( Port (..) )
+import Cardano.Wallet.Api.Types
+    ( ApiEra )
 import Cardano.Wallet.Primitive.Types
     ( EpochNo, NetworkParameters, PoolRetirementCertificate )
 import Cardano.Wallet.Transaction
@@ -51,6 +53,10 @@ data Context = Context
         :: IORef [PoolGarbageCollectionEvent]
         -- ^ The complete list of pool garbage collection events.
         -- Most recent events are stored at the head of the list.
+    , _mainEra
+        :: ApiEra
+        -- ^ The main era the tests are expected to run on. Allows tests to make
+        -- era-specific assertions.
     , _smashUrl :: Text
         -- ^ Base URL of the mock smash server.
     }

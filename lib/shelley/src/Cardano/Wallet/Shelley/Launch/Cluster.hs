@@ -40,6 +40,8 @@ module Cardano.Wallet.Shelley.Launch.Cluster
     , PoolConfig (..)
     , defaultPoolConfigs
     , poolConfigsFromEnv
+    , clusterEraFromEnv
+    , clusterToApiEra
     , withSMASH
 
       -- * Configuration
@@ -100,7 +102,7 @@ import Cardano.Startup
 import Cardano.Wallet.Api.Server
     ( Listen (..) )
 import Cardano.Wallet.Api.Types
-    ( HealthStatusSMASH (..) )
+    ( ApiEra (..), HealthStatusSMASH (..) )
 import Cardano.Wallet.Logging
     ( BracketLog (..), bracketTracer )
 import Cardano.Wallet.Network.Ports
@@ -403,10 +405,10 @@ poolConfigsFromEnv = isEnvSet "NO_POOLS" <&> \case
     False -> defaultPoolConfigs
     True -> []
 
-localClusterConfigFromEnv :: Maybe ClusterEra -> IO LocalClusterConfig
-localClusterConfigFromEnv defaultEra = LocalClusterConfig
+localClusterConfigFromEnv :: IO LocalClusterConfig
+localClusterConfigFromEnv = LocalClusterConfig
     <$> poolConfigsFromEnv
-    <*> clusterEraFromEnv defaultEra
+    <*> clusterEraFromEnv
     <*> logFileConfigFromEnv
 
 data ClusterEra
@@ -416,9 +418,17 @@ data ClusterEra
     | MaryHardFork
     deriving (Show, Read, Eq, Ord, Bounded, Enum)
 
+-- | Convert @ClusterEra@ to a @ApiEra@.
+clusterToApiEra :: ClusterEra -> ApiEra
+clusterToApiEra = \case
+    ByronNoHardFork -> ApiByron
+    ShelleyHardFork -> ApiShelley
+    AllegraHardFork -> ApiAllegra
+    MaryHardFork -> ApiMary
+
 -- | Defaults to the latest era.
-clusterEraFromEnv :: Maybe ClusterEra -> IO ClusterEra
-clusterEraFromEnv def =
+clusterEraFromEnv :: IO ClusterEra
+clusterEraFromEnv =
     fmap withDefault . traverse getEra =<< lookupEnvNonEmpty var
   where
     var = "LOCAL_CLUSTER_ERA"
@@ -428,7 +438,7 @@ clusterEraFromEnv def =
         "allegra" -> pure AllegraHardFork
         "mary" -> pure MaryHardFork
         _ -> die $ var ++ ": unknown era"
-    withDefault = fromMaybe (fromMaybe maxBound def)
+    withDefault = fromMaybe maxBound
 
 clusterEraName :: ClusterEra -> String
 clusterEraName = \case
