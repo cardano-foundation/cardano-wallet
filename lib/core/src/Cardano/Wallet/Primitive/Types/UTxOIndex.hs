@@ -49,6 +49,7 @@ module Cardano.Wallet.Primitive.Types.UTxOIndex
     -- * Selection
     , SelectionFilter (..)
     , selectRandom
+    , selectRandomWithPriority
 
     ) where
 

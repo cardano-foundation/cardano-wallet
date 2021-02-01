@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
 
@@ -63,6 +64,7 @@ module Cardano.Wallet.Primitive.Types.UTxOIndex.Internal
     -- * Selection
     , SelectionFilter (..)
     , selectRandom
+    , selectRandomWithPriority
 
     ----------------------------------------------------------------------------
     -- Internal Interface
@@ -98,6 +100,8 @@ import Data.Generics.Internal.VL.Lens
     ( over, view )
 import Data.Generics.Labels
     ()
+import Data.List.NonEmpty
+    ( NonEmpty )
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
@@ -111,6 +115,7 @@ import GHC.Generics
 
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Data.Foldable as F
+import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Set.Strict.NonEmptySet as NonEmptySet
@@ -359,6 +364,36 @@ selectRandom u selectionFilter =
         WithAdaOnly -> entriesWithAdaOnly u
         WithAsset a -> entriesWithAsset a u
         WithAssetOnly a -> entriesWithAssetOnly a u
+
+-- | Selects an entry at random from the index according to the given filters.
+--
+-- This function traverses the specified list of filters in descending order of
+-- priority, from left to right.
+--
+-- When considering a particular filter:
+--
+--    - if the function is able to select a UTxO entry that matches, it
+--      terminates with that entry and an updated index with the entry removed.
+--
+--    - if the function is not able to select a UTxO entry that matches, it
+--      traverses to the next filter available.
+--
+-- This function returns 'Nothing' if (and only if) it traverses the entire
+-- list of filters without successfully selecting a UTxO entry.
+--
+selectRandomWithPriority
+    :: MonadRandom m
+    => UTxOIndex
+    -> NonEmpty SelectionFilter
+    -- ^ A list of selection filters to be traversed in descending order of
+    -- priority, from left to right.
+    -> m (Maybe ((TxIn, TxOut), UTxOIndex))
+selectRandomWithPriority u filters =
+    selectRandom u (NE.head filters) >>= \case
+        Just en -> pure $ Just en
+        Nothing -> case NE.nonEmpty $ NE.tail filters of
+            Just fs -> selectRandomWithPriority u fs
+            Nothing -> pure Nothing
 
 --------------------------------------------------------------------------------
 -- Internal Interface
