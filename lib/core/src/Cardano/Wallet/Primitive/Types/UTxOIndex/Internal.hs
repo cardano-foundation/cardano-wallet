@@ -1,5 +1,4 @@
 {-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
 
@@ -92,6 +91,8 @@ import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
 import Control.DeepSeq
     ( NFData )
+import Control.Monad.Extra
+    ( firstJustM )
 import Control.Monad.Random.Class
     ( MonadRandom (..) )
 import Data.Function
@@ -388,12 +389,8 @@ selectRandomWithPriority
     -- ^ A list of selection filters to be traversed in descending order of
     -- priority, from left to right.
     -> m (Maybe ((TxIn, TxOut), UTxOIndex))
-selectRandomWithPriority u filters =
-    selectRandom u (NE.head filters) >>= \case
-        Just en -> pure $ Just en
-        Nothing -> case NE.nonEmpty $ NE.tail filters of
-            Just fs -> selectRandomWithPriority u fs
-            Nothing -> pure Nothing
+selectRandomWithPriority u =
+    firstJustM (selectRandom u) . NE.toList
 
 --------------------------------------------------------------------------------
 -- Internal Interface
