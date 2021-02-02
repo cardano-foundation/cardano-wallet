@@ -63,6 +63,7 @@ module Cardano.Wallet.Primitive.Types.UTxOIndex.Internal
     -- * Selection
     , SelectionFilter (..)
     , selectRandom
+    , selectRandomWithPriority
 
     ----------------------------------------------------------------------------
     -- Internal Interface
@@ -85,19 +86,23 @@ import Cardano.Wallet.Primitive.Types.TokenBundle
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( TxIn, TxOut, txOutIsCoin )
+    ( TxIn, TxOut )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( UTxO (..) )
 import Control.DeepSeq
     ( NFData )
+import Control.Monad.Extra
+    ( firstJustM )
 import Control.Monad.Random.Class
     ( MonadRandom (..) )
 import Data.Function
     ( (&) )
 import Data.Generics.Internal.VL.Lens
-    ( view )
+    ( over, view )
 import Data.Generics.Labels
     ()
+import Data.List.NonEmpty
+    ( NonEmpty )
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
@@ -111,6 +116,7 @@ import GHC.Generics
 
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Data.Foldable as F
+import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Set.Strict.NonEmptySet as NonEmptySet
@@ -141,14 +147,21 @@ import qualified Data.Set.Strict.NonEmptySet as NonEmptySet
 -- the 'checkInvariant' function.
 --
 data UTxOIndex = UTxOIndex
-    { index
+    { assetsAll
         :: !(Map AssetId (NonEmptySet TxIn))
+        -- An index of all entries that contain at least one non-ada asset.
+    , assetsSingleton
+        :: !(Map AssetId (NonEmptySet TxIn))
+        -- An index of all entries that contain exactly one non-ada asset.
     , coins
         :: !(Set TxIn)
+        -- An index of all entries that contain no non-ada assets.
     , balance
         :: !TokenBundle
+        -- The total balance of all entries.
     , utxo
         :: !(Map TxIn TxOut)
+        -- The complete set of all entries.
     }
     deriving (Eq, Generic, Read, Show)
 
@@ -162,7 +175,8 @@ instance NFData UTxOIndex
 --
 empty :: UTxOIndex
 empty = UTxOIndex
-    { index = Map.empty
+    { assetsAll = Map.empty
+    , assetsSingleton = Map.empty
     , coins = Set.empty
     , balance = TokenBundle.empty
     , utxo = Map.empty
@@ -245,20 +259,24 @@ insertMany = flip $ F.foldl' $ \u (i, o) -> insert i o u
 -- of applying this function will be equivalent to the identity function.
 --
 delete :: TxIn -> UTxOIndex -> UTxOIndex
-delete i u = case Map.lookup i (utxo u) of
-    Nothing -> u
-    Just o -> UTxOIndex
-        { index = F.foldl' deleteEntry (index u) (txOutAssets o)
-          -- This operation is safe, since we have already determined that the
-          -- entry is a member of the index, and therefore the balance must be
-          -- greater than or equal to the value of this output:
-        , coins = Set.delete i (coins u)
-        , balance = balance u `TokenBundle.unsafeSubtract` view #tokens o
-        , utxo = Map.delete i $ utxo u
-        }
+delete i u =
+    maybe u updateIndex $ Map.lookup i $ utxo u
   where
-    txOutAssets :: TxOut -> Set AssetId
-    txOutAssets = TokenBundle.getAssets . view #tokens
+    updateIndex :: TxOut -> UTxOIndex
+    updateIndex o = u
+        -- This operation is safe, since we have already determined that the
+        -- entry is a member of the index, and therefore the balance must be
+        -- greater than or equal to the value of this output:
+        & over #balance (`TokenBundle.unsafeSubtract` view #tokens o)
+        & over #utxo (Map.delete i)
+        & case categorizeTxOut o of
+            IsCoin ->
+                over #coins (Set.delete i)
+            IsCoinWithSingletonAsset a -> id
+                . over #assetsSingleton (`deleteEntry` a)
+                . over #assetsAll (`deleteEntry` a)
+            IsCoinWithMultipleAssets as ->
+                over #assetsAll (flip (F.foldl' deleteEntry) as)
 
     deleteEntry
         :: Map AssetId (NonEmptySet TxIn)
@@ -280,7 +298,7 @@ deleteMany = flip $ F.foldl' $ \u i -> delete i u
 -- | Returns the complete set of all assets contained in an index.
 --
 assets :: UTxOIndex -> Set AssetId
-assets = Map.keysSet . index
+assets = Map.keysSet . assetsAll
 
 -- | Returns the output corresponding to the given input, if one exists.
 --
@@ -318,6 +336,9 @@ data SelectionFilter
     | WithAsset AssetId
         -- ^ Select any UTxO entry that has a non-zero quantity of the specified
         -- asset.
+    | WithAssetOnly AssetId
+        -- ^ Select any UTxO entry that has a non-zero quantity of the specified
+        -- asset, but no other non-ada assets.
     deriving (Eq, Show)
 
 -- | Selects an entry at random from the index according to the given filter.
@@ -343,6 +364,33 @@ selectRandom u selectionFilter =
         Any -> Map.keysSet $ utxo u
         WithAdaOnly -> entriesWithAdaOnly u
         WithAsset a -> entriesWithAsset a u
+        WithAssetOnly a -> entriesWithAssetOnly a u
+
+-- | Selects an entry at random from the index according to the given filters.
+--
+-- This function traverses the specified list of filters in descending order of
+-- priority, from left to right.
+--
+-- When considering a particular filter:
+--
+--    - if the function is able to select a UTxO entry that matches, it
+--      terminates with that entry and an updated index with the entry removed.
+--
+--    - if the function is not able to select a UTxO entry that matches, it
+--      traverses to the next filter available.
+--
+-- This function returns 'Nothing' if (and only if) it traverses the entire
+-- list of filters without successfully selecting a UTxO entry.
+--
+selectRandomWithPriority
+    :: MonadRandom m
+    => UTxOIndex
+    -> NonEmpty SelectionFilter
+    -- ^ A list of selection filters to be traversed in descending order of
+    -- priority, from left to right.
+    -> m (Maybe ((TxIn, TxOut), UTxOIndex))
+selectRandomWithPriority u =
+    firstJustM (selectRandom u) . NE.toList
 
 --------------------------------------------------------------------------------
 -- Internal Interface
@@ -352,6 +400,27 @@ selectRandom u selectionFilter =
 -- Utilities
 --------------------------------------------------------------------------------
 
+-- | Represents different categories of token bundles.
+--
+data BundleCategory
+    = IsCoin
+    | IsCoinWithSingletonAsset AssetId
+    | IsCoinWithMultipleAssets (Set AssetId)
+    deriving (Eq, Show)
+
+-- | Categorizes a transaction output by what kind of bundle it contains.
+--
+categorizeTxOut :: TxOut -> BundleCategory
+categorizeTxOut o = case F.toList bundleAssets of
+    []  -> IsCoin
+    [a] -> IsCoinWithSingletonAsset a
+    _   -> IsCoinWithMultipleAssets bundleAssets
+  where
+    bundle = view #tokens o
+    bundleAssets = TokenBundle.getAssets bundle
+
+-- | Returns the set of keys for entries that have no assets other than ada.
+--
 entriesWithAdaOnly :: UTxOIndex -> Set TxIn
 entriesWithAdaOnly = coins
 
@@ -359,7 +428,15 @@ entriesWithAdaOnly = coins
 --   given asset.
 --
 entriesWithAsset :: AssetId -> UTxOIndex -> Set TxIn
-entriesWithAsset a = maybe mempty NonEmptySet.toSet . Map.lookup a . index
+entriesWithAsset a =
+    maybe mempty NonEmptySet.toSet . Map.lookup a . assetsAll
+
+-- | Returns the set of keys for entries that have no non-ada assets other than
+--   the given asset.
+--
+entriesWithAssetOnly :: AssetId -> UTxOIndex -> Set TxIn
+entriesWithAssetOnly a =
+    maybe mempty NonEmptySet.toSet . Map.lookup a . assetsSingleton
 
 -- Inserts an entry, but without checking the following pre-condition:
 --
@@ -368,16 +445,18 @@ entriesWithAsset a = maybe mempty NonEmptySet.toSet . Map.lookup a . index
 -- See 'insert' for a safe version of this function.
 --
 insertUnsafe :: TxIn -> TxOut -> UTxOIndex -> UTxOIndex
-insertUnsafe i o u = UTxOIndex
-    { index = F.foldl' insertEntry (index u) (txOutAssets o)
-    , coins = coins u & if txOutIsCoin o then Set.insert i else id
-    , balance = balance u `TokenBundle.add` view #tokens o
-    , utxo = Map.insert i o $ utxo u
-    }
+insertUnsafe i o u = u
+    & over #balance (`TokenBundle.add` view #tokens o)
+    & over #utxo (Map.insert i o)
+    & case categorizeTxOut o of
+        IsCoin ->
+            over #coins (Set.insert i)
+        IsCoinWithSingletonAsset a -> id
+            . over #assetsSingleton (`insertEntry` a)
+            . over #assetsAll (`insertEntry` a)
+        IsCoinWithMultipleAssets as ->
+            over #assetsAll (flip (F.foldl' insertEntry) as)
   where
-    txOutAssets :: TxOut -> Set AssetId
-    txOutAssets = TokenBundle.getAssets . view #tokens
-
     insertEntry
         :: Map AssetId (NonEmptySet TxIn)
         -> AssetId
@@ -420,8 +499,6 @@ data InvariantStatus
     | InvariantAssetsInconsistent
       -- ^ Indicates that the 'index' and the cached 'balance' value disagree
       --   about which assets are included.
-    | InvariantIndexedCoinsAreNotCoins
-      -- ^ Indicates that at least one member of 'coins' is not ada-only.
     deriving (Eq, Show)
 
 -- | Checks whether or not the invariant holds.
@@ -436,8 +513,6 @@ checkInvariant u
         InvariantIndexNonMinimal
     | not (assetsConsistent u) =
         InvariantAssetsInconsistent
-    | not (indexedCoinsAreIndeedCoins u) =
-        InvariantIndexedCoinsAreNotCoins
     | otherwise =
         InvariantHolds
   where
@@ -474,52 +549,69 @@ checkBalance u
     balanceComputed = F.foldMap (view #tokens) (utxo u)
     balanceStored = balance u
 
--- | Checks that every entry in the 'utxo' map has a corresponding set of
---   entries in the 'index'.
+-- | Checks that every entry in the 'utxo' map is properly indexed.
 --
 indexIsComplete :: UTxOIndex -> Bool
-indexIsComplete u = F.all entryIndexed $ Map.toList $ utxo u
+indexIsComplete u = F.all hasEntry $ Map.toList $ utxo u
   where
-    entryIndexed :: (TxIn, TxOut) -> Bool
-    entryIndexed (i, o)
-        | txOutIsCoin o =
+    hasEntry :: (TxIn, TxOut) -> Bool
+    hasEntry (i, o) = case categorizeTxOut o of
+        IsCoin ->
             i `Set.member` coins u
-        | otherwise =
-            F.all (indexed i) (TokenBundle.getAssets $ view #tokens o)
+        IsCoinWithSingletonAsset a -> (&&)
+            (hasEntryForAsset a i assetsAll)
+            (hasEntryForAsset a i assetsSingleton)
+        IsCoinWithMultipleAssets as ->
+            F.all (\a -> hasEntryForAsset a i assetsAll) as
 
-    indexed :: TxIn -> AssetId -> Bool
-    indexed i asset =
-        case Map.lookup asset (index u) of
-            Nothing -> False
-            Just is -> NonEmptySet.member i is
+    hasEntryForAsset
+        :: AssetId
+        -> TxIn
+        -> (UTxOIndex -> Map AssetId (NonEmptySet TxIn))
+        -> Bool
+    hasEntryForAsset asset i assetsMap =
+        maybe False (NonEmptySet.member i) $ Map.lookup asset $ assetsMap u
 
--- | Checks that every entry in the 'index' is required by some entry in the
---   'utxo' map.
+-- | Checks that every indexed entry is required by some entry in the 'utxo'
+--   map.
 --
 indexIsMinimal :: UTxOIndex -> Bool
-indexIsMinimal u = F.all assetIsMinimal $ Map.toList $ index u
+indexIsMinimal u = F.and
+    [ assetsAll u
+        & Map.toList
+        & F.all (\(a, i) -> F.all (entryHasAsset a) i)
+    , assetsSingleton u
+        & Map.toList
+        & F.all (\(a, i) -> F.all (entryHasSingletonAsset a) i)
+    , coins u
+        & F.all entryIsCoin
+    ]
   where
-    assetIsMinimal :: (AssetId, NonEmptySet TxIn) -> Bool
-    assetIsMinimal (asset, is) =
-        F.all (entryHasAsset asset) is
-
     entryHasAsset :: AssetId -> TxIn -> Bool
-    entryHasAsset asset i =
-        case Map.lookup i (utxo u) of
-            Nothing ->
-                False
-            Just o ->
-                Set.member asset $ TokenBundle.getAssets $ view #tokens o
+    entryHasAsset a = entryMatches $
+        (`TokenBundle.hasQuantity` a) . view #tokens
 
--- | Checks that the set of assets in the cached 'balance' is equal to the set
---   of assets in the 'index'.
+    entryHasSingletonAsset :: AssetId -> TxIn -> Bool
+    entryHasSingletonAsset a = entryMatches $
+        (== IsCoinWithSingletonAsset a) . categorizeTxOut
+
+    entryIsCoin :: TxIn -> Bool
+    entryIsCoin = entryMatches $
+        (== IsCoin) . categorizeTxOut
+
+    entryMatches :: (TxOut -> Bool) -> TxIn -> Bool
+    entryMatches test i = maybe False test $ Map.lookup i $ utxo u
+
+-- | Checks that the asset sets are consistent.
+--
+-- In particular, the set of assets in the cached 'balance' must be:
+--
+--    - equal to the set of assets in 'assetsAll'
+--    - a superset of the set of assets in 'assetsSingleton'.
 --
 assetsConsistent :: UTxOIndex -> Bool
-assetsConsistent u =
-    Map.keysSet (index u) == TokenBundle.getAssets (balance u)
-
--- | Checks that the indexed set of 'coins' only refers to ada-only outputs.
---
-indexedCoinsAreIndeedCoins :: UTxOIndex -> Bool
-indexedCoinsAreIndeedCoins u =
-    F.all (maybe False txOutIsCoin . flip Map.lookup (utxo u)) (coins u)
+assetsConsistent u = (&&)
+    (Map.keysSet (assetsAll u) == balanceAssets)
+    (Map.keysSet (assetsSingleton u) `Set.isSubsetOf` balanceAssets)
+  where
+    balanceAssets = TokenBundle.getAssets (balance u)

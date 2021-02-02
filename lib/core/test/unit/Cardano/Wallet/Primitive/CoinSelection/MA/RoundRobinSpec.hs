@@ -30,6 +30,8 @@ import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     , SelectionSkeleton (..)
     , SelectionState (..)
     , UnableToConstructChangeError (..)
+    , assetSelectionLens
+    , coinSelectionLens
     , fullBalance
     , groupByKey
     , makeChange
@@ -75,7 +77,7 @@ import Cardano.Wallet.Primitive.Types.Tx
 import Cardano.Wallet.Primitive.Types.Tx.Gen
     ( genTxOutSmallRange, shrinkTxOutSmallRange )
 import Cardano.Wallet.Primitive.Types.UTxOIndex
-    ( UTxOIndex )
+    ( SelectionFilter (..), UTxOIndex )
 import Cardano.Wallet.Primitive.Types.UTxOIndex.Gen
     ( genUTxOIndexLarge
     , genUTxOIndexLargeN
@@ -98,6 +100,8 @@ import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Map.Strict
     ( Map )
+import Data.Maybe
+    ( isJust )
 import Data.Set
     ( Set )
 import Data.Tuple
@@ -141,6 +145,7 @@ import Test.QuickCheck
     , withMaxSuccess
     , (.&&.)
     , (===)
+    , (==>)
     )
 import Test.QuickCheck.Classes
     ( eqLaws, ordLaws )
@@ -233,6 +238,13 @@ spec = describe "Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobinSpec" $
             property prop_runSelectionStep_getsCloserToTargetAndExceedsIt
         it "prop_runSelectionStep_exceedsTargetAndGetsFurtherAway" $
             property prop_runSelectionStep_exceedsTargetAndGetsFurtherAway
+
+    parallel $ describe "Behaviour of selection lenses" $ do
+
+        it "prop_assetSelectonLens_givesPriorityToSingletonAssets" $
+            property prop_assetSelectionLens_givesPriorityToSingletonAssets
+        it "prop_coinSelectonLens_givesPriorityToCoins" $
+            property prop_coinSelectionLens_givesPriorityToCoins
 
     parallel $ describe "Making change" $ do
 
@@ -842,6 +854,74 @@ prop_runSelectionStep_exceedsTargetAndGetsFurtherAway
     mockSelected = (2 * p) - q
     mockMinimum = p
     mockNext = Just ((2 * q) + 1)
+
+--------------------------------------------------------------------------------
+-- Behaviour of selection lenses
+--------------------------------------------------------------------------------
+
+prop_assetSelectionLens_givesPriorityToSingletonAssets
+    :: Blind (Small UTxOIndex)
+    -> Property
+prop_assetSelectionLens_givesPriorityToSingletonAssets (Blind (Small u)) =
+    assetCount >= 2 ==> monadicIO $ do
+        hasSingletonAsset <- isJust <$>
+            run (UTxOIndex.selectRandom u $ WithAssetOnly asset)
+        monitor $ cover 20 hasSingletonAsset
+            "There is at least one singleton entry that matches"
+        monitor $ cover 20 (not hasSingletonAsset)
+            "There are no singleton entries that match"
+        monitor $ counterexample $ unlines
+            ["UTxO index:", pretty $ UTxOIndex.toList u]
+        mUpdatedState <- run $ runSelectionStep lens initialState
+        case mUpdatedState of
+            Nothing -> do
+                -- This should never happen: we should always be able to select
+                -- *something* that matches.
+                monitor $ counterexample "Error: unable to select any entry"
+                assert False
+            Just SelectionState {selected} -> do
+                let output = head $ snd <$> UTxOIndex.toList selected
+                let bundle = view #tokens output
+                case F.toList $ TokenBundle.getAssets bundle of
+                    [a] -> assert $ a == asset
+                    _   -> assert $ not hasSingletonAsset
+  where
+    asset = Set.findMin $ UTxOIndex.assets u
+    assetCount = Set.size $ UTxOIndex.assets u
+    initialState = SelectionState UTxOIndex.empty u
+    lens = assetSelectionLens NoLimit (asset, minimumAssetQuantity)
+    minimumAssetQuantity = TokenQuantity 1
+
+prop_coinSelectionLens_givesPriorityToCoins
+    :: Blind (Small UTxOIndex)
+    -> Property
+prop_coinSelectionLens_givesPriorityToCoins (Blind (Small u)) =
+    entryCount > 0 ==> monadicIO $ do
+        hasCoin <- isJust <$> run (UTxOIndex.selectRandom u WithAdaOnly)
+        monitor $ cover 20 hasCoin
+            "There is at least one coin"
+        monitor $ cover 1 (not hasCoin)
+            "There are no coins"
+        monitor $ counterexample $ unlines
+            ["UTxO index:", pretty $ UTxOIndex.toList u]
+        mUpdatedState <- run $ runSelectionStep lens initialState
+        case mUpdatedState of
+            Nothing -> do
+                -- This should never happen: we should always be able to select
+                -- *something* that matches.
+                monitor $ counterexample "Error: unable to select any entry"
+                assert False
+            Just SelectionState {selected} -> do
+                let output = head $ snd <$> UTxOIndex.toList selected
+                let bundle = view #tokens output
+                case F.toList $ TokenBundle.getAssets bundle of
+                    [] -> assert hasCoin
+                    _  -> assert $ not hasCoin
+  where
+    entryCount = UTxOIndex.size u
+    initialState = SelectionState UTxOIndex.empty u
+    lens = coinSelectionLens NoLimit Nothing minimumCoinQuantity
+    minimumCoinQuantity = Coin 1
 
 --------------------------------------------------------------------------------
 -- Making change

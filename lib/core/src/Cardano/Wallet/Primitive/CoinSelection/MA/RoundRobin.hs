@@ -43,6 +43,8 @@ module Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     -- * Running a selection step
     , runSelectionStep
     , SelectionLens (..)
+    , assetSelectionLens
+    , coinSelectionLens
 
     -- * Making change
     , makeChange
@@ -525,7 +527,7 @@ performSelection minCoinValueFor costFor criteria
                 let
                     selectionErr = Left $ UnableToConstructChange changeErr
                 in
-                    selectMatchingQuantity selectionLimit [WithAdaOnly] s
+                    selectMatchingQuantity selectionLimit (WithAdaOnly :| []) s
                     >>=
                     maybe
                         (pure selectionErr)
@@ -596,31 +598,40 @@ runSelection limit mExtraCoinSource available minimumBalance =
     selectors =
         reverse (coinSelector : fmap assetSelector minimumAssetQuantities)
       where
-        assetSelector = runSelectionStep . assetSelectionLens
-        coinSelector = runSelectionStep coinSelectionLens
+        assetSelector = runSelectionStep .
+            assetSelectionLens limit
+        coinSelector = runSelectionStep $
+            coinSelectionLens limit mExtraCoinSource minimumCoinQuantity
 
     (minimumCoinQuantity, minimumAssetQuantities) =
         TokenBundle.toFlatList minimumBalance
 
-    assetSelectionLens
-        :: (AssetId, TokenQuantity) -> SelectionLens m SelectionState
-    assetSelectionLens (asset, minimumAssetQuantity) = SelectionLens
-        { currentQuantity = assetQuantity asset . selected
-        , minimumQuantity = unTokenQuantity minimumAssetQuantity
-        , selectQuantity = selectMatchingQuantity limit
-            [ WithAsset asset
-            ]
-        }
+assetSelectionLens
+    :: MonadRandom m
+    => SelectionLimit
+    -> (AssetId, TokenQuantity)
+    -> SelectionLens m SelectionState
+assetSelectionLens limit (asset, minimumAssetQuantity) = SelectionLens
+    { currentQuantity = assetQuantity asset . selected
+    , minimumQuantity = unTokenQuantity minimumAssetQuantity
+    , selectQuantity = selectMatchingQuantity limit
+        (WithAssetOnly asset :| [WithAsset asset])
+    }
 
-    coinSelectionLens :: SelectionLens m SelectionState
-    coinSelectionLens = SelectionLens
-        { currentQuantity = \s -> coinQuantity (selected s) mExtraCoinSource
-        , minimumQuantity = fromIntegral $ unCoin minimumCoinQuantity
-        , selectQuantity  = selectMatchingQuantity limit
-            [ WithAdaOnly
-            , Any
-            ]
-        }
+coinSelectionLens
+    :: MonadRandom m
+    => SelectionLimit
+    -> Maybe Coin
+    -- An extra source of ada.
+    -> Coin
+    -- ^ Minimum coin quantity.
+    -> SelectionLens m SelectionState
+coinSelectionLens limit mExtraCoinSource minimumCoinQuantity = SelectionLens
+    { currentQuantity = \s -> coinQuantity (selected s) mExtraCoinSource
+    , minimumQuantity = fromIntegral $ unCoin minimumCoinQuantity
+    , selectQuantity  = selectMatchingQuantity limit
+        (WithAdaOnly :| [Any])
+    }
 
 -- | Selects a UTxO entry that matches one of the specified filters.
 --
@@ -642,7 +653,7 @@ selectMatchingQuantity
     :: MonadRandom m
     => SelectionLimit
         -- ^ A limit to adhere to when selecting entries.
-    -> [SelectionFilter]
+    -> NonEmpty SelectionFilter
         -- ^ A list of selection filters to be traversed from left-to-right,
         -- in descending order of priority.
     -> SelectionState
@@ -650,14 +661,12 @@ selectMatchingQuantity
     -> m (Maybe SelectionState)
         -- ^ An updated selection state that includes a matching UTxO entry,
         -- or 'Nothing' if no such entry could be found.
-selectMatchingQuantity _       []  _ = pure Nothing
-selectMatchingQuantity limit (h:q) s
+selectMatchingQuantity limit filters s
     | limitReached =
         pure Nothing
-    | otherwise = do
-        UTxOIndex.selectRandom (leftover s) h >>= \case
-            Just s' -> pure $ Just $ updateState s'
-            Nothing -> selectMatchingQuantity limit q s
+    | otherwise =
+        fmap updateState <$>
+            UTxOIndex.selectRandomWithPriority (leftover s) filters
   where
     limitReached = case limit of
         MaximumInputLimit m -> UTxOIndex.size (selected s) >= m
