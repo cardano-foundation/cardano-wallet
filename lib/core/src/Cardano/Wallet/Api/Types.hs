@@ -899,7 +899,7 @@ data ApiEra
     | ApiShelley
     | ApiAllegra
     | ApiMary
-    deriving (Show, Eq, Generic, Enum, Ord)
+    deriving (Show, Eq, Generic, Enum, Ord, Bounded)
     deriving anyclass NFData
 
 instance FromJSON ApiEra where

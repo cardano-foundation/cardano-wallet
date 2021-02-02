@@ -396,6 +396,7 @@ withShelleyServer tracers action = do
                 , _poolGarbageCollectionEvents =
                     error "poolGarbageCollectionEvents not available"
                 , _smashUrl = ""
+                , _mainEra = maxBound
                 }
     race_ (takeMVar ctx >>= action) (withServer setupContext)
 

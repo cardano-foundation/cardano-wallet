@@ -61,9 +61,10 @@ import Cardano.Wallet.Shelley.Faucet
 import Cardano.Wallet.Shelley.Launch
     ( withSystemTempDir )
 import Cardano.Wallet.Shelley.Launch.Cluster
-    ( ClusterEra (..)
-    , ClusterLog
+    ( ClusterLog
     , RunningNode (..)
+    , clusterEraFromEnv
+    , clusterToApiEra
     , localClusterConfigFromEnv
     , moveInstantaneousRewardsTo
     , oneMillionAda
@@ -161,7 +162,7 @@ main = withTestsSetup $ \testDir tracers -> do
         describe "No backend required" $
             parallelIf (not nix) $ describe "Miscellaneous CLI tests"
                 MiscellaneousCLI.spec
-        specWithServer testDir tracers Nothing $ do
+        specWithServer testDir tracers $ do
             describe "API Specifications" $ do
                 parallel $ do
                     Addresses.spec @n
@@ -219,10 +220,9 @@ withTestsSetup action = do
 specWithServer
     :: FilePath
     -> (Tracer IO TestsLog, Tracers IO)
-    -> Maybe ClusterEra
     -> SpecWith Context
     -> Spec
-specWithServer testDir (tr, tracers) era = aroundAll withContext
+specWithServer testDir (tr, tracers) = aroundAll withContext
   where
     withContext :: (Context -> IO ()) -> IO ()
     withContext action = bracketTracer' tr "withContext" $ do
@@ -241,6 +241,8 @@ specWithServer testDir (tr, tracers) era = aroundAll withContext
                     }
                 faucet <- initFaucet
 
+                era <- clusterToApiEra <$> clusterEraFromEnv
+
                 putMVar ctx $ Context
                     { _cleanup = pure ()
                     , _manager = (baseUrl, manager)
@@ -249,6 +251,7 @@ specWithServer testDir (tr, tracers) era = aroundAll withContext
                     , _feeEstimator = error "feeEstimator: unused in shelley specs"
                     , _networkParameters = np
                     , _poolGarbageCollectionEvents = poolGarbageCollectionEvents
+                    , _mainEra = era
                     , _smashUrl = smashUrl
                     }
         let action' = bracketTracer' tr "spec" . action
@@ -281,7 +284,7 @@ specWithServer testDir (tr, tracers) era = aroundAll withContext
 
     withServer dbDecorator onReady = bracketTracer' tr "withServer" $
         withSMASH testDir $ \smashUrl -> do
-            clusterCfg <- localClusterConfigFromEnv era
+            clusterCfg <- localClusterConfigFromEnv
             withCluster tr' testDir clusterCfg $
                 onClusterStart (onReady $ T.pack smashUrl) dbDecorator
 

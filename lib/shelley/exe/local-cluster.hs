@@ -209,7 +209,7 @@ main :: IO ()
 main = withLocalClusterSetup $ \dir clusterLogs walletLogs ->
     withLoggingNamed "cluster" clusterLogs $ \(_, (_, trCluster)) -> do
         let tr' = contramap MsgCluster $ trMessageText trCluster
-        clusterCfg <- localClusterConfigFromEnv Nothing
+        clusterCfg <- localClusterConfigFromEnv
         withCluster tr' dir clusterCfg $
             whenReady dir (trMessageText trCluster) walletLogs
   where
