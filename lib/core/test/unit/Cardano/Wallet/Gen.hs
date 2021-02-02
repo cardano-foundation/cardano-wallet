@@ -1,5 +1,4 @@
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
@@ -100,7 +99,6 @@ import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.HashMap.Strict as HM
-import qualified Data.List as L
 import qualified Data.Map as Map
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
@@ -286,31 +284,9 @@ genScript keyHashes = scale (`div` 3) $ sized scriptTree
             Positive m <- arbitrary
             let n' = n `div` (m + 1)
             scripts' <- vectorOf m (scriptTree n')
-            let hasTimelocks = \case
-                    ActiveFromSlot _ -> True
-                    ActiveUntilSlot _ -> True
-                    _ -> False
-            let scriptsWithValidTimelocks = case L.partition hasTimelocks scripts' of
-                    ([], rest) -> rest
-                    ([ActiveFromSlot s1, ActiveUntilSlot s2], rest) ->
-                        if s2 <= s1 then
-                            rest ++ [ActiveFromSlot s2, ActiveUntilSlot s1]
-                        else
-                            scripts'
-                    ([ActiveUntilSlot s2, ActiveFromSlot s1], rest) ->
-                        if s2 <= s1 then
-                            rest ++ [ActiveFromSlot s2, ActiveUntilSlot s1]
-                        else
-                            scripts'
-                    ([ActiveFromSlot _], _) -> scripts'
-                    ([ActiveUntilSlot _], _) -> scripts'
-                    (_,rest) -> rest
-            case fromIntegral (L.length (filter (not . hasTimelocks) scriptsWithValidTimelocks)) of
-                0 -> scriptTree 0
-                num -> do
-                    atLeast <- choose (1, num)
-                    elements
-                        [ RequireAllOf scriptsWithValidTimelocks
-                        , RequireAnyOf scriptsWithValidTimelocks
-                        , RequireSomeOf atLeast scriptsWithValidTimelocks
-                        ]
+            atLeast <- choose (1, fromIntegral m)
+            elements
+                [ RequireAllOf scripts'
+                , RequireAnyOf scripts'
+                , RequireSomeOf atLeast scripts'
+                ]
