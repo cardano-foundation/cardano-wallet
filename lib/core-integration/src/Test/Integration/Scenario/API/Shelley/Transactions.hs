@@ -110,6 +110,7 @@ import Test.Integration.Framework.DSL
     , expectField
     , expectListField
     , expectListSize
+    , expectListSizeSatisfy
     , expectResponseCode
     , expectSuccess
     , faucetAmt
@@ -143,6 +144,7 @@ import Test.Integration.Framework.DSL
     , (.<=)
     , (.>)
     , (.>=)
+    , (</>)
     )
 import Test.Integration.Framework.Request
     ( RequestException )
@@ -666,7 +668,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 (#balance . #available)
                 (`shouldBe` Quantity (faucetAmt - feeEstMax - amt)) ra2
 
-    it "TRANS_CREATE_10 - Multi-asset balance" $ \ctx -> runResourceT $ do
+    it "TRANS_ASSETS_CREATE_01 - Multi-asset balance" $ \ctx -> runResourceT $ do
         w <- fixtureMultiAssetWallet ctx
         r <- request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty
         verify r
@@ -674,7 +676,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             , expectField (#assets . #total . #getApiT) (`shouldNotBe` TokenMap.empty)
             ]
 
-    it "TRANS_CREATE_10 - Multi-asset transaction with Ada" $ \ctx -> runResourceT $ do
+    it "TRANS_ASSETS_CREATE_01a - Multi-asset transaction with Ada" $ \ctx -> runResourceT $ do
 
         wSrc <- fixtureMultiAssetWallet ctx
         wDest <- emptyWallet ctx
@@ -709,7 +711,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         -- todo: asset balance values more exactly
         -- todo: assert payer wallet balance
 
-    it "TRANS_CREATE_10 - Multi-asset transaction with small Ada amount" $ \ctx -> runResourceT $ do
+    it "TRANS_ASSETS_CREATE_02 - Multi-asset transaction with small Ada amount" $ \ctx -> runResourceT $ do
         wSrc <- fixtureMultiAssetWallet ctx
         wDest <- emptyWallet ctx
         ra <- request @ApiWallet ctx (Link.getWallet @'Shelley wSrc) Default Empty
@@ -731,7 +733,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         -- It should fail with InsufficientMinCoinValueError
         expectResponseCode HTTP.status403 rtx
 
-    it "TRANS_CREATE_10 - Multi-asset transaction without Ada" $ \ctx -> runResourceT $ do
+    it "TRANS_ASSETS_CREATE_02a - Multi-asset transaction without Ada" $ \ctx -> runResourceT $ do
         wSrc <- fixtureMultiAssetWallet ctx
         wDest <- emptyWallet ctx
         ra <- request @ApiWallet ctx (Link.getWallet @'Shelley wSrc) Default Empty
@@ -759,7 +761,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
     let hasAssetOutputs :: [AddressAmount (ApiT Address, Proxy n)] -> Bool
         hasAssetOutputs = any ((/= mempty) . view #assets)
 
-    it "TRANS_CREATE_10 - Multi-asset tx history" $ \ctx -> runResourceT $ do
+    it "TRANS_ASSETS_CREATE_02b - Multi-asset tx history" $ \ctx -> runResourceT $ do
         wSrc <- fixtureMultiAssetWallet ctx
         wDest <- emptyWallet ctx
         wal <- getWallet ctx wSrc
@@ -813,17 +815,64 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 , expectField (#assets . #total . #getApiT) (`shouldNotBe` TokenMap.empty)
                 ]
 
-    it "TRANS_CREATE_10 - Asset list" $ \ctx -> runResourceT $ do
+    it "TRANS_ASSETS_LIST_01 - Asset list present" $ \ctx -> runResourceT $ do
         wal <- fixtureMultiAssetWallet ctx
         r <- request @([ApiAsset]) ctx (Link.listAssets wal) Default Empty
         verify r
             [ expectSuccess
-            , (`shouldSatisfy` (not . null))
+            , expectListSizeSatisfy ( > 0)
             ]
 
-        -- todo: other multi-asset tests to do
-        --  - minting
-        --  - asset get - both endpoints
+    it "TRANS_ASSETS_LIST_02 - Asset list present when not used" $ \ctx -> runResourceT $ do
+        wal <- fixtureWallet ctx
+        r <- request @([ApiAsset]) ctx (Link.listAssets wal) Default Empty
+        verify r
+            [ expectSuccess
+            , expectListSize 0
+            ]
+
+    it "TRANS_ASSETS_LIST_02a - Asset list present when not used" $ \ctx -> runResourceT $ do
+        wal <- emptyWallet ctx
+        r <- request @([ApiAsset]) ctx (Link.listAssets wal) Default Empty
+        verify r
+            [ expectSuccess
+            , expectListSize 0
+            ]
+
+    -- it "TRANS_ASSETS_GET_01 - Asset list present" $ \ctx -> runResourceT $ do
+    --     wal <- fixtureMultiAssetWallet ctx
+    --     r <- request @([ApiAsset]) ctx (Link.getAsset wal) Default Empty
+    --     verify r
+    --         [ expectSuccess
+    --         , expectListSizeSatisfy ( > 0)
+    --         ]
+
+    it "TRANS_ASSETS_GET_02 - Asset not present when isn't associated" $ \ctx -> runResourceT $ do
+        wal <- fixtureMultiAssetWallet ctx
+        let walId = wal ^. walletId
+        let polId = T.pack (replicate 56 '1')
+        let assName = T.pack (replicate 4 '1')
+        let ep = "v2/wallets" </> walId </> "assets" </> polId </> assName
+        r <- request @(ApiAsset) ctx ("GET", ep) Default Empty
+        liftIO $ print r
+        verify r
+            [ expectSuccess
+            -- todo: check nothing is returned?
+            ]
+
+    it "TRANS_ASSETS_GET_02a - Asset not present when isn't associated" $ \ctx -> runResourceT $ do
+        wal <- fixtureMultiAssetWallet ctx
+        let walId = wal ^. walletId
+        let polId = T.pack (replicate 56 '1')
+        let ep = "v2/wallets" </> walId </> "assets" </> polId
+        r <- request @(ApiAsset) ctx ("GET", ep) Default Empty
+        verify r
+            [ expectSuccess
+            -- todo: check nothing is returned?
+            ]
+
+    -- todo: other multi-asset tests to do
+    --  - minting
 
     let absSlotB = view (#absoluteSlotNumber . #getApiT)
     let absSlotS = view (#absoluteSlotNumber . #getApiT)

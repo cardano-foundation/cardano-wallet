@@ -32,6 +32,7 @@ module Test.Integration.Framework.DSL
     , expectField
     , expectListField
     , expectListSize
+    , expectListSizeSatisfy
     , expectResponseCode
     , expectValidJSON
     , expectCliField
@@ -483,6 +484,16 @@ expectListSize
 expectListSize l (_, res) = liftIO $ case res of
     Left e   -> wantedSuccessButError e
     Right xs -> length (toList xs) `shouldBe` l
+
+-- | Expects data list returned by the API to be of certain length
+expectListSizeSatisfy
+    :: (HasCallStack, MonadIO m, Foldable xs)
+    => (Int -> Bool)
+    -> (HTTP.Status, Either RequestException (xs a))
+    -> m ()
+expectListSizeSatisfy cond (_, res) = liftIO $ case res of
+    Left e   -> wantedSuccessButError e
+    Right xs -> length (toList xs) `shouldSatisfy` cond
 
 -- | Expects wallet UTxO statistics from the request to be equal to
 -- pre-calculated statistics.
