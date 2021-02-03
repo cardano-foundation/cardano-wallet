@@ -65,9 +65,9 @@ extra-deps:
     - persistent-sqlite
     - persistent-template
 
-# cardano-addresses-3.1.0
+# cardano-addresses-3.2.0
 - git: https://github.com/input-output-hk/cardano-addresses
-  commit: 9c38189c3e0e011a305ddcd1219e50a0731e99ea
+  commit: 115174cc451d3fc6b90ce61782f841e51f271c3d
   subdirs:
     - command-line
     - core

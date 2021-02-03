@@ -4,10 +4,8 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
@@ -28,7 +26,7 @@ module Cardano.Wallet.Primitive.Scripts
 import Prelude
 
 import Cardano.Address.Script
-    ( KeyHash (..), Script (..), ScriptHash (..), toScriptHash )
+    ( KeyHash (..), Script (..), foldScript, toScriptHash )
 import Cardano.Crypto.Wallet
     ( XPub )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -44,14 +42,10 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     )
 import Control.Arrow
     ( first )
-import Control.Monad
-    ( foldM )
 import Control.Monad.Trans.State.Strict
     ( runState, state )
 import Data.Function
     ( (&) )
-import Data.Functor.Identity
-    ( Identity (..) )
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
@@ -59,11 +53,9 @@ import Data.Maybe
 
 import qualified Data.Map.Strict as Map
 
-deriving instance Ord ScriptHash
-
 isShared
     :: (k ~ ShelleyKey, SoftDerivation k)
-    => Script
+    => Script KeyHash
     -> SeqState n k
     -> ([k 'ScriptK XPub], SeqState n k)
 isShared script (SeqState !s1 !s2 !pending !rpk !prefix !s3) =
@@ -95,15 +87,5 @@ isShared script (SeqState !s1 !s2 !pending !rpk !prefix !s3) =
 insertIf :: Ord k => (v -> Bool) -> k -> v -> Map k v -> Map k v
 insertIf predicate k v = if predicate v then Map.insert k v else id
 
-retrieveAllVerKeyHashes :: Script -> [KeyHash]
+retrieveAllVerKeyHashes :: Script KeyHash -> [KeyHash]
 retrieveAllVerKeyHashes = foldScript (:) []
-
-foldScript :: (KeyHash -> b -> b) -> b -> Script -> b
-foldScript fn zero = \case
-    RequireSignatureOf k -> fn k zero
-    RequireAllOf xs      -> foldMScripts xs
-    RequireAnyOf xs      -> foldMScripts xs
-    RequireSomeOf _ xs   -> foldMScripts xs
-  where
-    foldMScripts =
-        runIdentity . foldM (\acc -> Identity . foldScript fn acc) zero

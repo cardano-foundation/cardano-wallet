@@ -131,7 +131,9 @@ import Cardano.Wallet.Api.Types
     )
 import Cardano.Wallet.Gen
     ( genMnemonic
+    , genNatural
     , genPercentage
+    , genScript
     , genTxMetadata
     , shrinkPercentage
     , shrinkTxMetadata
@@ -296,7 +298,6 @@ import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
     , InfiniteList (..)
-    , Positive (..)
     , applyArbitrary2
     , applyArbitrary3
     , arbitraryBoundedEnum
@@ -310,7 +311,6 @@ import Test.QuickCheck
     , property
     , scale
     , shrinkIntegral
-    , sized
     , vector
     , vectorOf
     , (.&&.)
@@ -1064,21 +1064,10 @@ instance Arbitrary ApiEpochInfo where
     arbitrary = ApiEpochInfo <$> arbitrary <*> genUniformTime
     shrink _ = []
 
-instance Arbitrary Script where
-    arbitrary = Test.QuickCheck.scale (`div` 3) $ sized scriptTree
-      where
-        scriptTree 0 = RequireSignatureOf <$> arbitrary
-        scriptTree n = do
-            Positive m <- arbitrary
-            let n' = n `div` (m + 1)
-            scripts <- vectorOf m (scriptTree n')
-            atLeast <- choose (1, fromIntegral m)
-            elements
-                [ RequireAllOf scripts
-                , RequireAnyOf scripts
-                , RequireSomeOf atLeast scripts
-                ]
-    shrink = genericShrink
+instance Arbitrary (Script KeyHash) where
+    arbitrary = do
+        keyHashes <- vectorOf 10 arbitrary
+        genScript keyHashes
 
 instance Arbitrary KeyHash where
     arbitrary = KeyHash . BS.pack <$> vectorOf 28 arbitrary
@@ -1810,6 +1799,10 @@ instance Arbitrary ApiAccountKey where
         pubKey <- BS.pack <$> replicateM 32 arbitrary
         oneof [ pure $ ApiAccountKey pubKey False
               , pure $ ApiAccountKey xpubKey True ]
+
+instance Arbitrary Natural where
+    shrink = shrinkIntegral
+    arbitrary = genNatural
 
 {-------------------------------------------------------------------------------
                    Specification / Servant-Swagger Machinery

@@ -193,6 +193,7 @@ test-suite unit
     , hspec-core
     , iohk-monitoring
     , hspec
+    , hspec-core
     , memory
     , optparse-applicative
     , ouroboros-consensus-shelley

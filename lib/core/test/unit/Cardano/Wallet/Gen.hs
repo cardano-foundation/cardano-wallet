@@ -21,12 +21,16 @@ module Cardano.Wallet.Gen
     , genTxMetadata
     , shrinkTxMetadata
     , genSmallTxMetadata
+    , genScript
+    , genNatural
     ) where
 
 import Prelude
 
 import Cardano.Address.Derivation
     ( xpubFromBytes )
+import Cardano.Address.Script
+    ( KeyHash (..), Script (..) )
 import Cardano.Api.Typed
     ( TxMetadata (..)
     , TxMetadataJsonSchema (..)
@@ -67,10 +71,14 @@ import Data.Word
     ( Word, Word32 )
 import GHC.TypeLits
     ( natVal )
+import Numeric.Natural
+    ( Natural )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
+    , Positive (..)
     , PrintableString (..)
+    , arbitrarySizedNatural
     , choose
     , elements
     , listOf
@@ -79,6 +87,7 @@ import Test.QuickCheck
     , resize
     , scale
     , shrinkList
+    , sized
     , suchThat
     , vector
     , vectorOf
@@ -259,3 +268,25 @@ shrinkTxMetadataValue (TxMetaList xs) =
 shrinkTxMetadataValue (TxMetaNumber i) = TxMetaNumber <$> shrink i
 shrinkTxMetadataValue (TxMetaBytes b) = TxMetaBytes <$> shrinkByteString b
 shrinkTxMetadataValue (TxMetaText s) = TxMetaText <$> shrinkText s
+
+genNatural :: Gen Natural
+genNatural = arbitrarySizedNatural
+
+genScript :: [KeyHash] -> Gen (Script KeyHash)
+genScript keyHashes = scale (`div` 3) $ sized scriptTree
+    where
+        scriptTree 0 = oneof
+            [ RequireSignatureOf <$> elements keyHashes
+            , ActiveFromSlot <$> genNatural
+            , ActiveUntilSlot <$> genNatural
+            ]
+        scriptTree n = do
+            Positive m <- arbitrary
+            let n' = n `div` (m + 1)
+            scripts' <- vectorOf m (scriptTree n')
+            atLeast <- choose (1, fromIntegral m)
+            elements
+                [ RequireAllOf scripts'
+                , RequireAnyOf scripts'
+                , RequireSomeOf atLeast scripts'
+                ]
