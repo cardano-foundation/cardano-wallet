@@ -109,6 +109,7 @@ module Test.Integration.Framework.DSL
     , fixtureWallet
     , fixtureWalletWith
     , fixtureWalletWithMnemonics
+    , fixtureMultiAssetWallet
     , faucetAmt
     , faucetUtxoAmt
     , proc'
@@ -343,7 +344,7 @@ import Test.Hspec.Expectations.Lifted
 import Test.HUnit.Lang
     ( FailureReason (..), HUnitFailure (..) )
 import Test.Integration.Faucet
-    ( nextTxBuilder, nextWallet )
+    ( NextWallet, nextTxBuilder, nextWallet )
 import Test.Integration.Framework.Context
     ( Context (..), TxDescription (..) )
 import Test.Integration.Framework.Request
@@ -1120,6 +1121,12 @@ rewardWallet ctx = do
             ]
         pure (getFromResponse id rg, mw)
 
+fixtureMultiAssetWallet
+    :: MonadIO m
+    => Context
+    -> ResourceT m ApiWallet
+fixtureMultiAssetWallet = fmap fst . fixtureWalletWithMnemonics (Proxy @"ma")
+
 fixtureRawTx
     :: Context
     -> (Address, Natural)
@@ -1152,18 +1159,17 @@ fixtureWallet
     :: MonadIO m
     => Context
     -> ResourceT m ApiWallet
-fixtureWallet ctx = do
-    (w, _) <- fixtureWalletWithMnemonics ctx
-    return w
+fixtureWallet = fmap fst . fixtureWalletWithMnemonics (Proxy @"shelley")
 
 fixtureWalletWithMnemonics
-    :: MonadIO m
-    => Context
+    :: forall m scheme. (MonadIO m, NextWallet scheme)
+    => Proxy scheme
+    -> Context
     -> ResourceT m (ApiWallet, [Text])
-fixtureWalletWithMnemonics ctx = snd <$> allocate create (free . fst)
+fixtureWalletWithMnemonics _ ctx = snd <$> allocate create (free . fst)
   where
     create = do
-        mnemonics <- mnemonicToText <$> nextWallet @"shelley" (_faucet ctx)
+        mnemonics <- mnemonicToText <$> nextWallet @scheme (_faucet ctx)
         let payload = Json [aesonQQ| {
                 "name": "Faucet Wallet",
                 "mnemonic_sentence": #{mnemonics},

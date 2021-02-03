@@ -408,7 +408,7 @@ import Data.Time
 import Data.Word
     ( Word32 )
 import Fmt
-    ( pretty )
+    ( blockListF, indentF, pretty )
 import GHC.Stack
     ( HasCallStack )
 import Network.HTTP.Media.RenderHeader
@@ -2511,7 +2511,7 @@ instance LiftHandler ErrSubmitExternalTx where
                     [ "That's embarrassing. It looks like I've created an "
                     , "invalid transaction that could not be parsed by the "
                     , "node. Here's an error message that may help with "
-                    , "debugging: ", pretty err
+                    , "debugging: ", err
                     ]
             ErrPostTxProtocolFailure err ->
                 apiError err500 RejectedByCoreNode $ mconcat
@@ -2521,7 +2521,7 @@ instance LiftHandler ErrSubmitExternalTx where
                     , "transaction conflicts with another transaction that "
                     , "uses one or more of the same inputs, or it may be due "
                     , "to some other reason. Here's an error message that may "
-                    , "help with debugging: ", pretty err
+                    , "help with debugging: ", err
                     ]
         ErrSubmitExternalTxDecode e -> (handler e)
             { errHTTPCode = 400
@@ -2550,7 +2550,7 @@ instance LiftHandler ErrPostTx where
             [ "That's embarrassing. It looks like I've created an "
             , "invalid transaction that could not be parsed by the "
             , "node. Here's an error message that may help with "
-            , "debugging: ", pretty err
+            , "debugging: ", err
             ]
         ErrPostTxProtocolFailure err ->
             apiError err500 RejectedByCoreNode $ mconcat
@@ -2560,7 +2560,7 @@ instance LiftHandler ErrPostTx where
             , "transaction conflicts with another transaction that "
             , "uses one or more of the same inputs, or it may be due "
             , "to some other reason. Here's an error message that may "
-            , "help with debugging: ", pretty err
+            , "help with debugging: ", err
             ]
 
 instance LiftHandler ErrSubmitTx where
@@ -2801,7 +2801,7 @@ instance LiftHandler ErrSelectAssets where
                         , "that minimum value myself when you do not explicitly "
                         , "specify an ada value for an output. Otherwise, you "
                         , "must specify enough ada. Here are the problematic "
-                        , "outputs: " <> showT xs
+                        , "outputs:\n" <> pretty (indentF 2 $ blockListF xs)
                         ]
                 UnableToConstructChange e ->
                     apiError err403 CannotCoverFee $ mconcat

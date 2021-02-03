@@ -37,6 +37,7 @@ module Cardano.Wallet.Api
     , Assets
         , ListAssets
         , GetAsset
+        , GetAssetDefault
 
     , Addresses
         , ListAddresses
