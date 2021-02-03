@@ -2128,8 +2128,7 @@ bigDustWallet = unsafeMkMnemonic
 
 shelleyIntegrationTestFunds :: [(Address, Coin)]
 shelleyIntegrationTestFunds = mconcat
-    [ take 90 seqMnemonics >>=
-        (take 10 . map (, defaultAmt) . addresses . SomeMnemonic)
+    [ seqMnemonics >>= (take 10 . map (, defaultAmt) . addresses . SomeMnemonic)
 
     , zip
          (addresses $ SomeMnemonic onlyDustWallet)
@@ -2219,7 +2218,7 @@ maryAssetScripts = map (first (unsafeFromText . T.pack))
 -- so that they can be minted by the faucet.
 maryIntegrationTestAssets
     :: [(Address, (TokenBundle, [(String, String)]))]
-maryIntegrationTestAssets = take 20 maMnemonics >>= take 5
+maryIntegrationTestAssets = maMnemonics >>= take 3
     . flip zip (cycle maryTokenBundles)
     . genShelleyAddresses
     . SomeMnemonic
