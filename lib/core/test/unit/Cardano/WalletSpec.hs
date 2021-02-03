@@ -402,10 +402,10 @@ walletGetProp newWallet = monadicIO $ liftIO $ do
 walletGetWrongIdProp
     :: ((WalletId, WalletName, DummyState), WalletId)
     -> Property
-walletGetWrongIdProp (newWallet, corruptedWalletId) = monadicIO $ liftIO $ do
+walletGetWrongIdProp (newWallet@(wid, _, _), walletId) = monadicIO $ liftIO $ do
     (WalletLayerFixture _db wl _walletIds _) <- liftIO $ setupFixture newWallet
-    attempt <- runExceptT $ W.readWallet wl corruptedWalletId
-    attempt `shouldSatisfy` isLeft
+    attempt <- runExceptT $ W.readWallet wl walletId
+    attempt `shouldSatisfy` if wid /= walletId then isLeft else isRight
 
 walletIdDeterministic
     :: (WalletId, WalletName, DummyState)
