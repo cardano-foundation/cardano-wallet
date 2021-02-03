@@ -506,8 +506,10 @@ prop_performSelection
 prop_performSelection minCoinValueFor costFor (Blind criteria) coverage =
     monadicIO $ do
         monitor $ counterexample $ unlines
-            [ "extraCoinSource: " <> show extraCoinSource
-            , "selectionLimit:  " <> show selectionLimit
+            [ "extraCoinSource:"
+            , show extraCoinSource
+            , "selectionLimit:"
+            , show selectionLimit
             ]
         result <- run (performSelection
             (mkMinCoinValueFor minCoinValueFor)
@@ -703,10 +705,14 @@ prop_runSelection_UTxO_moreThanEnough extraSource (Small index) = monadicIO $ do
     monitor $ cover 50 (Set.size assetsRequested >= 4)
         "size assetsRequested >= 4"
     monitor $ counterexample $ unlines
-        [ "balance available: " <> pretty (Flat balanceAvailable)
-        , "balance requested: " <> pretty (Flat balanceRequested)
-        , "balance selected:  " <> pretty (Flat balanceSelected)
-        , "balance leftover:  " <> pretty (Flat balanceLeftover)
+        [ "balance available:"
+        , pretty (Flat balanceAvailable)
+        , "balance requested:"
+        , pretty (Flat balanceRequested)
+        , "balance selected:"
+        , pretty (Flat balanceSelected)
+        , "balance leftover:"
+        , pretty (Flat balanceLeftover)
         ]
     assert $ balanceRequested `leq` addExtraSource extraSource balanceSelected
     assert $ balanceAvailable == balanceSelected <> balanceLeftover
@@ -736,10 +742,14 @@ prop_runSelection_UTxO_muchMoreThanEnough extraSource (Blind (Large index)) =
         monitor $ cover 50 (Set.size assetsRequested >= 4)
             "size assetsRequested >= 4"
         monitor $ counterexample $ unlines
-            [ "balance available: " <> pretty (Flat balanceAvailable)
-            , "balance requested: " <> pretty (Flat balanceRequested)
-            , "balance selected:  " <> pretty (Flat balanceSelected)
-            , "balance leftover:  " <> pretty (Flat balanceLeftover)
+            [ "balance available:"
+            , pretty (Flat balanceAvailable)
+            , "balance requested:"
+            , pretty (Flat balanceRequested)
+            , "balance selected:"
+            , pretty (Flat balanceSelected)
+            , "balance leftover:"
+            , pretty (Flat balanceLeftover)
             ]
         assert $
             balanceRequested `leq` addExtraSource extraSource balanceSelected
@@ -1075,15 +1085,18 @@ prop_makeChange_success_delta p change =
         delta = TokenBundle.unsafeSubtract
             totalInputValue
             totalOutputWithChange
-
-        totalChangeCoin =
-            TokenBundle.getCoin (F.fold change)
     in
         (delta === TokenBundle.fromCoin (cost p))
-            & counterexample ("totalChangeValue: " <> pretty totalChangeCoin)
-            & counterexample ("totalOutputValue: " <> pretty totalOutputCoin)
-            & counterexample ("totalInputValue:  " <> pretty totalInputCoin)
+            & counterexample counterExampleText
   where
+    counterExampleText = unlines
+        [ "totalChangeValue:"
+        , pretty totalChangeCoin
+        , "totalOutputValue:"
+        , pretty totalOutputCoin
+        , "totalInputValue:"
+        , pretty totalInputCoin
+        ]
     totalInputValue = TokenBundle.add
         (F.fold (inputBundles p))
         (maybe TokenBundle.empty TokenBundle.fromCoin (extraInputCoins p))
@@ -1093,6 +1106,8 @@ prop_makeChange_success_delta p change =
         F.fold $ outputBundles p
     totalOutputCoin =
         TokenBundle.getCoin totalOutputValue
+    totalChangeCoin =
+        TokenBundle.getCoin (F.fold change)
 
 -- Checks that after a successful call to 'makeChange', all generated change
 -- outputs satisfy the minimum required coin quantity provided.
@@ -1110,12 +1125,16 @@ prop_makeChange_success_minValueRespected p =
 
     checkMinValue :: TokenBundle -> Property
     checkMinValue m@TokenBundle{coin,tokens} =
-        let
-            minCoinValue = minCoinValueFor tokens
-        in
-            coin >= minCoinValue
-                & counterexample ("bundle: " <> pretty (Flat m))
-                & counterexample ("minCoinValue: " <> pretty minCoinValue)
+        coin >= minCoinValue
+          & counterexample counterexampleText
+      where
+        counterexampleText = unlines
+            [ "bundle:"
+            , pretty (Flat m)
+            , "minCoinValue:"
+            , pretty minCoinValue
+            ]
+        minCoinValue = minCoinValueFor tokens
 
 -- The 'makeChange' function may fail when the required cost for a transaction
 -- is too big. When this occurs, it means that the delta between inputs and
@@ -1159,26 +1178,27 @@ prop_makeChange_fail_minValueTooBig p =
         -- change generated and make sure that there were indeed not enough
         -- coins available to generate all change outputs.
         Right change ->
-            let
-                deltaCoin = TokenBundle.getCoin $ TokenBundle.unsafeSubtract
-                    totalInputValue
-                    totalOutputValue
-
-                minCoinValueFor = mkMinCoinValueFor (minCoinValueDef p)
-
-                totalMinCoinDeposit = F.foldr addCoin (Coin 0)
-                    (minCoinValueFor . view #tokens <$> change)
-            in
-                conjoin
-                    [ deltaCoin < (totalMinCoinDeposit `addCoin` cost p)
-                    , deltaCoin >= cost p
-                    ]
-                    & counterexample
-                        ("change: " <> pretty (blockListF (Flat <$> change)))
-                    & counterexample
-                        ("delta: " <> pretty deltaCoin)
-                    & counterexample
-                        ("totalMinCoinDeposit: " <> pretty totalMinCoinDeposit)
+            conjoin
+                [ deltaCoin < (totalMinCoinDeposit `addCoin` cost p)
+                , deltaCoin >= cost p
+                ]
+                & counterexample counterexampleText
+          where
+            counterexampleText = unlines
+                [ "change:"
+                , pretty (blockListF (Flat <$> change))
+                , "delta:"
+                , pretty deltaCoin
+                , "totalMinCoinDeposit:"
+                , pretty totalMinCoinDeposit
+                ]
+            deltaCoin = TokenBundle.getCoin $ TokenBundle.unsafeSubtract
+                totalInputValue
+                totalOutputValue
+            minCoinValueFor =
+                mkMinCoinValueFor (minCoinValueDef p)
+            totalMinCoinDeposit = F.foldr addCoin (Coin 0)
+                (minCoinValueFor . view #tokens <$> change)
   where
     totalInputValue = TokenBundle.add
         (F.fold (inputBundles p))
