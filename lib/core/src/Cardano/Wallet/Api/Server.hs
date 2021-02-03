@@ -345,6 +345,8 @@ import Cardano.Wallet.Registry
     , defaultWorkerAfter
     , workerResource
     )
+import Cardano.Wallet.TokenMetadata
+    ( TokenMetadataServer (..), fillMetadata, nullTokenMetadataServer )
 import Cardano.Wallet.Transaction
     ( DelegationAction (..)
     , TransactionCtx (..)
@@ -474,6 +476,7 @@ import qualified Cardano.Wallet.Primitive.AddressDerivation.Icarus as Icarus
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
+import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Cardano.Wallet.Primitive.Types.UTxO as W
 import qualified Cardano.Wallet.Registry as Registry
@@ -1310,9 +1313,11 @@ listAssetsAvailable ctx (ApiT wid) = do
     utxo <- withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk -> liftHandler $ do
        (cp, _meta, _pending) <- W.readWallet @_ @s @k wrk wid
        pure (cp ^. #utxo)
-    pure $ map (toApiAsset metadata) $ F.toList $ W.getAssets utxo
-  where
-    metadata = Nothing  -- TODO: Use data from metadata server
+    let assets = W.getAssets utxo
+
+    -- TODO: Use data from metadata server
+    let metadataServer = nullTokenMetadataServer
+    liftIO $ F.toList <$> fillMetadata metadataServer assets toApiAsset
 
 listAssets
     :: forall ctx s k.

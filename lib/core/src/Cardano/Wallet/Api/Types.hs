@@ -448,7 +448,7 @@ data ApiAsset = ApiAsset
     { policyId :: ApiT W.TokenPolicyId
     , assetName :: ApiT W.TokenName
     , metadata :: Maybe (ApiT W.AssetMetadata)
-    } deriving (Eq, Generic, Show)
+    } deriving (Eq, Generic, Ord, Show)
       deriving anyclass NFData
 
 toApiAsset :: Maybe W.AssetMetadata -> W.AssetId -> ApiAsset
