@@ -1014,8 +1014,8 @@ assignCoin
     -> TokenMap
     -> Coin
     -> Maybe (TokenBundle, Coin)
-assignCoin minCoinValueFor tokens availableCoins@(Coin c)
-    | availableCoins < minCoin =
+assignCoin minCoinValueFor tokens availableCoin@(Coin c)
+    | availableCoin < minCoin =
         Nothing
     | otherwise =
         Just (TokenBundle minCoin tokens, Coin (c - m))
