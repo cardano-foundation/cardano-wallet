@@ -799,7 +799,7 @@ makeChange minCoinValueFor requiredCost mExtraCoinSource inputBundles outputBund
     | TokenBundle.getCoin totalOutputValue == Coin 0 =
         totalOutputCoinValueIsZero
     | otherwise = do
-        (changeForAssetsWithMinimalCoins, remainder) <-
+        (changeForAssetsWithMinimalCoins, leftoverCoin) <-
             maybe (Left changeError) Right $
                 excessCoin `subtractCoin` requiredCost
                 >>=
@@ -809,7 +809,7 @@ makeChange minCoinValueFor requiredCost mExtraCoinSource inputBundles outputBund
 
         let changeForCoins :: NonEmpty TokenBundle
             changeForCoins = TokenBundle.fromCoin
-                <$> makeChangeForCoin outputCoins remainder
+                <$> makeChangeForCoin outputCoins leftoverCoin
 
         pure $ NE.toList $ NE.zipWith (<>)
             changeForAssetsWithMinimalCoins
