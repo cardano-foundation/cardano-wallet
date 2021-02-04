@@ -989,7 +989,7 @@ linearCost SelectionSkeleton{inputsSkeleton, outputsSkeleton, changeSkeleton}
 data MakeChangeData = MakeChangeData
     { inputBundles
         :: NonEmpty TokenBundle
-    , extraInputCoins
+    , extraInputCoin
         :: Maybe Coin
     , outputBundles
         :: NonEmpty TokenBundle
@@ -1006,7 +1006,7 @@ isValidMakeChangeData p = (&&)
   where
     totalInputValue = TokenBundle.add
         (F.fold $ inputBundles p)
-        (maybe TokenBundle.empty TokenBundle.fromCoin (extraInputCoins p))
+        (maybe TokenBundle.empty TokenBundle.fromCoin (extraInputCoin p))
     totalOutputValue = F.fold $ outputBundles p
     totalOutputCoinValue = TokenBundle.getCoin totalOutputValue
 
@@ -1032,7 +1032,7 @@ makeChangeWith
 makeChangeWith p = makeChange
     (mkMinCoinValueFor $ minCoinValueDef p)
     (cost p)
-    (extraInputCoins p) (inputBundles p)
+    (extraInputCoin p) (inputBundles p)
     (outputBundles p)
 
 prop_makeChange_identity
@@ -1050,7 +1050,7 @@ prop_makeChange_length p =
         Right xs -> length xs === length (outputBundles p)
   where
     change = makeChange noMinCoin noCost
-        (extraInputCoins p) (inputBundles p) (outputBundles p)
+        (extraInputCoin p) (inputBundles p) (outputBundles p)
 
 prop_makeChange
     :: MakeChangeData
@@ -1099,7 +1099,7 @@ prop_makeChange_success_delta p change =
         ]
     totalInputValue = TokenBundle.add
         (F.fold (inputBundles p))
-        (maybe TokenBundle.empty TokenBundle.fromCoin (extraInputCoins p))
+        (maybe TokenBundle.empty TokenBundle.fromCoin (extraInputCoin p))
     totalInputCoin =
         TokenBundle.getCoin totalInputValue
     totalOutputValue =
@@ -1155,7 +1155,7 @@ prop_makeChange_fail_costTooBig p =
   where
     totalInputValue = TokenBundle.add
         (F.fold (inputBundles p))
-        (maybe TokenBundle.empty TokenBundle.fromCoin (extraInputCoins p))
+        (maybe TokenBundle.empty TokenBundle.fromCoin (extraInputCoin p))
     totalOutputValue =
         F.fold $ outputBundles p
 
@@ -1202,7 +1202,7 @@ prop_makeChange_fail_minValueTooBig p =
   where
     totalInputValue = TokenBundle.add
         (F.fold (inputBundles p))
-        (maybe TokenBundle.empty TokenBundle.fromCoin (extraInputCoins p))
+        (maybe TokenBundle.empty TokenBundle.fromCoin (extraInputCoin p))
     totalOutputValue =
         F.fold $ outputBundles p
 
