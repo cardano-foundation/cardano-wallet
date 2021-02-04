@@ -32,6 +32,7 @@
           (hsPkgs."base" or (errorHandler.buildDepError "base"))
           (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
           (hsPkgs."deepseq" or (errorHandler.buildDepError "deepseq"))
+          (hsPkgs."hashable" or (errorHandler.buildDepError "hashable"))
           ];
         buildable = true;
         };

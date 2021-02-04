@@ -56,6 +56,7 @@
           (hsPkgs."fmt" or (errorHandler.buildDepError "fmt"))
           (hsPkgs."foldl" or (errorHandler.buildDepError "foldl"))
           (hsPkgs."generic-lens" or (errorHandler.buildDepError "generic-lens"))
+          (hsPkgs."hashable" or (errorHandler.buildDepError "hashable"))
           (hsPkgs."http-api-data" or (errorHandler.buildDepError "http-api-data"))
           (hsPkgs."http-client" or (errorHandler.buildDepError "http-client"))
           (hsPkgs."http-client-tls" or (errorHandler.buildDepError "http-client-tls"))
