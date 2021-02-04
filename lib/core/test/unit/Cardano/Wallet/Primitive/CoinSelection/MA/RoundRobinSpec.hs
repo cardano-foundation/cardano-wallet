@@ -561,7 +561,7 @@ prop_performSelection minCoinValueFor costFor (Blind criteria) coverage =
                 UTxOIndex.fromSequence inputsSelected
             , outputsSkeleton =
                 NE.toList outputsToCover
-            , changeSkeleton  = NE.toList $
+            , changeSkeleton =
                 fmap (TokenMap.getAssets . view #tokens) changeGenerated
             }
         balanceSelected =
@@ -1028,7 +1028,7 @@ genMakeChangeData = flip suchThat isValidMakeChangeData $ do
 
 makeChangeWith
     :: MakeChangeData
-    -> Either UnableToConstructChangeError (NonEmpty TokenBundle)
+    -> Either UnableToConstructChangeError [TokenBundle]
 makeChangeWith p = makeChange
     (mkMinCoinValueFor $ minCoinValueDef p)
     (cost p)
@@ -1074,7 +1074,7 @@ prop_makeChange p =
 -- See also 'prop_makeChange' as a top-level property driver.
 prop_makeChange_success_delta
     :: MakeChangeData
-    -> NonEmpty TokenBundle
+    -> [TokenBundle]
     -> Property
 prop_makeChange_success_delta p change =
     let
@@ -1115,7 +1115,7 @@ prop_makeChange_success_delta p change =
 -- See also `prop_makeChange` as a top-level property driver.
 prop_makeChange_success_minValueRespected
     :: MakeChangeData
-    -> NonEmpty TokenBundle
+    -> [TokenBundle]
     -> Property
 prop_makeChange_success_minValueRespected p =
     F.foldr ((.&&.) . checkMinValue) (property True)
@@ -1219,7 +1219,7 @@ unit_makeChange =
           , Nothing
           , b 2 [] :| []
           , b 1 [] :| []
-          , Right $ b 1 [] :| []
+          , Right [b 1 []]
           )
 
         -- Two outputs, no cost, changes are proportional, no extra assets
@@ -1227,7 +1227,10 @@ unit_makeChange =
           , Nothing
           , b 9 [(assetA, 9), (assetB, 6)] :| []
           , b 2 [(assetA, 1)] :| [b 1 [(assetA, 2), (assetB, 3)]]
-          , Right $ b 4 [(assetA, 2)] :| [b 2 [(assetA, 4), (assetB, 3)]]
+          , Right
+              [ b 4 [(assetA, 2)]
+              , b 2 [(assetA, 4), (assetB, 3)]
+              ]
           )
 
         -- Extra non-user-specified assets. Large assets end up in 'large'
@@ -1236,7 +1239,10 @@ unit_makeChange =
           , Nothing
           , b 1 [(assetA, 10), (assetC, 1)] :| [b 1 [(assetB, 2), (assetC, 8)]]
           , b 1 [(assetA, 5)] :| [b 1 [(assetB, 1)]]
-          , Right $ b 0 [(assetB, 1), (assetC, 1)] :| [b 0 [(assetA, 5), (assetC, 8)]]
+          , Right
+              [ b 0 [(assetB, 1), (assetC, 1)]
+              , b 0 [(assetA, 5), (assetC, 8)]
+              ]
           )
         ]
 

@@ -545,7 +545,7 @@ walletKeyIsReencrypted (wid, wname) (xprv, pwd) newPwd =
             Nothing
         , outputsCovered =
             [ TxOut (Address "destination") (TokenBundle.fromCoin $ Coin 14) ]
-        , changeGenerated = NE.fromList
+        , changeGenerated =
             [ (TokenBundle.fromCoin $ Coin 1) ]
         , utxoRemaining =
             UTxOIndex.empty

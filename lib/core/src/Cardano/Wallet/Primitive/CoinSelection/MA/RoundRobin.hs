@@ -219,8 +219,8 @@ data SelectionResult change = SelectionResult
         -- of writing these lines, I've already been yak-shaving for a while and
         -- this is the last remaining obstacle, not worth the effort _yet_.
     , changeGenerated
-        :: !(NonEmpty change)
-        -- ^ A (non-empty) list of generated change outputs.
+        :: ![change]
+        -- ^ A list of generated change outputs.
     , utxoRemaining
         :: !UTxOIndex
         -- ^ The subset of 'utxoAvailable' that remains after performing
@@ -235,7 +235,7 @@ instance Buildable (SelectionResult TxOut) where
     build = buildSelectionResult (blockListF . fmap build)
 
 buildSelectionResult
-    :: (NonEmpty change -> Builder)
+    :: ([change] -> Builder)
     -> SelectionResult change
     -> Builder
 buildSelectionResult changeF s@SelectionResult{inputsSelected,extraCoinSource} =
@@ -479,7 +479,7 @@ performSelection minCoinValueFor costFor criteria
     --
     predictChange
         :: UTxOIndex
-        -> NonEmpty (Set AssetId)
+        -> [Set AssetId]
     predictChange inputsPreSelected = either
         (const $ invariantResultWithNoCost inputsPreSelected)
         (fmap (TokenMap.getAssets . view #tokens))
@@ -510,7 +510,7 @@ performSelection minCoinValueFor costFor criteria
         -> m (Either SelectionError (SelectionResult TokenBundle))
     makeChangeRepeatedly s@SelectionState{selected,leftover} = do
         let inputsSelected = mkInputsSelected selected
-        let changeSkeleton = NE.toList $ predictChange selected
+        let changeSkeleton = predictChange selected
 
         let cost = costFor SelectionSkeleton
                 { inputsSkeleton  = selected
@@ -519,7 +519,7 @@ performSelection minCoinValueFor costFor criteria
                 }
 
         let mChangeGenerated
-                :: Either UnableToConstructChangeError (NonEmpty TokenBundle)
+                :: Either UnableToConstructChangeError [TokenBundle]
             mChangeGenerated = makeChange minCoinValueFor cost
                 extraCoinSource
                 (view #tokens . snd <$> inputsSelected)
@@ -791,7 +791,7 @@ makeChange
         -- ^ Token bundles of selected inputs.
     -> NonEmpty TokenBundle
         -- ^ Token bundles of original outputs.
-    -> Either UnableToConstructChangeError (NonEmpty TokenBundle)
+    -> Either UnableToConstructChangeError [TokenBundle]
         -- ^ Generated change bundles.
 makeChange minCoinValueFor requiredCost mExtraCoinSource inputBundles outputBundles
     | not (totalOutputValue `leq` totalInputValue) =
@@ -810,7 +810,7 @@ makeChange minCoinValueFor requiredCost mExtraCoinSource inputBundles outputBund
             changeForCoins = TokenBundle.fromCoin
                 <$> makeChangeForCoin outputCoins remainder
 
-        pure (NE.zipWith (<>) bundles changeForCoins)
+        pure $ NE.toList $ NE.zipWith (<>) bundles changeForCoins
   where
     -- The following subtraction is safe, as we have already checked
     -- that the total input value is greater than the total output
