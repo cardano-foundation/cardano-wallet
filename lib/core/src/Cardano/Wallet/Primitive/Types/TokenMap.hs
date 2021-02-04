@@ -106,6 +106,8 @@ import Data.Bifunctor
     ( first )
 import Data.Functor
     ( ($>) )
+import Data.Hashable
+    ( Hashable (..), hashUsing )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Map.Strict
@@ -213,6 +215,8 @@ instance PartialOrd TokenMap where
         (getAssets m1 `Set.union` getAssets m2)
 
 instance NFData TokenMap
+instance Hashable TokenMap where
+    hashWithSalt = hashUsing (Map.toList . unTokenMap)
 
 instance Semigroup TokenMap where
     (<>) = add

@@ -36,6 +36,8 @@ import Control.Monad
     ( (<=<) )
 import Data.Foldable
     ( foldl' )
+import Data.Hashable
+    ( Hashable )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text.Class
@@ -89,6 +91,7 @@ instance FromText Coin where
                 Left $ TextDecodingError "Coin value is out of bounds"
 
 instance NFData Coin
+instance Hashable Coin
 
 instance Bounded Coin where
     minBound = Coin 0

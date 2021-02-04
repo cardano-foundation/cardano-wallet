@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -25,6 +26,8 @@ import Data.ByteArray.Encoding
     ( Base (Base16), convertFromBase, convertToBase )
 import Data.ByteString
     ( ByteString )
+import Data.Hashable
+    ( Hashable )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Text
@@ -48,8 +51,7 @@ newtype Hash (tag :: Symbol) = Hash { getHash :: ByteString }
     deriving stock (Generic, Eq, Ord)
     deriving newtype (ByteArrayAccess)
     deriving (Read, Show) via (Quiet (Hash tag))
-
-instance NFData (Hash tag)
+    deriving anyclass (NFData, Hashable)
 
 instance Buildable (Hash tag) where
     build h = mempty

@@ -294,6 +294,8 @@ import Data.Function
     ( (&) )
 import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
+import Data.Hashable
+    ( Hashable )
 import Data.List
     ( intercalate )
 import Data.List.NonEmpty
@@ -555,7 +557,7 @@ data ApiCoinSelectionOutput (n :: NetworkDiscriminant) = ApiCoinSelectionOutput
     , amount :: !(Quantity "lovelace" Natural)
     , assets :: !(ApiT W.TokenMap)
     } deriving (Eq, Ord, Generic, Show)
-      deriving anyclass NFData
+      deriving anyclass (NFData, Hashable)
 
 data ApiWallet = ApiWallet
     { id :: !(ApiT WalletId)
@@ -1199,7 +1201,7 @@ instance KnownDiscovery (SeqState network key) where
 newtype ApiT a =
     ApiT { getApiT :: a }
     deriving (Generic, Show, Eq, Functor)
-    deriving newtype (Semigroup, Monoid)
+    deriving newtype (Semigroup, Monoid, Hashable)
     deriving anyclass NFData
 deriving instance Ord a => Ord (ApiT a)
 
