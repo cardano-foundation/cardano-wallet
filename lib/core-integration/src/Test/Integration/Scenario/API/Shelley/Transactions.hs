@@ -863,27 +863,18 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
 
     it "TRANS_ASSETS_GET_02 - Asset not present when isn't associated" $ \ctx -> runResourceT $ do
         wal <- fixtureMultiAssetWallet ctx
-        let polId = TokenPolicy.UnsafeTokenPolicyId $ Hash $ B8.replicate 56 '1'
-        let assName = TokenPolicy.UnsafeTokenName $ B8.replicate 4 '1'
+        let polId = TokenPolicy.UnsafeTokenPolicyId $ Hash $ BS.replicate 28 0
+        let assName = TokenPolicy.UnsafeTokenName $ B8.replicate 4 'x'
         let ep = Link.getAsset wal polId assName
         r <- request @(ApiAsset) ctx ep Default Empty
-        liftIO $ print r
-        liftIO $ pendingWith "ADP-604 - check that asset is present in wallet"
-        verify r
-            [ expectResponseCode HTTP.status404
-            -- todo: check nothing is returned?
-            ]
+        expectResponseCode HTTP.status404 r
 
     it "TRANS_ASSETS_GET_02a - Asset not present when isn't associated" $ \ctx -> runResourceT $ do
         wal <- fixtureMultiAssetWallet ctx
-        let polId = TokenPolicy.UnsafeTokenPolicyId $ Hash $ B8.replicate 56 '1'
+        let polId = TokenPolicy.UnsafeTokenPolicyId $ Hash $ BS.replicate 28 0
         let ep = Link.getAsset wal polId TokenPolicy.nullTokenName
         r <- request @(ApiAsset) ctx ep Default Empty
-        liftIO $ pendingWith "ADP-604 - check that asset is present in wallet"
-        verify r
-            [ expectResponseCode HTTP.status404
-            -- todo: check nothing is returned?
-            ]
+        expectResponseCode HTTP.status404 r
 
     let absSlotB = view (#absoluteSlotNumber . #getApiT)
     let absSlotS = view (#absoluteSlotNumber . #getApiT)

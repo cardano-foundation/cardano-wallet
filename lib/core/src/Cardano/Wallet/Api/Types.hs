@@ -1034,6 +1034,7 @@ data ApiErrorCode
     | UnableToAssignInputOutput
     | SoftDerivationRequired
     | HardenedDerivationRequired
+    | AssetNotPresent
     deriving (Eq, Generic, Show, Data, Typeable)
     deriving anyclass NFData
 

@@ -275,4 +275,5 @@ computeStatistics getCoins btype utxos =
 
 -- | List all assets seen in the UTxO.
 getAssets :: UTxO -> Set TB.AssetId
-getAssets = Set.unions . map (TB.getAssets . view #tokens . snd) . Map.toList . getUTxO
+getAssets =
+    Set.unions . map (TB.getAssets . view #tokens . snd) . Map.toList . getUTxO

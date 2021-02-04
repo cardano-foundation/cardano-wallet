@@ -51,6 +51,7 @@ module Cardano.Wallet.Api.Server
     , getWallet
     , joinStakePool
     , listAssets
+    , listAssetsAvailable
     , getAsset
     , getAssetDefault
     , listAddresses
@@ -480,6 +481,7 @@ import qualified Data.ByteString.Lazy as BL
 import qualified Data.Foldable as F
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
+import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Network.Wai.Handler.Warp as Warp
@@ -1287,14 +1289,22 @@ selectCoinsForQuit ctx (ApiT wid) = do
                                      Assets
 -------------------------------------------------------------------------------}
 
-listAssets
+data ErrGetAsset
+     = ErrGetAssetNoSuchWallet ErrNoSuchWallet
+     | ErrGetAssetNotPresent
+    deriving (Eq, Show)
+
+newtype ErrListAssets = ErrListAssetsNoSuchWallet ErrNoSuchWallet
+    deriving (Eq, Show)
+
+listAssetsAvailable
     :: forall ctx s k.
         ( ctx ~ ApiLayer s k
         )
     => ctx
     -> ApiT WalletId
     -> Handler [ApiAsset]
-listAssets ctx (ApiT wid) = do
+listAssetsAvailable ctx (ApiT wid) = do
     utxo <- withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk -> liftHandler $ do
        (cp, _meta, _pending) <- W.readWallet @_ @s @k wrk wid
        pure (cp ^. #utxo)
@@ -1302,23 +1312,50 @@ listAssets ctx (ApiT wid) = do
   where
     metadata = Nothing  -- TODO: Use data from metadata server
 
+listAssets
+    :: forall ctx s k.
+        ( ctx ~ ApiLayer s k
+        )
+    => ctx
+    -> ApiT WalletId
+    -> Handler [ApiAsset]
+listAssets ctx (ApiT wid) = withWorkerCtx ctx wid liftE liftE $ \wrk ->
+    liftHandler $ allTxAssets <$>
+    W.listTransactions @_ @_ @_ wrk wid Nothing Nothing Nothing Descending
+  where
+    allTxAssets = map (toApiAsset metadata)
+        . Set.toList
+        . Set.unions
+        . map txAssets
+    txAssets = Set.unions
+        . map (TokenBundle.getAssets . view #tokens)
+        . W.txInfoOutputs
+    metadata = Nothing  -- TODO: Use data from metadata server
+
 getAsset
-    :: ctx
+    :: forall ctx s k.
+        ( ctx ~ ApiLayer s k
+        )
+    => ctx
     -> ApiT WalletId
     -> ApiT TokenPolicyId
     -> ApiT TokenName
     -> Handler ApiAsset
-getAsset _ctx (ApiT _wid) policyId assetName = pure $
-    ApiAsset { policyId, assetName, metadata }
+getAsset ctx wid policyId assetName =
+    listAssets ctx wid >>= liftHandler . findAsset
   where
-    metadata = Nothing  -- TODO: Use data from metadata server
+    findAsset = maybe (throwE ErrGetAssetNotPresent) pure . F.find matches
+    matches (ApiAsset pid an _) = pid == policyId && an == assetName
 
 getAssetDefault
-    :: ctx
+    :: forall ctx s k.
+        ( ctx ~ ApiLayer s k
+        )
+    => ctx
     -> ApiT WalletId
     -> ApiT TokenPolicyId
     -> Handler ApiAsset
-getAssetDefault ctx wid policyId = getAsset ctx wid policyId (ApiT nullTokenName)
+getAssetDefault ctx wid pid = getAsset ctx wid pid (ApiT nullTokenName)
 
 {-------------------------------------------------------------------------------
                                     Addresses
@@ -2456,6 +2493,18 @@ instance LiftHandler ErrWithRootKey where
                 [ "The given encryption passphrase doesn't match the one I use "
                 , "to encrypt the root private key of the given wallet: "
                 , toText wid
+                ]
+
+instance LiftHandler ErrListAssets where
+    handler = \case
+        ErrListAssetsNoSuchWallet e -> handler e
+
+instance LiftHandler ErrGetAsset where
+    handler = \case
+        ErrGetAssetNoSuchWallet e -> handler e
+        ErrGetAssetNotPresent ->
+            apiError err404 AssetNotPresent $ mconcat
+                [ "The requested asset is not associated with this wallet."
                 ]
 
 instance LiftHandler ErrListUTxOStatistics where
