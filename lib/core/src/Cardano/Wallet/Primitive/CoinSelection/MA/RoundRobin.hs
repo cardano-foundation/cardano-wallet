@@ -799,41 +799,6 @@ makeChange minCoinValueFor requiredCost mExtraCoinSource inputBundles outputBund
     | TokenBundle.getCoin totalOutputValue == Coin 0 =
         totalOutputCoinValueIsZero
     | otherwise = do
-            -- The following subtraction is safe, as we have already checked
-            -- that the total input value is greater than the total output
-            -- value:
-        let excess :: TokenBundle
-            excess =
-                totalInputValue `TokenBundle.unsafeSubtract` totalOutputValue
-
-        let (excessCoin, excessAssets) = TokenBundle.toFlatList excess
-
-        let nonUserSpecifiedAssets = Map.toList $
-                F.foldr discardUserSpecifiedAssets mempty inputBundles
-
-        -- Change for user-specified assets: assets that were present in the
-        -- original set of user-specified outputs ('outputsToCover').
-        let changeForUserSpecifiedAssets :: NonEmpty TokenMap
-            changeForUserSpecifiedAssets = F.foldr
-                (NE.zipWith (<>)
-                    . makeChangeForUserSpecifiedAsset outputMapsOrdered)
-                (TokenMap.empty <$ outputMapsOrdered)
-                excessAssets
-
-        -- Change for non-user-specified assets: assets that were not present
-        -- in the original set of user-specified outputs ('outputsToCover').
-        let changeForNonUserSpecifiedAssets :: NonEmpty TokenMap
-            changeForNonUserSpecifiedAssets = F.foldr
-                (NE.zipWith (<>)
-                    . makeChangeForNonUserSpecifiedAsset outputMapsOrdered)
-                (TokenMap.empty <$ outputMapsOrdered)
-                nonUserSpecifiedAssets
-
-        let change :: NonEmpty TokenMap
-            change = NE.zipWith (<>)
-                changeForUserSpecifiedAssets
-                changeForNonUserSpecifiedAssets
-
         (bundles, remainder) <-
             maybe (Left $ changeError excessCoin change) Right $
                 excessCoin `subtractCoin` requiredCost
@@ -847,6 +812,40 @@ makeChange minCoinValueFor requiredCost mExtraCoinSource inputBundles outputBund
 
         pure (NE.zipWith (<>) bundles changeForCoins)
   where
+    -- The following subtraction is safe, as we have already checked
+    -- that the total input value is greater than the total output
+    -- value:
+    excess :: TokenBundle
+    excess = totalInputValue `TokenBundle.unsafeSubtract` totalOutputValue
+
+    (excessCoin, excessAssets) = TokenBundle.toFlatList excess
+
+    nonUserSpecifiedAssets = Map.toList $
+        F.foldr discardUserSpecifiedAssets mempty inputBundles
+
+    -- Change for user-specified assets: assets that were present in the
+    -- original set of user-specified outputs ('outputsToCover').
+    changeForUserSpecifiedAssets :: NonEmpty TokenMap
+    changeForUserSpecifiedAssets = F.foldr
+        (NE.zipWith (<>)
+            . makeChangeForUserSpecifiedAsset outputMapsOrdered)
+        (TokenMap.empty <$ outputMapsOrdered)
+        excessAssets
+
+    -- Change for non-user-specified assets: assets that were not present
+    -- in the original set of user-specified outputs ('outputsToCover').
+    changeForNonUserSpecifiedAssets :: NonEmpty TokenMap
+    changeForNonUserSpecifiedAssets = F.foldr
+        (NE.zipWith (<>)
+            . makeChangeForNonUserSpecifiedAsset outputMapsOrdered)
+        (TokenMap.empty <$ outputMapsOrdered)
+        nonUserSpecifiedAssets
+
+    change :: NonEmpty TokenMap
+    change = NE.zipWith (<>)
+        changeForUserSpecifiedAssets
+        changeForNonUserSpecifiedAssets
+
     totalInputValueInsufficient = error
         "makeChange: not (totalOutputValue <= totalInputValue)"
     totalOutputCoinValueIsZero = error
