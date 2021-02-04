@@ -546,12 +546,14 @@ data ApiCoinSelectionInput (n :: NetworkDiscriminant) = ApiCoinSelectionInput
     , address :: !(ApiT Address, Proxy n)
     , derivationPath :: NonEmpty (ApiT DerivationIndex)
     , amount :: !(Quantity "lovelace" Natural)
+    , assets :: !(ApiT W.TokenMap)
     } deriving (Eq, Generic, Show)
       deriving anyclass NFData
 
 data ApiCoinSelectionOutput (n :: NetworkDiscriminant) = ApiCoinSelectionOutput
     { address :: !(ApiT Address, Proxy n)
     , amount :: !(Quantity "lovelace" Natural)
+    , assets :: !(ApiT W.TokenMap)
     } deriving (Eq, Ord, Generic, Show)
       deriving anyclass NFData
 
