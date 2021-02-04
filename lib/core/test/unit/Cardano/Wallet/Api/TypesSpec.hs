@@ -707,6 +707,8 @@ spec = parallel $ do
                         (x :: ApiCoinSelectionChange ('Testnet 0))
                     , amount = amount
                         (x :: ApiCoinSelectionChange ('Testnet 0))
+                    , assets = assets
+                        (x :: ApiCoinSelectionChange ('Testnet 0))
                     , derivationPath = derivationPath
                         (x :: ApiCoinSelectionChange ('Testnet 0))
                     }
@@ -1137,6 +1139,7 @@ instance Arbitrary (ApiCoinSelection n) where
 instance Arbitrary (ApiCoinSelectionChange n) where
     arbitrary = ApiCoinSelectionChange
         <$> fmap (, Proxy @n) arbitrary
+        <*> arbitrary
         <*> arbitrary
         <*> arbitrary
     shrink _ = []
