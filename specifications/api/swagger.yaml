@@ -324,6 +324,23 @@ x-credentialPubKey: &credentialPubKey
     - stake_vk16apaenn9ut6s40lcw3l8v68xawlrlq20z2966uzcx8jmv2q9uy7qau558d
     - addr_vk16apaenn9ut6s40lcw3l8v68xawlrlq20z2966uzcx8jmv2q9uy7q3yvuv2
 
+x-validationLevel: &validationLevel
+  description: |
+    Script validation level. Required validation sift off scripts that would not
+    be accepted by ledger. Recommended level filter out scripts that do not pass
+    required validation and additionally when:
+      * 'all' is non-empty
+      * there are redundant timelocks in a given level
+      * there are no duplicated verification keys in a given level
+      * 'at_least' coeffcient is positive
+      * 'all', 'any' are non-empty and `'at_least' has no less elements in the list
+         than the coeffcient after timelocks are filtered out.
+
+  type: string
+  enum:
+    - required
+    - recommended
+
 x-anyAddress: &anyAddress
   description: A Shelley address representing either enterprise, reward account or delegating address
   type: string
@@ -1907,6 +1924,7 @@ components:
         - address
       properties:
         address: *anyAddress
+        validation: *validationLevel
 
     ApiCredential: &ApiCredential
       <<: *CredentialValue
