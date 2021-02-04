@@ -800,7 +800,7 @@ makeChange minCoinValueFor requiredCost mExtraCoinSource inputBundles outputBund
         totalOutputCoinValueIsZero
     | otherwise = do
         (bundles, remainder) <-
-            maybe (Left $ changeError excessCoin change) Right $
+            maybe (Left changeError) Right $
                 excessCoin `subtractCoin` requiredCost
                 >>=
                 runStateT
@@ -851,21 +851,17 @@ makeChange minCoinValueFor requiredCost mExtraCoinSource inputBundles outputBund
     totalOutputCoinValueIsZero = error
         "makeChange: not (totalOutputCoinValue > 0)"
 
-    changeError
-        :: Coin
-        -> NonEmpty TokenMap
-        -> UnableToConstructChangeError
-    changeError excessCoin change =
-        UnableToConstructChangeError
-            { requiredCost
-            , shortfall =
-                -- This conversion is safe because we know that the distance is
-                -- small-ish. If it wasn't, we would have have enough coins to
-                -- construct the change.
-                unsafeNaturalToCoin $ distance
-                    (coinToNatural excessCoin)
-                    (coinToNatural requiredCost + totalMinCoinValue)
-            }
+    changeError :: UnableToConstructChangeError
+    changeError = UnableToConstructChangeError
+        { requiredCost
+        , shortfall =
+            -- This conversion is safe because we know that the distance is
+            -- small-ish. If it wasn't, we would have have enough coins to
+            -- construct the change.
+            unsafeNaturalToCoin $ distance
+                (coinToNatural excessCoin)
+                (coinToNatural requiredCost + totalMinCoinValue)
+        }
       where
         totalMinCoinValue =
             F.sum $ (coinToNatural . minCoinValueFor) <$> change
