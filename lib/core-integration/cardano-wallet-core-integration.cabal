@@ -74,6 +74,7 @@ library
     , time
     , unliftio
     , unliftio-core
+    , unordered-containers
   hs-source-dirs:
       src
   exposed-modules:

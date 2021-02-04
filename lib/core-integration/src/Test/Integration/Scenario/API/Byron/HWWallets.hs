@@ -94,11 +94,10 @@ import Test.Integration.Framework.TestData
 
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Icarus as Icarus
-import qualified Data.List as L
+import qualified Data.HashSet as Set
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Text.Encoding as T
 import qualified Network.HTTP.Types.Status as HTTP
-
 
 spec :: forall n.
     ( DecodeAddress n
@@ -330,16 +329,17 @@ spec = describe "BYRON_HW_WALLETS" $ do
                     icarusAddresses @n mnemonics
             let targetAmounts = take paymentCount $
                     Quantity <$> [minUTxOValue ..]
+            let targetAssets = repeat mempty
             let payments = NE.fromList $ map ($ mempty) $
                     zipWith AddressAmount targetAddresses targetAmounts
-            let outputs =
-                    zipWith ApiCoinSelectionOutput targetAddresses targetAmounts
+            let outputs = zipWith3 ApiCoinSelectionOutput
+                    targetAddresses targetAmounts targetAssets
             selectCoins @n @'Byron ctx source payments >>= flip verify
                 [ expectResponseCode HTTP.status200
                 , expectField #inputs
                     (`shouldSatisfy` (not . null))
                 , expectField #outputs
-                    (`shouldSatisfy` ((L.sort outputs ==) . L.sort))
+                    (`shouldSatisfy` ((Set.fromList outputs ==) . Set.fromList))
                 , expectField #change
                     (`shouldSatisfy` (not . null))
                 ]

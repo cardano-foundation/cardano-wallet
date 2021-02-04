@@ -723,6 +723,8 @@ spec = parallel $ do
                         (x :: ApiCoinSelectionInput ('Testnet 0))
                     , amount = amount
                         (x :: ApiCoinSelectionInput ('Testnet 0))
+                    , assets = assets
+                        (x :: ApiCoinSelectionInput ('Testnet 0))
                     , derivationPath = derivationPath
                         (x :: ApiCoinSelectionInput ('Testnet 0))
                     }
@@ -734,6 +736,8 @@ spec = parallel $ do
                     { address = address
                         (x :: ApiCoinSelectionOutput ('Testnet 0))
                     , amount = amount
+                        (x :: ApiCoinSelectionOutput ('Testnet 0))
+                    , assets = assets
                         (x :: ApiCoinSelectionOutput ('Testnet 0))
                     }
             in
@@ -1144,10 +1148,11 @@ instance Arbitrary (ApiCoinSelectionInput n) where
         <*> fmap (, Proxy @n) arbitrary
         <*> arbitrary
         <*> arbitrary
+        <*> arbitrary
     shrink _ = []
 
 instance Arbitrary (ApiCoinSelectionOutput a) where
-    arbitrary = applyArbitrary2 ApiCoinSelectionOutput
+    arbitrary = applyArbitrary3 ApiCoinSelectionOutput
     shrink _ = []
 
 instance Arbitrary AddressState where
