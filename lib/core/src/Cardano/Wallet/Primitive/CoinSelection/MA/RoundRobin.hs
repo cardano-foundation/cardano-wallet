@@ -803,8 +803,9 @@ makeChange minCoinValueFor requiredCost mExtraCoinSource inputBundles outputBund
             maybe (Left changeError) Right $
                 excessCoin `subtractCoin` requiredCost
                 >>=
-                runStateT
-                    (sequence (StateT . assignCoin minCoinValueFor <$> change))
+                runStateT (sequence
+                    (StateT . assignCoin minCoinValueFor <$> changeForAssets)
+                )
 
         let changeForCoins :: NonEmpty TokenBundle
             changeForCoins = TokenBundle.fromCoin
@@ -841,8 +842,9 @@ makeChange minCoinValueFor requiredCost mExtraCoinSource inputBundles outputBund
         (TokenMap.empty <$ outputMapsOrdered)
         nonUserSpecifiedAssets
 
-    change :: NonEmpty TokenMap
-    change = NE.zipWith (<>)
+    -- Change for all assets: both user-specified and non-user-specified.
+    changeForAssets :: NonEmpty TokenMap
+    changeForAssets = NE.zipWith (<>)
         changeForUserSpecifiedAssets
         changeForNonUserSpecifiedAssets
 
@@ -864,7 +866,7 @@ makeChange minCoinValueFor requiredCost mExtraCoinSource inputBundles outputBund
         }
       where
         totalMinCoinValue =
-            F.sum $ (coinToNatural . minCoinValueFor) <$> change
+            F.sum $ (coinToNatural . minCoinValueFor) <$> changeForAssets
 
     -- We aim, to the greatest extent possible, to generate change bundles
     -- where small quantities of non-user-specified assets are bundled together
