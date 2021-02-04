@@ -178,6 +178,10 @@ spec = describe "Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobinSpec" $
 
     parallel $ describe "Class instances respect laws" $ do
 
+        testLawsMany @(GreatestTokenQuantity TokenBundle)
+            [ eqLaws
+            , ordLaws
+            ]
         testLawsMany @(GreatestTokenQuantity TokenMap)
             [ eqLaws
             , ordLaws
@@ -535,27 +539,46 @@ prop_performSelection minCoinValueFor costFor (Blind criteria) coverage =
             , pretty (Flat balanceSelected)
             , "change balance:"
             , pretty (Flat balanceChange)
+            , "absolute minimum coin quantity:"
+            , pretty absoluteMinCoinValue
+            , "actual coin delta:"
+            , pretty (TokenBundle.getCoin delta)
+            , "number of outputs:"
+            , pretty (length outputsCovered)
             ]
-        let delta = TokenBundle.unsafeSubtract
-                balanceSelected
-                (balanceRequired <> balanceChange)
+        assert True
         assert $ balanceSufficient criteria
         assert $ on (==) (view #tokens)
             balanceSelected (balanceRequired <> balanceChange)
-        assert $ TokenBundle.getCoin delta == expectedCost
+        assert $ TokenBundle.getCoin delta >= expectedCost
+        assert $ TokenBundle.getCoin delta <= maximumExpectedDelta
         assert $ utxoAvailable
             == UTxOIndex.insertMany inputsSelected utxoRemaining
         assert $ utxoRemaining
             == UTxOIndex.deleteMany (fst <$> inputsSelected) utxoAvailable
-        assert $ view #outputsCovered result == NE.toList outputsToCover
+        assert $ outputsCovered == NE.toList outputsToCover
         case selectionLimit of
             MaximumInputLimit limit ->
                 assert $ NE.length inputsSelected <= limit
             NoLimit ->
                 assert True
       where
+        absoluteMinCoinValue = mkMinCoinValueFor minCoinValueFor TokenMap.empty
+        delta = TokenBundle.unsafeSubtract
+            balanceSelected
+            (balanceRequired <> balanceChange)
+        maximumExpectedDelta =
+            expectedCost `addCoin`
+            (absoluteMinCoinValue `multiplyCoin`
+                (length outputsCovered - length changeGenerated))
+        multiplyCoin :: Coin -> Int -> Coin
+        multiplyCoin (Coin c) i = Coin $ c * fromIntegral i
         SelectionResult
-            {inputsSelected, changeGenerated, utxoRemaining} = result
+            { inputsSelected
+            , changeGenerated
+            , outputsCovered
+            , utxoRemaining
+            } = result
         skeleton = SelectionSkeleton
             { inputsSkeleton =
                 UTxOIndex.fromSequence inputsSelected
