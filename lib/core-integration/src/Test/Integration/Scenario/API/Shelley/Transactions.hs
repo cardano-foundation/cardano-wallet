@@ -49,6 +49,8 @@ import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..), TxMetadata (..), TxMetadataValue (..), TxStatus (..) )
+import Cardano.Wallet.Unsafe
+    ( unsafeFromText )
 import Control.Monad
     ( forM_ )
 import Control.Monad.IO.Unlift
@@ -57,6 +59,8 @@ import Control.Monad.Trans.Resource
     ( ResourceT, runResourceT )
 import Data.Aeson
     ( (.=) )
+import Data.Bifunctor
+    ( bimap )
 import Data.ByteArray.Encoding
     ( Base (Base16, Base64), convertFromBase, convertToBase )
 import Data.ByteString.Base58
@@ -144,7 +148,6 @@ import Test.Integration.Framework.DSL
     , (.<=)
     , (.>)
     , (.>=)
-    , (</>)
     )
 import Test.Integration.Framework.Request
     ( RequestException )
@@ -171,10 +174,12 @@ import Web.HttpApiData
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
+import qualified Cardano.Wallet.Primitive.Types.TokenPolicy as TokenPolicy
 import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as TokenQuantity
 import qualified Codec.Binary.Bech32 as Bech32
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BS
+import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.List as L
 import qualified Data.Map as Map
@@ -839,40 +844,46 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             , expectListSize 0
             ]
 
-    -- it "TRANS_ASSETS_GET_01 - Asset list present" $ \ctx -> runResourceT $ do
-    --     wal <- fixtureMultiAssetWallet ctx
-    --     r <- request @([ApiAsset]) ctx (Link.getAsset wal) Default Empty
-    --     verify r
-    --         [ expectSuccess
-    --         , expectListSizeSatisfy ( > 0)
-    --         ]
+    it "TRANS_ASSETS_GET_01 - Asset list present" $ \ctx -> runResourceT $ do
+        wal <- fixtureMultiAssetWallet ctx
+
+        -- pick an asset from the fixture wallet
+        assetsSrc <- view (#assets . #total . #getApiT) <$> getWallet ctx wal
+        assetsSrc `shouldNotBe` mempty
+        let (polId, assName) = bimap unsafeFromText unsafeFromText $ fst $
+                pickAnAsset assetsSrc
+        let ep = Link.getAsset wal polId assName
+        r <- request @(ApiAsset) ctx ep Default Empty
+        verify r
+            [ expectSuccess
+            , expectField #policyId (`shouldBe` ApiT polId)
+            , expectField #assetName (`shouldBe` ApiT assName)
+            , expectField #metadata (`shouldBe` Nothing)
+            ]
 
     it "TRANS_ASSETS_GET_02 - Asset not present when isn't associated" $ \ctx -> runResourceT $ do
         wal <- fixtureMultiAssetWallet ctx
-        let walId = wal ^. walletId
-        let polId = T.pack (replicate 56 '1')
-        let assName = T.pack (replicate 4 '1')
-        let ep = "v2/wallets" </> walId </> "assets" </> polId </> assName
-        r <- request @(ApiAsset) ctx ("GET", ep) Default Empty
+        let polId = TokenPolicy.UnsafeTokenPolicyId $ Hash $ B8.replicate 56 '1'
+        let assName = TokenPolicy.UnsafeTokenName $ B8.replicate 4 '1'
+        let ep = Link.getAsset wal polId assName
+        r <- request @(ApiAsset) ctx ep Default Empty
         liftIO $ print r
+        liftIO $ pendingWith "ADP-604 - check that asset is present in wallet"
         verify r
-            [ expectSuccess
+            [ expectResponseCode HTTP.status404
             -- todo: check nothing is returned?
             ]
 
     it "TRANS_ASSETS_GET_02a - Asset not present when isn't associated" $ \ctx -> runResourceT $ do
         wal <- fixtureMultiAssetWallet ctx
-        let walId = wal ^. walletId
-        let polId = T.pack (replicate 56 '1')
-        let ep = "v2/wallets" </> walId </> "assets" </> polId
-        r <- request @(ApiAsset) ctx ("GET", ep) Default Empty
+        let polId = TokenPolicy.UnsafeTokenPolicyId $ Hash $ B8.replicate 56 '1'
+        let ep = Link.getAsset wal polId TokenPolicy.nullTokenName
+        r <- request @(ApiAsset) ctx ep Default Empty
+        liftIO $ pendingWith "ADP-604 - check that asset is present in wallet"
         verify r
-            [ expectSuccess
+            [ expectResponseCode HTTP.status404
             -- todo: check nothing is returned?
             ]
-
-    -- todo: other multi-asset tests to do
-    --  - minting
 
     let absSlotB = view (#absoluteSlotNumber . #getApiT)
     let absSlotS = view (#absoluteSlotNumber . #getApiT)
