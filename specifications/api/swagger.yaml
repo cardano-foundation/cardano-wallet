@@ -979,6 +979,7 @@ x-transactionChange: &transactionChange
     properties:
       address: *addressId
       amount: *amount
+      assets: *walletAssets
       derivation_path: *derivationPath
 
 x-transactionResolvedInputs: &transactionResolvedInputs
