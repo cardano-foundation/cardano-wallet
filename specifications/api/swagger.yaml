@@ -996,6 +996,7 @@ x-transactionResolvedInputs: &transactionResolvedInputs
     properties:
       address: *addressId
       amount: *amount
+      assets: *walletAssets
       id: *transactionId
       derivation_path: *derivationPath
       index:
