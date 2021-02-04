@@ -49,6 +49,8 @@ import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..), TxMetadata (..), TxMetadataValue (..), TxStatus (..) )
+import Cardano.Wallet.Unsafe
+    ( unsafeFromText )
 import Control.Monad
     ( forM_ )
 import Control.Monad.IO.Unlift
@@ -57,6 +59,8 @@ import Control.Monad.Trans.Resource
     ( ResourceT, runResourceT )
 import Data.Aeson
     ( (.=) )
+import Data.Bifunctor
+    ( bimap )
 import Data.ByteArray.Encoding
     ( Base (Base16, Base64), convertFromBase, convertToBase )
 import Data.ByteString.Base58
@@ -110,6 +114,7 @@ import Test.Integration.Framework.DSL
     , expectField
     , expectListField
     , expectListSize
+    , expectListSizeSatisfy
     , expectResponseCode
     , expectSuccess
     , faucetAmt
@@ -169,10 +174,12 @@ import Web.HttpApiData
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
+import qualified Cardano.Wallet.Primitive.Types.TokenPolicy as TokenPolicy
 import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as TokenQuantity
 import qualified Codec.Binary.Bech32 as Bech32
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BS
+import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.List as L
 import qualified Data.Map as Map
@@ -666,7 +673,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 (#balance . #available)
                 (`shouldBe` Quantity (faucetAmt - feeEstMax - amt)) ra2
 
-    it "TRANS_CREATE_10 - Multi-asset balance" $ \ctx -> runResourceT $ do
+    it "TRANS_ASSETS_CREATE_01 - Multi-asset balance" $ \ctx -> runResourceT $ do
         w <- fixtureMultiAssetWallet ctx
         r <- request @ApiWallet ctx (Link.getWallet @'Shelley w) Default Empty
         verify r
@@ -674,7 +681,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             , expectField (#assets . #total . #getApiT) (`shouldNotBe` TokenMap.empty)
             ]
 
-    it "TRANS_CREATE_10 - Multi-asset transaction with Ada" $ \ctx -> runResourceT $ do
+    it "TRANS_ASSETS_CREATE_01a - Multi-asset transaction with Ada" $ \ctx -> runResourceT $ do
 
         wSrc <- fixtureMultiAssetWallet ctx
         wDest <- emptyWallet ctx
@@ -709,7 +716,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         -- todo: asset balance values more exactly
         -- todo: assert payer wallet balance
 
-    it "TRANS_CREATE_10 - Multi-asset transaction with small Ada amount" $ \ctx -> runResourceT $ do
+    it "TRANS_ASSETS_CREATE_02 - Multi-asset transaction with small Ada amount" $ \ctx -> runResourceT $ do
         wSrc <- fixtureMultiAssetWallet ctx
         wDest <- emptyWallet ctx
         ra <- request @ApiWallet ctx (Link.getWallet @'Shelley wSrc) Default Empty
@@ -731,7 +738,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         -- It should fail with InsufficientMinCoinValueError
         expectResponseCode HTTP.status403 rtx
 
-    it "TRANS_CREATE_10 - Multi-asset transaction without Ada" $ \ctx -> runResourceT $ do
+    it "TRANS_ASSETS_CREATE_02a - Multi-asset transaction without Ada" $ \ctx -> runResourceT $ do
         wSrc <- fixtureMultiAssetWallet ctx
         wDest <- emptyWallet ctx
         ra <- request @ApiWallet ctx (Link.getWallet @'Shelley wSrc) Default Empty
@@ -759,7 +766,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
     let hasAssetOutputs :: [AddressAmount (ApiT Address, Proxy n)] -> Bool
         hasAssetOutputs = any ((/= mempty) . view #assets)
 
-    it "TRANS_CREATE_10 - Multi-asset tx history" $ \ctx -> runResourceT $ do
+    it "TRANS_ASSETS_CREATE_02b - Multi-asset tx history" $ \ctx -> runResourceT $ do
         wSrc <- fixtureMultiAssetWallet ctx
         wDest <- emptyWallet ctx
         wal <- getWallet ctx wSrc
@@ -813,17 +820,70 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 , expectField (#assets . #total . #getApiT) (`shouldNotBe` TokenMap.empty)
                 ]
 
-    it "TRANS_CREATE_10 - Asset list" $ \ctx -> runResourceT $ do
+    it "TRANS_ASSETS_LIST_01 - Asset list present" $ \ctx -> runResourceT $ do
         wal <- fixtureMultiAssetWallet ctx
         r <- request @([ApiAsset]) ctx (Link.listAssets wal) Default Empty
         verify r
             [ expectSuccess
-            , (`shouldSatisfy` (not . null))
+            , expectListSizeSatisfy ( > 0)
             ]
 
-        -- todo: other multi-asset tests to do
-        --  - minting
-        --  - asset get - both endpoints
+    it "TRANS_ASSETS_LIST_02 - Asset list present when not used" $ \ctx -> runResourceT $ do
+        wal <- fixtureWallet ctx
+        r <- request @([ApiAsset]) ctx (Link.listAssets wal) Default Empty
+        verify r
+            [ expectSuccess
+            , expectListSize 0
+            ]
+
+    it "TRANS_ASSETS_LIST_02a - Asset list present when not used" $ \ctx -> runResourceT $ do
+        wal <- emptyWallet ctx
+        r <- request @([ApiAsset]) ctx (Link.listAssets wal) Default Empty
+        verify r
+            [ expectSuccess
+            , expectListSize 0
+            ]
+
+    it "TRANS_ASSETS_GET_01 - Asset list present" $ \ctx -> runResourceT $ do
+        wal <- fixtureMultiAssetWallet ctx
+
+        -- pick an asset from the fixture wallet
+        assetsSrc <- view (#assets . #total . #getApiT) <$> getWallet ctx wal
+        assetsSrc `shouldNotBe` mempty
+        let (polId, assName) = bimap unsafeFromText unsafeFromText $ fst $
+                pickAnAsset assetsSrc
+        let ep = Link.getAsset wal polId assName
+        r <- request @(ApiAsset) ctx ep Default Empty
+        verify r
+            [ expectSuccess
+            , expectField #policyId (`shouldBe` ApiT polId)
+            , expectField #assetName (`shouldBe` ApiT assName)
+            , expectField #metadata (`shouldBe` Nothing)
+            ]
+
+    it "TRANS_ASSETS_GET_02 - Asset not present when isn't associated" $ \ctx -> runResourceT $ do
+        wal <- fixtureMultiAssetWallet ctx
+        let polId = TokenPolicy.UnsafeTokenPolicyId $ Hash $ B8.replicate 56 '1'
+        let assName = TokenPolicy.UnsafeTokenName $ B8.replicate 4 '1'
+        let ep = Link.getAsset wal polId assName
+        r <- request @(ApiAsset) ctx ep Default Empty
+        liftIO $ print r
+        liftIO $ pendingWith "ADP-604 - check that asset is present in wallet"
+        verify r
+            [ expectResponseCode HTTP.status404
+            -- todo: check nothing is returned?
+            ]
+
+    it "TRANS_ASSETS_GET_02a - Asset not present when isn't associated" $ \ctx -> runResourceT $ do
+        wal <- fixtureMultiAssetWallet ctx
+        let polId = TokenPolicy.UnsafeTokenPolicyId $ Hash $ B8.replicate 56 '1'
+        let ep = Link.getAsset wal polId TokenPolicy.nullTokenName
+        r <- request @(ApiAsset) ctx ep Default Empty
+        liftIO $ pendingWith "ADP-604 - check that asset is present in wallet"
+        verify r
+            [ expectResponseCode HTTP.status404
+            -- todo: check nothing is returned?
+            ]
 
     let absSlotB = view (#absoluteSlotNumber . #getApiT)
     let absSlotS = view (#absoluteSlotNumber . #getApiT)

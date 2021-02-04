@@ -2,7 +2,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
@@ -129,7 +128,7 @@ import Cardano.Wallet.Primitive.Types.Coin
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( TokenName, TokenPolicyId )
+    ( TokenName, TokenPolicyId, nullTokenName )
 import Data.Function
     ( (&) )
 import Data.Generics.Internal.VL.Lens
@@ -416,23 +415,20 @@ listAssets w =
     wid = w ^. typed @(ApiT WalletId)
 
 getAsset
-    :: forall w t n.
+    :: forall w.
         ( HasType (ApiT WalletId) w
-        , HasType (ApiT TokenPolicyId) t
-        , HasType (ApiT TokenName) n
         )
     => w
-    -> t
-    -> Maybe n
+    -> TokenPolicyId
+    -> TokenName
     -> (Method, Text)
-getAsset w p = \case
-    Just n -> endpoint @Api.GetAsset (mkURL n)
-    Nothing -> endpoint @Api.GetAssetDefault mkURLDefault
+getAsset w pid n
+    | n == nullTokenName = endpoint @Api.GetAssetDefault mkURLDefault
+    | otherwise = endpoint @Api.GetAsset mkURL
   where
     wid = w ^. typed @(ApiT WalletId)
-    pid = p ^. typed @(ApiT TokenPolicyId)
-    mkURL n mk = mk wid pid (n ^. typed @(ApiT TokenName))
-    mkURLDefault mk = mk wid pid
+    mkURL mk = mk wid (ApiT pid) (ApiT n)
+    mkURLDefault mk = mk wid (ApiT pid)
 
 --
 -- Transactions
