@@ -168,6 +168,7 @@ library
       Cardano.Wallet.Primitive.Slotting
       Cardano.Wallet.Primitive.AddressDiscovery.Random
       Cardano.Wallet.Primitive.AddressDiscovery.Sequential
+      Cardano.Wallet.Primitive.AddressDiscovery.Shared
       Cardano.Wallet.Primitive.SyncProgress
       Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
       Cardano.Wallet.Primitive.Model
