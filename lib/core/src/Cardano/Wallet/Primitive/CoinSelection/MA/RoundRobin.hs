@@ -799,7 +799,7 @@ makeChange minCoinValueFor requiredCost mExtraCoinSource inputBundles outputBund
     | TokenBundle.getCoin totalOutputValue == Coin 0 =
         totalOutputCoinValueIsZero
     | otherwise = do
-        (bundles, remainder) <-
+        (changeForAssetsWithMinimalCoins, remainder) <-
             maybe (Left changeError) Right $
                 excessCoin `subtractCoin` requiredCost
                 >>=
@@ -811,7 +811,9 @@ makeChange minCoinValueFor requiredCost mExtraCoinSource inputBundles outputBund
             changeForCoins = TokenBundle.fromCoin
                 <$> makeChangeForCoin outputCoins remainder
 
-        pure $ NE.toList $ NE.zipWith (<>) bundles changeForCoins
+        pure $ NE.toList $ NE.zipWith (<>)
+            changeForAssetsWithMinimalCoins
+            changeForCoins
   where
     -- The following subtraction is safe, as we have already checked
     -- that the total input value is greater than the total output
