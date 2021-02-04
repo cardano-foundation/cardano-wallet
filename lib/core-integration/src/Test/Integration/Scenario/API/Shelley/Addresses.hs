@@ -634,6 +634,28 @@ spec = describe "SHELLEY_ADDRESSES" $ do
                 let walAddr = fst (addrs !! idx ^. #id) ^. (#getApiT . #unAddress)
                 walAddr `Expectations.shouldBe` genAddr
 
+    it "ANY_ADDRESS_POST_13 - Golden tests for script with timelocks" $ \ctx -> do
+        let payload = Json [json|{
+                "payment": {
+                    "all" : [
+                        "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a",
+                        { "active_from": 120 }
+                        ]
+                    },
+                "stake": {
+                    "all" : [
+                        "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a",
+                        { "active_from": 120 }
+                        ]
+                    }
+            }|]
+        r <- request @AnyAddress ctx Link.postAnyAddress Default payload
+        expectResponseCode HTTP.status202 r
+        let goldenAddr =
+                "addr1xyt94nh6f6dzfhzm4e8qjpmlam220n32rlsndd67vc2r0tgktt805n56y\
+                \nw9htjwpyrhlmk55l8z58lpx6m4ues5x7kscrzdyf" :: Text
+        validateAddr r goldenAddr
+
     it "POST_ACCOUNT_01 - Can retrieve account public keys" $ \ctx -> runResourceT $ do
         let initPoolGap = 10
         w <- emptyWalletWith ctx ("Wallet", fixturePassphrase, initPoolGap)
