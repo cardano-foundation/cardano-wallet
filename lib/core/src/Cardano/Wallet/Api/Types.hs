@@ -1107,12 +1107,12 @@ instance FromText NtpSyncingStatus where
 
 instance ToText (ApiT ValidationLevel) where
     toText (ApiT RequiredValidation) = "required"
-    toText (ApiT RecommendedValidation) = "recommneded"
+    toText (ApiT RecommendedValidation) = "recommended"
 
 instance FromText (ApiT ValidationLevel) where
     fromText txt = case txt of
         "required" -> Right $ ApiT RequiredValidation
-        "recommneded" -> Right $ ApiT RecommendedValidation
+        "recommended" -> Right $ ApiT RecommendedValidation
         _ -> Left $ TextDecodingError $ unwords
             [ "I couldn't parse the given validation level."
             , "I am expecting one of the words 'required' or"
