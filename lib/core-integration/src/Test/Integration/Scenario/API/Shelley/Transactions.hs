@@ -131,7 +131,9 @@ import Test.Integration.Framework.DSL
     , listAllTransactions
     , listTransactions
     , minUTxOValue
+    , mkTxPayloadMA
     , oneSecond
+    , pickAnAsset
     , postTx
     , postWallet
     , request
@@ -170,10 +172,8 @@ import Web.HttpApiData
     ( ToHttpApiData (..) )
 
 import qualified Cardano.Wallet.Api.Link as Link
-import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.TokenPolicy as TokenPolicy
-import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as TokenQuantity
 import qualified Codec.Binary.Bech32 as Bech32
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BS
@@ -627,7 +627,9 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         -- Allow for a higher minimum utxo coin due to assets
         let minCoin = minUTxOValue * 2
 
-        payload <- mkTxPayloadMA ctx wDest minCoin [val] fixturePassphrase
+        addrs <- listAddresses @n ctx wDest
+        let destination = (addrs !! 1) ^. #id
+        payload <- mkTxPayloadMA @n destination minCoin [val] fixturePassphrase
 
         rtx <- request @(ApiTransaction n) ctx
             (Link.createTransaction @'Shelley wSrc) Default payload
@@ -662,7 +664,9 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         -- due to assets in the transaction.
         let coin = minUTxOValue
 
-        payload <- mkTxPayloadMA ctx wDest coin [val] fixturePassphrase
+        addrs <- listAddresses @n ctx wDest
+        let destination = (addrs !! 1) ^. #id
+        payload <- mkTxPayloadMA @n destination coin [val] fixturePassphrase
 
         rtx <- request @(ApiTransaction n) ctx
             (Link.createTransaction @'Shelley wSrc) Default payload
@@ -680,7 +684,9 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         assetsSrc `shouldNotBe` mempty
         let val = minUTxOValue <$ pickAnAsset assetsSrc
 
-        payload <- mkTxPayloadMA ctx wDest 0 [val] fixturePassphrase
+        addrs <- listAddresses @n ctx wDest
+        let destination = (addrs !! 1) ^. #id
+        payload <- mkTxPayloadMA @n destination 0 [val] fixturePassphrase
 
         rtx <- request @(ApiTransaction n) ctx
             (Link.createTransaction @'Shelley wSrc) Default payload
@@ -707,7 +713,9 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         assetsSrc `shouldNotBe` mempty
         let val = minUTxOValue <$ pickAnAsset assetsSrc
 
-        payload <- mkTxPayloadMA ctx wDest 0 [val] fixturePassphrase
+        addrs <- listAddresses @n ctx wDest
+        let destination = (addrs !! 1) ^. #id
+        payload <- mkTxPayloadMA @n destination 0 [val] fixturePassphrase
 
         rtx <- request @(ApiTransaction n) ctx
             (Link.createTransaction @'Shelley wSrc) Default payload
@@ -2867,42 +2875,6 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                         "quantity": #{amt},
                         "unit": "lovelace"
                     }
-                }],
-                "passphrase": #{passphrase}
-            }|]
-
-    pickAnAsset :: TokenMap.TokenMap -> ((Text, Text), Natural)
-    pickAnAsset tm = case TokenMap.toFlatList tm of
-        (TokenBundle.AssetId pid an, TokenQuantity.TokenQuantity q):_ ->
-            ((toText pid, toText an), q)
-        _ -> error "pickAnAsset: empty TokenMap"
-
-    -- Like mkTxPayload, except that assets are included in the payment.
-    -- Asset amounts are specified by ((PolicyId Hex, AssetName Hex), amount).
-    mkTxPayloadMA
-        :: MonadUnliftIO m
-        => Context
-        -> ApiWallet
-        -> Natural
-        -> [((Text, Text), Natural)]
-        -> Text
-        -> m Payload
-    mkTxPayloadMA ctx wDest coin val passphrase = do
-        addrs <- listAddresses @n ctx wDest
-        let destination = (addrs !! 1) ^. #id
-        let assetJson ((pid, name), q) = [json|{
-                    "policy_id": #{pid},
-                    "asset_name": #{name},
-                    "quantity": #{q}
-                }|]
-        return $ Json [json|{
-                "payments": [{
-                    "address": #{destination},
-                    "amount": {
-                        "quantity": #{coin},
-                        "unit": "lovelace"
-                    },
-                    "assets": #{map assetJson val}
                 }],
                 "passphrase": #{passphrase}
             }|]

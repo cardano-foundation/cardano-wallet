@@ -111,10 +111,14 @@ module Test.Integration.Framework.DSL
     , fixtureWalletWith
     , fixtureWalletWithMnemonics
     , fixtureMultiAssetWallet
+    , fixtureMultiAssetRandomWallet
+    , fixtureMultiAssetIcarusWallet
     , faucetAmt
     , faucetUtxoAmt
     , proc'
     , postTx
+    , pickAnAsset
+    , mkTxPayloadMA
     , waitForServer
     , for
     , utcIso8601ToText
@@ -318,6 +322,8 @@ import Data.Set
     ( Set )
 import Data.Text
     ( Text )
+import Data.Text.Class
+    ( ToText (..) )
 import Data.Time
     ( NominalDiffTime, UTCTime )
 import Data.Time.Text
@@ -342,7 +348,7 @@ import System.IO
 import Test.Hspec
     ( Expectation, HasCallStack, expectationFailure )
 import Test.Hspec.Expectations.Lifted
-    ( shouldBe, shouldContain, shouldSatisfy )
+    ( shouldBe, shouldContain, shouldNotBe, shouldSatisfy )
 import Test.HUnit.Lang
     ( FailureReason (..), HUnitFailure (..) )
 import Test.Integration.Faucet
@@ -379,6 +385,8 @@ import qualified Cardano.Wallet.Primitive.AddressDerivation.Icarus as Icarus
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Shelley
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
+import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
+import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as TokenQuantity
 import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Write as CBOR
 import qualified Crypto.Scrypt as Scrypt
@@ -618,6 +626,43 @@ defaultTxTTL = 7200
 --
 -- Helpers
 --
+pickAnAsset :: TokenMap.TokenMap -> ((Text, Text), Natural)
+pickAnAsset tm = case TokenMap.toFlatList tm of
+    (TokenBundle.AssetId pid an, TokenQuantity.TokenQuantity q):_ ->
+        ((toText pid, toText an), q)
+    _ -> error "pickAnAsset: empty TokenMap"
+
+-- Like mkTxPayload, except that assets are included in the payment.
+-- Asset amounts are specified by ((PolicyId Hex, AssetName Hex), amount).
+mkTxPayloadMA
+    :: forall n m.
+        ( DecodeAddress n
+        , DecodeStakeAddress n
+        , EncodeAddress n
+        , MonadUnliftIO m
+        )
+    => (ApiT Address, Proxy n)
+    -> Natural
+    -> [((Text, Text), Natural)]
+    -> Text
+    -> m Payload
+mkTxPayloadMA destination coin val passphrase = do
+    let assetJson ((pid, name), q) = [aesonQQ|{
+                "policy_id": #{pid},
+                "asset_name": #{name},
+                "quantity": #{q}
+            }|]
+    return $ Json [aesonQQ|{
+            "payments": [{
+                "address": #{destination},
+                "amount": {
+                    "quantity": #{coin},
+                    "unit": "lovelace"
+                },
+                "assets": #{map assetJson val}
+            }],
+            "passphrase": #{passphrase}
+        }|]
 
 postTx
     :: forall n w m.
@@ -1170,6 +1215,93 @@ fixtureMultiAssetWallet
     => Context
     -> ResourceT m ApiWallet
 fixtureMultiAssetWallet = fmap fst . fixtureWalletWithMnemonics (Proxy @"ma")
+
+fixtureMultiAssetRandomWallet
+    :: forall n m.
+        ( DecodeAddress n
+        , DecodeStakeAddress n
+        , EncodeAddress n
+        , MonadIO m
+        , MonadUnliftIO m
+        )
+    => Context
+    -> ResourceT m ApiByronWallet
+fixtureMultiAssetRandomWallet ctx = do
+    wMA <- fixtureMultiAssetWallet ctx
+    wB <- fixtureRandomWallet ctx
+
+    -- create Byron address
+    let p = Json [aesonQQ| { "passphrase": #{fixturePassphrase} }|]
+    r <- request @(ApiAddress n) ctx (Link.postRandomAddress wB) Default p
+    expectSuccess r
+
+    -- pick out assets to send
+    let assetsSrc = wMA ^. #assets . #total . #getApiT
+    assetsSrc `shouldNotBe` mempty
+    let val = minUTxOValue <$ pickAnAsset assetsSrc
+
+    rL <- request @[ApiAddress n] ctx (Link.listAddresses @'Byron wB) Default Empty
+    let addrs = getFromResponse id rL
+    let destination = (addrs !! 1) ^. #id
+    payload <- mkTxPayloadMA @n destination 0 [val] fixturePassphrase
+
+    -- send assets to Byron wallet
+    rtx <- request @(ApiTransaction n) ctx
+        (Link.createTransaction @'Shelley wMA) Default payload
+    expectResponseCode HTTP.status202 rtx
+
+    eventually "Byron wallet has assets" $ do
+        rb <- request @ApiByronWallet ctx
+            (Link.getWallet @'Byron wB) Default Empty
+        verify rb
+            [ expectField (#assets . #available . #getApiT)
+                (`shouldNotBe` TokenMap.empty)
+            , expectField (#assets . #total . #getApiT)
+                (`shouldNotBe` TokenMap.empty)
+            , expectField (#state . #getApiT) (`shouldBe` Ready)
+            ]
+        return (getFromResponse id rb)
+
+
+fixtureMultiAssetIcarusWallet
+    :: forall n m.
+        ( DecodeAddress n
+        , DecodeStakeAddress n
+        , EncodeAddress n
+        , MonadIO m
+        , MonadUnliftIO m
+        )
+    => Context
+    -> ResourceT m ApiByronWallet
+fixtureMultiAssetIcarusWallet ctx = do
+    wMA <- fixtureMultiAssetWallet ctx
+    wB <- fixtureIcarusWallet ctx
+
+    -- pick out assets to send
+    let assetsSrc = wMA ^. #assets . #total . #getApiT
+    assetsSrc `shouldNotBe` mempty
+    let val = minUTxOValue <$ pickAnAsset assetsSrc
+
+    rL <- request @[ApiAddress n] ctx (Link.listAddresses @'Byron wB) Default Empty
+    let addrs = getFromResponse id rL
+    let destination = (addrs !! 1) ^. #id
+    payload <- mkTxPayloadMA @n destination 0 [val] fixturePassphrase
+
+    -- send assets to Icarus wallet
+    rtx <- request @(ApiTransaction n) ctx
+        (Link.createTransaction @'Shelley wMA) Default payload
+    expectResponseCode HTTP.status202 rtx
+
+    eventually "Icarus wallet has assets" $ do
+        rb <- request @ApiByronWallet ctx
+            (Link.getWallet @'Byron wB) Default Empty
+        verify rb
+            [ expectField (#assets . #available . #getApiT)
+                (`shouldNotBe` TokenMap.empty)
+            , expectField (#assets . #total . #getApiT)
+                (`shouldNotBe` TokenMap.empty)
+            ]
+        return (getFromResponse id rb)
 
 fixtureRawTx
     :: Context
