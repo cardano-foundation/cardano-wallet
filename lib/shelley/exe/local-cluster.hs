@@ -221,13 +221,14 @@ main = withLocalClusterSetup $ \dir clusterLogs walletLogs ->
     setupFaucet dir trCluster socketPath = do
         traceWith trCluster MsgSettingUpFaucet
         let trCluster' = contramap MsgCluster trCluster
-        let encodeAddr = T.unpack . encodeAddress @'Mainnet
-        let addresses = map (first encodeAddr) shelleyIntegrationTestFunds
-        let assetAddresses = map (first encodeAddr) maryIntegrationTestAssets
+        let encodeAddresses = map (first (T.unpack . encodeAddress @'Mainnet))
         let accts = concatMap genRewardAccounts mirMnemonics
-        let rewards = (,Coin $ fromIntegral oneMillionAda) <$> accts
-        sendFaucetFundsTo trCluster' socketPath dir addresses
-        sendFaucetAssetsTo trCluster' socketPath dir assetAddresses
+        let rewards = (, Coin $ fromIntegral oneMillionAda) <$> accts
+
+        sendFaucetFundsTo trCluster' socketPath dir $
+            encodeAddresses shelleyIntegrationTestFunds
+        sendFaucetAssetsTo trCluster' socketPath dir $
+            encodeAddresses maryIntegrationTestAssets
         moveInstantaneousRewardsTo trCluster' socketPath dir rewards
 
     whenReady dir trCluster logs (RunningNode socketPath block0 (gp, vData)) =
