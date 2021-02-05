@@ -114,6 +114,7 @@ module Test.Integration.Framework.DSL
     , faucetAmt
     , faucetUtxoAmt
     , proc'
+    , postTx
     , waitForServer
     , for
     , utcIso8601ToText
@@ -617,6 +618,38 @@ defaultTxTTL = 7200
 --
 -- Helpers
 --
+
+postTx
+    :: forall n w m.
+        ( DecodeAddress n
+        , DecodeStakeAddress n
+        , EncodeAddress n
+        , HasType (ApiT WalletId) w
+        , MonadIO m
+        , MonadUnliftIO m
+        )
+    => Context
+    -> (w, w -> (Method, Text), Text)
+    -> ApiWallet
+    -> Natural
+    -> m (HTTP.Status, Either RequestException (ApiTransaction n))
+postTx ctx (wSrc, postTxEndp, pass) wDest amt = do
+    addrs <- listAddresses @n ctx wDest
+    let destination = (addrs !! 1) ^. #id
+    let payload = Json [aesonQQ|{
+            "payments": [{
+                "address": #{destination},
+                "amount": {
+                    "quantity": #{amt},
+                    "unit": "lovelace"
+                }
+            }],
+            "passphrase": #{pass}
+        }|]
+    r <- request @(ApiTransaction n) ctx (postTxEndp wSrc) Default payload
+    expectResponseCode HTTP.status202 r
+    return r
+
 updateMetadataSource :: (MonadIO m, MonadUnliftIO m) => Context -> Text -> m ()
 updateMetadataSource ctx t = do
     r <- request @SettingsPutData ctx Link.putSettings Default payload

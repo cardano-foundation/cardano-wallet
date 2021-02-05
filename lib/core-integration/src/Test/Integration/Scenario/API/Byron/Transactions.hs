@@ -17,11 +17,21 @@ import Prelude
 
 import Cardano.Wallet.Api.Types
     ( ApiByronWallet
+    , ApiFee (..)
     , ApiTransaction
+    , ApiTxId (..)
+    , ApiWallet
     , DecodeAddress
     , DecodeStakeAddress
+    , EncodeAddress (..)
     , WalletStyle (..)
     )
+import Cardano.Wallet.Primitive.AddressDerivation
+    ( PaymentAddress )
+import Cardano.Wallet.Primitive.AddressDerivation.Icarus
+    ( IcarusKey )
+import Cardano.Wallet.Primitive.Types.Tx
+    ( Direction (..), TxStatus (..) )
 import Control.Monad
     ( forM_ )
 import Control.Monad.IO.Class
@@ -34,6 +44,8 @@ import Data.Quantity
     ( Quantity (..) )
 import Data.Text.Class
     ( fromText )
+import Numeric.Natural
+    ( Natural )
 import Test.Hspec
     ( SpecWith, describe )
 import Test.Hspec.Expectations.Lifted
@@ -44,22 +56,34 @@ import Test.Integration.Framework.DSL
     ( Context
     , Headers (..)
     , Payload (..)
+    , between
     , emptyIcarusWallet
     , emptyRandomWallet
+    , emptyWallet
+    , eventually
     , expectErrorMessage
     , expectField
     , expectListSize
     , expectResponseCode
+    , expectSuccess
+    , expectSuccess
     , faucetAmt
+    , faucetUtxoAmt
     , fixtureIcarusWallet
     , fixturePassphrase
     , fixtureRandomWallet
+    , fixtureWallet
+    , getFromResponse
     , json
+    , listAddresses
+    , minUTxOValue
     , postByronWallet
+    , postTx
     , request
     , toQueryString
     , verify
     , walletId
+    , (.>=)
     )
 import Test.Integration.Framework.Request
     ( RequestException )
@@ -78,8 +102,152 @@ data TestCase a = TestCase
 spec :: forall n.
     ( DecodeAddress n
     , DecodeStakeAddress n
+    , EncodeAddress n
+    , PaymentAddress n IcarusKey
     ) => SpecWith Context
-spec = describe "BYRON_MIGRATIONS" $ do
+spec = describe "BYRON_TRANSACTIONS" $ do
+
+    describe "BYRON_TRANS_CREATE_01 - Single Output Transaction with non-Shelley witnesses" $
+        forM_ [(fixtureRandomWallet, "Byron wallet"), (fixtureIcarusWallet, "Icarus wallet")] $
+        \(srcFixture,name) -> it name $ \ctx -> runResourceT $ do
+
+        (wByron, wShelley) <- (,) <$> srcFixture ctx <*> fixtureWallet ctx
+        addrs <- listAddresses @n ctx wShelley
+
+        let amt = minUTxOValue :: Natural
+        let destination = (addrs !! 1) ^. #id
+        let payload = Json [json|{
+                "payments": [{
+                    "address": #{destination},
+                    "amount": {
+                        "quantity": #{amt},
+                        "unit": "lovelace"
+                    }
+                }]
+            }|]
+
+        rFeeEst <- request @ApiFee ctx
+            (Link.getTransactionFee @'Byron wByron) Default payload
+        verify rFeeEst
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            ]
+        let (Quantity feeEstMin) = getFromResponse #estimatedMin rFeeEst
+        let (Quantity feeEstMax) = getFromResponse #estimatedMax rFeeEst
+
+        r <- postTx @n ctx
+            (wByron, Link.createTransaction @'Byron, fixturePassphrase)
+            wShelley
+            amt
+        verify r
+            [ expectSuccess
+            , expectResponseCode HTTP.status202
+            , expectField (#amount . #getQuantity) $
+                between (feeEstMin + amt, feeEstMax + amt)
+            , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
+            , expectField (#status . #getApiT) (`shouldBe` Pending)
+            ]
+
+        ra <- request @ApiByronWallet ctx (Link.getWallet @'Byron wByron) Default Empty
+        verify ra
+            [ expectSuccess
+            , expectField (#balance . #total) $
+                between
+                    ( Quantity (faucetAmt - feeEstMax - amt)
+                    , Quantity (faucetAmt - feeEstMin - amt)
+                    )
+            , expectField
+                    (#balance . #available)
+                    (.>= Quantity (faucetAmt - faucetUtxoAmt))
+            ]
+
+        eventually "wa and wb balances are as expected" $ do
+            rb <- request @ApiWallet ctx
+                (Link.getWallet @'Shelley wShelley) Default Empty
+            expectField
+                (#balance . #available)
+                (`shouldBe` Quantity (faucetAmt + amt)) rb
+
+            ra2 <- request @ApiByronWallet ctx
+                (Link.getWallet @'Byron wByron) Default Empty
+            expectField
+                (#balance . #available)
+                (`shouldBe` Quantity (faucetAmt - feeEstMax - amt)) ra2
+
+    it "BYRON_TRANS_CREATE_02 -\
+        \ Cannot create tx on Byron wallet using shelley ep" $ \ctx -> runResourceT $ do
+            w <- emptyRandomWallet ctx
+            let wid = w ^. walletId
+            wDest <- emptyWallet ctx
+            addr:_ <- listAddresses @n ctx wDest
+            let destination = addr ^. #id
+            let payload = Json [json|{
+                    "payments": [{
+                        "address": #{destination},
+                        "amount": {
+                            "quantity": #{minUTxOValue},
+                            "unit": "lovelace"
+                        }
+                    }],
+                    "passphrase": "cardano-wallet"
+                }|]
+            let endpoint = "v2/wallets/" <> wid <> "/transactions"
+            r <- request @(ApiTransaction n) ctx ("POST", endpoint) Default payload
+            expectResponseCode HTTP.status404 r
+            expectErrorMessage (errMsg404NoWallet wid) r
+
+    it "BYRON_TRANS_DELETE -\
+        \ Cannot delete tx on Byron wallet using shelley ep" $ \ctx -> runResourceT $ do
+            w <- emptyRandomWallet ctx
+            let wid = w ^. walletId
+            let txid = "3e6ec12da4414aa0781ff8afa9717ae53ee8cb4aa55d622f65bc62619a4f7b12"
+            let endpoint = "v2/wallets/" <> wid <> "/transactions/" <> txid
+            r <- request @ApiTxId ctx ("DELETE", endpoint) Default Empty
+            expectResponseCode HTTP.status404 r
+            expectErrorMessage (errMsg404NoWallet wid) r
+
+    it "BYRON_TRANS_ESTIMATE -\
+        \ Cannot estimate tx on Byron wallet using shelley ep" $ \ctx -> runResourceT $ do
+            w <- emptyRandomWallet ctx
+            let wid = w ^. walletId
+            wDest <- emptyWallet ctx
+            addr:_ <- listAddresses @n ctx wDest
+            let destination = addr ^. #id
+            let payload = Json [json|{
+                    "payments": [{
+                        "address": #{destination},
+                        "amount": {
+                            "quantity": #{minUTxOValue},
+                            "unit": "lovelace"
+                        }
+                    }]
+                }|]
+            let endpoint = "v2/wallets/" <> wid <> "/payment-fees"
+            r <- request @ApiFee ctx ("POST", endpoint) Default payload
+            expectResponseCode HTTP.status404 r
+            expectErrorMessage (errMsg404NoWallet wid) r
+
+    it "BYRON_TX_LIST_02 -\
+        \ Byron endpoint does not list Shelley wallet transactions" $ \ctx -> runResourceT $ do
+        w <- emptyWallet ctx
+        let wid = w ^. walletId
+        let ep = ("GET", "v2/byron-wallets/" <> wid <> "/transactions")
+        r <- request @([ApiTransaction n]) ctx ep Default Empty
+        verify r
+            [ expectResponseCode HTTP.status404
+            , expectErrorMessage (errMsg404NoWallet wid)
+            ]
+
+    it "BYRON_TX_LIST_03 -\
+        \ Shelley endpoint does not list Byron wallet transactions" $ \ctx -> runResourceT $ do
+        w <- emptyRandomWallet ctx
+        let wid = w ^. walletId
+        let ep = ("GET", "v2/wallets/" <> wid <> "/transactions")
+        r <- request @([ApiTransaction n]) ctx ep Default Empty
+        verify r
+            [ expectResponseCode HTTP.status404
+            , expectErrorMessage (errMsg404NoWallet wid)
+            ]
 
     it "BYRON_RESTORE_08 - Icarus wallet with high indexes" $ \ctx -> runResourceT $ do
         -- NOTE
