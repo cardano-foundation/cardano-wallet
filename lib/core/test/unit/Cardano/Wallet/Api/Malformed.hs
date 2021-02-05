@@ -299,38 +299,73 @@ instance Malformed (BodyParam ApiWalletSignData) where
           )
         ]
 
+errApiAddressDataMsg :: ExpectedError
+errApiAddressDataMsg =
+    "Error in $: ApiAddressData must have at least one valid credential. When script is\
+    \ used as a credential it has to have only bech32 encoded verification keys \
+    \with possible prefixes: 'script_vkh', 'script_vk' or 'script_xvk' and proper \
+    \payload size. 'at_least'cannot exceed 255. When public key is used as a credential \
+    \then bech32 encoded public keys are expected to be used with possible prefixes:\
+    \ 'stake_vk' or 'addr_vk', always with proper payload size."
+
 instance Malformed (BodyParam ApiAddressData) where
     malformed = first BodyParam <$>
         [ ( Aeson.encode [aesonQQ|
             {}|]
-          , "Error in $: ApiAddressData must have at least one credential."
+          , errApiAddressDataMsg
           )
         , ( Aeson.encode [aesonQQ|
             { "script": {}
             }|]
-          , "Error in $: ApiAddressData must have at least one credential."
+          , errApiAddressDataMsg
           )
         , ( Aeson.encode [aesonQQ|
             { "stake": {}
             }|]
-          , "Error in $: ApiAddressData must have at least one credential."
+          , errApiAddressDataMsg
           )
         , ( Aeson.encode [aesonQQ|
             { "payment": {}
             }|]
-          , "Error in $: ApiAddressData must have at least one credential."
+          , errApiAddressDataMsg
           )
         , ( Aeson.encode [aesonQQ|
             { "stake": 2
             }|]
-          , "Error in $: ApiAddressData must have at least one credential."
+          , errApiAddressDataMsg
           )
         , ( Aeson.encode [aesonQQ|
             { "payment": 2
             }|]
-          , "Error in $: ApiAddressData must have at least one credential."
+          , errApiAddressDataMsg
+          )
+        , ( Aeson.encode [aesonQQ|
+            { "payment": "script_wrong1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a"
+            }|]
+          , errApiAddressDataMsg
+          )
+        , ( Aeson.encode [aesonQQ|
+            { "payment": "addresses_vk1lqglg77z6kajsdz4739q22c0zm0yhuy567z6xk2vc0z5ucjtkwpschzd2j"
+            }|]
+          , errApiAddressDataMsg
+          )
+        , ( Aeson.encode [aesonQQ|
+            { "stake": "stakes_vk16apaenn9ut6s40lcw3l8v68xawlrlq20z2966uzcx8jmv2q9uy7qau558d"
+            }|]
+          , errApiAddressDataMsg
+          )
+        , ( Aeson.encode [aesonQQ|
+            { "payment": "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4ap07xzgv6p35cwx8h605jfx0dtd4a"
+            }|]
+          , errApiAddressDataMsg
+          )
+        , ( Aeson.encode [aesonQQ|
+            { "payment": "script_vkh1yf07000d4m"
+            }|]
+          , errApiAddressDataMsg
           )
         ]
+
 instance Malformed (BodyParam SomeByronWalletPostData) where
     malformed = jsonValid ++ jsonInvalid
      where

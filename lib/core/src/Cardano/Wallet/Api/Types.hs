@@ -1723,8 +1723,15 @@ instance FromJSON ApiAddressData where
         parseBaseAddr v <|>
         parseEnterprise v <|>
         parseRewardAccount v <|>
-        fail "ApiAddressData must have at least one credential."
+        fail msgError
       where
+         msgError =
+             "ApiAddressData must have at least one valid credential. When script is\
+             \ used as a credential it has to have only bech32 encoded verification keys \
+             \with possible prefixes: 'script_vkh', 'script_vk' or 'script_xvk' and proper \
+             \payload size. 'at_least'cannot exceed 255. When public key is used as a credential \
+             \then bech32 encoded public keys are expected to be used with possible prefixes:\
+             \ 'stake_vk' or 'addr_vk', always with proper payload size."
          parseBaseAddr = withObject "AddrBase" $ \o -> do
              addr <- AddrBase <$> o .: "payment" <*> o .: "stake"
              ApiAddressData addr <$> o .:? "validation"
@@ -1737,9 +1744,9 @@ instance FromJSON ApiAddressData where
 
 instance ToJSON ApiAddressData where
     toJSON (ApiAddressData (AddrEnterprise payment') validation') =
-        object $ [ "payment" .= payment'] ++ addOptionally validation'
+        object $ ("payment" .= payment') : addOptionally validation'
     toJSON (ApiAddressData (AddrRewardAccount stake') validation') =
-        object $ [ "stake" .= stake'] ++ addOptionally validation'
+        object $ ("stake" .= stake') : addOptionally validation'
     toJSON (ApiAddressData (AddrBase payment' stake') validation') =
         object $ [ "payment" .= payment', "stake" .= stake'] ++ addOptionally validation'
 

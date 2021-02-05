@@ -1090,7 +1090,7 @@ instance Arbitrary ValidationLevel where
 
 instance Arbitrary ApiAddressData where
     arbitrary = do
-        validation' <- oneof [pure $ Nothing, Just <$> arbitrary]
+        validation' <- oneof [pure Nothing, Just <$> arbitrary]
         credential1 <- arbitrary
         credential2 <- arbitrary
         addr <- elements
