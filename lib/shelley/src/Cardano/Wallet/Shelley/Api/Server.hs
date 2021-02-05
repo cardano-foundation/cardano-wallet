@@ -111,6 +111,7 @@ import Cardano.Wallet.Api.Types
     ( AnyAddress (..)
     , AnyAddressType (..)
     , ApiAddressData (..)
+    , ApiAddressDataPayload (..)
     , ApiAddressInspect (..)
     , ApiAddressInspectData (..)
     , ApiCredential (..)
@@ -481,15 +482,15 @@ postAnyAddress
     -> Handler AnyAddress
 postAnyAddress net addrData = do
     (addr, addrType) <- case addrData of
-        AddrEnterprise spendingCred ->
+        (ApiAddressData (AddrEnterprise spendingCred) _) ->
             pure ( unAddress $
                      CA.paymentAddress discriminant (spendingFrom spendingCred)
                  , EnterpriseDelegating )
-        AddrRewardAccount stakingCred -> do
+        (ApiAddressData (AddrRewardAccount stakingCred) _) -> do
             let (Right stakeAddr) =
                     CA.stakeAddress discriminant (stakingFrom stakingCred)
             pure ( unAddress stakeAddr, RewardAccount )
-        AddrBase spendingCred stakingCred ->
+        (ApiAddressData (AddrBase spendingCred stakingCred) _) ->
             pure ( unAddress $ CA.delegationAddress discriminant
                      (spendingFrom spendingCred) (stakingFrom stakingCred)
                  , EnterpriseDelegating )

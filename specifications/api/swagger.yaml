@@ -1924,7 +1924,6 @@ components:
         - address
       properties:
         address: *anyAddress
-        validation: *validationLevel
 
     ApiCredential: &ApiCredential
       <<: *CredentialValue
@@ -1937,6 +1936,7 @@ components:
         stake:
           <<: *ApiCredential
           example: stake_vk16apaenn9ut6s40lcw3l8v68xawlrlq20z2966uzcx8jmv2q9uy7qau558d
+        validation: *validationLevel
 
     ApiByronWalletRandomPostData: &ApiByronWalletRandomPostData
       type: object

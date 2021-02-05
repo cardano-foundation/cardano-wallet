@@ -52,6 +52,7 @@ module Cardano.Wallet.Api.Types
     , ApiAddress (..)
     , ApiCredential (..)
     , ApiAddressData (..)
+    , ApiAddressDataPayload (..)
     , AnyAddress (..)
     , AnyAddressType (..)
     , ApiCertificate (..)
@@ -175,7 +176,7 @@ import Prelude
 import Cardano.Address.Derivation
     ( XPrv, XPub, xpubFromBytes, xpubToBytes )
 import Cardano.Address.Script
-    ( KeyHash, Script )
+    ( KeyHash, Script, ValidationLevel (..) )
 import Cardano.Api.Typed
     ( TxMetadataJsonSchema (..)
     , displayError
@@ -468,7 +469,12 @@ data ApiCredential =
     | CredentialScript (Script KeyHash)
     deriving (Eq, Generic, Show)
 
-data ApiAddressData =
+data ApiAddressData = ApiAddressData
+    { address :: !ApiAddressDataPayload
+    , validationLevel :: !(Maybe (ApiT ValidationLevel))
+    } deriving (Eq, Generic, Show)
+
+data ApiAddressDataPayload =
       AddrEnterprise ApiCredential
     | AddrRewardAccount ApiCredential
     | AddrBase ApiCredential ApiCredential
@@ -1099,6 +1105,19 @@ instance FromText NtpSyncingStatus where
             , "I am expecting one of the words 'unavailable', 'pending' or"
             , "'available'."]
 
+instance ToText (ApiT ValidationLevel) where
+    toText (ApiT RequiredValidation) = "required"
+    toText (ApiT RecommendedValidation) = "recommneded"
+
+instance FromText (ApiT ValidationLevel) where
+    fromText txt = case txt of
+        "required" -> Right $ ApiT RequiredValidation
+        "recommneded" -> Right $ ApiT RecommendedValidation
+        _ -> Left $ TextDecodingError $ unwords
+            [ "I couldn't parse the given validation level."
+            , "I am expecting one of the words 'required' or"
+            , "'recommended'."]
+
 data ApiPoolId
     = ApiPoolIdPlaceholder
     | ApiPoolId PoolId
@@ -1706,20 +1725,34 @@ instance FromJSON ApiAddressData where
         parseRewardAccount v <|>
         fail "ApiAddressData must have at least one credential."
       where
-         parseBaseAddr = withObject "AddrBase" $ \o ->
-             AddrBase <$> o .: "payment" <*> o .: "stake"
-         parseEnterprise = withObject "AddrEnterprise" $ \o ->
-             AddrEnterprise <$> o .: "payment"
-         parseRewardAccount = withObject "AddrRewardAccount" $ \o ->
-             AddrRewardAccount <$> o .: "stake"
+         parseBaseAddr = withObject "AddrBase" $ \o -> do
+             addr <- AddrBase <$> o .: "payment" <*> o .: "stake"
+             ApiAddressData addr <$> o .:? "validation"
+         parseEnterprise = withObject "AddrEnterprise" $ \o -> do
+             addr <- AddrEnterprise <$> o .: "payment"
+             ApiAddressData addr <$> o .:? "validation"
+         parseRewardAccount = withObject "AddrRewardAccount" $ \o -> do
+             addr <- AddrRewardAccount <$> o .: "stake"
+             ApiAddressData addr <$> o .:? "validation"
 
 instance ToJSON ApiAddressData where
-    toJSON (AddrEnterprise payment') =
-        object [ "payment" .= payment']
-    toJSON (AddrRewardAccount stake') =
-        object [ "stake" .= stake']
-    toJSON (AddrBase payment' stake') =
-        object [ "payment" .= payment', "stake" .= stake']
+    toJSON (ApiAddressData (AddrEnterprise payment') validation') =
+        object $ [ "payment" .= payment'] ++ addOptionally validation'
+    toJSON (ApiAddressData (AddrRewardAccount stake') validation') =
+        object $ [ "stake" .= stake'] ++ addOptionally validation'
+    toJSON (ApiAddressData (AddrBase payment' stake') validation') =
+        object $ [ "payment" .= payment', "stake" .= stake'] ++ addOptionally validation'
+
+addOptionally :: (Aeson.KeyValue a, ToJSON v) => Maybe v -> [a]
+addOptionally v = case v of
+    Just v' -> ["validation" .= v']
+    Nothing -> []
+
+instance FromJSON (ApiT ValidationLevel) where
+    parseJSON =
+        parseJSON >=> eitherToParser . first ShowFmt . fromText
+instance ToJSON (ApiT ValidationLevel) where
+    toJSON = toJSON . toText
 
 instance FromJSON AnyAddress where
     parseJSON = parseFromText "AnyAddress" "address"
