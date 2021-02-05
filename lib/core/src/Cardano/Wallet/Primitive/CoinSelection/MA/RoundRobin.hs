@@ -861,14 +861,6 @@ makeChange minCoinFor requiredCost mExtraCoinSource inputBundles outputBundles
         changeForUserSpecifiedAssets
         changeForNonUserSpecifiedAssets
 
-    -- Change for all assets, with the minimum ada amounts added.
-    changeForAssetsWithMinimalCoins :: NonEmpty TokenBundle
-    changeForAssetsWithMinimalCoins =
-        assignMinimumCoin minCoinFor <$> changeForAssets
-
-    totalMinimumCoinForAssets =
-        F.foldMap TokenBundle.getCoin changeForAssetsWithMinimalCoins
-
     totalInputValueInsufficient = error
         "makeChange: not (totalOutputValue <= totalInputValue)"
     totalOutputCoinValueIsZero = error
@@ -882,11 +874,12 @@ makeChange minCoinFor requiredCost mExtraCoinSource inputBundles outputBundles
             -- small-ish. If it wasn't, we would have have enough coins to
             -- construct the change.
             unsafeNaturalToCoin $ distance
-                ( coinToNatural excessCoin )
-                ( coinToNatural requiredCost
-                + coinToNatural totalMinimumCoinForAssets
-                )
-        }
+                (coinToNatural excessCoin)
+                (coinToNatural requiredCost + totalMinCoinValue)
+            }
+      where
+        totalMinCoinValue =
+            F.sum $ coinToNatural . minCoinFor <$> changeForAssets
 
     -- We aim, to the greatest extent possible, to generate change bundles
     -- where small quantities of non-user-specified assets are bundled together
