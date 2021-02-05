@@ -915,8 +915,8 @@ makeChange minCoinFor requiredCost mExtraCoinSource inputBundles outputBundles
     totalOutputValue = F.fold outputBundles
 
     -- Identifiers of assets included in outputs.
-    knownAssetIds :: Set AssetId
-    knownAssetIds = TokenBundle.getAssets totalOutputValue
+    userSpecifiedAssetIds :: Set AssetId
+    userSpecifiedAssetIds = TokenBundle.getAssets totalOutputValue
 
     discardUserSpecifiedAssets
         :: TokenBundle
@@ -926,7 +926,7 @@ makeChange minCoinFor requiredCost mExtraCoinSource inputBundles outputBundles
         foldr (\(k, v) -> Map.insertWith (<>) k (v :| [])) m filtered
       where
         filtered = filter
-            ((`Set.notMember` knownAssetIds) . fst)
+            ((`Set.notMember` userSpecifiedAssetIds) . fst)
             (TokenMap.toFlatList tokens)
 
 -- | Assigns coin quantities to a list of pre-computed asset change maps.
