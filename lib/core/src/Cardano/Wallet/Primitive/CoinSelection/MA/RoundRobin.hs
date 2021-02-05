@@ -834,9 +834,6 @@ makeChange minCoinFor requiredCost mExtraCoinSource inputBundles outputBundles
 
     (excessCoin, excessAssets) = TokenBundle.toFlatList excess
 
-    nonUserSpecifiedAssets = Map.toList $
-        F.foldr discardUserSpecifiedAssets mempty inputBundles
-
     -- Change for user-specified assets: assets that were present in the
     -- original set of user-specified outputs ('outputsToCover').
     changeForUserSpecifiedAssets :: NonEmpty TokenMap
@@ -914,9 +911,20 @@ makeChange minCoinFor requiredCost mExtraCoinSource inputBundles outputBundles
     totalOutputValue :: TokenBundle
     totalOutputValue = F.fold outputBundles
 
-    -- Identifiers of assets included in outputs.
+    -- Identifiers of all user-specified assets: assets that were included in
+    -- the original set of outputs.
     userSpecifiedAssetIds :: Set AssetId
     userSpecifiedAssetIds = TokenBundle.getAssets totalOutputValue
+
+    -- Identifiers and quantities of all non-user-specified assets: assets that
+    -- were not included in the orginal set of outputs, but that were
+    -- nevertheless selected during the selection process.
+    --
+    -- Each asset is paired with the complete list of quantities of that asset
+    -- present in the selected inputs.
+    nonUserSpecifiedAssets :: [(AssetId, NonEmpty TokenQuantity)]
+    nonUserSpecifiedAssets = Map.toList $
+        F.foldr discardUserSpecifiedAssets mempty inputBundles
 
     discardUserSpecifiedAssets
         :: TokenBundle
