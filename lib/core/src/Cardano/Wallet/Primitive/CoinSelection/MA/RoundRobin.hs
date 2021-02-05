@@ -64,7 +64,7 @@ module Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     , fullBalance
 
     -- * Utility classes
-    , GreatestTokenQuantity (..)
+    , AssetCount (..)
 
     -- * Utility functions
     , distance
@@ -823,8 +823,8 @@ makeChange minCoinFor requiredCost mExtraCoinSource inputBundles outputBundles
     | otherwise =
         maybe (Left changeError) Right $ do
             adaAvailable <- excessCoin `subtractCoin` requiredCost
-            assignCoinsToChangeMaps adaAvailable minCoinFor $
-                NE.zip changeForAssets outputCoinsOrdered
+            assignCoinsToChangeMaps
+                adaAvailable minCoinFor changeMapOutputCoinPairs
   where
     -- The following subtraction is safe, as we have already checked
     -- that the total input value is greater than the total output
@@ -834,13 +834,39 @@ makeChange minCoinFor requiredCost mExtraCoinSource inputBundles outputBundles
 
     (excessCoin, excessAssets) = TokenBundle.toFlatList excess
 
+    -- Change maps for all assets, where each change map is paired with a
+    -- corresponding coin from the original outputs.
+    --
+    -- When combining change maps from user-specified assets and non-user-
+    -- specified assets, we arrange that any empty maps in either list are
+    -- combined together if possible, so as to give 'assignCoinsToChangeMaps'
+    -- the greatest chance of success.
+    --
+    -- This list is sorted into ascending order of asset count, where empty
+    -- change maps are all located at the start of the list.
+    --
+    changeMapOutputCoinPairs :: NonEmpty (TokenMap, Coin)
+    changeMapOutputCoinPairs = outputCoins
+        -- First, combine the original output coins with the change maps for
+        -- user-specified assets. We must pair these together right at the
+        -- start in order to retain proportionality with the original outputs.
+        & NE.zip changeForUserSpecifiedAssets
+        -- Next, sort the list into ascending order of asset count, which moves
+        -- any empty maps to the start of the list:
+        & NE.sortWith (AssetCount . fst)
+        -- Finally, combine the existing list with the change maps for non-user
+        -- specified assets, which are already sorted into ascending order of
+        -- asset count:
+        & NE.zipWith (\m1 (m2, c) -> (m1 <> m2, c))
+            changeForNonUserSpecifiedAssets
+
     -- Change for user-specified assets: assets that were present in the
     -- original set of user-specified outputs ('outputsToCover').
     changeForUserSpecifiedAssets :: NonEmpty TokenMap
     changeForUserSpecifiedAssets = F.foldr
         (NE.zipWith (<>)
-            . makeChangeForUserSpecifiedAsset outputMapsOrdered)
-        (TokenMap.empty <$ outputMapsOrdered)
+            . makeChangeForUserSpecifiedAsset outputMaps)
+        (TokenMap.empty <$ outputMaps)
         excessAssets
 
     -- Change for non-user-specified assets: assets that were not present
@@ -848,15 +874,9 @@ makeChange minCoinFor requiredCost mExtraCoinSource inputBundles outputBundles
     changeForNonUserSpecifiedAssets :: NonEmpty TokenMap
     changeForNonUserSpecifiedAssets = F.foldr
         (NE.zipWith (<>)
-            . makeChangeForNonUserSpecifiedAsset outputMapsOrdered)
-        (TokenMap.empty <$ outputMapsOrdered)
+            . makeChangeForNonUserSpecifiedAsset outputMaps)
+        (TokenMap.empty <$ outputMaps)
         nonUserSpecifiedAssets
-
-    -- Change for all assets: both user-specified and non-user-specified.
-    changeForAssets :: NonEmpty TokenMap
-    changeForAssets = NE.zipWith (<>)
-        changeForUserSpecifiedAssets
-        changeForNonUserSpecifiedAssets
 
     totalInputValueInsufficient = error
         "makeChange: not (totalOutputValue <= totalInputValue)"
@@ -875,33 +895,16 @@ makeChange minCoinFor requiredCost mExtraCoinSource inputBundles outputBundles
                 (coinToNatural requiredCost + totalMinCoinValue)
             }
       where
-        totalMinCoinValue =
-            F.sum $ coinToNatural . minCoinFor <$> changeForAssets
+        totalMinCoinValue = F.sum $ coinToNatural . minCoinFor <$>
+            NE.zipWith (<>)
+                changeForUserSpecifiedAssets
+                changeForNonUserSpecifiedAssets
 
-    -- We aim, to the greatest extent possible, to generate change bundles
-    -- where small quantities of non-user-specified assets are bundled together
-    -- with other small quantities, and large quantities of non-user-specified
-    -- assets are bundled together with other large quantities.
-    --
-    -- To achieve this, we start by sorting the set of output bundles into
-    -- ascending order of greatest token quantity.
-    --
-    -- Since change bundles for non-user-specified assets are also generated in
-    -- ascending order of token quantities, this should tend to produce an
-    -- outcome where smaller quantities are bundled together, and larger
-    -- quantities are bundled together in the final change bundles.
-    --
-    -- If there are any ada-only bundles, these will appear at the start of
-    -- the list.
-    --
-    outputBundlesOrdered :: NonEmpty TokenBundle
-    outputBundlesOrdered = NE.sortWith GreatestTokenQuantity outputBundles
+    outputMaps :: NonEmpty TokenMap
+    outputMaps = view #tokens <$> outputBundles
 
-    outputMapsOrdered :: NonEmpty TokenMap
-    outputMapsOrdered = view #tokens <$> outputBundlesOrdered
-
-    outputCoinsOrdered :: NonEmpty Coin
-    outputCoinsOrdered = view #coin <$> outputBundlesOrdered
+    outputCoins :: NonEmpty Coin
+    outputCoins = view #coin <$> outputBundles
 
     totalInputValue :: TokenBundle
     totalInputValue = TokenBundle.add
@@ -966,7 +969,8 @@ makeChange minCoinFor requiredCost mExtraCoinSource inputBundles outputBundles
 --      to assign the minimum ada quantity to all non-empty change maps.
 --
 assignCoinsToChangeMaps
-    :: Coin
+    :: HasCallStack
+    => Coin
     -- ^ The total quantity of ada available, including any extra source of ada.
     -> (TokenMap -> Coin)
     -- ^ A function to calculate the minimum required ada quantity for any
@@ -978,8 +982,11 @@ assignCoinsToChangeMaps
     -> Maybe [TokenBundle]
     -- ^ Resulting change bundles, or 'Nothing' if there was not enough ada
     -- available to assign a minimum ada quantity to all non-empty token maps.
-assignCoinsToChangeMaps adaAvailable minCoinFor pairsAtStart =
-    loop adaRequiredAtStart pairsAtStart
+assignCoinsToChangeMaps adaAvailable minCoinFor pairsAtStart
+    | not changeMapsCorrectlyOrdered =
+        changeMapsNotCorrectlyOrderedError
+    | otherwise =
+        loop adaRequiredAtStart pairsAtStart
   where
     loop !adaRequired !pairsNonEmpty = case pairsNonEmpty of
 
@@ -1025,6 +1032,21 @@ assignCoinsToChangeMaps adaAvailable minCoinFor pairsAtStart =
             Nothing
 
     adaRequiredAtStart = F.fold $ minCoinFor . fst <$> pairsAtStart
+
+    changeMaps = fst <$> pairsAtStart
+
+    -- Indicates whether or not the given change maps are correctly ordered,
+    -- so that all empty maps are located at the start of the list.
+    changeMapsCorrectlyOrdered = (==)
+        (NE.takeWhile TokenMap.isEmpty changeMaps)
+        (NE.filter TokenMap.isEmpty changeMaps)
+
+    changeMapsNotCorrectlyOrderedError =
+        error $ unwords
+            [ "assignCoinsToChangeMaps: pre-computed asset change maps must be"
+            , "arranged in an order where all empty maps are at the start of"
+            , "the list."
+            ]
 
 -- | Assigns the minimum required ada quantity to a token map.
 --
@@ -1178,30 +1200,22 @@ fullBalance index extraSource
 -- Utility types
 --------------------------------------------------------------------------------
 
--- | A total ordering on token maps based on the greatest token quantity of each
---   map.
+-- | A total ordering on token maps based on the number of assets in each map.
 --
--- If two maps have the same greatest quantity, then we fall back to ordinary
+-- If two maps have the same number of assets, then we fall back to ordinary
 -- lexicographic ordering as a tie-breaker.
 --
-instance Ord (GreatestTokenQuantity TokenMap) where
-    compare (GreatestTokenQuantity m1) (GreatestTokenQuantity m2) =
-        case compare (greatest m1) (greatest m2) of
+instance Ord (AssetCount TokenMap) where
+    compare (AssetCount m1) (AssetCount m2) =
+        case compare (assetCount m1) (assetCount m2) of
             LT -> LT
             GT -> GT
             EQ -> comparing TokenMap.toNestedList m1 m2
       where
-        greatest = TokenMap.maximumQuantity
+        assetCount = Set.size . TokenMap.getAssets
 
-instance Ord (GreatestTokenQuantity TokenBundle) where
-    compare (GreatestTokenQuantity b1) (GreatestTokenQuantity b2) =
-        case comparing (GreatestTokenQuantity . view #tokens) b1 b2 of
-            LT -> LT
-            GT -> GT
-            EQ -> comparing TokenBundle.getCoin b1 b2
-
-newtype GreatestTokenQuantity a = GreatestTokenQuantity
-    { unGreatestTokenQuantity :: a }
+newtype AssetCount a = AssetCount
+    { unAssetCount :: a }
     deriving (Eq, Show)
 
 --------------------------------------------------------------------------------

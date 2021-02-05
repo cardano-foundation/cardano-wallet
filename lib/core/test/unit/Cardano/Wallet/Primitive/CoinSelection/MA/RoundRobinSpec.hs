@@ -18,8 +18,8 @@ import Prelude
 import Algebra.PartialOrd
     ( PartialOrd (..) )
 import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
-    ( BalanceInsufficientError (..)
-    , GreatestTokenQuantity (..)
+    ( AssetCount (..)
+    , BalanceInsufficientError (..)
     , InsufficientMinCoinValueError (..)
     , SelectionCriteria (..)
     , SelectionError (..)
@@ -178,14 +178,15 @@ spec = describe "Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobinSpec" $
 
     parallel $ describe "Class instances respect laws" $ do
 
-        testLawsMany @(GreatestTokenQuantity TokenBundle)
+        testLawsMany @(AssetCount TokenMap)
             [ eqLaws
             , ordLaws
             ]
-        testLawsMany @(GreatestTokenQuantity TokenMap)
-            [ eqLaws
-            , ordLaws
-            ]
+
+    parallel $ describe "Ordering of token maps" $ do
+
+        it "prop_AssetCount_TokenMap_placesEmptyMapsFirst" $
+            property prop_AssetCount_TokenMap_placesEmptyMapsFirst
 
     parallel $ describe "Preparing outputs" $ do
 
@@ -359,6 +360,45 @@ prop_Large_UTxOIndex_coverage (Large index) =
   where
     assetCount = Set.size $ UTxOIndex.assets index
     entryCount = UTxOIndex.size index
+
+--------------------------------------------------------------------------------
+-- Ordering of token maps
+--------------------------------------------------------------------------------
+
+prop_AssetCount_TokenMap_placesEmptyMapsFirst
+    :: NonEmpty TokenMap
+    -> Property
+prop_AssetCount_TokenMap_placesEmptyMapsFirst maps =
+    checkCoverage
+        -- Check counts of empty maps and non-empty maps:
+        $ cover 80 (emptyMapCount >= 1 && nonEmptyMapCount >= 1)
+            "empty map count >= 1 && non-empty map count >= 1"
+        $ cover 60 (emptyMapCount >= 2 && nonEmptyMapCount >= 2)
+            "empty map count >= 2 && non-empty map count >= 2"
+        $ cover 40 (emptyMapCount >= 4 && nonEmptyMapCount >= 4)
+            "empty map count >= 4 && non-empty map count >= 4"
+        $ cover 20 (emptyMapCount >= 8 && nonEmptyMapCount >= 8)
+            "empty map count >= 8 && non-empty map count >= 8"
+        -- Check head and last element of list:
+        $ cover 40 (isEmptyMap $ NE.head maps)
+            "head element is empty map"
+        $ cover 40 (not $ isEmptyMap $ NE.head maps)
+            "head element is non-empty map"
+        $ cover 40 (isEmptyMap $ NE.last maps)
+            "last element is empty map"
+        $ cover 40 (not $ isEmptyMap $ NE.last maps)
+            "last element is non-empty map"
+        prop
+  where
+    prop = (===)
+        ( NE.span isEmptyMap $ NE.sortWith AssetCount maps )
+        ( L.sortOn AssetCount emptyMaps
+        , L.sortOn AssetCount nonEmptyMaps
+        )
+
+    isEmptyMap = TokenMap.isEmpty
+    (emptyMaps, nonEmptyMaps) = NE.partition isEmptyMap maps
+    (emptyMapCount, nonEmptyMapCount) = (length emptyMaps, length nonEmptyMaps)
 
 --------------------------------------------------------------------------------
 -- Preparing outputs
@@ -1263,8 +1303,8 @@ unit_makeChange =
           , b 1 [(assetA, 10), (assetC, 1)] :| [b 1 [(assetB, 2), (assetC, 8)]]
           , b 1 [(assetA, 5)] :| [b 1 [(assetB, 1)]]
           , Right
-              [ b 0 [(assetB, 1), (assetC, 1)]
-              , b 0 [(assetA, 5), (assetC, 8)]
+              [ b 0 [(assetA, 5), (assetC, 1)]
+              , b 0 [(assetB, 1), (assetC, 8)]
               ]
           )
         ]
@@ -1656,9 +1696,9 @@ instance Arbitrary a => Arbitrary (NonEmpty a) where
     arbitrary = (:|) <$> arbitrary <*> arbitrary
     shrink = genericShrink
 
-instance Arbitrary a => Arbitrary (GreatestTokenQuantity a) where
-    arbitrary = GreatestTokenQuantity <$> arbitrary
-    shrink = fmap GreatestTokenQuantity . shrink . unGreatestTokenQuantity
+instance Arbitrary a => Arbitrary (AssetCount a) where
+    arbitrary = AssetCount <$> arbitrary
+    shrink = fmap AssetCount . shrink . unAssetCount
 
 instance Arbitrary AssetId where
     arbitrary = genAssetIdSmallRange
