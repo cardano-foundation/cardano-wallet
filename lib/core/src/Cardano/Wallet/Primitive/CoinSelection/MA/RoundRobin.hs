@@ -1011,14 +1011,8 @@ assignCoinsToChangeMaps adaAvailable minCoinFor pairsAtStart =
             let adaRequired' = adaRequired `Coin.distance` minCoinFor m in
             loop adaRequired' (p :| ps)
 
-        (m, _) :| [] | TokenMap.isEmpty m && adaAvailable >= adaRequired ->
-            -- We didn't have any non-ada assets at all in our change. We can
-            -- simply return the available ada amount as a singleton change
-            -- bundle:
-            Just [TokenBundle.fromCoin adaAvailable]
-
         (m, _) :| [] | TokenMap.isEmpty m && adaAvailable < adaRequired ->
-            -- We didn't have any non-ada assets at all in our change, but we
+            -- We didn't have any non-ada assets at all in our change, and we
             -- also don't have enough ada available to pay even for a single
             -- change output. We just burn the available ada amount (which
             -- will be small), returning no change.
