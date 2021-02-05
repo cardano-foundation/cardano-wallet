@@ -102,6 +102,7 @@ module Cardano.Wallet
     -- ** Payment
     , getTxExpiry
     , selectAssets
+    , readWalletUTxOIndex
     , selectAssetsNoOutputs
     , assignChangeAddresses
     , selectionToUnsignedTx
@@ -1243,6 +1244,18 @@ selectionToUnsignedTx sel s =
             amount = view #coin   bundle
             assets = view #tokens bundle
 
+-- | Read a wallet checkpoint and index its UTxO, for 'selectAssets' and
+-- 'selectAssetsNoOutputs'.
+readWalletUTxOIndex
+    :: forall ctx s k. HasDBLayer s k ctx
+    => ctx
+    -> WalletId
+    -> ExceptT ErrNoSuchWallet IO (UTxOIndex, Wallet s, Set Tx)
+readWalletUTxOIndex ctx wid = do
+    (cp, _, pending) <- readWallet @ctx @s @k ctx wid
+    let utxo = UTxOIndex.fromUTxO $ availableUTxO @s pending cp
+    return (utxo, cp, pending)
+
 selectAssetsNoOutputs
     :: forall ctx s k result.
         ( HasTransactionLayer k ctx
@@ -1252,10 +1265,11 @@ selectAssetsNoOutputs
         )
     => ctx
     -> WalletId
+    -> (UTxOIndex, Wallet s, Set Tx)
     -> TransactionCtx
     -> (s -> SelectionResult TokenBundle -> result)
     -> ExceptT ErrSelectAssets IO result
-selectAssetsNoOutputs ctx wid tx transform = do
+selectAssetsNoOutputs ctx wid wal tx transform = do
     -- NOTE:
     -- Could be made nicer by allowing 'performSelection' to run with no target
     -- outputs, but to satisfy a minimum Ada target.
@@ -1269,7 +1283,7 @@ selectAssetsNoOutputs ctx wid tx transform = do
     let dummyAddress = Address ""
     let dummyOutput  = TxOut dummyAddress (TokenBundle.fromCoin deposit)
     let outs = dummyOutput :| []
-    selectAssets @ctx @s @k ctx wid tx outs $ \s sel -> transform s $ sel
+    selectAssets @ctx @s @k ctx wal tx outs $ \s sel -> transform s $ sel
         { outputsCovered = mempty
         , changeGenerated =
             let
@@ -1302,34 +1316,26 @@ selectAssets
     :: forall ctx s k result.
         ( HasTransactionLayer k ctx
         , HasLogger WalletLog ctx
-        , HasDBLayer s k ctx
         , HasNetworkLayer ctx
         )
     => ctx
-    -> WalletId
+    -> (UTxOIndex, Wallet s, Set Tx)
     -> TransactionCtx
     -> NonEmpty TxOut
     -> (s -> SelectionResult TokenBundle -> result)
     -> ExceptT ErrSelectAssets IO result
-selectAssets ctx wid tx outs transform = do
-    (cp, _, pending) <- withExceptT ErrSelectAssetsNoSuchWallet $
-        readWallet @ctx @s @k ctx wid
-    let s = getState cp
-
-    guardWithdrawal pending
+selectAssets ctx (utxo, cp, pending) tx outs transform = do
+    guardPendingWithdrawal
 
     pp <- liftIO $ currentProtocolParameters nl
-
-    let utxo :: UTxOIndex
-        utxo = UTxOIndex.fromUTxO $ availableUTxO @s pending cp
-
     liftIO $ traceWith tr $ MsgSelectionStart utxo outs
     sel <- performSelection
         (calcMinimumCoinValue tl pp)
         (calcMinimumCost tl pp tx)
         (initSelectionCriteria tl pp tx utxo outs)
     liftIO $ traceWith tr $ MsgSelectionDone sel
-    withExceptT ErrSelectAssetsSelectionError $ except (transform s <$> sel)
+    withExceptT ErrSelectAssetsSelectionError $ except $
+        transform (getState cp) <$> sel
   where
     nl = ctx ^. networkLayer
     tl = ctx ^. transactionLayer @k
@@ -1340,8 +1346,8 @@ selectAssets ctx wid tx outs transform = do
     -- withdrawal is executed, the reward pot is empty. So, to prevent two
     -- transactions with withdrawals to go through (which will inevitably cause
     -- one of them to never be inserted), we warn users early on about it.
-    guardWithdrawal :: Set Tx -> ExceptT ErrSelectAssets IO ()
-    guardWithdrawal pending = do
+    guardPendingWithdrawal :: ExceptT ErrSelectAssets IO ()
+    guardPendingWithdrawal =
         case Set.lookupMin $ Set.filter hasWithdrawal pending of
             Just pendingWithdrawal | withdrawalToCoin (txWithdrawal tx) /= Coin 0 ->
                 throwE $ ErrSelectAssetsAlreadyWithdrawing pendingWithdrawal

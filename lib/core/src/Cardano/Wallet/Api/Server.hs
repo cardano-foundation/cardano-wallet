@@ -1196,8 +1196,9 @@ selectCoins ctx genChange (ApiT wid) body = do
         let transform = \s sel ->
                 W.assignChangeAddresses genChange sel s
                 & uncurry W.selectionToUnsignedTx
+        w <- liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
         utx <- liftHandler
-            $ W.selectAssets  @_ @s @k wrk wid txCtx outs transform
+            $ W.selectAssets  @_ @s @k wrk w txCtx outs transform
 
         pure $ mkApiCoinSelection [] Nothing utx
 
@@ -1239,8 +1240,9 @@ selectCoinsForJoin ctx knownPools getPoolStatus pid wid = do
         let transform = \s sel ->
                 W.assignChangeAddresses (delegationAddress @n) sel s
                 & uncurry W.selectionToUnsignedTx
+        wal <- liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
         utx <- liftHandler
-            $ W.selectAssetsNoOutputs @_ @s @k wrk wid txCtx transform
+            $ W.selectAssetsNoOutputs @_ @s @k wrk wid wal txCtx transform
         (_, path) <- liftHandler
             $ W.readRewardAccount @_ @s @k @n wrk wid
 
@@ -1263,8 +1265,7 @@ selectCoinsForQuit
     -> Handler (Api.ApiCoinSelection n)
 selectCoinsForQuit ctx (ApiT wid) = do
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
-        action <- liftHandler
-            $ W.quitStakePool @_ @s @k @n wrk wid
+        action <- liftHandler $ W.quitStakePool @_ @s @k @n wrk wid
 
         (wdrl, _mkRwdAcct) <- mkRewardAccountBuilder @_ @s @k @n ctx wid Nothing
         let txCtx = defaultTransactionCtx
@@ -1275,10 +1276,10 @@ selectCoinsForQuit ctx (ApiT wid) = do
         let transform = \s sel ->
                 W.assignChangeAddresses (delegationAddress @n) sel s
                 & uncurry W.selectionToUnsignedTx
+        wal <- liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
         utx <- liftHandler
-            $ W.selectAssetsNoOutputs @_ @s @k wrk wid txCtx transform
-        (_, path) <- liftHandler
-            $ W.readRewardAccount @_ @s @k @n wrk wid
+            $ W.selectAssetsNoOutputs @_ @s @k wrk wid wal txCtx transform
+        (_, path) <- liftHandler $ W.readRewardAccount @_ @s @k @n wrk wid
 
         pure $ mkApiCoinSelection [] (Just (action, path)) utx
 
@@ -1435,8 +1436,9 @@ postTransaction ctx genChange (ApiT wid) body = do
             }
 
     (sel, tx, txMeta, txTime) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+        w <- liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
         sel <- liftHandler
-            $ W.selectAssets @_ @s @k wrk wid txCtx outs (const Prelude.id)
+            $ W.selectAssets @_ @s @k wrk w txCtx outs (const Prelude.id)
         (tx, txMeta, txTime, sealedTx) <- liftHandler
             $ W.signTransaction @_ @s @k wrk wid genChange mkRwdAcct pwd txCtx sel
         liftHandler
@@ -1540,7 +1542,8 @@ postTransactionFee ctx (ApiT wid) body = do
             , txMetadata = getApiT <$> body ^. #metadata
             }
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
-        let runSelection = W.selectAssets @_ @s @k wrk wid txCtx outs getFee
+        w <- liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
+        let runSelection = W.selectAssets @_ @s @k wrk w txCtx outs getFee
               where outs = coerceCoin <$> body ^. #payments
                     getFee = const (selectionDelta TokenBundle.getCoin)
         liftHandler $ mkApiFee Nothing <$> W.estimateFee runSelection
@@ -1589,9 +1592,10 @@ joinStakePool ctx knownPools getPoolStatus apiPoolId (ApiT wid) body = do
                 , txTimeToLive = ttl
                 , txDelegationAction = Just action
                 }
-
+        wal <- liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
         sel <- liftHandler
-            $ W.selectAssetsNoOutputs @_ @s @k wrk wid txCtx (const Prelude.id)
+            $ W.selectAssetsNoOutputs @_ @s @k wrk wid wal txCtx
+            $ const Prelude.id
         (tx, txMeta, txTime, sealedTx) <- liftHandler
             $ W.signTransaction @_ @s @k wrk wid genChange mkRwdAcct pwd txCtx sel
         liftHandler
@@ -1625,14 +1629,16 @@ delegationFee
     -> Handler ApiFee
 delegationFee ctx (ApiT wid) = do
     withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $ do
+        w <- withExceptT ErrSelectAssetsNoSuchWallet $
+            W.readWalletUTxOIndex @_ @s @k wrk wid
         deposit <- W.calcMinimumDeposit @_ @s @k wrk wid
-        mkApiFee (Just deposit) <$> W.estimateFee (runSelection wrk deposit)
+        mkApiFee (Just deposit) <$> W.estimateFee (runSelection wrk deposit w)
   where
     txCtx :: TransactionCtx
     txCtx = defaultTransactionCtx
 
-    runSelection wrk deposit =
-        W.selectAssetsNoOutputs @_ @s @k wrk wid txCtx calcFee
+    runSelection wrk deposit wal =
+        W.selectAssetsNoOutputs @_ @s @k wrk wid wal txCtx calcFee
       where
         calcFee _ = Coin.distance deposit . selectionDelta TokenBundle.getCoin
 
@@ -1669,8 +1675,10 @@ quitStakePool ctx (ApiT wid) body = do
                 , txDelegationAction = Just action
                 }
 
+        wal <- liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
         sel <- liftHandler
-            $ W.selectAssetsNoOutputs @_ @s @k wrk wid txCtx (const Prelude.id)
+            $ W.selectAssetsNoOutputs @_ @s @k wrk wid wal txCtx
+            $ const Prelude.id
         (tx, txMeta, txTime, sealedTx) <- liftHandler
             $ W.signTransaction @_ @s @k wrk wid genChange mkRwdAcct pwd txCtx sel
         liftHandler
