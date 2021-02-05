@@ -656,6 +656,112 @@ spec = describe "SHELLEY_ADDRESSES" $ do
                 \nw9htjwpyrhlmk55l8z58lpx6m4ues5x7kscrzdyf" :: Text
         validateAddr r goldenAddr
 
+    it "ANY_ADDRESS_POST_14a - at_least 0 is valid when non-validated" $ \ctx -> do
+        let payload = Json [json|{
+                "payment": {
+                    "some": {
+                        "from" : [
+                            "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a",
+                            "script_vkh1mwlngj4fcwegw53tdmyemfupen2758xwvudmcz9ap8cnqk7jmh4",
+                            "script_vkh1qw4l62k4203dllrk3dk3sfjpnh3gufhtrtm4qvtrvn4xjp5x5rt"
+                            ],
+                         "at_least": 0
+                         }
+                    }
+            }|]
+        r <- request @AnyAddress ctx Link.postAnyAddress Default payload
+        expectResponseCode HTTP.status202 r
+
+    it "ANY_ADDRESS_POST_14b - at_least 0 is valid when validation is required" $ \ctx -> do
+        let payload = Json [json|{
+                "payment": {
+                    "some": {
+                        "from" : [
+                            "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a",
+                            "script_vkh1mwlngj4fcwegw53tdmyemfupen2758xwvudmcz9ap8cnqk7jmh4",
+                            "script_vkh1qw4l62k4203dllrk3dk3sfjpnh3gufhtrtm4qvtrvn4xjp5x5rt"
+                            ],
+                         "at_least": 0
+                         }
+                    },
+                "validation": "required"
+            }|]
+        r <- request @AnyAddress ctx Link.postAnyAddress Default payload
+        expectResponseCode HTTP.status202 r
+
+    it "ANY_ADDRESS_POST_14c - at_least 0 is not valid when validation is recommended" $ \ctx -> do
+        let payload = Json [json|{
+                "payment": {
+                    "some": {
+                        "from" : [
+                            "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a",
+                            "script_vkh1mwlngj4fcwegw53tdmyemfupen2758xwvudmcz9ap8cnqk7jmh4",
+                            "script_vkh1qw4l62k4203dllrk3dk3sfjpnh3gufhtrtm4qvtrvn4xjp5x5rt"
+                            ],
+                         "at_least": 0
+                         }
+                    },
+                "validation": "recommended"
+            }|]
+        r <- request @AnyAddress ctx Link.postAnyAddress Default payload
+        expectResponseCode HTTP.status400 r
+        let msg = "At least's coefficient is 0 (which is not recommended)."
+        expectErrorMessage msg r
+
+    it "ANY_ADDRESS_POST_15a - at_least 4 is valid when non-validated" $ \ctx -> do
+        let payload = Json [json|{
+                "payment": {
+                    "some": {
+                        "from" : [
+                            "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a",
+                            "script_vkh1mwlngj4fcwegw53tdmyemfupen2758xwvudmcz9ap8cnqk7jmh4",
+                            "script_vkh1qw4l62k4203dllrk3dk3sfjpnh3gufhtrtm4qvtrvn4xjp5x5rt"
+                            ],
+                         "at_least": 4
+                         }
+                    }
+            }|]
+        r <- request @AnyAddress ctx Link.postAnyAddress Default payload
+        expectResponseCode HTTP.status202 r
+
+    it "ANY_ADDRESS_POST_15b - at_least 4 is valid when validation is required" $ \ctx -> do
+        let payload = Json [json|{
+                "payment": {
+                    "some": {
+                        "from" : [
+                            "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a",
+                            "script_vkh1mwlngj4fcwegw53tdmyemfupen2758xwvudmcz9ap8cnqk7jmh4",
+                            "script_vkh1qw4l62k4203dllrk3dk3sfjpnh3gufhtrtm4qvtrvn4xjp5x5rt"
+                            ],
+                         "at_least": 4
+                         }
+                    },
+                "validation": "required"
+            }|]
+        r <- request @AnyAddress ctx Link.postAnyAddress Default payload
+        expectResponseCode HTTP.status400 r
+        let msg = "The script is ill-formed and is not going to be accepted by ledger."
+        expectErrorMessage msg r
+
+    it "ANY_ADDRESS_POST_15c - at_least 4 is not valid when validation is recommended" $ \ctx -> do
+        let payload = Json [json|{
+                "payment": {
+                    "some": {
+                        "from" : [
+                            "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a",
+                            "script_vkh1mwlngj4fcwegw53tdmyemfupen2758xwvudmcz9ap8cnqk7jmh4",
+                            "script_vkh1qw4l62k4203dllrk3dk3sfjpnh3gufhtrtm4qvtrvn4xjp5x5rt"
+                            ],
+                         "at_least": 4
+                         }
+                    },
+                "validation": "recommended"
+            }|]
+        r <- request @AnyAddress ctx Link.postAnyAddress Default payload
+        expectResponseCode HTTP.status400 r
+        let msg = "The script is ill-formed and is not going to be accepted by ledger."
+        expectErrorMessage msg r
+
     it "POST_ACCOUNT_01 - Can retrieve account public keys" $ \ctx -> runResourceT $ do
         let initPoolGap = 10
         w <- emptyWalletWith ctx ("Wallet", fixturePassphrase, initPoolGap)
