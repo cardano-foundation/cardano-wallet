@@ -237,7 +237,7 @@ spec = do
                       { inputsSelected = NE.fromList inps
                       , extraCoinSource = Nothing
                       , outputsCovered = outs
-                      , changeGenerated = NE.fromList chgs
+                      , changeGenerated = chgs
                       , utxoRemaining = UTxOIndex.empty
                       }
                   inps = Map.toList $ getUTxO utxo
@@ -331,7 +331,7 @@ spec = do
                     { inputsSelected = NE.fromList inps
                     , extraCoinSource = Nothing
                     , outputsCovered = outs
-                    , changeGenerated = NE.fromList chgs
+                    , changeGenerated = chgs
                     , utxoRemaining = UTxOIndex.empty
                     }
                   inps = Map.toList $ getUTxO utxo
@@ -457,7 +457,7 @@ prop_decodeSignedShelleyTxRoundtrip shelleyEra (DecodeShelleySetup utxo outs md 
         { inputsSelected = NE.fromList inps
         , extraCoinSource = Nothing
         , outputsCovered = []
-        , changeGenerated = NE.fromList outs
+        , changeGenerated = outs
         , utxoRemaining = UTxOIndex.empty
         }
 
@@ -483,7 +483,7 @@ prop_decodeSignedByronTxRoundtrip (DecodeByronSetup utxo outs slotNo ntwrk pairs
         { inputsSelected = NE.fromList inps
         , extraCoinSource = Nothing
         , outputsCovered = []
-        , changeGenerated = NE.fromList outs
+        , changeGenerated = outs
         , utxoRemaining = UTxOIndex.empty
         }
 
