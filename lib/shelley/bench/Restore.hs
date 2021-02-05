@@ -454,7 +454,7 @@ benchmarksRnd _ w wid wname benchname restoreTime = do
         let out = TxOut (dummyAddress @n) (TokenBundle.fromCoin $ Coin 1)
         let txCtx = defaultTransactionCtx
         let getFee = const (selectionDelta TokenBundle.getCoin)
-        wal <- unsafeRunExceptT $ W.readUTxOIndex @_ @s @k w wid
+        wal <- unsafeRunExceptT $ W.readWalletUTxOIndex @_ @s @k w wid
         let runSelection = W.selectAssets @_ @s @k w wal txCtx (out :| []) getFee
         runExceptT $ withExceptT show $ W.estimateFee runSelection
 
@@ -544,7 +544,7 @@ benchmarksSeq _ w wid _wname benchname restoreTime = do
         let out = TxOut (dummyAddress @n) (TokenBundle.fromCoin $ Coin 1)
         let txCtx = defaultTransactionCtx
         let getFee = const (selectionDelta TokenBundle.getCoin)
-        wal <- unsafeRunExceptT $ W.readUTxOIndex w wid
+        wal <- unsafeRunExceptT $ W.readWalletUTxOIndex w wid
         let runSelection = W.selectAssets @_ @s @k w wal txCtx (out :| []) getFee
         runExceptT $ withExceptT show $ W.estimateFee runSelection
 
