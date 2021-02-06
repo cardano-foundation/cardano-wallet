@@ -124,8 +124,9 @@ instance FromText TokenName where
         . T.encodeUtf8
 
 -- | Information about an asset, from a source external to the chain.
-newtype AssetMetadata = AssetMetadata
+data AssetMetadata = AssetMetadata
     { name :: Text
+    , description :: Text
     } deriving stock (Eq, Ord, Generic)
     deriving (Read, Show) via (Quiet AssetMetadata)
 
