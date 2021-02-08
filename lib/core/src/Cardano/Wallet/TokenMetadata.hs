@@ -68,8 +68,6 @@ import Data.Hashable
     ( Hashable )
 import Data.Maybe
     ( mapMaybe )
-import Data.Set
-    ( Set )
 import Data.String
     ( IsString (..) )
 import Data.Text
@@ -94,7 +92,6 @@ import UnliftIO.Exception
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.HashMap.Strict as HM
 import qualified Data.Map.Strict as Map
-import qualified Data.Set as Set
 import qualified Data.Text.Encoding as T
 
 {-------------------------------------------------------------------------------
@@ -103,20 +100,20 @@ import qualified Data.Text.Encoding as T
 
 -- | Helper for adding metadata to sets of assets.
 fillMetadata
-    :: Ord a
+    :: (Foldable t, Functor t)
     => TokenMetadataClient IO
-    -> Set AssetId
+    -> t AssetId
     -> (Maybe AssetMetadata -> AssetId -> a)
-    -> IO (Set a)
+    -> IO (t a)
 fillMetadata client assets f = do
     res <- getTokenMetadata client (toList assets)
     case res of
         Right l -> do
             let m = Map.fromList l
-            return $ Set.map (\aid -> f (Map.lookup aid m) aid) assets
+            return $ fmap (\aid -> f (Map.lookup aid m) aid) assets
         Left _e -> do
             -- TODO: Trace error?
-            return $ Set.map (f Nothing) assets
+            return $ fmap (f Nothing) assets
 
 {-------------------------------------------------------------------------------
                             Cardano Metadata Server

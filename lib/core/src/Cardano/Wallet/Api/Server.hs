@@ -382,6 +382,8 @@ import Data.Function
     ( (&) )
 import Data.Functor
     ( (<&>) )
+import Data.Functor.Identity
+    ( Identity (..) )
 import Data.Generics.Internal.VL.Lens
     ( Lens', view, (.~), (^.) )
 import Data.Generics.Internal.VL.Prism
@@ -1312,11 +1314,11 @@ listAssetsAvailable ctx (ApiT wid) = do
     utxo <- withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk -> liftHandler $ do
        (cp, _meta, _pending) <- W.readWallet @_ @s @k wrk wid
        pure (cp ^. #utxo)
-    let assets = W.getAssets utxo
+    let assets = F.toList $ W.getAssets utxo
 
     -- TODO: Use data from metadata server
     let client = nullMetadataClient
-    liftIO $ F.toList <$> fillMetadata client assets toApiAsset
+    liftIO $ fillMetadata client assets toApiAsset
 
 listAssets
     :: forall ctx s k.
