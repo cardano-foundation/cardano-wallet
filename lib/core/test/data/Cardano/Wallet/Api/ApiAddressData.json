@@ -1,0 +1,869 @@
+{
+    "seed": -8962497068715112044,
+    "samples": [
+        {
+            "payment": "addr_vk1l3mu2exwh8kaxvcd756pheavpvlakmc4sv4vc84jvfur4tvdm8qsyd6pvc",
+            "stake": {
+                "any": [
+                    {
+                        "active_from": 4
+                    },
+                    {
+                        "active_from": 0
+                    },
+                    {
+                        "active_from": 2
+                    },
+                    {
+                        "active_until": 9
+                    },
+                    "script_vkh12epx3vd42etau065x2z83uhfzu3ljxev249phj32yr40str3qa9",
+                    {
+                        "active_until": 6
+                    },
+                    {
+                        "active_until": 10
+                    },
+                    "script_vkh15tfqdyrp3fslzatfjs55y8tcsl74qxpc5s34r6tc0sguyuklgym",
+                    "script_vkh12epx3vd42etau065x2z83uhfzu3ljxev249phj32yr40str3qa9",
+                    {
+                        "active_from": 5
+                    }
+                ]
+            },
+            "validation": "recommended"
+        },
+        {
+            "stake": {
+                "all": [
+                    {
+                        "some": {
+                            "from": [
+                                {
+                                    "active_until": 5
+                                },
+                                "script_vkh1pf68wdrlrsnq7j09sy2jqnchvd76nrddtwlw5kn2mt3n7pmsh4w",
+                                {
+                                    "active_from": 1
+                                },
+                                {
+                                    "active_from": 6
+                                },
+                                {
+                                    "active_from": 10
+                                },
+                                "script_vkh1s4qlkgpdv9qxhw42js47u2k66r2p9q0jwmgltnm4l3gsvnq0qxp",
+                                "script_vkh1vyz7thldhsl9k485cxlcchp8ptw004n65q6rdlyvlyclvmte2jk",
+                                "script_vkh1fv06p2a3ce53n0yc9dwgkgs4nuxs68ct7n8tu2grmy0vu8le6fr"
+                            ],
+                            "at_least": 7
+                        }
+                    },
+                    {
+                        "any": [
+                            "script_vkh1v8dxffher3tyjssm668eqtrj5mrhwemlek303pzx458eu99dw5n"
+                        ]
+                    },
+                    {
+                        "all": [
+                            "script_vkh1fv06p2a3ce53n0yc9dwgkgs4nuxs68ct7n8tu2grmy0vu8le6fr",
+                            {
+                                "active_from": 7
+                            },
+                            {
+                                "active_until": 2
+                            },
+                            "script_vkh1fv06p2a3ce53n0yc9dwgkgs4nuxs68ct7n8tu2grmy0vu8le6fr",
+                            {
+                                "active_from": 6
+                            },
+                            {
+                                "active_until": 4
+                            },
+                            {
+                                "active_from": 2
+                            },
+                            {
+                                "active_until": 8
+                            },
+                            {
+                                "active_until": 2
+                            },
+                            "script_vkh1fv06p2a3ce53n0yc9dwgkgs4nuxs68ct7n8tu2grmy0vu8le6fr"
+                        ]
+                    },
+                    {
+                        "some": {
+                            "from": [
+                                {
+                                    "active_until": 0
+                                },
+                                "script_vkh1smvh5yq0rgjgl7dygkxuwsvkawhry342dclyu8ypwrjrchgq2mh",
+                                "script_vkh1v8dxffher3tyjssm668eqtrj5mrhwemlek303pzx458eu99dw5n",
+                                "script_vkh1s4qlkgpdv9qxhw42js47u2k66r2p9q0jwmgltnm4l3gsvnq0qxp",
+                                "script_vkh1vyz7thldhsl9k485cxlcchp8ptw004n65q6rdlyvlyclvmte2jk",
+                                "script_vkh1z5g82kk77njdlm05mnljsn9an5hsqc7n2r5eqtaqgdnkze2yj56",
+                                {
+                                    "active_from": 1
+                                },
+                                {
+                                    "active_until": 9
+                                },
+                                {
+                                    "active_from": 5
+                                },
+                                {
+                                    "active_from": 3
+                                }
+                            ],
+                            "at_least": 5
+                        }
+                    },
+                    {
+                        "some": {
+                            "from": [
+                                {
+                                    "active_from": 9
+                                },
+                                {
+                                    "active_from": 2
+                                },
+                                {
+                                    "active_until": 4
+                                },
+                                {
+                                    "active_until": 7
+                                },
+                                {
+                                    "active_until": 2
+                                },
+                                {
+                                    "active_from": 7
+                                },
+                                {
+                                    "active_from": 9
+                                }
+                            ],
+                            "at_least": 3
+                        }
+                    },
+                    {
+                        "some": {
+                            "from": [
+                                {
+                                    "active_from": 10
+                                },
+                                {
+                                    "active_until": 3
+                                },
+                                "script_vkh1uyqven5k8xeflfzhs70jwfml8dxyxpyxq6yhtpmt8vr0zpcrkzv",
+                                {
+                                    "active_from": 10
+                                },
+                                {
+                                    "active_until": 8
+                                },
+                                {
+                                    "active_until": 7
+                                },
+                                "script_vkh1sp66xj6lced2f8qnk47rqg8dl37mtwwteh58a6pxs74nzy3xchk",
+                                "script_vkh1smvh5yq0rgjgl7dygkxuwsvkawhry342dclyu8ypwrjrchgq2mh",
+                                "script_vkh1fv06p2a3ce53n0yc9dwgkgs4nuxs68ct7n8tu2grmy0vu8le6fr"
+                            ],
+                            "at_least": 2
+                        }
+                    }
+                ]
+            },
+            "validation": "required"
+        },
+        {
+            "payment": {
+                "some": {
+                    "from": [
+                        {
+                            "all": [
+                                {
+                                    "active_until": 6
+                                }
+                            ]
+                        },
+                        {
+                            "all": [
+                                {
+                                    "active_until": 10
+                                },
+                                {
+                                    "active_until": 3
+                                },
+                                {
+                                    "active_until": 5
+                                },
+                                "script_vkh1fqk0395drpggzudz2s63gxzmhcyy03302wj3uwgwhxaxc5sctwk",
+                                {
+                                    "active_from": 3
+                                },
+                                {
+                                    "active_from": 0
+                                },
+                                {
+                                    "active_until": 8
+                                }
+                            ]
+                        },
+                        {
+                            "all": [
+                                "script_vkh1uyr6y0a29c5cwjjcs0rpxvj068lvr2zj5z99m5te53mz79h3jpz",
+                                {
+                                    "active_from": 9
+                                },
+                                {
+                                    "active_from": 10
+                                }
+                            ]
+                        },
+                        {
+                            "some": {
+                                "from": [
+                                    {
+                                        "active_from": 6
+                                    },
+                                    "script_vkh12wyaw2vpc9d7u2p7kxaerwkc3l2z2x4p5f00fd3atdus55hdxel",
+                                    "script_vkh1qt3twx0mh5u94jlnrg8k7hpgj2vpqhe56qsx0fxjqj8u2d5xt4l"
+                                ],
+                                "at_least": 1
+                            }
+                        },
+                        {
+                            "some": {
+                                "from": [
+                                    {
+                                        "active_until": 3
+                                    }
+                                ],
+                                "at_least": 1
+                            }
+                        },
+                        {
+                            "any": [
+                                {
+                                    "active_until": 1
+                                }
+                            ]
+                        },
+                        {
+                            "all": [
+                                "script_vkh1lvzlmvef2r660nfuepvya2xkru9n0qj40w62uwj46q2jx928gxs"
+                            ]
+                        },
+                        {
+                            "any": [
+                                {
+                                    "active_until": 7
+                                },
+                                "script_vkh12q56dr3zu2ltgx9p6f3xrutp6edngsdl93tmc9pmu2us2vynda2",
+                                "script_vkh1lvzlmvef2r660nfuepvya2xkru9n0qj40w62uwj46q2jx928gxs",
+                                {
+                                    "active_until": 4
+                                },
+                                "script_vkh140se6xuws2sqpuju9udmvdqq9tlcp23lg0jx8lc6er63g4zgx3s"
+                            ]
+                        }
+                    ],
+                    "at_least": 6
+                }
+            },
+            "stake": {
+                "all": [
+                    {
+                        "any": [
+                            {
+                                "some": {
+                                    "from": [
+                                        "script_vkh1tujqej3ff4wmtjee3yazqmkudrykx22ek3fp8ltxgw4hs90eynv",
+                                        {
+                                            "active_until": 10
+                                        },
+                                        {
+                                            "active_from": 4
+                                        },
+                                        "script_vkh1s8ajkl8a45hnuever4capvatjphd66lakap9g6ee40r4csncq76",
+                                        {
+                                            "active_from": 8
+                                        },
+                                        "script_vkh1055hrws0g6tvrnquvs0h34creplhnakwl8k9pp65kty55z89vvl"
+                                    ],
+                                    "at_least": 6
+                                }
+                            }
+                        ]
+                    },
+                    {
+                        "all": [
+                            {
+                                "active_until": 6
+                            },
+                            {
+                                "active_from": 0
+                            },
+                            {
+                                "active_from": 7
+                            },
+                            {
+                                "active_until": 5
+                            },
+                            {
+                                "active_from": 1
+                            },
+                            {
+                                "active_until": 1
+                            },
+                            {
+                                "active_until": 4
+                            },
+                            {
+                                "active_until": 5
+                            },
+                            {
+                                "active_from": 4
+                            }
+                        ]
+                    }
+                ]
+            }
+        },
+        {
+            "stake": {
+                "any": [
+                    {
+                        "any": [
+                            {
+                                "active_from": 3
+                            },
+                            {
+                                "active_until": 5
+                            },
+                            {
+                                "active_until": 10
+                            },
+                            {
+                                "active_from": 0
+                            },
+                            "script_vkh1ck7f6039vqr0xjja4gwfnwnxpymcz7awwe59skqw4kslkt6ac56",
+                            {
+                                "active_from": 2
+                            }
+                        ]
+                    },
+                    {
+                        "some": {
+                            "from": [
+                                {
+                                    "active_until": 10
+                                }
+                            ],
+                            "at_least": 1
+                        }
+                    },
+                    {
+                        "some": {
+                            "from": [
+                                "script_vkh1vy43cy4dxj0jagz06cducdq9nsjmjmw9udscurhdhnpzw82uc3f",
+                                "script_vkh1ck7f6039vqr0xjja4gwfnwnxpymcz7awwe59skqw4kslkt6ac56"
+                            ],
+                            "at_least": 1
+                        }
+                    },
+                    {
+                        "any": [
+                            {
+                                "active_from": 0
+                            },
+                            {
+                                "active_until": 10
+                            },
+                            "script_vkh1wrnw3v9rrvjtfjjpuj09hap4mjyujuwgsms6aws8fpuqv2vv7y5",
+                            {
+                                "active_until": 4
+                            },
+                            {
+                                "active_from": 9
+                            },
+                            {
+                                "active_until": 2
+                            },
+                            "script_vkh159eteht5kpt9ut5nj42cyak4uvamvts2mcqcld3wqrw8yljgxg0",
+                            {
+                                "active_from": 5
+                            },
+                            {
+                                "active_until": 5
+                            }
+                        ]
+                    },
+                    {
+                        "all": [
+                            "script_vkh196s0cgxx2rm8wxjhylrak8agzxk7yjh0vq965rtn90axx8wygv2",
+                            {
+                                "active_until": 3
+                            },
+                            {
+                                "active_from": 8
+                            },
+                            {
+                                "active_from": 8
+                            }
+                        ]
+                    }
+                ]
+            }
+        },
+        {
+            "stake": {
+                "some": {
+                    "from": [
+                        {
+                            "some": {
+                                "from": [
+                                    {
+                                        "active_until": 5
+                                    },
+                                    {
+                                        "active_until": 3
+                                    },
+                                    {
+                                        "active_from": 3
+                                    },
+                                    {
+                                        "active_until": 5
+                                    },
+                                    {
+                                        "active_from": 8
+                                    },
+                                    {
+                                        "active_from": 1
+                                    },
+                                    "script_vkh1wamrgwae6wrt2ncpvvexef3rlewv3gvpewu5m4aee756j90ynaz"
+                                ],
+                                "at_least": 5
+                            }
+                        },
+                        {
+                            "some": {
+                                "from": [
+                                    {
+                                        "active_from": 7
+                                    },
+                                    "script_vkh19ynf42p27llxvxj7ll0mppyflueu9qjy5q8ax02gg83529x8r64",
+                                    "script_vkh1wamrgwae6wrt2ncpvvexef3rlewv3gvpewu5m4aee756j90ynaz",
+                                    {
+                                        "active_until": 3
+                                    },
+                                    {
+                                        "active_from": 10
+                                    },
+                                    {
+                                        "active_from": 9
+                                    },
+                                    {
+                                        "active_from": 5
+                                    },
+                                    {
+                                        "active_until": 10
+                                    },
+                                    {
+                                        "active_until": 6
+                                    }
+                                ],
+                                "at_least": 5
+                            }
+                        },
+                        {
+                            "some": {
+                                "from": [
+                                    {
+                                        "active_until": 4
+                                    },
+                                    "script_vkh1dks2jr3la6x7rcuqm5ugsv76m4znll5pk3tllc3hkt6cwe56vcv",
+                                    {
+                                        "active_from": 7
+                                    },
+                                    "script_vkh1wamrgwae6wrt2ncpvvexef3rlewv3gvpewu5m4aee756j90ynaz",
+                                    {
+                                        "active_from": 1
+                                    },
+                                    {
+                                        "active_from": 8
+                                    },
+                                    {
+                                        "active_until": 2
+                                    },
+                                    {
+                                        "active_until": 10
+                                    },
+                                    {
+                                        "active_until": 5
+                                    },
+                                    {
+                                        "active_from": 3
+                                    }
+                                ],
+                                "at_least": 5
+                            }
+                        },
+                        {
+                            "some": {
+                                "from": [
+                                    "script_vkh1du6gxztp06wkfvzgy6zqz786yufst4fw4u8nwtg8q83uxwmqcn9",
+                                    "script_vkh1dks2jr3la6x7rcuqm5ugsv76m4znll5pk3tllc3hkt6cwe56vcv",
+                                    {
+                                        "active_from": 6
+                                    },
+                                    {
+                                        "active_until": 8
+                                    },
+                                    "script_vkh1u3sdj4cjsnt7uuuatsmz68qk926k963kxc4u2ywz2f97wpvk3l5",
+                                    {
+                                        "active_until": 10
+                                    },
+                                    {
+                                        "active_until": 2
+                                    },
+                                    {
+                                        "active_until": 5
+                                    }
+                                ],
+                                "at_least": 3
+                            }
+                        },
+                        {
+                            "some": {
+                                "from": [
+                                    "script_vkh1du6gxztp06wkfvzgy6zqz786yufst4fw4u8nwtg8q83uxwmqcn9",
+                                    {
+                                        "active_from": 1
+                                    },
+                                    {
+                                        "active_from": 6
+                                    },
+                                    {
+                                        "active_until": 6
+                                    }
+                                ],
+                                "at_least": 2
+                            }
+                        },
+                        {
+                            "all": [
+                                {
+                                    "active_until": 8
+                                },
+                                {
+                                    "active_until": 2
+                                },
+                                {
+                                    "active_from": 6
+                                },
+                                {
+                                    "active_until": 4
+                                }
+                            ]
+                        },
+                        {
+                            "some": {
+                                "from": [
+                                    "script_vkh1tvmjh5zwcgum7xdjlsp8wt6tgrg5wezcfl72cl38ajhlg8q9uwl",
+                                    {
+                                        "active_until": 8
+                                    },
+                                    {
+                                        "active_from": 5
+                                    },
+                                    {
+                                        "active_from": 5
+                                    },
+                                    {
+                                        "active_until": 9
+                                    },
+                                    {
+                                        "active_until": 3
+                                    },
+                                    "script_vkh1dks2jr3la6x7rcuqm5ugsv76m4znll5pk3tllc3hkt6cwe56vcv"
+                                ],
+                                "at_least": 6
+                            }
+                        },
+                        {
+                            "all": [
+                                {
+                                    "active_until": 5
+                                },
+                                {
+                                    "active_from": 2
+                                },
+                                {
+                                    "active_from": 0
+                                },
+                                "script_vkh14yp2mwaamznl99rftzwss2cnclqkxdj3xdqwg5efl8aljkmjzwf",
+                                "script_vkh19ynf42p27llxvxj7ll0mppyflueu9qjy5q8ax02gg83529x8r64",
+                                {
+                                    "active_until": 7
+                                },
+                                {
+                                    "active_until": 1
+                                }
+                            ]
+                        }
+                    ],
+                    "at_least": 5
+                }
+            },
+            "validation": "required"
+        },
+        {
+            "stake": {
+                "all": [
+                    {
+                        "any": [
+                            {
+                                "active_from": 8
+                            },
+                            {
+                                "active_until": 2
+                            },
+                            {
+                                "active_from": 2
+                            },
+                            "script_vkh17539kwpej6yup5mtvc6x6dw3exvlmpdnc03yjwzlvyljy2t98sk",
+                            {
+                                "active_from": 1
+                            },
+                            "script_vkh1sl6xhc4mjrq2d8hus4j428fwl8e3fggnt8ehwcjpggnsv7r8sdv",
+                            {
+                                "active_until": 3
+                            },
+                            {
+                                "active_from": 5
+                            },
+                            "script_vkh1jfhdu86yltgse09ms2076wydd9mvwefj0wk8lkj54s47szk8uaa"
+                        ]
+                    },
+                    {
+                        "all": [
+                            "script_vkh17539kwpej6yup5mtvc6x6dw3exvlmpdnc03yjwzlvyljy2t98sk",
+                            "script_vkh1jfhdu86yltgse09ms2076wydd9mvwefj0wk8lkj54s47szk8uaa",
+                            {
+                                "active_until": 2
+                            }
+                        ]
+                    },
+                    {
+                        "some": {
+                            "from": [
+                                {
+                                    "active_from": 8
+                                },
+                                {
+                                    "active_until": 0
+                                },
+                                "script_vkh1fqxnusarpf0u0gdeve927qzphjjka2hasdhzf58avlex6mlz35q",
+                                {
+                                    "active_until": 7
+                                }
+                            ],
+                            "at_least": 4
+                        }
+                    },
+                    {
+                        "some": {
+                            "from": [
+                                "script_vkh1ftqnh3rkysmztkjn9kmn2heeejq4kxng7pzvdvjfx4dd2xy078g",
+                                "script_vkh1arndnvz6xs7jsdtpk6lnu4vd86qr34an0v9qtnp047gm2yqefst",
+                                {
+                                    "active_until": 5
+                                },
+                                {
+                                    "active_from": 3
+                                },
+                                "script_vkh1jfhdu86yltgse09ms2076wydd9mvwefj0wk8lkj54s47szk8uaa",
+                                {
+                                    "active_until": 1
+                                },
+                                {
+                                    "active_from": 10
+                                },
+                                "script_vkh1prmnkrfndt6jqtuwqyu0e6a8jw6pe7n4tpnywlxua7ljsrf3k86"
+                            ],
+                            "at_least": 5
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "payment": {
+                "any": [
+                    {
+                        "all": [
+                            {
+                                "active_until": 8
+                            },
+                            {
+                                "active_until": 5
+                            },
+                            {
+                                "active_until": 0
+                            },
+                            "script_vkh1lfj3v0eq2hkdl5vhz89jtngxm0lqyx6qxlfjfvn5ggwpvrwtmc2",
+                            "script_vkh1kmvaf4fn5896jydrvvsqzstudl5sl03nnlqz9py8mssuw7wt3hj",
+                            "script_vkh1pkvh4v6uzxz8ly9u84us9rvcscmucw8dh0uy73cz4k5hxs0flvw",
+                            {
+                                "active_from": 7
+                            },
+                            "script_vkh1pkvh4v6uzxz8ly9u84us9rvcscmucw8dh0uy73cz4k5hxs0flvw"
+                        ]
+                    },
+                    {
+                        "any": [
+                            "script_vkh1gmdvex5fue0z0u27veyqtgrfks94slpp8r4x03p6lcpswy0f7vt",
+                            {
+                                "active_until": 1
+                            },
+                            {
+                                "active_until": 3
+                            },
+                            "script_vkh1l58kgu70k6qm74n083zp5c2qeflsz6265svta706zendxk2xkpf",
+                            {
+                                "active_from": 5
+                            }
+                        ]
+                    },
+                    {
+                        "any": [
+                            {
+                                "active_until": 6
+                            }
+                        ]
+                    },
+                    {
+                        "all": [
+                            {
+                                "active_from": 8
+                            },
+                            {
+                                "active_until": 2
+                            },
+                            "script_vkh1pkvh4v6uzxz8ly9u84us9rvcscmucw8dh0uy73cz4k5hxs0flvw",
+                            {
+                                "active_from": 2
+                            },
+                            "script_vkh1gmdvex5fue0z0u27veyqtgrfks94slpp8r4x03p6lcpswy0f7vt"
+                        ]
+                    },
+                    {
+                        "some": {
+                            "from": [
+                                {
+                                    "active_from": 2
+                                },
+                                {
+                                    "active_until": 4
+                                }
+                            ],
+                            "at_least": 2
+                        }
+                    },
+                    {
+                        "some": {
+                            "from": [
+                                "script_vkh1gmdvex5fue0z0u27veyqtgrfks94slpp8r4x03p6lcpswy0f7vt",
+                                "script_vkh1kj3ls802exgw94amr9ng2h5k2em0d9wf5cu7fzhtlz3gx8tv9cs",
+                                {
+                                    "active_until": 2
+                                },
+                                {
+                                    "active_until": 7
+                                },
+                                {
+                                    "active_until": 7
+                                },
+                                {
+                                    "active_until": 5
+                                },
+                                "script_vkh1l58kgu70k6qm74n083zp5c2qeflsz6265svta706zendxk2xkpf",
+                                {
+                                    "active_until": 3
+                                }
+                            ],
+                            "at_least": 4
+                        }
+                    },
+                    {
+                        "some": {
+                            "from": [
+                                {
+                                    "active_until": 5
+                                },
+                                {
+                                    "active_from": 9
+                                },
+                                {
+                                    "active_until": 0
+                                },
+                                {
+                                    "active_from": 10
+                                },
+                                {
+                                    "active_until": 7
+                                },
+                                {
+                                    "active_until": 1
+                                }
+                            ],
+                            "at_least": 5
+                        }
+                    },
+                    {
+                        "any": [
+                            "script_vkh1s9wfn6wamwpx6srffx366y6304d88qlkx3qjqcmt873surch6yk",
+                            {
+                                "active_from": 10
+                            },
+                            "script_vkh1wnnsyhux7h6umdewx6kumeyhlv0hq6fawqrhgydn3l8dgtxmp8s",
+                            {
+                                "active_from": 9
+                            },
+                            "script_vkh1wnnsyhux7h6umdewx6kumeyhlv0hq6fawqrhgydn3l8dgtxmp8s"
+                        ]
+                    },
+                    {
+                        "any": [
+                            {
+                                "active_until": 1
+                            },
+                            "script_vkh1wnnsyhux7h6umdewx6kumeyhlv0hq6fawqrhgydn3l8dgtxmp8s",
+                            "script_vkh1l58kgu70k6qm74n083zp5c2qeflsz6265svta706zendxk2xkpf",
+                            {
+                                "active_from": 0
+                            },
+                            {
+                                "active_from": 7
+                            }
+                        ]
+                    }
+                ]
+            }
+        },
+        {
+            "stake": "addr_vk17a8x8vf4runjdwamyx8h2nkqzv358el3pee8acqfj2yqyssk5wzqfqhwus",
+            "validation": "required"
+        },
+        {
+            "stake": "addr_vk1qtdm6e427uzpn9yd3znh9svmx9c7x0zd0gj5f7gqujxa74da9w3sfmnm3g"
+        },
+        {
+            "payment": "addr_vk1zx7kmyht4rsenmwmpwquxnzw9rlug56w2qlg9tj4cl75vp36xjwq45q36d",
+            "stake": "addr_vk1fzfnguqna05j3fy44l7dau8zyx78xa94etl3jvptk7myugzgh6nshnhd4q"
+        }
+    ]
+}
