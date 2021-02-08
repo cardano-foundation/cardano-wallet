@@ -126,7 +126,11 @@ instance FromText TokenName where
 -- | Information about an asset, from a source external to the chain.
 data AssetMetadata = AssetMetadata
     { name :: Text
-    , description :: Text
+    -- , acronym :: Text  -- TODO: needs metadata-server support
+    , description :: Text   -- TODO: needs metadata-server support
+    -- , url :: Text   -- TODO: needs metadata-server support
+    -- , logoBase64 :: ByteString   -- TODO: needs metadata-server support
+    -- , unit :: AssetUnit   -- TODO: needs metadata-server support
     } deriving stock (Eq, Ord, Generic)
     deriving (Read, Show) via (Quiet AssetMetadata)
 
