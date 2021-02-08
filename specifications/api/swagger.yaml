@@ -2929,6 +2929,19 @@ x-errUnableToAssignInputOutput: &errUnableToAssignInputOutput
       type: string
       enum: ['unable_to_assign_input_output']
 
+x-errAssetNotPresent: &errAssetNotPresent
+  <<: *responsesErr
+  title: asset_not_present
+  properties:
+    message:
+      type: string
+      description: |
+        Occurs when requesting information about an asset which is not
+        involved in any transaction related to the wallet.
+    code:
+      type: string
+      enum: ['asset_not_present']
+
 x-responsesErr400: &responsesErr400
   400:
     description: Bad Request
@@ -3016,6 +3029,13 @@ x-responsesListWallets: &responsesListWallets
           type: array
           items: *ApiWallet
 
+x-responsesErr404AssetNotPresent: &responsesErr404AssetNotPresent
+  404:
+    description: Not Found
+    content:
+      application/json:
+        schema: *errAssetNotPresent
+
 x-responsesListAssets: &responsesListAssets
   <<: *responsesErr406
   200:
@@ -3027,7 +3047,7 @@ x-responsesListAssets: &responsesListAssets
           items: *ApiAsset
 
 x-responsesGetAsset: &responsesGetAsset
-  <<: *responsesErr404
+  <<: *responsesErr404AssetNotPresent
   <<: *responsesErr406
   200:
     description: Ok
