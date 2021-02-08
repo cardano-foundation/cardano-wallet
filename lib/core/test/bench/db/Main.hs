@@ -475,13 +475,10 @@ bgroupWriteTxHistory db = bgroup "TxHistory (Write)"
     , bTxHistory            10        1        1         0     [1..10]
     , bTxHistory            10       10       10         0     [1..10]
     , bTxHistory            10       50      100         0     [1..10]
-    , bTxHistory            10      255      255         0    [1..100]
     , bTxHistory           100       10       10         0    [1..100]
     , bTxHistory           100       50      100         0    [1..100]
-    , bTxHistory           100      255      255         0    [1..100]
     , bTxHistory          1000       10       10         0   [1..1000]
     , bTxHistory          1000       50      100         0   [1..1000]
-    , bTxHistory          1000      255      255         0   [1..1000]
     , bTxHistory         10000       10       10         0  [1..10000]
     ]
   where
