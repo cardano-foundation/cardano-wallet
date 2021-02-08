@@ -123,6 +123,8 @@ import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
+import Cardano.Wallet.Primitive.Types.TokenPolicy
+    ( TokenName (..) )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.Tx
@@ -208,6 +210,7 @@ import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
+import qualified Data.Char as Char
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
 
@@ -611,8 +614,8 @@ mkOutputsToken assetCount tokenQuantity prefix n =
     mkTxOut i = TxOut
         (mkAddress prefix i)
         (TokenBundle.TokenBundle (Coin 1) (TokenMap.fromFlatList tokens))
-    mkTokenName = fromRight (error "Couldn't decode tokenName")
-        . fromText . T.pack . show
+    mkTokenName =
+        UnsafeTokenName . B8.singleton . Char.chr
     mkTokenPolicyId = fromRight (error "Couldn't decode tokenPolicyId")
         . fromText
         . T.pack
