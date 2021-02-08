@@ -5,7 +5,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE NamedFieldPuns #-}
-{-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -14,15 +13,16 @@
 {-# LANGUAGE UndecidableInstances #-}
 
 module Cardano.Wallet.TokenMetadata
-    ( TokenMetadataServer (..)
-    , tokenMetadataServerFromFile
-    , nullTokenMetadataServer
+    (
 
     -- * Convenience
-    , fillMetadata
+      fillMetadata
 
     -- * Client
+    , TokenMetadataClient (..)
     , metadataClient
+    , nullMetadataClient
+
     , getTokenMetadata
     , BatchRequest (..)
     , BatchResponse
@@ -45,22 +45,17 @@ import Cardano.Wallet.Primitive.Types.TokenMap
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( AssetMetadata (..), TokenName (..), TokenPolicyId (..) )
 import Control.Monad
-    ( mapM, (<=<) )
+    ( (<=<) )
 import Data.Aeson
     ( FromJSON (..)
-    , Object
     , ToJSON (..)
     , Value (..)
-    , eitherDecodeFileStrict
     , eitherDecodeStrict'
     , encode
-    , withArray
     , withObject
     , withText
     , (.:)
     )
-import Data.Aeson.Types
-    ( Parser )
 import Data.Bifunctor
     ( bimap )
 import Data.ByteArray.Encoding
@@ -71,8 +66,6 @@ import Data.Foldable
     ( toList )
 import Data.Hashable
     ( Hashable )
-import Data.Map
-    ( Map )
 import Data.Maybe
     ( mapMaybe )
 import Data.Set
@@ -102,7 +95,6 @@ import qualified Data.ByteString.Lazy as BL
 import qualified Data.HashMap.Strict as HM
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
-import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 
 {-------------------------------------------------------------------------------
@@ -112,66 +104,19 @@ import qualified Data.Text.Encoding as T
 -- | Helper for adding metadata to sets of assets.
 fillMetadata
     :: Ord a
-    => Monad m
-    => TokenMetadataServer m
+    => TokenMetadataClient IO
     -> Set AssetId
     -> (Maybe AssetMetadata -> AssetId -> a)
-    -> m (Set a)
-fillMetadata server assets f = do
-    let policies = Set.map tokenPolicyId assets
-    m <- fetchTokenMeta server (toList policies)
-    return $ Set.map (\aid -> f (Map.lookup (tokenPolicyId aid) m) aid) assets
-
-
--- | Mock metadata server which pulls the response from a file.
---
--- Doesn't care about which policy ids we request metadata for.
-tokenMetadataServerFromFile :: FilePath -> TokenMetadataServer IO
-tokenMetadataServerFromFile fp = TokenMetadataServer
-    { fetchTokenMeta = \_tokens -> do
-        either (fail . show) (pure . unTokenMetadataMap)
-            =<< eitherDecodeFileStrict fp
-    }
-
-nullTokenMetadataServer :: Monad m => TokenMetadataServer m
-nullTokenMetadataServer = TokenMetadataServer
-    { fetchTokenMeta = \_ -> pure Map.empty
-    }
-
-newtype TokenMetadataServer m = TokenMetadataServer
-    { fetchTokenMeta :: [TokenPolicyId] -> m (Map TokenPolicyId AssetMetadata)
-    }
-
--- Makes it easier to work with Aeson. TODO: probably remove.
-newtype TokenMetadataMap = TokenMetadataMap
-    { unTokenMetadataMap :: (Map TokenPolicyId AssetMetadata) }
-
-instance FromJSON TokenMetadataMap where
-    parseJSON = fmap TokenMetadataMap . parseTokenMetadataMap
-
--- NOTE: This parser assumes we will be able to fetch multiple metadata at once,
--- which we hopefully will be:
--- https://github.com/input-output-hk/metadata-server/blob/fc6eb8fda07c259da4e0ef3e6e1c9c62f137a0d0/john-instructions.md
-parseTokenMetadataMap :: Value -> Parser (Map TokenPolicyId AssetMetadata)
-parseTokenMetadataMap = fmap Map.fromList . withArray "list of subjects"
-    (mapM parseTokenMetadataEntry . toList)
-  where
-    parseTokenMetadataEntry :: Value -> Parser (TokenPolicyId, AssetMetadata)
-    parseTokenMetadataEntry = withObject "token metadata" $ \o -> do
-        subject_ <- o .: "subject"
-        md <- AssetMetadata <$> o `getProperty` "name" <*> o `getProperty` "description"
-        return (subject_, md)
-      where
-        -- | Properties contain both a value an a signature.
-        getProperty :: Object -> Text -> Parser Text
-        getProperty obj key =
-            (obj .: key) >>= withObject (T.unpack key) (\propObj -> do
-                (val :: Text)
-                    <- propObj .: "value"
-                --(sigs :: [Signature])
-                --    <- propObj .: "signatures" -- maybe "anSignatures" in server?
-                return val
-                )
+    -> IO (Set a)
+fillMetadata client assets f = do
+    res <- getTokenMetadata client (toList assets)
+    case res of
+        Right l -> do
+            let m = Map.fromList l
+            return $ Set.map (\aid -> f (Map.lookup aid m) aid) assets
+        Left _e -> do
+            -- TODO: Trace error?
+            return $ Set.map (f Nothing) assets
 
 {-------------------------------------------------------------------------------
                             Cardano Metadata Server
@@ -244,13 +189,18 @@ data Signature = Signature
                        Client for Cardano metadata-server
 -------------------------------------------------------------------------------}
 
+newtype TokenMetadataClient m = TokenMetadataClient
+    { batchRequest :: BatchRequest -> m BatchResponse }
+
 newtype JSONParseError = JSONParseError String
     deriving (Show, Eq)
 instance Exception JSONParseError
 
-metadataClient :: String -> Manager -> BatchRequest -> IO BatchResponse
+metadataClient :: String -> Manager -> TokenMetadataClient IO
 metadataClient baseURL manager =
-    parseResponse <=< flip httpLbs manager <=< makeHttpReq
+    TokenMetadataClient {
+        batchRequest = parseResponse <=< flip httpLbs manager <=< makeHttpReq
+    }
   where
     makeHttpReq query = do
         req <- parseRequest (baseURL ++ "metadata/query")
@@ -265,19 +215,24 @@ metadataClient baseURL manager =
         . BL.toStrict
         . responseBody
 
+nullMetadataClient :: Monad m => TokenMetadataClient m
+nullMetadataClient = TokenMetadataClient
+    { batchRequest = \_ -> pure [] }
+
+
 {-------------------------------------------------------------------------------
                            Requesting token metadata
 -------------------------------------------------------------------------------}
 
 getTokenMetadata
-    :: (BatchRequest -> IO BatchResponse)
+    :: TokenMetadataClient IO
     -> [AssetId]
     -> IO (Either TokenMetadataError [(AssetId, AssetMetadata)])
 getTokenMetadata client as =
-    fmap (bimap handleError fromResponse) . tryAny . client $ batchRequest
+    fmap (bimap handleError fromResponse) . tryAny . batchRequest client $ req
   where
     subjects = map assetIdToSubject as
-    batchRequest = BatchRequest
+    req = BatchRequest
         { subjects
         , properties = [PropertyName "name", PropertyName "description"]
         }

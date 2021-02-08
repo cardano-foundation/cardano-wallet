@@ -346,7 +346,7 @@ import Cardano.Wallet.Registry
     , workerResource
     )
 import Cardano.Wallet.TokenMetadata
-    ( fillMetadata, nullTokenMetadataServer )
+    ( fillMetadata, nullMetadataClient )
 import Cardano.Wallet.Transaction
     ( DelegationAction (..)
     , TransactionCtx (..)
@@ -1315,8 +1315,8 @@ listAssetsAvailable ctx (ApiT wid) = do
     let assets = W.getAssets utxo
 
     -- TODO: Use data from metadata server
-    let metadataServer = nullTokenMetadataServer
-    liftIO $ F.toList <$> fillMetadata metadataServer assets toApiAsset
+    let client = nullMetadataClient
+    liftIO $ F.toList <$> fillMetadata client assets toApiAsset
 
 listAssets
     :: forall ctx s k.

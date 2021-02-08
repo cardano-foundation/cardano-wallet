@@ -6,8 +6,6 @@ module Cardano.Wallet.TokenMetadataSpec where
 
 import Prelude
 
-import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId (..) )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
@@ -28,25 +26,8 @@ import Test.Hspec
 import Test.Utils.Paths
     ( getTestData )
 
-import qualified Data.Map as Map
-
 spec :: Spec
 spec = describe "Token Metadata" $ do
-    describe "tokenMetadataServerFromFile" $ do
-        -- From https://github.com/input-output-hk/metadata-server/pull/1/files
-        -- with manually added wrapping []
-        --
-        -- TODO: Check relevance.
-        it "golden" $ do
-            let server = tokenMetadataServerFromFile golden1File
-            m <- fetchTokenMeta server []
-            m `shouldBe` Map.fromList
-                [ (UnsafeTokenPolicyId
-                    (Hash "\DELq\148\t\NAK\234_\232^\132\SI\132<\146\
-                           \\158\186F~o\ENQ\EOTu\186\209\241\v\156'")
-                    , golden1Metadata )
-                ]
-
     describe "JSON decoding" $ do
         it "golden1.json" $
             eitherDecodeFileStrict golden1File
@@ -80,7 +61,7 @@ spec = describe "Token Metadata" $ do
             , owner = sig "62e800b8c540b218396174f9c42fc253ab461961e20a4cc8ed4ba8b3fdff760cf8422e80d2504829a1d84458093880f02629524416f895b802cb9211f5145808" "25912b3081c20782aaa576af51ef3b17d7370d9fdf6641fec28012678ac1d179"
             , properties =
                 ( Property "SteveToken"
-                    [  sig "7ef6ed44ba9456737ef8d2e31596fdafb66d5775ac1a254086a553b666516e5895bb0c6b7ba8bef1f6b4d9bd9253b4449d1354de2f9e043ea4eb43fd42f87108" "0ee262f062528667964782777917cd7139e19e8eb2c591767629e4200070c661"
+                    [ sig "7ef6ed44ba9456737ef8d2e31596fdafb66d5775ac1a254086a553b666516e5895bb0c6b7ba8bef1f6b4d9bd9253b4449d1354de2f9e043ea4eb43fd42f87108" "0ee262f062528667964782777917cd7139e19e8eb2c591767629e4200070c661"
                     , sig "c95cf87b74d1e4d3b413c927c65de836f0905ba2cd176c7cbff83d8b886b30fe1560c542c1f77bb88280dff55c2d267c9840fe36560fb13ba4a78b6429e51500" "7c3bfe2a11290a9b6ea054b4d0932678f88130511cfbfe3f634ee77d71edebe7"
                     , sig "f88692b13212bac8121151a99a4de4d5244e5f63566babd2b8ac20950ede74073af0570772b3ce3d11b72e972079199f02306e947cd5fcca688a9d4664eddb04"
            "8899d0777f399fffd44f72c85a8aa51605123a7ebf20bba42650780a0c81096a"
