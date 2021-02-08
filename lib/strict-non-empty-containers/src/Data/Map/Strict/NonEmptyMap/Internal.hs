@@ -67,6 +67,8 @@ import Prelude hiding
 
 import Control.DeepSeq
     ( NFData )
+import Data.Hashable
+    ( Hashable (..), hashUsing )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Map.Strict
@@ -89,6 +91,8 @@ data NonEmptyMap k v = NonEmptyMap
     deriving (Eq, Foldable, Functor, Generic, Read, Show, Traversable)
 
 instance (NFData k, NFData v) => NFData (NonEmptyMap k v)
+instance (Hashable k, Hashable v) => Hashable (NonEmptyMap k v) where
+    hashWithSalt = hashUsing toList
 
 -- | Builds a non-empty map from a list of key-value pairs.
 --

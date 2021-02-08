@@ -60,6 +60,7 @@ library
     , fmt
     , foldl
     , generic-lens >=1.1.0.0 && < 1.2.0.0
+    , hashable
     , http-api-data
     , http-client
     , http-client-tls

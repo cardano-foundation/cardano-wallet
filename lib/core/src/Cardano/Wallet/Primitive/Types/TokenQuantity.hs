@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE TypeApplications #-}
@@ -36,6 +37,8 @@ import Data.Aeson
     ( FromJSON (..), ToJSON (..) )
 import Data.Functor
     ( ($>) )
+import Data.Hashable
+    ( Hashable )
 import Data.Text.Class
     ( FromText (..), ToText (..) )
 import Fmt
@@ -66,12 +69,11 @@ newtype TokenQuantity = TokenQuantity
     { unTokenQuantity :: Natural }
     deriving stock (Eq, Ord, Generic)
     deriving (Read, Show) via (Quiet TokenQuantity)
+    deriving anyclass (NFData, Hashable)
 
 --------------------------------------------------------------------------------
 -- Instances
 --------------------------------------------------------------------------------
-
-instance NFData TokenQuantity
 
 instance Semigroup TokenQuantity where
     (<>) = add

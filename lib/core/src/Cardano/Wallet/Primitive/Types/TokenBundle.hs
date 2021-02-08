@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE DuplicateRecordFields #-}
@@ -87,6 +88,8 @@ import Data.Bifunctor
     ( first )
 import Data.Functor
     ( ($>) )
+import Data.Hashable
+    ( Hashable )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Map.Strict
@@ -118,6 +121,7 @@ data TokenBundle = TokenBundle
         :: !TokenMap
     }
     deriving stock (Eq, Generic, Read, Show)
+    deriving anyclass (NFData, Hashable)
 
 -- | Token bundles can be partially ordered, but there is no total ordering of
 --   token bundles that's consistent with their arithmetic properties.
@@ -137,8 +141,6 @@ instance PartialOrd TokenBundle where
     b1 `leq` b2 = (&&)
         (coin b1 <= coin b2)
         (tokens b1 `leq` tokens b2)
-
-instance NFData TokenBundle
 
 instance Semigroup TokenBundle where
     (<>) = add

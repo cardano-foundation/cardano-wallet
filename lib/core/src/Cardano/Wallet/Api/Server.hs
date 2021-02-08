@@ -323,6 +323,8 @@ import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
+import Cardano.Wallet.Primitive.Types.TokenBundle
+    ( TokenBundle (..) )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenName (..), TokenPolicyId (..), nullTokenName )
 import Cardano.Wallet.Primitive.Types.Tx
@@ -1191,7 +1193,7 @@ selectCoins ctx genChange (ApiT wid) body = do
         -- TODO 2:
         -- Allow passing around metadata as part of external coin selections.
         let txCtx = defaultTransactionCtx
-        let outs = coerceCoin <$> body ^. #payments
+        let outs = addressAmountToTxOut <$> body ^. #payments
 
         let transform = \s sel ->
                 W.assignChangeAddresses genChange sel s
@@ -1421,7 +1423,7 @@ postTransaction
     -> Handler (ApiTransaction n)
 postTransaction ctx genChange (ApiT wid) body = do
     let pwd = coerce $ body ^. #passphrase . #getApiT
-    let outs = coerceCoin <$> body ^. #payments
+    let outs = addressAmountToTxOut <$> body ^. #payments
     let md = body ^? #metadata . traverse . #getApiT
     let mTTL = body ^? #timeToLive . traverse . #getQuantity
 
@@ -1544,7 +1546,7 @@ postTransactionFee ctx (ApiT wid) body = do
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         w <- liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
         let runSelection = W.selectAssets @_ @s @k wrk w txCtx outs getFee
-              where outs = coerceCoin <$> body ^. #payments
+              where outs = addressAmountToTxOut <$> body ^. #payments
                     getFee = const (selectionDelta TokenBundle.getCoin)
         liftHandler $ mkApiFee Nothing <$> W.estimateFee runSelection
 
@@ -2040,21 +2042,22 @@ mkApiCoinSelection deps mcerts (UnsignedTx inputs outputs change) =
         apiStakePath = ApiT <$> xs
 
     mkApiCoinSelectionInput :: input -> ApiCoinSelectionInput n
-    mkApiCoinSelectionInput (TxIn txid index, TxOut addr tokens, path) =
+    mkApiCoinSelectionInput
+        (TxIn txid index, TxOut addr (TokenBundle amount assets), path) =
         ApiCoinSelectionInput
             { id = ApiT txid
             , index = index
             , address = (ApiT addr, Proxy @n)
-            , amount = Quantity $
-                fromIntegral $ unCoin $ TokenBundle.getCoin tokens
+            , amount = coinToQuantity amount
+            , assets = ApiT assets
             , derivationPath = ApiT <$> path
             }
 
     mkApiCoinSelectionOutput :: output -> ApiCoinSelectionOutput n
-    mkApiCoinSelectionOutput (TxOut addr tokens) =
-        ApiCoinSelectionOutput
-            (ApiT addr, Proxy @n)
-            (Quantity $ fromIntegral $ unCoin $ TokenBundle.getCoin tokens)
+    mkApiCoinSelectionOutput (TxOut addr (TokenBundle amount assets)) =
+        ApiCoinSelectionOutput (ApiT addr, Proxy @n)
+        (coinToQuantity amount)
+        (ApiT assets)
 
     mkApiCoinSelectionChange :: change -> ApiCoinSelectionChange n
     mkApiCoinSelectionChange txChange =
@@ -2062,7 +2065,9 @@ mkApiCoinSelection deps mcerts (UnsignedTx inputs outputs change) =
             { address =
                 (ApiT $ view #address txChange, Proxy @n)
             , amount =
-                Quantity $ fromIntegral $ unCoin $ view #amount txChange
+                coinToQuantity $ view #amount txChange
+            , assets =
+                ApiT $ view #assets txChange
             , derivationPath =
                 ApiT <$> view #derivationPath txChange
             }
@@ -2188,10 +2193,10 @@ mkApiWithdrawal
 mkApiWithdrawal (acct, c) =
     ApiWithdrawal (ApiT acct, Proxy @n) (mkApiCoin c)
 
-coerceCoin
+addressAmountToTxOut
     :: forall (n :: NetworkDiscriminant). AddressAmount (ApiT Address, Proxy n)
     -> TxOut
-coerceCoin (AddressAmount (ApiT addr, _) c (ApiT assets)) =
+addressAmountToTxOut (AddressAmount (ApiT addr, _) c (ApiT assets)) =
     TxOut addr (TokenBundle.TokenBundle (coinFromQuantity c) assets)
 
 natural :: Quantity q Word32 -> Quantity q Natural

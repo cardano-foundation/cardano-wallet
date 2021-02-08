@@ -1,4 +1,6 @@
+{-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DerivingStrategies #-}
 
 -- |
 -- Copyright: © 2018-2020 IOHK
@@ -21,6 +23,8 @@ import Data.ByteArray.Encoding
     ( Base (Base16), convertFromBase, convertToBase )
 import Data.ByteString
     ( ByteString )
+import Data.Hashable
+    ( Hashable )
 import Data.Text.Class
     ( CaseStyle (..)
     , FromText (..)
@@ -85,8 +89,7 @@ import qualified Data.Text.Encoding as T
 newtype Address = Address
     { unAddress :: ByteString
     } deriving (Read, Show, Generic, Eq, Ord)
-
-instance NFData Address
+      deriving anyclass (NFData, Hashable)
 
 instance Buildable Address where
     build addr = mempty

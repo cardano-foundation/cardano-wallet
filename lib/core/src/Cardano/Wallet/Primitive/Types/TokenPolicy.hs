@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingVia #-}
 
@@ -33,6 +34,8 @@ import Data.ByteArray.Encoding
     ( Base (Base16), convertFromBase, convertToBase )
 import Data.ByteString
     ( ByteString )
+import Data.Hashable
+    ( Hashable )
 import Data.Text
     ( Text )
 import Data.Text.Class
@@ -54,6 +57,7 @@ newtype TokenPolicyId =
     UnsafeTokenPolicyId { unTokenPolicyId :: Hash "TokenPolicy" }
     deriving stock (Eq, Ord, Generic)
     deriving (Read, Show) via (Quiet TokenPolicyId)
+    deriving anyclass Hashable
 
 instance NFData TokenPolicyId
 
@@ -78,6 +82,7 @@ newtype TokenName =
     UnsafeTokenName { unTokenName :: ByteString }
     deriving stock (Eq, Ord, Generic)
     deriving (Read, Show) via (Quiet TokenName)
+    deriving anyclass Hashable
 
 -- | Construct a 'TokenName', validating that the length does not exceed
 -- 'maxLengthTokenName'.

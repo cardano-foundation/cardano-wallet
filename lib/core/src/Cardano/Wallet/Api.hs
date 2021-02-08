@@ -81,6 +81,11 @@ module Cardano.Wallet.Api
         , GetByronUTxOsStatistics
         , PutByronWalletPassphrase
 
+    , ByronAssets
+        , ListByronAssets
+        , GetByronAsset
+        , GetByronAssetDefault
+
     , ByronAddresses
         , PostByronAddress
         , PutByronAddress
@@ -246,6 +251,7 @@ type Api n apiPool =
     :<|> ShelleyMigrations n
     :<|> StakePools n apiPool
     :<|> ByronWallets
+    :<|> ByronAssets
     :<|> ByronAddresses n
     :<|> ByronCoinSelections n
     :<|> ByronTransactions n
@@ -369,7 +375,7 @@ type GetAsset = "wallets"
     :> Capture "assetName" (ApiT TokenName)
     :> Get '[JSON] ApiAsset
 
--- | https://input-output-hk.github.io/cardano-wallet/api/#operation/getAsset
+-- | https://input-output-hk.github.io/cardano-wallet/api/#operation/getAssetDefault
 type GetAssetDefault = "wallets"
     :> Capture "walletId" (ApiT WalletId)
     :> "assets"
@@ -615,6 +621,38 @@ type PutByronWalletPassphrase = "byron-wallets"
     :> "passphrase"
     :> ReqBody '[JSON] ByronWalletPutPassphraseData
     :> PutNoContent
+
+{-------------------------------------------------------------------------------
+                                  Assets
+
+  See also: https://input-output-hk.github.io/cardano-wallet/api/#tag/ByronAssets
+-------------------------------------------------------------------------------}
+
+type ByronAssets =
+    ListByronAssets
+    :<|> GetByronAsset
+    :<|> GetByronAssetDefault
+
+-- | https://input-output-hk.github.io/cardano-wallet/api/#operation/listByronAssets
+type ListByronAssets = "byron-wallets"
+    :> Capture "walletId" (ApiT WalletId)
+    :> "assets"
+    :> Get '[JSON] [ApiAsset]
+
+-- | https://input-output-hk.github.io/cardano-wallet/api/#operation/getByronAsset
+type GetByronAsset = "byron-wallets"
+    :> Capture "walletId" (ApiT WalletId)
+    :> "assets"
+    :> Capture "policyId" (ApiT TokenPolicyId)
+    :> Capture "assetName" (ApiT TokenName)
+    :> Get '[JSON] ApiAsset
+
+-- | https://input-output-hk.github.io/cardano-wallet/api/#operation/getByronAssetDefault
+type GetByronAssetDefault = "byron-wallets"
+    :> Capture "walletId" (ApiT WalletId)
+    :> "assets"
+    :> Capture "policyId" (ApiT TokenPolicyId)
+    :> Get '[JSON] ApiAsset
 
 {-------------------------------------------------------------------------------
                                   Addresses

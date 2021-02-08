@@ -75,7 +75,7 @@ import Test.Integration.Framework.TestData
     ( errMsg404NoWallet, errMsg406, errMsg415 )
 
 import qualified Cardano.Wallet.Api.Link as Link
-import qualified Data.List as L
+import qualified Data.HashSet as Set
 import qualified Data.List.NonEmpty as NE
 import qualified Network.HTTP.Types as HTTP
 
@@ -97,7 +97,7 @@ spec = describe "SHELLEY_COIN_SELECTION" $ do
             targetAddress : _ <- fmap (view #id) <$> listAddresses @n ctx target
             let amount = Quantity minUTxOValue
             let payment = AddressAmount targetAddress amount mempty
-            let output = ApiCoinSelectionOutput targetAddress amount
+            let output = ApiCoinSelectionOutput targetAddress amount mempty
             let isValidDerivationPath path =
                     ( length path == 5 )
                     &&
@@ -130,19 +130,19 @@ spec = describe "SHELLEY_COIN_SELECTION" $ do
             target <- emptyWallet ctx
             targetAddresses <- fmap (view #id) <$> listAddresses @n ctx target
             let amounts = Quantity <$> [minUTxOValue ..]
+            let assets = repeat mempty
             let payments = NE.fromList
                     $ take paymentCount
                     $ map ($ mempty)
                     $ zipWith AddressAmount targetAddresses amounts
-            let outputs =
-                    take paymentCount
-                    $ zipWith ApiCoinSelectionOutput targetAddresses amounts
+            let outputs = take paymentCount $ zipWith3 ApiCoinSelectionOutput
+                    targetAddresses amounts assets
             selectCoins @_ @'Shelley ctx source payments >>= flip verify
                 [ expectResponseCode HTTP.status200
                 , expectField #inputs (`shouldSatisfy` (not . null))
                 , expectField #change (`shouldSatisfy` (not . null))
-                , expectField
-                    #outputs (`shouldSatisfy` ((L.sort outputs ==) . L.sort))
+                , expectField #outputs
+                    (`shouldSatisfy` ((Set.fromList outputs ==) . Set.fromList))
                 ]
 
     it "WALLETS_COIN_SELECTION_03 - \

@@ -979,6 +979,7 @@ x-transactionChange: &transactionChange
     properties:
       address: *addressId
       amount: *amount
+      assets: *walletAssets
       derivation_path: *derivationPath
 
 x-transactionResolvedInputs: &transactionResolvedInputs
@@ -996,6 +997,7 @@ x-transactionResolvedInputs: &transactionResolvedInputs
     properties:
       address: *addressId
       amount: *amount
+      assets: *walletAssets
       id: *transactionId
       derivation_path: *derivationPath
       index:
@@ -4118,6 +4120,57 @@ paths:
 
         Return a list of known Byron wallets, ordered from oldest to newest.
       responses: *responsesListByronWallets
+
+  /byron-wallets/{walletId}/assets:
+    get:
+      operationId: listByronAssets
+      tags: ["Byron Assets"]
+      summary: List Assets
+      description: |
+        <p align="right">status: <strong>under development</strong></p>
+
+        List all assets associated with the wallet, and their metadata
+        if known.
+
+        An asset is _associated_ with a wallet if it is involved in a
+        transaction of the wallet.
+      parameters:
+        - *parametersWalletId
+      responses: *responsesListAssets
+
+  /byron-wallets/{walletId}/assets/{policyId}/{assetName}:
+    get:
+      operationId: getByronAsset
+      tags: ["Byron Assets"]
+      summary: Get Asset
+      description: |
+        <p align="right">status: <strong>under development</strong></p>
+
+        Fetch a single asset from its `policy_id` and `asset_name`,
+        with its metadata if any.
+
+        The asset must be associated with the wallet.
+      parameters:
+        - *parametersWalletId
+        - *parametersPolicyId
+        - *parametersAssetName
+      responses: *responsesGetAsset
+
+  /byron-wallets/{walletId}/assets/{policyId}:
+    get:
+      operationId: getByronAssetDefault
+      tags: ["Byron Assets"]
+      summary: Get Asset (empty name)
+      description: |
+        <p align="right">status: <strong>under development</strong></p>
+
+        Fetch the the asset from `policy_id` with an empty name.
+
+        The asset must be associated with the wallet.
+      parameters:
+        - *parametersWalletId
+        - *parametersPolicyId
+      responses: *responsesGetAsset
 
   /byron-wallets/{walletId}/statistics/utxos:
     get:

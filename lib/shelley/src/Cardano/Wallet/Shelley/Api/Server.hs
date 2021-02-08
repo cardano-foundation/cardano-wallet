@@ -38,6 +38,7 @@ import Cardano.Wallet.Api
     , ApiLayer (..)
     , Assets
     , ByronAddresses
+    , ByronAssets
     , ByronCoinSelections
     , ByronMigrations
     , ByronTransactions
@@ -206,6 +207,7 @@ server byron icarus shelley spl ntp =
     :<|> shelleyMigrations
     :<|> stakePools
     :<|> byronWallets
+    :<|> byronAssets
     :<|> byronAddresses
     :<|> byronCoinSelections
     :<|> byronTransactions
@@ -345,6 +347,21 @@ server byron icarus shelley spl ntp =
                 (byron , putByronWalletPassphrase byron wid pwd)
                 (icarus, putByronWalletPassphrase icarus wid pwd)
              )
+
+    byronAssets :: Server ByronAssets
+    byronAssets =
+            (\wid -> withLegacyLayer wid
+                (byron, listAssets byron wid)
+                (icarus, listAssets byron wid)
+            )
+        :<|> (\wid t n -> withLegacyLayer wid
+                (byron, getAsset byron wid t n)
+                (icarus, getAsset byron wid t n)
+            )
+        :<|> (\wid t -> withLegacyLayer wid
+                (byron, getAssetDefault byron wid t)
+                (icarus, getAssetDefault byron wid t)
+            )
 
     byronAddresses :: Server (ByronAddresses n)
     byronAddresses =
