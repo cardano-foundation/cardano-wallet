@@ -25,6 +25,8 @@
 
 module Cardano.Wallet.DB.Sqlite
     ( newDBLayer
+    , newDBLayerWith
+    , CacheBehavior (..)
     , newDBFactory
     , findDatabases
     , withDBLayer
@@ -1039,6 +1041,13 @@ data DefaultFieldValues = DefaultFieldValues
     , defaultKeyDeposit :: W.Coin
     }
 
+-- | A type to capture what to do with regards to caching. This is useful to
+-- disable caching in database benchmarks.
+data CacheBehavior
+    = NoCache
+    | CacheLatestCheckpoint
+    deriving (Eq, Show)
+
 -- | Sets up a connection to the SQLite database.
 --
 -- Database migrations are run to create tables if necessary.
@@ -1063,7 +1072,23 @@ newDBLayer
        -- ^ Path to database file, or Nothing for in-memory database
     -> TimeInterpreter IO
     -> IO (SqliteContext, DBLayer IO s k)
-newDBLayer trace defaultFieldValues mDatabaseFile ti = do
+newDBLayer =
+    newDBLayerWith @s @k CacheLatestCheckpoint
+
+-- | Like 'newDBLayer', but allows to explicitly specify the caching behavior.
+newDBLayerWith
+    :: forall s k.
+        ( PersistState s
+        , PersistPrivateKey (k 'RootK)
+        , WalletKey k
+        )
+    => CacheBehavior
+    -> Tracer IO DBLog
+    -> DefaultFieldValues
+    -> Maybe FilePath
+    -> TimeInterpreter IO
+    -> IO (SqliteContext, DBLayer IO s k)
+newDBLayerWith cacheBehavior trace defaultFieldValues mDatabaseFile ti = do
     ctx@SqliteContext{runQuery} <-
         either throwIO pure =<<
         startSqliteBackend
@@ -1093,23 +1118,30 @@ newDBLayer trace defaultFieldValues mDatabaseFile ti = do
     -- database query can only be run within calls to `atomically` which
     -- enforces that there's only a single thread executing a given
     -- `SqlPersistT`.
+    --
+    -- NOTE3
+    -- When 'cacheBehavior' is set to 'NoCache', we simply never write anything
+    -- to the cache, which forces 'selectLatestCheckpoint' to always perform a
+    -- database lookup.
     cache <- newIORef Map.empty
 
     let readCache :: W.WalletId -> SqlPersistT IO (Maybe (W.Wallet s))
         readCache wid = Map.lookup wid <$> liftIO (readIORef cache)
 
     let writeCache :: W.WalletId -> Maybe (W.Wallet s) -> SqlPersistT IO ()
-        writeCache wid = \case
-            Nothing ->
-                liftIO $ modifyIORef' cache $ Map.delete wid
-            Just cp -> do
-                let tip = cp ^. #currentTip . #blockHeight
-                let alter = \case
-                        Just old | tip < old ^. #currentTip .  #blockHeight ->
-                            Just old
-                        _ ->
-                            Just cp
-                liftIO $ modifyIORef' cache $ Map.alter alter wid
+        writeCache wid = case cacheBehavior of
+            NoCache -> const (pure ())
+            CacheLatestCheckpoint -> \case
+                Nothing ->
+                    liftIO $ modifyIORef' cache $ Map.delete wid
+                Just cp -> do
+                    let tip = cp ^. #currentTip . #blockHeight
+                    let alter = \case
+                            Just old | tip < old ^. #currentTip .  #blockHeight ->
+                                Just old
+                            _ ->
+                                Just cp
+                    liftIO $ modifyIORef' cache $ Map.alter alter wid
 
     let selectLatestCheckpoint
             :: W.WalletId

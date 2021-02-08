@@ -61,7 +61,11 @@ import Cardano.Startup
 import Cardano.Wallet.DB
     ( DBLayer (..), PrimaryKey (..), cleanDB )
 import Cardano.Wallet.DB.Sqlite
-    ( DefaultFieldValues (..), PersistState, newDBLayer )
+    ( CacheBehavior (..)
+    , DefaultFieldValues (..)
+    , PersistState
+    , newDBLayerWith
+    )
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( block0, dummyGenesisParameters, mkTxId )
 import Cardano.Wallet.Logging
@@ -655,7 +659,7 @@ setupDB
     -> IO (FilePath, SqliteContext, DBLayer IO s k)
 setupDB tr = do
     f <- emptySystemTempFile "bench.db"
-    (ctx, db) <- newDBLayer tr defaultFieldValues (Just f) ti
+    (ctx, db) <- newDBLayerWith NoCache tr defaultFieldValues (Just f) ti
     pure (f, ctx, db)
   where
     ti = hoistTimeInterpreter (pure . runIdentity) $ mkSingleEraInterpreter
