@@ -584,14 +584,19 @@ prop_performSelection minCoinValueFor costFor (Blind criteria) coverage =
             , pretty (Flat balanceSelected)
             , "change balance:"
             , pretty (Flat balanceChange)
+            , "cost:"
+            , pretty expectedCost
             , "absolute minimum coin quantity:"
             , pretty absoluteMinCoinValue
             , "actual coin delta:"
             , pretty (TokenBundle.getCoin delta)
+            , "maximum expected delta:"
+            , pretty maximumExpectedDelta
             , "number of outputs:"
             , pretty (length outputsCovered)
+            , "number of change outputs:"
+            , pretty (length changeGenerated)
             ]
-        assert True
         assert $ balanceSufficient criteria
         assert $ on (==) (view #tokens)
             balanceSelected (balanceRequired <> balanceChange)
