@@ -16,8 +16,10 @@ module Test.Integration.Scenario.API.Byron.Transactions
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiByronWallet
+    ( ApiAsset (..)
+    , ApiByronWallet
     , ApiFee (..)
+    , ApiT (..)
     , ApiTransaction
     , ApiTxId (..)
     , ApiWallet
@@ -32,14 +34,20 @@ import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
+import Cardano.Wallet.Primitive.Types.Hash
+    ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..), TxStatus (..) )
+import Cardano.Wallet.Unsafe
+    ( unsafeFromText )
 import Control.Monad
     ( forM_ )
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Resource
     ( runResourceT )
+import Data.Bifunctor
+    ( bimap )
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
 import Data.Quantity
@@ -66,6 +74,7 @@ import Test.Integration.Framework.DSL
     , expectErrorMessage
     , expectField
     , expectListSize
+    , expectListSizeSatisfy
     , expectResponseCode
     , expectSuccess
     , expectSuccess
@@ -94,10 +103,13 @@ import Test.Integration.Framework.DSL
 import Test.Integration.Framework.Request
     ( RequestException )
 import Test.Integration.Framework.TestData
-    ( errMsg400StartTimeLaterThanEndTime, errMsg404NoWallet )
+    ( errMsg400StartTimeLaterThanEndTime, errMsg404NoAsset, errMsg404NoWallet )
 
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
+import qualified Cardano.Wallet.Primitive.Types.TokenPolicy as TokenPolicy
+import qualified Data.ByteString as BS
+import qualified Data.ByteString.Char8 as B8
 import qualified Data.Text as T
 import qualified Network.HTTP.Types.Status as HTTP
 
@@ -166,6 +178,7 @@ spec = describe "BYRON_TRANSACTIONS" $ do
         rtx <- request @(ApiTransaction n) ctx
             (Link.createTransaction @'Byron wSrc) Default payload
         expectResponseCode HTTP.status403 rtx
+        expectErrorMessage "Some outputs have ada values that are too small." rtx
 
     describe "BYRON_TRANS_ASSETS_CREATE_02a - Multi-asset transaction with no ADA" $
         forM_ [ (fixtureMultiAssetRandomWallet @n, "Byron wallet")
@@ -197,6 +210,78 @@ spec = describe "BYRON_TRANSACTIONS" $ do
                 , expectField (#assets . #total . #getApiT)
                     (`shouldNotBe` TokenMap.empty)
                 ]
+
+    describe "BYRON_TRANS_ASSETS_LIST_01 - Asset list present" $
+        forM_ [ (fixtureMultiAssetRandomWallet @n, "Byron wallet")
+              , (fixtureMultiAssetIcarusWallet @n, "Icarus wallet")] $
+              \(srcFixture, name) -> it name $ \ctx -> runResourceT $ do
+
+        wal <- srcFixture ctx
+        r <- request @([ApiAsset]) ctx (Link.listByronAssets wal) Default Empty
+        verify r
+            [ expectSuccess
+            , expectListSizeSatisfy ( > 0)
+            ]
+
+    describe "BYRON_TRANS_ASSETS_LIST_02 - Asset list present when not used" $
+        forM_ [ (fixtureRandomWallet, "Byron fixture wallet")
+              , (fixtureIcarusWallet, "Icarus fixture wallet")
+              , (emptyRandomWallet, "Byron empty wallet")
+              , (emptyIcarusWallet, "Icarus empty wallet")] $
+              \(srcFixture, name) -> it name $ \ctx -> runResourceT $ do
+
+        wal <- srcFixture ctx
+        r <- request @([ApiAsset]) ctx (Link.listByronAssets wal) Default Empty
+        verify r
+            [ expectSuccess
+            , expectListSize 0
+            ]
+
+    describe "BYRON_TRANS_ASSETS_GET_01 - Asset list present" $
+        forM_ [ (fixtureMultiAssetRandomWallet @n, "Byron wallet")
+              , (fixtureMultiAssetIcarusWallet @n, "Icarus wallet")] $
+              \(srcFixture, name) -> it name $ \ctx -> runResourceT $ do
+
+        wal <- srcFixture ctx
+
+        -- pick an asset from the fixture wallet
+        let assetsSrc = wal ^. (#assets . #total . #getApiT)
+        assetsSrc `shouldNotBe` mempty
+        let (polId, assName) = bimap unsafeFromText unsafeFromText $ fst $
+                pickAnAsset assetsSrc
+        let ep = Link.getByronAsset wal polId assName
+        r <- request @(ApiAsset) ctx ep Default Empty
+        verify r
+            [ expectSuccess
+            , expectField #policyId (`shouldBe` ApiT polId)
+            , expectField #assetName (`shouldBe` ApiT assName)
+            , expectField #metadata (`shouldBe` Nothing)
+            ]
+
+    describe "BYRON_TRANS_ASSETS_GET_02 - Asset not present when isn't associated" $
+        forM_ [ (fixtureMultiAssetRandomWallet @n, "Byron wallet")
+              , (fixtureMultiAssetIcarusWallet @n, "Icarus wallet")] $
+              \(srcFixture, name) -> it name $ \ctx -> runResourceT $ do
+
+        wal <- srcFixture ctx
+        let polId = TokenPolicy.UnsafeTokenPolicyId $ Hash $ BS.replicate 28 0
+        let assName = TokenPolicy.UnsafeTokenName $ B8.replicate 4 'x'
+        let ep = Link.getByronAsset wal polId assName
+        r <- request @(ApiAsset) ctx ep Default Empty
+        expectResponseCode HTTP.status404 r
+        expectErrorMessage errMsg404NoAsset r
+
+    describe "BYRON_TRANS_ASSETS_GET_02a - Asset not present when isn't associated" $
+        forM_ [ (fixtureMultiAssetRandomWallet @n, "Byron wallet")
+              , (fixtureMultiAssetIcarusWallet @n, "Icarus wallet")] $
+              \(srcFixture, name) -> it name $ \ctx -> runResourceT $ do
+
+        wal <- srcFixture ctx
+        let polId = TokenPolicy.UnsafeTokenPolicyId $ Hash $ BS.replicate 28 0
+        let ep = Link.getByronAsset wal polId TokenPolicy.nullTokenName
+        r <- request @(ApiAsset) ctx ep Default Empty
+        expectResponseCode HTTP.status404 r
+        expectErrorMessage errMsg404NoAsset r
 
     describe "BYRON_TRANS_CREATE_01 - Single Output Transaction with non-Shelley witnesses" $
         forM_ [(fixtureRandomWallet, "Byron wallet"), (fixtureIcarusWallet, "Icarus wallet")] $

@@ -164,6 +164,7 @@ import Test.Integration.Framework.TestData
     , errMsg403WithdrawalNotWorth
     , errMsg403WrongPass
     , errMsg404CannotFindTx
+    , errMsg404NoAsset
     , errMsg404NoWallet
     )
 import UnliftIO.Concurrent
@@ -672,6 +673,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             (Link.createTransaction @'Shelley wSrc) Default payload
         -- It should fail with InsufficientMinCoinValueError
         expectResponseCode HTTP.status403 rtx
+        expectErrorMessage "Some outputs have ada values that are too small." rtx
 
     it "TRANS_ASSETS_CREATE_02a - Multi-asset transaction without Ada" $ \ctx -> runResourceT $ do
         wSrc <- fixtureMultiAssetWallet ctx
@@ -807,6 +809,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         let ep = Link.getAsset wal polId assName
         r <- request @(ApiAsset) ctx ep Default Empty
         expectResponseCode HTTP.status404 r
+        expectErrorMessage errMsg404NoAsset r
 
     it "TRANS_ASSETS_GET_02a - Asset not present when isn't associated" $ \ctx -> runResourceT $ do
         wal <- fixtureMultiAssetWallet ctx
@@ -814,6 +817,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         let ep = Link.getAsset wal polId TokenPolicy.nullTokenName
         r <- request @(ApiAsset) ctx ep Default Empty
         expectResponseCode HTTP.status404 r
+        expectErrorMessage errMsg404NoAsset r
 
     let absSlotB = view (#absoluteSlotNumber . #getApiT)
     let absSlotS = view (#absoluteSlotNumber . #getApiT)
