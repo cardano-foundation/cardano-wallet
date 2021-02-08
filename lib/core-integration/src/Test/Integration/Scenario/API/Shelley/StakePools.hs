@@ -821,7 +821,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
     describe "STAKE_POOLS_JOIN_01x - Fee boundary values" $ do
         it "STAKE_POOLS_JOIN_01x - \
             \I can join if I have just the right amount" $ \ctx -> runResourceT $ do
-            w <- fixtureWalletWith @n ctx [costOfJoining ctx + depositAmt ctx + minUTxOValue]
+            w <- fixtureWalletWith @n ctx [costOfJoining ctx + depositAmt ctx]
             pool:_ <- map (view #id) . snd <$>
                 unsafeRequest @[ApiStakePool]
                     ctx (Link.listStakePools arbitraryStake) Empty
@@ -833,7 +833,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
 
         it "STAKE_POOLS_JOIN_01x - \
            \I cannot join if I have not enough fee to cover" $ \ctx -> runResourceT $ do
-            w <- fixtureWalletWith @n ctx [costOfJoining ctx + depositAmt ctx + minUTxOValue - 1]
+            w <- fixtureWalletWith @n ctx [costOfJoining ctx + depositAmt ctx - 1]
             pool:_ <- map (view #id) . snd <$>
                 unsafeRequest @[ApiStakePool]
                     ctx (Link.listStakePools arbitraryStake) Empty
@@ -906,7 +906,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
 
         it "STAKE_POOLS_QUIT_01x - \
             \I cannot quit if I have not enough to cover fees" $ \ctx -> runResourceT $ do
-            let initBalance = [ costOfJoining ctx + depositAmt ctx + minUTxOValue ]
+            let initBalance = [costOfJoining ctx + depositAmt ctx]
             w <- fixtureWalletWith @n ctx initBalance
 
             pool:_ <- map (view #id) . snd
@@ -927,7 +927,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
 
             quitStakePool @n ctx (w, fixturePassphrase) >>= flip verify
                 [ expectResponseCode HTTP.status403
-                , expectErrorMessage errMsg403Fee
+                , expectErrorMessage errMsg403NotEnoughMoney
                 ]
 
     it "STAKE_POOLS_ESTIMATE_FEE_01 - can estimate fees" $ \ctx -> runResourceT $ do

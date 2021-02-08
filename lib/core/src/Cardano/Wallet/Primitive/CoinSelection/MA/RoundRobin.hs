@@ -51,6 +51,7 @@ module Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     , makeChangeForCoin
     , makeChangeForUserSpecifiedAsset
     , makeChangeForNonUserSpecifiedAsset
+    , assignCoinsToChangeMaps
 
     -- * Grouping and ungrouping
     , groupByKey
@@ -64,7 +65,7 @@ module Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     , fullBalance
 
     -- * Utility classes
-    , GreatestTokenQuantity (..)
+    , AssetCount (..)
 
     -- * Utility functions
     , distance
@@ -91,8 +92,6 @@ import Cardano.Wallet.Primitive.Types.UTxOIndex
     ( SelectionFilter (..), UTxOIndex (..) )
 import Control.Monad.Random.Class
     ( MonadRandom (..) )
-import Control.Monad.Trans.State
-    ( StateT (..) )
 import Data.Function
     ( (&) )
 import Data.Functor.Identity
@@ -219,8 +218,8 @@ data SelectionResult change = SelectionResult
         -- of writing these lines, I've already been yak-shaving for a while and
         -- this is the last remaining obstacle, not worth the effort _yet_.
     , changeGenerated
-        :: !(NonEmpty change)
-        -- ^ A (non-empty) list of generated change outputs.
+        :: ![change]
+        -- ^ A list of generated change outputs.
     , utxoRemaining
         :: !UTxOIndex
         -- ^ The subset of 'utxoAvailable' that remains after performing
@@ -235,7 +234,7 @@ instance Buildable (SelectionResult TxOut) where
     build = buildSelectionResult (blockListF . fmap build)
 
 buildSelectionResult
-    :: (NonEmpty change -> Builder)
+    :: ([change] -> Builder)
     -> SelectionResult change
     -> Builder
 buildSelectionResult changeF s@SelectionResult{inputsSelected,extraCoinSource} =
@@ -479,7 +478,7 @@ performSelection minCoinValueFor costFor criteria
     --
     predictChange
         :: UTxOIndex
-        -> NonEmpty (Set AssetId)
+        -> [Set AssetId]
     predictChange inputsPreSelected = either
         (const $ invariantResultWithNoCost inputsPreSelected)
         (fmap (TokenMap.getAssets . view #tokens))
@@ -508,41 +507,65 @@ performSelection minCoinValueFor costFor criteria
     makeChangeRepeatedly
         :: SelectionState
         -> m (Either SelectionError (SelectionResult TokenBundle))
-    makeChangeRepeatedly s@SelectionState{selected,leftover} = do
-        let inputsSelected = mkInputsSelected selected
-        let changeSkeleton = NE.toList $ predictChange selected
+    makeChangeRepeatedly s = case mChangeGenerated of
 
-        let cost = costFor SelectionSkeleton
-                { inputsSkeleton  = selected
-                , outputsSkeleton = NE.toList outputsToCover
-                , changeSkeleton
-                }
+        Right change | length change == length outputsToCover ->
+            -- We've succeeded in making the optimal number of change outputs.
+            -- Terminate here.
+            pure $ Right $ mkSelectionResult change
 
-        let mChangeGenerated
-                :: Either UnableToConstructChangeError (NonEmpty TokenBundle)
-            mChangeGenerated = makeChange minCoinValueFor cost
-                extraCoinSource
-                (view #tokens . snd <$> inputsSelected)
-                (view #tokens <$> outputsToCover)
+        Right change ->
+            -- We've succeeded in making change outputs, but the number of
+            -- change outputs is fewer than optimal, because the supply of ada
+            -- was insufficient. Try again with more ada to see if it leads to
+            -- an improvement:
+            selectOneEntry s >>= \case
+                Just s' ->
+                    makeChangeRepeatedly s'
+                Nothing ->
+                    -- There is no more ada available. Terminate with a
+                    -- less-than-optimal number of change outputs.
+                    pure $ Right $ mkSelectionResult change
 
-        case mChangeGenerated of
-            Right changeGenerated -> pure . Right $
-                SelectionResult
-                    { inputsSelected
-                    , extraCoinSource
-                    , changeGenerated
-                    , outputsCovered = NE.toList outputsToCover
-                    , utxoRemaining = leftover
-                    }
+        Left changeErr ->
+            -- We've failed to make any change outputs, because the supply of
+            -- ada was insufficient. Try again with more ada.
+            selectOneEntry s >>= \case
+                Just s' ->
+                    makeChangeRepeatedly s'
+                Nothing ->
+                    -- There is no more ada available, and we were unable to
+                    -- make any change. At this point we must simply give up.
+                    pure $ Left $ UnableToConstructChange changeErr
+      where
+        mChangeGenerated :: Either UnableToConstructChangeError [TokenBundle]
+        mChangeGenerated = makeChange minCoinValueFor cost
+            extraCoinSource
+            (view #tokens . snd <$> inputsSelected)
+            (view #tokens <$> outputsToCover)
 
-            Left changeErr -> do
-                result <- s &
-                    selectMatchingQuantity selectionLimit (WithAdaOnly :| [ Any ])
-                case result of
-                    Nothing ->
-                        pure $ Left $ UnableToConstructChange changeErr
-                    Just s' ->
-                        makeChangeRepeatedly s'
+        mkSelectionResult :: [TokenBundle] -> SelectionResult TokenBundle
+        mkSelectionResult changeGenerated = SelectionResult
+            { inputsSelected
+            , extraCoinSource
+            , changeGenerated = changeGenerated
+            , outputsCovered = NE.toList outputsToCover
+            , utxoRemaining = leftover
+            }
+
+        selectOneEntry = selectMatchingQuantity selectionLimit $
+            WithAdaOnly :| [Any]
+
+        SelectionState {selected, leftover} = s
+
+        cost = costFor SelectionSkeleton
+            { inputsSkeleton  = selected
+            , outputsSkeleton = NE.toList outputsToCover
+            , changeSkeleton
+            }
+
+        changeSkeleton = predictChange selected
+        inputsSelected = mkInputsSelected selected
 
     invariantSelectAnyInputs =
         -- This should be impossible, as we have already determined
@@ -791,102 +814,95 @@ makeChange
         -- ^ Token bundles of selected inputs.
     -> NonEmpty TokenBundle
         -- ^ Token bundles of original outputs.
-    -> Either UnableToConstructChangeError (NonEmpty TokenBundle)
+    -> Either UnableToConstructChangeError [TokenBundle]
         -- ^ Generated change bundles.
-makeChange minCoinValueFor requiredCost mExtraCoinSource inputBundles outputBundles
+makeChange minCoinFor requiredCost mExtraCoinSource inputBundles outputBundles
     | not (totalOutputValue `leq` totalInputValue) =
         totalInputValueInsufficient
     | TokenBundle.getCoin totalOutputValue == Coin 0 =
         totalOutputCoinValueIsZero
-    | otherwise = do
-            -- The following subtraction is safe, as we have already checked
-            -- that the total input value is greater than the total output
-            -- value:
-        let excess :: TokenBundle
-            excess =
-                totalInputValue `TokenBundle.unsafeSubtract` totalOutputValue
-
-        let (excessCoin, excessAssets) = TokenBundle.toFlatList excess
-
-        let nonUserSpecifiedAssets = Map.toList $
-                F.foldr discardUserSpecifiedAssets mempty inputBundles
-
-        -- Change for user-specified assets: assets that were present in the
-        -- original set of user-specified outputs ('outputsToCover').
-        let changeForUserSpecifiedAssets :: NonEmpty TokenMap
-            changeForUserSpecifiedAssets = F.foldr
-                (NE.zipWith (<>)
-                    . makeChangeForUserSpecifiedAsset outputMapsOrdered)
-                (TokenMap.empty <$ outputMapsOrdered)
-                excessAssets
-
-        -- Change for non-user-specified assets: assets that were not present
-        -- in the original set of user-specified outputs ('outputsToCover').
-        let changeForNonUserSpecifiedAssets :: NonEmpty TokenMap
-            changeForNonUserSpecifiedAssets = F.foldr
-                (NE.zipWith (<>)
-                    . makeChangeForNonUserSpecifiedAsset outputMapsOrdered)
-                (TokenMap.empty <$ outputMapsOrdered)
-                nonUserSpecifiedAssets
-
-        let change :: NonEmpty TokenMap
-            change = NE.zipWith (<>)
-                changeForUserSpecifiedAssets
-                changeForNonUserSpecifiedAssets
-
-        (bundles, remainder) <-
-            maybe (Left $ changeError excessCoin change) Right $
-                excessCoin `subtractCoin` requiredCost
-                >>=
-                runStateT
-                    (sequence (StateT . assignCoin minCoinValueFor <$> change))
-
-        let changeForCoins :: NonEmpty TokenBundle
-            changeForCoins = TokenBundle.fromCoin
-                <$> makeChangeForCoin outputCoins remainder
-
-        pure (NE.zipWith (<>) bundles changeForCoins)
+    | otherwise =
+        maybe (Left changeError) Right $ do
+            adaAvailable <- excessCoin `subtractCoin` requiredCost
+            assignCoinsToChangeMaps
+                adaAvailable minCoinFor changeMapOutputCoinPairs
   where
+    -- The following subtraction is safe, as we have already checked
+    -- that the total input value is greater than the total output
+    -- value:
+    excess :: TokenBundle
+    excess = totalInputValue `TokenBundle.unsafeSubtract` totalOutputValue
+
+    (excessCoin, excessAssets) = TokenBundle.toFlatList excess
+
+    -- Change maps for all assets, where each change map is paired with a
+    -- corresponding coin from the original outputs.
+    --
+    -- When combining change maps from user-specified assets and non-user-
+    -- specified assets, we arrange that any empty maps in either list are
+    -- combined together if possible, so as to give 'assignCoinsToChangeMaps'
+    -- the greatest chance of success.
+    --
+    -- This list is sorted into ascending order of asset count, where empty
+    -- change maps are all located at the start of the list.
+    --
+    changeMapOutputCoinPairs :: NonEmpty (TokenMap, Coin)
+    changeMapOutputCoinPairs = outputCoins
+        -- First, combine the original output coins with the change maps for
+        -- user-specified assets. We must pair these together right at the
+        -- start in order to retain proportionality with the original outputs.
+        & NE.zip changeForUserSpecifiedAssets
+        -- Next, sort the list into ascending order of asset count, which moves
+        -- any empty maps to the start of the list:
+        & NE.sortWith (AssetCount . fst)
+        -- Finally, combine the existing list with the change maps for non-user
+        -- specified assets, which are already sorted into ascending order of
+        -- asset count:
+        & NE.zipWith (\m1 (m2, c) -> (m1 <> m2, c))
+            changeForNonUserSpecifiedAssets
+
+    -- Change for user-specified assets: assets that were present in the
+    -- original set of user-specified outputs ('outputsToCover').
+    changeForUserSpecifiedAssets :: NonEmpty TokenMap
+    changeForUserSpecifiedAssets = F.foldr
+        (NE.zipWith (<>)
+            . makeChangeForUserSpecifiedAsset outputMaps)
+        (TokenMap.empty <$ outputMaps)
+        excessAssets
+
+    -- Change for non-user-specified assets: assets that were not present
+    -- in the original set of user-specified outputs ('outputsToCover').
+    changeForNonUserSpecifiedAssets :: NonEmpty TokenMap
+    changeForNonUserSpecifiedAssets = F.foldr
+        (NE.zipWith (<>)
+            . makeChangeForNonUserSpecifiedAsset outputMaps)
+        (TokenMap.empty <$ outputMaps)
+        nonUserSpecifiedAssets
+
     totalInputValueInsufficient = error
         "makeChange: not (totalOutputValue <= totalInputValue)"
     totalOutputCoinValueIsZero = error
         "makeChange: not (totalOutputCoinValue > 0)"
 
-    changeError
-        :: Coin
-        -> NonEmpty TokenMap
-        -> UnableToConstructChangeError
-    changeError excessCoin change =
-        UnableToConstructChangeError
-            { requiredCost
-            , shortfall =
-                -- This conversion is safe because we know that the distance is
-                -- small-ish. If it wasn't, we would have have enough coins to
-                -- construct the change.
-                unsafeNaturalToCoin $ distance
-                    (coinToNatural excessCoin)
-                    (coinToNatural requiredCost + totalMinCoinValue)
+    changeError :: UnableToConstructChangeError
+    changeError = UnableToConstructChangeError
+        { requiredCost
+        , shortfall =
+            -- This conversion is safe because we know that the distance is
+            -- small-ish. If it wasn't, we would have have enough coins to
+            -- construct the change.
+            unsafeNaturalToCoin $ distance
+                (coinToNatural excessCoin)
+                (coinToNatural requiredCost + totalMinCoinValue)
             }
       where
-        totalMinCoinValue =
-            F.sum $ (coinToNatural . minCoinValueFor) <$> change
+        totalMinCoinValue = F.sum $ coinToNatural . minCoinFor <$>
+            NE.zipWith (<>)
+                changeForUserSpecifiedAssets
+                changeForNonUserSpecifiedAssets
 
-    -- We aim, to the greatest extent possible, to generate change bundles
-    -- where small quantities of non-user-specified assets are bundled together
-    -- with other small quantities, and large quantities of non-user-specified
-    -- assets are bundled together with other large quantities.
-    --
-    -- To achieve this, we start by sorting the set of output maps into
-    -- ascending order of greatest token quantity.
-    --
-    -- Since change bundles for non-user-specified assets are also generated in
-    -- ascending order of token quantities, this should tend to produce an
-    -- outcome where smaller quantities are bundled together, and larger
-    -- quantities are bundled together in the final change bundles.
-    --
-    outputMapsOrdered :: NonEmpty TokenMap
-    outputMapsOrdered =
-        NE.sortWith GreatestTokenQuantity (view #tokens <$> outputBundles)
+    outputMaps :: NonEmpty TokenMap
+    outputMaps = view #tokens <$> outputBundles
 
     outputCoins :: NonEmpty Coin
     outputCoins = view #coin <$> outputBundles
@@ -899,9 +915,20 @@ makeChange minCoinValueFor requiredCost mExtraCoinSource inputBundles outputBund
     totalOutputValue :: TokenBundle
     totalOutputValue = F.fold outputBundles
 
-    -- Identifiers of assets included in outputs.
-    knownAssetIds :: Set AssetId
-    knownAssetIds = TokenBundle.getAssets totalOutputValue
+    -- Identifiers of all user-specified assets: assets that were included in
+    -- the original set of outputs.
+    userSpecifiedAssetIds :: Set AssetId
+    userSpecifiedAssetIds = TokenBundle.getAssets totalOutputValue
+
+    -- Identifiers and quantities of all non-user-specified assets: assets that
+    -- were not included in the orginal set of outputs, but that were
+    -- nevertheless selected during the selection process.
+    --
+    -- Each asset is paired with the complete list of quantities of that asset
+    -- present in the selected inputs.
+    nonUserSpecifiedAssets :: [(AssetId, NonEmpty TokenQuantity)]
+    nonUserSpecifiedAssets = Map.toList $
+        F.foldr discardUserSpecifiedAssets mempty inputBundles
 
     discardUserSpecifiedAssets
         :: TokenBundle
@@ -911,8 +938,121 @@ makeChange minCoinValueFor requiredCost mExtraCoinSource inputBundles outputBund
         foldr (\(k, v) -> Map.insertWith (<>) k (v :| [])) m filtered
       where
         filtered = filter
-            ((`Set.notMember` knownAssetIds) . fst)
+            ((`Set.notMember` userSpecifiedAssetIds) . fst)
             (TokenMap.toFlatList tokens)
+
+-- | Assigns coin quantities to a list of pre-computed asset change maps.
+--
+-- Each pre-computed asset change map must be paired with the original coin
+-- value of its corresponding output.
+--
+-- This function:
+--
+--    - expects the list of pre-computed asset change maps to be sorted in an
+--      order that ensures all empty token maps are at the start of the list.
+--
+--    - attempts to assign a minimum ada quantity to every change map, but
+--      iteratively drops empty change maps from the start of the list if the
+--      amount of ada is insufficient to cover them all.
+--
+--    - continues dropping empty change maps from the start of the list until
+--      it is possible to assign a minimum ada value to all remaining entries.
+--
+--    - returns a list that is identical in length to the input list if (and
+--      only if) it was possible to assign a minimum ada quantity to all change
+--      maps.
+--
+--    - returns a list that is shorter than the input list if it was only
+--      possible to assign a minimum ada quantity to a suffix of the given
+--      list.
+--
+--    - returns 'Nothing' if (and only if) there was not enough ada available
+--      to assign the minimum ada quantity to all non-empty change maps.
+--
+assignCoinsToChangeMaps
+    :: HasCallStack
+    => Coin
+    -- ^ The total quantity of ada available, including any extra source of ada.
+    -> (TokenMap -> Coin)
+    -- ^ A function to calculate the minimum required ada quantity for any
+    -- token map.
+    -> NonEmpty (TokenMap, Coin)
+    -- ^ A list of pre-computed asset change maps paired with original output
+    -- coins, sorted into an order that ensures all empty token maps are at the
+    -- start of the list.
+    -> Maybe [TokenBundle]
+    -- ^ Resulting change bundles, or 'Nothing' if there was not enough ada
+    -- available to assign a minimum ada quantity to all non-empty token maps.
+assignCoinsToChangeMaps adaAvailable minCoinFor pairsAtStart
+    | not changeMapsCorrectlyOrdered =
+        changeMapsNotCorrectlyOrderedError
+    | otherwise =
+        loop adaRequiredAtStart pairsAtStart
+  where
+    loop !adaRequired !pairsNonEmpty = case pairsNonEmpty of
+
+        pair :| pairs | adaAvailable >= adaRequired ->
+            -- We have enough ada available to pay for the minimum required
+            -- amount of every asset map that remains in our list:
+            let assetMapsRemaining = fst <$> (pair :| pairs) in
+            let bundlesForAssetsWithMinimumCoins =
+                    assignMinimumCoin minCoinFor <$> assetMapsRemaining in
+            -- Calculate the amount of ada that remains after assigning the
+            -- minimum amount to each map. This should be safe, as we have
+            -- already determined that we have enough ada available:
+            let adaRemaining = adaAvailable `Coin.distance` adaRequired in
+            -- Partition any remaining ada according to the weighted
+            -- distribution of output coins that remain in our list:
+            let outputCoinsRemaining = snd <$> (pair :| pairs) in
+            let bundlesForOutputCoins = TokenBundle.fromCoin <$>
+                    makeChangeForCoin outputCoinsRemaining adaRemaining in
+            -- Finally, combine the minimal coin asset bundles with the
+            -- bundles obtained by partitioning the remaining ada amount:
+            Just $ NE.toList $ NE.zipWith (<>)
+                bundlesForAssetsWithMinimumCoins
+                bundlesForOutputCoins
+
+        (m, _) :| (p : ps) | TokenMap.isEmpty m && adaAvailable < adaRequired ->
+            -- We don't have enough ada available to pay for the minimum
+            -- required amount of every asset map, but we do have an empty
+            -- asset map that is safe to drop. This will reduce the amount of
+            -- ada required by a small amount:
+            let adaRequired' = adaRequired `Coin.distance` minCoinFor m in
+            loop adaRequired' (p :| ps)
+
+        (m, _) :| [] | TokenMap.isEmpty m && adaAvailable < adaRequired ->
+            -- We didn't have any non-ada assets at all in our change, and we
+            -- also don't have enough ada available to pay even for a single
+            -- change output. We just burn the available ada amount (which
+            -- will be small), returning no change.
+            Just []
+
+        _ ->
+            -- We don't have enough ada available, and there are no empty token
+            -- maps available to drop. We have to give up at this point.
+            Nothing
+
+    adaRequiredAtStart = F.fold $ minCoinFor . fst <$> pairsAtStart
+
+    changeMaps = fst <$> pairsAtStart
+
+    -- Indicates whether or not the given change maps are correctly ordered,
+    -- so that all empty maps are located at the start of the list.
+    changeMapsCorrectlyOrdered = (==)
+        (NE.takeWhile TokenMap.isEmpty changeMaps)
+        (NE.filter TokenMap.isEmpty changeMaps)
+
+    changeMapsNotCorrectlyOrderedError =
+        error $ unwords
+            [ "assignCoinsToChangeMaps: pre-computed asset change maps must be"
+            , "arranged in an order where all empty maps are at the start of"
+            , "the list."
+            ]
+
+-- | Assigns the minimum required ada quantity to a token map.
+--
+assignMinimumCoin :: (TokenMap -> Coin) -> TokenMap -> TokenBundle
+assignMinimumCoin minCoinFor m = TokenBundle (minCoinFor m) m
 
 -- | Constructs change outputs for a user-specified asset: an asset that was
 --   present in the original set of outputs.
@@ -1005,28 +1145,6 @@ makeChangeForCoin targets excess =
     weights :: NonEmpty Natural
     weights = coinToNatural <$> targets
 
--- | Creates a 'TokenBundle' from a 'TokenMap' by assigning it the minimum
---   ada quantity required by the protocol, using the given 'Coin' as a source
---   of ada.
---
--- Returns both the constructed 'TokenBundle' and the leftover 'Coin' quantity.
---
--- Returns 'Nothing' if the given source of ada is not enough to safisfy the
--- minimum quantity required by the protocol.
---
-assignCoin
-    :: (TokenMap -> Coin)
-    -> TokenMap
-    -> Coin
-    -> Maybe (TokenBundle, Coin)
-assignCoin minCoinValueFor tokens availableCoins@(Coin c)
-    | availableCoins < minCoin =
-        Nothing
-    | otherwise =
-        Just (TokenBundle minCoin tokens, Coin (c - m))
-  where
-    minCoin@(Coin m) = minCoinValueFor tokens
-
 --------------------------------------------------------------------------------
 -- Grouping and ungrouping
 --------------------------------------------------------------------------------
@@ -1083,23 +1201,22 @@ fullBalance index extraSource
 -- Utility types
 --------------------------------------------------------------------------------
 
--- | A total ordering on token maps based on the greatest token quantity of each
---   map.
+-- | A total ordering on token maps based on the number of assets in each map.
 --
--- If two maps have the same greatest quantity, then we fall back to ordinary
+-- If two maps have the same number of assets, then we fall back to ordinary
 -- lexicographic ordering as a tie-breaker.
 --
-instance Ord (GreatestTokenQuantity TokenMap) where
-    compare (GreatestTokenQuantity m1) (GreatestTokenQuantity m2) =
-        case compare (greatest m1) (greatest m2) of
+instance Ord (AssetCount TokenMap) where
+    compare (AssetCount m1) (AssetCount m2) =
+        case compare (assetCount m1) (assetCount m2) of
             LT -> LT
             GT -> GT
             EQ -> comparing TokenMap.toNestedList m1 m2
       where
-        greatest = TokenMap.maximumQuantity
+        assetCount = Set.size . TokenMap.getAssets
 
-newtype GreatestTokenQuantity a = GreatestTokenQuantity
-    { unGreatestTokenQuantity :: a }
+newtype AssetCount a = AssetCount
+    { unAssetCount :: a }
     deriving (Eq, Show)
 
 --------------------------------------------------------------------------------

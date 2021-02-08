@@ -1212,7 +1212,7 @@ selectionToUnsignedTx sel s =
     UnsignedTx
         (fullyQualifiedInputs $ inputsSelected sel)
         (outputsCovered sel)
-        (fullyQualifiedChange $ NE.toList $ changeGenerated sel)
+        (fullyQualifiedChange $ changeGenerated sel)
   where
     qualifyAddresses
         :: forall a t. (Traversable t)
@@ -1287,26 +1287,61 @@ selectAssetsNoOutputs ctx wid wal tx transform = do
         { outputsCovered = mempty
         , changeGenerated =
             let
-                -- NOTE 1: This subtraction and head are safe because of the
+                -- NOTE 1: There are in principle 6 cases we may ran into, which
+                -- can be grouped in 3 groups of 2 cases:
+                --
+                -- (1) When registering a key and delegating
+                -- (2) When delegating
+                -- (3) When de-registering a key
+                --
+                -- For each case, there may be one or zero change output. For
+                -- all 3 cases, we'll treat the case where there's no change
+                -- output as an edge-case and also leave no change. This may be
+                -- in practice more costly than necessary because, by removing
+                -- the fake output, we'd in practice have some more Ada
+                -- available to create a change (and a less expensive
+                -- transaction). Yet, this would require quite some extra logic
+                -- here in addition to all the existing logic inside the
+                -- CoinSelection/MA/RoundRobin module already. If we were not
+                -- able to add a change output already, let's not try to do it
+                -- here. Worse that can be list is:
+                --
+                --     max (minUTxOValue, keyDepositValue)
+                --
+                -- which we'll deem acceptable under the circumstances (that can
+                -- only really happen if one is trying to delegate with already
+                -- a very small Ada balance, so that it's left with no Ada after
+                -- having paid for the delegation certificate. Why would one be
+                -- delegating almost nothing certainly is an edge-case not worth
+                -- considering for too long).
+                --
+                -- However, if a change output has been create, then we want to
+                -- transfer the surplus of value from the change output to that
+                -- change output (which is already safe). That surplus is
+                -- non-null if the `minUTxOValue` protocol parameter is
+                -- non-null, and comes from the fact that the selection
+                -- algorithm automatically assigns this value when presented
+                -- with a null output. In the case of (1), the output's value is
+                -- equal to the stake key deposit value, which may be in
+                -- practice greater than the `minUTxOValue`. In the case of (2)
+                -- and (3), the deposit is null. So it suffices to subtract
+                -- `deposit` to the value of the covered output to get the
+                -- surplus.
+                --
+                -- NOTE 2: This subtraction and head are safe because of the
                 -- invariants enforced by the asset selection algorithm. The
                 -- output list has the exact same length as the input list, and
                 -- outputs are at least as large as the specified outputs.
-                --
-                -- NOTE 2: When presented with 0 Ada outputs, the selection
-                -- algorithm will assign a minimum default value to the output.
-                -- So the output covered may be in practice bigger than the
-                -- output specified. This is the case when 'deposit' is null, in
-                -- which case, we want to make sure to add this extra minimum
-                -- value to the resulting change and not completely discard it.
-                reclaim = TokenBundle.unsafeSubtract
+                surplus = TokenBundle.unsafeSubtract
                     (view #tokens (head $ outputsCovered sel))
                     (TokenBundle.fromCoin deposit)
             in
-                once (TokenBundle.add reclaim) (changeGenerated sel)
+                surplus `addToHead` changeGenerated sel
         }
   where
-    once :: (a -> a) -> NonEmpty a -> NonEmpty a
-    once fn (a :| as) = fn a :| as
+    addToHead :: TokenBundle -> [TokenBundle] -> [TokenBundle]
+    addToHead _    [] = []
+    addToHead x (h:q) = TokenBundle.add x h : q
 
 -- | Selects assets from the wallet's UTxO to satisfy the requested outputs in
 -- the given transaction context. In case of success, returns the selection
@@ -1440,7 +1475,7 @@ mkTxMeta
 mkTxMeta ti' blockHeader wState txCtx sel =
     let
         amtOuts = sumCoins $
-            (txOutCoin <$> NE.toList (changeGenerated sel))
+            (txOutCoin <$> changeGenerated sel)
             ++
             mapMaybe ourCoin (outputsCovered sel)
 
