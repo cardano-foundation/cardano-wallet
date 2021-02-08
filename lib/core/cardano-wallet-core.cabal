@@ -37,7 +37,6 @@ library
     , bech32-th
     , binary
     , bytestring
-    , casing
     , cardano-addresses
     , cardano-api
     , cardano-crypto
