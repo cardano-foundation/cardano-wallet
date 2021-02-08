@@ -634,6 +634,247 @@ spec = describe "SHELLEY_ADDRESSES" $ do
                 let walAddr = fst (addrs !! idx ^. #id) ^. (#getApiT . #unAddress)
                 walAddr `Expectations.shouldBe` genAddr
 
+    it "ANY_ADDRESS_POST_13 - Golden tests for script with timelocks" $ \ctx -> do
+        let payload = Json [json|{
+                "payment": {
+                    "all" : [
+                        "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a",
+                        { "active_from": 120 }
+                        ]
+                    },
+                "stake": {
+                    "all" : [
+                        "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a",
+                        { "active_from": 120 }
+                        ]
+                    }
+            }|]
+        r <- request @AnyAddress ctx Link.postAnyAddress Default payload
+        expectResponseCode HTTP.status202 r
+        let goldenAddr =
+                "addr1xyt94nh6f6dzfhzm4e8qjpmlam220n32rlsndd67vc2r0tgktt805n56y\
+                \nw9htjwpyrhlmk55l8z58lpx6m4ues5x7kscrzdyf" :: Text
+        validateAddr r goldenAddr
+
+    it "ANY_ADDRESS_POST_14a - at_least 0 is valid when non-validated" $ \ctx -> do
+        let payload = Json [json|{
+                "payment": {
+                    "some": {
+                        "from" : [
+                            "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a",
+                            "script_vkh1mwlngj4fcwegw53tdmyemfupen2758xwvudmcz9ap8cnqk7jmh4",
+                            "script_vkh1qw4l62k4203dllrk3dk3sfjpnh3gufhtrtm4qvtrvn4xjp5x5rt"
+                            ],
+                         "at_least": 0
+                         }
+                    }
+            }|]
+        r <- request @AnyAddress ctx Link.postAnyAddress Default payload
+        expectResponseCode HTTP.status202 r
+
+    it "ANY_ADDRESS_POST_14b - at_least 0 is valid when validation is required" $ \ctx -> do
+        let payload = Json [json|{
+                "payment": {
+                    "some": {
+                        "from" : [
+                            "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a",
+                            "script_vkh1mwlngj4fcwegw53tdmyemfupen2758xwvudmcz9ap8cnqk7jmh4",
+                            "script_vkh1qw4l62k4203dllrk3dk3sfjpnh3gufhtrtm4qvtrvn4xjp5x5rt"
+                            ],
+                         "at_least": 0
+                         }
+                    },
+                "validation": "required"
+            }|]
+        r <- request @AnyAddress ctx Link.postAnyAddress Default payload
+        expectResponseCode HTTP.status202 r
+
+    it "ANY_ADDRESS_POST_14c - at_least 0 is not valid when validation is recommended" $ \ctx -> do
+        let payload = Json [json|{
+                "payment": {
+                    "some": {
+                        "from" : [
+                            "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a",
+                            "script_vkh1mwlngj4fcwegw53tdmyemfupen2758xwvudmcz9ap8cnqk7jmh4",
+                            "script_vkh1qw4l62k4203dllrk3dk3sfjpnh3gufhtrtm4qvtrvn4xjp5x5rt"
+                            ],
+                         "at_least": 0
+                         }
+                    },
+                "validation": "recommended"
+            }|]
+        r <- request @AnyAddress ctx Link.postAnyAddress Default payload
+        expectResponseCode HTTP.status400 r
+        let msg = "At least's coefficient is 0 (which is not recommended)."
+        expectErrorMessage msg r
+
+    it "ANY_ADDRESS_POST_15a - at_least 4 is valid when non-validated" $ \ctx -> do
+        let payload = Json [json|{
+                "payment": {
+                    "some": {
+                        "from" : [
+                            "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a",
+                            "script_vkh1mwlngj4fcwegw53tdmyemfupen2758xwvudmcz9ap8cnqk7jmh4",
+                            "script_vkh1qw4l62k4203dllrk3dk3sfjpnh3gufhtrtm4qvtrvn4xjp5x5rt"
+                            ],
+                         "at_least": 4
+                         }
+                    }
+            }|]
+        r <- request @AnyAddress ctx Link.postAnyAddress Default payload
+        expectResponseCode HTTP.status202 r
+
+    it "ANY_ADDRESS_POST_15b - at_least 4 is valid when validation is required" $ \ctx -> do
+        let payload = Json [json|{
+                "payment": {
+                    "some": {
+                        "from" : [
+                            "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a",
+                            "script_vkh1mwlngj4fcwegw53tdmyemfupen2758xwvudmcz9ap8cnqk7jmh4",
+                            "script_vkh1qw4l62k4203dllrk3dk3sfjpnh3gufhtrtm4qvtrvn4xjp5x5rt"
+                            ],
+                         "at_least": 4
+                         }
+                    },
+                "validation": "required"
+            }|]
+        r <- request @AnyAddress ctx Link.postAnyAddress Default payload
+        expectResponseCode HTTP.status400 r
+        let msg = "The script is ill-formed and is not going to be accepted by ledger."
+        expectErrorMessage msg r
+
+    it "ANY_ADDRESS_POST_15c - at_least 4 is not valid when validation is recommended" $ \ctx -> do
+        let payload = Json [json|{
+                "payment": {
+                    "some": {
+                        "from" : [
+                            "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a",
+                            "script_vkh1mwlngj4fcwegw53tdmyemfupen2758xwvudmcz9ap8cnqk7jmh4",
+                            "script_vkh1qw4l62k4203dllrk3dk3sfjpnh3gufhtrtm4qvtrvn4xjp5x5rt"
+                            ],
+                         "at_least": 4
+                         }
+                    },
+                "validation": "recommended"
+            }|]
+        r <- request @AnyAddress ctx Link.postAnyAddress Default payload
+        expectResponseCode HTTP.status400 r
+        let msg = "The script is ill-formed and is not going to be accepted by ledger."
+        expectErrorMessage msg r
+
+    it "ANY_ADDRESS_POST_16a - script with duplicated verification keys is valid when non-validated" $ \ctx -> do
+        let payload = Json [json|{
+                "payment": {
+                    "some": {
+                        "from" : [
+                            "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a",
+                            "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a",
+                            "script_vkh1mwlngj4fcwegw53tdmyemfupen2758xwvudmcz9ap8cnqk7jmh4"
+                            ],
+                         "at_least": 2
+                         }
+                    }
+            }|]
+        r <- request @AnyAddress ctx Link.postAnyAddress Default payload
+        expectResponseCode HTTP.status202 r
+
+    it "ANY_ADDRESS_POST_16b - script with duplicated verification keys is valid when required validation used" $ \ctx -> do
+        let payload = Json [json|{
+                "payment": {
+                    "some": {
+                        "from" : [
+                            "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a",
+                            "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a",
+                            "script_vkh1mwlngj4fcwegw53tdmyemfupen2758xwvudmcz9ap8cnqk7jmh4"
+                            ],
+                         "at_least": 2
+                         }
+                    },
+                "validation": "required"
+            }|]
+        r <- request @AnyAddress ctx Link.postAnyAddress Default payload
+        expectResponseCode HTTP.status202 r
+
+    it "ANY_ADDRESS_POST_16c - script with duplicated verification keys is invalid when recommended validation used" $ \ctx -> do
+        let payload = Json [json|{
+                "payment": {
+                    "some": {
+                        "from" : [
+                            "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a",
+                            "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a",
+                            "script_vkh1mwlngj4fcwegw53tdmyemfupen2758xwvudmcz9ap8cnqk7jmh4"
+                            ],
+                         "at_least": 2
+                         }
+                    },
+                "validation": "recommended"
+            }|]
+        r <- request @AnyAddress ctx Link.postAnyAddress Default payload
+        expectResponseCode HTTP.status400 r
+        let msg = "The list inside a script has duplicate keys (which is not recommended)."
+        expectErrorMessage msg r
+
+    it "ANY_ADDRESS_POST_17a - Script with contradictory timelocks is valid when validation not used" $ \ctx -> do
+        let payload = Json [json|{
+                "payment": {
+                    "all" : [
+                        "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a",
+                        { "active_from": 120 },
+                        { "active_until": 100 }
+                        ]
+                    },
+                "stake": {
+                    "all" : [
+                        "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a",
+                        { "active_from": 120 }
+                        ]
+                    }
+            }|]
+        r <- request @AnyAddress ctx Link.postAnyAddress Default payload
+        expectResponseCode HTTP.status202 r
+
+    it "ANY_ADDRESS_POST_17b - Script with contradictory timelocks is invalid when required validation is used" $ \ctx -> do
+        let payload = Json [json|{
+                "payment": {
+                    "all" : [
+                        "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a",
+                        { "active_from": 120 },
+                        { "active_until": 100 }
+                        ]
+                    },
+                "stake": {
+                    "all" : [
+                        "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a",
+                        { "active_from": 120 }
+                        ]
+                    },
+                "validation": "required"
+            }|]
+        r <- request @AnyAddress ctx Link.postAnyAddress Default payload
+        expectResponseCode HTTP.status202 r
+
+    it "ANY_ADDRESS_POST_17c - Script with contradictory timelocks is invalid when recommended validation is used" $ \ctx -> do
+        let payload = Json [json|{
+                "payment": {
+                    "all" : [
+                        "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a",
+                        { "active_from": 120 },
+                        { "active_until": 100 }
+                        ]
+                    },
+                "stake": {
+                    "all" : [
+                        "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a",
+                        { "active_from": 120 }
+                        ]
+                    },
+                "validation": "recommended"
+            }|]
+        r <- request @AnyAddress ctx Link.postAnyAddress Default payload
+        expectResponseCode HTTP.status400 r
+        let msg = "Some timelocks used are redundant (which is not recommended)."
+        expectErrorMessage msg r
+
     it "POST_ACCOUNT_01 - Can retrieve account public keys" $ \ctx -> runResourceT $ do
         let initPoolGap = 10
         w <- emptyWalletWith ctx ("Wallet", fixturePassphrase, initPoolGap)

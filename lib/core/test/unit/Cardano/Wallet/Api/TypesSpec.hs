@@ -27,7 +27,7 @@ import Prelude hiding
     ( id )
 
 import Cardano.Address.Script
-    ( KeyHash (..), Script (..) )
+    ( KeyHash (..), Script (..), ValidationLevel (..) )
 import Cardano.Mnemonic
     ( CheckSumBits
     , ConsistentEntropy
@@ -50,6 +50,7 @@ import Cardano.Wallet.Api.Types
     , ApiAccountPublicKey (..)
     , ApiAddress (..)
     , ApiAddressData (..)
+    , ApiAddressDataPayload (..)
     , ApiAddressInspect (..)
     , ApiAsset (..)
     , ApiBlockInfo (..)
@@ -1083,15 +1084,21 @@ instance Arbitrary ApiCredential where
         pubKey <- BS.pack <$> replicateM 32 arbitrary
         oneof [ pure $ CredentialPubKey pubKey, CredentialScript <$> arbitrary ]
 
+instance Arbitrary ValidationLevel where
+    arbitrary =
+        elements [RequiredValidation, RecommendedValidation]
+
 instance Arbitrary ApiAddressData where
     arbitrary = do
+        validation' <- oneof [pure Nothing, Just <$> arbitrary]
         credential1 <- arbitrary
         credential2 <- arbitrary
-        elements
+        addr <- elements
             [ AddrEnterprise credential1
             , AddrRewardAccount credential2
             , AddrBase credential1 credential2
             ]
+        pure $ ApiAddressData addr validation'
 
 instance Arbitrary AnyAddress where
     arbitrary = do

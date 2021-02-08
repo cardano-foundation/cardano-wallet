@@ -21,8 +21,11 @@ module Cardano.Wallet.Shelley.Api.Server
 
 import Prelude
 
+
 import Cardano.Address
     ( unAddress )
+import Cardano.Address.Script
+    ( prettyErrValidateScript, validateScript )
 import Cardano.Pool.Metadata
     ( defaultManagerSettings, healthCheck, newManager, toHealthCheckSMASH )
 import Cardano.Wallet
@@ -111,6 +114,7 @@ import Cardano.Wallet.Api.Types
     ( AnyAddress (..)
     , AnyAddressType (..)
     , ApiAddressData (..)
+    , ApiAddressDataPayload (..)
     , ApiAddressInspect (..)
     , ApiAddressInspectData (..)
     , ApiCredential (..)
@@ -149,6 +153,8 @@ import Cardano.Wallet.Shelley.Pools
     ( StakePoolLayer (..) )
 import Control.Applicative
     ( liftA2 )
+import Control.Monad
+    ( when )
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Except
@@ -237,7 +243,7 @@ server byron icarus shelley spl ntp =
     addresses :: Server (Addresses n)
     addresses = listAddresses shelley (normalizeDelegationAddress @_ @ShelleyKey @n)
         :<|> (handler ApiAddressInspect . inspectAddress . unApiAddressInspectData)
-        :<|> postAnyAddress (networkIdVal (Proxy @n))
+        :<|> (handler id . postAnyAddress (networkIdVal (Proxy @n)))
       where
         toServerError :: TextDecodingError -> ServerError
         toServerError = apiError err400 BadRequest . T.pack . getTextDecodingError
@@ -478,18 +484,22 @@ server byron icarus shelley spl ntp =
 postAnyAddress
     :: NetworkId
     -> ApiAddressData
-    -> Handler AnyAddress
+    -> Either TextDecodingError AnyAddress
 postAnyAddress net addrData = do
     (addr, addrType) <- case addrData of
-        AddrEnterprise spendingCred ->
+        (ApiAddressData (AddrEnterprise spendingCred) validation') -> do
+            guardValidation validation' spendingCred
             pure ( unAddress $
                      CA.paymentAddress discriminant (spendingFrom spendingCred)
                  , EnterpriseDelegating )
-        AddrRewardAccount stakingCred -> do
+        (ApiAddressData (AddrRewardAccount stakingCred) validation') -> do
             let (Right stakeAddr) =
                     CA.stakeAddress discriminant (stakingFrom stakingCred)
+            guardValidation validation' stakingCred
             pure ( unAddress stakeAddr, RewardAccount )
-        AddrBase spendingCred stakingCred ->
+        (ApiAddressData (AddrBase spendingCred stakingCred) validation') -> do
+            guardValidation validation' spendingCred
+            guardValidation validation' stakingCred
             pure ( unAddress $ CA.delegationAddress discriminant
                      (spendingFrom spendingCred) (stakingFrom stakingCred)
                  , EnterpriseDelegating )
@@ -510,4 +520,15 @@ postAnyAddress net addrData = do
               CA.DelegationFromKey $ CA.liftXPub $ toXPub bytes
           CredentialScript script' ->
               CA.DelegationFromScript $ CA.toScriptHash script'
+      guardValidation v cred =
+            when (fst $ checkValidation v cred) $
+                Left $ snd $ checkValidation v cred
+      checkValidation v cred = case cred of
+          CredentialPubKey _ -> (False, TextDecodingError "")
+          CredentialScript script' -> case v of
+              Just (ApiT v') ->
+                  case validateScript v' script' of
+                      Left err -> (True, TextDecodingError $ prettyErrValidateScript err)
+                      Right _ -> (False, TextDecodingError "")
+              _ -> (False, TextDecodingError "")
       (Right discriminant) = CA.mkNetworkDiscriminant netTag
