@@ -299,11 +299,11 @@ specWithServer testDir (tr, tracers) = aroundAll withContext
         let rewards = (,Coin $ fromIntegral oneMillionAda) <$>
                 concatMap genRewardAccounts mirMnemonics
         moveInstantaneousRewardsTo tr' conn testDir rewards
-        let encodeAddr = T.unpack . encodeAddress @'Mainnet
-        let addresses = map (first encodeAddr) shelleyIntegrationTestFunds
-        let assetAddresses = map (first encodeAddr) maryIntegrationTestAssets
-        sendFaucetFundsTo tr' conn testDir addresses
-        sendFaucetAssetsTo tr' conn testDir assetAddresses
+        let encodeAddresses = map (first (T.unpack . encodeAddress @'Mainnet))
+        sendFaucetFundsTo tr' conn testDir $
+            encodeAddresses shelleyIntegrationTestFunds
+        sendFaucetAssetsTo tr' conn testDir $
+            encodeAddresses maryIntegrationTestAssets
 
     onClusterStart action dbDecorator (RunningNode conn block0 (gp, vData)) = do
         setupFaucet conn
