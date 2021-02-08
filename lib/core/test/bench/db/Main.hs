@@ -254,6 +254,8 @@ bgroupWriteUTxO db = bgroup "UTxO (Write)"
     , bUTxO            1         100          0
     , bUTxO            1        1000          0
     , bUTxO            1       10000          0
+    , bUTxO            1       10000         10
+    , bUTxO            1       10000         20
     , bUTxO            1      100000          0
     , bUTxO           10        1000          0
     , bUTxO          100        1000          0
@@ -261,7 +263,8 @@ bgroupWriteUTxO db = bgroup "UTxO (Write)"
   where
     bUTxO n s a = bench lbl $ withCleanDB db walletFixture $
         benchPutUTxO n s a . fst
-      where lbl = n|+" CP x "+|s|+" UTxO"
+      where lbl | a == 0    = n|+" CP (ada-only) x "+|s|+" UTxO"
+                | otherwise = n|+" CP ("+|a|+" assets per output) x "+|s|+" UTxO"
 
 bgroupReadUTxO
     :: DBLayerBench
@@ -273,11 +276,14 @@ bgroupReadUTxO db = bgroup "UTxO (Read)"
     , bUTxO            1         100          0
     , bUTxO            1        1000          0
     , bUTxO            1       10000          0
+    , bUTxO            1       10000         10
+    , bUTxO            1       10000         20
     , bUTxO            1      100000          0
     ]
   where
     bUTxO n s a = bench lbl $ withUTxO db n s a benchReadUTxO
-        where lbl = n|+" CP x "+|s|+" UTxO"
+        where lbl | a == 0    = n|+" CP (ada-only) x "+|s|+" UTxO"
+                  | otherwise = n|+" CP ("+|a|+" assets per output) x "+|s|+" UTxO"
 
 benchPutUTxO :: Int -> Int -> Int -> DBLayerBench -> IO ()
 benchPutUTxO numCheckpoints utxoSize numAssets DBLayer{..} = do
@@ -479,6 +485,8 @@ bgroupWriteTxHistory db = bgroup "TxHistory (Write)"
     , bTxHistory           100       50      100         0    [1..100]
     , bTxHistory          1000       10       10         0   [1..1000]
     , bTxHistory          1000       50      100         0   [1..1000]
+    , bTxHistory          1000       50      100        10   [1..1000]
+    , bTxHistory          1000       50      100        20   [1..1000]
     , bTxHistory         10000       10       10         0  [1..10000]
     ]
   where
@@ -494,23 +502,25 @@ bgroupReadTxHistory
     :: DBLayerBench
     -> Benchmark
 bgroupReadTxHistory db = bgroup "TxHistory (Read)"
-    --             #NTxs  #SlotRange  #SortOrder  #Status  #SearchRange
-    [ bTxHistory    1000    [1..100]  Descending  Nothing  wholeRange
-    , bTxHistory    1000    [1..100]   Ascending  Nothing  wholeRange
-    , bTxHistory    1000   [1..1000]  Descending  Nothing  wholeRange
-    , bTxHistory    1000    [1..100]  Descending  pending  wholeRange
-    , bTxHistory    1000    [1..100]  Descending  Nothing  (Just 40, Just 60)
-    , bTxHistory    1000  [1..10000]  Descending  Nothing  (Just 42, Just 1337)
-    , bTxHistory   10000    [1..100]  Descending  Nothing  (Just 40, Just 60)
-    , bTxHistory   10000  [1..10000]  Descending  Nothing  (Just 42, Just 1337)
+    --             #NTxs  #NAssets #SlotRange  #SortOrder  #Status  #SearchRange
+    [ bTxHistory    1000         0   [1..100]  Descending  Nothing  wholeRange
+    , bTxHistory    1000         0   [1..100]   Ascending  Nothing  wholeRange
+    , bTxHistory    1000         0  [1..1000]  Descending  Nothing  wholeRange
+    , bTxHistory    1000         0   [1..100]  Descending  pending  wholeRange
+    , bTxHistory    1000         0   [1..100]  Descending  Nothing  (Just 40, Just 60)
+    , bTxHistory    1000        10   [1..100]  Descending  Nothing  (Just 40, Just 60)
+    , bTxHistory    1000        20   [1..100]  Descending  Nothing  (Just 40, Just 60)
+    , bTxHistory    1000         0 [1..10000]  Descending  Nothing  (Just 42, Just 1337)
+    , bTxHistory   10000         0   [1..100]  Descending  Nothing  (Just 40, Just 60)
+    , bTxHistory   10000         0 [1..10000]  Descending  Nothing  (Just 42, Just 1337)
     ]
   where
     wholeRange = (Nothing, Nothing)
     pending = Just Pending
-    bTxHistory n r o st s =
-        bench lbl $ withTxHistory db n r $ benchReadTxHistory o s st
+    bTxHistory n a r o st s =
+        bench lbl $ withTxHistory db n a r $ benchReadTxHistory o s st
       where
-        lbl = unwords [show n, range, ord, mstatus, search]
+        lbl = unwords [show n, show a, range, ord, mstatus, search]
         range = let inf = head r in let sup = last r in "["+|inf|+".."+|sup|+"]"
         ord = case o of Descending -> "DESC"; Ascending -> "ASC"
         mstatus = maybe "-" pretty st
@@ -612,21 +622,22 @@ withTxHistory
     :: NFData b
     => DBLayerBench
     -> Int
+    -> Int
     -> [Word64]
     -> (DBLayerBench -> IO b)
     -> Benchmarkable
-withTxHistory db s r =
-    perRunEnv (txHistoryFixture db s r $> db)
+withTxHistory db s a r =
+    perRunEnv (txHistoryFixture db s a r $> db)
 
 txHistoryFixture
     :: DBLayerBench
     -> Int
+    -> Int
     -> [Word64]
     -> IO ()
-txHistoryFixture db@DBLayer{..} bSize range = do
+txHistoryFixture db@DBLayer{..} bSize nAssets range = do
     walletFixture db
     let (nInps, nOuts) = (20, 20)
-    let nAssets = 0
     let txs = mkTxHistory bSize nInps nOuts nAssets range
     atomically $ unsafeRunExceptT $ putTxHistory testPk txs
 
