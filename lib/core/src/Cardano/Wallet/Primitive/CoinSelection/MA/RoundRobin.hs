@@ -51,6 +51,7 @@ module Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     , makeChangeForCoin
     , makeChangeForUserSpecifiedAsset
     , makeChangeForNonUserSpecifiedAsset
+    , assignCoinsToChangeMaps
 
     -- * Grouping and ungrouping
     , groupByKey

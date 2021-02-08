@@ -31,6 +31,7 @@ import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     , SelectionState (..)
     , UnableToConstructChangeError (..)
     , assetSelectionLens
+    , assignCoinsToChangeMaps
     , coinSelectionLens
     , fullBalance
     , groupByKey
@@ -261,6 +262,10 @@ spec = describe "Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobinSpec" $
             property prop_makeChange
         unitTests "makeChange"
             unit_makeChange
+
+    parallel $ describe "assignCoinsToChangeMaps" $ do
+        unitTests "assignCoinsToChangeMaps"
+            unit_assignCoinsToChangeMaps
 
     parallel $ describe "Making change for coins" $ do
 
@@ -1320,6 +1325,78 @@ unit_makeChange =
 
     assetC :: AssetId
     assetC = AssetId (UnsafeTokenPolicyId $ Hash "A") (UnsafeTokenName "2")
+
+--------------------------------------------------------------------------------
+-- Assigning coins to change maps
+--------------------------------------------------------------------------------
+
+unit_assignCoinsToChangeMaps
+    :: [Expectation]
+unit_assignCoinsToChangeMaps =
+    [ assignCoinsToChangeMaps total minCoinValueFor assets `shouldBe` expectation
+    | (total, minCoinValueFor, assets, expectation) <- matrix
+    ]
+  where
+    matrix =
+        -- Simple case with a single Ada-only output
+        [ ( Coin 1
+          , linearMinCoin
+          , m 42 [] :| []
+          , Just [b 1 []]
+          )
+
+        -- Simple case, with a single MA output
+        , ( Coin 2
+          , linearMinCoin
+          , m 42 [(assetA, 1337)] :| []
+          , Just [b 2 [(assetA, 1337)]]
+          )
+
+        -- Single Ada-only output, but not enough left to create a change
+        , ( Coin 1
+          , (`addCoin` Coin 1) . linearMinCoin
+          , m 42 [] :| []
+          , Just []
+          )
+
+        -- Single MA output, but not enough left to create a change
+        , ( Coin 1
+          , linearMinCoin
+          , m 42 [(assetA, 1337)] :| []
+          , Nothing
+          )
+
+        -- Multiple Ada-only change, not enough Ada left to create them all
+        , ( Coin 2
+          , linearMinCoin
+          , NE.fromList
+            [ m 1337 []
+            , m   14 []
+            , m   42 []
+            ]
+          , Just [b 1 [], b 1 []]
+          )
+
+        -- Hybrid Ada & MA, not enough to cover both => Ada change is dropped
+        , ( Coin 2
+          , linearMinCoin
+          , NE.fromList
+            [ m 42 []
+            , m 14 []
+            , m  2 [(assetA, 1337)]
+            ]
+          , Just [b 2 [(assetA, 1337)]]
+          )
+        ]
+
+    m :: Word64 -> [(AssetId, Natural)] -> (TokenMap, Coin)
+    m c = (,Coin c) . TokenMap.fromFlatList . fmap (second TokenQuantity)
+
+    b :: Word64 -> [(AssetId, Natural)] -> TokenBundle
+    b c = TokenBundle (Coin c) . TokenMap.fromFlatList . fmap (second TokenQuantity)
+
+    assetA :: AssetId
+    assetA = AssetId (UnsafeTokenPolicyId $ Hash "A") (UnsafeTokenName "1")
 
 --------------------------------------------------------------------------------
 -- Making change for coins
