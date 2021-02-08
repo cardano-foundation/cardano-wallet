@@ -1726,8 +1726,8 @@ instance FromJSON ApiAddressData where
         fail msgError
       where
          msgError =
-             "ApiAddressData must have at least one valid credential. When script is\
-             \ used as a credential it has to have only bech32 encoded verification keys \
+             "Address must have at least one valid credential. When script is\
+             \ used as a credential it must have only bech32 encoded verification keys \
              \with possible prefixes: 'script_vkh', 'script_vk' or 'script_xvk' and proper \
              \payload size. 'at_least'cannot exceed 255. When public key is used as a credential \
              \then bech32 encoded public keys are expected to be used with possible prefixes:\
