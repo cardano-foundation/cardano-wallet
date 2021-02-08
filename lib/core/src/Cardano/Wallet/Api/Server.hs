@@ -346,7 +346,7 @@ import Cardano.Wallet.Registry
     , workerResource
     )
 import Cardano.Wallet.TokenMetadata
-    ( TokenMetadataServer (..), fillMetadata, nullTokenMetadataServer )
+    ( fillMetadata, nullTokenMetadataServer )
 import Cardano.Wallet.Transaction
     ( DelegationAction (..)
     , TransactionCtx (..)
@@ -476,7 +476,6 @@ import qualified Cardano.Wallet.Primitive.AddressDerivation.Icarus as Icarus
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
-import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Cardano.Wallet.Primitive.Types.UTxO as W
 import qualified Cardano.Wallet.Registry as Registry

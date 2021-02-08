@@ -1,8 +1,17 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 module Cardano.Wallet.TokenMetadata
     ( TokenMetadataServer (..)
@@ -15,52 +24,86 @@ module Cardano.Wallet.TokenMetadata
     -- * Client
     , metadataClient
     , getTokenMetadata
+    , BatchRequest (..)
+    , BatchResponse
+    , SubjectProperties (..)
+    , Property (..)
+    , PropertyValue
+    , Subject (..)
+    , Signature (..)
+
+    -- * Parsing
+    , metadataFromProperties
     ) where
 
 import Prelude
 
+import Cardano.Wallet.Primitive.Types.Hash
+    ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId (..) )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( AssetMetadata (..), TokenPolicyId )
+    ( AssetMetadata (..), TokenName (..), TokenPolicyId (..) )
 import Control.Monad
     ( mapM, (<=<) )
 import Data.Aeson
     ( FromJSON (..)
     , Object
     , ToJSON (..)
-    , Value
+    , Value (..)
     , eitherDecodeFileStrict
     , eitherDecodeStrict'
     , encode
     , withArray
     , withObject
+    , withText
     , (.:)
     )
 import Data.Aeson.Types
     ( Parser )
 import Data.Bifunctor
     ( bimap )
+import Data.ByteArray.Encoding
+    ( Base (Base16), convertFromBase, convertToBase )
 import Data.ByteString
     ( ByteString )
 import Data.Foldable
     ( toList )
+import Data.Hashable
+    ( Hashable )
 import Data.Map
     ( Map )
+import Data.Maybe
+    ( mapMaybe )
 import Data.Set
     ( Set )
+import Data.String
+    ( IsString (..) )
 import Data.Text
     ( Text )
 import GHC.Generics
     ( Generic )
+import GHC.TypeLits
+    ( Symbol )
 import Network.HTTP.Client
+    ( Manager
+    , Request (..)
+    , RequestBody (..)
+    , Response (..)
+    , httpLbs
+    , parseRequest
+    )
+import Numeric.Natural
+    ( Natural )
 import UnliftIO.Exception
     ( Exception, throwIO, tryAny )
 
 import qualified Data.ByteString.Lazy as BL
+import qualified Data.HashMap.Strict as HM
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
 
 {-------------------------------------------------------------------------------
    Token Metadata
@@ -115,9 +158,9 @@ parseTokenMetadataMap = fmap Map.fromList . withArray "list of subjects"
   where
     parseTokenMetadataEntry :: Value -> Parser (TokenPolicyId, AssetMetadata)
     parseTokenMetadataEntry = withObject "token metadata" $ \o -> do
-        subject <- o .: "subject"
+        subject_ <- o .: "subject"
         md <- AssetMetadata <$> o `getProperty` "name" <*> o `getProperty` "description"
-        return (subject, md)
+        return (subject_, md)
       where
         -- | Properties contain both a value an a signature.
         getProperty :: Object -> Text -> Parser Text
@@ -141,43 +184,65 @@ data BatchRequest = BatchRequest
     , properties :: [PropertyName]
     } deriving (Generic, Show, Eq)
 
-type BatchResponse = [Properties]
+-- | Properties for each subject in 'BatchRequest'
+type BatchResponse = [SubjectProperties]
 
-data Properties = Properties
+-- | Property values and signatures for a given subject.
+data SubjectProperties = SubjectProperties
     { subject :: Subject
     , owner :: Signature
-    , properties :: [(PropertyName, (PropertyValue, [Signature]))]
+    -- TODO: use Data.SOP.NP and parameterize type by property names
+    , properties :: ( Property "name"
+                    -- , (PropertyValue "acronym", [Signature])
+                    , Property "description"
+                    -- , (PropertyValue "url", [Signature])
+                    -- , (PropertyValue "logo", [Signature])
+                    -- , (PropertyValue "unit", [Signature])
+                    )
     } deriving (Generic, Show, Eq)
 
+-- | A property value and its signatures.
+data Property name = Property
+    { value :: PropertyValue name
+    , signatures :: [Signature]
+    } deriving (Generic)
+
+deriving instance Show (PropertyValue name) => Show (Property name)
+deriving instance Eq (PropertyValue name) => Eq (Property name)
+
+-- | A metadata server subject, which can be any string.
 newtype Subject = Subject { unSubject :: Text }
     deriving (Generic, Show, Eq)
+    deriving newtype (IsString, Hashable)
 
+-- | Metadata property identifier.
 newtype PropertyName = PropertyName { unPropertyName :: Text }
     deriving (Generic, Show, Eq)
+    deriving newtype IsString
 
--- Properties can actually have any json value.
--- But for now, limit to text.
-newtype PropertyValue = PropertyValue { unPropertyValue :: Text }
-    deriving (Generic, Show, Eq)
+-- | The type of a given property name.
+type family PropertyValue (name :: Symbol) :: *
+type instance PropertyValue "name" = Text
+type instance PropertyValue "acronym" = Text
+type instance PropertyValue "description" = Text
+type instance PropertyValue "url" = Text
+-- type instance PropertyValue "logo" = AssetLogoBase64
+type instance PropertyValue "unit" = AssetUnit
 
-newtype Hex = Hex ByteString
- deriving (Generic, Show, Eq)
-data Signature = Signature
-    { signature :: Hex
-    , publicKey :: Hex
+data AssetUnit = AssetUnit
+    { name :: Text
+    , decimals :: Natural
     } deriving (Generic, Show, Eq)
 
--- todo: use generic
-instance ToJSON BatchRequest where
-instance ToJSON PropertyName where
-instance FromJSON PropertyName where
-instance ToJSON Subject where
-instance FromJSON Subject where
-instance FromJSON Properties where
-instance FromJSON Signature where
-instance FromJSON Hex where
-    parseJSON = error "hex decode bytestring"
-instance FromJSON PropertyValue where
+-- | Used for checking integrity and authenticity of metadata.
+data Signature = Signature
+    { signature :: ByteString
+    , publicKey :: ByteString
+    } deriving (Generic, Show, Eq)
+
+{-------------------------------------------------------------------------------
+                       Client for Cardano metadata-server
+-------------------------------------------------------------------------------}
 
 newtype JSONParseError = JSONParseError String
     deriving (Show, Eq)
@@ -189,10 +254,12 @@ metadataClient baseURL manager =
   where
     makeHttpReq query = do
         req <- parseRequest (baseURL ++ "metadata/query")
-        pure req {
-            method = "POST",
-            requestBody = RequestBodyLBS $ encode query
+        pure req
+            { method = "POST"
+            , requestBody = RequestBodyLBS $ encode query
+            , requestHeaders = [("Content-type", "application/json")]
             }
+    -- todo: logging of response status and any errors
     parseResponse = either (throwIO . JSONParseError) pure
         . eitherDecodeStrict'
         . BL.toStrict
@@ -202,24 +269,78 @@ metadataClient baseURL manager =
                            Requesting token metadata
 -------------------------------------------------------------------------------}
 
-data TokenMetadataError = TokenMetadataError String -- todo: constructors
-
 getTokenMetadata
     :: (BatchRequest -> IO BatchResponse)
     -> [AssetId]
     -> IO (Either TokenMetadataError [(AssetId, AssetMetadata)])
-getTokenMetadata client =
-    fmap (bimap (TokenMetadataError . show) fromResponse) . tryAny . client . toRequest
+getTokenMetadata client as =
+    fmap (bimap handleError fromResponse) . tryAny . client $ batchRequest
   where
-    toRequest :: [AssetId] -> BatchRequest
-    toRequest as = BatchRequest (map toSubject as)
-        [PropertyName "name", PropertyName "description"]
-    toSubject = error "todo: hex-encode policyId + assetName"
+    subjects = map assetIdToSubject as
+    batchRequest = BatchRequest
+        { subjects
+        , properties = [PropertyName "name", PropertyName "description"]
+        }
+    subjectAsset = HM.fromList $ zip subjects as
     fromResponse :: BatchResponse -> [(AssetId, AssetMetadata)]
-    fromResponse = error "todo"
+    fromResponse = mapMaybe (\ps -> (,) <$> HM.lookup (subject ps) subjectAsset <*> pure (metadataFromProperties ps))
+    handleError = TokenMetadataFetchError . show
 
-testIt :: IO ()
-testIt = do
-    client <- metadataClient "http://localhost:8000/api/" <$> newManager defaultManagerSettings
-    Right r <- getTokenMetadata client []
-    pure ()
+-- | Creates a metadata server subject from an AssetId. The subject is the
+-- policy id and asset name hex-encoded.
+assetIdToSubject :: AssetId -> Subject
+assetIdToSubject (AssetId (UnsafeTokenPolicyId (Hash p)) (UnsafeTokenName n)) =
+    Subject $ T.decodeLatin1 $ convertToBase Base16 (p <> n)
+
+-- | Convert metadata server properties response into an 'AssetMetadata' record.
+-- Only the values are taken. Signatures are ignored (for now).
+metadataFromProperties :: SubjectProperties -> AssetMetadata
+metadataFromProperties (SubjectProperties _ _ ((Property n _, Property d _))) =
+    AssetMetadata n d
+
+-- | The possible errors which can occur when fetching metadata.
+-- TODO: more constructors
+newtype TokenMetadataError
+    = TokenMetadataFetchError String -- ^ Some IO exception
+    deriving (Generic, Show, Eq)
+
+{-------------------------------------------------------------------------------
+                      Aeson instances for metadata-server
+-------------------------------------------------------------------------------}
+
+instance ToJSON BatchRequest where
+
+instance ToJSON PropertyName where
+    toJSON = String . unPropertyName
+instance FromJSON PropertyName where
+    parseJSON = withText "PropertyName" (pure . PropertyName)
+
+instance ToJSON Subject where
+    toJSON = String . unSubject
+instance FromJSON Subject where
+    parseJSON = withText "Subject" (pure . Subject)
+
+instance FromJSON SubjectProperties where
+   parseJSON = withObject "SubjectProperties" $ \o -> SubjectProperties
+       <$> o .: "subject"
+       <*> o .: "owner"
+       <*> ((,) <$> o .: "name" <*> o .: "description")
+
+instance FromJSON (PropertyValue name) => FromJSON (Property name) where
+    parseJSON = withObject "Property" $ \o -> Property
+        <$> o .: "value"
+        <*> o .: "anSignatures"
+
+instance FromJSON Signature where
+    parseJSON = withObject "Signature" $ \o -> Signature
+        <$> fmap unHex (o .: "signature")
+        <*> fmap unHex (o .: "publicKey")
+
+newtype Hex = Hex { unHex :: ByteString } deriving (Generic, Show, Eq)
+
+instance FromJSON Hex where
+    parseJSON = withText "hex bytestring" $
+        either fail (pure . Hex) . convertFromBase Base16 . T.encodeUtf8
+
+instance FromJSON AssetUnit where
+    -- TODO: AssetUnit, when it's provided by the metadata server
