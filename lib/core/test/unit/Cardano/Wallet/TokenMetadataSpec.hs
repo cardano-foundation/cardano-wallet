@@ -8,11 +8,15 @@ import Prelude
 
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
+import Cardano.Wallet.Primitive.Types.TokenMap
+    ( AssetId (..) )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( AssetMetadata (..), TokenPolicyId (..) )
+    ( AssetMetadata (..), TokenPolicyId (..), nullTokenName )
 import Cardano.Wallet.TokenMetadata
+import Cardano.Wallet.TokenMetadata.MockServer
+    ( assetIdFromSubject, queryServerStatic, withMetadataServer )
 import Cardano.Wallet.Unsafe
-    ( unsafeFromHex )
+    ( unsafeFromHex, unsafeFromText )
 import Data.Aeson
     ( eitherDecodeFileStrict )
 import Network.HTTP.Client
@@ -34,8 +38,7 @@ spec = describe "Token Metadata" $ do
         --
         -- TODO: Check relevance.
         it "golden" $ do
-            let fp = dir </> "golden1.json"
-            let server = tokenMetadataServerFromFile fp
+            let server = tokenMetadataServerFromFile golden1File
             m <- fetchTokenMeta server []
             m `shouldBe` Map.fromList
                 [ (UnsafeTokenPolicyId
@@ -44,19 +47,32 @@ spec = describe "Token Metadata" $ do
                     , golden1Metadata )
                 ]
 
-
     describe "JSON decoding" $ do
         it "golden1.json" $
-            eitherDecodeFileStrict (dir </> "golden1.json")
+            eitherDecodeFileStrict golden1File
                 `shouldReturn` Right golden1Properties
 
         it "metadataFromProperties" $
             map metadataFromProperties golden1Properties
                 `shouldBe` [golden1Metadata]
 
+    describe "Mock server tests" $ do
+        it "testing empty req" $
+            withMetadataServer (queryServerStatic golden1File) $ \url -> do
+                client <- metadataClient url <$> newManager defaultManagerSettings
+                getTokenMetadata client [] `shouldReturn` Right []
+        it "testing golden1.json" $
+            withMetadataServer (queryServerStatic golden1File) $ \url -> do
+                client <- metadataClient url <$> newManager defaultManagerSettings
+                let subj = "7f71940915ea5fe85e840f843c929eba467e6f050475bad1f10b9c27"
+                let aid = AssetId (UnsafeTokenPolicyId (unsafeFromText subj)) nullTokenName
+                getTokenMetadata client [assetIdFromSubject (Subject subj)]
+                    `shouldReturn` Right [(aid, golden1Metadata)]
+
   where
     dir = $(getTestData) </> "Cardano" </> "Wallet" </> "TokenMetadata"
 
+    golden1File = dir </> "golden1.json"
     golden1Metadata = AssetMetadata "SteveToken" "A sample description"
     sig s k = Signature (unsafeFromHex s) (unsafeFromHex k)
     golden1Properties = [SubjectProperties
@@ -80,10 +96,3 @@ spec = describe "Token Metadata" $ do
                     ]
                 )
            }]
-
-
-testIt :: IO ()
-testIt = do
-    client <- metadataClient "http://localhost:8000/api/" <$> newManager defaultManagerSettings
-    Right r <- getTokenMetadata client []
-    pure ()
