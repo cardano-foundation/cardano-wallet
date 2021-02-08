@@ -14,39 +14,45 @@ module Cardano.Wallet.TokenMetadata.MockServer
 
 import Prelude
 
-import Cardano.Wallet.Unsafe
-    ( unsafeFromHex )
-import Cardano.Wallet.Primitive.Types.Hash (Hash (..))
+import Cardano.Wallet.Primitive.Types.Hash
+    ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId (..) )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( AssetMetadata (..), TokenPolicyId (..), TokenName (..) )
+    ( AssetMetadata (..), TokenName (..), TokenPolicyId (..) )
 import Cardano.Wallet.TokenMetadata
-    ( BatchRequest(..),
-      BatchResponse,
-      Signature(..),
-      Subject (..),
-      PropertyValue,
-      Subject,
-      Property(..),
-      SubjectProperties(..) )
+    ( BatchRequest (..)
+    , BatchResponse
+    , Property (..)
+    , PropertyValue
+    , Signature (..)
+    , Subject (..)
+    , Subject
+    , SubjectProperties (..)
+    )
+import Cardano.Wallet.Unsafe
+    ( unsafeFromHex )
+import Control.Monad.Trans.Except
+    ( ExceptT (..) )
 import Data.Aeson
-    ( FromJSON (..), ToJSON (..), object, (.=), eitherDecodeFileStrict )
+    ( FromJSON (..), ToJSON (..), eitherDecodeFileStrict, object, (.=) )
 import Data.ByteArray.Encoding
     ( Base (Base16), convertToBase )
+import Data.Maybe
+    ( fromJust, fromMaybe )
 import Data.Proxy
     ( Proxy (..) )
+import Network.URI
+    ( URI, parseURI )
 import Network.Wai.Handler.Warp
     ( withApplication )
-import Network.URI (URI, parseURI)
-import Servant.API ( JSON, ReqBody, type (:>), Post )
+import Servant.API
+    ( (:>), JSON, Post, ReqBody )
 import Servant.Server
-    ( Server, serve, Handler (..) )
-import Control.Monad.Trans.Except (ExceptT(..))
-import Data.Maybe (fromJust, fromMaybe)
+    ( Handler (..), Server, serve )
 
-import qualified Data.Text.Encoding as T
 import qualified Data.ByteString as BS
+import qualified Data.Text.Encoding as T
 
 {-------------------------------------------------------------------------------
                               Mock metadata-server
