@@ -352,15 +352,15 @@ server byron icarus shelley spl ntp =
     byronAssets =
             (\wid -> withLegacyLayer wid
                 (byron, listAssets byron wid)
-                (icarus, listAssets byron wid)
+                (icarus, listAssets icarus wid)
             )
         :<|> (\wid t n -> withLegacyLayer wid
                 (byron, getAsset byron wid t n)
-                (icarus, getAsset byron wid t n)
+                (icarus, getAsset icarus wid t n)
             )
         :<|> (\wid t -> withLegacyLayer wid
                 (byron, getAssetDefault byron wid t)
-                (icarus, getAssetDefault byron wid t)
+                (icarus, getAssetDefault icarus wid t)
             )
 
     byronAddresses :: Server (ByronAddresses n)
