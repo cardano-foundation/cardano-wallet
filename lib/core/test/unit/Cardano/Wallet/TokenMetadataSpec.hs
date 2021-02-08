@@ -15,6 +15,8 @@ import Cardano.Wallet.TokenMetadata.MockServer
     ( assetIdFromSubject, queryServerStatic, withMetadataServer )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex, unsafeFromText )
+import Control.Tracer
+    ( Tracer, nullTracer )
 import Data.Aeson
     ( eitherDecodeFileStrict )
 import Network.HTTP.Client
@@ -40,11 +42,11 @@ spec = describe "Token Metadata" $ do
     describe "Mock server tests" $ do
         it "testing empty req" $
             withMetadataServer (queryServerStatic golden1File) $ \url -> do
-                client <- metadataClient url <$> newManager defaultManagerSettings
+                client <- metadataClient nullTracer url <$> newManager defaultManagerSettings
                 getTokenMetadata client [] `shouldReturn` Right []
         it "testing golden1.json" $
             withMetadataServer (queryServerStatic golden1File) $ \url -> do
-                client <- metadataClient url <$> newManager defaultManagerSettings
+                client <- metadataClient nullTracer url <$> newManager defaultManagerSettings
                 let subj = "7f71940915ea5fe85e840f843c929eba467e6f050475bad1f10b9c27"
                 let aid = AssetId (UnsafeTokenPolicyId (unsafeFromText subj)) nullTokenName
                 getTokenMetadata client [assetIdFromSubject (Subject subj)]

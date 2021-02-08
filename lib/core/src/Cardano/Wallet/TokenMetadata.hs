@@ -4,6 +4,7 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RankNTypes #-}
@@ -14,15 +15,17 @@
 
 module Cardano.Wallet.TokenMetadata
     (
-
     -- * Convenience
       fillMetadata
 
     -- * Client
-    , TokenMetadataClient (..)
+    , TokenMetadataClient
     , metadataClient
     , metadataClientFromURI
     , nullMetadataClient
+
+    -- * Logging
+    , TokenMetadataLog (..)
 
     , getTokenMetadata
     , BatchRequest (..)
@@ -39,6 +42,10 @@ module Cardano.Wallet.TokenMetadata
 
 import Prelude
 
+import Cardano.BM.Data.Severity
+    ( Severity (..) )
+import Cardano.BM.Data.Tracer
+    ( HasPrivacyAnnotation, HasSeverityAnnotation (..) )
 import Cardano.Wallet.Primitive.Types
     ( TokenMetadataServerURI (..) )
 import Cardano.Wallet.Primitive.Types.Hash
@@ -47,8 +54,8 @@ import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId (..) )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( AssetMetadata (..), TokenName (..), TokenPolicyId (..) )
-import Control.Monad
-    ( (<=<) )
+import Control.Tracer
+    ( Tracer, traceWith )
 import Data.Aeson
     ( FromJSON (..)
     , ToJSON (..)
@@ -75,6 +82,8 @@ import Data.String
     ( IsString (..) )
 import Data.Text
     ( Text )
+import Data.Text.Class
+    ( ToText (..) )
 import GHC.Generics
     ( Generic )
 import GHC.TypeLits
@@ -87,7 +96,6 @@ import Network.HTTP.Client
     , defaultManagerSettings
     , httpLbs
     , newManager
-    , parseRequest
     , requestFromURI
     )
 import Network.URI
@@ -100,6 +108,7 @@ import UnliftIO.Exception
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.HashMap.Strict as HM
 import qualified Data.Map.Strict as Map
+import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 
 {-------------------------------------------------------------------------------
@@ -195,17 +204,49 @@ data Signature = Signature
 -------------------------------------------------------------------------------}
 
 newtype TokenMetadataClient m = TokenMetadataClient
-    { batchRequest :: BatchRequest -> m BatchResponse }
+    { batchRequest :: BatchRequest -> m BatchResponse
+    }
+
+data TokenMetadataLog
+    = MsgNotConfigured
+    | MsgWillFetchMetadata BatchRequest
+    | MsgDidFetchMetadata BatchResponse
+
+instance HasSeverityAnnotation TokenMetadataLog where
+    getSeverityAnnotation = \case
+        MsgNotConfigured -> Info
+        MsgWillFetchMetadata _ -> Debug
+        MsgDidFetchMetadata _ -> Debug
+
+instance ToText TokenMetadataLog where
+    toText = \case
+        MsgNotConfigured -> mconcat
+            [ "No token metadata server is configured."
+            ]
+        MsgWillFetchMetadata r -> mconcat
+            [ "Will fetch metadata: "
+            , T.pack (show r)
+            ]
+        MsgDidFetchMetadata r -> mconcat
+            [ "Will fetch metadata: "
+            , T.pack (show r)
+            ]
+
+instance HasPrivacyAnnotation TokenMetadataLog
 
 newtype JSONParseError = JSONParseError String
     deriving (Show, Eq)
 instance Exception JSONParseError
 
-metadataClient :: URI -> Manager -> TokenMetadataClient IO
-metadataClient baseURI manager =
-    TokenMetadataClient {
-        batchRequest = parseResponse <=< flip httpLbs manager <=< makeHttpReq
-    }
+metadataClient :: Tracer IO TokenMetadataLog -> URI -> Manager -> TokenMetadataClient IO
+metadataClient tr baseURI manager =
+    TokenMetadataClient
+        { batchRequest = \req -> do
+            traceWith tr $ MsgWillFetchMetadata req
+            res <- parseResponse =<< flip httpLbs manager =<< makeHttpReq req
+            traceWith tr $ MsgDidFetchMetadata res
+            return res
+        }
   where
     makeHttpReq query = do
         let rel = fromMaybe
@@ -225,15 +266,22 @@ metadataClient baseURI manager =
 
 
 metadataClientFromURI
-    :: TokenMetadataServerURI
+    :: Tracer IO TokenMetadataLog
+    -> TokenMetadataServerURI
     -> IO (TokenMetadataClient IO)
-metadataClientFromURI (TokenMetadataServerURI uri) = do
+metadataClientFromURI tr (TokenMetadataServerURI uri) = do
     mgr <- newManager defaultManagerSettings
-    return $ metadataClient uri mgr
+    return $ metadataClient tr uri mgr
 
-nullMetadataClient :: Monad m => TokenMetadataClient m
-nullMetadataClient = TokenMetadataClient
-    { batchRequest = \_ -> pure [] }
+nullMetadataClient
+    :: Monad m
+    => Tracer m TokenMetadataLog
+    -> TokenMetadataClient m
+nullMetadataClient tr = TokenMetadataClient
+    { batchRequest = \_ -> do
+        traceWith tr MsgNotConfigured
+        pure []
+    }
 
 
 {-------------------------------------------------------------------------------

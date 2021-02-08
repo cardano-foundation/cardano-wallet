@@ -123,6 +123,8 @@ module Cardano.Wallet.Api
     , workerRegistry
     , HasDBFactory
     , dbFactory
+    , tokenMetadataClient
+    , HasTokenMetadataClient
     ) where
 
 import Prelude
@@ -878,12 +880,19 @@ workerRegistry =
     typed @(WorkerRegistry WalletId (DBLayer IO s k))
 
 type HasDBFactory s k = HasType (DBFactory IO s k)
+type HasTokenMetadataClient = HasType (TokenMetadataClient IO)
 
 dbFactory
     :: forall s k ctx. (HasDBFactory s k ctx)
     => Lens' ctx (DBFactory IO s k)
 dbFactory =
     typed @(DBFactory IO s k)
+
+tokenMetadataClient
+    :: forall ctx. (HasTokenMetadataClient ctx)
+    => Lens' ctx (TokenMetadataClient IO)
+tokenMetadataClient =
+    typed @(TokenMetadataClient IO)
 
 {-------------------------------------------------------------------------------
                               Type Families

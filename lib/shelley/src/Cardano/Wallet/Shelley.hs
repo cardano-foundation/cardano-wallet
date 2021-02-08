@@ -137,7 +137,7 @@ import Cardano.Wallet.Shelley.Pools
 import Cardano.Wallet.Shelley.Transaction
     ( newTransactionLayer )
 import Cardano.Wallet.TokenMetadata
-    ( metadataClientFromURI, nullMetadataClient )
+    ( TokenMetadataLog, metadataClientFromURI, nullMetadataClient )
 import Cardano.Wallet.Transaction
     ( TransactionLayer )
 import Control.Applicative
@@ -379,8 +379,10 @@ serveWallet
         -> IO (ApiLayer s k)
     apiLayer tl nl coworker = do
         let params = (block0, np, sTolerance)
-        tokenMetaClient <-
-            maybe (pure nullMetadataClient) metadataClientFromURI tokenMetaUri
+        tokenMetaClient <- maybe
+                (pure (nullMetadataClient tokenMetadataTracer))
+                (metadataClientFromURI tokenMetadataTracer)
+                tokenMetaUri
         db <- Sqlite.newDBFactory
             walletDbTracer
             (DefaultFieldValues
@@ -494,14 +496,15 @@ instance HasSeverityAnnotation ApplicationLog where
 
 -- | The types of trace events produced by the Shelley API server.
 data Tracers' f = Tracers
-    { applicationTracer  :: f ApplicationLog
-    , apiServerTracer    :: f ApiLog
-    , walletEngineTracer :: f (WorkerLog WalletId WalletLog)
-    , walletDbTracer     :: f DBLog
-    , poolsEngineTracer  :: f (WorkerLog Text StakePoolLog)
-    , poolsDbTracer      :: f PoolDbLog
-    , ntpClientTracer    :: f NtpTrace
-    , networkTracer      :: f NetworkLayerLog
+    { applicationTracer   :: f ApplicationLog
+    , apiServerTracer     :: f ApiLog
+    , tokenMetadataTracer :: f TokenMetadataLog
+    , walletEngineTracer  :: f (WorkerLog WalletId WalletLog)
+    , walletDbTracer      :: f DBLog
+    , poolsEngineTracer   :: f (WorkerLog Text StakePoolLog)
+    , poolsDbTracer       :: f PoolDbLog
+    , ntpClientTracer     :: f NtpTrace
+    , networkTracer       :: f NetworkLayerLog
     }
 
 -- | All of the Shelley 'Tracer's.
@@ -518,14 +521,15 @@ deriving instance Eq TracerSeverities
 -- severity.
 tracerSeverities :: Maybe Severity -> TracerSeverities
 tracerSeverities sev = Tracers
-    { applicationTracer  = Const sev
-    , apiServerTracer    = Const sev
-    , walletDbTracer     = Const sev
-    , walletEngineTracer = Const sev
-    , poolsEngineTracer  = Const sev
-    , poolsDbTracer      = Const sev
-    , ntpClientTracer    = Const sev
-    , networkTracer      = Const sev
+    { applicationTracer   = Const sev
+    , apiServerTracer     = Const sev
+    , tokenMetadataTracer = Const sev
+    , walletDbTracer      = Const sev
+    , walletEngineTracer  = Const sev
+    , poolsEngineTracer   = Const sev
+    , poolsDbTracer       = Const sev
+    , ntpClientTracer     = Const sev
+    , networkTracer       = Const sev
     }
 
 -- | Set up tracing with textual log messages.
@@ -534,14 +538,15 @@ setupTracers
     -> Trace IO Text
     -> Tracers IO
 setupTracers sev tr = Tracers
-    { applicationTracer  = onoff applicationTracer  $ mkTrace applicationTracer  tr
-    , apiServerTracer    = onoff apiServerTracer    $ mkTrace apiServerTracer    tr
-    , walletEngineTracer = onoff walletEngineTracer $ mkTrace walletEngineTracer tr
-    , walletDbTracer     = onoff walletDbTracer     $ mkTrace walletDbTracer     tr
-    , poolsEngineTracer  = onoff poolsEngineTracer  $ mkTrace poolsEngineTracer  tr
-    , poolsDbTracer      = onoff poolsDbTracer      $ mkTrace poolsDbTracer      tr
-    , ntpClientTracer    = onoff ntpClientTracer    $ mkTrace ntpClientTracer    tr
-    , networkTracer      = onoff networkTracer      $ mkTrace networkTracer      tr
+    { applicationTracer   = onoff applicationTracer   $ mkTrace applicationTracer   tr
+    , apiServerTracer     = onoff apiServerTracer     $ mkTrace apiServerTracer     tr
+    , tokenMetadataTracer = onoff tokenMetadataTracer $ mkTrace tokenMetadataTracer tr
+    , walletEngineTracer  = onoff walletEngineTracer  $ mkTrace walletEngineTracer  tr
+    , walletDbTracer      = onoff walletDbTracer      $ mkTrace walletDbTracer      tr
+    , poolsEngineTracer   = onoff poolsEngineTracer   $ mkTrace poolsEngineTracer   tr
+    , poolsDbTracer       = onoff poolsDbTracer       $ mkTrace poolsDbTracer       tr
+    , ntpClientTracer     = onoff ntpClientTracer     $ mkTrace ntpClientTracer     tr
+    , networkTracer       = onoff networkTracer       $ mkTrace networkTracer       tr
     }
   where
     onoff
@@ -564,14 +569,15 @@ setupTracers sev tr = Tracers
 -- | Strings that the user can refer to tracers by.
 tracerLabels :: Tracers' (Const Text)
 tracerLabels = Tracers
-    { applicationTracer  = Const "application"
-    , apiServerTracer    = Const "api-server"
-    , walletEngineTracer = Const "wallet-engine"
-    , walletDbTracer     = Const "wallet-db"
-    , poolsEngineTracer  = Const "pools-engine"
-    , poolsDbTracer      = Const "pools-db"
-    , ntpClientTracer    = Const "ntp-client"
-    , networkTracer      = Const "network"
+    { applicationTracer   = Const "application"
+    , apiServerTracer     = Const "api-server"
+    , tokenMetadataTracer = Const "token-metadata"
+    , walletEngineTracer  = Const "wallet-engine"
+    , walletDbTracer      = Const "wallet-db"
+    , poolsEngineTracer   = Const "pools-engine"
+    , poolsDbTracer       = Const "pools-db"
+    , ntpClientTracer     = Const "ntp-client"
+    , networkTracer       = Const "network"
     }
 
 -- | Names and descriptions of the tracers, for user documentation.
@@ -588,6 +594,9 @@ tracerDescriptions =
       )
     , ( lbl walletDbTracer
       , "About database operations of each wallet."
+      )
+    , ( lbl tokenMetadataTracer
+      , "About the fetching of token metadata."
       )
     , ( lbl poolsEngineTracer
       , "About the background worker monitoring stake pools and stake pools engine."
@@ -608,12 +617,13 @@ tracerDescriptions =
 -- | Use a 'nullTracer' for each of the 'Tracer's in 'Tracers'
 nullTracers :: Monad m => Tracers m
 nullTracers = Tracers
-    { applicationTracer  = nullTracer
-    , apiServerTracer    = nullTracer
-    , walletEngineTracer = nullTracer
-    , walletDbTracer     = nullTracer
-    , poolsEngineTracer  = nullTracer
-    , poolsDbTracer      = nullTracer
-    , ntpClientTracer    = nullTracer
-    , networkTracer      = nullTracer
+    { applicationTracer   = nullTracer
+    , apiServerTracer     = nullTracer
+    , tokenMetadataTracer = nullTracer
+    , walletEngineTracer  = nullTracer
+    , walletDbTracer      = nullTracer
+    , poolsEngineTracer   = nullTracer
+    , poolsDbTracer       = nullTracer
+    , ntpClientTracer     = nullTracer
+    , networkTracer       = nullTracer
     }

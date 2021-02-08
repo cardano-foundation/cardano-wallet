@@ -153,8 +153,10 @@ import Cardano.Wallet
 import Cardano.Wallet.Api
     ( ApiLayer (..)
     , HasDBFactory
+    , HasTokenMetadataClient
     , HasWorkerRegistry
     , dbFactory
+    , tokenMetadataClient
     , workerRegistry
     )
 import Cardano.Wallet.Api.Server.Tls
@@ -1306,6 +1308,7 @@ newtype ErrListAssets = ErrListAssetsNoSuchWallet ErrNoSuchWallet
 listAssetsAvailable
     :: forall ctx s k.
         ( ctx ~ ApiLayer s k
+        , HasTokenMetadataClient ctx
         )
     => ctx
     -> ApiT WalletId
@@ -1315,10 +1318,9 @@ listAssetsAvailable ctx (ApiT wid) = do
        (cp, _meta, _pending) <- W.readWallet @_ @s @k wrk wid
        pure (cp ^. #utxo)
     let assets = F.toList $ W.getAssets utxo
-
-    -- TODO: Use data from metadata server
-    let client = nullMetadataClient
     liftIO $ fillMetadata client assets toApiAsset
+  where
+    client = ctx ^. tokenMetadataClient
 
 listAssets
     :: forall ctx s k.
@@ -1327,7 +1329,8 @@ listAssets
     => ctx
     -> ApiT WalletId
     -> Handler [ApiAsset]
-listAssets ctx (ApiT wid) = withWorkerCtx ctx wid liftE liftE $ \wrk ->
+listAssets ctx (ApiT wid) = withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+
     liftHandler $ allTxAssets <$>
     W.listTransactions @_ @_ @_ wrk wid Nothing Nothing Nothing Descending
   where
@@ -1341,9 +1344,7 @@ listAssets ctx (ApiT wid) = withWorkerCtx ctx wid liftE liftE $ \wrk ->
     metadata = Nothing  -- TODO: Use data from metadata server
 
 getAsset
-    :: forall ctx s k.
-        ( ctx ~ ApiLayer s k
-        )
+    :: HasTokenMetadataClient ctx
     => ctx
     -> ApiT WalletId
     -> ApiT TokenPolicyId
@@ -1355,10 +1356,13 @@ getAsset ctx wid policyId assetName =
     findAsset = maybe (throwE ErrGetAssetNotPresent) pure . F.find matches
     matches (ApiAsset pid an _) = pid == policyId && an == assetName
 
+    -- TODO: integrate
+    assetId = AssetId policyId assetName
+    fill = liftIO $ runIdentity <$> fillMetadata client (Identity assetId) toApiAsset
+    client = ctx ^. tokenMetadataClient
+
 getAssetDefault
-    :: forall ctx s k.
-        ( ctx ~ ApiLayer s k
-        )
+    :: HasTokenMetadataClient ctx
     => ctx
     -> ApiT WalletId
     -> ApiT TokenPolicyId

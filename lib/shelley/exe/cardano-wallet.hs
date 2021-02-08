@@ -335,6 +335,7 @@ tracerSeveritiesOption :: Parser TracerSeverities
 tracerSeveritiesOption = Tracers
     <$> traceOpt applicationTracer (Just Info)
     <*> traceOpt apiServerTracer (Just Info)
+    <*> traceOpt tokenMetadataTracer (Just Info)
     <*> traceOpt walletEngineTracer (Just Info)
     <*> traceOpt walletDbTracer (Just Info)
     <*> traceOpt poolsEngineTracer (Just Info)
