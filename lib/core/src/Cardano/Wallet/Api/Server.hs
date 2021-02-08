@@ -346,7 +346,7 @@ import Cardano.Wallet.Registry
     , workerResource
     )
 import Cardano.Wallet.TokenMetadata
-    ( fillMetadata, nullMetadataClient )
+    ( TokenMetadataClient, fillMetadata, nullMetadataClient )
 import Cardano.Wallet.Transaction
     ( DelegationAction (..)
     , TransactionCtx (..)
@@ -2307,12 +2307,13 @@ newApiLayer
     -> NetworkLayer IO Block
     -> TransactionLayer k
     -> DBFactory IO s k
+    -> TokenMetadataClient IO
     -> (WorkerCtx ctx -> WalletId -> IO ())
         -- ^ Action to run concurrently with wallet restore
     -> IO ctx
-newApiLayer tr g0 nw tl df coworker = do
+newApiLayer tr g0 nw tl df tokenMeta coworker = do
     re <- Registry.empty
-    let ctx = ApiLayer tr g0 nw tl df re
+    let ctx = ApiLayer tr g0 nw tl df re tokenMeta
     listDatabases df >>= mapM_ (registerWorker ctx coworker)
     return ctx
 

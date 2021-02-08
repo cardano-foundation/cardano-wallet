@@ -110,6 +110,7 @@ import Cardano.Wallet.Primitive.Types
     , ProtocolParameters (..)
     , Settings (..)
     , SlottingParameters (..)
+    , TokenMetadataServerURI (..)
     , WalletId
     )
 import Cardano.Wallet.Primitive.Types.Address
@@ -135,6 +136,8 @@ import Cardano.Wallet.Shelley.Pools
     )
 import Cardano.Wallet.Shelley.Transaction
     ( newTransactionLayer )
+import Cardano.Wallet.TokenMetadata
+    ( metadataClientFromURI, nullMetadataClient )
 import Cardano.Wallet.Transaction
     ( TransactionLayer )
 import Control.Applicative
@@ -232,6 +235,7 @@ serveWallet
     -- ^ An optional TLS configuration
     -> Maybe Settings
     -- ^ Settings to be set at application start, will be written into DB.
+    -> Maybe TokenMetadataServerURI
     -> CardanoNodeConn
     -- ^ Socket for communicating with the node
     -> Block
@@ -257,6 +261,7 @@ serveWallet
   listen
   tlsConfig
   settings
+  tokenMetaUri
   conn
   block0
   (np, vData)
@@ -374,6 +379,8 @@ serveWallet
         -> IO (ApiLayer s k)
     apiLayer tl nl coworker = do
         let params = (block0, np, sTolerance)
+        tokenMetaClient <-
+            maybe (pure nullMetadataClient) metadataClientFromURI tokenMetaUri
         db <- Sqlite.newDBFactory
             walletDbTracer
             (DefaultFieldValues
@@ -414,7 +421,8 @@ serveWallet
             (neverFails "db layer should never forecast into the future"
                 $ timeInterpreter nl)
             databaseDir
-        Server.newApiLayer walletEngineTracer params nl' tl db coworker
+        Server.newApiLayer
+            walletEngineTracer params nl' tl db tokenMetaClient coworker
       where
         NetworkParameters gp sp pp = np
         nl' = fromCardanoBlock gp <$> nl

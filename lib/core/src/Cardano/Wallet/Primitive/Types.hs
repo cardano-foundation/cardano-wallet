@@ -143,6 +143,8 @@ module Cardano.Wallet.Primitive.Types
     , defaultSettings
     , unsafeToPMS
 
+    , TokenMetadataServerURI (..)
+
     -- * InternalState
     , InternalState (..)
     , defaultInternalState
@@ -1354,6 +1356,31 @@ distance :: (Ord a, Num a) => a -> a -> a
 distance a b =
     if a < b then b - a else a - b
 
+
+newtype TokenMetadataServerURI = TokenMetadataServerURI
+    { unTokenMetadataServerURI :: URI }
+    deriving (Show, Generic, Eq)
+
+instance ToText TokenMetadataServerURI where
+    toText (TokenMetadataServerURI uri) = T.pack $ uriToString id uri ""
+
+instance FromText TokenMetadataServerURI where
+    fromText (T.unpack -> uri) = runIdentity $ runExceptT $ do
+        uri' <- parseAbsoluteURI uri ?? TextDecodingError
+            ("Not a valid absolute URI.")
+        case uri' of
+            (URI {uriAuthority, uriScheme, uriPath, uriQuery, uriFragment})
+                | uriScheme `notElem` ["http:", "https:"] ->
+                    throwE (TextDecodingError
+                        "Not a valid URI scheme, only http/https is supported.")
+                | isNothing uriAuthority ->
+                    throwE
+                        (TextDecodingError "URI must contain a domain part.")
+                | not ((uriPath == "" || uriPath == "/")
+                && uriQuery == "" && uriFragment == "") ->
+                    throwE
+                        (TextDecodingError "URI must not contain a path/query/fragment.")
+            _ -> pure $ TokenMetadataServerURI uri'
 
 -- | A SMASH server is either an absolute http or https url.
 --

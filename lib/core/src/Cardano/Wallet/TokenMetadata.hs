@@ -21,6 +21,7 @@ module Cardano.Wallet.TokenMetadata
     -- * Client
     , TokenMetadataClient (..)
     , metadataClient
+    , metadataClientFromURI
     , nullMetadataClient
 
     , getTokenMetadata
@@ -38,6 +39,8 @@ module Cardano.Wallet.TokenMetadata
 
 import Prelude
 
+import Cardano.Wallet.Primitive.Types
+    ( TokenMetadataServerURI (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.TokenMap
@@ -67,7 +70,7 @@ import Data.Foldable
 import Data.Hashable
     ( Hashable )
 import Data.Maybe
-    ( mapMaybe )
+    ( fromMaybe, mapMaybe )
 import Data.String
     ( IsString (..) )
 import Data.Text
@@ -81,9 +84,14 @@ import Network.HTTP.Client
     , Request (..)
     , RequestBody (..)
     , Response (..)
+    , defaultManagerSettings
     , httpLbs
+    , newManager
     , parseRequest
+    , requestFromURI
     )
+import Network.URI
+    ( URI, parseURI, relativeTo )
 import Numeric.Natural
     ( Natural )
 import UnliftIO.Exception
@@ -193,14 +201,17 @@ newtype JSONParseError = JSONParseError String
     deriving (Show, Eq)
 instance Exception JSONParseError
 
-metadataClient :: String -> Manager -> TokenMetadataClient IO
-metadataClient baseURL manager =
+metadataClient :: URI -> Manager -> TokenMetadataClient IO
+metadataClient baseURI manager =
     TokenMetadataClient {
         batchRequest = parseResponse <=< flip httpLbs manager <=< makeHttpReq
     }
   where
     makeHttpReq query = do
-        req <- parseRequest (baseURL ++ "metadata/query")
+        let rel = fromMaybe
+                (error "metadataClient: bad relative uri")
+                (parseURI "metadata/query")
+        req <- requestFromURI $ rel `relativeTo` baseURI
         pure req
             { method = "POST"
             , requestBody = RequestBodyLBS $ encode query
@@ -211,6 +222,14 @@ metadataClient baseURL manager =
         . eitherDecodeStrict'
         . BL.toStrict
         . responseBody
+
+
+metadataClientFromURI
+    :: TokenMetadataServerURI
+    -> IO (TokenMetadataClient IO)
+metadataClientFromURI (TokenMetadataServerURI uri) = do
+    mgr <- newManager defaultManagerSettings
+    return $ metadataClient uri mgr
 
 nullMetadataClient :: Monad m => TokenMetadataClient m
 nullMetadataClient = TokenMetadataClient

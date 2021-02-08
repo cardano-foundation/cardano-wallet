@@ -38,11 +38,12 @@ import Data.Proxy
     ( Proxy (..) )
 import Network.Wai.Handler.Warp
     ( withApplication )
+import Network.URI (URI, parseURI)
 import Servant.API ( JSON, ReqBody, type (:>), Post )
 import Servant.Server
     ( Server, serve, Handler (..) )
 import Control.Monad.Trans.Except (ExceptT(..))
-import Data.Maybe (fromJust)
+import Data.Maybe (fromJust, fromMaybe)
 
 import qualified Data.Text.Encoding as T
 import qualified Data.ByteString as BS
@@ -82,11 +83,13 @@ queryHandlerBase ps = Handler . ExceptT . pure . Right . map respond . subjects
 queryApi :: Proxy MetadataQueryApi
 queryApi = Proxy
 
-withMetadataServer :: IO (Server MetadataQueryApi) -> (String -> IO a) -> IO a
+withMetadataServer :: IO (Server MetadataQueryApi) -> (URI -> IO a) -> IO a
 withMetadataServer srv action = withApplication app (action . mkUrl)
   where
     app = serve queryApi <$> srv
-    mkUrl port = "http://localhost:" ++ show port ++ "/"
+    mkUrl port = fromMaybe (error "withMetadataServer: bad uri")
+        $ parseURI
+        $ "http://localhost:" ++ show port ++ "/"
 
 {-------------------------------------------------------------------------------
                               JSON orphans

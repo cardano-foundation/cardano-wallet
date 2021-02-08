@@ -320,6 +320,7 @@ specWithServer testDir (tr, tracers) = aroundAll withContext
             listen
             Nothing
             Nothing
+            Nothing -- TokenMetaData
             conn
             block0
             (gp, vData)
