@@ -328,6 +328,8 @@ import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle (..) )
+import Cardano.Wallet.Primitive.Types.TokenMap
+    ( AssetId (..) )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenName (..), TokenPolicyId (..), nullTokenName )
 import Cardano.Wallet.Primitive.Types.Tx
@@ -348,7 +350,7 @@ import Cardano.Wallet.Registry
     , workerResource
     )
 import Cardano.Wallet.TokenMetadata
-    ( TokenMetadataClient, fillMetadata, nullMetadataClient )
+    ( TokenMetadataClient, fillMetadata )
 import Cardano.Wallet.Transaction
     ( DelegationAction (..)
     , TransactionCtx (..)
@@ -1330,7 +1332,6 @@ listAssets
     -> ApiT WalletId
     -> Handler [ApiAsset]
 listAssets ctx (ApiT wid) = withWorkerCtx ctx wid liftE liftE $ \wrk -> do
-
     liftHandler $ allTxAssets <$>
     W.listTransactions @_ @_ @_ wrk wid Nothing Nothing Nothing Descending
   where
@@ -1350,8 +1351,9 @@ getAsset
     -> ApiT TokenPolicyId
     -> ApiT TokenName
     -> Handler ApiAsset
-getAsset ctx wid policyId assetName =
+getAsset ctx wid (ApiT policyId) (ApiT assetName) = do
     listAssets ctx wid >>= liftHandler . findAsset
+    liftIO $ runIdentity <$> fillMetadata client (Identity assetId) toApiAsset
   where
     findAsset = maybe (throwE ErrGetAssetNotPresent) pure . F.find matches
     matches (ApiAsset pid an _) = pid == policyId && an == assetName
