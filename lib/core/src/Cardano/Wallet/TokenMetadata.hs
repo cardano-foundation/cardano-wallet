@@ -49,7 +49,7 @@ import Cardano.BM.Data.Severity
 import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation, HasSeverityAnnotation (..) )
 import Cardano.Wallet.Logging
-    ( BracketLog (..), bracketTracer, produceTimings )
+    ( BracketLog (..), LoggedException (..), bracketTracer, produceTimings )
 import Cardano.Wallet.Primitive.Types
     ( TokenMetadataServer (..) )
 import Cardano.Wallet.Primitive.Types.Hash
@@ -71,7 +71,7 @@ import Data.Aeson
     , (.:)
     )
 import Data.Bifunctor
-    ( bimap )
+    ( first )
 import Data.ByteArray.Encoding
     ( Base (Base16), convertFromBase, convertToBase )
 import Data.ByteString
@@ -97,12 +97,14 @@ import GHC.Generics
 import GHC.TypeLits
     ( Symbol )
 import Network.HTTP.Client
-    ( Manager
+    ( HttpException
+    , Manager
     , Request (..)
     , RequestBody (..)
     , Response (..)
     , httpLbs
     , requestFromURI
+    , setRequestCheckStatus
     )
 import Network.HTTP.Client.TLS
     ( newTlsManager )
@@ -113,7 +115,7 @@ import Network.URI.Static
 import Numeric.Natural
     ( Natural )
 import UnliftIO.Exception
-    ( Exception, throwIO, tryAny )
+    ( SomeException, handle, handleAny )
 
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.HashMap.Strict as HM
@@ -219,43 +221,54 @@ metadataClient
     -> TokenMetadataServer
     -> Manager
     -> BatchRequest
-    -> IO BatchResponse
-metadataClient tr (TokenMetadataServer baseURI) manager req = do
-    res <- parseResponse =<< doRequest =<< makeHttpReq req
+    -> IO (Either TokenMetadataError BatchResponse)
+metadataClient tr (TokenMetadataServer baseURI) manager batch = handleExc $ do
+    res <- fmap parseResponse . doRequest =<< makeHttpReq batch
     traceWith tr $ MsgFetchResult res
     return res
   where
     makeHttpReq query = do
         req <- requestFromURI $ endpoint `relativeTo` baseURI
-        pure req
+        pure $ setRequestCheckStatus req
             { method = "POST"
             , requestBody = RequestBodyLBS $ encode query
             , requestHeaders = [("Content-type", "application/json")]
             }
     endpoint = [relativeReference|metadata/query|]
 
-    doRequest = bracketTracer tr' . flip httpLbs manager
-    tr' = contramap (MsgFetchRequest req) tr
+    doRequest = bracketTracer trReq . flip httpLbs manager
+    trReq = contramap (MsgFetchRequest batch) tr
 
-    -- todo: logging of response status and any errors
-    parseResponse = either (throwIO . JSONParseError) pure
+    parseResponse = first TokenMetadataJSONParseError
         . eitherDecodeStrict'
         . BL.toStrict
         . responseBody
+
+    handleExc = handle (loggedErr TokenMetadataFetchError)
+        . handleAny (loggedErr TokenMetadataClientError)
+    loggedErr c = pure . Left . c . LoggedException
 
 -----------
 -- Errors
 
 -- | The possible errors which can occur when fetching metadata.
 data TokenMetadataError
-    = TokenMetadataFetchError String -- ^ Some IO exception
+    = TokenMetadataClientError (LoggedException SomeException)
+        -- ^ Unhandled exception
+    | TokenMetadataFetchError (LoggedException HttpException)
+        -- ^ Error with HTTP request
     | TokenMetadataJSONParseError String
+        -- ^ Error decoding JSON
     deriving (Generic, Show, Eq)
 
--- fixme: remove
-newtype JSONParseError = JSONParseError String
-    deriving (Show, Eq)
-instance Exception JSONParseError
+instance ToText TokenMetadataError where
+    toText = \case
+        TokenMetadataClientError e ->
+             "Unhandled exception: " <> toText e
+        TokenMetadataFetchError e ->
+             "Error querying metadata server: " <> toText e
+        TokenMetadataJSONParseError e ->
+             "Error parsing metadata server response JSON: " <> T.pack e
 
 -----------
 -- Logging
@@ -263,7 +276,7 @@ instance Exception JSONParseError
 data TokenMetadataLog
     = MsgNotConfigured
     | MsgFetchRequest BatchRequest BracketLog
-    | MsgFetchResult BatchResponse
+    | MsgFetchResult (Either TokenMetadataError BatchResponse)
     | MsgFetchMetadataTime BatchRequest DiffTime
     deriving (Show, Eq)
 
@@ -271,7 +284,8 @@ instance HasSeverityAnnotation TokenMetadataLog where
     getSeverityAnnotation = \case
         MsgNotConfigured -> Notice
         MsgFetchRequest _ b -> getSeverityAnnotation b
-        MsgFetchResult _ -> Debug
+        MsgFetchResult (Right _) -> Debug
+        MsgFetchResult (Left _) -> Error
         MsgFetchMetadataTime _ _ -> Debug
 
 instance ToText TokenMetadataLog where
@@ -287,9 +301,13 @@ instance ToText TokenMetadataLog where
             [ "Metadata fetch: "
             , toText b
             ]
-        MsgFetchResult r -> mconcat
-            [ "Result of fetching metadata: "
+        MsgFetchResult (Right r) -> mconcat
+            [ "Success fetching metadata: "
             , T.pack (show r)
+            ]
+        MsgFetchResult (Left e) -> mconcat
+            [ "An error occurred while fetching metadata: "
+            , toText e
             ]
         MsgFetchMetadataTime _ dt -> mconcat
             [ "Metadata request took: "
@@ -312,12 +330,12 @@ traceRequestTimings tr = produceTimings msgQuery trDiffTime
 
 -- | Represents a client for the metadata server.
 newtype TokenMetadataClient m = TokenMetadataClient
-    { _batchQuery :: BatchRequest -> m BatchResponse
+    { _batchQuery :: BatchRequest -> m (Either TokenMetadataError BatchResponse)
     }
 
 -- | Not a client for the metadata server.
 nullTokenMetadataClient :: Applicative m => TokenMetadataClient m
-nullTokenMetadataClient = TokenMetadataClient (\_ -> pure [])
+nullTokenMetadataClient = TokenMetadataClient (\_ -> pure (Right []))
 
 -- | Construct a 'TokenMetadataClient' for use with 'getTokenMetadata'.
 newMetadataClient
@@ -336,7 +354,7 @@ getTokenMetadata
     -> [AssetId]
     -> IO (Either TokenMetadataError [(AssetId, AssetMetadata)])
 getTokenMetadata (TokenMetadataClient client) as =
-    fmap (bimap handleError fromResponse) . tryAny . client $ req
+    fmap fromResponse <$> client req
   where
     subjects = map assetIdToSubject as
     req = BatchRequest
@@ -348,7 +366,6 @@ getTokenMetadata (TokenMetadataClient client) as =
     fromResponse = mapMaybe $ \ps -> (,)
         <$> HM.lookup (subject ps) subjectAsset
         <*> pure (metadataFromProperties ps)
-    handleError = TokenMetadataFetchError . show
 
 -- | Creates a metadata server subject from an AssetId. The subject is the
 -- policy id and asset name hex-encoded.

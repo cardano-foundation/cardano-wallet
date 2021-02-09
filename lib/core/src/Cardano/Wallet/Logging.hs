@@ -28,6 +28,7 @@ module Cardano.Wallet.Logging
 
       -- * Logging and timing IO actions
     , BracketLog (..)
+    , LoggedException (..)
     , bracketTracer
     , produceTimings
 
@@ -77,7 +78,12 @@ import Data.Time.Clock.TAI
 import GHC.Generics
     ( Generic )
 import UnliftIO.Exception
-    ( SomeException (..), displayException, isSyncException, withException )
+    ( Exception (..)
+    , SomeException (..)
+    , displayException
+    , isSyncException
+    , withException
+    )
 
 import Control.Monad.Catch
     ( MonadMask )
@@ -160,9 +166,9 @@ data BracketLog
     -- ^ Logged before the action starts.
     | BracketFinish
     -- ^ Logged after the action finishes.
-    | BracketException LoggedException
+    | BracketException (LoggedException SomeException)
     -- ^ Logged when the action throws an exception.
-    | BracketAsyncException LoggedException
+    | BracketAsyncException (LoggedException SomeException)
     -- ^ Logged when the action receives an async exception.
     deriving (Generic, Show, Eq, ToJSON)
 
@@ -183,16 +189,16 @@ instance HasSeverityAnnotation BracketLog where
         BracketException _ -> Error
         BracketAsyncException _ -> Debug
 
-newtype LoggedException = LoggedException SomeException
+newtype LoggedException e = LoggedException e
     deriving (Generic, Show)
 
-instance ToText LoggedException where
+instance Exception e => ToText (LoggedException e) where
     toText (LoggedException e) = T.pack $ displayException e
 
-instance Eq LoggedException where
+instance Show e => Eq (LoggedException e) where
     a == b = show a == show b
 
-instance ToJSON LoggedException where
+instance Exception e => ToJSON (LoggedException e) where
     toJSON e = object ["exception" .= toText e]
 
 exceptionMsg :: SomeException -> BracketLog
