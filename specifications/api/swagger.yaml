@@ -326,8 +326,8 @@ x-credentialPubKey: &credentialPubKey
 
 x-validationLevel: &validationLevel
   description: |
-    Script validation level. Required validation sift off scripts that would not
-    be accepted by ledger. Recommended level filter out scripts that do not pass
+    Script validation level. Required validation sifts off scripts that would not
+    be accepted by the ledger. Recommended level filters out scripts that do not pass
     required validation and additionally when:
       * 'all' is non-empty
       * there are redundant timelocks in a given level
