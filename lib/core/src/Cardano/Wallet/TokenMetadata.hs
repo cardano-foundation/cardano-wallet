@@ -6,6 +6,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE RankNTypes #-}
@@ -80,6 +81,8 @@ import Data.Foldable
     ( toList )
 import Data.Functor
     ( ($>) )
+import Data.Generics.Internal.VL.Lens
+    ( view )
 import Data.Hashable
     ( Hashable )
 import Data.Maybe
@@ -117,6 +120,7 @@ import Numeric.Natural
 import UnliftIO.Exception
     ( SomeException, handle, handleAny )
 
+import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.HashMap.Strict as HM
 import qualified Data.Map.Strict as Map
@@ -155,7 +159,10 @@ data BatchRequest = BatchRequest
     } deriving (Generic, Show, Eq)
 
 -- | Properties for each subject in 'BatchRequest'
-type BatchResponse = [SubjectProperties]
+newtype BatchResponse = BatchResponse
+    { subjects :: [SubjectProperties]
+    } deriving (Generic, Show, Eq)
+
 
 -- | Property values and signatures for a given subject.
 data SubjectProperties = SubjectProperties
@@ -222,9 +229,15 @@ metadataClient
     -> Manager
     -> BatchRequest
     -> IO (Either TokenMetadataError BatchResponse)
-metadataClient tr (TokenMetadataServer baseURI) manager batch = handleExc $ do
-    res <- fmap parseResponse . doRequest =<< makeHttpReq batch
+metadataClient tr (TokenMetadataServer baseURI) manager batch = do
+    res <- handleExc $ fmap parseResponse . doRequest =<< makeHttpReq batch
     traceWith tr $ MsgFetchResult res
+    case res of
+        Right res' ->
+            traceWith tr $ MsgFetchResultSummary
+                (length $ view #subjects batch)
+                (length $ view #subjects res')
+        Left _ -> return ()
     return res
   where
     makeHttpReq query = do
@@ -239,8 +252,7 @@ metadataClient tr (TokenMetadataServer baseURI) manager batch = handleExc $ do
     doRequest = bracketTracer trReq . flip httpLbs manager
     trReq = contramap (MsgFetchRequest batch) tr
 
-    parseResponse = first TokenMetadataJSONParseError
-        . eitherDecodeStrict'
+    parseResponse = (\bs -> first (TokenMetadataJSONParseError (B8.unpack bs)) $ eitherDecodeStrict' bs)
         . BL.toStrict
         . responseBody
 
@@ -257,7 +269,9 @@ data TokenMetadataError
         -- ^ Unhandled exception
     | TokenMetadataFetchError (LoggedException HttpException)
         -- ^ Error with HTTP request
-    | TokenMetadataJSONParseError String
+    | TokenMetadataJSONParseError
+        String -- ^ JSON
+        String -- ^ Error message
         -- ^ Error decoding JSON
     deriving (Generic, Show, Eq)
 
@@ -267,8 +281,11 @@ instance ToText TokenMetadataError where
              "Unhandled exception: " <> toText e
         TokenMetadataFetchError e ->
              "Error querying metadata server: " <> toText e
-        TokenMetadataJSONParseError e ->
-             "Error parsing metadata server response JSON: " <> T.pack e
+        TokenMetadataJSONParseError json e -> mconcat
+            [ "Error parsing metadata server response JSON: " <> T.pack e
+            , "\n" <> T.pack json
+            ]
+
 
 -----------
 -- Logging
@@ -277,6 +294,9 @@ data TokenMetadataLog
     = MsgNotConfigured
     | MsgFetchRequest BatchRequest BracketLog
     | MsgFetchResult (Either TokenMetadataError BatchResponse)
+    | MsgFetchResultSummary
+        Int -- ^ Number of requested subjects
+        Int -- ^ Number of found entries
     | MsgFetchMetadataTime BatchRequest DiffTime
     deriving (Show, Eq)
 
@@ -287,6 +307,7 @@ instance HasSeverityAnnotation TokenMetadataLog where
         MsgFetchResult (Right _) -> Debug
         MsgFetchResult (Left _) -> Error
         MsgFetchMetadataTime _ _ -> Debug
+        MsgFetchResultSummary _ _ -> Info
 
 instance ToText TokenMetadataLog where
     toText = \case
@@ -313,6 +334,13 @@ instance ToText TokenMetadataLog where
             [ "Metadata request took: "
             , T.pack (show dt)
             ]
+        MsgFetchResultSummary requested recieved -> mconcat
+            [ "Queried server for metadata for "
+            , T.pack (show requested)
+            , " assets, and received "
+            , T.pack (show recieved)
+            , "."
+            ]
 
 instance HasPrivacyAnnotation TokenMetadataLog
 
@@ -335,7 +363,8 @@ newtype TokenMetadataClient m = TokenMetadataClient
 
 -- | Not a client for the metadata server.
 nullTokenMetadataClient :: Applicative m => TokenMetadataClient m
-nullTokenMetadataClient = TokenMetadataClient (\_ -> pure (Right []))
+nullTokenMetadataClient = TokenMetadataClient $ \_ ->
+    pure . Right $ BatchResponse []
 
 -- | Construct a 'TokenMetadataClient' for use with 'getTokenMetadata'.
 newMetadataClient
@@ -363,9 +392,10 @@ getTokenMetadata (TokenMetadataClient client) as =
         }
     subjectAsset = HM.fromList $ zip subjects as
     fromResponse :: BatchResponse -> [(AssetId, AssetMetadata)]
-    fromResponse = mapMaybe $ \ps -> (,)
+    fromResponse = mapMaybe (\ps -> (,)
         <$> HM.lookup (subject ps) subjectAsset
-        <*> pure (metadataFromProperties ps)
+        <*> pure (metadataFromProperties ps))
+        . view #subjects
 
 -- | Creates a metadata server subject from an AssetId. The subject is the
 -- policy id and asset name hex-encoded.
@@ -389,6 +419,10 @@ instance ToJSON PropertyName where
     toJSON = String . unPropertyName
 instance FromJSON PropertyName where
     parseJSON = withText "PropertyName" (pure . PropertyName)
+
+instance FromJSON BatchResponse where
+    parseJSON =  withObject "BatchResponse" $ \o ->
+        BatchResponse <$> o .: "subjects"
 
 instance ToJSON Subject where
     toJSON = String . unSubject

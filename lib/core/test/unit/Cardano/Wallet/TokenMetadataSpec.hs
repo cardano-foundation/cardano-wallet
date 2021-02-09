@@ -17,8 +17,6 @@ import Cardano.Wallet.TokenMetadata.MockServer
     ( assetIdFromSubject, queryServerStatic, withMetadataServer )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex, unsafeFromText )
-import Control.Tracer
-    ( nullTracer )
 import Data.Aeson
     ( eitherDecodeFileStrict )
 import System.FilePath
@@ -41,6 +39,8 @@ spec = describe "Token Metadata" $ do
 
     describe "Mock server tests" $ do
         it "testing empty req" $
+            -- TODO: We shouldn't pollute stdout. We should trace to a TVar
+            -- instead.
             withMetadataServer (queryServerStatic golden1File) $ \url -> do
                 client <- newMetadataClient stdoutTextTracer (Just url)
                 getTokenMetadata client [] `shouldReturn` Right []
