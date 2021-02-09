@@ -1389,18 +1389,16 @@ poolMetadataSourceOption = option (eitherReader reader) $ mempty
     reader :: String -> Either String PoolMetadataSource
     reader = fromTextS @PoolMetadataSource
 
+-- | [--token-metadata-server=URL]
 tokenMetadataSourceOption
     :: Parser TokenMetadataServerURI
-tokenMetadataSourceOption = option (eitherReader reader) $ mempty
+tokenMetadataSourceOption = optionT $ mempty
     <> long "token-metadata-server"
     <> metavar "URL"
-    <> help ("Sets the URL to the token metadata server. If not set, no "
-            <> "metadata will be fetched.\n"
-            <> "The metadata server is currently blindly trusted. This will be "
-            <> "changed at a later stage.")
-  where
-    reader :: String -> Either String TokenMetadataServerURI
-    reader = fromTextS @TokenMetadataServerURI
+    <> help ("Sets the URL of the token metadata server. "
+            <> "If unset, metadata will not be fetched.\n"
+            <> "By using this option, you are fully trusting the operator of "
+            <> "the metadata server to provide authentic token metadata.")
 
 -- | <wallet-id=WALLET_ID>
 walletIdArgument :: Parser WalletId
