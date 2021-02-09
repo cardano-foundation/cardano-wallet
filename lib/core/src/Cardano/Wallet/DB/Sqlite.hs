@@ -123,6 +123,8 @@ import Cardano.Wallet.Primitive.Slotting
     , interpretQuery
     , slotToUTCTime
     )
+import Cardano.Wallet.Primitive.Types.TokenBundle
+    ( TokenBundle )
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId (..) )
 import Control.Monad
@@ -226,6 +228,7 @@ import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Cardano.Wallet.Primitive.Types.UTxO as W
 import qualified Data.List as L
+import qualified Data.Map.Merge.Strict as Map
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
 import qualified Database.Sqlite as Sqlite
@@ -1550,11 +1553,11 @@ mkCheckpointEntity wid wal =
 -- and TxOut records must already by sorted by index.
 checkpointFromEntity
     :: Checkpoint
-    -> [(UTxO, [UTxOToken])]
+    -> ([UTxO], [UTxOToken])
     -> s
     -> W.Wallet s
-checkpointFromEntity cp utxo =
-    W.unsafeInitWallet utxo' header
+checkpointFromEntity cp (coins, tokens) =
+    W.unsafeInitWallet utxo header
   where
     (Checkpoint
         _walletId
@@ -1564,16 +1567,32 @@ checkpointFromEntity cp utxo =
         bh
         ) = cp
     header = (W.BlockHeader slot (Quantity bh) headerHash parentHeaderHash)
-    utxo' = W.UTxO . Map.fromList $
-        [ (W.TxIn input ix, W.TxOut addr (mkTokenBundle coin tokens))
-        | (UTxO _ _ (TxId input) ix addr coin, tokens) <- utxo
+    utxo = W.UTxO $ Map.merge
+        (Map.mapMissing (const mkFromCoin)) -- No assets, only coins
+        (Map.dropMissing) -- Only assets, impossible.
+        (Map.zipWithMatched (const mkFromBoth)) -- Both assets and coins
+        (Map.fromList
+            [ (W.TxIn input ix, (addr, coin))
+            | (UTxO _ _ (TxId input) ix addr coin) <- coins
+            ])
+        (Map.fromListWith TokenBundle.add
+            [ (W.TxIn input ix, mkTokenEntry token)
+            | (token@(UTxOToken _ _ (TxId input) ix _ _ _)) <- tokens
+            ])
+
+    mkFromCoin :: (W.Address, W.Coin) -> W.TxOut
+    mkFromCoin (addr, coin) =
+        W.TxOut addr (TokenBundle.fromCoin coin)
+
+    mkFromBoth :: (W.Address, W.Coin) -> TokenBundle -> W.TxOut
+    mkFromBoth (addr, coin) bundle =
+        W.TxOut addr (TokenBundle.add (TokenBundle.fromCoin coin) bundle)
+
+    mkTokenEntry token = TokenBundle.fromFlatList (W.Coin 0)
+        [ ( AssetId (utxoTokenPolicyId token) (utxoTokenName token)
+          , utxoTokenQuantity token
+          )
         ]
-    mkTokenBundle coin tokens =
-        TokenBundle.fromFlatList coin (mkTokenEntry <$> tokens)
-    mkTokenEntry token =
-        ( AssetId (utxoTokenPolicyId token) (utxoTokenName token)
-        , utxoTokenQuantity token
-        )
 
 mkTxHistory
     :: W.WalletId
@@ -1880,20 +1899,20 @@ deleteDelegationCertificates wid filters = do
 
 selectUTxO
     :: Checkpoint
-    -> SqlPersistT IO [(UTxO, [UTxOToken])]
+    -> SqlPersistT IO ([UTxO], [UTxOToken])
 selectUTxO cp = do
-    utxos <- fmap entityVal <$>
+    coins <- fmap entityVal <$>
         selectList
             [ UtxoWalletId ==. checkpointWalletId cp
             , UtxoSlot ==. checkpointSlot cp
             ] []
-    forM utxos $ \utxo -> do
-        (utxo, ) . fmap entityVal <$> selectList
-            [ UtxoTokenWalletId ==. utxoWalletId utxo
-            , UtxoTokenSlot ==. utxoSlot utxo
-            , UtxoTokenTxId ==. utxoInputId utxo
-            , UtxoTokenTxIndex ==. utxoInputIndex utxo
+    tokens <- fmap entityVal <$>
+        selectList
+            [ UtxoTokenWalletId ==. checkpointWalletId cp
+            , UtxoTokenSlot ==. checkpointSlot cp
             ] []
+    return (coins, tokens)
+
 
 -- This relies on available information from the database to reconstruct coin
 -- selection information for __outgoing__ payments. We can't however guarantee
