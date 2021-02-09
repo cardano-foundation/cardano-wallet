@@ -8,7 +8,6 @@
 
 module Cardano.Wallet.TokenMetadata.MockServer
     ( withMetadataServer
-    , queryServer
     , queryServerStatic
     , assetIdFromSubject
     ) where
@@ -22,7 +21,7 @@ import Cardano.Wallet.Primitive.Types.Hash
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId (..) )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( AssetMetadata (..), TokenName (..), TokenPolicyId (..) )
+    ( TokenName (..), TokenPolicyId (..) )
 import Cardano.Wallet.TokenMetadata
     ( BatchRequest (..)
     , BatchResponse (..)
@@ -65,14 +64,6 @@ import qualified Data.Text.Encoding as T
 
 type MetadataQueryApi = "metadata" :> "query"
     :> ReqBody '[JSON] BatchRequest :> Post '[JSON] BatchResponse
-
--- | Serve a list of metadata.
-queryServer :: [(AssetId, AssetMetadata)] -> Server MetadataQueryApi
-queryServer md = pure . BatchResponse . foldMap respond . view #subjects
-  where
-    respond subj = case lookup (assetIdFromSubject subj) md of
-        Nothing -> error "doh"
-        Just _md -> error "todo"
 
 assetIdFromSubject :: Subject -> AssetId
 assetIdFromSubject = mk . BS.splitAt 32 . unsafeFromHex . T.encodeUtf8 . unSubject
