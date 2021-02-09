@@ -48,6 +48,8 @@ import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation, HasSeverityAnnotation (..) )
+import Cardano.Wallet.Logging
+    ( BracketLog (..), bracketTracer, produceTimings )
 import Cardano.Wallet.Primitive.Types
     ( TokenMetadataServer (..) )
 import Cardano.Wallet.Primitive.Types.Hash
@@ -57,7 +59,7 @@ import Cardano.Wallet.Primitive.Types.TokenMap
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( AssetMetadata (..), TokenName (..), TokenPolicyId (..) )
 import Control.Tracer
-    ( Tracer, traceWith )
+    ( Tracer, contramap, traceWith )
 import Data.Aeson
     ( FromJSON (..)
     , ToJSON (..)
@@ -88,6 +90,8 @@ import Data.Text
     ( Text )
 import Data.Text.Class
     ( ToText (..) )
+import Data.Time.Clock
+    ( DiffTime )
 import GHC.Generics
     ( Generic )
 import GHC.TypeLits
@@ -217,9 +221,8 @@ metadataClient
     -> BatchRequest
     -> IO BatchResponse
 metadataClient tr (TokenMetadataServer baseURI) manager req = do
-    traceWith tr $ MsgWillFetchMetadata req
-    res <- parseResponse =<< flip httpLbs manager =<< makeHttpReq req
-    traceWith tr $ MsgDidFetchMetadata res
+    res <- parseResponse =<< doRequest =<< makeHttpReq req
+    traceWith tr $ MsgFetchResult res
     return res
   where
     makeHttpReq query = do
@@ -230,6 +233,9 @@ metadataClient tr (TokenMetadataServer baseURI) manager req = do
             , requestHeaders = [("Content-type", "application/json")]
             }
     endpoint = [relativeReference|metadata/query|]
+
+    doRequest = bracketTracer tr' . flip httpLbs manager
+    tr' = contramap (MsgFetchRequest req) tr
 
     -- todo: logging of response status and any errors
     parseResponse = either (throwIO . JSONParseError) pure
@@ -256,30 +262,49 @@ instance Exception JSONParseError
 
 data TokenMetadataLog
     = MsgNotConfigured
-    | MsgWillFetchMetadata BatchRequest
-    | MsgDidFetchMetadata BatchResponse
+    | MsgFetchRequest BatchRequest BracketLog
+    | MsgFetchResult BatchResponse
+    | MsgFetchMetadataTime BatchRequest DiffTime
+    deriving (Show, Eq)
 
 instance HasSeverityAnnotation TokenMetadataLog where
     getSeverityAnnotation = \case
-        MsgNotConfigured -> Info
-        MsgWillFetchMetadata _ -> Debug
-        MsgDidFetchMetadata _ -> Debug
+        MsgNotConfigured -> Notice
+        MsgFetchRequest _ b -> getSeverityAnnotation b
+        MsgFetchResult _ -> Debug
+        MsgFetchMetadataTime _ _ -> Debug
 
 instance ToText TokenMetadataLog where
     toText = \case
         MsgNotConfigured -> mconcat
             [ "No token metadata server is configured."
             ]
-        MsgWillFetchMetadata r -> mconcat
+        MsgFetchRequest r BracketStart -> mconcat
             [ "Will fetch metadata: "
             , T.pack (show r)
             ]
-        MsgDidFetchMetadata r -> mconcat
-            [ "Will fetch metadata: "
+        MsgFetchRequest _ b -> mconcat
+            [ "Metadata fetch: "
+            , toText b
+            ]
+        MsgFetchResult r -> mconcat
+            [ "Result of fetching metadata: "
             , T.pack (show r)
+            ]
+        MsgFetchMetadataTime _ dt -> mconcat
+            [ "Metadata request took: "
+            , T.pack (show dt)
             ]
 
 instance HasPrivacyAnnotation TokenMetadataLog
+
+traceRequestTimings :: Tracer IO TokenMetadataLog -> IO (Tracer IO TokenMetadataLog)
+traceRequestTimings tr = produceTimings msgQuery trDiffTime
+  where
+    trDiffTime = contramap (uncurry MsgFetchMetadataTime) tr
+    msgQuery = \case
+        MsgFetchRequest req b -> Just (req, b)
+        _ -> Nothing
 
 {-------------------------------------------------------------------------------
                            Requesting token metadata
@@ -299,8 +324,9 @@ newMetadataClient
     :: Tracer IO TokenMetadataLog -- ^ Logging
     -> Maybe TokenMetadataServer -- ^ URL of metadata server, if enabled.
     -> IO (TokenMetadataClient IO)
-newMetadataClient tr (Just uri) =
-    TokenMetadataClient . metadataClient tr uri <$> newTlsManager
+newMetadataClient tr (Just uri) = do
+    trTimings <- traceRequestTimings tr
+    TokenMetadataClient . metadataClient (tr <> trTimings) uri <$> newTlsManager
 newMetadataClient tr Nothing =
     traceWith tr MsgNotConfigured $> nullTokenMetadataClient
 

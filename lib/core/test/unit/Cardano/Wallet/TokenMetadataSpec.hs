@@ -6,6 +6,8 @@ module Cardano.Wallet.TokenMetadataSpec where
 
 import Prelude
 
+import Cardano.Wallet.Logging
+    ( stdoutTextTracer )
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId (..) )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
@@ -40,11 +42,11 @@ spec = describe "Token Metadata" $ do
     describe "Mock server tests" $ do
         it "testing empty req" $
             withMetadataServer (queryServerStatic golden1File) $ \url -> do
-                client <- newMetadataClient nullTracer (Just url)
+                client <- newMetadataClient stdoutTextTracer (Just url)
                 getTokenMetadata client [] `shouldReturn` Right []
         it "testing golden1.json" $
             withMetadataServer (queryServerStatic golden1File) $ \url -> do
-                client <- newMetadataClient nullTracer (Just url)
+                client <- newMetadataClient stdoutTextTracer (Just url)
                 let subj = "7f71940915ea5fe85e840f843c929eba467e6f050475bad1f10b9c27"
                 let aid = AssetId (UnsafeTokenPolicyId (unsafeFromText subj)) nullTokenName
                 getTokenMetadata client [assetIdFromSubject (Subject subj)]
