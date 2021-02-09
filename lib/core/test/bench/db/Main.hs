@@ -741,17 +741,16 @@ utxoDiskSpaceTests tr = do
     putStrLn "Database disk space usage tests for UTxO\n"
     sequence_
         --      #Checkpoints   UTxO Size
-        [ bUTxO          100           0
-        , bUTxO         1000           0
+        [ bUTxO            1          10
         , bUTxO           10          10
-        , bUTxO          100          10
-        , bUTxO         1000          10
+        , bUTxO            1         100
         , bUTxO           10         100
-        , bUTxO          100         100
-        , bUTxO         1000         100
+        , bUTxO            1        1000
         , bUTxO           10        1000
-        , bUTxO          100        1000
-        , bUTxO         1000        1000
+        , bUTxO            1       10000
+        , bUTxO           10       10000
+        , bUTxO            1      100000
+        , bUTxO           10      100000
         ]
   where
     bUTxO n s = benchDiskSize tr $ \db -> do
@@ -763,15 +762,11 @@ txHistoryDiskSpaceTests :: Tracer IO DBLog -> IO ()
 txHistoryDiskSpaceTests tr = do
     putStrLn "Database disk space usage tests for TxHistory\n"
     sequence_
-        --       #NTransactions  #NInputs #NOutputs
-        [ bTxs             100         10        20
-        , bTxs            1000         10        20
-        , bTxs           10000         10        20
-        , bTxs          100000         10        20
-        , bTxs             100         50       100
-        , bTxs            1000         50       100
-        , bTxs           10000         50       100
-        , bTxs          100000         50       100
+        --       #NTransactions  #NInputs  #NOutputs
+        [ bTxs             100         20         20
+        , bTxs            1000         20         20
+        , bTxs           10000         20         20
+        , bTxs          100000         20         20
         ]
   where
     bTxs n i o = benchDiskSize tr $ \db -> do
