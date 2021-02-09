@@ -181,7 +181,7 @@ import Cardano.Wallet.Primitive.SyncProgress
 import Cardano.Wallet.Primitive.Types
     ( PoolMetadataSource (..)
     , SortOrder
-    , TokenMetadataServerURI
+    , TokenMetadataServer
     , WalletId
     , WalletName
     )
@@ -1391,7 +1391,7 @@ poolMetadataSourceOption = option (eitherReader reader) $ mempty
 
 -- | [--token-metadata-server=URL]
 tokenMetadataSourceOption
-    :: Parser TokenMetadataServerURI
+    :: Parser TokenMetadataServer
 tokenMetadataSourceOption = optionT $ mempty
     <> long "token-metadata-server"
     <> metavar "URL"

@@ -87,7 +87,7 @@ import Cardano.Wallet.Logging
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncTolerance )
 import Cardano.Wallet.Primitive.Types
-    ( PoolMetadataSource (..), Settings (..), TokenMetadataServerURI (..) )
+    ( PoolMetadataSource (..), Settings (..), TokenMetadataServer (..) )
 import Cardano.Wallet.Shelley
     ( TracerSeverities
     , Tracers
@@ -188,7 +188,7 @@ data ServeArgs = ServeArgs
     , _syncTolerance :: SyncTolerance
     , _enableShutdownHandler :: Bool
     , _poolMetadataSourceOpt :: Maybe PoolMetadataSource
-    , _tokenMetadataSourceOpt :: Maybe TokenMetadataServerURI
+    , _tokenMetadataSourceOpt :: Maybe TokenMetadataServer
     , _logging :: LoggingOptions TracerSeverities
     } deriving (Show)
 

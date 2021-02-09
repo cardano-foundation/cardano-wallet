@@ -47,7 +47,7 @@ import Cardano.BM.Data.Severity
 import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation, HasSeverityAnnotation (..) )
 import Cardano.Wallet.Primitive.Types
-    ( TokenMetadataServerURI (..) )
+    ( TokenMetadataServer (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.TokenMap
@@ -267,9 +267,9 @@ metadataClient tr baseURI manager =
 
 metadataClientFromURI
     :: Tracer IO TokenMetadataLog
-    -> TokenMetadataServerURI
+    -> TokenMetadataServer
     -> IO (TokenMetadataClient IO)
-metadataClientFromURI tr (TokenMetadataServerURI uri) = do
+metadataClientFromURI tr (TokenMetadataServer uri) = do
     mgr <- newManager defaultManagerSettings
     return $ metadataClient tr uri mgr
 

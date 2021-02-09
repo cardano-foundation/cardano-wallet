@@ -110,7 +110,7 @@ import Cardano.Wallet.Primitive.Types
     , ProtocolParameters (..)
     , Settings (..)
     , SlottingParameters (..)
-    , TokenMetadataServerURI (..)
+    , TokenMetadataServer (..)
     , WalletId
     )
 import Cardano.Wallet.Primitive.Types.Address
@@ -235,7 +235,7 @@ serveWallet
     -- ^ An optional TLS configuration
     -> Maybe Settings
     -- ^ Settings to be set at application start, will be written into DB.
-    -> Maybe TokenMetadataServerURI
+    -> Maybe TokenMetadataServer
     -> CardanoNodeConn
     -- ^ Socket for communicating with the node
     -> Block
