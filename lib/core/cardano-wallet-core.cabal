@@ -185,6 +185,7 @@ library
       Cardano.Wallet.Primitive.Types.UTxO
       Cardano.Wallet.Primitive.Types.UTxOIndex
       Cardano.Wallet.Primitive.Types.UTxOIndex.Internal
+      Cardano.Wallet.TokenMetadata.MockServer
       Cardano.Wallet.Registry
       Cardano.Wallet.Transaction
       Cardano.Wallet.Unsafe
@@ -361,7 +362,6 @@ test-suite unit
       Cardano.Wallet.Primitive.Types.UTxOIndex.TypeErrorSpec
       Cardano.Wallet.Primitive.TypesSpec
       Cardano.Wallet.TokenMetadataSpec
-      Cardano.Wallet.TokenMetadata.MockServer
       Cardano.Wallet.RegistrySpec
       Cardano.Wallet.TransactionSpec
       Cardano.WalletSpec

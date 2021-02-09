@@ -14,7 +14,7 @@ import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( AssetMetadata (..), TokenPolicyId (..), nullTokenName )
 import Cardano.Wallet.TokenMetadata
 import Cardano.Wallet.TokenMetadata.MockServer
-    ( assetIdFromSubject, queryServerStatic, withMetadataServer )
+    ( queryServerStatic, withMetadataServer )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex, unsafeFromText )
 import Data.Aeson
@@ -49,7 +49,7 @@ spec = describe "Token Metadata" $ do
                 client <- newMetadataClient stdoutTextTracer (Just url)
                 let subj = "7f71940915ea5fe85e840f843c929eba467e6f050475bad1f10b9c27"
                 let aid = AssetId (UnsafeTokenPolicyId (unsafeFromText subj)) nullTokenName
-                getTokenMetadata client [assetIdFromSubject (Subject subj)]
+                getTokenMetadata client [aid]
                     `shouldReturn` Right [(aid, golden1Metadata)]
 
   where

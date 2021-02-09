@@ -58,7 +58,7 @@ import Cardano.Wallet.Primitive.Types.Hash
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId (..) )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( AssetMetadata (..), TokenName (..), TokenPolicyId (..) )
+    ( AssetMetadata (..), TokenPolicyId (..) )
 import Control.Tracer
     ( Tracer, contramap, traceWith )
 import Data.Aeson
@@ -189,7 +189,7 @@ deriving instance Eq (PropertyValue name) => Eq (Property name)
 
 -- | A metadata server subject, which can be any string.
 newtype Subject = Subject { unSubject :: Text }
-    deriving (Generic, Show, Eq)
+    deriving (Generic, Show, Eq, Ord)
     deriving newtype (IsString, Hashable)
 
 -- | Metadata property identifier.
@@ -398,10 +398,12 @@ getTokenMetadata (TokenMetadataClient client) as =
         . view #subjects
 
 -- | Creates a metadata server subject from an AssetId. The subject is the
--- policy id and asset name hex-encoded.
+-- policy id.
+--
+-- FIXME: Not oficially decided.
 assetIdToSubject :: AssetId -> Subject
-assetIdToSubject (AssetId (UnsafeTokenPolicyId (Hash p)) (UnsafeTokenName n)) =
-    Subject $ T.decodeLatin1 $ convertToBase Base16 (p <> n)
+assetIdToSubject (AssetId (UnsafeTokenPolicyId (Hash p)) _) =
+    Subject $ T.decodeLatin1 $ convertToBase Base16 p
 
 -- | Convert metadata server properties response into an 'AssetMetadata' record.
 -- Only the values are taken. Signatures are ignored (for now).

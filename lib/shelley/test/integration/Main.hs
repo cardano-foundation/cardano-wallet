@@ -3,6 +3,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -77,6 +78,8 @@ import Cardano.Wallet.Shelley.Launch.Cluster
     , withCluster
     , withSMASH
     )
+import Cardano.Wallet.TokenMetadata.MockServer
+    ( queryServerStatic, withMetadataServer )
 import Control.Arrow
     ( first )
 import Control.Monad
@@ -124,7 +127,7 @@ import Test.Integration.Faucet
 import Test.Integration.Framework.Context
     ( Context (..), PoolGarbageCollectionEvent (..) )
 import Test.Utils.Paths
-    ( inNixBuild )
+    ( getTestData, inNixBuild )
 import UnliftIO.Async
     ( race )
 import UnliftIO.Exception
@@ -310,22 +313,24 @@ specWithServer testDir (tr, tracers) = aroundAll withContext
         let db = testDir </> "wallets"
         createDirectory db
         listen <- walletListenFromEnv
-        serveWallet
-            (SomeNetworkDiscriminant $ Proxy @'Mainnet)
-            tracers
-            (SyncTolerance 10)
-            (Just db)
-            (Just dbDecorator)
-            "127.0.0.1"
-            listen
-            Nothing
-            Nothing
-            Nothing -- TokenMetaData
-            conn
-            block0
-            (gp, vData)
-            (action gp)
-            `withException` (traceWith tr . MsgServerError)
+        let testMetadata = $(getTestData) </> "token-metadata.json"
+        withMetadataServer (queryServerStatic testMetadata) $ \tokenMetaUrl ->
+            serveWallet
+                (SomeNetworkDiscriminant $ Proxy @'Mainnet)
+                tracers
+                (SyncTolerance 10)
+                (Just db)
+                (Just dbDecorator)
+                "127.0.0.1"
+                listen
+                Nothing
+                Nothing
+                (Just tokenMetaUrl)
+                conn
+                block0
+                (gp, vData)
+                (action gp)
+                `withException` (traceWith tr . MsgServerError)
 
 {-------------------------------------------------------------------------------
                                     Logging

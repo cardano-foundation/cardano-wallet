@@ -613,6 +613,15 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             , expectField (#assets . #total . #getApiT) (`shouldNotBe` TokenMap.empty)
             ]
 
+        let meta = ApiT $ TokenPolicy.AssetMetadata
+                { TokenPolicy.name = "SteveToken"
+                , TokenPolicy.description = "A sample description"
+                }
+        r2 <- request @[ApiAsset] ctx (Link.listAssets w) Default Empty
+        verify r2
+            [ expectListField 0 #metadata (`shouldBe` Just meta)
+            ]
+
     it "TRANS_ASSETS_CREATE_01a - Multi-asset transaction with Ada" $ \ctx -> runResourceT $ do
 
         wSrc <- fixtureMultiAssetWallet ctx

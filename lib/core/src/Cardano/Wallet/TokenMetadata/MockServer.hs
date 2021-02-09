@@ -9,19 +9,12 @@
 module Cardano.Wallet.TokenMetadata.MockServer
     ( withMetadataServer
     , queryServerStatic
-    , assetIdFromSubject
     ) where
 
 import Prelude
 
 import Cardano.Wallet.Primitive.Types
     ( TokenMetadataServer (..) )
-import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..) )
-import Cardano.Wallet.Primitive.Types.TokenMap
-    ( AssetId (..) )
-import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( TokenName (..), TokenPolicyId (..) )
 import Cardano.Wallet.TokenMetadata
     ( BatchRequest (..)
     , BatchResponse (..)
@@ -32,8 +25,6 @@ import Cardano.Wallet.TokenMetadata
     , Subject
     , SubjectProperties (..)
     )
-import Cardano.Wallet.Unsafe
-    ( unsafeFromHex )
 import Control.Monad.Trans.Except
     ( ExceptT (..) )
 import Data.Aeson
@@ -42,8 +33,10 @@ import Data.ByteArray.Encoding
     ( Base (Base16), convertToBase )
 import Data.Generics.Internal.VL.Lens
     ( view )
+import Data.Map
+    ( Map )
 import Data.Maybe
-    ( fromJust, fromMaybe )
+    ( fromMaybe, mapMaybe )
 import Data.Proxy
     ( Proxy (..) )
 import Network.URI
@@ -55,36 +48,16 @@ import Servant.API
 import Servant.Server
     ( Handler (..), Server, serve )
 
-import qualified Data.ByteString as BS
+import qualified Data.Map as Map
 import qualified Data.Text.Encoding as T
 
 {-------------------------------------------------------------------------------
                               Mock metadata-server
 -------------------------------------------------------------------------------}
 
-type MetadataQueryApi = "metadata" :> "query"
-    :> ReqBody '[JSON] BatchRequest :> Post '[JSON] BatchResponse
-
-assetIdFromSubject :: Subject -> AssetId
-assetIdFromSubject = mk . BS.splitAt 32 . unsafeFromHex . T.encodeUtf8 . unSubject
-  where
-    mk (p, n) = AssetId (UnsafeTokenPolicyId (Hash p)) (UnsafeTokenName n)
-
--- | Serve a json file.
-queryServerStatic :: FilePath -> IO (Server MetadataQueryApi)
-queryServerStatic golden = do
-    Right (BatchResponse mds) <- eitherDecodeFileStrict golden
-    pure $ queryHandlerBase mds
-
-queryHandlerBase :: [SubjectProperties] -> BatchRequest -> Handler BatchResponse
-queryHandlerBase ps = Handler . ExceptT . pure . Right . BatchResponse . map respond . view #subjects
-  where
-    subs = zip (map subject ps) ps
-    respond subj = fromJust $ lookup subj subs
-
-queryApi :: Proxy MetadataQueryApi
-queryApi = Proxy
-
+-- | Start a metadata server.
+--
+-- To be used with @queryServerStatic@.
 withMetadataServer
     :: IO (Server MetadataQueryApi)
     -> (TokenMetadataServer -> IO a)
@@ -96,6 +69,28 @@ withMetadataServer mkServer action = withApplication app (action . mkUrl)
         $ fromMaybe (error "withMetadataServer: bad uri")
         $ parseURI
         $ "http://localhost:" ++ show port ++ "/"
+
+-- | Serve a json file.
+--
+-- Will filter the json and only serve metadata for the requested subjects.
+queryServerStatic :: FilePath -> IO (Server MetadataQueryApi)
+queryServerStatic golden = do
+    BatchResponse mds <- either (error . show) id
+        <$> eitherDecodeFileStrict golden
+    let m = Map.fromList $ map (\x -> (view #subject x, x)) mds
+    pure $ queryHandlerBase m
+  where
+    queryHandlerBase :: Map Subject SubjectProperties -> BatchRequest -> Handler BatchResponse
+    queryHandlerBase store = do
+        Handler . ExceptT . pure . Right . BatchResponse . mapMaybe respond . view #subjects
+      where
+        respond = (`Map.lookup` store)
+
+type MetadataQueryApi = "metadata" :> "query"
+    :> ReqBody '[JSON] BatchRequest :> Post '[JSON] BatchResponse
+
+queryApi :: Proxy MetadataQueryApi
+queryApi = Proxy
 
 {-------------------------------------------------------------------------------
                               JSON orphans
