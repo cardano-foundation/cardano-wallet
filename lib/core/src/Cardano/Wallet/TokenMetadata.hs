@@ -7,26 +7,29 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE ViewPatterns #-}
 
 module Cardano.Wallet.TokenMetadata
     (
     -- * Convenience
       fillMetadata
 
-    -- * Client
+    -- * Token Metadata Client
     , TokenMetadataClient
-    , metadataClient
     , newMetadataClient
+    , getTokenMetadata
 
     -- * Logging
     , TokenMetadataLog (..)
 
-    , getTokenMetadata
+    -- * Generic metadata server client
+    , metadataClient
     , BatchRequest (..)
     , BatchResponse
     , SubjectProperties (..)
@@ -73,10 +76,12 @@ import Data.ByteString
     ( ByteString )
 import Data.Foldable
     ( toList )
+import Data.Functor
+    ( ($>) )
 import Data.Hashable
     ( Hashable )
 import Data.Maybe
-    ( fromMaybe, mapMaybe )
+    ( mapMaybe )
 import Data.String
     ( IsString (..) )
 import Data.Text
@@ -98,7 +103,9 @@ import Network.HTTP.Client
 import Network.HTTP.Client.TLS
     ( newTlsManager )
 import Network.URI
-    ( parseURI, relativeTo )
+    ( relativeTo )
+import Network.URI.Static
+    ( relativeReference )
 import Numeric.Natural
     ( Natural )
 import UnliftIO.Exception
@@ -111,7 +118,7 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 
 {-------------------------------------------------------------------------------
-   Token Metadata
+                                 Token Metadata
 -------------------------------------------------------------------------------}
 
 -- | Helper for adding metadata to sets of assets.
@@ -124,8 +131,7 @@ fillMetadata
 fillMetadata client assets f = do
     res <- getTokenMetadata client (toList assets)
     case res of
-        Right l -> do
-            let m = Map.fromList l
+        Right (Map.fromList -> m) ->
             return $ fmap (\aid -> f (Map.lookup aid m) aid) assets
         Left _e -> do
             -- TODO: Trace error?
@@ -187,12 +193,14 @@ type instance PropertyValue "url" = Text
 -- type instance PropertyValue "logo" = AssetLogoBase64
 type instance PropertyValue "unit" = AssetUnit
 
+-- | Specification of a larger unit for an asset. For example, the "lovelace"
+-- asset has the larger unit "ada" with 6 zeroes.
 data AssetUnit = AssetUnit
-    { name :: Text
-    , decimals :: Natural
+    { name :: Text -- ^ Name of the larger asset.
+    , decimals :: Natural  -- ^ Number of zeroes to add to base unit.
     } deriving (Generic, Show, Eq)
 
--- | Used for checking integrity and authenticity of metadata.
+-- | Will be used in future for checking integrity and authenticity of metadata.
 data Signature = Signature
     { signature :: ByteString
     , publicKey :: ByteString
@@ -202,9 +210,49 @@ data Signature = Signature
                        Client for Cardano metadata-server
 -------------------------------------------------------------------------------}
 
-newtype TokenMetadataClient m = TokenMetadataClient
-    { batchRequest :: BatchRequest -> m BatchResponse
-    }
+metadataClient
+    :: Tracer IO TokenMetadataLog
+    -> TokenMetadataServer
+    -> Manager
+    -> BatchRequest
+    -> IO BatchResponse
+metadataClient tr (TokenMetadataServer baseURI) manager req = do
+    traceWith tr $ MsgWillFetchMetadata req
+    res <- parseResponse =<< flip httpLbs manager =<< makeHttpReq req
+    traceWith tr $ MsgDidFetchMetadata res
+    return res
+  where
+    makeHttpReq query = do
+        req <- requestFromURI $ endpoint `relativeTo` baseURI
+        pure req
+            { method = "POST"
+            , requestBody = RequestBodyLBS $ encode query
+            , requestHeaders = [("Content-type", "application/json")]
+            }
+    endpoint = [relativeReference|metadata/query|]
+
+    -- todo: logging of response status and any errors
+    parseResponse = either (throwIO . JSONParseError) pure
+        . eitherDecodeStrict'
+        . BL.toStrict
+        . responseBody
+
+-----------
+-- Errors
+
+-- | The possible errors which can occur when fetching metadata.
+data TokenMetadataError
+    = TokenMetadataFetchError String -- ^ Some IO exception
+    | TokenMetadataJSONParseError String
+    deriving (Generic, Show, Eq)
+
+-- fixme: remove
+newtype JSONParseError = JSONParseError String
+    deriving (Show, Eq)
+instance Exception JSONParseError
+
+-----------
+-- Logging
 
 data TokenMetadataLog
     = MsgNotConfigured
@@ -233,58 +281,36 @@ instance ToText TokenMetadataLog where
 
 instance HasPrivacyAnnotation TokenMetadataLog
 
-newtype JSONParseError = JSONParseError String
-    deriving (Show, Eq)
-instance Exception JSONParseError
-
-metadataClient :: Tracer IO TokenMetadataLog -> TokenMetadataServer -> Manager -> TokenMetadataClient IO
-metadataClient tr (TokenMetadataServer baseURI) manager =
-    TokenMetadataClient
-        { batchRequest = \req -> do
-            traceWith tr $ MsgWillFetchMetadata req
-            res <- parseResponse =<< flip httpLbs manager =<< makeHttpReq req
-            traceWith tr $ MsgDidFetchMetadata res
-            return res
-        }
-  where
-    makeHttpReq query = do
-        -- fixme: error handling for this. it's a configuration error
-        let rel = fromMaybe
-                (error "metadataClient: bad relative uri")
-                (parseURI "metadata/query")
-        req <- requestFromURI $ rel `relativeTo` baseURI
-        pure req
-            { method = "POST"
-            , requestBody = RequestBodyLBS $ encode query
-            , requestHeaders = [("Content-type", "application/json")]
-            }
-    -- todo: logging of response status and any errors
-    parseResponse = either (throwIO . JSONParseError) pure
-        . eitherDecodeStrict'
-        . BL.toStrict
-        . responseBody
-
-newMetadataClient
-    :: Tracer IO TokenMetadataLog
-    -> Maybe TokenMetadataServer
-    -> IO (TokenMetadataClient IO)
-newMetadataClient tr (Just uri) = metadataClient tr uri <$> newTlsManager
-newMetadataClient tr Nothing = pure $ TokenMetadataClient
-    { batchRequest = \_ -> do
-        traceWith tr MsgNotConfigured
-        pure []
-    }
-
 {-------------------------------------------------------------------------------
                            Requesting token metadata
 -------------------------------------------------------------------------------}
 
+-- | Represents a client for the metadata server.
+newtype TokenMetadataClient m = TokenMetadataClient
+    { _batchQuery :: BatchRequest -> m BatchResponse
+    }
+
+-- | Not a client for the metadata server.
+nullTokenMetadataClient :: Applicative m => TokenMetadataClient m
+nullTokenMetadataClient = TokenMetadataClient (\_ -> pure [])
+
+-- | Construct a 'TokenMetadataClient' for use with 'getTokenMetadata'.
+newMetadataClient
+    :: Tracer IO TokenMetadataLog -- ^ Logging
+    -> Maybe TokenMetadataServer -- ^ URL of metadata server, if enabled.
+    -> IO (TokenMetadataClient IO)
+newMetadataClient tr (Just uri) =
+    TokenMetadataClient . metadataClient tr uri <$> newTlsManager
+newMetadataClient tr Nothing =
+    traceWith tr MsgNotConfigured $> nullTokenMetadataClient
+
+-- | Fetches metadata for a list of assets using the given client.
 getTokenMetadata
     :: TokenMetadataClient IO
     -> [AssetId]
     -> IO (Either TokenMetadataError [(AssetId, AssetMetadata)])
-getTokenMetadata client as =
-    fmap (bimap handleError fromResponse) . tryAny . batchRequest client $ req
+getTokenMetadata (TokenMetadataClient client) as =
+    fmap (bimap handleError fromResponse) . tryAny . client $ req
   where
     subjects = map assetIdToSubject as
     req = BatchRequest
@@ -293,7 +319,9 @@ getTokenMetadata client as =
         }
     subjectAsset = HM.fromList $ zip subjects as
     fromResponse :: BatchResponse -> [(AssetId, AssetMetadata)]
-    fromResponse = mapMaybe (\ps -> (,) <$> HM.lookup (subject ps) subjectAsset <*> pure (metadataFromProperties ps))
+    fromResponse = mapMaybe $ \ps -> (,)
+        <$> HM.lookup (subject ps) subjectAsset
+        <*> pure (metadataFromProperties ps)
     handleError = TokenMetadataFetchError . show
 
 -- | Creates a metadata server subject from an AssetId. The subject is the
@@ -307,12 +335,6 @@ assetIdToSubject (AssetId (UnsafeTokenPolicyId (Hash p)) (UnsafeTokenName n)) =
 metadataFromProperties :: SubjectProperties -> AssetMetadata
 metadataFromProperties (SubjectProperties _ _ ((Property n _, Property d _))) =
     AssetMetadata n d
-
--- | The possible errors which can occur when fetching metadata.
--- TODO: more constructors
-newtype TokenMetadataError
-    = TokenMetadataFetchError String -- ^ Some IO exception
-    deriving (Generic, Show, Eq)
 
 {-------------------------------------------------------------------------------
                       Aeson instances for metadata-server
