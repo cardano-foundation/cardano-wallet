@@ -51,7 +51,6 @@ module Cardano.Wallet.Api.Server
     , getWallet
     , joinStakePool
     , listAssets
-    , listAssetsAvailable
     , getAsset
     , getAssetDefault
     , listAddresses
@@ -483,7 +482,6 @@ import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
-import qualified Cardano.Wallet.Primitive.Types.UTxO as W
 import qualified Cardano.Wallet.Registry as Registry
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BS
@@ -1307,7 +1305,9 @@ data ErrGetAsset
 newtype ErrListAssets = ErrListAssetsNoSuchWallet ErrNoSuchWallet
     deriving (Eq, Show)
 
-listAssetsAvailable
+-- | All assets associated with this wallet, and their metadata (if metadata is
+-- available). This list may include assets which have already been spent.
+listAssets
     :: forall ctx s k.
         ( ctx ~ ApiLayer s k
         , HasTokenMetadataClient ctx
@@ -1315,56 +1315,58 @@ listAssetsAvailable
     => ctx
     -> ApiT WalletId
     -> Handler [ApiAsset]
-listAssetsAvailable ctx (ApiT wid) = do
-    utxo <- withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk -> liftHandler $ do
-       (cp, _meta, _pending) <- W.readWallet @_ @s @k wrk wid
-       pure (cp ^. #utxo)
-    let assets = F.toList $ W.getAssets utxo
+listAssets ctx wid = do
+    assets <- listAssetsBase ctx wid
     liftIO $ fillMetadata client assets toApiAsset
   where
     client = ctx ^. tokenMetadataClient
 
-listAssets
+-- | Return a list of all AssetIds involved in the transaction history of this
+-- wallet.
+listAssetsBase
     :: forall ctx s k.
         ( ctx ~ ApiLayer s k
         )
     => ctx
     -> ApiT WalletId
-    -> Handler [ApiAsset]
-listAssets ctx (ApiT wid) = withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+    -> Handler [AssetId]
+listAssetsBase ctx (ApiT wid) = withWorkerCtx ctx wid liftE liftE $ \wrk ->
     liftHandler $ allTxAssets <$>
     W.listTransactions @_ @_ @_ wrk wid Nothing Nothing Nothing Descending
   where
-    allTxAssets = map (toApiAsset metadata)
-        . Set.toList
-        . Set.unions
-        . map txAssets
+    allTxAssets = Set.toList . Set.unions . map txAssets
     txAssets = Set.unions
         . map (TokenBundle.getAssets . view #tokens)
         . W.txInfoOutputs
-    metadata = Nothing  -- TODO: Use data from metadata server
 
+-- | Look up a single asset and its metadata.
+--
+-- NOTE: This is slightly inefficient because it greps through the transaction
+-- history to check if the asset is associated with this wallet.
 getAsset
-    :: HasTokenMetadataClient ctx
+    :: forall ctx s k.
+        ( ctx ~ ApiLayer s k
+        , HasTokenMetadataClient ctx
+        )
     => ctx
     -> ApiT WalletId
     -> ApiT TokenPolicyId
     -> ApiT TokenName
     -> Handler ApiAsset
 getAsset ctx wid (ApiT policyId) (ApiT assetName) = do
-    listAssets ctx wid >>= liftHandler . findAsset
+    assetId <- liftHandler . findAsset =<< listAssetsBase ctx wid
     liftIO $ runIdentity <$> fillMetadata client (Identity assetId) toApiAsset
   where
-    findAsset = maybe (throwE ErrGetAssetNotPresent) pure . F.find matches
-    matches (ApiAsset pid an _) = pid == policyId && an == assetName
-
-    -- TODO: integrate
-    assetId = AssetId policyId assetName
-    fill = liftIO $ runIdentity <$> fillMetadata client (Identity assetId) toApiAsset
+    findAsset = maybe (throwE ErrGetAssetNotPresent) pure
+        . F.find (== (AssetId policyId assetName))
     client = ctx ^. tokenMetadataClient
 
+-- | The handler for 'getAsset' when 'TokenName' is empty.
 getAssetDefault
-    :: HasTokenMetadataClient ctx
+    :: forall ctx s k.
+        ( ctx ~ ApiLayer s k
+        , HasTokenMetadataClient ctx
+        )
     => ctx
     -> ApiT WalletId
     -> ApiT TokenPolicyId
