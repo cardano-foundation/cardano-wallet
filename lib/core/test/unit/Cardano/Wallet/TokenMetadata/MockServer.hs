@@ -45,7 +45,7 @@ import Data.Maybe
 import Data.Proxy
     ( Proxy (..) )
 import Network.URI
-    ( URI, parseURI )
+    ( parseURI )
 import Network.Wai.Handler.Warp
     ( withApplication )
 import Servant.API
