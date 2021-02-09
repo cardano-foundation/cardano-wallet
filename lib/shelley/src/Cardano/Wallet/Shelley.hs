@@ -137,7 +137,7 @@ import Cardano.Wallet.Shelley.Pools
 import Cardano.Wallet.Shelley.Transaction
     ( newTransactionLayer )
 import Cardano.Wallet.TokenMetadata
-    ( TokenMetadataLog, metadataClientFromURI, nullMetadataClient )
+    ( TokenMetadataLog, newMetadataClient )
 import Cardano.Wallet.Transaction
     ( TransactionLayer )
 import Control.Applicative
@@ -379,10 +379,7 @@ serveWallet
         -> IO (ApiLayer s k)
     apiLayer tl nl coworker = do
         let params = (block0, np, sTolerance)
-        tokenMetaClient <- maybe
-                (pure (nullMetadataClient tokenMetadataTracer))
-                (metadataClientFromURI tokenMetadataTracer)
-                tokenMetaUri
+        tokenMetaClient <- newMetadataClient tokenMetadataTracer tokenMetaUri
         db <- Sqlite.newDBFactory
             walletDbTracer
             (DefaultFieldValues

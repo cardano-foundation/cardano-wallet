@@ -200,7 +200,7 @@ import Cardano.Wallet.Primitive.Types.TokenPolicy
 import Cardano.Wallet.Registry
     ( HasWorkerCtx (..), WorkerLog, WorkerRegistry )
 import Cardano.Wallet.TokenMetadata
-    ( TokenMetadataClient (..) )
+    ( TokenMetadataClient )
 import Cardano.Wallet.Transaction
     ( TransactionLayer )
 import Control.Tracer

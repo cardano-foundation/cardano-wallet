@@ -14,6 +14,8 @@ module Cardano.Wallet.TokenMetadata.MockServer
 
 import Prelude
 
+import Cardano.Wallet.Primitive.Types
+    ( TokenMetadataServer (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.TokenMap
@@ -89,11 +91,15 @@ queryHandlerBase ps = Handler . ExceptT . pure . Right . map respond . subjects
 queryApi :: Proxy MetadataQueryApi
 queryApi = Proxy
 
-withMetadataServer :: IO (Server MetadataQueryApi) -> (URI -> IO a) -> IO a
-withMetadataServer srv action = withApplication app (action . mkUrl)
+withMetadataServer
+    :: IO (Server MetadataQueryApi)
+    -> (TokenMetadataServer -> IO a)
+    -> IO a
+withMetadataServer mkServer action = withApplication app (action . mkUrl)
   where
-    app = serve queryApi <$> srv
-    mkUrl port = fromMaybe (error "withMetadataServer: bad uri")
+    app = serve queryApi <$> mkServer
+    mkUrl port = TokenMetadataServer
+        $ fromMaybe (error "withMetadataServer: bad uri")
         $ parseURI
         $ "http://localhost:" ++ show port ++ "/"
 

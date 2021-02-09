@@ -21,8 +21,7 @@ module Cardano.Wallet.TokenMetadata
     -- * Client
     , TokenMetadataClient
     , metadataClient
-    , metadataClientFromURI
-    , nullMetadataClient
+    , newMetadataClient
 
     -- * Logging
     , TokenMetadataLog (..)
@@ -93,13 +92,13 @@ import Network.HTTP.Client
     , Request (..)
     , RequestBody (..)
     , Response (..)
-    , defaultManagerSettings
     , httpLbs
-    , newManager
     , requestFromURI
     )
+import Network.HTTP.Client.TLS
+    ( newTlsManager )
 import Network.URI
-    ( URI, parseURI, relativeTo )
+    ( parseURI, relativeTo )
 import Numeric.Natural
     ( Natural )
 import UnliftIO.Exception
@@ -238,8 +237,8 @@ newtype JSONParseError = JSONParseError String
     deriving (Show, Eq)
 instance Exception JSONParseError
 
-metadataClient :: Tracer IO TokenMetadataLog -> URI -> Manager -> TokenMetadataClient IO
-metadataClient tr baseURI manager =
+metadataClient :: Tracer IO TokenMetadataLog -> TokenMetadataServer -> Manager -> TokenMetadataClient IO
+metadataClient tr (TokenMetadataServer baseURI) manager =
     TokenMetadataClient
         { batchRequest = \req -> do
             traceWith tr $ MsgWillFetchMetadata req
@@ -249,6 +248,7 @@ metadataClient tr baseURI manager =
         }
   where
     makeHttpReq query = do
+        -- fixme: error handling for this. it's a configuration error
         let rel = fromMaybe
                 (error "metadataClient: bad relative uri")
                 (parseURI "metadata/query")
@@ -264,25 +264,16 @@ metadataClient tr baseURI manager =
         . BL.toStrict
         . responseBody
 
-
-metadataClientFromURI
+newMetadataClient
     :: Tracer IO TokenMetadataLog
-    -> TokenMetadataServer
+    -> Maybe TokenMetadataServer
     -> IO (TokenMetadataClient IO)
-metadataClientFromURI tr (TokenMetadataServer uri) = do
-    mgr <- newManager defaultManagerSettings
-    return $ metadataClient tr uri mgr
-
-nullMetadataClient
-    :: Monad m
-    => Tracer m TokenMetadataLog
-    -> TokenMetadataClient m
-nullMetadataClient tr = TokenMetadataClient
+newMetadataClient tr (Just uri) = metadataClient tr uri <$> newTlsManager
+newMetadataClient tr Nothing = pure $ TokenMetadataClient
     { batchRequest = \_ -> do
         traceWith tr MsgNotConfigured
         pure []
     }
-
 
 {-------------------------------------------------------------------------------
                            Requesting token metadata
