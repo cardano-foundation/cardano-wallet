@@ -67,6 +67,8 @@ module Cardano.Wallet.Api.Link
       -- * Assets
     , listAssets
     , getAsset
+    , listByronAssets
+    , getByronAsset
 
       -- * Transactions
     , createTransaction
@@ -425,6 +427,33 @@ getAsset
 getAsset w pid n
     | n == nullTokenName = endpoint @Api.GetAssetDefault mkURLDefault
     | otherwise = endpoint @Api.GetAsset mkURL
+  where
+    wid = w ^. typed @(ApiT WalletId)
+    mkURL mk = mk wid (ApiT pid) (ApiT n)
+    mkURLDefault mk = mk wid (ApiT pid)
+
+listByronAssets
+    :: forall w.
+        ( HasType (ApiT WalletId) w
+        )
+    => w
+    -> (Method, Text)
+listByronAssets w =
+    endpoint @Api.ListByronAssets (wid &)
+  where
+    wid = w ^. typed @(ApiT WalletId)
+
+getByronAsset
+    :: forall w.
+        ( HasType (ApiT WalletId) w
+        )
+    => w
+    -> TokenPolicyId
+    -> TokenName
+    -> (Method, Text)
+getByronAsset w pid n
+    | n == nullTokenName = endpoint @Api.GetByronAssetDefault mkURLDefault
+    | otherwise = endpoint @Api.GetByronAsset mkURL
   where
     wid = w ^. typed @(ApiT WalletId)
     mkURL mk = mk wid (ApiT pid) (ApiT n)
