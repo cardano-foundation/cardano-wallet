@@ -1,6 +1,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
@@ -24,7 +25,7 @@ import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( AssetMetadata (..), TokenName (..), TokenPolicyId (..) )
 import Cardano.Wallet.TokenMetadata
     ( BatchRequest (..)
-    , BatchResponse
+    , BatchResponse (..)
     , Property (..)
     , PropertyValue
     , Signature (..)
@@ -40,6 +41,8 @@ import Data.Aeson
     ( FromJSON (..), ToJSON (..), eitherDecodeFileStrict, object, (.=) )
 import Data.ByteArray.Encoding
     ( Base (Base16), convertToBase )
+import Data.Generics.Internal.VL.Lens
+    ( view )
 import Data.Maybe
     ( fromJust, fromMaybe )
 import Data.Proxy
@@ -65,7 +68,7 @@ type MetadataQueryApi = "metadata" :> "query"
 
 -- | Serve a list of metadata.
 queryServer :: [(AssetId, AssetMetadata)] -> Server MetadataQueryApi
-queryServer md = pure . map respond . subjects
+queryServer md = pure . BatchResponse . foldMap respond . view #subjects
   where
     respond subj = case lookup (assetIdFromSubject subj) md of
         Nothing -> error "doh"
@@ -79,11 +82,11 @@ assetIdFromSubject = mk . BS.splitAt 32 . unsafeFromHex . T.encodeUtf8 . unSubje
 -- | Serve a json file.
 queryServerStatic :: FilePath -> IO (Server MetadataQueryApi)
 queryServerStatic golden = do
-    Right mds <- eitherDecodeFileStrict golden
+    Right (BatchResponse mds) <- eitherDecodeFileStrict golden
     pure $ queryHandlerBase mds
 
 queryHandlerBase :: [SubjectProperties] -> BatchRequest -> Handler BatchResponse
-queryHandlerBase ps = Handler . ExceptT . pure . Right . map respond . subjects
+queryHandlerBase ps = Handler . ExceptT . pure . Right . BatchResponse . map respond . view #subjects
   where
     subs = zip (map subject ps) ps
     respond subj = fromJust $ lookup subj subs
@@ -127,3 +130,8 @@ instance ToJSON Signature where
         ]
       where
         hex = T.decodeLatin1 . convertToBase Base16
+
+instance ToJSON BatchResponse where
+    toJSON (BatchResponse subs)= object
+        [ "subjects" .= subs
+        ]

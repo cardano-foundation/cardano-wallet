@@ -31,7 +31,7 @@ spec = describe "Token Metadata" $ do
     describe "JSON decoding" $ do
         it "golden1.json" $
             eitherDecodeFileStrict golden1File
-                `shouldReturn` Right golden1Properties
+                `shouldReturn` Right (BatchResponse golden1Properties)
 
         it "metadataFromProperties" $
             map metadataFromProperties golden1Properties

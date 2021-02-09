@@ -32,7 +32,7 @@ module Cardano.Wallet.TokenMetadata
     -- * Generic metadata server client
     , metadataClient
     , BatchRequest (..)
-    , BatchResponse
+    , BatchResponse (..)
     , SubjectProperties (..)
     , Property (..)
     , PropertyValue
