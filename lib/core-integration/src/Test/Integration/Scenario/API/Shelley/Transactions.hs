@@ -616,6 +616,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             ]
 
         let meta = ApiT $ AssetMetadata "SteveToken" "A sample description"
+                            Nothing Nothing Nothing Nothing
         r2 <- request @[ApiAsset] ctx (Link.listAssets w) Default Empty
         verify r2
             [ expectListField 0 #metadata (`shouldBe` Just meta)
@@ -804,6 +805,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         let ep = Link.getAsset wal polId assName
         r <- request @(ApiAsset) ctx ep Default Empty
         let meta = ApiT $ AssetMetadata "SteveToken" "A sample description"
+                            Nothing Nothing Nothing Nothing
         verify r
             [ expectSuccess
             , expectField #policyId (`shouldBe` ApiT polId)

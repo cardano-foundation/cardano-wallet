@@ -253,7 +253,8 @@ spec = describe "BYRON_TRANSACTIONS" $ do
                 pickAnAsset assetsSrc
         let ep = Link.getByronAsset wal polId assName
         r <- request @(ApiAsset) ctx ep Default Empty
-        let meta = ApiT (AssetMetadata "SteveToken" "A sample description")
+        let meta = ApiT (AssetMetadata "SteveToken" "A sample description"
+                            Nothing Nothing Nothing Nothing)
         verify r
             [ expectSuccess
             , expectField #policyId (`shouldBe` ApiT polId)
