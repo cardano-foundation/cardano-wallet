@@ -16,9 +16,18 @@
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE ViewPatterns #-}
 
+-- |
+-- Copyright: © 2018-2021 IOHK
+-- License: Apache-2.0
+--
+-- A client used to query asset metadata from the Cardano metadata-server.
+--
+-- The OpenAPI specification is here:
+-- <https://github.com/input-output-hk/metadata-server/blob/master/specifications/api/openapi.yaml>
+
 module Cardano.Wallet.TokenMetadata
     (
-    -- * Convenience
+    -- * Associating metadata with assets
       fillMetadata
 
     -- * Token Metadata Client
@@ -58,7 +67,7 @@ import Cardano.Wallet.Primitive.Types.Hash
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId (..) )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( AssetMetadata (..), TokenPolicyId (..) )
+    ( AssetMetadata (..), TokenName (..), TokenPolicyId (..) )
 import Control.Monad
     ( when )
 import Control.Tracer
@@ -71,7 +80,9 @@ import Data.Aeson
     , encode
     , withObject
     , withText
+    , (.!=)
     , (.:)
+    , (.:?)
     )
 import Data.Bifunctor
     ( first )
@@ -170,8 +181,10 @@ newtype BatchResponse = BatchResponse
 -- | Property values and signatures for a given subject.
 data SubjectProperties = SubjectProperties
     { subject :: Subject
-    , owner :: Signature
+    , owner :: Maybe Signature
     -- TODO: use Data.SOP.NP and parameterize type by property names
+    -- Name and description are required, both others may be missing the
+    -- response.
     , properties :: ( Property "name"
                     -- , (PropertyValue "acronym", [Signature])
                     , Property "description"
@@ -333,9 +346,12 @@ instance ToText TokenMetadataLog where
             [ "Metadata fetch: "
             , toText b
             ]
-        MsgFetchMetadataMaxSize max -> mconcat
+        MsgFetchRequestBody uri bs -> mconcat
+            [ "POST ", T.pack (show uri), "\n"
+            , T.decodeUtf8With T.lenientDecode (BL.toStrict bs) ]
+        MsgFetchMetadataMaxSize maxSize -> mconcat
             [ "Metadata server returned more data than the permitted maximum of"
-            , toText max
+            , toText maxSize
             , " bytes."
             ]
         MsgFetchResult req res -> case res of
@@ -411,12 +427,10 @@ getTokenMetadata (TokenMetadataClient client) as =
         . getBatchResponse
 
 -- | Creates a metadata server subject from an AssetId. The subject is the
--- policy id.
---
--- FIXME: Not oficially decided.
+-- policy id and asset name hex-encoded.
 assetIdToSubject :: AssetId -> Subject
-assetIdToSubject (AssetId (UnsafeTokenPolicyId (Hash p)) _) =
-    Subject $ T.decodeLatin1 $ convertToBase Base16 p
+assetIdToSubject (AssetId (UnsafeTokenPolicyId (Hash p)) (UnsafeTokenName n)) =
+    Subject $ T.decodeLatin1 $ convertToBase Base16 (p <> n)
 
 -- | Convert metadata server properties response into an 'AssetMetadata' record.
 -- Only the values are taken. Signatures are ignored (for now).
@@ -447,13 +461,13 @@ instance FromJSON Subject where
 instance FromJSON SubjectProperties where
    parseJSON = withObject "SubjectProperties" $ \o -> SubjectProperties
        <$> o .: "subject"
-       <*> o .: "owner"
+       <*> o .:? "owner"
        <*> ((,) <$> o .: "name" <*> o .: "description")
 
 instance FromJSON (PropertyValue name) => FromJSON (Property name) where
     parseJSON = withObject "Property" $ \o -> Property
         <$> o .: "value"
-        <*> o .: "anSignatures"
+        <*> o .:? "anSignatures" .!= []
 
 instance FromJSON Signature where
     parseJSON = withObject "Signature" $ \o -> Signature
