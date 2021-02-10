@@ -68,8 +68,10 @@ import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId (..) )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( AssetMetadata (..), TokenName (..), TokenPolicyId (..) )
+import Control.Applicative
+    ( (<|>) )
 import Control.Monad
-    ( when )
+    ( mapM, when )
 import Control.Tracer
     ( Tracer, contramap, traceWith )
 import Data.Aeson
@@ -97,7 +99,7 @@ import Data.Functor
 import Data.Hashable
     ( Hashable )
 import Data.Maybe
-    ( mapMaybe )
+    ( catMaybes, mapMaybe )
 import Data.String
     ( IsString (..) )
 import Data.Text
@@ -159,6 +161,7 @@ fillMetadata client assets f = do
         Left _e -> do
             -- TODO: Trace error?
             return $ fmap (f Nothing) assets
+
 
 {-------------------------------------------------------------------------------
                             Cardano Metadata Server
@@ -450,8 +453,10 @@ instance FromJSON PropertyName where
     parseJSON = withText "PropertyName" (pure . PropertyName)
 
 instance FromJSON BatchResponse where
-    parseJSON =  withObject "BatchResponse" $ \o ->
-        BatchResponse <$> o .: "subjects"
+    parseJSON =  withObject "BatchResponse" $ \o -> do
+        (xs :: [Value]) <- o .: "subjects"
+        let maybeParseItem v = fmap Just (parseJSON v) <|> pure Nothing
+        BatchResponse <$> (catMaybes <$> mapM maybeParseItem xs)
 
 instance ToJSON Subject where
     toJSON = String . unSubject

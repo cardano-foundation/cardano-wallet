@@ -51,6 +51,14 @@ spec = describe "Token Metadata" $ do
                 let aid = AssetId (UnsafeTokenPolicyId (unsafeFromText subj)) nullTokenName
                 getTokenMetadata client [assetIdFromSubject (Subject subj)]
                     `shouldReturn` Right [(aid, golden1Metadata0)]
+        it "ill-formatted entry doesn't make the entire response fail to parse" $ do
+            withMetadataServer (queryServerStatic golden2File) $ \url -> do
+                client <- newMetadataClient nullTracer (Just url)
+                let aid subj  =  AssetId (UnsafeTokenPolicyId (unsafeFromText subj)) nullTokenName
+                let aid1 = aid "7f71940915ea5fe85e840f843c929eba467e6f050475bad1f10b9c27"
+                let aid2 = aid "bad00000000000000000000000000000000000000000000000000000"
+                getTokenMetadata client [aid1, aid2 ]
+                    `shouldReturn` Right [(aid1, golden1Metadata0)]
         it "missing subject" $
             withMetadataServer (queryServerStatic golden1File) $ \url -> do
                 client <- newMetadataClient nullTracer (Just url)
@@ -62,6 +70,7 @@ spec = describe "Token Metadata" $ do
     dir = $(getTestData) </> "Cardano" </> "Wallet" </> "TokenMetadata"
 
     golden1File = dir </> "golden1.json"
+    golden2File = dir </> "golden2.json"
     golden1Metadata0 = AssetMetadata "SteveToken" "A sample description"
     golden1Metadata1 = AssetMetadata "Token1" "description1"
     golden1Metadata2 = AssetMetadata "Token2" "description2"
