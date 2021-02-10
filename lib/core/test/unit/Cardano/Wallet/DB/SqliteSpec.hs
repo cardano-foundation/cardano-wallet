@@ -284,6 +284,10 @@ spec = parallel $ do
             testMigrationRole @ShelleyKey
                 "shelleyRole-v2020-10-13.sqlite"
 
+        it "'migrate' db with partially applied checkpoint migration" $
+            testMigrationRole @ShelleyKey
+                "shelleyRole-corrupted-v2020-10-13.sqlite"
+
         it "'migrate' db with unused protocol parameters in checkpoints" $
             testMigrationCleanupCheckpoints @ShelleyKey
                 "shelleyDerivationPrefix-v2020-10-07.sqlite"

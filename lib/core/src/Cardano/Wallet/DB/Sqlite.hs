@@ -421,6 +421,9 @@ migrateManually tr proxy defaultFieldValues =
     -- as a discriminator for the migration.
     cleanupCheckpointTable :: Sqlite.Connection -> IO ()
     cleanupCheckpointTable conn = do
+        let orig = "checkpoint"
+
+        -- 1. Add genesis_hash and genesis_start to the 'wallet' table.
         let field = DBField WalGenesisHash
         isFieldPresent conn field >>= \case
             TableMissing ->
@@ -430,16 +433,16 @@ migrateManually tr proxy defaultFieldValues =
                 traceWith tr $ MsgManualMigrationNotNeeded field
 
             ColumnMissing -> do
-                let orig = "checkpoint"
-                let tmp = orig <> "_tmp"
-
-                -- 1. Add genesis_hash and genesis_start to the 'wallet' table.
                 [defaults] <- runSql conn $ select ["genesis_hash", "genesis_start"] orig
                 let [PersistText genesisHash, PersistText genesisStart] = defaults
                 addColumn_ conn True (DBField WalGenesisHash) (quotes genesisHash)
                 addColumn_ conn True (DBField WalGenesisStart) (quotes genesisStart)
 
-                -- 2. Drop columns from the 'checkpoint' table
+        -- 2. Drop columns from the 'checkpoint' table
+        isFieldPresentByName conn "checkpoint" "genesis_hash" >>= \case
+            ColumnPresent -> do
+                let tmp = orig <> "_tmp"
+
                 info <- runSql conn $ getTableInfo orig
                 let filtered = mapMaybe (filterColumn excluding) info
                       where
@@ -448,12 +451,15 @@ migrateManually tr proxy defaultFieldValues =
                             , "slot_length", "epoch_length", "tx_max_size"
                             , "epoch_stability", "active_slot_coeff"
                             ]
+                _ <- runSql conn $ dropTable tmp
                 _ <- runSql conn $ createTable tmp filtered
                 _ <- runSql conn $ copyTable orig tmp filtered
                 _ <- runSql conn $ dropTable orig
                 _ <- runSql conn $ renameTable tmp orig
 
                 return ()
+            _ -> return ()
+
       where
         select fields table = mconcat
             [ "SELECT ", T.intercalate ", " fields
@@ -479,7 +485,7 @@ migrateManually tr proxy defaultFieldValues =
             ]
 
         dropTable table = mconcat
-            [ "DROP TABLE " <> table <> ";"
+            [ "DROP TABLE IF EXISTS " <> table <> ";"
             ]
 
         renameTable from to = mconcat
@@ -937,19 +943,23 @@ migrateManually tr proxy defaultFieldValues =
 
     -- | Determines whether a field is present in its parent table.
     isFieldPresent :: Sqlite.Connection -> DBField -> IO SqlColumnStatus
-    isFieldPresent conn field = do
+    isFieldPresent conn field =
+        isFieldPresentByName conn (tableName field) (fieldName field)
+
+    isFieldPresentByName :: Sqlite.Connection -> Text -> Text -> IO SqlColumnStatus
+    isFieldPresentByName conn table field = do
         getTableInfo <- Sqlite.prepare conn $ mconcat
             [ "SELECT sql FROM sqlite_master "
             , "WHERE type = 'table' "
-            , "AND name = '" <> tableName field <> "';"
+            , "AND name = '" <> table <> "';"
             ]
         row <- Sqlite.step getTableInfo
             >> Sqlite.columns getTableInfo
         Sqlite.finalize getTableInfo
         pure $ case row of
             [PersistText t]
-                | fieldName field `T.isInfixOf` t -> ColumnPresent
-                | otherwise                       -> ColumnMissing
+                | field `T.isInfixOf` t -> ColumnPresent
+                | otherwise             -> ColumnMissing
             _ -> TableMissing
 
     addColumn_
