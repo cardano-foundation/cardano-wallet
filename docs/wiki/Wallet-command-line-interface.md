@@ -148,6 +148,19 @@ Serve API that listens for commands/actions. Before launching user should start 
 >                            trailing 's'. (default: 300s)
 >   --shutdown-handler       Enable the clean shutdown handler (exits when stdin
 >                            is closed)
+>   --pool-metadata-fetching ( none | direct | SMASH-URL )
+>                            Sets the stake pool metadata fetching strategy.
+>                            Provide a URL to specify a SMASH metadata proxy
+>                            server, use "direct" to fetch directly from the
+>                            registered pool URLs, or "none" to completely disable
+>                            stake pool metadata. The initial setting is "none"
+>                            and changes by either this option or the API will
+>                            persist across restarts.
+>   --token-metadata-server URL
+>                            Sets the URL of the token metadata server. If unset,
+>                            metadata will not be fetched. By using this option,
+>                            you are fully trusting the operator of the metadata
+>                            server to provide authentic token metadata.
 >   --log-level SEVERITY     Global minimum severity for a message to be logged.
 >                            Individual tracers severities still need to be
 >                            configured independently. Defaults to "DEBUG".
@@ -204,6 +217,10 @@ cardano-wallet serve \
   --node-socket CARDANO_NODE_SOCKET_PATH_OR_PIPE \
   --database ./wallets-testnet
 ```
+
+### Metadata
+
+For the wallet to show stake pool metadata, you need to set `--pool-metadata-fetching ( none | direct | SMASH-URL )`. And for the wallet to show token metadata, you need to set `--token-metadata-server URL`.
 
 ### Logging options for serve
 
