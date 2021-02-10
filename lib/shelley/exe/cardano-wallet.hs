@@ -60,6 +60,7 @@ import Cardano.CLI
     , shutdownHandlerFlag
     , syncToleranceOption
     , tlsOption
+    , tokenMetadataSourceOption
     , withLogging
     )
 import Cardano.Launcher.Node
@@ -86,7 +87,7 @@ import Cardano.Wallet.Logging
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncTolerance )
 import Cardano.Wallet.Primitive.Types
-    ( PoolMetadataSource (..), Settings (..) )
+    ( PoolMetadataSource (..), Settings (..), TokenMetadataServer (..) )
 import Cardano.Wallet.Shelley
     ( TracerSeverities
     , Tracers
@@ -187,6 +188,7 @@ data ServeArgs = ServeArgs
     , _syncTolerance :: SyncTolerance
     , _enableShutdownHandler :: Bool
     , _poolMetadataSourceOpt :: Maybe PoolMetadataSource
+    , _tokenMetadataSourceOpt :: Maybe TokenMetadataServer
     , _logging :: LoggingOptions TracerSeverities
     } deriving (Show)
 
@@ -207,6 +209,7 @@ cmdServe = command "serve" $ info (helper <*> helper' <*> cmd) $ mempty
         <*> syncToleranceOption
         <*> shutdownHandlerFlag
         <*> optional poolMetadataSourceOption
+        <*> optional tokenMetadataSourceOption
         <*> loggingOptions tracerSeveritiesOption
     exec
         :: ServeArgs -> IO ()
@@ -220,6 +223,7 @@ cmdServe = command "serve" $ info (helper <*> helper' <*> cmd) $ mempty
       sTolerance
       enableShutdownHandler
       poolMetadataFetching
+      tokenMetadataServerURI
       logOpt) = do
         withTracers logOpt $ \tr tracers -> do
             withShutdownHandlerMaybe tr enableShutdownHandler $ do
@@ -243,6 +247,7 @@ cmdServe = command "serve" $ info (helper <*> helper' <*> cmd) $ mempty
                     listen
                     tlsConfig
                     (fmap Settings poolMetadataFetching)
+                    tokenMetadataServerURI
                     conn
                     block0
                     (gp, vData)
@@ -330,6 +335,7 @@ tracerSeveritiesOption :: Parser TracerSeverities
 tracerSeveritiesOption = Tracers
     <$> traceOpt applicationTracer (Just Info)
     <*> traceOpt apiServerTracer (Just Info)
+    <*> traceOpt tokenMetadataTracer (Just Info)
     <*> traceOpt walletEngineTracer (Just Info)
     <*> traceOpt walletDbTracer (Just Info)
     <*> traceOpt poolsEngineTracer (Just Info)

@@ -427,6 +427,7 @@ withShelleyServer tracers action = do
             listen
             Nothing
             Nothing
+            Nothing
             conn
             block0
             (np, vData)

@@ -47,6 +47,8 @@ import Cardano.Wallet.Primitive.Types.Address
     ( Address )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
+import Cardano.Wallet.Primitive.Types.TokenPolicy
+    ( AssetMetadata (AssetMetadata) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..), TxMetadata (..), TxMetadataValue (..), TxStatus (..) )
 import Cardano.Wallet.Unsafe
@@ -613,6 +615,12 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             , expectField (#assets . #total . #getApiT) (`shouldNotBe` TokenMap.empty)
             ]
 
+        let meta = ApiT $ AssetMetadata "SteveToken" "A sample description"
+        r2 <- request @[ApiAsset] ctx (Link.listAssets w) Default Empty
+        verify r2
+            [ expectListField 0 #metadata (`shouldBe` Just meta)
+            ]
+
     it "TRANS_ASSETS_CREATE_01a - Multi-asset transaction with Ada" $ \ctx -> runResourceT $ do
 
         wSrc <- fixtureMultiAssetWallet ctx
@@ -795,11 +803,12 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 pickAnAsset assetsSrc
         let ep = Link.getAsset wal polId assName
         r <- request @(ApiAsset) ctx ep Default Empty
+        let meta = ApiT $ AssetMetadata "SteveToken" "A sample description"
         verify r
             [ expectSuccess
             , expectField #policyId (`shouldBe` ApiT polId)
             , expectField #assetName (`shouldBe` ApiT assName)
-            , expectField #metadata (`shouldBe` Nothing)
+            , expectField #metadata (`shouldBe` Just meta)
             ]
 
     it "TRANS_ASSETS_GET_02 - Asset not present when isn't associated" $ \ctx -> runResourceT $ do

@@ -56,6 +56,7 @@ module Cardano.CLI
     , syncToleranceOption
     , tlsOption
     , poolMetadataSourceOption
+    , tokenMetadataSourceOption
     , metadataOption
     , timeToLiveOption
 
@@ -178,7 +179,12 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncTolerance (..) )
 import Cardano.Wallet.Primitive.Types
-    ( PoolMetadataSource (..), SortOrder, WalletId, WalletName )
+    ( PoolMetadataSource (..)
+    , SortOrder
+    , TokenMetadataServer
+    , WalletId
+    , WalletName
+    )
 import Cardano.Wallet.Primitive.Types.Address
     ( AddressState )
 import Cardano.Wallet.Primitive.Types.Coin
@@ -1382,6 +1388,17 @@ poolMetadataSourceOption = option (eitherReader reader) $ mempty
   where
     reader :: String -> Either String PoolMetadataSource
     reader = fromTextS @PoolMetadataSource
+
+-- | [--token-metadata-server=URL]
+tokenMetadataSourceOption
+    :: Parser TokenMetadataServer
+tokenMetadataSourceOption = optionT $ mempty
+    <> long "token-metadata-server"
+    <> metavar "URL"
+    <> help ("Sets the URL of the token metadata server. "
+            <> "If unset, metadata will not be fetched.\n"
+            <> "By using this option, you are fully trusting the operator of "
+            <> "the metadata server to provide authentic token metadata.")
 
 -- | <wallet-id=WALLET_ID>
 walletIdArgument :: Parser WalletId

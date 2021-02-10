@@ -51,7 +51,6 @@ module Cardano.Wallet.Api.Server
     , getWallet
     , joinStakePool
     , listAssets
-    , listAssetsAvailable
     , getAsset
     , getAssetDefault
     , listAddresses
@@ -153,8 +152,10 @@ import Cardano.Wallet
 import Cardano.Wallet.Api
     ( ApiLayer (..)
     , HasDBFactory
+    , HasTokenMetadataClient
     , HasWorkerRegistry
     , dbFactory
+    , tokenMetadataClient
     , workerRegistry
     )
 import Cardano.Wallet.Api.Server.Tls
@@ -326,6 +327,8 @@ import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle (..) )
+import Cardano.Wallet.Primitive.Types.TokenMap
+    ( AssetId (..) )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenName (..), TokenPolicyId (..), nullTokenName )
 import Cardano.Wallet.Primitive.Types.Tx
@@ -345,6 +348,8 @@ import Cardano.Wallet.Registry
     , defaultWorkerAfter
     , workerResource
     )
+import Cardano.Wallet.TokenMetadata
+    ( TokenMetadataClient, fillMetadata )
 import Cardano.Wallet.Transaction
     ( DelegationAction (..)
     , TransactionCtx (..)
@@ -380,6 +385,8 @@ import Data.Function
     ( (&) )
 import Data.Functor
     ( (<&>) )
+import Data.Functor.Identity
+    ( Identity (..) )
 import Data.Generics.Internal.VL.Lens
     ( Lens', view, (.~), (^.) )
 import Data.Generics.Internal.VL.Prism
@@ -475,7 +482,6 @@ import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
-import qualified Cardano.Wallet.Primitive.Types.UTxO as W
 import qualified Cardano.Wallet.Registry as Registry
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BS
@@ -1299,59 +1305,67 @@ data ErrGetAsset
 newtype ErrListAssets = ErrListAssetsNoSuchWallet ErrNoSuchWallet
     deriving (Eq, Show)
 
-listAssetsAvailable
-    :: forall ctx s k.
-        ( ctx ~ ApiLayer s k
-        )
-    => ctx
-    -> ApiT WalletId
-    -> Handler [ApiAsset]
-listAssetsAvailable ctx (ApiT wid) = do
-    utxo <- withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk -> liftHandler $ do
-       (cp, _meta, _pending) <- W.readWallet @_ @s @k wrk wid
-       pure (cp ^. #utxo)
-    pure $ map (toApiAsset metadata) $ F.toList $ W.getAssets utxo
-  where
-    metadata = Nothing  -- TODO: Use data from metadata server
-
+-- | All assets associated with this wallet, and their metadata (if metadata is
+-- available). This list may include assets which have already been spent.
 listAssets
     :: forall ctx s k.
         ( ctx ~ ApiLayer s k
+        , HasTokenMetadataClient ctx
         )
     => ctx
     -> ApiT WalletId
     -> Handler [ApiAsset]
-listAssets ctx (ApiT wid) = withWorkerCtx ctx wid liftE liftE $ \wrk ->
+listAssets ctx wid = do
+    assets <- listAssetsBase ctx wid
+    liftIO $ fillMetadata client assets toApiAsset
+  where
+    client = ctx ^. tokenMetadataClient
+
+-- | Return a list of all AssetIds involved in the transaction history of this
+-- wallet.
+listAssetsBase
+    :: forall ctx s k.
+        ( ctx ~ ApiLayer s k
+        )
+    => ctx
+    -> ApiT WalletId
+    -> Handler [AssetId]
+listAssetsBase ctx (ApiT wid) = withWorkerCtx ctx wid liftE liftE $ \wrk ->
     liftHandler $ allTxAssets <$>
     W.listTransactions @_ @_ @_ wrk wid Nothing Nothing Nothing Descending
   where
-    allTxAssets = map (toApiAsset metadata)
-        . Set.toList
-        . Set.unions
-        . map txAssets
+    allTxAssets = Set.toList . Set.unions . map txAssets
     txAssets = Set.unions
         . map (TokenBundle.getAssets . view #tokens)
         . W.txInfoOutputs
-    metadata = Nothing  -- TODO: Use data from metadata server
 
+-- | Look up a single asset and its metadata.
+--
+-- NOTE: This is slightly inefficient because it greps through the transaction
+-- history to check if the asset is associated with this wallet.
 getAsset
     :: forall ctx s k.
         ( ctx ~ ApiLayer s k
+        , HasTokenMetadataClient ctx
         )
     => ctx
     -> ApiT WalletId
     -> ApiT TokenPolicyId
     -> ApiT TokenName
     -> Handler ApiAsset
-getAsset ctx wid policyId assetName =
-    listAssets ctx wid >>= liftHandler . findAsset
+getAsset ctx wid (ApiT policyId) (ApiT assetName) = do
+    assetId <- liftHandler . findAsset =<< listAssetsBase ctx wid
+    liftIO $ runIdentity <$> fillMetadata client (Identity assetId) toApiAsset
   where
-    findAsset = maybe (throwE ErrGetAssetNotPresent) pure . F.find matches
-    matches (ApiAsset pid an _) = pid == policyId && an == assetName
+    findAsset = maybe (throwE ErrGetAssetNotPresent) pure
+        . F.find (== (AssetId policyId assetName))
+    client = ctx ^. tokenMetadataClient
 
+-- | The handler for 'getAsset' when 'TokenName' is empty.
 getAssetDefault
     :: forall ctx s k.
         ( ctx ~ ApiLayer s k
+        , HasTokenMetadataClient ctx
         )
     => ctx
     -> ApiT WalletId
@@ -2301,12 +2315,13 @@ newApiLayer
     -> NetworkLayer IO Block
     -> TransactionLayer k
     -> DBFactory IO s k
+    -> TokenMetadataClient IO
     -> (WorkerCtx ctx -> WalletId -> IO ())
         -- ^ Action to run concurrently with wallet restore
     -> IO ctx
-newApiLayer tr g0 nw tl df coworker = do
+newApiLayer tr g0 nw tl df tokenMeta coworker = do
     re <- Registry.empty
-    let ctx = ApiLayer tr g0 nw tl df re
+    let ctx = ApiLayer tr g0 nw tl df re tokenMeta
     listDatabases df >>= mapM_ (registerWorker ctx coworker)
     return ctx
 

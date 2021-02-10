@@ -159,6 +159,7 @@ library
       Cardano.Wallet.Network.BlockHeaders
       Cardano.Wallet.Network.Ports
       Cardano.Wallet.Orphans
+      Cardano.Wallet.TokenMetadata
       Cardano.Wallet.Primitive.AddressDerivation
       Cardano.Wallet.Primitive.AddressDerivation.Byron
       Cardano.Wallet.Primitive.AddressDerivation.Icarus
@@ -184,6 +185,7 @@ library
       Cardano.Wallet.Primitive.Types.UTxO
       Cardano.Wallet.Primitive.Types.UTxOIndex
       Cardano.Wallet.Primitive.Types.UTxOIndex.Internal
+      Cardano.Wallet.TokenMetadata.MockServer
       Cardano.Wallet.Registry
       Cardano.Wallet.Transaction
       Cardano.Wallet.Unsafe
@@ -359,6 +361,7 @@ test-suite unit
       Cardano.Wallet.Primitive.Types.UTxOIndexSpec
       Cardano.Wallet.Primitive.Types.UTxOIndex.TypeErrorSpec
       Cardano.Wallet.Primitive.TypesSpec
+      Cardano.Wallet.TokenMetadataSpec
       Cardano.Wallet.RegistrySpec
       Cardano.Wallet.TransactionSpec
       Cardano.WalletSpec

@@ -261,6 +261,7 @@ main = withLocalClusterSetup $ \dir clusterLogs walletLogs ->
                 listen
                 Nothing
                 Nothing
+                Nothing
                 socketPath
                 block0
                 (gp, vData)

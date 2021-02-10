@@ -123,6 +123,8 @@ module Cardano.Wallet.Api
     , workerRegistry
     , HasDBFactory
     , dbFactory
+    , tokenMetadataClient
+    , HasTokenMetadataClient
     ) where
 
 import Prelude
@@ -197,6 +199,8 @@ import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenName, TokenPolicyId )
 import Cardano.Wallet.Registry
     ( HasWorkerCtx (..), WorkerLog, WorkerRegistry )
+import Cardano.Wallet.TokenMetadata
+    ( TokenMetadataClient )
 import Cardano.Wallet.Transaction
     ( TransactionLayer )
 import Control.Tracer
@@ -848,13 +852,14 @@ data ApiLayer s (k :: Depth -> * -> *)
         (TransactionLayer k)
         (DBFactory IO s k)
         (WorkerRegistry WalletId (DBLayer IO s k))
+        (TokenMetadataClient IO)
     deriving (Generic)
 
 instance HasWorkerCtx (DBLayer IO s k) (ApiLayer s k) where
     type WorkerCtx (ApiLayer s k) = WalletLayer s k
     type WorkerMsg (ApiLayer s k) = WalletLog
     type WorkerKey (ApiLayer s k) = WalletId
-    hoistResource db transform (ApiLayer tr gp nw tl _ _) =
+    hoistResource db transform (ApiLayer tr gp nw tl _ _ _) =
         WalletLayer (contramap transform tr) gp nw tl db
 
 {-------------------------------------------------------------------------------
@@ -875,12 +880,19 @@ workerRegistry =
     typed @(WorkerRegistry WalletId (DBLayer IO s k))
 
 type HasDBFactory s k = HasType (DBFactory IO s k)
+type HasTokenMetadataClient = HasType (TokenMetadataClient IO)
 
 dbFactory
     :: forall s k ctx. (HasDBFactory s k ctx)
     => Lens' ctx (DBFactory IO s k)
 dbFactory =
     typed @(DBFactory IO s k)
+
+tokenMetadataClient
+    :: forall ctx. (HasTokenMetadataClient ctx)
+    => Lens' ctx (TokenMetadataClient IO)
+tokenMetadataClient =
+    typed @(TokenMetadataClient IO)
 
 {-------------------------------------------------------------------------------
                               Type Families

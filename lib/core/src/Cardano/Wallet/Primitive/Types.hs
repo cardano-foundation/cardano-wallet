@@ -143,6 +143,8 @@ module Cardano.Wallet.Primitive.Types
     , defaultSettings
     , unsafeToPMS
 
+    , TokenMetadataServer (..)
+
     -- * InternalState
     , InternalState (..)
     , defaultInternalState
@@ -1354,6 +1356,38 @@ distance :: (Ord a, Num a) => a -> a -> a
 distance a b =
     if a < b then b - a else a - b
 
+{-------------------------------------------------------------------------------
+                               Metadata services
+-------------------------------------------------------------------------------}
+
+uriToText :: URI -> Text
+uriToText uri = T.pack $ uriToString id uri ""
+
+parseURI :: Text -> Either TextDecodingError URI
+parseURI (T.unpack -> uri) = runIdentity $ runExceptT $ do
+    uri' <- parseAbsoluteURI uri ??
+        (TextDecodingError "Not a valid absolute URI.")
+    let res = case uri' of
+            (URI {uriAuthority, uriScheme, uriPath, uriQuery, uriFragment})
+                | uriScheme `notElem` ["http:", "https:"] ->
+                    Left "Not a valid URI scheme, only http/https is supported."
+                | isNothing uriAuthority ->
+                    Left "URI must contain a domain part."
+                | not ((uriPath == "" || uriPath == "/")
+                && uriQuery == "" && uriFragment == "") ->
+                    Left "URI must not contain a path/query/fragment."
+            _ -> Right uri'
+    either (throwE . TextDecodingError) pure res
+
+newtype TokenMetadataServer = TokenMetadataServer
+    { unTokenMetadataServer :: URI }
+    deriving (Show, Generic, Eq)
+
+instance ToText TokenMetadataServer where
+    toText = uriToText . unTokenMetadataServer
+
+instance FromText TokenMetadataServer where
+    fromText = fmap TokenMetadataServer . parseURI
 
 -- | A SMASH server is either an absolute http or https url.
 --
@@ -1362,25 +1396,10 @@ newtype SmashServer = SmashServer { unSmashServer :: URI }
     deriving (Show, Generic, Eq)
 
 instance ToText SmashServer where
-    toText (SmashServer uri) = T.pack $ uriToString id uri ""
+    toText = uriToText . unSmashServer
 
 instance FromText SmashServer where
-    fromText (T.unpack -> uri) = runIdentity $ runExceptT $ do
-        uri' <- parseAbsoluteURI uri ?? TextDecodingError
-            ("Not a valid absolute URI.")
-        case uri' of
-            (URI {uriAuthority, uriScheme, uriPath, uriQuery, uriFragment})
-                | uriScheme `notElem` ["http:", "https:"] ->
-                    throwE (TextDecodingError
-                        "Not a valid URI scheme, only http/https is supported.")
-                | isNothing uriAuthority ->
-                    throwE
-                        (TextDecodingError "URI must contain a domain part.")
-                | not ((uriPath == "" || uriPath == "/")
-                && uriQuery == "" && uriFragment == "") ->
-                    throwE
-                        (TextDecodingError "URI must not contain a path/query/fragment.")
-            _ -> pure $ SmashServer uri'
+    fromText = fmap SmashServer . parseURI
 
 -- | Source of Stake Pool Metadata aggregation.
 data PoolMetadataSource
