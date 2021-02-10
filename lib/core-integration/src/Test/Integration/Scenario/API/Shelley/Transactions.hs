@@ -601,7 +601,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                   )
                 ]
 
-        forM_ matrix $ \(name, nonJson) -> it name $ \ctx -> runResourceT $ do
+        forM_ matrix $ \(title, nonJson) -> it title $ \ctx -> runResourceT $ do
             w <- emptyWallet ctx
             let payload = nonJson
             r <- request @(ApiTransaction n) ctx
@@ -1795,7 +1795,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                   )
                 ]
 
-        forM_ matrix $ \(name, nonJson) -> it name $ \ctx -> runResourceT $ do
+        forM_ matrix $ \(title, nonJson) -> it title $ \ctx -> runResourceT $ do
             w <- emptyWallet ctx
             let payload = nonJson
             r <- request @ApiFee ctx

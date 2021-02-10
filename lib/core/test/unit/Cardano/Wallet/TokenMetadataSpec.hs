@@ -46,27 +46,27 @@ spec = describe "Token Metadata" $ do
 
     describe "Mock server" $ do
         it "testing empty req" $
-            withMetadataServer (queryServerStatic golden1File) $ \url_ -> do
-                client <- newMetadataClient nullTracer (Just url_)
+            withMetadataServer (queryServerStatic golden1File) $ \srv -> do
+                client <- newMetadataClient nullTracer (Just srv)
                 getTokenMetadata client [] `shouldReturn` Right []
         it "golden1.json" $
-            withMetadataServer (queryServerStatic golden1File) $ \url_ -> do
-                client <- newMetadataClient nullTracer (Just url_)
+            withMetadataServer (queryServerStatic golden1File) $ \srv -> do
+                client <- newMetadataClient nullTracer (Just srv)
                 let subj = "7f71940915ea5fe85e840f843c929eba467e6f050475bad1f10b9c27"
                 let aid = AssetId (UnsafeTokenPolicyId (unsafeFromText subj)) nullTokenName
                 getTokenMetadata client [assetIdFromSubject (Subject subj)]
                     `shouldReturn` Right [(aid, golden1Metadata0)]
         it "ill-formatted entry doesn't make the entire response fail to parse" $ do
-            withMetadataServer (queryServerStatic golden2File) $ \url -> do
-                client <- newMetadataClient nullTracer (Just url)
+            withMetadataServer (queryServerStatic golden2File) $ \srv -> do
+                client <- newMetadataClient nullTracer (Just srv)
                 let aid subj  =  AssetId (UnsafeTokenPolicyId (unsafeFromText subj)) nullTokenName
                 let aid1 = aid "7f71940915ea5fe85e840f843c929eba467e6f050475bad1f10b9c27"
                 let aid2 = aid "bad00000000000000000000000000000000000000000000000000000"
                 getTokenMetadata client [aid1, aid2 ]
                     `shouldReturn` Right [(aid1, golden1Metadata0)]
         it "missing subject" $
-            withMetadataServer (queryServerStatic golden1File) $ \url_ -> do
-                client <- newMetadataClient nullTracer (Just url_)
+            withMetadataServer (queryServerStatic golden1File) $ \srv -> do
+                client <- newMetadataClient nullTracer (Just srv)
                 let aid = AssetId (UnsafeTokenPolicyId (Hash "a")) nullTokenName
                 res <- getTokenMetadata client [aid]
                 res `shouldBe` Right []
