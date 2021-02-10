@@ -53,6 +53,7 @@ import Cardano.Wallet.Shelley.Launch.Cluster
     , sendFaucetAssetsTo
     , sendFaucetFundsTo
     , testMinSeverityFromEnv
+    , tokenMetadataServerFromEnv
     , walletListenFromEnv
     , walletMinSeverityFromEnv
     , withCluster
@@ -201,6 +202,9 @@ import qualified Data.Text as T
 --     "virtual hard forks" in the node config files.
 --     The final era can be changed with this variable.
 --
+-- - TOKEN_METADATA_SERVER  (default: none)
+--     Use this URL for the token metadata server.
+--
 -- - NO_POOLS  (default: stake pools nodes are started and registered)
 --     If set, the cluster will only start a BFT leader and a relay, no
 --     stake pools. This can be used for running test scenarios which do
@@ -241,6 +245,7 @@ main = withLocalClusterSetup $ \dir clusterLogs walletLogs ->
             let db = dir </> "wallets"
             createDirectory db
             listen <- walletListenFromEnv
+            tokenMetadataServer <- tokenMetadataServerFromEnv
 
             prometheusUrl <- (maybe "none"
                     (\(h, p) -> T.pack h <> ":" <> toText @(Port "Prometheus") p)
@@ -261,7 +266,7 @@ main = withLocalClusterSetup $ \dir clusterLogs walletLogs ->
                 listen
                 Nothing
                 Nothing
-                Nothing
+                tokenMetadataServer
                 socketPath
                 block0
                 (gp, vData)
