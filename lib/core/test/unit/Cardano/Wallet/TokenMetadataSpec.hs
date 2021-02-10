@@ -14,7 +14,7 @@ import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( AssetMetadata (..), TokenPolicyId (..), nullTokenName )
 import Cardano.Wallet.TokenMetadata
 import Cardano.Wallet.TokenMetadata.MockServer
-    ( queryServerStatic, withMetadataServer )
+    ( assetIdFromSubject, queryServerStatic, withMetadataServer )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex, unsafeFromText )
 import Data.Aeson
@@ -35,7 +35,7 @@ spec = describe "Token Metadata" $ do
 
         it "metadataFromProperties" $
             map metadataFromProperties golden1Properties
-                `shouldBe` [golden1Metadata]
+                `shouldBe` [golden1Metadata0,golden1Metadata1,golden1Metadata2]
 
     describe "Mock server tests" $ do
         it "testing empty req" $
@@ -49,18 +49,21 @@ spec = describe "Token Metadata" $ do
                 client <- newMetadataClient stdoutTextTracer (Just url)
                 let subj = "7f71940915ea5fe85e840f843c929eba467e6f050475bad1f10b9c27"
                 let aid = AssetId (UnsafeTokenPolicyId (unsafeFromText subj)) nullTokenName
-                getTokenMetadata client [aid]
-                    `shouldReturn` Right [(aid, golden1Metadata)]
+                getTokenMetadata client [assetIdFromSubject (Subject subj)]
+                    `shouldReturn` Right [(aid, golden1Metadata0)]
 
   where
     dir = $(getTestData) </> "Cardano" </> "Wallet" </> "TokenMetadata"
 
     golden1File = dir </> "golden1.json"
-    golden1Metadata = AssetMetadata "SteveToken" "A sample description"
+    golden1Metadata0 = AssetMetadata "SteveToken" "A sample description"
+    golden1Metadata1 = AssetMetadata "Token1" "description1"
+    golden1Metadata2 = AssetMetadata "Token2" "description2"
     sig s k = Signature (unsafeFromHex s) (unsafeFromHex k)
-    golden1Properties = [SubjectProperties
+    golden1Properties =
+        [ SubjectProperties
             { subject = "7f71940915ea5fe85e840f843c929eba467e6f050475bad1f10b9c27"
-            , owner = sig "62e800b8c540b218396174f9c42fc253ab461961e20a4cc8ed4ba8b3fdff760cf8422e80d2504829a1d84458093880f02629524416f895b802cb9211f5145808" "25912b3081c20782aaa576af51ef3b17d7370d9fdf6641fec28012678ac1d179"
+            , owner = Just $ sig "62e800b8c540b218396174f9c42fc253ab461961e20a4cc8ed4ba8b3fdff760cf8422e80d2504829a1d84458093880f02629524416f895b802cb9211f5145808" "25912b3081c20782aaa576af51ef3b17d7370d9fdf6641fec28012678ac1d179"
             , properties =
                 ( Property "SteveToken"
                     [ sig "7ef6ed44ba9456737ef8d2e31596fdafb66d5775ac1a254086a553b666516e5895bb0c6b7ba8bef1f6b4d9bd9253b4449d1354de2f9e043ea4eb43fd42f87108" "0ee262f062528667964782777917cd7139e19e8eb2c591767629e4200070c661"
@@ -78,4 +81,15 @@ spec = describe "Token Metadata" $ do
                     , sig "e13c9ba5b084dc126d34f3f1120fff75495b64a41a98a69071b5c5ed01bb9d273f51d570cf4fdaa42969fa2c775c12ec05c496cd8f61323d343970136781f60e" "8cc8963b65ddd0a49f7ce1acc2915d8baff505bbc4f8727a22bd1d28f8ad6632"
                     ]
                 )
-           }]
+           }
+        , SubjectProperties
+            { subject = "missing sigs"
+            , owner = Nothing
+            , properties = ( Property "Token1" [], Property "description1" [] )
+            }
+        , SubjectProperties
+            { subject = "extra fields"
+            , owner = Nothing
+            , properties = ( Property "Token2" [], Property "description2" [] )
+           }
+        ]
