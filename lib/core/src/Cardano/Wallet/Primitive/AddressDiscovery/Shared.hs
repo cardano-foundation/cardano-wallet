@@ -35,31 +35,51 @@ module Cardano.Wallet.Primitive.AddressDiscovery.Shared
 import Prelude
 
 import Cardano.Address.Script
-    ( ScriptTemplate (..), ValidationLevel (..), validateScriptTemplate )
+    ( Cosigner (..)
+    , KeyHash (..)
+    , Script (..)
+    , ScriptTemplate (..)
+    , ValidationLevel (..)
+    , validateScriptTemplate
+    )
 import Cardano.Address.Style.Shelley
-    ( Role (..), delegationAddress, deriveAddressPublicKey, getKey, liftXPub )
+    ( Role (..)
+    , delegationAddress
+    , deriveAddressPublicKey
+    , deriveMultisigPublicKey
+    , getKey
+    , hashKey
+    , liftXPub
+    )
 import Cardano.Crypto.Wallet
     ( XPub )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( NetworkDiscriminant (..) )
-import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..), DerivationType (..), Index (..), WalletKey (..) )
+    ( Depth (..)
+    , DerivationType (..)
+    , Index (..)
+    , NetworkDiscriminant (..)
+    , WalletKey (..)
+    )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( DerivationPrefix (..), coinTypeAda, purposeBIP44 )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Control.DeepSeq
     ( NFData )
-import Data.ByteString
-    ( ByteString )
+import Control.Monad
+    ( mapM )
 import Data.Either
     ( isRight )
+import Data.Map.Strict
+    ( Map )
 import Data.Maybe
     ( isNothing )
 import Data.Word
     ( Word8 )
 import GHC.Generics
     ( Generic )
+
+import qualified Data.Map.Strict as Map
 
 {-------------------------------------------------------------------------------
                                  State
@@ -134,6 +154,28 @@ mkSharedState accXPub accIx spendingTemplate stakingTemplate keyNum =
         else
             Just $ SharedState accXPub prefix keyNum spendingTemplate stakingTemplate addressesToFollow
 
+replaceCosignersWithVerKeys
+    :: ScriptTemplate
+    -> Map Cosigner Int
+    -> Maybe (Script KeyHash)
+replaceCosignersWithVerKeys (ScriptTemplate xpubs scriptTemplate) indices =
+    replaceCosigner scriptTemplate
+  where
+    replaceCosigner :: Script Cosigner -> Maybe (Script KeyHash)
+    replaceCosigner = \case
+        RequireSignatureOf c -> RequireSignatureOf <$> toKeyHash c
+        RequireAllOf xs      -> RequireAllOf <$> mapM replaceCosigner xs
+        RequireAnyOf xs      -> RequireAnyOf <$> mapM replaceCosigner xs
+        RequireSomeOf m xs   -> RequireSomeOf m <$> mapM replaceCosigner xs
+        ActiveFromSlot s     -> pure $ ActiveFromSlot s
+        ActiveUntilSlot s    -> pure $ ActiveUntilSlot s
+
+    toKeyHash :: Cosigner -> Maybe KeyHash
+    toKeyHash c =
+        let ix = toEnum . fromIntegral <$> Map.lookup c indices
+            accXPub = liftXPub <$> Map.lookup c xpubs
+            verKey = deriveMultisigPublicKey <$> accXPub <*> ix
+        in hashKey <$> verKey
 
 generateAddressCombination
     :: ScriptTemplate
