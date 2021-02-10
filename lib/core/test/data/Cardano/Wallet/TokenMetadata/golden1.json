@@ -57,6 +57,22 @@
             }
           ]
         }
+      },
+      {
+        "subject": "missing sigs",
+        "name": {
+          "value": "Token1",
+          "anSignatures": []
+        },
+        "description": {
+          "value": "description1"
+        }
+      },
+      {
+        "subject": "extra fields",
+        "name": { "value": "Token2" },
+        "description": { "value": "description2" },
+        "acronym": { "value": "acronym2" }
       }
     ]
 }

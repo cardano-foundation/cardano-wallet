@@ -28,6 +28,38 @@
             }
           ]
         }
+    },
+    {
+      "subject": "f4137b0691b01c7ca46c2fc05576f4f0ab8eebb8f8e4946cb9107e0f6170706c65",
+      "name": {
+        "value": "Apple",
+        "anSignatures": []
+      },
+      "description": {
+        "value": "A healthy kind of fruit",
+        "anSignatures": []
       }
+    },
+    {
+      "subject": "f4137b0691b01c7ca46c2fc05576f4f0ab8eebb8f8e4946cb9107e0f62616e616e61",
+      "name": {
+        "value": "Banana",
+        "anSignatures": []
+      },
+      "description": {
+        "value": "A yummy kind of fruit",
+        "anSignatures": []
+      }
+    },
+    {
+      "subject": "f4137b0691b01c7ca46c2fc05576f4f0ab8eebb8f8e4946cb9107e0f62636865727279",
+      "name": {
+        "value": "Cherry",
+        "anSignatures": []
+      },
+      "description": {
+        "value": "A special kind of fruit"
+      }
+    }
   ]
 }
