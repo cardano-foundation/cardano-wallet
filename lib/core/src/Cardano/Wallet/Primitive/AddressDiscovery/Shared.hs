@@ -35,19 +35,25 @@ module Cardano.Wallet.Primitive.AddressDiscovery.Shared
 import Prelude
 
 import Cardano.Address.Script
-    ( ScriptTemplate )
+    ( ScriptTemplate (..), ValidationLevel (..), validateScriptTemplate )
+import Cardano.Address.Style.Shelley
+    ( Role (..), delegationAddress, deriveAddressPublicKey, getKey, liftXPub )
 import Cardano.Crypto.Wallet
     ( XPub )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..), DerivationType (..), Index (..) )
+    ( Depth (..), DerivationType (..), Index (..), WalletKey (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( DerivationPrefix (..), coinTypeAda, purposeBIP44 )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Control.DeepSeq
     ( NFData )
+import Data.ByteString
+    ( ByteString )
+import Data.Either
+    ( isRight )
 import Data.Maybe
     ( isNothing )
 import Data.Word
@@ -61,7 +67,7 @@ import GHC.Generics
 
 -- | A state to keep track of script templates, account public keys for cosigners,
 -- | and a combination of possible script addresses to look for in a ledger
-data SharedState (n :: NetworkDiscriminant) k = SeqState
+data SharedState (n :: NetworkDiscriminant) k = SharedState
     { accountKey :: k 'AccountK XPub
         -- ^ Reward account public key associated with this wallet
     , derivationPrefix :: DerivationPrefix
@@ -96,22 +102,42 @@ newtype KeyNumberScope =
     deriving (Eq, Generic, Show)
     deriving anyclass NFData
 
--- | Construct a SharedState for a wallet from public account key, script templates
--- for both staking and spending, and the number of keys to generate key candidates.
+-- | Construct a SharedState for a wallet from public account key and its corresponding index,
+-- script templates for both staking and spending, and the number of keys used for
+-- generating the corresponding address candidates.
 mkSharedState
-    :: forall (n :: NetworkDiscriminant) k. k 'AccountK XPub
+    :: forall (n :: NetworkDiscriminant) k. WalletKey k
+    => k 'AccountK XPub
     -> Index 'Hardened 'AccountK
     -> Maybe ScriptTemplate
     -> Maybe ScriptTemplate
     -> KeyNumberScope
     -> Maybe (SharedState n k)
-mkSharedState accXPub accIx spendingTemplate stakingTemplate keyIx =
+mkSharedState accXPub accIx spendingTemplate stakingTemplate keyNum =
     let
         prefix =
             DerivationPrefix ( purposeBIP44, coinTypeAda, accIx )
-        addressDerived = []
+        accXPub' = liftXPub $ getRawKey accXPub
+        rewardXPub =
+            getKey $ deriveAddressPublicKey accXPub' Stake minBound
+        addressesToFollow = case (spendingTemplate, stakingTemplate) of
+            (Nothing, Nothing) -> []
+            (Just template, Nothing) ->
+                if (isRight $ validateScriptTemplate RecommendedValidation template) then
+                    generateAddressCombination template rewardXPub keyNum
+                else
+                    []
+            _ -> undefined
     in
         if all isNothing [spendingTemplate, stakingTemplate] then
             Nothing
         else
-            Just $ SeqState accXPub prefix keyIx spendingTemplate stakingTemplate addressDerived
+            Just $ SharedState accXPub prefix keyNum spendingTemplate stakingTemplate addressesToFollow
+
+
+generateAddressCombination
+    :: ScriptTemplate
+    -> XPub
+    -> KeyNumberScope
+    -> [Address]
+generateAddressCombination _ _ _ = undefined
