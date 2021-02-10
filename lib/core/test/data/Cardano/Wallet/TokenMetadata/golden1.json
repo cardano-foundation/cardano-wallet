@@ -72,10 +72,36 @@
         "subject": "extra fields",
         "name": { "value": "Token2" },
         "description": { "value": "description2" },
-        "acronym": { "value": "acronym2" },
+        "acronym": { "value": "acr2" },
         "unit": { "value": { "decimals": 14, "name": "unit2" } },
         "url": { "value": "https://iohk.io" },
         "logo": { "value": "QWxtb3N0IGEgbG9nbw==" }
-      }
-    ]
+    },
+    {
+        "subject": "missing description",
+        "name": { "value": "Token3" },
+        "acronym": { "value": "tok3" },
+    },
+    {
+        "subject": "missing name",
+        "description": { "value": "description4" },
+        "acronym": { "value": "tok4" },
+    },
+    {
+       "subject": "malformed name - empty",
+       "name": { "value": "" },
+       "description": { "value": "description5" }
+    },
+    {
+       "subject": "malformed name - too long",
+       "name": { "value": "Token6Token6Token6Token6Token6Token6Token6Token6Token6Token6" },
+       "description": { "value": "description6" }
+    },
+    {
+       "subject": "malformed acryonym - too long",
+       "name": { "value": "Token7" },
+       "acronym": { "value": "Token7" },
+       "description": { "value": "description7" }
+    }
+  ]
 }
