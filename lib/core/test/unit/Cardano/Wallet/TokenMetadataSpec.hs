@@ -6,8 +6,8 @@ module Cardano.Wallet.TokenMetadataSpec where
 
 import Prelude
 
-import Cardano.Wallet.Logging
-    ( stdoutTextTracer )
+import Cardano.Wallet.Primitive.Types.Hash
+    ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId (..) )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
@@ -17,6 +17,8 @@ import Cardano.Wallet.TokenMetadata.MockServer
     ( assetIdFromSubject, queryServerStatic, withMetadataServer )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex, unsafeFromText )
+import Control.Tracer
+    ( nullTracer )
 import Data.Aeson
     ( eitherDecodeFileStrict )
 import System.FilePath
@@ -37,20 +39,24 @@ spec = describe "Token Metadata" $ do
             map metadataFromProperties golden1Properties
                 `shouldBe` [golden1Metadata0,golden1Metadata1,golden1Metadata2]
 
-    describe "Mock server tests" $ do
+    describe "Mock server" $ do
         it "testing empty req" $
-            -- TODO: We shouldn't pollute stdout. We should trace to a TVar
-            -- instead.
             withMetadataServer (queryServerStatic golden1File) $ \url -> do
-                client <- newMetadataClient stdoutTextTracer (Just url)
+                client <- newMetadataClient nullTracer (Just url)
                 getTokenMetadata client [] `shouldReturn` Right []
-        it "testing golden1.json" $
+        it "golden1.json" $
             withMetadataServer (queryServerStatic golden1File) $ \url -> do
-                client <- newMetadataClient stdoutTextTracer (Just url)
+                client <- newMetadataClient nullTracer (Just url)
                 let subj = "7f71940915ea5fe85e840f843c929eba467e6f050475bad1f10b9c27"
                 let aid = AssetId (UnsafeTokenPolicyId (unsafeFromText subj)) nullTokenName
                 getTokenMetadata client [assetIdFromSubject (Subject subj)]
                     `shouldReturn` Right [(aid, golden1Metadata0)]
+        it "missing subject" $
+            withMetadataServer (queryServerStatic golden1File) $ \url -> do
+                client <- newMetadataClient nullTracer (Just url)
+                let aid = AssetId (UnsafeTokenPolicyId (Hash "a")) nullTokenName
+                res <- getTokenMetadata client [aid]
+                res `shouldBe` Right []
 
   where
     dir = $(getTestData) </> "Cardano" </> "Wallet" </> "TokenMetadata"
