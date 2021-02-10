@@ -3,6 +3,7 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
@@ -12,9 +13,12 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE ViewPatterns #-}
+
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 
 -- |
 -- Copyright: © 2018-2021 IOHK
@@ -67,7 +71,12 @@ import Cardano.Wallet.Primitive.Types.Hash
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId (..) )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( AssetMetadata (..), TokenName (..), TokenPolicyId (..) )
+    ( AssetLogo (..)
+    , AssetMetadata (..)
+    , AssetUnit (..)
+    , TokenName (..)
+    , TokenPolicyId (..)
+    )
 import Control.Applicative
     ( (<|>) )
 import Control.Monad
@@ -80,16 +89,18 @@ import Data.Aeson
     , Value (..)
     , eitherDecodeStrict'
     , encode
+    , object
     , withObject
     , withText
     , (.!=)
     , (.:)
     , (.:?)
+    , (.=)
     )
 import Data.Bifunctor
     ( first )
 import Data.ByteArray.Encoding
-    ( Base (Base16), convertFromBase, convertToBase )
+    ( Base (Base16, Base64), convertFromBase, convertToBase )
 import Data.ByteString
     ( ByteString )
 import Data.Foldable
@@ -129,8 +140,6 @@ import Network.URI
     ( URI, relativeTo )
 import Network.URI.Static
     ( relativeReference )
-import Numeric.Natural
-    ( Natural )
 import UnliftIO.Exception
     ( SomeException, handle, handleAny )
 
@@ -188,13 +197,14 @@ data SubjectProperties = SubjectProperties
     -- TODO: use Data.SOP.NP and parameterize type by property names
     -- Name and description are required, both others may be missing the
     -- response.
-    , properties :: ( Property "name"
-                    -- , (PropertyValue "acronym", [Signature])
-                    , Property "description"
-                    -- , (PropertyValue "url", [Signature])
-                    -- , (PropertyValue "logo", [Signature])
-                    -- , (PropertyValue "unit", [Signature])
-                    )
+    , properties ::
+        ( Property "name"
+        , Property "description"
+        , Maybe (Property "acronym")
+        , Maybe (Property "url")
+        , Maybe (Property "logo")
+        , Maybe (Property "unit")
+        )
     } deriving (Generic, Show, Eq)
 
 -- | A property value and its signatures.
@@ -219,18 +229,11 @@ newtype PropertyName = PropertyName { unPropertyName :: Text }
 -- | The type of a given property name.
 type family PropertyValue (name :: Symbol) :: *
 type instance PropertyValue "name" = Text
-type instance PropertyValue "acronym" = Text
 type instance PropertyValue "description" = Text
+type instance PropertyValue "acronym" = Text
 type instance PropertyValue "url" = Text
--- type instance PropertyValue "logo" = AssetLogoBase64
+type instance PropertyValue "logo" = AssetLogo
 type instance PropertyValue "unit" = AssetUnit
-
--- | Specification of a larger unit for an asset. For example, the "lovelace"
--- asset has the larger unit "ada" with 6 zeroes.
-data AssetUnit = AssetUnit
-    { name :: Text -- ^ Name of the larger asset.
-    , decimals :: Natural  -- ^ Number of zeroes to add to base unit.
-    } deriving (Generic, Show, Eq)
 
 -- | Will be used in future for checking integrity and authenticity of metadata.
 data Signature = Signature
@@ -438,8 +441,16 @@ assetIdToSubject (AssetId (UnsafeTokenPolicyId (Hash p)) (UnsafeTokenName n)) =
 -- | Convert metadata server properties response into an 'AssetMetadata' record.
 -- Only the values are taken. Signatures are ignored (for now).
 metadataFromProperties :: SubjectProperties -> AssetMetadata
-metadataFromProperties (SubjectProperties _ _ ((Property n _, Property d _))) =
-    AssetMetadata n d
+metadataFromProperties (SubjectProperties _ _ properties) =
+    AssetMetadata { name, description, acronym, url, logo, unit }
+  where
+    ( pName, pDescription, pAcronym, pUrl, pLogo, pUnit ) = properties
+    name = value pName
+    description = value pDescription
+    acronym = value <$> pAcronym
+    url = value <$> pUrl
+    logo = value <$> pLogo
+    unit = value <$> pUnit
 
 {-------------------------------------------------------------------------------
                       Aeson instances for metadata-server
@@ -464,10 +475,18 @@ instance FromJSON Subject where
     parseJSON = withText "Subject" (pure . Subject)
 
 instance FromJSON SubjectProperties where
-   parseJSON = withObject "SubjectProperties" $ \o -> SubjectProperties
-       <$> o .: "subject"
-       <*> o .:? "owner"
-       <*> ((,) <$> o .: "name" <*> o .: "description")
+    parseJSON = withObject "SubjectProperties" $ \o -> SubjectProperties
+        <$> o .: "subject"
+        <*> o .:? "owner"
+        <*> parseProperties o
+      where
+        parseProperties o = (,,,,,)
+            <$> o .: "name"
+            <*> o .: "description"
+            <*> o .:? "acronym"
+            <*> o .:? "url"
+            <*> o .:? "logo"
+            <*> o .:? "unit"
 
 instance FromJSON (PropertyValue name) => FromJSON (Property name) where
     parseJSON = withObject "Property" $ \o -> Property
@@ -476,14 +495,40 @@ instance FromJSON (PropertyValue name) => FromJSON (Property name) where
 
 instance FromJSON Signature where
     parseJSON = withObject "Signature" $ \o -> Signature
-        <$> fmap unHex (o .: "signature")
-        <*> fmap unHex (o .: "publicKey")
+        <$> fmap (raw @'Base16) (o .: "signature")
+        <*> fmap (raw @'Base16) (o .: "publicKey")
 
-newtype Hex = Hex { unHex :: ByteString } deriving (Generic, Show, Eq)
+instance FromJSON AssetLogo where
+    parseJSON =
+        fmap (AssetLogo . raw @'Base64) . parseJSON
 
-instance FromJSON Hex where
-    parseJSON = withText "hex bytestring" $
-        either fail (pure . Hex) . convertFromBase Base16 . T.encodeUtf8
+instance ToJSON AssetLogo where
+    toJSON =
+        toJSON . B8.unpack . convertToBase Base64 . unAssetLogo
 
 instance FromJSON AssetUnit where
-    -- TODO: AssetUnit, when it's provided by the metadata server
+    parseJSON = withObject "AssetUnit" $ \o -> AssetUnit
+        <$> o .: "name"
+        <*> o .: "decimals"
+
+instance ToJSON AssetUnit where
+    toJSON AssetUnit{name,decimals} = object
+        [ "name" .= name
+        , "decimals" .= decimals
+        ]
+
+--
+-- Helpers
+--
+
+newtype Encoded (base :: Base) = Encoded
+    { raw :: ByteString }
+    deriving (Generic, Show, Eq)
+
+instance FromJSON (Encoded 'Base16) where
+    parseJSON = withText "base16 bytestring" $
+        either fail (pure . Encoded) . convertFromBase Base16 . T.encodeUtf8
+
+instance FromJSON (Encoded 'Base64) where
+    parseJSON = withText "base64 bytestring" $
+        either fail (pure . Encoded) . convertFromBase Base64 . T.encodeUtf8

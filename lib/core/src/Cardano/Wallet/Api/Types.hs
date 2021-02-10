@@ -243,6 +243,8 @@ import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..), TxIn (..), TxMetadata, TxStatus (..), txMetadataIsNull )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( BoundType, HistogramBar (..), UTxOStatistics (..) )
+import Cardano.Wallet.TokenMetadata
+    ()
 import Codec.Binary.Bech32
     ( dataPartFromBytes, dataPartToBytes )
 import Codec.Binary.Bech32.TH

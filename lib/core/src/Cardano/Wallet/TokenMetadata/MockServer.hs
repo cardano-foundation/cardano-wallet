@@ -127,11 +127,15 @@ assetIdFromSubject =
 instance FromJSON BatchRequest where
 
 instance ToJSON SubjectProperties where
-   toJSON (SubjectProperties s o (n, d)) = object
+   toJSON (SubjectProperties s o (n,d,a,u,l,t)) = object
        [ "subject" .= s
        , "owner" .= o
        , "name" .= n
        , "description" .= d
+       , "acronym" .= a
+       , "url" .= u
+       , "logo" .= l
+       , "unit" .= t
        ]
 
 instance ToJSON (PropertyValue name) => ToJSON (Property name) where

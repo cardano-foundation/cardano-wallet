@@ -2,6 +2,7 @@
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingVia #-}
+{-# LANGUAGE DuplicateRecordFields #-}
 
 module Cardano.Wallet.Primitive.Types.TokenPolicy
     (
@@ -16,6 +17,8 @@ module Cardano.Wallet.Primitive.Types.TokenPolicy
 
       -- * Token Metadata
     , AssetMetadata (..)
+    , AssetLogo (..)
+    , AssetUnit (..)
     ) where
 
 import Prelude
@@ -44,6 +47,8 @@ import Fmt
     ( Buildable (..) )
 import GHC.Generics
     ( Generic )
+import Numeric.Natural
+    ( Natural )
 import Quiet
     ( Quiet (..) )
 
@@ -126,12 +131,29 @@ instance FromText TokenName where
 -- | Information about an asset, from a source external to the chain.
 data AssetMetadata = AssetMetadata
     { name :: Text
-    -- , acronym :: Text            -- TODO: needs metadata-server support
     , description :: Text
-    -- , url :: Text                -- TODO: needs metadata-server support
-    -- , logoBase64 :: ByteString   -- TODO: needs metadata-server support
-    -- , unit :: AssetUnit          -- TODO: needs metadata-server support
+    , acronym :: Maybe Text
+    , url :: Maybe Text
+    , logo :: Maybe AssetLogo
+    , unit :: Maybe AssetUnit
     } deriving stock (Eq, Ord, Generic)
-    deriving (Read, Show) via (Quiet AssetMetadata)
+    deriving (Show) via (Quiet AssetMetadata)
 
 instance NFData AssetMetadata
+
+-- | Specification of a larger unit for an asset. For example, the "lovelace"
+-- asset has the larger unit "ada" with 6 zeroes.
+data AssetUnit = AssetUnit
+    { name :: Text -- ^ Name of the larger asset.
+    , decimals :: Natural  -- ^ Number of zeroes to add to base unit.
+    } deriving (Generic, Show, Eq, Ord)
+
+instance NFData AssetUnit
+
+-- | Specify an asset logo as an image data payload
+newtype AssetLogo = AssetLogo
+    { unAssetLogo :: ByteString
+    } deriving (Eq, Ord, Generic)
+    deriving (Show) via (Quiet AssetLogo)
+
+instance NFData AssetLogo
