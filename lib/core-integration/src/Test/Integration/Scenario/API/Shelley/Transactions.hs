@@ -1,5 +1,6 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
@@ -48,7 +49,7 @@ import Cardano.Wallet.Primitive.Types.Address
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( AssetMetadata (AssetMetadata) )
+    ( AssetLogo (..), AssetMetadata (..), AssetUnit (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..), TxMetadata (..), TxMetadataValue (..), TxStatus (..) )
 import Cardano.Wallet.Unsafe
@@ -804,8 +805,14 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 pickAnAsset assetsSrc
         let ep = Link.getAsset wal polId assName
         r <- request @(ApiAsset) ctx ep Default Empty
-        let meta = ApiT $ AssetMetadata "SteveToken" "A sample description"
-                            Nothing Nothing Nothing Nothing
+        let meta = ApiT $ AssetMetadata
+                { name = "SteveToken"
+                , description = "A sample description"
+                , acronym = Just "STV"
+                , url = Just "https://iohk.io/stevetoken"
+                , unit = Just $ AssetUnit "MegaSteve" 6
+                , logo = Just $ AssetLogo "QWxtb3N0IGEgbG9nbw=="
+                }
         verify r
             [ expectSuccess
             , expectField #policyId (`shouldBe` ApiT polId)
