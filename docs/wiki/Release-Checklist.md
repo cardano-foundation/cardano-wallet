@@ -1,12 +1,10 @@
 ## Preparing the release
 - [ ] Make sure `cardano-wallet` points to correct revisions of
-      dependent low-level libs (verify on target repositories if
-      [stack.yaml](https://github.com/input-output-hk/cardano-wallet/blob/master/stack.yaml#L34-L42)
-      points to appopriate revisions for `persistent`,
-      `cardano-addresses`...). Also verify that the stack resolver
-      corresponds to the `cardano-node` version. ⇒ cardano-node will
-      stay the same as before. cardano-addresses will be bumped to
-      3.1.0.
+  dependent low-level libs in [stack.yaml](https://github.com/input-output-hk/cardano-wallet/blob/master/stack.yaml.)
+
+  Verify that the stack resolver corresponds to the `cardano-node` version.
+
+  Verify that target repositories point to appopriate revisions for `persistent`, `cardano-addresses`, `bech32`, ...).
 
 - [ ] Fetch the tip of `master`:
 
@@ -34,23 +32,19 @@
   ```
   ################################################################################
   # Release-specific parameters (Change when you bump the version)
-  #
-  # Use trailing zeros for the date in the git tag, but
-  # do not use trailing zeros for the Cabal version.
-  # i.e. v2020-11-03 and not 2020.11.03 but 2020.11.3
-  GIT_TAG="v2020-04-01"
-  CABAL_VERSION="2020.4.1"
+  # Release tags must follow format vYYYY-MM-DD.
+  OLD_GIT_TAG="v2021-01-28"
+  GIT_TAG="v2021-02-10"
 
-  OLD_GIT_TAG="v2020-03-16"
-  OLD_CABAL_VERSION="2020.3.16"
-
-  CARDANO_NODE_TAG="1.9.3"
+  CARDANO_NODE_TAG="1.25.1"
   ```
 
   > :warning: We use a slightly different notation between
   > `.cabal` and git tags! Git tags follows the following format:
   > `vYYYY-MM-DD` (notice the `v` and hyphens) whereas cabal
   > version are written as: `YYYY.MM.DD`.
+  >
+  > The `make_release.sh` script handles conversion, but just be aware.
 
 - [ ] From the **root** of the repository, run:
 
