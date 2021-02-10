@@ -40,16 +40,19 @@ import Cardano.Address.Script
     , Script (..)
     , ScriptTemplate (..)
     , ValidationLevel (..)
+    , toScriptHash
     , validateScriptTemplate
     )
 import Cardano.Address.Style.Shelley
-    ( Role (..)
+    ( Credential (..)
+    , Role (..)
     , delegationAddress
     , deriveAddressPublicKey
     , deriveMultisigPublicKey
     , getKey
     , hashKey
     , liftXPub
+    , mkNetworkDiscriminant
     )
 import Cardano.Crypto.Wallet
     ( XPub )
@@ -79,8 +82,8 @@ import Data.Word
 import GHC.Generics
     ( Generic )
 
+import qualified Cardano.Address as CA
 import qualified Data.Map.Strict as Map
-
 {-------------------------------------------------------------------------------
                                  State
 -------------------------------------------------------------------------------}
@@ -142,9 +145,9 @@ mkSharedState accXPub accIx spendingTemplate stakingTemplate keyNum =
             getKey $ deriveAddressPublicKey accXPub' Stake minBound
         addressesToFollow = case (spendingTemplate, stakingTemplate) of
             (Nothing, Nothing) -> []
-            (Just template, Nothing) ->
-                if (isRight $ validateScriptTemplate RecommendedValidation template) then
-                    generateAddressCombination template rewardXPub keyNum
+            (Just template', Nothing) ->
+                if (isRight $ validateScriptTemplate RecommendedValidation template') then
+                    generateAddressCombination template' rewardXPub keyNum
                 else
                     []
             _ -> undefined
@@ -156,7 +159,7 @@ mkSharedState accXPub accIx spendingTemplate stakingTemplate keyNum =
 
 replaceCosignersWithVerKeys
     :: ScriptTemplate
-    -> Map Cosigner Int
+    -> Map Cosigner Word8
     -> Maybe (Script KeyHash)
 replaceCosignersWithVerKeys (ScriptTemplate xpubs scriptTemplate) indices =
     replaceCosigner scriptTemplate
@@ -182,4 +185,33 @@ generateAddressCombination
     -> XPub
     -> KeyNumberScope
     -> [Address]
-generateAddressCombination _ _ _ = undefined
+generateAddressCombination st@(ScriptTemplate xpubs _) stakeXPub (KeyNumberScope num) =
+    concatMap tryCreateAddress cosignerCombinations
+  where
+    cosigners' = Map.keys xpubs
+    formMaps = map Map.fromList . zipWith zip (cycle [cosigners'])
+    cosignerCombinations = case Map.size xpubs of
+        1 -> zipWith Map.singleton (cycle cosigners') [0..num]
+        2 -> formMaps (map (\(x1,x2) -> [x1,x2]) $
+                       (,) <$> [0..num] <*> [0..num])
+        3 -> formMaps (map (\(x1,x2,x3) -> [x1,x2,x3]) $
+                       (,,) <$> [0..num] <*> [0..num] <*> [0..num])
+        4 -> formMaps (map (\(x1,x2,x3,x4) -> [x1,x2,x3,x4]) $
+                       (,,,) <$> [0..num] <*> [0..num] <*> [0..num] <*> [0..num])
+        5 -> formMaps (map (\(x1,x2,x3,x4,x5) -> [x1,x2,x3,x4,x5]) $
+                       (,,,,) <$> [0..num] <*> [0..num] <*> [0..num] <*> [0..num] <*> [0..num])
+        6 -> formMaps (map (\(x1,x2,x3,x4,x5,x6) -> [x1,x2,x3,x4,x5,x6]) $
+                       (,,,,,) <$> [0..num] <*> [0..num] <*> [0..num] <*> [0..num] <*> [0..num] <*> [0..num])
+        7 -> formMaps (map (\(x1,x2,x3,x4,x5,x6,x7) -> [x1,x2,x3,x4,x5,x6,x7]) $
+                       (,,,,,,) <$> [0..num] <*> [0..num] <*> [0..num] <*> [0..num] <*> [0..num] <*> [0..num] <*> [0..num])
+        _ -> error "generateAddressCombination supports up to 7 cosigners"
+    (Right tag) = mkNetworkDiscriminant 1
+    delegationCredential = DelegationFromKey $ liftXPub stakeXPub
+    paymentCredential = PaymentFromScript . toScriptHash
+    createAddress s =
+        CA.unAddress $
+        delegationAddress tag (paymentCredential s) delegationCredential
+    tryCreateAddress combination =
+        case replaceCosignersWithVerKeys st combination of
+            Nothing -> []
+            Just scriptKeyHash -> [Address $ createAddress scriptKeyHash]
