@@ -193,13 +193,15 @@ import Cardano.Wallet.Primitive.Types.Hash
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle
-    ( TokenBundle )
+    ( AssetId (..), TokenBundle )
 import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
     ( genTokenBundleSmallRange, shrinkTokenBundleSmallRange )
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( TokenMap )
 import Cardano.Wallet.Primitive.Types.TokenMap.Gen
     ( genAssetIdSmallRange, genTokenMapSmallRange, shrinkTokenMapSmallRange )
+import Cardano.Wallet.Primitive.Types.TokenPolicy
+    ( TokenFingerprint, mkTokenFingerprint )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..)
     , TxIn (..)
@@ -435,6 +437,7 @@ spec = parallel $ do
             textRoundtrip $ Proxy @Iso8601Time
             textRoundtrip $ Proxy @SortOrder
             textRoundtrip $ Proxy @Coin
+            textRoundtrip $ Proxy @TokenFingerprint
 
     describe "AddressAmount" $ do
         it "fromText \"22323\"" $
@@ -1808,6 +1811,12 @@ instance Arbitrary ApiHealthCheck where
 instance Arbitrary ApiPostAccountKeyData where
     arbitrary = genericArbitrary
     shrink = genericShrink
+
+instance Arbitrary TokenFingerprint where
+    arbitrary = do
+        AssetId policy aName <- genAssetIdSmallRange
+        pure $ mkTokenFingerprint policy aName
+    shrink _ = []
 
 instance Arbitrary ApiAccountKey where
     arbitrary = do
