@@ -423,7 +423,9 @@ getTokenMetadata (TokenMetadataClient client) as =
     subjects = map assetIdToSubject as
     req = BatchRequest
         { subjects
-        , properties = [PropertyName "name", PropertyName "description"]
+        , properties = PropertyName <$>
+             [ "name", "description", "acronym"
+             , "url", "logo", "unit" ]
         }
     subjectAsset = HM.fromList $ zip subjects as
     fromResponse :: BatchResponse -> [(AssetId, AssetMetadata)]
