@@ -157,13 +157,32 @@ executable local-cluster
     , directory
     , filepath
     , lobemo-backend-ekg
-    , optparse-applicative
     , text
     , text-class
   hs-source-dirs:
       exe
   main-is:
       local-cluster.hs
+
+executable mock-token-metadata-server
+  default-language:
+      Haskell2010
+  default-extensions:
+      NoImplicitPrelude
+      OverloadedStrings
+  ghc-options:
+      -threaded -rtsopts
+      -Wall
+  if (flag(release))
+    ghc-options: -O2 -Werror
+  build-depends:
+      base
+    , cardano-wallet-core
+    , optparse-applicative
+  hs-source-dirs:
+      exe
+  main-is:
+     mock-token-metadata-server.hs
 
 test-suite unit
   default-language:
