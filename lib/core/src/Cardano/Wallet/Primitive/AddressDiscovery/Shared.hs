@@ -30,6 +30,7 @@ module Cardano.Wallet.Primitive.AddressDiscovery.Shared
       SharedState (..)
     , KeyNumberScope (..)
     , unsafeSharedState
+    , newSharedState
     , purposeCIPXXX
     ) where
 
@@ -63,7 +64,10 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , DerivationType (..)
     , Index (..)
     , NetworkDiscriminant (..)
+    , SoftDerivation
     , WalletKey (..)
+    , deriveVerificationKey
+    , hashVerificationKey
     )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( coinTypeAda )
@@ -87,6 +91,7 @@ import GHC.Generics
     ( Generic )
 
 import qualified Cardano.Address as CA
+import qualified Data.List as L
 import qualified Data.Map.Strict as Map
 
 {-------------------------------------------------------------------------------
@@ -157,18 +162,44 @@ unsafeSharedState
     -> ScriptTemplate
     -> Maybe ScriptTemplate
     -> Map KeyHash (Index 'Soft 'ScriptK, AddressState)
-    -> Map Address [Index 'Soft 'ScriptK]
+    -> Map Address (Index 'Soft 'ScriptK)
     -> SharedState n k
-unsafeSharedState accXPub accIx g template1 template2 vkPoolMap knownAdresesses =
+unsafeSharedState accXPub accIx g pTemplate dTemplate vkPoolMap knownAdresesses =
     SharedState
     { shareStateAccountKey = accXPub
     , shareStateDerivationPrefix = DerivationPrefix ( purposeCIPXXX, coinTypeAda, accIx )
     , shareStateGap = g
-    , shareStatePaymentTemplate = template1
-    , shareStateDelegationTemplate = template2
-    , shareStateIndexedKeyHashes = Map.empty
-    , shareStateKnownAddresses = Map.empty
+    , shareStatePaymentTemplate = pTemplate
+    , shareStateDelegationTemplate = dTemplate
+    , shareStateIndexedKeyHashes = vkPoolMap
+    , shareStateKnownAddresses = knownAdresesses
     }
+
+-- | Create a new VerificationKey pool.
+newSharedState
+    :: forall (n :: NetworkDiscriminant) k.
+       (SoftDerivation k, WalletKey k)
+    => k 'AccountK XPub
+    -> Index 'Hardened 'AccountK
+    -> AddressPoolGap
+    -> ScriptTemplate
+    -> Maybe ScriptTemplate
+    -> SharedState n k
+newSharedState accXPub accIx g pTemplate dTemplate =
+    let startVerKeyMap =
+            Map.fromList $ map (createPristineMapEntry accXPub) $
+            L.take (fromEnum g) $ L.iterate succ minBound
+    in unsafeSharedState accXPub accIx g pTemplate dTemplate startVerKeyMap Map.empty
+
+createPristineMapEntry
+    :: (SoftDerivation k, WalletKey k)
+    => k 'AccountK XPub
+    -> Index 'Soft 'ScriptK
+    -> (KeyHash, (Index 'Soft 'ScriptK, AddressState))
+createPristineMapEntry accXPub ix =
+    ( hashVerificationKey $ deriveVerificationKey accXPub ix
+    , (ix, Unused) )
+
 
 {--
 
