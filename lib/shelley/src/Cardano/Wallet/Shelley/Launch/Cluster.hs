@@ -53,6 +53,7 @@ module Cardano.Wallet.Shelley.Launch.Cluster
     , testMinSeverityFromEnv
     , testLogDirFromEnv
     , walletListenFromEnv
+    , tokenMetadataServerFromEnv
 
       -- * Faucets
     , sendFaucetFundsTo
@@ -112,7 +113,12 @@ import Cardano.Wallet.Network.Ports
 import Cardano.Wallet.Primitive.AddressDerivation
     ( hex )
 import Cardano.Wallet.Primitive.Types
-    ( Block (..), EpochNo (..), NetworkParameters (..), PoolId (..) )
+    ( Block (..)
+    , EpochNo (..)
+    , NetworkParameters (..)
+    , PoolId (..)
+    , TokenMetadataServer (..)
+    )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle
@@ -274,6 +280,12 @@ walletListenFromEnv :: IO Listen
 walletListenFromEnv = envFromText "CARDANO_WALLET_PORT" >>= \case
     Nothing -> pure ListenOnRandomPort
     Just (Right port) -> pure $ ListenOnPort port
+    Just (Left e) -> die $ show e
+
+tokenMetadataServerFromEnv :: IO (Maybe TokenMetadataServer)
+tokenMetadataServerFromEnv = envFromText "TOKEN_METADATA_SERVER" >>= \case
+    Nothing -> pure Nothing
+    Just (Right s) -> pure (Just s)
     Just (Left e) -> die $ show e
 
 -- | Directory for extra logging. Buildkite will set this environment variable
