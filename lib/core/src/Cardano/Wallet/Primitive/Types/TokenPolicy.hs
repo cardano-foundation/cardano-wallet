@@ -3,8 +3,10 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE ViewPatterns #-}
 
 module Cardano.Wallet.Primitive.Types.TokenPolicy
     (
@@ -23,8 +25,15 @@ module Cardano.Wallet.Primitive.Types.TokenPolicy
 
       -- * Token Metadata
     , AssetMetadata (..)
+    , AssetURL (..)
     , AssetLogo (..)
     , AssetUnit (..)
+    , validateMetadataName
+    , validateMetadataAcronym
+    , validateMetadataDescription
+    , validateMetadataURL
+    , validateMetadataUnit
+    , validateMetadataLogo
     ) where
 
 import Prelude
@@ -53,6 +62,8 @@ import Data.ByteString
     ( ByteString )
 import Data.Function
     ( (&) )
+import Data.Functor
+    ( ($>) )
 import Data.Hashable
     ( Hashable )
 import Data.Text
@@ -63,6 +74,8 @@ import Fmt
     ( Buildable (..) )
 import GHC.Generics
     ( Generic )
+import Network.URI
+    ( URI, parseAbsoluteURI, uriScheme )
 import Numeric.Natural
     ( Natural )
 import Quiet
@@ -70,8 +83,8 @@ import Quiet
 
 import qualified Codec.Binary.Bech32 as Bech32
 import qualified Data.ByteString as BS
+import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
-
 
 -- | Token policy identifiers, represented by the hash of the monetary policy
 -- script.
@@ -191,7 +204,7 @@ data AssetMetadata = AssetMetadata
     { name :: Text
     , description :: Text
     , acronym :: Maybe Text
-    , url :: Maybe Text
+    , url :: Maybe AssetURL
     , logo :: Maybe AssetLogo
     , unit :: Maybe AssetUnit
     } deriving stock (Eq, Ord, Generic)
@@ -215,3 +228,63 @@ newtype AssetLogo = AssetLogo
     deriving (Show) via (Quiet AssetLogo)
 
 instance NFData AssetLogo
+
+-- | The validated URL for the asset.
+newtype AssetURL = AssetURL
+    { unAssetURL :: URI
+    } deriving (Eq, Ord, Generic)
+    deriving (Show) via (Quiet AssetURL)
+
+instance NFData AssetURL
+
+instance ToText AssetURL where
+    toText = T.pack . show . unAssetURL
+
+instance FromText AssetURL where
+    fromText = first TextDecodingError . validateMetadataURL
+
+validateMinLength :: Int -> Text -> Either String Text
+validateMinLength n text
+    | len >= n = Right text
+    | otherwise = Left $ "Length must be at least " ++ show n ++ " characters, got " ++ show len
+  where
+    len = T.length text
+
+validateMaxLength :: Int -> Text -> Either String Text
+validateMaxLength n text
+    | len <= n = Right text
+    | otherwise = Left $ "Length must be no more than " ++ show n ++ " characters, got " ++ show len
+  where
+    len = T.length text
+
+validateMetadataName :: Text -> Either String Text
+validateMetadataName = validateMinLength 1 >=> validateMaxLength 50
+
+validateMetadataAcronym :: Text -> Either String Text
+validateMetadataAcronym = validateMinLength 2 >=> validateMaxLength 4
+
+validateMetadataDescription :: Text -> Either String Text
+validateMetadataDescription = validateMaxLength 500
+
+validateMetadataURL :: Text -> Either String AssetURL
+validateMetadataURL = fmap AssetURL .
+    (validateMaxLength 250 >=> validateURI >=> validateHttps)
+  where
+      validateURI = maybe (Left "Not an absolute URI") Right
+          . parseAbsoluteURI
+          . T.unpack
+      validateHttps u@(uriScheme -> scheme)
+          | scheme == "https:" = Right u
+          | otherwise = Left $ "Scheme must be https: but got " ++ scheme
+
+validateMetadataUnit :: AssetUnit -> Either String AssetUnit
+validateMetadataUnit assetUnit@AssetUnit{name} =
+    (validateMinLength 1 name >>= validateMaxLength 30) $> assetUnit
+
+validateMetadataLogo :: AssetLogo -> Either String AssetLogo
+validateMetadataLogo logo
+    | len <= maxLen = Right logo
+    | otherwise = Left $ "Length must be no more than " ++ show maxLen ++ " bytes, got " ++ show len
+  where
+    len = BS.length $ unAssetLogo logo
+    maxLen = 65536
