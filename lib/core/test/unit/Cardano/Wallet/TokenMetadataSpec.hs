@@ -83,7 +83,7 @@ spec = describe "Token Metadata" $ do
             Nothing Nothing Nothing Nothing
     golden1Metadata2 =
         AssetMetadata "Token2" "description2"
-            (Just "acronym2")
+            (Just "acr2")
             (Just "https://iohk.io")
             (Just $ AssetLogo $ unsafeFromBase64 "QWxtb3N0IGEgbG9nbw==")
             (Just $ AssetUnit "unit2" 14)
@@ -133,7 +133,7 @@ spec = describe "Token Metadata" $ do
             , properties =
                 ( Property "Token2" []
                 , Property "description2" []
-                , Just $ Property "acronym2" []
+                , Just $ Property "acr2" []
                 , Just $ Property "https://iohk.io" []
                 , Just $ Property (AssetLogo $ unsafeFromBase64 "QWxtb3N0IGEgbG9nbw==") []
                 , Just $ Property (AssetUnit "unit2" 14) []
