@@ -29,7 +29,8 @@ module Cardano.Wallet.Primitive.AddressDiscovery.Shared
     -- ** State
       SharedState (..)
     , KeyNumberScope (..)
-    , mkSharedState
+    , unsafeSharedState
+    , purposeCIPXXX
     ) where
 
 import Prelude
@@ -58,15 +59,18 @@ import Cardano.Crypto.Wallet
     ( XPub )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
+    , DerivationPrefix (..)
     , DerivationType (..)
     , Index (..)
     , NetworkDiscriminant (..)
     , WalletKey (..)
     )
+import Cardano.Wallet.Primitive.AddressDiscovery
+    ( coinTypeAda )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
-    ( DerivationPrefix (..), coinTypeAda, purposeBIP44 )
+    ( AddressPoolGap )
 import Cardano.Wallet.Primitive.Types.Address
-    ( Address (..) )
+    ( Address (..), AddressState (..) )
 import Control.DeepSeq
     ( NFData )
 import Control.Monad
@@ -84,26 +88,34 @@ import GHC.Generics
 
 import qualified Cardano.Address as CA
 import qualified Data.Map.Strict as Map
+
 {-------------------------------------------------------------------------------
                                  State
 -------------------------------------------------------------------------------}
 
 -- | A state to keep track of script templates, account public keys for cosigners,
--- | and a combination of possible script addresses to look for in a ledger
+-- | verification keys used and unused fitting in the address pool gap,
+-- | and script addresses discovered with the corresponding indices.
 data SharedState (n :: NetworkDiscriminant) k = SharedState
-    { accountKey :: k 'AccountK XPub
+    { shareStateAccountKey :: k 'AccountK XPub
         -- ^ Reward account public key associated with this wallet
-    , derivationPrefix :: DerivationPrefix
+    , shareStateDerivationPrefix :: !DerivationPrefix
         -- ^ Derivation path prefix from a root key up to the account key
-    , derivationKeyNumber :: KeyNumberScope
+    , shareStateGap :: !AddressPoolGap
         -- ^ Number of first keys that are used to produce candidate addresses
-    , paymentScriptTemplate :: !(Maybe ScriptTemplate)
+    , shareStatePaymentTemplate :: !ScriptTemplate
         -- ^ Script template together with a map of account keys and cosigners
         -- for payment credential
-    , stakingScriptTemplate :: !(Maybe ScriptTemplate)
+    , shareStateDelegationTemplate :: !(Maybe ScriptTemplate)
         -- ^ Script template together with a map of account keys and cosigners
-        -- for staking credential
-    , addressCandidates :: [Address]
+        -- for staking credential. If not specified then the same template as for
+        -- payment is used
+    , shareStateIndexedKeyHashes
+        :: !(Map KeyHash (Index 'Soft 'ScriptK, AddressState))
+        -- ^ verification key hashes belonging to the shared wallet
+    , shareStateKnownAddresses :: !(Map Address (Index 'Soft 'ScriptK))
+        -- ^ Known script hashes that contain our verification key hashes
+        -- represented here by corresponding indices
     }
     deriving stock (Generic)
 
@@ -125,6 +137,41 @@ newtype KeyNumberScope =
     deriving (Eq, Generic, Show)
     deriving anyclass NFData
 
+-- | Purpose for shared wallets is a constant set to 45' (or 0x8000002D) following the original
+-- CIP-XXX Multi-signature Wallets.
+--
+-- It indicates that the subtree of this node is used according to this
+-- specification.
+--
+-- Hardened derivation is used at this level.
+purposeCIPXXX :: Index 'Hardened 'PurposeK
+purposeCIPXXX = toEnum 0x8000002D
+
+-- | Create a SharedState from the all ingredients.
+-- There is no validation and it is unsafe way.
+unsafeSharedState
+    :: forall (n :: NetworkDiscriminant) k. WalletKey k
+    => k 'AccountK XPub
+    -> Index 'Hardened 'AccountK
+    -> AddressPoolGap
+    -> ScriptTemplate
+    -> Maybe ScriptTemplate
+    -> Map KeyHash (Index 'Soft 'ScriptK, AddressState)
+    -> Map Address [Index 'Soft 'ScriptK]
+    -> SharedState n k
+unsafeSharedState accXPub accIx g template1 template2 vkPoolMap knownAdresesses =
+    SharedState
+    { shareStateAccountKey = accXPub
+    , shareStateDerivationPrefix = DerivationPrefix ( purposeCIPXXX, coinTypeAda, accIx )
+    , shareStateGap = g
+    , shareStatePaymentTemplate = template1
+    , shareStateDelegationTemplate = template2
+    , shareStateIndexedKeyHashes = Map.empty
+    , shareStateKnownAddresses = Map.empty
+    }
+
+{--
+
 -- | Construct a SharedState for a wallet from public account key and its corresponding index,
 -- script templates for both staking and spending, and the number of keys used for
 -- generating the corresponding address candidates.
@@ -132,30 +179,31 @@ mkSharedState
     :: forall (n :: NetworkDiscriminant) k. WalletKey k
     => k 'AccountK XPub
     -> Index 'Hardened 'AccountK
+    -> ScriptTemplate
     -> Maybe ScriptTemplate
-    -> Maybe ScriptTemplate
-    -> KeyNumberScope
+    -> AddressPoolGap
     -> Maybe (SharedState n k)
-mkSharedState accXPub accIx spendingTemplate stakingTemplate keyNum =
+mkSharedState accXPub accIx spendingTemplate stakingTemplate g =
     let
         prefix =
-            DerivationPrefix ( purposeBIP44, coinTypeAda, accIx )
+            DerivationPrefix ( purposeCIPXXX, coinTypeAda, accIx )
         accXPub' = liftXPub $ getRawKey accXPub
         rewardXPub =
             getKey $ deriveAddressPublicKey accXPub' Stake minBound
         addressesToFollow = case (spendingTemplate, stakingTemplate) of
-            (Nothing, Nothing) -> []
             (Just template', Nothing) ->
                 if (isRight $ validateScriptTemplate RecommendedValidation template') then
-                    generateAddressCombination template' rewardXPub keyNum
+                    generateAddressCombination template' template' keyNum
                 else
                     []
-            _ -> undefined
+            (Just template1', Just template2') ->
+                if (isRight (validateScriptTemplate RecommendedValidation template1') &&
+                    isRight (validateScriptTemplate RecommendedValidation template2')) then
+                    generateAddressCombination template1' template2' keyNum
+                else
+                    []
     in
-        if all isNothing [spendingTemplate, stakingTemplate] then
-            Nothing
-        else
-            Just $ SharedState accXPub prefix keyNum spendingTemplate stakingTemplate addressesToFollow
+        Just $ SharedState accXPub prefix keyNum spendingTemplate stakingTemplate addressesToFollow
 
 replaceCosignersWithVerKeys
     :: ScriptTemplate
@@ -215,3 +263,4 @@ generateAddressCombination st@(ScriptTemplate xpubs _) stakeXPub (KeyNumberScope
         case replaceCosignersWithVerKeys st combination of
             Nothing -> []
             Just scriptKeyHash -> [Address $ createAddress scriptKeyHash]
+--}

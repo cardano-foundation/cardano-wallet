@@ -25,6 +25,7 @@ module Cardano.Wallet.Primitive.AddressDiscovery
     , GenChange(..)
     , CompareDiscovery(..)
     , KnownAddresses(..)
+    , coinTypeAda
     ) where
 
 import Prelude
@@ -32,7 +33,12 @@ import Prelude
 import Cardano.Crypto.Wallet
     ( XPrv )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..), DerivationIndex (..), Passphrase (..) )
+    ( Depth (..)
+    , DerivationIndex (..)
+    , DerivationType (..)
+    , Index (..)
+    , Passphrase (..)
+    )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..), AddressState (..) )
 import Data.List.NonEmpty
@@ -128,3 +134,18 @@ class KnownAddresses s where
     knownAddresses
         :: s
         -> [(Address, AddressState)]
+
+-- | One master node (seed) can be used for unlimited number of independent
+-- cryptocoins such as Bitcoin, Litecoin or Namecoin. However, sharing the
+-- same space for various cryptocoins has some disadvantages.
+--
+-- This level creates a separate subtree for every cryptocoin, avoiding reusing
+-- addresses across cryptocoins and improving privacy issues.
+--
+-- Coin type is a constant, set for each cryptocoin. For Cardano this constant
+-- is set to 1815' (or 0x80000717). 1815 is the birthyear of our beloved Ada
+-- Lovelace.
+--
+-- Hardened derivation is used at this level.
+coinTypeAda :: Index 'Hardened 'CoinTypeK
+coinTypeAda = toEnum 0x80000717
