@@ -428,6 +428,7 @@ spec = parallel $ do
             jsonRoundtripAndGolden $ Proxy @ApiTxMetadata
             jsonRoundtripAndGolden $ Proxy @ApiMaintenanceAction
             jsonRoundtripAndGolden $ Proxy @ApiMaintenanceActionPostData
+            jsonRoundtripAndGolden $ Proxy @ApiAsset
 
     describe "Textual encoding" $ do
         describe "Can perform roundtrip textual encoding & decoding" $ do

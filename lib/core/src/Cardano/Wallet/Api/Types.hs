@@ -449,6 +449,7 @@ newtype ApiMaintenanceAction = ApiMaintenanceAction
 data ApiAsset = ApiAsset
     { policyId :: ApiT W.TokenPolicyId
     , assetName :: ApiT W.TokenName
+    , fingerprint :: ApiT W.TokenFingerprint
     , metadata :: Maybe (ApiT W.AssetMetadata)
     } deriving (Eq, Generic, Ord, Show)
       deriving anyclass NFData
@@ -457,6 +458,7 @@ toApiAsset :: Maybe W.AssetMetadata -> W.AssetId -> ApiAsset
 toApiAsset metadata_ (W.AssetId policyId_ assetName_) = ApiAsset
     { policyId = ApiT policyId_
     , assetName = ApiT assetName_
+    , fingerprint = ApiT $ W.mkTokenFingerprint policyId_ assetName_
     , metadata = ApiT <$> metadata_
     }
 
@@ -1276,6 +1278,11 @@ instance FromJSON (ApiT W.TokenName) where
         (fmap (ApiT . W.UnsafeTokenName) . eitherToParser . fromHexText)
 instance ToJSON (ApiT W.TokenName) where
     toJSON = toJSON . hexText . W.unTokenName . getApiT
+
+instance FromJSON (ApiT W.TokenFingerprint) where
+    parseJSON = fromTextJSON "TokenFingerprint"
+instance ToJSON (ApiT W.TokenFingerprint) where
+    toJSON = toTextJSON
 
 instance FromJSON (ApiT W.AssetMetadata) where
     parseJSON = fmap ApiT . genericParseJSON defaultRecordTypeOptions
