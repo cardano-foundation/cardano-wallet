@@ -500,6 +500,19 @@ x-assetPolicyId: &assetPolicyId
   maxLength: 56
   example: 65ab82542b0ca20391caaf66a4d4d7897d281f9c136cd3513136945b
 
+x-assetFingerprint: &assetFingerprint
+  type: string
+  description: |
+    A user-facing short fingerprint which combines the `policy_id` and `asset_name`
+    to allow for an easier human comparison of assets. Note that it is generally
+    **not okay** to use this fingerprint as a unique identifier for it is not collision
+    resistant. Yet within the context of a single wallet, it makes for a (rather)
+    short user-facing comparison mean.
+  pattern: "^(asset)1[0-9a-z]*$"
+  maxLength: 44
+  minLength: 44
+  example: token1rjklcrnsdzqp65wjgrg55sy9723kw09m5z9489
+
 x-assetMetadataName: &assetMetadataName
   type: string
   maxLength: 50
@@ -715,6 +728,7 @@ x-walletAsset: &walletAsset
   properties:
     policy_id: *assetPolicyId
     asset_name: *assetName
+    fingerprint: *assetFingerprint
     quantity: *assetQuantity
 
 x-walletAssets: &walletAssets
@@ -731,6 +745,7 @@ x-assetMint: &assetMint
   properties:
     policy_id: *assetPolicyId
     asset_name: *assetName
+    fingerprint: *assetFingerprint
     quantity:
       type: integer
       description: |
@@ -1780,6 +1795,7 @@ components:
       properties:
         policy_id: *assetPolicyId
         asset_name: *assetName
+        fingerprint: *assetFingerprint
         metadata: *assetMetadata
 
     ApiWalletMigrationInfo: &ApiWalletMigrationInfo
