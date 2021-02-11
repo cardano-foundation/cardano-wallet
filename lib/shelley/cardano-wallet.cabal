@@ -157,6 +157,7 @@ executable local-cluster
     , directory
     , filepath
     , lobemo-backend-ekg
+    , optparse-applicative
     , text
     , text-class
   hs-source-dirs:

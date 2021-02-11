@@ -34,6 +34,8 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncTolerance (..) )
+import Cardano.Wallet.Primitive.Types
+    ( TokenMetadataServer (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Shelley
@@ -58,10 +60,14 @@ import Cardano.Wallet.Shelley.Launch.Cluster
     , walletMinSeverityFromEnv
     , withCluster
     )
+import Cardano.Wallet.TokenMetadata.MockServer
+    ( queryServerStatic, withMetadataServer )
 import Control.Arrow
     ( first )
+import Control.Concurrent
+    ( threadDelay )
 import Control.Monad
-    ( void, when )
+    ( join, void, when )
 import Control.Tracer
     ( contramap, traceWith )
 import Data.Proxy
@@ -70,6 +76,20 @@ import Data.Text
     ( Text )
 import Data.Text.Class
     ( ToText (..) )
+import Options.Applicative
+    ( Parser
+    , argument
+    , command
+    , execParser
+    , helper
+    , idm
+    , info
+    , metavar
+    , progDesc
+    , str
+    , subparser
+    , (<|>)
+    )
 import System.Directory
     ( createDirectory )
 import System.FilePath
@@ -214,8 +234,8 @@ import qualified Data.Text as T
 -- - NO_CLEANUP  (default: temp files are cleaned up)
 --     If set, the temporary directory used as a state directory for
 --     nodes and wallet data won't be cleaned up.
-main :: IO ()
-main = withLocalClusterSetup $ \dir clusterLogs walletLogs ->
+startCluster :: IO ()
+startCluster = withLocalClusterSetup $ \dir clusterLogs walletLogs ->
     withLoggingNamed "cluster" clusterLogs $ \(_, (_, trCluster)) -> do
         let tr' = contramap MsgCluster $ trMessageText trCluster
         clusterCfg <- localClusterConfigFromEnv
@@ -272,6 +292,27 @@ main = withLocalClusterSetup $ \dir clusterLogs walletLogs ->
                 (gp, vData)
                 (\u -> traceWith trCluster $ MsgBaseUrl (T.pack . show $ u)
                     ekgUrl prometheusUrl)
+
+--
+-- CLI Parsing
+--
+
+startMetadataServer :: FilePath -> IO ()
+startMetadataServer fp = withMetadataServer (queryServerStatic fp) $ \(TokenMetadataServer uri) -> do
+    putStrLn $ "Mock metadata server running with url " <> show uri
+    threadDelay maxBound
+
+main :: IO ()
+main = join $ execParser (info opts idm)
+
+opts :: Parser (IO ())
+opts = helper <*> (cmdTestCluster <|> subparser cmdMetadataServer)
+  where
+   cmdTestCluster = pure startCluster
+   cmdMetadataServer = command "metadata-server"  $ info (startMetadataServer <$> argFile) $ mempty
+       <> progDesc "Special sub-command for only starting a mock token metadata server."
+      where
+        argFile = argument str (metavar "FILE")
 
 -- Do all the program setup required for running the local cluster, create a
 -- temporary directory, log output configurations, and pass these to the given
