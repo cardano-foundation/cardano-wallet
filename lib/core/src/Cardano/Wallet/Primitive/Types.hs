@@ -1379,6 +1379,14 @@ parseURI (T.unpack -> uri) = runIdentity $ runExceptT $ do
             _ -> Right uri'
     either (throwE . TextDecodingError) pure res
 
+parseFileURI :: Text -> Either TextDecodingError URI
+parseFileURI (T.unpack -> uriStr) = runIdentity $ runExceptT $ do
+    uri <- parseAbsoluteURI uriStr ??
+        (TextDecodingError "Not a valid absolute URI.")
+    when (uriScheme uri /= "file:") $ fail "Not a valid URI scheme."
+    when (isNothing $ uriAuthority uri) $ fail "URI must contain a domain part."
+    pure uri
+
 newtype TokenMetadataServer = TokenMetadataServer
     { unTokenMetadataServer :: URI }
     deriving (Show, Generic, Eq)
@@ -1387,7 +1395,8 @@ instance ToText TokenMetadataServer where
     toText = uriToText . unTokenMetadataServer
 
 instance FromText TokenMetadataServer where
-    fromText = fmap TokenMetadataServer . parseURI
+    -- NOTE: Left e <> Right r == Right r !
+    fromText x = TokenMetadataServer <$> (parseURI x <> parseFileURI x)
 
 -- | A SMASH server is either an absolute http or https url.
 --

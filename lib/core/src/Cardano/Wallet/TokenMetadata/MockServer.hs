@@ -36,9 +36,6 @@ import Cardano.Wallet.Primitive.Types.TokenPolicy
 import Cardano.Wallet.TokenMetadata
     ( BatchRequest (..)
     , BatchResponse (..)
-    , Property (..)
-    , PropertyValue
-    , Signature (..)
     , Subject (..)
     , Subject
     , SubjectProperties (..)
@@ -48,9 +45,7 @@ import Cardano.Wallet.Unsafe
 import Control.Monad.Trans.Except
     ( ExceptT (..) )
 import Data.Aeson
-    ( FromJSON (..), ToJSON (..), eitherDecodeFileStrict, object, (.=) )
-import Data.ByteArray.Encoding
-    ( Base (Base16), convertToBase )
+    ( eitherDecodeFileStrict )
 import Data.Generics.Internal.VL.Lens
     ( view )
 import Data.HashMap.Strict
@@ -119,37 +114,3 @@ assetIdFromSubject =
     mk . BS.splitAt 32 . unsafeFromHex . T.encodeUtf8 . unSubject
   where
     mk (p, n) = AssetId (UnsafeTokenPolicyId (Hash p)) (UnsafeTokenName n)
-
-{-------------------------------------------------------------------------------
-                              JSON orphans
--------------------------------------------------------------------------------}
-
-instance FromJSON BatchRequest where
-
-instance ToJSON SubjectProperties where
-   toJSON (SubjectProperties s o (n,d,a,u,l,t)) = object
-       [ "subject" .= s
-       , "owner" .= o
-       , "name" .= n
-       , "description" .= d
-       , "acronym" .= a
-       , "url" .= u
-       , "logo" .= l
-       , "unit" .= t
-       ]
-
-instance ToJSON (PropertyValue name) => ToJSON (Property name) where
-    toJSON (Property v s) = object [ "value" .= v, "anSignatures" .= s ]
-
-instance ToJSON Signature where
-    toJSON (Signature s k) = object
-        [ "signature" .= hex s
-        , "publicKey" .= hex k
-        ]
-      where
-        hex = T.decodeLatin1 . convertToBase Base16
-
-instance ToJSON BatchResponse where
-    toJSON (BatchResponse subs) = object
-        [ "subjects" .= subs
-        ]

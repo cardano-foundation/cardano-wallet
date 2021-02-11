@@ -1398,7 +1398,9 @@ tokenMetadataSourceOption = optionT $ mempty
     <> help ("Sets the URL of the token metadata server. "
             <> "If unset, metadata will not be fetched.\n"
             <> "By using this option, you are fully trusting the operator of "
-            <> "the metadata server to provide authentic token metadata.")
+            <> "the metadata server to provide authentic token metadata.\n\n"
+            <> "For testing purposes, a url of the style file://path/to/mock.json"
+            <> " may be used, but is not intended for a production environment.")
 
 -- | <wallet-id=WALLET_ID>
 walletIdArgument :: Parser WalletId

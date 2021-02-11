@@ -87,6 +87,7 @@ import Data.Aeson
     ( FromJSON (..)
     , ToJSON (..)
     , Value (..)
+    , eitherDecodeFileStrict
     , eitherDecodeStrict'
     , encode
     , object
@@ -110,7 +111,7 @@ import Data.Functor
 import Data.Hashable
     ( Hashable )
 import Data.Maybe
-    ( catMaybes, mapMaybe )
+    ( catMaybes, fromMaybe, mapMaybe )
 import Data.String
     ( IsString (..) )
 import Data.Text
@@ -137,7 +138,7 @@ import Network.HTTP.Client
 import Network.HTTP.Client.TLS
     ( newTlsManager )
 import Network.URI
-    ( URI, relativeTo )
+    ( URI (..), relativeTo )
 import Network.URI.Static
     ( relativeReference )
 import UnliftIO.Exception
@@ -401,14 +402,29 @@ nullTokenMetadataClient :: Applicative m => TokenMetadataClient m
 nullTokenMetadataClient = TokenMetadataClient $ \_ ->
     pure . Right $ BatchResponse []
 
+-- | Mock metadata client using a hard-coded server response from a file for
+-- data.
+mockFileTokenMetadataClient :: URI -> TokenMetadataClient IO
+mockFileTokenMetadataClient uri = TokenMetadataClient $ \(BatchRequest subjects _)-> do
+    let filePath = T.unpack
+            . fromMaybe (error "mockFileTokenMetadataClient: bad file path")
+            . T.stripPrefix "file:/" . T.pack $ show uri
+    BatchResponse mds <- either (error . show) id
+        <$> eitherDecodeFileStrict filePath
+    let m = HM.fromList [(subject md, md) | md <- mds]
+    pure $ Right $ BatchResponse $ mapMaybe (`HM.lookup` m) subjects
+
 -- | Construct a 'TokenMetadataClient' for use with 'getTokenMetadata'.
 newMetadataClient
     :: Tracer IO TokenMetadataLog -- ^ Logging
     -> Maybe TokenMetadataServer -- ^ URL of metadata server, if enabled.
     -> IO (TokenMetadataClient IO)
-newMetadataClient tr (Just uri) = do
+newMetadataClient tr (Just uri'@(TokenMetadataServer uri))
+    | uriScheme uri == "file:" = do
+        pure $ mockFileTokenMetadataClient uri
+    | otherwise = do
     trTimings <- traceRequestTimings tr
-    TokenMetadataClient . metadataClient (tr <> trTimings) uri <$> newTlsManager
+    TokenMetadataClient . metadataClient (tr <> trTimings) uri' <$> newTlsManager
 newMetadataClient tr Nothing =
     traceWith tr MsgNotConfigured $> nullTokenMetadataClient
 
@@ -534,3 +550,33 @@ instance FromJSON (Encoded 'Base16) where
 instance FromJSON (Encoded 'Base64) where
     parseJSON = withText "base64 bytestring" $
         either fail (pure . Encoded) . convertFromBase Base64 . T.encodeUtf8
+
+instance FromJSON BatchRequest where
+
+instance ToJSON SubjectProperties where
+   toJSON (SubjectProperties s o (n,d,a,u,l,t)) = object
+       [ "subject" .= s
+       , "owner" .= o
+       , "name" .= n
+       , "description" .= d
+       , "acronym" .= a
+       , "url" .= u
+       , "logo" .= l
+       , "unit" .= t
+       ]
+
+instance ToJSON (PropertyValue name) => ToJSON (Property name) where
+    toJSON (Property v s) = object [ "value" .= v, "anSignatures" .= s ]
+
+instance ToJSON Signature where
+    toJSON (Signature s k) = object
+        [ "signature" .= hex s
+        , "publicKey" .= hex k
+        ]
+      where
+        hex = T.decodeLatin1 . convertToBase Base16
+
+instance ToJSON BatchResponse where
+    toJSON (BatchResponse subs) = object
+        [ "subjects" .= subs
+        ]
