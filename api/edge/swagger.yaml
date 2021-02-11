@@ -587,12 +587,11 @@ x-assetMetadata: &assetMetadata
   additionalProperties: false
   required:
     - name
-    - acronym
     - description
   properties:
     name: *assetMetadataName
-    acronym: *assetMetadataAcronym
     description: *assetMetadataDescription
+    acronym: *assetMetadataAcronym
     unit: *assetMetadataUnit
     url: *assetMetadataUrl
     logo: *assetMetadataLogo
