@@ -9,6 +9,7 @@
 
 module Cardano.Wallet.Unsafe
     ( unsafeFromHex
+    , unsafeFromBase64
     , unsafeFromHexFile
     , unsafeDecodeAddress
     , unsafeDecodeHex
@@ -91,6 +92,11 @@ import qualified Data.Text.IO as TIO
 unsafeFromHex :: HasCallStack => ByteString -> ByteString
 unsafeFromHex =
     either (error . show) id . convertFromBase @ByteString @ByteString Base16
+
+-- | Decode a base64-encoded 'ByteString' into raw bytes, or fail.
+unsafeFromBase64 :: HasCallStack => ByteString -> ByteString
+unsafeFromBase64 =
+    either (error . show) id . convertFromBase @ByteString @ByteString Base64
 
 -- | Load a hex string from file. Any non-hexadecimal characters are ignored.
 unsafeFromHexFile :: HasCallStack => FilePath -> IO ByteString

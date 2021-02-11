@@ -37,7 +37,7 @@ import Cardano.Wallet.Primitive.AddressDerivation.Icarus
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( AssetMetadata (AssetMetadata) )
+    ( AssetLogo (..), AssetMetadata (AssetMetadata), AssetUnit (AssetUnit) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..), TxStatus (..) )
 import Cardano.Wallet.Unsafe
@@ -253,7 +253,9 @@ spec = describe "BYRON_TRANSACTIONS" $ do
                 pickAnAsset assetsSrc
         let ep = Link.getByronAsset wal polId assName
         r <- request @(ApiAsset) ctx ep Default Empty
-        let meta = ApiT (AssetMetadata "SteveToken" "A sample description")
+        let meta = ApiT $ AssetMetadata "SteveToken" "A sample description"
+                (Just "STV") (Just "https://iohk.io/stevetoken")
+                (Just (AssetLogo "Almost a logo")) (Just (AssetUnit "MegaSteve" 6))
         verify r
             [ expectSuccess
             , expectField #policyId (`shouldBe` ApiT polId)

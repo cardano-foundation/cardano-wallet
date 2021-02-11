@@ -27,6 +27,22 @@
               "publicKey": "1446c9d327b0f07aa691014c08578867674f3a88b36f2017a58c37a8a7799058"
             }
           ]
+        },
+        "acronym": {
+            "value": "STV",
+            "anSignatures": []
+        },
+        "unit": {
+            "value": { "decimals": 6, "name": "MegaSteve" },
+            "anSignatures": []
+        },
+        "url": {
+            "value": "https://iohk.io/stevetoken",
+            "anSignatures": []
+        },
+        "logo": {
+            "value": "QWxtb3N0IGEgbG9nbw==",
+            "anSignatures": []
         }
     },
     {

@@ -1,5 +1,6 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
@@ -48,7 +49,7 @@ import Cardano.Wallet.Primitive.Types.Address
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( AssetMetadata (AssetMetadata) )
+    ( AssetLogo (..), AssetMetadata (..), AssetUnit (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..), TxMetadata (..), TxMetadataValue (..), TxStatus (..) )
 import Cardano.Wallet.Unsafe
@@ -600,7 +601,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                   )
                 ]
 
-        forM_ matrix $ \(name, nonJson) -> it name $ \ctx -> runResourceT $ do
+        forM_ matrix $ \(title, nonJson) -> it title $ \ctx -> runResourceT $ do
             w <- emptyWallet ctx
             let payload = nonJson
             r <- request @(ApiTransaction n) ctx
@@ -616,6 +617,8 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             ]
 
         let meta = ApiT $ AssetMetadata "SteveToken" "A sample description"
+                (Just "STV") (Just "https://iohk.io/stevetoken")
+                (Just (AssetLogo "Almost a logo")) (Just (AssetUnit "MegaSteve" 6))
         r2 <- request @[ApiAsset] ctx (Link.listAssets w) Default Empty
         verify r2
             [ expectListField 0 #metadata (`shouldBe` Just meta)
@@ -803,7 +806,14 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 pickAnAsset assetsSrc
         let ep = Link.getAsset wal polId assName
         r <- request @(ApiAsset) ctx ep Default Empty
-        let meta = ApiT $ AssetMetadata "SteveToken" "A sample description"
+        let meta = ApiT $ AssetMetadata
+                { name = "SteveToken"
+                , description = "A sample description"
+                , acronym = Just "STV"
+                , url = Just "https://iohk.io/stevetoken"
+                , unit = Just $ AssetUnit "MegaSteve" 6
+                , logo = Just $ AssetLogo "Almost a logo"
+                }
         verify r
             [ expectSuccess
             , expectField #policyId (`shouldBe` ApiT polId)
@@ -1786,7 +1796,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                   )
                 ]
 
-        forM_ matrix $ \(name, nonJson) -> it name $ \ctx -> runResourceT $ do
+        forM_ matrix $ \(title, nonJson) -> it title $ \ctx -> runResourceT $ do
             w <- emptyWallet ctx
             let payload = nonJson
             r <- request @ApiFee ctx
