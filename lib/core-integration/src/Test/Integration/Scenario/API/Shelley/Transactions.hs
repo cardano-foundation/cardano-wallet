@@ -617,7 +617,8 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             ]
 
         let meta = ApiT $ AssetMetadata "SteveToken" "A sample description"
-                            Nothing Nothing Nothing Nothing
+                (Just "STV") (Just "https://iohk.io/stevetoken")
+                (Just (AssetLogo "Almost a logo")) (Just (AssetUnit "MegaSteve" 6))
         r2 <- request @[ApiAsset] ctx (Link.listAssets w) Default Empty
         verify r2
             [ expectListField 0 #metadata (`shouldBe` Just meta)
@@ -811,7 +812,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 , acronym = Just "STV"
                 , url = Just "https://iohk.io/stevetoken"
                 , unit = Just $ AssetUnit "MegaSteve" 6
-                , logo = Just $ AssetLogo "QWxtb3N0IGEgbG9nbw=="
+                , logo = Just $ AssetLogo "Almost a logo"
                 }
         verify r
             [ expectSuccess
