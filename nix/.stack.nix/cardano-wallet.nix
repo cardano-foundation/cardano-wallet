@@ -127,6 +127,14 @@
             ];
           buildable = true;
           };
+        "mock-token-metadata-server" = {
+          depends = [
+            (hsPkgs."base" or (errorHandler.buildDepError "base"))
+            (hsPkgs."cardano-wallet-core" or (errorHandler.buildDepError "cardano-wallet-core"))
+            (hsPkgs."optparse-applicative" or (errorHandler.buildDepError "optparse-applicative"))
+            ];
+          buildable = true;
+          };
         };
       tests = {
         "unit" = {

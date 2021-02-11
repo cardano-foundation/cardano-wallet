@@ -45,16 +45,14 @@ import Cardano.Wallet.TokenMetadata
     )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex )
-import Control.Monad.Trans.Except
-    ( ExceptT (..) )
+import Control.Monad.IO.Class
+    ( liftIO )
 import Data.Aeson
     ( FromJSON (..), ToJSON (..), eitherDecodeFileStrict, object, (.=) )
 import Data.ByteArray.Encoding
     ( Base (Base16), convertToBase )
 import Data.Generics.Internal.VL.Lens
     ( view )
-import Data.HashMap.Strict
-    ( HashMap )
 import Data.Maybe
     ( fromMaybe, mapMaybe )
 import Data.Proxy
@@ -85,12 +83,12 @@ type MetadataQueryApi = "metadata" :> "query"
 --
 -- To be used with @queryServerStatic@.
 withMetadataServer
-    :: IO (Server MetadataQueryApi)
+    :: (Server MetadataQueryApi)
     -> (TokenMetadataServer -> IO a)
     -> IO a
 withMetadataServer mkServer action = withApplication app (action . mkUrl)
   where
-    app = serve (Proxy @MetadataQueryApi) <$> mkServer
+    app = pure $ serve (Proxy @MetadataQueryApi) mkServer
     mkUrl port = TokenMetadataServer
         $ fromMaybe (error "withMetadataServer: bad uri")
         $ parseURI
@@ -99,19 +97,11 @@ withMetadataServer mkServer action = withApplication app (action . mkUrl)
 -- | Serve a json file.
 --
 -- Will filter the json and only serve metadata for the requested subjects.
-queryServerStatic :: FilePath -> IO (Server MetadataQueryApi)
-queryServerStatic golden = do
-    BatchResponse mds <- either (error . show) id
-        <$> eitherDecodeFileStrict golden
+queryServerStatic :: FilePath -> BatchRequest -> Handler BatchResponse
+queryServerStatic golden (BatchRequest subs _) = do
+    BatchResponse mds <- either (error . show) id <$> liftIO (eitherDecodeFileStrict golden)
     let m = HM.fromList [(view #subject md, md) | md <- mds]
-    pure $ queryHandlerBase m
-
-queryHandlerBase
-    :: HashMap Subject SubjectProperties
-    -> BatchRequest
-    -> Handler BatchResponse
-queryHandlerBase index = Handler . ExceptT . pure . Right .
-    BatchResponse . mapMaybe (`HM.lookup` index) . subjects
+    pure $ BatchResponse . mapMaybe (`HM.lookup` m) $ subs
 
 -- | The reverse of subjectToAssetId
 assetIdFromSubject :: Subject -> AssetId
