@@ -728,7 +728,6 @@ x-walletAsset: &walletAsset
   properties:
     policy_id: *assetPolicyId
     asset_name: *assetName
-    fingerprint: *assetFingerprint
     quantity: *assetQuantity
 
 x-walletAssets: &walletAssets
@@ -1791,6 +1790,7 @@ components:
       type: object
       required:
         - policy_id
+        - fingerprint
         - asset_name
       properties:
         policy_id: *assetPolicyId
