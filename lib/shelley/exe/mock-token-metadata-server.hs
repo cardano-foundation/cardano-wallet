@@ -5,7 +5,7 @@ import Prelude
 import Cardano.Wallet.Primitive.Types
     ( TokenMetadataServer (..) )
 import Cardano.Wallet.TokenMetadata.MockServer
-    ( queryServerStatic, withMetadataServer )
+    ( queryServerReloading, withMetadataServer )
 import Control.Concurrent
     ( threadDelay )
 import Options.Applicative
@@ -33,7 +33,7 @@ main = do
 
 startMetadataServer :: FilePath -> IO ()
 startMetadataServer fp =
-    withMetadataServer (queryServerStatic fp) $ \(TokenMetadataServer uri) -> do
+    withMetadataServer (pure $ queryServerReloading fp) $ \(TokenMetadataServer uri) -> do
         putStrLn $ "Mock metadata server running with url " <> show uri
         threadDelay maxBound
 
@@ -54,5 +54,3 @@ opts = helper <*> cmd
             , "server. E.g.:\n"
             , "https://github.com/input-output-hk/metadata-registry-testnet/blob/7eb91951a2adf6f9deff9f3fbe990abc536657fa/789ef8ae89617f34c07f7f6a12e4d65146f958c0bc15a97b4ff169f16861707079636f696e.json"
             ])
-
-

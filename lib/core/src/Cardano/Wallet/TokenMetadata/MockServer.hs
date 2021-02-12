@@ -19,6 +19,7 @@
 module Cardano.Wallet.TokenMetadata.MockServer
     ( withMetadataServer
     , queryServerStatic
+    , queryServerReloading
 
     -- * Helpers
     , assetIdFromSubject
@@ -53,6 +54,8 @@ import Cardano.Wallet.TokenMetadata
     )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex )
+import Control.Monad.IO.Class
+    ( liftIO )
 import Data.Aeson
     ( FromJSON (..), ToJSON (..), eitherDecodeFileStrict, object, (.=) )
 import Data.ByteArray.Encoding
@@ -132,6 +135,11 @@ queryServerStatic golden = do
         inProps :: KnownSymbol name => Maybe (Property name) -> Maybe (Property name)
         inProps (Just p) = if (propertyName p) `Set.member` props then Just p else Nothing
         inProps Nothing = Nothing
+
+queryServerReloading :: FilePath -> BatchRequest -> Handler BatchResponse
+queryServerReloading golden req = do
+    handler <- liftIO $ queryServerStatic golden
+    handler req
 
 -- | The reverse of subjectToAssetId
 assetIdFromSubject :: Subject -> AssetId
