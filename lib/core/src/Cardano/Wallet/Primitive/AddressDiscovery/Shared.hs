@@ -28,9 +28,10 @@ module Cardano.Wallet.Primitive.AddressDiscovery.Shared
     (
     -- ** State
       SharedState (..)
-    , KeyNumberScope (..)
     , unsafeSharedState
     , newSharedState
+    , extendSharedState
+    , addCosignerAccXPub
     , purposeCIPXXX
     ) where
 
@@ -42,6 +43,7 @@ import Cardano.Address.Script
     , Script (..)
     , ScriptTemplate (..)
     , ValidationLevel (..)
+    , foldScript
     , toScriptHash
     , validateScriptTemplate
     )
@@ -98,9 +100,9 @@ import qualified Data.Map.Strict as Map
                                  State
 -------------------------------------------------------------------------------}
 
--- | A state to keep track of script templates, account public keys for cosigners,
+-- | A state to keep track of script templates, account public keys of other cosigners,
 -- | verification keys used and unused fitting in the address pool gap,
--- | and script addresses discovered with the corresponding indices.
+-- | and script addresses unused/used with the corresponding indices.
 data SharedState (n :: NetworkDiscriminant) k = SharedState
     { shareStateAccountKey :: k 'AccountK XPub
         -- ^ Reward account public key associated with this wallet
@@ -118,9 +120,10 @@ data SharedState (n :: NetworkDiscriminant) k = SharedState
     , shareStateIndexedKeyHashes
         :: !(Map KeyHash (Index 'Soft 'ScriptK, AddressState))
         -- ^ verification key hashes belonging to the shared wallet
-    , shareStateKnownAddresses :: !(Map Address (Index 'Soft 'ScriptK))
-        -- ^ Known script hashes that contain our verification key hashes
-        -- represented here by corresponding indices
+    , shareStateOurAddresses :: !(Map Address (Index 'Soft 'ScriptK, AddressState))
+        -- ^ Our addresses meaning the addresses containing our verification key hashes
+        -- represented here by corresponding indices of verification keys,
+        -- irrespective of being discovered or not
     }
     deriving stock (Generic)
 
@@ -137,11 +140,6 @@ instance
     )
     => NFData (SharedState n k)
 
-newtype KeyNumberScope =
-    KeyNumberScope { unKeyNumberScope :: Word8 }
-    deriving (Eq, Generic, Show)
-    deriving anyclass NFData
-
 -- | Purpose for shared wallets is a constant set to 45' (or 0x8000002D) following the original
 -- CIP-XXX Multi-signature Wallets.
 --
@@ -152,19 +150,18 @@ newtype KeyNumberScope =
 purposeCIPXXX :: Index 'Hardened 'PurposeK
 purposeCIPXXX = toEnum 0x8000002D
 
--- | Create a SharedState from the all ingredients.
+-- | Create a SharedState from the all needed ingredients.
 -- There is no validation and it is unsafe way.
 unsafeSharedState
-    :: forall (n :: NetworkDiscriminant) k. WalletKey k
-    => k 'AccountK XPub
+    :: forall (n :: NetworkDiscriminant) k. k 'AccountK XPub
     -> Index 'Hardened 'AccountK
     -> AddressPoolGap
     -> ScriptTemplate
     -> Maybe ScriptTemplate
     -> Map KeyHash (Index 'Soft 'ScriptK, AddressState)
-    -> Map Address (Index 'Soft 'ScriptK)
+    -> Map Address (Index 'Soft 'ScriptK, AddressState)
     -> SharedState n k
-unsafeSharedState accXPub accIx g pTemplate dTemplate vkPoolMap knownAdresesses =
+unsafeSharedState accXPub accIx g pTemplate dTemplate vkPoolMap ourAdresesses =
     SharedState
     { shareStateAccountKey = accXPub
     , shareStateDerivationPrefix = DerivationPrefix ( purposeCIPXXX, coinTypeAda, accIx )
@@ -172,10 +169,10 @@ unsafeSharedState accXPub accIx g pTemplate dTemplate vkPoolMap knownAdresesses 
     , shareStatePaymentTemplate = pTemplate
     , shareStateDelegationTemplate = dTemplate
     , shareStateIndexedKeyHashes = vkPoolMap
-    , shareStateKnownAddresses = knownAdresesses
+    , shareStateOurAddresses = ourAdresesses
     }
 
--- | Create a new VerificationKey pool.
+-- | Create a new SharedState.
 newSharedState
     :: forall (n :: NetworkDiscriminant) k.
        (SoftDerivation k, WalletKey k)
@@ -199,6 +196,58 @@ createPristineMapEntry
 createPristineMapEntry accXPub ix =
     ( hashVerificationKey $ deriveVerificationKey accXPub ix
     , (ix, Unused) )
+
+-- | The extension to the SharedState pool gap is done by adding next adjacent
+-- indices and their corresponding public keys, marking them as Unused.
+-- The number of added entries is determined by pool gap, and the start index is
+-- the next to the the specified index.
+extendSharedState
+    :: forall (n :: NetworkDiscriminant) k.
+       (SoftDerivation k, WalletKey k)
+    => Index 'Soft 'ScriptK
+    -> SharedState n k
+    -> SharedState n k
+extendSharedState ix state
+    | isOnEdge  = state { shareStateIndexedKeyHashes =
+                          Map.union (shareStateIndexedKeyHashes state) next }
+    | otherwise = state
+  where
+    edge = Map.size (shareStateIndexedKeyHashes state)
+    isOnEdge = edge - fromEnum ix <= fromEnum (shareStateGap state)
+    next
+      | ix == maxBound = mempty
+      | otherwise =
+            Map.fromList $ map (createPristineMapEntry (shareStateAccountKey state)) $
+            L.take (fromEnum $ shareStateGap state) $ L.iterate succ (succ ix)
+
+-- | The cosigner with his account public key is done per template.
+-- For every template the script is checked if the cosigner is present.
+-- If yes, then key is inserted. If the key is already present it is going to be
+-- updated. If there is no cosigner present is the script then the cosigner -
+-- account public key map is not changed.
+addCosignerAccXPub
+    :: forall (n :: NetworkDiscriminant) k. WalletKey k
+    => k 'AccountK XPub
+    -> Cosigner
+    -> SharedState n k
+    -> SharedState n k
+addCosignerAccXPub accXPub cosigner (SharedState ourAccXPub prefix g pT dT vkPoolMap ourAdresesses) =
+    let allCosignersInScript = foldScript (:) []
+        updateScriptTemplate sc@(ScriptTemplate cosignerMap script') =
+            if cosigner `elem` allCosignersInScript script' then
+                ScriptTemplate (Map.insert cosigner (getRawKey accXPub) cosignerMap) script'
+            else
+                sc
+    in SharedState
+       { shareStateAccountKey = ourAccXPub
+       , shareStateDerivationPrefix = prefix
+       , shareStateGap = g
+       , shareStatePaymentTemplate = updateScriptTemplate pT
+       , shareStateDelegationTemplate = updateScriptTemplate <$> dT
+       , shareStateIndexedKeyHashes = vkPoolMap
+       , shareStateOurAddresses = ourAdresesses
+       }
+
 
 
 {--
