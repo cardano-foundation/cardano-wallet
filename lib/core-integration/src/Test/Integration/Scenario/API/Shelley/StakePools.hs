@@ -937,6 +937,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
             , expectField (#deposit . #getQuantity) (`shouldBe` depositAmt ctx)
             , expectField (#estimatedMin . #getQuantity) (.< costOfJoining ctx)
             , expectField (#estimatedMax . #getQuantity) (.< costOfJoining ctx)
+            , expectField #minimumCoins (`shouldBe` [])
             ]
 
     it "STAKE_POOLS_ESTIMATE_FEE_02 - \

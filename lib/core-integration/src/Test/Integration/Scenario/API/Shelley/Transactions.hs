@@ -247,7 +247,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
 
         payload <- liftIO $ mkTxPayload ctx wSrc minUTxOValue fixturePassphrase
 
-        (_, ApiFee (Quantity feeMin) (Quantity feeMax) _) <- unsafeRequest ctx
+        (_, ApiFee (Quantity feeMin) (Quantity feeMax) _ _) <- unsafeRequest ctx
             (Link.getTransactionFee @'Shelley wSrc) payload
 
         r <- request @(ApiTransaction n) ctx
@@ -317,7 +317,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
 
         payload <- liftIO $ mkTxPayload ctx wb amt fixturePassphrase
 
-        (_, ApiFee (Quantity feeMin) (Quantity feeMax) _) <- unsafeRequest ctx
+        (_, ApiFee (Quantity feeMin) (Quantity feeMax) minCoins _) <- unsafeRequest ctx
             (Link.getTransactionFee @'Shelley wa) payload
         rTx <- request @(ApiTransaction n) ctx
             (Link.createTransaction @'Shelley wa) Default payload
@@ -329,6 +329,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             , expectResponseCode HTTP.status202
             , expectField (#amount . #getQuantity) $
                 between (feeMin + amt, feeMax + amt)
+            , const (minCoins `shouldBe` [Quantity minUTxOValue])
             , expectField #inputs $ \inputs' -> do
                 inputs' `shouldSatisfy` all (isJust . source)
             , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
@@ -415,7 +416,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 "passphrase": "cardano-wallet"
             }|]
 
-        (_, ApiFee (Quantity feeMin) (Quantity feeMax) _) <- unsafeRequest ctx
+        (_, ApiFee (Quantity feeMin) (Quantity feeMax) _ _) <- unsafeRequest ctx
             (Link.getTransactionFee @'Shelley wSrc) payload
 
         r <- request @(ApiTransaction n) ctx
@@ -466,7 +467,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         wDest <- fixtureWalletWith @n ctx [amt]
         payload <- liftIO $ mkTxPayload ctx wDest amt fixturePassphrase
 
-        (_, ApiFee (Quantity feeMin) _ _) <- unsafeRequest ctx
+        (_, ApiFee (Quantity feeMin) _ _ _) <- unsafeRequest ctx
             (Link.getTransactionFee @'Shelley wDest) payload
 
         -- NOTE It's a little tricky to estimate the fee needed for a
@@ -517,7 +518,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         wDest <- fixtureWallet ctx
 
         payload <- liftIO $ mkTxPayload ctx wDest minUTxOValue fixturePassphrase
-        (_, ApiFee (Quantity feeMin) _ _) <- unsafeRequest ctx
+        (_, ApiFee (Quantity feeMin) _ _ _) <- unsafeRequest ctx
             (Link.getTransactionFee @'Shelley wDest) payload
 
         wSrc <- fixtureWalletWith @n ctx [minUTxOValue + (feeMin `div` 2)]
@@ -632,13 +633,16 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         assetsSrc `shouldNotBe` mempty
         let val = minUTxOValue <$ pickAnAsset assetsSrc
 
-        -- Allow for a higher minimum utxo coin due to assets
-        let minCoin = minUTxOValue * 2
-
         addrs <- listAddresses @n ctx wDest
         let destination = (addrs !! 1) ^. #id
-        payload <- mkTxPayloadMA @n destination minCoin [val] fixturePassphrase
 
+        -- use minimum coin value provided by the server
+        payloadFee <- mkTxPayloadMA @n destination 0 [val] fixturePassphrase
+        rFee <- request @ApiFee ctx
+            (Link.getTransactionFee @'Shelley wSrc) Default payloadFee
+        let [Quantity minCoin] = getFromResponse #minimumCoins rFee
+
+        payload <- mkTxPayloadMA @n destination minCoin [val] fixturePassphrase
         rtx <- request @(ApiTransaction n) ctx
             (Link.createTransaction @'Shelley wSrc) Default payload
         expectResponseCode HTTP.status202 rtx
@@ -2548,7 +2552,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 }],
                 "passphrase": #{fixturePassphrase}
             }|]
-        (_, ApiFee (Quantity _) (Quantity fee) _) <- unsafeRequest ctx
+        (_, ApiFee (Quantity _) (Quantity fee) _ _) <- unsafeRequest ctx
             (Link.getTransactionFee @'Shelley wSelf) payload
 
         rTx <- request @(ApiTransaction n) ctx
