@@ -60,6 +60,8 @@ module Cardano.Wallet.TokenMetadata
     , BatchResponse (..)
     , SubjectProperties (..)
     , Property (..)
+    , PropertyName (..)
+    , propertyName
     , PropertyValue
     , Subject (..)
     , Signature (..)
@@ -238,6 +240,9 @@ data Property name = Property
        -- ^ Zero or more signatures of the property value.
     } deriving (Generic)
 
+propertyName :: forall name. KnownSymbol name => Property name -> PropertyName
+propertyName _ = PropertyName $ T.pack $ symbolVal $ Proxy @name
+
 deriving instance Show (PropertyValue name) => Show (Property name)
 deriving instance Eq (PropertyValue name) => Eq (Property name)
 
@@ -249,7 +254,7 @@ newtype Subject = Subject { unSubject :: Text }
 -- | Metadata property identifier.
 newtype PropertyName = PropertyName { unPropertyName :: Text }
     deriving (Generic, Show, Eq)
-    deriving newtype IsString
+    deriving newtype (IsString, Hashable)
 
 -- | The type of a given property name.
 type family PropertyValue (name :: Symbol) :: *
