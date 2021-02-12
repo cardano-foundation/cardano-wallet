@@ -2,7 +2,9 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeApplications #-}
 
-module Cardano.Wallet.TokenMetadataSpec where
+module Cardano.Wallet.TokenMetadataSpec
+    ( spec
+    ) where
 
 import Prelude
 
