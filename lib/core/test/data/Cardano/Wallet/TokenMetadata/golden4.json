@@ -1,0 +1,55 @@
+{
+  "subjects": [
+    {
+      "subject": "malformed acryonym - too long",
+      "name": {
+        "value": "Token7"
+      },
+      "acronym": {
+        "value": "Token7"
+      },
+      "description": {
+        "value": "description7"
+      }
+    },
+    {
+      "subject": "malformed unit - wrong type",
+      "name": {
+        "value": "token9"
+      },
+      "description": {
+        "value": "description9"
+      },
+      "unit": {
+        "value": "unit9"
+      }
+    },
+    {
+      "subject": "malformed unit - name too long",
+      "name": {
+        "value": "token10"
+      },
+      "description": {
+        "value": "description10"
+      },
+      "unit": {
+        "value": {
+          "decimals": 14,
+          "name": "unit10unit10unit10unit10unit10unit10unit10unit10unit10unit10"
+        }
+      }
+    },
+    {
+      "subject": "malformed url - wrong scheme",
+      "name": {
+        "value": "token11"
+      },
+      "description": {
+        "value": "description11"
+      },
+      "url": {
+        "value": "javascript:window.alert('hello')"
+      }
+    }
+  ]
+}

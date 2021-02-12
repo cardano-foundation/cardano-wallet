@@ -34,29 +34,65 @@ import Cardano.Wallet.Unsafe
     ( unsafeFromBase64, unsafeFromHex, unsafeFromText )
 import Data.Aeson
     ( Value (..), eitherDecodeFileStrict )
+import Data.Either
+    ( isRight )
+import Data.Maybe
+    ( isJust, isNothing )
 import Network.URI
     ( parseURI )
 import System.FilePath
     ( (</>) )
 import Test.Hspec
-    ( Spec, describe, it, shouldBe, shouldReturn )
+    ( Spec, describe, it, shouldBe, shouldNotBe, shouldReturn, shouldSatisfy )
 import Test.Utils.Paths
     ( getTestData )
 import Test.Utils.Trace
     ( traceSpec )
 
 spec :: Spec
-spec = describe "Token Metadata" $ do
+spec = do
     describe "JSON decoding" $ do
-        it "golden1.json" $
-            eitherDecodeFileStrict golden1File
-                `shouldReturn` Right (BatchResponse golden1Properties)
+        describe "BatchResponse" $ do
+            it "golden1.json" $ do
+                decodeGoldenBatch golden1File `shouldReturn` golden1Properties
 
-        it "metadataFromProperties" $
-            map metadataFromProperties golden1Properties
-                `shouldBe` (Just <$> [golden1Metadata0,golden1Metadata1,golden1Metadata2])
+            it "golden2.json" $ do
+                rs <- decodeGoldenBatch (dir </> "golden2.json")
+                length rs `shouldBe` 4
 
-    traceSpec $ describe "Mock server" $ do
+            it "golden3.json" $ do
+                rs <- decodeGoldenBatch (dir </> "golden3.json")
+                rs `shouldNotBe` []
+
+            it "golden4.json" $ do
+                rs <- decodeGoldenBatch (dir </> "golden4.json")
+                rs `shouldNotBe` []
+
+        describe "metadataFromProperties" $ do
+            it "golden1.json" $ do
+                map metadataFromProperties golden1Properties
+                    `shouldBe` (Just <$> [golden1Metadata0,golden1Metadata1,golden1Metadata2])
+
+            it "golden2.json" $ do
+                rs <- decodeGoldenBatch (dir </> "golden2.json")
+                map metadataFromProperties rs `shouldBe`
+                    [ Just golden1Metadata0
+                    , Just (AssetMetadata "Token1" "description1" Nothing Nothing Nothing Nothing)
+                    , Nothing
+                    , Just (AssetMetadata "Token2" "description2" Nothing Nothing Nothing Nothing)
+                    ]
+
+            it "golden3.json" $ do
+                rs <- decodeGoldenBatch (dir </> "golden3.json")
+                rs `shouldNotBe` []
+                map metadataFromProperties rs `shouldSatisfy` all isNothing
+
+            it "golden4.json" $ do
+                rs <- decodeGoldenBatch (dir </> "golden4.json")
+                rs `shouldNotBe` []
+                map metadataFromProperties rs `shouldSatisfy` all isJust
+
+    traceSpec $ describe "Using mock server" $ do
         it "testing empty req" $ \tr ->
             withMetadataServer (queryServerStatic golden1File) $ \srv -> do
                 client <- newMetadataClient tr (Just srv)
@@ -88,6 +124,12 @@ spec = describe "Token Metadata" $ do
 
   where
     dir = $(getTestData) </> "Cardano" </> "Wallet" </> "TokenMetadata"
+
+    decodeGoldenBatch fp = do
+        json <- eitherDecodeFileStrict fp
+        json `shouldSatisfy` isRight
+        let Right (BatchResponse rs) = json
+        pure rs
 
     golden1File = dir </> "golden1.json"
     golden1Metadata0 =
