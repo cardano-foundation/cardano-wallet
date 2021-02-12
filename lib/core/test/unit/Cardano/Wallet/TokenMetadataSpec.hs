@@ -19,14 +19,21 @@ import Cardano.Wallet.Primitive.Types.TokenPolicy
     , nullTokenName
     )
 import Cardano.Wallet.TokenMetadata
+    ( BatchResponse (..)
+    , Property (..)
+    , Signature (..)
+    , Subject (..)
+    , SubjectProperties (..)
+    , getTokenMetadata
+    , metadataFromProperties
+    , newMetadataClient
+    )
 import Cardano.Wallet.TokenMetadata.MockServer
     ( assetIdFromSubject, queryServerStatic, withMetadataServer )
 import Cardano.Wallet.Unsafe
     ( unsafeFromBase64, unsafeFromHex, unsafeFromText )
-import Control.Tracer
-    ( nullTracer )
 import Data.Aeson
-    ( eitherDecodeFileStrict )
+    ( Value (..), eitherDecodeFileStrict )
 import Network.URI
     ( parseURI )
 import System.FilePath
@@ -35,6 +42,8 @@ import Test.Hspec
     ( Spec, describe, it, shouldBe, shouldReturn )
 import Test.Utils.Paths
     ( getTestData )
+import Test.Utils.Trace
+    ( traceSpec )
 
 spec :: Spec
 spec = describe "Token Metadata" $ do
@@ -47,29 +56,32 @@ spec = describe "Token Metadata" $ do
             map metadataFromProperties golden1Properties
                 `shouldBe` (Just <$> [golden1Metadata0,golden1Metadata1,golden1Metadata2])
 
-    describe "Mock server" $ do
-        it "testing empty req" $
+    traceSpec $ describe "Mock server" $ do
+        it "testing empty req" $ \tr ->
             withMetadataServer (queryServerStatic golden1File) $ \srv -> do
-                client <- newMetadataClient nullTracer (Just srv)
+                client <- newMetadataClient tr (Just srv)
                 getTokenMetadata client [] `shouldReturn` Right []
-        it "golden1.json" $
+
+        it "golden1.json" $ \tr ->
             withMetadataServer (queryServerStatic golden1File) $ \srv -> do
-                client <- newMetadataClient nullTracer (Just srv)
+                client <- newMetadataClient tr (Just srv)
                 let subj = "7f71940915ea5fe85e840f843c929eba467e6f050475bad1f10b9c27"
                 let aid = AssetId (UnsafeTokenPolicyId (unsafeFromText subj)) nullTokenName
                 getTokenMetadata client [assetIdFromSubject (Subject subj)]
                     `shouldReturn` Right [(aid, golden1Metadata0)]
-        it "ill-formatted entry doesn't make the entire response fail to parse" $ do
+
+        it "ill-formatted entry doesn't make the entire response fail to parse" $ \tr -> do
             withMetadataServer (queryServerStatic golden2File) $ \srv -> do
-                client <- newMetadataClient nullTracer (Just srv)
-                let aid subj  =  AssetId (UnsafeTokenPolicyId (unsafeFromText subj)) nullTokenName
+                client <- newMetadataClient tr (Just srv)
+                let aid subj = AssetId (UnsafeTokenPolicyId (unsafeFromText subj)) nullTokenName
                 let aid1 = aid "7f71940915ea5fe85e840f843c929eba467e6f050475bad1f10b9c27"
                 let aid2 = aid "bad00000000000000000000000000000000000000000000000000000"
-                getTokenMetadata client [aid1, aid2 ]
+                getTokenMetadata client [aid1, aid2]
                     `shouldReturn` Right [(aid1, golden1Metadata0)]
-        it "missing subject" $
+
+        it "missing subject" $ \tr ->
             withMetadataServer (queryServerStatic golden1File) $ \srv -> do
-                client <- newMetadataClient nullTracer (Just srv)
+                client <- newMetadataClient tr (Just srv)
                 let aid = AssetId (UnsafeTokenPolicyId (Hash "a")) nullTokenName
                 res <- getTokenMetadata client [aid]
                 res `shouldBe` Right []
