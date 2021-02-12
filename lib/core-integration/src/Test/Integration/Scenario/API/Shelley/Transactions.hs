@@ -48,8 +48,6 @@ import Cardano.Wallet.Primitive.Types.Address
     ( Address )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
-import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( AssetLogo (..), AssetMetadata (..), AssetUnit (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..), TxMetadata (..), TxMetadataValue (..), TxStatus (..) )
 import Cardano.Wallet.Unsafe
@@ -169,6 +167,7 @@ import Test.Integration.Framework.TestData
     , errMsg404CannotFindTx
     , errMsg404NoAsset
     , errMsg404NoWallet
+    , steveToken
     )
 import UnliftIO.Concurrent
     ( threadDelay )
@@ -616,12 +615,9 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             , expectField (#assets . #total . #getApiT) (`shouldNotBe` TokenMap.empty)
             ]
 
-        let meta = ApiT $ AssetMetadata "SteveToken" "A sample description"
-                (Just "STV") (Just "https://iohk.io/stevetoken")
-                (Just (AssetLogo "Almost a logo")) (Just (AssetUnit "MegaSteve" 6))
         r2 <- request @[ApiAsset] ctx (Link.listAssets w) Default Empty
         verify r2
-            [ expectListField 0 #metadata (`shouldBe` Just meta)
+            [ expectListField 0 #metadata (`shouldBe` Just steveToken)
             ]
 
     it "TRANS_ASSETS_CREATE_01a - Multi-asset transaction with Ada" $ \ctx -> runResourceT $ do
@@ -806,19 +802,11 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 pickAnAsset assetsSrc
         let ep = Link.getAsset wal polId assName
         r <- request @(ApiAsset) ctx ep Default Empty
-        let meta = ApiT $ AssetMetadata
-                { name = "SteveToken"
-                , description = "A sample description"
-                , acronym = Just "STV"
-                , url = Just "https://iohk.io/stevetoken"
-                , unit = Just $ AssetUnit "MegaSteve" 6
-                , logo = Just $ AssetLogo "Almost a logo"
-                }
         verify r
             [ expectSuccess
             , expectField #policyId (`shouldBe` ApiT polId)
             , expectField #assetName (`shouldBe` ApiT assName)
-            , expectField #metadata (`shouldBe` Just meta)
+            , expectField #metadata (`shouldBe` Just steveToken)
             ]
 
     it "TRANS_ASSETS_GET_02 - Asset not present when isn't associated" $ \ctx -> runResourceT $ do
