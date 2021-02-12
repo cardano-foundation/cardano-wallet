@@ -159,7 +159,9 @@ instance ToJSON SubjectProperties where
        ]
 
 instance ToJSON (PropertyValue name) => ToJSON (Property name) where
-    toJSON (Property v s) = object [ "value" .= v, "anSignatures" .= s ]
+    toJSON (Property v s) = object
+        [ "value" .= either snd toJSON v
+        , "anSignatures" .= s ]
 
 instance ToJSON Signature where
     toJSON (Signature s k) = object

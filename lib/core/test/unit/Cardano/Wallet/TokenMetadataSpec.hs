@@ -156,5 +156,5 @@ spec = describe "Token Metadata" $ do
            }
         ]
 
-parseAssetURL :: String -> Either String AssetURL
-parseAssetURL = maybe (Left "tests error") (Right . AssetURL) . parseURI
+parseAssetURL :: String -> Either (String, Value) AssetURL
+parseAssetURL = maybe (Left ("tests error", Null)) (Right . AssetURL) . parseURI

@@ -15,6 +15,7 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -196,7 +197,6 @@ fillMetadata client assets f = do
             -- TODO: Trace error?
             return $ fmap (f Nothing) assets
 
-
 {-------------------------------------------------------------------------------
                             Cardano Metadata Server
 -------------------------------------------------------------------------------}
@@ -234,7 +234,7 @@ data SubjectProperties = SubjectProperties
 
 -- | A property value and its signatures.
 data Property name = Property
-    { value :: Either String (PropertyValue name)
+    { value :: Either (String, Value) (PropertyValue name)
         -- ^ The result of JSON parsing and validating the property value.
     , signatures :: [Signature]
        -- ^ Zero or more signatures of the property value.
@@ -545,17 +545,18 @@ instance FromJSON SubjectProperties where
             => Object
             -> Parser (Maybe (Property name))
         prop o = (o .:? propName) >>= \case
-            Just p -> Just <$> parseJSON p
+            Just p -> Just <$> parseJSON @(Property name) p
             Nothing -> pure Nothing
           where
             propName = T.pack (symbolVal (Proxy @name))
 
 instance (HasValidator name, FromJSON (PropertyValue name)) => FromJSON (Property name) where
     parseJSON = withObject "Property value" $ \o -> Property
-            <$> (tryParse <$> o .: "value")
+            <$> (validate <$> o .: "value")
             <*> o .:? "anSignatures" .!= []
       where
-        tryParse = (>>= validatePropertyValue @name) . resultToEither . fromJSON
+        validate v = first (,v) $ (>>= validatePropertyValue @name) $ tryParse v
+        tryParse = resultToEither . fromJSON
 
 resultToEither :: Aeson.Result a -> Either String a
 resultToEither = \case
