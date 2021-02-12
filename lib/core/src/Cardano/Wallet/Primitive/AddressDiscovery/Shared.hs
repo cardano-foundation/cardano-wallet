@@ -49,11 +49,8 @@ import Cardano.Address.Script
     )
 import Cardano.Address.Style.Shelley
     ( Credential (..)
-    , Role (..)
     , delegationAddress
-    , deriveAddressPublicKey
     , deriveMultisigPublicKey
-    , getKey
     , hashKey
     , liftXPub
     , mkNetworkDiscriminant
@@ -79,16 +76,12 @@ import Cardano.Wallet.Primitive.Types.Address
     ( Address (..), AddressState (..) )
 import Control.DeepSeq
     ( NFData )
-import Control.Monad
-    ( mapM )
 import Data.Either
     ( isRight )
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
-    ( isNothing )
-import Data.Word
-    ( Word8 )
+    ( fromMaybe )
 import GHC.Generics
     ( Generic )
 
@@ -137,8 +130,7 @@ deriving instance
 
 instance
     ( NFData (k 'AccountK XPub)
-    )
-    => NFData (SharedState n k)
+    ) => NFData (SharedState n k)
 
 -- | Purpose for shared wallets is a constant set to 45' (or 0x8000002D) following the original
 -- CIP-XXX Multi-signature Wallets.
@@ -183,10 +175,69 @@ newSharedState
     -> Maybe ScriptTemplate
     -> SharedState n k
 newSharedState accXPub accIx g pTemplate dTemplate =
-    let startVerKeyMap =
-            Map.fromList $ map (createPristineMapEntry accXPub) $
-            L.take (fromEnum g) $ L.iterate succ minBound
-    in unsafeSharedState accXPub accIx g pTemplate dTemplate startVerKeyMap Map.empty
+    let indices = L.take (fromEnum g) $ L.iterate succ minBound
+        startVerKeyMap =
+            Map.fromList $ map (createPristineMapEntry accXPub) indices
+        (Right tag) = mkNetworkDiscriminant 1
+        ourAddresses =
+            if templatesComplete pTemplate dTemplate then
+                foldr (addAddressToMap tag pTemplate dTemplate) Map.empty indices
+            else
+                Map.empty
+    in unsafeSharedState accXPub accIx g pTemplate dTemplate startVerKeyMap ourAddresses
+
+replaceCosignersWithVerKeys
+    :: ScriptTemplate
+    -> Int
+    -> Script KeyHash
+replaceCosignersWithVerKeys (ScriptTemplate xpubs scriptTemplate) index =
+    replaceCosigner scriptTemplate
+  where
+    replaceCosigner :: Script Cosigner -> Script KeyHash
+    replaceCosigner = \case
+        RequireSignatureOf c -> RequireSignatureOf $ toKeyHash c
+        RequireAllOf xs      -> RequireAllOf (map replaceCosigner xs)
+        RequireAnyOf xs      -> RequireAnyOf (map replaceCosigner xs)
+        RequireSomeOf m xs   -> RequireSomeOf m (map replaceCosigner xs)
+        ActiveFromSlot s     -> ActiveFromSlot s
+        ActiveUntilSlot s    -> ActiveUntilSlot s
+    toKeyHash :: Cosigner -> KeyHash
+    toKeyHash c =
+        let ix = toEnum index
+            (Just accXPub) = liftXPub <$> Map.lookup c xpubs
+            verKey = deriveMultisigPublicKey accXPub ix
+        in hashKey verKey
+
+addAddressToMap
+    :: CA.NetworkTag
+    -> ScriptTemplate
+    -> Maybe ScriptTemplate
+    -> Index 'Soft 'ScriptK
+    -> Map Address (Index 'Soft 'ScriptK, AddressState)
+    -> Map Address (Index 'Soft 'ScriptK, AddressState)
+addAddressToMap tag pTemplate dTemplate ix currentMap =
+    let delegationCredential = DelegationFromScript . toScriptHash
+        paymentCredential = PaymentFromScript . toScriptHash
+        createAddress pScript' dScript' =
+            CA.unAddress $
+            delegationAddress tag
+            (paymentCredential pScript') (delegationCredential dScript')
+        dTemplate' = fromMaybe pTemplate dTemplate
+        pScript = replaceCosignersWithVerKeys pTemplate (fromEnum ix)
+        dScript = replaceCosignersWithVerKeys dTemplate' (fromEnum ix)
+        address = Address $ createAddress pScript dScript
+    in Map.insert address (ix, Unused) currentMap
+
+templatesComplete
+    :: ScriptTemplate
+    -> Maybe ScriptTemplate
+    -> Bool
+templatesComplete pTemplate dTemplate =
+    isRight (validateScriptTemplate RecommendedValidation pTemplate) &&
+    case dTemplate of
+        Nothing -> True
+        Just dTemplate' ->
+            isRight (validateScriptTemplate RecommendedValidation dTemplate')
 
 createPristineMapEntry
     :: (SoftDerivation k, WalletKey k)
@@ -209,16 +260,31 @@ extendSharedState
     -> SharedState n k
 extendSharedState ix state
     | isOnEdge  = state { shareStateIndexedKeyHashes =
-                          Map.union (shareStateIndexedKeyHashes state) next }
+                          Map.union (shareStateIndexedKeyHashes state) nextKeyHashes
+                        , shareStateOurAddresses =
+                          Map.union (shareStateOurAddresses state) nextAddresses }
     | otherwise = state
   where
     edge = Map.size (shareStateIndexedKeyHashes state)
     isOnEdge = edge - fromEnum ix <= fromEnum (shareStateGap state)
-    next
+    nextIndices =
+        L.take (fromEnum $ shareStateGap state) $ L.iterate succ (succ ix)
+    nextKeyHashes
       | ix == maxBound = mempty
       | otherwise =
             Map.fromList $ map (createPristineMapEntry (shareStateAccountKey state)) $
-            L.take (fromEnum $ shareStateGap state) $ L.iterate succ (succ ix)
+            nextIndices
+    (Right tag) = mkNetworkDiscriminant 1
+    nextAddresses
+      | ix == maxBound = mempty
+      | otherwise =
+            let pTemplate = shareStatePaymentTemplate state
+                dTemplate = shareStateDelegationTemplate state
+            in if templatesComplete pTemplate dTemplate then
+                foldr (addAddressToMap tag pTemplate dTemplate)
+                (shareStateOurAddresses state) nextIndices
+            else
+                mempty
 
 -- | The cosigner with his account public key is done per template.
 -- For every template the script is checked if the cosigner is present.
@@ -232,9 +298,8 @@ addCosignerAccXPub
     -> SharedState n k
     -> SharedState n k
 addCosignerAccXPub accXPub cosigner (SharedState ourAccXPub prefix g pT dT vkPoolMap ourAdresesses) =
-    let allCosignersInScript = foldScript (:) []
-        updateScriptTemplate sc@(ScriptTemplate cosignerMap script') =
-            if cosigner `elem` allCosignersInScript script' then
+    let updateScriptTemplate sc@(ScriptTemplate cosignerMap script') =
+            if cosigner `elem` retrieveAllCosigners script' then
                 ScriptTemplate (Map.insert cosigner (getRawKey accXPub) cosignerMap) script'
             else
                 sc
@@ -248,99 +313,5 @@ addCosignerAccXPub accXPub cosigner (SharedState ourAccXPub prefix g pT dT vkPoo
        , shareStateOurAddresses = ourAdresesses
        }
 
-
-
-{--
-
--- | Construct a SharedState for a wallet from public account key and its corresponding index,
--- script templates for both staking and spending, and the number of keys used for
--- generating the corresponding address candidates.
-mkSharedState
-    :: forall (n :: NetworkDiscriminant) k. WalletKey k
-    => k 'AccountK XPub
-    -> Index 'Hardened 'AccountK
-    -> ScriptTemplate
-    -> Maybe ScriptTemplate
-    -> AddressPoolGap
-    -> Maybe (SharedState n k)
-mkSharedState accXPub accIx spendingTemplate stakingTemplate g =
-    let
-        prefix =
-            DerivationPrefix ( purposeCIPXXX, coinTypeAda, accIx )
-        accXPub' = liftXPub $ getRawKey accXPub
-        rewardXPub =
-            getKey $ deriveAddressPublicKey accXPub' Stake minBound
-        addressesToFollow = case (spendingTemplate, stakingTemplate) of
-            (Just template', Nothing) ->
-                if (isRight $ validateScriptTemplate RecommendedValidation template') then
-                    generateAddressCombination template' template' keyNum
-                else
-                    []
-            (Just template1', Just template2') ->
-                if (isRight (validateScriptTemplate RecommendedValidation template1') &&
-                    isRight (validateScriptTemplate RecommendedValidation template2')) then
-                    generateAddressCombination template1' template2' keyNum
-                else
-                    []
-    in
-        Just $ SharedState accXPub prefix keyNum spendingTemplate stakingTemplate addressesToFollow
-
-replaceCosignersWithVerKeys
-    :: ScriptTemplate
-    -> Map Cosigner Word8
-    -> Maybe (Script KeyHash)
-replaceCosignersWithVerKeys (ScriptTemplate xpubs scriptTemplate) indices =
-    replaceCosigner scriptTemplate
-  where
-    replaceCosigner :: Script Cosigner -> Maybe (Script KeyHash)
-    replaceCosigner = \case
-        RequireSignatureOf c -> RequireSignatureOf <$> toKeyHash c
-        RequireAllOf xs      -> RequireAllOf <$> mapM replaceCosigner xs
-        RequireAnyOf xs      -> RequireAnyOf <$> mapM replaceCosigner xs
-        RequireSomeOf m xs   -> RequireSomeOf m <$> mapM replaceCosigner xs
-        ActiveFromSlot s     -> pure $ ActiveFromSlot s
-        ActiveUntilSlot s    -> pure $ ActiveUntilSlot s
-
-    toKeyHash :: Cosigner -> Maybe KeyHash
-    toKeyHash c =
-        let ix = toEnum . fromIntegral <$> Map.lookup c indices
-            accXPub = liftXPub <$> Map.lookup c xpubs
-            verKey = deriveMultisigPublicKey <$> accXPub <*> ix
-        in hashKey <$> verKey
-
-generateAddressCombination
-    :: ScriptTemplate
-    -> XPub
-    -> KeyNumberScope
-    -> [Address]
-generateAddressCombination st@(ScriptTemplate xpubs _) stakeXPub (KeyNumberScope num) =
-    concatMap tryCreateAddress cosignerCombinations
-  where
-    cosigners' = Map.keys xpubs
-    formMaps = map Map.fromList . zipWith zip (cycle [cosigners'])
-    cosignerCombinations = case Map.size xpubs of
-        1 -> zipWith Map.singleton (cycle cosigners') [0..num]
-        2 -> formMaps (map (\(x1,x2) -> [x1,x2]) $
-                       (,) <$> [0..num] <*> [0..num])
-        3 -> formMaps (map (\(x1,x2,x3) -> [x1,x2,x3]) $
-                       (,,) <$> [0..num] <*> [0..num] <*> [0..num])
-        4 -> formMaps (map (\(x1,x2,x3,x4) -> [x1,x2,x3,x4]) $
-                       (,,,) <$> [0..num] <*> [0..num] <*> [0..num] <*> [0..num])
-        5 -> formMaps (map (\(x1,x2,x3,x4,x5) -> [x1,x2,x3,x4,x5]) $
-                       (,,,,) <$> [0..num] <*> [0..num] <*> [0..num] <*> [0..num] <*> [0..num])
-        6 -> formMaps (map (\(x1,x2,x3,x4,x5,x6) -> [x1,x2,x3,x4,x5,x6]) $
-                       (,,,,,) <$> [0..num] <*> [0..num] <*> [0..num] <*> [0..num] <*> [0..num] <*> [0..num])
-        7 -> formMaps (map (\(x1,x2,x3,x4,x5,x6,x7) -> [x1,x2,x3,x4,x5,x6,x7]) $
-                       (,,,,,,) <$> [0..num] <*> [0..num] <*> [0..num] <*> [0..num] <*> [0..num] <*> [0..num] <*> [0..num])
-        _ -> error "generateAddressCombination supports up to 7 cosigners"
-    (Right tag) = mkNetworkDiscriminant 1
-    delegationCredential = DelegationFromKey $ liftXPub stakeXPub
-    paymentCredential = PaymentFromScript . toScriptHash
-    createAddress s =
-        CA.unAddress $
-        delegationAddress tag (paymentCredential s) delegationCredential
-    tryCreateAddress combination =
-        case replaceCosignersWithVerKeys st combination of
-            Nothing -> []
-            Just scriptKeyHash -> [Address $ createAddress scriptKeyHash]
---}
+retrieveAllCosigners :: Script Cosigner -> [Cosigner]
+retrieveAllCosigners = foldScript (:) []
