@@ -322,7 +322,7 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..), AddressState (..) )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..) )
+    ( Coin (..), coinQuantity )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle
@@ -1596,10 +1596,11 @@ postTransactionFee ctx (ApiT wid) body = do
             }
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         w <- liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
+        let outs = addressAmountToTxOut <$> body ^. #payments
         let runSelection = W.selectAssets @_ @s @k wrk w txCtx outs getFee
-              where outs = addressAmountToTxOut <$> body ^. #payments
-                    getFee = const (selectionDelta TokenBundle.getCoin)
-        liftHandler $ mkApiFee Nothing <$> W.estimateFee runSelection
+              where getFee = const (selectionDelta TokenBundle.getCoin)
+        minCoins <- NE.toList <$> liftIO (W.calcMinimumCoinValues @_ @k wrk outs)
+        liftHandler $ mkApiFee Nothing minCoins <$> W.estimateFee runSelection
 
 joinStakePool
     :: forall ctx s n k.
@@ -1685,7 +1686,7 @@ delegationFee ctx (ApiT wid) = do
         w <- withExceptT ErrSelectAssetsNoSuchWallet $
             W.readWalletUTxOIndex @_ @s @k wrk wid
         deposit <- W.calcMinimumDeposit @_ @s @k wrk wid
-        mkApiFee (Just deposit) <$> W.estimateFee (runSelection wrk deposit w)
+        mkApiFee (Just deposit) [] <$> W.estimateFee (runSelection wrk deposit w)
   where
     txCtx :: TransactionCtx
     txCtx = defaultTransactionCtx
@@ -2232,10 +2233,15 @@ mkApiCoin
     -> Quantity "lovelace" Natural
 mkApiCoin (Coin c) = Quantity $ fromIntegral c
 
-mkApiFee :: Maybe Coin -> FeeEstimation -> ApiFee
-mkApiFee deposit (FeeEstimation estMin estMax) =
-    ApiFee (qty estMin) (qty estMax) (qty $ unCoin $ fromMaybe (Coin 0) deposit)
-  where qty = Quantity . fromIntegral
+mkApiFee :: Maybe Coin -> [Coin] -> FeeEstimation -> ApiFee
+mkApiFee mDeposit minCoins (FeeEstimation estMin estMax) = ApiFee
+    { estimatedMin = qty estMin
+    , estimatedMax = qty estMax
+    , minimumCoins = coinQuantity <$> minCoins
+    , deposit = coinQuantity $ fromMaybe (Coin 0) mDeposit
+    }
+  where
+    qty = Quantity . fromIntegral
 
 mkApiWithdrawal
     :: forall (n :: NetworkDiscriminant). ()

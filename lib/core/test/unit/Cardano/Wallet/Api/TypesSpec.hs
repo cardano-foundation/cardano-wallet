@@ -821,6 +821,7 @@ spec = parallel $ do
                 x' = ApiFee
                     { estimatedMin = estimatedMin (x :: ApiFee)
                     , estimatedMax = estimatedMax (x :: ApiFee)
+                    , minimumCoins = minimumCoins (x :: ApiFee)
                     , deposit = deposit (x :: ApiFee)
                     }
             in

@@ -129,6 +129,7 @@ module Cardano.Wallet
     , FeeEstimation (..)
     , estimateFee
     , calcMinimumDeposit
+    , calcMinimumCoinValues
 
     -- ** Transaction
     , forgetTx
@@ -1342,6 +1343,24 @@ selectAssetsNoOutputs ctx wid wal tx transform = do
     addToHead :: TokenBundle -> [TokenBundle] -> [TokenBundle]
     addToHead _    [] = []
     addToHead x (h:q) = TokenBundle.add x h : q
+
+-- | Calculate the minimum coin values required for a bunch of specified
+-- outputs.
+calcMinimumCoinValues
+    :: forall ctx k f.
+        ( HasTransactionLayer k ctx
+        , HasNetworkLayer ctx
+        , Applicative f
+        )
+    => ctx
+    -> f TxOut
+    -> IO (f Coin)
+calcMinimumCoinValues ctx outs = do
+    pp <- currentProtocolParameters nl
+    pure $ calcMinimumCoinValue tl pp . view (#tokens . #tokens) <$> outs
+  where
+    nl = ctx ^. networkLayer
+    tl = ctx ^. transactionLayer @k
 
 -- | Selects assets from the wallet's UTxO to satisfy the requested outputs in
 -- the given transaction context. In case of success, returns the selection

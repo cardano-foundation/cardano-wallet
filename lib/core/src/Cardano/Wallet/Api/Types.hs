@@ -774,6 +774,7 @@ newtype PostExternalTransactionData = PostExternalTransactionData
 data ApiFee = ApiFee
     { estimatedMin :: !(Quantity "lovelace" Natural)
     , estimatedMax :: !(Quantity "lovelace" Natural)
+    , minimumCoins :: ![Quantity "lovelace" Natural]
     , deposit :: !(Quantity "lovelace" Natural)
     } deriving (Eq, Generic, Show)
 
