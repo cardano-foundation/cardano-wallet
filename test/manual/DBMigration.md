@@ -9,7 +9,7 @@ Windows, MacOS, Linux
 ## Start previous version of the wallet
 
 1. Get **previous** release -> https://github.com/input-output-hk/cardano-wallet/releases
-2. Start cardano-node and cardano-wallet on `testnet` using latest [config](https://hydra.iohk.io/build/4547830/download/1/index.html). Make sure both are fully synced.
+2. Start cardano-node and cardano-wallet on `testnet` using latest [config](https://hydra.iohk.io/job/Cardano/iohk-nix/cardano-deployment/latest/download/1/index.html). Make sure both are fully synced.
 
 ```bash
 $ cardano-node run \
@@ -59,7 +59,7 @@ $ curl -vX POST http://localhost:8090/v2/byron-wallets \
  ```
  - send tx
  ```bash
-$ curl -vX POST http://localhost:8090/v2/wallets/1ceb45b37a94c7022837b5ca14045f11a5927c65/transactions \
+$ curl -vX POST http://localhost:8090/v2/wallets/617963656a409b8a6828dc3a09001de22af90400/transactions \
 	-H "Accept: application/json; charset=utf-8" \
 	-H "Content-Type: application/json; charset=utf-8" \
 	-d '{
@@ -69,7 +69,7 @@ $ curl -vX POST http://localhost:8090/v2/wallets/1ceb45b37a94c7022837b5ca14045f1
 	"amount": { "quantity": 1000000, "unit": "lovelace" }
 	}
 	],
-	"metadata":{ "4": { "map": [ { "k": "key", "v": "value" }, { "k": "14", "v": 42 } ] } },
+  "metadata":{ "4": { "map": [ { "k": { "string": "key" }, "v": { "string": "value" } }, { "k": { "string": "14" }, "v": { "int": 42 } } ] } },
 	"passphrase": "Secure Passphrase"
 	}'
  ```

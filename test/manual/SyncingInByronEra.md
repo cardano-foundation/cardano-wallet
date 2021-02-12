@@ -6,7 +6,7 @@ Windows, MacOS, Linux
 
 ## Restart syncing in Byron era.
 
-1. Start cardano-node and cardano-wallet on `testnet` using latest [config](https://hydra.iohk.io/build/4547830/download/1/index.html). **Start syncing from scratch.**
+1. Start cardano-node and cardano-wallet on `testnet` using latest [config](https://hydra.iohk.io/job/Cardano/iohk-nix/cardano-deployment/latest/download/1/index.html). **Start syncing from scratch.**
 
 ```bash
 $ cardano-node run \

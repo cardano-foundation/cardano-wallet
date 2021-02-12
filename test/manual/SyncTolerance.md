@@ -6,7 +6,7 @@ Windows, MacOS, Linux
 
 ## Small --sync-tolerance
 
-1. Start cardano-node and cardano-wallet on `testnet` using latest [config](https://hydra.iohk.io/build/4547830/download/1/index.html). Make sure both are fully synced.
+1. Start cardano-node and cardano-wallet on `testnet` using latest [config](https://hydra.iohk.io/job/Cardano/iohk-nix/cardano-deployment/latest/download/1/index.html). Make sure both are fully synced.
 
 ```bash
 $ cardano-node run \

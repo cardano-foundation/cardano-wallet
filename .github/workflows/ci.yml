@@ -1,18 +1,14 @@
-# Every night at 00:00UTC
-# Download the latest master branch build of windows testing bundle
-# and run it.
-# After that passes, hand over to the Buildkite nightly pipeline.
-
 name: cardano-wallet Windows Tests
 
 on:
-  schedule:
-    - cron: '0 0 * * *'
+  push:
+    branches:
+      - master
 
 jobs:
-  tests:
+  setup:
     runs-on: windows-2016
-    name: Run tests on Windows
+    name: Download windows testing bundle
     steps:
       - name: Fetch Windows testing bundle
         shell: powershell
@@ -22,20 +18,85 @@ jobs:
           Invoke-WebRequest -Uri $url -OutFile $output
           Expand-Archive -LiteralPath $output -DestinationPath .
           Get-ChildItem
-      - name: 'cardano-wallet-core:unit'
-        run: '.\\cardano-wallet-core-test-unit.exe --color'
-      - name: 'cardano-wallet:unit'
-        run: '.\\cardano-wallet-test-unit.exe --color'
-      - name: 'cardano-wallet-cli:unit'
-        run: '.\\cardano-wallet-cli-test-unit.exe --color'
-      - name: 'text-class:unit'
-        run: '.\\text-class-test-unit.exe --color'
-      - name: 'cardano-wallet-launcher:unit'
-        run: '.\\cardano-wallet-launcher-test-unit.exe --color'
+      - name: Save files
+        uses: actions/upload-artifact@v2
+        with:
+          name: cardano-wallet-tests-win64
+          path: "**/*"
+
+  cardano-wallet-core-test-unit:
+    name: 'cardano-wallet-core:unit'
+    needs: setup
+    runs-on: windows-2016
+    steps:
+      - uses: actions/download-artifact@v2
+        with:
+          name: cardano-wallet-tests-win64
+      - run: '.\\cardano-wallet-core-test-unit.exe --color'
+
+  cardano-wallet-test-unit:
+    name: 'cardano-wallet:unit'
+    needs: setup
+    runs-on: windows-2016
+    steps:
+      - uses: actions/download-artifact@v2
+        with:
+          name: cardano-wallet-tests-win64
+      - run: '.\\cardano-wallet-test-unit.exe --color'
+
+  cardano-wallet-cli-test-unit:
+    name: 'cardano-wallet-cli:unit'
+    needs: setup
+    runs-on: windows-2016
+    steps:
+      - uses: actions/download-artifact@v2
+        with:
+          name: cardano-wallet-tests-win64
+      - run: '.\\cardano-wallet-cli-test-unit.exe --color'
+
+  text-class-test-unit:
+    name: 'test-class:unit'
+    needs: setup
+    runs-on: windows-2016
+    steps:
+      - uses: actions/download-artifact@v2
+        with:
+          name: cardano-wallet-tests-win64
+      - run: '.\\text-class-test-unit.exe --color'
+
+  cardano-wallet-launcher-test-unit:
+    name: 'cardano-wallet-launcher:unit'
+    needs: setup
+    runs-on: windows-2016
+    steps:
+      - uses: actions/download-artifact@v2
+        with:
+          name: cardano-wallet-tests-win64
+      - run: '.\\cardano-wallet-launcher-test-unit.exe --color'
         continue-on-error: true
-      - name: 'cardano-wallet:integration'
-        run: '.\\cardano-wallet-test-integration.exe --color'
+
+  cardano-wallet-test-integration:
+    name: 'cardano-wallet:integration'
+    needs: setup
+    runs-on: windows-2016
+    steps:
+      - uses: actions/download-artifact@v2
+        with:
+          name: cardano-wallet-tests-win64
+      - run: '.\\cardano-wallet-test-integration.exe --color'
         timeout-minutes: 60
+
+  finish:
+    name: Finish
+    runs-on: windows-2016
+    needs:
+      - cardano-wallet-core-test-unit
+      - cardano-wallet-test-unit
+      - cardano-wallet-cli-test-unit
+      - text-class-test-unit
+      - cardano-wallet-launcher-test-unit
+      - cardano-wallet-test-integration
+    steps:
       - uses: actions/checkout@v2
         with:
           fetch-depth: 0
