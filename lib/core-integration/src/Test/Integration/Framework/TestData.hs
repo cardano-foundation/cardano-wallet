@@ -24,6 +24,9 @@ module Test.Integration.Framework.TestData
     , russianWalletName
     , wildcardsWalletName
 
+    -- * Assets
+    , steveToken
+
     -- * Helpers
     , cmdOk
     , versionLine
@@ -78,6 +81,10 @@ module Test.Integration.Framework.TestData
 
 import Prelude
 
+import Cardano.Wallet.Api.Types
+    ( ApiAssetMetadata (ApiAssetMetadata), ApiT (..) )
+import Cardano.Wallet.Unsafe
+    ( unsafeFromText )
 import Cardano.Wallet.Version
     ( gitRevision, showFullVersion, version )
 import Data.Text
@@ -86,6 +93,8 @@ import Data.Word
     ( Word32 )
 import Test.Integration.Framework.DSL
     ( Payload (..), fixturePassphrase, json )
+
+import qualified Cardano.Wallet.Primitive.Types.TokenPolicy as W
 
 falseWalletIds :: [(String, String)]
 falseWalletIds =
@@ -168,6 +177,17 @@ wildcardsWalletName :: Text
 wildcardsWalletName = "`~`!@#$%^&*()_+-=<>,./?;':\"\"'{}[]\\|❤️ 💔 💌 💕 💞 \
 \💓 💗 💖 💘 💝 💟 💜 💛 💚 💙0️⃣ 1️⃣ 2️⃣ 3️⃣ 4️⃣ 5️⃣ 6️⃣ 7️⃣ 8️⃣ 9️⃣ 🔟🇺🇸🇷🇺🇸 🇦🇫🇦🇲🇸"
 
+
+---
+--- Assets
+---
+
+steveToken :: ApiAssetMetadata
+steveToken = ApiAssetMetadata
+    "SteveToken" "A sample description" (Just "STV")
+    (Just (ApiT (unsafeFromText "https://iohk.io/stevetoken")))
+    (Just (ApiT (W.AssetLogo "Almost a logo")))
+    (Just (ApiT (W.AssetUnit "MegaSteve" 6)))
 
 ---
 --- Helpers

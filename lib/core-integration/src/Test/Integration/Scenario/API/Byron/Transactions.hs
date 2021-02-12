@@ -36,8 +36,6 @@ import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
-import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( AssetLogo (..), AssetMetadata (AssetMetadata), AssetUnit (AssetUnit) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..), TxStatus (..) )
 import Cardano.Wallet.Unsafe
@@ -105,7 +103,11 @@ import Test.Integration.Framework.DSL
 import Test.Integration.Framework.Request
     ( RequestException )
 import Test.Integration.Framework.TestData
-    ( errMsg400StartTimeLaterThanEndTime, errMsg404NoAsset, errMsg404NoWallet )
+    ( errMsg400StartTimeLaterThanEndTime
+    , errMsg404NoAsset
+    , errMsg404NoWallet
+    , steveToken
+    )
 
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
@@ -253,14 +255,11 @@ spec = describe "BYRON_TRANSACTIONS" $ do
                 pickAnAsset assetsSrc
         let ep = Link.getByronAsset wal polId assName
         r <- request @(ApiAsset) ctx ep Default Empty
-        let meta = ApiT $ AssetMetadata "SteveToken" "A sample description"
-                (Just "STV") (Just "https://iohk.io/stevetoken")
-                (Just (AssetLogo "Almost a logo")) (Just (AssetUnit "MegaSteve" 6))
         verify r
             [ expectSuccess
             , expectField #policyId (`shouldBe` ApiT polId)
             , expectField #assetName (`shouldBe` ApiT assName)
-            , expectField #metadata (`shouldBe` Just meta)
+            , expectField #metadata (`shouldBe` Just steveToken)
             ]
 
     describe "BYRON_TRANS_ASSETS_GET_02 - Asset not present when isn't associated" $

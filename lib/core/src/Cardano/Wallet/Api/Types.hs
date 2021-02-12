@@ -49,6 +49,8 @@ module Cardano.Wallet.Api.Types
     -- * API Types
     , ApiAsset (..)
     , toApiAsset
+    , ApiAssetMetadata (..)
+    , toApiAssetMetadata
     , ApiAddress (..)
     , ApiCredential (..)
     , ApiAddressData (..)
@@ -284,7 +286,7 @@ import Data.Aeson.Types
 import Data.Bifunctor
     ( bimap, first )
 import Data.ByteArray.Encoding
-    ( Base (Base16), convertFromBase, convertToBase )
+    ( Base (Base16, Base64), convertFromBase, convertToBase )
 import Data.ByteString
     ( ByteString )
 import Data.Data
@@ -357,6 +359,7 @@ import qualified Codec.Binary.Bech32.TH as Bech32
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Types as Aeson
 import qualified Data.ByteString as BS
+import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.HashMap.Strict as HM
 import qualified Data.Map as Map
@@ -450,7 +453,17 @@ data ApiAsset = ApiAsset
     { policyId :: ApiT W.TokenPolicyId
     , assetName :: ApiT W.TokenName
     , fingerprint :: ApiT W.TokenFingerprint
-    , metadata :: Maybe (ApiT W.AssetMetadata)
+    , metadata :: Maybe ApiAssetMetadata
+    } deriving (Eq, Generic, Ord, Show)
+      deriving anyclass NFData
+
+data ApiAssetMetadata = ApiAssetMetadata
+    { name :: Text
+    , description :: Text
+    , acronym :: Maybe Text
+    , url :: Maybe (ApiT W.AssetURL)
+    , logo :: Maybe (ApiT W.AssetLogo)
+    , unit :: Maybe (ApiT W.AssetUnit)
     } deriving (Eq, Generic, Ord, Show)
       deriving anyclass NFData
 
@@ -459,8 +472,13 @@ toApiAsset metadata_ (W.AssetId policyId_ assetName_) = ApiAsset
     { policyId = ApiT policyId_
     , assetName = ApiT assetName_
     , fingerprint = ApiT $ W.mkTokenFingerprint policyId_ assetName_
-    , metadata = ApiT <$> metadata_
+    , metadata = toApiAssetMetadata <$> metadata_
     }
+
+toApiAssetMetadata :: W.AssetMetadata -> ApiAssetMetadata
+toApiAssetMetadata W.AssetMetadata{name,description,acronym,url,logo,unit} =
+    ApiAssetMetadata name description acronym
+        (ApiT <$> url) (ApiT <$> logo) (ApiT <$> unit)
 
 data ApiAddress (n :: NetworkDiscriminant) = ApiAddress
     { id :: !(ApiT Address, Proxy n)
@@ -1284,10 +1302,27 @@ instance FromJSON (ApiT W.TokenFingerprint) where
 instance ToJSON (ApiT W.TokenFingerprint) where
     toJSON = toTextJSON
 
-instance FromJSON (ApiT W.AssetMetadata) where
+instance FromJSON ApiAssetMetadata where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance ToJSON ApiAssetMetadata where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+instance FromJSON (ApiT W.AssetURL) where
+    parseJSON value = parseJSON value >>= either fail (pure . ApiT) . W.validateMetadataURL
+instance ToJSON (ApiT W.AssetURL) where
+    toJSON = toJSON . show . W.unAssetURL . getApiT
+
+instance FromJSON (ApiT W.AssetUnit) where
     parseJSON = fmap ApiT . genericParseJSON defaultRecordTypeOptions
-instance ToJSON (ApiT W.AssetMetadata) where
+instance ToJSON (ApiT W.AssetUnit) where
     toJSON = genericToJSON defaultRecordTypeOptions . getApiT
+
+-- TODO: clean up duplication with TokenMetadata
+instance FromJSON (ApiT W.AssetLogo) where
+    parseJSON = withText "base64 bytestring" $
+        either fail (pure . ApiT . W.AssetLogo) . convertFromBase Base64 . T.encodeUtf8
+instance ToJSON (ApiT W.AssetLogo) where
+    toJSON = toJSON . B8.unpack . convertToBase Base64 . W.unAssetLogo . getApiT
 
 instance ToJSON (ApiT DerivationIndex) where
     toJSON = toTextJSON

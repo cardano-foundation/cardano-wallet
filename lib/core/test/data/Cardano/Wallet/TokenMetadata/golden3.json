@@ -1,30 +1,49 @@
 {
   "subjects": [
     {
-        "subject": "missing description",
-        "name": { "value": "Token3" },
-        "acronym": { "value": "tok3" },
+      "subject": "missing description",
+      "name": {
+        "value": "Token3"
+      },
+      "acronym": {
+        "value": "tok3"
+      }
     },
     {
-        "subject": "missing name",
-        "description": { "value": "description4" },
-        "acronym": { "value": "tok4" },
+      "subject": "missing name",
+      "description": {
+        "value": "description4"
+      },
+      "acronym": {
+        "value": "tok4"
+      }
     },
     {
-       "subject": "malformed name - empty",
-       "name": { "value": "" },
-       "description": { "value": "description5" }
+      "subject": "malformed name - empty",
+      "name": {
+        "value": ""
+      },
+      "description": {
+        "value": "description5"
+      }
     },
     {
-       "subject": "malformed name - too long",
-       "name": { "value": "Token6Token6Token6Token6Token6Token6Token6Token6Token6Token6" },
-       "description": { "value": "description6" }
+      "subject": "malformed name - too long",
+      "name": {
+        "value": "Token6Token6Token6Token6Token6Token6Token6Token6Token6Token6"
+      },
+      "description": {
+        "value": "description6"
+      }
     },
     {
-       "subject": "malformed acryonym - too long",
-       "name": { "value": "Token7" },
-       "acronym": { "value": "Token7" },
-       "description": { "value": "description7" }
+      "subject": "malformed name - wrong type",
+      "name": {
+        "value": []
+      },
+      "description": {
+        "value": "description7"
+      }
     }
   ]
 }

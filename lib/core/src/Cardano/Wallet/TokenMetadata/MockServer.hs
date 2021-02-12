@@ -1,6 +1,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeOperators #-}
@@ -32,31 +33,40 @@ import Cardano.Wallet.Primitive.Types.Hash
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId (..) )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
-    ( TokenName (..), TokenPolicyId (..) )
+    ( AssetLogo (..)
+    , AssetURL (..)
+    , AssetUnit (..)
+    , TokenName (..)
+    , TokenPolicyId (..)
+    )
 import Cardano.Wallet.TokenMetadata
     ( BatchRequest (..)
     , BatchResponse (..)
     , Property (..)
+    , PropertyName
     , PropertyValue
     , Signature (..)
     , Subject (..)
     , Subject
     , SubjectProperties (..)
+    , propertyName
     )
 import Cardano.Wallet.Unsafe
     ( unsafeFromHex )
-import Control.Monad.IO.Class
-    ( liftIO )
 import Data.Aeson
     ( FromJSON (..), ToJSON (..), eitherDecodeFileStrict, object, (.=) )
 import Data.ByteArray.Encoding
-    ( Base (Base16), convertToBase )
+    ( Base (Base16, Base64), convertToBase )
 import Data.Generics.Internal.VL.Lens
     ( view )
+import Data.HashSet
+    ( HashSet )
 import Data.Maybe
-    ( fromMaybe, mapMaybe )
+    ( fromMaybe )
 import Data.Proxy
     ( Proxy (..) )
+import GHC.TypeLits
+    ( KnownSymbol )
 import Network.URI
     ( parseURI )
 import Network.Wai.Handler.Warp
@@ -67,7 +77,8 @@ import Servant.Server
     ( Handler (..), Server, serve )
 
 import qualified Data.ByteString as BS
-import qualified Data.HashMap.Strict as HM
+import qualified Data.ByteString.Char8 as B8
+import qualified Data.HashSet as Set
 import qualified Data.Text.Encoding as T
 
 {-------------------------------------------------------------------------------
@@ -83,12 +94,12 @@ type MetadataQueryApi = "metadata" :> "query"
 --
 -- To be used with @queryServerStatic@.
 withMetadataServer
-    :: (Server MetadataQueryApi)
+    :: IO (Server MetadataQueryApi)
     -> (TokenMetadataServer -> IO a)
     -> IO a
 withMetadataServer mkServer action = withApplication app (action . mkUrl)
   where
-    app = pure $ serve (Proxy @MetadataQueryApi) mkServer
+    app = serve (Proxy @MetadataQueryApi) <$> mkServer
     mkUrl port = TokenMetadataServer
         $ fromMaybe (error "withMetadataServer: bad uri")
         $ parseURI
@@ -97,11 +108,30 @@ withMetadataServer mkServer action = withApplication app (action . mkUrl)
 -- | Serve a json file.
 --
 -- Will filter the json and only serve metadata for the requested subjects.
-queryServerStatic :: FilePath -> BatchRequest -> Handler BatchResponse
-queryServerStatic golden (BatchRequest subs _) = do
-    BatchResponse mds <- either (error . show) id <$> liftIO (eitherDecodeFileStrict golden)
-    let m = HM.fromList [(view #subject md, md) | md <- mds]
-    pure $ BatchResponse . mapMaybe (`HM.lookup` m) $ subs
+queryServerStatic :: FilePath -> IO (BatchRequest -> Handler BatchResponse)
+queryServerStatic golden = do
+    db <- either (error . show) id <$> eitherDecodeFileStrict golden
+    pure (pure . handler db)
+  where
+    handler (BatchResponse db) (BatchRequest subs props) = BatchResponse $
+        filterResponse (Set.fromList subs) (Set.fromList props) db
+
+    filterResponse
+        :: HashSet Subject
+        -> HashSet PropertyName
+        -> [SubjectProperties]
+        -> [SubjectProperties]
+    filterResponse subs props = map filterProps . filter inSubs
+      where
+        filterProps (SubjectProperties subject owner (a, b, c, d, e, f)) =
+            SubjectProperties subject owner
+            (inProps a, inProps b, inProps c, inProps d, inProps e, inProps f)
+
+        inSubs sp = (view #subject sp) `Set.member` subs
+
+        inProps :: KnownSymbol name => Maybe (Property name) -> Maybe (Property name)
+        inProps (Just p) = if (propertyName p) `Set.member` props then Just p else Nothing
+        inProps Nothing = Nothing
 
 -- | The reverse of subjectToAssetId
 assetIdFromSubject :: Subject -> AssetId
@@ -129,7 +159,9 @@ instance ToJSON SubjectProperties where
        ]
 
 instance ToJSON (PropertyValue name) => ToJSON (Property name) where
-    toJSON (Property v s) = object [ "value" .= v, "anSignatures" .= s ]
+    toJSON (Property v s) = object
+        [ "value" .= either snd toJSON v
+        , "anSignatures" .= s ]
 
 instance ToJSON Signature where
     toJSON (Signature s k) = object
@@ -143,3 +175,15 @@ instance ToJSON BatchResponse where
     toJSON (BatchResponse subs) = object
         [ "subjects" .= subs
         ]
+
+instance ToJSON AssetLogo where
+    toJSON = toJSON . B8.unpack . convertToBase Base64 . unAssetLogo
+
+instance ToJSON AssetUnit where
+    toJSON AssetUnit{name,decimals} = object
+        [ "name" .= name
+        , "decimals" .= decimals
+        ]
+
+instance ToJSON AssetURL where
+    toJSON = toJSON . show . unAssetURL

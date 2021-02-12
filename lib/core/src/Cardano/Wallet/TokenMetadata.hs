@@ -1,4 +1,6 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DefaultSignatures #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE DuplicateRecordFields #-}
@@ -13,6 +15,7 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -28,6 +31,16 @@
 --
 -- The OpenAPI specification is here:
 -- <https://github.com/input-output-hk/metadata-server/blob/master/specifications/api/openapi.yaml>
+--
+-- An important consideration is that cardano-wallet should not trust the
+-- metadata-server operator to produce correct, valid, authentic, or even
+-- non-malicious data.
+--
+-- In future, signatures of property values will be checked to determine
+-- authenticity. The exact details are not yet specified.
+--
+-- In any case, we should not rely on the validation that the metadata-server
+-- may or may not have applied to the user-supplied metadata.
 
 module Cardano.Wallet.TokenMetadata
     (
@@ -48,6 +61,8 @@ module Cardano.Wallet.TokenMetadata
     , BatchResponse (..)
     , SubjectProperties (..)
     , Property (..)
+    , PropertyName (..)
+    , propertyName
     , PropertyValue
     , Subject (..)
     , Signature (..)
@@ -73,30 +88,38 @@ import Cardano.Wallet.Primitive.Types.TokenMap
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( AssetLogo (..)
     , AssetMetadata (..)
+    , AssetURL (..)
     , AssetUnit (..)
     , TokenName (..)
     , TokenPolicyId (..)
+    , validateMetadataAcronym
+    , validateMetadataDescription
+    , validateMetadataLogo
+    , validateMetadataName
+    , validateMetadataURL
+    , validateMetadataUnit
     )
 import Control.Applicative
     ( (<|>) )
 import Control.Monad
-    ( mapM, when )
+    ( mapM, when, (>=>) )
 import Control.Tracer
     ( Tracer, contramap, traceWith )
 import Data.Aeson
     ( FromJSON (..)
+    , Object
     , ToJSON (..)
     , Value (..)
     , eitherDecodeStrict'
     , encode
-    , object
     , withObject
     , withText
     , (.!=)
     , (.:)
     , (.:?)
-    , (.=)
     )
+import Data.Aeson.Types
+    ( Parser, fromJSON )
 import Data.Bifunctor
     ( first )
 import Data.ByteArray.Encoding
@@ -111,6 +134,8 @@ import Data.Hashable
     ( Hashable )
 import Data.Maybe
     ( catMaybes, mapMaybe )
+import Data.Proxy
+    ( Proxy (..) )
 import Data.String
     ( IsString (..) )
 import Data.Text
@@ -122,7 +147,7 @@ import Data.Time.Clock
 import GHC.Generics
     ( Generic )
 import GHC.TypeLits
-    ( Symbol )
+    ( KnownSymbol, Symbol, symbolVal )
 import Network.HTTP.Client
     ( HttpException
     , Manager
@@ -143,6 +168,7 @@ import Network.URI.Static
 import UnliftIO.Exception
     ( SomeException, handle, handleAny )
 
+import qualified Data.Aeson.Types as Aeson
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.HashMap.Strict as HM
@@ -171,7 +197,6 @@ fillMetadata client assets f = do
             -- TODO: Trace error?
             return $ fmap (f Nothing) assets
 
-
 {-------------------------------------------------------------------------------
                             Cardano Metadata Server
 -------------------------------------------------------------------------------}
@@ -198,8 +223,8 @@ data SubjectProperties = SubjectProperties
     -- Name and description are required, both others may be missing the
     -- response.
     , properties ::
-        ( Property "name"
-        , Property "description"
+        ( Maybe (Property "name")
+        , Maybe (Property "description")
         , Maybe (Property "acronym")
         , Maybe (Property "url")
         , Maybe (Property "logo")
@@ -209,9 +234,14 @@ data SubjectProperties = SubjectProperties
 
 -- | A property value and its signatures.
 data Property name = Property
-    { value :: PropertyValue name
+    { value :: Either (String, Value) (PropertyValue name)
+        -- ^ The result of JSON parsing and validating the property value.
     , signatures :: [Signature]
+       -- ^ Zero or more signatures of the property value.
     } deriving (Generic)
+
+propertyName :: forall name. KnownSymbol name => Property name -> PropertyName
+propertyName _ = PropertyName $ T.pack $ symbolVal $ Proxy @name
 
 deriving instance Show (PropertyValue name) => Show (Property name)
 deriving instance Eq (PropertyValue name) => Eq (Property name)
@@ -224,16 +254,34 @@ newtype Subject = Subject { unSubject :: Text }
 -- | Metadata property identifier.
 newtype PropertyName = PropertyName { unPropertyName :: Text }
     deriving (Generic, Show, Eq)
-    deriving newtype IsString
+    deriving newtype (IsString, Hashable)
 
 -- | The type of a given property name.
 type family PropertyValue (name :: Symbol) :: *
 type instance PropertyValue "name" = Text
 type instance PropertyValue "description" = Text
 type instance PropertyValue "acronym" = Text
-type instance PropertyValue "url" = Text
-type instance PropertyValue "logo" = AssetLogo
+type instance PropertyValue "url" = AssetURL
 type instance PropertyValue "unit" = AssetUnit
+type instance PropertyValue "logo" = AssetLogo
+
+class HasValidator (name :: Symbol) where
+    -- TODO: requires AllowAmbiguousTypes extension
+    validatePropertyValue :: PropertyValue name -> Either String (PropertyValue name)
+    validatePropertyValue = Right
+
+instance HasValidator "name" where
+    validatePropertyValue = validateMetadataName
+instance HasValidator "description" where
+    validatePropertyValue = validateMetadataDescription
+instance HasValidator "acronym" where
+    validatePropertyValue = validateMetadataAcronym
+instance HasValidator "url" where
+    -- validation is done before parsing
+instance HasValidator "logo" where
+    validatePropertyValue = validateMetadataLogo
+instance HasValidator "unit" where
+    validatePropertyValue = validateMetadataUnit
 
 -- | Will be used in future for checking integrity and authenticity of metadata.
 data Signature = Signature
@@ -398,8 +446,8 @@ newtype TokenMetadataClient m = TokenMetadataClient
 
 -- | Not a client for the metadata server.
 nullTokenMetadataClient :: Applicative m => TokenMetadataClient m
-nullTokenMetadataClient = TokenMetadataClient $ \_ ->
-    pure . Right $ BatchResponse []
+nullTokenMetadataClient =
+    TokenMetadataClient . const . pure . Right $ BatchResponse []
 
 -- | Construct a 'TokenMetadataClient' for use with 'getTokenMetadata'.
 newMetadataClient
@@ -431,7 +479,7 @@ getTokenMetadata (TokenMetadataClient client) as =
     fromResponse :: BatchResponse -> [(AssetId, AssetMetadata)]
     fromResponse = mapMaybe (\ps -> (,)
         <$> HM.lookup (subject ps) subjectAsset
-        <*> pure (metadataFromProperties ps))
+        <*> metadataFromProperties ps)
         . getBatchResponse
 
 -- | Creates a metadata server subject from an AssetId. The subject is the
@@ -442,17 +490,19 @@ assetIdToSubject (AssetId (UnsafeTokenPolicyId (Hash p)) (UnsafeTokenName n)) =
 
 -- | Convert metadata server properties response into an 'AssetMetadata' record.
 -- Only the values are taken. Signatures are ignored (for now).
-metadataFromProperties :: SubjectProperties -> AssetMetadata
+metadataFromProperties :: SubjectProperties -> Maybe AssetMetadata
 metadataFromProperties (SubjectProperties _ _ properties) =
-    AssetMetadata { name, description, acronym, url, logo, unit }
+    AssetMetadata
+        <$> getValue name
+        <*> getValue description
+        <*> pure (getValue acronym)
+        <*> pure (getValue url)
+        <*> pure (getValue logo)
+        <*> pure (getValue unit)
   where
-    ( pName, pDescription, pAcronym, pUrl, pLogo, pUnit ) = properties
-    name = value pName
-    description = value pDescription
-    acronym = value <$> pAcronym
-    url = value <$> pUrl
-    logo = value <$> pLogo
-    unit = value <$> pUnit
+    ( name, description, acronym, url, logo, unit ) = properties
+    getValue :: Maybe (Property a) -> Maybe (PropertyValue a)
+    getValue = (>>= (either (const Nothing) Just . value))
 
 {-------------------------------------------------------------------------------
                       Aeson instances for metadata-server
@@ -483,41 +533,54 @@ instance FromJSON SubjectProperties where
         <*> parseProperties o
       where
         parseProperties o = (,,,,,)
-            <$> o .: "name"
-            <*> o .: "description"
-            <*> o .:? "acronym"
-            <*> o .:? "url"
-            <*> o .:? "logo"
-            <*> o .:? "unit"
+            <$> prop @"name" o
+            <*> prop @"description" o
+            <*> prop @"acronym" o
+            <*> prop @"url" o
+            <*> prop @"logo" o
+            <*> prop @"unit" o
 
-instance FromJSON (PropertyValue name) => FromJSON (Property name) where
-    parseJSON = withObject "Property" $ \o -> Property
-        <$> o .: "value"
-        <*> o .:? "anSignatures" .!= []
+        prop
+            :: forall name. (KnownSymbol name, FromJSON (Property name))
+            => Object
+            -> Parser (Maybe (Property name))
+        prop o = (o .:? propName) >>= \case
+            Just p -> Just <$> parseJSON @(Property name) p
+            Nothing -> pure Nothing
+          where
+            propName = T.pack (symbolVal (Proxy @name))
+
+instance (HasValidator name, FromJSON (PropertyValue name)) => FromJSON (Property name) where
+    parseJSON = withObject "Property value" $ \o -> Property
+            <$> (validate <$> o .: "value")
+            <*> o .:? "anSignatures" .!= []
+      where
+        validate v = first (,v) $ (>>= validatePropertyValue @name) $ tryParse v
+        tryParse = resultToEither . fromJSON
+
+resultToEither :: Aeson.Result a -> Either String a
+resultToEither = \case
+    Aeson.Success a -> Right a
+    Aeson.Error e -> Left e
+
+applyValidator :: (a -> Either String b) -> a -> Parser b
+applyValidator validate = either fail pure . validate
 
 instance FromJSON Signature where
     parseJSON = withObject "Signature" $ \o -> Signature
         <$> fmap (raw @'Base16) (o .: "signature")
         <*> fmap (raw @'Base16) (o .: "publicKey")
 
-instance FromJSON AssetLogo where
-    parseJSON =
-        fmap (AssetLogo . raw @'Base64) . parseJSON
+instance FromJSON AssetURL where
+    parseJSON = parseJSON >=> applyValidator validateMetadataURL
 
-instance ToJSON AssetLogo where
-    toJSON =
-        toJSON . B8.unpack . convertToBase Base64 . unAssetLogo
+instance FromJSON AssetLogo where
+    parseJSON = fmap (AssetLogo . raw @'Base64) . parseJSON
 
 instance FromJSON AssetUnit where
     parseJSON = withObject "AssetUnit" $ \o -> AssetUnit
         <$> o .: "name"
         <*> o .: "decimals"
-
-instance ToJSON AssetUnit where
-    toJSON AssetUnit{name,decimals} = object
-        [ "name" .= name
-        , "decimals" .= decimals
-        ]
 
 --
 -- Helpers

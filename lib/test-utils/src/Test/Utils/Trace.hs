@@ -10,6 +10,7 @@
 module Test.Utils.Trace
      ( withLogging
      , captureLogging
+     , traceSpec
      ) where
 
 import Prelude
@@ -18,6 +19,14 @@ import Cardano.BM.Trace
     ( traceInTVarIO )
 import Control.Tracer
     ( Tracer )
+import Data.Text.Class
+    ( ToText (..) )
+import Say
+    ( say )
+import Test.Hspec
+    ( HasCallStack, Spec, SpecWith, around )
+import UnliftIO.Exception
+    ( onException )
 import UnliftIO.STM
     ( newTVarIO, readTVarIO )
 
@@ -36,3 +45,12 @@ captureLogging action = withLogging $ \(tr, getMsgs) -> do
     res <- action tr
     msgs <- getMsgs
     pure (msgs, res)
+
+-- | Provides a Tracer to the spec, which is silent, unless something goes
+-- wrong. In that case, it dumps all the traces it has collected to stdout.
+traceSpec :: (HasCallStack, ToText msg) => SpecWith (Tracer IO msg) -> Spec
+traceSpec = around $ \spec -> withLogging $ \(tr, getMsgs) -> do
+    let dumpLogs = getMsgs >>= mapM_ (say . toText)
+        rule s = say ("--- Failed spec logs " <> s <> " ---")
+        explain a = rule "BEGIN" *> a <* rule "END"
+    spec tr `onException` explain dumpLogs

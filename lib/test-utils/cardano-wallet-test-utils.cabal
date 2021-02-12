@@ -46,6 +46,7 @@ library
     , quickcheck-classes
     , say
     , template-haskell
+    , text-class
     , time
     , unliftio
     , wai-app-static
