@@ -582,10 +582,6 @@ x-assetMetadataLogo: &assetMetadataLogo
 x-assetMetadata: &assetMetadata
   title: Native Assets Metadata
   description: |
-    <p>status: <strong>⚠ under development</strong></p>
-
-    _This field is not implemented yet, and the values will always be empty._
-
     In the Mary era of Cardano, UTxO may contain native assets. These
     assets are represented on-chain by opaque identifiers which are
     meaningless to end-users. Therefore, user-facing metadata
@@ -3696,8 +3692,6 @@ paths:
       tags: ["Assets"]
       summary: List Assets
       description: |
-        <p align="right">status: <strong>under development</strong></p>
-
         List all assets associated with the wallet, and their metadata
         if known.
 
@@ -3713,8 +3707,6 @@ paths:
       tags: ["Assets"]
       summary: Get Asset
       description: |
-        <p align="right">status: <strong>under development</strong></p>
-
         Fetch a single asset from its `policy_id` and `asset_name`,
         with its metadata if any.
 
@@ -3731,8 +3723,6 @@ paths:
       tags: ["Assets"]
       summary: Get Asset (empty name)
       description: |
-        <p align="right">status: <strong>under development</strong></p>
-
         Fetch the the asset from `policy_id` with an empty name.
 
         The asset must be associated with the wallet.
@@ -4181,8 +4171,6 @@ paths:
       tags: ["Byron Assets"]
       summary: List Assets
       description: |
-        <p align="right">status: <strong>under development</strong></p>
-
         List all assets associated with the wallet, and their metadata
         if known.
 
@@ -4198,8 +4186,6 @@ paths:
       tags: ["Byron Assets"]
       summary: Get Asset
       description: |
-        <p align="right">status: <strong>under development</strong></p>
-
         Fetch a single asset from its `policy_id` and `asset_name`,
         with its metadata if any.
 
@@ -4216,8 +4202,6 @@ paths:
       tags: ["Byron Assets"]
       summary: Get Asset (empty name)
       description: |
-        <p align="right">status: <strong>under development</strong></p>
-
         Fetch the the asset from `policy_id` with an empty name.
 
         The asset must be associated with the wallet.
