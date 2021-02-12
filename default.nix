@@ -88,12 +88,18 @@ let
     inherit (project.hsPkgs.cardano-addresses-cli.components.exes) cardano-address;
     inherit (project.hsPkgs.cardano-transactions.components.exes) cardano-tx;
 
+    # The main executable
     cardano-wallet = import ./nix/package-cardano-node.nix {
       inherit pkgs gitrev;
       haskellBuildUtils = haskellBuildUtils.package;
       exe = project.hsPkgs.cardano-wallet.components.exes.cardano-wallet;
       inherit (self) cardano-node;
     };
+
+    # Local test cluster and mock metadata server
+    inherit (project.hsPkgs.cardano-wallet.components.exes)
+      local-cluster
+      mock-token-metadata-server;
 
     # `tests` are the test suites which have been built.
     tests = collectComponents "tests" isProjectPackage coveredProject.hsPkgs;

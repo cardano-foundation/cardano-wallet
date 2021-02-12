@@ -1,5 +1,5 @@
 name:                cardano-wallet-core-integration
-version:             2021.2.10
+version:             2021.2.12
 synopsis:            Core integration test library.
 description:         Shared core functionality for our integration test suites.
 homepage:            https://github.com/input-output-hk/cardano-wallet
