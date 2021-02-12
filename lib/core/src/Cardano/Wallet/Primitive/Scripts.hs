@@ -58,7 +58,7 @@ isShared
     => Script KeyHash
     -> SeqState n k
     -> ([k 'ScriptK XPub], SeqState n k)
-isShared script (SeqState !s1 !s2 !pending !rpk !prefix !s3) =
+isShared script (SeqState !s1 !s2 !pending !prefix !s3 !ds) =
     let
         hashes = retrieveAllVerKeyHashes script
         accXPub = verPoolAccountPubKey s3
@@ -75,12 +75,13 @@ isShared script (SeqState !s1 !s2 !pending !rpk !prefix !s3) =
     in
         if null ixs then
             ( []
-            , SeqState s1 s2 pending rpk prefix s3
+            , SeqState s1 s2 pending prefix s3 ds
             )
         else
             ( deriveVerificationKey accXPub <$> ixs
-            , SeqState s1 s2 pending rpk prefix
+            , SeqState s1 s2 pending prefix
               (extendVerificationKeyPool (maximum ixs) s3')
+              ds
             )
 
 

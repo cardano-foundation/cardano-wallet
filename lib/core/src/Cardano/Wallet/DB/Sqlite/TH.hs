@@ -37,7 +37,7 @@ import Data.Text
 import Data.Time.Clock
     ( UTCTime )
 import Data.Word
-    ( Word16, Word32, Word64 )
+    ( Word16, Word32, Word64, Word8 )
 import Database.Persist.Class
     ( AtLeastOneUniqueKey (..), OnlyOneUniqueKey (..) )
 import Database.Persist.TH
@@ -300,6 +300,8 @@ SeqState
     seqStateRewardXPub        B8.ByteString      sql=reward_xpub
     seqStateDerivationPrefix  W.DerivationPrefix sql=derivation_prefix
     seqStateScriptGap         W.AddressPoolGap   sql=script_gap
+    seqStateStakeKeys         Word8              sql=num_stake_keys
+    seqStateStakeEdge         Word8              sql=stake_edge
 
     Primary seqStateWalletId
     Foreign Wallet seq_state seqStateWalletId ! ON DELETE CASCADE

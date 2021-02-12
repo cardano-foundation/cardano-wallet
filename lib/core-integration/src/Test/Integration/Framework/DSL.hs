@@ -228,9 +228,9 @@ import Cardano.Wallet.Api.Types
     )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( HardDerivation (..)
+    , MkAddress (..)
     , NetworkDiscriminant (..)
     , Passphrase (..)
-    , PaymentAddress (..)
     , PersistPublicKey (..)
     , Role (..)
     , WalletKey (..)
@@ -1387,7 +1387,7 @@ fixtureRandomWallet = fmap fst . fixtureRandomWalletMws
 
 fixtureRandomWalletAddrs
     :: forall (n :: NetworkDiscriminant) m.
-        ( PaymentAddress n ByronKey
+        ( MkAddress n ByronKey
         , MonadIO m
         , MonadUnliftIO m
         )
@@ -1409,7 +1409,7 @@ fixtureRandomWalletWith
         ( EncodeAddress n
         , DecodeAddress n
         , DecodeStakeAddress n
-        , PaymentAddress n ByronKey
+        , MkAddress n ByronKey
         , MonadIO m
         , MonadUnliftIO m
         )
@@ -1447,7 +1447,7 @@ fixtureIcarusWallet = fmap fst . fixtureIcarusWalletMws
 
 fixtureIcarusWalletAddrs
     :: forall (n :: NetworkDiscriminant) m.
-        ( PaymentAddress n IcarusKey
+        ( MkAddress n IcarusKey
         , MonadIO m
         , MonadUnliftIO m
         )
@@ -1469,7 +1469,7 @@ fixtureIcarusWalletWith
         ( EncodeAddress n
         , DecodeAddress n
         , DecodeStakeAddress n
-        , PaymentAddress n IcarusKey
+        , MkAddress n IcarusKey
         , MonadIO m
         , MonadUnliftIO m
         )
@@ -1791,7 +1791,7 @@ delegationFee ctx w = do
 -- >>> take 1 (randomAddresses @n)
 -- [addr]
 randomAddresses
-    :: forall (n :: NetworkDiscriminant). (PaymentAddress n ByronKey)
+    :: forall (n :: NetworkDiscriminant). (MkAddress n ByronKey)
     => Mnemonic 12
     -> [Address]
 randomAddresses mw =
@@ -1805,7 +1805,7 @@ randomAddresses mw =
         addrXPrv =
             Byron.deriveAddressPrivateKey pwd accXPrv
     in
-        [ paymentAddress @n (publicKey $ addrXPrv ix)
+        [ mkAddress @n (publicKey $ addrXPrv ix) Nothing
         | ix <- [minBound..maxBound]
         ]
 
@@ -1816,7 +1816,7 @@ randomAddresses mw =
 -- >>> take 1 (icarusAddresses @n)
 -- [addr]
 icarusAddresses
-    :: forall (n :: NetworkDiscriminant). (PaymentAddress n IcarusKey)
+    :: forall (n :: NetworkDiscriminant). (MkAddress n IcarusKey)
     => Mnemonic 15
     -> [Address]
 icarusAddresses mw =
@@ -1830,7 +1830,7 @@ icarusAddresses mw =
         addrXPrv =
             deriveAddressPrivateKey pwd accXPrv UtxoExternal
     in
-        [ paymentAddress @n (publicKey $ addrXPrv ix)
+        [ mkAddress @n (publicKey $ addrXPrv ix) Nothing
         | ix <- [minBound..maxBound]
         ]
 
@@ -1841,7 +1841,7 @@ icarusAddresses mw =
 -- >>> take 1 (shelleyAddresses @n)
 -- [addr]
 shelleyAddresses
-    :: forall (n :: NetworkDiscriminant). (PaymentAddress n ShelleyKey)
+    :: forall (n :: NetworkDiscriminant). (MkAddress n ShelleyKey)
     => Mnemonic 15
     -> [Address]
 shelleyAddresses mw =
@@ -1855,7 +1855,7 @@ shelleyAddresses mw =
         addrXPrv =
             deriveAddressPrivateKey pwd accXPrv UtxoExternal
     in
-        [ paymentAddress @n (publicKey $ addrXPrv ix)
+        [ mkAddress @n (publicKey $ addrXPrv ix) Nothing
         | ix <- [minBound..maxBound]
         ]
 

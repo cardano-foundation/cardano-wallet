@@ -33,6 +33,8 @@ import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey (..) )
 import Cardano.Wallet.Primitive.AddressDerivationSpec
     ()
+import Cardano.Wallet.Primitive.AddressDiscovery.Delegation
+    ( DelegationState, mkEmptyDelegationState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPoolGap (..)
     , DerivationPrefix (..)
@@ -184,7 +186,7 @@ prop_markingDiscoveredVerKeys (AccountXPubWithScripts accXPub' scripts') = do
     let (script:_) = scripts'
     let sciptKeyHashes = retrieveAllVerKeyHashes script
     let seqState = initializeState accXPub'
-    let (_, SeqState _ _ _ _ _ verKeyPool) =
+    let (_, SeqState _ _ _ _ verKeyPool _) =
             isShared script seqState
     let ourKeys = verPoolIndexedKeys verKeyPool
     let discoveredKeyMap =
@@ -264,8 +266,9 @@ deriveKeyHash
 deriveKeyHash accXPub' =
     hashVerificationKey . (deriveVerificationKey accXPub')
 
-dummyRewardAccount :: ShelleyKey 'AddressK XPub
-dummyRewardAccount = ShelleyKey $ unsafeXPub $ B8.replicate 64 '0'
+dummyDelegSt :: DelegationState ShelleyKey
+dummyDelegSt = mkEmptyDelegationState $
+    ShelleyKey $ unsafeXPub $ B8.replicate 64 '0'
 
 initializeState
     :: ShelleyKey 'AccountK XPub
@@ -274,18 +277,18 @@ initializeState accXPub' =
     let intPool = mkAddressPool accXPub' defaultAddressPoolGap []
         extPool = mkAddressPool accXPub' defaultAddressPoolGap []
         sPool = newVerificationKeyPool accXPub' defaultAddressPoolGap
-    in SeqState intPool extPool emptyPendingIxs dummyRewardAccount defaultPrefix sPool
+    in SeqState intPool extPool emptyPendingIxs defaultPrefix sPool dummyDelegSt
 
 getKnownScripts
     :: SeqState 'Mainnet ShelleyKey
     -> Map ScriptHash [Index 'Soft 'ScriptK]
-getKnownScripts (SeqState _ _ _ _ _ verKeyPool) =
+getKnownScripts (SeqState _ _ _ _ verKeyPool _) =
     verPoolKnownScripts verKeyPool
 
 getVerKeyMap
     :: SeqState 'Mainnet ShelleyKey
     -> Map KeyHash (Index 'Soft 'ScriptK, AddressState)
-getVerKeyMap (SeqState _ _ _ _ _ verKeyPool) =
+getVerKeyMap (SeqState _ _ _ _ verKeyPool _) =
     verPoolIndexedKeys verKeyPool
 
 scriptKeyHashesInMap

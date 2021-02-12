@@ -33,9 +33,9 @@ import Cardano.Wallet.Api.Types
     )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( DerivationIndex (..)
+    , MkAddress
     , PassphraseMaxLength (..)
     , PassphraseMinLength (..)
-    , PaymentAddress
     , Role (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
@@ -144,9 +144,9 @@ spec :: forall n.
     ( DecodeAddress n
     , DecodeStakeAddress n
     , EncodeAddress n
-    , PaymentAddress n ShelleyKey
-    , PaymentAddress n IcarusKey
-    , PaymentAddress n ByronKey
+    , MkAddress n ShelleyKey
+    , MkAddress n IcarusKey
+    , MkAddress n ByronKey
     ) => SpecWith Context
 spec = describe "SHELLEY_WALLETS" $ do
     it "WALLETS_CREATE_01 - Create a wallet" $ \ctx -> runResourceT $ do

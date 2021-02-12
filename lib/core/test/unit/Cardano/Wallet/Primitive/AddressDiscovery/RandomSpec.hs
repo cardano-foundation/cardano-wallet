@@ -25,11 +25,12 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , DerivationType (..)
     , Index (..)
+    , MkAddress (..)
     , NetworkDiscriminant (..)
     , Passphrase (..)
-    , PaymentAddress (..)
     , WalletKey (..)
     , liftIndex
+    , paymentAddress
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey (..)
@@ -283,7 +284,7 @@ prop_derivedKeysAreOurs
 prop_derivedKeysAreOurs rnd@(Rnd st _ _) (Rnd st' _ _) addrIx =
     isJust (fst $ isOurs addr st) .&&. isNothing (fst $ isOurs addr st')
   where
-    addr = mkAddress rnd addrIx
+    addr = mkAddress' rnd addrIx
 
 prop_derivedKeysAreOwned
     :: Rnd
@@ -323,7 +324,7 @@ prop_forbiddenAddreses rnd@(Rnd st rk pwd) addrIx = conjoin
   where
     (_ours, isOursSt) = isOurs addr st
     (changeAddr, changeSt) = genChange (rk, pwd) isOursSt
-    addr = mkAddress rnd addrIx
+    addr = mkAddress' rnd addrIx
     forbidden s =
         Set.fromList $ Map.elems $ (fst <$> discoveredAddresses s) <> pendingAddresses s
 
@@ -338,7 +339,7 @@ prop_oursAreUsed rnd@(Rnd st _ _) addrIx = do
         Just (_, status) ->
             status === Used
   where
-    addr = mkAddress rnd addrIx
+    addr = mkAddress' rnd addrIx
 
 {-------------------------------------------------------------------------------
                     Instances
@@ -362,13 +363,15 @@ instance Arbitrary Rnd where
             InfiniteList bytes _ <- arbitrary
             return $ Passphrase $ BA.convert $ BS.pack $ take n bytes
 
-mkAddress
+mkAddress'
     :: Rnd
     -> Index 'WholeDomain 'AddressK
     -> Address
-mkAddress (Rnd (RndState _ accIx _ _ _) rk pwd) addrIx =
+mkAddress' (Rnd (RndState _ accIx _ _ _) rk pwd) addrIx =
     let
         acctKey = deriveAccountPrivateKey pwd rk (liftIndex accIx)
         addrKey = deriveAddressPrivateKey pwd acctKey addrIx
     in
-        paymentAddress @'Mainnet (publicKey addrKey)
+        mkAddress @'Mainnet (publicKey addrKey) Nothing
+        -- TODO: If we keep the mkAddress abstraction, we should also run the
+        -- tests with a Just stake key, to ensure nothing breaks then.

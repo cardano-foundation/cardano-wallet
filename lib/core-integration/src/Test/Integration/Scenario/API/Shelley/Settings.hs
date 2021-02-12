@@ -21,7 +21,7 @@ import Cardano.Wallet.Api.Types
     , EncodeAddress (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( PaymentAddress )
+    ( MkAddress )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
@@ -64,9 +64,9 @@ spec :: forall n.
     ( DecodeAddress n
     , DecodeStakeAddress n
     , EncodeAddress n
-    , PaymentAddress n ShelleyKey
-    , PaymentAddress n IcarusKey
-    , PaymentAddress n ByronKey
+    , MkAddress n ShelleyKey
+    , MkAddress n IcarusKey
+    , MkAddress n ByronKey
     ) => SpecWith Context
 spec = describe "SHELLEY_SETTINGS" $ do
     it "SETTINGS_01 - Can put and read settings" $ \ctx -> do

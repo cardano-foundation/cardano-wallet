@@ -79,9 +79,9 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , DerivationType (..)
     , Index
+    , MkAddress
     , NetworkDiscriminant (..)
     , Passphrase (..)
-    , PaymentAddress (..)
     , PersistPrivateKey
     , WalletKey
     , encryptPassphrase
@@ -94,6 +94,8 @@ import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey (..), generateKeyFromSeed )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( KnownAddresses (..) )
+import Cardano.Wallet.Primitive.AddressDiscovery.Delegation
+    ( mkDelegationState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
@@ -430,7 +432,7 @@ testMigrationTxMetaFee
         , WalletKey k
         , PersistState s
         , PersistPrivateKey (k 'RootK)
-        , PaymentAddress 'Mainnet k
+        , MkAddress 'Mainnet k
         )
     => String
     -> Int
@@ -486,7 +488,7 @@ testMigrationCleanupCheckpoints
         , WalletKey k
         , PersistState s
         , PersistPrivateKey (k 'RootK)
-        , PaymentAddress 'Mainnet k
+        , MkAddress 'Mainnet k
         )
     => String
     -> GenesisParameters
@@ -527,7 +529,7 @@ testMigrationRole
         , WalletKey k
         , PersistState s
         , PersistPrivateKey (k 'RootK)
-        , PaymentAddress 'Mainnet k
+        , MkAddress 'Mainnet k
         )
     => String
     -> IO ()
@@ -1163,7 +1165,8 @@ testCp :: Wallet (SeqState 'Mainnet ShelleyKey)
 testCp = snd $ initWallet block0 initDummyState
   where
     initDummyState :: SeqState 'Mainnet ShelleyKey
-    initDummyState = mkSeqStateFromRootXPrv (xprv, mempty) purposeCIP1852 defaultAddressPoolGap
+    initDummyState = mkSeqStateFromRootXPrv (xprv, mempty)
+        purposeCIP1852 defaultAddressPoolGap (mkDelegationState 1 0)
       where
         mw = SomeMnemonic . unsafePerformIO . generate $ genMnemonic @15
         xprv = generateKeyFromSeed (mw, Nothing) mempty
@@ -1224,7 +1227,8 @@ testCpSeq :: Wallet (SeqState 'Mainnet ShelleyKey)
 testCpSeq = snd $ initWallet block0 initDummyStateSeq
 
 initDummyStateSeq :: SeqState 'Mainnet ShelleyKey
-initDummyStateSeq = mkSeqStateFromRootXPrv (xprv, mempty) purposeCIP1852 defaultAddressPoolGap
+initDummyStateSeq = mkSeqStateFromRootXPrv (xprv, mempty)
+    purposeCIP1852 defaultAddressPoolGap (mkDelegationState 1 0)
   where
       mw = SomeMnemonic $ unsafePerformIO (generate $ genMnemonic @15)
       xprv = Seq.generateKeyFromSeed (mw, Nothing) mempty

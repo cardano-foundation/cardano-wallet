@@ -80,10 +80,10 @@ import Cardano.Wallet.Network
     ( FollowLog (..), NetworkLayer (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
+    , MkAddress
     , NetworkDiscriminant (..)
     , NetworkDiscriminantVal (..)
     , Passphrase (..)
-    , PaymentAddress
     , PersistPrivateKey
     , WalletKey
     , digest
@@ -421,7 +421,7 @@ benchmarksRnd
     :: forall (n :: NetworkDiscriminant) s k p.
         ( s ~ RndAnyState n p
         , k ~ ByronKey
-        , PaymentAddress n k
+        , MkAddress n k
         , NetworkDiscriminantVal n
         , KnownNat p
         )
@@ -443,7 +443,7 @@ benchmarksRnd _ w wid wname benchname restoreTime = do
     (addresses, listAddressesTime) <- bench "list addresses"
         $ fmap (fromIntegral . length)
         $ unsafeRunExceptT
-        $ W.listAddresses w wid (const pure)
+        $ W.listAddresses w wid
 
     (transactions, listTransactionsTime) <- bench "list transactions"
         $ fmap (fromIntegral . length)
@@ -511,7 +511,7 @@ benchmarksSeq
     :: forall (n :: NetworkDiscriminant) s k p.
         ( s ~ SeqAnyState n k p
         , k ~ ShelleyKey
-        , PaymentAddress n k
+        , MkAddress n k
         , NetworkDiscriminantVal n
         , KnownNat p
         )
@@ -533,7 +533,7 @@ benchmarksSeq _ w wid _wname benchname restoreTime = do
     (addresses, listAddressesTime) <- bench "list addresses"
         $ fmap (fromIntegral . length)
         $ unsafeRunExceptT
-        $ W.listAddresses w wid (const pure)
+        $ W.listAddresses w wid
 
     (transactions, listTransactionsTime) <- bench "list transactions"
         $ fmap (fromIntegral . length)

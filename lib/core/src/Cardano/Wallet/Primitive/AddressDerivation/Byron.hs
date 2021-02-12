@@ -67,10 +67,10 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , ErrMkKeyFingerprint (..)
     , Index (..)
     , KeyFingerprint (..)
+    , MkAddress (..)
     , MkKeyFingerprint (..)
     , NetworkDiscriminant (..)
     , Passphrase (..)
-    , PaymentAddress (..)
     , PersistPrivateKey (..)
     , WalletKey (..)
     , fromHex
@@ -153,8 +153,8 @@ instance WalletKey ByronKey where
     liftRawKey = error "not supported"
     keyTypeDescriptor _ = "rnd"
 
-instance KnownNat pm => PaymentAddress ('Testnet pm) ByronKey where
-    paymentAddress k = Address
+instance KnownNat pm => MkAddress ('Testnet pm) ByronKey where
+    mkAddress k _ = Address
         $ CBOR.toStrictByteString
         $ CBOR.encodeAddress (getKey k)
             [ CBOR.encodeDerivationPathAttr pwd acctIx addrIx
@@ -163,18 +163,18 @@ instance KnownNat pm => PaymentAddress ('Testnet pm) ByronKey where
       where
         (acctIx, addrIx) = derivationPath k
         pwd = payloadPassphrase k
-    liftPaymentAddress (KeyFingerprint bytes) =
+    mkAddressFromFingerprint (KeyFingerprint bytes) _ =
         Address bytes
 
-instance PaymentAddress 'Mainnet ByronKey where
-    paymentAddress k = Address
+instance MkAddress 'Mainnet ByronKey where
+    mkAddress k _ = Address
         $ CBOR.toStrictByteString
         $ CBOR.encodeAddress (getKey k)
             [ CBOR.encodeDerivationPathAttr pwd acctIx addrIx ]
       where
         (acctIx, addrIx) = derivationPath k
         pwd = payloadPassphrase k
-    liftPaymentAddress (KeyFingerprint bytes) =
+    mkAddressFromFingerprint (KeyFingerprint bytes) _ =
         Address bytes
 
 instance MkKeyFingerprint ByronKey Address where

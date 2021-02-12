@@ -24,7 +24,7 @@ import Cardano.Wallet.Api.Types
     , WalletStyle (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( DerivationIndex (..), DerivationType (..), Index (..), PaymentAddress )
+    ( DerivationIndex (..), DerivationType (..), Index (..), MkAddress )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
@@ -76,8 +76,8 @@ spec :: forall n.
     ( DecodeAddress n
     , DecodeStakeAddress n
     , EncodeAddress n
-    , PaymentAddress n IcarusKey
-    , PaymentAddress n ByronKey
+    , MkAddress n IcarusKey
+    , MkAddress n ByronKey
     ) => SpecWith Context
 spec = describe "BYRON_COIN_SELECTION" $ do
 

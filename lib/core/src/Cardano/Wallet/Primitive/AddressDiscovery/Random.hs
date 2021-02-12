@@ -53,9 +53,9 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , DerivationIndex (..)
     , DerivationType (..)
     , Index (..)
+    , MkAddress (..)
     , NetworkDiscriminant
     , Passphrase (..)
-    , PaymentAddress (..)
     , liftIndex
     , publicKey
     )
@@ -264,7 +264,7 @@ newtype ErrImportAddress
     = ErrAddrDoesNotBelong Address
     deriving (Generic, Eq, Show)
 
-instance PaymentAddress n ByronKey => GenChange (RndState n) where
+instance MkAddress n ByronKey => GenChange (RndState n) where
     type ArgGenChange (RndState n) = (ByronKey 'RootK XPrv, Passphrase "encryption")
     genChange (rootXPrv, pwd) st = (address, st')
       where
@@ -316,13 +316,13 @@ deriveAddressKeyFromPath rootXPrv passphrase (accIx, addrIx) = addrXPrv
 
 -- | Use the key material in 'RndState' to derive a change address.
 deriveRndStateAddress
-    :: forall n. (PaymentAddress n ByronKey)
+    :: forall n. (MkAddress n ByronKey)
     => ByronKey 'RootK XPrv
     -> Passphrase "encryption"
     -> DerivationPath
     -> Address
 deriveRndStateAddress k passphrase path =
-    paymentAddress @n $ publicKey $ deriveAddressKeyFromPath k passphrase path
+    mkAddress @n (publicKey $ deriveAddressKeyFromPath k passphrase path) Nothing
 
 -- Unlike sequential derivation, we can't derive an order from the index only
 -- (they are randomly generated), nor anything else in the address itself.
@@ -425,7 +425,7 @@ instance IsOurs (RndAnyState n p) RewardAccount where
 instance KnownNat p => IsOwned (RndAnyState n p) ByronKey where
     isOwned _ _ _ = Nothing
 
-instance PaymentAddress n ByronKey => GenChange (RndAnyState n p) where
+instance MkAddress n ByronKey => GenChange (RndAnyState n p) where
     type ArgGenChange (RndAnyState n p) = ArgGenChange (RndState n)
     genChange a (RndAnyState s) = RndAnyState <$> genChange a s
 

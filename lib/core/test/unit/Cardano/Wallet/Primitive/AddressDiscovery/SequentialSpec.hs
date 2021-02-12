@@ -23,18 +23,19 @@ import Prelude
 import Cardano.Address.Derivation
     ( XPub )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( DelegationAddress (..)
-    , Depth (..)
+    ( Depth (..)
     , DerivationType (..)
     , HardDerivation (..)
     , Index
     , KeyFingerprint
+    , MkAddress (..)
     , MkKeyFingerprint (..)
     , NetworkDiscriminant (..)
-    , PaymentAddress (..)
     , Role (..)
     , SoftDerivation (..)
     , WalletKey (..)
+    , liftPaymentAddress
+    , paymentAddress
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey (..) )
@@ -48,6 +49,8 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     , KnownAddresses (..)
     , genChange
     )
+import Cardano.Wallet.Primitive.AddressDiscovery.Delegation
+    ( mkEmptyDelegationState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPool
     , AddressPoolGap (..)
@@ -283,6 +286,7 @@ prop_poolGrowWithinGap
         , MkKeyFingerprint k Address
         , SoftDerivation k
         , AddressPoolTest k
+        , MkAddress 'Mainnet k
         )
     => (Proxy chain, Proxy k)
     -> (AddressPool chain k, Address)
@@ -294,7 +298,7 @@ prop_poolGrowWithinGap _proxy (pool, addr) =
     prop = case res of
         (Nothing, pool') -> pool === pool'
         (Just _, pool') ->
-            let k = length $ addresses liftAddress pool' \\ addresses liftAddress pool
+            let k = length $ addresses @_ @'Mainnet pool' \\ addresses @_ @'Mainnet pool
             in conjoin
                 [ gap pool === gap pool'
                 , property (k >= 0 && k <= fromEnum (gap pool))
@@ -310,6 +314,7 @@ prop_roundtripMkAddressPool
         , MkKeyFingerprint k Address
         , SoftDerivation k
         , AddressPoolTest k
+        , MkAddress 'Mainnet k
         )
     => (Proxy chain, Proxy k)
     -> AddressPool chain k
@@ -318,13 +323,14 @@ prop_roundtripMkAddressPool _proxy pool =
     ( mkAddressPool @'Mainnet
         (accountPubKey pool)
         (gap pool)
-        (addresses liftAddress pool)
+        (addresses @_ @'Mainnet pool)
     ) === pool
 
 -- | A pool always contains a number of addresses at least equal to its gap
 prop_poolAtLeastGapAddresses
     :: forall (chain :: Role) k.
         ( AddressPoolTest k
+        , MkAddress 'Mainnet k
         )
     => (Proxy chain, Proxy k)
     -> AddressPool chain k
@@ -332,7 +338,7 @@ prop_poolAtLeastGapAddresses
 prop_poolAtLeastGapAddresses _proxy pool =
     property prop
   where
-    prop = length (addresses liftAddress pool) >= fromEnum (gap pool)
+    prop = length (addresses @_ @'Mainnet pool) >= fromEnum (gap pool)
 
 -- | Our addresses are eventually discovered
 prop_poolEventuallyDiscoverOurs
@@ -370,7 +376,7 @@ prop_genChangeGapFromRootXPrv g =
   where
     mw = someDummyMnemonic (Proxy @12)
     key = Shelley.unsafeGenerateKeyFromSeed (mw, Nothing) mempty
-    s0 = mkSeqStateFromRootXPrv (key, mempty) purposeCIP1852 g
+    s0 = mkSeqStateFromRootXPrv (key, mempty) purposeCIP1852 g mkEmptyDelegationState
     prop =
         length (fst $ changeAddresses [] s0) === fromEnum g
 
@@ -386,7 +392,7 @@ prop_genChangeGapFromAccountXPub g =
     rootXPrv = Shelley.unsafeGenerateKeyFromSeed (mw, Nothing) mempty
     accIx = toEnum 0x80000000
     accXPub = publicKey $ deriveAccountPrivateKey mempty rootXPrv accIx
-    s0 = mkSeqStateFromAccountXPub accXPub purposeCIP1852 g
+    s0 = mkSeqStateFromAccountXPub accXPub purposeCIP1852 g mkEmptyDelegationState
     prop =
         length (fst $ changeAddresses [] s0) === fromEnum g
 
@@ -480,7 +486,7 @@ prop_changeIsOnlyKnownAfterGeneration (intPool, extPool) =
     let
         sPool = newVerificationKeyPool (accountPubKey extPool) (gap extPool)
         s0 :: SeqState 'Mainnet ShelleyKey
-        s0 = SeqState intPool extPool emptyPendingIxs rewardAccount defaultPrefix sPool
+        s0 = SeqState intPool extPool emptyPendingIxs defaultPrefix sPool (mkEmptyDelegationState rewardAccount)
         addrs0 = knownAddresses s0
         (change, s1) = genChange (\k _ -> paymentAddress @'Mainnet k) s0
         addrs1 = fst <$> knownAddresses s1
@@ -528,6 +534,7 @@ prop_shrinkPreserveKnown
         , MkKeyFingerprint k Address
         , SoftDerivation k
         , AddressPoolTest k
+        , MkAddress 'Mainnet k
         )
     => (Proxy chain, Proxy k)
     -> Positive Int
@@ -539,8 +546,8 @@ prop_shrinkPreserveKnown _proxy (Positive size) pool =
         $ all (`elem` addrs') cut
   where
     pool'  = shrinkPool @'Mainnet liftAddress cut minBound pool
-    addrs  = fst <$> addresses liftAddress pool
-    addrs' = fst <$> addresses liftAddress pool'
+    addrs  = fst <$> addresses @_ @'Mainnet pool
+    addrs' = fst <$> addresses @_ @'Mainnet pool'
     cut    = take size addrs
 
 -- There's no address after the address from the cut with the highest index
@@ -550,6 +557,7 @@ prop_shrinkMaxIndex
         , MkKeyFingerprint k (Proxy 'Mainnet, k 'AddressK XPub)
         , MkKeyFingerprint k Address
         , SoftDerivation k
+        , MkAddress 'Mainnet k
         , AddressPoolTest k
         )
     => (Proxy chain, Proxy k)
@@ -560,8 +568,8 @@ prop_shrinkMaxIndex _proxy (Positive size) pool =
     fromIntegral size > getAddressPoolGap minBound ==> last cut === last addrs'
   where
     pool'  = shrinkPool @'Mainnet liftAddress cut minBound pool
-    addrs  = fst <$> addresses liftAddress pool
-    addrs' = fst <$> addresses liftAddress pool'
+    addrs  = fst <$> addresses @_ @'Mainnet pool
+    addrs' = fst <$> addresses @_ @'Mainnet pool'
     cut    = take size addrs
 
 {-------------------------------------------------------------------------------
@@ -586,9 +594,9 @@ instance AddressPoolTest IcarusKey where
         mw = someDummyMnemonic (Proxy @12)
 
     ourAddresses _proxy cc =
-        mkAddress . deriveAddressPublicKey ourAccount cc <$> [minBound..maxBound]
+        mkAddress' . deriveAddressPublicKey ourAccount cc <$> [minBound..maxBound]
       where
-        mkAddress = paymentAddress @'Mainnet @IcarusKey
+        mkAddress' = paymentAddress @'Mainnet @IcarusKey
 
     liftAddress =
         liftPaymentAddress @'Mainnet
@@ -600,16 +608,23 @@ instance AddressPoolTest ShelleyKey where
         mw = someDummyMnemonic (Proxy @15)
 
     ourAddresses _proxy cc =
-        mkAddress . deriveAddressPublicKey ourAccount cc <$> [minBound..maxBound]
+        mkAddress' . deriveAddressPublicKey ourAccount cc <$> [minBound..maxBound]
       where
-        mkAddress k = delegationAddress @'Mainnet k rewardAccount
+        mkAddress' k = mkAddress @'Mainnet k (Just rewardAddress)
 
     liftAddress fingerprint =
-        liftDelegationAddress @'Mainnet fingerprint rewardAccount
+        mkAddressFromFingerprint @'Mainnet fingerprint (Just rewardAddress)
 
 rewardAccount
-    :: ShelleyKey 'AddressK XPub
+    :: ShelleyKey 'AccountK XPub
 rewardAccount = publicKey $
+    Shelley.unsafeGenerateKeyFromSeed (mw, Nothing) mempty
+  where
+    mw = someDummyMnemonic (Proxy @15)
+
+rewardAddress
+    :: ShelleyKey 'AddressK XPub
+rewardAddress = publicKey $
     Shelley.unsafeGenerateKeyFromSeed (mw, Nothing) mempty
   where
     mw = someDummyMnemonic (Proxy @15)
@@ -681,13 +696,14 @@ instance
     , MkKeyFingerprint k (Proxy 'Mainnet, k 'AddressK XPub)
     , MkKeyFingerprint k Address
     , SoftDerivation k
+    , MkAddress 'Mainnet k
     , AddressPoolTest k
     ) => Arbitrary (AddressPool chain k) where
     shrink pool =
         let
             key = accountPubKey pool
             g = gap pool
-            addrs = addresses liftAddress pool
+            addrs = addresses @_ @'Mainnet pool
         in case length addrs of
             k | k == fromEnum g && g == minBound ->
                 []
@@ -714,7 +730,8 @@ instance Arbitrary (SeqState 'Mainnet ShelleyKey) where
         intPool <- arbitrary
         extPool <- arbitrary
         let sPool = newVerificationKeyPool (accountPubKey extPool) (gap extPool)
-        return $ SeqState intPool extPool emptyPendingIxs rewardAccount defaultPrefix sPool
+        return $ SeqState intPool extPool emptyPendingIxs defaultPrefix sPool
+            (mkEmptyDelegationState rewardAccount) -- TODO: Allow non-empty
 
 -- | Wrapper to encapsulate accounting style proxies that are so-to-speak,
 -- different types in order to easily map over them and avoid duplicating
@@ -732,5 +749,6 @@ data Key = forall (k :: Depth -> * -> *).
     , MkKeyFingerprint k Address
     , SoftDerivation k
     , AddressPoolTest k
+    , MkAddress 'Mainnet k
     ) => Key (Proxy k)
 instance Show Key where show (Key proxy) = show (typeRep proxy)

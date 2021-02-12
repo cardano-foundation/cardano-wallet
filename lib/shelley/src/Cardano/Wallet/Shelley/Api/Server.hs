@@ -1,12 +1,16 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE IncoherentInstances #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE UndecidableInstances #-}
 
-{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas -fno-warn-orphans #-}
 
 -- |
 -- Copyright: © 2018-2020 IOHK
@@ -33,7 +37,6 @@ import Cardano.Wallet
     , ErrNotASequentialWallet (..)
     , genesisData
     , networkLayer
-    , normalizeDelegationAddress
     )
 import Cardano.Wallet.Api
     ( Addresses
@@ -134,13 +137,15 @@ import Cardano.Wallet.Api.Types
     , SomeByronWalletPostData (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( DelegationAddress (..), PaymentAddress (..) )
+    ( MkAddress (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey (..), generateKeyFromSeed )
+import Cardano.Wallet.Primitive.AddressDiscovery.Delegation
+    ( mkEmptyDelegationState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
@@ -191,9 +196,9 @@ import qualified Data.Text as T
 
 server
     :: forall n.
-        ( PaymentAddress n IcarusKey
-        , PaymentAddress n ByronKey
-        , DelegationAddress n ShelleyKey
+        ( MkAddress n IcarusKey
+        , MkAddress n ByronKey
+        , MkAddress n ShelleyKey
         , Typeable n
         , HasNetworkId n
         )
@@ -241,7 +246,7 @@ server byron icarus shelley spl ntp =
     assets = listAssets shelley :<|> getAsset shelley :<|> getAssetDefault shelley
 
     addresses :: Server (Addresses n)
-    addresses = listAddresses shelley (normalizeDelegationAddress @_ @ShelleyKey @n)
+    addresses = listAddresses shelley
         :<|> (handler ApiAddressInspect . inspectAddress . unApiAddressInspectData)
         :<|> (handler id . postAnyAddress (networkIdVal (Proxy @n)))
       where
@@ -258,7 +263,7 @@ server byron icarus shelley spl ntp =
     coinSelections :: Server (CoinSelections n)
     coinSelections = (\wid ascd -> case ascd of
         (ApiSelectForPayment ascp) ->
-            selectCoins shelley (delegationAddress @n) wid ascp
+            selectCoins shelley (\p s -> mkAddress @n p (Just s)) wid ascp
         (ApiSelectForDelegation (ApiSelectCoinsAction action)) ->
             case action of
                 (Join pid) ->
@@ -274,7 +279,7 @@ server byron icarus shelley spl ntp =
 
     transactions :: Server (Transactions n)
     transactions =
-        postTransaction shelley (delegationAddress @n)
+        postTransaction shelley (\p s -> mkAddress @n p (Just s))
         :<|> listTransactions shelley
         :<|> postTransactionFee shelley
         :<|> deleteTransaction shelley
@@ -322,7 +327,8 @@ server byron icarus shelley spl ntp =
             SomeTrezorWallet x -> postTrezorWallet icarus x
             SomeLedgerWallet x -> postLedgerWallet icarus x
             SomeAccount x ->
-                postAccountWallet icarus mkLegacyWallet IcarusKey idleWorker x
+                postAccountWallet icarus mkLegacyWallet IcarusKey
+                    mkEmptyDelegationState idleWorker x
         )
         :<|> (\wid -> withLegacyLayer wid
                 (byron , deleteWallet byron wid)
@@ -384,8 +390,8 @@ server byron icarus shelley spl ntp =
                 (icarus, liftHandler $ throwE ErrCreateAddressNotAByronWallet)
              )
         :<|> (\wid s -> withLegacyLayer wid
-                (byron , listAddresses byron (const pure) wid s)
-                (icarus, listAddresses icarus (const pure) wid s)
+                (byron , listAddresses byron wid s)
+                (icarus, listAddresses icarus wid s)
              )
 
     byronCoinSelections :: Server (ByronCoinSelections n)
@@ -394,7 +400,7 @@ server byron icarus shelley spl ntp =
       where
         handleRandom = liftHandler $ throwE ErrNotASequentialWallet
         handleSequential = selectCoins icarus genChangeSequential wid x
-        genChangeSequential paymentK _ = paymentAddress @n paymentK
+        genChangeSequential paymentK _ = mkAddress @n paymentK Nothing
     byronCoinSelections _ _ = Handler
         $ throwE
         $ apiError err400 InvalidWalletType
@@ -410,7 +416,7 @@ server byron icarus shelley spl ntp =
 
                  )
                  (icarus, do
-                    let genChange k _ = paymentAddress @n k
+                    let genChange k _ = mkAddress @n k Nothing
                     postTransaction icarus genChange wid tx
                  )
              )

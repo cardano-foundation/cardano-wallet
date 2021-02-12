@@ -26,10 +26,10 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , DerivationType (..)
     , HardDerivation (..)
     , Index
+    , MkAddress (..)
     , MkKeyFingerprint (..)
     , NetworkDiscriminant (..)
     , Passphrase (..)
-    , PaymentAddress (..)
     , Role (..)
     , SoftDerivation (..)
     , WalletKey (..)
@@ -122,7 +122,8 @@ prop_roundtripFingerprintLift
 prop_roundtripFingerprintLift addr =
     let
         fingerprint = paymentKeyFingerprint @IcarusKey addr
-        eAddr = liftPaymentAddress @'Mainnet <$> fingerprint
+        eAddr = flip (mkAddressFromFingerprint @'Mainnet) Nothing
+            <$> fingerprint
     in
         eAddr === Right addr
 

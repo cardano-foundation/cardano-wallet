@@ -39,7 +39,7 @@ import Cardano.Wallet.Api.Types
     , pendingSince
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( PaymentAddress )
+    ( MkAddress )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
 import Cardano.Wallet.Primitive.Types
@@ -199,7 +199,7 @@ spec :: forall n.
     ( DecodeAddress n
     , DecodeStakeAddress n
     , EncodeAddress n
-    , PaymentAddress n IcarusKey
+    , MkAddress n IcarusKey
     ) => SpecWith Context
 spec = describe "SHELLEY_TRANSACTIONS" $ do
     it "TRANS_MIN_UTXO_01 - I cannot spend less than minUTxOValue" $ \ctx -> runResourceT $ do

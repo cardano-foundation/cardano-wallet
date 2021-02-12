@@ -54,10 +54,10 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , HardDerivation (..)
     , Index (..)
     , KeyFingerprint (..)
+    , MkAddress (..)
     , MkKeyFingerprint (..)
     , NetworkDiscriminant (..)
     , Passphrase (..)
-    , PaymentAddress (..)
     , PersistPrivateKey (..)
     , PersistPublicKey (..)
     , RewardAccount (..)
@@ -361,20 +361,20 @@ instance WalletKey IcarusKey where
                          Relationship Key / Address
 -------------------------------------------------------------------------------}
 
-instance PaymentAddress 'Mainnet IcarusKey where
-    paymentAddress k = Address
+instance MkAddress 'Mainnet IcarusKey where
+    mkAddress k _ = Address
         $ CBOR.toStrictByteString
         $ CBOR.encodeAddress (getKey k) []
-    liftPaymentAddress (KeyFingerprint bytes) =
+    mkAddressFromFingerprint (KeyFingerprint bytes) _ =
         Address bytes
 
-instance KnownNat pm => PaymentAddress ('Testnet pm) IcarusKey where
-    paymentAddress k = Address
+instance KnownNat pm => MkAddress ('Testnet pm) IcarusKey where
+    mkAddress k _ = Address
         $ CBOR.toStrictByteString
         $ CBOR.encodeAddress (getKey k)
             [ CBOR.encodeProtocolMagicAttr (testnetMagic @pm)
             ]
-    liftPaymentAddress (KeyFingerprint bytes) =
+    mkAddressFromFingerprint (KeyFingerprint bytes) _ =
         Address bytes
 
 instance MkKeyFingerprint IcarusKey Address where
@@ -383,14 +383,13 @@ instance MkKeyFingerprint IcarusKey Address where
             Just _  -> Right $ KeyFingerprint bytes
             Nothing -> Left $ ErrInvalidAddress addr (Proxy @IcarusKey)
 
-instance PaymentAddress n IcarusKey
+instance MkAddress n IcarusKey
     => MkKeyFingerprint IcarusKey (Proxy (n :: NetworkDiscriminant), IcarusKey 'AddressK XPub)
   where
     paymentKeyFingerprint (proxy, k) =
         bimap (const err) coerce
         . paymentKeyFingerprint @IcarusKey
-        . paymentAddress @n
-        $ k
+        $ mkAddress @n k Nothing -- NOTE: Can't be used with stake key
       where
         err = ErrInvalidAddress (proxy, k) Proxy
 

@@ -33,7 +33,7 @@ import Cardano.Wallet.Api.Types
     , WalletStyle (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( PaymentAddress )
+    ( MkAddress )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey )
 import Cardano.Wallet.Primitive.Types
@@ -153,7 +153,7 @@ spec :: forall n.
     ( DecodeAddress n
     , DecodeStakeAddress n
     , EncodeAddress n
-    , PaymentAddress n ShelleyKey
+    , MkAddress n ShelleyKey
     ) => SpecWith Context
 spec = describe "SHELLEY_STAKE_POOLS" $ do
     let listPools ctx stake = request @[ApiStakePool] ctx

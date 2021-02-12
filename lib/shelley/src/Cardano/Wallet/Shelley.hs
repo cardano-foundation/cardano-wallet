@@ -78,11 +78,10 @@ import Cardano.Wallet.Logging
 import Cardano.Wallet.Network
     ( NetworkLayer (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( DelegationAddress (..)
-    , Depth (..)
+    ( Depth (..)
+    , MkAddress (..)
     , NetworkDiscriminant (..)
     , NetworkDiscriminantVal
-    , PaymentAddress
     , PersistPrivateKey
     , WalletKey
     , networkDiscriminantVal
@@ -197,10 +196,9 @@ data SomeNetworkDiscriminant where
     SomeNetworkDiscriminant
         :: forall (n :: NetworkDiscriminant).
             ( NetworkDiscriminantVal n
-            , PaymentAddress n IcarusKey
-            , PaymentAddress n ByronKey
-            , PaymentAddress n ShelleyKey
-            , DelegationAddress n ShelleyKey
+            , MkAddress n IcarusKey
+            , MkAddress n ByronKey
+            , MkAddress n ShelleyKey
             , HasNetworkId n
             , DecodeAddress n
             , EncodeAddress n
@@ -306,9 +304,9 @@ serveWallet
 
     startServer
         :: forall n.
-            ( PaymentAddress n IcarusKey
-            , PaymentAddress n ByronKey
-            , DelegationAddress n ShelleyKey
+            ( MkAddress n IcarusKey
+            , MkAddress n ByronKey
+            , MkAddress n ShelleyKey
             , DecodeAddress n
             , EncodeAddress n
             , EncodeStakeAddress n

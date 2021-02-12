@@ -21,7 +21,7 @@ import Cardano.Wallet.Api.Types
     , EncodeAddress (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( NetworkDiscriminant, PaymentAddress )
+    ( MkAddress, NetworkDiscriminant )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
@@ -73,8 +73,8 @@ import qualified Data.Text as T
 spec :: forall n.
     ( DecodeAddress n
     , EncodeAddress n
-    , PaymentAddress n ByronKey
-    , PaymentAddress n IcarusKey
+    , MkAddress n ByronKey
+    , MkAddress n IcarusKey
     ) => SpecWith Context
 spec = do
     describe "BYRON_CLI_ADDRESSES" $ do
@@ -327,7 +327,7 @@ scenario_ADDRESS_IMPORT_01
     :: forall (n :: NetworkDiscriminant).
         ( DecodeAddress n
         , EncodeAddress n
-        , PaymentAddress n ByronKey
+        , MkAddress n ByronKey
         )
     => SpecWith Context
 scenario_ADDRESS_IMPORT_01 = it title $ \ctx -> runResourceT @IO $ do
@@ -344,7 +344,7 @@ scenario_ADDRESS_IMPORT_02
     :: forall (n :: NetworkDiscriminant).
         ( DecodeAddress n
         , EncodeAddress n
-        , PaymentAddress n IcarusKey
+        , MkAddress n IcarusKey
         )
     => SpecWith Context
 scenario_ADDRESS_IMPORT_02 = it title $ \ctx -> runResourceT @IO $ do
@@ -361,7 +361,7 @@ scenario_ADDRESS_IMPORT_03
     :: forall (n :: NetworkDiscriminant).
         ( DecodeAddress n
         , EncodeAddress n
-        , PaymentAddress n ByronKey
+        , MkAddress n ByronKey
         )
     => SpecWith Context
 scenario_ADDRESS_IMPORT_03 = it title $ \ctx -> runResourceT @IO $ do

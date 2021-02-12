@@ -21,6 +21,7 @@
 --
 -- API handlers and server using the underlying wallet layer to provide
 -- endpoints reachable through HTTP.
+{-# OPTIONS_GHC -Wno-redundant-constraints #-}
 
 module Cardano.Wallet.Api.Server
     (
@@ -237,19 +238,19 @@ import Cardano.Wallet.DB
 import Cardano.Wallet.Network
     ( ErrNetworkUnavailable (..), NetworkLayer, timeInterpreter )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( DelegationAddress (..)
-    , Depth (..)
+    ( Depth (..)
     , DerivationIndex (..)
     , DerivationType (..)
     , HardDerivation (..)
     , Index (..)
+    , MkAddress (..)
     , MkKeyFingerprint
     , NetworkDiscriminant (..)
     , Passphrase (..)
-    , PaymentAddress (..)
     , RewardAccount (..)
     , Role
     , SoftDerivation (..)
+    , ToRewardAccount (..)
     , WalletKey (..)
     , deriveRewardAccount
     , digest
@@ -269,6 +270,8 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     , IsOwned
     , KnownAddresses
     )
+import Cardano.Wallet.Primitive.AddressDiscovery.Delegation
+    ( DelegationState, mkDelegationState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState, mkRndState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
@@ -618,6 +621,7 @@ postWallet
         , SoftDerivation k
         , MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
         , MkKeyFingerprint k Address
+        , ToRewardAccount k
         , WalletKey k
         , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
         , HasDBFactory s k ctx
@@ -635,7 +639,7 @@ postWallet ctx generateKey liftKey (WalletOrAccountPostData body) = case body of
     Left  body' ->
         postShelleyWallet ctx generateKey body'
     Right body' ->
-        postAccountWallet ctx mkShelleyWallet liftKey
+        postAccountWallet ctx mkShelleyWallet liftKey (mkDelegationState 1 0)
             (W.manageRewardBalance @_ @s @k (Proxy @n)) body'
 
 postShelleyWallet
@@ -646,6 +650,7 @@ postShelleyWallet
         , MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
         , MkKeyFingerprint k Address
         , WalletKey k
+        , ToRewardAccount k
         , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
         , HasDBFactory s k ctx
         , HasWorkerRegistry s k ctx
@@ -658,7 +663,8 @@ postShelleyWallet
     -> WalletPostData
     -> Handler ApiWallet
 postShelleyWallet ctx generateKey body = do
-    let state = mkSeqStateFromRootXPrv (rootXPrv, pwd) purposeCIP1852 g
+    let ds acc = mkDelegationState 1 0 acc
+    let state = mkSeqStateFromRootXPrv (rootXPrv, pwd) purposeCIP1852 g ds
     void $ liftHandler $ initWorker @_ @s @k ctx wid
         (\wrk -> W.createWallet  @(WorkerCtx ctx) @s @k wrk wid wName state)
         (\wrk -> W.restoreWallet @(WorkerCtx ctx) @s @k wrk wid)
@@ -689,12 +695,16 @@ postAccountWallet
     => ctx
     -> MkApiWallet ctx s w
     -> (XPub -> k 'AccountK XPub)
+    -> (k 'AccountK XPub -> DelegationState k)
+    -- ^ mkDelegationState requires ToRewadAccount k, which doesn't exist
+    -- for k ~ IcarusKey.
     -> (WorkerCtx ctx -> WalletId -> IO ())
         -- ^ Action to run concurrently with restore action
     -> AccountPostData
     -> Handler w
-postAccountWallet ctx mkWallet liftKey coworker body = do
-    let state = mkSeqStateFromAccountXPub (liftKey accXPub) purposeCIP1852 g
+postAccountWallet ctx mkWallet liftKey mkDeleg coworker body = do
+    let state =
+            mkSeqStateFromAccountXPub (liftKey accXPub) purposeCIP1852 g mkDeleg
     void $ liftHandler $ initWorker @_ @s @k ctx wid
         (\wrk -> W.createWallet  @(WorkerCtx ctx) @s @k wrk wid wName state)
         (\wrk -> W.restoreWallet @(WorkerCtx ctx) @s @k wrk wid)
@@ -933,7 +943,7 @@ postIcarusWallet
         , s ~ SeqState n k
         , k ~ IcarusKey
         , HasWorkerRegistry s k ctx
-        , PaymentAddress n IcarusKey
+        , MkAddress n IcarusKey
         )
     => ctx
     -> ByronWalletPostData '[12,15,18,21,24]
@@ -953,7 +963,7 @@ postTrezorWallet
         , s ~ SeqState n k
         , k ~ IcarusKey
         , HasWorkerRegistry s k ctx
-        , PaymentAddress n IcarusKey
+        , MkAddress n IcarusKey
         )
     => ctx
     -> ByronWalletPostData '[12,15,18,21,24]
@@ -973,7 +983,7 @@ postLedgerWallet
         , s ~ SeqState n k
         , k ~ IcarusKey
         , HasWorkerRegistry s k ctx
-        , PaymentAddress n IcarusKey
+        , MkAddress n IcarusKey
         )
     => ctx
     -> ByronWalletPostData '[12,15,18,21,24]
@@ -1217,8 +1227,9 @@ selectCoinsForJoin
         ( s ~ SeqState n k
         , ctx ~ ApiLayer s k
         , AddressIndexDerivationType k ~ 'Soft
-        , DelegationAddress n k
+        , MkAddress n k
         , MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
+        , MkKeyFingerprint k Address
         , SoftDerivation k
         , Typeable n
         , Typeable s
@@ -1247,24 +1258,24 @@ selectCoinsForJoin ctx knownPools getPoolStatus pid wid = do
                 , txDelegationAction = Just action
                 }
 
+        let mkAddress' p s = mkAddress @n @k p (Just s)
         let transform = \s sel ->
-                W.assignChangeAddresses (delegationAddress @n) sel s
+                W.assignChangeAddresses mkAddress' sel s
                 & uncurry W.selectionToUnsignedTx
         wal <- liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
         utx <- liftHandler
             $ W.selectAssetsNoOutputs @_ @s @k wrk wid wal txCtx transform
-        (_, path) <- liftHandler
-            $ W.readRewardAccount @_ @s @k @n wrk wid
-
-        pure $ mkApiCoinSelection (maybeToList deposit) (Just (action, path)) utx
+        paths <- fmap (fmap snd) $ liftHandler $ W.readRewardAccount @_ @s @k @n wrk wid
+        pure $ mkApiCoinSelection (maybeToList deposit) (Just (action, paths)) utx
 
 selectCoinsForQuit
     :: forall ctx s n k.
         ( s ~ SeqState n k
         , ctx ~ ApiLayer s k
         , AddressIndexDerivationType k ~ 'Soft
-        , DelegationAddress n k
+        , MkAddress n k
         , MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
+        , MkKeyFingerprint k Address
         , SoftDerivation k
         , Typeable n
         , Typeable s
@@ -1282,16 +1293,15 @@ selectCoinsForQuit ctx (ApiT wid) = do
                 { txWithdrawal = wdrl
                 , txDelegationAction = Just action
                 }
-
+        let mkAddress' p s = mkAddress @n @k p (Just s)
         let transform = \s sel ->
-                W.assignChangeAddresses (delegationAddress @n) sel s
+                W.assignChangeAddresses mkAddress' sel s
                 & uncurry W.selectionToUnsignedTx
         wal <- liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
         utx <- liftHandler
             $ W.selectAssetsNoOutputs @_ @s @k wrk wid wal txCtx transform
-        (_, path) <- liftHandler $ W.readRewardAccount @_ @s @k @n wrk wid
-
-        pure $ mkApiCoinSelection [] (Just (action, path)) utx
+        paths <- fmap (map snd) $ liftHandler $ W.readRewardAccount @_ @s @k @n wrk wid
+        pure $ mkApiCoinSelection [] (Just (action, paths)) utx
 
 {-------------------------------------------------------------------------------
                                      Assets
@@ -1382,7 +1392,7 @@ postRandomAddress
         ( s ~ RndState n
         , k ~ ByronKey
         , ctx ~ ApiLayer s k
-        , PaymentAddress n ByronKey
+        , MkAddress n ByronKey
         )
     => ctx
     -> ApiT WalletId
@@ -1436,13 +1446,12 @@ listAddresses
         , KnownAddresses s
         )
     => ctx
-    -> (s -> Address -> Maybe Address)
     -> ApiT WalletId
     -> Maybe (ApiT AddressState)
     -> Handler [ApiAddress n]
-listAddresses ctx normalize (ApiT wid) stateFilter = do
+listAddresses ctx (ApiT wid) stateFilter = do
     addrs <- withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
-        W.listAddresses @_ @s @k wrk wid normalize
+        W.listAddresses @_ @s @k wrk wid
     return $ coerceAddress <$> filter filterCondition addrs
   where
     filterCondition :: (Address, AddressState) -> Bool
@@ -1606,7 +1615,7 @@ joinStakePool
         ( ctx ~ ApiLayer s k
         , s ~ SeqState n k
         , AddressIndexDerivationType k ~ 'Soft
-        , DelegationAddress n k
+        , MkAddress n k
         , GenChange s
         , IsOwned s k
         , SoftDerivation k
@@ -1670,7 +1679,7 @@ joinStakePool ctx knownPools getPoolStatus apiPoolId (ApiT wid) body = do
     ti :: TimeInterpreter (ExceptT PastHorizonException IO)
     ti = timeInterpreter (ctx ^. networkLayer)
 
-    genChange = delegationAddress @n
+    genChange p s = mkAddress @n p (Just s)
 
 delegationFee
     :: forall ctx s n k.
@@ -1700,7 +1709,7 @@ quitStakePool
         ( ctx ~ ApiLayer s k
         , s ~ SeqState n k
         , AddressIndexDerivationType k ~ 'Soft
-        , DelegationAddress n k
+        , MkAddress n k
         , GenChange s
         , HasNetworkLayer ctx
         , IsOwned s k
@@ -1753,7 +1762,7 @@ quitStakePool ctx (ApiT wid) body = do
     ti :: TimeInterpreter (ExceptT PastHorizonException IO)
     ti = timeInterpreter (ctx ^. networkLayer)
 
-    genChange = delegationAddress @n
+    genChange p s = mkAddress @n p (Just s)
 
 {-------------------------------------------------------------------------------
                                 Migrations
@@ -2039,14 +2048,14 @@ mkRewardAccountBuilder ctx wid withdrawal = do
                pure (NoWithdrawal, selfRewardCredentials)
 
            Just SelfWithdrawal -> do
-               (acct, _) <- liftHandler $ W.readRewardAccount @_ @s @k @n wrk wid
-               wdrl <- liftHandler $ W.queryRewardBalance @_ wrk acct
+               accts <- fmap (map fst) $ liftHandler $ W.readRewardAccount @_ @s @k @n wrk wid
+               wdrl <- liftHandler $ W.queryRewardBalance @_ wrk accts
                (, selfRewardCredentials) . WithdrawalSelf
                    <$> liftIO (W.readNextWithdrawal @_ @k wrk wdrl)
 
            Just (ExternalWithdrawal (ApiMnemonicT mw)) -> do
                let (xprv, acct) = W.someRewardAccount @ShelleyKey mw
-               wdrl <- liftHandler (W.queryRewardBalance @_ wrk acct)
+               wdrl <- liftHandler (W.queryRewardBalance @_ wrk [acct])
                    >>= liftIO . W.readNextWithdrawal @_ @k wrk
                when (wdrl == Coin 0) $ do
                    liftHandler $ throwE ErrWithdrawalNotWorth
@@ -2060,7 +2069,7 @@ mkApiCoinSelection
         , change ~ TxChange (NonEmpty DerivationIndex)
         )
     => [Coin]
-    -> Maybe (DelegationAction, NonEmpty DerivationIndex)
+    -> Maybe (DelegationAction, [NonEmpty DerivationIndex])
     -> UnsignedTx input output change
     -> ApiCoinSelection n
 mkApiCoinSelection deps mcerts (UnsignedTx inputs outputs change) =
@@ -2073,24 +2082,19 @@ mkApiCoinSelection deps mcerts (UnsignedTx inputs outputs change) =
   where
     mkCertificates
         :: DelegationAction
-        -> NonEmpty DerivationIndex
+        -> [NonEmpty DerivationIndex]
         -> NonEmpty Api.ApiCertificate
     mkCertificates action xs =
         case action of
-            Join pid -> NE.fromList
-                [ Api.JoinPool apiStakePath (ApiT pid)
-                ]
-
-            RegisterKeyAndJoin pid -> NE.fromList
-                [ Api.RegisterRewardAccount apiStakePath
-                , Api.JoinPool apiStakePath (ApiT pid)
-                ]
-
-            Quit -> NE.fromList
-                [ Api.QuitPool apiStakePath
-                ]
+            Join pid -> NE.fromList $
+                map (\x -> Api.JoinPool x (ApiT pid)) apiStakePath
+            RegisterKeyAndJoin pid -> NE.fromList $
+                map Api.RegisterRewardAccount apiStakePath
+                <> map (\x -> Api.JoinPool x (ApiT pid)) apiStakePath
+            Quit -> NE.fromList $
+                 map Api.QuitPool apiStakePath
       where
-        apiStakePath = ApiT <$> xs
+        apiStakePath = fmap ApiT <$> xs
 
     mkApiCoinSelectionInput :: input -> ApiCoinSelectionInput n
     mkApiCoinSelectionInput

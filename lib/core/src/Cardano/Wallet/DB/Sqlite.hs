@@ -104,14 +104,16 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , DerivationType (..)
     , Index (..)
+    , MkAddress (..)
     , MkKeyFingerprint (..)
     , NetworkDiscriminant (..)
-    , PaymentAddress (..)
     , PersistPrivateKey (..)
     , PersistPublicKey (..)
     , SoftDerivation (..)
     , WalletKey (..)
     )
+import Cardano.Wallet.Primitive.AddressDerivation.Byron
+    ( ByronKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
@@ -172,7 +174,7 @@ import Data.Text.Class
 import Data.Typeable
     ( Typeable )
 import Data.Word
-    ( Word16, Word32 )
+    ( Word16, Word32, Word8 )
 import Database.Persist.Class
     ( toPersistValue )
 import Database.Persist.Sql
@@ -217,6 +219,7 @@ import UnliftIO.MVar
     ( modifyMVar, modifyMVar_, newMVar, readMVar )
 
 import qualified Cardano.Wallet.Primitive.AddressDerivation as W
+import qualified Cardano.Wallet.Primitive.AddressDiscovery.Delegation as Dlg
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Random as Rnd
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Sequential as Seq
 import qualified Cardano.Wallet.Primitive.Model as W
@@ -2145,12 +2148,30 @@ instance PersistState (Seq.SeqState n k) => PersistState (Seq.SeqAnyState n k p)
     insertState (wid, sl) = insertState (wid, sl) . Seq.innerState
     selectState (wid, sl) = fmap Seq.SeqAnyState <$> selectState (wid, sl)
 
+
+class PersistDelegationState k where
+    deserializeDelegationState
+        :: Word8 -- Number of stake keys
+        -> Word8 -- Current edge
+        -> k 'AccountK XPub
+        -> Dlg.DelegationState k
+
+instance PersistDelegationState ShelleyKey where
+    deserializeDelegationState = Dlg.mkDelegationState
+
+instance PersistDelegationState IcarusKey where
+    deserializeDelegationState _ _ = Dlg.mkEmptyDelegationState
+
+instance PersistDelegationState ByronKey where
+    deserializeDelegationState _ _ = Dlg.mkEmptyDelegationState
+
 instance
     ( Eq (k 'AccountK XPub)
     , PersistPublicKey (k 'AccountK)
-    , PersistPublicKey (k 'AddressK)
     , MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
-    , PaymentAddress n k
+    , MkKeyFingerprint k W.Address
+    , MkAddress n k
+    , PersistDelegationState k
     , SoftDerivation k
     ) => PersistState (Seq.SeqState n k) where
     insertState (wid, sl) st = do
@@ -2168,9 +2189,14 @@ instance
             , seqStateExternalGap = eGap
             , seqStateInternalGap = iGap
             , seqStateAccountXPub = serializeXPub accountXPub
-            , seqStateRewardXPub = serializeXPub (Seq.rewardAccountKey st)
+            -- TODO: This used to be the stake key xpub. We have changed it to
+            -- be the account public key, from which several stake keys can be
+            -- derived. This needs to be handled manually in migration.
+            , seqStateRewardXPub = serializeXPub (Seq.rewardAccountKey $ Seq.delegationState st)
             , seqStateDerivationPrefix = Seq.derivationPrefix st
             , seqStateScriptGap = sGap
+            , seqStateStakeEdge = Dlg.cursor $ Seq.delegationState st
+            , seqStateStakeKeys = Seq.numberOfStakeKeys $ Seq.delegationState st
             }
         insertAddressPool @n wid sl intPool
         insertAddressPool @n wid sl extPool
@@ -2182,17 +2208,19 @@ instance
 
     selectState (wid, sl) = runMaybeT $ do
         st <- MaybeT $ selectFirst [SeqStateWalletId ==. wid] []
-        let SeqState _ eGap iGap accountBytes rewardBytes prefix sGap = entityVal st
+        let SeqState _ eGap iGap accountBytes dlgAccBytes prefix sGap dlgN dlgE = entityVal st
         let accountXPub = unsafeDeserializeXPub accountBytes
-        let rewardXPub = unsafeDeserializeXPub rewardBytes
+        let dlgAcc = unsafeDeserializeXPub dlgAccBytes
         intPool <- lift $ selectAddressPool @n wid sl iGap accountXPub
         extPool <- lift $ selectAddressPool @n wid sl eGap accountXPub
         sPool <- lift $ selectScriptPool wid sl sGap accountXPub
         pendingChangeIxs <- lift $ selectSeqStatePendingIxs wid
-        pure $ Seq.SeqState intPool extPool pendingChangeIxs rewardXPub prefix sPool
+
+        let ds = deserializeDelegationState dlgN dlgE dlgAcc
+        pure $ Seq.SeqState intPool extPool pendingChangeIxs prefix sPool ds
 
 insertAddressPool
-    :: forall n k c. (PaymentAddress n k, Typeable c)
+    :: forall n k c. (MkAddress n k, Typeable c)
     => W.WalletId
     -> W.SlotNo
     -> Seq.AddressPool c k
@@ -2201,7 +2229,7 @@ insertAddressPool wid sl pool =
     void $ dbChunked insertMany_
         [ SeqStateAddress wid sl addr ix (Seq.role @c) state
         | (ix, (addr, state))
-        <- zip [0..] (Seq.addresses (liftPaymentAddress @n) pool)
+        <- zip [0..] (Seq.addresses @_ @n @k pool)
         ]
 
 selectAddressPool

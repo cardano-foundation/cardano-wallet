@@ -7,6 +7,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE NoMonoLocalBinds #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
@@ -76,6 +77,11 @@ module Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     , mkSeqStateFromRootXPrv
     , mkSeqStateFromAccountXPub
 
+    -- ** Delegation State
+    -- TODO: Remove re-export
+    , DelegationState (..)
+    , allStakeKeys
+
     -- ** Benchmarking
     , SeqAnyState (..)
     , mkSeqAnyState
@@ -95,15 +101,14 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , HardDerivation (..)
     , Index (..)
     , KeyFingerprint (..)
+    , MkAddress (..)
     , MkKeyFingerprint (..)
     , NetworkDiscriminant (..)
     , Passphrase (..)
-    , PaymentAddress (..)
     , PersistPublicKey (..)
     , Role (..)
     , SoftDerivation (..)
     , WalletKey (..)
-    , deriveRewardAccount
     , deriveVerificationKey
     , hashVerificationKey
     , utxoExternal
@@ -115,6 +120,13 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     , IsOurs (..)
     , IsOwned (..)
     , KnownAddresses (..)
+    )
+import Cardano.Wallet.Primitive.AddressDiscovery.Delegation
+    ( DelegationState (..)
+    , allStakeKeys
+    , assignStakeKeys
+    , mkEmptyDelegationState
+    , takeStakeKey
     )
 import Cardano.Wallet.Primitive.Types
     ( invariant )
@@ -417,12 +429,11 @@ role =
 --
 -- > mkAddressPool key g cc (addresses pool) == pool
 addresses
-    :: forall c k. ()
-    => (KeyFingerprint "payment" k -> Address)
-    -> AddressPool c k
+    :: forall c n k. MkAddress n k
+    => AddressPool c k
     -> [(Address, AddressState)]
-addresses mkAddress =
-    map (\(k, (_, st)) -> (mkAddress k, st))
+addresses =
+    map (\(k, (_, st)) -> (mkAddressFromFingerprint @n k Nothing, st)) -- FIXME !!
     . L.sortOn (fst . snd)
     . Map.toList
     . indexedKeys
@@ -483,7 +494,7 @@ shrinkPool
     -> AddressPool c key
         -- ^ Original pool
     -> AddressPool c key
-shrinkPool mkAddress knownAddrs newGap pool =
+shrinkPool mk knownAddrs newGap pool =
     let
         keys  = indexedKeys pool
         maxV  = maximumValue
@@ -501,7 +512,7 @@ shrinkPool mkAddress knownAddrs newGap pool =
     withAddressState fingerprint =
         (addr, if addr `elem` knownAddrs then Used else Unused)
       where
-        addr = mkAddress fingerprint
+        addr = mk fingerprint
 
     maximumValue
         :: (Ord k, Ord v)
@@ -695,14 +706,15 @@ data SeqState (n :: NetworkDiscriminant) k = SeqState
         -- ^ Indexes from the internal pool that have been used in pending
         -- transactions. The list is maintained sorted in descending order
         -- (cf: 'PendingIxs')
-    , rewardAccountKey :: k 'AddressK XPub
-        -- ^ Reward account public key associated with this wallet
     , derivationPrefix :: DerivationPrefix
         -- ^ Derivation path prefix from a root key up to the internal account
     , scriptPool :: !(VerificationKeyPool k)
         -- ^ Verification key pool that tracts the keys in the discovered scripts
+    , delegationState :: DelegationState k
+       -- ^ Delegation State
     }
     deriving stock (Generic)
+
 
 deriving instance
     ( Show (k 'AccountK XPub)
@@ -727,12 +739,14 @@ instance
     => NFData (SeqState n k)
 
 instance PersistPublicKey (k 'AccountK) => Buildable (SeqState n k) where
-    build (SeqState intP extP chgs _ path multiP) = "SeqState:\n"
+    build (SeqState intP extP chgs path multiP (DelegationState nKeys sIx _ _)) = "SeqState:\n"
         <> indentF 4 ("Derivation prefix: " <> build (toText path))
         <> indentF 4 (build intP)
         <> indentF 4 (build extP)
         <> indentF 4 (build multiP)
         <> indentF 4 ("Change indexes: " <> indentF 4 chgsF)
+        <> indentF 4 ("Stake keys: " <> indentF 4 (build nKeys))
+        <> indentF 4 ("Current stake key: " <> indentF 4 (build sIx))
       where
         chgsF = blockListF' "-" build (pendingIxsToList chgs)
 
@@ -780,18 +794,16 @@ mkSeqStateFromRootXPrv
         , MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
         , MkKeyFingerprint k Address
         , WalletKey k
-        , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
         )
     => (k 'RootK XPrv, Passphrase "encryption")
     -> Index 'Hardened 'PurposeK
     -> AddressPoolGap
+    -> (k 'AccountK XPub -> DelegationState k)
     -> SeqState n k
-mkSeqStateFromRootXPrv (rootXPrv, pwd) purpose g =
+mkSeqStateFromRootXPrv (rootXPrv, pwd) purpose g mkDelegState =
     let
         accXPrv =
             deriveAccountPrivateKey pwd rootXPrv minBound
-        rewardXPub =
-            publicKey $ deriveRewardAccount pwd rootXPrv
         extPool =
             mkAddressPool @n (publicKey accXPrv) g []
         intPool =
@@ -800,8 +812,9 @@ mkSeqStateFromRootXPrv (rootXPrv, pwd) purpose g =
             newVerificationKeyPool (publicKey accXPrv) g
         prefix =
             DerivationPrefix ( purpose, coinTypeAda, minBound )
+        ds = mkDelegState $ publicKey accXPrv
     in
-        SeqState intPool extPool emptyPendingIxs rewardXPub prefix multiPool
+        SeqState intPool extPool emptyPendingIxs prefix multiPool ds
 
 -- | Construct a Sequential state for a wallet from public account key.
 mkSeqStateFromAccountXPub
@@ -814,13 +827,10 @@ mkSeqStateFromAccountXPub
     => k 'AccountK XPub
     -> Index 'Hardened 'PurposeK
     -> AddressPoolGap
+    -> (k 'AccountK XPub -> DelegationState k)
     -> SeqState n k
-mkSeqStateFromAccountXPub accXPub purpose g =
+mkSeqStateFromAccountXPub accXPub purpose g mkDelegState =
     let
-        -- This matches the reward address for "normal wallets". The accountXPub
-        -- is the first account, minBound being the first Soft index
-        rewardXPub =
-            deriveAddressPublicKey accXPub MutableAccount minBound
         extPool =
             mkAddressPool @n accXPub g []
         intPool =
@@ -829,8 +839,9 @@ mkSeqStateFromAccountXPub accXPub purpose g =
             newVerificationKeyPool accXPub g
         prefix =
             DerivationPrefix ( purpose, coinTypeAda, minBound )
+        ds = mkDelegState accXPub
     in
-        SeqState intPool extPool emptyPendingIxs rewardXPub prefix multiPool
+        SeqState intPool extPool emptyPendingIxs prefix multiPool ds
 
 -- NOTE
 -- We have to scan both the internal and external chain. Note that, the
@@ -843,7 +854,7 @@ instance
     , MkKeyFingerprint k Address
     ) => IsOurs (SeqState n k) Address
   where
-    isOurs addr (SeqState !s1 !s2 !ixs !rpk !prefix !s3) =
+    isOurs addr (SeqState !s1 !s2 !ixs !prefix !s3 !ds) =
         let
             DerivationPrefix (purpose, coinType, accountIx) = prefix
             (internal, !s1') = lookupAddress @n (const Used) addr s1
@@ -872,7 +883,7 @@ instance
 
                 _ -> Nothing
         in
-            (ixs' `deepseq` ours `deepseq` ours, SeqState s1' s2' ixs' rpk prefix s3)
+            (ixs' `deepseq` ours `deepseq` ours, SeqState s1' s2' ixs' prefix s3 ds)
 
 instance
     ( SoftDerivation k
@@ -886,14 +897,15 @@ instance
     type ArgGenChange (SeqState n k) =
         (k 'AddressK XPub -> k 'AddressK XPub -> Address)
 
-    genChange mkAddress (SeqState intPool extPool pending rpk path multiPool) =
+    genChange mk (SeqState intPool extPool pending path multiPool ds) =
         let
             (ix, pending') = nextChangeIndex intPool pending
             accountXPub' = accountPubKey intPool
             addressXPub = deriveAddressPublicKey accountXPub' UtxoInternal ix
-            addr = mkAddress addressXPub rpk
+            (stakeXPub, ds') = takeStakeKey ds
+            addr = mk addressXPub stakeXPub
         in
-            (addr, SeqState intPool extPool pending' rpk path multiPool)
+            (addr, SeqState intPool extPool pending' path multiPool ds')
 
 instance
     ( IsOurs (SeqState n k) Address
@@ -940,19 +952,29 @@ instance
         ix a = fst . lookupAddress @n id a
 
 instance
-    ( PaymentAddress n k
+    ( MkAddress n k
     ) => KnownAddresses (SeqState n k) where
     knownAddresses s =
         nonChangeAddresses <> usedChangeAddresses <> pendingChangeAddresses
       where
+            -- TODO: Won't work with Icarus keys!
             nonChangeAddresses =
-                addresses (liftPaymentAddress @n @k) (externalPool s)
+                addresses' (externalPool s)
 
             changeAddresses =
-                addresses (liftPaymentAddress @n @k) (internalPool s)
+                addresses' (internalPool s)
 
             usedChangeAddresses =
                 filter ((== Used) . snd) changeAddresses
+
+            addresses' :: AddressPool (r :: Role) k -> [(Address, AddressState)]
+            addresses' p = assignStakeKeys (delegationState s)
+                (\(paymentK, (_, addrSt)) delegK -> (mkAddressFromFingerprint @n @k paymentK delegK, addrSt)) $
+                L.sortOn (fst . snd)
+                -- NOTE: We /could/ use index to choose stake key
+                . Map.toList
+                . indexedKeys
+                $ p
 
             -- pick as many unused change addresses as there are pending
             -- transactions. Note: the last `internalGap` addresses are all
@@ -1015,14 +1037,14 @@ mkSeqAnyState
         , MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
         , MkKeyFingerprint k Address
         , WalletKey k
-        , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
         )
     => (k 'RootK XPrv, Passphrase "encryption")
     -> Index 'Hardened 'PurposeK
     -> AddressPoolGap
     -> SeqAnyState n k p
 mkSeqAnyState credentials purpose poolGap = SeqAnyState
-    { innerState = mkSeqStateFromRootXPrv credentials purpose poolGap
+    { innerState = mkSeqStateFromRootXPrv credentials purpose poolGap mkEmptyDelegationState
+        -- FIXME: Probably worth benchmarking with a proper delegation state?
     }
 
 instance
@@ -1079,7 +1101,7 @@ instance
     compareDiscovery (SeqAnyState s) = compareDiscovery s
 
 instance
-    ( PaymentAddress n k
+    ( MkAddress n k
     ) => KnownAddresses (SeqAnyState n k p)
   where
     knownAddresses (SeqAnyState s) = knownAddresses s

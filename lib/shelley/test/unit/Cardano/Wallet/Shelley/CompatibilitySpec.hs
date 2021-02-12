@@ -41,8 +41,8 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , NetworkDiscriminant (..)
-    , PaymentAddress (..)
     , WalletKey
+    , paymentAddress
     , publicKey
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron

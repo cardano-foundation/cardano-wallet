@@ -28,7 +28,7 @@ import Cardano.Wallet.Api.Types
     , WalletStyle (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( NetworkDiscriminant, PaymentAddress )
+    ( MkAddress, NetworkDiscriminant )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
@@ -88,8 +88,8 @@ spec :: forall n.
     ( DecodeAddress n
     , DecodeStakeAddress n
     , EncodeAddress n
-    , PaymentAddress n ByronKey
-    , PaymentAddress n IcarusKey
+    , MkAddress n ByronKey
+    , MkAddress n IcarusKey
     ) => SpecWith Context
 spec = do
     describe "BYRON_ADDRESSES" $ do
@@ -300,7 +300,7 @@ scenario_ADDRESS_IMPORT_01
     :: forall (n :: NetworkDiscriminant).
         ( DecodeAddress n
         , EncodeAddress n
-        , PaymentAddress n ByronKey
+        , MkAddress n ByronKey
         )
     => (Context -> ResourceT IO (ApiByronWallet, Mnemonic 12))
     -> SpecWith Context
@@ -329,7 +329,7 @@ scenario_ADDRESS_IMPORT_02
     :: forall (n :: NetworkDiscriminant).
         ( DecodeAddress n
         , EncodeAddress n
-        , PaymentAddress n IcarusKey
+        , MkAddress n IcarusKey
         )
     => (Context -> ResourceT IO (ApiByronWallet, Mnemonic 15))
     -> SpecWith Context
@@ -351,7 +351,7 @@ scenario_ADDRESS_IMPORT_03
     :: forall (n :: NetworkDiscriminant).
         ( DecodeAddress n
         , EncodeAddress n
-        , PaymentAddress n ByronKey
+        , MkAddress n ByronKey
         )
     => (Context -> ResourceT IO (ApiByronWallet, Mnemonic 12))
     -> SpecWith Context
@@ -375,7 +375,7 @@ scenario_ADDRESS_IMPORT_04
     :: forall (n :: NetworkDiscriminant).
         ( DecodeAddress n
         , EncodeAddress n
-        , PaymentAddress n ByronKey
+        , MkAddress n ByronKey
         )
     => (Context -> ResourceT IO ApiByronWallet)
     -> SpecWith Context
@@ -404,7 +404,7 @@ scenario_ADDRESS_IMPORT_05
     :: forall (n :: NetworkDiscriminant).
         ( DecodeAddress n
         , EncodeAddress n
-        , PaymentAddress n ByronKey
+        , MkAddress n ByronKey
         )
     => Int
     -> (Context -> ResourceT IO (ApiByronWallet, Mnemonic 12))
@@ -438,7 +438,7 @@ scenario_ADDRESS_IMPORT_06
     :: forall (n :: NetworkDiscriminant).
         ( DecodeAddress n
         , EncodeAddress n
-        , PaymentAddress n ByronKey
+        , MkAddress n ByronKey
         )
     => (Context -> ResourceT IO (ApiByronWallet, Mnemonic 12))
     -> SpecWith Context

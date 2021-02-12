@@ -17,6 +17,7 @@
 -- License: Apache-2.0
 --
 -- Implementation of address derivation for 'Shelley' Keys.
+{-# OPTIONS_GHC -Wno-unused-imports #-}
 
 module Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( -- * Types
@@ -55,17 +56,16 @@ import Cardano.Crypto.Wallet
 import Cardano.Mnemonic
     ( SomeMnemonic (..), entropyToBytes, mnemonicToEntropy )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( DelegationAddress (..)
-    , Depth (..)
+    ( Depth (..)
     , DerivationIndex (..)
     , DerivationType (..)
     , HardDerivation (..)
     , Index (..)
     , KeyFingerprint (..)
+    , MkAddress (..)
     , MkKeyFingerprint (..)
     , NetworkDiscriminant (..)
     , Passphrase (..)
-    , PaymentAddress (..)
     , PersistPrivateKey (..)
     , PersistPublicKey (..)
     , RewardAccount (..)
@@ -79,10 +79,13 @@ import Cardano.Wallet.Primitive.AddressDerivation
     )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( IsOurs (..) )
+import Cardano.Wallet.Primitive.AddressDiscovery.Delegation
+    ( isOurStakeKey )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( DerivationPrefix (..)
     , SeqState (..)
     , coinTypeAda
+    , dsIndexedKeys
     , purposeCIP1852
     , rewardAccountKey
     )
@@ -108,12 +111,16 @@ import Data.Binary.Put
     ( putByteString, putWord8, runPut )
 import Data.ByteString
     ( ByteString )
+import Data.Foldable
+    ( traverse_ )
 import Data.Maybe
     ( fromMaybe )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Text.Class
     ( TextDecodingError (..) )
+import Data.Word
+    ( Word8 )
 import GHC.Generics
     ( Generic )
 
@@ -121,6 +128,7 @@ import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.List.NonEmpty as NE
+import qualified Data.Map.Strict as Map
 
 {-------------------------------------------------------------------------------
                             Sequential Derivation
@@ -243,77 +251,37 @@ instance WalletKey ShelleyKey where
                          Relationship Key / Address
 -------------------------------------------------------------------------------}
 
-instance PaymentAddress 'Mainnet ShelleyKey where
-    paymentAddress paymentK = do
-        Address $ BL.toStrict $ runPut $ do
-            putWord8 (enterprise + networkId)
-            putByteString . blake2b224 . xpubPublicKey . getKey $ paymentK
-      where
-        enterprise = 96
-        networkId = 1
 
-    liftPaymentAddress (KeyFingerprint fingerprint) =
-        Address $ BL.toStrict $ runPut $ do
-            putWord8 (enterprise + networkId)
-            putByteString fingerprint
-      where
-        enterprise = 96
-        networkId = 1
+-- | Internal helper to define @MkAddress@ instances
+mkAddress'
+    :: Word8
+    -> KeyFingerprint "payment" ShelleyKey
+    -> Maybe (ShelleyKey 'AddressK XPub)
+    -> Address
+mkAddress' networkId (KeyFingerprint fingerprint) mstakingK =
+    Address $ BL.toStrict $ runPut $ do
+        putWord8 (tag + networkId)
+        putByteString fingerprint
+        traverse_ (putByteString . blake2b224 . xpubPublicKey . getKey) mstakingK
+  where
+    base = 0
+    enterprise = 96
+    tag = case mstakingK of
+        Just _ -> base
+        Nothing -> enterprise
 
-instance PaymentAddress ('Testnet pm) ShelleyKey where
-    paymentAddress paymentK =
-        Address $ BL.toStrict $ runPut $ do
-            putWord8 (enterprise + networkId)
-            putByteString . blake2b224 . xpubPublicKey . getKey $ paymentK
-      where
-        enterprise = 96
-        networkId = 0
+mkFingerprint
+    :: ShelleyKey 'AddressK XPub
+    -> KeyFingerprint "payment" ShelleyKey
+mkFingerprint = KeyFingerprint . blake2b224 . xpubPublicKey . getKey
 
-    liftPaymentAddress (KeyFingerprint fingerprint) =
-        Address $ BL.toStrict $ runPut $ do
-            putWord8 (enterprise + networkId)
-            putByteString fingerprint
-      where
-        enterprise = 96
-        networkId = 0
+instance MkAddress 'Mainnet ShelleyKey where
+    mkAddress paymentK = mkAddress' 1 (mkFingerprint paymentK)
+    mkAddressFromFingerprint = mkAddress' 1
 
-instance DelegationAddress 'Mainnet ShelleyKey where
-    delegationAddress paymentK stakingK =
-        Address $ BL.toStrict $ runPut $ do
-            putWord8 (base + networkId)
-            putByteString . blake2b224 . xpubPublicKey . getKey $ paymentK
-            putByteString . blake2b224 . xpubPublicKey . getKey $ stakingK
-      where
-        base = 0
-        networkId = 1
-
-    liftDelegationAddress (KeyFingerprint fingerprint) stakingK =
-        Address $ BL.toStrict $ runPut $ do
-            putWord8 (base + networkId)
-            putByteString fingerprint
-            putByteString . blake2b224. xpubPublicKey . getKey $ stakingK
-      where
-        base = 0
-        networkId = 1
-
-instance DelegationAddress ('Testnet pm) ShelleyKey where
-    delegationAddress paymentK stakingK =
-        Address $ BL.toStrict $ runPut $ do
-            putWord8 (base + networkId)
-            putByteString . blake2b224 . xpubPublicKey . getKey $ paymentK
-            putByteString . blake2b224 . xpubPublicKey . getKey $ stakingK
-      where
-        base = 0
-        networkId = 0
-
-    liftDelegationAddress (KeyFingerprint fingerprint) stakingK =
-        Address $ BL.toStrict $ runPut $ do
-            putWord8 (base + networkId)
-            putByteString fingerprint
-            putByteString . blake2b224 . xpubPublicKey . getKey $ stakingK
-      where
-        base = 0
-        networkId = 0
+instance MkAddress ('Testnet pm) ShelleyKey where
+    mkAddress paymentK = mkAddress' 0 (mkFingerprint paymentK)
+    mkAddressFromFingerprint = mkAddress' 0
 
 -- | Verify the structure of a payload decoded from a Bech32 text string
 decodeShelleyAddress
@@ -336,20 +304,18 @@ instance MkKeyFingerprint ShelleyKey (Proxy (n :: NetworkDiscriminant), ShelleyK
 
 instance IsOurs (SeqState n ShelleyKey) RewardAccount
   where
-    isOurs account state@SeqState{derivationPrefix} =
+    isOurs account state@SeqState{delegationState, derivationPrefix} =
         let
             DerivationPrefix (purpose, coinType, accountIx) = derivationPrefix
-            path = NE.fromList
+            basePath =
                 [ DerivationIndex $ getIndex purpose
                 , DerivationIndex $ getIndex coinType
                 , DerivationIndex $ getIndex accountIx
                 , DerivationIndex $ getIndex mutableAccount
-                , DerivationIndex $ getIndex @'Soft minBound
                 ]
+            (res, delegationState') = isOurStakeKey account basePath delegationState
         in
-            (guard (account == ourAccount) *> Just path, state)
-      where
-        ourAccount = toRewardAccount $ rewardAccountKey state
+            (res, state { delegationState = delegationState' })
 
 instance ToRewardAccount ShelleyKey where
     toRewardAccount = toRewardAccountRaw . getKey

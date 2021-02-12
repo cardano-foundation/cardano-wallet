@@ -37,6 +37,7 @@
 --   state @s@. This describes how the hierarchical structure of a wallet is
 --   defined as well as the relationship between secret keys and public
 --   addresses.
+{-# OPTIONS_GHC -Wno-redundant-constraints #-}
 
 module Cardano.Wallet
     (
@@ -94,7 +95,6 @@ module Cardano.Wallet
     , createRandomAddress
     , importRandomAddresses
     , listAddresses
-    , normalizeDelegationAddress
     , ErrCreateRandomAddress(..)
     , ErrImportRandomAddress(..)
     , ErrImportAddress(..)
@@ -198,18 +198,16 @@ import Cardano.Wallet.Network
     , follow
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( DelegationAddress (..)
-    , Depth (..)
+    ( Depth (..)
     , DerivationIndex (..)
     , DerivationPrefix (..)
     , DerivationType (..)
     , ErrWrongPassphrase (..)
     , HardDerivation (..)
     , Index (..)
-    , MkKeyFingerprint (..)
+    , MkAddress (..)
     , NetworkDiscriminant (..)
     , Passphrase
-    , PaymentAddress (..)
     , Role (..)
     , SoftDerivation (..)
     , ToRewardAccount (..)
@@ -218,7 +216,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , encryptPassphrase
     , liftIndex
     , preparePassphrase
-    , stakeDerivationPath
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )
@@ -233,6 +230,8 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     , IsOwned (..)
     , KnownAddresses (..)
     )
+import Cardano.Wallet.Primitive.AddressDiscovery.Delegation
+    ( allRewardAccountsWithPaths, mkEmptyDelegationState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( ErrImportAddress (..), RndStateLike )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
@@ -368,8 +367,6 @@ import Data.Coerce
     ( coerce )
 import Data.Either
     ( partitionEithers )
-import Data.Either.Extra
-    ( eitherToMaybe )
 import Data.Foldable
     ( fold )
 import Data.Function
@@ -595,7 +592,7 @@ createIcarusWallet
     :: forall ctx s k n.
         ( HasGenesisData ctx
         , HasDBLayer s k ctx
-        , PaymentAddress n k
+        , MkAddress n k
         , k ~ IcarusKey
         , s ~ SeqState n k
         )
@@ -605,18 +602,21 @@ createIcarusWallet
     -> (k 'RootK XPrv, Passphrase "encryption")
     -> ExceptT ErrWalletAlreadyExists IO WalletId
 createIcarusWallet ctx wid wname credentials = db & \DBLayer{..} -> do
-    let s = mkSeqStateFromRootXPrv @n credentials purposeBIP44 $
-            mkUnboundedAddressPoolGap 10000
+    let s = mkSeqStateFromRootXPrv @n
+                credentials
+                purposeBIP44
+                (mkUnboundedAddressPoolGap 10000)
+                (mkEmptyDelegationState)
     let (hist, cp) = initWallet block0 s
     let addrs = map (view #address) . concatMap (view #outputs . fst) $ hist
     let g  = defaultAddressPoolGap
     let s' = Seq.SeqState
-            (shrinkPool @n (liftPaymentAddress @n) addrs g (Seq.internalPool s))
-            (shrinkPool @n (liftPaymentAddress @n) addrs g (Seq.externalPool s))
+            (shrinkPool @n (flip (mkAddressFromFingerprint @n) Nothing) addrs g (Seq.internalPool s))
+            (shrinkPool @n (flip (mkAddressFromFingerprint @n) Nothing) addrs g (Seq.externalPool s))
             (Seq.pendingChangeIxs s)
-            (Seq.rewardAccountKey s)
             (Seq.derivationPrefix s)
             (Seq.scriptPool s)
+            (Seq.delegationState s)
     now <- lift getCurrentTime
     let meta = WalletMetadata
             { name = wname
@@ -965,7 +965,7 @@ readRewardAccount
         )
     => ctx
     -> WalletId
-    -> ExceptT ErrReadRewardAccount IO (RewardAccount, NonEmpty DerivationIndex)
+    -> ExceptT ErrReadRewardAccount IO [(RewardAccount, NonEmpty DerivationIndex)]
 readRewardAccount ctx wid = db & \DBLayer{..} -> do
     cp <- withExceptT ErrReadRewardAccountNoSuchWallet
         $ mapExceptT atomically
@@ -976,9 +976,9 @@ readRewardAccount ctx wid = db & \DBLayer{..} -> do
             throwE ErrReadRewardAccountNotAShelleyWallet
         Just Refl -> do
             let s = getState cp
-            let acct = toRewardAccount   $ Seq.rewardAccountKey s
-            let path = stakeDerivationPath $ Seq.derivationPrefix s
-            pure (acct, path)
+
+            -- FIXME: Return all keys probably + no head
+            pure $ allRewardAccountsWithPaths (Seq.derivationPrefix s) $ Seq.delegationState s
   where
     db = ctx ^. dbLayer @s @k
 
@@ -991,10 +991,10 @@ queryRewardBalance
         ( HasNetworkLayer ctx
         )
     => ctx
-    -> RewardAccount
+    -> [RewardAccount]
     -> ExceptT ErrFetchRewards IO Coin
-queryRewardBalance ctx acct = do
-    mapExceptT (fmap handleErr) $ getAccountBalance nw acct
+queryRewardBalance ctx accts = do
+    mconcat <$> mapM (mapExceptT (fmap handleErr) . getAccountBalance nw) accts
   where
     nw = ctx ^. networkLayer
     handleErr = \case
@@ -1020,9 +1020,9 @@ manageRewardBalance _ ctx wid = db & \DBLayer{..} -> do
     watchNodeTip $ \bh -> do
          traceWith tr $ MsgRewardBalanceQuery bh
          query <- runExceptT $ do
-            (acct, _) <- withExceptT ErrFetchRewardsReadRewardAccount $
+            accts <- fmap (map fst) $ withExceptT ErrFetchRewardsReadRewardAccount $
                 readRewardAccount @ctx @s @k @n ctx wid
-            queryRewardBalance @ctx ctx acct
+            queryRewardBalance @ctx ctx accts -- FIXME: handle errors
          traceWith tr $ MsgRewardBalanceResult query
          case query of
             Right amt -> do
@@ -1059,13 +1059,8 @@ listAddresses
         )
     => ctx
     -> WalletId
-    -> (s -> Address -> Maybe Address)
-        -- ^ A function to normalize address, so that delegated addresses
-        -- non-delegation addresses found in the transaction history are
-        -- shown with their delegation settings.
-        -- Use 'Just' for wallet without delegation settings.
     -> ExceptT ErrNoSuchWallet IO [(Address, AddressState)]
-listAddresses ctx wid normalize = db & \DBLayer{..} -> do
+listAddresses ctx wid = db & \DBLayer{..} -> do
     cp <- mapExceptT atomically
         $ withNoSuchWallet wid
         $ readCheckpoint (PrimaryKey wid)
@@ -1075,7 +1070,6 @@ listAddresses ctx wid normalize = db & \DBLayer{..} -> do
     -- Stream this instead of returning it as a single block.
     return
         $ L.sortBy (\(a,_) (b,_) -> compareDiscovery s a b)
-        $ mapMaybe (\(addr, st) -> (,st) <$> normalize s addr)
         $ knownAddresses s
   where
     db = ctx ^. dbLayer @s @k
@@ -1102,7 +1096,7 @@ createChangeAddress ctx wid argGenChange = db & \DBLayer{..} -> do
 createRandomAddress
     :: forall ctx s k n.
         ( HasDBLayer s k ctx
-        , PaymentAddress n k
+        , MkAddress n k
         , RndStateLike s
         , k ~ ByronKey
         )
@@ -1162,22 +1156,6 @@ importRandomAddresses ctx wid addrs = db & \DBLayer{..} -> mapExceptT atomically
                 putCheckpoint (PrimaryKey wid) (updateState s' cp)
   where
     db = ctx ^. dbLayer @s @k
-
--- NOTE
--- Addresses coming from the transaction history might be payment or
--- delegation addresses. So we normalize them all to be delegation addresses
--- to make sure that we compare them correctly.
-normalizeDelegationAddress
-    :: forall s k n.
-        ( DelegationAddress n k
-        , s ~ SeqState n k
-        )
-    => s
-    -> Address
-    -> Maybe Address
-normalizeDelegationAddress s addr = do
-    fingerprint <- eitherToMaybe (paymentKeyFingerprint addr)
-    pure $ liftDelegationAddress @n fingerprint $ Seq.rewardAccountKey s
 
 {-------------------------------------------------------------------------------
                                   Transaction

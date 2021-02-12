@@ -52,6 +52,7 @@ module Cardano.Wallet.Primitive.AddressDerivation
     -- * Delegation
     , RewardAccount (..)
     , ToRewardAccount(..)
+    , MaybeToRewardAccount (..)
     , deriveRewardAccount
 
     -- * Helpers
@@ -64,14 +65,15 @@ module Cardano.Wallet.Primitive.AddressDerivation
     , networkDiscriminantVal
 
     -- * Backends Interoperability
-    , PaymentAddress(..)
-    , DelegationAddress(..)
+    , MkAddress (..)
     , WalletKey(..)
     , PersistPrivateKey(..)
     , PersistPublicKey(..)
     , MkKeyFingerprint(..)
     , ErrMkKeyFingerprint(..)
     , KeyFingerprint(..)
+    , paymentAddress
+    , liftPaymentAddress
 
     -- * Passphrase
     , Passphrase(..)
@@ -229,13 +231,16 @@ zeroAccount :: Index 'Soft 'AddressK
 zeroAccount = minBound
 
 -- | Full path to the stake key. There's only one.
-stakeDerivationPath :: DerivationPrefix -> NonEmpty DerivationIndex
-stakeDerivationPath (DerivationPrefix (purpose, coin, acc)) =
+stakeDerivationPath
+    :: DerivationPrefix
+    -> Index 'Soft 'AddressK
+    -> NonEmpty DerivationIndex
+stakeDerivationPath (DerivationPrefix (purpose, coin, acc)) ix =
     (fromIndex purpose) :| [
       fromIndex coin
     , fromIndex acc
     , fromIndex mutableAccount
-    , fromIndex zeroAccount]
+    , fromIndex ix]
   where
     fromIndex :: Index t l -> DerivationIndex
     fromIndex = DerivationIndex . getIndex
@@ -479,6 +484,18 @@ class HardDerivation key => SoftDerivation (key :: Depth -> * -> *) where
 class ToRewardAccount k where
     toRewardAccount :: k 'AddressK XPub -> RewardAccount
     someRewardAccount :: SomeMnemonic -> (XPrv, RewardAccount)
+
+instance ToRewardAccount k => MaybeToRewardAccount k where
+    maybeToRewardAccount = Just . toRewardAccount @k
+    maybeSomeRewardAccount = Just . someRewardAccount @k
+    supportsDelegation = True
+
+-- | Like @ToRewardAccount@, but allows other key types to return @Nothing@.
+-- Useful for DB serialization.
+class MaybeToRewardAccount k where
+    maybeToRewardAccount :: k 'AddressK XPub -> Maybe RewardAccount
+    maybeSomeRewardAccount :: SomeMnemonic -> Maybe (XPrv, RewardAccount)
+    supportsDelegation :: Bool
 
 -- | Derive a reward account from a root private key. It is agreed by standard
 -- that every HD wallet will use only a single reward account. This account is
@@ -728,30 +745,22 @@ class WalletKey (key :: Depth -> * -> *) where
         :: raw
         -> key depth raw
 
--- | Encoding of addresses for certain key types and backend targets.
-class MkKeyFingerprint key Address
-    => PaymentAddress (network :: NetworkDiscriminant) key where
-    -- | Convert a public key to a payment 'Address' valid for the given
-    -- network discrimination.
-    --
-    -- Note that 'paymentAddress' is ambiguous and requires therefore a type
-    -- application.
-    paymentAddress
-        :: key 'AddressK XPub
-        -> Address
 
-    -- | Lift a payment fingerprint back into a payment address.
-    liftPaymentAddress
-        :: KeyFingerprint "payment" key
-            -- ^ Payment fingerprint
-        -> Address
+paymentAddress
+    :: forall n key. MkAddress n key
+    => key 'AddressK XPub
+    -> Address
+paymentAddress paymentK = mkAddress @n paymentK Nothing
 
-instance PaymentAddress 'Mainnet k => PaymentAddress ('Staging pm) k where
-    paymentAddress = paymentAddress @'Mainnet
-    liftPaymentAddress = liftPaymentAddress @'Mainnet
+-- | Lift a payment fingerprint back into a payment address.
+liftPaymentAddress
+    :: forall n key. MkAddress n key
+    => KeyFingerprint "payment" key
+        -- ^ Payment fingerprint
+    -> Address
+liftPaymentAddress fp = mkAddressFromFingerprint @n fp Nothing
 
-class PaymentAddress network key
-    => DelegationAddress (network :: NetworkDiscriminant) key where
+class MkAddress (network :: NetworkDiscriminant) key where
     -- | Convert a public key and a staking key to a delegation 'Address' valid
     -- for the given network discrimination. Funds sent to this address will be
     -- delegated according to the delegation settings attached to the delegation
@@ -759,24 +768,28 @@ class PaymentAddress network key
     --
     -- Note that 'delegationAddress' is ambiguous and requires therefore a type
     -- application.
-    delegationAddress
+    --
+    -- The stake key may be omitted.
+    -- FIXME: Omitting a stake key for ShelleyKey should be impossible, and it
+    -- should be represented as such.
+    mkAddress
         :: key 'AddressK XPub
             -- ^ Payment key
-        -> key 'AddressK XPub
+        -> Maybe (key 'AddressK XPub)
             -- ^ Staking key / Reward account
         -> Address
 
     -- | Lift a payment fingerprint back into a delegation address.
-    liftDelegationAddress
+    mkAddressFromFingerprint
         :: KeyFingerprint "payment" key
             -- ^ Payment fingerprint
-        -> key 'AddressK XPub
+        -> Maybe (key 'AddressK XPub)
             -- ^ Staking key / Reward account
         -> Address
 
-instance DelegationAddress 'Mainnet k => DelegationAddress ('Staging pm) k where
-    delegationAddress = delegationAddress @'Mainnet
-    liftDelegationAddress = liftDelegationAddress @'Mainnet
+instance MkAddress 'Mainnet k => MkAddress ('Staging pm) k where
+    mkAddress = mkAddress @'Mainnet
+    mkAddressFromFingerprint = mkAddressFromFingerprint @'Mainnet
 
 -- | Operations for saving a private key into a database, and restoring it from
 -- a database. The keys should be encoded in hexadecimal strings.

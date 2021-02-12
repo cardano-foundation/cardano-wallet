@@ -53,8 +53,8 @@ import Cardano.Mnemonic
 import Cardano.Wallet.Primitive.AddressDerivation
     ( DerivationType (..)
     , HardDerivation (..)
+    , MkAddress (..)
     , NetworkDiscriminant (..)
-    , PaymentAddress (..)
     , Role (..)
     , WalletKey (..)
     , deriveRewardAccount
@@ -2002,8 +2002,8 @@ genByronFaucets = genFaucet encodeAddress genAddresses
             addrXPrv =
                 Byron.deriveAddressPrivateKey pwd accXPrv
         in
-            [ paymentAddress @'Mainnet
-                $ publicKey $ addrXPrv $ liftIndex @'Hardened ix
+            [ mkAddress @'Mainnet
+                (publicKey $ addrXPrv $ liftIndex @'Hardened ix) Nothing
             | ix <- [minBound..maxBound]
             ]
 
@@ -2029,7 +2029,7 @@ genIcarusFaucets = genFaucet encodeAddress genAddresses
             addrXPrv =
                 deriveAddressPrivateKey pwd accXPrv UtxoExternal
         in
-            [ paymentAddress @'Mainnet $ publicKey $ addrXPrv ix
+            [ mkAddress @'Mainnet (publicKey $ addrXPrv ix) Nothing
             | ix <- [minBound..maxBound]
             ]
 
@@ -2055,7 +2055,7 @@ genShelleyAddresses mw =
         addrXPrv =
             deriveAddressPrivateKey pwd accXPrv UtxoExternal
     in
-        [ paymentAddress @'Mainnet $ publicKey $ addrXPrv ix
+        [ mkAddress @'Mainnet (publicKey $ addrXPrv ix) Nothing
         | ix <- [minBound..maxBound]
         ]
 

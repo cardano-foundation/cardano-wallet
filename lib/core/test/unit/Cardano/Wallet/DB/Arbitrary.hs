@@ -62,6 +62,8 @@ import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey (..), unsafeGenerateKeyFromSeed )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( IsOurs )
+import Cardano.Wallet.Primitive.AddressDiscovery.Delegation
+    ( mkDelegationState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
@@ -462,17 +464,17 @@ instance Arbitrary (Index 'WholeDomain depth) where
 -------------------------------------------------------------------------------}
 
 instance Arbitrary (SeqState 'Mainnet ShelleyKey) where
-    shrink (SeqState intPool extPool ixs rwd prefix sPool) =
-        (\(i, e, x) -> SeqState i e x rwd prefix sPool) <$> shrink (intPool, extPool, ixs)
+    shrink (SeqState intPool extPool ixs prefix sPool dlg) =
+        (\(i, e, x) -> SeqState i e x prefix sPool dlg) <$> shrink (intPool, extPool, ixs)
     arbitrary = do
         extPool <- arbitrary
         SeqState
             <$> arbitrary
             <*> pure extPool
             <*> arbitrary
-            <*> pure arbitraryRewardAccount
             <*> pure defaultSeqStatePrefix
             <*> genVerificationKeyPool (accountPubKey extPool)
+            <*> pure (mkDelegationState 1 0 arbitraryRewardAccount)
 
 defaultSeqStatePrefix :: DerivationPrefix
 defaultSeqStatePrefix = DerivationPrefix
@@ -564,7 +566,7 @@ arbitrarySeqAccount =
     mw = someDummyMnemonic (Proxy @15)
 
 arbitraryRewardAccount
-    :: ShelleyKey 'AddressK XPub
+    :: ShelleyKey 'AccountK XPub
 arbitraryRewardAccount =
     publicKey $ unsafeGenerateKeyFromSeed (mw, Nothing) mempty
   where

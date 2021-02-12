@@ -23,11 +23,12 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (AccountK, AddressK, RootK)
     , DerivationType (..)
     , Index
+    , MkAddress (..)
     , NetworkDiscriminant (..)
     , Passphrase (..)
-    , PaymentAddress (..)
     , passphraseMaxLength
     , passphraseMinLength
+    , paymentAddress
     , publicKey
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
@@ -75,7 +76,7 @@ spec = do
 -------------------------------------------------------------------------------}
 
 prop_derivedKeysAreOurs
-    :: forall (n :: NetworkDiscriminant). (PaymentAddress n ByronKey)
+    :: forall (n :: NetworkDiscriminant). (MkAddress n ByronKey)
     => SomeMnemonic
     -> Passphrase "encryption"
     -> Index 'WholeDomain 'AccountK

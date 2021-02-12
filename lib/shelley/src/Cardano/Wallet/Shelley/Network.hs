@@ -1240,7 +1240,7 @@ instance HasSeverityAnnotation NetworkLayerLog where
             | isSlowQuery qry dt           -> Notice
             | otherwise                    -> Debug
         MsgInterpreterLog msg              -> getSeverityAnnotation msg
-        MsgObserverLog{}                   -> Debug
+        MsgObserverLog{}                   -> Info -- TODO: Revert back to Debug
 
 
 

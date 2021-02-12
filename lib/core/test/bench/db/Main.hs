@@ -71,12 +71,11 @@ import Cardano.Wallet.DummyTarget.Primitive.Types
 import Cardano.Wallet.Logging
     ( trMessageText )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( DelegationAddress (..)
-    , Depth (..)
+    ( Depth (..)
     , Index (..)
+    , MkAddress (..)
     , NetworkDiscriminant (..)
     , Passphrase (..)
-    , PaymentAddress (..)
     , PersistPrivateKey
     , WalletKey (..)
     )
@@ -84,6 +83,8 @@ import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey (..), generateKeyFromSeed, unsafeGenerateKeyFromSeed )
+import Cardano.Wallet.Primitive.AddressDiscovery.Delegation
+    ( mkEmptyDelegationState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( DerivationPath, RndState (..), mkRndState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
@@ -357,9 +358,9 @@ bgroupWriteSeqState db = bgroup "SeqState"
                     (mkPool a i)
                     extPool
                     emptyPendingIxs
-                    rewardAccount
                     defaultPrefix
                     (newVerificationKeyPool (accountPubKey extPool) (gap extPool))
+                    (mkEmptyDelegationState rewardAccount)
             | i <- [1..n]
             ]
 
@@ -372,7 +373,7 @@ mkPool
     => Int -> Int -> AddressPool c ShelleyKey
 mkPool numAddrs i = mkAddressPool ourAccount defaultAddressPoolGap addrs
   where
-    addrs = [ force (mkAddress i j, Unused) | j <- [1..numAddrs] ]
+    addrs = [ force (mkShelleyAddress i j, Unused) | j <- [1..numAddrs] ]
 
 ----------------------------------------------------------------------------
 -- Wallet State (Random Scheme) Benchmarks
@@ -599,7 +600,7 @@ mkOutputs prefix nOuts nAssets =
     ]
   where
     mkTxOut i = TxOut
-        (mkAddress prefix i)
+        (mkShelleyAddress prefix i)
         (TokenBundle.TokenBundle (Coin 1) (TokenMap.fromFlatList tokens))
     tokens =
         [ ( TokenMap.AssetId (mkTokenPolicyId (ac `mod` 10)) (mkTokenName ac)
@@ -823,7 +824,7 @@ testCpByron = snd $ initWallet block0 initDummyRndState
 {-# NOINLINE initDummySeqState #-}
 initDummySeqState :: SeqState 'Mainnet ShelleyKey
 initDummySeqState =
-    mkSeqStateFromRootXPrv (xprv, mempty) purposeCIP1852 defaultAddressPoolGap
+    mkSeqStateFromRootXPrv (xprv, mempty) purposeCIP1852 defaultAddressPoolGap mkEmptyDelegationState
   where
     mnemonic = unsafePerformIO
         $ SomeMnemonic . entropyToMnemonic @15
@@ -865,8 +866,13 @@ ourAccount = publicKey $ unsafeGenerateKeyFromSeed (seed, Nothing) mempty
   where
     seed = someDummyMnemonic (Proxy @15)
 
-rewardAccount :: ShelleyKey 'AddressK XPub
+rewardAccount :: ShelleyKey 'AccountK XPub
 rewardAccount = publicKey $ unsafeGenerateKeyFromSeed (seed, Nothing) mempty
+  where
+    seed = someDummyMnemonic (Proxy @15)
+
+rewardKey :: ShelleyKey 'AddressK XPub
+rewardKey = publicKey $ unsafeGenerateKeyFromSeed (seed, Nothing) mempty
   where
     seed = someDummyMnemonic (Proxy @15)
 
@@ -886,11 +892,11 @@ withMovingSlot i b@(Block h _ _) = b
         }
     }
 
-mkAddress :: Int -> Int -> Address
-mkAddress i j =
-    delegationAddress @'Mainnet
+mkShelleyAddress :: Int -> Int -> Address
+mkShelleyAddress i j =
+    mkAddress @'Mainnet
         (ShelleyKey $ unsafeXPub $ B8.pack $ take 64 $ randoms $ mkStdGen seed)
-        rewardAccount
+        (Just rewardKey)
   where
     -- Generate a seed using two prime numbers and a pair of index. This should
     -- lead to a satisfactory entropy.
@@ -899,12 +905,13 @@ mkAddress i j =
 
 mkByronAddress :: Int -> Int -> Address
 mkByronAddress i j =
-    paymentAddress @'Mainnet
+    mkAddress @'Mainnet
         (ByronKey
             (unsafeXPub (B8.pack $ take 64 $ randoms g))
             (Index acctIx, Index addrIx)
             (Passphrase $ BA.convert $ BS.pack $ replicate 32 0)
         )
+        Nothing
   where
     -- Generate a seed using two prime numbers and a pair of index. This should
     -- lead to a satisfactory entropy.
