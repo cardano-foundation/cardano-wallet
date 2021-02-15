@@ -20,7 +20,7 @@
 -- License: Apache-2.0
 --
 -- An implementation of shared script state using
--- scheme specified in BIP-0044.
+-- scheme specified in CIP-XXX Multi-signature Wallets.
 
 module Cardano.Wallet.Primitive.AddressDiscovery.Shared
     (
@@ -33,6 +33,7 @@ module Cardano.Wallet.Primitive.AddressDiscovery.Shared
     , purposeCIPXXX
     , isShared
     , keyHashFromAccXPubIx
+    , constructAddressFromIx
     ) where
 
 import Prelude
@@ -168,15 +169,8 @@ newSharedState
     -> Maybe ScriptTemplate
     -> SharedState n k
 newSharedState accXPub accIx g pTemplate dTemplate =
-    let indices = L.take (fromEnum g) $ L.iterate succ minBound
-        (Right tag) = mkNetworkDiscriminant 1
-        ourAddresses =
-            if templatesComplete pTemplate dTemplate then
-                foldr (addNotDiscoveredAddressToMap tag pTemplate dTemplate)
-                Map.empty indices
-            else
-                Map.empty
-    in unsafeSharedState accXPub accIx g pTemplate dTemplate ourAddresses
+    extendSharedState (toEnum 0) $
+    unsafeSharedState accXPub accIx g pTemplate dTemplate Map.empty
 
 replaceCosignersWithVerKeys
     :: ScriptTemplate
@@ -200,14 +194,13 @@ replaceCosignersWithVerKeys (ScriptTemplate xpubs scriptTemplate) index =
             verKey = deriveMultisigPublicKey accXPub ix
         in hashKey verKey
 
-addNotDiscoveredAddressToMap
+constructAddressFromIx
     :: CA.NetworkTag
     -> ScriptTemplate
     -> Maybe ScriptTemplate
     -> Index 'Soft 'ScriptK
-    -> Map Address (Index 'Soft 'ScriptK, AddressState)
-    -> Map Address (Index 'Soft 'ScriptK, AddressState)
-addNotDiscoveredAddressToMap tag pTemplate dTemplate ix currentMap =
+    -> Address
+constructAddressFromIx tag pTemplate dTemplate ix =
     let delegationCredential = DelegationFromScript . toScriptHash
         paymentCredential = PaymentFromScript . toScriptHash
         createAddress pScript' dScript' =
@@ -217,7 +210,17 @@ addNotDiscoveredAddressToMap tag pTemplate dTemplate ix currentMap =
         dTemplate' = fromMaybe pTemplate dTemplate
         pScript = replaceCosignersWithVerKeys pTemplate (fromEnum ix)
         dScript = replaceCosignersWithVerKeys dTemplate' (fromEnum ix)
-        address = Address $ createAddress pScript dScript
+    in Address $ createAddress pScript dScript
+
+addNotDiscoveredAddressToMap
+    :: CA.NetworkTag
+    -> ScriptTemplate
+    -> Maybe ScriptTemplate
+    -> Index 'Soft 'ScriptK
+    -> Map Address (Index 'Soft 'ScriptK, AddressState)
+    -> Map Address (Index 'Soft 'ScriptK, AddressState)
+addNotDiscoveredAddressToMap tag pTemplate dTemplate ix currentMap =
+    let address = constructAddressFromIx tag pTemplate dTemplate ix
     in Map.insert address (ix, Unused) currentMap
 
 templatesComplete
@@ -225,11 +228,11 @@ templatesComplete
     -> Maybe ScriptTemplate
     -> Bool
 templatesComplete pTemplate dTemplate =
-    isRight (validateScriptTemplate RecommendedValidation pTemplate) &&
+    isRight (validateScriptTemplate RequiredValidation pTemplate) &&
     case dTemplate of
         Nothing -> True
         Just dTemplate' ->
-            isRight (validateScriptTemplate RecommendedValidation dTemplate')
+            isRight (validateScriptTemplate RequiredValidation dTemplate')
 
 keyHashFromAccXPubIx
     :: (SoftDerivation k, WalletKey k)
@@ -252,9 +255,10 @@ extendSharedState ix state
     | otherwise = state
   where
     edge = Map.size (shareStateOurAddresses state)
+    startIx = if edge == 0 then (toEnum 0) else succ ix
     isOnEdge = edge - fromEnum ix <= fromEnum (shareStateGap state)
     nextIndices =
-        L.take (fromEnum $ shareStateGap state) $ L.iterate succ (succ ix)
+        L.take (fromEnum $ shareStateGap state) $ L.iterate succ startIx
     (Right tag) = mkNetworkDiscriminant 1
     nextAddresses
       | ix == maxBound = mempty
@@ -307,4 +311,4 @@ isShared address shared@(SharedState !accXPub !prefix !g !pT !dT !ourAddresses) 
         Just (ix, _) ->
             let ourAddresses' = Map.insert address (ix,Used) ourAddresses
             in ( Just (ix, keyHashFromAccXPubIx accXPub ix)
-               , SharedState accXPub prefix g pT dT ourAddresses' )
+               , extendSharedState ix (SharedState accXPub prefix g pT dT ourAddresses') )
