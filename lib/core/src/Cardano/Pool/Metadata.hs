@@ -26,10 +26,12 @@ module Cardano.Pool.Metadata
     , HealthStatusSMASH (..)
 
     -- * Construct URLs
+    , UrlBuilder
     , identityUrlBuilder
     , registryUrlBuilder
 
     -- * re-exports
+    , Manager
     , newManager
     , defaultManagerSettings
 
@@ -164,12 +166,16 @@ defaultManagerSettings =
 newManager :: MonadIO m => ManagerSettings -> m Manager
 newManager = HTTPS.newTlsManagerWith
 
--- | Simply return a pool metadata url, unchanged
-identityUrlBuilder
-    :: PoolId
+-- | A type-alias to ease signatures
+type UrlBuilder
+    =  PoolId
     -> StakePoolMetadataUrl
     -> StakePoolMetadataHash
     -> Either HttpException URI
+
+-- | Simply return a pool metadata url, unchanged
+identityUrlBuilder
+    :: UrlBuilder
 identityUrlBuilder _ (StakePoolMetadataUrl url) _ =
     maybe (Left e) Right $ parseURI (T.unpack url)
   where
@@ -178,10 +184,7 @@ identityUrlBuilder _ (StakePoolMetadataUrl url) _ =
 -- | Build a URL from a metadata hash compatible with an aggregation registry
 registryUrlBuilder
     :: URI
-    -> PoolId
-    -> StakePoolMetadataUrl
-    -> StakePoolMetadataHash
-    -> Either HttpException URI
+    -> UrlBuilder
 registryUrlBuilder baseUrl pid _ hash =
     Right $ baseUrl
         { uriPath = "/" <> metadaFetchEp pid hash
@@ -278,11 +281,7 @@ fetchDelistedPools tr uri manager = runExceptTLog $ do
 -- TODO: refactor/simplify this
 fetchFromRemote
     :: Tracer IO StakePoolMetadataFetchLog
-    -> [   PoolId
-        -> StakePoolMetadataUrl
-        -> StakePoolMetadataHash
-        -> Either HttpException URI
-       ]
+    -> [UrlBuilder]
     -> Manager
     -> PoolId
     -> StakePoolMetadataUrl

@@ -42,7 +42,9 @@ import Cardano.BM.Data.Tracer
 import Cardano.Pool.DB
     ( DBLayer (..), ErrPointAlreadyExists (..), readPoolLifeCycleStatus )
 import Cardano.Pool.Metadata
-    ( StakePoolMetadataFetchLog
+    ( Manager
+    , StakePoolMetadataFetchLog
+    , UrlBuilder
     , defaultManagerSettings
     , fetchDelistedPools
     , fetchFromRemote
@@ -112,7 +114,7 @@ import Cardano.Wallet.Unsafe
 import Control.Exception.Base
     ( AsyncException (..), asyncExceptionFromException )
 import Control.Monad
-    ( forM, forM_, forever, void, when )
+    ( forM_, forever, void, when )
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Except
@@ -157,6 +159,8 @@ import Fmt
     ( fixedF, pretty )
 import GHC.Generics
     ( Generic )
+import Numeric.Natural
+    ( Natural )
 import Ouroboros.Consensus.Cardano.Block
     ( CardanoBlock, HardForkBlock (..) )
 import System.Random
@@ -168,7 +172,14 @@ import UnliftIO.Exception
 import UnliftIO.IORef
     ( IORef, newIORef, readIORef, writeIORef )
 import UnliftIO.STM
-    ( TVar, readTVarIO, writeTVar )
+    ( TBQueue
+    , TVar
+    , newTBQueue
+    , readTBQueue
+    , readTVarIO
+    , writeTBQueue
+    , writeTVar
+    )
 
 import qualified Cardano.Wallet.Api.Types as Api
 import qualified Data.List as L
@@ -723,20 +734,14 @@ monitorMetadata gcStatus tr sp db@(DBLayer{..}) = do
         _ -> pure NoSmashConfigured
 
     if  | health == Available || health == NoSmashConfigured -> do
-            let fetcher fetchStrategies = fetchFromRemote trFetch fetchStrategies manager
-                loop getPoolMetadata = forever $ do
-                    (refs, successes) <- getPoolMetadata
-                    when (null refs || null successes) $ do
-                        traceWith tr $ MsgFetchTakeBreak blockFrequency
-                        threadDelay blockFrequency
-
             case poolMetadataSource settings of
                 FetchNone -> do
                     STM.atomically $ writeTVar gcStatus NotApplicable
-                    loop (pure ([], [])) -- TODO: exit loop?
+
                 FetchDirect -> do
                     STM.atomically $ writeTVar gcStatus NotApplicable
-                    loop (fetchThem $ fetcher [identityUrlBuilder])
+                    fetchMetadata manager [identityUrlBuilder]
+
                 FetchSMASH (unSmashServer -> uri) -> do
                     STM.atomically $ writeTVar gcStatus NotStarted
                     let getDelistedPools =
@@ -744,22 +749,43 @@ monitorMetadata gcStatus tr sp db@(DBLayer{..}) = do
                     tid <- forkFinally
                         (gcDelistedPools gcStatus tr db getDelistedPools)
                         onExit
-                    flip finally (killThread tid) $
-                        loop (fetchThem $ fetcher [registryUrlBuilder uri])
-        | otherwise -> traceWith tr MsgSMASHUnreachable
+                    fetchMetadata manager [registryUrlBuilder uri]
+                        `finally` killThread tid
 
+        | otherwise ->
+            traceWith tr MsgSMASHUnreachable
   where
     trFetch = contramap MsgFetchPoolMetadata tr
-    fetchThem fetchMetadata = do
-        refs <- atomically (unfetchedPoolMetadataRefs 100)
-        successes <- fmap catMaybes $ forM refs $ \(pid, url, hash) -> do
-            fetchMetadata pid url hash >>= \case
-                Nothing -> Nothing <$ do
-                    atomically $ putFetchAttempt (url, hash)
 
-                Just meta -> Just hash <$ do
-                    atomically $ putPoolMetadata hash meta
-        pure (refs, successes)
+    fetchMetadata
+        :: Manager
+        -> [UrlBuilder]
+        -> IO ()
+    fetchMetadata manager strategies = do
+        inFlights <- STM.atomically $ newTBQueue maxInFlight
+        forever $ do
+            refs <- atomically (unfetchedPoolMetadataRefs $ fromIntegral maxInFlight)
+            forM_ refs $ \(pid, url, hash) -> withAvailableSeat inFlights $ do
+                fetchFromRemote trFetch strategies manager pid url hash >>= \case
+                    Nothing ->
+                        atomically $ putFetchAttempt (url, hash)
+                    Just meta -> do
+                        atomically $ putPoolMetadata hash meta
+            when (null refs) $ do
+                traceWith tr $ MsgFetchTakeBreak blockFrequency
+                threadDelay blockFrequency
+      where
+        maxInFlight :: Natural
+        maxInFlight = 20
+
+        -- | Run an action asyncronously only when there's an available seat.
+        -- Seats are materialized by a bounded queue. If the queue is full,
+        -- then there's no seat.
+        withAvailableSeat :: TBQueue () -> IO a -> IO ()
+        withAvailableSeat q action = do
+            STM.atomically $ writeTBQueue q ()
+            void $ action `forkFinally` const (STM.atomically $ readTBQueue q)
+
     -- NOTE
     -- If there's no metadata, we typically need not to retry sooner than the
     -- next block. So waiting for a delay that is roughly the same order of
