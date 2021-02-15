@@ -1,6 +1,6 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleContexts #-}
@@ -10,8 +10,6 @@
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE TupleSections #-}
-{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
@@ -33,6 +31,8 @@ module Cardano.Wallet.Primitive.AddressDiscovery.Shared
     , extendSharedState
     , addCosignerAccXPub
     , purposeCIPXXX
+    , isShared
+    , keyHashFromAccXPubIx
     ) where
 
 import Prelude
@@ -110,13 +110,10 @@ data SharedState (n :: NetworkDiscriminant) k = SharedState
         -- ^ Script template together with a map of account keys and cosigners
         -- for staking credential. If not specified then the same template as for
         -- payment is used
-    , shareStateIndexedKeyHashes
-        :: !(Map KeyHash (Index 'Soft 'ScriptK, AddressState))
-        -- ^ verification key hashes belonging to the shared wallet
     , shareStateOurAddresses :: !(Map Address (Index 'Soft 'ScriptK, AddressState))
         -- ^ Our addresses meaning the addresses containing our verification key hashes
-        -- represented here by corresponding indices of verification keys,
-        -- irrespective of being discovered or not
+        -- (if discovered) and represented here by corresponding indices of verification
+        -- keys present in the given address.
     }
     deriving stock (Generic)
 
@@ -150,25 +147,21 @@ unsafeSharedState
     -> AddressPoolGap
     -> ScriptTemplate
     -> Maybe ScriptTemplate
-    -> Map KeyHash (Index 'Soft 'ScriptK, AddressState)
     -> Map Address (Index 'Soft 'ScriptK, AddressState)
     -> SharedState n k
-unsafeSharedState accXPub accIx g pTemplate dTemplate vkPoolMap ourAdresesses =
+unsafeSharedState accXPub accIx g pTemplate dTemplate ourAdresesses =
     SharedState
     { shareStateAccountKey = accXPub
     , shareStateDerivationPrefix = DerivationPrefix ( purposeCIPXXX, coinTypeAda, accIx )
     , shareStateGap = g
     , shareStatePaymentTemplate = pTemplate
     , shareStateDelegationTemplate = dTemplate
-    , shareStateIndexedKeyHashes = vkPoolMap
     , shareStateOurAddresses = ourAdresesses
     }
 
 -- | Create a new SharedState.
 newSharedState
-    :: forall (n :: NetworkDiscriminant) k.
-       (SoftDerivation k, WalletKey k)
-    => k 'AccountK XPub
+    :: forall (n :: NetworkDiscriminant) k. k 'AccountK XPub
     -> Index 'Hardened 'AccountK
     -> AddressPoolGap
     -> ScriptTemplate
@@ -176,15 +169,14 @@ newSharedState
     -> SharedState n k
 newSharedState accXPub accIx g pTemplate dTemplate =
     let indices = L.take (fromEnum g) $ L.iterate succ minBound
-        startVerKeyMap =
-            Map.fromList $ map (createPristineMapEntry accXPub) indices
         (Right tag) = mkNetworkDiscriminant 1
         ourAddresses =
             if templatesComplete pTemplate dTemplate then
-                foldr (addAddressToMap tag pTemplate dTemplate) Map.empty indices
+                foldr (addNotDiscoveredAddressToMap tag pTemplate dTemplate)
+                Map.empty indices
             else
                 Map.empty
-    in unsafeSharedState accXPub accIx g pTemplate dTemplate startVerKeyMap ourAddresses
+    in unsafeSharedState accXPub accIx g pTemplate dTemplate ourAddresses
 
 replaceCosignersWithVerKeys
     :: ScriptTemplate
@@ -208,14 +200,14 @@ replaceCosignersWithVerKeys (ScriptTemplate xpubs scriptTemplate) index =
             verKey = deriveMultisigPublicKey accXPub ix
         in hashKey verKey
 
-addAddressToMap
+addNotDiscoveredAddressToMap
     :: CA.NetworkTag
     -> ScriptTemplate
     -> Maybe ScriptTemplate
     -> Index 'Soft 'ScriptK
     -> Map Address (Index 'Soft 'ScriptK, AddressState)
     -> Map Address (Index 'Soft 'ScriptK, AddressState)
-addAddressToMap tag pTemplate dTemplate ix currentMap =
+addNotDiscoveredAddressToMap tag pTemplate dTemplate ix currentMap =
     let delegationCredential = DelegationFromScript . toScriptHash
         paymentCredential = PaymentFromScript . toScriptHash
         createAddress pScript' dScript' =
@@ -239,41 +231,30 @@ templatesComplete pTemplate dTemplate =
         Just dTemplate' ->
             isRight (validateScriptTemplate RecommendedValidation dTemplate')
 
-createPristineMapEntry
+keyHashFromAccXPubIx
     :: (SoftDerivation k, WalletKey k)
     => k 'AccountK XPub
     -> Index 'Soft 'ScriptK
-    -> (KeyHash, (Index 'Soft 'ScriptK, AddressState))
-createPristineMapEntry accXPub ix =
-    ( hashVerificationKey $ deriveVerificationKey accXPub ix
-    , (ix, Unused) )
+    -> KeyHash
+keyHashFromAccXPubIx accXPub ix =
+    hashVerificationKey $ deriveVerificationKey accXPub ix
 
 -- | The extension to the SharedState pool gap is done by adding next adjacent
 -- indices and their corresponding public keys, marking them as Unused.
 -- The number of added entries is determined by pool gap, and the start index is
 -- the next to the the specified index.
 extendSharedState
-    :: forall (n :: NetworkDiscriminant) k.
-       (SoftDerivation k, WalletKey k)
-    => Index 'Soft 'ScriptK
+    :: forall (n :: NetworkDiscriminant) k. Index 'Soft 'ScriptK
     -> SharedState n k
     -> SharedState n k
 extendSharedState ix state
-    | isOnEdge  = state { shareStateIndexedKeyHashes =
-                          Map.union (shareStateIndexedKeyHashes state) nextKeyHashes
-                        , shareStateOurAddresses =
-                          Map.union (shareStateOurAddresses state) nextAddresses }
+    | isOnEdge  = state { shareStateOurAddresses = nextAddresses }
     | otherwise = state
   where
-    edge = Map.size (shareStateIndexedKeyHashes state)
+    edge = Map.size (shareStateOurAddresses state)
     isOnEdge = edge - fromEnum ix <= fromEnum (shareStateGap state)
     nextIndices =
         L.take (fromEnum $ shareStateGap state) $ L.iterate succ (succ ix)
-    nextKeyHashes
-      | ix == maxBound = mempty
-      | otherwise =
-            Map.fromList $ map (createPristineMapEntry (shareStateAccountKey state)) $
-            nextIndices
     (Right tag) = mkNetworkDiscriminant 1
     nextAddresses
       | ix == maxBound = mempty
@@ -281,7 +262,7 @@ extendSharedState ix state
             let pTemplate = shareStatePaymentTemplate state
                 dTemplate = shareStateDelegationTemplate state
             in if templatesComplete pTemplate dTemplate then
-                foldr (addAddressToMap tag pTemplate dTemplate)
+                foldr (addNotDiscoveredAddressToMap tag pTemplate dTemplate)
                 (shareStateOurAddresses state) nextIndices
             else
                 mempty
@@ -297,7 +278,7 @@ addCosignerAccXPub
     -> Cosigner
     -> SharedState n k
     -> SharedState n k
-addCosignerAccXPub accXPub cosigner (SharedState ourAccXPub prefix g pT dT vkPoolMap ourAdresesses) =
+addCosignerAccXPub accXPub cosigner (SharedState ourAccXPub prefix g pT dT ourAdresesses) =
     let updateScriptTemplate sc@(ScriptTemplate cosignerMap script') =
             if cosigner `elem` retrieveAllCosigners script' then
                 ScriptTemplate (Map.insert cosigner (getRawKey accXPub) cosignerMap) script'
@@ -309,9 +290,21 @@ addCosignerAccXPub accXPub cosigner (SharedState ourAccXPub prefix g pT dT vkPoo
        , shareStateGap = g
        , shareStatePaymentTemplate = updateScriptTemplate pT
        , shareStateDelegationTemplate = updateScriptTemplate <$> dT
-       , shareStateIndexedKeyHashes = vkPoolMap
        , shareStateOurAddresses = ourAdresesses
        }
 
 retrieveAllCosigners :: Script Cosigner -> [Cosigner]
 retrieveAllCosigners = foldScript (:) []
+
+isShared
+    :: (SoftDerivation k, WalletKey k)
+    => Address
+    -> SharedState n k
+    -> (Maybe (Index 'Soft 'ScriptK, KeyHash), SharedState n k)
+isShared address shared@(SharedState !accXPub !prefix !g !pT !dT !ourAddresses) =
+    case Map.lookup address ourAddresses of
+        Nothing -> (Nothing, shared)
+        Just (ix, _) ->
+            let ourAddresses' = Map.insert address (ix,Used) ourAddresses
+            in ( Just (ix, keyHashFromAccXPubIx accXPub ix)
+               , SharedState accXPub prefix g pT dT ourAddresses' )
