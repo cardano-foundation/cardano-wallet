@@ -114,7 +114,7 @@ import Cardano.Wallet.Unsafe
 import Control.Exception.Base
     ( AsyncException (..), asyncExceptionFromException )
 import Control.Monad
-    ( forM_, forever, void, when )
+    ( forM, forM_, forever, void, when )
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Except
@@ -131,6 +131,8 @@ import Data.Function
     ( (&) )
 import Data.Generics.Internal.VL.Lens
     ( view )
+import Data.List
+    ( nub, (\\) )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Map
@@ -153,14 +155,14 @@ import Data.Time.Clock.POSIX
     ( getPOSIXTime, posixDayLength )
 import Data.Tuple.Extra
     ( dupe )
+import Data.Void
+    ( Void )
 import Data.Word
     ( Word64 )
 import Fmt
     ( fixedF, pretty )
 import GHC.Generics
     ( Generic )
-import Numeric.Natural
-    ( Natural )
 import Ouroboros.Consensus.Cardano.Block
     ( CardanoBlock, HardForkBlock (..) )
 import System.Random
@@ -740,7 +742,7 @@ monitorMetadata gcStatus tr sp db@(DBLayer{..}) = do
 
                 FetchDirect -> do
                     STM.atomically $ writeTVar gcStatus NotApplicable
-                    fetchMetadata manager [identityUrlBuilder]
+                    void $ fetchMetadata manager [identityUrlBuilder]
 
                 FetchSMASH (unSmashServer -> uri) -> do
                     STM.atomically $ writeTVar gcStatus NotStarted
@@ -749,7 +751,7 @@ monitorMetadata gcStatus tr sp db@(DBLayer{..}) = do
                     tid <- forkFinally
                         (gcDelistedPools gcStatus tr db getDelistedPools)
                         onExit
-                    fetchMetadata manager [registryUrlBuilder uri]
+                    void $ fetchMetadata manager [registryUrlBuilder uri]
                         `finally` killThread tid
 
         | otherwise ->
@@ -760,23 +762,29 @@ monitorMetadata gcStatus tr sp db@(DBLayer{..}) = do
     fetchMetadata
         :: Manager
         -> [UrlBuilder]
-        -> IO ()
+        -> IO Void
     fetchMetadata manager strategies = do
         inFlights <- STM.atomically $ newTBQueue maxInFlight
-        forever $ do
-            refs <- atomically (unfetchedPoolMetadataRefs $ fromIntegral maxInFlight)
-            forM_ refs $ \(pid, url, hash) -> withAvailableSeat inFlights $ do
+        endlessly [] $ \keys -> do
+            refs <- nub . (\\ keys) <$> atomically (unfetchedPoolMetadataRefs limit)
+            when (null refs) $ do
+                traceWith tr $ MsgFetchTakeBreak blockFrequency
+                threadDelay blockFrequency
+            forM refs $ \k@(pid, url, hash) -> k <$ withAvailableSeat inFlights (do
                 fetchFromRemote trFetch strategies manager pid url hash >>= \case
                     Nothing ->
                         atomically $ putFetchAttempt (url, hash)
                     Just meta -> do
                         atomically $ putPoolMetadata hash meta
-            when (null refs) $ do
-                traceWith tr $ MsgFetchTakeBreak blockFrequency
-                threadDelay blockFrequency
+                )
       where
-        maxInFlight :: Natural
-        maxInFlight = 20
+        -- Twice 'maxInFlight' so that, when removing keys currently in flight,
+        -- we are left with at least 'maxInFlight' keys.
+        limit = fromIntegral (2 * maxInFlight)
+        maxInFlight = 10
+
+        endlessly :: Monad m => a -> (a -> m a) -> m Void
+        endlessly zero action = action zero >>= (`endlessly` action)
 
         -- | Run an action asyncronously only when there's an available seat.
         -- Seats are materialized by a bounded queue. If the queue is full,
