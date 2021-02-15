@@ -36,6 +36,8 @@ import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
+import Cardano.Wallet.Primitive.Types.TokenPolicy
+    ( mkTokenFingerprint )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..), TxStatus (..) )
 import Cardano.Wallet.Unsafe
@@ -73,6 +75,7 @@ import Test.Integration.Framework.DSL
     , eventually
     , expectErrorMessage
     , expectField
+    , expectListField
     , expectListSize
     , expectListSizeSatisfy
     , expectResponseCode
@@ -221,10 +224,21 @@ spec = describe "BYRON_TRANSACTIONS" $ do
               \(srcFixture, name) -> it name $ \ctx -> runResourceT $ do
 
         wal <- srcFixture ctx
+
+        let assetsSrc = wal ^. (#assets . #total . #getApiT)
+        assetsSrc `shouldNotBe` mempty
+        let (polId, assName) = bimap unsafeFromText unsafeFromText $ fst $
+                pickAnAsset assetsSrc
+        let tokenFingerprint = mkTokenFingerprint polId assName
+
         r <- request @([ApiAsset]) ctx (Link.listByronAssets wal) Default Empty
         verify r
             [ expectSuccess
             , expectListSizeSatisfy ( > 0)
+            , expectListField 0 #policyId (`shouldBe` ApiT polId)
+            , expectListField 0 #assetName (`shouldBe` ApiT assName)
+            , expectListField 0 (#fingerprint . #getApiT) (`shouldBe` tokenFingerprint)
+            , expectListField 0 #metadata (`shouldBe` Just steveToken)
             ]
 
     describe "BYRON_TRANS_ASSETS_LIST_02 - Asset list present when not used" $
@@ -253,12 +267,14 @@ spec = describe "BYRON_TRANSACTIONS" $ do
         assetsSrc `shouldNotBe` mempty
         let (polId, assName) = bimap unsafeFromText unsafeFromText $ fst $
                 pickAnAsset assetsSrc
+        let tokenFingerprint = mkTokenFingerprint polId assName
         let ep = Link.getByronAsset wal polId assName
         r <- request @(ApiAsset) ctx ep Default Empty
         verify r
             [ expectSuccess
             , expectField #policyId (`shouldBe` ApiT polId)
             , expectField #assetName (`shouldBe` ApiT assName)
+            , expectField (#fingerprint . #getApiT) (`shouldBe` tokenFingerprint)
             , expectField #metadata (`shouldBe` Just steveToken)
             ]
 

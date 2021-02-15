@@ -48,6 +48,8 @@ import Cardano.Wallet.Primitive.Types.Address
     ( Address )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
+import Cardano.Wallet.Primitive.Types.TokenPolicy
+    ( mkTokenFingerprint )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..), TxMetadata (..), TxMetadataValue (..), TxStatus (..) )
 import Cardano.Wallet.Unsafe
@@ -774,10 +776,21 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
 
     it "TRANS_ASSETS_LIST_01 - Asset list present" $ \ctx -> runResourceT $ do
         wal <- fixtureMultiAssetWallet ctx
+
+        let assetsSrc = wal ^. (#assets . #total . #getApiT)
+        assetsSrc `shouldNotBe` mempty
+        let (polId, assName) = bimap unsafeFromText unsafeFromText $ fst $
+                pickAnAsset assetsSrc
+        let tokenFingerprint = mkTokenFingerprint polId assName
+
         r <- request @([ApiAsset]) ctx (Link.listAssets wal) Default Empty
         verify r
             [ expectSuccess
             , expectListSizeSatisfy ( > 0)
+            , expectListField 0 #policyId (`shouldBe` ApiT polId)
+            , expectListField 0 #assetName (`shouldBe` ApiT assName)
+            , expectListField 0 (#fingerprint . #getApiT) (`shouldBe` tokenFingerprint)
+            , expectListField 0 #metadata (`shouldBe` Just steveToken)
             ]
 
     it "TRANS_ASSETS_LIST_02 - Asset list present when not used" $ \ctx -> runResourceT $ do
@@ -804,12 +817,14 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         assetsSrc `shouldNotBe` mempty
         let (polId, assName) = bimap unsafeFromText unsafeFromText $ fst $
                 pickAnAsset assetsSrc
+        let tokenFingerprint = mkTokenFingerprint polId assName
         let ep = Link.getAsset wal polId assName
         r <- request @(ApiAsset) ctx ep Default Empty
         verify r
             [ expectSuccess
             , expectField #policyId (`shouldBe` ApiT polId)
             , expectField #assetName (`shouldBe` ApiT assName)
+            , expectField (#fingerprint . #getApiT) (`shouldBe` tokenFingerprint)
             , expectField #metadata (`shouldBe` Just steveToken)
             ]
 
