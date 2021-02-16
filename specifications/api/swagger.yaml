@@ -3642,6 +3642,7 @@ x-tagGroups:
   - name: Byron (Random)
     tags:
     - Byron Wallets
+    - Byron Assets
     - Byron Addresses
     - Byron Coin Selections
     - Byron Transactions
