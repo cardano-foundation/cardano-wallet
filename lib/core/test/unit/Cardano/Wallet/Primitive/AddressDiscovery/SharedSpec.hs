@@ -43,6 +43,8 @@ import Cardano.Wallet.Primitive.Types.Address
     ( AddressState (..) )
 import Cardano.Wallet.Unsafe
     ( someDummyMnemonic )
+import Data.Maybe
+    ( isJust )
 import Data.Proxy
     ( Proxy (..) )
 import Test.Hspec
@@ -70,6 +72,8 @@ spec = do
             (property prop_addressWithScriptFromOurVerKeyIxBeyond)
         it "first discovery enlarges ourAddresses and marks the address Used"
             (property prop_addressDiscoveryMakesAddressUsed)
+        it "multiple discovery of the same address is idempotent for state"
+            (property prop_addressDoubleDiscovery)
 
 prop_addressWithScriptFromOurVerKeyIxIn
     :: CatalystSharedState
@@ -93,7 +97,7 @@ prop_addressWithScriptFromOurVerKeyIxBeyond
     -> Index 'Soft 'ScriptK
     -> Property
 prop_addressWithScriptFromOurVerKeyIxBeyond (CatalystSharedState accXPub' accIx' scriptTemplate' g) keyIx =
-    fromIntegral (fromEnum keyIx) > threshold ==>
+    fromIntegral (fromEnum keyIx) >= threshold ==>
     fst (isShared addr sharedState) === Nothing .&&.
     snd (isShared addr sharedState) === sharedState
   where
@@ -121,6 +125,24 @@ prop_addressDiscoveryMakesAddressUsed (CatalystSharedState accXPub' accIx' scrip
     sharedState = newSharedState accXPub' accIx' g scriptTemplate' Nothing
     ((Just _), sharedState') = isShared addr sharedState
     ourAddresses' = shareStateOurAddresses sharedState'
+
+prop_addressDoubleDiscovery
+    :: CatalystSharedState
+    -> Index 'Soft 'ScriptK
+    -> Property
+prop_addressDoubleDiscovery (CatalystSharedState accXPub' accIx' scriptTemplate' g) keyIx =
+    fromIntegral (fromEnum keyIx) < threshold ==>
+    isJust (fst sharedState') === True .&&.
+    snd sharedState' === snd sharedState''
+  where
+    threshold =
+        fromIntegral (fromEnum (minBound @(Index 'Soft 'ScriptK))) +
+        getAddressPoolGap g
+    (Right tag) = mkNetworkDiscriminant 1
+    addr = constructAddressFromIx tag scriptTemplate' Nothing keyIx
+    sharedState = newSharedState accXPub' accIx' g scriptTemplate' Nothing
+    sharedState' = isShared addr sharedState
+    sharedState'' = isShared addr (snd sharedState')
 
 data CatalystSharedState = CatalystSharedState
     { accXPub :: ShelleyKey 'AccountK XPub
