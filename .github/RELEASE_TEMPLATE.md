@@ -28,9 +28,9 @@ Compatible with [`cardano-node@{{CARDANO_NODE_TAG}}`](https://github.com/input-o
 
 <!-- A snapshot of the documentation at the time of releasing. -->
 
-[API Documentation](https://input-output-hk.github.io/cardano-wallet/api/{{GIT_TAG}})
-[CLI Manual](https://github.com/input-output-hk/cardano-wallet/wiki/Wallet-command-line-interface/{{WIKI_COMMIT}})
-[Docker Manual](https://github.com/input-output-hk/cardano-wallet/wiki/Docker/{{WIKI_COMMIT}})
+| :closed_book: | :computer: | :whale: |
+| -- | -- | -- |
+| [API Documentation](https://input-output-hk.github.io/cardano-wallet/api/{{GIT_TAG}}) | [CLI Manual](https://github.com/input-output-hk/cardano-wallet/wiki/Wallet-command-line-interface/{{WIKI_COMMIT}}) | [Docker Manual](https://github.com/input-output-hk/cardano-wallet/wiki/Docker/{{WIKI_COMMIT}}) |
 
 ## Installation Instructions
 
@@ -59,6 +59,7 @@ $ docker run --rm inputoutput/cardano-wallet:{{CABAL_VERSION}}-shelley version
 
 Name                           | Role                | Approval
 ---                            | ---                 | ---:
-Matthias Benkort @KtorZ        | Technical Team Lead | :hourglass:
+Matthias Benkort @KtorZ        | Technical Architect | :hourglass:
+Rodney Lorrimar @rvl           | Technical Team Lead | :hourglass:
 Piotr Stachyra @piotr-iohk     | QA Engineer         | :hourglass:
 Laurence Jenkins @LaurenceIO   | Release Manager     | :hourglass:
