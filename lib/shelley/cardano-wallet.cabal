@@ -177,8 +177,10 @@ executable mock-token-metadata-server
     ghc-options: -O2 -Werror
   build-depends:
       base
+    , ansi-wl-pprint
     , cardano-wallet-core
     , optparse-applicative
+    , wai-extra
   hs-source-dirs:
       exe
   main-is:
