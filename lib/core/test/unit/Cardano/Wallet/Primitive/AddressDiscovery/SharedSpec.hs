@@ -33,7 +33,14 @@ import Cardano.Wallet.Primitive.AddressDerivation.Shelley
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPoolGap (..), mkUnboundedAddressPoolGap )
 import Cardano.Wallet.Primitive.AddressDiscovery.Shared
-    ( constructAddressFromIx, isShared, keyHashFromAccXPubIx, newSharedState )
+    ( SharedState (..)
+    , constructAddressFromIx
+    , isShared
+    , keyHashFromAccXPubIx
+    , newSharedState
+    )
+import Cardano.Wallet.Primitive.Types.Address
+    ( AddressState (..) )
 import Cardano.Wallet.Unsafe
     ( someDummyMnemonic )
 import Data.Proxy
@@ -61,6 +68,8 @@ spec = do
             (property prop_addressWithScriptFromOurVerKeyIxIn)
         it "address composed with our verification key should not be discoverable if beyond pool gap"
             (property prop_addressWithScriptFromOurVerKeyIxBeyond)
+        it "first discovery enlarges ourAddresses and marks the address Used"
+            (property prop_addressDiscoveryMakesAddressUsed)
 
 prop_addressWithScriptFromOurVerKeyIxIn
     :: CatalystSharedState
@@ -95,6 +104,23 @@ prop_addressWithScriptFromOurVerKeyIxBeyond (CatalystSharedState accXPub' accIx'
     addr = constructAddressFromIx tag scriptTemplate' Nothing keyIx
     sharedState = newSharedState accXPub' accIx' g scriptTemplate' Nothing
 
+prop_addressDiscoveryMakesAddressUsed
+    :: CatalystSharedState
+    -> Index 'Soft 'ScriptK
+    -> Property
+prop_addressDiscoveryMakesAddressUsed (CatalystSharedState accXPub' accIx' scriptTemplate' g) keyIx =
+    fromIntegral (fromEnum keyIx) < threshold ==>
+    Map.lookup addr ourAddresses' === Just (keyIx, Used) .&&.
+    Map.size ourAddresses' > Map.size (shareStateOurAddresses sharedState)
+  where
+    threshold =
+        fromIntegral (fromEnum (minBound @(Index 'Soft 'ScriptK))) +
+        getAddressPoolGap g
+    (Right tag) = mkNetworkDiscriminant 1
+    addr = constructAddressFromIx tag scriptTemplate' Nothing keyIx
+    sharedState = newSharedState accXPub' accIx' g scriptTemplate' Nothing
+    ((Just _), sharedState') = isShared addr sharedState
+    ourAddresses' = shareStateOurAddresses sharedState'
 
 data CatalystSharedState = CatalystSharedState
     { accXPub :: ShelleyKey 'AccountK XPub
