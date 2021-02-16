@@ -68,6 +68,8 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     , IsOwned (..)
     , KnownAddresses (..)
     )
+import Cardano.Wallet.Primitive.AddressDiscovery.Delegation
+    ( HasRewardAccounts (..), IsRewardAccountOwned (..) )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..), AddressState (..) )
 import Cardano.Wallet.Primitive.Types.RewardAccount
@@ -434,3 +436,16 @@ instance CompareDiscovery (RndAnyState n p) where
 
 instance KnownAddresses (RndAnyState n p) where
     knownAddresses (RndAnyState s) = knownAddresses s
+
+-- FIXME: I think forcing this module to be aware of reward accounts is kind of
+-- ugly.
+instance IsRewardAccountOwned (RndAnyState n p) k where
+    lookupRewardXPrv _ _ _ = Nothing
+    lookupRewardXPub _ _ = Nothing
+
+instance IsRewardAccountOwned (RndState n) k where
+    lookupRewardXPrv _ _ _ = Nothing
+    lookupRewardXPub _ _ = Nothing
+
+instance HasRewardAccounts (RndState n) where
+    listRewardAccounts _ = []

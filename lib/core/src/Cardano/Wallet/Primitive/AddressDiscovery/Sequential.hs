@@ -108,6 +108,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , PersistPublicKey (..)
     , Role (..)
     , SoftDerivation (..)
+    , ToRewardAccount (..)
     , WalletKey (..)
     , deriveVerificationKey
     , hashVerificationKey
@@ -123,6 +124,8 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     )
 import Cardano.Wallet.Primitive.AddressDiscovery.Delegation
     ( DelegationState (..)
+    , HasRewardAccounts (..)
+    , IsRewardAccountOwned (..)
     , allStakeKeys
     , assignStakeKeys
     , mkEmptyDelegationState
@@ -1105,3 +1108,21 @@ instance
     ) => KnownAddresses (SeqAnyState n k p)
   where
     knownAddresses (SeqAnyState s) = knownAddresses s
+
+instance (HardDerivation k, AddressIndexDerivationType k ~ 'Soft)
+  => IsRewardAccountOwned (SeqState n k) k where
+    lookupRewardXPrv s (rootK, pwd) acc = do
+        ix <- fst <$> Map.lookup acc (dsIndexedKeys $ delegationState s)
+        let xprv = deriveAddressPrivateKey pwd rewardAccXPrv MutableAccount ix
+        return (xprv, pwd)
+      where
+        -- FIXME: No guarantee that this matches the account public key!
+        rewardAccXPrv = deriveAccountPrivateKey @k pwd rootK minBound
+
+    lookupRewardXPub s acc = do
+        snd <$> Map.lookup acc (dsIndexedKeys $ delegationState s)
+
+instance ToRewardAccount k => HasRewardAccounts (SeqState n k) where
+    listRewardAccounts =
+        map (toRewardAccount . snd . snd) . Map.toList . dsIndexedKeys .  delegationState
+

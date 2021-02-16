@@ -1,9 +1,13 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 module Cardano.Wallet.Primitive.AddressDiscovery.Delegation
@@ -18,26 +22,38 @@ module Cardano.Wallet.Primitive.AddressDiscovery.Delegation
     , takeStakeKey
     , isOurStakeKey
     , allRewardAccountsWithPaths
+    , allRewardAccountsWithXPrvs
+
+      -- * Interface for address states
+    , IsRewardAccountOwned (..)
+    , HasRewardAccounts (..)
     )
     where
 
 import Prelude
 
 import Cardano.Crypto.Wallet
-    ( XPub )
+    ( XPrv, XPub )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..)
+    ( AddressIndexDerivationType
+    , Depth (..)
     , DerivationIndex (..)
     , DerivationPrefix
     , DerivationType (..)
     , Index (..)
+    , Passphrase (..)
     , Role (..)
     , SoftDerivation (..)
     , ToRewardAccount (..)
+    , WalletKey (..)
+    , deriveAccountPrivateKey
+    , deriveAddressPrivateKey
     , stakeDerivationPath
     )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount )
+import Control.Arrow
+    ( second )
 import Control.DeepSeq
     ( NFData )
 import Data.List.NonEmpty
@@ -215,6 +231,31 @@ allStakeKeys
     -> [k 'AddressK XPub]
 allStakeKeys = map (snd . snd) . Map.toList . dsIndexedKeys
 
+
+-- FIXME: simplify
+allRewardAccountsWithXPrvs
+    :: forall k.
+        ( SoftDerivation k
+        , AddressIndexDerivationType k ~ 'Soft
+        , WalletKey k
+        )
+    => DelegationState k
+    -> [ (RewardAccount
+         , (k 'RootK XPrv, Passphrase "encryption")
+                -> (XPrv, Passphrase "encryption")
+         )
+       ]
+allRewardAccountsWithXPrvs =
+    map (second $ \(ix, _pub) (rootK, pwd) ->
+        (getRawKey $ deriveAddressPrivateKey pwd (rewardAccXPrv (rootK, pwd)) MutableAccount ix, pwd)
+        )
+    . Map.toList
+    . dsIndexedKeys
+
+  where
+    -- FIXME: No guarantee that this matches the account public key!
+    rewardAccXPrv (rootK, pwd) = deriveAccountPrivateKey pwd rootK minBound
+
 allRewardAccountsWithPaths
     :: DerivationPrefix
     -> DelegationState k
@@ -256,3 +297,20 @@ deriving instance
     ( Eq (k 'AccountK XPub)
     , Eq (k 'AddressK XPub)
     ) => Eq (DelegationState k)
+
+
+class IsRewardAccountOwned s key where
+    lookupRewardXPrv
+        :: s
+        -> (key 'RootK XPrv, Passphrase "encryption")
+        -> RewardAccount
+        -> Maybe (key 'AddressK XPrv, Passphrase "encryption")
+    lookupRewardXPub
+        :: s
+        -> RewardAccount
+        -> Maybe (key 'AddressK XPub)
+
+class HasRewardAccounts s where
+    listRewardAccounts
+        :: s
+        -> [RewardAccount]

@@ -77,7 +77,6 @@ module Cardano.Wallet
     , manageRewardBalance
     , rollbackBlocks
     , checkWalletIntegrity
-    , readNextWithdrawal
     , readRewardAccount
     , someRewardAccount
     , queryRewardBalance
@@ -160,6 +159,8 @@ module Cardano.Wallet
     , ErrReadAccountPublicKey(..)
     , ErrInvalidDerivationIndex(..)
 
+    , readWorthwhileWithdrawals
+
     -- * Logging
     , WalletLog (..)
     ) where
@@ -231,7 +232,13 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     , KnownAddresses (..)
     )
 import Cardano.Wallet.Primitive.AddressDiscovery.Delegation
-    ( allRewardAccountsWithPaths, mkEmptyDelegationState )
+    ( HasRewardAccounts (..)
+    , IsRewardAccountOwned (..)
+    , allRewardAccountsWithPaths
+    , allRewardAccountsWithXPrvs
+    , dsIndexedKeys
+    , mkEmptyDelegationState
+    )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( ErrImportAddress (..), RndStateLike )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
@@ -337,6 +344,7 @@ import Cardano.Wallet.Transaction
     , Withdrawal (..)
     , defaultTransactionCtx
     , withdrawalToCoin
+    , withdrawalsToCoin
     )
 import Control.DeepSeq
     ( NFData )
@@ -910,15 +918,21 @@ deleteWallet ctx wid = db & \DBLayer{..} -> do
 fetchRewardBalance
     :: forall ctx s k.
         ( HasDBLayer s k ctx
+        , HasNetworkLayer ctx
+        , HasRewardAccounts s
         )
     => ctx
     -> WalletId
     -> IO Coin
-fetchRewardBalance ctx wid = db & \DBLayer{..} ->
-    atomically $ readDelegationRewardBalance pk
+fetchRewardBalance ctx wid = do
+    Right (cp, _,_) <- runExceptT $ readWallet @_ @s @k ctx wid
+    let accts = listRewardAccounts $ getState cp
+    Right res <- runExceptT $ queryRewardBalance ctx accts
+    return res
   where
     pk = PrimaryKey wid
     db = ctx ^. dbLayer @s @k
+    nw = ctx ^. networkLayer
 
 -- | Read the current withdrawal capacity of a wallet. Note that, this simply
 -- returns 0 if:
@@ -926,35 +940,54 @@ fetchRewardBalance ctx wid = db & \DBLayer{..} ->
 -- a) There's no reward account for this type of wallet.
 -- b) The current reward value is too small to be considered (adding it would
 -- cost more than its value).
-readNextWithdrawal
-    :: forall ctx k.
+-- readNextWithdrawal
+--     :: forall ctx k.
+--         ( HasTransactionLayer k ctx
+--         , HasNetworkLayer ctx
+--         )
+--     => ctx
+--     -> Coin
+--     -> IO Coin
+-- readNextWithdrawal ctx (Coin withdrawal) = do
+--     pp <- currentProtocolParameters nl
+--
+--     let costWith =
+--             calcMinimumCost tl pp (mkTxCtx $ Coin withdrawal) emptySkeleton
+--
+--     let costWithout =
+--             calcMinimumCost tl pp (mkTxCtx $ Coin 0) emptySkeleton
+--
+--     let costOfWithdrawal =
+--             coinToInteger costWith - coinToInteger costWithout
+--
+--     if toInteger withdrawal < 2 * costOfWithdrawal
+--     then pure (Coin 0)
+--     else pure (Coin withdrawal)
+--   where
+--     tl = ctx ^. transactionLayer @k
+--     nl = ctx ^. networkLayer
+--
+--     mkTxCtx wdrl =
+--         defaultTransactionCtx { txWithdrawals = [WithdrawalSelf wdrl] }
+
+
+readWorthwhileWithdrawals
+    :: forall ctx s k.
         ( HasTransactionLayer k ctx
         , HasNetworkLayer ctx
+        , HasDBLayer s k ctx
+        , HasRewardAccounts s
         )
     => ctx
-    -> Coin
-    -> IO Coin
-readNextWithdrawal ctx (Coin withdrawal) = do
-    pp <- currentProtocolParameters nl
-
-    let costWith =
-            calcMinimumCost tl pp (mkTxCtx $ Coin withdrawal) emptySkeleton
-
-    let costWithout =
-            calcMinimumCost tl pp (mkTxCtx $ Coin 0) emptySkeleton
-
-    let costOfWithdrawal =
-            coinToInteger costWith - coinToInteger costWithout
-
-    if toInteger withdrawal < 2 * costOfWithdrawal
-    then pure (Coin 0)
-    else pure (Coin withdrawal)
-  where
-    tl = ctx ^. transactionLayer @k
-    nl = ctx ^. networkLayer
-
-    mkTxCtx wdrl =
-        defaultTransactionCtx { txWithdrawal = WithdrawalSelf wdrl }
+    -> WalletId
+    -> ExceptT ErrNoSuchWallet IO [Withdrawal]
+readWorthwhileWithdrawals ctx wid = do
+    (cp, _, _) <- readWallet @ctx @s @k ctx wid
+    let s = getState cp
+    let accs = listRewardAccounts s
+    let readBalance acc = withExceptT (\_ -> ErrNoSuchWallet $ error "todo") $
+            fmap (WithdrawalSelf acc) $ queryRewardBalance ctx [acc]
+    filter (\w -> withdrawalToCoin w > Coin 0) <$> mapM readBalance accs
 
 readRewardAccount
     :: forall ctx s k (n :: NetworkDiscriminant) shelley.
@@ -1261,6 +1294,7 @@ selectAssetsNoOutputs ctx wid wal tx transform = do
     let dummyAddress = Address ""
     let dummyOutput  = TxOut dummyAddress (TokenBundle.fromCoin deposit)
     let outs = dummyOutput :| []
+    let nRewAccs = length $ txDelegationAction tx
     selectAssets @ctx @s @k ctx wal tx outs $ \s sel -> transform s $ sel
         { outputsCovered = mempty
         , changeGenerated =
@@ -1312,7 +1346,7 @@ selectAssetsNoOutputs ctx wid wal tx transform = do
                 -- outputs are at least as large as the specified outputs.
                 surplus = TokenBundle.unsafeSubtract
                     (view #tokens (head $ outputsCovered sel))
-                    (TokenBundle.fromCoin deposit)
+                    (TokenBundle.fromCoin $ mconcat $ replicate nRewAccs deposit)
             in
                 surplus `addToHead` changeGenerated sel
         }
@@ -1362,7 +1396,7 @@ selectAssets ctx (utxo, cp, pending) tx outs transform = do
     guardPendingWithdrawal :: ExceptT ErrSelectAssets IO ()
     guardPendingWithdrawal =
         case Set.lookupMin $ Set.filter hasWithdrawal pending of
-            Just pendingWithdrawal | withdrawalToCoin (txWithdrawal tx) /= Coin 0 ->
+            Just pendingWithdrawal | withdrawalsToCoin (txWithdrawals tx) /= Coin 0 ->
                 throwE $ ErrSelectAssetsAlreadyWithdrawing pendingWithdrawal
             _otherwise ->
                 pure ()
@@ -1379,19 +1413,19 @@ signTransaction
         ( HasTransactionLayer k ctx
         , HasDBLayer s k ctx
         , HasNetworkLayer ctx
+        , WalletKey k
         , IsOwned s k
         , GenChange s
+        , IsRewardAccountOwned s k
         )
     => ctx
     -> WalletId
     -> ArgGenChange s
-    -> ((k 'RootK XPrv, Passphrase "encryption") -> (XPrv, Passphrase "encryption"))
-       -- ^ Reward account derived from the root key (or somewhere else).
     -> Passphrase "raw"
     -> TransactionCtx
     -> SelectionResult TokenBundle
     -> ExceptT ErrSignPayment IO (Tx, TxMeta, UTCTime, SealedTx)
-signTransaction ctx wid argChange mkRwdAcct pwd txCtx sel = db & \DBLayer{..} -> do
+signTransaction ctx wid argChange pwd txCtx sel = db & \DBLayer{..} -> do
     era <- liftIO $ currentNodeEra nl
     withRootKey @_ @s ctx wid pwd ErrSignPaymentWithRootKey $ \xprv scheme -> do
         let pwdP = preparePassphrase scheme pwd
@@ -1404,10 +1438,13 @@ signTransaction ctx wid argChange mkRwdAcct pwd txCtx sel = db & \DBLayer{..} ->
                 putCheckpoint (PrimaryKey wid) (updateState s' cp)
 
             let keyFrom = isOwned (getState cp) (xprv, pwdP)
-            let rewardAcnt = mkRwdAcct (xprv, pwdP)
+
+            let s = getState cp
+            let lookupRewardXPrv' = lookupRewardXPrv @s @k s (xprv, pwdP)
+            let lookupRewardXPub' = fmap getRawKey . lookupRewardXPub @s @k s
 
             (tx, sealedTx) <- withExceptT ErrSignPaymentMkTx $ ExceptT $ pure $
-                mkTransaction tl era rewardAcnt keyFrom pp txCtx sel'
+                mkTransaction tl era keyFrom lookupRewardXPrv' lookupRewardXPub' pp txCtx sel'
 
             (time, meta) <- liftIO $ mkTxMeta ti (currentTip cp) s' txCtx sel'
             return (tx, meta, time, sealedTx)
@@ -1459,16 +1496,7 @@ mkTxMeta ti' blockHeader wState txCtx sel =
 
         amtInps
             = sumCoins (txOutCoin . snd <$> inputsSelected sel)
-            -- NOTE: In case where rewards were pulled from an external
-            -- source, they aren't added to the calculation because the
-            -- money is considered to come from outside of the wallet; which
-            -- changes the way we look at transactions (in such case, a
-            -- transaction is considered 'Incoming' since it brings extra money
-            -- to the wallet from elsewhere).
-            & case txWithdrawal txCtx of
-                WithdrawalSelf c -> addCoin c
-                WithdrawalExternal{} -> Prelude.id
-                NoWithdrawal -> Prelude.id
+            & addCoin (foldMap selfWithdrawalCoin (txWithdrawals txCtx))
     in do
         t <- slotStartTime' (blockHeader ^. #slotNo)
         return
@@ -1486,6 +1514,17 @@ mkTxMeta ti' blockHeader wState txCtx sel =
     slotStartTime' = interpretQuery ti . slotToUTCTime
       where
         ti = neverFails "mkTxMeta slots should never be ahead of the node tip" ti'
+
+    -- NOTE: In case where rewards were pulled from an external
+    -- source, they aren't added to the calculation because the
+    -- money is considered to come from outside of the wallet; which
+    -- changes the way we look at transactions (in such case, a
+    -- transaction is considered 'Incoming' since it brings extra money
+    -- to the wallet from elsewhere).
+    selfWithdrawalCoin :: Withdrawal -> Coin
+    selfWithdrawalCoin = \case
+        WithdrawalSelf _ c -> c
+        WithdrawalExternal _ _c -> mempty
 
     ourCoin :: TxOut -> Maybe Coin
     ourCoin (TxOut addr tokens) =
@@ -1638,13 +1677,13 @@ joinStakePool
     -- ^ snd is the deposit
 joinStakePool ctx currentEpoch knownPools pid poolStatus wid =
     db & \DBLayer{..} -> do
-        (walMeta, isKeyReg) <- mapExceptT atomically $ do
+        (walMeta) <- mapExceptT atomically $ do
             walMeta <- withExceptT ErrJoinStakePoolNoSuchWallet
                 $ withNoSuchWallet wid
                 $ readWalletMeta (PrimaryKey wid)
-            isKeyReg <- withExceptT ErrJoinStakePoolNoSuchWallet
-                $ isStakeKeyRegistered (PrimaryKey wid)
-            pure (walMeta, isKeyReg)
+            --isKeyReg <- withExceptT ErrJoinStakePoolNoSuchWallet
+            --    $ isStakeKeyRegistered (PrimaryKey wid)
+            pure walMeta
 
         let mRetirementEpoch = view #retirementEpoch <$>
                 W.getPoolRetirementCertificate poolStatus
@@ -1653,6 +1692,7 @@ joinStakePool ctx currentEpoch knownPools pid poolStatus wid =
 
         withExceptT ErrJoinStakePoolCannotJoin $ except $
             guardJoin knownPools (walMeta ^. #delegation) pid retirementInfo
+        let isKeyReg = False
 
         liftIO $ traceWith tr $ MsgIsStakeKeyRegistered isKeyReg
 
@@ -1670,6 +1710,8 @@ joinStakePool ctx currentEpoch knownPools pid poolStatus wid =
 quitStakePool
     :: forall ctx s k n.
         ( HasDBLayer s k ctx
+        , HasNetworkLayer ctx
+        , HasRewardAccounts s
         , s ~ SeqState n k
         )
     => ctx
@@ -1682,7 +1724,7 @@ quitStakePool ctx wid = db & \DBLayer{..} -> do
         $ readWalletMeta (PrimaryKey wid)
 
     rewards <- liftIO
-        $ fetchRewardBalance @ctx @s @k ctx wid
+        $ fetchRewardBalance @_ @s @k ctx wid
 
     withExceptT ErrQuitStakePoolCannotQuit $ except $
         guardQuit (walMeta ^. #delegation) rewards

@@ -127,6 +127,7 @@ import Test.Integration.Framework.DSL
     , verifyMaintenanceAction
     , verifyMetadataSource
     , waitForNextEpoch
+    , waitForTxImmutability
     , walletId
     , (.<)
     , (.>)
@@ -210,7 +211,59 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
     it "STAKE_POOLS_JOIN_01rewards - \
         \Can join a pool, earn rewards and collect them" $ \ctx -> runResourceT $ do
         -- Setup
-        src <- fixtureWallet ctx
+
+
+        -- Fixture wallets only have a single stake key, so to see if
+        -- multi-stake key delegation works, we need to manually send to the
+        -- addresses of the wallet.
+        faucet <- fixtureWallet ctx
+        src <- emptyWallet ctx
+        (addr1:addr2:addr3:addr4:addr5:_) <- map (view #id) <$> listAddresses @n ctx src
+
+
+        let payload' = [json|
+                { "payments":
+                    [ { "address": #{addr1}
+                      , "amount":
+                        { "quantity": 10000000
+                        , "unit": "lovelace"
+                        }
+                      }
+                    , { "address": #{addr2}
+                      , "amount":
+                        { "quantity": 10000000
+                        , "unit": "lovelace"
+                        }
+                      }
+                    , { "address": #{addr3}
+                      , "amount":
+                        { "quantity": 10000000
+                        , "unit": "lovelace"
+                        }
+                      }
+                    , { "address": #{addr4}
+                      , "amount":
+                        { "quantity": 10000000
+                        , "unit": "lovelace"
+                        }
+                      }
+                    , { "address": #{addr5}
+                      , "amount":
+                        { "quantity": 10000000
+                        , "unit": "lovelace"
+                        }
+                      }
+                    ]
+                , "passphrase": #{fixturePassphrase}
+                }|]
+
+        -- cannot use rewards by default
+        _ <- request @(ApiTransaction n) ctx
+            (Link.createTransaction @'Shelley faucet)
+            Default (Json payload')
+
+        waitForTxImmutability ctx
+
         dest <- emptyWallet ctx
 
         -- Join Pool
@@ -218,11 +271,12 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
             unsafeRequest @[ApiStakePool] ctx
             (Link.listStakePools arbitraryStake) Empty
         rJoin <- joinStakePool @n ctx pool (src, fixturePassphrase)
+        let nKeys = 8
         verify rJoin
             [ expectResponseCode HTTP.status202
             , expectField (#status . #getApiT) (`shouldBe` Pending)
             , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
-            , expectField #deposit (`shouldBe` Quantity 1000000)
+            , expectField #deposit (`shouldBe` Quantity (nKeys * 1000000))
             , expectField #inputs $ \inputs' -> do
                 inputs' `shouldSatisfy` all (isJust . source)
             ]
@@ -235,7 +289,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
                 [ expectResponseCode HTTP.status200
                 , expectField (#status . #getApiT) (`shouldBe` InLedger)
                 , expectField (#direction . #getApiT) (`shouldBe` Outgoing)
-                , expectField #deposit (`shouldBe` Quantity 1000000)
+                , expectField #deposit (`shouldBe` Quantity (nKeys * 1000000))
                 ]
 
         let txId = getFromResponse #id rJoin

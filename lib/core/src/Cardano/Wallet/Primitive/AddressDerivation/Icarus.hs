@@ -4,6 +4,7 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE IncoherentInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RoleAnnotations #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -68,6 +69,8 @@ import Cardano.Wallet.Primitive.AddressDerivation
     )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( IsOurs (..) )
+import Cardano.Wallet.Primitive.AddressDiscovery.Delegation
+    ( HasRewardAccounts (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( SeqState, coinTypeAda, purposeBIP44 )
 import Cardano.Wallet.Primitive.Types
@@ -422,3 +425,6 @@ instance PersistPublicKey (IcarusKey depth) where
       where
         xpubFromText = xpub <=< fromHex @ByteString
         err _ = error "unsafeDeserializeXPub: unable to deserialize IcarusKey"
+
+instance {-# OVERLAPS #-} HasRewardAccounts (SeqState n IcarusKey) where
+    listRewardAccounts _ = []

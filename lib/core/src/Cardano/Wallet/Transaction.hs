@@ -24,6 +24,7 @@ module Cardano.Wallet.Transaction
     , defaultTransactionCtx
     , Withdrawal (..)
     , withdrawalToCoin
+    , withdrawalsToCoin
 
     -- * Errors
     , ErrMkTx (..)
@@ -33,11 +34,16 @@ module Cardano.Wallet.Transaction
 import Prelude
 
 import Cardano.Address.Derivation
-    ( XPrv )
+    ( XPrv, XPub )
 import Cardano.Api.Typed
     ( AnyCardanoEra )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..), Passphrase )
+    ( Depth (..)
+    , DerivationType (..)
+    , Index (..)
+    , Passphrase
+    , RewardAccount (..)
+    )
 import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     ( SelectionCriteria, SelectionResult, SelectionSkeleton )
 import Cardano.Wallet.Primitive.Types
@@ -65,10 +71,12 @@ data TransactionLayer k = TransactionLayer
     { mkTransaction
         :: AnyCardanoEra
             -- Era for which the transaction should be created.
-        -> (XPrv, Passphrase "encryption")
-            -- Reward account
         -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
             -- Key store
+        -> (RewardAccount -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
+            -- Stake key store
+        -> (RewardAccount -> Maybe XPub)
+            -- Stake XPub lookup
         -> ProtocolParameters
             -- Current protocol parameters
         -> TransactionCtx
@@ -126,36 +134,37 @@ data TransactionLayer k = TransactionLayer
 -- details that are known upfront about the transaction and are used to
 -- construct it from inputs selected from the wallet's UTxO.
 data TransactionCtx = TransactionCtx
-    { txWithdrawal :: Withdrawal
+    { txWithdrawals :: [Withdrawal]
     -- ^ Withdrawal amount from a reward account, can be zero.
     , txMetadata :: Maybe TxMetadata
     -- ^ User or application-defined metadata to embed in the transaction.
     , txTimeToLive :: SlotNo
     -- ^ Transaction expiry (TTL) slot.
-    , txDelegationAction :: Maybe DelegationAction
+    , txDelegationAction :: [(RewardAccount, DelegationAction)]
     -- ^ An additional delegation to take.
     } deriving (Show, Eq)
 
 data Withdrawal
-    = WithdrawalSelf !Coin
-    | WithdrawalExternal !Coin
-    | NoWithdrawal
+    = WithdrawalSelf !RewardAccount !Coin
+    | WithdrawalExternal !RewardAccount !Coin
     deriving (Show, Eq)
+
+withdrawalsToCoin :: [Withdrawal] -> Coin
+withdrawalsToCoin = foldMap withdrawalToCoin
 
 withdrawalToCoin :: Withdrawal -> Coin
 withdrawalToCoin = \case
-    WithdrawalSelf c -> c
-    WithdrawalExternal c -> c
-    NoWithdrawal -> Coin 0
+    WithdrawalSelf _ c -> c
+    WithdrawalExternal _ c -> c
 
 -- | A default context with sensible placeholder. Can be used to reduce
 -- repetition for changing only sub-part of the default context.
 defaultTransactionCtx :: TransactionCtx
 defaultTransactionCtx = TransactionCtx
-    { txWithdrawal = NoWithdrawal
+    { txWithdrawals = []
     , txMetadata = Nothing
     , txTimeToLive = maxBound
-    , txDelegationAction = Nothing
+    , txDelegationAction = []
     }
 
 -- | Whether the user is attempting any particular delegation action.

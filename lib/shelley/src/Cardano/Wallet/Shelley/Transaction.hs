@@ -4,6 +4,7 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
@@ -37,6 +38,8 @@ module Cardano.Wallet.Shelley.Transaction
     ) where
 
 import Prelude
+
+import Debug.Trace
 
 import Cardano.Address.Derivation
     ( XPrv, toXPub )
@@ -114,7 +117,9 @@ import Cardano.Wallet.Transaction
     , ErrMkTx (..)
     , TransactionCtx (..)
     , TransactionLayer (..)
+    , Withdrawal (..)
     , withdrawalToCoin
+    , withdrawalsToCoin
     )
 import Control.Arrow
     ( first, left, second )
@@ -126,6 +131,8 @@ import Data.Generics.Internal.VL.Lens
     ( view )
 import Data.Generics.Labels
     ()
+import Data.Maybe
+    ( fromJust )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Type.Equality
@@ -222,24 +229,22 @@ mkTx
     -> TxPayload era
     -> SlotNo
     -- ^ Slot at which the transaction will expire.
-    -> (XPrv, Passphrase "encryption")
+    -> [((XPrv, Passphrase "encryption"), Coin)]
     -- ^ Reward account
     -> (Address -> Maybe (k 'AddressK XPrv, Passphrase "encryption"))
     -- ^ Key store
-    -> Coin
-    -- ^ An optional withdrawal amount, can be zero
     -> SelectionResult TxOut
     -- ^ Finalized asset selection
     -> Coin
     -- ^ Explicit fee amount
     -> ShelleyBasedEra era
     -> Either ErrMkTx (Tx, SealedTx)
-mkTx networkId payload ttl (rewardAcnt, pwdAcnt) keyFrom wdrl cs fees era = do
+mkTx networkId payload ttl rewardCreds keyFrom cs fees era = do
     let TxPayload md certs mkExtraWits = payload
-    let wdrls = mkWithdrawals
-            networkId
-            (toRewardAccountRaw . toXPub $ rewardAcnt)
-            wdrl
+    let wdrls =
+            [ mkWithdrawals networkId (toRewardAccountRaw . toXPub $ xprv) coin
+            | ((xprv,_pwd), coin) <- rewardCreds
+            ]
 
     unsigned <- mkUnsignedTx era ttl cs md wdrls certs (toCardanoLovelace fees)
 
@@ -249,10 +254,10 @@ mkTx networkId payload ttl (rewardAcnt, pwdAcnt) keyFrom wdrl cs fees era = do
                 (k, pwd) <- lookupPrivateKey keyFrom addr
                 pure $ mkShelleyWitness unsigned (getRawKey k, pwd)
 
-            let wdrlsWits
-                    | null wdrls = []
-                    | otherwise =
-                      [mkShelleyWitness unsigned (rewardAcnt, pwdAcnt)]
+            let wdrlsWits =
+                      [mkShelleyWitness unsigned (rewardAcnt, pwdAcnt)
+                      | ((rewardAcnt, pwdAcnt), _coin) <- rewardCreds
+                      ]
 
             pure $ mkExtraWits unsigned <> F.toList addrWits <> wdrlsWits
 
@@ -266,7 +271,7 @@ mkTx networkId payload ttl (rewardAcnt, pwdAcnt) keyFrom wdrl cs fees era = do
     let withResolvedInputs tx = tx
             { resolvedInputs = second txOutCoin <$> F.toList (inputsSelected cs)
             }
-    Right $ first withResolvedInputs $ case era of
+    Right $ trace ("*** Tx *** " <> show unsigned) $ first withResolvedInputs $ case era of
         ShelleyBasedEraShelley -> sealShelleyTx fromShelleyTx signed
         ShelleyBasedEraAllegra -> sealShelleyTx fromAllegraTx signed
         ShelleyBasedEraMary    -> sealShelleyTx fromMaryTx signed
@@ -279,31 +284,42 @@ newTransactionLayer
     => NetworkId
     -> TransactionLayer k
 newTransactionLayer networkId = TransactionLayer
-    { mkTransaction = \era stakeCreds keystore pp ctx selection -> do
+    { mkTransaction = \era keystore lookupRewardXPrv lookupRewardXPub pp ctx selection -> do
         let ttl   = txTimeToLive ctx
-        let wdrl  = withdrawalToCoin $ txWithdrawal ctx
+        let wdrl  = withdrawalsToCoin $ txWithdrawals ctx
         let delta = selectionDelta txOutCoin selection
+        let accFromWithdrawal = \case
+                WithdrawalSelf x _ -> x
+                WithdrawalExternal x _ -> x
+        let wdrlCreds = [ (first getRawKey $ fromJust $ lookupRewardXPrv $ accFromWithdrawal w, withdrawalToCoin w) | w <- txWithdrawals ctx ]
         case txDelegationAction ctx of
-            Nothing -> do
+            [] -> do
                 withShelleyBasedEra era $ do
                     let payload = TxPayload (txMetadata ctx) mempty mempty
                     let fees = delta
-                    mkTx networkId payload ttl stakeCreds keystore wdrl selection fees
+                    mkTx networkId payload ttl wdrlCreds keystore selection fees
 
-            Just action -> do
+            actions -> do
                 withShelleyBasedEra era $ do
-                    let stakeXPub = toXPub $ fst stakeCreds
-                    let certs = mkDelegationCertificates action stakeXPub
+                    let certs = concatMap
+                            (\(acc, action) -> mkDelegationCertificates action (fromJust $ lookupRewardXPub acc)  )
+                            actions
+                    let stakeCreds = map (fromJust . lookupRewardXPrv . fst) $ actions
                     let mkWits unsigned =
-                            [ mkShelleyWitness unsigned stakeCreds
-                            ]
+                            map (mkShelleyWitness unsigned) (map (first getRawKey) stakeCreds)
                     let payload = TxPayload (txMetadata ctx) certs mkWits
-                    let fees = case action of
-                            RegisterKeyAndJoin{} ->
-                                unsafeSubtractCoin selection delta (stakeKeyDeposit pp)
-                            _ ->
-                                delta
-                    mkTx networkId payload ttl stakeCreds keystore wdrl selection fees
+                    -- TODO: Doesn't handle de-registrations
+                    let numberOfRegistrations = sum $ flip map actions $ \case
+                            (_, RegisterKeyAndJoin{}) -> 1
+                            _ -> 0
+                    let fees = unsafeSubtractCoin selection delta
+                            (mconcat $ replicate numberOfRegistrations $ stakeKeyDeposit pp)
+                    let msg = mconcat
+                            [ "Actions: " <> show actions
+                            , " | "
+                            , "Certs: " <> show (length (stakeCreds))
+                            ]
+                    trace msg $mkTx networkId payload ttl wdrlCreds keystore selection fees
 
     , initSelectionCriteria = \pp ctx utxoAvailable outputsUnprepared ->
         let
@@ -313,12 +329,13 @@ newTransactionLayer networkId = TransactionLayer
             selectionLimit = MaximumInputLimit $
                 _estimateMaxNumberOfInputs @k txMaxSize ctx (NE.toList outputsToCover)
 
+            returnedDeposit action = case action of
+                Quit -> stakeKeyDeposit pp
+                _ -> Coin 0
+
             extraCoinSource = Just $ addCoin
-                (withdrawalToCoin $ txWithdrawal ctx)
-                ( case txDelegationAction ctx of
-                    Just Quit -> stakeKeyDeposit pp
-                    _ -> Coin 0
-                )
+                (withdrawalsToCoin $ txWithdrawals ctx)
+                (foldMap (returnedDeposit . snd) $ txDelegationAction ctx)
 
             outputsToCover = prepareOutputsWith
                 (_calcMinimumCoinValue pp)
@@ -483,22 +500,22 @@ estimateTxSize
     -> SelectionSkeleton
     -> Integer
 estimateTxSize witnessTag ctx (SelectionSkeleton inps outs chgs) =
-    sizeOf_Transaction
+    (sizeOf_Transaction)
   where
     TransactionCtx
         { txMetadata
         , txDelegationAction
-        , txWithdrawal
+        , txWithdrawals
         } = ctx
 
     numberOf_Inputs
         = toInteger $ UTxOIndex.size inps
 
     numberOf_CertificateSignatures
-        = maybe 0 (const 1) txDelegationAction
+        = fromIntegral $ length txDelegationAction
 
     numberOf_Withdrawals
-        = if withdrawalToCoin txWithdrawal > Coin 0 then 1 else 0
+        = fromIntegral $ length txWithdrawals
 
     numberOf_VkeyWitnesses
         = case witnessTag of
@@ -540,7 +557,7 @@ estimateTxSize witnessTag ctx (SelectionSkeleton inps outs chgs) =
         + sizeOf_Outputs
         + sizeOf_Fee
         + sizeOf_Ttl
-        + sizeOf_Certificates
+        + (sizeOf_Certificates txDelegationAction)
         + sizeOf_Withdrawals
         + sizeOf_Update
         + sizeOf_MetadataHash
@@ -569,20 +586,19 @@ estimateTxSize witnessTag ctx (SelectionSkeleton inps outs chgs) =
             + sizeOf_UInt
 
         -- ?4 => [* certificates ]
-        sizeOf_Certificates
-            = case txDelegationAction of
-                Nothing ->
-                    0
-                Just RegisterKeyAndJoin{} ->
+        sizeOf_Certificates xs = sum $ map (sizeOf_Certificate . snd) xs
+        sizeOf_Certificate act
+            = case act of
+                RegisterKeyAndJoin{} ->
                     sizeOf_SmallUInt
                     + sizeOf_SmallArray
                     + sizeOf_StakeRegistration
                     + sizeOf_StakeDelegation
-                Just Join{} ->
+                Join{} ->
                     sizeOf_SmallUInt
                     + sizeOf_SmallArray
                     + sizeOf_StakeDelegation
-                Just Quit{} ->
+                Quit{} ->
                     sizeOf_SmallUInt
                     + sizeOf_SmallArray
                     + sizeOf_StakeDeregistration
@@ -971,14 +987,15 @@ mkUnsignedTx era ttl cs md wdrls certs fees =
       where
         toErrMkTx = ErrConstructedInvalidTx . T.pack . Cardano.displayError
 
+
+-- TODO: Can this function be removed?
 mkWithdrawals
     :: NetworkId
     -> RewardAccount
     -> Coin
-    -> [(Cardano.StakeAddress, Cardano.Lovelace)]
-mkWithdrawals networkId acc amount
-    | amount == Coin 0 = mempty
-    | otherwise = [ (stakeAddress, toCardanoLovelace amount) ]
+    -> (Cardano.StakeAddress, Cardano.Lovelace)
+mkWithdrawals networkId acc amount =
+    (stakeAddress, toCardanoLovelace amount)
   where
     cred = toCardanoStakeCredential acc
     stakeAddress = Cardano.makeStakeAddress networkId cred
