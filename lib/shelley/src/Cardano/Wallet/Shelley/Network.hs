@@ -805,6 +805,7 @@ newRewardBalanceFetcher tr readNodeTip queryRewardQ = do
         :: Tip (CardanoBlock StandardCrypto)
         -> Set W.RewardAccount
         -> IO (Maybe (Map W.RewardAccount W.Coin))
+    fetch _tip accounts | Set.null accounts = pure (Just mempty)
     fetch _tip accounts = do
         -- NOTE: We no longer need the tip to run LSQ queries. The local state
         -- query client will automatically acquire the latest tip.
