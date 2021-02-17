@@ -1031,6 +1031,22 @@ x-transactionResolvedInputs: &transactionResolvedInputs
         type: integer
         minimum: 0
 
+x-transactionResolvedWithdrawals: &transactionResolvedWithdrawals
+  description: A list of withdrawals from stake addresses.
+  type: array
+  minItems: 0
+  items:
+    type: object
+    additionalProperties: false
+    required:
+      - stake_address
+      - derivation_path
+      - amount
+    properties:
+      stake_address: *stakeAddress
+      derivation_path: *derivationPath
+      amount: *amount
+
 x-signedTransactionBlob: &signedTransactionBlob
   description: Signed transaction message binary blob.
   type: string
@@ -1060,6 +1076,11 @@ x-transactionStatus: &transactionStatus
     - pending
     - in_ledger
     - expired
+
+x-transactionSerializedMetadata: &transactionSerializedMetadata
+  type: string
+  format: base64
+  description: Transaction metadata, serialized according to the expected on-chain binary format, base64-encoded.
 
 x-transactionMetadata: &transactionMetadata
   description: |
@@ -1549,6 +1570,18 @@ components:
         - payments
       properties:
         payments: *transactionOutputs
+        withdrawal: *transactionWithdrawalRequestSelf
+        metadata: *transactionMetadata
+
+    ApiSelectCoinsRedemption: &ApiSelectCoinsRedemption
+      type: object
+      required:
+        - payments
+        - withdrawal
+      properties:
+        payments: *transactionOutputs
+        withdrawal: *transactionRedemptionRequest
+        metadata: *transactionMetadata
 
     ApiSelectCoinsAction: &ApiSelectCoinsAction
       type: object
@@ -1560,11 +1593,19 @@ components:
     ApiSelectCoinsData: &ApiSelectCoinsData
       type: object
       oneOf:
-        - <<: *ApiSelectCoinsPayments
-        - <<: *ApiSelectCoinsAction
+        - title: Normal payment
+          <<: *ApiSelectCoinsPayments
+        - title: Delegation
+          <<: *ApiSelectCoinsAction
+        - title: Reward redemption
+          <<: *ApiSelectCoinsRedemption
 
     ApiByronSelectCoinsData: &ApiByronSelectCoinsData
-        <<: *ApiSelectCoinsPayments
+      type: object
+      required:
+        - payments
+      properties:
+        payments: *transactionOutputs
 
     ApiCoinSelection: &ApiCoinSelection
       type: object
@@ -1576,10 +1617,12 @@ components:
         inputs: *transactionResolvedInputs
         outputs: *transactionOutputs
         change: *transactionChange
+        withdrawals: *transactionResolvedWithdrawals
         certificates:
           type: array
           items: *certificate
         deposits: *deposits
+        metadata: *transactionSerializedMetadata
 
     ApiGCStatus: &ApiGCStatus
       type: object

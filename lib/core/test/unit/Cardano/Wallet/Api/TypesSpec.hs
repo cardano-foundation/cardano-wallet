@@ -62,6 +62,7 @@ import Cardano.Wallet.Api.Types
     , ApiCoinSelectionChange (..)
     , ApiCoinSelectionInput (..)
     , ApiCoinSelectionOutput (..)
+    , ApiCoinSelectionWithdrawal (..)
     , ApiCredential (..)
     , ApiDelegationAction (..)
     , ApiEpochInfo (..)
@@ -80,6 +81,7 @@ import Cardano.Wallet.Api.Types
     , ApiPostAccountKeyData
     , ApiPostRandomAddressData
     , ApiPutAddressesData (..)
+    , ApiRawMetadata (..)
     , ApiSelectCoinsAction (..)
     , ApiSelectCoinsData (..)
     , ApiSelectCoinsPayments (..)
@@ -373,6 +375,8 @@ spec = parallel $ do
             jsonRoundtripAndGolden $ Proxy @(ApiCoinSelectionChange ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @(ApiCoinSelectionInput ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @(ApiCoinSelectionOutput ('Testnet 0))
+            jsonRoundtripAndGolden $ Proxy @(ApiCoinSelectionWithdrawal ('Testnet 0))
+            jsonRoundtripAndGolden $ Proxy @ApiRawMetadata
             jsonRoundtripAndGolden $ Proxy @ApiBlockReference
             jsonRoundtripAndGolden $ Proxy @ApiSlotReference
             jsonRoundtripAndGolden $ Proxy @ApiDelegationAction
@@ -688,6 +692,8 @@ spec = parallel $ do
             let
                 x' = ApiSelectCoinsPayments
                     { payments = payments (x :: ApiSelectCoinsPayments ('Testnet 0))
+                    , withdrawal = withdrawal (x :: ApiSelectCoinsPayments ('Testnet 0))
+                    , metadata = metadata (x :: ApiSelectCoinsPayments ('Testnet 0))
                     }
             in
                 x' === x .&&. show x' === show x
@@ -700,9 +706,13 @@ spec = parallel $ do
                         (x :: ApiCoinSelection ('Testnet 0))
                     , change = change
                         (x :: ApiCoinSelection ('Testnet 0))
+                    , withdrawals = withdrawals
+                        (x :: ApiCoinSelection ('Testnet 0))
                     , certificates = certificates
                         (x :: ApiCoinSelection ('Testnet 0))
                     , deposits = deposits
+                        (x :: ApiCoinSelection ('Testnet 0))
+                    , metadata = metadata
                         (x :: ApiCoinSelection ('Testnet 0))
                     }
             in
@@ -1148,6 +1158,8 @@ instance Arbitrary (ApiCoinSelection n) where
         <*> reasonablySized arbitrary
         <*> reasonablySized arbitrary
         <*> reasonablySized arbitrary
+        <*> reasonablySized arbitrary
+        <*> arbitrary
     shrink = genericShrink
 
 instance Arbitrary (ApiCoinSelectionChange n) where
@@ -1168,9 +1180,18 @@ instance Arbitrary (ApiCoinSelectionInput n) where
         <*> arbitrary
     shrink _ = []
 
-instance Arbitrary (ApiCoinSelectionOutput a) where
+instance Arbitrary (ApiCoinSelectionOutput n) where
     arbitrary = applyArbitrary3 ApiCoinSelectionOutput
     shrink _ = []
+
+instance Arbitrary (ApiCoinSelectionWithdrawal n) where
+    arbitrary = ApiCoinSelectionWithdrawal
+        <$> fmap (, Proxy @n) arbitrary
+        <*> reasonablySized arbitrary
+        <*> arbitrary
+
+instance Arbitrary ApiRawMetadata where
+    arbitrary = ApiRawMetadata . BS.pack <$> (choose(1, 10) >>= vector)
 
 instance Arbitrary AddressState where
     arbitrary = genericArbitrary
@@ -1894,19 +1915,15 @@ instance ToSchema (ApiPutAddressesData t) where
     declareNamedSchema _ = declareSchemaForDefinition "ApiPutAddressesData"
 
 instance ToSchema (ApiSelectCoinsData n) where
-    declareNamedSchema _ = declareSchemaForDefinition "ApiSelectCoinsData"
+    declareNamedSchema _ = do
+        addDefinition =<< declareSchemaForDefinition "TransactionMetadataValue"
+        declareSchemaForDefinition "ApiSelectCoinsData"
 
 instance ToSchema (ApiT SmashServer) where
     declareNamedSchema _ = declareSchemaForDefinition "ApiSmashServer"
 
 instance ToSchema ApiHealthCheck where
     declareNamedSchema _ = declareSchemaForDefinition "ApiHealthCheck"
-
-instance ToSchema (ApiSelectCoinsPayments n) where
-    declareNamedSchema _ = declareSchemaForDefinition "ApiSelectCoinsPayments"
-
-instance ToSchema ApiSelectCoinsAction where
-    declareNamedSchema _ = declareSchemaForDefinition "ApiSelectCoinsAction"
 
 instance ToSchema (ApiCoinSelection n) where
     declareNamedSchema _ = declareSchemaForDefinition "ApiCoinSelection"

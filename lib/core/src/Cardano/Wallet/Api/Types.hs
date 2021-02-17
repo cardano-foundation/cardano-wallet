@@ -68,6 +68,8 @@ module Cardano.Wallet.Api.Types
     , ApiCoinSelectionChange (..)
     , ApiCoinSelectionInput (..)
     , ApiCoinSelectionOutput (..)
+    , ApiCoinSelectionWithdrawal (..)
+    , ApiRawMetadata (..)
     , ApiStakePool (..)
     , ApiStakePoolMetrics (..)
     , ApiStakePoolFlag (..)
@@ -527,10 +529,11 @@ data ApiSelectCoinsData (n :: NetworkDiscriminant)
     | ApiSelectForDelegation ApiSelectCoinsAction
     deriving (Eq, Generic, Show)
 
-newtype ApiSelectCoinsPayments (n :: NetworkDiscriminant) = ApiSelectCoinsPayments
+data ApiSelectCoinsPayments (n :: NetworkDiscriminant) = ApiSelectCoinsPayments
     { payments :: NonEmpty (AddressAmount (ApiT Address, Proxy n))
+    , withdrawal :: !(Maybe ApiWithdrawalPostData)
+    , metadata :: !(Maybe (ApiT TxMetadata))
     } deriving (Eq, Generic, Show)
-      deriving anyclass NFData
 
 newtype ApiSelectCoinsAction = ApiSelectCoinsAction
     { delegationAction :: ApiDelegationAction
@@ -554,14 +557,19 @@ data ApiDelegationAction = Join (ApiT PoolId) | Quit
     deriving (Eq, Generic, Show)
     deriving anyclass NFData
 
+newtype ApiRawMetadata =
+    ApiRawMetadata { unApiRawMetadata :: ByteString }
+    deriving (Eq, Generic, Show)
+
 data ApiCoinSelection (n :: NetworkDiscriminant) = ApiCoinSelection
     { inputs :: !(NonEmpty (ApiCoinSelectionInput n))
     , outputs :: ![ApiCoinSelectionOutput n]
     , change :: ![ApiCoinSelectionChange n]
+    , withdrawals :: ![ApiCoinSelectionWithdrawal n]
     , certificates :: Maybe (NonEmpty ApiCertificate)
     , deposits :: ![Quantity "lovelace" Natural]
+    , metadata :: !(Maybe ApiRawMetadata)
     } deriving (Eq, Generic, Show)
-      deriving anyclass NFData
 
 data ApiCoinSelectionChange (n :: NetworkDiscriminant) = ApiCoinSelectionChange
     { address :: !(ApiT Address, Proxy n)
@@ -863,6 +871,13 @@ newtype ApiTxMetadata = ApiTxMetadata
 
 data ApiWithdrawal n = ApiWithdrawal
     { stakeAddress :: !(ApiT W.RewardAccount, Proxy n)
+    , amount :: !(Quantity "lovelace" Natural)
+    } deriving (Eq, Generic, Show)
+      deriving anyclass NFData
+
+data ApiCoinSelectionWithdrawal n = ApiCoinSelectionWithdrawal
+    { stakeAddress :: !(ApiT W.RewardAccount, Proxy n)
+    , derivationPath :: !(NonEmpty (ApiT DerivationIndex))
     , amount :: !(Quantity "lovelace" Natural)
     } deriving (Eq, Generic, Show)
       deriving anyclass NFData
@@ -1447,20 +1462,22 @@ instance DecodeAddress n => FromJSON (ApiSelectCoinsData n) where
     parseJSON = withObject "DelegationAction" $ \o -> do
         p <- o .:? "payments"
         a <- o .:? "delegation_action"
-        case (p, a) of
-            (Just _, Just _) -> fail "Specified both payments and action, pick one"
-            (Nothing, Just v) ->
-                pure $ ApiSelectForDelegation $ ApiSelectCoinsAction v
-            (Just v, Nothing) ->
-                pure $ ApiSelectForPayment $ ApiSelectCoinsPayments v
-            _ -> fail "No valid parse for ApiSelectCoinsPayments or ApiSelectCoinsAction"
+        case (p :: Maybe Value, a :: Maybe Value) of
+            (Just _, Just _) ->
+                fail "Specified both payments and action, pick one"
+            (Nothing, Just{}) ->
+                ApiSelectForDelegation <$> parseJSON (Object o)
+            (Just{}, Nothing) ->
+                ApiSelectForPayment <$> parseJSON (Object o)
+            _ ->
+                fail "No valid parse for ApiSelectCoinsPayments or ApiSelectCoinsAction"
 instance EncodeAddress n => ToJSON (ApiSelectCoinsData n) where
     toJSON (ApiSelectForPayment v) = toJSON v
     toJSON (ApiSelectForDelegation v) = toJSON v
 
-instance DecodeAddress n => FromJSON (ApiCoinSelection n) where
+instance (DecodeStakeAddress n, DecodeAddress n) => FromJSON (ApiCoinSelection n) where
     parseJSON = genericParseJSON defaultRecordTypeOptions
-instance EncodeAddress n => ToJSON (ApiCoinSelection n) where
+instance (EncodeStakeAddress n, EncodeAddress n) => ToJSON (ApiCoinSelection n) where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 apiCertificateOptions :: Aeson.Options
@@ -1513,6 +1530,16 @@ instance DecodeAddress n => FromJSON (ApiCoinSelectionOutput n) where
     parseJSON = genericParseJSON defaultRecordTypeOptions
 instance EncodeAddress n => ToJSON (ApiCoinSelectionOutput n) where
     toJSON = genericToJSON defaultRecordTypeOptions
+
+instance DecodeStakeAddress n => FromJSON (ApiCoinSelectionWithdrawal n) where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance EncodeStakeAddress n => ToJSON (ApiCoinSelectionWithdrawal n) where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+instance FromJSON ApiRawMetadata where
+    parseJSON = fmap ApiRawMetadata . fromBase64Text
+instance ToJSON ApiRawMetadata where
+    toJSON = toJSON . toBase64Text . unApiRawMetadata
 
 instance {-# OVERLAPS #-} DecodeAddress n => FromJSON (ApiT Address, Proxy n)
   where
@@ -2390,6 +2417,13 @@ toTextJSON = toJSON . toText . getApiT
 
 fromTextJSON :: FromText a => String -> Value -> Aeson.Parser (ApiT a)
 fromTextJSON n = withText n (eitherToParser . bimap ShowFmt ApiT . fromText)
+
+fromBase64Text :: Value -> Aeson.Parser ByteString
+fromBase64Text = withText "Base64 ByteString" $
+    eitherToParser . convertFromBase Base64 . T.encodeUtf8
+
+toBase64Text :: ByteString -> Text
+toBase64Text = T.decodeUtf8 . convertToBase Base64
 
 {-------------------------------------------------------------------------------
                           User-Facing Address Encoding

@@ -325,7 +325,7 @@ instance ToText TxStatus where
 --
 -- See 'Tx' for a signed transaction.
 --
-data UnsignedTx input output change = UnsignedTx
+data UnsignedTx input output change withdrawal = UnsignedTx
     { unsignedInputs
         :: NonEmpty input
         -- Inputs are *necessarily* non-empty because Cardano requires at least
@@ -345,6 +345,9 @@ data UnsignedTx input output change = UnsignedTx
 
     , unsignedChange
         :: [change]
+
+    , unsignedWithdrawals
+        :: [withdrawal]
     }
     deriving (Eq, Show)
 

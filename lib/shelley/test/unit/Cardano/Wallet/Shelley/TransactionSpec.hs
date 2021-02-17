@@ -24,7 +24,8 @@ import Cardano.Address.Derivation
 import Cardano.Wallet
     ( ErrSelectAssets (..), FeeEstimation (..), estimateFee )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Passphrase (..)
+    ( DerivationIndex (..)
+    , Passphrase (..)
     , PassphraseMaxLength (..)
     , PassphraseMinLength (..)
     , PassphraseScheme (..)
@@ -54,6 +55,8 @@ import Cardano.Wallet.Primitive.Types.Coin.Gen
     ( genCoinLargePositive, shrinkCoinLargePositive )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
+import Cardano.Wallet.Primitive.Types.RewardAccount
+    ( RewardAccount (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle )
 import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
@@ -92,6 +95,8 @@ import Control.Monad.Trans.Except
     ( except, runExceptT )
 import Data.Function
     ( on, (&) )
+import Data.List.NonEmpty
+    ( NonEmpty (..) )
 import Data.Maybe
     ( fromJust )
 import Data.Proxy
@@ -170,10 +175,14 @@ spec = do
             minFee ctx = coinToInteger $ calcMinimumCost testTxLayer pp ctx sel
               where sel = emptySkeleton
 
+        let (dummyAcct, dummyPath) =
+                (RewardAccount mempty, DerivationIndex 0 :| [])
+
         it "withdrawals incur fees" $ property $ \wdrl ->
             let
                 costWith =
-                    minFee $ defaultTransactionCtx { txWithdrawal = WithdrawalSelf wdrl }
+                    minFee $ defaultTransactionCtx
+                        { txWithdrawal = WithdrawalSelf dummyAcct dummyPath wdrl }
                 costWithout =
                     minFee defaultTransactionCtx
 

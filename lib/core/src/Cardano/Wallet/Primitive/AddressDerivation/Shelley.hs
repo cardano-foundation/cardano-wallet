@@ -69,10 +69,10 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , PersistPrivateKey (..)
     , PersistPublicKey (..)
     , RewardAccount (..)
+    , Role (..)
     , SoftDerivation (..)
     , ToRewardAccount (..)
     , WalletKey (..)
-    , deriveRewardAccount
     , fromHex
     , hex
     , mutableAccount
@@ -83,6 +83,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( DerivationPrefix (..)
     , SeqState (..)
     , coinTypeAda
+    , purposeBIP44
     , purposeCIP1852
     , rewardAccountKey
     )
@@ -354,10 +355,22 @@ instance IsOurs (SeqState n ShelleyKey) RewardAccount
 instance ToRewardAccount ShelleyKey where
     toRewardAccount = toRewardAccountRaw . getKey
     someRewardAccount mw =
-        (getRawKey acctK, toRewardAccount (publicKey acctK))
+        let
+            -- NOTE: Accounts from mnemonics are considered to be ITN wallet-like,
+            -- therefore bound to purpose=44', 0th account.
+            path = NE.fromList
+                [ DerivationIndex $ getIndex purposeBIP44
+                , DerivationIndex $ getIndex coinTypeAda
+                , DerivationIndex $ getIndex @'Hardened minBound
+                , DerivationIndex $ getIndex mutableAccount
+                , DerivationIndex $ getIndex @'Soft minBound
+                ]
+        in
+            (getRawKey stakK, toRewardAccount (publicKey stakK), path)
       where
         rootK = generateKeyFromSeed (mw, Nothing) mempty
-        acctK = deriveRewardAccount mempty rootK
+        acctK = deriveAccountPrivateKey mempty rootK minBound
+        stakK = deriveAddressPrivateKey mempty acctK MutableAccount minBound
 
 toRewardAccountRaw :: XPub -> RewardAccount
 toRewardAccountRaw = RewardAccount . blake2b224 . xpubPublicKey
