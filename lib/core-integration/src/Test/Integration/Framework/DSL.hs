@@ -93,6 +93,7 @@ module Test.Integration.Framework.DSL
     , quitStakePool
     , quitStakePoolUnsigned
     , selectCoins
+    , selectCoinsWith
     , listAddresses
     , getWallet
     , listTransactions
@@ -132,6 +133,7 @@ module Test.Integration.Framework.DSL
     , toQueryString
     , withMethod
     , withPathParam
+    , addField
     , icarusAddresses
     , randomAddresses
     , shelleyAddresses
@@ -287,7 +289,7 @@ import Control.Retry
 import Crypto.Hash
     ( Blake2b_160, Digest, digestFromByteString )
 import Data.Aeson
-    ( FromJSON, Value )
+    ( FromJSON, ToJSON, Value, (.=) )
 import Data.Aeson.QQ
     ( aesonQQ )
 import Data.Foldable
@@ -1707,6 +1709,7 @@ joinStakePoolUnsigned
         ( HasType (ApiT WalletId) w
         , DecodeAddress n
         , EncodeAddress n
+        , DecodeStakeAddress n
         , Link.Discriminate style
         )
     => Context
@@ -1742,6 +1745,7 @@ quitStakePoolUnsigned
     :: forall n style w m.
         ( HasType (ApiT WalletId) w
         , DecodeAddress n
+        , DecodeStakeAddress n
         , EncodeAddress n
         , MonadIO m
         , Link.Discriminate style
@@ -1760,6 +1764,7 @@ selectCoins
     :: forall n style w m.
         ( HasType (ApiT WalletId) w
         , DecodeAddress n
+        , DecodeStakeAddress n
         , EncodeAddress n
         , Link.Discriminate style
         , MonadIO m
@@ -1769,12 +1774,30 @@ selectCoins
     -> w
     -> NonEmpty (AddressAmount (ApiT Address, Proxy n))
     -> m (HTTP.Status, Either RequestException (ApiCoinSelection n))
-selectCoins ctx w payments = do
+selectCoins ctx w payments =
+    selectCoinsWith @n @style @w ctx w payments id
+
+selectCoinsWith
+    :: forall n style w m.
+        ( HasType (ApiT WalletId) w
+        , DecodeAddress n
+        , DecodeStakeAddress n
+        , EncodeAddress n
+        , Link.Discriminate style
+        , MonadIO m
+        , MonadUnliftIO m
+        )
+    => Context
+    -> w
+    -> NonEmpty (AddressAmount (ApiT Address, Proxy n))
+    -> (Payload -> Payload)
+    -> m (HTTP.Status, Either RequestException (ApiCoinSelection n))
+selectCoinsWith ctx w payments transform = do
     let payload = Json [aesonQQ| {
             "payments": #{payments}
         } |]
     request @(ApiCoinSelection n) ctx
-        (Link.selectCoins @style w) Default payload
+        (Link.selectCoins @style w) Default (transform payload)
 
 delegationFee
     :: forall w m. (HasType (ApiT WalletId) w, MonadIO m, MonadUnliftIO m)
@@ -2080,6 +2103,13 @@ toQueryString kvs = if T.null suffix then mempty else "?" <> suffix
   where
     suffix = T.intercalate "&" $ buildQueryParam <$> kvs
     buildQueryParam (k, v) = k <> "=" <> toQueryParam v
+
+addField :: ToJSON a => Text -> a -> Payload -> Payload
+addField fieldName field = \case
+    Json (Aeson.Object o) ->
+        Json (Aeson.Object (o <> (fieldName .= field)))
+    _ ->
+        error "addField called on a non-json payload"
 
 infixr 5 </>
 (</>) :: ToHttpApiData a => Text -> a -> Text

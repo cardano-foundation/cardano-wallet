@@ -16,6 +16,8 @@ module Test.Integration.Scenario.API.Shelley.CoinSelections
 
 import Prelude
 
+import Cardano.Mnemonic
+    ( mnemonicToText )
 import Cardano.Wallet.Api.Types
     ( AddressAmount (..)
     , ApiCoinSelection
@@ -28,7 +30,13 @@ import Cardano.Wallet.Api.Types
     , WalletStyle (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( DerivationIndex (..), DerivationType (..), Index (..), PaymentAddress )
+    ( Depth (..)
+    , DerivationIndex (..)
+    , DerivationType (..)
+    , Index (..)
+    , Index
+    , PaymentAddress
+    )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
@@ -36,7 +44,7 @@ import Cardano.Wallet.Primitive.AddressDerivation.Icarus
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
-    ( coinTypeAda, purposeCIP1852 )
+    ( coinTypeAda, purposeBIP44, purposeCIP1852 )
 import Control.Monad
     ( forM_ )
 import Data.Generics.Internal.VL.Lens
@@ -45,6 +53,8 @@ import Data.List
     ( isPrefixOf )
 import Data.List.NonEmpty
     ( NonEmpty ((:|)) )
+import Data.Maybe
+    ( isJust )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text.Class
@@ -57,6 +67,7 @@ import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)
     , Payload (..)
+    , addField
     , emptyWallet
     , expectErrorMessage
     , expectField
@@ -66,17 +77,24 @@ import Test.Integration.Framework.DSL
     , listAddresses
     , minUTxOValue
     , request
+    , rewardWallet
     , runResourceT
     , selectCoins
+    , selectCoinsWith
     , verify
     , walletId
     )
 import Test.Integration.Framework.TestData
-    ( errMsg404NoWallet, errMsg406, errMsg415 )
+    ( errMsg400TxMetadataStringTooLong
+    , errMsg404NoWallet
+    , errMsg406
+    , errMsg415
+    )
 
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Data.HashSet as Set
 import qualified Data.List.NonEmpty as NE
+import qualified Data.Text as T
 import qualified Network.HTTP.Types as HTTP
 
 spec :: forall n.
@@ -98,28 +116,24 @@ spec = describe "SHELLEY_COIN_SELECTION" $ do
             let amount = Quantity minUTxOValue
             let payment = AddressAmount targetAddress amount mempty
             let output = ApiCoinSelectionOutput targetAddress amount mempty
-            let isValidDerivationPath path =
-                    ( length path == 5 )
-                    &&
-                    ( [ ApiT $ DerivationIndex $ getIndex purposeCIP1852
-                      , ApiT $ DerivationIndex $ getIndex coinTypeAda
-                      , ApiT $ DerivationIndex $ getIndex @'Hardened minBound
-                      ] `isPrefixOf` NE.toList path
-                    )
             selectCoins @_ @'Shelley ctx source (payment :| []) >>= flip verify
                 [ expectResponseCode HTTP.status200
                 , expectField #inputs
                     (`shouldSatisfy` (not . null))
                 , expectField #inputs
                     (`shouldSatisfy` all
-                        (isValidDerivationPath . view #derivationPath))
+                        (isValidDerivationPath purposeCIP1852 . view #derivationPath))
                 , expectField #change
                     (`shouldSatisfy` (not . null))
                 , expectField #change
                     (`shouldSatisfy` all
-                        (isValidDerivationPath . view #derivationPath))
+                        (isValidDerivationPath purposeCIP1852 . view #derivationPath))
                 , expectField #outputs
                     (`shouldBe` [output])
+                , expectField #withdrawals
+                    (`shouldSatisfy` null)
+                , expectField #metadata
+                    (`shouldBe` Nothing)
                 ]
 
     it "WALLETS_COIN_SELECTION_02 - \
@@ -143,6 +157,8 @@ spec = describe "SHELLEY_COIN_SELECTION" $ do
                 , expectField #change (`shouldSatisfy` (not . null))
                 , expectField #outputs
                     (`shouldSatisfy` ((Set.fromList outputs ==) . Set.fromList))
+                , expectField #withdrawals (`shouldSatisfy` null)
+                , expectField #metadata (`shouldBe` Nothing)
                 ]
 
     it "WALLETS_COIN_SELECTION_03 - \
@@ -213,3 +229,79 @@ spec = describe "SHELLEY_COIN_SELECTION" $ do
             r <- request @(ApiCoinSelection n) ctx
                 (Link.selectCoins @'Shelley w) headers payload
             verify r expectations
+
+    it "WALLETS_COIN_SELECTION_05a - can include metadata" $ \ctx -> runResourceT $ do
+        source <- fixtureWallet ctx
+        addr:_ <- fmap (view #id) <$> listAddresses @n ctx source
+
+        let amount = Quantity minUTxOValue
+        let payment = AddressAmount addr amount mempty
+        let transform = addField "metadata"
+                [json|{ "1": { "string": "hello" } }|]
+
+        selectCoinsWith @_ @'Shelley ctx source (payment :| []) transform >>= flip verify
+            [ expectResponseCode HTTP.status200
+            , expectField #metadata (`shouldSatisfy` isJust)
+            ]
+
+    it "WALLETS_COIN_SELECTION_05b - choke on invalid metadata" $ \ctx -> runResourceT $ do
+        source <- fixtureWallet ctx
+        addr:_ <- fmap (view #id) <$> listAddresses @n ctx source
+
+        let amount = Quantity minUTxOValue
+        let payment = AddressAmount addr amount mempty
+        let transform = addField "metadata"
+                [json|{ "1": { "string": #{T.replicate 65 "a"} } }|]
+
+        selectCoinsWith @_ @'Shelley ctx source (payment :| []) transform >>= flip verify
+            [ expectResponseCode HTTP.status400
+            , expectErrorMessage errMsg400TxMetadataStringTooLong
+            ]
+
+    it "WALLETS_COIN_SELECTION_06a - can redeem rewards from self" $ \ctx -> runResourceT $ do
+        (source,_) <- rewardWallet ctx
+        addr:_ <- fmap (view #id) <$> listAddresses @n ctx source
+
+        let amount = Quantity minUTxOValue
+        let payment = AddressAmount addr amount mempty
+        let transform = addField "withdrawal" ("self" :: String)
+
+        selectCoinsWith @_ @'Shelley ctx source (payment :| []) transform >>= flip verify
+            [ expectResponseCode HTTP.status200
+            , expectField #withdrawals
+                (`shouldSatisfy` ((== 1) . length))
+            , expectField #withdrawals
+                (`shouldSatisfy` all
+                    (isValidDerivationPath purposeCIP1852 . view #derivationPath))
+            ]
+
+    it "WALLETS_COIN_SELECTION_06b - can redeem rewards from other" $ \ctx -> runResourceT $ do
+        (_, mnemonic) <- rewardWallet ctx
+        source <- fixtureWallet ctx
+        addr:_ <- fmap (view #id) <$> listAddresses @n ctx source
+
+        let amount = Quantity minUTxOValue
+        let payment = AddressAmount addr amount mempty
+        let transform = addField "withdrawal" (mnemonicToText mnemonic)
+
+        selectCoinsWith @_ @'Shelley ctx source (payment :| []) transform >>= flip verify
+            [ expectResponseCode HTTP.status200
+            , expectField #withdrawals
+                (`shouldSatisfy` ((== 1) . length))
+            , expectField #withdrawals
+                (`shouldSatisfy` all
+                    (isValidDerivationPath purposeBIP44 . view #derivationPath))
+            ]
+
+isValidDerivationPath
+    :: Index 'Hardened 'PurposeK
+    -> NonEmpty (ApiT DerivationIndex)
+    -> Bool
+isValidDerivationPath purpose path =
+    ( length path == 5 )
+    &&
+    ( [ ApiT $ DerivationIndex $ getIndex purpose
+      , ApiT $ DerivationIndex $ getIndex coinTypeAda
+      , ApiT $ DerivationIndex $ getIndex @'Hardened minBound
+      ] `isPrefixOf` NE.toList path
+    )
