@@ -49,6 +49,7 @@
           (hsPkgs."text-class" or (errorHandler.buildDepError "text-class"))
           (hsPkgs."time" or (errorHandler.buildDepError "time"))
           (hsPkgs."unliftio" or (errorHandler.buildDepError "unliftio"))
+          (hsPkgs."unliftio-core" or (errorHandler.buildDepError "unliftio-core"))
           (hsPkgs."wai-app-static" or (errorHandler.buildDepError "wai-app-static"))
           (hsPkgs."warp" or (errorHandler.buildDepError "warp"))
           ];
@@ -61,8 +62,10 @@
             (hsPkgs."cardano-wallet-test-utils" or (errorHandler.buildDepError "cardano-wallet-test-utils"))
             (hsPkgs."hspec" or (errorHandler.buildDepError "hspec"))
             (hsPkgs."hspec-core" or (errorHandler.buildDepError "hspec-core"))
+            (hsPkgs."hspec-expectations-lifted" or (errorHandler.buildDepError "hspec-expectations-lifted"))
             (hsPkgs."silently" or (errorHandler.buildDepError "silently"))
             (hsPkgs."unliftio" or (errorHandler.buildDepError "unliftio"))
+            (hsPkgs."unliftio-core" or (errorHandler.buildDepError "unliftio-core"))
             ];
           build-tools = [
             (hsPkgs.buildPackages.hspec-discover or (pkgs.buildPackages.hspec-discover or (errorHandler.buildToolDepError "hspec-discover")))
