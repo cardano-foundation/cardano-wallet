@@ -1,6 +1,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE TypeApplications #-}
@@ -18,6 +19,7 @@
 
 module Cardano.Wallet.TokenMetadata.MockServer
     ( withMetadataServer
+    , withMetadataServerOptions
     , queryServerStatic
     , queryServerReloading
 
@@ -57,9 +59,17 @@ import Cardano.Wallet.Unsafe
 import Control.Monad.IO.Class
     ( liftIO )
 import Data.Aeson
-    ( FromJSON (..), ToJSON (..), eitherDecodeFileStrict, object, (.=) )
+    ( FromJSON (..)
+    , ToJSON (..)
+    , Value (..)
+    , eitherDecodeFileStrict
+    , object
+    , (.=)
+    )
 import Data.ByteArray.Encoding
     ( Base (Base16, Base64), convertToBase )
+import Data.Function
+    ( (&) )
 import Data.Generics.Internal.VL.Lens
     ( view )
 import Data.HashSet
@@ -72,12 +82,26 @@ import GHC.TypeLits
     ( KnownSymbol )
 import Network.URI
     ( parseURI )
+import Network.Wai
+    ( Middleware )
 import Network.Wai.Handler.Warp
-    ( withApplication )
+    ( Port
+    , defaultSettings
+    , runSettings
+    , setBeforeMainLoop
+    , setPort
+    , withApplication
+    )
 import Servant.API
     ( (:>), JSON, Post, ReqBody )
 import Servant.Server
     ( Handler (..), Server, serve )
+import UnliftIO.Async
+    ( race )
+import UnliftIO.Exception
+    ( throwString )
+import UnliftIO.MVar
+    ( newEmptyMVar, putMVar, takeMVar )
 
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
@@ -93,20 +117,42 @@ import qualified Data.Text.Encoding as T
 type MetadataQueryApi = "metadata" :> "query"
     :> ReqBody '[JSON] BatchRequest :> Post '[JSON] BatchResponse
 
--- | Start a metadata server.
+-- | Start a metadata server on any random port. See 'withMetadataServerOptions'
+-- for running a server with middleware and predefined port.
 --
 -- To be used with @queryServerStatic@.
 withMetadataServer
     :: IO (Server MetadataQueryApi)
     -> (TokenMetadataServer -> IO a)
     -> IO a
-withMetadataServer mkServer action = withApplication app (action . mkUrl)
+withMetadataServer = withMetadataServerOptions id Nothing
+
+-- | Start a metadata server.
+withMetadataServerOptions
+    :: Middleware
+    -> Maybe Port
+    -> IO (Server MetadataQueryApi)
+    -> (TokenMetadataServer -> IO a)
+    -> IO a
+withMetadataServerOptions middleware mPort mkServer action = case mPort of
+    Just port -> do
+        app <- mkApp
+        started <- newEmptyMVar
+        let settings = defaultSettings
+                & setBeforeMainLoop (putMVar started port)
+                & setPort port
+        race (runSettings settings app) (takeMVar started >>= action') >>= \case
+            Right a -> pure a
+            Left () -> throwString "Unexpected: runSettings exited"
+
+    Nothing -> withApplication mkApp action'
   where
-    app = serve (Proxy @MetadataQueryApi) <$> mkServer
+    mkApp = middleware . serve (Proxy @MetadataQueryApi) <$> mkServer
     mkUrl port = TokenMetadataServer
         $ fromMaybe (error "withMetadataServer: bad uri")
         $ parseURI
         $ "http://localhost:" ++ show port ++ "/"
+    action' = action . mkUrl
 
 -- | Serve a json file.
 --
@@ -136,6 +182,8 @@ queryServerStatic golden = do
         inProps (Just p) = if (propertyName p) `Set.member` props then Just p else Nothing
         inProps Nothing = Nothing
 
+-- | Like 'queryServerStatic', except that the JSON file will be reloaded before
+-- every request.
 queryServerReloading :: FilePath -> BatchRequest -> Handler BatchResponse
 queryServerReloading golden req = do
     handler <- liftIO $ queryServerStatic golden
@@ -155,16 +203,19 @@ assetIdFromSubject =
 instance FromJSON BatchRequest where
 
 instance ToJSON SubjectProperties where
-   toJSON (SubjectProperties s o (n,d,a,u,l,t)) = object
+   toJSON (SubjectProperties s o (n,d,a,u,l,t)) = object $
        [ "subject" .= s
        , "owner" .= o
-       , "name" .= n
+       ] ++ optionals
+       [ "name" .= n
        , "description" .= d
        , "acronym" .= a
        , "url" .= u
        , "logo" .= l
        , "unit" .= t
        ]
+     where
+       optionals = filter ((/= Null) . snd)
 
 instance ToJSON (PropertyValue name) => ToJSON (Property name) where
     toJSON (Property v s) = object
