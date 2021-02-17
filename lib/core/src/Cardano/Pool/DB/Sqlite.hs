@@ -41,13 +41,12 @@ import Cardano.DB.Sqlite
     , ManualMigration (..)
     , MigrationError
     , SqliteContext (..)
-    , destroyConnectionPool
     , fieldName
     , handleConstraint
-    , newConnectionPool
     , newInMemorySqliteContext
     , newSqliteContext
     , tableName
+    , withConnectionPool
     )
 import Cardano.Pool.DB
     ( DBLayer (..), ErrPointAlreadyExists (..), determinePoolLifeCycleStatus )
@@ -139,7 +138,7 @@ import System.FilePath
 import System.Random
     ( newStdGen )
 import UnliftIO.Exception
-    ( bracket, catch, throwIO )
+    ( catch, throwIO )
 
 import qualified Cardano.Pool.DB.Sqlite.TH as TH
 import qualified Cardano.Wallet.Primitive.Types as W
@@ -210,14 +209,12 @@ withDecoratedDBLayer dbDecorator tr mDatabaseDir ti action = do
             ctx <- newInMemorySqliteContext tr' createViews migrateAll
             action (decorateDBLayer dbDecorator $ newDBLayer tr ti ctx)
 
-        Just fp -> do
-            let acquirePool = newConnectionPool tr' fp
-            handlingPersistError tr fp $
-                bracket acquirePool destroyConnectionPool $ \pool -> do
-                    ctx <- newSqliteContext tr' pool createViews migrateAll fp
-                    ctx & either
-                        throwIO
-                        (action . decorateDBLayer dbDecorator . newDBLayer tr ti)
+        Just fp -> handlingPersistError tr fp $
+            withConnectionPool tr' fp $ \pool -> do
+                ctx <- newSqliteContext tr' pool createViews migrateAll fp
+                ctx & either
+                    throwIO
+                    (action . decorateDBLayer dbDecorator . newDBLayer tr ti)
   where
     tr' = contramap MsgGeneric tr
 

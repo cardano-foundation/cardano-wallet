@@ -29,8 +29,7 @@ module Cardano.DB.Sqlite
 
     -- * ConnectionPool
     , ConnectionPool
-    , newConnectionPool
-    , destroyConnectionPool
+    , withConnectionPool
 
     -- * Helpers
     , chunkSize
@@ -122,7 +121,7 @@ import System.Log.FastLogger
 import UnliftIO.Compat
     ( handleIf, mkRetryHandler )
 import UnliftIO.Exception
-    ( Exception, bracket_, handleJust, mask_, tryJust )
+    ( Exception, bracket, bracket_, handleJust, mask_, tryJust )
 import UnliftIO.MVar
     ( newMVar, withMVarMasked )
 
@@ -416,6 +415,14 @@ instance MatchMigrationError SqliteException where
 --
 newtype ManualMigration = ManualMigration
     { executeManualMigration :: Sqlite.Connection -> IO () }
+
+withConnectionPool
+    :: Tracer IO DBLog
+    -> FilePath
+    -> (ConnectionPool -> IO a)
+    -> IO a
+withConnectionPool tr fp =
+    bracket (newConnectionPool tr fp) destroyConnectionPool
 
 newConnectionPool
     :: Tracer IO DBLog
