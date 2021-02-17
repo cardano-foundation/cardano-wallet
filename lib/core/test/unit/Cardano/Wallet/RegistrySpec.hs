@@ -38,7 +38,9 @@ import Data.Text
 import GHC.Generics
     ( Generic )
 import Test.Hspec
-    ( Spec, describe, it, parallel, shouldBe, shouldReturn )
+    ( Spec, describe, it, shouldBe, shouldReturn )
+import Test.Hspec.Extra
+    ( parallel )
 import Test.QuickCheck
     ( Arbitrary (..), Positive (..), Property, generate, property )
 import Test.QuickCheck.Monadic

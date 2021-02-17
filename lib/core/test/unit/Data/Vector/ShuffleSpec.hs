@@ -11,7 +11,9 @@ import Data.Vector.Shuffle
 import System.Random
     ( mkStdGen )
 import Test.Hspec
-    ( Spec, describe, it, parallel )
+    ( Spec, describe, it )
+import Test.Hspec.Extra
+    ( parallel )
 import Test.QuickCheck
     ( Confidence (..)
     , NonEmptyList (..)

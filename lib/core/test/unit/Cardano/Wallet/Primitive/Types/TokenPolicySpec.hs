@@ -20,7 +20,9 @@ import Data.ByteString
 import Data.Text
     ( Text )
 import Test.Hspec
-    ( Spec, SpecWith, describe, it, parallel, shouldBe )
+    ( Spec, SpecWith, describe, it, shouldBe )
+import Test.Hspec.Extra
+    ( parallel )
 
 import qualified Data.Text as T
 

@@ -43,7 +43,9 @@ import Data.Maybe
 import Data.Proxy
     ( Proxy (..) )
 import Test.Hspec
-    ( Spec, describe, it, parallel )
+    ( Spec, describe, it )
+import Test.Hspec.Extra
+    ( parallel )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Gen

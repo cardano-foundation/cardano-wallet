@@ -160,7 +160,9 @@ import Data.Word.Odd
 import GHC.Generics
     ( Generic )
 import Test.Hspec
-    ( Spec, describe, it, parallel, shouldBe, shouldNotBe, shouldSatisfy )
+    ( Spec, describe, it, shouldBe, shouldNotBe, shouldSatisfy )
+import Test.Hspec.Extra
+    ( parallel )
 import Test.QuickCheck
     ( Arbitrary (..)
     , NonEmptyList (..)

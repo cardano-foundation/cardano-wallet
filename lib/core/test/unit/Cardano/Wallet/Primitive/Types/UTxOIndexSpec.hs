@@ -42,7 +42,9 @@ import Data.Ratio
 import Data.Word
     ( Word8 )
 import Test.Hspec
-    ( Spec, describe, it, parallel )
+    ( Spec, describe, it )
+import Test.Hspec.Extra
+    ( parallel )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Confidence (..)

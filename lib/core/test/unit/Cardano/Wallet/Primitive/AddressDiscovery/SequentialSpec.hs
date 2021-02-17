@@ -101,7 +101,9 @@ import Data.Typeable
 import Data.Word
     ( Word8 )
 import Test.Hspec
-    ( Spec, describe, expectationFailure, it, parallel )
+    ( Spec, describe, expectationFailure, it )
+import Test.Hspec.Extra
+    ( parallel )
 import Test.QuickCheck
     ( Arbitrary (..)
     , InfiniteList (..)

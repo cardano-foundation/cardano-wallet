@@ -161,12 +161,13 @@ import Test.Hspec
     , anyErrorCall
     , describe
     , it
-    , parallel
     , shouldBe
     , shouldNotSatisfy
     , shouldSatisfy
     , shouldThrow
     )
+import Test.Hspec.Extra
+    ( parallel )
 import Test.QuickCheck
     ( Arbitrary (..)
     , NonNegative (..)

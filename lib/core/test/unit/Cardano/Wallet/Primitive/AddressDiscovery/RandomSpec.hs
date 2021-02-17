@@ -62,7 +62,9 @@ import Data.Word
 import System.Random
     ( mkStdGen )
 import Test.Hspec
-    ( Expectation, Spec, describe, it, parallel, shouldBe )
+    ( Expectation, Spec, describe, it, shouldBe )
+import Test.Hspec.Extra
+    ( parallel )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Gen

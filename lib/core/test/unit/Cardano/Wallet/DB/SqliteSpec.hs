@@ -213,7 +213,6 @@ import Test.Hspec
     , beforeWith
     , describe
     , it
-    , parallel
     , shouldBe
     , shouldNotBe
     , shouldNotContain
@@ -222,6 +221,8 @@ import Test.Hspec
     , shouldThrow
     , xit
     )
+import Test.Hspec.Extra
+    ( parallel )
 import Test.QuickCheck
     ( Property, generate, property, (==>) )
 import Test.QuickCheck.Monadic

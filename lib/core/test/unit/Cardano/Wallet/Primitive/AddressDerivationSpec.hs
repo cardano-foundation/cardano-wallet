@@ -58,7 +58,9 @@ import Data.Either
 import Data.Proxy
     ( Proxy (..) )
 import Test.Hspec
-    ( Spec, describe, it, parallel, shouldBe, shouldSatisfy )
+    ( Spec, describe, it, shouldBe, shouldSatisfy )
+import Test.Hspec.Extra
+    ( parallel )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Gen

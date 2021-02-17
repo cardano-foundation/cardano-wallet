@@ -32,7 +32,9 @@ import System.Directory
 import System.FilePath
     ( (</>) )
 import Test.Hspec
-    ( Spec, before, describe, it, parallel, shouldBe )
+    ( Spec, before, describe, it, shouldBe )
+import Test.Hspec.Extra
+    ( parallel )
 import Test.Utils.Paths
     ( getTestData )
 import Test.Utils.Trace
