@@ -34,8 +34,8 @@ The [iohk-monitoring-framework][] defines a number of [severity levels](https://
 This design was influenced by the [`syslog` severity
 level](https://en.wikipedia.org/wiki/Syslog#Severity_level) taxonomy.
 
-These are probably more than we need. To keep things simple, we will
-use only the first 5.
+These are probably more than we need. To keep things simple, we
+usually only log with the first 5:
 
 | **Severity Level** | **Meaning** |
 | -- | -- |
