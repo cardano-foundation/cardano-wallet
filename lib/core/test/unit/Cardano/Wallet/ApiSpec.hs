@@ -123,7 +123,9 @@ import Servant.API
 import Servant.API.Verbs
     ( NoContentVerb, ReflectMethod (..) )
 import Test.Hspec
-    ( Spec, describe, it, parallel, runIO, xdescribe )
+    ( Spec, describe, it, runIO, xdescribe )
+import Test.Hspec.Extra
+    ( parallel )
 import Type.Reflection
     ( typeOf )
 

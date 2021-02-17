@@ -101,7 +101,9 @@ import Fmt
 import GHC.Generics
     ( Generic )
 import Test.Hspec
-    ( Spec, describe, it, parallel, shouldSatisfy )
+    ( Spec, describe, it, shouldSatisfy )
+import Test.Hspec.Extra
+    ( parallel )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Gen

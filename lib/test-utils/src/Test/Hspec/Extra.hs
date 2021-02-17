@@ -14,6 +14,7 @@ module Test.Hspec.Extra
     , it
     , itWithCustomTimeout
     , flakyBecauseOf
+    , parallel
     ) where
 
 import Prelude
@@ -38,6 +39,8 @@ import Test.Hspec
     )
 import Test.HUnit.Lang
     ( HUnitFailure (..), assertFailure, formatFailureReason )
+import Test.Utils.Windows
+    ( isWindows )
 import UnliftIO.Async
     ( async, race, wait )
 import UnliftIO.Concurrent
@@ -46,6 +49,8 @@ import UnliftIO.Exception
     ( catch, finally, throwIO, throwString )
 import UnliftIO.MVar
     ( MVar, newEmptyMVar, putMVar, takeMVar, tryPutMVar, tryTakeMVar )
+
+import qualified Test.Hspec as Hspec
 
 -- | Run a 'bracket' resource acquisition function around all the specs. The
 -- bracket opens before the first test case and closes after the last test case.
@@ -176,3 +181,9 @@ flakyBecauseOf ticketOrReason =
     lookupEnv "RUN_FLAKY_TESTS" >>= \case
         Just _ -> return ()
         Nothing -> pendingWith $ "Flaky: " <> ticketOrReason
+
+-- | Like Hspec's parallel, except on Windows.
+parallel :: SpecWith a -> SpecWith a
+parallel
+    | isWindows = id
+    | otherwise = Hspec.parallel

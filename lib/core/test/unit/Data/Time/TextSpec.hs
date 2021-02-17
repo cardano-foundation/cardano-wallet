@@ -23,7 +23,9 @@ import Data.Time.Text
     , utcTimeToText
     )
 import Test.Hspec
-    ( Spec, describe, it, parallel, shouldBe, shouldSatisfy )
+    ( Spec, describe, it, shouldBe, shouldSatisfy )
+import Test.Hspec.Extra
+    ( parallel )
 import Test.QuickCheck
     ( property, (.&&.), (===) )
 import Test.Utils.Time
@@ -32,7 +34,7 @@ import Test.Utils.Time
 import qualified Data.Text as T
 
 spec :: Spec
-spec = describe "Conversion of UTC time values to and from text" $ do
+spec = parallel $ describe "Conversion of UTC time values to and from text" $ do
 
     parallel $ describe "Roundtrip conversion to and from text succeeds for all formats" $
         forM_ allSupportedFormats $ \tf ->

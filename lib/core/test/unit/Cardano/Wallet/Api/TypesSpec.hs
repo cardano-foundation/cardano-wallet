@@ -296,7 +296,9 @@ import System.Environment
 import System.FilePath
     ( (</>) )
 import Test.Hspec
-    ( Spec, SpecWith, describe, it, parallel, shouldBe )
+    ( Spec, SpecWith, describe, it, shouldBe )
+import Test.Hspec.Extra
+    ( parallel )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Gen

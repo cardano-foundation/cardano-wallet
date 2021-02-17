@@ -46,7 +46,9 @@ import Data.Quantity
 import Ouroboros.Consensus.BlockchainTime.WallClock.Types
     ( RelativeTime (..) )
 import Test.Hspec
-    ( Spec, describe, it, parallel, pendingWith, shouldBe )
+    ( Spec, describe, it, pendingWith, shouldBe )
+import Test.Hspec.Extra
+    ( parallel )
 import Test.QuickCheck
     ( Arbitrary (..), counterexample, property, withMaxSuccess )
 import Test.QuickCheck.Monadic

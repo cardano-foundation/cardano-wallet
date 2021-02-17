@@ -27,9 +27,11 @@ import Data.Typeable
 import System.FilePath
     ( (</>) )
 import Test.Hspec
-    ( Spec, describe, it, parallel )
+    ( Spec, describe, it )
 import Test.Hspec.Core.QuickCheck
     ( modifyMaxSuccess )
+import Test.Hspec.Extra
+    ( parallel )
 import Test.QuickCheck
     ( Arbitrary (..), Property, property, (===), (==>) )
 import Test.QuickCheck.Classes

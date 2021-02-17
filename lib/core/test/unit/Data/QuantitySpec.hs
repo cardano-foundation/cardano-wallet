@@ -30,7 +30,9 @@ import Data.Ratio
 import Data.Text.Class
     ( FromText (..), TextDecodingError (..), ToText (..) )
 import Test.Hspec
-    ( Spec, describe, it, parallel, shouldBe, shouldSatisfy )
+    ( Spec, describe, it, shouldBe, shouldSatisfy )
+import Test.Hspec.Extra
+    ( parallel )
 import Test.QuickCheck
     ( Arbitrary (..), checkCoverage, choose, cover, property, (===) )
 import Test.Text.Roundtrip

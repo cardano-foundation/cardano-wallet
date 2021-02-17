@@ -9,7 +9,9 @@ import Prelude
 import Data.Function.Utils
     ( applyN )
 import Test.Hspec
-    ( Spec, describe, it, parallel )
+    ( Spec, describe, it )
+import Test.Hspec.Extra
+    ( parallel )
 import Test.QuickCheck
     ( NonNegative (..), property, withMaxSuccess, (===) )
 

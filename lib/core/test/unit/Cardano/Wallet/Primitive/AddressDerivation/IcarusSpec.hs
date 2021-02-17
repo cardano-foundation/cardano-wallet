@@ -45,7 +45,9 @@ import Cardano.Wallet.Primitive.AddressDerivationSpec
 import Cardano.Wallet.Primitive.Types.Address
     ( Address )
 import Test.Hspec
-    ( Spec, describe, it, parallel )
+    ( Spec, describe, it )
+import Test.Hspec.Extra
+    ( parallel )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Property

@@ -49,7 +49,9 @@ import Data.Text
 import Data.Word
     ( Word32, Word64 )
 import Test.Hspec
-    ( Expectation, Spec, describe, it, parallel, shouldBe )
+    ( Expectation, Spec, describe, it, shouldBe )
+import Test.Hspec.Extra
+    ( parallel )
 import Test.QuickCheck
     ( Arbitrary (..)
     , Property

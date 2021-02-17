@@ -8,26 +8,28 @@ import Data.Time.Utils
     ( utcTimePred, utcTimeSucc )
 import Test.Hspec
     ( Spec, describe, it )
+import Test.Hspec.Extra
+    ( parallel )
 import Test.QuickCheck
     ( property, withMaxSuccess, (===) )
 import Test.Utils.Time
     ( getUniformTime )
 
 spec :: Spec
-spec = describe "Manipulation of time values." $ do
+spec = parallel $ describe "Manipulation of time values." $ do
 
-    it "utcTimePred . utcTimeSucc == id" $
+    parallel $ it "utcTimePred . utcTimeSucc == id" $
         withMaxSuccess 10000 $ property $ \t ->
             utcTimePred (utcTimeSucc (getUniformTime t)) === getUniformTime t
 
-    it "utcTimeSucc . utcTimePred == id" $
+    parallel $ it "utcTimeSucc . utcTimePred == id" $
         withMaxSuccess 10000 $ property $ \t ->
             utcTimeSucc (utcTimePred (getUniformTime t)) === getUniformTime t
 
-    it "utcTimeSucc t > t" $
+    parallel $ it "utcTimeSucc t > t" $
         withMaxSuccess 10000 $ property $ \t ->
             utcTimeSucc (getUniformTime t) > getUniformTime t
 
-    it "utcTimePred t < t" $
+    parallel $ it "utcTimePred t < t" $
         withMaxSuccess 10000 $ property $ \t ->
             utcTimePred (getUniformTime t) < getUniformTime t

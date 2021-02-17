@@ -78,15 +78,9 @@ import Ouroboros.Consensus.Config.SecurityParam
 import Ouroboros.Consensus.Util.Counting
     ( exactlyTwo )
 import Test.Hspec
-    ( Spec
-    , describe
-    , it
-    , parallel
-    , runIO
-    , shouldBe
-    , shouldReturn
-    , shouldSatisfy
-    )
+    ( Spec, describe, it, runIO, shouldBe, shouldReturn, shouldSatisfy )
+import Test.Hspec.Extra
+    ( parallel )
 import Test.QuickCheck
     ( Arbitrary (..), Property, choose, property, withMaxSuccess, (===) )
 import Test.QuickCheck.Arbitrary.Generic
