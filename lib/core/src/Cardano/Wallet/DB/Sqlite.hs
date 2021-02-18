@@ -146,8 +146,6 @@ import Data.Functor
     ( (<&>) )
 import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
-import Data.IORef
-    ( modifyIORef', newIORef, readIORef )
 import Data.List
     ( nub, sortOn, unzip3 )
 import Data.List.Split
@@ -1114,7 +1112,7 @@ newDBLayerWith
         , PersistPrivateKey (k 'RootK)
         )
     => CacheBehavior
-       -- ^ Option to disable IORef caching.
+       -- ^ Option to disable caching.
     -> TimeInterpreter IO
        -- ^ Time interpreter for slot to time conversions.
     -> SqliteContext
@@ -1138,34 +1136,29 @@ newDBLayerWith cacheBehavior ti SqliteContext{runQuery} = do
     -- short-circuit the most frequent database lookups.
     --
     -- NOTE2
-    -- We use an IORef here without fearing race-conditions because every
-    -- database query can only be run within calls to `atomically` which
-    -- enforces that there's only a single thread executing a given
-    -- `SqlPersistT`.
-    --
-    -- NOTE3
     -- When 'cacheBehavior' is set to 'NoCache', we simply never write anything
     -- to the cache, which forces 'selectLatestCheckpoint' to always perform a
     -- database lookup.
-    cache <- newIORef Map.empty
+    cache <- newMVar Map.empty
 
     let readCache :: W.WalletId -> SqlPersistT IO (Maybe (W.Wallet s))
-        readCache wid = Map.lookup wid <$> liftIO (readIORef cache)
+        readCache wid = Map.lookup wid <$> readMVar cache
+
+    let maybeUpdateCache m = case cacheBehavior of
+            NoCache -> pure ()
+            CacheLatestCheckpoint -> modifyMVar_ cache (pure . m)
 
     let writeCache :: W.WalletId -> Maybe (W.Wallet s) -> SqlPersistT IO ()
-        writeCache wid = case cacheBehavior of
-            NoCache -> const (pure ())
-            CacheLatestCheckpoint -> \case
-                Nothing ->
-                    liftIO $ modifyIORef' cache $ Map.delete wid
-                Just cp -> do
+        writeCache wid = maybeUpdateCache . \case
+                Nothing -> Map.delete wid
+                Just cp ->
                     let tip = cp ^. #currentTip . #blockHeight
-                    let alter = \case
+                        alter = \case
                             Just old | tip < old ^. #currentTip .  #blockHeight ->
                                 Just old
                             _ ->
                                 Just cp
-                    liftIO $ modifyIORef' cache $ Map.alter alter wid
+                    in Map.alter alter wid
 
     let selectLatestCheckpoint
             :: W.WalletId

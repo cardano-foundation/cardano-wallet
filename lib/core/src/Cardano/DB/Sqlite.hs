@@ -140,7 +140,7 @@ import qualified Database.Sqlite as Sqlite
 -- | Context for the SQLite 'DBLayer'.
 data SqliteContext = SqliteContext
     { runQuery :: forall a. SqlPersistT IO a -> IO a
-    -- ^ 'safely' run a query with logging and lock-protection
+    -- ^ Run a query with a connection from the pool.
     , dbFile :: Maybe FilePath
     -- ^ The actual database file, if any. If none, runs in-memory
     }
