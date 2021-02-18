@@ -1,6 +1,6 @@
 # On branch push, download the windows testing bundle build and run it.
 
-name: cardano-wallet Windows Tests
+name: windows
 
 on:
   push:
@@ -13,7 +13,7 @@ on:
 jobs:
   setup:
     runs-on: windows-2016
-    name: Download windows testing bundle
+    name: Download testing bundle
     steps:
       - name: 'Wait for Hydra build'
         uses: rvl/hydra-build-products-action@master
