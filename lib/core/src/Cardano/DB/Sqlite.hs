@@ -110,7 +110,7 @@ import Database.Persist.Sql
     , runSqlConn
     )
 import Database.Persist.Sqlite
-    ( SqlBackend, SqlPersistT, mkSqliteConnectionInfo, wrapConnectionInfo )
+    ( SqlBackend, SqlPersistT, wrapConnection )
 import Database.Sqlite
     ( Error (ErrorConstraint), SqliteException (SqliteException) )
 import Fmt
@@ -172,9 +172,9 @@ newInMemorySqliteContext
     -> Migration
     -> IO SqliteContext
 newInMemorySqliteContext tr manualMigrations autoMigration = do
-    conn <- Sqlite.open connStr
+    conn <- Sqlite.open ":memory:"
     mapM_ (`executeManualMigration` conn) manualMigrations
-    unsafeBackend <- wrapConnectionInfo info conn (queryLogFunc tr)
+    unsafeBackend <- wrapConnection conn (queryLogFunc tr)
     void $ runSqlConn (runMigrationQuiet autoMigration) unsafeBackend
 
     let observe :: forall a. IO a -> IO a
@@ -187,11 +187,7 @@ newInMemorySqliteContext tr manualMigrations autoMigration = do
     let runQuery :: forall a. SqlPersistT IO a -> IO a
         runQuery cmd = withMVarMasked lock (observe . runSqlConn cmd)
 
-    return $ SqliteContext { runQuery, dbFile }
-  where
-    dbFile = Nothing
-    connStr = sqliteConnStr dbFile
-    info = mkSqliteConnectionInfo connStr
+    return $ SqliteContext { runQuery, dbFile = Nothing }
 
 -- | Sets up query logging and timing, runs schema migrations if necessary and
 -- provide a safe 'SqliteContext' for interacting with the database.
@@ -385,14 +381,11 @@ newConnectionPool
     -> FilePath
     -> IO ConnectionPool
 newConnectionPool tr fp = do
-    let connStr = sqliteConnStr (Just fp)
-    let info = mkSqliteConnectionInfo connStr
-
     traceWith tr $ MsgStartConnectionPool fp
 
     let acquireConnection = do
-            conn <- Sqlite.open connStr
-            (,conn) <$> wrapConnectionInfo info conn (queryLogFunc tr)
+            conn <- Sqlite.open (T.pack fp)
+            (,conn) <$> wrapConnection conn (queryLogFunc tr)
 
     let releaseConnection = \(backend, _) -> do
             destroySqliteBackend tr backend fp
@@ -412,9 +405,6 @@ destroyConnectionPool :: Tracer IO DBLog -> FilePath -> Pool a -> IO ()
 destroyConnectionPool tr fp pool = do
     traceWith tr (MsgStopConnectionPool fp)
     destroyAllResources pool
-
-sqliteConnStr :: Maybe FilePath -> Text
-sqliteConnStr = maybe ":memory:" T.pack
 
 {-------------------------------------------------------------------------------
                                     Migrations
