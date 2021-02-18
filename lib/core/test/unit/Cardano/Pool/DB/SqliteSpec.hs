@@ -72,7 +72,7 @@ test_migrationFromv20191216 =
                 withDBLayer tr (Just path) ti $ \_ -> pure ()
                 withDBLayer tr (Just path) ti $ \_ -> pure ()
 
-            let databaseConnMsg  = filter isMsgWillOpenDB logs
+            let databaseConnMsg  = filter isMsgOpenDB logs
             let databaseResetMsg = filter (== MsgGeneric MsgDatabaseReset) logs
             let migrationErrMsg  = filter isMsgMigrationError logs
 
@@ -80,9 +80,9 @@ test_migrationFromv20191216 =
             length databaseResetMsg `shouldBe` 1
             length migrationErrMsg  `shouldBe` 1
 
-isMsgWillOpenDB :: PoolDbLog -> Bool
-isMsgWillOpenDB (MsgGeneric (MsgWillOpenDB _)) = True
-isMsgWillOpenDB _ = False
+isMsgOpenDB :: PoolDbLog -> Bool
+isMsgOpenDB (MsgGeneric (MsgStartConnectionPool _)) = True
+isMsgOpenDB _ = False
 
 isMsgMigrationError :: PoolDbLog -> Bool
 isMsgMigrationError (MsgGeneric (MsgMigrations (Left _))) = True

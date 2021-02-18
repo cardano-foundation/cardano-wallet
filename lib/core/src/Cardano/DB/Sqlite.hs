@@ -146,32 +146,11 @@ data SqliteContext = SqliteContext
 
 type ConnectionPool = Pool (SqlBackend, Sqlite.Connection)
 
--- | Error type for when migrations go wrong after opening a database.
-newtype MigrationError = MigrationError
-    { getMigrationErrorMessage :: Text }
-    deriving (Show, Eq, Generic, ToJSON)
-
-instance Exception MigrationError
-
 -- | Run a raw query from the outside using an instantiate DB layer. This is
 -- completely unsafe because it breaks the abstraction boundary and can have
 -- disastrous results on the database consistency.
 unsafeRunQuery :: SqliteContext -> SqlPersistT IO a -> IO a
 unsafeRunQuery = runQuery
-
-queryLogFunc :: Tracer IO DBLog -> LogFunc
-queryLogFunc tr _loc _source level str = traceWith tr (MsgQuery msg sev)
-  where
-    -- Filter out parameters which appear after the statement semicolon.
-    -- They will contain sensitive material that we don't want in the log.
-    stmt = B8.takeWhile (/= ';') $ fromLogStr str
-    msg = T.decodeUtf8 stmt
-    sev = case level of
-        LevelDebug -> Debug
-        LevelInfo -> Info
-        LevelWarn -> Warning
-        LevelError -> Error
-        LevelOther _ -> Warning
 
 -- | Run an action, and convert any Sqlite constraints exception into the given
 -- error result. No other exceptions are handled.
@@ -392,6 +371,61 @@ updateForeignKeysSetting trace connection desiredValue = do
         ForeignKeysEnabled  -> "ON"
         ForeignKeysDisabled -> "OFF"
 
+withConnectionPool
+    :: Tracer IO DBLog
+    -> FilePath
+    -> (ConnectionPool -> IO a)
+    -> IO a
+withConnectionPool tr fp =
+    bracket (newConnectionPool tr fp) (destroyConnectionPool tr fp)
+
+newConnectionPool
+    :: Tracer IO DBLog
+    -> FilePath
+    -> IO ConnectionPool
+newConnectionPool tr fp = do
+    let connStr = sqliteConnStr (Just fp)
+    let info = mkSqliteConnectionInfo connStr
+
+    traceWith tr $ MsgStartConnectionPool fp
+
+    let acquireConnection = do
+            conn <- Sqlite.open connStr
+            (,conn) <$> wrapConnectionInfo info conn (queryLogFunc tr)
+
+    let releaseConnection = \(backend, _) -> do
+            destroySqliteBackend tr backend fp
+
+    createPool
+        acquireConnection
+        releaseConnection
+        numberOfStripes
+        timeToLive
+        maximumConnections
+  where
+    numberOfStripes = 1
+    maximumConnections = 10
+    timeToLive = 600 {- 10 minutes -} :: NominalDiffTime
+
+destroyConnectionPool :: Tracer IO DBLog -> FilePath -> Pool a -> IO ()
+destroyConnectionPool tr fp pool = do
+    traceWith tr (MsgStopConnectionPool fp)
+    destroyAllResources pool
+
+sqliteConnStr :: Maybe FilePath -> Text
+sqliteConnStr = maybe ":memory:" T.pack
+
+{-------------------------------------------------------------------------------
+                                    Migrations
+-------------------------------------------------------------------------------}
+
+-- | Error type for when migrations go wrong after opening a database.
+newtype MigrationError = MigrationError
+    { getMigrationErrorMessage :: Text }
+    deriving (Show, Eq, Generic, ToJSON)
+
+instance Exception MigrationError
+
 class Exception e => MatchMigrationError e where
     -- | Exception predicate for migration errors.
     matchMigrationError :: e -> Maybe MigrationError
@@ -415,78 +449,6 @@ instance MatchMigrationError SqliteException where
 --
 newtype ManualMigration = ManualMigration
     { executeManualMigration :: Sqlite.Connection -> IO () }
-
-withConnectionPool
-    :: Tracer IO DBLog
-    -> FilePath
-    -> (ConnectionPool -> IO a)
-    -> IO a
-withConnectionPool tr fp =
-    bracket (newConnectionPool tr fp) destroyConnectionPool
-
-newConnectionPool
-    :: Tracer IO DBLog
-    -> FilePath
-    -> IO ConnectionPool
-newConnectionPool tr fp = do
-    let connStr = sqliteConnStr (Just fp)
-    let info = mkSqliteConnectionInfo connStr
-
-    traceWith tr $ MsgWillOpenDB (Just fp)
-
-    let acquireConnection = do
-            conn <- Sqlite.open connStr
-            (,conn) <$> wrapConnectionInfo info conn (queryLogFunc tr)
-
-    let releaseConnection = \(backend, _) -> do
-            destroySqliteBackend tr backend fp
-
-    createPool
-        acquireConnection
-        releaseConnection
-        numberOfStripes
-        timeToLive
-        maximumConnections
-  where
-    numberOfStripes = 1
-    maximumConnections = 10
-    timeToLive = 600 {- 10 minutes -} :: NominalDiffTime
-
-destroyConnectionPool :: Pool a -> IO ()
-destroyConnectionPool = destroyAllResources
-
-sqliteConnStr :: Maybe FilePath -> Text
-sqliteConnStr = maybe ":memory:" T.pack
-
-{-------------------------------------------------------------------------------
-                                    Logging
--------------------------------------------------------------------------------}
-
-data DBLog
-    = MsgMigrations (Either MigrationError Int)
-    | MsgQuery Text Severity
-    | MsgRun BracketLog
-    | MsgCloseSingleConnection FilePath
-    | MsgDestroyConnectionPool FilePath
-    | MsgWillOpenDB (Maybe FilePath)
-    | MsgDatabaseReset
-    | MsgIsAlreadyClosed Text
-    | MsgStatementAlreadyFinalized Text
-    | MsgWaitingForDatabase Text (Maybe Int)
-    | MsgRemovingInUse Text Int
-    | MsgRemoving Text
-    | MsgRemovingDatabaseFile Text DeleteSqliteDatabaseLog
-    | MsgManualMigrationNeeded DBField Text
-    | MsgManualMigrationNotNeeded DBField
-    | MsgUpdatingForeignKeysSetting ForeignKeysSetting
-    | MsgFoundDatabase FilePath Text
-    | MsgUnknownDBFile FilePath
-    | MsgRetryOnBusy Int
-    deriving (Generic, Show, Eq, ToJSON)
-
-{-------------------------------------------------------------------------------
-                                    Logging
--------------------------------------------------------------------------------}
 
 data DBField where
     DBField
@@ -534,6 +496,32 @@ instance Eq DBField where
 instance ToJSON DBField where
     toJSON = Aeson.String . fieldName
 
+{-------------------------------------------------------------------------------
+                                    Logging
+-------------------------------------------------------------------------------}
+
+data DBLog
+    = MsgMigrations (Either MigrationError Int)
+    | MsgQuery Text Severity
+    | MsgRun BracketLog
+    | MsgCloseSingleConnection FilePath
+    | MsgStartConnectionPool FilePath
+    | MsgStopConnectionPool FilePath
+    | MsgDatabaseReset
+    | MsgIsAlreadyClosed Text
+    | MsgStatementAlreadyFinalized Text
+    | MsgWaitingForDatabase Text (Maybe Int)
+    | MsgRemovingInUse Text Int
+    | MsgRemoving Text
+    | MsgRemovingDatabaseFile Text DeleteSqliteDatabaseLog
+    | MsgManualMigrationNeeded DBField Text
+    | MsgManualMigrationNotNeeded DBField
+    | MsgUpdatingForeignKeysSetting ForeignKeysSetting
+    | MsgFoundDatabase FilePath Text
+    | MsgUnknownDBFile FilePath
+    | MsgRetryOnBusy Int
+    deriving (Generic, Show, Eq, ToJSON)
+
 instance HasPrivacyAnnotation DBLog
 instance HasSeverityAnnotation DBLog where
     getSeverityAnnotation ev = case ev of
@@ -543,8 +531,8 @@ instance HasSeverityAnnotation DBLog where
         MsgQuery _ sev -> sev
         MsgRun _ -> Debug
         MsgCloseSingleConnection _ -> Info
-        MsgDestroyConnectionPool _ -> Notice
-        MsgWillOpenDB _ -> Info
+        MsgStartConnectionPool _ -> Info
+        MsgStopConnectionPool _ -> Info
         MsgDatabaseReset -> Notice
         MsgIsAlreadyClosed _ -> Warning
         MsgStatementAlreadyFinalized _ -> Warning
@@ -570,15 +558,17 @@ instance ToText DBLog where
         MsgMigrations (Left err) ->
             "Failed to migrate the database: " <> getMigrationErrorMessage err
         MsgQuery stmt _ -> stmt
-        MsgRun b -> "Running database action - " <> toText b
-        MsgWillOpenDB fp -> "Will open db at " <> (maybe "in-memory" T.pack fp)
+        MsgRun b ->
+            "Running database action - " <> toText b
+        MsgStartConnectionPool fp ->
+            "Starting connection pool for " <> T.pack fp
+        MsgStopConnectionPool fp ->
+            "Stopping database connection pool " <> T.pack fp
         MsgDatabaseReset ->
             "Non backward compatible database found. Removing old database \
             \and re-creating it from scratch. Ignore the previous error."
         MsgCloseSingleConnection fp ->
             "Closing single database connection ("+|fp|+")"
-        MsgDestroyConnectionPool fp ->
-            "Destroy database connection pool ("+|fp|+")"
         MsgIsAlreadyClosed msg ->
             "Attempted to close an already closed connection: " <> msg
         MsgStatementAlreadyFinalized msg ->
@@ -623,6 +613,21 @@ instance ToText DBLog where
         MsgRetryOnBusy n ->
             let nF = ordinalF n in
             "Retrying db query because db was busy for the " +| nF |+ " time."
+
+-- | Produce a persistent 'LogFunc' backed by 'Tracer IO DBLog'
+queryLogFunc :: Tracer IO DBLog -> LogFunc
+queryLogFunc tr _loc _source level str = traceWith tr (MsgQuery msg sev)
+  where
+    -- Filter out parameters which appear after the statement semicolon.
+    -- They will contain sensitive material that we don't want in the log.
+    stmt = B8.takeWhile (/= ';') $ fromLogStr str
+    msg = T.decodeUtf8 stmt
+    sev = case level of
+        LevelDebug -> Debug
+        LevelInfo -> Info
+        LevelWarn -> Warning
+        LevelError -> Error
+        LevelOther _ -> Warning
 
 {-------------------------------------------------------------------------------
                                Extra DB Helpers
