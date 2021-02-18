@@ -671,7 +671,7 @@ postShelleyWallet
     -> WalletPostData
     -> Handler ApiWallet
 postShelleyWallet ctx generateKey body = do
-    let ds acc = mkDelegationState 8 0 acc
+    let ds acc = mkDelegationState 1 0 acc
     let state = mkSeqStateFromRootXPrv (rootXPrv, pwd) purposeCIP1852 g ds
     void $ liftHandler $ initWorker @_ @s @k ctx wid
         (\wrk -> W.createWallet  @(WorkerCtx ctx) @s @k wrk wid wName state)

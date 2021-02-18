@@ -271,7 +271,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
             unsafeRequest @[ApiStakePool] ctx
             (Link.listStakePools arbitraryStake) Empty
         rJoin <- joinStakePool @n ctx pool (src, fixturePassphrase)
-        let nKeys = 8
+        let nKeys = 1
         verify rJoin
             [ expectResponseCode HTTP.status202
             , expectField (#status . #getApiT) (`shouldBe` Pending)

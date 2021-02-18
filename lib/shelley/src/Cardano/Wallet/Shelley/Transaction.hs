@@ -39,8 +39,6 @@ module Cardano.Wallet.Shelley.Transaction
 
 import Prelude
 
-import Debug.Trace
-
 import Cardano.Address.Derivation
     ( XPrv, toXPub )
 import Cardano.Api.Typed
@@ -271,7 +269,7 @@ mkTx networkId payload ttl rewardCreds keyFrom cs fees era = do
     let withResolvedInputs tx = tx
             { resolvedInputs = second txOutCoin <$> F.toList (inputsSelected cs)
             }
-    Right $ trace ("*** Tx *** " <> show unsigned) $ first withResolvedInputs $ case era of
+    Right $ first withResolvedInputs $ case era of
         ShelleyBasedEraShelley -> sealShelleyTx fromShelleyTx signed
         ShelleyBasedEraAllegra -> sealShelleyTx fromAllegraTx signed
         ShelleyBasedEraMary    -> sealShelleyTx fromMaryTx signed
@@ -314,12 +312,7 @@ newTransactionLayer networkId = TransactionLayer
                             _ -> 0
                     let fees = unsafeSubtractCoin selection delta
                             (mconcat $ replicate numberOfRegistrations $ stakeKeyDeposit pp)
-                    let msg = mconcat
-                            [ "Actions: " <> show actions
-                            , " | "
-                            , "Certs: " <> show (length (stakeCreds))
-                            ]
-                    trace msg $mkTx networkId payload ttl wdrlCreds keystore selection fees
+                    mkTx networkId payload ttl wdrlCreds keystore selection fees
 
     , initSelectionCriteria = \pp ctx utxoAvailable outputsUnprepared ->
         let
