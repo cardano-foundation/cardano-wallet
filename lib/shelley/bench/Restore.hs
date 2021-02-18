@@ -667,7 +667,7 @@ dummySeedFromName = SomeMnemonic @24
 
 traceProgressForPlotting :: Tracer IO Text -> Tracer IO WalletLog
 traceProgressForPlotting tr = Tracer $ \case
-    MsgFollow (MsgApplyBlocks bs) -> do
+    MsgFollow (MsgApplyBlocks _nodeTip bs) -> do
         let tip = pretty . getQuantity . blockHeight . NE.last $ bs
         time <- pretty . utcTimeToPOSIXSeconds <$> getCurrentTime
         traceWith tr (time <> " " <> tip)

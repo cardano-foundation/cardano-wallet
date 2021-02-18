@@ -71,6 +71,8 @@ import Data.Functor
     ( ($>) )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
+import Data.Quantity
+    ( Quantity (..) )
 import Data.Text
     ( Text )
 import Data.Text.Class
@@ -348,7 +350,7 @@ follow nl tr cps yield header =
 
         Right (RollForward cursor' tip (blockFirst : blocksRest)) -> do
             let blocks = blockFirst :| blocksRest
-            traceWith tr $ MsgApplyBlocks (header <$> blocks)
+            traceWith tr $ MsgApplyBlocks tip (header <$> blocks)
             action <- yield blocks tip
             traceWith tr $ MsgFollowAction (fmap show action)
             continueWith cursor' True action
@@ -407,7 +409,7 @@ data FollowLog
     | MsgUnhandledException Text
     | MsgNextBlockFailed ErrGetBlock
     | MsgSynced
-    | MsgApplyBlocks (NonEmpty BlockHeader)
+    | MsgApplyBlocks BlockHeader (NonEmpty BlockHeader)
     | MsgWillRollback SlotNo
     | MsgWillIgnoreRollback SlotNo Text -- Reason
     deriving (Show, Eq)
@@ -423,13 +425,16 @@ instance ToText FollowLog where
             T.pack $ "Failed to get next blocks: " <> show e
         MsgSynced ->
             "In sync with the node."
-        MsgApplyBlocks hdrs ->
-            let (slFst, slLst) =
-                    ( slotNo $ NE.head hdrs
-                    , slotNo $ NE.last hdrs
-                    )
+        MsgApplyBlocks tipHdr hdrs ->
+            let slot = pretty . slotNo
+                buildRange (x :| []) = x
+                buildRange xs = NE.head xs <> ".." <> NE.last xs
+                blockHeights = pretty . getQuantity . blockHeight <$> hdrs
             in mconcat
-                [ "Applying blocks [", pretty slFst, " ... ", pretty slLst, "]" ]
+                [ "Applying block numbers [", buildRange blockHeights, "]"
+                , "  Wallet/node slots: ", slot (NE.last hdrs)
+                , "/", slot tipHdr
+                ]
         MsgWillRollback sl ->
             "Will rollback to " <> pretty sl
         MsgWillIgnoreRollback sl reason ->
@@ -444,6 +449,6 @@ instance HasSeverityAnnotation FollowLog where
         MsgUnhandledException _ -> Error
         MsgNextBlockFailed _ -> Warning
         MsgSynced -> Debug
-        MsgApplyBlocks _ -> Info
+        MsgApplyBlocks _ _ -> Info
         MsgWillRollback _ -> Debug
         MsgWillIgnoreRollback _ _ -> Debug
