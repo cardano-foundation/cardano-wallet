@@ -550,7 +550,7 @@ x-assetMetadataUnit: &assetMetadataUnit
       type: integer
       description: |
         The number of digits after the decimal point.
-      minimum: 0
+      minimum: 1
       maximum: 19
     name:
       type: string
