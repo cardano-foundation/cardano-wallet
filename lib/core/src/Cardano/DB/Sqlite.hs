@@ -121,7 +121,7 @@ import System.Log.FastLogger
 import UnliftIO.Compat
     ( handleIf, mkRetryHandler )
 import UnliftIO.Exception
-    ( Exception, bracket, bracket_, handleJust, mask_, tryJust )
+    ( Exception, bracket, bracket_, handleJust, tryJust )
 import UnliftIO.MVar
     ( newMVar, withMVarMasked )
 
@@ -218,11 +218,6 @@ newSqliteContext tr pool manualMigrations autoMigration fp = do
             let observe :: IO a -> IO a
                 observe = bracketTracer (contramap MsgRun tr)
 
-               -- runSqlConn is guarded with a lock because it's not threadsafe in
-               -- general.It is also masked, so that the SqlBackend state is not
-               -- corrupted if a thread gets cancelled while running a query.
-               -- See: https://github.com/yesodweb/persistent/issues/981
-               --
                -- Note that `withResource` does already mask async exception but
                -- only for dealing with the pool resource acquisition. The action
                -- is then ran unmasked with the acquired resource. If an
@@ -230,7 +225,7 @@ newSqliteContext tr pool manualMigrations autoMigration fp = do
                -- resource is NOT placed back in the pool.
                 runQuery :: SqlPersistT IO a -> IO a
                 runQuery cmd = withResource pool $
-                    mask_ . observe . retryOnBusy tr . runSqlConn cmd . fst
+                    observe . retryOnBusy tr . runSqlConn cmd . fst
 
             in Right $ SqliteContext { runQuery, dbFile = Just fp }
 
