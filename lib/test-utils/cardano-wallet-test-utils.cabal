@@ -49,6 +49,7 @@ library
     , text-class
     , time
     , unliftio
+    , unliftio-core
     , wai-app-static
     , warp
   hs-source-dirs:
@@ -61,6 +62,7 @@ library
       Test.Utils.Laws.PartialOrd
       Test.Utils.Paths
       Test.Utils.Roundtrip
+      Test.Utils.Resource
       Test.Utils.StaticServer
       Test.Utils.Time
       Test.Utils.Trace

@@ -39,90 +39,33 @@ import Test.Hspec
     )
 import Test.HUnit.Lang
     ( HUnitFailure (..), assertFailure, formatFailureReason )
+import Test.Utils.Resource
+    ( unBracket )
 import Test.Utils.Windows
     ( isWindows )
 import UnliftIO.Async
-    ( async, race, wait )
+    ( race )
 import UnliftIO.Concurrent
     ( threadDelay )
 import UnliftIO.Exception
-    ( catch, finally, throwIO, throwString )
+    ( catch, throwIO )
 import UnliftIO.MVar
-    ( MVar, newEmptyMVar, putMVar, takeMVar, tryPutMVar, tryTakeMVar )
+    ( newEmptyMVar, tryPutMVar, tryTakeMVar )
 
 import qualified Test.Hspec as Hspec
 
 -- | Run a 'bracket' resource acquisition function around all the specs. The
--- bracket opens before the first test case and closes after the last test case.
+-- resource is allocated just before the first test case and released
+-- immediately after the last test case.
 --
--- It works by actually spawning a new thread responsible for the resource
--- acquisition, passing the resource along to the parent threads via a shared
--- MVar. Then, there's a bit of logic to synchronize both threads and make sure
--- that:
---
--- a) The 'Resource Owner' thread is terminated when the main thread is done
---    with the resource.
---
--- b) The 'Main Thread' only exists when the resource owner has released the
---    resource. Exiting the main thread before the 'Resource Owner' has
---    released the resource could left a hanging resource open. This is
---    particularly annoying when the resource is a running process!
---
---     Main Thread            Resource Owner
---          x
---          |         Spawn
---          |----------------------->x
---          |                        |
---          |                        |-- Acquire resource
---          |     Send Resource      |
---          |<-----------------------|
---          |                        |
---          |                        |
---         ...                      ... Await main thread signal
---          |                        |
---          |                        |
---          |      Send Signal       |
---          |----------------------->|
---          |                        |
---          |                       ... Release resource
---          |      Send Done         |
---          |<-----------------------|
---          |                       Exit
---          |
---         Exit
---
+-- Each test is given the resource as a function parameter.
 aroundAll
-    :: forall a.
-       (HasCallStack)
+    :: forall a. HasCallStack
     => (ActionWith a -> IO ())
     -> SpecWith a
     -> Spec
 aroundAll acquire =
-    beforeAll setup . afterAll snd . beforeWith (pure . fst)
-  where
-    setup :: IO (a, IO ())
-    setup = do
-        resource <- newEmptyMVar
-        release  <- newEmptyMVar
-        done     <- newEmptyMVar
-
-        pid <- async $ flip finally (unlock done) $ acquire $ \a -> do
-            putMVar resource a
-            await release
-
-        let cleanup = do
-                unlock release
-                await done
-
-        race (wait pid) (takeMVar resource) >>= \case
-            Left _ -> throwString "aroundAll: failed to setup"
-            Right a -> pure (a, cleanup)
-
-    await :: MVar () -> IO ()
-    await = takeMVar
-
-    unlock  :: MVar () -> IO ()
-    unlock = flip putMVar ()
+    beforeAll (unBracket acquire) . afterAll snd . beforeWith fst
 
 -- | A drop-in replacement for 'it' that'll automatically retry a scenario once
 -- if it fails, to cope with potentially flaky tests, if the environment
