@@ -4,7 +4,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TupleSections #-}
@@ -193,11 +192,9 @@ import Data.Word
 import Fmt
     ( build, padLeftF, padRightF, pretty, (+|), (|+) )
 import System.Directory
-    ( doesFileExist, getFileSize, removeFile )
+    ( doesFileExist, getFileSize )
 import System.FilePath
     ( takeFileName )
-import System.IO.Temp
-    ( emptySystemTempFile )
 import System.IO.Unsafe
     ( unsafePerformIO )
 import System.Random
@@ -206,6 +203,8 @@ import Test.Utils.Resource
     ( unBracket )
 import UnliftIO.Exception
     ( bracket, throwIO )
+import UnliftIO.Temporary
+    ( withSystemTempFile )
 
 import qualified Cardano.BM.Configuration.Model as CM
 import qualified Cardano.BM.Data.BackendKind as CM
@@ -659,20 +658,19 @@ withDB
     => Tracer IO DBLog
     -> (DBLayer IO s k -> Benchmark)
     -> Benchmark
-withDB tr bm = envWithCleanup (setupDB tr) cleanupDB (\(BenchEnv _ _ _ db) -> bm db)
+withDB tr bm = envWithCleanup (setupDB tr) cleanupDB (\(BenchEnv _ _ db) -> bm db)
 
 data BenchEnv s k = BenchEnv
-    { _connectionPool :: !ConnectionPool
-    , _destroyPool :: IO ()
-    , _ctx :: !SqliteContext
+    { cleanupDB :: IO ()
+    , _dbFile :: FilePath
     , _dbLayer :: !(DBLayer IO s k)
     }
 
 instance NFData (BenchEnv s k) where
-    rnf (BenchEnv p _ ctx db) =
-        deepseq (rnf p) $
-        deepseq (rnf ctx) $
-        deepseq (rnf db) ()
+    rnf (BenchEnv _ fp db) = deepseq (rnf fp) $ deepseq (rnf db) ()
+
+withTempSqliteFile :: (FilePath -> IO a) -> IO a
+withTempSqliteFile action = withSystemTempFile "bench.db" $ \fp _ -> action fp
 
 setupDB
     :: forall s k.
@@ -683,12 +681,14 @@ setupDB
     => Tracer IO DBLog
     -> IO (BenchEnv s k)
 setupDB tr = do
-    f <- emptySystemTempFile "bench.db"
-    (createPool, destroyPool) <- unBracket (withConnectionPool tr f)
-    pool <- createPool
-    ctx  <- either throwIO pure =<< newSqliteContext tr pool [] migrateAll f
-    db   <- newDBLayerWith NoCache singleEraInterpreter ctx
-    pure $ BenchEnv pool destroyPool ctx db
+    (createPool, destroyPool) <- unBracket withSetup
+    uncurry (BenchEnv destroyPool) <$> createPool
+  where
+    withSetup action = withTempSqliteFile $ \fp ->
+        withConnectionPool tr fp $ \pool -> do
+            ctx <- either throwIO pure =<< newSqliteContext tr pool [] migrateAll
+            db <- newDBLayerWith NoCache singleEraInterpreter ctx
+            action (fp, db)
 
 singleEraInterpreter :: TimeInterpreter IO
 singleEraInterpreter = hoistTimeInterpreter (pure . runIdentity) $
@@ -700,16 +700,6 @@ singleEraInterpreter = hoistTimeInterpreter (pure . runIdentity) $
         , getActiveSlotCoefficient = ActiveSlotCoefficient 1
         , getSecurityParameter = Quantity 2160
         })
-
-cleanupDB :: BenchEnv s k -> IO ()
-cleanupDB (BenchEnv _ destroyPool SqliteContext{dbFile} _) = do
-    destroyPool
-    let f = fromMaybe ":memory:" dbFile
-    mapM_ remove [f, f <> "-shm", f <> "-wal"]
-  where
-    remove f = doesFileExist f >>= \case
-        True -> removeFile f
-        False -> pure ()
 
 -- | Cleans the database before running the benchmark.
 -- It also cleans the database after running the benchmark. That is just to
@@ -789,8 +779,7 @@ txHistoryDiskSpaceTests tr = do
 
 benchDiskSize :: Tracer IO DBLog -> (DBLayerBench -> IO ()) -> IO ()
 benchDiskSize tr action = bracket (setupDB tr) cleanupDB
-    $ \(BenchEnv _ destroyPool SqliteContext{dbFile} db) -> do
-        let f = fromMaybe ":memory:" dbFile
+    $ \(BenchEnv destroyPool f db) -> do
         action db
         mapM_ (printFileSize "") [f, f <> "-shm", f <> "-wal"]
         destroyPool

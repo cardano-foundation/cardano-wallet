@@ -252,16 +252,17 @@ withDBLayer
     -> IO a
 withDBLayer tr defaultFieldValues mDatabaseDir ti action =
     case mDatabaseDir of
-        Nothing -> do
-            db <- newInMemorySqliteContext tr [] migrateAll >>= newDBLayer ti
-            action db
+        Nothing ->
+            newInMemorySqliteContext tr [] migrateAll
+                >>= newDBLayer ti
+                >>= action
 
         Just fp -> do
             let manualMigrations = migrateManually tr (Proxy @k) defaultFieldValues
             let autoMigrations   = migrateAll
             withConnectionPool tr fp $ \pool -> do
-                ctx <- newSqliteContext tr pool manualMigrations autoMigrations fp
-                either throwIO (action <=< newDBLayer ti) ctx
+                res <- newSqliteContext tr pool manualMigrations autoMigrations
+                either throwIO (action <=< newDBLayer ti) res
 
 -- | Instantiate a 'DBFactory' from a given directory
 newDBFactory

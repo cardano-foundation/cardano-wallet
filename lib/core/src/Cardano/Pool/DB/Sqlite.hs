@@ -211,7 +211,7 @@ withDecoratedDBLayer dbDecorator tr mDatabaseDir ti action = do
 
         Just fp -> handlingPersistError tr fp $
             withConnectionPool tr' fp $ \pool -> do
-                ctx <- newSqliteContext tr' pool createViews migrateAll fp
+                ctx <- newSqliteContext tr' pool createViews migrateAll
                 ctx & either
                     throwIO
                     (action . decorateDBLayer dbDecorator . newDBLayer tr ti)

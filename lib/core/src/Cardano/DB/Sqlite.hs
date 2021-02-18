@@ -138,11 +138,9 @@ import qualified Database.Sqlite as Sqlite
 -------------------------------------------------------------------------------}
 
 -- | Context for the SQLite 'DBLayer'.
-data SqliteContext = SqliteContext
+newtype SqliteContext = SqliteContext
     { runQuery :: forall a. SqlPersistT IO a -> IO a
     -- ^ Run a query with a connection from the pool.
-    , dbFile :: Maybe FilePath
-    -- ^ The actual database file, if any. If none, runs in-memory
     }
 
 type ConnectionPool = Pool (SqlBackend, Sqlite.Connection)
@@ -187,7 +185,7 @@ newInMemorySqliteContext tr manualMigrations autoMigration = do
     let runQuery :: forall a. SqlPersistT IO a -> IO a
         runQuery cmd = withMVarMasked lock (observe . runSqlConn cmd)
 
-    return $ SqliteContext { runQuery, dbFile = Nothing }
+    return $ SqliteContext { runQuery }
 
 -- | Sets up query logging and timing, runs schema migrations if necessary and
 -- provide a safe 'SqliteContext' for interacting with the database.
@@ -196,9 +194,8 @@ newSqliteContext
     -> ConnectionPool
     -> [ManualMigration]
     -> Migration
-    -> FilePath
     -> IO (Either MigrationError SqliteContext)
-newSqliteContext tr pool manualMigrations autoMigration fp = do
+newSqliteContext tr pool manualMigrations autoMigration = do
     migrationResult <- withResource pool $ \(backend, conn) -> do
         let executeAutoMigration = runSqlConn (runMigrationQuiet autoMigration) backend
         migrationResult <- withForeignKeysDisabled tr conn $ do
@@ -224,7 +221,7 @@ newSqliteContext tr pool manualMigrations autoMigration fp = do
                 runQuery cmd = withResource pool $
                     observe . retryOnBusy tr . runSqlConn cmd . fst
 
-            in Right $ SqliteContext { runQuery, dbFile = Just fp }
+            in Right $ SqliteContext { runQuery }
 
 -- | Finalize database statements and close the database connection.
 --
