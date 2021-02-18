@@ -49,11 +49,14 @@ import Cardano.Address.Script
     )
 import Cardano.Address.Style.Shelley
     ( Credential (..)
+    , Role (..)
     , delegationAddress
-    , deriveMultisigPublicKey
+    , deriveMultisigForDelegationPublicKey
+    , deriveMultisigForPaymentPublicKey
     , hashKey
     , liftXPub
     , mkNetworkDiscriminant
+    , paymentAddress
     )
 import Cardano.Crypto.Wallet
     ( XPub )
@@ -80,8 +83,6 @@ import Data.Either
     ( isRight )
 import Data.Map.Strict
     ( Map )
-import Data.Maybe
-    ( fromMaybe )
 import GHC.Generics
     ( Generic )
 
@@ -90,19 +91,50 @@ import qualified Data.List as L
 import qualified Data.Map.Strict as Map
 
 {-------------------------------------------------------------------------------
-                                 State
+                                Shared State
 -------------------------------------------------------------------------------}
 
--- | A state to keep track of script templates, account public keys of other cosigners,
--- | verification keys used and unused fitting in the address pool gap,
--- | and script addresses unused/used with the corresponding indices.
+-- | Shared wallets are a new kind of wallet owned by one or more co-signers.
+-- | In this type of wallet, addresses are defined by two monetary scripts
+-- | (one for ownership of assets, one for ownership of stake).
+--
+-- | Shared wallet is instantiated with an account public key, derivation path needed to
+-- | recreate it,  and a complete set of information that is needed to discover shared
+-- | addresses. In order to enable the discovery the following is needed:
+--
+-- | - a way to determine what range of indices are checked on the
+-- |   ledger. Mechanism of address pool gap, adopted for sequential wallets,
+-- |   is used. The idea is to track all indices starting from 0 and up to N.
+-- |   N is variable as addresses are discovered (and marked as Used in consequence).
+-- |   The pool of addresses is enlarged in such way that the number of consecutive
+-- |   Unsed addresses equals to address pool gap.
+--
+-- | - script template for payment credential contains information about all collected
+-- |   account public keys for all parties engaged, here named cosigners. Also the skeleton
+-- |   determining script structure is provided.  In this sense script is predetermined from
+-- |   the beginning and can variate only in verification key part. The places where a specific
+-- |   cosigner is present is to be replaced with the derived verfication keys from the cosigner's
+-- |   account public key and the index that was chosen. The index for derivation is the same
+-- |   for each cosigner's derivation. Moreover, script template could be translated into
+-- |   a corresponding script only when account public keys for all cosigners specified in script
+-- |   are collected. Hence, this module provides methods for updating script templates that handles
+-- |   the act of collecting account public key for cosigner. Finally, verification keys are derived
+-- |   using role=3 for payment credential.
+--
+-- | - optional script template for delegation credential contains all information as in case of
+-- |   the script template for payment credential. One different is that the verification keys are derived
+-- |   using role=4 for delegation credential.
+--
+-- | When both script are present, the base address (with both credential) is expected to be discovered.
+-- | When script template for delegation credential is missing then enterprise address (non-stakable) is
+-- | expected.
 data SharedState (n :: NetworkDiscriminant) k = SharedState
     { shareStateAccountKey :: k 'AccountK XPub
-        -- ^ Reward account public key associated with this wallet
+        -- ^ Account public key associated with this shared wallet
     , shareStateDerivationPrefix :: !DerivationPrefix
         -- ^ Derivation path prefix from a root key up to the account key
     , shareStateGap :: !AddressPoolGap
-        -- ^ Number of first keys that are used to produce candidate addresses
+        -- ^ Number of consecutive unused addresses available at all time.
     , shareStatePaymentTemplate :: !ScriptTemplate
         -- ^ Script template together with a map of account keys and cosigners
         -- for payment credential
@@ -172,10 +204,11 @@ newSharedState accXPub accIx g pTemplate dTemplate =
     unsafeSharedState accXPub accIx g pTemplate dTemplate Map.empty
 
 replaceCosignersWithVerKeys
-    :: ScriptTemplate
-    -> Int
+    :: Role
+    -> ScriptTemplate
+    -> Index 'Soft 'ScriptK
     -> Script KeyHash
-replaceCosignersWithVerKeys (ScriptTemplate xpubs scriptTemplate) index =
+replaceCosignersWithVerKeys role (ScriptTemplate xpubs scriptTemplate) ix =
     replaceCosigner scriptTemplate
   where
     replaceCosigner :: Script Cosigner -> Script KeyHash
@@ -188,10 +221,14 @@ replaceCosignersWithVerKeys (ScriptTemplate xpubs scriptTemplate) index =
         ActiveUntilSlot s    -> ActiveUntilSlot s
     toKeyHash :: Cosigner -> KeyHash
     toKeyHash c =
-        let ix = toEnum index
+        let ix' = toEnum (fromEnum ix)
             (Just accXPub) = liftXPub <$> Map.lookup c xpubs
-            verKey = deriveMultisigPublicKey accXPub ix
+            verKey = deriveMultisigPublicKey accXPub ix'
         in hashKey verKey
+    deriveMultisigPublicKey = case role of
+        MultisigForPayment -> deriveMultisigForPaymentPublicKey
+        MultisigForDelegation -> deriveMultisigForDelegationPublicKey
+        _ ->  error "replaceCosignersWithVerKeys is supported only for role=3 and role=4"
 
 constructAddressFromIx
     :: CA.NetworkTag
@@ -202,14 +239,23 @@ constructAddressFromIx
 constructAddressFromIx tag pTemplate dTemplate ix =
     let delegationCredential = DelegationFromScript . toScriptHash
         paymentCredential = PaymentFromScript . toScriptHash
-        createAddress pScript' dScript' =
+        createBaseAddress pScript' dScript' =
             CA.unAddress $
             delegationAddress tag
             (paymentCredential pScript') (delegationCredential dScript')
-        dTemplate' = fromMaybe pTemplate dTemplate
-        pScript = replaceCosignersWithVerKeys pTemplate (fromEnum ix)
-        dScript = replaceCosignersWithVerKeys dTemplate' (fromEnum ix)
-    in Address $ createAddress pScript dScript
+        createEnterpriseAddress pScript' =
+            CA.unAddress $
+            paymentAddress tag
+            (paymentCredential pScript')
+        pScript =
+            replaceCosignersWithVerKeys MultisigForPayment pTemplate ix
+        dScript s =
+            replaceCosignersWithVerKeys MultisigForDelegation s ix
+    in Address $ case dTemplate of
+        Just dTemplate' ->
+            createBaseAddress pScript (dScript dTemplate')
+        Nothing ->
+            createEnterpriseAddress pScript
 
 addNotDiscoveredAddressToMap
     :: CA.NetworkTag
