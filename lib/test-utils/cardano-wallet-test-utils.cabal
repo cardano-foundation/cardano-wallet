@@ -82,8 +82,10 @@ test-suite unit
     , cardano-wallet-test-utils
     , hspec
     , hspec-core
+    , hspec-expectations-lifted
     , silently
     , unliftio
+    , unliftio-core
   build-tools:
       hspec-discover
   type:
