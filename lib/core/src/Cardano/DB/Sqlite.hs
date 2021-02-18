@@ -70,6 +70,7 @@ import Control.Retry
     ( RetryStatus (..)
     , constantDelay
     , limitRetriesByCumulativeDelay
+    , logRetries
     , recovering
     )
 import Control.Tracer
@@ -119,7 +120,7 @@ import GHC.Generics
 import System.Log.FastLogger
     ( fromLogStr )
 import UnliftIO.Compat
-    ( handleIf, mkRetryHandler )
+    ( handleIf )
 import UnliftIO.Exception
     ( Exception, bracket, bracket_, handleJust, tryJust )
 import UnliftIO.MVar
@@ -281,14 +282,19 @@ destroySqliteBackend tr sqlBackend dbFile = do
 --     available to process B to help it deal with SQLITE_BUSY errors.
 --
 retryOnBusy :: Tracer IO DBLog -> IO a -> IO a
-retryOnBusy tr action =
-    recovering policy (mkRetryHandler isBusy) $ \RetryStatus{rsIterNumber} -> do
-        when (rsIterNumber > 0) $ traceWith tr (MsgRetryOnBusy rsIterNumber)
-        action
+retryOnBusy tr action = recovering policy
+    [logRetries isBusy traceRetries]
+    (\st -> action <* trace MsgRetryDone st)
   where
-    isBusy (SqliteException name _ _) = pure (name == Sqlite.ErrorBusy)
     policy = limitRetriesByCumulativeDelay (60000*ms) $ constantDelay (25*ms)
     ms = 1000 -- microseconds in a millisecond
+
+    isBusy (SqliteException name _ _) = pure (name == Sqlite.ErrorBusy)
+
+    traceRetries retr _ = trace $ if retr then MsgRetry else MsgRetryGaveUp
+
+    trace m RetryStatus{rsIterNumber} = traceWith tr $
+        MsgRetryOnBusy rsIterNumber m
 
 -- | Run the given task in a context where foreign key constraints are
 --   /temporarily disabled/, before re-enabling them.
@@ -514,7 +520,10 @@ data DBLog
     | MsgUpdatingForeignKeysSetting ForeignKeysSetting
     | MsgFoundDatabase FilePath Text
     | MsgUnknownDBFile FilePath
-    | MsgRetryOnBusy Int
+    | MsgRetryOnBusy Int RetryLog
+    deriving (Generic, Show, Eq, ToJSON)
+
+data RetryLog = MsgRetry | MsgRetryGaveUp | MsgRetryDone
     deriving (Generic, Show, Eq, ToJSON)
 
 instance HasPrivacyAnnotation DBLog
@@ -540,9 +549,10 @@ instance HasSeverityAnnotation DBLog where
         MsgUpdatingForeignKeysSetting{} -> Debug
         MsgFoundDatabase _ _ -> Info
         MsgUnknownDBFile _ -> Notice
-        MsgRetryOnBusy n | n <= 1 -> Debug
-        MsgRetryOnBusy n | n <= 3 -> Notice
-        MsgRetryOnBusy _ -> Warning
+        MsgRetryOnBusy n _
+            | n <= 1 -> Debug
+            | n <= 3 -> Notice
+            | otherwise -> Warning
 
 instance ToText DBLog where
     toText = \case
@@ -605,9 +615,18 @@ instance ToText DBLog where
             [ "Found something other than a database file in "
             , "the database folder: ", T.pack file
             ]
-        MsgRetryOnBusy n ->
-            let nF = ordinalF n in
-            "Retrying db query because db was busy for the " +| nF |+ " time."
+        MsgRetryOnBusy n msg -> case msg of
+            MsgRetry
+                | n <= 10 ->
+                    "Retrying db query because db was busy " <>
+                    "for the " +| ordinalF n |+ " time."
+                | n == 11 ->
+                    "No more logs until it finishes..."
+                | otherwise -> ""
+            MsgRetryGaveUp -> "Gave up on retrying the db query."
+            MsgRetryDone
+                | n > 3 -> "DB query succeeded after " +| n |+ " attempts."
+                | otherwise -> ""
 
 -- | Produce a persistent 'LogFunc' backed by 'Tracer IO DBLog'
 queryLogFunc :: Tracer IO DBLog -> LogFunc
