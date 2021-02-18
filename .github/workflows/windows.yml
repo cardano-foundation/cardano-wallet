@@ -1,21 +1,31 @@
-name: cardano-wallet Windows Tests
+# On branch push, download the windows testing bundle build and run it.
+
+name: windows
 
 on:
   push:
     branches:
       - master
+      - bors/staging
+      - bors/trying
+  pull_request:
 
 jobs:
   setup:
     runs-on: windows-2016
-    name: Download windows testing bundle
+    name: Download testing bundle
     steps:
-      - name: Fetch Windows testing bundle
+      - name: 'Wait for Hydra build'
+        uses: rvl/hydra-build-products-action@master
+        id: hydra
+        with:
+          hydra: 'https://hydra.iohk.io'
+          jobs: 'cardano-wallet-tests-win64'
+      - name: 'Fetch Windows testing bundle'
         shell: powershell
         run: |
-          $url = "https://hydra.iohk.io/job/Cardano/cardano-wallet/cardano-wallet-tests-win64/latest/download/1"
           $output = "cardano-wallet-tests-win64.zip"
-          Invoke-WebRequest -Uri $url -OutFile $output
+          Invoke-WebRequest -Uri ${{ steps.hydra.outputs.buildProducts }} -OutFile $output
           Expand-Archive -LiteralPath $output -DestinationPath .
           Get-ChildItem
       - name: Save files
@@ -32,7 +42,7 @@ jobs:
       - uses: actions/download-artifact@v2
         with:
           name: cardano-wallet-tests-win64
-      - run: '.\\cardano-wallet-core-test-unit.exe --color'
+      - run: '.\\cardano-wallet-core-test-unit.exe --color --jobs 1 --skip /Cardano.Wallet.DB.Sqlite/ +RTS -M2G -N2'
 
   cardano-wallet-test-unit:
     name: 'cardano-wallet:unit'
@@ -78,6 +88,7 @@ jobs:
   cardano-wallet-test-integration:
     name: 'cardano-wallet:integration'
     needs: setup
+    if: startsWith(github.ref, 'refs/heads/bors/')
     runs-on: windows-2016
     steps:
       - uses: actions/download-artifact@v2
@@ -89,6 +100,7 @@ jobs:
   finish:
     name: Finish
     runs-on: windows-2016
+    if: always()
     needs:
       - cardano-wallet-core-test-unit
       - cardano-wallet-test-unit
@@ -101,7 +113,6 @@ jobs:
         with:
           fetch-depth: 0
       - name: "Advance windows-tests-pass and all-tests-pass branches"
+        if: github.ref == 'ref/heads/master'
         shell: bash
-        run: "bash .buildkite/push-branch.sh windows-tests-pass linux-tests-pass all-tests-pass"
-        env:
-          ACTIONS_SSH_KEY: "${{ secrets.ACTIONS_SSH_KEY }}"
+        run: 'bash .buildkite/push-branch.sh windows-tests-pass linux-tests-pass all-tests-pass'
