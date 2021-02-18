@@ -954,8 +954,13 @@ readNextWithdrawal ctx (Coin withdrawal) = do
     tl = ctx ^. transactionLayer @k
     nl = ctx ^. networkLayer
 
-    mkTxCtx wdrl =
-        defaultTransactionCtx { txWithdrawal = WithdrawalSelf wdrl }
+    mkTxCtx wdrl = defaultTransactionCtx
+        { txWithdrawal = WithdrawalSelf dummyAcct dummyPath wdrl }
+      where
+        dummyAcct =
+            RewardAccount mempty
+        dummyPath =
+            DerivationIndex 0 :| []
 
 readRewardAccount
     :: forall ctx s k (n :: NetworkDiscriminant) shelley.
@@ -1200,20 +1205,23 @@ assignChangeAddresses argGenChange sel = runState $ do
     pure $ sel { changeGenerated = changeOuts }
 
 selectionToUnsignedTx
-    :: forall s input output change.
+    :: forall s input output change withdrawal.
         ( IsOurs s Address
         , input ~ (TxIn, TxOut, NonEmpty DerivationIndex)
         , output ~ TxOut
         , change ~ TxChange (NonEmpty DerivationIndex)
+        , withdrawal ~ (RewardAccount, Coin, NonEmpty DerivationIndex)
         )
-    => SelectionResult TxOut
+    => Withdrawal
+    -> SelectionResult TxOut
     -> s
-    -> UnsignedTx input output change
-selectionToUnsignedTx sel s =
+    -> (UnsignedTx input output change withdrawal)
+selectionToUnsignedTx wdrl sel s =
     UnsignedTx
         (fullyQualifiedInputs $ inputsSelected sel)
         (outputsCovered sel)
         (fullyQualifiedChange $ changeGenerated sel)
+        (fullyQualifiedWithdrawal wdrl)
   where
     qualifyAddresses
         :: forall a t. (Traversable t)
@@ -1244,6 +1252,15 @@ selectionToUnsignedTx sel s =
           where
             amount = view #coin   bundle
             assets = view #tokens bundle
+
+    fullyQualifiedWithdrawal :: Withdrawal -> [withdrawal]
+    fullyQualifiedWithdrawal = \case
+        NoWithdrawal ->
+            []
+        WithdrawalSelf acct path c ->
+            [(acct, c, path)]
+        WithdrawalExternal acct path c ->
+            [(acct, c, path)]
 
 -- | Read a wallet checkpoint and index its UTxO, for 'selectAssets' and
 -- 'selectAssetsNoOutputs'.
@@ -1507,7 +1524,7 @@ mkTxMeta ti' blockHeader wState txCtx sel =
             -- transaction is considered 'Incoming' since it brings extra money
             -- to the wallet from elsewhere).
             & case txWithdrawal txCtx of
-                WithdrawalSelf c -> addCoin c
+                w@WithdrawalSelf{} -> addCoin (withdrawalToCoin w)
                 WithdrawalExternal{} -> Prelude.id
                 NoWithdrawal -> Prelude.id
     in do

@@ -1,0 +1,134 @@
+{
+    "seed": 9093527069919329440,
+    "samples": [
+        {
+            "amount": {
+                "quantity": 135,
+                "unit": "lovelace"
+            },
+            "derivation_path": [
+                "7",
+                "4",
+                "8"
+            ],
+            "stake_address": "<stake-addr>"
+        },
+        {
+            "amount": {
+                "quantity": 142,
+                "unit": "lovelace"
+            },
+            "derivation_path": [
+                "8",
+                "1",
+                "0",
+                "1",
+                "1",
+                "4",
+                "1"
+            ],
+            "stake_address": "<stake-addr>"
+        },
+        {
+            "amount": {
+                "quantity": 224,
+                "unit": "lovelace"
+            },
+            "derivation_path": [
+                "8",
+                "0"
+            ],
+            "stake_address": "<stake-addr>"
+        },
+        {
+            "amount": {
+                "quantity": 104,
+                "unit": "lovelace"
+            },
+            "derivation_path": [
+                "7",
+                "1",
+                "6",
+                "0",
+                "4"
+            ],
+            "stake_address": "<stake-addr>"
+        },
+        {
+            "amount": {
+                "quantity": 46,
+                "unit": "lovelace"
+            },
+            "derivation_path": [
+                "3",
+                "0",
+                "6"
+            ],
+            "stake_address": "<stake-addr>"
+        },
+        {
+            "amount": {
+                "quantity": 94,
+                "unit": "lovelace"
+            },
+            "derivation_path": [
+                "1",
+                "3",
+                "1"
+            ],
+            "stake_address": "<stake-addr>"
+        },
+        {
+            "amount": {
+                "quantity": 100,
+                "unit": "lovelace"
+            },
+            "derivation_path": [
+                "0",
+                "2",
+                "2",
+                "6",
+                "8"
+            ],
+            "stake_address": "<stake-addr>"
+        },
+        {
+            "amount": {
+                "quantity": 168,
+                "unit": "lovelace"
+            },
+            "derivation_path": [
+                "8",
+                "3",
+                "6"
+            ],
+            "stake_address": "<stake-addr>"
+        },
+        {
+            "amount": {
+                "quantity": 155,
+                "unit": "lovelace"
+            },
+            "derivation_path": [
+                "3",
+                "4",
+                "5",
+                "0",
+                "5",
+                "4"
+            ],
+            "stake_address": "<stake-addr>"
+        },
+        {
+            "amount": {
+                "quantity": 111,
+                "unit": "lovelace"
+            },
+            "derivation_path": [
+                "5",
+                "7"
+            ],
+            "stake_address": "<stake-addr>"
+        }
+    ]
+}

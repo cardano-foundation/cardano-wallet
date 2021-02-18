@@ -37,7 +37,7 @@ import Cardano.Address.Derivation
 import Cardano.Api.Typed
     ( AnyCardanoEra )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..), Passphrase )
+    ( Depth (..), DerivationIndex, Passphrase )
 import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     ( SelectionCriteria, SelectionResult, SelectionSkeleton )
 import Cardano.Wallet.Primitive.Types
@@ -46,6 +46,8 @@ import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
+import Cardano.Wallet.Primitive.Types.RewardAccount
+    ( RewardAccount )
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( TokenMap )
 import Cardano.Wallet.Primitive.Types.Tx
@@ -137,15 +139,15 @@ data TransactionCtx = TransactionCtx
     } deriving (Show, Eq)
 
 data Withdrawal
-    = WithdrawalSelf !Coin
-    | WithdrawalExternal !Coin
+    = WithdrawalSelf !RewardAccount !(NonEmpty DerivationIndex) !Coin
+    | WithdrawalExternal !RewardAccount !(NonEmpty DerivationIndex) !Coin
     | NoWithdrawal
     deriving (Show, Eq)
 
 withdrawalToCoin :: Withdrawal -> Coin
 withdrawalToCoin = \case
-    WithdrawalSelf c -> c
-    WithdrawalExternal c -> c
+    WithdrawalSelf _ _ c -> c
+    WithdrawalExternal _ _ c -> c
     NoWithdrawal -> Coin 0
 
 -- | A default context with sensible placeholder. Can be used to reduce
