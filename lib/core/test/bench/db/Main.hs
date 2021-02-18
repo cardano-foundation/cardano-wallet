@@ -57,9 +57,8 @@ import Cardano.DB.Sqlite
     ( ConnectionPool
     , DBLog
     , SqliteContext (..)
-    , destroyConnectionPool
-    , newConnectionPool
     , newSqliteContext
+    , withConnectionPool
     )
 import Cardano.Mnemonic
     ( EntropySize, SomeMnemonic (..), entropyToMnemonic, genEntropy )
@@ -149,7 +148,7 @@ import Cardano.Wallet.Primitive.Types.UTxO
 import Cardano.Wallet.Unsafe
     ( someDummyMnemonic, unsafeRunExceptT )
 import Control.DeepSeq
-    ( NFData (..), force )
+    ( NFData (..), deepseq, force )
 import Control.Monad
     ( join )
 import Control.Monad.Trans.Except
@@ -203,6 +202,8 @@ import System.IO.Unsafe
     ( unsafePerformIO )
 import System.Random
     ( mkStdGen, randoms )
+import Test.Utils.Resource
+    ( unBracket )
 import UnliftIO.Exception
     ( bracket, throwIO )
 
@@ -658,7 +659,20 @@ withDB
     => Tracer IO DBLog
     -> (DBLayer IO s k -> Benchmark)
     -> Benchmark
-withDB tr bm = envWithCleanup (setupDB tr) cleanupDB (\ ~(_, _, db) -> bm db)
+withDB tr bm = envWithCleanup (setupDB tr) cleanupDB (\(BenchEnv _ _ _ db) -> bm db)
+
+data BenchEnv s k = BenchEnv
+    { _connectionPool :: !ConnectionPool
+    , _destroyPool :: IO ()
+    , _ctx :: !SqliteContext
+    , _dbLayer :: !(DBLayer IO s k)
+    }
+
+instance NFData (BenchEnv s k) where
+    rnf (BenchEnv p _ ctx db) =
+        deepseq (rnf p) $
+        deepseq (rnf ctx) $
+        deepseq (rnf db) ()
 
 setupDB
     :: forall s k.
@@ -667,13 +681,14 @@ setupDB
         , WalletKey k
         )
     => Tracer IO DBLog
-    -> IO (ConnectionPool, SqliteContext, DBLayer IO s k)
+    -> IO (BenchEnv s k)
 setupDB tr = do
     f <- emptySystemTempFile "bench.db"
-    pool <- newConnectionPool tr f
+    (createPool, destroyPool) <- unBracket (withConnectionPool tr f)
+    pool <- createPool
     ctx  <- either throwIO pure =<< newSqliteContext tr pool [] migrateAll f
     db   <- newDBLayerWith NoCache singleEraInterpreter ctx
-    pure (pool, ctx, db)
+    pure $ BenchEnv pool destroyPool ctx db
 
 singleEraInterpreter :: TimeInterpreter IO
 singleEraInterpreter = hoistTimeInterpreter (pure . runIdentity) $
@@ -686,9 +701,9 @@ singleEraInterpreter = hoistTimeInterpreter (pure . runIdentity) $
         , getSecurityParameter = Quantity 2160
         })
 
-cleanupDB :: (ConnectionPool, SqliteContext, DBLayer IO s k) -> IO ()
-cleanupDB (pool, SqliteContext{dbFile}, _) = do
-    destroyConnectionPool pool
+cleanupDB :: BenchEnv s k -> IO ()
+cleanupDB (BenchEnv _ destroyPool SqliteContext{dbFile} _) = do
+    destroyPool
     let f = fromMaybe ":memory:" dbFile
     mapM_ remove [f, f <> "-shm", f <> "-wal"]
   where
@@ -774,11 +789,11 @@ txHistoryDiskSpaceTests tr = do
 
 benchDiskSize :: Tracer IO DBLog -> (DBLayerBench -> IO ()) -> IO ()
 benchDiskSize tr action = bracket (setupDB tr) cleanupDB
-    $ \(pool, SqliteContext{dbFile}, db) -> do
+    $ \(BenchEnv _ destroyPool SqliteContext{dbFile} db) -> do
         let f = fromMaybe ":memory:" dbFile
         action db
         mapM_ (printFileSize "") [f, f <> "-shm", f <> "-wal"]
-        destroyConnectionPool pool
+        destroyPool
         printFileSize " (closed)" f
         putStrLn ""
   where
