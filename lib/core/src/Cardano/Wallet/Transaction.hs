@@ -38,12 +38,7 @@ import Cardano.Address.Derivation
 import Cardano.Api.Typed
     ( AnyCardanoEra )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..)
-    , DerivationType (..)
-    , Index (..)
-    , Passphrase
-    , RewardAccount (..)
-    )
+    ( Depth (..), Passphrase, RewardAccount (..) )
 import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     ( SelectionCriteria, SelectionResult, SelectionSkeleton )
 import Cardano.Wallet.Primitive.Types

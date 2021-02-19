@@ -37,7 +37,7 @@ import Prelude
 import Cardano.Address.Derivation
     ( XPrv )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..) )
+    ( Depth (..), RewardAccount (..) )
 import Cardano.Wallet.Primitive.Model
     ( Wallet )
 import Cardano.Wallet.Primitive.Types
@@ -177,6 +177,7 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
 
     , isStakeKeyRegistered
         :: PrimaryKey WalletId
+        -> RewardAccount
         -> ExceptT ErrNoSuchWallet stm Bool
 
     , putDelegationCertificate

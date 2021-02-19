@@ -201,6 +201,7 @@ ProtocolParameters
 -- Track whether the wallet's stake key is registered or not.
 StakeKeyCertificate
     stakeKeyCertWalletId             W.WalletId            sql=wallet_id
+    stakeKeyCertStakeKey             W.RewardAccount       sql=stake_key
     stakeKeyCertSlot                 SlotNo                sql=slot
     stakeKeyCertType                 W.StakeKeyCertificate sql=type
 

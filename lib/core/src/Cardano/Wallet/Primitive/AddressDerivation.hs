@@ -772,6 +772,9 @@ class MkAddress (network :: NetworkDiscriminant) key where
     -- The stake key may be omitted.
     -- FIXME: Omitting a stake key for ShelleyKey should be impossible, and it
     -- should be represented as such.
+    --
+    -- TODO: We should concider re-defining mkAddress as
+    -- mkAddress :: KeyFingerprint "payment" -> RewardAccount -> Address
     mkAddress
         :: key 'AddressK XPub
             -- ^ Payment key

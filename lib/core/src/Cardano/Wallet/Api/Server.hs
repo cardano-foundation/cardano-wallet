@@ -253,7 +253,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , SoftDerivation (..)
     , ToRewardAccount (..)
     , WalletKey (..)
-    , deriveRewardAccount
     , digest
     , preparePassphrase
     , publicKey
@@ -364,7 +363,6 @@ import Cardano.Wallet.Transaction
     , TransactionLayer
     , Withdrawal (..)
     , defaultTransactionCtx
-    , withdrawalToCoin
     )
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
@@ -409,7 +407,7 @@ import Data.List.NonEmpty
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
-    ( catMaybes, fromMaybe, isJust, mapMaybe, maybeToList )
+    ( catMaybes, fromMaybe, isJust, mapMaybe )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -671,7 +669,7 @@ postShelleyWallet
     -> WalletPostData
     -> Handler ApiWallet
 postShelleyWallet ctx generateKey body = do
-    let ds acc = mkDelegationState 8 0 acc
+    let ds acc = mkDelegationState 1 0 acc
     let state = mkSeqStateFromRootXPrv (rootXPrv, pwd) purposeCIP1852 g ds
     void $ liftHandler $ initWorker @_ @s @k ctx wid
         (\wrk -> W.createWallet  @(WorkerCtx ctx) @s @k wrk wid wName state)
@@ -1229,7 +1227,7 @@ selectCoins ctx genChange (ApiT wid) body = do
         utx <- liftHandler
             $ W.selectAssets  @_ @s @k wrk w txCtx outs transform
 
-        pure $ mkApiCoinSelection [] Nothing utx
+        pure $ mkApiCoinSelection [] [] utx
 
 selectCoinsForJoin
     :: forall ctx s n k.
@@ -1260,15 +1258,16 @@ selectCoinsForJoin ctx knownPools getPoolStatus pid wid = do
     curEpoch <- getCurrentEpoch ctx
 
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
-        (action, deposit) <- liftHandler
-            $ W.joinStakePool @_ @s @k @n wrk curEpoch pools pid poolStatus wid
-
         wdrls <- liftHandler $ W.readWorthwhileWithdrawals @_ @s @k wrk wid
         accs <- fmap (map fst) $ liftHandler $ W.readRewardAccount @_ @s @k @n wrk wid
 
+        (actions, deposits) <- liftHandler
+            $ W.joinStakePool @_ @s @k @n wrk curEpoch pools pid poolStatus accs wid
+
+
         let txCtx = defaultTransactionCtx
                 { txWithdrawals = wdrls
-                , txDelegationAction = map (,action) accs
+                , txDelegationAction = actions
                 }
 
         let mkAddress' p s = mkAddress @n @k p (Just s)
@@ -1279,11 +1278,8 @@ selectCoinsForJoin ctx knownPools getPoolStatus pid wid = do
         utx <- liftHandler
             $ W.selectAssetsNoOutputs @_ @s @k wrk wid wal txCtx transform
         paths <- fmap (fmap snd) $ liftHandler $ W.readRewardAccount @_ @s @k @n wrk wid
-
-        -- FIXME: Calculation is flawed. We should concider deposit vs no
-        -- deposit on an per-stake-key basis.
-        let totalDeposits = replicate (length accs) =<< (maybeToList deposit)
-        pure $ mkApiCoinSelection totalDeposits (Just (action, paths)) utx
+        -- FIXME: Potentially wrong
+        pure $ mkApiCoinSelection deposits (zip (map snd actions) paths) utx
 
 selectCoinsForQuit
     :: forall ctx s n k.
@@ -1305,10 +1301,14 @@ selectCoinsForQuit
     -> Handler (Api.ApiCoinSelection n)
 selectCoinsForQuit ctx (ApiT wid) = do
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+        acctsAndPaths <- liftHandler $ W.readRewardAccount @_ @s @k @n wrk wid
+
+        -- FIXME: Take several actions
         action <- liftHandler $ W.quitStakePool @_ @s @k @n wrk wid
 
         wdrls <- liftHandler $ W.readWorthwhileWithdrawals @_ @s @k wrk wid
-        accs <- fmap (map fst) $ liftHandler $ W.readRewardAccount @_ @s @k @n wrk wid
+
+        let accs = map fst acctsAndPaths
 
         let txCtx = defaultTransactionCtx
                 { txWithdrawals = wdrls
@@ -1321,8 +1321,9 @@ selectCoinsForQuit ctx (ApiT wid) = do
         wal <- liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
         utx <- liftHandler
             $ W.selectAssetsNoOutputs @_ @s @k wrk wid wal txCtx transform
-        paths <- fmap (map snd) $ liftHandler $ W.readRewardAccount @_ @s @k @n wrk wid
-        pure $ mkApiCoinSelection [] (Just (action, paths)) utx
+
+        -- FIXME: might differ from the actions above
+        pure $ mkApiCoinSelection [] (zip (repeat action) (map snd acctsAndPaths) )utx
 
 {-------------------------------------------------------------------------------
                                      Assets
@@ -1512,13 +1513,22 @@ postTransaction ctx genChange (ApiT wid) body = do
 
     ttl <- liftIO $ W.getTxExpiry ti mTTL
     (sel, tx, txMeta, txTime) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
-
-        let f x = if (body ^. #withdrawal) == Nothing
-                then []
-                else x
-        wdrls <- fmap f $ liftHandler $ W.readWorthwhileWithdrawals @_ @s @k wrk wid
+        (wdrls, externalCred) <- case body ^. #withdrawal of
+            Just SelfWithdrawal ->
+                fmap (,const Nothing) $ liftHandler $ W.readWorthwhileWithdrawals @_ @s @k wrk wid
+            Just (ExternalWithdrawal (ApiMnemonicT mw)) -> do
+               let (xprv, acct) = W.someRewardAccount @ShelleyKey mw
+               balance <- liftHandler (W.queryRewardBalance @_ wrk [acct])
+                   -- FIXME: what did this do?
+                   -- >>= liftIO . W.readNextWithdrawal @_ @k wrk
+               when (balance == Coin 0) $ do
+                   liftHandler $ throwE ErrWithdrawalNotWorth
+               let extraSource acct' = if acct' == acct then Just (xprv, mempty) else Nothing
+               pure ([WithdrawalExternal acct balance], extraSource)
+            Nothing -> pure ([], const Nothing)
         let txCtx = defaultTransactionCtx
                 { txWithdrawals = wdrls
+                , txMetadata = md
                 , txTimeToLive = ttl
                 }
         w <- liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
@@ -1526,7 +1536,7 @@ postTransaction ctx genChange (ApiT wid) body = do
             $ W.selectAssets @_ @s @k wrk w txCtx outs (const Prelude.id)
         (tx, txMeta, txTime, sealedTx) <- liftHandler
             $ W.signTransaction @_ @s @k wrk wid genChange
-                pwd txCtx sel
+                pwd txCtx externalCred sel
         liftHandler
             $ W.submitTx @_ @s @k wrk wid (tx, txMeta, sealedTx)
         pure (sel, tx, txMeta, txTime)
@@ -1670,17 +1680,17 @@ joinStakePool ctx knownPools getPoolStatus apiPoolId (ApiT wid) body = do
     curEpoch <- getCurrentEpoch ctx
 
     (sel, tx, txMeta, txTime) <- withWorkerCtx ctx wid liftE liftE $ \wrk -> do
-        (action, _) <- liftHandler
-            $ W.joinStakePool @_ @s @k @n wrk curEpoch pools pid poolStatus wid
+        accs <- fmap (map fst) $ liftHandler $ W.readRewardAccount @_ @s @k @n wrk wid
+        (actions, _) <- liftHandler
+            $ W.joinStakePool @_ @s @k @n wrk curEpoch pools pid poolStatus accs wid
 
         ttl <- liftIO $ W.getTxExpiry ti Nothing
 
         wdrls <- liftHandler $ W.readWorthwhileWithdrawals @_ @s @k wrk wid
-        accs <- fmap (map fst) $ liftHandler $ W.readRewardAccount @_ @s @k @n wrk wid
 
         let txCtx = defaultTransactionCtx
                 { txWithdrawals = wdrls
-                , txDelegationAction = map (,action) accs
+                , txDelegationAction = actions
                 , txTimeToLive = ttl
                 }
         wal <- liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
@@ -1688,7 +1698,7 @@ joinStakePool ctx knownPools getPoolStatus apiPoolId (ApiT wid) body = do
             $ W.selectAssetsNoOutputs @_ @s @k wrk wid wal txCtx
             $ const Prelude.id
         (tx, txMeta, txTime, sealedTx) <- liftHandler
-            $ W.signTransaction @_ @s @k wrk wid genChange pwd txCtx sel
+            $ W.signTransaction @_ @s @k wrk wid genChange pwd txCtx (const Nothing) sel
         liftHandler
             $ W.submitTx @_ @s @k wrk wid (tx, txMeta, sealedTx)
 
@@ -1722,7 +1732,9 @@ delegationFee ctx (ApiT wid) = do
     withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $ do
         w <- withExceptT ErrSelectAssetsNoSuchWallet $
             W.readWalletUTxOIndex @_ @s @k wrk wid
-        deposit <- W.calcMinimumDeposit @_ @s @k wrk wid
+        --deposit <- W.calcMinimumDeposit @_ @s @k wrk wid
+        -- TODO:
+        let deposit = Coin 0
         mkApiFee (Just deposit) <$> W.estimateFee (runSelection wrk deposit w)
   where
     txCtx :: TransactionCtx
@@ -1769,7 +1781,7 @@ quitStakePool ctx (ApiT wid) body = do
         let txCtx = defaultTransactionCtx
                 { txWithdrawals = [] -- TODO
                 , txTimeToLive = ttl
-                , txDelegationAction = map (,Quit) accs
+                , txDelegationAction = map (,action) accs
                 }
 
         wal <- liftHandler $ W.readWalletUTxOIndex @_ @s @k wrk wid
@@ -1777,7 +1789,7 @@ quitStakePool ctx (ApiT wid) body = do
             $ W.selectAssetsNoOutputs @_ @s @k wrk wid wal txCtx
             $ const Prelude.id
         (tx, txMeta, txTime, sealedTx) <- liftHandler
-            $ W.signTransaction @_ @s @k wrk wid genChange pwd txCtx sel
+            $ W.signTransaction @_ @s @k wrk wid genChange pwd txCtx (const Nothing) sel
         liftHandler
             $ W.submitTx @_ @s @k wrk wid (tx, txMeta, sealedTx)
 
@@ -2056,10 +2068,6 @@ rndStateChange ctx (ApiT wid) pwd =
         W.withRootKey @_ @s @k wrk wid pwd ErrSignPaymentWithRootKey $ \xprv scheme ->
             pure (xprv, preparePassphrase scheme pwd)
 
-type RewardAccountBuilder k
-        =  (k 'RootK XPrv, Passphrase "encryption")
-        -> (XPrv, Passphrase "encryption")
-
 -- | Makes an 'ApiCoinSelection' from the given 'UnsignedTx'.
 mkApiCoinSelection
     :: forall n input output change.
@@ -2068,7 +2076,7 @@ mkApiCoinSelection
         , change ~ TxChange (NonEmpty DerivationIndex)
         )
     => [Coin]
-    -> Maybe (DelegationAction, [NonEmpty DerivationIndex])
+    -> [(DelegationAction, NonEmpty DerivationIndex)]
     -> UnsignedTx input output change
     -> ApiCoinSelection n
 mkApiCoinSelection deps mcerts (UnsignedTx inputs outputs change) =
@@ -2076,24 +2084,25 @@ mkApiCoinSelection deps mcerts (UnsignedTx inputs outputs change) =
         (mkApiCoinSelectionInput <$> inputs)
         (mkApiCoinSelectionOutput <$> outputs)
         (mkApiCoinSelectionChange <$> change)
-        (fmap (uncurry mkCertificates) mcerts)
+        (NE.nonEmpty $ (uncurry mkCertificates) =<< mcerts)
         (fmap mkApiCoin deps)
   where
     mkCertificates
         :: DelegationAction
-        -> [NonEmpty DerivationIndex]
-        -> NonEmpty Api.ApiCertificate
+        -> NonEmpty DerivationIndex
+        -> [Api.ApiCertificate]
     mkCertificates action xs =
         case action of
-            Join pid -> NE.fromList $
-                map (\x -> Api.JoinPool x (ApiT pid)) apiStakePath
-            RegisterKeyAndJoin pid -> NE.fromList $
-                map Api.RegisterRewardAccount apiStakePath
-                <> map (\x -> Api.JoinPool x (ApiT pid)) apiStakePath
-            Quit -> NE.fromList $
-                 map Api.QuitPool apiStakePath
+            Join pid ->
+                [ Api.JoinPool apiStakePath (ApiT pid) ]
+            RegisterKeyAndJoin pid ->
+                [ Api.RegisterRewardAccount apiStakePath
+                , Api.JoinPool apiStakePath (ApiT pid)
+                ]
+            Quit ->
+                [ Api.QuitPool apiStakePath ]
       where
-        apiStakePath = fmap ApiT <$> xs
+        apiStakePath = ApiT <$> xs
 
     mkApiCoinSelectionInput :: input -> ApiCoinSelectionInput n
     mkApiCoinSelectionInput

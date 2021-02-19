@@ -1290,32 +1290,33 @@ newDBLayerWith cacheBehavior trace defaultFieldValues mDatabaseFile ti = do
             selectWallet wid >>= \case
                 Nothing -> pure $ Left $ ErrNoSuchWallet wid
                 Just _  -> case cert of
-                    W.CertDelegateNone _ -> do
+                    W.CertDelegateNone acc -> do
                         repsert
                             (DelegationCertificateKey wid sl)
                             (DelegationCertificate wid sl Nothing)
                         pure <$> repsert
                             (StakeKeyCertificateKey wid sl)
-                            (StakeKeyCertificate wid sl W.StakeKeyDeregistration)
+                            (StakeKeyCertificate wid acc sl W.StakeKeyDeregistration)
                     W.CertDelegateFull _ pool ->
                         pure <$> repsert
                             (DelegationCertificateKey wid sl)
                             (DelegationCertificate wid sl (Just pool))
-                    W.CertRegisterKey _ ->
+                    W.CertRegisterKey acc ->
                         pure <$> repsert
                             (StakeKeyCertificateKey wid sl)
-                            (StakeKeyCertificate wid sl W.StakeKeyRegistration)
+                            (StakeKeyCertificate wid acc sl W.StakeKeyRegistration)
 
-        , isStakeKeyRegistered = \(PrimaryKey wid) -> ExceptT $ do
+        , isStakeKeyRegistered = \(PrimaryKey wid) key -> ExceptT $ do
               selectWallet wid >>= \case
                 Nothing -> pure $ Left $ ErrNoSuchWallet wid
                 Just{} -> do
                     val <- fmap entityVal <$> selectFirst
-                        [StakeKeyCertWalletId ==. wid]
+                        [StakeKeyCertWalletId ==. wid
+                        , StakeKeyCertStakeKey ==. key ]
                         [Desc StakeKeyCertSlot]
                     return $ case val of
                         Nothing -> Right False
-                        Just (StakeKeyCertificate _ _ status) ->
+                        Just (StakeKeyCertificate _ _ _ status) ->
                             Right (status == W.StakeKeyRegistration)
 
         {-----------------------------------------------------------------------

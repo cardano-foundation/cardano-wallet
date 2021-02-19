@@ -129,6 +129,9 @@ data DelegationState k = DelegationState
 
       -- | Index of known stake keys
       --
+      -- TODO: We shouldn't need to have k 'AddressK XPub here. But we need to
+      -- change mkAddress then.
+      --
       -- Invariant: indices should form a consecutive range.
     , dsIndexedKeys
         :: !(Map

@@ -305,7 +305,7 @@ import Cardano.Wallet.Primitive.Types
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..), AddressState (..) )
 import Cardano.Wallet.Primitive.Types.Coin
-    ( Coin (..), addCoin, coinToInteger, sumCoins )
+    ( Coin (..), addCoin, sumCoins )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.RewardAccount
@@ -339,10 +339,13 @@ import Cardano.Wallet.Transaction
     , TransactionCtx (..)
     , TransactionLayer (..)
     , Withdrawal (..)
-    , defaultTransactionCtx
     , withdrawalToCoin
     , withdrawalsToCoin
     )
+import Control.Applicative
+    ( (<|>) )
+import Control.Arrow
+    ( first )
 import Control.DeepSeq
     ( NFData )
 import Control.Monad
@@ -405,7 +408,6 @@ import Data.Type.Equality
     ( (:~:) (..), testEquality )
 import Data.Word
     ( Word64 )
-import Debug.Trace
 import Fmt
     ( blockListF, blockMapF', build, pretty, (+|), (+||), (|+), (||+) )
 import GHC.Generics
@@ -615,7 +617,7 @@ createIcarusWallet ctx wid wname credentials = db & \DBLayer{..} -> do
                 credentials
                 purposeBIP44
                 (mkUnboundedAddressPoolGap 10000)
-                (mkEmptyDelegationState)
+                mkEmptyDelegationState
     let (hist, cp) = initWallet block0 s
     let addrs = map (view #address) . concatMap (view #outputs . fst) $ hist
     let g  = defaultAddressPoolGap
@@ -658,8 +660,8 @@ checkWalletIntegrity ctx wid gp = db & \DBLayer{..} -> mapExceptT atomically $ d
   where
     db = ctx ^. dbLayer @s @k
     whenDifferentGenesis bp1 bp2 = when $
-        (bp1 ^. #getGenesisBlockHash /= bp2 ^. #getGenesisBlockHash) ||
-        (bp1 ^. #getGenesisBlockDate /= bp2 ^. #getGenesisBlockDate)
+        bp1 ^. #getGenesisBlockHash /= bp2 ^. #getGenesisBlockHash ||
+        bp1 ^. #getGenesisBlockDate /= bp2 ^. #getGenesisBlockDate
 
 -- | Retrieve the wallet state for the wallet with the given ID.
 readWallet
@@ -765,7 +767,7 @@ restoreWallet
     -> ExceptT ErrNoSuchWallet IO ()
 restoreWallet ctx wid = db & \DBLayer{..} -> do
     cps <- liftIO $ atomically $ listCheckpoints (PrimaryKey wid)
-    let forward bs h = run $ do
+    let forward bs h = run $
             restoreBlocks @ctx @s @k ctx wid bs h
     liftIO (follow nw tr cps forward (view #header)) >>= \case
         FollowFailure ->
@@ -910,7 +912,7 @@ deleteWallet
     => ctx
     -> WalletId
     -> ExceptT ErrNoSuchWallet IO ()
-deleteWallet ctx wid = db & \DBLayer{..} -> do
+deleteWallet ctx wid = db & \DBLayer{..} ->
     mapExceptT atomically $ removeWallet (PrimaryKey wid)
   where
     db = ctx ^. dbLayer @s @k
@@ -930,10 +932,6 @@ fetchRewardBalance ctx wid = do
     let accts = listRewardAccounts $ getState cp
     Right res <- runExceptT $ queryRewardBalance ctx accts
     return res
-  where
-    pk = PrimaryKey wid
-    db = ctx ^. dbLayer @s @k
-    nw = ctx ^. networkLayer
 
 -- | Read the current withdrawal capacity of a wallet. Note that, this simply
 -- returns 0 if:
@@ -972,6 +970,7 @@ fetchRewardBalance ctx wid = do
 --         defaultTransactionCtx { txWithdrawals = [WithdrawalSelf wdrl] }
 
 
+-- TODO: Implement better
 readWorthwhileWithdrawals
     :: forall ctx s k.
         ( HasTransactionLayer k ctx
@@ -987,7 +986,7 @@ readWorthwhileWithdrawals ctx wid = do
     let s = getState cp
     let accs = listRewardAccounts s
     let readBalance acc = withExceptT (\_ -> ErrNoSuchWallet $ error "todo") $
-            fmap (WithdrawalSelf acc) $ queryRewardBalance ctx [acc]
+            WithdrawalSelf acc <$> queryRewardBalance ctx [acc]
     filter (\w -> withdrawalToCoin w > Coin 0) <$> mapM readBalance accs
 
 readRewardAccount
@@ -1027,7 +1026,7 @@ queryRewardBalance
     => ctx
     -> [RewardAccount]
     -> ExceptT ErrFetchRewards IO Coin
-queryRewardBalance ctx accts = do
+queryRewardBalance ctx accts =
     mconcat <$> mapM (mapExceptT (fmap handleErr) . getAccountBalance nw) accts
   where
     nw = ctx ^. networkLayer
@@ -1117,12 +1116,12 @@ createChangeAddress
     -> WalletId
     -> ArgGenChange s
     -> ExceptT ErrNoSuchWallet IO Address
-createChangeAddress ctx wid argGenChange = db & \DBLayer{..} -> do
+createChangeAddress ctx wid argGenChange = db & \DBLayer{..} ->
     mapExceptT atomically $ do
-        cp <- withNoSuchWallet wid (readCheckpoint pk)
-        let (addr, s') = genChange argGenChange (getState cp)
-        putCheckpoint pk (updateState s' cp)
-        pure addr
+    cp <- withNoSuchWallet wid (readCheckpoint pk)
+    let (addr, s') = genChange argGenChange (getState cp)
+    putCheckpoint pk (updateState s' cp)
+    pure addr
   where
     db = ctx ^. dbLayer @s @k
     pk = PrimaryKey wid
@@ -1140,28 +1139,28 @@ createRandomAddress
     -> Maybe (Index 'Hardened 'AddressK)
     -> ExceptT ErrCreateRandomAddress IO Address
 createRandomAddress ctx wid pwd mIx = db & \DBLayer{..} ->
-    withRootKey @ctx @s @k ctx wid pwd ErrCreateAddrWithRootKey $ \xprv scheme -> do
+    withRootKey @ctx @s @k ctx wid pwd ErrCreateAddrWithRootKey $ \xprv scheme ->
         mapExceptT atomically $ do
-            cp <- withExceptT ErrCreateAddrNoSuchWallet $
-                withNoSuchWallet wid (readCheckpoint (PrimaryKey wid))
-            let s = getState cp
-            let accIx = Rnd.defaultAccountIndex s
+    cp <- withExceptT ErrCreateAddrNoSuchWallet $
+        withNoSuchWallet wid (readCheckpoint (PrimaryKey wid))
+    let s = getState cp
+    let accIx = Rnd.defaultAccountIndex s
 
-            (path, s') <- case mIx of
-                Just addrIx | isKnownIndex accIx addrIx s ->
-                    throwE $ ErrIndexAlreadyExists addrIx
-                Just addrIx ->
-                    pure ((liftIndex accIx, liftIndex addrIx), s)
-                Nothing ->
-                    pure $ Rnd.withRNG s $ \rng ->
-                        Rnd.findUnusedPath rng accIx (Rnd.unavailablePaths s)
+    (path, s') <- case mIx of
+        Just addrIx | isKnownIndex accIx addrIx s ->
+            throwE $ ErrIndexAlreadyExists addrIx
+        Just addrIx ->
+            pure ((liftIndex accIx, liftIndex addrIx), s)
+        Nothing ->
+            pure $ Rnd.withRNG s $ \rng ->
+                Rnd.findUnusedPath rng accIx (Rnd.unavailablePaths s)
 
-            let prepared = preparePassphrase scheme pwd
-            let addr = Rnd.deriveRndStateAddress @n xprv prepared path
-            let cp' = updateState (Rnd.addPendingAddress addr path s') cp
-            withExceptT ErrCreateAddrNoSuchWallet $
-                putCheckpoint (PrimaryKey wid) cp'
-            pure addr
+    let prepared = preparePassphrase scheme pwd
+    let addr = Rnd.deriveRndStateAddress @n xprv prepared path
+    let cp' = updateState (Rnd.addPendingAddress addr path s') cp
+    withExceptT ErrCreateAddrNoSuchWallet $
+        putCheckpoint (PrimaryKey wid) cp'
+    pure addr
   where
     db = ctx ^. dbLayer @s @k
     isKnownIndex accIx addrIx s =
@@ -1217,13 +1216,13 @@ assignChangeAddresses argGenChange sel = runState $ do
             (zipWithMaybeMatched (\_ a b -> Just $ a - b))
             changeStakeDistr
             inputStakeDistr
-    --let msg = Map.mapKeys (maybe "" pretty) deltaDistr
-    let msg = "Change addresses effect on stake keys:\n"
-            <> (blockMapF' (maybe ("") pretty) (build) deltaDistr)
-    trace (pretty msg) $ pure $ sel { changeGenerated = changeOuts }
+    let _msg = "Change addresses effect on stake keys:\n"
+            <> blockMapF' (maybe "" pretty) build deltaDistr
+    --trace (pretty msg) $
+    pure $ sel { changeGenerated = changeOuts }
   where
     -- Hack to get stake keys from shelley addresses
-    stakeKey :: TxOut -> ((Maybe RewardAccount), Integer)
+    stakeKey :: TxOut -> (Maybe RewardAccount, Integer)
     stakeKey (TxOut (Address addr) c) =
         if BS.length addr == 57
         then (Just . RewardAccount $ BS.drop 29 addr, Coin.coinToInteger $ TokenBundle.getCoin c)
@@ -1304,7 +1303,7 @@ selectAssetsNoOutputs
     -> TransactionCtx
     -> (s -> SelectionResult TokenBundle -> result)
     -> ExceptT ErrSelectAssets IO result
-selectAssetsNoOutputs ctx wid wal tx transform = do
+selectAssetsNoOutputs ctx _wid wal tx transform = do
     -- NOTE:
     -- Could be made nicer by allowing 'performSelection' to run with no target
     -- outputs, but to satisfy a minimum Ada target.
@@ -1314,7 +1313,7 @@ selectAssetsNoOutputs ctx wid wal tx transform = do
     -- result. The resulting selection will therefore have a delta that is at
     -- least the size of the deposit (in practice, slightly bigger because this
     -- extra outputs also increases the apparent minimum fee).
-    deposit <- calcMinimumDeposit @_ @s @k ctx wid
+    deposit <- liftIO $ calcMinimumDeposit ctx (map snd $ txDelegationAction tx)
     let dummyAddress = Address ""
     let dummyOutput  = TxOut dummyAddress (TokenBundle.fromCoin deposit)
     let outs = dummyOutput :| []
@@ -1447,9 +1446,10 @@ signTransaction
     -> ArgGenChange s
     -> Passphrase "raw"
     -> TransactionCtx
+    -> (RewardAccount -> Maybe (XPrv, Passphrase "encryption"))
     -> SelectionResult TokenBundle
     -> ExceptT ErrSignPayment IO (Tx, TxMeta, UTCTime, SealedTx)
-signTransaction ctx wid argChange pwd txCtx sel = db & \DBLayer{..} -> do
+signTransaction ctx wid argChange pwd txCtx externalRewardCred sel = db & \DBLayer{..} -> do
     era <- liftIO $ currentNodeEra nl
     withRootKey @_ @s ctx wid pwd ErrSignPaymentWithRootKey $ \xprv scheme -> do
         let pwdP = preparePassphrase scheme pwd
@@ -1464,7 +1464,9 @@ signTransaction ctx wid argChange pwd txCtx sel = db & \DBLayer{..} -> do
             let keyFrom = isOwned (getState cp) (xprv, pwdP)
 
             let s = getState cp
-            let lookupRewardXPrv' = lookupRewardXPrv @s @k s (xprv, pwdP)
+            let lookupRewardXPrv' acc =
+                    lookupRewardXPrv @s @k s (xprv, pwdP) acc
+                    <|> first liftRawKey <$> externalRewardCred acc
             let lookupRewardXPub' = fmap getRawKey . lookupRewardXPub @s @k s
 
             (tx, sealedTx) <- withExceptT ErrSignPaymentMkTx $ ExceptT $ pure $
@@ -1608,7 +1610,7 @@ forgetTx
     -> WalletId
     -> Hash "Tx"
     -> ExceptT ErrRemoveTx IO ()
-forgetTx ctx wid tid = db & \DBLayer{..} -> do
+forgetTx ctx wid tid = db & \DBLayer{..} ->
     mapExceptT atomically $ removePendingOrExpiredTx (PrimaryKey wid) tid
   where
     db = ctx ^. dbLayer @s @k
@@ -1630,13 +1632,13 @@ listTransactions
     -> SortOrder
     -> ExceptT ErrListTransactions IO [TransactionInfo]
 listTransactions ctx wid mMinWithdrawal mStart mEnd order = db & \DBLayer{..} -> do
-    when (Just True == ( (<(Coin 1)) <$> mMinWithdrawal )) $
+    when (Just True == ( (<Coin 1) <$> mMinWithdrawal )) $
         throwE ErrListTransactionsMinWithdrawalWrong
     let pk = PrimaryKey wid
-    mapExceptT atomically $ do
+    mapExceptT atomically $
         mapExceptT liftIO getSlotRange >>= maybe
-            (pure [])
-            (\r -> lift (readTxHistory pk mMinWithdrawal order r Nothing))
+        (pure [])
+        (\r -> lift (readTxHistory pk mMinWithdrawal order r Nothing))
   where
     ti :: TimeInterpreter (ExceptT PastHorizonException IO)
     ti = timeInterpreter (ctx ^. networkLayer)
@@ -1652,11 +1654,11 @@ listTransactions ctx wid mMinWithdrawal mStart mEnd order = db & \DBLayer{..} ->
         (Just start, Just end) | start > end -> do
             let err = ErrStartTimeLaterThanEndTime start end
             throwE (ErrListTransactionsStartTimeLaterThanEndTime err)
-        _ -> do
+        _ ->
             withExceptT ErrListTransactionsPastHorizonException
-                $ interpretQuery ti
-                $ slotRangeFromTimeRange
-                $ Range mStart mEnd
+            $ interpretQuery ti
+            $ slotRangeFromTimeRange
+            $ Range mStart mEnd
 
 
 -- | Get transaction and metadata from history for a given wallet.
@@ -1670,7 +1672,7 @@ getTransaction ctx wid tid = db & \DBLayer{..} -> do
     let pk = PrimaryKey wid
     res <- lift $ atomically $ runExceptT $ getTx pk tid
     case res of
-        Left err -> do
+        Left err ->
             throwE (ErrGetTransactionNoSuchWallet err)
         Right Nothing -> do
             let err' = ErrNoSuchTransaction tid
@@ -1696,18 +1698,18 @@ joinStakePool
     -> Set PoolId
     -> PoolId
     -> PoolLifeCycleStatus
+    -> [RewardAccount]
     -> WalletId
-    -> ExceptT ErrJoinStakePool IO (DelegationAction, Maybe Coin)
+    -> ExceptT ErrJoinStakePool IO ([(RewardAccount, DelegationAction)], [Coin])
     -- ^ snd is the deposit
-joinStakePool ctx currentEpoch knownPools pid poolStatus wid =
+joinStakePool ctx currentEpoch knownPools pid poolStatus accts wid =
     db & \DBLayer{..} -> do
-        (walMeta) <- mapExceptT atomically $ do
+        (walMeta, isReg) <- mapExceptT atomically $ do
             walMeta <- withExceptT ErrJoinStakePoolNoSuchWallet
                 $ withNoSuchWallet wid
                 $ readWalletMeta (PrimaryKey wid)
-            --isKeyReg <- withExceptT ErrJoinStakePoolNoSuchWallet
-            --    $ isStakeKeyRegistered (PrimaryKey wid)
-            pure walMeta
+            isKeyReg <- forM accts (withExceptT ErrJoinStakePoolNoSuchWallet . isStakeKeyRegistered (PrimaryKey wid))
+            pure (walMeta, isKeyReg)
 
         let mRetirementEpoch = view #retirementEpoch <$>
                 W.getPoolRetirementCertificate poolStatus
@@ -1716,18 +1718,21 @@ joinStakePool ctx currentEpoch knownPools pid poolStatus wid =
 
         withExceptT ErrJoinStakePoolCannotJoin $ except $
             guardJoin knownPools (walMeta ^. #delegation) pid retirementInfo
-        let isKeyReg = False
 
-        liftIO $ traceWith tr $ MsgIsStakeKeyRegistered isKeyReg
+        -- FIXME: Re-enable
+        --liftIO $ traceWith tr $ MsgIsStakeKeyRegistered isKeyReg
 
         dep <- liftIO $ stakeKeyDeposit <$> currentProtocolParameters nl
+        let actions = zipWith (\a isR
+              -> (if isR then
+                      ((a, Join pid), Nothing)
+                  else
+                      ((a, RegisterKeyAndJoin pid), Just dep))) accts isReg
+        return (map fst actions, mapMaybe snd actions)
 
-        return $ if isKeyReg
-            then (Join pid, Nothing)
-            else (RegisterKeyAndJoin pid, Just dep)
   where
     db = ctx ^. dbLayer @s @k
-    tr = ctx ^. logger
+    --tr = ctx ^. logger
     nl = ctx ^. networkLayer
 
 -- | Helper function to factor necessary logic for quitting a stake pool.
@@ -1776,22 +1781,18 @@ instance NFData FeeEstimation
 -- the key deposit protocol parameters if the wallet has no registered stake
 -- key.
 calcMinimumDeposit
-    :: forall ctx s k.
-        ( HasDBLayer s k ctx
-        , HasNetworkLayer ctx
-        )
+    :: forall ctx. HasNetworkLayer ctx
     => ctx
-    -> WalletId
-    -> ExceptT ErrSelectAssets IO Coin
-calcMinimumDeposit ctx wid = db & \DBLayer{..} ->
-    withExceptT ErrSelectAssetsNoSuchWallet $ do
-        mapExceptT atomically (isStakeKeyRegistered $ PrimaryKey wid) >>= \case
-            True ->
-                pure $ Coin 0
-            False ->
-                liftIO $ stakeKeyDeposit <$> currentProtocolParameters nl
+    -> [DelegationAction]
+    -> IO Coin
+calcMinimumDeposit ctx actions = do
+    deposit <- liftIO $ stakeKeyDeposit <$> currentProtocolParameters nl
+    let depositOfAction = \case
+            RegisterKeyAndJoin _ -> deposit
+            Join _ -> Coin 0
+            Quit -> Coin 0
+    return $ mconcat $ map depositOfAction actions
   where
-    db = ctx ^. dbLayer @s @k
     nl = ctx ^. networkLayer
 
 -- | Estimate the transaction fee for a given coin selection algorithm by
@@ -1829,7 +1830,7 @@ estimateFee
         skipFailed samples = case partitionEithers samples of
             ([], []) ->
                 error "estimateFee: impossible empty list"
-            ((e:_), []) ->
+            (e:_, []) ->
                 Left e
             (_, samples') ->
                 Right samples'
@@ -2279,7 +2280,7 @@ guardJoin knownPools delegation pid mRetirementEpochInfo = do
         when (currentEpoch info >= retirementEpoch info) $
             Left (ErrNoSuchPool pid)
 
-    when ((null next) && isDelegatingTo (== pid) active) $
+    when (null next && isDelegatingTo (== pid) active) $
         Left (ErrAlreadyDelegating pid)
 
     when (not (null next) && isDelegatingTo (== pid) (last next)) $

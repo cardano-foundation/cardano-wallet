@@ -127,8 +127,8 @@ newDBLayer timeInterpreter = do
             cert `deepseq` sl `deepseq`
                 alterDB errNoSuchWallet db (mPutDelegationCertificate pk cert sl)
 
-        , isStakeKeyRegistered =
-            ExceptT . alterDB errNoSuchWallet db . mIsStakeKeyRegistered
+        , isStakeKeyRegistered = error "todo"
+            --ExceptT . alterDB errNoSuchWallet db . mIsStakeKeyRegistered
 
         {-----------------------------------------------------------------------
                                      Tx History
