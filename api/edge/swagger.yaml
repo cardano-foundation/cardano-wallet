@@ -511,7 +511,7 @@ x-assetFingerprint: &assetFingerprint
   pattern: "^(asset)1[0-9a-z]*$"
   maxLength: 44
   minLength: 44
-  example: token1rjklcrnsdzqp65wjgrg55sy9723kw09m5z9489
+  example: asset1rjklcrnsdzqp65wjgrg55sy9723kw09mlgvlc3
 
 x-assetMetadataName: &assetMetadataName
   type: string
