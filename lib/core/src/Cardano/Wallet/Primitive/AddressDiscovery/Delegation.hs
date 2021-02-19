@@ -22,7 +22,6 @@ module Cardano.Wallet.Primitive.AddressDiscovery.Delegation
     , takeStakeKey
     , isOurStakeKey
     , allRewardAccountsWithPaths
-    , allRewardAccountsWithXPrvs
 
       -- * Interface for address states
     , IsRewardAccountOwned (..)
@@ -35,8 +34,7 @@ import Prelude
 import Cardano.Crypto.Wallet
     ( XPrv, XPub )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( AddressIndexDerivationType
-    , Depth (..)
+    ( Depth (..)
     , DerivationIndex (..)
     , DerivationPrefix
     , DerivationType (..)
@@ -45,15 +43,10 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , Role (..)
     , SoftDerivation (..)
     , ToRewardAccount (..)
-    , WalletKey (..)
-    , deriveAccountPrivateKey
-    , deriveAddressPrivateKey
     , stakeDerivationPath
     )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount )
-import Control.Arrow
-    ( second )
 import Control.DeepSeq
     ( NFData )
 import Data.List.NonEmpty
@@ -215,6 +208,10 @@ takeStakeKeyIndex (DelegationState n i k ix)
 --
 -- If called to retrieve stake keys for each generated address, the addresses
 -- will get a even distribution of @numberOfStakeKeys@ stake keys.
+--
+-- NOTE:
+-- If used for genChange the, stake key distribution of the change outputs might
+-- not match the distribution of the inputs at all.
 takeStakeKey
     :: SoftDerivation k
     => DelegationState k
@@ -230,31 +227,6 @@ allStakeKeys
     :: DelegationState k
     -> [k 'AddressK XPub]
 allStakeKeys = map (snd . snd) . Map.toList . dsIndexedKeys
-
-
--- FIXME: simplify
-allRewardAccountsWithXPrvs
-    :: forall k.
-        ( SoftDerivation k
-        , AddressIndexDerivationType k ~ 'Soft
-        , WalletKey k
-        )
-    => DelegationState k
-    -> [ (RewardAccount
-         , (k 'RootK XPrv, Passphrase "encryption")
-                -> (XPrv, Passphrase "encryption")
-         )
-       ]
-allRewardAccountsWithXPrvs =
-    map (second $ \(ix, _pub) (rootK, pwd) ->
-        (getRawKey $ deriveAddressPrivateKey pwd (rewardAccXPrv (rootK, pwd)) MutableAccount ix, pwd)
-        )
-    . Map.toList
-    . dsIndexedKeys
-
-  where
-    -- FIXME: No guarantee that this matches the account public key!
-    rewardAccXPrv (rootK, pwd) = deriveAccountPrivateKey pwd rootK minBound
 
 allRewardAccountsWithPaths
     :: DerivationPrefix
@@ -297,7 +269,6 @@ deriving instance
     ( Eq (k 'AccountK XPub)
     , Eq (k 'AddressK XPub)
     ) => Eq (DelegationState k)
-
 
 class IsRewardAccountOwned s key where
     lookupRewardXPrv

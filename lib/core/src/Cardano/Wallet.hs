@@ -235,8 +235,6 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Delegation
     ( HasRewardAccounts (..)
     , IsRewardAccountOwned (..)
     , allRewardAccountsWithPaths
-    , allRewardAccountsWithXPrvs
-    , dsIndexedKeys
     , mkEmptyDelegationState
     )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
@@ -254,7 +252,6 @@ import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     ( SelectionError (..)
     , SelectionResult (..)
     , UnableToConstructChangeError (..)
-    , emptySkeleton
     , performSelection
     )
 import Cardano.Wallet.Primitive.Model
@@ -391,6 +388,7 @@ import Data.List
     ( scanl' )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
+import Data.Map.Merge.Strict
 import Data.Maybe
     ( fromMaybe, mapMaybe )
 import Data.Proxy
@@ -407,8 +405,9 @@ import Data.Type.Equality
     ( (:~:) (..), testEquality )
 import Data.Word
     ( Word64 )
+import Debug.Trace
 import Fmt
-    ( blockListF, pretty, (+|), (+||), (|+), (||+) )
+    ( blockListF, blockMapF', build, pretty, (+|), (+||), (|+), (||+) )
 import GHC.Generics
     ( Generic )
 import GHC.Stack
@@ -430,8 +429,10 @@ import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
 import qualified Data.ByteArray as BA
+import qualified Data.ByteString as BS
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
+import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Vector as V
@@ -1207,7 +1208,30 @@ assignChangeAddresses argGenChange sel = runState $ do
     changeOuts <- forM (changeGenerated sel) $ \bundle -> do
         addr <- state (genChange argGenChange)
         pure $ TxOut addr bundle
-    pure $ sel { changeGenerated = changeOuts }
+
+    let inputStakeDistr = Map.fromList $ map (stakeKey . snd) $ NE.toList $ inputsSelected sel
+    let changeStakeDistr = Map.fromList $ map stakeKey changeOuts
+    let deltaDistr = merge
+            (mapMaybeMissing (\_ x -> Just x)) -- In change, but not in input
+            (mapMaybeMissing (\_ x -> Just $ -x)) -- In input, but not in change
+            (zipWithMaybeMatched (\_ a b -> Just $ a - b))
+            changeStakeDistr
+            inputStakeDistr
+    --let msg = Map.mapKeys (maybe "" pretty) deltaDistr
+    let msg = "Change addresses effect on stake keys:\n"
+            <> (blockMapF' (maybe ("") pretty) (build) deltaDistr)
+    trace (pretty msg) $ pure $ sel { changeGenerated = changeOuts }
+  where
+    -- Hack to get stake keys from shelley addresses
+    stakeKey :: TxOut -> ((Maybe RewardAccount), Integer)
+    stakeKey (TxOut (Address addr) c) =
+        if BS.length addr == 57
+        then (Just . RewardAccount $ BS.drop 29 addr, Coin.coinToInteger $ TokenBundle.getCoin c)
+        else (Nothing, Coin.coinToInteger $ TokenBundle.getCoin c)
+
+
+
+
 
 selectionToUnsignedTx
     :: forall s input output change.
