@@ -48,6 +48,7 @@ module Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     , mkAddressPool
     , lookupAddress
     , shrinkPool
+    , unsafePaymentKeyFingerprint
 
     -- ** Verification Key Pool
     , VerificationKeyPool
