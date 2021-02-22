@@ -163,7 +163,7 @@ import Data.Functor
 import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
 import Data.List
-    ( nub, sortOn, unzip3 )
+    ( nub, sortOn )
 import Data.List.Split
     ( chunksOf )
 import Data.Map.Strict

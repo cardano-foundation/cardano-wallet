@@ -154,13 +154,13 @@ spec = describe "API Server" $ do
             let tolerance = mkSyncTolerance 5
             Right info <- run $ runHandler $ getNetworkInformation tolerance nl
 
-            -- 0              20
-            -- *               |        *
-            -- Node tip     Horizon   Network Tip
-            -- <------------------------>
-            --           gap
+            --  0              20
+            --  *               |        *
+            --  Node tip     Horizon   Network Tip
+            --  <------------------------>
+            --            gap
             --
-            -- 20 = epoch length = 10*k
+            --  20 = epoch length = 10*k
             if gap >= 20
             then do
                 assertWith "networkTip is Nothing" $ isNothing $ networkTip info

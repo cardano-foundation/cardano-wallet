@@ -52,6 +52,8 @@ import Data.Bifunctor
     ( first )
 import Data.Generics.Internal.VL.Lens
     ( view )
+import Data.Kind
+    ( Type )
 import Data.List
     ( foldl' )
 import Data.List.NonEmpty
@@ -86,7 +88,7 @@ instance NFData UTxO
 -- use 'dom' to refer to the /inputs/ of an /utxo/.
 --
 class Dom a where
-    type DomElem a :: *
+    type DomElem a :: Type
     dom :: a -> Set (DomElem a)
 
 instance Dom UTxO where

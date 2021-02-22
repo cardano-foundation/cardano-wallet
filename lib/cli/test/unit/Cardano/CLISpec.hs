@@ -45,8 +45,6 @@ import Cardano.Wallet.Primitive.Types
     ( PoolMetadataSource )
 import Cardano.Wallet.Primitive.Types.Tx
     ( TxMetadata (..), TxMetadataValue (..) )
-import Control.Monad
-    ( mapM_ )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity

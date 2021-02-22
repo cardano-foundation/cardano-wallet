@@ -303,6 +303,8 @@ import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
 import Data.Hashable
     ( Hashable )
+import Data.Kind
+    ( Type )
 import Data.List
     ( intercalate )
 import Data.List.NonEmpty
@@ -2302,7 +2304,7 @@ instance FromText (AddressAmount Text) where
 instance FromText PostExternalTransactionData where
     fromText text = case convertFromBase Base16 (T.encodeUtf8 text) of
         Left _ ->
-            fail "Parse error. Expecting hex-encoded format."
+            Left $ TextDecodingError "Parse error. Expecting hex-encoded format."
         Right load ->
             pure $ PostExternalTransactionData load
 
@@ -2468,15 +2470,15 @@ instance DecodeStakeAddress 'Mainnet => DecodeStakeAddress ('Staging pm) where
 -- having to actually rewrite any of the API definition.
 --
 -- We use an open type family so it can be extended by other module in places.
-type family ApiAddressT (n :: k) :: *
-type family ApiAddressIdT (n :: k) :: *
-type family ApiCoinSelectionT (n :: k) :: *
-type family ApiSelectCoinsDataT (n :: k) :: *
-type family ApiTransactionT (n :: k) :: *
-type family PostTransactionDataT (n :: k) :: *
-type family PostTransactionFeeDataT (n :: k) :: *
-type family ApiWalletMigrationPostDataT (n :: k1) (s :: k2) :: *
-type family ApiPutAddressesDataT (n :: k) :: *
+type family ApiAddressT (n :: k) :: Type
+type family ApiAddressIdT (n :: k) :: Type
+type family ApiCoinSelectionT (n :: k) :: Type
+type family ApiSelectCoinsDataT (n :: k) :: Type
+type family ApiTransactionT (n :: k) :: Type
+type family PostTransactionDataT (n :: k) :: Type
+type family PostTransactionFeeDataT (n :: k) :: Type
+type family ApiWalletMigrationPostDataT (n :: k1) (s :: k2) :: Type
+type family ApiPutAddressesDataT (n :: k) :: Type
 
 type instance ApiAddressT (n :: NetworkDiscriminant) =
     ApiAddress n

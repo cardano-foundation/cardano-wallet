@@ -310,8 +310,6 @@ import Data.Generics.Product.Typed
     ( HasType, typed )
 import Data.IORef
     ( newIORef, readIORef, writeIORef )
-import Data.List
-    ( (!!) )
 import Data.List.NonEmpty
     ( NonEmpty )
 import Data.Maybe

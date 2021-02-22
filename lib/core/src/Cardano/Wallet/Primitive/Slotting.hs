@@ -94,6 +94,8 @@ import Data.Functor.Identity
     ( Identity )
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
+import Data.Kind
+    ( Type )
 import Data.Maybe
     ( fromMaybe )
 import Data.Text
@@ -162,7 +164,7 @@ import qualified Ouroboros.Consensus.HardFork.History.Summary as HF
 --
 -- We also provide @QStartTime@.
 --
-data Qry :: * -> * where
+data Qry :: Type -> Type where
     -- | A @HF.Qry@ can only be run inside a single era.
     EraContainedQry :: HF.Qry a -> Qry a
     QStartTime :: Qry StartTime

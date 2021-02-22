@@ -49,8 +49,7 @@ module Cardano.Wallet.DB.StateMachine
     , showLabelledExamples
     ) where
 
-import Prelude hiding
-    ( elem )
+import Prelude
 
 import Cardano.Address.Derivation
     ( XPrv )
@@ -220,16 +219,17 @@ import Test.StateMachine
     , Reference
     , StateMachine
     , Symbolic
-    , elem
     , forAllCommands
-    , forAllParallelCommands
     , forall
+    , member
     , prettyCommands
     , prettyParallelCommands
     , runCommands
     , runParallelCommands
     , (.==)
     )
+import Test.StateMachine.Parallel
+    ( forAllParallelCommands )
 import Test.StateMachine.Types
     ( Command (..), Commands (..), ParallelCommands, ParallelCommandsF (..) )
 import UnliftIO.Async
@@ -724,7 +724,7 @@ transition m c = after . lockstep m c
 
 precondition :: Model s Symbolic -> Cmd s :@ Symbolic -> Logic
 precondition (Model _ wids) (At c) =
-    forall (toList c) (`elem` map fst wids)
+    forall (toList c) (`member` map fst wids)
 
 postcondition
     :: (Eq s, Show s)
@@ -767,10 +767,10 @@ sm db = QSM.StateMachine
     , postcondition = postcondition
     , invariant = Nothing
     , generator = generator
-    , distribution = Nothing
     , shrinker = const shrinker
     , semantics = semantics db
     , mock = symbolicResp
+    , cleanup = const $ pure ()
     }
 
 {-------------------------------------------------------------------------------
@@ -1284,11 +1284,13 @@ prop_sequential db =
 
 prop_parallel :: forall s k. TestConstraints s k => DBLayerTest s k -> Property
 prop_parallel db =
-    forAllParallelCommands (sm @s @k dbLayerUnused) $ \cmds ->
+    forAllParallelCommands (sm @s @k dbLayerUnused) nThreads $ \cmds ->
     monadicIO $ do
         let sm' = sm db
             cmds' = addCleanDB cmds
         prettyParallelCommands cmds =<< runParallelCommands sm' cmds'
+  where
+    nThreads = Just 4
 
 -- Controls that generators and shrinkers can run within a reasonable amount of
 -- time. We have been bitten several times already by generators which took much

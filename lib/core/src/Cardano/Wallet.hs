@@ -384,6 +384,8 @@ import Data.Generics.Labels
     ()
 import Data.Generics.Product.Typed
     ( HasType, typed )
+import Data.Kind
+    ( Type )
 import Data.List
     ( scanl' )
 import Data.List.NonEmpty
@@ -474,7 +476,7 @@ import qualified Data.Vector as V
 --
 -- __Fix__: Add type-applications at the call-site "@myFunction \@ctx \@s \\@k@"
 
-data WalletLayer s (k :: Depth -> * -> *)
+data WalletLayer s (k :: Depth -> Type -> Type)
     = WalletLayer
         (Tracer IO WalletLog)
         (Block, NetworkParameters, SyncTolerance)
@@ -1859,7 +1861,7 @@ attachPrivateKeyFromPwd
     -> WalletId
     -> (k 'RootK XPrv, Passphrase "encryption")
     -> ExceptT ErrNoSuchWallet IO ()
-attachPrivateKeyFromPwd ctx wid (xprv, pwd) = db & \DBLayer{..} -> do
+attachPrivateKeyFromPwd ctx wid (xprv, pwd) = db & \_ -> do
     hpwd <- liftIO $ encryptPassphrase pwd
     -- NOTE Only new wallets are constructed through this function, so the
     -- passphrase is encrypted with the new scheme (i.e. PBKDF2)
@@ -1893,7 +1895,7 @@ attachPrivateKeyFromPwdHash
     -> WalletId
     -> (k 'RootK XPrv, Hash "encryption")
     -> ExceptT ErrNoSuchWallet IO ()
-attachPrivateKeyFromPwdHash ctx wid (xprv, hpwd) = db & \DBLayer{..} ->
+attachPrivateKeyFromPwdHash ctx wid (xprv, hpwd) = db & \_ ->
     -- NOTE Only legacy wallets are imported through this function, passphrase
     -- were encrypted with the legacy scheme (Scrypt).
     attachPrivateKey db wid (xprv, hpwd) EncryptWithScrypt

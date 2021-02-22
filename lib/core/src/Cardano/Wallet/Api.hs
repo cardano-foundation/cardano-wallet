@@ -213,6 +213,8 @@ import Data.Generics.Labels
     ()
 import Data.Generics.Product.Typed
     ( HasType, typed )
+import Data.Kind
+    ( Type )
 import GHC.Generics
     ( Generic )
 import Servant.API
@@ -844,7 +846,7 @@ type PostExternalTransaction = "proxy"
                                Api Layer
 -------------------------------------------------------------------------------}
 
-data ApiLayer s (k :: Depth -> * -> *)
+data ApiLayer s (k :: Depth -> Type -> Type)
     = ApiLayer
         (Tracer IO (WorkerLog WalletId WalletLog))
         (Block, NetworkParameters, SyncTolerance)
@@ -898,6 +900,6 @@ tokenMetadataClient =
                               Type Families
 -------------------------------------------------------------------------------}
 
-type family PostData wallet :: * where
+type family PostData wallet :: Type where
     PostData ApiWallet = WalletOrAccountPostData
     PostData ApiByronWallet = SomeByronWalletPostData

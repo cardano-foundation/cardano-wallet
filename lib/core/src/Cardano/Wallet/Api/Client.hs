@@ -107,6 +107,8 @@ import Servant
     ( (:<|>) (..), (:>), NoContent )
 import Servant.Client
     ( ClientM, client )
+import UnliftIO.Exception
+    ( throwString )
 
 import qualified Data.Aeson as Aeson
 
@@ -330,9 +332,9 @@ addressClient =
                 fmap unApiAddressInspect
                 . _inspectAddress
                 . ApiAddressInspectData
-            , postRandomAddress = \_ _ -> fail "feature unavailable."
-            , putRandomAddress  = \_ _ -> fail "feature unavailable."
-            , putRandomAddresses = \_ _ -> fail "feature unavailable."
+            , postRandomAddress = \_ _ -> throwString "feature unavailable."
+            , putRandomAddress  = \_ _ -> throwString "feature unavailable."
+            , putRandomAddresses = \_ _ -> throwString "feature unavailable."
             }
 
 -- | Produces an 'AddressClient n' working against the /wallets API

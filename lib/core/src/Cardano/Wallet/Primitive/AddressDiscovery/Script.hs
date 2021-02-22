@@ -68,6 +68,8 @@ import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Data.Either.Combinators
     ( fromRight', rightToMaybe )
+import Data.Kind
+    ( Type )
 import Data.Maybe
     ( fromMaybe, isJust )
 import Data.Type.Equality
@@ -158,16 +160,16 @@ constructAddressFromIx pTemplate dTemplate ix =
             createEnterpriseAddress pScript
 
 liftPaymentAddress
-    :: forall (n :: NetworkDiscriminant) (k :: Depth -> * -> *). Typeable n
+    :: forall (n :: NetworkDiscriminant) (k :: Depth -> Type -> Type). Typeable n
     => KeyFingerprint "payment" k
-    -> Address
+  -> Address
 liftPaymentAddress (KeyFingerprint fingerprint) =
     Address $ CA.unAddress $
     paymentAddress (toNetworkTag @n)
     (PaymentFromScript (ScriptHash fingerprint))
 
 liftDelegationAddress
-    :: forall (n :: NetworkDiscriminant) (k :: Depth -> * -> *). Typeable n
+    :: forall (n :: NetworkDiscriminant) (k :: Depth -> Type -> Type). Typeable n
     => Index 'Soft 'ScriptK
     -> ScriptTemplate
     -> KeyFingerprint "payment" k

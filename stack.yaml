@@ -1,9 +1,9 @@
-# This resolver file contains a ghc-8.6.5-based stackage LTS, with a
+# This resolver file contains a ghc-8.10.4-based stackage LTS, with a
 # released cardano-node version, and supporting libraries.
 #
 # NOTE: Remember to update the version matrix in README.md when
 # bumping the Cardano version.
-resolver: https://raw.githubusercontent.com/input-output-hk/cardano-haskell/1c257e85cadb503ced0fe0a9ba757ae449baaf0b/snapshots/cardano-1.25.1.yaml
+resolver: cardano-1.25.1.yaml
 
 packages:
 - lib/core
@@ -17,53 +17,15 @@ packages:
 - lib/strict-non-empty-containers
 
 extra-deps:
-# Miscellaneous
+- unliftio-core-0.1.2.0
 - OddWord-1.0.2.0
+- generic-lens-1.1.0.0
 - command-0.1.1
-- wai-extra-3.0.29.1
-- primitive-addr-0.1.0.2
-- quickcheck-classes-0.6.4.0
-- quickcheck-classes-base-0.6.1.0
-
-# Needed because network > 3.1 is needed
-- servant-0.17
-- servant-server-0.17
-- servant-client-core-0.17
-- servant-client-0.17
-- servant-openapi3-2.0.0.1
-
-# 'zip' with an extra flag to disable bzlib2 library
-- zip-1.3.0
-
-# Needed for recently introduced support of TLS-1.3
-- tls-1.5.4
-
-# Pruned GHC boot packages which need to be here for stack to work on windows.
-- directory-1.3.3.0
-- process-1.6.5.0
-- time-1.8.0.2
-
-# openapi3 package and dependencies which aren't in the stackage LTS.
-- openapi3-3.0.0.1
-- optics-0.3
-- optics-core-0.3.0.1
-- optics-extra-0.3
-- optics-th-0.3.0.2
-- optics-vl-0.2.1
-- insert-ordered-containers-0.2.3.1
-- base-compat-0.11.2
-- base-compat-batteries-0.11.2
-- indexed-profunctors-0.1
-
-# persistent-2.10.2 with CASCADE DELETE support for SQLite.
-#
-# See: https://github.com/input-output-hk/persistent/tree/cardano-wallet
-- git: https://github.com/input-output-hk/persistent
-  commit: 107787ecc4c8a112375493cd66574f788f950fce
-  subdirs:
-    - persistent
-    - persistent-sqlite
-    - persistent-template
+- quickcheck-state-machine-0.7.0
+- markov-chain-usage-model-0.0.0
+- parsec-3.1.14.0
+- Cabal-3.2.1.0
+- async-timer-0.2.0.0
 
 # cardano-addresses-3.2.0
 - git: https://github.com/input-output-hk/cardano-addresses

@@ -1308,7 +1308,7 @@ parseLoggingSeverity :: String -> Either String Severity
 parseLoggingSeverity arg =
     case lookup (map toLower arg) loggingSeverities of
         Just sev -> pure sev
-        Nothing -> fail $ "unknown logging severity: " ++ arg
+        Nothing -> Left $ "unknown logging severity: " ++ arg
 
 loggingSeverityReader :: ReadM Severity
 loggingSeverityReader = eitherReader parseLoggingSeverity

@@ -132,6 +132,8 @@ import Data.Digest.CRC32
     ( crc32 )
 import Data.Function
     ( (&) )
+import Data.Kind
+    ( Type )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Map.Strict
@@ -241,7 +243,7 @@ defaultAddressPoolGap =
                                  Address Pool
 -------------------------------------------------------------------------------}
 
-data ParentContext (chain :: Role) (key :: Depth -> * -> *) where
+data ParentContext (chain :: Role) (key :: Depth -> Type -> Type) where
     ParentContextUtxoExternal
         :: key 'AccountK XPub
         -> ParentContext 'UtxoExternal key
@@ -282,7 +284,7 @@ instance NFData (key 'AccountK XPub) => NFData (ParentContext chain key) where
 -- AddressPool { }
 data AddressPool
     (chain :: Role)
-    (key :: Depth -> * -> *) = AddressPool
+    (key :: Depth -> Type -> Type) = AddressPool
     { context
         :: ParentContext chain key
         -- ^ Context of given address pool

@@ -59,7 +59,7 @@ import Cardano.BM.Data.Tracer
 import Cardano.Wallet.Logging
     ( BracketLog, bracketTracer )
 import Control.Monad
-    ( join, mapM_, void, when )
+    ( join, void, when )
 import Control.Monad.IO.Unlift
     ( MonadUnliftIO (..) )
 import Control.Monad.Logger

@@ -102,7 +102,7 @@ import Cardano.Wallet.Primitive.Types.TokenPolicy
 import Control.Applicative
     ( (<|>) )
 import Control.Monad
-    ( mapM, when, (>=>) )
+    ( when, (>=>) )
 import Control.Tracer
     ( Tracer, contramap, traceWith )
 import Data.Aeson
@@ -132,6 +132,8 @@ import Data.Functor
     ( ($>) )
 import Data.Hashable
     ( Hashable )
+import Data.Kind
+    ( Type )
 import Data.Maybe
     ( catMaybes, mapMaybe )
 import Data.Proxy
@@ -259,7 +261,7 @@ newtype PropertyName = PropertyName { unPropertyName :: Text }
     deriving newtype (IsString, Hashable)
 
 -- | The type of a given property name.
-type family PropertyValue (name :: Symbol) :: *
+type family PropertyValue (name :: Symbol) :: Type
 type instance PropertyValue "name" = Text
 type instance PropertyValue "description" = Text
 type instance PropertyValue "ticker" = Text

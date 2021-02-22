@@ -24,10 +24,8 @@ import Cardano.Wallet.Shelley.Launch.Cluster
     ( ClusterLog (..), singleNodeParams, withBFTNode )
 import Cardano.Wallet.Shelley.Network
     ( Observer (..), ObserverLog (..), newObserver, withNetworkLayer )
-import Control.Applicative
-    ( (<*) )
 import Control.Monad
-    ( mapM_, replicateM, unless, void )
+    ( replicateM, unless, void )
 import Control.Tracer
     ( Tracer, contramap )
 import Data.Map

@@ -28,7 +28,7 @@ import Cardano.BM.Data.Severity
 import Cardano.BM.Setup
     ( setupTrace_, shutdown )
 import Control.Monad
-    ( mapM_, replicateM_ )
+    ( replicateM_ )
 import Data.Maybe
     ( mapMaybe )
 import Data.Time

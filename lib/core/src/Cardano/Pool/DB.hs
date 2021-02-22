@@ -37,8 +37,6 @@ import Cardano.Wallet.Primitive.Types
     , StakePoolMetadataHash
     , StakePoolMetadataUrl
     )
-import Control.Monad.Fail
-    ( MonadFail )
 import Control.Monad.IO.Class
     ( MonadIO )
 import Control.Monad.Trans.Except

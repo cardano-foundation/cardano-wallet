@@ -67,8 +67,6 @@ import Cardano.Wallet.Primitive.Types.Tx
     ( TxIn (..), TxOut (..) )
 import Control.Monad
     ( replicateM, when )
-import Control.Monad.Fail
-    ( MonadFail )
 import Crypto.Error
     ( CryptoError (..), CryptoFailable (..) )
 import Crypto.Hash
