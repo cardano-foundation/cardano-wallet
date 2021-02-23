@@ -153,6 +153,37 @@ data SharedState (n :: NetworkDiscriminant) k = SharedState
     }
     deriving stock (Generic)
 
+
+data SharedState (n :: NetworkDiscriminant) k =
+    PendingSharedState
+    { shareStateDerivationPrefix :: !DerivationPrefix
+        -- ^ Derivation path prefix from a root key up to the account key
+    , shareStatePaymentTemplate :: !ScriptTemplate
+        -- ^ Script template together with a map of account keys and cosigners
+        -- for payment credential
+    , shareStateDelegationTemplate :: !(Maybe ScriptTemplate)
+        -- ^ Script template together with a map of account keys and cosigners
+        -- for staking credential. If not specified then the same template as for
+        -- payment is used
+    , shareStatePool :: !(AddressPool k)
+        -- ^ Address pool tracking the shared addresses. Co-owning is based on
+        -- payment credential only
+    }
+    | SharedState
+      { shareStateDerivationPrefix :: !DerivationPrefix
+        -- ^ Derivation path prefix from a root key up to the account key
+      , shareStatePaymentTemplate :: !ScriptTemplate
+        -- ^ Script template together with a map of account keys and cosigners
+        -- for payment credential
+      , shareStateDelegationTemplate :: !(Maybe ScriptTemplate)
+        -- ^ Script template together with a map of account keys and cosigners
+        -- for staking credential. If not specified then the same template as for
+        -- payment is used
+      , shareStatePool :: !(AddressPool k)
+        -- ^ Address pool tracking the shared addresses. Co-owning is based on
+        -- payment credential only
+      }
+
 deriving instance
     ( Show (k 'AccountK XPub)
     ) => Show (SharedState n k)
