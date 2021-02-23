@@ -123,6 +123,8 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     , KnownAddresses (..)
     , coinTypeAda
     )
+import Cardano.Wallet.Primitive.AddressDiscovery.Script
+    ( constructAddressFromIx )
 import Cardano.Wallet.Primitive.Types
     ( invariant )
 import Cardano.Wallet.Primitive.Types.Address
@@ -141,6 +143,8 @@ import Data.Bifunctor
     ( first )
 import Data.Digest.CRC32
     ( crc32 )
+import Data.Either.Combinators
+    ( rightToMaybe )
 import Data.Function
     ( (&) )
 import Data.List.NonEmpty
@@ -660,6 +664,13 @@ mkPaymentKey ctx ix =
     tryUtxoInternal ix =
         case testEquality (typeRep @c) (typeRep @'UtxoInternal) of
             Just Refl  -> Just $ mkPaymentKeyFromAccXPub ctx ix
+            Nothing -> Nothing
+    tryMultisigScript ix =
+        case testEquality (typeRep @c) (typeRep @'MultisigScript) of
+            Just Refl  ->
+                let (pT, dTM) = ctx
+                in rightToMaybe $ paymentKeyFingerprint $
+                   constructAddressFromIx pT dTM ix
             Nothing -> Nothing
     mkPaymentKeyFromAccXPub key =
         unsafePaymentKeyFingerprint @k
