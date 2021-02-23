@@ -147,14 +147,16 @@ import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Map.Strict
     ( Map )
+import Data.Maybe
+    ( fromJust )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Text.Class
     ( FromText (..), TextDecodingError (..), ToText (..) )
 import Data.Text.Read
     ( decimal )
-import Data.Typeable
-    ( Typeable, typeRep )
+import Data.Type.Equality
+    ( (:~:) (..), testEquality )
 import Data.Word
     ( Word32 )
 import Fmt
@@ -165,6 +167,8 @@ import GHC.Stack
     ( HasCallStack )
 import GHC.TypeLits
     ( KnownNat, Nat, natVal )
+import Type.Reflection
+    ( Typeable, typeRep )
 
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
@@ -247,9 +251,9 @@ defaultAddressPoolGap =
 -------------------------------------------------------------------------------}
 
 type family ParentContext (chain :: Role) (key :: Depth -> * -> *) :: * where
-    ParentContext UtxoExternal key = key 'AccountK XPub
-    ParentContext UtxoInternal key = key 'AccountK XPub
-    ParentContext MultisigScript _ = (ScriptTemplate, Maybe ScriptTemplate)
+    ParentContext 'UtxoExternal key = key 'AccountK XPub
+    ParentContext 'UtxoInternal key = key 'AccountK XPub
+    ParentContext 'MultisigScript _ = (ScriptTemplate, Maybe ScriptTemplate)
 
 -- | An 'AddressPool' which keeps track of sequential addresses within a given
 -- Account and change chain. See 'mkAddressPool' to create a new or existing
@@ -292,15 +296,15 @@ instance Buildable (ScriptTemplate, Maybe ScriptTemplate) where
         mempty <> " payment script credential: " <> scriptPaymentF <>
         " delegation script credential: " <> scriptDelegationF
       where
-        scriptPaymentF = build $ toText paymentTemplate
+        scriptPaymentF = build paymentTemplate
         scriptDelegationF = case delegationTemplateM of
-            Just s -> build $ toText s
+            Just delegationTemplate -> build delegationTemplate
             Nothing -> "absent"
 
-instance ToText ScriptTemplate where
-    toText (ScriptTemplate cosignersMap script') =
-        "Cosigners:" <> presentCosigners cosignersMap <>
-        " script:" <> T.pack (show script')
+instance Buildable ScriptTemplate where
+    build (ScriptTemplate cosignersMap script') = mempty <>
+        "Cosigners:" <> build (presentCosigners cosignersMap) <>
+        " Script:" <> build (T.pack (show script'))
       where
         printCosigner (Cosigner ix) =
             "cosigner#"<> T.pack (show ix)
@@ -309,7 +313,7 @@ instance ToText ScriptTemplate where
         presentCosigners =
             Map.foldrWithKey (\c k acc -> acc <> "| " <> printCosigner c <> " " <> printKey k ) mempty
 
-instance ((PersistPublicKey (key 'AccountK)), Typeable chain, Buildable (ParentContext chain key))
+instance (Typeable chain, Buildable (ParentContext chain key))
     => Buildable (AddressPool chain key) where
     build (AddressPool ctx (AddressPoolGap g) _) = mempty
         <> ccF <> " " <> build ctx <> " (gap=" <> build g <> ")\n"
@@ -439,16 +443,24 @@ extendVerificationKeyPool ix pool
 -- >>> role @chain
 -- ...
 role :: forall (c :: Role). Typeable c => Role
-role =
-    case typeRep (Proxy :: Proxy c) of
-        t | t == typeRep (Proxy :: Proxy 'UtxoInternal) ->
-            UtxoInternal
-          | t == typeRep (Proxy :: Proxy 'UtxoExternal) ->
-            UtxoExternal
-          | t == typeRep (Proxy :: Proxy 'MultisigScript) ->
-            MultisigScript
-        _ ->
-            MutableAccount
+role =  fromJust (tryUtxoExternal <|> tryUtxoInternal <|> tryMultisigScript <|> tryMutableAccount)
+  where
+    tryUtxoExternal =
+        case testEquality (typeRep @c) (typeRep @'UtxoExternal) of
+            Just Refl  -> Just UtxoExternal
+            Nothing -> Nothing
+    tryUtxoInternal =
+        case testEquality (typeRep @c) (typeRep @'UtxoInternal) of
+            Just Refl  -> Just UtxoInternal
+            Nothing -> Nothing
+    tryMultisigScript =
+        case testEquality (typeRep @c) (typeRep @'MultisigScript) of
+            Just Refl  -> Just MultisigScript
+            Nothing -> Nothing
+    tryMutableAccount =
+        case testEquality (typeRep @c) (typeRep @'MutableAccount) of
+            Just Refl  -> Just MutableAccount
+            Nothing -> Nothing
 
 -- | Get all addresses in the pool, sorted from the first address discovered,
 -- up until the next one.
@@ -496,7 +508,6 @@ mkAddressPool ctx g addrs = AddressPool
         , nextAddresses @n @c
             ctx
             g
-            (role @c)
             minBound
         ]
     }
@@ -607,46 +618,54 @@ extendAddressPool !ix !pool
     next = if ix == maxBound then mempty else nextAddresses @n @c
         (context pool)
         (gap pool)
-        (role @c)
         (succ ix)
 
 -- | Compute the pool extension from a starting index
 nextAddresses
-    :: forall (n :: NetworkDiscriminant) c k.
+    :: forall (n :: NetworkDiscriminant) (c :: Role) k.
         ( MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
         , SoftDerivation k
         , Typeable c
         )
     => ParentContext c k
     -> AddressPoolGap
-    -> Role
     -> Index 'Soft 'AddressK
     -> Map (KeyFingerprint "payment" k) (Index 'Soft 'AddressK, AddressState)
-nextAddresses !ctx (AddressPoolGap !g) !cc !fromIx =
+nextAddresses !ctx (AddressPoolGap !g) !fromIx =
     [fromIx .. min maxBound toIx]
-        & map (\ix -> (newPaymentKey ix, (ix, Unused)))
+        & map (\ix -> (mkPaymentKey @n @c ctx ix, (ix, Unused)))
         & Map.fromList
   where
     toIx = invariant
         "nextAddresses: toIx should be greater than fromIx"
         (toEnum $ fromEnum fromIx + fromEnum g - 1)
         (>= fromIx)
-    newPaymentKey ix = undefined
 
-{--
-newPaymentKey
-    :: forall (n :: NetworkDiscriminant) c k.
-        ( SoftDerivation k
+mkPaymentKey
+    :: forall (n :: NetworkDiscriminant) (c :: Role) k.
+        ( MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
+        , SoftDerivation k
         , Typeable c
         )
     => ParentContext c k
     -> Index 'Soft 'AddressK
     -> KeyFingerprint "payment" k
-newPaymentKey = undefined
-    unsafePaymentKeyFingerprint @k
-    . (Proxy @n,)
-    . deriveAddressPublicKey key cc
---}
+mkPaymentKey ctx ix =
+    fromJust (tryUtxoExternal ix <|> tryUtxoExternal ix )
+  where
+    tryUtxoExternal ix =
+        case testEquality (typeRep @c) (typeRep @'UtxoExternal) of
+            Just Refl  -> Just $ mkPaymentKeyFromAccXPub ctx ix
+            Nothing -> Nothing
+    tryUtxoInternal ix =
+        case testEquality (typeRep @c) (typeRep @'UtxoInternal) of
+            Just Refl  -> Just $ mkPaymentKeyFromAccXPub ctx ix
+            Nothing -> Nothing
+    mkPaymentKeyFromAccXPub key =
+        unsafePaymentKeyFingerprint @k
+        . (Proxy @n,)
+        . deriveAddressPublicKey key (role @c)
+
 {-------------------------------------------------------------------------------
                             Pending Change Indexes
 -------------------------------------------------------------------------------}
