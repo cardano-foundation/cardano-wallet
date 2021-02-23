@@ -54,7 +54,6 @@ import Cardano.BM.Setup
     ( setupTrace_, shutdown )
 import Cardano.DB.Sqlite
     ( ConnectionPool
-    , DBLog
     , SqliteContext (..)
     , newSqliteContext
     , withConnectionPool
@@ -66,7 +65,7 @@ import Cardano.Startup
 import Cardano.Wallet.DB
     ( DBLayer (..), PrimaryKey (..), cleanDB )
 import Cardano.Wallet.DB.Sqlite
-    ( CacheBehavior (..), PersistState, newDBLayerWith )
+    ( CacheBehavior (..), PersistState, WalletDBLog (..), newDBLayerWith )
 import Cardano.Wallet.DB.Sqlite.TH
     ( migrateAll )
 import Cardano.Wallet.DummyTarget.Primitive.Types
@@ -152,6 +151,8 @@ import Control.Monad
     ( join )
 import Control.Monad.Trans.Except
     ( mapExceptT )
+import Control.Tracer
+    ( contramap )
 import Criterion.Main
     ( Benchmark
     , Benchmarkable
@@ -655,7 +656,7 @@ withDB
         , PersistPrivateKey (k 'RootK)
         , WalletKey k
         )
-    => Tracer IO DBLog
+    => Tracer IO WalletDBLog
     -> (DBLayer IO s k -> Benchmark)
     -> Benchmark
 withDB tr bm = envWithCleanup (setupDB tr) cleanupDB (\(BenchEnv _ _ db) -> bm db)
@@ -678,18 +679,18 @@ setupDB
         , PersistPrivateKey (k 'RootK)
         , WalletKey k
         )
-    => Tracer IO DBLog
+    => Tracer IO WalletDBLog
     -> IO (BenchEnv s k)
 setupDB tr = do
     (createPool, destroyPool) <- unBracket withSetup
     uncurry (BenchEnv destroyPool) <$> createPool
   where
-    withSetup action = withTempSqliteFile $ \fp ->
-        withConnectionPool tr fp $ \pool -> do
-            ctx <- either throwIO pure =<< newSqliteContext tr pool [] migrateAll
-            db <- newDBLayerWith NoCache singleEraInterpreter ctx
+    withSetup action = withTempSqliteFile $ \fp -> do
+        let trDB = contramap MsgDB tr
+        withConnectionPool trDB fp $ \pool -> do
+            ctx <- either throwIO pure =<< newSqliteContext trDB pool [] migrateAll
+            db <- newDBLayerWith NoCache tr singleEraInterpreter ctx
             action (fp, db)
-
 singleEraInterpreter :: TimeInterpreter IO
 singleEraInterpreter = hoistTimeInterpreter (pure . runIdentity) $
     mkSingleEraInterpreter
@@ -739,7 +740,7 @@ walletFixtureByron db@DBLayer{..} = do
 -- These are not proper criterion benchmarks but use the benchmark test data to
 -- measure size on disk of the database and its temporary files.
 
-utxoDiskSpaceTests :: Tracer IO DBLog -> IO ()
+utxoDiskSpaceTests :: Tracer IO WalletDBLog -> IO ()
 utxoDiskSpaceTests tr = do
     putStrLn "Database disk space usage tests for UTxO\n"
     sequence_
@@ -761,7 +762,7 @@ utxoDiskSpaceTests tr = do
         walletFixture db
         benchPutUTxO n s 0 db
 
-txHistoryDiskSpaceTests :: Tracer IO DBLog -> IO ()
+txHistoryDiskSpaceTests :: Tracer IO WalletDBLog -> IO ()
 txHistoryDiskSpaceTests tr = do
     putStrLn "Database disk space usage tests for TxHistory\n"
     sequence_
@@ -777,7 +778,7 @@ txHistoryDiskSpaceTests tr = do
         walletFixture db
         benchPutTxHistory n i o 0 [1..100] db
 
-benchDiskSize :: Tracer IO DBLog -> (DBLayerBench -> IO ()) -> IO ()
+benchDiskSize :: Tracer IO WalletDBLog -> (DBLayerBench -> IO ()) -> IO ()
 benchDiskSize tr action = bracket (setupDB tr) cleanupDB
     $ \(BenchEnv destroyPool f db) -> do
         action db
