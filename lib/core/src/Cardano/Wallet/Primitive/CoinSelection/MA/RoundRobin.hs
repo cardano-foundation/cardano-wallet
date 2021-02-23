@@ -53,6 +53,9 @@ module Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     , makeChangeForNonUserSpecifiedAsset
     , assignCoinsToChangeMaps
 
+    -- * Partitioning
+    , equipartitionTokenMap
+
     -- * Grouping and ungrouping
     , groupByKey
     , ungroupByKey
@@ -1144,6 +1147,67 @@ makeChangeForCoin targets excess =
 
     weights :: NonEmpty Natural
     weights = coinToNatural <$> targets
+
+--------------------------------------------------------------------------------
+-- Partitioning
+--------------------------------------------------------------------------------
+
+-- | Partitions a token map into 'n' approximately-equal token maps.
+--
+-- Each token quantity is divided into approximately-equal portions and
+-- distributed to the resulting maps.
+--
+-- If a token quantity is not exactly divisible by 'n', then each divided
+-- portion will be within unity of the ideal portion.
+--
+-- This function satisfies the following properties:
+--
+--  1.  The length is preserved:
+--      >>> length (equipartitionTokenMap m count) == length count
+--
+--  2.  The sum is preserved:
+--      >>> sum (equipartitionTokenMap m count) == m
+--
+--  3.  Each resulting map is less than or equal to the original map:
+--      >>> all (`leq` m) (equipartitionTokenMap m count)
+--
+--  4.  The resultant list is sorted into ascending order when maps are
+--      compared with the 'leq` function.
+--
+equipartitionTokenMap
+    :: HasCallStack
+    => TokenMap
+    -- ^ The map to be partitioned.
+    -> NonEmpty a
+    -- ^ Represents the number of portions in which to partition the map.
+    -> NonEmpty TokenMap
+    -- ^ The partitioned maps.
+equipartitionTokenMap m count = NE.reverse $
+    F.foldl' accumulate (TokenMap.empty <$ count) (TokenMap.toFlatList m)
+  where
+    accumulate
+        :: NonEmpty TokenMap
+        -> (AssetId, TokenQuantity)
+        -> NonEmpty TokenMap
+    accumulate maps (asset, quantity) = NE.zipWith (<>) maps $
+        TokenMap.singleton asset <$>
+            unsafePartitionTokenQuantity quantity weights
+
+    weights :: NonEmpty Natural
+    weights = 1 <$ count
+
+unsafePartitionTokenQuantity
+    :: HasCallStack
+    => TokenQuantity
+    -> NonEmpty Natural
+    -> NonEmpty TokenQuantity
+unsafePartitionTokenQuantity (TokenQuantity target) =
+    maybe zeroWeightSumError (fmap TokenQuantity) . partitionNatural target
+  where
+    zeroWeightSumError = error $ unwords
+        [ "unsafePartitionTokenQuantity:"
+        , "specified weights must have a non-zero sum."
+        ]
 
 --------------------------------------------------------------------------------
 -- Grouping and ungrouping

@@ -33,6 +33,7 @@ import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     , assetSelectionLens
     , assignCoinsToChangeMaps
     , coinSelectionLens
+    , equipartitionTokenMap
     , fullBalance
     , groupByKey
     , makeChange
@@ -297,6 +298,17 @@ spec = describe "Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobinSpec" $
             property prop_makeChangeForUserSpecifiedAsset_length
         unitTests "makeChangeForUserSpecifiedAsset"
             unit_makeChangeForUserSpecifiedAsset
+
+    parallel $ describe "Partitioning" $ do
+
+        it "prop_equipartitionTokenMap_fair" $
+            property prop_equipartitionTokenMap_fair
+        it "prop_equipartitionTokenMap_length" $
+            property prop_equipartitionTokenMap_length
+        it "prop_equipartitionTokenMap_order" $
+            property prop_equipartitionTokenMap_order
+        it "prop_equipartitionTokenMap_sum" $
+            property prop_equipartitionTokenMap_sum
 
     parallel $ describe "Grouping and ungrouping" $ do
 
@@ -1575,6 +1587,56 @@ unit_makeChangeForUserSpecifiedAsset =
 
     assetC :: AssetId
     assetC = AssetId (UnsafeTokenPolicyId $ Hash "A") (UnsafeTokenName "2")
+
+--------------------------------------------------------------------------------
+-- Partitioning
+--------------------------------------------------------------------------------
+
+-- Test that token maps are partitioned fairly:
+--
+-- Each token quantity portion must be within unity of the ideal portion.
+--
+prop_equipartitionTokenMap_fair :: TokenMap -> NonEmpty () -> Property
+prop_equipartitionTokenMap_fair m count = property $
+    isZeroOrOne maximumDifference
+  where
+    -- Here we take advantage of the fact that the resultant maps are sorted
+    -- into ascending order when compared with the 'leq' function.
+    --
+    -- Consequently:
+    --
+    --  - the head map will be the smallest;
+    --  - the last map will be the greatest.
+    --
+    -- Therefore, subtracting the head map from the last map will produce a map
+    -- where each token quantity is equal to the difference between:
+    --
+    --  - the smallest quantity of that token in the resulting maps;
+    --  - the greatest quantity of that token in the resulting maps.
+    --
+    differences :: TokenMap
+    differences = NE.last results `TokenMap.unsafeSubtract` NE.head results
+
+    isZeroOrOne :: TokenQuantity -> Bool
+    isZeroOrOne (TokenQuantity q) = q == 0 || q == 1
+
+    maximumDifference :: TokenQuantity
+    maximumDifference = TokenMap.maximumQuantity differences
+
+    results :: NonEmpty TokenMap
+    results = equipartitionTokenMap m count
+
+prop_equipartitionTokenMap_length :: TokenMap -> NonEmpty () -> Property
+prop_equipartitionTokenMap_length m count =
+    NE.length (equipartitionTokenMap m count) === NE.length count
+
+prop_equipartitionTokenMap_order :: TokenMap -> NonEmpty () -> Property
+prop_equipartitionTokenMap_order m count = property $
+    inAscendingPartialOrder (equipartitionTokenMap m count)
+
+prop_equipartitionTokenMap_sum :: TokenMap -> NonEmpty () -> Property
+prop_equipartitionTokenMap_sum m count =
+    F.fold (equipartitionTokenMap m count) === m
 
 --------------------------------------------------------------------------------
 -- Grouping and ungrouping
