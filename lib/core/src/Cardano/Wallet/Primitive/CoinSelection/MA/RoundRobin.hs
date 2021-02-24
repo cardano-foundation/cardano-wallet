@@ -120,6 +120,8 @@ import Data.Ratio
     ( (%) )
 import Data.Set
     ( Set )
+import Data.Word
+    ( Word64 )
 import Fmt
     ( Buildable (..)
     , Builder
@@ -865,11 +867,25 @@ makeChange minCoinFor requiredCost mExtraCoinSource inputBundles outputBundles
         -- Next, sort the list into ascending order of asset count, which moves
         -- any empty maps to the start of the list:
         & NE.sortWith (AssetCount . fst)
-        -- Finally, combine the existing list with the change maps for non-user
+        -- Next, combine the existing list with the change maps for non-user
         -- specified assets, which are already sorted into ascending order of
         -- asset count:
         & NE.zipWith (\m1 (m2, c) -> (m1 <> m2, c))
             changeForNonUserSpecifiedAssets
+        -- Finally, if there are any maps with excessive token quantities, then
+        -- split these maps up along with their corresponding output coins:
+        & splitMapsWithExcessiveQuantities
+      where
+        splitMapsWithExcessiveQuantities
+            :: NonEmpty (TokenMap, Coin) -> NonEmpty (TokenMap, Coin)
+        splitMapsWithExcessiveQuantities =
+            -- For the sake of convenience when splitting up maps, treat each
+            -- change map and its corresponding output coin as a token bundle.
+            (fmap unbundle . split . bundle =<<)
+          where
+            bundle (m, c) = TokenBundle c m
+            unbundle (TokenBundle c m) = (m, c)
+            split = (`equipartitionTokenBundleWithMaxQuantity` maxTokenQuantity)
 
     -- Change for user-specified assets: assets that were present in the
     -- original set of user-specified outputs ('outputsToCover').
@@ -1428,6 +1444,16 @@ instance Ord (AssetCount TokenMap) where
 newtype AssetCount a = AssetCount
     { unAssetCount :: a }
     deriving (Eq, Show)
+
+--------------------------------------------------------------------------------
+-- Constants
+--------------------------------------------------------------------------------
+
+-- | The greatest token quantity that can be encoded within an output bundle of
+--   a transaction.
+--
+maxTokenQuantity :: TokenQuantity
+maxTokenQuantity = TokenQuantity $ fromIntegral (maxBound :: Word64)
 
 --------------------------------------------------------------------------------
 -- Utility functions
