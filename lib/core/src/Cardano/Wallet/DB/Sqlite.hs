@@ -2152,13 +2152,16 @@ instance
     , MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
     , PaymentAddress n k
     , SoftDerivation k
+    , Typeable n
     ) => PersistState (Seq.SeqState n k) where
     insertState (wid, sl) st = do
         let (intPool, extPool, sPool) =
                 (Seq.internalPool st, Seq.externalPool st, Seq.scriptPool st)
+        let (Seq.ParentContextUtxoInternal accXPubInternal) = Seq.context intPool
+        let (Seq.ParentContextUtxoExternal accXPubExternal) = Seq.context extPool
         let (accountXPub, _) = W.invariant
                 "Internal & External pool use different account public keys!"
-                (Seq.accountPubKey intPool, Seq.accountPubKey extPool)
+                ( accXPubExternal, accXPubInternal )
                 (uncurry (==))
         let eGap = Seq.gap extPool
         let iGap = Seq.gap intPool
@@ -2185,8 +2188,8 @@ instance
         let SeqState _ eGap iGap accountBytes rewardBytes prefix sGap = entityVal st
         let accountXPub = unsafeDeserializeXPub accountBytes
         let rewardXPub = unsafeDeserializeXPub rewardBytes
-        intPool <- lift $ selectAddressPool @n wid sl iGap accountXPub
-        extPool <- lift $ selectAddressPool @n wid sl eGap accountXPub
+        intPool <- lift $ selectAddressPool @n wid sl iGap (Seq.ParentContextUtxoInternal accountXPub)
+        extPool <- lift $ selectAddressPool @n wid sl eGap (Seq.ParentContextUtxoExternal accountXPub)
         sPool <- lift $ selectScriptPool wid sl sGap accountXPub
         pendingChangeIxs <- lift $ selectSeqStatePendingIxs wid
         pure $ Seq.SeqState intPool extPool pendingChangeIxs rewardXPub prefix sPool
@@ -2207,6 +2210,7 @@ insertAddressPool wid sl pool =
 selectAddressPool
     :: forall (n :: NetworkDiscriminant) k c.
         ( Typeable c
+        , Typeable n
         , SoftDerivation k
         , MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
         , MkKeyFingerprint k W.Address
@@ -2214,9 +2218,9 @@ selectAddressPool
     => W.WalletId
     -> W.SlotNo
     -> Seq.AddressPoolGap
-    -> k 'AccountK XPub
+    -> Seq.ParentContext c k
     -> SqlPersistT IO (Seq.AddressPool c k)
-selectAddressPool wid sl gap xpub = do
+selectAddressPool wid sl gap ctx = do
     addrs <- fmap entityVal <$> selectList
         [ SeqStateAddressWalletId ==. wid
         , SeqStateAddressSlot ==. sl
@@ -2228,7 +2232,7 @@ selectAddressPool wid sl gap xpub = do
         :: [SeqStateAddress]
         -> Seq.AddressPool c k
     addressPoolFromEntity addrs
-        = Seq.mkAddressPool @n @c @k xpub gap
+        = Seq.mkAddressPool @n @c @k ctx gap
         $ map (\x -> (seqStateAddressAddress x, seqStateAddressStatus x)) addrs
 
 mkSeqStatePendingIxs :: W.WalletId -> Seq.PendingIxs -> [SeqStatePendingIx]

@@ -45,6 +45,7 @@ module Cardano.Wallet.Primitive.AddressDiscovery.Sequential
 
     -- ** Address Pool
     , AddressPool
+    , ParentContext (..)
     , gap
     , addresses
     , role
@@ -265,7 +266,8 @@ data ParentContext (chain :: Role) (key :: Depth -> * -> *) where
         -> ParentContext 'UtxoInternal key
 
     ParentContextMultisigScript
-        :: ScriptTemplate
+        :: key 'AccountK XPub
+        -> ScriptTemplate
         -> Maybe ScriptTemplate
         -> ParentContext 'MultisigScript key
 
@@ -279,7 +281,7 @@ instance NFData (key 'AccountK XPub) => NFData (ParentContext chain key) where
     rnf = \case
         ParentContextUtxoExternal acct  -> rnf acct
         ParentContextUtxoInternal acct  -> rnf acct
-        ParentContextMultisigScript p d -> rnf (p, d)
+        ParentContextMultisigScript acct p d -> rnf (acct, p, d)
 
 -- | An 'AddressPool' which keeps track of sequential addresses within a given
 -- Account and change chain. See 'mkAddressPool' to create a new or existing
@@ -678,7 +680,7 @@ nextAddresses !ctx (AddressPoolGap !g) !fromIx =
             mkPaymentKeyFromAccXPub acct
         ParentContextUtxoInternal acct ->
             mkPaymentKeyFromAccXPub acct
-        ParentContextMultisigScript payment delegation ->
+        ParentContextMultisigScript _ payment delegation ->
             mkPaymentKeyFromTemplates payment delegation
       where
         mkPaymentKeyFromAccXPub acct =

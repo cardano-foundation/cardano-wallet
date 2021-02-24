@@ -599,6 +599,7 @@ createIcarusWallet
         , PaymentAddress n k
         , k ~ IcarusKey
         , s ~ SeqState n k
+        , Typeable n
         )
     => ctx
     -> WalletId
@@ -2015,7 +2016,8 @@ derivePublicKey ctx wid role_ ix = db & \DBLayer{..} -> do
 
     -- NOTE: Alternatively, we could use 'internalPool', they share the same
     --       account public key.
-    let acctK = Seq.accountPubKey $ Seq.externalPool $ getState cp
+    let (Seq.ParentContextUtxoExternal acctK) =
+            Seq.context $ Seq.externalPool $ getState cp
     let addrK = deriveAddressPublicKey acctK role_ addrIx
 
     return addrK

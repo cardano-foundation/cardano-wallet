@@ -1,5 +1,4 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
-{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
@@ -26,13 +25,11 @@ module Cardano.Wallet.Primitive.AddressDiscovery.Shared
     (
     -- ** State
       SharedState (..)
-    , unsafeSharedState
+    , unsafePendingSharedState
     , newSharedState
     , addCosignerAccXPub
-    , purposeCIPXXX
+    , purposeCIP1854
     , isShared
-    , keyHashFromAccXPubIx
-    , constructAddressFromIx
     ) where
 
 import Prelude
@@ -44,18 +41,7 @@ import Cardano.Address.Script
     , ScriptTemplate (..)
     , ValidationLevel (..)
     , foldScript
-    , toScriptHash
     , validateScriptTemplate
-    )
-import Cardano.Address.Style.Shelley
-    ( Credential (..)
-    , delegationAddress
-    , deriveMultisigForDelegationPublicKey
-    , deriveMultisigForPaymentPublicKey
-    , hashKey
-    , liftXPub
-    , mkNetworkDiscriminant
-    , paymentAddress
     )
 import Cardano.Crypto.Wallet
     ( XPub )
@@ -64,39 +50,39 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , DerivationPrefix (..)
     , DerivationType (..)
     , Index (..)
-    , KeyFingerprint (..)
     , MkKeyFingerprint (..)
     , NetworkDiscriminant (..)
+    , Role (..)
     , SoftDerivation
     , WalletKey (..)
-    , deriveVerificationKey
-    , hashVerificationKey
     )
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( coinTypeAda )
+import Cardano.Wallet.Primitive.AddressDiscovery.Script
+    ( keyHashFromAccXPubIx )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
-    ( AddressPoolGap, getAddressPoolGap, unsafePaymentKeyFingerprint )
-import Cardano.Wallet.Primitive.Types
-    ( invariant )
+    ( AddressPool
+    , AddressPoolGap
+    , ParentContext (..)
+    , context
+    , lookupAddress
+    , mkAddressPool
+    )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..), AddressState (..) )
 import Control.DeepSeq
     ( NFData )
-import Data.Bifunctor
-    ( first )
+import Data.Coerce
+    ( coerce )
 import Data.Either
     ( isRight )
-import Data.Function
-    ( (&) )
-import Data.Map.Strict
-    ( Map )
-import Data.Word
-    ( Word32 )
+import Data.Proxy
+    ( Proxy (..) )
 import GHC.Generics
     ( Generic )
+import Type.Reflection
+    ( Typeable )
 
-import qualified Cardano.Address as CA
-import qualified Cardano.Address.Style.Shelley as CA
 import qualified Data.Map.Strict as Map
 
 {-------------------------------------------------------------------------------
@@ -137,52 +123,32 @@ import qualified Data.Map.Strict as Map
 -- | When both script are present, the base address (with both credential) is expected to be discovered.
 -- | When script template for delegation credential is missing then enterprise address (non-stakable) is
 -- | expected.
-data SharedState (n :: NetworkDiscriminant) k = SharedState
-    { shareStateDerivationPrefix :: !DerivationPrefix
-        -- ^ Derivation path prefix from a root key up to the account key
-    , shareStatePaymentTemplate :: !ScriptTemplate
-        -- ^ Script template together with a map of account keys and cosigners
-        -- for payment credential
-    , shareStateDelegationTemplate :: !(Maybe ScriptTemplate)
-        -- ^ Script template together with a map of account keys and cosigners
-        -- for staking credential. If not specified then the same template as for
-        -- payment is used
-    , shareStatePool :: !(AddressPool k)
-        -- ^ Address pool tracking the shared addresses. Co-owning is based on
-        -- payment credential only
-    }
-    deriving stock (Generic)
-
-
 data SharedState (n :: NetworkDiscriminant) k =
-    PendingSharedState
-    { shareStateDerivationPrefix :: !DerivationPrefix
-        -- ^ Derivation path prefix from a root key up to the account key
-    , shareStatePaymentTemplate :: !ScriptTemplate
-        -- ^ Script template together with a map of account keys and cosigners
-        -- for payment credential
-    , shareStateDelegationTemplate :: !(Maybe ScriptTemplate)
-        -- ^ Script template together with a map of account keys and cosigners
-        -- for staking credential. If not specified then the same template as for
-        -- payment is used
-    , shareStatePool :: !(AddressPool k)
-        -- ^ Address pool tracking the shared addresses. Co-owning is based on
-        -- payment credential only
-    }
-    | SharedState
-      { shareStateDerivationPrefix :: !DerivationPrefix
-        -- ^ Derivation path prefix from a root key up to the account key
-      , shareStatePaymentTemplate :: !ScriptTemplate
-        -- ^ Script template together with a map of account keys and cosigners
-        -- for payment credential
-      , shareStateDelegationTemplate :: !(Maybe ScriptTemplate)
-        -- ^ Script template together with a map of account keys and cosigners
-        -- for staking credential. If not specified then the same template as for
-        -- payment is used
-      , shareStatePool :: !(AddressPool k)
-        -- ^ Address pool tracking the shared addresses. Co-owning is based on
-        -- payment credential only
+      PendingSharedState
+      { pendingSharedStateDerivationPrefix :: !DerivationPrefix
+          -- ^ Derivation path prefix from a root key up to the account key
+      , pendingSharedStateAccountKey :: !(k 'AccountK XPub)
+          -- ^ The account public key of an initiator of the shared wallet
+      , pendingSharedStatePaymentTemplate :: !ScriptTemplate
+          -- ^ Script template together with a map of account keys and cosigners
+          -- for payment credential
+      , pendingSharedStateDelegationTemplate :: !(Maybe ScriptTemplate)
+          -- ^ Script template together with a map of account keys and cosigners
+          -- for staking credential. If not specified then the same template as for
+          -- payment is used
+      , pendingSharedStateAddressPoolGap :: !AddressPoolGap
+          -- ^ Address pool gap to be used in the address pool of shared state
       }
+    | SharedState
+      { sharedStateDerivationPrefix :: !DerivationPrefix
+        -- ^ Derivation path prefix from a root key up to the account key
+      , sharedStateAddressPool :: !(AddressPool 'MultisigScript k)
+        -- ^ Address pool tracking the shared addresses. Co-owning is based on
+        -- payment credential only. Moreover, the parent context information is stored
+        -- ie., validated script template for payment credential, optional
+        -- validated script template for delegation credential and account public key with which
+        -- the shared wallet was initiated
+      } deriving (Generic)
 
 deriving instance
     ( Show (k 'AccountK XPub)
@@ -196,99 +162,70 @@ instance
     ( NFData (k 'AccountK XPub)
     ) => NFData (SharedState n k)
 
--- | Purpose for shared wallets is a constant set to 45' (or 0x8000002D) following the original
--- CIP-XXX Multi-signature Wallets.
+-- | Purpose for shared wallets is a constant set to 1854' (or 0x8000073E) following the original
+-- CIP-1854 Multi-signature Wallets.
 --
 -- It indicates that the subtree of this node is used according to this
 -- specification.
 --
 -- Hardened derivation is used at this level.
-purposeCIPXXX :: Index 'Hardened 'PurposeK
-purposeCIPXXX = toEnum 0x8000002D
+purposeCIP1854 :: Index 'Hardened 'PurposeK
+purposeCIP1854 = toEnum 0x8000073E
 
--- | Create a SharedState from the all needed ingredients.
+-- | Create a pending SharedState from the all needed ingredients.
 -- There is no validation and it is unsafe way.
-unsafeSharedState
-    :: forall (n :: NetworkDiscriminant) k. Index 'Hardened 'AccountK
+unsafePendingSharedState
+    :: forall (n :: NetworkDiscriminant) k. k 'AccountK XPub
+    -> Index 'Hardened 'AccountK
+    -> AddressPoolGap
     -> ScriptTemplate
     -> Maybe ScriptTemplate
-    -> AddressPool k
     -> SharedState n k
-unsafeSharedState accIx pTemplate dTemplate pool =
-    SharedState
-    { shareStateDerivationPrefix = DerivationPrefix ( purposeCIPXXX, coinTypeAda, accIx )
-    , shareStatePaymentTemplate = pTemplate
-    , shareStateDelegationTemplate = dTemplate
-    , shareStatePool = pool
+unsafePendingSharedState accXPub accIx g pTemplate dTemplateM =
+    PendingSharedState
+    { pendingSharedStateDerivationPrefix = DerivationPrefix ( purposeCIP1854, coinTypeAda, accIx )
+    , pendingSharedStateAccountKey = accXPub
+    , pendingSharedStatePaymentTemplate = pTemplate
+    , pendingSharedStateDelegationTemplate = dTemplateM
+    , pendingSharedStateAddressPoolGap = g
     }
 
 -- | Create a new SharedState.
 newSharedState
     :: forall (n :: NetworkDiscriminant) k.
-    ( MkKeyFingerprint k Address, SoftDerivation k)
+    ( MkKeyFingerprint k Address
+    , SoftDerivation k
+    , Typeable n
+    , MkKeyFingerprint k (Proxy n, k 'AddressK XPub) )
     => k 'AccountK XPub
     -> Index 'Hardened 'AccountK
     -> AddressPoolGap
     -> ScriptTemplate
     -> Maybe ScriptTemplate
     -> SharedState n k
-newSharedState accXPub accIx g pTemplate dTemplate =
-    let pool = mkAddressPool @n accXPub g [] pTemplate dTemplate
-    in unsafeSharedState accIx pTemplate dTemplate pool
+newSharedState accXPub accIx g pTemplate dTemplateM =
+    let pendingSharedState = unsafePendingSharedState accXPub accIx g pTemplate dTemplateM
+    in trySharedState pendingSharedState
 
-replaceCosignersWithVerKeys
-    :: CA.Role
-    -> ScriptTemplate
-    -> Index 'Soft 'ScriptK
-    -> Script KeyHash
-replaceCosignersWithVerKeys role (ScriptTemplate xpubs scriptTemplate) ix =
-    replaceCosigner scriptTemplate
-  where
-    replaceCosigner :: Script Cosigner -> Script KeyHash
-    replaceCosigner = \case
-        RequireSignatureOf c -> RequireSignatureOf $ toKeyHash c
-        RequireAllOf xs      -> RequireAllOf (map replaceCosigner xs)
-        RequireAnyOf xs      -> RequireAnyOf (map replaceCosigner xs)
-        RequireSomeOf m xs   -> RequireSomeOf m (map replaceCosigner xs)
-        ActiveFromSlot s     -> ActiveFromSlot s
-        ActiveUntilSlot s    -> ActiveUntilSlot s
-    toKeyHash :: Cosigner -> KeyHash
-    toKeyHash c =
-        let ix' = toEnum (fromEnum ix)
-            (Just accXPub) = liftXPub <$> Map.lookup c xpubs
-            verKey = deriveMultisigPublicKey accXPub ix'
-        in hashKey verKey
-    deriveMultisigPublicKey = case role of
-        CA.MultisigForPayment -> deriveMultisigForPaymentPublicKey
-        CA.MultisigForDelegation -> deriveMultisigForDelegationPublicKey
-        _ ->  error "replaceCosignersWithVerKeys is supported only for role=3 and role=4"
-
-constructAddressFromIx
-    :: CA.NetworkTag
-    -> ScriptTemplate
-    -> Maybe ScriptTemplate
-    -> Index 'Soft 'ScriptK
-    -> Address
-constructAddressFromIx tag pTemplate dTemplate ix =
-    let delegationCredential = DelegationFromScript . toScriptHash
-        paymentCredential = PaymentFromScript . toScriptHash
-        createBaseAddress pScript' dScript' =
-            CA.unAddress $
-            delegationAddress tag
-            (paymentCredential pScript') (delegationCredential dScript')
-        createEnterpriseAddress pScript' =
-            CA.unAddress $
-            paymentAddress tag
-            (paymentCredential pScript')
-        pScript =
-            replaceCosignersWithVerKeys CA.MultisigForPayment pTemplate ix
-        dScript s =
-            replaceCosignersWithVerKeys CA.MultisigForDelegation s ix
-    in Address $ case dTemplate of
-        Just dTemplate' ->
-            createBaseAddress pScript (dScript dTemplate')
-        Nothing ->
-            createEnterpriseAddress pScript
+trySharedState
+    :: forall (n :: NetworkDiscriminant) k.
+     ( MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
+     , MkKeyFingerprint k Address
+     , Typeable n
+     , SoftDerivation k )
+    => SharedState n k
+    -> SharedState n k
+trySharedState = \case
+    st@(SharedState _ _) -> st
+    st@(PendingSharedState derPath accXPub pT dT g) ->
+        if templatesComplete pT dT then
+            SharedState
+            { sharedStateDerivationPrefix = derPath
+            , sharedStateAddressPool =
+                mkAddressPool @n (ParentContextMultisigScript accXPub pT dT) g []
+            }
+        else
+            st
 
 templatesComplete
     :: ScriptTemplate
@@ -301,185 +238,63 @@ templatesComplete pTemplate dTemplate =
         Just dTemplate' ->
             isRight (validateScriptTemplate RequiredValidation dTemplate')
 
-keyHashFromAccXPubIx
-    :: (SoftDerivation k, WalletKey k)
-    => k 'AccountK XPub
-    -> Index 'Soft 'ScriptK
-    -> KeyHash
-keyHashFromAccXPubIx accXPub ix =
-    hashVerificationKey $ deriveVerificationKey accXPub ix
-
 -- | The cosigner with his account public key is done per template.
 -- For every template the script is checked if the cosigner is present.
--- If yes, then key is inserted. If the key is already present it is going to be
+-- If yes, then the key is inserted. If the key is already present it is going to be
 -- updated. If there is no cosigner present is the script then the cosigner -
--- account public key map is not changed.
+-- account public key map is not changed. The updating works with pending shared state,
+-- and can unpend the shared state if all public keys are present. When already unpended
+-- shared state is used it does not change it.
 addCosignerAccXPub
-    :: forall (n :: NetworkDiscriminant) k. WalletKey k
+    :: forall (n :: NetworkDiscriminant) k.
+       ( MkKeyFingerprint k Address
+       , MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
+       , SoftDerivation k
+       , Typeable n
+       , WalletKey k )
     => k 'AccountK XPub
     -> Cosigner
     -> SharedState n k
     -> SharedState n k
-addCosignerAccXPub accXPub cosigner (SharedState prefix pT dT pool) =
-    let updateScriptTemplate sc@(ScriptTemplate cosignerMap script') =
-            if cosigner `elem` retrieveAllCosigners script' then
-                ScriptTemplate (Map.insert cosigner (getRawKey accXPub) cosignerMap) script'
-            else
-                sc
-    in SharedState
-       { shareStateDerivationPrefix = prefix
-       , shareStatePaymentTemplate = updateScriptTemplate pT
-       , shareStateDelegationTemplate = updateScriptTemplate <$> dT
-       , shareStatePool = pool
-       }
+addCosignerAccXPub accXPub cosigner state = case state of
+    st@(SharedState _ _) -> st
+    PendingSharedState prefix accXPub' pT dT g ->
+        let updateScriptTemplate sc@(ScriptTemplate cosignerMap script') =
+                if cosigner `elem` retrieveAllCosigners script' then
+                    ScriptTemplate (Map.insert cosigner (getRawKey accXPub) cosignerMap) script'
+                else
+                    sc
+            st = PendingSharedState
+                { pendingSharedStateDerivationPrefix = prefix
+                , pendingSharedStateAccountKey = accXPub'
+                , pendingSharedStatePaymentTemplate = updateScriptTemplate pT
+                , pendingSharedStateDelegationTemplate = updateScriptTemplate <$> dT
+                , pendingSharedStateAddressPoolGap = g
+                }
+        in trySharedState st
 
 retrieveAllCosigners :: Script Cosigner -> [Cosigner]
 retrieveAllCosigners = foldScript (:) []
 
 isShared
     :: forall (n :: NetworkDiscriminant) k.
-       (SoftDerivation k, WalletKey k, MkKeyFingerprint k Address)
+       ( SoftDerivation k
+       , WalletKey k
+       , Typeable n
+       , MkKeyFingerprint k Address
+       , MkKeyFingerprint k (Proxy n, k 'AddressK XPub) )
     => Address
     -> SharedState n k
     -> (Maybe (Index 'Soft 'ScriptK, KeyHash), SharedState n k)
-isShared addr shared@(SharedState !prefix !pT !dT !pool) =
-    if templatesComplete pT dT then
-        case scriptIxM of
-            Nothing ->
-                (Nothing, shared)
+isShared addr st = case st of
+    SharedState prefix pool ->
+        let (ixM, pool') = lookupAddress @n (const Used) addr pool
+            (ParentContextMultisigScript accXPub _ _) = context pool
+        in case ixM of
             Just ix ->
-                ( Just (ix, keyHashFromAccXPubIx (accountPubKey pool) ix)
-                , SharedState prefix pT dT pool')
-    else
-       (Nothing, shared)
-  where
-    (scriptIxM, pool') = lookupAddress @n (const Used) addr pool pT dT
-
-data AddressPool (key :: Depth -> * -> *) = AddressPool
-    { accountPubKey
-        :: !(key 'AccountK XPub)
-        -- ^ Corresponding key for the pool (a pool is tied to only one account)
-    , gap
-        :: !AddressPoolGap
-        -- ^ Number of consecutive unused addresses available at all time.
-    , indexedKeys
-        :: !(Map
-                (KeyFingerprint "payment" key)
-                (Index 'Soft 'ScriptK, AddressState)
-            )
-    } deriving (Generic)
-
-deriving instance (Show (key 'AccountK XPub))
-    => Show (AddressPool key)
-
-deriving instance (Eq (key 'AccountK XPub))
-    => Eq (AddressPool key)
-
-instance (NFData (key 'AccountK XPub))
-    => NFData (AddressPool key)
-
-mkAddressPool
-    :: forall (n :: NetworkDiscriminant) k.
-        ( MkKeyFingerprint k Address
-        , SoftDerivation k
-        )
-    => k 'AccountK XPub
-    -> AddressPoolGap
-    -> [(Address, AddressState)]
-    -> ScriptTemplate
-    -> Maybe ScriptTemplate
-    -> AddressPool k
-mkAddressPool key g addrs pTemplate dTemplate = AddressPool
-    { accountPubKey = key
-    , gap = g
-    , indexedKeys =
-            if templatesComplete pTemplate dTemplate then
-                mconcat
-                [ Map.fromList $ zipWith (\(addr, status) ix -> (addr, (ix, status)))
-                  (first (unsafePaymentKeyFingerprint @k) <$> addrs)
-                  [minBound..maxBound]
-                , nextAddresses @n
-                  key
-                  (getAddressPoolGap g)
-                  minBound
-                  pTemplate
-                  dTemplate
-                ]
-            else
-                Map.empty
-    }
-
-nextAddresses
-    :: forall (n :: NetworkDiscriminant) k.
-        ( MkKeyFingerprint k Address
-        )
-    => k 'AccountK XPub
-    -> Word32
-    -> Index 'Soft 'ScriptK
-    -> ScriptTemplate
-    -> Maybe ScriptTemplate
-    -> Map (KeyFingerprint "payment" k) (Index 'Soft 'ScriptK, AddressState)
-nextAddresses _ !g !fromIx !pTemplate !dTemplate =
-    [fromIx .. min maxBound toIx]
-        & map (\ix -> (newPaymentKey ix, (ix, Unused)))
-        & Map.fromList
-  where
-    toIx = invariant
-        "nextAddresses: toIx should be greater than fromIx"
-        (toEnum $ fromEnum fromIx + fromEnum g - 1)
-        (>= fromIx)
-    (Right tag) = mkNetworkDiscriminant 1
-    address ix = constructAddressFromIx tag pTemplate dTemplate ix
-    newPaymentKey ix = unsafePaymentKeyFingerprint @k (address ix)
-
-lookupAddress
-    :: forall (n :: NetworkDiscriminant) k.
-        ( MkKeyFingerprint k Address
-        , SoftDerivation k
-        )
-    => (AddressState -> AddressState)
-    -> Address
-    -> AddressPool k
-    -> ScriptTemplate
-    -> Maybe ScriptTemplate
-    -> (Maybe (Index 'Soft 'ScriptK), AddressPool k)
-lookupAddress alterSt !target !pool !pTemplate !dTemplate =
-    case paymentKeyFingerprint @k target of
-        Left _ ->
-            (Nothing, pool)
-        Right fingerprint ->
-            case Map.alterF lookupF fingerprint (indexedKeys pool) of
-                (Just ix, keys') ->
-                    ( Just ix
-                    , extendAddressPool @n ix (pool { indexedKeys = keys'}) pTemplate dTemplate
-                    )
-                (Nothing, _) ->
-                    ( Nothing
-                    , pool
-                    )
-  where
-    lookupF = \case
-        Nothing -> (Nothing, Nothing)
-        Just (ix, st) -> (Just ix, Just (ix, alterSt st))
-
-extendAddressPool
-    :: forall (n :: NetworkDiscriminant) k.
-        ( MkKeyFingerprint k Address
-        )
-    => Index 'Soft 'ScriptK
-    -> AddressPool k
-    -> ScriptTemplate
-    -> Maybe ScriptTemplate
-    -> AddressPool k
-extendAddressPool !ix !pool !pTemplate !dTemplate
-    | isOnEdge  = pool { indexedKeys = indexedKeys pool <> next }
-    | otherwise = pool
-  where
-    edge = Map.size (indexedKeys pool)
-    isOnEdge = edge - fromEnum ix <= fromEnum (gap pool)
-    next = if ix == maxBound then mempty else nextAddresses @n
-        (accountPubKey pool)
-        (getAddressPoolGap $ gap pool)
-        (succ ix)
-        pTemplate
-        dTemplate
+                (Just (coerce ix, keyHashFromAccXPubIx accXPub (coerce ix))
+                , SharedState prefix pool')
+            Nothing ->
+                (Nothing, st)
+    PendingSharedState _ _ _ _ _ ->
+        (Nothing, st)
