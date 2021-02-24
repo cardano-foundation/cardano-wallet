@@ -56,8 +56,6 @@ import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
-import Cardano.DB.Sqlite.Delete
-    ( DeleteSqliteDatabaseLog )
 import Cardano.Wallet.Logging
     ( BracketLog, bracketTracer )
 import Control.Monad
@@ -137,7 +135,7 @@ import qualified Database.Sqlite as Sqlite
                             Sqlite connection set up
 -------------------------------------------------------------------------------}
 
--- | Context for the SQLite 'DBLayer'.
+-- | 'SqliteContext' is a function to execute queries.
 newtype SqliteContext = SqliteContext
     { runQuery :: forall a. SqlPersistT IO a -> IO a
     -- ^ Run a query with a connection from the pool.
@@ -498,15 +496,9 @@ data DBLog
     | MsgDatabaseReset
     | MsgIsAlreadyClosed Text
     | MsgStatementAlreadyFinalized Text
-    | MsgWaitingForDatabase Text (Maybe Int)
-    | MsgRemovingInUse Text Int
-    | MsgRemoving Text
-    | MsgRemovingDatabaseFile Text DeleteSqliteDatabaseLog
     | MsgManualMigrationNeeded DBField Text
     | MsgManualMigrationNotNeeded DBField
     | MsgUpdatingForeignKeysSetting ForeignKeysSetting
-    | MsgFoundDatabase FilePath Text
-    | MsgUnknownDBFile FilePath
     | MsgRetryOnBusy Int RetryLog
     deriving (Generic, Show, Eq, ToJSON)
 
@@ -527,15 +519,9 @@ instance HasSeverityAnnotation DBLog where
         MsgDatabaseReset -> Notice
         MsgIsAlreadyClosed _ -> Warning
         MsgStatementAlreadyFinalized _ -> Warning
-        MsgWaitingForDatabase _ _ -> Info
-        MsgRemovingInUse _ _ -> Notice
-        MsgRemoving _ -> Info
-        MsgRemovingDatabaseFile _ msg -> getSeverityAnnotation msg
         MsgManualMigrationNeeded{} -> Notice
         MsgManualMigrationNotNeeded{} -> Debug
         MsgUpdatingForeignKeysSetting{} -> Debug
-        MsgFoundDatabase _ _ -> Info
-        MsgUnknownDBFile _ -> Notice
         MsgRetryOnBusy n _
             | n <= 1 -> Debug
             | n <= 3 -> Notice
@@ -565,17 +551,6 @@ instance ToText DBLog where
             "Attempted to close an already closed connection: " <> msg
         MsgStatementAlreadyFinalized msg ->
             "Statement already finalized: " <> msg
-        MsgWaitingForDatabase wid Nothing ->
-            "Database "+|wid|+" is ready to be deleted"
-        MsgWaitingForDatabase wid (Just count) ->
-            "Waiting for "+|count|+" withDatabase "+|wid|+" call(s) to finish"
-        MsgRemovingInUse wid count ->
-            "Timed out waiting for "+|count|+" withDatabase "+|wid|+" call(s) to finish. " <>
-            "Attempting to remove the database anyway."
-        MsgRemoving wid ->
-            "Removing wallet's database. Wallet id was " <> wid
-        MsgRemovingDatabaseFile wid msg ->
-            "Removing " <> wid <> ": " <> toText msg
         MsgManualMigrationNeeded field value -> mconcat
             [ tableName field
             , " table does not contain required field '"
@@ -595,12 +570,6 @@ instance ToText DBLog where
             [ "Updating the foreign keys setting to: "
             , T.pack $ show value
             , "."
-            ]
-        MsgFoundDatabase _file wid ->
-            "Found existing wallet: " <> wid
-        MsgUnknownDBFile file -> mconcat
-            [ "Found something other than a database file in "
-            , "the database folder: ", T.pack file
             ]
         MsgRetryOnBusy n msg -> case msg of
             MsgRetry

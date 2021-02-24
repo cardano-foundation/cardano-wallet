@@ -1,5 +1,6 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
@@ -24,24 +25,39 @@
 -- An implementation of the DBLayer which uses Persistent and SQLite.
 
 module Cardano.Wallet.DB.Sqlite
-    ( newDBLayer
+    ( -- * Directory of wallet databases
+      newDBFactory
+    , findDatabases
+    , DBFactoryLog
+
+    -- * Single file wallet database
+    , withDBLayer
+
+    -- * Internal implementation
+    , newDBLayer
+    , newDBLayerInMemory
     , newDBLayerWith
     , CacheBehavior (..)
-    , newDBFactory
-    , findDatabases
-    , withDBLayer
 
     -- * Interfaces
     , PersistState (..)
 
     -- * Migration Support
     , DefaultFieldValues (..)
+
+
     ) where
 
 import Prelude
 
 import Cardano.Address.Derivation
     ( XPrv, XPub )
+import Cardano.Address.Script
+    ( KeyHash, ScriptHash (..) )
+import Cardano.BM.Data.Severity
+    ( Severity (..) )
+import Cardano.BM.Data.Tracer
+    ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.DB.Sqlite
     ( DBField (..)
     , DBLog (..)
@@ -59,7 +75,12 @@ import Cardano.DB.Sqlite
     , withConnectionPool
     )
 import Cardano.DB.Sqlite.Delete
-    ( deleteSqliteDatabase, newRefCount, waitForFree, withRef )
+    ( DeleteSqliteDatabaseLog
+    , deleteSqliteDatabase
+    , newRefCount
+    , waitForFree
+    , withRef
+    )
 import Cardano.Wallet.DB
     ( DBFactory (..)
     , DBLayer (..)
@@ -201,7 +222,9 @@ import Database.Persist.Sqlite
 import Database.Persist.Types
     ( PersistValue (..), fromPersistValueText )
 import Fmt
-    ( pretty )
+    ( pretty, (+|), (|+) )
+import GHC.Generics
+    ( Generic )
 import System.Directory
     ( doesFileExist, listDirectory )
 import System.FilePath
@@ -227,51 +250,19 @@ import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
 import qualified Database.Sqlite as Sqlite
 
--- | Runs an action with a connection to the SQLite database.
---
--- Database migrations are run to create tables if necessary.
---
--- If the given file path does not exist, it will be created by the sqlite
--- library.
-withDBLayer
-    :: forall s k a.
-        ( PersistState s
-        , PersistPrivateKey (k 'RootK)
-        , WalletKey k
-        )
-    => Tracer IO DBLog
-       -- ^ Logging object
-    -> DefaultFieldValues
-       -- ^ Default database field values, used during migration.
-    -> Maybe FilePath
-       -- ^ Path to database directory, or Nothing for in-memory database
-    -> TimeInterpreter IO
-       -- ^ Time interpreter for slot to time conversions
-    -> (DBLayer IO s k -> IO a)
-       -- ^ Action to run.
-    -> IO a
-withDBLayer tr defaultFieldValues mDatabaseDir ti action =
-    case mDatabaseDir of
-        Nothing ->
-            newInMemorySqliteContext tr [] migrateAll
-                >>= newDBLayer ti
-                >>= action
+{-------------------------------------------------------------------------------
+                               Database "factory"
+             (a directory containing one database file per wallet)
+-------------------------------------------------------------------------------}
 
-        Just fp -> do
-            let manualMigrations = migrateManually tr (Proxy @k) defaultFieldValues
-            let autoMigrations   = migrateAll
-            withConnectionPool tr fp $ \pool -> do
-                res <- newSqliteContext tr pool manualMigrations autoMigrations
-                either throwIO (action <=< newDBLayer ti) res
-
--- | Instantiate a 'DBFactory' from a given directory
+-- | Instantiate a 'DBFactory' from a given directory, or in-memory for testing.
 newDBFactory
     :: forall s k.
         ( PersistState s
         , PersistPrivateKey (k 'RootK)
         , WalletKey k
         )
-    => Tracer IO DBLog
+    => Tracer IO DBFactoryLog
        -- ^ Logging object
     -> DefaultFieldValues
        -- ^ Default database field values, used during migration.
@@ -292,11 +283,11 @@ newDBFactory tr defaultFieldValues ti = \case
         pure DBFactory
             { withDatabase = \wid action -> do
                 db <- modifyMVar mvar $ \m -> case Map.lookup wid m of
-                    Just (_, db) -> pure (m, db)
+                    Just db -> pure (m, db)
                     Nothing -> do
-                        ctx <- newInMemorySqliteContext tr [] migrateAll
-                        db  <- newDBLayer ti ctx
-                        pure (Map.insert wid (ctx, db) m, db)
+                        let tr' = contramap (MsgDBLog "") tr
+                        db <- newDBLayerInMemory tr' ti
+                        pure (Map.insert wid db m, db)
                 action db
             , removeDatabase = \wid -> do
                 traceWith tr $ MsgRemoving (pretty wid)
@@ -310,9 +301,9 @@ newDBFactory tr defaultFieldValues ti = \case
         refs <- newRefCount
         pure DBFactory
             { withDatabase = \wid action -> withRef refs wid $ withDBLayer
-                tr
+                (contramap (MsgDBLog (databaseFile wid)) tr)
                 defaultFieldValues
-                (Just $ databaseFile wid)
+                (databaseFile wid)
                 ti
                 action
             , removeDatabase = \wid -> do
@@ -342,7 +333,7 @@ newDBFactory tr defaultFieldValues ti = \case
 --   specified directory.
 findDatabases
     :: forall k. WalletKey k
-    => Tracer IO DBLog
+    => Tracer IO DBFactoryLog
     -> FilePath
     -> IO [W.WalletId]
 findDatabases tr dir = do
@@ -361,6 +352,63 @@ findDatabases tr dir = do
             _ -> return Nothing
   where
     expectedPrefix = T.pack $ keyTypeDescriptor $ Proxy @k
+
+data DBFactoryLog
+    = MsgFoundDatabase FilePath Text
+    | MsgUnknownDBFile FilePath
+    | MsgRemoving Text
+    | MsgRemovingInUse Text Int
+    | MsgRemovingDatabaseFile Text DeleteSqliteDatabaseLog
+    | MsgWaitingForDatabase Text (Maybe Int)
+    | MsgDBLog FilePath DBLog
+    deriving (Generic, Show, Eq)
+
+instance HasPrivacyAnnotation DBFactoryLog
+instance HasSeverityAnnotation DBFactoryLog where
+    getSeverityAnnotation ev = case ev of
+        MsgFoundDatabase _ _ -> Info
+        MsgUnknownDBFile _ -> Notice
+        MsgRemoving _ -> Info
+        MsgRemovingInUse _ _ -> Notice
+        MsgRemovingDatabaseFile _ msg -> getSeverityAnnotation msg
+        MsgWaitingForDatabase _ _ -> Info
+        MsgDBLog _ msg -> getSeverityAnnotation msg
+
+instance ToText DBFactoryLog where
+    toText = \case
+        MsgFoundDatabase _file wid ->
+            "Found existing wallet: " <> wid
+        MsgUnknownDBFile file -> mconcat
+            [ "Found something other than a database file in "
+            , "the database folder: ", T.pack file
+            ]
+        MsgRemoving wid ->
+            "Removing wallet's database. Wallet id was " <> wid
+        MsgRemovingDatabaseFile wid msg ->
+            "Removing " <> wid <> ": " <> toText msg
+        MsgWaitingForDatabase wid Nothing ->
+            "Database "+|wid|+" is ready to be deleted"
+        MsgWaitingForDatabase wid (Just count) ->
+            "Waiting for "+|count|+" withDatabase "+|wid|+" call(s) to finish"
+        MsgRemovingInUse wid count ->
+            "Timed out waiting for "+|count|+" withDatabase "+|wid|+" call(s) to finish. " <>
+            "Attempting to remove the database anyway."
+        MsgDBLog _file msg -> toText msg
+
+{-------------------------------------------------------------------------------
+                           Database Schema Migrations
+-------------------------------------------------------------------------------}
+
+-- | A set of default field values that can be consulted when performing a
+--   database migration.
+--
+data DefaultFieldValues = DefaultFieldValues
+    { defaultActiveSlotCoefficient :: W.ActiveSlotCoefficient
+    , defaultDesiredNumberOfPool :: Word16
+    , defaultMinimumUTxOValue :: W.Coin
+    , defaultHardforkEpoch :: Maybe W.EpochNo
+    , defaultKeyDeposit :: W.Coin
+    }
 
 -- | A data-type for capturing column status. Used to be represented as a
 -- 'Maybe Bool' which is somewhat confusing to interpret.
@@ -1065,19 +1113,56 @@ runSql conn raw = do
             Sqlite.Done -> do
                 return (reverse acc)
 
--- | A set of default field values that can be consulted when performing a
---   database migration.
---
-data DefaultFieldValues = DefaultFieldValues
-    { defaultActiveSlotCoefficient :: W.ActiveSlotCoefficient
-    , defaultDesiredNumberOfPool :: Word16
-    , defaultMinimumUTxOValue :: W.Coin
-    , defaultHardforkEpoch :: Maybe W.EpochNo
-    , defaultKeyDeposit :: W.Coin
-    }
+{-------------------------------------------------------------------------------
+                                 Database layer
+-------------------------------------------------------------------------------}
 
--- | A type to capture what to do with regards to caching. This is useful to
--- disable caching in database benchmarks.
+-- | Runs an action with a connection to the SQLite database.
+--
+-- Database migrations are run to create tables if necessary.
+--
+-- If the given file path does not exist, it will be created by the sqlite
+-- library.
+withDBLayer
+    :: forall s k a.
+        ( PersistState s
+        , PersistPrivateKey (k 'RootK)
+        , WalletKey k
+        )
+    => Tracer IO DBLog
+       -- ^ Logging object
+    -> DefaultFieldValues
+       -- ^ Default database field values, used during migration.
+    -> FilePath
+       -- ^ Path to database file
+    -> TimeInterpreter IO
+       -- ^ Time interpreter for slot to time conversions
+    -> (DBLayer IO s k -> IO a)
+       -- ^ Action to run.
+    -> IO a
+withDBLayer tr defaultFieldValues dbFile ti action = do
+    let manualMigrations = migrateManually tr (Proxy @k) defaultFieldValues
+    let autoMigrations   = migrateAll
+    withConnectionPool tr dbFile $ \pool -> do
+        res <- newSqliteContext tr pool manualMigrations autoMigrations
+        either throwIO (action <=< newDBLayer ti) res
+
+-- | Creates a 'DBLayer' backed by a sqlite in-memory database.
+newDBLayerInMemory
+    :: forall s k.
+        ( PersistState s
+        , PersistPrivateKey (k 'RootK)
+        )
+    => Tracer IO DBLog
+       -- ^ Logging object
+    -> TimeInterpreter IO
+       -- ^ Time interpreter for slot to time conversions
+    -> IO (DBLayer IO s k)
+newDBLayerInMemory tr ti =
+    newInMemorySqliteContext tr [] migrateAll >>= newDBLayer ti
+
+-- | What to do with regards to caching. This is useful to disable caching in
+-- database benchmarks.
 data CacheBehavior
     = NoCache
     | CacheLatestCheckpoint

@@ -50,8 +50,6 @@ import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..), filterSeverity )
 import Cardano.BM.Trace
     ( Trace, appendName, nullTracer )
-import Cardano.DB.Sqlite
-    ( DBLog )
 import Cardano.Launcher.Node
     ( CardanoNodeConn )
 import Cardano.Pool.DB
@@ -72,7 +70,7 @@ import Cardano.Wallet.Api.Types
     , EncodeStakeAddress
     )
 import Cardano.Wallet.DB.Sqlite
-    ( DefaultFieldValues (..), PersistState )
+    ( DBFactoryLog, DefaultFieldValues (..), PersistState )
 import Cardano.Wallet.Logging
     ( trMessageText )
 import Cardano.Wallet.Network
@@ -497,7 +495,7 @@ data Tracers' f = Tracers
     , apiServerTracer     :: f ApiLog
     , tokenMetadataTracer :: f TokenMetadataLog
     , walletEngineTracer  :: f (WorkerLog WalletId WalletLog)
-    , walletDbTracer      :: f DBLog
+    , walletDbTracer      :: f DBFactoryLog
     , poolsEngineTracer   :: f (WorkerLog Text StakePoolLog)
     , poolsDbTracer       :: f PoolDbLog
     , ntpClientTracer     :: f NtpTrace
