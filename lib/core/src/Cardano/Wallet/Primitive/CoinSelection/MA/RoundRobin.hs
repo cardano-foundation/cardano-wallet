@@ -1232,36 +1232,56 @@ equipartitionTokenMapWithMaxQuantity m (TokenQuantity maxAllowableQuantity)
         , "the maximum allowable token quantity cannot be zero."
         ]
 
+-- | Partitions a coin into a number of parts, where the size of each part is
+--   proportional to the size of its corresponding element in the given list of
+--   weights, and the number of parts is equal to the number of weights.
+--
+-- Throws a run-time error if the sum of weights is equal to zero.
+--
 unsafePartitionCoin
     :: HasCallStack
     => Coin
+    -- ^ Coin to partition
     -> NonEmpty Natural
+    -- ^ List of weights
     -> NonEmpty Coin
-unsafePartitionCoin coin =
-    maybe zeroWeightSumError (fmap unsafeNaturalToCoin)
-        . partitionNatural (coinToNatural coin)
-  where
-    coinToNatural :: Coin -> Natural
-    coinToNatural = fromIntegral . unCoin
+unsafePartitionCoin n weights =
+    unsafeNaturalToCoin <$> unsafePartitionNatural (coinToNatural n) weights
 
-    unsafeNaturalToCoin :: Natural -> Coin
-    unsafeNaturalToCoin = Coin . fromIntegral
-
-    zeroWeightSumError = error $ unwords
-        [ "unsafePartitionCoin:"
-        , "specified weights must have a non-zero sum."
-        ]
-
+-- | Partitions a token quantity into a number of parts, where the size of each
+--   part is proportional to the size of its corresponding element in the given
+--   list of weights, and the number of parts is equal to the number of weights.
+--
+-- Throws a run-time error if the sum of weights is equal to zero.
+--
 unsafePartitionTokenQuantity
     :: HasCallStack
     => TokenQuantity
+    -- ^ Token quantity to partition
     -> NonEmpty Natural
+    -- ^ List of weights
     -> NonEmpty TokenQuantity
-unsafePartitionTokenQuantity (TokenQuantity target) =
-    maybe zeroWeightSumError (fmap TokenQuantity) . partitionNatural target
+unsafePartitionTokenQuantity n weights =
+    TokenQuantity <$> unsafePartitionNatural (unTokenQuantity n) weights
+
+-- | Partitions a natural number into a number of parts, where the size of each
+--   part is proportional to the size of its corresponding element in the given
+--   list of weights, and the number of parts is equal to the number of weights.
+--
+-- Throws a run-time error if the sum of weights is equal to zero.
+--
+unsafePartitionNatural
+    :: HasCallStack
+    => Natural
+    -- ^ Natural number to partition
+    -> NonEmpty Natural
+    -- ^ List of weights
+    -> NonEmpty Natural
+unsafePartitionNatural target =
+    fromMaybe zeroWeightSumError . partitionNatural target
   where
     zeroWeightSumError = error $ unwords
-        [ "unsafePartitionTokenQuantity:"
+        [ "unsafePartitionNatural:"
         , "specified weights must have a non-zero sum."
         ]
 
