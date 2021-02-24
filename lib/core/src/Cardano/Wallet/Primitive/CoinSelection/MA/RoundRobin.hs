@@ -1232,6 +1232,26 @@ equipartitionTokenMapWithMaxQuantity m (TokenQuantity maxAllowableQuantity)
         , "the maximum allowable token quantity cannot be zero."
         ]
 
+unsafePartitionCoin
+    :: HasCallStack
+    => Coin
+    -> NonEmpty Natural
+    -> NonEmpty Coin
+unsafePartitionCoin coin =
+    maybe zeroWeightSumError (fmap unsafeNaturalToCoin)
+        . partitionNatural (coinToNatural coin)
+  where
+    coinToNatural :: Coin -> Natural
+    coinToNatural = fromIntegral . unCoin
+
+    unsafeNaturalToCoin :: Natural -> Coin
+    unsafeNaturalToCoin = Coin . fromIntegral
+
+    zeroWeightSumError = error $ unwords
+        [ "unsafePartitionCoin:"
+        , "specified weights must have a non-zero sum."
+        ]
+
 unsafePartitionTokenQuantity
     :: HasCallStack
     => TokenQuantity
