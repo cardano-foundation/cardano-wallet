@@ -33,6 +33,7 @@ import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     , assetSelectionLens
     , assignCoinsToChangeMaps
     , coinSelectionLens
+    , equipartitionCoin
     , equipartitionTokenMap
     , equipartitionTokenMapWithMaxQuantity
     , fullBalance
@@ -151,6 +152,7 @@ import Test.QuickCheck
     , suchThat
     , withMaxSuccess
     , (.&&.)
+    , (.||.)
     , (===)
     , (==>)
     )
@@ -161,6 +163,7 @@ import Test.QuickCheck.Monadic
 import Test.Utils.Laws
     ( testLawsMany )
 
+import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as TokenQuantity
@@ -303,7 +306,18 @@ spec = describe "Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobinSpec" $
         unitTests "makeChangeForUserSpecifiedAsset"
             unit_makeChangeForUserSpecifiedAsset
 
-    parallel $ describe "Partitioning" $ do
+    parallel $ describe "Partitioning coins" $ do
+
+        it "prop_equipartitionCoin_fair" $
+            property prop_equipartitionCoin_fair
+        it "prop_equipartitionCoin_length" $
+            property prop_equipartitionCoin_length
+        it "prop_equipartitionCoin_order" $
+            property prop_equipartitionCoin_order
+        it "prop_equipartitionCoin_sum" $
+            property prop_equipartitionCoin_sum
+
+    parallel $ describe "Partitioning token maps" $ do
 
         it "prop_equipartitionTokenMap_fair" $
             property prop_equipartitionTokenMap_fair
@@ -1606,7 +1620,41 @@ unit_makeChangeForUserSpecifiedAsset =
     assetC = AssetId (UnsafeTokenPolicyId $ Hash "A") (UnsafeTokenName "2")
 
 --------------------------------------------------------------------------------
--- Partitioning
+-- Partitioning coins
+--------------------------------------------------------------------------------
+
+-- Test that coins are partitioned fairly:
+--
+-- Each coin portion must be within unity of the ideal portion.
+--
+prop_equipartitionCoin_fair
+    :: Coin -> NonEmpty () -> Property
+prop_equipartitionCoin_fair m count = (.||.)
+    (difference === Coin 0)
+    (difference === Coin 1)
+  where
+    difference :: Coin
+    difference = F.minimum results `Coin.distance` F.maximum results
+
+    results :: NonEmpty Coin
+    results = equipartitionCoin m count
+
+prop_equipartitionCoin_length :: Coin -> NonEmpty () -> Property
+prop_equipartitionCoin_length m count =
+    NE.length (equipartitionCoin m count) === NE.length count
+
+prop_equipartitionCoin_order :: Coin -> NonEmpty () -> Property
+prop_equipartitionCoin_order m count =
+    NE.sort results === results
+  where
+    results = equipartitionCoin m count
+
+prop_equipartitionCoin_sum :: Coin -> NonEmpty () -> Property
+prop_equipartitionCoin_sum m count =
+    F.fold (equipartitionCoin m count) === m
+
+--------------------------------------------------------------------------------
+-- Partitioning token maps
 --------------------------------------------------------------------------------
 
 -- Test that token maps are partitioned fairly:

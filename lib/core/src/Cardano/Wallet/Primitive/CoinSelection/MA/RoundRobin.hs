@@ -54,6 +54,7 @@ module Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     , assignCoinsToChangeMaps
 
     -- * Partitioning
+    , equipartitionCoin
     , equipartitionTokenMap
     , equipartitionTokenMapWithMaxQuantity
 
@@ -1154,6 +1155,18 @@ makeChangeForCoin targets excess =
 --------------------------------------------------------------------------------
 -- Partitioning
 --------------------------------------------------------------------------------
+
+-- | Partitions a coin into 'n' approximately-equal coins.
+--
+equipartitionCoin
+    :: HasCallStack
+    => Coin
+    -- ^ The coin to be partitioned.
+    -> NonEmpty a
+    -- ^ Represents the number of portions in which to partition the coin.
+    -> NonEmpty Coin
+    -- ^ The partitioned coins.
+equipartitionCoin c count = NE.reverse $ unsafePartitionCoin c (1 <$ count)
 
 -- | Partitions a token map into 'n' approximately-equal token maps.
 --
