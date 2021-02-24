@@ -34,6 +34,7 @@ import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     , assignCoinsToChangeMaps
     , coinSelectionLens
     , equipartitionCoin
+    , equipartitionTokenBundle
     , equipartitionTokenMap
     , equipartitionTokenMapWithMaxQuantity
     , fullBalance
@@ -316,6 +317,17 @@ spec = describe "Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobinSpec" $
             property prop_equipartitionCoin_order
         it "prop_equipartitionCoin_sum" $
             property prop_equipartitionCoin_sum
+
+    parallel $ describe "Partitioning token bundles" $ do
+
+        it "prop_equipartitionTokenBundle_fair" $
+            property prop_equipartitionTokenBundle_fair
+        it "prop_equipartitionTokenBundle_length" $
+            property prop_equipartitionTokenBundle_length
+        it "prop_equipartitionTokenBundle_order" $
+            property prop_equipartitionTokenBundle_order
+        it "prop_equipartitionTokenBundle_sum" $
+            property prop_equipartitionTokenBundle_sum
 
     parallel $ describe "Partitioning token maps" $ do
 
@@ -1629,15 +1641,16 @@ unit_makeChangeForUserSpecifiedAsset =
 --
 prop_equipartitionCoin_fair
     :: Coin -> NonEmpty () -> Property
-prop_equipartitionCoin_fair m count = (.||.)
+prop_equipartitionCoin_fair m count =
+    prop_equipartitionCoin_fair_inner $ equipartitionCoin m count
+
+prop_equipartitionCoin_fair_inner :: NonEmpty Coin -> Property
+prop_equipartitionCoin_fair_inner results = (.||.)
     (difference === Coin 0)
     (difference === Coin 1)
   where
     difference :: Coin
     difference = F.minimum results `Coin.distance` F.maximum results
-
-    results :: NonEmpty Coin
-    results = equipartitionCoin m count
 
 prop_equipartitionCoin_length :: Coin -> NonEmpty () -> Property
 prop_equipartitionCoin_length m count =
@@ -1654,6 +1667,34 @@ prop_equipartitionCoin_sum m count =
     F.fold (equipartitionCoin m count) === m
 
 --------------------------------------------------------------------------------
+-- Partitioning token bundles
+--------------------------------------------------------------------------------
+
+-- Test that token bundles are partitioned fairly:
+--
+-- Each token quantity portion must be within unity of the ideal portion.
+--
+prop_equipartitionTokenBundle_fair :: TokenBundle -> NonEmpty () -> Property
+prop_equipartitionTokenBundle_fair m count = (.&&.)
+    (prop_equipartitionCoin_fair_inner $ view #coin <$> results)
+    (prop_equipartitionTokenMap_fair_inner $ view #tokens <$> results)
+  where
+    results :: NonEmpty TokenBundle
+    results = equipartitionTokenBundle m count
+
+prop_equipartitionTokenBundle_length :: TokenBundle -> NonEmpty () -> Property
+prop_equipartitionTokenBundle_length m count =
+    NE.length (equipartitionTokenBundle m count) === NE.length count
+
+prop_equipartitionTokenBundle_order :: TokenBundle -> NonEmpty () -> Property
+prop_equipartitionTokenBundle_order m count = property $
+    inAscendingPartialOrder (equipartitionTokenBundle m count)
+
+prop_equipartitionTokenBundle_sum :: TokenBundle -> NonEmpty () -> Property
+prop_equipartitionTokenBundle_sum m count =
+    F.fold (equipartitionTokenBundle m count) === m
+
+--------------------------------------------------------------------------------
 -- Partitioning token maps
 --------------------------------------------------------------------------------
 
@@ -1662,7 +1703,11 @@ prop_equipartitionCoin_sum m count =
 -- Each token quantity portion must be within unity of the ideal portion.
 --
 prop_equipartitionTokenMap_fair :: TokenMap -> NonEmpty () -> Property
-prop_equipartitionTokenMap_fair m count = property $
+prop_equipartitionTokenMap_fair m count =
+    prop_equipartitionTokenMap_fair_inner $ equipartitionTokenMap m count
+
+prop_equipartitionTokenMap_fair_inner :: NonEmpty TokenMap -> Property
+prop_equipartitionTokenMap_fair_inner results = property $
     isZeroOrOne maximumDifference
   where
     -- Here we take advantage of the fact that the resultant maps are sorted
@@ -1687,9 +1732,6 @@ prop_equipartitionTokenMap_fair m count = property $
 
     maximumDifference :: TokenQuantity
     maximumDifference = TokenMap.maximumQuantity differences
-
-    results :: NonEmpty TokenMap
-    results = equipartitionTokenMap m count
 
 prop_equipartitionTokenMap_length :: TokenMap -> NonEmpty () -> Property
 prop_equipartitionTokenMap_length m count =

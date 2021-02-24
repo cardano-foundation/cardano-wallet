@@ -55,6 +55,7 @@ module Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
 
     -- * Partitioning
     , equipartitionCoin
+    , equipartitionTokenBundle
     , equipartitionTokenMap
     , equipartitionTokenMapWithMaxQuantity
 
@@ -1167,6 +1168,24 @@ equipartitionCoin
     -> NonEmpty Coin
     -- ^ The partitioned coins.
 equipartitionCoin c count = NE.reverse $ unsafePartitionCoin c (1 <$ count)
+
+-- | Partitions a token bundle into 'n' approximately-equal token bundles.
+--
+-- This function has the same properties as 'equipartitionTokenMap', but extends
+-- the behaviour to include ada 'Coin' quantities.
+--
+equipartitionTokenBundle
+    :: HasCallStack
+    => TokenBundle
+    -- ^ The bundle to be partitioned.
+    -> NonEmpty a
+    -- ^ Represents the number of portions in which to partition the bundle.
+    -> NonEmpty TokenBundle
+    -- ^ The partitioned bundle.
+equipartitionTokenBundle (TokenBundle c m) count =
+    NE.zipWith TokenBundle
+        (equipartitionCoin c count)
+        (equipartitionTokenMap m count)
 
 -- | Partitions a token map into 'n' approximately-equal token maps.
 --
