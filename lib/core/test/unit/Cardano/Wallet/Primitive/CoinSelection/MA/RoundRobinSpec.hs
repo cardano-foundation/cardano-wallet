@@ -34,6 +34,7 @@ import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     , assignCoinsToChangeMaps
     , coinSelectionLens
     , equipartitionTokenMap
+    , equipartitionTokenMapWithMaxQuantity
     , fullBalance
     , groupByKey
     , makeChange
@@ -104,6 +105,8 @@ import Data.Map.Strict
     ( Map )
 import Data.Maybe
     ( isJust )
+import Data.Ratio
+    ( (%) )
 import Data.Set
     ( Set )
 import Data.Tuple
@@ -160,6 +163,7 @@ import Test.Utils.Laws
 
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
+import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as TokenQuantity
 import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
 import qualified Data.Foldable as F
 import qualified Data.List as L
@@ -309,6 +313,19 @@ spec = describe "Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobinSpec" $
             property prop_equipartitionTokenMap_order
         it "prop_equipartitionTokenMap_sum" $
             property prop_equipartitionTokenMap_sum
+
+    parallel $ describe "Partitioning token maps by max quantity" $ do
+
+        it "prop_equipartitionTokenMapWithMaxQuantity_coverage" $
+            property prop_equipartitionTokenMapWithMaxQuantity_coverage
+        it "prop_equipartitionTokenMapWithMaxQuantity_length" $
+            property prop_equipartitionTokenMapWithMaxQuantity_length
+        it "prop_equipartitionTokenMapWithMaxQuantity_max" $
+            property prop_equipartitionTokenMapWithMaxQuantity_max
+        it "prop_equipartitionTokenMapWithMaxQuantity_order" $
+            property prop_equipartitionTokenMapWithMaxQuantity_order
+        it "prop_equipartitionTokenMapWithMaxQuantity_sum" $
+            property prop_equipartitionTokenMapWithMaxQuantity_sum
 
     parallel $ describe "Grouping and ungrouping" $ do
 
@@ -1637,6 +1654,76 @@ prop_equipartitionTokenMap_order m count = property $
 prop_equipartitionTokenMap_sum :: TokenMap -> NonEmpty () -> Property
 prop_equipartitionTokenMap_sum m count =
     F.fold (equipartitionTokenMap m count) === m
+
+--------------------------------------------------------------------------------
+-- Partitioning token maps according to a maximum quantity
+--------------------------------------------------------------------------------
+
+-- | Computes the number of parts that 'equipartitionTokenMapWithMaxQuantity'
+--   should return.
+--
+equipartitionTokenMapWithMaxQuantity_expectedLength
+    :: TokenMap -> TokenQuantity -> Int
+equipartitionTokenMapWithMaxQuantity_expectedLength
+    m (TokenQuantity maxQuantity) =
+        max 1 $ ceiling $ currentMaxQuantity % maxQuantity
+  where
+    TokenQuantity currentMaxQuantity = TokenMap.maximumQuantity m
+
+prop_equipartitionTokenMapWithMaxQuantity_coverage
+    :: TokenMap -> TokenQuantity -> Property
+prop_equipartitionTokenMapWithMaxQuantity_coverage m maxQuantity =
+    maxQuantity > TokenQuantity.zero ==>
+        checkCoverage $
+        cover 8 (maxQuantity == TokenQuantity 1)
+            "Maximum allowable quantity == 1" $
+        cover 8 (maxQuantity == TokenQuantity 2)
+            "Maximum allowable quantity == 2" $
+        cover 8 (maxQuantity >= TokenQuantity 3)
+            "Maximum allowable quantity >= 3" $
+        cover 8 (expectedLength == 1)
+            "Expected number of parts == 1" $
+        cover 8 (expectedLength == 2)
+            "Expected number of parts == 2" $
+        cover 8 (expectedLength >= 3)
+            "Expected number of parts >= 3" $
+        property $ expectedLength > 0
+  where
+    expectedLength = equipartitionTokenMapWithMaxQuantity_expectedLength
+        m maxQuantity
+
+prop_equipartitionTokenMapWithMaxQuantity_length
+    :: TokenMap -> TokenQuantity -> Property
+prop_equipartitionTokenMapWithMaxQuantity_length m maxQuantity =
+    maxQuantity > TokenQuantity.zero ==>
+        length (equipartitionTokenMapWithMaxQuantity m maxQuantity)
+            === equipartitionTokenMapWithMaxQuantity_expectedLength
+                m maxQuantity
+
+prop_equipartitionTokenMapWithMaxQuantity_max
+    :: TokenMap -> TokenQuantity -> Property
+prop_equipartitionTokenMapWithMaxQuantity_max m maxQuantity =
+    maxQuantity > TokenQuantity.zero ==>
+        checkCoverage $
+        cover 10 (maxResultQuantity == maxQuantity)
+            "At least one resultant token map has a maximal quantity" $
+        property $ maxResultQuantity <= maxQuantity
+  where
+    results = equipartitionTokenMapWithMaxQuantity m maxQuantity
+    maxResultQuantity = F.maximum (TokenMap.maximumQuantity <$> results)
+
+prop_equipartitionTokenMapWithMaxQuantity_order
+    :: TokenMap -> TokenQuantity -> Property
+prop_equipartitionTokenMapWithMaxQuantity_order m maxQuantity =
+    maxQuantity > TokenQuantity.zero ==>
+        inAscendingPartialOrder
+            (equipartitionTokenMapWithMaxQuantity m maxQuantity)
+
+prop_equipartitionTokenMapWithMaxQuantity_sum
+    :: TokenMap -> TokenQuantity -> Property
+prop_equipartitionTokenMapWithMaxQuantity_sum m maxQuantity =
+    maxQuantity > TokenQuantity.zero ==>
+        F.fold (equipartitionTokenMapWithMaxQuantity m maxQuantity) === m
 
 --------------------------------------------------------------------------------
 -- Grouping and ungrouping

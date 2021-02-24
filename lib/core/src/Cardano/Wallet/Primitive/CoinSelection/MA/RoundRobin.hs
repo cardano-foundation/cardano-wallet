@@ -55,6 +55,7 @@ module Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
 
     -- * Partitioning
     , equipartitionTokenMap
+    , equipartitionTokenMapWithMaxQuantity
 
     -- * Grouping and ungrouping
     , groupByKey
@@ -111,6 +112,8 @@ import Data.Maybe
     ( fromMaybe )
 import Data.Ord
     ( comparing )
+import Data.Ratio
+    ( (%) )
 import Data.Set
     ( Set )
 import Fmt
@@ -1195,6 +1198,39 @@ equipartitionTokenMap m count = NE.reverse $
 
     weights :: NonEmpty Natural
     weights = 1 <$ count
+
+-- | Partitions a token map into a number of smaller token maps, where every
+--   quantity in the result is guaranteed to not exceed the maximum allowable
+--   token quantity.
+--
+-- This function partitions the given token map into 'n' approximately-equal
+-- maps, where 'n' is the minimum value required to achieve the goal that no
+-- token quantity in any of the resulting maps exceeds the maximum allowable
+-- token quantity.
+--
+equipartitionTokenMapWithMaxQuantity
+    :: TokenMap
+    -> TokenQuantity
+    -- ^ Maximum allowable token quantity.
+    -> NonEmpty TokenMap
+    -- ^ The partitioned maps.
+equipartitionTokenMapWithMaxQuantity m (TokenQuantity maxAllowableQuantity)
+    | maxAllowableQuantity == 0 =
+        maxAllowableQuantityZeroError
+    | currentMaxQuantity <= maxAllowableQuantity =
+        m :| []
+    | otherwise =
+        equipartitionTokenMap m (() :| replicate extraPartCount ())
+  where
+    TokenQuantity currentMaxQuantity = TokenMap.maximumQuantity m
+
+    extraPartCount :: Int
+    extraPartCount = floor $ pred currentMaxQuantity % maxAllowableQuantity
+
+    maxAllowableQuantityZeroError = error $ unwords
+        [ "equipartitionTokenMapWithMaxQuantity:"
+        , "the maximum allowable token quantity cannot be zero."
+        ]
 
 unsafePartitionTokenQuantity
     :: HasCallStack
