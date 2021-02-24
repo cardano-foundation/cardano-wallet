@@ -57,6 +57,7 @@ module Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     , equipartitionCoin
     , equipartitionTokenBundle
     , equipartitionTokenMap
+    , equipartitionTokenBundleWithMaxQuantity
     , equipartitionTokenMapWithMaxQuantity
 
     -- * Grouping and ungrouping
@@ -1230,6 +1231,27 @@ equipartitionTokenMap m count = NE.reverse $
 
     weights :: NonEmpty Natural
     weights = 1 <$ count
+
+-- | Partitions a token bundle into a number of smaller token bundles, where
+--   every quantity in the result is guaranteed to not exceed the maximum
+--   allowable token quantity.
+--
+-- This function partitions the given token bundle into 'n' approximately-equal
+-- bundles, where 'n' is the minimum value required to achieve the goal that no
+-- token quantity in any of the resulting bundles exceeds the maximum allowable
+-- token quantity.
+--
+equipartitionTokenBundleWithMaxQuantity
+    :: TokenBundle
+    -> TokenQuantity
+    -- ^ Maximum allowable token quantity.
+    -> NonEmpty TokenBundle
+    -- ^ The partitioned bundles.
+equipartitionTokenBundleWithMaxQuantity b maxQuantity =
+    NE.zipWith TokenBundle cs ms
+  where
+    cs = equipartitionCoin (view #coin b) ms
+    ms = equipartitionTokenMapWithMaxQuantity (view #tokens b) maxQuantity
 
 -- | Partitions a token map into a number of smaller token maps, where every
 --   quantity in the result is guaranteed to not exceed the maximum allowable

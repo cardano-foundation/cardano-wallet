@@ -35,6 +35,7 @@ import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     , coinSelectionLens
     , equipartitionCoin
     , equipartitionTokenBundle
+    , equipartitionTokenBundleWithMaxQuantity
     , equipartitionTokenMap
     , equipartitionTokenMapWithMaxQuantity
     , fullBalance
@@ -339,6 +340,15 @@ spec = describe "Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobinSpec" $
             property prop_equipartitionTokenMap_order
         it "prop_equipartitionTokenMap_sum" $
             property prop_equipartitionTokenMap_sum
+
+    parallel $ describe "Partitioning token bundles by max quantity" $ do
+
+        it "prop_equipartitionTokenBundleWithMaxQuantity_length" $
+            property prop_equipartitionTokenBundleWithMaxQuantity_length
+        it "prop_equipartitionTokenBundleWithMaxQuantity_order" $
+            property prop_equipartitionTokenBundleWithMaxQuantity_order
+        it "prop_equipartitionTokenBundleWithMaxQuantity_sum" $
+            property prop_equipartitionTokenBundleWithMaxQuantity_sum
 
     parallel $ describe "Partitioning token maps by max quantity" $ do
 
@@ -1744,6 +1754,40 @@ prop_equipartitionTokenMap_order m count = property $
 prop_equipartitionTokenMap_sum :: TokenMap -> NonEmpty () -> Property
 prop_equipartitionTokenMap_sum m count =
     F.fold (equipartitionTokenMap m count) === m
+
+--------------------------------------------------------------------------------
+-- Partitioning token bundles according to a maximum quantity
+--------------------------------------------------------------------------------
+
+-- | Computes the number of parts that 'equipartitionTokenBundleWithMaxQuantity'
+--   should return.
+--
+equipartitionTokenBundleWithMaxQuantity_expectedLength
+    :: TokenBundle -> TokenQuantity -> Int
+equipartitionTokenBundleWithMaxQuantity_expectedLength m =
+    equipartitionTokenMapWithMaxQuantity_expectedLength
+        (view #tokens m)
+
+prop_equipartitionTokenBundleWithMaxQuantity_length
+    :: TokenBundle -> TokenQuantity -> Property
+prop_equipartitionTokenBundleWithMaxQuantity_length m maxQuantity =
+    maxQuantity > TokenQuantity.zero ==>
+        length (equipartitionTokenBundleWithMaxQuantity m maxQuantity)
+            === equipartitionTokenBundleWithMaxQuantity_expectedLength
+                m maxQuantity
+
+prop_equipartitionTokenBundleWithMaxQuantity_order
+    :: TokenBundle -> TokenQuantity -> Property
+prop_equipartitionTokenBundleWithMaxQuantity_order m maxQuantity =
+    maxQuantity > TokenQuantity.zero ==>
+        inAscendingPartialOrder
+            (equipartitionTokenBundleWithMaxQuantity m maxQuantity)
+
+prop_equipartitionTokenBundleWithMaxQuantity_sum
+    :: TokenBundle -> TokenQuantity -> Property
+prop_equipartitionTokenBundleWithMaxQuantity_sum m maxQuantity =
+    maxQuantity > TokenQuantity.zero ==>
+        F.fold (equipartitionTokenBundleWithMaxQuantity m maxQuantity) === m
 
 --------------------------------------------------------------------------------
 -- Partitioning token maps according to a maximum quantity
