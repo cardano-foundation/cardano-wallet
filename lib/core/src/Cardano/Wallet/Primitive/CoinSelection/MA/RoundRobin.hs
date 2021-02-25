@@ -1156,10 +1156,30 @@ makeChangeForCoin targets excess =
     weights = coinToNatural <$> targets
 
 --------------------------------------------------------------------------------
--- Partitioning
+-- Equipartitioning
 --------------------------------------------------------------------------------
 
--- | Partitions a coin into 'n' approximately-equal coins.
+-- An /equipartition/ of a value 'v' (of some type) is a /partition/ of that
+-- value into 'n' smaller values whose /sizes/ differ by no more than 1. The
+-- the notion of /size/ is dependent on the type of value 'v'.
+--
+-- In this section, equipartitions have the following properties:
+--
+--  1.  The length is observed:
+--      >>> length (equipartition v n) == n
+--
+--  2.  The sum is preserved:
+--      >>> sum (equipartition v n) == v
+--
+--  3.  Each resulting value is less than or equal to the original value:
+--      >>> all (`leq` v) (equipartition v n)
+--
+--  4.  The resultant list is sorted into ascending order when values are
+--      compared with the 'leq' function.
+--
+--------------------------------------------------------------------------------
+
+-- | Computes the equipartition of a coin into 'n' smaller coins.
 --
 equipartitionCoin
     :: HasCallStack
@@ -1171,10 +1191,9 @@ equipartitionCoin
     -- ^ The partitioned coins.
 equipartitionCoin c count = NE.reverse $ unsafePartitionCoin c (1 <$ count)
 
--- | Partitions a token bundle into 'n' approximately-equal token bundles.
+-- | Computes the equipartition of a token bundle into 'n' smaller bundles.
 --
--- This function has the same properties as 'equipartitionTokenMap', but extends
--- the behaviour to include ada 'Coin' quantities.
+-- Each asset is partitioned independently.
 --
 equipartitionTokenBundle
     :: HasCallStack
@@ -1189,27 +1208,9 @@ equipartitionTokenBundle (TokenBundle c m) count =
         (equipartitionCoin c count)
         (equipartitionTokenMap m count)
 
--- | Partitions a token map into 'n' approximately-equal token maps.
+-- | Computes the equipartition of a token map into 'n' smaller maps.
 --
--- Each token quantity is divided into approximately-equal portions and
--- distributed to the resulting maps.
---
--- If a token quantity is not exactly divisible by 'n', then each divided
--- portion will be within unity of the ideal portion.
---
--- This function satisfies the following properties:
---
---  1.  The length is preserved:
---      >>> length (equipartitionTokenMap m count) == length count
---
---  2.  The sum is preserved:
---      >>> sum (equipartitionTokenMap m count) == m
---
---  3.  Each resulting map is less than or equal to the original map:
---      >>> all (`leq` m) (equipartitionTokenMap m count)
---
---  4.  The resultant list is sorted into ascending order when maps are
---      compared with the 'leq` function.
+-- Each asset is partitioned independently.
 --
 equipartitionTokenMap
     :: HasCallStack
@@ -1243,14 +1244,16 @@ equipartitionTokenQuantity
 equipartitionTokenQuantity q count =
     NE.reverse $ unsafePartitionTokenQuantity q (1 <$ count)
 
--- | Partitions a token bundle into a number of smaller token bundles, where
---   every quantity in the result is guaranteed to not exceed the maximum
---   allowable token quantity.
+--------------------------------------------------------------------------------
+-- Equipartitioning according to a maximum token quantity
+--------------------------------------------------------------------------------
+
+-- | Computes the equipartition of a token bundle into 'n' smaller bundles,
+--   according to the given maximum token quantity.
 --
--- This function partitions the given token bundle into 'n' approximately-equal
--- bundles, where 'n' is the minimum value required to achieve the goal that no
--- token quantity in any of the resulting bundles exceeds the maximum allowable
--- token quantity.
+-- The value 'n' is computed automatically, and is the minimum value required
+-- to achieve the goal that no token quantity in any of the resulting bundles
+-- exceeds the maximum allowable token quantity.
 --
 equipartitionTokenBundleWithMaxQuantity
     :: TokenBundle
@@ -1264,14 +1267,12 @@ equipartitionTokenBundleWithMaxQuantity b maxQuantity =
     cs = equipartitionCoin (view #coin b) ms
     ms = equipartitionTokenMapWithMaxQuantity (view #tokens b) maxQuantity
 
--- | Partitions a token map into a number of smaller token maps, where every
---   quantity in the result is guaranteed to not exceed the maximum allowable
---   token quantity.
+-- | Computes the equipartition of a token map into 'n' smaller maps, according
+--   to the given maximum token quantity.
 --
--- This function partitions the given token map into 'n' approximately-equal
--- maps, where 'n' is the minimum value required to achieve the goal that no
--- token quantity in any of the resulting maps exceeds the maximum allowable
--- token quantity.
+-- The value 'n' is computed automatically, and is the minimum value required
+-- to achieve the goal that no token quantity in any of the resulting maps
+-- exceeds the maximum allowable token quantity.
 --
 equipartitionTokenMapWithMaxQuantity
     :: TokenMap
@@ -1279,10 +1280,10 @@ equipartitionTokenMapWithMaxQuantity
     -- ^ Maximum allowable token quantity.
     -> NonEmpty TokenMap
     -- ^ The partitioned maps.
-equipartitionTokenMapWithMaxQuantity m (TokenQuantity maxAllowableQuantity)
-    | maxAllowableQuantity == 0 =
-        maxAllowableQuantityZeroError
-    | currentMaxQuantity <= maxAllowableQuantity =
+equipartitionTokenMapWithMaxQuantity m (TokenQuantity maxQuantity)
+    | maxQuantity == 0 =
+        maxQuantityZeroError
+    | currentMaxQuantity <= maxQuantity =
         m :| []
     | otherwise =
         equipartitionTokenMap m (() :| replicate extraPartCount ())
@@ -1290,12 +1291,16 @@ equipartitionTokenMapWithMaxQuantity m (TokenQuantity maxAllowableQuantity)
     TokenQuantity currentMaxQuantity = TokenMap.maximumQuantity m
 
     extraPartCount :: Int
-    extraPartCount = floor $ pred currentMaxQuantity % maxAllowableQuantity
+    extraPartCount = floor $ pred currentMaxQuantity % maxQuantity
 
-    maxAllowableQuantityZeroError = error $ unwords
+    maxQuantityZeroError = error $ unwords
         [ "equipartitionTokenMapWithMaxQuantity:"
         , "the maximum allowable token quantity cannot be zero."
         ]
+
+--------------------------------------------------------------------------------
+-- Unsafe partitioning
+--------------------------------------------------------------------------------
 
 -- | Partitions a coin into a number of parts, where the size of each part is
 --   proportional to the size of its corresponding element in the given list of
