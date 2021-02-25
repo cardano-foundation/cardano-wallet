@@ -5,7 +5,7 @@
       "name": {
         "value": "Token3"
       },
-      "acronym": {
+      "ticker": {
         "value": "tok3"
       }
     },
@@ -14,7 +14,7 @@
       "description": {
         "value": "description4"
       },
-      "acronym": {
+      "ticker": {
         "value": "tok4"
       }
     },

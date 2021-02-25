@@ -462,7 +462,7 @@ data ApiAsset = ApiAsset
 data ApiAssetMetadata = ApiAssetMetadata
     { name :: Text
     , description :: Text
-    , acronym :: Maybe Text
+    , ticker :: Maybe Text
     , url :: Maybe (ApiT W.AssetURL)
     , logo :: Maybe (ApiT W.AssetLogo)
     , unit :: Maybe (ApiT W.AssetUnit)
@@ -478,8 +478,8 @@ toApiAsset metadata_ (W.AssetId policyId_ assetName_) = ApiAsset
     }
 
 toApiAssetMetadata :: W.AssetMetadata -> ApiAssetMetadata
-toApiAssetMetadata W.AssetMetadata{name,description,acronym,url,logo,unit} =
-    ApiAssetMetadata name description acronym
+toApiAssetMetadata W.AssetMetadata{name,description,ticker,url,logo,unit} =
+    ApiAssetMetadata name description ticker
         (ApiT <$> url) (ApiT <$> logo) (ApiT <$> unit)
 
 data ApiAddress (n :: NetworkDiscriminant) = ApiAddress

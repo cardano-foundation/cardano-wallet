@@ -77,7 +77,7 @@
         "subject": "extra fields",
         "name": { "value": "Token2" },
         "description": { "value": "description2" },
-        "acronym": { "value": "acronym2" }
+        "ticker": { "value": "ticker2" }
       }
     ]
 }
