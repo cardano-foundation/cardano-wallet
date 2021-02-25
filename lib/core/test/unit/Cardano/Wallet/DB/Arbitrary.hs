@@ -51,6 +51,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , Index (..)
     , NetworkDiscriminant (..)
     , Passphrase (..)
+    , Role (..)
     , WalletKey (..)
     , deriveVerificationKey
     , hashVerificationKey
@@ -67,10 +68,11 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Random
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPool
     , DerivationPrefix (..)
+    , ParentContext (..)
     , SeqState (..)
     , VerificationKeyPool
-    , accountPubKey
     , coinTypeAda
+    , context
     , defaultAddressPoolGap
     , mkAddressPool
     , purposeCIP1852
@@ -159,8 +161,6 @@ import Data.Ratio
     ( (%) )
 import Data.Text.Class
     ( toText )
-import Data.Typeable
-    ( Typeable )
 import Data.Word
     ( Word32 )
 import Data.Word.Odd
@@ -466,13 +466,14 @@ instance Arbitrary (SeqState 'Mainnet ShelleyKey) where
         (\(i, e, x) -> SeqState i e x rwd prefix sPool) <$> shrink (intPool, extPool, ixs)
     arbitrary = do
         extPool <- arbitrary
+        let (ParentContextUtxoExternal accXPub) = context extPool
         SeqState
             <$> arbitrary
             <*> pure extPool
             <*> arbitrary
             <*> pure arbitraryRewardAccount
             <*> pure defaultSeqStatePrefix
-            <*> genVerificationKeyPool (accountPubKey extPool)
+            <*> genVerificationKeyPool accXPub
 
 defaultSeqStatePrefix :: DerivationPrefix
 defaultSeqStatePrefix = DerivationPrefix
@@ -535,8 +536,13 @@ instance Arbitrary (ShelleyKey 'RootK XPrv) where
 instance Arbitrary (Seq.PendingIxs) where
     arbitrary = pure Seq.emptyPendingIxs
 
-instance Typeable chain => Arbitrary (AddressPool chain ShelleyKey) where
-    arbitrary = pure $ mkAddressPool @'Mainnet arbitrarySeqAccount minBound mempty
+instance Arbitrary (AddressPool 'UtxoExternal ShelleyKey) where
+    arbitrary = pure $ mkAddressPool @'Mainnet
+        (ParentContextUtxoExternal arbitrarySeqAccount) minBound mempty
+
+instance Arbitrary (AddressPool 'UtxoInternal ShelleyKey) where
+    arbitrary = pure $ mkAddressPool @'Mainnet
+        (ParentContextUtxoInternal arbitrarySeqAccount) minBound mempty
 
 -- Properties are quite heavy on the generation of values, although for
 -- private keys, it isn't particularly useful / relevant to generate many of

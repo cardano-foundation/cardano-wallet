@@ -36,6 +36,7 @@ import Cardano.Wallet.Primitive.AddressDerivationSpec
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPoolGap (..)
     , DerivationPrefix (..)
+    , ParentContext (..)
     , SeqState (..)
     , VerificationKeyPool (..)
     , coinTypeAda
@@ -271,8 +272,8 @@ initializeState
     :: ShelleyKey 'AccountK XPub
     -> SeqState 'Mainnet ShelleyKey
 initializeState accXPub' =
-    let intPool = mkAddressPool accXPub' defaultAddressPoolGap []
-        extPool = mkAddressPool accXPub' defaultAddressPoolGap []
+    let intPool = mkAddressPool (ParentContextUtxoInternal accXPub') defaultAddressPoolGap []
+        extPool = mkAddressPool (ParentContextUtxoExternal accXPub') defaultAddressPoolGap []
         sPool = newVerificationKeyPool accXPub' defaultAddressPoolGap
     in SeqState intPool extPool emptyPendingIxs dummyRewardAccount defaultPrefix sPool
 

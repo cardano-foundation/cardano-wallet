@@ -265,6 +265,10 @@ data ParentContext (chain :: Role) (key :: Depth -> * -> *) where
         :: key 'AccountK XPub
         -> ParentContext 'UtxoInternal key
 
+    ParentContextMutableAccount
+        :: key 'AccountK XPub
+        -> ParentContext 'MutableAccount key
+
     ParentContextMultisigScript
         :: key 'AccountK XPub
         -> ScriptTemplate
@@ -281,6 +285,7 @@ instance NFData (key 'AccountK XPub) => NFData (ParentContext chain key) where
     rnf = \case
         ParentContextUtxoExternal acct  -> rnf acct
         ParentContextUtxoInternal acct  -> rnf acct
+        ParentContextMutableAccount acct  -> rnf acct
         ParentContextMultisigScript acct p d -> rnf (acct, p, d)
 
 -- | An 'AddressPool' which keeps track of sequential addresses within a given
@@ -680,6 +685,8 @@ nextAddresses !ctx (AddressPoolGap !g) !fromIx =
             mkPaymentKeyFromAccXPub acct
         ParentContextUtxoInternal acct ->
             mkPaymentKeyFromAccXPub acct
+        ParentContextMutableAccount acct ->
+            mkPaymentKeyFromAccXPub acct  -- think about whether it makes sense
         ParentContextMultisigScript _ payment delegation ->
             mkPaymentKeyFromTemplates payment delegation
       where
