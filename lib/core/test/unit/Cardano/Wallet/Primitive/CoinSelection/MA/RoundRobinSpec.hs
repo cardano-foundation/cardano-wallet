@@ -2,6 +2,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -46,6 +47,7 @@ import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     , makeChangeForNonUserSpecifiedAsset
     , makeChangeForUserSpecifiedAsset
     , mapMaybe
+    , maxTokenQuantity
     , performSelection
     , prepareOutputsWith
     , runRoundRobin
@@ -53,6 +55,8 @@ import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     , runSelectionStep
     , ungroupByKey
     )
+import Cardano.Wallet.Primitive.Types.Address
+    ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..), addCoin )
 import Cardano.Wallet.Primitive.Types.Coin.Gen
@@ -80,7 +84,7 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity
 import Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
     ( genTokenQuantitySmallPositive, shrinkTokenQuantitySmallPositive )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( TxOut, txOutCoin )
+    ( TxIn (..), TxOut (..), txOutCoin )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
     ( genTxOutSmallRange, shrinkTxOutSmallRange )
 import Cardano.Wallet.Primitive.Types.UTxOIndex
@@ -171,6 +175,7 @@ import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as TokenQuantity
 import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
+import qualified Data.ByteString.Char8 as B8
 import qualified Data.Foldable as F
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
@@ -264,6 +269,11 @@ spec = describe "Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobinSpec" $
             property prop_assetSelectionLens_givesPriorityToSingletonAssets
         it "prop_coinSelectonLens_givesPriorityToCoins" $
             property prop_coinSelectionLens_givesPriorityToCoins
+
+    parallel $ describe "Boundary tests" $ do
+
+        unitTests "testBoundaries"
+            unit_testBoundaries
 
     parallel $ describe "Making change" $ do
 
@@ -1073,6 +1083,203 @@ prop_coinSelectionLens_givesPriorityToCoins (Blind (Small u)) =
     initialState = SelectionState UTxOIndex.empty u
     lens = coinSelectionLens NoLimit Nothing minimumCoinQuantity
     minimumCoinQuantity = Coin 1
+
+--------------------------------------------------------------------------------
+-- Boundary tests
+--------------------------------------------------------------------------------
+
+unit_testBoundaries :: [Expectation]
+unit_testBoundaries = mkBoundaryTestExpectation <$> boundaryTestMatrix
+
+data BoundaryTestData = BoundaryTestData
+    { boundaryTestCriteria
+        :: BoundaryTestCriteria
+    , boundaryTestExpectedResult
+        :: BoundaryTestResult
+    }
+    deriving (Eq, Show)
+
+data BoundaryTestCriteria = BoundaryTestCriteria
+    { boundaryTestOutputs
+        :: [BoundaryTestEntry]
+    , boundaryTestUTxO
+        :: [BoundaryTestEntry]
+    }
+    deriving (Eq, Show)
+
+data BoundaryTestResult = BoundaryTestResult
+    { boundaryTestInputs
+        :: [BoundaryTestEntry]
+    , boundaryTestChange
+        :: [BoundaryTestEntry]
+    }
+    deriving (Eq, Show)
+
+type BoundaryTestEntry = (Coin, [(AssetId, TokenQuantity)])
+
+mkBoundaryTestExpectation :: BoundaryTestData -> Expectation
+mkBoundaryTestExpectation (BoundaryTestData criteria expectedResult) = do
+    actualResult <- performSelection
+        noMinCoin (mkCostFor NoCost) (encodeBoundaryTestCriteria criteria)
+    fmap decodeBoundaryTestResult actualResult `shouldBe` Right expectedResult
+
+encodeBoundaryTestCriteria :: BoundaryTestCriteria -> SelectionCriteria
+encodeBoundaryTestCriteria c = SelectionCriteria
+    { outputsToCover = NE.fromList $
+        zipWith TxOut
+            (dummyAddresses)
+            (uncurry TokenBundle.fromFlatList <$> boundaryTestOutputs c)
+    , utxoAvailable = UTxOIndex.fromSequence $ zip dummyTxIns $
+        zipWith TxOut
+            (dummyAddresses)
+            (uncurry TokenBundle.fromFlatList <$> boundaryTestUTxO c)
+    , selectionLimit =
+        NoLimit
+    , extraCoinSource =
+        Nothing
+    }
+  where
+    dummyAddresses :: [Address]
+    dummyAddresses = [Address (B8.pack $ show x) | x :: Word64 <- [0 ..]]
+
+    dummyTxIns :: [TxIn]
+    dummyTxIns = [TxIn (Hash "") x | x <- [0 ..]]
+
+decodeBoundaryTestResult :: SelectionResult TokenBundle -> BoundaryTestResult
+decodeBoundaryTestResult r = BoundaryTestResult
+    { boundaryTestInputs = L.sort $ NE.toList $
+        TokenBundle.toFlatList . view #tokens . snd <$> view #inputsSelected r
+    , boundaryTestChange =
+        TokenBundle.toFlatList <$> view #changeGenerated r
+    }
+
+boundaryTestMatrix :: [BoundaryTestData]
+boundaryTestMatrix =
+    [ boundaryTest1
+    , boundaryTest2
+    , boundaryTest3
+    , boundaryTest4
+    ]
+
+-- Reach (but do not exceed) the maximum token quantity by selecting inputs
+-- with the following quantities:
+--
+--  - Quantity #1: 1
+--  - Quantity #2: maximum token quantity - 1
+--
+-- We expect no splitting of token bundles.
+--
+boundaryTest1 :: BoundaryTestData
+boundaryTest1 = BoundaryTestData
+    { boundaryTestCriteria = BoundaryTestCriteria {..}
+    , boundaryTestExpectedResult = BoundaryTestResult {..}
+    }
+  where
+    assetA = AssetId (UnsafeTokenPolicyId $ Hash "A") (UnsafeTokenName "1")
+    (q1, q2) = (TokenQuantity 1, TokenQuantity.pred maxTokenQuantity)
+    boundaryTestOutputs =
+      [ (Coin 1_500_000, []) ]
+    boundaryTestUTxO =
+      [ (Coin 1_000_000, [(assetA, q1)])
+      , (Coin 1_000_000, [(assetA, q2)])
+      ]
+    boundaryTestInputs =
+      [ (Coin 1_000_000, [(assetA, q1)])
+      , (Coin 1_000_000, [(assetA, q2)])
+      ]
+    boundaryTestChange =
+      [ (Coin 500_000, [(assetA, maxTokenQuantity)]) ]
+
+-- Reach (but do not exceed) the maximum token quantity by selecting inputs
+-- with the following quantities:
+--
+--  - Quantity #1: floor   (maximum token quantity / 2)
+--  - Quantity #2: ceiling (maximum token quantity / 2)
+--
+-- We expect no splitting of token bundles.
+--
+boundaryTest2 :: BoundaryTestData
+boundaryTest2 = BoundaryTestData
+    { boundaryTestCriteria = BoundaryTestCriteria {..}
+    , boundaryTestExpectedResult = BoundaryTestResult {..}
+    }
+  where
+    assetA = AssetId (UnsafeTokenPolicyId $ Hash "A") (UnsafeTokenName "1")
+    q1 :| [q2] = equipartitionTokenQuantity maxTokenQuantity (() :| [()])
+    boundaryTestOutputs =
+      [ (Coin 1_500_000, []) ]
+    boundaryTestUTxO =
+      [ (Coin 1_000_000, [(assetA, q1)])
+      , (Coin 1_000_000, [(assetA, q2)])
+      ]
+    boundaryTestInputs =
+      [ (Coin 1_000_000, [(assetA, q1)])
+      , (Coin 1_000_000, [(assetA, q2)])
+      ]
+    boundaryTestChange =
+      [ (Coin 500_000, [(assetA, maxTokenQuantity)]) ]
+
+-- Slightly exceed the maximum token quantity by selecting inputs with the
+-- following quantities:
+--
+--  - Quantity #1: 1
+--  - Quantity #2: maximum token quantity
+--
+-- We expect splitting of change bundles.
+--
+boundaryTest3 :: BoundaryTestData
+boundaryTest3 = BoundaryTestData
+    { boundaryTestCriteria = BoundaryTestCriteria {..}
+    , boundaryTestExpectedResult = BoundaryTestResult {..}
+    }
+  where
+    assetA = AssetId (UnsafeTokenPolicyId $ Hash "A") (UnsafeTokenName "1")
+    q1 :| [q2] = equipartitionTokenQuantity
+        (TokenQuantity.succ maxTokenQuantity) (() :| [()])
+    boundaryTestOutputs =
+      [ (Coin 1_500_000, []) ]
+    boundaryTestUTxO =
+      [ (Coin 1_000_000, [(assetA, TokenQuantity 1)])
+      , (Coin 1_000_000, [(assetA, maxTokenQuantity)])
+      ]
+    boundaryTestInputs =
+      [ (Coin 1_000_000, [(assetA, TokenQuantity 1)])
+      , (Coin 1_000_000, [(assetA, maxTokenQuantity)])
+      ]
+    boundaryTestChange =
+      [ (Coin 250_000, [(assetA, q1)])
+      , (Coin 250_000, [(assetA, q2)])
+      ]
+
+-- Reach (but do not exceed) exactly twice the maximum token quantity by
+-- selecting inputs with the following quantities:
+--
+--  - Quantity #1: maximum token quantity
+--  - Quantity #2: maximum token quantity
+--
+-- We expect splitting of change bundles.
+--
+boundaryTest4 :: BoundaryTestData
+boundaryTest4 = BoundaryTestData
+    { boundaryTestCriteria = BoundaryTestCriteria {..}
+    , boundaryTestExpectedResult = BoundaryTestResult {..}
+    }
+  where
+    assetA = AssetId (UnsafeTokenPolicyId $ Hash "A") (UnsafeTokenName "1")
+    boundaryTestOutputs =
+      [ (Coin 1_500_000, []) ]
+    boundaryTestUTxO =
+      [ (Coin 1_000_000, [(assetA, maxTokenQuantity)])
+      , (Coin 1_000_000, [(assetA, maxTokenQuantity)])
+      ]
+    boundaryTestInputs =
+      [ (Coin 1_000_000, [(assetA, maxTokenQuantity)])
+      , (Coin 1_000_000, [(assetA, maxTokenQuantity)])
+      ]
+    boundaryTestChange =
+      [ (Coin 250_000, [(assetA, maxTokenQuantity)])
+      , (Coin 250_000, [(assetA, maxTokenQuantity)])
+      ]
 
 --------------------------------------------------------------------------------
 -- Making change
