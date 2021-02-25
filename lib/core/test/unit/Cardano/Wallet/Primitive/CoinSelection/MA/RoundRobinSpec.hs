@@ -38,6 +38,7 @@ import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     , equipartitionTokenBundleWithMaxQuantity
     , equipartitionTokenMap
     , equipartitionTokenMapWithMaxQuantity
+    , equipartitionTokenQuantity
     , fullBalance
     , groupByKey
     , makeChange
