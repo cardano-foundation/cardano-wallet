@@ -352,7 +352,6 @@ test-suite unit
       Cardano.Wallet.Primitive.AddressDiscoverySpec
       Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobinSpec
       Cardano.Wallet.Primitive.ModelSpec
-      Cardano.Wallet.Primitive.ScriptsSpec
       Cardano.Wallet.Primitive.Slotting.Legacy
       Cardano.Wallet.Primitive.SlottingSpec
       Cardano.Wallet.Primitive.SyncProgressSpec
