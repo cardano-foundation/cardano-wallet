@@ -1,13 +1,11 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -26,6 +24,9 @@ module Cardano.Wallet.Primitive.AddressDiscovery.Script
       keyHashFromAccXPubIx
     , constructAddressFromIx
     , toNetworkTag
+    , replaceCosignersWithVerKeys
+    , liftPaymentAddress
+    , liftDelegationAddress
     ) where
 
 import Prelude
@@ -34,6 +35,7 @@ import Cardano.Address.Script
     ( Cosigner (..)
     , KeyHash (..)
     , Script (..)
+    , ScriptHash (..)
     , ScriptTemplate (..)
     , toScriptHash
     )
@@ -53,6 +55,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , DerivationType (..)
     , Index (..)
+    , KeyFingerprint (..)
     , NetworkDiscriminant (..)
     , SoftDerivation
     , WalletKey (..)
@@ -63,6 +66,8 @@ import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Data.Either.Combinators
     ( fromRight', rightToMaybe )
+import Data.Maybe
+    ( fromMaybe )
 import Data.Type.Equality
     ( (:~:) (..), testEquality )
 import Type.Reflection
@@ -109,9 +114,8 @@ replaceCosignersWithVerKeys role (ScriptTemplate xpubs scriptTemplate) ix =
 
 toNetworkTag
     :: forall (n :: NetworkDiscriminant). Typeable n => CA.NetworkTag
-toNetworkTag =  case tryMainnet of
-    Just net -> net
-    Nothing -> fromRight' $ mkNetworkDiscriminant 0
+toNetworkTag =
+    fromMaybe (fromRight' $ mkNetworkDiscriminant 0) tryMainnet
   where
     tryMainnet =
         case testEquality (typeRep @n) (typeRep @'Mainnet) of
@@ -145,3 +149,28 @@ constructAddressFromIx pTemplate dTemplate ix =
             createBaseAddress pScript (dScript dTemplate')
         Nothing ->
             createEnterpriseAddress pScript
+
+liftPaymentAddress
+    :: forall (n :: NetworkDiscriminant) (k :: Depth -> * -> *). Typeable n
+    => KeyFingerprint "payment" k
+    -> Address
+liftPaymentAddress (KeyFingerprint fingerprint) =
+    Address $ CA.unAddress $
+    paymentAddress (toNetworkTag @n)
+    (PaymentFromScript (ScriptHash fingerprint))
+
+liftDelegationAddress
+    :: forall (n :: NetworkDiscriminant) (k :: Depth -> * -> *). Typeable n
+    => Index 'Soft 'ScriptK
+    -> ScriptTemplate
+    -> KeyFingerprint "payment" k
+    -> Address
+liftDelegationAddress ix dTemplate (KeyFingerprint fingerprint) =
+    Address $ CA.unAddress $
+    delegationAddress (toNetworkTag @n)
+    (PaymentFromScript (ScriptHash fingerprint))
+    (delegationCredential dScript)
+  where
+    delegationCredential = DelegationFromScript . toScriptHash
+    dScript =
+        replaceCosignersWithVerKeys CA.MultisigForDelegation dTemplate ix

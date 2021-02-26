@@ -25,9 +25,7 @@ import Cardano.Address.Script
     , validateScriptTemplate
     )
 import Cardano.Wallet.Gen
-    ( genNatural )
-import Cardano.Wallet.Gen
-    ( genScript )
+    ( genNatural, genScript )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , DerivationType (..)
@@ -39,11 +37,15 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey (..), unsafeGenerateKeyFromSeed )
 import Cardano.Wallet.Primitive.AddressDiscovery.Script
-    ( constructAddressFromIx, keyHashFromAccXPubIx )
+    ( constructAddressFromIx
+    , keyHashFromAccXPubIx
+    , liftDelegationAddress
+    , liftPaymentAddress
+    )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPoolGap (..), addresses, mkUnboundedAddressPoolGap )
 import Cardano.Wallet.Primitive.AddressDiscovery.Shared
-    ( SharedState (..), isShared, liftPaymentAddress, newSharedState )
+    ( SharedState (..), isShared, newSharedState )
 import Cardano.Wallet.Primitive.Types.Address
     ( AddressState (..) )
 import Cardano.Wallet.Unsafe
@@ -134,10 +136,14 @@ prop_addressDiscoveryMakesAddressUsed (CatalystSharedState accXPub' accIx' pTemp
     L.lookup addr ourAddrs === Just Used .&&.
     fromIntegral (L.length ourAddrs) === (fromIntegral (fromEnum ix + 1) + getAddressPoolGap g)
   where
-    addr = constructAddressFromIx @n pTemplate' Nothing keyIx
+    addr = constructAddressFromIx @n pTemplate' dTemplate' keyIx
     sharedState = newSharedState @n accXPub' accIx' g pTemplate' dTemplate'
     ((Just (ix,_)), sharedState') = isShared @n addr sharedState
-    ourAddrs = addresses (liftPaymentAddress @n @ShelleyKey) $ sharedStateAddressPool sharedState'
+    ourAddrs = case dTemplate' of
+        Nothing ->
+            addresses (liftPaymentAddress @n @ShelleyKey) $ sharedStateAddressPool sharedState'
+        Just dT ->
+            addresses (liftDelegationAddress @n @ShelleyKey ix dT) $ sharedStateAddressPool sharedState'
 
 prop_addressDoubleDiscovery
     :: forall (n :: NetworkDiscriminant). Typeable n

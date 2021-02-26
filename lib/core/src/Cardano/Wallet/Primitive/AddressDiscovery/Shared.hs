@@ -30,7 +30,6 @@ module Cardano.Wallet.Primitive.AddressDiscovery.Shared
     , addCosignerAccXPub
     , purposeCIP1854
     , isShared
-    , liftPaymentAddress
     ) where
 
 import Prelude
@@ -39,14 +38,11 @@ import Cardano.Address.Script
     ( Cosigner (..)
     , KeyHash (..)
     , Script (..)
-    , ScriptHash (..)
     , ScriptTemplate (..)
     , ValidationLevel (..)
     , foldScript
     , validateScriptTemplate
     )
-import Cardano.Address.Style.Shelley
-    ( Credential (..), paymentAddress )
 import Cardano.Crypto.Wallet
     ( XPub )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -54,7 +50,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , DerivationPrefix (..)
     , DerivationType (..)
     , Index (..)
-    , KeyFingerprint (..)
     , MkKeyFingerprint (..)
     , NetworkDiscriminant (..)
     , Role (..)
@@ -64,7 +59,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( coinTypeAda )
 import Cardano.Wallet.Primitive.AddressDiscovery.Script
-    ( keyHashFromAccXPubIx, toNetworkTag )
+    ( keyHashFromAccXPubIx )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPool
     , AddressPoolGap
@@ -88,7 +83,6 @@ import GHC.Generics
 import Type.Reflection
     ( Typeable )
 
-import qualified Cardano.Address as CA
 import qualified Data.Map.Strict as Map
 
 {-------------------------------------------------------------------------------
@@ -302,15 +296,5 @@ isShared addr st = case st of
                 , SharedState prefix pool')
             Nothing ->
                 (Nothing, st)
-    PendingSharedState _ _ _ _ _ ->
+    PendingSharedState {} ->
         (Nothing, st)
-
-liftPaymentAddress
-    :: forall (n :: NetworkDiscriminant) (k :: Depth -> * -> *).
-    ( Typeable n )
-    => KeyFingerprint "payment" k
-    -> Address
-liftPaymentAddress (KeyFingerprint fingerprint) =
-    Address $ CA.unAddress $
-    paymentAddress (toNetworkTag @n)
-    (PaymentFromScript (ScriptHash fingerprint))
