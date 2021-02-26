@@ -54,7 +54,7 @@ module Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     , assignCoinsToChangeMaps
 
     -- * Partitioning
-    , equipartitionCoin
+    , equipartitionNatural
     , equipartitionTokenBundle
     , equipartitionTokenBundleWithMaxQuantity
     , equipartitionTokenMap
@@ -1208,7 +1208,27 @@ equipartitionCoin
     -- ^ Represents the number of portions in which to partition the coin.
     -> NonEmpty Coin
     -- ^ The partitioned coins.
-equipartitionCoin c count = NE.reverse $ unsafePartitionCoin c (1 <$ count)
+equipartitionCoin c =
+    -- Note: the natural-to-coin conversion is safe, as equipartitioning always
+    -- guarantees to produce values that are less than or equal to the original
+    -- value.
+    fmap unsafeNaturalToCoin . equipartitionNatural (coinToNatural c)
+
+-- | Computes the equipartition of a natural number into 'n' smaller numbers.
+--
+equipartitionNatural
+    :: HasCallStack
+    => Natural
+    -- ^ The natural number to be partitioned.
+    -> NonEmpty a
+    -- ^ Represents the number of portions in which to partition the number.
+    -> NonEmpty Natural
+    -- ^ The partitioned numbers.
+equipartitionNatural n count =
+    -- Note: due to the behaviour of the underlying partition algorithm, a
+    -- simple list reversal is enough to ensure that the resultant list is
+    -- sorted in ascending order.
+    NE.reverse $ unsafePartitionNatural n (1 <$ count)
 
 -- | Computes the equipartition of a token bundle into 'n' smaller bundles.
 --
@@ -1260,8 +1280,8 @@ equipartitionTokenQuantity
     -- ^ Represents the number of portions in which to partition the quantity.
     -> NonEmpty TokenQuantity
     -- ^ The partitioned quantities.
-equipartitionTokenQuantity q count =
-    NE.reverse $ unsafePartitionTokenQuantity q (1 <$ count)
+equipartitionTokenQuantity q =
+    fmap TokenQuantity . equipartitionNatural (unTokenQuantity q)
 
 --------------------------------------------------------------------------------
 -- Equipartitioning according to a maximum token quantity
@@ -1320,38 +1340,6 @@ equipartitionTokenMapWithMaxQuantity m (TokenQuantity maxQuantity)
 --------------------------------------------------------------------------------
 -- Unsafe partitioning
 --------------------------------------------------------------------------------
-
--- | Partitions a coin into a number of parts, where the size of each part is
---   proportional to the size of its corresponding element in the given list of
---   weights, and the number of parts is equal to the number of weights.
---
--- Throws a run-time error if the sum of weights is equal to zero.
---
-unsafePartitionCoin
-    :: HasCallStack
-    => Coin
-    -- ^ Coin to partition
-    -> NonEmpty Natural
-    -- ^ List of weights
-    -> NonEmpty Coin
-unsafePartitionCoin n weights =
-    unsafeNaturalToCoin <$> unsafePartitionNatural (coinToNatural n) weights
-
--- | Partitions a token quantity into a number of parts, where the size of each
---   part is proportional to the size of its corresponding element in the given
---   list of weights, and the number of parts is equal to the number of weights.
---
--- Throws a run-time error if the sum of weights is equal to zero.
---
-unsafePartitionTokenQuantity
-    :: HasCallStack
-    => TokenQuantity
-    -- ^ Token quantity to partition
-    -> NonEmpty Natural
-    -- ^ List of weights
-    -> NonEmpty TokenQuantity
-unsafePartitionTokenQuantity n weights =
-    TokenQuantity <$> unsafePartitionNatural (unTokenQuantity n) weights
 
 -- | Partitions a natural number into a number of parts, where the size of each
 --   part is proportional to the size of its corresponding element in the given

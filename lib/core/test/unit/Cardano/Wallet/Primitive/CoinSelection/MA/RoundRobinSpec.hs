@@ -34,7 +34,7 @@ import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     , assetSelectionLens
     , assignCoinsToChangeMaps
     , coinSelectionLens
-    , equipartitionCoin
+    , equipartitionNatural
     , equipartitionTokenBundle
     , equipartitionTokenBundleWithMaxQuantity
     , equipartitionTokenMap
@@ -142,6 +142,7 @@ import Test.QuickCheck
     , Property
     , applyFun
     , arbitraryBoundedEnum
+    , arbitrarySizedNatural
     , checkCoverage
     , choose
     , conjoin
@@ -155,6 +156,7 @@ import Test.QuickCheck
     , label
     , oneof
     , property
+    , shrinkIntegral
     , shrinkList
     , suchThat
     , withMaxSuccess
@@ -170,7 +172,6 @@ import Test.QuickCheck.Monadic
 import Test.Utils.Laws
     ( testLawsMany )
 
-import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as TokenQuantity
@@ -319,18 +320,18 @@ spec = describe "Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobinSpec" $
         unitTests "makeChangeForUserSpecifiedAsset"
             unit_makeChangeForUserSpecifiedAsset
 
-    parallel $ describe "Partitioning coins" $ do
+    parallel $ describe "Equipartitioning natural numbers" $ do
 
-        it "prop_equipartitionCoin_fair" $
-            property prop_equipartitionCoin_fair
-        it "prop_equipartitionCoin_length" $
-            property prop_equipartitionCoin_length
-        it "prop_equipartitionCoin_order" $
-            property prop_equipartitionCoin_order
-        it "prop_equipartitionCoin_sum" $
-            property prop_equipartitionCoin_sum
+        it "prop_equipartitionNatural_fair" $
+            property prop_equipartitionNatural_fair
+        it "prop_equipartitionNatural_length" $
+            property prop_equipartitionNatural_length
+        it "prop_equipartitionNatural_order" $
+            property prop_equipartitionNatural_order
+        it "prop_equipartitionNatural_sum" $
+            property prop_equipartitionNatural_sum
 
-    parallel $ describe "Partitioning token bundles" $ do
+    parallel $ describe "Equipartitioning token bundles" $ do
 
         it "prop_equipartitionTokenBundle_fair" $
             property prop_equipartitionTokenBundle_fair
@@ -341,7 +342,7 @@ spec = describe "Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobinSpec" $
         it "prop_equipartitionTokenBundle_sum" $
             property prop_equipartitionTokenBundle_sum
 
-    parallel $ describe "Partitioning token maps" $ do
+    parallel $ describe "Equipartitioning token maps" $ do
 
         it "prop_equipartitionTokenMap_fair" $
             property prop_equipartitionTokenMap_fair
@@ -352,7 +353,7 @@ spec = describe "Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobinSpec" $
         it "prop_equipartitionTokenMap_sum" $
             property prop_equipartitionTokenMap_sum
 
-    parallel $ describe "Partitioning token bundles by max quantity" $ do
+    parallel $ describe "Equipartitioning token bundles by max quantity" $ do
 
         it "prop_equipartitionTokenBundleWithMaxQuantity_length" $
             property prop_equipartitionTokenBundleWithMaxQuantity_length
@@ -361,7 +362,7 @@ spec = describe "Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobinSpec" $
         it "prop_equipartitionTokenBundleWithMaxQuantity_sum" $
             property prop_equipartitionTokenBundleWithMaxQuantity_sum
 
-    parallel $ describe "Partitioning token maps by max quantity" $ do
+    parallel $ describe "Equipartitioning token maps by max quantity" $ do
 
         it "prop_equipartitionTokenMapWithMaxQuantity_coverage" $
             property prop_equipartitionTokenMapWithMaxQuantity_coverage
@@ -1850,53 +1851,58 @@ unit_makeChangeForUserSpecifiedAsset =
     assetC = AssetId (UnsafeTokenPolicyId $ Hash "A") (UnsafeTokenName "2")
 
 --------------------------------------------------------------------------------
--- Partitioning coins
+-- Equipartitioning natural numbers
 --------------------------------------------------------------------------------
 
--- Test that coins are partitioned fairly:
+-- Test that natural numbers are equipartitioned fairly:
 --
--- Each coin portion must be within unity of the ideal portion.
+-- Each portion must be within unity of the ideal portion.
 --
-prop_equipartitionCoin_fair
-    :: Coin -> NonEmpty () -> Property
-prop_equipartitionCoin_fair m count =
-    prop_equipartitionCoin_fair_inner $ equipartitionCoin m count
+prop_equipartitionNatural_fair
+    :: Natural -> NonEmpty () -> Property
+prop_equipartitionNatural_fair n count =
+    prop_equipartitionNatural_fair_inner $ equipartitionNatural n count
 
-prop_equipartitionCoin_fair_inner :: NonEmpty Coin -> Property
-prop_equipartitionCoin_fair_inner results = (.||.)
-    (difference === Coin 0)
-    (difference === Coin 1)
+prop_equipartitionNatural_fair_inner :: NonEmpty Natural -> Property
+prop_equipartitionNatural_fair_inner results = (.||.)
+    (difference === 0)
+    (difference === 1)
   where
-    difference :: Coin
-    difference = F.minimum results `Coin.distance` F.maximum results
+    difference :: Natural
+    difference = F.maximum results - F.minimum results
 
-prop_equipartitionCoin_length :: Coin -> NonEmpty () -> Property
-prop_equipartitionCoin_length m count =
-    NE.length (equipartitionCoin m count) === NE.length count
+prop_equipartitionNatural_length :: Natural -> NonEmpty () -> Property
+prop_equipartitionNatural_length n count =
+    NE.length (equipartitionNatural n count) === NE.length count
 
-prop_equipartitionCoin_order :: Coin -> NonEmpty () -> Property
-prop_equipartitionCoin_order m count =
+prop_equipartitionNatural_order :: Natural -> NonEmpty () -> Property
+prop_equipartitionNatural_order n count =
     NE.sort results === results
   where
-    results = equipartitionCoin m count
+    results = equipartitionNatural n count
 
-prop_equipartitionCoin_sum :: Coin -> NonEmpty () -> Property
-prop_equipartitionCoin_sum m count =
-    F.fold (equipartitionCoin m count) === m
+prop_equipartitionNatural_sum :: Natural -> NonEmpty () -> Property
+prop_equipartitionNatural_sum n count =
+    F.sum (equipartitionNatural n count) === n
 
 --------------------------------------------------------------------------------
--- Partitioning token bundles
+-- Equipartitioning token bundles
 --------------------------------------------------------------------------------
 
--- Test that token bundles are partitioned fairly:
+-- Test that token bundles are equipartitioned fairly:
 --
 -- Each token quantity portion must be within unity of the ideal portion.
 --
 prop_equipartitionTokenBundle_fair :: TokenBundle -> NonEmpty () -> Property
 prop_equipartitionTokenBundle_fair m count = (.&&.)
-    (prop_equipartitionCoin_fair_inner $ view #coin <$> results)
-    (prop_equipartitionTokenMap_fair_inner $ view #tokens <$> results)
+    (prop_equipartitionNatural_fair_inner $
+        coinToNatural . view #coin <$> results)
+    (prop_equipartitionTokenMap_fair_inner $
+        view #tokens <$> results)
   where
+    coinToNatural :: Coin -> Natural
+    coinToNatural = fromIntegral . unCoin
+
     results :: NonEmpty TokenBundle
     results = equipartitionTokenBundle m count
 
@@ -1913,10 +1919,10 @@ prop_equipartitionTokenBundle_sum m count =
     F.fold (equipartitionTokenBundle m count) === m
 
 --------------------------------------------------------------------------------
--- Partitioning token maps
+-- Equipartitioning token maps
 --------------------------------------------------------------------------------
 
--- Test that token maps are partitioned fairly:
+-- Test that token maps are equipartitioned fairly:
 --
 -- Each token quantity portion must be within unity of the ideal portion.
 --
@@ -1964,7 +1970,7 @@ prop_equipartitionTokenMap_sum m count =
     F.fold (equipartitionTokenMap m count) === m
 
 --------------------------------------------------------------------------------
--- Partitioning token bundles according to a maximum quantity
+-- Equipartitioning token bundles according to a maximum quantity
 --------------------------------------------------------------------------------
 
 -- | Computes the number of parts that 'equipartitionTokenBundleWithMaxQuantity'
@@ -1998,7 +2004,7 @@ prop_equipartitionTokenBundleWithMaxQuantity_sum m maxQuantity =
         F.fold (equipartitionTokenBundleWithMaxQuantity m maxQuantity) === m
 
 --------------------------------------------------------------------------------
--- Partitioning token maps according to a maximum quantity
+-- Equipartitioning token maps according to a maximum quantity
 --------------------------------------------------------------------------------
 
 -- | Computes the number of parts that 'equipartitionTokenMapWithMaxQuantity'
@@ -2278,6 +2284,10 @@ instance Arbitrary a => Arbitrary (AssetCount a) where
 instance Arbitrary AssetId where
     arbitrary = genAssetIdSmallRange
     shrink = shrinkAssetIdSmallRange
+
+instance Arbitrary Natural where
+    arbitrary = arbitrarySizedNatural
+    shrink = shrinkIntegral
 
 instance Arbitrary MakeChangeData where
     arbitrary = genMakeChangeData
