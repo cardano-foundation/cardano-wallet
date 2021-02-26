@@ -55,7 +55,6 @@ module Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
 
     -- * Partitioning
     , equipartitionNatural
-    , equipartitionTokenBundle
     , equipartitionTokenBundleWithMaxQuantity
     , equipartitionTokenMap
     , equipartitionTokenMapWithMaxQuantity
@@ -1229,23 +1228,6 @@ equipartitionNatural n count =
     -- simple list reversal is enough to ensure that the resultant list is
     -- sorted in ascending order.
     NE.reverse $ unsafePartitionNatural n (1 <$ count)
-
--- | Computes the equipartition of a token bundle into 'n' smaller bundles.
---
--- Each asset is partitioned independently.
---
-equipartitionTokenBundle
-    :: HasCallStack
-    => TokenBundle
-    -- ^ The bundle to be partitioned.
-    -> NonEmpty a
-    -- ^ Represents the number of portions in which to partition the bundle.
-    -> NonEmpty TokenBundle
-    -- ^ The partitioned bundle.
-equipartitionTokenBundle (TokenBundle c m) count =
-    NE.zipWith TokenBundle
-        (equipartitionCoin c count)
-        (equipartitionTokenMap m count)
 
 -- | Computes the equipartition of a token map into 'n' smaller maps.
 --

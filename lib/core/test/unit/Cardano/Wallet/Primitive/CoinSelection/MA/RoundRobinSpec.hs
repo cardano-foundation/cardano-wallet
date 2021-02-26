@@ -35,7 +35,6 @@ import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     , assignCoinsToChangeMaps
     , coinSelectionLens
     , equipartitionNatural
-    , equipartitionTokenBundle
     , equipartitionTokenBundleWithMaxQuantity
     , equipartitionTokenMap
     , equipartitionTokenMapWithMaxQuantity
@@ -330,17 +329,6 @@ spec = describe "Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobinSpec" $
             property prop_equipartitionNatural_order
         it "prop_equipartitionNatural_sum" $
             property prop_equipartitionNatural_sum
-
-    parallel $ describe "Equipartitioning token bundles" $ do
-
-        it "prop_equipartitionTokenBundle_fair" $
-            property prop_equipartitionTokenBundle_fair
-        it "prop_equipartitionTokenBundle_length" $
-            property prop_equipartitionTokenBundle_length
-        it "prop_equipartitionTokenBundle_order" $
-            property prop_equipartitionTokenBundle_order
-        it "prop_equipartitionTokenBundle_sum" $
-            property prop_equipartitionTokenBundle_sum
 
     parallel $ describe "Equipartitioning token maps" $ do
 
@@ -1886,39 +1874,6 @@ prop_equipartitionNatural_sum n count =
     F.sum (equipartitionNatural n count) === n
 
 --------------------------------------------------------------------------------
--- Equipartitioning token bundles
---------------------------------------------------------------------------------
-
--- Test that token bundles are equipartitioned fairly:
---
--- Each token quantity portion must be within unity of the ideal portion.
---
-prop_equipartitionTokenBundle_fair :: TokenBundle -> NonEmpty () -> Property
-prop_equipartitionTokenBundle_fair m count = (.&&.)
-    (prop_equipartitionNatural_fair_inner $
-        coinToNatural . view #coin <$> results)
-    (prop_equipartitionTokenMap_fair_inner $
-        view #tokens <$> results)
-  where
-    coinToNatural :: Coin -> Natural
-    coinToNatural = fromIntegral . unCoin
-
-    results :: NonEmpty TokenBundle
-    results = equipartitionTokenBundle m count
-
-prop_equipartitionTokenBundle_length :: TokenBundle -> NonEmpty () -> Property
-prop_equipartitionTokenBundle_length m count =
-    NE.length (equipartitionTokenBundle m count) === NE.length count
-
-prop_equipartitionTokenBundle_order :: TokenBundle -> NonEmpty () -> Property
-prop_equipartitionTokenBundle_order m count = property $
-    inAscendingPartialOrder (equipartitionTokenBundle m count)
-
-prop_equipartitionTokenBundle_sum :: TokenBundle -> NonEmpty () -> Property
-prop_equipartitionTokenBundle_sum m count =
-    F.fold (equipartitionTokenBundle m count) === m
-
---------------------------------------------------------------------------------
 -- Equipartitioning token maps
 --------------------------------------------------------------------------------
 
@@ -1927,11 +1882,7 @@ prop_equipartitionTokenBundle_sum m count =
 -- Each token quantity portion must be within unity of the ideal portion.
 --
 prop_equipartitionTokenMap_fair :: TokenMap -> NonEmpty () -> Property
-prop_equipartitionTokenMap_fair m count =
-    prop_equipartitionTokenMap_fair_inner $ equipartitionTokenMap m count
-
-prop_equipartitionTokenMap_fair_inner :: NonEmpty TokenMap -> Property
-prop_equipartitionTokenMap_fair_inner results = property $
+prop_equipartitionTokenMap_fair m count = property $
     isZeroOrOne maximumDifference
   where
     -- Here we take advantage of the fact that the resultant maps are sorted
@@ -1956,6 +1907,8 @@ prop_equipartitionTokenMap_fair_inner results = property $
 
     maximumDifference :: TokenQuantity
     maximumDifference = TokenMap.maximumQuantity differences
+
+    results = equipartitionTokenMap m count
 
 prop_equipartitionTokenMap_length :: TokenMap -> NonEmpty () -> Property
 prop_equipartitionTokenMap_length m count =
