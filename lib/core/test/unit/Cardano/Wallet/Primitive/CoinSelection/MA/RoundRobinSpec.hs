@@ -1848,16 +1848,15 @@ unit_makeChangeForUserSpecifiedAsset =
 --
 prop_equipartitionNatural_fair
     :: Natural -> NonEmpty () -> Property
-prop_equipartitionNatural_fair n count =
-    prop_equipartitionNatural_fair_inner $ equipartitionNatural n count
-
-prop_equipartitionNatural_fair_inner :: NonEmpty Natural -> Property
-prop_equipartitionNatural_fair_inner results = (.||.)
+prop_equipartitionNatural_fair n count = (.||.)
     (difference === 0)
     (difference === 1)
   where
     difference :: Natural
     difference = F.maximum results - F.minimum results
+
+    results :: NonEmpty Natural
+    results = equipartitionNatural n count
 
 prop_equipartitionNatural_length :: Natural -> NonEmpty () -> Property
 prop_equipartitionNatural_length n count =
