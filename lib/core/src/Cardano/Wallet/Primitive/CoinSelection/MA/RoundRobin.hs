@@ -72,7 +72,7 @@ module Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     , fullBalance
 
     -- * Constants
-    , maxTokenQuantity
+    , maxTxOutTokenQuantity
 
     -- * Utility classes
     , AssetCount (..)
@@ -887,7 +887,8 @@ makeChange minCoinFor requiredCost mExtraCoinSource inputBundles outputBundles
           where
             bundle (m, c) = TokenBundle c m
             unbundle (TokenBundle c m) = (m, c)
-            split = (`equipartitionTokenBundleWithMaxQuantity` maxTokenQuantity)
+            split = flip equipartitionTokenBundleWithMaxQuantity
+                maxTxOutTokenQuantity
 
     -- Change for user-specified assets: assets that were present in the
     -- original set of user-specified outputs ('outputsToCover').
@@ -1425,8 +1426,8 @@ newtype AssetCount a = AssetCount
 -- | The greatest token quantity that can be encoded within an output bundle of
 --   a transaction.
 --
-maxTokenQuantity :: TokenQuantity
-maxTokenQuantity = TokenQuantity $ fromIntegral (maxBound :: Word64)
+maxTxOutTokenQuantity :: TokenQuantity
+maxTxOutTokenQuantity = TokenQuantity $ fromIntegral (maxBound :: Word64)
 
 --------------------------------------------------------------------------------
 -- Utility functions

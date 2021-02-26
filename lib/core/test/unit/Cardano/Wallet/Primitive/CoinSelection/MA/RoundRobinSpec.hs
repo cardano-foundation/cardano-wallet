@@ -46,7 +46,7 @@ import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     , makeChangeForNonUserSpecifiedAsset
     , makeChangeForUserSpecifiedAsset
     , mapMaybe
-    , maxTokenQuantity
+    , maxTxOutTokenQuantity
     , performSelection
     , prepareOutputsWith
     , runRoundRobin
@@ -1165,7 +1165,7 @@ boundaryTest1 = BoundaryTestData
     }
   where
     assetA = AssetId (UnsafeTokenPolicyId $ Hash "A") (UnsafeTokenName "1")
-    (q1, q2) = (TokenQuantity 1, TokenQuantity.pred maxTokenQuantity)
+    (q1, q2) = (TokenQuantity 1, TokenQuantity.pred maxTxOutTokenQuantity)
     boundaryTestOutputs =
       [ (Coin 1_500_000, []) ]
     boundaryTestUTxO =
@@ -1177,7 +1177,7 @@ boundaryTest1 = BoundaryTestData
       , (Coin 1_000_000, [(assetA, q2)])
       ]
     boundaryTestChange =
-      [ (Coin 500_000, [(assetA, maxTokenQuantity)]) ]
+      [ (Coin 500_000, [(assetA, maxTxOutTokenQuantity)]) ]
 
 -- Reach (but do not exceed) the maximum token quantity by selecting inputs
 -- with the following quantities:
@@ -1194,7 +1194,7 @@ boundaryTest2 = BoundaryTestData
     }
   where
     assetA = AssetId (UnsafeTokenPolicyId $ Hash "A") (UnsafeTokenName "1")
-    q1 :| [q2] = equipartitionTokenQuantity maxTokenQuantity (() :| [()])
+    q1 :| [q2] = equipartitionTokenQuantity maxTxOutTokenQuantity (() :| [()])
     boundaryTestOutputs =
       [ (Coin 1_500_000, []) ]
     boundaryTestUTxO =
@@ -1206,7 +1206,7 @@ boundaryTest2 = BoundaryTestData
       , (Coin 1_000_000, [(assetA, q2)])
       ]
     boundaryTestChange =
-      [ (Coin 500_000, [(assetA, maxTokenQuantity)]) ]
+      [ (Coin 500_000, [(assetA, maxTxOutTokenQuantity)]) ]
 
 -- Slightly exceed the maximum token quantity by selecting inputs with the
 -- following quantities:
@@ -1224,16 +1224,16 @@ boundaryTest3 = BoundaryTestData
   where
     assetA = AssetId (UnsafeTokenPolicyId $ Hash "A") (UnsafeTokenName "1")
     q1 :| [q2] = equipartitionTokenQuantity
-        (TokenQuantity.succ maxTokenQuantity) (() :| [()])
+        (TokenQuantity.succ maxTxOutTokenQuantity) (() :| [()])
     boundaryTestOutputs =
       [ (Coin 1_500_000, []) ]
     boundaryTestUTxO =
       [ (Coin 1_000_000, [(assetA, TokenQuantity 1)])
-      , (Coin 1_000_000, [(assetA, maxTokenQuantity)])
+      , (Coin 1_000_000, [(assetA, maxTxOutTokenQuantity)])
       ]
     boundaryTestInputs =
       [ (Coin 1_000_000, [(assetA, TokenQuantity 1)])
-      , (Coin 1_000_000, [(assetA, maxTokenQuantity)])
+      , (Coin 1_000_000, [(assetA, maxTxOutTokenQuantity)])
       ]
     boundaryTestChange =
       [ (Coin 250_000, [(assetA, q1)])
@@ -1258,16 +1258,16 @@ boundaryTest4 = BoundaryTestData
     boundaryTestOutputs =
       [ (Coin 1_500_000, []) ]
     boundaryTestUTxO =
-      [ (Coin 1_000_000, [(assetA, maxTokenQuantity)])
-      , (Coin 1_000_000, [(assetA, maxTokenQuantity)])
+      [ (Coin 1_000_000, [(assetA, maxTxOutTokenQuantity)])
+      , (Coin 1_000_000, [(assetA, maxTxOutTokenQuantity)])
       ]
     boundaryTestInputs =
-      [ (Coin 1_000_000, [(assetA, maxTokenQuantity)])
-      , (Coin 1_000_000, [(assetA, maxTokenQuantity)])
+      [ (Coin 1_000_000, [(assetA, maxTxOutTokenQuantity)])
+      , (Coin 1_000_000, [(assetA, maxTxOutTokenQuantity)])
       ]
     boundaryTestChange =
-      [ (Coin 250_000, [(assetA, maxTokenQuantity)])
-      , (Coin 250_000, [(assetA, maxTokenQuantity)])
+      [ (Coin 250_000, [(assetA, maxTxOutTokenQuantity)])
+      , (Coin 250_000, [(assetA, maxTxOutTokenQuantity)])
       ]
 
 --------------------------------------------------------------------------------
