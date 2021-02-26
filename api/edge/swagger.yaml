@@ -521,7 +521,7 @@ x-assetMetadataName: &assetMetadataName
     A human-readable name for the asset. Good for display in user interfaces.
   example: SwaggerCoin
 
-x-assetMetadataAcronym: &assetMetadataAcronym
+x-assetMetadataTicker: &assetMetadataTicker
   type: string
   maxLength: 4
   minLength: 2
@@ -600,7 +600,7 @@ x-assetMetadata: &assetMetadata
   properties:
     name: *assetMetadataName
     description: *assetMetadataDescription
-    acronym: *assetMetadataAcronym
+    ticker: *assetMetadataTicker
     unit: *assetMetadataUnit
     url: *assetMetadataUrl
     logo: *assetMetadataLogo
