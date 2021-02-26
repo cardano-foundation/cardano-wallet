@@ -56,6 +56,7 @@ module Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     -- * Partitioning
     , equipartitionNatural
     , equipartitionTokenBundleWithMaxQuantity
+    , equipartitionTokenBundlesWithMaxQuantity
     , equipartitionTokenMap
     , equipartitionTokenMapWithMaxQuantity
     , equipartitionTokenQuantity
@@ -881,13 +882,14 @@ makeChange minCoinFor requiredCost mExtraCoinSource inputBundles outputBundles
         splitMapsWithExcessiveQuantities
             :: NonEmpty (TokenMap, Coin) -> NonEmpty (TokenMap, Coin)
         splitMapsWithExcessiveQuantities =
-            -- For the sake of convenience when splitting up maps, treat each
-            -- change map and its corresponding output coin as a token bundle.
-            (fmap unbundle . split . bundle =<<)
+            -- For the sake of convenience when splitting up change maps and
+            -- output coins (which are treated as weights), treat each change
+            -- map and its corresponding output coin as a token bundle.
+            fmap unbundle . split . fmap bundle
           where
             bundle (m, c) = TokenBundle c m
             unbundle (TokenBundle c m) = (m, c)
-            split = flip equipartitionTokenBundleWithMaxQuantity
+            split = flip equipartitionTokenBundlesWithMaxQuantity
                 maxTxOutTokenQuantity
 
     -- Change for user-specified assets: assets that were present in the
@@ -1288,6 +1290,24 @@ equipartitionTokenBundleWithMaxQuantity b maxQuantity =
   where
     cs = equipartitionCoin (view #coin b) ms
     ms = equipartitionTokenMapWithMaxQuantity (view #tokens b) maxQuantity
+
+-- | Applies 'equipartitionTokenBundleWithMaxQuantity' to a list of bundles.
+--
+-- Only token bundles containing quantities that exceed the maximum token
+-- quantity will be partitioned.
+--
+-- If none of the bundles in the given list contain a quantity that exceeds
+-- the maximum token quantity, this function will return the original list.
+--
+equipartitionTokenBundlesWithMaxQuantity
+    :: NonEmpty TokenBundle
+    -- ^ Token bundles.
+    -> TokenQuantity
+    -- ^ Maximum allowable token quantity.
+    -> NonEmpty TokenBundle
+    -- ^ The partitioned bundles.
+equipartitionTokenBundlesWithMaxQuantity bs maxQuantity =
+    (`equipartitionTokenBundleWithMaxQuantity` maxQuantity) =<< bs
 
 -- | Computes the equipartition of a token map into 'n' smaller maps, according
 --   to the given maximum token quantity.

@@ -37,6 +37,7 @@ import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     , coinSelectionLens
     , equipartitionNatural
     , equipartitionTokenBundleWithMaxQuantity
+    , equipartitionTokenBundlesWithMaxQuantity
     , equipartitionTokenMap
     , equipartitionTokenMapWithMaxQuantity
     , equipartitionTokenQuantity
@@ -344,12 +345,21 @@ spec = describe "Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobinSpec" $
 
     parallel $ describe "Equipartitioning token bundles by max quantity" $ do
 
-        it "prop_equipartitionTokenBundleWithMaxQuantity_length" $
-            property prop_equipartitionTokenBundleWithMaxQuantity_length
-        it "prop_equipartitionTokenBundleWithMaxQuantity_order" $
-            property prop_equipartitionTokenBundleWithMaxQuantity_order
-        it "prop_equipartitionTokenBundleWithMaxQuantity_sum" $
-            property prop_equipartitionTokenBundleWithMaxQuantity_sum
+        describe "Individual token bundles" $ do
+
+            it "prop_equipartitionTokenBundleWithMaxQuantity_length" $
+                property prop_equipartitionTokenBundleWithMaxQuantity_length
+            it "prop_equipartitionTokenBundleWithMaxQuantity_order" $
+                property prop_equipartitionTokenBundleWithMaxQuantity_order
+            it "prop_equipartitionTokenBundleWithMaxQuantity_sum" $
+                property prop_equipartitionTokenBundleWithMaxQuantity_sum
+
+        describe "Lists of token bundles" $ do
+
+            it "prop_equipartitionTokenBundlesWithMaxQuantity_length" $
+                property prop_equipartitionTokenBundlesWithMaxQuantity_length
+            it "prop_equipartitionTokenBundlesWithMaxQuantity_sum" $
+                property prop_equipartitionTokenBundlesWithMaxQuantity_sum
 
     parallel $ describe "Equipartitioning token maps by max quantity" $ do
 
@@ -1955,6 +1965,46 @@ prop_equipartitionTokenBundleWithMaxQuantity_sum
 prop_equipartitionTokenBundleWithMaxQuantity_sum m maxQuantity =
     maxQuantity > TokenQuantity.zero ==>
         F.fold (equipartitionTokenBundleWithMaxQuantity m maxQuantity) === m
+
+--------------------------------------------------------------------------------
+-- Equipartitioning lists of token bundles according to a maximum quantity
+--------------------------------------------------------------------------------
+
+prop_equipartitionTokenBundlesWithMaxQuantity_length
+    :: NonEmpty TokenBundle -> TokenQuantity -> Property
+prop_equipartitionTokenBundlesWithMaxQuantity_length input maxQuantityAllowed =
+    maxQuantityAllowed > TokenQuantity.zero ==> checkCoverage $ property $
+        cover 5 (lengthOutput > lengthInput)
+            "length has increased" $
+        cover 5 (lengthOutput == lengthInput)
+            "length has remained the same" $
+        case compare lengthOutput lengthInput of
+            GT -> (&&)
+                (maxQuantityAllowed <  maxQuantityInput)
+                (maxQuantityAllowed >= maxQuantityOutput)
+            EQ -> (&&)
+                (maxQuantityAllowed >= maxQuantityInput)
+                (input == output)
+            LT ->
+                error "length has unexpectedly decreased"
+  where
+    lengthInput =
+        NE.length input
+    lengthOutput =
+        NE.length output
+    maxQuantityInput =
+        F.maximum (TokenMap.maximumQuantity . view #tokens <$> input)
+    maxQuantityOutput =
+        F.maximum (TokenMap.maximumQuantity . view #tokens <$> output)
+    output =
+        equipartitionTokenBundlesWithMaxQuantity input maxQuantityAllowed
+
+prop_equipartitionTokenBundlesWithMaxQuantity_sum
+    :: NonEmpty TokenBundle -> TokenQuantity -> Property
+prop_equipartitionTokenBundlesWithMaxQuantity_sum ms maxQuantity =
+    maxQuantity > TokenQuantity.zero ==>
+        F.fold (equipartitionTokenBundlesWithMaxQuantity ms maxQuantity)
+            === F.fold ms
 
 --------------------------------------------------------------------------------
 -- Equipartitioning token maps according to a maximum quantity
