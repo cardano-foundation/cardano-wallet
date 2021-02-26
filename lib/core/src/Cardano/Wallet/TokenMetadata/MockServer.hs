@@ -209,7 +209,7 @@ instance ToJSON SubjectProperties where
        ] ++ optionals
        [ "name" .= n
        , "description" .= d
-       , "acronym" .= a
+       , "ticker" .= a
        , "url" .= u
        , "logo" .= l
        , "unit" .= t

@@ -29,7 +29,7 @@ module Cardano.Wallet.Primitive.Types.TokenPolicy
     , AssetLogo (..)
     , AssetUnit (..)
     , validateMetadataName
-    , validateMetadataAcronym
+    , validateMetadataTicker
     , validateMetadataDescription
     , validateMetadataURL
     , validateMetadataUnit
@@ -203,7 +203,7 @@ instance FromText TokenFingerprint where
 data AssetMetadata = AssetMetadata
     { name :: Text
     , description :: Text
-    , acronym :: Maybe Text
+    , ticker :: Maybe Text
     , url :: Maybe AssetURL
     , logo :: Maybe AssetLogo
     , unit :: Maybe AssetUnit
@@ -260,8 +260,8 @@ validateMaxLength n text
 validateMetadataName :: Text -> Either String Text
 validateMetadataName = validateMinLength 1 >=> validateMaxLength 50
 
-validateMetadataAcronym :: Text -> Either String Text
-validateMetadataAcronym = validateMinLength 2 >=> validateMaxLength 4
+validateMetadataTicker :: Text -> Either String Text
+validateMetadataTicker = validateMinLength 2 >=> validateMaxLength 4
 
 validateMetadataDescription :: Text -> Either String Text
 validateMetadataDescription = validateMaxLength 500

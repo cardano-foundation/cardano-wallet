@@ -92,10 +92,10 @@ import Cardano.Wallet.Primitive.Types.TokenPolicy
     , AssetUnit (..)
     , TokenName (..)
     , TokenPolicyId (..)
-    , validateMetadataAcronym
     , validateMetadataDescription
     , validateMetadataLogo
     , validateMetadataName
+    , validateMetadataTicker
     , validateMetadataURL
     , validateMetadataUnit
     )
@@ -225,7 +225,7 @@ data SubjectProperties = SubjectProperties
     , properties ::
         ( Maybe (Property "name")
         , Maybe (Property "description")
-        , Maybe (Property "acronym")
+        , Maybe (Property "ticker")
         , Maybe (Property "url")
         , Maybe (Property "logo")
         , Maybe (Property "unit")
@@ -260,7 +260,7 @@ newtype PropertyName = PropertyName { unPropertyName :: Text }
 type family PropertyValue (name :: Symbol) :: *
 type instance PropertyValue "name" = Text
 type instance PropertyValue "description" = Text
-type instance PropertyValue "acronym" = Text
+type instance PropertyValue "ticker" = Text
 type instance PropertyValue "url" = AssetURL
 type instance PropertyValue "unit" = AssetUnit
 type instance PropertyValue "logo" = AssetLogo
@@ -274,8 +274,8 @@ instance HasValidator "name" where
     validatePropertyValue = validateMetadataName
 instance HasValidator "description" where
     validatePropertyValue = validateMetadataDescription
-instance HasValidator "acronym" where
-    validatePropertyValue = validateMetadataAcronym
+instance HasValidator "ticker" where
+    validatePropertyValue = validateMetadataTicker
 instance HasValidator "url" where
     -- validation is done before parsing
 instance HasValidator "logo" where
@@ -472,7 +472,7 @@ getTokenMetadata (TokenMetadataClient client) as =
     req = BatchRequest
         { subjects
         , properties = PropertyName <$>
-             [ "name", "description", "acronym"
+             [ "name", "description", "ticker"
              , "url", "logo", "unit" ]
         }
     subjectAsset = HM.fromList $ zip subjects as
@@ -495,12 +495,12 @@ metadataFromProperties (SubjectProperties _ _ properties) =
     AssetMetadata
         <$> getValue name
         <*> getValue description
-        <*> pure (getValue acronym)
+        <*> pure (getValue ticker)
         <*> pure (getValue url)
         <*> pure (getValue logo)
         <*> pure (getValue unit)
   where
-    ( name, description, acronym, url, logo, unit ) = properties
+    ( name, description, ticker, url, logo, unit ) = properties
     getValue :: Maybe (Property a) -> Maybe (PropertyValue a)
     getValue = (>>= (either (const Nothing) Just . value))
 
@@ -535,7 +535,7 @@ instance FromJSON SubjectProperties where
         parseProperties o = (,,,,,)
             <$> prop @"name" o
             <*> prop @"description" o
-            <*> prop @"acronym" o
+            <*> prop @"ticker" o
             <*> prop @"url" o
             <*> prop @"logo" o
             <*> prop @"unit" o
