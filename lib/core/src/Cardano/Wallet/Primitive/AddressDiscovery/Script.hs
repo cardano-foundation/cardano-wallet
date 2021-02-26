@@ -25,6 +25,7 @@ module Cardano.Wallet.Primitive.AddressDiscovery.Script
     (
       keyHashFromAccXPubIx
     , constructAddressFromIx
+    , toNetworkTag
     ) where
 
 import Prelude

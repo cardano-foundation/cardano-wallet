@@ -27,7 +27,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , HardDerivation (..)
     , Index (..)
     , NetworkDiscriminant (..)
-    , PaymentAddress (..)
     , WalletKey (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
@@ -37,7 +36,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Script
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPoolGap (..), addresses, mkUnboundedAddressPoolGap )
 import Cardano.Wallet.Primitive.AddressDiscovery.Shared
-    ( SharedState (..), isShared, newSharedState )
+    ( SharedState (..), isShared, liftPaymentAddress, newSharedState )
 import Cardano.Wallet.Primitive.Types.Address
     ( AddressState (..) )
 import Cardano.Wallet.Unsafe
@@ -116,20 +115,19 @@ prop_addressWithScriptFromOurVerKeyIxBeyond (CatalystSharedState accXPub' accIx'
 
 prop_addressDiscoveryMakesAddressUsed
     :: forall (n :: NetworkDiscriminant).
-    ( Typeable n, PaymentAddress n ShelleyKey )
+    ( Typeable n )
     => CatalystSharedState
     -> Index 'Soft 'ScriptK
     -> Property
 prop_addressDiscoveryMakesAddressUsed (CatalystSharedState accXPub' accIx' scriptTemplate' g) keyIx =
     fromIntegral (fromEnum keyIx) < threshold g ==>
-    L.lookup addr (ourAddrs sharedState') === Just Used .&&.
-    L.length (ourAddrs sharedState') > L.length (ourAddrs sharedState')
+    L.lookup addr ourAddrs === Just Used .&&.
+    fromIntegral (L.length ourAddrs) === (fromIntegral (fromEnum ix + 1) + getAddressPoolGap g)
   where
-    ourAddrs = addresses (liftPaymentAddress @n @ShelleyKey). sharedStateAddressPool
     addr = constructAddressFromIx @n scriptTemplate' Nothing keyIx
     sharedState = newSharedState @n accXPub' accIx' g scriptTemplate' Nothing
-    ((Just _), sharedState') = isShared @n addr sharedState
-
+    ((Just (ix,_)), sharedState') = isShared @n addr sharedState
+    ourAddrs = addresses (liftPaymentAddress @n @ShelleyKey) $ sharedStateAddressPool sharedState'
 {--
 prop_addressDoubleDiscovery
     :: CatalystSharedState
