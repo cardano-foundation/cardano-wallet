@@ -232,7 +232,7 @@ import System.FilePath
 import UnliftIO.Exception
     ( Exception, throwIO )
 import UnliftIO.MVar
-    ( MVar, modifyMVar, modifyMVar_, newMVar, readMVar )
+    ( MVar, modifyMVar, modifyMVar_, newMVar, readMVar, withMVar )
 
 import qualified Cardano.Wallet.Primitive.AddressDerivation as W
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Random as Rnd
@@ -1260,26 +1260,34 @@ newDBLayerWith cacheBehavior tr ti SqliteContext{runQuery} = do
     -- When 'cacheBehavior' is set to 'NoCache', we simply never write anything
     -- to the cache, which forces 'selectLatestCheckpointCached' to always perform a
     -- database lookup.
+
+    cacheVar <- newMVar Map.empty :: IO (MVar (Map W.WalletId (W.Wallet s)))
+
     --
     -- NOTE3
-    -- Nested MVars provide per-wallet locking when updating the checkpoint
-    -- cache.
+    -- This cache will not work properly unless 'atomically' is protected by a
+    -- mutex (queryLock), which means no concurrent queries.
     --
-    cacheVar <- newMVar Map.empty :: IO (MVar (Map W.WalletId (MVar (Maybe (W.Wallet s)))))
+    queryLock <- newMVar () -- fixme: ADP-586
 
-    -- Gets or creates the cache MVar for a given wallet.
-    -- If caching is disabled it unconditionally returns a new empty cache.
-    let getCache :: W.WalletId -> SqlPersistT IO (MVar (Maybe (W.Wallet s)))
-        getCache wid = modifyMVar cacheVar $ \cache -> do
-            mvar <- maybe (newMVar Nothing) pure $ Map.lookup wid cache
-            let cache' = case cacheBehavior of
+    -- Gets cached checkpoint for a given wallet.
+    -- If caching is disabled it unconditionally returns Nothing
+    let getCache :: W.WalletId -> SqlPersistT IO (Maybe (W.Wallet s))
+        getCache wid = Map.lookup wid <$> readMVar cacheVar
+
+        -- Adjust a wallet entry in the cache.
+        modifyCache :: W.WalletId -> (Maybe (W.Wallet s) -> SqlPersistT IO (Maybe (W.Wallet s))) -> SqlPersistT IO ()
+        modifyCache wid action = modifyMVar_ cacheVar $ \cache -> do
+            let old = Map.lookup wid cache
+            action old >>= \case
+                Nothing -> pure $ Map.delete wid cache
+                Just cp -> pure $ case cacheBehavior of
                     NoCache -> cache -- stick to initial value
-                    CacheLatestCheckpoint -> Map.insert wid mvar cache
-            pure (cache', mvar)
+                    CacheLatestCheckpoint -> Map.insert wid cp cache
 
-    -- This condition is required to make property tests pass, where checkpoints
-    -- may be generated in any order.
-    let alterCache :: W.Wallet s -> Maybe (W.Wallet s) -> Maybe (W.Wallet s)
+        -- This condition is required to make property tests pass, where
+        -- checkpoints may be generated in any order.
+        alterCache :: W.Wallet s -> Maybe (W.Wallet s) -> Maybe (W.Wallet s)
         alterCache cp = \case
             Just old | getHeight cp < getHeight old -> Just old
             _ -> Just cp
@@ -1287,35 +1295,31 @@ newDBLayerWith cacheBehavior tr ti SqliteContext{runQuery} = do
         getHeight = view (#currentTip . #blockHeight)
 
     -- Inserts a checkpoint into the database and checkpoint cache
-    let insertCheckpointCached wid cp = do
-            mvar <- getCache wid
-            modifyMVar_ mvar $ \old -> do
-                liftIO $ traceWith tr $ MsgCheckpointCache wid MsgPutCheckpoint
-                insertCheckpoint wid cp
-                pure (alterCache cp old)
+    let insertCheckpointCached wid cp = modifyCache wid $ \old -> do
+            liftIO $ traceWith tr $ MsgCheckpointCache wid MsgPutCheckpoint
+            insertCheckpoint wid cp
+            pure (alterCache cp old)
 
     -- Checks for cached a checkpoint before running selectLatestCheckpoint
     let selectLatestCheckpointCached
             :: W.WalletId
             -> SqlPersistT IO (Maybe (W.Wallet s))
         selectLatestCheckpointCached wid = do
-            cp <- readMVar =<< getCache wid
+            cp <- getCache wid
             liftIO $ traceWith tr $ MsgCheckpointCache wid $ MsgGetCheckpoint $ isJust cp
             maybe (selectLatestCheckpoint @s wid) (pure . Just) cp
 
     -- Re-run the selectLatestCheckpoint query
     let refreshCache :: W.WalletId -> SqlPersistT IO ()
-        refreshCache wid = do
-            mvar <- getCache wid
-            modifyMVar_ mvar $ const $ do
-                liftIO $ traceWith tr $ MsgCheckpointCache wid MsgRefresh
-                selectLatestCheckpoint @s wid
+        refreshCache wid = modifyCache wid $ const $ do
+            liftIO $ traceWith tr $ MsgCheckpointCache wid MsgRefresh
+            selectLatestCheckpoint @s wid
 
     -- Delete the cache for a wallet
     let dropCache :: W.WalletId -> SqlPersistT IO ()
-        dropCache wid = modifyMVar_ cacheVar $ \cache -> do
+        dropCache wid = modifyCache wid $ const $ do
             liftIO $ traceWith tr $ MsgCheckpointCache wid MsgDrop
-            pure $ Map.delete wid cache
+            pure Nothing
 
     return DBLayer
 
@@ -1553,7 +1557,7 @@ newDBLayerWith cacheBehavior tr ti SqliteContext{runQuery} = do
                                      ACID Execution
         -----------------------------------------------------------------------}
 
-        , atomically = runQuery
+        , atomically = withMVar queryLock . const . runQuery
         }
 
 readWalletMetadata
