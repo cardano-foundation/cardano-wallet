@@ -18,7 +18,12 @@ import Prelude
 import Cardano.Address.Derivation
     ( XPrv, XPub )
 import Cardano.Address.Script
-    ( Cosigner (..), Script (..), ScriptTemplate (..) )
+    ( Cosigner (..)
+    , Script (..)
+    , ScriptTemplate (..)
+    , ValidationLevel (..)
+    , validateScriptTemplate
+    )
 import Cardano.Wallet.Gen
     ( genNatural )
 import Cardano.Wallet.Gen
@@ -43,6 +48,8 @@ import Cardano.Wallet.Primitive.Types.Address
     ( AddressState (..) )
 import Cardano.Wallet.Unsafe
     ( someDummyMnemonic )
+import Data.Either
+    ( isRight )
 import Data.Maybe
     ( isJust )
 import Data.Proxy
@@ -57,6 +64,7 @@ import Test.QuickCheck
     , Property
     , arbitraryBoundedEnum
     , choose
+    , elements
     , property
     , suchThat
     , (.&&.)
@@ -94,13 +102,13 @@ prop_addressWithScriptFromOurVerKeyIxIn
     => CatalystSharedState
     -> Index 'Soft 'ScriptK
     -> Property
-prop_addressWithScriptFromOurVerKeyIxIn (CatalystSharedState accXPub' accIx' scriptTemplate' g) keyIx =
-    fromIntegral (fromEnum keyIx) < threshold g ==>
+prop_addressWithScriptFromOurVerKeyIxIn (CatalystSharedState accXPub' accIx' pTemplate' dTemplate' g) keyIx =
+    preconditions keyIx g dTemplate' ==>
     keyIx' === keyIx .&&. keyHash' === keyHash
   where
-    addr = constructAddressFromIx @n scriptTemplate' Nothing keyIx
+    addr = constructAddressFromIx @n pTemplate' dTemplate' keyIx
     keyHash = keyHashFromAccXPubIx accXPub' keyIx
-    sharedState = newSharedState @n accXPub' accIx' g scriptTemplate' Nothing
+    sharedState = newSharedState @n accXPub' accIx' g pTemplate' dTemplate'
     ((Just (keyIx', keyHash')), _) = isShared @n addr sharedState
 
 prop_addressWithScriptFromOurVerKeyIxBeyond
@@ -108,26 +116,26 @@ prop_addressWithScriptFromOurVerKeyIxBeyond
     => CatalystSharedState
     -> Index 'Soft 'ScriptK
     -> Property
-prop_addressWithScriptFromOurVerKeyIxBeyond (CatalystSharedState accXPub' accIx' scriptTemplate' g) keyIx =
+prop_addressWithScriptFromOurVerKeyIxBeyond (CatalystSharedState accXPub' accIx' pTemplate' dTemplate' g) keyIx =
     fromIntegral (fromEnum keyIx) >= threshold g ==>
     fst (isShared @n addr sharedState) === Nothing .&&.
     snd (isShared @n addr sharedState) === sharedState
   where
-    addr = constructAddressFromIx @n scriptTemplate' Nothing keyIx
-    sharedState = newSharedState @n accXPub' accIx' g scriptTemplate' Nothing
+    addr = constructAddressFromIx @n pTemplate' dTemplate' keyIx
+    sharedState = newSharedState @n accXPub' accIx' g pTemplate' dTemplate'
 
 prop_addressDiscoveryMakesAddressUsed
     :: forall (n :: NetworkDiscriminant). Typeable n
     => CatalystSharedState
     -> Index 'Soft 'ScriptK
     -> Property
-prop_addressDiscoveryMakesAddressUsed (CatalystSharedState accXPub' accIx' scriptTemplate' g) keyIx =
-    fromIntegral (fromEnum keyIx) < threshold g ==>
+prop_addressDiscoveryMakesAddressUsed (CatalystSharedState accXPub' accIx' pTemplate' dTemplate' g) keyIx =
+    preconditions keyIx g dTemplate' ==>
     L.lookup addr ourAddrs === Just Used .&&.
     fromIntegral (L.length ourAddrs) === (fromIntegral (fromEnum ix + 1) + getAddressPoolGap g)
   where
-    addr = constructAddressFromIx @n scriptTemplate' Nothing keyIx
-    sharedState = newSharedState @n accXPub' accIx' g scriptTemplate' Nothing
+    addr = constructAddressFromIx @n pTemplate' Nothing keyIx
+    sharedState = newSharedState @n accXPub' accIx' g pTemplate' dTemplate'
     ((Just (ix,_)), sharedState') = isShared @n addr sharedState
     ourAddrs = addresses (liftPaymentAddress @n @ShelleyKey) $ sharedStateAddressPool sharedState'
 
@@ -136,13 +144,13 @@ prop_addressDoubleDiscovery
     => CatalystSharedState
     -> Index 'Soft 'ScriptK
     -> Property
-prop_addressDoubleDiscovery (CatalystSharedState accXPub' accIx' scriptTemplate' g) keyIx =
-    fromIntegral (fromEnum keyIx) < threshold g ==>
+prop_addressDoubleDiscovery (CatalystSharedState accXPub' accIx' pTemplate' dTemplate' g) keyIx =
+    preconditions keyIx g dTemplate' ==>
     isJust (fst sharedState') === True .&&.
     snd sharedState' === snd sharedState''
   where
-    addr = constructAddressFromIx @n scriptTemplate' Nothing keyIx
-    sharedState = newSharedState @n accXPub' accIx' g scriptTemplate' Nothing
+    addr = constructAddressFromIx @n pTemplate' dTemplate' keyIx
+    sharedState = newSharedState @n accXPub' accIx' g pTemplate' dTemplate'
     sharedState' = isShared @n addr sharedState
     sharedState'' = isShared @n addr (snd sharedState')
 
@@ -152,15 +160,15 @@ prop_addressDiscoveryImpossibleFromOtherAccXPub
     -> Index 'Soft 'ScriptK
     -> ShelleyKey 'AccountK XPub
     -> Property
-prop_addressDiscoveryImpossibleFromOtherAccXPub (CatalystSharedState _ accIx' scriptTemplate' g) keyIx accXPub' =
-    fromIntegral (fromEnum keyIx) < threshold g ==>
+prop_addressDiscoveryImpossibleFromOtherAccXPub (CatalystSharedState _ accIx' pTemplate' dTemplate' g) keyIx accXPub' =
+    preconditions keyIx g dTemplate' ==>
     fst (isShared addr sharedState) === Nothing .&&.
     snd (isShared addr sharedState) === sharedState
   where
-    addr = constructAddressFromIx @n scriptTemplate' Nothing keyIx
-    (ScriptTemplate _ script') = scriptTemplate'
-    scriptTemplate'' = ScriptTemplate (Map.fromList [(Cosigner 0, getRawKey accXPub')]) script'
-    sharedState = newSharedState @n accXPub' accIx' g scriptTemplate'' Nothing
+    addr = constructAddressFromIx @n pTemplate' dTemplate' keyIx
+    (ScriptTemplate _ script') = pTemplate'
+    pTemplate'' = ScriptTemplate (Map.fromList [(Cosigner 0, getRawKey accXPub')]) script'
+    sharedState = newSharedState @n accXPub' accIx' g pTemplate'' dTemplate'
 
 prop_addressDiscoveryImpossibleFromOtherAccountOfTheSameRootXPrv
     :: forall (n :: NetworkDiscriminant). Typeable n
@@ -168,18 +176,18 @@ prop_addressDiscoveryImpossibleFromOtherAccountOfTheSameRootXPrv
     -> Index 'Soft 'ScriptK
     -> (ShelleyKey 'RootK XPrv, Index 'Hardened 'AccountK, Index 'Hardened 'AccountK)
     -> Property
-prop_addressDiscoveryImpossibleFromOtherAccountOfTheSameRootXPrv (CatalystSharedState _ _ scriptTemplate' g) keyIx (rootXPrv, accIx', accIx'') =
-    fromIntegral (fromEnum keyIx) < threshold g ==>
+prop_addressDiscoveryImpossibleFromOtherAccountOfTheSameRootXPrv (CatalystSharedState _ _ pTemplate' dTemplate' g) keyIx (rootXPrv, accIx', accIx'') =
+    preconditions keyIx g dTemplate' ==>
     fst (isShared addr sharedState) === Nothing .&&.
     snd (isShared addr sharedState) === sharedState
   where
     accXPub' = publicKey $ deriveAccountPrivateKey mempty rootXPrv accIx'
     accXPub'' = publicKey $ deriveAccountPrivateKey mempty rootXPrv accIx''
-    (ScriptTemplate _ script') = scriptTemplate'
-    scriptTemplate'' = ScriptTemplate (Map.fromList [(Cosigner 0, getRawKey accXPub')]) script'
-    scriptTemplate''' = ScriptTemplate (Map.fromList [(Cosigner 0, getRawKey accXPub'')]) script'
-    sharedState = newSharedState @n accXPub'' accIx'' g scriptTemplate'' Nothing
-    addr = constructAddressFromIx @n scriptTemplate''' Nothing keyIx
+    (ScriptTemplate _ script') = pTemplate'
+    pTemplate'' = ScriptTemplate (Map.fromList [(Cosigner 0, getRawKey accXPub')]) script'
+    pTemplate''' = ScriptTemplate (Map.fromList [(Cosigner 0, getRawKey accXPub'')]) script'
+    sharedState = newSharedState @n accXPub'' accIx'' g pTemplate'' dTemplate'
+    addr = constructAddressFromIx @n pTemplate''' dTemplate' keyIx
 
 prop_addressDiscoveryImpossibleWithinAccountButDifferentScript
     :: forall (n :: NetworkDiscriminant). Typeable n
@@ -187,44 +195,58 @@ prop_addressDiscoveryImpossibleWithinAccountButDifferentScript
     -> Index 'Soft 'ScriptK
     -> OneCosignerScript
     -> Property
-prop_addressDiscoveryImpossibleWithinAccountButDifferentScript (CatalystSharedState accXPub' accIx' scriptTemplate' g) keyIx (OneCosignerScript script') =
-    fromIntegral (fromEnum keyIx) < threshold g ==>
+prop_addressDiscoveryImpossibleWithinAccountButDifferentScript (CatalystSharedState accXPub' accIx' pTemplate' dTemplate' g) keyIx (OneCosignerScript script') =
+    preconditions keyIx g dTemplate' ==>
     fst (isShared addr sharedState) === Nothing .&&.
     snd (isShared addr sharedState) === sharedState
   where
-    (ScriptTemplate cosignerXpubs _) = scriptTemplate'
-    scriptTemplate'' = ScriptTemplate cosignerXpubs script'
-    sharedState = newSharedState @n accXPub' accIx' g scriptTemplate' Nothing
-    addr = constructAddressFromIx @n scriptTemplate'' Nothing keyIx
+    (ScriptTemplate cosignerXpubs _) = pTemplate'
+    pTemplate'' = ScriptTemplate cosignerXpubs script'
+    sharedState = newSharedState @n accXPub' accIx' g pTemplate' dTemplate'
+    addr = constructAddressFromIx @n pTemplate'' dTemplate' keyIx
 
 prop_addressDiscoveryDoesNotChangeGapInvariance
     :: forall (n :: NetworkDiscriminant). Typeable n
     => CatalystSharedState
     -> Index 'Soft 'ScriptK
     -> Property
-prop_addressDiscoveryDoesNotChangeGapInvariance (CatalystSharedState accXPub' accIx' scriptTemplate' g) keyIx =
-    fromIntegral (fromEnum keyIx) < threshold g ==>
+prop_addressDiscoveryDoesNotChangeGapInvariance (CatalystSharedState accXPub' accIx' pTemplate' dTemplate' g) keyIx =
+    preconditions keyIx g dTemplate' ==>
     fromIntegral (L.length mapOfConsecutiveUnused) === getAddressPoolGap g
   where
-    addr = constructAddressFromIx @n scriptTemplate' Nothing keyIx
-    sharedState = newSharedState @n accXPub' accIx' g scriptTemplate' Nothing
+    addr = constructAddressFromIx @n pTemplate' dTemplate' keyIx
+    sharedState = newSharedState @n accXPub' accIx' g pTemplate' dTemplate'
     (_, sharedState') = isShared @n addr sharedState
     mapOfConsecutiveUnused =
         L.tail $
         L.dropWhile (\(_addr, state) -> state /= Used) $
         addresses (liftPaymentAddress @n @ShelleyKey) $ sharedStateAddressPool sharedState'
 
-data CatalystSharedState = CatalystSharedState
-    { accXPub :: ShelleyKey 'AccountK XPub
-    , accIx :: Index 'Hardened 'AccountK
-    , scriptTemplate :: ScriptTemplate
-    , addrPoolGap :: AddressPoolGap
-    } deriving (Eq, Show)
+preconditions
+    :: Index 'Soft 'ScriptK
+    -> AddressPoolGap
+    -> Maybe ScriptTemplate
+    -> Bool
+preconditions keyIx g dTemplate' =
+    fromIntegral (fromEnum keyIx) < threshold g && templateValidated
+  where
+    templateValidated = case dTemplate' of
+        Nothing -> True
+        Just t -> isRight (validateScriptTemplate RecommendedValidation t)
 
 threshold :: AddressPoolGap -> Word32
 threshold g =
     fromIntegral (fromEnum (minBound @(Index 'Soft 'ScriptK))) +
     getAddressPoolGap g
+
+data CatalystSharedState = CatalystSharedState
+    { accXPub :: ShelleyKey 'AccountK XPub
+    , accIx :: Index 'Hardened 'AccountK
+    , pTemplate :: ScriptTemplate
+    , dTemplate :: Maybe ScriptTemplate
+    , addrPoolGap :: AddressPoolGap
+    } deriving (Eq, Show)
+
 
 {-------------------------------------------------------------------------------
                                 Arbitrary Instances
@@ -239,9 +261,13 @@ instance Arbitrary CatalystSharedState where
         let script' = RequireAllOf
                 [ RequireSignatureOf (Cosigner 0)
                 , RequireAnyOf [ ActiveUntilSlot slotUntil, ActiveFromSlot slotAfter] ]
-        let scriptTemplate' =
+        let pTemplate' =
                 ScriptTemplate (Map.fromList [(Cosigner 0, getRawKey accXPub')]) script'
-        CatalystSharedState accXPub' accIx' scriptTemplate' <$> arbitrary
+        (OneCosignerScript otherScript) <- arbitrary
+        let _otherTemplate = ScriptTemplate (Map.fromList [(Cosigner 0, getRawKey accXPub')]) otherScript
+        --dTemplate' <- elements [Nothing, Just pTemplate', Just otherTemplate]
+        dTemplate' <- elements [Nothing, Just pTemplate']
+        CatalystSharedState accXPub' accIx' pTemplate' dTemplate'  <$> arbitrary
 
 instance Arbitrary (ShelleyKey 'AccountK XPub) where
     arbitrary = do
