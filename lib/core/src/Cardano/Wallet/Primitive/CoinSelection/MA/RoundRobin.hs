@@ -53,6 +53,14 @@ module Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     , makeChangeForNonUserSpecifiedAsset
     , assignCoinsToChangeMaps
 
+    -- * Partitioning
+    , equipartitionNatural
+    , equipartitionTokenBundleWithMaxQuantity
+    , equipartitionTokenBundlesWithMaxQuantity
+    , equipartitionTokenMap
+    , equipartitionTokenMapWithMaxQuantity
+    , equipartitionTokenQuantity
+
     -- * Grouping and ungrouping
     , groupByKey
     , ungroupByKey
@@ -63,6 +71,9 @@ module Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
 
     -- * Accessors
     , fullBalance
+
+    -- * Constants
+    , maxTxOutTokenQuantity
 
     -- * Utility classes
     , AssetCount (..)
@@ -108,8 +119,12 @@ import Data.Maybe
     ( fromMaybe )
 import Data.Ord
     ( comparing )
+import Data.Ratio
+    ( (%) )
 import Data.Set
     ( Set )
+import Data.Word
+    ( Word64 )
 import Fmt
     ( Buildable (..)
     , Builder
@@ -855,11 +870,27 @@ makeChange minCoinFor requiredCost mExtraCoinSource inputBundles outputBundles
         -- Next, sort the list into ascending order of asset count, which moves
         -- any empty maps to the start of the list:
         & NE.sortWith (AssetCount . fst)
-        -- Finally, combine the existing list with the change maps for non-user
+        -- Next, combine the existing list with the change maps for non-user
         -- specified assets, which are already sorted into ascending order of
         -- asset count:
         & NE.zipWith (\m1 (m2, c) -> (m1 <> m2, c))
             changeForNonUserSpecifiedAssets
+        -- Finally, if there are any maps with excessive token quantities, then
+        -- split these maps up along with their corresponding output coins:
+        & splitMapsWithExcessiveQuantities
+      where
+        splitMapsWithExcessiveQuantities
+            :: NonEmpty (TokenMap, Coin) -> NonEmpty (TokenMap, Coin)
+        splitMapsWithExcessiveQuantities =
+            -- For the sake of convenience when splitting up change maps and
+            -- output coins (which are treated as weights), treat each change
+            -- map and its corresponding output coin as a token bundle.
+            fmap unbundle . split . fmap bundle
+          where
+            bundle (m, c) = TokenBundle c m
+            unbundle (TokenBundle c m) = (m, c)
+            split = flip equipartitionTokenBundlesWithMaxQuantity
+                maxTxOutTokenQuantity
 
     -- Change for user-specified assets: assets that were present in the
     -- original set of user-specified outputs ('outputsToCover').
@@ -1146,6 +1177,195 @@ makeChangeForCoin targets excess =
     weights = coinToNatural <$> targets
 
 --------------------------------------------------------------------------------
+-- Equipartitioning
+--------------------------------------------------------------------------------
+
+-- An /equipartition/ of a value 'v' (of some type) is a /partition/ of that
+-- value into 'n' smaller values whose /sizes/ differ by no more than 1. The
+-- the notion of /size/ is dependent on the type of value 'v'.
+--
+-- In this section, equipartitions have the following properties:
+--
+--  1.  The length is observed:
+--      >>> length (equipartition v n) == n
+--
+--  2.  The sum is preserved:
+--      >>> sum (equipartition v n) == v
+--
+--  3.  Each resulting value is less than or equal to the original value:
+--      >>> all (`leq` v) (equipartition v n)
+--
+--  4.  The resultant list is sorted into ascending order when values are
+--      compared with the 'leq' function.
+--
+--------------------------------------------------------------------------------
+
+-- | Computes the equipartition of a coin into 'n' smaller coins.
+--
+equipartitionCoin
+    :: HasCallStack
+    => Coin
+    -- ^ The coin to be partitioned.
+    -> NonEmpty a
+    -- ^ Represents the number of portions in which to partition the coin.
+    -> NonEmpty Coin
+    -- ^ The partitioned coins.
+equipartitionCoin c =
+    -- Note: the natural-to-coin conversion is safe, as equipartitioning always
+    -- guarantees to produce values that are less than or equal to the original
+    -- value.
+    fmap unsafeNaturalToCoin . equipartitionNatural (coinToNatural c)
+
+-- | Computes the equipartition of a natural number into 'n' smaller numbers.
+--
+equipartitionNatural
+    :: HasCallStack
+    => Natural
+    -- ^ The natural number to be partitioned.
+    -> NonEmpty a
+    -- ^ Represents the number of portions in which to partition the number.
+    -> NonEmpty Natural
+    -- ^ The partitioned numbers.
+equipartitionNatural n count =
+    -- Note: due to the behaviour of the underlying partition algorithm, a
+    -- simple list reversal is enough to ensure that the resultant list is
+    -- sorted in ascending order.
+    NE.reverse $ unsafePartitionNatural n (1 <$ count)
+
+-- | Computes the equipartition of a token map into 'n' smaller maps.
+--
+-- Each asset is partitioned independently.
+--
+equipartitionTokenMap
+    :: HasCallStack
+    => TokenMap
+    -- ^ The map to be partitioned.
+    -> NonEmpty a
+    -- ^ Represents the number of portions in which to partition the map.
+    -> NonEmpty TokenMap
+    -- ^ The partitioned maps.
+equipartitionTokenMap m count =
+    F.foldl' accumulate (TokenMap.empty <$ count) (TokenMap.toFlatList m)
+  where
+    accumulate
+        :: NonEmpty TokenMap
+        -> (AssetId, TokenQuantity)
+        -> NonEmpty TokenMap
+    accumulate maps (asset, quantity) = NE.zipWith (<>) maps $
+        TokenMap.singleton asset <$>
+            equipartitionTokenQuantity quantity count
+
+-- | Computes the equipartition of a token quantity into 'n' smaller quantities.
+--
+equipartitionTokenQuantity
+    :: HasCallStack
+    => TokenQuantity
+    -- ^ The token quantity to be partitioned.
+    -> NonEmpty a
+    -- ^ Represents the number of portions in which to partition the quantity.
+    -> NonEmpty TokenQuantity
+    -- ^ The partitioned quantities.
+equipartitionTokenQuantity q =
+    fmap TokenQuantity . equipartitionNatural (unTokenQuantity q)
+
+--------------------------------------------------------------------------------
+-- Equipartitioning according to a maximum token quantity
+--------------------------------------------------------------------------------
+
+-- | Computes the equipartition of a token bundle into 'n' smaller bundles,
+--   according to the given maximum token quantity.
+--
+-- The value 'n' is computed automatically, and is the minimum value required
+-- to achieve the goal that no token quantity in any of the resulting bundles
+-- exceeds the maximum allowable token quantity.
+--
+equipartitionTokenBundleWithMaxQuantity
+    :: TokenBundle
+    -> TokenQuantity
+    -- ^ Maximum allowable token quantity.
+    -> NonEmpty TokenBundle
+    -- ^ The partitioned bundles.
+equipartitionTokenBundleWithMaxQuantity b maxQuantity =
+    NE.zipWith TokenBundle cs ms
+  where
+    cs = equipartitionCoin (view #coin b) ms
+    ms = equipartitionTokenMapWithMaxQuantity (view #tokens b) maxQuantity
+
+-- | Applies 'equipartitionTokenBundleWithMaxQuantity' to a list of bundles.
+--
+-- Only token bundles containing quantities that exceed the maximum token
+-- quantity will be partitioned.
+--
+-- If none of the bundles in the given list contain a quantity that exceeds
+-- the maximum token quantity, this function will return the original list.
+--
+equipartitionTokenBundlesWithMaxQuantity
+    :: NonEmpty TokenBundle
+    -- ^ Token bundles.
+    -> TokenQuantity
+    -- ^ Maximum allowable token quantity.
+    -> NonEmpty TokenBundle
+    -- ^ The partitioned bundles.
+equipartitionTokenBundlesWithMaxQuantity bs maxQuantity =
+    (`equipartitionTokenBundleWithMaxQuantity` maxQuantity) =<< bs
+
+-- | Computes the equipartition of a token map into 'n' smaller maps, according
+--   to the given maximum token quantity.
+--
+-- The value 'n' is computed automatically, and is the minimum value required
+-- to achieve the goal that no token quantity in any of the resulting maps
+-- exceeds the maximum allowable token quantity.
+--
+equipartitionTokenMapWithMaxQuantity
+    :: TokenMap
+    -> TokenQuantity
+    -- ^ Maximum allowable token quantity.
+    -> NonEmpty TokenMap
+    -- ^ The partitioned maps.
+equipartitionTokenMapWithMaxQuantity m (TokenQuantity maxQuantity)
+    | maxQuantity == 0 =
+        maxQuantityZeroError
+    | currentMaxQuantity <= maxQuantity =
+        m :| []
+    | otherwise =
+        equipartitionTokenMap m (() :| replicate extraPartCount ())
+  where
+    TokenQuantity currentMaxQuantity = TokenMap.maximumQuantity m
+
+    extraPartCount :: Int
+    extraPartCount = floor $ pred currentMaxQuantity % maxQuantity
+
+    maxQuantityZeroError = error $ unwords
+        [ "equipartitionTokenMapWithMaxQuantity:"
+        , "the maximum allowable token quantity cannot be zero."
+        ]
+
+--------------------------------------------------------------------------------
+-- Unsafe partitioning
+--------------------------------------------------------------------------------
+
+-- | Partitions a natural number into a number of parts, where the size of each
+--   part is proportional to the size of its corresponding element in the given
+--   list of weights, and the number of parts is equal to the number of weights.
+--
+-- Throws a run-time error if the sum of weights is equal to zero.
+--
+unsafePartitionNatural
+    :: HasCallStack
+    => Natural
+    -- ^ Natural number to partition
+    -> NonEmpty Natural
+    -- ^ List of weights
+    -> NonEmpty Natural
+unsafePartitionNatural target =
+    fromMaybe zeroWeightSumError . partitionNatural target
+  where
+    zeroWeightSumError = error $ unwords
+        [ "unsafePartitionNatural:"
+        , "specified weights must have a non-zero sum."
+        ]
+
+--------------------------------------------------------------------------------
 -- Grouping and ungrouping
 --------------------------------------------------------------------------------
 
@@ -1218,6 +1438,16 @@ instance Ord (AssetCount TokenMap) where
 newtype AssetCount a = AssetCount
     { unAssetCount :: a }
     deriving (Eq, Show)
+
+--------------------------------------------------------------------------------
+-- Constants
+--------------------------------------------------------------------------------
+
+-- | The greatest token quantity that can be encoded within an output bundle of
+--   a transaction.
+--
+maxTxOutTokenQuantity :: TokenQuantity
+maxTxOutTokenQuantity = TokenQuantity $ fromIntegral (maxBound :: Word64)
 
 --------------------------------------------------------------------------------
 -- Utility functions

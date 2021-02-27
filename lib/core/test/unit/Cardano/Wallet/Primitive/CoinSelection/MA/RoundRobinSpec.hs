@@ -2,12 +2,14 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
+{- HLINT ignore "Use camelCase" -}
 
 module Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobinSpec
     ( spec
@@ -33,6 +35,12 @@ import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     , assetSelectionLens
     , assignCoinsToChangeMaps
     , coinSelectionLens
+    , equipartitionNatural
+    , equipartitionTokenBundleWithMaxQuantity
+    , equipartitionTokenBundlesWithMaxQuantity
+    , equipartitionTokenMap
+    , equipartitionTokenMapWithMaxQuantity
+    , equipartitionTokenQuantity
     , fullBalance
     , groupByKey
     , makeChange
@@ -40,6 +48,7 @@ import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     , makeChangeForNonUserSpecifiedAsset
     , makeChangeForUserSpecifiedAsset
     , mapMaybe
+    , maxTxOutTokenQuantity
     , performSelection
     , prepareOutputsWith
     , runRoundRobin
@@ -47,6 +56,8 @@ import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     , runSelectionStep
     , ungroupByKey
     )
+import Cardano.Wallet.Primitive.Types.Address
+    ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..), addCoin )
 import Cardano.Wallet.Primitive.Types.Coin.Gen
@@ -74,7 +85,7 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity
 import Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
     ( genTokenQuantitySmallPositive, shrinkTokenQuantitySmallPositive )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( TxOut, txOutCoin )
+    ( TxIn (..), TxOut (..), txOutCoin )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
     ( genTxOutSmallRange, shrinkTxOutSmallRange )
 import Cardano.Wallet.Primitive.Types.UTxOIndex
@@ -103,6 +114,8 @@ import Data.Map.Strict
     ( Map )
 import Data.Maybe
     ( isJust )
+import Data.Ratio
+    ( (%) )
 import Data.Set
     ( Set )
 import Data.Tuple
@@ -130,6 +143,7 @@ import Test.QuickCheck
     , Property
     , applyFun
     , arbitraryBoundedEnum
+    , arbitrarySizedNatural
     , checkCoverage
     , choose
     , conjoin
@@ -143,10 +157,12 @@ import Test.QuickCheck
     , label
     , oneof
     , property
+    , shrinkIntegral
     , shrinkList
     , suchThat
     , withMaxSuccess
     , (.&&.)
+    , (.||.)
     , (===)
     , (==>)
     )
@@ -159,7 +175,9 @@ import Test.Utils.Laws
 
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
+import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as TokenQuantity
 import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
+import qualified Data.ByteString.Char8 as B8
 import qualified Data.Foldable as F
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
@@ -254,6 +272,11 @@ spec = describe "Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobinSpec" $
         it "prop_coinSelectonLens_givesPriorityToCoins" $
             property prop_coinSelectionLens_givesPriorityToCoins
 
+    parallel $ describe "Boundary tests" $ do
+
+        unitTests "testBoundaries"
+            unit_testBoundaries
+
     parallel $ describe "Making change" $ do
 
         it "prop_makeChange_identity" $
@@ -297,6 +320,59 @@ spec = describe "Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobinSpec" $
             property prop_makeChangeForUserSpecifiedAsset_length
         unitTests "makeChangeForUserSpecifiedAsset"
             unit_makeChangeForUserSpecifiedAsset
+
+    parallel $ describe "Equipartitioning natural numbers" $ do
+
+        it "prop_equipartitionNatural_fair" $
+            property prop_equipartitionNatural_fair
+        it "prop_equipartitionNatural_length" $
+            property prop_equipartitionNatural_length
+        it "prop_equipartitionNatural_order" $
+            property prop_equipartitionNatural_order
+        it "prop_equipartitionNatural_sum" $
+            property prop_equipartitionNatural_sum
+
+    parallel $ describe "Equipartitioning token maps" $ do
+
+        it "prop_equipartitionTokenMap_fair" $
+            property prop_equipartitionTokenMap_fair
+        it "prop_equipartitionTokenMap_length" $
+            property prop_equipartitionTokenMap_length
+        it "prop_equipartitionTokenMap_order" $
+            property prop_equipartitionTokenMap_order
+        it "prop_equipartitionTokenMap_sum" $
+            property prop_equipartitionTokenMap_sum
+
+    parallel $ describe "Equipartitioning token bundles by max quantity" $ do
+
+        describe "Individual token bundles" $ do
+
+            it "prop_equipartitionTokenBundleWithMaxQuantity_length" $
+                property prop_equipartitionTokenBundleWithMaxQuantity_length
+            it "prop_equipartitionTokenBundleWithMaxQuantity_order" $
+                property prop_equipartitionTokenBundleWithMaxQuantity_order
+            it "prop_equipartitionTokenBundleWithMaxQuantity_sum" $
+                property prop_equipartitionTokenBundleWithMaxQuantity_sum
+
+        describe "Lists of token bundles" $ do
+
+            it "prop_equipartitionTokenBundlesWithMaxQuantity_length" $
+                property prop_equipartitionTokenBundlesWithMaxQuantity_length
+            it "prop_equipartitionTokenBundlesWithMaxQuantity_sum" $
+                property prop_equipartitionTokenBundlesWithMaxQuantity_sum
+
+    parallel $ describe "Equipartitioning token maps by max quantity" $ do
+
+        it "prop_equipartitionTokenMapWithMaxQuantity_coverage" $
+            property prop_equipartitionTokenMapWithMaxQuantity_coverage
+        it "prop_equipartitionTokenMapWithMaxQuantity_length" $
+            property prop_equipartitionTokenMapWithMaxQuantity_length
+        it "prop_equipartitionTokenMapWithMaxQuantity_max" $
+            property prop_equipartitionTokenMapWithMaxQuantity_max
+        it "prop_equipartitionTokenMapWithMaxQuantity_order" $
+            property prop_equipartitionTokenMapWithMaxQuantity_order
+        it "prop_equipartitionTokenMapWithMaxQuantity_sum" $
+            property prop_equipartitionTokenMapWithMaxQuantity_sum
 
     parallel $ describe "Grouping and ungrouping" $ do
 
@@ -1009,6 +1085,203 @@ prop_coinSelectionLens_givesPriorityToCoins (Blind (Small u)) =
     minimumCoinQuantity = Coin 1
 
 --------------------------------------------------------------------------------
+-- Boundary tests
+--------------------------------------------------------------------------------
+
+unit_testBoundaries :: [Expectation]
+unit_testBoundaries = mkBoundaryTestExpectation <$> boundaryTestMatrix
+
+data BoundaryTestData = BoundaryTestData
+    { boundaryTestCriteria
+        :: BoundaryTestCriteria
+    , boundaryTestExpectedResult
+        :: BoundaryTestResult
+    }
+    deriving (Eq, Show)
+
+data BoundaryTestCriteria = BoundaryTestCriteria
+    { boundaryTestOutputs
+        :: [BoundaryTestEntry]
+    , boundaryTestUTxO
+        :: [BoundaryTestEntry]
+    }
+    deriving (Eq, Show)
+
+data BoundaryTestResult = BoundaryTestResult
+    { boundaryTestInputs
+        :: [BoundaryTestEntry]
+    , boundaryTestChange
+        :: [BoundaryTestEntry]
+    }
+    deriving (Eq, Show)
+
+type BoundaryTestEntry = (Coin, [(AssetId, TokenQuantity)])
+
+mkBoundaryTestExpectation :: BoundaryTestData -> Expectation
+mkBoundaryTestExpectation (BoundaryTestData criteria expectedResult) = do
+    actualResult <- performSelection
+        noMinCoin (mkCostFor NoCost) (encodeBoundaryTestCriteria criteria)
+    fmap decodeBoundaryTestResult actualResult `shouldBe` Right expectedResult
+
+encodeBoundaryTestCriteria :: BoundaryTestCriteria -> SelectionCriteria
+encodeBoundaryTestCriteria c = SelectionCriteria
+    { outputsToCover = NE.fromList $
+        zipWith TxOut
+            (dummyAddresses)
+            (uncurry TokenBundle.fromFlatList <$> boundaryTestOutputs c)
+    , utxoAvailable = UTxOIndex.fromSequence $ zip dummyTxIns $
+        zipWith TxOut
+            (dummyAddresses)
+            (uncurry TokenBundle.fromFlatList <$> boundaryTestUTxO c)
+    , selectionLimit =
+        NoLimit
+    , extraCoinSource =
+        Nothing
+    }
+  where
+    dummyAddresses :: [Address]
+    dummyAddresses = [Address (B8.pack $ show x) | x :: Word64 <- [0 ..]]
+
+    dummyTxIns :: [TxIn]
+    dummyTxIns = [TxIn (Hash "") x | x <- [0 ..]]
+
+decodeBoundaryTestResult :: SelectionResult TokenBundle -> BoundaryTestResult
+decodeBoundaryTestResult r = BoundaryTestResult
+    { boundaryTestInputs = L.sort $ NE.toList $
+        TokenBundle.toFlatList . view #tokens . snd <$> view #inputsSelected r
+    , boundaryTestChange =
+        TokenBundle.toFlatList <$> view #changeGenerated r
+    }
+
+boundaryTestMatrix :: [BoundaryTestData]
+boundaryTestMatrix =
+    [ boundaryTest1
+    , boundaryTest2
+    , boundaryTest3
+    , boundaryTest4
+    ]
+
+-- Reach (but do not exceed) the maximum token quantity by selecting inputs
+-- with the following quantities:
+--
+--  - Quantity #1: 1
+--  - Quantity #2: maximum token quantity - 1
+--
+-- We expect no splitting of token bundles.
+--
+boundaryTest1 :: BoundaryTestData
+boundaryTest1 = BoundaryTestData
+    { boundaryTestCriteria = BoundaryTestCriteria {..}
+    , boundaryTestExpectedResult = BoundaryTestResult {..}
+    }
+  where
+    assetA = AssetId (UnsafeTokenPolicyId $ Hash "A") (UnsafeTokenName "1")
+    (q1, q2) = (TokenQuantity 1, TokenQuantity.pred maxTxOutTokenQuantity)
+    boundaryTestOutputs =
+      [ (Coin 1_500_000, []) ]
+    boundaryTestUTxO =
+      [ (Coin 1_000_000, [(assetA, q1)])
+      , (Coin 1_000_000, [(assetA, q2)])
+      ]
+    boundaryTestInputs =
+      [ (Coin 1_000_000, [(assetA, q1)])
+      , (Coin 1_000_000, [(assetA, q2)])
+      ]
+    boundaryTestChange =
+      [ (Coin 500_000, [(assetA, maxTxOutTokenQuantity)]) ]
+
+-- Reach (but do not exceed) the maximum token quantity by selecting inputs
+-- with the following quantities:
+--
+--  - Quantity #1: floor   (maximum token quantity / 2)
+--  - Quantity #2: ceiling (maximum token quantity / 2)
+--
+-- We expect no splitting of token bundles.
+--
+boundaryTest2 :: BoundaryTestData
+boundaryTest2 = BoundaryTestData
+    { boundaryTestCriteria = BoundaryTestCriteria {..}
+    , boundaryTestExpectedResult = BoundaryTestResult {..}
+    }
+  where
+    assetA = AssetId (UnsafeTokenPolicyId $ Hash "A") (UnsafeTokenName "1")
+    q1 :| [q2] = equipartitionTokenQuantity maxTxOutTokenQuantity (() :| [()])
+    boundaryTestOutputs =
+      [ (Coin 1_500_000, []) ]
+    boundaryTestUTxO =
+      [ (Coin 1_000_000, [(assetA, q1)])
+      , (Coin 1_000_000, [(assetA, q2)])
+      ]
+    boundaryTestInputs =
+      [ (Coin 1_000_000, [(assetA, q1)])
+      , (Coin 1_000_000, [(assetA, q2)])
+      ]
+    boundaryTestChange =
+      [ (Coin 500_000, [(assetA, maxTxOutTokenQuantity)]) ]
+
+-- Slightly exceed the maximum token quantity by selecting inputs with the
+-- following quantities:
+--
+--  - Quantity #1: 1
+--  - Quantity #2: maximum token quantity
+--
+-- We expect splitting of change bundles.
+--
+boundaryTest3 :: BoundaryTestData
+boundaryTest3 = BoundaryTestData
+    { boundaryTestCriteria = BoundaryTestCriteria {..}
+    , boundaryTestExpectedResult = BoundaryTestResult {..}
+    }
+  where
+    assetA = AssetId (UnsafeTokenPolicyId $ Hash "A") (UnsafeTokenName "1")
+    q1 :| [q2] = equipartitionTokenQuantity
+        (TokenQuantity.succ maxTxOutTokenQuantity) (() :| [()])
+    boundaryTestOutputs =
+      [ (Coin 1_500_000, []) ]
+    boundaryTestUTxO =
+      [ (Coin 1_000_000, [(assetA, TokenQuantity 1)])
+      , (Coin 1_000_000, [(assetA, maxTxOutTokenQuantity)])
+      ]
+    boundaryTestInputs =
+      [ (Coin 1_000_000, [(assetA, TokenQuantity 1)])
+      , (Coin 1_000_000, [(assetA, maxTxOutTokenQuantity)])
+      ]
+    boundaryTestChange =
+      [ (Coin 250_000, [(assetA, q1)])
+      , (Coin 250_000, [(assetA, q2)])
+      ]
+
+-- Reach (but do not exceed) exactly twice the maximum token quantity by
+-- selecting inputs with the following quantities:
+--
+--  - Quantity #1: maximum token quantity
+--  - Quantity #2: maximum token quantity
+--
+-- We expect splitting of change bundles.
+--
+boundaryTest4 :: BoundaryTestData
+boundaryTest4 = BoundaryTestData
+    { boundaryTestCriteria = BoundaryTestCriteria {..}
+    , boundaryTestExpectedResult = BoundaryTestResult {..}
+    }
+  where
+    assetA = AssetId (UnsafeTokenPolicyId $ Hash "A") (UnsafeTokenName "1")
+    boundaryTestOutputs =
+      [ (Coin 1_500_000, []) ]
+    boundaryTestUTxO =
+      [ (Coin 1_000_000, [(assetA, maxTxOutTokenQuantity)])
+      , (Coin 1_000_000, [(assetA, maxTxOutTokenQuantity)])
+      ]
+    boundaryTestInputs =
+      [ (Coin 1_000_000, [(assetA, maxTxOutTokenQuantity)])
+      , (Coin 1_000_000, [(assetA, maxTxOutTokenQuantity)])
+      ]
+    boundaryTestChange =
+      [ (Coin 250_000, [(assetA, maxTxOutTokenQuantity)])
+      , (Coin 250_000, [(assetA, maxTxOutTokenQuantity)])
+      ]
+
+--------------------------------------------------------------------------------
 -- Making change
 --------------------------------------------------------------------------------
 
@@ -1577,6 +1850,233 @@ unit_makeChangeForUserSpecifiedAsset =
     assetC = AssetId (UnsafeTokenPolicyId $ Hash "A") (UnsafeTokenName "2")
 
 --------------------------------------------------------------------------------
+-- Equipartitioning natural numbers
+--------------------------------------------------------------------------------
+
+-- Test that natural numbers are equipartitioned fairly:
+--
+-- Each portion must be within unity of the ideal portion.
+--
+prop_equipartitionNatural_fair
+    :: Natural -> NonEmpty () -> Property
+prop_equipartitionNatural_fair n count = (.||.)
+    (difference === 0)
+    (difference === 1)
+  where
+    difference :: Natural
+    difference = F.maximum results - F.minimum results
+
+    results :: NonEmpty Natural
+    results = equipartitionNatural n count
+
+prop_equipartitionNatural_length :: Natural -> NonEmpty () -> Property
+prop_equipartitionNatural_length n count =
+    NE.length (equipartitionNatural n count) === NE.length count
+
+prop_equipartitionNatural_order :: Natural -> NonEmpty () -> Property
+prop_equipartitionNatural_order n count =
+    NE.sort results === results
+  where
+    results = equipartitionNatural n count
+
+prop_equipartitionNatural_sum :: Natural -> NonEmpty () -> Property
+prop_equipartitionNatural_sum n count =
+    F.sum (equipartitionNatural n count) === n
+
+--------------------------------------------------------------------------------
+-- Equipartitioning token maps
+--------------------------------------------------------------------------------
+
+-- Test that token maps are equipartitioned fairly:
+--
+-- Each token quantity portion must be within unity of the ideal portion.
+--
+prop_equipartitionTokenMap_fair :: TokenMap -> NonEmpty () -> Property
+prop_equipartitionTokenMap_fair m count = property $
+    isZeroOrOne maximumDifference
+  where
+    -- Here we take advantage of the fact that the resultant maps are sorted
+    -- into ascending order when compared with the 'leq' function.
+    --
+    -- Consequently:
+    --
+    --  - the head map will be the smallest;
+    --  - the last map will be the greatest.
+    --
+    -- Therefore, subtracting the head map from the last map will produce a map
+    -- where each token quantity is equal to the difference between:
+    --
+    --  - the smallest quantity of that token in the resulting maps;
+    --  - the greatest quantity of that token in the resulting maps.
+    --
+    differences :: TokenMap
+    differences = NE.last results `TokenMap.unsafeSubtract` NE.head results
+
+    isZeroOrOne :: TokenQuantity -> Bool
+    isZeroOrOne (TokenQuantity q) = q == 0 || q == 1
+
+    maximumDifference :: TokenQuantity
+    maximumDifference = TokenMap.maximumQuantity differences
+
+    results = equipartitionTokenMap m count
+
+prop_equipartitionTokenMap_length :: TokenMap -> NonEmpty () -> Property
+prop_equipartitionTokenMap_length m count =
+    NE.length (equipartitionTokenMap m count) === NE.length count
+
+prop_equipartitionTokenMap_order :: TokenMap -> NonEmpty () -> Property
+prop_equipartitionTokenMap_order m count = property $
+    inAscendingPartialOrder (equipartitionTokenMap m count)
+
+prop_equipartitionTokenMap_sum :: TokenMap -> NonEmpty () -> Property
+prop_equipartitionTokenMap_sum m count =
+    F.fold (equipartitionTokenMap m count) === m
+
+--------------------------------------------------------------------------------
+-- Equipartitioning token bundles according to a maximum quantity
+--------------------------------------------------------------------------------
+
+-- | Computes the number of parts that 'equipartitionTokenBundleWithMaxQuantity'
+--   should return.
+--
+equipartitionTokenBundleWithMaxQuantity_expectedLength
+    :: TokenBundle -> TokenQuantity -> Int
+equipartitionTokenBundleWithMaxQuantity_expectedLength m =
+    equipartitionTokenMapWithMaxQuantity_expectedLength
+        (view #tokens m)
+
+prop_equipartitionTokenBundleWithMaxQuantity_length
+    :: TokenBundle -> TokenQuantity -> Property
+prop_equipartitionTokenBundleWithMaxQuantity_length m maxQuantity =
+    maxQuantity > TokenQuantity.zero ==>
+        length (equipartitionTokenBundleWithMaxQuantity m maxQuantity)
+            === equipartitionTokenBundleWithMaxQuantity_expectedLength
+                m maxQuantity
+
+prop_equipartitionTokenBundleWithMaxQuantity_order
+    :: TokenBundle -> TokenQuantity -> Property
+prop_equipartitionTokenBundleWithMaxQuantity_order m maxQuantity =
+    maxQuantity > TokenQuantity.zero ==>
+        inAscendingPartialOrder
+            (equipartitionTokenBundleWithMaxQuantity m maxQuantity)
+
+prop_equipartitionTokenBundleWithMaxQuantity_sum
+    :: TokenBundle -> TokenQuantity -> Property
+prop_equipartitionTokenBundleWithMaxQuantity_sum m maxQuantity =
+    maxQuantity > TokenQuantity.zero ==>
+        F.fold (equipartitionTokenBundleWithMaxQuantity m maxQuantity) === m
+
+--------------------------------------------------------------------------------
+-- Equipartitioning lists of token bundles according to a maximum quantity
+--------------------------------------------------------------------------------
+
+prop_equipartitionTokenBundlesWithMaxQuantity_length
+    :: NonEmpty TokenBundle -> TokenQuantity -> Property
+prop_equipartitionTokenBundlesWithMaxQuantity_length input maxQuantityAllowed =
+    maxQuantityAllowed > TokenQuantity.zero ==> checkCoverage $ property $
+        cover 5 (lengthOutput > lengthInput)
+            "length has increased" $
+        cover 5 (lengthOutput == lengthInput)
+            "length has remained the same" $
+        case compare lengthOutput lengthInput of
+            GT -> (&&)
+                (maxQuantityAllowed <  maxQuantityInput)
+                (maxQuantityAllowed >= maxQuantityOutput)
+            EQ -> (&&)
+                (maxQuantityAllowed >= maxQuantityInput)
+                (input == output)
+            LT ->
+                error "length has unexpectedly decreased"
+  where
+    lengthInput =
+        NE.length input
+    lengthOutput =
+        NE.length output
+    maxQuantityInput =
+        F.maximum (TokenMap.maximumQuantity . view #tokens <$> input)
+    maxQuantityOutput =
+        F.maximum (TokenMap.maximumQuantity . view #tokens <$> output)
+    output =
+        equipartitionTokenBundlesWithMaxQuantity input maxQuantityAllowed
+
+prop_equipartitionTokenBundlesWithMaxQuantity_sum
+    :: NonEmpty TokenBundle -> TokenQuantity -> Property
+prop_equipartitionTokenBundlesWithMaxQuantity_sum ms maxQuantity =
+    maxQuantity > TokenQuantity.zero ==>
+        F.fold (equipartitionTokenBundlesWithMaxQuantity ms maxQuantity)
+            === F.fold ms
+
+--------------------------------------------------------------------------------
+-- Equipartitioning token maps according to a maximum quantity
+--------------------------------------------------------------------------------
+
+-- | Computes the number of parts that 'equipartitionTokenMapWithMaxQuantity'
+--   should return.
+--
+equipartitionTokenMapWithMaxQuantity_expectedLength
+    :: TokenMap -> TokenQuantity -> Int
+equipartitionTokenMapWithMaxQuantity_expectedLength
+    m (TokenQuantity maxQuantity) =
+        max 1 $ ceiling $ currentMaxQuantity % maxQuantity
+  where
+    TokenQuantity currentMaxQuantity = TokenMap.maximumQuantity m
+
+prop_equipartitionTokenMapWithMaxQuantity_coverage
+    :: TokenMap -> TokenQuantity -> Property
+prop_equipartitionTokenMapWithMaxQuantity_coverage m maxQuantity =
+    maxQuantity > TokenQuantity.zero ==>
+        checkCoverage $
+        cover 8 (maxQuantity == TokenQuantity 1)
+            "Maximum allowable quantity == 1" $
+        cover 8 (maxQuantity == TokenQuantity 2)
+            "Maximum allowable quantity == 2" $
+        cover 8 (maxQuantity >= TokenQuantity 3)
+            "Maximum allowable quantity >= 3" $
+        cover 8 (expectedLength == 1)
+            "Expected number of parts == 1" $
+        cover 8 (expectedLength == 2)
+            "Expected number of parts == 2" $
+        cover 8 (expectedLength >= 3)
+            "Expected number of parts >= 3" $
+        property $ expectedLength > 0
+  where
+    expectedLength = equipartitionTokenMapWithMaxQuantity_expectedLength
+        m maxQuantity
+
+prop_equipartitionTokenMapWithMaxQuantity_length
+    :: TokenMap -> TokenQuantity -> Property
+prop_equipartitionTokenMapWithMaxQuantity_length m maxQuantity =
+    maxQuantity > TokenQuantity.zero ==>
+        length (equipartitionTokenMapWithMaxQuantity m maxQuantity)
+            === equipartitionTokenMapWithMaxQuantity_expectedLength
+                m maxQuantity
+
+prop_equipartitionTokenMapWithMaxQuantity_max
+    :: TokenMap -> TokenQuantity -> Property
+prop_equipartitionTokenMapWithMaxQuantity_max m maxQuantity =
+    maxQuantity > TokenQuantity.zero ==>
+        checkCoverage $
+        cover 10 (maxResultQuantity == maxQuantity)
+            "At least one resultant token map has a maximal quantity" $
+        property $ maxResultQuantity <= maxQuantity
+  where
+    results = equipartitionTokenMapWithMaxQuantity m maxQuantity
+    maxResultQuantity = F.maximum (TokenMap.maximumQuantity <$> results)
+
+prop_equipartitionTokenMapWithMaxQuantity_order
+    :: TokenMap -> TokenQuantity -> Property
+prop_equipartitionTokenMapWithMaxQuantity_order m maxQuantity =
+    maxQuantity > TokenQuantity.zero ==>
+        inAscendingPartialOrder
+            (equipartitionTokenMapWithMaxQuantity m maxQuantity)
+
+prop_equipartitionTokenMapWithMaxQuantity_sum
+    :: TokenMap -> TokenQuantity -> Property
+prop_equipartitionTokenMapWithMaxQuantity_sum m maxQuantity =
+    maxQuantity > TokenQuantity.zero ==>
+        F.fold (equipartitionTokenMapWithMaxQuantity m maxQuantity) === m
+
+--------------------------------------------------------------------------------
 -- Grouping and ungrouping
 --------------------------------------------------------------------------------
 
@@ -1787,6 +2287,10 @@ instance Arbitrary a => Arbitrary (AssetCount a) where
 instance Arbitrary AssetId where
     arbitrary = genAssetIdSmallRange
     shrink = shrinkAssetIdSmallRange
+
+instance Arbitrary Natural where
+    arbitrary = arbitrarySizedNatural
+    shrink = shrinkIntegral
 
 instance Arbitrary MakeChangeData where
     arbitrary = genMakeChangeData
