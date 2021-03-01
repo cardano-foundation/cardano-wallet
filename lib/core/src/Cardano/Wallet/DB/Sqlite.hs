@@ -402,7 +402,101 @@ migrateManually tr proxy defaultFieldValues =
         addFeeToTransaction conn
 
         moveRndUnusedAddresses conn
+
+        cleanupSeqStateTable conn
   where
+    -- NOTE
+    -- We originally stored script pool gap inside sequential state in the 'SeqState' table,
+    -- represented by 'seqStateScriptGap' field. We introduce separate shared wallet state
+    -- and want to get rid of this. Also we had two supporting tables which we will drop,
+    -- 'SeqStateKeyHash' and 'SeqStateScriptHash'.
+    cleanupSeqStateTable :: Sqlite.Connection -> IO ()
+    cleanupSeqStateTable conn = do
+        let orig = "seq_state"
+
+        -- 1. Drop column from the 'seq_state' table
+        isFieldPresentByName conn "seq_state" "script_gap" >>= \case
+            ColumnPresent -> do
+                let tmp = orig <> "_tmp"
+
+                info <- runSql conn $ getTableInfo orig
+                let excluding = ["script_gap"]
+                let filtered = mapMaybe (filterColumn excluding) info
+                dropColumnOp conn orig tmp filtered
+
+            _ -> return ()
+
+        -- 2. Drop supplementrary tables
+        _ <- runSql conn $ dropTable "seq_state_key_hash"
+        _ <- runSql conn $ dropTable "seq_state_script_hash"
+
+        return ()
+
+    dropTable :: Text -> Text
+    dropTable table = mconcat
+        [ "DROP TABLE IF EXISTS " <> table <> ";"
+        ]
+
+    getTableInfo :: Text -> Text
+    getTableInfo table = mconcat
+        [ "PRAGMA table_info(", table, ");"
+        ]
+
+    filterColumn :: [Text] -> [PersistValue] -> Maybe [PersistValue]
+    filterColumn excluding = \case
+        [ _, PersistText colName, PersistText colType, colNull, _, _] ->
+            if colName `elem` excluding then
+                Nothing
+            else
+                Just [PersistText colName, PersistText colType, colNull]
+        _ ->
+            Nothing
+
+    dropColumnOp
+        :: Sqlite.Connection
+        -> Text
+        -> Text
+        -> [[PersistValue]]
+        -> IO ()
+    dropColumnOp conn orig tmp filtered = do
+        _ <- runSql conn $ dropTable tmp
+        _ <- runSql conn $ createTable tmp filtered
+        _ <- runSql conn $ copyTable orig tmp filtered
+        _ <- runSql conn $ dropTable orig
+        _ <- runSql conn $ renameTable tmp orig
+
+        return ()
+      where
+        createTable table cols = mconcat
+            [ "CREATE TABLE ", table, " ("
+            , T.intercalate ", " (mapMaybe createColumn cols)
+            , ");"
+            ]
+        copyTable source destination cols = mconcat
+            [ "INSERT INTO ", destination, " SELECT "
+            , T.intercalate ", " (mapMaybe selectColumn cols)
+            , " FROM ", source
+            , ";"
+            ]
+        renameTable from to = mconcat
+            [ "ALTER TABLE ", from, " RENAME TO ", to, ";" ]
+
+        selectColumn :: [PersistValue] -> Maybe Text
+        selectColumn = \case
+            [ PersistText colName, _ , _ ] ->
+                Just colName
+            _ ->
+                Nothing
+
+        createColumn :: [PersistValue] -> Maybe Text
+        createColumn = \case
+            [ PersistText colName, PersistText colType, PersistInt64 1 ] ->
+                Just $ T.unwords [ colName, colType, "NOT NULL" ]
+            [ PersistText colName, PersistText colType, _ ] ->
+                Just $ T.unwords [ colName, colType ]
+            _ ->
+                Nothing
+
     -- NOTE
     -- We originally stored protocol parameters in the 'Checkpoint' table, and
     -- later moved them to a new dedicatd table. However, removing a column is
@@ -444,13 +538,7 @@ migrateManually tr proxy defaultFieldValues =
                             , "slot_length", "epoch_length", "tx_max_size"
                             , "epoch_stability", "active_slot_coeff"
                             ]
-                _ <- runSql conn $ dropTable tmp
-                _ <- runSql conn $ createTable tmp filtered
-                _ <- runSql conn $ copyTable orig tmp filtered
-                _ <- runSql conn $ dropTable orig
-                _ <- runSql conn $ renameTable tmp orig
-
-                return ()
+                dropColumnOp conn orig tmp filtered
             _ -> return ()
 
       where
@@ -459,56 +547,6 @@ migrateManually tr proxy defaultFieldValues =
             , " FROM ", table
             , " ORDER BY slot ASC LIMIT 1;"
             ]
-
-        getTableInfo table = mconcat
-            [ "PRAGMA table_info(", table, ");"
-            ]
-
-        createTable table cols = mconcat
-            [ "CREATE TABLE ", table, " ("
-            , T.intercalate ", " (mapMaybe createColumn cols)
-            , ");"
-            ]
-
-        copyTable source destination cols = mconcat
-            [ "INSERT INTO ", destination, " SELECT "
-            , T.intercalate ", " (mapMaybe selectColumn cols)
-            , " FROM ", source
-            , ";"
-            ]
-
-        dropTable table = mconcat
-            [ "DROP TABLE IF EXISTS " <> table <> ";"
-            ]
-
-        renameTable from to = mconcat
-            [ "ALTER TABLE ", from, " RENAME TO ", to, ";" ]
-
-        filterColumn :: [Text] -> [PersistValue] -> Maybe [PersistValue]
-        filterColumn excluding = \case
-            [ _, PersistText colName, PersistText colType, colNull, _, _] ->
-                if colName `elem` excluding then
-                    Nothing
-                else
-                    Just [PersistText colName, PersistText colType, colNull]
-            _ ->
-                Nothing
-
-        selectColumn :: [PersistValue] -> Maybe Text
-        selectColumn = \case
-            [ PersistText colName, _ , _ ] ->
-                Just colName
-            _ ->
-                Nothing
-
-        createColumn :: [PersistValue] -> Maybe Text
-        createColumn = \case
-            [ PersistText colName, PersistText colType, PersistInt64 1 ] ->
-                Just $ T.unwords [ colName, colType, "NOT NULL" ]
-            [ PersistText colName, PersistText colType, _ ] ->
-                Just $ T.unwords [ colName, colType ]
-            _ ->
-                Nothing
 
     -- NOTE
     -- Wallets created before the 'PassphraseScheme' was introduced have no
@@ -677,9 +715,9 @@ migrateManually tr proxy defaultFieldValues =
     -- | This table became @protocol_parameters@.
     removeOldTxParametersTable :: Sqlite.Connection -> IO ()
     removeOldTxParametersTable conn = do
-        dropTable <- Sqlite.prepare conn "DROP TABLE IF EXISTS tx_parameters;"
-        void $ Sqlite.stepConn conn dropTable
-        Sqlite.finalize dropTable
+        dropTable' <- Sqlite.prepare conn "DROP TABLE IF EXISTS tx_parameters;"
+        void $ Sqlite.stepConn conn dropTable'
+        Sqlite.finalize dropTable'
 
     -- | In order to make listing addresses bearable for large wallet, we
     -- altered the discovery process to mark addresses as used as they are
@@ -932,14 +970,14 @@ migrateManually tr proxy defaultFieldValues =
 
     isFieldPresentByName :: Sqlite.Connection -> Text -> Text -> IO SqlColumnStatus
     isFieldPresentByName conn table field = do
-        getTableInfo <- Sqlite.prepare conn $ mconcat
+        getTableInfo' <- Sqlite.prepare conn $ mconcat
             [ "SELECT sql FROM sqlite_master "
             , "WHERE type = 'table' "
             , "AND name = '" <> table <> "';"
             ]
-        row <- Sqlite.step getTableInfo
-            >> Sqlite.columns getTableInfo
-        Sqlite.finalize getTableInfo
+        row <- Sqlite.step getTableInfo'
+            >> Sqlite.columns getTableInfo'
+        Sqlite.finalize getTableInfo'
         pure $ case row of
             [PersistText t]
                 | field `T.isInfixOf` t -> ColumnPresent
