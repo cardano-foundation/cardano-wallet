@@ -1,16 +1,13 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE BangPatterns #-}
-{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
-{-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NumericUnderscores #-}
-{-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TupleSections #-}
@@ -316,9 +313,7 @@ instance Buildable (ScriptTemplate, Maybe ScriptTemplate) where
         " delegation script credential: " <> scriptDelegationF
       where
         scriptPaymentF = build paymentTemplate
-        scriptDelegationF = case delegationTemplateM of
-            Just delegationTemplate -> build delegationTemplate
-            Nothing -> "absent"
+        scriptDelegationF = maybe "absent" build delegationTemplateM
 
 instance Buildable ScriptTemplate where
     build (ScriptTemplate cosignersMap script') = mempty <>

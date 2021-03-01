@@ -19,7 +19,7 @@
 -- License: Apache-2.0
 --
 -- An implementation of shared script state using
--- scheme specified in CIP-XXX Multi-signature Wallets.
+-- scheme specified in CIP-1854 Multi-signature Wallets.
 
 module Cardano.Wallet.Primitive.AddressDiscovery.Shared
     (
@@ -89,38 +89,49 @@ import qualified Data.Map.Strict as Map
                                 Shared State
 -------------------------------------------------------------------------------}
 
--- | Shared wallets are a new kind of wallet owned by one or more co-signers.
--- | In this type of wallet, addresses are defined by two monetary scripts
--- | (one for ownership of assets, one for ownership of stake).
+-- | Shared wallet is a new kind of wallet owned by one or more co-signers.
+-- | In this type of the wallet, addresses are defined by two monetary scripts
+-- | (one for the ownership of assets and the other one for the ownership of stake).
+-- | The two scripts can be the same, different, also the script for the ownership of stake
+-- | can be absent.
 --
--- | Shared wallet is instantiated with an account public key, derivation path needed to
--- | recreate it,  and a complete set of information that is needed to discover shared
--- | addresses. In order to enable the discovery the following is needed:
+-- | The shared wallet can be in two states: pending and ready. In a pending state the wallet
+-- | does not have account public keys for all co-signers, and hence discovery of script addresses
+-- | co-shared with other co-signers is not possible. In a ready state the wallet has account public
+-- | keys for all co-signers and co-shared script address discovery is possible.
+--
+-- | The shared wallet is instantiated with an account public key, derivation path needed to
+-- | recreate it for a holder of this shared wallet, ie., one of the co-signers.
+-- | In order to construct corectly the wallet, ie., enable co-shared script addresses discovery
+-- | the following is needed:
 --
 -- | - a way to determine what range of indices are checked on the
--- |   ledger. Mechanism of address pool gap, adopted for sequential wallets,
+-- |   ledger. Mechanism of address pool, also adopted for sequential wallets,
 -- |   is used. The idea is to track all indices starting from 0 and up to N.
 -- |   N is variable as addresses are discovered (and marked as Used in consequence).
 -- |   The pool of addresses is enlarged in such way that the number of consecutive
--- |   Unsed addresses equals to address pool gap.
+-- |   Unsed addresses equals to address pool gap of the address pool. Hence,
+-- |   the address pool gap needs to be specified.
 --
 -- | - script template for payment credential contains information about all collected
--- |   account public keys for all parties engaged, here named cosigners. Also the skeleton
--- |   determining script structure is provided.  In this sense script is predetermined from
--- |   the beginning and can variate only in verification key part. The places where a specific
--- |   cosigner is present is to be replaced with the derived verfication keys from the cosigner's
--- |   account public key and the index that was chosen. The index for derivation is the same
--- |   for each cosigner's derivation. Moreover, script template could be translated into
--- |   a corresponding script only when account public keys for all cosigners specified in script
--- |   are collected. Hence, this module provides methods for updating script templates that handles
--- |   the act of collecting account public key for cosigner. Finally, verification keys are derived
+-- |   account public keys for all parties engaged, here named co-signers. Also the skeleton
+-- |   determining script structure is provided. In this sense script is predetermined from
+-- |   the beginning and can variate only in verification key part that replaces co-signers in the
+-- |   script skeleton. The places where a specific cosigner is present is to be replaced
+-- |   with the derived verfication key using the co-signer's account public key and
+-- |   the index that was chosen. This is the reason why we need complete set of account public keys for
+-- |   each co-signer to realize address discovery. The script template can be translated into
+-- |   a corresponding script, which hash is used in the address, only when account public keys
+-- |   for all cosigners specified in script are collected.The index for derivation is the same
+-- |   for each cosigner's derivation. The same index is used in both scripts that represent
+-- |   payment or delegation credential. Verification keys are derived
 -- |   using role=3 for payment credential.
 --
 -- | - optional script template for delegation credential contains all information as in case of
--- |   the script template for payment credential. One different is that the verification keys are derived
+-- |   the script template for payment credential. One difference is that the verification keys are derived
 -- |   using role=4 for delegation credential.
 --
--- | When both script are present, the base address (with both credential) is expected to be discovered.
+-- | When both script are present, the base address (with both credentials) is expected to be discovered.
 -- | When script template for delegation credential is missing then enterprise address (non-stakable) is
 -- | expected.
 data SharedState (n :: NetworkDiscriminant) k =
