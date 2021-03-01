@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+
+NODE_DB=./node_db \
+WALLET_DB=./wallet_db \
+TOKEN_METADATA=http://metadata-server-mock.herokuapp.com/ \
+bundle exec rake run_on["testnet"]

@@ -1,0 +1,15 @@
+/.bundle/
+/spec/reports/
+/tmp/
+/configs/
+/node_db/
+/wallet_db/
+/bins/
+/cardano-wallet-*/
+/binaryDist/
+/binary-dist/
+
+Gemfile.lock
+
+# rspec failure tracking
+.rspec_status
