@@ -20,11 +20,14 @@ jobs:
     - uses: actions/checkout@v2
 
     - name: Set up Ruby
-    - uses: ruby/setup-ruby@v1
+      uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: 2.7.1
+        bundler-cache: true
 
     - name: Install dependencies
       run: bundle install
-      
+
     - name: Cache node db
       id: cache
       uses: actions/cache@v2
