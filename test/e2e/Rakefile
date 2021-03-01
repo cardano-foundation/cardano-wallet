@@ -81,8 +81,8 @@ task :stop_node_and_wallet do
     puts `nssm stop cardano-wallet`
     puts `nssm stop cardano-node`
   else
-    puts `screen -XS WALLET`
-    puts `screen -XS NODE`
+    puts `screen -XS WALLET quit`
+    puts `screen -XS NODE quit`
   end
 
 end

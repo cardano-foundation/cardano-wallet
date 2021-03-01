@@ -1,6 +1,6 @@
-RSpec.describe "CardanoWallet::Byron" do
+RSpec.describe CardanoWallet::Byron do
 
-  describe "CardanoWallet::Byron::Wallets" do
+  describe CardanoWallet::Byron::Wallets do
 
     after(:each) do
       teardown
@@ -71,7 +71,7 @@ RSpec.describe "CardanoWallet::Byron" do
     end
   end
 
-  describe "CardanoWallet::Byron::Addresses" do
+  describe CardanoWallet::Byron::Addresses do
 
     after(:each) do
       teardown
@@ -130,7 +130,7 @@ RSpec.describe "CardanoWallet::Byron" do
     it "I can import 130k address, easily - random" do
       m = %w[collect fold file clown injury sun brass diet exist spike behave clip]
       id = create_byron_wallet_with m
-      f = File.readlines("spec/bulk/byron.yaml")
+      f = File.readlines("spec/test_data/130k_byron_addresses")
       addresses = f.map{|a| a.strip}
       r = BYRON.addresses.bulk_import(id, addresses)
       expect(r.code).to eq 204
@@ -165,7 +165,7 @@ RSpec.describe "CardanoWallet::Byron" do
     end
   end
 
-  describe "CardanoWallet::Byron::CoinSelections" do
+  describe CardanoWallet::Byron::CoinSelections do
 
     after(:each) do
       teardown
@@ -204,7 +204,7 @@ RSpec.describe "CardanoWallet::Byron" do
     end
   end
 
-  describe "CardanoWallet::Byron::Transactions" do
+  describe CardanoWallet::Byron::Transactions do
     after(:each) do
       teardown
     end
@@ -261,7 +261,7 @@ RSpec.describe "CardanoWallet::Byron" do
     end
   end
 
-  describe "CardanoWallet::Byron::Migrations" do
+  describe CardanoWallet::Byron::Migrations do
     after(:each) do
       teardown
     end

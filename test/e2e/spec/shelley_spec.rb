@@ -1,6 +1,6 @@
-RSpec.describe "CardanoWallet::Shelley" do
+RSpec.describe CardanoWallet::Shelley do
 
-  describe "CardanoWallet::Shelley::Wallets" do
+  describe CardanoWallet::Shelley::Wallets do
 
     before(:each) do
       teardown
@@ -110,7 +110,7 @@ RSpec.describe "CardanoWallet::Shelley" do
     end
   end
 
-  describe "CardanoWallet::Shelley::Addresses" do
+  describe CardanoWallet::Shelley::Addresses do
 
     after(:each) do
       teardown
@@ -133,7 +133,7 @@ RSpec.describe "CardanoWallet::Shelley" do
     end
   end
 
-  describe "CardanoWallet::Shelley::CoinSelections" do
+  describe CardanoWallet::Shelley::CoinSelections do
 
     after(:each) do
       teardown
@@ -167,7 +167,7 @@ RSpec.describe "CardanoWallet::Shelley" do
     end
   end
 
-  describe "CardanoWallet::Shelley::Transactions" do
+  describe CardanoWallet::Shelley::Transactions do
 
     after(:each) do
       teardown
@@ -254,7 +254,7 @@ RSpec.describe "CardanoWallet::Shelley" do
     end
   end
 
-  describe "CardanoWallet::Shelley::StakePools" do
+  describe CardanoWallet::Shelley::StakePools do
 
     after(:each) do
       teardown
@@ -312,7 +312,7 @@ RSpec.describe "CardanoWallet::Shelley" do
 
   end
 
-  describe "CardanoWallet::Shelley::Migrations" do
+  describe CardanoWallet::Shelley::Migrations do
     after(:each) do
       teardown
     end
@@ -334,7 +334,7 @@ RSpec.describe "CardanoWallet::Shelley" do
     end
   end
 
-  describe "CardanoWallet::Shelley::Keys" do
+  describe CardanoWallet::Shelley::Keys do
     after(:each) do
       teardown
     end
