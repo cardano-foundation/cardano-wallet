@@ -618,7 +618,6 @@ createIcarusWallet ctx wid wname credentials = db & \DBLayer{..} -> do
             (Seq.pendingChangeIxs s)
             (Seq.rewardAccountKey s)
             (Seq.derivationPrefix s)
-            (Seq.scriptPool s)
     now <- lift getCurrentTime
     let meta = WalletMetadata
             { name = wname

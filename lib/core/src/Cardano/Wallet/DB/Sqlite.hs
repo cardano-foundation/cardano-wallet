@@ -42,8 +42,6 @@ import Prelude
 
 import Cardano.Address.Derivation
     ( XPrv, XPub )
-import Cardano.Address.Script
-    ( KeyHash, ScriptHash (..) )
 import Cardano.DB.Sqlite
     ( DBField (..)
     , DBLog (..)
@@ -83,9 +81,7 @@ import Cardano.Wallet.DB.Sqlite.TH
     , RndStatePendingAddress (..)
     , SeqState (..)
     , SeqStateAddress (..)
-    , SeqStateKeyHash (..)
     , SeqStatePendingIx (..)
-    , SeqStateScriptHash (..)
     , StakeKeyCertificate (..)
     , TxIn (..)
     , TxMeta (..)
@@ -227,7 +223,6 @@ import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Cardano.Wallet.Primitive.Types.UTxO as W
-import qualified Data.List as L
 import qualified Data.Map.Merge.Strict as Map
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
@@ -401,8 +396,6 @@ migrateManually tr proxy defaultFieldValues =
         renameRoleColumn conn
 
         renameRoleFields conn
-
-        addScriptAddressGapIfMissing conn
 
         updateFeeValueAndAddKeyDeposit conn
 
@@ -769,15 +762,6 @@ migrateManually tr proxy defaultFieldValues =
                 traceWith tr $ MsgManualMigrationNotNeeded roleField
       where
         roleField = DBField SeqStateAddressRole
-
-    -- | Adds an 'script_gap' column to the 'SeqState'
-    -- table if it is missing.
-    --
-    addScriptAddressGapIfMissing :: Sqlite.Connection -> IO ()
-    addScriptAddressGapIfMissing conn =
-        addColumn_ conn True (DBField SeqStateScriptGap) value
-     where
-        value = T.pack $ show $ Seq.getAddressPoolGap Seq.defaultAddressPoolGap
 
     -- This migration is rather delicate. Indeed, we need to introduce an
     -- explicit 'fee' on known transactions, so only do we need to add the new
@@ -2155,8 +2139,8 @@ instance
     , Typeable n
     ) => PersistState (Seq.SeqState n k) where
     insertState (wid, sl) st = do
-        let (intPool, extPool, sPool) =
-                (Seq.internalPool st, Seq.externalPool st, Seq.scriptPool st)
+        let (intPool, extPool) =
+                (Seq.internalPool st, Seq.externalPool st)
         let (Seq.ParentContextUtxoInternal accXPubInternal) = Seq.context intPool
         let (Seq.ParentContextUtxoExternal accXPubExternal) = Seq.context extPool
         let (accountXPub, _) = W.invariant
@@ -2165,7 +2149,6 @@ instance
                 (uncurry (==))
         let eGap = Seq.gap extPool
         let iGap = Seq.gap intPool
-        let sGap = Seq.verPoolGap sPool
         repsert (SeqStateKey wid) $ SeqState
             { seqStateWalletId = wid
             , seqStateExternalGap = eGap
@@ -2173,11 +2156,9 @@ instance
             , seqStateAccountXPub = serializeXPub accountXPub
             , seqStateRewardXPub = serializeXPub (Seq.rewardAccountKey st)
             , seqStateDerivationPrefix = Seq.derivationPrefix st
-            , seqStateScriptGap = sGap
             }
         insertAddressPool @n wid sl intPool
         insertAddressPool @n wid sl extPool
-        insertScriptPool wid sl sPool
         deleteWhere [SeqStatePendingWalletId ==. wid]
         dbChunked
             insertMany_
@@ -2185,14 +2166,13 @@ instance
 
     selectState (wid, sl) = runMaybeT $ do
         st <- MaybeT $ selectFirst [SeqStateWalletId ==. wid] []
-        let SeqState _ eGap iGap accountBytes rewardBytes prefix sGap = entityVal st
+        let SeqState _ eGap iGap accountBytes rewardBytes prefix = entityVal st
         let accountXPub = unsafeDeserializeXPub accountBytes
         let rewardXPub = unsafeDeserializeXPub rewardBytes
         intPool <- lift $ selectAddressPool @n wid sl iGap (Seq.ParentContextUtxoInternal accountXPub)
         extPool <- lift $ selectAddressPool @n wid sl eGap (Seq.ParentContextUtxoExternal accountXPub)
-        sPool <- lift $ selectScriptPool wid sl sGap accountXPub
         pendingChangeIxs <- lift $ selectSeqStatePendingIxs wid
-        pure $ Seq.SeqState intPool extPool pendingChangeIxs rewardXPub prefix sPool
+        pure $ Seq.SeqState intPool extPool pendingChangeIxs rewardXPub prefix
 
 insertAddressPool
     :: forall n k c. (PaymentAddress n k, Typeable c)
@@ -2246,65 +2226,6 @@ selectSeqStatePendingIxs wid =
         [Desc SeqStatePendingIxIndex]
   where
     fromRes = fmap (W.Index . seqStatePendingIxIndex . entityVal)
-
-insertScriptPool
-    :: W.WalletId
-    -> W.SlotNo
-    -> Seq.VerificationKeyPool k
-    -> SqlPersistT IO ()
-insertScriptPool wid sl pool = do
-    void $ dbChunked insertMany_ $
-        Map.foldMapWithKey toSeqStateKeyHash (Seq.verPoolIndexedKeys pool)
-    void $ dbChunked insertMany_ $
-        concatMap toDB $ Map.toList (Seq.verPoolKnownScripts pool)
-  where
-    toSeqStateKeyHash keyHash (ix, state) =
-        [SeqStateKeyHash wid sl keyHash (getIndex ix) state]
-    toDB (scriptHash, verKeyIxs) =
-        zipWith (SeqStateScriptHash wid sl scriptHash . getIndex) verKeyIxs [0..]
-
-selectScriptPool
-    :: forall k . W.WalletId
-    -> W.SlotNo
-    -> Seq.AddressPoolGap
-    -> k 'AccountK XPub
-    -> SqlPersistT IO (Seq.VerificationKeyPool k)
-selectScriptPool wid sl gap xpub = do
-    verKeys <- fmap entityVal <$> selectList
-        [ SeqStateKeyHashWalletId ==. wid
-        , SeqStateKeyHashSlot ==. sl
-        ] [Asc SeqStateKeyHashIndex]
-    scripts <- fmap entityVal <$> selectList
-        [ SeqStateScriptHashWalletId ==. wid
-        , SeqStateScriptHashSlot ==. sl
-        ] [Asc SeqStateScriptHashScriptHash, Desc SeqStateScriptHashKeyIndexInArray]
-    pure $ scriptPoolFromEntities verKeys scripts
-  where
-    updateVerKeyMap
-        :: SeqStateKeyHash
-        -> Map KeyHash (Index 'Soft 'ScriptK, W.AddressState)
-        -> Map KeyHash (Index 'Soft 'ScriptK, W.AddressState)
-    updateVerKeyMap x = Map.insert (seqStateKeyHashKeyHash x)
-        (W.Index $ seqStateKeyHashIndex x, seqStateKeyHashStatus x)
-    verKeyMap =
-        L.foldr updateVerKeyMap Map.empty
-    updateKnowScript
-        :: SeqStateScriptHash
-        -> Map ScriptHash [Index 'Soft 'ScriptK]
-        -> Map ScriptHash [Index 'Soft 'ScriptK]
-    updateKnowScript =
-        (\(sh, keyIndex) -> Map.insertWith (++) sh [keyIndex] ) .
-        (\scriptH -> (seqStateScriptHashScriptHash scriptH
-        , W.Index $ seqStateScriptHashVerificationKeyIndex scriptH) )
-    knownScripts =
-        L.foldr updateKnowScript Map.empty
-    scriptPoolFromEntities
-        :: [SeqStateKeyHash]
-        -> [SeqStateScriptHash]
-        -> Seq.VerificationKeyPool k
-    scriptPoolFromEntities verKeys scripts
-        = Seq.unsafeVerificationKeyPool xpub gap
-          (verKeyMap verKeys) (knownScripts scripts)
 
 {-------------------------------------------------------------------------------
                           HD Random address discovery

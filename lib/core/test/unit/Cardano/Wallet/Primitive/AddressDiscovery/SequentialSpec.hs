@@ -67,8 +67,6 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     , mkSeqStateFromAccountXPub
     , mkSeqStateFromRootXPrv
     , mkUnboundedAddressPoolGap
-    , newVerificationKeyPool
-    , purposeCIP1852
     , purposeCIP1852
     , role
     , shrinkPool
@@ -497,10 +495,8 @@ prop_changeIsOnlyKnownAfterGeneration
     -> Property
 prop_changeIsOnlyKnownAfterGeneration (intPool, extPool) =
     let
-        (ParentContextUtxoExternal accXPub) = context extPool
-        sPool = newVerificationKeyPool accXPub (gap extPool)
         s0 :: SeqState 'Mainnet ShelleyKey
-        s0 = SeqState intPool extPool emptyPendingIxs rewardAccount defaultPrefix sPool
+        s0 = SeqState intPool extPool emptyPendingIxs rewardAccount defaultPrefix
         addrs0 = knownAddresses s0
         (change, s1) = genChange (\k _ -> paymentAddress @'Mainnet k) s0
         addrs1 = fst <$> knownAddresses s1
@@ -729,14 +725,12 @@ instance
         return $ mkAddressPool @'Mainnet (getCtxFromAccXPub ourAccount) g (zip addrs statuses)
 
 instance Arbitrary (SeqState 'Mainnet ShelleyKey) where
-    shrink (SeqState intPool extPool ixs rwd prefix sPool) =
-        (\(i, e) -> SeqState i e ixs rwd prefix sPool) <$> shrink (intPool, extPool)
+    shrink (SeqState intPool extPool ixs rwd prefix) =
+        (\(i, e) -> SeqState i e ixs rwd prefix) <$> shrink (intPool, extPool)
     arbitrary = do
         intPool <- arbitrary
         extPool <- arbitrary
-        let (ParentContextUtxoExternal accXPub) = context extPool
-        let sPool = newVerificationKeyPool accXPub (gap extPool)
-        return $ SeqState intPool extPool emptyPendingIxs rewardAccount defaultPrefix sPool
+        return $ SeqState intPool extPool emptyPendingIxs rewardAccount defaultPrefix
 
 -- | Wrapper to encapsulate accounting style proxies that are so-to-speak,
 -- different types in order to easily map over them and avoid duplicating

@@ -90,14 +90,11 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPool
     , DerivationPrefix (..)
     , SeqState (..)
-    , accountPubKey
     , coinTypeAda
     , defaultAddressPoolGap
     , emptyPendingIxs
-    , gap
     , mkAddressPool
     , mkSeqStateFromRootXPrv
-    , newVerificationKeyPool
     , purposeCIP1852
     )
 import Cardano.Wallet.Primitive.Model
@@ -359,7 +356,6 @@ bgroupWriteSeqState db = bgroup "SeqState"
                     emptyPendingIxs
                     rewardAccount
                     defaultPrefix
-                    (newVerificationKeyPool (accountPubKey extPool) (gap extPool))
             | i <- [1..n]
             ]
 
