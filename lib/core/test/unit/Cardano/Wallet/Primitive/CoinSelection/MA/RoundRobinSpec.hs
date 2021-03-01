@@ -600,8 +600,17 @@ prop_performSelection_small minCoinValueFor costFor (Blind (Small criteria)) =
         . cover 10 (selectionLimited && selectionInsufficient result)
             "selection limited and insufficient"
   where
-    assetsInUTxO = not $ Set.null $ UTxOIndex.assets $ utxoAvailable criteria
-    assetsInOutputs = not $ Set.null $ TokenBundle.getAssets $ mconcat $ F.toList $ fmap (view #tokens) $ outputsToCover criteria
+    assetsInUTxO = not
+        . Set.null
+        . UTxOIndex.assets
+        $ utxoAvailable criteria
+
+    assetsInOutputs = not . Set.null $ TokenBundle.getAssets outputTokens
+      where
+        outputTokens = mconcat
+            . F.toList
+            . fmap (view #tokens)
+            $ outputsToCover criteria
 
     selectionLimited :: Bool
     selectionLimited = case selectionLimit criteria of
