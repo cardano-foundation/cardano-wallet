@@ -14,7 +14,7 @@ import Prelude
 import Algebra.PartialOrd
     ( PartialOrd (..) )
 import Cardano.Wallet.Primitive.Types.TokenMap
-    ( AssetId (..), Flat (..), Nested (..), TokenMap )
+    ( AssetId (..), Flat (..), Nested (..), TokenMap, difference )
 import Cardano.Wallet.Primitive.Types.TokenMap.Gen
     ( AssetIdF (..)
     , genAssetIdSmallRange
@@ -78,6 +78,7 @@ import Test.QuickCheck
     , Property
     , applyFun
     , checkCoverage
+    , counterexample
     , cover
     , property
     , (===)
@@ -176,6 +177,16 @@ spec =
             property prop_add_subtract_associative
         it "prop_subtract_null" $
             property prop_subtract_null
+        it "prop_difference_zero (x - 0 = x)" $
+            property prop_difference_zero
+        it "prop_difference_zero2 (0 - x = 0)" $
+            property prop_difference_zero2
+        it "prop_difference_zero3 (x - x = 0)" $
+            property prop_difference_zero3
+        it "prop_difference_leq (x - y ⊆ x)" $
+            property prop_difference_leq
+        it "prop_difference_add ((x - y) + y ⊇ x)" $
+            property prop_difference_add
 
     parallel $ describe "Quantities" $ do
 
@@ -254,6 +265,33 @@ prop_subtract_invariant m1 m2 = property $
     m2 `leq` m1 ==> invariantHolds result
   where
     Just result = TokenMap.subtract m1 m2
+
+prop_difference_zero :: TokenMap -> Property
+prop_difference_zero x =
+    x `difference` mempty === x
+
+prop_difference_zero2 :: TokenMap-> Property
+prop_difference_zero2 x =
+    mempty `difference` x === mempty
+
+prop_difference_zero3 :: TokenMap -> Property
+prop_difference_zero3 x =
+    x `difference` x === mempty
+
+prop_difference_leq :: TokenMap -> TokenMap -> Property
+prop_difference_leq x y = property $
+    x `difference` y `leq` x
+
+-- (x - y) + y ⊇ x
+prop_difference_add :: TokenMap -> TokenMap -> Property
+prop_difference_add x y =
+    let
+        delta = x `difference` y
+        yAndDelta = delta `TokenMap.add` y
+    in
+        counterexample ("x - y = " <> show delta) $
+        counterexample ("(x - y) + y = " <> show yAndDelta) $
+        property $ x `leq` yAndDelta
 
 prop_setQuantity_invariant
     :: TokenMap -> AssetId -> TokenQuantity -> Property
