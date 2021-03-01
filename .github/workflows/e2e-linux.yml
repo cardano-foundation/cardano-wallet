@@ -1,0 +1,57 @@
+name: E2E Linux
+
+on:
+  schedule:
+  - cron:  "0 23 * * *"
+  pull_request:
+    branches: [ master ]
+  workflow_dispatch:
+
+defaults:
+  run:
+    working-directory: ./test/e2e
+
+jobs:
+  test:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Set up Ruby
+    - uses: ruby/setup-ruby@v1
+
+    - name: Install dependencies
+      run: bundle install
+      
+    - name: Cache node db
+      id: cache
+      uses: actions/cache@v2
+      with:
+        path: ${{ env.NODE_DB }}
+        key: ${{ runner.os }}-node-db-nightly-linux-tests-${{ hashFiles('**/protocolMagicId') }}
+
+    - name: Get cardano-wallet and cardano-node
+      run: bundle exec rake get_latest_bins
+
+    - name: Set up cardano-wallet and cardano-node
+      run: |
+        bundle exec rake get_latest_configs["testnet"]
+        bundle exec rake start_node_and_wallet
+
+    - name: Display versions
+      run: |
+        ./bins/cardano-wallet version
+        ./bins/cardano-node version
+
+    - name: Wait until node is synced
+      run: bundle exec rake wait_until_node_synced
+
+    - name: Run all tests
+      run: bundle exec rspec .
+
+    env:
+      NODE_DB: ~/node-db-nightly-linux-tests
+      WALLET_DB: ~/wallet-db
+      TOKEN_METADATA: http://metadata-server-mock.herokuapp.com/

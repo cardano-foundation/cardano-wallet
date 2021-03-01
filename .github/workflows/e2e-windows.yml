@@ -1,0 +1,62 @@
+name: E2E Windows
+
+on:
+  schedule:
+  - cron:  "0 23 * * *"
+  workflow_dispatch:
+  # pull_request:
+  #   branches: [ master ]
+
+defaults:
+  run:
+    working-directory: ./test/e2e
+
+jobs:
+  test:
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Cache node db
+      id: cache
+      uses: actions/cache@v2
+      with:
+        path: ${{ env.NODE_DB }}
+        key: ${{ runner.os }}-node-db-nightly-win-tests-${{ hashFiles('**/protocolMagicId') }}
+
+    - name: Set up Ruby
+    - uses: ruby/setup-ruby@v1
+
+    - name: Install dependencies
+      run: bundle install
+
+    - name: Prepare Windows
+      run: |
+        choco install wget
+        choco install unzip
+        choco install nssm
+
+    - name: Get cardano-wallet and cardano-node
+      run: bundle exec rake get_latest_bins
+
+    - name: Display versions
+      run: |
+        "cardano-wallet.exe version" | cmd
+        "cardano-node.exe version" | cmd
+
+    - name: Start cardano-wallet and cardano-node
+      run: |
+        bundle exec rake get_latest_configs["testnet"]
+        bundle exec rake start_node_and_wallet
+
+    - name: Wait until node is synced
+      run: bundle exec rake wait_until_node_synced
+
+    - name: Run all tests
+      run: bundle exec rspec .
+
+    env:
+      NODE_DB: d:/node-db-nightly-win-tests
+      WALLET_DB: d:/wallet-db
+      TOKEN_METADATA: http://metadata-server-mock.herokuapp.com/

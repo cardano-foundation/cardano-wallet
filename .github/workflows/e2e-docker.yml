@@ -1,0 +1,85 @@
+name: E2E Docker
+
+on:
+  # pull_request:
+  #   branches: [ master ]
+  schedule:
+  - cron:  "0 23 * * *"
+  workflow_dispatch:
+    inputs:
+      nodeTag:
+        description: 'Node tag (docker)'
+        required: true
+        default: '1.25.1'
+      walletTag:
+        description: 'Wallet tag (docker)'
+        required: true
+        default: 'dev-master-shelley'
+
+defaults:
+  run:
+    working-directory: ./test/e2e
+
+jobs:
+  test:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Set up Ruby
+    - uses: ruby/setup-ruby@v1
+
+    - name: Install dependencies
+      run: bundle install
+
+    - name: Get recent configs
+      run: bundle exec rake get_latest_configs["testnet"]
+
+    - name: Cache node db
+      id: cache
+      uses: actions/cache@v2
+      with:
+        path: ~/node-db-nightly-docker
+        key: ${{ runner.os }}-node-db-nightly-docker-tests-${{ hashFiles('**/protocolMagicId') }}
+
+    - name: Set up cardano-wallet and cardano-node MANUAL
+      if: ${{ github.event.inputs.walletTag != '' && github.event.inputs.nodeTag != ''}}
+      env:
+        WALLET: ${{ github.event.inputs.walletTag }}
+        NODE: ${{ github.event.inputs.nodeTag }}
+      run: |
+        echo "Wallet: $WALLET"
+        echo "Node: $NODE"
+        NODE_CONFIG_PATH=`pwd`/configs docker-compose -f docker-compose-test.yml up --detach
+        ls ~/node-db-nightly-docker
+
+    - name: Set up cardano-wallet and cardano-node NIGHTLY
+      if: ${{ github.event.inputs.walletTag == '' && github.event.inputs.nodeTag == ''}}
+      run: |
+        echo "Wallet: $WALLET"
+        echo "Node: $NODE"
+        NODE_CONFIG_PATH=`pwd`/configs docker-compose -f docker-compose-test.yml up --detach
+        ls ~/node-db-nightly-docker
+
+    - name: Display versions
+      run: |
+        docker run --rm inputoutput/cardano-wallet:$WALLET version
+        docker run --rm inputoutput/cardano-node:$NODE version
+
+    - name: Wait until node is synced
+      run: bundle exec rake wait_until_node_synced
+
+    - name: Run all tests
+      run: bundle exec rspec .
+
+    - name: Stop docker-compose
+      run: NODE_CONFIG_PATH=`pwd`/configs docker-compose down
+    env:
+      CI: true
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+      TOKEN_METADATA: http://metadata-server-mock.herokuapp.com/
+      NETWORK: testnet
+      WALLET: dev-master-shelley
+      NODE: 1.25.1
