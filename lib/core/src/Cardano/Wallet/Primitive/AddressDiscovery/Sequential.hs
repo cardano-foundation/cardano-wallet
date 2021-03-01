@@ -140,6 +140,7 @@ import Data.Maybe
     ( fromJust )
 import Data.Proxy
     ( Proxy (..) )
+import Data.Text (Text)
 import Data.Text.Class
     ( FromText (..), TextDecodingError (..), ToText (..) )
 import Data.Text.Read
@@ -261,8 +262,16 @@ data ParentContext (chain :: Role) (key :: Depth -> * -> *) where
 deriving instance Eq   (key 'AccountK XPub) => Eq   (ParentContext chain key)
 deriving instance Show (key 'AccountK XPub) => Show (ParentContext chain key)
 
-instance Buildable (ParentContext chain key) where
-    build = error "TODO: Buildable (ParentContext chain key)"
+instance (WalletKey key) => Buildable (ParentContext chain key) where
+    build (ParentContextUtxoExternal acct) =
+        mempty <> "(ParentContext : "<> build (accXPubTxt (getRawKey acct)) <>")"
+    build (ParentContextUtxoInternal acct) =
+        mempty <> "(ParentContext : "<> build (accXPubTxt (getRawKey acct)) <>")"
+    build (ParentContextMutableAccount acct) =
+        mempty <> "(ParentContext : "<> build (accXPubTxt (getRawKey acct)) <>")"
+    build (ParentContextMultisigScript acct p dM) =
+        mempty <> "(ParentContext : "<> build (accXPubTxt (getRawKey acct))
+        <> ", " <> build (p, dM) <> ")"
 
 instance NFData (key 'AccountK XPub) => NFData (ParentContext chain key) where
     rnf = \case
@@ -315,6 +324,11 @@ instance Buildable (ScriptTemplate, Maybe ScriptTemplate) where
         scriptPaymentF = build paymentTemplate
         scriptDelegationF = maybe "absent" build delegationTemplateM
 
+accXPubTxt :: XPub -> Text
+accXPubTxt xpub =
+    let keyFormatted = T.decodeUtf8 $ encode EBase16 $ xpubPublicKey xpub
+    in T.take 8 keyFormatted <> "..." <> T.takeEnd 8 keyFormatted
+
 instance Buildable ScriptTemplate where
     build (ScriptTemplate cosignersMap script') = mempty <>
         "Cosigners:" <> build (presentCosigners cosignersMap) <>
@@ -322,12 +336,10 @@ instance Buildable ScriptTemplate where
       where
         printCosigner (Cosigner ix) =
             "cosigner#"<> T.pack (show ix)
-        keyFormatted xpub = T.decodeUtf8 $ encode EBase16 $ xpubPublicKey xpub
-        printKey k = T.take 8 (keyFormatted k) <> "..." <> T.takeEnd 8 (keyFormatted k)
         presentCosigners =
-            Map.foldrWithKey (\c k acc -> acc <> "| " <> printCosigner c <> " " <> printKey k ) mempty
+            Map.foldrWithKey (\c k acc -> acc <> "| " <> printCosigner c <> " " <> accXPubTxt k ) mempty
 
-instance (Typeable chain) => Buildable (AddressPool chain key) where
+instance (Typeable chain, WalletKey key) => Buildable (AddressPool chain key) where
     build (AddressPool ctx (AddressPoolGap g) _) = mempty
         <> ccF <> " " <> build ctx <> " (gap=" <> build g <> ")\n"
       where
@@ -695,7 +707,7 @@ instance
     )
     => NFData (SeqState n k)
 
-instance Buildable (SeqState n k) where
+instance (WalletKey k) => Buildable (SeqState n k) where
     build (SeqState intP extP chgs _ path) = "SeqState:\n"
         <> indentF 4 ("Derivation prefix: " <> build (toText path))
         <> indentF 4 (build intP)

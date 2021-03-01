@@ -78,6 +78,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , Passphrase (..)
     , PaymentAddress (..)
     , PersistPrivateKey
+    , Role (..)
     , WalletKey (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
@@ -89,6 +90,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Random
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPool
     , DerivationPrefix (..)
+    , ParentContext (..)
     , SeqState (..)
     , coinTypeAda
     , defaultAddressPoolGap
@@ -182,8 +184,6 @@ import Data.Time.Clock.POSIX
     ( posixSecondsToUTCTime )
 import Data.Time.Clock.System
     ( SystemTime (..), systemToUTCTime )
-import Data.Typeable
-    ( Typeable )
 import Data.Word
     ( Word64 )
 import Database.Sqlite
@@ -348,11 +348,10 @@ bgroupWriteSeqState db = bgroup "SeqState"
             pure cps
         cps :: [WalletBench]
         cps =
-            [ let extPool = mkPool a i
-              in snd $ initWallet (withMovingSlot i block0) $
+            [ snd $ initWallet (withMovingSlot i block0) $
                 SeqState
-                    (mkPool a i)
-                    extPool
+                    (mkIntPool a i)
+                    (mkExtPool a i)
                     emptyPendingIxs
                     rewardAccount
                     defaultPrefix
@@ -363,10 +362,15 @@ benchPutSeqState :: DBLayerBench -> [WalletBench] -> IO ()
 benchPutSeqState DBLayer{..} cps = do
     unsafeRunExceptT $ mapExceptT atomically $ mapM_ (putCheckpoint testPk) cps
 
-mkPool
-    :: forall c. (Typeable c)
-    => Int -> Int -> AddressPool c ShelleyKey
-mkPool numAddrs i = mkAddressPool ourAccount defaultAddressPoolGap addrs
+mkExtPool :: Int -> Int -> AddressPool  'UtxoExternal ShelleyKey
+mkExtPool numAddrs i =
+    mkAddressPool @'Mainnet (ParentContextUtxoExternal ourAccount) defaultAddressPoolGap addrs
+  where
+    addrs = [ force (mkAddress i j, Unused) | j <- [1..numAddrs] ]
+
+mkIntPool :: Int -> Int -> AddressPool 'UtxoInternal ShelleyKey
+mkIntPool numAddrs i =
+    mkAddressPool @'Mainnet (ParentContextUtxoInternal ourAccount) defaultAddressPoolGap addrs
   where
     addrs = [ force (mkAddress i j, Unused) | j <- [1..numAddrs] ]
 
