@@ -56,7 +56,6 @@ module Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     -- * Partitioning
     , equipartitionTokenBundleWithMaxQuantity
     , equipartitionTokenBundlesWithMaxQuantity
-    , equipartitionTokenMap
     , equipartitionTokenMapWithMaxQuantity
 
     -- * Grouping and ungrouping
@@ -87,7 +86,7 @@ import Prelude
 import Algebra.PartialOrd
     ( PartialOrd (..) )
 import Cardano.Numeric.Util
-    ( equipartitionNatural, padCoalesce, partitionNatural )
+    ( padCoalesce, partitionNatural )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..), addCoin, subtractCoin, sumCoins )
 import Cardano.Wallet.Primitive.Types.TokenBundle
@@ -143,7 +142,6 @@ import Numeric.Natural
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
-import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as TokenQuantity
 import qualified Cardano.Wallet.Primitive.Types.Tx as Tx
 import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
 import qualified Data.Foldable as F
@@ -1205,29 +1203,6 @@ makeChangeForCoin targets excess =
 --
 --------------------------------------------------------------------------------
 
--- | Computes the equipartition of a token map into 'n' smaller maps.
---
--- Each asset is partitioned independently.
---
-equipartitionTokenMap
-    :: HasCallStack
-    => TokenMap
-    -- ^ The map to be partitioned.
-    -> NonEmpty a
-    -- ^ Represents the number of portions in which to partition the map.
-    -> NonEmpty TokenMap
-    -- ^ The partitioned maps.
-equipartitionTokenMap m count =
-    F.foldl' accumulate (TokenMap.empty <$ count) (TokenMap.toFlatList m)
-  where
-    accumulate
-        :: NonEmpty TokenMap
-        -> (AssetId, TokenQuantity)
-        -> NonEmpty TokenMap
-    accumulate maps (asset, quantity) = NE.zipWith (<>) maps $
-        TokenMap.singleton asset <$>
-            TokenQuantity.equipartition quantity count
-
 --------------------------------------------------------------------------------
 -- Equipartitioning according to a maximum token quantity
 --------------------------------------------------------------------------------
@@ -1288,7 +1263,7 @@ equipartitionTokenMapWithMaxQuantity m (TokenQuantity maxQuantity)
     | currentMaxQuantity <= maxQuantity =
         m :| []
     | otherwise =
-        equipartitionTokenMap m (() :| replicate extraPartCount ())
+        TokenMap.equipartitionQuantities m (() :| replicate extraPartCount ())
   where
     TokenQuantity currentMaxQuantity = TokenMap.maximumQuantity m
 

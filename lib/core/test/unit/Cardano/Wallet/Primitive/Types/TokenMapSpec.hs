@@ -13,6 +13,8 @@ import Prelude
 
 import Algebra.PartialOrd
     ( PartialOrd (..) )
+import Cardano.Numeric.Util
+    ( inAscendingPartialOrder )
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId (..), Flat (..), Nested (..), TokenMap, difference )
 import Cardano.Wallet.Primitive.Types.TokenMap.Gen
@@ -102,7 +104,6 @@ import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Test.Utils.Roundtrip as Roundtrip
-
 
 spec :: Spec
 spec =
@@ -208,6 +209,17 @@ spec =
             property prop_adjustQuantity_hasQuantity
         it "prop_maximumQuantity_all" $
             property prop_maximumQuantity_all
+
+    parallel $ describe "Partitioning" $ do
+
+        it "prop_equipartitionQuantities_fair" $
+            property prop_equipartitionQuantities_fair
+        it "prop_equipartitionQuantities_length" $
+            property prop_equipartitionQuantities_length
+        it "prop_equipartitionQuantities_order" $
+            property prop_equipartitionQuantities_order
+        it "prop_equipartitionQuantities_sum" $
+            property prop_equipartitionQuantities_sum
 
     parallel $ describe "JSON serialization" $ do
 
@@ -499,6 +511,55 @@ prop_maximumQuantity_all b =
     property $ all (<= maxQ) (snd <$> TokenMap.toFlatList b)
   where
     maxQ = TokenMap.maximumQuantity b
+
+--------------------------------------------------------------------------------
+-- Partitioning
+--------------------------------------------------------------------------------
+
+-- Test that token map quantities are equipartitioned fairly:
+--
+-- Each token quantity portion must be within unity of the ideal portion.
+--
+prop_equipartitionQuantities_fair :: TokenMap -> NonEmpty () -> Property
+prop_equipartitionQuantities_fair m count = property $
+    isZeroOrOne maximumDifference
+  where
+    -- Here we take advantage of the fact that the resultant maps are sorted
+    -- into ascending order when compared with the 'leq' function.
+    --
+    -- Consequently:
+    --
+    --  - the head map will be the smallest;
+    --  - the last map will be the greatest.
+    --
+    -- Therefore, subtracting the head map from the last map will produce a map
+    -- where each token quantity is equal to the difference between:
+    --
+    --  - the smallest quantity of that token in the resulting maps;
+    --  - the greatest quantity of that token in the resulting maps.
+    --
+    differences :: TokenMap
+    differences = NE.last results `TokenMap.unsafeSubtract` NE.head results
+
+    isZeroOrOne :: TokenQuantity -> Bool
+    isZeroOrOne (TokenQuantity q) = q == 0 || q == 1
+
+    maximumDifference :: TokenQuantity
+    maximumDifference = TokenMap.maximumQuantity differences
+
+    results = TokenMap.equipartitionQuantities m count
+
+prop_equipartitionQuantities_length :: TokenMap -> NonEmpty () -> Property
+prop_equipartitionQuantities_length m count =
+    NE.length (TokenMap.equipartitionQuantities m count) === NE.length count
+
+prop_equipartitionQuantities_order :: TokenMap -> NonEmpty () -> Property
+prop_equipartitionQuantities_order m count = property $
+    inAscendingPartialOrder (TokenMap.equipartitionQuantities m count)
+
+prop_equipartitionQuantities_sum :: TokenMap -> NonEmpty () -> Property
+prop_equipartitionQuantities_sum m count =
+    F.fold (TokenMap.equipartitionQuantities m count) === m
 
 --------------------------------------------------------------------------------
 -- JSON serialization tests

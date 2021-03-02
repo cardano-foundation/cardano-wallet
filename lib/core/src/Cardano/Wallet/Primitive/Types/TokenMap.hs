@@ -71,6 +71,9 @@ module Cardano.Wallet.Primitive.Types.TokenMap
     , removeQuantity
     , maximumQuantity
 
+    -- * Partitioning
+    , equipartitionQuantities
+
     -- * Policies
     , hasPolicy
 
@@ -639,6 +642,37 @@ maximumQuantity =
             challenger
         | otherwise =
             champion
+
+--------------------------------------------------------------------------------
+-- Partitioning
+--------------------------------------------------------------------------------
+
+-- | Partitions a token map into 'n' smaller maps, where the quantity of each
+--   token is equipartitioned across the resultant maps.
+--
+-- In the resultant maps, the smallest quantity and largest quantity of a given
+-- token will differ by no more than 1.
+--
+-- The resultant list is sorted into ascending order when maps are compared
+-- with the 'leq' function.
+--
+equipartitionQuantities
+    :: TokenMap
+    -- ^ The map to be partitioned.
+    -> NonEmpty a
+    -- ^ Represents the number of portions in which to partition the map.
+    -> NonEmpty TokenMap
+    -- ^ The partitioned maps.
+equipartitionQuantities m count =
+    F.foldl' accumulate (empty <$ count) (toFlatList m)
+  where
+    accumulate
+        :: NonEmpty TokenMap
+        -> (AssetId, TokenQuantity)
+        -> NonEmpty TokenMap
+    accumulate maps (asset, quantity) = NE.zipWith (<>) maps $
+        singleton asset <$>
+            TokenQuantity.equipartition quantity count
 
 --------------------------------------------------------------------------------
 -- Policies
