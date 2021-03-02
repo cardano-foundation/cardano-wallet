@@ -270,7 +270,6 @@ type instance PropertyValue "logo" = AssetLogo
 class HasValidator (name :: Symbol) where
     -- TODO: requires AllowAmbiguousTypes extension
     validatePropertyValue :: PropertyValue name -> Either String (PropertyValue name)
-    validatePropertyValue = Right
 
 instance HasValidator "name" where
     validatePropertyValue = validateMetadataName
@@ -280,6 +279,7 @@ instance HasValidator "ticker" where
     validatePropertyValue = validateMetadataTicker
 instance HasValidator "url" where
     -- validation is done before parsing
+    validatePropertyValue = Right
 instance HasValidator "logo" where
     validatePropertyValue = validateMetadataLogo
 instance HasValidator "unit" where
@@ -584,6 +584,7 @@ instance FromJSON AssetUnit where
     parseJSON = withObject "AssetUnit" $ \o -> AssetUnit
         <$> o .: "name"
         <*> o .: "decimals"
+        <*> o .:? "ticker"
 
 --
 -- Helpers

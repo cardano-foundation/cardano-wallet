@@ -145,7 +145,7 @@ spec = do
             (Just "acr2")
             (AssetURL <$> parseURI "https://iohk.io")
             (Just $ AssetLogo $ unsafeFromBase64 "QWxtb3N0IGEgbG9nbw==")
-            (Just $ AssetUnit "unit2" 14)
+            (Just $ AssetUnit "unit2" 14 Nothing)
     golden2File = dir </> "golden2.json"
 
     sig s k = Signature (unsafeFromHex s) (unsafeFromHex k)
@@ -197,7 +197,7 @@ spec = do
                 , Just $ Property (Right "acr2") [] 0
                 , Just $ Property (parseAssetURL "https://iohk.io") [] 0
                 , Just $ Property (Right (AssetLogo $ unsafeFromBase64 "QWxtb3N0IGEgbG9nbw==")) [] 0
-                , Just $ Property (Right (AssetUnit "unit2" 14)) [] 0
+                , Just $ Property (Right (AssetUnit "unit2" 14 Nothing)) [] 0
                 )
            }
         ]
