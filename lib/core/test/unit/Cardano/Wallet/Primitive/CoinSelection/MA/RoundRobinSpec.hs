@@ -53,6 +53,7 @@ import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     , runSelection
     , runSelectionStep
     , splitBundleIfAssetCountExcessive
+    , splitBundlesWithExcessiveAssetCounts
     , splitBundlesWithExcessiveTokenQuantities
     , ungroupByKey
     )
@@ -333,6 +334,10 @@ spec = describe "Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobinSpec" $
             property prop_splitBundleIfAssetCountExcessive_postCondition
         it "prop_splitBundleIfAssetCountExcessive_sum" $
             property prop_splitBundleIfAssetCountExcessive_sum
+        it "prop_splitBundlesWithExcessiveAssetCounts_length" $
+            property prop_splitBundlesWithExcessiveAssetCounts_length
+        it "prop_splitBundlesWithExcessiveAssetCounts_sum" $
+            property prop_splitBundlesWithExcessiveAssetCounts_sum
 
     parallel $ describe "Splitting bundles with excessive token quantities" $ do
 
@@ -1883,6 +1888,43 @@ prop_splitBundleIfAssetCountExcessive_sum
 prop_splitBundleIfAssetCountExcessive_sum
     (Blind (Large b)) (Positive maxAssetCount) =
         F.fold (splitBundleIfAssetCountExcessive b isExcessive) === b
+  where
+    isExcessive = (> maxAssetCount) . Set.size . TokenBundle.getAssets
+
+prop_splitBundlesWithExcessiveAssetCounts_length
+    :: Blind (NonEmpty TokenBundle) -> Positive Int -> Property
+prop_splitBundlesWithExcessiveAssetCounts_length
+    (Blind input) (Positive maxAssetCount) =
+        checkCoverage $ property $
+        cover 5 (lengthOutput > lengthInput)
+            "length has increased" $
+        cover 5 (lengthOutput == lengthInput)
+            "length has remained the same" $
+        case compare lengthOutput lengthInput of
+            GT -> (&&)
+                (F.any isExcessive input)
+                (F.all (not . isExcessive) output)
+            EQ -> (&&)
+                (F.all (not . isExcessive) input)
+                (input == output)
+            LT ->
+                error "length has unexpectedly decreased"
+  where
+    isExcessive =
+        (> maxAssetCount) . Set.size . TokenBundle.getAssets
+    lengthInput =
+        NE.length input
+    lengthOutput =
+        NE.length output
+    output =
+        splitBundlesWithExcessiveAssetCounts input isExcessive
+
+prop_splitBundlesWithExcessiveAssetCounts_sum
+    :: Blind (NonEmpty TokenBundle) -> Positive Int -> Property
+prop_splitBundlesWithExcessiveAssetCounts_sum
+    (Blind bundles) (Positive maxAssetCount) = (===)
+        (F.fold $ splitBundlesWithExcessiveAssetCounts bundles isExcessive)
+        (F.fold bundles)
   where
     isExcessive = (> maxAssetCount) . Set.size . TokenBundle.getAssets
 
