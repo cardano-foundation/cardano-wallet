@@ -297,7 +297,6 @@ add (TokenBundle (Coin c1) m1) (TokenBundle (Coin c2) m2) =
 subtract :: TokenBundle -> TokenBundle -> Maybe TokenBundle
 subtract a b = guard (b `leq` a) $> unsafeSubtract a b
 
-
 -- | Analogous to @Set.difference@, return the difference between two token
 -- maps.
 --
