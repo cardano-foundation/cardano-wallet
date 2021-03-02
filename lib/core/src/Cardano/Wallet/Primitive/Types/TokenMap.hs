@@ -72,6 +72,7 @@ module Cardano.Wallet.Primitive.Types.TokenMap
     , maximumQuantity
 
     -- * Partitioning
+    , equipartitionAssets
     , equipartitionQuantities
     , equipartitionQuantitiesWithUpperBound
 
@@ -95,6 +96,8 @@ import Prelude hiding
 
 import Algebra.PartialOrd
     ( PartialOrd (..) )
+import Cardano.Numeric.Util
+    ( equipartitionNatural )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenName, TokenPolicyId )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
@@ -133,6 +136,8 @@ import GHC.Generics
     ( Generic )
 import GHC.TypeLits
     ( ErrorMessage (..), TypeError )
+import Numeric.Natural
+    ( Natural )
 import Quiet
     ( Quiet (..) )
 
@@ -649,6 +654,41 @@ maximumQuantity =
 --------------------------------------------------------------------------------
 -- Partitioning
 --------------------------------------------------------------------------------
+
+-- | Partitions a token map into 'n' smaller maps, where the asset sets of the
+--   resultant maps are disjoint.
+--
+-- In the resultant maps, the smallest asset set size and largest asset set
+-- size will differ by no more than 1.
+--
+-- The quantities of each asset are unchanged.
+--
+equipartitionAssets
+    :: TokenMap
+    -- ^ The token map to be partitioned.
+    -> NonEmpty a
+    -- ^ Represents the number of portions in which to partition the token map.
+    -> NonEmpty TokenMap
+    -- ^ The partitioned maps.
+equipartitionAssets m mapCount =
+    fromFlatList <$> NE.unfoldr generateChunk (assetCounts, toFlatList m)
+  where
+    -- The total number of assets.
+    assetCount :: Int
+    assetCount = Set.size $ getAssets m
+
+    -- How many asset quantities to include in each chunk.
+    assetCounts :: NonEmpty Int
+    assetCounts = fromIntegral @Natural @Int <$>
+        equipartitionNatural (fromIntegral @Int @Natural assetCount) mapCount
+
+    -- Generates a single chunk of asset quantities.
+    generateChunk :: (NonEmpty Int, [aq]) -> ([aq], Maybe (NonEmpty Int, [aq]))
+    generateChunk (c :| mcs, aqs) = case NE.nonEmpty mcs of
+        Just cs -> (prefix, Just (cs, suffix))
+        Nothing -> (aqs, Nothing)
+      where
+        (prefix, suffix) = L.splitAt c aqs
 
 -- | Partitions a token map into 'n' smaller maps, where the quantity of each
 --   token is equipartitioned across the resultant maps.

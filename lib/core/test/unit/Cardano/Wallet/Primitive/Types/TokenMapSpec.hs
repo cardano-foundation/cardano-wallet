@@ -20,6 +20,7 @@ import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId (..), Flat (..), Nested (..), TokenMap, difference )
 import Cardano.Wallet.Primitive.Types.TokenMap.Gen
     ( AssetIdF (..)
+    , genAssetIdLargeRange
     , genAssetIdSmallRange
     , genTokenMapSmallRange
     , shrinkAssetIdSmallRange
@@ -41,6 +42,8 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
     , shrinkTokenQuantitySmall
     , shrinkTokenQuantitySmallPositive
     )
+import Control.Monad
+    ( replicateM )
 import Data.Aeson
     ( FromJSON (..), ToJSON (..) )
 import Data.Aeson.QQ
@@ -83,13 +86,17 @@ import Test.Hspec.Extra
     ( parallel )
 import Test.QuickCheck
     ( Arbitrary (..)
+    , Blind (..)
     , Fun
     , Property
     , applyFun
     , checkCoverage
+    , choose
     , counterexample
     , cover
+    , frequency
     , property
+    , (.||.)
     , (===)
     , (==>)
     )
@@ -216,6 +223,17 @@ spec =
             property prop_adjustQuantity_hasQuantity
         it "prop_maximumQuantity_all" $
             property prop_maximumQuantity_all
+
+    parallel $ describe "Partitioning assets" $ do
+
+        it "prop_equipartitionAssets_coverage" $
+            property prop_equipartitionAssets_coverage
+        it "prop_equipartitionAssets_length" $
+            property prop_equipartitionAssets_length
+        it "prop_equipartitionAssets_sizes" $
+            property prop_equipartitionAssets_sizes
+        it "prop_equipartitionAssets_sum" $
+            property prop_equipartitionAssets_sum
 
     parallel $ describe "Partitioning quantities" $ do
 
@@ -533,6 +551,47 @@ prop_maximumQuantity_all b =
     maxQ = TokenMap.maximumQuantity b
 
 --------------------------------------------------------------------------------
+-- Partitioning assets
+--------------------------------------------------------------------------------
+
+prop_equipartitionAssets_coverage
+    :: Blind (Large TokenMap) -> Property
+prop_equipartitionAssets_coverage m = checkCoverage $
+    cover 4 (assetCount == 0)
+        "asset count = 0" $
+    cover 4 (assetCount == 1)
+        "asset count = 1" $
+    cover 20 (2 <= assetCount && assetCount <= 31)
+        "2 <= asset count <= 31" $
+    cover 20 (32 <= assetCount && assetCount <= 63)
+        "32 <= asset count <= 63"
+    True
+  where
+    assetCount = Set.size $ TokenMap.getAssets $ getLarge $ getBlind m
+
+prop_equipartitionAssets_length
+    :: Blind (Large TokenMap) -> NonEmpty () -> Property
+prop_equipartitionAssets_length (Blind (Large m)) count =
+    NE.length (TokenMap.equipartitionAssets m count) === NE.length count
+
+prop_equipartitionAssets_sizes
+    :: Blind (Large TokenMap) -> NonEmpty () -> Property
+prop_equipartitionAssets_sizes (Blind (Large m)) count = (.||.)
+    (assetCountDifference == 0)
+    (assetCountDifference == 1)
+  where
+    assetCounts = Set.size . TokenMap.getAssets <$> results
+    assetCountMin = F.minimum assetCounts
+    assetCountMax = F.maximum assetCounts
+    assetCountDifference = assetCountMax - assetCountMin
+    results = TokenMap.equipartitionAssets m count
+
+prop_equipartitionAssets_sum
+    :: Blind (Large TokenMap) -> NonEmpty () -> Property
+prop_equipartitionAssets_sum (Blind (Large m)) count =
+    F.fold (TokenMap.equipartitionAssets m count) === m
+
+--------------------------------------------------------------------------------
 -- Partitioning quantities
 --------------------------------------------------------------------------------
 
@@ -814,6 +873,10 @@ tokenPolicyIdHexStringLength = 56
 -- Arbitrary instances
 --------------------------------------------------------------------------------
 
+newtype Large a = Large
+    { getLarge :: a }
+    deriving (Eq, Show)
+
 newtype Positive a = Positive
     { getPositive :: a }
     deriving (Eq, Show)
@@ -837,6 +900,20 @@ instance Arbitrary AssetId where
 instance Arbitrary TokenMap where
     arbitrary = genTokenMapSmallRange
     shrink = shrinkTokenMapSmallRange
+
+instance Arbitrary (Large TokenMap) where
+    arbitrary = Large <$> do
+        assetCount <- frequency
+            [ (1, pure 0)
+            , (1, pure 1)
+            , (8, choose (2, 63))
+            ]
+        TokenMap.fromFlatList <$> replicateM assetCount genAssetQuantity
+      where
+        genAssetQuantity = (,)
+            <$> genAssetIdLargeRange
+            <*> genTokenQuantitySmallPositive
+    -- No shrinking
 
 instance Arbitrary TokenName where
     arbitrary = genTokenNameSmallRange
