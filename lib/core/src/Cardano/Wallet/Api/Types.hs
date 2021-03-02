@@ -149,6 +149,10 @@ module Cardano.Wallet.Api.Types
     , EncodeStakeAddress (..)
     , DecodeStakeAddress (..)
 
+    -- * Shared Wallets
+    , ApiSharedWallet
+    , ApiSharedWalletPostData
+
     -- * Polymorphic Types
     , ApiT (..)
     , ApiMnemonicT (..)
@@ -180,7 +184,7 @@ import Prelude
 import Cardano.Address.Derivation
     ( XPrv, XPub, xpubFromBytes, xpubToBytes )
 import Cardano.Address.Script
-    ( KeyHash, Script, ValidationLevel (..) )
+    ( KeyHash, Script, ScriptTemplate, ValidationLevel (..) )
 import Cardano.Api.Typed
     ( TxMetadataJsonSchema (..)
     , displayError
@@ -1038,6 +1042,45 @@ data ApiAccountKey = ApiAccountKey
     , extended :: Bool
     } deriving (Eq, Generic, Show)
       deriving anyclass NFData
+
+data ApiSharedWalletPostData = ApiSharedWalletPostData
+    { name :: !(ApiT WalletName)
+    , accountPublicKey :: !ApiAccountPublicKey
+    , accountIx :: !(ApiT DerivationIndex)
+    , addressPoolGap :: !(Maybe (ApiT AddressPoolGap))
+    , paymentScriptTemplate :: !ScriptTemplate
+    , delegationScriptTemplate :: !(Maybe ScriptTemplate)
+    } deriving (Eq, Generic, Show)
+
+data ApiActiveSharedWallet = ApiActiveSharedWallet
+    { id :: !(ApiT WalletId)
+    , name :: !(ApiT WalletName)
+    , accountPublicKey :: !ApiAccountPublicKey
+    , accountIx :: !(ApiT DerivationIndex)
+    , addressPoolGap :: !(ApiT AddressPoolGap)
+    , paymentScriptTemplate :: !ScriptTemplate
+    , delegationScriptTemplate :: !(Maybe ScriptTemplate)
+    , delegation :: !ApiWalletDelegation
+    , balance :: !ApiWalletBalance
+    , state :: !(ApiT SyncProgress)
+    , tip :: !ApiBlockReference
+    } deriving (Eq, Generic, Show)
+      deriving anyclass NFData
+
+data ApiPendingSharedWallet = ApiPendingSharedWallet
+    { id :: !(ApiT WalletId)
+    , name :: !(ApiT WalletName)
+    , accountPublicKey :: !ApiAccountPublicKey
+    , accountIx :: !(ApiT DerivationIndex)
+    , addressPoolGap :: !(ApiT AddressPoolGap)
+    , paymentScriptTemplate :: !ScriptTemplate
+    , delegationScriptTemplate :: !(Maybe ScriptTemplate)
+    } deriving (Eq, Generic, Show)
+      deriving anyclass NFData
+
+data ApiSharedWallet = ApiSharedWallet
+    { wallet :: Either ApiPendingSharedWallet ApiActiveSharedWallet
+    } deriving (Eq, Generic, Show)
 
 -- | Error codes returned by the API, in the form of snake_cased strings
 data ApiErrorCode
@@ -2223,6 +2266,38 @@ instance {-# OVERLAPS #-} EncodeStakeAddress n
     => ToJSON (ApiT W.RewardAccount, Proxy n)
   where
     toJSON (acct, _) = toJSON . encodeStakeAddress @n . getApiT $ acct
+
+instance FromJSON ApiSharedWalletPostData where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance ToJSON ApiSharedWalletPostData where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+instance FromJSON ApiActiveSharedWallet where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance ToJSON ApiActiveSharedWallet where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+instance FromJSON ApiPendingSharedWallet where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance ToJSON ApiPendingSharedWallet where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+instance FromJSON ApiSharedWallet where
+    parseJSON obj = do
+        balance <-
+            (withObject "postData" $
+             \o -> o .:? "balance" :: Aeson.Parser (Maybe ApiSharedWallet)) obj
+        case balance of
+            Nothing -> do
+                xs <- parseJSON obj :: Aeson.Parser ApiPendingSharedWallet
+                pure $ ApiSharedWallet $ Left xs
+            _ -> do
+                xs <- parseJSON obj :: Aeson.Parser ApiActiveSharedWallet
+                pure $ ApiSharedWallet $ Right xs
+
+instance ToJSON ApiSharedWallet where
+    toJSON (ApiSharedWallet (Left c))= toJSON c
+    toJSON (ApiSharedWallet (Right c))= toJSON c
 
 instance ToJSON ApiErrorCode where
     toJSON = genericToJSON defaultSumTypeOptions
