@@ -523,7 +523,7 @@ x-assetMetadataName: &assetMetadataName
 
 x-assetMetadataTicker: &assetMetadataTicker
   type: string
-  maxLength: 4
+  maxLength: 5
   minLength: 2
   description: |
     A human-readable short name for the asset. Good for display in

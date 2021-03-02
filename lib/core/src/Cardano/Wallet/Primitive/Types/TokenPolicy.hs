@@ -261,7 +261,7 @@ validateMetadataName :: Text -> Either String Text
 validateMetadataName = validateMinLength 1 >=> validateMaxLength 50
 
 validateMetadataTicker :: Text -> Either String Text
-validateMetadataTicker = validateMinLength 2 >=> validateMaxLength 4
+validateMetadataTicker = validateMinLength 2 >=> validateMaxLength 5
 
 validateMetadataDescription :: Text -> Either String Text
 validateMetadataDescription = validateMaxLength 500
