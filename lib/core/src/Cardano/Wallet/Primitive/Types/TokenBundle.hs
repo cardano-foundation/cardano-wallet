@@ -54,6 +54,7 @@ module Cardano.Wallet.Primitive.Types.TokenBundle
     , removeQuantity
 
     -- * Partitioning
+    , equipartitionAssets
     , equipartitionQuantitiesWithUpperBound
 
     -- * Policies
@@ -372,6 +373,29 @@ removeQuantity b a = b { tokens = TokenMap.removeQuantity (tokens b) a }
 --------------------------------------------------------------------------------
 -- Partitioning
 --------------------------------------------------------------------------------
+
+-- | Partitions a token bundle into 'n' smaller bundles, where the asset sets
+--   of the resultant bundles are disjoint.
+--
+-- In the resultant bundles, the smallest asset set size and largest asset set
+-- size will differ by no more than 1.
+--
+-- The ada 'Coin' quantity is equipartitioned across the resulting bundles.
+--
+-- The quantities of each non-ada asset are unchanged.
+--
+equipartitionAssets
+    :: TokenBundle
+    -- ^ The token bundle to be partitioned.
+    -> NonEmpty a
+    -- ^ Represents the number of portions in which to partition the bundle.
+    -> NonEmpty TokenBundle
+    -- ^ The partitioned bundles.
+equipartitionAssets (TokenBundle c m) count =
+    NE.zipWith TokenBundle cs ms
+  where
+    cs = Coin.equipartition c count
+    ms = TokenMap.equipartitionAssets m count
 
 -- | Partitions a token bundle into 'n' smaller bundles, where the quantity of
 --   each token is equipartitioned across the resultant bundles, with the goal
