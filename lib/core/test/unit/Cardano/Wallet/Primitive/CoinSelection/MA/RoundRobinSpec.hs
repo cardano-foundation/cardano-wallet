@@ -52,6 +52,7 @@ import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     , runRoundRobin
     , runSelection
     , runSelectionStep
+    , splitBundleIfAssetCountExcessive
     , splitBundlesWithExcessiveTokenQuantities
     , ungroupByKey
     )
@@ -60,7 +61,11 @@ import Cardano.Wallet.Primitive.Types.Address
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..), addCoin )
 import Cardano.Wallet.Primitive.Types.Coin.Gen
-    ( genCoinSmall, genCoinSmallPositive, shrinkCoinSmallPositive )
+    ( genCoinLargePositive
+    , genCoinSmall
+    , genCoinSmallPositive
+    , shrinkCoinSmallPositive
+    )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle
@@ -70,7 +75,8 @@ import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId (..), TokenMap )
 import Cardano.Wallet.Primitive.Types.TokenMap.Gen
-    ( genAssetIdSmallRange
+    ( genAssetIdLargeRange
+    , genAssetIdSmallRange
     , genTokenMapSmallRange
     , shrinkAssetIdSmallRange
     , shrinkTokenMapSmallRange
@@ -316,6 +322,17 @@ spec = describe "Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobinSpec" $
             property prop_makeChangeForUserSpecifiedAsset_length
         unitTests "makeChangeForUserSpecifiedAsset"
             unit_makeChangeForUserSpecifiedAsset
+
+    parallel $ describe "Splitting bundles with excessive asset counts" $ do
+
+        it "prop_splitBundleIfAssetCountExcessive_length" $
+            property prop_splitBundleIfAssetCountExcessive_length
+        it "prop_splitBundleIfAssetCountExcessive_maximalSplitting" $
+            property prop_splitBundleIfAssetCountExcessive_maximalSplitting
+        it "prop_splitBundleIfAssetCountExcessive_postCondition" $
+            property prop_splitBundleIfAssetCountExcessive_postCondition
+        it "prop_splitBundleIfAssetCountExcessive_sum" $
+            property prop_splitBundleIfAssetCountExcessive_sum
 
     parallel $ describe "Splitting bundles with excessive token quantities" $ do
 
@@ -1812,6 +1829,64 @@ unit_makeChangeForUserSpecifiedAsset =
     assetC = AssetId (UnsafeTokenPolicyId $ Hash "A") (UnsafeTokenName "2")
 
 --------------------------------------------------------------------------------
+-- Splitting bundles with excessive asset counts
+--------------------------------------------------------------------------------
+
+prop_splitBundleIfAssetCountExcessive_length
+    :: Blind (Large TokenBundle) -> Positive Int -> Property
+prop_splitBundleIfAssetCountExcessive_length
+    (Blind (Large b)) (Positive maxAssetCount) =
+        checkCoverage $ property $
+        cover 5 (resultLength == 1)
+            "length = 1" $
+        cover 5 (resultLength >= 2 && resultLength < 8)
+            "length >= 2 && length < 8" $
+        cover 5 (resultLength >= 8 && resultLength < 16)
+            "length >= 8 && length < 16"
+        True
+  where
+    isExcessive = (> maxAssetCount) . Set.size . TokenBundle.getAssets
+    result = splitBundleIfAssetCountExcessive b isExcessive
+    resultLength = NE.length result
+
+prop_splitBundleIfAssetCountExcessive_maximalSplitting
+    :: Blind (Large TokenBundle) -> Property
+prop_splitBundleIfAssetCountExcessive_maximalSplitting (Blind (Large b)) =
+    checkCoverage $ property $
+    cover 5 (assetCount == 0)
+        "asset count = 0" $
+    cover 5 (assetCount == 1)
+        "asset count = 1" $
+    cover 5 (assetCount >= 2 && assetCount < 8)
+        "asset count >= 2 && asset count < 8" $
+    cover 5 (assetCount >= 8 && assetCount < 16)
+        "asset count >= 8 && asset count < 16" $
+    (.&&.)
+        (NE.length result === max 1 assetCount)
+        (F.all ((<= 1) . Set.size . TokenBundle.getAssets) result)
+  where
+    assetCount = Set.size $ TokenBundle.getAssets b
+    isExcessive = (> 1) . Set.size . TokenBundle.getAssets
+    result = splitBundleIfAssetCountExcessive b isExcessive
+
+prop_splitBundleIfAssetCountExcessive_postCondition
+    :: Blind (Large TokenBundle) -> Positive Int -> Property
+prop_splitBundleIfAssetCountExcessive_postCondition
+    (Blind (Large b)) (Positive maxAssetCount) =
+        property $ F.all (not . isExcessive) results
+  where
+    isExcessive = (> maxAssetCount) . Set.size . TokenBundle.getAssets
+    results = splitBundleIfAssetCountExcessive b isExcessive
+
+prop_splitBundleIfAssetCountExcessive_sum
+    :: Blind (Large TokenBundle) -> Positive Int -> Property
+prop_splitBundleIfAssetCountExcessive_sum
+    (Blind (Large b)) (Positive maxAssetCount) =
+        F.fold (splitBundleIfAssetCountExcessive b isExcessive) === b
+  where
+    isExcessive = (> maxAssetCount) . Set.size . TokenBundle.getAssets
+
+--------------------------------------------------------------------------------
 -- Splitting bundles with excessive token quantities
 --------------------------------------------------------------------------------
 
@@ -2074,6 +2149,25 @@ instance Arbitrary (MockRoundRobinState TokenName Word8) where
 instance Arbitrary TokenBundle where
     arbitrary = genTokenBundleSmallRangePositive
     shrink = shrinkTokenBundleSmallRangePositive
+
+instance Arbitrary (Large TokenBundle) where
+    arbitrary = fmap Large $ TokenBundle
+        <$> genCoinLargePositive
+        <*> genTokenMapLarge
+    -- No shrinking
+
+genTokenMapLarge :: Gen TokenMap
+genTokenMapLarge = do
+    assetCount <- frequency
+        [ (1, pure 0)
+        , (1, pure 1)
+        , (8, choose (2, 63))
+        ]
+    TokenMap.fromFlatList <$> replicateM assetCount genAssetQuantity
+  where
+    genAssetQuantity = (,)
+        <$> genAssetIdLargeRange
+        <*> genTokenQuantitySmallPositive
 
 instance Arbitrary TokenMap where
     arbitrary = genTokenMapSmallRange

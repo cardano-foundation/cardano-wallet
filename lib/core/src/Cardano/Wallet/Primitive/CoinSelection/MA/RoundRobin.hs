@@ -55,6 +55,7 @@ module Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     , assignCoinsToChangeMaps
 
     -- * Splitting bundles
+    , splitBundleIfAssetCountExcessive
     , splitBundlesWithExcessiveTokenQuantities
 
     -- * Grouping and ungrouping
@@ -1202,6 +1203,26 @@ makeChangeForCoin targets excess =
 --------------------------------------------------------------------------------
 -- Splitting bundles
 --------------------------------------------------------------------------------
+
+-- | Splits a bundle into smaller bundles if its asset count is excessive when
+--   measured with the given 'isExcessive' indicator function.
+--
+-- Returns a list of smaller bundles for which 'isExcessive' returns 'False'.
+--
+splitBundleIfAssetCountExcessive
+    :: TokenBundle
+    -- ^ The token bundle suspected to have an excessive number of assets.
+    -> (TokenBundle -> Bool)
+    -- ^ A function that returns 'True' if (and only if) the asset count of
+    -- the given bundle is excessive.
+    -> NonEmpty TokenBundle
+splitBundleIfAssetCountExcessive b isExcessive
+    | isExcessive b =
+        splitInHalf b >>= flip splitBundleIfAssetCountExcessive isExcessive
+    | otherwise =
+        pure b
+  where
+    splitInHalf = flip TokenBundle.equipartitionAssets (() :| [()])
 
 -- | Splits bundles with excessive token quantities into smaller bundles.
 --
