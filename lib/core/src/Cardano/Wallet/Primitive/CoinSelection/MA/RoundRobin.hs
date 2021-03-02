@@ -89,7 +89,7 @@ import Prelude
 import Algebra.PartialOrd
     ( PartialOrd (..) )
 import Cardano.Numeric.Util
-    ( padCoalesce, partitionNatural )
+    ( padCoalesce, partitionNatural, unsafePartitionNatural )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..), addCoin, subtractCoin, sumCoins )
 import Cardano.Wallet.Primitive.Types.TokenBundle
@@ -1344,31 +1344,6 @@ equipartitionTokenMapWithMaxQuantity m (TokenQuantity maxQuantity)
     maxQuantityZeroError = error $ unwords
         [ "equipartitionTokenMapWithMaxQuantity:"
         , "the maximum allowable token quantity cannot be zero."
-        ]
-
---------------------------------------------------------------------------------
--- Unsafe partitioning
---------------------------------------------------------------------------------
-
--- | Partitions a natural number into a number of parts, where the size of each
---   part is proportional to the size of its corresponding element in the given
---   list of weights, and the number of parts is equal to the number of weights.
---
--- Throws a run-time error if the sum of weights is equal to zero.
---
-unsafePartitionNatural
-    :: HasCallStack
-    => Natural
-    -- ^ Natural number to partition
-    -> NonEmpty Natural
-    -- ^ List of weights
-    -> NonEmpty Natural
-unsafePartitionNatural target =
-    fromMaybe zeroWeightSumError . partitionNatural target
-  where
-    zeroWeightSumError = error $ unwords
-        [ "unsafePartitionNatural:"
-        , "specified weights must have a non-zero sum."
         ]
 
 --------------------------------------------------------------------------------

@@ -5,6 +5,7 @@
 module Cardano.Numeric.Util
     ( padCoalesce
     , partitionNatural
+    , unsafePartitionNatural
     ) where
 
 import Prelude hiding
@@ -16,10 +17,14 @@ import Data.Function
     ( (&) )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
+import Data.Maybe
+    ( fromMaybe )
 import Data.Ord
     ( Down (..), comparing )
 import Data.Ratio
     ( (%) )
+import GHC.Stack
+    ( HasCallStack )
 import Numeric.Natural
     ( Natural )
 
@@ -180,6 +185,31 @@ partitionNatural target weights
 
     totalWeight :: Natural
     totalWeight = F.sum weights
+
+--------------------------------------------------------------------------------
+-- Unsafe partitioning
+--------------------------------------------------------------------------------
+
+-- | Partitions a natural number into a number of parts, where the size of each
+--   part is proportional to the size of its corresponding element in the given
+--   list of weights, and the number of parts is equal to the number of weights.
+--
+-- Throws a run-time error if the sum of weights is equal to zero.
+--
+unsafePartitionNatural
+    :: HasCallStack
+    => Natural
+    -- ^ Natural number to partition
+    -> NonEmpty Natural
+    -- ^ List of weights
+    -> NonEmpty Natural
+unsafePartitionNatural target =
+    fromMaybe zeroWeightSumError . partitionNatural target
+  where
+    zeroWeightSumError = error $ unwords
+        [ "unsafePartitionNatural:"
+        , "specified weights must have a non-zero sum."
+        ]
 
 --------------------------------------------------------------------------------
 -- Internal types and functions
