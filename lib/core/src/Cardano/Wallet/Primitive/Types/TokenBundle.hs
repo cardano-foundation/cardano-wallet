@@ -319,8 +319,6 @@ difference (TokenBundle c1 m1) (TokenBundle c2 m2) =
     TokenBundle
         (fromMaybe (Coin 0) $ Coin.subtractCoin c1 c2)
         (TokenMap.difference m1 m2)
-
-
 --------------------------------------------------------------------------------
 -- Quantities
 --------------------------------------------------------------------------------
