@@ -35,24 +35,24 @@ jobs:
         path: ${{ env.NODE_DB }}
         key: ${{ runner.os }}-node-db-nightly-linux-tests-${{ hashFiles('**/protocolMagicId') }}
 
-    - name: Get cardano-wallet and cardano-node
-      run: bundle exec rake get_latest_bins
-
     - name: Set up cardano-wallet and cardano-node
       run: |
+        bundle exec rake get_latest_bins
         bundle exec rake get_latest_configs["testnet"]
         bundle exec rake start_node_and_wallet
-
-    - name: Display versions
-      run: |
-        ./bins/cardano-wallet version
-        ./bins/cardano-node version
 
     - name: Wait until node is synced
       run: bundle exec rake wait_until_node_synced
 
     - name: Run all tests
       run: bundle exec rspec .
+
+    - name: 📎 Upload logs
+      uses: actions/upload-artifact@v2
+      if: always()
+      with:
+        name: ${{ matrix.os }}-logs
+        path: test/e2e/logs
 
     env:
       NODE_DB: ~/node-db-nightly-linux-tests

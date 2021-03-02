@@ -7,7 +7,8 @@
 /bins/
 /cardano-wallet-*/
 /binaryDist/
-/binary-dist/
+/logs/
+*binary-dist*
 
 Gemfile.lock
 

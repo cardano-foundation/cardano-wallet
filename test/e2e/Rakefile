@@ -1,6 +1,8 @@
 require "rspec/core/rake_task"
 require "cardano_wallet"
-require_relative "spec/test_utils"
+require_relative "helpers/utils"
+
+include Helpers::Utils
 
 RSpec::Core::RakeTask.new(:spec)
 
@@ -32,6 +34,10 @@ end
 task :start_node_and_wallet do
   puts "\n  >> Set up and start cardano-node and cardano-wallet"
 
+  ENV['NODE_DB'] ||= "./node_db"
+  ENV['WALLET_DB'] ||= "./wallet_db"
+  ENV['TOKEN_METADATA'] ||= "http://metadata-server-mock.herokuapp.com/"
+
   if is_win?
     cd = Dir.pwd
     # create cardano-node.bat file
@@ -62,14 +68,17 @@ task :start_node_and_wallet do
     puts `#{start_wallet}`
   else
     cd = Dir.pwd
+    logs = cd + "/logs"
+    mk_dir(logs)
+
     start_node = "#{cd}/bins/cardano-node run --config #{cd}/configs/*-config.json --topology #{cd}/configs/*-topology.json --database-path #{ENV['NODE_DB']} --socket-path #{cd}/node.socket"
     start_wallet = "#{cd}/bins/cardano-wallet serve --node-socket #{cd}/node.socket --testnet #{cd}/configs/*-byron-genesis.json --database #{ENV['WALLET_DB']} --token-metadata-server #{ENV['TOKEN_METADATA']}"
 
     puts start_node
     puts start_wallet
 
-    puts `screen -dmS NODE #{start_node}`
-    puts `screen -dmS WALLET #{start_wallet}`
+    puts `screen -dmS NODE -L -Logfile #{logs}/node.log #{start_node}`
+    puts `screen -dmS WALLET -L -Logfile #{logs}/wallet.log #{start_wallet}`
     puts `screen -ls`
   end
 end

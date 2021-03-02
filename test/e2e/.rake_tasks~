@@ -1,0 +1,7 @@
+get_latest_bins
+get_latest_configs
+run_on
+spec
+start_node_and_wallet
+stop_node_and_wallet
+wait_until_node_synced

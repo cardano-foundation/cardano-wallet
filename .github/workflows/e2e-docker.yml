@@ -80,8 +80,6 @@ jobs:
     - name: Stop docker-compose
       run: NODE_CONFIG_PATH=`pwd`/configs docker-compose down
     env:
-      CI: true
-      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
       TOKEN_METADATA: http://metadata-server-mock.herokuapp.com/
       NETWORK: testnet
       WALLET: dev-master-shelley
