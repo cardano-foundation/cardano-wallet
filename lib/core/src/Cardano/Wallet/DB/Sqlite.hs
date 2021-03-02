@@ -25,18 +25,15 @@
 -- An implementation of the DBLayer which uses Persistent and SQLite.
 
 module Cardano.Wallet.DB.Sqlite
-    ( -- * Directory of wallet databases
+    ( -- * Directory of single-file wallet databases
       newDBFactory
     , findDatabases
     , DBFactoryLog (..)
 
-    -- * Single file wallet database
-    , withDBLayer
-    , WalletDBLog (..)
-
     -- * Internal implementation
-    , newDBLayer
-    , newDBLayerInMemory
+    , withDBLayer
+    , withDBLayerInMemory
+    , WalletDBLog (..)
     , newDBLayerWith
     , CacheBehavior (..)
 
@@ -52,8 +49,6 @@ import Prelude
 
 import Cardano.Address.Derivation
     ( XPrv, XPub )
-import Cardano.Address.Script
-    ( KeyHash, ScriptHash (..) )
 import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
@@ -230,7 +225,7 @@ import System.Directory
 import System.FilePath
     ( (</>) )
 import UnliftIO.Exception
-    ( Exception, throwIO )
+    ( Exception, bracket, throwIO )
 import UnliftIO.MVar
     ( MVar, modifyMVar, modifyMVar_, newMVar, readMVar, withMVar )
 
@@ -273,12 +268,17 @@ newDBFactory
     -> IO (DBFactory IO s k)
 newDBFactory tr defaultFieldValues ti = \case
     Nothing -> do
-        -- NOTE
+        -- NOTE1
         -- For the in-memory database, we do actually preserve the database
         -- after the 'action' is done. This allows for calling 'withDatabase'
         -- several times within the same execution and get back the same
         -- database. The memory is only cleaned up when calling
         -- 'removeDatabase', to mimic the way the file database works!
+        --
+        -- NOTE2
+        -- The in-memory withDatabase will leak memory unless removeDatabase is
+        -- called after using the database. In practice, this is only a problem
+        -- for testing.
         mvar <- newMVar mempty
         pure DBFactory
             { withDatabase = \wid action -> do
@@ -286,7 +286,7 @@ newDBFactory tr defaultFieldValues ti = \case
                     Just db -> pure (m, db)
                     Nothing -> do
                         let tr' = contramap (MsgWalletDB "") tr
-                        db <- newDBLayerInMemory tr' ti
+                        (_cleanup, db) <- newDBLayerInMemory tr' ti
                         pure (Map.insert wid db m, db)
                 action db
             , removeDatabase = \wid -> do
@@ -446,7 +446,6 @@ migrateManually tr proxy defaultFieldValues =
     , addSeqStateDerivationPrefixIfMissing
     , renameRoleColumn
     , renameRoleFields
-    , addScriptAddressGapIfMissing
     , updateFeeValueAndAddKeyDeposit
     , addFeeToTransaction
     , moveRndUnusedAddresses
@@ -1146,7 +1145,7 @@ withDBLayer tr defaultFieldValues dbFile ti action = do
     let autoMigrations   = migrateAll
     withConnectionPool trDB dbFile $ \pool -> do
         res <- newSqliteContext trDB pool manualMigrations autoMigrations
-        either throwIO (action <=< newDBLayer tr ti) res
+        either throwIO (action <=< newDBLayerWith CacheLatestCheckpoint tr ti) res
 
 data WalletDBLog
     = MsgDB DBLog
@@ -1178,6 +1177,21 @@ instance ToText CheckpointCacheLog where
         MsgRefresh -> "Refresh"
         MsgDrop -> "Drop"
 
+-- | Runs an IO action with a new 'DBLayer' backed by a sqlite in-memory
+-- database.
+withDBLayerInMemory
+    :: forall s k a.
+        ( PersistState s
+        , PersistPrivateKey (k 'RootK)
+        )
+    => Tracer IO WalletDBLog
+       -- ^ Logging object
+    -> TimeInterpreter IO
+       -- ^ Time interpreter for slot to time conversions
+    -> (DBLayer IO s k -> IO a)
+    -> IO a
+withDBLayerInMemory tr ti action = bracket (newDBLayerInMemory tr ti) fst (action . snd)
+
 -- | Creates a 'DBLayer' backed by a sqlite in-memory database.
 newDBLayerInMemory
     :: forall s k.
@@ -1188,10 +1202,12 @@ newDBLayerInMemory
        -- ^ Logging object
     -> TimeInterpreter IO
        -- ^ Time interpreter for slot to time conversions
-    -> IO (DBLayer IO s k)
+    -> IO (IO (), DBLayer IO s k)
 newDBLayerInMemory tr ti = do
-    ctx <- newInMemorySqliteContext (contramap MsgDB tr) [] migrateAll
-    newDBLayer tr ti ctx
+    let tr' = contramap MsgDB tr
+    (destroy, ctx) <- newInMemorySqliteContext tr' [] migrateAll
+    db <- newDBLayer tr ti ctx
+    pure (destroy, db)
 
 -- | What to do with regards to caching. This is useful to disable caching in
 -- database benchmarks.

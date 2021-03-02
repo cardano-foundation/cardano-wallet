@@ -16,7 +16,7 @@ import Prelude
 import Cardano.BM.Trace
     ( nullTracer )
 import Cardano.DB.Sqlite
-    ( DBLog (..), newInMemorySqliteContext )
+    ( DBLog (..) )
 import Cardano.Pool.DB
     ( DBLayer (..) )
 import Cardano.Pool.DB.Log
@@ -24,13 +24,9 @@ import Cardano.Pool.DB.Log
 import Cardano.Pool.DB.Properties
     ( properties )
 import Cardano.Pool.DB.Sqlite
-    ( createViews, newDBLayer, withDBLayer )
-import Cardano.Pool.DB.Sqlite.TH
-    ( migrateAll )
+    ( withDBLayer )
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( dummyTimeInterpreter )
-import Control.Tracer
-    ( contramap )
 import System.Directory
     ( copyFile )
 import System.FilePath

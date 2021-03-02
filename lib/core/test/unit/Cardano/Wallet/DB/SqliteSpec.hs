@@ -47,16 +47,7 @@ import Cardano.BM.Trace
 import Cardano.Crypto.Wallet
     ( XPrv )
 import Cardano.DB.Sqlite
-    ( DBField
-    , DBLog (..)
-    , DBLog (..)
-    , SqliteContext
-    , destroyDBLayer
-    , fieldName
-    , fieldName
-    , newInMemorySqliteContext
-    , newInMemorySqliteContext
-    )
+    ( DBField, DBLog (..), SqliteContext, fieldName, newInMemorySqliteContext )
 import Cardano.Mnemonic
     ( SomeMnemonic (..) )
 import Cardano.Wallet.DB
@@ -75,9 +66,8 @@ import Cardano.Wallet.DB.Sqlite
     , PersistState
     , WalletDBLog (..)
     , newDBFactory
-    , newDBLayer
-    , newDBLayerInMemory
     , withDBLayer
+    , withDBLayerInMemory
     )
 import Cardano.Wallet.DB.StateMachine
     ( prop_parallel, prop_sequential, validateGenerators )
@@ -418,7 +408,7 @@ spec = parallel $ do
 sqliteSpecSeq :: Spec
 sqliteSpecSeq = do
     validateGenerators @(SeqState 'Mainnet ShelleyKey)
-    around (withShelleyDBLayer Nothing) $ do
+    around withShelleyDBLayerInMemory $ do
         parallel $ describe "Sqlite" properties
         parallel $ describe "Sqlite State machine tests" $ do
             it "Sequential" (prop_sequential :: TestDBSeq -> Property)
@@ -427,7 +417,7 @@ sqliteSpecSeq = do
 sqliteSpecRnd :: Spec
 sqliteSpecRnd = do
     validateGenerators @(RndState 'Mainnet)
-    around (withByronDBLayer Nothing) $ do
+    around withByronDBLayer $ do
         parallel $ describe "Sqlite State machine (RndState)" $ do
             it "Sequential state machine tests"
                 (prop_sequential :: TestDBRnd -> Property)
@@ -686,16 +676,18 @@ withLoggingDB = around f . beforeWith clean
   where
     f act = do
         logVar <- newTVarIO []
-        withDBLayer
+        withDBLayerInMemory
             (traceInTVarIO logVar)
-            defaultFieldValues
-            Nothing
             dummyTimeInterpreter
-            (\(_, db) -> act (logVar, db))
+            (\db -> act (logVar, db))
     clean (logs, db) = do
         cleanDB db
         STM.atomically $ writeTVar logs []
-        pure (readTVarIO logs, db)
+        pure (mapMaybe getMsgDB <$> readTVarIO logs, db)
+
+getMsgDB :: WalletDBLog -> Maybe DBLog
+getMsgDB (MsgDB msg) = Just msg
+getMsgDB _ = Nothing
 
 shouldHaveMsgQuery :: [DBLog] -> Text -> Expectation
 shouldHaveMsgQuery msgs str = unless (any match msgs) $
@@ -726,7 +718,7 @@ fileModeSpec =  do
     describe "Check db opening/closing" $ do
         it "Opening and closing of db works" $ do
             replicateM_ 25 $ do
-                db <- Just <$> temporaryDBFile
+                db <- temporaryDBFile
                 withShelleyDBLayer @(SeqState 'Mainnet ShelleyKey) db
                     (\_ -> pure ())
 
@@ -1039,13 +1031,10 @@ defaultFieldValues = DefaultFieldValues
 -- for type-application everywhere.
 withByronDBLayer
     :: PersistState s
-    => Maybe FilePath -- ^ Just for on-disk db, Nothing for in-memory.
-    -> ((DBLayer IO s ByronKey) -> IO a)
+    => ((DBLayer IO s ByronKey) -> IO a)
     -> IO a
-withByronDBLayer fp = withDBLayer
+withByronDBLayer = withDBLayerInMemory
     nullTracer
-    defaultFieldValues
-    fp
     dummyTimeInterpreter
 
 withShelleyDBLayer
@@ -1058,6 +1047,12 @@ withShelleyDBLayer fp = withDBLayer
     defaultFieldValues
     fp
     dummyTimeInterpreter
+
+withShelleyDBLayerInMemory
+    :: PersistState s
+    => (DBLayer IO s ShelleyKey -> IO a)
+    -> IO a
+withShelleyDBLayerInMemory = withDBLayerInMemory nullTracer dummyTimeInterpreter
 
 listWallets'
     :: DBLayer m s k

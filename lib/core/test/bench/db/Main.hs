@@ -691,6 +691,7 @@ setupDB tr = do
             ctx <- either throwIO pure =<< newSqliteContext trDB pool [] migrateAll
             db <- newDBLayerWith NoCache tr singleEraInterpreter ctx
             action (fp, db)
+
 singleEraInterpreter :: TimeInterpreter IO
 singleEraInterpreter = hoistTimeInterpreter (pure . runIdentity) $
     mkSingleEraInterpreter

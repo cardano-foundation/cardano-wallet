@@ -138,7 +138,7 @@ import System.FilePath
 import System.Random
     ( newStdGen )
 import UnliftIO.Exception
-    ( catch, throwIO )
+    ( bracket, catch, throwIO )
 
 import qualified Cardano.Pool.DB.Sqlite.TH as TH
 import qualified Cardano.Wallet.Primitive.Types as W
@@ -205,9 +205,10 @@ withDecoratedDBLayer
     -> IO a
 withDecoratedDBLayer dbDecorator tr mDatabaseDir ti action = do
     case mDatabaseDir of
-        Nothing -> do
-            ctx <- newInMemorySqliteContext tr' createViews migrateAll
-            action (decorateDBLayer dbDecorator $ newDBLayer tr ti ctx)
+        Nothing -> bracket
+            (newInMemorySqliteContext tr' createViews migrateAll)
+            fst
+            (action . decorateDBLayer dbDecorator . newDBLayer tr ti . snd)
 
         Just fp -> handlingPersistError tr fp $
             withConnectionPool tr' fp $ \pool -> do

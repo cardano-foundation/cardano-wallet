@@ -166,7 +166,7 @@ newInMemorySqliteContext
     :: Tracer IO DBLog
     -> [ManualMigration]
     -> Migration
-    -> IO SqliteContext
+    -> IO (IO (), SqliteContext)
 newInMemorySqliteContext tr manualMigrations autoMigration = do
     conn <- Sqlite.open ":memory:"
     mapM_ (`executeManualMigration` conn) manualMigrations
@@ -183,7 +183,7 @@ newInMemorySqliteContext tr manualMigrations autoMigration = do
     let runQuery :: forall a. SqlPersistT IO a -> IO a
         runQuery cmd = withMVarMasked lock (observe . runSqlConn cmd)
 
-    return $ SqliteContext { runQuery }
+    return (close' unsafeBackend, SqliteContext { runQuery })
 
 -- | Sets up query logging and timing, runs schema migrations if necessary and
 -- provide a safe 'SqliteContext' for interacting with the database.
