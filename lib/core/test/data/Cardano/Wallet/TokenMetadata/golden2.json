@@ -34,7 +34,7 @@
         },
         "description": {
           "value": "A sample description",
-          "anSignatures": [
+          "signatures": [
             {
               "signature": "83ef5c04882e43e5f1c8e9bc386bd51cdda163f5cbd1996d1d066238de063d4b79b1648b48aec63dddff05649911ca116579842c8e9a08a3bc7ae1a0ec7ef000",
               "publicKey": "1446c9d327b0f07aa691014c08578867674f3a88b36f2017a58c37a8a7799058"
@@ -63,6 +63,16 @@
         "name": {
           "value": "Token1",
           "anSignatures": []
+        },
+        "description": {
+          "value": "description1"
+        }
+      },
+      {
+        "subject": "missing sigs 2",
+        "name": {
+          "value": "Token1",
+          "signatures": []
         },
         "description": {
           "value": "description1"
