@@ -586,11 +586,11 @@ prop_performSelection_small minCoinValueFor costFor (Blind (Small criteria)) =
         "balance sufficient" $
     cover 30 (not $ balanceSufficient criteria)
         "balance insufficient" $
-    cover 5 (not assetsInUTxO)
+    cover 5 (utxoHasAtLeastOneAsset)
         "No assets in UTxO" $
-    cover 5 (not assetsInOutputs)
+    cover 5 (not outputsHaveAtLeastOneAsset)
         "No assets to cover" $
-    cover 2 (assetsInOutputs && not assetsInUTxO)
+    cover 2 (outputsHaveAtLeastOneAsset && not utxoHasAtLeastOneAsset)
         "Assets to cover, but no assets in UTxO" $
     prop_performSelection minCoinValueFor costFor (Blind criteria) $ \result ->
         cover 10 (selectionUnlimited && selectionSufficient result)
