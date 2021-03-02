@@ -114,6 +114,7 @@ import Data.Aeson
     , encode
     , withObject
     , withText
+    , (.!=)
     , (.:)
     , (.:?)
     )
@@ -132,7 +133,7 @@ import Data.Functor
 import Data.Hashable
     ( Hashable )
 import Data.Maybe
-    ( catMaybes, fromMaybe, mapMaybe )
+    ( catMaybes, mapMaybe )
 import Data.Proxy
     ( Proxy (..) )
 import Data.String
@@ -552,17 +553,10 @@ instance FromJSON SubjectProperties where
 instance (HasValidator name, FromJSON (PropertyValue name)) => FromJSON (Property name) where
     parseJSON = withObject "Property value" $ \o -> Property
             <$> (validate <$> o .: "value")
-            <*> parseSignatures o
+            <*> o .:? "signatures" .!= []
       where
         validate v = first (,v) $ (>>= validatePropertyValue @name) $ tryParse v
         tryParse = resultToEither . fromJSON
-
-        -- Parse optional signatures field (anSignatures is the old name),
-        -- requiring the field to parse successfully, if it's present.
-        parseSignatures o = do
-            sigs <- o .:? "signatures"
-            oldSigs <- o .:? "anSignatures"
-            pure (fromMaybe [] (sigs <|> oldSigs))
 
 resultToEither :: Aeson.Result a -> Either String a
 resultToEither = \case

@@ -12,7 +12,7 @@
         },
         "name": {
           "value": "SteveToken",
-          "anSignatures": [
+          "signatures": [
             {
               "signature": "7ef6ed44ba9456737ef8d2e31596fdafb66d5775ac1a254086a553b666516e5895bb0c6b7ba8bef1f6b4d9bd9253b4449d1354de2f9e043ea4eb43fd42f87108",
               "publicKey": "0ee262f062528667964782777917cd7139e19e8eb2c591767629e4200070c661"
@@ -21,7 +21,7 @@
         },
         "description": {
           "value": "A sample description",
-          "anSignatures": [
+          "signatures": [
             {
               "signature": "83ef5c04882e43e5f1c8e9bc386bd51cdda163f5cbd1996d1d066238de063d4b79b1648b48aec63dddff05649911ca116579842c8e9a08a3bc7ae1a0ec7ef000",
               "publicKey": "1446c9d327b0f07aa691014c08578867674f3a88b36f2017a58c37a8a7799058"
@@ -30,48 +30,48 @@
         },
         "ticker": {
             "value": "STV",
-            "anSignatures": []
+            "signatures": []
         },
         "unit": {
             "value": { "decimals": 6, "name": "MegaSteve" },
-            "anSignatures": []
+            "signatures": []
         },
         "url": {
             "value": "https://iohk.io/stevetoken",
-            "anSignatures": []
+            "signatures": []
         },
         "logo": {
             "value": "QWxtb3N0IGEgbG9nbw==",
-            "anSignatures": []
+            "signatures": []
         }
     },
     {
       "subject": "f4137b0691b01c7ca46c2fc05576f4f0ab8eebb8f8e4946cb9107e0f6170706c65",
       "name": {
         "value": "Apple",
-        "anSignatures": []
+        "signatures": []
       },
       "description": {
         "value": "A healthy kind of fruit",
-        "anSignatures": []
+        "signatures": []
       }
     },
     {
       "subject": "f4137b0691b01c7ca46c2fc05576f4f0ab8eebb8f8e4946cb9107e0f62616e616e61",
       "name": {
         "value": "Banana",
-        "anSignatures": []
+        "signatures": []
       },
       "description": {
         "value": "A yummy kind of fruit",
-        "anSignatures": []
+        "signatures": []
       }
     },
     {
       "subject": "f4137b0691b01c7ca46c2fc05576f4f0ab8eebb8f8e4946cb9107e0f62636865727279",
       "name": {
         "value": "Cherry",
-        "anSignatures": []
+        "signatures": []
       },
       "description": {
         "value": "A special kind of fruit"

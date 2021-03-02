@@ -187,18 +187,6 @@ spec = do
                 )
             }
         , SubjectProperties
-            { subject = "missing sigs 2"
-            , owner = Nothing
-            , properties =
-                ( Just $ Property (Right "Token1") []
-                , Just $ Property (Right "description1") []
-                , Nothing
-                , Nothing
-                , Nothing
-                , Nothing
-                )
-            }
-        , SubjectProperties
             { subject = "extra fields"
             , owner = Nothing
             , properties =

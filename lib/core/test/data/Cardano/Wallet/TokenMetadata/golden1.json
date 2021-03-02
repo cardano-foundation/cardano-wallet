@@ -9,7 +9,7 @@
         },
         "name": {
           "value": "SteveToken",
-          "anSignatures": [
+          "signatures": [
             {
               "signature": "7ef6ed44ba9456737ef8d2e31596fdafb66d5775ac1a254086a553b666516e5895bb0c6b7ba8bef1f6b4d9bd9253b4449d1354de2f9e043ea4eb43fd42f87108",
               "publicKey": "0ee262f062528667964782777917cd7139e19e8eb2c591767629e4200070c661"
@@ -34,7 +34,7 @@
         },
         "description": {
           "value": "A sample description",
-          "anSignatures": [
+          "signatures": [
             {
               "signature": "83ef5c04882e43e5f1c8e9bc386bd51cdda163f5cbd1996d1d066238de063d4b79b1648b48aec63dddff05649911ca116579842c8e9a08a3bc7ae1a0ec7ef000",
               "publicKey": "1446c9d327b0f07aa691014c08578867674f3a88b36f2017a58c37a8a7799058"
@@ -62,7 +62,7 @@
         "subject": "missing sigs",
         "name": {
           "value": "Token1",
-          "anSignatures": []
+          "signatures": []
         },
         "description": {
           "value": "description1"
