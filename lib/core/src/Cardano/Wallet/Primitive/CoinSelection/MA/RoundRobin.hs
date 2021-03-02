@@ -54,7 +54,6 @@ module Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     , assignCoinsToChangeMaps
 
     -- * Partitioning
-    , equipartitionNatural
     , equipartitionTokenBundleWithMaxQuantity
     , equipartitionTokenBundlesWithMaxQuantity
     , equipartitionTokenMap
@@ -89,7 +88,7 @@ import Prelude
 import Algebra.PartialOrd
     ( PartialOrd (..) )
 import Cardano.Numeric.Util
-    ( padCoalesce, partitionNatural, unsafePartitionNatural )
+    ( equipartitionNatural, padCoalesce, partitionNatural )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..), addCoin, subtractCoin, sumCoins )
 import Cardano.Wallet.Primitive.Types.TokenBundle
@@ -1221,22 +1220,6 @@ equipartitionCoin c =
     -- guarantees to produce values that are less than or equal to the original
     -- value.
     fmap unsafeNaturalToCoin . equipartitionNatural (coinToNatural c)
-
--- | Computes the equipartition of a natural number into 'n' smaller numbers.
---
-equipartitionNatural
-    :: HasCallStack
-    => Natural
-    -- ^ The natural number to be partitioned.
-    -> NonEmpty a
-    -- ^ Represents the number of portions in which to partition the number.
-    -> NonEmpty Natural
-    -- ^ The partitioned numbers.
-equipartitionNatural n count =
-    -- Note: due to the behaviour of the underlying partition algorithm, a
-    -- simple list reversal is enough to ensure that the resultant list is
-    -- sorted in ascending order.
-    NE.reverse $ unsafePartitionNatural n (1 <$ count)
 
 -- | Computes the equipartition of a token map into 'n' smaller maps.
 --

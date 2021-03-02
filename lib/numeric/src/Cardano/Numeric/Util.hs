@@ -3,9 +3,15 @@
 {-# LANGUAGE TypeApplications #-}
 
 module Cardano.Numeric.Util
-    ( padCoalesce
+    (
+      -- * Coalescing values
+      padCoalesce
+
+      -- * Partitioning natural numbers
+    , equipartitionNatural
     , partitionNatural
     , unsafePartitionNatural
+
     ) where
 
 import Prelude hiding
@@ -100,6 +106,27 @@ padCoalesce sourceUnsorted target
 --------------------------------------------------------------------------------
 -- Partitioning natural numbers
 --------------------------------------------------------------------------------
+
+-- | Computes the equipartition of a natural number into 'n' smaller numbers.
+--
+-- An /equipartition/ of a natural number 'n' is a /partition/ of that number
+-- into 'n' smaller numbers whose values differ by no more than 1.
+--
+-- The resultant list is sorted in ascending order.
+--
+equipartitionNatural
+    :: HasCallStack
+    => Natural
+    -- ^ The natural number to be partitioned.
+    -> NonEmpty a
+    -- ^ Represents the number of portions in which to partition the number.
+    -> NonEmpty Natural
+    -- ^ The partitioned numbers.
+equipartitionNatural n count =
+    -- Note: due to the behaviour of the underlying partition algorithm, a
+    -- simple list reversal is enough to ensure that the resultant list is
+    -- sorted in ascending order.
+    NE.reverse $ unsafePartitionNatural n (1 <$ count)
 
 -- | Partitions a natural number into a number of parts, where the size of each
 --   part is proportional to the size of its corresponding element in the given

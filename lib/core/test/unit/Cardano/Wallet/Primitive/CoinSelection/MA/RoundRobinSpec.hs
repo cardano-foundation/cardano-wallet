@@ -36,7 +36,6 @@ import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     , assignCoinsToChangeMaps
     , balanceMissing
     , coinSelectionLens
-    , equipartitionNatural
     , equipartitionTokenBundleWithMaxQuantity
     , equipartitionTokenBundlesWithMaxQuantity
     , equipartitionTokenMap
@@ -163,7 +162,6 @@ import Test.QuickCheck
     , suchThat
     , withMaxSuccess
     , (.&&.)
-    , (.||.)
     , (===)
     , (==>)
     )
@@ -321,17 +319,6 @@ spec = describe "Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobinSpec" $
             property prop_makeChangeForUserSpecifiedAsset_length
         unitTests "makeChangeForUserSpecifiedAsset"
             unit_makeChangeForUserSpecifiedAsset
-
-    parallel $ describe "Equipartitioning natural numbers" $ do
-
-        it "prop_equipartitionNatural_fair" $
-            property prop_equipartitionNatural_fair
-        it "prop_equipartitionNatural_length" $
-            property prop_equipartitionNatural_length
-        it "prop_equipartitionNatural_order" $
-            property prop_equipartitionNatural_order
-        it "prop_equipartitionNatural_sum" $
-            property prop_equipartitionNatural_sum
 
     parallel $ describe "Equipartitioning token maps" $ do
 
@@ -1874,40 +1861,6 @@ unit_makeChangeForUserSpecifiedAsset =
 
     assetC :: AssetId
     assetC = AssetId (UnsafeTokenPolicyId $ Hash "A") (UnsafeTokenName "2")
-
---------------------------------------------------------------------------------
--- Equipartitioning natural numbers
---------------------------------------------------------------------------------
-
--- Test that natural numbers are equipartitioned fairly:
---
--- Each portion must be within unity of the ideal portion.
---
-prop_equipartitionNatural_fair
-    :: Natural -> NonEmpty () -> Property
-prop_equipartitionNatural_fair n count = (.||.)
-    (difference === 0)
-    (difference === 1)
-  where
-    difference :: Natural
-    difference = F.maximum results - F.minimum results
-
-    results :: NonEmpty Natural
-    results = equipartitionNatural n count
-
-prop_equipartitionNatural_length :: Natural -> NonEmpty () -> Property
-prop_equipartitionNatural_length n count =
-    NE.length (equipartitionNatural n count) === NE.length count
-
-prop_equipartitionNatural_order :: Natural -> NonEmpty () -> Property
-prop_equipartitionNatural_order n count =
-    NE.sort results === results
-  where
-    results = equipartitionNatural n count
-
-prop_equipartitionNatural_sum :: Natural -> NonEmpty () -> Property
-prop_equipartitionNatural_sum n count =
-    F.sum (equipartitionNatural n count) === n
 
 --------------------------------------------------------------------------------
 -- Equipartitioning token maps
