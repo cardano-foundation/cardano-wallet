@@ -1205,22 +1205,6 @@ makeChangeForCoin targets excess =
 --
 --------------------------------------------------------------------------------
 
--- | Computes the equipartition of a coin into 'n' smaller coins.
---
-equipartitionCoin
-    :: HasCallStack
-    => Coin
-    -- ^ The coin to be partitioned.
-    -> NonEmpty a
-    -- ^ Represents the number of portions in which to partition the coin.
-    -> NonEmpty Coin
-    -- ^ The partitioned coins.
-equipartitionCoin c =
-    -- Note: the natural-to-coin conversion is safe, as equipartitioning always
-    -- guarantees to produce values that are less than or equal to the original
-    -- value.
-    fmap unsafeNaturalToCoin . equipartitionNatural (coinToNatural c)
-
 -- | Computes the equipartition of a token map into 'n' smaller maps.
 --
 -- Each asset is partitioned independently.
@@ -1277,7 +1261,7 @@ equipartitionTokenBundleWithMaxQuantity
 equipartitionTokenBundleWithMaxQuantity b maxQuantity =
     NE.zipWith TokenBundle cs ms
   where
-    cs = equipartitionCoin (view #coin b) ms
+    cs = Coin.equipartition (view #coin b) ms
     ms = equipartitionTokenMapWithMaxQuantity (view #tokens b) maxQuantity
 
 -- | Applies 'equipartitionTokenBundleWithMaxQuantity' to a list of bundles.
