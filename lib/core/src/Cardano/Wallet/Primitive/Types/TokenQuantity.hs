@@ -16,6 +16,7 @@ module Cardano.Wallet.Primitive.Types.TokenQuantity
     , subtract
     , pred
     , succ
+    , equipartition
 
       -- * Tests
     , isNonZero
@@ -29,6 +30,8 @@ module Cardano.Wallet.Primitive.Types.TokenQuantity
 import Prelude hiding
     ( pred, subtract, succ )
 
+import Cardano.Numeric.Util
+    ( equipartitionNatural )
 import Control.DeepSeq
     ( NFData (..) )
 import Control.Monad
@@ -39,6 +42,8 @@ import Data.Functor
     ( ($>) )
 import Data.Hashable
     ( Hashable )
+import Data.List.NonEmpty
+    ( NonEmpty (..) )
 import Data.Text.Class
     ( FromText (..), ToText (..) )
 import Fmt
@@ -121,6 +126,23 @@ pred (TokenQuantity q) = TokenQuantity $ Prelude.pred q
 
 succ :: TokenQuantity -> TokenQuantity
 succ (TokenQuantity q) = TokenQuantity $ Prelude.succ q
+
+-- | Computes the equipartition of a token quantity into 'n' smaller quantities.
+--
+-- An /equipartition/ of a token quantity is a /partition/ of that quantity
+-- into 'n' smaller quantities whose values differ by no more than 1.
+--
+-- The resultant list is sorted in ascending order.
+--
+equipartition
+    :: TokenQuantity
+    -- ^ The token quantity to be partitioned.
+    -> NonEmpty a
+    -- ^ Represents the number of portions in which to partition the quantity.
+    -> NonEmpty TokenQuantity
+    -- ^ The partitioned quantities.
+equipartition q =
+    fmap TokenQuantity . equipartitionNatural (unTokenQuantity q)
 
 --------------------------------------------------------------------------------
 -- Tests

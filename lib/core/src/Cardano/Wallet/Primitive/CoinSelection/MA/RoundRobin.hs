@@ -58,7 +58,6 @@ module Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     , equipartitionTokenBundlesWithMaxQuantity
     , equipartitionTokenMap
     , equipartitionTokenMapWithMaxQuantity
-    , equipartitionTokenQuantity
 
     -- * Grouping and ungrouping
     , groupByKey
@@ -144,6 +143,7 @@ import Numeric.Natural
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
+import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as TokenQuantity
 import qualified Cardano.Wallet.Primitive.Types.Tx as Tx
 import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
 import qualified Data.Foldable as F
@@ -1226,20 +1226,7 @@ equipartitionTokenMap m count =
         -> NonEmpty TokenMap
     accumulate maps (asset, quantity) = NE.zipWith (<>) maps $
         TokenMap.singleton asset <$>
-            equipartitionTokenQuantity quantity count
-
--- | Computes the equipartition of a token quantity into 'n' smaller quantities.
---
-equipartitionTokenQuantity
-    :: HasCallStack
-    => TokenQuantity
-    -- ^ The token quantity to be partitioned.
-    -> NonEmpty a
-    -- ^ Represents the number of portions in which to partition the quantity.
-    -> NonEmpty TokenQuantity
-    -- ^ The partitioned quantities.
-equipartitionTokenQuantity q =
-    fmap TokenQuantity . equipartitionNatural (unTokenQuantity q)
+            TokenQuantity.equipartition quantity count
 
 --------------------------------------------------------------------------------
 -- Equipartitioning according to a maximum token quantity
