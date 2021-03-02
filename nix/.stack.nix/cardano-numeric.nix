@@ -25,7 +25,11 @@
       };
     components = {
       "library" = {
-        depends = [ (hsPkgs."base" or (errorHandler.buildDepError "base")) ];
+        depends = [
+          (hsPkgs."base" or (errorHandler.buildDepError "base"))
+          (hsPkgs."lattices" or (errorHandler.buildDepError "lattices"))
+          (hsPkgs."safe" or (errorHandler.buildDepError "safe"))
+          ];
         buildable = true;
         };
       tests = {

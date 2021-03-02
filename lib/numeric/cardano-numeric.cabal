@@ -29,6 +29,8 @@ library
     ghc-options: -O2 -Werror
   build-depends:
       base
+    , lattices
+    , safe
   hs-source-dirs:
       src
   exposed-modules:

@@ -19,6 +19,8 @@ import Prelude
 
 import Algebra.PartialOrd
     ( PartialOrd (..) )
+import Cardano.Numeric.Util
+    ( inAscendingPartialOrder )
 import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     ( AssetCount (..)
     , BalanceInsufficientError (..)
@@ -2236,9 +2238,6 @@ consecutivePairs :: [a] -> [(a, a)]
 consecutivePairs xs = case tailMay xs of
     Nothing -> []
     Just ys -> xs `zip` ys
-
-inAscendingPartialOrder :: (Foldable f, PartialOrd a) => f a -> Bool
-inAscendingPartialOrder = all (uncurry leq) . consecutivePairs . F.toList
 
 addExtraSource :: Maybe Coin -> TokenBundle -> TokenBundle
 addExtraSource extraSource =

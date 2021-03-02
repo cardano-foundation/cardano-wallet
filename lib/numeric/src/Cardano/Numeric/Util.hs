@@ -12,11 +12,16 @@ module Cardano.Numeric.Util
     , partitionNatural
     , unsafePartitionNatural
 
+      -- * Partial orders
+    , inAscendingPartialOrder
+
     ) where
 
 import Prelude hiding
     ( round )
 
+import Algebra.PartialOrd
+    ( PartialOrd (..) )
 import Control.Arrow
     ( (&&&) )
 import Data.Function
@@ -33,6 +38,8 @@ import GHC.Stack
     ( HasCallStack )
 import Numeric.Natural
     ( Natural )
+import Safe
+    ( tailMay )
 
 import qualified Data.Foldable as F
 import qualified Data.List.NonEmpty as NE
@@ -239,6 +246,13 @@ unsafePartitionNatural target =
         ]
 
 --------------------------------------------------------------------------------
+-- Partial orders
+--------------------------------------------------------------------------------
+
+inAscendingPartialOrder :: (Foldable f, PartialOrd a) => f a -> Bool
+inAscendingPartialOrder = all (uncurry leq) . consecutivePairs . F.toList
+
+--------------------------------------------------------------------------------
 -- Internal types and functions
 --------------------------------------------------------------------------------
 
@@ -246,6 +260,11 @@ unsafePartitionNatural target =
 --
 applyN :: Int -> (a -> a) -> a -> a
 applyN n f = F.foldr (.) id (replicate n f)
+
+consecutivePairs :: [a] -> [(a, a)]
+consecutivePairs xs = case tailMay xs of
+    Nothing -> []
+    Just ys -> xs `zip` ys
 
 -- Extract the fractional part of a rational number.
 --
