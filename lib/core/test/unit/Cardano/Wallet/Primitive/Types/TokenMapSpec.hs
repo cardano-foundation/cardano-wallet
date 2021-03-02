@@ -2,8 +2,8 @@
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeApplications #-}
-
 {-# OPTIONS_GHC -fno-warn-orphans #-}
+{- HLINT ignore "Use camelCase" -}
 
 module Cardano.Wallet.Primitive.Types.TokenMapSpec
     ( spec
@@ -54,6 +54,8 @@ import Data.Maybe
     ( mapMaybe )
 import Data.Proxy
     ( Proxy (..) )
+import Data.Ratio
+    ( (%) )
 import Data.String.QQ
     ( s )
 import Data.Text
@@ -210,7 +212,7 @@ spec =
         it "prop_maximumQuantity_all" $
             property prop_maximumQuantity_all
 
-    parallel $ describe "Partitioning" $ do
+    parallel $ describe "Partitioning quantities" $ do
 
         it "prop_equipartitionQuantities_fair" $
             property prop_equipartitionQuantities_fair
@@ -220,6 +222,19 @@ spec =
             property prop_equipartitionQuantities_order
         it "prop_equipartitionQuantities_sum" $
             property prop_equipartitionQuantities_sum
+
+    parallel $ describe "Partitioning quantities with an upper bound" $ do
+
+        it "prop_equipartitionQuantitiesWithUpperBound_coverage" $
+            property prop_equipartitionQuantitiesWithUpperBound_coverage
+        it "prop_equipartitionQuantitiesWithUpperBound_length" $
+            property prop_equipartitionQuantitiesWithUpperBound_length
+        it "prop_equipartitionQuantitiesWithUpperBound_max" $
+            property prop_equipartitionQuantitiesWithUpperBound_max
+        it "prop_equipartitionQuantitiesWithUpperBound_order" $
+            property prop_equipartitionQuantitiesWithUpperBound_order
+        it "prop_equipartitionQuantitiesWithUpperBound_sum" $
+            property prop_equipartitionQuantitiesWithUpperBound_sum
 
     parallel $ describe "JSON serialization" $ do
 
@@ -513,7 +528,7 @@ prop_maximumQuantity_all b =
     maxQ = TokenMap.maximumQuantity b
 
 --------------------------------------------------------------------------------
--- Partitioning
+-- Partitioning quantities
 --------------------------------------------------------------------------------
 
 -- Test that token map quantities are equipartitioned fairly:
@@ -560,6 +575,77 @@ prop_equipartitionQuantities_order m count = property $
 prop_equipartitionQuantities_sum :: TokenMap -> NonEmpty () -> Property
 prop_equipartitionQuantities_sum m count =
     F.fold (TokenMap.equipartitionQuantities m count) === m
+
+--------------------------------------------------------------------------------
+-- Partitioning quantities according to an upper bound
+--------------------------------------------------------------------------------
+
+-- | Computes the number of parts that 'equipartitionQuantitiesWithUpperBound'
+--   should return.
+--
+equipartitionQuantitiesWithUpperBound_expectedLength
+    :: TokenMap -> TokenQuantity -> Int
+equipartitionQuantitiesWithUpperBound_expectedLength
+    m (TokenQuantity maxQuantity) =
+        max 1 $ ceiling $ currentMaxQuantity % maxQuantity
+  where
+    TokenQuantity currentMaxQuantity = TokenMap.maximumQuantity m
+
+prop_equipartitionQuantitiesWithUpperBound_coverage
+    :: TokenMap -> TokenQuantity -> Property
+prop_equipartitionQuantitiesWithUpperBound_coverage m maxQuantity =
+    maxQuantity > TokenQuantity.zero ==>
+        checkCoverage $
+        cover 8 (maxQuantity == TokenQuantity 1)
+            "Maximum allowable quantity == 1" $
+        cover 8 (maxQuantity == TokenQuantity 2)
+            "Maximum allowable quantity == 2" $
+        cover 8 (maxQuantity >= TokenQuantity 3)
+            "Maximum allowable quantity >= 3" $
+        cover 8 (expectedLength == 1)
+            "Expected number of parts == 1" $
+        cover 8 (expectedLength == 2)
+            "Expected number of parts == 2" $
+        cover 8 (expectedLength >= 3)
+            "Expected number of parts >= 3" $
+        property $ expectedLength > 0
+  where
+    expectedLength = equipartitionQuantitiesWithUpperBound_expectedLength
+        m maxQuantity
+
+prop_equipartitionQuantitiesWithUpperBound_length
+    :: TokenMap -> TokenQuantity -> Property
+prop_equipartitionQuantitiesWithUpperBound_length m maxQuantity =
+    maxQuantity > TokenQuantity.zero ==>
+        length (TokenMap.equipartitionQuantitiesWithUpperBound m maxQuantity)
+            === equipartitionQuantitiesWithUpperBound_expectedLength
+                m maxQuantity
+
+prop_equipartitionQuantitiesWithUpperBound_max
+    :: TokenMap -> TokenQuantity -> Property
+prop_equipartitionQuantitiesWithUpperBound_max m maxQuantity =
+    maxQuantity > TokenQuantity.zero ==>
+        checkCoverage $
+        cover 10 (maxResultQuantity == maxQuantity)
+            "At least one resultant token map has a maximal quantity" $
+        property $ maxResultQuantity <= maxQuantity
+  where
+    results = TokenMap.equipartitionQuantitiesWithUpperBound m maxQuantity
+    maxResultQuantity = F.maximum (TokenMap.maximumQuantity <$> results)
+
+prop_equipartitionQuantitiesWithUpperBound_order
+    :: TokenMap -> TokenQuantity -> Property
+prop_equipartitionQuantitiesWithUpperBound_order m maxQuantity =
+    maxQuantity > TokenQuantity.zero ==>
+        inAscendingPartialOrder
+            (TokenMap.equipartitionQuantitiesWithUpperBound m maxQuantity)
+
+prop_equipartitionQuantitiesWithUpperBound_sum
+    :: TokenMap -> TokenQuantity -> Property
+prop_equipartitionQuantitiesWithUpperBound_sum m maxQuantity =
+    maxQuantity > TokenQuantity.zero ==>
+        F.fold (TokenMap.equipartitionQuantitiesWithUpperBound m maxQuantity)
+            === m
 
 --------------------------------------------------------------------------------
 -- JSON serialization tests

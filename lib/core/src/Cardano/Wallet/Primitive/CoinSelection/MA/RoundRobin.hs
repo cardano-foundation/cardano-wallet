@@ -56,7 +56,6 @@ module Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     -- * Partitioning
     , equipartitionTokenBundleWithMaxQuantity
     , equipartitionTokenBundlesWithMaxQuantity
-    , equipartitionTokenMapWithMaxQuantity
 
     -- * Grouping and ungrouping
     , groupByKey
@@ -1220,11 +1219,11 @@ equipartitionTokenBundleWithMaxQuantity
     -- ^ Maximum allowable token quantity.
     -> NonEmpty TokenBundle
     -- ^ The partitioned bundles.
-equipartitionTokenBundleWithMaxQuantity b maxQuantity =
+equipartitionTokenBundleWithMaxQuantity (TokenBundle c m) maxQuantity =
     NE.zipWith TokenBundle cs ms
   where
-    cs = Coin.equipartition (view #coin b) ms
-    ms = equipartitionTokenMapWithMaxQuantity (view #tokens b) maxQuantity
+    cs = Coin.equipartition c ms
+    ms = TokenMap.equipartitionQuantitiesWithUpperBound m maxQuantity
 
 -- | Applies 'equipartitionTokenBundleWithMaxQuantity' to a list of bundles.
 --
@@ -1243,37 +1242,6 @@ equipartitionTokenBundlesWithMaxQuantity
     -- ^ The partitioned bundles.
 equipartitionTokenBundlesWithMaxQuantity bs maxQuantity =
     (`equipartitionTokenBundleWithMaxQuantity` maxQuantity) =<< bs
-
--- | Computes the equipartition of a token map into 'n' smaller maps, according
---   to the given maximum token quantity.
---
--- The value 'n' is computed automatically, and is the minimum value required
--- to achieve the goal that no token quantity in any of the resulting maps
--- exceeds the maximum allowable token quantity.
---
-equipartitionTokenMapWithMaxQuantity
-    :: TokenMap
-    -> TokenQuantity
-    -- ^ Maximum allowable token quantity.
-    -> NonEmpty TokenMap
-    -- ^ The partitioned maps.
-equipartitionTokenMapWithMaxQuantity m (TokenQuantity maxQuantity)
-    | maxQuantity == 0 =
-        maxQuantityZeroError
-    | currentMaxQuantity <= maxQuantity =
-        m :| []
-    | otherwise =
-        TokenMap.equipartitionQuantities m (() :| replicate extraPartCount ())
-  where
-    TokenQuantity currentMaxQuantity = TokenMap.maximumQuantity m
-
-    extraPartCount :: Int
-    extraPartCount = floor $ pred currentMaxQuantity % maxQuantity
-
-    maxQuantityZeroError = error $ unwords
-        [ "equipartitionTokenMapWithMaxQuantity:"
-        , "the maximum allowable token quantity cannot be zero."
-        ]
 
 --------------------------------------------------------------------------------
 -- Grouping and ungrouping

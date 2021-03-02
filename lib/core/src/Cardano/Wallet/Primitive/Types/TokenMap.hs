@@ -73,6 +73,7 @@ module Cardano.Wallet.Primitive.Types.TokenMap
 
     -- * Partitioning
     , equipartitionQuantities
+    , equipartitionQuantitiesWithUpperBound
 
     -- * Policies
     , hasPolicy
@@ -120,6 +121,8 @@ import Data.Map.Strict.NonEmptyMap
     ( NonEmptyMap )
 import Data.Maybe
     ( fromMaybe, isJust )
+import Data.Ratio
+    ( (%) )
 import Data.Set
     ( Set )
 import Data.Text.Class
@@ -673,6 +676,38 @@ equipartitionQuantities m count =
     accumulate maps (asset, quantity) = NE.zipWith (<>) maps $
         singleton asset <$>
             TokenQuantity.equipartition quantity count
+
+-- | Partitions a token map into 'n' smaller maps, where the quantity of each
+--   token is equipartitioned across the resultant maps, with the goal that no
+--   token quantity in any of the resultant maps exceeds the given upper bound.
+--
+-- The value 'n' is computed automatically, and is the minimum value required
+-- to achieve the goal that no token quantity in any of the resulting maps
+-- exceeds the maximum allowable token quantity.
+--
+equipartitionQuantitiesWithUpperBound
+    :: TokenMap
+    -> TokenQuantity
+    -- ^ Maximum allowable token quantity.
+    -> NonEmpty TokenMap
+    -- ^ The partitioned maps.
+equipartitionQuantitiesWithUpperBound m (TokenQuantity maxQuantity)
+    | maxQuantity == 0 =
+        maxQuantityZeroError
+    | currentMaxQuantity <= maxQuantity =
+        m :| []
+    | otherwise =
+        equipartitionQuantities m (() :| replicate extraPartCount ())
+  where
+    TokenQuantity currentMaxQuantity = maximumQuantity m
+
+    extraPartCount :: Int
+    extraPartCount = floor $ pred currentMaxQuantity % maxQuantity
+
+    maxQuantityZeroError = error $ unwords
+        [ "equipartitionQuantitiesWithUpperBound:"
+        , "the maximum allowable token quantity cannot be zero."
+        ]
 
 --------------------------------------------------------------------------------
 -- Policies
