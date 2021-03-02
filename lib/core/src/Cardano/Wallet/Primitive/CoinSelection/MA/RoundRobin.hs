@@ -53,8 +53,8 @@ module Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     , makeChangeForNonUserSpecifiedAsset
     , assignCoinsToChangeMaps
 
-    -- * Partitioning
-    , equipartitionTokenBundlesWithMaxQuantity
+    -- * Splitting bundles
+    , splitBundlesWithExcessiveTokenQuantities
 
     -- * Grouping and ungrouping
     , groupByKey
@@ -888,7 +888,7 @@ makeChange minCoinFor requiredCost mExtraCoinSource inputBundles outputBundles
           where
             bundle (m, c) = TokenBundle c m
             unbundle (TokenBundle c m) = (m, c)
-            split = flip equipartitionTokenBundlesWithMaxQuantity
+            split = flip splitBundlesWithExcessiveTokenQuantities
                 maxTxOutTokenQuantity
 
     -- Change for user-specified assets: assets that were present in the
@@ -1176,50 +1176,25 @@ makeChangeForCoin targets excess =
     weights = coinToNatural <$> targets
 
 --------------------------------------------------------------------------------
--- Equipartitioning
+-- Splitting bundles
 --------------------------------------------------------------------------------
 
--- An /equipartition/ of a value 'v' (of some type) is a /partition/ of that
--- value into 'n' smaller values whose /sizes/ differ by no more than 1. The
--- the notion of /size/ is dependent on the type of value 'v'.
---
--- In this section, equipartitions have the following properties:
---
---  1.  The length is observed:
---      >>> length (equipartition v n) == n
---
---  2.  The sum is preserved:
---      >>> sum (equipartition v n) == v
---
---  3.  Each resulting value is less than or equal to the original value:
---      >>> all (`leq` v) (equipartition v n)
---
---  4.  The resultant list is sorted into ascending order when values are
---      compared with the 'leq' function.
---
---------------------------------------------------------------------------------
-
---------------------------------------------------------------------------------
--- Equipartitioning according to a maximum token quantity
---------------------------------------------------------------------------------
-
--- | Applies 'TokenBundle.equipartitionQuantitiesWithUpperBound' to a list of
---   bundles.
+-- | Splits bundles with excessive token quantities into smaller bundles.
 --
 -- Only token bundles containing quantities that exceed the maximum token
--- quantity will be partitioned.
+-- quantity will be split.
 --
 -- If none of the bundles in the given list contain a quantity that exceeds
 -- the maximum token quantity, this function will return the original list.
 --
-equipartitionTokenBundlesWithMaxQuantity
+splitBundlesWithExcessiveTokenQuantities
     :: NonEmpty TokenBundle
     -- ^ Token bundles.
     -> TokenQuantity
     -- ^ Maximum allowable token quantity.
     -> NonEmpty TokenBundle
     -- ^ The partitioned bundles.
-equipartitionTokenBundlesWithMaxQuantity bs maxQuantity =
+splitBundlesWithExcessiveTokenQuantities bs maxQuantity =
     (`TokenBundle.equipartitionQuantitiesWithUpperBound` maxQuantity) =<< bs
 
 --------------------------------------------------------------------------------

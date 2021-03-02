@@ -38,7 +38,6 @@ import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     , assignCoinsToChangeMaps
     , balanceMissing
     , coinSelectionLens
-    , equipartitionTokenBundlesWithMaxQuantity
     , fullBalance
     , groupByKey
     , makeChange
@@ -52,6 +51,7 @@ import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     , runRoundRobin
     , runSelection
     , runSelectionStep
+    , splitBundlesWithExcessiveTokenQuantities
     , ungroupByKey
     )
 import Cardano.Wallet.Primitive.Types.Address
@@ -112,8 +112,6 @@ import Data.Map.Strict
     ( Map )
 import Data.Maybe
     ( isJust )
-import Data.Ratio
-    ( (%) )
 import Data.Set
     ( Set )
 import Data.Tuple
@@ -318,14 +316,12 @@ spec = describe "Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobinSpec" $
         unitTests "makeChangeForUserSpecifiedAsset"
             unit_makeChangeForUserSpecifiedAsset
 
-    parallel $ describe "Equipartitioning token bundles by max quantity" $ do
+    parallel $ describe "Splitting bundles with excessive token quantities" $ do
 
-        describe "Lists of token bundles" $ do
-
-            it "prop_equipartitionTokenBundlesWithMaxQuantity_length" $
-                property prop_equipartitionTokenBundlesWithMaxQuantity_length
-            it "prop_equipartitionTokenBundlesWithMaxQuantity_sum" $
-                property prop_equipartitionTokenBundlesWithMaxQuantity_sum
+        it "prop_splitBundlesWithExcessiveTokenQuantities_length" $
+            property prop_splitBundlesWithExcessiveTokenQuantities_length
+        it "prop_splitBundlesWithExcessiveTokenQuantities_sum" $
+            property prop_splitBundlesWithExcessiveTokenQuantities_sum
 
     parallel $ describe "Grouping and ungrouping" $ do
 
@@ -1828,12 +1824,12 @@ unit_makeChangeForUserSpecifiedAsset =
     assetC = AssetId (UnsafeTokenPolicyId $ Hash "A") (UnsafeTokenName "2")
 
 --------------------------------------------------------------------------------
--- Equipartitioning lists of token bundles according to a maximum quantity
+-- Splitting bundles with excessive token quantities
 --------------------------------------------------------------------------------
 
-prop_equipartitionTokenBundlesWithMaxQuantity_length
+prop_splitBundlesWithExcessiveTokenQuantities_length
     :: NonEmpty TokenBundle -> TokenQuantity -> Property
-prop_equipartitionTokenBundlesWithMaxQuantity_length input maxQuantityAllowed =
+prop_splitBundlesWithExcessiveTokenQuantities_length input maxQuantityAllowed =
     maxQuantityAllowed > TokenQuantity.zero ==> checkCoverage $ property $
         cover 5 (lengthOutput > lengthInput)
             "length has increased" $
@@ -1858,13 +1854,13 @@ prop_equipartitionTokenBundlesWithMaxQuantity_length input maxQuantityAllowed =
     maxQuantityOutput =
         F.maximum (TokenMap.maximumQuantity . view #tokens <$> output)
     output =
-        equipartitionTokenBundlesWithMaxQuantity input maxQuantityAllowed
+        splitBundlesWithExcessiveTokenQuantities input maxQuantityAllowed
 
-prop_equipartitionTokenBundlesWithMaxQuantity_sum
+prop_splitBundlesWithExcessiveTokenQuantities_sum
     :: NonEmpty TokenBundle -> TokenQuantity -> Property
-prop_equipartitionTokenBundlesWithMaxQuantity_sum ms maxQuantity =
+prop_splitBundlesWithExcessiveTokenQuantities_sum ms maxQuantity =
     maxQuantity > TokenQuantity.zero ==>
-        F.fold (equipartitionTokenBundlesWithMaxQuantity ms maxQuantity)
+        F.fold (splitBundlesWithExcessiveTokenQuantities ms maxQuantity)
             === F.fold ms
 
 --------------------------------------------------------------------------------
