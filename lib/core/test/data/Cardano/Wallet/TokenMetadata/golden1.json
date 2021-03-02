@@ -9,6 +9,7 @@
         },
         "name": {
           "value": "SteveToken",
+          "sequenceNumber": 1,
           "signatures": [
             {
               "signature": "7ef6ed44ba9456737ef8d2e31596fdafb66d5775ac1a254086a553b666516e5895bb0c6b7ba8bef1f6b4d9bd9253b4449d1354de2f9e043ea4eb43fd42f87108",

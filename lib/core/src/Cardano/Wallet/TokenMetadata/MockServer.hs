@@ -218,9 +218,11 @@ instance ToJSON SubjectProperties where
        optionals = filter ((/= Null) . snd)
 
 instance ToJSON (PropertyValue name) => ToJSON (Property name) where
-    toJSON (Property v s) = object
+    toJSON (Property v s c) = object
         [ "value" .= either snd toJSON v
-        , "signatures" .= s ]
+        , "signatures" .= s
+        , "sequenceNumber" .= c
+        ]
 
 instance ToJSON Signature where
     toJSON (Signature s k) = object

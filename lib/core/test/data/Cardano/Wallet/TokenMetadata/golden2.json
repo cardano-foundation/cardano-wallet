@@ -66,6 +66,10 @@
         },
         "description": {
           "value": "description1"
+        },
+        "ticker": {
+          "value": "tck1",
+          "sequenceNumber": 2
         }
       },
       { "subject": "bad00000000000000000000000000000000000000000000000000000",
@@ -75,9 +79,10 @@
       },
       {
         "subject": "extra fields",
-        "name": { "value": "Token2" },
+        "name": { "value": "Token2", "hello": true },
         "description": { "value": "description2" },
-        "ticker": { "value": "ticker2" }
+        "ticker": { "value": "ticker2" },
+        "custom": { "value": "meta" }
       }
     ]
 }

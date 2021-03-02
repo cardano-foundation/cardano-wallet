@@ -238,6 +238,8 @@ data Property name = Property
         -- ^ The result of JSON parsing and validating the property value.
     , signatures :: [Signature]
        -- ^ Zero or more signatures of the property value.
+    , sequenceNumber :: Int
+       -- ^ Counter to prevent replaying old signatures.
     } deriving (Generic)
 
 propertyName :: forall name. KnownSymbol name => Property name -> PropertyName
@@ -554,6 +556,7 @@ instance (HasValidator name, FromJSON (PropertyValue name)) => FromJSON (Propert
     parseJSON = withObject "Property value" $ \o -> Property
             <$> (validate <$> o .: "value")
             <*> o .:? "signatures" .!= []
+            <*> o .:? "sequenceNumber" .!= 0
       where
         validate v = first (,v) $ (>>= validatePropertyValue @name) $ tryParse v
         tryParse = resultToEither . fromJSON
