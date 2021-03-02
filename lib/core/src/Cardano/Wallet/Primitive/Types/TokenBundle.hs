@@ -53,6 +53,9 @@ module Cardano.Wallet.Primitive.Types.TokenBundle
     , adjustQuantity
     , removeQuantity
 
+    -- * Partitioning
+    , equipartitionQuantitiesWithUpperBound
+
     -- * Policies
     , hasPolicy
 
@@ -110,6 +113,7 @@ import GHC.TypeLits
 
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
+import qualified Data.List.NonEmpty as NE
 
 --------------------------------------------------------------------------------
 -- Types
@@ -364,6 +368,31 @@ adjustQuantity b a f = b { tokens = TokenMap.adjustQuantity (tokens b) a f }
 --
 removeQuantity :: TokenBundle -> AssetId -> TokenBundle
 removeQuantity b a = b { tokens = TokenMap.removeQuantity (tokens b) a }
+
+--------------------------------------------------------------------------------
+-- Partitioning
+--------------------------------------------------------------------------------
+
+-- | Partitions a token bundle into 'n' smaller bundles, where the quantity of
+--   each token is equipartitioned across the resultant bundles, with the goal
+--   that no token quantity in any of the resultant bundles exceeds the given
+--   upper bound.
+--
+-- The value 'n' is computed automatically, and is the minimum value required
+-- to achieve the goal that no token quantity in any of the resulting bundles
+-- exceeds the maximum allowable token quantity.
+--
+equipartitionQuantitiesWithUpperBound
+    :: TokenBundle
+    -> TokenQuantity
+    -- ^ Maximum allowable token quantity.
+    -> NonEmpty TokenBundle
+    -- ^ The partitioned bundles.
+equipartitionQuantitiesWithUpperBound (TokenBundle c m) maxQuantity =
+    NE.zipWith TokenBundle cs ms
+  where
+    cs = Coin.equipartition c ms
+    ms = TokenMap.equipartitionQuantitiesWithUpperBound m maxQuantity
 
 --------------------------------------------------------------------------------
 -- Policies

@@ -54,7 +54,6 @@ module Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     , assignCoinsToChangeMaps
 
     -- * Partitioning
-    , equipartitionTokenBundleWithMaxQuantity
     , equipartitionTokenBundlesWithMaxQuantity
 
     -- * Grouping and ungrouping
@@ -116,8 +115,6 @@ import Data.Maybe
     ( fromMaybe )
 import Data.Ord
     ( comparing )
-import Data.Ratio
-    ( (%) )
 import Data.Set
     ( Set )
 import Data.Word
@@ -1206,26 +1203,8 @@ makeChangeForCoin targets excess =
 -- Equipartitioning according to a maximum token quantity
 --------------------------------------------------------------------------------
 
--- | Computes the equipartition of a token bundle into 'n' smaller bundles,
---   according to the given maximum token quantity.
---
--- The value 'n' is computed automatically, and is the minimum value required
--- to achieve the goal that no token quantity in any of the resulting bundles
--- exceeds the maximum allowable token quantity.
---
-equipartitionTokenBundleWithMaxQuantity
-    :: TokenBundle
-    -> TokenQuantity
-    -- ^ Maximum allowable token quantity.
-    -> NonEmpty TokenBundle
-    -- ^ The partitioned bundles.
-equipartitionTokenBundleWithMaxQuantity (TokenBundle c m) maxQuantity =
-    NE.zipWith TokenBundle cs ms
-  where
-    cs = Coin.equipartition c ms
-    ms = TokenMap.equipartitionQuantitiesWithUpperBound m maxQuantity
-
--- | Applies 'equipartitionTokenBundleWithMaxQuantity' to a list of bundles.
+-- | Applies 'TokenBundle.equipartitionQuantitiesWithUpperBound' to a list of
+--   bundles.
 --
 -- Only token bundles containing quantities that exceed the maximum token
 -- quantity will be partitioned.
@@ -1241,7 +1220,7 @@ equipartitionTokenBundlesWithMaxQuantity
     -> NonEmpty TokenBundle
     -- ^ The partitioned bundles.
 equipartitionTokenBundlesWithMaxQuantity bs maxQuantity =
-    (`equipartitionTokenBundleWithMaxQuantity` maxQuantity) =<< bs
+    (`TokenBundle.equipartitionQuantitiesWithUpperBound` maxQuantity) =<< bs
 
 --------------------------------------------------------------------------------
 -- Grouping and ungrouping

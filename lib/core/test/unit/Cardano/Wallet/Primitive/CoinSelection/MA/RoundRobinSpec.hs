@@ -38,7 +38,6 @@ import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     , assignCoinsToChangeMaps
     , balanceMissing
     , coinSelectionLens
-    , equipartitionTokenBundleWithMaxQuantity
     , equipartitionTokenBundlesWithMaxQuantity
     , fullBalance
     , groupByKey
@@ -320,15 +319,6 @@ spec = describe "Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobinSpec" $
             unit_makeChangeForUserSpecifiedAsset
 
     parallel $ describe "Equipartitioning token bundles by max quantity" $ do
-
-        describe "Individual token bundles" $ do
-
-            it "prop_equipartitionTokenBundleWithMaxQuantity_length" $
-                property prop_equipartitionTokenBundleWithMaxQuantity_length
-            it "prop_equipartitionTokenBundleWithMaxQuantity_order" $
-                property prop_equipartitionTokenBundleWithMaxQuantity_order
-            it "prop_equipartitionTokenBundleWithMaxQuantity_sum" $
-                property prop_equipartitionTokenBundleWithMaxQuantity_sum
 
         describe "Lists of token bundles" $ do
 
@@ -1836,42 +1826,6 @@ unit_makeChangeForUserSpecifiedAsset =
 
     assetC :: AssetId
     assetC = AssetId (UnsafeTokenPolicyId $ Hash "A") (UnsafeTokenName "2")
-
---------------------------------------------------------------------------------
--- Equipartitioning token bundles according to a maximum quantity
---------------------------------------------------------------------------------
-
--- | Computes the number of parts that 'equipartitionTokenBundleWithMaxQuantity'
---   should return.
---
-equipartitionTokenBundleWithMaxQuantity_expectedLength
-    :: TokenBundle -> TokenQuantity -> Int
-equipartitionTokenBundleWithMaxQuantity_expectedLength
-    (TokenBundle _ m) (TokenQuantity maxQuantity) =
-        max 1 $ ceiling $ currentMaxQuantity % maxQuantity
-  where
-    TokenQuantity currentMaxQuantity = TokenMap.maximumQuantity m
-
-prop_equipartitionTokenBundleWithMaxQuantity_length
-    :: TokenBundle -> TokenQuantity -> Property
-prop_equipartitionTokenBundleWithMaxQuantity_length m maxQuantity =
-    maxQuantity > TokenQuantity.zero ==>
-        length (equipartitionTokenBundleWithMaxQuantity m maxQuantity)
-            === equipartitionTokenBundleWithMaxQuantity_expectedLength
-                m maxQuantity
-
-prop_equipartitionTokenBundleWithMaxQuantity_order
-    :: TokenBundle -> TokenQuantity -> Property
-prop_equipartitionTokenBundleWithMaxQuantity_order m maxQuantity =
-    maxQuantity > TokenQuantity.zero ==>
-        inAscendingPartialOrder
-            (equipartitionTokenBundleWithMaxQuantity m maxQuantity)
-
-prop_equipartitionTokenBundleWithMaxQuantity_sum
-    :: TokenBundle -> TokenQuantity -> Property
-prop_equipartitionTokenBundleWithMaxQuantity_sum m maxQuantity =
-    maxQuantity > TokenQuantity.zero ==>
-        F.fold (equipartitionTokenBundleWithMaxQuantity m maxQuantity) === m
 
 --------------------------------------------------------------------------------
 -- Equipartitioning lists of token bundles according to a maximum quantity
