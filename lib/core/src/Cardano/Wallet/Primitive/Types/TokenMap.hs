@@ -531,20 +531,11 @@ subtract a b = guard (b `leq` a) $> unsafeSubtract a b
 -- >>> (mempty `difference` oneToken) `add` oneToken
 -- oneToken
 difference :: TokenMap -> TokenMap -> TokenMap
-difference = modifySimple $ Map.differenceWith TokenQuantity.subtract
+difference m1 m2 = L.foldl' reduce m1 (toFlatList m2)
   where
-    toFlatMap :: TokenMap -> Map AssetId TokenQuantity
-    toFlatMap  = Map.fromList . toFlatList
-
-    fromFlatMap :: Map AssetId TokenQuantity -> TokenMap
-    fromFlatMap = fromFlatList . Map.toList
-
-    modifySimple
-        :: (Map AssetId TokenQuantity -> Map AssetId TokenQuantity -> Map AssetId TokenQuantity)
-        -> TokenMap
-        -> TokenMap
-        -> TokenMap
-    modifySimple f x y = fromFlatMap (f (toFlatMap x) (toFlatMap y))
+    reduce :: TokenMap -> (AssetId, TokenQuantity) -> TokenMap
+    reduce m (a, q) = adjustQuantity m a
+        (fromMaybe TokenQuantity.zero . (`TokenQuantity.subtract` q))
 
 --------------------------------------------------------------------------------
 -- Tests
