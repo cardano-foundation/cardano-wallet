@@ -187,6 +187,8 @@ spec =
             property prop_difference_leq
         it "prop_difference_add ((x - y) + y ⊇ x)" $
             property prop_difference_add
+        it "prop_difference_invariant" $
+            property prop_difference_invariant
 
     parallel $ describe "Quantities" $ do
 
@@ -292,6 +294,10 @@ prop_difference_add x y =
         counterexample ("x - y = " <> show delta) $
         counterexample ("(x - y) + y = " <> show yAndDelta) $
         property $ x `leq` yAndDelta
+
+prop_difference_invariant :: TokenMap -> TokenMap -> Property
+prop_difference_invariant m1 m2 =
+    property $ invariantHolds $ TokenMap.difference m1 m2
 
 prop_setQuantity_invariant
     :: TokenMap -> AssetId -> TokenQuantity -> Property
