@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE TemplateHaskell #-}
@@ -35,7 +36,11 @@ import Cardano.Wallet.Primitive.Types.TokenPolicy.Gen
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
-    ( genTokenQuantitySmall, shrinkTokenQuantitySmall )
+    ( genTokenQuantitySmall
+    , genTokenQuantitySmallPositive
+    , shrinkTokenQuantitySmall
+    , shrinkTokenQuantitySmallPositive
+    )
 import Data.Aeson
     ( FromJSON (..), ToJSON (..) )
 import Data.Aeson.QQ
@@ -592,60 +597,53 @@ equipartitionQuantitiesWithUpperBound_expectedLength
     TokenQuantity currentMaxQuantity = TokenMap.maximumQuantity m
 
 prop_equipartitionQuantitiesWithUpperBound_coverage
-    :: TokenMap -> TokenQuantity -> Property
-prop_equipartitionQuantitiesWithUpperBound_coverage m maxQuantity =
-    maxQuantity > TokenQuantity.zero ==>
-        checkCoverage $
-        cover 8 (maxQuantity == TokenQuantity 1)
-            "Maximum allowable quantity == 1" $
-        cover 8 (maxQuantity == TokenQuantity 2)
-            "Maximum allowable quantity == 2" $
-        cover 8 (maxQuantity >= TokenQuantity 3)
-            "Maximum allowable quantity >= 3" $
-        cover 8 (expectedLength == 1)
-            "Expected number of parts == 1" $
-        cover 8 (expectedLength == 2)
-            "Expected number of parts == 2" $
-        cover 8 (expectedLength >= 3)
-            "Expected number of parts >= 3" $
-        property $ expectedLength > 0
+    :: TokenMap -> Positive TokenQuantity -> Property
+prop_equipartitionQuantitiesWithUpperBound_coverage m (Positive maxQuantity) =
+    checkCoverage $
+    cover 8 (maxQuantity == TokenQuantity 1)
+        "Maximum allowable quantity == 1" $
+    cover 8 (maxQuantity == TokenQuantity 2)
+        "Maximum allowable quantity == 2" $
+    cover 8 (maxQuantity >= TokenQuantity 3)
+        "Maximum allowable quantity >= 3" $
+    cover 8 (expectedLength == 1)
+        "Expected number of parts == 1" $
+    cover 8 (expectedLength == 2)
+        "Expected number of parts == 2" $
+    cover 8 (expectedLength >= 3)
+        "Expected number of parts >= 3" $
+    property $ expectedLength > 0
   where
     expectedLength = equipartitionQuantitiesWithUpperBound_expectedLength
         m maxQuantity
 
 prop_equipartitionQuantitiesWithUpperBound_length
-    :: TokenMap -> TokenQuantity -> Property
-prop_equipartitionQuantitiesWithUpperBound_length m maxQuantity =
-    maxQuantity > TokenQuantity.zero ==>
-        length (TokenMap.equipartitionQuantitiesWithUpperBound m maxQuantity)
-            === equipartitionQuantitiesWithUpperBound_expectedLength
-                m maxQuantity
+    :: TokenMap -> Positive TokenQuantity -> Property
+prop_equipartitionQuantitiesWithUpperBound_length m (Positive maxQuantity) =
+    length (TokenMap.equipartitionQuantitiesWithUpperBound m maxQuantity)
+        === equipartitionQuantitiesWithUpperBound_expectedLength m maxQuantity
 
 prop_equipartitionQuantitiesWithUpperBound_max
-    :: TokenMap -> TokenQuantity -> Property
-prop_equipartitionQuantitiesWithUpperBound_max m maxQuantity =
-    maxQuantity > TokenQuantity.zero ==>
-        checkCoverage $
-        cover 10 (maxResultQuantity == maxQuantity)
-            "At least one resultant token map has a maximal quantity" $
-        property $ maxResultQuantity <= maxQuantity
+    :: TokenMap -> Positive TokenQuantity -> Property
+prop_equipartitionQuantitiesWithUpperBound_max m (Positive maxQuantity) =
+    checkCoverage $
+    cover 10 (maxResultQuantity == maxQuantity)
+        "At least one resultant token map has a maximal quantity" $
+    property $ maxResultQuantity <= maxQuantity
   where
     results = TokenMap.equipartitionQuantitiesWithUpperBound m maxQuantity
     maxResultQuantity = F.maximum (TokenMap.maximumQuantity <$> results)
 
 prop_equipartitionQuantitiesWithUpperBound_order
-    :: TokenMap -> TokenQuantity -> Property
-prop_equipartitionQuantitiesWithUpperBound_order m maxQuantity =
-    maxQuantity > TokenQuantity.zero ==>
-        inAscendingPartialOrder
-            (TokenMap.equipartitionQuantitiesWithUpperBound m maxQuantity)
+    :: TokenMap -> Positive TokenQuantity -> Property
+prop_equipartitionQuantitiesWithUpperBound_order m (Positive maxQuantity) =
+    property $ inAscendingPartialOrder
+        (TokenMap.equipartitionQuantitiesWithUpperBound m maxQuantity)
 
 prop_equipartitionQuantitiesWithUpperBound_sum
-    :: TokenMap -> TokenQuantity -> Property
-prop_equipartitionQuantitiesWithUpperBound_sum m maxQuantity =
-    maxQuantity > TokenQuantity.zero ==>
-        F.fold (TokenMap.equipartitionQuantitiesWithUpperBound m maxQuantity)
-            === m
+    :: TokenMap -> Positive TokenQuantity -> Property
+prop_equipartitionQuantitiesWithUpperBound_sum m (Positive maxQuantity) =
+    F.fold (TokenMap.equipartitionQuantitiesWithUpperBound m maxQuantity) === m
 
 --------------------------------------------------------------------------------
 -- JSON serialization tests
@@ -816,6 +814,10 @@ tokenPolicyIdHexStringLength = 56
 -- Arbitrary instances
 --------------------------------------------------------------------------------
 
+newtype Positive a = Positive
+    { getPositive :: a }
+    deriving (Eq, Show)
+
 instance Arbitrary a => Arbitrary (Flat a) where
     arbitrary = Flat <$> arbitrary
     shrink = fmap Flat . shrink . getFlat
@@ -855,3 +857,7 @@ instance Arbitrary TokenQuantity where
     -- zero-valued tokens) is maintained.
     arbitrary = genTokenQuantitySmall
     shrink = shrinkTokenQuantitySmall
+
+instance Arbitrary (Positive TokenQuantity) where
+    arbitrary = Positive <$> genTokenQuantitySmallPositive
+    shrink = fmap Positive . shrinkTokenQuantitySmallPositive . getPositive
