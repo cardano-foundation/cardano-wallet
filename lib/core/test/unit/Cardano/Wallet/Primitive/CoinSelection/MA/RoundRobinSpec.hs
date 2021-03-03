@@ -24,6 +24,7 @@ import Cardano.Numeric.Util
 import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     ( AssetCount (..)
     , BalanceInsufficientError (..)
+    , MakeChangeCriteria (..)
     , InsufficientMinCoinValueError (..)
     , SelectionCriteria (..)
     , SelectionError (..)
@@ -1308,18 +1309,7 @@ linearCost SelectionSkeleton{inputsSkeleton, outputsSkeleton, changeSkeleton}
     + F.length outputsSkeleton
     + F.length changeSkeleton
 
-data MakeChangeData = MakeChangeData
-    { inputBundles
-        :: NonEmpty TokenBundle
-    , extraInputCoin
-        :: Maybe Coin
-    , outputBundles
-        :: NonEmpty TokenBundle
-    , cost
-        :: Coin
-    , minCoinValueDef
-        :: MinCoinValueFor
-    } deriving (Eq, Show)
+type MakeChangeData = MakeChangeCriteria MinCoinValueFor
 
 isValidMakeChangeData :: MakeChangeData -> Bool
 isValidMakeChangeData p = (&&)
@@ -1328,7 +1318,7 @@ isValidMakeChangeData p = (&&)
   where
     totalInputValue = TokenBundle.add
         (F.fold $ inputBundles p)
-        (maybe TokenBundle.empty TokenBundle.fromCoin (extraInputCoin p))
+        (maybe TokenBundle.empty TokenBundle.fromCoin (view #extraCoinSource p))
     totalOutputValue = F.fold $ outputBundles p
     totalOutputCoinValue = TokenBundle.getCoin totalOutputValue
 
@@ -1336,12 +1326,12 @@ genMakeChangeData :: Gen MakeChangeData
 genMakeChangeData = flip suchThat isValidMakeChangeData $ do
     outputBundleCount <- choose (0, 15)
     let inputBundleCount = outputBundleCount * 4
-    MakeChangeData
-        <$> genTokenBundles inputBundleCount
-        <*> oneof [pure Nothing, Just <$> genCoinSmallPositive]
-        <*> genTokenBundles outputBundleCount
+    MakeChangeCriteria
+        <$> arbitrary
         <*> genCoinSmall
-        <*> arbitrary
+        <*> oneof [pure Nothing, Just <$> genCoinSmallPositive]
+        <*> genTokenBundles inputBundleCount
+        <*> genTokenBundles outputBundleCount
   where
     genTokenBundles :: Int -> Gen (NonEmpty TokenBundle)
     genTokenBundles count = (:|)
@@ -1351,16 +1341,14 @@ genMakeChangeData = flip suchThat isValidMakeChangeData $ do
 makeChangeWith
     :: MakeChangeData
     -> Either UnableToConstructChangeError [TokenBundle]
-makeChangeWith p = makeChange
-    (mkMinCoinValueFor $ minCoinValueDef p)
-    (cost p)
-    (extraInputCoin p) (inputBundles p)
-    (outputBundles p)
+makeChangeWith p = makeChange p
+    { minCoinFor = mkMinCoinValueFor $ minCoinFor p}
 
 prop_makeChange_identity
     :: NonEmpty TokenBundle -> Property
 prop_makeChange_identity bundles = (===)
-    (F.fold <$> makeChange (const (Coin 0)) (Coin 0) Nothing bundles bundles)
+    (F.fold <$> makeChange
+        (MakeChangeCriteria (const (Coin 0)) (Coin 0) Nothing bundles bundles))
     (Right TokenBundle.empty)
 
 prop_makeChange_length
@@ -1371,8 +1359,7 @@ prop_makeChange_length p =
         Left{} -> property False
         Right xs -> length xs === length (outputBundles p)
   where
-    change = makeChange noMinCoin noCost
-        (extraInputCoin p) (inputBundles p) (outputBundles p)
+    change = makeChange p {minCoinFor = noMinCoin, requiredCost = noCost}
 
 prop_makeChange
     :: MakeChangeData
@@ -1408,7 +1395,7 @@ prop_makeChange_success_delta p change =
             totalInputValue
             totalOutputWithChange
     in
-        (delta === TokenBundle.fromCoin (cost p))
+        (delta === TokenBundle.fromCoin (view #requiredCost p))
             & counterexample counterExampleText
   where
     counterExampleText = unlines
@@ -1421,7 +1408,7 @@ prop_makeChange_success_delta p change =
         ]
     totalInputValue = TokenBundle.add
         (F.fold (inputBundles p))
-        (maybe TokenBundle.empty TokenBundle.fromCoin (extraInputCoin p))
+        (maybe TokenBundle.empty TokenBundle.fromCoin (view #extraCoinSource p))
     totalInputCoin =
         TokenBundle.getCoin totalInputValue
     totalOutputValue =
@@ -1443,7 +1430,7 @@ prop_makeChange_success_minValueRespected p =
     F.foldr ((.&&.) . checkMinValue) (property True)
   where
     minCoinValueFor :: TokenMap -> Coin
-    minCoinValueFor = mkMinCoinValueFor (minCoinValueDef p)
+    minCoinValueFor = mkMinCoinValueFor (minCoinFor p)
 
     checkMinValue :: TokenBundle -> Property
     checkMinValue m@TokenBundle{coin,tokens} =
@@ -1472,12 +1459,12 @@ prop_makeChange_fail_costTooBig p =
             totalInputValue
             totalOutputValue
     in
-        deltaCoin < cost p
+        deltaCoin < view #requiredCost p
             & counterexample ("delta: " <> pretty deltaCoin)
   where
     totalInputValue = TokenBundle.add
         (F.fold (inputBundles p))
-        (maybe TokenBundle.empty TokenBundle.fromCoin (extraInputCoin p))
+        (maybe TokenBundle.empty TokenBundle.fromCoin (view #extraCoinSource p))
     totalOutputValue =
         F.fold $ outputBundles p
 
@@ -1490,7 +1477,7 @@ prop_makeChange_fail_minValueTooBig
     :: MakeChangeData
     -> Property
 prop_makeChange_fail_minValueTooBig p =
-    case makeChangeWith (p { cost = noCost, minCoinValueDef = NoMinCoin }) of
+    case makeChangeWith p {requiredCost = noCost, minCoinFor = NoMinCoin} of
         Left{} ->
             property False & counterexample "makeChange failed with no cost!"
         -- If 'makeChange' failed to generate change, we try to re-run it with
@@ -1501,8 +1488,8 @@ prop_makeChange_fail_minValueTooBig p =
         -- coins available to generate all change outputs.
         Right change ->
             conjoin
-                [ deltaCoin < (totalMinCoinDeposit `addCoin` cost p)
-                , deltaCoin >= cost p
+                [ deltaCoin < totalMinCoinDeposit `addCoin` view #requiredCost p
+                , deltaCoin >= view #requiredCost p
                 ]
                 & counterexample counterexampleText
           where
@@ -1518,20 +1505,21 @@ prop_makeChange_fail_minValueTooBig p =
                 totalInputValue
                 totalOutputValue
             minCoinValueFor =
-                mkMinCoinValueFor (minCoinValueDef p)
+                mkMinCoinValueFor (minCoinFor p)
             totalMinCoinDeposit = F.foldr addCoin (Coin 0)
                 (minCoinValueFor . view #tokens <$> change)
   where
     totalInputValue = TokenBundle.add
         (F.fold (inputBundles p))
-        (maybe TokenBundle.empty TokenBundle.fromCoin (extraInputCoin p))
+        (maybe TokenBundle.empty TokenBundle.fromCoin (view #extraCoinSource p))
     totalOutputValue =
         F.fold $ outputBundles p
 
 unit_makeChange
     :: [Expectation]
 unit_makeChange =
-    [ makeChange minCoinValueFor cost extraSource i o `shouldBe` expectation
+    [ makeChange (MakeChangeCriteria minCoinValueFor cost extraSource i o)
+        `shouldBe` expectation
     | (minCoinValueFor, cost, extraSource, i, o, expectation) <- matrix
     ]
   where

@@ -47,6 +47,7 @@ module Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     , coinSelectionLens
 
     -- * Making change
+    , MakeChangeCriteria (..)
     , makeChange
     , makeChangeForCoin
     , makeChangeForUserSpecifiedAsset
@@ -407,7 +408,7 @@ performSelection
     -> SelectionCriteria
         -- ^ The selection goal to satisfy.
     -> m (Either SelectionError (SelectionResult TokenBundle))
-performSelection minCoinValueFor costFor criteria
+performSelection minCoinFor costFor criteria
     | not (balanceRequired `leq` balanceAvailable) =
         pure $ Left $ BalanceInsufficient $ BalanceInsufficientError
             { balanceAvailable, balanceRequired }
@@ -460,7 +461,7 @@ performSelection minCoinValueFor costFor criteria
                 Just $ InsufficientMinCoinValueError
                     { expectedMinCoinValue, outputWithInsufficientAda = o }
           where
-            expectedMinCoinValue = minCoinValueFor (view (#tokens . #tokens) o)
+            expectedMinCoinValue = minCoinFor (view (#tokens . #tokens) o)
 
     -- Given a UTxO index that corresponds to a valid selection covering
     -- 'outputsToCover', 'predictChange' yields a non-empty list of assets
@@ -496,12 +497,18 @@ performSelection minCoinValueFor costFor criteria
     predictChange inputsPreSelected = either
         (const $ invariantResultWithNoCost inputsPreSelected)
         (fmap (TokenMap.getAssets . view #tokens))
-        (makeChange noMinimumCoin noCost
-            extraCoinSource
-            (view #tokens . snd <$> mkInputsSelected inputsPreSelected)
-            (view #tokens <$> outputsToCover)
+        (makeChange MakeChangeCriteria
+            { minCoinFor = noMinimumCoin
+            , requiredCost = noCost
+            , extraCoinSource
+            , inputBundles
+            , outputBundles
+            }
         )
       where
+        inputBundles = view #tokens . snd <$> mkInputsSelected inputsPreSelected
+        outputBundles = view #tokens <$> outputsToCover
+
         noMinimumCoin :: TokenMap -> Coin
         noMinimumCoin = const (Coin 0)
 
@@ -553,10 +560,13 @@ performSelection minCoinValueFor costFor criteria
                     pure $ Left $ UnableToConstructChange changeErr
       where
         mChangeGenerated :: Either UnableToConstructChangeError [TokenBundle]
-        mChangeGenerated = makeChange minCoinValueFor cost
-            extraCoinSource
-            (view #tokens . snd <$> inputsSelected)
-            (view #tokens <$> outputsToCover)
+        mChangeGenerated = makeChange MakeChangeCriteria
+            { minCoinFor
+            , requiredCost
+            , extraCoinSource
+            , inputBundles =  view #tokens . snd <$> inputsSelected
+            , outputBundles = view #tokens <$> outputsToCover
+            }
 
         mkSelectionResult :: [TokenBundle] -> SelectionResult TokenBundle
         mkSelectionResult changeGenerated = SelectionResult
@@ -572,7 +582,7 @@ performSelection minCoinValueFor costFor criteria
 
         SelectionState {selected, leftover} = s
 
-        cost = costFor SelectionSkeleton
+        requiredCost = costFor SelectionSkeleton
             { inputsSkeleton  = selected
             , outputsSkeleton = NE.toList outputsToCover
             , changeSkeleton
@@ -788,6 +798,30 @@ runSelectionStep lens s
 -- Making change
 --------------------------------------------------------------------------------
 
+-- | Criteria for the 'makeChange' function.
+--
+data MakeChangeCriteria minCoinFor = MakeChangeCriteria
+    { minCoinFor :: minCoinFor
+      -- ^ A function that computes the minimum required ada quantity for a
+      -- particular output.
+    , requiredCost :: Coin
+      -- ^ The minimal (and optimal) delta between the total ada balance
+      -- of all input bundles and the total ada balance of all output and
+      -- change bundles, where:
+      --
+      --    delta = getCoin (fold inputBundles)
+      --          - getCoin (fold outputBundles)
+      --          - getCoin (fold changeBundles)
+      --
+      -- This typically captures fees plus key deposits.
+    , extraCoinSource :: Maybe Coin
+        -- ^ An optional extra source of ada.
+    , inputBundles :: NonEmpty TokenBundle
+        -- ^ Token bundles of selected inputs.
+    , outputBundles :: NonEmpty TokenBundle
+        -- ^ Token bundles of original outputs.
+    } deriving (Eq, Generic, Show)
+
 -- | Constructs change bundles for a set of selected inputs and outputs.
 --
 -- Returns 'Nothing' if the specified inputs do not provide enough ada to
@@ -808,29 +842,11 @@ runSelectionStep lens s
 -- to every output token bundle.
 --
 makeChange
-    :: (TokenMap -> Coin)
-        -- A function that computes the minimum required ada quantity for a
-        -- particular output.
-    -> Coin
-        -- ^ The minimal (and optimal) delta between the total ada balance
-        -- of all input bundles and the total ada balance of all output and
-        -- change bundles, where:
-        --
-        --    delta = getCoin (fold inputBundles)
-        --          - getCoin (fold outputBundles)
-        --          - getCoin (fold changeBundles)
-        --
-        -- This typically captures fees plus key deposits.
-        --
-    -> Maybe Coin
-        -- ^ An optional extra source of ada.
-    -> NonEmpty TokenBundle
-        -- ^ Token bundles of selected inputs.
-    -> NonEmpty TokenBundle
-        -- ^ Token bundles of original outputs.
+    :: MakeChangeCriteria (TokenMap -> Coin)
+        -- ^ Criteria for making change.
     -> Either UnableToConstructChangeError [TokenBundle]
         -- ^ Generated change bundles.
-makeChange minCoinFor requiredCost mExtraCoinSource inputBundles outputBundles
+makeChange criteria
     | not (totalOutputValue `leq` totalInputValue) =
         totalInputValueInsufficient
     | TokenBundle.getCoin totalOutputValue == Coin 0 =
@@ -841,6 +857,14 @@ makeChange minCoinFor requiredCost mExtraCoinSource inputBundles outputBundles
             assignCoinsToChangeMaps
                 adaAvailable minCoinFor changeMapOutputCoinPairs
   where
+    MakeChangeCriteria
+        { minCoinFor
+        , requiredCost
+        , extraCoinSource
+        , inputBundles
+        , outputBundles
+        } = criteria
+
     -- The following subtraction is safe, as we have already checked
     -- that the total input value is greater than the total output
     -- value:
@@ -940,7 +964,7 @@ makeChange minCoinFor requiredCost mExtraCoinSource inputBundles outputBundles
     totalInputValue :: TokenBundle
     totalInputValue = TokenBundle.add
         (F.fold inputBundles)
-        (maybe TokenBundle.empty TokenBundle.fromCoin mExtraCoinSource)
+        (maybe TokenBundle.empty TokenBundle.fromCoin extraCoinSource)
 
     totalOutputValue :: TokenBundle
     totalOutputValue = F.fold outputBundles
