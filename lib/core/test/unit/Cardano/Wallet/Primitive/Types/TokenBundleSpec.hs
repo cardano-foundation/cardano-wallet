@@ -12,7 +12,7 @@ import Prelude hiding
 import Algebra.PartialOrd
     ( leq )
 import Cardano.Wallet.Primitive.Types.TokenBundle
-    ( TokenBundle, add, difference, subtract )
+    ( TokenBundle, add, difference, isCoin, subtract, unsafeSubtract )
 import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
     ( genTokenBundleSmallRange, shrinkTokenBundleSmallRange )
 import Test.Hspec
@@ -20,7 +20,15 @@ import Test.Hspec
 import Test.Hspec.Core.QuickCheck
     ( modifyMaxSuccess )
 import Test.QuickCheck
-    ( Arbitrary (..), Property, counterexample, property, (===), (==>) )
+    ( Arbitrary (..)
+    , Property
+    , checkCoverage
+    , counterexample
+    , cover
+    , property
+    , (===)
+    , (==>)
+    )
 import Test.QuickCheck.Classes
     ( eqLaws, monoidLaws, semigroupLaws, semigroupMonoidLaws )
 import Test.Utils.Laws
@@ -55,6 +63,8 @@ spec =
             property prop_difference_add
         it "prop_difference_subtract" $
             property prop_difference_subtract
+        it "prop_difference_equality" $
+            property prop_difference_equality
 
 --------------------------------------------------------------------------------
 -- Arithmetic properties
@@ -93,6 +103,17 @@ prop_difference_subtract x y =
     y `leq` x ==> (===)
         (x `subtract` y)
         (Just $ x `difference` y)
+
+prop_difference_equality :: TokenBundle -> TokenBundle -> Property
+prop_difference_equality x y = checkCoverage $
+    cover 5 (not (isCoin xReduced))
+        "reduced bundles are not coins" $
+    xReduced === yReduced
+  where
+    xReduced = x `unsafeSubtract` xExcess
+    yReduced = y `unsafeSubtract` yExcess
+    xExcess = x `difference` y
+    yExcess = y `difference` x
 
 --------------------------------------------------------------------------------
 -- Arbitrary instances
