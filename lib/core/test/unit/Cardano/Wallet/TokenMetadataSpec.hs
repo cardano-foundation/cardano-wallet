@@ -39,7 +39,7 @@ import Data.Aeson
 import Data.Either
     ( isRight )
 import Data.Maybe
-    ( isJust, isNothing )
+    ( isNothing )
 import Network.URI
     ( parseURI )
 import System.FilePath
@@ -55,44 +55,53 @@ spec :: Spec
 spec = do
     describe "JSON decoding" $ do
         describe "BatchResponse" $ do
-            it "golden1.json" $ do
+            it "golden1.json - Simple valid WKP" $ do
                 decodeGoldenBatch golden1File `shouldReturn` golden1Properties
 
-            it "golden2.json" $ do
+            it "golden2.json - Valid WKP" $ do
                 rs <- decodeGoldenBatch (dir </> "golden2.json")
-                length rs `shouldBe` 4
+                length rs `shouldBe` 5
 
-            it "golden3.json" $ do
+            it "golden3.json - Required WKP are invalid" $ do
                 rs <- decodeGoldenBatch (dir </> "golden3.json")
-                rs `shouldNotBe` []
+                length rs `shouldBe` 5
 
-            it "golden4.json" $ do
+            it "golden4.json - Non-required WKP are invalid" $ do
                 rs <- decodeGoldenBatch (dir </> "golden4.json")
-                rs `shouldNotBe` []
+                length rs `shouldBe` 6
 
         describe "metadataFromProperties" $ do
-            it "golden1.json" $ do
+            it "golden1.json - Simple valid WKP" $ do
                 map metadataFromProperties golden1Properties
                     `shouldBe` (Just <$> [golden1Metadata0,golden1Metadata1,golden1Metadata2])
 
-            it "golden2.json" $ do
+            it "golden2.json - Valid WKP" $ do
                 rs <- decodeGoldenBatch (dir </> "golden2.json")
                 map metadataFromProperties rs `shouldBe`
                     [ Just golden1Metadata0
                     , Just (AssetMetadata "Token1" "description1" (Just "tck1") Nothing Nothing Nothing)
                     , Nothing
                     , Just (AssetMetadata "Token2" "description2" Nothing Nothing Nothing Nothing)
+                    , Just (AssetMetadata "Token3" "description3" Nothing Nothing Nothing (Just (AssetUnit "BigToken3" 3 (Just "tck3"))))
                     ]
 
-            it "golden3.json" $ do
+            it "golden3.json - Required WKP are invalid" $ do
                 rs <- decodeGoldenBatch (dir </> "golden3.json")
                 rs `shouldNotBe` []
                 map metadataFromProperties rs `shouldSatisfy` all isNothing
 
-            it "golden4.json" $ do
+            it "golden4.json - Non-required WKP are invalid" $ do
                 rs <- decodeGoldenBatch (dir </> "golden4.json")
                 rs `shouldNotBe` []
-                map metadataFromProperties rs `shouldSatisfy` all isJust
+                map metadataFromProperties rs `shouldBe`
+                    map Just
+                    [ AssetMetadata "Token7" "description7" Nothing Nothing Nothing Nothing
+                    , AssetMetadata "Token9" "description9" Nothing Nothing Nothing Nothing
+                    , AssetMetadata "Token10" "description10" Nothing Nothing Nothing Nothing
+                    , AssetMetadata "Token11" "description11" Nothing Nothing Nothing Nothing
+                    , AssetMetadata "Token12" "description12" Nothing Nothing Nothing Nothing
+                    , AssetMetadata "Token13" "description13" Nothing Nothing Nothing Nothing
+                    ]
 
     traceSpec $ describe "Using mock server" $ do
         it "testing empty req" $ \tr ->

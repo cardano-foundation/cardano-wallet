@@ -15,7 +15,7 @@
     {
       "subject": "malformed unit - wrong type",
       "name": {
-        "value": "token9"
+        "value": "Token9"
       },
       "description": {
         "value": "description9"
@@ -27,7 +27,7 @@
     {
       "subject": "malformed unit - name too long",
       "name": {
-        "value": "token10"
+        "value": "Token10"
       },
       "description": {
         "value": "description10"
@@ -42,13 +42,37 @@
     {
       "subject": "malformed url - wrong scheme",
       "name": {
-        "value": "token11"
+        "value": "Token11"
       },
       "description": {
         "value": "description11"
       },
       "url": {
         "value": "javascript:window.alert('hello')"
+      }
+    },
+    {
+      "subject": "malformed ticker - too short",
+      "name": {
+        "value": "Token12"
+      },
+      "description": {
+        "value": "description12"
+      },
+      "ticker": {
+        "value": "x"
+      }
+    },
+    {
+      "subject": "malformed ticker - too long",
+      "name": {
+        "value": "Token13"
+      },
+      "description": {
+        "value": "description13"
+      },
+      "ticker": {
+        "value": "ticker13"
       }
     }
   ]
