@@ -629,10 +629,11 @@ prop_performSelection minCoinValueFor costFor (Blind criteria) coverage =
             , "selectionLimit:"
             , show selectionLimit
             ]
-        result <- run (performSelection
+        result <- run $ performSelection
             (mkMinCoinValueFor minCoinValueFor)
             (mkCostFor costFor)
-            criteria)
+            (mkBundleSizeAssessor NoBundleSizeLimit)
+            (criteria)
         monitor (coverage result)
         either onFailure onSuccess result
   where
@@ -776,7 +777,11 @@ prop_performSelection minCoinValueFor costFor (Blind criteria) coverage =
         monitor $ counterexample $ show e
         assert (shortfall e > Coin 0)
         let criteria' = criteria { selectionLimit = NoLimit }
-        run (performSelection noMinCoin (const noCost) criteria') >>= \case
+        let assessBundleSize =
+                mkBundleSizeAssessor NoBundleSizeLimit
+        let performSelection' = performSelection
+                noMinCoin (const noCost) assessBundleSize criteria'
+        run performSelection' >>= \case
             Left e' -> do
                 monitor $ counterexample $ unlines
                     [ "Failed to re-run selection with no cost!"
@@ -1117,7 +1122,10 @@ type BoundaryTestEntry = (Coin, [(AssetId, TokenQuantity)])
 mkBoundaryTestExpectation :: BoundaryTestData -> Expectation
 mkBoundaryTestExpectation (BoundaryTestData criteria expectedResult) = do
     actualResult <- performSelection
-        noMinCoin (mkCostFor NoCost) (encodeBoundaryTestCriteria criteria)
+        (noMinCoin)
+        (mkCostFor NoCost)
+        (mkBundleSizeAssessor NoBundleSizeLimit)
+        (encodeBoundaryTestCriteria criteria)
     fmap decodeBoundaryTestResult actualResult `shouldBe` Right expectedResult
 
 encodeBoundaryTestCriteria :: BoundaryTestCriteria -> SelectionCriteria

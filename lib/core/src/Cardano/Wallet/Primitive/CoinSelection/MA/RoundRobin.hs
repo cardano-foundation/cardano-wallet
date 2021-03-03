@@ -407,10 +407,12 @@ performSelection
         -- ^ A function that computes the extra cost corresponding to a given
         -- selection. This function must not depend on the magnitudes of
         -- individual asset quantities held within each change output.
+    -> (TokenBundle -> TokenBundleSizeAssessment)
+        -- ^ A function that assesses the size of a token bundle.
     -> SelectionCriteria
         -- ^ The selection goal to satisfy.
     -> m (Either SelectionError (SelectionResult TokenBundle))
-performSelection minCoinFor costFor criteria
+performSelection minCoinFor costFor assessBundleSize criteria
     | not (balanceRequired `leq` balanceAvailable) =
         pure $ Left $ BalanceInsufficient $ BalanceInsufficientError
             { balanceAvailable, balanceRequired }
@@ -501,7 +503,7 @@ performSelection minCoinFor costFor criteria
         (fmap (TokenMap.getAssets . view #tokens))
         (makeChange MakeChangeCriteria
             { minCoinFor = noMinimumCoin
-            , assessBundleSize = const TokenBundleSizeWithinLimit
+            , assessBundleSize
             , requiredCost = noCost
             , extraCoinSource
             , inputBundles
@@ -565,9 +567,7 @@ performSelection minCoinFor costFor criteria
         mChangeGenerated :: Either UnableToConstructChangeError [TokenBundle]
         mChangeGenerated = makeChange MakeChangeCriteria
             { minCoinFor
-            -- TODO: pass the implementation of this function in via
-            -- 'performSelection':
-            , assessBundleSize = const TokenBundleSizeWithinLimit
+            , assessBundleSize
             , requiredCost
             , extraCoinSource
             , inputBundles =  view #tokens . snd <$> inputsSelected

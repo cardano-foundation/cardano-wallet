@@ -248,6 +248,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
 import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     ( SelectionError (..)
     , SelectionResult (..)
+    , TokenBundleSizeAssessment (..)
     , UnableToConstructChangeError (..)
     , emptySkeleton
     , performSelection
@@ -1403,6 +1404,9 @@ selectAssets ctx (utxo, cp, pending) tx outs transform = do
     sel <- performSelection
         (calcMinimumCoinValue tl pp)
         (calcMinimumCost tl pp tx)
+        -- TODO: Pass in the real implementation of this function here,
+        -- as determined by the protocol:
+        (const TokenBundleSizeWithinLimit)
         (initSelectionCriteria tl pp tx utxo outs)
     liftIO $ traceWith tr $ MsgSelectionDone sel
     withExceptT ErrSelectAssetsSelectionError $ except $
