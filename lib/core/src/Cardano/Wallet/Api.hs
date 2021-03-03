@@ -839,12 +839,18 @@ type GetCurrentSMASHHealth = "smash"
 -------------------------------------------------------------------------------}
 
 type SharedWallets =
-    PostSharedWallet
+         PostSharedWallet
+    :<|> GetSharedWallet
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/postSharedWallet
 type PostSharedWallet = "shared-wallets"
     :> ReqBody '[JSON] ApiSharedWalletPostData
     :> PostCreated '[JSON] ApiSharedWallet
+
+-- | https://input-output-hk.github.io/cardano-wallet/api/#operation/getSharedWallet
+type GetSharedWallet = "shared-wallets"
+    :> Capture "walletId" (ApiT WalletId)
+    :> Get '[JSON] ApiSharedWallet
 
 {-------------------------------------------------------------------------------
                                    Proxy_
