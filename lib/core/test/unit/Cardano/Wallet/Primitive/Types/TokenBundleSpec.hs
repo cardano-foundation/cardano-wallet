@@ -6,12 +6,13 @@ module Cardano.Wallet.Primitive.Types.TokenBundleSpec
     ( spec
     ) where
 
-import Prelude
+import Prelude hiding
+    ( subtract )
 
 import Algebra.PartialOrd
     ( leq )
 import Cardano.Wallet.Primitive.Types.TokenBundle
-    ( TokenBundle, add, difference )
+    ( TokenBundle, add, difference, subtract )
 import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
     ( genTokenBundleSmallRange, shrinkTokenBundleSmallRange )
 import Test.Hspec
@@ -19,7 +20,7 @@ import Test.Hspec
 import Test.Hspec.Core.QuickCheck
     ( modifyMaxSuccess )
 import Test.QuickCheck
-    ( Arbitrary (..), Property, counterexample, property, (===) )
+    ( Arbitrary (..), Property, counterexample, property, (===), (==>) )
 import Test.QuickCheck.Classes
     ( eqLaws, monoidLaws, semigroupLaws, semigroupMonoidLaws )
 import Test.Utils.Laws
@@ -52,6 +53,8 @@ spec =
             property prop_difference_leq
         it "prop_difference_add ((x - y) + y ⊇ x)" $
             property prop_difference_add
+        it "prop_difference_subtract" $
+            property prop_difference_subtract
 
 --------------------------------------------------------------------------------
 -- Arithmetic properties
@@ -84,6 +87,12 @@ prop_difference_add x y =
         counterexample ("x - y = " <> show delta) $
         counterexample ("(x - y) + y = " <> show yAndDelta) $
         property $ x `leq` yAndDelta
+
+prop_difference_subtract :: TokenBundle -> TokenBundle -> Property
+prop_difference_subtract x y =
+    y `leq` x ==> (===)
+        (x `subtract` y)
+        (Just $ x `difference` y)
 
 --------------------------------------------------------------------------------
 -- Arbitrary instances

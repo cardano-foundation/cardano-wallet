@@ -189,6 +189,8 @@ spec =
             property prop_difference_leq
         it "prop_difference_add ((x - y) + y ⊇ x)" $
             property prop_difference_add
+        it "prop_difference_subtract" $
+            property prop_difference_subtract
 
     parallel $ describe "Quantities" $ do
 
@@ -427,6 +429,12 @@ prop_difference_add x y =
         counterexample ("x - y = " <> show delta) $
         counterexample ("(x - y) + y = " <> show yAndDelta) $
         property $ x `leq` yAndDelta
+
+prop_difference_subtract :: TokenMap -> TokenMap -> Property
+prop_difference_subtract x y =
+    y `leq` x ==> (===)
+        (x `TokenMap.subtract` y)
+        (Just $ x `TokenMap.difference` y)
 
 --------------------------------------------------------------------------------
 -- Quantity properties
