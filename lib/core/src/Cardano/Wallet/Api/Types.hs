@@ -150,8 +150,9 @@ module Cardano.Wallet.Api.Types
     , DecodeStakeAddress (..)
 
     -- * Shared Wallets
-    , ApiSharedWallet
-    , ApiSharedWalletPostData
+    , ApiSharedWallet (..)
+    , ApiSharedWalletPostData (..)
+    , ApiSharedWalletPatchData (..)
 
     -- * Polymorphic Types
     , ApiT (..)
@@ -184,7 +185,7 @@ import Prelude
 import Cardano.Address.Derivation
     ( XPrv, XPub, xpubFromBytes, xpubToBytes )
 import Cardano.Address.Script
-    ( KeyHash, Script, ScriptTemplate, ValidationLevel (..) )
+    ( Cosigner, KeyHash, Script, ScriptTemplate, ValidationLevel (..) )
 import Cardano.Api.Typed
     ( TxMetadataJsonSchema (..)
     , displayError
@@ -1080,6 +1081,16 @@ data ApiPendingSharedWallet = ApiPendingSharedWallet
 
 data ApiSharedWallet = ApiSharedWallet
     { wallet :: Either ApiPendingSharedWallet ApiActiveSharedWallet
+    } deriving (Eq, Generic, Show)
+
+data ScriptTemplateUpdate =
+    PaymentScriptTemplate | DelegationScriptTemplate | BothScriptTemplates
+    deriving (Eq, Generic, Show)
+
+data ApiSharedWalletPatchData = ApiSharedWalletPatchData
+    { cosigner :: !(ApiT Cosigner)
+    , accountPublicKey :: !ApiAccountPublicKey
+    , scriptTemplateUpdate :: !ScriptTemplateUpdate
     } deriving (Eq, Generic, Show)
 
 -- | Error codes returned by the API, in the form of snake_cased strings
@@ -2272,6 +2283,22 @@ instance FromJSON ApiSharedWalletPostData where
 instance ToJSON ApiSharedWalletPostData where
     toJSON = genericToJSON defaultRecordTypeOptions
 
+instance FromJSON (ApiT Cosigner) where
+    parseJSON = fmap ApiT . genericParseJSON defaultRecordTypeOptions
+instance ToJSON (ApiT Cosigner) where
+    toJSON = genericToJSON defaultRecordTypeOptions . getApiT
+
+instance FromJSON ScriptTemplateUpdate where
+    parseJSON =
+        parseJSON >=> eitherToParser . first ShowFmt . fromText
+instance ToJSON ScriptTemplateUpdate where
+    toJSON = toJSON . toText
+
+instance FromJSON ApiSharedWalletPatchData where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance ToJSON ApiSharedWalletPatchData where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
 instance FromJSON ApiActiveSharedWallet where
     parseJSON = genericParseJSON defaultRecordTypeOptions
 instance ToJSON ApiActiveSharedWallet where
@@ -2401,6 +2428,21 @@ instance FromText AnyAddress where
                 "stake_test" -> proceedWhenHrpCorrect RewardAccount 0
                 _ -> Left $ TextDecodingError "AnyAddress is not correctly prefixed."
         _ -> Left $ TextDecodingError "AnyAddress must be must be encoded as Bech32."
+
+instance ToText ScriptTemplateUpdate where
+    toText PaymentScriptTemplate = "payment"
+    toText DelegationScriptTemplate = "delegation"
+    toText BothScriptTemplates = "both"
+
+instance FromText ScriptTemplateUpdate where
+    fromText = \case
+        "payment" -> Right PaymentScriptTemplate
+        "delegation" -> Right DelegationScriptTemplate
+        "both" -> Right BothScriptTemplates
+        _ -> Left $ TextDecodingError $ unwords
+            [ "Invalid script template update. The following values expected:"
+            , "'payment', 'delegation', 'both'."
+            ]
 
 {-------------------------------------------------------------------------------
                              HTTPApiData instances
