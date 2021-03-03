@@ -53,6 +53,10 @@ spec =
         it "prop_difference_add ((x - y) + y ⊇ x)" $
             property prop_difference_add
 
+--------------------------------------------------------------------------------
+-- Arithmetic properties
+--------------------------------------------------------------------------------
+
 prop_difference_zero :: TokenBundle -> Property
 prop_difference_zero x =
     x `difference` mempty === x
