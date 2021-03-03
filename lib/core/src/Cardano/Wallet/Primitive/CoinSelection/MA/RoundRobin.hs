@@ -97,7 +97,7 @@ import Cardano.Wallet.Primitive.Types.TokenMap
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( TxIn, TxOut, txOutCoin )
+    ( TokenBundleSizeAssessment (..), TxIn, TxOut, txOutCoin )
 import Cardano.Wallet.Primitive.Types.UTxOIndex
     ( SelectionFilter (..), UTxOIndex (..) )
 import Control.Monad.Random.Class
@@ -501,6 +501,7 @@ performSelection minCoinFor costFor criteria
         (fmap (TokenMap.getAssets . view #tokens))
         (makeChange MakeChangeCriteria
             { minCoinFor = noMinimumCoin
+            , assessBundleSize = const TokenBundleSizeWithinLimit
             , requiredCost = noCost
             , extraCoinSource
             , inputBundles
@@ -564,6 +565,9 @@ performSelection minCoinFor costFor criteria
         mChangeGenerated :: Either UnableToConstructChangeError [TokenBundle]
         mChangeGenerated = makeChange MakeChangeCriteria
             { minCoinFor
+            -- TODO: pass the implementation of this function in via
+            -- 'performSelection':
+            , assessBundleSize = const TokenBundleSizeWithinLimit
             , requiredCost
             , extraCoinSource
             , inputBundles =  view #tokens . snd <$> inputsSelected
@@ -802,10 +806,12 @@ runSelectionStep lens s
 
 -- | Criteria for the 'makeChange' function.
 --
-data MakeChangeCriteria minCoinFor = MakeChangeCriteria
+data MakeChangeCriteria minCoinFor assessBundleSize = MakeChangeCriteria
     { minCoinFor :: minCoinFor
       -- ^ A function that computes the minimum required ada quantity for a
       -- particular output.
+    , assessBundleSize :: assessBundleSize
+        -- ^ A function to assess the size of a token bundle.
     , requiredCost :: Coin
       -- ^ The minimal (and optimal) delta between the total ada balance
       -- of all input bundles and the total ada balance of all output and
@@ -844,7 +850,9 @@ data MakeChangeCriteria minCoinFor = MakeChangeCriteria
 -- to every output token bundle.
 --
 makeChange
-    :: MakeChangeCriteria (TokenMap -> Coin)
+    :: MakeChangeCriteria
+        (TokenMap -> Coin)
+        (TokenBundle -> TokenBundleSizeAssessment)
         -- ^ Criteria for making change.
     -> Either UnableToConstructChangeError [TokenBundle]
         -- ^ Generated change bundles.

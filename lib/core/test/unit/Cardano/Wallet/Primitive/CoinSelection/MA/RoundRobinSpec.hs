@@ -24,8 +24,8 @@ import Cardano.Numeric.Util
 import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     ( AssetCount (..)
     , BalanceInsufficientError (..)
-    , MakeChangeCriteria (..)
     , InsufficientMinCoinValueError (..)
+    , MakeChangeCriteria (..)
     , SelectionCriteria (..)
     , SelectionError (..)
     , SelectionInsufficientError (..)
@@ -91,7 +91,7 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity
 import Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
     ( genTokenQuantitySmallPositive, shrinkTokenQuantitySmallPositive )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( TxIn (..), TxOut (..), txOutCoin )
+    ( TokenBundleSizeAssessment (..), TxIn (..), TxOut (..), txOutCoin )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
     ( genTxOutSmallRange, shrinkTxOutSmallRange )
 import Cardano.Wallet.Primitive.Types.UTxOIndex
@@ -1331,7 +1331,16 @@ linearCost SelectionSkeleton{inputsSkeleton, outputsSkeleton, changeSkeleton}
     + F.length outputsSkeleton
     + F.length changeSkeleton
 
-type MakeChangeData = MakeChangeCriteria MinCoinValueFor
+type MakeChangeData = MakeChangeCriteria MinCoinValueFor BundleSizeAssessor
+
+data BundleSizeAssessor
+    = NoBundleSizeLimit
+    deriving (Eq, Show)
+
+mkBundleSizeAssessor
+    :: BundleSizeAssessor
+    -> (TokenBundle -> TokenBundleSizeAssessment)
+mkBundleSizeAssessor NoBundleSizeLimit = const TokenBundleSizeWithinLimit
 
 isValidMakeChangeData :: MakeChangeData -> Bool
 isValidMakeChangeData p = (&&)
@@ -1350,6 +1359,7 @@ genMakeChangeData = flip suchThat isValidMakeChangeData $ do
     let inputBundleCount = outputBundleCount * 4
     MakeChangeCriteria
         <$> arbitrary
+        <*> pure NoBundleSizeLimit
         <*> genCoinSmall
         <*> oneof [pure Nothing, Just <$> genCoinSmallPositive]
         <*> genTokenBundles inputBundleCount
@@ -1364,14 +1374,24 @@ makeChangeWith
     :: MakeChangeData
     -> Either UnableToConstructChangeError [TokenBundle]
 makeChangeWith p = makeChange p
-    { minCoinFor = mkMinCoinValueFor $ minCoinFor p}
+    { minCoinFor = mkMinCoinValueFor $ minCoinFor p
+    , assessBundleSize = mkBundleSizeAssessor $ assessBundleSize p
+    }
 
 prop_makeChange_identity
     :: NonEmpty TokenBundle -> Property
 prop_makeChange_identity bundles = (===)
-    (F.fold <$> makeChange
-        (MakeChangeCriteria (const (Coin 0)) (Coin 0) Nothing bundles bundles))
+    (F.fold <$> makeChange criteria)
     (Right TokenBundle.empty)
+  where
+    criteria = MakeChangeCriteria
+        { minCoinFor = const (Coin 0)
+        , requiredCost = Coin 0
+        , extraCoinSource = Nothing
+        , assessBundleSize = mkBundleSizeAssessor NoBundleSizeLimit
+        , inputBundles = bundles
+        , outputBundles = bundles
+        }
 
 prop_makeChange_length
     :: MakeChangeData
@@ -1381,7 +1401,11 @@ prop_makeChange_length p =
         Left{} -> property False
         Right xs -> length xs === length (outputBundles p)
   where
-    change = makeChange p {minCoinFor = noMinCoin, requiredCost = noCost}
+    change = makeChange p
+        { minCoinFor = noMinCoin
+        , requiredCost = noCost
+        , assessBundleSize = mkBundleSizeAssessor NoBundleSizeLimit
+        }
 
 prop_makeChange
     :: MakeChangeData
@@ -1540,11 +1564,19 @@ prop_makeChange_fail_minValueTooBig p =
 unit_makeChange
     :: [Expectation]
 unit_makeChange =
-    [ makeChange (MakeChangeCriteria minCoinValueFor cost extraSource i o)
-        `shouldBe` expectation
-    | (minCoinValueFor, cost, extraSource, i, o, expectation) <- matrix
+    [ makeChange criteria `shouldBe` expectation
+    | (minCoinFor, requiredCost, extraCoinSource, i, o, expectation) <- matrix
+    , let criteria = MakeChangeCriteria
+              { minCoinFor
+              , requiredCost
+              , extraCoinSource
+              , assessBundleSize
+              , inputBundles = i
+              , outputBundles = o
+              }
     ]
   where
+    assessBundleSize = mkBundleSizeAssessor NoBundleSizeLimit
     matrix =
         -- Simple, only ada, should construct a single change output with 1 ada.
         [ ( noMinCoin, noCost

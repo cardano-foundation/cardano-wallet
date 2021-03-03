@@ -28,6 +28,7 @@ module Cardano.Wallet.Primitive.Types.Tx
     , UnsignedTx (..)
     , TransactionInfo (..)
     , Direction (..)
+    , TokenBundleSizeAssessment (..)
 
     -- * Functions
     , fromTransactionInfo
@@ -430,3 +431,15 @@ txMetadataIsNull (TxMetadata md) = Map.null md
 toTxHistory :: TransactionInfo -> (Tx, TxMeta)
 toTxHistory info =
     (fromTransactionInfo info, txInfoMeta info)
+
+-- | Indicates the size of a token bundle relative to the upper limit of what
+--   can be included in a single transaction output, defined by the protocol.
+--
+data TokenBundleSizeAssessment
+    = TokenBundleSizeWithinLimit
+    -- ^ Indicates that the size of a token bundle does not exceed the maximum
+    -- size that can be included in a transaction output.
+    | TokenBundleSizeExceedsLimit
+    -- ^ Indicates that the size of a token bundle exceeds the maximum size
+    -- that can be included in a transaction output.
+    deriving (Eq, Generic, Show)

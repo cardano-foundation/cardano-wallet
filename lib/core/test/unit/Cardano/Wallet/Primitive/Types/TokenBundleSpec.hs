@@ -11,10 +11,10 @@ import Prelude hiding
 
 import Algebra.PartialOrd
     ( leq )
-import Cardano.Wallet.Primitive.Types.TokenBundle
-    ( TokenBundle (..), add, difference, isCoin, subtract, unsafeSubtract )
 import Cardano.Numeric.Util
     ( inAscendingPartialOrder )
+import Cardano.Wallet.Primitive.Types.TokenBundle
+    ( TokenBundle (..), add, difference, isCoin, subtract, unsafeSubtract )
 import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
     ( genTokenBundleSmallRange, shrinkTokenBundleSmallRange )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
