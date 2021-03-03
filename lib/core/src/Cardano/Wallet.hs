@@ -248,7 +248,6 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
 import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     ( SelectionError (..)
     , SelectionResult (..)
-    , TokenBundleSizeAssessment (..)
     , UnableToConstructChangeError (..)
     , emptySkeleton
     , performSelection
@@ -314,6 +313,7 @@ import Cardano.Wallet.Primitive.Types.TokenBundle
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..)
     , SealedTx (..)
+    , TokenBundleSizeAssessment (..)
     , TransactionInfo (..)
     , Tx
     , TxChange (..)

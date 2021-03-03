@@ -830,6 +830,18 @@ data MakeChangeCriteria minCoinFor assessBundleSize = MakeChangeCriteria
         -- ^ Token bundles of original outputs.
     } deriving (Eq, Generic, Show)
 
+-- | Indicates 'True' if and only if a token bundle exceeds the maximum size
+--   that can be included in a transaction output.
+--
+tokenBundleSizeExceedsLimit
+    :: (TokenBundle -> TokenBundleSizeAssessment) -> TokenBundle -> Bool
+tokenBundleSizeExceedsLimit calculateBundleSize b =
+    case calculateBundleSize b of
+        TokenBundleSizeWithinLimit->
+            False
+        TokenBundleSizeExceedsLimit ->
+            True
+
 -- | Constructs change bundles for a set of selected inputs and outputs.
 --
 -- Returns 'Nothing' if the specified inputs do not provide enough ada to
@@ -869,6 +881,7 @@ makeChange criteria
   where
     MakeChangeCriteria
         { minCoinFor
+        , assessBundleSize
         , requiredCost
         , extraCoinSource
         , inputBundles
@@ -908,13 +921,13 @@ makeChange criteria
         -- asset count:
         & NE.zipWith (\m1 (m2, c) -> (m1 <> m2, c))
             changeForNonUserSpecifiedAssets
-        -- Finally, if there are any maps with excessive token quantities, then
+        -- Finally, if there are any maps that are oversized (in any way), then
         -- split these maps up along with their corresponding output coins:
-        & splitMapsWithExcessiveQuantities
+        & splitOversizedMaps
       where
-        splitMapsWithExcessiveQuantities
+        splitOversizedMaps
             :: NonEmpty (TokenMap, Coin) -> NonEmpty (TokenMap, Coin)
-        splitMapsWithExcessiveQuantities =
+        splitOversizedMaps =
             -- For the sake of convenience when splitting up change maps and
             -- output coins (which are treated as weights), treat each change
             -- map and its corresponding output coin as a token bundle.
@@ -922,8 +935,11 @@ makeChange criteria
           where
             bundle (m, c) = TokenBundle c m
             unbundle (TokenBundle c m) = (m, c)
-            split = flip splitBundlesWithExcessiveTokenQuantities
-                maxTxOutTokenQuantity
+            split b = b
+                & flip splitBundlesWithExcessiveAssetCounts
+                    (tokenBundleSizeExceedsLimit assessBundleSize)
+                & flip splitBundlesWithExcessiveTokenQuantities
+                    maxTxOutTokenQuantity
 
     -- Change for user-specified assets: assets that were present in the
     -- original set of user-specified outputs ('outputsToCover').
