@@ -138,6 +138,8 @@ spec =
             property prop_add_invariant
         it "prop_subtract_invariant" $
             property prop_subtract_invariant
+        it "prop_difference_invariant" $
+            property prop_difference_invariant
         it "prop_setQuantity_invariant" $
             property prop_setQuantity_invariant
         it "prop_adjustQuantity_invariant" $
@@ -187,8 +189,6 @@ spec =
             property prop_difference_leq
         it "prop_difference_add ((x - y) + y ⊇ x)" $
             property prop_difference_add
-        it "prop_difference_invariant" $
-            property prop_difference_invariant
 
     parallel $ describe "Quantities" $ do
 
@@ -267,33 +267,6 @@ prop_subtract_invariant m1 m2 = property $
     m2 `leq` m1 ==> invariantHolds result
   where
     Just result = TokenMap.subtract m1 m2
-
-prop_difference_zero :: TokenMap -> Property
-prop_difference_zero x =
-    x `difference` mempty === x
-
-prop_difference_zero2 :: TokenMap-> Property
-prop_difference_zero2 x =
-    mempty `difference` x === mempty
-
-prop_difference_zero3 :: TokenMap -> Property
-prop_difference_zero3 x =
-    x `difference` x === mempty
-
-prop_difference_leq :: TokenMap -> TokenMap -> Property
-prop_difference_leq x y = property $
-    x `difference` y `leq` x
-
--- (x - y) + y ⊇ x
-prop_difference_add :: TokenMap -> TokenMap -> Property
-prop_difference_add x y =
-    let
-        delta = x `difference` y
-        yAndDelta = delta `TokenMap.add` y
-    in
-        counterexample ("x - y = " <> show delta) $
-        counterexample ("(x - y) + y = " <> show yAndDelta) $
-        property $ x `leq` yAndDelta
 
 prop_difference_invariant :: TokenMap -> TokenMap -> Property
 prop_difference_invariant m1 m2 =
@@ -427,6 +400,33 @@ prop_add_subtract_associative m1 m2 m3 =
 prop_subtract_null :: TokenMap -> Property
 prop_subtract_null m =
     m `TokenMap.subtract` m === Just TokenMap.empty
+
+prop_difference_zero :: TokenMap -> Property
+prop_difference_zero x =
+    x `difference` mempty === x
+
+prop_difference_zero2 :: TokenMap-> Property
+prop_difference_zero2 x =
+    mempty `difference` x === mempty
+
+prop_difference_zero3 :: TokenMap -> Property
+prop_difference_zero3 x =
+    x `difference` x === mempty
+
+prop_difference_leq :: TokenMap -> TokenMap -> Property
+prop_difference_leq x y = property $
+    x `difference` y `leq` x
+
+-- (x - y) + y ⊇ x
+prop_difference_add :: TokenMap -> TokenMap -> Property
+prop_difference_add x y =
+    let
+        delta = x `difference` y
+        yAndDelta = delta `TokenMap.add` y
+    in
+        counterexample ("x - y = " <> show delta) $
+        counterexample ("(x - y) + y = " <> show yAndDelta) $
+        property $ x `leq` yAndDelta
 
 --------------------------------------------------------------------------------
 -- Quantity properties
