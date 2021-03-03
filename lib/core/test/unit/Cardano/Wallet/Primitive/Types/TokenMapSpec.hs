@@ -191,6 +191,8 @@ spec =
             property prop_difference_add
         it "prop_difference_subtract" $
             property prop_difference_subtract
+        it "prop_difference_equality" $
+            property prop_difference_equality
 
     parallel $ describe "Quantities" $ do
 
@@ -435,6 +437,17 @@ prop_difference_subtract x y =
     y `leq` x ==> (===)
         (x `TokenMap.subtract` y)
         (Just $ x `TokenMap.difference` y)
+
+prop_difference_equality :: TokenMap -> TokenMap -> Property
+prop_difference_equality x y = checkCoverage $
+    cover 5 (TokenMap.isNotEmpty xReduced)
+        "reduced maps are not empty" $
+    xReduced === yReduced
+  where
+    xReduced = x `TokenMap.unsafeSubtract` xExcess
+    yReduced = y `TokenMap.unsafeSubtract` yExcess
+    xExcess = x `TokenMap.difference` y
+    yExcess = y `TokenMap.difference` x
 
 --------------------------------------------------------------------------------
 -- Quantity properties
