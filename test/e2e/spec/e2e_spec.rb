@@ -1,4 +1,4 @@
-RSpec.describe "Cardano Wallet Nightly tests", :nightly => true do
+RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
 
     before(:all) do
       #shelley tests
@@ -51,7 +51,7 @@ RSpec.describe "Cardano Wallet Nightly tests", :nightly => true do
       end
     end
 
-    describe "Nightly Shelley" do
+    describe "E2E Shelley" do
       describe "Native Assets" do
         it "I can list native assets" do
           assets = SHELLEY.assets.get @wid
@@ -487,7 +487,7 @@ RSpec.describe "Cardano Wallet Nightly tests", :nightly => true do
       end
     end
 
-    describe "Nightly Byron" do
+    describe "E2E Byron" do
 
       def test_byron_tx(source_wid, target_wid)
         amt = 1000000
