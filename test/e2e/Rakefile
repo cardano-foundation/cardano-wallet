@@ -45,8 +45,11 @@ task :start_node_and_wallet do
   ENV['WALLET_DB'] ||= "./wallet_db"
   ENV['TOKEN_METADATA'] ||= "https://metadata.cardano-testnet.iohkdev.io/"
 
+  cd = Dir.pwd
+  logs = cd + "/logs"
+  mk_dir(logs)
+
   if is_win?
-    cd = Dir.pwd
     # create cardano-node.bat file
     node_cmd = "#{cd}/cardano-node.exe run --config #{cd}/configs/testnet-config.json --topology #{cd}/configs/testnet-topology.json --database-path #{ENV['NODE_DB']} --socket-path \\\\.\\pipe\\cardano-node-testnet"
     File.open("cardano-node.bat", "w") do |f|
@@ -61,23 +64,31 @@ task :start_node_and_wallet do
 
     install_node = "nssm install cardano-node #{cd}/cardano-node.bat"
     install_wallet = "nssm install cardano-wallet #{cd}/cardano-wallet.bat"
+    log_stdout_node = "nssm set cardano-node AppStdout #{logs}/node.log"
+    log_stderr_node = "nssm set cardano-node AppStderr #{logs}/node.log"
+    log_stdout_wallet = "nssm set cardano-wallet AppStdout #{logs}/wallet.log"
+    log_stderr_wallet = "nssm set cardano-wallet AppStderr #{logs}/wallet.log"
     start_node = "nssm start cardano-node"
     start_wallet = "nssm start cardano-wallet"
 
     puts install_node
     puts install_wallet
+    puts log_stdout_node
+    puts log_stderr_node
+    puts log_stdout_wallet
+    puts log_stderr_wallet
     puts start_node
     puts start_wallet
 
     puts `#{install_node}`
     puts `#{install_wallet}`
+    puts `#{log_stdout_node}`
+    puts `#{log_stderr_node}`
+    puts `#{log_stdout_wallet}`
+    puts `#{log_stderr_wallet}`
     puts `#{start_node}`
     puts `#{start_wallet}`
   else
-    cd = Dir.pwd
-    logs = cd + "/logs"
-    mk_dir(logs)
-
     start_node = "#{cd}/bins/cardano-node run --config #{cd}/configs/*-config.json --topology #{cd}/configs/*-topology.json --database-path #{ENV['NODE_DB']} --socket-path #{cd}/node.socket"
     start_wallet = "#{cd}/bins/cardano-wallet serve --node-socket #{cd}/node.socket --testnet #{cd}/configs/*-byron-genesis.json --database #{ENV['WALLET_DB']} --token-metadata-server #{ENV['TOKEN_METADATA']}"
 

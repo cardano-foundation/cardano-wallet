@@ -51,7 +51,7 @@ jobs:
       uses: actions/upload-artifact@v2
       if: always()
       with:
-        name: ${{ matrix.os }}-logs
+        name: ${{ runner.os }}-logs
         path: test/e2e/logs
 
     env:

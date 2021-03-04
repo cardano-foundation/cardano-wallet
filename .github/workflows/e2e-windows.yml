@@ -51,7 +51,13 @@ jobs:
 
     - name: Run all tests
       run: bundle exec rspec .
-
+      
+    - name: 📎 Upload logs
+      uses: actions/upload-artifact@v2
+      if: always()
+      with:
+        name: ${{ runner.os }}-logs
+        path: test/e2e/logs
     env:
       NODE_DB: d:/node-db-nightly-win-tests
       WALLET_DB: d:/wallet-db
