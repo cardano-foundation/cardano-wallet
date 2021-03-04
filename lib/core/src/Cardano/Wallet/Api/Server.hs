@@ -2875,7 +2875,7 @@ instance LiftHandler ErrSelectAssets where
                 BalanceInsufficient e ->
                     apiError err403 NotEnoughMoney $ mconcat
                         [ "I can't process this payment as there are not "
-                        , "enough funds available in the wallet. I am only "
+                        , "enough funds available in the wallet. I am "
                         , "missing: ", pretty . Flat $ balanceMissing e
                         ]
                 SelectionInsufficient e ->
