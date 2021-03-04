@@ -182,7 +182,7 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
         end
 
         it "Transaction with ttl = 0 would expire and I can forget it" do
-          # pending "ADP-608 - Error handling in case when TTL is set before the slot picked up by the node to broadcast the transaction"
+          skip "Test is flaky due to ADP-608"
           amt = 1000000
           ttl_in_s = 0
 

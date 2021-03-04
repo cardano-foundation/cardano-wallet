@@ -1,4 +1,5 @@
 
+
 # E2E testing
 [![E2E Docker](https://github.com/input-output-hk/cardano-wallet/actions/workflows/e2e-docker.yml/badge.svg)](https://github.com/input-output-hk/cardano-wallet/actions/workflows/e2e-docker.yml) [![E2E Linux](https://github.com/input-output-hk/cardano-wallet/actions/workflows/e2e-linux.yml/badge.svg)](https://github.com/input-output-hk/cardano-wallet/actions/workflows/e2e-linux.yml) [![E2E MacOS](https://github.com/input-output-hk/cardano-wallet/actions/workflows/e2e-macos.yml/badge.svg)](https://github.com/input-output-hk/cardano-wallet/actions/workflows/e2e-macos.yml) [![E2E Windows](https://github.com/input-output-hk/cardano-wallet/actions/workflows/e2e-windows.yml/badge.svg)](https://github.com/input-output-hk/cardano-wallet/actions/workflows/e2e-windows.yml)
 
@@ -72,6 +73,25 @@ One can run specific tests using `rspec`. (Note that the wallet and node needs t
 
 Cardano-wallet and cardano-node logs from test run will be located in `e2e/logs`. In order to clean logs before the test run one can use `rake clean_logs` command, otherwise logs will be appended to existing ones.
 
+### Skipping / making test pending
+
+When test is failing due to a bug it can be marked as `pending`. This mark expects test to fail. When such test actually passes the report will indicate such test as failure indicating that it can be turned on again.
+
+```ruby
+it "Wallet can make multi-address transaction" do
+  pending "ADP-777 - Failures on multi-address transactions"
+  ...
+end
+```
+
+Test can be also skipped, so it is not executed at all.
+
+```ruby
+it "Wallet can show utxo distribution" do
+  skip "This functionality works intermittently - to be investigated"
+  ...
+end
+```
 
 ## Documentation
 
