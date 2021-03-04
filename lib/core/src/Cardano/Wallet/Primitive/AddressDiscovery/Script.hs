@@ -62,18 +62,21 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , deriveVerificationKey
     , hashVerificationKey
     )
+import Cardano.Wallet.Primitive.Types
+    ( invariant )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Data.Either.Combinators
     ( fromRight', rightToMaybe )
 import Data.Maybe
-    ( fromMaybe )
+    ( fromMaybe, isJust )
 import Data.Type.Equality
     ( (:~:) (..), testEquality )
 import Type.Reflection
     ( Typeable, typeRep )
 
 import qualified Cardano.Address as CA
+import qualified Cardano.Address.Derivation as CA
 import qualified Cardano.Address.Style.Shelley as CA
 import qualified Data.Map.Strict as Map
 
@@ -101,11 +104,15 @@ replaceCosignersWithVerKeys role (ScriptTemplate xpubs scriptTemplate) ix =
         RequireSomeOf m xs   -> RequireSomeOf m (map replaceCosigner xs)
         ActiveFromSlot s     -> ActiveFromSlot s
         ActiveUntilSlot s    -> ActiveUntilSlot s
+    convertIndex :: Index 'Soft 'ScriptK -> CA.Index 'CA.Soft 'CA.PaymentK
+    convertIndex = toEnum .fromEnum
     toKeyHash :: Cosigner -> KeyHash
     toKeyHash c =
-        let ix' = toEnum (fromEnum ix)
-            (Just accXPub) = liftXPub <$> Map.lookup c xpubs
-            verKey = deriveMultisigPublicKey accXPub ix'
+        let (Just accXPub) =
+                invariant "we should have accXPubs of all cosigners at this point"
+                (liftXPub <$> Map.lookup c xpubs)
+                isJust
+            verKey = deriveMultisigPublicKey accXPub (convertIndex ix)
         in hashKey verKey
     deriveMultisigPublicKey = case role of
         CA.MultisigForPayment -> deriveMultisigForPaymentPublicKey

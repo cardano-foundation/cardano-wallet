@@ -137,10 +137,11 @@ import Data.List.NonEmpty
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
-    ( fromJust )
+    ( fromMaybe )
 import Data.Proxy
     ( Proxy (..) )
-import Data.Text (Text)
+import Data.Text
+    ( Text )
 import Data.Text.Class
     ( FromText (..), TextDecodingError (..), ToText (..) )
 import Data.Text.Read
@@ -249,10 +250,6 @@ data ParentContext (chain :: Role) (key :: Depth -> * -> *) where
         :: key 'AccountK XPub
         -> ParentContext 'UtxoInternal key
 
-    ParentContextMutableAccount
-        :: key 'AccountK XPub
-        -> ParentContext 'MutableAccount key
-
     ParentContextMultisigScript
         :: key 'AccountK XPub
         -> ScriptTemplate
@@ -267,8 +264,6 @@ instance (WalletKey key) => Buildable (ParentContext chain key) where
         mempty <> "(ParentContext : "<> build (accXPubTxt (getRawKey acct)) <>")"
     build (ParentContextUtxoInternal acct) =
         mempty <> "(ParentContext : "<> build (accXPubTxt (getRawKey acct)) <>")"
-    build (ParentContextMutableAccount acct) =
-        mempty <> "(ParentContext : "<> build (accXPubTxt (getRawKey acct)) <>")"
     build (ParentContextMultisigScript acct p dM) =
         mempty <> "(ParentContext : "<> build (accXPubTxt (getRawKey acct))
         <> ", " <> build (p, dM) <> ")"
@@ -277,7 +272,6 @@ instance NFData (key 'AccountK XPub) => NFData (ParentContext chain key) where
     rnf = \case
         ParentContextUtxoExternal acct  -> rnf acct
         ParentContextUtxoInternal acct  -> rnf acct
-        ParentContextMutableAccount acct  -> rnf acct
         ParentContextMultisigScript acct p d -> rnf (acct, p, d)
 
 -- | An 'AddressPool' which keeps track of sequential addresses within a given
@@ -355,7 +349,8 @@ instance (Typeable chain, WalletKey key) => Buildable (AddressPool chain key) wh
 -- >>> role @chain
 -- ...
 role :: forall (c :: Role). Typeable c => Role
-role =  fromJust (tryUtxoExternal <|> tryUtxoInternal <|> tryMultisigScript <|> tryMutableAccount)
+role = fromMaybe (error $ "role: unmatched type" <> show (typeRep @c))
+       (tryUtxoExternal <|> tryUtxoInternal <|> tryMultisigScript <|> tryMutableAccount)
   where
     tryUtxoExternal =
         case testEquality (typeRep @c) (typeRep @'UtxoExternal) of
@@ -565,8 +560,6 @@ nextAddresses !ctx (AddressPoolGap !g) !fromIx =
             mkPaymentKeyFromAccXPub acct
         ParentContextUtxoInternal acct ->
             mkPaymentKeyFromAccXPub acct
-        ParentContextMutableAccount acct ->
-            mkPaymentKeyFromAccXPub acct  -- think about whether it makes sense
         ParentContextMultisigScript _ payment delegation ->
             mkPaymentKeyFromTemplates payment delegation
       where

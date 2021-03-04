@@ -95,7 +95,7 @@ import qualified Data.Map.Strict as Map
 -- | The two scripts can be the same, different, also the script for the ownership of stake
 -- | can be absent.
 --
--- | The shared wallet can be in two states: pending and ready. In a pending state the wallet
+-- | The shared wallet can be in two states: pending or ready. In a pending state the wallet
 -- | does not have account public keys for all co-signers, and hence discovery of script addresses
 -- | co-shared with other co-signers is not possible. In a ready state the wallet has account public
 -- | keys for all co-signers and co-shared script address discovery is possible.
@@ -218,6 +218,7 @@ newSharedState accXPub accIx g pTemplate dTemplateM =
     let pendingSharedState = unsafePendingSharedState accXPub accIx g pTemplate dTemplateM
     in trySharedState pendingSharedState
 
+-- | Turn a "pending" into an "active" state or identity if already "active"
 trySharedState
     :: forall (n :: NetworkDiscriminant) k.
      ( MkKeyFingerprint k (Proxy n, k 'AddressK XPub)

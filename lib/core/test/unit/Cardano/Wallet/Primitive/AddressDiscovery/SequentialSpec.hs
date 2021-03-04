@@ -155,7 +155,6 @@ spec = do
     let styles =
             [ Style (Proxy @'UtxoExternal)
             , Style (Proxy @'UtxoInternal)
-            , Style (Proxy @'MutableAccount)
             ]
 
     let keys =
@@ -330,9 +329,6 @@ instance GetCtx 'UtxoExternal where
 
 instance GetCtx 'UtxoInternal where
     getCtxFromAccXPub accXPub = ParentContextUtxoInternal accXPub
-
-instance GetCtx 'MutableAccount where
-    getCtxFromAccXPub accXPub = ParentContextMutableAccount accXPub
 
 instance GetCtx 'MultisigScript where
     getCtxFromAccXPub _ = error "no support for MultisigScript"

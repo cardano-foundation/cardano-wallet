@@ -200,6 +200,8 @@ import System.FilePath
     ( (</>) )
 import System.IO
     ( IOMode (..), hFlush, withFile )
+import Type.Reflection
+    ( Typeable )
 import UnliftIO.Concurrent
     ( forkIO, threadDelay )
 import UnliftIO.Exception
@@ -344,7 +346,7 @@ cardanoRestoreBench tr c socketFile = do
             (wid, WalletName wname, s)
 
     mkSeqAnyState'
-        :: forall (p :: Nat) (n :: NetworkDiscriminant). ()
+        :: forall (p :: Nat) (n :: NetworkDiscriminant). Typeable n
         => Proxy p
         -> Proxy n
         -> (ShelleyKey 'RootK XPrv, Passphrase "encryption")
@@ -511,6 +513,7 @@ benchmarksSeq
     :: forall (n :: NetworkDiscriminant) s k p.
         ( s ~ SeqAnyState n k p
         , k ~ ShelleyKey
+        , Typeable n
         , PaymentAddress n k
         , NetworkDiscriminantVal n
         , KnownNat p
