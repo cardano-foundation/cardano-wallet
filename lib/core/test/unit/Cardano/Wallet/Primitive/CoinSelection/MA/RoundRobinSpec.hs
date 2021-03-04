@@ -34,6 +34,7 @@ import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     , UnableToConstructChangeError (..)
     , assetSelectionLens
     , assignCoinsToChangeMaps
+    , balanceMissing
     , coinSelectionLens
     , equipartitionNatural
     , equipartitionTokenBundleWithMaxQuantity
@@ -585,6 +586,12 @@ prop_performSelection_small minCoinValueFor costFor (Blind (Small criteria)) =
         "balance sufficient" $
     cover 30 (not $ balanceSufficient criteria)
         "balance insufficient" $
+    cover 5 (utxoHasAtLeastOneAsset)
+        "No assets in UTxO" $
+    cover 5 (not outputsHaveAtLeastOneAsset)
+        "No assets to cover" $
+    cover 2 (outputsHaveAtLeastOneAsset && not utxoHasAtLeastOneAsset)
+        "Assets to cover, but no assets in UTxO" $
     prop_performSelection minCoinValueFor costFor (Blind criteria) $ \result ->
         cover 10 (selectionUnlimited && selectionSufficient result)
             "selection unlimited and sufficient"
@@ -593,6 +600,19 @@ prop_performSelection_small minCoinValueFor costFor (Blind (Small criteria)) =
         . cover 10 (selectionLimited && selectionInsufficient result)
             "selection limited and insufficient"
   where
+    utxoHasAtLeastOneAsset = not
+        . Set.null
+        . UTxOIndex.assets
+        $ utxoAvailable criteria
+
+    outputsHaveAtLeastOneAsset =
+        not . Set.null $ TokenBundle.getAssets outputTokens
+      where
+        outputTokens = mconcat
+            . F.toList
+            . fmap (view #tokens)
+            $ outputsToCover criteria
+
     selectionLimited :: Bool
     selectionLimited = case selectionLimit criteria of
         MaximumInputLimit _ -> True
@@ -733,15 +753,21 @@ prop_performSelection minCoinValueFor costFor (Blind criteria) coverage =
             onUnableToConstructChange e
 
     onBalanceInsufficient e = do
+        let balanceAvailable' = TokenBundle.add (balanceMissing e) balanceAvailable
         monitor $ counterexample $ unlines
             [ "available balance:"
             , pretty (Flat balanceAvailable)
             , "required balance:"
             , pretty (Flat balanceRequired)
+            , "missing balance:"
+            , pretty (Flat $ balanceMissing e)
+            , "missing + available balance:"
+            , pretty (Flat balanceAvailable')
             ]
         assert $ not $ balanceSufficient criteria
         assert $ balanceAvailable == errorBalanceAvailable
         assert $ balanceRequired  == errorBalanceRequired
+        assert (balanceRequired `leq` balanceAvailable')
       where
         BalanceInsufficientError errorBalanceAvailable errorBalanceRequired = e
 

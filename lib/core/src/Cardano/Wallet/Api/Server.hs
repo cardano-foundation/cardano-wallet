@@ -281,10 +281,10 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     , purposeCIP1852
     )
 import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
-    ( BalanceInsufficientError (..)
-    , SelectionError (..)
+    ( SelectionError (..)
     , SelectionInsufficientError (..)
     , UnableToConstructChangeError (..)
+    , balanceMissing
     , selectionDelta
     )
 import Cardano.Wallet.Primitive.Model
@@ -328,7 +328,7 @@ import Cardano.Wallet.Primitive.Types.Coin
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle
-    ( TokenBundle (..) )
+    ( Flat (..), TokenBundle (..) )
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId (..) )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
@@ -2873,23 +2873,11 @@ instance LiftHandler ErrSelectAssets where
         ErrSelectAssetsSelectionError selectionError ->
             case selectionError of
                 BalanceInsufficient e ->
-                    let
-                        BalanceInsufficientError
-                            { balanceRequired
-                            , balanceAvailable
-                            } = e
-
-                        missing
-                            = TokenBundle.Flat
-                            $ fromMaybe TokenBundle.empty
-                            $ TokenBundle.subtract
-                                balanceRequired balanceAvailable
-                    in
-                        apiError err403 NotEnoughMoney $ mconcat
-                            [ "I can't process this payment as there are not "
-                            , "enough funds available in the wallet. I am only "
-                            , "missing: ", pretty missing
-                            ]
+                    apiError err403 NotEnoughMoney $ mconcat
+                        [ "I can't process this payment as there are not "
+                        , "enough funds available in the wallet. I am "
+                        , "missing: ", pretty . Flat $ balanceMissing e
+                        ]
                 SelectionInsufficient e ->
                     apiError err403 TransactionIsTooBig $ mconcat
                         [ "I am not able to finalize the transaction "

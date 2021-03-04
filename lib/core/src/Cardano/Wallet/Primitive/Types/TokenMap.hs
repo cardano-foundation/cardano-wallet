@@ -57,6 +57,7 @@ module Cardano.Wallet.Primitive.Types.TokenMap
     -- * Arithmetic
     , add
     , subtract
+    , difference
 
     -- * Tests
     , isEmpty
@@ -511,6 +512,30 @@ add a b = F.foldl' acc a $ toFlatList b
 --
 subtract :: TokenMap -> TokenMap -> Maybe TokenMap
 subtract a b = guard (b `leq` a) $> unsafeSubtract a b
+
+-- | Analogous to @Set.difference@, return the difference between two token
+-- maps.
+--
+-- The following property holds:
+-- prop> x `leq` (x `difference` y) `add` y
+--
+-- Note that there's a `leq` rather than equality, which we'd expect if this was
+-- subtraction of integers. I.e.
+--
+-- >>> (0 - 1) + 1
+-- 0
+--
+-- whereas
+--
+-- >>> let oneToken = singleton aid (TokenQuantity 1)
+-- >>> (mempty `difference` oneToken) `add` oneToken
+-- oneToken
+difference :: TokenMap -> TokenMap -> TokenMap
+difference m1 m2 = L.foldl' reduce m1 (toFlatList m2)
+  where
+    reduce :: TokenMap -> (AssetId, TokenQuantity) -> TokenMap
+    reduce m (a, q) = adjustQuantity m a
+        (fromMaybe TokenQuantity.zero . (`TokenQuantity.subtract` q))
 
 --------------------------------------------------------------------------------
 -- Tests

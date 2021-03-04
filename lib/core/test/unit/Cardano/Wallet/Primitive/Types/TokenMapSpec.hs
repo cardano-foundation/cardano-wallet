@@ -14,7 +14,7 @@ import Prelude
 import Algebra.PartialOrd
     ( PartialOrd (..) )
 import Cardano.Wallet.Primitive.Types.TokenMap
-    ( AssetId (..), Flat (..), Nested (..), TokenMap )
+    ( AssetId (..), Flat (..), Nested (..), TokenMap, difference )
 import Cardano.Wallet.Primitive.Types.TokenMap.Gen
     ( AssetIdF (..)
     , genAssetIdSmallRange
@@ -78,6 +78,7 @@ import Test.QuickCheck
     , Property
     , applyFun
     , checkCoverage
+    , counterexample
     , cover
     , property
     , (===)
@@ -137,6 +138,8 @@ spec =
             property prop_add_invariant
         it "prop_subtract_invariant" $
             property prop_subtract_invariant
+        it "prop_difference_invariant" $
+            property prop_difference_invariant
         it "prop_setQuantity_invariant" $
             property prop_setQuantity_invariant
         it "prop_adjustQuantity_invariant" $
@@ -176,6 +179,20 @@ spec =
             property prop_add_subtract_associative
         it "prop_subtract_null" $
             property prop_subtract_null
+        it "prop_difference_zero (x - 0 = x)" $
+            property prop_difference_zero
+        it "prop_difference_zero2 (0 - x = 0)" $
+            property prop_difference_zero2
+        it "prop_difference_zero3 (x - x = 0)" $
+            property prop_difference_zero3
+        it "prop_difference_leq (x - y ⊆ x)" $
+            property prop_difference_leq
+        it "prop_difference_add ((x - y) + y ⊇ x)" $
+            property prop_difference_add
+        it "prop_difference_subtract" $
+            property prop_difference_subtract
+        it "prop_difference_equality" $
+            property prop_difference_equality
 
     parallel $ describe "Quantities" $ do
 
@@ -254,6 +271,10 @@ prop_subtract_invariant m1 m2 = property $
     m2 `leq` m1 ==> invariantHolds result
   where
     Just result = TokenMap.subtract m1 m2
+
+prop_difference_invariant :: TokenMap -> TokenMap -> Property
+prop_difference_invariant m1 m2 =
+    property $ invariantHolds $ TokenMap.difference m1 m2
 
 prop_setQuantity_invariant
     :: TokenMap -> AssetId -> TokenQuantity -> Property
@@ -383,6 +404,50 @@ prop_add_subtract_associative m1 m2 m3 =
 prop_subtract_null :: TokenMap -> Property
 prop_subtract_null m =
     m `TokenMap.subtract` m === Just TokenMap.empty
+
+prop_difference_zero :: TokenMap -> Property
+prop_difference_zero x =
+    x `difference` mempty === x
+
+prop_difference_zero2 :: TokenMap-> Property
+prop_difference_zero2 x =
+    mempty `difference` x === mempty
+
+prop_difference_zero3 :: TokenMap -> Property
+prop_difference_zero3 x =
+    x `difference` x === mempty
+
+prop_difference_leq :: TokenMap -> TokenMap -> Property
+prop_difference_leq x y = property $
+    x `difference` y `leq` x
+
+-- (x - y) + y ⊇ x
+prop_difference_add :: TokenMap -> TokenMap -> Property
+prop_difference_add x y =
+    let
+        delta = x `difference` y
+        yAndDelta = delta `TokenMap.add` y
+    in
+        counterexample ("x - y = " <> show delta) $
+        counterexample ("(x - y) + y = " <> show yAndDelta) $
+        property $ x `leq` yAndDelta
+
+prop_difference_subtract :: TokenMap -> TokenMap -> Property
+prop_difference_subtract x y =
+    y `leq` x ==> (===)
+        (x `TokenMap.subtract` y)
+        (Just $ x `TokenMap.difference` y)
+
+prop_difference_equality :: TokenMap -> TokenMap -> Property
+prop_difference_equality x y = checkCoverage $
+    cover 5 (TokenMap.isNotEmpty xReduced)
+        "reduced maps are not empty" $
+    xReduced === yReduced
+  where
+    xReduced = x `TokenMap.unsafeSubtract` xExcess
+    yReduced = y `TokenMap.unsafeSubtract` yExcess
+    xExcess = x `TokenMap.difference` y
+    yExcess = y `TokenMap.difference` x
 
 --------------------------------------------------------------------------------
 -- Quantity properties

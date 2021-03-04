@@ -81,6 +81,7 @@ module Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     -- * Utility functions
     , distance
     , mapMaybe
+    , balanceMissing
     ) where
 
 import Prelude
@@ -320,6 +321,11 @@ data BalanceInsufficientError = BalanceInsufficientError
         :: !TokenBundle
       -- ^ The balance of 'outputsToCover'.
     } deriving (Generic, Eq, Show)
+
+-- | Calculate the missing balance from a @BalanceInsufficientError@.
+balanceMissing :: BalanceInsufficientError -> TokenBundle
+balanceMissing (BalanceInsufficientError available required) =
+    TokenBundle.difference required available
 
 -- | Indicates that a particular output does not have the minimum coin quantity
 --   expected by the protocol.
