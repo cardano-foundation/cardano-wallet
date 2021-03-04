@@ -187,7 +187,7 @@ steveToken = ApiAssetMetadata
     "SteveToken" "A sample description" (Just "STV")
     (Just (ApiT (unsafeFromText "https://iohk.io/stevetoken")))
     (Just (ApiT (W.AssetLogo "Almost a logo")))
-    (Just (ApiT (W.AssetUnit "MegaSteve" 6)))
+    (Just (ApiT (W.AssetUnit "MegaSteve" 6 Nothing)))
 
 ---
 --- Helpers
