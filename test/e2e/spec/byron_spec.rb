@@ -127,19 +127,6 @@ RSpec.describe CardanoWallet::Byron do
       expect(addr_import.code).to eq 204
     end
 
-    it "I can import 130k address, easily - random" do
-      m = %w[collect fold file clown injury sun brass diet exist spike behave clip]
-      id = create_byron_wallet_with m
-      f = File.readlines("spec/test_data/130k_byron_addresses")
-      addresses = f.map{|a| a.strip}
-      r = BYRON.addresses.bulk_import(id, addresses)
-      expect(r.code).to eq 204
-
-      r = BYRON.addresses.list(id)
-      expect(r.code).to eq 200
-      expect(r.size).to eq 130000
-    end
-
     it "I cannot import address - icarus" do
       id = create_byron_wallet "icarus"
       addr = BYRON.addresses.list(id)[0]['id']
