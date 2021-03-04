@@ -277,8 +277,10 @@ spec = describe "Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobinSpec" $
 
     parallel $ describe "Boundary tests" $ do
 
-        unitTests "testBoundaries"
-            unit_testBoundaries
+        unit_testBoundaries "Large token quantities"
+            boundaryTestMatrix_largeTokenQuantities
+        unit_testBoundaries "Large asset counts"
+            boundaryTestMatrix_largeAssetCounts
 
     parallel $ describe "Making change" $ do
 
@@ -1090,8 +1092,8 @@ prop_coinSelectionLens_givesPriorityToCoins (Blind (Small u)) =
 -- Boundary tests
 --------------------------------------------------------------------------------
 
-unit_testBoundaries :: [Expectation]
-unit_testBoundaries = mkBoundaryTestExpectation <$> boundaryTestMatrix
+unit_testBoundaries :: String -> [BoundaryTestData] -> SpecWith ()
+unit_testBoundaries title = unitTests title . fmap mkBoundaryTestExpectation
 
 data BoundaryTestData = BoundaryTestData
     { boundaryTestCriteria
@@ -1160,12 +1162,16 @@ decodeBoundaryTestResult r = BoundaryTestResult
         TokenBundle.toFlatList <$> view #changeGenerated r
     }
 
-boundaryTestMatrix :: [BoundaryTestData]
-boundaryTestMatrix =
-    [ boundaryTest1
-    , boundaryTest2
-    , boundaryTest3
-    , boundaryTest4
+--------------------------------------------------------------------------------
+-- Boundary tests: handling of large token quantities
+--------------------------------------------------------------------------------
+
+boundaryTestMatrix_largeTokenQuantities :: [BoundaryTestData]
+boundaryTestMatrix_largeTokenQuantities =
+    [ boundaryTest_largeTokenQuantities_1
+    , boundaryTest_largeTokenQuantities_2
+    , boundaryTest_largeTokenQuantities_3
+    , boundaryTest_largeTokenQuantities_4
     ]
 
 -- Reach (but do not exceed) the maximum token quantity by selecting inputs
@@ -1176,8 +1182,8 @@ boundaryTestMatrix =
 --
 -- We expect no splitting of token bundles.
 --
-boundaryTest1 :: BoundaryTestData
-boundaryTest1 = BoundaryTestData
+boundaryTest_largeTokenQuantities_1 :: BoundaryTestData
+boundaryTest_largeTokenQuantities_1 = BoundaryTestData
     { boundaryTestCriteria = BoundaryTestCriteria {..}
     , boundaryTestExpectedResult = BoundaryTestResult {..}
     }
@@ -1206,8 +1212,8 @@ boundaryTest1 = BoundaryTestData
 --
 -- We expect no splitting of token bundles.
 --
-boundaryTest2 :: BoundaryTestData
-boundaryTest2 = BoundaryTestData
+boundaryTest_largeTokenQuantities_2 :: BoundaryTestData
+boundaryTest_largeTokenQuantities_2 = BoundaryTestData
     { boundaryTestCriteria = BoundaryTestCriteria {..}
     , boundaryTestExpectedResult = BoundaryTestResult {..}
     }
@@ -1236,8 +1242,8 @@ boundaryTest2 = BoundaryTestData
 --
 -- We expect splitting of change bundles.
 --
-boundaryTest3 :: BoundaryTestData
-boundaryTest3 = BoundaryTestData
+boundaryTest_largeTokenQuantities_3 :: BoundaryTestData
+boundaryTest_largeTokenQuantities_3 = BoundaryTestData
     { boundaryTestCriteria = BoundaryTestCriteria {..}
     , boundaryTestExpectedResult = BoundaryTestResult {..}
     }
@@ -1269,8 +1275,8 @@ boundaryTest3 = BoundaryTestData
 --
 -- We expect splitting of change bundles.
 --
-boundaryTest4 :: BoundaryTestData
-boundaryTest4 = BoundaryTestData
+boundaryTest_largeTokenQuantities_4 :: BoundaryTestData
+boundaryTest_largeTokenQuantities_4 = BoundaryTestData
     { boundaryTestCriteria = BoundaryTestCriteria {..}
     , boundaryTestExpectedResult = BoundaryTestResult {..}
     }
@@ -1290,6 +1296,161 @@ boundaryTest4 = BoundaryTestData
     boundaryTestChange =
       [ (Coin 250_000, [(assetA, maxTxOutTokenQuantity)])
       , (Coin 250_000, [(assetA, maxTxOutTokenQuantity)])
+      ]
+
+--------------------------------------------------------------------------------
+-- Boundary tests: handling of large asset counts
+--------------------------------------------------------------------------------
+
+boundaryTestMatrix_largeAssetCounts :: [BoundaryTestData]
+boundaryTestMatrix_largeAssetCounts =
+    [ boundaryTest_largeAssetCounts_1
+    , boundaryTest_largeAssetCounts_2
+    , boundaryTest_largeAssetCounts_3
+    , boundaryTest_largeAssetCounts_4
+    ]
+
+-- Reach (but do not exceed) the maximum per-bundle asset count.
+--
+-- We expect no splitting of change bundles.
+--
+boundaryTest_largeAssetCounts_1 :: BoundaryTestData
+boundaryTest_largeAssetCounts_1 = BoundaryTestData
+    { boundaryTestCriteria = BoundaryTestCriteria {..}
+    , boundaryTestExpectedResult = BoundaryTestResult {..}
+    }
+  where
+    assetA = AssetId (UnsafeTokenPolicyId $ Hash "A") (UnsafeTokenName "1")
+    assetB = AssetId (UnsafeTokenPolicyId $ Hash "B") (UnsafeTokenName "1")
+    assetC = AssetId (UnsafeTokenPolicyId $ Hash "C") (UnsafeTokenName "1")
+    assetD = AssetId (UnsafeTokenPolicyId $ Hash "D") (UnsafeTokenName "1")
+    boundaryTestBundleSizeAssessor = BundleAssetCountUpperLimit 4
+    boundaryTestOutputs =
+      [ (Coin 1_000_000, []) ]
+    boundaryTestUTxO =
+      [ (Coin 500_000, [(assetA, TokenQuantity 1)])
+      , (Coin 500_000, [(assetB, TokenQuantity 1)])
+      , (Coin 500_000, [(assetC, TokenQuantity 1)])
+      , (Coin 500_000, [(assetD, TokenQuantity 1)])
+      ]
+    -- Expect that all entries will be selected:
+    boundaryTestInputs = boundaryTestUTxO
+    boundaryTestChange =
+      [ ( Coin 1_000_000
+        , [ (assetA, TokenQuantity 1)
+          , (assetB, TokenQuantity 1)
+          , (assetC, TokenQuantity 1)
+          , (assetD, TokenQuantity 1)
+          ]
+        )
+      ]
+
+-- Exceed the maximum per-bundle asset count of 3.
+--
+-- We expect splitting of change bundles.
+--
+boundaryTest_largeAssetCounts_2 :: BoundaryTestData
+boundaryTest_largeAssetCounts_2 = BoundaryTestData
+    { boundaryTestCriteria = BoundaryTestCriteria {..}
+    , boundaryTestExpectedResult = BoundaryTestResult {..}
+    }
+  where
+    assetA = AssetId (UnsafeTokenPolicyId $ Hash "A") (UnsafeTokenName "1")
+    assetB = AssetId (UnsafeTokenPolicyId $ Hash "B") (UnsafeTokenName "1")
+    assetC = AssetId (UnsafeTokenPolicyId $ Hash "C") (UnsafeTokenName "1")
+    assetD = AssetId (UnsafeTokenPolicyId $ Hash "D") (UnsafeTokenName "1")
+    boundaryTestBundleSizeAssessor = BundleAssetCountUpperLimit 3
+    boundaryTestOutputs =
+      [ (Coin 1_000_000, []) ]
+    boundaryTestUTxO =
+      [ (Coin 500_000, [(assetA, TokenQuantity 1)])
+      , (Coin 500_000, [(assetB, TokenQuantity 1)])
+      , (Coin 500_000, [(assetC, TokenQuantity 1)])
+      , (Coin 500_000, [(assetD, TokenQuantity 1)])
+      ]
+    -- Expect that all entries will be selected:
+    boundaryTestInputs = boundaryTestUTxO
+    boundaryTestChange =
+      [ ( Coin 500_000
+        , [ (assetA, TokenQuantity 1)
+          , (assetB, TokenQuantity 1)
+          ]
+        )
+      , ( Coin 500_000
+        , [ (assetC, TokenQuantity 1)
+          , (assetD, TokenQuantity 1)
+          ]
+        )
+      ]
+
+-- Exceed the maximum per-bundle asset count of 2.
+--
+-- We expect splitting of change bundles.
+--
+boundaryTest_largeAssetCounts_3 :: BoundaryTestData
+boundaryTest_largeAssetCounts_3 = BoundaryTestData
+    { boundaryTestCriteria = BoundaryTestCriteria {..}
+    , boundaryTestExpectedResult = BoundaryTestResult {..}
+    }
+  where
+    assetA = AssetId (UnsafeTokenPolicyId $ Hash "A") (UnsafeTokenName "1")
+    assetB = AssetId (UnsafeTokenPolicyId $ Hash "B") (UnsafeTokenName "1")
+    assetC = AssetId (UnsafeTokenPolicyId $ Hash "C") (UnsafeTokenName "1")
+    assetD = AssetId (UnsafeTokenPolicyId $ Hash "D") (UnsafeTokenName "1")
+    boundaryTestBundleSizeAssessor = BundleAssetCountUpperLimit 2
+    boundaryTestOutputs =
+      [ (Coin 1_000_000, []) ]
+    boundaryTestUTxO =
+      [ (Coin 500_000, [(assetA, TokenQuantity 1)])
+      , (Coin 500_000, [(assetB, TokenQuantity 1)])
+      , (Coin 500_000, [(assetC, TokenQuantity 1)])
+      , (Coin 500_000, [(assetD, TokenQuantity 1)])
+      ]
+    -- Expect that all entries will be selected:
+    boundaryTestInputs = boundaryTestUTxO
+    boundaryTestChange =
+      [ ( Coin 500_000
+        , [ (assetA, TokenQuantity 1)
+          , (assetB, TokenQuantity 1)
+          ]
+        )
+      , ( Coin 500_000
+        , [ (assetC, TokenQuantity 1)
+          , (assetD, TokenQuantity 1)
+          ]
+        )
+      ]
+
+-- Exceed the maximum per-bundle asset count of 1.
+--
+-- We expect splitting of change bundles.
+--
+boundaryTest_largeAssetCounts_4 :: BoundaryTestData
+boundaryTest_largeAssetCounts_4 = BoundaryTestData
+    { boundaryTestCriteria = BoundaryTestCriteria {..}
+    , boundaryTestExpectedResult = BoundaryTestResult {..}
+    }
+  where
+    assetA = AssetId (UnsafeTokenPolicyId $ Hash "A") (UnsafeTokenName "1")
+    assetB = AssetId (UnsafeTokenPolicyId $ Hash "B") (UnsafeTokenName "1")
+    assetC = AssetId (UnsafeTokenPolicyId $ Hash "C") (UnsafeTokenName "1")
+    assetD = AssetId (UnsafeTokenPolicyId $ Hash "D") (UnsafeTokenName "1")
+    boundaryTestBundleSizeAssessor = BundleAssetCountUpperLimit 1
+    boundaryTestOutputs =
+      [ (Coin 1_000_000, []) ]
+    boundaryTestUTxO =
+      [ (Coin 500_000, [(assetA, TokenQuantity 1)])
+      , (Coin 500_000, [(assetB, TokenQuantity 1)])
+      , (Coin 500_000, [(assetC, TokenQuantity 1)])
+      , (Coin 500_000, [(assetD, TokenQuantity 1)])
+      ]
+    -- Expect that all entries will be selected:
+    boundaryTestInputs = boundaryTestUTxO
+    boundaryTestChange =
+      [ (Coin 250_000, [(assetA, TokenQuantity 1)])
+      , (Coin 250_000, [(assetB, TokenQuantity 1)])
+      , (Coin 250_000, [(assetC, TokenQuantity 1)])
+      , (Coin 250_000, [(assetD, TokenQuantity 1)])
       ]
 
 --------------------------------------------------------------------------------
