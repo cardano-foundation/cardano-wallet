@@ -106,6 +106,8 @@ import Control.Monad
     ( forM_, replicateM )
 import Data.Bifunctor
     ( bimap, second )
+import Data.ByteString
+    ( ByteString )
 import Data.Function
     ( on, (&) )
 import Data.Functor.Identity
@@ -1188,21 +1190,20 @@ boundaryTest_largeTokenQuantities_1 = BoundaryTestData
     , boundaryTestExpectedResult = BoundaryTestResult {..}
     }
   where
-    assetA = AssetId (UnsafeTokenPolicyId $ Hash "A") (UnsafeTokenName "1")
     (q1, q2) = (TokenQuantity 1, TokenQuantity.pred maxTxOutTokenQuantity)
     boundaryTestBundleSizeAssessor = NoBundleSizeLimit
     boundaryTestOutputs =
       [ (Coin 1_500_000, []) ]
     boundaryTestUTxO =
-      [ (Coin 1_000_000, [(assetA, q1)])
-      , (Coin 1_000_000, [(assetA, q2)])
+      [ (Coin 1_000_000, [(mockAsset "A", q1)])
+      , (Coin 1_000_000, [(mockAsset "A", q2)])
       ]
     boundaryTestInputs =
-      [ (Coin 1_000_000, [(assetA, q1)])
-      , (Coin 1_000_000, [(assetA, q2)])
+      [ (Coin 1_000_000, [(mockAsset "A", q1)])
+      , (Coin 1_000_000, [(mockAsset "A", q2)])
       ]
     boundaryTestChange =
-      [ (Coin 500_000, [(assetA, maxTxOutTokenQuantity)]) ]
+      [ (Coin 500_000, [(mockAsset "A", maxTxOutTokenQuantity)]) ]
 
 -- Reach (but do not exceed) the maximum token quantity by selecting inputs
 -- with the following quantities:
@@ -1218,21 +1219,20 @@ boundaryTest_largeTokenQuantities_2 = BoundaryTestData
     , boundaryTestExpectedResult = BoundaryTestResult {..}
     }
   where
-    assetA = AssetId (UnsafeTokenPolicyId $ Hash "A") (UnsafeTokenName "1")
     q1 :| [q2] = TokenQuantity.equipartition maxTxOutTokenQuantity (() :| [()])
     boundaryTestBundleSizeAssessor = NoBundleSizeLimit
     boundaryTestOutputs =
       [ (Coin 1_500_000, []) ]
     boundaryTestUTxO =
-      [ (Coin 1_000_000, [(assetA, q1)])
-      , (Coin 1_000_000, [(assetA, q2)])
+      [ (Coin 1_000_000, [(mockAsset "A", q1)])
+      , (Coin 1_000_000, [(mockAsset "A", q2)])
       ]
     boundaryTestInputs =
-      [ (Coin 1_000_000, [(assetA, q1)])
-      , (Coin 1_000_000, [(assetA, q2)])
+      [ (Coin 1_000_000, [(mockAsset "A", q1)])
+      , (Coin 1_000_000, [(mockAsset "A", q2)])
       ]
     boundaryTestChange =
-      [ (Coin 500_000, [(assetA, maxTxOutTokenQuantity)]) ]
+      [ (Coin 500_000, [(mockAsset "A", maxTxOutTokenQuantity)]) ]
 
 -- Slightly exceed the maximum token quantity by selecting inputs with the
 -- following quantities:
@@ -1248,23 +1248,22 @@ boundaryTest_largeTokenQuantities_3 = BoundaryTestData
     , boundaryTestExpectedResult = BoundaryTestResult {..}
     }
   where
-    assetA = AssetId (UnsafeTokenPolicyId $ Hash "A") (UnsafeTokenName "1")
     q1 :| [q2] = TokenQuantity.equipartition
         (TokenQuantity.succ maxTxOutTokenQuantity) (() :| [()])
     boundaryTestBundleSizeAssessor = NoBundleSizeLimit
     boundaryTestOutputs =
       [ (Coin 1_500_000, []) ]
     boundaryTestUTxO =
-      [ (Coin 1_000_000, [(assetA, TokenQuantity 1)])
-      , (Coin 1_000_000, [(assetA, maxTxOutTokenQuantity)])
+      [ (Coin 1_000_000, [(mockAsset "A", TokenQuantity 1)])
+      , (Coin 1_000_000, [(mockAsset "A", maxTxOutTokenQuantity)])
       ]
     boundaryTestInputs =
-      [ (Coin 1_000_000, [(assetA, TokenQuantity 1)])
-      , (Coin 1_000_000, [(assetA, maxTxOutTokenQuantity)])
+      [ (Coin 1_000_000, [(mockAsset "A", TokenQuantity 1)])
+      , (Coin 1_000_000, [(mockAsset "A", maxTxOutTokenQuantity)])
       ]
     boundaryTestChange =
-      [ (Coin 250_000, [(assetA, q1)])
-      , (Coin 250_000, [(assetA, q2)])
+      [ (Coin 250_000, [(mockAsset "A", q1)])
+      , (Coin 250_000, [(mockAsset "A", q2)])
       ]
 
 -- Reach (but do not exceed) exactly twice the maximum token quantity by
@@ -1281,21 +1280,20 @@ boundaryTest_largeTokenQuantities_4 = BoundaryTestData
     , boundaryTestExpectedResult = BoundaryTestResult {..}
     }
   where
-    assetA = AssetId (UnsafeTokenPolicyId $ Hash "A") (UnsafeTokenName "1")
     boundaryTestBundleSizeAssessor = NoBundleSizeLimit
     boundaryTestOutputs =
       [ (Coin 1_500_000, []) ]
     boundaryTestUTxO =
-      [ (Coin 1_000_000, [(assetA, maxTxOutTokenQuantity)])
-      , (Coin 1_000_000, [(assetA, maxTxOutTokenQuantity)])
+      [ (Coin 1_000_000, [(mockAsset "A", maxTxOutTokenQuantity)])
+      , (Coin 1_000_000, [(mockAsset "A", maxTxOutTokenQuantity)])
       ]
     boundaryTestInputs =
-      [ (Coin 1_000_000, [(assetA, maxTxOutTokenQuantity)])
-      , (Coin 1_000_000, [(assetA, maxTxOutTokenQuantity)])
+      [ (Coin 1_000_000, [(mockAsset "A", maxTxOutTokenQuantity)])
+      , (Coin 1_000_000, [(mockAsset "A", maxTxOutTokenQuantity)])
       ]
     boundaryTestChange =
-      [ (Coin 250_000, [(assetA, maxTxOutTokenQuantity)])
-      , (Coin 250_000, [(assetA, maxTxOutTokenQuantity)])
+      [ (Coin 250_000, [(mockAsset "A", maxTxOutTokenQuantity)])
+      , (Coin 250_000, [(mockAsset "A", maxTxOutTokenQuantity)])
       ]
 
 --------------------------------------------------------------------------------
@@ -1320,27 +1318,23 @@ boundaryTest_largeAssetCounts_1 = BoundaryTestData
     , boundaryTestExpectedResult = BoundaryTestResult {..}
     }
   where
-    assetA = AssetId (UnsafeTokenPolicyId $ Hash "A") (UnsafeTokenName "1")
-    assetB = AssetId (UnsafeTokenPolicyId $ Hash "B") (UnsafeTokenName "1")
-    assetC = AssetId (UnsafeTokenPolicyId $ Hash "C") (UnsafeTokenName "1")
-    assetD = AssetId (UnsafeTokenPolicyId $ Hash "D") (UnsafeTokenName "1")
     boundaryTestBundleSizeAssessor = BundleAssetCountUpperLimit 4
     boundaryTestOutputs =
       [ (Coin 1_000_000, []) ]
     boundaryTestUTxO =
-      [ (Coin 500_000, [(assetA, TokenQuantity 1)])
-      , (Coin 500_000, [(assetB, TokenQuantity 1)])
-      , (Coin 500_000, [(assetC, TokenQuantity 1)])
-      , (Coin 500_000, [(assetD, TokenQuantity 1)])
+      [ (Coin 500_000, [mockAssetQuantity "A" 1])
+      , (Coin 500_000, [mockAssetQuantity "B" 1])
+      , (Coin 500_000, [mockAssetQuantity "C" 1])
+      , (Coin 500_000, [mockAssetQuantity "D" 1])
       ]
     -- Expect that all entries will be selected:
     boundaryTestInputs = boundaryTestUTxO
     boundaryTestChange =
       [ ( Coin 1_000_000
-        , [ (assetA, TokenQuantity 1)
-          , (assetB, TokenQuantity 1)
-          , (assetC, TokenQuantity 1)
-          , (assetD, TokenQuantity 1)
+        , [ mockAssetQuantity "A" 1
+          , mockAssetQuantity "B" 1
+          , mockAssetQuantity "C" 1
+          , mockAssetQuantity "D" 1
           ]
         )
       ]
@@ -1355,32 +1349,20 @@ boundaryTest_largeAssetCounts_2 = BoundaryTestData
     , boundaryTestExpectedResult = BoundaryTestResult {..}
     }
   where
-    assetA = AssetId (UnsafeTokenPolicyId $ Hash "A") (UnsafeTokenName "1")
-    assetB = AssetId (UnsafeTokenPolicyId $ Hash "B") (UnsafeTokenName "1")
-    assetC = AssetId (UnsafeTokenPolicyId $ Hash "C") (UnsafeTokenName "1")
-    assetD = AssetId (UnsafeTokenPolicyId $ Hash "D") (UnsafeTokenName "1")
     boundaryTestBundleSizeAssessor = BundleAssetCountUpperLimit 3
     boundaryTestOutputs =
       [ (Coin 1_000_000, []) ]
     boundaryTestUTxO =
-      [ (Coin 500_000, [(assetA, TokenQuantity 1)])
-      , (Coin 500_000, [(assetB, TokenQuantity 1)])
-      , (Coin 500_000, [(assetC, TokenQuantity 1)])
-      , (Coin 500_000, [(assetD, TokenQuantity 1)])
+      [ (Coin 500_000, [mockAssetQuantity "A" 1])
+      , (Coin 500_000, [mockAssetQuantity "B" 1])
+      , (Coin 500_000, [mockAssetQuantity "C" 1])
+      , (Coin 500_000, [mockAssetQuantity "D" 1])
       ]
     -- Expect that all entries will be selected:
     boundaryTestInputs = boundaryTestUTxO
     boundaryTestChange =
-      [ ( Coin 500_000
-        , [ (assetA, TokenQuantity 1)
-          , (assetB, TokenQuantity 1)
-          ]
-        )
-      , ( Coin 500_000
-        , [ (assetC, TokenQuantity 1)
-          , (assetD, TokenQuantity 1)
-          ]
-        )
+      [ (Coin 500_000, [mockAssetQuantity "A" 1, mockAssetQuantity "B" 1])
+      , (Coin 500_000, [mockAssetQuantity "C" 1, mockAssetQuantity "D" 1])
       ]
 
 -- Exceed the maximum per-bundle asset count of 2.
@@ -1393,32 +1375,20 @@ boundaryTest_largeAssetCounts_3 = BoundaryTestData
     , boundaryTestExpectedResult = BoundaryTestResult {..}
     }
   where
-    assetA = AssetId (UnsafeTokenPolicyId $ Hash "A") (UnsafeTokenName "1")
-    assetB = AssetId (UnsafeTokenPolicyId $ Hash "B") (UnsafeTokenName "1")
-    assetC = AssetId (UnsafeTokenPolicyId $ Hash "C") (UnsafeTokenName "1")
-    assetD = AssetId (UnsafeTokenPolicyId $ Hash "D") (UnsafeTokenName "1")
     boundaryTestBundleSizeAssessor = BundleAssetCountUpperLimit 2
     boundaryTestOutputs =
       [ (Coin 1_000_000, []) ]
     boundaryTestUTxO =
-      [ (Coin 500_000, [(assetA, TokenQuantity 1)])
-      , (Coin 500_000, [(assetB, TokenQuantity 1)])
-      , (Coin 500_000, [(assetC, TokenQuantity 1)])
-      , (Coin 500_000, [(assetD, TokenQuantity 1)])
+      [ (Coin 500_000, [mockAssetQuantity "A" 1])
+      , (Coin 500_000, [mockAssetQuantity "B" 1])
+      , (Coin 500_000, [mockAssetQuantity "C" 1])
+      , (Coin 500_000, [mockAssetQuantity "D" 1])
       ]
     -- Expect that all entries will be selected:
     boundaryTestInputs = boundaryTestUTxO
     boundaryTestChange =
-      [ ( Coin 500_000
-        , [ (assetA, TokenQuantity 1)
-          , (assetB, TokenQuantity 1)
-          ]
-        )
-      , ( Coin 500_000
-        , [ (assetC, TokenQuantity 1)
-          , (assetD, TokenQuantity 1)
-          ]
-        )
+      [ (Coin 500_000, [mockAssetQuantity "A" 1, mockAssetQuantity "B" 1])
+      , (Coin 500_000, [mockAssetQuantity "C" 1, mockAssetQuantity "D" 1])
       ]
 
 -- Exceed the maximum per-bundle asset count of 1.
@@ -1431,26 +1401,22 @@ boundaryTest_largeAssetCounts_4 = BoundaryTestData
     , boundaryTestExpectedResult = BoundaryTestResult {..}
     }
   where
-    assetA = AssetId (UnsafeTokenPolicyId $ Hash "A") (UnsafeTokenName "1")
-    assetB = AssetId (UnsafeTokenPolicyId $ Hash "B") (UnsafeTokenName "1")
-    assetC = AssetId (UnsafeTokenPolicyId $ Hash "C") (UnsafeTokenName "1")
-    assetD = AssetId (UnsafeTokenPolicyId $ Hash "D") (UnsafeTokenName "1")
     boundaryTestBundleSizeAssessor = BundleAssetCountUpperLimit 1
     boundaryTestOutputs =
       [ (Coin 1_000_000, []) ]
     boundaryTestUTxO =
-      [ (Coin 500_000, [(assetA, TokenQuantity 1)])
-      , (Coin 500_000, [(assetB, TokenQuantity 1)])
-      , (Coin 500_000, [(assetC, TokenQuantity 1)])
-      , (Coin 500_000, [(assetD, TokenQuantity 1)])
+      [ (Coin 500_000, [mockAssetQuantity "A" 1])
+      , (Coin 500_000, [mockAssetQuantity "B" 1])
+      , (Coin 500_000, [mockAssetQuantity "C" 1])
+      , (Coin 500_000, [mockAssetQuantity "D" 1])
       ]
     -- Expect that all entries will be selected:
     boundaryTestInputs = boundaryTestUTxO
     boundaryTestChange =
-      [ (Coin 250_000, [(assetA, TokenQuantity 1)])
-      , (Coin 250_000, [(assetB, TokenQuantity 1)])
-      , (Coin 250_000, [(assetC, TokenQuantity 1)])
-      , (Coin 250_000, [(assetD, TokenQuantity 1)])
+      [ (Coin 250_000, [mockAssetQuantity "A" 1])
+      , (Coin 250_000, [mockAssetQuantity "B" 1])
+      , (Coin 250_000, [mockAssetQuantity "C" 1])
+      , (Coin 250_000, [mockAssetQuantity "D" 1])
       ]
 
 --------------------------------------------------------------------------------
@@ -2375,6 +2341,12 @@ addExtraSource :: Maybe Coin -> TokenBundle -> TokenBundle
 addExtraSource extraSource =
     TokenBundle.add
         (maybe TokenBundle.empty TokenBundle.fromCoin extraSource)
+
+mockAsset :: ByteString -> AssetId
+mockAsset a = AssetId (UnsafeTokenPolicyId $ Hash a) (UnsafeTokenName "1")
+
+mockAssetQuantity :: ByteString -> Natural -> (AssetId, TokenQuantity)
+mockAssetQuantity a q = (mockAsset a, TokenQuantity q)
 
 unitTests :: String -> [Expectation] -> SpecWith ()
 unitTests lbl cases =
