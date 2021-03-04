@@ -1102,7 +1102,9 @@ data BoundaryTestData = BoundaryTestData
     deriving (Eq, Show)
 
 data BoundaryTestCriteria = BoundaryTestCriteria
-    { boundaryTestOutputs
+    { boundaryTestBundleSizeAssessor
+        :: BundleSizeAssessor
+    , boundaryTestOutputs
         :: [BoundaryTestEntry]
     , boundaryTestUTxO
         :: [BoundaryTestEntry]
@@ -1124,7 +1126,7 @@ mkBoundaryTestExpectation (BoundaryTestData criteria expectedResult) = do
     actualResult <- performSelection
         (noMinCoin)
         (mkCostFor NoCost)
-        (mkBundleSizeAssessor NoBundleSizeLimit)
+        (mkBundleSizeAssessor $ boundaryTestBundleSizeAssessor criteria)
         (encodeBoundaryTestCriteria criteria)
     fmap decodeBoundaryTestResult actualResult `shouldBe` Right expectedResult
 
@@ -1182,6 +1184,7 @@ boundaryTest1 = BoundaryTestData
   where
     assetA = AssetId (UnsafeTokenPolicyId $ Hash "A") (UnsafeTokenName "1")
     (q1, q2) = (TokenQuantity 1, TokenQuantity.pred maxTxOutTokenQuantity)
+    boundaryTestBundleSizeAssessor = NoBundleSizeLimit
     boundaryTestOutputs =
       [ (Coin 1_500_000, []) ]
     boundaryTestUTxO =
@@ -1211,6 +1214,7 @@ boundaryTest2 = BoundaryTestData
   where
     assetA = AssetId (UnsafeTokenPolicyId $ Hash "A") (UnsafeTokenName "1")
     q1 :| [q2] = TokenQuantity.equipartition maxTxOutTokenQuantity (() :| [()])
+    boundaryTestBundleSizeAssessor = NoBundleSizeLimit
     boundaryTestOutputs =
       [ (Coin 1_500_000, []) ]
     boundaryTestUTxO =
@@ -1241,6 +1245,7 @@ boundaryTest3 = BoundaryTestData
     assetA = AssetId (UnsafeTokenPolicyId $ Hash "A") (UnsafeTokenName "1")
     q1 :| [q2] = TokenQuantity.equipartition
         (TokenQuantity.succ maxTxOutTokenQuantity) (() :| [()])
+    boundaryTestBundleSizeAssessor = NoBundleSizeLimit
     boundaryTestOutputs =
       [ (Coin 1_500_000, []) ]
     boundaryTestUTxO =
@@ -1271,6 +1276,7 @@ boundaryTest4 = BoundaryTestData
     }
   where
     assetA = AssetId (UnsafeTokenPolicyId $ Hash "A") (UnsafeTokenName "1")
+    boundaryTestBundleSizeAssessor = NoBundleSizeLimit
     boundaryTestOutputs =
       [ (Coin 1_500_000, []) ]
     boundaryTestUTxO =
