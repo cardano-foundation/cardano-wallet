@@ -217,6 +217,7 @@ instance NFData AssetMetadata
 data AssetUnit = AssetUnit
     { name :: Text -- ^ Name of the larger asset.
     , decimals :: Natural  -- ^ Number of zeroes to add to base unit.
+    , ticker :: Maybe Text -- ^ Optional abbreviation of larger asset name
     } deriving (Generic, Show, Eq, Ord)
 
 instance NFData AssetUnit
@@ -261,7 +262,7 @@ validateMetadataName :: Text -> Either String Text
 validateMetadataName = validateMinLength 1 >=> validateMaxLength 50
 
 validateMetadataTicker :: Text -> Either String Text
-validateMetadataTicker = validateMinLength 2 >=> validateMaxLength 4
+validateMetadataTicker = validateMinLength 2 >=> validateMaxLength 5
 
 validateMetadataDescription :: Text -> Either String Text
 validateMetadataDescription = validateMaxLength 500
@@ -278,8 +279,18 @@ validateMetadataURL = fmap AssetURL .
           | otherwise = Left $ "Scheme must be https: but got " ++ scheme
 
 validateMetadataUnit :: AssetUnit -> Either String AssetUnit
-validateMetadataUnit assetUnit@AssetUnit{name} =
-    (validateMinLength 1 name >>= validateMaxLength 30) $> assetUnit
+validateMetadataUnit = validateName >=> validateTicker >=> validateDecimals
+  where
+    validateName u@AssetUnit{name} =
+        (validateMinLength 1 name >>= validateMaxLength 30) $> u
+    validateTicker u@AssetUnit{ticker} =
+        case fmap validateMetadataTicker ticker of
+            Just (Left e) -> Left e
+            _ -> Right u
+    validateDecimals u@AssetUnit{decimals}
+        | decimals > 0 && decimals < 20 = Right u
+        | otherwise =
+            Left "AssetUnit decimals must be greater than 0 and less than 20"
 
 validateMetadataLogo :: AssetLogo -> Either String AssetLogo
 validateMetadataLogo logo

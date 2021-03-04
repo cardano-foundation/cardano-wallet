@@ -518,21 +518,25 @@ x-assetMetadataName: &assetMetadataName
   maxLength: 50
   minLength: 1
   description: |
-    A human-readable name for the asset. Good for display in user interfaces.
+    A human-readable name for the asset, intended for display in user
+    interfaces.
   example: SwaggerCoin
 
 x-assetMetadataTicker: &assetMetadataTicker
   type: string
-  maxLength: 4
+  maxLength: 5
   minLength: 2
   description: |
-    A human-readable short name for the asset. Good for display in
-    user interfaces.
+    An optional human-readable very short name or acronym for the
+    asset, intended for display in user interfaces. If `ticker` is not
+    present, then `name` will be used, but it might be truncated to
+    fit within the available space.
   example: SWAG
 
 x-assetMetadataDescription: &assetMetadataDescription
   description: |
-    A human-readable description for the asset. Good for display in user interfaces.
+    A human-readable description for the asset. Good for display in
+    user interfaces.
   type: string
   maxLength: 500
 
@@ -559,6 +563,8 @@ x-assetMetadataUnit: &assetMetadataUnit
       description: |
         The human-readable name for the larger unit of the asset. Used
         for display in user interfaces.
+    ticker: *assetMetadataTicker
+
   example:
     name: API
     decimals: 3
