@@ -35,7 +35,7 @@ jobs:
       uses: actions/cache@v2
       with:
         path: ${{ env.NODE_DB }}
-        key: ${{ runner.os }}-node-db-nightly-macos-tests-${{ hashFiles('**/protocolMagicId') }}
+        key: ${{ runner.os }}-node-cache
 
     - name: Set up cardano-wallet and cardano-node
       run: |

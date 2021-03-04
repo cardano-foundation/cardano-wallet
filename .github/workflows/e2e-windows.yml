@@ -22,8 +22,8 @@ jobs:
       id: cache
       uses: actions/cache@v2
       with:
-        path: ${{ env.NODE_DB }}
-        key: ${{ runner.os }}-node-db-nightly-win-tests-${{ hashFiles('**/protocolMagicId') }}
+        path: d:/node-db-nightly-win-tests
+        key: ${{ runner.os }}-node-cache
 
     - name: Set up Ruby
       uses: ruby/setup-ruby@v1
@@ -51,7 +51,7 @@ jobs:
 
     - name: Run all tests
       run: bundle exec rspec .
-      
+
     - name: 📎 Upload logs
       uses: actions/upload-artifact@v2
       if: always()

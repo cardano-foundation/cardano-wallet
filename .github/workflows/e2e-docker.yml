@@ -45,7 +45,7 @@ jobs:
       uses: actions/cache@v2
       with:
         path: ~/node-db-nightly-docker
-        key: ${{ runner.os }}-node-db-nightly-docker-tests-${{ hashFiles('**/protocolMagicId') }}
+        key: ${{ runner.os }}-node-cache
 
     - name: Set up cardano-wallet and cardano-node MANUAL
       if: ${{ github.event.inputs.walletTag != '' && github.event.inputs.nodeTag != ''}}
