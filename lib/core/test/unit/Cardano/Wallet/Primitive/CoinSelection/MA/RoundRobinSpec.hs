@@ -1349,12 +1349,25 @@ type MakeChangeData = MakeChangeCriteria MinCoinValueFor BundleSizeAssessor
 
 data BundleSizeAssessor
     = NoBundleSizeLimit
+      -- ^ Indicates that there is no limit on a token bundle's size.
+    | BundleAssetCountUpperLimit Int
+      -- ^ Indicates an inclusive upper bound on the number of assets in a
+      -- token bundle.
     deriving (Eq, Show)
 
 mkBundleSizeAssessor
     :: BundleSizeAssessor
     -> (TokenBundle -> TokenBundleSizeAssessment)
-mkBundleSizeAssessor NoBundleSizeLimit = const TokenBundleSizeWithinLimit
+mkBundleSizeAssessor = \case
+    NoBundleSizeLimit ->
+        const TokenBundleSizeWithinLimit
+    BundleAssetCountUpperLimit upperLimit ->
+        \bundle ->
+            let assetCount = Set.size $ TokenBundle.getAssets bundle in
+            case assetCount `compare` upperLimit of
+                LT -> TokenBundleSizeWithinLimit
+                EQ -> TokenBundleSizeWithinLimit
+                GT -> TokenBundleSizeExceedsLimit
 
 isValidMakeChangeData :: MakeChangeData -> Bool
 isValidMakeChangeData p = (&&)
