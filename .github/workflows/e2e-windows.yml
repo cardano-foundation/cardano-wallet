@@ -40,16 +40,9 @@ jobs:
         choco install unzip
         choco install nssm
 
-    - name: Get cardano-wallet and cardano-node
-      run: bundle exec rake get_latest_bins
-
-    - name: Display versions
-      run: |
-        "cardano-wallet.exe version" | cmd
-        "cardano-node.exe version" | cmd
-
     - name: Start cardano-wallet and cardano-node
       run: |
+        bundle exec rake get_latest_bins
         bundle exec rake get_latest_configs["testnet"]
         bundle exec rake start_node_and_wallet
 

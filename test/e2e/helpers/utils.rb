@@ -1,4 +1,5 @@
 require 'httparty'
+require 'fileutils'
 
 module Helpers
   module Utils
@@ -13,6 +14,10 @@ module Helpers
 
     def mk_dir(path)
       Dir.mkdir(path) unless File.exists?(path)
+    end
+
+    def rm_files(path)
+      FileUtils.rm_rf("#{path}/.", secure: true)
     end
 
     def is_win?
