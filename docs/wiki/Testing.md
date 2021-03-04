@@ -17,7 +17,7 @@ $ stack test cardano-wallet:unit --test-arguments "--match MyModule"
 
 Install [`cardano-node`](https://docs.cardano.org/projects/cardano-node/en/latest/getting-started/install.html) and [`cardano-cli`](https://docs.cardano.org/projects/cardano-node/en/latest/getting-started/install.html); make sure to use one of the [compatible versions](https://github.com/input-output-hk/cardano-wallet/blob/master/README.md#latest-releases).
 
-Alternatively, use `stack test --nix`.
+Alternatively, use `stack test --nix --ta "-j8"`.
 
 #### Test
 
