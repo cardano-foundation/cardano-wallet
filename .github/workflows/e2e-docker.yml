@@ -80,7 +80,7 @@ jobs:
     - name: Stop docker-compose
       run: NODE_CONFIG_PATH=`pwd`/configs docker-compose down
     env:
-      TOKEN_METADATA: http://metadata-server-mock.herokuapp.com/
+      TOKEN_METADATA: https://metadata.cardano-testnet.iohkdev.io/
       NETWORK: testnet
       WALLET: dev-master-shelley
       NODE: 1.25.1

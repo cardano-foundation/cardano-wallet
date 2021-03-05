@@ -9,6 +9,33 @@ RSpec::Core::RakeTask.new(:spec)
 
 task :default => :spec
 
+task :fixture_wallets_template do
+  path = ENV['FIXTURE_WALLETS']
+  puts "\n  >> Creating #{path}"
+
+  fixture_wallets = { :linux => {:shelley => mnemonic_sentence(24),
+                                 :icarus => mnemonic_sentence(15),
+                                 :byron => mnemonic_sentence(12) },
+                      :macos => {:shelley => mnemonic_sentence(24),
+                                 :icarus => mnemonic_sentence(15),
+                                 :byron => mnemonic_sentence(12) },
+                      :windows => {:shelley => mnemonic_sentence(24),
+                                   :icarus => mnemonic_sentence(15),
+                                   :byron => mnemonic_sentence(12) }
+                    }
+  if File.exists?(path)
+    err = %Q{
+              File #{path} already exists!
+              I don't want to overwrite it in case it
+              contains fixture wallets already...
+            }
+    STDERR.puts err
+  else
+    File.open(path, 'w') {|f| f.write JSON.pretty_generate(fixture_wallets) }
+  end
+
+end
+
 task :clean_logs do
   puts "\n  >> Removing logs"
 
