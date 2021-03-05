@@ -1,6 +1,7 @@
 require "rspec/core/rake_task"
 require "cardano_wallet"
 require_relative "helpers/utils"
+require_relative "env"
 
 include Helpers::Utils
 
@@ -13,6 +14,13 @@ task :clean_logs do
 
   logs = Dir.pwd + "/logs"
   rm_files(logs)
+end
+
+task :clean_bins do
+  puts "\n  >> Removing bins"
+
+  bins = Dir.pwd + "/bins"
+  rm_files(bins)
 end
 
 task :wait_until_node_synced do
@@ -40,10 +48,6 @@ end
 
 task :start_node_and_wallet do
   puts "\n  >> Set up and start cardano-node and cardano-wallet"
-
-  ENV['NODE_DB'] ||= "./node_db"
-  ENV['WALLET_DB'] ||= "./wallet_db"
-  ENV['TOKEN_METADATA'] ||= "https://metadata.cardano-testnet.iohkdev.io/"
 
   cd = Dir.pwd
   logs = cd + "/logs"
@@ -130,6 +134,8 @@ task :get_latest_bins do
     puts "cardano-wallet version:"
     puts `cardano-wallet.exe version`
   else
+    Rake::Task[:clean_bins].invoke
+    puts `rm -rf cardano-wallet-*/`
     puts `tar -xvf binary-dist`
     puts `cp -r cardano-wallet-*/* #{bins_path}`
 
