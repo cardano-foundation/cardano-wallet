@@ -32,7 +32,7 @@ jobs:
       id: cache
       uses: actions/cache@v2
       with:
-        path: ${{ env.NODE_DB }}
+        path: test/e2e/node_db
         key: ${{ runner.os }}-node-cache
 
     - name: Set up cardano-wallet and cardano-node
@@ -53,8 +53,3 @@ jobs:
       with:
         name: ${{ runner.os }}-logs
         path: test/e2e/logs
-
-    env:
-      NODE_DB: ~/node-db-nightly-linux-tests
-      WALLET_DB: ~/wallet-db
-      TOKEN_METADATA: http://metadata-server-mock.herokuapp.com/

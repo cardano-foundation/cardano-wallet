@@ -22,7 +22,7 @@ jobs:
       id: cache
       uses: actions/cache@v2
       with:
-        path: d:/node-db-nightly-win-tests
+        path: test/e2e/node_db
         key: ${{ runner.os }}-node-cache
 
     - name: Set up Ruby
@@ -58,7 +58,3 @@ jobs:
       with:
         name: ${{ runner.os }}-logs
         path: test/e2e/logs
-    env:
-      NODE_DB: d:/node-db-nightly-win-tests
-      WALLET_DB: d:/wallet-db
-      TOKEN_METADATA: http://metadata-server-mock.herokuapp.com/
