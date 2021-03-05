@@ -148,6 +148,7 @@ import qualified Cardano.Crypto.Wallet as Crypto.HD
 import qualified Cardano.Ledger.Core as SL
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
+import qualified Cardano.Wallet.Shelley.Compatibility as Compatibility
 import qualified Codec.CBOR.Encoding as CBOR
 import qualified Codec.CBOR.Write as CBOR
 import qualified Data.ByteString as BS
@@ -344,6 +345,8 @@ newTransactionLayer networkId = TransactionLayer
 
     , calcMinimumCoinValue =
         _calcMinimumCoinValue
+
+    , assessTokenBundleSize = Compatibility.assessTokenBundleSize
 
     , decodeSignedTx =
         _decodeSignedTx
