@@ -23,7 +23,6 @@ cabal.sandbox.config
 .ghc.environment.*
 .ghci
 *.tix
-*.lock
 hie.yaml
 
 ### Nix ###
