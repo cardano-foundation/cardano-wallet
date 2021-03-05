@@ -1249,12 +1249,13 @@ sendFaucetAssetsTo
     :: Tracer IO ClusterLog
     -> CardanoNodeConn
     -> FilePath
+    -> Int -- ^ batch size
     -> [(String, (TokenBundle, [(String, String)]))] -- ^ (address, assets)
     -> IO ()
-sendFaucetAssetsTo tr conn dir targets = do
+sendFaucetAssetsTo tr conn dir batchSize targets = do
     era <- getClusterEra dir
     when (era >= MaryHardFork) $
-        batch 20 targets $ sendFaucet tr conn dir "assets"
+        batch batchSize targets $ sendFaucet tr conn dir "assets"
 
 -- | Build, sign, and send a batch of faucet funding transactions using
 -- @cardano-cli@. This function is used by 'sendFaucetFundsTo' and

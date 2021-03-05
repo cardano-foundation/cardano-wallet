@@ -7,6 +7,7 @@
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
@@ -55,7 +56,7 @@ import Cardano.Wallet.Primitive.Types.Tx
 import Cardano.Wallet.Unsafe
     ( unsafeFromText )
 import Control.Monad
-    ( forM_ )
+    ( forM, forM_ )
 import Control.Monad.IO.Unlift
     ( MonadIO (..), MonadUnliftIO (..), liftIO )
 import Control.Monad.Trans.Resource
@@ -100,8 +101,10 @@ import Test.Hspec.Expectations.Lifted
     ( expectationFailure, shouldBe, shouldNotBe, shouldSatisfy )
 import Test.Hspec.Extra
     ( flakyBecauseOf, it )
+import Test.Integration.Faucet
+    ( seaHorsePolicyId, seaHorseTokenName )
 import Test.Integration.Framework.DSL
-    ( Context
+    ( Context (_mintSeaHorseAssets)
     , Headers (..)
     , Payload (..)
     , between
@@ -146,6 +149,7 @@ import Test.Integration.Framework.DSL
     , unsafeRequest
     , utcIso8601ToText
     , verify
+    , waitForTxImmutability
     , walletId
     , (.<)
     , (.<=)
@@ -714,6 +718,56 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 [ expectField (#assets . #available . #getApiT) (`shouldNotBe` TokenMap.empty)
                 , expectField (#assets . #total . #getApiT) (`shouldNotBe` TokenMap.empty)
                 ]
+
+    it "TRANS_ASSETS_CREATE_02c - Send SeaHorses" $ \ctx -> runResourceT $ do
+            -- Notes on the style of this test:
+            -- - By doing the minting here it is easier to control, and tweak
+            -- the values.
+            -- - The current _mintSeaHorseAssets cannot be called concurrently
+            -- - By grouping the setup of multiple wallets in a single test, we
+            -- gain some time.
+
+            -- 1. Setup by minting funds
+            let assetsPerAddrScenarios = [64 .. 70]
+            sourceWallets <- forM assetsPerAddrScenarios $ \nAssetsPerAddr -> do
+                wSrc <- fixtureWallet ctx
+                srcAddrs <-
+                    map (getApiT . fst . view #id) <$> listAddresses @n ctx wSrc
+                liftIO $ _mintSeaHorseAssets ctx nAssetsPerAddr (take 2 srcAddrs)
+                return (wSrc, nAssetsPerAddr)
+            wDest <- emptyWallet ctx
+            destAddr <- head . map (view #id) <$> listAddresses @n ctx wDest
+            waitForTxImmutability ctx
+
+            -- 2. Try spending from each wallet, and record the response.
+            responses <- forM sourceWallets $ \(wSrc, nPerAddr) -> do
+                let seaHorses = map $ \ix ->
+                        (( toText seaHorsePolicyId
+                        , toText $ seaHorseTokenName ix)
+                        , 1)
+                payload <- mkTxPayloadMA @n
+                    destAddr
+                    0
+                    (seaHorses [1, nPerAddr * 2])
+                    -- Send one token from our first bundle, and one token from
+                    -- our second bundle, to ensure the change output is large.
+                    fixturePassphrase
+
+                let verifyRes r = case r of
+                        (s, Right _)
+                            | s == HTTP.status202 -> Right ()
+                            | otherwise           -> Left $ mconcat
+                                [ "impossible: request succeeded, but got "
+                                , "status code "
+                                , show s
+                                ]
+                        (_, Left e) -> Left $ show e
+
+                (nPerAddr,) . verifyRes <$> request @(ApiTransaction n) ctx
+                    (Link.createTransaction @'Shelley wSrc) Default payload
+
+            -- 3. They should all succeed
+            responses `shouldBe` (map (, Right ()) assetsPerAddrScenarios)
 
     let hasAssetOutputs :: [AddressAmount (ApiT Address, Proxy n)] -> Bool
         hasAssetOutputs = any ((/= mempty) . view #assets)

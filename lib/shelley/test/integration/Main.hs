@@ -122,6 +122,7 @@ import Test.Integration.Faucet
     ( genRewardAccounts
     , maryIntegrationTestAssets
     , mirMnemonics
+    , seaHorseTestAssets
     , shelleyIntegrationTestFunds
     )
 import Test.Integration.Framework.Context
@@ -238,7 +239,7 @@ specWithServer testDir (tr, tracers) = aroundAll withContext
         poolGarbageCollectionEvents <- newIORef []
         let dbEventRecorder =
                 recordPoolGarbageCollectionEvents poolGarbageCollectionEvents
-        let setupContext smashUrl np wAddr = bracketTracer' tr "setupContext" $ do
+        let setupContext smashUrl faucetConn np wAddr = bracketTracer' tr "setupContext" $ do
                 let baseUrl = "http://" <> T.pack (show wAddr) <> "/"
                 prometheusUrl <- (maybe "none" (\(h, p) -> T.pack h <> ":" <> toText @(Port "Prometheus") p)) <$> getPrometheusURL
                 ekgUrl <- (maybe "none" (\(h, p) -> T.pack h <> ":" <> toText @(Port "EKG") p)) <$> getEKGURL
@@ -261,6 +262,9 @@ specWithServer testDir (tr, tracers) = aroundAll withContext
                     , _poolGarbageCollectionEvents = poolGarbageCollectionEvents
                     , _mainEra = era
                     , _smashUrl = smashUrl
+                    , _mintSeaHorseAssets = \addrs nPerAddr -> do
+                        sendFaucetAssetsTo tr' faucetConn testDir 1 $
+                            encodeAddresses (seaHorseTestAssets addrs nPerAddr)
                     }
         let action' = bracketTracer' tr "spec" . action
         res <- race
@@ -297,15 +301,15 @@ specWithServer testDir (tr, tracers) = aroundAll withContext
                 onClusterStart (onReady $ T.pack smashUrl) dbDecorator
 
     tr' = contramap MsgCluster tr
+    encodeAddresses = map (first (T.unpack . encodeAddress @'Mainnet))
     setupFaucet conn = do
         traceWith tr MsgSettingUpFaucet
         let rewards = (,Coin $ fromIntegral oneMillionAda) <$>
                 concatMap genRewardAccounts mirMnemonics
         moveInstantaneousRewardsTo tr' conn testDir rewards
-        let encodeAddresses = map (first (T.unpack . encodeAddress @'Mainnet))
         sendFaucetFundsTo tr' conn testDir $
             encodeAddresses shelleyIntegrationTestFunds
-        sendFaucetAssetsTo tr' conn testDir $
+        sendFaucetAssetsTo tr' conn testDir 20 $
             encodeAddresses maryIntegrationTestAssets
 
     onClusterStart action dbDecorator (RunningNode conn block0 (gp, vData)) = do
@@ -329,7 +333,7 @@ specWithServer testDir (tr, tracers) = aroundAll withContext
                 conn
                 block0
                 (gp, vData)
-                (action gp)
+                (action conn gp)
                 `withException` (traceWith tr . MsgServerError)
 
 {-------------------------------------------------------------------------------

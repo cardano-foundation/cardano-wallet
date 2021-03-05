@@ -397,6 +397,7 @@ withShelleyServer tracers action = do
                     error "poolGarbageCollectionEvents not available"
                 , _smashUrl = ""
                 , _mainEra = maxBound
+                , _mintSeaHorseAssets = error "mintSeaHorseAssets not available"
                 }
     race_ (takeMVar ctx >>= action) (withServer setupContext)
 

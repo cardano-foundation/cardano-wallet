@@ -16,7 +16,7 @@ protocolParams:
     major: 0
   minUTxOValue: 1000000
   decentralisationParam: 0.25 # means 75% decentralised
-  maxTxSize: 4096
+  maxTxSize: 16384
   minFeeA: 100
   maxBlockBodySize: 239857
   minFeeB: 100000

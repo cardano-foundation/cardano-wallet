@@ -15,6 +15,8 @@ import Cardano.Wallet.Api.Types
     ( ApiEra )
 import Cardano.Wallet.Primitive.Types
     ( EpochNo, NetworkParameters, PoolRetirementCertificate )
+import Cardano.Wallet.Primitive.Types.Address
+    ( Address )
 import Cardano.Wallet.Transaction
     ( DelegationAction )
 import Data.IORef
@@ -59,6 +61,12 @@ data Context = Context
         -- era-specific assertions.
     , _smashUrl :: Text
         -- ^ Base URL of the mock smash server.
+
+    , _mintSeaHorseAssets :: Int -> [Address] -> IO ()
+        -- ^ TODO: Remove once we can unify cardano-wallet-core-integration and
+        -- cardano-wallet:integration, or when the wallet supports minting.
+        --
+        -- Cannot be used be serveral tests at a time. (!)
     }
     deriving Generic
 
