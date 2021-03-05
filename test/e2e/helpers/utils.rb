@@ -1,8 +1,30 @@
+require 'bip_mnemonic'
 require 'httparty'
 require 'fileutils'
 
 module Helpers
   module Utils
+
+    def mnemonic_sentence(word_count = 15)
+      case word_count
+      when 9
+        bits = 96
+      when 12
+        bits = 128
+      when 15
+        bits = 164
+      when 18
+        bits = 196
+      when 21
+        bits = 224
+      when 24
+        bits = 256
+      else
+        raise "Non-supported no of words #{word_count}!"
+      end
+      BipMnemonic.to_mnemonic(bits: bits, language: 'english').split
+    end
+
     def wget(url, file = nil)
       file = File.basename(url) unless file
       resp = HTTParty.get(url)

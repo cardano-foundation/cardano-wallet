@@ -37,7 +37,7 @@ RSpec.describe CardanoWallet::Shelley do
         w = SHELLEY.wallets
         wallet = w.create({name: "Wallet from mnemonic_sentence",
                            passphrase: "Secure Passphrase",
-                           mnemonic_sentence: mnemonic_sentence("15"),
+                           mnemonic_sentence: mnemonic_sentence(15),
                            })
         expect(wallet.code).to eq 201
         wid = wallet['id']
@@ -49,8 +49,8 @@ RSpec.describe CardanoWallet::Shelley do
         w = SHELLEY.wallets
         wallet = w.create({name: "Wallet from mnemonic_sentence",
                            passphrase: "Secure Passphrase",
-                           mnemonic_sentence: mnemonic_sentence("15"),
-                           mnemonic_second_factor: mnemonic_sentence("12")
+                           mnemonic_sentence: mnemonic_sentence(15),
+                           mnemonic_second_factor: mnemonic_sentence(12)
                            })
         expect(wallet.code).to eq 201
         wid = wallet['id']
@@ -63,7 +63,7 @@ RSpec.describe CardanoWallet::Shelley do
         w = SHELLEY.wallets
         wallet = w.create({name: "Wallet from mnemonic_sentence",
                            passphrase: "Secure Passphrase",
-                           mnemonic_sentence: mnemonic_sentence("15"),
+                           mnemonic_sentence: mnemonic_sentence(15),
                            address_pool_gap: pool_gap
                            })
         expect(wallet.code).to eq 201

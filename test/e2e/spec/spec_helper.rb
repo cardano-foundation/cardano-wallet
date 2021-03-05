@@ -1,7 +1,8 @@
-require "bip_mnemonic"
 require "bundler/setup"
 require "cardano_wallet"
+require_relative "../helpers/utils"
 
+include Helpers::Utils
 
 RSpec.configure do |config|
   # Enable flags like --only-failures and --next-failure
@@ -65,7 +66,7 @@ ASSETS = [ { "policy_id" => "789ef8ae89617f34c07f7f6a12e4d65146f958c0bc15a97b4ff
 def create_shelley_wallet(name = "Wallet from mnemonic_sentence")
   SHELLEY.wallets.create({name: name,
                           passphrase: PASS,
-                          mnemonic_sentence: mnemonic_sentence("24")
+                          mnemonic_sentence: mnemonic_sentence(24)
                          })['id']
 end
 
@@ -105,7 +106,7 @@ def create_byron_wallet_with(mnem, style = "random", name = "Wallet from mnemoni
 end
 
 def create_byron_wallet(style = "random", name = "Wallet from mnemonic_sentence")
-  style == "random" ? mnem = mnemonic_sentence("12") : mnem = mnemonic_sentence("15")
+  style == "random" ? mnem = mnemonic_sentence(12) : mnem = mnemonic_sentence(15)
   BYRON.wallets.create({style: style,
                         name: name,
                         passphrase: PASS,
@@ -173,24 +174,4 @@ def teardown
   ws.list.each do |w|
     ws.delete w['id']
   end
-end
-
-def mnemonic_sentence(word_count = "15")
-  case word_count
-    when '9'
-      bits = 96
-    when '12'
-      bits = 128
-    when '15'
-      bits = 164
-    when '18'
-      bits = 196
-    when '21'
-      bits = 224
-    when '24'
-      bits = 256
-    else
-      raise "Non-supported no of words #{word_count}!"
-  end
-  BipMnemonic.to_mnemonic(bits: bits, language: 'english').split
 end

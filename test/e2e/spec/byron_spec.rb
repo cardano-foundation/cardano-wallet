@@ -25,7 +25,7 @@ RSpec.describe CardanoWallet::Byron do
       wallet = BYRON.wallets.create({style: "icarus",
                          name: "Wallet from mnemonic_sentence",
                          passphrase: "Secure Passphrase",
-                         mnemonic_sentence: mnemonic_sentence("15"),
+                         mnemonic_sentence: mnemonic_sentence(15),
                          })
       expect(wallet.code).to eq 201
       wid = wallet['id']
@@ -37,7 +37,7 @@ RSpec.describe CardanoWallet::Byron do
       wallet = BYRON.wallets.create({style: "random",
                          name: "Wallet from mnemonic_sentence",
                          passphrase: "Secure Passphrase",
-                         mnemonic_sentence: mnemonic_sentence("12"),
+                         mnemonic_sentence: mnemonic_sentence(12),
                          })
       expect(wallet.code).to eq 201
       wid = wallet['id']
