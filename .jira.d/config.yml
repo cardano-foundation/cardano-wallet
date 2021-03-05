@@ -28,5 +28,17 @@ custom-commands:
 
   - name: release-notes-bugs
     help: Produce unresolved issues list for cardano-wallet release notes
+    options:
+      - name: minPriority
+        short: p
+        help: Minimum priority for query
+      - name: showPriority
+        type: bool
+        help: Also show priority and severity in the list
+        default: false
+      - name: minSeverity
+        help: Minimum priority for query
+        default: "(1, 2)"
+        hidden: true
     script: |-
-      {{jira}} list --template release-notes-bugs --query "type = Bug and resolution = Unresolved and project=$JIRA_PROJECT and component = cardano-wallet ORDER BY priority DESC, created"
+      {{ if options.showPriority }}showPriority=1{{ end }} {{jira}} list --template release-notes-bugs --query "project=$JIRA_PROJECT and component = cardano-wallet and type = Bug and resolution = Unresolved{{ if options.minPriority }} and priority >= {{options.minPriority}}{{end}}{{ if options.minSeverity }} and 'Severity / Probability Score' in {{options.minSeverity}}{{end}} ORDER BY priority DESC, created" --queryfields=priority,customfield_12502
