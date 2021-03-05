@@ -1,3 +1,4 @@
+clean_bins
 clean_logs
 get_latest_bins
 get_latest_configs

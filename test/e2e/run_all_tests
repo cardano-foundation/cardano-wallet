@@ -2,5 +2,7 @@
 
 NODE_DB=./node_db \
 WALLET_DB=./wallet_db \
-TOKEN_METADATA=http://metadata-server-mock.herokuapp.com/ \
+LOGS=./logs \
+BINS=./bins \
+TOKEN_METADATA=https://metadata.cardano-testnet.iohkdev.io/ \
 bundle exec rake run_on["testnet"]

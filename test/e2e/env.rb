@@ -1,3 +1,5 @@
 ENV['NODE_DB'] ||= "./node_db"
 ENV['WALLET_DB'] ||= "./wallet_db"
+ENV['LOGS'] ||= "./logs"
+ENV['BINS'] ||= "./bins"
 ENV['TOKEN_METADATA'] ||= "https://metadata.cardano-testnet.iohkdev.io/"

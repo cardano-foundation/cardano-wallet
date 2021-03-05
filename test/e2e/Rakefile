@@ -12,14 +12,14 @@ task :default => :spec
 task :clean_logs do
   puts "\n  >> Removing logs"
 
-  logs = Dir.pwd + "/logs"
+  logs = ENV['LOGS']
   rm_files(logs)
 end
 
 task :clean_bins do
   puts "\n  >> Removing bins"
 
-  bins = Dir.pwd + "/bins"
+  bins = ENV['BINS']
   rm_files(bins)
 end
 
@@ -50,7 +50,7 @@ task :start_node_and_wallet do
   puts "\n  >> Set up and start cardano-node and cardano-wallet"
 
   cd = Dir.pwd
-  logs = cd + "/logs"
+  logs = ENV['LOGS']
   mk_dir(logs)
 
   if is_win?
