@@ -37,8 +37,10 @@ jobs:
     - name: Install dependencies
       run: bundle install
 
-    - name: Get recent configs
-      run: bundle exec rake get_latest_configs["testnet"]
+    - name: Get recent configs and decode fixture_wallets.json.gpg
+      run: |
+        bundle exec rake fixture_wallets_decode
+        bundle exec rake get_latest_configs["testnet"]
 
     - name: Cache node db
       id: cache

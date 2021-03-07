@@ -39,6 +39,7 @@ jobs:
 
     - name: Set up cardano-wallet and cardano-node
       run: |
+        bundle exec rake fixture_wallets_decode
         bundle exec rake get_latest_bins
         bundle exec rake get_latest_configs["testnet"]
         bundle exec rake start_node_and_wallet
