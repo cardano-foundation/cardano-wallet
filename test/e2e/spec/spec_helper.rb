@@ -1,5 +1,6 @@
 require "bundler/setup"
 require "cardano_wallet"
+require_relative "../env"
 require_relative "../helpers/utils"
 
 include Helpers::Utils
@@ -72,13 +73,9 @@ end
 
 
 def create_fixture_shelley_wallet
-  # Wallet with funds on shelley testnet:
-  # id: b1fb863243a9ae451bc4e2e662f60ff217b126e2
-  # addr: addr_test1qq9grthf479qmyygzrenk6yqqhtvf3aq2xy5jfscm334qsvs47mevx68ut5g3jt5gxntcaygv3szmhzyytdjfat9758s2h6z2v
-  mnemonics = %w[shiver unknown lottery calm renew west any ecology merge slab sort color hybrid pact crowd]
   SHELLEY.wallets.create({name: "Fixture wallet with funds",
                           passphrase: PASS,
-                          mnemonic_sentence: mnemonics
+                          mnemonic_sentence: get_fixture_wallet_mnemonics("shelley")
                          })['id']
 end
 
@@ -116,28 +113,16 @@ end
 
 
 def create_fixture_byron_wallet(style = "random")
-  # Wallet with funds on shelley testnet
-  case style
-  when "random"
-    # id: 94c0af1034914f4455b7eb795ebea74392deafe9
-    # addr: 37btjrVyb4KEciULDrqJDBh6SjgPqi9JJ5qQqWGgvtsB7GcsuqorKceMTBRudFK8zDu3btoC5FtN7K1PEHmko4neQPfV9TDVfivc9JTZVNPKtRd4w2
-    mnemonics = %w[purchase carbon forest frog robot actual used news broken start plunge family]
-  when "icarus"
-    # id: a468e96ab85ad2043e48cf2e5f3437b4356769f4
-    # addr: 2cWKMJemoBahV5kQm7SzV7Yc2b4vyqLE7oYJiEkd5GE5GCKzSCgh9HBaRKkdVrxzsEuRb
-    mnemonics = %w[security defense food inhale voyage tomorrow guess galaxy junior guilt vendor soon escape design pretty]
-  end
-
   BYRON.wallets.create({style: style,
                         name: "Fixture byron wallets with funds",
                         passphrase: PASS,
-                        mnemonic_sentence: mnemonics
+                        mnemonic_sentence: get_fixture_wallet_mnemonics(style)
                        })['id']
 end
 
 def wait_for_byron_wallet_to_sync(wid)
   puts "Syncing Byron wallet..."
-  while BYRON.wallets.get(wid)['state']['status'] == "syncing" do
+  while(BYRON.wallets.get(wid)['state']['status'] == "syncing") do
     w = BYRON.wallets.get(wid)
     puts "  Syncing... #{w['state']['progress']['quantity']}%" if w['state']['progress']
     sleep 5

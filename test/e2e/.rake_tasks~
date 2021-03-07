@@ -1,5 +1,8 @@
 clean_bins
 clean_logs
+fixture_wallets_decode
+fixture_wallets_encode
+fixture_wallets_template
 get_latest_bins
 get_latest_configs
 run_on

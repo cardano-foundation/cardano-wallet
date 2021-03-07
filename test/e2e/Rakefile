@@ -1,7 +1,7 @@
 require "rspec/core/rake_task"
 require "cardano_wallet"
-require_relative "helpers/utils"
 require_relative "env"
+require_relative "helpers/utils"
 
 include Helpers::Utils
 
@@ -9,8 +9,24 @@ RSpec::Core::RakeTask.new(:spec)
 
 task :default => :spec
 
+task :fixture_wallets_encode do
+  desc "Encode fixture wallets from #{ENV['FIXTURE_FILE']}"
+  puts "\n  >> Encoding #{ENV['FIXTURE_FILE']}..."
+
+  puts `gpg --symmetric --cipher-algo AES256 #{ENV['FIXTURE_FILE']}`
+end
+
+
+task :fixture_wallets_decode do
+  desc "Decode fixture wallets from #{ENV['FIXTURE_FILE']}.gpg using #{ENV['FIXTURE_SECRET']}"
+  puts "\n  >> Decoding #{ENV['FIXTURE_FILE']}.gpg..."
+  encoded_file="#{ENV['FIXTURE_FILE']}.gpg"
+  decoded_file=ENV['FIXTURE_FILE']
+  puts `gpg --quiet --batch --yes --decrypt --passphrase="#{ENV['FIXTURE_SECRET']}" --output #{decoded_file} #{encoded_file}`
+end
+
 task :fixture_wallets_template do
-  path = ENV['FIXTURE_WALLETS']
+  path = ENV['FIXTURE_FILE']
   puts "\n  >> Creating #{path}"
 
   fixture_wallets = { :linux => {:shelley => mnemonic_sentence(24),
@@ -192,6 +208,7 @@ end
 task :run_on, [:env] do |task, args|
   puts "\n  >> Set up env and run all tests"
 
+  Rake::Task[:fixture_wallets_decode].invoke
   Rake::Task[:get_latest_bins].invoke
   Rake::Task[:get_latest_configs].invoke(args[:env])
   Rake::Task[:start_node_and_wallet].invoke

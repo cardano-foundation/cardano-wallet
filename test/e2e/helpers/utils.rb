@@ -5,6 +5,23 @@ require 'fileutils'
 module Helpers
   module Utils
 
+    def get_fixture_wallet_mnemonics(type)
+      fixture = ENV['FIXTURE_FILE']
+      unless File.exists? fixture
+        raise "File #{fixture} does not exist! (Hint: Template fixture file can be created with 'rake fixture_wallets_template'). Make sure to feed it with mnemonics of wallets with funds and assets."
+      end
+      wallets = JSON.parse File.read(fixture)
+      if is_linux?
+        wallets["linux"][type]
+      elsif is_macos?
+        wallets["macos"][type]
+      elsif is_win?
+        wallets["win"][type]
+      else
+        wallets["linux"][type]
+      end
+    end
+
     def mnemonic_sentence(word_count = 15)
       case word_count
       when 9

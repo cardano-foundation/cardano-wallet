@@ -1,6 +1,7 @@
+ENV['FIXTURE_FILE'] ||= "./fixture_wallets.json"
+ENV['FIXTURE_SECRET'] ||= "secret"
 ENV['NODE_DB'] ||= "./node_db"
 ENV['WALLET_DB'] ||= "./wallet_db"
 ENV['LOGS'] ||= "./logs"
 ENV['BINS'] ||= "./bins"
-ENV['FIXTURE_WALLETS'] ||= "./fixture_wallets.json"
 ENV['TOKEN_METADATA'] ||= "https://metadata.cardano-testnet.iohkdev.io/"
