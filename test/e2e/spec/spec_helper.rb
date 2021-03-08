@@ -81,10 +81,15 @@ end
 
 def wait_for_shelley_wallet_to_sync(wid)
   puts "Syncing Shelley wallet..."
-  while(SHELLEY.wallets.get(wid)['state']['status'] == "syncing") do
-    w = SHELLEY.wallets.get(wid)
-    puts "  Syncing... #{w['state']['progress']['quantity']}%" if w['state']['progress']
-    sleep 5
+  begin
+    while(SHELLEY.wallets.get(wid)['state']['status'] == "syncing") do
+      w = SHELLEY.wallets.get(wid)
+      puts "  Syncing... #{w['state']['progress']['quantity']}%" if w['state']['progress']
+      sleep 5
+    end
+  rescue NoMethodError
+    puts "Retrying"
+    retry
   end
 end
 
@@ -122,10 +127,15 @@ end
 
 def wait_for_byron_wallet_to_sync(wid)
   puts "Syncing Byron wallet..."
-  while(BYRON.wallets.get(wid)['state']['status'] == "syncing") do
-    w = BYRON.wallets.get(wid)
-    puts "  Syncing... #{w['state']['progress']['quantity']}%" if w['state']['progress']
-    sleep 5
+  begin
+    while(BYRON.wallets.get(wid)['state']['status'] == "syncing") do
+      w = BYRON.wallets.get(wid)
+      puts "  Syncing... #{w['state']['progress']['quantity']}%" if w['state']['progress']
+      sleep 5
+    end
+  rescue NoMethodError
+    puts "Retrying"
+    retry
   end
 end
 
