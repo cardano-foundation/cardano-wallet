@@ -53,10 +53,11 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     , AddressPoolGap (..)
     , DerivationPrefix (..)
     , MkAddressPoolGapError (..)
+    , ParentContext (..)
     , SeqState (..)
-    , accountPubKey
     , addresses
     , coinTypeAda
+    , context
     , defaultAddressPoolGap
     , emptyPendingIxs
     , gap
@@ -66,8 +67,6 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     , mkSeqStateFromAccountXPub
     , mkSeqStateFromRootXPrv
     , mkUnboundedAddressPoolGap
-    , newVerificationKeyPool
-    , purposeCIP1852
     , purposeCIP1852
     , role
     , shrinkPool
@@ -156,7 +155,6 @@ spec = do
     let styles =
             [ Style (Proxy @'UtxoExternal)
             , Style (Proxy @'UtxoInternal)
-            , Style (Proxy @'MutableAccount)
             ]
 
     let keys =
@@ -318,10 +316,22 @@ prop_roundtripMkAddressPool
     -> Property
 prop_roundtripMkAddressPool _proxy pool =
     ( mkAddressPool @'Mainnet
-        (accountPubKey pool)
+        (context pool)
         (gap pool)
         (addresses liftAddress pool)
     ) === pool
+
+class GetCtx (chain :: Role) where
+    getCtxFromAccXPub :: k 'AccountK XPub -> ParentContext chain k
+
+instance GetCtx 'UtxoExternal where
+    getCtxFromAccXPub accXPub = ParentContextUtxoExternal accXPub
+
+instance GetCtx 'UtxoInternal where
+    getCtxFromAccXPub accXPub = ParentContextUtxoInternal accXPub
+
+instance GetCtx 'MultisigScript where
+    getCtxFromAccXPub _ = error "no support for MultisigScript"
 
 -- | A pool always contains a number of addresses at least equal to its gap
 prop_poolAtLeastGapAddresses
@@ -344,6 +354,7 @@ prop_poolEventuallyDiscoverOurs
         , MkKeyFingerprint k Address
         , SoftDerivation k
         , AddressPoolTest k
+        , GetCtx chain
         )
     => (Proxy chain, Proxy k)
     -> (AddressPoolGap, Address)
@@ -355,7 +366,7 @@ prop_poolEventuallyDiscoverOurs _proxy (g, addr) =
         label "address not ours" (property True)
   where
     ours = take 25 (ourAddresses (Proxy @k) (role @chain))
-    pool = flip execState (mkAddressPool @'Mainnet @chain @k ourAccount g mempty) $
+    pool = flip execState (mkAddressPool @'Mainnet @chain @k (getCtxFromAccXPub ourAccount) g mempty) $
         forM ours (state . lookupAddress @'Mainnet id)
 
 {-------------------------------------------------------------------------------
@@ -480,9 +491,8 @@ prop_changeIsOnlyKnownAfterGeneration
     -> Property
 prop_changeIsOnlyKnownAfterGeneration (intPool, extPool) =
     let
-        sPool = newVerificationKeyPool (accountPubKey extPool) (gap extPool)
         s0 :: SeqState 'Mainnet ShelleyKey
-        s0 = SeqState intPool extPool emptyPendingIxs rewardAccount defaultPrefix sPool
+        s0 = SeqState intPool extPool emptyPendingIxs rewardAccount defaultPrefix
         addrs0 = knownAddresses s0
         (change, s1) = genChange (\k _ -> paymentAddress @'Mainnet k) s0
         addrs1 = fst <$> knownAddresses s1
@@ -493,7 +503,7 @@ prop_changeIsOnlyKnownAfterGeneration (intPool, extPool) =
   where
     prop_addrsNotInInternalPool addrs =
         map (\(x, s) ->
-                let notInPool = isNothing $ fst $ lookupAddress id x intPool
+                let notInPool = isNothing $ fst $ lookupAddress @'Mainnet id x intPool
                     isUsed = s == Used
                 in (ShowFmt x, notInPool || isUsed))
             addrs
@@ -684,21 +694,22 @@ instance
     , MkKeyFingerprint k Address
     , SoftDerivation k
     , AddressPoolTest k
+    , GetCtx chain
     ) => Arbitrary (AddressPool chain k) where
     shrink pool =
         let
-            key = accountPubKey pool
+            ctx = context pool
             g = gap pool
             addrs = addresses liftAddress pool
         in case length addrs of
             k | k == fromEnum g && g == minBound ->
                 []
             k | k == fromEnum g && g > minBound ->
-                [ mkAddressPool @'Mainnet key minBound [] ]
+                [ mkAddressPool @'Mainnet ctx minBound [] ]
             k ->
-                [ mkAddressPool @'Mainnet key minBound []
-                , mkAddressPool @'Mainnet key g []
-                , mkAddressPool @'Mainnet key g (take (k - (fromEnum g `div` 5)) addrs)
+                [ mkAddressPool @'Mainnet ctx minBound []
+                , mkAddressPool @'Mainnet ctx g []
+                , mkAddressPool @'Mainnet ctx g (take (k - (fromEnum g `div` 5)) addrs)
                 ]
 
     arbitrary = do
@@ -707,22 +718,21 @@ instance
         n <- choose (0, 2 * fromEnum g)
         let addrs = take n (ourAddresses (Proxy @k) (role @chain))
         InfiniteList statuses _ <- arbitrary
-        return $ mkAddressPool @'Mainnet ourAccount g (zip addrs statuses)
+        return $ mkAddressPool @'Mainnet (getCtxFromAccXPub ourAccount) g (zip addrs statuses)
 
 instance Arbitrary (SeqState 'Mainnet ShelleyKey) where
-    shrink (SeqState intPool extPool ixs rwd prefix sPool) =
-        (\(i, e) -> SeqState i e ixs rwd prefix sPool) <$> shrink (intPool, extPool)
+    shrink (SeqState intPool extPool ixs rwd prefix) =
+        (\(i, e) -> SeqState i e ixs rwd prefix) <$> shrink (intPool, extPool)
     arbitrary = do
         intPool <- arbitrary
         extPool <- arbitrary
-        let sPool = newVerificationKeyPool (accountPubKey extPool) (gap extPool)
-        return $ SeqState intPool extPool emptyPendingIxs rewardAccount defaultPrefix sPool
+        return $ SeqState intPool extPool emptyPendingIxs rewardAccount defaultPrefix
 
 -- | Wrapper to encapsulate accounting style proxies that are so-to-speak,
 -- different types in order to easily map over them and avoid duplicating
 -- properties.
 data Style =
-    forall (chain :: Role). Typeable chain => Style (Proxy chain)
+    forall (chain :: Role). (Typeable chain, GetCtx chain) => Style (Proxy chain)
 instance Show Style where show (Style proxy) = show (typeRep proxy)
 
 -- | Wrapper to encapsulate keys.

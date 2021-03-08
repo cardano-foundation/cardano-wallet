@@ -30,7 +30,7 @@ import Prelude
 import Cardano.Address.Derivation
     ( xpubFromBytes )
 import Cardano.Address.Script
-    ( KeyHash (..), Script (..) )
+    ( Script (..) )
 import Cardano.Api.Typed
     ( TxMetadata (..)
     , TxMetadataJsonSchema (..)
@@ -272,11 +272,11 @@ shrinkTxMetadataValue (TxMetaText s) = TxMetaText <$> shrinkText s
 genNatural :: Gen Natural
 genNatural = arbitrarySizedNatural
 
-genScript :: [KeyHash] -> Gen (Script KeyHash)
-genScript keyHashes = scale (`div` 3) $ sized scriptTree
+genScript :: [a] -> Gen (Script a)
+genScript elems = scale (`div` 3) $ sized scriptTree
     where
         scriptTree 0 = oneof
-            [ RequireSignatureOf <$> elements keyHashes
+            [ RequireSignatureOf <$> elements elems
             , ActiveFromSlot <$> genNatural
             , ActiveUntilSlot <$> genNatural
             ]

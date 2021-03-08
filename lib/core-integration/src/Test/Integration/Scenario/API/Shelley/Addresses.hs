@@ -740,7 +740,7 @@ spec = describe "SHELLEY_ADDRESSES" $ do
             }|]
         r <- request @AnyAddress ctx Link.postAnyAddress Default payload
         expectResponseCode HTTP.status400 r
-        let msg = "The script is ill-formed and is not going to be accepted by ledger."
+        let msg = "The script is ill-formed and is not going to be accepted by the ledger."
         expectErrorMessage msg r
 
     it "ANY_ADDRESS_POST_15c - at_least 4 is not valid when validation is recommended" $ \ctx -> do
@@ -759,7 +759,7 @@ spec = describe "SHELLEY_ADDRESSES" $ do
             }|]
         r <- request @AnyAddress ctx Link.postAnyAddress Default payload
         expectResponseCode HTTP.status400 r
-        let msg = "The script is ill-formed and is not going to be accepted by ledger."
+        let msg = "The script is ill-formed and is not going to be accepted by the ledger."
         expectErrorMessage msg r
 
     it "ANY_ADDRESS_POST_16a - script with duplicated verification keys is valid when non-validated" $ \ctx -> do
@@ -872,7 +872,7 @@ spec = describe "SHELLEY_ADDRESSES" $ do
             }|]
         r <- request @AnyAddress ctx Link.postAnyAddress Default payload
         expectResponseCode HTTP.status400 r
-        let msg = "Some timelocks used are redundant (which is not recommended)."
+        let msg = "The timelocks used are contradictory when used with 'all' (which is not recommended)."
         expectErrorMessage msg r
 
     it "POST_ACCOUNT_01 - Can retrieve account public keys" $ \ctx -> runResourceT $ do

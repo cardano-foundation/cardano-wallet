@@ -31,8 +31,6 @@ import Prelude
 
 import Cardano.Address.Derivation
     ( XPrv, XPub )
-import Cardano.Address.Script
-    ( ScriptHash (..) )
 import Cardano.Crypto.Wallet
     ( unXPrv )
 import Cardano.Mnemonic
@@ -51,9 +49,8 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , Index (..)
     , NetworkDiscriminant (..)
     , Passphrase (..)
+    , Role (..)
     , WalletKey (..)
-    , deriveVerificationKey
-    , hashVerificationKey
     , publicKey
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
@@ -67,19 +64,14 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Random
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPool
     , DerivationPrefix (..)
+    , ParentContext (..)
     , SeqState (..)
-    , VerificationKeyPool
-    , accountPubKey
     , coinTypeAda
-    , defaultAddressPoolGap
     , mkAddressPool
     , purposeCIP1852
-    , unsafeVerificationKeyPool
     )
 import Cardano.Wallet.Primitive.Model
     ( Wallet, currentTip, getState, unsafeInitWallet, utxo )
-import Cardano.Wallet.Primitive.Scripts
-    ()
 import Cardano.Wallet.Primitive.Types
     ( Block (..)
     , BlockHeader (..)
@@ -159,8 +151,6 @@ import Data.Ratio
     ( (%) )
 import Data.Text.Class
     ( toText )
-import Data.Typeable
-    ( Typeable )
 import Data.Word
     ( Word32 )
 import Data.Word.Odd
@@ -462,17 +452,14 @@ instance Arbitrary (Index 'WholeDomain depth) where
 -------------------------------------------------------------------------------}
 
 instance Arbitrary (SeqState 'Mainnet ShelleyKey) where
-    shrink (SeqState intPool extPool ixs rwd prefix sPool) =
-        (\(i, e, x) -> SeqState i e x rwd prefix sPool) <$> shrink (intPool, extPool, ixs)
-    arbitrary = do
-        extPool <- arbitrary
-        SeqState
-            <$> arbitrary
-            <*> pure extPool
-            <*> arbitrary
-            <*> pure arbitraryRewardAccount
-            <*> pure defaultSeqStatePrefix
-            <*> genVerificationKeyPool (accountPubKey extPool)
+    shrink (SeqState intPool extPool ixs rwd prefix) =
+        (\(i, e, x) -> SeqState i e x rwd prefix) <$> shrink (intPool, extPool, ixs)
+    arbitrary = SeqState
+        <$> arbitrary
+        <*> arbitrary
+        <*> arbitrary
+        <*> pure arbitraryRewardAccount
+        <*> pure defaultSeqStatePrefix
 
 defaultSeqStatePrefix :: DerivationPrefix
 defaultSeqStatePrefix = DerivationPrefix
@@ -480,35 +467,6 @@ defaultSeqStatePrefix = DerivationPrefix
     , coinTypeAda
     , minBound
     )
-
-instance Arbitrary ScriptHash where
-    arbitrary =
-        pure $ ScriptHash (BS.replicate 28 0)
-
-genVerificationKeyPool
-    :: ShelleyKey 'AccountK XPub
-    -> Gen (VerificationKeyPool ShelleyKey)
-genVerificationKeyPool accXPub = do
-    nVerKeys <- choose (5,10)
-    let minIndex = getIndex @'Soft minBound
-    let toVerKeyHash ix =
-            hashVerificationKey $
-            deriveVerificationKey accXPub
-            (toEnum (fromInteger $ toInteger $ minIndex + ix))
-    verKeysIxs <- L.nub <$> vectorOf nVerKeys (choose (0, 15))
-    let nVerKeys' = L.length verKeysIxs
-    let setUsed ix =
-            if ix `elem` verKeysIxs then
-                Used
-            else
-                Unused
-    let indexedKeysMap = map (\ix -> (toVerKeyHash ix, (Index ix, setUsed ix)))
-            [0 .. maximum verKeysIxs]
-    knownScripts <- vectorOf nVerKeys' arbitrary
-    let knownScriptsMap =
-            zipWith (\s k -> (s,[k])) knownScripts (Index <$> verKeysIxs)
-    pure $ unsafeVerificationKeyPool accXPub defaultAddressPoolGap
-        (Map.fromList indexedKeysMap) (Map.fromList knownScriptsMap)
 
 instance Arbitrary (ShelleyKey 'RootK XPrv) where
     shrink _ = []
@@ -535,8 +493,13 @@ instance Arbitrary (ShelleyKey 'RootK XPrv) where
 instance Arbitrary (Seq.PendingIxs) where
     arbitrary = pure Seq.emptyPendingIxs
 
-instance Typeable chain => Arbitrary (AddressPool chain ShelleyKey) where
-    arbitrary = pure $ mkAddressPool @'Mainnet arbitrarySeqAccount minBound mempty
+instance Arbitrary (AddressPool 'UtxoExternal ShelleyKey) where
+    arbitrary = pure $ mkAddressPool @'Mainnet
+        (ParentContextUtxoExternal arbitrarySeqAccount) minBound mempty
+
+instance Arbitrary (AddressPool 'UtxoInternal ShelleyKey) where
+    arbitrary = pure $ mkAddressPool @'Mainnet
+        (ParentContextUtxoInternal arbitrarySeqAccount) minBound mempty
 
 -- Properties are quite heavy on the generation of values, although for
 -- private keys, it isn't particularly useful / relevant to generate many of

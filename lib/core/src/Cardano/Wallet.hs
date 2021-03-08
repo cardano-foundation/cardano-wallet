@@ -599,6 +599,7 @@ createIcarusWallet
         , PaymentAddress n k
         , k ~ IcarusKey
         , s ~ SeqState n k
+        , Typeable n
         )
     => ctx
     -> WalletId
@@ -617,7 +618,6 @@ createIcarusWallet ctx wid wname credentials = db & \DBLayer{..} -> do
             (Seq.pendingChangeIxs s)
             (Seq.rewardAccountKey s)
             (Seq.derivationPrefix s)
-            (Seq.scriptPool s)
     now <- lift getCurrentTime
     let meta = WalletMetadata
             { name = wname
@@ -2015,7 +2015,8 @@ derivePublicKey ctx wid role_ ix = db & \DBLayer{..} -> do
 
     -- NOTE: Alternatively, we could use 'internalPool', they share the same
     --       account public key.
-    let acctK = Seq.accountPubKey $ Seq.externalPool $ getState cp
+    let (Seq.ParentContextUtxoExternal acctK) =
+            Seq.context $ Seq.externalPool $ getState cp
     let addrK = deriveAddressPublicKey acctK role_ addrIx
 
     return addrK

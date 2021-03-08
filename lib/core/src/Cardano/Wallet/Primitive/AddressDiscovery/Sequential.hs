@@ -1,10 +1,10 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE BangPatterns #-}
-{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NumericUnderscores #-}
@@ -13,6 +13,7 @@
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TypeInType #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
@@ -41,25 +42,15 @@ module Cardano.Wallet.Primitive.AddressDiscovery.Sequential
 
     -- ** Address Pool
     , AddressPool
+    , ParentContext (..)
     , gap
     , addresses
     , role
-    , accountPubKey
+    , context
     , mkAddressPool
     , lookupAddress
     , shrinkPool
-
-    -- ** Verification Key Pool
-    , VerificationKeyPool
-    , unsafeVerificationKeyPool
-    , newVerificationKeyPool
-    , extendVerificationKeyPool
-    , lookupKeyHash
-    , updateKnownScripts
-    , verPoolAccountPubKey
-    , verPoolGap
-    , verPoolIndexedKeys
-    , verPoolKnownScripts
+    , unsafePaymentKeyFingerprint
 
     -- * Pending Change Indexes
     , PendingIxs
@@ -83,8 +74,10 @@ module Cardano.Wallet.Primitive.AddressDiscovery.Sequential
 
 import Prelude
 
+import Cardano.Address.Derivation
+    ( xpubPublicKey )
 import Cardano.Address.Script
-    ( KeyHash (..), ScriptHash )
+    ( Cosigner (..), ScriptTemplate (..) )
 import Cardano.Crypto.Wallet
     ( XPrv, XPub )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -104,8 +97,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , SoftDerivation (..)
     , WalletKey (..)
     , deriveRewardAccount
-    , deriveVerificationKey
-    , hashVerificationKey
     , utxoExternal
     , utxoInternal
     )
@@ -115,21 +106,28 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     , IsOurs (..)
     , IsOwned (..)
     , KnownAddresses (..)
+    , coinTypeAda
     )
+import Cardano.Wallet.Primitive.AddressDiscovery.Script
+    ( constructAddressFromIx )
 import Cardano.Wallet.Primitive.Types
     ( invariant )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..), AddressState (..) )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount )
+import Codec.Binary.Encoding
+    ( AbstractEncoding (..), encode )
 import Control.Applicative
     ( (<|>) )
 import Control.DeepSeq
-    ( NFData, deepseq )
+    ( NFData (..), deepseq )
 import Control.Monad
     ( unless )
 import Data.Bifunctor
     ( first )
+import Data.Coerce
+    ( coerce )
 import Data.Digest.CRC32
     ( crc32 )
 import Data.Function
@@ -138,14 +136,18 @@ import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Map.Strict
     ( Map )
+import Data.Maybe
+    ( fromMaybe )
 import Data.Proxy
     ( Proxy (..) )
+import Data.Text
+    ( Text )
 import Data.Text.Class
     ( FromText (..), TextDecodingError (..), ToText (..) )
 import Data.Text.Read
     ( decimal )
-import Data.Typeable
-    ( Typeable, typeRep )
+import Data.Type.Equality
+    ( (:~:) (..), testEquality )
 import Data.Word
     ( Word32 )
 import Fmt
@@ -156,12 +158,15 @@ import GHC.Stack
     ( HasCallStack )
 import GHC.TypeLits
     ( KnownNat, Nat, natVal )
+import Type.Reflection
+    ( Typeable, typeRep )
 
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
 
 {-------------------------------------------------------------------------------
                               Address Pool Gap
@@ -236,6 +241,39 @@ defaultAddressPoolGap =
                                  Address Pool
 -------------------------------------------------------------------------------}
 
+data ParentContext (chain :: Role) (key :: Depth -> * -> *) where
+    ParentContextUtxoExternal
+        :: key 'AccountK XPub
+        -> ParentContext 'UtxoExternal key
+
+    ParentContextUtxoInternal
+        :: key 'AccountK XPub
+        -> ParentContext 'UtxoInternal key
+
+    ParentContextMultisigScript
+        :: key 'AccountK XPub
+        -> ScriptTemplate
+        -> Maybe ScriptTemplate
+        -> ParentContext 'MultisigScript key
+
+deriving instance Eq   (key 'AccountK XPub) => Eq   (ParentContext chain key)
+deriving instance Show (key 'AccountK XPub) => Show (ParentContext chain key)
+
+instance (WalletKey key) => Buildable (ParentContext chain key) where
+    build (ParentContextUtxoExternal acct) =
+        mempty <> "(ParentContext : "<> build (accXPubTxt (getRawKey acct)) <>")"
+    build (ParentContextUtxoInternal acct) =
+        mempty <> "(ParentContext : "<> build (accXPubTxt (getRawKey acct)) <>")"
+    build (ParentContextMultisigScript acct p dM) =
+        mempty <> "(ParentContext : "<> build (accXPubTxt (getRawKey acct))
+        <> ", " <> build (p, dM) <> ")"
+
+instance NFData (key 'AccountK XPub) => NFData (ParentContext chain key) where
+    rnf = \case
+        ParentContextUtxoExternal acct  -> rnf acct
+        ParentContextUtxoInternal acct  -> rnf acct
+        ParentContextMultisigScript acct p d -> rnf (acct, p, d)
+
 -- | An 'AddressPool' which keeps track of sequential addresses within a given
 -- Account and change chain. See 'mkAddressPool' to create a new or existing
 -- pool:
@@ -245,9 +283,9 @@ defaultAddressPoolGap =
 data AddressPool
     (chain :: Role)
     (key :: Depth -> * -> *) = AddressPool
-    { accountPubKey
-        :: !(key 'AccountK XPub)
-        -- ^ Corresponding key for the pool (a pool is tied to only one account)
+    { context
+        :: ParentContext chain key
+        -- ^ Context of given address pool
     , gap
         :: !AddressPoolGap
         -- ^ The actual gap for the pool. This can't change for a given pool.
@@ -258,136 +296,48 @@ data AddressPool
             )
     } deriving (Generic)
 
-deriving instance (Show (key 'AccountK XPub))
+deriving instance (Show (key 'AccountK XPub), Show (ParentContext chain key))
     => Show (AddressPool chain key)
 
-deriving instance (Eq (key 'AccountK XPub))
+deriving instance (Eq (key 'AccountK XPub), Eq (ParentContext chain key))
     => Eq (AddressPool chain key)
 
-instance (NFData (key 'AccountK XPub))
+instance (NFData (key 'AccountK XPub), NFData (ParentContext chain key))
     => NFData (AddressPool chain key)
 
-instance ((PersistPublicKey (key 'AccountK)), Typeable chain)
-    => Buildable (AddressPool chain key) where
-    build (AddressPool acct (AddressPoolGap g) _) = mempty
-        <> ccF <> " " <> acctF <> " (gap=" <> build g <> ")\n"
+instance PersistPublicKey (key 'AccountK) => Buildable (key 'AccountK XPub) where
+    build key = prefixF 8 xpubF <> "..." <> suffixF 8 xpubF
+      where
+        xpubF = hexF $ serializeXPub key
+
+instance Buildable (ScriptTemplate, Maybe ScriptTemplate) where
+    build (paymentTemplate, delegationTemplateM) =
+        mempty <> " payment script credential: " <> scriptPaymentF <>
+        " delegation script credential: " <> scriptDelegationF
+      where
+        scriptPaymentF = build paymentTemplate
+        scriptDelegationF = maybe "absent" build delegationTemplateM
+
+accXPubTxt :: XPub -> Text
+accXPubTxt xpub =
+    let keyFormatted = T.decodeUtf8 $ encode EBase16 $ xpubPublicKey xpub
+    in T.take 8 keyFormatted <> "..." <> T.takeEnd 8 keyFormatted
+
+instance Buildable ScriptTemplate where
+    build (ScriptTemplate cosignersMap script') = mempty <>
+        "Cosigners:" <> build (presentCosigners cosignersMap) <>
+        " Script:" <> build (T.pack (show script'))
+      where
+        printCosigner (Cosigner ix) =
+            "cosigner#"<> T.pack (show ix)
+        presentCosigners =
+            Map.foldrWithKey (\c k acc -> acc <> "| " <> printCosigner c <> " " <> accXPubTxt k ) mempty
+
+instance (Typeable chain, WalletKey key) => Buildable (AddressPool chain key) where
+    build (AddressPool ctx (AddressPoolGap g) _) = mempty
+        <> ccF <> " " <> build ctx <> " (gap=" <> build g <> ")\n"
       where
         ccF = build $ toText $ role @chain
-        xpubF = hexF $ serializeXPub acct
-        acctF = prefixF 8 xpubF <> "..." <> suffixF 8 xpubF
-
-data VerificationKeyPool (key :: Depth -> * -> *) = VerificationKeyPool {
-      verPoolAccountPubKey
-        :: !(key 'AccountK XPub)
-    -- ^ Corresponding key for the pool (a pool is tied to only one account)
-    , verPoolGap
-        :: !AddressPoolGap
-    -- ^ The actual gap for the pool. This can't change for a given pool.
-    , verPoolIndexedKeys
-        :: !(Map KeyHash (Index 'Soft 'ScriptK, AddressState))
-    , verPoolKnownScripts :: !(Map ScriptHash [Index 'Soft 'ScriptK])
-        -- ^ Known script hashes that contain our verification key hashes
-        -- represented here by corresponding indices
-    } deriving (Generic)
-
-deriving instance (Show (key 'AccountK XPub), Show (key 'ScriptK XPub))
-    => Show (VerificationKeyPool key)
-
-deriving instance (Eq (key 'AccountK XPub), Eq (key 'ScriptK XPub))
-    => Eq (VerificationKeyPool key)
-
-instance (NFData (key 'AccountK XPub), NFData (key 'ScriptK XPub))
-    => NFData (VerificationKeyPool key)
-
-instance ((PersistPublicKey (key 'AccountK)))
-    => Buildable (VerificationKeyPool key) where
-    build (VerificationKeyPool acct (AddressPoolGap g) _ _) = mempty
-       <> ccF <> " " <> acctF <> " (gap=" <> build g <> ")\n"
-      where
-        ccF = build $ toText MultisigScript
-        xpubF = hexF $ serializeXPub acct
-        acctF = prefixF 8 xpubF <> "..." <> suffixF 8 xpubF
-
-lookupKeyHash
-    :: KeyHash
-    -> VerificationKeyPool k
-    -> (Maybe (Index 'Soft 'ScriptK), VerificationKeyPool k)
-lookupKeyHash keyHash pool@(VerificationKeyPool accXPub g indexedHashKeys scripts) =
-    let updateKey (ix, _) = (ix, Used)
-    in case Map.lookup keyHash indexedHashKeys of
-        Nothing -> (Nothing, pool)
-        Just (ix, Unused) ->
-            ( Just ix
-            , unsafeVerificationKeyPool accXPub g
-                (Map.adjust updateKey keyHash indexedHashKeys) scripts)
-        Just (ix, Used) ->
-            ( Just ix
-            , unsafeVerificationKeyPool accXPub g indexedHashKeys scripts)
-
-updateKnownScripts
-    :: (Map ScriptHash [Index 'Soft 'ScriptK] -> Map ScriptHash [Index 'Soft 'ScriptK])
-    -> VerificationKeyPool k
-    -> VerificationKeyPool k
-updateKnownScripts trKnownScripts (VerificationKeyPool accXPub g indexedHashKeys knownScripts) =
-    let knownScripts' = trKnownScripts knownScripts
-    in unsafeVerificationKeyPool accXPub g indexedHashKeys knownScripts'
-
--- | Create a new VerificationKey pool.
-newVerificationKeyPool
-    :: (SoftDerivation k, WalletKey k)
-    => k 'AccountK XPub
-    -> AddressPoolGap
-    -> VerificationKeyPool k
-newVerificationKeyPool accXPub addrPoolGap =
-    let startVerKeyMap =
-            Map.fromList $ map (createPristineMapEntry accXPub) $
-            L.take (fromEnum addrPoolGap) $ L.iterate succ minBound
-    in unsafeVerificationKeyPool accXPub addrPoolGap startVerKeyMap Map.empty
-
--- | Create a VerificationKey pool from the all ingredients.
--- There is no validation and it is unsafe way.
-unsafeVerificationKeyPool
-    :: k 'AccountK XPub
-    -> AddressPoolGap
-    -> Map KeyHash (Index 'Soft 'ScriptK, AddressState)
-    -> Map ScriptHash [Index 'Soft 'ScriptK]
-    -> VerificationKeyPool k
-unsafeVerificationKeyPool accXPub poolGap vkPoolMap knownScripts = VerificationKeyPool
-    { verPoolAccountPubKey = accXPub
-    , verPoolGap = poolGap
-    , verPoolIndexedKeys = vkPoolMap
-    , verPoolKnownScripts = knownScripts
-    }
-
-createPristineMapEntry
-    :: (SoftDerivation k, WalletKey k)
-    => k 'AccountK XPub
-    -> Index 'Soft 'ScriptK
-    -> (KeyHash, (Index 'Soft 'ScriptK, AddressState))
-createPristineMapEntry accXPub ix =
-    ( hashVerificationKey $ deriveVerificationKey accXPub ix
-    , (ix, Unused) )
-
--- | The extension to the VerificationKey pool is done by adding next adjacent
--- indices and their corresponding public keys, marking them as Unused.
--- The number of added entries is determined by pool gap, and the start index is
--- the next to the the specified index.
-extendVerificationKeyPool
-    :: (SoftDerivation k, WalletKey k)
-    => Index 'Soft 'ScriptK
-    -> VerificationKeyPool k
-    -> VerificationKeyPool k
-extendVerificationKeyPool ix pool
-    | isOnEdge  = pool { verPoolIndexedKeys = Map.union (verPoolIndexedKeys pool) next }
-    | otherwise = pool
-  where
-    edge = Map.size (verPoolIndexedKeys pool)
-    isOnEdge = edge - fromEnum ix <= fromEnum (verPoolGap pool)
-    next
-      | ix == maxBound = mempty
-      | otherwise =
-            Map.fromList $ map (createPristineMapEntry (verPoolAccountPubKey pool)) $
-            L.take (fromEnum $ verPoolGap pool) $ L.iterate succ (succ ix)
 
 -- | Bring a 'Role' type back to the term-level. This requires a type
 -- application and either a scoped type variable, or an explicit passing of a
@@ -399,16 +349,25 @@ extendVerificationKeyPool ix pool
 -- >>> role @chain
 -- ...
 role :: forall (c :: Role). Typeable c => Role
-role =
-    case typeRep (Proxy :: Proxy c) of
-        t | t == typeRep (Proxy :: Proxy 'UtxoInternal) ->
-            UtxoInternal
-          | t == typeRep (Proxy :: Proxy 'UtxoExternal) ->
-            UtxoExternal
-          | t == typeRep (Proxy :: Proxy 'MultisigScript) ->
-            MultisigScript
-        _ ->
-            MutableAccount
+role = fromMaybe (error $ "role: unmatched type" <> show (typeRep @c))
+       (tryUtxoExternal <|> tryUtxoInternal <|> tryMultisigScript <|> tryMutableAccount)
+  where
+    tryUtxoExternal =
+        case testEquality (typeRep @c) (typeRep @'UtxoExternal) of
+            Just Refl  -> Just UtxoExternal
+            Nothing -> Nothing
+    tryUtxoInternal =
+        case testEquality (typeRep @c) (typeRep @'UtxoInternal) of
+            Just Refl  -> Just UtxoInternal
+            Nothing -> Nothing
+    tryMultisigScript =
+        case testEquality (typeRep @c) (typeRep @'MultisigScript) of
+            Just Refl  -> Just MultisigScript
+            Nothing -> Nothing
+    tryMutableAccount =
+        case testEquality (typeRep @c) (typeRep @'MutableAccount) of
+            Just Refl  -> Just MutableAccount
+            Nothing -> Nothing
 
 -- | Get all addresses in the pool, sorted from the first address discovered,
 -- up until the next one.
@@ -441,22 +400,22 @@ mkAddressPool
         , MkKeyFingerprint k Address
         , SoftDerivation k
         , Typeable c
+        , Typeable n
         )
-    => k 'AccountK XPub
+    => ParentContext c k
     -> AddressPoolGap
     -> [(Address, AddressState)]
     -> AddressPool c k
-mkAddressPool key g addrs = AddressPool
-    { accountPubKey = key
+mkAddressPool ctx g addrs = AddressPool
+    { context = ctx
     , gap = g
     , indexedKeys = mconcat
         [ Map.fromList $ zipWith (\(addr, status) ix -> (addr, (ix, status)))
             (first (unsafePaymentKeyFingerprint @k) <$> addrs)
             [minBound..maxBound]
-        , nextAddresses @n
-            key
+        , nextAddresses @n @c
+            ctx
             g
-            (role @c)
             minBound
         ]
     }
@@ -472,6 +431,7 @@ shrinkPool
         , MkKeyFingerprint key Address
         , MkKeyFingerprint key (Proxy n, key 'AddressK XPub)
         , SoftDerivation key
+        , Typeable n
         )
     => (KeyFingerprint "payment" key -> Address)
         -- ^ A way to lift fingerprint back into an 'Address'
@@ -495,7 +455,7 @@ shrinkPool mkAddress knownAddrs newGap pool =
             . Map.filter (\(v, _) -> Just v <= maxV)
             $ keys
     in
-        mkAddressPool @n (accountPubKey pool) newGap addrs
+        mkAddressPool @n (context pool) newGap addrs
   where
     withAddressState :: KeyFingerprint "payment" key -> (Address, AddressState)
     withAddressState fingerprint =
@@ -523,6 +483,7 @@ lookupAddress
         , MkKeyFingerprint k Address
         , SoftDerivation k
         , Typeable c
+        , Typeable n
         )
     => (AddressState -> AddressState)
     -> Address
@@ -552,8 +513,10 @@ lookupAddress alterSt !target !pool =
 extendAddressPool
     :: forall (n :: NetworkDiscriminant) c k.
         ( MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
+        , MkKeyFingerprint k Address
         , SoftDerivation k
         , Typeable c
+        , Typeable n
         )
     => Index 'Soft 'AddressK
     -> AddressPool c k
@@ -564,35 +527,51 @@ extendAddressPool !ix !pool
   where
     edge = Map.size (indexedKeys pool)
     isOnEdge = edge - fromEnum ix <= fromEnum (gap pool)
-    next = if ix == maxBound then mempty else nextAddresses @n
-        (accountPubKey pool)
+    next = if ix == maxBound then mempty else nextAddresses @n @c
+        (context pool)
         (gap pool)
-        (role @c)
         (succ ix)
 
 -- | Compute the pool extension from a starting index
 nextAddresses
-    :: forall (n :: NetworkDiscriminant) k.
+    :: forall (n :: NetworkDiscriminant) (c :: Role) k.
         ( MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
+        , MkKeyFingerprint k Address
         , SoftDerivation k
+        , Typeable c
+        , Typeable n
         )
-    => k 'AccountK XPub
+    => ParentContext c k
     -> AddressPoolGap
-    -> Role
     -> Index 'Soft 'AddressK
     -> Map (KeyFingerprint "payment" k) (Index 'Soft 'AddressK, AddressState)
-nextAddresses !key (AddressPoolGap !g) !cc !fromIx =
+nextAddresses !ctx (AddressPoolGap !g) !fromIx =
     [fromIx .. min maxBound toIx]
-        & map (\ix -> (newPaymentKey ix, (ix, Unused)))
+        & map (\ix -> (mkPaymentKey ix ctx, (ix, Unused)))
         & Map.fromList
   where
     toIx = invariant
         "nextAddresses: toIx should be greater than fromIx"
         (toEnum $ fromEnum fromIx + fromEnum g - 1)
         (>= fromIx)
-    newPaymentKey = unsafePaymentKeyFingerprint @k
-        . (Proxy @n,)
-        . deriveAddressPublicKey key cc
+
+    mkPaymentKey ix = \case
+        ParentContextUtxoExternal acct ->
+            mkPaymentKeyFromAccXPub acct
+        ParentContextUtxoInternal acct ->
+            mkPaymentKeyFromAccXPub acct
+        ParentContextMultisigScript _ payment delegation ->
+            mkPaymentKeyFromTemplates payment delegation
+      where
+        mkPaymentKeyFromAccXPub acct =
+            unsafePaymentKeyFingerprint @k
+                ( Proxy @n
+                , deriveAddressPublicKey @k acct (role @c) ix
+                )
+
+        mkPaymentKeyFromTemplates payment delegation =
+            unsafePaymentKeyFingerprint @k $
+                constructAddressFromIx @n payment delegation (coerce ix)
 
 {-------------------------------------------------------------------------------
                             Pending Change Indexes
@@ -699,39 +678,33 @@ data SeqState (n :: NetworkDiscriminant) k = SeqState
         -- ^ Reward account public key associated with this wallet
     , derivationPrefix :: DerivationPrefix
         -- ^ Derivation path prefix from a root key up to the internal account
-    , scriptPool :: !(VerificationKeyPool k)
-        -- ^ Verification key pool that tracts the keys in the discovered scripts
     }
     deriving stock (Generic)
 
 deriving instance
     ( Show (k 'AccountK XPub)
     , Show (k 'AddressK XPub)
-    , Show (k 'ScriptK XPub)
     , Show (KeyFingerprint "payment" k)
     ) => Show (SeqState n k)
 
 deriving instance
     ( Eq (k 'AccountK XPub)
     , Eq (k 'AddressK XPub)
-    , Eq (k 'ScriptK XPub)
     , Eq (KeyFingerprint "payment" k)
     ) => Eq (SeqState n k)
 
 instance
     ( NFData (k 'AccountK XPub)
     , NFData (k 'AddressK XPub)
-    , NFData (k 'ScriptK XPub)
     , NFData (KeyFingerprint "payment" k)
     )
     => NFData (SeqState n k)
 
-instance PersistPublicKey (k 'AccountK) => Buildable (SeqState n k) where
-    build (SeqState intP extP chgs _ path multiP) = "SeqState:\n"
+instance (WalletKey k) => Buildable (SeqState n k) where
+    build (SeqState intP extP chgs _ path) = "SeqState:\n"
         <> indentF 4 ("Derivation prefix: " <> build (toText path))
         <> indentF 4 (build intP)
         <> indentF 4 (build extP)
-        <> indentF 4 (build multiP)
         <> indentF 4 ("Change indexes: " <> indentF 4 chgsF)
       where
         chgsF = blockListF' "-" build (pendingIxsToList chgs)
@@ -758,20 +731,6 @@ purposeBIP44 = toEnum 0x8000002C
 purposeCIP1852 :: Index 'Hardened 'PurposeK
 purposeCIP1852 = toEnum 0x8000073c
 
--- | One master node (seed) can be used for unlimited number of independent
--- cryptocoins such as Bitcoin, Litecoin or Namecoin. However, sharing the
--- same space for various cryptocoins has some disadvantages.
---
--- This level creates a separate subtree for every cryptocoin, avoiding reusing
--- addresses across cryptocoins and improving privacy issues.
---
--- Coin type is a constant, set for each cryptocoin. For Cardano this constant
--- is set to 1815' (or 0x80000717). 1815 is the birthyear of our beloved Ada
--- Lovelace.
---
--- Hardened derivation is used at this level.
-coinTypeAda :: Index 'Hardened 'CoinTypeK
-coinTypeAda = toEnum 0x80000717
 
 -- | Construct a Sequential state for a wallet from root private key and password.
 mkSeqStateFromRootXPrv
@@ -781,6 +740,7 @@ mkSeqStateFromRootXPrv
         , MkKeyFingerprint k Address
         , WalletKey k
         , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
+        , Typeable n
         )
     => (k 'RootK XPrv, Passphrase "encryption")
     -> Index 'Hardened 'PurposeK
@@ -793,15 +753,13 @@ mkSeqStateFromRootXPrv (rootXPrv, pwd) purpose g =
         rewardXPub =
             publicKey $ deriveRewardAccount pwd rootXPrv
         extPool =
-            mkAddressPool @n (publicKey accXPrv) g []
+            mkAddressPool @n (ParentContextUtxoExternal $ publicKey accXPrv) g []
         intPool =
-            mkAddressPool @n (publicKey accXPrv) g []
-        multiPool =
-            newVerificationKeyPool (publicKey accXPrv) g
+            mkAddressPool @n (ParentContextUtxoInternal $ publicKey accXPrv) g []
         prefix =
             DerivationPrefix ( purpose, coinTypeAda, minBound )
     in
-        SeqState intPool extPool emptyPendingIxs rewardXPub prefix multiPool
+        SeqState intPool extPool emptyPendingIxs rewardXPub prefix
 
 -- | Construct a Sequential state for a wallet from public account key.
 mkSeqStateFromAccountXPub
@@ -809,7 +767,7 @@ mkSeqStateFromAccountXPub
         ( SoftDerivation k
         , MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
         , MkKeyFingerprint k Address
-        , WalletKey k
+        , Typeable n
         )
     => k 'AccountK XPub
     -> Index 'Hardened 'PurposeK
@@ -822,15 +780,13 @@ mkSeqStateFromAccountXPub accXPub purpose g =
         rewardXPub =
             deriveAddressPublicKey accXPub MutableAccount minBound
         extPool =
-            mkAddressPool @n accXPub g []
+            mkAddressPool @n (ParentContextUtxoExternal accXPub) g []
         intPool =
-            mkAddressPool @n accXPub g []
-        multiPool =
-            newVerificationKeyPool accXPub g
+            mkAddressPool @n (ParentContextUtxoInternal accXPub) g []
         prefix =
             DerivationPrefix ( purpose, coinTypeAda, minBound )
     in
-        SeqState intPool extPool emptyPendingIxs rewardXPub prefix multiPool
+        SeqState intPool extPool emptyPendingIxs rewardXPub prefix
 
 -- NOTE
 -- We have to scan both the internal and external chain. Note that, the
@@ -841,9 +797,10 @@ instance
     ( SoftDerivation k
     , MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
     , MkKeyFingerprint k Address
+    , Typeable n
     ) => IsOurs (SeqState n k) Address
   where
-    isOurs addr (SeqState !s1 !s2 !ixs !rpk !prefix !s3) =
+    isOurs addr (SeqState !s1 !s2 !ixs !rpk !prefix) =
         let
             DerivationPrefix (purpose, coinType, accountIx) = prefix
             (internal, !s1') = lookupAddress @n (const Used) addr s1
@@ -872,7 +829,7 @@ instance
 
                 _ -> Nothing
         in
-            (ixs' `deepseq` ours `deepseq` ours, SeqState s1' s2' ixs' rpk prefix s3)
+            (ixs' `deepseq` ours `deepseq` ours, SeqState s1' s2' ixs' rpk prefix)
 
 instance
     ( SoftDerivation k
@@ -886,14 +843,14 @@ instance
     type ArgGenChange (SeqState n k) =
         (k 'AddressK XPub -> k 'AddressK XPub -> Address)
 
-    genChange mkAddress (SeqState intPool extPool pending rpk path multiPool) =
+    genChange mkAddress (SeqState intPool extPool pending rpk path) =
         let
             (ix, pending') = nextChangeIndex intPool pending
-            accountXPub' = accountPubKey intPool
+            ParentContextUtxoInternal accountXPub' = context intPool
             addressXPub = deriveAddressPublicKey accountXPub' UtxoInternal ix
             addr = mkAddress addressXPub rpk
         in
-            (addr, SeqState intPool extPool pending' rpk path multiPool)
+            (addr, SeqState intPool extPool pending' rpk path)
 
 instance
     ( IsOurs (SeqState n k) Address
@@ -901,9 +858,10 @@ instance
     , MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
     , MkKeyFingerprint k Address
     , AddressIndexDerivationType k ~ 'Soft
+    , Typeable n
     )
     => IsOwned (SeqState n k) k where
-    isOwned (SeqState !s1 !s2 _ _ _ _) (rootPrv, pwd) addr =
+    isOwned (SeqState !s1 !s2 _ _ _) (rootPrv, pwd) addr =
         let
             xPrv1 = lookupAndDeriveXPrv s1
             xPrv2 = lookupAndDeriveXPrv s2
@@ -928,8 +886,9 @@ instance
     ( MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
     , MkKeyFingerprint k Address
     , SoftDerivation k
+    , Typeable n
     ) => CompareDiscovery (SeqState n k) where
-    compareDiscovery (SeqState !s1 !s2 _ _ _ _) a1 a2 =
+    compareDiscovery (SeqState !s1 !s2 _ _ _) a1 a2 =
         case (ix a1 s1 <|> ix a1 s2, ix a2 s1 <|> ix a2 s2) of
             (Nothing, Nothing) -> EQ
             (Nothing, Just _)  -> GT
@@ -991,14 +950,12 @@ newtype SeqAnyState (network :: NetworkDiscriminant) key (p :: Nat) = SeqAnyStat
 deriving instance
     ( Show (k 'AccountK XPub)
     , Show (k 'AddressK XPub)
-    , Show (k 'ScriptK XPub)
     , Show (KeyFingerprint "payment" k)
     ) => Show (SeqAnyState n k p)
 
 instance
     ( NFData (k 'AccountK XPub)
     , NFData (k 'AddressK XPub)
-    , NFData (k 'ScriptK XPub)
     , NFData (KeyFingerprint "payment" k)
     )
     => NFData (SeqAnyState n k p)
@@ -1016,6 +973,7 @@ mkSeqAnyState
         , MkKeyFingerprint k Address
         , WalletKey k
         , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
+        , Typeable n
         )
     => (k 'RootK XPrv, Passphrase "encryption")
     -> Index 'Hardened 'PurposeK
@@ -1028,6 +986,8 @@ mkSeqAnyState credentials purpose poolGap = SeqAnyState
 instance
     ( SoftDerivation k
     , MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
+    , MkKeyFingerprint k Address
+    , Typeable n
     , KnownNat p
     ) => IsOurs (SeqAnyState n k p) Address
   where
@@ -1057,8 +1017,10 @@ instance IsOurs (SeqAnyState n k p) RewardAccount
 instance
     ( SoftDerivation k
     , MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
+    , MkKeyFingerprint k Address
     , AddressIndexDerivationType k ~ 'Soft
     , KnownNat p
+    , Typeable n
     ) => IsOwned (SeqAnyState n k p) k
   where
     isOwned _ _ _ = Nothing
@@ -1074,6 +1036,7 @@ instance
     ( MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
     , MkKeyFingerprint k Address
     , SoftDerivation k
+    , Typeable n
     ) => CompareDiscovery (SeqAnyState n k p)
   where
     compareDiscovery (SeqAnyState s) = compareDiscovery s

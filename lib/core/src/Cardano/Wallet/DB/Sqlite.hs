@@ -42,8 +42,6 @@ import Prelude
 
 import Cardano.Address.Derivation
     ( XPrv, XPub )
-import Cardano.Address.Script
-    ( KeyHash, ScriptHash (..) )
 import Cardano.DB.Sqlite
     ( DBField (..)
     , DBLog (..)
@@ -83,9 +81,7 @@ import Cardano.Wallet.DB.Sqlite.TH
     , RndStatePendingAddress (..)
     , SeqState (..)
     , SeqStateAddress (..)
-    , SeqStateKeyHash (..)
     , SeqStatePendingIx (..)
-    , SeqStateScriptHash (..)
     , StakeKeyCertificate (..)
     , TxIn (..)
     , TxMeta (..)
@@ -227,7 +223,6 @@ import qualified Cardano.Wallet.Primitive.Types.Hash as W
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.Tx as W
 import qualified Cardano.Wallet.Primitive.Types.UTxO as W
-import qualified Data.List as L
 import qualified Data.Map.Merge.Strict as Map
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
@@ -402,14 +397,106 @@ migrateManually tr proxy defaultFieldValues =
 
         renameRoleFields conn
 
-        addScriptAddressGapIfMissing conn
-
         updateFeeValueAndAddKeyDeposit conn
 
         addFeeToTransaction conn
 
         moveRndUnusedAddresses conn
+
+        cleanupSeqStateTable conn
   where
+    -- NOTE
+    -- We originally stored script pool gap inside sequential state in the 'SeqState' table,
+    -- represented by 'seqStateScriptGap' field. We introduce separate shared wallet state
+    -- and want to get rid of this. Also we had two supporting tables which we will drop,
+    -- 'SeqStateKeyHash' and 'SeqStateScriptHash'.
+    cleanupSeqStateTable :: Sqlite.Connection -> IO ()
+    cleanupSeqStateTable conn = do
+        let orig = "seq_state"
+
+        -- 1. Drop column from the 'seq_state' table
+        isFieldPresentByName conn "seq_state" "script_gap" >>= \case
+            ColumnPresent -> do
+                let tmp = orig <> "_tmp"
+
+                info <- runSql conn $ getTableInfo orig
+                let excluding = ["script_gap"]
+                let filtered = mapMaybe (filterColumn excluding) info
+                dropColumnOp conn orig tmp filtered
+
+            _ -> return ()
+
+        -- 2. Drop supplementrary tables
+        _ <- runSql conn $ dropTable "seq_state_key_hash"
+        _ <- runSql conn $ dropTable "seq_state_script_hash"
+
+        return ()
+
+    dropTable :: Text -> Text
+    dropTable table = mconcat
+        [ "DROP TABLE IF EXISTS " <> table <> ";"
+        ]
+
+    getTableInfo :: Text -> Text
+    getTableInfo table = mconcat
+        [ "PRAGMA table_info(", table, ");"
+        ]
+
+    filterColumn :: [Text] -> [PersistValue] -> Maybe [PersistValue]
+    filterColumn excluding = \case
+        [ _, PersistText colName, PersistText colType, colNull, _, _] ->
+            if colName `elem` excluding then
+                Nothing
+            else
+                Just [PersistText colName, PersistText colType, colNull]
+        _ ->
+            Nothing
+
+    dropColumnOp
+        :: Sqlite.Connection
+        -> Text
+        -> Text
+        -> [[PersistValue]]
+        -> IO ()
+    dropColumnOp conn orig tmp filtered = do
+        _ <- runSql conn $ dropTable tmp
+        _ <- runSql conn $ createTable tmp filtered
+        _ <- runSql conn $ copyTable orig tmp filtered
+        _ <- runSql conn $ dropTable orig
+        _ <- runSql conn $ renameTable tmp orig
+
+        return ()
+      where
+        createTable table cols = mconcat
+            [ "CREATE TABLE ", table, " ("
+            , T.intercalate ", " (mapMaybe createColumn cols)
+            , ");"
+            ]
+        copyTable source destination cols = mconcat
+            [ "INSERT INTO ", destination, " SELECT "
+            , T.intercalate ", " (mapMaybe selectColumn cols)
+            , " FROM ", source
+            , ";"
+            ]
+        renameTable from to = mconcat
+            [ "ALTER TABLE ", from, " RENAME TO ", to, ";" ]
+
+        selectColumn :: [PersistValue] -> Maybe Text
+        selectColumn = \case
+            [ PersistText colName, _ , _ ] ->
+                Just colName
+            _ ->
+                Nothing
+
+        createColumn :: [PersistValue] -> Maybe Text
+        createColumn = \case
+            [ PersistText colName, PersistText colType, PersistInt64 1 ] ->
+                Just $ T.unwords [ colName, colType, "NOT NULL" ]
+            [ PersistText colName, PersistText colType, _ ] ->
+                Just $ T.unwords [ colName, colType ]
+            _ ->
+                Nothing
+
     -- NOTE
     -- We originally stored protocol parameters in the 'Checkpoint' table, and
     -- later moved them to a new dedicatd table. However, removing a column is
@@ -451,13 +538,7 @@ migrateManually tr proxy defaultFieldValues =
                             , "slot_length", "epoch_length", "tx_max_size"
                             , "epoch_stability", "active_slot_coeff"
                             ]
-                _ <- runSql conn $ dropTable tmp
-                _ <- runSql conn $ createTable tmp filtered
-                _ <- runSql conn $ copyTable orig tmp filtered
-                _ <- runSql conn $ dropTable orig
-                _ <- runSql conn $ renameTable tmp orig
-
-                return ()
+                dropColumnOp conn orig tmp filtered
             _ -> return ()
 
       where
@@ -466,56 +547,6 @@ migrateManually tr proxy defaultFieldValues =
             , " FROM ", table
             , " ORDER BY slot ASC LIMIT 1;"
             ]
-
-        getTableInfo table = mconcat
-            [ "PRAGMA table_info(", table, ");"
-            ]
-
-        createTable table cols = mconcat
-            [ "CREATE TABLE ", table, " ("
-            , T.intercalate ", " (mapMaybe createColumn cols)
-            , ");"
-            ]
-
-        copyTable source destination cols = mconcat
-            [ "INSERT INTO ", destination, " SELECT "
-            , T.intercalate ", " (mapMaybe selectColumn cols)
-            , " FROM ", source
-            , ";"
-            ]
-
-        dropTable table = mconcat
-            [ "DROP TABLE IF EXISTS " <> table <> ";"
-            ]
-
-        renameTable from to = mconcat
-            [ "ALTER TABLE ", from, " RENAME TO ", to, ";" ]
-
-        filterColumn :: [Text] -> [PersistValue] -> Maybe [PersistValue]
-        filterColumn excluding = \case
-            [ _, PersistText colName, PersistText colType, colNull, _, _] ->
-                if colName `elem` excluding then
-                    Nothing
-                else
-                    Just [PersistText colName, PersistText colType, colNull]
-            _ ->
-                Nothing
-
-        selectColumn :: [PersistValue] -> Maybe Text
-        selectColumn = \case
-            [ PersistText colName, _ , _ ] ->
-                Just colName
-            _ ->
-                Nothing
-
-        createColumn :: [PersistValue] -> Maybe Text
-        createColumn = \case
-            [ PersistText colName, PersistText colType, PersistInt64 1 ] ->
-                Just $ T.unwords [ colName, colType, "NOT NULL" ]
-            [ PersistText colName, PersistText colType, _ ] ->
-                Just $ T.unwords [ colName, colType ]
-            _ ->
-                Nothing
 
     -- NOTE
     -- Wallets created before the 'PassphraseScheme' was introduced have no
@@ -684,9 +715,9 @@ migrateManually tr proxy defaultFieldValues =
     -- | This table became @protocol_parameters@.
     removeOldTxParametersTable :: Sqlite.Connection -> IO ()
     removeOldTxParametersTable conn = do
-        dropTable <- Sqlite.prepare conn "DROP TABLE IF EXISTS tx_parameters;"
-        void $ Sqlite.stepConn conn dropTable
-        Sqlite.finalize dropTable
+        dropTable' <- Sqlite.prepare conn "DROP TABLE IF EXISTS tx_parameters;"
+        void $ Sqlite.stepConn conn dropTable'
+        Sqlite.finalize dropTable'
 
     -- | In order to make listing addresses bearable for large wallet, we
     -- altered the discovery process to mark addresses as used as they are
@@ -769,15 +800,6 @@ migrateManually tr proxy defaultFieldValues =
                 traceWith tr $ MsgManualMigrationNotNeeded roleField
       where
         roleField = DBField SeqStateAddressRole
-
-    -- | Adds an 'script_gap' column to the 'SeqState'
-    -- table if it is missing.
-    --
-    addScriptAddressGapIfMissing :: Sqlite.Connection -> IO ()
-    addScriptAddressGapIfMissing conn =
-        addColumn_ conn True (DBField SeqStateScriptGap) value
-     where
-        value = T.pack $ show $ Seq.getAddressPoolGap Seq.defaultAddressPoolGap
 
     -- This migration is rather delicate. Indeed, we need to introduce an
     -- explicit 'fee' on known transactions, so only do we need to add the new
@@ -948,14 +970,14 @@ migrateManually tr proxy defaultFieldValues =
 
     isFieldPresentByName :: Sqlite.Connection -> Text -> Text -> IO SqlColumnStatus
     isFieldPresentByName conn table field = do
-        getTableInfo <- Sqlite.prepare conn $ mconcat
+        getTableInfo' <- Sqlite.prepare conn $ mconcat
             [ "SELECT sql FROM sqlite_master "
             , "WHERE type = 'table' "
             , "AND name = '" <> table <> "';"
             ]
-        row <- Sqlite.step getTableInfo
-            >> Sqlite.columns getTableInfo
-        Sqlite.finalize getTableInfo
+        row <- Sqlite.step getTableInfo'
+            >> Sqlite.columns getTableInfo'
+        Sqlite.finalize getTableInfo'
         pure $ case row of
             [PersistText t]
                 | field `T.isInfixOf` t -> ColumnPresent
@@ -2152,17 +2174,19 @@ instance
     , MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
     , PaymentAddress n k
     , SoftDerivation k
+    , Typeable n
     ) => PersistState (Seq.SeqState n k) where
     insertState (wid, sl) st = do
-        let (intPool, extPool, sPool) =
-                (Seq.internalPool st, Seq.externalPool st, Seq.scriptPool st)
+        let (intPool, extPool) =
+                (Seq.internalPool st, Seq.externalPool st)
+        let (Seq.ParentContextUtxoInternal accXPubInternal) = Seq.context intPool
+        let (Seq.ParentContextUtxoExternal accXPubExternal) = Seq.context extPool
         let (accountXPub, _) = W.invariant
                 "Internal & External pool use different account public keys!"
-                (Seq.accountPubKey intPool, Seq.accountPubKey extPool)
+                ( accXPubExternal, accXPubInternal )
                 (uncurry (==))
         let eGap = Seq.gap extPool
         let iGap = Seq.gap intPool
-        let sGap = Seq.verPoolGap sPool
         repsert (SeqStateKey wid) $ SeqState
             { seqStateWalletId = wid
             , seqStateExternalGap = eGap
@@ -2170,11 +2194,9 @@ instance
             , seqStateAccountXPub = serializeXPub accountXPub
             , seqStateRewardXPub = serializeXPub (Seq.rewardAccountKey st)
             , seqStateDerivationPrefix = Seq.derivationPrefix st
-            , seqStateScriptGap = sGap
             }
         insertAddressPool @n wid sl intPool
         insertAddressPool @n wid sl extPool
-        insertScriptPool wid sl sPool
         deleteWhere [SeqStatePendingWalletId ==. wid]
         dbChunked
             insertMany_
@@ -2182,14 +2204,13 @@ instance
 
     selectState (wid, sl) = runMaybeT $ do
         st <- MaybeT $ selectFirst [SeqStateWalletId ==. wid] []
-        let SeqState _ eGap iGap accountBytes rewardBytes prefix sGap = entityVal st
+        let SeqState _ eGap iGap accountBytes rewardBytes prefix = entityVal st
         let accountXPub = unsafeDeserializeXPub accountBytes
         let rewardXPub = unsafeDeserializeXPub rewardBytes
-        intPool <- lift $ selectAddressPool @n wid sl iGap accountXPub
-        extPool <- lift $ selectAddressPool @n wid sl eGap accountXPub
-        sPool <- lift $ selectScriptPool wid sl sGap accountXPub
+        intPool <- lift $ selectAddressPool @n wid sl iGap (Seq.ParentContextUtxoInternal accountXPub)
+        extPool <- lift $ selectAddressPool @n wid sl eGap (Seq.ParentContextUtxoExternal accountXPub)
         pendingChangeIxs <- lift $ selectSeqStatePendingIxs wid
-        pure $ Seq.SeqState intPool extPool pendingChangeIxs rewardXPub prefix sPool
+        pure $ Seq.SeqState intPool extPool pendingChangeIxs rewardXPub prefix
 
 insertAddressPool
     :: forall n k c. (PaymentAddress n k, Typeable c)
@@ -2207,6 +2228,7 @@ insertAddressPool wid sl pool =
 selectAddressPool
     :: forall (n :: NetworkDiscriminant) k c.
         ( Typeable c
+        , Typeable n
         , SoftDerivation k
         , MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
         , MkKeyFingerprint k W.Address
@@ -2214,9 +2236,9 @@ selectAddressPool
     => W.WalletId
     -> W.SlotNo
     -> Seq.AddressPoolGap
-    -> k 'AccountK XPub
+    -> Seq.ParentContext c k
     -> SqlPersistT IO (Seq.AddressPool c k)
-selectAddressPool wid sl gap xpub = do
+selectAddressPool wid sl gap ctx = do
     addrs <- fmap entityVal <$> selectList
         [ SeqStateAddressWalletId ==. wid
         , SeqStateAddressSlot ==. sl
@@ -2228,7 +2250,7 @@ selectAddressPool wid sl gap xpub = do
         :: [SeqStateAddress]
         -> Seq.AddressPool c k
     addressPoolFromEntity addrs
-        = Seq.mkAddressPool @n @c @k xpub gap
+        = Seq.mkAddressPool @n @c @k ctx gap
         $ map (\x -> (seqStateAddressAddress x, seqStateAddressStatus x)) addrs
 
 mkSeqStatePendingIxs :: W.WalletId -> Seq.PendingIxs -> [SeqStatePendingIx]
@@ -2242,65 +2264,6 @@ selectSeqStatePendingIxs wid =
         [Desc SeqStatePendingIxIndex]
   where
     fromRes = fmap (W.Index . seqStatePendingIxIndex . entityVal)
-
-insertScriptPool
-    :: W.WalletId
-    -> W.SlotNo
-    -> Seq.VerificationKeyPool k
-    -> SqlPersistT IO ()
-insertScriptPool wid sl pool = do
-    void $ dbChunked insertMany_ $
-        Map.foldMapWithKey toSeqStateKeyHash (Seq.verPoolIndexedKeys pool)
-    void $ dbChunked insertMany_ $
-        concatMap toDB $ Map.toList (Seq.verPoolKnownScripts pool)
-  where
-    toSeqStateKeyHash keyHash (ix, state) =
-        [SeqStateKeyHash wid sl keyHash (getIndex ix) state]
-    toDB (scriptHash, verKeyIxs) =
-        zipWith (SeqStateScriptHash wid sl scriptHash . getIndex) verKeyIxs [0..]
-
-selectScriptPool
-    :: forall k . W.WalletId
-    -> W.SlotNo
-    -> Seq.AddressPoolGap
-    -> k 'AccountK XPub
-    -> SqlPersistT IO (Seq.VerificationKeyPool k)
-selectScriptPool wid sl gap xpub = do
-    verKeys <- fmap entityVal <$> selectList
-        [ SeqStateKeyHashWalletId ==. wid
-        , SeqStateKeyHashSlot ==. sl
-        ] [Asc SeqStateKeyHashIndex]
-    scripts <- fmap entityVal <$> selectList
-        [ SeqStateScriptHashWalletId ==. wid
-        , SeqStateScriptHashSlot ==. sl
-        ] [Asc SeqStateScriptHashScriptHash, Desc SeqStateScriptHashKeyIndexInArray]
-    pure $ scriptPoolFromEntities verKeys scripts
-  where
-    updateVerKeyMap
-        :: SeqStateKeyHash
-        -> Map KeyHash (Index 'Soft 'ScriptK, W.AddressState)
-        -> Map KeyHash (Index 'Soft 'ScriptK, W.AddressState)
-    updateVerKeyMap x = Map.insert (seqStateKeyHashKeyHash x)
-        (W.Index $ seqStateKeyHashIndex x, seqStateKeyHashStatus x)
-    verKeyMap =
-        L.foldr updateVerKeyMap Map.empty
-    updateKnowScript
-        :: SeqStateScriptHash
-        -> Map ScriptHash [Index 'Soft 'ScriptK]
-        -> Map ScriptHash [Index 'Soft 'ScriptK]
-    updateKnowScript =
-        (\(sh, keyIndex) -> Map.insertWith (++) sh [keyIndex] ) .
-        (\scriptH -> (seqStateScriptHashScriptHash scriptH
-        , W.Index $ seqStateScriptHashVerificationKeyIndex scriptH) )
-    knownScripts =
-        L.foldr updateKnowScript Map.empty
-    scriptPoolFromEntities
-        :: [SeqStateKeyHash]
-        -> [SeqStateScriptHash]
-        -> Seq.VerificationKeyPool k
-    scriptPoolFromEntities verKeys scripts
-        = Seq.unsafeVerificationKeyPool xpub gap
-          (verKeyMap verKeys) (knownScripts scripts)
 
 {-------------------------------------------------------------------------------
                           HD Random address discovery
