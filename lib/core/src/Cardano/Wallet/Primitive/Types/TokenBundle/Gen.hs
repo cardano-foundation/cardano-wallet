@@ -1,5 +1,8 @@
+{-# LANGUAGE TypeApplications #-}
+
 module Cardano.Wallet.Primitive.Types.TokenBundle.Gen
-    ( genTokenBundleSmallRange
+    ( genFixedSizeTokenBundle
+    , genTokenBundleSmallRange
     , genTokenBundleSmallRangePositive
     , shrinkTokenBundleSmallRange
     , shrinkTokenBundleSmallRangePositive
@@ -7,6 +10,8 @@ module Cardano.Wallet.Primitive.Types.TokenBundle.Gen
 
 import Prelude
 
+import Cardano.Wallet.Primitive.Types.Coin
+    ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.Coin.Gen
     ( genCoinSmall
     , genCoinSmallPositive
@@ -16,11 +21,44 @@ import Cardano.Wallet.Primitive.Types.Coin.Gen
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle (..) )
 import Cardano.Wallet.Primitive.Types.TokenMap.Gen
-    ( genTokenMapSmallRange, shrinkTokenMapSmallRange )
+    ( genAssetIdLargeRange, genTokenMapSmallRange, shrinkTokenMapSmallRange )
+import Cardano.Wallet.Primitive.Types.TokenQuantity
+    ( TokenQuantity (..) )
+import Cardano.Wallet.Primitive.Types.Tx
+    ( txOutMaxTokenQuantity, txOutMinTokenQuantity )
+import Control.Monad
+    ( replicateM )
+import Numeric.Natural
+    ( Natural )
 import Test.QuickCheck
-    ( Gen )
+    ( Gen, choose )
 import Test.QuickCheck.Extra
     ( shrinkInterleaved )
+
+import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
+
+--------------------------------------------------------------------------------
+-- Token bundles with fixed numbers of assets.
+--
+-- Policy identifiers, asset names, token quantities are all allowed to vary.
+--------------------------------------------------------------------------------
+
+genFixedSizeTokenBundle :: Int -> Gen TokenBundle
+genFixedSizeTokenBundle fixedAssetCount
+    = TokenBundle.fromFlatList
+        <$> genCoin
+        <*> replicateM fixedAssetCount genAssetQuantity
+  where
+    genAssetQuantity = (,)
+        <$> genAssetIdLargeRange
+        <*> genTokenQuantity
+    genCoin = Coin
+        <$> choose (unCoin minBound, unCoin maxBound)
+    genTokenQuantity = TokenQuantity . fromIntegral @Integer @Natural
+        <$> choose
+            ( fromIntegral $ unTokenQuantity txOutMinTokenQuantity
+            , fromIntegral $ unTokenQuantity txOutMaxTokenQuantity
+            )
 
 --------------------------------------------------------------------------------
 -- Token bundles with coins, assets, and quantities chosen from small ranges

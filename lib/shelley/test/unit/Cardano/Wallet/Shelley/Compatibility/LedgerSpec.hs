@@ -17,9 +17,10 @@ import Cardano.Wallet.Primitive.Types.Coin.Gen
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( Flat (..), TokenBundle )
 import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
-    ( genTokenBundleSmallRange, shrinkTokenBundleSmallRange )
-import Cardano.Wallet.Primitive.Types.TokenMap.Gen
-    ( genAssetIdLargeRange )
+    ( genFixedSizeTokenBundle
+    , genTokenBundleSmallRange
+    , shrinkTokenBundleSmallRange
+    )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenName, TokenPolicyId )
 import Cardano.Wallet.Primitive.Types.TokenPolicy.Gen
@@ -32,8 +33,6 @@ import Cardano.Wallet.Primitive.Types.Tx
     ( txOutMaxTokenQuantity, txOutMinTokenQuantity )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
     ( Convert (..), computeMinimumAdaQuantityInternal )
-import Control.Monad
-    ( replicateM )
 import Data.Bifunctor
     ( second )
 import Data.Proxy
@@ -44,8 +43,6 @@ import Data.Word
     ( Word64 )
 import Fmt
     ( pretty )
-import Numeric.Natural
-    ( Natural )
 import Test.Hspec
     ( Spec, describe, it, parallel )
 import Test.Hspec.Core.QuickCheck
@@ -53,11 +50,9 @@ import Test.Hspec.Core.QuickCheck
 import Test.QuickCheck
     ( Arbitrary (..)
     , Blind (..)
-    , Gen
     , Positive (..)
     , Property
     , checkCoverage
-    , choose
     , conjoin
     , counterexample
     , cover
@@ -197,27 +192,6 @@ unit_computeMinimumAdaQuantity_fixedSizeBundle bundle expectation =
     computeMinimumAdaQuantityInternal protocolMinimum bundle === expectation
   where
     protocolMinimum = Coin 1_000_000
-
--- | Generates a token bundle with a fixed number of assets.
---
--- Policy identifiers, asset names, token quantities are all allowed to vary.
---
-genFixedSizeTokenBundle :: Int -> Gen TokenBundle
-genFixedSizeTokenBundle fixedAssetCount
-    = TokenBundle.fromFlatList
-        <$> genCoin
-        <*> replicateM fixedAssetCount genAssetQuantity
-  where
-    genAssetQuantity = (,)
-        <$> genAssetIdLargeRange
-        <*> genTokenQuantity
-    genCoin = Coin
-        <$> choose (unCoin minBound, unCoin maxBound)
-    genTokenQuantity = TokenQuantity . fromIntegral @Integer @Natural
-        <$> choose
-            ( fromIntegral $ unTokenQuantity txOutMinTokenQuantity
-            , fromIntegral $ unTokenQuantity txOutMaxTokenQuantity
-            )
 
 unit_computeMinimumAdaQuantity_emptyBundle :: Property
 unit_computeMinimumAdaQuantity_emptyBundle =
