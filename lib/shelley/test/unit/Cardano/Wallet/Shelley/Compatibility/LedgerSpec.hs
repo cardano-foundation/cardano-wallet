@@ -28,6 +28,8 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
     ( genTokenQuantityMixed, shrinkTokenQuantityMixed )
+import Cardano.Wallet.Primitive.Types.Tx
+    ( txOutMaxTokenQuantity, txOutMinTokenQuantity )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
     ( Convert (..), computeMinimumAdaQuantityInternal )
 import Control.Monad
@@ -278,26 +280,6 @@ newtype FixedSize64 a = FixedSize64 { unFixedSize64 :: a }
 
 newtype FixedSize256 a = FixedSize256 { unFixedSize256 :: a }
     deriving (Eq, Show)
-
---------------------------------------------------------------------------------
--- Constants
---------------------------------------------------------------------------------
-
--- | The smallest token quantity that can appear in a transaction output's
---   token bundle.
---
-txOutMinTokenQuantity :: TokenQuantity
-txOutMinTokenQuantity = TokenQuantity 1
-
--- | The greatest token quantity that can appear in a transaction output's
---   token bundle.
---
--- Although the ledger specification allows token quantities of unlimited
--- sizes, in practice we'll only see transaction outputs where the token
--- quantities are bounded by the size of a 'Word64'.
---
-txOutMaxTokenQuantity :: TokenQuantity
-txOutMaxTokenQuantity = TokenQuantity $ fromIntegral @Word64 $ maxBound
 
 --------------------------------------------------------------------------------
 -- Arbitraries

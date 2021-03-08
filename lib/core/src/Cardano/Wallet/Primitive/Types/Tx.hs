@@ -39,6 +39,11 @@ module Cardano.Wallet.Primitive.Types.Tx
     , txMetadataIsNull
     , txOutCoin
     , txOutIsCoin
+
+    -- * Constants
+    , txOutMinTokenQuantity
+    , txOutMaxTokenQuantity
+
     ) where
 
 import Prelude
@@ -64,7 +69,7 @@ import Cardano.Wallet.Primitive.Types.TokenMap
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenName, TokenPolicyId )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
-    ( TokenQuantity )
+    ( TokenQuantity (..) )
 import Control.DeepSeq
     ( NFData (..) )
 import Data.Bifunctor
@@ -99,7 +104,7 @@ import Data.Text.Class
 import Data.Time.Clock
     ( UTCTime )
 import Data.Word
-    ( Word32 )
+    ( Word32, Word64 )
 import Fmt
     ( Buildable (..)
     , blockListF'
@@ -443,3 +448,23 @@ data TokenBundleSizeAssessment
     -- ^ Indicates that the size of a token bundle exceeds the maximum size
     -- that can be included in a transaction output.
     deriving (Eq, Generic, Show)
+
+--------------------------------------------------------------------------------
+-- Constants
+--------------------------------------------------------------------------------
+
+-- | The smallest token quantity that can appear in a transaction output's
+--   token bundle.
+--
+txOutMinTokenQuantity :: TokenQuantity
+txOutMinTokenQuantity = TokenQuantity 1
+
+-- | The greatest token quantity that can appear in a transaction output's
+--   token bundle.
+--
+-- Although the ledger specification allows token quantities of unlimited
+-- sizes, in practice we'll only see transaction outputs where the token
+-- quantities are bounded by the size of a 'Word64'.
+--
+txOutMaxTokenQuantity :: TokenQuantity
+txOutMaxTokenQuantity = TokenQuantity $ fromIntegral $ maxBound @Word64

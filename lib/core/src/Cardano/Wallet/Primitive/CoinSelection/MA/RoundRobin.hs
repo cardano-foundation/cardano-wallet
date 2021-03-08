@@ -70,9 +70,6 @@ module Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     -- * Accessors
     , fullBalance
 
-    -- * Constants
-    , maxTxOutTokenQuantity
-
     -- * Utility classes
     , AssetCount (..)
 
@@ -97,7 +94,12 @@ import Cardano.Wallet.Primitive.Types.TokenMap
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( TokenBundleSizeAssessment (..), TxIn, TxOut, txOutCoin )
+    ( TokenBundleSizeAssessment (..)
+    , TxIn
+    , TxOut
+    , txOutCoin
+    , txOutMaxTokenQuantity
+    )
 import Cardano.Wallet.Primitive.Types.UTxOIndex
     ( SelectionFilter (..), UTxOIndex (..) )
 import Control.Monad.Random.Class
@@ -120,8 +122,6 @@ import Data.Ord
     ( comparing )
 import Data.Set
     ( Set )
-import Data.Word
-    ( Word64 )
 import Fmt
     ( Buildable (..)
     , Builder
@@ -939,7 +939,7 @@ makeChange criteria
                 & flip splitBundlesWithExcessiveAssetCounts
                     (tokenBundleSizeExceedsLimit assessBundleSize)
                 & flip splitBundlesWithExcessiveTokenQuantities
-                    maxTxOutTokenQuantity
+                    txOutMaxTokenQuantity
 
     -- Change for user-specified assets: assets that were present in the
     -- original set of user-specified outputs ('outputsToCover').
@@ -1360,16 +1360,6 @@ instance Ord (AssetCount TokenMap) where
 newtype AssetCount a = AssetCount
     { unAssetCount :: a }
     deriving (Eq, Show)
-
---------------------------------------------------------------------------------
--- Constants
---------------------------------------------------------------------------------
-
--- | The greatest token quantity that can be encoded within an output bundle of
---   a transaction.
---
-maxTxOutTokenQuantity :: TokenQuantity
-maxTxOutTokenQuantity = TokenQuantity $ fromIntegral (maxBound :: Word64)
 
 --------------------------------------------------------------------------------
 -- Utility functions
