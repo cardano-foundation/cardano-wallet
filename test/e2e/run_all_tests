@@ -4,5 +4,6 @@ NODE_DB=./node_db \
 WALLET_DB=./wallet_db \
 LOGS=./logs \
 BINS=./bins \
+FIXTURE_FILE=./fixture_wallets.json \
 TOKEN_METADATA=https://metadata.cardano-testnet.iohkdev.io/ \
 bundle exec rake run_on["testnet"]
