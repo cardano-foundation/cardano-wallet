@@ -3339,6 +3339,16 @@ x-responsesGetByronWallet: &responsesGetByronWallet
       application/json:
         schema: *ApiByronWallet
 
+x-responsesGetSharedWallet: &responsesGetSharedWallet
+  <<: *responsesErr400
+  <<: *responsesErr404WalletNotFound
+  <<: *responsesErr406
+  200:
+    description: Ok
+    content:
+      application/json:
+        schema: *ApiSharedWallet
+
 x-responsesGetWalletMigrationInfo: &responsesGetWalletMigrationInfo
   403:
     description: Forbidden
@@ -4895,3 +4905,13 @@ paths:
           application/json:
             schema: *ApiSharedWalletPostData
       responses: *responsesPostSharedWallet
+
+    get:
+      operationId: getSharedWallet
+      tags: ["Shared Wallets"]
+      summary: Get
+      description: |
+        <p align="right">status: <strong>unstable</strong></p>
+      parameters:
+        - *parametersWalletId
+      responses: *responsesGetSharedWallet
