@@ -68,7 +68,7 @@ One can run specific tests using `rspec`. (Note that the wallet and node needs t
  rspec spec/shelley_spec.rb:9
  ```
 
-### Env variables
+### Environment variables
 
 By default following locations are used for different artifacts used by tests:
  - `./logs` - wallet and node logs
@@ -80,16 +80,15 @@ Locations are relative to `test/e2e` directory.
 Default values can be changed by providing environment variables, for instance:
 
 ```
-NODE_DB=~/node_db \
-WALLET_DB=~/wallet_db \
-LOGS=~/logs \
-BINS=~/bins \
+TESTS_E2E_NODE_DB=~/node_db \
+TESTS_E2E_WALLET_DB=~/wallet_db \
+TESTS_E2E_LOGS=~/logs \
+TESTS_E2E_BINS=~/bins \
 rake run_on["testnet"]
 ```
 
 There are other parameters that can be changed via env variables. The full list is available in `e2e/env.rb`.
 
-Cardano-wallet and cardano-node logs from test run will be located in `e2e/logs`. In order to clean logs before the test run one can use `rake clean_logs` command, otherwise logs will be appended to existing ones.
 
 ### Skipping / making test pending
 

@@ -18,7 +18,7 @@ services:
       - ${NODE_CONFIG_PATH}:/config
     ports:
       - 8090:8090
-    command: serve --testnet /config/${NETWORK}-byron-genesis.json --node-socket /ipc/node.socket --database /wallet-db --listen-address 0.0.0.0 --token-metadata-server $TOKEN_METADATA
+    command: serve --testnet /config/${NETWORK}-byron-genesis.json --node-socket /ipc/node.socket --database /wallet-db --listen-address 0.0.0.0 --token-metadata-server $TESTS_E2E_TOKEN_METADATA
     restart: on-failure
 
 volumes:

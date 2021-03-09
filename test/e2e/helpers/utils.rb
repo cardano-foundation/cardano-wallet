@@ -6,7 +6,7 @@ module Helpers
   module Utils
 
     def get_fixture_wallet_mnemonics(type)
-      fixture = ENV['FIXTURE_FILE']
+      fixture = ENV['TESTS_E2E_FIXTURES_FILE']
       unless File.exists? fixture
         raise "File #{fixture} does not exist! (Hint: Template fixture file can be created with 'rake fixture_wallets_template'). Make sure to feed it with mnemonics of wallets with funds and assets."
       end

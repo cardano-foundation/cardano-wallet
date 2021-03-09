@@ -10,23 +10,23 @@ RSpec::Core::RakeTask.new(:spec)
 task :default => :spec
 
 task :fixture_wallets_encode do
-  desc "Encode fixture wallets from #{ENV['FIXTURE_FILE']} using $TESTS_E2E_FIXTURES phrase"
-  puts "\n  >> Encoding #{ENV['FIXTURE_FILE']}..."
+  desc "Encode fixture wallets from #{ENV['TESTS_E2E_FIXTURES_FILE']} using $TESTS_E2E_FIXTURES phrase"
+  puts "\n  >> Encoding #{ENV['TESTS_E2E_FIXTURES_FILE']}..."
 
-  puts `gpg --pinentry-mode loopback --passphrase=#{ENV['TESTS_E2E_FIXTURES']} --symmetric --output=#{ENV['FIXTURE_FILE']}.gpg #{ENV['FIXTURE_FILE']}`
+  puts `gpg --pinentry-mode loopback --passphrase=#{ENV['TESTS_E2E_FIXTURES']} --symmetric --output=#{ENV['TESTS_E2E_FIXTURES_FILE']}.gpg #{ENV['TESTS_E2E_FIXTURES_FILE']}`
 end
 
 
 task :fixture_wallets_decode do
-  desc "Decode fixture wallets from #{ENV['FIXTURE_FILE']}.gpg using $TESTS_E2E_FIXTURES phrase"
-  puts "\n  >> Decoding #{ENV['FIXTURE_FILE']}.gpg..."
-  encoded_file="#{ENV['FIXTURE_FILE']}.gpg"
-  decoded_file=ENV['FIXTURE_FILE']
+  desc "Decode fixture wallets from #{ENV['TESTS_E2E_FIXTURES_FILE']}.gpg using $TESTS_E2E_FIXTURES phrase"
+  puts "\n  >> Decoding #{ENV['TESTS_E2E_FIXTURES_FILE']}.gpg..."
+  encoded_file="#{ENV['TESTS_E2E_FIXTURES_FILE']}.gpg"
+  decoded_file=ENV['TESTS_E2E_FIXTURES_FILE']
   puts `gpg --pinentry-mode loopback --yes --passphrase=#{ENV['TESTS_E2E_FIXTURES']} --output #{decoded_file} --decrypt #{encoded_file}`
 end
 
 task :fixture_wallets_template do
-  path = ENV['FIXTURE_FILE']
+  path = ENV['TESTS_E2E_FIXTURES_FILE']
   puts "\n  >> Creating #{path}"
 
   fixture_wallets = { :linux => {:shelley => mnemonic_sentence(24),
@@ -55,14 +55,14 @@ end
 task :clean_logs do
   puts "\n  >> Removing logs"
 
-  logs = ENV['LOGS']
+  logs = ENV['TESTS_E2E_LOGS']
   rm_files(logs)
 end
 
 task :clean_bins do
   puts "\n  >> Removing bins"
 
-  bins = ENV['BINS']
+  bins = ENV['TESTS_E2E_BINS']
   rm_files(bins)
 end
 
@@ -93,18 +93,18 @@ task :start_node_and_wallet do
   puts "\n  >> Set up and start cardano-node and cardano-wallet"
 
   cd = Dir.pwd
-  logs = ENV['LOGS']
+  logs = ENV['TESTS_E2E_LOGS']
   mk_dir(logs)
 
   if is_win?
     # create cardano-node.bat file
-    node_cmd = "#{cd}/cardano-node.exe run --config #{cd}/configs/testnet-config.json --topology #{cd}/configs/testnet-topology.json --database-path #{ENV['NODE_DB']} --socket-path \\\\.\\pipe\\cardano-node-testnet"
+    node_cmd = "#{cd}/cardano-node.exe run --config #{cd}/configs/testnet-config.json --topology #{cd}/configs/testnet-topology.json --database-path #{ENV['TESTS_E2E_NODE_DB']} --socket-path \\\\.\\pipe\\cardano-node-testnet"
     File.open("cardano-node.bat", "w") do |f|
       f.write(node_cmd)
     end
 
     # create cardano-wallet.bat file
-    wallet_cmd = "#{cd}/cardano-wallet.exe serve --node-socket \\\\.\\pipe\\cardano-node-testnet --testnet #{cd}/configs/testnet-byron-genesis.json --database #{ENV['WALLET_DB']} --token-metadata-server #{ENV['TOKEN_METADATA']}"
+    wallet_cmd = "#{cd}/cardano-wallet.exe serve --node-socket \\\\.\\pipe\\cardano-node-testnet --testnet #{cd}/configs/testnet-byron-genesis.json --database #{ENV['TESTS_E2E_WALLET_DB']} --token-metadata-server #{ENV['TESTS_E2E_TOKEN_METADATA']}"
     File.open("cardano-wallet.bat", "w") do |f|
       f.write(wallet_cmd)
     end
@@ -136,8 +136,8 @@ task :start_node_and_wallet do
     puts `#{start_node}`
     puts `#{start_wallet}`
   else
-    start_node = "#{cd}/bins/cardano-node run --config #{cd}/configs/*-config.json --topology #{cd}/configs/*-topology.json --database-path #{ENV['NODE_DB']} --socket-path #{cd}/node.socket"
-    start_wallet = "#{cd}/bins/cardano-wallet serve --node-socket #{cd}/node.socket --testnet #{cd}/configs/*-byron-genesis.json --database #{ENV['WALLET_DB']} --token-metadata-server #{ENV['TOKEN_METADATA']}"
+    start_node = "#{cd}/bins/cardano-node run --config #{cd}/configs/*-config.json --topology #{cd}/configs/*-topology.json --database-path #{ENV['TESTS_E2E_NODE_DB']} --socket-path #{cd}/node.socket"
+    start_wallet = "#{cd}/bins/cardano-wallet serve --node-socket #{cd}/node.socket --testnet #{cd}/configs/*-byron-genesis.json --database #{ENV['TESTS_E2E_WALLET_DB']} --token-metadata-server #{ENV['TESTS_E2E_TOKEN_METADATA']}"
 
     puts start_node
     puts start_wallet
@@ -204,7 +204,7 @@ task :get_latest_configs, [:env] do |task, args|
 end
 
 ##
-# NODE_DB=./node_db WALLET_DB=./wallet_db TOKEN_METADATA=http://metadata-server-mock.herokuapp.com/ bundle exec rake run_on["testnet"]
+# TESTS_E2E_NODE_DB=./node_db TESTS_E2E_WALLET_DB=./wallet_db TESTS_E2E_TOKEN_METADATA=http://metadata-server-mock.herokuapp.com/ bundle exec rake run_on["testnet"]
 task :run_on, [:env] do |task, args|
   puts "\n  >> Set up env and run all tests"
 

@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 
-NODE_DB=./node_db \
-WALLET_DB=./wallet_db \
-LOGS=./logs \
-BINS=./bins \
-FIXTURE_FILE=./fixture_wallets.json \
-TOKEN_METADATA=https://metadata.cardano-testnet.iohkdev.io/ \
+TESTS_E2E_NODE_DB=./node_db \
+TESTS_E2E_WALLET_DB=./wallet_db \
+TESTS_E2E_LOGS=./logs \
+TESTS_E2E_BINS=./bins \
+TESTS_E2E_FIXTURES_FILE=./fixture_wallets.json \
+TESTS_E2E_TOKEN_METADATA=https://metadata.cardano-testnet.iohkdev.io/ \
 bundle exec rake run_on["testnet"]
