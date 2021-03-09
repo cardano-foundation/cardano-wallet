@@ -10,19 +10,19 @@ RSpec::Core::RakeTask.new(:spec)
 task :default => :spec
 
 task :fixture_wallets_encode do
-  desc "Encode fixture wallets from #{ENV['FIXTURE_FILE']}"
+  desc "Encode fixture wallets from #{ENV['FIXTURE_FILE']} using $TESTS_E2E_FIXTURES phrase"
   puts "\n  >> Encoding #{ENV['FIXTURE_FILE']}..."
 
-  puts `gpg --symmetric --cipher-algo AES256 #{ENV['FIXTURE_FILE']}`
+  puts `gpg --pinentry-mode loopback --passphrase=#{ENV['TESTS_E2E_FIXTURES']} --symmetric --output=#{ENV['FIXTURE_FILE']}.gpg #{ENV['FIXTURE_FILE']}`
 end
 
 
 task :fixture_wallets_decode do
-  desc "Decode fixture wallets from #{ENV['FIXTURE_FILE']}.gpg using #{ENV['FIXTURE_SECRET']}"
+  desc "Decode fixture wallets from #{ENV['FIXTURE_FILE']}.gpg using $TESTS_E2E_FIXTURES phrase"
   puts "\n  >> Decoding #{ENV['FIXTURE_FILE']}.gpg..."
   encoded_file="#{ENV['FIXTURE_FILE']}.gpg"
   decoded_file=ENV['FIXTURE_FILE']
-  puts `gpg --quiet --batch --yes --decrypt --passphrase="#{ENV['FIXTURE_SECRET']}" --output #{decoded_file} #{encoded_file}`
+  puts `gpg --pinentry-mode loopback --yes --passphrase=#{ENV['TESTS_E2E_FIXTURES']} --output #{decoded_file} --decrypt #{encoded_file}`
 end
 
 task :fixture_wallets_template do

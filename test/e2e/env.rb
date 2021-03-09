@@ -1,5 +1,5 @@
 ENV['FIXTURE_FILE'] ||= "./fixture_wallets.json"
-ENV['FIXTURE_SECRET'] ||= "secret"
+ENV['TESTS_E2E_FIXTURES'] ||= "this_is_wrong_secret"
 ENV['NODE_DB'] ||= "./node_db"
 ENV['WALLET_DB'] ||= "./wallet_db"
 ENV['LOGS'] ||= "./logs"
