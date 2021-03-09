@@ -8,6 +8,7 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
 
 -- |
 -- Copyright: © 2021 IOHK
@@ -937,9 +938,30 @@ makeChange criteria
             unbundle (TokenBundle c m) = (m, c)
             split b = b
                 & flip splitBundlesWithExcessiveAssetCounts
-                    (tokenBundleSizeExceedsLimit assessBundleSize)
+                    (tokenBundleSizeExceedsLimit assessBundleSizeWithMaxCoin)
                 & flip splitBundlesWithExcessiveTokenQuantities
                     txOutMaxTokenQuantity
+
+            -- When assessing the size of a change map to determine if it is
+            -- excessively large, we don't yet know how large the associated
+            -- ada quantity will be, since ada quantities are assigned at a
+            -- later stage (in 'assignCoinsToChangeMaps').
+            --
+            -- Therefore, we err on the side of caution, and assess the size
+            -- of a change map combined with the maximum possible ada quantity.
+            --
+            -- This means that when presented with a very large change map, we
+            -- have a small chance of splitting the map even if that map would
+            -- be within the limit when combined with its final ada quantity.
+            --
+            -- However, oversplitting a change map is preferable to creating
+            -- a bundle that is marginally over the limit, which would cause
+            -- the resultant transaction to be rejected.
+            --
+            assessBundleSizeWithMaxCoin
+                :: TokenBundle -> TokenBundleSizeAssessment
+            assessBundleSizeWithMaxCoin =
+                assessBundleSize . flip TokenBundle.setCoin (maxBound @Coin)
 
     -- Change for user-specified assets: assets that were present in the
     -- original set of user-specified outputs ('outputsToCover').
