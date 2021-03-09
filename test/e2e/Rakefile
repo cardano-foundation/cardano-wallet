@@ -106,7 +106,7 @@ end
 task :start_node_and_wallet, :installation do |task, args|
   puts "\n  >> Setting up cardano-node and cardano-wallet"
 
-  installation = args[:installation] || :from_bin_dir
+  installation = args[:installation] || :bins
   cd = Dir.pwd
   mk_dir(STATE)
   mk_dir(LOGS)
@@ -218,11 +218,12 @@ task :get_latest_configs, [:env] do |task, args|
   wget("#{base_url}/#{env}-topology.json", "#{CONFIGS}/#{env}-topology.json")
 end
 
-task :run_on, [:env, :installation] do |task, args|
+task :run_on, [:env, :installation, :sync_strategy] do |task, args|
   puts "\n>> Setting up env and running tests..."
   puts "TESTS_E2E_STATEDIR=#{STATE}"
   env = args[:env]
-  installation = args[:installation] || :from_bin_dir
+  installation = args[:installation] || :bins
+  sync_strategy = args[:sync_strategy] || :sync
 
   if installation == "local"
     puts "\n  >> Skipping getting latest binaries. Will test wallet and node from $PATH."
@@ -233,7 +234,13 @@ task :run_on, [:env, :installation] do |task, args|
   Rake::Task[:fixture_wallets_decode].invoke
   Rake::Task[:get_latest_configs].invoke(env)
   Rake::Task[:start_node_and_wallet].invoke(installation)
-  Rake::Task[:wait_until_node_synced].invoke
+
+  if sync_strategy == "no-sync"
+    puts "\n  >> Skipping waiting for node to be synced..."
+  else
+    Rake::Task[:wait_until_node_synced].invoke
+  end
+
   Rake::Task[:spec].invoke
   Rake::Task[:stop_node_and_wallet].invoke
 end
