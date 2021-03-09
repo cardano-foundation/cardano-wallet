@@ -1,5 +1,3 @@
-{-# LANGUAGE TypeApplications #-}
-
 module Cardano.Wallet.Primitive.Types.TokenBundle.Gen
     ( genFixedSizeTokenBundle
     , genTokenBundleSmallRange
@@ -28,10 +26,8 @@ import Cardano.Wallet.Primitive.Types.Tx
     ( txOutMaxTokenQuantity, txOutMinTokenQuantity )
 import Control.Monad
     ( replicateM )
-import Numeric.Natural
-    ( Natural )
 import Test.QuickCheck
-    ( Gen, choose )
+    ( Gen, choose, oneof )
 import Test.QuickCheck.Extra
     ( shrinkInterleaved )
 
@@ -52,13 +48,25 @@ genFixedSizeTokenBundle fixedAssetCount
     genAssetQuantity = (,)
         <$> genAssetIdLargeRange
         <*> genTokenQuantity
-    genCoin = Coin
-        <$> choose (unCoin minBound, unCoin maxBound)
-    genTokenQuantity = TokenQuantity . fromIntegral @Integer @Natural
-        <$> choose
-            ( fromIntegral $ unTokenQuantity txOutMinTokenQuantity
-            , fromIntegral $ unTokenQuantity txOutMaxTokenQuantity
+    genCoin = Coin <$> oneof
+        [ pure $ unCoin minBound
+        , pure $ unCoin maxBound
+        , choose (unCoin minBound + 1, unCoin maxBound - 1)
+        ]
+    genTokenQuantity = integerToTokenQuantity <$> oneof
+        [ pure $ tokenQuantityToInteger txOutMinTokenQuantity
+        , pure $ tokenQuantityToInteger txOutMaxTokenQuantity
+        , choose
+            ( tokenQuantityToInteger txOutMinTokenQuantity + 1
+            , tokenQuantityToInteger txOutMaxTokenQuantity - 1
             )
+        ]
+      where
+        tokenQuantityToInteger :: TokenQuantity -> Integer
+        tokenQuantityToInteger = fromIntegral . unTokenQuantity
+
+        integerToTokenQuantity :: Integer -> TokenQuantity
+        integerToTokenQuantity = TokenQuantity . fromIntegral
 
 --------------------------------------------------------------------------------
 -- Token bundles with coins, assets, and quantities chosen from small ranges

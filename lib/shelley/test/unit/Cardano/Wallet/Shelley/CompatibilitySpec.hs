@@ -138,7 +138,6 @@ import Test.QuickCheck
     , property
     , vector
     , withMaxSuccess
-    , (.&&.)
     , (===)
     )
 
@@ -372,21 +371,27 @@ unit_assessTokenBundleSize_fixedSizeBundle
     -> TokenBundleSizeAssessment
     -- ^ Expected size assessment
     -> Int
-    -- ^ Expected length (bytes)
+    -- ^ Expected min length (bytes)
+    -> Int
+    -- ^ Expected max length (bytes)
     -> Property
 unit_assessTokenBundleSize_fixedSizeBundle
-    bundle expectedAssessment expectedLengthBytes =
+    bundle expectedAssessment expectedMinLengthBytes expectedMaxLengthBytes =
         withMaxSuccess 100 $
         counterexample counterexampleText $
-        (.&&.)
-            (actualAssessment === expectedAssessment)
-            (actualLengthBytes === expectedLengthBytes)
+        conjoin . fmap property $
+            [ actualAssessment  == expectedAssessment
+            , actualLengthBytes >= expectedMinLengthBytes
+            , actualLengthBytes <= expectedMaxLengthBytes
+            ]
   where
     actualAssessment = assessTokenBundleSize bundle
     actualLengthBytes = computeTokenBundleSerializedLengthBytes bundle
     counterexampleText = unlines
-        [ "Expected length bytes:"
-        , show expectedLengthBytes
+        [ "Expected min length bytes:"
+        , show expectedMinLengthBytes
+        , "Expected max length bytes:"
+        , show expectedMaxLengthBytes
         , "Actual length bytes:"
         , show actualLengthBytes
         , "Expected assessment:"
@@ -400,28 +405,28 @@ unit_assessTokenBundleSize_fixedSizeBundle_32
 unit_assessTokenBundleSize_fixedSizeBundle_32 (Blind (FixedSize32 b)) =
     unit_assessTokenBundleSize_fixedSizeBundle b
         TokenBundleSizeWithinLimit
-        2380
+        2116 2380
 
 unit_assessTokenBundleSize_fixedSizeBundle_48
     :: Blind (FixedSize48 TokenBundle) -> Property
 unit_assessTokenBundleSize_fixedSizeBundle_48 (Blind (FixedSize48 b)) =
     unit_assessTokenBundleSize_fixedSizeBundle b
         TokenBundleSizeWithinLimit
-        3564
+        3172 3564
 
 unit_assessTokenBundleSize_fixedSizeBundle_64
     :: Blind (FixedSize64 TokenBundle) -> Property
 unit_assessTokenBundleSize_fixedSizeBundle_64 (Blind (FixedSize64 b)) =
     unit_assessTokenBundleSize_fixedSizeBundle b
         TokenBundleSizeExceedsLimit
-        4748
+        4228 4748
 
 unit_assessTokenBundleSize_fixedSizeBundle_128
     :: Blind (FixedSize128 TokenBundle) -> Property
 unit_assessTokenBundleSize_fixedSizeBundle_128 (Blind (FixedSize128 b)) =
     unit_assessTokenBundleSize_fixedSizeBundle b
         TokenBundleSizeExceedsLimit
-        9484
+        8452 9484
 
 toKeyHash :: Text -> Script KeyHash
 toKeyHash txt = case fromBase16 (T.encodeUtf8 txt) of
