@@ -7,27 +7,42 @@ include Helpers::Utils
 
 RSpec::Core::RakeTask.new(:spec)
 
+STATE = ENV['TESTS_E2E_STATEDIR']
+CONFIGS = STATE + "/configs"
+LOGS = STATE + "/logs"
+NODE_DB = STATE + "/node_db"
+WALLET_DB = STATE + "/wallet_db"
+
+BINS = ENV['TESTS_E2E_BINDIR']
+
+FIXTURES_FILE = ENV['TESTS_E2E_FIXTURES_FILE']
+FIXTURES_SECRET = ENV['TESTS_E2E_FIXTURES']
+
+TOKEN_METADATA = ENV['TESTS_E2E_TOKEN_METADATA']
+
 task :default => :spec
 
 task :fixture_wallets_encode do
-  desc "Encode fixture wallets from #{ENV['TESTS_E2E_FIXTURES_FILE']} using $TESTS_E2E_FIXTURES phrase"
-  puts "\n  >> Encoding #{ENV['TESTS_E2E_FIXTURES_FILE']}..."
+  desc "Encode fixture wallets from #{FIXTURES_FILE} using $TESTS_E2E_FIXTURES phrase"
+  puts "\n  >> Encoding #{FIXTURES_FILE}..."
 
-  puts `gpg --pinentry-mode loopback --passphrase=#{ENV['TESTS_E2E_FIXTURES']} --symmetric --output=#{ENV['TESTS_E2E_FIXTURES_FILE']}.gpg #{ENV['TESTS_E2E_FIXTURES_FILE']}`
+  puts `gpg --pinentry-mode loopback --passphrase=#{FIXTURES_SECRET} --symmetric --output=#{FIXTURES_FILE}.gpg #{FIXTURES_FILE}`
 end
 
-
 task :fixture_wallets_decode do
-  desc "Decode fixture wallets from #{ENV['TESTS_E2E_FIXTURES_FILE']}.gpg using $TESTS_E2E_FIXTURES phrase"
-  puts "\n  >> Decoding #{ENV['TESTS_E2E_FIXTURES_FILE']}.gpg..."
-  encoded_file="#{ENV['TESTS_E2E_FIXTURES_FILE']}.gpg"
-  decoded_file=ENV['TESTS_E2E_FIXTURES_FILE']
-  puts `gpg --pinentry-mode loopback --yes --passphrase=#{ENV['TESTS_E2E_FIXTURES']} --output #{decoded_file} --decrypt #{encoded_file}`
+  desc "Decode fixture wallets from #{FIXTURES_FILE}.gpg using $TESTS_E2E_FIXTURES phrase"
+  encoded_file = "#{FIXTURES_FILE}.gpg"
+  decoded_file = FIXTURES_FILE
+  if File.exists?(decoded_file)
+    puts "\n  >> Skipping decoding #{encoded_file}... #{decoded_file} already exists!"
+  else
+    puts "\n  >> Decoding #{FIXTURES_FILE}.gpg..."
+    puts `gpg --pinentry-mode loopback --yes --passphrase=#{FIXTURES_SECRET} --output #{decoded_file} --decrypt #{encoded_file}`
+  end
 end
 
 task :fixture_wallets_template do
-  path = ENV['TESTS_E2E_FIXTURES_FILE']
-  puts "\n  >> Creating #{path}"
+  puts "\n  >> Creating #{FIXTURES_FILE}"
 
   fixture_wallets = { :linux => {:shelley => mnemonic_sentence(24),
                                  :icarus => mnemonic_sentence(15),
@@ -39,35 +54,31 @@ task :fixture_wallets_template do
                                    :icarus => mnemonic_sentence(15),
                                    :byron => mnemonic_sentence(12) }
                     }
-  if File.exists?(path)
+  if File.exists?(FIXTURES_FILE)
     err = %Q{
-              File #{path} already exists!
+              File #{FIXTURES_FILE} already exists!
               I don't want to overwrite it in case it
               contains fixture wallets already...
             }
     STDERR.puts err
   else
-    File.open(path, 'w') {|f| f.write JSON.pretty_generate(fixture_wallets) }
+    File.open(FIXTURES_FILE, 'w') {|f| f.write JSON.pretty_generate(fixture_wallets) }
   end
 
 end
 
 task :clean_logs do
   puts "\n  >> Removing logs"
-
-  logs = ENV['TESTS_E2E_STATEDIR'] + "/logs"
-  rm_files(logs)
+  rm_files(LOGS)
 end
 
 task :clean_bins do
   puts "\n  >> Removing bins"
-
-  bins = ENV['TESTS_E2E_BINDIR']
-  rm_files(bins)
+  rm_files(BINS)
 end
 
 task :wait_until_node_synced do
-  puts "\n  >> Wait for node to be synced"
+  puts "\n  >> Waiting for node to be synced"
 
   network = CardanoWallet.new.misc.network
   timeout = 180
@@ -93,35 +104,32 @@ end
 # `rake start_node_and_wallet[local]' assumes cardano-node and cardano-wallet on $PATH
 # `raka start_node_and_wallet' assumes cardano-node and cardano-wallet in $TESTS_E2E_BINDIR
 task :start_node_and_wallet, :installation do |task, args|
-  puts "\n  >> Set up and start cardano-node and cardano-wallet"
+  puts "\n  >> Setting up cardano-node and cardano-wallet"
 
   installation = args[:installation] || :from_bin_dir
   cd = Dir.pwd
-  mk_dir(ENV['TESTS_E2E_STATEDIR'])
-  logs = ENV['TESTS_E2E_STATEDIR'] + "/logs"
-  mk_dir(logs)
-  node_db = ENV['TESTS_E2E_STATEDIR'] + "/node_db"
-  wallet_db = ENV['TESTS_E2E_STATEDIR'] + "/wallet_db"
+  mk_dir(STATE)
+  mk_dir(LOGS)
 
   if is_win?
     # create cardano-node.bat file
-    node_cmd = "#{cd}/cardano-node.exe run --config #{cd}/configs/testnet-config.json --topology #{cd}/configs/testnet-topology.json --database-path #{node_db} --socket-path \\\\.\\pipe\\cardano-node-testnet"
+    node_cmd = "#{cd}/cardano-node.exe run --config #{CONFIGS}/testnet-config.json --topology #{CONFIGS}/testnet-topology.json --database-path #{NODE_DB} --socket-path \\\\.\\pipe\\cardano-node-testnet"
     File.open("cardano-node.bat", "w") do |f|
       f.write(node_cmd)
     end
 
     # create cardano-wallet.bat file
-    wallet_cmd = "#{cd}/cardano-wallet.exe serve --node-socket \\\\.\\pipe\\cardano-node-testnet --testnet #{cd}/configs/testnet-byron-genesis.json --database #{wallet_db} --token-metadata-server #{ENV['TESTS_E2E_TOKEN_METADATA']}"
+    wallet_cmd = "#{cd}/cardano-wallet.exe serve --node-socket \\\\.\\pipe\\cardano-node-testnet --testnet #{CONFIGS}/testnet-byron-genesis.json --database #{WALLET_DB} --token-metadata-server #{TOKEN_METADATA}"
     File.open("cardano-wallet.bat", "w") do |f|
       f.write(wallet_cmd)
     end
 
     install_node = "nssm install cardano-node #{cd}/cardano-node.bat"
     install_wallet = "nssm install cardano-wallet #{cd}/cardano-wallet.bat"
-    log_stdout_node = "nssm set cardano-node AppStdout #{logs}/node.log"
-    log_stderr_node = "nssm set cardano-node AppStderr #{logs}/node.log"
-    log_stdout_wallet = "nssm set cardano-wallet AppStdout #{logs}/wallet.log"
-    log_stderr_wallet = "nssm set cardano-wallet AppStderr #{logs}/wallet.log"
+    log_stdout_node = "nssm set cardano-node AppStdout #{LOGS}/node.log"
+    log_stderr_node = "nssm set cardano-node AppStderr #{LOGS}/node.log"
+    log_stdout_wallet = "nssm set cardano-wallet AppStdout #{LOGS}/wallet.log"
+    log_stderr_wallet = "nssm set cardano-wallet AppStderr #{LOGS}/wallet.log"
     start_node = "nssm start cardano-node"
     start_wallet = "nssm start cardano-wallet"
 
@@ -143,21 +151,21 @@ task :start_node_and_wallet, :installation do |task, args|
     puts `#{start_node}`
     puts `#{start_wallet}`
   else
-    bin_dir = installation == "local" ? "" : ENV['TESTS_E2E_BINDIR'] + "/"
-    start_node = "#{bin_dir}cardano-node run --config #{cd}/configs/*-config.json --topology #{cd}/configs/*-topology.json --database-path #{node_db} --socket-path #{cd}/node.socket"
-    start_wallet = "#{bin_dir}cardano-wallet serve --node-socket #{cd}/node.socket --testnet #{cd}/configs/*-byron-genesis.json --database #{wallet_db} --token-metadata-server #{ENV['TESTS_E2E_TOKEN_METADATA']}"
+    bin_dir = installation == "local" ? "" : BINS + "/"
+    start_node = "#{bin_dir}cardano-node run --config #{CONFIGS}/*-config.json --topology #{CONFIGS}/*-topology.json --database-path #{NODE_DB} --socket-path #{STATE}/node.socket"
+    start_wallet = "#{bin_dir}cardano-wallet serve --node-socket #{STATE}/node.socket --testnet #{CONFIGS}/*-byron-genesis.json --database #{WALLET_DB} --token-metadata-server #{TOKEN_METADATA}"
 
     puts start_node
     puts start_wallet
 
-    puts `screen -dmS NODE -L -Logfile #{logs}/node.log #{start_node}`
-    puts `screen -dmS WALLET -L -Logfile #{logs}/wallet.log #{start_wallet}`
+    puts `screen -dmS NODE -L -Logfile #{LOGS}/node.log #{start_node}`
+    puts `screen -dmS WALLET -L -Logfile #{LOGS}/wallet.log #{start_wallet}`
     puts `screen -ls`
   end
 end
 
 task :stop_node_and_wallet do
-  puts "\n  >> Stop cardano-node and cardano-wallet"
+  puts "\n  >> Stopping cardano-node and cardano-wallet"
 
   if is_win?
     puts `nssm stop cardano-wallet`
@@ -170,11 +178,10 @@ task :stop_node_and_wallet do
 end
 
 task :get_latest_bins do
-  puts "\n  >> Get latest node and wallet binaries from Hydra"
+  puts "\n  >> Getting latest node and wallet binaries from Hydra into #{BINS}"
 
   wget(get_latest_binary_url)
-  bins_path = Dir.pwd + "/bins"
-  mk_dir(bins_path)
+  mk_dir(BINS)
   if is_win?
     puts `unzip binary-dist`
     puts `dir`
@@ -188,37 +195,37 @@ task :get_latest_bins do
     Rake::Task[:clean_bins].invoke
     puts `rm -rf cardano-wallet-*/`
     puts `tar -xvf binary-dist`
-    puts `cp -r cardano-wallet-*/* #{bins_path}`
+    puts `cp -r cardano-wallet-*/* #{BINS}`
 
     puts "cardano-node version:"
-    puts `#{bins_path}/cardano-node version`
+    puts `#{BINS}/cardano-node version`
 
     puts "cardano-wallet version:"
-    puts `#{bins_path}/cardano-wallet version`
+    puts `#{BINS}/cardano-wallet version`
   end
 end
 
 task :get_latest_configs, [:env] do |task, args|
-  puts "\n  >> Get latest configs for '#{args[:env]}'"
+  puts "\n  >> Getting latest configs for '#{args[:env]}' into #{CONFIGS}"
 
   base_url = get_latest_configs_base_url
   env = args[:env]
-  path = ENV['TESTS_E2E_STATEDIR'] + "/configs"
-  mk_dir(ENV['TESTS_E2E_STATEDIR'])
-  mk_dir(path)
-  wget("#{base_url}/#{env}-config.json", "#{path}/#{env}-config.json")
-  wget("#{base_url}/#{env}-byron-genesis.json", "#{path}/#{env}-byron-genesis.json")
-  wget("#{base_url}/#{env}-shelley-genesis.json", "#{path}/#{env}-shelley-genesis.json")
-  wget("#{base_url}/#{env}-topology.json", "#{path}/#{env}-topology.json")
+  mk_dir(STATE)
+  mk_dir(CONFIGS)
+  wget("#{base_url}/#{env}-config.json", "#{CONFIGS}/#{env}-config.json")
+  wget("#{base_url}/#{env}-byron-genesis.json", "#{CONFIGS}/#{env}-byron-genesis.json")
+  wget("#{base_url}/#{env}-shelley-genesis.json", "#{CONFIGS}/#{env}-shelley-genesis.json")
+  wget("#{base_url}/#{env}-topology.json", "#{CONFIGS}/#{env}-topology.json")
 end
 
 task :run_on, [:env, :installation] do |task, args|
-  puts "\n  >> Set up env and run all tests"
+  puts "\n>> Setting up env and running tests..."
+  puts "TESTS_E2E_STATEDIR=#{STATE}"
   env = args[:env]
   installation = args[:installation] || :from_bin_dir
 
   if installation == "local"
-    puts "\n  >> Skipping getting latest binaries. Will test on local installation."
+    puts "\n  >> Skipping getting latest binaries. Will test wallet and node from $PATH."
   else
     Rake::Task[:get_latest_bins].invoke
   end
