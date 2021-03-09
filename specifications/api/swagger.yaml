@@ -274,10 +274,6 @@ x-scriptTemplateUpdate: &scriptTemplateUpdate
     - delegation
     - both
 
-x-cosigner: &cosigner
-  type: string
-  pattern: "^(cosigner#)[0-9]*$"
-
 x-stakePoolId: &stakePoolId
   type: string
   format: hex|bech32
@@ -291,6 +287,25 @@ x-walletAccountPubkey: &walletAccountPubkey
   minLength: 128
   maxLength: 128
   example: 1423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db11423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db1
+
+x-cosigner: &cosigner
+  type: string
+  pattern: "^(cosigner#)[0-9]*$"
+
+x-cosigners: &cosigners
+  type: object
+  properties:
+   cosigner#0: *walletAccountPubkey
+   cosigner#1: *walletAccountPubkey
+   cosigner#2: *walletAccountPubkey
+   cosigner#3: *walletAccountPubkey
+   cosigner#4: *walletAccountPubkey
+   cosigner#5: *walletAccountPubkey
+   cosigner#6: *walletAccountPubkey
+   cosigner#7: *walletAccountPubkey
+   cosigner#8: *walletAccountPubkey
+   cosigner#9: *walletAccountPubkey
+   cosigner#10: *walletAccountPubkey
 
 x-walletId: &walletId
   description: A unique identifier for the wallet
@@ -439,8 +454,87 @@ x-ScriptValue: &ScriptValue
 x-script: &script
   <<: *ScriptValue
 
+x-ScriptTemplateValue: &ScriptTemplateValue
+  oneOf:
+    - title: Cosigner
+      description: Leaf value for a script designating a cosigner co-sharing the script.
+      type: string
+      pattern: "^(cosigner#)[0-9]*$"
+
+    - title: All
+      type: object
+      required:
+        - all
+      properties:
+        all:
+          description: Script primitive for which all signing keys corresponding to all list cosigners' verification keys are expected to make the script valid.
+          type: array
+          minItems: 1
+          items:
+            $ref: "#/components/schemas/ScriptTemplateValue"
+
+    - title: Any
+      type: object
+      required:
+        - any
+      properties:
+        any:
+          description: Script primitive for which a signing key corresponding to any of the list cosigners' verification keys is expected to make the script valid. It is equivalent to `some` with `"at_least"=1`.
+          type: array
+          minItems: 1
+          items:
+            $ref: "#/components/schemas/ScriptTemplateValue"
+
+    - title: Some
+      type: object
+      required:
+        - some
+      properties:
+        some:
+          description: Script primitive for which at least a given number of signing keys corresponding to the list cosigners' verification keys are expected to make the script valid.
+          type: object
+          required:
+            - at_least
+            - from
+          properties:
+            at_least:
+              type: integer
+              minimum: 1
+              maximum: 255
+            from:
+              type: array
+              minItems: 1
+              items:
+                $ref: "#/components/schemas/ScriptTemplateValue"
+
+    - title: Active from slot
+      type: object
+      required:
+        - active_from
+      properties:
+        active_from:
+          description: Transaction is only valid starting at the specified slot number (`≥ active_from`).
+          type: integer
+          minimum: 0
+
+    - title: Active until slot
+      type: object
+      required:
+        - active_until
+      properties:
+        active_until:
+          description: Transaction is only valid before the specified slot number (`< active_until`).
+          type: integer
+          minimum: 0
+
 x-scriptTemplate: &scriptTemplate
-  <<: *ScriptValue
+  type: object
+  required:
+    - cosigners
+    - template
+  properties:
+    cosigners: *cosigners
+    template: *ScriptTemplateValue
 
 x-CredentialValue: &CredentialValue
   nullable: false
@@ -2358,6 +2452,8 @@ components:
     CredentialValue: *CredentialValue
 
     ScriptValue: *ScriptValue
+
+    ScriptTemplateValue: *ScriptTemplateValue
 
     # https://github.com/input-output-hk/cardano-ledger-specs/blob/8d836e61bb88bda4a6a5c00694735928390067a1/shelley/chain-and-ledger/executable-spec/src/Shelley/Spec/Ledger/MetaData.hs#L48-L65
     TransactionMetadataValue: &TransactionMetadataValue
