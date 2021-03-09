@@ -71,19 +71,17 @@ One can run specific tests using `rspec`. (Note that the wallet and node needs t
 ### Environment variables
 
 By default following locations are used for different artifacts used by tests:
+- `./bins` - wallet and node binaries
+- `./state` - wallet and node databases
  - `./logs` - wallet and node logs
- - `./bins` - wallet and node binaries
- - `./node_db` - node database
- - `./wallet_db` - wallet database
 
 Locations are relative to `test/e2e` directory.
 Default values can be changed by providing environment variables, for instance:
 
 ```
-TESTS_E2E_NODE_DB=~/node_db \
-TESTS_E2E_WALLET_DB=~/wallet_db \
-TESTS_E2E_LOGS=~/logs \
-TESTS_E2E_BINS=~/bins \
+TESTS_E2E_STATEDIR=~/state \
+TESTS_E2E_LOGDIR=~/logs \
+TESTS_E2E_BINDIR=~/bins \
 rake run_on["testnet"]
 ```
 

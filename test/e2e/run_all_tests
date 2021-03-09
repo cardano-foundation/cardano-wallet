@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
 
-TESTS_E2E_NODE_DB=./node_db \
-TESTS_E2E_WALLET_DB=./wallet_db \
-TESTS_E2E_LOGS=./logs \
-TESTS_E2E_BINS=./bins \
+TESTS_E2E_STATEDIR=./state \
+TESTS_E2E_BINDIR=./bins \
 TESTS_E2E_TOKEN_METADATA=https://metadata.cardano-testnet.iohkdev.io/ \
-bundle exec rake run_on["testnet"]
+rake run_on[testnet]

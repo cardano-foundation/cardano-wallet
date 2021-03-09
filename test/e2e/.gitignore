@@ -1,13 +1,10 @@
 /.bundle/
 /spec/reports/
 /tmp/
-/configs/
-/node_db/
-/wallet_db/
+/state/
 /bins/
 /cardano-wallet-*/
 /binaryDist/
-/logs/
 *fixture_wallets.json
 *binary-dist*
 
