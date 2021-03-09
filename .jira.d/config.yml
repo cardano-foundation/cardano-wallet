@@ -42,3 +42,18 @@ custom-commands:
         hidden: true
     script: |-
       {{ if options.showPriority }}showPriority=1{{ end }} {{jira}} list --template release-notes-bugs --query "project=$JIRA_PROJECT and component = cardano-wallet and type = Bug and resolution = Unresolved{{ if options.minPriority }} and priority >= {{options.minPriority}}{{end}}{{ if options.minSeverity }} and 'Severity / Probability Score' in {{options.minSeverity}}{{end}} ORDER BY priority DESC, created" --queryfields=priority,customfield_12502
+
+  - name: grab
+    help: Download all attachments of a ticket
+    args:
+      - name: ISSUE
+        required: true
+        help: Jira ticket key
+        type: STRING
+    options:
+      - name: overwrite
+        help: Overwrite existing files
+        type: BOOL
+        default: false
+    script: |-
+      {{jira}} attach list --template debug {{args.ISSUE}} | jq -r '.[]|{{ if not options.overwrite }}"test -s \(.filename|@sh) && echo '"'"'\(.filename) already exists'"'"' || " + {{end}}(["{{jira}}", "attach", "get", .id]|@sh)' | sh
