@@ -1250,7 +1250,7 @@ computeTokenBundleSerializedLengthBytes =
 -- See: https://jira.iohk.io/projects/ADP/issues/ADP-779
 --
 maxTokenBundleSerializedLengthBytes :: Int
-maxTokenBundleSerializedLengthBytes = 4096
+maxTokenBundleSerializedLengthBytes = 4000
 
 {-------------------------------------------------------------------------------
                       Address Encoding / Decoding
