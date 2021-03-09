@@ -55,7 +55,7 @@ end
 task :clean_logs do
   puts "\n  >> Removing logs"
 
-  logs = ENV['TESTS_E2E_LOGDIR']
+  logs = ENV['TESTS_E2E_STATEDIR'] + "/logs"
   rm_files(logs)
 end
 
@@ -89,11 +89,16 @@ task :wait_until_node_synced do
   puts "\n>> Cardano-node and cardano-wallet are synced! <<"
 end
 
-task :start_node_and_wallet do
+##
+# `rake start_node_and_wallet[local]' assumes cardano-node and cardano-wallet on $PATH
+# `raka start_node_and_wallet' assumes cardano-node and cardano-wallet in $TESTS_E2E_BINDIR
+task :start_node_and_wallet, :installation do |task, args|
   puts "\n  >> Set up and start cardano-node and cardano-wallet"
 
+  installation = args[:installation] || :from_bin_dir
   cd = Dir.pwd
-  logs = ENV['TESTS_E2E_LOGDIR']
+  mk_dir(ENV['TESTS_E2E_STATEDIR'])
+  logs = ENV['TESTS_E2E_STATEDIR'] + "/logs"
   mk_dir(logs)
   node_db = ENV['TESTS_E2E_STATEDIR'] + "/node_db"
   wallet_db = ENV['TESTS_E2E_STATEDIR'] + "/wallet_db"
@@ -138,8 +143,9 @@ task :start_node_and_wallet do
     puts `#{start_node}`
     puts `#{start_wallet}`
   else
-    start_node = "#{cd}/bins/cardano-node run --config #{cd}/configs/*-config.json --topology #{cd}/configs/*-topology.json --database-path #{node_db} --socket-path #{cd}/node.socket"
-    start_wallet = "#{cd}/bins/cardano-wallet serve --node-socket #{cd}/node.socket --testnet #{cd}/configs/*-byron-genesis.json --database #{wallet_db} --token-metadata-server #{ENV['TESTS_E2E_TOKEN_METADATA']}"
+    bin_dir = installation == "local" ? "" : ENV['TESTS_E2E_BINDIR'] + "/"
+    start_node = "#{bin_dir}cardano-node run --config #{cd}/configs/*-config.json --topology #{cd}/configs/*-topology.json --database-path #{node_db} --socket-path #{cd}/node.socket"
+    start_wallet = "#{bin_dir}cardano-wallet serve --node-socket #{cd}/node.socket --testnet #{cd}/configs/*-byron-genesis.json --database #{wallet_db} --token-metadata-server #{ENV['TESTS_E2E_TOKEN_METADATA']}"
 
     puts start_node
     puts start_wallet
@@ -197,7 +203,8 @@ task :get_latest_configs, [:env] do |task, args|
 
   base_url = get_latest_configs_base_url
   env = args[:env]
-  path = Dir.pwd + "/configs"
+  path = ENV['TESTS_E2E_STATEDIR'] + "/configs"
+  mk_dir(ENV['TESTS_E2E_STATEDIR'])
   mk_dir(path)
   wget("#{base_url}/#{env}-config.json", "#{path}/#{env}-config.json")
   wget("#{base_url}/#{env}-byron-genesis.json", "#{path}/#{env}-byron-genesis.json")
@@ -205,15 +212,20 @@ task :get_latest_configs, [:env] do |task, args|
   wget("#{base_url}/#{env}-topology.json", "#{path}/#{env}-topology.json")
 end
 
-##
-# TESTS_E2E_STATEDIR=./state TESTS_E2E_TOKEN_METADATA=http://metadata-server-mock.herokuapp.com/ bundle exec rake run_on["testnet"]
-task :run_on, [:env] do |task, args|
+task :run_on, [:env, :installation] do |task, args|
   puts "\n  >> Set up env and run all tests"
+  env = args[:env]
+  installation = args[:installation] || :from_bin_dir
+
+  if installation == "local"
+    puts "\n  >> Skipping getting latest binaries. Will test on local installation."
+  else
+    Rake::Task[:get_latest_bins].invoke
+  end
 
   Rake::Task[:fixture_wallets_decode].invoke
-  Rake::Task[:get_latest_bins].invoke
-  Rake::Task[:get_latest_configs].invoke(args[:env])
-  Rake::Task[:start_node_and_wallet].invoke
+  Rake::Task[:get_latest_configs].invoke(env)
+  Rake::Task[:start_node_and_wallet].invoke(installation)
   Rake::Task[:wait_until_node_synced].invoke
   Rake::Task[:spec].invoke
   Rake::Task[:stop_node_and_wallet].invoke
