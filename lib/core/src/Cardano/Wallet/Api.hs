@@ -114,7 +114,7 @@ module Cardano.Wallet.Api
     , SMASH
         , GetCurrentSMASHHealth
 
-      -- * Shelley
+      -- * Shared Wallets
     , SharedWallets
         , PostSharedWallet
         , GetSharedWallet
@@ -837,9 +837,9 @@ type GetCurrentSMASHHealth = "smash"
     :> Get '[JSON] ApiHealthCheck
 
 {-------------------------------------------------------------------------------
-                                  SharedWallets
+                                  Shared Wallets
 
-  See also: https://input-output-hk.github.io/cardano-wallet/api/#tag/SharedWallets
+  See also: https://input-output-hk.github.io/cardano-wallet/api/#tag/Shared-Wallets
 -------------------------------------------------------------------------------}
 
 type SharedWallets =

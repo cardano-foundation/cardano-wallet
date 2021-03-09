@@ -428,6 +428,9 @@ x-ScriptValue: &ScriptValue
 x-script: &script
   <<: *ScriptValue
 
+x-scriptTemplate: &scriptTemplate
+  <<: *ScriptValue
+
 x-CredentialValue: &CredentialValue
   nullable: false
   oneOf:
@@ -1862,6 +1865,78 @@ components:
         state: *walletState
         tip: *blockReference
 
+    ApiActiveSharedWallet: &ApiActiveSharedWallet
+      type: object
+      required:
+        - id
+        - name
+        - account_public_key
+        - account_ix
+        - address_pool_gap
+        - payment_script_template
+        - delegation_script_template
+        - balance
+        - delegation
+        - state
+        - tip
+      properties:
+        id: *walletId
+        name: *walletName
+        account_public_key: *walletAccountPubkey
+        account_ix: *derivationPath
+        address_pool_gap: *walletAddressPoolGap
+        payment_script_template: *scriptTemplate
+        delegation_script_template: *scriptTemplate
+        balance: *walletBalance
+        assets: *walletAssetsBalance
+        delegation: *ApiWalletDelegation
+        state: *walletState
+        tip: *blockReference
+
+    ApiPendingSharedWallet: &ApiPendingSharedWallet
+      type: object
+      required:
+        - id
+        - name
+        - account_public_key
+        - account_ix
+        - address_pool_gap
+        - payment_script_template
+        - delegation_script_template
+      properties:
+        id: *walletId
+        name: *walletName
+        account_public_key: *walletAccountPubkey
+        account_ix: *derivationPath
+        address_pool_gap: *walletAddressPoolGap
+        payment_script_template: *scriptTemplate
+        delegation_script_template: *scriptTemplate
+
+    ApiSharedWallet: &ApiSharedWallet
+      type: object
+      oneOf:
+        - title: Pending shared wallet (collecting account public keys for each co-signer)
+          <<: *ApiPendingSharedWallet
+        - title: Active shared wallet (account public keys for each co-signers is collected)
+          <<: *ApiActiveSharedWallet
+
+    ApiSharedWalletPostData: &ApiSharedWalletPostData
+      type: object
+      required:
+        - name
+        - account_public_key
+        - account_ix
+        - address_pool_gap
+        - payment_script_template
+        - delegation_script_template
+      properties:
+        name: *walletName
+        account_public_key: *walletAccountPubkey
+        account_ix: *derivationPath
+        address_pool_gap: *walletAddressPoolGap
+        payment_script_template: *scriptTemplate
+        delegation_script_template: *scriptTemplate
+
     ApiAsset: &ApiAsset
       type: object
       required:
@@ -3223,6 +3298,17 @@ x-responsesPostWallet: &responsesPostWallet
       application/json:
         schema: *ApiWallet
 
+x-responsesPostSharedWallet: &responsesPostSharedWallet
+  <<: *responsesErr400
+  <<: *responsesErr406
+  <<: *responsesErr409WalletAlreadyExists
+  <<: *responsesErr415UnsupportedMediaType
+  201:
+    description: Created
+    content:
+      application/json:
+        schema: *ApiSharedWallet
+
 x-responsesPostByronWallet: &responsesPostByronWallet
   <<: *responsesErr400
   <<: *responsesErr406
@@ -3745,6 +3831,7 @@ x-tagGroups:
     - Proxy
     - Settings
     - Experimental
+    - Shared Wallets
 
 paths:
   /wallets/{walletId}/signatures/{role}/{index}:
@@ -4792,3 +4879,19 @@ paths:
           required: false
           description: check this url for health instead of the currently configured one
       responses: *responsesGetSmashHealth
+
+  /shared-wallets:
+    post:
+      operationId: postSharedWallet
+      tags: ["Shared Wallets"]
+      summary: Create
+      description: |
+        <p align="right">status: <strong>unstable</strong></p>
+
+        Create a shared wallet from an account public key, its index and script templates.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: *ApiSharedWalletPostData
+      responses: *responsesPostSharedWallet
