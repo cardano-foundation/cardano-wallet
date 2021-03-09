@@ -267,6 +267,17 @@ x-addressState: &addressState
     - used
     - unused
 
+x-scriptTemplateUpdate: &scriptTemplateUpdate
+  type: string
+  enum:
+    - payment
+    - delegation
+    - both
+
+x-cosigner: &cosigner
+  type: string
+  pattern: "^(cosigner#)[0-9]*$"
+
 x-stakePoolId: &stakePoolId
   type: string
   format: hex|bech32
@@ -1937,6 +1948,17 @@ components:
         payment_script_template: *scriptTemplate
         delegation_script_template: *scriptTemplate
 
+    ApiSharedWalletPatchData: &ApiSharedWalletPatchData
+      type: object
+      required:
+        - cosigner
+        - account_public_key
+        - script_template_update
+      properties:
+        cosigner: *cosigner
+        account_public_key: *walletAccountPubkey
+        script_template_update: *scriptTemplateUpdate
+
     ApiAsset: &ApiAsset
       type: object
       required:
@@ -3340,6 +3362,16 @@ x-responsesGetByronWallet: &responsesGetByronWallet
         schema: *ApiByronWallet
 
 x-responsesGetSharedWallet: &responsesGetSharedWallet
+  <<: *responsesErr400
+  <<: *responsesErr404WalletNotFound
+  <<: *responsesErr406
+  200:
+    description: Ok
+    content:
+      application/json:
+        schema: *ApiSharedWallet
+
+x-responsesPatchSharedWallet: &responsesPatchSharedWallet
   <<: *responsesErr400
   <<: *responsesErr404WalletNotFound
   <<: *responsesErr406
@@ -4915,3 +4947,18 @@ paths:
       parameters:
         - *parametersWalletId
       responses: *responsesGetSharedWallet
+
+    patch:
+      operationId: patchSharedWallet
+      tags: ["Shared Wallets"]
+      summary: Update
+      description: |
+        <p align="right">status: <strong>unstable</strong></p>
+      parameters:
+        - *parametersWalletId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: *ApiSharedWalletPatchData
+      responses: *responsesPatchSharedWallet
