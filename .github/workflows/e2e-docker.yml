@@ -65,7 +65,7 @@ jobs:
       run: |
         echo "Wallet: $WALLET"
         echo "Node: $NODE"
-        NODE_CONFIG_PATH=`pwd`/configs docker-compose -f docker-compose-test.yml up --detach
+        NODE_CONFIG_PATH=`pwd`/state/configs docker-compose -f docker-compose-test.yml up --detach
         ls ~/node-db-nightly-docker
 
     - name: Display versions
@@ -86,3 +86,4 @@ jobs:
       NETWORK: testnet
       WALLET: dev-master-shelley
       NODE: 1.25.1
+      TESTS_E2E_FIXTURES: ${{ secrets.TESTS_E2E_FIXTURES }}

@@ -32,25 +32,18 @@ jobs:
       id: cache
       uses: actions/cache@v2
       with:
-        path: test/e2e/node_db
+        path: test/e2e/state/node_db
         key: ${{ runner.os }}-node-cache
 
-    - name: Set up cardano-wallet and cardano-node
-      run: |
-        bundle exec rake fixture_wallets_decode
-        bundle exec rake get_latest_bins
-        bundle exec rake get_latest_configs["testnet"]
-        bundle exec rake start_node_and_wallet
-
-    - name: Wait until node is synced
-      run: bundle exec rake wait_until_node_synced
-
     - name: Run all tests
-      run: bundle exec rspec .
+      run: rake run_on[testnet]
 
     - name: 📎 Upload logs
       uses: actions/upload-artifact@v2
       if: always()
       with:
         name: ${{ runner.os }}-logs
-        path: test/e2e/logs
+        path: test/e2e/state
+
+    env:
+      TESTS_E2E_FIXTURES: ${{ secrets.TESTS_E2E_FIXTURES }}
