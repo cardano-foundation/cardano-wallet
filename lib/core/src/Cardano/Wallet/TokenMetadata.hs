@@ -584,7 +584,6 @@ instance FromJSON AssetUnit where
     parseJSON = withObject "AssetUnit" $ \o -> AssetUnit
         <$> o .: "name"
         <*> o .: "decimals"
-        <*> o .:? "ticker"
 
 --
 -- Helpers
