@@ -104,7 +104,7 @@ import Database.Persist.Sql
     , entityFields
     , fieldDB
     , fieldSqlType
-    , runMigrationQuiet
+    , runMigrationUnsafeQuiet
     , runSqlConn
     )
 import Database.Persist.Sqlite
@@ -171,7 +171,7 @@ newInMemorySqliteContext tr manualMigrations autoMigration = do
     conn <- Sqlite.open ":memory:"
     mapM_ (`executeManualMigration` conn) manualMigrations
     unsafeBackend <- wrapConnection conn (queryLogFunc tr)
-    void $ runSqlConn (runMigrationQuiet autoMigration) unsafeBackend
+    void $ runSqlConn (runMigrationUnsafeQuiet autoMigration) unsafeBackend
 
     let observe :: forall a. IO a -> IO a
         observe = bracketTracer (contramap MsgRun tr)
@@ -195,7 +195,7 @@ newSqliteContext
     -> IO (Either MigrationError SqliteContext)
 newSqliteContext tr pool manualMigrations autoMigration = do
     migrationResult <- withResource pool $ \(backend, conn) -> do
-        let executeAutoMigration = runSqlConn (runMigrationQuiet autoMigration) backend
+        let executeAutoMigration = runSqlConn (runMigrationUnsafeQuiet autoMigration) backend
         migrationResult <- withForeignKeysDisabled tr conn $ do
             mapM_ (`executeManualMigration` conn) manualMigrations
             executeAutoMigration
