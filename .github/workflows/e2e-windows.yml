@@ -49,7 +49,7 @@ jobs:
       if: always()
       with:
         name: ${{ runner.os }}-logs
-        path: test/e2e/state
+        path: test/e2e/state/logs
 
     env:
       TESTS_E2E_FIXTURES: ${{ secrets.TESTS_E2E_FIXTURES }}
