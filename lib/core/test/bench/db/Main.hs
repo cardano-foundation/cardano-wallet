@@ -53,7 +53,11 @@ import Cardano.BM.Data.Tracer
 import Cardano.BM.Setup
     ( setupTrace_, shutdown )
 import Cardano.DB.Sqlite
-    ( DBLog, SqliteContext, destroyDBLayer )
+    ( ConnectionPool
+    , SqliteContext (..)
+    , newSqliteContext
+    , withConnectionPool
+    )
 import Cardano.Mnemonic
     ( EntropySize, SomeMnemonic (..), entropyToMnemonic, genEntropy )
 import Cardano.Startup
@@ -61,11 +65,9 @@ import Cardano.Startup
 import Cardano.Wallet.DB
     ( DBLayer (..), PrimaryKey (..), cleanDB )
 import Cardano.Wallet.DB.Sqlite
-    ( CacheBehavior (..)
-    , DefaultFieldValues (..)
-    , PersistState
-    , newDBLayerWith
-    )
+    ( CacheBehavior (..), PersistState, WalletDBLog (..), newDBLayerWith )
+import Cardano.Wallet.DB.Sqlite.TH
+    ( migrateAll )
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( block0, dummyGenesisParameters, mkTxId )
 import Cardano.Wallet.Logging
@@ -102,7 +104,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
 import Cardano.Wallet.Primitive.Model
     ( Wallet, initWallet, unsafeInitWallet )
 import Cardano.Wallet.Primitive.Slotting
-    ( hoistTimeInterpreter, mkSingleEraInterpreter )
+    ( TimeInterpreter, hoistTimeInterpreter, mkSingleEraInterpreter )
 import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
     , Block (..)
@@ -144,11 +146,13 @@ import Cardano.Wallet.Primitive.Types.UTxO
 import Cardano.Wallet.Unsafe
     ( someDummyMnemonic, unsafeRunExceptT )
 import Control.DeepSeq
-    ( NFData (..), force )
+    ( NFData (..), deepseq, force )
 import Control.Monad
     ( join )
 import Control.Monad.Trans.Except
     ( mapExceptT )
+import Control.Tracer
+    ( contramap )
 import Criterion.Main
     ( Benchmark
     , Benchmarkable
@@ -186,22 +190,22 @@ import Data.Time.Clock.System
     ( SystemTime (..), systemToUTCTime )
 import Data.Word
     ( Word64 )
-import Database.Sqlite
-    ( SqliteException (..) )
 import Fmt
     ( build, padLeftF, padRightF, pretty, (+|), (|+) )
 import System.Directory
-    ( doesFileExist, getFileSize, removeFile )
+    ( doesFileExist, getFileSize )
 import System.FilePath
     ( takeFileName )
-import System.IO.Temp
-    ( emptySystemTempFile )
 import System.IO.Unsafe
     ( unsafePerformIO )
 import System.Random
     ( mkStdGen, randoms )
+import Test.Utils.Resource
+    ( unBracket )
 import UnliftIO.Exception
-    ( bracket, handle )
+    ( bracket, throwIO )
+import UnliftIO.Temporary
+    ( withSystemTempFile )
 
 import qualified Cardano.BM.Configuration.Model as CM
 import qualified Cardano.BM.Data.BackendKind as CM
@@ -652,10 +656,22 @@ withDB
         , PersistPrivateKey (k 'RootK)
         , WalletKey k
         )
-    => Tracer IO DBLog
+    => Tracer IO WalletDBLog
     -> (DBLayer IO s k -> Benchmark)
     -> Benchmark
-withDB tr bm = envWithCleanup (setupDB tr) cleanupDB (\ ~(_, _, db) -> bm db)
+withDB tr bm = envWithCleanup (setupDB tr) cleanupDB (\(BenchEnv _ _ db) -> bm db)
+
+data BenchEnv s k = BenchEnv
+    { cleanupDB :: IO ()
+    , _dbFile :: FilePath
+    , _dbLayer :: !(DBLayer IO s k)
+    }
+
+instance NFData (BenchEnv s k) where
+    rnf (BenchEnv _ fp db) = deepseq (rnf fp) $ deepseq (rnf db) ()
+
+withTempSqliteFile :: (FilePath -> IO a) -> IO a
+withTempSqliteFile action = withSystemTempFile "bench.db" $ \fp _ -> action fp
 
 setupDB
     :: forall s k.
@@ -663,14 +679,22 @@ setupDB
         , PersistPrivateKey (k 'RootK)
         , WalletKey k
         )
-    => Tracer IO DBLog
-    -> IO (FilePath, SqliteContext, DBLayer IO s k)
+    => Tracer IO WalletDBLog
+    -> IO (BenchEnv s k)
 setupDB tr = do
-    f <- emptySystemTempFile "bench.db"
-    (ctx, db) <- newDBLayerWith NoCache tr defaultFieldValues (Just f) ti
-    pure (f, ctx, db)
+    (createPool, destroyPool) <- unBracket withSetup
+    uncurry (BenchEnv destroyPool) <$> createPool
   where
-    ti = hoistTimeInterpreter (pure . runIdentity) $ mkSingleEraInterpreter
+    withSetup action = withTempSqliteFile $ \fp -> do
+        let trDB = contramap MsgDB tr
+        withConnectionPool trDB fp $ \pool -> do
+            ctx <- either throwIO pure =<< newSqliteContext trDB pool [] migrateAll
+            db <- newDBLayerWith NoCache tr singleEraInterpreter ctx
+            action (fp, db)
+
+singleEraInterpreter :: TimeInterpreter IO
+singleEraInterpreter = hoistTimeInterpreter (pure . runIdentity) $
+    mkSingleEraInterpreter
         (StartTime $ posixSecondsToUTCTime 0)
         (SlottingParameters
         { getSlotLength = SlotLength 1
@@ -678,25 +702,6 @@ setupDB tr = do
         , getActiveSlotCoefficient = ActiveSlotCoefficient 1
         , getSecurityParameter = Quantity 2160
         })
-
-defaultFieldValues :: DefaultFieldValues
-defaultFieldValues = DefaultFieldValues
-    { defaultActiveSlotCoefficient = ActiveSlotCoefficient 1.0
-    , defaultDesiredNumberOfPool = 50
-    , defaultMinimumUTxOValue = Coin 0
-    , defaultHardforkEpoch = Nothing
-        -- NOTE value in the genesis when at the time this migration was needed.
-    , defaultKeyDeposit = Coin 0
-    }
-
-cleanupDB :: (FilePath, SqliteContext, DBLayer IO s k) -> IO ()
-cleanupDB (db, ctx, _) = do
-    handle (\SqliteException{} -> pure ()) $ destroyDBLayer ctx
-    mapM_ remove [db, db <> "-shm", db <> "-wal"]
-  where
-    remove f = doesFileExist f >>= \case
-        True -> removeFile f
-        False -> pure ()
 
 -- | Cleans the database before running the benchmark.
 -- It also cleans the database after running the benchmark. That is just to
@@ -736,7 +741,7 @@ walletFixtureByron db@DBLayer{..} = do
 -- These are not proper criterion benchmarks but use the benchmark test data to
 -- measure size on disk of the database and its temporary files.
 
-utxoDiskSpaceTests :: Tracer IO DBLog -> IO ()
+utxoDiskSpaceTests :: Tracer IO WalletDBLog -> IO ()
 utxoDiskSpaceTests tr = do
     putStrLn "Database disk space usage tests for UTxO\n"
     sequence_
@@ -758,7 +763,7 @@ utxoDiskSpaceTests tr = do
         walletFixture db
         benchPutUTxO n s 0 db
 
-txHistoryDiskSpaceTests :: Tracer IO DBLog -> IO ()
+txHistoryDiskSpaceTests :: Tracer IO WalletDBLog -> IO ()
 txHistoryDiskSpaceTests tr = do
     putStrLn "Database disk space usage tests for TxHistory\n"
     sequence_
@@ -774,13 +779,14 @@ txHistoryDiskSpaceTests tr = do
         walletFixture db
         benchPutTxHistory n i o 0 [1..100] db
 
-benchDiskSize :: Tracer IO DBLog -> (DBLayerBench -> IO ()) -> IO ()
-benchDiskSize tr action = bracket (setupDB tr) cleanupDB $ \(f, ctx, db) -> do
-    action db
-    mapM_ (printFileSize "") [f, f <> "-shm", f <> "-wal"]
-    destroyDBLayer ctx
-    printFileSize " (closed)" f
-    putStrLn ""
+benchDiskSize :: Tracer IO WalletDBLog -> (DBLayerBench -> IO ()) -> IO ()
+benchDiskSize tr action = bracket (setupDB tr) cleanupDB
+    $ \(BenchEnv destroyPool f db) -> do
+        action db
+        mapM_ (printFileSize "") [f, f <> "-shm", f <> "-wal"]
+        destroyPool
+        printFileSize " (closed)" f
+        putStrLn ""
   where
     printFileSize sfx f = do
         size <- doesFileExist f >>= \case
@@ -812,6 +818,9 @@ instance NFData (DBLayer m s k) where
     rnf _ = ()
 
 instance NFData SqliteContext where
+    rnf _ = ()
+
+instance NFData ConnectionPool where
     rnf _ = ()
 
 testCp :: WalletBench

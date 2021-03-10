@@ -1,5 +1,6 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
@@ -24,24 +25,34 @@
 -- An implementation of the DBLayer which uses Persistent and SQLite.
 
 module Cardano.Wallet.DB.Sqlite
-    ( newDBLayer
+    ( -- * Directory of single-file wallet databases
+      newDBFactory
+    , findDatabases
+    , DBFactoryLog (..)
+
+    -- * Internal implementation
+    , withDBLayer
+    , withDBLayerInMemory
+    , WalletDBLog (..)
     , newDBLayerWith
     , CacheBehavior (..)
-    , newDBFactory
-    , findDatabases
-    , withDBLayer
 
     -- * Interfaces
     , PersistState (..)
 
     -- * Migration Support
     , DefaultFieldValues (..)
+
     ) where
 
 import Prelude
 
 import Cardano.Address.Derivation
     ( XPrv, XPub )
+import Cardano.BM.Data.Severity
+    ( Severity (..) )
+import Cardano.BM.Data.Tracer
+    ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.DB.Sqlite
     ( DBField (..)
     , DBLog (..)
@@ -50,15 +61,21 @@ import Cardano.DB.Sqlite
     , chunkSize
     , dbChunked
     , dbChunked'
-    , destroyDBLayer
     , fieldName
     , fieldType
     , handleConstraint
-    , startSqliteBackend
+    , newInMemorySqliteContext
+    , newSqliteContext
     , tableName
+    , withConnectionPool
     )
 import Cardano.DB.Sqlite.Delete
-    ( deleteSqliteDatabase, newRefCount, waitForFree, withRef )
+    ( DeleteSqliteDatabaseLog
+    , deleteSqliteDatabase
+    , newRefCount
+    , waitForFree
+    , withRef
+    )
 import Cardano.Wallet.DB
     ( DBFactory (..)
     , DBLayer (..)
@@ -124,7 +141,7 @@ import Cardano.Wallet.Primitive.Types.TokenBundle
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId (..) )
 import Control.Monad
-    ( forM, forM_, unless, void, when )
+    ( forM, forM_, unless, void, when, (<=<) )
 import Control.Monad.Extra
     ( concatMapM )
 import Control.Monad.IO.Class
@@ -145,8 +162,6 @@ import Data.Functor
     ( (<&>) )
 import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
-import Data.IORef
-    ( modifyIORef', newIORef, readIORef )
 import Data.List
     ( nub, sortOn, unzip3 )
 import Data.List.Split
@@ -154,7 +169,7 @@ import Data.List.Split
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
-    ( catMaybes, mapMaybe )
+    ( catMaybes, isJust, mapMaybe )
 import Data.Ord
     ( Down (..) )
 import Data.Proxy
@@ -202,7 +217,9 @@ import Database.Persist.Sqlite
 import Database.Persist.Types
     ( PersistValue (..), fromPersistValueText )
 import Fmt
-    ( pretty )
+    ( pretty, (+|), (|+) )
+import GHC.Generics
+    ( Generic )
 import System.Directory
     ( doesFileExist, listDirectory )
 import System.FilePath
@@ -210,7 +227,7 @@ import System.FilePath
 import UnliftIO.Exception
     ( Exception, bracket, throwIO )
 import UnliftIO.MVar
-    ( modifyMVar, modifyMVar_, newMVar, readMVar )
+    ( MVar, modifyMVar, modifyMVar_, newMVar, readMVar, withMVar )
 
 import qualified Cardano.Wallet.Primitive.AddressDerivation as W
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Random as Rnd
@@ -228,67 +245,49 @@ import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
 import qualified Database.Sqlite as Sqlite
 
--- | Runs an action with a connection to the SQLite database.
---
--- Database migrations are run to create tables if necessary.
---
--- If the given file path does not exist, it will be created by the sqlite
--- library.
-withDBLayer
-    :: forall s k a.
-        ( PersistState s
-        , PersistPrivateKey (k 'RootK)
-        , WalletKey k
-        )
-    => Tracer IO DBLog
-       -- ^ Logging object
-    -> DefaultFieldValues
-       -- ^ Default database field values, used during migration.
-    -> Maybe FilePath
-       -- ^ Path to database directory, or Nothing for in-memory database
-    -> TimeInterpreter IO
-    -> ((SqliteContext, DBLayer IO s k) -> IO a)
-       -- ^ Action to run.
-    -> IO a
-withDBLayer trace defaultFieldValues mDatabaseDir ti =
-    bracket before after
-  where
-    before = newDBLayer trace defaultFieldValues mDatabaseDir ti
-    after = destroyDBLayer . fst
+{-------------------------------------------------------------------------------
+                               Database "factory"
+             (a directory containing one database file per wallet)
+-------------------------------------------------------------------------------}
 
--- | Instantiate a 'DBFactory' from a given directory
+-- | Instantiate a 'DBFactory' from a given directory, or in-memory for testing.
 newDBFactory
     :: forall s k.
         ( PersistState s
         , PersistPrivateKey (k 'RootK)
         , WalletKey k
         )
-    => Tracer IO DBLog
+    => Tracer IO DBFactoryLog
        -- ^ Logging object
     -> DefaultFieldValues
        -- ^ Default database field values, used during migration.
     -> TimeInterpreter IO
-
+       -- ^ Time interpreter for slot to time conversions
     -> Maybe FilePath
        -- ^ Path to database directory, or Nothing for in-memory database
     -> IO (DBFactory IO s k)
 newDBFactory tr defaultFieldValues ti = \case
     Nothing -> do
-        -- NOTE
+        -- NOTE1
         -- For the in-memory database, we do actually preserve the database
         -- after the 'action' is done. This allows for calling 'withDatabase'
         -- several times within the same execution and get back the same
         -- database. The memory is only cleaned up when calling
         -- 'removeDatabase', to mimic the way the file database works!
+        --
+        -- NOTE2
+        -- The in-memory withDatabase will leak memory unless removeDatabase is
+        -- called after using the database. In practice, this is only a problem
+        -- for testing.
         mvar <- newMVar mempty
         pure DBFactory
             { withDatabase = \wid action -> do
                 db <- modifyMVar mvar $ \m -> case Map.lookup wid m of
-                    Just (_, db) -> pure (m, db)
+                    Just db -> pure (m, db)
                     Nothing -> do
-                        (ctx, db) <-
-                            newDBLayer tr defaultFieldValues Nothing ti
-                        pure (Map.insert wid (ctx, db) m, db)
+                        let tr' = contramap (MsgWalletDB "") tr
+                        (_cleanup, db) <- newDBLayerInMemory tr' ti
+                        pure (Map.insert wid db m, db)
                 action db
             , removeDatabase = \wid -> do
                 traceWith tr $ MsgRemoving (pretty wid)
@@ -302,16 +301,18 @@ newDBFactory tr defaultFieldValues ti = \case
         refs <- newRefCount
         pure DBFactory
             { withDatabase = \wid action -> withRef refs wid $ withDBLayer
-                tr
+                (contramap (MsgWalletDB (databaseFile wid)) tr)
                 defaultFieldValues
-                (Just $ databaseFile wid)
+                (databaseFile wid)
                 ti
-                (action . snd)
+                action
             , removeDatabase = \wid -> do
                 let widp = pretty wid
                 -- try to wait for all 'withDatabase' calls to finish before
                 -- deleting database file.
                 let trWait = contramap (MsgWaitingForDatabase widp) tr
+                -- TODO: rather than refcounting, why not keep retrying the
+                -- delete until there are no file busy errors?
                 waitForFree trWait refs wid $ \inUse -> do
                     unless (inUse == 0) $
                         traceWith tr $ MsgRemovingInUse widp inUse
@@ -332,7 +333,7 @@ newDBFactory tr defaultFieldValues ti = \case
 --   specified directory.
 findDatabases
     :: forall k. WalletKey k
-    => Tracer IO DBLog
+    => Tracer IO DBFactoryLog
     -> FilePath
     -> IO [W.WalletId]
 findDatabases tr dir = do
@@ -352,6 +353,63 @@ findDatabases tr dir = do
   where
     expectedPrefix = T.pack $ keyTypeDescriptor $ Proxy @k
 
+data DBFactoryLog
+    = MsgFoundDatabase FilePath Text
+    | MsgUnknownDBFile FilePath
+    | MsgRemoving Text
+    | MsgRemovingInUse Text Int
+    | MsgRemovingDatabaseFile Text DeleteSqliteDatabaseLog
+    | MsgWaitingForDatabase Text (Maybe Int)
+    | MsgWalletDB FilePath WalletDBLog
+    deriving (Generic, Show, Eq)
+
+instance HasPrivacyAnnotation DBFactoryLog
+instance HasSeverityAnnotation DBFactoryLog where
+    getSeverityAnnotation ev = case ev of
+        MsgFoundDatabase _ _ -> Info
+        MsgUnknownDBFile _ -> Notice
+        MsgRemoving _ -> Info
+        MsgRemovingInUse _ _ -> Notice
+        MsgRemovingDatabaseFile _ msg -> getSeverityAnnotation msg
+        MsgWaitingForDatabase _ _ -> Info
+        MsgWalletDB _ msg -> getSeverityAnnotation msg
+
+instance ToText DBFactoryLog where
+    toText = \case
+        MsgFoundDatabase _file wid ->
+            "Found existing wallet: " <> wid
+        MsgUnknownDBFile file -> mconcat
+            [ "Found something other than a database file in "
+            , "the database folder: ", T.pack file
+            ]
+        MsgRemoving wid ->
+            "Removing wallet's database. Wallet id was " <> wid
+        MsgRemovingDatabaseFile wid msg ->
+            "Removing " <> wid <> ": " <> toText msg
+        MsgWaitingForDatabase wid Nothing ->
+            "Database "+|wid|+" is ready to be deleted"
+        MsgWaitingForDatabase wid (Just count) ->
+            "Waiting for "+|count|+" withDatabase "+|wid|+" call(s) to finish"
+        MsgRemovingInUse wid count ->
+            "Timed out waiting for "+|count|+" withDatabase "+|wid|+" call(s) to finish. " <>
+            "Attempting to remove the database anyway."
+        MsgWalletDB _file msg -> toText msg
+
+{-------------------------------------------------------------------------------
+                           Database Schema Migrations
+-------------------------------------------------------------------------------}
+
+-- | A set of default field values that can be consulted when performing a
+--   database migration.
+--
+data DefaultFieldValues = DefaultFieldValues
+    { defaultActiveSlotCoefficient :: W.ActiveSlotCoefficient
+    , defaultDesiredNumberOfPool :: Word16
+    , defaultMinimumUTxOValue :: W.Coin
+    , defaultHardforkEpoch :: Maybe W.EpochNo
+    , defaultKeyDeposit :: W.Coin
+    }
+
 -- | A data-type for capturing column status. Used to be represented as a
 -- 'Maybe Bool' which is somewhat confusing to interpret.
 data SqlColumnStatus
@@ -368,42 +426,31 @@ migrateManually
     => Tracer IO DBLog
     -> Proxy k
     -> DefaultFieldValues
-    -> ManualMigration
+    -> [ManualMigration]
 migrateManually tr proxy defaultFieldValues =
-    ManualMigration $ \conn -> do
-        cleanupCheckpointTable conn
+    ManualMigration <$>
+    [ cleanupCheckpointTable
+    , assignDefaultPassphraseScheme
+    , addDesiredPoolNumberIfMissing
+    , addMinimumUTxOValueIfMissing
+    , addHardforkEpochIfMissing
 
-        assignDefaultPassphraseScheme conn
+      -- FIXME
+      -- Temporary migration to fix Daedalus flight wallets. This should
+      -- really be removed as soon as we have a fix for the cardano-sl:wallet
+      -- currently in production.
+    , removeSoftRndAddresses
 
-        addDesiredPoolNumberIfMissing conn
-
-        addMinimumUTxOValueIfMissing conn
-
-        addHardforkEpochIfMissing conn
-
-        -- FIXME
-        -- Temporary migration to fix Daedalus flight wallets. This should
-        -- really be removed as soon as we have a fix for the cardano-sl:wallet
-        -- currently in production.
-        removeSoftRndAddresses conn
-
-        removeOldTxParametersTable conn
-
-        addAddressStateIfMissing conn
-
-        addSeqStateDerivationPrefixIfMissing conn
-
-        renameRoleColumn conn
-
-        renameRoleFields conn
-
-        updateFeeValueAndAddKeyDeposit conn
-
-        addFeeToTransaction conn
-
-        moveRndUnusedAddresses conn
-
-        cleanupSeqStateTable conn
+    , removeOldTxParametersTable
+    , addAddressStateIfMissing
+    , addSeqStateDerivationPrefixIfMissing
+    , renameRoleColumn
+    , renameRoleFields
+    , updateFeeValueAndAddKeyDeposit
+    , addFeeToTransaction
+    , moveRndUnusedAddresses
+    , cleanupSeqStateTable
+    ]
   where
     -- NOTE
     -- We originally stored script pool gap inside sequential state in the 'SeqState' table,
@@ -1065,19 +1112,105 @@ runSql conn raw = do
             Sqlite.Done -> do
                 return (reverse acc)
 
--- | A set of default field values that can be consulted when performing a
---   database migration.
---
-data DefaultFieldValues = DefaultFieldValues
-    { defaultActiveSlotCoefficient :: W.ActiveSlotCoefficient
-    , defaultDesiredNumberOfPool :: Word16
-    , defaultMinimumUTxOValue :: W.Coin
-    , defaultHardforkEpoch :: Maybe W.EpochNo
-    , defaultKeyDeposit :: W.Coin
-    }
+{-------------------------------------------------------------------------------
+                                 Database layer
+-------------------------------------------------------------------------------}
 
--- | A type to capture what to do with regards to caching. This is useful to
--- disable caching in database benchmarks.
+-- | Runs an action with a connection to the SQLite database.
+--
+-- Database migrations are run to create tables if necessary.
+--
+-- If the given file path does not exist, it will be created by the sqlite
+-- library.
+withDBLayer
+    :: forall s k a.
+        ( PersistState s
+        , PersistPrivateKey (k 'RootK)
+        , WalletKey k
+        )
+    => Tracer IO WalletDBLog
+       -- ^ Logging object
+    -> DefaultFieldValues
+       -- ^ Default database field values, used during migration.
+    -> FilePath
+       -- ^ Path to database file
+    -> TimeInterpreter IO
+       -- ^ Time interpreter for slot to time conversions
+    -> (DBLayer IO s k -> IO a)
+       -- ^ Action to run.
+    -> IO a
+withDBLayer tr defaultFieldValues dbFile ti action = do
+    let trDB = contramap MsgDB tr
+    let manualMigrations = migrateManually trDB (Proxy @k) defaultFieldValues
+    let autoMigrations   = migrateAll
+    withConnectionPool trDB dbFile $ \pool -> do
+        res <- newSqliteContext trDB pool manualMigrations autoMigrations
+        either throwIO (action <=< newDBLayerWith CacheLatestCheckpoint tr ti) res
+
+data WalletDBLog
+    = MsgDB DBLog
+    | MsgCheckpointCache W.WalletId CheckpointCacheLog
+    deriving (Generic, Show, Eq)
+
+data CheckpointCacheLog
+    = MsgPutCheckpoint
+    | MsgGetCheckpoint Bool
+    | MsgRefresh
+    | MsgDrop
+    deriving (Generic, Show, Eq)
+
+instance HasPrivacyAnnotation WalletDBLog
+instance HasSeverityAnnotation WalletDBLog where
+    getSeverityAnnotation = \case
+        MsgDB msg -> getSeverityAnnotation msg
+        MsgCheckpointCache _ _ -> Debug
+
+instance ToText WalletDBLog where
+    toText = \case
+        MsgDB msg -> toText msg
+        MsgCheckpointCache wid msg -> "Checkpoint cache " <> toText wid <> ": " <> toText msg
+
+instance ToText CheckpointCacheLog where
+    toText = \case
+        MsgPutCheckpoint -> "Put"
+        MsgGetCheckpoint hit -> "Get " <> if hit then "hit" else "miss"
+        MsgRefresh -> "Refresh"
+        MsgDrop -> "Drop"
+
+-- | Runs an IO action with a new 'DBLayer' backed by a sqlite in-memory
+-- database.
+withDBLayerInMemory
+    :: forall s k a.
+        ( PersistState s
+        , PersistPrivateKey (k 'RootK)
+        )
+    => Tracer IO WalletDBLog
+       -- ^ Logging object
+    -> TimeInterpreter IO
+       -- ^ Time interpreter for slot to time conversions
+    -> (DBLayer IO s k -> IO a)
+    -> IO a
+withDBLayerInMemory tr ti action = bracket (newDBLayerInMemory tr ti) fst (action . snd)
+
+-- | Creates a 'DBLayer' backed by a sqlite in-memory database.
+newDBLayerInMemory
+    :: forall s k.
+        ( PersistState s
+        , PersistPrivateKey (k 'RootK)
+        )
+    => Tracer IO WalletDBLog
+       -- ^ Logging object
+    -> TimeInterpreter IO
+       -- ^ Time interpreter for slot to time conversions
+    -> IO (IO (), DBLayer IO s k)
+newDBLayerInMemory tr ti = do
+    let tr' = contramap MsgDB tr
+    (destroy, ctx) <- newInMemorySqliteContext tr' [] migrateAll
+    db <- newDBLayer tr ti ctx
+    pure (destroy, db)
+
+-- | What to do with regards to caching. This is useful to disable caching in
+-- database benchmarks.
 data CacheBehavior
     = NoCache
     | CacheLatestCheckpoint
@@ -1090,48 +1223,39 @@ data CacheBehavior
 -- If the given file path does not exist, it will be created by the sqlite
 -- library.
 --
--- 'getDBLayer' will provide the actual 'DBLayer' implementation. The database
--- should be closed with 'destroyDBLayer'. If you use 'withDBLayer' then both of
--- these things will be handled for you.
+-- 'newDBLayer' will provide the actual 'DBLayer' implementation. It requires an
+-- 'SqliteContext' which can be obtained from a database connection pool. This
+-- is better initialized with 'withDBLayer'.
 newDBLayer
     :: forall s k.
         ( PersistState s
         , PersistPrivateKey (k 'RootK)
-        , WalletKey k
         )
-    => Tracer IO DBLog
-       -- ^ Logging object
-    -> DefaultFieldValues
-       -- ^ Default database field values, used during migration.
-    -> Maybe FilePath
-       -- ^ Path to database file, or Nothing for in-memory database
+    => Tracer IO WalletDBLog
+       -- ^ Logging
     -> TimeInterpreter IO
-    -> IO (SqliteContext, DBLayer IO s k)
-newDBLayer =
-    newDBLayerWith @s @k CacheLatestCheckpoint
+       -- ^ Time interpreter for slot to time conversions
+    -> SqliteContext
+       -- ^ A (thread-)safe wrapper for query execution.
+    -> IO (DBLayer IO s k)
+newDBLayer = newDBLayerWith @s @k CacheLatestCheckpoint
 
 -- | Like 'newDBLayer', but allows to explicitly specify the caching behavior.
 newDBLayerWith
     :: forall s k.
         ( PersistState s
         , PersistPrivateKey (k 'RootK)
-        , WalletKey k
         )
     => CacheBehavior
-    -> Tracer IO DBLog
-    -> DefaultFieldValues
-    -> Maybe FilePath
+       -- ^ Option to disable caching.
+    -> Tracer IO WalletDBLog
+       -- ^ Logging
     -> TimeInterpreter IO
-    -> IO (SqliteContext, DBLayer IO s k)
-newDBLayerWith cacheBehavior trace defaultFieldValues mDatabaseFile ti = do
-    ctx@SqliteContext{runQuery} <-
-        either throwIO pure =<<
-        startSqliteBackend
-            (migrateManually trace (Proxy @k) defaultFieldValues)
-            migrateAll
-            trace
-            mDatabaseFile
-
+       -- ^ Time interpreter for slot to time conversions
+    -> SqliteContext
+       -- ^ A (thread-)safe wrapper for query execution.
+    -> IO (DBLayer IO s k)
+newDBLayerWith cacheBehavior tr ti SqliteContext{runQuery} = do
     -- NOTE1
     -- We cache the latest checkpoint for read operation such that we prevent
     -- needless marshalling and unmarshalling with the database. Many handlers
@@ -1149,58 +1273,71 @@ newDBLayerWith cacheBehavior trace defaultFieldValues mDatabaseFile ti = do
     -- short-circuit the most frequent database lookups.
     --
     -- NOTE2
-    -- We use an IORef here without fearing race-conditions because every
-    -- database query can only be run within calls to `atomically` which
-    -- enforces that there's only a single thread executing a given
-    -- `SqlPersistT`.
+    -- When 'cacheBehavior' is set to 'NoCache', we simply never write anything
+    -- to the cache, which forces 'selectLatestCheckpointCached' to always perform a
+    -- database lookup.
+
+    cacheVar <- newMVar Map.empty :: IO (MVar (Map W.WalletId (W.Wallet s)))
+
     --
     -- NOTE3
-    -- When 'cacheBehavior' is set to 'NoCache', we simply never write anything
-    -- to the cache, which forces 'selectLatestCheckpoint' to always perform a
-    -- database lookup.
-    cache <- newIORef Map.empty
+    -- This cache will not work properly unless 'atomically' is protected by a
+    -- mutex (queryLock), which means no concurrent queries.
+    --
+    queryLock <- newMVar () -- fixme: ADP-586
 
-    let readCache :: W.WalletId -> SqlPersistT IO (Maybe (W.Wallet s))
-        readCache wid = Map.lookup wid <$> liftIO (readIORef cache)
+    -- Gets cached checkpoint for a given wallet.
+    -- If caching is disabled it unconditionally returns Nothing
+    let getCache :: W.WalletId -> SqlPersistT IO (Maybe (W.Wallet s))
+        getCache wid = Map.lookup wid <$> readMVar cacheVar
 
-    let writeCache :: W.WalletId -> Maybe (W.Wallet s) -> SqlPersistT IO ()
-        writeCache wid = case cacheBehavior of
-            NoCache -> const (pure ())
-            CacheLatestCheckpoint -> \case
-                Nothing ->
-                    liftIO $ modifyIORef' cache $ Map.delete wid
-                Just cp -> do
-                    let tip = cp ^. #currentTip . #blockHeight
-                    let alter = \case
-                            Just old | tip < old ^. #currentTip .  #blockHeight ->
-                                Just old
-                            _ ->
-                                Just cp
-                    liftIO $ modifyIORef' cache $ Map.alter alter wid
+        -- Adjust a wallet entry in the cache.
+        modifyCache :: W.WalletId -> (Maybe (W.Wallet s) -> SqlPersistT IO (Maybe (W.Wallet s))) -> SqlPersistT IO ()
+        modifyCache wid action = modifyMVar_ cacheVar $ \cache -> do
+            let old = Map.lookup wid cache
+            action old >>= \case
+                Nothing -> pure $ Map.delete wid cache
+                Just cp -> pure $ case cacheBehavior of
+                    NoCache -> cache -- stick to initial value
+                    CacheLatestCheckpoint -> Map.insert wid cp cache
 
-    let selectLatestCheckpoint
+        -- This condition is required to make property tests pass, where
+        -- checkpoints may be generated in any order.
+        alterCache :: W.Wallet s -> Maybe (W.Wallet s) -> Maybe (W.Wallet s)
+        alterCache cp = \case
+            Just old | getHeight cp < getHeight old -> Just old
+            _ -> Just cp
+
+        getHeight = view (#currentTip . #blockHeight)
+
+    -- Inserts a checkpoint into the database and checkpoint cache
+    let insertCheckpointCached wid cp = modifyCache wid $ \old -> do
+            liftIO $ traceWith tr $ MsgCheckpointCache wid MsgPutCheckpoint
+            insertCheckpoint wid cp
+            pure (alterCache cp old)
+
+    -- Checks for cached a checkpoint before running selectLatestCheckpoint
+    let selectLatestCheckpointCached
             :: W.WalletId
             -> SqlPersistT IO (Maybe (W.Wallet s))
-        selectLatestCheckpoint wid = do
-            readCache wid >>= maybe fromDatabase (pure . Just)
-          where
-            fromDatabase = do
-                mcp <- fmap entityVal <$> selectFirst
-                    [ CheckpointWalletId ==. wid ]
-                    [ LimitTo 1, Desc CheckpointSlot ]
-                case mcp of
-                    Nothing -> pure Nothing
-                    Just cp -> do
-                        utxo <- selectUTxO cp
-                        s <- selectState (checkpointId cp)
-                        pure (checkpointFromEntity @s cp utxo <$> s)
+        selectLatestCheckpointCached wid = do
+            cp <- getCache wid
+            liftIO $ traceWith tr $ MsgCheckpointCache wid $ MsgGetCheckpoint $ isJust cp
+            maybe (selectLatestCheckpoint @s wid) (pure . Just) cp
 
-    let invalidateCache :: W.WalletId -> SqlPersistT IO ()
-        invalidateCache wid = do
-            writeCache wid Nothing
-            selectLatestCheckpoint wid >>= writeCache wid
+    -- Re-run the selectLatestCheckpoint query
+    let refreshCache :: W.WalletId -> SqlPersistT IO ()
+        refreshCache wid = modifyCache wid $ const $ do
+            liftIO $ traceWith tr $ MsgCheckpointCache wid MsgRefresh
+            selectLatestCheckpoint @s wid
 
-    return (ctx, DBLayer
+    -- Delete the cache for a wallet
+    let dropCache :: W.WalletId -> SqlPersistT IO ()
+        dropCache wid = modifyCache wid $ const $ do
+            liftIO $ traceWith tr $ MsgCheckpointCache wid MsgDrop
+            pure Nothing
+
+    return DBLayer
 
         {-----------------------------------------------------------------------
                                       Wallets
@@ -1210,7 +1347,7 @@ newDBLayerWith cacheBehavior trace defaultFieldValues mDatabaseFile ti = do
             res <- handleConstraint (ErrWalletAlreadyExists wid) $
                 insert_ (mkWalletEntity wid meta gp)
             when (isRight res) $ do
-                insertCheckpoint wid cp <* writeCache wid (Just cp)
+                insertCheckpointCached wid cp
                 let (metas, txins, txouts, txoutTokens, ws) =
                         mkTxHistory wid txs
                 putTxs metas txins txouts txoutTokens ws
@@ -1222,7 +1359,7 @@ newDBLayerWith cacheBehavior trace defaultFieldValues mDatabaseFile ti = do
                 Just _  -> Right <$> do
                     deleteCascadeWhere [WalId ==. wid]
                     deleteLooseTransactions
-                    invalidateCache wid
+                    dropCache wid
 
         , listWallets =
             map (PrimaryKey . unWalletKey) <$> selectKeysList [] [Asc WalId]
@@ -1236,10 +1373,10 @@ newDBLayerWith cacheBehavior trace defaultFieldValues mDatabaseFile ti = do
                 Nothing ->
                     pure $ Left $ ErrNoSuchWallet wid
                 Just _  ->
-                    Right <$> (insertCheckpoint wid cp <* writeCache wid (Just cp))
+                    Right <$> insertCheckpointCached wid cp
 
         , readCheckpoint = \(PrimaryKey wid) -> do
-            selectLatestCheckpoint wid
+            selectLatestCheckpointCached wid
 
         , listCheckpoints = \(PrimaryKey wid) -> do
             map (blockHeaderFromEntity . entityVal) <$> selectList
@@ -1274,11 +1411,11 @@ newDBLayerWith cacheBehavior trace defaultFieldValues mDatabaseFile ti = do
                     deleteStakeKeyCerts wid
                         [ StakeKeyCertSlot >. nearestPoint
                         ]
-                    invalidateCache wid
+                    refreshCache wid
                     pure (Right nearestPoint)
 
         , prune = \(PrimaryKey wid) epochStability -> ExceptT $ do
-            selectLatestCheckpoint wid >>= \case
+            selectLatestCheckpointCached wid >>= \case
                 Nothing -> pure $ Left $ ErrNoSuchWallet wid
                 Just cp -> Right <$> do
                     pruneCheckpoints wid epochStability cp
@@ -1297,7 +1434,7 @@ newDBLayerWith cacheBehavior trace defaultFieldValues mDatabaseFile ti = do
                     pure $ Right ()
 
         , readWalletMeta = \(PrimaryKey wid) -> do
-            selectLatestCheckpoint wid >>= \case
+            selectLatestCheckpointCached wid >>= \case
                 Nothing -> pure Nothing
                 Just cp -> do
                     currentEpoch <- liftIO $
@@ -1351,7 +1488,7 @@ newDBLayerWith cacheBehavior trace defaultFieldValues mDatabaseFile ti = do
                     pure $ Right ()
 
         , readTxHistory = \(PrimaryKey wid) minWithdrawal order range status -> do
-            selectLatestCheckpoint wid >>= \case
+            selectLatestCheckpointCached wid >>= \case
                 Nothing -> pure []
                 Just cp -> selectTxHistory cp
                     ti wid minWithdrawal order $ catMaybes
@@ -1385,7 +1522,7 @@ newDBLayerWith cacheBehavior trace defaultFieldValues mDatabaseFile ti = do
                             else Right ()
 
         , getTx = \(PrimaryKey wid) tid -> ExceptT $ do
-            selectLatestCheckpoint wid >>= \case
+            selectLatestCheckpointCached wid >>= \case
                 Nothing -> pure $ Left $ ErrNoSuchWallet wid
                 Just cp -> do
                     metas <- selectTxHistory cp
@@ -1436,9 +1573,8 @@ newDBLayerWith cacheBehavior trace defaultFieldValues mDatabaseFile ti = do
                                      ACID Execution
         -----------------------------------------------------------------------}
 
-        , atomically = runQuery
-
-        })
+        , atomically = withMVar queryLock . const . runQuery
+        }
 
 readWalletMetadata
     :: W.WalletId
@@ -1813,6 +1949,21 @@ genesisParametersFromEntity (Wallet _ _ _ _ _ hash startTime) =
 selectWallet :: MonadIO m => W.WalletId -> SqlPersistT m (Maybe Wallet)
 selectWallet wid =
     fmap entityVal <$> selectFirst [WalId ==. wid] []
+
+selectLatestCheckpoint
+    :: forall s. (PersistState s)
+    => W.WalletId
+    -> SqlPersistT IO (Maybe (W.Wallet s))
+selectLatestCheckpoint wid = do
+    mcp <- fmap entityVal <$> selectFirst
+        [ CheckpointWalletId ==. wid ]
+        [ LimitTo 1, Desc CheckpointSlot ]
+    case mcp of
+        Nothing -> pure Nothing
+        Just cp -> do
+            utxo <- selectUTxO cp
+            s <- selectState (checkpointId cp)
+            pure (checkpointFromEntity @s cp utxo <$> s)
 
 insertCheckpoint
     :: forall s. (PersistState s)

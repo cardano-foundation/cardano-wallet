@@ -1061,11 +1061,15 @@ deleteWallet
     => ctx
     -> ApiT WalletId
     -> Handler NoContent
-deleteWallet ctx (ApiT wid) =
-    withWorkerCtx @_ @s @k ctx wid liftE liftE $ \_ -> do
-        liftIO $ Registry.unregister re wid
-        liftIO $ removeDatabase df wid
-        return NoContent
+deleteWallet ctx (ApiT wid) = do
+    -- Start a context so that an error is throw if the wallet doesn't exist.
+    withWorkerCtx @_ @s @k ctx wid liftE
+        (const $ pure()) (const $ pure ())
+
+    liftIO $ Registry.unregister re wid
+    liftIO $ removeDatabase df wid
+
+    return NoContent
   where
     re = ctx ^. workerRegistry @s @k
     df = ctx ^. dbFactory @s @k

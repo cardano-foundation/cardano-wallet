@@ -53,8 +53,6 @@ import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.BM.Trace
     ( Trace, nullTracer )
-import Cardano.DB.Sqlite
-    ( destroyDBLayer )
 import Cardano.Mnemonic
     ( SomeMnemonic (..), entropyToMnemonic )
 import Cardano.Wallet
@@ -73,7 +71,7 @@ import Cardano.Wallet.BenchShared
 import Cardano.Wallet.DB
     ( DBLayer )
 import Cardano.Wallet.DB.Sqlite
-    ( PersistState, newDBLayer )
+    ( PersistState, withDBLayer )
 import Cardano.Wallet.Logging
     ( trMessageText )
 import Cardano.Wallet.Network
@@ -205,7 +203,7 @@ import Type.Reflection
 import UnliftIO.Concurrent
     ( forkIO, threadDelay )
 import UnliftIO.Exception
-    ( bracket, evaluate, throwString )
+    ( evaluate, throwString )
 import UnliftIO.Temporary
     ( withSystemTempFile )
 
@@ -669,7 +667,7 @@ dummySeedFromName = SomeMnemonic @24
 
 traceProgressForPlotting :: Tracer IO Text -> Tracer IO WalletLog
 traceProgressForPlotting tr = Tracer $ \case
-    MsgFollow (MsgApplyBlocks bs) -> do
+    MsgFollow (MsgApplyBlocks _nodeTip bs) -> do
         let tip = pretty . getQuantity . blockHeight . NE.last $ bs
         time <- pretty . utcTimeToPOSIXSeconds <$> getCurrentTime
         traceWith tr (time <> " " <> tip)
@@ -691,10 +689,8 @@ withBenchDBLayer
     -> (DBLayer IO s k -> IO a)
     -> IO a
 withBenchDBLayer ti tr action =
-    withSystemTempFile "bench.db" $ \dbFile _ -> do
-        let before = newDBLayer (trMessageText tr) migrationDefaultValues (Just dbFile) ti
-        let after = destroyDBLayer . fst
-        bracket before after $ \(_ctx, db) -> action db
+    withSystemTempFile "bench.db" $ \dbFile _ ->
+        withDBLayer tr' migrationDefaultValues dbFile ti action
   where
     migrationDefaultValues = Sqlite.DefaultFieldValues
         { Sqlite.defaultActiveSlotCoefficient = 1
@@ -703,6 +699,7 @@ withBenchDBLayer ti tr action =
         , Sqlite.defaultHardforkEpoch = Nothing
         , Sqlite.defaultKeyDeposit = Coin 0
         }
+    tr' = trMessageText tr
 
 prepareNode
     :: forall n. (NetworkDiscriminantVal n)

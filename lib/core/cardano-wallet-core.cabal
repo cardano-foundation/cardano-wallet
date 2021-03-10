@@ -86,6 +86,7 @@ library
     , quiet
     , random
     , random-shuffle
+    , resource-pool
     , retry
     , safe
     , scientific
@@ -393,7 +394,9 @@ benchmark db
     , cardano-crypto
     , cardano-wallet-core
     , cardano-wallet-launcher
+    , cardano-wallet-test-utils
     , containers
+    , contra-tracer
     , criterion
     , cryptonite
     , deepseq
@@ -402,9 +405,7 @@ benchmark db
     , fmt
     , iohk-monitoring
     , memory
-    , persistent-sqlite
     , random
-    , temporary
     , text
     , text-class
     , time

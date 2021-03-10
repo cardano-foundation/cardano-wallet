@@ -9,6 +9,7 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -23,12 +24,18 @@
 
 module Cardano.DB.Sqlite
     ( SqliteContext (..)
+    , newSqliteContext
+    , newInMemorySqliteContext
+
+    -- * ConnectionPool
+    , ConnectionPool
+    , withConnectionPool
+
+    -- * Helpers
     , chunkSize
     , dbChunked
     , dbChunked'
-    , destroyDBLayer
     , handleConstraint
-    , startSqliteBackend
     , unsafeRunQuery
 
     -- * Manual Migration
@@ -49,18 +56,21 @@ import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
-import Cardano.DB.Sqlite.Delete
-    ( DeleteSqliteDatabaseLog )
 import Cardano.Wallet.Logging
     ( BracketLog, bracketTracer )
 import Control.Monad
-    ( join, mapM_, when )
+    ( join, mapM_, void, when )
 import Control.Monad.IO.Unlift
     ( MonadUnliftIO (..) )
 import Control.Monad.Logger
     ( LogLevel (..) )
 import Control.Retry
-    ( constantDelay, limitRetriesByCumulativeDelay, recovering )
+    ( RetryStatus (..)
+    , constantDelay
+    , limitRetriesByCumulativeDelay
+    , logRetries
+    , recovering
+    )
 import Control.Tracer
     ( Tracer, contramap, traceWith )
 import Data.Aeson
@@ -71,14 +81,16 @@ import Data.List
     ( isInfixOf )
 import Data.List.Split
     ( chunksOf )
-import Data.Maybe
-    ( fromMaybe )
+import Data.Pool
+    ( Pool, createPool, destroyAllResources, withResource )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Text
     ( Text )
 import Data.Text.Class
     ( ToText (..) )
+import Data.Time.Clock
+    ( NominalDiffTime )
 import Database.Persist.Sql
     ( DBName (..)
     , EntityField
@@ -96,19 +108,19 @@ import Database.Persist.Sql
     , runSqlConn
     )
 import Database.Persist.Sqlite
-    ( SqlBackend, SqlPersistT, mkSqliteConnectionInfo, wrapConnectionInfo )
+    ( SqlBackend, SqlPersistT, wrapConnection )
 import Database.Sqlite
     ( Error (ErrorConstraint), SqliteException (SqliteException) )
 import Fmt
-    ( fmt, (+|), (+||), (|+), (||+) )
+    ( fmt, ordinalF, (+|), (+||), (|+), (||+) )
 import GHC.Generics
     ( Generic )
 import System.Log.FastLogger
     ( fromLogStr )
 import UnliftIO.Compat
-    ( handleIf, mkRetryHandler )
+    ( handleIf )
 import UnliftIO.Exception
-    ( Exception, bracket_, handleJust, tryJust )
+    ( Exception, bracket, bracket_, handleJust, tryJust )
 import UnliftIO.MVar
     ( newMVar, withMVarMasked )
 
@@ -123,24 +135,13 @@ import qualified Database.Sqlite as Sqlite
                             Sqlite connection set up
 -------------------------------------------------------------------------------}
 
--- | Context for the SQLite 'DBLayer'.
-data SqliteContext = SqliteContext
-    { getSqlBackend :: SqlBackend
-    -- ^ A handle to the Persistent SQL backend.
-    , runQuery :: forall a. SqlPersistT IO a -> IO a
-    -- ^ 'safely' run a query with logging and lock-protection
-    , dbFile :: Maybe FilePath
-    -- ^ The actual database file, if any. If none, runs in-memory
-    , trace :: Tracer IO DBLog
-    -- ^ A 'Tracer' for logging
+-- | 'SqliteContext' is a function to execute queries.
+newtype SqliteContext = SqliteContext
+    { runQuery :: forall a. SqlPersistT IO a -> IO a
+    -- ^ Run a query with a connection from the pool.
     }
 
--- | Error type for when migrations go wrong after opening a database.
-newtype MigrationError = MigrationError
-    { getMigrationErrorMessage :: Text }
-    deriving (Show, Eq, Generic, ToJSON)
-
-instance Exception MigrationError
+type ConnectionPool = Pool (SqlBackend, Sqlite.Connection)
 
 -- | Run a raw query from the outside using an instantiate DB layer. This is
 -- completely unsafe because it breaks the abstraction boundary and can have
@@ -148,28 +149,77 @@ instance Exception MigrationError
 unsafeRunQuery :: SqliteContext -> SqlPersistT IO a -> IO a
 unsafeRunQuery = runQuery
 
-queryLogFunc :: Tracer IO DBLog -> LogFunc
-queryLogFunc tr _loc _source level str = traceWith tr (MsgQuery msg sev)
-  where
-    -- Filter out parameters which appear after the statement semicolon.
-    -- They will contain sensitive material that we don't want in the log.
-    stmt = B8.takeWhile (/= ';') $ fromLogStr str
-    msg = T.decodeUtf8 stmt
-    sev = case level of
-        LevelDebug -> Debug
-        LevelInfo -> Info
-        LevelWarn -> Warning
-        LevelError -> Error
-        LevelOther _ -> Warning
-
 -- | Run an action, and convert any Sqlite constraints exception into the given
 -- error result. No other exceptions are handled.
 handleConstraint :: MonadUnliftIO m => e -> m a -> m (Either e a)
 handleConstraint e = handleJust select handler . fmap Right
   where
-      select (SqliteException ErrorConstraint _ _) = Just ()
-      select _ = Nothing
-      handler = const . pure  . Left $ e
+    select (SqliteException ErrorConstraint _ _) = Just ()
+    select _ = Nothing
+    handler = const . pure  . Left $ e
+
+{-------------------------------------------------------------------------------
+                           Internal / Database Setup
+-------------------------------------------------------------------------------}
+
+newInMemorySqliteContext
+    :: Tracer IO DBLog
+    -> [ManualMigration]
+    -> Migration
+    -> IO (IO (), SqliteContext)
+newInMemorySqliteContext tr manualMigrations autoMigration = do
+    conn <- Sqlite.open ":memory:"
+    mapM_ (`executeManualMigration` conn) manualMigrations
+    unsafeBackend <- wrapConnection conn (queryLogFunc tr)
+    void $ runSqlConn (runMigrationQuiet autoMigration) unsafeBackend
+
+    let observe :: forall a. IO a -> IO a
+        observe = bracketTracer (contramap MsgRun tr)
+
+    -- We still use a lock with the in-memory database to protect it from
+    -- concurrent accesses and ensure database integrity in case where multiple
+    -- threads would be reading/writing from/to it.
+    lock <- newMVar unsafeBackend
+    let runQuery :: forall a. SqlPersistT IO a -> IO a
+        runQuery cmd = withMVarMasked lock (observe . runSqlConn cmd)
+
+    return (close' unsafeBackend, SqliteContext { runQuery })
+
+-- | Sets up query logging and timing, runs schema migrations if necessary and
+-- provide a safe 'SqliteContext' for interacting with the database.
+newSqliteContext
+    :: Tracer IO DBLog
+    -> ConnectionPool
+    -> [ManualMigration]
+    -> Migration
+    -> IO (Either MigrationError SqliteContext)
+newSqliteContext tr pool manualMigrations autoMigration = do
+    migrationResult <- withResource pool $ \(backend, conn) -> do
+        let executeAutoMigration = runSqlConn (runMigrationQuiet autoMigration) backend
+        migrationResult <- withForeignKeysDisabled tr conn $ do
+            mapM_ (`executeManualMigration` conn) manualMigrations
+            executeAutoMigration
+                & tryJust (matchMigrationError @PersistException)
+                & tryJust (matchMigrationError @SqliteException)
+                & fmap join
+        traceWith tr $ MsgMigrations $ fmap length migrationResult
+        return migrationResult
+    return $ case migrationResult of
+        Left e  -> Left e
+        Right{} ->
+            let observe :: IO a -> IO a
+                observe = bracketTracer (contramap MsgRun tr)
+
+               -- Note that `withResource` does already mask async exception but
+               -- only for dealing with the pool resource acquisition. The action
+               -- is then ran unmasked with the acquired resource. If an
+               -- asynchronous exception occurs (or actually any exception), the
+               -- resource is NOT placed back in the pool.
+                runQuery :: SqlPersistT IO a -> IO a
+                runQuery cmd = withResource pool $
+                    observe . retryOnBusy tr . runSqlConn cmd . fst
+
+            in Right $ SqliteContext { runQuery }
 
 -- | Finalize database statements and close the database connection.
 --
@@ -178,15 +228,18 @@ handleConstraint e = handleJust select handler . fmap Right
 --
 -- This function is idempotent: if the database connection has already been
 -- closed, calling this function will exit without doing anything.
---
-destroyDBLayer :: SqliteContext -> IO ()
-destroyDBLayer (SqliteContext {getSqlBackend, trace, dbFile}) = do
-    traceWith trace (MsgClosing dbFile)
-    recovering pol (mkRetryHandler isBusy) (const $ close' getSqlBackend)
+destroySqliteBackend
+    :: Tracer IO DBLog
+    -> SqlBackend
+    -> FilePath
+    -> IO ()
+destroySqliteBackend tr sqlBackend dbFile = do
+    traceWith tr (MsgCloseSingleConnection dbFile)
+    retryOnBusy tr (close' sqlBackend)
         & handleIf isAlreadyClosed
-            (traceWith trace . MsgIsAlreadyClosed . showT)
+            (traceWith tr . MsgIsAlreadyClosed . showT)
         & handleIf statementAlreadyFinalized
-            (traceWith trace . MsgStatementAlreadyFinalized . showT)
+            (traceWith tr . MsgStatementAlreadyFinalized . showT)
   where
     isAlreadyClosed = \case
         -- Thrown when an attempt is made to close a connection that is already
@@ -202,48 +255,37 @@ destroyDBLayer (SqliteContext {getSqlBackend, trace, dbFile}) = do
     showT :: Show a => a -> Text
     showT = T.pack . show
 
-    isBusy (SqliteException name _ _) = pure (name == Sqlite.ErrorBusy)
-    pol = limitRetriesByCumulativeDelay (60000*ms) $ constantDelay (25*ms)
+-- | Retry an action if the database yields an 'SQLITE_BUSY' error.
+--
+-- From <https://www.sqlite.org/rescode.html#busy>
+--
+--     The SQLITE_BUSY result code indicates that the database file could not be
+--     written (or in some cases read) because of concurrent activity by some
+--     other database connection, usually a database connection in a separate
+--     process.
+--
+--     For example, if process A is in the middle of a large write transaction
+--     and at the same time process B attempts to start a new write transaction,
+--     process B will get back an SQLITE_BUSY result because SQLite only supports
+--     one writer at a time. Process B will need to wait for process A to finish
+--     its transaction before starting a new transaction. The sqlite3_busy_timeout()
+--     and sqlite3_busy_handler() interfaces and the busy_timeout pragma are
+--     available to process B to help it deal with SQLITE_BUSY errors.
+--
+retryOnBusy :: Tracer IO DBLog -> IO a -> IO a
+retryOnBusy tr action = recovering policy
+    [logRetries isBusy traceRetries]
+    (\st -> action <* trace MsgRetryDone st)
+  where
+    policy = limitRetriesByCumulativeDelay (60000*ms) $ constantDelay (25*ms)
     ms = 1000 -- microseconds in a millisecond
 
-{-------------------------------------------------------------------------------
-                           Internal / Database Setup
--------------------------------------------------------------------------------}
+    isBusy (SqliteException name _ _) = pure (name == Sqlite.ErrorBusy)
 
--- | Opens the SQLite database connection, sets up query logging and timing,
--- runs schema migrations if necessary.
-startSqliteBackend
-    :: ManualMigration
-    -> Migration
-    -> Tracer IO DBLog
-    -> Maybe FilePath
-    -> IO (Either MigrationError SqliteContext)
-startSqliteBackend manualMigration autoMigration tr fp = do
-    (unsafeBackend, connection) <-
-        createSqliteBackend tr fp manualMigration (queryLogFunc tr)
-    lock <- newMVar unsafeBackend
-    let observe :: IO a -> IO a
-        observe = bracketTracer (contramap MsgRun tr)
-    -- runSqlConn is guarded with a lock because it's not threadsafe in general.
-    -- It is also masked, so that the SqlBackend state is not corrupted if a
-    -- thread gets cancelled while running a query.
-    -- See: https://github.com/yesodweb/persistent/issues/981
-    let runQuery :: SqlPersistT IO a -> IO a
-        runQuery cmd = withMVarMasked lock $ \backend ->
-            observe $ runSqlConn cmd backend
-    autoMigrationResult <-
-        withForeignKeysDisabled tr connection
-            $ runQuery (runMigrationQuiet autoMigration)
-            & tryJust (matchMigrationError @PersistException)
-            & tryJust (matchMigrationError @SqliteException)
-            & fmap join
-    traceWith tr $ MsgMigrations $ fmap length autoMigrationResult
-    let ctx = SqliteContext unsafeBackend runQuery fp tr
-    case autoMigrationResult of
-        Left e -> do
-            destroyDBLayer ctx
-            pure $ Left e
-        Right _ -> pure $ Right ctx
+    traceRetries retr _ = trace $ if retr then MsgRetry else MsgRetryGaveUp
+
+    trace m RetryStatus{rsIterNumber} = traceWith tr $
+        MsgRetryOnBusy rsIterNumber m
 
 -- | Run the given task in a context where foreign key constraints are
 --   /temporarily disabled/, before re-enabling them.
@@ -321,6 +363,55 @@ updateForeignKeysSetting trace connection desiredValue = do
         ForeignKeysEnabled  -> "ON"
         ForeignKeysDisabled -> "OFF"
 
+withConnectionPool
+    :: Tracer IO DBLog
+    -> FilePath
+    -> (ConnectionPool -> IO a)
+    -> IO a
+withConnectionPool tr fp =
+    bracket (newConnectionPool tr fp) (destroyConnectionPool tr fp)
+
+newConnectionPool
+    :: Tracer IO DBLog
+    -> FilePath
+    -> IO ConnectionPool
+newConnectionPool tr fp = do
+    traceWith tr $ MsgStartConnectionPool fp
+
+    let acquireConnection = do
+            conn <- Sqlite.open (T.pack fp)
+            (,conn) <$> wrapConnection conn (queryLogFunc tr)
+
+    let releaseConnection = \(backend, _) -> do
+            destroySqliteBackend tr backend fp
+
+    createPool
+        acquireConnection
+        releaseConnection
+        numberOfStripes
+        timeToLive
+        maximumConnections
+  where
+    numberOfStripes = 1
+    maximumConnections = 10
+    timeToLive = 600 {- 10 minutes -} :: NominalDiffTime
+
+destroyConnectionPool :: Tracer IO DBLog -> FilePath -> Pool a -> IO ()
+destroyConnectionPool tr fp pool = do
+    traceWith tr (MsgStopConnectionPool fp)
+    destroyAllResources pool
+
+{-------------------------------------------------------------------------------
+                                    Migrations
+-------------------------------------------------------------------------------}
+
+-- | Error type for when migrations go wrong after opening a database.
+newtype MigrationError = MigrationError
+    { getMigrationErrorMessage :: Text }
+    deriving (Show, Eq, Generic, ToJSON)
+
+instance Exception MigrationError
+
 class Exception e => MatchMigrationError e where
     -- | Exception predicate for migration errors.
     matchMigrationError :: e -> Maybe MigrationError
@@ -344,52 +435,6 @@ instance MatchMigrationError SqliteException where
 --
 newtype ManualMigration = ManualMigration
     { executeManualMigration :: Sqlite.Connection -> IO () }
-
-createSqliteBackend
-    :: Tracer IO DBLog
-    -> Maybe FilePath
-    -> ManualMigration
-    -> LogFunc
-    -> IO (SqlBackend, Sqlite.Connection)
-createSqliteBackend trace fp migration logFunc = do
-    let connStr = sqliteConnStr fp
-    traceWith trace $ MsgConnStr connStr
-    conn <- Sqlite.open connStr
-    executeManualMigration migration conn
-    backend <- wrapConnectionInfo (mkSqliteConnectionInfo connStr) conn logFunc
-    pure (backend, conn)
-
-sqliteConnStr :: Maybe FilePath -> Text
-sqliteConnStr = maybe ":memory:" T.pack
-
-{-------------------------------------------------------------------------------
-                                    Logging
--------------------------------------------------------------------------------}
-
-data DBLog
-    = MsgMigrations (Either MigrationError Int)
-    | MsgQuery Text Severity
-    | MsgRun BracketLog
-    | MsgConnStr Text
-    | MsgClosing (Maybe FilePath)
-    | MsgWillOpenDB (Maybe FilePath)
-    | MsgDatabaseReset
-    | MsgIsAlreadyClosed Text
-    | MsgStatementAlreadyFinalized Text
-    | MsgWaitingForDatabase Text (Maybe Int)
-    | MsgRemovingInUse Text Int
-    | MsgRemoving Text
-    | MsgRemovingDatabaseFile Text DeleteSqliteDatabaseLog
-    | MsgManualMigrationNeeded DBField Text
-    | MsgManualMigrationNotNeeded DBField
-    | MsgUpdatingForeignKeysSetting ForeignKeysSetting
-    | MsgFoundDatabase FilePath Text
-    | MsgUnknownDBFile FilePath
-    deriving (Generic, Show, Eq, ToJSON)
-
-{-------------------------------------------------------------------------------
-                                    Logging
--------------------------------------------------------------------------------}
 
 data DBField where
     DBField
@@ -437,6 +482,29 @@ instance Eq DBField where
 instance ToJSON DBField where
     toJSON = Aeson.String . fieldName
 
+{-------------------------------------------------------------------------------
+                                    Logging
+-------------------------------------------------------------------------------}
+
+data DBLog
+    = MsgMigrations (Either MigrationError Int)
+    | MsgQuery Text Severity
+    | MsgRun BracketLog
+    | MsgCloseSingleConnection FilePath
+    | MsgStartConnectionPool FilePath
+    | MsgStopConnectionPool FilePath
+    | MsgDatabaseReset
+    | MsgIsAlreadyClosed Text
+    | MsgStatementAlreadyFinalized Text
+    | MsgManualMigrationNeeded DBField Text
+    | MsgManualMigrationNotNeeded DBField
+    | MsgUpdatingForeignKeysSetting ForeignKeysSetting
+    | MsgRetryOnBusy Int RetryLog
+    deriving (Generic, Show, Eq, ToJSON)
+
+data RetryLog = MsgRetry | MsgRetryGaveUp | MsgRetryDone
+    deriving (Generic, Show, Eq, ToJSON)
+
 instance HasPrivacyAnnotation DBLog
 instance HasSeverityAnnotation DBLog where
     getSeverityAnnotation ev = case ev of
@@ -445,21 +513,19 @@ instance HasSeverityAnnotation DBLog where
         MsgMigrations (Left _) -> Error
         MsgQuery _ sev -> sev
         MsgRun _ -> Debug
-        MsgConnStr _ -> Debug
-        MsgClosing _ -> Debug
-        MsgWillOpenDB _ -> Info
+        MsgCloseSingleConnection _ -> Info
+        MsgStartConnectionPool _ -> Info
+        MsgStopConnectionPool _ -> Info
         MsgDatabaseReset -> Notice
         MsgIsAlreadyClosed _ -> Warning
         MsgStatementAlreadyFinalized _ -> Warning
-        MsgWaitingForDatabase _ _ -> Info
-        MsgRemovingInUse _ _ -> Notice
-        MsgRemoving _ -> Info
-        MsgRemovingDatabaseFile _ msg -> getSeverityAnnotation msg
         MsgManualMigrationNeeded{} -> Notice
         MsgManualMigrationNotNeeded{} -> Debug
         MsgUpdatingForeignKeysSetting{} -> Debug
-        MsgFoundDatabase _ _ -> Info
-        MsgUnknownDBFile _ -> Notice
+        MsgRetryOnBusy n _
+            | n <= 1 -> Debug
+            | n <= 3 -> Notice
+            | otherwise -> Warning
 
 instance ToText DBLog where
     toText = \case
@@ -470,28 +536,21 @@ instance ToText DBLog where
         MsgMigrations (Left err) ->
             "Failed to migrate the database: " <> getMigrationErrorMessage err
         MsgQuery stmt _ -> stmt
-        MsgRun b -> "Running database action - " <> toText b
-        MsgWillOpenDB fp -> "Will open db at " <> (maybe "in-memory" T.pack fp)
-        MsgConnStr connStr -> "Using connection string: " <> connStr
-        MsgClosing fp -> "Closing database ("+|fromMaybe "in-memory" fp|+")"
+        MsgRun b ->
+            "Running database action - " <> toText b
+        MsgStartConnectionPool fp ->
+            "Starting connection pool for " <> T.pack fp
+        MsgStopConnectionPool fp ->
+            "Stopping database connection pool " <> T.pack fp
         MsgDatabaseReset ->
             "Non backward compatible database found. Removing old database \
             \and re-creating it from scratch. Ignore the previous error."
+        MsgCloseSingleConnection fp ->
+            "Closing single database connection ("+|fp|+")"
         MsgIsAlreadyClosed msg ->
             "Attempted to close an already closed connection: " <> msg
         MsgStatementAlreadyFinalized msg ->
             "Statement already finalized: " <> msg
-        MsgWaitingForDatabase wid Nothing ->
-            "Database "+|wid|+" is ready to be deleted"
-        MsgWaitingForDatabase wid (Just count) ->
-            "Waiting for "+|count|+" withDatabase "+|wid|+" call(s) to finish"
-        MsgRemovingInUse wid count ->
-            "Timed out waiting for "+|count|+" withDatabase "+|wid|+" call(s) to finish. " <>
-            "Attempting to remove the database anyway."
-        MsgRemoving wid ->
-            "Removing wallet's database. Wallet id was " <> wid
-        MsgRemovingDatabaseFile wid msg ->
-            "Removing " <> wid <> ": " <> toText msg
         MsgManualMigrationNeeded field value -> mconcat
             [ tableName field
             , " table does not contain required field '"
@@ -512,12 +571,33 @@ instance ToText DBLog where
             , T.pack $ show value
             , "."
             ]
-        MsgFoundDatabase _file wid ->
-            "Found existing wallet: " <> wid
-        MsgUnknownDBFile file -> mconcat
-            [ "Found something other than a database file in "
-            , "the database folder: ", T.pack file
-            ]
+        MsgRetryOnBusy n msg -> case msg of
+            MsgRetry
+                | n <= 10 ->
+                    "Retrying db query because db was busy " <>
+                    "for the " +| ordinalF n |+ " time."
+                | n == 11 ->
+                    "No more logs until it finishes..."
+                | otherwise -> ""
+            MsgRetryGaveUp -> "Gave up on retrying the db query."
+            MsgRetryDone
+                | n > 3 -> "DB query succeeded after " +| n |+ " attempts."
+                | otherwise -> ""
+
+-- | Produce a persistent 'LogFunc' backed by 'Tracer IO DBLog'
+queryLogFunc :: Tracer IO DBLog -> LogFunc
+queryLogFunc tr _loc _source level str = traceWith tr (MsgQuery msg sev)
+  where
+    -- Filter out parameters which appear after the statement semicolon.
+    -- They will contain sensitive material that we don't want in the log.
+    stmt = B8.takeWhile (/= ';') $ fromLogStr str
+    msg = T.decodeUtf8 stmt
+    sev = case level of
+        LevelDebug -> Debug
+        LevelInfo -> Info
+        LevelWarn -> Warning
+        LevelError -> Error
+        LevelOther _ -> Warning
 
 {-------------------------------------------------------------------------------
                                Extra DB Helpers
