@@ -96,6 +96,7 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( TokenBundleSizeAssessment (..)
+    , TokenBundleSizeAssessor (..)
     , TxIn
     , TxOut
     , txOutCoin
@@ -380,7 +381,7 @@ prepareOutputsWith minCoinValueFor = fmap $ \out ->
         if TokenBundle.getCoin bundle == Coin 0
         then bundle { coin = minCoinValueFor (view #tokens bundle) }
         else bundle
---
+
 -- | Performs a coin selection and generates change bundles in one step.
 --
 -- Returns 'BalanceInsufficient' if the total balance of 'utxoAvailable' is not
@@ -408,12 +409,14 @@ performSelection
         -- ^ A function that computes the extra cost corresponding to a given
         -- selection. This function must not depend on the magnitudes of
         -- individual asset quantities held within each change output.
-    -> (TokenBundle -> TokenBundleSizeAssessment)
-        -- ^ A function that assesses the size of a token bundle.
+    -> TokenBundleSizeAssessor
+        -- ^ A function that assesses the size of a token bundle. See the
+        -- documentation for 'TokenBundleSizeAssessor' to learn about the
+        -- expected properties of this function.
     -> SelectionCriteria
         -- ^ The selection goal to satisfy.
     -> m (Either SelectionError (SelectionResult TokenBundle))
-performSelection minCoinFor costFor assessBundleSize criteria
+performSelection minCoinFor costFor bundleSizeAssessor criteria
     | not (balanceRequired `leq` balanceAvailable) =
         pure $ Left $ BalanceInsufficient $ BalanceInsufficientError
             { balanceAvailable, balanceRequired }
@@ -504,7 +507,7 @@ performSelection minCoinFor costFor assessBundleSize criteria
         (fmap (TokenMap.getAssets . view #tokens))
         (makeChange MakeChangeCriteria
             { minCoinFor = noMinimumCoin
-            , assessBundleSize
+            , bundleSizeAssessor
             , requiredCost = noCost
             , extraCoinSource
             , inputBundles
@@ -568,7 +571,7 @@ performSelection minCoinFor costFor assessBundleSize criteria
         mChangeGenerated :: Either UnableToConstructChangeError [TokenBundle]
         mChangeGenerated = makeChange MakeChangeCriteria
             { minCoinFor
-            , assessBundleSize
+            , bundleSizeAssessor
             , requiredCost
             , extraCoinSource
             , inputBundles =  view #tokens . snd <$> inputsSelected
@@ -807,11 +810,11 @@ runSelectionStep lens s
 
 -- | Criteria for the 'makeChange' function.
 --
-data MakeChangeCriteria minCoinFor assessBundleSize = MakeChangeCriteria
+data MakeChangeCriteria minCoinFor bundleSizeAssessor = MakeChangeCriteria
     { minCoinFor :: minCoinFor
       -- ^ A function that computes the minimum required ada quantity for a
       -- particular output.
-    , assessBundleSize :: assessBundleSize
+    , bundleSizeAssessor :: bundleSizeAssessor
         -- ^ A function to assess the size of a token bundle.
     , requiredCost :: Coin
       -- ^ The minimal (and optimal) delta between the total ada balance
@@ -834,10 +837,9 @@ data MakeChangeCriteria minCoinFor assessBundleSize = MakeChangeCriteria
 -- | Indicates 'True' if and only if a token bundle exceeds the maximum size
 --   that can be included in a transaction output.
 --
-tokenBundleSizeExceedsLimit
-    :: (TokenBundle -> TokenBundleSizeAssessment) -> TokenBundle -> Bool
-tokenBundleSizeExceedsLimit calculateBundleSize b =
-    case calculateBundleSize b of
+tokenBundleSizeExceedsLimit :: TokenBundleSizeAssessor -> TokenBundle -> Bool
+tokenBundleSizeExceedsLimit (TokenBundleSizeAssessor assess) b =
+    case assess b of
         TokenBundleSizeWithinLimit->
             False
         TokenBundleSizeExceedsLimit ->
@@ -863,9 +865,7 @@ tokenBundleSizeExceedsLimit calculateBundleSize b =
 -- to every output token bundle.
 --
 makeChange
-    :: MakeChangeCriteria
-        (TokenMap -> Coin)
-        (TokenBundle -> TokenBundleSizeAssessment)
+    :: MakeChangeCriteria (TokenMap -> Coin) TokenBundleSizeAssessor
         -- ^ Criteria for making change.
     -> Either UnableToConstructChangeError [TokenBundle]
         -- ^ Generated change bundles.
@@ -882,7 +882,7 @@ makeChange criteria
   where
     MakeChangeCriteria
         { minCoinFor
-        , assessBundleSize
+        , bundleSizeAssessor
         , requiredCost
         , extraCoinSource
         , inputBundles
@@ -958,10 +958,10 @@ makeChange criteria
             -- a bundle that is marginally over the limit, which would cause
             -- the resultant transaction to be rejected.
             --
-            assessBundleSizeWithMaxCoin
-                :: TokenBundle -> TokenBundleSizeAssessment
-            assessBundleSizeWithMaxCoin =
-                assessBundleSize . flip TokenBundle.setCoin (maxBound @Coin)
+            assessBundleSizeWithMaxCoin :: TokenBundleSizeAssessor
+            assessBundleSizeWithMaxCoin = TokenBundleSizeAssessor
+                $ assessTokenBundleSize bundleSizeAssessor
+                . flip TokenBundle.setCoin (maxBound @Coin)
 
     -- Change for user-specified assets: assets that were present in the
     -- original set of user-specified outputs ('outputsToCover').

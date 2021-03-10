@@ -67,11 +67,10 @@ import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
     , shrinkTokenBundleSmallRange
     )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( TokenBundleSizeAssessment (..) )
+    ( TokenBundleSizeAssessment (..), TokenBundleSizeAssessor (..) )
 import Cardano.Wallet.Shelley.Compatibility
     ( CardanoBlock
     , StandardCrypto
-    , assessTokenBundleSize
     , computeTokenBundleSerializedLengthBytes
     , decentralizationLevelFromPParams
     , fromCardanoValue
@@ -83,6 +82,7 @@ import Cardano.Wallet.Shelley.Compatibility
     , toCardanoHash
     , toCardanoValue
     , toPoint
+    , tokenBundleSizeAssessor
     )
 import Cardano.Wallet.Unsafe
     ( unsafeMkEntropy )
@@ -385,7 +385,7 @@ unit_assessTokenBundleSize_fixedSizeBundle
             , actualLengthBytes <= expectedMaxLengthBytes
             ]
   where
-    actualAssessment = assessTokenBundleSize bundle
+    actualAssessment = assessTokenBundleSize tokenBundleSizeAssessor bundle
     actualLengthBytes = computeTokenBundleSerializedLengthBytes bundle
     counterexampleText = unlines
         [ "Expected min length bytes:"

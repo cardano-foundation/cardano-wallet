@@ -48,17 +48,10 @@ import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount )
-import Cardano.Wallet.Primitive.Types.TokenBundle
-    ( TokenBundle )
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( TokenMap )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( SealedTx (..)
-    , TokenBundleSizeAssessment (..)
-    , Tx (..)
-    , TxMetadata
-    , TxOut
-    )
+    ( SealedTx (..), TokenBundleSizeAssessor, Tx (..), TxMetadata, TxOut )
 import Cardano.Wallet.Primitive.Types.UTxOIndex
     ( UTxOIndex )
 import Data.ByteString
@@ -124,11 +117,9 @@ data TransactionLayer k = TransactionLayer
         -> Coin
         -- ^ The minimum ada value needed in a UTxO carrying the asset bundle
 
-    , assessTokenBundleSize
-        :: TokenBundle
-            -- A token bundle
-        -> TokenBundleSizeAssessment
-        -- ^ An assessment of the token bundle's size.
+    , tokenBundleSizeAssessor
+        :: TokenBundleSizeAssessor
+        -- ^ A function to assess the size of a token bundle.
 
     , decodeSignedTx
         :: AnyCardanoEra

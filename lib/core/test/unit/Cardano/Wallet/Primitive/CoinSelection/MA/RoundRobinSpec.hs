@@ -91,6 +91,7 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
     ( genTokenQuantitySmallPositive, shrinkTokenQuantitySmallPositive )
 import Cardano.Wallet.Primitive.Types.Tx
     ( TokenBundleSizeAssessment (..)
+    , TokenBundleSizeAssessor (..)
     , TxIn (..)
     , TxOut (..)
     , txOutCoin
@@ -1111,7 +1112,7 @@ data BoundaryTestData = BoundaryTestData
 
 data BoundaryTestCriteria = BoundaryTestCriteria
     { boundaryTestBundleSizeAssessor
-        :: BundleSizeAssessor
+        :: MockTokenBundleSizeAssessor
     , boundaryTestOutputs
         :: [BoundaryTestEntry]
     , boundaryTestUTxO
@@ -1476,9 +1477,10 @@ linearCost SelectionSkeleton{inputsSkeleton, outputsSkeleton, changeSkeleton}
     + F.length outputsSkeleton
     + F.length changeSkeleton
 
-type MakeChangeData = MakeChangeCriteria MinCoinValueFor BundleSizeAssessor
+type MakeChangeData =
+    MakeChangeCriteria MinCoinValueFor MockTokenBundleSizeAssessor
 
-data BundleSizeAssessor
+data MockTokenBundleSizeAssessor
     = NoBundleSizeLimit
       -- ^ Indicates that there is no limit on a token bundle's size.
     | BundleAssetCountUpperLimit Int
@@ -1487,9 +1489,8 @@ data BundleSizeAssessor
     deriving (Eq, Show)
 
 mkBundleSizeAssessor
-    :: BundleSizeAssessor
-    -> (TokenBundle -> TokenBundleSizeAssessment)
-mkBundleSizeAssessor = \case
+    :: MockTokenBundleSizeAssessor -> TokenBundleSizeAssessor
+mkBundleSizeAssessor m = TokenBundleSizeAssessor $ case m of
     NoBundleSizeLimit ->
         const TokenBundleSizeWithinLimit
     BundleAssetCountUpperLimit upperLimit ->
@@ -1533,7 +1534,7 @@ makeChangeWith
     -> Either UnableToConstructChangeError [TokenBundle]
 makeChangeWith p = makeChange p
     { minCoinFor = mkMinCoinValueFor $ minCoinFor p
-    , assessBundleSize = mkBundleSizeAssessor $ assessBundleSize p
+    , bundleSizeAssessor = mkBundleSizeAssessor $ bundleSizeAssessor p
     }
 
 prop_makeChange_identity
@@ -1546,7 +1547,7 @@ prop_makeChange_identity bundles = (===)
         { minCoinFor = const (Coin 0)
         , requiredCost = Coin 0
         , extraCoinSource = Nothing
-        , assessBundleSize = mkBundleSizeAssessor NoBundleSizeLimit
+        , bundleSizeAssessor = mkBundleSizeAssessor NoBundleSizeLimit
         , inputBundles = bundles
         , outputBundles = bundles
         }
@@ -1562,7 +1563,7 @@ prop_makeChange_length p =
     change = makeChange p
         { minCoinFor = noMinCoin
         , requiredCost = noCost
-        , assessBundleSize = mkBundleSizeAssessor NoBundleSizeLimit
+        , bundleSizeAssessor = mkBundleSizeAssessor NoBundleSizeLimit
         }
 
 prop_makeChange
@@ -1728,13 +1729,13 @@ unit_makeChange =
               { minCoinFor
               , requiredCost
               , extraCoinSource
-              , assessBundleSize
+              , bundleSizeAssessor
               , inputBundles = i
               , outputBundles = o
               }
     ]
   where
-    assessBundleSize = mkBundleSizeAssessor NoBundleSizeLimit
+    bundleSizeAssessor = mkBundleSizeAssessor NoBundleSizeLimit
     matrix =
         -- Simple, only ada, should construct a single change output with 1 ada.
         [ ( noMinCoin, noCost

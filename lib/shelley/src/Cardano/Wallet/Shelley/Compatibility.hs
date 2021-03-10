@@ -74,7 +74,7 @@ module Cardano.Wallet.Shelley.Compatibility
     , fromCardanoValue
 
       -- ** Assessing sizes of token bundles
-    , assessTokenBundleSize
+    , tokenBundleSizeAssessor
     , computeTokenBundleSerializedLengthBytes
     , maxTokenBundleSerializedLengthBytes
 
@@ -1229,15 +1229,19 @@ toStakePoolDlgCert xpub (W.PoolId pid) =
 -- | Assesses a token bundle size in relation to the maximum size that can be
 --   included in a transaction output.
 --
-assessTokenBundleSize :: TokenBundle.TokenBundle -> W.TokenBundleSizeAssessment
-assessTokenBundleSize tb
-    | serializedLengthBytes <= maxTokenBundleSerializedLengthBytes =
-        W.TokenBundleSizeWithinLimit
-    | otherwise =
-        W.TokenBundleSizeExceedsLimit
+-- See 'W.TokenBundleSizeAssessor' for the expected properties of this function.
+--
+tokenBundleSizeAssessor :: W.TokenBundleSizeAssessor
+tokenBundleSizeAssessor = W.TokenBundleSizeAssessor {..}
   where
-    serializedLengthBytes :: Int
-    serializedLengthBytes = computeTokenBundleSerializedLengthBytes tb
+    assessTokenBundleSize tb
+        | serializedLengthBytes <= maxTokenBundleSerializedLengthBytes =
+            W.TokenBundleSizeWithinLimit
+        | otherwise =
+            W.TokenBundleSizeExceedsLimit
+      where
+        serializedLengthBytes :: Int
+        serializedLengthBytes = computeTokenBundleSerializedLengthBytes tb
 
 computeTokenBundleSerializedLengthBytes :: TokenBundle.TokenBundle -> Int
 computeTokenBundleSerializedLengthBytes =

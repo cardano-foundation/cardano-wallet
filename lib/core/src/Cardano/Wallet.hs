@@ -1403,7 +1403,7 @@ selectAssets ctx (utxo, cp, pending) tx outs transform = do
     sel <- performSelection
         (calcMinimumCoinValue tl pp)
         (calcMinimumCost tl pp tx)
-        (assessTokenBundleSize tl)
+        (tokenBundleSizeAssessor tl)
         (initSelectionCriteria tl pp tx utxo outs)
     liftIO $ traceWith tr $ MsgSelectionDone sel
     withExceptT ErrSelectAssetsSelectionError $ except $

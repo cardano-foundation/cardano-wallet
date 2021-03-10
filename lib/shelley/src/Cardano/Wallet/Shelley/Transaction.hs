@@ -346,7 +346,8 @@ newTransactionLayer networkId = TransactionLayer
     , calcMinimumCoinValue =
         _calcMinimumCoinValue
 
-    , assessTokenBundleSize = Compatibility.assessTokenBundleSize
+    , tokenBundleSizeAssessor =
+        Compatibility.tokenBundleSizeAssessor
 
     , decodeSignedTx =
         _decodeSignedTx
