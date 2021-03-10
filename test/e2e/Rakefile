@@ -220,10 +220,15 @@ task :get_latest_configs, [:env] do |task, args|
     mk_dir(STATE)
     mk_dir(CONFIGS)
     mk_dir(out)
-    wget("#{base_url}/#{env}-config.json", "#{out}/configuration.json")
+    config_file = File.join(out, "configuration.json")
+    wget("#{base_url}/#{env}-config.json", config_file)
     wget("#{base_url}/#{env}-byron-genesis.json", "#{out}/genesis-byron.json")
     wget("#{base_url}/#{env}-shelley-genesis.json", "#{out}/genesis-shelley.json")
     wget("#{base_url}/#{env}-topology.json", "#{out}/topology.json")
+    # remove environment names from genesis files
+    config = File.read(config_file)
+    config_edited = config.gsub(/#{env}-([^-]+)-genesis.json/, 'genesis-\1.json')
+    File.open(config_file, "w") {|file| file.puts config_edited }
   end
 end
 
