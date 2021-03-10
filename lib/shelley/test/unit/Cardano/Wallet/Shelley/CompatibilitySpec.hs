@@ -64,6 +64,7 @@ import Cardano.Wallet.Primitive.Types.TokenBundle
 import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
     ( genFixedSizeTokenBundle
     , genTokenBundleSmallRange
+    , genVariableSizedTokenBundle
     , shrinkTokenBundleSmallRange
     )
 import Cardano.Wallet.Primitive.Types.Tx
@@ -139,6 +140,7 @@ import Test.QuickCheck
     , vector
     , withMaxSuccess
     , (===)
+    , (==>)
     )
 
 import qualified Cardano.Api.Typed as Cardano
@@ -242,6 +244,10 @@ spec = do
 
     describe "Assessing the sizes of token bundles" $ do
 
+        it "prop_assessTokenBundleSize_enlarge" $
+            property prop_assessTokenBundleSize_enlarge
+        it "prop_assessTokenBundleSize_shrink" $
+            property prop_assessTokenBundleSize_shrink
         it "unit_assessTokenBundleSize_fixedSizeBundle_32" $
             property unit_assessTokenBundleSize_fixedSizeBundle_32
         it "unit_assessTokenBundleSize_fixedSizeBundle_48" $
@@ -359,6 +365,44 @@ spec = do
 --------------------------------------------------------------------------------
 -- Assessing the sizes of token bundles
 --------------------------------------------------------------------------------
+
+-- Enlarging a token bundle that is over the size limit should yield a token
+-- bundle that is still over the size limit.
+--
+prop_assessTokenBundleSize_enlarge
+    :: Blind (VariableSize128 TokenBundle)
+    -> Blind (VariableSize16 TokenBundle)
+    -> Property
+prop_assessTokenBundleSize_enlarge b1' b2' =
+    assess b1 == TokenBundleSizeExceedsLimit ==> conjoin
+        [ assess (b1 `TokenBundle.add` b2)
+            === TokenBundleSizeExceedsLimit
+        , assess (b1 `TokenBundle.setCoin` maxBound)
+            === TokenBundleSizeExceedsLimit
+        ]
+  where
+    assess = assessTokenBundleSize tokenBundleSizeAssessor
+    b1 = unVariableSize128 $ getBlind b1'
+    b2 = unVariableSize16 $ getBlind b2'
+
+-- Shrinking a token bundle that is within the size limit should yield a token
+-- bundle that is still within the size limit.
+--
+prop_assessTokenBundleSize_shrink
+    :: Blind (VariableSize128 TokenBundle)
+    -> Blind (VariableSize16 TokenBundle)
+    -> Property
+prop_assessTokenBundleSize_shrink b1' b2' =
+    assess b1 == TokenBundleSizeWithinLimit ==> conjoin
+        [ assess (b1 `TokenBundle.difference` b2)
+            === TokenBundleSizeWithinLimit
+        , assess (b1 `TokenBundle.setCoin` minBound)
+            === TokenBundleSizeWithinLimit
+        ]
+  where
+    assess = assessTokenBundleSize tokenBundleSizeAssessor
+    b1 = unVariableSize128 $ getBlind b1'
+    b2 = unVariableSize16 $ getBlind b2'
 
 -- | Creates a test to assess the size of a token bundle with a fixed number of
 --   assets, where the expected result is a constant.
@@ -692,6 +736,12 @@ newtype FixedSize64 a = FixedSize64 { unFixedSize64 :: a }
 newtype FixedSize128 a = FixedSize128 { unFixedSize128 :: a }
     deriving (Eq, Show)
 
+newtype VariableSize16 a = VariableSize16 { unVariableSize16 :: a}
+    deriving (Eq, Show)
+
+newtype VariableSize128 a = VariableSize128 { unVariableSize128 :: a}
+    deriving (Eq, Show)
+
 instance Arbitrary (FixedSize32 TokenBundle) where
     arbitrary = FixedSize32 <$> genFixedSizeTokenBundle 32
     -- No shrinking
@@ -706,6 +756,14 @@ instance Arbitrary (FixedSize64 TokenBundle) where
 
 instance Arbitrary (FixedSize128 TokenBundle) where
     arbitrary = FixedSize128 <$> genFixedSizeTokenBundle 128
+    -- No shrinking
+
+instance Arbitrary (VariableSize16 TokenBundle) where
+    arbitrary = VariableSize16 <$> genVariableSizedTokenBundle 16
+    -- No shrinking
+
+instance Arbitrary (VariableSize128 TokenBundle) where
+    arbitrary = VariableSize128 <$> genVariableSizedTokenBundle 128
     -- No shrinking
 
 --

@@ -2,6 +2,7 @@ module Cardano.Wallet.Primitive.Types.TokenBundle.Gen
     ( genFixedSizeTokenBundle
     , genTokenBundleSmallRange
     , genTokenBundleSmallRangePositive
+    , genVariableSizedTokenBundle
     , shrinkTokenBundleSmallRange
     , shrinkTokenBundleSmallRangePositive
     ) where
@@ -67,6 +68,16 @@ genFixedSizeTokenBundle fixedAssetCount
 
         integerToTokenQuantity :: Integer -> TokenQuantity
         integerToTokenQuantity = TokenQuantity . fromIntegral
+
+--------------------------------------------------------------------------------
+-- Token bundles with variable numbers of assets, with an upper bound.
+--
+-- Policy identifiers, asset names, token quantities are all allowed to vary.
+--------------------------------------------------------------------------------
+
+genVariableSizedTokenBundle :: Int -> Gen TokenBundle
+genVariableSizedTokenBundle maxAssetCount =
+    genFixedSizeTokenBundle =<< choose (0, maxAssetCount)
 
 --------------------------------------------------------------------------------
 -- Token bundles with coins, assets, and quantities chosen from small ranges
