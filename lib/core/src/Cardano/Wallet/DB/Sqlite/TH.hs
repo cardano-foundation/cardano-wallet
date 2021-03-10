@@ -84,7 +84,7 @@ PrivateKey                             sql=private_key
     privateKeyHash      B8.ByteString  sql=hash
 
     Primary privateKeyWalletId
-    Foreign Wallet fk_wallet_private_key privateKeyWalletId ! ON DELETE CASCADE
+    Foreign Wallet OnDeleteCascade fk_wallet_private_key privateKeyWalletId
     deriving Show Generic
 
 -- Maps a transaction ID to its metadata (which is calculated when applying
@@ -110,7 +110,7 @@ TxMeta
     txMetaFee               Word Maybe       sql=fee
 
     Primary txMetaTxId txMetaWalletId
-    Foreign Wallet fk_wallet_tx_meta txMetaWalletId ! ON DELETE CASCADE
+    Foreign Wallet OnDeleteCascade fk_wallet_tx_meta txMetaWalletId
     deriving Show Generic
 
 -- A transaction input associated with TxMeta.
@@ -153,7 +153,7 @@ TxOutToken
     txOutTokenQuantity  W.TokenQuantity   sql=token_quantity
 
     Primary txOutTokenTxId txOutTokenTxIndex txOutTokenPolicyId txOutTokenName
-    Foreign TxOut txOut txOutTokenTxId txOutTokenTxIndex ! ON DELETE CASCADE
+    Foreign TxOut OnDeleteCascade txOut txOutTokenTxId txOutTokenTxIndex
     deriving Show Generic
 
 -- | A transaction withdrawal associated with TxMeta.
@@ -178,7 +178,7 @@ Checkpoint
     checkpointBlockHeight       Word32       sql=block_height
 
     Primary checkpointWalletId checkpointSlot
-    Foreign Wallet checkpoint checkpointWalletId ! ON DELETE CASCADE
+    Foreign Wallet OnDeleteCascade checkpoint checkpointWalletId
     deriving Show Generic
 
 ProtocolParameters
@@ -192,7 +192,7 @@ ProtocolParameters
     protocolParametersKeyDeposit            W.Coin          sql=key_deposit
 
     Primary protocolParametersWalletId
-    Foreign Wallet fk_wallet_protocol_parameters protocolParametersWalletId ! ON DELETE CASCADE
+    Foreign Wallet OnDeleteCascade fk_wallet_protocol_parameters protocolParametersWalletId
     deriving Show Generic
 
 -- Track whether the wallet's stake key is registered or not.
@@ -202,7 +202,7 @@ StakeKeyCertificate
     stakeKeyCertType                 W.StakeKeyCertificate sql=type
 
     Primary stakeKeyCertWalletId stakeKeyCertSlot
-    Foreign Wallet stakeKeyRegistration stakeKeyCertWalletId ! ON DELETE CASCADE
+    Foreign Wallet OnDeleteCascade stakeKeyRegistration stakeKeyCertWalletId
     deriving Show Generic
 
 -- Store known delegation certificates for a particular wallet
@@ -212,7 +212,7 @@ DelegationCertificate
     certPoolId               W.PoolId Maybe sql=delegation
 
     Primary certWalletId certSlot
-    Foreign Wallet delegationCertificate certWalletId ! ON DELETE CASCADE
+    Foreign Wallet OnDeleteCascade delegationCertificate certWalletId
     deriving Show Generic
 
 -- Latest balance of the reward account associated with
@@ -222,7 +222,7 @@ DelegationReward
     rewardAccountBalance     Word64         sql=account_balance
 
     Primary rewardWalletId
-    Foreign Wallet delegationReward rewardWalletId ! ON DELETE CASCADE
+    Foreign Wallet OnDeleteCascade delegationReward rewardWalletId
     deriving Show Generic
 
 -- The UTxO for a given wallet checkpoint is a one-to-one mapping from TxIn ->
@@ -243,7 +243,7 @@ UTxO                                sql=utxo
     utxoOutputCoin      W.Coin      sql=output_coin
 
     Primary utxoWalletId utxoSlot utxoInputId utxoInputIndex
-    Foreign Checkpoint utxo utxoWalletId utxoSlot ! ON DELETE CASCADE
+    Foreign Checkpoint OnDeleteCascade utxo utxoWalletId utxoSlot
     deriving Show Generic
 
 -- A token quantity associated with a UTxO entry.
@@ -283,7 +283,7 @@ UTxOToken                               sql=utxo_token
     -- equivalent behaviour, as we always delete UTxO entries by deleting their
     -- parent checkpoints.
     --
-    Foreign Checkpoint utxot utxoTokenWalletId utxoTokenSlot ! ON DELETE CASCADE
+    Foreign Checkpoint OnDeleteCascade utxot utxoTokenWalletId utxoTokenSlot
 
     deriving Show Generic
 
@@ -298,7 +298,7 @@ SeqState
     seqStateDerivationPrefix  W.DerivationPrefix sql=derivation_prefix
 
     Primary seqStateWalletId
-    Foreign Wallet seq_state seqStateWalletId ! ON DELETE CASCADE
+    Foreign Wallet OnDeleteCascade seq_state seqStateWalletId
     deriving Show Generic
 
 -- Mapping of pool addresses to indices, and the slot
@@ -317,7 +317,7 @@ SeqStateAddress
         seqStateAddressAddress
         seqStateAddressIndex
         seqStateAddressRole
-    Foreign Checkpoint seq_state_address seqStateAddressWalletId seqStateAddressSlot ! ON DELETE CASCADE
+    Foreign Checkpoint OnDeleteCascade seq_state_address seqStateAddressWalletId seqStateAddressSlot
     deriving Show Generic
 
 -- Sequential address discovery scheme -- pending change indexes
@@ -326,7 +326,7 @@ SeqStatePendingIx                            sql=seq_state_pending
     seqStatePendingIxIndex      Word32       sql=pending_ix
 
     Primary seqStatePendingWalletId seqStatePendingIxIndex
-    Foreign Wallet seq_state_address_pending seqStatePendingWalletId ! ON DELETE CASCADE
+    Foreign Wallet OnDeleteCascade seq_state_address_pending seqStatePendingWalletId
     deriving Show Generic
 
 -- Random scheme address discovery state
@@ -338,7 +338,7 @@ RndState
     rndStateHdPassphrase    HDPassphrase      sql=hd_passphrase
 
     Primary rndStateWalletId
-    Foreign Wallet rnd_state rndStateWalletId ! ON DELETE CASCADE
+    Foreign Wallet OnDeleteCascade rnd_state rndStateWalletId
     deriving Show Generic
 
 -- The set of discovered addresses.
@@ -356,7 +356,7 @@ RndStateAddress
         rndStateAddressAccountIndex
         rndStateAddressIndex
         rndStateAddressAddress
-    Foreign Checkpoint rnd_state_address rndStateAddressWalletId rndStateAddressSlot ! ON DELETE CASCADE
+    Foreign Checkpoint OnDeleteCascade rnd_state_address rndStateAddressWalletId rndStateAddressSlot
     deriving Show Generic
 
 -- The set of pending change addresses.
@@ -371,6 +371,6 @@ RndStatePendingAddress
         rndStatePendingAddressAccountIndex
         rndStatePendingAddressIndex
         rndStatePendingAddressAddress
-    Foreign Wallet rnd_state_pending_address rndStatePendingAddressWalletId ! ON DELETE CASCADE
+    Foreign Wallet OnDeleteCascade rnd_state_pending_address rndStatePendingAddressWalletId
     deriving Show Generic
 |]
