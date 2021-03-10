@@ -7,16 +7,16 @@ include Helpers::Utils
 
 RSpec::Core::RakeTask.new(:spec)
 
-STATE = ENV['TESTS_E2E_STATEDIR']
-CONFIGS = ENV['CARDANO_NODE_CONFIGS']
-LOGS = ENV['TESTS_LOGDIR']
-NODE_DB = ENV['TESTS_NODE_DB']
-WALLET_DB = ENV['TESTS_WALLET_DB']
+STATE = absolute_path ENV['TESTS_E2E_STATEDIR']
+CONFIGS = absolute_path ENV['CARDANO_NODE_CONFIGS']
+LOGS = absolute_path ENV['TESTS_LOGDIR']
+NODE_DB = absolute_path ENV['TESTS_NODE_DB']
+WALLET_DB = absolute_path ENV['TESTS_WALLET_DB']
 
-BINS = ENV['TESTS_E2E_BINDIR']
+BINS = absolute_path ENV['TESTS_E2E_BINDIR']
 
-FIXTURES_FILE = ENV['TESTS_E2E_FIXTURES_FILE']
-FIXTURES_SECRET = ENV['TESTS_E2E_FIXTURES']
+FIXTURES_FILE = absolute_path ENV['TESTS_E2E_FIXTURES_FILE']
+FIXTURES_SECRET = absolute_path ENV['TESTS_E2E_FIXTURES']
 
 TOKEN_METADATA = ENV['TESTS_E2E_TOKEN_METADATA']
 
@@ -171,6 +171,9 @@ task :stop_node_and_wallet do
   if is_win?
     puts `nssm stop cardano-wallet`
     puts `nssm stop cardano-node`
+
+    puts `nssm remove cardano-wallet confirm`
+    puts `nssm remove cardano-node confirm`
   else
     puts `screen -XS WALLET quit`
     puts `screen -XS NODE quit`

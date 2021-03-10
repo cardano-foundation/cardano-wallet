@@ -5,6 +5,14 @@ require 'fileutils'
 module Helpers
   module Utils
 
+    def absolute_path(path)
+      if path.start_with? "."
+        File.join(Dir.pwd, path[1..-1])
+      else
+        path
+      end
+    end
+
     def get_fixture_wallet_mnemonics(type)
       fixture = ENV['TESTS_E2E_FIXTURES_FILE']
       unless File.exists? fixture
