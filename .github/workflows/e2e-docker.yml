@@ -39,8 +39,8 @@ jobs:
 
     - name: Get recent configs and decode fixture_wallets.json.gpg
       run: |
-        bundle exec rake fixture_wallets_decode
-        bundle exec rake get_latest_configs["testnet"]
+        rake fixture_wallets_decode
+        rake get_latest_configs["testnet"]
 
     - name: Cache node db
       id: cache
@@ -57,7 +57,7 @@ jobs:
       run: |
         echo "Wallet: $WALLET"
         echo "Node: $NODE"
-        NODE_CONFIG_PATH=`pwd`/configs docker-compose -f docker-compose-test.yml up --detach
+        NODE_CONFIG_PATH=`pwd`/state/configs/$NETWORK docker-compose -f docker-compose-test.yml up --detach
         ls ~/node-db-nightly-docker
 
     - name: Set up cardano-wallet and cardano-node NIGHTLY
@@ -74,13 +74,13 @@ jobs:
         docker run --rm inputoutput/cardano-node:$NODE version
 
     - name: Wait until node is synced
-      run: bundle exec rake wait_until_node_synced
+      run: rake wait_until_node_synced
 
     - name: Run all tests
-      run: bundle exec rspec .
+      run: rake spec
 
     - name: Stop docker-compose
-      run: NODE_CONFIG_PATH=`pwd`/configs docker-compose down
+      run: NODE_CONFIG_PATH=`pwd`/state/configs/$NETWORK docker-compose -f docker-compose-test.yml down
     env:
       TESTS_E2E_TOKEN_METADATA: https://metadata.cardano-testnet.iohkdev.io/
       TESTS_E2E_FIXTURES: ${{ secrets.TESTS_E2E_FIXTURES }}
