@@ -36,7 +36,7 @@ This master task is performing also all the necessary configuration steps (i.e. 
 $ rake fixture_wallets_decode
 $ rake get_latest_bins
 $ rake get_latest_configs[testnet]
-$ rake start_node_and_wallet
+$ rake start_node_and_wallet[testnet]
 $ rake wait_until_node_synced
 $ rake spec
 $ rake stop_node_and_wallet
@@ -52,13 +52,13 @@ $ rake run_on[testnet,local]
 
 Running tests as such skips downloading latest binaries from Hydra.
 
-> :information_source:  **_Linux / MacOS_**  
+> :information_source:  **_Linux / MacOS_**
 cardano-node and cardano-wallet are started as separate [screen](https://www.gnu.org/software/screen/manual/screen.html) sessions. One can attach to the respective session as follows:
 ```
 $ screen -r NODE
 $ screen -r WALLET
 ```
-> :information_source: **_Windows_**  
+> :information_source: **_Windows_**
 cardano-node and cardano-wallet are started as separate Windows services using [nssm](https://nssm.cc/) tool. One examine services using Windows service manager like `services.msc`.
 
 

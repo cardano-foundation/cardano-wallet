@@ -6,6 +6,10 @@ ENV['TESTS_E2E_FIXTURES_FILE'] ||= "./fixtures/fixture_wallets.json"
 ##
 # Wallet/node databases, logs and configs will be stored here
 ENV['TESTS_E2E_STATEDIR'] ||= "./state"
+ENV['CARDANO_NODE_CONFIGS'] ||= File.join(ENV['TESTS_E2E_STATEDIR'], "configs")
+ENV['TESTS_LOGDIR'] ||= File.join(ENV['TESTS_E2E_STATEDIR'], "logs")
+ENV['TESTS_NODE_DB'] ||= File.join(ENV['TESTS_E2E_STATEDIR'], "node_db")
+ENV['TESTS_WALLET_DB'] ||= File.join(ENV['TESTS_E2E_STATEDIR'], "wallet_db")
 
 ##
 # Wallet/node binaries will be downloaded here from Hydra.

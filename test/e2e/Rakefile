@@ -8,10 +8,10 @@ include Helpers::Utils
 RSpec::Core::RakeTask.new(:spec)
 
 STATE = ENV['TESTS_E2E_STATEDIR']
-CONFIGS = STATE + "/configs"
-LOGS = STATE + "/logs"
-NODE_DB = STATE + "/node_db"
-WALLET_DB = STATE + "/wallet_db"
+CONFIGS = ENV['CARDANO_NODE_CONFIGS']
+LOGS = ENV['TESTS_LOGDIR']
+NODE_DB = ENV['TESTS_NODE_DB']
+WALLET_DB = ENV['TESTS_WALLET_DB']
 
 BINS = ENV['TESTS_E2E_BINDIR']
 
@@ -101,25 +101,26 @@ task :wait_until_node_synced do
 end
 
 ##
-# `rake start_node_and_wallet[local]' assumes cardano-node and cardano-wallet on $PATH
-# `raka start_node_and_wallet' assumes cardano-node and cardano-wallet in $TESTS_E2E_BINDIR
-task :start_node_and_wallet, :installation do |task, args|
+# `rake start_node_and_wallet[testnet,local]' assumes cardano-node and cardano-wallet on $PATH
+# `rake start_node_and_wallet[testnet]' assumes cardano-node and cardano-wallet in $TESTS_E2E_BINDIR
+task :start_node_and_wallet, [:env, :installation] do |task, args|
   puts "\n  >> Setting up cardano-node and cardano-wallet"
 
   installation = args[:installation] || :bins
+  config_dir = File.join(CONFIGS, args[:env])
   cd = Dir.pwd
   mk_dir(STATE)
   mk_dir(LOGS)
 
   if is_win?
     # create cardano-node.bat file
-    node_cmd = "#{cd}/cardano-node.exe run --config #{CONFIGS}/testnet-config.json --topology #{CONFIGS}/testnet-topology.json --database-path #{NODE_DB} --socket-path \\\\.\\pipe\\cardano-node-testnet"
+    node_cmd = "#{cd}/cardano-node.exe run --config #{config_dir}/configuration.json --topology #{config_dir}/topology.json --database-path #{NODE_DB} --socket-path \\\\.\\pipe\\cardano-node-testnet"
     File.open("cardano-node.bat", "w") do |f|
       f.write(node_cmd)
     end
 
     # create cardano-wallet.bat file
-    wallet_cmd = "#{cd}/cardano-wallet.exe serve --node-socket \\\\.\\pipe\\cardano-node-testnet --testnet #{CONFIGS}/testnet-byron-genesis.json --database #{WALLET_DB} --token-metadata-server #{TOKEN_METADATA}"
+    wallet_cmd = "#{cd}/cardano-wallet.exe serve --node-socket \\\\.\\pipe\\cardano-node-testnet --testnet #{config_dir}/genesis-byron.json --database #{WALLET_DB} --token-metadata-server #{TOKEN_METADATA}"
     File.open("cardano-wallet.bat", "w") do |f|
       f.write(wallet_cmd)
     end
@@ -152,8 +153,8 @@ task :start_node_and_wallet, :installation do |task, args|
     puts `#{start_wallet}`
   else
     bin_dir = installation == "local" ? "" : BINS + "/"
-    start_node = "#{bin_dir}cardano-node run --config #{CONFIGS}/*-config.json --topology #{CONFIGS}/*-topology.json --database-path #{NODE_DB} --socket-path #{STATE}/node.socket"
-    start_wallet = "#{bin_dir}cardano-wallet serve --node-socket #{STATE}/node.socket --testnet #{CONFIGS}/*-byron-genesis.json --database #{WALLET_DB} --token-metadata-server #{TOKEN_METADATA}"
+    start_node = "#{bin_dir}cardano-node run --config #{config_dir}/configuration.json --topology #{config_dir}/topology.json --database-path #{NODE_DB} --socket-path #{STATE}/node.socket"
+    start_wallet = "#{bin_dir}cardano-wallet serve --node-socket #{STATE}/node.socket --testnet #{config_dir}/genesis-byron.json --database #{WALLET_DB} --token-metadata-server #{TOKEN_METADATA}"
 
     puts start_node
     puts start_wallet
@@ -206,16 +207,24 @@ task :get_latest_bins do
 end
 
 task :get_latest_configs, [:env] do |task, args|
-  puts "\n  >> Getting latest configs for '#{args[:env]}' into #{CONFIGS}"
-
-  base_url = get_latest_configs_base_url
   env = args[:env]
-  mk_dir(STATE)
-  mk_dir(CONFIGS)
-  wget("#{base_url}/#{env}-config.json", "#{CONFIGS}/#{env}-config.json")
-  wget("#{base_url}/#{env}-byron-genesis.json", "#{CONFIGS}/#{env}-byron-genesis.json")
-  wget("#{base_url}/#{env}-shelley-genesis.json", "#{CONFIGS}/#{env}-shelley-genesis.json")
-  wget("#{base_url}/#{env}-topology.json", "#{CONFIGS}/#{env}-topology.json")
+  out = File.join(CONFIGS, env)
+
+  if (File.exist?(out) and not File.writable?(out))
+    # The config directory is probably a /nix/store path
+    puts "\n  >> Using config directory '#{out}'"
+  else
+    puts "\n  >> Getting latest configs for '#{env}' into #{CONFIGS}"
+
+    base_url = get_latest_configs_base_url
+    mk_dir(STATE)
+    mk_dir(CONFIGS)
+    mk_dir(out)
+    wget("#{base_url}/#{env}-config.json", "#{out}/configuration.json")
+    wget("#{base_url}/#{env}-byron-genesis.json", "#{out}/genesis-byron.json")
+    wget("#{base_url}/#{env}-shelley-genesis.json", "#{out}/genesis-shelley.json")
+    wget("#{base_url}/#{env}-topology.json", "#{out}/topology.json")
+  end
 end
 
 task :run_on, [:env, :installation, :sync_strategy] do |task, args|
@@ -233,7 +242,7 @@ task :run_on, [:env, :installation, :sync_strategy] do |task, args|
 
   Rake::Task[:fixture_wallets_decode].invoke
   Rake::Task[:get_latest_configs].invoke(env)
-  Rake::Task[:start_node_and_wallet].invoke(installation)
+  Rake::Task[:start_node_and_wallet].invoke(env, installation)
 
   if sync_strategy == "no-sync"
     puts "\n  >> Skipping waiting for node to be synced..."
