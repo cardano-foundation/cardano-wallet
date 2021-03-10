@@ -8,6 +8,7 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
 
 -- |
 -- Copyright: © 2021 IOHK
@@ -47,19 +48,17 @@ module Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     , coinSelectionLens
 
     -- * Making change
+    , MakeChangeCriteria (..)
     , makeChange
     , makeChangeForCoin
     , makeChangeForUserSpecifiedAsset
     , makeChangeForNonUserSpecifiedAsset
     , assignCoinsToChangeMaps
 
-    -- * Partitioning
-    , equipartitionNatural
-    , equipartitionTokenBundleWithMaxQuantity
-    , equipartitionTokenBundlesWithMaxQuantity
-    , equipartitionTokenMap
-    , equipartitionTokenMapWithMaxQuantity
-    , equipartitionTokenQuantity
+    -- * Splitting bundles
+    , splitBundleIfAssetCountExcessive
+    , splitBundlesWithExcessiveAssetCounts
+    , splitBundlesWithExcessiveTokenQuantities
 
     -- * Grouping and ungrouping
     , groupByKey
@@ -71,9 +70,6 @@ module Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
 
     -- * Accessors
     , fullBalance
-
-    -- * Constants
-    , maxTxOutTokenQuantity
 
     -- * Utility classes
     , AssetCount (..)
@@ -99,7 +95,13 @@ import Cardano.Wallet.Primitive.Types.TokenMap
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( TxIn, TxOut, txOutCoin )
+    ( TokenBundleSizeAssessment (..)
+    , TokenBundleSizeAssessor (..)
+    , TxIn
+    , TxOut
+    , txOutCoin
+    , txOutMaxTokenQuantity
+    )
 import Cardano.Wallet.Primitive.Types.UTxOIndex
     ( SelectionFilter (..), UTxOIndex (..) )
 import Control.Monad.Random.Class
@@ -120,12 +122,8 @@ import Data.Maybe
     ( fromMaybe )
 import Data.Ord
     ( comparing )
-import Data.Ratio
-    ( (%) )
 import Data.Set
     ( Set )
-import Data.Word
-    ( Word64 )
 import Fmt
     ( Buildable (..)
     , Builder
@@ -383,7 +381,7 @@ prepareOutputsWith minCoinValueFor = fmap $ \out ->
         if TokenBundle.getCoin bundle == Coin 0
         then bundle { coin = minCoinValueFor (view #tokens bundle) }
         else bundle
---
+
 -- | Performs a coin selection and generates change bundles in one step.
 --
 -- Returns 'BalanceInsufficient' if the total balance of 'utxoAvailable' is not
@@ -411,10 +409,14 @@ performSelection
         -- ^ A function that computes the extra cost corresponding to a given
         -- selection. This function must not depend on the magnitudes of
         -- individual asset quantities held within each change output.
+    -> TokenBundleSizeAssessor
+        -- ^ A function that assesses the size of a token bundle. See the
+        -- documentation for 'TokenBundleSizeAssessor' to learn about the
+        -- expected properties of this function.
     -> SelectionCriteria
         -- ^ The selection goal to satisfy.
     -> m (Either SelectionError (SelectionResult TokenBundle))
-performSelection minCoinValueFor costFor criteria
+performSelection minCoinFor costFor bundleSizeAssessor criteria
     | not (balanceRequired `leq` balanceAvailable) =
         pure $ Left $ BalanceInsufficient $ BalanceInsufficientError
             { balanceAvailable, balanceRequired }
@@ -467,7 +469,7 @@ performSelection minCoinValueFor costFor criteria
                 Just $ InsufficientMinCoinValueError
                     { expectedMinCoinValue, outputWithInsufficientAda = o }
           where
-            expectedMinCoinValue = minCoinValueFor (view (#tokens . #tokens) o)
+            expectedMinCoinValue = minCoinFor (view (#tokens . #tokens) o)
 
     -- Given a UTxO index that corresponds to a valid selection covering
     -- 'outputsToCover', 'predictChange' yields a non-empty list of assets
@@ -503,12 +505,19 @@ performSelection minCoinValueFor costFor criteria
     predictChange inputsPreSelected = either
         (const $ invariantResultWithNoCost inputsPreSelected)
         (fmap (TokenMap.getAssets . view #tokens))
-        (makeChange noMinimumCoin noCost
-            extraCoinSource
-            (view #tokens . snd <$> mkInputsSelected inputsPreSelected)
-            (view #tokens <$> outputsToCover)
+        (makeChange MakeChangeCriteria
+            { minCoinFor = noMinimumCoin
+            , bundleSizeAssessor
+            , requiredCost = noCost
+            , extraCoinSource
+            , inputBundles
+            , outputBundles
+            }
         )
       where
+        inputBundles = view #tokens . snd <$> mkInputsSelected inputsPreSelected
+        outputBundles = view #tokens <$> outputsToCover
+
         noMinimumCoin :: TokenMap -> Coin
         noMinimumCoin = const (Coin 0)
 
@@ -560,10 +569,14 @@ performSelection minCoinValueFor costFor criteria
                     pure $ Left $ UnableToConstructChange changeErr
       where
         mChangeGenerated :: Either UnableToConstructChangeError [TokenBundle]
-        mChangeGenerated = makeChange minCoinValueFor cost
-            extraCoinSource
-            (view #tokens . snd <$> inputsSelected)
-            (view #tokens <$> outputsToCover)
+        mChangeGenerated = makeChange MakeChangeCriteria
+            { minCoinFor
+            , bundleSizeAssessor
+            , requiredCost
+            , extraCoinSource
+            , inputBundles =  view #tokens . snd <$> inputsSelected
+            , outputBundles = view #tokens <$> outputsToCover
+            }
 
         mkSelectionResult :: [TokenBundle] -> SelectionResult TokenBundle
         mkSelectionResult changeGenerated = SelectionResult
@@ -579,7 +592,7 @@ performSelection minCoinValueFor costFor criteria
 
         SelectionState {selected, leftover} = s
 
-        cost = costFor SelectionSkeleton
+        requiredCost = costFor SelectionSkeleton
             { inputsSkeleton  = selected
             , outputsSkeleton = NE.toList outputsToCover
             , changeSkeleton
@@ -795,6 +808,43 @@ runSelectionStep lens s
 -- Making change
 --------------------------------------------------------------------------------
 
+-- | Criteria for the 'makeChange' function.
+--
+data MakeChangeCriteria minCoinFor bundleSizeAssessor = MakeChangeCriteria
+    { minCoinFor :: minCoinFor
+      -- ^ A function that computes the minimum required ada quantity for a
+      -- particular output.
+    , bundleSizeAssessor :: bundleSizeAssessor
+        -- ^ A function to assess the size of a token bundle.
+    , requiredCost :: Coin
+      -- ^ The minimal (and optimal) delta between the total ada balance
+      -- of all input bundles and the total ada balance of all output and
+      -- change bundles, where:
+      --
+      --    delta = getCoin (fold inputBundles)
+      --          - getCoin (fold outputBundles)
+      --          - getCoin (fold changeBundles)
+      --
+      -- This typically captures fees plus key deposits.
+    , extraCoinSource :: Maybe Coin
+        -- ^ An optional extra source of ada.
+    , inputBundles :: NonEmpty TokenBundle
+        -- ^ Token bundles of selected inputs.
+    , outputBundles :: NonEmpty TokenBundle
+        -- ^ Token bundles of original outputs.
+    } deriving (Eq, Generic, Show)
+
+-- | Indicates 'True' if and only if a token bundle exceeds the maximum size
+--   that can be included in a transaction output.
+--
+tokenBundleSizeExceedsLimit :: TokenBundleSizeAssessor -> TokenBundle -> Bool
+tokenBundleSizeExceedsLimit (TokenBundleSizeAssessor assess) b =
+    case assess b of
+        TokenBundleSizeWithinLimit->
+            False
+        TokenBundleSizeExceedsLimit ->
+            True
+
 -- | Constructs change bundles for a set of selected inputs and outputs.
 --
 -- Returns 'Nothing' if the specified inputs do not provide enough ada to
@@ -815,29 +865,11 @@ runSelectionStep lens s
 -- to every output token bundle.
 --
 makeChange
-    :: (TokenMap -> Coin)
-        -- A function that computes the minimum required ada quantity for a
-        -- particular output.
-    -> Coin
-        -- ^ The minimal (and optimal) delta between the total ada balance
-        -- of all input bundles and the total ada balance of all output and
-        -- change bundles, where:
-        --
-        --    delta = getCoin (fold inputBundles)
-        --          - getCoin (fold outputBundles)
-        --          - getCoin (fold changeBundles)
-        --
-        -- This typically captures fees plus key deposits.
-        --
-    -> Maybe Coin
-        -- ^ An optional extra source of ada.
-    -> NonEmpty TokenBundle
-        -- ^ Token bundles of selected inputs.
-    -> NonEmpty TokenBundle
-        -- ^ Token bundles of original outputs.
+    :: MakeChangeCriteria (TokenMap -> Coin) TokenBundleSizeAssessor
+        -- ^ Criteria for making change.
     -> Either UnableToConstructChangeError [TokenBundle]
         -- ^ Generated change bundles.
-makeChange minCoinFor requiredCost mExtraCoinSource inputBundles outputBundles
+makeChange criteria
     | not (totalOutputValue `leq` totalInputValue) =
         totalInputValueInsufficient
     | TokenBundle.getCoin totalOutputValue == Coin 0 =
@@ -848,6 +880,15 @@ makeChange minCoinFor requiredCost mExtraCoinSource inputBundles outputBundles
             assignCoinsToChangeMaps
                 adaAvailable minCoinFor changeMapOutputCoinPairs
   where
+    MakeChangeCriteria
+        { minCoinFor
+        , bundleSizeAssessor
+        , requiredCost
+        , extraCoinSource
+        , inputBundles
+        , outputBundles
+        } = criteria
+
     -- The following subtraction is safe, as we have already checked
     -- that the total input value is greater than the total output
     -- value:
@@ -881,13 +922,13 @@ makeChange minCoinFor requiredCost mExtraCoinSource inputBundles outputBundles
         -- asset count:
         & NE.zipWith (\m1 (m2, c) -> (m1 <> m2, c))
             changeForNonUserSpecifiedAssets
-        -- Finally, if there are any maps with excessive token quantities, then
+        -- Finally, if there are any maps that are oversized (in any way), then
         -- split these maps up along with their corresponding output coins:
-        & splitMapsWithExcessiveQuantities
+        & splitOversizedMaps
       where
-        splitMapsWithExcessiveQuantities
+        splitOversizedMaps
             :: NonEmpty (TokenMap, Coin) -> NonEmpty (TokenMap, Coin)
-        splitMapsWithExcessiveQuantities =
+        splitOversizedMaps =
             -- For the sake of convenience when splitting up change maps and
             -- output coins (which are treated as weights), treat each change
             -- map and its corresponding output coin as a token bundle.
@@ -895,8 +936,32 @@ makeChange minCoinFor requiredCost mExtraCoinSource inputBundles outputBundles
           where
             bundle (m, c) = TokenBundle c m
             unbundle (TokenBundle c m) = (m, c)
-            split = flip equipartitionTokenBundlesWithMaxQuantity
-                maxTxOutTokenQuantity
+            split b = b
+                & flip splitBundlesWithExcessiveAssetCounts
+                    (tokenBundleSizeExceedsLimit assessBundleSizeWithMaxCoin)
+                & flip splitBundlesWithExcessiveTokenQuantities
+                    txOutMaxTokenQuantity
+
+            -- When assessing the size of a change map to determine if it is
+            -- excessively large, we don't yet know how large the associated
+            -- ada quantity will be, since ada quantities are assigned at a
+            -- later stage (in 'assignCoinsToChangeMaps').
+            --
+            -- Therefore, we err on the side of caution, and assess the size
+            -- of a change map combined with the maximum possible ada quantity.
+            --
+            -- This means that when presented with a very large change map, we
+            -- have a small chance of splitting the map even if that map would
+            -- be within the limit when combined with its final ada quantity.
+            --
+            -- However, oversplitting a change map is preferable to creating
+            -- a bundle that is marginally over the limit, which would cause
+            -- the resultant transaction to be rejected.
+            --
+            assessBundleSizeWithMaxCoin :: TokenBundleSizeAssessor
+            assessBundleSizeWithMaxCoin = TokenBundleSizeAssessor
+                $ assessTokenBundleSize bundleSizeAssessor
+                . flip TokenBundle.setCoin (maxBound @Coin)
 
     -- Change for user-specified assets: assets that were present in the
     -- original set of user-specified outputs ('outputsToCover').
@@ -947,7 +1012,7 @@ makeChange minCoinFor requiredCost mExtraCoinSource inputBundles outputBundles
     totalInputValue :: TokenBundle
     totalInputValue = TokenBundle.add
         (F.fold inputBundles)
-        (maybe TokenBundle.empty TokenBundle.fromCoin mExtraCoinSource)
+        (maybe TokenBundle.empty TokenBundle.fromCoin extraCoinSource)
 
     totalOutputValue :: TokenBundle
     totalOutputValue = F.fold outputBundles
@@ -1183,193 +1248,66 @@ makeChangeForCoin targets excess =
     weights = coinToNatural <$> targets
 
 --------------------------------------------------------------------------------
--- Equipartitioning
+-- Splitting bundles
 --------------------------------------------------------------------------------
 
--- An /equipartition/ of a value 'v' (of some type) is a /partition/ of that
--- value into 'n' smaller values whose /sizes/ differ by no more than 1. The
--- the notion of /size/ is dependent on the type of value 'v'.
+-- | Splits a bundle into smaller bundles if its asset count is excessive when
+--   measured with the given 'isExcessive' indicator function.
 --
--- In this section, equipartitions have the following properties:
+-- Returns a list of smaller bundles for which 'isExcessive' returns 'False'.
 --
---  1.  The length is observed:
---      >>> length (equipartition v n) == n
---
---  2.  The sum is preserved:
---      >>> sum (equipartition v n) == v
---
---  3.  Each resulting value is less than or equal to the original value:
---      >>> all (`leq` v) (equipartition v n)
---
---  4.  The resultant list is sorted into ascending order when values are
---      compared with the 'leq' function.
---
---------------------------------------------------------------------------------
-
--- | Computes the equipartition of a coin into 'n' smaller coins.
---
-equipartitionCoin
-    :: HasCallStack
-    => Coin
-    -- ^ The coin to be partitioned.
-    -> NonEmpty a
-    -- ^ Represents the number of portions in which to partition the coin.
-    -> NonEmpty Coin
-    -- ^ The partitioned coins.
-equipartitionCoin c =
-    -- Note: the natural-to-coin conversion is safe, as equipartitioning always
-    -- guarantees to produce values that are less than or equal to the original
-    -- value.
-    fmap unsafeNaturalToCoin . equipartitionNatural (coinToNatural c)
-
--- | Computes the equipartition of a natural number into 'n' smaller numbers.
---
-equipartitionNatural
-    :: HasCallStack
-    => Natural
-    -- ^ The natural number to be partitioned.
-    -> NonEmpty a
-    -- ^ Represents the number of portions in which to partition the number.
-    -> NonEmpty Natural
-    -- ^ The partitioned numbers.
-equipartitionNatural n count =
-    -- Note: due to the behaviour of the underlying partition algorithm, a
-    -- simple list reversal is enough to ensure that the resultant list is
-    -- sorted in ascending order.
-    NE.reverse $ unsafePartitionNatural n (1 <$ count)
-
--- | Computes the equipartition of a token map into 'n' smaller maps.
---
--- Each asset is partitioned independently.
---
-equipartitionTokenMap
-    :: HasCallStack
-    => TokenMap
-    -- ^ The map to be partitioned.
-    -> NonEmpty a
-    -- ^ Represents the number of portions in which to partition the map.
-    -> NonEmpty TokenMap
-    -- ^ The partitioned maps.
-equipartitionTokenMap m count =
-    F.foldl' accumulate (TokenMap.empty <$ count) (TokenMap.toFlatList m)
-  where
-    accumulate
-        :: NonEmpty TokenMap
-        -> (AssetId, TokenQuantity)
-        -> NonEmpty TokenMap
-    accumulate maps (asset, quantity) = NE.zipWith (<>) maps $
-        TokenMap.singleton asset <$>
-            equipartitionTokenQuantity quantity count
-
--- | Computes the equipartition of a token quantity into 'n' smaller quantities.
---
-equipartitionTokenQuantity
-    :: HasCallStack
-    => TokenQuantity
-    -- ^ The token quantity to be partitioned.
-    -> NonEmpty a
-    -- ^ Represents the number of portions in which to partition the quantity.
-    -> NonEmpty TokenQuantity
-    -- ^ The partitioned quantities.
-equipartitionTokenQuantity q =
-    fmap TokenQuantity . equipartitionNatural (unTokenQuantity q)
-
---------------------------------------------------------------------------------
--- Equipartitioning according to a maximum token quantity
---------------------------------------------------------------------------------
-
--- | Computes the equipartition of a token bundle into 'n' smaller bundles,
---   according to the given maximum token quantity.
---
--- The value 'n' is computed automatically, and is the minimum value required
--- to achieve the goal that no token quantity in any of the resulting bundles
--- exceeds the maximum allowable token quantity.
---
-equipartitionTokenBundleWithMaxQuantity
+splitBundleIfAssetCountExcessive
     :: TokenBundle
-    -> TokenQuantity
-    -- ^ Maximum allowable token quantity.
+    -- ^ The token bundle suspected to have an excessive number of assets.
+    -> (TokenBundle -> Bool)
+    -- ^ A function that returns 'True' if (and only if) the asset count of
+    -- the given bundle is excessive.
     -> NonEmpty TokenBundle
-    -- ^ The partitioned bundles.
-equipartitionTokenBundleWithMaxQuantity b maxQuantity =
-    NE.zipWith TokenBundle cs ms
+splitBundleIfAssetCountExcessive b isExcessive
+    | isExcessive b =
+        splitInHalf b >>= flip splitBundleIfAssetCountExcessive isExcessive
+    | otherwise =
+        pure b
   where
-    cs = equipartitionCoin (view #coin b) ms
-    ms = equipartitionTokenMapWithMaxQuantity (view #tokens b) maxQuantity
+    splitInHalf = flip TokenBundle.equipartitionAssets (() :| [()])
 
--- | Applies 'equipartitionTokenBundleWithMaxQuantity' to a list of bundles.
+-- | Splits bundles with excessive asset counts into smaller bundles.
+--
+-- Only token bundles where the 'isExcessive' indicator function returns 'True'
+-- will be split.
+--
+-- Returns a list of smaller bundles for which 'isExcessive' returns 'False'.
+--
+-- If none of the bundles in the given list has an excessive asset count,
+-- this function will return the original list.
+--
+splitBundlesWithExcessiveAssetCounts
+    :: NonEmpty TokenBundle
+    -- ^ Token bundles.
+    -> (TokenBundle -> Bool)
+    -- ^ A function that returns 'True' if (and only if) the asset count of
+    -- the given bundle is excessive.
+    -> NonEmpty TokenBundle
+splitBundlesWithExcessiveAssetCounts bs isExcessive =
+    (`splitBundleIfAssetCountExcessive` isExcessive) =<< bs
+
+-- | Splits bundles with excessive token quantities into smaller bundles.
 --
 -- Only token bundles containing quantities that exceed the maximum token
--- quantity will be partitioned.
+-- quantity will be split.
 --
 -- If none of the bundles in the given list contain a quantity that exceeds
 -- the maximum token quantity, this function will return the original list.
 --
-equipartitionTokenBundlesWithMaxQuantity
+splitBundlesWithExcessiveTokenQuantities
     :: NonEmpty TokenBundle
     -- ^ Token bundles.
     -> TokenQuantity
     -- ^ Maximum allowable token quantity.
     -> NonEmpty TokenBundle
     -- ^ The partitioned bundles.
-equipartitionTokenBundlesWithMaxQuantity bs maxQuantity =
-    (`equipartitionTokenBundleWithMaxQuantity` maxQuantity) =<< bs
-
--- | Computes the equipartition of a token map into 'n' smaller maps, according
---   to the given maximum token quantity.
---
--- The value 'n' is computed automatically, and is the minimum value required
--- to achieve the goal that no token quantity in any of the resulting maps
--- exceeds the maximum allowable token quantity.
---
-equipartitionTokenMapWithMaxQuantity
-    :: TokenMap
-    -> TokenQuantity
-    -- ^ Maximum allowable token quantity.
-    -> NonEmpty TokenMap
-    -- ^ The partitioned maps.
-equipartitionTokenMapWithMaxQuantity m (TokenQuantity maxQuantity)
-    | maxQuantity == 0 =
-        maxQuantityZeroError
-    | currentMaxQuantity <= maxQuantity =
-        m :| []
-    | otherwise =
-        equipartitionTokenMap m (() :| replicate extraPartCount ())
-  where
-    TokenQuantity currentMaxQuantity = TokenMap.maximumQuantity m
-
-    extraPartCount :: Int
-    extraPartCount = floor $ pred currentMaxQuantity % maxQuantity
-
-    maxQuantityZeroError = error $ unwords
-        [ "equipartitionTokenMapWithMaxQuantity:"
-        , "the maximum allowable token quantity cannot be zero."
-        ]
-
---------------------------------------------------------------------------------
--- Unsafe partitioning
---------------------------------------------------------------------------------
-
--- | Partitions a natural number into a number of parts, where the size of each
---   part is proportional to the size of its corresponding element in the given
---   list of weights, and the number of parts is equal to the number of weights.
---
--- Throws a run-time error if the sum of weights is equal to zero.
---
-unsafePartitionNatural
-    :: HasCallStack
-    => Natural
-    -- ^ Natural number to partition
-    -> NonEmpty Natural
-    -- ^ List of weights
-    -> NonEmpty Natural
-unsafePartitionNatural target =
-    fromMaybe zeroWeightSumError . partitionNatural target
-  where
-    zeroWeightSumError = error $ unwords
-        [ "unsafePartitionNatural:"
-        , "specified weights must have a non-zero sum."
-        ]
+splitBundlesWithExcessiveTokenQuantities bs maxQuantity =
+    (`TokenBundle.equipartitionQuantitiesWithUpperBound` maxQuantity) =<< bs
 
 --------------------------------------------------------------------------------
 -- Grouping and ungrouping
@@ -1444,16 +1382,6 @@ instance Ord (AssetCount TokenMap) where
 newtype AssetCount a = AssetCount
     { unAssetCount :: a }
     deriving (Eq, Show)
-
---------------------------------------------------------------------------------
--- Constants
---------------------------------------------------------------------------------
-
--- | The greatest token quantity that can be encoded within an output bundle of
---   a transaction.
---
-maxTxOutTokenQuantity :: TokenQuantity
-maxTxOutTokenQuantity = TokenQuantity $ fromIntegral (maxBound :: Word64)
 
 --------------------------------------------------------------------------------
 -- Utility functions

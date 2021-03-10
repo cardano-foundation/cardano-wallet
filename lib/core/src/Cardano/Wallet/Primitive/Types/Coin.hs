@@ -25,11 +25,14 @@ module Cardano.Wallet.Primitive.Types.Coin
     , subtractCoin
     , sumCoins
     , distance
+    , equipartition
 
     ) where
 
 import Prelude
 
+import Cardano.Numeric.Util
+    ( equipartitionNatural )
 import Control.DeepSeq
     ( NFData (..) )
 import Control.Monad
@@ -38,6 +41,8 @@ import Data.Foldable
     ( foldl' )
 import Data.Hashable
     ( Hashable )
+import Data.List.NonEmpty
+    ( NonEmpty (..) )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text.Class
@@ -111,6 +116,9 @@ coinToInteger = fromIntegral . unCoin
 coinToNatural :: Coin -> Natural
 coinToNatural = fromIntegral . unCoin
 
+unsafeNaturalToCoin :: Natural -> Coin
+unsafeNaturalToCoin = Coin . fromIntegral
+
 {-------------------------------------------------------------------------------
                                      Checks
 -------------------------------------------------------------------------------}
@@ -146,7 +154,26 @@ addCoin (Coin a) (Coin b) = Coin (a + b)
 sumCoins :: Foldable t => t Coin -> Coin
 sumCoins = foldl' addCoin (Coin 0)
 
-
 -- | Absolute difference between two coin amounts. The result is never negative.
 distance :: Coin -> Coin -> Coin
 distance (Coin a) (Coin b) = if a < b then Coin (b - a) else Coin (a - b)
+
+-- | Computes the equipartition of a coin into 'n' smaller coins.
+--
+-- An /equipartition/ of a coin is a /partition/ of that coin into 'n' smaller
+-- coins whose values differ by no more than 1.
+--
+-- The resultant list is sorted in ascending order.
+--
+equipartition
+    :: Coin
+    -- ^ The coin to be partitioned.
+    -> NonEmpty a
+    -- ^ Represents the number of portions in which to partition the coin.
+    -> NonEmpty Coin
+    -- ^ The partitioned coins.
+equipartition c =
+    -- Note: the natural-to-coin conversion is safe, as equipartitioning always
+    -- guarantees to produce values that are less than or equal to the original
+    -- value.
+    fmap unsafeNaturalToCoin . equipartitionNatural (coinToNatural c)

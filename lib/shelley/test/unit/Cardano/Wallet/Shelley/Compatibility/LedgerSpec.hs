@@ -17,9 +17,10 @@ import Cardano.Wallet.Primitive.Types.Coin.Gen
 import Cardano.Wallet.Primitive.Types.TokenBundle
     ( Flat (..), TokenBundle )
 import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
-    ( genTokenBundleSmallRange, shrinkTokenBundleSmallRange )
-import Cardano.Wallet.Primitive.Types.TokenMap.Gen
-    ( genAssetIdLargeRange )
+    ( genFixedSizeTokenBundle
+    , genTokenBundleSmallRange
+    , shrinkTokenBundleSmallRange
+    )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenName, TokenPolicyId )
 import Cardano.Wallet.Primitive.Types.TokenPolicy.Gen
@@ -28,10 +29,10 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
     ( genTokenQuantityMixed, shrinkTokenQuantityMixed )
+import Cardano.Wallet.Primitive.Types.Tx
+    ( txOutMaxTokenQuantity, txOutMinTokenQuantity )
 import Cardano.Wallet.Shelley.Compatibility.Ledger
     ( Convert (..), computeMinimumAdaQuantityInternal )
-import Control.Monad
-    ( replicateM )
 import Data.Bifunctor
     ( second )
 import Data.Proxy
@@ -42,8 +43,6 @@ import Data.Word
     ( Word64 )
 import Fmt
     ( pretty )
-import Numeric.Natural
-    ( Natural )
 import Test.Hspec
     ( Spec, describe, it, parallel )
 import Test.Hspec.Core.QuickCheck
@@ -51,11 +50,9 @@ import Test.Hspec.Core.QuickCheck
 import Test.QuickCheck
     ( Arbitrary (..)
     , Blind (..)
-    , Gen
     , Positive (..)
     , Property
     , checkCoverage
-    , choose
     , conjoin
     , counterexample
     , cover
@@ -196,27 +193,6 @@ unit_computeMinimumAdaQuantity_fixedSizeBundle bundle expectation =
   where
     protocolMinimum = Coin 1_000_000
 
--- | Generates a token bundle with a fixed number of assets.
---
--- Policy identifiers, asset names, token quantities are all allowed to vary.
---
-genFixedSizeTokenBundle :: Int -> Gen TokenBundle
-genFixedSizeTokenBundle fixedAssetCount
-    = TokenBundle.fromFlatList
-        <$> genCoin
-        <*> replicateM fixedAssetCount genAssetQuantity
-  where
-    genAssetQuantity = (,)
-        <$> genAssetIdLargeRange
-        <*> genTokenQuantity
-    genCoin = Coin
-        <$> choose (unCoin minBound, unCoin maxBound)
-    genTokenQuantity = TokenQuantity . fromIntegral @Integer @Natural
-        <$> choose
-            ( fromIntegral $ unTokenQuantity txOutMinTokenQuantity
-            , fromIntegral $ unTokenQuantity txOutMaxTokenQuantity
-            )
-
 unit_computeMinimumAdaQuantity_emptyBundle :: Property
 unit_computeMinimumAdaQuantity_emptyBundle =
     unit_computeMinimumAdaQuantity_fixedSizeBundle TokenBundle.empty $
@@ -278,26 +254,6 @@ newtype FixedSize64 a = FixedSize64 { unFixedSize64 :: a }
 
 newtype FixedSize256 a = FixedSize256 { unFixedSize256 :: a }
     deriving (Eq, Show)
-
---------------------------------------------------------------------------------
--- Constants
---------------------------------------------------------------------------------
-
--- | The smallest token quantity that can appear in a transaction output's
---   token bundle.
---
-txOutMinTokenQuantity :: TokenQuantity
-txOutMinTokenQuantity = TokenQuantity 1
-
--- | The greatest token quantity that can appear in a transaction output's
---   token bundle.
---
--- Although the ledger specification allows token quantities of unlimited
--- sizes, in practice we'll only see transaction outputs where the token
--- quantities are bounded by the size of a 'Word64'.
---
-txOutMaxTokenQuantity :: TokenQuantity
-txOutMaxTokenQuantity = TokenQuantity $ fromIntegral @Word64 $ maxBound
 
 --------------------------------------------------------------------------------
 -- Arbitraries

@@ -1,9 +1,10 @@
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeApplications #-}
-
 {-# OPTIONS_GHC -fno-warn-orphans #-}
+{- HLINT ignore "Use camelCase" -}
 
 module Cardano.Wallet.Primitive.Types.TokenMapSpec
     ( spec
@@ -13,10 +14,13 @@ import Prelude
 
 import Algebra.PartialOrd
     ( PartialOrd (..) )
+import Cardano.Numeric.Util
+    ( inAscendingPartialOrder )
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId (..), Flat (..), Nested (..), TokenMap, difference )
 import Cardano.Wallet.Primitive.Types.TokenMap.Gen
     ( AssetIdF (..)
+    , genAssetIdLargeRange
     , genAssetIdSmallRange
     , genTokenMapSmallRange
     , shrinkAssetIdSmallRange
@@ -33,7 +37,13 @@ import Cardano.Wallet.Primitive.Types.TokenPolicy.Gen
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
-    ( genTokenQuantitySmall, shrinkTokenQuantitySmall )
+    ( genTokenQuantitySmall
+    , genTokenQuantitySmallPositive
+    , shrinkTokenQuantitySmall
+    , shrinkTokenQuantitySmallPositive
+    )
+import Control.Monad
+    ( replicateM )
 import Data.Aeson
     ( FromJSON (..), ToJSON (..) )
 import Data.Aeson.QQ
@@ -52,6 +62,8 @@ import Data.Maybe
     ( mapMaybe )
 import Data.Proxy
     ( Proxy (..) )
+import Data.Ratio
+    ( (%) )
 import Data.String.QQ
     ( s )
 import Data.Text
@@ -74,13 +86,17 @@ import Test.Hspec.Extra
     ( parallel )
 import Test.QuickCheck
     ( Arbitrary (..)
+    , Blind (..)
     , Fun
     , Property
     , applyFun
     , checkCoverage
+    , choose
     , counterexample
     , cover
+    , frequency
     , property
+    , (.||.)
     , (===)
     , (==>)
     )
@@ -102,7 +118,6 @@ import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Test.Utils.Roundtrip as Roundtrip
-
 
 spec :: Spec
 spec =
@@ -208,6 +223,41 @@ spec =
             property prop_adjustQuantity_hasQuantity
         it "prop_maximumQuantity_all" $
             property prop_maximumQuantity_all
+
+    parallel $ describe "Partitioning assets" $ do
+
+        it "prop_equipartitionAssets_coverage" $
+            property prop_equipartitionAssets_coverage
+        it "prop_equipartitionAssets_length" $
+            property prop_equipartitionAssets_length
+        it "prop_equipartitionAssets_sizes" $
+            property prop_equipartitionAssets_sizes
+        it "prop_equipartitionAssets_sum" $
+            property prop_equipartitionAssets_sum
+
+    parallel $ describe "Partitioning quantities" $ do
+
+        it "prop_equipartitionQuantities_fair" $
+            property prop_equipartitionQuantities_fair
+        it "prop_equipartitionQuantities_length" $
+            property prop_equipartitionQuantities_length
+        it "prop_equipartitionQuantities_order" $
+            property prop_equipartitionQuantities_order
+        it "prop_equipartitionQuantities_sum" $
+            property prop_equipartitionQuantities_sum
+
+    parallel $ describe "Partitioning quantities with an upper bound" $ do
+
+        it "prop_equipartitionQuantitiesWithUpperBound_coverage" $
+            property prop_equipartitionQuantitiesWithUpperBound_coverage
+        it "prop_equipartitionQuantitiesWithUpperBound_length" $
+            property prop_equipartitionQuantitiesWithUpperBound_length
+        it "prop_equipartitionQuantitiesWithUpperBound_max" $
+            property prop_equipartitionQuantitiesWithUpperBound_max
+        it "prop_equipartitionQuantitiesWithUpperBound_order" $
+            property prop_equipartitionQuantitiesWithUpperBound_order
+        it "prop_equipartitionQuantitiesWithUpperBound_sum" $
+            property prop_equipartitionQuantitiesWithUpperBound_sum
 
     parallel $ describe "JSON serialization" $ do
 
@@ -501,6 +551,160 @@ prop_maximumQuantity_all b =
     maxQ = TokenMap.maximumQuantity b
 
 --------------------------------------------------------------------------------
+-- Partitioning assets
+--------------------------------------------------------------------------------
+
+prop_equipartitionAssets_coverage
+    :: Blind (Large TokenMap) -> Property
+prop_equipartitionAssets_coverage m = checkCoverage $
+    cover 4 (assetCount == 0)
+        "asset count = 0" $
+    cover 4 (assetCount == 1)
+        "asset count = 1" $
+    cover 20 (2 <= assetCount && assetCount <= 31)
+        "2 <= asset count <= 31" $
+    cover 20 (32 <= assetCount && assetCount <= 63)
+        "32 <= asset count <= 63"
+    True
+  where
+    assetCount = Set.size $ TokenMap.getAssets $ getLarge $ getBlind m
+
+prop_equipartitionAssets_length
+    :: Blind (Large TokenMap) -> NonEmpty () -> Property
+prop_equipartitionAssets_length (Blind (Large m)) count =
+    NE.length (TokenMap.equipartitionAssets m count) === NE.length count
+
+prop_equipartitionAssets_sizes
+    :: Blind (Large TokenMap) -> NonEmpty () -> Property
+prop_equipartitionAssets_sizes (Blind (Large m)) count = (.||.)
+    (assetCountDifference == 0)
+    (assetCountDifference == 1)
+  where
+    assetCounts = Set.size . TokenMap.getAssets <$> results
+    assetCountMin = F.minimum assetCounts
+    assetCountMax = F.maximum assetCounts
+    assetCountDifference = assetCountMax - assetCountMin
+    results = TokenMap.equipartitionAssets m count
+
+prop_equipartitionAssets_sum
+    :: Blind (Large TokenMap) -> NonEmpty () -> Property
+prop_equipartitionAssets_sum (Blind (Large m)) count =
+    F.fold (TokenMap.equipartitionAssets m count) === m
+
+--------------------------------------------------------------------------------
+-- Partitioning quantities
+--------------------------------------------------------------------------------
+
+-- Test that token map quantities are equipartitioned fairly:
+--
+-- Each token quantity portion must be within unity of the ideal portion.
+--
+prop_equipartitionQuantities_fair :: TokenMap -> NonEmpty () -> Property
+prop_equipartitionQuantities_fair m count = property $
+    isZeroOrOne maximumDifference
+  where
+    -- Here we take advantage of the fact that the resultant maps are sorted
+    -- into ascending order when compared with the 'leq' function.
+    --
+    -- Consequently:
+    --
+    --  - the head map will be the smallest;
+    --  - the last map will be the greatest.
+    --
+    -- Therefore, subtracting the head map from the last map will produce a map
+    -- where each token quantity is equal to the difference between:
+    --
+    --  - the smallest quantity of that token in the resulting maps;
+    --  - the greatest quantity of that token in the resulting maps.
+    --
+    differences :: TokenMap
+    differences = NE.last results `TokenMap.unsafeSubtract` NE.head results
+
+    isZeroOrOne :: TokenQuantity -> Bool
+    isZeroOrOne (TokenQuantity q) = q == 0 || q == 1
+
+    maximumDifference :: TokenQuantity
+    maximumDifference = TokenMap.maximumQuantity differences
+
+    results = TokenMap.equipartitionQuantities m count
+
+prop_equipartitionQuantities_length :: TokenMap -> NonEmpty () -> Property
+prop_equipartitionQuantities_length m count =
+    NE.length (TokenMap.equipartitionQuantities m count) === NE.length count
+
+prop_equipartitionQuantities_order :: TokenMap -> NonEmpty () -> Property
+prop_equipartitionQuantities_order m count = property $
+    inAscendingPartialOrder (TokenMap.equipartitionQuantities m count)
+
+prop_equipartitionQuantities_sum :: TokenMap -> NonEmpty () -> Property
+prop_equipartitionQuantities_sum m count =
+    F.fold (TokenMap.equipartitionQuantities m count) === m
+
+--------------------------------------------------------------------------------
+-- Partitioning quantities according to an upper bound
+--------------------------------------------------------------------------------
+
+-- | Computes the number of parts that 'equipartitionQuantitiesWithUpperBound'
+--   should return.
+--
+equipartitionQuantitiesWithUpperBound_expectedLength
+    :: TokenMap -> TokenQuantity -> Int
+equipartitionQuantitiesWithUpperBound_expectedLength
+    m (TokenQuantity maxQuantity) =
+        max 1 $ ceiling $ currentMaxQuantity % maxQuantity
+  where
+    TokenQuantity currentMaxQuantity = TokenMap.maximumQuantity m
+
+prop_equipartitionQuantitiesWithUpperBound_coverage
+    :: TokenMap -> Positive TokenQuantity -> Property
+prop_equipartitionQuantitiesWithUpperBound_coverage m (Positive maxQuantity) =
+    checkCoverage $
+    cover 8 (maxQuantity == TokenQuantity 1)
+        "Maximum allowable quantity == 1" $
+    cover 8 (maxQuantity == TokenQuantity 2)
+        "Maximum allowable quantity == 2" $
+    cover 8 (maxQuantity >= TokenQuantity 3)
+        "Maximum allowable quantity >= 3" $
+    cover 8 (expectedLength == 1)
+        "Expected number of parts == 1" $
+    cover 8 (expectedLength == 2)
+        "Expected number of parts == 2" $
+    cover 8 (expectedLength >= 3)
+        "Expected number of parts >= 3" $
+    property $ expectedLength > 0
+  where
+    expectedLength = equipartitionQuantitiesWithUpperBound_expectedLength
+        m maxQuantity
+
+prop_equipartitionQuantitiesWithUpperBound_length
+    :: TokenMap -> Positive TokenQuantity -> Property
+prop_equipartitionQuantitiesWithUpperBound_length m (Positive maxQuantity) =
+    length (TokenMap.equipartitionQuantitiesWithUpperBound m maxQuantity)
+        === equipartitionQuantitiesWithUpperBound_expectedLength m maxQuantity
+
+prop_equipartitionQuantitiesWithUpperBound_max
+    :: TokenMap -> Positive TokenQuantity -> Property
+prop_equipartitionQuantitiesWithUpperBound_max m (Positive maxQuantity) =
+    checkCoverage $
+    cover 10 (maxResultQuantity == maxQuantity)
+        "At least one resultant token map has a maximal quantity" $
+    property $ maxResultQuantity <= maxQuantity
+  where
+    results = TokenMap.equipartitionQuantitiesWithUpperBound m maxQuantity
+    maxResultQuantity = F.maximum (TokenMap.maximumQuantity <$> results)
+
+prop_equipartitionQuantitiesWithUpperBound_order
+    :: TokenMap -> Positive TokenQuantity -> Property
+prop_equipartitionQuantitiesWithUpperBound_order m (Positive maxQuantity) =
+    property $ inAscendingPartialOrder
+        (TokenMap.equipartitionQuantitiesWithUpperBound m maxQuantity)
+
+prop_equipartitionQuantitiesWithUpperBound_sum
+    :: TokenMap -> Positive TokenQuantity -> Property
+prop_equipartitionQuantitiesWithUpperBound_sum m (Positive maxQuantity) =
+    F.fold (TokenMap.equipartitionQuantitiesWithUpperBound m maxQuantity) === m
+
+--------------------------------------------------------------------------------
 -- JSON serialization tests
 --------------------------------------------------------------------------------
 
@@ -669,6 +873,14 @@ tokenPolicyIdHexStringLength = 56
 -- Arbitrary instances
 --------------------------------------------------------------------------------
 
+newtype Large a = Large
+    { getLarge :: a }
+    deriving (Eq, Show)
+
+newtype Positive a = Positive
+    { getPositive :: a }
+    deriving (Eq, Show)
+
 instance Arbitrary a => Arbitrary (Flat a) where
     arbitrary = Flat <$> arbitrary
     shrink = fmap Flat . shrink . getFlat
@@ -689,6 +901,20 @@ instance Arbitrary TokenMap where
     arbitrary = genTokenMapSmallRange
     shrink = shrinkTokenMapSmallRange
 
+instance Arbitrary (Large TokenMap) where
+    arbitrary = Large <$> do
+        assetCount <- frequency
+            [ (1, pure 0)
+            , (1, pure 1)
+            , (8, choose (2, 63))
+            ]
+        TokenMap.fromFlatList <$> replicateM assetCount genAssetQuantity
+      where
+        genAssetQuantity = (,)
+            <$> genAssetIdLargeRange
+            <*> genTokenQuantitySmallPositive
+    -- No shrinking
+
 instance Arbitrary TokenName where
     arbitrary = genTokenNameSmallRange
     shrink = shrinkTokenNameSmallRange
@@ -708,3 +934,7 @@ instance Arbitrary TokenQuantity where
     -- zero-valued tokens) is maintained.
     arbitrary = genTokenQuantitySmall
     shrink = shrinkTokenQuantitySmall
+
+instance Arbitrary (Positive TokenQuantity) where
+    arbitrary = Positive <$> genTokenQuantitySmallPositive
+    shrink = fmap Positive . shrinkTokenQuantitySmallPositive . getPositive

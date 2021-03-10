@@ -715,6 +715,8 @@ dummyTransactionLayer = TransactionLayer
         error "dummyTransactionLayer: calcMinimumCost not implemented"
     , calcMinimumCoinValue =
         error "dummyTransactionLayer: calcMinimumCoinValue not implemented"
+    , tokenBundleSizeAssessor =
+        error "dummyTransactionLayer: tokenBundleSizeAssessor not implemented"
     , decodeSignedTx =
         error "dummyTransactionLayer: decodeSignedTx not implemented"
     }

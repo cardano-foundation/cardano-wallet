@@ -71,6 +71,11 @@ module Cardano.Wallet.Primitive.Types.TokenMap
     , removeQuantity
     , maximumQuantity
 
+    -- * Partitioning
+    , equipartitionAssets
+    , equipartitionQuantities
+    , equipartitionQuantitiesWithUpperBound
+
     -- * Policies
     , hasPolicy
 
@@ -91,6 +96,8 @@ import Prelude hiding
 
 import Algebra.PartialOrd
     ( PartialOrd (..) )
+import Cardano.Numeric.Util
+    ( equipartitionNatural )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenName, TokenPolicyId )
 import Cardano.Wallet.Primitive.Types.TokenQuantity
@@ -117,6 +124,8 @@ import Data.Map.Strict.NonEmptyMap
     ( NonEmptyMap )
 import Data.Maybe
     ( fromMaybe, isJust )
+import Data.Ratio
+    ( (%) )
 import Data.Set
     ( Set )
 import Data.Text.Class
@@ -127,6 +136,8 @@ import GHC.Generics
     ( Generic )
 import GHC.TypeLits
     ( ErrorMessage (..), TypeError )
+import Numeric.Natural
+    ( Natural )
 import Quiet
     ( Quiet (..) )
 
@@ -639,6 +650,104 @@ maximumQuantity =
             challenger
         | otherwise =
             champion
+
+--------------------------------------------------------------------------------
+-- Partitioning
+--------------------------------------------------------------------------------
+
+-- | Partitions a token map into 'n' smaller maps, where the asset sets of the
+--   resultant maps are disjoint.
+--
+-- In the resultant maps, the smallest asset set size and largest asset set
+-- size will differ by no more than 1.
+--
+-- The quantities of each asset are unchanged.
+--
+equipartitionAssets
+    :: TokenMap
+    -- ^ The token map to be partitioned.
+    -> NonEmpty a
+    -- ^ Represents the number of portions in which to partition the token map.
+    -> NonEmpty TokenMap
+    -- ^ The partitioned maps.
+equipartitionAssets m mapCount =
+    fromFlatList <$> NE.unfoldr generateChunk (assetCounts, toFlatList m)
+  where
+    -- The total number of assets.
+    assetCount :: Int
+    assetCount = Set.size $ getAssets m
+
+    -- How many asset quantities to include in each chunk.
+    assetCounts :: NonEmpty Int
+    assetCounts = fromIntegral @Natural @Int <$>
+        equipartitionNatural (fromIntegral @Int @Natural assetCount) mapCount
+
+    -- Generates a single chunk of asset quantities.
+    generateChunk :: (NonEmpty Int, [aq]) -> ([aq], Maybe (NonEmpty Int, [aq]))
+    generateChunk (c :| mcs, aqs) = case NE.nonEmpty mcs of
+        Just cs -> (prefix, Just (cs, suffix))
+        Nothing -> (aqs, Nothing)
+      where
+        (prefix, suffix) = L.splitAt c aqs
+
+-- | Partitions a token map into 'n' smaller maps, where the quantity of each
+--   token is equipartitioned across the resultant maps.
+--
+-- In the resultant maps, the smallest quantity and largest quantity of a given
+-- token will differ by no more than 1.
+--
+-- The resultant list is sorted into ascending order when maps are compared
+-- with the 'leq' function.
+--
+equipartitionQuantities
+    :: TokenMap
+    -- ^ The map to be partitioned.
+    -> NonEmpty a
+    -- ^ Represents the number of portions in which to partition the map.
+    -> NonEmpty TokenMap
+    -- ^ The partitioned maps.
+equipartitionQuantities m count =
+    F.foldl' accumulate (empty <$ count) (toFlatList m)
+  where
+    accumulate
+        :: NonEmpty TokenMap
+        -> (AssetId, TokenQuantity)
+        -> NonEmpty TokenMap
+    accumulate maps (asset, quantity) = NE.zipWith (<>) maps $
+        singleton asset <$>
+            TokenQuantity.equipartition quantity count
+
+-- | Partitions a token map into 'n' smaller maps, where the quantity of each
+--   token is equipartitioned across the resultant maps, with the goal that no
+--   token quantity in any of the resultant maps exceeds the given upper bound.
+--
+-- The value 'n' is computed automatically, and is the minimum value required
+-- to achieve the goal that no token quantity in any of the resulting maps
+-- exceeds the maximum allowable token quantity.
+--
+equipartitionQuantitiesWithUpperBound
+    :: TokenMap
+    -> TokenQuantity
+    -- ^ Maximum allowable token quantity.
+    -> NonEmpty TokenMap
+    -- ^ The partitioned maps.
+equipartitionQuantitiesWithUpperBound m (TokenQuantity maxQuantity)
+    | maxQuantity == 0 =
+        maxQuantityZeroError
+    | currentMaxQuantity <= maxQuantity =
+        m :| []
+    | otherwise =
+        equipartitionQuantities m (() :| replicate extraPartCount ())
+  where
+    TokenQuantity currentMaxQuantity = maximumQuantity m
+
+    extraPartCount :: Int
+    extraPartCount = floor $ pred currentMaxQuantity % maxQuantity
+
+    maxQuantityZeroError = error $ unwords
+        [ "equipartitionQuantitiesWithUpperBound:"
+        , "the maximum allowable token quantity cannot be zero."
+        ]
 
 --------------------------------------------------------------------------------
 -- Policies

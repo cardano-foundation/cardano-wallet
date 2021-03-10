@@ -19,10 +19,13 @@ import Prelude
 
 import Algebra.PartialOrd
     ( PartialOrd (..) )
+import Cardano.Numeric.Util
+    ( inAscendingPartialOrder )
 import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     ( AssetCount (..)
     , BalanceInsufficientError (..)
     , InsufficientMinCoinValueError (..)
+    , MakeChangeCriteria (..)
     , SelectionCriteria (..)
     , SelectionError (..)
     , SelectionInsufficientError (..)
@@ -36,12 +39,6 @@ import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     , assignCoinsToChangeMaps
     , balanceMissing
     , coinSelectionLens
-    , equipartitionNatural
-    , equipartitionTokenBundleWithMaxQuantity
-    , equipartitionTokenBundlesWithMaxQuantity
-    , equipartitionTokenMap
-    , equipartitionTokenMapWithMaxQuantity
-    , equipartitionTokenQuantity
     , fullBalance
     , groupByKey
     , makeChange
@@ -49,12 +46,14 @@ import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     , makeChangeForNonUserSpecifiedAsset
     , makeChangeForUserSpecifiedAsset
     , mapMaybe
-    , maxTxOutTokenQuantity
     , performSelection
     , prepareOutputsWith
     , runRoundRobin
     , runSelection
     , runSelectionStep
+    , splitBundleIfAssetCountExcessive
+    , splitBundlesWithExcessiveAssetCounts
+    , splitBundlesWithExcessiveTokenQuantities
     , ungroupByKey
     )
 import Cardano.Wallet.Primitive.Types.Address
@@ -62,7 +61,11 @@ import Cardano.Wallet.Primitive.Types.Address
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..), addCoin )
 import Cardano.Wallet.Primitive.Types.Coin.Gen
-    ( genCoinSmall, genCoinSmallPositive, shrinkCoinSmallPositive )
+    ( genCoinLargePositive
+    , genCoinSmall
+    , genCoinSmallPositive
+    , shrinkCoinSmallPositive
+    )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.TokenBundle
@@ -72,7 +75,8 @@ import Cardano.Wallet.Primitive.Types.TokenBundle.Gen
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId (..), TokenMap )
 import Cardano.Wallet.Primitive.Types.TokenMap.Gen
-    ( genAssetIdSmallRange
+    ( genAssetIdLargeRange
+    , genAssetIdSmallRange
     , genTokenMapSmallRange
     , shrinkAssetIdSmallRange
     , shrinkTokenMapSmallRange
@@ -86,7 +90,13 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity
 import Cardano.Wallet.Primitive.Types.TokenQuantity.Gen
     ( genTokenQuantitySmallPositive, shrinkTokenQuantitySmallPositive )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( TxIn (..), TxOut (..), txOutCoin )
+    ( TokenBundleSizeAssessment (..)
+    , TokenBundleSizeAssessor (..)
+    , TxIn (..)
+    , TxOut (..)
+    , txOutCoin
+    , txOutMaxTokenQuantity
+    )
 import Cardano.Wallet.Primitive.Types.Tx.Gen
     ( genTxOutSmallRange, shrinkTxOutSmallRange )
 import Cardano.Wallet.Primitive.Types.UTxOIndex
@@ -101,6 +111,8 @@ import Control.Monad
     ( forM_, replicateM )
 import Data.Bifunctor
     ( bimap, second )
+import Data.ByteString
+    ( ByteString )
 import Data.Function
     ( on, (&) )
 import Data.Functor.Identity
@@ -115,8 +127,6 @@ import Data.Map.Strict
     ( Map )
 import Data.Maybe
     ( isJust )
-import Data.Ratio
-    ( (%) )
 import Data.Set
     ( Set )
 import Data.Tuple
@@ -163,7 +173,6 @@ import Test.QuickCheck
     , suchThat
     , withMaxSuccess
     , (.&&.)
-    , (.||.)
     , (===)
     , (==>)
     )
@@ -275,8 +284,10 @@ spec = describe "Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobinSpec" $
 
     parallel $ describe "Boundary tests" $ do
 
-        unitTests "testBoundaries"
-            unit_testBoundaries
+        unit_testBoundaries "Large token quantities"
+            boundaryTestMatrix_largeTokenQuantities
+        unit_testBoundaries "Large asset counts"
+            boundaryTestMatrix_largeAssetCounts
 
     parallel $ describe "Making change" $ do
 
@@ -322,58 +333,27 @@ spec = describe "Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobinSpec" $
         unitTests "makeChangeForUserSpecifiedAsset"
             unit_makeChangeForUserSpecifiedAsset
 
-    parallel $ describe "Equipartitioning natural numbers" $ do
+    parallel $ describe "Splitting bundles with excessive asset counts" $ do
 
-        it "prop_equipartitionNatural_fair" $
-            property prop_equipartitionNatural_fair
-        it "prop_equipartitionNatural_length" $
-            property prop_equipartitionNatural_length
-        it "prop_equipartitionNatural_order" $
-            property prop_equipartitionNatural_order
-        it "prop_equipartitionNatural_sum" $
-            property prop_equipartitionNatural_sum
+        it "prop_splitBundleIfAssetCountExcessive_length" $
+            property prop_splitBundleIfAssetCountExcessive_length
+        it "prop_splitBundleIfAssetCountExcessive_maximalSplitting" $
+            property prop_splitBundleIfAssetCountExcessive_maximalSplitting
+        it "prop_splitBundleIfAssetCountExcessive_postCondition" $
+            property prop_splitBundleIfAssetCountExcessive_postCondition
+        it "prop_splitBundleIfAssetCountExcessive_sum" $
+            property prop_splitBundleIfAssetCountExcessive_sum
+        it "prop_splitBundlesWithExcessiveAssetCounts_length" $
+            property prop_splitBundlesWithExcessiveAssetCounts_length
+        it "prop_splitBundlesWithExcessiveAssetCounts_sum" $
+            property prop_splitBundlesWithExcessiveAssetCounts_sum
 
-    parallel $ describe "Equipartitioning token maps" $ do
+    parallel $ describe "Splitting bundles with excessive token quantities" $ do
 
-        it "prop_equipartitionTokenMap_fair" $
-            property prop_equipartitionTokenMap_fair
-        it "prop_equipartitionTokenMap_length" $
-            property prop_equipartitionTokenMap_length
-        it "prop_equipartitionTokenMap_order" $
-            property prop_equipartitionTokenMap_order
-        it "prop_equipartitionTokenMap_sum" $
-            property prop_equipartitionTokenMap_sum
-
-    parallel $ describe "Equipartitioning token bundles by max quantity" $ do
-
-        describe "Individual token bundles" $ do
-
-            it "prop_equipartitionTokenBundleWithMaxQuantity_length" $
-                property prop_equipartitionTokenBundleWithMaxQuantity_length
-            it "prop_equipartitionTokenBundleWithMaxQuantity_order" $
-                property prop_equipartitionTokenBundleWithMaxQuantity_order
-            it "prop_equipartitionTokenBundleWithMaxQuantity_sum" $
-                property prop_equipartitionTokenBundleWithMaxQuantity_sum
-
-        describe "Lists of token bundles" $ do
-
-            it "prop_equipartitionTokenBundlesWithMaxQuantity_length" $
-                property prop_equipartitionTokenBundlesWithMaxQuantity_length
-            it "prop_equipartitionTokenBundlesWithMaxQuantity_sum" $
-                property prop_equipartitionTokenBundlesWithMaxQuantity_sum
-
-    parallel $ describe "Equipartitioning token maps by max quantity" $ do
-
-        it "prop_equipartitionTokenMapWithMaxQuantity_coverage" $
-            property prop_equipartitionTokenMapWithMaxQuantity_coverage
-        it "prop_equipartitionTokenMapWithMaxQuantity_length" $
-            property prop_equipartitionTokenMapWithMaxQuantity_length
-        it "prop_equipartitionTokenMapWithMaxQuantity_max" $
-            property prop_equipartitionTokenMapWithMaxQuantity_max
-        it "prop_equipartitionTokenMapWithMaxQuantity_order" $
-            property prop_equipartitionTokenMapWithMaxQuantity_order
-        it "prop_equipartitionTokenMapWithMaxQuantity_sum" $
-            property prop_equipartitionTokenMapWithMaxQuantity_sum
+        it "prop_splitBundlesWithExcessiveTokenQuantities_length" $
+            property prop_splitBundlesWithExcessiveTokenQuantities_length
+        it "prop_splitBundlesWithExcessiveTokenQuantities_sum" $
+            property prop_splitBundlesWithExcessiveTokenQuantities_sum
 
     parallel $ describe "Grouping and ungrouping" $ do
 
@@ -658,10 +638,11 @@ prop_performSelection minCoinValueFor costFor (Blind criteria) coverage =
             , "selectionLimit:"
             , show selectionLimit
             ]
-        result <- run (performSelection
+        result <- run $ performSelection
             (mkMinCoinValueFor minCoinValueFor)
             (mkCostFor costFor)
-            criteria)
+            (mkBundleSizeAssessor NoBundleSizeLimit)
+            (criteria)
         monitor (coverage result)
         either onFailure onSuccess result
   where
@@ -805,7 +786,11 @@ prop_performSelection minCoinValueFor costFor (Blind criteria) coverage =
         monitor $ counterexample $ show e
         assert (shortfall e > Coin 0)
         let criteria' = criteria { selectionLimit = NoLimit }
-        run (performSelection noMinCoin (const noCost) criteria') >>= \case
+        let assessBundleSize =
+                mkBundleSizeAssessor NoBundleSizeLimit
+        let performSelection' = performSelection
+                noMinCoin (const noCost) assessBundleSize criteria'
+        run performSelection' >>= \case
             Left e' -> do
                 monitor $ counterexample $ unlines
                     [ "Failed to re-run selection with no cost!"
@@ -1114,8 +1099,8 @@ prop_coinSelectionLens_givesPriorityToCoins (Blind (Small u)) =
 -- Boundary tests
 --------------------------------------------------------------------------------
 
-unit_testBoundaries :: [Expectation]
-unit_testBoundaries = mkBoundaryTestExpectation <$> boundaryTestMatrix
+unit_testBoundaries :: String -> [BoundaryTestData] -> SpecWith ()
+unit_testBoundaries title = unitTests title . fmap mkBoundaryTestExpectation
 
 data BoundaryTestData = BoundaryTestData
     { boundaryTestCriteria
@@ -1126,7 +1111,9 @@ data BoundaryTestData = BoundaryTestData
     deriving (Eq, Show)
 
 data BoundaryTestCriteria = BoundaryTestCriteria
-    { boundaryTestOutputs
+    { boundaryTestBundleSizeAssessor
+        :: MockTokenBundleSizeAssessor
+    , boundaryTestOutputs
         :: [BoundaryTestEntry]
     , boundaryTestUTxO
         :: [BoundaryTestEntry]
@@ -1146,7 +1133,10 @@ type BoundaryTestEntry = (Coin, [(AssetId, TokenQuantity)])
 mkBoundaryTestExpectation :: BoundaryTestData -> Expectation
 mkBoundaryTestExpectation (BoundaryTestData criteria expectedResult) = do
     actualResult <- performSelection
-        noMinCoin (mkCostFor NoCost) (encodeBoundaryTestCriteria criteria)
+        (noMinCoin)
+        (mkCostFor NoCost)
+        (mkBundleSizeAssessor $ boundaryTestBundleSizeAssessor criteria)
+        (encodeBoundaryTestCriteria criteria)
     fmap decodeBoundaryTestResult actualResult `shouldBe` Right expectedResult
 
 encodeBoundaryTestCriteria :: BoundaryTestCriteria -> SelectionCriteria
@@ -1179,12 +1169,16 @@ decodeBoundaryTestResult r = BoundaryTestResult
         TokenBundle.toFlatList <$> view #changeGenerated r
     }
 
-boundaryTestMatrix :: [BoundaryTestData]
-boundaryTestMatrix =
-    [ boundaryTest1
-    , boundaryTest2
-    , boundaryTest3
-    , boundaryTest4
+--------------------------------------------------------------------------------
+-- Boundary tests: handling of large token quantities
+--------------------------------------------------------------------------------
+
+boundaryTestMatrix_largeTokenQuantities :: [BoundaryTestData]
+boundaryTestMatrix_largeTokenQuantities =
+    [ boundaryTest_largeTokenQuantities_1
+    , boundaryTest_largeTokenQuantities_2
+    , boundaryTest_largeTokenQuantities_3
+    , boundaryTest_largeTokenQuantities_4
     ]
 
 -- Reach (but do not exceed) the maximum token quantity by selecting inputs
@@ -1195,26 +1189,26 @@ boundaryTestMatrix =
 --
 -- We expect no splitting of token bundles.
 --
-boundaryTest1 :: BoundaryTestData
-boundaryTest1 = BoundaryTestData
+boundaryTest_largeTokenQuantities_1 :: BoundaryTestData
+boundaryTest_largeTokenQuantities_1 = BoundaryTestData
     { boundaryTestCriteria = BoundaryTestCriteria {..}
     , boundaryTestExpectedResult = BoundaryTestResult {..}
     }
   where
-    assetA = AssetId (UnsafeTokenPolicyId $ Hash "A") (UnsafeTokenName "1")
-    (q1, q2) = (TokenQuantity 1, TokenQuantity.pred maxTxOutTokenQuantity)
+    (q1, q2) = (TokenQuantity 1, TokenQuantity.pred txOutMaxTokenQuantity)
+    boundaryTestBundleSizeAssessor = NoBundleSizeLimit
     boundaryTestOutputs =
       [ (Coin 1_500_000, []) ]
     boundaryTestUTxO =
-      [ (Coin 1_000_000, [(assetA, q1)])
-      , (Coin 1_000_000, [(assetA, q2)])
+      [ (Coin 1_000_000, [(mockAsset "A", q1)])
+      , (Coin 1_000_000, [(mockAsset "A", q2)])
       ]
     boundaryTestInputs =
-      [ (Coin 1_000_000, [(assetA, q1)])
-      , (Coin 1_000_000, [(assetA, q2)])
+      [ (Coin 1_000_000, [(mockAsset "A", q1)])
+      , (Coin 1_000_000, [(mockAsset "A", q2)])
       ]
     boundaryTestChange =
-      [ (Coin 500_000, [(assetA, maxTxOutTokenQuantity)]) ]
+      [ (Coin 500_000, [(mockAsset "A", txOutMaxTokenQuantity)]) ]
 
 -- Reach (but do not exceed) the maximum token quantity by selecting inputs
 -- with the following quantities:
@@ -1224,26 +1218,26 @@ boundaryTest1 = BoundaryTestData
 --
 -- We expect no splitting of token bundles.
 --
-boundaryTest2 :: BoundaryTestData
-boundaryTest2 = BoundaryTestData
+boundaryTest_largeTokenQuantities_2 :: BoundaryTestData
+boundaryTest_largeTokenQuantities_2 = BoundaryTestData
     { boundaryTestCriteria = BoundaryTestCriteria {..}
     , boundaryTestExpectedResult = BoundaryTestResult {..}
     }
   where
-    assetA = AssetId (UnsafeTokenPolicyId $ Hash "A") (UnsafeTokenName "1")
-    q1 :| [q2] = equipartitionTokenQuantity maxTxOutTokenQuantity (() :| [()])
+    q1 :| [q2] = TokenQuantity.equipartition txOutMaxTokenQuantity (() :| [()])
+    boundaryTestBundleSizeAssessor = NoBundleSizeLimit
     boundaryTestOutputs =
       [ (Coin 1_500_000, []) ]
     boundaryTestUTxO =
-      [ (Coin 1_000_000, [(assetA, q1)])
-      , (Coin 1_000_000, [(assetA, q2)])
+      [ (Coin 1_000_000, [(mockAsset "A", q1)])
+      , (Coin 1_000_000, [(mockAsset "A", q2)])
       ]
     boundaryTestInputs =
-      [ (Coin 1_000_000, [(assetA, q1)])
-      , (Coin 1_000_000, [(assetA, q2)])
+      [ (Coin 1_000_000, [(mockAsset "A", q1)])
+      , (Coin 1_000_000, [(mockAsset "A", q2)])
       ]
     boundaryTestChange =
-      [ (Coin 500_000, [(assetA, maxTxOutTokenQuantity)]) ]
+      [ (Coin 500_000, [(mockAsset "A", txOutMaxTokenQuantity)]) ]
 
 -- Slightly exceed the maximum token quantity by selecting inputs with the
 -- following quantities:
@@ -1253,28 +1247,28 @@ boundaryTest2 = BoundaryTestData
 --
 -- We expect splitting of change bundles.
 --
-boundaryTest3 :: BoundaryTestData
-boundaryTest3 = BoundaryTestData
+boundaryTest_largeTokenQuantities_3 :: BoundaryTestData
+boundaryTest_largeTokenQuantities_3 = BoundaryTestData
     { boundaryTestCriteria = BoundaryTestCriteria {..}
     , boundaryTestExpectedResult = BoundaryTestResult {..}
     }
   where
-    assetA = AssetId (UnsafeTokenPolicyId $ Hash "A") (UnsafeTokenName "1")
-    q1 :| [q2] = equipartitionTokenQuantity
-        (TokenQuantity.succ maxTxOutTokenQuantity) (() :| [()])
+    q1 :| [q2] = TokenQuantity.equipartition
+        (TokenQuantity.succ txOutMaxTokenQuantity) (() :| [()])
+    boundaryTestBundleSizeAssessor = NoBundleSizeLimit
     boundaryTestOutputs =
       [ (Coin 1_500_000, []) ]
     boundaryTestUTxO =
-      [ (Coin 1_000_000, [(assetA, TokenQuantity 1)])
-      , (Coin 1_000_000, [(assetA, maxTxOutTokenQuantity)])
+      [ (Coin 1_000_000, [(mockAsset "A", TokenQuantity 1)])
+      , (Coin 1_000_000, [(mockAsset "A", txOutMaxTokenQuantity)])
       ]
     boundaryTestInputs =
-      [ (Coin 1_000_000, [(assetA, TokenQuantity 1)])
-      , (Coin 1_000_000, [(assetA, maxTxOutTokenQuantity)])
+      [ (Coin 1_000_000, [(mockAsset "A", TokenQuantity 1)])
+      , (Coin 1_000_000, [(mockAsset "A", txOutMaxTokenQuantity)])
       ]
     boundaryTestChange =
-      [ (Coin 250_000, [(assetA, q1)])
-      , (Coin 250_000, [(assetA, q2)])
+      [ (Coin 250_000, [(mockAsset "A", q1)])
+      , (Coin 250_000, [(mockAsset "A", q2)])
       ]
 
 -- Reach (but do not exceed) exactly twice the maximum token quantity by
@@ -1285,26 +1279,149 @@ boundaryTest3 = BoundaryTestData
 --
 -- We expect splitting of change bundles.
 --
-boundaryTest4 :: BoundaryTestData
-boundaryTest4 = BoundaryTestData
+boundaryTest_largeTokenQuantities_4 :: BoundaryTestData
+boundaryTest_largeTokenQuantities_4 = BoundaryTestData
     { boundaryTestCriteria = BoundaryTestCriteria {..}
     , boundaryTestExpectedResult = BoundaryTestResult {..}
     }
   where
-    assetA = AssetId (UnsafeTokenPolicyId $ Hash "A") (UnsafeTokenName "1")
+    boundaryTestBundleSizeAssessor = NoBundleSizeLimit
     boundaryTestOutputs =
       [ (Coin 1_500_000, []) ]
     boundaryTestUTxO =
-      [ (Coin 1_000_000, [(assetA, maxTxOutTokenQuantity)])
-      , (Coin 1_000_000, [(assetA, maxTxOutTokenQuantity)])
+      [ (Coin 1_000_000, [(mockAsset "A", txOutMaxTokenQuantity)])
+      , (Coin 1_000_000, [(mockAsset "A", txOutMaxTokenQuantity)])
       ]
     boundaryTestInputs =
-      [ (Coin 1_000_000, [(assetA, maxTxOutTokenQuantity)])
-      , (Coin 1_000_000, [(assetA, maxTxOutTokenQuantity)])
+      [ (Coin 1_000_000, [(mockAsset "A", txOutMaxTokenQuantity)])
+      , (Coin 1_000_000, [(mockAsset "A", txOutMaxTokenQuantity)])
       ]
     boundaryTestChange =
-      [ (Coin 250_000, [(assetA, maxTxOutTokenQuantity)])
-      , (Coin 250_000, [(assetA, maxTxOutTokenQuantity)])
+      [ (Coin 250_000, [(mockAsset "A", txOutMaxTokenQuantity)])
+      , (Coin 250_000, [(mockAsset "A", txOutMaxTokenQuantity)])
+      ]
+
+--------------------------------------------------------------------------------
+-- Boundary tests: handling of large asset counts
+--------------------------------------------------------------------------------
+
+boundaryTestMatrix_largeAssetCounts :: [BoundaryTestData]
+boundaryTestMatrix_largeAssetCounts =
+    [ boundaryTest_largeAssetCounts_1
+    , boundaryTest_largeAssetCounts_2
+    , boundaryTest_largeAssetCounts_3
+    , boundaryTest_largeAssetCounts_4
+    ]
+
+-- Reach (but do not exceed) the maximum per-bundle asset count.
+--
+-- We expect no splitting of change bundles.
+--
+boundaryTest_largeAssetCounts_1 :: BoundaryTestData
+boundaryTest_largeAssetCounts_1 = BoundaryTestData
+    { boundaryTestCriteria = BoundaryTestCriteria {..}
+    , boundaryTestExpectedResult = BoundaryTestResult {..}
+    }
+  where
+    boundaryTestBundleSizeAssessor = BundleAssetCountUpperLimit 4
+    boundaryTestOutputs =
+      [ (Coin 1_000_000, []) ]
+    boundaryTestUTxO =
+      [ (Coin 500_000, [mockAssetQuantity "A" 1])
+      , (Coin 500_000, [mockAssetQuantity "B" 1])
+      , (Coin 500_000, [mockAssetQuantity "C" 1])
+      , (Coin 500_000, [mockAssetQuantity "D" 1])
+      ]
+    -- Expect that all entries will be selected:
+    boundaryTestInputs = boundaryTestUTxO
+    boundaryTestChange =
+      [ ( Coin 1_000_000
+        , [ mockAssetQuantity "A" 1
+          , mockAssetQuantity "B" 1
+          , mockAssetQuantity "C" 1
+          , mockAssetQuantity "D" 1
+          ]
+        )
+      ]
+
+-- Exceed the maximum per-bundle asset count of 3.
+--
+-- We expect splitting of change bundles.
+--
+boundaryTest_largeAssetCounts_2 :: BoundaryTestData
+boundaryTest_largeAssetCounts_2 = BoundaryTestData
+    { boundaryTestCriteria = BoundaryTestCriteria {..}
+    , boundaryTestExpectedResult = BoundaryTestResult {..}
+    }
+  where
+    boundaryTestBundleSizeAssessor = BundleAssetCountUpperLimit 3
+    boundaryTestOutputs =
+      [ (Coin 1_000_000, []) ]
+    boundaryTestUTxO =
+      [ (Coin 500_000, [mockAssetQuantity "A" 1])
+      , (Coin 500_000, [mockAssetQuantity "B" 1])
+      , (Coin 500_000, [mockAssetQuantity "C" 1])
+      , (Coin 500_000, [mockAssetQuantity "D" 1])
+      ]
+    -- Expect that all entries will be selected:
+    boundaryTestInputs = boundaryTestUTxO
+    boundaryTestChange =
+      [ (Coin 500_000, [mockAssetQuantity "A" 1, mockAssetQuantity "B" 1])
+      , (Coin 500_000, [mockAssetQuantity "C" 1, mockAssetQuantity "D" 1])
+      ]
+
+-- Exceed the maximum per-bundle asset count of 2.
+--
+-- We expect splitting of change bundles.
+--
+boundaryTest_largeAssetCounts_3 :: BoundaryTestData
+boundaryTest_largeAssetCounts_3 = BoundaryTestData
+    { boundaryTestCriteria = BoundaryTestCriteria {..}
+    , boundaryTestExpectedResult = BoundaryTestResult {..}
+    }
+  where
+    boundaryTestBundleSizeAssessor = BundleAssetCountUpperLimit 2
+    boundaryTestOutputs =
+      [ (Coin 1_000_000, []) ]
+    boundaryTestUTxO =
+      [ (Coin 500_000, [mockAssetQuantity "A" 1])
+      , (Coin 500_000, [mockAssetQuantity "B" 1])
+      , (Coin 500_000, [mockAssetQuantity "C" 1])
+      , (Coin 500_000, [mockAssetQuantity "D" 1])
+      ]
+    -- Expect that all entries will be selected:
+    boundaryTestInputs = boundaryTestUTxO
+    boundaryTestChange =
+      [ (Coin 500_000, [mockAssetQuantity "A" 1, mockAssetQuantity "B" 1])
+      , (Coin 500_000, [mockAssetQuantity "C" 1, mockAssetQuantity "D" 1])
+      ]
+
+-- Exceed the maximum per-bundle asset count of 1.
+--
+-- We expect splitting of change bundles.
+--
+boundaryTest_largeAssetCounts_4 :: BoundaryTestData
+boundaryTest_largeAssetCounts_4 = BoundaryTestData
+    { boundaryTestCriteria = BoundaryTestCriteria {..}
+    , boundaryTestExpectedResult = BoundaryTestResult {..}
+    }
+  where
+    boundaryTestBundleSizeAssessor = BundleAssetCountUpperLimit 1
+    boundaryTestOutputs =
+      [ (Coin 1_000_000, []) ]
+    boundaryTestUTxO =
+      [ (Coin 500_000, [mockAssetQuantity "A" 1])
+      , (Coin 500_000, [mockAssetQuantity "B" 1])
+      , (Coin 500_000, [mockAssetQuantity "C" 1])
+      , (Coin 500_000, [mockAssetQuantity "D" 1])
+      ]
+    -- Expect that all entries will be selected:
+    boundaryTestInputs = boundaryTestUTxO
+    boundaryTestChange =
+      [ (Coin 250_000, [mockAssetQuantity "A" 1])
+      , (Coin 250_000, [mockAssetQuantity "B" 1])
+      , (Coin 250_000, [mockAssetQuantity "C" 1])
+      , (Coin 250_000, [mockAssetQuantity "D" 1])
       ]
 
 --------------------------------------------------------------------------------
@@ -1360,18 +1477,29 @@ linearCost SelectionSkeleton{inputsSkeleton, outputsSkeleton, changeSkeleton}
     + F.length outputsSkeleton
     + F.length changeSkeleton
 
-data MakeChangeData = MakeChangeData
-    { inputBundles
-        :: NonEmpty TokenBundle
-    , extraInputCoin
-        :: Maybe Coin
-    , outputBundles
-        :: NonEmpty TokenBundle
-    , cost
-        :: Coin
-    , minCoinValueDef
-        :: MinCoinValueFor
-    } deriving (Eq, Show)
+type MakeChangeData =
+    MakeChangeCriteria MinCoinValueFor MockTokenBundleSizeAssessor
+
+data MockTokenBundleSizeAssessor
+    = NoBundleSizeLimit
+      -- ^ Indicates that there is no limit on a token bundle's size.
+    | BundleAssetCountUpperLimit Int
+      -- ^ Indicates an inclusive upper bound on the number of assets in a
+      -- token bundle.
+    deriving (Eq, Show)
+
+mkBundleSizeAssessor
+    :: MockTokenBundleSizeAssessor -> TokenBundleSizeAssessor
+mkBundleSizeAssessor m = TokenBundleSizeAssessor $ case m of
+    NoBundleSizeLimit ->
+        const TokenBundleSizeWithinLimit
+    BundleAssetCountUpperLimit upperLimit ->
+        \bundle ->
+            let assetCount = Set.size $ TokenBundle.getAssets bundle in
+            case assetCount `compare` upperLimit of
+                LT -> TokenBundleSizeWithinLimit
+                EQ -> TokenBundleSizeWithinLimit
+                GT -> TokenBundleSizeExceedsLimit
 
 isValidMakeChangeData :: MakeChangeData -> Bool
 isValidMakeChangeData p = (&&)
@@ -1380,7 +1508,7 @@ isValidMakeChangeData p = (&&)
   where
     totalInputValue = TokenBundle.add
         (F.fold $ inputBundles p)
-        (maybe TokenBundle.empty TokenBundle.fromCoin (extraInputCoin p))
+        (maybe TokenBundle.empty TokenBundle.fromCoin (view #extraCoinSource p))
     totalOutputValue = F.fold $ outputBundles p
     totalOutputCoinValue = TokenBundle.getCoin totalOutputValue
 
@@ -1388,12 +1516,13 @@ genMakeChangeData :: Gen MakeChangeData
 genMakeChangeData = flip suchThat isValidMakeChangeData $ do
     outputBundleCount <- choose (0, 15)
     let inputBundleCount = outputBundleCount * 4
-    MakeChangeData
-        <$> genTokenBundles inputBundleCount
-        <*> oneof [pure Nothing, Just <$> genCoinSmallPositive]
-        <*> genTokenBundles outputBundleCount
+    MakeChangeCriteria
+        <$> arbitrary
+        <*> pure NoBundleSizeLimit
         <*> genCoinSmall
-        <*> arbitrary
+        <*> oneof [pure Nothing, Just <$> genCoinSmallPositive]
+        <*> genTokenBundles inputBundleCount
+        <*> genTokenBundles outputBundleCount
   where
     genTokenBundles :: Int -> Gen (NonEmpty TokenBundle)
     genTokenBundles count = (:|)
@@ -1403,17 +1532,25 @@ genMakeChangeData = flip suchThat isValidMakeChangeData $ do
 makeChangeWith
     :: MakeChangeData
     -> Either UnableToConstructChangeError [TokenBundle]
-makeChangeWith p = makeChange
-    (mkMinCoinValueFor $ minCoinValueDef p)
-    (cost p)
-    (extraInputCoin p) (inputBundles p)
-    (outputBundles p)
+makeChangeWith p = makeChange p
+    { minCoinFor = mkMinCoinValueFor $ minCoinFor p
+    , bundleSizeAssessor = mkBundleSizeAssessor $ bundleSizeAssessor p
+    }
 
 prop_makeChange_identity
     :: NonEmpty TokenBundle -> Property
 prop_makeChange_identity bundles = (===)
-    (F.fold <$> makeChange (const (Coin 0)) (Coin 0) Nothing bundles bundles)
+    (F.fold <$> makeChange criteria)
     (Right TokenBundle.empty)
+  where
+    criteria = MakeChangeCriteria
+        { minCoinFor = const (Coin 0)
+        , requiredCost = Coin 0
+        , extraCoinSource = Nothing
+        , bundleSizeAssessor = mkBundleSizeAssessor NoBundleSizeLimit
+        , inputBundles = bundles
+        , outputBundles = bundles
+        }
 
 prop_makeChange_length
     :: MakeChangeData
@@ -1423,8 +1560,11 @@ prop_makeChange_length p =
         Left{} -> property False
         Right xs -> length xs === length (outputBundles p)
   where
-    change = makeChange noMinCoin noCost
-        (extraInputCoin p) (inputBundles p) (outputBundles p)
+    change = makeChange p
+        { minCoinFor = noMinCoin
+        , requiredCost = noCost
+        , bundleSizeAssessor = mkBundleSizeAssessor NoBundleSizeLimit
+        }
 
 prop_makeChange
     :: MakeChangeData
@@ -1460,7 +1600,7 @@ prop_makeChange_success_delta p change =
             totalInputValue
             totalOutputWithChange
     in
-        (delta === TokenBundle.fromCoin (cost p))
+        (delta === TokenBundle.fromCoin (view #requiredCost p))
             & counterexample counterExampleText
   where
     counterExampleText = unlines
@@ -1473,7 +1613,7 @@ prop_makeChange_success_delta p change =
         ]
     totalInputValue = TokenBundle.add
         (F.fold (inputBundles p))
-        (maybe TokenBundle.empty TokenBundle.fromCoin (extraInputCoin p))
+        (maybe TokenBundle.empty TokenBundle.fromCoin (view #extraCoinSource p))
     totalInputCoin =
         TokenBundle.getCoin totalInputValue
     totalOutputValue =
@@ -1495,7 +1635,7 @@ prop_makeChange_success_minValueRespected p =
     F.foldr ((.&&.) . checkMinValue) (property True)
   where
     minCoinValueFor :: TokenMap -> Coin
-    minCoinValueFor = mkMinCoinValueFor (minCoinValueDef p)
+    minCoinValueFor = mkMinCoinValueFor (minCoinFor p)
 
     checkMinValue :: TokenBundle -> Property
     checkMinValue m@TokenBundle{coin,tokens} =
@@ -1524,12 +1664,12 @@ prop_makeChange_fail_costTooBig p =
             totalInputValue
             totalOutputValue
     in
-        deltaCoin < cost p
+        deltaCoin < view #requiredCost p
             & counterexample ("delta: " <> pretty deltaCoin)
   where
     totalInputValue = TokenBundle.add
         (F.fold (inputBundles p))
-        (maybe TokenBundle.empty TokenBundle.fromCoin (extraInputCoin p))
+        (maybe TokenBundle.empty TokenBundle.fromCoin (view #extraCoinSource p))
     totalOutputValue =
         F.fold $ outputBundles p
 
@@ -1542,7 +1682,7 @@ prop_makeChange_fail_minValueTooBig
     :: MakeChangeData
     -> Property
 prop_makeChange_fail_minValueTooBig p =
-    case makeChangeWith (p { cost = noCost, minCoinValueDef = NoMinCoin }) of
+    case makeChangeWith p {requiredCost = noCost, minCoinFor = NoMinCoin} of
         Left{} ->
             property False & counterexample "makeChange failed with no cost!"
         -- If 'makeChange' failed to generate change, we try to re-run it with
@@ -1553,8 +1693,8 @@ prop_makeChange_fail_minValueTooBig p =
         -- coins available to generate all change outputs.
         Right change ->
             conjoin
-                [ deltaCoin < (totalMinCoinDeposit `addCoin` cost p)
-                , deltaCoin >= cost p
+                [ deltaCoin < totalMinCoinDeposit `addCoin` view #requiredCost p
+                , deltaCoin >= view #requiredCost p
                 ]
                 & counterexample counterexampleText
           where
@@ -1570,23 +1710,32 @@ prop_makeChange_fail_minValueTooBig p =
                 totalInputValue
                 totalOutputValue
             minCoinValueFor =
-                mkMinCoinValueFor (minCoinValueDef p)
+                mkMinCoinValueFor (minCoinFor p)
             totalMinCoinDeposit = F.foldr addCoin (Coin 0)
                 (minCoinValueFor . view #tokens <$> change)
   where
     totalInputValue = TokenBundle.add
         (F.fold (inputBundles p))
-        (maybe TokenBundle.empty TokenBundle.fromCoin (extraInputCoin p))
+        (maybe TokenBundle.empty TokenBundle.fromCoin (view #extraCoinSource p))
     totalOutputValue =
         F.fold $ outputBundles p
 
 unit_makeChange
     :: [Expectation]
 unit_makeChange =
-    [ makeChange minCoinValueFor cost extraSource i o `shouldBe` expectation
-    | (minCoinValueFor, cost, extraSource, i, o, expectation) <- matrix
+    [ makeChange criteria `shouldBe` expectation
+    | (minCoinFor, requiredCost, extraCoinSource, i, o, expectation) <- matrix
+    , let criteria = MakeChangeCriteria
+              { minCoinFor
+              , requiredCost
+              , extraCoinSource
+              , bundleSizeAssessor
+              , inputBundles = i
+              , outputBundles = o
+              }
     ]
   where
+    bundleSizeAssessor = mkBundleSizeAssessor NoBundleSizeLimit
     matrix =
         -- Simple, only ada, should construct a single change output with 1 ada.
         [ ( noMinCoin, noCost
@@ -1876,129 +2025,107 @@ unit_makeChangeForUserSpecifiedAsset =
     assetC = AssetId (UnsafeTokenPolicyId $ Hash "A") (UnsafeTokenName "2")
 
 --------------------------------------------------------------------------------
--- Equipartitioning natural numbers
+-- Splitting bundles with excessive asset counts
 --------------------------------------------------------------------------------
 
--- Test that natural numbers are equipartitioned fairly:
---
--- Each portion must be within unity of the ideal portion.
---
-prop_equipartitionNatural_fair
-    :: Natural -> NonEmpty () -> Property
-prop_equipartitionNatural_fair n count = (.||.)
-    (difference === 0)
-    (difference === 1)
+prop_splitBundleIfAssetCountExcessive_length
+    :: Blind (Large TokenBundle) -> Positive Int -> Property
+prop_splitBundleIfAssetCountExcessive_length
+    (Blind (Large b)) (Positive maxAssetCount) =
+        checkCoverage $ property $
+        cover 5 (resultLength == 1)
+            "length = 1" $
+        cover 5 (resultLength >= 2 && resultLength < 8)
+            "length >= 2 && length < 8" $
+        cover 5 (resultLength >= 8 && resultLength < 16)
+            "length >= 8 && length < 16"
+        True
   where
-    difference :: Natural
-    difference = F.maximum results - F.minimum results
+    isExcessive = (> maxAssetCount) . Set.size . TokenBundle.getAssets
+    result = splitBundleIfAssetCountExcessive b isExcessive
+    resultLength = NE.length result
 
-    results :: NonEmpty Natural
-    results = equipartitionNatural n count
-
-prop_equipartitionNatural_length :: Natural -> NonEmpty () -> Property
-prop_equipartitionNatural_length n count =
-    NE.length (equipartitionNatural n count) === NE.length count
-
-prop_equipartitionNatural_order :: Natural -> NonEmpty () -> Property
-prop_equipartitionNatural_order n count =
-    NE.sort results === results
+prop_splitBundleIfAssetCountExcessive_maximalSplitting
+    :: Blind (Large TokenBundle) -> Property
+prop_splitBundleIfAssetCountExcessive_maximalSplitting (Blind (Large b)) =
+    checkCoverage $ property $
+    cover 5 (assetCount == 0)
+        "asset count = 0" $
+    cover 5 (assetCount == 1)
+        "asset count = 1" $
+    cover 5 (assetCount >= 2 && assetCount < 8)
+        "asset count >= 2 && asset count < 8" $
+    cover 5 (assetCount >= 8 && assetCount < 16)
+        "asset count >= 8 && asset count < 16" $
+    (.&&.)
+        (NE.length result === max 1 assetCount)
+        (F.all ((<= 1) . Set.size . TokenBundle.getAssets) result)
   where
-    results = equipartitionNatural n count
+    assetCount = Set.size $ TokenBundle.getAssets b
+    isExcessive = (> 1) . Set.size . TokenBundle.getAssets
+    result = splitBundleIfAssetCountExcessive b isExcessive
 
-prop_equipartitionNatural_sum :: Natural -> NonEmpty () -> Property
-prop_equipartitionNatural_sum n count =
-    F.sum (equipartitionNatural n count) === n
-
---------------------------------------------------------------------------------
--- Equipartitioning token maps
---------------------------------------------------------------------------------
-
--- Test that token maps are equipartitioned fairly:
---
--- Each token quantity portion must be within unity of the ideal portion.
---
-prop_equipartitionTokenMap_fair :: TokenMap -> NonEmpty () -> Property
-prop_equipartitionTokenMap_fair m count = property $
-    isZeroOrOne maximumDifference
+prop_splitBundleIfAssetCountExcessive_postCondition
+    :: Blind (Large TokenBundle) -> Positive Int -> Property
+prop_splitBundleIfAssetCountExcessive_postCondition
+    (Blind (Large b)) (Positive maxAssetCount) =
+        property $ F.all (not . isExcessive) results
   where
-    -- Here we take advantage of the fact that the resultant maps are sorted
-    -- into ascending order when compared with the 'leq' function.
-    --
-    -- Consequently:
-    --
-    --  - the head map will be the smallest;
-    --  - the last map will be the greatest.
-    --
-    -- Therefore, subtracting the head map from the last map will produce a map
-    -- where each token quantity is equal to the difference between:
-    --
-    --  - the smallest quantity of that token in the resulting maps;
-    --  - the greatest quantity of that token in the resulting maps.
-    --
-    differences :: TokenMap
-    differences = NE.last results `TokenMap.unsafeSubtract` NE.head results
+    isExcessive = (> maxAssetCount) . Set.size . TokenBundle.getAssets
+    results = splitBundleIfAssetCountExcessive b isExcessive
 
-    isZeroOrOne :: TokenQuantity -> Bool
-    isZeroOrOne (TokenQuantity q) = q == 0 || q == 1
+prop_splitBundleIfAssetCountExcessive_sum
+    :: Blind (Large TokenBundle) -> Positive Int -> Property
+prop_splitBundleIfAssetCountExcessive_sum
+    (Blind (Large b)) (Positive maxAssetCount) =
+        F.fold (splitBundleIfAssetCountExcessive b isExcessive) === b
+  where
+    isExcessive = (> maxAssetCount) . Set.size . TokenBundle.getAssets
 
-    maximumDifference :: TokenQuantity
-    maximumDifference = TokenMap.maximumQuantity differences
+prop_splitBundlesWithExcessiveAssetCounts_length
+    :: Blind (NonEmpty TokenBundle) -> Positive Int -> Property
+prop_splitBundlesWithExcessiveAssetCounts_length
+    (Blind input) (Positive maxAssetCount) =
+        checkCoverage $ property $
+        cover 5 (lengthOutput > lengthInput)
+            "length has increased" $
+        cover 5 (lengthOutput == lengthInput)
+            "length has remained the same" $
+        case compare lengthOutput lengthInput of
+            GT -> (&&)
+                (F.any isExcessive input)
+                (F.all (not . isExcessive) output)
+            EQ -> (&&)
+                (F.all (not . isExcessive) input)
+                (input == output)
+            LT ->
+                error "length has unexpectedly decreased"
+  where
+    isExcessive =
+        (> maxAssetCount) . Set.size . TokenBundle.getAssets
+    lengthInput =
+        NE.length input
+    lengthOutput =
+        NE.length output
+    output =
+        splitBundlesWithExcessiveAssetCounts input isExcessive
 
-    results = equipartitionTokenMap m count
-
-prop_equipartitionTokenMap_length :: TokenMap -> NonEmpty () -> Property
-prop_equipartitionTokenMap_length m count =
-    NE.length (equipartitionTokenMap m count) === NE.length count
-
-prop_equipartitionTokenMap_order :: TokenMap -> NonEmpty () -> Property
-prop_equipartitionTokenMap_order m count = property $
-    inAscendingPartialOrder (equipartitionTokenMap m count)
-
-prop_equipartitionTokenMap_sum :: TokenMap -> NonEmpty () -> Property
-prop_equipartitionTokenMap_sum m count =
-    F.fold (equipartitionTokenMap m count) === m
-
---------------------------------------------------------------------------------
--- Equipartitioning token bundles according to a maximum quantity
---------------------------------------------------------------------------------
-
--- | Computes the number of parts that 'equipartitionTokenBundleWithMaxQuantity'
---   should return.
---
-equipartitionTokenBundleWithMaxQuantity_expectedLength
-    :: TokenBundle -> TokenQuantity -> Int
-equipartitionTokenBundleWithMaxQuantity_expectedLength m =
-    equipartitionTokenMapWithMaxQuantity_expectedLength
-        (view #tokens m)
-
-prop_equipartitionTokenBundleWithMaxQuantity_length
-    :: TokenBundle -> TokenQuantity -> Property
-prop_equipartitionTokenBundleWithMaxQuantity_length m maxQuantity =
-    maxQuantity > TokenQuantity.zero ==>
-        length (equipartitionTokenBundleWithMaxQuantity m maxQuantity)
-            === equipartitionTokenBundleWithMaxQuantity_expectedLength
-                m maxQuantity
-
-prop_equipartitionTokenBundleWithMaxQuantity_order
-    :: TokenBundle -> TokenQuantity -> Property
-prop_equipartitionTokenBundleWithMaxQuantity_order m maxQuantity =
-    maxQuantity > TokenQuantity.zero ==>
-        inAscendingPartialOrder
-            (equipartitionTokenBundleWithMaxQuantity m maxQuantity)
-
-prop_equipartitionTokenBundleWithMaxQuantity_sum
-    :: TokenBundle -> TokenQuantity -> Property
-prop_equipartitionTokenBundleWithMaxQuantity_sum m maxQuantity =
-    maxQuantity > TokenQuantity.zero ==>
-        F.fold (equipartitionTokenBundleWithMaxQuantity m maxQuantity) === m
+prop_splitBundlesWithExcessiveAssetCounts_sum
+    :: Blind (NonEmpty TokenBundle) -> Positive Int -> Property
+prop_splitBundlesWithExcessiveAssetCounts_sum
+    (Blind bundles) (Positive maxAssetCount) = (===)
+        (F.fold $ splitBundlesWithExcessiveAssetCounts bundles isExcessive)
+        (F.fold bundles)
+  where
+    isExcessive = (> maxAssetCount) . Set.size . TokenBundle.getAssets
 
 --------------------------------------------------------------------------------
--- Equipartitioning lists of token bundles according to a maximum quantity
+-- Splitting bundles with excessive token quantities
 --------------------------------------------------------------------------------
 
-prop_equipartitionTokenBundlesWithMaxQuantity_length
+prop_splitBundlesWithExcessiveTokenQuantities_length
     :: NonEmpty TokenBundle -> TokenQuantity -> Property
-prop_equipartitionTokenBundlesWithMaxQuantity_length input maxQuantityAllowed =
+prop_splitBundlesWithExcessiveTokenQuantities_length input maxQuantityAllowed =
     maxQuantityAllowed > TokenQuantity.zero ==> checkCoverage $ property $
         cover 5 (lengthOutput > lengthInput)
             "length has increased" $
@@ -2023,84 +2150,14 @@ prop_equipartitionTokenBundlesWithMaxQuantity_length input maxQuantityAllowed =
     maxQuantityOutput =
         F.maximum (TokenMap.maximumQuantity . view #tokens <$> output)
     output =
-        equipartitionTokenBundlesWithMaxQuantity input maxQuantityAllowed
+        splitBundlesWithExcessiveTokenQuantities input maxQuantityAllowed
 
-prop_equipartitionTokenBundlesWithMaxQuantity_sum
+prop_splitBundlesWithExcessiveTokenQuantities_sum
     :: NonEmpty TokenBundle -> TokenQuantity -> Property
-prop_equipartitionTokenBundlesWithMaxQuantity_sum ms maxQuantity =
+prop_splitBundlesWithExcessiveTokenQuantities_sum ms maxQuantity =
     maxQuantity > TokenQuantity.zero ==>
-        F.fold (equipartitionTokenBundlesWithMaxQuantity ms maxQuantity)
+        F.fold (splitBundlesWithExcessiveTokenQuantities ms maxQuantity)
             === F.fold ms
-
---------------------------------------------------------------------------------
--- Equipartitioning token maps according to a maximum quantity
---------------------------------------------------------------------------------
-
--- | Computes the number of parts that 'equipartitionTokenMapWithMaxQuantity'
---   should return.
---
-equipartitionTokenMapWithMaxQuantity_expectedLength
-    :: TokenMap -> TokenQuantity -> Int
-equipartitionTokenMapWithMaxQuantity_expectedLength
-    m (TokenQuantity maxQuantity) =
-        max 1 $ ceiling $ currentMaxQuantity % maxQuantity
-  where
-    TokenQuantity currentMaxQuantity = TokenMap.maximumQuantity m
-
-prop_equipartitionTokenMapWithMaxQuantity_coverage
-    :: TokenMap -> TokenQuantity -> Property
-prop_equipartitionTokenMapWithMaxQuantity_coverage m maxQuantity =
-    maxQuantity > TokenQuantity.zero ==>
-        checkCoverage $
-        cover 8 (maxQuantity == TokenQuantity 1)
-            "Maximum allowable quantity == 1" $
-        cover 8 (maxQuantity == TokenQuantity 2)
-            "Maximum allowable quantity == 2" $
-        cover 8 (maxQuantity >= TokenQuantity 3)
-            "Maximum allowable quantity >= 3" $
-        cover 8 (expectedLength == 1)
-            "Expected number of parts == 1" $
-        cover 8 (expectedLength == 2)
-            "Expected number of parts == 2" $
-        cover 8 (expectedLength >= 3)
-            "Expected number of parts >= 3" $
-        property $ expectedLength > 0
-  where
-    expectedLength = equipartitionTokenMapWithMaxQuantity_expectedLength
-        m maxQuantity
-
-prop_equipartitionTokenMapWithMaxQuantity_length
-    :: TokenMap -> TokenQuantity -> Property
-prop_equipartitionTokenMapWithMaxQuantity_length m maxQuantity =
-    maxQuantity > TokenQuantity.zero ==>
-        length (equipartitionTokenMapWithMaxQuantity m maxQuantity)
-            === equipartitionTokenMapWithMaxQuantity_expectedLength
-                m maxQuantity
-
-prop_equipartitionTokenMapWithMaxQuantity_max
-    :: TokenMap -> TokenQuantity -> Property
-prop_equipartitionTokenMapWithMaxQuantity_max m maxQuantity =
-    maxQuantity > TokenQuantity.zero ==>
-        checkCoverage $
-        cover 10 (maxResultQuantity == maxQuantity)
-            "At least one resultant token map has a maximal quantity" $
-        property $ maxResultQuantity <= maxQuantity
-  where
-    results = equipartitionTokenMapWithMaxQuantity m maxQuantity
-    maxResultQuantity = F.maximum (TokenMap.maximumQuantity <$> results)
-
-prop_equipartitionTokenMapWithMaxQuantity_order
-    :: TokenMap -> TokenQuantity -> Property
-prop_equipartitionTokenMapWithMaxQuantity_order m maxQuantity =
-    maxQuantity > TokenQuantity.zero ==>
-        inAscendingPartialOrder
-            (equipartitionTokenMapWithMaxQuantity m maxQuantity)
-
-prop_equipartitionTokenMapWithMaxQuantity_sum
-    :: TokenMap -> TokenQuantity -> Property
-prop_equipartitionTokenMapWithMaxQuantity_sum m maxQuantity =
-    maxQuantity > TokenQuantity.zero ==>
-        F.fold (equipartitionTokenMapWithMaxQuantity m maxQuantity) === m
 
 --------------------------------------------------------------------------------
 -- Grouping and ungrouping
@@ -2285,13 +2342,16 @@ consecutivePairs xs = case tailMay xs of
     Nothing -> []
     Just ys -> xs `zip` ys
 
-inAscendingPartialOrder :: (Foldable f, PartialOrd a) => f a -> Bool
-inAscendingPartialOrder = all (uncurry leq) . consecutivePairs . F.toList
-
 addExtraSource :: Maybe Coin -> TokenBundle -> TokenBundle
 addExtraSource extraSource =
     TokenBundle.add
         (maybe TokenBundle.empty TokenBundle.fromCoin extraSource)
+
+mockAsset :: ByteString -> AssetId
+mockAsset a = AssetId (UnsafeTokenPolicyId $ Hash a) (UnsafeTokenName "1")
+
+mockAssetQuantity :: ByteString -> Natural -> (AssetId, TokenQuantity)
+mockAssetQuantity a q = (mockAsset a, TokenQuantity q)
 
 unitTests :: String -> [Expectation] -> SpecWith ()
 unitTests lbl cases =
@@ -2328,6 +2388,25 @@ instance Arbitrary (MockRoundRobinState TokenName Word8) where
 instance Arbitrary TokenBundle where
     arbitrary = genTokenBundleSmallRangePositive
     shrink = shrinkTokenBundleSmallRangePositive
+
+instance Arbitrary (Large TokenBundle) where
+    arbitrary = fmap Large $ TokenBundle
+        <$> genCoinLargePositive
+        <*> genTokenMapLarge
+    -- No shrinking
+
+genTokenMapLarge :: Gen TokenMap
+genTokenMapLarge = do
+    assetCount <- frequency
+        [ (1, pure 0)
+        , (1, pure 1)
+        , (8, choose (2, 63))
+        ]
+    TokenMap.fromFlatList <$> replicateM assetCount genAssetQuantity
+  where
+    genAssetQuantity = (,)
+        <$> genAssetIdLargeRange
+        <*> genTokenQuantitySmallPositive
 
 instance Arbitrary TokenMap where
     arbitrary = genTokenMapSmallRange

@@ -73,6 +73,11 @@ module Cardano.Wallet.Shelley.Compatibility
     , toCardanoValue
     , fromCardanoValue
 
+      -- ** Assessing sizes of token bundles
+    , tokenBundleSizeAssessor
+    , computeTokenBundleSerializedLengthBytes
+    , maxTokenBundleSerializedLengthBytes
+
       -- ** Stake pools
     , fromPoolId
     , fromPoolDistr
@@ -260,6 +265,7 @@ import Type.Reflection
 import qualified Cardano.Address.Style.Shelley as CA
 import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Api.Typed as Cardano
+import qualified Cardano.Binary as Binary
 import qualified Cardano.Byron.Codec.Cbor as CBOR
 import qualified Cardano.Chain.Common as Byron
 import qualified Cardano.Ledger.Core as SL.Core
@@ -1215,6 +1221,40 @@ toStakePoolDlgCert xpub (W.PoolId pid) =
   where
     cred = SL.KeyHash $ UnsafeHash $ toShort $ blake2b224 $ xpubPublicKey xpub
     pool = SL.KeyHash $ UnsafeHash $ toShort pid
+
+{-------------------------------------------------------------------------------
+                   Assessing sizes of token bundles
+-------------------------------------------------------------------------------}
+
+-- | Assesses a token bundle size in relation to the maximum size that can be
+--   included in a transaction output.
+--
+-- See 'W.TokenBundleSizeAssessor' for the expected properties of this function.
+--
+tokenBundleSizeAssessor :: W.TokenBundleSizeAssessor
+tokenBundleSizeAssessor = W.TokenBundleSizeAssessor {..}
+  where
+    assessTokenBundleSize tb
+        | serializedLengthBytes <= maxTokenBundleSerializedLengthBytes =
+            W.TokenBundleSizeWithinLimit
+        | otherwise =
+            W.TokenBundleSizeExceedsLimit
+      where
+        serializedLengthBytes :: Int
+        serializedLengthBytes = computeTokenBundleSerializedLengthBytes tb
+
+computeTokenBundleSerializedLengthBytes :: TokenBundle.TokenBundle -> Int
+computeTokenBundleSerializedLengthBytes =
+    BS.length . Binary.serialize' . Cardano.toMaryValue . toCardanoValue
+
+-- NOTE: This hard-coded limit may change in future. Ideally, we should
+-- delegate the assessment of whether a token bundle is too large to a
+-- function exported by Cardano API.
+--
+-- See: https://jira.iohk.io/projects/ADP/issues/ADP-779
+--
+maxTokenBundleSerializedLengthBytes :: Int
+maxTokenBundleSerializedLengthBytes = 4000
 
 {-------------------------------------------------------------------------------
                       Address Encoding / Decoding

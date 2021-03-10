@@ -8,7 +8,7 @@ module Cardano.Numeric.UtilSpec
 import Prelude
 
 import Cardano.Numeric.Util
-    ( padCoalesce, partitionNatural )
+    ( equipartitionNatural, padCoalesce, partitionNatural )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Maybe
@@ -31,6 +31,7 @@ import Test.QuickCheck
     , shrinkIntegral
     , withMaxSuccess
     , (.&&.)
+    , (.||.)
     , (===)
     )
 
@@ -48,6 +49,17 @@ spec = do
             property $ prop_padCoalesce_sort @(Sum Int)
         it "prop_padCoalesce_sum" $
             property $ prop_padCoalesce_sum @(Sum Int)
+
+    describe "equipartitionNatural" $ do
+
+        it "prop_equipartitionNatural_fair" $
+            property prop_equipartitionNatural_fair
+        it "prop_equipartitionNatural_length" $
+            property prop_equipartitionNatural_length
+        it "prop_equipartitionNatural_order" $
+            property prop_equipartitionNatural_order
+        it "prop_equipartitionNatural_sum" $
+            property prop_equipartitionNatural_sum
 
     describe "partitionNatural" $ do
 
@@ -78,6 +90,40 @@ prop_padCoalesce_sum
     :: (Monoid a, Ord a, Show a) => NonEmpty a -> NonEmpty () -> Property
 prop_padCoalesce_sum source target =
     F.fold source === F.fold (padCoalesce source target)
+
+--------------------------------------------------------------------------------
+-- Equipartitioning natural numbers
+--------------------------------------------------------------------------------
+
+-- Test that natural numbers are equipartitioned fairly:
+--
+-- Each portion must be within unity of the ideal portion.
+--
+prop_equipartitionNatural_fair
+    :: Natural -> NonEmpty () -> Property
+prop_equipartitionNatural_fair n count = (.||.)
+    (difference === 0)
+    (difference === 1)
+  where
+    difference :: Natural
+    difference = F.maximum results - F.minimum results
+
+    results :: NonEmpty Natural
+    results = equipartitionNatural n count
+
+prop_equipartitionNatural_length :: Natural -> NonEmpty () -> Property
+prop_equipartitionNatural_length n count =
+    NE.length (equipartitionNatural n count) === NE.length count
+
+prop_equipartitionNatural_order :: Natural -> NonEmpty () -> Property
+prop_equipartitionNatural_order n count =
+    NE.sort results === results
+  where
+    results = equipartitionNatural n count
+
+prop_equipartitionNatural_sum :: Natural -> NonEmpty () -> Property
+prop_equipartitionNatural_sum n count =
+    F.sum (equipartitionNatural n count) === n
 
 --------------------------------------------------------------------------------
 -- Partitioning natural numbers
