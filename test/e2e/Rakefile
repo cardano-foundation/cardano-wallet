@@ -107,6 +107,7 @@ task :start_node_and_wallet, [:env, :installation] do |task, args|
   puts "\n  >> Setting up cardano-node and cardano-wallet"
 
   installation = args[:installation] || :bins
+  bin_dir = installation == "local" ? "" : BINS + "/"
   config_dir = File.join(CONFIGS, args[:env])
   cd = Dir.pwd
   mk_dir(STATE)
@@ -114,13 +115,13 @@ task :start_node_and_wallet, [:env, :installation] do |task, args|
 
   if is_win?
     # create cardano-node.bat file
-    node_cmd = "#{cd}/cardano-node.exe run --config #{config_dir}/configuration.json --topology #{config_dir}/topology.json --database-path #{NODE_DB} --socket-path \\\\.\\pipe\\cardano-node-testnet"
+    node_cmd = "#{bin_dir}cardano-node.exe run --config #{config_dir}/configuration.json --topology #{config_dir}/topology.json --database-path #{NODE_DB} --socket-path \\\\.\\pipe\\cardano-node-testnet"
     File.open("cardano-node.bat", "w") do |f|
       f.write(node_cmd)
     end
 
     # create cardano-wallet.bat file
-    wallet_cmd = "#{cd}/cardano-wallet.exe serve --node-socket \\\\.\\pipe\\cardano-node-testnet --testnet #{config_dir}/genesis-byron.json --database #{WALLET_DB} --token-metadata-server #{TOKEN_METADATA}"
+    wallet_cmd = "#{bin_dir}cardano-wallet.exe serve --node-socket \\\\.\\pipe\\cardano-node-testnet --testnet #{config_dir}/genesis-byron.json --database #{WALLET_DB} --token-metadata-server #{TOKEN_METADATA}"
     File.open("cardano-wallet.bat", "w") do |f|
       f.write(wallet_cmd)
     end
@@ -152,7 +153,6 @@ task :start_node_and_wallet, [:env, :installation] do |task, args|
     puts `#{start_node}`
     puts `#{start_wallet}`
   else
-    bin_dir = installation == "local" ? "" : BINS + "/"
     start_node = "#{bin_dir}cardano-node run --config #{config_dir}/configuration.json --topology #{config_dir}/topology.json --database-path #{NODE_DB} --socket-path #{STATE}/node.socket"
     start_wallet = "#{bin_dir}cardano-wallet serve --node-socket #{STATE}/node.socket --testnet #{config_dir}/genesis-byron.json --database #{WALLET_DB} --token-metadata-server #{TOKEN_METADATA}"
 
@@ -187,14 +187,13 @@ task :get_latest_bins do
   wget(get_latest_binary_url)
   mk_dir(BINS)
   if is_win?
-    puts `unzip binary-dist`
-    puts `dir`
+    puts `unzip -o binary-dist -d #{BINS}`
 
     puts "cardano-node version:"
-    puts `cardano-node.exe version`
+    puts `#{BINS}/cardano-node.exe version`
 
     puts "cardano-wallet version:"
-    puts `cardano-wallet.exe version`
+    puts `#{BINS}/cardano-wallet.exe version`
   else
     Rake::Task[:clean_bins].invoke
     puts `rm -rf cardano-wallet-*/`
