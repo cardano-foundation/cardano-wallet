@@ -1,4 +1,9 @@
-{ pkgs ? import ../../nix/default.nix {} }:
+{ pkgs ? import ../../nix/default.nix {}
+, cardanoWallet ? import ../../default.nix { inherit pkgs; }
+# Whether to build cardano-wallet from this source directory and
+# include in the shell.
+, bins ? true
+}:
 
 let
   gems = pkgs.bundlerEnv {
@@ -13,5 +18,9 @@ in pkgs.mkShell {
     gems.wrappedRuby
     pkgs.bundix
     pkgs.screen
+  ] ++ pkgs.lib.optionals bins [
+    cardanoWallet.cardano-wallet
+    cardanoWallet.cardano-node
   ];
+  CARDANO_NODE_CONFIGS = pkgs.cardano-node-deployments;
 }
