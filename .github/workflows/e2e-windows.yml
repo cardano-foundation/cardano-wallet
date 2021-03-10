@@ -39,7 +39,6 @@ jobs:
         choco install wget
         choco install unzip
         choco install nssm
-        choco install gnupg
 
     - name: Run all tests
       run: rake run_on[testnet]

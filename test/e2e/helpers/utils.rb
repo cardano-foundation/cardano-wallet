@@ -13,7 +13,7 @@ module Helpers
       wallets = JSON.parse File.read(fixture)
       if is_linux?
         wallets["linux"][type]
-      elsif is_macos?
+      elsif is_mac?
         wallets["macos"][type]
       elsif is_win?
         wallets["win"][type]
