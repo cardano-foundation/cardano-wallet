@@ -1127,11 +1127,11 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
 
         basePayload <- mkTxPayload ctx wb amt fixturePassphrase
 
-        -- This will encode to at least 8k of CBOR. The max tx size for the
-        -- integration tests cluster is 4k.
+        -- This will encode to at least 32k of CBOR. The max tx size for the
+        -- integration tests cluster is 16k.
         let txMeta = Aeson.object
                 [ (toText @Int i, bytes)
-                | i <- [0..127] ]
+                | i <- [0..511] ]
             bytes = [json|{ "bytes": #{T.replicate 64 "a"} }|]
         let payload = addTxMetadata txMeta basePayload
 
@@ -1190,11 +1190,11 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
 
         basePayload <- mkTxPayload ctx wb amt fixturePassphrase
 
-        -- This will encode to at least 8k of CBOR. The max tx size for the
-        -- integration tests cluster is 4k.
+        -- This will encode to at least 32k of CBOR. The max tx size for the
+        -- integration tests cluster is 16k.
         let txMeta = Aeson.object
                 [ (toText @Int i, bytes)
-                | i <- [0..127] ]
+                | i <- [0..511] ]
             bytes = [json|{ "bytes": #{T.replicate 64 "a"} }|]
         let payload = addTxMetadata txMeta basePayload
         r <- request @ApiFee ctx
