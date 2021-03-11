@@ -1421,7 +1421,8 @@ transactionIdArgument = argumentT $ mempty
 -- | <name=STRING>
 walletNameArgument :: Parser WalletName
 walletNameArgument = argumentT $ mempty
-    <> metavar "STRING"
+    <> metavar "WALLET_NAME"
+    <> help "Name of the wallet."
 
 -- | <public-key=ACCOUNT_PUBLIC_KEY>
 accPubKeyArgument :: Parser ApiAccountPublicKey
