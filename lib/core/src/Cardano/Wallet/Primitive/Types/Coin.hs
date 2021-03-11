@@ -20,19 +20,23 @@ module Cardano.Wallet.Primitive.Types.Coin
       -- * Checks
     , isValidCoin
 
-      -- * Operations
+      -- * Arithmetic operations
     , addCoin
     , subtractCoin
     , sumCoins
     , distance
+
+      -- * Partitioning
     , equipartition
+    , partition
+    , unsafePartition
 
     ) where
 
 import Prelude
 
 import Cardano.Numeric.Util
-    ( equipartitionNatural )
+    ( equipartitionNatural, partitionNatural )
 import Control.DeepSeq
     ( NFData (..) )
 import Control.Monad
@@ -43,6 +47,8 @@ import Data.Hashable
     ( Hashable )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
+import Data.Maybe
+    ( fromMaybe )
 import Data.Quantity
     ( Quantity (..) )
 import Data.Text.Class
@@ -53,6 +59,8 @@ import Fmt
     ( Buildable (..), fixedF )
 import GHC.Generics
     ( Generic )
+import GHC.Stack
+    ( HasCallStack )
 import Numeric.Natural
     ( Natural )
 import Quiet
@@ -158,6 +166,10 @@ sumCoins = foldl' addCoin (Coin 0)
 distance :: Coin -> Coin -> Coin
 distance (Coin a) (Coin b) = if a < b then Coin (b - a) else Coin (a - b)
 
+--------------------------------------------------------------------------------
+-- Partitioning
+--------------------------------------------------------------------------------
+
 -- | Computes the equipartition of a coin into 'n' smaller coins.
 --
 -- An /equipartition/ of a coin is a /partition/ of that coin into 'n' smaller
@@ -173,7 +185,45 @@ equipartition
     -> NonEmpty Coin
     -- ^ The partitioned coins.
 equipartition c =
-    -- Note: the natural-to-coin conversion is safe, as equipartitioning always
-    -- guarantees to produce values that are less than or equal to the original
-    -- value.
+    -- Note: the natural-to-coin conversion is safe, as partitioning guarantees
+    -- to produce values that are less than or equal to the original value.
     fmap unsafeNaturalToCoin . equipartitionNatural (coinToNatural c)
+
+-- | Partitions a coin into a number of parts, where the size of each part is
+--   proportional to the size of its corresponding element in the given list
+--   of weights, and the number of parts is equal to the number of weights.
+--
+-- Returns 'Nothing' if the sum of weights is equal to zero.
+--
+partition
+    :: Coin
+    -- ^ The coin to be partitioned.
+    -> NonEmpty Coin
+    -- ^ The list of weights.
+    -> Maybe (NonEmpty Coin)
+    -- ^ The partitioned coins.
+partition c
+    -- Note: the natural-to-coin conversion is safe, as partitioning guarantees
+    -- to produce values that are less than or equal to the original value.
+    = fmap (fmap unsafeNaturalToCoin)
+    . partitionNatural (coinToNatural c)
+    . fmap coinToNatural
+
+-- | Partitions a coin into a number of parts, where the size of each part is
+--   proportional to the size of its corresponding element in the given list
+--   of weights, and the number of parts is equal to the number of weights.
+--
+-- Throws a run-time error if the sum of weights is equal to zero.
+--
+unsafePartition
+    :: HasCallStack
+    => Coin
+    -- ^ The coin to be partitioned.
+    -> NonEmpty Coin
+    -- ^ The list of weights.
+    -> NonEmpty Coin
+    -- ^ The partitioned coins.
+unsafePartition = (fromMaybe zeroWeightSumError .) . partition
+  where
+    zeroWeightSumError = error
+        "Coin.unsafePartition: weights must have a non-zero sum."

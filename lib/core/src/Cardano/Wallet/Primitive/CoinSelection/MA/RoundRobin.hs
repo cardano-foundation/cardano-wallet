@@ -1233,19 +1233,7 @@ makeChangeForCoin
     -> Coin
         -- ^ A surplus ada quantity to be distributed.
     -> NonEmpty Coin
-makeChangeForCoin targets excess =
-    -- The 'Natural -> Coin' conversion is safe, because 'partitionNatural'
-    -- guarantees to produce a list where every entry is less than or equal to
-    -- the target value.
-    maybe zeroWeightSum (fmap unsafeNaturalToCoin)
-        (partitionNatural (coinToNatural excess) weights)
-  where
-    zeroWeightSum :: HasCallStack => a
-    zeroWeightSum = error
-        "partitionValue: The specified weights must have a non-zero sum."
-
-    weights :: NonEmpty Natural
-    weights = coinToNatural <$> targets
+makeChangeForCoin = flip Coin.unsafePartition
 
 --------------------------------------------------------------------------------
 -- Splitting bundles
