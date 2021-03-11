@@ -107,7 +107,7 @@ TxMeta
     txMetaAmount            W.Coin              sql=amount
     txMetadata              W.TxMetadata Maybe  sql=data
     txMetaSlotExpires       SlotNo Maybe        sql=slot_expires
-    txMetaFee               Word Maybe       sql=fee
+    txMetaFee               Word64 Maybe        sql=fee
 
     Primary txMetaTxId txMetaWalletId
     Foreign Wallet OnDeleteCascade fk_wallet_tx_meta txMetaWalletId
