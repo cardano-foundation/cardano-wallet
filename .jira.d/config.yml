@@ -53,4 +53,19 @@ custom-commands:
   - name: assigned
     help: What tickets we are assigned to
     script: |-
-      {{jira}} list --template inprogress --query "project=$JIRA_PROJECT and statusCategory = 'In Progress' and assignee in ('rodney.lorrimar@iohk.io', 'pawel.jakubas@iohk.io', 'johannes.lund@iohk.io', 'jonathan.knowles@iohk.io', 'matthias.benkort@iohk.io', 'alex.apeldoorn@iohk.io', 'sergiy.savatyeyev@iohk.io') ORDER BY assignee ASC, updated DESC, rank ASC, created"
+      {{jira}} list --template debug --query "project=$JIRA_PROJECT and statusCategory = 'In Progress' and assignee in ('rodney.lorrimar@iohk.io', 'pawel.jakubas@iohk.io', 'johannes.lund@iohk.io', 'jonathan.knowles@iohk.io', 'matthias.benkort@iohk.io', 'alex.apeldoorn@iohk.io', 'sergiy.savatyeyev@iohk.io', 'simon.hafner@iohk.io') ORDER BY assignee ASC, updated DESC, rank ASC, created" | jq -r '[.issues[]|{key, summary: .fields.summary, type: .fields.issuetype.name, assignee: .fields.assignee.displayName, status: .fields.status.name}]|group_by(.assignee)[]|{assignee: .[0].assignee, issues: del(.[].assignee)}|[.assignee, (.issues[]|"- \(.key) (\(.type)) \(.summary) [\(.status)]"), ""]|join("\n")'
+
+  - name: grab
+    help: Download all attachments of a ticket
+    args:
+      - name: ISSUE
+        required: true
+        help: Jira ticket key
+        type: STRING
+    options:
+      - name: overwrite
+        help: Overwrite existing files
+        type: BOOL
+        default: false
+    script: |-
+      {{jira}} attach list --template debug {{args.ISSUE}} | jq -r '.[]|{{ if not options.overwrite }}"test -s \(.filename|@sh) && echo '"'"'\(.filename) already exists'"'"' || " + {{end}}(["{{jira}}", "attach", "get", .id]|@sh)' | sh
