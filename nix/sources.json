@@ -24,15 +24,15 @@
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "iohk-nix": {
-        "branch": "rvl/stack-nix-regenerate-fix",
+        "branch": "master",
         "description": "nix scripts shared across projects",
         "homepage": null,
         "owner": "input-output-hk",
         "repo": "iohk-nix",
-        "rev": "086b3838282d75b1184280ea79f9ff681f8c28d0",
-        "sha256": "1xrfcba0c3zyqlphpmxj9kfq9mvgg8615l1809lhx0y4aa41b4c9",
+        "rev": "666e57027dca46964c6a26efcc2042b247d354a5",
+        "sha256": "0v5sgs8wf47x4csr6f70z2hi47my5r981m71nqgkj04n0sr6lz4b",
         "type": "tarball",
-        "url": "https://github.com/input-output-hk/iohk-nix/archive/086b3838282d75b1184280ea79f9ff681f8c28d0.tar.gz",
+        "url": "https://github.com/input-output-hk/iohk-nix/archive/666e57027dca46964c6a26efcc2042b247d354a5.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "niv": {
