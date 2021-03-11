@@ -11,12 +11,16 @@ module Cardano.Wallet.Primitive.Types.TokenQuantity
       -- * Values
     , zero
 
-      -- * Operations
+      -- * Arithmetic operations
     , add
     , subtract
     , pred
     , succ
+
+      -- * Partitioning
     , equipartition
+    , partition
+    , unsafePartition
 
       -- * Tests
     , isNonZero
@@ -31,7 +35,7 @@ import Prelude hiding
     ( pred, subtract, succ )
 
 import Cardano.Numeric.Util
-    ( equipartitionNatural )
+    ( equipartitionNatural, partitionNatural )
 import Control.DeepSeq
     ( NFData (..) )
 import Control.Monad
@@ -44,12 +48,16 @@ import Data.Hashable
     ( Hashable )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
+import Data.Maybe
+    ( fromMaybe )
 import Data.Text.Class
     ( FromText (..), ToText (..) )
 import Fmt
     ( Buildable (..) )
 import GHC.Generics
     ( Generic )
+import GHC.Stack
+    ( HasCallStack )
 import Numeric.Natural
     ( Natural )
 import Quiet
@@ -108,7 +116,7 @@ zero :: TokenQuantity
 zero = TokenQuantity 0
 
 --------------------------------------------------------------------------------
--- Operations
+-- Arithmetic operations
 --------------------------------------------------------------------------------
 
 add :: TokenQuantity -> TokenQuantity -> TokenQuantity
@@ -127,6 +135,10 @@ pred (TokenQuantity q) = TokenQuantity $ Prelude.pred q
 succ :: TokenQuantity -> TokenQuantity
 succ (TokenQuantity q) = TokenQuantity $ Prelude.succ q
 
+--------------------------------------------------------------------------------
+-- Partitioning
+--------------------------------------------------------------------------------
+
 -- | Computes the equipartition of a token quantity into 'n' smaller quantities.
 --
 -- An /equipartition/ of a token quantity is a /partition/ of that quantity
@@ -143,6 +155,43 @@ equipartition
     -- ^ The partitioned quantities.
 equipartition q =
     fmap TokenQuantity . equipartitionNatural (unTokenQuantity q)
+
+-- | Partitions a token quantity into a number of parts, where the size of each
+--   part is proportional to the size of its corresponding element in the given
+--   list of weights, and the number of parts is equal to the number of weights.
+--
+-- Returns 'Nothing' if the sum of weights is equal to zero.
+--
+partition
+    :: TokenQuantity
+    -- ^ The token quantity to be partitioned.
+    -> NonEmpty TokenQuantity
+    -- ^ The list of weights.
+    -> Maybe (NonEmpty TokenQuantity)
+    -- ^ The partitioned token quantities.
+partition c
+    = fmap (fmap TokenQuantity)
+    . partitionNatural (unTokenQuantity c)
+    . fmap unTokenQuantity
+
+-- | Partitions a token quantity into a number of parts, where the size of each
+--   part is proportional to the size of its corresponding element in the given
+--   list of weights, and the number of parts is equal to the number of weights.
+--
+-- Throws a run-time error if the sum of weights is equal to zero.
+--
+unsafePartition
+    :: HasCallStack
+    => TokenQuantity
+    -- ^ The token quantity to be partitioned.
+    -> NonEmpty TokenQuantity
+    -- ^ The list of weights.
+    -> NonEmpty TokenQuantity
+    -- ^ The partitioned token quantities.
+unsafePartition = (fromMaybe zeroWeightSumError .) . partition
+  where
+    zeroWeightSumError = error
+        "TokenQuantity.unsafePartition: weights must have a non-zero sum."
 
 --------------------------------------------------------------------------------
 -- Tests
