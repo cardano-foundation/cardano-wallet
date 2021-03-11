@@ -61,6 +61,21 @@ $ screen -r WALLET
 > :information_source: **_Windows_**
 cardano-node and cardano-wallet are started as separate Windows services using [nssm](https://nssm.cc/) tool. One examine services using Windows service manager like `services.msc`.
 
+> :information_source: **_Docker_**
+One can also start tests against cardano-wallet docker. There is docker-compose-test.yml provided that includes cardano-node and cardano-wallet. To start it several env variables need to be set to feed docker-compose:
+```
+NETWORK=testnet \
+TESTS_E2E_TOKEN_METADATA=https://metadata.cardano-testnet.iohkdev.io/ \
+WALLET=dev-master-shelley \
+NODE=1.25.1 \
+NODE_CONFIG_PATH=`pwd`/state/configs/$NETWORK \
+docker-compose -f docker-compose-test.yml up
+```
+> Then running tests against docker is just:
+```ruby
+$ rake wait_until_node_synced
+$ rake spec
+```
 
 ### Test artifacts
 
