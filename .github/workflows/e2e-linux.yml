@@ -2,9 +2,7 @@ name: E2E Linux
 
 on:
   schedule:
-  - cron:  "0 23 * * *"
-  pull_request:
-    branches: [ master ]
+  - cron:  "0 21 * * *"
   workflow_dispatch:
 
 defaults:

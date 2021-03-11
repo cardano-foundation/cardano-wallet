@@ -3,8 +3,6 @@ name: E2E MacOS
 on:
   schedule:
   - cron:  "0 22 * * *"
-  pull_request:
-    branches: [ master ]
   workflow_dispatch:
 
 defaults:

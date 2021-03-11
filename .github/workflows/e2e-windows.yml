@@ -2,10 +2,8 @@ name: E2E Windows
 
 on:
   schedule:
-  - cron:  "0 23 * * *"
+  - cron:  "0 21 * * *"
   workflow_dispatch:
-  pull_request:
-    branches: [ master ]
 
 defaults:
   run:
