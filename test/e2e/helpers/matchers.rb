@@ -7,10 +7,10 @@ RSpec::Matchers.define :have_http do |code|
     failure_message do |response|
       %Q{
           The response did not return expected HTTP code!
-          Expected = #{code}
-          Actual = #{response.code}
-          Response:
-          
+          Expected code = #{code}
+          Actual code = #{response.code}
+          Actual response:
+
           #{response}
         }
     end

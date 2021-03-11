@@ -24,7 +24,7 @@ module Helpers
       elsif is_mac?
         wallets["macos"][type]
       elsif is_win?
-        wallets["win"][type]
+        wallets["windows"][type]
       else
         wallets["linux"][type]
       end
