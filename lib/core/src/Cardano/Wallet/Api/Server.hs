@@ -354,6 +354,8 @@ import Cardano.Wallet.TokenMetadata
     ( TokenMetadataClient, fillMetadata )
 import Cardano.Wallet.Transaction
     ( DelegationAction (..)
+    , ErrSelectionCriteria (..)
+    , ErrTokenQuantityExceedsMaxBound (..)
     , TransactionCtx (..)
     , TransactionLayer
     , Withdrawal (..)
@@ -2866,8 +2868,32 @@ instance LiftHandler (ErrInvalidDerivationIndex 'Soft level) where
                 , "between ", pretty minIx, " and ", pretty maxIx, " without a suffix."
                 ]
 
+instance LiftHandler ErrSelectionCriteria where
+    handler = \case
+        ErrSelectionCriteriaOutputTokenQuantityExceedsMaxBound e ->
+            handler e
+
+instance LiftHandler ErrTokenQuantityExceedsMaxBound where
+    handler e = apiError err403 TokenQuantityExceedsMaxBound $ mconcat
+        [ "One of the asset quantities you've specified is greater than the "
+        , "maximum quantity allowed in a single transaction output. Try "
+        , "splitting this quantity across two or more outputs. "
+        , "Destination address: "
+        , pretty (view #address e)
+        , ". Token policy identifier: "
+        , pretty (view #tokenPolicyId $ asset e)
+        , ". Asset name: "
+        , pretty (view #tokenName $ asset e)
+        , ". Token quantity specified: "
+        , pretty (view #quantity e)
+        , ". Maximum allowable token quantity: "
+        , pretty (view #quantityMaxBound e)
+        , "."
+        ]
+
 instance LiftHandler ErrSelectAssets where
     handler = \case
+        ErrSelectAssetsCriteriaError e -> handler e
         ErrSelectAssetsNoSuchWallet e -> handler e
         ErrSelectAssetsAlreadyWithdrawing tx ->
             apiError err403 AlreadyWithdrawing $ mconcat

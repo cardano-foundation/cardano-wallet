@@ -2,6 +2,7 @@
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
@@ -85,8 +86,16 @@ import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId (..), TokenMap )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenName (..) )
+import Cardano.Wallet.Primitive.Types.TokenQuantity
+    ( TokenQuantity )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( SealedTx (..), Tx (..), TxIn (..), TxOut (..), txOutCoin )
+    ( SealedTx (..)
+    , Tx (..)
+    , TxIn (..)
+    , TxOut (..)
+    , txOutCoin
+    , txOutMaxTokenQuantity
+    )
 import Cardano.Wallet.Shelley.Compatibility
     ( AllegraEra
     , CardanoEra (MaryEra)
@@ -112,6 +121,8 @@ import Cardano.Wallet.Transaction
     ( DelegationAction (..)
     , ErrDecodeSignedTx (..)
     , ErrMkTx (..)
+    , ErrSelectionCriteria (..)
+    , ErrTokenQuantityExceedsMaxBound (..)
     , TransactionCtx (..)
     , TransactionLayer (..)
     , withdrawalToCoin
@@ -147,6 +158,7 @@ import qualified Cardano.Crypto.Hash.Class as Crypto
 import qualified Cardano.Crypto.Wallet as Crypto.HD
 import qualified Cardano.Ledger.Core as SL
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
+import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
 import qualified Cardano.Wallet.Shelley.Compatibility as Compatibility
 import qualified Codec.CBOR.Encoding as CBOR
@@ -414,11 +426,35 @@ _initSelectionCriteria
     -> TransactionCtx
     -> UTxOIndex.UTxOIndex
     -> NE.NonEmpty TxOut
-    -> SelectionCriteria
-_initSelectionCriteria pp ctx utxoAvailable outputsUnprepared =
-    SelectionCriteria
-        {outputsToCover, utxoAvailable, selectionLimit, extraCoinSource}
+    -> Either ErrSelectionCriteria SelectionCriteria
+_initSelectionCriteria pp ctx utxoAvailable outputsUnprepared
+    | (address, asset, quantity) : _ <- excessiveTokenQuantities =
+        Left $
+            -- We encountered one or more excessive token quantities.
+            -- Just report the first such quantity:
+            ErrSelectionCriteriaOutputTokenQuantityExceedsMaxBound $
+            ErrTokenQuantityExceedsMaxBound
+                { address
+                , asset
+                , quantity
+                , quantityMaxBound = txOutMaxTokenQuantity
+                }
+    | otherwise =
+        pure SelectionCriteria
+            {outputsToCover, utxoAvailable, selectionLimit, extraCoinSource}
   where
+    -- The complete list of token quantities that exceed the maximum quantity
+    -- allowed in a transaction output:
+    excessiveTokenQuantities :: [(Address, AssetId, TokenQuantity)]
+    excessiveTokenQuantities =
+        [ (address, asset, quantity)
+        | output <- F.toList outputsToCover
+        , let address = view #address output
+        , (asset, quantity) <-
+            TokenMap.toFlatList $ view #tokens $ view #tokens output
+        , quantity > txOutMaxTokenQuantity
+        ]
+
     txMaxSize = getTxMaxSize $ txParameters pp
 
     selectionLimit = MaximumInputLimit $

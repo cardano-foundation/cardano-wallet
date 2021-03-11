@@ -334,6 +334,7 @@ import Cardano.Wallet.Transaction
     ( DelegationAction (..)
     , ErrDecodeSignedTx (..)
     , ErrMkTx (..)
+    , ErrSelectionCriteria (..)
     , TransactionCtx (..)
     , TransactionLayer (..)
     , Withdrawal (..)
@@ -1400,11 +1401,13 @@ selectAssets ctx (utxo, cp, pending) tx outs transform = do
 
     pp <- liftIO $ currentProtocolParameters nl
     liftIO $ traceWith tr $ MsgSelectionStart utxo outs
+    selectionCriteria <- withExceptT ErrSelectAssetsCriteriaError $ except $
+        initSelectionCriteria tl pp tx utxo outs
     sel <- performSelection
         (calcMinimumCoinValue tl pp)
         (calcMinimumCost tl pp tx)
         (tokenBundleSizeAssessor tl)
-        (initSelectionCriteria tl pp tx utxo outs)
+        (selectionCriteria)
     liftIO $ traceWith tr $ MsgSelectionDone sel
     withExceptT ErrSelectAssetsSelectionError $ except $
         transform (getState cp) <$> sel
@@ -2168,7 +2171,8 @@ data ErrStartTimeLaterThanEndTime = ErrStartTimeLaterThanEndTime
     } deriving (Show, Eq)
 
 data ErrSelectAssets
-    = ErrSelectAssetsNoSuchWallet ErrNoSuchWallet
+    = ErrSelectAssetsCriteriaError ErrSelectionCriteria
+    | ErrSelectAssetsNoSuchWallet ErrNoSuchWallet
     | ErrSelectAssetsAlreadyWithdrawing Tx
     | ErrSelectAssetsSelectionError SelectionError
     deriving (Generic, Eq, Show)

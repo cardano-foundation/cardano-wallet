@@ -1084,6 +1084,7 @@ data ApiErrorCode
     | SoftDerivationRequired
     | HardenedDerivationRequired
     | AssetNotPresent
+    | TokenQuantityExceedsMaxBound
     deriving (Eq, Generic, Show, Data, Typeable)
     deriving anyclass NFData
 
