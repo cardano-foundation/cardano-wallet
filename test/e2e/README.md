@@ -1,6 +1,7 @@
 
 
 
+
 # E2E testing
 [![E2E Docker](https://github.com/input-output-hk/cardano-wallet/actions/workflows/e2e-docker.yml/badge.svg)](https://github.com/input-output-hk/cardano-wallet/actions/workflows/e2e-docker.yml) [![E2E Linux](https://github.com/input-output-hk/cardano-wallet/actions/workflows/e2e-linux.yml/badge.svg)](https://github.com/input-output-hk/cardano-wallet/actions/workflows/e2e-linux.yml) [![E2E MacOS](https://github.com/input-output-hk/cardano-wallet/actions/workflows/e2e-macos.yml/badge.svg)](https://github.com/input-output-hk/cardano-wallet/actions/workflows/e2e-macos.yml) [![E2E Windows](https://github.com/input-output-hk/cardano-wallet/actions/workflows/e2e-windows.yml/badge.svg)](https://github.com/input-output-hk/cardano-wallet/actions/workflows/e2e-windows.yml)
 
@@ -13,13 +14,13 @@ In order to run tests one needs to [have ruby](https://www.ruby-lang.org/en/docu
 
 ### Configuring test project
 1. Get necessary _gems_.
-```
+```bash
 cd test/e2e
 bundle install
 ```
 2. Decrypt `fixture_wallets.json.gpg` containing mnemonics of testnet fixture wallets using `$TESTS_E2E_FIXTURES` secret.
 
-```
+```bash
 export TESTS_E2E_FIXTURES=*******
 rake fixture_wallets_decode
 ```
@@ -27,12 +28,12 @@ rake fixture_wallets_decode
 >
 ### Running all tests
 In order to run all `e2e` tests one can simply run single [rake](https://github.com/ruby/rake) task:
-```ruby
+```bash
 $ rake run_on[testnet]
 ```
 This master task is performing also all the necessary configuration steps (i.e. getting latest testnet configs and wallet/node binaries from [Hydra](https://hydra.iohk.io/jobset/Cardano/cardano-wallet#tabs-jobs), starting everything up). All steps can also be executed as separate tasks , i.e.:
 
-```ruby
+```bash
 $ rake fixture_wallets_decode
 $ rake get_latest_bins
 $ rake get_latest_configs[testnet]
@@ -41,47 +42,46 @@ $ rake wait_until_node_synced
 $ rake spec
 $ rake stop_node_and_wallet
 ```
+> :information_source:  **_Linux / MacOS_**
+cardano-node and cardano-wallet are started as separate [screen](https://www.gnu.org/software/screen/manual/screen.html) sessions. One can attach to the respective session using:
+>```bash
+>$ screen -r NODE
+>$ screen -r WALLET
+>```
 
-##### Running tests against local wallet
+> :information_source: **_Windows_**
+cardano-node and cardano-wallet are started as separate Windows services using [nssm](https://nssm.cc/) tool. One can examine services using Windows service manager like `services.msc`.
 
+> :information_source: **_Docker_**
+One can also start tests against cardano-wallet docker. There is docker-compose-test.yml provided that includes cardano-node and cardano-wallet. To start it several env variables need to be set to feed docker-compose:
+>```bash
+>NETWORK=testnet \
+>TESTS_E2E_TOKEN_METADATA=https://metadata.cardano-testnet.iohkdev.io/ \
+>WALLET=dev-master-shelley \
+>NODE=1.25.1 \
+>NODE_CONFIG_PATH=`pwd`/state/configs/$NETWORK \
+>docker-compose -f docker-compose-test.yml up
+>```
+> Then running tests against docker is just:
+>```bash
+>$ rake wait_until_node_synced
+>$ rake spec
+>```
+
+#### Running tests against local wallet
 One can also run tests against `cardano-wallet` and `cardano-node` which are specified on machine's `$PATH`:
 
-```ruby
+```bash
 $ rake run_on[testnet,local]
 ```
 
 or
 
-```ruby
+```bash
 $ TESTS_E2E_BINDIR="" rake run_on[testnet]
 ```
 
 Running tests as such skips downloading latest binaries from Hydra.
-
-> :information_source:  **_Linux / MacOS_**
-cardano-node and cardano-wallet are started as separate [screen](https://www.gnu.org/software/screen/manual/screen.html) sessions. One can attach to the respective session as follows:
-```
-$ screen -r NODE
-$ screen -r WALLET
-```
-> :information_source: **_Windows_**
-cardano-node and cardano-wallet are started as separate Windows services using [nssm](https://nssm.cc/) tool. One examine services using Windows service manager like `services.msc`.
-
-> :information_source: **_Docker_**
-One can also start tests against cardano-wallet docker. There is docker-compose-test.yml provided that includes cardano-node and cardano-wallet. To start it several env variables need to be set to feed docker-compose:
-```
-NETWORK=testnet \
-TESTS_E2E_TOKEN_METADATA=https://metadata.cardano-testnet.iohkdev.io/ \
-WALLET=dev-master-shelley \
-NODE=1.25.1 \
-NODE_CONFIG_PATH=`pwd`/state/configs/$NETWORK \
-docker-compose -f docker-compose-test.yml up
-```
-> Then running tests against docker is just:
-```ruby
-$ rake wait_until_node_synced
-$ rake spec
-```
 
 ### Test artifacts
 
@@ -92,7 +92,7 @@ By default following locations are used for different artifacts used by the test
 Locations are relative to `test/e2e` directory.
 Default values can be changed by providing environment variables, for instance:
 
-```
+```bash
 TESTS_E2E_STATEDIR=~/state \
 TESTS_E2E_BINDIR=~/bins \
 rake run_on[testnet]
@@ -149,4 +149,5 @@ end
 
 ## Documentation
 
-Ruby doc of cardano-wallet-rb (API wrapper): https://rubydoc.info/gems/cardano_wallet.
+Cardano-wallet-rb repository: https://github.com/piotr-iohk/cardano-wallet-rb.
+Ruby doc: https://rubydoc.info/gems/cardano_wallet.
