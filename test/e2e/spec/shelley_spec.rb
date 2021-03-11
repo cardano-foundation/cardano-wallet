@@ -255,25 +255,6 @@ RSpec.describe CardanoWallet::Shelley do
       teardown
     end
 
-    # it "Can join all pools from cardano_cli", :nightly => true do
-    #   id = create_fixture_shelley_wallet
-    #   wait_for_shelley_wallet_to_sync id
-    #
-    #   pools = File.read("spec/pools.txt")
-    #   pools.split.each do |pool_id|
-    #     puts "Tryin to join pool: #{pool_id}"
-    #     join = SHELLEY.stake_pools.join(pool_id, id, PASS)
-    #     join_tx_id = join['id']
-    #     puts join
-    #     puts join_tx_id
-    #     expect(join).to have_http 202
-    #     eventually "Checking if join transaction tx is in_ledger" do
-    #       tx = SHELLEY.transactions.get(id, join_tx_id)
-    #       tx['status'] == "in_ledger"
-    #     end
-    #   end
-    #
-    # end
     describe "Stake Pools GC Maintenance" do
       matrix = [{"direct" => "not_applicable"},
                 {"none" => "not_applicable"},

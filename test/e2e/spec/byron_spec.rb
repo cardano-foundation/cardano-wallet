@@ -168,10 +168,6 @@ RSpec.describe CardanoWallet::Byron do
 
       rnd = BYRON.coin_selections.random wid, addr_amount
 
-      puts "Byron coin selection: "
-      puts rnd
-      puts "------------"
-
       expect(rnd).to include "not_enough_money"
       expect(rnd).to have_http 403
     end

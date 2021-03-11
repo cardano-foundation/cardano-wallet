@@ -103,10 +103,6 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
 
           tx_sent = SHELLEY.transactions.create(@wid, PASS, payload)
 
-          puts "Shelley tx: "
-          puts tx_sent
-          puts "------------"
-
           expect(tx_sent.to_s).to include "pending"
           expect(tx_sent).to have_http 202
 
@@ -142,10 +138,6 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
           address = SHELLEY.addresses.list(@target_id)[0]['id']
           tx_sent = SHELLEY.transactions.create(@wid, PASS, [{address => amt}])
 
-          puts "Shelley tx: "
-          puts tx_sent
-          puts "------------"
-
           expect(tx_sent.to_s).to include "pending"
           expect(tx_sent).to have_http 202
 
@@ -167,9 +159,6 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
                                                 withdrawal = nil,
                                                 metadata = nil,
                                                 ttl_in_s)
-          puts "Shelley tx: "
-          puts tx_sent
-          puts "------------"
 
           expect(tx_sent.to_s).to include "pending"
           expect(tx_sent).to have_http 202
@@ -194,11 +183,6 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
                                                 metadata = nil,
                                                 ttl_in_s)
 
-
-          puts "Shelley tx: "
-          puts tx_sent
-          puts "------------"
-
           expect(tx_sent.to_s).to include "pending"
           expect(tx_sent).to have_http 202
 
@@ -218,10 +202,6 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
           address = SHELLEY.addresses.list(@target_id_withdrawal)[0]['id']
 
           tx_sent = SHELLEY.transactions.create(@wid, PASS, [{address => amt}], 'self')
-
-          puts "Shelley tx: "
-          puts tx_sent
-          puts "------------"
 
           expect(tx_sent.to_s).to include "pending"
           expect(tx_sent).to have_http 202
@@ -244,10 +224,6 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
                                                 nil,
                                                 metadata
                                                )
-
-          puts "Shelley tx: "
-          puts tx_sent
-          puts "------------"
 
           expect(tx_sent.to_s).to include "pending"
           expect(tx_sent).to have_http 202
@@ -329,10 +305,6 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
                                                 PASS,
                                                 [{address => amt}])
 
-          puts "Shelley tx: "
-          puts tx_sent
-          puts "------------"
-
           expect(tx_sent.to_s).to include "pending"
           expect(tx_sent).to have_http 202
 
@@ -350,10 +322,6 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
           puts "Joining pool: #{pool_id}"
           join = pools.join(pool_id, @target_id_pools, PASS)
 
-          puts "Shelley tx: "
-          puts join
-          puts "------------"
-
           expect(join).to include "status"
           expect(join).to have_http 202
 
@@ -367,12 +335,8 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
           puts "Quitting pool: #{pool_id}"
           quit = pools.quit(@target_id_pools, PASS)
 
-          puts "Shelley tx: "
-          puts quit
-          puts "------------"
-
-          expect(quit).to include "status"
           expect(quit).to have_http 202
+          expect(quit).to include "status"
 
           quit_tx_id = quit['id']
           eventually "Checking if quit tx id (#{quit_tx_id}) is in_ledger" do
@@ -426,10 +390,6 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
 
           rnd = SHELLEY.coin_selections.random(@wid, payload, withdrawal = "self", m = METADATA)
 
-          puts "Shelley coin selection: "
-          puts rnd
-          puts "------------"
-
           expect(rnd.to_s).to include "outputs"
           expect(rnd.to_s).to include "change"
           expect(rnd.to_s).to include "metadata"
@@ -443,10 +403,6 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
           action_join = {action: "join", pool: pid}
 
           rnd = SHELLEY.coin_selections.random_deleg @wid, action_join
-
-          puts "Shelley coin selection: "
-          puts rnd
-          puts "------------"
 
           expect(rnd.to_s).to include "outputs"
           expect(rnd.to_s).to include "change"
@@ -494,11 +450,9 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
         address = SHELLEY.addresses.list(target_wid)[0]['id']
 
         tx_sent = BYRON.transactions.create(source_wid, PASS, [{address => amt}])
-        puts "Byron tx: "
-        puts tx_sent
-        puts "------------"
-        expect(tx_sent.to_s).to include "pending"
+
         expect(tx_sent).to have_http 202
+        expect(tx_sent.to_s).to include "pending"
 
         eventually "Funds are on target wallet: #{target_wid}" do
           available = SHELLEY.wallets.get(target_wid)['balance']['available']['quantity']
@@ -526,12 +480,8 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
 
         tx_sent = BYRON.transactions.create(source_id, PASS, payload)
 
-        puts "Byron random tx: "
-        puts tx_sent
-        puts "------------"
-
-        expect(tx_sent.to_s).to include "pending"
         expect(tx_sent).to have_http 202
+        expect(tx_sent.to_s).to include "pending"
 
         eventually "Assets are on target wallet: #{target_id}" do
           first = ASSETS[0]["policy_id"] + ASSETS[0]["asset_name"]
