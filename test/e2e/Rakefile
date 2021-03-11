@@ -165,6 +165,22 @@ task :start_node_and_wallet, [:env, :installation] do |task, args|
   end
 end
 
+##
+# Utility task for getting binaries, configs and starting wallet and node 
+task :launch_on, [:env, :installation] do |task, args|
+  env = args[:env]
+  installation = args[:installation] || :bins
+
+  if installation == "local"
+    puts "\n  >> Skipping getting latest binaries. Will launch wallet and node from $PATH."
+  else
+    Rake::Task[:get_latest_bins].invoke
+  end
+
+  Rake::Task[:get_latest_configs].invoke(env)
+  Rake::Task[:start_node_and_wallet].invoke(env, installation)
+end
+
 task :stop_node_and_wallet do
   puts "\n  >> Stopping cardano-node and cardano-wallet"
 

@@ -5,6 +5,7 @@ fixture_wallets_encode
 fixture_wallets_template
 get_latest_bins
 get_latest_configs
+launch_on
 run_on
 spec
 start_node_and_wallet
