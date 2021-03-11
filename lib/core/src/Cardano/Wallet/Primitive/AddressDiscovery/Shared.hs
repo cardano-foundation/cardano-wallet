@@ -30,6 +30,7 @@ module Cardano.Wallet.Primitive.AddressDiscovery.Shared
     , addCosignerAccXPub
     , purposeCIP1854
     , isShared
+    , retrieveAllCosigners
     ) where
 
 import Prelude

@@ -1979,7 +1979,6 @@ components:
         - account_ix
         - address_pool_gap
         - payment_script_template
-        - delegation_script_template
         - balance
         - delegation
         - state
@@ -1988,12 +1987,11 @@ components:
         id: *walletId
         name: *walletName
         account_public_key: *walletAccountPubkey
-        account_ix: *derivationPath
+        account_ix: *derivationSegment
         address_pool_gap: *walletAddressPoolGap
         payment_script_template: *scriptTemplate
         delegation_script_template: *scriptTemplate
         balance: *walletBalance
-        assets: *walletAssetsBalance
         delegation: *ApiWalletDelegation
         state: *walletState
         tip: *blockReference
@@ -2007,12 +2005,11 @@ components:
         - account_ix
         - address_pool_gap
         - payment_script_template
-        - delegation_script_template
       properties:
         id: *walletId
         name: *walletName
         account_public_key: *walletAccountPubkey
-        account_ix: *derivationPath
+        account_ix: *derivationSegment
         address_pool_gap: *walletAddressPoolGap
         payment_script_template: *scriptTemplate
         delegation_script_template: *scriptTemplate
@@ -2033,11 +2030,10 @@ components:
         - account_ix
         - address_pool_gap
         - payment_script_template
-        - delegation_script_template
       properties:
         name: *walletName
         account_public_key: *walletAccountPubkey
-        account_ix: *derivationPath
+        account_ix: *derivationSegment
         address_pool_gap: *walletAddressPoolGap
         payment_script_template: *scriptTemplate
         delegation_script_template: *scriptTemplate
@@ -5034,6 +5030,7 @@ paths:
             schema: *ApiSharedWalletPostData
       responses: *responsesPostSharedWallet
 
+  /shared-wallets/{walletId}:
     get:
       operationId: getSharedWallet
       tags: ["Shared Wallets"]

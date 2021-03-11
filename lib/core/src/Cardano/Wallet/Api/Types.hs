@@ -151,8 +151,11 @@ module Cardano.Wallet.Api.Types
 
     -- * Shared Wallets
     , ApiSharedWallet (..)
+    , ApiPendingSharedWallet (..)
+    , ApiActiveSharedWallet (..)
     , ApiSharedWalletPostData (..)
     , ApiSharedWalletPatchData (..)
+    , ApiScriptTemplateUpdate (..)
 
     -- * Polymorphic Types
     , ApiT (..)
@@ -185,7 +188,7 @@ import Prelude
 import Cardano.Address.Derivation
     ( XPrv, XPub, xpubFromBytes, xpubToBytes )
 import Cardano.Address.Script
-    ( Cosigner, KeyHash, Script, ScriptTemplate, ValidationLevel (..) )
+    ( Cosigner (..), KeyHash, Script, ScriptTemplate, ValidationLevel (..) )
 import Cardano.Api.Typed
     ( TxMetadataJsonSchema (..)
     , displayError
@@ -267,7 +270,7 @@ import Control.Arrow
 import Control.DeepSeq
     ( NFData )
 import Control.Monad
-    ( guard, (>=>) )
+    ( guard, when, (>=>) )
 import Data.Aeson.Types
     ( FromJSON (..)
     , SumEncoding (..)
@@ -341,7 +344,7 @@ import Data.Time.Text
 import Data.Typeable
     ( Typeable )
 import Data.Word
-    ( Word16, Word32, Word64 )
+    ( Word16, Word32, Word64, Word8 )
 import Data.Word.Odd
     ( Word31 )
 import Fmt
@@ -374,6 +377,7 @@ import qualified Data.HashMap.Strict as HM
 import qualified Data.Map as Map
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
+import qualified Data.Text.Read as T
 
 {-------------------------------------------------------------------------------
                                Styles of Wallets
@@ -1048,7 +1052,7 @@ data ApiSharedWalletPostData = ApiSharedWalletPostData
     { name :: !(ApiT WalletName)
     , accountPublicKey :: !ApiAccountPublicKey
     , accountIx :: !(ApiT DerivationIndex)
-    , addressPoolGap :: !(Maybe (ApiT AddressPoolGap))
+    , addressPoolGap :: !(ApiT AddressPoolGap)
     , paymentScriptTemplate :: !ScriptTemplate
     , delegationScriptTemplate :: !(Maybe ScriptTemplate)
     } deriving (Eq, Generic, Show)
@@ -1083,14 +1087,14 @@ data ApiSharedWallet = ApiSharedWallet
     { wallet :: Either ApiPendingSharedWallet ApiActiveSharedWallet
     } deriving (Eq, Generic, Show)
 
-data ScriptTemplateUpdate =
+data ApiScriptTemplateUpdate =
     PaymentScriptTemplate | DelegationScriptTemplate | BothScriptTemplates
-    deriving (Eq, Generic, Show)
+    deriving (Eq, Generic, Show, Bounded, Enum)
 
 data ApiSharedWalletPatchData = ApiSharedWalletPatchData
     { cosigner :: !(ApiT Cosigner)
     , accountPublicKey :: !ApiAccountPublicKey
-    , scriptTemplateUpdate :: !ScriptTemplateUpdate
+    , scriptTemplateUpdate :: !ApiScriptTemplateUpdate
     } deriving (Eq, Generic, Show)
 
 -- | Error codes returned by the API, in the form of snake_cased strings
@@ -2284,14 +2288,15 @@ instance ToJSON ApiSharedWalletPostData where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 instance FromJSON (ApiT Cosigner) where
-    parseJSON = fmap ApiT . genericParseJSON defaultRecordTypeOptions
-instance ToJSON (ApiT Cosigner) where
-    toJSON = genericToJSON defaultRecordTypeOptions . getApiT
-
-instance FromJSON ScriptTemplateUpdate where
     parseJSON =
         parseJSON >=> eitherToParser . first ShowFmt . fromText
-instance ToJSON ScriptTemplateUpdate where
+instance ToJSON (ApiT Cosigner) where
+    toJSON = toJSON . toText
+
+instance FromJSON ApiScriptTemplateUpdate where
+    parseJSON =
+        parseJSON >=> eitherToParser . first ShowFmt . fromText
+instance ToJSON ApiScriptTemplateUpdate where
     toJSON = toJSON . toText
 
 instance FromJSON ApiSharedWalletPatchData where
@@ -2313,7 +2318,7 @@ instance FromJSON ApiSharedWallet where
     parseJSON obj = do
         balance <-
             (withObject "postData" $
-             \o -> o .:? "balance" :: Aeson.Parser (Maybe ApiSharedWallet)) obj
+             \o -> o .:? "balance" :: Aeson.Parser (Maybe ApiActiveSharedWallet)) obj
         case balance of
             Nothing -> do
                 xs <- parseJSON obj :: Aeson.Parser ApiPendingSharedWallet
@@ -2429,12 +2434,12 @@ instance FromText AnyAddress where
                 _ -> Left $ TextDecodingError "AnyAddress is not correctly prefixed."
         _ -> Left $ TextDecodingError "AnyAddress must be must be encoded as Bech32."
 
-instance ToText ScriptTemplateUpdate where
+instance ToText ApiScriptTemplateUpdate where
     toText PaymentScriptTemplate = "payment"
     toText DelegationScriptTemplate = "delegation"
     toText BothScriptTemplates = "both"
 
-instance FromText ScriptTemplateUpdate where
+instance FromText ApiScriptTemplateUpdate where
     fromText = \case
         "payment" -> Right PaymentScriptTemplate
         "delegation" -> Right DelegationScriptTemplate
@@ -2443,6 +2448,19 @@ instance FromText ScriptTemplateUpdate where
             [ "Invalid script template update. The following values expected:"
             , "'payment', 'delegation', 'both'."
             ]
+
+instance ToText (ApiT Cosigner) where
+    toText (ApiT (Cosigner ix)) = "cosigner#"<> T.pack (show ix)
+
+instance FromText (ApiT Cosigner) where
+    fromText txt = case T.splitOn "cosigner#" txt of
+        ["",numTxt] ->  case T.decimal numTxt of
+            Right (num,"") -> do
+                when (num < minBound @Word8 || num > maxBound @Word8) $
+                        fail "Cosigner number should be between '0' and '255'"
+                pure $ ApiT $ Cosigner num
+            _ -> fail "Cosigner should be enumerated with number"
+        _ -> fail "Cosigner should be of form: cosigner#num"
 
 {-------------------------------------------------------------------------------
                              HTTPApiData instances

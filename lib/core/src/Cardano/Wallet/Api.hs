@@ -862,6 +862,7 @@ type PatchSharedWallet = "shared-wallets"
     :> Capture "walletId" (ApiT WalletId)
     :> ReqBody '[JSON] ApiSharedWalletPatchData
     :> Patch '[JSON] ApiSharedWallet
+
 {-------------------------------------------------------------------------------
                                    Proxy_
 
