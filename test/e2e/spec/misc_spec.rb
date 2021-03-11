@@ -1,9 +1,6 @@
 RSpec.describe CardanoWallet::Misc do
 
   describe CardanoWallet::Misc::Network do
-    before(:all) do
-        NETWORK = CardanoWallet.new.misc.network
-    end
 
     it "Can get network information" do
       expect(NETWORK.information).to have_http 200
@@ -19,9 +16,6 @@ RSpec.describe CardanoWallet::Misc do
   end
 
   describe CardanoWallet::Misc::Utils do
-    before(:all) do
-        UTILS = CardanoWallet.new.misc.utils
-    end
 
     describe "SMASH health" do
       it "SMASH health - unreachable" do
@@ -267,10 +261,6 @@ RSpec.describe CardanoWallet::Misc do
   end
 
   describe CardanoWallet::Misc::Settings do
-    before(:all) do
-        SETTINGS = CardanoWallet.new.misc.settings
-        UTILS = CardanoWallet.new.misc.utils
-    end
 
     after(:all) do
       SETTINGS.update({:pool_metadata_source => "none"})

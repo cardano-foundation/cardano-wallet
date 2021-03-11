@@ -21,16 +21,28 @@ end
 
 # Helpers
 
+##
+# timeout in seconds for custom verifications
+TIMEOUT = 120
+
+##
+# Intit cardano-wallet wrapper with timeout for getting the response back
+CW = CardanoWallet.new({timeout: TIMEOUT})
+BYRON = CW.byron
+SHELLEY = CW.shelley
+SETTINGS = CW.misc.settings
+UTILS = CW.misc.utils
+NETWORK = CW.misc.network
+
+##
+# default passphrase for wallets
 PASS = "Secure Passphrase"
+
+##
 # Artificial, non-existing id's
 TXID = "1acf9c0f504746cbd102b49ffaf16dcafd14c0a2f1bbb23af265fbe0a04951cc"
 SPID = "feea59bc6664572e631e9adfee77142cb51264156debf2e52970cc00"
 SPID_BECH32 = "pool1v7g9ays8h668d74xjvln9xuh9adzh6xz0v0hvcd3xukpck5z56d"
-###
-BYRON = CardanoWallet.new.byron
-SHELLEY = CardanoWallet.new.shelley
-# timeout in seconds for custom verifications
-TIMEOUT = 120
 
 #exemplary metadata
 METADATA = { "0"=>{ "string"=>"cardano" },
