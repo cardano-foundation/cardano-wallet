@@ -90,6 +90,8 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity )
 import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx (..)
+    , TokenBundleSizeAssessment (..)
+    , TokenBundleSizeAssessor (..)
     , Tx (..)
     , TxIn (..)
     , TxOut (..)
@@ -122,6 +124,7 @@ import Cardano.Wallet.Transaction
     , ErrDecodeSignedTx (..)
     , ErrMkTx (..)
     , ErrSelectionCriteria (..)
+    , ErrTokenBundleSizeExceedsLimit (..)
     , ErrTokenQuantityExceedsMaxBound (..)
     , TransactionCtx (..)
     , TransactionLayer (..)
@@ -166,6 +169,7 @@ import qualified Codec.CBOR.Write as CBOR
 import qualified Data.ByteString as BS
 import qualified Data.Foldable as F
 import qualified Data.List.NonEmpty as NE
+import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Shelley.Spec.Ledger.Address.Bootstrap as SL
 
@@ -428,6 +432,12 @@ _initSelectionCriteria
     -> NE.NonEmpty TxOut
     -> Either ErrSelectionCriteria SelectionCriteria
 _initSelectionCriteria pp ctx utxoAvailable outputsUnprepared
+    | (address, assetCount) : _ <- excessivelyLargeBundles =
+        Left $
+            -- We encountered one or more excessively large token bundles.
+            -- Just report the first such bundle:
+            ErrSelectionCriteriaOutputTokenBundleSizeExceedsLimit $
+            ErrTokenBundleSizeExceedsLimit {address, assetCount}
     | (address, asset, quantity) : _ <- excessiveTokenQuantities =
         Left $
             -- We encountered one or more excessive token quantities.
@@ -443,6 +453,26 @@ _initSelectionCriteria pp ctx utxoAvailable outputsUnprepared
         pure SelectionCriteria
             {outputsToCover, utxoAvailable, selectionLimit, extraCoinSource}
   where
+    -- The complete list of token bundles whose serialized lengths are greater
+    -- than the limit of what is allowed in a transaction output:
+    excessivelyLargeBundles :: [(Address, Int)]
+    excessivelyLargeBundles =
+        [ (address, assetCount)
+        | output <- F.toList outputsToCover
+        , let bundle = view #tokens output
+        , bundleIsExcessivelyLarge bundle
+        , let address = view #address output
+        , let assetCount = Set.size $ TokenBundle.getAssets bundle
+        ]
+
+      where
+        bundleIsExcessivelyLarge b = case assessSize b of
+            TokenBundleSizeWithinLimit -> False
+            TokenBundleSizeExceedsLimit -> True
+          where
+            assessSize =
+                assessTokenBundleSize Compatibility.tokenBundleSizeAssessor
+
     -- The complete list of token quantities that exceed the maximum quantity
     -- allowed in a transaction output:
     excessiveTokenQuantities :: [(Address, AssetId, TokenQuantity)]

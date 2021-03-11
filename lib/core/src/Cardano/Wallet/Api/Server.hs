@@ -355,6 +355,7 @@ import Cardano.Wallet.TokenMetadata
 import Cardano.Wallet.Transaction
     ( DelegationAction (..)
     , ErrSelectionCriteria (..)
+    , ErrTokenBundleSizeExceedsLimit (..)
     , ErrTokenQuantityExceedsMaxBound (..)
     , TransactionCtx (..)
     , TransactionLayer
@@ -2870,8 +2871,21 @@ instance LiftHandler (ErrInvalidDerivationIndex 'Soft level) where
 
 instance LiftHandler ErrSelectionCriteria where
     handler = \case
+        ErrSelectionCriteriaOutputTokenBundleSizeExceedsLimit e ->
+            handler e
         ErrSelectionCriteriaOutputTokenQuantityExceedsMaxBound e ->
             handler e
+
+instance LiftHandler ErrTokenBundleSizeExceedsLimit where
+    handler e = apiError err403 TokenBundleSizeExceedsLimit $ mconcat
+        [ "One of the outputs you've specified contains too many assets. "
+        , "Try splitting these assets across two or more outputs. "
+        , "Destination address: "
+        , pretty (view #address e)
+        , ". Asset count: "
+        , pretty (view #assetCount e)
+        , "."
+        ]
 
 instance LiftHandler ErrTokenQuantityExceedsMaxBound where
     handler e = apiError err403 TokenQuantityExceedsMaxBound $ mconcat

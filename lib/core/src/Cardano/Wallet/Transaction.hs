@@ -1,6 +1,7 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RankNTypes #-}
@@ -29,6 +30,7 @@ module Cardano.Wallet.Transaction
     , ErrMkTx (..)
     , ErrDecodeSignedTx (..)
     , ErrSelectionCriteria (..)
+    , ErrTokenBundleSizeExceedsLimit (..)
     , ErrTokenQuantityExceedsMaxBound (..)
 
     ) where
@@ -174,9 +176,19 @@ data DelegationAction = RegisterKeyAndJoin PoolId | Join PoolId | Quit
     deriving (Show, Eq, Generic)
 
 -- | Indicates a problem with the selection criteria for a coin selection.
-newtype ErrSelectionCriteria
-    = ErrSelectionCriteriaOutputTokenQuantityExceedsMaxBound
+data ErrSelectionCriteria
+    = ErrSelectionCriteriaOutputTokenBundleSizeExceedsLimit
+        ErrTokenBundleSizeExceedsLimit
+    | ErrSelectionCriteriaOutputTokenQuantityExceedsMaxBound
         ErrTokenQuantityExceedsMaxBound
+    deriving (Eq, Generic, Show)
+
+data ErrTokenBundleSizeExceedsLimit = ErrTokenBundleSizeExceedsLimit
+    { address :: !Address
+      -- ^ The address to which this token bundle was to be sent.
+    , assetCount :: !Int
+      -- ^ The number of assets within the token bundle.
+    }
     deriving (Eq, Generic, Show)
 
 -- | Indicates that a token quantity exceeds the maximum quantity that can
