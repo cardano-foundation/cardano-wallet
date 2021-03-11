@@ -61,7 +61,7 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
           expect(assets.to_s).to include ASSETS[1]["policy_id"]
           expect(assets.to_s).to include ASSETS[1]["asset_name"]
           expect(assets.to_s).to include ASSETS[1]["metadata"]["name"]
-          expect(assets.code).to eq 200
+          expect(assets).to have_http 200
         end
 
         it "I can get native assets by policy_id" do
@@ -71,7 +71,7 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
           expect(assets["metadata"]).to eq ASSETS[0]["metadata"]
           expect(assets["asset_name"]).not_to eq ASSETS[1]["asset_name"]
           expect(assets["metadata"]).not_to eq ASSETS[1]["metadata"]
-          expect(assets.code).to eq 200
+          expect(assets).to have_http 200
         end
 
         it "I can get native assets by policy_id and asset_name" do
@@ -81,7 +81,7 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
           expect(assets["metadata"]).to eq ASSETS[1]["metadata"]
           expect(assets["asset_name"]).not_to eq ASSETS[0]["asset_name"]
           expect(assets["metadata"]).not_to eq ASSETS[0]["metadata"]["name"]
-          expect(assets.code).to eq 200
+          expect(assets).to have_http 200
         end
 
         it "I can send native assets tx and they are received" do
@@ -108,7 +108,7 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
           puts "------------"
 
           expect(tx_sent.to_s).to include "pending"
-          expect(tx_sent.code).to eq 202
+          expect(tx_sent).to have_http 202
 
           eventually "Assets are on target wallet: #{@target_id_assets}" do
             first = ASSETS[0]["policy_id"] + ASSETS[0]["asset_name"]
@@ -147,7 +147,7 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
           puts "------------"
 
           expect(tx_sent.to_s).to include "pending"
-          expect(tx_sent.code).to eq 202
+          expect(tx_sent).to have_http 202
 
           eventually "Funds are on target wallet: #{@target_id}" do
             available = SHELLEY.wallets.get(@target_id)['balance']['available']['quantity']
@@ -172,7 +172,7 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
           puts "------------"
 
           expect(tx_sent.to_s).to include "pending"
-          expect(tx_sent.code).to eq 202
+          expect(tx_sent).to have_http 202
 
           eventually "Funds are on target wallet: #{@target_id}" do
             available = SHELLEY.wallets.get(@target_id_ttl)['balance']['available']['quantity']
@@ -200,17 +200,17 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
           puts "------------"
 
           expect(tx_sent.to_s).to include "pending"
-          expect(tx_sent.code).to eq 202
+          expect(tx_sent).to have_http 202
 
           eventually "TX `#{tx_sent['id']}' expires on `#{@wid}'" do
             SHELLEY.transactions.get(@wid, tx_sent['id'])['status'] == 'expired'
           end
 
           res = SHELLEY.transactions.forget(@wid, tx_sent['id'])
-          expect(res.code).to eq 204
+          expect(res).to have_http 204
 
           fres = SHELLEY.transactions.get(@wid, tx_sent['id'])
-          expect(fres.code).to eq 404
+          expect(fres).to have_http 404
         end
 
         it "I can send transaction using 'withdrawal' flag and funds are received" do
@@ -224,7 +224,7 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
           puts "------------"
 
           expect(tx_sent.to_s).to include "pending"
-          expect(tx_sent.code).to eq 202
+          expect(tx_sent).to have_http 202
 
           eventually "Funds are on target wallet: #{@target_id_withdrawal}" do
             available = SHELLEY.wallets.get(@target_id_withdrawal)['balance']['available']['quantity']
@@ -250,7 +250,7 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
           puts "------------"
 
           expect(tx_sent.to_s).to include "pending"
-          expect(tx_sent.code).to eq 202
+          expect(tx_sent).to have_http 202
 
           eventually "Funds are on target wallet: #{@target_id_meta}" do
             available = SHELLEY.wallets.get(@target_id_meta)['balance']['available']['quantity']
@@ -273,13 +273,13 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
 
           txs = SHELLEY.transactions
           fees = txs.payment_fees(@wid, amt)
-          expect(fees.code).to eq 202
+          expect(fees).to have_http 202
 
           fees = txs.payment_fees(@wid, amt, 'self')
-          expect(fees.code).to eq 202
+          expect(fees).to have_http 202
 
           fees = txs.payment_fees(@wid, amt, 'self', metadata)
-          expect(fees.code).to eq 202
+          expect(fees).to have_http 202
         end
       end
 
@@ -290,7 +290,7 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
 
           join = pools.join(SPID, @wid, PASS)
           expect(join).to include "no_such_pool"
-          expect(join.code).to eq 404
+          expect(join).to have_http 404
         end
 
         it "I could check delegation fees - if I could cover fee" do
@@ -299,7 +299,7 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
           pools = SHELLEY.stake_pools
           fees = pools.delegation_fees(id)
           expect(fees).to include "not_enough_money"
-          expect(fees.code).to eq 403
+          expect(fees).to have_http 403
         end
 
         it "I could join Stake Pool - if I had enough to cover fee" do
@@ -309,15 +309,15 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
 
           join = pools.join(pool_id, id, PASS)
           expect(join).to include "not_enough_money"
-          expect(join.code).to eq 403
+          expect(join).to have_http 403
         end
 
         it "Can list stake pools only when stake is provided" do
           pools = SHELLEY.stake_pools
-          expect(pools.list({stake: 1000}).code).to eq 200
+          expect(pools.list({stake: 1000})).to have_http 200
 
           expect(pools.list).to include "query_param_missing"
-          expect(pools.list.code).to eq 400
+          expect(pools.list).to have_http 400
         end
 
         it "Can join and quit Stake Pool" do
@@ -334,7 +334,7 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
           puts "------------"
 
           expect(tx_sent.to_s).to include "pending"
-          expect(tx_sent.code).to eq 202
+          expect(tx_sent).to have_http 202
 
           eventually "Funds are on target wallet: #{@target_id_pools}" do
             available = SHELLEY.wallets.get(@target_id_pools)['balance']['available']['quantity']
@@ -355,7 +355,7 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
           puts "------------"
 
           expect(join).to include "status"
-          expect(join.code).to eq 202
+          expect(join).to have_http 202
 
           join_tx_id = join['id']
           eventually "Checking if join tx id (#{join_tx_id}) is in_ledger" do
@@ -372,7 +372,7 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
           puts "------------"
 
           expect(quit).to include "status"
-          expect(quit.code).to eq 202
+          expect(quit).to have_http 202
 
           quit_tx_id = quit['id']
           eventually "Checking if quit tx id (#{quit_tx_id}) is in_ledger" do
@@ -387,7 +387,7 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
           pools = SHELLEY.stake_pools
 
           s = settings.update({:pool_metadata_source => "direct"})
-          expect(s.code).to eq 204
+          expect(s).to have_http 204
 
           eventually "Pools have metadata when 'pool_metadata_source' => 'direct'" do
             sps = pools.list({stake: 1000})
@@ -395,7 +395,7 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
           end
 
           s = settings.update({:pool_metadata_source => "none"})
-          expect(s.code).to eq 204
+          expect(s).to have_http 204
 
           eventually "Pools have no metadata when 'pool_metadata_source' => 'none'" do
             sps = pools.list({stake: 1000})
@@ -435,7 +435,7 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
           expect(rnd.to_s).to include "metadata"
           expect(rnd['inputs']).not_to be_empty
           expect(rnd['outputs']).not_to be_empty
-          expect(rnd.code).to eq 200
+          expect(rnd).to have_http 200
         end
 
         it "I can trigger random coin selection delegation action" do
@@ -456,7 +456,7 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
           expect(rnd['certificates']).not_to be_empty
           # expect(rnd['certificates'].to_s).to include "register_reward_account"
           expect(rnd['certificates'].to_s).to include "join_pool"
-          expect(rnd.code).to eq 200
+          expect(rnd).to have_http 200
         end
 
         it "I could trigger random coin selection delegation action - if I had money" do
@@ -466,7 +466,7 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
 
           rnd = SHELLEY.coin_selections.random_deleg wid, action_join
           expect(rnd).to include "not_enough_money"
-          expect(rnd.code).to eq 403
+          expect(rnd).to have_http 403
         end
 
         it "I could trigger random coin selection delegation action - if I known pool id" do
@@ -477,11 +477,11 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
 
           rnd = SHELLEY.coin_selections.random_deleg wid, action_join
           expect(rnd).to include "no_such_pool"
-          expect(rnd.code).to eq 404
+          expect(rnd).to have_http 404
 
           rnd = SHELLEY.coin_selections.random_deleg wid, action_quit
           expect(rnd).to include "not_delegating_to"
-          expect(rnd.code).to eq 403
+          expect(rnd).to have_http 403
         end
 
       end
@@ -498,7 +498,7 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
         puts tx_sent
         puts "------------"
         expect(tx_sent.to_s).to include "pending"
-        expect(tx_sent.code).to eq 202
+        expect(tx_sent).to have_http 202
 
         eventually "Funds are on target wallet: #{target_wid}" do
           available = SHELLEY.wallets.get(target_wid)['balance']['available']['quantity']
@@ -531,7 +531,7 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
         puts "------------"
 
         expect(tx_sent.to_s).to include "pending"
-        expect(tx_sent.code).to eq 202
+        expect(tx_sent).to have_http 202
 
         eventually "Assets are on target wallet: #{target_id}" do
           first = ASSETS[0]["policy_id"] + ASSETS[0]["asset_name"]
@@ -577,7 +577,7 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
           expect(assets.to_s).to include ASSETS[1]["policy_id"]
           expect(assets.to_s).to include ASSETS[1]["asset_name"]
           expect(assets.to_s).to include ASSETS[1]["metadata"]["name"]
-          expect(assets.code).to eq 200
+          expect(assets).to have_http 200
         end
 
         it "I can list assets -> icarus" do
@@ -588,7 +588,7 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
           expect(assets.to_s).to include ASSETS[1]["policy_id"]
           expect(assets.to_s).to include ASSETS[1]["asset_name"]
           expect(assets.to_s).to include ASSETS[1]["metadata"]["name"]
-          expect(assets.code).to eq 200
+          expect(assets).to have_http 200
         end
 
         it "I can get native assets by policy_id -> random" do
@@ -598,7 +598,7 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
           expect(assets["metadata"]).to eq ASSETS[0]["metadata"]
           expect(assets["asset_name"]).not_to eq ASSETS[1]["asset_name"]
           expect(assets["metadata"]).not_to eq ASSETS[1]["metadata"]
-          expect(assets.code).to eq 200
+          expect(assets).to have_http 200
         end
 
         it "I can get native assets by policy_id and asset_name -> random" do
@@ -608,7 +608,7 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
           expect(assets["metadata"]).to eq ASSETS[1]["metadata"]
           expect(assets["asset_name"]).not_to eq ASSETS[0]["asset_name"]
           expect(assets["metadata"]).not_to eq ASSETS[0]["metadata"]["name"]
-          expect(assets.code).to eq 200
+          expect(assets).to have_http 200
         end
 
         it "I can send native assets tx and they are received (random -> shelley)" do

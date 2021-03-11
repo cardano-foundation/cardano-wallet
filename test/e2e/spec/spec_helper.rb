@@ -2,6 +2,7 @@ require "bundler/setup"
 require "cardano_wallet"
 require_relative "../env"
 require_relative "../helpers/utils"
+require_relative "../helpers/matchers"
 
 include Helpers::Utils
 
