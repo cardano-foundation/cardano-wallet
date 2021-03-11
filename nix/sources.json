@@ -5,10 +5,10 @@
         "homepage": "",
         "owner": "input-output-hk",
         "repo": "hackage.nix",
-        "rev": "8ab47a84664f99da20ee5b956851a2431b9073d7",
-        "sha256": "1i4vh3svcj7r68ykw0six7wvdf8q6k4nfb07gvaqhh53qbm97vlc",
+        "rev": "b866ce2096e8b0854e8830ed93d287b7495b0278",
+        "sha256": "0j9fqh8ij8p7jqf9v6c7rq3b66izqapnqa93pnib7mhjxdyz76bx",
         "type": "tarball",
-        "url": "https://github.com/input-output-hk/hackage.nix/archive/8ab47a84664f99da20ee5b956851a2431b9073d7.tar.gz",
+        "url": "https://github.com/input-output-hk/hackage.nix/archive/b866ce2096e8b0854e8830ed93d287b7495b0278.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "haskell.nix": {
@@ -70,6 +70,18 @@
         "sha256": "0mlxa5zzgdka0c6sj7pp4cfvc8rcrd8g2z2113vp614l43g17miv",
         "type": "tarball",
         "url": "https://github.com/michaelpj/sphinxcontrib-haddock/archive/f3956b3256962b2d27d5a4e96edb7951acf5de34.tar.gz",
+        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
+    },
+    "stackage": {
+        "branch": "master",
+        "description": "Automatically generated Nix expressions of Stackage snapshots",
+        "homepage": "",
+        "owner": "input-output-hk",
+        "repo": "stackage.nix",
+        "rev": "ad33c2db97b8891c4958c42b644ecf3c6fc12a33",
+        "sha256": "1p62bqm06cjbv1k4r9dgjylm8l89npd2ci6dzf7jwm6w4mdim97w",
+        "type": "tarball",
+        "url": "https://github.com/input-output-hk/stackage.nix/archive/ad33c2db97b8891c4958c42b644ecf3c6fc12a33.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     }
 }
