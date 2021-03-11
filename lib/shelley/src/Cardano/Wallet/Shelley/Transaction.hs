@@ -306,31 +306,7 @@ newTransactionLayer networkId = TransactionLayer
                                 delta
                     mkTx networkId payload ttl stakeCreds keystore wdrl selection fees
 
-    , initSelectionCriteria = \pp ctx utxoAvailable outputsUnprepared ->
-        let
-            txMaxSize =
-                getTxMaxSize $ txParameters pp
-
-            selectionLimit = MaximumInputLimit $
-                _estimateMaxNumberOfInputs @k txMaxSize ctx (NE.toList outputsToCover)
-
-            extraCoinSource = Just $ addCoin
-                (withdrawalToCoin $ txWithdrawal ctx)
-                ( case txDelegationAction ctx of
-                    Just Quit -> stakeKeyDeposit pp
-                    _ -> Coin 0
-                )
-
-            outputsToCover = prepareOutputsWith
-                (_calcMinimumCoinValue pp)
-                outputsUnprepared
-        in
-            SelectionCriteria
-                { outputsToCover
-                , utxoAvailable
-                , selectionLimit
-                , extraCoinSource
-                }
+    , initSelectionCriteria = _initSelectionCriteria @k
 
     , calcMinimumCost = \pp ctx skeleton ->
         let
@@ -431,6 +407,32 @@ _estimateMaxNumberOfInputs txMaxSize ctx outs =
       where
         size = estimateTxSize (txWitnessTagFor @k) ctx sel
         sel  = dummySkeleton (fromIntegral nInps) outs
+
+_initSelectionCriteria
+    :: forall k. TxWitnessTagFor k
+    => ProtocolParameters
+    -> TransactionCtx
+    -> UTxOIndex.UTxOIndex
+    -> NE.NonEmpty TxOut
+    -> SelectionCriteria
+_initSelectionCriteria pp ctx utxoAvailable outputsUnprepared =
+    SelectionCriteria
+        {outputsToCover, utxoAvailable, selectionLimit, extraCoinSource}
+  where
+    txMaxSize = getTxMaxSize $ txParameters pp
+
+    selectionLimit = MaximumInputLimit $
+        _estimateMaxNumberOfInputs @k txMaxSize ctx (NE.toList outputsToCover)
+
+    extraCoinSource = Just $ addCoin
+        (withdrawalToCoin $ txWithdrawal ctx)
+        ( case txDelegationAction ctx of
+            Just Quit -> stakeKeyDeposit pp
+            _ -> Coin 0
+        )
+
+    outputsToCover =
+        prepareOutputsWith (_calcMinimumCoinValue pp) outputsUnprepared
 
 dummySkeleton :: Int -> [TxOut] -> SelectionSkeleton
 dummySkeleton nInps outs = SelectionSkeleton
