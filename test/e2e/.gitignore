@@ -1,0 +1,20 @@
+# data for tests
+/bins/
+/state/
+
+# secrets
+/fixtures/*.json
+
+# local environment variables
+/.envrc-local
+
+# rspec reports and failure tracking
+/spec/reports/
+.rspec_status
+
+# temporary files
+/.bundle/
+/tmp/
+/cardano-wallet-*/
+/binaryDist/
+*binary-dist*
