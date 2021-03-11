@@ -82,7 +82,7 @@ spec = do
                     , Just (AssetMetadata "Token1" "description1" (Just "tck1") Nothing Nothing Nothing)
                     , Nothing
                     , Just (AssetMetadata "Token2" "description2" Nothing Nothing Nothing Nothing)
-                    , Just (AssetMetadata "Token3" "description3" Nothing Nothing Nothing (Just (AssetUnit "BigToken3" 3 (Just "tck3"))))
+                    , Just (AssetMetadata "Token3" "description3" Nothing Nothing Nothing (Just (AssetUnit "BigToken3" 3)))
                     ]
 
             it "golden3.json - Required WKP are invalid" $ do
@@ -154,7 +154,7 @@ spec = do
             (Just "acr2")
             (AssetURL <$> parseURI "https://iohk.io")
             (Just $ AssetLogo $ unsafeFromBase64 "QWxtb3N0IGEgbG9nbw==")
-            (Just $ AssetUnit "unit2" 14 Nothing)
+            (Just $ AssetUnit "unit2" 14)
     golden2File = dir </> "golden2.json"
 
     sig s k = Signature (unsafeFromHex s) (unsafeFromHex k)
@@ -206,7 +206,7 @@ spec = do
                 , Just $ Property (Right "acr2") [] 0
                 , Just $ Property (parseAssetURL "https://iohk.io") [] 0
                 , Just $ Property (Right (AssetLogo $ unsafeFromBase64 "QWxtb3N0IGEgbG9nbw==")) [] 0
-                , Just $ Property (Right (AssetUnit "unit2" 14 Nothing)) [] 0
+                , Just $ Property (Right (AssetUnit "unit2" 14)) [] 0
                 )
            }
         ]
