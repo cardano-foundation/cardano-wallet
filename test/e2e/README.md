@@ -46,8 +46,14 @@ $ rake stop_node_and_wallet
 
 One can also run tests against `cardano-wallet` and `cardano-node` which are specified on machine's `$PATH`:
 
-```
+```ruby
 $ rake run_on[testnet,local]
+```
+
+or
+
+```ruby
+$ TESTS_E2E_BINDIR="" rake run_on[testnet]
 ```
 
 Running tests as such skips downloading latest binaries from Hydra.

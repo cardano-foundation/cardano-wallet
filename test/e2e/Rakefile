@@ -107,7 +107,7 @@ task :start_node_and_wallet, [:env, :installation] do |task, args|
   puts "\n  >> Setting up cardano-node and cardano-wallet"
 
   installation = args[:installation] || :bins
-  bin_dir = installation == "local" ? "" : BINS + "/"
+  bin_dir = installation == "local" ? "" : (BINS.empty? ? "" : BINS + "/")
   config_dir = File.join(CONFIGS, args[:env])
   cd = Dir.pwd
   mk_dir(STATE)
