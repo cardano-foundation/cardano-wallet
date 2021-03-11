@@ -563,8 +563,6 @@ x-assetMetadataUnit: &assetMetadataUnit
       description: |
         The human-readable name for the larger unit of the asset. Used
         for display in user interfaces.
-    ticker: *assetMetadataTicker
-
   example:
     name: API
     decimals: 3
