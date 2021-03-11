@@ -1293,7 +1293,9 @@ sendFaucet tr conn dir what targets = do
     cli tr $
         [ "transaction", "build-raw"
         , "--tx-in", faucetInput
-        , "--ttl", "600"
+        , "--ttl", "6000000"
+            -- Big enough to allow minting in the actual integration tests,
+            -- before the wallet API supports it.
         , "--fee", show (faucetAmt - total)
         , "--out-file", file
         , cardanoCliEra era
