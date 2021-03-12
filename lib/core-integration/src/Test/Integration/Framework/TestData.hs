@@ -77,12 +77,19 @@ module Test.Integration.Framework.TestData
     , errMsg403CouldntIdentifyAddrAsMine
     , errMsg503PastHorizon
     , errMsg403WrongIndex
+    , errMsg403TokenQuantityExceedsMaxBound
     ) where
 
 import Prelude
 
 import Cardano.Wallet.Api.Types
     ( ApiAssetMetadata (ApiAssetMetadata), ApiT (..) )
+import Cardano.Wallet.Primitive.Types.Address
+    ( Address )
+import Cardano.Wallet.Primitive.Types.TokenPolicy
+    ( TokenName, TokenPolicyId )
+import Cardano.Wallet.Primitive.Types.TokenQuantity
+    ( TokenQuantity )
 import Cardano.Wallet.Unsafe
     ( unsafeFromText )
 import Cardano.Wallet.Version
@@ -91,6 +98,8 @@ import Data.Text
     ( Text, pack, unpack )
 import Data.Word
     ( Word32 )
+import Fmt
+    ( pretty )
 import Test.Integration.Framework.DSL
     ( Payload (..), fixturePassphrase, json )
 
@@ -442,3 +451,30 @@ errMsg403WrongIndex :: String
 errMsg403WrongIndex = "It looks like you've provided a derivation index that is out of bound.\
      \ The index is well-formed, but I require indexes valid for hardened derivation only. That\
      \ is, indexes between 2147483648 and 4294967295 with a suffix 'H'."
+
+errMsg403TokenQuantityExceedsMaxBound
+    :: Address
+    -> TokenPolicyId
+    -> TokenName
+    -> TokenQuantity
+    -- ^ Specified token quantity
+    -> TokenQuantity
+    -- ^ Maximum allowable token quantity
+    -> String
+errMsg403TokenQuantityExceedsMaxBound
+    address policy asset quantity quantityMaxBound = mconcat
+        [ "One of the asset quantities you've specified is greater than the "
+        , "maximum quantity allowed in a single transaction output. Try "
+        , "splitting this quantity across two or more outputs. "
+        , "Destination address: "
+        , pretty address
+        , ". Token policy identifier: "
+        , pretty policy
+        , ". Asset name: "
+        , pretty asset
+        , ". Token quantity specified: "
+        , pretty quantity
+        , ". Maximum allowable token quantity: "
+        , pretty quantityMaxBound
+        , "."
+        ]

@@ -9,6 +9,7 @@
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
+{- HLINT ignore "Use camelCase" -}
 
 module Test.Integration.Scenario.API.Shelley.CoinSelections
     ( spec
@@ -45,6 +46,14 @@ import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( coinTypeAda, purposeBIP44, purposeCIP1852 )
+import Cardano.Wallet.Primitive.Types.Hash
+    ( Hash (..) )
+import Cardano.Wallet.Primitive.Types.TokenMap
+    ( AssetId (..) )
+import Cardano.Wallet.Primitive.Types.TokenPolicy
+    ( TokenName (..), TokenPolicyId (..) )
+import Cardano.Wallet.Primitive.Types.Tx
+    ( txOutMaxTokenQuantity )
 import Control.Monad
     ( forM_ )
 import Data.Generics.Internal.VL.Lens
@@ -86,12 +95,15 @@ import Test.Integration.Framework.DSL
     )
 import Test.Integration.Framework.TestData
     ( errMsg400TxMetadataStringTooLong
+    , errMsg403TokenQuantityExceedsMaxBound
     , errMsg404NoWallet
     , errMsg406
     , errMsg415
     )
 
 import qualified Cardano.Wallet.Api.Link as Link
+import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
+import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as TokenQuantity
 import qualified Data.HashSet as Set
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Text as T
@@ -292,6 +304,41 @@ spec = describe "SHELLEY_COIN_SELECTION" $ do
                 (`shouldSatisfy` all
                     (isValidDerivationPath purposeBIP44 . view #derivationPath))
             ]
+
+    it "WALLETS_COIN_SELECTION_07 - \
+        \Single output with excessively high token quantity." $
+        wallets_coin_selection_07 @n
+
+-- Attempt to create a coin selection with an output that has an excessively
+-- high token quantity. (This should fail.)
+--
+wallets_coin_selection_07
+    :: forall n. (DecodeAddress n, DecodeStakeAddress n, EncodeAddress n)
+    => Context
+    -> IO ()
+wallets_coin_selection_07 ctx = runResourceT $ do
+    sourceWallet <- fixtureWallet ctx
+    targetWallet <- emptyWallet ctx
+    targetAddress : _ <- fmap (view #id) <$> listAddresses @n ctx targetWallet
+    let payment =
+            AddressAmount targetAddress adaQuantity (ApiT nonAdaQuantities)
+    let makeRequest = selectCoins @_ @'Shelley ctx sourceWallet (payment :| [])
+    makeRequest >>= flip verify
+        [ expectResponseCode HTTP.status403
+        , expectErrorMessage $ errMsg403TokenQuantityExceedsMaxBound
+            (getApiT $ fst targetAddress)
+            (policyId)
+            (assetName)
+            (excessiveQuantity)
+            (txOutMaxTokenQuantity)
+        ]
+  where
+    adaQuantity = Quantity minUTxOValue
+    assetId = AssetId policyId assetName
+    assetName = UnsafeTokenName "1"
+    excessiveQuantity = TokenQuantity.succ txOutMaxTokenQuantity
+    nonAdaQuantities = TokenMap.singleton assetId excessiveQuantity
+    policyId = UnsafeTokenPolicyId $ Hash "1234567890123456789012345678"
 
 isValidDerivationPath
     :: Index 'Hardened 'PurposeK
