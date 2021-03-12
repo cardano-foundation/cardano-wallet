@@ -22,13 +22,13 @@
 , checkMaterialization ? false  # Use when updating tools
 }:
 
-with pkgs.lib;
-with pkgs.haskell-nix.haskellLib;
-
 let
+  inherit (pkgs) lib;
+  inherit (pkgs.haskell-nix.haskellLib) selectProjectPackages;
+
   mkShell = name: project: project.shellFor rec {
     inherit name;
-    packages = ps: attrValues (selectProjectPackages ps);
+    packages = ps: lib.attrValues (selectProjectPackages ps);
     buildInputs = (with walletPackages; [
         cardano-node
         cardano-cli
@@ -71,7 +71,7 @@ let
         inherit checkMaterialization;
         materialized = ./nix/materialized + "/${name}";
       };
-    in mapAttrs mkTool {
+    in lib.mapAttrs mkTool {
       cabal.version                   = "3.2.0.0";
       haskell-language-server.version = "0.6.0";
       hoogle.version                  = "5.0.18";
@@ -85,14 +85,14 @@ let
 
     # If any build input has bash completions, add it to the search
     # path for shell completions.
-    XDG_DATA_DIRS = concatStringsSep ":" (
+    XDG_DATA_DIRS = lib.concatStringsSep ":" (
       [(builtins.getEnv "XDG_DATA_DIRS")] ++
-      (filter
+      (lib.filter
         (share: builtins.pathExists (share + "/bash-completion"))
         (map (p: p + "/share") buildInputs))
     );
 
-    meta.platforms = platforms.unix;
+    meta.platforms = lib.platforms.unix;
   };
 in
   if profiling

@@ -52,26 +52,32 @@
 , borsBuild ? null
 }:
 
-# commonLib includes iohk-nix utilities, our util.nix and nixpkgs lib.
-with pkgs; with commonLib; with pkgs.haskell-nix.haskellLib;
-
 let
-  src = cleanSourceWith {
+  # The project sources. Sources are filtered by filename, and then
+  # further filtered by package subdirectory.
+  src = lib.cleanSourceWith {
     src = pkgs.haskell-nix.cleanSourceHaskell { src = ./.; };
     name = "cardano-wallet-src";
-    filter = removeSocketFilesFilter;
+    filter = commonLib.removeSocketFilesFilter;
   };
 
   buildHaskellProject = args: import ./nix/haskell.nix ({
-    inherit config lib stdenv pkgs buildPackages;
-    inherit (pkgs) haskell-nix;
+    inherit config pkgs;
+    inherit (pkgs) buildPackages lib stdenv haskell-nix;
     inherit src gitrev pr borsBuild;
   } // args);
   project = buildHaskellProject {};
   profiledProject = buildHaskellProject { profiling = true; };
   coveredProject = buildHaskellProject { coverage = true; };
 
-  getPackageChecks = mapAttrs (_: package: package.checks);
+  # Functions used in this file
+  inherit (pkgs) lib commonLib;
+  inherit (pkgs.haskell-nix.haskellLib)
+    selectProjectPackages
+    isProjectPackage
+    collectComponents
+    collectChecks;
+  getPackageChecks = lib.mapAttrs (_: package: package.checks);
 
   self = {
     inherit pkgs commonLib src project profiledProject coveredProject;
@@ -91,7 +97,7 @@ let
     # The main executable
     cardano-wallet = import ./nix/package-cardano-node.nix {
       inherit pkgs gitrev;
-      haskellBuildUtils = haskellBuildUtils.package;
+      haskellBuildUtils = pkgs.haskellBuildUtils.package;
       exe = project.hsPkgs.cardano-wallet.components.exes.cardano-wallet;
       inherit (self) cardano-node;
     };
@@ -112,7 +118,7 @@ let
 
     dockerImage = let
       mkDockerImage = backend: exe: pkgs.callPackage ./nix/docker.nix { inherit backend exe; };
-    in recurseIntoAttrs (mapAttrs mkDockerImage {
+    in pkgs.recurseIntoAttrs (lib.mapAttrs mkDockerImage {
       shelley = self.cardano-wallet;
     });
 
@@ -123,7 +129,7 @@ let
 
     # This is the ./nix/regenerate.sh script. Put it here so that it's
     # built and cached on CI.
-    inherit stackNixRegenerate;
+    inherit (pkgs) stackNixRegenerate;
   };
 
 in

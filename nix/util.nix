@@ -4,7 +4,6 @@ with lib; with haskell-nix.haskellLib;
 {
 
   inherit
-    selectProjectPackages
     collectComponents';
 
   inherit (extra)
