@@ -309,73 +309,65 @@ spec = describe "SHELLEY_COIN_SELECTION" $ do
                     (isValidDerivationPath purposeBIP44 . view #derivationPath))
             ]
 
+    -- Attempt to create a coin selection with an output that has an
+    -- excessively high token quantity. (This should fail.)
     it "WALLETS_COIN_SELECTION_07 - \
         \Single output with excessively high token quantity." $
-        wallets_coin_selection_07 @n
+        \ctx -> runResourceT $ do
+            let assetName = UnsafeTokenName "1"
+            let policyId = UnsafeTokenPolicyId $
+                    Hash "1234567890123456789012345678"
+            let adaQuantity = Quantity minUTxOValue
+            let assetId = AssetId policyId assetName
+            let excessiveQuantity = TokenQuantity.succ txOutMaxTokenQuantity
+            let nonAdaQuantities = TokenMap.singleton assetId excessiveQuantity
+            sourceWallet <- fixtureWallet ctx
+            targetWallet <- emptyWallet ctx
+            targetAddress : _ <- fmap (view #id) <$>
+                listAddresses @n ctx targetWallet
+            let payment = AddressAmount
+                    targetAddress adaQuantity (ApiT nonAdaQuantities)
+            let makeRequest = selectCoins
+                    @_ @'Shelley ctx sourceWallet (payment :| [])
+            makeRequest >>= flip verify
+                [ expectResponseCode HTTP.status403
+                , expectErrorMessage $ errMsg403TokenQuantityExceedsMaxBound
+                    (getApiT $ fst targetAddress)
+                    (policyId)
+                    (assetName)
+                    (excessiveQuantity)
+                    (txOutMaxTokenQuantity)
+                ]
 
+    -- Attempt to create a coin selection with an output that has an excessive
+    -- number of assets, such that the serialized representation of the output
+    -- would exceed the limit required by the protocol. (This should fail.)
     it "WALLETS_COIN_SELECTION_08 - \
         \Single output with excessively high number of assets." $
-        wallets_coin_selection_08 @n
-
--- Attempt to create a coin selection with an output that has an excessively
--- high token quantity. (This should fail.)
---
-wallets_coin_selection_07
-    :: forall n. (DecodeAddress n, DecodeStakeAddress n, EncodeAddress n)
-    => Context
-    -> IO ()
-wallets_coin_selection_07 ctx = runResourceT $ do
-    sourceWallet <- fixtureWallet ctx
-    targetWallet <- emptyWallet ctx
-    targetAddress : _ <- fmap (view #id) <$> listAddresses @n ctx targetWallet
-    let payment =
-            AddressAmount targetAddress adaQuantity (ApiT nonAdaQuantities)
-    let makeRequest = selectCoins @_ @'Shelley ctx sourceWallet (payment :| [])
-    makeRequest >>= flip verify
-        [ expectResponseCode HTTP.status403
-        , expectErrorMessage $ errMsg403TokenQuantityExceedsMaxBound
-            (getApiT $ fst targetAddress)
-            (policyId)
-            (assetName)
-            (excessiveQuantity)
-            (txOutMaxTokenQuantity)
-        ]
-  where
-    adaQuantity = Quantity minUTxOValue
-    assetId = AssetId policyId assetName
-    assetName = UnsafeTokenName "1"
-    excessiveQuantity = TokenQuantity.succ txOutMaxTokenQuantity
-    nonAdaQuantities = TokenMap.singleton assetId excessiveQuantity
-    policyId = UnsafeTokenPolicyId $ Hash "1234567890123456789012345678"
-
--- Attempt to create a coin selection with an output that has an excessive
--- number of assets, such that the serialized representation of the output
--- would exceed the limit required by the protocol. (This should fail.)
---
-wallets_coin_selection_08
-    :: forall n. (DecodeAddress n, DecodeStakeAddress n, EncodeAddress n)
-    => Context
-    -> IO ()
-wallets_coin_selection_08 ctx = runResourceT $ do
-    sourceWallet <- fixtureWallet ctx
-    targetWallet <- emptyWallet ctx
-    targetAddress : _ <- fmap (view #id) <$> listAddresses @n ctx targetWallet
-    let payment =
-            AddressAmount targetAddress adaQuantity (ApiT nonAdaQuantities)
-    let makeRequest = selectCoins @_ @'Shelley ctx sourceWallet (payment :| [])
-    makeRequest >>= flip verify
-        [ expectResponseCode HTTP.status403
-        , expectErrorMessage $ errMsg403TokenBundleSizeExceedsLimit
-            (getApiT $ fst targetAddress)
-            (assetCount)
-        ]
-  where
-    adaQuantity = Quantity minUTxOValue
-    assetCount = 1024
-    assetIds = AssetId policyId <$> take assetCount tokenNames
-    nonAdaQuantities = TokenMap.fromFlatList $ (, TokenQuantity 1) <$> assetIds
-    policyId = UnsafeTokenPolicyId $ Hash "1234567890123456789012345678"
-    tokenNames = UnsafeTokenName . T.encodeUtf8 . T.singleton <$> ['a' ..]
+        \ctx -> runResourceT $ do
+            let adaQuantity = Quantity minUTxOValue
+            let assetCount = 1024
+            let policyId = UnsafeTokenPolicyId $
+                    Hash "1234567890123456789012345678"
+            let tokenNames = UnsafeTokenName . T.encodeUtf8 . T.singleton <$>
+                    ['a' ..]
+            let assetIds = AssetId policyId <$> take assetCount tokenNames
+            let nonAdaQuantities = TokenMap.fromFlatList $
+                    (, TokenQuantity 1) <$> assetIds
+            sourceWallet <- fixtureWallet ctx
+            targetWallet <- emptyWallet ctx
+            targetAddress : _ <- fmap (view #id) <$>
+                listAddresses @n ctx targetWallet
+            let payment = AddressAmount
+                    targetAddress adaQuantity (ApiT nonAdaQuantities)
+            let makeRequest = selectCoins
+                    @_ @'Shelley ctx sourceWallet (payment :| [])
+            makeRequest >>= flip verify
+                [ expectResponseCode HTTP.status403
+                , expectErrorMessage $ errMsg403TokenBundleSizeExceedsLimit
+                    (getApiT $ fst targetAddress)
+                    (assetCount)
+                ]
 
 isValidDerivationPath
     :: Index 'Hardened 'PurposeK
