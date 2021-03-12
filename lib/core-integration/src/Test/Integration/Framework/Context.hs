@@ -66,7 +66,7 @@ data Context = Context
         -- ^ TODO: Remove once we can unify cardano-wallet-core-integration and
         -- cardano-wallet:integration, or when the wallet supports minting.
         --
-        -- Cannot be used be serveral tests at a time. (!)
+        -- Cannot be used by several tests at a time. (!)
     }
     deriving Generic
 
