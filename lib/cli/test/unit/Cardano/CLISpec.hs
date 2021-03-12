@@ -179,7 +179,7 @@ spec = do
 
         ["wallet", "create", "from-recovery-phrase", "--help"] `shouldShowUsage`
             [ "Usage:  wallet create from-recovery-phrase [--port INT]"
-            , "                                           WALLET_NAME"
+            , "                                           WALLET_NAME "
             , "                                           [--address-pool-gap INT]"
             , "  Create a new wallet using a recovery phrase."
             , ""
@@ -193,7 +193,7 @@ spec = do
             ]
 
         ["wallet", "create", "from-public-key", "--help"] `shouldShowUsage`
-            [ "Usage:  wallet create from-public-key [--port INT] WALLET_NAME"
+            [ "Usage:  wallet create from-public-key [--port INT] WALLET_NAME "
             , "                                      [--address-pool-gap INT]"
             , "                                      ACCOUNT_PUBLIC_KEY"
             , "  Create a wallet using a public account key."
@@ -272,7 +272,7 @@ spec = do
 
         ["transaction", "create", "--help"] `shouldShowUsage`
             [ "Usage:  transaction create [--port INT] WALLET_ID"
-            , "                           --payment PAYMENT [--metadata JSON]"
+            , "                           --payment PAYMENT [--metadata JSON] "
             , "                           [--ttl DURATION]"
             , "  Create and submit a new transaction."
             , ""
@@ -314,7 +314,7 @@ spec = do
             ]
 
         ["transaction", "list", "--help"] `shouldShowUsage`
-            [ "Usage:  transaction list [--port INT] WALLET_ID [--start TIME]"
+            [ "Usage:  transaction list [--port INT] WALLET_ID [--start TIME] "
             , "                         [--end TIME] [--order ORDER]"
             , "  List the transactions associated with a wallet."
             , ""
