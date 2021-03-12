@@ -2242,15 +2242,11 @@ maryIntegrationTestAssets = maMnemonics >>= take 3
         ]
     combined p = simple p `TokenBundle.add` fruit p
 
--- Assets containing 120 different SeaHorses. Same policyId, but all different.
+-- | Create @n@ unique SeaHorse tokens for each provided @Address@.
 --
--- This is for testing with large token bundles / asset counts.
---
--- This is a separate definition from maryIntegrationTestAssets to allow minting
--- only 1 bundle per transaction without going over the maximum size
--- (as we do want them as large as possible).
+-- The result can be used for minting using the cli-based faucet.
 seaHorseTestAssets
-    :: Int
+    :: Int -- ^ Number of sea horses per address
     -> [Address]
     -> [(Address, (TokenBundle, [(String, String)]))]
 seaHorseTestAssets nPerAddr addrs = zip addrs $
