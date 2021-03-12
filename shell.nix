@@ -19,7 +19,6 @@
 , pkgs ? walletPackages.pkgs
 , profiling ? false  # enable profiling in haskell dependencies
 , sourcesOverride ? {}  # see sourcesOverride in nix/default.nix
-, checkMaterialization ? false  # Use when updating tools
 }:
 
 let
@@ -44,41 +43,16 @@ let
         ruby
         sqlite-interactive
         yq
-      ]);
-    tools = let
-      # NOTE: Updating versions of Haskell tools
-      #
-      # Modify the tool version number to a different Hackage version.
-      # If you have chosen a recent version, you may also need to
-      # advance the "index-state" variable to include the upload date
-      # of your package.
-      #
-      # When increasing the "index-state" variable, it's possible that
-      # you will also need to update Haskell.nix to get a recent
-      # Hackage package index.
-      #
-      #   niv update haskell.nix
-      #
-      # After changing tool versions, you can update the generated
-      # files which are cached in ./nix/materialized. Run this
-      # command, follow the instructions shown, then commit the
-      # updated files.
-      #
-      #   nix-shell --arg checkMaterialization true
-      #
-      mkTool = name: args: args // {
-        index-state = "2020-11-20T00:00:00Z";
-        inherit checkMaterialization;
-        materialized = ./nix/materialized + "/${name}";
-      };
-    in lib.mapAttrs mkTool {
-      cabal.version                   = "3.2.0.0";
-      haskell-language-server.version = "0.6.0";
-      hoogle.version                  = "5.0.18";
-      hlint.version                   = "3.2";
-      lentil.version                  = "1.3.2.0";
-      stylish-haskell.version         = "0.11.0.3";
-      weeder.version                  = "1.0.9";
+      ]) ++ lib.filter
+        (drv: lib.isDerivation drv && drv.name != "regenerate-materialized-nix")
+        (lib.attrValues pkgs.haskell-build-tools);
+
+    # fixme: this is needed to prevent Haskell.nix double-evaluating hoogle
+    tools.hoogle = {
+      inherit (pkgs.haskell-build-tools.hoogle) version;
+      inherit (pkgs.haskell-build-tools.hoogle.project) index-state;
+      checkMaterialization = false;
+      materialized = ./nix/materialized/hoogle;
     };
 
     CARDANO_NODE_CONFIGS = pkgs.cardano-node-deployments;

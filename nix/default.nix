@@ -48,6 +48,8 @@ let
           # also expose our sources and overlays
           // { inherit overlays sources; };
       })
+      # haskell build tools
+      (import ./build-tools-overlay.nix)
       # cardano-node packages
       (import ./cardano-node-overlay.nix)
       # Other package overlays

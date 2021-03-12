@@ -30,23 +30,31 @@ let
 
   # Chop out a subdirectory of the source, so that the package is only
   # rebuilt when something in the subdirectory changes.
-  filterSubDir = subDir:
-    haskell.haskellLib.cleanSourceWith { inherit src subDir; };
+  filterSubDir = subDir: {
+    src = haskell.haskellLib.cleanSourceWith { inherit src subDir; };
+    package.isProject = true;  # fixme: Haskell.nix
+  };
 
   pkg-set = haskell.mkStackPkgSet {
     inherit stack-pkgs;
     modules = [
       # Add source filtering to local packages
       {
-        packages.cardano-wallet-core.src = filterSubDir "lib/core";
+        packages.cardano-wallet-cli = filterSubDir "lib/cli";
+        packages.cardano-wallet-core-integration = filterSubDir "lib/core-integration";
+        packages.cardano-wallet-core = filterSubDir "lib/core";
+        packages.cardano-wallet-launcher = filterSubDir "lib/launcher";
+        packages.cardano-numeric = filterSubDir "lib/numeric";
+        packages.cardano-wallet = filterSubDir "lib/shelley";
+        packages.strict-non-empty-containers = filterSubDir "lib/strict-non-empty-containers";
+        packages.cardano-wallet-test-utils = filterSubDir "lib/test-utils";
+        packages.text-class = filterSubDir "lib/text-class";
+      }
+
+      # Provide sources at check time to test suites which need them
+      {
         packages.cardano-wallet-core.components.tests.unit.keepSource = true;
-        packages.cardano-wallet-core-integration.src = filterSubDir "lib/core-integration";
-        packages.cardano-wallet-cli.src = filterSubDir "lib/cli";
-        packages.cardano-wallet-launcher.src = filterSubDir "lib/launcher";
-        packages.cardano-wallet.src = filterSubDir "lib/shelley";
         packages.cardano-wallet.components.tests.integration.keepSource = true;
-        packages.cardano-wallet-test-utils.src = filterSubDir "lib/test-utils";
-        packages.text-class.src = filterSubDir "lib/text-class";
         packages.text-class.components.tests.unit.keepSource = true;
       }
 
@@ -58,6 +66,8 @@ let
         packages.cardano-wallet-core.flags.release = true;
         packages.cardano-wallet-launcher.flags.release = true;
         packages.cardano-wallet-test-utils.flags.release = true;
+        packages.cardano-numeric.flags.release = true;
+        packages.strict-non-empty-containers.flags.release = true;
         packages.text-class.flags.release = true;
       }
 
