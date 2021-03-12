@@ -88,7 +88,7 @@ import Options.Applicative
     , value
     )
 import Say
-    ( sayErr )
+    ( say )
 import System.Directory
     ( createDirectoryIfMissing )
 import System.Environment
@@ -258,18 +258,18 @@ runBenchmarks bs = do
     -- NOTE: Adding an artificial delay between successive runs to get a better
     -- output for the heap profiling.
     rs <- forM bs $ \io -> io <* let _2s = 2000000 in threadDelay _2s
-    sayErr "\n\nAll results:"
-    mapM_ (sayErr . pretty) rs
+    say "\n\nAll results:"
+    mapM_ (say . pretty) rs
 
 bench :: NFData a => Text -> IO a -> IO (a, Time)
 bench benchName action = do
-    sayErr $ "Running " <> benchName
+    say $ "Running " <> benchName
     start <- getTime
     res <- action
     evaluate (rnf res)
     finish <- getTime
     let t = Time $ finish - start
-    (res, t) <$ sayErr (pretty $ nameF (build benchName) (build t))
+    (res, t) <$ say (pretty $ nameF (build benchName) (build t))
 
 initBenchmarkLogging :: Text -> Severity -> IO (CM.Configuration, Trace IO Text)
 initBenchmarkLogging name minSeverity = do
