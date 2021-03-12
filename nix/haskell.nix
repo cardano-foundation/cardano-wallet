@@ -51,13 +51,6 @@ let
         packages.text-class = filterSubDir "lib/text-class";
       }
 
-      # Provide sources at check time to test suites which need them
-      {
-        packages.cardano-wallet-core.components.tests.unit.keepSource = true;
-        packages.cardano-wallet.components.tests.integration.keepSource = true;
-        packages.text-class.components.tests.unit.keepSource = true;
-      }
-
       # Enable release flag (optimization and -Werror) on all local packages
       {
         packages.cardano-wallet.flags.release = true;
@@ -80,6 +73,8 @@ let
         packages.cardano-wallet-core.components.tests.unit.doCoverage = true;
         packages.cardano-wallet-launcher.components.library.doCoverage = true;
         packages.cardano-wallet-test-utils.components.library.doCoverage = true;
+        packages.cardano-numeric.components.library.doCoverage = true;
+        packages.strict-non-empty-containers.components.library.doCoverage = true;
         packages.text-class.components.library.doCoverage = true;
       })
 
