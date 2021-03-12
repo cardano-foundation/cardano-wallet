@@ -16,16 +16,16 @@ packages:
 - lib/shelley
 - lib/strict-non-empty-containers
 
+allow-newer: true
+
 extra-deps:
-- unliftio-core-0.1.2.0
+- Cabal-3.4.0.0
 - OddWord-1.0.2.0
-- generic-lens-1.1.0.0
+- async-timer-0.2.0.0
 - command-0.1.1
-- quickcheck-state-machine-0.7.0
 - markov-chain-usage-model-0.0.0
 - parsec-3.1.14.0
-- Cabal-3.2.1.0
-- async-timer-0.2.0.0
+- quickcheck-state-machine-0.7.0
 
 # cardano-addresses-3.2.0
 - git: https://github.com/input-output-hk/cardano-addresses
