@@ -120,7 +120,7 @@ packages:
 
   # NOTE: Bumped
 - git: https://github.com/input-output-hk/iohk-monitoring-framework
-  commit: 42778ad2041dd9ba236a60c35e1f936fcc1339ae
+  commit: 563e79f28c6da5c547463391d4c58a81442e48db
   subdirs:
   - contra-tracer
   - iohk-monitoring
