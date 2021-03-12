@@ -59,7 +59,7 @@ library
     , filepath
     , fmt
     , foldl
-    , generic-lens >=1.1.0.0 && < 1.2.0.0
+    , generic-lens
     , hashable
     , http-api-data
     , http-client
@@ -83,6 +83,7 @@ library
     , persistent
     , persistent-sqlite
     , persistent-template
+    , profunctors
     , quiet
     , random
     , random-shuffle
@@ -149,6 +150,7 @@ library
       Cardano.Wallet.Api.Server
       Cardano.Wallet.Api.Server.Tls
       Cardano.Wallet.Api.Types
+      Cardano.Wallet.Compat
       Cardano.Wallet.DB
       Cardano.Wallet.DB.MVar
       Cardano.Wallet.DB.Model

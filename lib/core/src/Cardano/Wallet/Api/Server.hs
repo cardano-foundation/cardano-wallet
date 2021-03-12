@@ -233,6 +233,8 @@ import Cardano.Wallet.Api.Types
     , toApiNetworkParameters
     , toApiUtxoStatistics
     )
+import Cardano.Wallet.Compat
+    ( (^?) )
 import Cardano.Wallet.DB
     ( DBFactory (..) )
 import Cardano.Wallet.Network
@@ -393,8 +395,6 @@ import Data.Functor.Identity
     ( Identity (..) )
 import Data.Generics.Internal.VL.Lens
     ( Lens', view, (.~), (^.) )
-import Data.Generics.Internal.VL.Prism
-    ( (^?) )
 import Data.Generics.Labels
     ()
 import Data.List

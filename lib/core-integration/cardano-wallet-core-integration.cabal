@@ -54,6 +54,7 @@ library
     , filepath
     , fmt
     , generic-lens
+    , generic-lens-core
     , hspec
     , hspec-expectations-lifted
     , http-api-data
