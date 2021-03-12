@@ -34,6 +34,8 @@ import Cardano.Slotting.Slot
     ( SlotNo (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Passphrase (..), PassphraseScheme (..), Role (..) )
+import Cardano.Wallet.Primitive.AddressDiscovery.Script
+    ( CredentialType )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPoolGap (..)
     , DerivationPrefix
@@ -517,6 +519,19 @@ instance PersistField (Script Cosigner) where
 
 instance PersistFieldSql (Script Cosigner) where
     sqlType _ = sqlType (Proxy @Text)
+
+
+----------------------------------------------------------------------------
+-- CredentialType
+
+instance PersistField CredentialType where
+    toPersistValue = toPersistValue . toText
+    fromPersistValue = fromPersistValueFromText
+
+instance PersistFieldSql CredentialType where
+    sqlType _ = sqlType (Proxy @Text)
+
+----------------------------------------------------------------------------
 
 ----------------------------------------------------------------------------
 -- AddressPoolGap

@@ -17,11 +17,12 @@
 -- License: Apache-2.0
 --
 -- An implementation of shared script state using
--- scheme specified in CIP-XXX Multi-signature Wallets.
+-- scheme specified in CIP-1854 Multi-signature Wallets..
 
 module Cardano.Wallet.Primitive.AddressDiscovery.Script
     (
-      keyHashFromAccXPubIx
+      CredentialType (..)
+    , keyHashFromAccXPubIx
     , constructAddressFromIx
     , toNetworkTag
     , replaceCosignersWithVerKeys
@@ -72,6 +73,9 @@ import Data.Kind
     ( Type )
 import Data.Maybe
     ( fromJust, fromMaybe, isJust )
+    ( fromMaybe, isJust )
+import Data.Text.Class
+    ( FromText (..), TextDecodingError (..), ToText (..) )
 import Data.Type.Equality
     ( (:~:) (..), testEquality )
 import Type.Reflection
@@ -81,6 +85,22 @@ import qualified Cardano.Address as CA
 import qualified Cardano.Address.Derivation as CA
 import qualified Cardano.Address.Style.Shelley as CA
 import qualified Data.Map.Strict as Map
+
+data CredentialType = Payment | Delegation
+    deriving (Eq, Show)
+
+instance ToText CredentialType where
+    toText Payment = "payment"
+    toText Delegation = "delegation"
+
+instance FromText CredentialType where
+    fromText = \case
+        "payment" -> Right Payment
+        "delegation" -> Right Delegation
+        _ -> Left $ TextDecodingError $ unwords
+            [ "Invalid credential type: expecting only following values:"
+            , "'payment', 'delegation'."
+            ]
 
 keyHashFromAccXPubIx
     :: (SoftDerivation k, WalletKey k)

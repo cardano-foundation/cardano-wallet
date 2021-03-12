@@ -33,6 +33,8 @@ import Cardano.Slotting.Slot
     ( SlotNo )
 import Cardano.Wallet.DB.Sqlite.Types
     ( BlockId, HDPassphrase, TxId, sqlSettings' )
+import Cardano.Wallet.Primitive.AddressDiscovery.Script
+    ( CredentialType )
 import Data.Quantity
     ( Percentage (..) )
 import Data.Text
@@ -40,7 +42,9 @@ import Data.Text
 import Data.Time.Clock
     ( UTCTime )
 import Data.Word
-    ( Word16, Word32, Word64 )
+    ( Word16, Word32, Word64, Word8 )
+import Database.Persist.Class
+    ( AtLeastOneUniqueKey (..), OnlyOneUniqueKey (..) )
 import Database.Persist.TH
     ( mkDeleteCascade, mkMigrate, mkPersist, persistLowerCase, share )
 import GHC.Generics
@@ -391,5 +395,19 @@ SharedWallet
     sharedWalletGenesisStart             UTCTime                   sql=genesis_start
 
     Primary sharedWalletWalletId
+    deriving Show Generic
+
+CosignerKey
+    cosignerKeyWalletId                  W.WalletId                sql=wallet_id
+    cosignerKeyCreationTime              UTCTime                   sql=creation_time
+    cosignerKeyCredential                CredentialType            sql=credential
+    cosignerKeyAccountXPub               B8.ByteString             sql=account_xpub
+    cosignerKeyIndex                     Word8                     sql=cosigner_ix
+
+    Primary
+        cosignerKeyWalletId
+        cosignerKeyCredential
+        cosignerKeyIndex
+    Foreign SharedWallet fk_shared_wallet_cosigner_key cosignerKeyWalletId ! ON DELETE CASCADE
     deriving Show Generic
 |]
