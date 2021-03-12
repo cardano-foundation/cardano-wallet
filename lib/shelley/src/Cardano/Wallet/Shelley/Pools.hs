@@ -90,7 +90,6 @@ import Cardano.Wallet.Primitive.Types
     , SlotLength (..)
     , SlotNo (..)
     , SlottingParameters (..)
-    , SlottingParameters (..)
     , StakePoolMetadata
     , StakePoolMetadataHash
     , StakePoolsSummary (..)

@@ -99,7 +99,6 @@ import Test.Integration.Framework.DSL
     , listAddresses
     , listFilteredByronWallets
     , listFilteredWallets
-    , listFilteredWallets
     , minUTxOValue
     , notDelegating
     , postWallet

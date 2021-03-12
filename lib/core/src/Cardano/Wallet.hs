@@ -270,7 +270,6 @@ import Cardano.Wallet.Primitive.Slotting
     , interpretQuery
     , neverFails
     , slotRangeFromTimeRange
-    , slotRangeFromTimeRange
     , slotToUTCTime
     , unsafeExtendSafeZone
     )

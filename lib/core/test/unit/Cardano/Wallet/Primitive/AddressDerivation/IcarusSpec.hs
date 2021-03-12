@@ -23,7 +23,6 @@ import Cardano.Wallet.Gen
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , DerivationType (..)
-    , DerivationType (..)
     , HardDerivation (..)
     , Index
     , MkKeyFingerprint (..)

@@ -205,14 +205,7 @@ import Cardano.Wallet.Primitive.Types.TokenMap.Gen
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenFingerprint, mkTokenFingerprint )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( Direction (..)
-    , TxIn (..)
-    , TxIn (..)
-    , TxMetadata (..)
-    , TxMetadata (..)
-    , TxOut (..)
-    , TxStatus (..)
-    )
+    ( Direction (..), TxIn (..), TxMetadata (..), TxOut (..), TxStatus (..) )
 import Cardano.Wallet.Primitive.Types.UTxO
     ( HistogramBar (..)
     , UTxO (..)

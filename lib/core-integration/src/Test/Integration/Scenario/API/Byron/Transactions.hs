@@ -80,7 +80,6 @@ import Test.Integration.Framework.DSL
     , expectListSizeSatisfy
     , expectResponseCode
     , expectSuccess
-    , expectSuccess
     , faucetAmt
     , faucetUtxoAmt
     , fixtureIcarusWallet

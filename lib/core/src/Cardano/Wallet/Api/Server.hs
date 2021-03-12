@@ -169,7 +169,6 @@ import Cardano.Wallet.Api.Types
     , ApiAsset (..)
     , ApiBlockInfo (..)
     , ApiBlockReference (..)
-    , ApiBlockReference (..)
     , ApiByronWallet (..)
     , ApiByronWalletBalance (..)
     , ApiCoinSelection (..)

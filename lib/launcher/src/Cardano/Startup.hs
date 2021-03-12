@@ -42,17 +42,7 @@ import Data.Either.Extra
 import Data.Text.Class
     ( ToText (..) )
 import System.IO
-    ( Handle
-    , hIsOpen
-    , hSetEncoding
-    , mkTextEncoding
-    , stderr
-    , stderr
-    , stdin
-    , stdin
-    , stdout
-    , stdout
-    )
+    ( Handle, hIsOpen, hSetEncoding, mkTextEncoding, stderr, stdin, stdout )
 import System.IO.CodePage
     ( withCP65001 )
 import UnliftIO.Async
