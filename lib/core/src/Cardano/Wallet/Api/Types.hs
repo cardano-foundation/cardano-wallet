@@ -1056,6 +1056,7 @@ data ApiSharedWalletPostData = ApiSharedWalletPostData
     , paymentScriptTemplate :: !ScriptTemplate
     , delegationScriptTemplate :: !(Maybe ScriptTemplate)
     } deriving (Eq, Generic, Show)
+      deriving anyclass NFData
 
 data ApiActiveSharedWallet = ApiActiveSharedWallet
     { id :: !(ApiT WalletId)
@@ -1086,16 +1087,19 @@ data ApiPendingSharedWallet = ApiPendingSharedWallet
 data ApiSharedWallet = ApiSharedWallet
     { wallet :: Either ApiPendingSharedWallet ApiActiveSharedWallet
     } deriving (Eq, Generic, Show)
+      deriving anyclass NFData
 
 data ApiScriptTemplateUpdate =
     PaymentScriptTemplate | DelegationScriptTemplate | BothScriptTemplates
-    deriving (Eq, Generic, Show, Bounded, Enum)
+      deriving (Eq, Generic, Show, Bounded, Enum)
+      deriving anyclass NFData
 
 data ApiSharedWalletPatchData = ApiSharedWalletPatchData
     { cosigner :: !(ApiT Cosigner)
     , accountPublicKey :: !ApiAccountPublicKey
     , scriptTemplateUpdate :: !ApiScriptTemplateUpdate
     } deriving (Eq, Generic, Show)
+      deriving anyclass NFData
 
 -- | Error codes returned by the API, in the form of snake_cased strings
 data ApiErrorCode
@@ -2317,8 +2321,8 @@ instance ToJSON ApiPendingSharedWallet where
 instance FromJSON ApiSharedWallet where
     parseJSON obj = do
         balance <-
-            (withObject "postData" $
-             \o -> o .:? "balance" :: Aeson.Parser (Maybe ApiActiveSharedWallet)) obj
+            (withObject "ActiveSharedWallet" $
+             \o -> o .:? "balance" :: Aeson.Parser (Maybe ApiWalletBalance)) obj
         case balance of
             Nothing -> do
                 xs <- parseJSON obj :: Aeson.Parser ApiPendingSharedWallet

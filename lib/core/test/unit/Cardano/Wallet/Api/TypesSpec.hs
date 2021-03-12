@@ -408,6 +408,8 @@ spec = parallel $ do
             jsonRoundtripAndGolden $ Proxy @ApiWallet
             jsonRoundtripAndGolden $ Proxy @ApiSharedWalletPostData
             jsonRoundtripAndGolden $ Proxy @ApiSharedWallet
+            jsonRoundtripAndGolden $ Proxy @ApiActiveSharedWallet
+            jsonRoundtripAndGolden $ Proxy @ApiPendingSharedWallet
             jsonRoundtripAndGolden $ Proxy @ApiSharedWalletPatchData
             jsonRoundtripAndGolden $ Proxy @ApiByronWallet
             jsonRoundtripAndGolden $ Proxy @ApiByronWalletBalance

@@ -4918,28 +4918,31 @@ paths:
       description: |
         <p align="right">status: <strong>stable</strong></p>
 
-        Construct any address by specyfying credential for payment or stake.
+        Construct any address by specyfying credential for payment or delegation.
 
         In Cardano, Addresses are made of three parts:
 
         ```
-        *---------*---------*-------*
-        | NETWORK | PAYMENT | STAKE |
-        *---------*---------*-------*
+        *---------*---------*-----------*
+        | NETWORK | PAYMENT | DELEGATION |
+        *---------*---------*-----------*
         ```
 
         The `NETWORK` part allows for distinguishing addresses between different networks like the mainnet or the testnet. It is implicitly
-        handled by the server without you having to worry about it. The `PAYMENT` and `STAKE` parts however can be constructed similarly, using
+        handled by the server without you having to worry about it. The `PAYMENT` and `DELEGATION` parts however can be constructed similarly, using
         either:
 
         - A public key
         - A script
 
-        The script itself is either constructed out of a public key, or one of the three following primitives:
+        The script itself is either constructed out of a public key, one of two timelocks, or one of the three following primitives:
 
         - all
         - any
         - some
+
+        The timelock can determine validity as respect to the slot. `active_from slot` means the script is valid from the specified slot
+        and onward. `active_until slot` means the script is valid until (not included) the specified slot.
 
         Each of which contains one or more script(s) that can be either keys or primitives, and so on. Schematically:
 
@@ -4947,6 +4950,13 @@ paths:
                                            ┏─────────┓
         SCRIPT = ──┬───────────────────────┤ pub key ├─────────────────────┬──
                    │                       ┗─────────┛                     │
+                   │                       ┏─────────────┓                 │
+                   ├───────────────────────┤ active_from ├─────────────────┤
+                   │                       ┗─────────────┛                 │
+                   │                       ┏──────────────┓                │
+                   ├───────────────────────┤ active_until ├────────────────┤
+                   │                       ┗──────────────┛                │
+                   │                                                       │
                    │  ╭─────╮   ╭────────╮                                 │
                    ├──┤ ALL ├───┤ SCRIPT ├─┬───────────────────────────────┤
                    │  ╰─────╯ ^ ╰────────╯ │                               │
