@@ -2246,7 +2246,7 @@ maryIntegrationTestAssets = maMnemonics >>= take 3
 --
 -- This is for testing with large token bundles / asset counts.
 --
--- This is a separate defenition from maryIntegrationTestAssets to allow minting
+-- This is a separate definition from maryIntegrationTestAssets to allow minting
 -- only 1 bundle per transaction without going over the maximum size
 -- (as we do want them as large as possible).
 seaHorseTestAssets
