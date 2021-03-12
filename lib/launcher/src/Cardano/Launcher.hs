@@ -35,7 +35,7 @@ import Cardano.BM.Data.Tracer
 import Cardano.Startup
     ( killProcess )
 import Control.Monad
-    ( join, mapM_, void )
+    ( join, void )
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.IO.Unlift
