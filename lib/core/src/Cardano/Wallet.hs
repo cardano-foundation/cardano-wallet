@@ -260,9 +260,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     , defaultAddressPoolGap
     , derivationPrefix
     , mkSeqStateFromRootXPrv
-    , mkUnboundedAddressPoolGap
     , purposeBIP44
-    , shrinkPool
     )
 import Cardano.Wallet.Primitive.AddressDiscovery.SharedState
     ( ErrAddCosigner (..), SharedState, addCosignerAccXPub )
@@ -645,17 +643,9 @@ createIcarusWallet
     -> (k 'RootK XPrv, Passphrase "encryption")
     -> ExceptT ErrWalletAlreadyExists IO WalletId
 createIcarusWallet ctx wid wname credentials = db & \DBLayer{..} -> do
-    let s = mkSeqStateFromRootXPrv @n credentials purposeBIP44 $
-            mkUnboundedAddressPoolGap 10000
-    let (hist, cp) = initWallet block0 s
-    let addrs = map (view #address) . concatMap (view #outputs . fst) $ hist
     let g  = defaultAddressPoolGap
-    let s' = Seq.SeqState
-            (shrinkPool @n (liftPaymentAddress @n) addrs g (Seq.internalPool s))
-            (shrinkPool @n (liftPaymentAddress @n) addrs g (Seq.externalPool s))
-            (Seq.pendingChangeIxs s)
-            (Seq.rewardAccountKey s)
-            (Seq.derivationPrefix s)
+    let s = mkSeqStateFromRootXPrv @n credentials purposeBIP44 g
+    let (hist, cp) = initWallet block0 s
     now <- lift getCurrentTime
     let meta = WalletMetadata
             { name = wname
@@ -664,7 +654,7 @@ createIcarusWallet ctx wid wname credentials = db & \DBLayer{..} -> do
             , delegation = WalletDelegation NotDelegating []
             }
     mapExceptT atomically $
-        initializeWallet wid (updateState s' cp) meta hist gp $> wid
+        initializeWallet wid (updateState s cp) meta hist gp $> wid
   where
     db = ctx ^. dbLayer @IO @s @k
     (block0, NetworkParameters gp _sp _pp, _) = ctx ^. genesisData

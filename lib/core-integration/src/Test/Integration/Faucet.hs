@@ -31,7 +31,6 @@ module Test.Integration.Faucet
 
       -- * Internals
     , genByronFaucets
-    , genIcarusFaucets
     , genShelleyFaucets
     , genMAFaucets
     , genMnemonics
@@ -2014,31 +2013,21 @@ genByronFaucets = genFaucet encodeAddress genAddresses
             | ix <- [minBound..maxBound]
             ]
 
--- | Generate faucet addresses and mnemonics to a file.
---
--- >>> genMnemonics 100 >>= genIcarusFaucets "icarus-faucets.yaml"
-genIcarusFaucets :: FilePath -> [Mnemonic 15] -> IO  [[Text]]
-genIcarusFaucets = genFaucet encodeAddress genAddresses
-  where
-    encodeAddress :: Address -> Text
-    encodeAddress (Address bytes) =
-        T.decodeUtf8 $ encodeBase58 bitcoinAlphabet bytes
-
-    genAddresses :: Mnemonic 15 -> [Address]
-    genAddresses mw =
-        let
-            (seed, pwd) =
-                (SomeMnemonic mw, mempty)
-            rootXPrv =
-                Icarus.generateKeyFromSeed seed pwd
-            accXPrv =
-                deriveAccountPrivateKey pwd rootXPrv minBound
-            addrXPrv =
-                deriveAddressPrivateKey pwd accXPrv UtxoExternal
-        in
-            [ paymentAddress @'Mainnet $ publicKey $ addrXPrv ix
-            | ix <- [minBound..maxBound]
-            ]
+icaAddresses :: Mnemonic 15 -> [Address]
+icaAddresses mw =
+    let
+        (seed, pwd) =
+            (SomeMnemonic mw, mempty)
+        rootXPrv =
+            Icarus.generateKeyFromSeed seed pwd
+        accXPrv =
+            deriveAccountPrivateKey pwd rootXPrv minBound
+        addrXPrv =
+            deriveAddressPrivateKey pwd accXPrv UtxoExternal
+    in
+        [ paymentAddress @'Mainnet $ publicKey $ addrXPrv ix
+        | ix <- [minBound..maxBound]
+        ]
 
 -- | Generate faucet addresses and mnemonics to a file.
 --
@@ -2146,6 +2135,8 @@ bigDustWallet = unsafeMkMnemonic
 shelleyIntegrationTestFunds :: [(Address, Coin)]
 shelleyIntegrationTestFunds = mconcat
     [ seqMnemonics >>= take 10 . map (, defaultAmt) . addresses . SomeMnemonic
+
+    , icaMnemonics >>= take 10 . map (, defaultAmt) . icaAddresses
 
     , zip
          (addresses $ SomeMnemonic onlyDustWallet)

@@ -444,30 +444,6 @@ spec = describe "BYRON_TRANSACTIONS" $ do
             , expectErrorMessage (errMsg404NoWallet wid)
             ]
 
-    it "BYRON_RESTORE_08 - Icarus wallet with high indexes" $ \ctx -> runResourceT $ do
-        -- NOTE
-        -- Special Icarus mnemonic where address indexes are all after the index
-        -- 500. Because we don't have the whole history, restoring sequential
-        -- wallets like Icarus ones is tricky from just a snapshot and we need
-        -- to use arbitrarily big address pool gaps.
-        let mnemonics =
-                [ "erosion", "ahead", "vibrant", "air", "day"
-                , "timber", "thunder", "general", "dice", "into"
-                , "chest", "enrich", "social", "neck", "shine"
-                ] :: [T.Text]
-        let payload = Json [json| {
-                    "name": "High Index Wallet",
-                    "mnemonic_sentence": #{mnemonics},
-                    "passphrase": #{fixturePassphrase},
-                    "style": "icarus"
-                    } |]
-
-        r <- postByronWallet ctx payload
-        verify r
-            [ expectResponseCode HTTP.status201
-            , expectField (#balance . #available) (`shouldBe` Quantity faucetAmt)
-            ]
-
     it "BYRON_RESTORE_09 - Ledger wallet" $ \ctx -> runResourceT $ do
         -- NOTE
         -- Special legacy wallets where addresses have been generated from a
