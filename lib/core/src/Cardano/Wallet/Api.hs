@@ -846,6 +846,7 @@ type SharedWallets =
          PostSharedWallet
     :<|> GetSharedWallet
     :<|> PatchSharedWallet
+    :<|> DeleteSharedWallet
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/postSharedWallet
 type PostSharedWallet = "shared-wallets"
@@ -862,6 +863,11 @@ type PatchSharedWallet = "shared-wallets"
     :> Capture "walletId" (ApiT WalletId)
     :> ReqBody '[JSON] ApiSharedWalletPatchData
     :> Patch '[JSON] ApiSharedWallet
+
+-- | https://input-output-hk.github.io/cardano-wallet/api/#operation/deleteSharedWallet
+type DeleteSharedWallet = "shared-wallets"
+    :> Capture "walletId" (ApiT WalletId)
+    :> DeleteNoContent
 
 {-------------------------------------------------------------------------------
                                    Proxy_

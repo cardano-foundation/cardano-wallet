@@ -5065,3 +5065,13 @@ paths:
           application/json:
             schema: *ApiSharedWalletPatchData
       responses: *responsesPatchSharedWallet
+
+    delete:
+      operationId: deleteSharedWallet
+      tags: ["Shared Wallets"]
+      summary: Delete
+      description: |
+        <p align="right">status: <strong>unstable</strong></p>
+      parameters:
+        - *parametersWalletId
+      responses: *responsesDeleteWallet
