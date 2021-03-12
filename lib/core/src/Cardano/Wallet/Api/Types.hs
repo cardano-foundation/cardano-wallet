@@ -1084,7 +1084,7 @@ data ApiPendingSharedWallet = ApiPendingSharedWallet
     } deriving (Eq, Generic, Show)
       deriving anyclass NFData
 
-data ApiSharedWallet = ApiSharedWallet
+newtype ApiSharedWallet = ApiSharedWallet
     { wallet :: Either ApiPendingSharedWallet ApiActiveSharedWallet
     } deriving (Eq, Generic, Show)
       deriving anyclass NFData

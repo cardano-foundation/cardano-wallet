@@ -1119,9 +1119,9 @@ instance Arbitrary (Script Cosigner) where
 
 instance Arbitrary ScriptTemplate where
     arbitrary = do
-        script <- arbitrary `suchThat` (\s -> length (retrieveAllCosigners s) > 0)
+        script <- arbitrary `suchThat` (\s -> not (null (retrieveAllCosigners s)))
         let scriptCosigners = retrieveAllCosigners script
-        cosignersSubset <- sublistOf scriptCosigners `suchThat` (\cs -> length cs > 0)
+        cosignersSubset <- sublistOf scriptCosigners `suchThat` (\cs -> not (null cs))
         let xpubGen = fromJust . xpubFromBytes . BS.pack <$> vectorOf 64 arbitrary
         xpubs <- vectorOf (length cosignersSubset) xpubGen
         pure $ ScriptTemplate (Map.fromList $ zip cosignersSubset xpubs) script
