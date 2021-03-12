@@ -77,6 +77,7 @@ module Test.Integration.Framework.TestData
     , errMsg403CouldntIdentifyAddrAsMine
     , errMsg503PastHorizon
     , errMsg403WrongIndex
+    , errMsg403TokenBundleSizeExceedsLimit
     , errMsg403TokenQuantityExceedsMaxBound
     ) where
 
@@ -451,6 +452,22 @@ errMsg403WrongIndex :: String
 errMsg403WrongIndex = "It looks like you've provided a derivation index that is out of bound.\
      \ The index is well-formed, but I require indexes valid for hardened derivation only. That\
      \ is, indexes between 2147483648 and 4294967295 with a suffix 'H'."
+
+errMsg403TokenBundleSizeExceedsLimit
+    :: Address
+    -> Int
+    -- ^ Asset count
+    -> String
+errMsg403TokenBundleSizeExceedsLimit
+    address assetCount = mconcat
+        [ "One of the outputs you've specified contains too many assets. "
+        , "Try splitting these assets across two or more outputs. "
+        , "Destination address: "
+        , pretty address
+        , ". Asset count: "
+        , pretty assetCount
+        , "."
+        ]
 
 errMsg403TokenQuantityExceedsMaxBound
     :: Address

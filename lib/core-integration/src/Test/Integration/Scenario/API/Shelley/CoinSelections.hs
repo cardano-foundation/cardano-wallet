@@ -52,6 +52,8 @@ import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId (..) )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenName (..), TokenPolicyId (..) )
+import Cardano.Wallet.Primitive.Types.TokenQuantity
+    ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( txOutMaxTokenQuantity )
 import Control.Monad
@@ -95,6 +97,7 @@ import Test.Integration.Framework.DSL
     )
 import Test.Integration.Framework.TestData
     ( errMsg400TxMetadataStringTooLong
+    , errMsg403TokenBundleSizeExceedsLimit
     , errMsg403TokenQuantityExceedsMaxBound
     , errMsg404NoWallet
     , errMsg406
@@ -107,6 +110,7 @@ import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as TokenQuantity
 import qualified Data.HashSet as Set
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
 import qualified Network.HTTP.Types as HTTP
 
 spec :: forall n.
@@ -309,6 +313,10 @@ spec = describe "SHELLEY_COIN_SELECTION" $ do
         \Single output with excessively high token quantity." $
         wallets_coin_selection_07 @n
 
+    it "WALLETS_COIN_SELECTION_08 - \
+        \Single output with excessively high number of assets." $
+        wallets_coin_selection_08 @n
+
 -- Attempt to create a coin selection with an output that has an excessively
 -- high token quantity. (This should fail.)
 --
@@ -339,6 +347,35 @@ wallets_coin_selection_07 ctx = runResourceT $ do
     excessiveQuantity = TokenQuantity.succ txOutMaxTokenQuantity
     nonAdaQuantities = TokenMap.singleton assetId excessiveQuantity
     policyId = UnsafeTokenPolicyId $ Hash "1234567890123456789012345678"
+
+-- Attempt to create a coin selection with an output that has an excessive
+-- number of assets, such that the serialized representation of the output
+-- would exceed the limit required by the protocol. (This should fail.)
+--
+wallets_coin_selection_08
+    :: forall n. (DecodeAddress n, DecodeStakeAddress n, EncodeAddress n)
+    => Context
+    -> IO ()
+wallets_coin_selection_08 ctx = runResourceT $ do
+    sourceWallet <- fixtureWallet ctx
+    targetWallet <- emptyWallet ctx
+    targetAddress : _ <- fmap (view #id) <$> listAddresses @n ctx targetWallet
+    let payment =
+            AddressAmount targetAddress adaQuantity (ApiT nonAdaQuantities)
+    let makeRequest = selectCoins @_ @'Shelley ctx sourceWallet (payment :| [])
+    makeRequest >>= flip verify
+        [ expectResponseCode HTTP.status403
+        , expectErrorMessage $ errMsg403TokenBundleSizeExceedsLimit
+            (getApiT $ fst targetAddress)
+            (assetCount)
+        ]
+  where
+    adaQuantity = Quantity minUTxOValue
+    assetCount = 1024
+    assetIds = AssetId policyId <$> take assetCount tokenNames
+    nonAdaQuantities = TokenMap.fromFlatList $ (, TokenQuantity 1) <$> assetIds
+    policyId = UnsafeTokenPolicyId $ Hash "1234567890123456789012345678"
+    tokenNames = UnsafeTokenName . T.encodeUtf8 . T.singleton <$> ['a' ..]
 
 isValidDerivationPath
     :: Index 'Hardened 'PurposeK
