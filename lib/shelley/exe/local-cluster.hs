@@ -231,7 +231,7 @@ main = withLocalClusterSetup $ \dir clusterLogs walletLogs ->
 
         sendFaucetFundsTo trCluster' socketPath dir $
             encodeAddresses shelleyIntegrationTestFunds
-        sendFaucetAssetsTo trCluster' socketPath dir $
+        sendFaucetAssetsTo trCluster' socketPath dir 20 $
             encodeAddresses maryIntegrationTestAssets
         moveInstantaneousRewardsTo trCluster' socketPath dir rewards
 

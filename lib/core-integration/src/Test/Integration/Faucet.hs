@@ -20,9 +20,14 @@ module Test.Integration.Faucet
     , mirMnemonics
     , maMnemonics
 
+    -- * Sea horses
+    , seaHorseTokenName
+    , seaHorsePolicyId
+
       -- * Integration test funds
     , shelleyIntegrationTestFunds
     , maryIntegrationTestAssets
+    , seaHorseTestAssets
 
       -- * Internals
     , genByronFaucets
@@ -93,6 +98,7 @@ import qualified Cardano.Wallet.Primitive.AddressDerivation.Byron as Byron
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Icarus as Icarus
 import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Shelley
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
+import qualified Data.ByteString.Char8 as B8
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
@@ -2128,7 +2134,7 @@ bigDustWallet = unsafeMkMnemonic
 
 shelleyIntegrationTestFunds :: [(Address, Coin)]
 shelleyIntegrationTestFunds = mconcat
-    [ seqMnemonics >>= (take 10 . map (, defaultAmt) . addresses . SomeMnemonic)
+    [ seqMnemonics >>= take 10 . map (, defaultAmt) . addresses . SomeMnemonic
 
     , zip
          (addresses $ SomeMnemonic onlyDustWallet)
@@ -2189,9 +2195,6 @@ maryAssetScripts = map (first (unsafeFromText . T.pack))
     , ( "b3579e6306a5b3f49ba91ed4c5fd79dbe92d54867433ff6f92d47b40"
       , ( "58209e1caa45500051163e03176099f53dd85aff98331d6fc2c857226d6c406fe2dc"
         , "31fe7edd49aaca7982a28cfb917f8af01b9c1088bff300b1bc784f03" ) )
-    , ( "4ff049585c4b3070563966370f5427d4a2f3588bce4146d57a93c7d3"
-      , ( "582082a0d2af81ca0528387c37823706507478cead44f0250661542cdc5619ecaead"
-        , "452bbda4110154506faaddbbdf366e4db088e963a3f56e98832b3332" ) )
     , ( "e9f14eb5a8c5c4b70d7e41ba16b833396191bee9fb3966ccd0d012f8"
       , ( "5820e58c10bac5b4cbc984524a92576fad307fa8d53da4f408abd8ee8c1d3d0e9daf"
         , "84f25deb23ec4ebaa20998fdb9db5aa91d46938c1a5a5efa35766e30" ) )
@@ -2238,6 +2241,47 @@ maryIntegrationTestAssets = maMnemonics >>= take 3
         , (UnsafeTokenName "cherry", TokenQuantity 67_000_000)
         ]
     combined p = simple p `TokenBundle.add` fruit p
+
+-- | Create @n@ unique SeaHorse tokens for each provided @Address@.
+--
+-- The result can be used for minting using the cli-based faucet.
+seaHorseTestAssets
+    :: Int -- ^ Number of sea horses per address
+    -> [Address]
+    -> [(Address, (TokenBundle, [(String, String)]))]
+seaHorseTestAssets nPerAddr addrs = zip addrs $
+    map
+        (\is -> mint (seaHorse is) seaHorseAssetScript)
+        (chunks nPerAddr [1..])
+  where
+    mint mk (pid, info) = (mk pid, [info])
+    seaHorse is p = bundle p $ flip map is $ \i ->
+        (seaHorseTokenName i, TokenQuantity 1)
+    bundle p assets = TokenBundle.fromNestedList
+        (Coin 1000_000_000)
+        [(p, NE.fromList assets)]
+
+seaHorsePolicyId :: TokenPolicyId
+seaHorsePolicyId = fst seaHorseAssetScript
+
+-- | A pre-generated policy ID, paired with
+-- @(signing key, verification key hash)@ .
+seaHorseAssetScript :: (TokenPolicyId, (String, String))
+seaHorseAssetScript = first (unsafeFromText . T.pack)
+    ( "4ff049585c4b3070563966370f5427d4a2f3588bce4146d57a93c7d3"
+      , ( "582082a0d2af81ca0528387c37823706507478cead44f0250661542cdc5619ecaead"
+        , "452bbda4110154506faaddbbdf366e4db088e963a3f56e98832b3332" ) )
+
+seaHorseTokenName :: Int -> TokenName
+seaHorseTokenName i = UnsafeTokenName $
+    B8.pack $ "00000000000000000SeaHorse" <> show i
+
+-- https://stackoverflow.com/questions/12876384/grouping-a-list-into-lists-of-n-elements-in-haskell
+chunks :: Int -> [a] -> [[a]]
+chunks _ [] = []
+chunks n xs =
+    let (ys, zs) = splitAt n xs
+    in  ys : chunks n zs
 
 --
 -- Helpers
