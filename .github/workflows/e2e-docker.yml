@@ -1,8 +1,6 @@
 name: E2E Docker
 
 on:
-  pull_request:
-    branches: [ master ]
   schedule:
   - cron:  "0 23 * * *"
   workflow_dispatch:
@@ -87,7 +85,7 @@ jobs:
       uses: actions/upload-artifact@v2
       if: always()
       with:
-        name: ${{ runner.os }}-logs
+        name: ${{ runner.os }}-docker-logs
         path: test/e2e/state/logs
 
     - name: Stop docker-compose
