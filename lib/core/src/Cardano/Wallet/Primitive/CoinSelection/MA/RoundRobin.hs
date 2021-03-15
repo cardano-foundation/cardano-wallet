@@ -843,7 +843,7 @@ tokenBundleSizeExceedsLimit (TokenBundleSizeAssessor assess) b =
     case assess b of
         TokenBundleSizeWithinLimit->
             False
-        TokenBundleSizeExceedsLimit ->
+        OutputTokenBundleSizeExceedsLimit ->
             True
 
 -- | Constructs change bundles for a set of selected inputs and outputs.

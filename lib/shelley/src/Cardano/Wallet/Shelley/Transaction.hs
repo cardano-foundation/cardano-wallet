@@ -123,9 +123,9 @@ import Cardano.Wallet.Transaction
     ( DelegationAction (..)
     , ErrDecodeSignedTx (..)
     , ErrMkTx (..)
+    , ErrOutputTokenBundleSizeExceedsLimit (..)
+    , ErrOutputTokenQuantityExceedsLimit (..)
     , ErrSelectionCriteria (..)
-    , ErrTokenBundleSizeExceedsLimit (..)
-    , ErrTokenQuantityExceedsMaxBound (..)
     , TransactionCtx (..)
     , TransactionLayer (..)
     , withdrawalToCoin
@@ -437,13 +437,13 @@ _initSelectionCriteria pp ctx utxoAvailable outputsUnprepared
             -- We encountered one or more excessively large token bundles.
             -- Just report the first such bundle:
             ErrSelectionCriteriaOutputTokenBundleSizeExceedsLimit $
-            ErrTokenBundleSizeExceedsLimit {address, assetCount}
+            ErrOutputTokenBundleSizeExceedsLimit {address, assetCount}
     | (address, asset, quantity) : _ <- excessiveTokenQuantities =
         Left $
             -- We encountered one or more excessive token quantities.
             -- Just report the first such quantity:
-            ErrSelectionCriteriaOutputTokenQuantityExceedsMaxBound $
-            ErrTokenQuantityExceedsMaxBound
+            ErrSelectionCriteriaOutputTokenQuantityExceedsLimit $
+            ErrOutputTokenQuantityExceedsLimit
                 { address
                 , asset
                 , quantity
@@ -468,7 +468,7 @@ _initSelectionCriteria pp ctx utxoAvailable outputsUnprepared
       where
         bundleIsExcessivelyLarge b = case assessSize b of
             TokenBundleSizeWithinLimit -> False
-            TokenBundleSizeExceedsLimit -> True
+            OutputTokenBundleSizeExceedsLimit -> True
           where
             assessSize =
                 assessTokenBundleSize Compatibility.tokenBundleSizeAssessor

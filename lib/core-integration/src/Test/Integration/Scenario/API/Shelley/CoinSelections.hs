@@ -97,8 +97,8 @@ import Test.Integration.Framework.DSL
     )
 import Test.Integration.Framework.TestData
     ( errMsg400TxMetadataStringTooLong
-    , errMsg403TokenBundleSizeExceedsLimit
-    , errMsg403TokenQuantityExceedsMaxBound
+    , errMsg403OutputTokenBundleSizeExceedsLimit
+    , errMsg403OutputTokenQuantityExceedsLimit
     , errMsg404NoWallet
     , errMsg406
     , errMsg415
@@ -331,7 +331,7 @@ spec = describe "SHELLEY_COIN_SELECTION" $ do
                     @_ @'Shelley ctx sourceWallet (payment :| [])
             makeRequest >>= flip verify
                 [ expectResponseCode HTTP.status403
-                , expectErrorMessage $ errMsg403TokenQuantityExceedsMaxBound
+                , expectErrorMessage $ errMsg403OutputTokenQuantityExceedsLimit
                     (getApiT $ fst targetAddress)
                     (policyId)
                     (assetName)
@@ -364,7 +364,7 @@ spec = describe "SHELLEY_COIN_SELECTION" $ do
                     @_ @'Shelley ctx sourceWallet (payment :| [])
             makeRequest >>= flip verify
                 [ expectResponseCode HTTP.status403
-                , expectErrorMessage $ errMsg403TokenBundleSizeExceedsLimit
+                , expectErrorMessage $ errMsg403OutputTokenBundleSizeExceedsLimit
                     (getApiT $ fst targetAddress)
                     (assetCount)
                 ]

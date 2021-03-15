@@ -30,8 +30,8 @@ module Cardano.Wallet.Transaction
     , ErrMkTx (..)
     , ErrDecodeSignedTx (..)
     , ErrSelectionCriteria (..)
-    , ErrTokenBundleSizeExceedsLimit (..)
-    , ErrTokenQuantityExceedsMaxBound (..)
+    , ErrOutputTokenBundleSizeExceedsLimit (..)
+    , ErrOutputTokenQuantityExceedsLimit (..)
 
     ) where
 
@@ -178,12 +178,12 @@ data DelegationAction = RegisterKeyAndJoin PoolId | Join PoolId | Quit
 -- | Indicates a problem with the selection criteria for a coin selection.
 data ErrSelectionCriteria
     = ErrSelectionCriteriaOutputTokenBundleSizeExceedsLimit
-        ErrTokenBundleSizeExceedsLimit
-    | ErrSelectionCriteriaOutputTokenQuantityExceedsMaxBound
-        ErrTokenQuantityExceedsMaxBound
+        ErrOutputTokenBundleSizeExceedsLimit
+    | ErrSelectionCriteriaOutputTokenQuantityExceedsLimit
+        ErrOutputTokenQuantityExceedsLimit
     deriving (Eq, Generic, Show)
 
-data ErrTokenBundleSizeExceedsLimit = ErrTokenBundleSizeExceedsLimit
+data ErrOutputTokenBundleSizeExceedsLimit = ErrOutputTokenBundleSizeExceedsLimit
     { address :: !Address
       -- ^ The address to which this token bundle was to be sent.
     , assetCount :: !Int
@@ -194,7 +194,7 @@ data ErrTokenBundleSizeExceedsLimit = ErrTokenBundleSizeExceedsLimit
 -- | Indicates that a token quantity exceeds the maximum quantity that can
 --   appear in a transaction output's token bundle.
 --
-data ErrTokenQuantityExceedsMaxBound = ErrTokenQuantityExceedsMaxBound
+data ErrOutputTokenQuantityExceedsLimit = ErrOutputTokenQuantityExceedsLimit
     { address :: !Address
       -- ^ The address to which this token quantity was to be sent.
     , asset :: !AssetId

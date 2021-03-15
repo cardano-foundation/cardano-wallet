@@ -77,8 +77,8 @@ module Test.Integration.Framework.TestData
     , errMsg403CouldntIdentifyAddrAsMine
     , errMsg503PastHorizon
     , errMsg403WrongIndex
-    , errMsg403TokenBundleSizeExceedsLimit
-    , errMsg403TokenQuantityExceedsMaxBound
+    , errMsg403OutputTokenBundleSizeExceedsLimit
+    , errMsg403OutputTokenQuantityExceedsLimit
     ) where
 
 import Prelude
@@ -453,12 +453,12 @@ errMsg403WrongIndex = "It looks like you've provided a derivation index that is 
      \ The index is well-formed, but I require indexes valid for hardened derivation only. That\
      \ is, indexes between 2147483648 and 4294967295 with a suffix 'H'."
 
-errMsg403TokenBundleSizeExceedsLimit
+errMsg403OutputTokenBundleSizeExceedsLimit
     :: Address
     -> Int
     -- ^ Asset count
     -> String
-errMsg403TokenBundleSizeExceedsLimit
+errMsg403OutputTokenBundleSizeExceedsLimit
     address assetCount = mconcat
         [ "One of the outputs you've specified contains too many assets. "
         , "Try splitting these assets across two or more outputs. "
@@ -469,7 +469,7 @@ errMsg403TokenBundleSizeExceedsLimit
         , "."
         ]
 
-errMsg403TokenQuantityExceedsMaxBound
+errMsg403OutputTokenQuantityExceedsLimit
     :: Address
     -> TokenPolicyId
     -> TokenName
@@ -478,9 +478,9 @@ errMsg403TokenQuantityExceedsMaxBound
     -> TokenQuantity
     -- ^ Maximum allowable token quantity
     -> String
-errMsg403TokenQuantityExceedsMaxBound
+errMsg403OutputTokenQuantityExceedsLimit
     address policy asset quantity quantityMaxBound = mconcat
-        [ "One of the asset quantities you've specified is greater than the "
+        [ "One of the token quantities you've specified is greater than the "
         , "maximum quantity allowed in a single transaction output. Try "
         , "splitting this quantity across two or more outputs. "
         , "Destination address: "
