@@ -2,6 +2,7 @@
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
@@ -85,8 +86,18 @@ import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId (..), TokenMap )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( TokenName (..) )
+import Cardano.Wallet.Primitive.Types.TokenQuantity
+    ( TokenQuantity )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( SealedTx (..), Tx (..), TxIn (..), TxOut (..), txOutCoin )
+    ( SealedTx (..)
+    , TokenBundleSizeAssessment (..)
+    , TokenBundleSizeAssessor (..)
+    , Tx (..)
+    , TxIn (..)
+    , TxOut (..)
+    , txOutCoin
+    , txOutMaxTokenQuantity
+    )
 import Cardano.Wallet.Shelley.Compatibility
     ( AllegraEra
     , CardanoEra (MaryEra)
@@ -112,6 +123,9 @@ import Cardano.Wallet.Transaction
     ( DelegationAction (..)
     , ErrDecodeSignedTx (..)
     , ErrMkTx (..)
+    , ErrOutputTokenBundleSizeExceedsLimit (..)
+    , ErrOutputTokenQuantityExceedsLimit (..)
+    , ErrSelectionCriteria (..)
     , TransactionCtx (..)
     , TransactionLayer (..)
     , withdrawalToCoin
@@ -147,6 +161,7 @@ import qualified Cardano.Crypto.Hash.Class as Crypto
 import qualified Cardano.Crypto.Wallet as Crypto.HD
 import qualified Cardano.Ledger.Core as SL
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
+import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
 import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
 import qualified Cardano.Wallet.Shelley.Compatibility as Compatibility
 import qualified Codec.CBOR.Encoding as CBOR
@@ -154,6 +169,7 @@ import qualified Codec.CBOR.Write as CBOR
 import qualified Data.ByteString as BS
 import qualified Data.Foldable as F
 import qualified Data.List.NonEmpty as NE
+import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Shelley.Spec.Ledger.Address.Bootstrap as SL
 
@@ -306,31 +322,7 @@ newTransactionLayer networkId = TransactionLayer
                                 delta
                     mkTx networkId payload ttl stakeCreds keystore wdrl selection fees
 
-    , initSelectionCriteria = \pp ctx utxoAvailable outputsUnprepared ->
-        let
-            txMaxSize =
-                getTxMaxSize $ txParameters pp
-
-            selectionLimit = MaximumInputLimit $
-                _estimateMaxNumberOfInputs @k txMaxSize ctx (NE.toList outputsToCover)
-
-            extraCoinSource = Just $ addCoin
-                (withdrawalToCoin $ txWithdrawal ctx)
-                ( case txDelegationAction ctx of
-                    Just Quit -> stakeKeyDeposit pp
-                    _ -> Coin 0
-                )
-
-            outputsToCover = prepareOutputsWith
-                (_calcMinimumCoinValue pp)
-                outputsUnprepared
-        in
-            SelectionCriteria
-                { outputsToCover
-                , utxoAvailable
-                , selectionLimit
-                , extraCoinSource
-                }
+    , initSelectionCriteria = _initSelectionCriteria @k
 
     , calcMinimumCost = \pp ctx skeleton ->
         let
@@ -431,6 +423,82 @@ _estimateMaxNumberOfInputs txMaxSize ctx outs =
       where
         size = estimateTxSize (txWitnessTagFor @k) ctx sel
         sel  = dummySkeleton (fromIntegral nInps) outs
+
+_initSelectionCriteria
+    :: forall k. TxWitnessTagFor k
+    => ProtocolParameters
+    -> TransactionCtx
+    -> UTxOIndex.UTxOIndex
+    -> NE.NonEmpty TxOut
+    -> Either ErrSelectionCriteria SelectionCriteria
+_initSelectionCriteria pp ctx utxoAvailable outputsUnprepared
+    | (address, assetCount) : _ <- excessivelyLargeBundles =
+        Left $
+            -- We encountered one or more excessively large token bundles.
+            -- Just report the first such bundle:
+            ErrSelectionCriteriaOutputTokenBundleSizeExceedsLimit $
+            ErrOutputTokenBundleSizeExceedsLimit {address, assetCount}
+    | (address, asset, quantity) : _ <- excessiveTokenQuantities =
+        Left $
+            -- We encountered one or more excessive token quantities.
+            -- Just report the first such quantity:
+            ErrSelectionCriteriaOutputTokenQuantityExceedsLimit $
+            ErrOutputTokenQuantityExceedsLimit
+                { address
+                , asset
+                , quantity
+                , quantityMaxBound = txOutMaxTokenQuantity
+                }
+    | otherwise =
+        pure SelectionCriteria
+            {outputsToCover, utxoAvailable, selectionLimit, extraCoinSource}
+  where
+    -- The complete list of token bundles whose serialized lengths are greater
+    -- than the limit of what is allowed in a transaction output:
+    excessivelyLargeBundles :: [(Address, Int)]
+    excessivelyLargeBundles =
+        [ (address, assetCount)
+        | output <- F.toList outputsToCover
+        , let bundle = view #tokens output
+        , bundleIsExcessivelyLarge bundle
+        , let address = view #address output
+        , let assetCount = Set.size $ TokenBundle.getAssets bundle
+        ]
+
+      where
+        bundleIsExcessivelyLarge b = case assessSize b of
+            TokenBundleSizeWithinLimit -> False
+            OutputTokenBundleSizeExceedsLimit -> True
+          where
+            assessSize =
+                assessTokenBundleSize Compatibility.tokenBundleSizeAssessor
+
+    -- The complete list of token quantities that exceed the maximum quantity
+    -- allowed in a transaction output:
+    excessiveTokenQuantities :: [(Address, AssetId, TokenQuantity)]
+    excessiveTokenQuantities =
+        [ (address, asset, quantity)
+        | output <- F.toList outputsToCover
+        , let address = view #address output
+        , (asset, quantity) <-
+            TokenMap.toFlatList $ view #tokens $ view #tokens output
+        , quantity > txOutMaxTokenQuantity
+        ]
+
+    txMaxSize = getTxMaxSize $ txParameters pp
+
+    selectionLimit = MaximumInputLimit $
+        _estimateMaxNumberOfInputs @k txMaxSize ctx (NE.toList outputsToCover)
+
+    extraCoinSource = Just $ addCoin
+        (withdrawalToCoin $ txWithdrawal ctx)
+        ( case txDelegationAction ctx of
+            Just Quit -> stakeKeyDeposit pp
+            _ -> Coin 0
+        )
+
+    outputsToCover =
+        prepareOutputsWith (_calcMinimumCoinValue pp) outputsUnprepared
 
 dummySkeleton :: Int -> [TxOut] -> SelectionSkeleton
 dummySkeleton nInps outs = SelectionSkeleton

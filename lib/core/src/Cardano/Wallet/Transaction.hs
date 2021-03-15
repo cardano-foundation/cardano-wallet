@@ -1,6 +1,7 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RankNTypes #-}
@@ -28,6 +29,10 @@ module Cardano.Wallet.Transaction
     -- * Errors
     , ErrMkTx (..)
     , ErrDecodeSignedTx (..)
+    , ErrSelectionCriteria (..)
+    , ErrOutputTokenBundleSizeExceedsLimit (..)
+    , ErrOutputTokenQuantityExceedsLimit (..)
+
     ) where
 
 import Prelude
@@ -49,7 +54,9 @@ import Cardano.Wallet.Primitive.Types.Coin
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount )
 import Cardano.Wallet.Primitive.Types.TokenMap
-    ( TokenMap )
+    ( AssetId, TokenMap )
+import Cardano.Wallet.Primitive.Types.TokenQuantity
+    ( TokenQuantity )
 import Cardano.Wallet.Primitive.Types.Tx
     ( SealedTx (..), TokenBundleSizeAssessor, Tx (..), TxMetadata, TxOut )
 import Cardano.Wallet.Primitive.Types.UTxOIndex
@@ -96,7 +103,7 @@ data TransactionLayer k = TransactionLayer
             -- Available UTxO from which inputs should be selected.
         -> NonEmpty TxOut
             -- A list of target outputs
-        -> SelectionCriteria
+        -> Either ErrSelectionCriteria SelectionCriteria
 
     , calcMinimumCost
         :: ProtocolParameters
@@ -167,6 +174,37 @@ defaultTransactionCtx = TransactionCtx
 -- | Whether the user is attempting any particular delegation action.
 data DelegationAction = RegisterKeyAndJoin PoolId | Join PoolId | Quit
     deriving (Show, Eq, Generic)
+
+-- | Indicates a problem with the selection criteria for a coin selection.
+data ErrSelectionCriteria
+    = ErrSelectionCriteriaOutputTokenBundleSizeExceedsLimit
+        ErrOutputTokenBundleSizeExceedsLimit
+    | ErrSelectionCriteriaOutputTokenQuantityExceedsLimit
+        ErrOutputTokenQuantityExceedsLimit
+    deriving (Eq, Generic, Show)
+
+data ErrOutputTokenBundleSizeExceedsLimit = ErrOutputTokenBundleSizeExceedsLimit
+    { address :: !Address
+      -- ^ The address to which this token bundle was to be sent.
+    , assetCount :: !Int
+      -- ^ The number of assets within the token bundle.
+    }
+    deriving (Eq, Generic, Show)
+
+-- | Indicates that a token quantity exceeds the maximum quantity that can
+--   appear in a transaction output's token bundle.
+--
+data ErrOutputTokenQuantityExceedsLimit = ErrOutputTokenQuantityExceedsLimit
+    { address :: !Address
+      -- ^ The address to which this token quantity was to be sent.
+    , asset :: !AssetId
+      -- ^ The asset identifier to which this token quantity corresponds.
+    , quantity :: !TokenQuantity
+      -- ^ The token quantity that exceeded the bound.
+    , quantityMaxBound :: !TokenQuantity
+      -- ^ The maximum allowable token quantity.
+    }
+    deriving (Eq, Generic, Show)
 
 -- | Error while trying to decode externally signed transaction
 data ErrDecodeSignedTx

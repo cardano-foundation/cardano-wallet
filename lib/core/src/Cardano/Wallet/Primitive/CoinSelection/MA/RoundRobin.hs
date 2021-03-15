@@ -85,7 +85,7 @@ import Prelude
 import Algebra.PartialOrd
     ( PartialOrd (..) )
 import Cardano.Numeric.Util
-    ( padCoalesce, partitionNatural )
+    ( padCoalesce )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..), addCoin, subtractCoin, sumCoins )
 import Cardano.Wallet.Primitive.Types.TokenBundle
@@ -143,6 +143,7 @@ import Numeric.Natural
 import qualified Cardano.Wallet.Primitive.Types.Coin as Coin
 import qualified Cardano.Wallet.Primitive.Types.TokenBundle as TokenBundle
 import qualified Cardano.Wallet.Primitive.Types.TokenMap as TokenMap
+import qualified Cardano.Wallet.Primitive.Types.TokenQuantity as TokenQuantity
 import qualified Cardano.Wallet.Primitive.Types.Tx as Tx
 import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
 import qualified Data.Foldable as F
@@ -842,7 +843,7 @@ tokenBundleSizeExceedsLimit (TokenBundleSizeAssessor assess) b =
     case assess b of
         TokenBundleSizeWithinLimit->
             False
-        TokenBundleSizeExceedsLimit ->
+        OutputTokenBundleSizeExceedsLimit ->
             True
 
 -- | Constructs change bundles for a set of selected inputs and outputs.
@@ -1176,20 +1177,15 @@ makeChangeForUserSpecifiedAsset
     -> (AssetId, TokenQuantity)
         -- ^ A surplus token quantity to distribute.
     -> NonEmpty TokenMap
-makeChangeForUserSpecifiedAsset targets (asset, TokenQuantity excess) =
-    let
-        partition = fromMaybe zeros (partitionNatural excess weights)
-    in
-        TokenMap.singleton asset . TokenQuantity <$> partition
+makeChangeForUserSpecifiedAsset targets (asset, excess) =
+    TokenMap.singleton asset <$>
+        fromMaybe zeros (TokenQuantity.partition excess weights)
   where
-    weights :: NonEmpty Natural
-    weights = byAsset asset <$> targets
-      where
-        byAsset :: AssetId -> TokenMap -> Natural
-        byAsset x = unTokenQuantity . flip TokenMap.getQuantity x
+    weights :: NonEmpty TokenQuantity
+    weights = flip TokenMap.getQuantity asset <$> targets
 
-    zeros :: NonEmpty Natural
-    zeros = 0 :| replicate (length targets - 1) 0
+    zeros :: NonEmpty TokenQuantity
+    zeros = TokenQuantity 0 <$ targets
 
 -- | Constructs change outputs for a non-user-specified asset: an asset that
 --   was not present in the original set of outputs.
@@ -1233,19 +1229,7 @@ makeChangeForCoin
     -> Coin
         -- ^ A surplus ada quantity to be distributed.
     -> NonEmpty Coin
-makeChangeForCoin targets excess =
-    -- The 'Natural -> Coin' conversion is safe, because 'partitionNatural'
-    -- guarantees to produce a list where every entry is less than or equal to
-    -- the target value.
-    maybe zeroWeightSum (fmap unsafeNaturalToCoin)
-        (partitionNatural (coinToNatural excess) weights)
-  where
-    zeroWeightSum :: HasCallStack => a
-    zeroWeightSum = error
-        "partitionValue: The specified weights must have a non-zero sum."
-
-    weights :: NonEmpty Natural
-    weights = coinToNatural <$> targets
+makeChangeForCoin = flip Coin.unsafePartition
 
 --------------------------------------------------------------------------------
 -- Splitting bundles

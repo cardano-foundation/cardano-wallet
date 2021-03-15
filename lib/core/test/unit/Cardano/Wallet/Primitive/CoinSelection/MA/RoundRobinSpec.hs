@@ -1499,7 +1499,7 @@ mkBundleSizeAssessor m = TokenBundleSizeAssessor $ case m of
             case assetCount `compare` upperLimit of
                 LT -> TokenBundleSizeWithinLimit
                 EQ -> TokenBundleSizeWithinLimit
-                GT -> TokenBundleSizeExceedsLimit
+                GT -> OutputTokenBundleSizeExceedsLimit
 
 isValidMakeChangeData :: MakeChangeData -> Bool
 isValidMakeChangeData p = (&&)

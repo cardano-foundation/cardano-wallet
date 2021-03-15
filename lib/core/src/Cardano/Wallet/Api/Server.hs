@@ -354,6 +354,9 @@ import Cardano.Wallet.TokenMetadata
     ( TokenMetadataClient, fillMetadata )
 import Cardano.Wallet.Transaction
     ( DelegationAction (..)
+    , ErrOutputTokenBundleSizeExceedsLimit (..)
+    , ErrOutputTokenQuantityExceedsLimit (..)
+    , ErrSelectionCriteria (..)
     , TransactionCtx (..)
     , TransactionLayer
     , Withdrawal (..)
@@ -2866,8 +2869,45 @@ instance LiftHandler (ErrInvalidDerivationIndex 'Soft level) where
                 , "between ", pretty minIx, " and ", pretty maxIx, " without a suffix."
                 ]
 
+instance LiftHandler ErrSelectionCriteria where
+    handler = \case
+        ErrSelectionCriteriaOutputTokenBundleSizeExceedsLimit e ->
+            handler e
+        ErrSelectionCriteriaOutputTokenQuantityExceedsLimit e ->
+            handler e
+
+instance LiftHandler ErrOutputTokenBundleSizeExceedsLimit where
+    handler e = apiError err403 OutputTokenBundleSizeExceedsLimit $ mconcat
+        [ "One of the outputs you've specified contains too many assets. "
+        , "Try splitting these assets across two or more outputs. "
+        , "Destination address: "
+        , pretty (view #address e)
+        , ". Asset count: "
+        , pretty (view #assetCount e)
+        , "."
+        ]
+
+instance LiftHandler ErrOutputTokenQuantityExceedsLimit where
+    handler e = apiError err403 OutputTokenQuantityExceedsLimit $ mconcat
+        [ "One of the token quantities you've specified is greater than the "
+        , "maximum quantity allowed in a single transaction output. Try "
+        , "splitting this quantity across two or more outputs. "
+        , "Destination address: "
+        , pretty (view #address e)
+        , ". Token policy identifier: "
+        , pretty (view #tokenPolicyId $ asset e)
+        , ". Asset name: "
+        , pretty (view #tokenName $ asset e)
+        , ". Token quantity specified: "
+        , pretty (view #quantity e)
+        , ". Maximum allowable token quantity: "
+        , pretty (view #quantityMaxBound e)
+        , "."
+        ]
+
 instance LiftHandler ErrSelectAssets where
     handler = \case
+        ErrSelectAssetsCriteriaError e -> handler e
         ErrSelectAssetsNoSuchWallet e -> handler e
         ErrSelectAssetsAlreadyWithdrawing tx ->
             apiError err403 AlreadyWithdrawing $ mconcat
