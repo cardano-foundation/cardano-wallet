@@ -265,6 +265,10 @@ task :get_docker_logs do
 
   puts `#{node_cmd}`
   puts `#{wallet_cmd}`
+
+  # Add permissions so logs can be uploaded from workflow
+  puts `sudo chmod a+rw #{LOGS}/node.log`
+  puts `sudo chmod a+rw #{LOGS}/wallet.log`
 end
 
 task :run_on, [:env, :installation, :sync_strategy] do |task, args|
