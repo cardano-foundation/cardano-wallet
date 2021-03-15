@@ -32,7 +32,7 @@ import Cardano.Api.Typed
     )
 import Cardano.SharedWallet.Script
     ( CredentialType )
-import Cardano.SharedWallet.Shared
+import Cardano.SharedWallet.SharedState
     ( SharedWalletState )
 import Cardano.Slotting.Slot
     ( SlotNo (..) )

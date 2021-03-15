@@ -47,7 +47,7 @@ import Cardano.Mnemonic
     , entropyToMnemonic
     , mkEntropy
     )
-import Cardano.SharedWallet.Shared
+import Cardano.SharedWallet.SharedState
     ( retrieveAllCosigners )
 import Cardano.Wallet.Api
     ( Api )

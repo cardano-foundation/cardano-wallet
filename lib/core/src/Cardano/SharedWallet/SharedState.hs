@@ -22,12 +22,12 @@
 -- An implementation of shared script state using
 -- scheme specified in CIP-1854 Multi-signature Wallets.
 
-module Cardano.SharedWallet.Shared
+module Cardano.SharedWallet.SharedState
     (
     -- ** State
       SharedState (..)
-    , SharedWalletState (..)
     , SharedWallet (..)
+    , SharedWalletState (..)
     , unsafePendingSharedState
     , newSharedState
     , addCosignerAccXPub
@@ -197,7 +197,7 @@ instance FromText SharedWalletState where
 
 data SharedWallet k = SharedWallet
     { walletState :: !SharedWalletState
-    , accountKey :: !(k 'AccountK XPub)
+    , walletAccountKey :: !(k 'AccountK XPub)
     , accountIx :: !(Index 'Hardened 'AccountK)
     , paymentScript :: !(Script Cosigner)
     , delegationScript :: !(Script Cosigner)

@@ -24,7 +24,7 @@ import Cardano.Address.Script
     ( Cosigner, Script )
 import Cardano.SharedWallet.Script
     ( CredentialType )
-import Cardano.SharedWallet.Shared
+import Cardano.SharedWallet.SharedState
     ( SharedWalletState )
 import Cardano.Wallet.DB.Sqlite.Types
     ( BlockId, sqlSettings' )

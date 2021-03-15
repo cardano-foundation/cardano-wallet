@@ -146,7 +146,7 @@ library
       Cardano.SharedWallet.DB
       Cardano.SharedWallet.DB.Sqlite.TH
       Cardano.SharedWallet.Script
-      Cardano.SharedWallet.Shared
+      Cardano.SharedWallet.SharedState
       Cardano.Wallet
       Cardano.Wallet.Api
       Cardano.Wallet.Api.Client
@@ -333,7 +333,7 @@ test-suite unit
       Cardano.Pool.DB.MVarSpec
       Cardano.Pool.DB.Properties
       Cardano.Pool.DB.SqliteSpec
-      Cardano.SharedWallet.SharedSpec
+      Cardano.SharedWallet.SharedStateSpec
       Cardano.Wallet.Api.Malformed
       Cardano.Wallet.Api.Server.TlsSpec
       Cardano.Wallet.Api.ServerSpec

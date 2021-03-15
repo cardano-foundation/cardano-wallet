@@ -1,11 +1,14 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -22,6 +25,8 @@
 module Cardano.SharedWallet.Script
     (
       CredentialType (..)
+    , CosignerInfo (..)
+
     , keyHashFromAccXPubIx
     , constructAddressFromIx
     , toNetworkTag
@@ -67,6 +72,8 @@ import Cardano.Wallet.Primitive.Types
     ( invariant )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
+import Control.DeepSeq
+    ( NFData )
 import Data.Either.Combinators
     ( fromRight', rightToMaybe )
 import Data.Kind
@@ -78,6 +85,8 @@ import Data.Text.Class
     ( FromText (..), TextDecodingError (..), ToText (..) )
 import Data.Type.Equality
     ( (:~:) (..), testEquality )
+import GHC.Generics
+    ( Generic )
 import Type.Reflection
     ( Typeable, typeRep )
 
@@ -87,7 +96,8 @@ import qualified Cardano.Address.Style.Shelley as CA
 import qualified Data.Map.Strict as Map
 
 data CredentialType = Payment | Delegation
-    deriving (Eq, Show)
+    deriving (Eq, Show, Generic)
+    deriving anyclass NFData
 
 instance ToText CredentialType where
     toText Payment = "payment"
@@ -101,6 +111,24 @@ instance FromText CredentialType where
             [ "Invalid credential type: expecting only following values:"
             , "'payment', 'delegation'."
             ]
+
+data CosignerInfo k = CosignerInfo
+    { cosignerAccountKey :: !(k 'AccountK XPub)
+    , cosigner :: !Cosigner
+    , credential :: !CredentialType
+    } deriving (Generic)
+
+deriving instance
+    ( Show (k 'AccountK XPub)
+    ) => Show (CosignerInfo k)
+
+deriving instance
+    ( Eq (k 'AccountK XPub)
+    ) => Eq (CosignerInfo k)
+
+instance
+    ( NFData (k 'AccountK XPub)
+    ) => NFData (CosignerInfo k)
 
 keyHashFromAccXPubIx
     :: (SoftDerivation k, WalletKey k)

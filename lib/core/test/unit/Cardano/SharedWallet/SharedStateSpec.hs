@@ -9,7 +9,7 @@
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-module Cardano.SharedWallet.SharedSpec
+module Cardano.SharedWallet.SharedStateSpec
     ( spec
     ) where
 
@@ -30,7 +30,7 @@ import Cardano.SharedWallet.Script
     , liftDelegationAddress
     , liftPaymentAddress
     )
-import Cardano.SharedWallet.Shared
+import Cardano.SharedWallet.SharedState
     ( SharedState (..), isShared, newSharedState )
 import Cardano.Wallet.Gen
     ( genNatural, genScript )

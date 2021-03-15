@@ -17,11 +17,16 @@ module Cardano.SharedWallet.DB
       -- * Errors
     , ErrNoSuchSharedWallet (..)
     , ErrSharedWalletAlreadyExists (..)
+    , ErrAddCosignerKey (..)
     ) where
 
 import Prelude
 
-import Cardano.SharedWallet.Shared
+import Cardano.Address.Script
+    ( Cosigner )
+import Cardano.SharedWallet.Script
+    ( CosignerInfo )
+import Cardano.SharedWallet.SharedState
     ( SharedWallet )
 import Cardano.Wallet.Primitive.Types
     ( GenesisParameters, WalletId, WalletMetadata )
@@ -31,6 +36,8 @@ import Control.Monad.IO.Class
     ( MonadIO )
 import Control.Monad.Trans.Except
     ( ExceptT )
+import Data.Time.Clock
+    ( UTCTime )
 
 -- | A Database interface for storing shared wallet state in DB.
 --
@@ -72,6 +79,18 @@ data DBLayer m k = forall stm. (MonadFail stm, MonadIO stm) => DBLayer
         --
         -- Return 'Nothing' if there's no such wallet.
 
+    , addCosignerKey
+        :: WalletId
+        -> UTCTime
+        -> CosignerInfo k
+        -> ExceptT ErrAddCosignerKey stm ()
+        -- ^ Adding cosigner key to the shared wallet.
+
+    , listCosignerKeys
+        :: WalletId
+        -> stm [(UTCTime, CosignerInfo k)]
+        -- ^ Get the list of keys all known cosigners in the DB for a given shared wallet, possibly empty.
+
     , cleanDB
         :: stm ()
         -- ^ Clean a database
@@ -91,4 +110,10 @@ newtype ErrNoSuchSharedWallet
 -- | Forbidden operation was executed on an already existing wallet
 newtype ErrSharedWalletAlreadyExists
     = ErrSharedWalletAlreadyExists WalletId -- Wallet already exists in db
+    deriving (Eq, Show)
+
+-- | Forbidden operation was executed when adding the account key of cosigner
+data ErrAddCosignerKey
+    = ErrAddCosignerKeyNoWallet ErrNoSuchSharedWallet
+    | ErrAddCosignerKeyNoCosigner Cosigner
     deriving (Eq, Show)
