@@ -9,7 +9,7 @@
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-module Cardano.Wallet.Primitive.AddressDiscovery.SharedSpec
+module Cardano.SharedWallet.SharedSpec
     ( spec
     ) where
 
@@ -24,6 +24,14 @@ import Cardano.Address.Script
     , ValidationLevel (..)
     , validateScriptTemplate
     )
+import Cardano.SharedWallet.Script
+    ( constructAddressFromIx
+    , keyHashFromAccXPubIx
+    , liftDelegationAddress
+    , liftPaymentAddress
+    )
+import Cardano.SharedWallet.Shared
+    ( SharedState (..), isShared, newSharedState )
 import Cardano.Wallet.Gen
     ( genNatural, genScript )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -36,16 +44,8 @@ import Cardano.Wallet.Primitive.AddressDerivation
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey (..), unsafeGenerateKeyFromSeed )
-import Cardano.Wallet.Primitive.AddressDiscovery.Script
-    ( constructAddressFromIx
-    , keyHashFromAccXPubIx
-    , liftDelegationAddress
-    , liftPaymentAddress
-    )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPoolGap (..), addresses, mkUnboundedAddressPoolGap )
-import Cardano.Wallet.Primitive.AddressDiscovery.Shared
-    ( SharedState (..), isShared, newSharedState )
 import Cardano.Wallet.Primitive.Types.Address
     ( AddressState (..) )
 import Cardano.Wallet.Unsafe

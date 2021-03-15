@@ -30,12 +30,12 @@ import Cardano.Api.Typed
     , metadataFromJson
     , metadataToJson
     )
+import Cardano.SharedWallet.Script
+    ( CredentialType )
 import Cardano.Slotting.Slot
     ( SlotNo (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Passphrase (..), PassphraseScheme (..), Role (..) )
-import Cardano.Wallet.Primitive.AddressDiscovery.Script
-    ( CredentialType )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPoolGap (..)
     , DerivationPrefix

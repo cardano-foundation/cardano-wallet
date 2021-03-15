@@ -47,6 +47,8 @@ import Cardano.Mnemonic
     , entropyToMnemonic
     , mkEntropy
     )
+import Cardano.SharedWallet.Shared
+    ( retrieveAllCosigners )
 import Cardano.Wallet.Api
     ( Api )
 import Cardano.Wallet.Api.Types
@@ -174,8 +176,6 @@ import Cardano.Wallet.Primitive.AddressDerivationSpec
     ()
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPoolGap, getAddressPoolGap )
-import Cardano.Wallet.Primitive.AddressDiscovery.Shared
-    ( retrieveAllCosigners )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..) )
 import Cardano.Wallet.Primitive.Types

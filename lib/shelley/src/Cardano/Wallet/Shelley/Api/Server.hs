@@ -488,11 +488,12 @@ server byron icarus shelley spl ntp =
 
     sharedWallets :: Server SharedWallets
     sharedWallets =
-        postSharedWallet :<|> getSharedWallet :<|> patchSharedWallet
+        postSharedWallet :<|> getSharedWallet :<|> patchSharedWallet :<|> deleteSharedWallet
       where
          postSharedWallet = pure $ throwError err501
          getSharedWallet = pure $ throwError err501
          patchSharedWallet _ = pure $ throwError err501
+         deleteSharedWallet = pure $ throwError err501
 
 postAnyAddress
     :: NetworkId
