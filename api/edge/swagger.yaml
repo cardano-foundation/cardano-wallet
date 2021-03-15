@@ -2693,6 +2693,34 @@ x-errInvalidCoinSelection: &errInvalidCoinSelection
       type: string
       enum: ['invalid_coin_selection']
 
+x-errOutputTokenBundleSizeExceedsLimit: &errOutputTokenBundleSizeExceedsLimit
+  <<: *responsesErr
+  title: output_token_bundle_size_exceeds_limit
+  properties:
+    message:
+      type: string
+      description: |
+        Returned when a user-specified transaction output contains a token
+        bundle whose serialized length exceeds the limit supported by the
+        protocol.
+    code:
+      type: string
+      enum: ['output_token_bundle_size_exceeds_limit']
+
+x-errOutputTokenQuantityExceedsLimit: &errOutputTokenQuantityExceedsLimit
+  <<: *responsesErr
+  title: output_token_quantity_exceeds_limit
+  properties:
+    message:
+      type: string
+      description: |
+        Returned when a user-specified transaction output contains, for some
+        asset, a token quantity that exceeds the limit supported by the
+        protocol.
+    code:
+      type: string
+      enum: ['output_token_quantity_exceeds_limit']
+
 # TODO: Map this error to the place it belongs.
 x-errNetworkUnreachable: &errNetworkUnreachable
   <<: *responsesErr
@@ -3306,6 +3334,8 @@ x-responsesSelectCoins: &responsesSelectCoins
             - <<: *errCannotCoverFee
             - <<: *errInputsDepleted
             - <<: *errInvalidCoinSelection
+            - <<: *errOutputTokenQuantityExceedsLimit
+            - <<: *errOutputTokenBundleSizeExceedsLimit
   <<: *responsesErr404WalletNotFound
   <<: *responsesErr406
   <<: *responsesErr415UnsupportedMediaType
@@ -3445,6 +3475,8 @@ x-responsesPostTransactionFee: &responsesPostTransactionFee
             - <<: *errNotEnoughMoney
             - <<: *errInputsDepleted
             - <<: *errInvalidCoinSelection
+            - <<: *errOutputTokenQuantityExceedsLimit
+            - <<: *errOutputTokenBundleSizeExceedsLimit
             - <<: *errTransactionIsTooBig
   <<: *responsesErr404WalletNotFound
   <<: *responsesErr406
