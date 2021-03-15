@@ -166,7 +166,7 @@ task :start_node_and_wallet, [:env, :installation] do |task, args|
 end
 
 ##
-# Utility task for getting binaries, configs and starting wallet and node 
+# Utility task for getting binaries, configs and starting wallet and node
 task :launch_on, [:env, :installation] do |task, args|
   env = args[:env]
   installation = args[:installation] || :bins
@@ -248,6 +248,16 @@ task :get_latest_configs, [:env] do |task, args|
     config_edited = config.gsub(/#{env}-([^-]+)-genesis.json/, 'genesis-\1.json')
     File.open(config_file, "w") {|file| file.puts config_edited }
   end
+end
+
+task :get_docker_logs do
+  puts "\n  >> Getting docker logs into #{LOGS}"
+
+  mk_dir(LOGS)
+  node_logfile = `docker inspect --format='{{.LogPath}}' cardano-node`
+  wallet_logfile = `docker inspect --format='{{.LogPath}}' cardano-wallet`
+  puts `cp #{node_logfile} #{LOGS}/node.log`
+  puts `cp #{wallet_logfile} #{LOGS}/wallet.log`
 end
 
 task :run_on, [:env, :installation, :sync_strategy] do |task, args|

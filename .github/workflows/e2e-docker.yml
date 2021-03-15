@@ -1,6 +1,8 @@
 name: E2E Docker
 
 on:
+  pull_request:
+    branches: [ master ]
   schedule:
   - cron:  "0 23 * * *"
   workflow_dispatch:
@@ -76,6 +78,17 @@ jobs:
 
     - name: Run all tests
       run: rake spec
+
+    - name: Get docker logs
+      if: always()
+      run: rake get_docker_logs
+
+    - name: 📎 Upload logs
+      uses: actions/upload-artifact@v2
+      if: always()
+      with:
+        name: ${{ runner.os }}-logs
+        path: test/e2e/state/logs
 
     - name: Stop docker-compose
       run: NODE_CONFIG_PATH=`pwd`/state/configs/$NETWORK docker-compose -f docker-compose-test.yml down
