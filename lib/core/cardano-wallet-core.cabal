@@ -143,6 +143,7 @@ library
       Cardano.Pool.DB.Sqlite
       Cardano.Pool.DB.Sqlite.TH
       Cardano.Pool.Metadata
+      Cardano.SharedWallet.DB
       Cardano.SharedWallet.DB.Sqlite.TH
       Cardano.SharedWallet.Script
       Cardano.SharedWallet.Shared

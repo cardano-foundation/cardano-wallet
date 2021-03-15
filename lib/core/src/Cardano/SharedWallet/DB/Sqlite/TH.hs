@@ -24,6 +24,8 @@ import Cardano.Address.Script
     ( Cosigner, Script )
 import Cardano.SharedWallet.Script
     ( CredentialType )
+import Cardano.SharedWallet.Shared
+    ( SharedWalletState )
 import Cardano.Wallet.DB.Sqlite.Types
     ( BlockId, sqlSettings' )
 import Data.Text
@@ -61,6 +63,7 @@ SharedWallet
     sharedWalletScriptGap                W.AddressPoolGap          sql=pool_gap
     sharedWalletPaymentScript            (Script Cosigner)         sql=payment_script
     sharedWalletDelegationScript         (Script Cosigner) Maybe   sql=delegation_script
+    sharedWalletState                    SharedWalletState         sql=wallet_state
     sharedWalletGenesisHash              BlockId                   sql=genesis_hash
     sharedWalletGenesisStart             UTCTime                   sql=genesis_start
 
