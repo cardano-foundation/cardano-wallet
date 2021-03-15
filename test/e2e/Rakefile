@@ -254,10 +254,17 @@ task :get_docker_logs do
   puts "\n  >> Getting docker logs into #{LOGS}"
 
   mk_dir(LOGS)
-  node_logfile = `docker inspect --format='{{.LogPath}}' cardano-node`
-  wallet_logfile = `docker inspect --format='{{.LogPath}}' cardano-wallet`
-  puts `cp #{node_logfile} #{LOGS}/node.log`
-  puts `cp #{wallet_logfile} #{LOGS}/wallet.log`
+  node_logfile = `docker inspect --format='{{.LogPath}}' cardano-node`.gsub("\n",'')
+  wallet_logfile = `docker inspect --format='{{.LogPath}}' cardano-wallet`.gsub("\n",'')
+
+  node_cmd = "sudo cp #{node_logfile} #{LOGS}/node.log"
+  wallet_cmd = "sudo cp #{wallet_logfile} #{LOGS}/wallet.log"
+
+  puts node_cmd
+  puts wallet_cmd
+
+  puts `#{node_cmd}`
+  puts `#{wallet_cmd}`
 end
 
 task :run_on, [:env, :installation, :sync_strategy] do |task, args|
