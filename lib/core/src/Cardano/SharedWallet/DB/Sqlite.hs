@@ -40,17 +40,22 @@ import Cardano.DB.Sqlite
     , withConnectionPool
     )
 import Cardano.SharedWallet.DB
-    ( DBLayer (..), ErrSharedWalletAlreadyExists (..) )
+    ( DBLayer (..)
+    , ErrNoSuchSharedWallet (..)
+    , ErrSharedWalletAlreadyExists (..)
+    )
 import Cardano.SharedWallet.DB.Log
     ( SharedWalletDbLog (..) )
 import Cardano.SharedWallet.DB.Sqlite.TH
-    ( SharedWallet (..), migrateAll )
+    ( EntityField (..), SharedWallet (..), migrateAll )
 import Cardano.SharedWallet.SharedState
     ( SharedWalletInfo (..) )
 import Cardano.Wallet.DB.Sqlite.Types
     ( BlockId (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..), PersistPublicKey (..), getIndex )
+import Control.Monad.IO.Class
+    ( MonadIO (..) )
 import Control.Monad.Trans.Except
     ( ExceptT (..) )
 import Control.Tracer
@@ -62,7 +67,7 @@ import Data.Function
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
 import Database.Persist.Sql
-    ( insert_ )
+    ( Entity (..), deleteWhere, insert_, selectFirst, (==.) )
 import Database.Persist.Sqlite
     ( SqlPersistT )
 import System.Directory
@@ -139,7 +144,11 @@ newDBLayer _tr SqliteContext{runQuery} =
                 insert_ (mkSharedWalletEntity wid state meta gp)
             pure res
 
-        removeSharedWallet _walId = undefined
+        removeSharedWallet wid = ExceptT $ do
+            selectSharedWallet wid >>= \case
+                Nothing -> pure $ Left $ ErrNoSuchSharedWallet wid
+                Just _  -> Right <$> do
+                    deleteWhere [SharedWalletWalletId ==. wid]
 
         readSharedWalletState _walId = undefined
 
@@ -198,3 +207,7 @@ mkSharedWalletEntity wid state meta gp = SharedWallet
     , sharedWalletGenesisHash = BlockId (coerce (gp ^. #getGenesisBlockHash))
     , sharedWalletGenesisStart = coerce (gp ^. #getGenesisBlockDate)
     }
+
+selectSharedWallet :: MonadIO m => W.WalletId -> SqlPersistT m (Maybe SharedWallet)
+selectSharedWallet wid =
+    fmap entityVal <$> selectFirst [SharedWalletWalletId ==. wid] []
