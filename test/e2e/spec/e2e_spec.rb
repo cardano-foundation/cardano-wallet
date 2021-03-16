@@ -346,7 +346,7 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
         end
 
         it "Pool metadata is updated when settings are updated" do
-          pending "ADP-634 - metadata not cleaned properly"
+          skip "ADP-634 - metadata not cleaned properly"
           settings = CardanoWallet.new.misc.settings
           pools = SHELLEY.stake_pools
 
