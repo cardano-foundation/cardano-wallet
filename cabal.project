@@ -130,3 +130,72 @@ source-repository-package
 
 allow-older: *
 allow-newer: *
+
+
+-- ---------------------------------------------------------
+-- Disable all tests by default
+
+-- This mirrors what they do in the cardano-node cabal file.
+
+tests: False
+
+test-show-details: direct
+
+-- Then enable specific tests in this repo
+
+package cardano-wallet
+  tests: True
+
+package cardano-wallet-core
+  tests: True
+
+package cardano-wallet-cli
+  tests: True
+
+package cardano-wallet-launcher
+  tests: True
+
+package cardano-wallet-text-class
+  tests: True
+
+package cardano-numeric
+  tests: True
+
+package cardano-wallet-core-integration
+  tests: True
+
+package cardano-wallet-test-utils
+  tests: True
+
+package strict-non-empty-containers
+  tests: True
+
+-- The following is needed because Nix is doing something crazy.
+package byron-spec-ledger
+  tests: False
+
+package ouroboros-consensus-test
+  tests: False
+
+package ouroboros-consensus-cardano-test
+  tests: False
+
+package ouroboros-network
+  tests: False
+
+package ouroboros-network-framework
+  tests: False
+
+package small-steps
+  tests: False
+
+package small-steps-test
+  tests: False
+
+package goblins
+  tests: False
+
+package io-sim-classes
+  tests: False
+
+-- ---------------------------------------------------------
