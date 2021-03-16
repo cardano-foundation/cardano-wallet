@@ -25,7 +25,7 @@ import Prelude
 import Cardano.Address.Script
     ( Cosigner )
 import Cardano.SharedWallet.Script
-    ( CosignerInfo )
+    ( CosignerInfo, CredentialType )
 import Cardano.SharedWallet.SharedState
     ( SharedWalletInfo )
 import Cardano.Wallet.Primitive.Types
@@ -115,5 +115,5 @@ newtype ErrSharedWalletAlreadyExists
 -- | Forbidden operation was executed when adding the account key of cosigner
 data ErrAddCosignerKey
     = ErrAddCosignerKeyNoWallet ErrNoSuchSharedWallet
-    | ErrAddCosignerKeyNoCosigner Cosigner
+    | ErrAddCosignerKeyAlreadyExists WalletId Cosigner CredentialType
     deriving (Eq, Show)

@@ -30,6 +30,8 @@ module Cardano.SharedWallet.DB.Sqlite
 
 import Prelude
 
+import Cardano.Address.Script
+    ( Cosigner (..) )
 import Cardano.DB.Sqlite
     ( DBLog (..)
     , MigrationError
@@ -41,13 +43,16 @@ import Cardano.DB.Sqlite
     )
 import Cardano.SharedWallet.DB
     ( DBLayer (..)
+    , ErrAddCosignerKey (..)
     , ErrNoSuchSharedWallet (..)
     , ErrSharedWalletAlreadyExists (..)
     )
 import Cardano.SharedWallet.DB.Log
     ( SharedWalletDbLog (..) )
 import Cardano.SharedWallet.DB.Sqlite.TH
-    ( EntityField (..), SharedWallet (..), migrateAll )
+    ( CosignerKey (..), EntityField (..), SharedWallet (..), migrateAll )
+import Cardano.SharedWallet.Script
+    ( CosignerInfo (..) )
 import Cardano.SharedWallet.SharedState
     ( SharedWalletInfo (..) )
 import Cardano.Wallet.DB.Sqlite.Types
@@ -66,6 +71,8 @@ import Data.Function
     ( (&) )
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
+import Data.Time.Clock
+    ( UTCTime )
 import Database.Persist.Sql
     ( Entity (..), deleteWhere, insert_, selectFirst, (==.) )
 import Database.Persist.Sqlite
@@ -151,6 +158,7 @@ newDBLayer tr SqliteContext{runQuery} =
                 Just _  -> Right <$> do
                     liftIO $ traceWith tr $ MsgRemovingSharedWallet wid
                     deleteWhere [SharedWalletWalletId ==. wid]
+                    deleteWhere [CosignerKeyWalletId ==. wid]
 
         readSharedWalletState wid = do
             selectSharedWallet wid >>= \case
@@ -162,7 +170,14 @@ newDBLayer tr SqliteContext{runQuery} =
                 Nothing -> pure Nothing
                 Just _  -> selectSharedWalletMetadata wid
 
-        addCosignerKey _walId _utctime _cosignerInfo = undefined
+        addCosignerKey wid utctime info = ExceptT $ do
+            selectSharedWallet wid >>= \case
+                Nothing -> pure $ Left $ ErrAddCosignerKeyNoWallet $ ErrNoSuchSharedWallet wid
+                Just _ -> do
+                    res <- handleConstraint (ErrAddCosignerKeyAlreadyExists wid (cosigner info) (credential info)) $
+                        insert_ (mkCosignerKeyEntity wid utctime info)
+                    liftIO $ traceWith tr $ MsgAddingCosigner wid (cosigner info) (credential info)
+                    pure res
 
         listCosignerKeys _walId = undefined
 
@@ -204,7 +219,6 @@ mkSharedWalletEntity
 mkSharedWalletEntity wid state meta gp = SharedWallet
     { sharedWalletWalletId = wid
     , sharedWalletCreationTime = meta ^. #creationTime
-    , sharedWalletUpdateTime = Nothing
     , sharedWalletName = meta ^. #name . coerce
     , sharedWalletAccountXPub = serializeXPub (state ^. #walletAccountKey)
     , sharedWalletAccountIndex = getIndex (state ^. #accountIx)
@@ -259,3 +273,19 @@ stateFromEntity wal = SharedWalletInfo
     , delegationScript = sharedWalletDelegationScript wal
     , poolGap = sharedWalletScriptGap wal
     }
+
+mkCosignerKeyEntity
+    :: PersistPublicKey (k 'AccountK)
+    => W.WalletId
+    -> UTCTime
+    -> CosignerInfo k
+    -> CosignerKey
+mkCosignerKeyEntity wid utctime info = CosignerKey
+    { cosignerKeyWalletId = wid
+    , cosignerKeyCreationTime = utctime
+    , cosignerKeyCredential = credential info
+    , cosignerKeyAccountXPub = serializeXPub (cosignerAccountKey info)
+    , cosignerKeyIndex = c
+    }
+  where
+   (Cosigner c) = cosigner info

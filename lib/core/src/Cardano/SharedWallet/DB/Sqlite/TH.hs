@@ -56,7 +56,6 @@ share
 SharedWallet
     sharedWalletWalletId                 W.WalletId                sql=wallet_id
     sharedWalletCreationTime             UTCTime                   sql=creation_time
-    sharedWalletUpdateTime               UTCTime Maybe             sql=update_time
     sharedWalletName                     Text                      sql=name
     sharedWalletAccountXPub              B8.ByteString             sql=account_xpub
     sharedWalletAccountIndex             Word32                    sql=account_ix

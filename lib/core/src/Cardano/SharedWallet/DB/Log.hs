@@ -13,12 +13,16 @@ module Cardano.SharedWallet.DB.Log
 
 import Prelude
 
+import Cardano.Address.Script
+    ( Cosigner (..) )
 import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.DB.Sqlite
     ( DBLog (..) )
+import Cardano.SharedWallet.Script
+    ( CredentialType )
 import Cardano.Wallet.Primitive.Types
     ( WalletId )
 import Data.Text
@@ -26,10 +30,13 @@ import Data.Text
 import Data.Text.Class
     ( ToText (..), toText )
 
+import qualified Data.Text as T
+
 data SharedWalletDbLog
     = MsgGeneric DBLog
     | MsgParseFailure ParseFailure
     | MsgCreatingSharedWallet WalletId
+    | MsgAddingCosigner WalletId Cosigner CredentialType
     | MsgRemovingSharedWallet WalletId
     deriving (Eq, Show)
 
@@ -51,6 +58,7 @@ instance HasSeverityAnnotation SharedWalletDbLog where
         MsgParseFailure {} -> Error
         MsgRemovingSharedWallet {} -> Notice
         MsgCreatingSharedWallet {} -> Notice
+        MsgAddingCosigner {} -> Notice
 
 instance ToText SharedWalletDbLog where
     toText = \case
@@ -61,13 +69,22 @@ instance ToText SharedWalletDbLog where
             , "'. Description of error: "
             , parseFailure e
             ]
-        MsgRemovingSharedWallet p -> mconcat
+        MsgRemovingSharedWallet wid -> mconcat
             [ "Removing the following shared wallet from the database: "
-            , toText p
+            , toText wid
             , "."
             ]
-        MsgCreatingSharedWallet p -> mconcat
-            [ "Creating the following pool in the database: "
-            , toText p
+        MsgCreatingSharedWallet wid -> mconcat
+            [ "Creating the following shared wallet in the database: "
+            , toText wid
+            , "."
+            ]
+        MsgAddingCosigner wid (Cosigner c) cred -> mconcat
+            [ "Adding the account public key for the cosigner#"
+            , T.pack (show c)
+            , " for "
+            , toText cred
+            , " credential for the following shared wallet in the database: "
+            , toText wid
             , "."
             ]
