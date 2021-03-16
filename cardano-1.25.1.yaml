@@ -42,6 +42,7 @@ packages:
 - prometheus-2.1.2
 - protolude-0.3.0
 - quiet-0.2
+- regex-posix-clib-2.7
 - semialign-1.1.0.1
 - snap-core-1.0.4.1
 - snap-server-1.1.1.1
