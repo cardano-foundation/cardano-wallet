@@ -64,6 +64,8 @@ SharedWallet
     sharedWalletPaymentScript            (Script Cosigner)         sql=payment_script
     sharedWalletDelegationScript         (Script Cosigner) Maybe   sql=delegation_script
     sharedWalletState                    SharedWalletState         sql=wallet_state
+    sharedWalletPassphraseLastUpdatedAt  UTCTime Maybe             sql=passphrase_last_updated_at
+    sharedWalletPassphraseScheme         W.PassphraseScheme Maybe  sql=passphrase_scheme
     sharedWalletGenesisHash              BlockId                   sql=genesis_hash
     sharedWalletGenesisStart             UTCTime                   sql=genesis_start
 

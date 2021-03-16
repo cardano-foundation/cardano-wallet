@@ -29,6 +29,7 @@ import Data.Text.Class
 data SharedWalletDbLog
     = MsgGeneric DBLog
     | MsgParseFailure ParseFailure
+    | MsgCreatingSharedWallet WalletId
     | MsgRemovingSharedWallet WalletId
     deriving (Eq, Show)
 
@@ -49,6 +50,7 @@ instance HasSeverityAnnotation SharedWalletDbLog where
         MsgGeneric e -> getSeverityAnnotation e
         MsgParseFailure {} -> Error
         MsgRemovingSharedWallet {} -> Notice
+        MsgCreatingSharedWallet {} -> Notice
 
 instance ToText SharedWalletDbLog where
     toText = \case
@@ -60,7 +62,12 @@ instance ToText SharedWalletDbLog where
             , parseFailure e
             ]
         MsgRemovingSharedWallet p -> mconcat
-            [ "Removing the following pool from the database: "
+            [ "Removing the following shared wallet from the database: "
+            , toText p
+            , "."
+            ]
+        MsgCreatingSharedWallet p -> mconcat
+            [ "Creating the following pool in the database: "
             , toText p
             , "."
             ]

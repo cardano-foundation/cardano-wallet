@@ -53,9 +53,9 @@ import Cardano.SharedWallet.SharedState
 import Cardano.Wallet.DB.Sqlite.Types
     ( BlockId (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..), PersistPublicKey (..), getIndex )
+    ( Depth (..), Index (..), PersistPublicKey (..), getIndex )
 import Control.Monad.IO.Class
-    ( MonadIO (..) )
+    ( MonadIO (..), liftIO )
 import Control.Monad.Trans.Except
     ( ExceptT (..) )
 import Control.Tracer
@@ -136,23 +136,31 @@ newDBLayer
     -> SqliteContext
         -- ^ A (thread-) safe wrapper for running db queries.
     -> DBLayer IO k
-newDBLayer _tr SqliteContext{runQuery} =
+newDBLayer tr SqliteContext{runQuery} =
     DBLayer {..}
       where
         initializeSharedState wid state meta gp = ExceptT $ do
             res <- handleConstraint (ErrSharedWalletAlreadyExists wid) $
                 insert_ (mkSharedWalletEntity wid state meta gp)
+            liftIO $ traceWith tr $ MsgCreatingSharedWallet wid
             pure res
 
         removeSharedWallet wid = ExceptT $ do
             selectSharedWallet wid >>= \case
                 Nothing -> pure $ Left $ ErrNoSuchSharedWallet wid
                 Just _  -> Right <$> do
+                    liftIO $ traceWith tr $ MsgRemovingSharedWallet wid
                     deleteWhere [SharedWalletWalletId ==. wid]
 
-        readSharedWalletState _walId = undefined
+        readSharedWalletState wid = do
+            selectSharedWallet wid >>= \case
+                Nothing -> pure Nothing
+                Just _  -> selectSharedWalletState wid
 
-        readSharedWalletMetadata _walId = undefined
+        readSharedWalletMetadata wid = do
+            selectSharedWallet wid >>= \case
+                Nothing -> pure Nothing
+                Just _  -> selectSharedWalletMetadata wid
 
         addCosignerKey _walId _utctime _cosignerInfo = undefined
 
@@ -204,6 +212,8 @@ mkSharedWalletEntity wid state meta gp = SharedWallet
     , sharedWalletPaymentScript = state ^. #paymentScript
     , sharedWalletDelegationScript = state ^. #delegationScript
     , sharedWalletState = state ^. #walletState
+    , sharedWalletPassphraseLastUpdatedAt = W.lastUpdatedAt <$> meta ^. #passphraseInfo
+    , sharedWalletPassphraseScheme = W.passphraseScheme <$> meta ^. #passphraseInfo
     , sharedWalletGenesisHash = BlockId (coerce (gp ^. #getGenesisBlockHash))
     , sharedWalletGenesisStart = coerce (gp ^. #getGenesisBlockDate)
     }
@@ -211,3 +221,41 @@ mkSharedWalletEntity wid state meta gp = SharedWallet
 selectSharedWallet :: MonadIO m => W.WalletId -> SqlPersistT m (Maybe SharedWallet)
 selectSharedWallet wid =
     fmap entityVal <$> selectFirst [SharedWalletWalletId ==. wid] []
+
+selectSharedWalletMetadata
+    :: W.WalletId
+    -> SqlPersistT IO (Maybe W.WalletMetadata)
+selectSharedWalletMetadata wid = do
+    let del = W.WalletDelegation W.NotDelegating []
+    fmap (metadataFromEntity del . entityVal)
+        <$> selectFirst [SharedWalletWalletId ==. wid] []
+
+metadataFromEntity :: W.WalletDelegation -> SharedWallet -> W.WalletMetadata
+metadataFromEntity walDelegation wal = W.WalletMetadata
+    { name = W.WalletName (sharedWalletName wal)
+    , creationTime = sharedWalletCreationTime wal
+    , passphraseInfo = W.WalletPassphraseInfo
+        <$> sharedWalletPassphraseLastUpdatedAt wal
+        <*> sharedWalletPassphraseScheme wal
+    , delegation = walDelegation
+    }
+
+selectSharedWalletState
+    :: PersistPublicKey (k 'AccountK)
+    => W.WalletId
+    -> SqlPersistT IO (Maybe (SharedWalletInfo k))
+selectSharedWalletState wid = do
+    fmap (stateFromEntity . entityVal)
+        <$> selectFirst [SharedWalletWalletId ==. wid] []
+
+stateFromEntity
+    :: PersistPublicKey (k 'AccountK)
+    => SharedWallet -> SharedWalletInfo k
+stateFromEntity wal = SharedWalletInfo
+    { walletState = sharedWalletState wal
+    , walletAccountKey = unsafeDeserializeXPub (sharedWalletAccountXPub wal)
+    , accountIx = Index (sharedWalletAccountIndex wal)
+    , paymentScript = sharedWalletPaymentScript wal
+    , delegationScript = sharedWalletDelegationScript wal
+    , poolGap = sharedWalletScriptGap wal
+    }
