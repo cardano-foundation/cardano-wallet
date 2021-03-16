@@ -26,9 +26,6 @@ packages:
 - hedgehog-1.0.2
 - hedgehog-corpus-0.2.0
 - hedgehog-quickcheck-0.1.1
-- hspec-2.7.0
-- hspec-core-2.7.0
-- hspec-discover-2.7.0
 - io-streams-1.5.1.0
 - io-streams-haproxy-1.0.1.0
 - katip-0.8.4.0
