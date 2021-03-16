@@ -5,6 +5,11 @@ require 'fileutils'
 module Helpers
   module Utils
 
+    def cmd(cmd)
+      puts cmd
+      puts `#{cmd}`
+    end
+
     def absolute_path(path)
       if path.start_with? "."
         File.join(Dir.pwd, path[1..-1])

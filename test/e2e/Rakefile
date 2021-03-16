@@ -135,33 +135,21 @@ task :start_node_and_wallet, [:env, :installation] do |task, args|
     start_node = "nssm start cardano-node"
     start_wallet = "nssm start cardano-wallet"
 
-    puts install_node
-    puts install_wallet
-    puts log_stdout_node
-    puts log_stderr_node
-    puts log_stdout_wallet
-    puts log_stderr_wallet
-    puts start_node
-    puts start_wallet
-
-    puts `#{install_node}`
-    puts `#{install_wallet}`
-    puts `#{log_stdout_node}`
-    puts `#{log_stderr_node}`
-    puts `#{log_stdout_wallet}`
-    puts `#{log_stderr_wallet}`
-    puts `#{start_node}`
-    puts `#{start_wallet}`
+    cmd install_node
+    cmd install_wallet
+    cmd log_stdout_node
+    cmd log_stderr_node
+    cmd log_stdout_wallet
+    cmd log_stderr_wallet
+    cmd start_node
+    cmd start_wallet
   else
     start_node = "#{bin_dir}cardano-node run --config #{config_dir}/configuration.json --topology #{config_dir}/topology.json --database-path #{NODE_DB} --socket-path #{STATE}/node.socket"
     start_wallet = "#{bin_dir}cardano-wallet serve --node-socket #{STATE}/node.socket --testnet #{config_dir}/genesis-byron.json --database #{WALLET_DB} --token-metadata-server #{TOKEN_METADATA}"
 
-    puts start_node
-    puts start_wallet
-
-    puts `screen -dmS NODE -L -Logfile #{LOGS}/node.log #{start_node}`
-    puts `screen -dmS WALLET -L -Logfile #{LOGS}/wallet.log #{start_wallet}`
-    puts `screen -ls`
+    cmd "screen -dmS NODE -L -Logfile #{LOGS}/node.log #{start_node}"
+    cmd "screen -dmS WALLET -L -Logfile #{LOGS}/wallet.log #{start_wallet}"
+    cmd "screen -ls"
   end
 end
 
@@ -185,14 +173,14 @@ task :stop_node_and_wallet do
   puts "\n  >> Stopping cardano-node and cardano-wallet"
 
   if is_win?
-    puts `nssm stop cardano-wallet`
-    puts `nssm stop cardano-node`
+    cmd "nssm stop cardano-wallet"
+    cmd "nssm stop cardano-node"
 
-    puts `nssm remove cardano-wallet confirm`
-    puts `nssm remove cardano-node confirm`
+    cmd "nssm remove cardano-wallet confirm"
+    cmd "nssm remove cardano-node confirm"
   else
-    puts `screen -XS WALLET quit`
-    puts `screen -XS NODE quit`
+    cmd "screen -XS WALLET quit"
+    cmd "screen -XS NODE quit"
   end
 
 end
@@ -203,24 +191,17 @@ task :get_latest_bins do
   wget(get_latest_binary_url)
   mk_dir(BINS)
   if is_win?
-    puts `unzip -o binary-dist -d #{BINS}`
-
-    puts "cardano-node version:"
-    puts `#{BINS}/cardano-node.exe version`
-
-    puts "cardano-wallet version:"
-    puts `#{BINS}/cardano-wallet.exe version`
+    cmd "unzip -o binary-dist -d #{BINS}"
+    cmd "#{BINS}/cardano-node.exe version"
+    cmd "#{BINS}/cardano-wallet.exe version"
   else
     Rake::Task[:clean_bins].invoke
-    puts `rm -rf cardano-wallet-*/`
-    puts `tar -xvf binary-dist`
-    puts `cp -r cardano-wallet-*/* #{BINS}`
+    cmd "rm -rf cardano-wallet-*/"
+    cmd "tar -xvf binary-dist"
+    cmd "cp -r cardano-wallet-*/* #{BINS}"
 
-    puts "cardano-node version:"
-    puts `#{BINS}/cardano-node version`
-
-    puts "cardano-wallet version:"
-    puts `#{BINS}/cardano-wallet version`
+    cmd "#{BINS}/cardano-node version"
+    cmd "#{BINS}/cardano-wallet version"
   end
 end
 
@@ -257,18 +238,12 @@ task :get_docker_logs do
   node_logfile = `docker inspect --format='{{.LogPath}}' cardano-node`.gsub("\n",'')
   wallet_logfile = `docker inspect --format='{{.LogPath}}' cardano-wallet`.gsub("\n",'')
 
-  node_cmd = "sudo cp #{node_logfile} #{LOGS}/node.log"
-  wallet_cmd = "sudo cp #{wallet_logfile} #{LOGS}/wallet.log"
-
-  puts node_cmd
-  puts wallet_cmd
-
-  puts `#{node_cmd}`
-  puts `#{wallet_cmd}`
+  cmd "sudo cp #{node_logfile} #{LOGS}/node.log"
+  cmd "sudo cp #{wallet_logfile} #{LOGS}/wallet.log"
 
   # Add permissions so logs can be uploaded from workflow
-  puts `sudo chmod a+rw #{LOGS}/node.log`
-  puts `sudo chmod a+rw #{LOGS}/wallet.log`
+  cmd "sudo chmod a+rw #{LOGS}/node.log"
+  cmd "sudo chmod a+rw #{LOGS}/wallet.log"
 end
 
 task :run_on, [:env, :installation, :sync_strategy] do |task, args|
