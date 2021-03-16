@@ -2,6 +2,7 @@ version: "3.5"
 
 services:
   cardano-node:
+    container_name: cardano-node
     image: inputoutput/cardano-node:${NODE}
     volumes:
       - ~/node-db-nightly-docker:/data
@@ -11,6 +12,7 @@ services:
     restart: on-failure
 
   cardano-wallet:
+    container_name: cardano-wallet
     image: inputoutput/cardano-wallet:${WALLET}
     volumes:
       - wallet-shelley-db:/wallet-db

@@ -20,8 +20,8 @@ RSpec.describe CardanoWallet::Misc do
     describe "SMASH health" do
       it "SMASH health - unreachable" do
         r = UTILS.smash_health({url: "http://onet.pl"})
-        expect(r.to_s).to include "unreachable"
         expect(r).to have_http 200
+        expect(r.to_s).to include "unreachable"
       end
 
       it "SMASH health - bad url" do
@@ -34,8 +34,8 @@ RSpec.describe CardanoWallet::Misc do
     it "Inspect invalid address" do
       addr = "addr"
       res = UTILS.addresses addr
-      expect(res).to include "bad_request"
       expect(res).to have_http 400
+      expect(res).to include "bad_request"
     end
 
     it "Inspect Shelley payment address" do
@@ -43,12 +43,12 @@ RSpec.describe CardanoWallet::Misc do
       res = UTILS.addresses addr
       expect(res.to_s).to include "Shelley"
 
+      expect(res).to have_http 200
       expect(res['address_style']).to eq "Shelley"
       expect(res['stake_reference']).to eq "by value"
       expect(res['stake_key_hash']).to eq "ff7b5d41fa8cb555b6449601d84967bd9b0245a3c530044d8094ee36"
       expect(res['spending_key_hash']).to eq "3e8da9b78b02c7fb124e09ce6997e82e9394a7060da81f980dbe4d24"
       expect(res['network_tag']).to eq 0
-      expect(res).to have_http 200
     end
 
     it "Inspect Shelley stake address" do
@@ -56,11 +56,11 @@ RSpec.describe CardanoWallet::Misc do
       res = UTILS.addresses addr
       expect(res.to_s).to include "Shelley"
 
+      expect(res).to have_http 200
       expect(res['address_style']).to eq "Shelley"
       expect(res['stake_reference']).to eq "by value"
       expect(res['stake_key_hash']).to eq "9d08c51749edc460f9e9c3eb9f63f3710fe90877969257c52156f6d4"
       expect(res['network_tag']).to eq 0
-      expect(res).to have_http 200
     end
 
     it "Inspect Byron Random address" do
@@ -68,12 +68,12 @@ RSpec.describe CardanoWallet::Misc do
       res = UTILS.addresses addr
       expect(res.to_s).to include "Byron"
 
+      expect(res).to have_http 200
       expect(res['address_style']).to eq "Byron"
       expect(res['stake_reference']).to eq "none"
       expect(res['address_root']).to eq "c23a0f86c7bc977f0dee4721c9850467047a0e6acd928a991b5cbba8"
       expect(res['derivation_path']).to eq "581c6a6589ca57730b33d1bb316c13a76d7794a11ba2d077724bdfb51b45"
       expect(res['network_tag']).to eq 1097911063
-      expect(res).to have_http 200
     end
 
     it "Inspect Byron Icarus address" do
@@ -81,11 +81,11 @@ RSpec.describe CardanoWallet::Misc do
       res = UTILS.addresses addr
       expect(res.to_s).to include "Icarus"
 
+      expect(res).to have_http 200
       expect(res['address_style']).to eq "Icarus"
       expect(res['stake_reference']).to eq "none"
       expect(res['address_root']).to eq "88940c753ee50d556ecaefadd0d2fee9fabacf4366a7d4a8cdfa2b64"
       expect(res['network_tag']).to eq 1097911063
-      expect(res).to have_http 200
     end
 
     describe "Construct addresses" do
@@ -94,8 +94,8 @@ RSpec.describe CardanoWallet::Misc do
                   "payment": "script_vkh1yf07000d4ml3ywd3d439kmwp07xzgv6p35cwx8h605jfx0dtd4a"
                  }
         res = UTILS.post_address(script)
-        expect(res.to_s).to include "addr_test1wp6eswctz5wzrv3ceh3h4y3na2t6d95sjn23dawy0zlzg0q569eke"
         expect(res).to have_http 202
+        expect(res.to_s).to include "addr_test1wp6eswctz5wzrv3ceh3h4y3na2t6d95sjn23dawy0zlzg0q569eke"
       end
 
       it "Enterprise script address - any" do
@@ -108,8 +108,8 @@ RSpec.describe CardanoWallet::Misc do
                       }
                   }
         res = UTILS.post_address(script)
-        expect(res.to_s).to include "addr_test1wzt2z3pa7etaxp7jurdg0m8jhsmtp4r2z56pd3a5q3jhxyc2ykp4j"
         expect(res).to have_http 202
+        expect(res.to_s).to include "addr_test1wzt2z3pa7etaxp7jurdg0m8jhsmtp4r2z56pd3a5q3jhxyc2ykp4j"
       end
 
       it "Enterprise script address - all" do
@@ -122,8 +122,8 @@ RSpec.describe CardanoWallet::Misc do
                       }
                   }
         res = UTILS.post_address(script)
-        expect(res.to_s).to include "addr_test1wp4h4mtdkxr2x68zx4tk0cgmd9hymjgsuhmzaxkg5tkl3scr8umfh"
         expect(res).to have_http 202
+        expect(res.to_s).to include "addr_test1wp4h4mtdkxr2x68zx4tk0cgmd9hymjgsuhmzaxkg5tkl3scr8umfh"
       end
 
       it "Enterprise script address - some" do
@@ -140,8 +140,8 @@ RSpec.describe CardanoWallet::Misc do
                    }
                  }
         res = UTILS.post_address(script)
-        expect(res.to_s).to include "addr_test1wq5np0m5x03tax3kcdh6e2cet98qcfs80wtv4cyvl5taclcp983gu"
         expect(res).to have_http 202
+        expect(res.to_s).to include "addr_test1wq5np0m5x03tax3kcdh6e2cet98qcfs80wtv4cyvl5taclcp983gu"
       end
 
       it "Reward account script address - any" do
@@ -154,8 +154,8 @@ RSpec.describe CardanoWallet::Misc do
                       }
                   }
         res = UTILS.post_address(script)
-        expect(res.to_s).to include "stake_test17zt2z3pa7etaxp7jurdg0m8jhsmtp4r2z56pd3a5q3jhxyc2vgezc"
         expect(res).to have_http 202
+        expect(res.to_s).to include "stake_test17zt2z3pa7etaxp7jurdg0m8jhsmtp4r2z56pd3a5q3jhxyc2vgezc"
       end
 
       it "Delegating script address - any" do
@@ -178,8 +178,8 @@ RSpec.describe CardanoWallet::Misc do
                         }
                   }
         res = UTILS.post_address(script)
-        expect(res.to_s).to include "addr_test1xq5np0m5x03tax3kcdh6e2cet98qcfs80wtv4cyvl5tacluk59zrmajh6vra9cx6slk090pkkr2x59f5zmrmgpr9wvfsjg2j62"
         expect(res).to have_http 202
+        expect(res.to_s).to include "addr_test1xq5np0m5x03tax3kcdh6e2cet98qcfs80wtv4cyvl5tacluk59zrmajh6vra9cx6slk090pkkr2x59f5zmrmgpr9wvfsjg2j62"
       end
 
       it "Enterprise pub key address" do
@@ -187,8 +187,8 @@ RSpec.describe CardanoWallet::Misc do
                   "payment": "addr_vk1lqglg77z6kajsdz4739q22c0zm0yhuy567z6xk2vc0z5ucjtkwpschzd2j"
                  }
         res = UTILS.post_address(script)
-        expect(res.to_s).to include "addr_test1vpqthemrg5kczwfjjnahwt65elhrl95e9hcgufnajtp6wfgdmxm9u"
         expect(res).to have_http 202
+        expect(res.to_s).to include "addr_test1vpqthemrg5kczwfjjnahwt65elhrl95e9hcgufnajtp6wfgdmxm9u"
       end
 
       it "Reward account pub key address" do
@@ -196,8 +196,8 @@ RSpec.describe CardanoWallet::Misc do
                   "stake": "stake_vk16apaenn9ut6s40lcw3l8v68xawlrlq20z2966uzcx8jmv2q9uy7qau558d"
                  }
         res = UTILS.post_address(script)
-        expect(res.to_s).to include "stake_test1uq6pmlvyl3wn4ca6807e26gy2gek9hqu0gastzh5tk0xx0gdfvj8f"
         expect(res).to have_http 202
+        expect(res.to_s).to include "stake_test1uq6pmlvyl3wn4ca6807e26gy2gek9hqu0gastzh5tk0xx0gdfvj8f"
       end
 
       it "Delegating address with both pub key credentials" do
@@ -206,8 +206,8 @@ RSpec.describe CardanoWallet::Misc do
                   "stake": "stake_vk16apaenn9ut6s40lcw3l8v68xawlrlq20z2966uzcx8jmv2q9uy7qau558d"
                  }
         res = UTILS.post_address(script)
-        expect(res.to_s).to include "addr_test1qpqthemrg5kczwfjjnahwt65elhrl95e9hcgufnajtp6wff5rh7cflza8t3m5wlaj45sg53nvtwpc73mqk90ghv7vv7ser7yl4"
         expect(res).to have_http 202
+        expect(res.to_s).to include "addr_test1qpqthemrg5kczwfjjnahwt65elhrl95e9hcgufnajtp6wff5rh7cflza8t3m5wlaj45sg53nvtwpc73mqk90ghv7vv7ser7yl4"
       end
 
       it "Delegating address - payment from script, stake from key" do
@@ -225,8 +225,8 @@ RSpec.describe CardanoWallet::Misc do
                   "stake": "stake_vk16apaenn9ut6s40lcw3l8v68xawlrlq20z2966uzcx8jmv2q9uy7qau558d"
                  }
         res = UTILS.post_address(script)
-        expect(res.to_s).to include "addr_test1zq5np0m5x03tax3kcdh6e2cet98qcfs80wtv4cyvl5tacle5rh7cflza8t3m5wlaj45sg53nvtwpc73mqk90ghv7vv7su0qjlj"
         expect(res).to have_http 202
+        expect(res.to_s).to include "addr_test1zq5np0m5x03tax3kcdh6e2cet98qcfs80wtv4cyvl5tacle5rh7cflza8t3m5wlaj45sg53nvtwpc73mqk90ghv7vv7su0qjlj"
       end
 
       it "Delegating address - payment from key, stake from script" do
@@ -244,8 +244,8 @@ RSpec.describe CardanoWallet::Misc do
                       }
                    }
         res = UTILS.post_address(script)
-        expect(res.to_s).to include "addr_test1ypqthemrg5kczwfjjnahwt65elhrl95e9hcgufnajtp6wfffxzlhgvlzh6drdsm04j43jk2wpsnqw7uketsgelghm3lsmpggt5"
         expect(res).to have_http 202
+        expect(res.to_s).to include "addr_test1ypqthemrg5kczwfjjnahwt65elhrl95e9hcgufnajtp6wfffxzlhgvlzh6drdsm04j43jk2wpsnqw7uketsgelghm3lsmpggt5"
       end
 
     end

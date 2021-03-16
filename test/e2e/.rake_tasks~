@@ -3,6 +3,7 @@ clean_logs
 fixture_wallets_decode
 fixture_wallets_encode
 fixture_wallets_template
+get_docker_logs
 get_latest_bins
 get_latest_configs
 launch_on

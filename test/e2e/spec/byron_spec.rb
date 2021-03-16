@@ -131,24 +131,24 @@ RSpec.describe CardanoWallet::Byron do
       id = create_byron_wallet "icarus"
       addr = BYRON.addresses.list(id)[0]['id']
       addr_import = BYRON.addresses.import(id, addr)
-      expect(addr_import).to include "invalid_wallet_type"
       expect(addr_import).to have_http 403
+      expect(addr_import).to include "invalid_wallet_type"
     end
 
     it "I cannot import address - ledger" do
       id = create_byron_wallet "ledger"
       addr = BYRON.addresses.list(id)[0]['id']
       addr_import = BYRON.addresses.import(id, addr)
-      expect(addr_import).to include "invalid_wallet_type"
       expect(addr_import).to have_http 403
+      expect(addr_import).to include "invalid_wallet_type"
     end
 
     it "I cannot import address - trezor" do
       id = create_byron_wallet "trezor"
       addr = BYRON.addresses.list(id)[0]['id']
       addr_import = BYRON.addresses.import(id, addr)
-      expect(addr_import).to include "invalid_wallet_type"
       expect(addr_import).to have_http 403
+      expect(addr_import).to include "invalid_wallet_type"
     end
   end
 
@@ -168,8 +168,8 @@ RSpec.describe CardanoWallet::Byron do
 
       rnd = BYRON.coin_selections.random wid, addr_amount
 
-      expect(rnd).to include "not_enough_money"
       expect(rnd).to have_http 403
+      expect(rnd).to include "not_enough_money"
     end
 
     it "ArgumentError on bad argument address_amount" do
@@ -198,8 +198,8 @@ RSpec.describe CardanoWallet::Byron do
       it "I could get a tx if I had proper id - #{style}" do
         wid = create_byron_wallet style
         txs = BYRON.transactions
-        expect(txs.get(wid, TXID)).to include "no_such_transaction"
         expect(txs.get(wid, TXID)).to have_http 404
+        expect(txs.get(wid, TXID)).to include "no_such_transaction"
       end
 
       it "Can list transactions - #{style}" do
@@ -221,8 +221,8 @@ RSpec.describe CardanoWallet::Byron do
         target_addr = BYRON.addresses.list(target_id)[0]['id']
 
         tx_sent = BYRON.transactions.create(id, PASS, [{target_addr => 1000000}])
-        expect(tx_sent).to include "not_enough_money"
         expect(tx_sent).to have_http 403
+        expect(tx_sent).to include "not_enough_money"
       end
 
       it "I could estimate fees if I had money - #{style}" do
@@ -231,8 +231,8 @@ RSpec.describe CardanoWallet::Byron do
         target_addr = BYRON.addresses.list(target_id)[0]['id']
 
         fees = BYRON.transactions.payment_fees(id, [{target_addr => 1000000}])
-        expect(fees).to include "not_enough_money"
         expect(fees).to have_http 403
+        expect(fees).to include "not_enough_money"
       end
 
       it "I could forget transaction - #{style}" do
