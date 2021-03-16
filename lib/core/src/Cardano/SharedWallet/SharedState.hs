@@ -26,7 +26,7 @@ module Cardano.SharedWallet.SharedState
     (
     -- ** State
       SharedState (..)
-    , SharedWallet (..)
+    , SharedWalletInfo (..)
     , SharedWalletState (..)
     , unsafePendingSharedState
     , newSharedState
@@ -195,26 +195,26 @@ instance FromText SharedWalletState where
             [ "I couldn't parse the given shared wallet state."
             , "I am expecting one of the words 'pending' or 'active'."]
 
-data SharedWallet k = SharedWallet
+data SharedWalletInfo k = SharedWalletInfo
     { walletState :: !SharedWalletState
     , walletAccountKey :: !(k 'AccountK XPub)
     , accountIx :: !(Index 'Hardened 'AccountK)
     , paymentScript :: !(Script Cosigner)
-    , delegationScript :: !(Script Cosigner)
+    , delegationScript :: !(Maybe (Script Cosigner))
     , poolGap :: !AddressPoolGap
     } deriving (Generic)
 
 deriving instance
     ( Show (k 'AccountK XPub)
-    ) => Show (SharedWallet k)
+    ) => Show (SharedWalletInfo k)
 
 deriving instance
     ( Eq (k 'AccountK XPub)
-    ) => Eq (SharedWallet k)
+    ) => Eq (SharedWalletInfo k)
 
 instance
     ( NFData (k 'AccountK XPub)
-    ) => NFData (SharedWallet k)
+    ) => NFData (SharedWalletInfo k)
 
 -- | Purpose for shared wallets is a constant set to 1854' (or 0x8000073E) following the original
 -- CIP-1854 Multi-signature Wallets.

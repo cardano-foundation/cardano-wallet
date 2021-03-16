@@ -27,7 +27,7 @@ import Cardano.Address.Script
 import Cardano.SharedWallet.Script
     ( CosignerInfo )
 import Cardano.SharedWallet.SharedState
-    ( SharedWallet )
+    ( SharedWalletInfo )
 import Cardano.Wallet.Primitive.Types
     ( GenesisParameters, WalletId, WalletMetadata )
 import Control.Monad.Fail
@@ -54,7 +54,7 @@ import Data.Time.Clock
 data DBLayer m k = forall stm. (MonadFail stm, MonadIO stm) => DBLayer
     { initializeSharedState
         :: WalletId
-        -> SharedWallet k
+        -> SharedWalletInfo k
         -> WalletMetadata
         -> GenesisParameters
         -> ExceptT ErrSharedWalletAlreadyExists stm ()
@@ -67,7 +67,7 @@ data DBLayer m k = forall stm. (MonadFail stm, MonadIO stm) => DBLayer
 
     , readSharedWalletState
         :: WalletId
-        -> stm (Maybe (SharedWallet k))
+        -> stm (Maybe (SharedWalletInfo k))
         -- ^ Fetch the most recent state of a given shared wallet.
         --
         -- Return 'Nothing' if there's no such wallet.
