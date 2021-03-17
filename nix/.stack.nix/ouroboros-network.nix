@@ -143,7 +143,7 @@
             (hsPkgs."ouroboros-network" or (errorHandler.buildDepError "ouroboros-network"))
             (hsPkgs."ouroboros-network-framework" or (errorHandler.buildDepError "ouroboros-network-framework"))
             (hsPkgs."ouroboros-network-testing" or (errorHandler.buildDepError "ouroboros-network-testing"))
-            (hsPkgs."ouroboros-protocol-tests" or (errorHandler.buildDepError "ouroboros-protocol-tests"))
+            (hsPkgs."ouroboros-network".components.sublibs.ouroboros-protocol-tests or (errorHandler.buildDepError "ouroboros-network:ouroboros-protocol-tests"))
             (hsPkgs."typed-protocols" or (errorHandler.buildDepError "typed-protocols"))
             ] ++ (pkgs.lib).optionals (system.isWindows) [
             (hsPkgs."Win32-network" or (errorHandler.buildDepError "Win32-network"))
@@ -177,7 +177,7 @@
             (hsPkgs."typed-protocols" or (errorHandler.buildDepError "typed-protocols"))
             (hsPkgs."ouroboros-network-framework" or (errorHandler.buildDepError "ouroboros-network-framework"))
             (hsPkgs."ouroboros-network" or (errorHandler.buildDepError "ouroboros-network"))
-            (hsPkgs."ouroboros-protocol-tests" or (errorHandler.buildDepError "ouroboros-protocol-tests"))
+            (hsPkgs."ouroboros-network".components.sublibs.ouroboros-protocol-tests or (errorHandler.buildDepError "ouroboros-network:ouroboros-protocol-tests"))
             ];
           buildable = if flags.cddl then true else false;
           };

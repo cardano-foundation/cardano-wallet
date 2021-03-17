@@ -11,7 +11,7 @@
     flags = { threaded = true; gpl = true; ghc-lib = false; hsyaml = false; };
     package = {
       specVersion = "1.18";
-      identifier = { name = "hlint"; version = "3.2"; };
+      identifier = { name = "hlint"; version = "3.2.1"; };
       license = "BSD-3-Clause";
       copyright = "Neil Mitchell 2006-2020";
       maintainer = "Neil Mitchell <ndmitchell@gmail.com>";
