@@ -17,6 +17,7 @@
         "micro-recursion-schemes" = (((hackage.micro-recursion-schemes)."5.0.2.2").revisions).default;
         "network" = (((hackage.network)."3.1.2.1").revisions).default;
         "text" = (((hackage.text)."1.2.4.0").revisions).default;
+        "binary" = (((hackage.binary)."0.8.7.0").revisions).default;
         "moo" = (((hackage.moo)."1.2").revisions).default;
         "canonical-json" = (((hackage.canonical-json)."0.6.0.0").revisions).default;
         "partial-order" = (((hackage.partial-order)."0.2.0.0").revisions).default;
