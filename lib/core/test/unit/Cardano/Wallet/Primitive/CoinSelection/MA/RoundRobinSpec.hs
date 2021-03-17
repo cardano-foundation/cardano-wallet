@@ -709,15 +709,15 @@ prop_performSelection minCoinValueFor costFor (Blind criteria) coverage =
             , utxoRemaining
             } = result
         skeleton = SelectionSkeleton
-            { inputsSkeleton =
-                UTxOIndex.fromSequence inputsSelected
+            { skeletonInputCount =
+                length inputsSelected
             , outputsSkeleton =
                 NE.toList outputsToCover
             , changeSkeleton =
                 fmap (TokenMap.getAssets . view #tokens) changeGenerated
             }
         balanceSelected =
-            fullBalance (inputsSkeleton skeleton) extraCoinSource
+            fullBalance (UTxOIndex.fromSequence inputsSelected) extraCoinSource
         balanceChange =
             F.fold changeGenerated
         expectedCost =
@@ -1470,12 +1470,12 @@ noCost :: Coin
 noCost = Coin 0
 
 linearCost :: SelectionSkeleton -> Coin
-linearCost SelectionSkeleton{inputsSkeleton, outputsSkeleton, changeSkeleton}
+linearCost s
     = Coin
     $ fromIntegral
-    $ UTxOIndex.size inputsSkeleton
-    + F.length outputsSkeleton
-    + F.length changeSkeleton
+    $ skeletonInputCount s
+    + F.length (outputsSkeleton s)
+    + F.length (changeSkeleton s)
 
 type MakeChangeData =
     MakeChangeCriteria MinCoinValueFor MockTokenBundleSizeAssessor

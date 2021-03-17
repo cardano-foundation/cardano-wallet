@@ -80,8 +80,6 @@ import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..), addCoin, subtractCoin )
-import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.TokenMap
     ( AssetId (..), TokenMap )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
@@ -93,7 +91,6 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TokenBundleSizeAssessment (..)
     , TokenBundleSizeAssessor (..)
     , Tx (..)
-    , TxIn (..)
     , TxOut (..)
     , txOutCoin
     , txOutMaxTokenQuantity
@@ -504,17 +501,14 @@ _initSelectionCriteria pp ctx utxoAvailable outputsUnprepared
         prepareOutputsWith (_calcMinimumCoinValue pp) outputsUnprepared
 
 dummySkeleton :: Int -> [TxOut] -> SelectionSkeleton
-dummySkeleton nInps outs = SelectionSkeleton
-    { inputsSkeleton = UTxOIndex.fromSequence $
-        map (\ix -> (dummyTxIn ix, dummyTxOut)) [0..nInps-1]
+dummySkeleton inputCount outs = SelectionSkeleton
+    { skeletonInputCount =
+        inputCount
     , outputsSkeleton =
         outs
     , changeSkeleton =
         TokenBundle.getAssets . view #tokens <$> outs
     }
-  where
-    dummyTxIn  = TxIn (Hash $ BS.pack (1:replicate 64 0)) . fromIntegral
-    dummyTxOut = TxOut (Address "") TokenBundle.empty
 
 _decodeSignedTx
     :: AnyCardanoEra
@@ -557,7 +551,7 @@ estimateTxSize
     -> TransactionCtx
     -> SelectionSkeleton
     -> Integer
-estimateTxSize witnessTag ctx (SelectionSkeleton inps outs chgs) =
+estimateTxSize witnessTag ctx (SelectionSkeleton inputCount outs chgs) =
     sizeOf_Transaction
   where
     TransactionCtx
@@ -567,7 +561,7 @@ estimateTxSize witnessTag ctx (SelectionSkeleton inps outs chgs) =
         } = ctx
 
     numberOf_Inputs
-        = toInteger $ UTxOIndex.size inps
+        = fromIntegral inputCount
 
     numberOf_CertificateSignatures
         = maybe 0 (const 1) txDelegationAction
