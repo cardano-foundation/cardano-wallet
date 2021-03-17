@@ -711,9 +711,9 @@ prop_performSelection minCoinValueFor costFor (Blind criteria) coverage =
         skeleton = SelectionSkeleton
             { skeletonInputCount =
                 length inputsSelected
-            , outputsSkeleton =
+            , skeletonOutputs =
                 NE.toList outputsToCover
-            , changeSkeleton =
+            , skeletonChange =
                 fmap (TokenMap.getAssets . view #tokens) changeGenerated
             }
         balanceSelected =
@@ -1474,8 +1474,8 @@ linearCost s
     = Coin
     $ fromIntegral
     $ skeletonInputCount s
-    + F.length (outputsSkeleton s)
-    + F.length (changeSkeleton s)
+    + F.length (skeletonOutputs s)
+    + F.length (skeletonChange s)
 
 type MakeChangeData =
     MakeChangeCriteria MinCoinValueFor MockTokenBundleSizeAssessor

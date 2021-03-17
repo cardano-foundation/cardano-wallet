@@ -501,13 +501,13 @@ _initSelectionCriteria pp ctx utxoAvailable outputsUnprepared
         prepareOutputsWith (_calcMinimumCoinValue pp) outputsUnprepared
 
 dummySkeleton :: Int -> [TxOut] -> SelectionSkeleton
-dummySkeleton inputCount outs = SelectionSkeleton
+dummySkeleton inputCount outputs = SelectionSkeleton
     { skeletonInputCount =
         inputCount
-    , outputsSkeleton =
-        outs
-    , changeSkeleton =
-        TokenBundle.getAssets . view #tokens <$> outs
+    , skeletonOutputs =
+        outputs
+    , skeletonChange =
+        TokenBundle.getAssets . view #tokens <$> outputs
     }
 
 _decodeSignedTx
