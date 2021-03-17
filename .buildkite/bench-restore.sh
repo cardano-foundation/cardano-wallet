@@ -89,3 +89,9 @@ if [ -n "${BUILDKITE:-}" ]; then
   echo "+++ Restore plot"
   printf '\033]1338;url='"artifact://plot.svg"';alt='"Restore plot"'\a\n'
 fi
+
+if [ -z "$(cat $results)" ]; then
+  echo "+++ Bad news"
+  echo "FAILED - Missing results" > /dev/stderr
+  exit 1
+fi
