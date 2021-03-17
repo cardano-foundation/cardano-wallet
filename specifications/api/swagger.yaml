@@ -267,13 +267,6 @@ x-addressState: &addressState
     - used
     - unused
 
-x-scriptTemplateUpdate: &scriptTemplateUpdate
-  type: string
-  enum:
-    - payment
-    - delegation
-    - both
-
 x-stakePoolId: &stakePoolId
   type: string
   format: hex|bech32
@@ -293,19 +286,9 @@ x-cosigner: &cosigner
   pattern: "^(cosigner#)[0-9]*$"
 
 x-cosigners: &cosigners
+  description: Map of cosigners and their account public key. Use key as in &cosigner, eg. "cosigner#"
   type: object
-  properties:
-   cosigner#0: *walletAccountPubkey
-   cosigner#1: *walletAccountPubkey
-   cosigner#2: *walletAccountPubkey
-   cosigner#3: *walletAccountPubkey
-   cosigner#4: *walletAccountPubkey
-   cosigner#5: *walletAccountPubkey
-   cosigner#6: *walletAccountPubkey
-   cosigner#7: *walletAccountPubkey
-   cosigner#8: *walletAccountPubkey
-   cosigner#9: *walletAccountPubkey
-   cosigner#10: *walletAccountPubkey
+  additionalProperties: *walletAccountPubkey
 
 x-walletId: &walletId
   description: A unique identifier for the wallet
@@ -1970,28 +1953,62 @@ components:
         state: *walletState
         tip: *blockReference
 
+    ApiWalletPostData: &ApiWalletPostData
+      type: object
+      description: Restore from root private key
+      required:
+        - name
+        - mnemonic_sentence
+        - passphrase
+      properties:
+        name: *walletName
+        mnemonic_sentence: *walletMnemonicSentence
+        mnemonic_second_factor: *walletSecondFactor
+        passphrase: *walletPassphrase
+        address_pool_gap: *walletAddressPoolGap
+
+    ApiAccountPostData: &ApiAccountPostData
+      type: object
+      description: Restore from account public key
+      required:
+        - name
+        - account_public_key
+      properties:
+        name: *walletName
+        account_public_key: *walletAccountPubkey
+        address_pool_gap: *walletAddressPoolGap
+
+    ApiWalletOrAccountPostData: &ApiWalletOrAccountPostData
+      type: object
+      oneOf:
+        - <<: *ApiWalletPostData
+          title: shelley
+        - <<: *ApiAccountPostData
+          title: shelley (from xpub)
+
     ApiActiveSharedWallet: &ApiActiveSharedWallet
       type: object
       required:
         - id
         - name
-        - account_public_key
-        - account_ix
+        - account_index
         - address_pool_gap
         - payment_script_template
         - balance
+        - assets
         - delegation
         - state
         - tip
       properties:
         id: *walletId
         name: *walletName
-        account_public_key: *walletAccountPubkey
-        account_ix: *derivationSegment
+        account_index: *derivationSegment
         address_pool_gap: *walletAddressPoolGap
+        passphrase: *walletPassphraseInfo
         payment_script_template: *scriptTemplate
         delegation_script_template: *scriptTemplate
         balance: *walletBalance
+        assets: *walletAssetsBalance
         delegation: *ApiWalletDelegation
         state: *walletState
         tip: *blockReference
@@ -2001,15 +2018,13 @@ components:
       required:
         - id
         - name
-        - account_public_key
-        - account_ix
+        - account_index
         - address_pool_gap
         - payment_script_template
       properties:
         id: *walletId
         name: *walletName
-        account_public_key: *walletAccountPubkey
-        account_ix: *derivationSegment
+        account_index: *derivationSegment
         address_pool_gap: *walletAddressPoolGap
         payment_script_template: *scriptTemplate
         delegation_script_template: *scriptTemplate
@@ -2025,16 +2040,12 @@ components:
     ApiSharedWalletPostData: &ApiSharedWalletPostData
       type: object
       required:
-        - name
-        - account_public_key
-        - account_ix
-        - address_pool_gap
+        - retrieve_method
+        - account_index
         - payment_script_template
       properties:
-        name: *walletName
-        account_public_key: *walletAccountPubkey
-        account_ix: *derivationSegment
-        address_pool_gap: *walletAddressPoolGap
+        retrieve_method: *ApiWalletOrAccountPostData
+        account_index: *derivationSegment
         payment_script_template: *scriptTemplate
         delegation_script_template: *scriptTemplate
 
@@ -2043,11 +2054,9 @@ components:
       required:
         - cosigner
         - account_public_key
-        - script_template_update
       properties:
         cosigner: *cosigner
         account_public_key: *walletAccountPubkey
-        script_template_update: *scriptTemplateUpdate
 
     ApiAsset: &ApiAsset
       type: object
@@ -2148,39 +2157,6 @@ components:
           1000000000000000: 0
           10000000000000000: 0
           45000000000000000: 0
-
-    ApiWalletPostData: &ApiWalletPostData
-      type: object
-      description: Restore from root private key
-      required:
-        - name
-        - mnemonic_sentence
-        - passphrase
-      properties:
-        name: *walletName
-        mnemonic_sentence: *walletMnemonicSentence
-        mnemonic_second_factor: *walletSecondFactor
-        passphrase: *walletPassphrase
-        address_pool_gap: *walletAddressPoolGap
-
-    ApiAccountPostData: &ApiAccountPostData
-      type: object
-      description: Restore from account public key
-      required:
-        - name
-        - account_public_key
-      properties:
-        name: *walletName
-        account_public_key: *walletAccountPubkey
-        address_pool_gap: *walletAddressPoolGap
-
-    ApiWalletOrAccountPostData: &ApiWalletOrAccountPostData
-      type: object
-      oneOf:
-        - <<: *ApiWalletPostData
-          title: shelley
-        - <<: *ApiAccountPostData
-          title: shelley (from xpub)
 
     ApiWalletSignData: &ApiWalletSignData
         type: object
@@ -3958,6 +3934,10 @@ x-tagGroups:
     - Byron Transactions
     - Byron Migrations
 
+  - name: Shelley (Shared Wallets)
+    tags:
+    - Shared Wallets
+
   - name: Miscellaneous
     tags:
     - Utils
@@ -3965,7 +3945,6 @@ x-tagGroups:
     - Proxy
     - Settings
     - Experimental
-    - Shared Wallets
 
 paths:
   /wallets/{walletId}/signatures/{role}/{index}:
@@ -5051,8 +5030,19 @@ paths:
         - *parametersWalletId
       responses: *responsesGetSharedWallet
 
+    delete:
+      operationId: deleteSharedWallet
+      tags: ["Shared Wallets"]
+      summary: Delete
+      description: |
+        <p align="right">status: <strong>unstable</strong></p>
+      parameters:
+        - *parametersWalletId
+      responses: *responsesDeleteWallet
+
+  /shared-wallets/{walletId}/payment-script-template:
     patch:
-      operationId: patchSharedWallet
+      operationId: patchSharedWalletInPayment
       tags: ["Shared Wallets"]
       summary: Update
       description: |
@@ -5066,12 +5056,18 @@ paths:
             schema: *ApiSharedWalletPatchData
       responses: *responsesPatchSharedWallet
 
-    delete:
-      operationId: deleteSharedWallet
+  /shared-wallets/{walletId}/delegation-script-template:
+    patch:
+      operationId: patchSharedWalletInDelegation
       tags: ["Shared Wallets"]
-      summary: Delete
+      summary: Update
       description: |
         <p align="right">status: <strong>unstable</strong></p>
       parameters:
         - *parametersWalletId
-      responses: *responsesDeleteWallet
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: *ApiSharedWalletPatchData
+      responses: *responsesPatchSharedWallet

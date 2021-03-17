@@ -155,7 +155,6 @@ module Cardano.Wallet.Api.Types
     , ApiActiveSharedWallet (..)
     , ApiSharedWalletPostData (..)
     , ApiSharedWalletPatchData (..)
-    , ApiScriptTemplateUpdate (..)
 
     -- * Polymorphic Types
     , ApiT (..)
@@ -1049,25 +1048,23 @@ data ApiAccountKey = ApiAccountKey
       deriving anyclass NFData
 
 data ApiSharedWalletPostData = ApiSharedWalletPostData
-    { name :: !(ApiT WalletName)
-    , accountPublicKey :: !ApiAccountPublicKey
-    , accountIx :: !(ApiT DerivationIndex)
-    , addressPoolGap :: !(ApiT AddressPoolGap)
+    { retrieveMethod :: WalletOrAccountPostData
+    , accountIndex :: !(ApiT DerivationIndex)
     , paymentScriptTemplate :: !ScriptTemplate
     , delegationScriptTemplate :: !(Maybe ScriptTemplate)
     } deriving (Eq, Generic, Show)
-      deriving anyclass NFData
 
 data ApiActiveSharedWallet = ApiActiveSharedWallet
     { id :: !(ApiT WalletId)
     , name :: !(ApiT WalletName)
-    , accountPublicKey :: !ApiAccountPublicKey
-    , accountIx :: !(ApiT DerivationIndex)
+    , accountIndex :: !(ApiT DerivationIndex)
     , addressPoolGap :: !(ApiT AddressPoolGap)
+    , passphrase :: !(Maybe ApiWalletPassphraseInfo)
     , paymentScriptTemplate :: !ScriptTemplate
     , delegationScriptTemplate :: !(Maybe ScriptTemplate)
     , delegation :: !ApiWalletDelegation
     , balance :: !ApiWalletBalance
+    , assets :: !ApiWalletAssetsBalance
     , state :: !(ApiT SyncProgress)
     , tip :: !ApiBlockReference
     } deriving (Eq, Generic, Show)
@@ -1076,8 +1073,7 @@ data ApiActiveSharedWallet = ApiActiveSharedWallet
 data ApiPendingSharedWallet = ApiPendingSharedWallet
     { id :: !(ApiT WalletId)
     , name :: !(ApiT WalletName)
-    , accountPublicKey :: !ApiAccountPublicKey
-    , accountIx :: !(ApiT DerivationIndex)
+    , accountIndex :: !(ApiT DerivationIndex)
     , addressPoolGap :: !(ApiT AddressPoolGap)
     , paymentScriptTemplate :: !ScriptTemplate
     , delegationScriptTemplate :: !(Maybe ScriptTemplate)
@@ -1089,15 +1085,9 @@ newtype ApiSharedWallet = ApiSharedWallet
     } deriving (Eq, Generic, Show)
       deriving anyclass NFData
 
-data ApiScriptTemplateUpdate =
-    PaymentScriptTemplate | DelegationScriptTemplate | BothScriptTemplates
-      deriving (Eq, Generic, Show, Bounded, Enum)
-      deriving anyclass NFData
-
 data ApiSharedWalletPatchData = ApiSharedWalletPatchData
     { cosigner :: !(ApiT Cosigner)
     , accountPublicKey :: !ApiAccountPublicKey
-    , scriptTemplateUpdate :: !ApiScriptTemplateUpdate
     } deriving (Eq, Generic, Show)
       deriving anyclass NFData
 
@@ -2297,12 +2287,6 @@ instance FromJSON (ApiT Cosigner) where
 instance ToJSON (ApiT Cosigner) where
     toJSON = toJSON . toText
 
-instance FromJSON ApiScriptTemplateUpdate where
-    parseJSON =
-        parseJSON >=> eitherToParser . first ShowFmt . fromText
-instance ToJSON ApiScriptTemplateUpdate where
-    toJSON = toJSON . toText
-
 instance FromJSON ApiSharedWalletPatchData where
     parseJSON = genericParseJSON defaultRecordTypeOptions
 instance ToJSON ApiSharedWalletPatchData where
@@ -2437,21 +2421,6 @@ instance FromText AnyAddress where
                 "stake_test" -> proceedWhenHrpCorrect RewardAccount 0
                 _ -> Left $ TextDecodingError "AnyAddress is not correctly prefixed."
         _ -> Left $ TextDecodingError "AnyAddress must be must be encoded as Bech32."
-
-instance ToText ApiScriptTemplateUpdate where
-    toText PaymentScriptTemplate = "payment"
-    toText DelegationScriptTemplate = "delegation"
-    toText BothScriptTemplates = "both"
-
-instance FromText ApiScriptTemplateUpdate where
-    fromText = \case
-        "payment" -> Right PaymentScriptTemplate
-        "delegation" -> Right DelegationScriptTemplate
-        "both" -> Right BothScriptTemplates
-        _ -> Left $ TextDecodingError $ unwords
-            [ "Invalid script template update. The following values expected:"
-            , "'payment', 'delegation', 'both'."
-            ]
 
 instance ToText (ApiT Cosigner) where
     toText (ApiT (Cosigner ix)) = "cosigner#"<> T.pack (show ix)
