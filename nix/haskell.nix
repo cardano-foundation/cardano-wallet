@@ -30,24 +30,25 @@ let
 
   # Chop out a subdirectory of the source, so that the package is only
   # rebuilt when something in the subdirectory changes.
-  filterSubDir = subDir:
-    haskell.haskellLib.cleanSourceWith { inherit src subDir; };
+  filterSubDir = subDir: {
+    src = haskell.haskellLib.cleanSourceWith { inherit src subDir; };
+    package.isProject = true;  # fixme: Haskell.nix
+  };
 
   pkg-set = haskell.mkStackPkgSet {
     inherit stack-pkgs;
     modules = [
       # Add source filtering to local packages
       {
-        packages.cardano-wallet-core.src = filterSubDir "lib/core";
-        packages.cardano-wallet-core.components.tests.unit.keepSource = true;
-        packages.cardano-wallet-core-integration.src = filterSubDir "lib/core-integration";
-        packages.cardano-wallet-cli.src = filterSubDir "lib/cli";
-        packages.cardano-wallet-launcher.src = filterSubDir "lib/launcher";
-        packages.cardano-wallet.src = filterSubDir "lib/shelley";
-        packages.cardano-wallet.components.tests.integration.keepSource = true;
-        packages.cardano-wallet-test-utils.src = filterSubDir "lib/test-utils";
-        packages.text-class.src = filterSubDir "lib/text-class";
-        packages.text-class.components.tests.unit.keepSource = true;
+        packages.cardano-wallet-cli = filterSubDir "lib/cli";
+        packages.cardano-wallet-core-integration = filterSubDir "lib/core-integration";
+        packages.cardano-wallet-core = filterSubDir "lib/core";
+        packages.cardano-wallet-launcher = filterSubDir "lib/launcher";
+        packages.cardano-numeric = filterSubDir "lib/numeric";
+        packages.cardano-wallet = filterSubDir "lib/shelley";
+        packages.strict-non-empty-containers = filterSubDir "lib/strict-non-empty-containers";
+        packages.cardano-wallet-test-utils = filterSubDir "lib/test-utils";
+        packages.text-class = filterSubDir "lib/text-class";
       }
 
       # Enable release flag (optimization and -Werror) on all local packages
@@ -58,6 +59,8 @@ let
         packages.cardano-wallet-core.flags.release = true;
         packages.cardano-wallet-launcher.flags.release = true;
         packages.cardano-wallet-test-utils.flags.release = true;
+        packages.cardano-numeric.flags.release = true;
+        packages.strict-non-empty-containers.flags.release = true;
         packages.text-class.flags.release = true;
       }
 
@@ -70,6 +73,8 @@ let
         packages.cardano-wallet-core.components.tests.unit.doCoverage = true;
         packages.cardano-wallet-launcher.components.library.doCoverage = true;
         packages.cardano-wallet-test-utils.components.library.doCoverage = true;
+        packages.cardano-numeric.components.library.doCoverage = true;
+        packages.strict-non-empty-containers.components.library.doCoverage = true;
         packages.text-class.components.library.doCoverage = true;
       })
 
@@ -210,6 +215,10 @@ let
 
         # split data output for ekg to reduce closure size
         packages.ekg.components.library.enableSeparateDataOutput = true;
+
+        # Avoid this error on the windows build:
+        #   Wrap.hsc:96:10: fatal error: regex.h: No such file or directory
+        packages.regex-posix.flags._regex-posix-clib = stdenv.hostPlatform.isWindows;
       }
 
       # Enable profiling on executables if the profiling argument is set.

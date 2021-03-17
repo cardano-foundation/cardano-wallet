@@ -139,9 +139,9 @@
             (hsPkgs."unordered-containers" or (errorHandler.buildDepError "unordered-containers"))
             ] ++ (pkgs.lib).optional (!system.isWindows) (hsPkgs."unix" or (errorHandler.buildDepError "unix"));
           build-tools = [
-            (hsPkgs.buildPackages.cardano-node or (pkgs.buildPackages.cardano-node or (errorHandler.buildToolDepError "cardano-node")))
-            (hsPkgs.buildPackages.cardano-cli or (pkgs.buildPackages.cardano-cli or (errorHandler.buildToolDepError "cardano-cli")))
-            (hsPkgs.buildPackages.cardano-node-chairman or (pkgs.buildPackages.cardano-node-chairman or (errorHandler.buildToolDepError "cardano-node-chairman")))
+            (hsPkgs.buildPackages.cardano-node.components.exes.cardano-node or (pkgs.buildPackages.cardano-node or (errorHandler.buildToolDepError "cardano-node:cardano-node")))
+            (hsPkgs.buildPackages.cardano-cli.components.exes.cardano-cli or (pkgs.buildPackages.cardano-cli or (errorHandler.buildToolDepError "cardano-cli:cardano-cli")))
+            (hsPkgs.buildPackages.cardano-node-chairman.components.exes.cardano-node-chairman or (pkgs.buildPackages.cardano-node-chairman or (errorHandler.buildToolDepError "cardano-node-chairman:cardano-node-chairman")))
             ];
           buildable = true;
           };

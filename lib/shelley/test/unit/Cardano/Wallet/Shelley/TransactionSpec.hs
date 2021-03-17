@@ -157,11 +157,11 @@ spec = do
         prop "roundtrip for Byron witnesses" prop_decodeSignedByronTxRoundtrip
 
     estimateMaxInputsTests @ShelleyKey
-        [(1,114),(5,104),(10,99),(20,75),(50,34)]
+        [(1,115),(5,106),(10,101),(20,85),(50,32)]
     estimateMaxInputsTests @ByronKey
-        [(1,73),(5,66),(10,62),(20,45),(50,16)]
+        [(1,73),(5,67),(10,63),(20,52),(50,14)]
     estimateMaxInputsTests @IcarusKey
-        [(1,73),(5,66),(10,62),(20,45),(50,16)]
+        [(1,73),(5,67),(10,63),(20,52),(50,14)]
 
     describe "fee calculations" $ do
         let pp :: ProtocolParameters
@@ -431,6 +431,9 @@ estimateMaxInputsTests cases = do
         forM_ cases $ \(GivenNumOutputs nOuts, ExpectedNumInputs nInps) -> do
             let (o,i) = (show nOuts, show nInps)
             it ("order of magnitude, nOuts = " <> o <> " => nInps = " <> i) $ do
+                -- NOTE: These tests broke in the GHC 8.6 -> 8.10 bump,
+                -- presumably due to some change in the arbitrary generation.
+                -- It would be better if they weren't so fragile.
                 let outs = [ generatePure r arbitrary | r <- [ 1 .. nOuts ] ]
                 length outs `shouldBe` nOuts
                 _estimateMaxNumberOfInputs @k (Quantity 16384) defaultTransactionCtx outs

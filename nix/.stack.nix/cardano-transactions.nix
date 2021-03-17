@@ -66,7 +66,7 @@
             (hsPkgs."base" or (errorHandler.buildDepError "base"))
             (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
             (hsPkgs."cardano-transactions" or (errorHandler.buildDepError "cardano-transactions"))
-            (hsPkgs."cardano-transactions-shared" or (errorHandler.buildDepError "cardano-transactions-shared"))
+            (hsPkgs."cardano-transactions".components.sublibs.cardano-transactions-shared or (errorHandler.buildDepError "cardano-transactions:cardano-transactions-shared"))
             (hsPkgs."cborg" or (errorHandler.buildDepError "cborg"))
             (hsPkgs."memory" or (errorHandler.buildDepError "memory"))
             (hsPkgs."optparse-applicative" or (errorHandler.buildDepError "optparse-applicative"))
@@ -85,7 +85,7 @@
             (hsPkgs."cardano-ledger" or (errorHandler.buildDepError "cardano-ledger"))
             (hsPkgs."cardano-ledger-test" or (errorHandler.buildDepError "cardano-ledger-test"))
             (hsPkgs."cardano-transactions" or (errorHandler.buildDepError "cardano-transactions"))
-            (hsPkgs."cardano-transactions-shared" or (errorHandler.buildDepError "cardano-transactions-shared"))
+            (hsPkgs."cardano-transactions".components.sublibs.cardano-transactions-shared or (errorHandler.buildDepError "cardano-transactions:cardano-transactions-shared"))
             (hsPkgs."cborg" or (errorHandler.buildDepError "cborg"))
             (hsPkgs."hedgehog-quickcheck" or (errorHandler.buildDepError "hedgehog-quickcheck"))
             (hsPkgs."hspec" or (errorHandler.buildDepError "hspec"))
@@ -93,7 +93,7 @@
             (hsPkgs."text" or (errorHandler.buildDepError "text"))
             ];
           build-tools = [
-            (hsPkgs.buildPackages.cardano-tx or (pkgs.buildPackages.cardano-tx or (errorHandler.buildToolDepError "cardano-tx")))
+            (hsPkgs.buildPackages.cardano-tx.components.exes.cardano-tx or (pkgs.buildPackages.cardano-tx or (errorHandler.buildToolDepError "cardano-tx:cardano-tx")))
             ];
           buildable = true;
           };

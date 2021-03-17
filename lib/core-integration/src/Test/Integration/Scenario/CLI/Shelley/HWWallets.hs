@@ -77,7 +77,6 @@ import Test.Integration.Framework.DSL
     , verify
     , walletId
     , (.>)
-    , (.>)
     )
 import Test.Integration.Framework.TestData
     ( cmdOk, errMsg403NoRootKey )

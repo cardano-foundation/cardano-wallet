@@ -35,7 +35,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , DerivationIndex (..)
     , DerivationType (..)
     , Index (..)
-    , Index
     , PaymentAddress
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron

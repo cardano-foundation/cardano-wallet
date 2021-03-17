@@ -76,6 +76,8 @@ import Control.Tracer
     ( Tracer, traceWith )
 import Data.Functor
     ( (<&>) )
+import Data.Kind
+    ( Type )
 import Data.Maybe
     ( isNothing )
 import Data.Text.Class
@@ -222,7 +224,7 @@ chainSyncFollowTip toCardanoEra onTipUpdate =
 -- callback.
 --
 -- See also 'send' for invoking commands.
-data ChainSyncCmd block (m :: * -> *)
+data ChainSyncCmd block (m :: Type -> Type)
     = CmdFindIntersection
         [Point block]
         (Maybe (Point block) -> m ())
@@ -528,7 +530,7 @@ localStateQuery queue =
 --
 -- /Warning/: Partial functions inside the @LSQ@ monad may cause the entire
 -- wallet to crash when interpreted by @localStateQuery@.
-data LSQ block (m :: * -> *) a where
+data LSQ block (m :: Type -> Type) a where
     LSQPure :: a -> LSQ block m a
     LSQBind :: LSQ block m a -> (a -> LSQ block m b) -> LSQ block m b
 
@@ -558,7 +560,7 @@ query = LSQry
 
 
 -- | Sending command to the localTxSubmission client. See also 'ChainSyncCmd'.
-data LocalTxSubmissionCmd tx err (m :: * -> *)
+data LocalTxSubmissionCmd tx err (m :: Type -> Type)
     = CmdSubmitTx tx (SubmitResult err -> m ())
 
 -- | Client for the 'Local Tx Submission' mini-protocol.

@@ -29,7 +29,6 @@ import Cardano.Wallet.Primitive.Types
     , PoolCertificate (..)
     , PoolId (..)
     , PoolMetadataSource (..)
-    , PoolMetadataSource (..)
     , PoolOwner (..)
     , PoolRegistrationCertificate (..)
     , PoolRetirementCertificate (..)

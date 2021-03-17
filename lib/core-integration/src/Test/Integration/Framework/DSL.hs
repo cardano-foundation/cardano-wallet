@@ -228,6 +228,8 @@ import Cardano.Wallet.Api.Types
     , WalletStyle (..)
     , insertedAt
     )
+import Cardano.Wallet.Compat
+    ( (^?) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( HardDerivation (..)
     , NetworkDiscriminant (..)
@@ -300,8 +302,6 @@ import Data.Functor.Identity
     ( Identity (..) )
 import Data.Generics.Internal.VL.Lens
     ( Lens', lens, set, view, (^.) )
-import Data.Generics.Internal.VL.Prism
-    ( (^?) )
 import Data.Generics.Internal.VL.Traversal
     ( Traversal' )
 import Data.Generics.Labels
@@ -310,8 +310,6 @@ import Data.Generics.Product.Typed
     ( HasType, typed )
 import Data.IORef
     ( newIORef, readIORef, writeIORef )
-import Data.List
-    ( (!!) )
 import Data.List.NonEmpty
     ( NonEmpty )
 import Data.Maybe
@@ -595,8 +593,8 @@ walletId =
   where
     _get :: HasType (ApiT WalletId) s => s -> Text
     _get = T.pack . show . getWalletId . getApiT . view typed
-    _set :: HasType (ApiT WalletId) s => (s, Text) -> s
-    _set (s, v) = set typed (ApiT $ WalletId (unsafeCreateDigest v)) s
+    _set :: HasType (ApiT WalletId) s => s -> Text -> s
+    _set s v = set typed (ApiT $ WalletId (unsafeCreateDigest v)) s
 
 --
 -- Constants

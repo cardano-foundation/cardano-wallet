@@ -54,6 +54,7 @@
           (hsPkgs."filepath" or (errorHandler.buildDepError "filepath"))
           (hsPkgs."fmt" or (errorHandler.buildDepError "fmt"))
           (hsPkgs."generic-lens" or (errorHandler.buildDepError "generic-lens"))
+          (hsPkgs."generic-lens-core" or (errorHandler.buildDepError "generic-lens-core"))
           (hsPkgs."hspec" or (errorHandler.buildDepError "hspec"))
           (hsPkgs."hspec-expectations-lifted" or (errorHandler.buildDepError "hspec-expectations-lifted"))
           (hsPkgs."http-api-data" or (errorHandler.buildDepError "http-api-data"))

@@ -29,17 +29,17 @@ steps:
 
   - label: 'Check Cabal Configure (Haskell.nix shellFor)'
     command:
-      - 'nix-shell --run "cabal v2-update"'
-      - 'nix-shell --run "cabal v2-configure --project-file=cabal-nix.project --enable-tests --enable-benchmarks"'
-      - 'nix-shell --run "cabal v2-configure --project-file=cabal-nix.project -frelease --enable-tests --enable-benchmarks"'
+      - 'nix-shell --run "cabal update"'
+      - 'nix-shell --run "cabal configure --project-file=cabal-nix.project --enable-tests --enable-benchmarks"'
+      - 'nix-shell --run "cabal configure --project-file=cabal-nix.project -frelease --enable-tests --enable-benchmarks"'
     agents:
       system: x86_64-linux
 
   - label: 'Check Cabal Configure'
     command:
-      - 'nix-shell nix/cabal-shell.nix --run "cabal v2-update"'
-      - 'nix-shell nix/cabal-shell.nix --run "cabal v2-configure --enable-tests --enable-benchmarks"'
-      - 'nix-shell nix/cabal-shell.nix --run "cabal v2-configure -frelease --enable-tests --enable-benchmarks"'
+      - 'nix-shell nix/cabal-shell.nix --run "cabal update"'
+      - 'nix-shell nix/cabal-shell.nix --run "cabal configure --enable-tests --enable-benchmarks"'
+      - 'nix-shell nix/cabal-shell.nix --run "cabal configure -frelease --enable-tests --enable-benchmarks"'
     agents:
       system: x86_64-linux
 

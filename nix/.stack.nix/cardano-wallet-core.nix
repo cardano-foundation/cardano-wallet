@@ -79,6 +79,7 @@
           (hsPkgs."persistent" or (errorHandler.buildDepError "persistent"))
           (hsPkgs."persistent-sqlite" or (errorHandler.buildDepError "persistent-sqlite"))
           (hsPkgs."persistent-template" or (errorHandler.buildDepError "persistent-template"))
+          (hsPkgs."profunctors" or (errorHandler.buildDepError "profunctors"))
           (hsPkgs."quiet" or (errorHandler.buildDepError "quiet"))
           (hsPkgs."random" or (errorHandler.buildDepError "random"))
           (hsPkgs."random-shuffle" or (errorHandler.buildDepError "random-shuffle"))
@@ -198,7 +199,7 @@
             (hsPkgs."warp" or (errorHandler.buildDepError "warp"))
             ];
           build-tools = [
-            (hsPkgs.buildPackages.hspec-discover or (pkgs.buildPackages.hspec-discover or (errorHandler.buildToolDepError "hspec-discover")))
+            (hsPkgs.buildPackages.hspec-discover.components.exes.hspec-discover or (pkgs.buildPackages.hspec-discover or (errorHandler.buildToolDepError "hspec-discover:hspec-discover")))
             ];
           buildable = true;
           };

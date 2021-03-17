@@ -84,7 +84,6 @@ import Cardano.Wallet.Api.Server
     , mkLegacyWallet
     , mkShelleyWallet
     , postAccountPublicKey
-    , postAccountPublicKey
     , postAccountWallet
     , postExternalTransaction
     , postIcarusWallet
@@ -118,7 +117,6 @@ import Cardano.Wallet.Api.Types
     , ApiAddressInspect (..)
     , ApiAddressInspectData (..)
     , ApiCredential (..)
-    , ApiDelegationAction (..)
     , ApiDelegationAction (..)
     , ApiErrorCode (..)
     , ApiHealthCheck (..)

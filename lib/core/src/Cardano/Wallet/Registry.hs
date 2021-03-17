@@ -54,6 +54,8 @@ import Data.Generics.Labels
     ()
 import Data.Generics.Product.Typed
     ( HasType )
+import Data.Kind
+    ( Type )
 import Data.Map.Strict
     ( Map )
 import qualified Data.Map.Strict as Map
@@ -87,9 +89,9 @@ import UnliftIO.MVar
 
 -- | A class to link an existing context to a worker context.
 class HasType resource (WorkerCtx ctx) => HasWorkerCtx resource ctx where
-    type WorkerCtx ctx :: *
-    type WorkerMsg ctx :: *
-    type WorkerKey ctx :: *
+    type WorkerCtx ctx :: Type
+    type WorkerMsg ctx :: Type
+    type WorkerKey ctx :: Type
     hoistResource
         :: resource
         -> (WorkerMsg ctx -> WorkerLog (WorkerKey ctx) (WorkerMsg ctx))

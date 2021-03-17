@@ -137,8 +137,6 @@ import Cardano.Wallet.Unsafe
     ( unsafeFromHex, unsafeRunExceptT )
 import Control.Monad
     ( forM, forM_, replicateM, replicateM_, unless, void, when, (>=>) )
-import Control.Monad.Fail
-    ( MonadFail )
 import Control.Monad.Trans.Except
     ( withExceptT )
 import Control.Retry
@@ -177,8 +175,6 @@ import Data.Time.Clock
     ( UTCTime, addUTCTime, getCurrentTime )
 import Data.Time.Clock.POSIX
     ( posixSecondsToUTCTime, utcTimeToPOSIXSeconds )
-import Ouroboros.Consensus.Shelley.Node
-    ( sgNetworkMagic )
 import Ouroboros.Network.Magic
     ( NetworkMagic (..) )
 import Ouroboros.Network.NodeToClient
@@ -1695,7 +1691,7 @@ updateSystemStart systemStart =
 -- | Add a @setupScribes[1].scMinSev@ field in a given config object.
 -- The full lens library would be quite helpful here.
 addMinSeverityStdout
-    :: Monad m
+    :: MonadFail m
     => Severity
     -> Aeson.Object
     -> m Aeson.Object

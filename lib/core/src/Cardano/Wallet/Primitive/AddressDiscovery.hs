@@ -41,6 +41,8 @@ import Cardano.Wallet.Primitive.AddressDerivation
     )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..), AddressState (..) )
+import Data.Kind
+    ( Type )
 import Data.List.NonEmpty
     ( NonEmpty )
 
@@ -94,7 +96,7 @@ class IsOurs s Address => IsOwned s key where
 -- instance, in BIP-44, change addresses belong to a particular change chain
 -- (also called "Internal Chain").
 class GenChange s where
-    type ArgGenChange s :: *
+    type ArgGenChange s :: Type
     genChange
         :: ArgGenChange s
         -> s

@@ -85,7 +85,7 @@ import UnliftIO.Process
 
 spec :: Spec
 spec = beforeAll setupMockCommands $ do
-    it "Buildable Command" $ \MockCommands{..} -> do
+    it "Buildable Command" $ \_ -> do
         let command = Command "server"
                 [ "start"
                 , "--port", "8080"
@@ -156,7 +156,7 @@ spec = beforeAll setupMockCommands $ do
         tryReadMVar mvar `shouldReturn` (Just @String "executed")
         assertProcessesExited phs
 
-    it "Handles command not found" $ \MockCommands{..} -> withTestLogging $ \tr -> do
+    it "Handles command not found" $ \_ -> withTestLogging $ \tr -> do
         let commands =
                 [ Command "foobar" [] (pure ()) Inherit Inherit
                 ]

@@ -52,7 +52,7 @@ import Cardano.Wallet.Network.Ports
 import Control.DeepSeq
     ( NFData, rnf )
 import Control.Monad
-    ( forM, mapM_, void )
+    ( forM, void )
 import Criterion.Measurement
     ( getTime, initializeTime, secs )
 import Data.Aeson

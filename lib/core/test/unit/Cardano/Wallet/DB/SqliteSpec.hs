@@ -751,7 +751,7 @@ fileModeSpec =  do
         it "removeDatabase still works if file is opened" $ do
             withDBFactory $ \dir DBFactory{..} -> do
                 -- set up a database file
-                withDatabase testWid $ \(DBLayer{..} :: TestDBSeq) -> pure ()
+                withDatabase testWid $ \(_ :: TestDBSeq) -> pure ()
                 files <- listDirectory dir
                 files `shouldNotBe` mempty
 
@@ -767,7 +767,7 @@ fileModeSpec =  do
                 closed <- newEmptyMVar
 
                 let conn =
-                        withDatabase testWid $ \(DBLayer{..} :: TestDBSeq) -> do
+                        withDatabase testWid $ \(_ :: TestDBSeq) -> do
                             threadDelay 500_000
                             putMVar closed ()
                 let rm = do
@@ -962,7 +962,7 @@ prop_randomOpChunks (KeyValPairs pairs) =
                 `shouldReturn` Set.fromList (k:keys)
 
     shouldBeConsistentWith :: (Eq s, Show s) => DBLayer IO s k -> DBLayer IO s k -> IO ()
-    shouldBeConsistentWith db1@DBLayer{..} db2 = do
+    shouldBeConsistentWith db1 db2 = do
         wids1 <- Set.fromList <$> listWallets' db1
         wids2 <- Set.fromList <$> listWallets' db2
         wids1 `shouldBe` wids2

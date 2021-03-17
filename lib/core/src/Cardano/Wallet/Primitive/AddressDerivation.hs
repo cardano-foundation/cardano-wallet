@@ -120,6 +120,8 @@ import Data.ByteString
     ( ByteString )
 import Data.Coerce
     ( coerce )
+import Data.Kind
+    ( Type )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Proxy
@@ -426,7 +428,7 @@ instance FromText DerivationPrefix where
 data DerivationType = Hardened | Soft | WholeDomain
 
 -- | An interface for doing hard derivations from the root private key
-class HardDerivation (key :: Depth -> * -> *) where
+class HardDerivation (key :: Depth -> Type -> Type) where
     type AddressIndexDerivationType key :: DerivationType
 
     -- | Derives account private key from the given root private key, using
@@ -462,7 +464,7 @@ class HardDerivation (key :: Depth -> * -> *) where
         -> key 'AddressK XPrv
 
 -- | An interface for doing soft derivations from an account public key
-class HardDerivation key => SoftDerivation (key :: Depth -> * -> *) where
+class HardDerivation key => SoftDerivation (key :: Depth -> Type -> Type) where
     -- | Derives address public key from the given account public key, using
     -- derivation scheme 2 (see <https://github.com/input-output-hk/cardano-crypto/ cardano-crypto>
     -- package for more details).
@@ -688,7 +690,7 @@ instance KnownNat pm => NetworkDiscriminantVal ('Staging pm) where
                      Interface over keys / address types
 -------------------------------------------------------------------------------}
 
-class WalletKey (key :: Depth -> * -> *) where
+class WalletKey (key :: Depth -> Type -> Type) where
     -- | Re-encrypt a private key using a different passphrase.
     --
     -- **Important**:
@@ -780,7 +782,7 @@ instance DelegationAddress 'Mainnet k => DelegationAddress ('Staging pm) k where
 
 -- | Operations for saving a private key into a database, and restoring it from
 -- a database. The keys should be encoded in hexadecimal strings.
-class PersistPrivateKey (key :: * -> *) where
+class PersistPrivateKey (key :: Type -> Type) where
     -- | Convert a private key and its password hash into hexadecimal strings
     -- suitable for storing in a text file or database column.
     serializeXPrv
@@ -795,7 +797,7 @@ class PersistPrivateKey (key :: * -> *) where
 
 -- | Operations for saving a public key into a database, and restoring it from
 -- a database. The keys should be encoded in hexadecimal strings.
-class PersistPublicKey (key :: * -> *) where
+class PersistPublicKey (key :: Type -> Type) where
     -- | Convert a private key and its password hash into hexadecimal strings
     -- suitable for storing in a text file or database column.
     serializeXPub
@@ -830,7 +832,7 @@ instance NFData (KeyFingerprint s key)
 -- 1. For 'ByronKey', it can only be the address itself!
 -- 2. For 'ShelleyKey', then the "payment" fingerprint refers to the payment key
 --    within a single or grouped address.
-class Show from => MkKeyFingerprint (key :: Depth -> * -> *) from where
+class Show from => MkKeyFingerprint (key :: Depth -> Type -> Type) from where
     paymentKeyFingerprint
         :: from
         -> Either

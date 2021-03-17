@@ -72,7 +72,7 @@ import Cardano.Wallet.Shelley.Launch.Cluster
 import Control.Arrow
     ( first )
 import Control.Monad
-    ( mapM_, replicateM, replicateM_ )
+    ( replicateM, replicateM_ )
 import Control.Monad.IO.Class
     ( liftIO )
 import Data.Aeson

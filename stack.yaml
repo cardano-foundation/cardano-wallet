@@ -1,9 +1,9 @@
-# This resolver file contains a ghc-8.6.5-based stackage LTS, with a
+# This resolver file contains a ghc-8.10.4-based stackage LTS, with a
 # released cardano-node version, and supporting libraries.
 #
 # NOTE: Remember to update the version matrix in README.md when
 # bumping the Cardano version.
-resolver: https://raw.githubusercontent.com/input-output-hk/cardano-haskell/1c257e85cadb503ced0fe0a9ba757ae449baaf0b/snapshots/cardano-1.25.1.yaml
+resolver: https://raw.githubusercontent.com/input-output-hk/cardano-haskell/11d4c21b9cae4507636c332fc34947af914dc706/snapshots/cardano-1.25.1-GHC-8.10.4.yaml
 
 packages:
 - lib/core
@@ -16,54 +16,16 @@ packages:
 - lib/shelley
 - lib/strict-non-empty-containers
 
+allow-newer: true
+
 extra-deps:
-# Miscellaneous
+- Cabal-3.4.0.0
 - OddWord-1.0.2.0
+- async-timer-0.2.0.0
 - command-0.1.1
-- wai-extra-3.0.29.1
-- primitive-addr-0.1.0.2
-- quickcheck-classes-0.6.4.0
-- quickcheck-classes-base-0.6.1.0
-
-# Needed because network > 3.1 is needed
-- servant-0.17
-- servant-server-0.17
-- servant-client-core-0.17
-- servant-client-0.17
-- servant-openapi3-2.0.0.1
-
-# 'zip' with an extra flag to disable bzlib2 library
-- zip-1.3.0
-
-# Needed for recently introduced support of TLS-1.3
-- tls-1.5.4
-
-# Pruned GHC boot packages which need to be here for stack to work on windows.
-- directory-1.3.3.0
-- process-1.6.5.0
-- time-1.8.0.2
-
-# openapi3 package and dependencies which aren't in the stackage LTS.
-- openapi3-3.0.0.1
-- optics-0.3
-- optics-core-0.3.0.1
-- optics-extra-0.3
-- optics-th-0.3.0.2
-- optics-vl-0.2.1
-- insert-ordered-containers-0.2.3.1
-- base-compat-0.11.2
-- base-compat-batteries-0.11.2
-- indexed-profunctors-0.1
-
-# persistent-2.10.2 with CASCADE DELETE support for SQLite.
-#
-# See: https://github.com/input-output-hk/persistent/tree/cardano-wallet
-- git: https://github.com/input-output-hk/persistent
-  commit: 107787ecc4c8a112375493cd66574f788f950fce
-  subdirs:
-    - persistent
-    - persistent-sqlite
-    - persistent-template
+- markov-chain-usage-model-0.0.0
+- parsec-3.1.14.0
+- quickcheck-state-machine-0.7.0
 
 # cardano-addresses-3.2.0
 - git: https://github.com/input-output-hk/cardano-addresses
@@ -91,194 +53,8 @@ flags:
   cryptonite:
     support_rdrand: false
 
-# Generate files required by Weeder.
-# See https://github.com/ndmitchell/weeder/issues/53
-ghc-options: {"$locals": -ddump-to-file -ddump-hi}
-
 nix:
   shell-file: nix/stack-shell.nix
   # Disabling the pure nix-shell allows environment variables to be
   # passed down to tests. We need this for integration tests.
   pure: false
-
-
-# !!! This can be dropped when cabal-3.4.0.0 is released !!!
-#
-#+BEGIN_STACK2CABAL
-# package cardano-crypto
-#   tests: False
-#   benchmarks: False
-#
-# package contra-tracer
-#   tests: False
-#   benchmarks: False
-#
-# package iohk-monitoring
-#   tests: False
-#   benchmarks: False
-#
-# package zip
-#   tests: False
-#   benchmarks: False
-#
-# package cardano-crypto-praos
-#   tests: False
-#   benchmarks: False
-#
-# package byron-spec-ledger
-#   tests: False
-#   benchmarks: False
-#
-# package ouroboros-consensus-cardano
-#   tests: False
-#   benchmarks: False
-#
-# package small-steps
-#   tests: False
-#   benchmarks: False
-#
-# package small-steps-test
-#   tests: False
-#   benchmarks: False
-#
-# package ouroboros-consensus
-#   tests: False
-#   benchmarks: False
-#
-# package ouroboros-consensus-byron
-#   tests: False
-#   benchmarks: False
-#
-# package ouroboros-consensus-shelley
-#   tests: False
-#   benchmarks: False
-#
-# package ouroboros-consensus-mock
-#   tests: False
-#   benchmarks: False
-#
-# package cborg
-#   tests: False
-#   benchmarks: False
-#
-# package http-client
-#   tests: False
-#   benchmarks: False
-#
-# package goblins
-#   tests: False
-#   benchmarks: False
-#
-# package io-sim
-#   tests: False
-#   benchmarks: False
-#
-# package io-sim-classes
-#   tests: False
-#   benchmarks: False
-#
-# package shelley-spec-non-integral
-#   tests: False
-#   benchmarks: False
-#
-# package network-mux
-#   tests: False
-#   benchmarks: False
-#
-# package typed-protocols
-#   tests: False
-#   benchmarks: False
-#
-# package typed-protocols-examples
-#   tests: False
-#   benchmarks: False
-#
-# package cardano-prelude
-#   tests: False
-#   benchmarks: False
-#
-# package cardano-binary
-#   tests: False
-#   benchmarks: False
-#
-# package cardano-sl-x509
-#   tests: False
-#   benchmarks: False
-#
-# package cardano-crypto-class
-#   tests: False
-#   benchmarks: False
-#
-# package cardano-crypto-wrapper
-#   tests: False
-#   benchmarks: False
-#
-# package ouroboros-network-framework
-#   tests: False
-#   benchmarks: False
-#
-# package ouroboros-network
-#   tests: False
-#   benchmarks: False
-#
-# package byron-spec-chain
-#   tests: False
-#   benchmarks: False
-#
-# package cardano-addresses
-#   tests: False
-#   benchmarks: False
-#
-# package cardano-api
-#   tests: False
-#   benchmarks: False
-#
-# package cardano-cli
-#   tests: False
-#   benchmarks: False
-#
-# package cardano-crypto
-#   tests: False
-#   benchmarks: False
-#
-# package cardano-ledger
-#   tests: False
-#   benchmarks: False
-#
-# package cardano-node
-#   tests: False
-#   benchmarks: False
-#
-# package cardano-transactions
-#   tests: False
-#   benchmarks: False
-#
-# package lobemo-backend-monitoring
-#   tests: False
-#   benchmarks: False
-#
-# package ntp-client
-#   tests: False
-#   benchmarks: False
-#
-# package ouroboros-consensus-test-infra
-#   tests: False
-#   benchmarks: False
-#
-# package persistent
-#   tests: False
-#   benchmarks: False
-#
-# package persistent-sqlite
-#   tests: False
-#   benchmarks: False
-#
-# package persistent-template
-#   tests: False
-#   benchmarks: False
-#
-# package shelley-spec-ledger-test
-#   tests: False
-#   benchmarks: False
-#
-#+END_STACK2CABAL

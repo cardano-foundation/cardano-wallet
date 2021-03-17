@@ -105,7 +105,7 @@ import Cardano.Wallet.Primitive.Types.TokenQuantity
 import Control.DeepSeq
     ( NFData )
 import Control.Monad
-    ( guard, mapM, when, (<=<) )
+    ( guard, when, (<=<) )
 import Data.Aeson
     ( FromJSON (..), ToJSON (..), camelTo2, genericParseJSON, genericToJSON )
 import Data.Aeson.Types

@@ -611,7 +611,7 @@ prop_putBeforeInit
     -> (PrimaryKey WalletId, a)
         -- ^ Property arguments
     -> Property
-prop_putBeforeInit putOp readOp empty db@DBLayer{..} (key@(PrimaryKey wid), a) =
+prop_putBeforeInit putOp readOp empty db (key@(PrimaryKey wid), a) =
     monadicIO (setup >> prop)
   where
     setup = liftIO (cleanDB db)

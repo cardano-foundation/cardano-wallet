@@ -171,7 +171,7 @@
             (hsPkgs."QuickCheck" or (errorHandler.buildDepError "QuickCheck"))
             ];
           build-tools = [
-            (hsPkgs.buildPackages.hspec-discover or (pkgs.buildPackages.hspec-discover or (errorHandler.buildToolDepError "hspec-discover")))
+            (hsPkgs.buildPackages.hspec-discover.components.exes.hspec-discover or (pkgs.buildPackages.hspec-discover or (errorHandler.buildToolDepError "hspec-discover:hspec-discover")))
             ];
           buildable = true;
           };
@@ -198,7 +198,7 @@
             (hsPkgs."unliftio" or (errorHandler.buildDepError "unliftio"))
             ];
           build-tools = [
-            (hsPkgs.buildPackages.cardano-wallet or (pkgs.buildPackages.cardano-wallet or (errorHandler.buildToolDepError "cardano-wallet")))
+            (hsPkgs.buildPackages.cardano-wallet.components.exes.cardano-wallet or (pkgs.buildPackages.cardano-wallet or (errorHandler.buildToolDepError "cardano-wallet:cardano-wallet")))
             ];
           buildable = true;
           };

@@ -10,69 +10,65 @@
   {
     flags = {};
     package = {
-      specVersion = "1.18";
-      identifier = { name = "weeder"; version = "1.0.9"; };
+      specVersion = "3.0";
+      identifier = { name = "weeder"; version = "2.1.3"; };
       license = "BSD-3-Clause";
-      copyright = "Neil Mitchell 2017-2020";
-      maintainer = "Neil Mitchell <ndmitchell@gmail.com>";
-      author = "Neil Mitchell <ndmitchell@gmail.com>";
-      homepage = "https://github.com/ndmitchell/weeder#readme";
+      copyright = "Neil Mitchell 2017-2020, Oliver Charles 2020";
+      maintainer = "Ollie Charles <ollie@ocharles.org.uk>";
+      author = "Ollie Charles <ollie@ocharles.org.uk>";
+      homepage = "https://github.com/ocharles/weeder#readme";
       url = "";
       synopsis = "Detect dead code";
-      description = "Find redundant package dependencies or redundant module exports.";
+      description = "Find declarations.";
       buildType = "Simple";
       isLocal = true;
       detailLevel = "FullDetails";
       licenseFiles = [ "LICENSE" ];
-      dataDir = "";
+      dataDir = ".";
       dataFiles = [];
       extraSrcFiles = [];
       extraTmpFiles = [];
-      extraDocFiles = [ "README.md" "CHANGES.txt" ];
+      extraDocFiles = [ "README.md" "CHANGELOG.md" ];
       };
     components = {
       "library" = {
         depends = [
+          (hsPkgs."algebraic-graphs" or (errorHandler.buildDepError "algebraic-graphs"))
           (hsPkgs."base" or (errorHandler.buildDepError "base"))
-          (hsPkgs."text" or (errorHandler.buildDepError "text"))
-          (hsPkgs."unordered-containers" or (errorHandler.buildDepError "unordered-containers"))
-          (hsPkgs."yaml" or (errorHandler.buildDepError "yaml"))
-          (hsPkgs."vector" or (errorHandler.buildDepError "vector"))
-          (hsPkgs."hashable" or (errorHandler.buildDepError "hashable"))
-          (hsPkgs."directory" or (errorHandler.buildDepError "directory"))
-          (hsPkgs."deepseq" or (errorHandler.buildDepError "deepseq"))
-          (hsPkgs."filepath" or (errorHandler.buildDepError "filepath"))
-          (hsPkgs."cmdargs" or (errorHandler.buildDepError "cmdargs"))
-          (hsPkgs."yaml" or (errorHandler.buildDepError "yaml"))
-          (hsPkgs."aeson" or (errorHandler.buildDepError "aeson"))
           (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
-          (hsPkgs."foundation" or (errorHandler.buildDepError "foundation"))
-          (hsPkgs."process" or (errorHandler.buildDepError "process"))
-          (hsPkgs."extra" or (errorHandler.buildDepError "extra"))
-          ] ++ (pkgs.lib).optional (compiler.isGhc && (compiler.version).lt "8.0") (hsPkgs."semigroups" or (errorHandler.buildDepError "semigroups"));
-        buildable = true;
-        modules = [
-          "Cabal"
-          "Hi"
-          "Stack"
-          "Util"
-          "Check"
-          "Warning"
-          "CmdLine"
-          "Str"
-          "Paths_weeder"
-          "Weeder"
+          (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
+          (hsPkgs."dhall" or (errorHandler.buildDepError "dhall"))
+          (hsPkgs."directory" or (errorHandler.buildDepError "directory"))
+          (hsPkgs."filepath" or (errorHandler.buildDepError "filepath"))
+          (hsPkgs."generic-lens" or (errorHandler.buildDepError "generic-lens"))
+          (hsPkgs."ghc" or (errorHandler.buildDepError "ghc"))
+          (hsPkgs."lens" or (errorHandler.buildDepError "lens"))
+          (hsPkgs."mtl" or (errorHandler.buildDepError "mtl"))
+          (hsPkgs."optparse-applicative" or (errorHandler.buildDepError "optparse-applicative"))
+          (hsPkgs."regex-tdfa" or (errorHandler.buildDepError "regex-tdfa"))
+          (hsPkgs."text" or (errorHandler.buildDepError "text"))
+          (hsPkgs."transformers" or (errorHandler.buildDepError "transformers"))
           ];
+        buildable = true;
+        modules = [ "Paths_weeder" "Weeder" "Weeder/Config" "Weeder/Main" ];
         hsSourceDirs = [ "src" ];
         };
       exes = {
         "weeder" = {
           depends = [
             (hsPkgs."base" or (errorHandler.buildDepError "base"))
+            (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
+            (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
+            (hsPkgs."directory" or (errorHandler.buildDepError "directory"))
+            (hsPkgs."filepath" or (errorHandler.buildDepError "filepath"))
+            (hsPkgs."ghc" or (errorHandler.buildDepError "ghc"))
+            (hsPkgs."optparse-applicative" or (errorHandler.buildDepError "optparse-applicative"))
+            (hsPkgs."transformers" or (errorHandler.buildDepError "transformers"))
             (hsPkgs."weeder" or (errorHandler.buildDepError "weeder"))
             ];
           buildable = true;
-          mainPath = [ "src/Main.hs" ];
+          hsSourceDirs = [ "exe-weeder" ];
+          mainPath = [ "Main.hs" ];
           };
         };
       };

@@ -49,8 +49,6 @@ import Cardano.BM.Data.Tracer
     )
 import Cardano.BM.Trace
     ( Trace, traceNamedItem )
-import Control.Applicative
-    ( (<*) )
 import Control.Monad
     ( when )
 import Control.Monad.IO.Unlift

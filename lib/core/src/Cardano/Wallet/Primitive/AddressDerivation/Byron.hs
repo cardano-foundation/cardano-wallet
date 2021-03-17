@@ -96,6 +96,8 @@ import Data.ByteArray
     ( ScrubbedBytes )
 import Data.ByteString
     ( ByteString )
+import Data.Kind
+    ( Type )
 import Data.Proxy
     ( Proxy (..) )
 import GHC.Generics
@@ -132,7 +134,7 @@ deriving instance (Show key, Show (DerivationPathFrom depth)) => Show (ByronKey 
 deriving instance (Eq key, Eq (DerivationPathFrom depth)) => Eq (ByronKey depth key)
 
 -- | The hierarchical derivation indices for a given level/depth.
-type family DerivationPathFrom (depth :: Depth) :: * where
+type family DerivationPathFrom (depth :: Depth) :: Type where
     -- The root key is generated from the seed.
     DerivationPathFrom 'RootK =
         ()

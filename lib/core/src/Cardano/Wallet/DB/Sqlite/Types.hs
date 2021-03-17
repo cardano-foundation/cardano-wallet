@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE TypeApplications #-}
@@ -765,10 +766,21 @@ instance PersistField POSIXTime where
         . posixSecondsToUTCTime
     fromPersistValue (PersistText time) =
         utcTimeToPOSIXSeconds <$>
-            parseTimeM True defaultTimeLocale
-                (iso8601DateFormat (Just "%H:%M:%S")) (T.unpack time)
+            getEitherText (parseTimeM True defaultTimeLocale
+                (iso8601DateFormat (Just "%H:%M:%S")) (T.unpack time))
     fromPersistValue _ = Left
         "Could not parse POSIX time value"
 
 instance PersistFieldSql POSIXTime where
     sqlType _ = sqlType (Proxy @Text)
+
+
+-- | Newtype to get a MonadFail instance for @Either Text@.
+--
+-- We need it to use @parseTimeM@.
+newtype EitherText a = EitherText { getEitherText :: Either Text a }
+    deriving (Functor, Applicative, Monad) via (Either Text)
+
+instance MonadFail EitherText where
+    fail = EitherText . Left . T.pack
+

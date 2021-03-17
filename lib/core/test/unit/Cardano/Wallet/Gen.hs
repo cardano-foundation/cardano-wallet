@@ -58,7 +58,7 @@ import Data.ByteArray.Encoding
 import Data.List
     ( sortOn )
 import Data.List.Extra
-    ( nubOn )
+    ( nubOrdOn )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -68,7 +68,7 @@ import Data.Ratio
 import Data.Text
     ( Text )
 import Data.Word
-    ( Word, Word32 )
+    ( Word32 )
 import GHC.TypeLits
     ( natVal )
 import Numeric.Natural
@@ -235,7 +235,7 @@ genTxMetadata = do
     i <- vectorOf @Word (length d) arbitrary
     let json = toJSON $ HM.fromList $ zip i d
     case metadataFromJson TxMetadataJsonNoSchema json of
-        Left e -> fail $ show e <> ": " <> show (Aeson.encode json)
+        Left e -> error $ show e <> ": " <> show (Aeson.encode json)
         Right metadata -> pure metadata
 
 -- | Generates a 'TxMetadata' containing only simple values.
@@ -258,7 +258,7 @@ shrinkTxMetadata (TxMetadata m) = TxMetadata . Map.fromList
 
 shrinkTxMetadataValue :: TxMetadataValue -> [TxMetadataValue]
 shrinkTxMetadataValue (TxMetaMap xs) =
-    TxMetaMap . sortOn fst . nubOn fst <$> shrinkList shrinkPair xs
+    TxMetaMap . sortOn fst . nubOrdOn fst <$> shrinkList shrinkPair xs
   where
     shrinkPair (k,v) =
         ((k,) <$> shrinkTxMetadataValue v) ++

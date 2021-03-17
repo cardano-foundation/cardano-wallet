@@ -52,8 +52,6 @@ import Cardano.Wallet.Primitive.Types.Address
     ( Address )
 import Control.Monad
     ( (>=>) )
-import Control.Monad.Fail
-    ( MonadFail )
 import Control.Monad.Trans.Except
     ( ExceptT (..), runExceptT )
 import Data.Binary.Get

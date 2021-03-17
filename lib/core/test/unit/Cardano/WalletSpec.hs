@@ -31,7 +31,6 @@ import Cardano.Wallet
     , ErrSubmitTx (..)
     , ErrUpdatePassphrase (..)
     , ErrWithRootKey (..)
-    , ErrWithRootKey (..)
     , WalletLayer (..)
     )
 import Cardano.Wallet.DB
@@ -98,7 +97,6 @@ import Cardano.Wallet.Primitive.Types.RewardAccount
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..)
     , SealedTx (..)
-    , TransactionInfo (txInfoMeta)
     , TransactionInfo (..)
     , Tx (..)
     , TxIn (..)

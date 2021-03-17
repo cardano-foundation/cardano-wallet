@@ -1,9 +1,12 @@
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE QuasiQuotes #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -32,8 +35,6 @@ import Data.Time.Clock.POSIX
     ( POSIXTime )
 import Data.Word
     ( Word32, Word64, Word8 )
-import Database.Persist.Class
-    ( AtLeastOneUniqueKey (..), OnlyOneUniqueKey (..) )
 import Database.Persist.TH
     ( mkDeleteCascade, mkMigrate, mkPersist, persistLowerCase, share )
 import GHC.Generics
@@ -106,7 +107,7 @@ PoolOwner sql=pool_owner
     poolOwnerIndex              Word8               sql=pool_owner_index
 
     Primary poolOwnerPoolId poolOwnerSlot poolOwnerSlotInternalIndex poolOwnerOwner poolOwnerIndex
-    Foreign PoolRegistration fk_registration_pool_id poolOwnerPoolId poolOwnerSlot poolOwnerSlotInternalIndex ! ON DELETE CASCADE
+    Foreign PoolRegistration OnDeleteCascade fk_registration_pool_id poolOwnerPoolId poolOwnerSlot poolOwnerSlotInternalIndex
     deriving Show Generic
 
 -- Mapping of registration certificate to pool

@@ -195,6 +195,8 @@ import Data.Generics.Labels
     ()
 import Data.Int
     ( Int32 )
+import Data.Kind
+    ( Type )
 import Data.List
     ( intercalate )
 import Data.Map.Strict
@@ -1315,7 +1317,7 @@ getPoolRetirementCertificate = \case
 
 -- | A newtype to wrap raw bytestring representing signed data, captured with a
 -- phantom type.
-newtype Signature (what :: *) = Signature { getSignature :: ByteString }
+newtype Signature (what :: Type) = Signature { getSignature :: ByteString }
     deriving stock (Show, Eq, Generic)
     deriving newtype (ByteArrayAccess)
 

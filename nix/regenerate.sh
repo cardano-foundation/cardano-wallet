@@ -2,4 +2,10 @@
 
 set -euo pipefail
 
-exec $(nix-build `dirname $0`/. -A stackNixRegenerate --no-out-link) "$@"
+nix="$(dirname "$0")/default.nix"
+
+# Regenerate stack-to-nix files in ./.stack-nix
+$(nix-build "$nix" -A stackNixRegenerate --no-out-link) "$@"
+
+# Regenerate materialized haskell-build-tools in ./materialized
+$(nix-build "$nix" -A haskell-build-tools.regenerateMaterialized --no-out-link)/bin/regenerate-materialized-nix

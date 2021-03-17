@@ -57,7 +57,7 @@ import Network.TLS.Extra.Cipher
 import Network.Wai
     ( responseLBS )
 import System.FilePath
-    ( FilePath, (</>) )
+    ( (</>) )
 import Test.Hspec
     ( Spec, describe, it, shouldBe, shouldThrow )
 import Test.Utils.Paths
@@ -199,6 +199,7 @@ mkHttpsManagerSettings TlsConfiguration{tlsCaCert,tlsSvCert,tlsSvKey} = do
         , sharedCAStore = makeCertificateStore caChain
         , sharedSessionManager = noSessionManager
         , sharedValidationCache = def
+        , sharedHelloExtensions = def
         }
 
     clientHooks credentials = def

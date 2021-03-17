@@ -97,7 +97,6 @@ import Control.Monad.Class.MonadSTM
     , newTQueue
     , newTVar
     , putTMVar
-    , putTMVar
     , readTMVar
     , readTVar
     , takeTMVar

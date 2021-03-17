@@ -50,7 +50,6 @@ import Cardano.Wallet.TokenMetadata
     , PropertyValue
     , Signature (..)
     , Subject (..)
-    , Subject
     , SubjectProperties (..)
     , propertyName
     )

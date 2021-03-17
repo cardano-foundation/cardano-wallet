@@ -56,8 +56,6 @@ import Cardano.Wallet.Primitive.Types.Hash
     ( Hash )
 import Cardano.Wallet.Primitive.Types.Tx
     ( TransactionInfo, Tx (..), TxMeta, TxStatus )
-import Control.Monad.Fail
-    ( MonadFail )
 import Control.Monad.IO.Class
     ( MonadIO )
 import Control.Monad.Trans.Except
