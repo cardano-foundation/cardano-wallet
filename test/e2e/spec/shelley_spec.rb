@@ -252,7 +252,46 @@ RSpec.describe CardanoWallet::Shelley do
   describe CardanoWallet::Shelley::StakePools do
 
     after(:each) do
+      settings = CardanoWallet.new.misc.settings
+      s = settings.update({:pool_metadata_source => "none"})
       teardown
+    end
+    
+    it "ADP-634 - Pool metadata is updated when settings are updated" do
+      settings = CardanoWallet.new.misc.settings
+      pools = SHELLEY.stake_pools
+
+      s = settings.update({:pool_metadata_source => "direct"})
+      expect(s).to have_http 204
+
+      eventually "Pools have metadata when 'pool_metadata_source' => 'direct'" do
+        sps = pools.list({stake: 1000})
+        sps.select{|p| p['metadata']}.size > 0
+      end
+
+      s = settings.update({:pool_metadata_source => "none"})
+      expect(s).to have_http 204
+
+      eventually "Pools have no metadata when 'pool_metadata_source' => 'none'" do
+        sps = pools.list({stake: 1000})
+        sps.select{|p| p['metadata']}.size == 0
+      end
+
+      s = settings.update({:pool_metadata_source => ENV['TESTS_E2E_SMASH']})
+      expect(s).to have_http 204
+
+      eventually "Pools have metadata when 'pool_metadata_source' => '#{ENV['TESTS_E2E_SMASH']}'" do
+        sps = pools.list({stake: 1000})
+        sps.select{|p| p['metadata']}.size > 0
+      end
+
+      s = settings.update({:pool_metadata_source => "none"})
+      expect(s).to have_http 204
+
+      eventually "Pools have no metadata when 'pool_metadata_source' => 'none'" do
+        sps = pools.list({stake: 1000})
+        sps.select{|p| p['metadata']}.size == 0
+      end
     end
 
     describe "Stake Pools GC Maintenance" do

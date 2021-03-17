@@ -17,3 +17,4 @@ ENV['TESTS_WALLET_DB'] ||= File.join(ENV['TESTS_E2E_STATEDIR'], "wallet_db")
 ENV['TESTS_E2E_BINDIR'] ||= "./bins"
 
 ENV['TESTS_E2E_TOKEN_METADATA'] ||= "https://metadata.cardano-testnet.iohkdev.io/"
+ENV['TESTS_E2E_SMASH'] ||= "https://smash.cardano-testnet.iohkdev.io"
