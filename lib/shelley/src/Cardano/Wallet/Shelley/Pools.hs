@@ -764,6 +764,7 @@ monitorMetadata gcStatus tr sp db@(DBLayer{..}) = do
         -> IO Void
     fetchMetadata manager strategies = do
         inFlights <- STM.atomically $ newTBQueue maxInFlight
+        settings <- atomically readSettings
         endlessly [] $ \keys -> do
             refs <- nub . (\\ keys) <$> atomically (unfetchedPoolMetadataRefs limit)
             when (null refs) $ do
@@ -772,9 +773,13 @@ monitorMetadata gcStatus tr sp db@(DBLayer{..}) = do
             forM refs $ \k@(pid, url, hash) -> k <$ withAvailableSeat inFlights (do
                 fetchFromRemote trFetch strategies manager pid url hash >>= \case
                     Nothing ->
-                        atomically $ putFetchAttempt (url, hash)
+                        atomically $ do
+                            settings' <- readSettings
+                            when (settings == settings') $ putFetchAttempt (url, hash)
                     Just meta -> do
-                        atomically $ putPoolMetadata hash meta
+                        atomically $ do
+                            settings' <- readSettings
+                            when (settings == settings') $ putPoolMetadata hash meta
                 )
       where
         -- Twice 'maxInFlight' so that, when removing keys currently in flight,

@@ -41,8 +41,6 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
     end
 
     after(:all) do
-      settings = CardanoWallet.new.misc.settings
-      s = settings.update({:pool_metadata_source => "none"})
       @nighly_byron_wallets.each do |wid|
         BYRON.wallets.delete wid
       end
@@ -343,29 +341,6 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
             tx = SHELLEY.transactions.get(@target_id_pools, quit_tx_id)
             tx['status'] == "in_ledger"
           end
-        end
-
-        it "Pool metadata is updated when settings are updated" do
-          skip "ADP-634 - metadata not cleaned properly"
-          settings = CardanoWallet.new.misc.settings
-          pools = SHELLEY.stake_pools
-
-          s = settings.update({:pool_metadata_source => "direct"})
-          expect(s).to have_http 204
-
-          eventually "Pools have metadata when 'pool_metadata_source' => 'direct'" do
-            sps = pools.list({stake: 1000})
-            sps.select{|p| p['metadata']}.size > 0
-          end
-
-          s = settings.update({:pool_metadata_source => "none"})
-          expect(s).to have_http 204
-
-          eventually "Pools have no metadata when 'pool_metadata_source' => 'none'" do
-            sps = pools.list({stake: 1000})
-            sps.select{|p| p['metadata']}.size == 0
-          end
-
         end
       end
 

@@ -246,7 +246,7 @@ task :get_docker_logs do
   cmd "sudo chmod a+rw #{LOGS}/wallet.log"
 end
 
-task :run_on, [:env, :installation, :sync_strategy] do |task, args|
+task :run_on, [:env, :installation, :sync_strategy, :skip_configs] do |task, args|
   puts "\n>> Setting up env and running tests..."
   puts "TESTS_E2E_STATEDIR=#{STATE}"
   env = args[:env]
@@ -260,7 +260,7 @@ task :run_on, [:env, :installation, :sync_strategy] do |task, args|
   end
 
   Rake::Task[:fixture_wallets_decode].invoke
-  Rake::Task[:get_latest_configs].invoke(env)
+  Rake::Task[:get_latest_configs].invoke(env) unless args[:skip_configs]
   Rake::Task[:start_node_and_wallet].invoke(env, installation)
 
   if sync_strategy == "no-sync"
