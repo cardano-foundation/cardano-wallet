@@ -1,5 +1,7 @@
 The [Nix build server](https://github.com/NixOS/hydra) - not to be confused with [Ouroboros Hydra](https://eprint.iacr.org/2020/299).
 
+For general information about nix, see [Nix](./Nix).
+
 ## Jobset
 
 The Hydra jobset is defined by [`release.nix`](https://github.com/input-output-hk/cardano-wallet/blob/master/release.nix). There are some explanatory comments at the top of this file.
@@ -56,20 +58,3 @@ failed, until the evaluation succeeds.
 ## Restarting builds
 
 Sign in with the [adrestia](https://hydra.iohk.io/dashboard/adrestia) user to restart build jobs.
-
-
-## Binary cache
-
-See [iohk-nix/docs/nix.md](https://github.com/input-output-hk/iohk-nix/blob/8b1d65ba294708b12d7b15103ac35431d9b60819/docs/nix.md)
-for information on configuring the Hydra binary cache on your system.
-
-**Note**: It must be stressed that, if you see GHC being built by Nix,
-then you don't have the Hydra binary cache configured correctly.
-
-
-## Installing/Upgrading Nix
-
-The required version of Nix is 2.3.8.
-
-- [Nix Package Manager Guide: Installation](https://nixos.org/manual/nix/stable/#ch-installing-binary)
-- [Nix Package Manager Guide: Upgrading Nix](https://nixos.org/manual/nix/stable/#ch-upgrading-nix)

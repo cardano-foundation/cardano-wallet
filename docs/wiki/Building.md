@@ -1,6 +1,23 @@
-# Stack (recommended)
+# Prerequisites
 
-Use [Haskell Stack](https://haskellstack.org/) to build this project:
+`cardano-wallet` supports the following Haskell build tool versions.
+
+|  | **Supported version** | **Dependency?** |
+| --- | --- | --- |
+| [stack][] | >= 1.9.3 | Required, recommended |
+| [ghc][] | == 8.10.4 | Required |
+| [cabal][] | >= 3.2.0.0 | Optional |
+| [nix](./Nix) | >= 2.3.8 | Optional |
+
+See [`nix/build-tools-overlay.nix`](https://github.com/input-output-hk/cardano-wallet/blob/master/nix/build-tools-overlay.nix) for a list of other Haskell development tools that are used. CI will use exactly the versions specified in this file.
+
+[stack]: https://haskellstack.org/
+[cabal]: https://www.haskell.org/cabal/download.html
+[ghc]: https://www.haskell.org/downloads/
+
+# Stack
+
+Use [Haskell Stack][stack] to build this project:
 
 ```
 stack build --test --no-run-tests
@@ -11,7 +28,7 @@ libraries for the build to succeed.
 
 # Cabal 
 
-Download [Cabal](https://www.haskell.org/cabal/download.html) to build this project. Currently recommended version: 3.2.0.0
+Alternatively Download  to build this project.
 
 1. Update your `cabal` index (this may take a while):
 
@@ -22,7 +39,27 @@ Download [Cabal](https://www.haskell.org/cabal/download.html) to build this proj
 2. Build the project
 
    ```console
-   cabal install cardano-wallet --install-method=copy --installdir=/usr/local/bin
+   cabal build all
+   ```
+
+3. Run executables or tests
+
+   Show the help page for `cardano-wallet`:
+   
+   ```console
+   cabal run cardano-wallet:exe:cardano-wallet -- --help
+   ```
+
+   Run a unit test suite:
+   
+   ```console
+   cabal run cardano-wallet-core:test:unit
+   ```
+
+4. (Optional) Install binaries
+
+   ```console
+   cabal install --install-method=copy --installdir=/usr/local/bin
    ```
 
 ### Syncing `stack` and `cabal` dependencies
@@ -33,7 +70,7 @@ Download [Cabal](https://www.haskell.org/cabal/download.html) to build this proj
 
 # Nix 
 
-Use the Nix build if:
+Use the [Nix](./Nix) build if:
 
 1. You don't have Haskell development tools installed, but you do have
    Nix installed.
@@ -42,9 +79,10 @@ Use the Nix build if:
 3. You would like to quickly grab a build of another branch from the
    Hydra cache, without needing to build it yourself.
 
-Follow the instructions in
-[iohk-nix/docs/nix.md](https://github.com/input-output-hk/cardano-node/blob/468f52e5a6a2f18a2a89218a849d702481819f0b/doc/getting-started/building-the-node-using-nix.md#building-under-nix)
-to install Nix and set up the IOHK binary cache.
+Follow the instructions on the [Nix](./Nix) page to install _and configure_ Nix.
+
+**Note**: It must be stressed that, if you see GHC being built by Nix,
+then you don't have the IOHK Hydra binary cache configured correctly.
 
 To build the wallet for your current platform:
 
@@ -52,8 +90,8 @@ To build the wallet for your current platform:
 nix-build -A cardano-wallet
 ```
 
-If you have no local changes in your git repo, then this will download
-the build from the Hydra cache rather than building locally.
+Unless you have local changes in your git repo, this will download the
+build from the Hydra cache rather than building locally.
 
 ### Cross-compiling with Nix
 
@@ -90,50 +128,7 @@ shows all jobs defined in `release.nix`. Some of the release jobs have a downloa
 - [Windows](https://hydra.iohk.io/job/Cardano/cardano-wallet/cardano-wallet-win64/latest)
 - [macOS](https://hydra.iohk.io/job/Cardano/cardano-wallet/cardano-wallet-macos64/latest)
 
-
-### Code generation
-
-The Nix build depends on code which is generated from `stack.yaml` and
-the Cabal files. If you change these files, then you will probably
-need to update the generated files.
-
-To do this, run:
-
-```
-./nix/regenerate.sh
-```
-
-Then add and commit the files that it creates.
-
-Alternatively, wait for Buildkite to run this same command, and apply
-the patch that it produces.
-
-### Haskell.nix pin
-
-The Nix build also depends on the [Haskell.nix](https://github.com/input-output-hk/haskell.nix) build infrastructure. It may be necessary to update `haskell.nix` when moving to a
-new Haskell LTS version or adding Hackage dependencies.
-
-To update to the latest version, run the following command in a `nix-shell`:
-
-```
-niv update haskell.nix
-```
-
-Then commit the updated
-[sources.json](https://github.com/input-output-hk/cardano-wallet/blob/master/nix/sources.json)
-file.
-
-When updating Haskell.nix, consult the [ChangeLog](https://github.com/input-output-hk/haskell.nix/blob/master/changelog.md) file. There may have been API changes which need corresponding updates in `cardano-wallet`.
-
-### iohk-nix pin
-
-The procedure for updating the [`iohk-nix`](https://github.com/input-output-hk/iohk-nix) library of common code is much the same as for Haskell.nix. Run this in a `nix-shell` and commit the updated `nix/sources.json` file:
-
-```
-niv update iohk-nix
-```
-
-It is not often necessary to update `iohk-nix`. Before updating, ask devops whether there may be changes which affect our build.
+See [Hydra](./Hydra) for more information.
 
 ### Cabal+Nix build
 
