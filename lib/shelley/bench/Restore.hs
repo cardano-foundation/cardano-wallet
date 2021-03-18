@@ -194,6 +194,8 @@ import Numeric
     ( showFFloat )
 import Say
     ( sayErr )
+import System.Exit
+    ( exitWith )
 import System.FilePath
     ( (</>) )
 import System.IO
@@ -220,7 +222,7 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 
 main :: IO ()
-main = execBenchWithNode argsNetworkConfig cardanoRestoreBench
+main = execBenchWithNode argsNetworkConfig cardanoRestoreBench >>= exitWith
 
 {-------------------------------------------------------------------------------
                                 Shelley benchmarks
