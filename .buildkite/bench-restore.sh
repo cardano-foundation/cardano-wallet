@@ -14,20 +14,21 @@ log=restore.log
 results=restore-$network.txt
 total_time=restore-time.txt
 
-: "${NODE_DB:=$HOME/node-db-$network}"
+if [ -n "${SCRATCH_DIR:-}" ]; then
+  mkdir -pv "$SCRATCH_DIR"
+  export TMPDIR="$SCRATCH_DIR/tmp"
+  mkdir -pv "$TMPDIR"
+fi
+
+: "${node_db:=$HOME/node-db-$network}"
 
 echo "--- Build"
 
 nix-build -A benchmarks.cardano-wallet.restore -o bench-restore
 
-bench="./bench-restore/bin/restore $network"
+bench="./bench-restore/bin/restore $network --node-db $node_db"
 
 echo "--- Run benchmarks - $network"
-
-if [ -n "${SCRATCH_DIR:-}" ]; then
-  mkdir -p "$SCRATCH_DIR"
-  export HOME="$SCRATCH_DIR"
-fi
 
 command time -o $total_time -v $bench +RTS -N2 -qg -A1m -I0 -T -M8G -h -RTS 2>&1 | tee $log
 

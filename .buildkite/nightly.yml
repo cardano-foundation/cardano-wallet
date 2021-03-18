@@ -1,7 +1,4 @@
 env:
-  BUILD_DIR: "/build/cardano-wallet"
-  STACK_ROOT: "/build/cardano-wallet.stack"
-  CACHE_DIR: "/cache/cardano-wallet"
   NIX_PATH: "channel:nixos-20.09"
   SCRATCH_DIR: "/scratch/cardano-wallet"
 
