@@ -1,7 +1,7 @@
 [Nix](https://nixos.org) is a package manager and build tool. It is used in `cardano-wallet` for:
  - [Hydra CI](./Hydra)
- - Provisioning dependencies in [Buildkite CI](https://github.com/input-output-hk/cardano-wallet/blob/master/.buildkite/pipeline.yml).
- - Reproducible development environments ([nix-shell](https://github.com/input-output-hk/cardano-wallet/blob/master/shell.nix)).
+ - Provisioning dependencies in [Buildkite CI](https://github.com/input-output-hk/cardano-wallet/blob/master/.buildkite/pipeline.yml#L1).
+ - Reproducible development environments ([nix-shell](https://github.com/input-output-hk/cardano-wallet/blob/master/shell.nix#L1)).
 
 Nix is not required for `cardano-wallet` development, but it can help you a lot if you try.
 
@@ -63,10 +63,10 @@ niv update haskell.nix
 ```
 
 Then commit the updated
-[sources.json](https://github.com/input-output-hk/cardano-wallet/blob/master/nix/sources.json)
+[sources.json](https://github.com/input-output-hk/cardano-wallet/blob/master/nix/sources.json#L1)
 file.
 
-When updating Haskell.nix, consult the [ChangeLog](https://github.com/input-output-hk/haskell.nix/blob/master/changelog.md) file. There may have been API changes which need corresponding updates in `cardano-wallet`.
+When updating Haskell.nix, consult the [ChangeLog](https://github.com/input-output-hk/haskell.nix/blob/master/changelog.md#L1) file. There may have been API changes which need corresponding updates in `cardano-wallet`.
 
 ### iohk-nix pin
 

@@ -1,15 +1,15 @@
 # Prerequisites
 
-`cardano-wallet` supports the following Haskell build tool versions.
+`cardano-wallet` uses the following Haskell build tool versions.
 
 |  | **Supported version** | **Dependency?** |
 | --- | --- | --- |
 | [stack][] | >= 1.9.3 | Required, recommended |
 | [ghc][] | == 8.10.4 | Required |
-| [cabal][] | >= 3.2.0.0 | Optional |
+| [cabal][] | >= 3.4.0.0 | Optional |
 | [nix](./Nix) | >= 2.3.8 | Optional |
 
-See [`nix/build-tools-overlay.nix`](https://github.com/input-output-hk/cardano-wallet/blob/master/nix/build-tools-overlay.nix) for a list of other Haskell development tools that are used. CI will use exactly the versions specified in this file.
+See [`nix/build-tools-overlay.nix`](https://github.com/input-output-hk/cardano-wallet/blob/master/nix/build-tools-overlay.nix#L1) for a list of other Haskell development tools that are used. CI will use exactly the versions specified in this file.
 
 [stack]: https://haskellstack.org/
 [cabal]: https://www.haskell.org/cabal/download.html
@@ -28,9 +28,9 @@ libraries for the build to succeed.
 
 # Cabal 
 
-Alternatively Download  to build this project.
+Alternatively, it's possible to build this project with [Cabal][].
 
-1. Update your `cabal` index (this may take a while):
+1. Update your Hackage index (this may take a while):
 
    ```console
    cabal update
@@ -42,7 +42,7 @@ Alternatively Download  to build this project.
    cabal build all
    ```
 
-3. Run executables or tests
+3. Run executables or tests (examples)
 
    Show the help page for `cardano-wallet`:
    
@@ -148,7 +148,7 @@ for `cardano-wallet`. This will contain:
 
 Inside this shell you can use `cabal new-build` and `ghci` for development.
 
-You must always provide [`cabal-nix.project`](https://github.com/input-output-hk/cardano-wallet/blob/master/cabal-nix.project) as the `--project file` argument when running Cabal.
+You must always provide [`cabal-nix.project`](https://github.com/input-output-hk/cardano-wallet/blob/master/cabal-nix.project#L1) as the `--project file` argument when running Cabal.
 
 ```console
 $ nix-shell

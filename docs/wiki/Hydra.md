@@ -4,7 +4,7 @@ For general information about nix, see [Nix](./Nix).
 
 ## Jobset
 
-The Hydra jobset is defined by [`release.nix`](https://github.com/input-output-hk/cardano-wallet/blob/master/release.nix). There are some explanatory comments at the top of this file.
+The Hydra jobset is defined by [`release.nix`](https://github.com/input-output-hk/cardano-wallet/blob/master/release.nix#L1). There are some explanatory comments at the top of this file.
 
 Here are links to the jobsets for different branches:
 
