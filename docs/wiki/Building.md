@@ -139,16 +139,21 @@ If you run `nix-shell`, it will start a
 [development environment](https://input-output-hk.github.io/haskell.nix/user-guide/development/)
 for `cardano-wallet`. This will contain:
 
-- a GHC configured with a package database containing all Haskell package dependencies;
+- `cabal-install` and a GHC configured with a package database containing all Haskell package dependencies;
 - system library dependencies;
 - a Hoogle index and `hoogle` command for searching documentation;
 - development tools such as `haskell-language-server`, `hlint`, `stylish-haskell`, and `weeder`;
-- the `sqlite3` command; and
-- the Shelley node backend `cardano-node`
+- the `sqlite3` command;
+- the Shelley node backend `cardano-node` and `cardano-cli`; and
+- other Adrestia utility programs such as `cardano-address` and `bech32`
 
-Inside this shell you can use `cabal new-build` and `ghci` for development.
+Inside this shell you can use `cabal build` and `ghci` for development.
 
-You must always provide [`cabal-nix.project`](https://github.com/input-output-hk/cardano-wallet/blob/master/cabal-nix.project#L1) as the `--project file` argument when running Cabal.
+#### Fully cached dependencies
+
+Cabal generally tries to download and build `source-repository-package` dependencies itself, rather than using what's available through `ghc-pkg`.
+
+If you would like to further speed up your build, you may provide [`cabal-nix.project`](https://github.com/input-output-hk/cardano-wallet/blob/master/cabal-nix.project#L1) as the `--project file` argument when running Cabal.
 
 ```console
 $ nix-shell
@@ -170,7 +175,6 @@ the Hydra cache.
 $ nix-shell --arg profiling true
 
 [nix-shell:~/iohk/cardano-wallet]$ cabal build \
-    --project-file=cabal-nix.project \
     --enable-tests --enable-benchmarks \
     --enable-profiling \
     all
