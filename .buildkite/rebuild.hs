@@ -155,6 +155,7 @@ buildStep dryRun bk nightly = do
     build opt args =
         run dryRun "stack" $ concat
             [ color "always"
+            , [ "--no-terminal" ]
             , [ "build" ]
             , [ "--bench" ]
             , [ "--no-run-benchmarks" ]
@@ -168,6 +169,7 @@ buildStep dryRun bk nightly = do
     test opt args =
         run dryRun "stack" $ concat
             [ color "always"
+            , [ "--no-terminal" ]
             , [ "test" ]
             , fast opt
             , case qaLevel nightly bk of
