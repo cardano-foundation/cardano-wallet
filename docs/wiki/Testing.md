@@ -37,14 +37,15 @@ integration tests and test cluster.
 
 | **Variable** | **Type** | **Meaning**                       | **Default** |
 |--------------|----------|-----------------------------------|-------------|
+| `CARDANO_WALLET_PORT` | number | Set a specific port for the wallet HTTP server | Random unused port |
 | `NO_CLEANUP` | bool | Leave the temporary directory after tests have finished. | Delete directory on exit |
 | `CARDANO_WALLET_TRACING_MIN_SEVERITY` | severity | Log level for the cardano-wallet server under test. | Critical |
 | `CARDANO_NODE_TRACING_MIN_SEVERITY` | severity | Log level for the test cluster nodes | Info |
 | `TESTS_TRACING_MIN_SEVERITY` | severity | Log level for test suite and cluster | Notice |
 | `TESTS_LOGDIR` | path | Write log files in the given directory | Log files are written to the tests temp directory |
-| `NO_POOLS` | bool | Don't start any stake pool nodes in the local test cluster. | Pool nodes are started |
 | `TESTS_RETRY_FAILED` | bool | Enable retrying once of failed tests | No retrying |
-| `CARDANO_WALLET_PORT` | number | Set a specific port for the wallet HTTP server | Random unused port |
+| `NO_POOLS` | bool | Don't start any stake pool nodes in the local test cluster. | Pool nodes are started |
+| `TOKEN_METADATA_SERVER` | URL | Use this URL for querying asset metadata | Asset metadata fetching disabled |
 
 Here are the possible values of different types of environment variables:
 
@@ -166,6 +167,12 @@ The default log level for log files is Info.
 
 Only Error level logs are shown on stdout during test execution. To
 change this, set the `*_MIN_SEVERITY` variables shown above.
+
+## Mock servers
+
+Use the `cardano-wallet:mock-token-metadata-server` executable as a
+mock server for asset metadata. See the `--help` output for full
+instructions.
 
 ## Benchmarks
 
