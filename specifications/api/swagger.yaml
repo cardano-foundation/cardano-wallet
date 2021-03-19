@@ -286,9 +286,16 @@ x-cosigner: &cosigner
   pattern: "^(cosigner#)[0-9]*$"
 
 x-cosigners: &cosigners
-  description: Map of cosigners and their account public key. Use key as in &cosigner, eg. "cosigner#"
+  description: Map of cosigners and their account public keys. Use key as in &cosigner, eg. "cosigner#"
   type: object
   additionalProperties: *walletAccountPubkey
+  # Note: propertyNames pattern not supported in current OpenAPI version.
+  # propertyNames:
+  #   pattern: '^(cosigner#)[0-9]*$'
+  example:
+    0: { "cosigner#0": "1423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db11423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db1" }
+    1: { "cosigner#0": "1423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db11423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db1"
+       , "cosigner#3": "1423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db11423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db2" }
 
 x-walletId: &walletId
   description: A unique identifier for the wallet
@@ -2037,17 +2044,44 @@ components:
         - title: Active shared wallet (account public keys for each co-signers is collected)
           <<: *ApiActiveSharedWallet
 
-    ApiSharedWalletPostData: &ApiSharedWalletPostData
+    ApiSharedWalletPostDataFromMnemonics: &ApiSharedWalletPostDataFromMnemonics
       type: object
       required:
-        - retrieve_method
+        - name
+        - mnemonic_sentence
+        - passphrase
         - account_index
         - payment_script_template
       properties:
-        retrieve_method: *ApiWalletOrAccountPostData
+        name: *walletName
+        mnemonic_sentence: *walletMnemonicSentence
+        mnemonic_second_factor: *walletSecondFactor
+        passphrase: *walletPassphrase
         account_index: *derivationSegment
         payment_script_template: *scriptTemplate
         delegation_script_template: *scriptTemplate
+
+    ApiSharedWalletPostDataFromAccountPubX: &ApiSharedWalletPostDataFromAccountPubX
+      type: object
+      required:
+        - name
+        - account_public_key
+        - account_index
+        - payment_script_template
+      properties:
+        name: *walletName
+        account_public_key: *walletAccountPubkey
+        account_index: *derivationSegment
+        payment_script_template: *scriptTemplate
+        delegation_script_template: *scriptTemplate
+
+    ApiSharedWalletPostData: &ApiSharedWalletPostData
+      type: object
+      oneOf:
+        - title: Create shared wallet from mnemonics
+          <<: *ApiSharedWalletPostDataFromMnemonics
+        - title: Create shared wallet from account public key
+          <<: *ApiSharedWalletPostDataFromAccountPubX
 
     ApiSharedWalletPatchData: &ApiSharedWalletPatchData
       type: object
