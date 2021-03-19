@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE DuplicateRecordFields #-}
@@ -448,7 +449,7 @@ data LocalTxSubmissionStatus tx = LocalTxSubmissionStatus
     -- ^ Time of first successful submission to the local node.
     , latestSubmission :: !SlotNo
     -- ^ Time of most recent resubmission attempt.
-    } deriving (Generic, Show, Eq)
+    } deriving stock (Generic, Show, Eq, Functor)
 
 -- | A function capable of assessing the size of a token bundle relative to the
 --   upper limit of what can be included in a single transaction output.

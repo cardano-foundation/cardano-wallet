@@ -172,6 +172,20 @@ TxWithdrawal
     Primary txWithdrawalTxId txWithdrawalAccount
     deriving Show Generic
 
+-- | Transactions sent to the node by LocalTxSubmission.
+-- Submission will be retried until the transaction is no longer pending.
+-- Accepted transactions will be stored in this table until they can no longer be
+-- rolled back.
+LocalTxSubmission
+    localTxSubmissionTxId       TxId         sql=tx_id
+    localTxSubmissionWalletId   W.WalletId   sql=wallet_id
+    localTxSubmissionLastSlot   SlotNo       sql=last_slot
+    localTxSubmissionTx         W.SealedTx   sql=tx
+
+    UniqueLocalTxSubmission localTxSubmissionTxId localTxSubmissionWalletId
+    Primary localTxSubmissionTxId localTxSubmissionWalletId
+    deriving Show Generic
+
 -- A checkpoint for a given wallet is referred to by (wallet_id, slot).
 -- Volatile checkpoint data such as AD state will refer to this table.
 Checkpoint

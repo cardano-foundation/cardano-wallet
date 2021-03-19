@@ -34,6 +34,7 @@ module Cardano.DB.Sqlite
     -- * Helpers
     , chunkSize
     , dbChunked
+    , dbChunkedFor
     , dbChunked'
     , handleConstraint
     , unsafeRunQuery
@@ -617,7 +618,16 @@ dbChunked
     => ([record] -> SqlPersistT IO b)
     -> [record]
     -> SqlPersistT IO ()
-dbChunked = chunkedM (chunkSizeFor @record)
+dbChunked = dbChunkedFor @record
+
+-- | Like 'dbChunked', but generalized for the case where the input list is not
+-- the same type as the record.
+dbChunkedFor
+    :: forall record a b. PersistEntity record
+    => ([a] -> SqlPersistT IO b)
+    -> [a]
+    -> SqlPersistT IO ()
+dbChunkedFor = chunkedM (chunkSizeFor @record)
 
 -- | Like 'dbChunked', but allows bundling elements with a 'Key'. Useful when
 -- used with 'repsertMany'.

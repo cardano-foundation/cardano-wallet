@@ -1,4 +1,6 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GADTs #-}
@@ -55,7 +57,15 @@ import Cardano.Wallet.Primitive.Types.Coin
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( TransactionInfo, Tx (..), TxMeta, TxStatus )
+    ( LocalTxSubmissionStatus
+    , SealedTx
+    , TransactionInfo
+    , Tx (..)
+    , TxMeta
+    , TxStatus
+    )
+import Control.DeepSeq
+    ( NFData )
 import Control.Monad.IO.Class
     ( MonadIO )
 import Control.Monad.Trans.Except
@@ -64,6 +74,8 @@ import Data.Quantity
     ( Quantity (..) )
 import Data.Word
     ( Word32, Word8 )
+import GHC.Generics
+    ( Generic )
 
 import qualified Data.List as L
 
@@ -242,6 +254,23 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         --
         -- If the wallet doesn't exist, this operation returns an error.
 
+    , putLocalTxSubmission
+        :: PrimaryKey WalletId
+        -> Hash "Tx"
+        -> SealedTx
+        -> SlotNo
+        -> ExceptT ErrNoSuchWallet stm ()
+        -- ^ Add or update a transaction in the local submission pool with the
+        -- most recent submission slot.
+
+    , readLocalTxSubmissionPending
+        :: PrimaryKey WalletId
+        -> stm [LocalTxSubmissionStatus SealedTx]
+        -- ^ List all transactions from the local submission pool which are
+        -- still pending as of the latest checkpoint of the given wallet. The
+        -- slot numbers for first submission and most recent submission are
+        -- included.
+
     , updatePendingTxForExpiry
         :: PrimaryKey WalletId
         -> SlotNo
@@ -330,8 +359,8 @@ newtype ErrWalletAlreadyExists
 -- functions like 'enqueueCheckpoint' needs to be associated to a corresponding
 -- wallet. Some other may not because they are information valid for all wallets
 -- (like for instance, the last known network tip).
-newtype PrimaryKey key = PrimaryKey key
-    deriving (Show, Eq, Ord)
+newtype PrimaryKey key = PrimaryKey { unPrimaryKey :: key }
+    deriving (Show, Eq, Ord, Generic, NFData)
 
 -- | Clean a database by removing all wallets.
 cleanDB :: DBLayer m s k -> m ()

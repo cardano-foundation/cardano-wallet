@@ -70,7 +70,7 @@ import Cardano.Wallet.Primitive.Types.TokenPolicy
 import Cardano.Wallet.Primitive.Types.TokenQuantity
     ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.Tx
-    ( Direction (..), TxMetadata, TxStatus (..) )
+    ( Direction (..), SealedTx (..), TxMetadata, TxStatus (..) )
 import Control.Arrow
     ( left )
 import Control.Monad
@@ -244,7 +244,8 @@ instance PathPiece WalletId where
 ----------------------------------------------------------------------------
 -- TxId
 
--- Wraps Hash "Tx" because the persistent dsl doesn't like (Hash "Tx")
+-- | Wraps 'Hash "Tx"' because the persistent entity syntax doesn't seem to
+-- support parameterized types.
 newtype TxId = TxId { getTxId :: Hash "Tx" } deriving (Show, Eq, Ord, Generic)
 
 instance PersistField TxId where
@@ -434,6 +435,16 @@ instance PersistField TxMetadata where
 
 instance PersistFieldSql TxMetadata where
     sqlType _ = sqlType (Proxy @Text)
+
+----------------------------------------------------------------------------
+-- SealedTx - store the serialised tx as a binary blob
+
+instance PersistField SealedTx where
+    toPersistValue = toPersistValue . getSealedTx
+    fromPersistValue = fmap SealedTx . fromPersistValue
+
+instance PersistFieldSql SealedTx where
+    sqlType _ = sqlType (Proxy @ByteString)
 
 ----------------------------------------------------------------------------
 -- Coin
