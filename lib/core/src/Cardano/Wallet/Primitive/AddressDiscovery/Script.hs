@@ -22,7 +22,7 @@
 -- An implementation of shared script state using
 -- scheme specified in CIP-1854 Multi-signature Wallets..
 
-module Cardano.SharedWallet.Script
+module Cardano.Wallet.Primitive.AddressDiscovery.Script
     (
       CredentialType (..)
     , CosignerInfo (..)

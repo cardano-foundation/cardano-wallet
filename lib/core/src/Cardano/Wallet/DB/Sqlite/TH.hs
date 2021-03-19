@@ -27,10 +27,16 @@ module Cardano.Wallet.DB.Sqlite.TH where
 
 import Prelude
 
+import Cardano.Address.Script
+    ( Cosigner, Script )
 import Cardano.Slotting.Slot
     ( SlotNo )
 import Cardano.Wallet.DB.Sqlite.Types
     ( BlockId, HDPassphrase, TxId, sqlSettings' )
+import Cardano.Wallet.Primitive.AddressDiscovery.Script
+    ( CredentialType )
+import Cardano.Wallet.Primitive.AddressDiscovery.SharedState
+    ( SharedWalletState )
 import Data.Quantity
     ( Percentage (..) )
 import Data.Text
@@ -38,7 +44,7 @@ import Data.Text
 import Data.Time.Clock
     ( UTCTime )
 import Data.Word
-    ( Word16, Word32, Word64 )
+    ( Word16, Word32, Word64, Word8 )
 import Database.Persist.TH
     ( mkDeleteCascade, mkMigrate, mkPersist, persistLowerCase, share )
 import GHC.Generics
@@ -372,5 +378,38 @@ RndStatePendingAddress
         rndStatePendingAddressIndex
         rndStatePendingAddressAddress
     Foreign Wallet OnDeleteCascade rnd_state_pending_address rndStatePendingAddressWalletId
+    deriving Show Generic
+
+-- Shared Wallet
+SharedWallet
+    sharedWalletWalletId                 W.WalletId                sql=wallet_id
+    sharedWalletCreationTime             UTCTime                   sql=creation_time
+    sharedWalletName                     Text                      sql=name
+    sharedWalletAccountXPub              B8.ByteString             sql=account_xpub
+    sharedWalletAccountIndex             Word32                    sql=account_ix
+    sharedWalletScriptGap                W.AddressPoolGap          sql=pool_gap
+    sharedWalletPaymentScript            (Script Cosigner)         sql=payment_script
+    sharedWalletDelegationScript         (Script Cosigner) Maybe   sql=delegation_script
+    sharedWalletState                    SharedWalletState         sql=wallet_state
+    sharedWalletPassphraseLastUpdatedAt  UTCTime Maybe             sql=passphrase_last_updated_at
+    sharedWalletPassphraseScheme         W.PassphraseScheme Maybe  sql=passphrase_scheme
+    sharedWalletGenesisHash              BlockId                   sql=genesis_hash
+    sharedWalletGenesisStart             UTCTime                   sql=genesis_start
+
+    Primary sharedWalletWalletId
+    deriving Show Generic
+
+CosignerKey
+    cosignerKeyWalletId                  W.WalletId                sql=wallet_id
+    cosignerKeyCreationTime              UTCTime                   sql=creation_time
+    cosignerKeyCredential                CredentialType            sql=credential
+    cosignerKeyAccountXPub               B8.ByteString             sql=account_xpub
+    cosignerKeyIndex                     Word8                     sql=cosigner_ix
+
+    Primary
+        cosignerKeyWalletId
+        cosignerKeyCredential
+        cosignerKeyIndex
+    Foreign SharedWallet fk_shared_wallet_cosigner_key cosignerKeyWalletId ! ON DELETE CASCADE
     deriving Show Generic
 |]

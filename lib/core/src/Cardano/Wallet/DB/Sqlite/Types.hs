@@ -30,9 +30,9 @@ import Cardano.Api.Typed
     , metadataFromJson
     , metadataToJson
     )
-import Cardano.SharedWallet.Script
+import Cardano.Wallet.Primitive.AddressDiscovery.Script
     ( CredentialType )
-import Cardano.SharedWallet.SharedState
+import Cardano.Wallet.Primitive.AddressDiscovery.SharedState
     ( SharedWalletState )
 import Cardano.Slotting.Slot
     ( SlotNo (..) )
@@ -826,4 +826,3 @@ newtype EitherText a = EitherText { getEitherText :: Either Text a }
 
 instance MonadFail EitherText where
     fail = EitherText . Left . T.pack
-

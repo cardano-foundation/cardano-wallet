@@ -110,7 +110,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     , KnownAddresses (..)
     , coinTypeAda
     )
-import Cardano.SharedWallet.Script
+import Cardano.Wallet.Primitive.AddressDiscovery.Script
     ( constructAddressFromIx )
 import Cardano.Wallet.Primitive.Types
     ( invariant )

@@ -49,6 +49,8 @@ import Prelude
 
 import Cardano.Address.Derivation
     ( XPrv, XPub )
+import Cardano.Address.Script
+    ( Cosigner (..) )
 import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
@@ -79,6 +81,7 @@ import Cardano.DB.Sqlite.Delete
 import Cardano.Wallet.DB
     ( DBFactory (..)
     , DBLayer (..)
+    , ErrAddCosignerKey (..)
     , ErrNoSuchWallet (..)
     , ErrRemoveTx (..)
     , ErrWalletAlreadyExists (..)
@@ -88,6 +91,7 @@ import Cardano.Wallet.DB
     )
 import Cardano.Wallet.DB.Sqlite.TH
     ( Checkpoint (..)
+    , CosignerKey (..)
     , DelegationCertificate (..)
     , DelegationReward (..)
     , EntityField (..)
@@ -99,6 +103,7 @@ import Cardano.Wallet.DB.Sqlite.TH
     , SeqState (..)
     , SeqStateAddress (..)
     , SeqStatePendingIx (..)
+    , SharedWallet (..)
     , StakeKeyCertificate (..)
     , TxIn (..)
     , TxMeta (..)
@@ -129,6 +134,10 @@ import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey (..) )
+import Cardano.Wallet.Primitive.AddressDiscovery.Script
+    ( CosignerInfo (..), CredentialType )
+import Cardano.Wallet.Primitive.AddressDiscovery.SharedState
+    ( SharedWalletInfo (..) )
 import Cardano.Wallet.Primitive.Slotting
     ( TimeInterpreter
     , epochOf
@@ -180,6 +189,8 @@ import Data.Text
     ( Text )
 import Data.Text.Class
     ( ToText (..), fromText )
+import Data.Time.Clock
+    ( UTCTime )
 import Data.Typeable
     ( Typeable )
 import Data.Word
@@ -255,6 +266,7 @@ newDBFactory
     :: forall s k.
         ( PersistState s
         , PersistPrivateKey (k 'RootK)
+        , PersistPublicKey (k 'AccountK)
         , WalletKey k
         )
     => Tracer IO DBFactoryLog
@@ -1126,6 +1138,7 @@ withDBLayer
     :: forall s k a.
         ( PersistState s
         , PersistPrivateKey (k 'RootK)
+        , PersistPublicKey (k 'AccountK)
         , WalletKey k
         )
     => Tracer IO WalletDBLog
@@ -1150,6 +1163,7 @@ withDBLayer tr defaultFieldValues dbFile ti action = do
 data WalletDBLog
     = MsgDB DBLog
     | MsgCheckpointCache W.WalletId CheckpointCacheLog
+    | MsgSharedWallet W.WalletId SharedWalletLog
     deriving (Generic, Show, Eq)
 
 data CheckpointCacheLog
@@ -1159,16 +1173,24 @@ data CheckpointCacheLog
     | MsgDrop
     deriving (Generic, Show, Eq)
 
+data SharedWalletLog
+    = MsgCreatingSharedWallet
+    | MsgAddingCosigner Cosigner CredentialType
+    | MsgRemovingSharedWallet
+    deriving (Generic, Show, Eq)
+
 instance HasPrivacyAnnotation WalletDBLog
 instance HasSeverityAnnotation WalletDBLog where
     getSeverityAnnotation = \case
         MsgDB msg -> getSeverityAnnotation msg
         MsgCheckpointCache _ _ -> Debug
+        MsgSharedWallet _ _ -> Notice
 
 instance ToText WalletDBLog where
     toText = \case
         MsgDB msg -> toText msg
         MsgCheckpointCache wid msg -> "Checkpoint cache " <> toText wid <> ": " <> toText msg
+        MsgSharedWallet wid msg -> "Shared wallet "<> toText wid <> ": "<> toText msg
 
 instance ToText CheckpointCacheLog where
     toText = \case
@@ -1177,12 +1199,25 @@ instance ToText CheckpointCacheLog where
         MsgRefresh -> "Refresh"
         MsgDrop -> "Drop"
 
+instance ToText SharedWalletLog where
+    toText = \case
+        MsgRemovingSharedWallet -> "Remove"
+        MsgCreatingSharedWallet -> "Create"
+        MsgAddingCosigner (Cosigner c) cred -> mconcat
+            [ "Adding the account public key for the cosigner#"
+            , T.pack (show c)
+            , " for "
+            , toText cred
+            , " credential."
+            ]
+
 -- | Runs an IO action with a new 'DBLayer' backed by a sqlite in-memory
 -- database.
 withDBLayerInMemory
     :: forall s k a.
         ( PersistState s
         , PersistPrivateKey (k 'RootK)
+        , PersistPublicKey (k 'AccountK)
         )
     => Tracer IO WalletDBLog
        -- ^ Logging object
@@ -1197,6 +1232,7 @@ newDBLayerInMemory
     :: forall s k.
         ( PersistState s
         , PersistPrivateKey (k 'RootK)
+        , PersistPublicKey (k 'AccountK)
         )
     => Tracer IO WalletDBLog
        -- ^ Logging object
@@ -1230,6 +1266,7 @@ newDBLayer
     :: forall s k.
         ( PersistState s
         , PersistPrivateKey (k 'RootK)
+        , PersistPublicKey (k 'AccountK)
         )
     => Tracer IO WalletDBLog
        -- ^ Logging
@@ -1245,6 +1282,7 @@ newDBLayerWith
     :: forall s k.
         ( PersistState s
         , PersistPrivateKey (k 'RootK)
+        , PersistPublicKey (k 'AccountK)
         )
     => CacheBehavior
        -- ^ Option to disable caching.
@@ -1568,6 +1606,45 @@ newDBLayerWith cacheBehavior tr ti SqliteContext{runQuery} = do
             \(PrimaryKey wid) ->
                 W.Coin . maybe 0 (rewardAccountBalance . entityVal) <$>
                 selectFirst [RewardWalletId ==. wid] []
+
+        {-----------------------------------------------------------------------
+                                     Shared Wallet
+        -----------------------------------------------------------------------}
+
+        , initializeSharedState = \(PrimaryKey wid) state meta gp -> ExceptT $ do
+            res <- handleConstraint (ErrWalletAlreadyExists wid) $
+                insert_ (mkSharedWalletEntity wid state meta gp)
+            liftIO $ traceWith tr $ MsgSharedWallet wid MsgCreatingSharedWallet
+            pure res
+
+        , removeSharedWallet = \(PrimaryKey wid) -> ExceptT $ do
+            selectSharedWallet wid >>= \case
+                Nothing -> pure $ Left $ ErrNoSuchWallet wid
+                Just _  -> Right <$> do
+                    liftIO $ traceWith tr $ MsgSharedWallet wid MsgRemovingSharedWallet
+                    deleteWhere [SharedWalletWalletId ==. wid]
+                    deleteWhere [CosignerKeyWalletId ==. wid]
+
+        , readSharedWalletState = \(PrimaryKey wid) ->
+            selectSharedWallet wid >>= \case
+                Nothing -> pure Nothing
+                Just _  -> selectSharedWalletState wid
+
+        , readSharedWalletMetadata = \(PrimaryKey wid) ->
+            selectSharedWallet wid >>= \case
+                Nothing -> pure Nothing
+                Just _  -> selectSharedWalletMetadata wid
+
+        , addCosignerKey = \(PrimaryKey wid) utctime info -> ExceptT $ do
+            selectSharedWallet wid >>= \case
+                Nothing -> pure $ Left $ ErrAddCosignerKeyNoWallet $ ErrNoSuchWallet wid
+                Just _ -> do
+                    res <- handleConstraint (ErrAddCosignerKeyAlreadyExists wid (cosigner info) (credential info)) $
+                        insert_ (mkCosignerKeyEntity wid utctime info)
+                    liftIO $ traceWith tr $ MsgSharedWallet wid (MsgAddingCosigner (cosigner info) (credential info))
+                    pure res
+
+        , listCosignerKeys = \(PrimaryKey _wid) ->  undefined
 
         {-----------------------------------------------------------------------
                                      ACID Execution
@@ -2500,3 +2577,84 @@ selectRndStatePending wid = do
   where
     assocFromEntity (RndStatePendingAddress _ accIx addrIx addr) =
         ((W.Index accIx, W.Index addrIx), addr)
+
+mkSharedWalletEntity
+    :: PersistPublicKey (k 'AccountK)
+    => W.WalletId
+    -> SharedWalletInfo k
+    -> W.WalletMetadata
+    -> W.GenesisParameters
+    -> SharedWallet
+mkSharedWalletEntity wid state meta gp = SharedWallet
+    { sharedWalletWalletId = wid
+    , sharedWalletCreationTime = meta ^. #creationTime
+    , sharedWalletName = meta ^. #name . coerce
+    , sharedWalletAccountXPub = serializeXPub (state ^. #walletAccountKey)
+    , sharedWalletAccountIndex = getIndex (state ^. #accountIx)
+    , sharedWalletScriptGap = state ^. #poolGap
+    , sharedWalletPaymentScript = state ^. #paymentScript
+    , sharedWalletDelegationScript = state ^. #delegationScript
+    , sharedWalletState = state ^. #walletState
+    , sharedWalletPassphraseLastUpdatedAt = W.lastUpdatedAt <$> meta ^. #passphraseInfo
+    , sharedWalletPassphraseScheme = W.passphraseScheme <$> meta ^. #passphraseInfo
+    , sharedWalletGenesisHash = BlockId (coerce (gp ^. #getGenesisBlockHash))
+    , sharedWalletGenesisStart = coerce (gp ^. #getGenesisBlockDate)
+    }
+
+selectSharedWallet :: MonadIO m => W.WalletId -> SqlPersistT m (Maybe SharedWallet)
+selectSharedWallet wid =
+    fmap entityVal <$> selectFirst [SharedWalletWalletId ==. wid] []
+
+selectSharedWalletMetadata
+    :: W.WalletId
+    -> SqlPersistT IO (Maybe W.WalletMetadata)
+selectSharedWalletMetadata wid = do
+    let del = W.WalletDelegation W.NotDelegating []
+    fmap (metadataFromEntity' del . entityVal)
+        <$> selectFirst [SharedWalletWalletId ==. wid] []
+ where
+     metadataFromEntity' :: W.WalletDelegation -> SharedWallet -> W.WalletMetadata
+     metadataFromEntity' walDelegation wal = W.WalletMetadata
+         { name = W.WalletName (sharedWalletName wal)
+         , creationTime = sharedWalletCreationTime wal
+         , passphraseInfo = W.WalletPassphraseInfo
+             <$> sharedWalletPassphraseLastUpdatedAt wal
+             <*> sharedWalletPassphraseScheme wal
+         , delegation = walDelegation
+         }
+
+selectSharedWalletState
+    :: PersistPublicKey (k 'AccountK)
+    => W.WalletId
+    -> SqlPersistT IO (Maybe (SharedWalletInfo k))
+selectSharedWalletState wid = do
+    fmap (stateFromEntity . entityVal)
+        <$> selectFirst [SharedWalletWalletId ==. wid] []
+
+stateFromEntity
+    :: PersistPublicKey (k 'AccountK)
+    => SharedWallet -> SharedWalletInfo k
+stateFromEntity wal = SharedWalletInfo
+    { walletState = sharedWalletState wal
+    , walletAccountKey = unsafeDeserializeXPub (sharedWalletAccountXPub wal)
+    , accountIx = Index (sharedWalletAccountIndex wal)
+    , paymentScript = sharedWalletPaymentScript wal
+    , delegationScript = sharedWalletDelegationScript wal
+    , poolGap = sharedWalletScriptGap wal
+    }
+
+mkCosignerKeyEntity
+    :: PersistPublicKey (k 'AccountK)
+    => W.WalletId
+    -> UTCTime
+    -> CosignerInfo k
+    -> CosignerKey
+mkCosignerKeyEntity wid utctime info = CosignerKey
+    { cosignerKeyWalletId = wid
+    , cosignerKeyCreationTime = utctime
+    , cosignerKeyCredential = credential info
+    , cosignerKeyAccountXPub = serializeXPub (cosignerAccountKey info)
+    , cosignerKeyIndex = c
+    }
+  where
+   (Cosigner c) = cosigner info
