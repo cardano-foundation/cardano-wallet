@@ -139,14 +139,17 @@ instance ToText NtpTrace where
 instance HasPrivacyAnnotation NtpTrace
 instance HasSeverityAnnotation NtpTrace where
     getSeverityAnnotation ev = case ev of
-        NtpTraceStartNtpClient -> Info
-        NtpTraceRestartDelay _ -> Info
-        NtpTraceRestartingClient -> Info
+        NtpTraceStartNtpClient -> Debug
+        NtpTraceRestartDelay _ -> Debug
+        NtpTraceRestartingClient -> Debug
         NtpTraceIOError _ -> Notice
         NtpTraceLookupsFails -> Notice
-        NtpTraceClientStartQuery -> Info
+        NtpTraceClientStartQuery -> Debug
         NtpTraceNoLocalAddr -> Notice
-        NtpTraceResult _ -> Info
+        NtpTraceResult (NtpDrift micro)
+            | abs micro < 500000 -> Debug
+            | otherwise          -> Notice
+        NtpTraceResult _ -> Debug
         NtpTraceRunProtocolResults _ -> Debug
         NtpTracePacketSent _ _ -> Debug
         NtpTracePacketSendError _ _ -> Notice
