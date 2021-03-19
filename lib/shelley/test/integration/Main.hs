@@ -1,6 +1,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TemplateHaskell #-}
@@ -310,7 +311,7 @@ specWithServer testDir (tr, tracers) = aroundAll withContext
         sendFaucetFundsTo tr' conn testDir $
             encodeAddresses shelleyIntegrationTestFunds
         sendFaucetAssetsTo tr' conn testDir 20 $
-            encodeAddresses maryIntegrationTestAssets
+            encodeAddresses (maryIntegrationTestAssets (Coin 10_000_000))
 
     onClusterStart action dbDecorator (RunningNode conn block0 (gp, vData)) = do
         setupFaucet conn

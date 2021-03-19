@@ -2231,8 +2231,9 @@ maryAssetScripts = map (first (unsafeFromText . T.pack))
 -- Beside the assets, there is a list of @(signing key, verification key hash)@,
 -- so that they can be minted by the faucet.
 maryIntegrationTestAssets
-    :: [(Address, (TokenBundle, [(String, String)]))]
-maryIntegrationTestAssets = maMnemonics >>= take 3
+    :: Coin -- ^ Amount of ada in each bundle
+    -> [(Address, (TokenBundle, [(String, String)]))]
+maryIntegrationTestAssets tips = maMnemonics >>= take 3
     . flip zip (cycle maryTokenBundles)
     . genShelleyAddresses
     . SomeMnemonic
@@ -2241,9 +2242,7 @@ maryIntegrationTestAssets = maMnemonics >>= take 3
 
     mint mk (pid, info) = (mk pid, [info])
 
-    bundle p assets = TokenBundle.fromNestedList
-        (Coin 10_000_000)
-        [(p, NE.fromList assets)]
+    bundle p assets = TokenBundle.fromNestedList tips [(p, NE.fromList assets)]
 
     simple p = bundle p [(nullTokenName, TokenQuantity 1_000_000_000)]
     fruit p = bundle p
