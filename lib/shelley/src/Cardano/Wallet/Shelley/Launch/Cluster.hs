@@ -262,7 +262,7 @@ nodeMinSeverityFromEnv =
 -- @CARDANO_WALLET_TRACING_MIN_SEVERITY@ environment variable.
 walletMinSeverityFromEnv :: IO Severity
 walletMinSeverityFromEnv =
-    minSeverityFromEnv Critical "CARDANO_WALLET_TRACING_MIN_SEVERITY"
+    minSeverityFromEnv Warning "CARDANO_WALLET_TRACING_MIN_SEVERITY"
 
 -- Allow configuring integration tests and wallet log level with
 -- @TESTS_TRACING_MIN_SEVERITY@ environment variable.
