@@ -398,7 +398,7 @@ withTracers testDir action = do
             logDir <- fromMaybe testDir <$> testLogDirFromEnv
             pure
                 [ LogToFile (logDir </> name) (min minSev Info)
-                , LogToStdout minSev
+                , LogToStdStreams minSev
                 ]
 
     walletLogOutputs <- getLogOutputs walletMinSeverityFromEnv "wallet.log"
