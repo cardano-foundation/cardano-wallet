@@ -1,6 +1,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
@@ -231,8 +232,8 @@ main = withLocalClusterSetup $ \dir clusterLogs walletLogs ->
 
         sendFaucetFundsTo trCluster' socketPath dir $
             encodeAddresses shelleyIntegrationTestFunds
-        sendFaucetAssetsTo trCluster' socketPath dir 20 $
-            encodeAddresses maryIntegrationTestAssets
+        sendFaucetAssetsTo trCluster' socketPath dir 20 $ encodeAddresses $
+            maryIntegrationTestAssets (Coin 1_000_000_000)
         moveInstantaneousRewardsTo trCluster' socketPath dir rewards
 
     whenReady dir trCluster logs (RunningNode socketPath block0 (gp, vData)) =
