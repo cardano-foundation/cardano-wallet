@@ -30,8 +30,6 @@ import Cardano.SharedWallet.SharedState
     ( SharedWalletInfo )
 import Cardano.Wallet.Primitive.Types
     ( GenesisParameters, WalletId, WalletMetadata )
-import Control.Monad.Fail
-    ( MonadFail )
 import Control.Monad.IO.Class
     ( MonadIO )
 import Control.Monad.Trans.Except

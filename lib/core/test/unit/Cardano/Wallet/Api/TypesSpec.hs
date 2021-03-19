@@ -93,13 +93,14 @@ import Cardano.Wallet.Api.Types
     , ApiPostRandomAddressData
     , ApiPutAddressesData (..)
     , ApiRawMetadata (..)
-    , ApiScriptTemplateUpdate
     , ApiSelectCoinsAction (..)
     , ApiSelectCoinsData (..)
     , ApiSelectCoinsPayments (..)
     , ApiSharedWallet (..)
     , ApiSharedWalletPatchData (..)
     , ApiSharedWalletPostData (..)
+    , ApiSharedWalletPostDataFromAccountPubX (..)
+    , ApiSharedWalletPostDataFromMnemonics (..)
     , ApiSlotId (..)
     , ApiSlotReference (..)
     , ApiStakePool (..)
@@ -407,6 +408,8 @@ spec = parallel $ do
             jsonRoundtripAndGolden $ Proxy @(ApiPutAddressesData ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @ApiWallet
             jsonRoundtripAndGolden $ Proxy @ApiSharedWalletPostData
+            jsonRoundtripAndGolden $ Proxy @ApiSharedWalletPostDataFromMnemonics
+            jsonRoundtripAndGolden $ Proxy @ApiSharedWalletPostDataFromAccountPubX
             jsonRoundtripAndGolden $ Proxy @ApiSharedWallet
             jsonRoundtripAndGolden $ Proxy @ApiActiveSharedWallet
             jsonRoundtripAndGolden $ Proxy @ApiPendingSharedWallet
@@ -1165,9 +1168,6 @@ instance Arbitrary ApiDelegationAction where
 instance Arbitrary Cosigner where
     arbitrary = Cosigner <$> choose (0,10)
 
-instance Arbitrary ApiScriptTemplateUpdate where
-    arbitrary = arbitraryBoundedEnum
-
 instance Arbitrary ApiPendingSharedWallet where
     arbitrary = genericArbitrary
 
@@ -1181,9 +1181,18 @@ instance Arbitrary ApiSharedWallet where
         oneof [ ApiSharedWallet . Right <$> activeWallet
               , ApiSharedWallet . Left <$> pendingWallet ]
 
-instance Arbitrary ApiSharedWalletPostData where
+instance Arbitrary ApiSharedWalletPostDataFromMnemonics where
     arbitrary = genericArbitrary
-    shrink = genericShrink
+
+instance Arbitrary ApiSharedWalletPostDataFromAccountPubX where
+    arbitrary = genericArbitrary
+
+instance Arbitrary ApiSharedWalletPostData where
+    arbitrary = do
+        let fromMnemonics = arbitrary :: Gen ApiSharedWalletPostDataFromMnemonics
+        let fromAccXPub = arbitrary :: Gen ApiSharedWalletPostDataFromAccountPubX
+        oneof [ ApiSharedWalletPostData . Right <$> fromAccXPub
+              , ApiSharedWalletPostData . Left <$> fromMnemonics ]
 
 instance Arbitrary ApiSharedWalletPatchData where
     arbitrary = genericArbitrary
@@ -2104,6 +2113,16 @@ data ApiPubKey
 instance ToSchema ApiPubKey where
     declareNamedSchema _ = declareSchemaForDefinition "ApiPubKey"
 
+instance ToSchema ApiSharedWalletPostDataFromMnemonics where
+    declareNamedSchema _ = do
+        addDefinition =<< declareSchemaForDefinition "ScriptTemplateValue"
+        declareSchemaForDefinition "ApiSharedWalletPostDataFromMnemonics"
+
+instance ToSchema ApiSharedWalletPostDataFromAccountPubX where
+    declareNamedSchema _ = do
+        addDefinition =<< declareSchemaForDefinition "ScriptTemplateValue"
+        declareSchemaForDefinition "ApiSharedWalletPostDataFromAccountPubX"
+
 instance ToSchema ApiSharedWalletPostData where
     declareNamedSchema _ = do
         addDefinition =<< declareSchemaForDefinition "ScriptTemplateValue"
@@ -2113,6 +2132,16 @@ instance ToSchema ApiSharedWalletPatchData where
     declareNamedSchema _ = do
         addDefinition =<< declareSchemaForDefinition "ScriptTemplateValue"
         declareSchemaForDefinition "ApiSharedWalletPatchData"
+
+instance ToSchema ApiActiveSharedWallet where
+    declareNamedSchema _ = do
+        addDefinition =<< declareSchemaForDefinition "ScriptTemplateValue"
+        declareSchemaForDefinition "ApiActiveSharedWallet"
+
+instance ToSchema ApiPendingSharedWallet where
+    declareNamedSchema _ = do
+        addDefinition =<< declareSchemaForDefinition "ScriptTemplateValue"
+        declareSchemaForDefinition "ApiPendingSharedWallet"
 
 instance ToSchema ApiSharedWallet where
     declareNamedSchema _ = do

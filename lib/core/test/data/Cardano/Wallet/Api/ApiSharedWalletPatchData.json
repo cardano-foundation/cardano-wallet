@@ -1,55 +1,45 @@
 {
-    "seed": -592678347009518304,
+    "seed": 5772932438651628736,
     "samples": [
         {
-            "account_public_key": "95f71fcfaa3b0900b4570fc2357025b1bc89b0e8ac348a1c040744ef6a9fddb007fcdf68d01ddf40d3c00604a2dce9d348ccc0e98309784a1d90c2b99b2d1dc6",
-            "script_template_update": "delegation",
-            "cosigner": "cosigner#1"
+            "account_public_key": "5522a4f873e6177f3729ee263d923cd404430a7a7bb60a4875d5a39745077d823a5e92148d0e4d047a6904322aa4c189ef7a42d4aa09e823ab43185ba6eaa20f",
+            "cosigner": "cosigner#8"
         },
         {
-            "account_public_key": "42c8668ac5478c94c43da86a851d6ed32dc581422942fa5c62b0d4979ce4ebae1b2bc0a8c230870fd50d0dbe8e673364c4553ef8153c74acc5288d892b478b8e",
-            "script_template_update": "both",
-            "cosigner": "cosigner#3"
+            "account_public_key": "a7f1df0677a464634b475e68544f481240b7be8b3e749f81315178a723e17bd9e5c8048cfdbac7c53690f3330e4e0519c3c021bdfe82ab422985e90381034e60",
+            "cosigner": "cosigner#9"
         },
         {
-            "account_public_key": "21f6afa14c0708ece5f6c5845ad56b63ac14a1ffd9ef22434342243897c7865373b60c4bba92483be6f4a1c0c3066e12923023fe5be63dfa46dbfc418eef8268",
-            "script_template_update": "payment",
-            "cosigner": "cosigner#10"
-        },
-        {
-            "account_public_key": "c7abec7a6eca6cf7ffab7ae296d99fae9feef15cd21b7e74b8dda0225b802f9d614bc2de5cb7fab43243dbdec0376e90797c3b5f4ad2ec5f1a949e07c8de1676",
-            "script_template_update": "both",
+            "account_public_key": "7c5220dee1dc2e77ad8a21a8fbc60abcb0e26fb9ec8a583bd2e178bede84337915f70e3b5b78a409578b618629b4ee840dcc07d2e78d4ef04f85ac6b0db619f6",
             "cosigner": "cosigner#2"
         },
         {
-            "account_public_key": "9645879cc5319f46e9b0927a76777513791af8c5bdd532411fbebe70eb368719a5764b35d2f0908f76721c90fbb71cf6ca908cbad990d804e28d7e95314bc470",
-            "script_template_update": "delegation",
+            "account_public_key": "603ccbe589dbb9ef2fa299cddd5ca6474ca885c51c2bff0899edafa1ad0630e05a1561261aa0bdd9b4a13b7a4f70fee104de6773832fa55395b9cda459e15e4c",
             "cosigner": "cosigner#4"
         },
         {
-            "account_public_key": "4dc70860b56d9b88eee8df07c5544bf002d8a1a899f9972fa625d19e65be1b19a59926b150668ff7e2d42280a4c53779b556822cfca62b37f72ec54c2a912ddf",
-            "script_template_update": "delegation",
-            "cosigner": "cosigner#3"
+            "account_public_key": "0a8145ae48d917b620f063dffc3e3202ab171f207d8dd239de3ca643f79930c4fe43e5a9947c8c2ad7e64daf6ff1bed70e698aca1d1391c252ccf8d273db73dd",
+            "cosigner": "cosigner#8"
         },
         {
-            "account_public_key": "fd9a9c03445f5df9385e7c534da08aeab9a3fe67cc1903eb7bc978d931e3e8c078d17223a2d763cc3240c732fb51a1d5b1839ba552fb4cabfd7689b0293cd142",
-            "script_template_update": "both",
+            "account_public_key": "93e1fb640227516a33969893d1f7c5a7d1d9ec18412401b92bd73768f2414a08704f621e93cae9cb5225ab73ef71c219e78ad260569da40800632f0438adb291",
             "cosigner": "cosigner#10"
         },
         {
-            "account_public_key": "4d62621374796600d142c4a98d50d26b2a86a153a02247248dd6068423bcf78b1d2c747ff3db8b8e326fac83f9207318b93f5a3523aba54b8fd16cdff262e68c",
-            "script_template_update": "delegation",
-            "cosigner": "cosigner#10"
+            "account_public_key": "8ab0a3ba83e94aabf19f2896d6abe2dbdb0edfbde2234952e9f0545d7575ea16f2166a68c4de96a8b30ba2dd3bd8822371c9e5553d5d1af776f2ff2db54ff3a8",
+            "cosigner": "cosigner#9"
         },
         {
-            "account_public_key": "8f14476107706c27cc57e0818904855ad120a6164bdc5e6352b75f0d4cb53bdc97d522f6642e43c8c7d018f15c564c23cb2d47f0c37e4ca8069eb5c53304ea21",
-            "script_template_update": "delegation",
-            "cosigner": "cosigner#3"
+            "account_public_key": "66caeca6205a436acbf865a45d3ef220ae1ab25b6e34e180975cd03934643869e09f6eda351fa87683302ac9cb970a44e4e040e08d8c1e10fd55e6a2130e3584",
+            "cosigner": "cosigner#4"
         },
         {
-            "account_public_key": "4f2187f22118bb6a3756495b71d404285dca9d3360687f212424bf9d2d57adbc7e897fcbf66bf9f66a2c0107a3ad1c9386b3900af9f9903846dd99704c8dc60a",
-            "script_template_update": "both",
-            "cosigner": "cosigner#6"
+            "account_public_key": "f6a6a8a7d3d44ba7cf082066a510fd43fd0a1814f3c174d7ab5631d194bf394fc91c415446d05987787bc58d13bb991dea9f5bde8b9098c17c3603509e890f7a",
+            "cosigner": "cosigner#0"
+        },
+        {
+            "account_public_key": "e2a6959db51e747ccd99574ab0708567f9b32179348a3533d1a50bf6b8d3104fb08f576385f09597eb08c1de991e28805e26acb57e85dad406d9f7291643e97b",
+            "cosigner": "cosigner#9"
         }
     ]
 }

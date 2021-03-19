@@ -154,6 +154,8 @@ module Cardano.Wallet.Api.Types
     , ApiPendingSharedWallet (..)
     , ApiActiveSharedWallet (..)
     , ApiSharedWalletPostData (..)
+    , ApiSharedWalletPostDataFromMnemonics (..)
+    , ApiSharedWalletPostDataFromAccountPubX (..)
     , ApiSharedWalletPatchData (..)
 
     -- * Polymorphic Types
@@ -1047,11 +1049,26 @@ data ApiAccountKey = ApiAccountKey
     } deriving (Eq, Generic, Show)
       deriving anyclass NFData
 
-data ApiSharedWalletPostData = ApiSharedWalletPostData
-    { retrieveMethod :: WalletOrAccountPostData
+data ApiSharedWalletPostDataFromMnemonics = ApiSharedWalletPostDataFromMnemonics
+    { name :: !(ApiT WalletName)
+    , mnemonicSentence :: !(ApiMnemonicT (AllowedMnemonics 'Shelley))
+    , mnemonicSecondFactor :: !(Maybe (ApiMnemonicT (AllowedMnemonics 'SndFactor)))
+    , passphrase :: !(ApiT (Passphrase "raw"))
     , accountIndex :: !(ApiT DerivationIndex)
     , paymentScriptTemplate :: !ScriptTemplate
     , delegationScriptTemplate :: !(Maybe ScriptTemplate)
+    } deriving (Eq, Generic, Show)
+
+data ApiSharedWalletPostDataFromAccountPubX = ApiSharedWalletPostDataFromAccountPubX
+    { name :: !(ApiT WalletName)
+    , accountPublicKey :: !ApiAccountPublicKey
+    , accountIndex :: !(ApiT DerivationIndex)
+    , paymentScriptTemplate :: !ScriptTemplate
+    , delegationScriptTemplate :: !(Maybe ScriptTemplate)
+    } deriving (Eq, Generic, Show)
+
+newtype ApiSharedWalletPostData = ApiSharedWalletPostData
+    { wallet :: Either ApiSharedWalletPostDataFromMnemonics ApiSharedWalletPostDataFromAccountPubX
     } deriving (Eq, Generic, Show)
 
 data ApiActiveSharedWallet = ApiActiveSharedWallet
@@ -2276,10 +2293,32 @@ instance {-# OVERLAPS #-} EncodeStakeAddress n
   where
     toJSON (acct, _) = toJSON . encodeStakeAddress @n . getApiT $ acct
 
-instance FromJSON ApiSharedWalletPostData where
+instance FromJSON ApiSharedWalletPostDataFromAccountPubX where
     parseJSON = genericParseJSON defaultRecordTypeOptions
-instance ToJSON ApiSharedWalletPostData where
+instance ToJSON ApiSharedWalletPostDataFromAccountPubX where
     toJSON = genericToJSON defaultRecordTypeOptions
+
+instance FromJSON ApiSharedWalletPostDataFromMnemonics where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance ToJSON ApiSharedWalletPostDataFromMnemonics where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+instance FromJSON ApiSharedWalletPostData where
+    parseJSON obj = do
+        mnemonic <-
+            (withObject "postData" $
+             \o -> o .:? "mnemonic_sentence" :: Aeson.Parser (Maybe [Text])) obj
+        case mnemonic of
+            Nothing -> do
+                xs <- parseJSON obj :: Aeson.Parser ApiSharedWalletPostDataFromAccountPubX
+                pure $ ApiSharedWalletPostData $ Right xs
+            _ -> do
+                xs <- parseJSON obj :: Aeson.Parser ApiSharedWalletPostDataFromMnemonics
+                pure $ ApiSharedWalletPostData $ Left xs
+
+instance ToJSON ApiSharedWalletPostData where
+    toJSON (ApiSharedWalletPostData (Left c))= toJSON c
+    toJSON (ApiSharedWalletPostData (Right c))= toJSON c
 
 instance FromJSON (ApiT Cosigner) where
     parseJSON =
@@ -2430,10 +2469,10 @@ instance FromText (ApiT Cosigner) where
         ["",numTxt] ->  case T.decimal numTxt of
             Right (num,"") -> do
                 when (num < minBound @Word8 || num > maxBound @Word8) $
-                        fail "Cosigner number should be between '0' and '255'"
+                        Left $ TextDecodingError "Cosigner number should be between '0' and '255'"
                 pure $ ApiT $ Cosigner num
-            _ -> fail "Cosigner should be enumerated with number"
-        _ -> fail "Cosigner should be of form: cosigner#num"
+            _ -> Left $ TextDecodingError "Cosigner should be enumerated with number"
+        _ -> Left $ TextDecodingError "Cosigner should be of form: cosigner#num"
 
 {-------------------------------------------------------------------------------
                              HTTPApiData instances

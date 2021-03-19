@@ -39,8 +39,6 @@ import Data.Time.Clock
     ( UTCTime )
 import Data.Word
     ( Word16, Word32, Word64 )
-import Database.Persist.Class
-    ( AtLeastOneUniqueKey (..), OnlyOneUniqueKey (..) )
 import Database.Persist.TH
     ( mkDeleteCascade, mkMigrate, mkPersist, persistLowerCase, share )
 import GHC.Generics
