@@ -58,6 +58,7 @@ import Cardano.Crypto.Wallet
     , unXPub
     , xPrvChangePass
     , xprv
+    , xpub
     )
 import Cardano.Mnemonic
     ( SomeMnemonic (..), entropyToBytes, mnemonicToEntropy )
@@ -72,6 +73,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , Passphrase (..)
     , PaymentAddress (..)
     , PersistPrivateKey (..)
+    , PersistPublicKey (..)
     , WalletKey (..)
     , fromHex
     , hex
@@ -400,6 +402,23 @@ instance PersistPrivateKey (ByronKey 'RootK) where
         deserializeKey b = case map (fromHex @ByteString) (B8.split ':' b) of
             [Right rawK, Right p] ->
                 case xprv rawK of
+                    Right k' -> Right (k', Passphrase (BA.convert p))
+                    Left e -> Left e
+            _ ->
+                Left "Key input must be two hex strings separated by :"
+
+instance PersistPublicKey (ByronKey 'AccountK) where
+    serializeXPub (ByronKey k _ (Passphrase p)) =
+        hex (unXPub k) <> ":" <> hex p
+
+    unsafeDeserializeXPub kp =
+        either err id $ fmap mkKey (deserializeKey kp)
+      where
+        err _ = error "unsafeDeserializeXPub: unable to deserialize ByronKey"
+        mkKey (key, pwd) = ByronKey key (Index 0) pwd
+        deserializeKey b = case map (fromHex @ByteString) (B8.split ':' b) of
+            [Right rawK, Right p] ->
+                case xpub rawK of
                     Right k' -> Right (k', Passphrase (BA.convert p))
                     Left e -> Left e
             _ ->
