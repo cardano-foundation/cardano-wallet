@@ -345,14 +345,14 @@ logMessage :: ApiLog -> Maybe Text
 logMessage (ApiLog _ theMsg) = case theMsg of
     LogRequestStart -> Just "LogRequestStart"
     LogRequestFinish -> Just "LogRequestFinish"
-    LogResponse _ Nothing -> Nothing
+    LogResponse _ _ Nothing -> Nothing
     _ -> Just (toText theMsg)
 
 -- | Extract the execution time, in microseconds, from a log request.
 -- Returns 'Nothing' if the log line doesn't contain any time indication.
 captureTime :: ApiLog -> Maybe Int
 captureTime (ApiLog _ theMsg) = case theMsg of
-    LogResponse time _ ->
+    LogResponse time _ _ ->
         Just $ round $ toMicro $ realToFrac @_ @Double time
     _ ->
         Nothing
