@@ -427,11 +427,11 @@ prop_selectRandom_one_withAdaOnly u = checkCoverage $ monadicIO $ do
 prop_selectRandom_one_withAsset :: UTxOIndex -> AssetId -> Property
 prop_selectRandom_one_withAsset u a = checkCoverage $ monadicIO $ do
     result <- run $ UTxOIndex.selectRandom u (WithAsset a)
-    monitor $ cover 80 (a `Set.member` UTxOIndex.assets u)
+    monitor $ cover 70 (a `Set.member` UTxOIndex.assets u)
         "index has the specified asset"
-    monitor $ cover 80 (Set.size (UTxOIndex.assets u) > 1)
+    monitor $ cover 70 (Set.size (UTxOIndex.assets u) > 1)
         "index has more than one asset"
-    monitor $ cover 80 (isJust result)
+    monitor $ cover 70 (isJust result)
         "selected an entry"
     case result of
         Nothing ->
@@ -453,9 +453,9 @@ prop_selectRandom_one_withAsset u a = checkCoverage $ monadicIO $ do
 prop_selectRandom_one_withAssetOnly :: UTxOIndex -> AssetId -> Property
 prop_selectRandom_one_withAssetOnly u a = checkCoverage $ monadicIO $ do
     result <- run $ UTxOIndex.selectRandom u (WithAssetOnly a)
-    monitor $ cover 80 (a `Set.member` UTxOIndex.assets u)
+    monitor $ cover 70 (a `Set.member` UTxOIndex.assets u)
         "index has the specified asset"
-    monitor $ cover 80 (Set.size (UTxOIndex.assets u) > 1)
+    monitor $ cover 70 (Set.size (UTxOIndex.assets u) > 1)
         "index has more than one asset"
     monitor $ cover 20 (isJust result)
         "selected an entry"
@@ -491,7 +491,7 @@ prop_selectRandom_all_any u = checkCoverage $ monadicIO $ do
 prop_selectRandom_all_withAdaOnly :: UTxOIndex -> Property
 prop_selectRandom_all_withAdaOnly u = checkCoverage $ monadicIO $ do
     (selectedEntries, u') <- run $ selectAll WithAdaOnly u
-    monitor $ cover 80 (not (null selectedEntries))
+    monitor $ cover 70 (not (null selectedEntries))
         "selected at least one entry"
     assert $ L.all (\(_, o) -> not (txOutIsAdaOnly o)) (UTxOIndex.toList u')
     assert $ L.all (\(_, o) -> txOutIsAdaOnly o) selectedEntries
@@ -503,11 +503,11 @@ prop_selectRandom_all_withAdaOnly u = checkCoverage $ monadicIO $ do
 prop_selectRandom_all_withAsset :: UTxOIndex -> AssetId -> Property
 prop_selectRandom_all_withAsset u a = checkCoverage $ monadicIO $ do
     (selectedEntries, u') <- run $ selectAll (WithAsset a) u
-    monitor $ cover 80 (a `Set.member` UTxOIndex.assets u)
+    monitor $ cover 70 (a `Set.member` UTxOIndex.assets u)
         "index has the specified asset"
-    monitor $ cover 80 (Set.size (UTxOIndex.assets u) > 1)
+    monitor $ cover 70 (Set.size (UTxOIndex.assets u) > 1)
         "index has more than one asset"
-    monitor $ cover 80 (not (null selectedEntries))
+    monitor $ cover 70 (not (null selectedEntries))
         "selected at least one entry"
     assert $ L.all (\(_, o) -> not (txOutHasAsset o a)) (UTxOIndex.toList u')
     assert $ L.all (\(_, o) -> txOutHasAsset o a) selectedEntries
@@ -520,9 +520,9 @@ prop_selectRandom_all_withAsset u a = checkCoverage $ monadicIO $ do
 prop_selectRandom_all_withAssetOnly :: UTxOIndex -> AssetId -> Property
 prop_selectRandom_all_withAssetOnly u a = checkCoverage $ monadicIO $ do
     (selectedEntries, u') <- run $ selectAll (WithAssetOnly a) u
-    monitor $ cover 80 (a `Set.member` UTxOIndex.assets u)
+    monitor $ cover 70 (a `Set.member` UTxOIndex.assets u)
         "index has the specified asset"
-    monitor $ cover 80 (Set.size (UTxOIndex.assets u) > 1)
+    monitor $ cover 70 (Set.size (UTxOIndex.assets u) > 1)
         "index has more than one asset"
     monitor $ cover 20 (not (null selectedEntries))
         "selected at least one entry"
