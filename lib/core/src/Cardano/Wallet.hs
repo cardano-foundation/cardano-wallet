@@ -172,6 +172,8 @@ module Cardano.Wallet
     , throttle
 
     -- * Logging
+    , WalletWorkerLog (..)
+    , WalletFollowLog (..)
     , WalletLog (..)
     , TxSubmitLog (..)
     ) where
@@ -511,7 +513,7 @@ import qualified Data.Vector as V
 
 data WalletLayer m s (k :: Depth -> Type -> Type)
     = WalletLayer
-        (Tracer m WalletLog)
+        (Tracer m WalletWorkerLog)
         (Block, NetworkParameters, SyncTolerance)
         (NetworkLayer m Block)
         (TransactionLayer k)
@@ -781,9 +783,9 @@ listUtxoStatistics ctx wid = do
 -- network tip is reached or until failure.
 restoreWallet
     :: forall ctx s k.
-        ( HasLogger WalletLog ctx
-        , HasNetworkLayer IO ctx
+        ( HasNetworkLayer IO ctx
         , HasDBLayer IO s k ctx
+        , HasLogger WalletWorkerLog ctx
         , HasGenesisData ctx
         , IsOurs s Address
         , IsOurs s RewardAccount
@@ -793,21 +795,21 @@ restoreWallet
     -> ExceptT ErrNoSuchWallet IO ()
 restoreWallet ctx wid = db & \DBLayer{..} -> do
     cps <- liftIO $ atomically $ listCheckpoints wid
-    let forward bs h = run $ do
-            restoreBlocks @ctx @s @k ctx wid bs h
-    liftIO (follow nw tr cps forward (view #header)) >>= \case
-        FollowFailure ->
-            restoreWallet @ctx @s @k ctx wid
-        FollowRollback point -> do
-            rollbackBlocks @ctx @s @k ctx wid point
-            restoreWallet @ctx @s @k ctx wid
-        FollowDone ->
-            pure ()
-
+    let forward bs h innerTr = run $ do
+            restoreBlocks @ctx @s @k ctx innerTr wid bs h
+    liftIO (follow nw tr cps forward (view #header)) >>= \(innerTr, act) -> do
+        case act of
+            FollowFailure ->
+                restoreWallet @ctx @s @k ctx wid
+            FollowRollback point -> do
+                rollbackBlocks @ctx @s @k ctx innerTr wid point
+                restoreWallet @ctx @s @k ctx wid
+            FollowDone ->
+                pure ()
   where
     db = ctx ^. dbLayer @IO @s @k
     nw = ctx ^. networkLayer
-    tr = contramap MsgFollow (ctx ^. logger @WalletLog)
+    tr = contramap MsgFollow (ctx ^. logger @WalletWorkerLog)
 
     run :: ExceptT ErrNoSuchWallet IO () -> IO (FollowAction ErrNoSuchWallet)
     run = fmap (either ExitWith (const Continue)) . runExceptT
@@ -815,39 +817,36 @@ restoreWallet ctx wid = db & \DBLayer{..} -> do
 -- | Rewind the UTxO snapshots, transaction history and other information to a
 -- the earliest point in the past that is before or is the point of rollback.
 rollbackBlocks
-    :: forall ctx s k.
-        ( HasLogger WalletLog ctx
-        , HasDBLayer IO s k ctx
-        )
+    :: forall ctx s k. (HasDBLayer IO s k ctx)
     => ctx
+    -> Tracer IO WalletFollowLog
     -> WalletId
     -> SlotNo
     -> ExceptT ErrNoSuchWallet IO ()
-rollbackBlocks ctx wid point = db & \DBLayer{..} -> do
+rollbackBlocks ctx tr wid point = db & \DBLayer{..} -> do
     lift $ traceWith tr $ MsgTryingRollback point
     point' <- mapExceptT atomically $ rollbackTo wid point
     lift $ traceWith tr $ MsgRolledBack point'
   where
     db = ctx ^. dbLayer @IO @s @k
-    tr = ctx ^. logger @WalletLog
 
 -- | Apply the given blocks to the wallet and update the wallet state,
 -- transaction history and corresponding metadata.
 restoreBlocks
     :: forall ctx s k.
-        ( HasLogger WalletLog ctx
-        , HasDBLayer IO s k ctx
+        ( HasDBLayer IO s k ctx
         , HasNetworkLayer IO ctx
         , HasGenesisData ctx
         , IsOurs s Address
         , IsOurs s RewardAccount
         )
     => ctx
+    -> Tracer IO WalletFollowLog
     -> WalletId
     -> NonEmpty Block
     -> BlockHeader
     -> ExceptT ErrNoSuchWallet IO ()
-restoreBlocks ctx wid blocks nodeTip = db & \DBLayer{..} -> mapExceptT atomically $ do
+restoreBlocks ctx tr wid blocks nodeTip = db & \DBLayer{..} -> mapExceptT atomically $ do
     cp   <- withNoSuchWallet wid (readCheckpoint wid)
     meta <- withNoSuchWallet wid (readWalletMeta wid)
     sp   <- liftIO $ currentSlottingParameters nl
@@ -916,7 +915,6 @@ restoreBlocks ctx wid blocks nodeTip = db & \DBLayer{..} -> mapExceptT atomicall
   where
     nl = ctx ^. networkLayer
     db = ctx ^. dbLayer @IO @s @k
-    tr = ctx ^. logger @WalletLog
 
     logCheckpoint :: Wallet s -> IO ()
     logCheckpoint cp = traceWith tr $ MsgCheckpoint (currentTip cp)
@@ -1045,7 +1043,7 @@ queryRewardBalance ctx acct = do
 
 manageRewardBalance
     :: forall ctx s k (n :: NetworkDiscriminant).
-        ( HasLogger WalletLog ctx
+        ( HasLogger WalletWorkerLog ctx
         , HasNetworkLayer IO ctx
         , HasDBLayer IO s k ctx
         , Typeable s
@@ -1082,7 +1080,7 @@ manageRewardBalance _ ctx wid = db & \DBLayer{..} -> do
   where
     db = ctx ^. dbLayer @IO @s @k
     NetworkLayer{watchNodeTip} = ctx ^. networkLayer
-    tr = ctx ^. logger @WalletLog
+    tr = contramap MsgWallet $ ctx ^. logger @WalletWorkerLog
 
 {-------------------------------------------------------------------------------
                                     Address
@@ -1309,7 +1307,7 @@ readWalletUTxOIndex ctx wid = do
 selectAssetsNoOutputs
     :: forall ctx s k result.
         ( HasTransactionLayer k ctx
-        , HasLogger WalletLog ctx
+        , HasLogger WalletWorkerLog ctx
         , HasDBLayer IO s k ctx
         , HasNetworkLayer IO ctx
         )
@@ -1418,7 +1416,7 @@ calcMinimumCoinValues ctx outs = do
 selectAssets
     :: forall ctx s k result.
         ( HasTransactionLayer k ctx
-        , HasLogger WalletLog ctx
+        , HasLogger WalletWorkerLog ctx
         , HasNetworkLayer IO ctx
         )
     => ctx
@@ -1445,7 +1443,7 @@ selectAssets ctx (utxo, cp, pending) tx outs transform = do
   where
     nl = ctx ^. networkLayer
     tl = ctx ^. transactionLayer @k
-    tr = ctx ^. logger
+    tr = contramap MsgWallet $ ctx ^. logger
 
     -- Ensure that there's no existing pending withdrawals. Indeed, a withdrawal
     -- is necessarily withdrawing rewards in their totality. So, after a first
@@ -1591,14 +1589,14 @@ submitTx
     :: forall ctx s k.
         ( HasNetworkLayer IO ctx
         , HasDBLayer IO s k ctx
-        , HasLogger WalletLog ctx
+        , HasLogger WalletWorkerLog ctx
         )
     => ctx
     -> WalletId
     -> (Tx, TxMeta, SealedTx)
     -> ExceptT ErrSubmitTx IO ()
 submitTx ctx wid (tx, meta, binary) = db & \DBLayer{..} -> do
-    withExceptT ErrSubmitTxNetwork $ traceWithExceptT tr $
+    withExceptT ErrSubmitTxNetwork $ traceWithExceptT tr' $
         postTx nw binary
     mapExceptT atomically $ do
         withExceptT ErrSubmitTxNoSuchWallet $
@@ -1609,7 +1607,8 @@ submitTx ctx wid (tx, meta, binary) = db & \DBLayer{..} -> do
     db = ctx ^. dbLayer @IO @s @k
     nw = ctx ^. networkLayer
 
-    tr = contramap (MsgTxSubmit . MsgPostTxResult (tx ^. #txId)) (ctx ^. logger)
+    tr = ctx ^. logger
+    tr' = contramap (MsgWallet . MsgTxSubmit . MsgPostTxResult (tx ^. #txId)) tr
 
     handleLocalTxSubmissionErr = \case
         ErrPutLocalTxSubmissionNoSuchWallet e -> ErrSubmitTxNoSuchWallet e
@@ -1700,7 +1699,7 @@ runLocalTxSubmissionPool
     :: forall ctx s k m.
         ( MonadUnliftIO m
         , MonadMonotonicTime m
-        , HasLogger WalletLog ctx
+        , HasLogger WalletWorkerLog ctx
         , HasNetworkLayer m ctx
         , HasDBLayer m s k ctx
         )
@@ -1732,7 +1731,8 @@ runLocalTxSubmissionPool cfg ctx wid = db & \DBLayer{..} -> do
 
     rateLimited = throttle (rateLimit cfg) . const
 
-    tr = unliftIOTracer $ contramap MsgTxSubmit $ ctx ^. logger @WalletLog
+    tr = unliftIOTracer $ contramap (MsgWallet . MsgTxSubmit) $
+        ctx ^. logger @WalletWorkerLog
     trBracket = contramap MsgProcessPendingPool tr
 
 -- | Return a function to run an action at most once every _interval_.
@@ -1821,8 +1821,8 @@ getTransaction ctx wid tid = db & \DBLayer{..} -> do
 joinStakePool
     :: forall ctx s k n.
         ( HasDBLayer IO s k ctx
-        , HasLogger WalletLog ctx
         , HasNetworkLayer IO ctx
+        , HasLogger WalletWorkerLog ctx
         , s ~ SeqState n k
         )
     => ctx
@@ -1860,7 +1860,7 @@ joinStakePool ctx currentEpoch knownPools pid poolStatus wid =
             else (RegisterKeyAndJoin pid, Just dep)
   where
     db = ctx ^. dbLayer @IO @s @k
-    tr = ctx ^. logger
+    tr = contramap MsgWallet $ ctx ^. logger
     nl = ctx ^. networkLayer
 
 -- | Helper function to factor necessary logic for quitting a stake pool.
@@ -2477,10 +2477,28 @@ guardQuit WalletDelegation{active,next} rewards = do
                                     Logging
 -------------------------------------------------------------------------------}
 
-data WalletLog
+-- | Log messages for actions running within a wallet worker context.
+data WalletWorkerLog
+    = MsgWallet WalletLog
+    | MsgFollow (FollowLog WalletFollowLog)
+    deriving (Show, Eq)
+
+instance ToText WalletWorkerLog where
+    toText = \case
+        MsgWallet msg -> toText msg
+        MsgFollow msg -> toText msg
+
+instance HasPrivacyAnnotation WalletWorkerLog
+
+instance HasSeverityAnnotation WalletWorkerLog where
+    getSeverityAnnotation = \case
+        MsgWallet msg -> getSeverityAnnotation msg
+        MsgFollow msg -> getSeverityAnnotation msg
+
+-- | Log messages arising from the restore and follow process.
+data WalletFollowLog
     = MsgTryingRollback SlotNo
     | MsgRolledBack SlotNo
-    | MsgFollow FollowLog
     | MsgDelegation SlotNo DelegationCertificate
     | MsgCheckpoint BlockHeader
     | MsgWalletMetadata WalletMetadata
@@ -2489,8 +2507,11 @@ data WalletLog
     | MsgDiscoveredTxsContent [(Tx, TxMeta)]
     | MsgTip BlockHeader
     | MsgBlocks (NonEmpty Block)
-    | MsgIsStakeKeyRegistered Bool
-    | MsgSelectionStart UTxOIndex (NonEmpty TxOut)
+    deriving (Show, Eq)
+
+-- | Log messages from API server actions running in a wallet worker context.
+data WalletLog
+    = MsgSelectionStart UTxOIndex (NonEmpty TxOut)
     | MsgSelectionDone (Either SelectionError (SelectionResult TokenBundle))
     | MsgMigrationUTxOBefore UTxOStatistics
     | MsgMigrationUTxOAfter UTxOStatistics
@@ -2499,16 +2520,15 @@ data WalletLog
     | MsgRewardBalanceNoSuchWallet ErrNoSuchWallet
     | MsgRewardBalanceExited
     | MsgTxSubmit TxSubmitLog
+    | MsgIsStakeKeyRegistered Bool
     deriving (Show, Eq)
 
-instance ToText WalletLog where
+instance ToText WalletFollowLog where
     toText = \case
         MsgTryingRollback point ->
             "Try rolling back to " <> pretty point
         MsgRolledBack point ->
             "Rolled back to " <> pretty point
-        MsgFollow msg ->
-            toText msg
         MsgDelegation slotNo cert -> case cert of
             CertDelegateNone{} -> mconcat
                 [ "Discovered end of delegation within slot "
@@ -2539,10 +2559,9 @@ instance ToText WalletLog where
             "local tip: " <> pretty tip
         MsgBlocks blocks ->
             "blocks: " <> pretty (NE.toList blocks)
-        MsgIsStakeKeyRegistered True ->
-            "Wallet stake key is registered. Will not register it again."
-        MsgIsStakeKeyRegistered False ->
-            "Wallet stake key is not registered. Will register..."
+
+instance ToText WalletLog where
+    toText = \case
         MsgSelectionStart utxo recipients ->
             "Starting coin selection " <>
             "|utxo| = "+|UTxOIndex.size utxo|+" " <>
@@ -2569,13 +2588,16 @@ instance ToText WalletLog where
             "Reward balance worker has exited."
         MsgTxSubmit msg ->
             toText msg
+        MsgIsStakeKeyRegistered True ->
+            "Wallet stake key is registered. Will not register it again."
+        MsgIsStakeKeyRegistered False ->
+            "Wallet stake key is not registered. Will register..."
 
-instance HasPrivacyAnnotation WalletLog
-instance HasSeverityAnnotation WalletLog where
+instance HasPrivacyAnnotation WalletFollowLog
+instance HasSeverityAnnotation WalletFollowLog where
     getSeverityAnnotation = \case
         MsgTryingRollback _ -> Info
         MsgRolledBack _ -> Info
-        MsgFollow msg -> getSeverityAnnotation msg
         MsgDelegation _ _ -> Info
         MsgCheckpoint _ -> Info
         MsgWalletMetadata _ -> Info
@@ -2584,17 +2606,21 @@ instance HasSeverityAnnotation WalletLog where
         MsgDiscoveredTxsContent _ -> Debug
         MsgTip _ -> Info
         MsgBlocks _ -> Debug
+
+instance HasPrivacyAnnotation WalletLog
+instance HasSeverityAnnotation WalletLog where
+    getSeverityAnnotation = \case
         MsgSelectionStart{} -> Debug
         MsgSelectionDone{} -> Debug
         MsgMigrationUTxOBefore _ -> Info
         MsgMigrationUTxOAfter _ -> Info
-        MsgIsStakeKeyRegistered _ -> Info
         MsgRewardBalanceQuery _ -> Debug
         MsgRewardBalanceResult (Right _) -> Debug
         MsgRewardBalanceResult (Left _) -> Notice
         MsgRewardBalanceNoSuchWallet{} -> Warning
         MsgRewardBalanceExited -> Notice
         MsgTxSubmit msg -> getSeverityAnnotation msg
+        MsgIsStakeKeyRegistered _ -> Info
 
 data TxSubmitLog
     = MsgPostTxResult (Hash "Tx") (Either ErrPostTx ())

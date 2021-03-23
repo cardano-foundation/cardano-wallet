@@ -77,7 +77,7 @@ import Cardano.Wallet.DB.Sqlite
 import Cardano.Wallet.Logging
     ( trMessageText )
 import Cardano.Wallet.Network
-    ( NetworkLayer (..) )
+    ( FollowLog (..), NetworkLayer (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( DelegationAddress (..)
     , Depth (..)
@@ -359,7 +359,7 @@ serveWallet
             let tr = poolsEngineTracer
 
             void $ forkFinally (monitorStakePools tr np nl db)
-                (traceAfterThread (contramap MsgExitMonitoring tr))
+                (traceAfterThread (contramap (MsgFollowLog . MsgExitMonitoring) poolsEngineTracer))
 
             -- fixme: needs to be simplified as part of ADP-634
             let startMetadataThread = forkIOWithUnmask $ \unmask ->
@@ -505,7 +505,7 @@ data Tracers' f = Tracers
     , tokenMetadataTracer :: f TokenMetadataLog
     , walletEngineTracer  :: f WalletEngineLog
     , walletDbTracer      :: f DBFactoryLog
-    , poolsEngineTracer   :: f StakePoolLog
+    , poolsEngineTracer   :: f (FollowLog StakePoolLog)
     , poolsDbTracer       :: f PoolDbLog
     , ntpClientTracer     :: f NtpTrace
     , networkTracer       :: f NetworkLayerLog
