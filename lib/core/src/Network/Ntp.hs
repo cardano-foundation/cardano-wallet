@@ -147,8 +147,9 @@ instance HasSeverityAnnotation NtpTrace where
         NtpTraceClientStartQuery -> Debug
         NtpTraceNoLocalAddr -> Notice
         NtpTraceResult (NtpDrift micro)
-            | abs micro < 500000 -> Debug
-            | otherwise          -> Notice
+            | abs micro < (500*ms)  -> Debug   -- Not sure what limits actually
+            | abs micro < (1000*ms) -> Notice  -- matter, but these seem
+            | otherwise             -> Warning -- reasonable.
         NtpTraceResult _ -> Debug
         NtpTraceRunProtocolResults _ -> Debug
         NtpTracePacketSent _ _ -> Debug
@@ -156,6 +157,8 @@ instance HasSeverityAnnotation NtpTrace where
         NtpTracePacketDecodeError _ _ -> Notice
         NtpTracePacketReceived _ _ -> Debug
         NtpTraceWaitingForRepliesTimeout _ -> Notice
+      where
+        ms = 1000
 
 getNtpStatus
     :: NtpClient
