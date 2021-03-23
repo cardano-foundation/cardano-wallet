@@ -1580,9 +1580,8 @@ data LogOutput
     = LogToStdStreams Severity
     -- ^ Log to console, with the given minimum 'Severity'.
     --
-    -- Logs of Notice or higher severity will be output to stderr. Info or lower
-    -- severity logs will be output to stdout.
-    --
+    -- Logs of Warning or higher severity will be output to stderr. Notice or
+    -- lower severity logs will be output to stdout.
     | LogToFile FilePath Severity
     deriving (Eq, Show)
 
@@ -1598,8 +1597,8 @@ mkScribe (LogToFile path sev) = pure $ ScribeDefinition
     , scRotation = Nothing
     }
 mkScribe (LogToStdStreams sev) =
-    [ mkScribe' (max Notice sev, maxBound, StderrSK)
-    , mkScribe' (sev, pred Notice, StdoutSK)
+    [ mkScribe' (max Warning sev, maxBound, StderrSK)
+    , mkScribe' (sev, pred Warning, StdoutSK)
     ]
   where
     mkScribe' (minSev, maxSev, kind) = ScribeDefinition
