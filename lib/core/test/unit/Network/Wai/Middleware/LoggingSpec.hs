@@ -103,7 +103,7 @@ import UnliftIO.Concurrent
 import UnliftIO.MVar
     ( newEmptyMVar, putMVar, readMVar )
 import UnliftIO.STM
-    ( TVar, atomically, newTVarIO, readTVarIO, writeTVar )
+    ( TVar, newTVarIO, readTVarIO )
 
 import qualified Data.Aeson as Aeson
 import qualified Data.List as L
@@ -216,7 +216,7 @@ spec = describe "Logging Middleware"
         property $ \(NumberOfRequests n) -> monadicIO $ do
             entries <- liftIO $ do
                 replicateConcurrently_ n (get ctx "/get")
-                skipPrevLogs <$> takeLogs ctx
+                takeLogs ctx
             let getReqId (ApiLog (RequestId rid) _) = rid
             let uniqueReqIds = L.nubBy (\l1 l2 -> getReqId l1 == getReqId l2)
             let numUniqueReqIds = length (uniqueReqIds entries)
@@ -281,16 +281,6 @@ data Context = Context
 -- | Read collected logs which were traced with 'traceInTVarIO'.
 takeLogs :: Context -> IO [ApiLog]
 takeLogs ctx = reverse <$> readTVarIO (logs ctx)
-
--- | Remove any partial logs which have come from the previous property test
--- run. These can occur because once the requests have completed, the property
--- finishes, but the response side may still be finishing writing its log
--- messages.
-skipPrevLogs :: [ApiLog] -> [ApiLog]
-skipPrevLogs = dropWhile (notLogRequestStart . logMsg)
-  where
-    notLogRequestStart LogRequestStart = False
-    notLogRequestStart _ = True
 
 -- | Give server time to finish off its request handler - the intention is to
 -- ensure that /all/ the response logs are captured before checking assertions.
