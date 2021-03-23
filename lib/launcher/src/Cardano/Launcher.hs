@@ -347,6 +347,12 @@ instance HasSeverityAnnotation WaitForProcessLog where
         MsgWaitAfter _ -> Debug
         MsgWaitCancelled -> Debug
 
+instance ToText ProcessHasExited where
+    toText (ProcessHasExited name code) =
+        "Child process "+|name|+" exited with "+|statusText code|+""
+    toText (ProcessDidNotStart name _e) =
+        "Could not start "+|name|+""
+
 instance ToText LauncherLog where
     toText ll = fmt $ case ll of
         MsgLauncherStart cmd args ->
@@ -355,10 +361,7 @@ instance ToText LauncherLog where
             "["+|name|+"."+|pid|+"] "+|toText msg|+""
         MsgLauncherFinish Nothing ->
             "Action finished"
-        MsgLauncherFinish (Just (ProcessDidNotStart name _e)) ->
-            "Could not start "+|name|+""
-        MsgLauncherFinish (Just (ProcessHasExited name code)) ->
-            "Child process "+|name|+" exited with "+|statusText code|+""
+        MsgLauncherFinish (Just exited) -> build $ toText exited
         MsgLauncherCleanup ->
             "Begin process cleanup"
         MsgLauncherCleanupTimedOut t ->

@@ -52,7 +52,7 @@ import Cardano.Wallet.Network.Ports
 import Control.DeepSeq
     ( NFData, rnf )
 import Control.Monad
-    ( forM, void )
+    ( forM )
 import Criterion.Measurement
     ( getTime, initializeTime, secs )
 import Data.Aeson
@@ -63,6 +63,8 @@ import Data.Maybe
     ( fromMaybe )
 import Data.Text
     ( Text )
+import Data.Text.Class
+    ( ToText (..) )
 import Fmt
     ( Buildable (..), nameF, pretty )
 import GHC.Generics
@@ -94,7 +96,7 @@ import System.Directory
 import System.Environment
     ( lookupEnv )
 import System.Exit
-    ( die )
+    ( ExitCode (..), die )
 import System.FilePath
     ( (</>) )
 import System.IO
@@ -118,7 +120,7 @@ execBenchWithNode
     -- ^ Get backend-specific network configuration from args
     -> (Trace IO Text -> cfg -> CardanoNodeConn -> IO ())
     -- ^ Action to run
-    -> IO ()
+    -> IO ExitCode
 execBenchWithNode networkConfig action = do
     args <- getRestoreBenchArgs
 
@@ -130,12 +132,18 @@ execBenchWithNode networkConfig action = do
     installSignalHandlers (return ())
 
     case argUseAlreadyRunningNodeSocketPath args of
-        Just conn ->
+        Just conn -> do
             action tr (networkConfig args) conn
+            pure ExitSuccess
         Nothing -> do
-            void $ withNetworkConfiguration args $ \nodeConfig ->
+            res <- withNetworkConfiguration args $ \nodeConfig ->
                 withCardanoNode (trMessageText tr) nodeConfig $
                     action tr (networkConfig args)
+            case res of
+                Left exited -> do
+                    sayErr $ "FAIL: cardano-node exited with status " <> toText exited
+                    pure $ ExitFailure 1
+                Right _ -> pure ExitSuccess
 
 withNetworkConfiguration :: RestoreBenchArgs -> (CardanoNodeConfig -> IO a) -> IO a
 withNetworkConfiguration args action = do
