@@ -91,7 +91,7 @@ import Servant
 import Servant.Server
     ( Handler )
 import Test.Hspec
-    ( Spec, after, afterAll, beforeAll, describe, it, shouldBe, shouldContain )
+    ( Spec, after, before, describe, it, shouldBe, shouldContain )
 import Test.QuickCheck
     ( Arbitrary (..), choose, counterexample, property, withMaxSuccess )
 import Test.QuickCheck.Monadic
@@ -112,7 +112,7 @@ import qualified Network.Wai.Handler.Warp as Warp
 
 spec :: Spec
 spec = describe "Logging Middleware"
-    $ beforeAll setup $ after clearLogs $ afterAll tearDown $ do
+    $ before setup $ after tearDown $ do
     it "GET, 200, no query" $ \ctx -> do
         get ctx "/get"
         expectLogs ctx
@@ -296,9 +296,6 @@ skipPrevLogs = dropWhile (notLogRequestStart . logMsg)
 -- ensure that /all/ the response logs are captured before checking assertions.
 waitForServerToComplete :: IO ()
 waitForServerToComplete = threadDelay 500_000
-
-clearLogs :: Context -> IO ()
-clearLogs = atomically . flip writeTVar [] . logs
 
 {-------------------------------------------------------------------------------
                                 Test Helpers
