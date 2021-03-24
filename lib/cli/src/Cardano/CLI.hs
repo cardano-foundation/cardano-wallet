@@ -1597,10 +1597,11 @@ mkScribe (LogToFile path sev) = pure $ ScribeDefinition
     , scRotation = Nothing
     }
 mkScribe (LogToStdStreams sev) =
-    [ mkScribe' (max Warning sev, maxBound, StderrSK)
-    , mkScribe' (sev, pred Warning, StdoutSK)
+    [ mkScribe' (max errMin sev, maxBound, StderrSK)
+    , mkScribe' (sev, pred errMin, StdoutSK)
     ]
   where
+    errMin = Warning
     mkScribe' (minSev, maxSev, kind) = ScribeDefinition
         { scName = "text"
         , scFormat = ScText
