@@ -81,7 +81,6 @@ import Cardano.DB.Sqlite.Delete
 import Cardano.Wallet.DB
     ( DBFactory (..)
     , DBLayer (..)
-    , ErrAddCosignerKey (..)
     , ErrNoSuchWallet (..)
     , ErrRemoveTx (..)
     , ErrWalletAlreadyExists (..)
@@ -91,7 +90,6 @@ import Cardano.Wallet.DB
     )
 import Cardano.Wallet.DB.Sqlite.TH
     ( Checkpoint (..)
-    , CosignerKey (..)
     , DelegationCertificate (..)
     , DelegationReward (..)
     , EntityField (..)
@@ -103,7 +101,6 @@ import Cardano.Wallet.DB.Sqlite.TH
     , SeqState (..)
     , SeqStateAddress (..)
     , SeqStatePendingIx (..)
-    , SharedWallet (..)
     , StakeKeyCertificate (..)
     , TxIn (..)
     , TxMeta (..)
@@ -136,8 +133,6 @@ import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Script
     ( CosignerInfo (..), CredentialType )
-import Cardano.Wallet.Primitive.AddressDiscovery.SharedState
-    ( SharedWalletInfo (..) )
 import Cardano.Wallet.Primitive.Slotting
     ( TimeInterpreter
     , epochOf
@@ -189,8 +184,6 @@ import Data.Text
     ( Text )
 import Data.Text.Class
     ( ToText (..), fromText )
-import Data.Time.Clock
-    ( UTCTime )
 import Data.Typeable
     ( Typeable )
 import Data.Word
@@ -243,6 +236,7 @@ import UnliftIO.MVar
 import qualified Cardano.Wallet.Primitive.AddressDerivation as W
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Random as Rnd
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Sequential as Seq
+import qualified Cardano.Wallet.Primitive.AddressDiscovery.SharedState as Shared
 import qualified Cardano.Wallet.Primitive.Model as W
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Address as W
@@ -1163,7 +1157,6 @@ withDBLayer tr defaultFieldValues dbFile ti action = do
 data WalletDBLog
     = MsgDB DBLog
     | MsgCheckpointCache W.WalletId CheckpointCacheLog
-    | MsgSharedWallet W.WalletId SharedWalletLog
     deriving (Generic, Show, Eq)
 
 data CheckpointCacheLog
@@ -1173,24 +1166,16 @@ data CheckpointCacheLog
     | MsgDrop
     deriving (Generic, Show, Eq)
 
-data SharedWalletLog
-    = MsgCreatingSharedWallet
-    | MsgAddingCosigner Cosigner CredentialType
-    | MsgRemovingSharedWallet
-    deriving (Generic, Show, Eq)
-
 instance HasPrivacyAnnotation WalletDBLog
 instance HasSeverityAnnotation WalletDBLog where
     getSeverityAnnotation = \case
         MsgDB msg -> getSeverityAnnotation msg
         MsgCheckpointCache _ _ -> Debug
-        MsgSharedWallet _ _ -> Notice
 
 instance ToText WalletDBLog where
     toText = \case
         MsgDB msg -> toText msg
         MsgCheckpointCache wid msg -> "Checkpoint cache " <> toText wid <> ": " <> toText msg
-        MsgSharedWallet wid msg -> "Shared wallet "<> toText wid <> ": "<> toText msg
 
 instance ToText CheckpointCacheLog where
     toText = \case
@@ -1198,18 +1183,6 @@ instance ToText CheckpointCacheLog where
         MsgGetCheckpoint hit -> "Get " <> if hit then "hit" else "miss"
         MsgRefresh -> "Refresh"
         MsgDrop -> "Drop"
-
-instance ToText SharedWalletLog where
-    toText = \case
-        MsgRemovingSharedWallet -> "Remove"
-        MsgCreatingSharedWallet -> "Create"
-        MsgAddingCosigner (Cosigner c) cred -> mconcat
-            [ "Adding the account public key for the cosigner#"
-            , T.pack (show c)
-            , " for "
-            , toText cred
-            , " credential."
-            ]
 
 -- | Runs an IO action with a new 'DBLayer' backed by a sqlite in-memory
 -- database.
@@ -1606,45 +1579,6 @@ newDBLayerWith cacheBehavior tr ti SqliteContext{runQuery} = do
             \(PrimaryKey wid) ->
                 W.Coin . maybe 0 (rewardAccountBalance . entityVal) <$>
                 selectFirst [RewardWalletId ==. wid] []
-
-        {-----------------------------------------------------------------------
-                                     Shared Wallet
-        -----------------------------------------------------------------------}
-
-        , initializeSharedState = \(PrimaryKey wid) state meta gp -> ExceptT $ do
-            res <- handleConstraint (ErrWalletAlreadyExists wid) $
-                insert_ (mkSharedWalletEntity wid state meta gp)
-            liftIO $ traceWith tr $ MsgSharedWallet wid MsgCreatingSharedWallet
-            pure res
-
-        , removeSharedWallet = \(PrimaryKey wid) -> ExceptT $ do
-            selectSharedWallet wid >>= \case
-                Nothing -> pure $ Left $ ErrNoSuchWallet wid
-                Just _  -> Right <$> do
-                    liftIO $ traceWith tr $ MsgSharedWallet wid MsgRemovingSharedWallet
-                    deleteWhere [SharedWalletWalletId ==. wid]
-                    deleteWhere [CosignerKeyWalletId ==. wid]
-
-        , readSharedWalletState = \(PrimaryKey wid) ->
-            selectSharedWallet wid >>= \case
-                Nothing -> pure Nothing
-                Just _  -> selectSharedWalletState wid
-
-        , readSharedWalletMetadata = \(PrimaryKey wid) ->
-            selectSharedWallet wid >>= \case
-                Nothing -> pure Nothing
-                Just _  -> selectSharedWalletMetadata wid
-
-        , addCosignerKey = \(PrimaryKey wid) utctime info -> ExceptT $ do
-            selectSharedWallet wid >>= \case
-                Nothing -> pure $ Left $ ErrAddCosignerKeyNoWallet $ ErrNoSuchWallet wid
-                Just _ -> do
-                    res <- handleConstraint (ErrAddCosignerKeyAlreadyExists wid (cosigner info) (credential info)) $
-                        insert_ (mkCosignerKeyEntity wid utctime info)
-                    liftIO $ traceWith tr $ MsgSharedWallet wid (MsgAddingCosigner (cosigner info) (credential info))
-                    pure res
-
-        , listCosignerKeys = \(PrimaryKey _wid) ->  undefined
 
         {-----------------------------------------------------------------------
                                      ACID Execution
@@ -2494,6 +2428,19 @@ selectSeqStatePendingIxs wid =
   where
     fromRes = fmap (W.Index . seqStatePendingIxIndex . entityVal)
 
+instance
+    ( Eq (k 'AccountK XPub)
+    , PersistPublicKey (k 'AccountK)
+    , PersistPublicKey (k 'AddressK)
+    , MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
+    , PaymentAddress n k
+    , SoftDerivation k
+    , Typeable n
+    ) => PersistState (Shared.SharedState n k) where
+    insertState (_wid, _sl) _st = undefined
+
+    selectState (_wid, _sl) = undefined
+
 {-------------------------------------------------------------------------------
                           HD Random address discovery
 -------------------------------------------------------------------------------}
@@ -2578,6 +2525,7 @@ selectRndStatePending wid = do
     assocFromEntity (RndStatePendingAddress _ accIx addrIx addr) =
         ((W.Index accIx, W.Index addrIx), addr)
 
+{--
 mkSharedWalletEntity
     :: PersistPublicKey (k 'AccountK)
     => W.WalletId
@@ -2658,3 +2606,4 @@ mkCosignerKeyEntity wid utctime info = CosignerKey
     }
   where
    (Cosigner c) = cosigner info
+--}

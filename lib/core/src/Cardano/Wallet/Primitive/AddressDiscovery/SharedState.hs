@@ -26,8 +26,6 @@ module Cardano.Wallet.Primitive.AddressDiscovery.SharedState
     (
     -- ** State
       SharedState (..)
-    , SharedWalletInfo (..)
-    , SharedWalletState (..)
     , unsafePendingSharedState
     , newSharedState
     , addCosignerAccXPub
@@ -82,8 +80,6 @@ import Data.Either
     ( isRight )
 import Data.Proxy
     ( Proxy (..) )
-import Data.Text.Class
-    ( FromText (..), TextDecodingError (..), ToText (..) )
 import GHC.Generics
     ( Generic )
 import Type.Reflection
@@ -178,43 +174,6 @@ deriving instance
 instance
     ( NFData (k 'AccountK XPub)
     ) => NFData (SharedState n k)
-
-data SharedWalletState = PendingState | ActiveState
-    deriving (Eq, Show, Generic)
-    deriving anyclass NFData
-
-instance ToText SharedWalletState where
-    toText PendingState = "pending"
-    toText ActiveState = "active"
-
-instance FromText SharedWalletState where
-    fromText txt = case txt of
-        "pending" -> Right PendingState
-        "active" -> Right ActiveState
-        _ -> Left $ TextDecodingError $ unwords
-            [ "I couldn't parse the given shared wallet state."
-            , "I am expecting one of the words 'pending' or 'active'."]
-
-data SharedWalletInfo k = SharedWalletInfo
-    { walletState :: !SharedWalletState
-    , walletAccountKey :: !(k 'AccountK XPub)
-    , accountIx :: !(Index 'Hardened 'AccountK)
-    , paymentScript :: !(Script Cosigner)
-    , delegationScript :: !(Maybe (Script Cosigner))
-    , poolGap :: !AddressPoolGap
-    } deriving (Generic)
-
-deriving instance
-    ( Show (k 'AccountK XPub)
-    ) => Show (SharedWalletInfo k)
-
-deriving instance
-    ( Eq (k 'AccountK XPub)
-    ) => Eq (SharedWalletInfo k)
-
-instance
-    ( NFData (k 'AccountK XPub)
-    ) => NFData (SharedWalletInfo k)
 
 -- | Purpose for shared wallets is a constant set to 1854' (or 0x8000073E) following the original
 -- CIP-1854 Multi-signature Wallets.

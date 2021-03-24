@@ -32,8 +32,6 @@ import Cardano.Api.Typed
     )
 import Cardano.Wallet.Primitive.AddressDiscovery.Script
     ( CredentialType )
-import Cardano.Wallet.Primitive.AddressDiscovery.SharedState
-    ( SharedWalletState )
 import Cardano.Slotting.Slot
     ( SlotNo (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -530,16 +528,6 @@ instance PersistField CredentialType where
     fromPersistValue = fromPersistValueFromText
 
 instance PersistFieldSql CredentialType where
-    sqlType _ = sqlType (Proxy @Text)
-
-----------------------------------------------------------------------------
--- SharedWalletState
-
-instance PersistField SharedWalletState where
-    toPersistValue = toPersistValue . toText
-    fromPersistValue = fromPersistValueFromText
-
-instance PersistFieldSql SharedWalletState where
     sqlType _ = sqlType (Proxy @Text)
 
 ----------------------------------------------------------------------------

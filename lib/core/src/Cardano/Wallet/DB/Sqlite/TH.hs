@@ -35,8 +35,6 @@ import Cardano.Wallet.DB.Sqlite.Types
     ( BlockId, HDPassphrase, TxId, sqlSettings' )
 import Cardano.Wallet.Primitive.AddressDiscovery.Script
     ( CredentialType )
-import Cardano.Wallet.Primitive.AddressDiscovery.SharedState
-    ( SharedWalletState )
 import Data.Quantity
     ( Percentage (..) )
 import Data.Text
@@ -381,35 +379,30 @@ RndStatePendingAddress
     deriving Show Generic
 
 -- Shared Wallet
-SharedWallet
-    sharedWalletWalletId                 W.WalletId                sql=wallet_id
-    sharedWalletCreationTime             UTCTime                   sql=creation_time
-    sharedWalletName                     Text                      sql=name
-    sharedWalletAccountXPub              B8.ByteString             sql=account_xpub
-    sharedWalletAccountIndex             Word32                    sql=account_ix
-    sharedWalletScriptGap                W.AddressPoolGap          sql=pool_gap
-    sharedWalletPaymentScript            (Script Cosigner)         sql=payment_script
-    sharedWalletDelegationScript         (Script Cosigner) Maybe   sql=delegation_script
-    sharedWalletState                    SharedWalletState         sql=wallet_state
-    sharedWalletPassphraseLastUpdatedAt  UTCTime Maybe             sql=passphrase_last_updated_at
-    sharedWalletPassphraseScheme         W.PassphraseScheme Maybe  sql=passphrase_scheme
-    sharedWalletGenesisHash              BlockId                   sql=genesis_hash
-    sharedWalletGenesisStart             UTCTime                   sql=genesis_start
+SharedState
+    sharedStateWalletId                 W.WalletId                sql=wallet_id
+    sharedStateAccountXPub              B8.ByteString             sql=account_xpub
+    sharedStateAccountIndex             Word32                    sql=account_ix
+    sharedStateScriptGap                W.AddressPoolGap          sql=pool_gap
+    sharedStatePaymentScript            (Script Cosigner)         sql=payment_script
+    sharedStateDelegationScript         (Script Cosigner) Maybe   sql=delegation_script
+    sharedStateDerivationPrefix         W.DerivationPrefix        sql=derivation_prefix
 
-    Primary sharedWalletWalletId
+    Primary sharedStateWalletId
     deriving Show Generic
 
 CosignerKey
     cosignerKeyWalletId                  W.WalletId                sql=wallet_id
-    cosignerKeyCreationTime              UTCTime                   sql=creation_time
+    cosignerKeySlot                      SlotNo                    sql=slot
     cosignerKeyCredential                CredentialType            sql=credential
     cosignerKeyAccountXPub               B8.ByteString             sql=account_xpub
-    cosignerKeyIndex                     Word8                     sql=cosigner_ix
+    cosignerKeyIndex                     Word8                     sql=cosigner_index
 
     Primary
         cosignerKeyWalletId
+        cosignerKeySlot
         cosignerKeyCredential
         cosignerKeyIndex
-    Foreign SharedWallet fk_shared_wallet_cosigner_key cosignerKeyWalletId ! ON DELETE CASCADE
+    Foreign Wallet fk_shared_wallet_cosigner_key cosignerKeyWalletId ! ON DELETE CASCADE
     deriving Show Generic
 |]

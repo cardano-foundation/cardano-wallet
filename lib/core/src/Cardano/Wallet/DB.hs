@@ -30,21 +30,14 @@ module Cardano.Wallet.DB
     , ErrRemoveTx (..)
     , ErrNoSuchWallet(..)
     , ErrWalletAlreadyExists(..)
-    , ErrAddCosignerKey (..)
     ) where
 
 import Prelude
 
 import Cardano.Address.Derivation
     ( XPrv )
-import Cardano.Address.Script
-    ( Cosigner )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..) )
-import Cardano.Wallet.Primitive.AddressDiscovery.Script
-    ( CosignerInfo, CredentialType )
-import Cardano.Wallet.Primitive.AddressDiscovery.SharedState
-    ( SharedWalletInfo )
 import Cardano.Wallet.Primitive.Model
     ( Wallet )
 import Cardano.Wallet.Primitive.Types
@@ -69,8 +62,6 @@ import Control.Monad.Trans.Except
     ( ExceptT, runExceptT )
 import Data.Quantity
     ( Quantity (..) )
-import Data.Time.Clock
-    ( UTCTime )
 import Data.Word
     ( Word32, Word8 )
 
@@ -304,45 +295,6 @@ data DBLayer m s k = forall stm. (MonadIO stm, MonadFail stm) => DBLayer
         -- The second argument represents the stability window, or said
         -- length of the deepest rollback.
 
-    , initializeSharedState
-        :: PrimaryKey WalletId
-        -> SharedWalletInfo k
-        -> WalletMetadata
-        -> GenesisParameters
-        -> ExceptT ErrWalletAlreadyExists stm ()
-        -- ^ Create the shared wallet.
-
-    , removeSharedWallet
-        :: PrimaryKey WalletId
-        -> ExceptT ErrNoSuchWallet stm ()
-        -- ^ Remove a given share wallet and all its associated data.
-
-    , readSharedWalletState
-        :: PrimaryKey WalletId
-        -> stm (Maybe (SharedWalletInfo k))
-        -- ^ Fetch the most recent state of a given shared wallet.
-        --
-        -- Return 'Nothing' if there's no such wallet.
-
-    , readSharedWalletMetadata
-        :: PrimaryKey WalletId
-        -> stm (Maybe WalletMetadata)
-        -- ^ Fetch the most recent metadata of a given shared wallet.
-        --
-        -- Return 'Nothing' if there's no such wallet.
-
-    , addCosignerKey
-        :: PrimaryKey WalletId
-        -> UTCTime
-        -> CosignerInfo k
-        -> ExceptT ErrAddCosignerKey stm ()
-        -- ^ Adding cosigner key to the shared wallet.
-
-    , listCosignerKeys
-        :: PrimaryKey WalletId
-        -> stm [(UTCTime, CosignerInfo k)]
-        -- ^ Get the list of keys all known cosigners in the DB for a given shared wallet, possibly empty.
-
     , atomically
         :: forall a. stm a -> m a
         -- ^ Execute operations of the database in isolation and atomically.
@@ -368,12 +320,6 @@ newtype ErrNoSuchTransaction
 -- | Forbidden operation was executed on an already existing wallet
 newtype ErrWalletAlreadyExists
     = ErrWalletAlreadyExists WalletId -- Wallet already exists in db
-    deriving (Eq, Show)
-
--- | Forbidden operation was executed when adding the account key of cosigner
-data ErrAddCosignerKey
-    = ErrAddCosignerKeyNoWallet ErrNoSuchWallet
-    | ErrAddCosignerKeyAlreadyExists WalletId Cosigner CredentialType
     deriving (Eq, Show)
 
 -- | A primary key which can take many forms depending on the value. This may
