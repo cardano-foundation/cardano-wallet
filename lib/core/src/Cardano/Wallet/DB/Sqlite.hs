@@ -48,9 +48,9 @@ module Cardano.Wallet.DB.Sqlite
 import Prelude
 
 import Cardano.Address.Derivation
-    ( XPrv, XPub )
+    ( XPrv, XPub, xpubToBytes )
 import Cardano.Address.Script
-    ( Cosigner (..) )
+    ( Cosigner (..), ScriptTemplate (..) )
 import Cardano.BM.Data.Severity
     ( Severity (..) )
 import Cardano.BM.Data.Tracer
@@ -90,6 +90,7 @@ import Cardano.Wallet.DB
     )
 import Cardano.Wallet.DB.Sqlite.TH
     ( Checkpoint (..)
+    , CosignerKey (..)
     , DelegationCertificate (..)
     , DelegationReward (..)
     , EntityField (..)
@@ -101,6 +102,7 @@ import Cardano.Wallet.DB.Sqlite.TH
     , SeqState (..)
     , SeqStateAddress (..)
     , SeqStatePendingIx (..)
+    , SharedState (..)
     , StakeKeyCertificate (..)
     , TxIn (..)
     , TxMeta (..)
@@ -132,7 +134,7 @@ import Cardano.Wallet.Primitive.AddressDerivation.Icarus
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Script
-    ( CosignerInfo (..), CredentialType )
+    ( CredentialType (..) )
 import Cardano.Wallet.Primitive.Slotting
     ( TimeInterpreter
     , epochOf
@@ -173,7 +175,7 @@ import Data.List.Split
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
-    ( catMaybes, isJust, mapMaybe )
+    ( catMaybes, fromJust, isJust, mapMaybe )
 import Data.Ord
     ( Down (..) )
 import Data.Proxy
@@ -260,7 +262,6 @@ newDBFactory
     :: forall s k.
         ( PersistState s
         , PersistPrivateKey (k 'RootK)
-        , PersistPublicKey (k 'AccountK)
         , WalletKey k
         )
     => Tracer IO DBFactoryLog
@@ -1132,7 +1133,6 @@ withDBLayer
     :: forall s k a.
         ( PersistState s
         , PersistPrivateKey (k 'RootK)
-        , PersistPublicKey (k 'AccountK)
         , WalletKey k
         )
     => Tracer IO WalletDBLog
@@ -1190,7 +1190,6 @@ withDBLayerInMemory
     :: forall s k a.
         ( PersistState s
         , PersistPrivateKey (k 'RootK)
-        , PersistPublicKey (k 'AccountK)
         )
     => Tracer IO WalletDBLog
        -- ^ Logging object
@@ -1205,7 +1204,6 @@ newDBLayerInMemory
     :: forall s k.
         ( PersistState s
         , PersistPrivateKey (k 'RootK)
-        , PersistPublicKey (k 'AccountK)
         )
     => Tracer IO WalletDBLog
        -- ^ Logging object
@@ -1239,7 +1237,6 @@ newDBLayer
     :: forall s k.
         ( PersistState s
         , PersistPrivateKey (k 'RootK)
-        , PersistPublicKey (k 'AccountK)
         )
     => Tracer IO WalletDBLog
        -- ^ Logging
@@ -1255,7 +1252,6 @@ newDBLayerWith
     :: forall s k.
         ( PersistState s
         , PersistPrivateKey (k 'RootK)
-        , PersistPublicKey (k 'AccountK)
         )
     => CacheBehavior
        -- ^ Option to disable caching.
@@ -2437,7 +2433,36 @@ instance
     , SoftDerivation k
     , Typeable n
     ) => PersistState (Shared.SharedState n k) where
-    insertState (_wid, _sl) _st = undefined
+    insertState (wid, sl) st = case st of
+        Shared.PendingSharedState prefix accXPub pTemplate dTemplateM g -> do
+            insertSharedState accXPub g pTemplate dTemplateM prefix
+            insertCosigner (cosigners pTemplate) Payment
+            when (isJust dTemplateM) $
+                insertCosigner (fromJust $ cosigners <$> dTemplateM) Delegation
+
+        Shared.SharedState prefix pool -> do
+            let (Seq.ParentContextMultisigScript accXPub pTemplate dTemplateM) =
+                    Seq.context pool
+            insertSharedState accXPub (Seq.gap pool) pTemplate dTemplateM prefix
+            insertCosigner (cosigners pTemplate) Payment
+            when (isJust dTemplateM) $
+                insertCosigner (fromJust $ cosigners <$> dTemplateM) Delegation
+            insertAddressPool @n wid sl pool
+      where
+         insertSharedState accXPub g pTemplate dTemplateM prefix =
+            repsert (SharedStateKey wid) $ SharedState
+                { sharedStateWalletId = wid
+                , sharedStateAccountXPub = serializeXPub accXPub
+                , sharedStateScriptGap = g
+                , sharedStatePaymentScript = template pTemplate
+                , sharedStateDelegationScript = template <$> dTemplateM
+                , sharedStateDerivationPrefix = prefix
+                }
+         insertCosigner cs cred =
+             dbChunked insertMany_
+             [ CosignerKey wid sl cred (xpubToBytes xpub) c
+             | ((Cosigner c), xpub) <- Map.assocs cs
+             ]
 
     selectState (_wid, _sl) = undefined
 

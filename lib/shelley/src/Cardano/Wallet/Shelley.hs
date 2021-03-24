@@ -85,7 +85,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , NetworkDiscriminantVal
     , PaymentAddress
     , PersistPrivateKey
-    , PersistPublicKey
     , WalletKey
     , networkDiscriminantVal
     )
@@ -373,7 +372,6 @@ serveWallet
             , IsOurs s RewardAccount
             , PersistState s
             , PersistPrivateKey (k 'RootK)
-            , PersistPublicKey (k 'AccountK)
             , WalletKey k
             )
         => TransactionLayer k

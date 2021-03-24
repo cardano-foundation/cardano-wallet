@@ -382,7 +382,6 @@ RndStatePendingAddress
 SharedState
     sharedStateWalletId                 W.WalletId                sql=wallet_id
     sharedStateAccountXPub              B8.ByteString             sql=account_xpub
-    sharedStateAccountIndex             Word32                    sql=account_ix
     sharedStateScriptGap                W.AddressPoolGap          sql=pool_gap
     sharedStatePaymentScript            (Script Cosigner)         sql=payment_script
     sharedStateDelegationScript         (Script Cosigner) Maybe   sql=delegation_script
