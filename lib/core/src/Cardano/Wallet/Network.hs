@@ -21,9 +21,6 @@ module Cardano.Wallet.Network
     , FollowExit (..)
 
     -- * Errors
-    , ErrNetworkUnavailable (..)
-    , ErrGetBlock (..)
-    , ErrGetTxParameters (..)
     , ErrPostTx (..)
     , ErrGetAccountBalance (..)
 
@@ -53,8 +50,6 @@ import Cardano.Wallet.Primitive.Types
     )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin )
-import Cardano.Wallet.Primitive.Types.Hash
-    ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..) )
 import Cardano.Wallet.Primitive.Types.Tx
@@ -62,7 +57,7 @@ import Cardano.Wallet.Primitive.Types.Tx
 import Control.Monad
     ( when )
 import Control.Monad.Trans.Except
-    ( ExceptT (..), runExceptT )
+    ( ExceptT (..) )
 import Control.Retry
     ( RetryPolicyM, constantDelay, limitRetriesByCumulativeDelay )
 import Control.Tracer
@@ -92,7 +87,7 @@ import qualified Data.Text as T
 data NetworkLayer m block = NetworkLayer
     { nextBlocks
         :: Cursor
-        -> ExceptT ErrGetBlock m (NextBlocksResult Cursor block)
+        -> IO (NextBlocksResult Cursor block)
         -- ^ Starting from the given 'Cursor', fetches a contiguous sequence of
         -- blocks from the node, if they are available. An updated cursor will
         -- be returned with a 'RollFoward' result.
@@ -168,38 +163,16 @@ instance Functor m => Functor (NetworkLayer m) where
                                   Errors
 -------------------------------------------------------------------------------}
 
--- | Network is unavailable
-data ErrNetworkUnavailable
-    = ErrNetworkUnreachable Text
-      -- ^ Cannot connect to network backend.
-    | ErrNetworkInvalid Text
-      -- ^ Network backend reports that the requested network is invalid.
-    deriving (Generic, Show, Eq)
-
--- | Error while trying to get one or more blocks
-data ErrGetBlock
-    = ErrGetBlockNetworkUnreachable ErrNetworkUnavailable
-    | ErrGetBlockNotFound (Hash "BlockHeader")
-    deriving (Generic, Show, Eq)
-
--- | Error while querying local parameters state.
-data ErrGetTxParameters
-    = ErrGetTxParametersNetworkUnreachable ErrNetworkUnavailable
-    | ErrGetTxParametersNotFound
-    deriving (Generic, Show, Eq)
-
 -- | Error while trying to send a transaction
 data ErrPostTx
-    = ErrPostTxNetworkUnreachable ErrNetworkUnavailable
-    | ErrPostTxBadRequest Text
+    = ErrPostTxBadRequest Text
     | ErrPostTxProtocolFailure Text
     deriving (Generic, Show, Eq)
 
 instance Exception ErrPostTx
 
-data ErrGetAccountBalance
-    = ErrGetAccountBalanceNetworkUnreachable ErrNetworkUnavailable
-    | ErrGetAccountBalanceAccountNotFound RewardAccount
+newtype ErrGetAccountBalance
+    = ErrGetAccountBalanceAccountNotFound RewardAccount
     deriving (Generic, Eq, Show)
 
 {-------------------------------------------------------------------------------
@@ -315,17 +288,13 @@ follow nl tr cps yield header =
     delay0 :: Int
     delay0 = 500*1000 -- 500ms
 
-    retryDelay :: Int -> Int
-    retryDelay 0 = delay0
-    retryDelay delay = min (2*delay) (10 * delay0)
-
     -- | Wait a short delay before querying for blocks again. We also take this
     -- opportunity to refresh the chain tip as it has probably increased in
     -- order to refine our syncing status.
     sleep :: Int -> Bool -> Cursor -> IO FollowExit
     sleep delay hasRolledForward cursor = handle exitOnAnyException $ do
         when (delay > 0) (threadDelay delay)
-        step delay hasRolledForward cursor
+        step hasRolledForward cursor
       where
         -- Any unhandled synchronous exception should be logged and cause the
         -- chain follower to exit.
@@ -334,28 +303,24 @@ follow nl tr cps yield header =
             traceWith tr $ MsgUnhandledException $ T.pack $ show e
             pure FollowFailure
 
-    step :: Int -> Bool -> Cursor -> IO FollowExit
-    step delay hasRolledForward cursor = runExceptT (nextBlocks nl cursor) >>= \case
-        Left e -> do
-            traceWith tr $ MsgNextBlockFailed e
-            sleep (retryDelay delay) hasRolledForward cursor
-
-        Right AwaitReply -> do
+    step :: Bool -> Cursor -> IO FollowExit
+    step hasRolledForward cursor = nextBlocks nl cursor >>= \case
+        AwaitReply -> do
             traceWith tr MsgSynced
             sleep delay0 hasRolledForward cursor
 
-        Right (RollForward cursor' _ []) -> do -- FIXME Make RollForward return NE
+        RollForward cursor' _ [] -> do -- FIXME Make RollForward return NE
             traceWith tr MsgSynced
             sleep delay0 hasRolledForward cursor'
 
-        Right (RollForward cursor' tip (blockFirst : blocksRest)) -> do
+        RollForward cursor' tip (blockFirst : blocksRest) -> do
             let blocks = blockFirst :| blocksRest
             traceWith tr $ MsgApplyBlocks tip (header <$> blocks)
             action <- yield blocks tip
             traceWith tr $ MsgFollowAction (fmap show action)
             continueWith cursor' True action
 
-        Right (RollBackward cursor') ->
+        RollBackward cursor' ->
             -- After negotiating a tip, the node asks us to rollback to the
             -- intersection. We may have to rollback to our /current/ tip.
             --
@@ -373,11 +338,11 @@ follow nl tr cps yield header =
                     -- we can ignore it.
                     traceWith tr $ MsgWillIgnoreRollback sl "initial rollback, \
                         \cps=[]"
-                    step delay0 hasRolledForward cursor'
+                    step hasRolledForward cursor'
                 (sl, _:_, False) | sl == slotNo (last cps) -> do
                     traceWith tr $ MsgWillIgnoreRollback sl "initial rollback, \
                         \rollback point equals the last checkpoint"
-                    step delay0 hasRolledForward cursor'
+                    step hasRolledForward cursor'
                 (sl, _, _) -> do
                     traceWith tr $ MsgWillRollback sl
                     destroyCursor nl cursor' $> FollowRollback sl
@@ -394,9 +359,9 @@ follow nl tr cps yield header =
             ExitWith _ -> -- NOTE error logged as part of `MsgFollowAction`
                 return FollowDone
             Continue ->
-                step delay0 hrf cursor'
+                step hrf cursor'
             RetryImmediately ->
-                step delay0 hrf cursor
+                step hrf cursor
             RetryLater ->
                 sleep delay0 hrf cursor
 
@@ -407,7 +372,6 @@ follow nl tr cps yield header =
 data FollowLog
     = MsgFollowAction (FollowAction String)
     | MsgUnhandledException Text
-    | MsgNextBlockFailed ErrGetBlock
     | MsgSynced
     | MsgApplyBlocks BlockHeader (NonEmpty BlockHeader)
     | MsgWillRollback SlotNo
@@ -421,8 +385,6 @@ instance ToText FollowLog where
             _ -> T.pack $ "Follower says " <> show action
         MsgUnhandledException err ->
             "Unexpected error following the chain: " <> err
-        MsgNextBlockFailed e ->
-            T.pack $ "Failed to get next blocks: " <> show e
         MsgSynced ->
             "In sync with the node."
         MsgApplyBlocks tipHdr hdrs ->
@@ -447,7 +409,6 @@ instance HasSeverityAnnotation FollowLog where
         MsgFollowAction (ExitWith _) -> Error
         MsgFollowAction _ -> Debug
         MsgUnhandledException _ -> Error
-        MsgNextBlockFailed _ -> Warning
         MsgSynced -> Debug
         MsgApplyBlocks _ _ -> Info
         MsgWillRollback _ -> Debug

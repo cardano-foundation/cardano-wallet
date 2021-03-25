@@ -146,7 +146,6 @@ module Cardano.Wallet
     , ErrListTransactions (..)
     , ErrGetTransaction (..)
     , ErrNoSuchTransaction (..)
-    , ErrNetworkUnavailable (..)
     , ErrStartTimeLaterThanEndTime (..)
 
     -- ** Root Key
@@ -190,7 +189,6 @@ import Cardano.Wallet.DB
     )
 import Cardano.Wallet.Network
     ( ErrGetAccountBalance (..)
-    , ErrNetworkUnavailable (..)
     , ErrPostTx (..)
     , FollowAction (..)
     , FollowExit (..)
@@ -1009,8 +1007,6 @@ queryRewardBalance ctx acct = do
         Right x -> Right x
         Left (ErrGetAccountBalanceAccountNotFound _) ->
             Right $ Coin 0
-        Left (ErrGetAccountBalanceNetworkUnreachable e) ->
-            Left $ ErrFetchRewardsNetworkUnreachable e
 
 manageRewardBalance
     :: forall ctx s k (n :: NetworkDiscriminant).
@@ -2189,9 +2185,8 @@ data ErrQuitStakePool
     deriving (Generic, Eq, Show)
 
 -- | Errors that can occur when fetching the reward balance of a wallet
-data ErrFetchRewards
-    = ErrFetchRewardsNetworkUnreachable ErrNetworkUnavailable
-    | ErrFetchRewardsReadRewardAccount ErrReadRewardAccount
+newtype ErrFetchRewards
+    = ErrFetchRewardsReadRewardAccount ErrReadRewardAccount
     deriving (Generic, Eq, Show)
 
 data ErrCheckWalletIntegrity
