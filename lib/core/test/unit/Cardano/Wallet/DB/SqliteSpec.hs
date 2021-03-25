@@ -108,6 +108,8 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     , purposeBIP44
     , purposeCIP1852
     )
+import Cardano.Wallet.Primitive.AddressDiscovery.SharedState
+    ( SharedState )
 import Cardano.Wallet.Primitive.Model
     ( FilteredBlock (..)
     , Wallet
@@ -258,6 +260,7 @@ spec :: Spec
 spec = parallel $ do
     sqliteSpecSeq
     sqliteSpecRnd
+    sqliteSpecShared
     loggingSpec
     fileModeSpec
     describe "Manual migrations" $ do
@@ -422,6 +425,14 @@ sqliteSpecRnd = do
         parallel $ describe "Sqlite State machine (RndState)" $ do
             it "Sequential state machine tests"
                 (prop_sequential :: TestDBRnd -> Property)
+
+sqliteSpecShared :: Spec
+sqliteSpecShared = do
+    validateGenerators @(SharedState 'Mainnet ShelleyKey)
+    around withShelleyDBLayerInMemory $ do
+        parallel $ describe "Sqlite" properties
+        parallel $ describe "Sqlite State machine tests" $ do
+            it "Sequential" (prop_sequential :: TestDBShared -> Property)
 
 testMigrationTxMetaFee
     :: forall k s.
@@ -714,6 +725,7 @@ findObserveDiffs = filter isObserveDiff
 
 type TestDBSeq = DBLayer IO (SeqState 'Mainnet ShelleyKey) ShelleyKey
 type TestDBRnd = DBLayer IO (RndState 'Mainnet) ByronKey
+type TestDBShared = DBLayer IO (SharedState 'Mainnet ShelleyKey) ShelleyKey
 
 fileModeSpec :: Spec
 fileModeSpec =  do

@@ -22,6 +22,8 @@ module Cardano.Wallet.Gen
     , shrinkTxMetadata
     , genSmallTxMetadata
     , genScript
+    , genScriptCosigners
+    , genScriptTemplate
     , genNatural
     ) where
 
@@ -30,7 +32,7 @@ import Prelude
 import Cardano.Address.Derivation
     ( xpubFromBytes )
 import Cardano.Address.Script
-    ( Script (..) )
+    ( Cosigner (..), Script (..), ScriptTemplate (..) )
 import Cardano.Api.Typed
     ( TxMetadata (..)
     , TxMetadataJsonSchema (..)
@@ -39,6 +41,8 @@ import Cardano.Api.Typed
     )
 import Cardano.Mnemonic
     ( ConsistentEntropy, EntropySize, Mnemonic, entropyToMnemonic )
+import Cardano.Wallet.Primitive.AddressDiscovery.SharedState
+    ( retrieveAllCosigners )
 import Cardano.Wallet.Primitive.Types
     ( ActiveSlotCoefficient (..)
     , BlockHeader (..)
@@ -59,6 +63,8 @@ import Data.List
     ( sortOn )
 import Data.List.Extra
     ( nubOrdOn )
+import Data.Maybe
+    ( fromJust )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -88,6 +94,7 @@ import Test.QuickCheck
     , scale
     , shrinkList
     , sized
+    , sublistOf
     , suchThat
     , vector
     , vectorOf
@@ -290,3 +297,17 @@ genScript elems = scale (`div` 3) $ sized scriptTree
                 , RequireAnyOf scripts'
                 , RequireSomeOf atLeast scripts'
                 ]
+
+genScriptCosigners :: Gen (Script Cosigner)
+genScriptCosigners = do
+    numOfCosigners <- choose (1,10)
+    genScript $ Cosigner <$> [0..numOfCosigners]
+
+genScriptTemplate :: Gen ScriptTemplate
+genScriptTemplate = do
+    script <- genScriptCosigners `suchThat` (\s -> not (null (retrieveAllCosigners s)))
+    let scriptCosigners = retrieveAllCosigners script
+    cosignersSubset <- sublistOf scriptCosigners `suchThat` (\cs -> not (null cs))
+    let xpubGen = fromJust . xpubFromBytes . BS.pack <$> vectorOf 64 arbitrary
+    xpubs <- vectorOf (length cosignersSubset) xpubGen
+    pure $ ScriptTemplate (Map.fromList $ zip cosignersSubset xpubs) script

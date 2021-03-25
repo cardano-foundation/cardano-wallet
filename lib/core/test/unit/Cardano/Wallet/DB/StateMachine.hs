@@ -103,6 +103,8 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPool (..), SeqState (..) )
+import Cardano.Wallet.Primitive.AddressDiscovery.SharedState
+    ( SharedState (..) )
 import Cardano.Wallet.Primitive.Model
     ( Wallet )
 import Cardano.Wallet.Primitive.Types
@@ -882,6 +884,9 @@ instance (Show (key 'AccountK CC.XPub)) =>
         (chain :: Role)
         (key :: Depth -> * -> *)
     ) where
+    toExpr = defaultExprViaShow
+
+instance ToExpr (SharedState 'Mainnet ShelleyKey) where
     toExpr = defaultExprViaShow
 
 instance (ToExpr s, ToExpr xprv) => ToExpr (WalletDatabase s xprv) where

@@ -31,6 +31,8 @@ import Prelude
 
 import Cardano.Address.Derivation
     ( XPrv, XPub )
+import Cardano.Address.Script
+    ( Cosigner (..), Script (..), ScriptTemplate )
 import Cardano.Crypto.Wallet
     ( unXPrv )
 import Cardano.Mnemonic
@@ -42,7 +44,13 @@ import Cardano.Wallet.DB.Model
 import Cardano.Wallet.DummyTarget.Primitive.Types as DummyTarget
     ( block0, mkTx, mockHash )
 import Cardano.Wallet.Gen
-    ( genMnemonic, genSmallTxMetadata, shrinkSlotNo, shrinkTxMetadata )
+    ( genMnemonic
+    , genScript
+    , genScriptTemplate
+    , genSmallTxMetadata
+    , shrinkSlotNo
+    , shrinkTxMetadata
+    )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , DerivationType (..)
@@ -70,6 +78,8 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     , mkAddressPool
     , purposeCIP1852
     )
+import Cardano.Wallet.Primitive.AddressDiscovery.SharedState
+    ( SharedState (..), purposeCIP1854 )
 import Cardano.Wallet.Primitive.Model
     ( Wallet, currentTip, getState, unsafeInitWallet, utxo )
 import Cardano.Wallet.Primitive.Types
@@ -195,6 +205,7 @@ import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.List as L
 import qualified Data.Map.Strict as Map
+import qualified Data.Text as T
 
 {-------------------------------------------------------------------------------
                                  Modifiers
@@ -569,6 +580,54 @@ rootKeysRnd = unsafePerformIO $ generate (vectorOf 10 genRootKeysRnd)
 {-# NOINLINE rootKeysRnd #-}
 
 {-------------------------------------------------------------------------------
+                                 Shared State
+-------------------------------------------------------------------------------}
+
+instance Arbitrary (SharedState 'Mainnet ShelleyKey) where
+    shrink (SharedState prefix pool) =
+        (\p -> SharedState prefix p) <$> shrink pool
+    shrink _ = []
+    arbitrary = do
+        let activeWallet = SharedState
+                <$> (defaultSharedStatePrefix <$> arbitrary)
+                <*> arbitrary
+        let pendingWallet = PendingSharedState
+                <$> (defaultSharedStatePrefix <$> arbitrary)
+                <*> arbitrary
+                <*> genScriptTemplate
+                <*> genScriptTemplateM
+                <*> arbitrary
+        oneof [activeWallet, pendingWallet]
+
+defaultSharedStatePrefix :: Index 'Hardened 'AccountK -> DerivationPrefix
+defaultSharedStatePrefix accIx = DerivationPrefix
+    ( purposeCIP1854
+    , coinTypeAda
+    , accIx
+    )
+
+instance Arbitrary (Script Cosigner) where
+    arbitrary = do
+        numOfCosigners <- choose (1,10)
+        genScript $ Cosigner <$> [0..numOfCosigners]
+
+instance Arbitrary (ShelleyKey 'AccountK XPub) where
+    shrink _ = []
+    arbitrary = pure arbitrarySeqAccount
+
+instance Arbitrary Seq.AddressPoolGap where
+    arbitrary = arbitraryBoundedEnum
+
+genScriptTemplateM :: Gen (Maybe ScriptTemplate)
+genScriptTemplateM =
+    oneof [pure Nothing, Just <$> genScriptTemplate]
+
+instance Arbitrary (AddressPool 'MultisigScript ShelleyKey) where
+    arbitrary = do
+        ctx <- ParentContextMultisigScript arbitrarySeqAccount <$> genScriptTemplate <*> genScriptTemplateM
+        pure $ mkAddressPool @'Mainnet ctx minBound mempty
+
+{-------------------------------------------------------------------------------
                              Protocol Parameters
 -------------------------------------------------------------------------------}
 
@@ -650,6 +709,9 @@ instance Arbitrary Word31 where
 instance Arbitrary AddressState where
     arbitrary = genericArbitrary
 
+instance Arbitrary SomeMnemonic where
+    arbitrary = SomeMnemonic <$> genMnemonic @12
+
 {-------------------------------------------------------------------------------
                                    Buildable
 -------------------------------------------------------------------------------}
@@ -671,5 +733,27 @@ instance Buildable (PrimaryKey WalletId) where
 instance Buildable MockChain where
     build (MockChain chain) = blockListF' mempty build chain
 
-instance Arbitrary SomeMnemonic where
-    arbitrary = SomeMnemonic <$> genMnemonic @12
+instance Buildable (SharedState 'Mainnet ShelleyKey) where
+    build (PendingSharedState prefix accXPub pTemplate dTemplateM g) =
+        build (   printStatePending
+               <> printIndex prefix
+               <> printAccXPub
+               <> printPaymentScript
+               <> printDelegationScript
+               <> printGap
+              )
+      where
+        printIndex (DerivationPrefix (_,_,ix)) = " hardened index: "<> toText (getIndex ix)
+        printStatePending = "shared wallet state: pending"
+        printPaymentScript = " payment script template: "<> T.pack (show pTemplate)
+        printDelegationScript = " delegation script template: " <> case dTemplateM of
+            Nothing -> "absent"
+            Just dTemplate -> T.pack (show dTemplate)
+        printAccXPub = " accXPub: " <> T.pack (show accXPub)
+        printGap = " gap: " <> toText (Seq.getAddressPoolGap g)
+    build (SharedState prefix pool) =
+        build (printStateActive <> printIndex prefix) <> printPool
+      where
+        printStateActive = "shared wallet state: active"
+        printPool = build pool
+        printIndex (DerivationPrefix (_,_,ix)) = " hardened index: "<> toText (getIndex ix)

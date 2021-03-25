@@ -59,7 +59,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , WalletKey (..)
     )
 import Cardano.Wallet.Primitive.AddressDiscovery
-    ( coinTypeAda )
+    ( IsOurs (..), coinTypeAda )
 import Cardano.Wallet.Primitive.AddressDiscovery.Script
     ( keyHashFromAccXPubIx )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
@@ -72,6 +72,8 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     )
 import Cardano.Wallet.Primitive.Types.Address
     ( Address (..), AddressState (..) )
+import Cardano.Wallet.Primitive.Types.RewardAccount
+    ( RewardAccount )
 import Control.DeepSeq
     ( NFData )
 import Data.Coerce
@@ -312,3 +314,10 @@ isShared addr st = case st of
                 (Nothing, st)
     PendingSharedState {} ->
         (Nothing, st)
+
+
+instance IsOurs (SharedState n k) Address where
+    isOurs _addr state = (Nothing, state)
+
+instance IsOurs (SharedState n k) RewardAccount where
+    isOurs _account state = (Nothing, state)

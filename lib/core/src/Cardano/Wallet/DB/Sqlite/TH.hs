@@ -388,6 +388,7 @@ SharedState
     sharedStateDerivationPrefix         W.DerivationPrefix        sql=derivation_prefix
 
     Primary sharedStateWalletId
+    Foreign Wallet OnDeleteCascade shared_state sharedStateWalletId
     deriving Show Generic
 
 CosignerKey
@@ -402,6 +403,6 @@ CosignerKey
         cosignerKeySlot
         cosignerKeyCredential
         cosignerKeyIndex
-    Foreign Wallet fk_shared_wallet_cosigner_key cosignerKeyWalletId ! ON DELETE CASCADE
+    Foreign Checkpoint OnDeleteCascade cosigner_key cosignerKeyWalletId cosignerKeySlot
     deriving Show Generic
 |]

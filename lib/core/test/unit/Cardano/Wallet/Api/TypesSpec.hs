@@ -26,8 +26,6 @@ module Cardano.Wallet.Api.TypesSpec (spec) where
 import Prelude hiding
     ( id )
 
-import Cardano.Address.Derivation
-    ( xpubFromBytes )
 import Cardano.Address.Script
     ( Cosigner (..)
     , KeyHash (..)
@@ -151,6 +149,8 @@ import Cardano.Wallet.Gen
     , genNatural
     , genPercentage
     , genScript
+    , genScriptCosigners
+    , genScriptTemplate
     , genTxMetadata
     , shrinkPercentage
     , shrinkTxMetadata
@@ -175,8 +175,6 @@ import Cardano.Wallet.Primitive.AddressDerivationSpec
     ()
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPoolGap, getAddressPoolGap )
-import Cardano.Wallet.Primitive.AddressDiscovery.SharedState
-    ( retrieveAllCosigners )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..) )
 import Cardano.Wallet.Primitive.Types
@@ -327,8 +325,6 @@ import Test.QuickCheck
     , property
     , scale
     , shrinkIntegral
-    , sublistOf
-    , suchThat
     , vector
     , vectorOf
     , (.&&.)
@@ -1116,18 +1112,10 @@ instance Arbitrary KeyHash where
     arbitrary = KeyHash . BS.pack <$> vectorOf 28 arbitrary
 
 instance Arbitrary (Script Cosigner) where
-    arbitrary = do
-        numOfCosigners <- choose (1,10)
-        genScript $ Cosigner <$> [0..numOfCosigners]
+    arbitrary = genScriptCosigners
 
 instance Arbitrary ScriptTemplate where
-    arbitrary = do
-        script <- arbitrary `suchThat` (\s -> not (null (retrieveAllCosigners s)))
-        let scriptCosigners = retrieveAllCosigners script
-        cosignersSubset <- sublistOf scriptCosigners `suchThat` (\cs -> not (null cs))
-        let xpubGen = fromJust . xpubFromBytes . BS.pack <$> vectorOf 64 arbitrary
-        xpubs <- vectorOf (length cosignersSubset) xpubGen
-        pure $ ScriptTemplate (Map.fromList $ zip cosignersSubset xpubs) script
+    arbitrary = genScriptTemplate
 
 instance Arbitrary ApiCredential where
     arbitrary = do
