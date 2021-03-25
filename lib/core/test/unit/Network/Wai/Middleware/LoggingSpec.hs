@@ -212,7 +212,9 @@ spec = describe "Logging Middleware"
             , (Debug, "LogRequestFinish")
             ]
 
-    it "different request ids" $ \ctx ->
+    -- NOTE: To prevent the runs from interfering with each other inside a
+    -- single ctx, we use (withMaxSuccess 1)
+    it "different request ids" $ \ctx -> withMaxSuccess 1 $
         property $ \(NumberOfRequests n) -> monadicIO $ do
             entries <- liftIO $ do
                 replicateConcurrently_ n (get ctx "/get")
@@ -227,7 +229,7 @@ spec = describe "Logging Middleware"
                 , "All the logs:" ] ++ map show entries
             assert $ numUniqueReqIds == n
 
-    it "correct time measures" $ \ctx -> withMaxSuccess 10 $
+    it "correct time measures" $ \ctx -> withMaxSuccess 1 $
         property $ \(NumberOfRequests n, RandomIndex i) -> monadicIO $ do
             entries <- liftIO $ do
                 let reqs = mconcat
