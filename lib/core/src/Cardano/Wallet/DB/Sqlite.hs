@@ -126,6 +126,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , PaymentAddress (..)
     , PersistPrivateKey (..)
     , PersistPublicKey (..)
+    , Role (..)
     , SoftDerivation (..)
     , WalletKey (..)
     )
@@ -1958,7 +1959,7 @@ selectWallet wid =
     fmap entityVal <$> selectFirst [WalId ==. wid] []
 
 selectLatestCheckpoint
-    :: forall s. (PersistState s)
+    :: forall s. PersistState s
     => W.WalletId
     -> SqlPersistT IO (Maybe (W.Wallet s))
 selectLatestCheckpoint wid = do
@@ -2425,12 +2426,11 @@ selectSeqStatePendingIxs wid =
     fromRes = fmap (W.Index . seqStatePendingIxIndex . entityVal)
 
 instance
-    ( Eq (k 'AccountK XPub)
-    , PersistPublicKey (k 'AccountK)
-    , PersistPublicKey (k 'AddressK)
+    ( PersistPublicKey (k 'AccountK)
     , MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
     , PaymentAddress n k
     , SoftDerivation k
+    , WalletKey k
     , Typeable n
     ) => PersistState (Shared.SharedState n k) where
     insertState (wid, sl) st = case st of
@@ -2464,7 +2464,58 @@ instance
              | ((Cosigner c), xpub) <- Map.assocs cs
              ]
 
-    selectState (_wid, _sl) = undefined
+    selectState (wid, sl) = runMaybeT $ do
+        st <- MaybeT $ selectFirst [SharedStateWalletId ==. wid] []
+        let SharedState _ accountBytes g pScript dScriptM prefix = entityVal st
+        let accXPub = unsafeDeserializeXPub accountBytes
+        pCosigners <- lift $ selectCosigners @k wid sl Payment
+        let prepareKeys = map (\(c,k) -> (c,getRawKey k))
+        let pTemplate = ScriptTemplate (Map.fromList $ prepareKeys pCosigners) pScript
+        dCosigners <- lift $ selectCosigners @k wid sl Delegation
+        let dTemplateM = ScriptTemplate (Map.fromList $ prepareKeys dCosigners) <$> dScriptM
+        lift (multisigPoolAbsent wid sl) >>= \case
+            True -> pure Shared.PendingSharedState
+                { Shared.pendingSharedStateDerivationPrefix = prefix
+                , Shared.pendingSharedStateAccountKey = accXPub
+                , Shared.pendingSharedStatePaymentTemplate = pTemplate
+                , Shared.pendingSharedStateDelegationTemplate = dTemplateM
+                , Shared.pendingSharedStateAddressPoolGap = g
+                }
+            False -> do
+                let ctx = Seq.ParentContextMultisigScript accXPub pTemplate dTemplateM
+                pool <- lift $ selectAddressPool @n wid sl g ctx
+                pure Shared.SharedState
+                    { Shared.sharedStateDerivationPrefix = prefix
+                    , Shared.sharedStateAddressPool = pool
+                    }
+
+selectCosigners
+    :: forall k. PersistPublicKey (k 'AccountK)
+    => W.WalletId
+    -> W.SlotNo
+    -> CredentialType
+    -> SqlPersistT IO [(Cosigner, k 'AccountK XPub)]
+selectCosigners wid sl cred = do
+    fmap (cosignerFromEntity . entityVal) <$> selectList
+        [ CosignerKeyWalletId ==. wid
+        , CosignerKeySlot ==. sl
+        , CosignerKeyCredential ==. cred
+        ] []
+ where
+   cosignerFromEntity (CosignerKey _ _ _ key c) =
+       (Cosigner c, unsafeDeserializeXPub key)
+
+multisigPoolAbsent
+    :: W.WalletId
+    -> W.SlotNo
+    -> SqlPersistT IO Bool
+multisigPoolAbsent wid sl = do
+    entries <- selectList
+        [ SeqStateAddressWalletId ==. wid
+        , SeqStateAddressSlot ==. sl
+        , SeqStateAddressRole ==. Seq.role @'MultisigScript
+        ] []
+    pure $ null entries
 
 {-------------------------------------------------------------------------------
                           HD Random address discovery
@@ -2549,86 +2600,3 @@ selectRndStatePending wid = do
   where
     assocFromEntity (RndStatePendingAddress _ accIx addrIx addr) =
         ((W.Index accIx, W.Index addrIx), addr)
-
-{--
-mkSharedWalletEntity
-    :: PersistPublicKey (k 'AccountK)
-    => W.WalletId
-    -> SharedWalletInfo k
-    -> W.WalletMetadata
-    -> W.GenesisParameters
-    -> SharedWallet
-mkSharedWalletEntity wid state meta gp = SharedWallet
-    { sharedWalletWalletId = wid
-    , sharedWalletCreationTime = meta ^. #creationTime
-    , sharedWalletName = meta ^. #name . coerce
-    , sharedWalletAccountXPub = serializeXPub (state ^. #walletAccountKey)
-    , sharedWalletAccountIndex = getIndex (state ^. #accountIx)
-    , sharedWalletScriptGap = state ^. #poolGap
-    , sharedWalletPaymentScript = state ^. #paymentScript
-    , sharedWalletDelegationScript = state ^. #delegationScript
-    , sharedWalletState = state ^. #walletState
-    , sharedWalletPassphraseLastUpdatedAt = W.lastUpdatedAt <$> meta ^. #passphraseInfo
-    , sharedWalletPassphraseScheme = W.passphraseScheme <$> meta ^. #passphraseInfo
-    , sharedWalletGenesisHash = BlockId (coerce (gp ^. #getGenesisBlockHash))
-    , sharedWalletGenesisStart = coerce (gp ^. #getGenesisBlockDate)
-    }
-
-selectSharedWallet :: MonadIO m => W.WalletId -> SqlPersistT m (Maybe SharedWallet)
-selectSharedWallet wid =
-    fmap entityVal <$> selectFirst [SharedWalletWalletId ==. wid] []
-
-selectSharedWalletMetadata
-    :: W.WalletId
-    -> SqlPersistT IO (Maybe W.WalletMetadata)
-selectSharedWalletMetadata wid = do
-    let del = W.WalletDelegation W.NotDelegating []
-    fmap (metadataFromEntity' del . entityVal)
-        <$> selectFirst [SharedWalletWalletId ==. wid] []
- where
-     metadataFromEntity' :: W.WalletDelegation -> SharedWallet -> W.WalletMetadata
-     metadataFromEntity' walDelegation wal = W.WalletMetadata
-         { name = W.WalletName (sharedWalletName wal)
-         , creationTime = sharedWalletCreationTime wal
-         , passphraseInfo = W.WalletPassphraseInfo
-             <$> sharedWalletPassphraseLastUpdatedAt wal
-             <*> sharedWalletPassphraseScheme wal
-         , delegation = walDelegation
-         }
-
-selectSharedWalletState
-    :: PersistPublicKey (k 'AccountK)
-    => W.WalletId
-    -> SqlPersistT IO (Maybe (SharedWalletInfo k))
-selectSharedWalletState wid = do
-    fmap (stateFromEntity . entityVal)
-        <$> selectFirst [SharedWalletWalletId ==. wid] []
-
-stateFromEntity
-    :: PersistPublicKey (k 'AccountK)
-    => SharedWallet -> SharedWalletInfo k
-stateFromEntity wal = SharedWalletInfo
-    { walletState = sharedWalletState wal
-    , walletAccountKey = unsafeDeserializeXPub (sharedWalletAccountXPub wal)
-    , accountIx = Index (sharedWalletAccountIndex wal)
-    , paymentScript = sharedWalletPaymentScript wal
-    , delegationScript = sharedWalletDelegationScript wal
-    , poolGap = sharedWalletScriptGap wal
-    }
-
-mkCosignerKeyEntity
-    :: PersistPublicKey (k 'AccountK)
-    => W.WalletId
-    -> UTCTime
-    -> CosignerInfo k
-    -> CosignerKey
-mkCosignerKeyEntity wid utctime info = CosignerKey
-    { cosignerKeyWalletId = wid
-    , cosignerKeyCreationTime = utctime
-    , cosignerKeyCredential = credential info
-    , cosignerKeyAccountXPub = serializeXPub (cosignerAccountKey info)
-    , cosignerKeyIndex = c
-    }
-  where
-   (Cosigner c) = cosigner info
---}
