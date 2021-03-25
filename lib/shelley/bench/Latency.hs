@@ -33,6 +33,7 @@ import Cardano.Wallet.Api.Types
     , ApiNetworkInformation
     , ApiStakePool
     , ApiTransaction
+    , ApiTxId (..)
     , ApiUtxoStatistics
     , ApiWallet
     , EncodeAddress (..)
@@ -300,6 +301,12 @@ walletApiBench capture ctx = do
         t5 <- measureApiLogs capture
             (request @[ApiTransaction n] ctx (Link.listTransactions @'Shelley wal1) Default Empty)
         fmtResult "listTransactions   " t5
+
+        (_, txs) <- unsafeRequest @[ApiTransaction n] ctx (Link.listTransactions @'Shelley wal1) Empty
+        let txid = (txs !! 0) ^. #id
+        t5a <- measureApiLogs capture
+            (request @[ApiTransaction n] ctx (Link.getTransaction @'Shelley wal1 (ApiTxId txid)) Default Empty)
+        fmtResult "getTransaction     " t5a
 
         (_, addrs) <- unsafeRequest @[ApiAddress n] ctx (Link.listAddresses @'Shelley wal2) Empty
         let amt = minUTxOValue
