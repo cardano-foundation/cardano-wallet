@@ -314,7 +314,7 @@ withTracers
     -> (Trace IO MainLog -> Tracers IO -> IO a)
     -> IO a
 withTracers logOpt action =
-    withLogging [LogToStdout (loggingMinSeverity logOpt)] $ \(sb, (cfg, tr)) -> do
+    withLogging [LogToStdStreams (loggingMinSeverity logOpt)] $ \(sb, (cfg, tr)) -> do
         ekgEnabled >>= flip when (EKG.plugin cfg tr sb >>= loadPlugin sb)
         let trMain = appendName "main" (transformTextTrace tr)
         let tracers = setupTracers (loggingTracers logOpt) tr

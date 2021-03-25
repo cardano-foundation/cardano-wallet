@@ -1577,22 +1577,17 @@ data Verbosity
     deriving (Eq, Show)
 
 data LogOutput
-    = LogToStdout Severity
+    = LogToStdStreams Severity
+    -- ^ Log to console, with the given minimum 'Severity'.
+    --
+    -- Logs of Warning or higher severity will be output to stderr. Notice or
+    -- lower severity logs will be output to stdout.
     | LogToFile FilePath Severity
     deriving (Eq, Show)
 
 
-mkScribe :: LogOutput -> ScribeDefinition
-mkScribe (LogToStdout sev) = ScribeDefinition
-    { scName = "text"
-    , scFormat = ScText
-    , scKind = StdoutSK
-    , scMinSev = sev
-    , scMaxSev = Critical
-    , scPrivacy = ScPublic
-    , scRotation = Nothing
-    }
-mkScribe (LogToFile path sev) = ScribeDefinition
+mkScribe :: LogOutput -> [ScribeDefinition]
+mkScribe (LogToFile path sev) = pure $ ScribeDefinition
     { scName = T.pack path
     , scFormat = ScText
     , scKind = FileSK
@@ -1601,10 +1596,26 @@ mkScribe (LogToFile path sev) = ScribeDefinition
     , scPrivacy = ScPublic
     , scRotation = Nothing
     }
+mkScribe (LogToStdStreams sev) =
+    [ mkScribe' (max errMin sev, maxBound, StderrSK)
+    , mkScribe' (sev, pred errMin, StdoutSK)
+    ]
+  where
+    errMin = Warning
+    mkScribe' (minSev, maxSev, kind) = ScribeDefinition
+        { scName = "text"
+        , scFormat = ScText
+        , scKind = kind
+        , scMinSev = minSev
+        , scMaxSev = maxSev
+        , scPrivacy = ScPublic
+        , scRotation = Nothing
+        }
 
-mkScribeId :: LogOutput -> ScribeId
-mkScribeId (LogToStdout _) = "StdoutSK::text"
-mkScribeId (LogToFile file _) = T.pack $ "FileSK::" <> file
+
+mkScribeId :: LogOutput -> [ScribeId]
+mkScribeId (LogToStdStreams _) = ["StdoutSK::text", "StderrSK::text"]
+mkScribeId (LogToFile file _) = pure $ T.pack $ "FileSK::" <> file
 
 getPrometheusURL :: IO (Maybe (String, Port "Prometheus"))
 getPrometheusURL = do
@@ -1649,8 +1660,8 @@ initTracer loggerName outputs = do
         c <- defaultConfigStdout
         CM.setSetupBackends c [CM.KatipBK, CM.AggregationBK, CM.EKGViewBK, CM.EditorBK]
         CM.setDefaultBackends c [CM.KatipBK]
-        CM.setSetupScribes c $ map mkScribe outputs
-        CM.setDefaultScribes c $ map mkScribeId outputs
+        CM.setSetupScribes c $ outputs >>= mkScribe
+        CM.setDefaultScribes c $ outputs >>= mkScribeId
         CM.setBackends c "test-cluster.metrics" (Just [CM.EKGViewBK])
         CM.setBackends c "cardano-wallet.metrics" (Just [CM.EKGViewBK])
         forM_ ekgHP $ \(h, p) -> do

@@ -94,18 +94,19 @@ withApiLogger t0 settings app req0 sendResponse = do
         time <- flip diffUTCTime start <$> getCurrentTime
         readIORef builderIO >>=
             let fromBuilder = second (BL.toStrict . B.toLazyByteString)
-            in uncurry (logResponse t time) . fromBuilder
+            in uncurry (logResponse t time req) . fromBuilder
         traceWith t LogRequestFinish
         return rcvd
   where
     logResponse
         :: Tracer IO HandlerLog
         -> NominalDiffTime
+        -> Request
         -> Maybe Status
         -> ByteString
         -> IO ()
-    logResponse t time status body = do
-        traceWith t (LogResponse time status)
+    logResponse t time req status body = do
+        traceWith t (LogResponse time req status)
         traceWith t (LogResponseBody body)
 
 -- | API logger settings
@@ -243,7 +244,7 @@ data HandlerLog
     | LogRequest Request
     | LogRequestBody [Text] ByteString
     -- ^ Request content, with list of sensitive json keys.
-    | LogResponse NominalDiffTime (Maybe Status)
+    | LogResponse NominalDiffTime Request (Maybe Status)
     | LogResponseBody ByteString
     | LogRequestFinish
     deriving (Generic, Show)
@@ -257,8 +258,11 @@ instance ToText HandlerLog where
             path = T.decodeUtf8 $ rawPathInfo req
             query = T.decodeUtf8 $ rawQueryString req
         LogRequestBody ks body -> sanitize ks body
-        LogResponse time status -> mconcat [ code, " ", text, " in ", tsec ]
+        LogResponse time req status ->
+            mconcat [ method, " ", path, " ", code, " ", text, " in ", tsec ]
           where
+            method = T.decodeUtf8 $ requestMethod req
+            path = T.decodeUtf8 $ rawPathInfo req
             code = maybe "???" (toText . statusCode) status
             text = maybe "Status Unknown" (T.decodeUtf8 . statusMessage) status
             tsec = T.pack $ show time
@@ -285,22 +289,29 @@ sanitize keys bytes = encode' $ case decode' bytes of
 
 instance HasPrivacyAnnotation HandlerLog where
     getPrivacyAnnotation msg = case msg of
-        LogRequestStart -> Public
-        LogRequest _ -> Public
-        LogRequestBody _ _ -> Confidential
-        LogResponse _ _ -> Public
-        LogResponseBody _ -> Confidential
-        LogRequestFinish -> Public
+        LogRequestStart{} -> Public
+        LogRequest{} -> Public
+        LogRequestBody{} -> Confidential
+        LogResponse{} -> Public
+        LogResponseBody{} -> Confidential
+        LogRequestFinish{} -> Public
 
 instance HasSeverityAnnotation HandlerLog where
     getSeverityAnnotation msg = case msg of
         LogRequestStart -> Debug
         LogRequest _ -> Info
         LogRequestBody _ _ -> Debug
-        LogResponse _ status ->
+        LogResponse t _ status -> max (severityFromRequestTime t) $
             case statusCode <$> status of
                 Just s | s == 503 -> Warning
                 Just s | s >= 500 -> Error
                 _ -> Info
         LogResponseBody _ -> Debug
         LogRequestFinish -> Debug
+
+severityFromRequestTime :: NominalDiffTime -> Severity
+severityFromRequestTime t
+    | t > 5     = Error
+    | t > 1     = Warning
+    | t > 0.5   = Notice
+    | otherwise = Info

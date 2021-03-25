@@ -294,7 +294,7 @@ withLocalClusterSetup action = do
         withSystemTempDir stdoutTextTracer "test-cluster" $ \dir -> do
             let logOutputs name minSev =
                     [ LogToFile (dir </> name) (min minSev Info)
-                    , LogToStdout minSev ]
+                    , LogToStdStreams minSev ]
 
             clusterLogs <- logOutputs "cluster.log" <$> testMinSeverityFromEnv
             walletLogs <- logOutputs "wallet.log" <$> walletMinSeverityFromEnv

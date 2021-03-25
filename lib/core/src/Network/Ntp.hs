@@ -139,20 +139,26 @@ instance ToText NtpTrace where
 instance HasPrivacyAnnotation NtpTrace
 instance HasSeverityAnnotation NtpTrace where
     getSeverityAnnotation ev = case ev of
-        NtpTraceStartNtpClient -> Info
-        NtpTraceRestartDelay _ -> Info
-        NtpTraceRestartingClient -> Info
+        NtpTraceStartNtpClient -> Debug
+        NtpTraceRestartDelay _ -> Debug
+        NtpTraceRestartingClient -> Debug
         NtpTraceIOError _ -> Notice
         NtpTraceLookupsFails -> Notice
-        NtpTraceClientStartQuery -> Info
+        NtpTraceClientStartQuery -> Debug
         NtpTraceNoLocalAddr -> Notice
-        NtpTraceResult _ -> Info
+        NtpTraceResult (NtpDrift micro)
+            | abs micro < (500*ms)  -> Debug   -- Not sure what limits actually
+            | abs micro < (1000*ms) -> Notice  -- matter, but these seem
+            | otherwise             -> Warning -- reasonable.
+        NtpTraceResult _ -> Debug
         NtpTraceRunProtocolResults _ -> Debug
         NtpTracePacketSent _ _ -> Debug
         NtpTracePacketSendError _ _ -> Notice
         NtpTracePacketDecodeError _ _ -> Notice
         NtpTracePacketReceived _ _ -> Debug
         NtpTraceWaitingForRepliesTimeout _ -> Notice
+      where
+        ms = 1000
 
 getNtpStatus
     :: NtpClient
