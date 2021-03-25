@@ -224,26 +224,11 @@ mapCursor fn = \case
 -- | @FollowAction@ enables the callback of @follow@ to signal if the
 -- chain-following should @ExitWith@, @Continue@, or if the current callback
 -- should be forgotten and retried (@Retry@).
---
--- NOTE: @Retry@ is needed to handle data-races in
--- 'Cardano.Pool.Jormungandr.Metrics', where it is essensial that we fetch the
--- stake distribution while the node-tip
---
--- FIXME:
--- Retry actions with the Haskell nodes are not possible (or at least, requires
--- some additional manipulation to find a new intersection). As a possible fix,
--- we could use a type family to define 'FollowAction' in terms of the
--- underlying target. 'RetryImmediately' and 'RetryLater' could be authorized in
--- the context of Jormungandr but absent in the context of the Haskell nodes.
 data FollowAction err
     = ExitWith err
       -- ^ Stop following the chain.
     | Continue
       -- ^ Continue following the chain.
-    | RetryImmediately
-      -- ^ Forget about the blocks in the current callback, and retry immediately.
-    | RetryLater
-      -- ^ Like 'RetryImmediately' but only retries after a short delay
     deriving (Eq, Show, Functor)
 
 -- | Possibly scenarios that would cause 'follow' to exit so that client code
@@ -360,10 +345,6 @@ follow nl tr cps yield header =
                 return FollowDone
             Continue ->
                 step hrf cursor'
-            RetryImmediately ->
-                step hrf cursor
-            RetryLater ->
-                sleep delay0 hrf cursor
 
 {-------------------------------------------------------------------------------
                                     Logging
