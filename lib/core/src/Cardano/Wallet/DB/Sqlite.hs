@@ -129,6 +129,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , Role (..)
     , SoftDerivation (..)
     , WalletKey (..)
+    , hex
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
@@ -2460,7 +2461,7 @@ instance
                 }
          insertCosigner cs cred =
              dbChunked insertMany_
-             [ CosignerKey wid sl cred (xpubToBytes xpub) c
+             [ CosignerKey wid sl cred (hex $ xpubToBytes xpub) c
              | ((Cosigner c), xpub) <- Map.assocs cs
              ]
 

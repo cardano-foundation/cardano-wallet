@@ -25,13 +25,14 @@ module Cardano.Wallet.Gen
     , genScriptCosigners
     , genScriptTemplate
     , genScriptTemplateComplete
+    , genXPub
     , genNatural
     ) where
 
 import Prelude
 
 import Cardano.Address.Derivation
-    ( xpubFromBytes )
+    ( XPrv, XPub, xpubFromBytes )
 import Cardano.Address.Script
     ( Cosigner (..), Script (..), ScriptTemplate (..) )
 import Cardano.Api.Typed
@@ -41,7 +42,13 @@ import Cardano.Api.Typed
     , metadataFromJson
     )
 import Cardano.Mnemonic
+    ( SomeMnemonic (..) )
+import Cardano.Mnemonic
     ( ConsistentEntropy, EntropySize, Mnemonic, entropyToMnemonic )
+import Cardano.Wallet.Primitive.AddressDerivation
+    ( Passphrase (..), WalletKey (..) )
+import Cardano.Wallet.Primitive.AddressDerivation.Shelley
+    ( ShelleyKey (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.SharedState
     ( retrieveAllCosigners )
 import Cardano.Wallet.Primitive.Types
@@ -64,8 +71,6 @@ import Data.List
     ( sortOn )
 import Data.List.Extra
     ( nubOrdOn )
-import Data.Maybe
-    ( fromJust )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
@@ -83,6 +88,7 @@ import Numeric.Natural
 import Test.QuickCheck
     ( Arbitrary (..)
     , Gen
+    , InfiniteList (..)
     , Positive (..)
     , PrintableString (..)
     , arbitrarySizedNatural
@@ -102,8 +108,10 @@ import Test.QuickCheck
     )
 
 import qualified Cardano.Byron.Codec.Cbor as CBOR
+import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Shelley
 import qualified Codec.CBOR.Write as CBOR
 import qualified Data.Aeson as Aeson
+import qualified Data.ByteArray as BA
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.HashMap.Strict as HM
@@ -309,14 +317,30 @@ genScriptTemplate = do
     script <- genScriptCosigners `suchThat` (\s -> not (null (retrieveAllCosigners s)))
     let scriptCosigners = retrieveAllCosigners script
     cosignersSubset <- sublistOf scriptCosigners `suchThat` (\cs -> not (null cs))
-    let xpubGen = fromJust . xpubFromBytes . BS.pack <$> vectorOf 64 arbitrary
-    xpubs <- vectorOf (length cosignersSubset) xpubGen
+    xpubs <- vectorOf (length cosignersSubset) genXPub
     pure $ ScriptTemplate (Map.fromList $ zip cosignersSubset xpubs) script
 
 genScriptTemplateComplete :: Gen ScriptTemplate
 genScriptTemplateComplete = do
     script <- genScriptCosigners `suchThat` (\s -> not (null (retrieveAllCosigners s)))
     let scriptCosigners = retrieveAllCosigners script
-    let xpubGen = fromJust . xpubFromBytes . BS.pack <$> vectorOf 64 arbitrary
-    xpubs <- vectorOf (length scriptCosigners) xpubGen
+    xpubs <- vectorOf (length scriptCosigners) genXPub
     pure $ ScriptTemplate (Map.fromList $ zip scriptCosigners xpubs) script
+
+genRootKeySeqWithPass
+    :: Passphrase "encryption"
+    -> Gen (ShelleyKey depth XPrv)
+genRootKeySeqWithPass encryptionPass = do
+    s <- SomeMnemonic <$> genMnemonic @15
+    g <- Just . SomeMnemonic <$> genMnemonic @12
+    return $ Shelley.unsafeGenerateKeyFromSeed (s, g) encryptionPass
+
+genXPub :: Gen XPub
+genXPub = do
+    getRawKey . publicKey <$> (genRootKeySeqWithPass =<< genPassphrase (0, 16))
+
+genPassphrase :: (Int, Int) -> Gen (Passphrase purpose)
+genPassphrase range = do
+    n <- choose range
+    InfiniteList bytes _ <- arbitrary
+    return $ Passphrase $ BA.convert $ BS.pack $ take n bytes

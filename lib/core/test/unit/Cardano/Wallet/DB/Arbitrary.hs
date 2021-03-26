@@ -49,6 +49,7 @@ import Cardano.Wallet.Gen
     , genScriptTemplate
     , genScriptTemplateComplete
     , genSmallTxMetadata
+    , genXPub
     , shrinkSlotNo
     , shrinkTxMetadata
     )
@@ -614,7 +615,7 @@ instance Arbitrary (Script Cosigner) where
 
 instance Arbitrary (ShelleyKey 'AccountK XPub) where
     shrink _ = []
-    arbitrary = pure arbitrarySeqAccount
+    arbitrary = liftRawKey <$> genXPub
 
 instance Arbitrary Seq.AddressPoolGap where
     arbitrary = arbitraryBoundedEnum
