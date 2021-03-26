@@ -225,7 +225,7 @@ import Test.Hspec
 import Test.Hspec.Extra
     ( parallel )
 import Test.QuickCheck
-    ( Property, generate, property, (==>) )
+    ( Property, generate, noShrinking, property, (==>) )
 import Test.QuickCheck.Monadic
     ( monadicIO )
 import Test.Utils.Paths
@@ -432,7 +432,7 @@ sqliteSpecShared = do
     around withShelleyDBLayerInMemory $ do
         parallel $ describe "Sqlite (SharedState)" properties
         parallel $ describe "Sqlite State machine tests (SharedState)" $ do
-            it "Sequential" (prop_sequential :: TestDBShared -> Property)
+            it "Sequential" (noShrinking . (prop_sequential :: TestDBShared -> Property))
 
 testMigrationTxMetaFee
     :: forall k s.

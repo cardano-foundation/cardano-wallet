@@ -2461,7 +2461,7 @@ instance
                 }
          insertCosigner cs cred =
              dbChunked insertMany_
-             [ CosignerKey wid sl cred (hex $ xpubToBytes xpub) c
+             [ CosignerKey wid cred (hex $ xpubToBytes xpub) c
              | ((Cosigner c), xpub) <- Map.assocs cs
              ]
 
@@ -2469,10 +2469,10 @@ instance
         st <- MaybeT $ selectFirst [SharedStateWalletId ==. wid] []
         let SharedState _ accountBytes g pScript dScriptM prefix = entityVal st
         let accXPub = unsafeDeserializeXPub accountBytes
-        pCosigners <- lift $ selectCosigners @k wid sl Payment
+        pCosigners <- lift $ selectCosigners @k wid Payment
         let prepareKeys = map (\(c,k) -> (c,getRawKey k))
         let pTemplate = ScriptTemplate (Map.fromList $ prepareKeys pCosigners) pScript
-        dCosigners <- lift $ selectCosigners @k wid sl Delegation
+        dCosigners <- lift $ selectCosigners @k wid Delegation
         let dTemplateM = ScriptTemplate (Map.fromList $ prepareKeys dCosigners) <$> dScriptM
         lift (multisigPoolAbsent wid sl) >>= \case
             True -> pure Shared.PendingSharedState
@@ -2493,17 +2493,15 @@ instance
 selectCosigners
     :: forall k. PersistPublicKey (k 'AccountK)
     => W.WalletId
-    -> W.SlotNo
     -> CredentialType
     -> SqlPersistT IO [(Cosigner, k 'AccountK XPub)]
-selectCosigners wid sl cred = do
+selectCosigners wid cred = do
     fmap (cosignerFromEntity . entityVal) <$> selectList
         [ CosignerKeyWalletId ==. wid
-        , CosignerKeySlot ==. sl
         , CosignerKeyCredential ==. cred
         ] []
  where
-   cosignerFromEntity (CosignerKey _ _ _ key c) =
+   cosignerFromEntity (CosignerKey _ _ key c) =
        (Cosigner c, unsafeDeserializeXPub key)
 
 multisigPoolAbsent

@@ -393,16 +393,14 @@ SharedState
 
 CosignerKey
     cosignerKeyWalletId                  W.WalletId                sql=wallet_id
-    cosignerKeySlot                      SlotNo                    sql=slot
     cosignerKeyCredential                CredentialType            sql=credential
     cosignerKeyAccountXPub               B8.ByteString             sql=account_xpub
     cosignerKeyIndex                     Word8                     sql=cosigner_index
 
     Primary
         cosignerKeyWalletId
-        cosignerKeySlot
         cosignerKeyCredential
         cosignerKeyIndex
-    Foreign Checkpoint OnDeleteCascade cosigner_key cosignerKeyWalletId cosignerKeySlot
+    Foreign Wallet OnDeleteCascade cosigner_key cosignerKeyWalletId
     deriving Show Generic
 |]
