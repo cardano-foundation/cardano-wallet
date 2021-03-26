@@ -29,6 +29,7 @@ import Cardano.Startup
     ( withUtf8Encoding )
 import Cardano.Wallet.Api.Types
     ( ApiAddress
+    , ApiAsset (..)
     , ApiFee
     , ApiNetworkInformation
     , ApiStakePool
@@ -66,10 +67,13 @@ import Cardano.Wallet.Shelley.Launch.Cluster
     ( LocalClusterConfig (..)
     , LogFileConfig (..)
     , RunningNode (..)
+    , sendFaucetAssetsTo
     , sendFaucetFundsTo
     , walletListenFromEnv
     , withCluster
     )
+import Cardano.Wallet.Unsafe
+    ( unsafeFromText )
 import Control.Arrow
     ( first )
 import Control.Monad
@@ -78,6 +82,8 @@ import Control.Monad.IO.Class
     ( liftIO )
 import Data.Aeson
     ( Value )
+import Data.Bifunctor
+    ( bimap )
 import Data.Generics.Internal.VL.Lens
     ( (^.) )
 import Data.Proxy
@@ -99,7 +105,7 @@ import System.FilePath
 import Test.Hspec
     ( shouldBe )
 import Test.Integration.Faucet
-    ( shelleyIntegrationTestFunds )
+    ( maryIntegrationTestAssets, shelleyIntegrationTestFunds )
 import Test.Integration.Framework.DSL
     ( Context (..)
     , Headers (..)
@@ -110,11 +116,14 @@ import Test.Integration.Framework.DSL
     , expectSuccess
     , expectWalletUTxO
     , faucetAmt
+    , fixtureMultiAssetWallet
     , fixturePassphrase
     , fixtureWallet
     , fixtureWalletWith
     , json
     , minUTxOValue
+    , mkTxPayloadMA
+    , pickAnAsset
     , request
     , runResourceT
     , unsafeRequest
@@ -198,10 +207,11 @@ walletApiBench capture ctx = do
     fmtTitle "CURRENTLY DISABLED. SEE #2006 & #2051"
   where
 
-    -- Creates n fixture wallets and return two of them
+    -- Creates n fixture wallets and return 3 of them
     nFixtureWallet n = do
         wal1 : wal2 : _ <- replicateM n (fixtureWallet ctx)
-        pure (wal1, wal2)
+        walMA <- fixtureMultiAssetWallet ctx
+        pure (wal1, wal2, walMA)
 
     -- Creates n fixture wallets and send 1-ada transactions to one of them
     -- (m times). The money is sent in batches (see batchSize below) from
@@ -209,7 +219,7 @@ walletApiBench capture ctx = do
     -- to be accommodated in recipient wallet. After that the source fixture
     -- wallet is removed.
     nFixtureWalletWithTxs n m = do
-        (wal1, wal2) <- nFixtureWallet n
+        (wal1, wal2, walMA) <- nFixtureWallet n
 
         let amt = minUTxOValue
         let batchSize = 10
@@ -224,12 +234,12 @@ walletApiBench capture ctx = do
         let expInflows' = filter (/=0) expInflows
 
         mapM_ (repeatPostTx wal1 amt batchSize . amtExp) expInflows'
-        pure (wal1, wal2)
+        pure (wal1, wal2, walMA)
 
     nFixtureWalletWithUTxOs n utxoNumber = do
         let utxoExp = replicate utxoNumber minUTxOValue
         wal1 <- fixtureWalletWith @n ctx utxoExp
-        (_, wal2) <- nFixtureWallet n
+        (_, wal2, walMA) <- nFixtureWallet n
 
         eventually "Wallet balance is as expected" $ do
             rWal1 <- request @ApiWallet ctx
@@ -245,7 +255,7 @@ walletApiBench capture ctx = do
                 (Link.getUTxOsStatistics @'Shelley wal1) Default Empty
         expectResponseCode HTTP.status200 rStat
         expectWalletUTxO (fromIntegral <$> utxoExp) (snd rStat)
-        pure (wal1, wal2)
+        pure (wal1, wal2, walMA)
 
     repeatPostTx wDest amtToSend batchSize amtExp = do
         wSrc <- fixtureWallet ctx
@@ -281,7 +291,7 @@ walletApiBench capture ctx = do
         expectResponseCode HTTP.status202 r
         return r
 
-    runScenario scenario = runResourceT $ scenario >>= \(wal1, wal2) -> liftIO $ do
+    runScenario scenario = runResourceT $ scenario >>= \(wal1, wal2, walMA) -> liftIO $ do
         t1 <- measureApiLogs capture
             (request @[ApiWallet] ctx (Link.listWallets @'Shelley) Default Empty)
         fmtResult "listWallets        " t1
@@ -356,14 +366,31 @@ walletApiBench capture ctx = do
             (Link.createTransaction @'Shelley wal2) Default payloadTxTo5Addr
         fmtResult "postTransTo5Addrs  " t7a
 
+        let assetsToSend = walMA ^. #assets . #total . #getApiT
+        let val = minUTxOValue <$ pickAnAsset assetsToSend
+        payloadMA <- mkTxPayloadMA @n destination (2*minUTxOValue) [val] fixturePassphrase
+        t7b <- measureApiLogs capture $ request @(ApiTransaction n) ctx
+            (Link.createTransaction @'Shelley walMA) Default payloadMA
+        fmtResult "postTransactionMA  " t7b
+
         t8 <- measureApiLogs capture $ request @[ApiStakePool] ctx
             (Link.listStakePools arbitraryStake) Default Empty
-
         fmtResult "listStakePools     " t8
 
         t9 <- measureApiLogs capture $ request @ApiNetworkInformation ctx
             Link.getNetworkInfo Default Empty
         fmtResult "getNetworkInfo     " t9
+
+        t10 <- measureApiLogs capture $ request @([ApiAsset]) ctx
+            (Link.listAssets walMA) Default Empty
+        fmtResult "listMultiAssets    " t10
+
+        let assetsSrc = walMA ^. #assets . #total . #getApiT
+        let (polId, assName) = bimap unsafeFromText unsafeFromText $ fst $
+                pickAnAsset assetsSrc
+        t11 <- measureApiLogs capture $ request @([ApiAsset]) ctx
+            (Link.getAsset walMA polId assName) Default Empty
+        fmtResult "getMultiAsset      " t11
 
         pure ()
      where
@@ -420,7 +447,9 @@ withShelleyServer tracers action = do
     setupFaucet conn dir = do
         let encodeAddr = T.unpack . encodeAddress @'Mainnet
         let addresses = map (first encodeAddr) shelleyIntegrationTestFunds
+        let addressesMA = map (first encodeAddr) (maryIntegrationTestAssets (Coin 10_000_000))
         sendFaucetFundsTo nullTracer conn dir addresses
+        sendFaucetAssetsTo nullTracer conn dir 20 addressesMA
 
     onClusterStart act dir db (RunningNode conn block0 (np, vData)) = do
         listen <- walletListenFromEnv
