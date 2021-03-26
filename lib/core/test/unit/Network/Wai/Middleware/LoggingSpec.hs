@@ -92,12 +92,14 @@ import Servant.Server
     ( Handler )
 import Test.Hspec
     ( Spec, after, before, describe, it, shouldBe, shouldContain )
+import Test.QuickCheck
+    ( Arbitrary (..), choose, counterexample, property, withMaxSuccess )
+import Test.QuickCheck.Monadic
+    ( assert, monadicIO, monitor )
 import UnliftIO.Async
     ( Async, async, cancel, mapConcurrently, replicateConcurrently_ )
 import UnliftIO.Concurrent
     ( threadDelay )
-import UnliftIO.Exception
-    ( onException )
 import UnliftIO.MVar
     ( newEmptyMVar, putMVar, readMVar )
 import UnliftIO.STM
@@ -210,42 +212,39 @@ spec = describe "Logging Middleware"
             , (Debug, "LogRequestFinish")
             ]
 
-    it "different request ids" $ \ctx -> do
-        let numberOfRequests = 50
-        replicateConcurrently_ numberOfRequests (get ctx "/get")
-        entries <- takeLogs ctx
-        let getReqId (ApiLog (RequestId rid) _) = rid
-        let uniqueReqIds = L.nubBy (\l1 l2 -> getReqId l1 == getReqId l2)
-        let numUniqueReqIds = length (uniqueReqIds entries)
-        let debugInfo = unlines $
+    it "different request ids" $ \ctx ->
+        property $ \(NumberOfRequests n) -> monadicIO $ do
+            entries <- liftIO $ do
+                replicateConcurrently_ n (get ctx "/get")
+                takeLogs ctx
+            let getReqId (ApiLog (RequestId rid) _) = rid
+            let uniqueReqIds = L.nubBy (\l1 l2 -> getReqId l1 == getReqId l2)
+            let numUniqueReqIds = length (uniqueReqIds entries)
+            monitor $ counterexample $ unlines $
                 [ "Number of log entries: " ++ show (length entries)
                 , "Number of unique req ids: " ++ show numUniqueReqIds
                 , ""
                 , "All the logs:" ] ++ map show entries
-        (numUniqueReqIds `shouldBe` numberOfRequests)
-            `onException` putStrLn debugInfo
+            assert $ numUniqueReqIds == n
 
-    it "correct time measures" $ \ctx -> do
-        let numberOfRequests = 7
-        let randomIndex = 5
-        -- Interleave a single long request among multiple short requests, and
-        -- check that its time gets logged correctly.
-        let reqs = mconcat
-                [ replicate randomIndex (get ctx "/get")
-                , [ get ctx "/long" ]
-                , replicate (numberOfRequests - randomIndex) (get ctx "/get")
-                ]
-        void $ mapConcurrently id reqs
-        waitForServerToComplete
-        entries <- takeLogs ctx
-        let index = mapMaybe captureTime entries
-        let numLongReqs = length $ filter (> (200*ms)) index
-        let debugInfo = unlines
+    it "correct time measures" $ \ctx -> withMaxSuccess 10 $
+        property $ \(NumberOfRequests n, RandomIndex i) -> monadicIO $ do
+            entries <- liftIO $ do
+                let reqs = mconcat
+                        [ replicate i (get ctx "/get")
+                        , [ get ctx "/long" ]
+                        , replicate (n - i) (get ctx "/get")
+                        ]
+                void $ mapConcurrently id reqs
+                waitForServerToComplete
+                takeLogs ctx
+            let index = mapMaybe captureTime entries
+            let numLongReqs = length $ filter (> (200*ms)) index
+            monitor $ counterexample $ unlines
                 [ "Number of log entries: " ++ show (length entries)
                 , "Number of long requests: " ++ show numLongReqs
                 ]
-        (numLongReqs `shouldBe` 1)
-            `onException` putStrLn debugInfo
+            assert $ numLongReqs == 1
   where
     setup :: IO Context
     setup = do
@@ -363,6 +362,37 @@ captureTime (ApiLog _ theMsg) = case theMsg of
 -- | Number of microsecond in one millisecond
 ms :: Int
 ms = 1000
+
+{-------------------------------------------------------------------------------
+                            Arbitrary instances
+-------------------------------------------------------------------------------}
+
+newtype NumberOfRequests = NumberOfRequests Int deriving Show
+
+instance Arbitrary NumberOfRequests where
+    shrink (NumberOfRequests n) =
+        fmap NumberOfRequests $ filter (> 0) $ shrink n
+    arbitrary = NumberOfRequests <$> choose (1, 100)
+
+newtype RandomIndex = RandomIndex Int deriving Show
+
+-- | Give a random number of request 'n' and a random index 'i' such that:
+--
+--     0 <= i < n
+--
+-- This allows for crafting `n+1` requests where `n` requests are "fast" and one
+-- is "long", ensuring that the time is correctly measured for that long request,
+-- regardless of the interleaving.
+instance {-# OVERLAPS #-} Arbitrary (NumberOfRequests, RandomIndex) where
+    shrink (NumberOfRequests n, RandomIndex i) =
+        [ (NumberOfRequests n', RandomIndex i')
+        | n' <- shrink n, n' > 0
+        , i' <- shrink i, i' > 0 && i' < n'
+        ]
+    arbitrary = do
+        n <- choose (1, 10)
+        i <- choose (0, n - 1)
+        return (NumberOfRequests n, RandomIndex i)
 
 {-------------------------------------------------------------------------------
                                 mock server
