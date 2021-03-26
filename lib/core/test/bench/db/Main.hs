@@ -659,16 +659,17 @@ withDB
     => Tracer IO WalletDBLog
     -> (DBLayer IO s k -> Benchmark)
     -> Benchmark
-withDB tr bm = envWithCleanup (setupDB tr) cleanupDB (\(BenchEnv _ _ db) -> bm db)
+withDB tr bm = envWithCleanup (setupDB tr) cleanupDB $
+    \benchEnv -> bm (dbLayer benchEnv)
 
 data BenchEnv s k = BenchEnv
     { cleanupDB :: IO ()
-    , _dbFile :: FilePath
-    , _dbLayer :: !(DBLayer IO s k)
+    , dbFile :: FilePath
+    , dbLayer :: DBLayer IO s k
     }
 
 instance NFData (BenchEnv s k) where
-    rnf (BenchEnv _ fp db) = deepseq (rnf fp) $ deepseq (rnf db) ()
+    rnf env = deepseq (rnf $ dbFile env) $ deepseq (rnf $ dbLayer env) ()
 
 withTempSqliteFile :: (FilePath -> IO a) -> IO a
 withTempSqliteFile action = withSystemTempFile "bench.db" $ \fp _ -> action fp
