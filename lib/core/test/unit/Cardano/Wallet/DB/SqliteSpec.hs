@@ -413,8 +413,8 @@ sqliteSpecSeq :: Spec
 sqliteSpecSeq = do
     validateGenerators @(SeqState 'Mainnet ShelleyKey)
     around withShelleyDBLayerInMemory $ do
-        parallel $ describe "Sqlite" properties
-        parallel $ describe "Sqlite State machine tests" $ do
+        parallel $ describe "Sqlite (SeqState)" properties
+        parallel $ describe "Sqlite State machine tests (SeqState)" $ do
             it "Sequential" (prop_sequential :: TestDBSeq -> Property)
             xit "Parallel" prop_parallel
 
@@ -423,15 +423,15 @@ sqliteSpecRnd = do
     validateGenerators @(RndState 'Mainnet)
     around withByronDBLayer $ do
         parallel $ describe "Sqlite State machine (RndState)" $ do
-            it "Sequential state machine tests"
+            it "Sequential state machine tests (RndState)"
                 (prop_sequential :: TestDBRnd -> Property)
 
 sqliteSpecShared :: Spec
 sqliteSpecShared = do
     validateGenerators @(SharedState 'Mainnet ShelleyKey)
     around withShelleyDBLayerInMemory $ do
-        parallel $ describe "Sqlite" properties
-        parallel $ describe "Sqlite State machine tests" $ do
+        parallel $ describe "Sqlite (SharedState)" properties
+        parallel $ describe "Sqlite State machine tests (SharedState)" $ do
             it "Sequential" (prop_sequential :: TestDBShared -> Property)
 
 testMigrationTxMetaFee

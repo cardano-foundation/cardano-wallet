@@ -47,6 +47,7 @@ import Cardano.Wallet.Gen
     ( genMnemonic
     , genScript
     , genScriptTemplate
+    , genScriptTemplateComplete
     , genSmallTxMetadata
     , shrinkSlotNo
     , shrinkTxMetadata
@@ -595,7 +596,7 @@ instance Arbitrary (SharedState 'Mainnet ShelleyKey) where
                 <$> (defaultSharedStatePrefix <$> arbitrary)
                 <*> arbitrary
                 <*> genScriptTemplate
-                <*> genScriptTemplateM
+                <*> genScriptTemplateM genScriptTemplate
                 <*> arbitrary
         oneof [activeWallet, pendingWallet]
 
@@ -618,13 +619,14 @@ instance Arbitrary (ShelleyKey 'AccountK XPub) where
 instance Arbitrary Seq.AddressPoolGap where
     arbitrary = arbitraryBoundedEnum
 
-genScriptTemplateM :: Gen (Maybe ScriptTemplate)
-genScriptTemplateM =
-    oneof [pure Nothing, Just <$> genScriptTemplate]
+genScriptTemplateM :: Gen ScriptTemplate -> Gen (Maybe ScriptTemplate)
+genScriptTemplateM genTemplate =
+    oneof [pure Nothing, Just <$> genTemplate]
 
 instance Arbitrary (AddressPool 'MultisigScript ShelleyKey) where
     arbitrary = do
-        ctx <- ParentContextMultisigScript arbitrarySeqAccount <$> genScriptTemplate <*> genScriptTemplateM
+        ctx <- ParentContextMultisigScript arbitrarySeqAccount
+            <$> genScriptTemplateComplete <*> genScriptTemplateM genScriptTemplateComplete
         pure $ mkAddressPool @'Mainnet ctx minBound mempty
 
 {-------------------------------------------------------------------------------

@@ -24,6 +24,7 @@ module Cardano.Wallet.Gen
     , genScript
     , genScriptCosigners
     , genScriptTemplate
+    , genScriptTemplateComplete
     , genNatural
     ) where
 
@@ -311,3 +312,11 @@ genScriptTemplate = do
     let xpubGen = fromJust . xpubFromBytes . BS.pack <$> vectorOf 64 arbitrary
     xpubs <- vectorOf (length cosignersSubset) xpubGen
     pure $ ScriptTemplate (Map.fromList $ zip cosignersSubset xpubs) script
+
+genScriptTemplateComplete :: Gen ScriptTemplate
+genScriptTemplateComplete = do
+    script <- genScriptCosigners `suchThat` (\s -> not (null (retrieveAllCosigners s)))
+    let scriptCosigners = retrieveAllCosigners script
+    let xpubGen = fromJust . xpubFromBytes . BS.pack <$> vectorOf 64 arbitrary
+    xpubs <- vectorOf (length scriptCosigners) xpubGen
+    pure $ ScriptTemplate (Map.fromList $ zip scriptCosigners xpubs) script
