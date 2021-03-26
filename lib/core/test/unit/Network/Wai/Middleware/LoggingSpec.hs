@@ -100,6 +100,8 @@ import UnliftIO.Async
     ( Async, async, cancel, mapConcurrently, replicateConcurrently_ )
 import UnliftIO.Concurrent
     ( threadDelay )
+import UnliftIO.Exception
+    ( bracket )
 import UnliftIO.MVar
     ( newEmptyMVar, putMVar, readMVar )
 import UnliftIO.STM
@@ -111,110 +113,110 @@ import qualified Data.Text as T
 import qualified Network.Wai.Handler.Warp as Warp
 
 spec :: Spec
-spec = describe "Logging Middleware"
-    $ before setup $ after tearDown $ do
-    it "GET, 200, no query" $ \ctx -> do
-        get ctx "/get"
-        expectLogs ctx
-            [ (Debug, "LogRequestStart")
-            , (Info, "[GET] /get")
-            , (Debug, "")
-            , (Info, "200 OK")
-            , (Debug, "14")
-            , (Debug, "LogRequestFinish")
-            ]
+spec = describe "Logging Middleware" $ do
+    before setup $ after tearDown $ do
+        it "GET, 200, no query" $ \ctx -> do
+            get ctx "/get"
+            expectLogs ctx
+                [ (Debug, "LogRequestStart")
+                , (Info, "[GET] /get")
+                , (Debug, "")
+                , (Info, "200 OK")
+                , (Debug, "14")
+                , (Debug, "LogRequestFinish")
+                ]
 
-    it "GET, 200, with query" $ \ctx -> do
-        get ctx "/get?query=patate"
-        expectLogs ctx
-            [ (Debug, "LogRequestStart")
-            , (Info, "[GET] /get?query=patate")
-            , (Debug, "")
-            , (Info, "200 OK")
-            , (Debug, "14")
-            , (Debug, "LogRequestFinish")
-            ]
+        it "GET, 200, with query" $ \ctx -> do
+            get ctx "/get?query=patate"
+            expectLogs ctx
+                [ (Debug, "LogRequestStart")
+                , (Info, "[GET] /get?query=patate")
+                , (Debug, "")
+                , (Info, "200 OK")
+                , (Debug, "14")
+                , (Debug, "LogRequestFinish")
+                ]
 
-    it "GET, 200, not json" $ \ctx -> do
-        get ctx "/not-json"
-        expectLogs ctx
-            [ (Debug, "LogRequestStart")
-            , (Info, "[GET] /not-json")
-            , (Debug, "")
-            , (Info, "200 OK")
-            , (Debug, "\NUL\NUL\NUL")
-            , (Debug, "LogRequestFinish")
-            ]
+        it "GET, 200, not json" $ \ctx -> do
+            get ctx "/not-json"
+            expectLogs ctx
+                [ (Debug, "LogRequestStart")
+                , (Info, "[GET] /not-json")
+                , (Debug, "")
+                , (Info, "200 OK")
+                , (Debug, "\NUL\NUL\NUL")
+                , (Debug, "LogRequestFinish")
+                ]
 
-    it "POST, 201, with sensitive fields" $ \ctx -> do
-        post ctx "/post" (MkJson { field = "patate", sensitive = 14 })
-        expectLogs ctx
-            [ (Debug, "LogRequestStart")
-            , (Info, "[POST] /post")
-            , (Debug, "{\"sensitive\":\"*****\",\"field\":\"patate\"}")
-            , (Info, "201 Created")
-            , (Debug, "{\"status\":\"ok\",\"whatever\":42}")
-            , (Debug, "LogRequestFinish")
-            ]
+        it "POST, 201, with sensitive fields" $ \ctx -> do
+            post ctx "/post" (MkJson { field = "patate", sensitive = 14 })
+            expectLogs ctx
+                [ (Debug, "LogRequestStart")
+                , (Info, "[POST] /post")
+                , (Debug, "{\"sensitive\":\"*****\",\"field\":\"patate\"}")
+                , (Info, "201 Created")
+                , (Debug, "{\"status\":\"ok\",\"whatever\":42}")
+                , (Debug, "LogRequestFinish")
+                ]
 
-    it "POST, 400, invalid payload (not json)" $ \ctx -> do
-        postIlled ctx "/post" "\NUL\NUL\NUL"
-        expectLogs ctx
-            [ (Debug, "LogRequestStart")
-            , (Info, "[POST] /post")
-            , (Debug, "Invalid payload: not JSON")
-            , (Info, "400 Bad Request")
-            , (Debug, "Failed reading: not a valid json value")
-            , (Debug, "LogRequestFinish")
-            ]
+        it "POST, 400, invalid payload (not json)" $ \ctx -> do
+            postIlled ctx "/post" "\NUL\NUL\NUL"
+            expectLogs ctx
+                [ (Debug, "LogRequestStart")
+                , (Info, "[POST] /post")
+                , (Debug, "Invalid payload: not JSON")
+                , (Info, "400 Bad Request")
+                , (Debug, "Failed reading: not a valid json value")
+                , (Debug, "LogRequestFinish")
+                ]
 
-    it "DELETE, 202, no query" $ \ctx -> do
-        delete ctx "/delete"
-        expectLogs ctx
-            [ (Debug, "LogRequestStart")
-            , (Info, "[DELETE] /delete")
-            , (Debug, "")
-            , (Info, "204 No Content")
-            , (Debug, "")
-            , (Debug, "LogRequestFinish")
-            ]
+        it "DELETE, 202, no query" $ \ctx -> do
+            delete ctx "/delete"
+            expectLogs ctx
+                [ (Debug, "LogRequestStart")
+                , (Info, "[DELETE] /delete")
+                , (Debug, "")
+                , (Info, "204 No Content")
+                , (Debug, "")
+                , (Debug, "LogRequestFinish")
+                ]
 
-    it "GET, 400" $ \ctx -> do
-        get ctx "/error400"
-        expectLogs ctx
-            [ (Debug, "LogRequestStart")
-            , (Info, "[GET] /error400")
-            , (Debug, "")
-            , (Info, "400 Bad Request")
-            , (Debug, "")
-            , (Debug, "LogRequestFinish")
-            ]
+        it "GET, 400" $ \ctx -> do
+            get ctx "/error400"
+            expectLogs ctx
+                [ (Debug, "LogRequestStart")
+                , (Info, "[GET] /error400")
+                , (Debug, "")
+                , (Info, "400 Bad Request")
+                , (Debug, "")
+                , (Debug, "LogRequestFinish")
+                ]
 
-    it "GET, 500" $ \ctx -> do
-        get ctx "/error500"
-        expectLogs ctx
-            [ (Debug, "LogRequestStart")
-            , (Info, "[GET] /error500")
-            , (Debug, "")
-            , (Error, "500 Internal Server Error")
-            , (Debug, "")
-            , (Debug, "LogRequestFinish")
-            ]
+        it "GET, 500" $ \ctx -> do
+            get ctx "/error500"
+            expectLogs ctx
+                [ (Debug, "LogRequestStart")
+                , (Info, "[GET] /error500")
+                , (Debug, "")
+                , (Error, "500 Internal Server Error")
+                , (Debug, "")
+                , (Debug, "LogRequestFinish")
+                ]
 
-    it "GET, 503" $ \ctx -> do
-        get ctx "/error503"
-        expectLogs ctx
-            [ (Debug, "LogRequestStart")
-            , (Info, "[GET] /error503")
-            , (Debug, "")
-            , (Warning, "503 Service Unavailable")
-            , (Debug, "")
-            , (Debug, "LogRequestFinish")
-            ]
+        it "GET, 503" $ \ctx -> do
+            get ctx "/error503"
+            expectLogs ctx
+                [ (Debug, "LogRequestStart")
+                , (Info, "[GET] /error503")
+                , (Debug, "")
+                , (Warning, "503 Service Unavailable")
+                , (Debug, "")
+                , (Debug, "LogRequestFinish")
+                ]
 
-    it "different request ids" $ \ctx ->
+    it "different request ids" $
         property $ \(NumberOfRequests n) -> monadicIO $ do
-            entries <- liftIO $ do
+            entries <- withSetup $ \ctx -> do
                 replicateConcurrently_ n (get ctx "/get")
                 takeLogs ctx
             let getReqId (ApiLog (RequestId rid) _) = rid
@@ -227,9 +229,9 @@ spec = describe "Logging Middleware"
                 , "All the logs:" ] ++ map show entries
             assert $ numUniqueReqIds == n
 
-    it "correct time measures" $ \ctx -> withMaxSuccess 10 $
+    it "correct time measures" $ withMaxSuccess 10 $
         property $ \(NumberOfRequests n, RandomIndex i) -> monadicIO $ do
-            entries <- liftIO $ do
+            entries <- withSetup $ \ctx -> do
                 let reqs = mconcat
                         [ replicate i (get ctx "/get")
                         , [ get ctx "/long" ]
@@ -270,6 +272,8 @@ spec = describe "Logging Middleware"
 
     tearDown :: Context -> IO ()
     tearDown = cancel . server
+
+    withSetup = liftIO . bracket setup tearDown
 
 data Context = Context
     { logs :: TVar [ApiLog]
