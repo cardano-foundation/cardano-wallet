@@ -195,16 +195,8 @@ walletApiBench capture ctx = do
     fmtTitle "Latencies for 2 fixture wallets with 500 utxos scenario"
     runScenario (nFixtureWalletWithUTxOs 2 500)
 
-    {-- PENDING: Fee estimation is taking way longer than it should and this
-       scenario is not resolving in a timely manner.
-
-    To be re-enabled once #2006 & #2051 are fixed.
-
     fmtTitle "Latencies for 2 fixture wallets with 1000 utxos scenario"
     runScenario (nFixtureWalletWithUTxOs 2 1000)
-    --}
-    fmtTitle "Latencies for 2 fixture wallets with 1000 utxos scenario"
-    fmtTitle "CURRENTLY DISABLED. SEE #2006 & #2051"
   where
 
     -- Creates n fixture wallets and return 3 of them
