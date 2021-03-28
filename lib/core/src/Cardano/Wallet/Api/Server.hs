@@ -81,6 +81,7 @@ module Cardano.Wallet.Api.Server
     , selectCoinsForQuit
     , signMetadata
     , postAccountPublicKey
+    , postSharedWallet
 
     -- * Server error responses
     , IsServerError(..)
@@ -198,6 +199,8 @@ import Cardano.Wallet.Api.Types
     , ApiPutAddressesData (..)
     , ApiRawMetadata (..)
     , ApiSelectCoinsPayments
+    , ApiSharedWallet
+    , ApiSharedWalletPostData
     , ApiSlotId (..)
     , ApiSlotReference (..)
     , ApiT (..)
@@ -289,6 +292,8 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     , mkSeqStateFromRootXPrv
     , purposeCIP1852
     )
+import Cardano.Wallet.Primitive.AddressDiscovery.SharedState
+    ( SharedState (..) )
 import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     ( SelectionError (..)
     , SelectionInsufficientError (..)
@@ -797,6 +802,29 @@ mkShelleyWallet ctx wid cp meta pending progress = do
             , target = Nothing
             , changesAt = mepochInfo
             }
+
+
+--------------------- Shared Wallet
+postSharedWallet
+    :: forall ctx s k n.
+        ( s ~ SharedState n k
+        , ctx ~ ApiLayer s k
+        , SoftDerivation k
+        , MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
+        , MkKeyFingerprint k Address
+        , WalletKey k
+        , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
+        , HasDBFactory s k ctx
+        , HasWorkerRegistry s k ctx
+        , Typeable s
+        , Typeable n
+        )
+    => ctx
+    -> ((SomeMnemonic, Maybe SomeMnemonic) -> Passphrase "encryption" -> k 'RootK XPrv)
+    -> (XPub -> k 'AccountK XPub)
+    -> ApiSharedWalletPostData
+    -> Handler ApiSharedWallet
+postSharedWallet _ctx _generateKey _liftKey _body = undefined
 
 
 --------------------- Legacy

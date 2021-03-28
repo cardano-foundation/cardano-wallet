@@ -90,6 +90,7 @@ import Cardano.Wallet.Api.Server
     , postRandomAddress
     , postRandomWallet
     , postRandomWalletFromXPrv
+    , postSharedWallet
     , postTransaction
     , postTransactionFee
     , postTrezorWallet
@@ -142,6 +143,8 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( SeqState )
+import Cardano.Wallet.Primitive.AddressDiscovery.SharedState
+    ( SharedState )
 import Cardano.Wallet.Primitive.Types
     ( PoolMetadataSource (..), SmashServer (..), poolMetadataSource )
 import Cardano.Wallet.Shelley.Compatibility
@@ -204,10 +207,11 @@ server
     => ApiLayer (RndState n) ByronKey
     -> ApiLayer (SeqState n IcarusKey) IcarusKey
     -> ApiLayer (SeqState n ShelleyKey) ShelleyKey
+    -> ApiLayer (SharedState n ShelleyKey) ShelleyKey
     -> StakePoolLayer
     -> NtpClient
     -> Server (Api n ApiStakePool)
-server byron icarus shelley spl ntp =
+server byron icarus shelley multisig spl ntp =
          wallets
     :<|> walletKeys
     :<|> assets
@@ -488,13 +492,12 @@ server byron icarus shelley spl ntp =
 
     sharedWallets :: Server SharedWallets
     sharedWallets =
-             postSharedWallet
+             postSharedWallet multisig generateKeyFromSeed ShelleyKey
         :<|> getSharedWallet
         :<|> patchSharedWalletInPayment
         :<|> patchSharedWalletInDelegation
         :<|> deleteSharedWallet
       where
-         postSharedWallet = pure $ throwError err501
          getSharedWallet = pure $ throwError err501
          patchSharedWalletInPayment _ = pure $ throwError err501
          patchSharedWalletInDelegation _ = pure $ throwError err501
