@@ -120,6 +120,7 @@ module Cardano.Wallet.Api
         , GetSharedWallet
         , PatchSharedWalletInPayment
         , PatchSharedWalletInDelegation
+        , DeleteSharedWallet
 
     , Proxy_
         , PostExternalTransaction

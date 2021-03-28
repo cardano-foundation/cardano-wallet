@@ -104,6 +104,10 @@ module Cardano.Wallet.Api.Link
 
     , getCurrentSMASHHealth
 
+     -- * Shared Wallets
+    , postSharedWallet
+    , deleteSharedWallet
+
     , PostWallet
     , Discriminate
     ) where
@@ -674,6 +678,25 @@ getCurrentSMASHHealth'
     -> (Method, Text)
 getCurrentSMASHHealth' smash =
     endpoint @Api.GetCurrentSMASHHealth (\mk -> mk (ApiT <$> smash))
+
+--
+-- Shared Wallets
+--
+postSharedWallet
+    :: (Method, Text)
+postSharedWallet =
+    endpoint @Api.PostSharedWallet id
+
+deleteSharedWallet
+    :: forall w.
+        ( HasType (ApiT WalletId) w
+        )
+    => w
+    -> (Method, Text)
+deleteSharedWallet w =
+    endpoint @Api.DeleteSharedWallet (wid &)
+  where
+    wid = w ^. typed @(ApiT WalletId)
 
 --
 -- Internals

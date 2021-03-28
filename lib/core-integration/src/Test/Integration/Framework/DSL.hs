@@ -74,6 +74,7 @@ module Test.Integration.Framework.DSL
     , emptyWalletWith
     , emptyByronWalletFromXPrvWith
     , rewardWallet
+    , postSharedWallet
 
     -- * Wallet helpers
     , listFilteredWallets
@@ -214,6 +215,7 @@ import Cardano.Wallet.Api.Types
     , ApiMaintenanceAction (..)
     , ApiNetworkInformation
     , ApiNetworkParameters (..)
+    , ApiSharedWallet (..)
     , ApiStakePool
     , ApiT (..)
     , ApiTransaction
@@ -1298,7 +1300,6 @@ fixtureMultiAssetRandomWallet ctx = do
             ]
         return (getFromResponse id rb)
 
-
 fixtureMultiAssetIcarusWallet
     :: forall n m.
         ( DecodeAddress n
@@ -1338,6 +1339,24 @@ fixtureMultiAssetIcarusWallet ctx = do
                 (`shouldNotBe` TokenMap.empty)
             ]
         return (getFromResponse id rb)
+
+
+postSharedWallet
+    :: (MonadIO m, MonadUnliftIO m)
+    => Context
+    -> Headers
+    -> Payload
+    -> ResourceT m (HTTP.Status, Either RequestException ApiSharedWallet)
+postSharedWallet ctx headers payload = snd <$> allocate create (free . snd)
+  where
+    create =
+        request @ApiSharedWallet ctx Link.postSharedWallet headers payload
+
+    free (Right (ApiSharedWallet (Left w))) = void $ request @Aeson.Value ctx
+        (Link.deleteSharedWallet w) Default Empty
+    free (Right (ApiSharedWallet (Right w))) = void $ request @Aeson.Value ctx
+        (Link.deleteSharedWallet w) Default Empty
+    free (Left _) = return ()
 
 fixtureRawTx
     :: Context
@@ -1987,13 +2006,13 @@ listTransactions
     -> Maybe UTCTime
     -> Maybe SortOrder
     -> m [ApiTransaction n]
-listTransactions ctx wallet mStart mEnd mOrder = do
+listTransactions ctx w mStart mEnd mOrder = do
     r <- request @[ApiTransaction n] ctx path Default Empty
     expectResponseCode HTTP.status200 r
     let txs = getFromResponse id r
     return txs
   where
-    path = Link.listTransactions' @'Shelley wallet
+    path = Link.listTransactions' @'Shelley w
         Nothing
         (Iso8601Time <$> mStart)
         (Iso8601Time <$> mEnd)
