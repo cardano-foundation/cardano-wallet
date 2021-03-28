@@ -135,8 +135,17 @@ let
           unit.postInstall = libSodiumPostInstall;
         };
 
-        # Add node backend to the PATH of the latency benchmarks
-        packages.cardano-wallet.components.benchmarks.latency = wrapBench cardanoNodeExes;
+        # Add node backend to the PATH of the latency benchmarks, and
+        # set the source tree as its working directory.
+        packages.cardano-wallet.components.benchmarks.latency =
+          lib.optionalAttrs (!stdenv.hostPlatform.isWindows) {
+            build-tools = [ pkgs.makeWrapper ];
+            postInstall = ''
+              wrapProgram $out/bin/* \
+                --run "cd $src/lib/shelley" \
+                --prefix PATH : ${lib.makeBinPath cardanoNodeExes}
+            '';
+          };
 
         # Add cardano-node to the PATH of the byroon restore benchmark.
         # cardano-node will want to write logs to a subdirectory of the working directory.
@@ -324,19 +333,6 @@ let
     "$out/bin/$exeName" --zsh-completion-script "$out/bin/$exeName" >"$zshCompDir/_$exeName"
     "$out/bin/$exeName" --fish-completion-script "$out/bin/$exeName" >"$fishCompDir/$exeName.fish"
   '';
-
-  # Add component options to wrap a benchmark exe, so that it has the
-  # backend executable on its path, and the source tree as its working
-  # directory.
-  wrapBench = progs:
-    lib.optionalAttrs (!stdenv.hostPlatform.isWindows) {
-      build-tools = [ pkgs.makeWrapper ];
-      postInstall = ''
-        wrapProgram $out/bin/* \
-          --run "cd $src" \
-          --prefix PATH : ${lib.makeBinPath progs}
-      '';
-    };
 
 in
   haskell.addProjectAndPackageAttrs {

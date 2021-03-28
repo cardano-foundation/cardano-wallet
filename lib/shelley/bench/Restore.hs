@@ -764,7 +764,7 @@ waitForNodeSync
     => Tracer IO (BenchmarkLog n)
     -> NetworkLayer IO Block
     -> IO SlotNo
-waitForNodeSync tr nw = loop 10
+waitForNodeSync tr nw = loop 120 -- allow 30 minutes for first tip
   where
     loop :: Int -> IO SlotNo
     loop retries = do
@@ -788,7 +788,7 @@ waitForNodeSync tr nw = loop 10
                  traceWith tr $ MsgRetryShortly delay
                  threadDelay delay
                  loop (retries - 1)
-            else throwString "Gave up waitForNodeSync"
+            else throwString "Gave up in waitForNodeSync, waiting a tip"
 
 data BenchmarkLog (n :: NetworkDiscriminant)
     = MsgNodeTipTick BlockHeader SyncProgress
