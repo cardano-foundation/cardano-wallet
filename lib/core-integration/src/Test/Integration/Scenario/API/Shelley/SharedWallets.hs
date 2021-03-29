@@ -129,3 +129,65 @@ spec = describe "SHARED_WALLETS" $ do
             , expectField #delegationScriptTemplate (`shouldBe` Nothing)
             , expectField (#accountIndex . #getApiT) (`shouldBe` DerivationIndex 2147483678)
             ]
+
+    it "SHARED_WALLETS_CREATE_03 - Create an active shared wallet from account xpub" $ \ctx -> runResourceT $ do
+        let payload = Json [json| {
+                "name": "Shared Wallet",
+                "account_public_key": "1423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db11423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db1",
+                "account_index": "30H",
+                "payment_script_template":
+                    { "cosigners":
+                        { "cosigner#0": "1423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db11423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db1" },
+                      "template":
+                          { "all":
+                             [ "cosigner#0",
+                               { "active_from": 120 }
+                             ]
+                          }
+                    }
+                } |]
+        r <- postSharedWallet ctx Default payload
+        verify (fst r, (\(Right (ApiSharedWallet (Right res))) -> Right res) $ snd r)
+            [ expectResponseCode HTTP.status201
+            , expectField
+                    (#name . #getApiT . #getWalletName) (`shouldBe` "Shared Wallet")
+            , expectField
+                    (#addressPoolGap . #getApiT . #getAddressPoolGap) (`shouldBe` 20)
+            , expectField (#balance . #available) (`shouldBe` Quantity 0)
+            , expectField (#balance . #total) (`shouldBe` Quantity 0)
+            , expectField (#balance . #reward) (`shouldBe` Quantity 0)
+            , expectField (#assets . #total) (`shouldBe` mempty)
+            , expectField (#assets . #available) (`shouldBe` mempty)
+            , expectField #delegation (`shouldBe` notDelegating [])
+            , expectField #passphrase (`shouldBe` Nothing)
+            , expectField #delegationScriptTemplate (`shouldBe` Nothing)
+            , expectField (#accountIndex . #getApiT) (`shouldBe` DerivationIndex 2147483678)
+            ]
+
+    it "SHARED_WALLETS_CREATE_04 - Create a pending shared wallet from account xpub" $ \ctx -> runResourceT $ do
+        let payload = Json [json| {
+                "name": "Shared Wallet",
+                "account_public_key": "1423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db11423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db2",
+                "account_index": "30H",
+                "payment_script_template":
+                    { "cosigners":
+                        { "cosigner#0": "1423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db11423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db1" },
+                      "template":
+                          { "all":
+                             [ "cosigner#0",
+                               "cosigner#1",
+                               { "active_from": 120 }
+                             ]
+                          }
+                    }
+                } |]
+        r <- postSharedWallet ctx Default payload
+        verify (fst r, (\(Right (ApiSharedWallet (Left res))) -> Right res) $ snd r)
+            [ expectResponseCode HTTP.status201
+            , expectField
+                    (#name . #getApiT . #getWalletName) (`shouldBe` "Shared Wallet")
+            , expectField
+                    (#addressPoolGap . #getApiT . #getAddressPoolGap) (`shouldBe` 20)
+            , expectField #delegationScriptTemplate (`shouldBe` Nothing)
+            , expectField (#accountIndex . #getApiT) (`shouldBe` DerivationIndex 2147483678)
+            ]
