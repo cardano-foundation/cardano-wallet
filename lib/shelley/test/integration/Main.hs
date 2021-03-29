@@ -263,9 +263,10 @@ specWithServer testDir (tr, tracers) = aroundAll withContext
                     , _poolGarbageCollectionEvents = poolGarbageCollectionEvents
                     , _mainEra = era
                     , _smashUrl = smashUrl
-                    , _mintSeaHorseAssets = \addrs nPerAddr -> do
+                    , _mintSeaHorseAssets = \quantity nPerAddr addrs -> do
                         sendFaucetAssetsTo tr' faucetConn testDir 1 $
-                            encodeAddresses (seaHorseTestAssets addrs nPerAddr)
+                            encodeAddresses $
+                                seaHorseTestAssets quantity nPerAddr addrs
                     }
         let action' = bracketTracer' tr "spec" . action
         res <- race

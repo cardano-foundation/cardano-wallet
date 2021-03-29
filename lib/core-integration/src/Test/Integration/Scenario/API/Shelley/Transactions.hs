@@ -51,6 +51,8 @@ import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.TokenPolicy
     ( mkTokenFingerprint )
+import Cardano.Wallet.Primitive.Types.TokenQuantity
+    ( TokenQuantity (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..), TxMetadata (..), TxMetadataValue (..), TxStatus (..) )
 import Cardano.Wallet.Unsafe
@@ -733,7 +735,8 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 wSrc <- fixtureWallet ctx
                 srcAddrs <-
                     map (getApiT . fst . view #id) <$> listAddresses @n ctx wSrc
-                liftIO $ _mintSeaHorseAssets ctx nAssetsPerAddr (take 2 srcAddrs)
+                liftIO $ _mintSeaHorseAssets ctx
+                    (TokenQuantity 1) nAssetsPerAddr (take 2 srcAddrs)
                 return (wSrc, nAssetsPerAddr)
             wDest <- emptyWallet ctx
             destAddr <- head . map (view #id) <$> listAddresses @n ctx wDest
@@ -748,7 +751,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                 payload <- mkTxPayloadMA @n
                     destAddr
                     0
-                    (seaHorses [1, nPerAddr * 2])
+                    (seaHorses [1, fromIntegral (nPerAddr * 2)])
                     -- Send one token from our first bundle, and one token from
                     -- our second bundle, to ensure the change output is large.
                     fixturePassphrase

@@ -2252,21 +2252,22 @@ maryIntegrationTestAssets tips = maMnemonics >>= take 3
         ]
     combined p = simple p `TokenBundle.add` fruit p
 
--- | Create @n@ unique SeaHorse tokens for each provided @Address@.
+-- | Create @q@ tokens of @n@ SeaHorse assets for each provided @Address@.
 --
 -- The result can be used for minting using the cli-based faucet.
 seaHorseTestAssets
-    :: Int -- ^ Number of sea horses per address
+    :: TokenQuantity -- ^ Quantity of tokens per asset, per address
+    -> Int -- ^ Number of sea horses per address
     -> [Address]
     -> [(Address, (TokenBundle, [(String, String)]))]
-seaHorseTestAssets nPerAddr addrs = zip addrs $
+seaHorseTestAssets q nPerAddr addrs = zip addrs $
     map
         (\is -> mint (seaHorse is) seaHorseAssetScript)
         (chunks nPerAddr [1..])
   where
     mint mk (pid, info) = (mk pid, [info])
     seaHorse is p = bundle p $ flip map is $ \i ->
-        (seaHorseTokenName i, TokenQuantity 1)
+        (seaHorseTokenName i, q)
     bundle p assets = TokenBundle.fromNestedList
         (Coin 1000_000_000)
         [(p, NE.fromList assets)]
