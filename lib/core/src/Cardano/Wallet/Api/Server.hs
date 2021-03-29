@@ -147,7 +147,6 @@ import Cardano.Wallet
     , ErrWithdrawalNotWorth (..)
     , ErrWrongPassphrase (..)
     , FeeEstimation (..)
-    , HasLogger
     , HasNetworkLayer
     , TxSubmitLog
     , WalletLog
@@ -671,10 +670,9 @@ postShelleyWallet
     -> Handler ApiWallet
 postShelleyWallet ctx generateKey body = do
     let state = mkSeqStateFromRootXPrv (rootXPrv, pwd) purposeCIP1852 g
-    void $ liftHandler $ initWorker @_ @s @k ctx wid
+    void $ liftHandler $ createWalletWorker @_ @s @k ctx wid
         (\wrk -> W.createWallet  @(WorkerCtx ctx) @s @k wrk wid wName state)
-        (\wrk -> W.restoreWallet @(WorkerCtx ctx) @s @k wrk wid)
-        (\wrk -> W.manageRewardBalance @(WorkerCtx ctx) @s @k (Proxy @n) wrk wid)
+        (\wrk _ -> W.manageRewardBalance @(WorkerCtx ctx) @s @k (Proxy @n) wrk wid)
     withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk -> liftHandler $
         W.attachPrivateKeyFromPwd @_ @s @k wrk wid (rootXPrv, pwd)
     fst <$> getWallet ctx (mkShelleyWallet @_ @s @k) (ApiT wid)
@@ -708,10 +706,9 @@ postAccountWallet
     -> Handler w
 postAccountWallet ctx mkWallet liftKey coworker body = do
     let state = mkSeqStateFromAccountXPub (liftKey accXPub) purposeCIP1852 g
-    void $ liftHandler $ initWorker @_ @s @k ctx wid
+    void $ liftHandler $ createWalletWorker @_ @s @k ctx wid
         (\wrk -> W.createWallet  @(WorkerCtx ctx) @s @k wrk wid wName state)
-        (\wrk -> W.restoreWallet @(WorkerCtx ctx) @s @k wrk wid)
-        (`coworker` wid)
+        coworker
     fst <$> getWallet ctx mkWallet (ApiT wid)
   where
     g = maybe defaultAddressPoolGap getApiT (body ^. #addressPoolGap)
@@ -821,9 +818,8 @@ postLegacyWallet
         -- ^ How to create this legacy wallet
     -> Handler ApiByronWallet
 postLegacyWallet ctx (rootXPrv, pwd) createWallet = do
-    void $ liftHandler $ initWorker @_ @s @k ctx wid (`createWallet` wid)
-        (\wrk -> W.restoreWallet @(WorkerCtx ctx) @s @k wrk wid)
-        (`idleWorker` wid)
+    void $ liftHandler $ createWalletWorker @_ @s @k ctx wid (`createWallet` wid)
+        idleWorker
     withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
         W.attachPrivateKeyFromPwd wrk wid (rootXPrv, pwd)
     fst <$> getWallet ctx mkLegacyWallet (ApiT wid)
@@ -926,10 +922,9 @@ postRandomWalletFromXPrv
     -> Handler ApiByronWallet
 postRandomWalletFromXPrv ctx body = do
     s <- liftIO $ mkRndState byronKey <$> getStdRandom random
-    void $ liftHandler $ initWorker @_ @s @k ctx wid
+    void $ liftHandler $ createWalletWorker @_ @s @k ctx wid
         (\wrk -> W.createWallet @(WorkerCtx ctx) @s @k wrk wid wName s)
-        (\wrk -> W.restoreWallet @(WorkerCtx ctx) @s @k wrk wid)
-        (`idleWorker` wid)
+        idleWorker
     withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
         W.attachPrivateKeyFromPwdHash wrk wid (byronKey, pwd)
     fst <$> getWallet ctx mkLegacyWallet (ApiT wid)
@@ -1963,58 +1958,6 @@ postAccountPublicKey ctx (ApiT wid) (ApiT ix) (ApiPostAccountKeyData (ApiT pwd) 
                                   Helpers
 -------------------------------------------------------------------------------}
 
--- | see 'Cardano.Wallet#createWallet'
-initWorker
-    :: forall ctx s k.
-        ( HasWorkerRegistry s k ctx
-        , HasDBFactory s k ctx
-        , HasLogger (WorkerLog WalletId WalletLog) ctx
-        )
-    => ctx
-        -- ^ Surrounding API context
-    -> WalletId
-        -- ^ Wallet Id
-    -> (WorkerCtx ctx -> ExceptT ErrWalletAlreadyExists IO WalletId)
-        -- ^ Create action
-    -> (WorkerCtx ctx -> ExceptT ErrNoSuchWallet IO ())
-        -- ^ Restore action
-    -> (WorkerCtx ctx -> IO ())
-        -- ^ Action to run concurrently with restore action
-    -> ExceptT ErrCreateWallet IO WalletId
-initWorker ctx wid createWallet restoreWallet coworker =
-    liftIO (Registry.lookup re wid) >>= \case
-        Just _ ->
-            throwE $ ErrCreateWalletAlreadyExists $ ErrWalletAlreadyExists wid
-        Nothing ->
-            liftIO (Registry.register @_ @ctx re ctx wid config) >>= \case
-                Nothing ->
-                    throwE ErrCreateWalletFailedToCreateWorker
-                Just _ ->
-                    pure wid
-  where
-    config = MkWorker
-        { workerBefore = \ctx' _ -> do
-            void $ unsafeRunExceptT $ createWallet ctx'
-
-        , workerMain = \ctx' _ -> do
-            race_
-                (unsafeRunExceptT $ restoreWallet ctx')
-                (coworker ctx')
-
-        , workerAfter =
-            defaultWorkerAfter
-
-        , workerAcquire =
-            withDatabase df wid
-        }
-    re = ctx ^. workerRegistry @s @k
-    df = ctx ^. dbFactory @s @k
-
--- | Something to pass as the coworker action to 'newApiLayer', which does
--- nothing, and never exits.
-idleWorker :: ctx -> wid -> IO ()
-idleWorker _ _ = forever $ threadDelay maxBound
-
 -- | Handler for fetching the 'ArgGenChange' for the 'RndState' (i.e. the root
 -- XPrv), necessary to derive new change addresses.
 rndStateChange
@@ -2368,44 +2311,91 @@ newApiLayer tr g0 nw tl df tokenMeta coworker = do
     let trTx = contramap MsgSubmitSealedTx tr
     let trW = contramap MsgWallet tr
     let ctx = ApiLayer trTx trW g0 nw tl df re tokenMeta
-    listDatabases df >>= mapM_ (registerWorker ctx coworker)
+    listDatabases df >>= mapM_ (startWalletWorker ctx coworker)
     return ctx
 
--- | Register a restoration worker to the registry.
+-- | Register a wallet restoration thread with the worker registry.
+startWalletWorker
+    :: forall ctx s k.
+        ( ctx ~ ApiLayer s k
+        , IsOurs s RewardAccount
+        , IsOurs s Address
+        )
+    => ctx
+    -> (WorkerCtx ctx -> WalletId -> IO ())
+        -- ^ Action to run concurrently with restore
+    -> WalletId
+    -> IO ()
+startWalletWorker ctx coworker = void . registerWorker ctx before coworker
+  where
+    before ctx' wid =
+        runExceptT (W.checkWalletIntegrity ctx' wid gp)
+        >>= either throwIO pure
+    (_, NetworkParameters gp _ _, _) = ctx ^. genesisData
+
+-- | Register a wallet create and restore thread with the worker registry.
+-- See 'Cardano.Wallet#createWallet'
+createWalletWorker
+    :: forall ctx s k.
+        ( ctx ~ ApiLayer s k
+        , IsOurs s RewardAccount
+        , IsOurs s Address
+        )
+    => ctx
+        -- ^ Surrounding API context
+    -> WalletId
+        -- ^ Wallet Id
+    -> (WorkerCtx ctx -> ExceptT ErrWalletAlreadyExists IO WalletId)
+        -- ^ Create action
+    -> (WorkerCtx ctx -> WalletId -> IO ())
+        -- ^ Action to run concurrently with restore
+    -> ExceptT ErrCreateWallet IO WalletId
+createWalletWorker ctx wid createWallet coworker =
+    liftIO (Registry.lookup re wid) >>= \case
+        Just _ ->
+            throwE $ ErrCreateWalletAlreadyExists $ ErrWalletAlreadyExists wid
+        Nothing ->
+            liftIO (registerWorker ctx before coworker wid) >>= \case
+                Nothing -> throwE ErrCreateWalletFailedToCreateWorker
+                Just _ -> pure wid
+  where
+    before ctx' _ = void $ unsafeRunExceptT $ createWallet ctx'
+    re = ctx ^. workerRegistry @s @k
+
+-- | Create a worker for an existing wallet, register it, then start the worker
+-- thread. This is used by 'startWalletWorker' and 'createWalletWorker'.
 registerWorker
     :: forall ctx s k.
         ( ctx ~ ApiLayer s k
         , IsOurs s RewardAccount
         , IsOurs s Address
         )
-    => ApiLayer s k
+    => ctx
     -> (WorkerCtx ctx -> WalletId -> IO ())
+        -- ^ First action to run after starting the worker thread.
+    -> (WorkerCtx ctx -> WalletId -> IO ())
+        -- ^ Action to run concurrently with restore.
     -> WalletId
-    -> IO ()
-registerWorker ctx coworker wid =
-    void $ Registry.register @_ @ctx re ctx wid config
+    -> IO (Maybe ctx)
+registerWorker ctx before coworker wid =
+    fmap (const ctx) <$> Registry.register @_ @ctx re ctx wid config
   where
-    (_, NetworkParameters gp _ _, _) = ctx ^. genesisData
-    re = ctx ^. workerRegistry
+    re = ctx ^. workerRegistry @s @k
     df = ctx ^. dbFactory
     config = MkWorker
-        { workerBefore = \ctx' _ ->
-            runExceptT (W.checkWalletIntegrity ctx' wid gp)
-                >>= either throwIO pure
-
-        , workerMain = \ctx' _ -> do
-            -- FIXME:
-            -- Review error handling here
-            race_
-                (unsafeRunExceptT $ W.restoreWallet @(WorkerCtx ctx) @s ctx' wid)
-                (coworker ctx' wid)
-
-        , workerAfter =
-            defaultWorkerAfter
-
-        , workerAcquire =
-            withDatabase df wid
+        { workerAcquire = withDatabase df wid
+        , workerBefore = before
+        , workerAfter = defaultWorkerAfter
+        -- fixme: ADP-641 Review error handling here
+        , workerMain = \ctx' _ -> race_
+            (unsafeRunExceptT $ W.restoreWallet ctx' wid)
+            (coworker ctx' wid)
         }
+
+-- | Something to pass as the coworker action to 'newApiLayer', which does
+-- nothing, and never exits.
+idleWorker :: ctx -> wid -> IO a
+idleWorker _ _ = forever $ threadDelay maxBound
 
 -- | Run an action in a particular worker context. Fails if there's no worker
 -- for a given id.

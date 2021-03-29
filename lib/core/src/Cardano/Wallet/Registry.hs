@@ -245,6 +245,7 @@ register registry ctx k (MkWorker before main after acquire) = do
                                     Logging
 -------------------------------------------------------------------------------}
 
+-- | Log messages relating to a registry worker thread.
 data WorkerLog key msg
     = MsgThreadAfter AfterThreadLog
     | MsgFromWorker key msg
@@ -264,6 +265,7 @@ instance HasSeverityAnnotation msg => HasSeverityAnnotation (WorkerLog key msg) 
         MsgThreadAfter msg -> getSeverityAnnotation msg
         MsgFromWorker _ msg -> getSeverityAnnotation msg
 
+-- | Log messages describing how a worker thread exits.
 data AfterThreadLog
     = MsgThreadFinished
     | MsgThreadCancelled
