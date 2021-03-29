@@ -28,6 +28,7 @@ module Cardano.Wallet.Primitive.Types.Tx
     , UnsignedTx (..)
     , TransactionInfo (..)
     , Direction (..)
+    , LocalTxSubmissionStatus (..)
     , TokenBundleSizeAssessor (..)
     , TokenBundleSizeAssessment (..)
 
@@ -386,7 +387,7 @@ instance Buildable a => Buildable (WithDirection a) where
 -- to the node.
 newtype SealedTx = SealedTx { getSealedTx :: ByteString }
     deriving stock (Show, Eq, Generic)
-    deriving newtype (ByteArrayAccess)
+    deriving newtype (ByteArrayAccess, NFData)
 
 -- | True if the given metadata refers to a pending transaction
 isPending :: TxMeta -> Bool
@@ -437,6 +438,17 @@ txMetadataIsNull (TxMetadata md) = Map.null md
 toTxHistory :: TransactionInfo -> (Tx, TxMeta)
 toTxHistory info =
     (fromTransactionInfo info, txInfoMeta info)
+
+-- | Information about when a transaction was submitted to the local node.
+-- This is used for scheduling resubmissions.
+data LocalTxSubmissionStatus tx = LocalTxSubmissionStatus
+    { txId :: !(Hash "Tx")
+    , submittedTx :: !tx
+    , firstSubmission :: !SlotNo
+    -- ^ Time of first successful submission to the local node.
+    , latestSubmission :: !SlotNo
+    -- ^ Time of most recent resubmission attempt.
+    } deriving (Generic, Show, Eq)
 
 -- | A function capable of assessing the size of a token bundle relative to the
 --   upper limit of what can be included in a single transaction output.
