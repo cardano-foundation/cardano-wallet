@@ -75,6 +75,7 @@ module Test.Integration.Framework.DSL
     , emptyByronWalletFromXPrvWith
     , rewardWallet
     , postSharedWallet
+    , deleteSharedWallet
 
     -- * Wallet helpers
     , listFilteredWallets
@@ -1357,6 +1358,21 @@ postSharedWallet ctx headers payload = snd <$> allocate create (free . snd)
     free (Right (ApiSharedWallet (Right w))) = void $ request @Aeson.Value ctx
         (Link.deleteSharedWallet w) Default Empty
     free (Left _) = return ()
+
+deleteSharedWallet
+    :: forall m.
+        ( MonadIO m
+        , MonadUnliftIO m
+        )
+    => Context
+    -> ApiSharedWallet
+    -> m (HTTP.Status, Either RequestException Value)
+deleteSharedWallet ctx (ApiSharedWallet (Left w)) =
+    request @Aeson.Value ctx
+        (Link.deleteSharedWallet w) Default Empty
+deleteSharedWallet ctx (ApiSharedWallet (Right w)) =
+    request @Aeson.Value ctx
+        (Link.deleteSharedWallet w) Default Empty
 
 fixtureRawTx
     :: Context

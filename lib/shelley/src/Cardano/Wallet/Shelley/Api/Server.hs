@@ -496,12 +496,11 @@ server byron icarus shelley multisig spl ntp =
         :<|> getSharedWallet
         :<|> patchSharedWalletInPayment
         :<|> patchSharedWalletInDelegation
-        :<|> deleteSharedWallet
+        :<|> deleteWallet multisig
       where
          getSharedWallet = pure $ throwError err501
          patchSharedWalletInPayment _ = pure $ throwError err501
          patchSharedWalletInDelegation _ = pure $ throwError err501
-         deleteSharedWallet = pure $ throwError err501
 
 postAnyAddress
     :: NetworkId

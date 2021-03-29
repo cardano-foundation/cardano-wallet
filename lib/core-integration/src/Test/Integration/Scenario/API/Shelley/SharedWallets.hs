@@ -41,10 +41,12 @@ import Test.Integration.Framework.DSL
     , Headers (..)
     , MnemonicLength (..)
     , Payload (..)
+    , deleteSharedWallet
     , expectField
     , expectResponseCode
     , fixturePassphrase
     , genMnemonics
+    , getFromResponse
     , json
     , notDelegating
     , postSharedWallet
@@ -191,3 +193,27 @@ spec = describe "SHARED_WALLETS" $ do
             , expectField #delegationScriptTemplate (`shouldBe` Nothing)
             , expectField (#accountIndex . #getApiT) (`shouldBe` DerivationIndex 2147483678)
             ]
+
+    it "SHARED_WALLETS_DELETE_01 - Delete of a shared wallet" $ \ctx -> runResourceT $ do
+        let payload = Json [json| {
+                "name": "Shared Wallet",
+                "account_public_key": "1423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db11423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db1",
+                "account_index": "30H",
+                "payment_script_template":
+                    { "cosigners":
+                        { "cosigner#0": "1423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db11423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db1" },
+                      "template":
+                          { "all":
+                             [ "cosigner#0",
+                               { "active_from": 120 }
+                             ]
+                          }
+                    }
+                } |]
+        rInit <- postSharedWallet ctx Default payload
+        verify rInit
+            [ expectResponseCode HTTP.status201 ]
+        let wal = getFromResponse id rInit
+
+        rDel <- deleteSharedWallet ctx wal
+        expectResponseCode HTTP.status204 rDel
