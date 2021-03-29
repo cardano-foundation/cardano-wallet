@@ -26,10 +26,14 @@ import Cardano.Wallet.Primitive.AddressDerivation
     ( DerivationIndex (..), PaymentAddress )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey )
+import Cardano.Wallet.Primitive.SyncProgress
+    ( SyncProgress (..) )
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Resource
     ( runResourceT )
+import Data.Bifunctor
+    ( second )
 import Data.Quantity
     ( Quantity (..) )
 import Test.Hspec
@@ -42,11 +46,13 @@ import Test.Integration.Framework.DSL
     , MnemonicLength (..)
     , Payload (..)
     , deleteSharedWallet
+    , eventually
     , expectField
     , expectResponseCode
     , fixturePassphrase
     , genMnemonics
     , getFromResponse
+    , getSharedWallet
     , json
     , notDelegating
     , postSharedWallet
@@ -83,7 +89,7 @@ spec = describe "SHARED_WALLETS" $ do
                     }
                 } |]
         r <- postSharedWallet ctx Default payload
-        verify (fst r, (\(Right (ApiSharedWallet (Right res))) -> Right res) $ snd r)
+        verify (second (\(Right (ApiSharedWallet (Right res))) -> Right res) r)
             [ expectResponseCode HTTP.status201
             , expectField
                     (#name . #getApiT . #getWalletName) (`shouldBe` "Shared Wallet")
@@ -122,7 +128,7 @@ spec = describe "SHARED_WALLETS" $ do
                     }
                 } |]
         r <- postSharedWallet ctx Default payload
-        verify (fst r, (\(Right (ApiSharedWallet (Left res))) -> Right res) $ snd r)
+        verify (second (\(Right (ApiSharedWallet (Left res))) -> Right res) r)
             [ expectResponseCode HTTP.status201
             , expectField
                     (#name . #getApiT . #getWalletName) (`shouldBe` "Shared Wallet")
@@ -149,7 +155,7 @@ spec = describe "SHARED_WALLETS" $ do
                     }
                 } |]
         r <- postSharedWallet ctx Default payload
-        verify (fst r, (\(Right (ApiSharedWallet (Right res))) -> Right res) $ snd r)
+        verify (second (\(Right (ApiSharedWallet (Right res))) -> Right res) r)
             [ expectResponseCode HTTP.status201
             , expectField
                     (#name . #getApiT . #getWalletName) (`shouldBe` "Shared Wallet")
@@ -184,7 +190,7 @@ spec = describe "SHARED_WALLETS" $ do
                     }
                 } |]
         r <- postSharedWallet ctx Default payload
-        verify (fst r, (\(Right (ApiSharedWallet (Left res))) -> Right res) $ snd r)
+        verify (second (\(Right (ApiSharedWallet (Left res))) -> Right res) r)
             [ expectResponseCode HTTP.status201
             , expectField
                     (#name . #getApiT . #getWalletName) (`shouldBe` "Shared Wallet")
@@ -214,6 +220,11 @@ spec = describe "SHARED_WALLETS" $ do
         verify rInit
             [ expectResponseCode HTTP.status201 ]
         let wal = getFromResponse id rInit
+
+        eventually "Wallet state = Ready" $ do
+            r <- getSharedWallet ctx wal
+            verify (second (\(Right (ApiSharedWallet (Right res))) -> Right res) r)
+                [ expectField (#state . #getApiT) (`shouldBe` Ready) ]
 
         rDel <- deleteSharedWallet ctx wal
         expectResponseCode HTTP.status204 rDel

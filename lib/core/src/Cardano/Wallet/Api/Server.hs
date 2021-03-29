@@ -82,6 +82,7 @@ module Cardano.Wallet.Api.Server
     , signMetadata
     , postAccountPublicKey
     , postSharedWallet
+    , mkSharedWallet
 
     -- * Server error responses
     , IsServerError(..)
@@ -870,7 +871,7 @@ postSharedWalletFromRootXPrv ctx generateKey body = do
         (\wrk -> W.manageRewardBalance @(WorkerCtx ctx) @s @k (Proxy @n) wrk wid)
     withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk -> liftHandler $
         W.attachPrivateKeyFromPwd @_ @s @k wrk wid (rootXPrv, pwd)
-    fst <$> getWallet ctx (mkSharedWallet @_ @s @k state) (ApiT wid)
+    fst <$> getWallet ctx (mkSharedWallet @_ @s @k) (ApiT wid)
   where
     seed = getApiMnemonicT (body ^. #mnemonicSentence)
     secondFactor = getApiMnemonicT <$> (body ^. #mnemonicSecondFactor)
@@ -905,7 +906,7 @@ postSharedWalletFromAccountXPub ctx liftKey body = do
         (\wrk -> W.createWallet  @(WorkerCtx ctx) @s @k wrk wid wName state)
         (\wrk -> W.restoreWallet @(WorkerCtx ctx) @s @k wrk wid)
         (`idleWorker` wid)
-    fst <$> getWallet ctx (mkSharedWallet @_ @s @k state) (ApiT wid)
+    fst <$> getWallet ctx (mkSharedWallet @_ @s @k) (ApiT wid)
   where
     g = defaultAddressPoolGap
     accIx = Index $ getDerivationIndex $ getApiT (body ^. #accountIndex)
@@ -922,9 +923,8 @@ mkSharedWallet
         , s ~ SharedState n k
         , HasWorkerRegistry s k ctx
         )
-    => SharedState n k
-    -> MkApiWallet ctx s ApiSharedWallet
-mkSharedWallet sharedState ctx wid cp meta pending progress = case sharedState of
+    => MkApiWallet ctx s ApiSharedWallet
+mkSharedWallet ctx wid cp meta pending progress = case getState cp of
     PendingSharedState (DerivationPrefix (_,_,accIx)) _ pTemplate dTemplateM g ->
         pure $ ApiSharedWallet $ Left $ ApiPendingSharedWallet
         { id = ApiT wid

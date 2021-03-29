@@ -162,6 +162,8 @@ import Control.Monad.Trans.Maybe
     ( MaybeT (..) )
 import Control.Tracer
     ( Tracer, contramap, traceWith )
+import Data.Bifunctor
+    ( second )
 import Data.Coerce
     ( coerce )
 import Data.Either
@@ -2470,7 +2472,7 @@ instance
         let SharedState _ accountBytes g pScript dScriptM prefix = entityVal st
         let accXPub = unsafeDeserializeXPub accountBytes
         pCosigners <- lift $ selectCosigners @k wid Payment
-        let prepareKeys = map (\(c,k) -> (c,getRawKey k))
+        let prepareKeys = map (second getRawKey)
         let pTemplate = ScriptTemplate (Map.fromList $ prepareKeys pCosigners) pScript
         dCosigners <- lift $ selectCosigners @k wid Delegation
         let dTemplateM = ScriptTemplate (Map.fromList $ prepareKeys dCosigners) <$> dScriptM

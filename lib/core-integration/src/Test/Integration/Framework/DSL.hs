@@ -76,6 +76,7 @@ module Test.Integration.Framework.DSL
     , rewardWallet
     , postSharedWallet
     , deleteSharedWallet
+    , getSharedWallet
 
     -- * Wallet helpers
     , listFilteredWallets
@@ -1373,6 +1374,21 @@ deleteSharedWallet ctx (ApiSharedWallet (Left w)) =
 deleteSharedWallet ctx (ApiSharedWallet (Right w)) =
     request @Aeson.Value ctx
         (Link.deleteSharedWallet w) Default Empty
+
+getSharedWallet
+    :: forall m.
+        ( MonadIO m
+        , MonadUnliftIO m
+        )
+    => Context
+    -> ApiSharedWallet
+    -> m (HTTP.Status, Either RequestException ApiSharedWallet)
+getSharedWallet ctx (ApiSharedWallet (Left w)) = do
+    let link = Link.getSharedWallet w
+    request @ApiSharedWallet ctx link Default Empty
+getSharedWallet ctx (ApiSharedWallet (Right w)) = do
+    let link = Link.getSharedWallet w
+    request @ApiSharedWallet ctx link Default Empty
 
 fixtureRawTx
     :: Context

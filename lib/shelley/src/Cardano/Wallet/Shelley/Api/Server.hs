@@ -81,6 +81,7 @@ import Cardano.Wallet.Api.Server
     , listWallets
     , migrateWallet
     , mkLegacyWallet
+    , mkSharedWallet
     , mkShelleyWallet
     , postAccountPublicKey
     , postAccountWallet
@@ -493,12 +494,11 @@ server byron icarus shelley multisig spl ntp =
     sharedWallets :: Server SharedWallets
     sharedWallets =
              postSharedWallet multisig generateKeyFromSeed ShelleyKey
-        :<|> getSharedWallet
+        :<|> (fmap fst . getWallet multisig mkSharedWallet)
         :<|> patchSharedWalletInPayment
         :<|> patchSharedWalletInDelegation
         :<|> deleteWallet multisig
       where
-         getSharedWallet = pure $ throwError err501
          patchSharedWalletInPayment _ = pure $ throwError err501
          patchSharedWalletInDelegation _ = pure $ throwError err501
 

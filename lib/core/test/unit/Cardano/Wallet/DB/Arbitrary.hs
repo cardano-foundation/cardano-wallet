@@ -587,7 +587,7 @@ rootKeysRnd = unsafePerformIO $ generate (vectorOf 10 genRootKeysRnd)
 
 instance Arbitrary (SharedState 'Mainnet ShelleyKey) where
     shrink (SharedState prefix pool) =
-        (\p -> SharedState prefix p) <$> shrink pool
+        SharedState prefix <$> shrink pool
     shrink _ = []
     arbitrary = do
         let activeWallet = SharedState

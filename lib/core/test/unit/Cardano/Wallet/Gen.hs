@@ -42,9 +42,12 @@ import Cardano.Api.Typed
     , metadataFromJson
     )
 import Cardano.Mnemonic
-    ( SomeMnemonic (..) )
-import Cardano.Mnemonic
-    ( ConsistentEntropy, EntropySize, Mnemonic, entropyToMnemonic )
+    ( ConsistentEntropy
+    , EntropySize
+    , Mnemonic
+    , SomeMnemonic (..)
+    , entropyToMnemonic
+    )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Passphrase (..), WalletKey (..) )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
@@ -314,15 +317,15 @@ genScriptCosigners = do
 
 genScriptTemplate :: Gen ScriptTemplate
 genScriptTemplate = do
-    script <- genScriptCosigners `suchThat` (\s -> not (null (retrieveAllCosigners s)))
+    script <- genScriptCosigners `suchThat` (not . null . retrieveAllCosigners)
     let scriptCosigners = retrieveAllCosigners script
-    cosignersSubset <- sublistOf scriptCosigners `suchThat` (\cs -> not (null cs))
+    cosignersSubset <- sublistOf scriptCosigners `suchThat` (not . null)
     xpubs <- vectorOf (length cosignersSubset) genXPub
     pure $ ScriptTemplate (Map.fromList $ zip cosignersSubset xpubs) script
 
 genScriptTemplateComplete :: Gen ScriptTemplate
 genScriptTemplateComplete = do
-    script <- genScriptCosigners `suchThat` (\s -> not (null (retrieveAllCosigners s)))
+    script <- genScriptCosigners `suchThat` (not . null . retrieveAllCosigners)
     let scriptCosigners = retrieveAllCosigners script
     xpubs <- vectorOf (length scriptCosigners) genXPub
     pure $ ScriptTemplate (Map.fromList $ zip scriptCosigners xpubs) script

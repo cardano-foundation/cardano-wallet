@@ -412,7 +412,7 @@ instance PersistPublicKey (ByronKey 'AccountK) where
         hex (unXPub k) <> ":" <> hex p
 
     unsafeDeserializeXPub kp =
-        either err id $ fmap mkKey (deserializeKey kp)
+        either err (id . mkKey) (deserializeKey kp)
       where
         err _ = error "unsafeDeserializeXPub: unable to deserialize ByronKey"
         mkKey (key, pwd) = ByronKey key (Index 0) pwd
