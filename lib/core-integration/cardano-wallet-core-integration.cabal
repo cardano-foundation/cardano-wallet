@@ -91,6 +91,7 @@ library
       Test.Integration.Scenario.API.Byron.Transactions
       Test.Integration.Scenario.API.Byron.Migrations
       Test.Integration.Scenario.API.Byron.Network
+      Test.Integration.Scenario.API.Miscellaneous
       Test.Integration.Scenario.API.Shelley.Addresses
       Test.Integration.Scenario.API.Shelley.CoinSelections
       Test.Integration.Scenario.API.Shelley.HWWallets

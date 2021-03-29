@@ -147,6 +147,7 @@ import qualified Test.Integration.Scenario.API.Byron.HWWallets as ByronHWWallets
 import qualified Test.Integration.Scenario.API.Byron.Migrations as ByronMigrations
 import qualified Test.Integration.Scenario.API.Byron.Transactions as ByronTransactions
 import qualified Test.Integration.Scenario.API.Byron.Wallets as ByronWallets
+import qualified Test.Integration.Scenario.API.Miscellaneous as Miscellaneous
 import qualified Test.Integration.Scenario.API.Network as Network
 import qualified Test.Integration.Scenario.API.Shelley.Addresses as Addresses
 import qualified Test.Integration.Scenario.API.Shelley.CoinSelections as CoinSelections
@@ -192,7 +193,9 @@ main = withTestsSetup $ \testDir tracers -> do
                     ByronHWWallets.spec @n
 
             -- Possible conflict with StakePools - mark as not parallizable
-            sequential $ Settings.spec @n
+            sequential $ do
+                Settings.spec @n
+                Miscellaneous.spec @n
 
             -- Hydra runs tests with code coverage enabled. CLI tests run
             -- multiple processes. These processes can try to write to the
