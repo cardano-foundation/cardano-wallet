@@ -174,6 +174,7 @@ import Cardano.Wallet.Api.Types
     , AddressAmount (..)
     , ApiAccountKey (..)
     , ApiAccountPublicKey (..)
+    , ApiActiveSharedWallet (..)
     , ApiAddress (..)
     , ApiAsset (..)
     , ApiBlockInfo (..)
@@ -193,14 +194,15 @@ import Cardano.Wallet.Api.Types
     , ApiNetworkClock (..)
     , ApiNetworkInformation
     , ApiNetworkParameters (..)
+    , ApiPendingSharedWallet (..)
     , ApiPoolId (..)
     , ApiPostAccountKeyData (..)
     , ApiPostRandomAddressData (..)
     , ApiPutAddressesData (..)
     , ApiRawMetadata (..)
     , ApiSelectCoinsPayments
-    , ApiSharedWallet
-    , ApiSharedWalletPostData
+    , ApiSharedWallet (..)
+    , ApiSharedWalletPostData (..)
     , ApiSlotId (..)
     , ApiSlotReference (..)
     , ApiT (..)
@@ -286,14 +288,18 @@ import Cardano.Wallet.Primitive.AddressDiscovery
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState, mkRndState )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
-    ( SeqState (..)
+    ( DerivationPrefix (..)
+    , ParentContext (..)
+    , SeqState (..)
+    , context
     , defaultAddressPoolGap
+    , gap
     , mkSeqStateFromAccountXPub
     , mkSeqStateFromRootXPrv
     , purposeCIP1852
     )
 import Cardano.Wallet.Primitive.AddressDiscovery.SharedState
-    ( SharedState (..) )
+    ( SharedState (..), mkSharedStateFromRootXPrv )
 import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     ( SelectionError (..)
     , SelectionInsufficientError (..)
@@ -803,8 +809,8 @@ mkShelleyWallet ctx wid cp meta pending progress = do
             , changesAt = mepochInfo
             }
 
-
 --------------------- Shared Wallet
+
 postSharedWallet
     :: forall ctx s k n.
         ( s ~ SharedState n k
@@ -813,7 +819,6 @@ postSharedWallet
         , MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
         , MkKeyFingerprint k Address
         , WalletKey k
-        , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
         , HasDBFactory s k ctx
         , HasWorkerRegistry s k ctx
         , Typeable s
@@ -824,8 +829,106 @@ postSharedWallet
     -> (XPub -> k 'AccountK XPub)
     -> ApiSharedWalletPostData
     -> Handler ApiSharedWallet
-postSharedWallet _ctx _generateKey _liftKey _body = undefined
+postSharedWallet ctx generateKey _liftKey postData = do
+    let state = mkSharedStateFromRootXPrv (rootXPrv, pwd) accIx g pTemplate dTemplateM
+    void $ liftHandler $ initWorker @_ @s @k ctx wid
+        (\wrk -> W.createWallet  @(WorkerCtx ctx) @s @k wrk wid wName state)
+        (\wrk -> W.restoreWallet @(WorkerCtx ctx) @s @k wrk wid)
+        (\wrk -> W.manageRewardBalance @(WorkerCtx ctx) @s @k (Proxy @n) wrk wid)
+    withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk -> liftHandler $
+        W.attachPrivateKeyFromPwd @_ @s @k wrk wid (rootXPrv, pwd)
+    fst <$> getWallet ctx (mkSharedWallet @_ @s @k state) (ApiT wid)
+  where
+    seed = getApiMnemonicT (body ^. #mnemonicSentence)
+    secondFactor = getApiMnemonicT <$> (body ^. #mnemonicSecondFactor)
+    pwd = preparePassphrase EncryptWithPBKDF2 $ getApiT (body ^. #passphrase)
+    rootXPrv = generateKey (seed, secondFactor) pwd
+    g = defaultAddressPoolGap
+    accIx = Index $ getDerivationIndex $ getApiT (body ^. #accountIndex)
+    wid = WalletId $ digest $ publicKey rootXPrv
+    pTemplate = body ^. #paymentScriptTemplate
+    dTemplateM = body ^. #delegationScriptTemplate
+    wName = getApiT (body ^. #name)
+    (ApiSharedWalletPostData (Left body)) = postData
 
+mkSharedWallet
+    :: forall ctx s k n.
+        ( ctx ~ ApiLayer s k
+        , s ~ SharedState n k
+        , HasWorkerRegistry s k ctx
+        )
+    => SharedState n k
+    -> MkApiWallet ctx s ApiSharedWallet
+mkSharedWallet sharedState ctx wid cp meta pending progress = case sharedState of
+    PendingSharedState (DerivationPrefix (_,_,accIx)) _ pTemplate dTemplateM g ->
+        pure $ ApiSharedWallet $ Left $ ApiPendingSharedWallet
+        { id = ApiT wid
+        , name = ApiT $ meta ^. #name
+        , accountIndex = ApiT $ DerivationIndex $ getIndex accIx
+        , addressPoolGap = ApiT g
+        , paymentScriptTemplate = pTemplate
+        , delegationScriptTemplate = dTemplateM
+        }
+    SharedState (DerivationPrefix (_,_,accIx)) pool -> do
+        reward <- withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk ->
+            -- never fails - returns zero if balance not found
+            liftIO $ W.fetchRewardBalance @_ @s @k wrk wid
+
+        let ti = timeInterpreter $ ctx ^. networkLayer
+        apiDelegation <- liftIO $ toApiWalletDelegation (meta ^. #delegation)
+            (unsafeExtendSafeZone ti)
+
+        tip' <- liftIO $ getWalletTip
+            (neverFails "getWalletTip wallet tip should be behind node tip" ti)
+            cp
+        let available = availableBalance pending cp
+        let total = totalBalance pending reward cp
+        let (ParentContextMultisigScript _ pTemplate dTemplateM) = context pool
+        pure $ ApiSharedWallet $ Right $ ApiActiveSharedWallet
+            { id = ApiT wid
+            , name = ApiT $ meta ^. #name
+            , accountIndex = ApiT $ DerivationIndex $ getIndex accIx
+            , addressPoolGap = ApiT $ gap pool
+            , passphrase = ApiWalletPassphraseInfo
+                <$> fmap (view #lastUpdatedAt) (meta ^. #passphraseInfo)
+            , paymentScriptTemplate = pTemplate
+            , delegationScriptTemplate = dTemplateM
+            , delegation = apiDelegation
+            , balance = ApiWalletBalance
+                { available = coinToQuantity (available ^. #coin)
+                , total = coinToQuantity (total ^. #coin)
+                , reward = coinToQuantity reward
+                }
+            , assets = ApiWalletAssetsBalance
+                { available = ApiT (available ^. #tokens)
+                , total = ApiT (total ^. #tokens)
+                }
+            , state = ApiT progress
+            , tip = tip'
+            }
+  where
+    toApiWalletDelegation W.WalletDelegation{active,next} ti = do
+        apiNext <- forM next $ \W.WalletDelegationNext{status,changesAt} -> do
+            info <- interpretQuery ti $ toApiEpochInfo changesAt
+            return $ toApiWalletDelegationNext (Just info) status
+
+        return $ ApiWalletDelegation
+            { active = toApiWalletDelegationNext Nothing active
+            , next = apiNext
+            }
+
+    toApiWalletDelegationNext mepochInfo = \case
+        W.Delegating pid -> ApiWalletDelegationNext
+            { status = Delegating
+            , target = Just (ApiT pid)
+            , changesAt = mepochInfo
+            }
+
+        W.NotDelegating -> ApiWalletDelegationNext
+            { status = NotDelegating
+            , target = Nothing
+            , changesAt = mepochInfo
+            }
 
 --------------------- Legacy
 

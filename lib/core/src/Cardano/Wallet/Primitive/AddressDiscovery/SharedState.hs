@@ -27,7 +27,8 @@ module Cardano.Wallet.Primitive.AddressDiscovery.SharedState
     -- ** State
       SharedState (..)
     , unsafePendingSharedState
-    , newSharedState
+    , mkSharedStateFromAccountXPub
+    , mkSharedStateFromRootXPrv
     , addCosignerAccXPub
     , purposeCIP1854
     , isShared
@@ -46,14 +47,16 @@ import Cardano.Address.Script
     , validateScriptTemplate
     )
 import Cardano.Crypto.Wallet
-    ( XPub )
+    ( XPrv, XPub )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , DerivationPrefix (..)
     , DerivationType (..)
+    , HardDerivation (..)
     , Index (..)
     , MkKeyFingerprint (..)
     , NetworkDiscriminant (..)
+    , Passphrase
     , Role (..)
     , SoftDerivation
     , WalletKey (..)
@@ -205,8 +208,8 @@ unsafePendingSharedState accXPub accIx g pTemplate dTemplateM =
     , pendingSharedStateAddressPoolGap = g
     }
 
--- | Create a new SharedState.
-newSharedState
+-- | Create a new SharedState from public account key.
+mkSharedStateFromAccountXPub
     :: forall (n :: NetworkDiscriminant) k.
     ( MkKeyFingerprint k Address
     , SoftDerivation k
@@ -218,8 +221,28 @@ newSharedState
     -> ScriptTemplate
     -> Maybe ScriptTemplate
     -> SharedState n k
-newSharedState accXPub accIx g pTemplate dTemplateM =
+mkSharedStateFromAccountXPub accXPub accIx g pTemplate dTemplateM =
     let pendingSharedState = unsafePendingSharedState accXPub accIx g pTemplate dTemplateM
+    in trySharedState pendingSharedState
+
+-- | Create a new SharedState from root private key and password.
+mkSharedStateFromRootXPrv
+    :: forall (n :: NetworkDiscriminant) k.
+    ( MkKeyFingerprint k Address
+    , SoftDerivation k
+    , Typeable n
+    , WalletKey k
+    , MkKeyFingerprint k (Proxy n, k 'AddressK XPub) )
+    => (k 'RootK XPrv, Passphrase "encryption")
+    -> Index 'Hardened 'AccountK
+    -> AddressPoolGap
+    -> ScriptTemplate
+    -> Maybe ScriptTemplate
+    -> SharedState n k
+mkSharedStateFromRootXPrv (rootXPrv, pwd) accIx g pTemplate dTemplateM =
+    let accXPub =
+            publicKey $ deriveAccountPrivateKey pwd rootXPrv accIx
+        pendingSharedState = unsafePendingSharedState accXPub accIx g pTemplate dTemplateM
     in trySharedState pendingSharedState
 
 -- | Turn a "pending" into an "active" state or identity if already "active"

@@ -60,7 +60,17 @@ spec = describe "SHARED_WALLETS" $ do
                 "mnemonic_sentence": #{m15},
                 "mnemonic_second_factor": #{m12},
                 "passphrase": #{fixturePassphrase},
-                "address_pool_gap": 30
+                "account_index": "30H",
+                "payment_script_template":
+                    { "cosigners":
+                        { "cosigner#0": "1423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db11423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db1" },
+                      "template":
+                          { "all":
+                             [ "cosigner#0",
+                               { "active_from": 120 }
+                             ]
+                          }
+                    }
                 } |]
         r <- postSharedWallet ctx Default payload
         verify r
