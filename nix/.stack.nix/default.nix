@@ -91,10 +91,10 @@
         ouroboros-network-framework = ./ouroboros-network-framework.nix;
         typed-protocols = ./typed-protocols.nix;
         typed-protocols-examples = ./typed-protocols-examples.nix;
-        Win32-network = ./Win32-network.nix;
         cardano-client = ./cardano-client.nix;
         ntp-client = ./ntp-client.nix;
         ouroboros-consensus-mock = ./ouroboros-consensus-mock.nix;
+        Win32-network = ./Win32-network.nix;
         http-client = ./http-client.nix;
         };
       };
