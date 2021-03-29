@@ -17,17 +17,23 @@ module Test.Integration.Scenario.API.Shelley.SharedWallets
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( DecodeAddress, DecodeStakeAddress, EncodeAddress (..) )
+    ( ApiSharedWallet (..)
+    , DecodeAddress
+    , DecodeStakeAddress
+    , EncodeAddress (..)
+    )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( PaymentAddress )
+    ( DerivationIndex (..), PaymentAddress )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey )
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Resource
     ( runResourceT )
+import Data.Quantity
+    ( Quantity (..) )
 import Test.Hspec
-    ( SpecWith, describe )
+    ( SpecWith, describe, shouldBe, shouldNotBe )
 import Test.Hspec.Extra
     ( it )
 import Test.Integration.Framework.DSL
@@ -35,10 +41,12 @@ import Test.Integration.Framework.DSL
     , Headers (..)
     , MnemonicLength (..)
     , Payload (..)
+    , expectField
     , expectResponseCode
     , fixturePassphrase
     , genMnemonics
     , json
+    , notDelegating
     , postSharedWallet
     , verify
     )
@@ -52,7 +60,7 @@ spec :: forall n.
     , PaymentAddress n ShelleyKey
     ) => SpecWith Context
 spec = describe "SHARED_WALLETS" $ do
-    it "SHARED_WALLETS_CREATE_01 - Create a shared wallet" $ \ctx -> runResourceT $ do
+    it "SHARED_WALLETS_CREATE_01 - Create an active shared wallet from root xprv" $ \ctx -> runResourceT $ do
         m15 <- liftIO $ genMnemonics M15
         m12 <- liftIO $ genMnemonics M12
         let payload = Json [json| {
@@ -73,6 +81,51 @@ spec = describe "SHARED_WALLETS" $ do
                     }
                 } |]
         r <- postSharedWallet ctx Default payload
-        verify r
+        verify (fst r, (\(Right (ApiSharedWallet (Right res))) -> Right res) $ snd r)
             [ expectResponseCode HTTP.status201
+            , expectField
+                    (#name . #getApiT . #getWalletName) (`shouldBe` "Shared Wallet")
+            , expectField
+                    (#addressPoolGap . #getApiT . #getAddressPoolGap) (`shouldBe` 20)
+            , expectField (#balance . #available) (`shouldBe` Quantity 0)
+            , expectField (#balance . #total) (`shouldBe` Quantity 0)
+            , expectField (#balance . #reward) (`shouldBe` Quantity 0)
+            , expectField (#assets . #total) (`shouldBe` mempty)
+            , expectField (#assets . #available) (`shouldBe` mempty)
+            , expectField #delegation (`shouldBe` notDelegating [])
+            , expectField #passphrase (`shouldNotBe` Nothing)
+            , expectField #delegationScriptTemplate (`shouldBe` Nothing)
+            , expectField (#accountIndex . #getApiT) (`shouldBe` DerivationIndex 2147483678)
+            ]
+
+    it "SHARED_WALLETS_CREATE_02 - Create a pending shared wallet from root xprv" $ \ctx -> runResourceT $ do
+        m15 <- liftIO $ genMnemonics M15
+        m12 <- liftIO $ genMnemonics M12
+        let payload = Json [json| {
+                "name": "Shared Wallet",
+                "mnemonic_sentence": #{m15},
+                "mnemonic_second_factor": #{m12},
+                "passphrase": #{fixturePassphrase},
+                "account_index": "30H",
+                "payment_script_template":
+                    { "cosigners":
+                        { "cosigner#0": "1423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db11423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db1" },
+                      "template":
+                          { "all":
+                             [ "cosigner#0",
+                               "cosigner#1",
+                               { "active_from": 120 }
+                             ]
+                          }
+                    }
+                } |]
+        r <- postSharedWallet ctx Default payload
+        verify (fst r, (\(Right (ApiSharedWallet (Left res))) -> Right res) $ snd r)
+            [ expectResponseCode HTTP.status201
+            , expectField
+                    (#name . #getApiT . #getWalletName) (`shouldBe` "Shared Wallet")
+            , expectField
+                    (#addressPoolGap . #getApiT . #getAddressPoolGap) (`shouldBe` 20)
+            , expectField #delegationScriptTemplate (`shouldBe` Nothing)
+            , expectField (#accountIndex . #getApiT) (`shouldBe` DerivationIndex 2147483678)
             ]
