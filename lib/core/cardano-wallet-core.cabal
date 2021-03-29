@@ -377,6 +377,7 @@ test-suite unit
       Data.Time.TextSpec
       Data.Time.UtilsSpec
       Data.Vector.ShuffleSpec
+      Network.Wai.Middleware.BigIntSpec
       Network.Wai.Middleware.LoggingSpec
       Spec
 
