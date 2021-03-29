@@ -439,6 +439,8 @@ import Network.Wai
     ( Request, pathInfo )
 import Network.Wai.Handler.Warp
     ( Port )
+import Network.Wai.Middleware.BigInt
+    ( handleBigIntAsString )
 import Network.Wai.Middleware.Logging
     ( ApiLog (..), newApiLoggerSettings, obfuscateKeys, withApiLogger )
 import Network.Wai.Middleware.ServerError
@@ -521,6 +523,7 @@ start settings tr tlsConfig socket application = do
     logSettings <- newApiLoggerSettings <&> obfuscateKeys (const sensitive)
     runSocket
         $ handleRawError (curry handler)
+        $ handleBigIntAsString
         $ withApiLogger tr logSettings
         application
   where

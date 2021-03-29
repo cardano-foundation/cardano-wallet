@@ -203,6 +203,7 @@ library
       Data.Quantity
       Data.Vector.Shuffle
       Network.Ntp
+      Network.Wai.Middleware.BigInt
       Network.Wai.Middleware.ServerError
       Network.Wai.Middleware.Logging
       Ouroboros.Network.Client.Wallet
