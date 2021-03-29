@@ -238,7 +238,7 @@ import Cardano.Wallet.Compat
 import Cardano.Wallet.DB
     ( DBFactory (..) )
 import Cardano.Wallet.Network
-    ( ErrNetworkUnavailable (..), NetworkLayer, timeInterpreter )
+    ( NetworkLayer, timeInterpreter )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( DelegationAddress (..)
     , Depth (..)
@@ -2619,8 +2619,6 @@ instance LiftHandler ErrDecodeSignedTx where
 instance LiftHandler ErrSubmitExternalTx where
     handler = \case
         ErrSubmitExternalTxNetwork e -> case e of
-            ErrPostTxNetworkUnreachable e' ->
-                handler e'
             ErrPostTxBadRequest err ->
                 apiError err500 CreatedInvalidTransaction $ mconcat
                     [ "That's embarrassing. It looks like I've created an "
@@ -2659,7 +2657,6 @@ instance LiftHandler ErrRemoveTx where
 
 instance LiftHandler ErrPostTx where
     handler = \case
-        ErrPostTxNetworkUnreachable e -> handler e
         ErrPostTxBadRequest err ->
             apiError err500 CreatedInvalidTransaction $ mconcat
             [ "That's embarrassing. It looks like I've created an "
@@ -2685,19 +2682,6 @@ instance LiftHandler ErrSubmitTx where
             { errHTTPCode = 404
             , errReasonPhrase = errReasonPhrase err404
             }
-
-instance LiftHandler ErrNetworkUnavailable where
-    handler = \case
-        ErrNetworkUnreachable _err ->
-            apiError err503 NetworkUnreachable $ mconcat
-                [ "The node backend is unreachable at the moment. Trying again "
-                , "in a bit might work."
-                ]
-        ErrNetworkInvalid n ->
-            apiError err503 NetworkMisconfigured $ mconcat
-                [ "The node backend is configured for the wrong network: "
-                , n, "."
-                ]
 
 instance LiftHandler ErrUpdatePassphrase where
     handler = \case
@@ -2764,7 +2748,6 @@ instance LiftHandler ErrJoinStakePool where
 instance LiftHandler ErrFetchRewards where
     handler = \case
         ErrFetchRewardsReadRewardAccount e -> handler e
-        ErrFetchRewardsNetworkUnreachable e -> handler e
 
 instance LiftHandler ErrReadRewardAccount where
     handler = \case
