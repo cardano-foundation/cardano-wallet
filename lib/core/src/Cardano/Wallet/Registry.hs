@@ -29,6 +29,8 @@ module Cardano.Wallet.Registry
 
       -- * Logging
     , WorkerLog (..)
+    , AfterThreadLog (..)
+    , traceAfterThread
     ) where
 
 import Prelude hiding
@@ -40,12 +42,14 @@ import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.Wallet
     ( HasLogger, logger )
+import Cardano.Wallet.Logging
+    ( LoggedException (..) )
 import Control.Monad
     ( void )
 import Control.Monad.IO.Class
     ( MonadIO, liftIO )
 import Control.Tracer
-    ( Tracer, traceWith )
+    ( Tracer, contramap, traceWith )
 import Data.Foldable
     ( traverse_ )
 import Data.Generics.Internal.VL.Lens
@@ -59,13 +63,9 @@ import Data.Kind
 import Data.Map.Strict
     ( Map )
 import qualified Data.Map.Strict as Map
-import Data.Text
-    ( Text )
 import qualified Data.Text as T
 import Data.Text.Class
     ( ToText (..) )
-import Fmt
-    ( pretty )
 import GHC.Generics
     ( Generic )
 import UnliftIO.Concurrent
@@ -193,11 +193,7 @@ defaultWorkerAfter
     :: Tracer IO (WorkerLog key msg)
     -> Either SomeException a
     -> IO ()
-defaultWorkerAfter tr = traceWith tr . \case
-    Right _ -> MsgFinished
-    Left e -> if isSyncException e
-        then MsgUnhandledException $ pretty $ show e
-        else MsgThreadCancelled
+defaultWorkerAfter tr = traceAfterThread (contramap MsgThreadAfter tr)
 
 -- | Register a new worker for a given key.
 --
@@ -250,20 +246,14 @@ register registry ctx k (MkWorker before main after acquire) = do
 -------------------------------------------------------------------------------}
 
 data WorkerLog key msg
-    = MsgFinished
-    | MsgThreadCancelled
-    | MsgUnhandledException Text
+    = MsgThreadAfter AfterThreadLog
     | MsgFromWorker key msg
     deriving (Show, Eq)
 
 instance (ToText key, ToText msg) => ToText (WorkerLog key msg) where
     toText = \case
-        MsgFinished ->
-            "Worker has exited: main action is over."
-        MsgThreadCancelled ->
-            "Worker has exited: thread was cancelled."
-        MsgUnhandledException err ->
-            "Worker has exited unexpectedly: " <> err
+        MsgThreadAfter msg ->
+            "Worker has exited: " <> toText msg
         MsgFromWorker key msg
             | toText key == mempty -> toText msg
             | otherwise -> T.take 8 (toText key) <> ": " <> toText msg
@@ -271,7 +261,35 @@ instance (ToText key, ToText msg) => ToText (WorkerLog key msg) where
 instance HasPrivacyAnnotation (WorkerLog key msg)
 instance HasSeverityAnnotation msg => HasSeverityAnnotation (WorkerLog key msg) where
     getSeverityAnnotation = \case
-        MsgFinished -> Notice
+        MsgThreadAfter msg -> getSeverityAnnotation msg
+        MsgFromWorker _ msg -> getSeverityAnnotation msg
+
+data AfterThreadLog
+    = MsgThreadFinished
+    | MsgThreadCancelled
+    | MsgUnhandledException (LoggedException SomeException)
+    deriving (Show, Eq)
+
+instance ToText AfterThreadLog where
+    toText = \case
+        MsgThreadFinished -> "Action has finished"
+        MsgThreadCancelled -> "Thread was cancelled"
+        MsgUnhandledException err -> "Unhandled exception: " <> toText err
+
+instance HasPrivacyAnnotation AfterThreadLog
+instance HasSeverityAnnotation AfterThreadLog where
+    getSeverityAnnotation = \case
+        MsgThreadFinished -> Notice
         MsgThreadCancelled -> Notice
         MsgUnhandledException _ -> Error
-        MsgFromWorker _ msg -> getSeverityAnnotation msg
+
+-- | Trace an 'AfterThreadLog' message from a caught exception.
+traceAfterThread
+    :: Tracer m AfterThreadLog
+    -> Either SomeException a
+    -> m ()
+traceAfterThread tr = traceWith tr . \case
+    Right _ -> MsgThreadFinished
+    Left e -> if isSyncException e
+        then MsgUnhandledException $ LoggedException e
+        else MsgThreadCancelled

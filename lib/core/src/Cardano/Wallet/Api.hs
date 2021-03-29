@@ -130,7 +130,7 @@ module Cardano.Wallet.Api
 import Prelude
 
 import Cardano.Wallet
-    ( WalletLayer (..), WalletLog )
+    ( TxSubmitLog, WalletLayer (..), WalletLog )
 import Cardano.Wallet.Api.Types
     ( AnyAddress
     , ApiAccountKey
@@ -848,6 +848,7 @@ type PostExternalTransaction = "proxy"
 
 data ApiLayer s (k :: Depth -> Type -> Type)
     = ApiLayer
+        (Tracer IO TxSubmitLog)
         (Tracer IO (WorkerLog WalletId WalletLog))
         (Block, NetworkParameters, SyncTolerance)
         (NetworkLayer IO (Block))
@@ -861,7 +862,7 @@ instance HasWorkerCtx (DBLayer IO s k) (ApiLayer s k) where
     type WorkerCtx (ApiLayer s k) = WalletLayer s k
     type WorkerMsg (ApiLayer s k) = WalletLog
     type WorkerKey (ApiLayer s k) = WalletId
-    hoistResource db transform (ApiLayer tr gp nw tl _ _ _) =
+    hoistResource db transform (ApiLayer _ tr gp nw tl _ _ _) =
         WalletLayer (contramap transform tr) gp nw tl db
 
 {-------------------------------------------------------------------------------

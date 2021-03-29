@@ -99,6 +99,8 @@ import Cardano.Wallet.Primitive.Types
     )
 import Cardano.Wallet.Primitive.Types.Coin
     ( Coin (..) )
+import Cardano.Wallet.Registry
+    ( AfterThreadLog, traceAfterThread )
 import Cardano.Wallet.Shelley.Compatibility
     ( StandardCrypto
     , fromAllegraBlock
@@ -110,8 +112,6 @@ import Cardano.Wallet.Shelley.Compatibility
     )
 import Cardano.Wallet.Unsafe
     ( unsafeMkPercentage )
-import Control.Exception.Base
-    ( AsyncException (..), asyncExceptionFromException )
 import Control.Monad
     ( forM, forM_, forever, void, when )
 import Control.Monad.IO.Class
@@ -146,8 +146,6 @@ import Data.Quantity
     ( Percentage (..), Quantity (..) )
 import Data.Set
     ( Set )
-import Data.Text
-    ( Text )
 import Data.Text.Class
     ( ToText (..) )
 import Data.Time.Clock.POSIX
@@ -169,7 +167,7 @@ import System.Random
 import UnliftIO.Concurrent
     ( forkFinally, killThread, threadDelay )
 import UnliftIO.Exception
-    ( SomeException (..), finally )
+    ( finally )
 import UnliftIO.IORef
     ( IORef, newIORef, readIORef, writeIORef )
 import UnliftIO.STM
@@ -749,7 +747,7 @@ monitorMetadata gcStatus tr sp db@(DBLayer{..}) = do
                             fetchDelistedPools trFetch uri manager
                     tid <- forkFinally
                         (gcDelistedPools gcStatus tr db getDelistedPools)
-                        onExit
+                        (traceAfterThread (contramap MsgGCThreadExit tr))
                     void $ fetchMetadata manager [registryUrlBuilder uri]
                         `finally` killThread tid
 
@@ -808,16 +806,6 @@ monitorMetadata gcStatus tr sp db@(DBLayer{..}) = do
         slotLength = unSlotLength $ getSlotLength sp
         f = unActiveSlotCoefficient (getActiveSlotCoefficient sp)
 
-    onExit
-        :: Either SomeException a
-        -> IO ()
-    onExit = traceWith tr . \case
-        Right _ -> MsgGCFinished
-        Left e -> case asyncExceptionFromException e of
-            Just ThreadKilled -> MsgGCThreadKilled
-            Just UserInterrupt -> MsgGCUserInterrupt
-            _ -> MsgGCUnhandledException $ pretty $ show e
-
 gcDelistedPools
     :: TVar PoolMetadataGCStatus
     -> Tracer IO StakePoolLog
@@ -855,6 +843,7 @@ data StakePoolLog
     | MsgStartMonitoring [BlockHeader]
     | MsgHaltMonitoring
     | MsgCrashMonitoring
+    | MsgExitMonitoring AfterThreadLog
     | MsgRollingBackTo SlotNo
     | MsgStakePoolGarbageCollection PoolGarbageCollectionInfo
     | MsgStakePoolRegistration PoolRegistrationCertificate
@@ -863,10 +852,7 @@ data StakePoolLog
     | MsgFetchPoolMetadata StakePoolMetadataFetchLog
     | MsgFetchTakeBreak Int
     | MsgGCTakeBreak Int
-    | MsgGCFinished
-    | MsgGCThreadKilled
-    | MsgGCUserInterrupt
-    | MsgGCUnhandledException Text
+    | MsgGCThreadExit AfterThreadLog
     | MsgSMASHUnreachable
     deriving (Show, Eq)
 
@@ -888,6 +874,7 @@ instance HasSeverityAnnotation StakePoolLog where
         MsgStartMonitoring{} -> Info
         MsgHaltMonitoring{} -> Info
         MsgCrashMonitoring{} -> Error
+        MsgExitMonitoring msg -> getSeverityAnnotation msg
         MsgRollingBackTo{} -> Info
         MsgStakePoolGarbageCollection{} -> Debug
         MsgStakePoolRegistration{} -> Info
@@ -896,10 +883,7 @@ instance HasSeverityAnnotation StakePoolLog where
         MsgFetchPoolMetadata e -> getSeverityAnnotation e
         MsgFetchTakeBreak{} -> Debug
         MsgGCTakeBreak{} -> Debug
-        MsgGCFinished{} -> Debug
-        MsgGCThreadKilled{} -> Debug
-        MsgGCUserInterrupt{} -> Debug
-        MsgGCUnhandledException{} -> Debug
+        MsgGCThreadExit{} -> Debug
         MsgSMASHUnreachable{} -> Warning
 
 instance ToText StakePoolLog where
@@ -918,6 +902,8 @@ instance ToText StakePoolLog where
             [ "Chain follower exited with error. "
             , "Worker will no longer monitor stake pools."
             ]
+        MsgExitMonitoring msg ->
+            "Stake pool monitor exit: " <> toText msg
         MsgRollingBackTo point ->
             "Rolling back to " <> pretty point
         MsgStakePoolGarbageCollection info -> mconcat
@@ -948,11 +934,8 @@ instance ToText StakePoolLog where
             , "back to it in about "
             , pretty (fixedF 1 (toRational delay / 1_000_000)), "s"
             ]
-        MsgGCFinished -> "GC thread has exited: main action is over."
-        MsgGCThreadKilled -> "GC thread has exited: killed by parent."
-        MsgGCUserInterrupt -> "GC thread has exited: killed by user."
-        MsgGCUnhandledException err ->
-            "GC thread has exited unexpectedly: " <> err
+        MsgGCThreadExit msg ->
+            "GC thread has exited: " <> toText msg
         MsgSMASHUnreachable -> mconcat
             ["The SMASH server is unreachable or unhealthy."
             , "Metadata monitoring thread aborting."

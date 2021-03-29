@@ -96,6 +96,9 @@ module Cardano.Wallet.Api.Server
     -- * Workers
     , manageRewardBalance
     , idleWorker
+
+    -- * Logging
+    , WalletEngineLog (..)
     ) where
 
 import Prelude
@@ -104,6 +107,8 @@ import Cardano.Address.Derivation
     ( XPrv, XPub, xpubPublicKey, xpubToBytes )
 import Cardano.Api.Typed
     ( AnyCardanoEra (..), CardanoEra (..), SerialiseAsCBOR (..) )
+import Cardano.BM.Tracing
+    ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..) )
 import Cardano.Mnemonic
     ( SomeMnemonic )
 import Cardano.Wallet
@@ -144,6 +149,7 @@ import Cardano.Wallet
     , FeeEstimation (..)
     , HasLogger
     , HasNetworkLayer
+    , TxSubmitLog
     , WalletLog
     , genesisData
     , manageRewardBalance
@@ -378,7 +384,7 @@ import Control.Monad.Trans.Except
 import Control.Monad.Trans.Maybe
     ( MaybeT (..), exceptToMaybeT )
 import Control.Tracer
-    ( Tracer )
+    ( Tracer, contramap )
 import Data.Aeson
     ( (.=) )
 import Data.ByteString
@@ -2348,7 +2354,7 @@ newApiLayer
         , IsOurs s RewardAccount
         , IsOurs s Address
         )
-    => Tracer IO (WorkerLog WalletId WalletLog)
+    => Tracer IO WalletEngineLog
     -> (Block, NetworkParameters, SyncTolerance)
     -> NetworkLayer IO Block
     -> TransactionLayer k
@@ -2359,7 +2365,9 @@ newApiLayer
     -> IO ctx
 newApiLayer tr g0 nw tl df tokenMeta coworker = do
     re <- Registry.empty
-    let ctx = ApiLayer tr g0 nw tl df re tokenMeta
+    let trTx = contramap MsgSubmitSealedTx tr
+    let trW = contramap MsgWallet tr
+    let ctx = ApiLayer trTx trW g0 nw tl df re tokenMeta
     listDatabases df >>= mapM_ (registerWorker ctx coworker)
     return ctx
 
@@ -3009,3 +3017,29 @@ instance LiftHandler (Request, ServerError) where
                 , renderHeader $ contentType $ Proxy @JSON
                 ) : headers
             }
+
+{-------------------------------------------------------------------------------
+                               Logging
+-------------------------------------------------------------------------------}
+
+-- | The type of log messages coming from the server 'ApiLayer', which may or
+-- may not be associated with a particular worker thread.
+data WalletEngineLog
+    = MsgWallet (WorkerLog WalletId WalletLog)
+    | MsgSubmitSealedTx TxSubmitLog
+    deriving (Show, Eq)
+
+instance ToText WalletEngineLog where
+    toText = \case
+        MsgWallet msg -> toText msg
+        MsgSubmitSealedTx msg -> toText msg
+
+instance HasPrivacyAnnotation WalletEngineLog where
+    getPrivacyAnnotation = \case
+        MsgWallet msg -> getPrivacyAnnotation msg
+        MsgSubmitSealedTx msg -> getPrivacyAnnotation msg
+
+instance HasSeverityAnnotation WalletEngineLog where
+    getSeverityAnnotation = \case
+        MsgWallet msg -> getSeverityAnnotation msg
+        MsgSubmitSealedTx msg -> getSeverityAnnotation msg
