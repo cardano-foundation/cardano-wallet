@@ -202,9 +202,7 @@ data family Cursor
 -- | The result of 'nextBlocks', which is instructions for what the chain
 -- consumer should do next.
 data NextBlocksResult cursor block
-    = AwaitReply
-        -- ^ There are no blocks available from the node, so wait.
-    | RollForward cursor BlockHeader [block]
+    = RollForward cursor BlockHeader [block]
         -- ^ Apply the given contiguous non-empty sequence of blocks. Use the
         -- updated cursor to get the next batch. The given block header is the
         -- current tip of the node.
@@ -214,13 +212,11 @@ data NextBlocksResult cursor block
 
 instance Functor (NextBlocksResult cursor) where
     fmap f = \case
-        AwaitReply -> AwaitReply
         RollForward cur bh bs -> RollForward cur bh (fmap f bs)
         RollBackward cur -> RollBackward cur
 
 mapCursor :: (a -> b) -> NextBlocksResult a block -> NextBlocksResult b block
 mapCursor fn = \case
-    AwaitReply -> AwaitReply
     RollForward cur bh bs -> RollForward (fn cur) bh bs
     RollBackward cur -> RollBackward (fn cur)
 
@@ -293,10 +289,6 @@ follow nl tr cps yield header =
 
     step :: Bool -> Cursor -> IO FollowExit
     step hasRolledForward cursor = nextBlocks nl cursor >>= \case
-        AwaitReply -> do
-            traceWith tr MsgSynced
-            sleep delay0 hasRolledForward cursor
-
         RollForward cursor' _ [] -> do -- FIXME Make RollForward return NE
             traceWith tr MsgSynced
             sleep delay0 hasRolledForward cursor'
