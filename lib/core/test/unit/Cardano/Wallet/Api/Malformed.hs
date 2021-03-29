@@ -1566,19 +1566,6 @@ paymentCases =
             {
                 "address": #{addrPlaceholder},
                 "amount": {
-                    "quantity": "123",
-                    "unit": "lovelace"
-                }
-            }
-           ]
-        }|]
-      , "Error in $.payments[0].amount.quantity: parsing AddressAmount failed, parsing Natural failed, expected Number, but encountered String"
-      )
-    , ( [aesonQQ|
-        { "payments": [
-            {
-                "address": #{addrPlaceholder},
-                "amount": {
                     "quantity": -1,
                     "unit": "lovelace"
                 }

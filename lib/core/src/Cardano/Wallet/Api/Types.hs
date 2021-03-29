@@ -299,6 +299,8 @@ import Data.Either.Extra
     ( eitherToMaybe, maybeToEither )
 import Data.Function
     ( (&) )
+import Data.Functor
+    ( ($>) )
 import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
 import Data.Hashable
@@ -314,7 +316,7 @@ import Data.Map.Strict
 import Data.Proxy
     ( Proxy (..) )
 import Data.Quantity
-    ( Percentage, Quantity (..) )
+    ( Percentage, Quantity (..), getUnit )
 import Data.String
     ( IsString )
 import Data.Text
@@ -2049,9 +2051,24 @@ instance FromJSON a => FromJSON (AddressAmount a) where
         prependFailure "parsing AddressAmount failed, " $
         AddressAmount
             <$> v .: "address"
-            <*> (v .: "amount" >>= validateCoin)
+            <*> parseAmountWithFallback v
             <*> v .:? "assets" .!= mempty
       where
+        parseAmountWithFallback v = do
+            -- NOTE: make sure to return the error message from 'main', but
+            -- still always do 'main' first.
+            --
+            -- Also, this is written in such way that it preserves the shape of
+            -- error messages.
+            let main = v .: "amount" >>= validateCoin
+            let fallback = v .: "amount" >>= parseAsString >>= validateCoin
+            (main <|> fallback <|> main) >>= validateCoin
+          where
+            parseAsString = withObject "Quantity" $ \o -> do
+                u <- o .: "unit"
+                q <- Quantity <$> (o .: "quantity" >>= eitherToParser . fromText)
+                guard (u == getUnit q) $> q
+
         validateCoin q
             | isValidCoin (coinFromQuantity q) = pure q
             | otherwise = fail $

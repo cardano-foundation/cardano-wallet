@@ -19,6 +19,7 @@
 module Data.Quantity
     ( -- * Polymorphic Quantity
       Quantity(..)
+    , getUnit
 
       -- * Percentage
     , Percentage
@@ -54,6 +55,8 @@ import Data.Proxy
     ( Proxy (..) )
 import Data.Scientific
     ( FPFormat (Fixed), Scientific (..), formatScientific )
+import Data.Text
+    ( Text )
 import Data.Text.Class
     ( FromText (..), TextDecodingError (..), ToText (..) )
 import Data.Text.Read
@@ -132,6 +135,10 @@ instance (KnownSymbol unit, Buildable a) => Buildable (Quantity unit a) where
     build (Quantity a) = build a <> fmt " " <> build u
       where
         u = symbolVal (Proxy :: Proxy unit)
+
+-- | Reify the `unit` phantom-type as a 'Text' value.
+getUnit :: forall unit a. KnownSymbol unit => Quantity unit a -> Text
+getUnit _ = T.pack $ symbolVal (Proxy :: Proxy unit)
 
 {-------------------------------------------------------------------------------
                                 Percentage
