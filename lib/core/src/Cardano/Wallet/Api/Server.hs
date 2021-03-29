@@ -2606,7 +2606,9 @@ registerWorker ctx before coworker wid =
         -- fixme: ADP-641 Review error handling here
         , workerMain = \ctx' _ -> race_
             (unsafeRunExceptT $ W.restoreWallet ctx' wid)
-            (coworker ctx' wid)
+            (race_
+                (forever $ W.runLocalTxSubmissionPool ctx' wid)
+                (coworker ctx' wid))
         }
 
 -- | Something to pass as the coworker action to 'newApiLayer', which does

@@ -142,6 +142,7 @@ module Cardano.Wallet
     , getTransaction
     , submitExternalTx
     , submitTx
+    , runLocalTxSubmissionPool
     , ErrMkTx (..)
     , ErrSubmitTx (..)
     , ErrSubmitExternalTx (..)
@@ -189,6 +190,7 @@ import Cardano.Wallet.DB
     ( DBLayer (..)
     , ErrNoSuchTransaction (..)
     , ErrNoSuchWallet (..)
+    , ErrPutLocalTxSubmission (..)
     , ErrRemoveTx (..)
     , ErrWalletAlreadyExists (..)
     , PrimaryKey (..)
@@ -197,7 +199,7 @@ import Cardano.Wallet.DB
     , sparseCheckpoints
     )
 import Cardano.Wallet.Logging
-    ( traceWithExceptT )
+    ( BracketLog, bracketTracer, traceWithExceptT )
 import Cardano.Wallet.Network
     ( ErrGetAccountBalance (..)
     , ErrPostTx (..)
@@ -324,6 +326,7 @@ import Cardano.Wallet.Primitive.Types.TokenBundle
     ( TokenBundle )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..)
+    , LocalTxSubmissionStatus
     , SealedTx (..)
     , TransactionInfo (..)
     , Tx
@@ -358,9 +361,9 @@ import Control.DeepSeq
 import Control.Monad
     ( forM, forM_, replicateM, unless, when )
 import Control.Monad.Class.MonadTime
-    ( getCurrentTime )
+    ( DiffTime, MonadMonotonicTime (..), diffTime, getCurrentTime )
 import Control.Monad.IO.Unlift
-    ( liftIO )
+    ( MonadUnliftIO, liftIO )
 import Control.Monad.Trans.Class
     ( lift )
 import Control.Monad.Trans.Except
@@ -436,6 +439,8 @@ import Type.Reflection
     ( Typeable, typeRep )
 import UnliftIO.Exception
     ( Exception )
+import UnliftIO.MVar
+    ( modifyMVar_, newMVar )
 
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet.Primitive.AddressDiscovery.Random as Rnd
@@ -1589,12 +1594,23 @@ submitTx ctx wid (tx, meta, binary) = db & \DBLayer{..} -> do
     mapExceptT atomically $ do
         withExceptT ErrSubmitTxNoSuchWallet $
             putTxHistory (PrimaryKey wid) [(tx, meta)]
+        withExceptT handleLocalTxSubmissionErr $
+            putLocalTxSubmission (PrimaryKey wid)
+                (tx ^. #txId) binary (meta ^. #slotNo)
   where
     db = ctx ^. dbLayer @s @k
     nw = ctx ^. networkLayer
+
     tr = contramap (MsgTxSubmit . MsgPostTxResult (tx ^. #txId)) (ctx ^. logger)
 
+    handleLocalTxSubmissionErr = \case
+        ErrPutLocalTxSubmissionNoSuchWallet e -> ErrSubmitTxNoSuchWallet e
+        ErrPutLocalTxSubmissionNoSuchTransaction e -> ErrSubmitTxImpossible e
+
 -- | Broadcast an externally-signed transaction to the network.
+--
+-- NOTE: external transactions will not be added to the LocalTxSubmission pool,
+-- so the user must retry submission themselves.
 submitExternalTx
     :: forall ctx k.
         ( HasNetworkLayer ctx
@@ -1635,6 +1651,65 @@ forgetTx ctx wid tid = db & \DBLayer{..} -> do
     mapExceptT atomically $ removePendingOrExpiredTx (PrimaryKey wid) tid
   where
     db = ctx ^. dbLayer @s @k
+
+-- | Given a LocalTxSubmission record, calculate the slot when it should be
+-- retried next.
+--
+-- The current implementation is really basic. Retry every 10 slots.
+scheduleLocalTxSubmission :: LocalTxSubmissionStatus tx -> SlotNo
+scheduleLocalTxSubmission st = (st ^. #latestSubmission) + 10
+
+-- | Retry submission of pending transactions.
+--
+-- This only exits if the network layer 'watchNodeTip' function exits.
+runLocalTxSubmissionPool
+    :: forall ctx s k.
+        ( HasLogger WalletLog ctx
+        , HasNetworkLayer ctx
+        , HasDBLayer s k ctx
+        )
+    => ctx
+    -> WalletId
+    -> IO ()
+runLocalTxSubmissionPool ctx wid = db & \DBLayer{..} -> do
+    submitPending <- rateLimited $ \bh -> bracketTracer trBracket $ do
+        pending <- atomically $ readLocalTxSubmissionPending (PrimaryKey wid)
+        let sl = bh ^. #slotNo
+        -- Re-submit transactions due, ignore errors
+        forM_ (filter (isScheduled sl) pending) $ \st -> do
+            res <- runExceptT $ postTx nw (st ^. #submittedTx)
+            traceWith tr (MsgRetryPostTxResult (st ^. #txId) res)
+            atomically $ runExceptT $ putLocalTxSubmission
+                (PrimaryKey wid)
+                (st ^. #txId)
+                (st ^. #submittedTx)
+                sl
+    watchNodeTip submitPending
+  where
+    nw = ctx ^. networkLayer
+    db = ctx ^. dbLayer @s @k
+    NetworkLayer{watchNodeTip} = ctx ^. networkLayer
+    tr = contramap MsgTxSubmit (ctx ^. logger @WalletLog)
+    trBracket = contramap MsgProcessPendingPool tr
+
+    isScheduled now = (<= now) . scheduleLocalTxSubmission
+
+    -- Limit pool check frequency to every 1000ms at most.
+    rateLimited = throttle 1
+
+-- | Return a function to run an action at most once every _interval_.
+throttle
+    :: (MonadUnliftIO m, MonadMonotonicTime m)
+    => DiffTime
+    -> (a -> m ())
+    -> m (a -> m ())
+throttle interval action = do
+    var <- newMVar Nothing
+    pure $ \arg -> modifyMVar_ var $ \prev -> do
+        now <- getMonotonicTime
+        if (maybe interval (diffTime now) prev >= interval)
+           then action arg $> Just now
+           else pure prev
 
 -- | List all transactions and metadata from history for a given wallet.
 listTransactions
@@ -2102,13 +2177,13 @@ guardHardIndex ix =
 
 updateCosigner
     :: forall ctx s k n.
-        ( HasDBLayer s k ctx
-        , s ~ SharedState n k
+        ( s ~ SharedState n k
         , MkKeyFingerprint k (Proxy n, k 'AddressK CC.XPub)
         , MkKeyFingerprint k Address
         , SoftDerivation k
         , Typeable n
         , WalletKey k
+        , HasDBLayer IO s k ctx
         )
     => ctx
     -> WalletId
@@ -2125,7 +2200,7 @@ updateCosigner ctx wid accXPub cosigner cred = db & \DBLayer{..} -> do
             Right st' -> withExceptT ErrAddCosignerKeyNoSuchWallet $
                 putCheckpoint (PrimaryKey wid) (updateState st' cp)
   where
-    db = ctx ^. dbLayer @s @k
+    db = ctx ^. dbLayer @_ @s @k
 
 {-------------------------------------------------------------------------------
                                    Errors
@@ -2189,6 +2264,7 @@ data ErrSignPayment
 data ErrSubmitTx
     = ErrSubmitTxNetwork ErrPostTx
     | ErrSubmitTxNoSuchWallet ErrNoSuchWallet
+    | ErrSubmitTxImpossible ErrNoSuchTransaction
     deriving (Show, Eq)
 
 -- | Errors that can occur when submitting an externally-signed transaction
@@ -2486,6 +2562,8 @@ instance HasSeverityAnnotation WalletLog where
 
 data TxSubmitLog
     = MsgPostTxResult (Hash "Tx") (Either ErrPostTx ())
+    | MsgRetryPostTxResult (Hash "Tx") (Either ErrPostTx ())
+    | MsgProcessPendingPool BracketLog
     deriving (Show, Eq)
 
 instance ToText TxSubmitLog where
@@ -2494,9 +2572,19 @@ instance ToText TxSubmitLog where
             "Transaction " <> pretty txid <> " " <> case res of
                 Right _ -> "accepted by local node"
                 Left err -> "failed: " <> toText err
+        MsgRetryPostTxResult txid res ->
+            "Transaction " <> pretty txid <>
+            " resubmitted to local node and " <> case res of
+                Right _ -> "accepted again"
+                Left _ -> "not accepted (this is expected)"
+        MsgProcessPendingPool msg ->
+            "Processing the pending local tx submission pool: " <> toText msg
 
 instance HasPrivacyAnnotation TxSubmitLog
 instance HasSeverityAnnotation TxSubmitLog where
     getSeverityAnnotation = \case
         MsgPostTxResult _ (Right _) -> Info
         MsgPostTxResult _ (Left _) -> Error
+        MsgRetryPostTxResult _ (Right _) -> Info
+        MsgRetryPostTxResult _ (Left _) -> Debug
+        MsgProcessPendingPool msg -> getSeverityAnnotation msg
