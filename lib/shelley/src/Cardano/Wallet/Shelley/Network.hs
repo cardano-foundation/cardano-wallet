@@ -1253,7 +1253,7 @@ instance HasSeverityAnnotation NetworkLayerLog where
             | otherwise                    -> Debug
         MsgInterpreterLog msg              -> getSeverityAnnotation msg
         MsgGetRewardAccountBalance{}       -> Debug
-        MsgObserverLog (MsgDidChange _)    -> Info
+        MsgObserverLog (MsgDidChange _)    -> Notice
         MsgObserverLog{}                   -> Debug
 
 
