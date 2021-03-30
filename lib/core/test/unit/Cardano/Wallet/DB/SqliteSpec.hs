@@ -970,6 +970,7 @@ testMigrationTxMetaFee dbName expectedLength caseByCase = do
 matchMsgManualMigration :: (DBField -> Bool) -> WalletDBLog -> Bool
 matchMsgManualMigration p = \case
     MsgDB (MsgManualMigrationNeeded field _) -> p field
+    MsgDB (MsgExpectedMigration (MsgManualMigrationNeeded field _)) -> p field
     _ -> False
 
 testMigrationCleanupCheckpoints
