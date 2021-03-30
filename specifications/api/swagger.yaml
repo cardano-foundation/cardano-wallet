@@ -2335,6 +2335,17 @@ components:
 #                                                                           #
 #############################################################################
 
+x-parametersXMaxSafeInteger: &parametersXMaxSafeInteger
+  in: header
+  name: X-Max-Safe-Integer
+  description: |
+    When header `X-Max-Safe-Integer` is set for the request, there will be no integers in the JSON
+    response bigger than the given value. Instead, those integer values will be turned to string.
+  required: false
+  schema:
+    type: string
+    example: 9007199254740991
+
 x-parametersWalletId: &parametersWalletId
   in: path
   name: walletId
@@ -3755,6 +3766,7 @@ paths:
           - *parametersWalletId
           - *parametersRole
           - *parametersDerivationSegment
+          - *parametersXMaxSafeInteger
         requestBody:
           required: true
           content:
@@ -3771,6 +3783,8 @@ paths:
         <p align="right">status: <strong>stable</strong></p>
 
         Create and restore a wallet from a mnemonic sentence or account public key.
+      parameters:
+        - *parametersXMaxSafeInteger
       requestBody:
         required: true
         content:
@@ -3786,6 +3800,8 @@ paths:
         <p align="right">status: <strong>stable</strong></p>
 
         Return a list of known wallets, ordered from oldest to newest.
+      parameters:
+        - *parametersXMaxSafeInteger
       responses: *responsesListWallets
 
   /wallets/{walletId}/assets:
@@ -3801,6 +3817,7 @@ paths:
         transaction of the wallet.
       parameters:
         - *parametersWalletId
+        - *parametersXMaxSafeInteger
       responses: *responsesListAssets
 
   /wallets/{walletId}/assets/{policyId}/{assetName}:
@@ -3817,6 +3834,7 @@ paths:
         - *parametersWalletId
         - *parametersPolicyId
         - *parametersAssetName
+        - *parametersXMaxSafeInteger
       responses: *responsesGetAsset
 
   /wallets/{walletId}/assets/{policyId}:
@@ -3831,6 +3849,7 @@ paths:
       parameters:
         - *parametersWalletId
         - *parametersPolicyId
+        - *parametersXMaxSafeInteger
       responses: *responsesGetAsset
 
   /wallets/{walletId}/statistics/utxos:
@@ -3859,6 +3878,7 @@ paths:
         ```
       parameters:
         - *parametersWalletId
+        - *parametersXMaxSafeInteger
       responses: *responsesGetUTxOsStatistics
 
   /wallets/{walletId}:
@@ -3870,6 +3890,7 @@ paths:
         <p align="right">status: <strong>stable</strong></p>
       parameters:
         - *parametersWalletId
+        - *parametersXMaxSafeInteger
       responses: *responsesGetWallet
 
     delete:
@@ -3890,6 +3911,7 @@ paths:
         <p align="right">status: <strong>stable</strong></p>
       parameters:
         - *parametersWalletId
+        - *parametersXMaxSafeInteger
       requestBody:
         required: true
         content:
@@ -3906,6 +3928,7 @@ paths:
         <p align="right">status: <strong>stable</strong></p>
       parameters:
         - *parametersWalletId
+        - *parametersXMaxSafeInteger
       requestBody:
         required: true
         content:
@@ -3929,6 +3952,7 @@ paths:
 
       parameters:
         - *parametersWalletId
+        - *parametersXMaxSafeInteger
       requestBody:
         required: true
         content:
@@ -3952,6 +3976,7 @@ paths:
         Create and send transaction from the wallet.
       parameters:
         - *parametersWalletId
+        - *parametersXMaxSafeInteger
       requestBody:
         required: true
         content:
@@ -3978,6 +4003,7 @@ paths:
         - *parametersEndDate
         - *parametersSortOrder
         - *parametersMinWithdrawal
+        - *parametersXMaxSafeInteger
       responses: *responsesListTransactions
 
   /wallets/{walletId}/transactions/{transactionId}:
@@ -3992,6 +4018,7 @@ paths:
       parameters:
         - *parametersWalletId
         - *parametersTransactionId
+        - *parametersXMaxSafeInteger
       responses: *responsesGetTransaction
 
     delete:
@@ -4023,6 +4050,7 @@ paths:
       parameters:
         - *parametersWalletId
         - *parametersAddressState
+        - *parametersXMaxSafeInteger
       responses: *responsesListAddresses
 
   /wallets/{walletId}/keys/{index}:
@@ -4038,6 +4066,7 @@ paths:
       parameters:
         - *parametersWalletId
         - *parametersDerivationSegment
+        - *parametersXMaxSafeInteger
       requestBody:
         required: true
         content:
@@ -4059,6 +4088,7 @@ paths:
         - *parametersWalletId
         - *parametersRole
         - *parametersDerivationSegment
+        - *parametersXMaxSafeInteger
       responses: *responsesGetKey
 
   /stake-pools:
@@ -4076,6 +4106,7 @@ paths:
         Some pools _may_ also have metadata attached to them.
       parameters:
         - *parametersIntendedStakeAmount
+        - *parametersXMaxSafeInteger
       responses: *responsesListStakePools
 
   /stake-pools/maintenance-actions:
@@ -4085,6 +4116,8 @@ paths:
       summary: View maintenance actions
       description: |
         Returns the current status of the stake pools maintenance actions.
+      parameters:
+        - *parametersXMaxSafeInteger
       responses: *responsesGetMaintenanceAction
 
     post:
@@ -4096,6 +4129,8 @@ paths:
         as triggering metadata garbage collection.
 
         Actions may not be instantaneous.
+      parameters:
+        - *parametersXMaxSafeInteger
       requestBody:
         required: true
         content:
@@ -4118,6 +4153,7 @@ paths:
         fees can only be estimated.
       parameters:
         - *parametersWalletId
+        - *parametersXMaxSafeInteger
       responses: *responsesGetDelegationFee
 
   /stake-pools/*/wallets/{walletId}:
@@ -4139,6 +4175,7 @@ paths:
         > encouraged to provide a placeholder asterisk `*` instead.
       parameters:
         - *parametersWalletId
+        - *parametersXMaxSafeInteger
       requestBody:
         required: true
         content:
@@ -4161,6 +4198,7 @@ paths:
       parameters:
         - *parametersStakePoolId
         - *parametersWalletId
+        - *parametersXMaxSafeInteger
       requestBody:
         required: true
         content:
@@ -4182,6 +4220,7 @@ paths:
         Random-Improve coin selection algorithm</a>.
       parameters:
         - *parametersWalletId
+        - *parametersXMaxSafeInteger
       requestBody:
         required: true
         content:
@@ -4212,6 +4251,7 @@ paths:
       parameters:
         - <<: *parametersWalletId
           name: walletId
+        - *parametersXMaxSafeInteger
       requestBody:
         required: true
         content:
@@ -4234,6 +4274,7 @@ paths:
       parameters:
         - <<: *parametersWalletId
           name: walletId
+        - *parametersXMaxSafeInteger
       responses: *responsesGetWalletMigrationInfo
 
   /byron-wallets:
@@ -4250,6 +4291,8 @@ paths:
 
           The construction of random wallet in itself is **deprecated**, in particular the restoration from an encrypted root private key.
           These endpoints exist to ease migrations from legacy software such as `cardano-sl` but should be avoided by new applications.
+      parameters:
+        - *parametersXMaxSafeInteger
       requestBody:
         required: true
         content:
@@ -4265,6 +4308,8 @@ paths:
         <p align="right">status: <strong>stable</strong></p>
 
         Return a list of known Byron wallets, ordered from oldest to newest.
+      parameters:
+        - *parametersXMaxSafeInteger
       responses: *responsesListByronWallets
 
   /byron-wallets/{walletId}/assets:
@@ -4280,6 +4325,7 @@ paths:
         transaction of the wallet.
       parameters:
         - *parametersWalletId
+        - *parametersXMaxSafeInteger
       responses: *responsesListAssets
 
   /byron-wallets/{walletId}/assets/{policyId}/{assetName}:
@@ -4296,6 +4342,7 @@ paths:
         - *parametersWalletId
         - *parametersPolicyId
         - *parametersAssetName
+        - *parametersXMaxSafeInteger
       responses: *responsesGetAsset
 
   /byron-wallets/{walletId}/assets/{policyId}:
@@ -4310,6 +4357,7 @@ paths:
       parameters:
         - *parametersWalletId
         - *parametersPolicyId
+        - *parametersXMaxSafeInteger
       responses: *responsesGetAsset
 
   /byron-wallets/{walletId}/statistics/utxos:
@@ -4338,6 +4386,7 @@ paths:
         ```
       parameters:
         - *parametersWalletId
+        - *parametersXMaxSafeInteger
       responses: *responsesGetUTxOsStatistics
 
   /byron-wallets/{walletId}:
@@ -4351,6 +4400,7 @@ paths:
         Return information about a Byron wallet.
       parameters:
         - *parametersWalletId
+        - *parametersXMaxSafeInteger
       responses: *responsesGetByronWallet
 
     delete:
@@ -4373,6 +4423,7 @@ paths:
         <p align="right">status: <strong>stable</strong></p>
       parameters:
         - *parametersWalletId
+        - *parametersXMaxSafeInteger
       requestBody:
         required: true
         content:
@@ -4389,6 +4440,7 @@ paths:
         <p align="right">status: <strong>stable</strong></p>
       parameters:
         - *parametersWalletId
+        - *parametersXMaxSafeInteger
       requestBody:
         required: true
         content:
@@ -4409,6 +4461,7 @@ paths:
           a `403 Forbidden` error from the server.
         parameters:
           - *parametersWalletId
+          - *parametersXMaxSafeInteger
         requestBody:
           required: true
           content:
@@ -4428,6 +4481,7 @@ paths:
         parameters:
           - *parametersWalletId
           - *parametersAddressState
+          - *parametersXMaxSafeInteger
         responses: *responsesListAddresses
 
       put:
@@ -4442,6 +4496,7 @@ paths:
           a `403 Forbidden` error from the server.
         parameters:
           - *parametersWalletId
+          - *parametersXMaxSafeInteger
         requestBody:
           required: true
           content:
@@ -4463,6 +4518,7 @@ paths:
         parameters:
           - *parametersWalletId
           - *parametersAddressId
+          - *parametersXMaxSafeInteger
         responses: *responsesPutRandomAddress
 
   /byron-wallets/{walletId}/payment-fees:
@@ -4476,6 +4532,7 @@ paths:
         Estimate fee for the transaction.
       parameters:
         - *parametersWalletId
+        - *parametersXMaxSafeInteger
       requestBody:
         required: true
         content:
@@ -4494,6 +4551,7 @@ paths:
         Create and send transaction from the wallet.
       parameters:
         - *parametersWalletId
+        - *parametersXMaxSafeInteger
       requestBody:
           required: true
           content:
@@ -4514,6 +4572,7 @@ paths:
         - *parametersStartDate
         - *parametersEndDate
         - *parametersSortOrder
+        - *parametersXMaxSafeInteger
       responses: *responsesListTransactions
 
   /byron-wallets/{walletId}/transactions/{transactionId}:
@@ -4528,6 +4587,7 @@ paths:
       parameters:
         - *parametersWalletId
         - *parametersTransactionId
+        - *parametersXMaxSafeInteger
       responses: *responsesGetTransaction
 
     delete:
@@ -4564,6 +4624,7 @@ paths:
 
       parameters:
         - *parametersWalletId
+        - *parametersXMaxSafeInteger
       requestBody:
         required: true
         content:
@@ -4594,6 +4655,7 @@ paths:
       parameters:
         - <<: *parametersWalletId
           name: walletId
+        - *parametersXMaxSafeInteger
       requestBody:
         required: true
         content:
@@ -4616,6 +4678,7 @@ paths:
       parameters:
         - <<: *parametersWalletId
           name: walletId
+        - *parametersXMaxSafeInteger
       responses: *responsesGetWalletMigrationInfo
 
   /network/information:
@@ -4625,6 +4688,8 @@ paths:
       summary: Information
       description: |
         <p align="right">status: <strong>stable</strong></p>
+      parameters:
+        - *parametersXMaxSafeInteger
       responses: *responsesGetNetworkInformation
 
   /network/clock:
@@ -4637,6 +4702,7 @@ paths:
       parameters:
         - <<: *parametersForceNtpCheck
           name: forceNtpCheck
+        - *parametersXMaxSafeInteger
       responses: *responsesGetNetworkClock
 
   /network/parameters:
@@ -4659,6 +4725,8 @@ paths:
         <p align="right">status: <strong>stable</strong></p>
 
         Submits a transaction that was created and signed outside of cardano-wallet.
+      parameters:
+        - *parametersXMaxSafeInteger
       requestBody:
         content:
           application/octet-stream:
@@ -4676,6 +4744,7 @@ paths:
         Give useful information about the structure of a given address.
       parameters:
         - *parametersAddressId
+        - *parametersXMaxSafeInteger
       responses: *responsesInspectAddress
 
   /addresses:
@@ -4734,7 +4803,8 @@ paths:
                                                            └───┤ , ├────┘
                                                                ╰───╯
         ```
-
+      parameters:
+        - *parametersXMaxSafeInteger
       requestBody:
         content:
           application/json:
@@ -4750,6 +4820,8 @@ paths:
         <p align="right">status: <strong>stable</strong></p>
 
         Overwrite current settings.
+      parameters:
+        - *parametersXMaxSafeInteger
       requestBody:
         required: true
         content:
@@ -4765,6 +4837,8 @@ paths:
         <p align="right">status: <strong>stable</strong></p>
 
         Return the current settings.
+      parameters:
+        - *parametersXMaxSafeInteger
       responses: *responsesGetSettings
 
   /smash/health:
@@ -4780,4 +4854,5 @@ paths:
           schema: *ApiSmashServer
           required: false
           description: check this url for health instead of the currently configured one
+        - *parametersXMaxSafeInteger
       responses: *responsesGetSmashHealth
