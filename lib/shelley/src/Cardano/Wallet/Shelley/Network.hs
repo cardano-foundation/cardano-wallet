@@ -1239,7 +1239,7 @@ instance HasSeverityAnnotation NetworkLayerLog where
         MsgProtocolParameters{}            -> Info
         MsgLocalStateQueryError{}          -> Error
         MsgLocalStateQueryEraMismatch{}    -> Debug
-        MsgAccountDelegationAndRewards{}   -> Info
+        MsgAccountDelegationAndRewards{}   -> Debug
         MsgDestroyCursor{}                 -> Notice
         MsgWillQueryRewardsForStake{}      -> Info
         MsgFetchStakePoolsData{}           -> Debug
