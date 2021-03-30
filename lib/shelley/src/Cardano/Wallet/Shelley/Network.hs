@@ -846,6 +846,7 @@ newRewardBalanceFetcher tr readNodeTip queryRewardQ = do
 data ObserverLog key value
     = MsgWillFetch (Set key)
     | MsgDidFetch (Map key value)
+    | MsgDidChange (Map key value)
     | MsgAddedObserver key
     | MsgRemovedObserver key
     deriving (Eq, Show)
@@ -858,6 +859,10 @@ instance (Ord key, Buildable key, Buildable value)
         ]
     toText (MsgDidFetch m) = mconcat
         [ "Did fetch values "
+        , fmt $ mapF m
+        ]
+    toText (MsgDidChange m) = mconcat
+        [ "New values: "
         , fmt $ mapF m
         ]
     toText (MsgAddedObserver key) = mconcat
@@ -881,7 +886,7 @@ instance (Ord key, Buildable key, Buildable value)
 --
 -- If it returns @Just values@, the cache will be set to @values@.
 newObserver
-    :: forall m key value env. (MonadSTM m, Ord key)
+    :: forall m key value env. (MonadSTM m, Ord key, Eq value)
     => Tracer m (ObserverLog key value)
     -> (env -> Set key -> m (Maybe (Map key value)))
     -> m (Observer m key value, env -> m ())
@@ -919,6 +924,7 @@ newObserver tr fetch = do
         -> m ()
     refresh cacheVar observedKeysVar env = do
         keys <- atomically $ readTVar observedKeysVar
+        oldValues <- atomically $ readTVar cacheVar
         traceWith tr $ MsgWillFetch keys
         mvalues <- fetch env keys
 
@@ -926,6 +932,8 @@ newObserver tr fetch = do
             Nothing -> pure ()
             Just values -> do
                 traceWith tr $ MsgDidFetch values
+                when (oldValues /= values) $
+                    traceWith tr $ MsgDidChange values
                 atomically $ writeTVar cacheVar values
 
 -- | Return a function to run an action only if its single parameter has changed
@@ -1211,7 +1219,7 @@ instance ToText NetworkLayerLog where
         MsgInterpreter interpreter ->
             "Updated the history interpreter: " <> T.pack (show interpreter)
         MsgInterpreterLog msg -> toText msg
-        MsgObserverLog msg -> toText msg
+        MsgObserverLog msg -> "Reward observer: " <> toText msg
 
 instance HasPrivacyAnnotation NetworkLayerLog
 instance HasSeverityAnnotation NetworkLayerLog where
@@ -1231,7 +1239,6 @@ instance HasSeverityAnnotation NetworkLayerLog where
         MsgProtocolParameters{}            -> Info
         MsgLocalStateQueryError{}          -> Error
         MsgLocalStateQueryEraMismatch{}    -> Debug
-        MsgGetRewardAccountBalance{}       -> Info
         MsgAccountDelegationAndRewards{}   -> Info
         MsgDestroyCursor{}                 -> Notice
         MsgWillQueryRewardsForStake{}      -> Info
@@ -1245,6 +1252,8 @@ instance HasSeverityAnnotation NetworkLayerLog where
             | isSlowQuery qry dt           -> Notice
             | otherwise                    -> Debug
         MsgInterpreterLog msg              -> getSeverityAnnotation msg
+        MsgGetRewardAccountBalance{}       -> Debug
+        MsgObserverLog (MsgDidChange _)    -> Info
         MsgObserverLog{}                   -> Debug
 
 
