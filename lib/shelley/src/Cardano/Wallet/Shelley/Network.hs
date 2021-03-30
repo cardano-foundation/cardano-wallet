@@ -1229,7 +1229,7 @@ instance HasSeverityAnnotation NetworkLayerLog where
         MsgCouldntConnect{}                -> Warning
         MsgConnectionLost{}                -> Warning
         MsgTxSubmission{}                  -> Info
-        MsgHandshakeTracer{}               -> Info
+        MsgHandshakeTracer{}               -> Debug
         MsgFindIntersectionTimeout         -> Warning
         MsgFindIntersection{}              -> Info
         MsgIntersectionFound{}             -> Info
@@ -1240,7 +1240,7 @@ instance HasSeverityAnnotation NetworkLayerLog where
         MsgLocalStateQueryError{}          -> Error
         MsgLocalStateQueryEraMismatch{}    -> Debug
         MsgAccountDelegationAndRewards{}   -> Debug
-        MsgDestroyCursor{}                 -> Notice
+        MsgDestroyCursor{}                 -> Debug
         MsgWillQueryRewardsForStake{}      -> Info
         MsgFetchStakePoolsData{}           -> Debug
         MsgFetchStakePoolsDataSummary{}    -> Info
