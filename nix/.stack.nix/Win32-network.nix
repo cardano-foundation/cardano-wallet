@@ -53,7 +53,7 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/Win32-network";
-      rev = "f71be820aaa480256bba24fc3f2a1e12cd1eab0f";
-      sha256 = "1ggm3239z41z0ca9al43v9y2wmf20bbmdgj1k27kyph54gqkdbhn";
+      rev = "94153b676617f8f33abe8d8182c37377d2784bd1";
+      sha256 = "0pb7bg0936fldaa5r08nqbxvi2g8pcy4w3c7kdcg7pdgmimr30ss";
       });
     }
