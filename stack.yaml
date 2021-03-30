@@ -27,9 +27,9 @@ extra-deps:
 - parsec-3.1.14.0
 - quickcheck-state-machine-0.7.0
 
-# cardano-addresses-3.2.0
+# cardano-addresses-3.3.0
 - git: https://github.com/input-output-hk/cardano-addresses
-  commit: 05bd6d0b877d8fc440be83142935fa1e7a915916
+  commit: 55f174b32095e4264e0c75344caf34f4207a4e58
   subdirs:
     - command-line
     - core
