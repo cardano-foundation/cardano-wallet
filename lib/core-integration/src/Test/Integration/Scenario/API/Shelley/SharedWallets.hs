@@ -103,7 +103,7 @@ spec = describe "SHARED_WALLETS" $ do
                 "account_index": "30H",
                 "payment_script_template":
                     { "cosigners":
-                        { "cosigner#0": "1423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db11423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db1" },
+                        { "cosigner#0": #{accXPubTxt0} },
                       "template":
                           { "all":
                              [ "cosigner#0",
@@ -141,7 +141,7 @@ spec = describe "SHARED_WALLETS" $ do
                 "account_index": "30H",
                 "payment_script_template":
                     { "cosigners":
-                        { "cosigner#0": "1423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db11423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db1" },
+                        { "cosigner#0": #{accXPubTxt0} },
                       "template":
                           { "all":
                              [ "cosigner#0",
@@ -165,11 +165,11 @@ spec = describe "SHARED_WALLETS" $ do
     it "SHARED_WALLETS_CREATE_03 - Create an active shared wallet from account xpub" $ \ctx -> runResourceT $ do
         let payload = Json [json| {
                 "name": "Shared Wallet",
-                "account_public_key": "1423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db11423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db1",
+                "account_public_key": #{accXPubTxt0},
                 "account_index": "30H",
                 "payment_script_template":
                     { "cosigners":
-                        { "cosigner#0": "1423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db11423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db1" },
+                        { "cosigner#0": #{accXPubTxt0} },
                       "template":
                           { "all":
                              [ "cosigner#0",
@@ -199,11 +199,11 @@ spec = describe "SHARED_WALLETS" $ do
     it "SHARED_WALLETS_CREATE_04 - Create a pending shared wallet from account xpub" $ \ctx -> runResourceT $ do
         let payload = Json [json| {
                 "name": "Shared Wallet",
-                "account_public_key": "1423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db11423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db2",
+                "account_public_key": #{accXPubTxt0},
                 "account_index": "30H",
                 "payment_script_template":
                     { "cosigners":
-                        { "cosigner#0": "1423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db11423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db1" },
+                        { "cosigner#0": #{accXPubTxt0} },
                       "template":
                           { "all":
                              [ "cosigner#0",
@@ -227,11 +227,11 @@ spec = describe "SHARED_WALLETS" $ do
     it "SHARED_WALLETS_DELETE_01 - Delete of a shared wallet" $ \ctx -> runResourceT $ do
         let payload = Json [json| {
                 "name": "Shared Wallet",
-                "account_public_key": "1423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db11423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db1",
+                "account_public_key": #{accXPubTxt0},
                 "account_index": "30H",
                 "payment_script_template":
                     { "cosigners":
-                        { "cosigner#0": "1423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db11423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db1" },
+                        { "cosigner#0": #{accXPubTxt0} },
                       "template":
                           { "all":
                              [ "cosigner#0",
@@ -253,8 +253,7 @@ spec = describe "SHARED_WALLETS" $ do
         rDel <- deleteSharedWallet ctx wal
         expectResponseCode HTTP.status204 rDel
 
-    it "SHARED_WALLETS_PATCH_01 - Patch a pending shared wallet to active shared wallet" $ \ctx -> runResourceT $ do
-        let accXPubTxt0 = "1423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db11423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db2"
+    it "SHARED_WALLETS_PATCH_01 - Add cosigner key in a pending shared wallet and transit it to the active shared wallet" $ \ctx -> runResourceT $ do
         let payloadCreate = Json [json| {
                 "name": "Shared Wallet",
                 "account_public_key": #{accXPubTxt0},
@@ -275,11 +274,7 @@ spec = describe "SHARED_WALLETS" $ do
         expectResponseCode HTTP.status201 rPost
         let wal@(ApiSharedWallet (Left pendingWal)) = getFromResponse id rPost
         let cosignerKeysPost = pendingWal ^. #paymentScriptTemplate
-        let (Just accXPub0) = xpubFromText accXPubTxt0
         liftIO $ cosigners cosignerKeysPost `shouldBe` Map.fromList [(Cosigner 0,accXPub0)]
-
-        let accXPubTxt1 = "1423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db11423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db8"
-        let (Just accXPub1) = xpubFromText accXPubTxt1
 
         let payloadPatch = Json [json| {
                 "account_public_key": #{accXPub1},
@@ -291,12 +286,65 @@ spec = describe "SHARED_WALLETS" $ do
         let (ApiSharedWallet (Right activeWal)) = getFromResponse id rPatch
         let cosignerKeysPatch = activeWal ^. #paymentScriptTemplate
         liftIO $ cosigners cosignerKeysPatch `shouldBe` Map.fromList [(Cosigner 0,accXPub0), (Cosigner 1,accXPub1)]
+
+    it "SHARED_WALLETS_PATCH_02 - Add cosigner for delegation script template" $ \ctx -> runResourceT $ do
+        let payloadCreate = Json [json| {
+                "name": "Shared Wallet",
+                "account_public_key": #{accXPubTxt0},
+                "account_index": "30H",
+                "payment_script_template":
+                    { "cosigners":
+                        { "cosigner#0": #{accXPubTxt0} },
+                      "template":
+                          { "all":
+                             [ "cosigner#0",
+                               { "active_from": 120 }
+                             ]
+                          }
+                    },
+                "delegation_script_template":
+                    { "cosigners":
+                        { "cosigner#0": #{accXPubTxt0} },
+                      "template":
+                          { "all":
+                             [ "cosigner#0",
+                               "cosigner#1",
+                               { "active_from": 120 },
+                               { "active_until": 100 }
+                             ]
+                          }
+                    }
+                } |]
+        rPost <- postSharedWallet ctx Default payloadCreate
+        expectResponseCode HTTP.status201 rPost
+        let wal@(ApiSharedWallet (Left pendingWal)) = getFromResponse id rPost
+        let cosignerKeysPostInPayment = pendingWal ^. #paymentScriptTemplate
+        liftIO $ cosigners cosignerKeysPostInPayment `shouldBe` Map.fromList [(Cosigner 0,accXPub0)]
+        let (Just cosignerKeysPostInDelegation) = pendingWal ^. #delegationScriptTemplate
+        liftIO $ cosigners cosignerKeysPostInDelegation `shouldBe` Map.fromList [(Cosigner 0,accXPub0)]
+
+        let payloadPatch = Json [json| {
+                "account_public_key": #{accXPub1},
+                "cosigner": "cosigner#1"
+                } |]
+
+        rPatch <- patchSharedWallet ctx wal Delegation payloadPatch
+        expectResponseCode HTTP.status200 rPatch
+        let (ApiSharedWallet (Right activeWal)) = getFromResponse id rPatch
+        let (Just cosignerKeysPatch) = activeWal ^. #delegationScriptTemplate
+        liftIO $ cosigners cosignerKeysPatch `shouldBe` Map.fromList [(Cosigner 0,accXPub0), (Cosigner 1,accXPub1)]
   where
       xpubFromText :: Text -> Maybe XPub
       xpubFromText = fmap eitherToMaybe fromHexText >=> xpubFromBytes
 
       fromHexText :: Text -> Either String ByteString
       fromHexText = fromHex . T.encodeUtf8
+
+      accXPubTxt0 = "1423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db11423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db2"
+      (Just accXPub0) = xpubFromText accXPubTxt0
+
+      accXPubTxt1 = "1423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db11423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db8"
+      (Just accXPub1) = xpubFromText accXPubTxt1
 
 instance ToJSON XPub where
     toJSON = toJSON . T.decodeLatin1 . hex . xpubToBytes
