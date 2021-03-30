@@ -82,6 +82,7 @@ module Cardano.Wallet.Api.Server
     , signMetadata
     , postAccountPublicKey
     , postSharedWallet
+    , patchSharedWallet
     , mkSharedWallet
 
     -- * Server error responses
@@ -117,7 +118,8 @@ import Cardano.BM.Tracing
 import Cardano.Mnemonic
     ( SomeMnemonic )
 import Cardano.Wallet
-    ( ErrCannotJoin (..)
+    ( ErrAddCosignerKey (..)
+    , ErrCannotJoin (..)
     , ErrCannotQuit (..)
     , ErrCreateRandomAddress (..)
     , ErrDecodeSignedTx (..)
@@ -203,6 +205,7 @@ import Cardano.Wallet.Api.Types
     , ApiRawMetadata (..)
     , ApiSelectCoinsPayments
     , ApiSharedWallet (..)
+    , ApiSharedWalletPatchData (..)
     , ApiSharedWalletPostData (..)
     , ApiSharedWalletPostDataFromAccountPubX (..)
     , ApiSharedWalletPostDataFromMnemonics (..)
@@ -290,6 +293,8 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState, mkRndState )
+import Cardano.Wallet.Primitive.AddressDiscovery.Script
+    ( CredentialType (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( DerivationPrefix (..)
     , ParentContext (..)
@@ -971,6 +976,32 @@ mkSharedWallet ctx wid cp meta pending progress = case getState cp of
             , state = ApiT progress
             , tip = tip'
             }
+
+patchSharedWallet
+    :: forall ctx s k n.
+        ( s ~ SharedState n k
+        , ctx ~ ApiLayer s k
+        , SoftDerivation k
+        , MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
+        , MkKeyFingerprint k Address
+        , WalletKey k
+        , HasDBFactory s k ctx
+        , Typeable n
+        )
+    => ctx
+    -> ApiT WalletId
+    -> (XPub -> k 'AccountK XPub)
+    -> CredentialType
+    -> ApiSharedWalletPatchData
+    -> Handler ApiSharedWallet
+patchSharedWallet ctx (ApiT wid) liftKey cred body = do
+    withWorkerCtx ctx wid liftE liftE $ \wrk -> do
+        liftHandler $ W.updateCosigner wrk wid (liftKey accXPub) cosigner cred
+    fst <$> getWallet ctx (mkSharedWallet @_ @s @k) (ApiT wid)
+  where
+      cosigner = getApiT (body ^. #cosigner)
+      (ApiAccountPublicKey accXPubApiT) = (body ^. #accountPublicKey)
+      accXPub = getApiT accXPubApiT
 
 --------------------- Legacy
 
@@ -3005,25 +3036,29 @@ instance IsServerError ErrWithdrawalNotWorth where
                 , "request."
                 ]
 
-instance IsServerError ErrSignMetadataWith where
-    toServerError = \case
-        ErrSignMetadataWithRootKey e -> toServerError e
-        ErrSignMetadataWithNoSuchWallet e -> toServerError e
-        ErrSignMetadataWithInvalidIndex e -> toServerError e
+instance LiftHandler ErrSignMetadataWith where
+    handler = \case
+        ErrSignMetadataWithRootKey e -> handler e
+        ErrSignMetadataWithNoSuchWallet e -> handler e
+        ErrSignMetadataWithInvalidIndex e -> handler e
 
-instance IsServerError ErrReadAccountPublicKey where
-    toServerError = \case
-        ErrReadAccountPublicKeyRootKey e -> toServerError e
-        ErrReadAccountPublicKeyNoSuchWallet e -> toServerError e
-        ErrReadAccountPublicKeyInvalidIndex e -> toServerError e
+instance LiftHandler ErrReadAccountPublicKey where
+    handler = \case
+        ErrReadAccountPublicKeyRootKey e -> handler e
+        ErrReadAccountPublicKeyNoSuchWallet e -> handler e
+        ErrReadAccountPublicKeyInvalidIndex e -> handler e
 
-instance IsServerError ErrDerivePublicKey where
-    toServerError = \case
-        ErrDerivePublicKeyNoSuchWallet e -> toServerError e
-        ErrDerivePublicKeyInvalidIndex e -> toServerError e
+instance LiftHandler ErrDerivePublicKey where
+    handler = \case
+        ErrDerivePublicKeyNoSuchWallet e -> handler e
+        ErrDerivePublicKeyInvalidIndex e -> handler e
 
-instance IsServerError (ErrInvalidDerivationIndex 'Soft level) where
-    toServerError = \case
+instance LiftHandler ErrAddCosignerKey where
+    handler = \case
+        ErrAddCosignerKeyNoSuchWallet e -> handler e
+
+instance LiftHandler (ErrInvalidDerivationIndex 'Soft level) where
+    handler = \case
         ErrIndexOutOfBound minIx maxIx _ix ->
             apiError err403 SoftDerivationRequired $ mconcat
                 [ "It looks like you've provided a derivation index that is "

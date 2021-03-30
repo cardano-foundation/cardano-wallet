@@ -108,6 +108,7 @@ module Cardano.Wallet.Api.Link
     , postSharedWallet
     , deleteSharedWallet
     , getSharedWallet
+    , patchSharedWallet
 
     , PostWallet
     , Discriminate
@@ -126,6 +127,8 @@ import Cardano.Wallet.Api.Types
     )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( DerivationIndex, NetworkDiscriminant (..), Role )
+import Cardano.Wallet.Primitive.AddressDiscovery.Script
+    ( CredentialType (..) )
 import Cardano.Wallet.Primitive.Types
     ( PoolId, SmashServer, SortOrder, WalletId (..) )
 import Cardano.Wallet.Primitive.Types.Address
@@ -707,6 +710,22 @@ getSharedWallet
     -> (Method, Text)
 getSharedWallet w =
     endpoint @Api.GetSharedWallet (wid &)
+  where
+    wid = w ^. typed @(ApiT WalletId)
+
+patchSharedWallet
+    :: forall w.
+        ( HasType (ApiT WalletId) w
+        )
+    => w
+    -> CredentialType
+    -> (Method, Text)
+patchSharedWallet w cred =
+    case cred of
+        Payment ->
+            endpoint @Api.PatchSharedWalletInPayment (wid &)
+        Delegation ->
+            endpoint @Api.PatchSharedWalletInDelegation (wid &)
   where
     wid = w ^. typed @(ApiT WalletId)
 

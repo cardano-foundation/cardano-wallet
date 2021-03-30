@@ -63,7 +63,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( IsOurs (..), coinTypeAda )
 import Cardano.Wallet.Primitive.AddressDiscovery.Script
-    ( keyHashFromAccXPubIx )
+    ( CredentialType (..), keyHashFromAccXPubIx )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPool
     , AddressPoolGap
@@ -292,11 +292,12 @@ addCosignerAccXPub
        , WalletKey k )
     => k 'AccountK XPub
     -> Cosigner
+    -> CredentialType
     -> SharedState n k
     -> SharedState n k
-addCosignerAccXPub accXPub cosigner state = case state of
+addCosignerAccXPub accXPub cosigner cred state = case state of
     st@(SharedState _ _) -> st
-    PendingSharedState prefix accXPub' pT dT g ->
+    PendingSharedState prefix accXPub' pT dTM g ->
         let updateScriptTemplate sc@(ScriptTemplate cosignerMap script') =
                 if cosigner `elem` retrieveAllCosigners script' then
                     ScriptTemplate (Map.insert cosigner (getRawKey accXPub) cosignerMap) script'
@@ -305,8 +306,18 @@ addCosignerAccXPub accXPub cosigner state = case state of
             st = PendingSharedState
                 { pendingSharedStateDerivationPrefix = prefix
                 , pendingSharedStateAccountKey = accXPub'
-                , pendingSharedStatePaymentTemplate = updateScriptTemplate pT
-                , pendingSharedStateDelegationTemplate = updateScriptTemplate <$> dT
+                , pendingSharedStatePaymentTemplate =
+                        case cred of
+                            Payment ->
+                                updateScriptTemplate pT
+                            Delegation ->
+                                pT
+                , pendingSharedStateDelegationTemplate =
+                        case cred of
+                            Payment ->
+                                dTM
+                            Delegation ->
+                                updateScriptTemplate <$> dTM
                 , pendingSharedStateAddressPoolGap = g
                 }
         in trySharedState st

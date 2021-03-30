@@ -25,7 +25,6 @@
 module Cardano.Wallet.Primitive.AddressDiscovery.Script
     (
       CredentialType (..)
-    , CosignerInfo (..)
 
     , keyHashFromAccXPubIx
     , constructAddressFromIx
@@ -111,24 +110,6 @@ instance FromText CredentialType where
             [ "Invalid credential type: expecting only following values:"
             , "'payment', 'delegation'."
             ]
-
-data CosignerInfo k = CosignerInfo
-    { cosignerAccountKey :: !(k 'AccountK XPub)
-    , cosigner :: !Cosigner
-    , credential :: !CredentialType
-    } deriving (Generic)
-
-deriving instance
-    ( Show (k 'AccountK XPub)
-    ) => Show (CosignerInfo k)
-
-deriving instance
-    ( Eq (k 'AccountK XPub)
-    ) => Eq (CosignerInfo k)
-
-instance
-    ( NFData (k 'AccountK XPub)
-    ) => NFData (CosignerInfo k)
 
 keyHashFromAccXPubIx
     :: (SoftDerivation k, WalletKey k)
