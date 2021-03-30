@@ -1,13 +1,16 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE Rank2Types #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeFamilies #-}
 
 module Cardano.Wallet.Network
@@ -20,6 +23,7 @@ module Cardano.Wallet.Network
     , follow
     , FollowAction (..)
     , FollowExit (..)
+    , FollowExceptionRecovery (..)
 
     -- * Errors
     , ErrPostTx (..)
@@ -42,6 +46,8 @@ import Cardano.BM.Data.Tracer
     ( HasPrivacyAnnotation (..), HasSeverityAnnotation (..), contramap )
 import Cardano.Wallet.Primitive.Slotting
     ( PastHorizonException, TimeInterpreter )
+import Cardano.Wallet.Primitive.SyncProgress
+    ( SyncProgress (..) )
 import Cardano.Wallet.Primitive.Types
     ( BlockHeader (..)
     , ProtocolParameters
@@ -77,6 +83,8 @@ import Fmt
     ( pretty )
 import GHC.Generics
     ( Generic )
+import Safe
+    ( lastMay )
 import UnliftIO.Concurrent
     ( threadDelay )
 import UnliftIO.Exception
@@ -153,6 +161,8 @@ data NetworkLayer m block = NetworkLayer
 
     , timeInterpreter
         :: TimeInterpreter (ExceptT PastHorizonException m)
+    , syncProgress
+        :: SlotNo -> m (SyncProgress)
     }
 
 instance Functor m => Functor (NetworkLayer m) where
@@ -239,6 +249,9 @@ data FollowExit
     | FollowDone
     deriving (Eq, Show)
 
+data FollowExceptionRecovery
+    = RetryOnExceptions
+    | AbortOnExceptions
 
 -- | Subscribe to a blockchain and get called with new block (in order)!
 --
@@ -251,7 +264,75 @@ data FollowExit
 --
 -- Exits with 'Nothing' in case of error.
 follow
-    :: forall block e tr. (Show e)
+    :: forall block tr e. (Show e)
+    => NetworkLayer IO block
+    -- ^ The @NetworkLayer@ used to poll for new blocks.
+    -> Tracer IO (FollowLog tr)
+    -- ^ Logger trace
+    -> IO [BlockHeader]
+    -- ^ A way to get a list of known tips to start from.
+    -- Blocks /after/ the tip will be yielded.
+    -> (NE.NonEmpty block
+        -> BlockHeader
+        -> Tracer IO tr
+        -> IO (FollowAction e))
+    -- ^ Callback with blocks and the current tip of the /node/.
+    -- @follow@ stops polling and terminates if the callback errors.
+    -> (SlotNo -> IO (Either e SlotNo))
+    -- ^ Callback with blocks and the current tip of the /node/.
+    -- @follow@ stops polling and terminates if the callback errors.
+    -> FollowExceptionRecovery
+    -- ^ Whether to recover from exceptions or not.
+    -> (block -> BlockHeader)
+    -- ^ Getter on the abstract 'block' type
+    -> IO ()
+follow nl tr readCursor forward' backward recovery header =
+    loop True
+  where
+    loop firstTime = do
+        cursor <- readCursor
+        when firstTime $ traceWith tr $ MsgStartFollowing cursor
+
+        -- Trace the sync progress based on the last "local checkpoint".
+        --
+        -- It appears that @forward@ doesn't get called if we are already
+        -- in-sync. So if we want the @LogState@ to update, we need to trace
+        -- something here.
+        case lastMay cursor of
+            Just c -> traceWith tr . MsgFollowerTip $ Just c
+            Nothing -> traceWith tr . MsgFollowerTip $ Nothing
+
+        let forward blocks tip innerTr = do
+                res <- forward' blocks tip innerTr
+                traceWith tr . MsgFollowerTip . Just $ header $ NE.last blocks
+                return res
+
+        (follow' nl tr cursor forward header) >>= \act -> do
+            case act of
+                FollowFailure ->
+                    -- NOTE: follow' is tracing the error, so we don't have to
+                    -- here
+                    case recovery of
+                        RetryOnExceptions -> loop False
+                        AbortOnExceptions -> return ()
+                FollowRollback requestedSlot -> do
+                    -- NOTE: follow' is tracing MsgWillRollback
+                    backward requestedSlot >>= \case
+                        Left e -> do
+                            traceWith tr $ MsgFailedRollingBack $ T.pack (show e)
+                        Right actualSlot -> do
+                            traceWith tr $ MsgDidRollback requestedSlot actualSlot
+                    loop False
+                FollowDone ->
+                    -- TODO: Pool used to log MsgHaltMonitoring
+                    return ()
+
+-- | A new, more convenient, wrapping @follow@ function was added above.
+--
+-- This is the old one. It was kept for now to minimise changes and potential
+-- mistakes, as it is pretty intricate.
+follow'
+    :: forall block tr e. (Show e)
     => NetworkLayer IO block
     -- ^ The @NetworkLayer@ used to poll for new blocks.
     -> Tracer IO (FollowLog tr)
@@ -267,9 +348,9 @@ follow
     -- @follow@ stops polling and terminates if the callback errors.
     -> (block -> BlockHeader)
     -- ^ Getter on the abstract 'block' type
-    -> IO (Tracer IO tr, FollowExit)
-follow nl tr cps yield header =
-    (innerTr,) <$> bracket (initCursor nl cps) (destroyCursor nl) (sleep 0 False)
+    -> IO FollowExit
+follow' nl tr cps yield header =
+    bracket (initCursor nl cps) (destroyCursor nl) (sleep 0 False)
   where
     innerTr = contramap MsgFollowLog tr
     delay0 :: Int
@@ -333,38 +414,51 @@ follow nl tr cps yield header =
             -- Some alternative solutions would be to:
             -- 1. Make sure we have a @BlockHeader@/@SlotNo@ for @Origin@
             -- 2. Stop forcing @follow@ to quit on rollback
-      where
-        continueWith
-            :: Cursor
-            -> Bool
-            -> FollowAction e
-            -> IO FollowExit
-        continueWith cursor' hrf = \case
-            ExitWith _ -> -- NOTE error logged as part of `MsgFollowAction`
-                return FollowDone
-            Continue ->
-                step hrf cursor'
+    continueWith
+        :: Cursor
+        -> Bool
+        -> FollowAction e
+        -> IO FollowExit
+    continueWith cursor' hrf = \case
+        ExitWith _ -> -- NOTE error logged as part of `MsgFollowAction`
+            return FollowDone
+        Continue ->
+            step hrf cursor'
 
 {-------------------------------------------------------------------------------
                                     Logging
 -------------------------------------------------------------------------------}
 
 data FollowLog tr
-    = MsgFollowAction (FollowAction String)
+    = MsgStartFollowing [BlockHeader]
+    | MsgHaltMonitoring
+    | MsgFollowAction (FollowAction String)
     | MsgUnhandledException Text
+    | MsgFollowerTip (Maybe BlockHeader)
     | MsgApplyBlocks BlockHeader (NonEmpty BlockHeader)
     | MsgFollowLog tr -- Inner tracer
     | MsgWillRollback SlotNo
+    | MsgDidRollback SlotNo SlotNo
+    | MsgFailedRollingBack Text -- Reason
     | MsgWillIgnoreRollback SlotNo Text -- Reason
     deriving (Show, Eq)
 
 instance ToText tr => ToText (FollowLog tr) where
     toText = \case
+        MsgStartFollowing cps -> mconcat
+            [ "Chain following starting. Requesting intersection using "
+            , T.pack . show $ length cps
+            , " checkpoints"
+            , maybe "" ((", the latest being " <>) . pretty) (lastMay cps)
+            ]
+        MsgHaltMonitoring ->
+            "Stopping following as requested."
         MsgFollowAction action -> case action of
             ExitWith e -> "Failed to roll forward: " <> T.pack e
             _ -> T.pack $ "Follower says " <> show action
         MsgUnhandledException err ->
             "Unexpected error following the chain: " <> err
+        MsgFollowerTip p -> "Tip" <> pretty p
         MsgApplyBlocks tipHdr hdrs ->
             let slot = pretty . slotNo
                 buildRange (x :| []) = x
@@ -375,20 +469,33 @@ instance ToText tr => ToText (FollowLog tr) where
                 , "  Wallet/node slots: ", slot (NE.last hdrs)
                 , "/", slot tipHdr
                 ]
-        MsgWillRollback sl ->
-            "Will rollback to " <> pretty sl
         MsgWillIgnoreRollback sl reason ->
             "Will ignore rollback to " <> pretty sl
                 <> " because of " <> pretty reason
+        MsgWillRollback sl ->
+            "Will rollback to " <> pretty sl
+        MsgDidRollback requested actual -> mconcat
+            [ "Did rollback to "
+            , pretty actual
+            , " after request to rollback to "
+            , pretty requested
+            ]
+        MsgFailedRollingBack reason -> "Failed rolling back: " <>
+            reason
         MsgFollowLog msg -> toText msg
 
 instance HasPrivacyAnnotation (FollowLog tr)
 instance HasSeverityAnnotation tr => HasSeverityAnnotation (FollowLog tr) where
     getSeverityAnnotation = \case
+        MsgStartFollowing _ -> Info
+        MsgHaltMonitoring -> Info
+        MsgFollowerTip _ -> Debug
         MsgFollowAction (ExitWith _) -> Error
         MsgFollowAction _ -> Debug
         MsgUnhandledException _ -> Error
         MsgApplyBlocks _ _ -> Info
         MsgFollowLog msg -> getSeverityAnnotation msg
-        MsgWillRollback _ -> Debug
+        MsgWillRollback _ -> Info
+        MsgDidRollback _ _ -> Info
+        MsgFailedRollingBack _ -> Error
         MsgWillIgnoreRollback _ _ -> Debug

@@ -60,7 +60,7 @@ import Cardano.Wallet.Byron.Compatibility
     ( toByronBlockHeader )
 import Cardano.Wallet.Network
     ( FollowAction (..)
-    , FollowExit (..)
+    , FollowExceptionRecovery (..)
     , FollowLog (MsgFollowLog)
     , NetworkLayer (..)
     , follow
@@ -88,7 +88,6 @@ import Cardano.Wallet.Primitive.Types
     , PoolRetirementCertificate (..)
     , Settings (..)
     , SlotLength (..)
-    , SlotNo (..)
     , SlottingParameters (..)
     , StakePoolMetadata
     , StakePoolMetadataHash
@@ -541,22 +540,18 @@ monitorStakePools
 monitorStakePools followTr (NetworkParameters gp sp _pp) nl DBLayer{..} =
     monitor =<< mkLatestGarbageCollectionEpochRef
   where
-    monitor latestGarbageCollectionEpochRef = loop
-      where
-        loop = do
-            cursor <- initCursor
-            traceWith followTr $ MsgFollowLog $ MsgStartMonitoring cursor
-            let forwardHandler = forward latestGarbageCollectionEpochRef
-            follow nl followTr cursor forwardHandler getHeader >>= \(innerTr, act) -> do
-                case act of
-                    FollowFailure ->
-                        traceWith innerTr MsgCrashMonitoring
-                    FollowRollback point -> do
-                        traceWith innerTr $ MsgRollingBackTo point
-                        liftIO . atomically $ rollbackTo point
-                        loop
-                    FollowDone ->
-                        traceWith innerTr MsgHaltMonitoring
+    monitor latestGarbageCollectionEpochRef = do
+            let rollForward = forward latestGarbageCollectionEpochRef
+
+            let rollback slot = do
+                    liftIO . atomically $ rollbackTo slot
+                    -- The DB will always rollback to the requested slot, so we
+                    -- return it.
+                    return $ Right slot
+
+            follow nl followTr
+                initCursor rollForward rollback
+                AbortOnExceptions getHeader
 
     GenesisParameters  { getGenesisBlockHash  } = gp
     SlottingParameters { getSecurityParameter } = sp
@@ -585,10 +580,10 @@ monitorStakePools followTr (NetworkParameters gp sp _pp) nl DBLayer{..} =
         -> NonEmpty (CardanoBlock StandardCrypto)
         -> BlockHeader
         -> Tracer IO StakePoolLog
-        -> IO (FollowAction ())
+        -> IO (FollowAction Void)
     forward latestGarbageCollectionEpochRef blocks _ tr = do
         atomically $ forAllAndLastM blocks forAllBlocks forLastBlock
-        pure Continue
+        return Continue
       where
         forAllBlocks = \case
             BlockByron _ -> do
@@ -841,11 +836,7 @@ gcDelistedPools gcStatus tr DBLayer{..} fetchDelisted = forever $ do
     pure ()
 
 data StakePoolLog
-    = MsgStartMonitoring [BlockHeader]
-    | MsgHaltMonitoring
-    | MsgCrashMonitoring
-    | MsgExitMonitoring AfterThreadLog
-    | MsgRollingBackTo SlotNo
+    = MsgExitMonitoring AfterThreadLog
     | MsgStakePoolGarbageCollection PoolGarbageCollectionInfo
     | MsgStakePoolRegistration PoolRegistrationCertificate
     | MsgStakePoolRetirement PoolRetirementCertificate
@@ -871,11 +862,7 @@ data PoolGarbageCollectionInfo = PoolGarbageCollectionInfo
 instance HasPrivacyAnnotation StakePoolLog
 instance HasSeverityAnnotation StakePoolLog where
     getSeverityAnnotation = \case
-        MsgStartMonitoring{} -> Info
-        MsgHaltMonitoring{} -> Info
-        MsgCrashMonitoring{} -> Error
         MsgExitMonitoring msg -> getSeverityAnnotation msg
-        MsgRollingBackTo{} -> Info
         MsgStakePoolGarbageCollection{} -> Debug
         MsgStakePoolRegistration{} -> Info
         MsgStakePoolRetirement{} -> Info
@@ -888,22 +875,8 @@ instance HasSeverityAnnotation StakePoolLog where
 
 instance ToText StakePoolLog where
     toText = \case
-        MsgStartMonitoring cursor -> mconcat
-            [ "Monitoring stake pools. Currently at "
-            , case cursor of
-                [] -> "genesis"
-                _  -> pretty (last cursor)
-            ]
-        MsgHaltMonitoring ->
-            "Stopping stake pool monitoring as requested."
-        MsgCrashMonitoring -> mconcat
-            [ "Chain follower exited with error. "
-            , "Worker will no longer monitor stake pools."
-            ]
         MsgExitMonitoring msg ->
             "Stake pool monitor exit: " <> toText msg
-        MsgRollingBackTo point ->
-            "Rolling back to " <> pretty point
         MsgStakePoolGarbageCollection info -> mconcat
             [ "Performing garbage collection of retired stake pools. "
             , "Currently in epoch "

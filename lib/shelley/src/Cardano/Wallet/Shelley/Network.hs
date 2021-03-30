@@ -1273,8 +1273,9 @@ instance HasSeverityAnnotation NetworkLayerLog where
         MsgTxSubmission{}                  -> Info
         MsgHandshakeTracer{}               -> Debug
         MsgFindIntersectionTimeout         -> Warning
-        MsgFindIntersection{}              -> Info
-        MsgIntersectionFound{}             -> Info
+        MsgFindIntersection{}              -> Debug
+        -- MsgFindIntersection is duplicated by MsgStartFollowing
+        MsgIntersectionFound{}             -> Debug
         MsgPostTx{}                        -> Debug
         MsgLocalStateQuery{}               -> Debug
         MsgNodeTip{}                       -> Debug

@@ -2046,7 +2046,7 @@ getNetworkInformation st nl = liftIO $ do
     progress <- syncProgress
             st
             (neverFails "syncProgress" $ timeInterpreter nl)
-            nodeTip
+            (view #slotNo nodeTip)
             now
     pure $ Api.ApiNetworkInformation
         { Api.syncProgress = ApiT progress
