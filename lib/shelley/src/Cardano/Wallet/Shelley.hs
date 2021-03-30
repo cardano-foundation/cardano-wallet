@@ -56,12 +56,15 @@ import Cardano.Pool.DB
     ( DBLayer (..) )
 import Cardano.Pool.DB.Log
     ( PoolDbLog )
-import Cardano.Wallet
-    ( WalletLog (..) )
 import Cardano.Wallet.Api
     ( ApiLayer, ApiV2 )
 import Cardano.Wallet.Api.Server
-    ( HostPreference, Listen (..), ListenError (..), TlsConfiguration )
+    ( HostPreference
+    , Listen (..)
+    , ListenError (..)
+    , TlsConfiguration
+    , WalletEngineLog
+    )
 import Cardano.Wallet.Api.Types
     ( ApiStakePool
     , DecodeAddress
@@ -118,7 +121,7 @@ import Cardano.Wallet.Primitive.Types.Coin
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount )
 import Cardano.Wallet.Registry
-    ( HasWorkerCtx (..), WorkerLog (..), defaultWorkerAfter )
+    ( HasWorkerCtx (..), traceAfterThread )
 import Cardano.Wallet.Shelley.Api.Server
     ( server )
 import Cardano.Wallet.Shelley.Compatibility
@@ -347,7 +350,10 @@ serveWallet
             gcStatus <- newTVarIO NotStarted
             forM_ settings $ atomically . putSettings
 
-            void $ forkFinally (monitorStakePools tr np nl db) onExit
+            let tr = poolsEngineTracer
+
+            void $ forkFinally (monitorStakePools tr np nl db)
+                (traceAfterThread (contramap MsgExitMonitoring tr))
 
             -- fixme: needs to be simplified as part of ADP-634
             let startMetadataThread = forkIOWithUnmask $ \unmask ->
@@ -359,9 +365,6 @@ serveWallet
 
             spl <- newStakePoolLayer gcStatus nl db restartMetadataThread
             action spl
-      where
-        tr = contramap (MsgFromWorker mempty) poolsEngineTracer
-        onExit = defaultWorkerAfter poolsEngineTracer
 
     apiLayer
         :: forall s k.
@@ -494,9 +497,9 @@ data Tracers' f = Tracers
     { applicationTracer   :: f ApplicationLog
     , apiServerTracer     :: f ApiLog
     , tokenMetadataTracer :: f TokenMetadataLog
-    , walletEngineTracer  :: f (WorkerLog WalletId WalletLog)
+    , walletEngineTracer  :: f WalletEngineLog
     , walletDbTracer      :: f DBFactoryLog
-    , poolsEngineTracer   :: f (WorkerLog Text StakePoolLog)
+    , poolsEngineTracer   :: f StakePoolLog
     , poolsDbTracer       :: f PoolDbLog
     , ntpClientTracer     :: f NtpTrace
     , networkTracer       :: f NetworkLayerLog

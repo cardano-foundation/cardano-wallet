@@ -26,6 +26,9 @@ module Cardano.Wallet.Logging
     , transformTextTrace
     , stdoutTextTracer
 
+      -- * Logging helpers
+    , traceWithExceptT
+
       -- * Logging and timing IO actions
     , BracketLog (..)
     , LoggedException (..)
@@ -53,6 +56,8 @@ import Control.Monad
     ( when )
 import Control.Monad.IO.Unlift
     ( MonadIO (..), MonadUnliftIO )
+import Control.Monad.Trans.Except
+    ( ExceptT (..) )
 import Control.Tracer
     ( Tracer (..), contramap, nullTracer, traceWith )
 import Control.Tracer.Transformers.ObserveOutcome
@@ -157,6 +162,21 @@ filterNonEmpty tr = Tracer $ \arg -> do
 -- debugging functions in the REPL, when you need a 'Tracer' object.
 stdoutTextTracer :: (MonadIO m, ToText a) => Tracer m a
 stdoutTextTracer = Tracer $ liftIO . B8.putStrLn . T.encodeUtf8 . toText
+
+{-------------------------------------------------------------------------------
+                                Logging helpers
+-------------------------------------------------------------------------------}
+
+-- | Run an 'ExceptT' action, then trace its result, all in one step.
+traceWithExceptT :: Monad m => Tracer m (Either e a) -> ExceptT e m a -> ExceptT e m a
+traceWithExceptT tr (ExceptT action) = ExceptT $ do
+    res <- action
+    traceWith tr res
+    pure res
+
+{-------------------------------------------------------------------------------
+                                Bracketed logging
+-------------------------------------------------------------------------------}
 
 -- | Used for tracing around an action.
 data BracketLog

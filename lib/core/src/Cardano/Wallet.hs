@@ -162,6 +162,7 @@ module Cardano.Wallet
 
     -- * Logging
     , WalletLog (..)
+    , TxSubmitLog (..)
     ) where
 
 import Prelude hiding
@@ -187,6 +188,8 @@ import Cardano.Wallet.DB
     , defaultSparseCheckpointsConfig
     , sparseCheckpoints
     )
+import Cardano.Wallet.Logging
+    ( traceWithExceptT )
 import Cardano.Wallet.Network
     ( ErrGetAccountBalance (..)
     , ErrPostTx (..)
@@ -342,7 +345,9 @@ import Control.DeepSeq
     ( NFData )
 import Control.Monad
     ( forM, forM_, replicateM, unless, when )
-import Control.Monad.IO.Class
+import Control.Monad.Class.MonadTime
+    ( getCurrentTime )
+import Control.Monad.IO.Unlift
     ( liftIO )
 import Control.Monad.Trans.Class
     ( lift )
@@ -398,7 +403,7 @@ import Data.Set
 import Data.Text.Class
     ( ToText (..) )
 import Data.Time.Clock
-    ( NominalDiffTime, UTCTime, getCurrentTime )
+    ( NominalDiffTime, UTCTime )
 import Data.Type.Equality
     ( (:~:) (..), testEquality )
 import Data.Word
@@ -1557,38 +1562,45 @@ submitTx
     :: forall ctx s k.
         ( HasNetworkLayer ctx
         , HasDBLayer s k ctx
+        , HasLogger WalletLog ctx
         )
     => ctx
     -> WalletId
     -> (Tx, TxMeta, SealedTx)
     -> ExceptT ErrSubmitTx IO ()
 submitTx ctx wid (tx, meta, binary) = db & \DBLayer{..} -> do
-    withExceptT ErrSubmitTxNetwork  $
+    withExceptT ErrSubmitTxNetwork $ traceWithExceptT tr $
         postTx nw binary
-    mapExceptT atomically $ withExceptT ErrSubmitTxNoSuchWallet $
-        putTxHistory (PrimaryKey wid) [(tx, meta)]
+    mapExceptT atomically $ do
+        withExceptT ErrSubmitTxNoSuchWallet $
+            putTxHistory (PrimaryKey wid) [(tx, meta)]
   where
     db = ctx ^. dbLayer @s @k
     nw = ctx ^. networkLayer
+    tr = contramap (MsgTxSubmit . MsgPostTxResult (tx ^. #txId)) (ctx ^. logger)
 
 -- | Broadcast an externally-signed transaction to the network.
 submitExternalTx
     :: forall ctx k.
         ( HasNetworkLayer ctx
         , HasTransactionLayer k ctx
+        , HasLogger TxSubmitLog ctx
         )
     => ctx
     -> ByteString
     -> ExceptT ErrSubmitExternalTx IO Tx
 submitExternalTx ctx bytes = do
     era <- liftIO $ currentNodeEra nw
-    (tx,binary) <- withExceptT ErrSubmitExternalTxDecode $ except $
+    (tx, binary) <- withExceptT ErrSubmitExternalTxDecode $ except $
         decodeSignedTx tl era bytes
-    withExceptT ErrSubmitExternalTxNetwork $ postTx nw binary
+    withExceptT ErrSubmitExternalTxNetwork $ traceResult (tx ^. #txId) $
+        postTx nw binary
     return tx
   where
     nw = ctx ^. networkLayer
     tl = ctx ^. transactionLayer @k
+    tr = ctx ^. logger
+    traceResult i = traceWithExceptT (contramap (MsgPostTxResult i) tr)
 
 -- | Remove a pending or expired transaction from the transaction history. This
 -- happens at the request of the user. If the transaction is already on chain,
@@ -2321,6 +2333,7 @@ data WalletLog
     | MsgRewardBalanceResult (Either ErrFetchRewards Coin)
     | MsgRewardBalanceNoSuchWallet ErrNoSuchWallet
     | MsgRewardBalanceExited
+    | MsgTxSubmit TxSubmitLog
     deriving (Show, Eq)
 
 instance ToText WalletLog where
@@ -2389,6 +2402,8 @@ instance ToText WalletLog where
             T.pack (show err)
         MsgRewardBalanceExited ->
             "Reward balance worker has exited."
+        MsgTxSubmit msg ->
+            toText msg
 
 instance HasPrivacyAnnotation WalletLog
 instance HasSeverityAnnotation WalletLog where
@@ -2414,3 +2429,21 @@ instance HasSeverityAnnotation WalletLog where
         MsgRewardBalanceResult (Left _) -> Notice
         MsgRewardBalanceNoSuchWallet{} -> Warning
         MsgRewardBalanceExited -> Notice
+        MsgTxSubmit msg -> getSeverityAnnotation msg
+
+data TxSubmitLog
+    = MsgPostTxResult (Hash "Tx") (Either ErrPostTx ())
+    deriving (Show, Eq)
+
+instance ToText TxSubmitLog where
+    toText = \case
+        MsgPostTxResult txid res ->
+            "Transaction " <> pretty txid <> " " <> case res of
+                Right _ -> "accepted by local node"
+                Left err -> "failed: " <> toText err
+
+instance HasPrivacyAnnotation TxSubmitLog
+instance HasSeverityAnnotation TxSubmitLog where
+    getSeverityAnnotation = \case
+        MsgPostTxResult _ (Right _) -> Info
+        MsgPostTxResult _ (Left _) -> Error

@@ -79,7 +79,7 @@ import GHC.Generics
 import UnliftIO.Concurrent
     ( threadDelay )
 import UnliftIO.Exception
-    ( Exception (..), SomeException, bracket, handle )
+    ( SomeException, bracket, handle )
 
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Text as T
@@ -169,7 +169,10 @@ data ErrPostTx
     | ErrPostTxProtocolFailure Text
     deriving (Generic, Show, Eq)
 
-instance Exception ErrPostTx
+instance ToText ErrPostTx where
+    toText = \case
+        ErrPostTxBadRequest msg -> msg
+        ErrPostTxProtocolFailure msg -> msg
 
 newtype ErrGetAccountBalance
     = ErrGetAccountBalanceAccountNotFound RewardAccount
