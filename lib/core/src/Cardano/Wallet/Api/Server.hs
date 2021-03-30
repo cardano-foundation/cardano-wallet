@@ -989,12 +989,12 @@ patchSharedWallet
         , Typeable n
         )
     => ctx
-    -> ApiT WalletId
     -> (XPub -> k 'AccountK XPub)
     -> CredentialType
+    -> ApiT WalletId
     -> ApiSharedWalletPatchData
     -> Handler ApiSharedWallet
-patchSharedWallet ctx (ApiT wid) liftKey cred body = do
+patchSharedWallet ctx liftKey cred (ApiT wid) body = do
     withWorkerCtx ctx wid liftE liftE $ \wrk -> do
         liftHandler $ W.updateCosigner wrk wid (liftKey accXPub) cosigner cred
     fst <$> getWallet ctx (mkSharedWallet @_ @s @k) (ApiT wid)

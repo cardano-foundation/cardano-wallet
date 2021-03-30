@@ -77,6 +77,7 @@ module Test.Integration.Framework.DSL
     , postSharedWallet
     , deleteSharedWallet
     , getSharedWallet
+    , patchSharedWallet
 
     -- * Wallet helpers
     , listFilteredWallets
@@ -258,6 +259,8 @@ import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey )
+import Cardano.Wallet.Primitive.AddressDiscovery.Script
+    ( CredentialType (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( coinTypeAda )
 import Cardano.Wallet.Primitive.SyncProgress
@@ -1342,7 +1345,6 @@ fixtureMultiAssetIcarusWallet ctx = do
             ]
         return (getFromResponse id rb)
 
-
 postSharedWallet
     :: (MonadIO m, MonadUnliftIO m)
     => Context
@@ -1389,6 +1391,28 @@ getSharedWallet ctx (ApiSharedWallet (Left w)) = do
 getSharedWallet ctx (ApiSharedWallet (Right w)) = do
     let link = Link.getSharedWallet w
     request @ApiSharedWallet ctx link Default Empty
+
+patchEndpointEnding :: CredentialType -> Text
+patchEndpointEnding = \case
+    Payment -> "payment-script-template"
+    Delegation -> "delegation-script-template"
+
+patchSharedWallet
+    :: forall m.
+        ( MonadIO m
+        , MonadUnliftIO m
+        )
+    => Context
+    -> ApiSharedWallet
+    -> CredentialType
+    -> Payload
+    -> m (HTTP.Status, Either RequestException ApiSharedWallet)
+patchSharedWallet ctx (ApiSharedWallet (Left w)) cred payload  = do
+    let endpoint = "v2/shared-wallets" </> w ^. walletId </> patchEndpointEnding cred
+    request @ApiSharedWallet ctx ("PATCH", endpoint) Default payload
+patchSharedWallet ctx (ApiSharedWallet (Right w)) cred payload  = do
+    let endpoint = "v2/shared-wallets" </> w ^. walletId </> patchEndpointEnding cred
+    request @ApiSharedWallet ctx ("PATCH", endpoint) Default payload
 
 fixtureRawTx
     :: Context

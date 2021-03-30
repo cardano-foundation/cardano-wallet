@@ -9,6 +9,9 @@
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TypeSynonymInstances #-}
+
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Test.Integration.Scenario.API.Shelley.SharedWallets
     ( spec
@@ -16,6 +19,10 @@ module Test.Integration.Scenario.API.Shelley.SharedWallets
 
 import Prelude
 
+import Cardano.Address.Derivation
+    ( XPub, xpubFromBytes, xpubToBytes )
+import Cardano.Address.Script
+    ( Cosigner (..), ScriptTemplate (..) )
 import Cardano.Wallet.Api.Types
     ( ApiSharedWallet (..)
     , DecodeAddress
@@ -23,19 +30,33 @@ import Cardano.Wallet.Api.Types
     , EncodeAddress (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( DerivationIndex (..), PaymentAddress )
+    ( DerivationIndex (..), PaymentAddress, fromHex, hex )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey )
+import Cardano.Wallet.Primitive.AddressDiscovery.Script
+    ( CredentialType (..) )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..) )
+import Control.Monad
+    ( (>=>) )
 import Control.Monad.IO.Class
     ( liftIO )
 import Control.Monad.Trans.Resource
     ( runResourceT )
+import Data.Aeson.Types
+    ( ToJSON (..) )
 import Data.Bifunctor
     ( second )
+import Data.ByteString
+    ( ByteString )
+import Data.Either.Extra
+    ( eitherToMaybe )
+import Data.Generics.Internal.VL.Lens
+    ( (^.) )
 import Data.Quantity
     ( Quantity (..) )
+import Data.Text
+    ( Text )
 import Test.Hspec
     ( SpecWith, describe, shouldBe, shouldNotBe )
 import Test.Hspec.Extra
@@ -55,10 +76,13 @@ import Test.Integration.Framework.DSL
     , getSharedWallet
     , json
     , notDelegating
+    , patchSharedWallet
     , postSharedWallet
     , verify
     )
 
+import qualified Data.Map.Strict as Map
+import qualified Data.Text.Encoding as T
 import qualified Network.HTTP.Types as HTTP
 
 spec :: forall n.
@@ -228,3 +252,51 @@ spec = describe "SHARED_WALLETS" $ do
 
         rDel <- deleteSharedWallet ctx wal
         expectResponseCode HTTP.status204 rDel
+
+    it "SHARED_WALLETS_PATCH_01 - Patch a pending shared wallet to active shared wallet" $ \ctx -> runResourceT $ do
+        let accXPubTxt0 = "1423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db11423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db2"
+        let payloadCreate = Json [json| {
+                "name": "Shared Wallet",
+                "account_public_key": #{accXPubTxt0},
+                "account_index": "30H",
+                "payment_script_template":
+                    { "cosigners":
+                        { "cosigner#0": #{accXPubTxt0} },
+                      "template":
+                          { "all":
+                             [ "cosigner#0",
+                               "cosigner#1",
+                               { "active_from": 120 }
+                             ]
+                          }
+                    }
+                } |]
+        rPost <- postSharedWallet ctx Default payloadCreate
+        expectResponseCode HTTP.status201 rPost
+        let wal@(ApiSharedWallet (Left pendingWal)) = getFromResponse id rPost
+        let cosignerKeysPost = pendingWal ^. #paymentScriptTemplate
+        let (Just accXPub0) = xpubFromText accXPubTxt0
+        liftIO $ cosigners cosignerKeysPost `shouldBe` Map.fromList [(Cosigner 0,accXPub0)]
+
+        let accXPubTxt1 = "1423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db11423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db8"
+        let (Just accXPub1) = xpubFromText accXPubTxt1
+
+        let payloadPatch = Json [json| {
+                "account_public_key": #{accXPub1},
+                "cosigner": "cosigner#1"
+                } |]
+
+        rPatch <- patchSharedWallet ctx wal Payment payloadPatch
+        expectResponseCode HTTP.status200 rPatch
+        let (ApiSharedWallet (Right activeWal)) = getFromResponse id rPatch
+        let cosignerKeysPatch = activeWal ^. #paymentScriptTemplate
+        liftIO $ cosigners cosignerKeysPatch `shouldBe` Map.fromList [(Cosigner 0,accXPub0), (Cosigner 1,accXPub1)]
+  where
+      xpubFromText :: Text -> Maybe XPub
+      xpubFromText = fmap eitherToMaybe fromHexText >=> xpubFromBytes
+
+      fromHexText :: Text -> Either String ByteString
+      fromHexText = fromHex . T.encodeUtf8
+
+instance ToJSON XPub where
+    toJSON = toJSON . T.decodeLatin1 . hex . xpubToBytes

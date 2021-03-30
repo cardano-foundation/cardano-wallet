@@ -83,6 +83,7 @@ import Cardano.Wallet.Api.Server
     , mkLegacyWallet
     , mkSharedWallet
     , mkShelleyWallet
+    , patchSharedWallet
     , postAccountPublicKey
     , postAccountWallet
     , postExternalTransaction
@@ -142,6 +143,8 @@ import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey (..), generateKeyFromSeed )
 import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState )
+import Cardano.Wallet.Primitive.AddressDiscovery.Script
+    ( CredentialType (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( SeqState )
 import Cardano.Wallet.Primitive.AddressDiscovery.SharedState
@@ -177,14 +180,7 @@ import Data.Text.Class
 import Network.Ntp
     ( NtpClient )
 import Servant
-    ( (:<|>) (..)
-    , Handler (..)
-    , NoContent (..)
-    , Server
-    , err400
-    , err501
-    , throwError
-    )
+    ( (:<|>) (..), Handler (..), NoContent (..), Server, err400 )
 import Servant.Server
     ( ServerError (..) )
 import Type.Reflection
@@ -495,12 +491,9 @@ server byron icarus shelley multisig spl ntp =
     sharedWallets =
              postSharedWallet multisig generateKeyFromSeed ShelleyKey
         :<|> (fmap fst . getWallet multisig mkSharedWallet)
-        :<|> patchSharedWalletInPayment
-        :<|> patchSharedWalletInDelegation
+        :<|> patchSharedWallet multisig ShelleyKey Payment
+        :<|> patchSharedWallet multisig ShelleyKey Delegation
         :<|> deleteWallet multisig
-      where
-         patchSharedWalletInPayment _ = pure $ throwError err501
-         patchSharedWalletInDelegation _ = pure $ throwError err501
 
 postAnyAddress
     :: NetworkId
