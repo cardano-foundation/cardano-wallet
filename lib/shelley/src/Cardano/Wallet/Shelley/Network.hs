@@ -968,9 +968,9 @@ traceQueryTimings tr = produceTimings msgQuery trDiffTime
         MsgQuery l b -> Just (l, b)
         _ -> Nothing
 
--- | Consider a "slow query" to be something that takes 100ms or more.
+-- | Consider a "slow query" to be something that takes 200ms or more.
 isSlowQuery :: String -> DiffTime -> Bool
-isSlowQuery _label = (>= 0.1)
+isSlowQuery _label = (>= 0.2)
 
 -- | A protocol client that will never leave the initial state.
 doNothingProtocol
