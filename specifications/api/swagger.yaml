@@ -1427,6 +1427,15 @@ components:
         id: *addressId
         state: *addressState
 
+    ApiAddressInfo: &ApiAddressInfo
+      type: object
+      required:
+        - address
+        - derivation_path
+      properties:
+        address: *ApiAddress
+        derivation_path: *derivationPath
+
     ApiAddressInspect: &ApiAddressInspect
         type: object
         required:
@@ -3520,7 +3529,7 @@ x-responsesListAddresses: &responsesListAddresses
       application/json:
         schema:
           type: array
-          items: *ApiAddress
+          items: *ApiAddressInfo
 
 x-responsesGetKey: &responsesGetKey
   <<: *responsesErr400
