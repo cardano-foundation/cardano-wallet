@@ -210,7 +210,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
         -- Migrate to a new empty wallet
         wNew <- emptyWallet ctx
         addrs <- listAddresses @n ctx wNew
-        let addr1 = (addrs !! 1) ^. #id
+        let addr1 = (addrs !! 1) ^. (#address . #id)
 
 
         -- NOTE
@@ -259,7 +259,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
             sourceWallet <- emptyWallet ctx
             targetWallet <- emptyWallet ctx
             addrs <- listAddresses @n ctx targetWallet
-            let addr1 = (addrs !! 1) ^. #id
+            let addr1 = (addrs !! 1) ^. (#address . #id)
             let payload =
                     Json [json|
                         { passphrase: #{fixturePassphrase}
@@ -312,7 +312,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
 
             targetWallet <- emptyWallet ctx
             addrs <- listAddresses @n ctx targetWallet
-            let addr1 = (addrs !! 1) ^. #id
+            let addr1 = (addrs !! 1) ^. (#address . #id)
             let payload =
                     Json [json|
                         { passphrase: #{fixturePassphrase}
@@ -356,7 +356,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
             -- Perform the migration.
             targetWallet <- emptyWallet ctx
             addrs <- listAddresses @n ctx targetWallet
-            let addr1 = (addrs !! 1) ^. #id
+            let addr1 = (addrs !! 1) ^. (#address . #id)
             let payload =
                     Json [json|
                         { passphrase: #{fixturePassphrase}
@@ -384,7 +384,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
         -- Perform a migration from the source wallet to a target wallet:
         targetWallet <- emptyWallet ctx
         addrs <- listAddresses @n ctx targetWallet
-        let addr1 = (addrs !! 1) ^. #id
+        let addr1 = (addrs !! 1) ^. (#address . #id)
         r0 <- request @[ApiTransaction n] ctx
             (Link.migrateWallet @'Shelley sourceWallet)
             Default
@@ -403,7 +403,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
       --shelley address
       wShelley <- emptyWallet ctx
       addrs <- listAddresses @n ctx wShelley
-      let addrShelley = (addrs !! 1) ^. #id
+      let addrShelley = (addrs !! 1) ^. (#address . #id)
       --icarus address
       addrIcarus <- liftIO $ encodeAddress @n . head . icarusAddresses @n
           . entropyToMnemonic @15 <$> genEntropy
@@ -503,7 +503,7 @@ spec = describe "SHELLEY_MIGRATIONS" $ do
             targetWallet <- emptyWallet ctx
             addrs <- listAddresses @n ctx targetWallet
             let addrIds =
-                    map (\(ApiTypes.ApiAddress theid _) -> theid) $
+                    map (\(ApiTypes.ApiAddressInfo (ApiTypes.ApiAddress theid _) _) -> theid) $
                     take addrNum addrs
 
             -- Calculate the expected migration fee:

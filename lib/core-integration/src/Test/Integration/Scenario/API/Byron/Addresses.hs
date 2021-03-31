@@ -19,6 +19,7 @@ import Cardano.Mnemonic
     ( Mnemonic )
 import Cardano.Wallet.Api.Types
     ( ApiAddress
+    , ApiAddressInfo
     , ApiByronWallet
     , ApiPutAddressesData
     , ApiT (..)
@@ -125,11 +126,11 @@ scenario_ADDRESS_LIST_01
     -> SpecWith Context
 scenario_ADDRESS_LIST_01 fixture = it title $ \ctx -> runResourceT $ do
     w <- fixture ctx
-    r <- request @[ApiAddress n] ctx (Link.listAddresses @'Byron w) Default Empty
+    r <- request @[ApiAddressInfo n] ctx (Link.listAddresses @'Byron w) Default Empty
     verify r [ expectResponseCode HTTP.status200 ]
     let n = length $ getFromResponse id r
     forM_ [0..n-1] $ \addrIx -> do
-        expectListField addrIx #state (`shouldBe` ApiT Unused) r
+        expectListField addrIx (#address . #state) (`shouldBe` ApiT Unused) r
   where
     title = "ADDRESS_LIST_01 - Can list known addresses on a default wallet"
 
@@ -144,7 +145,7 @@ scenario_ADDRESS_LIST_02 fixture = it title $ \ctx -> runResourceT $ do
     w <- fixture ctx
 
     -- filtering ?state=used
-    rUsed <- request @[ApiAddress n] ctx
+    rUsed <- request @[ApiAddressInfo n] ctx
         (Link.listAddresses' @'Byron w (Just Used)) Default Empty
     verify rUsed
         [ expectResponseCode HTTP.status200
@@ -152,14 +153,14 @@ scenario_ADDRESS_LIST_02 fixture = it title $ \ctx -> runResourceT $ do
         ]
     let nUsed = length $ getFromResponse id rUsed
     forM_ [0..nUsed-1] $ \addrIx -> do
-        expectListField addrIx #state (`shouldBe` ApiT Used) rUsed
+        expectListField addrIx (#address . #state) (`shouldBe` ApiT Used) rUsed
 
     -- filtering ?state=unused
-    rUnused <- request @[ApiAddress n] ctx
+    rUnused <- request @[ApiAddressInfo n] ctx
         (Link.listAddresses' @'Byron w (Just Unused)) Default Empty
     let nUnused = length $ getFromResponse id rUnused
     forM_ [0..nUnused-1] $ \addrIx -> do
-        expectListField addrIx #state (`shouldBe` ApiT Unused) rUnused
+        expectListField addrIx (#address . #state) (`shouldBe` ApiT Unused) rUnused
   where
     title = "ADDRESS_LIST_02 - Can filter used and unused addresses"
 
@@ -173,7 +174,7 @@ scenario_ADDRESS_LIST_04
 scenario_ADDRESS_LIST_04 fixture = it title $ \ctx -> runResourceT $ do
     w <- fixture ctx
     _ <- request @() ctx (Link.deleteWallet @'Byron w) Default Empty
-    r <- request @[ApiAddress n] ctx (Link.listAddresses @'Byron w) Default Empty
+    r <- request @[ApiAddressInfo n] ctx (Link.listAddresses @'Byron w) Default Empty
     verify r
         [ expectResponseCode HTTP.status404
         , expectErrorMessage $ errMsg404NoWallet $ w ^. walletId
@@ -246,10 +247,10 @@ scenario_ADDRESS_CREATE_04 = it title $ \ctx -> runResourceT $ do
     verify rA [ expectResponseCode HTTP.status201 ]
     let addr = getFromResponse id rA
 
-    rL <- request @[ApiAddress n] ctx (Link.listAddresses @'Byron w) Default Empty
+    rL <- request @[ApiAddressInfo n] ctx (Link.listAddresses @'Byron w) Default Empty
     verify rL
         [ expectResponseCode HTTP.status200
-        , expectListField 0 id (`shouldBe` addr)
+        , expectListField 0 #address (`shouldBe` addr)
         ]
   where
     title = "ADDRESS_CREATE_04 - Can list address after creating it"
@@ -317,10 +318,10 @@ scenario_ADDRESS_IMPORT_01 fixture = it title $ \ctx -> runResourceT $ do
         ]
 
     -- Import it
-    r1 <- request @[ApiAddress n] ctx (Link.listAddresses @'Byron w) Default Empty
+    r1 <- request @[ApiAddressInfo n] ctx (Link.listAddresses @'Byron w) Default Empty
     verify r1
-        [ expectListField 0 #state (`shouldBe` ApiT Unused)
-        , expectListField 0 (#id . position @1) (`shouldBe` ApiT addr)
+        [ expectListField 0 (#address . #state) (`shouldBe` ApiT Unused)
+        , expectListField 0 (#address . #id . position @1) (`shouldBe` ApiT addr)
         ]
   where
     title = "ADDRESS_IMPORT_01 - I can import an address from my wallet"
@@ -383,18 +384,18 @@ scenario_ADDRESS_IMPORT_04 fixture = it title $ \ctx -> runResourceT $ do
     w <- fixture ctx
 
     -- Get a used address
-    r0 <- request @[ApiAddress n] ctx
+    r0 <- request @[ApiAddressInfo n] ctx
         (Link.listAddresses' @'Byron w (Just Used)) Default Empty
     let (addr:_) = getFromResponse id r0
 
     -- Re-insert it
     let (_, base) = Link.postRandomAddress w
-    let link = base <> "/" <> toUrlPiece (addr ^. #id)
+    let link = base <> "/" <> toUrlPiece (addr ^. (#address . #id))
     r1 <- request @() ctx ("PUT", link) Default Empty
     verify r1 [ expectResponseCode HTTP.status204 ]
 
     -- Verify that the address is unchanged
-    r2 <- request @[ApiAddress n] ctx
+    r2 <- request @[ApiAddressInfo n] ctx
         (Link.listAddresses' @'Byron w (Just Used)) Default Empty
     verify r2 [ expectListField 0 id (`shouldBe` addr) ]
   where
@@ -427,7 +428,7 @@ scenario_ADDRESS_IMPORT_05 addrNum fixture = it title $ \ctx -> runResourceT $ d
         ]
 
     eventually "Addresses are imported" $ do
-      r1 <- request @[ApiAddress n] ctx (Link.listAddresses @'Byron w) Default Empty
+      r1 <- request @[ApiAddressInfo n] ctx (Link.listAddresses @'Byron w) Default Empty
       verify r1
           [ expectListSize addrNum
           ]

@@ -18,7 +18,7 @@ import Cardano.Mnemonic
     ( entropyToMnemonic, genEntropy, mnemonicToText )
 import Cardano.Wallet.Api.Types
     ( AddressAmount (..)
-    , ApiAddress
+    , ApiAddressInfo
     , ApiCoinSelectionOutput (..)
     , ApiFee
     , ApiTransaction
@@ -112,7 +112,7 @@ spec = describe "SHELLEY_HW_WALLETS" $ do
         --send funds
         let wDest = getFromResponse id rInit
         addrs <- listAddresses @n ctx wDest
-        let destination = (addrs !! 1) ^. #id
+        let destination = (addrs !! 1) ^. (#address . #id)
         let payload = Json [json|{
                 "payments": [{
                     "address": #{destination},
@@ -167,7 +167,7 @@ spec = describe "SHELLEY_HW_WALLETS" $ do
             wDest <- emptyWallet ctx
 
             addrs <- listAddresses @n ctx wDest
-            let destination = (addrs !! 1) ^. #id
+            let destination = (addrs !! 1) ^. (#address . #id)
             let payload = Json [json|{
                     "payments": [{
                         "address": #{destination},
@@ -224,7 +224,7 @@ spec = describe "SHELLEY_HW_WALLETS" $ do
             wDest <- emptyWallet ctx
 
             addrs <- listAddresses @n ctx wDest
-            let destination = (addrs !! 1) ^. #id
+            let destination = (addrs !! 1) ^. (#address . #id)
             let payload = Json [json|{
                     "payments": [{
                         "address": #{destination},
@@ -262,12 +262,12 @@ spec = describe "SHELLEY_HW_WALLETS" $ do
             wPub <- restoreWalletFromPubKey @ApiWallet @'Shelley ctx pubKey restoredWalletName
 
             let g = fromIntegral $ getAddressPoolGap defaultAddressPoolGap
-            r <- request @[ApiAddress n] ctx
+            r <- request @[ApiAddressInfo n] ctx
                 (Link.listAddresses @'Shelley wPub) Default Empty
             expectResponseCode HTTP.status200 r
             expectListSize g r
             forM_ [0..(g-1)] $ \addrNum -> do
-                expectListField addrNum (#state . #getApiT) (`shouldBe` Unused) r
+                expectListField addrNum (#address . #state . #getApiT) (`shouldBe` Unused) r
 
         it "Can have address pool gap" $ \ctx -> runResourceT $ do
             mnemonics <- liftIO $ mnemonicToText @15 . entropyToMnemonic <$> genEntropy
@@ -283,12 +283,12 @@ spec = describe "SHELLEY_HW_WALLETS" $ do
 
             let wPub = getFromResponse id rRestore
 
-            r <- request @[ApiAddress n] ctx
+            r <- request @[ApiAddressInfo n] ctx
                 (Link.listAddresses @'Shelley wPub) Default Empty
             expectResponseCode HTTP.status200 r
             expectListSize addrPoolGap r
             forM_ [0..(addrPoolGap-1)] $ \addrNum -> do
-                expectListField addrNum (#state . #getApiT) (`shouldBe` Unused) r
+                expectListField addrNum (#address . #state . #getApiT) (`shouldBe` Unused) r
 
         it "Can list transactions" $ \ctx -> runResourceT $ do
             mnemonics <- liftIO $ mnemonicToText @15 . entropyToMnemonic <$> genEntropy
@@ -311,7 +311,7 @@ spec = describe "SHELLEY_HW_WALLETS" $ do
             target <- emptyWallet ctx
             let paymentCount = 4
             targetAddresses <- take paymentCount .
-                fmap (view #id) <$> listAddresses @n ctx target
+                fmap (view (#address . #id)) <$> listAddresses @n ctx target
             let targetAmounts = take paymentCount $
                     Quantity <$> [minUTxOValue ..]
             let targetAssets = repeat mempty

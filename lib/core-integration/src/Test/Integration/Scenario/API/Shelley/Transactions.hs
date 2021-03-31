@@ -24,6 +24,7 @@ import Cardano.Mnemonic
 import Cardano.Wallet.Api.Types
     ( AddressAmount (..)
     , ApiAddress
+    , ApiAddressInfo
     , ApiAsset (..)
     , ApiByronWallet
     , ApiFee (..)
@@ -214,7 +215,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
 
       let amt = minUTxOValue  - 1
       addrs <- listAddresses @n ctx wDest
-      let destination = (addrs !! 1) ^. #id
+      let destination = (addrs !! 1) ^. (#address . #id)
       let payload = Json [json|{
               "payments": [{
                   "address": #{destination},
@@ -402,8 +403,8 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         addrs <- listAddresses @n ctx wDest
 
         let amt = minUTxOValue :: Natural
-        let destination1 = (addrs !! 1) ^. #id
-        let destination2 = (addrs !! 2) ^. #id
+        let destination1 = (addrs !! 1) ^. (#address . #id)
+        let destination2 = (addrs !! 2) ^. (#address . #id)
         let payload = Json [json|{
                 "payments": [{
                     "address": #{destination1},
@@ -553,7 +554,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         wDest <- emptyWallet ctx
         addr:_ <- listAddresses @n ctx wDest
 
-        let destination = addr ^. #id
+        let destination = addr ^. (#address . #id)
         let payload = Json [json|{
                 "payments": [{
                     "address": #{destination},
@@ -576,7 +577,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         _ <- request @ApiWallet ctx (Link.deleteWallet @'Shelley w) Default Empty
         wDest <- emptyWallet ctx
         addr:_ <- listAddresses @n ctx wDest
-        let destination = addr ^. #id
+        let destination = addr ^. (#address . #id)
         let payload = Json [json|{
                 "payments": [{
                     "address": #{destination},
@@ -640,7 +641,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         let val = minUTxOValue <$ pickAnAsset assetsSrc
 
         addrs <- listAddresses @n ctx wDest
-        let destination = (addrs !! 1) ^. #id
+        let destination = (addrs !! 1) ^. (#address . #id)
 
         -- use minimum coin value provided by the server
         payloadFee <- mkTxPayloadMA @n destination 0 [val] fixturePassphrase
@@ -683,7 +684,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         let coin = minUTxOValue
 
         addrs <- listAddresses @n ctx wDest
-        let destination = (addrs !! 1) ^. #id
+        let destination = (addrs !! 1) ^. (#address . #id)
         payload <- mkTxPayloadMA @n destination coin [val] fixturePassphrase
 
         rtx <- request @(ApiTransaction n) ctx
@@ -704,7 +705,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         let val = minUTxOValue <$ pickAnAsset assetsSrc
 
         addrs <- listAddresses @n ctx wDest
-        let destination = (addrs !! 1) ^. #id
+        let destination = (addrs !! 1) ^. (#address . #id)
         payload <- mkTxPayloadMA @n destination 0 [val] fixturePassphrase
 
         rtx <- request @(ApiTransaction n) ctx
@@ -732,11 +733,11 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             sourceWallets <- forM assetsPerAddrScenarios $ \nAssetsPerAddr -> do
                 wSrc <- fixtureWallet ctx
                 srcAddrs <-
-                    map (getApiT . fst . view #id) <$> listAddresses @n ctx wSrc
+                    map (getApiT . fst . view (#address . #id)) <$> listAddresses @n ctx wSrc
                 liftIO $ _mintSeaHorseAssets ctx nAssetsPerAddr (take 2 srcAddrs)
                 return (wSrc, nAssetsPerAddr)
             wDest <- emptyWallet ctx
-            destAddr <- head . map (view #id) <$> listAddresses @n ctx wDest
+            destAddr <- head . map (view (#address . #id)) <$> listAddresses @n ctx wDest
             waitForTxImmutability ctx
 
             -- 2. Try spending from each wallet, and record the response.
@@ -783,7 +784,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         let val = minUTxOValue <$ pickAnAsset assetsSrc
 
         addrs <- listAddresses @n ctx wDest
-        let destination = (addrs !! 1) ^. #id
+        let destination = (addrs !! 1) ^. (#address . #id)
         payload <- mkTxPayloadMA @n destination 0 [val] fixturePassphrase
 
         rtx <- request @(ApiTransaction n) ctx
@@ -1672,7 +1673,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
 
             addrs <- listAddresses @n ctx wShelley
             let amtDest = (1_000_000 :: Natural)
-            let destination1 = (addrs !! 1) ^. #id
+            let destination1 = (addrs !! 1) ^. (#address . #id)
             let payload3 = Json [json|{
                     "payments": [{
                         "address": #{destination1},
@@ -1743,7 +1744,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
                     \c9fe6a5e9ac4838fd0"
 
             let link = Link.listAddresses @'Byron wIcarus
-            (_, addrs) <- unsafeRequest @[ApiAddress n] ctx link Empty
+            (_, addrs) <- unsafeRequest @[ApiAddressInfo n] ctx link Empty
 
             -- 5. produce address
             --  $ cat root-src.prv \
@@ -1751,7 +1752,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             --  | cardano-address key public \
             --  | cardano-address address bootstrap --network-tag mainnet
             --  Ae2tdPwUPEZBruS2sSxNUsH3pL6K2PDFJhocE7PswF2pno7JUcirBNakCTA
-            let addrInp = encodeAddress @n (getApiT $ fst $ addrs !! 0 ^. #id)
+            let addrInp = encodeAddress @n (getApiT $ fst $ addrs !! 0 ^. (#address . #id))
 
             -- 6. change address
             --  $ cat root-src.prv \
@@ -1759,7 +1760,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             --  | cardano-address key public \
             --  | cardano-address address bootstrap --network-tag mainnet
             -- Ae2tdPwUPEZHC3SC8Vbss8AXg7TNKBK1BfAbJRXDFfkgivH8RawguHBoebZ
-            let addrChange = encodeAddress @n (getApiT $ fst $ addrs !! 1 ^. #id)
+            let addrChange = encodeAddress @n (getApiT $ fst $ addrs !! 1 ^. (#address . #id))
 
             -- send inital transaction to wIcarus src wallet from faucet wallet
             let amtSrc = (10_000_000 :: Natural)
@@ -1801,7 +1802,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             -- Estimate fee for external transaction
             let amtDest = (1_000_000 :: Natural)
             addr <- listAddresses @n ctx wShelley
-            let addrDest = encodeAddress @n (getApiT $ fst $ addr !! 1 ^. #id)
+            let addrDest = encodeAddress @n (getApiT $ fst $ addr !! 1 ^. (#address . #id))
             let payload3 = Json [json|{
                     "payments": [{
                         "address": #{addrDest},
@@ -1885,7 +1886,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             \minor / edge-case."
 
         (wSrc, _) <- rewardWallet ctx
-        addr:_ <- fmap (view #id) <$> listAddresses @n ctx wSrc
+        addr:_ <- fmap (view (#address . #id)) <$> listAddresses @n ctx wSrc
         let totalBalance = wSrc ^. #balance . #total
         let payload = Json [json|{
                 "withdrawal": "self",
@@ -1931,7 +1932,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         addrs <- listAddresses @n ctx wDest
 
         let amt = minUTxOValue :: Natural
-        let destination = (addrs !! 1) ^. #id
+        let destination = (addrs !! 1) ^. (#address . #id)
         let payload = Json [json|{
                 "payments": [{
                     "address": #{destination},
@@ -2580,7 +2581,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
 
     it "SHELLEY_TX_REDEEM_01 - Can redeem rewards from self" $ \ctx -> runResourceT $ do
         (wSrc,_) <- rewardWallet ctx
-        addr:_ <- fmap (view #id) <$> listAddresses @n ctx wSrc
+        addr:_ <- fmap (view (#address . #id)) <$> listAddresses @n ctx wSrc
 
         let payload = Json [json|{
                 "withdrawal": "self",
@@ -2611,7 +2612,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
     it "SHELLEY_TX_REDEEM_02 - Can redeem rewards from other" $ \ctx -> runResourceT $ do
         (wOther, mw) <- rewardWallet ctx
         wSelf  <- fixtureWallet ctx
-        addr:_ <- fmap (view #id) <$> listAddresses @n ctx wSelf
+        addr:_ <- fmap (view (#address . #id)) <$> listAddresses @n ctx wSelf
 
         let payload = Json [json|{
                 "withdrawal": #{mnemonicToText mw},
@@ -2686,7 +2687,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
     it "SHELLEY_TX_REDEEM_03 - Can't redeem rewards from other if none left" $ \ctx -> runResourceT $ do
         (wOther, mw) <- rewardWallet ctx
         wSelf  <- fixtureWallet ctx
-        addr:_ <- fmap (view #id) <$> listAddresses @n ctx wSelf
+        addr:_ <- fmap (view (#address . #id)) <$> listAddresses @n ctx wSelf
 
         let payload = Json [json|{
                 "withdrawal": #{mnemonicToText mw},
@@ -2718,7 +2719,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
 
     it "SHELLEY_TX_REDEEM_04 - Can always ask for self redemption" $ \ctx -> runResourceT $ do
         wSelf <- fixtureWallet ctx
-        addr:_ <- fmap (view #id) <$> listAddresses @n ctx wSelf
+        addr:_ <- fmap (view (#address . #id)) <$> listAddresses @n ctx wSelf
 
         let payload = Json [json|{
                 "withdrawal": "self",
@@ -2738,7 +2739,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
 
     it "SHELLEY_TX_REDEEM_05 - Can't redeem rewards from unknown key" $ \ctx -> runResourceT $ do
         wSelf  <- fixtureWallet ctx
-        addr:_ <- fmap (view #id) <$> listAddresses @n ctx wSelf
+        addr:_ <- fmap (view (#address . #id)) <$> listAddresses @n ctx wSelf
 
         mw <- liftIO $ entropyToMnemonic <$> genEntropy @160
         let payload = Json [json|{
@@ -2780,7 +2781,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
     it "SHELLEY_TX_REDEEM_06a - Can't redeem rewards if utxo = 0 from other" $ \ctx -> runResourceT $ do
         (_, mw) <- rewardWallet ctx
         wSelf  <- emptyWallet ctx
-        addr:_ <- fmap (view #id) <$> listAddresses @n ctx wSelf
+        addr:_ <- fmap (view (#address . #id)) <$> listAddresses @n ctx wSelf
 
         let payload = Json [json|{
                 "withdrawal": #{mnemonicToText mw},
@@ -2805,7 +2806,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         wOther  <- emptyWallet ctx
 
         -- migrate all utxo from rewards wallet
-        addr:_ <- fmap (view #id) <$> listAddresses @n ctx wOther
+        addr:_ <- fmap (view (#address . #id)) <$> listAddresses @n ctx wOther
         let payloadMigr = Json [json|{
                 "passphrase": #{fixturePassphrase},
                 "addresses": [#{addr}]
@@ -2842,7 +2843,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
     it "SHELLEY_TX_REDEEM_07a - Can't redeem rewards if cannot cover fee" $ \ctx -> runResourceT $ do
         (_, mw) <- rewardWallet ctx
         wSelf  <- fixtureWalletWith @n ctx [oneThousandAda]
-        addr:_ <- fmap (view #id) <$> listAddresses @n ctx wSelf
+        addr:_ <- fmap (view (#address . #id)) <$> listAddresses @n ctx wSelf
         let amt = oneThousandAda + oneMillionAda
 
         let payload = Json [json|{
@@ -2865,7 +2866,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
     it "SHELLEY_TX_REDEEM_07b - Can't redeem rewards if not enough money" $ \ctx -> runResourceT $ do
         (_, mw) <- rewardWallet ctx
         wSelf  <- fixtureWalletWith @n ctx [oneThousandAda]
-        addr:_ <- fmap (view #id) <$> listAddresses @n ctx wSelf
+        addr:_ <- fmap (view (#address . #id)) <$> listAddresses @n ctx wSelf
         let amt = oneThousandAda + oneMillionAda + oneAda
 
         let payload = Json [json|{
@@ -2951,7 +2952,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         -> m Payload
     mkTxPayload ctx wDest amt passphrase = do
         addrs <- listAddresses @n ctx wDest
-        let destination = (addrs !! 1) ^. #id
+        let destination = (addrs !! 1) ^. (#address . #id)
         return $ Json [json|{
                 "payments": [{
                     "address": #{destination},
@@ -2983,8 +2984,8 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         -> IO Payload
     mkMultipleTxPayload ctx wDest amt1 amt2 passphrase = do
         addrs <- listAddresses @n ctx wDest
-        let destination1 = (addrs !! 1) ^. #id
-        let destination2 = (addrs !! 2) ^. #id
+        let destination1 = (addrs !! 1) ^. (#address . #id)
+        let destination2 = (addrs !! 2) ^. (#address . #id)
         return $ Json [json|{
                 "payments": [{
                     "address": #{destination1},

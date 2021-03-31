@@ -13,7 +13,12 @@ module Test.Integration.Scenario.CLI.Shelley.Addresses
 import Prelude
 
 import Cardano.Wallet.Api.Types
-    ( ApiAddress, ApiWallet, DecodeAddress (..), EncodeAddress (..), getApiT )
+    ( ApiAddressInfo
+    , ApiWallet
+    , DecodeAddress (..)
+    , EncodeAddress (..)
+    , getApiT
+    )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( defaultAddressPoolGap, getAddressPoolGap )
 import Cardano.Wallet.Primitive.Types.Address
@@ -74,11 +79,11 @@ spec = describe "SHELLEY_CLI_ADDRESSES" $ do
         (Exit c, Stdout out, Stderr err) <- listAddressesViaCLI ctx [walId]
         err `shouldBe` "Ok.\n"
         c `shouldBe` ExitSuccess
-        json <- expectValidJSON (Proxy @[ApiAddress n]) out
+        json <- expectValidJSON (Proxy @[ApiAddressInfo n]) out
         length json `shouldBe` g
         forM_ [0..(g-1)] $ \addrNum -> do
             expectCliListField
-                addrNum (#state . #getApiT) (`shouldBe` Unused) json
+                addrNum (#address . #state . #getApiT) (`shouldBe` Unused) json
 
     it "ADDRESS_LIST_01 - Can list addresses - non-default poolGap" $ \ctx -> runResourceT $ do
         let addrPoolGap = 60
@@ -87,11 +92,11 @@ spec = describe "SHELLEY_CLI_ADDRESSES" $ do
         (Exit c, Stdout out, Stderr err) <- listAddressesViaCLI ctx [walId]
         err `shouldBe` "Ok.\n"
         c `shouldBe` ExitSuccess
-        json <- expectValidJSON (Proxy @[ApiAddress n]) out
+        json <- expectValidJSON (Proxy @[ApiAddressInfo n]) out
         length json `shouldBe` addrPoolGap
         forM_ [0..59] $ \addrNum -> do
             expectCliListField
-                addrNum (#state . #getApiT) (`shouldBe` Unused) json
+                addrNum (#address . #state . #getApiT) (`shouldBe` Unused) json
 
     it "ADDRESS_LIST_02 - Can filter used and unused addresses" $ \ctx -> runResourceT $ do
         let g = fromIntegral $ getAddressPoolGap defaultAddressPoolGap
@@ -100,20 +105,20 @@ spec = describe "SHELLEY_CLI_ADDRESSES" $ do
             <- listAddressesViaCLI ctx ["--state", "used", walId]
         e1 `shouldBe` "Ok.\n"
         c1 `shouldBe` ExitSuccess
-        j1 <- expectValidJSON (Proxy @[ApiAddress n]) o1
+        j1 <- expectValidJSON (Proxy @[ApiAddressInfo n]) o1
         length j1 `shouldBe` 10
         forM_ [0..9] $ \addrNum -> do
             expectCliListField
-                addrNum (#state . #getApiT) (`shouldBe` Used) j1
+                addrNum (#address . #state . #getApiT) (`shouldBe` Used) j1
         (Exit c2, Stdout o2, Stderr e2)
             <- listAddressesViaCLI ctx ["--state", "unused", walId]
         e2 `shouldBe` "Ok.\n"
         c2 `shouldBe` ExitSuccess
-        j2 <- expectValidJSON (Proxy @[ApiAddress n]) o2
+        j2 <- expectValidJSON (Proxy @[ApiAddressInfo n]) o2
         length j2 `shouldBe` g
         forM_ [0..(g-10)] $ \addrNum -> do
             expectCliListField
-                addrNum (#state . #getApiT) (`shouldBe` Unused) j2
+                addrNum (#address . #state . #getApiT) (`shouldBe` Unused) j2
 
     it "ADDRESS_LIST_02 - Shows nothing when there are no used addresses"
         $ \ctx -> runResourceT $ do
@@ -122,18 +127,18 @@ spec = describe "SHELLEY_CLI_ADDRESSES" $ do
             <- listAddressesViaCLI ctx ["--state", "used", walId]
         e1 `shouldBe` "Ok.\n"
         c1 `shouldBe` ExitSuccess
-        j1 <- expectValidJSON (Proxy @[ApiAddress n]) o1
+        j1 <- expectValidJSON (Proxy @[ApiAddressInfo n]) o1
         length j1 `shouldBe` 0
 
         (Exit c2, Stdout o2, Stderr e2)
             <- listAddressesViaCLI ctx ["--state", "unused", walId]
         e2 `shouldBe` "Ok.\n"
         c2 `shouldBe` ExitSuccess
-        j2 <- expectValidJSON (Proxy @[ApiAddress n]) o2
+        j2 <- expectValidJSON (Proxy @[ApiAddressInfo n]) o2
         length j2 `shouldBe` 20
         forM_ [0..19] $ \addrNum -> do
             expectCliListField
-                addrNum (#state . #getApiT) (`shouldBe` Unused) j2
+                addrNum (#address . #state . #getApiT) (`shouldBe` Unused) j2
 
     describe "ADDRESS_LIST_02 - Invalid filters show error message" $ do
         let filters =
@@ -167,15 +172,15 @@ spec = describe "SHELLEY_CLI_ADDRESSES" $ do
         (Exit c, Stdout o, Stderr e) <- listAddressesViaCLI ctx [widDest]
         e `shouldBe` "Ok.\n"
         c `shouldBe` ExitSuccess
-        j <- expectValidJSON (Proxy @[ApiAddress n]) o
+        j <- expectValidJSON (Proxy @[ApiAddressInfo n]) o
         length j `shouldBe` initPoolGap
         forM_ [0..initPoolGap - 1] $ \addrNum -> do
             expectCliListField
-                addrNum (#state . #getApiT) (`shouldBe` Unused) j
+                addrNum (#address . #state . #getApiT) (`shouldBe` Unused) j
 
         -- run 10 transactions to make all addresses `Used`
         forM_ [0..initPoolGap - 1] $ \addrNum -> do
-            let dest = encodeAddress @n (getApiT $ fst $ (j !! addrNum) ^. #id)
+            let dest = encodeAddress @n (getApiT $ fst $ (j !! addrNum) ^. (#address . #id))
             let args = [wSrc, "--payment" , (show minUTxOValue) <> "@" <> (T.unpack dest)]
             (cTx, _, _) <- postTransactionViaCLI ctx "cardano-wallet" args
             cTx `shouldBe` ExitSuccess
@@ -191,14 +196,14 @@ spec = describe "SHELLEY_CLI_ADDRESSES" $ do
         (Exit c1, Stdout o1, Stderr e1) <- listAddressesViaCLI ctx [widDest]
         e1 `shouldBe` "Ok.\n"
         c1 `shouldBe` ExitSuccess
-        j1 <- expectValidJSON (Proxy @[ApiAddress n]) o1
+        j1 <- expectValidJSON (Proxy @[ApiAddressInfo n]) o1
         length j1 `shouldBe` 2*initPoolGap
         forM_ [0..initPoolGap - 1] $ \addrNum -> do
             expectCliListField
-                addrNum (#state . #getApiT) (`shouldBe` Used) j1
+                addrNum (#address . #state . #getApiT) (`shouldBe` Used) j1
         forM_ [initPoolGap..2*initPoolGap - 1] $ \addrNum -> do
             expectCliListField
-                addrNum (#state . #getApiT) (`shouldBe` Unused) j1
+                addrNum (#address . #state . #getApiT) (`shouldBe` Unused) j1
 
     describe "ADDRESS_LIST_04 - False wallet ids" $ do
         forM_ falseWalletIds $ \(title, walId) -> it title $ \ctx -> runResourceT $ do

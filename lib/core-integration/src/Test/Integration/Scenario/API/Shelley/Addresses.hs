@@ -18,6 +18,7 @@ import Cardano.Wallet.Api.Types
     ( AnyAddress
     , ApiAccountKey
     , ApiAddress
+    , ApiAddressInfo
     , ApiT (..)
     , ApiTransaction
     , ApiVerificationKey
@@ -104,47 +105,47 @@ spec = describe "SHELLEY_ADDRESSES" $ do
     it "ADDRESS_LIST_01 - Can list known addresses on a default wallet" $ \ctx -> runResourceT $ do
         let g = fromIntegral $ getAddressPoolGap defaultAddressPoolGap
         w <- emptyWallet ctx
-        r <- request @[ApiAddress n] ctx
+        r <- request @[ApiAddressInfo n] ctx
             (Link.listAddresses @'Shelley w) Default Empty
         expectResponseCode HTTP.status200 r
         expectListSize g r
         forM_ [0..(g-1)] $ \addrNum -> do
-            expectListField addrNum (#state . #getApiT) (`shouldBe` Unused) r
+            expectListField addrNum (#address . #state . #getApiT) (`shouldBe` Unused) r
 
     it "ADDRESS_LIST_01 - Can list addresses with non-default pool gap" $ \ctx -> runResourceT $ do
         let g = 15
         w <- emptyWalletWith ctx ("Wallet", fixturePassphrase, g)
-        r <- request @[ApiAddress n] ctx
+        r <- request @[ApiAddressInfo n] ctx
             (Link.listAddresses @'Shelley w) Default Empty
         expectResponseCode HTTP.status200 r
         expectListSize g r
         forM_ [0..(g-1)] $ \addrNum -> do
-            expectListField addrNum (#state . #getApiT) (`shouldBe` Unused) r
+            expectListField addrNum (#address . #state . #getApiT) (`shouldBe` Unused) r
 
     it "ADDRESS_LIST_02 - Can filter used and unused addresses" $ \ctx -> runResourceT $ do
         let g = fromIntegral $ getAddressPoolGap defaultAddressPoolGap
         w <- fixtureWallet ctx
-        rUsed <- request @[ApiAddress n] ctx
+        rUsed <- request @[ApiAddressInfo n] ctx
             (Link.listAddresses' @'Shelley w (Just Used)) Default Empty
         expectResponseCode HTTP.status200 rUsed
         expectListSize 10 rUsed
         forM_ [0..9] $ \addrNum -> do
             expectListField
-                addrNum (#state . #getApiT) (`shouldBe` Used) rUsed
-        rUnused <- request @[ApiAddress n] ctx
+                addrNum (#address . #state . #getApiT) (`shouldBe` Used) rUsed
+        rUnused <- request @[ApiAddressInfo n] ctx
             (Link.listAddresses' @'Shelley w (Just Unused)) Default Empty
         expectResponseCode HTTP.status200 rUnused
         expectListSize g rUnused
         forM_ [10..(g-1)] $ \addrNum -> do
             expectListField
-                addrNum (#state . #getApiT) (`shouldBe` Unused) rUnused
+                addrNum (#address . #state . #getApiT) (`shouldBe` Unused) rUnused
 
     it "ADDRESS_LIST_02 - Shows nothing when there are no used addresses"
         $ \ctx -> runResourceT $ do
         w <- emptyWallet ctx
-        rUsed <- request @[ApiAddress n] ctx
+        rUsed <- request @[ApiAddressInfo n] ctx
             (Link.listAddresses' @'Shelley w (Just Used)) Default Empty
-        rUnused <- request @[ApiAddress n] ctx
+        rUnused <- request @[ApiAddressInfo n] ctx
             (Link.listAddresses' @'Shelley w (Just Unused)) Default Empty
         expectResponseCode HTTP.status200 rUsed
         expectListSize 0 rUsed
@@ -152,7 +153,7 @@ spec = describe "SHELLEY_ADDRESSES" $ do
         expectListSize 20 rUnused
         forM_ [0..19] $ \addrNum -> do
             expectListField
-                addrNum (#state . #getApiT) (`shouldBe` Unused) rUnused
+                addrNum (#address . #state . #getApiT) (`shouldBe` Unused) rUnused
 
     -- TODO
     -- MOVE TO test/unit/Cardano/Wallet/ApiSpec.hs
@@ -173,7 +174,7 @@ spec = describe "SHELLEY_ADDRESSES" $ do
         forM_ filters $ \fil -> it fil $ \ctx -> runResourceT $ do
             w <- emptyWallet ctx
             let link = withQuery fil $ Link.listAddresses @'Shelley w
-            r <- request @[ApiAddress n] ctx link Default Empty
+            r <- request @[ApiAddressInfo n] ctx link Default Empty
             verify r
                 [ expectResponseCode HTTP.status400
                 , expectErrorMessage
@@ -188,19 +189,19 @@ spec = describe "SHELLEY_ADDRESSES" $ do
         wDest <- emptyWalletWith ctx ("Wallet", fixturePassphrase, initPoolGap)
 
         -- make sure all addresses in address_pool_gap are 'Unused'
-        r <- request @[ApiAddress n] ctx
+        r <- request @[ApiAddressInfo n] ctx
             (Link.listAddresses @'Shelley wDest) Default Empty
         verify r
             [ expectResponseCode HTTP.status200
             , expectListSize initPoolGap
             ]
         forM_ [0..9] $ \addrNum -> do
-            expectListField addrNum (#state . #getApiT) (`shouldBe` Unused) r
+            expectListField addrNum (#address . #state . #getApiT) (`shouldBe` Unused) r
         addrs <- listAddresses @n ctx wDest
 
         -- run 10 transactions to make all addresses `Used`
         forM_ [0..9] $ \addrNum -> do
-            let destination = (addrs !! addrNum) ^. #id
+            let destination = (addrs !! addrNum) ^. (#address . #id)
             let payload = Json [json|{
                     "payments": [{
                         "address": #{destination},
@@ -226,7 +227,7 @@ spec = describe "SHELLEY_ADDRESSES" $ do
                 rb
 
         -- verify new address_pool_gap has been created
-        rAddr <- request @[ApiAddress n] ctx
+        rAddr <- request @[ApiAddressInfo n] ctx
             (Link.listAddresses @'Shelley wDest) Default Empty
         verify rAddr
             [ expectResponseCode HTTP.status200
@@ -234,16 +235,16 @@ spec = describe "SHELLEY_ADDRESSES" $ do
             ]
         forM_ [0..9] $ \addrNum -> do
             expectListField
-                addrNum (#state . #getApiT) (`shouldBe` Used) rAddr
+                addrNum (#address . #state . #getApiT) (`shouldBe` Used) rAddr
         forM_ [10..19] $ \addrNum -> do
             expectListField
-                addrNum (#state . #getApiT) (`shouldBe` Unused) rAddr
+                addrNum (#address . #state . #getApiT) (`shouldBe` Unused) rAddr
 
     it "ADDRESS_LIST_04 - Deleted wallet" $ \ctx -> runResourceT $ do
         w <- emptyWallet ctx
         _ <- request @ApiWallet ctx
             (Link.deleteWallet @'Shelley w) Default Empty
-        r <- request @[ApiAddress n] ctx
+        r <- request @[ApiAddressInfo n] ctx
             (Link.listAddresses @'Shelley w) Default Empty
         expectResponseCode HTTP.status404 r
         expectErrorMessage (errMsg404NoWallet $ w ^. walletId) r
@@ -255,16 +256,16 @@ spec = describe "SHELLEY_ADDRESSES" $ do
         verify r
             [ expectResponseCode HTTP.status200
             -- integration tests are configured for mainnet
-            , expectListField 0 (Aeson.key "id" . Aeson._String)
+            , expectListField 0 (Aeson.key "address" . Aeson.key "id" . Aeson._String)
                 (`shouldSatisfy` T.isPrefixOf "addr")
-            , expectListField 0 (Aeson.key "id" . Aeson._String)
+            , expectListField 0 (Aeson.key "address" . Aeson.key "id" . Aeson._String)
                 (`shouldNotSatisfy` T.isPrefixOf "addr_test")
             ]
 
     it "ADDRESS_LIST_06 - Used change addresses are listed after a transaction is no longer pending" $ \ctx -> runResourceT @IO $ do
         let verifyAddrs nTotal nUsed addrs = do
                 liftIO (length addrs `shouldBe` nTotal)
-                let onlyUsed = filter ((== Used) . (^. (#state . #getApiT))) addrs
+                let onlyUsed = filter ((== Used) . (^. (#address . #state . #getApiT))) addrs
                 liftIO (length onlyUsed `shouldBe` nUsed)
 
         -- 1. Create Shelley wallets
@@ -281,7 +282,7 @@ spec = describe "SHELLEY_ADDRESSES" $ do
             >>= verifyAddrs initialTotalB initialUsedB
 
         -- 2. Send a transaction from A -> B
-        destination <- view #id . head <$> listAddresses @n ctx wB
+        destination <- view (#address . #id) . head <$> listAddresses @n ctx wB
         let amount = 10 * minUTxOValue
         let payload = Json [json|{
                 "payments": [{
@@ -642,7 +643,7 @@ spec = describe "SHELLEY_ADDRESSES" $ do
         addrs <- listAddresses @n ctx w
         forM_ (zip (fmap fromIntegral indices) generatedAddresses)
             $ \(idx, genAddr) -> do
-                let walAddr = fst (addrs !! idx ^. #id) ^. (#getApiT . #unAddress)
+                let walAddr = fst (addrs !! idx ^. (#address . #id)) ^. (#getApiT . #unAddress)
                 walAddr `Expectations.shouldBe` genAddr
 
     it "ANY_ADDRESS_POST_13 - Golden tests for script with timelocks" $ \ctx -> do

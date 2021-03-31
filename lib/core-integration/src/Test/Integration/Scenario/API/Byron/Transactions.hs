@@ -147,7 +147,7 @@ spec = describe "BYRON_TRANSACTIONS" $ do
         let val = minUTxOValue <$ pickAnAsset assetsSrc
 
         addrs <- listAddresses @n ctx wDest
-        let destination = (addrs !! 1) ^. #id
+        let destination = (addrs !! 1) ^. (#address . #id)
         payload <- mkTxPayloadMA @n destination (minUTxOValue * 2) [val] fixturePassphrase
 
         rtx <- request @(ApiTransaction n) ctx
@@ -178,7 +178,7 @@ spec = describe "BYRON_TRANSACTIONS" $ do
         let val = minUTxOValue <$ pickAnAsset assetsSrc
 
         addrs <- listAddresses @n ctx wDest
-        let destination = (addrs !! 1) ^. #id
+        let destination = (addrs !! 1) ^. (#address . #id)
         payload <- mkTxPayloadMA @n destination minUTxOValue [val] fixturePassphrase
 
         rtx <- request @(ApiTransaction n) ctx
@@ -200,7 +200,7 @@ spec = describe "BYRON_TRANSACTIONS" $ do
         let val = minUTxOValue <$ pickAnAsset assetsSrc
 
         addrs <- listAddresses @n ctx wDest
-        let destination = (addrs !! 1) ^. #id
+        let destination = (addrs !! 1) ^. (#address . #id)
         payload <- mkTxPayloadMA @n destination 0 [val] fixturePassphrase
 
         rtx <- request @(ApiTransaction n) ctx
@@ -310,7 +310,7 @@ spec = describe "BYRON_TRANSACTIONS" $ do
         addrs <- listAddresses @n ctx wShelley
 
         let amt = minUTxOValue :: Natural
-        let destination = (addrs !! 1) ^. #id
+        let destination = (addrs !! 1) ^. (#address . #id)
         let payload = Json [json|{
                 "payments": [{
                     "address": #{destination},
@@ -375,7 +375,7 @@ spec = describe "BYRON_TRANSACTIONS" $ do
             let wid = w ^. walletId
             wDest <- emptyWallet ctx
             addr:_ <- listAddresses @n ctx wDest
-            let destination = addr ^. #id
+            let destination = addr ^. (#address . #id)
             let payload = Json [json|{
                     "payments": [{
                         "address": #{destination},
@@ -407,7 +407,7 @@ spec = describe "BYRON_TRANSACTIONS" $ do
             let wid = w ^. walletId
             wDest <- emptyWallet ctx
             addr:_ <- listAddresses @n ctx wDest
-            let destination = addr ^. #id
+            let destination = addr ^. (#address . #id)
             let payload = Json [json|{
                     "payments": [{
                         "address": #{destination},

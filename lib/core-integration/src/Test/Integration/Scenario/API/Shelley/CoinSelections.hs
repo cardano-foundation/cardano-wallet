@@ -127,7 +127,7 @@ spec = describe "SHELLEY_COIN_SELECTION" $ do
         \ctx -> runResourceT $ do
             source <- fixtureWallet ctx
             target <- emptyWallet ctx
-            targetAddress : _ <- fmap (view #id) <$> listAddresses @n ctx target
+            targetAddress : _ <- fmap (view (#address . #id)) <$> listAddresses @n ctx target
             let amount = Quantity minUTxOValue
             let payment = AddressAmount targetAddress amount mempty
             let output = ApiCoinSelectionOutput targetAddress amount mempty
@@ -157,7 +157,7 @@ spec = describe "SHELLEY_COIN_SELECTION" $ do
             let paymentCount = 10
             source <- fixtureWallet ctx
             target <- emptyWallet ctx
-            targetAddresses <- fmap (view #id) <$> listAddresses @n ctx target
+            targetAddresses <- fmap (view (#address . #id)) <$> listAddresses @n ctx target
             let amounts = Quantity <$> [minUTxOValue ..]
             let assets = repeat mempty
             let payments = NE.fromList
@@ -179,7 +179,7 @@ spec = describe "SHELLEY_COIN_SELECTION" $ do
     it "WALLETS_COIN_SELECTION_03 - \
         \Deleted wallet is not available for selection" $ \ctx -> runResourceT $ do
         w <- emptyWallet ctx
-        (addr:_) <- fmap (view #id) <$> listAddresses @n ctx w
+        (addr:_) <- fmap (view (#address . #id)) <$> listAddresses @n ctx w
         let payments = NE.fromList [ AddressAmount addr (Quantity minUTxOValue) mempty ]
         _ <- request @ApiWallet ctx (Link.deleteWallet @'Shelley w) Default Empty
         selectCoins @_ @'Shelley ctx w payments >>= flip verify
@@ -190,7 +190,7 @@ spec = describe "SHELLEY_COIN_SELECTION" $ do
     it "WALLETS_COIN_SELECTION_03 - \
         \Wrong selection method (not 'random')" $ \ctx -> runResourceT $ do
         w <- fixtureWallet ctx
-        (addr:_) <- fmap (view #id) <$> listAddresses @n ctx w
+        (addr:_) <- fmap (view (#address . #id)) <$> listAddresses @n ctx w
         let payments = NE.fromList [ AddressAmount addr (Quantity minUTxOValue) mempty ]
         let payload = Json [json| { "payments": #{payments} } |]
         let wid = toText $ getApiT $ w ^. #id
@@ -238,7 +238,7 @@ spec = describe "SHELLEY_COIN_SELECTION" $ do
                 ]
         forM_ matrix $ \(title, headers, expectations) -> it title $ \ctx -> runResourceT $ do
             w <- fixtureWallet ctx
-            (addr:_) <- fmap (view #id) <$> listAddresses @n ctx w
+            (addr:_) <- fmap (view (#address . #id)) <$> listAddresses @n ctx w
             let payments = NE.fromList [ AddressAmount addr (Quantity minUTxOValue) mempty ]
             let payload = Json [json| { "payments": #{payments} } |]
             r <- request @(ApiCoinSelection n) ctx
@@ -247,7 +247,7 @@ spec = describe "SHELLEY_COIN_SELECTION" $ do
 
     it "WALLETS_COIN_SELECTION_05a - can include metadata" $ \ctx -> runResourceT $ do
         source <- fixtureWallet ctx
-        addr:_ <- fmap (view #id) <$> listAddresses @n ctx source
+        addr:_ <- fmap (view (#address . #id)) <$> listAddresses @n ctx source
 
         let amount = Quantity minUTxOValue
         let payment = AddressAmount addr amount mempty
@@ -261,7 +261,7 @@ spec = describe "SHELLEY_COIN_SELECTION" $ do
 
     it "WALLETS_COIN_SELECTION_05b - choke on invalid metadata" $ \ctx -> runResourceT $ do
         source <- fixtureWallet ctx
-        addr:_ <- fmap (view #id) <$> listAddresses @n ctx source
+        addr:_ <- fmap (view (#address . #id)) <$> listAddresses @n ctx source
 
         let amount = Quantity minUTxOValue
         let payment = AddressAmount addr amount mempty
@@ -275,7 +275,7 @@ spec = describe "SHELLEY_COIN_SELECTION" $ do
 
     it "WALLETS_COIN_SELECTION_06a - can redeem rewards from self" $ \ctx -> runResourceT $ do
         (source,_) <- rewardWallet ctx
-        addr:_ <- fmap (view #id) <$> listAddresses @n ctx source
+        addr:_ <- fmap (view (#address . #id)) <$> listAddresses @n ctx source
 
         let amount = Quantity minUTxOValue
         let payment = AddressAmount addr amount mempty
@@ -293,7 +293,7 @@ spec = describe "SHELLEY_COIN_SELECTION" $ do
     it "WALLETS_COIN_SELECTION_06b - can redeem rewards from other" $ \ctx -> runResourceT $ do
         (_, mnemonic) <- rewardWallet ctx
         source <- fixtureWallet ctx
-        addr:_ <- fmap (view #id) <$> listAddresses @n ctx source
+        addr:_ <- fmap (view (#address . #id)) <$> listAddresses @n ctx source
 
         let amount = Quantity minUTxOValue
         let payment = AddressAmount addr amount mempty
@@ -322,7 +322,7 @@ spec = describe "SHELLEY_COIN_SELECTION" $ do
             let nonAdaQuantities = TokenMap.singleton assetId excessiveQuantity
             sourceWallet <- fixtureWallet ctx
             targetWallet <- emptyWallet ctx
-            targetAddress : _ <- fmap (view #id) <$>
+            targetAddress : _ <- fmap (view (#address . #id)) <$>
                 listAddresses @n ctx targetWallet
             let payment = AddressAmount
                     targetAddress adaQuantity (ApiT nonAdaQuantities)
@@ -355,7 +355,7 @@ spec = describe "SHELLEY_COIN_SELECTION" $ do
                     (, TokenQuantity 1) <$> assetIds
             sourceWallet <- fixtureWallet ctx
             targetWallet <- emptyWallet ctx
-            targetAddress : _ <- fmap (view #id) <$>
+            targetAddress : _ <- fmap (view (#address . #id)) <$>
                 listAddresses @n ctx targetWallet
             let payment = AddressAmount
                     targetAddress adaQuantity (ApiT nonAdaQuantities)

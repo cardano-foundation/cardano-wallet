@@ -111,7 +111,7 @@ spec = describe "SHELLEY_CLI_HW_WALLETS" $ do
         --send transaction to the wallet
         let amount = minUTxOValue
         addrs:_ <- listAddresses @n ctx wDest
-        let addr = encodeAddress @n (getApiT $ fst $ addrs ^. #id)
+        let addr = encodeAddress @n (getApiT $ fst $ addrs ^. (#address . #id))
         let args = T.unpack <$>
                 [ wSrc ^. walletId
                 , "--payment", T.pack (show amount) <> "@" <> addr
@@ -180,7 +180,7 @@ spec = describe "SHELLEY_CLI_HW_WALLETS" $ do
             -- make sure you cannot send tx from wallet
             wDest <- emptyWallet ctx
             addrs:_ <- listAddresses @n ctx wDest
-            let addr = encodeAddress @n (getApiT $ fst $ addrs ^. #id)
+            let addr = encodeAddress @n (getApiT $ fst $ addrs ^. (#address . #id))
 
             let args = T.unpack <$>
                     [ wRestored ^. walletId
@@ -243,7 +243,7 @@ spec = describe "SHELLEY_CLI_HW_WALLETS" $ do
             -- get fee
             wDest <- emptyWallet ctx
             addrs:_ <- listAddresses @n ctx wDest
-            let addr = encodeAddress @n (getApiT $ fst $ addrs ^. #id)
+            let addr = encodeAddress @n (getApiT $ fst $ addrs ^. (#address . #id))
             let amt = minUTxOValue
             let args = T.unpack <$>
                     [ wRestored ^. walletId

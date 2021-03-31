@@ -19,7 +19,7 @@ import Prelude
 import Cardano.Mnemonic
     ( entropyToMnemonic, genEntropy, mnemonicToText )
 import Cardano.Wallet.Api.Types
-    ( ApiAddress
+    ( ApiAddressInfo
     , ApiByronWallet
     , ApiNetworkInformation
     , ApiTransaction
@@ -244,7 +244,7 @@ spec = describe "SHELLEY_WALLETS" $ do
         --send funds
         let wDest = getFromResponse id rInit
         addrs <- listAddresses @n ctx wDest
-        let destination = (addrs !! 1) ^. #id
+        let destination = (addrs !! 1) ^. (#address . #id)
         let payload = Json [json|{
                 "payments": [{
                     "address": #{destination},
@@ -460,7 +460,7 @@ spec = describe "SHELLEY_WALLETS" $ do
             verify rW expectations
 
             let w = getFromResponse id rW
-            rA <- request @[ApiAddress n] ctx
+            rA <- request @[ApiAddressInfo n] ctx
                 (Link.listAddresses @'Shelley w) Default Empty
             _ <- request @ApiWallet ctx
                 (Link.deleteWallet @'Shelley w) Default Empty
@@ -868,7 +868,7 @@ spec = describe "SHELLEY_WALLETS" $ do
             expectResponseCode HTTP.status204 rup
 
             addrs <- listAddresses @n ctx wDest
-            let destination = (addrs !! 1) ^. #id
+            let destination = (addrs !! 1) ^. (#address . #id)
             let payloadTrans = Json [json|{
                     "payments": [{
                         "address": #{destination},
@@ -931,7 +931,7 @@ spec = describe "SHELLEY_WALLETS" $ do
 
         --send funds
         addrs <- listAddresses @n ctx wDest
-        let destination = (addrs !! 1) ^. #id
+        let destination = (addrs !! 1) ^. (#address . #id)
         let coins = [13_000_000::Word64, 43_000_000, 66_000_000, 101_000_000, 1339_000_000]
         let payments = flip map coins $ \c -> [json|{
                 "address": #{destination},

@@ -272,7 +272,7 @@ spec = describe "SHELLEY_STAKE_POOLS" $ do
         -- Try to use rewards
         addrs <- listAddresses @n ctx dest
         let coin = minUTxOValue :: Natural
-        let addr = (addrs !! 1) ^. #id
+        let addr = (addrs !! 1) ^. (#address . #id)
         let payload = [json|
                 { "payments":
                     [ { "address": #{addr}

@@ -85,7 +85,7 @@ spec = describe "BYRON_COIN_SELECTION" $ do
         \No coin selection on Byron random" $ \ctx -> runResourceT $ do
         rnW <- emptyRandomWallet ctx
         shW <- emptyWallet ctx
-        (addr:_) <- fmap (view #id) <$> listAddresses @n ctx shW
+        (addr:_) <- fmap (view (#address . #id)) <$> listAddresses @n ctx shW
         let payments = NE.fromList [ AddressAmount addr (Quantity minUTxOValue) mempty ]
         selectCoins @_ @'Byron ctx rnW payments >>= flip verify
             [ expectResponseCode HTTP.status403
@@ -97,7 +97,7 @@ spec = describe "BYRON_COIN_SELECTION" $ do
         \ctx -> runResourceT $ do
             source <- fixtureIcarusWallet ctx
             target <- emptyWallet ctx
-            targetAddress : _ <- fmap (view #id) <$> listAddresses @n ctx target
+            targetAddress : _ <- fmap (view (#address . #id)) <$> listAddresses @n ctx target
             let amt = Quantity minUTxOValue
             let payment = AddressAmount targetAddress amt mempty
             let output = ApiCoinSelectionOutput targetAddress amt mempty
@@ -131,7 +131,7 @@ spec = describe "BYRON_COIN_SELECTION" $ do
             let paymentCount = 10
             source <- fixtureIcarusWallet ctx
             target <- emptyWallet ctx
-            targetAddresses <- fmap (view #id) <$> listAddresses @n ctx target
+            targetAddresses <- fmap (view (#address . #id)) <$> listAddresses @n ctx target
             let amounts = Quantity <$> [minUTxOValue ..]
             let targetAssets = repeat mempty
             let payments = NE.fromList
@@ -152,7 +152,7 @@ spec = describe "BYRON_COIN_SELECTION" $ do
         \Deleted wallet is not available for selection" $ \ctx -> runResourceT $ do
         icW <- emptyIcarusWallet ctx
         shW <- emptyWallet ctx
-        (addr:_) <- fmap (view #id) <$> listAddresses @n ctx shW
+        (addr:_) <- fmap (view (#address . #id)) <$> listAddresses @n ctx shW
         let payments = NE.fromList [ AddressAmount addr (Quantity minUTxOValue) mempty ]
         _ <- request @ApiByronWallet ctx (Link.deleteWallet @'Byron icW) Default Empty
         selectCoins @_ @'Byron ctx icW payments >>= flip verify

@@ -23,7 +23,7 @@ import Cardano.Mnemonic
     )
 import Cardano.Wallet.Api.Types
     ( AddressAmount (..)
-    , ApiAddress
+    , ApiAddressInfo
     , ApiByronWallet
     , ApiCoinSelectionOutput (..)
     , ApiFee
@@ -275,12 +275,12 @@ spec = describe "BYRON_HW_WALLETS" $ do
             wPub <- restoreWalletFromPubKey @ApiByronWallet @'Byron ctx pubKey restoredWalletName
 
             let g = fromIntegral $ getAddressPoolGap defaultAddressPoolGap
-            r <- request @[ApiAddress n] ctx
+            r <- request @[ApiAddressInfo n] ctx
                 (Link.listAddresses @'Byron wPub) Default Empty
             expectResponseCode HTTP.status200 r
             expectListSize g r
             forM_ [0..(g-1)] $ \addrNum -> do
-                expectListField addrNum (#state . #getApiT) (`shouldBe` Unused) r
+                expectListField addrNum (#address . #state . #getApiT) (`shouldBe` Unused) r
 
         it "Can have address pool gap" $ \ctx -> runResourceT $ do
             mnemonics <- liftIO $ entropyToMnemonic <$> genEntropy
@@ -297,12 +297,12 @@ spec = describe "BYRON_HW_WALLETS" $ do
 
             let wPub = getFromResponse id rRestore
 
-            r <- request @[ApiAddress n] ctx
+            r <- request @[ApiAddressInfo n] ctx
                 (Link.listAddresses @'Byron wPub) Default Empty
             expectResponseCode HTTP.status200 r
             expectListSize addrPoolGap r
             forM_ [0..(addrPoolGap-1)] $ \addrNum -> do
-                expectListField addrNum (#state . #getApiT) (`shouldBe` Unused) r
+                expectListField addrNum (#address . #state . #getApiT) (`shouldBe` Unused) r
 
         it "Can list transactions" $ \ctx -> runResourceT $ do
             mnemonics <- liftIO $ entropyToMnemonic <$> genEntropy

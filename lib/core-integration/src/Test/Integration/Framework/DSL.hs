@@ -204,6 +204,7 @@ import Cardano.Mnemonic
 import Cardano.Wallet.Api.Types
     ( AddressAmount
     , ApiAddress
+    , ApiAddressInfo
     , ApiBlockReference (..)
     , ApiByronWallet
     , ApiCoinSelection
@@ -681,7 +682,7 @@ postTx
     -> m (HTTP.Status, Either RequestException (ApiTransaction n))
 postTx ctx (wSrc, postTxEndp, pass) wDest amt = do
     addrs <- listAddresses @n ctx wDest
-    let destination = (addrs !! 1) ^. #id
+    let destination = (addrs !! 1) ^. (#address . #id)
     let payload = Json [aesonQQ|{
             "payments": [{
                 "address": #{destination},
@@ -1241,9 +1242,9 @@ fixtureMultiAssetRandomWallet ctx = do
     assetsSrc `shouldNotBe` mempty
     let val = minUTxOValue <$ pickAnAsset assetsSrc
 
-    rL <- request @[ApiAddress n] ctx (Link.listAddresses @'Byron wB) Default Empty
+    rL <- request @[ApiAddressInfo n] ctx (Link.listAddresses @'Byron wB) Default Empty
     let addrs = getFromResponse id rL
-    let destination = (addrs !! 1) ^. #id
+    let destination = (addrs !! 1) ^. (#address . #id)
     payload <- mkTxPayloadMA @n destination 0 [val] fixturePassphrase
 
     -- send assets to Byron wallet
@@ -1283,9 +1284,9 @@ fixtureMultiAssetIcarusWallet ctx = do
     assetsSrc `shouldNotBe` mempty
     let val = minUTxOValue <$ pickAnAsset assetsSrc
 
-    rL <- request @[ApiAddress n] ctx (Link.listAddresses @'Byron wB) Default Empty
+    rL <- request @[ApiAddressInfo n] ctx (Link.listAddresses @'Byron wB) Default Empty
     let addrs = getFromResponse id rL
-    let destination = (addrs !! 1) ^. #id
+    let destination = (addrs !! 1) ^. (#address . #id)
     payload <- mkTxPayloadMA @n destination 0 [val] fixturePassphrase
 
     -- send assets to Icarus wallet
@@ -1573,8 +1574,8 @@ fixtureWalletWith ctx coins0 = do
         balance <- getFromResponse (#balance . #available . #getQuantity)
             <$> request @ApiWallet ctx
                     (Link.getWallet @'Shelley dest) Default Empty
-        addrs <- fmap (view #id) . getFromResponse id
-            <$> request @[ApiAddress n] ctx
+        addrs <- fmap (view (#address . #id)) . getFromResponse id
+            <$> request @[ApiAddressInfo n] ctx
                     (Link.listAddresses @'Shelley dest) Default Empty
         let payments = for (zip coins addrs) $ \(amt, addr) -> [aesonQQ|{
                 "address": #{addr},
@@ -1902,10 +1903,10 @@ listAddresses
     :: forall n m. (MonadIO m, MonadUnliftIO m, DecodeAddress n)
     => Context
     -> ApiWallet
-    -> m [ApiAddress n]
+    -> m [ApiAddressInfo n]
 listAddresses ctx w = do
     let link = Link.listAddresses @'Shelley w
-    r <- request @[ApiAddress n] ctx link Default Empty
+    r <- request @[ApiAddressInfo n] ctx link Default Empty
     expectResponseCode HTTP.status200 r
     return (getFromResponse id r)
 

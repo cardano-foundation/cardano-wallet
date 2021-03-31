@@ -164,8 +164,8 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
         wSrc <- fixtureWallet ctx
         wDest <- emptyWallet ctx
         addr <- listAddresses @n ctx wDest
-        let addr1 = encodeAddress @n (getApiT $ fst $ addr !! 1 ^. #id)
-        let addr2 = encodeAddress @n (getApiT $ fst $ addr !! 2 ^. #id)
+        let addr1 = encodeAddress @n (getApiT $ fst $ addr !! 1 ^. (#address . #id))
+        let addr2 = encodeAddress @n (getApiT $ fst $ addr !! 2 ^. (#address . #id))
         let amt = fromIntegral minUTxOValue
         let args = T.unpack <$>
                 [ wSrc ^. walletId
@@ -213,7 +213,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
         wSrc <- fixtureWallet ctx
         wDest <- emptyWallet ctx
         addrs:_ <- listAddresses @n ctx wDest
-        let addr = encodeAddress @n (getApiT $ fst $ addrs ^. #id)
+        let addr = encodeAddress @n (getApiT $ fst $ addrs ^. (#address . #id))
         let args = T.unpack <$>
                 [ wSrc ^. walletId
                 , "--payment", T.pack (show minUTxOValue) <> "@" <> addr
@@ -243,7 +243,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
             wSrc <- emptyWallet ctx
             wDest <- emptyWallet ctx
             addrs:_ <- listAddresses @n ctx wDest
-            let addr = encodeAddress @n (getApiT $ fst $ addrs ^. #id)
+            let addr = encodeAddress @n (getApiT $ fst $ addrs ^. (#address . #id))
             let args = T.unpack <$>
                     [ wSrc ^. walletId
                     , "--payment", amt <> "@" <> addr
@@ -260,7 +260,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
             wDest <- emptyWallet ctx
             addrs:_ <- listAddresses @n ctx wDest
             let port = show $ ctx ^. typed @(Port "wallet")
-            let addr = encodeAddress @n (getApiT $ fst $ addrs ^. #id)
+            let addr = encodeAddress @n (getApiT $ fst $ addrs ^. (#address . #id))
             let args =
                     [ "transaction", "create", "--port", port
                     , walId, "--payment", "12@" ++  (T.unpack addr)
@@ -281,7 +281,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
         wDest <- emptyWallet ctx
         addrs:_ <- listAddresses @n ctx wDest
         let port = T.pack $ show $ ctx ^. typed @(Port "wallet")
-        let addr = encodeAddress @n (getApiT $ fst $ addrs ^. #id)
+        let addr = encodeAddress @n (getApiT $ fst $ addrs ^. (#address . #id))
         let args = T.unpack <$>
                 [ "transaction", "create", "--port", port
                 , T.append (wSrc ^. walletId) "0", "--payment", T.pack (show minUTxOValue) <> "@" <> addr
@@ -300,7 +300,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
 
         wDest <- emptyWallet ctx
         addrs:_ <- listAddresses @n ctx wDest
-        let addr = encodeAddress @n (getApiT $ fst $ addrs ^. #id)
+        let addr = encodeAddress @n (getApiT $ fst $ addrs ^. (#address . #id))
         let port = T.pack $ show $ ctx ^. typed @(Port "wallet")
         let args = T.unpack <$>
                 [ "transaction", "create", "--port", port
@@ -388,7 +388,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
             wSrc <- emptyWallet ctx
             wDest <- emptyWallet ctx
             addrs:_ <- listAddresses @n ctx wDest
-            let addr = encodeAddress @n (getApiT $ fst $ addrs ^. #id)
+            let addr = encodeAddress @n (getApiT $ fst $ addrs ^. (#address . #id))
             let args = T.unpack <$>
                     [ wSrc ^. walletId
                     , "--payment", amt <> "@" <> addr
@@ -428,7 +428,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
         wSrc <- fixtureWallet ctx
         wDest <- emptyWallet ctx
         addr:_ <- listAddresses @n ctx wDest
-        let addrStr = encodeAddress @n (getApiT $ fst $ addr ^. #id)
+        let addrStr = encodeAddress @n (getApiT $ fst $ addr ^. (#address . #id))
         let amt = minUTxOValue :: Natural
         let args = T.unpack <$>
                 [ wSrc ^. walletId
@@ -657,7 +657,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
         wSrc <- fixtureWallet ctx
         wDest <- emptyWallet ctx
         addr:_ <- listAddresses @n ctx wDest
-        let addrStr = encodeAddress @n (getApiT $ fst $ addr ^. #id)
+        let addrStr = encodeAddress @n (getApiT $ fst $ addr ^. (#address . #id))
         let amt = minUTxOValue :: Natural
         let args = T.unpack <$>
                 [ wSrc ^. walletId
@@ -725,7 +725,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
         wSrc <- fixtureWallet ctx
         wDest <- emptyWallet ctx
         addr:_ <- listAddresses @n ctx wDest
-        let addrStr = encodeAddress @n (getApiT $ fst $ addr ^. #id)
+        let addrStr = encodeAddress @n (getApiT $ fst $ addr ^. (#address . #id))
         let amt = minUTxOValue :: Natural
         let args = T.unpack <$>
                 [ wSrc ^. walletId
@@ -858,7 +858,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
             wSrc <- emptyRandomWallet ctx
             wDest <- emptyWallet ctx
             addrs:_ <- listAddresses @n ctx wDest
-            let addr = encodeAddress @n (getApiT $ fst $ addrs ^. #id)
+            let addr = encodeAddress @n (getApiT $ fst $ addrs ^. (#address . #id))
             let port = T.pack $ show $ ctx ^. typed @(Port "wallet")
             let args = T.unpack <$>
                     [ "transaction", T.pack action, "--port", port
@@ -900,7 +900,7 @@ spec = describe "SHELLEY_CLI_TRANSACTIONS" $ do
         -> m [String]
       postTxArgs ctx wSrc wDest amt md ttl = do
           addr <- headMayIO =<< listAddresses @n ctx wDest
-          let addrStr = encodeAddress @n (getApiT $ fst $ addr ^. #id)
+          let addrStr = encodeAddress @n (getApiT $ fst $ addr ^. (#address . #id))
           return $ T.unpack <$>
               [ wSrc ^. walletId
               , "--payment", T.pack (show amt) <> "@" <> addrStr
