@@ -1115,9 +1115,9 @@ spec = describe "SHELLEY_WALLETS" $ do
         let dummyChainCode = BS.replicate 32 0
         let sig = CC.xsignature $ BL.toStrict $ getFromResponse id rSig
         let key = unsafeXPub $ fst (getFromResponse #getApiVerificationKey rKey) <> dummyChainCode
-        let msg = unsafeFromHex "A10071706C65617365207369676E20746869732E"
+        let msgHash = unsafeFromHex "1228cd0fea46f9a091172829f0c492c0516dceff67de08f585a4e048a28a6c9f"
 
-        liftIO $ CC.verify key msg <$> sig `shouldBe` Right True
+        liftIO $ CC.verify key msgHash <$> sig `shouldBe` Right True
 
     it "WALLETS_SIGNATURES_02 - invalid index for signing key" $ \ctx -> runResourceT $  do
         w <- emptyWallet ctx
