@@ -136,6 +136,7 @@ import Cardano.Wallet.Api.Types
     , ApiAccountKey
     , ApiAddressData
     , ApiAddressIdT
+    , ApiAddressInfoT
     , ApiAddressInspect
     , ApiAddressInspectData
     , ApiAddressT
@@ -404,7 +405,7 @@ type ListAddresses n = "wallets"
     :> Capture "walletId" (ApiT WalletId)
     :> "addresses"
     :> QueryParam "state" (ApiT AddressState)
-    :> Get '[JSON] [ApiAddressT n]
+    :> Get '[JSON] [ApiAddressInfoT n]
 
 -- | https://input-output-hk.github.io/cardano-wallet/api/#operation/inspectAddress
 type InspectAddress = "addresses"
@@ -698,7 +699,7 @@ type ListByronAddresses n = "byron-wallets"
     :> Capture "walletId" (ApiT WalletId)
     :> "addresses"
     :> QueryParam "state" (ApiT AddressState)
-    :> Get '[JSON] [ApiAddressT n]
+    :> Get '[JSON] [ApiAddressInfoT n]
 
 {-------------------------------------------------------------------------------
                                Coin Selections

@@ -52,6 +52,7 @@ module Cardano.Wallet.Api.Types
     , ApiAssetMetadata (..)
     , toApiAssetMetadata
     , ApiAddress (..)
+    , ApiAddressInfo (..)
     , ApiCredential (..)
     , ApiAddressData (..)
     , ApiAddressDataPayload (..)
@@ -155,6 +156,7 @@ module Cardano.Wallet.Api.Types
 
     -- * Type families
     , ApiAddressT
+    , ApiAddressInfoT
     , ApiPutAddressesDataT
     , ApiAddressIdT
     , ApiCoinSelectionT
@@ -487,6 +489,12 @@ toApiAssetMetadata W.AssetMetadata{name,description,ticker,url,logo,unit} =
 data ApiAddress (n :: NetworkDiscriminant) = ApiAddress
     { id :: !(ApiT Address, Proxy n)
     , state :: !(ApiT AddressState)
+    } deriving (Eq, Generic, Show)
+      deriving anyclass NFData
+
+data ApiAddressInfo (n :: NetworkDiscriminant) = ApiAddressInfo
+    { address :: !(ApiAddress n)
+    , derivationPath :: NonEmpty (ApiT DerivationIndex)
     } deriving (Eq, Generic, Show)
       deriving anyclass NFData
 
@@ -1299,6 +1307,11 @@ newtype ApiMnemonicT (sizes :: [Nat]) =
 instance DecodeAddress n => FromJSON (ApiAddress n) where
     parseJSON = genericParseJSON defaultRecordTypeOptions
 instance EncodeAddress n => ToJSON (ApiAddress n) where
+    toJSON = genericToJSON defaultRecordTypeOptions
+
+instance DecodeAddress n => FromJSON (ApiAddressInfo n) where
+    parseJSON = genericParseJSON defaultRecordTypeOptions
+instance EncodeAddress n => ToJSON (ApiAddressInfo n) where
     toJSON = genericToJSON defaultRecordTypeOptions
 
 instance FromJSON ApiAsset where
@@ -2471,6 +2484,7 @@ instance DecodeStakeAddress 'Mainnet => DecodeStakeAddress ('Staging pm) where
 --
 -- We use an open type family so it can be extended by other module in places.
 type family ApiAddressT (n :: k) :: Type
+type family ApiAddressInfoT (n :: k) :: Type
 type family ApiAddressIdT (n :: k) :: Type
 type family ApiCoinSelectionT (n :: k) :: Type
 type family ApiSelectCoinsDataT (n :: k) :: Type
@@ -2482,6 +2496,9 @@ type family ApiPutAddressesDataT (n :: k) :: Type
 
 type instance ApiAddressT (n :: NetworkDiscriminant) =
     ApiAddress n
+
+type instance ApiAddressInfoT (n :: NetworkDiscriminant) =
+    ApiAddressInfo n
 
 type instance ApiPutAddressesDataT (n :: NetworkDiscriminant) =
     ApiPutAddressesData n

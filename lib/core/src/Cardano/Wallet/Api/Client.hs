@@ -58,6 +58,7 @@ import Cardano.Wallet.Api
     )
 import Cardano.Wallet.Api.Types
     ( ApiAddressIdT
+    , ApiAddressInfoT
     , ApiAddressInspect (..)
     , ApiAddressInspectData (..)
     , ApiAddressT
@@ -175,7 +176,7 @@ data AddressClient = AddressClient
     { listAddresses
         :: ApiT WalletId
         -> Maybe (ApiT AddressState)
-        -> ClientM [Aeson.Value]
+        -> ClientM [ApiAddressInfoT Aeson.Value]
     , inspectAddress
         :: Text
         -> ClientM Aeson.Value
@@ -403,6 +404,7 @@ networkClient =
 --
 
 type instance ApiAddressT Aeson.Value = Aeson.Value
+type instance ApiAddressInfoT Aeson.Value = Aeson.Value
 type instance ApiAddressIdT Aeson.Value = Text
 type instance ApiCoinSelectionT Aeson.Value = Aeson.Value
 type instance ApiSelectCoinsDataT Aeson.Value = Aeson.Value
