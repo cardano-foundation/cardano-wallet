@@ -360,6 +360,7 @@ spec = parallel $ do
             jsonRoundtripAndGolden $ Proxy @AnyAddress
             jsonRoundtripAndGolden $ Proxy @ApiCredential
             jsonRoundtripAndGolden $ Proxy @ApiAddressData
+            jsonRoundtripAndGolden $ Proxy @(ApiAddressInfo ('Testnet 0))
             jsonRoundtripAndGolden $ Proxy @(ApiT DerivationIndex)
             jsonRoundtripAndGolden $ Proxy @ApiPostAccountKeyData
             jsonRoundtripAndGolden $ Proxy @ApiAccountKey

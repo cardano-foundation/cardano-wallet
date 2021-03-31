@@ -1,0 +1,105 @@
+{
+    "seed": 756688421826037025,
+    "samples": [
+        {
+            "address": {
+                "state": "used",
+                "id": "<addr>"
+            },
+            "derivation_path": [
+                "0",
+                "17537"
+            ]
+        },
+        {
+            "address": {
+                "state": "used",
+                "id": "<addr>"
+            },
+            "derivation_path": [
+                "2",
+                "29264"
+            ]
+        },
+        {
+            "address": {
+                "state": "used",
+                "id": "<addr>"
+            },
+            "derivation_path": [
+                "1",
+                "2474"
+            ]
+        },
+        {
+            "address": {
+                "state": "unused",
+                "id": "<addr>"
+            },
+            "derivation_path": [
+                "2",
+                "20677"
+            ]
+        },
+        {
+            "address": {
+                "state": "unused",
+                "id": "<addr>"
+            },
+            "derivation_path": [
+                "0",
+                "5812"
+            ]
+        },
+        {
+            "address": {
+                "state": "used",
+                "id": "<addr>"
+            },
+            "derivation_path": [
+                "2",
+                "27661"
+            ]
+        },
+        {
+            "address": {
+                "state": "used",
+                "id": "<addr>"
+            },
+            "derivation_path": [
+                "1",
+                "21582"
+            ]
+        },
+        {
+            "address": {
+                "state": "unused",
+                "id": "<addr>"
+            },
+            "derivation_path": [
+                "2",
+                "22411"
+            ]
+        },
+        {
+            "address": {
+                "state": "used",
+                "id": "<addr>"
+            },
+            "derivation_path": [
+                "2",
+                "18889"
+            ]
+        },
+        {
+            "address": {
+                "state": "unused",
+                "id": "<addr>"
+            },
+            "derivation_path": [
+                "2",
+                "30046"
+            ]
+        }
+    ]
+}
