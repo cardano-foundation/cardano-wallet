@@ -345,6 +345,17 @@ spec = describe "SHELLEY_ADDRESSES" $ do
         r <- request @Aeson.Value ctx (Link.inspectAddress str) Default Empty
         expectResponseCode HTTP.status400 r
 
+    it "ADDRESS_INSPECT_03 - Address inspect bech32" $ \ctx -> do
+        let str = "addr_test1qzamu40sglnsrylzv9jylekjmzgaqsg5v5z9u6yk3jpnnxjwck77fqu8deuumsvnazjnjhwasc2eetfqpa2pvygts78ssd5388"
+        r <- request @Aeson.Value ctx (Link.inspectAddress str) Default Empty
+        verify r
+            [ expectResponseCode HTTP.status200
+            , expectField (Aeson.key "spending_key_hash_bech32" . Aeson._String)
+                (`shouldBe` "addr_test1hwl9tuz8uuqe8cnpv387d5kcj8gyz9r9q30x395vsvue5una0f4")
+            , expectField (Aeson.key "stake_key_hash_bech32" . Aeson._String)
+                (`shouldBe` "stake_vkh1fmzmmeyrsah8nnwpj0522w2amkrpt89dyq84g9s3pwrc7dqjnfu")
+            ]
+
     -- Generating golden test data for enterprise addresses - script credential:
     --- $ cardano-address script hash "$(cat script.txt)" \
     --- | cardano-address address payment --from-script --network-tag mainnet
