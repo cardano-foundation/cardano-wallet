@@ -176,6 +176,10 @@ instance Buildable (RndState network) where
 -- | Shortcut type alias for HD random address derivation path.
 type DerivationPath = (Index 'WholeDomain 'AccountK, Index 'WholeDomain 'AddressK)
 
+toDerivationIndices :: DerivationPath -> (DerivationIndex, DerivationIndex)
+toDerivationIndices (accIx, addIx) =
+    (DerivationIndex $ getIndex accIx, DerivationIndex $ getIndex addIx)
+
 instance RndStateLike (RndState n) where
     importAddress addr s = do
         case addressToPath addr (hdPassphrase s) of
@@ -334,9 +338,17 @@ instance CompareDiscovery (RndState n) where
 
 instance KnownAddresses (RndState n) where
     knownAddresses s = mconcat
-        [ Map.elems (discoveredAddresses s)
-        , Map.elems ((,Unused) <$> pendingAddresses s)
+        [ retrieve (discoveredAddresses s)
+        , retrieve ((,Unused) <$> pendingAddresses s)
         ]
+     where
+       construct (derPath, (addr, state)) =
+           ( addr
+           , state
+           , fst $ toDerivationIndices derPath
+           , snd $ toDerivationIndices derPath
+           )
+       retrieve = map construct . Map.toList
 
 --------------------------------------------------------------------------------
 --

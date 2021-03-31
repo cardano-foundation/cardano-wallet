@@ -171,6 +171,7 @@ import Cardano.Wallet.Api.Types
     , ApiAccountKey (..)
     , ApiAccountPublicKey (..)
     , ApiAddress (..)
+    , ApiAddressInfo (..)
     , ApiAsset (..)
     , ApiBlockInfo (..)
     , ApiBlockReference (..)
@@ -1453,17 +1454,20 @@ listAddresses
     -> (s -> Address -> Maybe Address)
     -> ApiT WalletId
     -> Maybe (ApiT AddressState)
-    -> Handler [ApiAddress n]
+    -> Handler [ApiAddressInfo n]
 listAddresses ctx normalize (ApiT wid) stateFilter = do
     addrs <- withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
         W.listAddresses @_ @s @k wrk wid normalize
     return $ coerceAddress <$> filter filterCondition addrs
   where
-    filterCondition :: (Address, AddressState) -> Bool
+    filterCondition :: (Address, AddressState, DerivationIndex, DerivationIndex) -> Bool
     filterCondition = case stateFilter of
         Nothing -> const True
-        Just (ApiT s) -> (== s) . snd
-    coerceAddress (a, s) = ApiAddress (ApiT a, Proxy @n) (ApiT s)
+        Just (ApiT s) -> \(_,state,_,_) -> state == s
+    coerceAddress (a, s, ix1, ix2) =
+        ApiAddressInfo
+        (ApiAddress (ApiT a, Proxy @n) (ApiT s))
+        (NE.fromList [ApiT ix1, ApiT ix2])
 
 {-------------------------------------------------------------------------------
                                     Transactions

@@ -371,19 +371,36 @@ role = fromMaybe (error $ "role: unmatched type" <> show (typeRep @c))
             Just Refl  -> Just MutableAccount
             Nothing -> Nothing
 
+roleIndex :: forall (c :: Role). Typeable c => DerivationIndex
+roleIndex = fromMaybe (error $ "roleIndex: unmatched type" <> show (typeRep @c))
+       (tryUtxoExternal <|> tryUtxoInternal <|> tryMutableAccount)
+  where
+    tryUtxoExternal =
+        case testEquality (typeRep @c) (typeRep @'UtxoExternal) of
+            Just Refl  -> Just (DerivationIndex 0)
+            Nothing -> Nothing
+    tryUtxoInternal =
+        case testEquality (typeRep @c) (typeRep @'UtxoInternal) of
+            Just Refl  -> Just (DerivationIndex 1)
+            Nothing -> Nothing
+    tryMutableAccount =
+        case testEquality (typeRep @c) (typeRep @'MutableAccount) of
+            Just Refl  -> Just (DerivationIndex 2)
+            Nothing -> Nothing
+
 -- | Get all addresses in the pool, sorted from the first address discovered,
 -- up until the next one.
 --
 -- In practice, we always have:
 --
--- > mkAddressPool key g cc (addresses pool) == pool
+-- > mkAddressPool key g cc (map (\(a,s,_,_) -> (a,s)) $ addresses pool) == pool
 addresses
-    :: forall c k. ()
+    :: forall c k. Typeable c
     => (KeyFingerprint "payment" k -> Address)
     -> AddressPool c k
-    -> [(Address, AddressState)]
+    -> [(Address, AddressState, DerivationIndex, DerivationIndex)]
 addresses mkAddress =
-    map (\(k, (_, st)) -> (mkAddress k, st))
+    map (\(k, (ix, st)) -> (mkAddress k, st, roleIndex @c, DerivationIndex $ getIndex ix))
     . L.sortOn (fst . snd)
     . Map.toList
     . indexedKeys
@@ -913,7 +930,7 @@ instance
                 addresses (liftPaymentAddress @n @k) (internalPool s)
 
             usedChangeAddresses =
-                filter ((== Used) . snd) changeAddresses
+                filter (\(_, state, _, _) -> state == Used ) changeAddresses
 
             -- pick as many unused change addresses as there are pending
             -- transactions. Note: the last `internalGap` addresses are all

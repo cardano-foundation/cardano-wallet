@@ -2372,7 +2372,7 @@ insertAddressPool
 insertAddressPool wid sl pool =
     void $ dbChunked insertMany_
         [ SeqStateAddress wid sl addr ix (Seq.role @c) state
-        | (ix, (addr, state))
+        | (ix, (addr, state,_,_))
         <- zip [0..] (Seq.addresses (liftPaymentAddress @n) pool)
         ]
 

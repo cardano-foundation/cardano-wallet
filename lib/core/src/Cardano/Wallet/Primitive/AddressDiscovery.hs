@@ -127,7 +127,7 @@ class CompareDiscovery s where
         -> Address
         -> Ordering
 
--- | Extract the list of all known addresses.
+-- | Extract the list of all known addresses. Also specify Role/Index.
 --
 -- NOTE: Change addresses aren't considered "known" until they've been used. The
 -- rationale is that, we don't want users or consumers of the wallet to be using
@@ -135,7 +135,7 @@ class CompareDiscovery s where
 class KnownAddresses s where
     knownAddresses
         :: s
-        -> [(Address, AddressState)]
+        -> [(Address, AddressState, DerivationIndex, DerivationIndex)]
 
 -- | One master node (seed) can be used for unlimited number of independent
 -- cryptocoins such as Bitcoin, Litecoin or Namecoin. However, sharing the

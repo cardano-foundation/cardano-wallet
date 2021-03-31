@@ -1075,7 +1075,7 @@ listAddresses
         -- non-delegation addresses found in the transaction history are
         -- shown with their delegation settings.
         -- Use 'Just' for wallet without delegation settings.
-    -> ExceptT ErrNoSuchWallet IO [(Address, AddressState)]
+    -> ExceptT ErrNoSuchWallet IO [(Address, AddressState,DerivationIndex,DerivationIndex)]
 listAddresses ctx wid normalize = db & \DBLayer{..} -> do
     cp <- mapExceptT atomically
         $ withNoSuchWallet wid
@@ -1085,8 +1085,8 @@ listAddresses ctx wid normalize = db & \DBLayer{..} -> do
     -- FIXME
     -- Stream this instead of returning it as a single block.
     return
-        $ L.sortBy (\(a,_) (b,_) -> compareDiscovery s a b)
-        $ mapMaybe (\(addr, st) -> (,st) <$> normalize s addr)
+        $ L.sortBy (\(a,_,_,_) (b,_,_,_) -> compareDiscovery s a b)
+        $ mapMaybe (\(addr, st, fstIx, sndIx) -> (,st, fstIx, sndIx) <$> normalize s addr)
         $ knownAddresses s
   where
     db = ctx ^. dbLayer @s @k
