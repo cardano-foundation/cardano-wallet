@@ -107,7 +107,7 @@ replaceCosignersWithVerKeys role (ScriptTemplate xpubs scriptTemplate) ix =
         ActiveFromSlot s     -> ActiveFromSlot s
         ActiveUntilSlot s    -> ActiveUntilSlot s
     convertIndex :: Index 'Soft 'ScriptK -> CA.Index 'CA.Soft 'CA.PaymentK
-    convertIndex = fromJust . CA.fromWord32 . fromIntegral . fromEnum
+    convertIndex = fromJust . CA.indexFromWord32 . fromIntegral . fromEnum
     toKeyHash :: Cosigner -> KeyHash
     toKeyHash c =
         let (Just accXPub) =
