@@ -870,10 +870,9 @@ postSharedWalletFromRootXPrv
     -> Handler ApiSharedWallet
 postSharedWalletFromRootXPrv ctx generateKey body = do
     let state = mkSharedStateFromRootXPrv (rootXPrv, pwd) accIx g pTemplate dTemplateM
-    void $ liftHandler $ initWorker @_ @s @k ctx wid
+    void $ liftHandler $ createWalletWorker @_ @s @k ctx wid
         (\wrk -> W.createWallet  @(WorkerCtx ctx) @s @k wrk wid wName state)
-        (\wrk -> W.restoreWallet @(WorkerCtx ctx) @s @k wrk wid)
-        (\wrk -> W.manageRewardBalance @(WorkerCtx ctx) @s @k (Proxy @n) wrk wid)
+        (\wrk _ -> W.manageRewardBalance @(WorkerCtx ctx) @s @k (Proxy @n) wrk wid)
     withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk -> liftHandler $
         W.attachPrivateKeyFromPwd @_ @s @k wrk wid (rootXPrv, pwd)
     fst <$> getWallet ctx (mkSharedWallet @_ @s @k) (ApiT wid)
@@ -907,10 +906,9 @@ postSharedWalletFromAccountXPub
     -> Handler ApiSharedWallet
 postSharedWalletFromAccountXPub ctx liftKey body = do
     let state = mkSharedStateFromAccountXPub (liftKey accXPub) accIx g pTemplate dTemplateM
-    void $ liftHandler $ initWorker @_ @s @k ctx wid
+    void $ liftHandler $ createWalletWorker @_ @s @k ctx wid
         (\wrk -> W.createWallet  @(WorkerCtx ctx) @s @k wrk wid wName state)
-        (\wrk -> W.restoreWallet @(WorkerCtx ctx) @s @k wrk wid)
-        (`idleWorker` wid)
+        idleWorker
     fst <$> getWallet ctx (mkSharedWallet @_ @s @k) (ApiT wid)
   where
     g = defaultAddressPoolGap
