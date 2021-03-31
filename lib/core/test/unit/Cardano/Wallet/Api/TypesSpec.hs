@@ -51,6 +51,7 @@ import Cardano.Wallet.Api.Types
     , ApiAddress (..)
     , ApiAddressData (..)
     , ApiAddressDataPayload (..)
+    , ApiAddressInfo (..)
     , ApiAddressInspect (..)
     , ApiAsset (..)
     , ApiBlockInfo (..)
@@ -1077,6 +1078,13 @@ instance Arbitrary (ApiAddress t) where
         <$> fmap (, Proxy @t) arbitrary
         <*> arbitrary
 
+instance Arbitrary (ApiAddressInfo t) where
+    shrink _ = []
+    arbitrary = do
+        roleIx <- ApiT . DerivationIndex <$> choose (0,2)
+        addIx <- ApiT . DerivationIndex <$> arbitrary
+        ApiAddressInfo <$> arbitrary <*> pure (NE.fromList [roleIx, addIx])
+
 instance Arbitrary ApiEpochInfo where
     arbitrary = ApiEpochInfo <$> arbitrary <*> genUniformTime
     shrink _ = []
@@ -1900,6 +1908,9 @@ specification =
 
 instance ToSchema (ApiAddress t) where
     declareNamedSchema _ = declareSchemaForDefinition "ApiAddress"
+
+instance ToSchema (ApiAddressInfo t) where
+    declareNamedSchema _ = declareSchemaForDefinition "ApiAddressInfo"
 
 instance ToSchema ApiAddressInspect where
     declareNamedSchema _ = declareSchemaForDefinition "ApiAddressInspect"
