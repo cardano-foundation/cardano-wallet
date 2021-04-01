@@ -11,7 +11,7 @@
     flags = { release = false; };
     package = {
       specVersion = "1.12";
-      identifier = { name = "cardano-addresses"; version = "3.2.0"; };
+      identifier = { name = "cardano-addresses"; version = "3.3.0"; };
       license = "Apache-2.0";
       copyright = "2020 IOHK";
       maintainer = "operations@iohk.io";
@@ -55,6 +55,7 @@
           depends = [
             (hsPkgs."QuickCheck" or (errorHandler.buildDepError "QuickCheck"))
             (hsPkgs."aeson" or (errorHandler.buildDepError "aeson"))
+            (hsPkgs."aeson-pretty" or (errorHandler.buildDepError "aeson-pretty"))
             (hsPkgs."base" or (errorHandler.buildDepError "base"))
             (hsPkgs."bech32" or (errorHandler.buildDepError "bech32"))
             (hsPkgs."binary" or (errorHandler.buildDepError "binary"))
@@ -63,7 +64,9 @@
             (hsPkgs."cardano-crypto" or (errorHandler.buildDepError "cardano-crypto"))
             (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
             (hsPkgs."hspec" or (errorHandler.buildDepError "hspec"))
+            (hsPkgs."hspec-golden" or (errorHandler.buildDepError "hspec-golden"))
             (hsPkgs."memory" or (errorHandler.buildDepError "memory"))
+            (hsPkgs."pretty-simple" or (errorHandler.buildDepError "pretty-simple"))
             (hsPkgs."text" or (errorHandler.buildDepError "text"))
             ];
           build-tools = [
@@ -76,8 +79,8 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/cardano-addresses";
-      rev = "05bd6d0b877d8fc440be83142935fa1e7a915916";
-      sha256 = "1ymyijrzklkq2jf9d9pvygrh1yzx9rgsrfpxcf9x04pdpxx2v101";
+      rev = "55f174b32095e4264e0c75344caf34f4207a4e58";
+      sha256 = "1k2fvs1fg50v128m2y2nrspwk9anfif3ss6xc07iicfnwaph0j7z";
       });
     postUnpack = "sourceRoot+=/core; echo source root reset to \$sourceRoot";
     }) // { cabal-generator = "hpack"; }

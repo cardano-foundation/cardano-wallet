@@ -11,7 +11,7 @@
     flags = { release = false; };
     package = {
       specVersion = "1.12";
-      identifier = { name = "cardano-addresses-cli"; version = "3.2.0"; };
+      identifier = { name = "cardano-addresses-cli"; version = "3.3.0"; };
       license = "Apache-2.0";
       copyright = "2020 IOHK";
       maintainer = "operations@iohk.io";
@@ -67,13 +67,12 @@
             (hsPkgs."cardano-addresses" or (errorHandler.buildDepError "cardano-addresses"))
             (hsPkgs."cardano-addresses-cli" or (errorHandler.buildDepError "cardano-addresses-cli"))
             (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
-            (hsPkgs."hjsonschema" or (errorHandler.buildDepError "hjsonschema"))
             (hsPkgs."hspec" or (errorHandler.buildDepError "hspec"))
             (hsPkgs."process" or (errorHandler.buildDepError "process"))
             (hsPkgs."string-interpolate" or (errorHandler.buildDepError "string-interpolate"))
             (hsPkgs."temporary" or (errorHandler.buildDepError "temporary"))
             (hsPkgs."text" or (errorHandler.buildDepError "text"))
-            ];
+            ] ++ (pkgs.lib).optional (!(compiler.isGhcjs && true || system.isGhcjs)) (hsPkgs."hjsonschema" or (errorHandler.buildDepError "hjsonschema"));
           build-tools = [
             (hsPkgs.buildPackages.hspec-discover.components.exes.hspec-discover or (pkgs.buildPackages.hspec-discover or (errorHandler.buildToolDepError "hspec-discover:hspec-discover")))
             (hsPkgs.buildPackages.cardano-address.components.exes.cardano-address or (pkgs.buildPackages.cardano-address or (errorHandler.buildToolDepError "cardano-address:cardano-address")))
@@ -85,8 +84,8 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/cardano-addresses";
-      rev = "05bd6d0b877d8fc440be83142935fa1e7a915916";
-      sha256 = "1ymyijrzklkq2jf9d9pvygrh1yzx9rgsrfpxcf9x04pdpxx2v101";
+      rev = "55f174b32095e4264e0c75344caf34f4207a4e58";
+      sha256 = "1k2fvs1fg50v128m2y2nrspwk9anfif3ss6xc07iicfnwaph0j7z";
       });
     postUnpack = "sourceRoot+=/command-line; echo source root reset to \$sourceRoot";
     }) // { cabal-generator = "hpack"; }

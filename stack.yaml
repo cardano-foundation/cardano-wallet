@@ -3,7 +3,7 @@
 #
 # NOTE: Remember to update the version matrix in README.md when
 # bumping the Cardano version.
-resolver: https://raw.githubusercontent.com/input-output-hk/cardano-haskell/231870a3b785f569daef0596b3a1657324c9394a/snapshots/cardano-1.25.1-GHC-8.10.4.yaml
+resolver: https://raw.githubusercontent.com/input-output-hk/cardano-haskell/cd67c3f16b6c17afe76fbd3e5cefe3be0ad51147/snapshots/cardano-1.25.1.yaml
 
 packages:
 - lib/core
@@ -27,9 +27,9 @@ extra-deps:
 - parsec-3.1.14.0
 - quickcheck-state-machine-0.7.0
 
-# cardano-addresses-3.2.0
+# cardano-addresses-3.3.0
 - git: https://github.com/input-output-hk/cardano-addresses
-  commit: 05bd6d0b877d8fc440be83142935fa1e7a915916
+  commit: 55f174b32095e4264e0c75344caf34f4207a4e58
   subdirs:
     - command-line
     - core

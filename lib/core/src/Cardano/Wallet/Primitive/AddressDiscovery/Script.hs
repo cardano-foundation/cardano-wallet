@@ -71,7 +71,7 @@ import Data.Either.Combinators
 import Data.Kind
     ( Type )
 import Data.Maybe
-    ( fromMaybe, isJust )
+    ( fromJust, fromMaybe, isJust )
 import Data.Type.Equality
     ( (:~:) (..), testEquality )
 import Type.Reflection
@@ -107,7 +107,7 @@ replaceCosignersWithVerKeys role (ScriptTemplate xpubs scriptTemplate) ix =
         ActiveFromSlot s     -> ActiveFromSlot s
         ActiveUntilSlot s    -> ActiveUntilSlot s
     convertIndex :: Index 'Soft 'ScriptK -> CA.Index 'CA.Soft 'CA.PaymentK
-    convertIndex = toEnum .fromEnum
+    convertIndex = fromJust . CA.indexFromWord32 . fromIntegral . fromEnum
     toKeyHash :: Cosigner -> KeyHash
     toKeyHash c =
         let (Just accXPub) =
