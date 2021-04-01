@@ -1454,16 +1454,25 @@ components:
             format: base16
             minLength: 56
             maxLength: 56
+          spending_key_bech32:
+            type: string
+            format: bech32
           stake_key_hash:
             type: string
             format: base16
             minLength: 56
             maxLength: 56
+          stake_key_bech32:
+            type: string
+            format: bech32
           script_hash:
             type: string
             format: base16
             minLength: 64
             maxLength: 64
+          script_hash_bech32:
+            type: string
+            format: bech32
           pointer:
             type: object
             additionalProperties: false
