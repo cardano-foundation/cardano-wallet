@@ -59,7 +59,7 @@ import Network.Wai
 import System.FilePath
     ( (</>) )
 import Test.Hspec
-    ( Spec, describe, it, shouldBe, shouldThrow )
+    ( Spec, describe, it, pendingWith, shouldBe, shouldThrow )
 import Test.Utils.Paths
     ( getTestData )
 import Test.Utils.Windows
@@ -77,6 +77,7 @@ import qualified Network.Wai.Handler.Warp as Warp
 spec :: Spec
 spec = describe "TLS Client Authentication" $ do
     it "Respond to authenticated client if TLS is enabled" $ do
+        pendingWith "ADP-852: Tests are broken"
         pendingOnWine "CertOpenSystemStoreW is failing under Wine"
         withListeningSocket "*" ListenOnRandomPort $ \(Right (port, socket)) -> do
             let tlsSv = TlsConfiguration
@@ -99,6 +100,7 @@ spec = describe "TLS Client Authentication" $ do
                 }
 
     it "Deny client with wrong certificate if TLS is enabled" $ do
+        pendingWith "ADP-852: Tests are broken"
         pendingOnWine "CertOpenSystemStoreW is failing under Wine"
         withListeningSocket "*" ListenOnRandomPort $ \(Right (port, socket)) -> do
             let tlsSv = TlsConfiguration
@@ -123,6 +125,7 @@ spec = describe "TLS Client Authentication" $ do
                 _ -> False
 
     it "Properly deny HTTP connection if TLS is enabled" $ do
+        pendingWith "ADP-852: Tests are broken"
         withListeningSocket "*" ListenOnRandomPort $ \(Right (port, socket)) -> do
             let tlsSv = TlsConfiguration
                     { tlsCaCert = rootPKI 1 </> "ca.crt"
