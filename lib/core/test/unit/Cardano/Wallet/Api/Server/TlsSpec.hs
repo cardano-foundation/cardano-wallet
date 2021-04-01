@@ -75,7 +75,7 @@ import System.FilePath
 import System.IO
     ( hPutStrLn, stderr )
 import Test.Hspec
-    ( Spec, describe, it, pendingWith, shouldBe, shouldThrow )
+    ( Spec, describe, it, shouldBe, shouldThrow )
 import Test.Utils.Paths
     ( getTestData )
 import Test.Utils.Windows
@@ -94,7 +94,6 @@ import qualified Network.Wai.Handler.Warp as Warp
 spec :: Spec
 spec = describe "TLS Client Authentication" $ do
     it "Respond to authenticated client if TLS is enabled" $ do
-        pendingWith "ADP-852: Tests are broken"
         pendingOnWine "CertOpenSystemStoreW is failing under Wine"
         withListeningSocket "*" ListenOnRandomPort $ \(Right (port, socket)) -> do
             tlsSv <- rootPKI 1 "server"
@@ -109,7 +108,6 @@ spec = describe "TLS Client Authentication" $ do
                 }
 
     it "Deny client with wrong certificate if TLS is enabled" $ do
-        pendingWith "ADP-852: Tests are broken"
         pendingOnWine "CertOpenSystemStoreW is failing under Wine"
         withListeningSocket "*" ListenOnRandomPort $ \(Right (port, socket)) -> do
             tlsSv <- rootPKI 1 "server"
@@ -126,7 +124,6 @@ spec = describe "TLS Client Authentication" $ do
                 _ -> False
 
     it "Properly deny HTTP connection if TLS is enabled" $ do
-        pendingWith "ADP-852: Tests are broken"
         withListeningSocket "*" ListenOnRandomPort $ \(Right (port, socket)) -> do
             tlsSv <- rootPKI 1 "server"
             link =<< async
