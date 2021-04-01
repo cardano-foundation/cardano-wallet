@@ -42,6 +42,7 @@
           (hsPkgs."ip" or (errorHandler.buildDepError "ip"))
           (hsPkgs."text" or (errorHandler.buildDepError "text"))
           (hsPkgs."unordered-containers" or (errorHandler.buildDepError "unordered-containers"))
+          (hsPkgs."wide-word" or (errorHandler.buildDepError "wide-word"))
           (hsPkgs."x509" or (errorHandler.buildDepError "x509"))
           (hsPkgs."x509-store" or (errorHandler.buildDepError "x509-store"))
           (hsPkgs."x509-validation" or (errorHandler.buildDepError "x509-validation"))
@@ -66,7 +67,7 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/cardano-sl-x509";
-      rev = "43a036c5bbe68ca2e9cbe611eab7982e2348fe49";
-      sha256 = "1aw7ns8lv51fjf45k8yzils2j7a6bqzy8hn65kb3z0dn1qsm8x88";
+      rev = "12925934c533b3a6e009b61ede555f8f26bac037";
+      sha256 = "1kma25g8sl6m3pgsihja7fysmv6vjdfc0x7dyky9g5z156sh8z7i";
       });
     }

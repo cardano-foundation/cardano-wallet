@@ -30,6 +30,7 @@
         "regex-posix-clib" = (((hackage.regex-posix-clib)."2.7").revisions).default;
         "statistics-linreg" = (((hackage.statistics-linreg)."0.3").revisions).default;
         "streaming-binary" = (((hackage.streaming-binary)."0.2.2.0").revisions).default;
+        "ip" = (((hackage.ip)."1.5.1").revisions).default;
         cardano-wallet-core = ./cardano-wallet-core.nix;
         cardano-wallet-core-integration = ./cardano-wallet-core-integration.nix;
         cardano-wallet-cli = ./cardano-wallet-cli.nix;
