@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE TypeApplications #-}
 
 -- |
@@ -26,13 +27,16 @@ import Fmt
     ( Buildable (..) )
 import GHC.Generics
     ( Generic )
+import Quiet
+    ( Quiet (..) )
 
 -- | A reward account is used in group-type addresses for delegation.
 --
 -- It is the public key of the account address.
 --
 newtype RewardAccount = RewardAccount { unRewardAccount :: ByteString }
-    deriving (Generic, Show, Eq, Ord)
+    deriving (Generic, Eq, Ord)
+    deriving Show via (Quiet RewardAccount)
 
 instance NFData RewardAccount
 

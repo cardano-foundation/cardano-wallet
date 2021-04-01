@@ -174,6 +174,7 @@ library
       Cardano.Wallet.Primitive.AddressDiscovery
       Cardano.Wallet.Primitive.Slotting
       Cardano.Wallet.Primitive.AddressDiscovery.Random
+      Cardano.Wallet.Primitive.Delegation.State
       Cardano.Wallet.Primitive.AddressDiscovery.Sequential
       Cardano.Wallet.Primitive.AddressDiscovery.Shared
       Cardano.Wallet.Primitive.SyncProgress
@@ -298,6 +299,7 @@ test-suite unit
     , QuickCheck
     , quickcheck-classes
     , quickcheck-state-machine >= 0.6.0
+    , quiet
     , random
     , retry
     , safe
@@ -363,6 +365,7 @@ test-suite unit
       Cardano.Wallet.Primitive.AddressDiscovery.RandomSpec
       Cardano.Wallet.Primitive.AddressDiscovery.SequentialSpec
       Cardano.Wallet.Primitive.AddressDiscovery.SharedSpec
+      Cardano.Wallet.Primitive.Delegation.StateSpec
       Cardano.Wallet.Primitive.AddressDiscoverySpec
       Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobinSpec
       Cardano.Wallet.Primitive.MigrationSpec
