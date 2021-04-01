@@ -10,6 +10,16 @@ import Prelude
 
 import Cardano.Wallet.Api.Server
     ( Listen (..), TlsConfiguration (..), withListeningSocket )
+import Cardano.X509.Configuration
+    ( CertDescription (..)
+    , ConfigurationKey (..)
+    , DirConfiguration (..)
+    , decodeConfigFile
+    , fromConfiguration
+    , genCertificate
+    )
+import Control.Monad
+    ( unless )
 import Control.Tracer
     ( nullTracer )
 import Data.ByteString.Lazy
@@ -22,6 +32,8 @@ import Data.X509
     ( CertificateChain (..) )
 import Data.X509.CertificateStore
     ( makeCertificateStore )
+import Data.X509.Extra
+    ( encodePEM, genRSA256KeyPair )
 import Data.X509.File
     ( readKeyFile, readSignedObject )
 import Network.Connection
@@ -56,8 +68,12 @@ import Network.TLS.Extra.Cipher
     ( ciphersuite_default )
 import Network.Wai
     ( responseLBS )
+import System.Directory
+    ( createDirectoryIfMissing, doesDirectoryExist )
 import System.FilePath
-    ( (</>) )
+    ( takeFileName, (<.>), (</>) )
+import System.IO
+    ( hPutStrLn, stderr )
 import Test.Hspec
     ( Spec, describe, it, shouldBe, shouldThrow )
 import Test.Utils.Paths
@@ -70,6 +86,7 @@ import UnliftIO.Exception
     ( fromException )
 
 import qualified Cardano.Wallet.Api.Server as Server
+import qualified Data.ByteString as BS
 import qualified Network.HTTP.Types.Status as Http
 import qualified Network.Wai as Wai
 import qualified Network.Wai.Handler.Warp as Warp
@@ -79,16 +96,8 @@ spec = describe "TLS Client Authentication" $ do
     it "Respond to authenticated client if TLS is enabled" $ do
         pendingOnWine "CertOpenSystemStoreW is failing under Wine"
         withListeningSocket "*" ListenOnRandomPort $ \(Right (port, socket)) -> do
-            let tlsSv = TlsConfiguration
-                    { tlsCaCert = rootPKI 1 </> "ca.crt"
-                    , tlsSvCert = rootPKI 1 </> "server.crt"
-                    , tlsSvKey  = rootPKI 1 </> "server.key"
-                    }
-            let tlsCl = TlsConfiguration
-                    { tlsCaCert = rootPKI 1 </> "ca.crt"
-                    , tlsSvCert = rootPKI 1 </> "client.crt"
-                    , tlsSvKey  = rootPKI 1 </> "client.key"
-                    }
+            tlsSv <- rootPKI 1 "server"
+            tlsCl <- rootPKI 1 "client"
             link =<< async
                 (Server.start warpSettings nullTracer (Just tlsSv) socket app)
 
@@ -101,16 +110,8 @@ spec = describe "TLS Client Authentication" $ do
     it "Deny client with wrong certificate if TLS is enabled" $ do
         pendingOnWine "CertOpenSystemStoreW is failing under Wine"
         withListeningSocket "*" ListenOnRandomPort $ \(Right (port, socket)) -> do
-            let tlsSv = TlsConfiguration
-                    { tlsCaCert = rootPKI 1 </> "ca.crt"
-                    , tlsSvCert = rootPKI 1 </> "server.crt"
-                    , tlsSvKey  = rootPKI 1 </> "server.key"
-                    }
-            let tlsCl = TlsConfiguration
-                    { tlsCaCert = rootPKI 2 </> "ca.crt"
-                    , tlsSvCert = rootPKI 2 </> "client.crt"
-                    , tlsSvKey  = rootPKI 2 </> "client.key"
-                    }
+            tlsSv <- rootPKI 1 "server"
+            tlsCl <- rootPKI 2 "client"
             link =<< async
                 (Server.start warpSettings nullTracer (Just tlsSv) socket app)
 
@@ -124,11 +125,7 @@ spec = describe "TLS Client Authentication" $ do
 
     it "Properly deny HTTP connection if TLS is enabled" $ do
         withListeningSocket "*" ListenOnRandomPort $ \(Right (port, socket)) -> do
-            let tlsSv = TlsConfiguration
-                    { tlsCaCert = rootPKI 1 </> "ca.crt"
-                    , tlsSvCert = rootPKI 1 </> "server.crt"
-                    , tlsSvKey  = rootPKI 1 </> "server.key"
-                    }
+            tlsSv <- rootPKI 1 "server"
             link =<< async
                 (Server.start warpSettings nullTracer (Just tlsSv) socket app)
 
@@ -139,6 +136,51 @@ spec = describe "TLS Client Authentication" $ do
                 }
 
 --
+-- Test data
+--
+
+rootPKI :: Int -> FilePath -> IO TlsConfiguration
+rootPKI i subdir = do
+    let dir = $(getTestData) </> "PKIs" </> show i
+    exists <- doesDirectoryExist dir
+    unless exists $ do
+        hPutStrLn stderr $ "rootPKI: There's no PKI for index #" <> show i
+        genPKI dir
+        hPutStrLn stderr $ "rootPKI: Created " <> dir
+    pure TlsConfiguration
+        { tlsCaCert = dir </> "ca.crt"
+        , tlsSvCert = dir </> subdir </> subdir <.> "crt"
+        , tlsSvKey  = dir </> subdir </> subdir <.> "key"
+        }
+
+genPKI :: FilePath -> IO ()
+genPKI dir = do
+    cfg <- decodeConfigFile (ConfigurationKey "dev") confFile
+    (caDesc, certDescs) <-
+            fromConfiguration cfg dirConf genRSA256KeyPair <$> genRSA256KeyPair
+    genCertificate (findCert "client" certDescs) >>= writePEM "client"
+    genCertificate (findCert "server" certDescs) >>= writePEM "server"
+    genCertificate caDesc >>= writeCert "ca"
+  where
+    dirConf = DirConfiguration
+        { outDirServer = dir </> "server"
+        , outDirClients = dir </> "client"
+        , outDirCA = Just dir
+        }
+    confFile = $(getTestData) </> "PKIs" </> "cardano-sl-x509.yaml"
+    writePEM f (key, cert) = do
+        createDirectoryIfMissing True (dir </> f)
+        let base = dir </> f </> f
+        let cert' = encodePEM cert
+        let key' = encodePEM key
+        BS.writeFile (base <.> "crt") cert'
+        BS.writeFile (base <.> "key") key'
+        BS.writeFile (base <.> "pem") $ key' <> "\n" <> cert' <> "\n"
+    writeCert f = BS.writeFile (dir </> f <.> "crt") . encodePEM . snd
+
+    findCert outDir = head . filter ((== outDir) . takeFileName . certOutDir)
+
+--
 -- Test Application
 --
 
@@ -147,11 +189,6 @@ warpSettings = Warp.defaultSettings
     -- NOTE By default, Warp prints any exception on stdout, which is kinda
     -- annoying...
     & Warp.setOnException (\_ _ -> pure ())
-
-rootPKI :: Int -> FilePath
-rootPKI i
-    | i `elem` [1,2] = $(getTestData) </> "PKIs" </> show i
-    | otherwise = error $ "rootPKI: There's no PKI for index #" <> show i
 
 app :: Wai.Application
 app _request respond =

@@ -251,6 +251,7 @@ test-suite unit
     , cardano-wallet-core
     , cardano-wallet-launcher
     , cardano-wallet-test-utils
+    , cardano-sl-x509
     , cardano-slotting
     , cborg
     , connection
