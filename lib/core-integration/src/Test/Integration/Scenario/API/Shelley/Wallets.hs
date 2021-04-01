@@ -60,6 +60,10 @@ import Control.Monad.Trans.Resource
     ( runResourceT )
 import Data.Aeson
     ( ToJSON (..) )
+import Data.ByteArray.Encoding
+    ( Base (Base16), convertToBase )
+import Data.ByteString
+    ( ByteString )
 import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
 import Data.Proxy
@@ -71,7 +75,9 @@ import Data.Text
 import Data.Word
     ( Word32, Word64 )
 import Test.Hspec
-    ( SpecWith, describe, shouldBe, shouldNotBe )
+    ( SpecWith, describe )
+import Test.Hspec.Expectations.Lifted
+    ( shouldBe, shouldNotBe )
 import Test.Hspec.Extra
     ( it )
 import Test.Integration.Framework.DSL
@@ -79,6 +85,7 @@ import Test.Integration.Framework.DSL
     , Headers (..)
     , MnemonicLength (..)
     , Payload (..)
+    , constFixtureWalletNoWait
     , counterexample
     , emptyByronWalletWith
     , emptyRandomWallet
@@ -1073,7 +1080,7 @@ spec = describe "SHELLEY_WALLETS" $ do
             ]
 
     it "WALLETS_SIGNATURES_01 - can verify signature" $ \ctx -> runResourceT $ do
-        w <- emptyWallet ctx
+        w <- constFixtureWalletNoWait ctx
 
         let (role_, index) = (MutableAccount, DerivationIndex 0)
         let payload = [json|
@@ -1086,9 +1093,7 @@ spec = describe "SHELLEY_WALLETS" $ do
             (Link.signMetadata w role_ index)
             (Headers [(HTTP.hAccept, "*/*"), (HTTP.hContentType, "application/json")])
             (Json payload)
-        verify rSig
-            [ expectResponseCode HTTP.status200
-            ]
+        expectResponseCode HTTP.status200 rSig
 
         -- get corresponding public key
         rKey <- request @ApiVerificationKey ctx
@@ -1113,11 +1118,14 @@ spec = describe "SHELLEY_WALLETS" $ do
         --           706C65617365207369676E20746869732E # "please sign this."
         --
         let dummyChainCode = BS.replicate 32 0
-        let sig = CC.xsignature $ BL.toStrict $ getFromResponse id rSig
+        let sigBytes = BL.toStrict $ getFromResponse id rSig
+        let sig = CC.xsignature sigBytes
         let key = unsafeXPub $ fst (getFromResponse #getApiVerificationKey rKey) <> dummyChainCode
         let msgHash = unsafeFromHex "1228cd0fea46f9a091172829f0c492c0516dceff67de08f585a4e048a28a6c9f"
-
         liftIO $ CC.verify key msgHash <$> sig `shouldBe` Right True
+
+        let goldenSig = "680739414d89eb9f4377192171ce3990c7beea6132a04f327d7c954ae9e7fcfe747dd7b4b9b11acefa1aa75216b837fc81e59c24001b96356ba65598ec159d0c" :: ByteString
+        convertToBase Base16 sigBytes `shouldBe` goldenSig
 
     it "WALLETS_SIGNATURES_02 - invalid index for signing key" $ \ctx -> runResourceT $  do
         w <- emptyWallet ctx
