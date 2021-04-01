@@ -114,6 +114,7 @@ module Test.Integration.Framework.DSL
     , fixtureMultiAssetWallet
     , fixtureMultiAssetRandomWallet
     , fixtureMultiAssetIcarusWallet
+    , constFixtureWalletNoWait
     , faucetAmt
     , faucetUtxoAmt
     , proc'
@@ -352,7 +353,7 @@ import Test.Hspec.Expectations.Lifted
 import Test.HUnit.Lang
     ( FailureReason (..), HUnitFailure (..) )
 import Test.Integration.Faucet
-    ( NextWallet, nextTxBuilder, nextWallet )
+    ( NextWallet, nextTxBuilder, nextWallet, seqMnemonics )
 import Test.Integration.Framework.Context
     ( Context (..), TxDescription (..) )
 import Test.Integration.Framework.Request
@@ -1601,6 +1602,23 @@ fixtureWalletWith ctx coins0 = do
             getFromResponse (#balance . #available) ra
                 `shouldBe`
                     getFromResponse (#balance . #total) ra
+
+-- | Create a fixture from the same mnemonic every time.
+-- Don't wait for it to restore before returning.
+constFixtureWalletNoWait :: MonadIO m => Context -> ResourceT m ApiWallet
+constFixtureWalletNoWait ctx = snd <$> allocate create free
+  where
+    payload = Json [aesonQQ| {
+            "name": "Fixed empty spec wallet",
+            "mnemonic_sentence": #{mnemonicToText (head seqMnemonics)},
+            "passphrase": #{fixturePassphrase}
+        } |]
+    create = do
+        r <- request @ApiWallet ctx (Link.postWallet @'Shelley) Default payload
+        expectResponseCode HTTP.status201 r
+        pure $ getFromResponse id r
+    free w = void $ request @Aeson.Value ctx
+        (Link.deleteWallet @'Shelley w) Default Empty
 
 -- | Move coins from a wallet to another
 moveByronCoins

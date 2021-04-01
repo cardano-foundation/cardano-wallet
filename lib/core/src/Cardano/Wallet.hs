@@ -366,6 +366,8 @@ import Control.Monad.Trans.State
     ( runState, state )
 import Control.Tracer
     ( Tracer, contramap, traceWith )
+import Crypto.Hash
+    ( Blake2b_256, hash )
 import Data.ByteString
     ( ByteString )
 import Data.Coerce
@@ -2001,8 +2003,11 @@ signMetadataWith ctx wid pwd (role_, ix) metadata = db & \DBLayer{..} -> do
             let DerivationPrefix (_, _, acctIx) = derivationPrefix (getState cp)
             let acctK = deriveAccountPrivateKey encPwd rootK acctIx
             let addrK = deriveAddressPrivateKey encPwd acctK role_ addrIx
-            let msg   = serialiseToCBOR metadata
-            pure $ Signature $ BA.convert $ CC.sign encPwd (getRawKey addrK) msg
+            pure $
+                Signature $ BA.convert $
+                CC.sign encPwd (getRawKey addrK) $
+                hash @ByteString @Blake2b_256 $
+                serialiseToCBOR metadata
   where
     db = ctx ^. dbLayer @s @k
 
