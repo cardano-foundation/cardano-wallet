@@ -1423,9 +1423,11 @@ components:
       required:
         - id
         - state
+        - derivation_path
       properties:
         id: *addressId
         state: *addressState
+        derivation_path: *derivationPath
 
     ApiAddressInspect: &ApiAddressInspect
         type: object
