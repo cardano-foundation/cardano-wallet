@@ -82,6 +82,7 @@ import Web.HttpApiData
     ( ToHttpApiData (..) )
 
 import qualified Cardano.Wallet.Api.Link as Link
+import qualified Data.List.NonEmpty as NE
 import qualified Network.HTTP.Types.Status as HTTP
 
 spec :: forall n.
@@ -93,8 +94,8 @@ spec :: forall n.
     ) => SpecWith Context
 spec = do
     describe "BYRON_ADDRESSES" $ do
-        scenario_ADDRESS_LIST_01 @n emptyRandomWallet
-        scenario_ADDRESS_LIST_01 @n emptyIcarusWallet
+        scenario_ADDRESS_LIST_01 @n emptyRandomWallet 2
+        scenario_ADDRESS_LIST_01 @n emptyIcarusWallet 5
 
         scenario_ADDRESS_LIST_02 @n fixtureRandomWallet
         scenario_ADDRESS_LIST_02 @n fixtureIcarusWallet
@@ -122,14 +123,16 @@ scenario_ADDRESS_LIST_01
         , EncodeAddress n
         )
     => (Context -> ResourceT IO ApiByronWallet)
+    -> Int
     -> SpecWith Context
-scenario_ADDRESS_LIST_01 fixture = it title $ \ctx -> runResourceT $ do
+scenario_ADDRESS_LIST_01 fixture derPathSize = it title $ \ctx -> runResourceT $ do
     w <- fixture ctx
     r <- request @[ApiAddress n] ctx (Link.listAddresses @'Byron w) Default Empty
     verify r [ expectResponseCode HTTP.status200 ]
     let n = length $ getFromResponse id r
     forM_ [0..n-1] $ \addrIx -> do
         expectListField addrIx #state (`shouldBe` ApiT Unused) r
+        expectListField addrIx #derivationPath (\derPath -> NE.length derPath `shouldBe` derPathSize) r
   where
     title = "ADDRESS_LIST_01 - Can list known addresses on a default wallet"
 
