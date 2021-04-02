@@ -1,5 +1,3 @@
-{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
-
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE DataKinds #-}
@@ -1430,7 +1428,7 @@ unsafeToPMS = FetchSMASH . SmashServer
 --
 -- @Settings@ here is neither of that. It's a real product type, that is supposed
 -- to be extended in the future.
-{-# HLINT ignore Settings "Use newtype instead of data" #-}
+{- HLINT ignore Settings "Use newtype instead of data" -}
 -- | Wallet application settings. These are stored at runtime and
 -- potentially mutable.
 data Settings = Settings {
@@ -1445,7 +1443,7 @@ defaultSettings = Settings {
 -- | Various internal states of the pool DB
 --  that need to survive wallet restarts. These aren't
 --  exposed settings.
-{-# HLINT ignore InternalState "Use newtype instead of data" #-}
+{- HLINT ignore InternalState "Use newtype instead of data" -}
 data InternalState = InternalState
     { lastMetadataGC :: Maybe POSIXTime
     } deriving (Generic, Show, Eq)

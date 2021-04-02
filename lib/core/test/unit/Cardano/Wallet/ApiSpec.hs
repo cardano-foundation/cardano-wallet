@@ -27,11 +27,8 @@
 -- mount an existing request body in a request.
 {-# OPTIONS_GHC -fno-warn-deprecations #-}
 
--- See comment in Cardano.Wallet.Jormungandr.Compatibility
+-- See comment in Cardano.Wallet.Shelley.Compatibility
 {-# OPTIONS_GHC -fno-warn-orphans #-}
-
--- Required to use the HLINT pragma
-{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 
 module Cardano.Wallet.ApiSpec
     ( spec
@@ -272,7 +269,7 @@ instance
             (\(a,b) -> gSpec (\c -> toRequest a b c) toSpec)
 
         -- The lambda above helps readability and make the pattern obvious
-        {-# HLINT ignore "Avoid lambda" #-}
+        {- HLINT ignore "Avoid lambda" -}
 
 instance
     ( Typeable a, Malformed (BodyParam a)
