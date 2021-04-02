@@ -859,7 +859,9 @@ fileModeSpec =  do
                \rollback to the same place" $ \f -> do
               withShelleyDBLayer f $ \db@DBLayer{..} -> do
 
-                let ourAddrs = knownAddresses (getState testCp)
+                let ourAddrs =
+                        map (\(a,s,_) -> (a,s)) $
+                        knownAddresses (getState testCp)
 
                 atomically $ unsafeRunExceptT $ initializeWallet
                     testPk testCp testMetadata mempty gp

@@ -319,8 +319,8 @@ prop_forbiddenAddreses rnd@(Rnd st rk pwd) addrIx = conjoin
     , (Set.member addr (forbidden isOursSt))
     , (Set.notMember changeAddr (forbidden isOursSt))
     , (Set.member changeAddr (forbidden changeSt))
-    , (addr `elem` (fst <$> knownAddresses isOursSt))
-    , (changeAddr `elem` (fst <$> knownAddresses changeSt))
+    , (addr `elem` ((\(a,_,_) -> a) <$> knownAddresses isOursSt))
+    , (changeAddr `elem` ((\(a,_,_) -> a) <$> knownAddresses changeSt))
     ]
   where
     (_ours, isOursSt) = isOurs addr st
@@ -334,10 +334,10 @@ prop_oursAreUsed
     -> Index 'WholeDomain 'AddressK
     -> Property
 prop_oursAreUsed rnd@(Rnd st _ _) addrIx = do
-    case find ((== addr) . fst) $ knownAddresses $ snd $ isOurs addr st of
+    case find (\(a,_,_) -> (a == addr)) $ knownAddresses $ snd $ isOurs addr st of
         Nothing ->
             property False & counterexample "address not is known addresses"
-        Just (_, status) ->
+        Just (_, status,_) ->
             status === Used
   where
     addr = mkAddress rnd addrIx
