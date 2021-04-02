@@ -82,9 +82,12 @@ module Cardano.Wallet.Api.Server
     , signMetadata
     , postAccountPublicKey
 
-    -- * Internals
-    , LiftHandler(..)
+    -- * Server error responses
+    , IsServerError(..)
+    , liftHandler
     , apiError
+
+    -- * Internals
     , mkShelleyWallet
     , mkLegacyWallet
     , withLegacyLayer
@@ -2434,16 +2437,18 @@ withWorkerCtx ctx wid onMissing onNotResponding action =
                                 Error Handling
 -------------------------------------------------------------------------------}
 
+-- | Maps types to servant error responses.
+class IsServerError e where
+    -- | A structured human-readable error code to return to API clients.
+    handler :: e -> ServerError
+
 -- | Lift our wallet layer into servant 'Handler', by mapping each error to a
 -- corresponding servant error.
-class LiftHandler e where
-    liftHandler :: ExceptT e IO a -> Handler a
-    liftHandler action = Handler (withExceptT handler action)
+liftHandler :: IsServerError e => ExceptT e IO a -> Handler a
+liftHandler action = Handler (withExceptT handler action)
 
-    liftE :: e -> Handler a
-    liftE = liftHandler . throwE
-
-    handler :: e -> ServerError
+liftE :: IsServerError e => e -> Handler a
+liftE = liftHandler . throwE
 
 apiError :: ServerError -> ApiErrorCode -> Text -> ServerError
 apiError err code message = err
@@ -2470,7 +2475,7 @@ data ErrTemporarilyDisabled = ErrTemporarilyDisabled
 showT :: Show a => a -> Text
 showT = T.pack . show
 
-instance LiftHandler ErrTemporarilyDisabled where
+instance IsServerError ErrTemporarilyDisabled where
     handler = \case
         ErrTemporarilyDisabled ->
             apiError err501 NotImplemented $ mconcat
@@ -2478,7 +2483,7 @@ instance LiftHandler ErrTemporarilyDisabled where
                 , "accessible again in future releases."
                 ]
 
-instance LiftHandler ErrCurrentEpoch where
+instance IsServerError ErrCurrentEpoch where
     handler = \case
         ErrUnableToDetermineCurrentEpoch ->
             apiError err500 UnableToDetermineCurrentEpoch $ mconcat
@@ -2487,14 +2492,14 @@ instance LiftHandler ErrCurrentEpoch where
                 ]
         ErrCurrentEpochPastHorizonException e -> handler e
 
-instance LiftHandler ErrUnexpectedPoolIdPlaceholder where
+instance IsServerError ErrUnexpectedPoolIdPlaceholder where
     handler = \case
         ErrUnexpectedPoolIdPlaceholder ->
             apiError err400 BadRequest (pretty msg)
       where
         Left msg = fromText @PoolId "INVALID"
 
-instance LiftHandler ErrNoSuchWallet where
+instance IsServerError ErrNoSuchWallet where
     handler = \case
         ErrNoSuchWallet wid ->
             apiError err404 NoSuchWallet $ mconcat
@@ -2502,7 +2507,7 @@ instance LiftHandler ErrNoSuchWallet where
                 , toText wid
                 ]
 
-instance LiftHandler ErrWalletNotResponding where
+instance IsServerError ErrWalletNotResponding where
     handler = \case
         ErrWalletNotResponding wid ->
             apiError err500 WalletNotResponding $ T.unwords
@@ -2515,7 +2520,7 @@ instance LiftHandler ErrWalletNotResponding where
                 , "itself upon restart."
                 ]
 
-instance LiftHandler ErrWalletAlreadyExists where
+instance IsServerError ErrWalletAlreadyExists where
     handler = \case
         ErrWalletAlreadyExists wid ->
             apiError err409 WalletAlreadyExists $ mconcat
@@ -2524,7 +2529,7 @@ instance LiftHandler ErrWalletAlreadyExists where
                 , " However, I already know of a wallet with this id."
                 ]
 
-instance LiftHandler ErrCreateWallet where
+instance IsServerError ErrCreateWallet where
     handler = \case
         ErrCreateWalletAlreadyExists e -> handler e
         ErrCreateWalletFailedToCreateWorker ->
@@ -2535,7 +2540,7 @@ instance LiftHandler ErrCreateWallet where
                 , "permissions or available space?"
                 ]
 
-instance LiftHandler ErrWithRootKey where
+instance IsServerError ErrWithRootKey where
     handler = \case
         ErrWithRootKeyNoRootKey wid ->
             apiError err403 NoRootKey $ mconcat
@@ -2551,11 +2556,11 @@ instance LiftHandler ErrWithRootKey where
                 , toText wid
                 ]
 
-instance LiftHandler ErrListAssets where
+instance IsServerError ErrListAssets where
     handler = \case
         ErrListAssetsNoSuchWallet e -> handler e
 
-instance LiftHandler ErrGetAsset where
+instance IsServerError ErrGetAsset where
     handler = \case
         ErrGetAssetNoSuchWallet e -> handler e
         ErrGetAssetNotPresent ->
@@ -2563,11 +2568,11 @@ instance LiftHandler ErrGetAsset where
                 [ "The requested asset is not associated with this wallet."
                 ]
 
-instance LiftHandler ErrListUTxOStatistics where
+instance IsServerError ErrListUTxOStatistics where
     handler = \case
         ErrListUTxOStatisticsNoSuchWallet e -> handler e
 
-instance LiftHandler ErrMkTx where
+instance IsServerError ErrMkTx where
     handler = \case
         ErrKeyNotFoundForAddress addr ->
             apiError err500 KeyNotFoundForAddress $ mconcat
@@ -2586,7 +2591,7 @@ instance LiftHandler ErrMkTx where
                 , "retry whatever you were doing in a short delay."
                 ]
 
-instance LiftHandler ErrSignPayment where
+instance IsServerError ErrSignPayment where
     handler = \case
         ErrSignPaymentMkTx e -> handler e
         ErrSignPaymentNoSuchWallet e -> (handler e)
@@ -2600,7 +2605,7 @@ instance LiftHandler ErrSignPayment where
         ErrSignPaymentWithRootKey e@ErrWithRootKeyWrongPassphrase{} -> handler e
         ErrSignPaymentIncorrectTTL e -> handler e
 
-instance LiftHandler ErrDecodeSignedTx where
+instance IsServerError ErrDecodeSignedTx where
     handler = \case
         ErrDecodeSignedTxWrongPayload _ ->
             apiError err400 MalformedTxPayload $ mconcat
@@ -2614,7 +2619,7 @@ instance LiftHandler ErrDecodeSignedTx where
                 , "in use. Please try a different backend."
                 ]
 
-instance LiftHandler ErrSubmitExternalTx where
+instance IsServerError ErrSubmitExternalTx where
     handler = \case
         ErrSubmitExternalTxNetwork e -> case e of
             ErrPostTxBadRequest err ->
@@ -2639,7 +2644,7 @@ instance LiftHandler ErrSubmitExternalTx where
             , errReasonPhrase = errReasonPhrase err400
             }
 
-instance LiftHandler ErrRemoveTx where
+instance IsServerError ErrRemoveTx where
     handler = \case
         ErrRemoveTxNoSuchWallet wid -> handler wid
         ErrRemoveTxNoSuchTransaction tid ->
@@ -2653,7 +2658,7 @@ instance LiftHandler ErrRemoveTx where
                   " cannot be forgotten as it is already in the ledger."
                 ]
 
-instance LiftHandler ErrPostTx where
+instance IsServerError ErrPostTx where
     handler = \case
         ErrPostTxBadRequest err ->
             apiError err500 CreatedInvalidTransaction $ mconcat
@@ -2673,7 +2678,7 @@ instance LiftHandler ErrPostTx where
             , "help with debugging: ", err
             ]
 
-instance LiftHandler ErrSubmitTx where
+instance IsServerError ErrSubmitTx where
     handler = \case
         ErrSubmitTxNetwork e -> handler e
         ErrSubmitTxNoSuchWallet e@ErrNoSuchWallet{} -> (handler e)
@@ -2681,12 +2686,12 @@ instance LiftHandler ErrSubmitTx where
             , errReasonPhrase = errReasonPhrase err404
             }
 
-instance LiftHandler ErrUpdatePassphrase where
+instance IsServerError ErrUpdatePassphrase where
     handler = \case
         ErrUpdatePassphraseNoSuchWallet e -> handler e
         ErrUpdatePassphraseWithRootKey e  -> handler e
 
-instance LiftHandler ErrListTransactions where
+instance IsServerError ErrListTransactions where
     handler = \case
         ErrListTransactionsNoSuchWallet e -> handler e
         ErrListTransactionsStartTimeLaterThanEndTime e -> handler e
@@ -2695,7 +2700,7 @@ instance LiftHandler ErrListTransactions where
             "The minimum withdrawal value must be at least 1 Lovelace."
         ErrListTransactionsPastHorizonException e -> handler e
 
-instance LiftHandler ErrStartTimeLaterThanEndTime where
+instance IsServerError ErrStartTimeLaterThanEndTime where
     handler err = apiError err400 StartTimeLaterThanEndTime $ mconcat
         [ "The specified start time '"
         , toText $ Iso8601Time $ errStartTime err
@@ -2704,7 +2709,7 @@ instance LiftHandler ErrStartTimeLaterThanEndTime where
         , "'."
         ]
 
-instance LiftHandler PastHorizonException where
+instance IsServerError PastHorizonException where
     handler _ = apiError err503 PastHorizon $ mconcat
         [ "Tried to convert something that is past the horizon"
         , " (due to uncertainty about the next hard fork)."
@@ -2713,12 +2718,12 @@ instance LiftHandler PastHorizonException where
         , " unknown amount of time."
         ]
 
-instance LiftHandler ErrGetTransaction where
+instance IsServerError ErrGetTransaction where
     handler = \case
         ErrGetTransactionNoSuchWallet e -> handler e
         ErrGetTransactionNoSuchTransaction e -> handler e
 
-instance LiftHandler ErrNoSuchTransaction where
+instance IsServerError ErrNoSuchTransaction where
     handler = \case
         ErrNoSuchTransaction tid ->
             apiError err404 NoSuchTransaction $ mconcat
@@ -2726,7 +2731,7 @@ instance LiftHandler ErrNoSuchTransaction where
                 , toText tid
                 ]
 
-instance LiftHandler ErrJoinStakePool where
+instance IsServerError ErrJoinStakePool where
     handler = \case
         ErrJoinStakePoolNoSuchWallet e -> handler e
         ErrJoinStakePoolCannotJoin e -> case e of
@@ -2743,11 +2748,11 @@ instance LiftHandler ErrJoinStakePool where
                     , toText pid
                     ]
 
-instance LiftHandler ErrFetchRewards where
+instance IsServerError ErrFetchRewards where
     handler = \case
         ErrFetchRewardsReadRewardAccount e -> handler e
 
-instance LiftHandler ErrReadRewardAccount where
+instance IsServerError ErrReadRewardAccount where
     handler = \case
         ErrReadRewardAccountNoSuchWallet e -> handler e
         ErrReadRewardAccountNotAShelleyWallet ->
@@ -2757,7 +2762,7 @@ instance LiftHandler ErrReadRewardAccount where
                 , "wallets can do something with rewards and this one isn't."
                 ]
 
-instance LiftHandler ErrQuitStakePool where
+instance IsServerError ErrQuitStakePool where
     handler = \case
         ErrQuitStakePoolNoSuchWallet e -> handler e
         ErrQuitStakePoolCannotQuit e -> case e of
@@ -2775,7 +2780,7 @@ instance LiftHandler ErrQuitStakePool where
                     , " lovelace first."
                     ]
 
-instance LiftHandler ErrCreateRandomAddress where
+instance IsServerError ErrCreateRandomAddress where
     handler = \case
         ErrCreateAddrNoSuchWallet e -> handler e
         ErrCreateAddrWithRootKey  e -> handler e
@@ -2790,7 +2795,7 @@ instance LiftHandler ErrCreateRandomAddress where
                 , " Make sure to use Byron random wallet id."
                 ]
 
-instance LiftHandler ErrImportRandomAddress where
+instance IsServerError ErrImportRandomAddress where
     handler = \case
         ErrImportAddrNoSuchWallet e -> handler e
         ErrImportAddressNotAByronWallet ->
@@ -2804,7 +2809,7 @@ instance LiftHandler ErrImportRandomAddress where
                 , "belongs to another wallet and I will therefore not import it."
                 ]
 
-instance LiftHandler ErrNotASequentialWallet where
+instance IsServerError ErrNotASequentialWallet where
     handler = \case
         ErrNotASequentialWallet ->
             apiError err403 InvalidWalletType $ mconcat
@@ -2812,7 +2817,7 @@ instance LiftHandler ErrNotASequentialWallet where
                 , "Make sure to use a sequential wallet style, like Icarus."
                 ]
 
-instance LiftHandler ErrWithdrawalNotWorth where
+instance IsServerError ErrWithdrawalNotWorth where
     handler = \case
         ErrWithdrawalNotWorth ->
             apiError err403 WithdrawalNotWorth $ mconcat
@@ -2822,24 +2827,24 @@ instance LiftHandler ErrWithdrawalNotWorth where
                 , "request."
                 ]
 
-instance LiftHandler ErrSignMetadataWith where
+instance IsServerError ErrSignMetadataWith where
     handler = \case
         ErrSignMetadataWithRootKey e -> handler e
         ErrSignMetadataWithNoSuchWallet e -> handler e
         ErrSignMetadataWithInvalidIndex e -> handler e
 
-instance LiftHandler ErrReadAccountPublicKey where
+instance IsServerError ErrReadAccountPublicKey where
     handler = \case
         ErrReadAccountPublicKeyRootKey e -> handler e
         ErrReadAccountPublicKeyNoSuchWallet e -> handler e
         ErrReadAccountPublicKeyInvalidIndex e -> handler e
 
-instance LiftHandler ErrDerivePublicKey where
+instance IsServerError ErrDerivePublicKey where
     handler = \case
         ErrDerivePublicKeyNoSuchWallet e -> handler e
         ErrDerivePublicKeyInvalidIndex e -> handler e
 
-instance LiftHandler (ErrInvalidDerivationIndex 'Soft level) where
+instance IsServerError (ErrInvalidDerivationIndex 'Soft level) where
     handler = \case
         ErrIndexOutOfBound minIx maxIx _ix ->
             apiError err403 SoftDerivationRequired $ mconcat
@@ -2849,14 +2854,14 @@ instance LiftHandler (ErrInvalidDerivationIndex 'Soft level) where
                 , "between ", pretty minIx, " and ", pretty maxIx, " without a suffix."
                 ]
 
-instance LiftHandler ErrSelectionCriteria where
+instance IsServerError ErrSelectionCriteria where
     handler = \case
         ErrSelectionCriteriaOutputTokenBundleSizeExceedsLimit e ->
             handler e
         ErrSelectionCriteriaOutputTokenQuantityExceedsLimit e ->
             handler e
 
-instance LiftHandler ErrOutputTokenBundleSizeExceedsLimit where
+instance IsServerError ErrOutputTokenBundleSizeExceedsLimit where
     handler e = apiError err403 OutputTokenBundleSizeExceedsLimit $ mconcat
         [ "One of the outputs you've specified contains too many assets. "
         , "Try splitting these assets across two or more outputs. "
@@ -2867,7 +2872,7 @@ instance LiftHandler ErrOutputTokenBundleSizeExceedsLimit where
         , "."
         ]
 
-instance LiftHandler ErrOutputTokenQuantityExceedsLimit where
+instance IsServerError ErrOutputTokenQuantityExceedsLimit where
     handler e = apiError err403 OutputTokenQuantityExceedsLimit $ mconcat
         [ "One of the token quantities you've specified is greater than the "
         , "maximum quantity allowed in a single transaction output. Try "
@@ -2885,7 +2890,7 @@ instance LiftHandler ErrOutputTokenQuantityExceedsLimit where
         , "."
         ]
 
-instance LiftHandler ErrSelectAssets where
+instance IsServerError ErrSelectAssets where
     handler = \case
         ErrSelectAssetsCriteriaError e -> handler e
         ErrSelectAssetsNoSuchWallet e -> handler e
@@ -2934,7 +2939,7 @@ instance LiftHandler ErrSelectAssets where
                         , "or try sending a different, smaller payment."
                         ]
 
-instance LiftHandler (ErrInvalidDerivationIndex 'Hardened level) where
+instance IsServerError (ErrInvalidDerivationIndex 'Hardened level) where
     handler = \case
         ErrIndexOutOfBound minIx maxIx _ix ->
             apiError err403 HardenedDerivationRequired $ mconcat
@@ -2944,7 +2949,7 @@ instance LiftHandler (ErrInvalidDerivationIndex 'Hardened level) where
                 , "between ", pretty minIx, " and ", pretty maxIx, " with a suffix 'H'."
                 ]
 
-instance LiftHandler (Request, ServerError) where
+instance IsServerError (Request, ServerError) where
     handler (req, err@(ServerError code _ body headers))
       | not (isJSON body) = case code of
         400 | "Failed reading" `BS.isInfixOf` BL.toStrict body ->

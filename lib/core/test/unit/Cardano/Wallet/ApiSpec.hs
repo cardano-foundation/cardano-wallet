@@ -49,7 +49,7 @@ import Cardano.Wallet.Api.Malformed
     , wellformed
     )
 import Cardano.Wallet.Api.Server
-    ( LiftHandler (..) )
+    ( IsServerError (..) )
 import Cardano.Wallet.Api.Types
     ( ApiStakePool
     , DecodeAddress (..)
