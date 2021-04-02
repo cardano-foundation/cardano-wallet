@@ -24,7 +24,6 @@ cabal.sandbox.config
 .ghci
 *.tix
 hie.yaml
-stack.yaml.lock
 
 ### Nix ###
 result*

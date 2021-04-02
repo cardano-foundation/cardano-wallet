@@ -2436,21 +2436,26 @@ instance
     , WalletKey k
     , Typeable n
     ) => PersistState (Shared.SharedState n k) where
-    insertState (wid, sl) st = case st of
-        Shared.PendingSharedState prefix accXPub pTemplate dTemplateM g -> do
-            insertSharedState accXPub g pTemplate dTemplateM prefix
-            insertCosigner (cosigners pTemplate) Payment
-            when (isJust dTemplateM) $
-                insertCosigner (fromJust $ cosigners <$> dTemplateM) Delegation
+    insertState (wid, sl) st = do
 
-        Shared.SharedState prefix pool -> do
-            let (Seq.ParentContextMultisigScript accXPub pTemplate dTemplateM) =
-                    Seq.context pool
-            insertSharedState accXPub (Seq.gap pool) pTemplate dTemplateM prefix
-            insertCosigner (cosigners pTemplate) Payment
-            when (isJust dTemplateM) $
-                insertCosigner (fromJust $ cosigners <$> dTemplateM) Delegation
-            insertAddressPool @n wid sl pool
+        deleteWhere [SharedStateWalletId ==. wid]
+        deleteWhere [CosignerKeyWalletId ==. wid]
+
+        case st of
+            Shared.PendingSharedState prefix accXPub pTemplate dTemplateM g -> do
+                insertSharedState accXPub g pTemplate dTemplateM prefix
+                insertCosigner (cosigners pTemplate) Payment
+                when (isJust dTemplateM) $
+                    insertCosigner (fromJust $ cosigners <$> dTemplateM) Delegation
+
+            Shared.SharedState prefix pool -> do
+                let (Seq.ParentContextMultisigScript accXPub pTemplate dTemplateM) =
+                        Seq.context pool
+                insertSharedState accXPub (Seq.gap pool) pTemplate dTemplateM prefix
+                insertCosigner (cosigners pTemplate) Payment
+                when (isJust dTemplateM) $
+                    insertCosigner (fromJust $ cosigners <$> dTemplateM) Delegation
+                insertAddressPool @n wid sl pool
       where
          insertSharedState accXPub g pTemplate dTemplateM prefix =
             repsert (SharedStateKey wid) $ SharedState
