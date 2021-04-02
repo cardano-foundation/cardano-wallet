@@ -544,7 +544,7 @@ spec = describe "BYRON_MIGRATIONS" $ do
             targetWallet <- emptyWallet ctx
             addrs <- listAddresses @n ctx targetWallet
             let addrIds =
-                    map (\(ApiTypes.ApiAddress theid _) -> theid) $
+                    map (\(ApiTypes.ApiAddress theid _ _) -> theid) $
                     take addrNum addrs
 
             -- Calculate the expected migration fee:

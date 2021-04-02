@@ -487,6 +487,7 @@ toApiAssetMetadata W.AssetMetadata{name,description,ticker,url,logo,unit} =
 data ApiAddress (n :: NetworkDiscriminant) = ApiAddress
     { id :: !(ApiT Address, Proxy n)
     , state :: !(ApiT AddressState)
+    , derivationPath :: NonEmpty (ApiT DerivationIndex)
     } deriving (Eq, Generic, Show)
       deriving anyclass NFData
 
