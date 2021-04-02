@@ -391,7 +391,7 @@ addresses mkAddress =
     toDerivationPath ix = NE.fromList $ map DerivationIndex
         [ getIndex purposeBIP44
         , getIndex purposeCIP1852
-        , 0
+        , 0   -- corresponds to account number
         , fromIntegral $ fromEnum $ role @c
         , getIndex ix
         ]
