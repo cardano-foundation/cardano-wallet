@@ -378,15 +378,23 @@ role = fromMaybe (error $ "role: unmatched type" <> show (typeRep @c))
 --
 -- > mkAddressPool key g cc (addresses pool) == pool
 addresses
-    :: forall c k. ()
+    :: forall c k. Typeable c
     => (KeyFingerprint "payment" k -> Address)
     -> AddressPool c k
-    -> [(Address, AddressState)]
+    -> [(Address, AddressState, NonEmpty DerivationIndex)]
 addresses mkAddress =
-    map (\(k, (_, st)) -> (mkAddress k, st))
+    map (\(k, (ix, st)) -> (mkAddress k, st, toDerivationPath ix))
     . L.sortOn (fst . snd)
     . Map.toList
     . indexedKeys
+  where
+    toDerivationPath ix = NE.fromList $ map DerivationIndex
+        [ getIndex purposeBIP44
+        , getIndex purposeCIP1852
+        , 0   -- corresponds to account number
+        , fromIntegral $ fromEnum $ role @c
+        , getIndex ix
+        ]
 
 -- | Create a new Address pool from a list of addresses. Note that, the list is
 -- expected to be ordered in sequence (first indexes, first in the list).
@@ -913,7 +921,7 @@ instance
                 addresses (liftPaymentAddress @n @k) (internalPool s)
 
             usedChangeAddresses =
-                filter ((== Used) . snd) changeAddresses
+                filter (\(_, state, _) -> state == Used) changeAddresses
 
             -- pick as many unused change addresses as there are pending
             -- transactions. Note: the last `internalGap` addresses are all

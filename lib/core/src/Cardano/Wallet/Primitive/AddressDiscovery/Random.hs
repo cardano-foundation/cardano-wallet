@@ -27,6 +27,7 @@ module Cardano.Wallet.Primitive.AddressDiscovery.Random
     , RndStateLike
     , mkRndState
     , DerivationPath
+    , toDerivationIndexes
 
     -- ** Low-level API
     , importAddress
@@ -332,11 +333,23 @@ deriveRndStateAddress k passphrase path =
 instance CompareDiscovery (RndState n) where
     compareDiscovery _ _ _ = EQ
 
+
 instance KnownAddresses (RndState n) where
     knownAddresses s = mconcat
-        [ Map.elems (discoveredAddresses s)
-        , Map.elems ((,Unused) <$> pendingAddresses s)
+        [ toListWithPath (\path (addr, state) -> (addr, state, path))
+            (discoveredAddresses s)
+        , toListWithPath (\path addr -> (addr, Unused, path))
+            (pendingAddresses s)
         ]
+      where
+        toListWithPath
+            :: (NonEmpty DerivationIndex -> v -> result)
+            -> Map DerivationPath v
+            -> [result]
+        toListWithPath mk =
+            Map.foldrWithKey
+                (\path v result -> mk (toDerivationIndexes path) v : result)
+                []
 
 --------------------------------------------------------------------------------
 --

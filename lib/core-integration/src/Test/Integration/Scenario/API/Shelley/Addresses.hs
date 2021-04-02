@@ -83,6 +83,7 @@ import Test.Integration.Framework.TestData
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Lens as Aeson
+import qualified Data.List.NonEmpty as NE
 import qualified Data.Text as T
 import qualified Network.HTTP.Types.Status as HTTP
 import qualified Test.Hspec.Expectations.Lifted as Expectations
@@ -110,6 +111,7 @@ spec = describe "SHELLEY_ADDRESSES" $ do
         expectListSize g r
         forM_ [0..(g-1)] $ \addrNum -> do
             expectListField addrNum (#state . #getApiT) (`shouldBe` Unused) r
+            expectListField addrNum #derivationPath (\derPath -> NE.length derPath `shouldBe` 5) r
 
     it "ADDRESS_LIST_01 - Can list addresses with non-default pool gap" $ \ctx -> runResourceT $ do
         let g = 15

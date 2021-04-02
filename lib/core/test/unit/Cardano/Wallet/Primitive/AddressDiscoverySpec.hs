@@ -85,9 +85,10 @@ prop_derivedKeysAreOurs
     -> ByronKey 'RootK XPrv
     -> Property
 prop_derivedKeysAreOurs seed encPwd accIx addrIx rk' =
-    isJust resPos .&&. addr `elem` (fst <$> knownAddresses stPos') .&&.
-    isNothing resNeg .&&. addr `notElem` (fst <$> knownAddresses stNeg')
+    isJust resPos .&&. addr `elem` (fst' <$> knownAddresses stPos') .&&.
+    isNothing resNeg .&&. addr `notElem` (fst' <$> knownAddresses stNeg')
   where
+    fst' (a,_,_) = a
     (resPos, stPos') = isOurs addr (mkRndState @n rootXPrv 0)
     (resNeg, stNeg') = isOurs addr (mkRndState @n rk' 0)
     key = publicKey $ unsafeGenerateKeyFromSeed (accIx, addrIx) seed encPwd

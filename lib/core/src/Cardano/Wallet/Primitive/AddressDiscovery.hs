@@ -135,7 +135,7 @@ class CompareDiscovery s where
 class KnownAddresses s where
     knownAddresses
         :: s
-        -> [(Address, AddressState)]
+        -> [(Address, AddressState, NonEmpty DerivationIndex)]
 
 -- | One master node (seed) can be used for unlimited number of independent
 -- cryptocoins such as Bitcoin, Litecoin or Namecoin. However, sharing the

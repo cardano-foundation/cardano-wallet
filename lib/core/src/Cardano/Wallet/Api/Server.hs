@@ -1405,11 +1405,12 @@ postRandomAddress
 postRandomAddress ctx (ApiT wid) body = do
     let pwd = coerce $ getApiT $ body ^. #passphrase
     let mix = getApiT <$> (body ^. #addressIndex)
-    addr <- withWorkerCtx ctx wid liftE liftE
+    (addr, path) <- withWorkerCtx ctx wid liftE liftE
         $ \wrk -> liftHandler $ W.createRandomAddress @_ @s @k @n wrk wid pwd mix
-    pure $ coerceAddress (addr, Unused)
+    pure $ coerceAddress (addr, Unused, path)
   where
-    coerceAddress (a, s) = ApiAddress (ApiT a, Proxy @n) (ApiT s)
+    coerceAddress (a, s, p) =
+        ApiAddress (ApiT a, Proxy @n) (ApiT s) (NE.map ApiT p)
 
 putRandomAddress
     :: forall ctx s k n.
@@ -1459,11 +1460,12 @@ listAddresses ctx normalize (ApiT wid) stateFilter = do
         W.listAddresses @_ @s @k wrk wid normalize
     return $ coerceAddress <$> filter filterCondition addrs
   where
-    filterCondition :: (Address, AddressState) -> Bool
+    filterCondition :: (Address, AddressState, NonEmpty DerivationIndex) -> Bool
     filterCondition = case stateFilter of
         Nothing -> const True
-        Just (ApiT s) -> (== s) . snd
-    coerceAddress (a, s) = ApiAddress (ApiT a, Proxy @n) (ApiT s)
+        Just (ApiT s) -> \(_,state,_) -> (state == s)
+    coerceAddress (a, s, p) =
+        ApiAddress (ApiT a, Proxy @n) (ApiT s) (NE.map ApiT p)
 
 {-------------------------------------------------------------------------------
                                     Transactions

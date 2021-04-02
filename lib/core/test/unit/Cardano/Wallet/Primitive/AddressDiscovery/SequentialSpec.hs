@@ -25,6 +25,7 @@ import Cardano.Address.Derivation
 import Cardano.Wallet.Primitive.AddressDerivation
     ( DelegationAddress (..)
     , Depth (..)
+    , DerivationIndex
     , DerivationType (..)
     , HardDerivation (..)
     , Index
@@ -89,6 +90,8 @@ import Data.Function
     ( (&) )
 import Data.List
     ( elemIndex, (\\) )
+import Data.List.NonEmpty
+    ( NonEmpty )
 import Data.Maybe
     ( isJust, isNothing )
 import Data.Proxy
@@ -318,7 +321,7 @@ prop_roundtripMkAddressPool _proxy pool =
     ( mkAddressPool @'Mainnet
         (context pool)
         (gap pool)
-        (addresses liftAddress pool)
+        (map pair' $ addresses liftAddress pool)
     ) === pool
 
 class GetCtx (chain :: Role) where
@@ -337,6 +340,7 @@ instance GetCtx 'MultisigScript where
 prop_poolAtLeastGapAddresses
     :: forall (chain :: Role) k.
         ( AddressPoolTest k
+        , Typeable chain
         )
     => (Proxy chain, Proxy k)
     -> AddressPool chain k
@@ -468,13 +472,21 @@ prop_compareAntiSymmetric (s, ShowFmt a1, ShowFmt a2) =
                         Properties for KnownAddresses
 -------------------------------------------------------------------------------}
 
+fst' :: (Address, AddressState, NonEmpty DerivationIndex)
+    -> Address
+fst' (a,_,_) = a
+
+pair' :: (Address, AddressState, NonEmpty DerivationIndex)
+    -> (Address, AddressState)
+pair' (a,s,_) = (a,s)
+
 prop_knownAddressesAreOurs
     :: SeqState 'Mainnet ShelleyKey
     -> Property
 prop_knownAddressesAreOurs s =
-    map (\x -> (ShowFmt x, isJust $ fst $ isOurs x s)) (fst <$> knownAddresses s)
+    map (\x -> (ShowFmt x, isJust $ fst $ isOurs x s)) (fst' <$> knownAddresses s)
     ===
-    map (\x -> (ShowFmt x, True)) (fst <$> knownAddresses s)
+    map (\x -> (ShowFmt x, True)) (fst' <$> knownAddresses s)
 
 prop_atLeastKnownAddresses
     :: SeqState 'Mainnet ShelleyKey
@@ -493,9 +505,9 @@ prop_changeIsOnlyKnownAfterGeneration (intPool, extPool) =
     let
         s0 :: SeqState 'Mainnet ShelleyKey
         s0 = SeqState intPool extPool emptyPendingIxs rewardAccount defaultPrefix
-        addrs0 = knownAddresses s0
+        addrs0 = pair' <$> knownAddresses s0
         (change, s1) = genChange (\k _ -> paymentAddress @'Mainnet k) s0
-        addrs1 = fst <$> knownAddresses s1
+        addrs1 = fst' <$> knownAddresses s1
     in conjoin
         [ prop_addrsNotInInternalPool addrs0
         , prop_changeAddressIsKnown change addrs1
@@ -519,9 +531,9 @@ prop_oursAreUsed
     -> Property
 prop_oursAreUsed s =
     let
-        (addr, status) = head $ knownAddresses s
+        (addr, status,_) = head $ knownAddresses s
         (True, s') = first isJust $ isOurs addr s
-        (addr', status') = head $ knownAddresses s'
+        (addr', status',_) = head $ knownAddresses s'
     in
         (status' == Used .&&. addr === addr')
         & label (show status)
@@ -551,8 +563,8 @@ prop_shrinkPreserveKnown _proxy (Positive size) pool =
         $ all (`elem` addrs') cut
   where
     pool'  = shrinkPool @'Mainnet liftAddress cut minBound pool
-    addrs  = fst <$> addresses liftAddress pool
-    addrs' = fst <$> addresses liftAddress pool'
+    addrs  = fst' <$> addresses liftAddress pool
+    addrs' = fst' <$> addresses liftAddress pool'
     cut    = take size addrs
 
 -- There's no address after the address from the cut with the highest index
@@ -572,8 +584,8 @@ prop_shrinkMaxIndex _proxy (Positive size) pool =
     fromIntegral size > getAddressPoolGap minBound ==> last cut === last addrs'
   where
     pool'  = shrinkPool @'Mainnet liftAddress cut minBound pool
-    addrs  = fst <$> addresses liftAddress pool
-    addrs' = fst <$> addresses liftAddress pool'
+    addrs  = fst' <$> addresses liftAddress pool
+    addrs' = fst' <$> addresses liftAddress pool'
     cut    = take size addrs
 
 {-------------------------------------------------------------------------------
@@ -700,7 +712,7 @@ instance
         let
             ctx = context pool
             g = gap pool
-            addrs = addresses liftAddress pool
+            addrs = pair' <$> addresses liftAddress pool
         in case length addrs of
             k | k == fromEnum g && g == minBound ->
                 []

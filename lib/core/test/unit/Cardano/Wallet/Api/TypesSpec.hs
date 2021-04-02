@@ -1076,6 +1076,7 @@ instance Arbitrary (ApiAddress t) where
     arbitrary = ApiAddress
         <$> fmap (, Proxy @t) arbitrary
         <*> arbitrary
+        <*> arbitrary
 
 instance Arbitrary ApiEpochInfo where
     arbitrary = ApiEpochInfo <$> arbitrary <*> genUniformTime

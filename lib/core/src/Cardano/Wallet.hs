@@ -1075,7 +1075,7 @@ listAddresses
         -- non-delegation addresses found in the transaction history are
         -- shown with their delegation settings.
         -- Use 'Just' for wallet without delegation settings.
-    -> ExceptT ErrNoSuchWallet IO [(Address, AddressState)]
+    -> ExceptT ErrNoSuchWallet IO [(Address, AddressState, NonEmpty DerivationIndex)]
 listAddresses ctx wid normalize = db & \DBLayer{..} -> do
     cp <- mapExceptT atomically
         $ withNoSuchWallet wid
@@ -1085,8 +1085,8 @@ listAddresses ctx wid normalize = db & \DBLayer{..} -> do
     -- FIXME
     -- Stream this instead of returning it as a single block.
     return
-        $ L.sortBy (\(a,_) (b,_) -> compareDiscovery s a b)
-        $ mapMaybe (\(addr, st) -> (,st) <$> normalize s addr)
+        $ L.sortBy (\(a,_,_) (b,_,_) -> compareDiscovery s a b)
+        $ mapMaybe (\(addr, st,path) -> (,st,path) <$> normalize s addr)
         $ knownAddresses s
   where
     db = ctx ^. dbLayer @s @k
@@ -1121,7 +1121,7 @@ createRandomAddress
     -> WalletId
     -> Passphrase "raw"
     -> Maybe (Index 'Hardened 'AddressK)
-    -> ExceptT ErrCreateRandomAddress IO Address
+    -> ExceptT ErrCreateRandomAddress IO (Address, NonEmpty DerivationIndex)
 createRandomAddress ctx wid pwd mIx = db & \DBLayer{..} ->
     withRootKey @ctx @s @k ctx wid pwd ErrCreateAddrWithRootKey $ \xprv scheme -> do
         mapExceptT atomically $ do
@@ -1144,7 +1144,7 @@ createRandomAddress ctx wid pwd mIx = db & \DBLayer{..} ->
             let cp' = updateState (Rnd.addPendingAddress addr path s') cp
             withExceptT ErrCreateAddrNoSuchWallet $
                 putCheckpoint (PrimaryKey wid) cp'
-            pure addr
+            pure (addr, Rnd.toDerivationIndexes path)
   where
     db = ctx ^. dbLayer @s @k
     isKnownIndex accIx addrIx s =

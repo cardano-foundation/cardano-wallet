@@ -139,10 +139,13 @@ prop_addressDiscoveryMakesAddressUsed (CatalystSharedState accXPub' accIx' pTemp
     addr = constructAddressFromIx @n pTemplate' dTemplate' keyIx
     sharedState = newSharedState @n accXPub' accIx' g pTemplate' dTemplate'
     ((Just (ix,_)), sharedState') = isShared @n addr sharedState
+    pair' (a,s,_) = (a,s)
     ourAddrs = case dTemplate' of
         Nothing ->
+            map pair' $
             addresses (liftPaymentAddress @n @ShelleyKey) $ sharedStateAddressPool sharedState'
         Just dT ->
+            map pair' $
             addresses (liftDelegationAddress @n @ShelleyKey ix dT) $ sharedStateAddressPool sharedState'
 
 prop_addressDoubleDiscovery
@@ -225,7 +228,7 @@ prop_addressDiscoveryDoesNotChangeGapInvariance (CatalystSharedState accXPub' ac
     (_, sharedState') = isShared @n addr sharedState
     mapOfConsecutiveUnused =
         L.tail $
-        L.dropWhile (\(_addr, state) -> state /= Used) $
+        L.dropWhile (\(_addr, state,_path) -> state /= Used) $
         addresses (liftPaymentAddress @n @ShelleyKey) $ sharedStateAddressPool sharedState'
 
 preconditions
