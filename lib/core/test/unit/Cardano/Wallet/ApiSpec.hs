@@ -346,7 +346,7 @@ instance GenericApiSpec (Map [Text] [Method])
 
 application :: Application
 application = serve api server
-    & handleRawError (curry handler)
+    & handleRawError (curry toServerError)
 
 -- Note: Doesn't validate the jormungandr api.
 api :: Proxy (Api ('Testnet 0) ApiStakePool)

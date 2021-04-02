@@ -528,7 +528,7 @@ start
 start settings tr tlsConfig socket application = do
     logSettings <- newApiLoggerSettings <&> obfuscateKeys (const sensitive)
     runSocket
-        $ handleRawError (curry handler)
+        $ handleRawError (curry toServerError)
         $ withApiLogger tr logSettings
         application
   where
@@ -2440,12 +2440,12 @@ withWorkerCtx ctx wid onMissing onNotResponding action =
 -- | Maps types to servant error responses.
 class IsServerError e where
     -- | A structured human-readable error code to return to API clients.
-    handler :: e -> ServerError
+    toServerError :: e -> ServerError
 
 -- | Lift our wallet layer into servant 'Handler', by mapping each error to a
 -- corresponding servant error.
 liftHandler :: IsServerError e => ExceptT e IO a -> Handler a
-liftHandler action = Handler (withExceptT handler action)
+liftHandler action = Handler (withExceptT toServerError action)
 
 liftE :: IsServerError e => e -> Handler a
 liftE = liftHandler . throwE
@@ -2456,6 +2456,9 @@ apiError err code message = err
         [ "code" .= code
         , "message" .= T.replace "\n" " " message
         ]
+    , errHeaders =
+        (hContentType, renderHeader $ contentType $ Proxy @JSON)
+        : errHeaders err
     }
 
 data ErrUnexpectedPoolIdPlaceholder = ErrUnexpectedPoolIdPlaceholder
@@ -2476,7 +2479,7 @@ showT :: Show a => a -> Text
 showT = T.pack . show
 
 instance IsServerError ErrTemporarilyDisabled where
-    handler = \case
+    toServerError = \case
         ErrTemporarilyDisabled ->
             apiError err501 NotImplemented $ mconcat
                 [ "This endpoint is temporarily disabled. It'll be made "
@@ -2484,23 +2487,23 @@ instance IsServerError ErrTemporarilyDisabled where
                 ]
 
 instance IsServerError ErrCurrentEpoch where
-    handler = \case
+    toServerError = \case
         ErrUnableToDetermineCurrentEpoch ->
             apiError err500 UnableToDetermineCurrentEpoch $ mconcat
                 [ "I'm unable to determine the current epoch. "
                 , "Please wait a while for the node to sync and try again."
                 ]
-        ErrCurrentEpochPastHorizonException e -> handler e
+        ErrCurrentEpochPastHorizonException e -> toServerError e
 
 instance IsServerError ErrUnexpectedPoolIdPlaceholder where
-    handler = \case
+    toServerError = \case
         ErrUnexpectedPoolIdPlaceholder ->
             apiError err400 BadRequest (pretty msg)
       where
         Left msg = fromText @PoolId "INVALID"
 
 instance IsServerError ErrNoSuchWallet where
-    handler = \case
+    toServerError = \case
         ErrNoSuchWallet wid ->
             apiError err404 NoSuchWallet $ mconcat
                 [ "I couldn't find a wallet with the given id: "
@@ -2508,7 +2511,7 @@ instance IsServerError ErrNoSuchWallet where
                 ]
 
 instance IsServerError ErrWalletNotResponding where
-    handler = \case
+    toServerError = \case
         ErrWalletNotResponding wid ->
             apiError err500 WalletNotResponding $ T.unwords
                 [ "That's embarrassing. My associated worker for", toText wid
@@ -2521,7 +2524,7 @@ instance IsServerError ErrWalletNotResponding where
                 ]
 
 instance IsServerError ErrWalletAlreadyExists where
-    handler = \case
+    toServerError = \case
         ErrWalletAlreadyExists wid ->
             apiError err409 WalletAlreadyExists $ mconcat
                 [ "This operation would yield a wallet with the following id: "
@@ -2530,8 +2533,8 @@ instance IsServerError ErrWalletAlreadyExists where
                 ]
 
 instance IsServerError ErrCreateWallet where
-    handler = \case
-        ErrCreateWalletAlreadyExists e -> handler e
+    toServerError = \case
+        ErrCreateWalletAlreadyExists e -> toServerError e
         ErrCreateWalletFailedToCreateWorker ->
             apiError err500 UnexpectedError $ mconcat
                 [ "That's embarrassing. Your wallet looks good, but I couldn't "
@@ -2541,7 +2544,7 @@ instance IsServerError ErrCreateWallet where
                 ]
 
 instance IsServerError ErrWithRootKey where
-    handler = \case
+    toServerError = \case
         ErrWithRootKeyNoRootKey wid ->
             apiError err403 NoRootKey $ mconcat
                 [ "I couldn't find a root private key for the given wallet: "
@@ -2557,23 +2560,23 @@ instance IsServerError ErrWithRootKey where
                 ]
 
 instance IsServerError ErrListAssets where
-    handler = \case
-        ErrListAssetsNoSuchWallet e -> handler e
+    toServerError = \case
+        ErrListAssetsNoSuchWallet e -> toServerError e
 
 instance IsServerError ErrGetAsset where
-    handler = \case
-        ErrGetAssetNoSuchWallet e -> handler e
+    toServerError = \case
+        ErrGetAssetNoSuchWallet e -> toServerError e
         ErrGetAssetNotPresent ->
             apiError err404 AssetNotPresent $ mconcat
                 [ "The requested asset is not associated with this wallet."
                 ]
 
 instance IsServerError ErrListUTxOStatistics where
-    handler = \case
-        ErrListUTxOStatisticsNoSuchWallet e -> handler e
+    toServerError = \case
+        ErrListUTxOStatisticsNoSuchWallet e -> toServerError e
 
 instance IsServerError ErrMkTx where
-    handler = \case
+    toServerError = \case
         ErrKeyNotFoundForAddress addr ->
             apiError err500 KeyNotFoundForAddress $ mconcat
                 [ "That's embarrassing. I couldn't sign the given transaction: "
@@ -2592,21 +2595,21 @@ instance IsServerError ErrMkTx where
                 ]
 
 instance IsServerError ErrSignPayment where
-    handler = \case
-        ErrSignPaymentMkTx e -> handler e
-        ErrSignPaymentNoSuchWallet e -> (handler e)
+    toServerError = \case
+        ErrSignPaymentMkTx e -> toServerError e
+        ErrSignPaymentNoSuchWallet e -> (toServerError e)
             { errHTTPCode = 404
             , errReasonPhrase = errReasonPhrase err404
             }
-        ErrSignPaymentWithRootKey e@ErrWithRootKeyNoRootKey{} -> (handler e)
+        ErrSignPaymentWithRootKey e@ErrWithRootKeyNoRootKey{} -> (toServerError e)
             { errHTTPCode = 403
             , errReasonPhrase = errReasonPhrase err403
             }
-        ErrSignPaymentWithRootKey e@ErrWithRootKeyWrongPassphrase{} -> handler e
-        ErrSignPaymentIncorrectTTL e -> handler e
+        ErrSignPaymentWithRootKey e@ErrWithRootKeyWrongPassphrase{} -> toServerError e
+        ErrSignPaymentIncorrectTTL e -> toServerError e
 
 instance IsServerError ErrDecodeSignedTx where
-    handler = \case
+    toServerError = \case
         ErrDecodeSignedTxWrongPayload _ ->
             apiError err400 MalformedTxPayload $ mconcat
                 [ "I couldn't verify that the payload has the correct binary "
@@ -2620,7 +2623,7 @@ instance IsServerError ErrDecodeSignedTx where
                 ]
 
 instance IsServerError ErrSubmitExternalTx where
-    handler = \case
+    toServerError = \case
         ErrSubmitExternalTxNetwork e -> case e of
             ErrPostTxBadRequest err ->
                 apiError err500 CreatedInvalidTransaction $ mconcat
@@ -2639,14 +2642,14 @@ instance IsServerError ErrSubmitExternalTx where
                     , "to some other reason. Here's an error message that may "
                     , "help with debugging: ", err
                     ]
-        ErrSubmitExternalTxDecode e -> (handler e)
+        ErrSubmitExternalTxDecode e -> (toServerError e)
             { errHTTPCode = 400
             , errReasonPhrase = errReasonPhrase err400
             }
 
 instance IsServerError ErrRemoveTx where
-    handler = \case
-        ErrRemoveTxNoSuchWallet wid -> handler wid
+    toServerError = \case
+        ErrRemoveTxNoSuchWallet wid -> toServerError wid
         ErrRemoveTxNoSuchTransaction tid ->
             apiError err404 NoSuchTransaction $ mconcat
                 [ "I couldn't find a transaction with the given id: "
@@ -2659,7 +2662,7 @@ instance IsServerError ErrRemoveTx where
                 ]
 
 instance IsServerError ErrPostTx where
-    handler = \case
+    toServerError = \case
         ErrPostTxBadRequest err ->
             apiError err500 CreatedInvalidTransaction $ mconcat
             [ "That's embarrassing. It looks like I've created an "
@@ -2679,29 +2682,29 @@ instance IsServerError ErrPostTx where
             ]
 
 instance IsServerError ErrSubmitTx where
-    handler = \case
-        ErrSubmitTxNetwork e -> handler e
-        ErrSubmitTxNoSuchWallet e@ErrNoSuchWallet{} -> (handler e)
+    toServerError = \case
+        ErrSubmitTxNetwork e -> toServerError e
+        ErrSubmitTxNoSuchWallet e@ErrNoSuchWallet{} -> (toServerError e)
             { errHTTPCode = 404
             , errReasonPhrase = errReasonPhrase err404
             }
 
 instance IsServerError ErrUpdatePassphrase where
-    handler = \case
-        ErrUpdatePassphraseNoSuchWallet e -> handler e
-        ErrUpdatePassphraseWithRootKey e  -> handler e
+    toServerError = \case
+        ErrUpdatePassphraseNoSuchWallet e -> toServerError e
+        ErrUpdatePassphraseWithRootKey e  -> toServerError e
 
 instance IsServerError ErrListTransactions where
-    handler = \case
-        ErrListTransactionsNoSuchWallet e -> handler e
-        ErrListTransactionsStartTimeLaterThanEndTime e -> handler e
+    toServerError = \case
+        ErrListTransactionsNoSuchWallet e -> toServerError e
+        ErrListTransactionsStartTimeLaterThanEndTime e -> toServerError e
         ErrListTransactionsMinWithdrawalWrong ->
             apiError err400 MinWithdrawalWrong
             "The minimum withdrawal value must be at least 1 Lovelace."
-        ErrListTransactionsPastHorizonException e -> handler e
+        ErrListTransactionsPastHorizonException e -> toServerError e
 
 instance IsServerError ErrStartTimeLaterThanEndTime where
-    handler err = apiError err400 StartTimeLaterThanEndTime $ mconcat
+    toServerError err = apiError err400 StartTimeLaterThanEndTime $ mconcat
         [ "The specified start time '"
         , toText $ Iso8601Time $ errStartTime err
         , "' is later than the specified end time '"
@@ -2710,7 +2713,7 @@ instance IsServerError ErrStartTimeLaterThanEndTime where
         ]
 
 instance IsServerError PastHorizonException where
-    handler _ = apiError err503 PastHorizon $ mconcat
+    toServerError _ = apiError err503 PastHorizon $ mconcat
         [ "Tried to convert something that is past the horizon"
         , " (due to uncertainty about the next hard fork)."
         , " Wait for the node to finish syncing to the hard fork."
@@ -2719,12 +2722,12 @@ instance IsServerError PastHorizonException where
         ]
 
 instance IsServerError ErrGetTransaction where
-    handler = \case
-        ErrGetTransactionNoSuchWallet e -> handler e
-        ErrGetTransactionNoSuchTransaction e -> handler e
+    toServerError = \case
+        ErrGetTransactionNoSuchWallet e -> toServerError e
+        ErrGetTransactionNoSuchTransaction e -> toServerError e
 
 instance IsServerError ErrNoSuchTransaction where
-    handler = \case
+    toServerError = \case
         ErrNoSuchTransaction tid ->
             apiError err404 NoSuchTransaction $ mconcat
                 [ "I couldn't find a transaction with the given id: "
@@ -2732,8 +2735,8 @@ instance IsServerError ErrNoSuchTransaction where
                 ]
 
 instance IsServerError ErrJoinStakePool where
-    handler = \case
-        ErrJoinStakePoolNoSuchWallet e -> handler e
+    toServerError = \case
+        ErrJoinStakePoolNoSuchWallet e -> toServerError e
         ErrJoinStakePoolCannotJoin e -> case e of
             ErrAlreadyDelegating pid ->
                 apiError err403 PoolAlreadyJoined $ mconcat
@@ -2749,12 +2752,12 @@ instance IsServerError ErrJoinStakePool where
                     ]
 
 instance IsServerError ErrFetchRewards where
-    handler = \case
-        ErrFetchRewardsReadRewardAccount e -> handler e
+    toServerError = \case
+        ErrFetchRewardsReadRewardAccount e -> toServerError e
 
 instance IsServerError ErrReadRewardAccount where
-    handler = \case
-        ErrReadRewardAccountNoSuchWallet e -> handler e
+    toServerError = \case
+        ErrReadRewardAccountNoSuchWallet e -> toServerError e
         ErrReadRewardAccountNotAShelleyWallet ->
             apiError err403 InvalidWalletType $ mconcat
                 [ "It is regrettable but you've just attempted an operation "
@@ -2763,8 +2766,8 @@ instance IsServerError ErrReadRewardAccount where
                 ]
 
 instance IsServerError ErrQuitStakePool where
-    handler = \case
-        ErrQuitStakePoolNoSuchWallet e -> handler e
+    toServerError = \case
+        ErrQuitStakePoolNoSuchWallet e -> toServerError e
         ErrQuitStakePoolCannotQuit e -> case e of
             ErrNotDelegatingOrAboutTo ->
                 apiError err403 NotDelegatingTo $ mconcat
@@ -2781,9 +2784,9 @@ instance IsServerError ErrQuitStakePool where
                     ]
 
 instance IsServerError ErrCreateRandomAddress where
-    handler = \case
-        ErrCreateAddrNoSuchWallet e -> handler e
-        ErrCreateAddrWithRootKey  e -> handler e
+    toServerError = \case
+        ErrCreateAddrNoSuchWallet e -> toServerError e
+        ErrCreateAddrWithRootKey  e -> toServerError e
         ErrIndexAlreadyExists ix ->
             apiError err409 AddressAlreadyExists $ mconcat
                 [ "I cannot derive a new unused address #", pretty (fromEnum ix)
@@ -2796,8 +2799,8 @@ instance IsServerError ErrCreateRandomAddress where
                 ]
 
 instance IsServerError ErrImportRandomAddress where
-    handler = \case
-        ErrImportAddrNoSuchWallet e -> handler e
+    toServerError = \case
+        ErrImportAddrNoSuchWallet e -> toServerError e
         ErrImportAddressNotAByronWallet ->
             apiError err403 InvalidWalletType $ mconcat
                 [ "I cannot derive new address for this wallet type."
@@ -2810,7 +2813,7 @@ instance IsServerError ErrImportRandomAddress where
                 ]
 
 instance IsServerError ErrNotASequentialWallet where
-    handler = \case
+    toServerError = \case
         ErrNotASequentialWallet ->
             apiError err403 InvalidWalletType $ mconcat
                 [ "I cannot derive new address for this wallet type. "
@@ -2818,7 +2821,7 @@ instance IsServerError ErrNotASequentialWallet where
                 ]
 
 instance IsServerError ErrWithdrawalNotWorth where
-    handler = \case
+    toServerError = \case
         ErrWithdrawalNotWorth ->
             apiError err403 WithdrawalNotWorth $ mconcat
                 [ "I've noticed that you're requesting a withdrawal from an "
@@ -2828,24 +2831,24 @@ instance IsServerError ErrWithdrawalNotWorth where
                 ]
 
 instance IsServerError ErrSignMetadataWith where
-    handler = \case
-        ErrSignMetadataWithRootKey e -> handler e
-        ErrSignMetadataWithNoSuchWallet e -> handler e
-        ErrSignMetadataWithInvalidIndex e -> handler e
+    toServerError = \case
+        ErrSignMetadataWithRootKey e -> toServerError e
+        ErrSignMetadataWithNoSuchWallet e -> toServerError e
+        ErrSignMetadataWithInvalidIndex e -> toServerError e
 
 instance IsServerError ErrReadAccountPublicKey where
-    handler = \case
-        ErrReadAccountPublicKeyRootKey e -> handler e
-        ErrReadAccountPublicKeyNoSuchWallet e -> handler e
-        ErrReadAccountPublicKeyInvalidIndex e -> handler e
+    toServerError = \case
+        ErrReadAccountPublicKeyRootKey e -> toServerError e
+        ErrReadAccountPublicKeyNoSuchWallet e -> toServerError e
+        ErrReadAccountPublicKeyInvalidIndex e -> toServerError e
 
 instance IsServerError ErrDerivePublicKey where
-    handler = \case
-        ErrDerivePublicKeyNoSuchWallet e -> handler e
-        ErrDerivePublicKeyInvalidIndex e -> handler e
+    toServerError = \case
+        ErrDerivePublicKeyNoSuchWallet e -> toServerError e
+        ErrDerivePublicKeyInvalidIndex e -> toServerError e
 
 instance IsServerError (ErrInvalidDerivationIndex 'Soft level) where
-    handler = \case
+    toServerError = \case
         ErrIndexOutOfBound minIx maxIx _ix ->
             apiError err403 SoftDerivationRequired $ mconcat
                 [ "It looks like you've provided a derivation index that is "
@@ -2855,14 +2858,14 @@ instance IsServerError (ErrInvalidDerivationIndex 'Soft level) where
                 ]
 
 instance IsServerError ErrSelectionCriteria where
-    handler = \case
+    toServerError = \case
         ErrSelectionCriteriaOutputTokenBundleSizeExceedsLimit e ->
-            handler e
+            toServerError e
         ErrSelectionCriteriaOutputTokenQuantityExceedsLimit e ->
-            handler e
+            toServerError e
 
 instance IsServerError ErrOutputTokenBundleSizeExceedsLimit where
-    handler e = apiError err403 OutputTokenBundleSizeExceedsLimit $ mconcat
+    toServerError e = apiError err403 OutputTokenBundleSizeExceedsLimit $ mconcat
         [ "One of the outputs you've specified contains too many assets. "
         , "Try splitting these assets across two or more outputs. "
         , "Destination address: "
@@ -2873,7 +2876,7 @@ instance IsServerError ErrOutputTokenBundleSizeExceedsLimit where
         ]
 
 instance IsServerError ErrOutputTokenQuantityExceedsLimit where
-    handler e = apiError err403 OutputTokenQuantityExceedsLimit $ mconcat
+    toServerError e = apiError err403 OutputTokenQuantityExceedsLimit $ mconcat
         [ "One of the token quantities you've specified is greater than the "
         , "maximum quantity allowed in a single transaction output. Try "
         , "splitting this quantity across two or more outputs. "
@@ -2891,9 +2894,9 @@ instance IsServerError ErrOutputTokenQuantityExceedsLimit where
         ]
 
 instance IsServerError ErrSelectAssets where
-    handler = \case
-        ErrSelectAssetsCriteriaError e -> handler e
-        ErrSelectAssetsNoSuchWallet e -> handler e
+    toServerError = \case
+        ErrSelectAssetsCriteriaError e -> toServerError e
+        ErrSelectAssetsNoSuchWallet e -> toServerError e
         ErrSelectAssetsAlreadyWithdrawing tx ->
             apiError err403 AlreadyWithdrawing $ mconcat
                 [ "I already know of a pending transaction with withdrawals: "
@@ -2940,7 +2943,7 @@ instance IsServerError ErrSelectAssets where
                         ]
 
 instance IsServerError (ErrInvalidDerivationIndex 'Hardened level) where
-    handler = \case
+    toServerError = \case
         ErrIndexOutOfBound minIx maxIx _ix ->
             apiError err403 HardenedDerivationRequired $ mconcat
                 [ "It looks like you've provided a derivation index that is "
@@ -2950,21 +2953,21 @@ instance IsServerError (ErrInvalidDerivationIndex 'Hardened level) where
                 ]
 
 instance IsServerError (Request, ServerError) where
-    handler (req, err@(ServerError code _ body headers))
+    toServerError (req, err@(ServerError code _ body _))
       | not (isJSON body) = case code of
         400 | "Failed reading" `BS.isInfixOf` BL.toStrict body ->
-            apiError err' BadRequest $ mconcat
+            apiError err BadRequest $ mconcat
                 [ "I couldn't understand the content of your message. If your "
                 , "message is intended to be in JSON format, please check that "
                 , "the JSON is valid."
                 ]
-        400 -> apiError err' BadRequest (utf8 body)
-        404 -> apiError err' NotFound $ mconcat
+        400 -> apiError err BadRequest (utf8 body)
+        404 -> apiError err NotFound $ mconcat
             [ "I couldn't find the requested endpoint. If the endpoint "
             , "contains path parameters, please ensure they are well-formed, "
             , "otherwise I won't be able to route them correctly."
             ]
-        405 -> apiError err' MethodNotAllowed $ mconcat
+        405 -> apiError err MethodNotAllowed $ mconcat
             [ "You've reached a known endpoint but I don't know how to handle "
             , "the HTTP method specified. Please double-check both the "
             , "endpoint and the method: one of them is likely to be incorrect "
@@ -2977,7 +2980,7 @@ instance IsServerError (Request, ServerError) where
                     && ["signatures"] `isInfixOf` pathInfo req
                     then "application/octet-stream"
                     else "application/json"
-            in apiError err' NotAcceptable $ mconcat
+            in apiError err NotAcceptable $ mconcat
             [ "It seems as though you don't accept '", cType,"', but "
             , "unfortunately I only speak '", cType,"'! Please "
             , "double-check your 'Accept' request header and make sure it's "
@@ -2989,15 +2992,15 @@ instance IsServerError (Request, ServerError) where
                     if ["proxy", "transactions"] `isSubsequenceOf` pathInfo req
                         then "application/octet-stream"
                         else "application/json"
-            in apiError err' UnsupportedMediaType $ mconcat
+            in apiError err UnsupportedMediaType $ mconcat
             [ "I'm really sorry but I only understand '", cType, "'. I need you "
             , "to tell me what language you're speaking in order for me to "
             , "understand your message. Please double-check your 'Content-Type' "
             , "request header and make sure it's set to '", cType, "'."
             ]
-        501 -> apiError err' NotImplemented
+        501 -> apiError err NotImplemented
             "I'm really sorry but this endpoint is not implemented yet."
-        _ -> apiError err' UnexpectedError $ mconcat
+        _ -> apiError err UnexpectedError $ mconcat
             [ "It looks like something unexpected went wrong. Unfortunately I "
             , "don't yet know how to handle this type of situation. Here's "
             , "some information about what happened: ", utf8 body
@@ -3006,12 +3009,6 @@ instance IsServerError (Request, ServerError) where
       where
         utf8 = T.replace "\"" "'" . T.decodeUtf8 . BL.toStrict
         isJSON = isJust . Aeson.decode @Aeson.Value
-        err' = err
-            { errHeaders =
-                ( hContentType
-                , renderHeader $ contentType $ Proxy @JSON
-                ) : headers
-            }
 
 {-------------------------------------------------------------------------------
                                Logging
