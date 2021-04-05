@@ -123,7 +123,7 @@ executable cardano-wallet
     , contra-tracer
     , iohk-monitoring
     , lobemo-backend-ekg
-    , network
+    , network-uri
     , optparse-applicative
     , text
     , text-class
@@ -269,6 +269,7 @@ test-suite integration
     , http-client
     , iohk-monitoring
     , lobemo-backend-ekg
+    , network-uri
     , text
     , text-class
     , unliftio

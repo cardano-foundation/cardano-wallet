@@ -27,6 +27,8 @@ import GHC.Generics
     ( Generic )
 import Network.HTTP.Client
     ( Manager )
+import Network.URI
+    ( URI )
 import Numeric.Natural
     ( Natural )
 import Test.Integration.Faucet
@@ -39,7 +41,7 @@ data Context = Context
         :: IO ()
         -- ^ A cleanup action.
     , _manager
-        :: (Text, Manager)
+        :: (URI, Manager)
         -- ^ The underlying base URL and manager used by the wallet client.
     , _walletPort
         :: Port "wallet"

@@ -45,7 +45,7 @@ import Cardano.Wallet.LatencyBenchShared
 import Cardano.Wallet.Logging
     ( trMessage )
 import Cardano.Wallet.Network.Ports
-    ( unsafePortNumber )
+    ( portFromURL )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.SyncProgress
@@ -404,8 +404,7 @@ withShelleyServer
     -> IO ()
 withShelleyServer tracers action = do
     ctx <- newEmptyMVar
-    let setupContext np wAddr = do
-            let baseUrl = "http://" <> T.pack (show wAddr) <> "/"
+    let setupContext np baseUrl = do
             let sixtySeconds = 60*1000*1000 -- 60s in microseconds
             manager <- (baseUrl,) <$> newManager (defaultManagerSettings
                 { managerResponseTimeout =
@@ -415,7 +414,7 @@ withShelleyServer tracers action = do
             putMVar ctx $ Context
                 { _cleanup = pure ()
                 , _manager = manager
-                , _walletPort = Port . fromIntegral $ unsafePortNumber wAddr
+                , _walletPort = Port . fromIntegral $ portFromURL baseUrl
                 , _faucet = faucet
                 , _feeEstimator = \_ -> error "feeEstimator not available"
                 , _networkParameters = np

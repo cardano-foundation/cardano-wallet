@@ -44,7 +44,7 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.Logging
     ( BracketLog (..), bracketTracer, stdoutTextTracer, trMessageText )
 import Cardano.Wallet.Network.Ports
-    ( unsafePortNumber )
+    ( portFromURL )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( NetworkDiscriminant (..) )
 import Cardano.Wallet.Primitive.SyncProgress
@@ -107,6 +107,8 @@ import Network.HTTP.Client
     , newManager
     , responseTimeoutMicro
     )
+import Network.URI
+    ( URI )
 import System.Directory
     ( createDirectory )
 import System.FilePath
@@ -242,8 +244,7 @@ specWithServer testDir (tr, tracers) = aroundAll withContext
         poolGarbageCollectionEvents <- newIORef []
         let dbEventRecorder =
                 recordPoolGarbageCollectionEvents poolGarbageCollectionEvents
-        let setupContext smashUrl faucetConn np wAddr = bracketTracer' tr "setupContext" $ do
-                let baseUrl = "http://" <> T.pack (show wAddr) <> "/"
+        let setupContext smashUrl faucetConn np baseUrl = bracketTracer' tr "setupContext" $ do
                 prometheusUrl <- (maybe "none" (\(h, p) -> T.pack h <> ":" <> toText @(Port "Prometheus") p)) <$> getPrometheusURL
                 ekgUrl <- (maybe "none" (\(h, p) -> T.pack h <> ":" <> toText @(Port "EKG") p)) <$> getEKGURL
                 traceWith tr $ MsgBaseUrl baseUrl ekgUrl prometheusUrl smashUrl
@@ -258,7 +259,7 @@ specWithServer testDir (tr, tracers) = aroundAll withContext
                 putMVar ctx $ Context
                     { _cleanup = pure ()
                     , _manager = (baseUrl, manager)
-                    , _walletPort = Port . fromIntegral $ unsafePortNumber wAddr
+                    , _walletPort = Port . fromIntegral $ portFromURL baseUrl
                     , _faucet = faucet
                     , _feeEstimator = error "feeEstimator: unused in shelley specs"
                     , _networkParameters = np
@@ -345,7 +346,7 @@ specWithServer testDir (tr, tracers) = aroundAll withContext
 
 data TestsLog
     = MsgBracket Text BracketLog
-    | MsgBaseUrl Text Text Text Text
+    | MsgBaseUrl URI Text Text Text
     | MsgSettingUpFaucet
     | MsgCluster ClusterLog
     | MsgPoolGarbageCollectionEvent PoolGarbageCollectionEvent
@@ -356,7 +357,7 @@ instance ToText TestsLog where
     toText = \case
         MsgBracket name b -> name <> ": " <> toText b
         MsgBaseUrl walletUrl ekgUrl prometheusUrl smashUrl -> T.unlines
-            [ "Wallet url: " <> walletUrl
+            [ "Wallet url: " <> T.pack (show walletUrl)
             , "EKG url: " <> ekgUrl
             , "Prometheus url: " <> prometheusUrl
             , "SMASH url: " <> smashUrl

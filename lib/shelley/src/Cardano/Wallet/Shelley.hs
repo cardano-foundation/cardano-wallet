@@ -152,7 +152,7 @@ import Control.Tracer
 import Data.Function
     ( (&) )
 import Data.Maybe
-    ( fromMaybe )
+    ( fromJust, fromMaybe )
 import Data.Proxy
     ( Proxy (..) )
 import Data.Text
@@ -164,9 +164,9 @@ import GHC.Generics
 import Network.Ntp
     ( NtpClient (..), NtpTrace, withWalletNtpClient )
 import Network.Socket
-    ( SockAddr, Socket, getSocketName )
+    ( Socket, getSocketName )
 import Network.URI
-    ( URI (..), uriToString )
+    ( URI (..), parseURI, uriToString )
 import Network.Wai.Handler.Warp
     ( setBeforeMainLoop )
 import Network.Wai.Middleware.Logging
@@ -251,7 +251,7 @@ serveWallet
     -- ^ Network parameters needed to connect to the underlying network.
     --
     -- See also: 'Cardano.Wallet.Shelley.Compatibility#KnownNetwork'.
-    -> (SockAddr -> IO ())
+    -> (URI -> IO ())
     -- ^ Callback to run before the main loop
     -> IO ExitCode
 serveWallet
@@ -331,9 +331,9 @@ serveWallet
         -> NtpClient
         -> IO ()
     startServer _proxy socket byron icarus shelley multisig spl ntp = do
-        sockAddr <- getSocketName socket
+        serverUrl <- getServerUrl tlsConfig socket
         let serverSettings = Warp.defaultSettings & setBeforeMainLoop
-                (beforeMainLoop sockAddr)
+                (beforeMainLoop serverUrl)
         let application = Server.serve (Proxy @(ApiV2 n ApiStakePool)) $
                 server byron icarus shelley multisig spl ntp
         Server.start serverSettings apiServerTracer tlsConfig socket application
@@ -445,6 +445,14 @@ exitCodeApiServer = \case
     ListenErrorInvalidAddress _ -> 11
     ListenErrorAddressAlreadyInUse _ -> 12
     ListenErrorOperationNotPermitted -> 13
+
+getServerUrl :: Maybe TlsConfiguration -> Socket -> IO URI
+getServerUrl tlsConfig = fmap (fromJust . parseURI . uri) . getSocketName
+  where
+    uri addr = scheme <> "://" <> show addr <> "/"
+    scheme = case tlsConfig of
+                Just _ -> "https"
+                Nothing -> "http"
 
 {-------------------------------------------------------------------------------
                                     Logging

@@ -121,8 +121,8 @@ import Data.Text
     ( Text )
 import Data.Text.Class
     ( ToText (..) )
-import Network.Socket
-    ( SockAddr )
+import Network.URI
+    ( URI )
 import Options.Applicative
     ( CommandFields
     , Mod
@@ -167,12 +167,8 @@ main = withUtf8Encoding $ do
         <> cmdStakePool @ApiStakePool stakePoolClient
         <> cmdVersion
 
-beforeMainLoop
-    :: Trace IO MainLog
-    -> SockAddr
-    -> IO ()
-beforeMainLoop tr =
-    logInfo tr . MsgListenAddress
+beforeMainLoop :: Trace IO MainLog -> URI -> IO ()
+beforeMainLoop tr = logInfo tr . MsgListenAddress
 
 {-------------------------------------------------------------------------------
                             Command - 'serve'
@@ -272,7 +268,7 @@ data MainLog
     | MsgSetupStateDir Text
     | MsgSetupDatabases Text
     | MsgServeArgs ServeArgs
-    | MsgListenAddress SockAddr
+    | MsgListenAddress URI
     | MsgSigTerm
     | MsgSigInt
     | MsgShutdownHandler ShutdownHandlerLog
@@ -292,8 +288,8 @@ instance ToText MainLog where
             "Wallet databases: " <> txt
         MsgServeArgs args ->
             T.pack $ show args
-        MsgListenAddress addr ->
-            "Wallet backend server listening on " <> T.pack (show addr)
+        MsgListenAddress url ->
+            "Wallet backend server listening on " <> T.pack (show url)
         MsgSigTerm ->
             "Terminated by signal."
         MsgSigInt ->

@@ -62,6 +62,7 @@ library
     , iohk-monitoring
     , lens-aeson
     , memory
+    , network-uri
     , optparse-applicative
     , process
     , resourcet
