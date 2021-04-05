@@ -78,7 +78,6 @@ import Data.Kind
     ( Type )
 import Data.Maybe
     ( fromJust, fromMaybe, isJust )
-    ( fromMaybe, isJust )
 import Data.Text.Class
     ( FromText (..), TextDecodingError (..), ToText (..) )
 import Data.Type.Equality
