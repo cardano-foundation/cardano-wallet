@@ -308,6 +308,8 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     )
 import Cardano.Wallet.Primitive.AddressDiscovery.SharedState
     ( SharedState (..)
+    , SharedStateFields (..)
+    , SharedStatePending (..)
     , mkSharedStateFromAccountXPub
     , mkSharedStateFromRootXPrv
     )
@@ -928,7 +930,7 @@ mkSharedWallet
         )
     => MkApiWallet ctx s ApiSharedWallet
 mkSharedWallet ctx wid cp meta pending progress = case getState cp of
-    PendingSharedState (DerivationPrefix (_,_,accIx)) _ pTemplate dTemplateM g ->
+    SharedState (DerivationPrefix (_,_,accIx)) (PendingFields (SharedStatePending _ pTemplate dTemplateM g)) ->
         pure $ ApiSharedWallet $ Left $ ApiPendingSharedWallet
         { id = ApiT wid
         , name = ApiT $ meta ^. #name
@@ -937,7 +939,7 @@ mkSharedWallet ctx wid cp meta pending progress = case getState cp of
         , paymentScriptTemplate = pTemplate
         , delegationScriptTemplate = dTemplateM
         }
-    SharedState (DerivationPrefix (_,_,accIx)) pool -> do
+    SharedState (DerivationPrefix (_,_,accIx)) (ReadyFields pool) -> do
         reward <- withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk ->
             -- never fails - returns zero if balance not found
             liftIO $ W.fetchRewardBalance @_ @s @k wrk wid
