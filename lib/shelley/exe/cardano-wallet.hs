@@ -104,7 +104,7 @@ import Cardano.Wallet.Shelley.Launch
     , parseGenesisData
     )
 import Cardano.Wallet.Version
-    ( GitRevision, Version, gitRevision, showFullVersion )
+    ( GitRevision, Version, showFullVersion )
 import Control.Applicative
     ( Const (..), optional )
 import Control.Exception.Base
@@ -147,6 +147,7 @@ import UnliftIO.Exception
 import qualified Cardano.BM.Backend.EKGView as EKG
 import qualified Cardano.Wallet.Version as V
 import qualified Data.Text as T
+import qualified System.Info as I
 
 {-------------------------------------------------------------------------------
                               Main entry point
@@ -265,11 +266,9 @@ cmdServe = command "serve" $ info (helper <*> helper' <*> cmd) $ mempty
                                     Logging
 -------------------------------------------------------------------------------}
 
--- FIXME: reduce duplication. See 'cardano-wallet-jormungandr.hs'
-
 data MainLog
     = MsgCmdLine String [String]
-    | MsgVersion Version GitRevision
+    | MsgVersion Version GitRevision String String
     | MsgSetupStateDir Text
     | MsgSetupDatabases Text
     | MsgServeArgs ServeArgs
@@ -284,8 +283,9 @@ instance ToText MainLog where
     toText = \case
         MsgCmdLine exe args ->
             T.pack $ unwords ("Command line:":exe:args)
-        MsgVersion ver rev ->
-            "Running as v" <> T.pack (showFullVersion ver rev)
+        MsgVersion ver rev arch os ->
+            "Running as v" <> T.pack (showFullVersion ver rev) <> " on " <>
+            T.pack arch <> "-" <> T.pack os
         MsgSetupStateDir txt ->
             "Wallet state: " <> txt
         MsgSetupDatabases txt ->
@@ -318,7 +318,7 @@ withTracers logOpt action =
         ekgEnabled >>= flip when (EKG.plugin cfg tr sb >>= loadPlugin sb)
         let trMain = appendName "main" (transformTextTrace tr)
         let tracers = setupTracers (loggingTracers logOpt) tr
-        logInfo trMain $ MsgVersion V.version gitRevision
+        logInfo trMain $ MsgVersion V.version V.gitRevision I.arch I.os
         logInfo trMain =<< MsgCmdLine <$> getExecutablePath <*> getArgs
         installSignalHandlers (logNotice trMain MsgSigTerm)
         let logInterrupt UserInterrupt = logNotice trMain MsgSigInt
