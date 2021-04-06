@@ -283,403 +283,27 @@ stateMachineSpec
         , PersistPrivateKey (k 'RootK)
         , PaymentAddress 'Mainnet k
         , PersistState s
-        , Arbitrary (Wallet s)
-        , GenState s
         , TestConstraints s k
         , Typeable s
         )
     => Spec
-stateMachineSpec = describe ("State machine tests " ++ showState @s) $ do
+stateMachineSpec = describe ("State machine test (" ++ showState @s ++ ")") $ do
     validateGenerators @s
     let newDB = newDBLayerInMemory @s @k nullTracer dummyTimeInterpreter
     it "Sequential" $ prop_sequential newDB
     xit "Parallel" $ prop_parallel newDB
-
-showState :: forall s. Typeable s => String
-showState = show (typeOf @s undefined)
 
 stateMachineSpecSeq, stateMachineSpecRnd, stateMachineSpecShared :: Spec
 stateMachineSpecSeq = stateMachineSpec @ShelleyKey @(SeqState 'Mainnet ShelleyKey)
 stateMachineSpecRnd = stateMachineSpec @ByronKey @(RndState 'Mainnet)
 stateMachineSpecShared = stateMachineSpec @ShelleyKey @(SharedState 'Mainnet ShelleyKey)
 
+showState :: forall s. Typeable s => String
+showState = show (typeOf @s undefined)
+
 propertiesSpecSeq :: Spec
 propertiesSpecSeq = around withShelleyDBLayer $ describe "Properties"
     (properties :: SpecWith TestDBSeq)
-
-{-------------------------------------------------------------------------------
-                                Migration tests
--------------------------------------------------------------------------------}
-
-manualMigrationsSpec :: Spec
-manualMigrationsSpec =
-    describe "Manual migrations" $ do
-        it "'migrate' db with no passphrase scheme set."
-            testMigrationPassphraseScheme
-
-        it "'migrate' db with no 'derivation_prefix' for seq state (Icarus)" $
-            testMigrationSeqStateDerivationPrefix @IcarusKey
-                "icarusDerivationPrefix-v2020-10-07.sqlite"
-                ( purposeBIP44
-                , coinTypeAda
-                , minBound
-                )
-
-        it "'migrate' db with no 'derivation_prefix' for seq state (Shelley)" $
-            testMigrationSeqStateDerivationPrefix @ShelleyKey
-                "shelleyDerivationPrefix-v2020-10-07.sqlite"
-                ( purposeCIP1852
-                , coinTypeAda
-                , minBound
-                )
-
-        it "'migrate' db with old text serialization for 'Role'" $
-            testMigrationRole @ShelleyKey
-                "shelleyRole-v2020-10-13.sqlite"
-
-        it "'migrate' db with partially applied checkpoint migration" $
-            testMigrationRole @ShelleyKey
-                "shelleyRole-corrupted-v2020-10-13.sqlite"
-
-        it "'migrate' db with unused protocol parameters in checkpoints" $
-            testMigrationCleanupCheckpoints @ShelleyKey
-                "shelleyDerivationPrefix-v2020-10-07.sqlite"
-                (GenesisParameters
-                    { getGenesisBlockHash = Hash $ unsafeFromHex
-                        "5f20df933584822601f9e3f8c024eb5eb252fe8cefb24d1317dc3d432e940ebb"
-                    , getGenesisBlockDate =
-                        StartTime $ posixSecondsToUTCTime 1506203091
-                    }
-                )
-                (BlockHeader
-                    { slotNo = SlotNo 1125119
-                    , blockHeight = Quantity 1124949
-                    , headerHash = Hash $ unsafeFromHex
-                        "3b309f1ca388459f0ce2c4ccca20ea646b75e6fc1447be032a41d43f209ecb50"
-                    , parentHeaderHash = Hash $ unsafeFromHex
-                        "e9414e08d8c5ca177dd0cb6a9e4bf868e1ea03389c31f5f7a6b099a3bcdfdedf"
-                    }
-                )
-
-        it "'migrate' db to add fees to transactions" $
-            testMigrationTxMetaFee @ShelleyKey
-                "metaFee-v2020-11-26.sqlite"
-                129 -- number of transactions
-
-                -- This one (chosen for its stake key registration) has:
-                --
-                -- - one input of 1000000000
-                -- - one output of 997825743.
-                --
-                -- which gives a delta of 2174257, which means
-                --
-                -- - 2000000 of key deposit
-                -- -  174257 of fee
-                --
-                [ ( Hash $ unsafeFromHex "00058d433a73574a64d0b4a3c37f1e460697fa8f1e3265a51e95eb9e9573b5ab"
-                  , Coin 174257
-                  )
-
-                -- This one (chosen because of its very round fee) has:
-                --
-                -- - two inputs of 1000000 each
-                -- - one output of 1000000
-                --
-                -- which gives a delta (and fee) of 1000000
-
-                , ( Hash $ unsafeFromHex "8f79e7f79ddeb7a7494121259832c0180c1b6bb746d8b2337cd1f4fb5b0d8216"
-                  , Coin 1000000
-                  )
-
-                -- This one (chosen for its withdrawal) has:
-                --
-                -- - one input of 909199523
-                -- - one withdrawal of 863644
-                -- - two outputs of 1000000 and 908888778
-                --
-                -- which gives a delta (and fee) of 174389
-
-                , ( Hash $ unsafeFromHex "eefa06dfa8ce91237117f9b4bdc4f6970c31de54906313b545dafb7ca6235171"
-                  , Coin 174389
-                  )
-
-                -- This one (chosen for its high fee) has:
-                --
-                -- - one input of 997825743
-                -- - two outputs of 1000000 and 995950742
-                --
-                -- which gives a delta (and fee) of 875001
-                , ( Hash $ unsafeFromHex "8943f9fa4b56b32cd44ab9c22d46693882f0bbca1bc3f0705124e75c2e40b9c2"
-                  , Coin 875001
-                  )
-
-                -- This one (chosen for having many inputs and many outputs) has:
-                --
-                -- - 10 inputs:
-                --     - 1654330
-                --     - 2111100
-                --     - 2234456
-                --     - 9543345
-                --     - 1826766
-                --     - 8871831
-                --     - 3823766
-                --     - 6887025
-                --     - 1958037
-                --     - 3575522
-                --
-                -- - 10 outputs:
-                --      - 4000000
-                --      - 7574304
-                --      - 9000000
-                --      - 1000000
-                --      - 1164635
-                --      - 6752132
-                --      - 1000000
-                --      - 8596880
-                --      - 2000000
-                --      - 1707865
-                --
-                -- - 1 withdrawal:
-                --      - 565251
-                --
-                -- which gives a delta (and fee) of 255613
-                , ( Hash $ unsafeFromHex "99907bf6ac73f6fe6fe25bd6b68bae6776425b9d15a7c46c7a49b85b8b03f291"
-                  , Coin 255613
-                  )
-
-                -- This one (chosen for its high ratio input:output) has:
-                --
-                -- - 1 input of 1000000000
-                -- - 33 relatively small outputs
-                -- - 1 withdrawal of 561120
-                --
-                -- which gives a delta (and fee) of 267537
-                , ( Hash $ unsafeFromHex "15940a7c1df8696279282046ebdb1ee890d4e9ac3c5d7213f360921648b36666"
-                  , Coin 267537
-                  )
-                ]
-
-testMigrationTxMetaFee
-    :: forall k s.
-        ( s ~ SeqState 'Mainnet k
-        , k ~ ShelleyKey
-        , WalletKey k
-        , PersistState s
-        , PersistPrivateKey (k 'RootK)
-        , PaymentAddress 'Mainnet k
-        )
-    => String
-    -> Int
-    -> [(Hash "Tx", Coin)]
-    -> IO ()
-testMigrationTxMetaFee dbName expectedLength caseByCase = do
-    let orig = $(getTestData) </> dbName
-    withSystemTempDirectory "migration-db" $ \dir -> do
-        let path = dir </> "db.sqlite"
-        let ti = dummyTimeInterpreter
-        copyFile orig path
-        (logs, result) <- captureLogging $ \tr -> do
-            withDBLayer @s @k tr defaultFieldValues path ti
-                $ \DBLayer{..} -> atomically
-                $ do
-                    [wid] <- listWallets
-                    readTxHistory wid Nothing Descending wholeRange Nothing
-
-        -- Check that we've indeed logged a needed migration for 'fee'
-        length (filter isMsgManualMigration logs) `shouldBe` 1
-
-        -- Check that the migrated history has the correct length.
-        length result `shouldBe` expectedLength
-
-        -- Verify that all incoming transactions have no fees set, and that all
-        -- outgoing ones do.
-        forM_ result $ \TransactionInfo{txInfoFee,txInfoMeta} -> do
-            case txInfoMeta ^. #direction of
-                Incoming -> txInfoFee `shouldSatisfy` isNothing
-                Outgoing -> txInfoFee `shouldSatisfy` isJust
-
-        -- Also verify a few hand-picked transactions
-        forM_ caseByCase $ \(txid, expectedFee) -> do
-            case L.find ((== txid) . txInfoId) result of
-                Nothing ->
-                    fail $ "tx not found: " <> T.unpack (toText txid)
-                Just TransactionInfo{txInfoFee} ->
-                    txInfoFee `shouldBe` Just expectedFee
-  where
-    isMsgManualMigration = matchMsgManualMigration $ \field ->
-        let fieldInDB = fieldDB $ persistFieldDef DB.TxMetaFee
-        in fieldName field == unDBName fieldInDB
-
-matchMsgManualMigration :: (DBField -> Bool) -> WalletDBLog -> Bool
-matchMsgManualMigration p = \case
-    MsgDB (MsgManualMigrationNeeded field _) -> p field
-    _ -> False
-
-testMigrationCleanupCheckpoints
-    :: forall k s.
-        ( s ~ SeqState 'Mainnet k
-        , k ~ ShelleyKey
-        , WalletKey k
-        , PersistState s
-        , PersistPrivateKey (k 'RootK)
-        , PaymentAddress 'Mainnet k
-        )
-    => String
-    -> GenesisParameters
-    -> BlockHeader
-    -> IO ()
-testMigrationCleanupCheckpoints dbName genesisParameters tip = do
-    let orig = $(getTestData) </> dbName
-    withSystemTempDirectory "migration-db" $ \dir -> do
-        let path = dir </> "db.sqlite"
-        let ti = dummyTimeInterpreter
-        copyFile orig path
-        (logs, result) <- captureLogging $ \tr -> do
-            withDBLayer @s @k tr defaultFieldValues path ti
-                $ \DBLayer{..} -> atomically
-                $ do
-                    [wid] <- listWallets
-                    (,) <$> readGenesisParameters wid <*> readCheckpoint wid
-
-        length (filter (isMsgManualMigration fieldGenesisHash) logs) `shouldBe` 1
-        length (filter (isMsgManualMigration fieldGenesisStart) logs) `shouldBe` 1
-
-        (fst result) `shouldBe` Just genesisParameters
-        (currentTip <$> snd result) `shouldBe` Just tip
-  where
-    fieldGenesisHash = fieldDB $ persistFieldDef DB.WalGenesisHash
-    fieldGenesisStart = fieldDB $ persistFieldDef DB.WalGenesisStart
-
-    isMsgManualMigration :: DBName -> WalletDBLog -> Bool
-    isMsgManualMigration fieldInDB = matchMsgManualMigration $ \field ->
-        fieldName field == unDBName fieldInDB
-
-testMigrationRole
-    :: forall k s.
-        ( s ~ SeqState 'Mainnet k
-        , WalletKey k
-        , PersistState s
-        , PersistPrivateKey (k 'RootK)
-        , PaymentAddress 'Mainnet k
-        , GetPurpose k
-        , Show s
-        )
-    => String
-    -> IO ()
-testMigrationRole dbName = do
-    let orig = $(getTestData) </> dbName
-    withSystemTempDirectory "migration-db" $ \dir -> do
-        let path = dir </> "db.sqlite"
-        let ti = dummyTimeInterpreter
-        copyFile orig path
-        (logs, Just cp) <- captureLogging $ \tr -> do
-            withDBLayer @s @k tr defaultFieldValues path ti
-                $ \DBLayer{..} -> atomically
-                $ do
-                    [wid] <- listWallets
-                    readCheckpoint wid
-        let migrationMsg = filter isMsgManualMigration logs
-        length migrationMsg `shouldBe` 3
-        length (knownAddresses $ getState cp) `shouldBe` 71
-  where
-    isMsgManualMigration :: WalletDBLog -> Bool
-    isMsgManualMigration = matchMsgManualMigration $ \field ->
-        let fieldInDB = fieldDB $ persistFieldDef DB.SeqStateAddressRole
-        in fieldName field == unDBName fieldInDB
-
-testMigrationSeqStateDerivationPrefix
-    :: forall k s.
-        ( s ~ SeqState 'Mainnet k
-        , WalletKey k
-        , PersistState s
-        , PersistPrivateKey (k 'RootK)
-        , Show s
-        )
-    => String
-    -> ( Index 'Hardened 'PurposeK
-       , Index 'Hardened 'CoinTypeK
-       , Index 'Hardened 'AccountK
-       )
-    -> IO ()
-testMigrationSeqStateDerivationPrefix dbName prefix = do
-    let orig = $(getTestData) </> dbName
-    withSystemTempDirectory "migration-db" $ \dir -> do
-        let path = dir </> "db.sqlite"
-        let ti = dummyTimeInterpreter
-        copyFile orig path
-        (logs, Just cp) <- captureLogging $ \tr -> do
-            withDBLayer @s @k tr defaultFieldValues path ti
-                $ \DBLayer{..} -> atomically
-                $ do
-                    [wid] <- listWallets
-                    readCheckpoint wid
-        let migrationMsg = filter isMsgManualMigration logs
-        length migrationMsg `shouldBe` 1
-        derivationPrefix (getState cp) `shouldBe` DerivationPrefix prefix
-  where
-    isMsgManualMigration = matchMsgManualMigration $ \field ->
-        let fieldInDB = fieldDB $ persistFieldDef DB.SeqStateDerivationPrefix
-        in fieldName field == unDBName fieldInDB
-
-testMigrationPassphraseScheme
-    :: forall s k. (k ~ ShelleyKey, s ~ SeqState 'Mainnet k)
-    => IO ()
-testMigrationPassphraseScheme = do
-    let orig = $(getTestData) </> "passphraseScheme-v2020-03-16.sqlite"
-    withSystemTempDirectory "migration-db" $ \dir -> do
-        let path = dir </> "db.sqlite"
-        let ti = dummyTimeInterpreter
-        copyFile orig path
-        (logs, (a,b,c,d)) <- captureLogging $ \tr -> do
-            withDBLayer @s @k tr defaultFieldValues path ti
-                $ \DBLayer{..} -> atomically
-                $ do
-                    Just a <- readWalletMeta $ PrimaryKey walNeedMigration
-                    Just b <- readWalletMeta $ PrimaryKey walNewScheme
-                    Just c <- readWalletMeta $ PrimaryKey walOldScheme
-                    Just d <- readWalletMeta $ PrimaryKey walNoPassphrase
-                    pure (a,b,c,d)
-
-        -- Migration is visible from the logs
-        let migrationMsg = filter isMsgManualMigration logs
-        length migrationMsg `shouldBe` 1
-
-        -- The first wallet is stored in the database with only a
-        -- 'passphraseLastUpdatedAt' field, but no 'passphraseScheme'. So,
-        -- after the migration, both should now be `Just`.
-        (passphraseScheme <$> passphraseInfo a) `shouldBe` Just EncryptWithPBKDF2
-
-        -- The second wallet was just fine and already has a passphrase
-        -- scheme set to use PBKDF2. Nothing should have changed.
-        (passphraseScheme <$> passphraseInfo b) `shouldBe` Just EncryptWithPBKDF2
-
-        -- The third wallet had a scheme too, but was using the legacy
-        -- scheme. Nothing should have changed.
-        (passphraseScheme <$> passphraseInfo c) `shouldBe` Just EncryptWithScrypt
-
-        -- The last wallet had no passphrase whatsoever (restored from
-        -- account public key), so it should still have NO scheme.
-        (passphraseScheme <$> passphraseInfo d) `shouldBe` Nothing
-  where
-    isMsgManualMigration = matchMsgManualMigration $ \field ->
-        let fieldInDB = fieldDB $ persistFieldDef DB.WalPassphraseScheme
-        in  fieldName field == unDBName fieldInDB
-
-    -- Coming from __test/data/passphraseScheme-v2020-03-16.sqlite__:
-    --
-    --     sqlite3> SELECT wallet_id, passphrase_last_updated_at,passphrase_scheme FROM wallet;
-    --
-    --     wallet_id                                | passphrase_last_updated_at    | passphrase_scheme
-    --     =========================================+===============================+==================
-    --     64581f7393190aed462fc3180ce52c3c1fe580a9 | 2020-06-02T14:22:17.48678659  |
-    --     5e481f55084afda69fc9cd3863ced80fa83734aa | 2020-06-02T14:22:03.234087113 | EncryptWithPBKDF2
-    --     4a6279cd71d5993a288b2c5879daa7c42cebb73d | 2020-06-02T14:21:45.418841818 | EncryptWithScrypt
-    --     ba74a7d2c1157ea7f32a93f255dac30e9ebca62b |                               |
-    --
-    Right walNeedMigration = fromText "64581f7393190aed462fc3180ce52c3c1fe580a9"
-    Right walNewScheme     = fromText "5e481f55084afda69fc9cd3863ced80fa83734aa"
-    Right walOldScheme     = fromText "4a6279cd71d5993a288b2c5879daa7c42cebb73d"
-    Right walNoPassphrase  = fromText "ba74a7d2c1157ea7f32a93f255dac30e9ebca62b"
 
 {-------------------------------------------------------------------------------
                                 Logging Spec
@@ -982,7 +606,7 @@ prop_randomOpChunks (KeyValPairs pairs) =
         filepath <- temporaryDBFile
         withShelleyFileDBLayer filepath $ \dbF -> do
             cleanDB dbF
-            withShelleyDBLayerInMemory $ \dbM -> do
+            withShelleyDBLayer $ \dbM -> do
                 cleanDB dbM
                 forM_ pairs (insertPair dbM)
                 cutRandomly pairs >>= mapM_ (mapM (insertPair dbF))
@@ -1070,25 +694,19 @@ defaultFieldValues = DefaultFieldValues
 
 -- Note: Having helper with concrete key types reduces the need
 -- for type-application everywhere.
-withShelleyDBLayer :: (Show s, PersistState s) => (DBLayer IO s ShelleyKey -> IO a) -> IO a
+withShelleyDBLayer :: PersistState s => (DBLayer IO s ShelleyKey -> IO a) -> IO a
 withShelleyDBLayer = withDBLayerInMemory nullTracer dummyTimeInterpreter
 
 withShelleyFileDBLayer
-     :: (Show s, PersistState s)
-     => FilePath
-     -> (DBLayer IO s ShelleyKey -> IO a)
-     -> IO a
-withShelleyFileDBLayer fp = withDBLayer
-     nullTracer  -- fixme: capture logging
-     defaultFieldValues
-     fp
-     dummyTimeInterpreter
-
-withShelleyDBLayerInMemory
-    :: (Show s, PersistState s)
-    => (DBLayer IO s ShelleyKey -> IO a)
+    :: PersistState s
+    => FilePath
+    -> (DBLayer IO s ShelleyKey -> IO a)
     -> IO a
-withShelleyDBLayerInMemory = withDBLayerInMemory nullTracer dummyTimeInterpreter
+withShelleyFileDBLayer fp = withDBLayer
+    nullTracer  -- fixme: capture logging
+    defaultFieldValues
+    fp
+    dummyTimeInterpreter
 
 listWallets'
     :: DBLayer m s k
@@ -1151,6 +769,379 @@ cutRandomly = iter []
             let chunk = L.take chunksNum rest
             iter (chunk:acc) (L.drop chunksNum rest)
 
+
+{-------------------------------------------------------------------------------
+                            Manual migrations tests
+-------------------------------------------------------------------------------}
+
+manualMigrationsSpec :: Spec
+manualMigrationsSpec = describe "Manual migrations" $ do
+    it "'migrate' db with no passphrase scheme set."
+        testMigrationPassphraseScheme
+
+    it "'migrate' db with no 'derivation_prefix' for seq state (Icarus)" $
+        testMigrationSeqStateDerivationPrefix @IcarusKey
+            "icarusDerivationPrefix-v2020-10-07.sqlite"
+            ( purposeBIP44
+            , coinTypeAda
+            , minBound
+            )
+
+    it "'migrate' db with no 'derivation_prefix' for seq state (Shelley)" $
+        testMigrationSeqStateDerivationPrefix @ShelleyKey
+            "shelleyDerivationPrefix-v2020-10-07.sqlite"
+            ( purposeCIP1852
+            , coinTypeAda
+            , minBound
+            )
+
+    it "'migrate' db with old text serialization for 'Role'" $
+        testMigrationRole @ShelleyKey
+            "shelleyRole-v2020-10-13.sqlite"
+
+    it "'migrate' db with partially applied checkpoint migration" $
+        testMigrationRole @ShelleyKey
+            "shelleyRole-corrupted-v2020-10-13.sqlite"
+
+    it "'migrate' db with unused protocol parameters in checkpoints" $
+        testMigrationCleanupCheckpoints @ShelleyKey
+            "shelleyDerivationPrefix-v2020-10-07.sqlite"
+            (GenesisParameters
+                { getGenesisBlockHash = Hash $ unsafeFromHex
+                    "5f20df933584822601f9e3f8c024eb5eb252fe8cefb24d1317dc3d432e940ebb"
+                , getGenesisBlockDate =
+                    StartTime $ posixSecondsToUTCTime 1506203091
+                }
+            )
+            (BlockHeader
+                { slotNo = SlotNo 1125119
+                , blockHeight = Quantity 1124949
+                , headerHash = Hash $ unsafeFromHex
+                    "3b309f1ca388459f0ce2c4ccca20ea646b75e6fc1447be032a41d43f209ecb50"
+                , parentHeaderHash = Hash $ unsafeFromHex
+                    "e9414e08d8c5ca177dd0cb6a9e4bf868e1ea03389c31f5f7a6b099a3bcdfdedf"
+                }
+            )
+
+    it "'migrate' db to add fees to transactions" $
+        testMigrationTxMetaFee @ShelleyKey
+            "metaFee-v2020-11-26.sqlite"
+            129 -- number of transactions
+
+            -- This one (chosen for its stake key registration) has:
+            --
+            -- - one input of 1000000000
+            -- - one output of 997825743.
+            --
+            -- which gives a delta of 2174257, which means
+            --
+            -- - 2000000 of key deposit
+            -- -  174257 of fee
+            --
+            [ ( Hash $ unsafeFromHex "00058d433a73574a64d0b4a3c37f1e460697fa8f1e3265a51e95eb9e9573b5ab"
+              , Coin 174257
+              )
+
+            -- This one (chosen because of its very round fee) has:
+            --
+            -- - two inputs of 1000000 each
+            -- - one output of 1000000
+            --
+            -- which gives a delta (and fee) of 1000000
+
+            , ( Hash $ unsafeFromHex "8f79e7f79ddeb7a7494121259832c0180c1b6bb746d8b2337cd1f4fb5b0d8216"
+              , Coin 1000000
+              )
+
+            -- This one (chosen for its withdrawal) has:
+            --
+            -- - one input of 909199523
+            -- - one withdrawal of 863644
+            -- - two outputs of 1000000 and 908888778
+            --
+            -- which gives a delta (and fee) of 174389
+
+            , ( Hash $ unsafeFromHex "eefa06dfa8ce91237117f9b4bdc4f6970c31de54906313b545dafb7ca6235171"
+              , Coin 174389
+              )
+
+            -- This one (chosen for its high fee) has:
+            --
+            -- - one input of 997825743
+            -- - two outputs of 1000000 and 995950742
+            --
+            -- which gives a delta (and fee) of 875001
+            , ( Hash $ unsafeFromHex "8943f9fa4b56b32cd44ab9c22d46693882f0bbca1bc3f0705124e75c2e40b9c2"
+              , Coin 875001
+              )
+
+            -- This one (chosen for having many inputs and many outputs) has:
+            --
+            -- - 10 inputs:
+            --     - 1654330
+            --     - 2111100
+            --     - 2234456
+            --     - 9543345
+            --     - 1826766
+            --     - 8871831
+            --     - 3823766
+            --     - 6887025
+            --     - 1958037
+            --     - 3575522
+            --
+            -- - 10 outputs:
+            --      - 4000000
+            --      - 7574304
+            --      - 9000000
+            --      - 1000000
+            --      - 1164635
+            --      - 6752132
+            --      - 1000000
+            --      - 8596880
+            --      - 2000000
+            --      - 1707865
+            --
+            -- - 1 withdrawal:
+            --      - 565251
+            --
+            -- which gives a delta (and fee) of 255613
+            , ( Hash $ unsafeFromHex "99907bf6ac73f6fe6fe25bd6b68bae6776425b9d15a7c46c7a49b85b8b03f291"
+              , Coin 255613
+              )
+
+            -- This one (chosen for its high ratio input:output) has:
+            --
+            -- - 1 input of 1000000000
+            -- - 33 relatively small outputs
+            -- - 1 withdrawal of 561120
+            --
+            -- which gives a delta (and fee) of 267537
+            , ( Hash $ unsafeFromHex "15940a7c1df8696279282046ebdb1ee890d4e9ac3c5d7213f360921648b36666"
+              , Coin 267537
+              )
+            ]
+
+testMigrationTxMetaFee
+    :: forall k s.
+        ( s ~ SeqState 'Mainnet k
+        , k ~ ShelleyKey
+        , WalletKey k
+        , PersistState s
+        , PersistPrivateKey (k 'RootK)
+        , PaymentAddress 'Mainnet k
+        )
+    => String
+    -> Int
+    -> [(Hash "Tx", Coin)]
+    -> IO ()
+testMigrationTxMetaFee dbName expectedLength caseByCase = do
+    let orig = $(getTestData) </> dbName
+    withSystemTempDirectory "migration-db" $ \dir -> do
+        let path = dir </> "db.sqlite"
+        let ti = dummyTimeInterpreter
+        copyFile orig path
+        (logs, result) <- captureLogging $ \tr -> do
+            withDBLayer @s @k tr defaultFieldValues path ti
+                $ \DBLayer{..} -> atomically
+                $ do
+                    [wid] <- listWallets
+                    readTxHistory wid Nothing Descending wholeRange Nothing
+
+        -- Check that we've indeed logged a needed migration for 'fee'
+        length (filter isMsgManualMigration logs) `shouldBe` 1
+
+        -- Check that the migrated history has the correct length.
+        length result `shouldBe` expectedLength
+
+        -- Verify that all incoming transactions have no fees set, and that all
+        -- outgoing ones do.
+        forM_ result $ \TransactionInfo{txInfoFee,txInfoMeta} -> do
+            case txInfoMeta ^. #direction of
+                Incoming -> txInfoFee `shouldSatisfy` isNothing
+                Outgoing -> txInfoFee `shouldSatisfy` isJust
+
+        -- Also verify a few hand-picked transactions
+        forM_ caseByCase $ \(txid, expectedFee) -> do
+            case L.find ((== txid) . txInfoId) result of
+                Nothing ->
+                    fail $ "tx not found: " <> T.unpack (toText txid)
+                Just TransactionInfo{txInfoFee} ->
+                    txInfoFee `shouldBe` Just expectedFee
+  where
+    isMsgManualMigration = matchMsgManualMigration $ \field ->
+        let fieldInDB = fieldDB $ persistFieldDef DB.TxMetaFee
+        in fieldName field == unDBName fieldInDB
+
+matchMsgManualMigration :: (DBField -> Bool) -> WalletDBLog -> Bool
+matchMsgManualMigration p = \case
+    MsgDB (MsgManualMigrationNeeded field _) -> p field
+    _ -> False
+
+testMigrationCleanupCheckpoints
+    :: forall k s.
+        ( s ~ SeqState 'Mainnet k
+        , k ~ ShelleyKey
+        , WalletKey k
+        , PersistState s
+        , PersistPrivateKey (k 'RootK)
+        , PaymentAddress 'Mainnet k
+        )
+    => String
+    -> GenesisParameters
+    -> BlockHeader
+    -> IO ()
+testMigrationCleanupCheckpoints dbName genesisParameters tip = do
+    let orig = $(getTestData) </> dbName
+    withSystemTempDirectory "migration-db" $ \dir -> do
+        let path = dir </> "db.sqlite"
+        let ti = dummyTimeInterpreter
+        copyFile orig path
+        (logs, result) <- captureLogging $ \tr -> do
+            withDBLayer @s @k tr defaultFieldValues path ti
+                $ \DBLayer{..} -> atomically
+                $ do
+                    [wid] <- listWallets
+                    (,) <$> readGenesisParameters wid <*> readCheckpoint wid
+
+        length (filter (isMsgManualMigration fieldGenesisHash) logs) `shouldBe` 1
+        length (filter (isMsgManualMigration fieldGenesisStart) logs) `shouldBe` 1
+
+        (fst result) `shouldBe` Just genesisParameters
+        (currentTip <$> snd result) `shouldBe` Just tip
+  where
+    fieldGenesisHash = fieldDB $ persistFieldDef DB.WalGenesisHash
+    fieldGenesisStart = fieldDB $ persistFieldDef DB.WalGenesisStart
+
+    isMsgManualMigration :: DBName -> WalletDBLog -> Bool
+    isMsgManualMigration fieldInDB = matchMsgManualMigration $ \field ->
+        fieldName field == unDBName fieldInDB
+
+testMigrationRole
+    :: forall k s.
+        ( s ~ SeqState 'Mainnet k
+        , WalletKey k
+        , PersistState s
+        , PersistPrivateKey (k 'RootK)
+        , PaymentAddress 'Mainnet k
+        , GetPurpose k
+        , Show s
+        )
+    => String
+    -> IO ()
+testMigrationRole dbName = do
+    let orig = $(getTestData) </> dbName
+    withSystemTempDirectory "migration-db" $ \dir -> do
+        let path = dir </> "db.sqlite"
+        let ti = dummyTimeInterpreter
+        copyFile orig path
+        (logs, Just cp) <- captureLogging $ \tr -> do
+            withDBLayer @s @k tr defaultFieldValues path ti
+                $ \DBLayer{..} -> atomically
+                $ do
+                    [wid] <- listWallets
+                    readCheckpoint wid
+        let migrationMsg = filter isMsgManualMigration logs
+        length migrationMsg `shouldBe` 3
+        length (knownAddresses $ getState cp) `shouldBe` 71
+  where
+    isMsgManualMigration :: WalletDBLog -> Bool
+    isMsgManualMigration = matchMsgManualMigration $ \field ->
+        let fieldInDB = fieldDB $ persistFieldDef DB.SeqStateAddressRole
+        in fieldName field == unDBName fieldInDB
+
+testMigrationSeqStateDerivationPrefix
+    :: forall k s.
+        ( s ~ SeqState 'Mainnet k
+        , WalletKey k
+        , PersistState s
+        , PersistPrivateKey (k 'RootK)
+        , Show s
+        )
+    => String
+    -> ( Index 'Hardened 'PurposeK
+       , Index 'Hardened 'CoinTypeK
+       , Index 'Hardened 'AccountK
+       )
+    -> IO ()
+testMigrationSeqStateDerivationPrefix dbName prefix = do
+    let orig = $(getTestData) </> dbName
+    withSystemTempDirectory "migration-db" $ \dir -> do
+        let path = dir </> "db.sqlite"
+        let ti = dummyTimeInterpreter
+        copyFile orig path
+        (logs, Just cp) <- captureLogging $ \tr -> do
+            withDBLayer @s @k tr defaultFieldValues path ti
+                $ \DBLayer{..} -> atomically
+                $ do
+                    [wid] <- listWallets
+                    readCheckpoint wid
+        let migrationMsg = filter isMsgManualMigration logs
+        length migrationMsg `shouldBe` 1
+        derivationPrefix (getState cp) `shouldBe` DerivationPrefix prefix
+  where
+    isMsgManualMigration = matchMsgManualMigration $ \field ->
+        let fieldInDB = fieldDB $ persistFieldDef DB.SeqStateDerivationPrefix
+        in fieldName field == unDBName fieldInDB
+
+testMigrationPassphraseScheme
+    :: forall s k. (k ~ ShelleyKey, s ~ SeqState 'Mainnet k)
+    => IO ()
+testMigrationPassphraseScheme = do
+    let orig = $(getTestData) </> "passphraseScheme-v2020-03-16.sqlite"
+    withSystemTempDirectory "migration-db" $ \dir -> do
+        let path = dir </> "db.sqlite"
+        let ti = dummyTimeInterpreter
+        copyFile orig path
+        (logs, (a,b,c,d)) <- captureLogging $ \tr -> do
+            withDBLayer @s @k tr defaultFieldValues path ti
+                $ \DBLayer{..} -> atomically
+                $ do
+                    Just a <- readWalletMeta $ PrimaryKey walNeedMigration
+                    Just b <- readWalletMeta $ PrimaryKey walNewScheme
+                    Just c <- readWalletMeta $ PrimaryKey walOldScheme
+                    Just d <- readWalletMeta $ PrimaryKey walNoPassphrase
+                    pure (a,b,c,d)
+
+        -- Migration is visible from the logs
+        let migrationMsg = filter isMsgManualMigration logs
+        length migrationMsg `shouldBe` 1
+
+        -- The first wallet is stored in the database with only a
+        -- 'passphraseLastUpdatedAt' field, but no 'passphraseScheme'. So,
+        -- after the migration, both should now be `Just`.
+        (passphraseScheme <$> passphraseInfo a) `shouldBe` Just EncryptWithPBKDF2
+
+        -- The second wallet was just fine and already has a passphrase
+        -- scheme set to use PBKDF2. Nothing should have changed.
+        (passphraseScheme <$> passphraseInfo b) `shouldBe` Just EncryptWithPBKDF2
+
+        -- The third wallet had a scheme too, but was using the legacy
+        -- scheme. Nothing should have changed.
+        (passphraseScheme <$> passphraseInfo c) `shouldBe` Just EncryptWithScrypt
+
+        -- The last wallet had no passphrase whatsoever (restored from
+        -- account public key), so it should still have NO scheme.
+        (passphraseScheme <$> passphraseInfo d) `shouldBe` Nothing
+  where
+    isMsgManualMigration = matchMsgManualMigration $ \field ->
+        let fieldInDB = fieldDB $ persistFieldDef DB.WalPassphraseScheme
+        in  fieldName field == unDBName fieldInDB
+
+    -- Coming from __test/data/passphraseScheme-v2020-03-16.sqlite__:
+    --
+    --     sqlite3> SELECT wallet_id, passphrase_last_updated_at,passphrase_scheme FROM wallet;
+    --
+    --     wallet_id                                | passphrase_last_updated_at    | passphrase_scheme
+    --     =========================================+===============================+==================
+    --     64581f7393190aed462fc3180ce52c3c1fe580a9 | 2020-06-02T14:22:17.48678659  |
+    --     5e481f55084afda69fc9cd3863ced80fa83734aa | 2020-06-02T14:22:03.234087113 | EncryptWithPBKDF2
+    --     4a6279cd71d5993a288b2c5879daa7c42cebb73d | 2020-06-02T14:21:45.418841818 | EncryptWithScrypt
+    --     ba74a7d2c1157ea7f32a93f255dac30e9ebca62b |                               |
+    --
+    Right walNeedMigration = fromText "64581f7393190aed462fc3180ce52c3c1fe580a9"
+    Right walNewScheme     = fromText "5e481f55084afda69fc9cd3863ced80fa83734aa"
+    Right walOldScheme     = fromText "4a6279cd71d5993a288b2c5879daa7c42cebb73d"
+    Right walNoPassphrase  = fromText "ba74a7d2c1157ea7f32a93f255dac30e9ebca62b"
 
 {-------------------------------------------------------------------------------
                                    Test data
