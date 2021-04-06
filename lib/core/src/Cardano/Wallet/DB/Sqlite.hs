@@ -2325,6 +2325,7 @@ instance
     , MkKeyFingerprint k (Proxy n, k 'AddressK XPub)
     , PaymentAddress n k
     , SoftDerivation k
+    , Seq.GetPurpose k
     , Typeable n
     ) => PersistState (Seq.SeqState n k) where
     insertState (wid, sl) st = do
@@ -2364,7 +2365,7 @@ instance
         pure $ Seq.SeqState intPool extPool pendingChangeIxs rewardXPub prefix
 
 insertAddressPool
-    :: forall n k c. (PaymentAddress n k, Typeable c)
+    :: forall n k c. (PaymentAddress n k, Typeable c, Seq.GetPurpose k)
     => W.WalletId
     -> W.SlotNo
     -> Seq.AddressPool c k

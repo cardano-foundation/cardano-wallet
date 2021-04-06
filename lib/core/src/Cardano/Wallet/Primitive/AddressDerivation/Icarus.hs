@@ -69,7 +69,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
 import Cardano.Wallet.Primitive.AddressDiscovery
     ( IsOurs (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
-    ( SeqState, coinTypeAda, purposeBIP44 )
+    ( GetPurpose (..), SeqState, coinTypeAda, purposeBIP44 )
 import Cardano.Wallet.Primitive.Types
     ( invariant, testnetMagic )
 import Cardano.Wallet.Primitive.Types.Address
@@ -360,6 +360,9 @@ instance WalletKey IcarusKey where
 {-------------------------------------------------------------------------------
                          Relationship Key / Address
 -------------------------------------------------------------------------------}
+
+instance GetPurpose IcarusKey where
+    getPurpose = purposeBIP44
 
 instance PaymentAddress 'Mainnet IcarusKey where
     paymentAddress k = Address

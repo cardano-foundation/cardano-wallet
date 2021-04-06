@@ -70,6 +70,8 @@ module Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     -- ** Benchmarking
     , SeqAnyState (..)
     , mkSeqAnyState
+
+    , GetPurpose (..)
     ) where
 
 import Prelude
@@ -378,7 +380,7 @@ role = fromMaybe (error $ "role: unmatched type" <> show (typeRep @c))
 --
 -- > mkAddressPool key g cc (addresses pool) == pool
 addresses
-    :: forall c k. Typeable c
+    :: forall c k. (Typeable c, GetPurpose k)
     => (KeyFingerprint "payment" k -> Address)
     -> AddressPool c k
     -> [(Address, AddressState, NonEmpty DerivationIndex)]
@@ -389,12 +391,16 @@ addresses mkAddress =
     . indexedKeys
   where
     toDerivationPath ix = NE.fromList $ map DerivationIndex
-        [ getIndex purposeBIP44
-        , getIndex purposeCIP1852
-        , 0   -- corresponds to account number
+        [ getIndex $ getPurpose @k
+        , getIndex coinTypeAda
+        , getIndex $ minBound @(Index 'Hardened 'AccountK)
         , fromIntegral $ fromEnum $ role @c
         , getIndex ix
         ]
+
+-- It is used for geting purpose for a given key.
+class GetPurpose key where
+    getPurpose :: Index 'Hardened 'PurposeK
 
 -- | Create a new Address pool from a list of addresses. Note that, the list is
 -- expected to be ordered in sequence (first indexes, first in the list).
@@ -910,6 +916,7 @@ instance
 
 instance
     ( PaymentAddress n k
+    , GetPurpose k
     ) => KnownAddresses (SeqState n k) where
     knownAddresses s =
         nonChangeAddresses <> usedChangeAddresses <> pendingChangeAddresses
@@ -1053,6 +1060,7 @@ instance
 
 instance
     ( PaymentAddress n k
+    , GetPurpose k
     ) => KnownAddresses (SeqAnyState n k p)
   where
     knownAddresses (SeqAnyState s) = knownAddresses s
