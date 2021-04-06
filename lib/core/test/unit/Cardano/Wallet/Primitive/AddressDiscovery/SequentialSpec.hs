@@ -53,6 +53,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPool
     , AddressPoolGap (..)
     , DerivationPrefix (..)
+    , GetPurpose
     , MkAddressPoolGapError (..)
     , ParentContext (..)
     , SeqState (..)
@@ -286,6 +287,7 @@ prop_poolGrowWithinGap
         , MkKeyFingerprint k Address
         , SoftDerivation k
         , AddressPoolTest k
+        , GetPurpose k
         )
     => (Proxy chain, Proxy k)
     -> (AddressPool chain k, Address)
@@ -313,6 +315,7 @@ prop_roundtripMkAddressPool
         , MkKeyFingerprint k Address
         , SoftDerivation k
         , AddressPoolTest k
+        , GetPurpose k
         )
     => (Proxy chain, Proxy k)
     -> AddressPool chain k
@@ -341,6 +344,7 @@ prop_poolAtLeastGapAddresses
     :: forall (chain :: Role) k.
         ( AddressPoolTest k
         , Typeable chain
+        , GetPurpose k
         )
     => (Proxy chain, Proxy k)
     -> AddressPool chain k
@@ -552,6 +556,7 @@ prop_shrinkPreserveKnown
         , MkKeyFingerprint k Address
         , SoftDerivation k
         , AddressPoolTest k
+        , GetPurpose k
         )
     => (Proxy chain, Proxy k)
     -> Positive Int
@@ -575,6 +580,7 @@ prop_shrinkMaxIndex
         , MkKeyFingerprint k Address
         , SoftDerivation k
         , AddressPoolTest k
+        , GetPurpose k
         )
     => (Proxy chain, Proxy k)
     -> Positive Int
@@ -707,6 +713,7 @@ instance
     , SoftDerivation k
     , AddressPoolTest k
     , GetCtx chain
+    , GetPurpose k
     ) => Arbitrary (AddressPool chain k) where
     shrink pool =
         let
@@ -756,5 +763,6 @@ data Key = forall (k :: Depth -> * -> *).
     , MkKeyFingerprint k Address
     , SoftDerivation k
     , AddressPoolTest k
+    , GetPurpose k
     ) => Key (Proxy k)
 instance Show Key where show (Key proxy) = show (typeRep proxy)
