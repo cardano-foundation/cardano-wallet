@@ -17,24 +17,21 @@ import Cardano.Wallet.Api.Types
     ( AddressAmount (..)
     , ApiByronWallet
     , ApiCoinSelectionOutput (..)
-    , ApiT (..)
     , DecodeAddress
     , DecodeStakeAddress
     , EncodeAddress (..)
     , WalletStyle (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( DerivationIndex (..), DerivationType (..), Index (..), PaymentAddress )
+    ( PaymentAddress )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
-    ( coinTypeAda, purposeBIP44 )
+    ( purposeBIP44 )
 import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
-import Data.List
-    ( isPrefixOf )
 import Data.List.NonEmpty
     ( NonEmpty ((:|)) )
 import Data.Quantity
@@ -56,6 +53,7 @@ import Test.Integration.Framework.DSL
     , expectField
     , expectResponseCode
     , fixtureIcarusWallet
+    , isValidDerivationPath
     , listAddresses
     , minUTxOValue
     , request
@@ -101,26 +99,18 @@ spec = describe "BYRON_COIN_SELECTION" $ do
             let amt = Quantity minUTxOValue
             let payment = AddressAmount targetAddress amt mempty
             let output = ApiCoinSelectionOutput targetAddress amt mempty
-            let isValidDerivationPath path =
-                    ( length path == 5 )
-                    &&
-                    ( [ ApiT $ DerivationIndex $ getIndex purposeBIP44
-                      , ApiT $ DerivationIndex $ getIndex coinTypeAda
-                      , ApiT $ DerivationIndex $ getIndex @'Hardened minBound
-                      ] `isPrefixOf` NE.toList path
-                    )
             selectCoins @_ @'Byron ctx source (payment :| []) >>= flip verify
                 [ expectResponseCode HTTP.status200
                 , expectField #inputs
                     (`shouldSatisfy` (not . null))
                 , expectField #inputs
                     (`shouldSatisfy` all
-                        (isValidDerivationPath . view #derivationPath))
+                        (isValidDerivationPath purposeBIP44 . view #derivationPath))
                 , expectField #change
                     (`shouldSatisfy` (not . null))
                 , expectField #change
                     (`shouldSatisfy` all
-                        (isValidDerivationPath . view #derivationPath))
+                        (isValidDerivationPath purposeBIP44 . view #derivationPath))
                 , expectField #outputs
                     (`shouldBe` [output])
                 ]
