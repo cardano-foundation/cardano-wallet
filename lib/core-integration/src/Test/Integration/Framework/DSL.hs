@@ -82,6 +82,8 @@ module Test.Integration.Framework.DSL
     -- * Helpers
     , (</>)
     , (!!)
+    , isValidDerivationPath
+    , isValidRandomDerivationPath
     , genMnemonics
     , genMnemonics'
     , getFromResponse
@@ -232,7 +234,11 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.Compat
     ( (^?) )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( HardDerivation (..)
+    ( Depth (..)
+    , DerivationIndex (..)
+    , DerivationType (..)
+    , HardDerivation (..)
+    , Index (..)
     , NetworkDiscriminant (..)
     , Passphrase (..)
     , PaymentAddress (..)
@@ -248,6 +254,8 @@ import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey )
+import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
+    ( coinTypeAda )
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress (..) )
 import Cardano.Wallet.Primitive.Types
@@ -311,6 +319,8 @@ import Data.Generics.Product.Typed
     ( HasType, typed )
 import Data.IORef
     ( newIORef, readIORef, writeIORef )
+import Data.List
+    ( isPrefixOf )
 import Data.List.NonEmpty
     ( NonEmpty )
 import Data.Maybe
@@ -396,6 +406,7 @@ import qualified Data.ByteArray as BA
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString.Lazy.Char8 as BL8
+import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
@@ -627,6 +638,30 @@ defaultTxTTL = 7200
 --
 -- Helpers
 --
+isValidDerivationPath
+    :: Index 'Hardened 'PurposeK
+    -> NonEmpty (ApiT DerivationIndex)
+    -> Bool
+isValidDerivationPath purpose path =
+    ( length path == 5 )
+    &&
+    ( [ ApiT $ DerivationIndex $ getIndex purpose
+      , ApiT $ DerivationIndex $ getIndex coinTypeAda
+      , ApiT $ DerivationIndex $ getIndex @'Hardened minBound
+      ] `isPrefixOf` NE.toList path
+    )
+
+isValidRandomDerivationPath
+    :: NonEmpty (ApiT DerivationIndex)
+    -> Bool
+isValidRandomDerivationPath path =
+    ( length path == 2 )
+    &&
+    ( [ ApiT $ DerivationIndex $ getIndex @'Hardened minBound
+      ] `isPrefixOf` NE.toList path
+    )
+
+
 pickAnAsset :: TokenMap.TokenMap -> ((Text, Text), Natural)
 pickAnAsset tm = case TokenMap.toFlatList tm of
     (TokenBundle.AssetId pid an, TokenQuantity.TokenQuantity q):_ ->

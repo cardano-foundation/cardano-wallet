@@ -33,6 +33,8 @@ import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
+import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
+    ( purposeBIP44 )
 import Cardano.Wallet.Primitive.Types.Address
     ( AddressState (..) )
 import Control.Monad
@@ -44,7 +46,7 @@ import Data.Generics.Internal.VL.Lens
 import Data.Generics.Product.Positions
     ( position )
 import Test.Hspec
-    ( SpecWith, describe, shouldBe )
+    ( SpecWith, describe, shouldBe, shouldSatisfy )
 import Test.Hspec.Extra
     ( it )
 import Test.Integration.Framework.DSL
@@ -66,6 +68,8 @@ import Test.Integration.Framework.DSL
     , fixtureRandomWallet
     , getFromResponse
     , icarusAddresses
+    , isValidDerivationPath
+    , isValidRandomDerivationPath
     , json
     , randomAddresses
     , request
@@ -82,7 +86,6 @@ import Web.HttpApiData
     ( ToHttpApiData (..) )
 
 import qualified Cardano.Wallet.Api.Link as Link
-import qualified Data.List.NonEmpty as NE
 import qualified Network.HTTP.Types.Status as HTTP
 
 spec :: forall n.
@@ -132,7 +135,11 @@ scenario_ADDRESS_LIST_01 fixture derPathSize = it title $ \ctx -> runResourceT $
     let n = length $ getFromResponse id r
     forM_ [0..n-1] $ \addrIx -> do
         expectListField addrIx #state (`shouldBe` ApiT Unused) r
-        expectListField addrIx #derivationPath (\derPath -> NE.length derPath `shouldBe` derPathSize) r
+        expectListField addrIx #derivationPath
+            (`shouldSatisfy` (\d -> do
+                                  if derPathSize == 5
+                                    then isValidDerivationPath purposeBIP44 d
+                                    else isValidRandomDerivationPath d)) r
   where
     title = "ADDRESS_LIST_01 - Can list known addresses on a default wallet"
 
