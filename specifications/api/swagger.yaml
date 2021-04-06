@@ -283,7 +283,7 @@ x-walletAccountPubkey: &walletAccountPubkey
 
 x-cosigner: &cosigner
   type: string
-  pattern: "^(cosigner#)[0-9]*$"
+  pattern: "^(cosigner#)[0-9]+$"
 
 x-cosigners: &cosigners
   description: Map of cosigners and their account public keys. Use key as in &cosigner, eg. "cosigner#"
@@ -291,10 +291,9 @@ x-cosigners: &cosigners
   additionalProperties: *walletAccountPubkey
   # Note: propertyNames pattern not supported in current OpenAPI version.
   # propertyNames:
-  #   pattern: '^(cosigner#)[0-9]*$'
+  #   pattern: '^(cosigner#)[0-9]+$'
   example:
-    0: { "cosigner#0": "1423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db11423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db1" }
-    1: { "cosigner#0": "1423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db11423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db1"
+    0: { "cosigner#0": "1423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db11423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db1"
        , "cosigner#3": "1423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db11423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db2" }
 
 x-walletId: &walletId
@@ -4963,12 +4962,12 @@ paths:
                                            ┏─────────┓
         SCRIPT = ──┬───────────────────────┤ pub key ├─────────────────────┬──
                    │                       ┗─────────┛                     │
-                   │                       ┏─────────────┓                 │
-                   ├───────────────────────┤ active_from ├─────────────────┤
-                   │                       ┗─────────────┛                 │
-                   │                       ┏──────────────┓                │
-                   ├───────────────────────┤ active_until ├────────────────┤
-                   │                       ┗──────────────┛                │
+                   │                       ┏──────────────────┓            │
+                   ├───────────────────────┤ ACTIVE_FROM slot ├──── ───────┤
+                   │                       ┗──────────────────┛            │
+                   │                       ┏───────────────────┓           │
+                   ├───────────────────────┤ ACTIVE_UNTIL slot ├───────────┤
+                   │                       ┗───────────────────┛           │
                    │                                                       │
                    │  ╭─────╮   ╭────────╮                                 │
                    ├──┤ ALL ├───┤ SCRIPT ├─┬───────────────────────────────┤
@@ -4977,7 +4976,7 @@ paths:
                    │          └───┤ , ├────┘                               │
                    │              ╰───╯                                    │
                    │  ╭─────╮   ╭────────╮                                 │
-                   ├──┤ ALL ├───┤ SCRIPT ├─┬───────────────────────────────┤
+                   ├──┤ ANY ├───┤ SCRIPT ├─┬───────────────────────────────┤
                    │  ╰─────╯ ^ ╰────────╯ │                               │
                    │          │   ╭───╮    │                               │
                    │          └───┤ , ├────┘                               │
@@ -5059,7 +5058,7 @@ paths:
       tags: ["Shared Wallets"]
       summary: Get
       description: |
-        <p align="right">status: <strong>unstable</strong></p>
+        <p align="right">status: <strong>stable</strong></p>
       parameters:
         - *parametersWalletId
       responses: *responsesGetSharedWallet
@@ -5069,7 +5068,7 @@ paths:
       tags: ["Shared Wallets"]
       summary: Delete
       description: |
-        <p align="right">status: <strong>unstable</strong></p>
+        <p align="right">status: <strong>stable</strong></p>
       parameters:
         - *parametersWalletId
       responses: *responsesDeleteWallet
@@ -5078,9 +5077,9 @@ paths:
     patch:
       operationId: patchSharedWalletInPayment
       tags: ["Shared Wallets"]
-      summary: Update
+      summary: Update Payment
       description: |
-        <p align="right">status: <strong>unstable</strong></p>
+        <p align="right">status: <strong>stable</strong></p>
       parameters:
         - *parametersWalletId
       requestBody:
@@ -5094,9 +5093,9 @@ paths:
     patch:
       operationId: patchSharedWalletInDelegation
       tags: ["Shared Wallets"]
-      summary: Update
+      summary: Update Delegation
       description: |
-        <p align="right">status: <strong>unstable</strong></p>
+        <p align="right">status: <strong>stable</strong></p>
       parameters:
         - *parametersWalletId
       requestBody:

@@ -2435,6 +2435,7 @@ instance
     , SoftDerivation k
     , WalletKey k
     , Typeable n
+    , Seq.GetPurpose k
     ) => PersistState (Shared.SharedState n k) where
     insertState (wid, sl) st = do
 
