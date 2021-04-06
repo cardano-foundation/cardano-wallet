@@ -100,6 +100,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Random
     ( RndState (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( DerivationPrefix (..)
+    , GetPurpose
     , SeqState (..)
     , coinTypeAda
     , defaultAddressPoolGap
@@ -524,6 +525,7 @@ testMigrationRole
         , PersistState s
         , PersistPrivateKey (k 'RootK)
         , PaymentAddress 'Mainnet k
+        , GetPurpose k
         )
     => String
     -> IO ()

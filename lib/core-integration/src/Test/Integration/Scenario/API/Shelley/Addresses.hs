@@ -30,7 +30,7 @@ import Cardano.Wallet.Api.Types
 import Cardano.Wallet.Primitive.AddressDerivation
     ( DerivationIndex (..), Role (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
-    ( defaultAddressPoolGap, getAddressPoolGap )
+    ( defaultAddressPoolGap, getAddressPoolGap, purposeCIP1852 )
 import Cardano.Wallet.Primitive.Types.Address
     ( AddressState (..) )
 import Cardano.Wallet.Primitive.Types.Tx
@@ -69,6 +69,7 @@ import Test.Integration.Framework.DSL
     , fixturePassphrase
     , fixtureWallet
     , getFromResponse
+    , isValidDerivationPath
     , json
     , listAddresses
     , minUTxOValue
@@ -83,7 +84,6 @@ import Test.Integration.Framework.TestData
 import qualified Cardano.Wallet.Api.Link as Link
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.Lens as Aeson
-import qualified Data.List.NonEmpty as NE
 import qualified Data.Text as T
 import qualified Network.HTTP.Types.Status as HTTP
 import qualified Test.Hspec.Expectations.Lifted as Expectations
@@ -111,7 +111,8 @@ spec = describe "SHELLEY_ADDRESSES" $ do
         expectListSize g r
         forM_ [0..(g-1)] $ \addrNum -> do
             expectListField addrNum (#state . #getApiT) (`shouldBe` Unused) r
-            expectListField addrNum #derivationPath (\derPath -> NE.length derPath `shouldBe` 5) r
+            expectListField addrNum #derivationPath
+                (`shouldSatisfy` (isValidDerivationPath purposeCIP1852)) r
 
     it "ADDRESS_LIST_01 - Can list addresses with non-default pool gap" $ \ctx -> runResourceT $ do
         let g = 15
@@ -122,6 +123,8 @@ spec = describe "SHELLEY_ADDRESSES" $ do
         expectListSize g r
         forM_ [0..(g-1)] $ \addrNum -> do
             expectListField addrNum (#state . #getApiT) (`shouldBe` Unused) r
+            expectListField addrNum #derivationPath
+                (`shouldSatisfy` (isValidDerivationPath purposeCIP1852)) r
 
     it "ADDRESS_LIST_02 - Can filter used and unused addresses" $ \ctx -> runResourceT $ do
         let g = fromIntegral $ getAddressPoolGap defaultAddressPoolGap

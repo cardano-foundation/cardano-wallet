@@ -81,6 +81,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery
     ( IsOurs (..) )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( DerivationPrefix (..)
+    , GetPurpose (..)
     , SeqState (..)
     , coinTypeAda
     , purposeBIP44
@@ -243,6 +244,9 @@ instance WalletKey ShelleyKey where
 {-------------------------------------------------------------------------------
                          Relationship Key / Address
 -------------------------------------------------------------------------------}
+
+instance GetPurpose ShelleyKey where
+    getPurpose = purposeCIP1852
 
 instance PaymentAddress 'Mainnet ShelleyKey where
     paymentAddress paymentK = do

@@ -31,12 +31,7 @@ import Cardano.Wallet.Api.Types
     , WalletStyle (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( Depth (..)
-    , DerivationIndex (..)
-    , DerivationType (..)
-    , Index (..)
-    , PaymentAddress
-    )
+    ( PaymentAddress )
 import Cardano.Wallet.Primitive.AddressDerivation.Byron
     ( ByronKey )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
@@ -44,7 +39,7 @@ import Cardano.Wallet.Primitive.AddressDerivation.Icarus
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey )
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
-    ( coinTypeAda, purposeBIP44, purposeCIP1852 )
+    ( purposeBIP44, purposeCIP1852 )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
 import Cardano.Wallet.Primitive.Types.TokenMap
@@ -59,8 +54,6 @@ import Control.Monad
     ( forM_ )
 import Data.Generics.Internal.VL.Lens
     ( view, (^.) )
-import Data.List
-    ( isPrefixOf )
 import Data.List.NonEmpty
     ( NonEmpty ((:|)) )
 import Data.Maybe
@@ -83,6 +76,7 @@ import Test.Integration.Framework.DSL
     , expectField
     , expectResponseCode
     , fixtureWallet
+    , isValidDerivationPath
     , json
     , listAddresses
     , minUTxOValue
@@ -367,16 +361,3 @@ spec = describe "SHELLEY_COIN_SELECTION" $ do
                     (getApiT $ fst targetAddress)
                     (assetCount)
                 ]
-
-isValidDerivationPath
-    :: Index 'Hardened 'PurposeK
-    -> NonEmpty (ApiT DerivationIndex)
-    -> Bool
-isValidDerivationPath purpose path =
-    ( length path == 5 )
-    &&
-    ( [ ApiT $ DerivationIndex $ getIndex purpose
-      , ApiT $ DerivationIndex $ getIndex coinTypeAda
-      , ApiT $ DerivationIndex $ getIndex @'Hardened minBound
-      ] `isPrefixOf` NE.toList path
-    )
