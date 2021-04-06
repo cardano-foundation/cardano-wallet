@@ -153,6 +153,18 @@ data SharedState (n :: NetworkDiscriminant) k = SharedState
         -- account public key with which the shared wallet was initiated
     } deriving (Generic)
 
+deriving instance
+    ( Show (k 'AccountK XPub)
+    ) => Show (SharedState n k)
+
+deriving instance
+    ( Eq (k 'AccountK XPub)
+    ) => Eq (SharedState n k)
+
+instance
+    ( NFData (k 'AccountK XPub)
+    ) => NFData (SharedState n k)
+
 data SharedStateFields pending ready
     = PendingFields !pending
     | ReadyFields !ready

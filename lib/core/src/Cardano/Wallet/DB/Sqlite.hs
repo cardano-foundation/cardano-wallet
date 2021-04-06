@@ -2442,13 +2442,13 @@ instance
         deleteWhere [CosignerKeyWalletId ==. wid]
 
         case st of
-            Shared.PendingSharedState prefix accXPub pTemplate dTemplateM g -> do
+            Shared.SharedState prefix (Shared.PendingFields (Shared.SharedStatePending accXPub pTemplate dTemplateM g)) -> do
                 insertSharedState accXPub g pTemplate dTemplateM prefix
                 insertCosigner (cosigners pTemplate) Payment
                 when (isJust dTemplateM) $
                     insertCosigner (fromJust $ cosigners <$> dTemplateM) Delegation
 
-            Shared.SharedState prefix pool -> do
+            Shared.SharedState prefix (Shared.ReadyFields pool) -> do
                 let (Seq.ParentContextMultisigScript accXPub pTemplate dTemplateM) =
                         Seq.context pool
                 insertSharedState accXPub (Seq.gap pool) pTemplate dTemplateM prefix
@@ -2482,9 +2482,8 @@ instance
         dCosigners <- lift $ selectCosigners @k wid Delegation
         let dTemplateM = ScriptTemplate (Map.fromList $ prepareKeys dCosigners) <$> dScriptM
         lift (multisigPoolAbsent wid sl) >>= \case
-            True -> pure Shared.PendingSharedState
-                { Shared.pendingSharedStateDerivationPrefix = prefix
-                , Shared.pendingSharedStateAccountKey = accXPub
+            True -> pure $ Shared.SharedState prefix $ Shared.PendingFields $ Shared.SharedStatePending
+                { Shared.pendingSharedStateAccountKey = accXPub
                 , Shared.pendingSharedStatePaymentTemplate = pTemplate
                 , Shared.pendingSharedStateDelegationTemplate = dTemplateM
                 , Shared.pendingSharedStateAddressPoolGap = g
@@ -2492,10 +2491,7 @@ instance
             False -> do
                 let ctx = Seq.ParentContextMultisigScript accXPub pTemplate dTemplateM
                 pool <- lift $ selectAddressPool @n wid sl g ctx
-                pure Shared.SharedState
-                    { Shared.sharedStateDerivationPrefix = prefix
-                    , Shared.sharedStateAddressPool = pool
-                    }
+                pure $ Shared.SharedState prefix (Shared.ReadyFields pool)
 
 selectCosigners
     :: forall k. PersistPublicKey (k 'AccountK)

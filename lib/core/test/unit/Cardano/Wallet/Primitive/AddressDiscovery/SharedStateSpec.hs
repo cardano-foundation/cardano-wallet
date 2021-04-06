@@ -45,7 +45,11 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Script
 import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     ( AddressPoolGap (..), addresses, mkUnboundedAddressPoolGap )
 import Cardano.Wallet.Primitive.AddressDiscovery.SharedState
-    ( SharedState (..), isShared, mkSharedStateFromAccountXPub )
+    ( SharedState (..)
+    , SharedStateFields (..)
+    , isShared
+    , mkSharedStateFromAccountXPub
+    )
 import Cardano.Wallet.Primitive.Types.Address
     ( AddressState (..) )
 import Cardano.Wallet.Unsafe
@@ -140,13 +144,15 @@ prop_addressDiscoveryMakesAddressUsed (CatalystSharedState accXPub' accIx' pTemp
     sharedState = mkSharedStateFromAccountXPub @n accXPub' accIx' g pTemplate' dTemplate'
     ((Just (ix,_)), sharedState') = isShared @n addr sharedState
     pair' (a,s,_) = (a,s)
+    getPool (SharedState _ (ReadyFields pool)) = pool
+    getPool _ = error "expected active state"
     ourAddrs = case dTemplate' of
         Nothing ->
             map pair' $
-            addresses (liftPaymentAddress @n @ShelleyKey) $ sharedStateAddressPool sharedState'
+            addresses (liftPaymentAddress @n @ShelleyKey) $ getPool sharedState'
         Just dT ->
             map pair' $
-            addresses (liftDelegationAddress @n @ShelleyKey ix dT) $ sharedStateAddressPool sharedState'
+            addresses (liftDelegationAddress @n @ShelleyKey ix dT) $ getPool sharedState'
 
 prop_addressDoubleDiscovery
     :: forall (n :: NetworkDiscriminant). Typeable n
@@ -226,10 +232,12 @@ prop_addressDiscoveryDoesNotChangeGapInvariance (CatalystSharedState accXPub' ac
     addr = constructAddressFromIx @n pTemplate' dTemplate' keyIx
     sharedState = mkSharedStateFromAccountXPub @n accXPub' accIx' g pTemplate' dTemplate'
     (_, sharedState') = isShared @n addr sharedState
+    getPool (SharedState _ (ReadyFields pool)) = pool
+    getPool _ = error "expected active state"
     mapOfConsecutiveUnused =
         L.tail $
         L.dropWhile (\(_addr, state,_path) -> state /= Used) $
-        addresses (liftPaymentAddress @n @ShelleyKey) $ sharedStateAddressPool sharedState'
+        addresses (liftPaymentAddress @n @ShelleyKey) $ getPool sharedState'
 
 preconditions
     :: Index 'Soft 'ScriptK

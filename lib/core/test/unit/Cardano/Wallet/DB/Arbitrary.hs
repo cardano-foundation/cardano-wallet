@@ -81,7 +81,11 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     , purposeCIP1852
     )
 import Cardano.Wallet.Primitive.AddressDiscovery.SharedState
-    ( SharedState (..), purposeCIP1854 )
+    ( SharedState (..)
+    , SharedStateFields (..)
+    , SharedStatePending (..)
+    , purposeCIP1854
+    )
 import Cardano.Wallet.Primitive.Model
     ( Wallet, currentTip, getState, unsafeInitWallet, utxo )
 import Cardano.Wallet.Primitive.Types
@@ -586,19 +590,21 @@ rootKeysRnd = unsafePerformIO $ generate (vectorOf 10 genRootKeysRnd)
 -------------------------------------------------------------------------------}
 
 instance Arbitrary (SharedState 'Mainnet ShelleyKey) where
-    shrink (SharedState prefix pool) =
-        SharedState prefix <$> shrink pool
+    shrink (SharedState prefix (ReadyFields pool)) =
+        SharedState prefix <$> (ReadyFields <$> shrink pool)
     shrink _ = []
     arbitrary = do
         let activeWallet = SharedState
                 <$> (defaultSharedStatePrefix <$> arbitrary)
-                <*> arbitrary
-        let pendingWallet = PendingSharedState
-                <$> (defaultSharedStatePrefix <$> arbitrary)
-                <*> arbitrary
+                <*> (ReadyFields <$> arbitrary)
+        let pendingFields = SharedStatePending
+                <$> arbitrary
                 <*> genScriptTemplate
                 <*> genScriptTemplateM genScriptTemplate
                 <*> arbitrary
+        let pendingWallet = SharedState
+                <$> (defaultSharedStatePrefix <$> arbitrary)
+                <*> ( PendingFields <$> pendingFields )
         oneof [activeWallet, pendingWallet]
 
 defaultSharedStatePrefix :: Index 'Hardened 'AccountK -> DerivationPrefix
@@ -737,7 +743,7 @@ instance Buildable MockChain where
     build (MockChain chain) = blockListF' mempty build chain
 
 instance Buildable (SharedState 'Mainnet ShelleyKey) where
-    build (PendingSharedState prefix accXPub pTemplate dTemplateM g) =
+    build (SharedState prefix (PendingFields (SharedStatePending accXPub pTemplate dTemplateM g))) =
         build (   printStatePending
                <> printIndex prefix
                <> printAccXPub
@@ -754,7 +760,7 @@ instance Buildable (SharedState 'Mainnet ShelleyKey) where
             Just dTemplate -> T.pack (show dTemplate)
         printAccXPub = " accXPub: " <> T.pack (show accXPub)
         printGap = " gap: " <> toText (Seq.getAddressPoolGap g)
-    build (SharedState prefix pool) =
+    build (SharedState prefix (ReadyFields pool)) =
         build (printStateActive <> printIndex prefix) <> printPool
       where
         printStateActive = "shared wallet state: active"
