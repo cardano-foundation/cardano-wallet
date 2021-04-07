@@ -81,6 +81,7 @@ module Test.Integration.Framework.TestData
     , errMsg403OutputTokenQuantityExceedsLimit
     , errMsg403NotPendingWallet
     , errMsg403NoDelegationTemplate
+    , errMsg403AlreadyPresentKey
     ) where
 
 import Prelude
@@ -510,4 +511,12 @@ errMsg403NoDelegationTemplate = mconcat
     [ "It looks like you've tried to add cosigner key for "
     , "shared wallet for delegation template. This cannot be done as "
     , "the shared wallets does not have a delegation template."
+    ]
+
+errMsg403AlreadyPresentKey :: Text -> String
+errMsg403AlreadyPresentKey cred = mconcat
+    [ "It looks like you've tried to add cosigner key for "
+    , "shared wallet for ", unpack cred," template that already exists "
+    , "and is ascribed to another cosigner. Or you are updating with the same key. "
+    , "Make sure each cosigner has unique key withing each script template."
     ]

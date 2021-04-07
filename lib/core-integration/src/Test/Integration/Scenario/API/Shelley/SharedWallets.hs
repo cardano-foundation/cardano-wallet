@@ -57,6 +57,8 @@ import Data.Quantity
     ( Quantity (..) )
 import Data.Text
     ( Text )
+import Data.Text.Class
+    ( ToText (..) )
 import Test.Hspec
     ( SpecWith, describe, shouldBe, shouldNotBe )
 import Test.Hspec.Extra
@@ -82,7 +84,10 @@ import Test.Integration.Framework.DSL
     , verify
     )
 import Test.Integration.Framework.TestData
-    ( errMsg403NoDelegationTemplate, errMsg403NotPendingWallet )
+    ( errMsg403AlreadyPresentKey
+    , errMsg403NoDelegationTemplate
+    , errMsg403NotPendingWallet
+    )
 
 import qualified Data.Map.Strict as Map
 import qualified Data.Text.Encoding as T
@@ -427,6 +432,70 @@ spec = describe "SHARED_WALLETS" $ do
         let (ApiSharedWallet (Left pendingWal)) = getFromResponse id rPatch
         let cosignerKeysPatch = pendingWal ^. #paymentScriptTemplate
         liftIO $ cosigners cosignerKeysPatch `shouldBe` Map.fromList [(Cosigner 0,accXPub1)]
+
+    it "SHARED_WALLETS_PATCH_06 - Can add the same cosigner key for delegation script template but not payment one" $ \ctx -> runResourceT $ do
+        let payloadCreate = Json [json| {
+                "name": "Shared Wallet",
+                "account_public_key": #{accXPubTxt0},
+                "account_index": "30H",
+                "payment_script_template":
+                    { "cosigners":
+                        { "cosigner#0": #{accXPubTxt0} },
+                      "template":
+                          { "all":
+                             [ "cosigner#0",
+                               "cosigner#1",
+                               { "active_from": 120 }
+                             ]
+                          }
+                    },
+                "delegation_script_template":
+                    { "cosigners":
+                        { "cosigner#0": #{accXPubTxt1} },
+                      "template":
+                          { "all":
+                             [ "cosigner#0",
+                               "cosigner#1",
+                               { "active_from": 120 },
+                               { "active_until": 100 }
+                             ]
+                          }
+                    }
+                } |]
+        rPost <- postSharedWallet ctx Default payloadCreate
+        expectResponseCode HTTP.status201 rPost
+        let wal@(ApiSharedWallet (Left _pendingWal)) = getFromResponse id rPost
+
+        let payloadPatch1 = Json [json| {
+                "account_public_key": #{accXPub0},
+                "cosigner": "cosigner#1"
+                } |]
+        rPatch1 <- patchSharedWallet ctx wal Delegation payloadPatch1
+        expectResponseCode HTTP.status200 rPatch1
+
+        let payloadPatch2 = Json [json| {
+                "account_public_key": #{accXPub0},
+                "cosigner": "cosigner#0"
+                } |]
+        rPatch2 <- patchSharedWallet ctx wal Payment payloadPatch2
+        expectResponseCode HTTP.status403 rPatch2
+        expectErrorMessage (errMsg403AlreadyPresentKey (toText Payment)) rPatch2
+
+        let payloadPatch3 = Json [json| {
+                "account_public_key": #{accXPub0},
+                "cosigner": "cosigner#1"
+                } |]
+        rPatch3 <- patchSharedWallet ctx wal Payment payloadPatch3
+        expectResponseCode HTTP.status403 rPatch3
+        expectErrorMessage (errMsg403AlreadyPresentKey (toText Payment)) rPatch3
+
+        let payloadPatch4 = Json [json| {
+                "account_public_key": #{accXPub1},
+                "cosigner": "cosigner#1"
+                } |]
+        rPatch4 <- patchSharedWallet ctx wal Delegation payloadPatch4
+        expectResponseCode HTTP.status403 rPatch4
+        expectErrorMessage (errMsg403AlreadyPresentKey (toText Delegation)) rPatch4
   where
       xpubFromText :: Text -> Maybe XPub
       xpubFromText = fmap eitherToMaybe fromHexText >=> xpubFromBytes

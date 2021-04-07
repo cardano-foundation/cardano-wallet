@@ -175,7 +175,7 @@ import Prelude hiding
 import Cardano.Address.Derivation
     ( XPrv, XPub )
 import Cardano.Address.Script
-    ( Cosigner (..) )
+    ( Cosigner (..), ScriptTemplate (..) )
 import Cardano.Api.Typed
     ( serialiseToCBOR )
 import Cardano.BM.Data.Severity
@@ -409,7 +409,7 @@ import Data.List
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Maybe
-    ( fromMaybe, isNothing, mapMaybe )
+    ( fromJust, fromMaybe, isNothing, mapMaybe )
 import Data.Proxy
     ( Proxy )
 import Data.Quantity
@@ -449,9 +449,11 @@ import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
 import qualified Data.ByteArray as BA
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
+import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Vector as V
+
 
 -- $Development
 -- __Naming Conventions__
@@ -2123,9 +2125,14 @@ updateCosigner ctx wid accXPub cosigner cred = db & \DBLayer{..} -> do
               readCheckpoint (PrimaryKey wid)
         let s@(SharedState _ st) = getState cp
         case st of
-            PendingFields (SharedStatePending _ _pT dTM _) -> do
+            PendingFields (SharedStatePending _ pT dTM _) -> do
                 when (cred == Delegation && isNothing dTM)$
                     throwE ErrAddCosignerKeyNoDelegationTemplate
+                when (cred == Payment && isKeyAlreadyPresent pT) $
+                    throwE $ ErrAddCosignerKeyAlreadyPresentKey Payment
+                when (cred == Delegation && isKeyAlreadyPresent (fromJust dTM)) $
+                    throwE $ ErrAddCosignerKeyAlreadyPresentKey Delegation
+
                 let s' = addCosignerAccXPub accXPub cosigner cred s
                 withExceptT ErrAddCosignerKeyNoSuchWallet $
                     putCheckpoint (PrimaryKey wid) (updateState s' cp)
@@ -2133,6 +2140,8 @@ updateCosigner ctx wid accXPub cosigner cred = db & \DBLayer{..} -> do
                 throwE ErrAddCosignerKeyActiveWallet
   where
     db = ctx ^. dbLayer @s @k
+    isKeyAlreadyPresent (ScriptTemplate cosignerKeys _) =
+        getRawKey accXPub `elem` Map.elems cosignerKeys
 
 {-------------------------------------------------------------------------------
                                    Errors
