@@ -345,7 +345,7 @@ import Data.Time.Text
 import Data.Typeable
     ( Typeable )
 import Data.Word
-    ( Word16, Word32, Word64, Word8 )
+    ( Word16, Word32, Word64 )
 import Data.Word.Odd
     ( Word31 )
 import Fmt
@@ -1161,6 +1161,7 @@ data ApiErrorCode
     | SharedWalletNotPending
     | SharedWalletNoDelegationTemplate
     | SharedWalletKeyAlreadyExists
+    | SharedWalletNoSuchCosigner
     deriving (Eq, Generic, Show, Data, Typeable)
     deriving anyclass NFData
 
@@ -2469,11 +2470,11 @@ instance ToText (ApiT Cosigner) where
 
 instance FromText (ApiT Cosigner) where
     fromText txt = case T.splitOn "cosigner#" txt of
-        ["",numTxt] ->  case T.decimal numTxt of
+        ["",numTxt] ->  case T.decimal @Integer numTxt of
             Right (num,"") -> do
-                when (num < minBound @Word8 || num > maxBound @Word8) $
+                when (num < 0 || num > 255) $
                         Left $ TextDecodingError "Cosigner number should be between '0' and '255'"
-                pure $ ApiT $ Cosigner num
+                pure $ ApiT $ Cosigner $ fromIntegral num
             _ -> Left $ TextDecodingError "Cosigner should be enumerated with number"
         _ -> Left $ TextDecodingError "Cosigner should be of form: cosigner#num"
 

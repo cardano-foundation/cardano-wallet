@@ -86,6 +86,7 @@ import Test.Integration.Framework.DSL
 import Test.Integration.Framework.TestData
     ( errMsg403AlreadyPresentKey
     , errMsg403NoDelegationTemplate
+    , errMsg403NoSuchCosigner
     , errMsg403NotPendingWallet
     )
 
@@ -496,6 +497,14 @@ spec = describe "SHARED_WALLETS" $ do
         rPatch4 <- patchSharedWallet ctx wal Delegation payloadPatch4
         expectResponseCode HTTP.status403 rPatch4
         expectErrorMessage (errMsg403AlreadyPresentKey (toText Delegation)) rPatch4
+
+        let payloadPatch5 = Json [json| {
+                "account_public_key": #{accXPub0},
+                "cosigner": "cosigner#7"
+                } |]
+        rPatch5 <- patchSharedWallet ctx wal Payment payloadPatch5
+        expectResponseCode HTTP.status403 rPatch5
+        expectErrorMessage (errMsg403NoSuchCosigner (toText Payment) 7) rPatch5
   where
       xpubFromText :: Text -> Maybe XPub
       xpubFromText = fmap eitherToMaybe fromHexText >=> xpubFromBytes

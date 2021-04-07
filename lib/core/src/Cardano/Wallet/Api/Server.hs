@@ -111,6 +111,8 @@ import Prelude
 
 import Cardano.Address.Derivation
     ( XPrv, XPub, xpubPublicKey, xpubToBytes )
+import Cardano.Address.Script
+    ( Cosigner (..) )
 import Cardano.Api.Typed
     ( AnyCardanoEra (..), CardanoEra (..), SerialiseAsCBOR (..) )
 import Cardano.BM.Tracing
@@ -3036,26 +3038,26 @@ instance IsServerError ErrWithdrawalNotWorth where
                 , "request."
                 ]
 
-instance LiftHandler ErrSignMetadataWith where
-    handler = \case
-        ErrSignMetadataWithRootKey e -> handler e
-        ErrSignMetadataWithNoSuchWallet e -> handler e
-        ErrSignMetadataWithInvalidIndex e -> handler e
+instance IsServerError ErrSignMetadataWith where
+    toServerError = \case
+        ErrSignMetadataWithRootKey e -> toServerError e
+        ErrSignMetadataWithNoSuchWallet e -> toServerError e
+        ErrSignMetadataWithInvalidIndex e -> toServerError e
 
-instance LiftHandler ErrReadAccountPublicKey where
-    handler = \case
-        ErrReadAccountPublicKeyRootKey e -> handler e
-        ErrReadAccountPublicKeyNoSuchWallet e -> handler e
-        ErrReadAccountPublicKeyInvalidIndex e -> handler e
+instance IsServerError ErrReadAccountPublicKey where
+    toServerError = \case
+        ErrReadAccountPublicKeyRootKey e -> toServerError e
+        ErrReadAccountPublicKeyNoSuchWallet e -> toServerError e
+        ErrReadAccountPublicKeyInvalidIndex e -> toServerError e
 
-instance LiftHandler ErrDerivePublicKey where
-    handler = \case
-        ErrDerivePublicKeyNoSuchWallet e -> handler e
-        ErrDerivePublicKeyInvalidIndex e -> handler e
+instance IsServerError ErrDerivePublicKey where
+    toServerError = \case
+        ErrDerivePublicKeyNoSuchWallet e -> toServerError e
+        ErrDerivePublicKeyInvalidIndex e -> toServerError e
 
-instance LiftHandler ErrAddCosignerKey where
-    handler = \case
-        ErrAddCosignerKeyNoSuchWallet e -> handler e
+instance IsServerError ErrAddCosignerKey where
+    toServerError = \case
+        ErrAddCosignerKeyNoSuchWallet e -> toServerError e
         ErrAddCosignerKeyActiveWallet ->
             apiError err403 SharedWalletNotPending $ mconcat
                 [ "It looks like you've tried to add cosigner key for "
@@ -3075,9 +3077,15 @@ instance LiftHandler ErrAddCosignerKey where
                 , "and is ascribed to another cosigner. Or you are updating with the same key. "
                 , "Make sure each cosigner has unique key withing each script template."
                 ]
+        ErrAddCosignerKeyNoSuchCosigner (Cosigner c) cred ->
+            apiError err403 SharedWalletNoSuchCosigner $ mconcat
+                [ "It looks like you've tried to add cosigner key for "
+                , "shared wallet for ", toText cred," template that does not contain "
+                , "consigner#",pretty c," inside script template."
+                ]
 
-instance LiftHandler (ErrInvalidDerivationIndex 'Soft level) where
-    handler = \case
+instance IsServerError (ErrInvalidDerivationIndex 'Soft level) where
+    toServerError = \case
         ErrIndexOutOfBound minIx maxIx _ix ->
             apiError err403 SoftDerivationRequired $ mconcat
                 [ "It looks like you've provided a derivation index that is "

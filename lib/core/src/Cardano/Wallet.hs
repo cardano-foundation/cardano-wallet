@@ -259,6 +259,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.SharedState
     , SharedStateFields (..)
     , SharedStatePending (..)
     , addCosignerAccXPub
+    , retrieveAllCosigners
     )
 import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     ( SelectionError (..)
@@ -2128,6 +2129,12 @@ updateCosigner ctx wid accXPub cosigner cred = db & \DBLayer{..} -> do
             PendingFields (SharedStatePending _ pT dTM _) -> do
                 when (cred == Delegation && isNothing dTM)$
                     throwE ErrAddCosignerKeyNoDelegationTemplate
+
+                when (cred == Payment && isCosignerMissing pT) $
+                    throwE $ ErrAddCosignerKeyNoSuchCosigner cosigner Payment
+                when (cred == Delegation && isCosignerMissing (fromJust dTM)) $
+                    throwE $ ErrAddCosignerKeyNoSuchCosigner cosigner Delegation
+
                 when (cred == Payment && isKeyAlreadyPresent pT) $
                     throwE $ ErrAddCosignerKeyAlreadyPresentKey Payment
                 when (cred == Delegation && isKeyAlreadyPresent (fromJust dTM)) $
@@ -2142,6 +2149,8 @@ updateCosigner ctx wid accXPub cosigner cred = db & \DBLayer{..} -> do
     db = ctx ^. dbLayer @s @k
     isKeyAlreadyPresent (ScriptTemplate cosignerKeys _) =
         getRawKey accXPub `elem` Map.elems cosignerKeys
+    isCosignerMissing (ScriptTemplate _ script') =
+        cosigner `notElem` retrieveAllCosigners script'
 
 {-------------------------------------------------------------------------------
                                    Errors
@@ -2172,6 +2181,9 @@ data ErrAddCosignerKey
         -- ^ Adding the same key for different cosigners for a given script is not allowed.
     | ErrAddCosignerKeyNoDelegationTemplate
         -- ^ Adding key for a cosigner for a non-existant delegation template is not allowed.
+    | ErrAddCosignerKeyNoSuchCosigner Cosigner CredentialType
+        -- ^ Adding key for a cosigners for a given script is possible for the
+        -- cosigner present in the script template.
     deriving (Eq, Show)
 
 data ErrReadAccountPublicKey

@@ -82,6 +82,7 @@ module Test.Integration.Framework.TestData
     , errMsg403NotPendingWallet
     , errMsg403NoDelegationTemplate
     , errMsg403AlreadyPresentKey
+    , errMsg403NoSuchCosigner
     ) where
 
 import Prelude
@@ -519,4 +520,11 @@ errMsg403AlreadyPresentKey cred = mconcat
     , "shared wallet for ", unpack cred," template that already exists "
     , "and is ascribed to another cosigner. Or you are updating with the same key. "
     , "Make sure each cosigner has unique key withing each script template."
+    ]
+
+errMsg403NoSuchCosigner :: Text -> Int -> String
+errMsg403NoSuchCosigner cred cosigner = mconcat
+    [ "It looks like you've tried to add cosigner key for "
+    , "shared wallet for ", unpack cred," template that does not contain "
+    , "consigner#",show cosigner," inside script template."
     ]

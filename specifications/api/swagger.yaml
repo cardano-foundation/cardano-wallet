@@ -2930,6 +2930,58 @@ x-errOutputTokenQuantityExceedsLimit: &errOutputTokenQuantityExceedsLimit
       type: string
       enum: ['output_token_quantity_exceeds_limit']
 
+x-errSharedWalletNotPending: &errSharedWalletNotPending
+  <<: *responsesErr
+  title: shared_wallet_not_pending
+  properties:
+    message:
+      type: string
+      description: |
+        Returned when a user tries to add cosigner key to a shared wallet
+        that is active, not pending anymore.
+    code:
+      type: string
+      enum: ['shared_wallet_not_pending']
+
+x-errSharedWalletNoDelegationTemplate: &errSharedWalletNoDelegationTemplate
+  <<: *responsesErr
+  title: shared_wallet_no_delegation_template
+  properties:
+    message:
+      type: string
+      description: |
+        Returned when a user tries to add cosigner key to a shared wallet
+        for delegation, but the shared wallet misses the delegation template.
+    code:
+      type: string
+      enum: ['shared_wallet_no_delegation_template']
+
+x-errSharedWalletKeyAlreadyExists: &errSharedWalletKeyAlreadyExists
+  <<: *responsesErr
+  title: shared_wallet_key_already_exists
+  properties:
+    message:
+      type: string
+      description: |
+        Returned when a user tries to add cosigner key to a shared wallet
+        but the same key is already present in a given template.
+    code:
+      type: string
+      enum: ['shared_wallet_key_already_exists']
+
+x-errSharedWalletNoSuchCosigner: &errSharedWalletNoSuchCosigner
+  <<: *responsesErr
+  title: shared_wallet_no_such_cosigner
+  properties:
+    message:
+      type: string
+      description: |
+        Returned when a user tries to add cosigner key to a shared wallet
+        in script template that misses the cosigner.
+    code:
+      type: string
+      enum: ['shared_wallet_no_such_cosigner']
+
 # TODO: Map this error to the place it belongs.
 x-errNetworkUnreachable: &errNetworkUnreachable
   <<: *responsesErr
@@ -3476,6 +3528,16 @@ x-responsesPatchSharedWallet: &responsesPatchSharedWallet
   <<: *responsesErr400
   <<: *responsesErr404WalletNotFound
   <<: *responsesErr406
+  403:
+    description: Forbidden
+    content:
+      application/json:
+        schema:
+          oneOf:
+            - <<: *errSharedWalletKeyAlreadyExists
+            - <<: *errSharedWalletNoDelegationTemplate
+            - <<: *errSharedWalletNotPending
+            - <<: *errSharedWalletNoSuchCosigner
   200:
     description: Ok
     content:
