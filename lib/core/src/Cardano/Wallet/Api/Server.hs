@@ -3058,9 +3058,22 @@ instance LiftHandler ErrAddCosignerKey where
         ErrAddCosignerKeyNoSuchWallet e -> handler e
         ErrAddCosignerKeyActiveWallet ->
             apiError err403 SharedWalletNotPending $ mconcat
-                [ "It looks like you've tried to update cosigner key for "
+                [ "It looks like you've tried to add cosigner key for "
                 , "shared wallet that is active. This can be done only for "
                 , "pending shared wallets."
+                ]
+        ErrAddCosignerKeyNoDelegationTemplate ->
+            apiError err403 SharedWalletNoDelegationTemplate $ mconcat
+                [ "It looks like you've tried to add cosigner key for "
+                , "shared wallet for delegation template. This cannot be done as "
+                , "the shared wallets does not have a delegation template."
+                ]
+        ErrAddCosignerKeyAlreadyPresentKey cred ->
+            apiError err403 SharedWalletKeyAlreadyExists $ mconcat
+                [ "It looks like you've tried to add cosigner key for "
+                , "shared wallet for ", toText cred," template that already exists "
+                , "and is ascribed to another cosigner. Or you are updating with the same key. "
+                , "Make sure each cosigner has unique key withing each script template."
                 ]
 
 instance LiftHandler (ErrInvalidDerivationIndex 'Soft level) where

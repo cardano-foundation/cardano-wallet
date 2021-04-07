@@ -82,7 +82,7 @@ import Test.Integration.Framework.DSL
     , verify
     )
 import Test.Integration.Framework.TestData
-    ( errMsg403NotPendingWallet )
+    ( errMsg403NoDelegationTemplate, errMsg403NotPendingWallet )
 
 import qualified Data.Map.Strict as Map
 import qualified Data.Text.Encoding as T
@@ -355,9 +355,7 @@ spec = describe "SHARED_WALLETS" $ do
                 } |]
         rPost <- postSharedWallet ctx Default payloadCreate
         expectResponseCode HTTP.status201 rPost
-        let wal@(ApiSharedWallet (Right activeWal)) = getFromResponse id rPost
-        let cosignerKeysPost = activeWal ^. #paymentScriptTemplate
-        liftIO $ cosigners cosignerKeysPost `shouldBe` Map.fromList [(Cosigner 0,accXPub0)]
+        let wal@(ApiSharedWallet (Right _activeWal)) = getFromResponse id rPost
 
         let payloadPatch = Json [json| {
                 "account_public_key": #{accXPub1},
@@ -367,6 +365,68 @@ spec = describe "SHARED_WALLETS" $ do
         rPatch <- patchSharedWallet ctx wal Payment payloadPatch
         expectResponseCode HTTP.status403 rPatch
         expectErrorMessage errMsg403NotPendingWallet rPatch
+
+    it "SHARED_WALLETS_PATCH_04 - Cannot add cosigner key when delegation script missing and cannot add already existant key to other cosigner" $ \ctx -> runResourceT $ do
+        let payloadCreate = Json [json| {
+                "name": "Shared Wallet",
+                "account_public_key": #{accXPubTxt0},
+                "account_index": "30H",
+                "payment_script_template":
+                    { "cosigners":
+                        { "cosigner#0": #{accXPubTxt0} },
+                      "template":
+                          { "all":
+                             [ "cosigner#0",
+                               "cosigner#1",
+                               { "active_from": 120 }
+                             ]
+                          }
+                    }
+                } |]
+        rPost <- postSharedWallet ctx Default payloadCreate
+        expectResponseCode HTTP.status201 rPost
+        let wal@(ApiSharedWallet (Left _pendingWal)) = getFromResponse id rPost
+
+        let payloadPatch = Json [json| {
+                "account_public_key": #{accXPub1},
+                "cosigner": "cosigner#1"
+                } |]
+
+        rPatch <- patchSharedWallet ctx wal Delegation payloadPatch
+        expectResponseCode HTTP.status403 rPatch
+        expectErrorMessage errMsg403NoDelegationTemplate rPatch
+
+    it "SHARED_WALLETS_PATCH_05 - Can update key of cosigner in pending state" $ \ctx -> runResourceT $ do
+        let payloadCreate = Json [json| {
+                "name": "Shared Wallet",
+                "account_public_key": #{accXPubTxt0},
+                "account_index": "30H",
+                "payment_script_template":
+                    { "cosigners":
+                        { "cosigner#0": #{accXPubTxt0} },
+                      "template":
+                          { "all":
+                             [ "cosigner#0",
+                               "cosigner#1",
+                               { "active_from": 120 }
+                             ]
+                          }
+                    }
+                } |]
+        rPost <- postSharedWallet ctx Default payloadCreate
+        expectResponseCode HTTP.status201 rPost
+        let wal@(ApiSharedWallet (Left _pendingWal)) = getFromResponse id rPost
+
+        let payloadPatch = Json [json| {
+                "account_public_key": #{accXPub1},
+                "cosigner": "cosigner#0"
+                } |]
+
+        rPatch <- patchSharedWallet ctx wal Payment payloadPatch
+        expectResponseCode HTTP.status200 rPatch
+        let (ApiSharedWallet (Left pendingWal)) = getFromResponse id rPatch
+        let cosignerKeysPatch = pendingWal ^. #paymentScriptTemplate
+        liftIO $ cosigners cosignerKeysPatch `shouldBe` Map.fromList [(Cosigner 0,accXPub1)]
   where
       xpubFromText :: Text -> Maybe XPub
       xpubFromText = fmap eitherToMaybe fromHexText >=> xpubFromBytes

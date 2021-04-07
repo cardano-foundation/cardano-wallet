@@ -80,6 +80,7 @@ module Test.Integration.Framework.TestData
     , errMsg403OutputTokenBundleSizeExceedsLimit
     , errMsg403OutputTokenQuantityExceedsLimit
     , errMsg403NotPendingWallet
+    , errMsg403NoDelegationTemplate
     ) where
 
 import Prelude
@@ -499,7 +500,14 @@ errMsg403OutputTokenQuantityExceedsLimit
 
 errMsg403NotPendingWallet :: String
 errMsg403NotPendingWallet = mconcat
-    [ "It looks like you've tried to update cosigner key for "
+    [ "It looks like you've tried to add cosigner key for "
     , "shared wallet that is active. This can be done only for "
     , "pending shared wallets."
+    ]
+
+errMsg403NoDelegationTemplate :: String
+errMsg403NoDelegationTemplate = mconcat
+    [ "It looks like you've tried to add cosigner key for "
+    , "shared wallet for delegation template. This cannot be done as "
+    , "the shared wallets does not have a delegation template."
     ]

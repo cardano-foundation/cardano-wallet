@@ -255,7 +255,11 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     , shrinkPool
     )
 import Cardano.Wallet.Primitive.AddressDiscovery.SharedState
-    ( SharedState (SharedState), SharedStateFields (..), addCosignerAccXPub )
+    ( SharedState (SharedState)
+    , SharedStateFields (..)
+    , SharedStatePending (..)
+    , addCosignerAccXPub
+    )
 import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     ( SelectionError (..)
     , SelectionResult (..)
@@ -405,7 +409,7 @@ import Data.List
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Maybe
-    ( fromMaybe, mapMaybe )
+    ( fromMaybe, isNothing, mapMaybe )
 import Data.Proxy
     ( Proxy )
 import Data.Quantity
@@ -2119,7 +2123,9 @@ updateCosigner ctx wid accXPub cosigner cred = db & \DBLayer{..} -> do
               readCheckpoint (PrimaryKey wid)
         let s@(SharedState _ st) = getState cp
         case st of
-            PendingFields _ -> do
+            PendingFields (SharedStatePending _ _pT dTM _) -> do
+                when (cred == Delegation && isNothing dTM)$
+                    throwE ErrAddCosignerKeyNoDelegationTemplate
                 let s' = addCosignerAccXPub accXPub cosigner cred s
                 withExceptT ErrAddCosignerKeyNoSuchWallet $
                     putCheckpoint (PrimaryKey wid) (updateState s' cp)
@@ -2153,6 +2159,10 @@ data ErrAddCosignerKey
         -- ^ The shared wallet doesn't exist?
     | ErrAddCosignerKeyActiveWallet
         -- ^ Adding is possible only to pending shared wallet
+    | ErrAddCosignerKeyAlreadyPresentKey CredentialType
+        -- ^ Adding the same key for different cosigners for a given script is not allowed.
+    | ErrAddCosignerKeyNoDelegationTemplate
+        -- ^ Adding key for a cosigner for a non-existant delegation template is not allowed.
     deriving (Eq, Show)
 
 data ErrReadAccountPublicKey
