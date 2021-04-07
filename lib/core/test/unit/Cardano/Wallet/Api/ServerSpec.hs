@@ -43,6 +43,8 @@ import Control.Monad
     ( void )
 import Control.Monad.Trans.Except
     ( ExceptT (..), throwE )
+import Data.Either
+    ( isLeft )
 import Data.Maybe
     ( isJust, isNothing )
 import Data.Quantity
@@ -69,7 +71,7 @@ import Ouroboros.Consensus.Util.Counting
 import Servant.Server
     ( ServerError (..), runHandler )
 import Test.Hspec
-    ( Spec, describe, it, pendingWith, shouldBe, shouldReturn )
+    ( Spec, describe, it, pendingWith, shouldBe, shouldReturn, shouldSatisfy )
 import Test.QuickCheck.Modifiers
     ( NonNegative (..) )
 import Test.QuickCheck.Monadic
@@ -83,6 +85,8 @@ import UnliftIO.Async
 import UnliftIO.Concurrent
     ( threadDelay )
 
+import qualified Data.ByteString.Char8 as B8
+import qualified Data.ByteString.Lazy as BL
 import qualified Ouroboros.Consensus.HardFork.History.EraParams as HF
 import qualified Ouroboros.Consensus.HardFork.History.Qry as HF
 import qualified Ouroboros.Consensus.HardFork.History.Summary as HF
@@ -250,16 +254,16 @@ errorHandlingSpec = describe "liftHandler and toServerError" $ do
         let handler :: ExceptT ErrNoSuchWallet IO ()
             handler = throwE $ ErrNoSuchWallet wid
             wid = unsafeFromText "0000000000000000000000000000000000000000"
-        let expectedErr = ServerError
-                { errHTTPCode = 404
-                , errReasonPhrase = "Not Found"
-                , errBody = mconcat
-                    [ "{\"code\":\"no_such_wallet\",\"message\":\"I couldn't "
-                    , "find a wallet with the given id: 0000000000000000000000000000000000000000\"}" ]
-                , errHeaders =
-                    [("Content-Type","application/json;charset=utf-8")]
-                }
-        testWalletHandler handler `shouldReturn` Left expectedErr
+        res <- testWalletHandler handler
+        res `shouldSatisfy` isLeft
+        let Left actualErr = res
+        errHTTPCode actualErr `shouldBe` 404
+        errReasonPhrase actualErr `shouldBe`
+            "Not Found"
+        BL.toStrict (errBody actualErr) `shouldSatisfy`
+            (B8.isInfixOf "no_such_wallet")
+        errHeaders actualErr `shouldBe`
+            [("Content-Type","application/json;charset=utf-8")]
 
     it "Unhandled exception" $ do
         pendingWith "TODO: ADP-641 catch all exceptions in application"
