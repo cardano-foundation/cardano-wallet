@@ -117,6 +117,9 @@ RSpec.describe CardanoWallet::Shelley do
       addresses = shelley_addr.list id
       expect(addresses).to have_http 200
       expect(addresses.size).to eq 20
+      addresses.each_with_index do |a,i|
+        expect(a['derivation_path']).to eq ['1852H', '1815H', '0H', '0', i.to_s]
+      end
 
       addresses_unused = shelley_addr.list id, {state: "used"}
       expect(addresses_unused).to have_http 200
@@ -125,6 +128,9 @@ RSpec.describe CardanoWallet::Shelley do
       addresses_unused = shelley_addr.list id, {state: "unused"}
       expect(addresses_unused).to have_http 200
       expect(addresses_unused.size).to eq 20
+      addresses_unused.each_with_index do |a,i|
+        expect(a['derivation_path']).to eq ['1852H', '1815H', '0H', '0', i.to_s]
+      end
     end
   end
 
@@ -256,7 +262,7 @@ RSpec.describe CardanoWallet::Shelley do
       s = settings.update({:pool_metadata_source => "none"})
       teardown
     end
-    
+
     it "ADP-634 - Pool metadata is updated when settings are updated" do
       settings = CardanoWallet.new.misc.settings
       pools = SHELLEY.stake_pools

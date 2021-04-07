@@ -87,6 +87,8 @@ RSpec.describe CardanoWallet::Byron do
       addresses = BYRON.addresses.list id
       expect(addresses).to have_http 200
       expect(addresses.size).to eq 1
+      expect(addresses.first['derivation_path'][0]).to eq '0H'
+      expect(addresses.first['derivation_path'][1]).to end_with 'H'
     end
 
     it "Can list addresses - icarus" do
@@ -94,6 +96,9 @@ RSpec.describe CardanoWallet::Byron do
       addresses_unused = BYRON.addresses.list id, {state: "unused"}
       expect(addresses_unused).to have_http 200
       expect(addresses_unused.size).to eq 20
+      addresses_unused.each_with_index do |a,i|
+        expect(a['derivation_path']).to eq ['44H', '1815H', '0H', '0', i.to_s]
+      end
     end
 
     it "Can list addresses - ledger" do
@@ -101,6 +106,9 @@ RSpec.describe CardanoWallet::Byron do
       addresses_unused = BYRON.addresses.list id, {state: "unused"}
       expect(addresses_unused).to have_http 200
       expect(addresses_unused.size).to eq 20
+      addresses_unused.each_with_index do |a,i|
+        expect(a['derivation_path']).to eq ['44H', '1815H', '0H', '0', i.to_s]
+      end
     end
 
     it "Can list addresses - trezor" do
@@ -108,6 +116,9 @@ RSpec.describe CardanoWallet::Byron do
       addresses_unused = BYRON.addresses.list id, {state: "unused"}
       expect(addresses_unused).to have_http 200
       expect(addresses_unused.size).to eq 20
+      addresses_unused.each_with_index do |a,i|
+        expect(a['derivation_path']).to eq ['44H', '1815H', '0H', '0', i.to_s]
+      end
     end
 
     it "Can create address - random" do
@@ -115,16 +126,24 @@ RSpec.describe CardanoWallet::Byron do
       addr = BYRON.addresses.create(id, {passphrase: PASS,
                                          address_index: 2147483648})
       expect(addr).to have_http 201
+      expect(addr['derivation_path']).to eq ['0H', '0H']
 
-      addr = BYRON.addresses.create(id, {passphrase: PASS})
-      expect(addr).to have_http 201
+      addr_r = BYRON.addresses.create(id, {passphrase: PASS})
+      expect(addr_r).to have_http 201
+      expect(addr_r['derivation_path'][0]).to eq '0H'
+      expect(addr_r['derivation_path'][1]).to end_with 'H'
     end
 
-    it "I could import address - random" do
-      id = create_byron_wallet
-      addr = BYRON.addresses.create(id, {passphrase: PASS})['id']
+    it "I can import address - random" do
+      id = create_fixture_byron_wallet
+      addr = '37btjrVyb4KEciULDrqJDBh6SjgPqi9JJ5qQqWGgvtsB7GcsuqorKceMTBRudFK8zDu3btoC5FtN7K1PEHmko4neQPfV9TDVfivc9JTZVNPKtRd4w2'
       addr_import = BYRON.addresses.import(id, addr)
       expect(addr_import).to have_http 204
+
+      addresses = BYRON.addresses.list id
+      expect(addresses).to have_http 200
+      expect(addresses.size).to eq 1
+      expect(addresses.first['derivation_path']).to eq ['0H', '2147483647H']
     end
 
     it "I cannot import address - icarus" do
