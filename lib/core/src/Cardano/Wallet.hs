@@ -255,7 +255,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     , shrinkPool
     )
 import Cardano.Wallet.Primitive.AddressDiscovery.SharedState
-    ( SharedState, addCosignerAccXPub )
+    ( SharedState (SharedState), SharedStateFields (..), addCosignerAccXPub )
 import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     ( SelectionError (..)
     , SelectionResult (..)
@@ -2117,9 +2117,14 @@ updateCosigner ctx wid accXPub cosigner cred = db & \DBLayer{..} -> do
     mapExceptT atomically $ do
         cp <- withExceptT ErrAddCosignerKeyNoSuchWallet $ withNoSuchWallet wid $
               readCheckpoint (PrimaryKey wid)
-        let s' = addCosignerAccXPub accXPub cosigner cred (getState cp)
-        withExceptT ErrAddCosignerKeyNoSuchWallet $
-            putCheckpoint (PrimaryKey wid) (updateState s' cp)
+        let s@(SharedState _ st) = getState cp
+        case st of
+            PendingFields _ -> do
+                let s' = addCosignerAccXPub accXPub cosigner cred s
+                withExceptT ErrAddCosignerKeyNoSuchWallet $
+                    putCheckpoint (PrimaryKey wid) (updateState s' cp)
+            ReadyFields _ ->
+                throwE ErrAddCosignerKeyActiveWallet
   where
     db = ctx ^. dbLayer @s @k
 
@@ -2143,8 +2148,11 @@ data ErrDerivePublicKey
         -- ^ User provided a derivation index outside of the 'Soft' domain
     deriving (Eq, Show)
 
-newtype ErrAddCosignerKey =
-    ErrAddCosignerKeyNoSuchWallet ErrNoSuchWallet
+data ErrAddCosignerKey
+    = ErrAddCosignerKeyNoSuchWallet ErrNoSuchWallet
+        -- ^ The shared wallet doesn't exist?
+    | ErrAddCosignerKeyActiveWallet
+        -- ^ Adding is possible only to pending shared wallet
     deriving (Eq, Show)
 
 data ErrReadAccountPublicKey

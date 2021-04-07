@@ -3056,6 +3056,12 @@ instance LiftHandler ErrDerivePublicKey where
 instance LiftHandler ErrAddCosignerKey where
     handler = \case
         ErrAddCosignerKeyNoSuchWallet e -> handler e
+        ErrAddCosignerKeyActiveWallet ->
+            apiError err403 SharedWalletNotPending $ mconcat
+                [ "It looks like you've tried to update cosigner key for "
+                , "shared wallet that is active. This can be done only for "
+                , "pending shared wallets."
+                ]
 
 instance LiftHandler (ErrInvalidDerivationIndex 'Soft level) where
     handler = \case

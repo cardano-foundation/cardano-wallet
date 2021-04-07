@@ -1158,6 +1158,7 @@ data ApiErrorCode
     | AssetNotPresent
     | OutputTokenBundleSizeExceedsLimit
     | OutputTokenQuantityExceedsLimit
+    | SharedWalletNotPending
     deriving (Eq, Generic, Show, Data, Typeable)
     deriving anyclass NFData
 

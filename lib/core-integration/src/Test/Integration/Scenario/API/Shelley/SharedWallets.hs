@@ -68,6 +68,7 @@ import Test.Integration.Framework.DSL
     , Payload (..)
     , deleteSharedWallet
     , eventually
+    , expectErrorMessage
     , expectField
     , expectResponseCode
     , fixturePassphrase
@@ -80,6 +81,8 @@ import Test.Integration.Framework.DSL
     , postSharedWallet
     , verify
     )
+import Test.Integration.Framework.TestData
+    ( errMsg403NotPendingWallet )
 
 import qualified Data.Map.Strict as Map
 import qualified Data.Text.Encoding as T
@@ -333,6 +336,37 @@ spec = describe "SHARED_WALLETS" $ do
         let (ApiSharedWallet (Right activeWal)) = getFromResponse id rPatch
         let (Just cosignerKeysPatch) = activeWal ^. #delegationScriptTemplate
         liftIO $ cosigners cosignerKeysPatch `shouldBe` Map.fromList [(Cosigner 0,accXPub0), (Cosigner 1,accXPub1)]
+
+    it "SHARED_WALLETS_PATCH_03 - Cannot add cosigner key in an active shared wallet" $ \ctx -> runResourceT $ do
+        let payloadCreate = Json [json| {
+                "name": "Shared Wallet",
+                "account_public_key": #{accXPubTxt0},
+                "account_index": "30H",
+                "payment_script_template":
+                    { "cosigners":
+                        { "cosigner#0": #{accXPubTxt0} },
+                      "template":
+                          { "all":
+                             [ "cosigner#0",
+                               { "active_from": 120 }
+                             ]
+                          }
+                    }
+                } |]
+        rPost <- postSharedWallet ctx Default payloadCreate
+        expectResponseCode HTTP.status201 rPost
+        let wal@(ApiSharedWallet (Right activeWal)) = getFromResponse id rPost
+        let cosignerKeysPost = activeWal ^. #paymentScriptTemplate
+        liftIO $ cosigners cosignerKeysPost `shouldBe` Map.fromList [(Cosigner 0,accXPub0)]
+
+        let payloadPatch = Json [json| {
+                "account_public_key": #{accXPub1},
+                "cosigner": "cosigner#1"
+                } |]
+
+        rPatch <- patchSharedWallet ctx wal Payment payloadPatch
+        expectResponseCode HTTP.status403 rPatch
+        expectErrorMessage errMsg403NotPendingWallet rPatch
   where
       xpubFromText :: Text -> Maybe XPub
       xpubFromText = fmap eitherToMaybe fromHexText >=> xpubFromBytes

@@ -79,6 +79,7 @@ module Test.Integration.Framework.TestData
     , errMsg403WrongIndex
     , errMsg403OutputTokenBundleSizeExceedsLimit
     , errMsg403OutputTokenQuantityExceedsLimit
+    , errMsg403NotPendingWallet
     ) where
 
 import Prelude
@@ -495,3 +496,10 @@ errMsg403OutputTokenQuantityExceedsLimit
         , pretty quantityMaxBound
         , "."
         ]
+
+errMsg403NotPendingWallet :: String
+errMsg403NotPendingWallet = mconcat
+    [ "It looks like you've tried to update cosigner key for "
+    , "shared wallet that is active. This can be done only for "
+    , "pending shared wallets."
+    ]
