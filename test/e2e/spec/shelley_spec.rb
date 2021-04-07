@@ -152,20 +152,6 @@ RSpec.describe CardanoWallet::Shelley do
       expect(rnd).to have_http 403
       expect(rnd).to include "not_enough_money"
     end
-
-    it "ArgumentError on bad argument address_amount" do
-      wid = create_shelley_wallet
-      p =[[{addr1: 1, addr2: 2}], "addr:123", 123]
-      cs = SHELLEY.coin_selections
-      expect{ cs.random(wid, p[0]) }.to raise_error ArgumentError,
-            "argument should be Array of single Hashes"
-
-      expect{ cs.random(wid, p[1]) }.to raise_error ArgumentError,
-            "argument should be Array"
-
-      expect{ cs.random(wid, p[2]) }.to raise_error ArgumentError,
-            "argument should be Array"
-    end
   end
 
   describe CardanoWallet::Shelley::Transactions do
