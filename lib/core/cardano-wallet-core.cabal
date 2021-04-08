@@ -308,6 +308,7 @@ test-suite unit
     , transformers
     , tree-diff
     , unliftio
+    , unliftio-core
     , unordered-containers
     , x509
     , x509-store

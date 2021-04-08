@@ -34,8 +34,11 @@ module Cardano.Wallet.DB.Sqlite
     , withDBLayer
     , withDBLayerInMemory
     , WalletDBLog (..)
-    , newDBLayerWith
     , CacheBehavior (..)
+
+    -- * Unbracketed internal implementation
+    , newDBLayerWith
+    , newDBLayerInMemory
 
     -- * Interfaces
     , PersistState (..)
@@ -1204,6 +1207,9 @@ withDBLayerInMemory
 withDBLayerInMemory tr ti action = bracket (newDBLayerInMemory tr ti) fst (action . snd)
 
 -- | Creates a 'DBLayer' backed by a sqlite in-memory database.
+--
+-- Returns a cleanup function which you should always use exactly once when
+-- finished with the 'DBLayer'.
 newDBLayerInMemory
     :: forall s k.
         ( PersistState s

@@ -58,7 +58,7 @@ import Cardano.Wallet.DB
     , cleanDB
     )
 import Cardano.Wallet.DB.Arbitrary
-    ( KeyValPairs (..) )
+    ( GenState, KeyValPairs (..) )
 import Cardano.Wallet.DB.Properties
     ( properties )
 import Cardano.Wallet.DB.Sqlite
@@ -66,11 +66,12 @@ import Cardano.Wallet.DB.Sqlite
     , PersistState
     , WalletDBLog (..)
     , newDBFactory
+    , newDBLayerInMemory
     , withDBLayer
     , withDBLayerInMemory
     )
 import Cardano.Wallet.DB.StateMachine
-    ( prop_parallel, prop_sequential, validateGenerators )
+    ( TestConstraints, prop_parallel, prop_sequential, validateGenerators )
 import Cardano.Wallet.DummyTarget.Primitive.Types
     ( block0, dummyGenesisParameters, dummyTimeInterpreter, mockHash )
 import Cardano.Wallet.Gen
@@ -185,6 +186,8 @@ import Data.Time.Clock
     ( getCurrentTime )
 import Data.Time.Clock.POSIX
     ( posixSecondsToUTCTime )
+import Data.Typeable
+    ( Typeable, typeOf )
 import Data.Word
     ( Word64 )
 import Database.Persist.Sql
@@ -209,6 +212,7 @@ import Test.Hspec
     ( Expectation
     , Spec
     , SpecWith
+    , anyIOException
     , around
     , before
     , beforeWith
@@ -225,9 +229,16 @@ import Test.Hspec
 import Test.Hspec.Extra
     ( parallel )
 import Test.QuickCheck
-    ( Property, generate, property, (==>) )
+    ( Arbitrary (..)
+    , Property
+    , choose
+    , generate
+    , noShrinking
+    , property
+    , (==>)
+    )
 import Test.QuickCheck.Monadic
-    ( monadicIO )
+    ( assert, monadicIO, run )
 import Test.Utils.Paths
     ( getTestData )
 import Test.Utils.Trace
@@ -258,11 +269,50 @@ import qualified UnliftIO.STM as STM
 
 spec :: Spec
 spec = parallel $ do
-    sqliteSpecSeq
-    sqliteSpecRnd
-    sqliteSpecShared
+    stateMachineSpecSeq
+    stateMachineSpecRnd
+    stateMachineSpecShared
+    propertiesSpecSeq
     loggingSpec
     fileModeSpec
+    manualMigrationsSpec
+
+stateMachineSpec
+    :: forall k s.
+        ( WalletKey k
+        , PersistPrivateKey (k 'RootK)
+        , PaymentAddress 'Mainnet k
+        , PersistState s
+        , Arbitrary (Wallet s)
+        , GenState s
+        , TestConstraints s k
+        , Typeable s
+        )
+    => Spec
+stateMachineSpec = describe ("State machine tests " ++ showState @s) $ do
+    validateGenerators @s
+    let newDB = newDBLayerInMemory @s @k nullTracer dummyTimeInterpreter
+    it "Sequential" $ prop_sequential newDB
+    xit "Parallel" $ prop_parallel newDB
+
+showState :: forall s. Typeable s => String
+showState = show (typeOf @s undefined)
+
+stateMachineSpecSeq, stateMachineSpecRnd, stateMachineSpecShared :: Spec
+stateMachineSpecSeq = stateMachineSpec @ShelleyKey @(SeqState 'Mainnet ShelleyKey)
+stateMachineSpecRnd = stateMachineSpec @ByronKey @(RndState 'Mainnet)
+stateMachineSpecShared = stateMachineSpec @ShelleyKey @(SharedState 'Mainnet ShelleyKey)
+
+propertiesSpecSeq :: Spec
+propertiesSpecSeq = around withShelleyDBLayer $ describe "Properties"
+    (properties :: SpecWith TestDBSeq)
+
+{-------------------------------------------------------------------------------
+                                Migration tests
+-------------------------------------------------------------------------------}
+
+manualMigrationsSpec :: Spec
+manualMigrationsSpec =
     describe "Manual migrations" $ do
         it "'migrate' db with no passphrase scheme set."
             testMigrationPassphraseScheme
@@ -409,31 +459,6 @@ spec = parallel $ do
                   )
                 ]
 
-sqliteSpecSeq :: Spec
-sqliteSpecSeq = do
-    validateGenerators @(SeqState 'Mainnet ShelleyKey)
-    around withShelleyDBLayerInMemory $ do
-        parallel $ describe "Sqlite (SeqState)" properties
-        parallel $ describe "Sqlite State machine tests (SeqState)" $ do
-            it "Sequential" (prop_sequential :: TestDBSeq -> Property)
-            xit "Parallel" prop_parallel
-
-sqliteSpecRnd :: Spec
-sqliteSpecRnd = do
-    validateGenerators @(RndState 'Mainnet)
-    around withByronDBLayer $ do
-        parallel $ describe "Sqlite State machine (RndState)" $ do
-            it "Sequential state machine tests (RndState)"
-                (prop_sequential :: TestDBRnd -> Property)
-
-sqliteSpecShared :: Spec
-sqliteSpecShared = do
-    validateGenerators @(SharedState 'Mainnet ShelleyKey)
-    around withShelleyDBLayerInMemory $ do
-        parallel $ describe "Sqlite (SharedState)" properties
-        parallel $ describe "Sqlite State machine tests (SharedState)" $ do
-            it "Sequential" (prop_sequential :: TestDBShared -> Property)
-
 testMigrationTxMetaFee
     :: forall k s.
         ( s ~ SeqState 'Mainnet k
@@ -537,6 +562,7 @@ testMigrationRole
         , PersistPrivateKey (k 'RootK)
         , PaymentAddress 'Mainnet k
         , GetPurpose k
+        , Show s
         )
     => String
     -> IO ()
@@ -567,6 +593,7 @@ testMigrationSeqStateDerivationPrefix
         , WalletKey k
         , PersistState s
         , PersistPrivateKey (k 'RootK)
+        , Show s
         )
     => String
     -> ( Index 'Hardened 'PurposeK
@@ -682,7 +709,7 @@ loggingSpec = withLoggingDB @(SeqState 'Mainnet ShelleyKey) $ do
             length msgs `shouldBe` count * 2
 
 withLoggingDB
-    :: PersistState s
+    :: (Show s, PersistState s)
     => SpecWith (IO [DBLog], DBLayer IO s ShelleyKey)
     -> Spec
 withLoggingDB = around f . beforeWith clean
@@ -724,8 +751,6 @@ findObserveDiffs = filter isObserveDiff
 -------------------------------------------------------------------------------}
 
 type TestDBSeq = DBLayer IO (SeqState 'Mainnet ShelleyKey) ShelleyKey
-type TestDBRnd = DBLayer IO (RndState 'Mainnet) ByronKey
-type TestDBShared = DBLayer IO (SharedState 'Mainnet ShelleyKey) ShelleyKey
 
 fileModeSpec :: Spec
 fileModeSpec =  do
@@ -733,7 +758,7 @@ fileModeSpec =  do
         it "Opening and closing of db works" $ do
             replicateM_ 25 $ do
                 db <- temporaryDBFile
-                withShelleyDBLayer @(SeqState 'Mainnet ShelleyKey) db
+                withShelleyFileDBLayer @(SeqState 'Mainnet ShelleyKey) db
                     (\_ -> pure ())
 
     describe "DBFactory" $ do
@@ -811,13 +836,13 @@ fileModeSpec =  do
         describe "Check db reading/writing from/to file and cleaning" $ do
 
         it "create and list wallet works" $ \f -> do
-            withShelleyDBLayer f $ \DBLayer{..} -> do
+            withShelleyFileDBLayer f $ \DBLayer{..} -> do
                 atomically $ unsafeRunExceptT $
                     initializeWallet testPk testCp testMetadata mempty gp
             testOpeningCleaning f listWallets' [testPk] []
 
         it "create and get meta works" $ \f -> do
-            meta <- withShelleyDBLayer f $ \DBLayer{..} -> do
+            meta <- withShelleyFileDBLayer f $ \DBLayer{..} -> do
                 now <- getCurrentTime
                 let meta = testMetadata
                        { passphraseInfo = Just $ WalletPassphraseInfo now EncryptWithPBKDF2 }
@@ -827,14 +852,14 @@ fileModeSpec =  do
             testOpeningCleaning f (`readWalletMeta'` testPk) (Just meta) Nothing
 
         it "create and get private key" $ \f -> do
-            (k, h) <- withShelleyDBLayer f $ \db@DBLayer{..} -> do
+            (k, h) <- withShelleyFileDBLayer f $ \db@DBLayer{..} -> do
                 atomically $ unsafeRunExceptT $
                     initializeWallet testPk testCp testMetadata mempty gp
                 unsafeRunExceptT $ attachPrivateKey db testPk
             testOpeningCleaning f (`readPrivateKey'` testPk) (Just (k, h)) Nothing
 
         it "put and read tx history (Ascending)" $ \f -> do
-            withShelleyDBLayer f $ \DBLayer{..} -> do
+            withShelleyFileDBLayer f $ \DBLayer{..} -> do
                 atomically $ do
                     unsafeRunExceptT $
                         initializeWallet testPk testCp testMetadata mempty gp
@@ -846,7 +871,7 @@ fileModeSpec =  do
                 mempty
 
         it "put and read tx history (Decending)" $ \f -> do
-            withShelleyDBLayer f $ \DBLayer{..} -> do
+            withShelleyFileDBLayer f $ \DBLayer{..} -> do
                 atomically $ do
                     unsafeRunExceptT $
                         initializeWallet testPk testCp testMetadata mempty gp
@@ -858,7 +883,7 @@ fileModeSpec =  do
                 mempty
 
         it "put and read checkpoint" $ \f -> do
-            withShelleyDBLayer f $ \DBLayer{..} -> do
+            withShelleyFileDBLayer f $ \DBLayer{..} -> do
                 atomically $ do
                     unsafeRunExceptT $
                         initializeWallet testPk testCp testMetadata mempty gp
@@ -871,7 +896,7 @@ fileModeSpec =  do
 
             it "(Regression test #1575) - TxMetas and checkpoints should \
                \rollback to the same place" $ \f -> do
-              withShelleyDBLayer f $ \db@DBLayer{..} -> do
+              withShelleyFileDBLayer f $ \db@DBLayer{..} -> do
 
                 let ourAddrs =
                         map (\(a,s,_) -> (a,s)) $
@@ -955,7 +980,7 @@ prop_randomOpChunks (KeyValPairs pairs) =
   where
     prop = do
         filepath <- temporaryDBFile
-        withShelleyDBLayer filepath $ \dbF -> do
+        withShelleyFileDBLayer filepath $ \dbF -> do
             cleanDB dbF
             withShelleyDBLayerInMemory $ \dbM -> do
                 cleanDB dbM
@@ -1003,11 +1028,11 @@ testOpeningCleaning
     -> s
     -> Expectation
 testOpeningCleaning filepath call expectedAfterOpen expectedAfterClean = do
-    withShelleyDBLayer filepath $ \db -> do
+    withShelleyFileDBLayer filepath $ \db -> do
         call db `shouldReturn` expectedAfterOpen
         _ <- cleanDB db
         call db `shouldReturn` expectedAfterClean
-    withShelleyDBLayer filepath $ \db -> do
+    withShelleyFileDBLayer filepath $ \db -> do
         call db `shouldReturn` expectedAfterClean
 
 -- | Run a test action inside withDBLayer, then check assertions.
@@ -1043,29 +1068,24 @@ defaultFieldValues = DefaultFieldValues
     , defaultKeyDeposit = Coin 2_000_000
     }
 
--- Note: Having two separate helpers with concrete key types reduces the need
+-- Note: Having helper with concrete key types reduces the need
 -- for type-application everywhere.
-withByronDBLayer
-    :: PersistState s
-    => ((DBLayer IO s ByronKey) -> IO a)
-    -> IO a
-withByronDBLayer = withDBLayerInMemory
-    nullTracer
-    dummyTimeInterpreter
+withShelleyDBLayer :: (Show s, PersistState s) => (DBLayer IO s ShelleyKey -> IO a) -> IO a
+withShelleyDBLayer = withDBLayerInMemory nullTracer dummyTimeInterpreter
 
-withShelleyDBLayer
-    :: PersistState s
-    => FilePath
-    -> (DBLayer IO s ShelleyKey -> IO a)
-    -> IO a
-withShelleyDBLayer fp = withDBLayer
-    nullTracer  -- fixme: capture logging
-    defaultFieldValues
-    fp
-    dummyTimeInterpreter
+withShelleyFileDBLayer
+     :: (Show s, PersistState s)
+     => FilePath
+     -> (DBLayer IO s ShelleyKey -> IO a)
+     -> IO a
+withShelleyFileDBLayer fp = withDBLayer
+     nullTracer  -- fixme: capture logging
+     defaultFieldValues
+     fp
+     dummyTimeInterpreter
 
 withShelleyDBLayerInMemory
-    :: PersistState s
+    :: (Show s, PersistState s)
     => (DBLayer IO s ShelleyKey -> IO a)
     -> IO a
 withShelleyDBLayerInMemory = withDBLayerInMemory nullTracer dummyTimeInterpreter
