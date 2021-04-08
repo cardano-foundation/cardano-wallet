@@ -35,7 +35,7 @@ RSpec.describe CardanoWallet::Misc do
       addr = "addr"
       res = UTILS.addresses addr
       expect(res).to have_http 400
-      expect(res).to include "bad_request"
+      expect(res.to_s).to include "bad_request"
     end
 
     it "Inspect Shelley payment address" do

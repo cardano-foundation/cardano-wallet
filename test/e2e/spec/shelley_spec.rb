@@ -150,7 +150,7 @@ RSpec.describe CardanoWallet::Shelley do
 
       rnd = SHELLEY.coin_selections.random wid, addr_amount
       expect(rnd).to have_http 403
-      expect(rnd).to include "not_enough_money"
+      expect(rnd.to_s).to include "not_enough_money"
     end
   end
 
@@ -164,7 +164,7 @@ RSpec.describe CardanoWallet::Shelley do
       wid = create_shelley_wallet
       txs = SHELLEY.transactions
       expect(txs.get(wid, TXID)).to have_http 404
-      expect(txs.get(wid, TXID)).to include "no_such_transaction"
+      expect(txs.get(wid, TXID).to_s).to include "no_such_transaction"
     end
 
     it "Can list transactions" do
@@ -190,7 +190,7 @@ RSpec.describe CardanoWallet::Shelley do
 
       tx_sent = txs.create(id, PASS, amt)
       expect(tx_sent).to have_http 403
-      expect(tx_sent).to include "not_enough_money"
+      expect(tx_sent.to_s).to include "not_enough_money"
     end
 
     it "I could create transaction using rewards - if I had money" do
@@ -202,7 +202,7 @@ RSpec.describe CardanoWallet::Shelley do
 
       tx_sent = txs.create(id, PASS, amt, 'self')
       expect(tx_sent).to have_http 403
-      expect(tx_sent).to include "not_enough_money"
+      expect(tx_sent.to_s).to include "not_enough_money"
     end
 
     it "I could estimate transaction fee - if I had money" do
@@ -215,11 +215,11 @@ RSpec.describe CardanoWallet::Shelley do
 
       fees = txs.payment_fees(id, amt)
       expect(fees).to have_http 403
-      expect(fees).to include "not_enough_money"
+      expect(fees.to_s).to include "not_enough_money"
 
       fees = txs.payment_fees(id, amt, 'self')
       expect(fees).to have_http 403
-      expect(fees).to include "not_enough_money"
+      expect(fees.to_s).to include "not_enough_money"
 
       metadata = { "0"=>{ "string"=>"cardano" },
                    "1"=>{ "int"=>14 },
@@ -230,7 +230,7 @@ RSpec.describe CardanoWallet::Shelley do
 
       fees = txs.payment_fees(id, amt, 'self', metadata)
       expect(fees).to have_http 403
-      expect(fees).to include "not_enough_money"
+      expect(fees.to_s).to include "not_enough_money"
     end
 
     it "I could forget transaction" do
@@ -314,7 +314,7 @@ RSpec.describe CardanoWallet::Shelley do
       pools = SHELLEY.stake_pools
       quit = pools.quit(id, PASS)
       expect(quit).to have_http 403
-      expect(quit).to include "not_delegating_to"
+      expect(quit.to_s).to include "not_delegating_to"
     end
 
   end
@@ -328,7 +328,7 @@ RSpec.describe CardanoWallet::Shelley do
       id = create_shelley_wallet
       cost = SHELLEY.migrations.cost(id)
       expect(cost).to have_http 501
-      expect(cost).to include "not_implemented"
+      expect(cost.to_s).to include "not_implemented"
     end
 
     it "I could migrate all my funds" do
@@ -337,7 +337,7 @@ RSpec.describe CardanoWallet::Shelley do
       addrs = SHELLEY.addresses.list(target_id).map{ |a| a['id'] }
       migr = SHELLEY.migrations.migrate(id, PASS, addrs)
       expect(migr).to have_http 501
-      expect(migr).to include "not_implemented"
+      expect(migr.to_s).to include "not_implemented"
     end
   end
 
@@ -375,7 +375,7 @@ RSpec.describe CardanoWallet::Shelley do
       ["0H", "1H", "2147483647H", "44H"].each do |index|
         res = SHELLEY.keys.create_acc_public_key(wid, index, PASS, extended = true)
         expect(res).to have_http 202
-        expect(res).to include "acc"
+        expect(res.to_s).to include "acc"
       end
     end
 
@@ -384,7 +384,7 @@ RSpec.describe CardanoWallet::Shelley do
       ["0H", "1H", "2147483647H", "44H"].each do |index|
         res = SHELLEY.keys.create_acc_public_key(wid, index, PASS, extended = false)
         expect(res).to have_http 202
-        expect(res).to include "acc"
+        expect(res.to_s).to include "acc"
       end
     end
 
