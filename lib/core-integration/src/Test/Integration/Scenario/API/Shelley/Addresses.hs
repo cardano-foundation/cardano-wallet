@@ -356,7 +356,7 @@ spec = describe "SHELLEY_ADDRESSES" $ do
         verify r
             [ expectResponseCode HTTP.status200
             , expectField (Aeson.key "spending_key_hash_bech32" . Aeson._String)
-                (`shouldBe` "addr_test1hwl9tuz8uuqe8cnpv387d5kcj8gyz9r9q30x395vsvue5una0f4")
+                (`shouldBe` "addr_vkh1hwl9tuz8uuqe8cnpv387d5kcj8gyz9r9q30x395vsvue5e44fh7")
             , expectField (Aeson.key "stake_key_hash_bech32" . Aeson._String)
                 (`shouldBe` "stake_vkh1fmzmmeyrsah8nnwpj0522w2amkrpt89dyq84g9s3pwrc7dqjnfu")
             ]

@@ -27,11 +27,8 @@
 -- mount an existing request body in a request.
 {-# OPTIONS_GHC -fno-warn-deprecations #-}
 
--- See comment in Cardano.Wallet.Jormungandr.Compatibility
+-- See comment in Cardano.Wallet.Shelley.Compatibility
 {-# OPTIONS_GHC -fno-warn-orphans #-}
-
--- Required to use the HLINT pragma
-{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 
 module Cardano.Wallet.ApiSpec
     ( spec
@@ -52,7 +49,7 @@ import Cardano.Wallet.Api.Malformed
     , wellformed
     )
 import Cardano.Wallet.Api.Server
-    ( LiftHandler (..) )
+    ( IsServerError (..) )
 import Cardano.Wallet.Api.Types
     ( ApiStakePool
     , DecodeAddress (..)
@@ -66,12 +63,12 @@ import Cardano.Wallet.Primitive.Types.Address
     ( Address (..) )
 import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..) )
-import Control.Arrow
-    ( first )
 import Control.Monad
     ( forM_ )
 import Data.Aeson.QQ
     ( aesonQQ )
+import Data.Bifunctor
+    ( first )
 import Data.Function
     ( (&) )
 import Data.IORef
@@ -115,7 +112,14 @@ import Network.Wai
 import Network.Wai.Middleware.ServerError
     ( handleRawError )
 import Network.Wai.Test
-    ( Session, assertBody, assertStatus, request, runSession )
+    ( SResponse
+    , Session
+    , assertBody
+    , assertHeader
+    , assertStatus
+    , request
+    , runSession
+    )
 import Servant
     ( Accept (..), Application, ReqBody, Server, StdMethod (..), Verb, serve )
 import Servant.API
@@ -123,7 +127,7 @@ import Servant.API
 import Servant.API.Verbs
     ( NoContentVerb, ReflectMethod (..) )
 import Test.Hspec
-    ( Spec, describe, it, runIO, xdescribe )
+    ( HasCallStack, Spec, describe, it, runIO, xdescribe )
 import Test.Hspec.Extra
     ( parallel )
 import Type.Reflection
@@ -169,41 +173,40 @@ spec = parallel $ do
             forM_ tests $ \(req, msg) -> it (titleize proxy req) $
                 runSession (spec_NotAllowedMethod req msg) application
 
-spec_MalformedParam :: Request -> ExpectedError -> Session ()
-spec_MalformedParam malformedRequest (ExpectedError msg) = do
-    response <- request malformedRequest
-    response & assertStatus 400
+assertErrorResponse
+    :: HasCallStack
+    => Int -- ^ Expected status
+    -> Text -- ^ Expected error code string
+    -> ExpectedError
+    -> SResponse
+    -> Session ()
+assertErrorResponse status code (ExpectedError msg) response = do
+    response & assertStatus status
+    response & assertHeader "Content-Type" "application/json;charset=utf-8"
     response & assertBody (Aeson.encode [aesonQQ|
-        { "code": "bad_request"
+        { "code": #{code}
         , "message": #{msg}
         }|])
+
+spec_MalformedParam :: Request -> ExpectedError -> Session ()
+spec_MalformedParam malformedRequest expectedError = do
+    response <- request malformedRequest
+    assertErrorResponse 400 "bad_request" expectedError response
 
 spec_WrongAcceptHeader :: Request -> ExpectedError -> Session ()
-spec_WrongAcceptHeader malformedRequest (ExpectedError msg) = do
+spec_WrongAcceptHeader malformedRequest expectedError = do
     response <- request malformedRequest
-    response & assertStatus 406
-    response & assertBody (Aeson.encode [aesonQQ|
-        { "code": "not_acceptable"
-        , "message": #{msg}
-        }|])
+    assertErrorResponse 406 "not_acceptable" expectedError response
 
 spec_WrongContentTypeHeader :: Request -> ExpectedError -> Session ()
-spec_WrongContentTypeHeader malformedRequest (ExpectedError msg) = do
+spec_WrongContentTypeHeader malformedRequest expectedError = do
     response <- request malformedRequest
-    response & assertStatus 415
-    response & assertBody (Aeson.encode [aesonQQ|
-        { "code": "unsupported_media_type"
-        , "message": #{msg}
-        }|])
+    assertErrorResponse 415 "unsupported_media_type" expectedError response
 
 spec_NotAllowedMethod :: Request -> ExpectedError -> Session ()
-spec_NotAllowedMethod malformedRequest (ExpectedError msg) = do
+spec_NotAllowedMethod malformedRequest expectedError = do
     response <- request malformedRequest
-    response & assertStatus 405
-    response & assertBody (Aeson.encode [aesonQQ|
-        { "code": "method_not_allowed"
-        , "message": #{msg}
-        }|])
+    assertErrorResponse 405 "method_not_allowed" expectedError response
 
 --
 -- Generic API Spec
@@ -272,7 +275,7 @@ instance
             (\(a,b) -> gSpec (\c -> toRequest a b c) toSpec)
 
         -- The lambda above helps readability and make the pattern obvious
-        {-# HLINT ignore "Avoid lambda" #-}
+        {- HLINT ignore "Avoid lambda" -}
 
 instance
     ( Typeable a, Malformed (BodyParam a)
@@ -349,9 +352,8 @@ instance GenericApiSpec (Map [Text] [Method])
 
 application :: Application
 application = serve api server
-    & handleRawError (curry handler)
+    & handleRawError (curry toServerError)
 
--- Note: Doesn't validate the jormungandr api.
 api :: Proxy (Api ('Testnet 0) ApiStakePool)
 api = Proxy
 
@@ -379,13 +381,16 @@ instance DecodeStakeAddress ('Testnet 0) where
 everyPathParam :: GEveryEndpoints api => Proxy api -> MkPathRequest api
 everyPathParam proxy = gEveryPathParam proxy defaultRequest
 
-everyBodyParam :: GEveryEndpoints api => Proxy api -> MkBodyRequest api
-everyBodyParam proxy = gEveryBodyParam proxy $ defaultRequest
+defaultApiRequest :: Request
+defaultApiRequest = defaultRequest
     { requestHeaders =
         [ (hContentType, "application/json")
         , (hAccept, "*/*")
         ]
     }
+
+everyBodyParam :: GEveryEndpoints api => Proxy api -> MkBodyRequest api
+everyBodyParam proxy = gEveryBodyParam proxy defaultApiRequest
 
 everyHeader :: GEveryEndpoints api => Proxy api -> MkHeaderRequest api
 everyHeader proxy = gEveryHeader proxy defaultRequest

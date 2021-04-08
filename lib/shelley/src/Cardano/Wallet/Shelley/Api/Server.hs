@@ -6,8 +6,6 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
-{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
-
 -- |
 -- Copyright: © 2018-2020 IOHK
 -- License: Apache-2.0
@@ -252,7 +250,7 @@ server byron icarus shelley spl ntp =
 
     -- Hlint doesn't seem to care about inlining properties:
     --   https://github.com/quchen/articles/blob/master/fbut.md#f-x---is-not-f--x---
-    {-# HLINT ignore "Redundant lambda" #-}
+    {- HLINT ignore "Redundant lambda" -}
     coinSelections :: Server (CoinSelections n)
     coinSelections = (\wid ascd -> case ascd of
         (ApiSelectForPayment ascp) ->

@@ -13,7 +13,7 @@
       specVersion = "1.10";
       identifier = {
         name = "cardano-wallet-test-utils";
-        version = "2021.3.4";
+        version = "2021.4.8";
         };
       license = "Apache-2.0";
       copyright = "2018-2020 IOHK";

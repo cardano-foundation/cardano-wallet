@@ -117,6 +117,9 @@ RSpec.describe CardanoWallet::Shelley do
       addresses = shelley_addr.list id
       expect(addresses).to have_http 200
       expect(addresses.size).to eq 20
+      addresses.each_with_index do |a,i|
+        expect(a['derivation_path']).to eq ['1852H', '1815H', '0H', '0', i.to_s]
+      end
 
       addresses_unused = shelley_addr.list id, {state: "used"}
       expect(addresses_unused).to have_http 200
@@ -125,6 +128,9 @@ RSpec.describe CardanoWallet::Shelley do
       addresses_unused = shelley_addr.list id, {state: "unused"}
       expect(addresses_unused).to have_http 200
       expect(addresses_unused.size).to eq 20
+      addresses_unused.each_with_index do |a,i|
+        expect(a['derivation_path']).to eq ['1852H', '1815H', '0H', '0', i.to_s]
+      end
     end
   end
 
@@ -145,20 +151,6 @@ RSpec.describe CardanoWallet::Shelley do
       rnd = SHELLEY.coin_selections.random wid, addr_amount
       expect(rnd).to have_http 403
       expect(rnd).to include "not_enough_money"
-    end
-
-    it "ArgumentError on bad argument address_amount" do
-      wid = create_shelley_wallet
-      p =[[{addr1: 1, addr2: 2}], "addr:123", 123]
-      cs = SHELLEY.coin_selections
-      expect{ cs.random(wid, p[0]) }.to raise_error ArgumentError,
-            "argument should be Array of single Hashes"
-
-      expect{ cs.random(wid, p[1]) }.to raise_error ArgumentError,
-            "argument should be Array"
-
-      expect{ cs.random(wid, p[2]) }.to raise_error ArgumentError,
-            "argument should be Array"
     end
   end
 
@@ -256,7 +248,7 @@ RSpec.describe CardanoWallet::Shelley do
       s = settings.update({:pool_metadata_source => "none"})
       teardown
     end
-    
+
     it "ADP-634 - Pool metadata is updated when settings are updated" do
       settings = CardanoWallet.new.misc.settings
       pools = SHELLEY.stake_pools

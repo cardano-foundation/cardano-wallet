@@ -14,10 +14,15 @@ import Cardano.BM.Trace
     ( nullTracer )
 import Cardano.Slotting.Slot
     ( EpochNo (..) )
+import Cardano.Wallet
+    ( ErrNoSuchWallet (..) )
 import Cardano.Wallet.Api.Server
-    ( Listen (..)
+    ( IsServerError (..)
+    , Listen (..)
     , ListenError (..)
+    , getNetworkClock
     , getNetworkInformation
+    , liftHandler
     , withListeningSocket
     )
 import Cardano.Wallet.Api.Types
@@ -32,10 +37,14 @@ import Cardano.Wallet.Primitive.Types
     ( Block (..), BlockHeader (..), SlotNo (..), StartTime (..) )
 import Cardano.Wallet.Primitive.Types.Hash
     ( Hash (..) )
+import Cardano.Wallet.Unsafe
+    ( unsafeFromText )
 import Control.Monad
     ( void )
 import Control.Monad.Trans.Except
-    ( ExceptT )
+    ( ExceptT (..), throwE )
+import Data.Either
+    ( isLeft )
 import Data.Maybe
     ( isJust, isNothing )
 import Data.Quantity
@@ -59,10 +68,10 @@ import Ouroboros.Consensus.Config.SecurityParam
     ( SecurityParam (..) )
 import Ouroboros.Consensus.Util.Counting
     ( exactlyOne )
-import Servant.Server.Internal.Handler
-    ( runHandler )
+import Servant.Server
+    ( ServerError (..), runHandler )
 import Test.Hspec
-    ( Spec, describe, it, shouldBe, shouldReturn )
+    ( Spec, describe, it, pendingWith, shouldBe, shouldReturn, shouldSatisfy )
 import Test.QuickCheck.Modifiers
     ( NonNegative (..) )
 import Test.QuickCheck.Monadic
@@ -76,12 +85,20 @@ import UnliftIO.Async
 import UnliftIO.Concurrent
     ( threadDelay )
 
+import qualified Data.ByteString.Char8 as B8
+import qualified Data.ByteString.Lazy as BL
 import qualified Ouroboros.Consensus.HardFork.History.EraParams as HF
 import qualified Ouroboros.Consensus.HardFork.History.Qry as HF
 import qualified Ouroboros.Consensus.HardFork.History.Summary as HF
 
 spec :: Spec
-spec = describe "API Server" $ do
+spec = do
+    serverSpec
+    networkInfoSpec
+    errorHandlingSpec
+
+serverSpec :: Spec
+serverSpec = describe "API Server" $ do
     let lo = tupleToHostAddress (0x7f, 0, 0, 1)
 
     it "binds to the local interface" $ do
@@ -141,33 +158,34 @@ spec = describe "API Server" $ do
                     res `shouldBe` Left (ListenErrorAddressAlreadyInUse (Just port))
             Left e -> fail (show e)
 
-    describe "getNetworkInformation" $ do
-        it "doesn't return 500 when the time interpreter horizon is behind\
-           \ the current time" $ property $ \(gap' ::(NonNegative Int)) ->
-            monadicIO $ do
-            let gap = fromRational $ toRational $ getNonNegative gap'
-            st <- run $ StartTime . ((negate gap) `addUTCTime`)
-                    <$> getCurrentTime
-            let ti = forkInterpreter st
-            let nodeTip' = SlotNo 0
-            let nl = dummyNetworkLayer nodeTip' ti
-            let tolerance = mkSyncTolerance 5
-            Right info <- run $ runHandler $ getNetworkInformation tolerance nl
+networkInfoSpec :: Spec
+networkInfoSpec = describe "getNetworkInformation" $ do
+    it "doesn't return 500 when the time interpreter horizon is behind\
+       \ the current time" $ property $ \(gap' ::(NonNegative Int)) ->
+        monadicIO $ do
+        let gap = fromRational $ toRational $ getNonNegative gap'
+        st <- run $ StartTime . ((negate gap) `addUTCTime`)
+                <$> getCurrentTime
+        let ti = forkInterpreter st
+        let nodeTip' = SlotNo 0
+        let nl = dummyNetworkLayer nodeTip' ti
+        let tolerance = mkSyncTolerance 5
+        Right info <- run $ runHandler $ getNetworkInformation tolerance nl
 
-            --  0              20
-            --  *               |        *
-            --  Node tip     Horizon   Network Tip
-            --  <------------------------>
-            --            gap
-            --
-            --  20 = epoch length = 10*k
-            if gap >= 20
-            then do
-                assertWith "networkTip is Nothing" $ isNothing $ networkTip info
-                assertWith "nextEpoch is Nothing" $ isNothing $ nextEpoch info
-            else do
-                assertWith "networkTip is Just " $ isJust $ networkTip info
-                assertWith "nextEpoch is Just" $ isJust $ nextEpoch info
+        --  0              20
+        --  *               |        *
+        --  Node tip     Horizon   Network Tip
+        --  <------------------------>
+        --            gap
+        --
+        --  20 = epoch length = 10*k
+        if gap >= 20
+        then do
+            assertWith "networkTip is Nothing" $ isNothing $ networkTip info
+            assertWith "nextEpoch is Nothing" $ isNothing $ nextEpoch info
+        else do
+            assertWith "networkTip is Just " $ isJust $ networkTip info
+            assertWith "nextEpoch is Just" $ isJust $ nextEpoch info
 
   where
     assertWith :: String -> Bool -> PropertyM IO ()
@@ -180,24 +198,14 @@ spec = describe "API Server" $ do
         :: SlotNo
         -> TimeInterpreter (ExceptT PastHorizonException IO)
         -> NetworkLayer IO Block
-    dummyNetworkLayer sl ti = NetworkLayer
-        { nextBlocks = error "nextBlocks: not implemented"
-        , initCursor = error "initCursor: not implemented"
-        , destroyCursor = error "destroyCursor: not implemented"
-        , cursorSlotNo = error "cursorSlotNo: not implemented"
-        , currentNodeEra = return $ AnyCardanoEra MaryEra
+    dummyNetworkLayer sl ti = mockNetworkLayer
+        { currentNodeEra = return $ AnyCardanoEra MaryEra
         , currentNodeTip = return $
                 BlockHeader
                     sl
                     (Quantity $ fromIntegral $ unSlotNo sl)
                     (Hash "header hash")
                     (Hash "prevHeaderHash")
-        , watchNodeTip = error "todo"
-        , currentProtocolParameters = error "currentProtocolParameters: not implemented"
-        , currentSlottingParameters = error "currentSlottingParameters: not implemented"
-        , postTx = error "postTx: not implemented"
-        , stakeDistribution = error "stakeDistribution: not implemented"
-        , getAccountBalance = error "getAccountBalance: not implemented"
         , timeInterpreter = ti
         }
 
@@ -214,3 +222,60 @@ spec = describe "API Server" $ do
                 HF.EraSummary start (HF.EraEnd end) era1Params
             int = HF.mkInterpreter summary
         in mkTimeInterpreter nullTracer startTime (pure int)
+
+mockNetworkLayer :: NetworkLayer IO a
+mockNetworkLayer = NetworkLayer
+    { nextBlocks = error "nextBlocks: not implemented"
+    , initCursor = error "initCursor: not implemented"
+    , destroyCursor = error "destroyCursor: not implemented"
+    , cursorSlotNo = error "cursorSlotNo: not implemented"
+    , currentNodeEra = error "currentNodeEra: not implemented"
+    , currentNodeTip = error "currentNodeTip: not implemented"
+    , watchNodeTip = error "watchNodeTip: not implemented"
+    , currentProtocolParameters = error "currentProtocolParameters: not implemented"
+    , currentSlottingParameters = error "currentSlottingParameters: not implemented"
+    , postTx = error "postTx: not implemented"
+    , stakeDistribution = error "stakeDistribution: not implemented"
+    , getAccountBalance = error "getAccountBalance: not implemented"
+    , timeInterpreter = error "timeInterpreter: not implemented"
+    }
+
+errorHandlingSpec :: Spec
+errorHandlingSpec = describe "liftHandler and toServerError" $ do
+    let testWalletHandler
+            :: IsServerError e
+            => ExceptT e IO a
+            -> IO (Either ServerError a)
+        testWalletHandler = runHandler . liftHandler
+
+    -- Check that an example error handled by the wallet API server produces a
+    -- structured JSON error message response.
+    it "ErrNoSuchWallet" $ do
+        let handler :: ExceptT ErrNoSuchWallet IO ()
+            handler = throwE $ ErrNoSuchWallet wid
+            wid = unsafeFromText "0000000000000000000000000000000000000000"
+        res <- testWalletHandler handler
+        res `shouldSatisfy` isLeft
+        let Left actualErr = res
+        errHTTPCode actualErr `shouldBe` 404
+        errReasonPhrase actualErr `shouldBe`
+            "Not Found"
+        BL.toStrict (errBody actualErr) `shouldSatisfy`
+            (B8.isInfixOf "no_such_wallet")
+        errHeaders actualErr `shouldBe`
+            [("Content-Type","application/json;charset=utf-8")]
+
+    it "Unhandled exception" $ do
+        pendingWith "TODO: ADP-641 catch all exceptions in application"
+        let expectedErr = ServerError
+                { errHTTPCode = 500
+                , errReasonPhrase = "Internal Server Error"
+                , errBody = mconcat
+                    [ "{\"code\":\"internal_server_error\","
+                    , "\"message\":\"Something went wrong\"}" ]
+                , errHeaders =
+                    [("Content-Type","application/json;charset=utf-8")]
+                }
+
+        runHandler (getNetworkClock (error "bomb") True)
+            `shouldReturn` Left expectedErr
