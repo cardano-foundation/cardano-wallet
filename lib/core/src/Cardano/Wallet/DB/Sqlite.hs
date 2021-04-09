@@ -2443,7 +2443,7 @@ instance
     , Typeable n
     , Seq.GetPurpose k
     ) => PersistState (Shared.SharedState n k) where
-    insertState (wid, sl) st =
+    insertState (wid, sl) st = do
         case st of
             Shared.SharedState prefix (Shared.PendingFields (Shared.SharedStatePending accXPub pTemplate dTemplateM g)) -> do
                 insertSharedState accXPub g pTemplate dTemplateM prefix

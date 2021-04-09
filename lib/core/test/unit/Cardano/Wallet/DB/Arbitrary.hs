@@ -32,7 +32,7 @@ import Prelude
 import Cardano.Address.Derivation
     ( XPrv, XPub )
 import Cardano.Address.Script
-    ( Cosigner (..), Script (..), ScriptTemplate )
+    ( Cosigner (..), Script (..), ScriptTemplate (..) )
 import Cardano.Crypto.Wallet
     ( unXPrv )
 import Cardano.Mnemonic
@@ -44,15 +44,7 @@ import Cardano.Wallet.DB.Model
 import Cardano.Wallet.DummyTarget.Primitive.Types as DummyTarget
     ( block0, mkTx, mockHash )
 import Cardano.Wallet.Gen
-    ( genMnemonic
-    , genScript
-    , genScriptTemplate
-    , genScriptTemplateComplete
-    , genSmallTxMetadata
-    , genXPub
-    , shrinkSlotNo
-    , shrinkTxMetadata
-    )
+    ( genMnemonic, genSmallTxMetadata, shrinkSlotNo, shrinkTxMetadata )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..)
     , DerivationType (..)
@@ -77,6 +69,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     , ParentContext (..)
     , SeqState (..)
     , coinTypeAda
+    , defaultAddressPoolGap
     , mkAddressPool
     , purposeCIP1852
     )
@@ -589,51 +582,42 @@ rootKeysRnd = unsafePerformIO $ generate (vectorOf 10 genRootKeysRnd)
                                  Shared State
 -------------------------------------------------------------------------------}
 
+-- Shared state is composed of static (ie., not depending on checkpoint) and
+-- depending on checkpoint part. When in pending state all parts are static,
+-- when in active state context address pool is depending on checkpoint the rest is static.
+-- In order to proceed like for sequential/random wallet we will work with active state
+-- and make
+
 instance Arbitrary (SharedState 'Mainnet ShelleyKey) where
     shrink (SharedState prefix (ReadyFields pool)) =
         SharedState prefix <$> (ReadyFields <$> shrink pool)
     shrink _ = []
-    arbitrary = do
-        let activeWallet = SharedState
-                <$> (defaultSharedStatePrefix <$> arbitrary)
-                <*> (ReadyFields <$> arbitrary)
-        let pendingFields = SharedStatePending
-                <$> arbitrary
-                <*> genScriptTemplate
-                <*> genScriptTemplateM genScriptTemplate
-                <*> arbitrary
-        let pendingWallet = SharedState
-                <$> (defaultSharedStatePrefix <$> arbitrary)
-                <*> ( PendingFields <$> pendingFields )
-        oneof [activeWallet, pendingWallet]
+    arbitrary =
+        SharedState defaultSharedStatePrefix
+        <$> (ReadyFields <$> arbitrary)
 
-defaultSharedStatePrefix :: Index 'Hardened 'AccountK -> DerivationPrefix
-defaultSharedStatePrefix accIx = DerivationPrefix
+defaultSharedStatePrefix :: DerivationPrefix
+defaultSharedStatePrefix = DerivationPrefix
     ( purposeCIP1854
     , coinTypeAda
-    , accIx
+    , minBound @(Index 'Hardened 'AccountK)
     )
 
 instance Arbitrary (Script Cosigner) where
-    arbitrary = do
-        numOfCosigners <- choose (1,10)
-        genScript $ Cosigner <$> [0..numOfCosigners]
-
-instance Arbitrary (ShelleyKey 'AccountK XPub) where
-    shrink _ = []
-    arbitrary = liftRawKey <$> genXPub
+    arbitrary = pure $
+        RequireAllOf [RequireSignatureOf (Cosigner 0), RequireAnyOf [ActiveFromSlot 200, ActiveUntilSlot 100]]
 
 instance Arbitrary Seq.AddressPoolGap where
-    arbitrary = arbitraryBoundedEnum
+    arbitrary = pure defaultAddressPoolGap
 
-genScriptTemplateM :: Gen ScriptTemplate -> Gen (Maybe ScriptTemplate)
-genScriptTemplateM genTemplate =
-    oneof [pure Nothing, Just <$> genTemplate]
+genScriptTemplateHardCoded :: Gen ScriptTemplate
+genScriptTemplateHardCoded =
+    ScriptTemplate (Map.fromList [(Cosigner 0, getRawKey arbitrarySeqAccount)] ) <$> arbitrary
 
 instance Arbitrary (AddressPool 'MultisigScript ShelleyKey) where
     arbitrary = do
         ctx <- ParentContextMultisigScript arbitrarySeqAccount
-            <$> genScriptTemplateComplete <*> genScriptTemplateM genScriptTemplateComplete
+            <$> genScriptTemplateHardCoded <*> pure Nothing
         pure $ mkAddressPool @'Mainnet ctx minBound mempty
 
 {-------------------------------------------------------------------------------
