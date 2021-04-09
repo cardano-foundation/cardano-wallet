@@ -264,7 +264,7 @@ updateSharedState f st = case fields st of
     ReadyFields _ -> st
     PendingFields pending -> case sharedStateFromPending @n (f pending) of
         Just ready -> st { fields = ReadyFields ready }
-        Nothing -> st
+        Nothing -> st { fields = PendingFields (f pending) }
 
 sharedStateFromPending
     :: forall n k. SupportsSharedState n k

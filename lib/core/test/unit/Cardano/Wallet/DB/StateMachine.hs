@@ -1266,7 +1266,7 @@ repeatedly = flip . L.foldl' . flip
 -------------------------------------------------------------------------------}
 
 prop_sequential
-    :: forall s k a. (TestConstraints s k)
+    :: forall s k. (TestConstraints s k)
     => (IO (IO (), DBLayer IO s k))
     -> Property
 prop_sequential newDB =

@@ -2443,11 +2443,7 @@ instance
     , Typeable n
     , Seq.GetPurpose k
     ) => PersistState (Shared.SharedState n k) where
-    insertState (wid, sl) st = do
-
-        deleteWhere [SharedStateWalletId ==. wid]
-        deleteWhere [CosignerKeyWalletId ==. wid]
-
+    insertState (wid, sl) st =
         case st of
             Shared.SharedState prefix (Shared.PendingFields (Shared.SharedStatePending accXPub pTemplate dTemplateM g)) -> do
                 insertSharedState accXPub g pTemplate dTemplateM prefix
@@ -2464,20 +2460,24 @@ instance
                     insertCosigner (fromJust $ cosigners <$> dTemplateM) Delegation
                 insertAddressPool @n wid sl pool
       where
-         insertSharedState accXPub g pTemplate dTemplateM prefix =
-            repsert (SharedStateKey wid) $ SharedState
-                { sharedStateWalletId = wid
-                , sharedStateAccountXPub = serializeXPub accXPub
-                , sharedStateScriptGap = g
-                , sharedStatePaymentScript = template pTemplate
-                , sharedStateDelegationScript = template <$> dTemplateM
-                , sharedStateDerivationPrefix = prefix
-                }
-         insertCosigner cs cred =
+         insertSharedState accXPub g pTemplate dTemplateM prefix = do
+             deleteWhere [SharedStateWalletId ==. wid]
+
+             insert_ $ SharedState
+                 { sharedStateWalletId = wid
+                 , sharedStateAccountXPub = serializeXPub accXPub
+                 , sharedStateScriptGap = g
+                 , sharedStatePaymentScript = template pTemplate
+                 , sharedStateDelegationScript = template <$> dTemplateM
+                 , sharedStateDerivationPrefix = prefix
+                 }
+         insertCosigner cs cred = do
+             deleteWhere [CosignerKeyWalletId ==. wid]
+
              dbChunked insertMany_
-             [ CosignerKey wid cred (hex $ xpubToBytes xpub) c
-             | ((Cosigner c), xpub) <- Map.assocs cs
-             ]
+                 [ CosignerKey wid cred (hex $ xpubToBytes xpub) c
+                 | ((Cosigner c), xpub) <- Map.assocs cs
+                 ]
 
     selectState (wid, sl) = runMaybeT $ do
         st <- MaybeT $ selectFirst [SharedStateWalletId ==. wid] []

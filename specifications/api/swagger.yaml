@@ -293,8 +293,8 @@ x-cosigners: &cosigners
   # propertyNames:
   #   pattern: '^(cosigner#)[0-9]+$'
   example:
-    0: { "cosigner#0": "1423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db11423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db1"
-       , "cosigner#3": "1423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db11423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db2" }
+    { "cosigner#0": "1423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db11423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db1"
+    , "cosigner#3": "1423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db11423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db2" }
 
 x-walletId: &walletId
   description: A unique identifier for the wallet
