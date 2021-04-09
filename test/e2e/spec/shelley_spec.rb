@@ -9,11 +9,13 @@ RSpec.describe CardanoWallet::Shelley do
     it "I can list wallets" do
       l = SHELLEY.wallets.list
       expect(l).to have_http 200
+      expect(l).to have_headers(EXPECTED_HEADERS)
       expect(l.size).to eq 0
 
       create_shelley_wallet
       l = SHELLEY.wallets.list
       expect(l).to have_http 200
+      expect(l).to have_headers(EXPECTED_HEADERS)
       expect(l.size).to eq 1
     end
 
@@ -22,9 +24,11 @@ RSpec.describe CardanoWallet::Shelley do
       SHELLEY.wallets.delete wid
       g = SHELLEY.wallets.get wid
       expect(g).to have_http 404
+      expect(g).to have_headers(EXPECTED_HEADERS)
 
       d = SHELLEY.wallets.delete wid
       expect(d).to have_http 404
+      expect(d).to have_headers(EXPECTED_HEADERS)
     end
 
     describe "Create wallets" do
@@ -35,8 +39,13 @@ RSpec.describe CardanoWallet::Shelley do
                            mnemonic_sentence: mnemonic_sentence(15),
                            })
         expect(wallet).to have_http 201
+        expect(wallet).to have_headers(EXPECTED_HEADERS)
+
         wid = wallet['id']
-        expect(w.get(wid)).to have_http 200
+        g = w.get(wid)
+        expect(g).to have_http 200
+        expect(g).to have_headers(EXPECTED_HEADERS)
+
         expect(w.delete(wid)).to have_http 204
       end
 
@@ -48,8 +57,13 @@ RSpec.describe CardanoWallet::Shelley do
                            mnemonic_second_factor: mnemonic_sentence(12)
                            })
         expect(wallet).to have_http 201
+        expect(wallet).to have_headers(EXPECTED_HEADERS)
+
         wid = wallet['id']
-        expect(w.get(wid)).to have_http 200
+        g = w.get(wid)
+        expect(g).to have_http 200
+        expect(g).to have_headers(EXPECTED_HEADERS)
+
         expect(w.delete(wid)).to have_http 204
       end
 
@@ -64,6 +78,7 @@ RSpec.describe CardanoWallet::Shelley do
         expect(wallet).to have_http 201
         addr = SHELLEY.addresses.list(wallet['id'])
         expect(addr).to have_http 200
+        expect(addr).to have_headers(EXPECTED_HEADERS)
         expect(addr.size).to eq pool_gap
       end
 
@@ -74,8 +89,12 @@ RSpec.describe CardanoWallet::Shelley do
                            address_pool_gap: 20,
                            })
         expect(wallet).to have_http 201
+        expect(wallet).to have_headers(EXPECTED_HEADERS)
+
         wid = wallet['id']
-        expect(w.get(wid)).to have_http 200
+        g = w.get(wid)
+        expect(g).to have_http 200
+        expect(g).to have_headers(EXPECTED_HEADERS)
         expect(w.delete(wid)).to have_http 204
       end
     end
@@ -85,7 +104,9 @@ RSpec.describe CardanoWallet::Shelley do
         new_name = "New wallet name"
         w = SHELLEY.wallets
         id = create_shelley_wallet
-        expect(w.update_metadata(id, {name: new_name})).to have_http 200
+        u = w.update_metadata(id, {name: new_name})
+        expect(u).to have_http 200
+        expect(u).to have_headers(EXPECTED_HEADERS)
         expect(w.get(id)['name']).to eq new_name
       end
 
@@ -102,6 +123,7 @@ RSpec.describe CardanoWallet::Shelley do
       id = create_shelley_wallet
       utxo = SHELLEY.wallets.utxo(id)
       expect(utxo).to have_http 200
+      expect(utxo).to have_headers(EXPECTED_HEADERS)
     end
   end
 
@@ -116,6 +138,7 @@ RSpec.describe CardanoWallet::Shelley do
       shelley_addr = CardanoWallet.new.shelley.addresses
       addresses = shelley_addr.list id
       expect(addresses).to have_http 200
+      expect(addresses).to have_headers(EXPECTED_HEADERS)
       expect(addresses.size).to eq 20
       addresses.each_with_index do |a,i|
         expect(a['derivation_path']).to eq ['1852H', '1815H', '0H', '0', i.to_s]
@@ -123,10 +146,12 @@ RSpec.describe CardanoWallet::Shelley do
 
       addresses_unused = shelley_addr.list id, {state: "used"}
       expect(addresses_unused).to have_http 200
+      expect(addresses_unused).to have_headers(EXPECTED_HEADERS)
       expect(addresses_unused.size).to eq 0
 
       addresses_unused = shelley_addr.list id, {state: "unused"}
       expect(addresses_unused).to have_http 200
+      expect(addresses_unused).to have_headers(EXPECTED_HEADERS)
       expect(addresses_unused.size).to eq 20
       addresses_unused.each_with_index do |a,i|
         expect(a['derivation_path']).to eq ['1852H', '1815H', '0H', '0', i.to_s]
@@ -150,6 +175,7 @@ RSpec.describe CardanoWallet::Shelley do
 
       rnd = SHELLEY.coin_selections.random wid, addr_amount
       expect(rnd).to have_http 403
+      expect(rnd).to have_headers(EXPECTED_HEADERS)
       expect(rnd.to_s).to include "not_enough_money"
     end
   end
@@ -163,21 +189,27 @@ RSpec.describe CardanoWallet::Shelley do
     it "I could get a tx if I had proper id" do
       wid = create_shelley_wallet
       txs = SHELLEY.transactions
-      expect(txs.get(wid, TXID)).to have_http 404
-      expect(txs.get(wid, TXID).to_s).to include "no_such_transaction"
+      g = txs.get(wid, TXID)
+      expect(g).to have_http 404
+      expect(g).to have_headers(EXPECTED_HEADERS)
+      expect(g.to_s).to include "no_such_transaction"
     end
 
     it "Can list transactions" do
       id = create_shelley_wallet
       txs = SHELLEY.transactions
+      l = txs.list(id)
+      l_ext = txs.list(id,{start: "2012-09-25T10:15:00Z",
+                           end: "2016-11-21T10:15:00Z",
+                           order: "ascending"})
+      l_bad = txs.list(id, {order: "bad_order"})
+      expect(l).to have_http 200
+      expect(l).to have_headers(EXPECTED_HEADERS)
+      expect(l_ext).to have_http 200
+      expect(l_ext).to have_headers(EXPECTED_HEADERS)
+      expect(l_bad).to have_http 400
+      expect(l_bad).to have_headers(EXPECTED_HEADERS)
 
-      expect(txs.list(id)).to have_http 200
-      expect(txs.list(id,
-                      {start: "2012-09-25T10:15:00Z",
-                       end: "2016-11-21T10:15:00Z",
-                       order: "ascending"})).
-                      to have_http 200
-      expect(txs.list(id, {order: "bad_order"})).to have_http 400
 
     end
 
@@ -190,6 +222,7 @@ RSpec.describe CardanoWallet::Shelley do
 
       tx_sent = txs.create(id, PASS, amt)
       expect(tx_sent).to have_http 403
+      expect(tx_sent).to have_headers(EXPECTED_HEADERS)
       expect(tx_sent.to_s).to include "not_enough_money"
     end
 
@@ -202,6 +235,7 @@ RSpec.describe CardanoWallet::Shelley do
 
       tx_sent = txs.create(id, PASS, amt, 'self')
       expect(tx_sent).to have_http 403
+      expect(tx_sent).to have_headers(EXPECTED_HEADERS)
       expect(tx_sent.to_s).to include "not_enough_money"
     end
 
@@ -215,10 +249,12 @@ RSpec.describe CardanoWallet::Shelley do
 
       fees = txs.payment_fees(id, amt)
       expect(fees).to have_http 403
+      expect(fees).to have_headers(EXPECTED_HEADERS)
       expect(fees.to_s).to include "not_enough_money"
 
       fees = txs.payment_fees(id, amt, 'self')
       expect(fees).to have_http 403
+      expect(fees).to have_headers(EXPECTED_HEADERS)
       expect(fees.to_s).to include "not_enough_money"
 
       metadata = { "0"=>{ "string"=>"cardano" },
@@ -230,6 +266,7 @@ RSpec.describe CardanoWallet::Shelley do
 
       fees = txs.payment_fees(id, amt, 'self', metadata)
       expect(fees).to have_http 403
+      expect(fees).to have_headers(EXPECTED_HEADERS)
       expect(fees.to_s).to include "not_enough_money"
     end
 
@@ -238,6 +275,7 @@ RSpec.describe CardanoWallet::Shelley do
       txs = SHELLEY.transactions
       res = txs.forget(id, TXID)
       expect(res).to have_http 404
+      expect(res).to have_headers(EXPECTED_HEADERS)
     end
   end
 
@@ -314,6 +352,7 @@ RSpec.describe CardanoWallet::Shelley do
       pools = SHELLEY.stake_pools
       quit = pools.quit(id, PASS)
       expect(quit).to have_http 403
+      expect(quit).to have_headers(EXPECTED_HEADERS)
       expect(quit.to_s).to include "not_delegating_to"
     end
 
@@ -328,6 +367,7 @@ RSpec.describe CardanoWallet::Shelley do
       id = create_shelley_wallet
       cost = SHELLEY.migrations.cost(id)
       expect(cost).to have_http 501
+      expect(cost).to have_headers(EXPECTED_HEADERS)
       expect(cost.to_s).to include "not_implemented"
     end
 
@@ -337,6 +377,7 @@ RSpec.describe CardanoWallet::Shelley do
       addrs = SHELLEY.addresses.list(target_id).map{ |a| a['id'] }
       migr = SHELLEY.migrations.migrate(id, PASS, addrs)
       expect(migr).to have_http 501
+      expect(migr).to have_headers(EXPECTED_HEADERS)
       expect(migr.to_s).to include "not_implemented"
     end
   end
