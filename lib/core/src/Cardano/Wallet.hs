@@ -291,7 +291,8 @@ import Cardano.Wallet.Primitive.Slotting
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncProgress, SyncTolerance (..), syncProgress )
 import Cardano.Wallet.Primitive.Types
-    ( Block (..)
+    ( ActiveSlotCoefficient (..)
+    , Block (..)
     , BlockHeader (..)
     , DelegationCertificate (..)
     , GenesisParameters (..)
@@ -1655,9 +1656,16 @@ forgetTx ctx wid tid = db & \DBLayer{..} -> do
 -- | Given a LocalTxSubmission record, calculate the slot when it should be
 -- retried next.
 --
--- The current implementation is really basic. Retry every 10 slots.
-scheduleLocalTxSubmission :: LocalTxSubmissionStatus tx -> SlotNo
-scheduleLocalTxSubmission st = (st ^. #latestSubmission) + 10
+-- The current implementation is really basic. Retry about once 10 blocks.
+scheduleLocalTxSubmission
+    :: SlottingParameters
+    -> LocalTxSubmissionStatus tx
+    -> SlotNo
+scheduleLocalTxSubmission sp st = (st ^. #latestSubmission) + numSlots
+  where
+    numBlocks = 10
+    numSlots = SlotNo (ceiling (numBlocks / f))
+    ActiveSlotCoefficient f = getActiveSlotCoefficient sp
 
 -- | Retry submission of pending transactions.
 --
@@ -1673,10 +1681,11 @@ runLocalTxSubmissionPool
     -> IO ()
 runLocalTxSubmissionPool ctx wid = db & \DBLayer{..} -> do
     submitPending <- rateLimited $ \bh -> bracketTracer trBracket $ do
+        sp <- currentSlottingParameters nw
         pending <- atomically $ readLocalTxSubmissionPending (PrimaryKey wid)
         let sl = bh ^. #slotNo
         -- Re-submit transactions due, ignore errors
-        forM_ (filter (isScheduled sl) pending) $ \st -> do
+        forM_ (filter (isScheduled sp sl) pending) $ \st -> do
             res <- runExceptT $ postTx nw (st ^. #submittedTx)
             traceWith tr (MsgRetryPostTxResult (st ^. #txId) res)
             atomically $ runExceptT $ putLocalTxSubmission
@@ -1688,11 +1697,12 @@ runLocalTxSubmissionPool ctx wid = db & \DBLayer{..} -> do
   where
     nw = ctx ^. networkLayer
     db = ctx ^. dbLayer @s @k
+
     NetworkLayer{watchNodeTip} = ctx ^. networkLayer
     tr = contramap MsgTxSubmit (ctx ^. logger @WalletLog)
     trBracket = contramap MsgProcessPendingPool tr
 
-    isScheduled now = (<= now) . scheduleLocalTxSubmission
+    isScheduled sp now = (<= now) . scheduleLocalTxSubmission sp
 
     -- Limit pool check frequency to every 1000ms at most.
     rateLimited = throttle 1
