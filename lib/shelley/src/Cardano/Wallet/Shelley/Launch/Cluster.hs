@@ -73,7 +73,7 @@ import Prelude
 
 import Cardano.Address.Derivation
     ( XPub, xpubPublicKey )
-import Cardano.Api.Shelley.Genesis
+import Cardano.Api.Shelley
     ( ShelleyGenesis (..) )
 import Cardano.BM.Data.Output
     ( ScribeDefinition (..)

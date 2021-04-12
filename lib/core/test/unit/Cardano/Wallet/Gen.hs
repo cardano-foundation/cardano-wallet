@@ -35,7 +35,7 @@ import Cardano.Address.Derivation
     ( XPrv, XPub, xpubFromBytes )
 import Cardano.Address.Script
     ( Cosigner (..), Script (..), ScriptTemplate (..) )
-import Cardano.Api.Typed
+import Cardano.Api
     ( TxMetadata (..)
     , TxMetadataJsonSchema (..)
     , TxMetadataValue (..)

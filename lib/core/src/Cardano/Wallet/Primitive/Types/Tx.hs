@@ -51,7 +51,7 @@ module Cardano.Wallet.Primitive.Types.Tx
 
 import Prelude
 
-import Cardano.Api.Typed
+import Cardano.Api
     ( TxMetadata (..), TxMetadataValue (..) )
 import Cardano.Slotting.Slot
     ( SlotNo (..) )

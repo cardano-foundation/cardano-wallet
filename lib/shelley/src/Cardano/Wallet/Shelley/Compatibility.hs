@@ -127,9 +127,7 @@ import Cardano.Address
     ( unsafeMkAddress )
 import Cardano.Address.Derivation
     ( XPub, xpubPublicKey )
-import Cardano.Api.Shelley.Genesis
-    ( ShelleyGenesis (..) )
-import Cardano.Api.Typed
+import Cardano.Api
     ( AllegraEra
     , AnyCardanoEra (..)
     , AsType (..)
@@ -137,10 +135,10 @@ import Cardano.Api.Typed
     , MaryEra
     , NetworkId
     , ShelleyEra
-    , StandardShelley
     , deserialiseFromRawBytes
-    , fromShelleyMetadata
     )
+import Cardano.Api.Shelley
+    ( ShelleyGenesis (..), fromShelleyMetadata )
 import Cardano.Binary
     ( fromCBOR, serialize' )
 import Cardano.Crypto.Hash.Class
@@ -223,7 +221,13 @@ import GHC.TypeLits
 import Numeric.Natural
     ( Natural )
 import Ouroboros.Consensus.Cardano.Block
-    ( CardanoBlock, CardanoEras, CardanoGenTx, GenTx (..), HardForkBlock (..) )
+    ( CardanoBlock
+    , CardanoEras
+    , CardanoGenTx
+    , GenTx (..)
+    , HardForkBlock (..)
+    , StandardShelley
+    )
 import Ouroboros.Consensus.HardFork.Combinator.AcrossEras
     ( OneEraHash (..) )
 import Ouroboros.Consensus.HardFork.History.Summary
@@ -263,13 +267,17 @@ import Type.Reflection
     ( Typeable, typeRep )
 
 import qualified Cardano.Address.Style.Shelley as CA
+import qualified Cardano.Api as Cardano
+import qualified Cardano.Api.Byron as Cardano
+    ( Tx (ByronTx) )
 import qualified Cardano.Api.Shelley as Cardano
-import qualified Cardano.Api.Typed as Cardano
 import qualified Cardano.Binary as Binary
 import qualified Cardano.Byron.Codec.Cbor as CBOR
 import qualified Cardano.Chain.Common as Byron
+import qualified Cardano.Crypto.Hash as Crypto
 import qualified Cardano.Ledger.Core as SL.Core
 import qualified Cardano.Ledger.Crypto as SL
+import qualified Cardano.Ledger.SafeHash as SafeHash
 import qualified Cardano.Ledger.Shelley as SL
 import qualified Cardano.Ledger.Shelley.Constraints as SL
 import qualified Cardano.Ledger.ShelleyMA as MA
@@ -587,7 +595,8 @@ fromMaxTxSize :: Natural -> Quantity "byte" Word16
 fromMaxTxSize =
     Quantity . fromIntegral
 
-fromShelleyPParams :: W.EraInfo Bound -> SL.PParams era -> W.ProtocolParameters
+fromShelleyPParams
+    :: forall era. W.EraInfo Bound -> SL.PParams era -> W.ProtocolParameters
 fromShelleyPParams eraInfo pp = W.ProtocolParameters
     { decentralizationLevel =
         decentralizationLevelFromPParams pp
@@ -603,6 +612,7 @@ fromShelleyPParams eraInfo pp = W.ProtocolParameters
   where
     fromBound (Bound _relTime _slotNo (EpochNo e)) =
         W.EpochNo $ fromIntegral e
+
 
 -- | Extract the current network decentralization level from the given set of
 --   protocol parameters.
@@ -769,7 +779,7 @@ fromNonMyopicMemberRewards =
     . Map.mapKeys (bimap fromShelleyCoin fromStakeCredential)
     . O.unNonMyopicMemberRewards
 
-optimumNumberOfPools :: forall era. SL.PParams era -> Int
+optimumNumberOfPools :: forall era. (SL.PParams era ~ SL.Core.PParams era) => SL.Core.PParams era -> Int
 optimumNumberOfPools = unsafeConvert . SL._nOpt
   where
     -- A value of ~100 can be expected, so should be fine.
@@ -781,7 +791,8 @@ optimumNumberOfPools = unsafeConvert . SL._nOpt
 --
 
 fromShelleyTxId :: SL.TxId crypto -> W.Hash "Tx"
-fromShelleyTxId (SL.TxId (UnsafeHash h)) = W.Hash $ fromShort h
+fromShelleyTxId (SL.TxId h) =
+    W.Hash $ Crypto.hashToBytes $ SafeHash.extractHash h
 
 fromShelleyTxIn
     :: SL.Crypto crypto
@@ -829,7 +840,7 @@ fromShelleyTx
        )
 fromShelleyTx tx =
     ( W.Tx
-        (fromShelleyTxId $ SL.txid bod)
+        (fromShelleyTxId $ SL.txid @(Cardano.ShelleyLedgerEra ShelleyEra) bod)
         (Just $ fromShelleyCoin fee)
         (map ((,W.Coin 0) . fromShelleyTxIn) (toList ins))
         (map fromShelleyTxOut (toList outs))
@@ -849,7 +860,7 @@ fromAllegraTx
        )
 fromAllegraTx tx =
     ( W.Tx
-        (fromShelleyTxId $ SL.txid bod)
+        (fromShelleyTxId $ SL.txid @(Cardano.ShelleyLedgerEra AllegraEra) bod)
         (Just $ fromShelleyCoin fee)
         (map ((,W.Coin 0) . fromShelleyTxIn) (toList ins))
         (map fromShelleyTxOut (toList outs))
@@ -874,7 +885,7 @@ fromMaryTx
        )
 fromMaryTx tx =
     ( W.Tx
-        (fromShelleyTxId $ SL.txid bod)
+        (fromShelleyTxId $ SL.txid @(Cardano.ShelleyLedgerEra MaryEra) bod)
         (Just $ fromShelleyCoin fee)
         (map ((,W.Coin 0) . fromShelleyTxIn) (toList ins))
         (map fromMaryTxOut (toList outs))
@@ -935,7 +946,7 @@ fromShelleyWdrl (SL.Wdrl wdrl) = Map.fromList $
     bimap (fromStakeCredential . SL.getRwdCred) fromShelleyCoin
         <$> Map.toList wdrl
 
-fromShelleyMD :: SL.Metadata -> Cardano.TxMetadata
+fromShelleyMD :: SL.Metadata c -> Cardano.TxMetadata
 fromShelleyMD (SL.Metadata m) =
     Cardano.makeTransactionMetadata . fromShelleyMetadata $ m
 

@@ -24,7 +24,7 @@ import Prelude
 
 import Cardano.Address.Script
     ( Cosigner, KeyHash (..), Script, ScriptHash (..) )
-import Cardano.Api.Typed
+import Cardano.Api
     ( TxMetadataJsonSchema (..)
     , displayError
     , metadataFromJson

@@ -39,7 +39,7 @@ import Prelude
 
 import Cardano.Address.Derivation
     ( XPrv )
-import Cardano.Api.Typed
+import Cardano.Api
     ( AnyCardanoEra )
 import Cardano.Wallet.Primitive.AddressDerivation
     ( Depth (..), DerivationIndex, Passphrase )

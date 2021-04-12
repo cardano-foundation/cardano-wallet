@@ -3,7 +3,7 @@
 #
 # NOTE: Remember to update the version matrix in README.md when
 # bumping the Cardano version.
-resolver: https://raw.githubusercontent.com/input-output-hk/cardano-haskell/cd67c3f16b6c17afe76fbd3e5cefe3be0ad51147/snapshots/cardano-1.25.1.yaml
+resolver: https://raw.githubusercontent.com/input-output-hk/cardano-haskell/bfd50d486658cb062da2896a735d64fc49cfe2fd/snapshots/cardano-1.26.1.yaml
 
 packages:
 - lib/core
@@ -35,8 +35,8 @@ extra-deps:
     - core
 
 # cardano-transactions master branch
-- git: https://github.com/input-output-hk/cardano-transactions
-  commit: efc3914f950438b70ebe20919bf6c0ecf93b3bbc
+#- git: https://github.com/input-output-hk/cardano-transactions
+#  commit: efc3914f950438b70ebe20919bf6c0ecf93b3bbc
 
 flags:
   # Avoid a system library which causes difficulty with cross-compilation

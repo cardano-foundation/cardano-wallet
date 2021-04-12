@@ -190,7 +190,7 @@ import Cardano.Address.Derivation
     ( XPrv, XPub, xpubFromBytes, xpubToBytes )
 import Cardano.Address.Script
     ( Cosigner (..), KeyHash, Script, ScriptTemplate, ValidationLevel (..) )
-import Cardano.Api.Typed
+import Cardano.Api
     ( TxMetadataJsonSchema (..)
     , displayError
     , metadataFromJson

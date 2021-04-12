@@ -1,10 +1,14 @@
+{-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE NoMonoLocalBinds #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE Rank2Types #-}
@@ -240,6 +244,7 @@ import UnliftIO.Concurrent
 import UnliftIO.Exception
     ( Handler (..), IOException )
 
+import qualified Cardano.Ledger.Core as SL.Core
 import qualified Cardano.Wallet.Primitive.Types as W
 import qualified Cardano.Wallet.Primitive.Types.Coin as W
 import qualified Cardano.Wallet.Primitive.Types.Hash as W
@@ -1270,7 +1275,7 @@ observeForever readVal action = go Nothing
 -- acquired point.
 byronOrShelleyBased
     :: LSQ Byron.ByronBlock m a
-    -> (forall shelleyEra. LSQ (Shelley.ShelleyBlock (shelleyEra StandardCrypto)) m a)
+    -> (forall shelleyEra. WalletSupportedShelleyEra (shelleyEra StandardCrypto) => LSQ (Shelley.ShelleyBlock (shelleyEra StandardCrypto)) m a)
     -> LSQ (CardanoBlock StandardCrypto) m a
 byronOrShelleyBased onByron onShelleyBased = currentEra >>= \case
     AnyCardanoEra ByronEra -> mapQuery QueryIfCurrentByron onByron
@@ -1291,7 +1296,7 @@ byronOrShelleyBased onByron onShelleyBased = currentEra >>= \case
 
 -- | Return Nothings in Byron, or @Just result@ in Shelley.
 shelleyBased
-    :: (forall shelleyEra. LSQ (Shelley.ShelleyBlock (shelleyEra StandardCrypto)) m a)
+    :: (forall shelleyEra. WalletSupportedShelleyEra (shelleyEra StandardCrypto) => LSQ (Shelley.ShelleyBlock (shelleyEra StandardCrypto)) m a)
     -> LSQ (CardanoBlock StandardCrypto) m (Maybe a)
 shelleyBased onShelleyBased = byronOrShelleyBased
     (pure Nothing) -- on byron
@@ -1315,3 +1320,12 @@ currentEra = intToEra . eraIndexToInt <$> LSQry (QueryHardFork GetCurrentEra)
     -- If this were to be messed up, our integration tests would tell
     -- immediately though.
     intToEra = toEnum . fromEnum
+
+-- | Workaround to deal with @GetCurrentPParams@ now returning a
+-- 'SL.Core.PParams era' type family application, instead of a concrete datatype
+-- @SL.PParams era@ abstracted over @era@.
+--
+-- If we continue getting problems like this, we should maybe switch to rely
+-- more on cardano-api.
+type WalletSupportedShelleyEra era =
+    (SL.Core.PParams era ~ SL.PParams era)

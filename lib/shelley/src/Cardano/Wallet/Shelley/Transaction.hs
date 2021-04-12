@@ -41,7 +41,7 @@ import Prelude
 
 import Cardano.Address.Derivation
     ( XPrv, toXPub )
-import Cardano.Api.Typed
+import Cardano.Api
     ( AnyCardanoEra (..)
     , ByronEra
     , CardanoEra (..)
@@ -154,7 +154,9 @@ import GHC.Stack
 import Ouroboros.Network.Block
     ( SlotNo )
 
-import qualified Cardano.Api.Typed as Cardano
+import qualified Cardano.Api as Cardano
+import qualified Cardano.Api.Byron as Byron
+import qualified Cardano.Api.Shelley as Cardano
 import qualified Cardano.Chain.Common as Byron
 import qualified Cardano.Crypto as CC
 import qualified Cardano.Crypto.DSIGN as DSIGN
@@ -1086,4 +1088,4 @@ mkByronWitness (Cardano.ShelleyTxBody era body _) nw addr encryptedKey =
 
     addrAttr = Byron.mkAttributes $ Byron.AddrAttributes
         (toHDPayloadAddress addr)
-        (Cardano.toByronNetworkMagic nw)
+        (Byron.toByronNetworkMagic nw)

@@ -2,6 +2,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE ImpredicativeTypes #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE QuasiQuotes #-}
@@ -67,6 +68,8 @@ import Data.Bifunctor
     ( bimap )
 import Data.ByteArray.Encoding
     ( Base (Base16, Base64), convertFromBase, convertToBase )
+import Data.ByteString
+    ( ByteString )
 import Data.ByteString.Base58
     ( bitcoinAlphabet, decodeBase58 )
 import Data.Either.Extra
@@ -192,8 +195,8 @@ import qualified Data.List as L
 import qualified Data.Map as Map
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
-import qualified Data.UTxO.Transaction as CardanoTransactions
-import qualified Data.UTxO.Transaction.Cardano.Shelley as CardanoTransactions
+--import qualified Data.UTxO.Transaction as CardanoTransactions
+--import qualified Data.UTxO.Transaction.Cardano.Shelley as CardanoTransactions
 import qualified Network.HTTP.Types.Status as HTTP
 
 data TestCase a = TestCase
@@ -1350,7 +1353,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         let (Right blob) = constructTxFromCardanoTransactions
                 (fromIntegral feeMin1) txid txix outChange addrChange amtDest addrDest wit
         let baseOk = Base64
-        let encodedSignedTx = T.decodeUtf8 $ convertToBase baseOk blob
+        let encodedSignedTx = T.decodeUtf8 $ convertToBase @ByteString baseOk blob
         let payloadExt = NonJson . BL.fromStrict . toRawBytes baseOk
         let headers = Headers [ ("Content-Type", "application/octet-stream") ]
         r6 <- request
@@ -1535,7 +1538,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         let (Right blob) = constructMultiTxFromCardanoTransactions
                 (fromIntegral feeMin1) txid (txix1, txix2) outChange addrChange amtDest addrOut wit1 wit2
         let baseOk = Base64
-        let encodedSignedTx = T.decodeUtf8 $ convertToBase baseOk blob
+        let encodedSignedTx = T.decodeUtf8 $ convertToBase @ByteString baseOk blob
         let payloadExt = NonJson . BL.fromStrict . toRawBytes baseOk
         let headers = Headers [ ("Content-Type", "application/octet-stream") ]
         r7 <- request
@@ -1693,7 +1696,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             let (Right blob) = constructTxByronWitsFromCardanoTransactions
                     (fromIntegral feeEstMin) txid txix outChange addrChange amtDest addrOut addrInp wit
             let baseOk = Base64
-            let encodedSignedTx = T.decodeUtf8 $ convertToBase baseOk blob
+            let encodedSignedTx = T.decodeUtf8 $ convertToBase @ByteString baseOk blob
             let payloadExt = NonJson . BL.fromStrict . toRawBytes baseOk
             let headers = Headers [ ("Content-Type", "application/octet-stream") ]
             r4 <- request
@@ -1822,7 +1825,7 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
             let (Right blob) = constructTxByronWitsFromCardanoTransactions
                     (fromIntegral feeEstMin) txid txix outChange addrChange amtDest addrDest addrInp wit
             let baseOk = Base64
-            let encodedSignedTx = T.decodeUtf8 $ convertToBase baseOk blob
+            let encodedSignedTx = T.decodeUtf8 $ convertToBase @ByteString baseOk blob
             let payloadExt = NonJson . BL.fromStrict . toRawBytes baseOk
             let headers = Headers [ ("Content-Type", "application/octet-stream") ]
             r4 <- request
@@ -3020,6 +3023,11 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         Left err -> error err
         Right res -> res
 
+    constructMultiTxFromCardanoTransactions = error "todo"
+    constructTxByronWitsFromCardanoTransactions = error "todo"
+    constructTxFromCardanoTransactions = error "todo"
+
+{-#
     initTx = CardanoTransactions.mkInit CardanoTransactions.Mainnet 7750
 
     unsafeMkInput
@@ -3108,3 +3116,5 @@ spec = describe "SHELLEY_TRANSACTIONS" $ do
         & CardanoTransactions.lock
         & CardanoTransactions.signWith (unsafeMkByronSignKey addr3 wit)
         & CardanoTransactions.serialize
+
+#-}

@@ -189,7 +189,7 @@ import Type.Reflection
 import qualified Cardano.Address.Derivation as CA
 import qualified Cardano.Address.Script as CA
 import qualified Cardano.Address.Style.Shelley as CA
-import qualified Cardano.Api.Typed as Cardano
+import qualified Cardano.Api as Cardano
 import qualified Data.ByteString as BS
 import qualified Data.Text as T
 
