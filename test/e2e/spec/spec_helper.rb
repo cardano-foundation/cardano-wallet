@@ -27,7 +27,7 @@ TIMEOUT = 120
 
 ##
 # Intit cardano-wallet wrapper with timeout for getting the response back
-CW = CardanoWallet.new({timeout: TIMEOUT})
+CW = CardanoWallet.new({ timeout: TIMEOUT })
 BYRON = CW.byron
 SHELLEY = CW.shelley
 SETTINGS = CW.misc.settings
@@ -44,19 +44,19 @@ TXID = "1acf9c0f504746cbd102b49ffaf16dcafd14c0a2f1bbb23af265fbe0a04951cc"
 SPID = "feea59bc6664572e631e9adfee77142cb51264156debf2e52970cc00"
 SPID_BECH32 = "pool1v7g9ays8h668d74xjvln9xuh9adzh6xz0v0hvcd3xukpck5z56d"
 
-#exemplary metadata
-METADATA = { "0"=>{ "string"=>"cardano" },
-             "1"=>{ "int"=>14 },
-             "2"=>{ "bytes"=>"2512a00e9653fe49a44a5886202e24d77eeb998f" },
-             "3"=>{ "list"=>[ { "int"=>14 }, { "int"=>42 }, { "string"=>"1337" } ] },
-             "4"=>{ "map"=>[ { "k"=>{ "string"=>"key" }, "v"=>{ "string"=>"value" } },
-                             { "k"=>{ "int"=>14 }, "v"=>{ "int"=>42 } } ] } }
+# exemplary metadata
+METADATA = { "0" => { "string" => "cardano" },
+             "1" => { "int" => 14 },
+             "2" => { "bytes" => "2512a00e9653fe49a44a5886202e24d77eeb998f" },
+             "3" => { "list" => [ { "int" => 14 }, { "int" => 42 }, { "string" => "1337" } ] },
+             "4" => { "map" => [ { "k" => { "string" => "key" }, "v" => { "string" => "value" } },
+                             { "k" => { "int" => 14 }, "v" => { "int" => 42 } } ] } }
 
 # Testnet assets with metadata from mock server https://metadata.cardano-testnet.iohkdev.io/
 ASSETS = [ { "policy_id" => "789ef8ae89617f34c07f7f6a12e4d65146f958c0bc15a97b4ff169f1",
              "asset_name" => "",
              "fingerprint" => "asset1656gm7zkherdvxkn52mhaxkkw343qtkqgv0h8c",
-             "metadata" => {"name" => "SadCoin",
+             "metadata" => { "name" => "SadCoin",
                             "description" => "Coin with no asset name",
                             "url" => "https://sad.io",
                             "ticker" => "SAD",
@@ -66,7 +66,7 @@ ASSETS = [ { "policy_id" => "789ef8ae89617f34c07f7f6a12e4d65146f958c0bc15a97b4ff
            { "policy_id" => "789ef8ae89617f34c07f7f6a12e4d65146f958c0bc15a97b4ff169f1",
              "asset_name" => "6861707079636f696e",
              "fingerprint" => "asset19mwamgpre24at3z34v2e5achszlhhqght9djqp",
-             "metadata" => {"name" => "HappyCoin",
+             "metadata" => { "name" => "HappyCoin",
                             "description" => "Coin with asset name - and everyone is happy!!!",
                             "url" => "https://happy.io",
                             "ticker" => "HAPP",
@@ -75,10 +75,10 @@ ASSETS = [ { "policy_id" => "789ef8ae89617f34c07f7f6a12e4d65146f958c0bc15a97b4ff
             },
          ]
 
-EXPECTED_HEADERS = {'content-type' => ['application/json;charset=utf-8']}
+EXPECTED_HEADERS = { 'content-type' => ['application/json;charset=utf-8'] }
 
 def create_shelley_wallet(name = "Wallet from mnemonic_sentence")
-  SHELLEY.wallets.create({name: name,
+  SHELLEY.wallets.create({ name: name,
                           passphrase: PASS,
                           mnemonic_sentence: mnemonic_sentence(24)
                          })['id']
@@ -86,7 +86,7 @@ end
 
 
 def create_fixture_shelley_wallet
-  SHELLEY.wallets.create({name: "Fixture wallet with funds",
+  SHELLEY.wallets.create({ name: "Fixture wallet with funds",
                           passphrase: PASS,
                           mnemonic_sentence: get_fixture_wallet_mnemonics("shelley")
                          })['id']
@@ -96,7 +96,7 @@ def wait_for_shelley_wallet_to_sync(wid)
   puts "Syncing Shelley wallet..."
   retry_count = 10
   begin
-    while(SHELLEY.wallets.get(wid)['state']['status'] == "syncing") do
+    while (SHELLEY.wallets.get(wid)['state']['status'] == "syncing") do
       w = SHELLEY.wallets.get(wid)
       puts "  Syncing... #{w['state']['progress']['quantity']}%" if w['state']['progress']
       sleep 5
@@ -117,7 +117,7 @@ def wait_for_all_shelley_wallets(wids)
 end
 
 def create_byron_wallet_with(mnem, style = "random", name = "Wallet from mnemonic_sentence")
-  BYRON.wallets.create({style: style,
+  BYRON.wallets.create({ style: style,
                         name: name,
                         passphrase: PASS,
                         mnemonic_sentence: mnem
@@ -126,7 +126,7 @@ end
 
 def create_byron_wallet(style = "random", name = "Wallet from mnemonic_sentence")
   style == "random" ? mnem = mnemonic_sentence(12) : mnem = mnemonic_sentence(15)
-  BYRON.wallets.create({style: style,
+  BYRON.wallets.create({ style: style,
                         name: name,
                         passphrase: PASS,
                         mnemonic_sentence: mnem
@@ -135,7 +135,7 @@ end
 
 
 def create_fixture_byron_wallet(style = "random")
-  BYRON.wallets.create({style: style,
+  BYRON.wallets.create({ style: style,
                         name: "Fixture byron wallets with funds",
                         passphrase: PASS,
                         mnemonic_sentence: get_fixture_wallet_mnemonics(style)
@@ -146,7 +146,7 @@ def wait_for_byron_wallet_to_sync(wid)
   puts "Syncing Byron wallet..."
   retry_count = 10
   begin
-    while(BYRON.wallets.get(wid)['state']['status'] == "syncing") do
+    while (BYRON.wallets.get(wid)['state']['status'] == "syncing") do
       w = BYRON.wallets.get(wid)
       puts "  Syncing... #{w['state']['progress']['quantity']}%" if w['state']['progress']
       sleep 5
@@ -171,7 +171,7 @@ end
 def eventually(label, &block)
   current_time = Time.now
   timeout_treshold = current_time + TIMEOUT
-  while(block.call == false) && (current_time <= timeout_treshold) do
+  while (block.call == false) && (current_time <= timeout_treshold) do
     sleep 5
     current_time = Time.now
   end

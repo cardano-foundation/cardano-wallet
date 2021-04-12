@@ -44,25 +44,25 @@ end
 task :fixture_wallets_template do
   puts "\n  >> Creating #{FIXTURES_FILE}"
 
-  fixture_wallets = { :linux => {:shelley => mnemonic_sentence(24),
+  fixture_wallets = { :linux => { :shelley => mnemonic_sentence(24),
                                  :icarus => mnemonic_sentence(15),
                                  :byron => mnemonic_sentence(12) },
-                      :macos => {:shelley => mnemonic_sentence(24),
+                      :macos => { :shelley => mnemonic_sentence(24),
                                  :icarus => mnemonic_sentence(15),
                                  :byron => mnemonic_sentence(12) },
-                      :windows => {:shelley => mnemonic_sentence(24),
+                      :windows => { :shelley => mnemonic_sentence(24),
                                    :icarus => mnemonic_sentence(15),
                                    :byron => mnemonic_sentence(12) }
                     }
   if File.exists?(FIXTURES_FILE)
-    err = %Q{
+    err = "
               File #{FIXTURES_FILE} already exists!
               I don't want to overwrite it in case it
               contains fixture wallets already...
-            }
+            "
     STDERR.puts err
   else
-    File.open(FIXTURES_FILE, 'w') {|f| f.write JSON.pretty_generate(fixture_wallets) }
+    File.open(FIXTURES_FILE, 'w') { |f| f.write JSON.pretty_generate(fixture_wallets) }
   end
 
 end
@@ -209,7 +209,7 @@ task :get_latest_configs, [:env] do |task, args|
   env = args[:env]
   out = File.join(CONFIGS, env)
 
-  if (File.exist?(out) and not File.writable?(out))
+  if (File.exist?(out) && (not File.writable?(out)))
     # The config directory is probably a /nix/store path
     puts "\n  >> Using config directory '#{out}'"
   else
@@ -227,7 +227,7 @@ task :get_latest_configs, [:env] do |task, args|
     # remove environment names from genesis files
     config = File.read(config_file)
     config_edited = config.gsub(/#{env}-([^-]+)-genesis.json/, 'genesis-\1.json')
-    File.open(config_file, "w") {|file| file.puts config_edited }
+    File.open(config_file, "w") { |file| file.puts config_edited }
   end
 end
 
@@ -235,8 +235,8 @@ task :get_docker_logs do
   puts "\n  >> Getting docker logs into #{LOGS}"
 
   mk_dir(LOGS)
-  node_logfile = `docker inspect --format='{{.LogPath}}' cardano-node`.gsub("\n",'')
-  wallet_logfile = `docker inspect --format='{{.LogPath}}' cardano-wallet`.gsub("\n",'')
+  node_logfile = `docker inspect --format='{{.LogPath}}' cardano-node`.gsub("\n", '')
+  wallet_logfile = `docker inspect --format='{{.LogPath}}' cardano-wallet`.gsub("\n", '')
 
   cmd "sudo cp #{node_logfile} #{LOGS}/node.log"
   cmd "sudo cp #{wallet_logfile} #{LOGS}/wallet.log"

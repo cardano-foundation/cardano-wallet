@@ -34,7 +34,7 @@ RSpec.describe CardanoWallet::Shelley do
     describe "Create wallets" do
       it "I can create, get and delete wallet from mnemonics" do
         w = SHELLEY.wallets
-        wallet = w.create({name: "Wallet from mnemonic_sentence",
+        wallet = w.create({ name: "Wallet from mnemonic_sentence",
                            passphrase: "Secure Passphrase",
                            mnemonic_sentence: mnemonic_sentence(15),
                            })
@@ -51,7 +51,7 @@ RSpec.describe CardanoWallet::Shelley do
 
       it "I can create, get and delete wallet from mnemonics / second factor" do
         w = SHELLEY.wallets
-        wallet = w.create({name: "Wallet from mnemonic_sentence",
+        wallet = w.create({ name: "Wallet from mnemonic_sentence",
                            passphrase: "Secure Passphrase",
                            mnemonic_sentence: mnemonic_sentence(15),
                            mnemonic_second_factor: mnemonic_sentence(12)
@@ -70,7 +70,7 @@ RSpec.describe CardanoWallet::Shelley do
       it "I can set address pool gap" do
         pool_gap = 55
         w = SHELLEY.wallets
-        wallet = w.create({name: "Wallet from mnemonic_sentence",
+        wallet = w.create({ name: "Wallet from mnemonic_sentence",
                            passphrase: "Secure Passphrase",
                            mnemonic_sentence: mnemonic_sentence(15),
                            address_pool_gap: pool_gap
@@ -84,7 +84,7 @@ RSpec.describe CardanoWallet::Shelley do
 
       it "I can create, get and delete wallet from pub key" do
         w = SHELLEY.wallets
-        wallet = w.create({name: "Wallet from pub key",
+        wallet = w.create({ name: "Wallet from pub key",
                            account_public_key: "b47546e661b6c1791452d003d375756dde6cac2250093ce4630f16b9b9c0ac87411337bda4d5bc0216462480b809824ffb48f17e08d95ab9f1b91d391e48e66b",
                            address_pool_gap: 20,
                            })
@@ -104,7 +104,7 @@ RSpec.describe CardanoWallet::Shelley do
         new_name = "New wallet name"
         w = SHELLEY.wallets
         id = create_shelley_wallet
-        u = w.update_metadata(id, {name: new_name})
+        u = w.update_metadata(id, { name: new_name })
         expect(u).to have_http 200
         expect(u).to have_headers(EXPECTED_HEADERS)
         expect(w.get(id)['name']).to eq new_name
@@ -113,8 +113,8 @@ RSpec.describe CardanoWallet::Shelley do
       it "Can update_passphrase" do
         w = SHELLEY.wallets
         id = create_shelley_wallet
-        upd = w.update_passphrase(id,{old_passphrase: "Secure Passphrase",
-                                      new_passphrase: "Securer Passphrase"})
+        upd = w.update_passphrase(id, { old_passphrase: "Secure Passphrase",
+                                      new_passphrase: "Securer Passphrase" })
         expect(upd).to have_http 204
       end
     end
@@ -140,20 +140,20 @@ RSpec.describe CardanoWallet::Shelley do
       expect(addresses).to have_http 200
       expect(addresses).to have_headers(EXPECTED_HEADERS)
       expect(addresses.size).to eq 20
-      addresses.each_with_index do |a,i|
+      addresses.each_with_index do |a, i|
         expect(a['derivation_path']).to eq ['1852H', '1815H', '0H', '0', i.to_s]
       end
 
-      addresses_unused = shelley_addr.list id, {state: "used"}
+      addresses_unused = shelley_addr.list id, { state: "used" }
       expect(addresses_unused).to have_http 200
       expect(addresses_unused).to have_headers(EXPECTED_HEADERS)
       expect(addresses_unused.size).to eq 0
 
-      addresses_unused = shelley_addr.list id, {state: "unused"}
+      addresses_unused = shelley_addr.list id, { state: "unused" }
       expect(addresses_unused).to have_http 200
       expect(addresses_unused).to have_headers(EXPECTED_HEADERS)
       expect(addresses_unused.size).to eq 20
-      addresses_unused.each_with_index do |a,i|
+      addresses_unused.each_with_index do |a, i|
         expect(a['derivation_path']).to eq ['1852H', '1815H', '0H', '0', i.to_s]
       end
     end
@@ -199,10 +199,10 @@ RSpec.describe CardanoWallet::Shelley do
       id = create_shelley_wallet
       txs = SHELLEY.transactions
       l = txs.list(id)
-      l_ext = txs.list(id,{start: "2012-09-25T10:15:00Z",
+      l_ext = txs.list(id, { start: "2012-09-25T10:15:00Z",
                            end: "2016-11-21T10:15:00Z",
-                           order: "ascending"})
-      l_bad = txs.list(id, {order: "bad_order"})
+                           order: "ascending" })
+      l_bad = txs.list(id, { order: "bad_order" })
       expect(l).to have_http 200
       expect(l).to have_headers(EXPECTED_HEADERS)
       expect(l_ext).to have_http 200
@@ -218,7 +218,7 @@ RSpec.describe CardanoWallet::Shelley do
       target_id = create_shelley_wallet
       address = SHELLEY.addresses.list(target_id)[0]['id']
       txs = SHELLEY.transactions
-      amt = [{address => 1000000}]
+      amt = [{ address => 1000000 }]
 
       tx_sent = txs.create(id, PASS, amt)
       expect(tx_sent).to have_http 403
@@ -231,7 +231,7 @@ RSpec.describe CardanoWallet::Shelley do
       target_id = create_shelley_wallet
       address = SHELLEY.addresses.list(target_id)[0]['id']
       txs = SHELLEY.transactions
-      amt = [{address => 1000000}]
+      amt = [{ address => 1000000 }]
 
       tx_sent = txs.create(id, PASS, amt, 'self')
       expect(tx_sent).to have_http 403
@@ -243,7 +243,7 @@ RSpec.describe CardanoWallet::Shelley do
       id = create_shelley_wallet
       target_id = create_shelley_wallet
       address = SHELLEY.addresses.list(target_id)[0]['id']
-      amt = [{address => 1000000}]
+      amt = [{ address => 1000000 }]
 
       txs = SHELLEY.transactions
 
@@ -257,12 +257,12 @@ RSpec.describe CardanoWallet::Shelley do
       expect(fees).to have_headers(EXPECTED_HEADERS)
       expect(fees.to_s).to include "not_enough_money"
 
-      metadata = { "0"=>{ "string"=>"cardano" },
-                   "1"=>{ "int"=>14 },
-                   "2"=>{ "bytes"=>"2512a00e9653fe49a44a5886202e24d77eeb998f" },
-                   "3"=>{ "list"=>[ { "int"=>14 }, { "int"=>42 }, { "string"=>"1337" } ] },
-                   "4"=>{ "map"=>[ { "k"=>{ "string"=>"key" }, "v"=>{ "string"=>"value" } },
-                                   { "k"=>{ "int"=>14 }, "v"=>{ "int"=>42 } } ] } }
+      metadata = { "0" => { "string" => "cardano" },
+                   "1" => { "int" => 14 },
+                   "2" => { "bytes" => "2512a00e9653fe49a44a5886202e24d77eeb998f" },
+                   "3" => { "list" => [ { "int" => 14 }, { "int" => 42 }, { "string" => "1337" } ] },
+                   "4" => { "map" => [ { "k" => { "string" => "key" }, "v" => { "string" => "value" } },
+                                   { "k" => { "int" => 14 }, "v" => { "int" => 42 } } ] } }
 
       fees = txs.payment_fees(id, amt, 'self', metadata)
       expect(fees).to have_http 403
@@ -283,7 +283,7 @@ RSpec.describe CardanoWallet::Shelley do
 
     after(:each) do
       settings = CardanoWallet.new.misc.settings
-      s = settings.update({:pool_metadata_source => "none"})
+      s = settings.update({ :pool_metadata_source => "none" })
       teardown
     end
 
@@ -291,52 +291,52 @@ RSpec.describe CardanoWallet::Shelley do
       settings = CardanoWallet.new.misc.settings
       pools = SHELLEY.stake_pools
 
-      s = settings.update({:pool_metadata_source => "direct"})
+      s = settings.update({ :pool_metadata_source => "direct" })
       expect(s).to have_http 204
 
       eventually "Pools have metadata when 'pool_metadata_source' => 'direct'" do
-        sps = pools.list({stake: 1000})
-        sps.select{|p| p['metadata']}.size > 0
+        sps = pools.list({ stake: 1000 })
+        sps.select { |p| p['metadata'] }.size > 0
       end
 
-      s = settings.update({:pool_metadata_source => "none"})
+      s = settings.update({ :pool_metadata_source => "none" })
       expect(s).to have_http 204
 
       eventually "Pools have no metadata when 'pool_metadata_source' => 'none'" do
-        sps = pools.list({stake: 1000})
-        sps.select{|p| p['metadata']}.size == 0
+        sps = pools.list({ stake: 1000 })
+        sps.select { |p| p['metadata'] }.size == 0
       end
 
-      s = settings.update({:pool_metadata_source => ENV['TESTS_E2E_SMASH']})
+      s = settings.update({ :pool_metadata_source => ENV['TESTS_E2E_SMASH'] })
       expect(s).to have_http 204
 
       eventually "Pools have metadata when 'pool_metadata_source' => '#{ENV['TESTS_E2E_SMASH']}'" do
-        sps = pools.list({stake: 1000})
-        sps.select{|p| p['metadata']}.size > 0
+        sps = pools.list({ stake: 1000 })
+        sps.select { |p| p['metadata'] }.size > 0
       end
 
-      s = settings.update({:pool_metadata_source => "none"})
+      s = settings.update({ :pool_metadata_source => "none" })
       expect(s).to have_http 204
 
       eventually "Pools have no metadata when 'pool_metadata_source' => 'none'" do
-        sps = pools.list({stake: 1000})
-        sps.select{|p| p['metadata']}.size == 0
+        sps = pools.list({ stake: 1000 })
+        sps.select { |p| p['metadata'] }.size == 0
       end
     end
 
     describe "Stake Pools GC Maintenance" do
-      matrix = [{"direct" => "not_applicable"},
-                {"none" => "not_applicable"},
-                {"https://smash.cardano-testnet.iohkdev.io" => "has_run"}]
+      matrix = [{ "direct" => "not_applicable" },
+                { "none" => "not_applicable" },
+                { "https://smash.cardano-testnet.iohkdev.io" => "has_run" }]
       matrix.each do |tc|
         it "GC metadata maintenance action on metadata source #{tc}" do
           settings = CardanoWallet.new.misc.settings
           pools = SHELLEY.stake_pools
 
-          s = settings.update({:pool_metadata_source => tc.keys.first})
+          s = settings.update({ :pool_metadata_source => tc.keys.first })
           expect(s).to have_http 204
 
-          t = pools.trigger_maintenance_actions({maintenance_action: "gc_stake_pools"})
+          t = pools.trigger_maintenance_actions({ maintenance_action: "gc_stake_pools" })
           expect(t).to have_http 204
 
           eventually "Maintenance action has status = #{tc.values.first}" do
@@ -374,7 +374,7 @@ RSpec.describe CardanoWallet::Shelley do
     it "I could migrate all my funds" do
       id = create_shelley_wallet
       target_id = create_shelley_wallet
-      addrs = SHELLEY.addresses.list(target_id).map{ |a| a['id'] }
+      addrs = SHELLEY.addresses.list(target_id).map { |a| a['id'] }
       migr = SHELLEY.migrations.migrate(id, PASS, addrs)
       expect(migr).to have_http 501
       expect(migr).to have_headers(EXPECTED_HEADERS)
@@ -395,7 +395,7 @@ RSpec.describe CardanoWallet::Shelley do
                                         role,
                                         id,
                                         "Secure Passphrase",
-                                        { "0"=>{ "string"=>"cardano" } })
+                                        { "0" => { "string" => "cardano" } })
         puts "#{wid}/#{role}/#{id}"
         expect(res).to have_http 200
       end

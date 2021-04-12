@@ -25,7 +25,7 @@ RSpec.describe CardanoWallet::Byron do
     end
 
     it "I can create, get and delete byron icarus wallet from mnemonics" do
-      wallet = BYRON.wallets.create({style: "icarus",
+      wallet = BYRON.wallets.create({ style: "icarus",
                          name: "Wallet from mnemonic_sentence",
                          passphrase: "Secure Passphrase",
                          mnemonic_sentence: mnemonic_sentence(15),
@@ -41,7 +41,7 @@ RSpec.describe CardanoWallet::Byron do
     end
 
     it "I can create, get and delete byron random wallet from mnemonics" do
-      wallet = BYRON.wallets.create({style: "random",
+      wallet = BYRON.wallets.create({ style: "random",
                          name: "Wallet from mnemonic_sentence",
                          passphrase: "Secure Passphrase",
                          mnemonic_sentence: mnemonic_sentence(12),
@@ -60,7 +60,7 @@ RSpec.describe CardanoWallet::Byron do
     it "Can update_metadata" do
       w = BYRON.wallets
       id = create_byron_wallet
-      u = w.update_metadata(id,{name: "New wallet name"})
+      u = w.update_metadata(id, { name: "New wallet name" })
       expect(u).to have_http 200
       expect(u).to have_headers(EXPECTED_HEADERS)
     end
@@ -68,8 +68,8 @@ RSpec.describe CardanoWallet::Byron do
     it "Can update_passphrase" do
       w = BYRON.wallets
       id = create_byron_wallet
-      upd = w.update_passphrase(id,{old_passphrase: "Secure Passphrase",
-                                    new_passphrase: "Securer Passphrase"})
+      upd = w.update_passphrase(id, { old_passphrase: "Secure Passphrase",
+                                    new_passphrase: "Securer Passphrase" })
       expect(upd).to have_http 204
     end
 
@@ -94,7 +94,7 @@ RSpec.describe CardanoWallet::Byron do
       expect(addresses).to have_headers(EXPECTED_HEADERS)
       expect(addresses.size).to eq 0
 
-      BYRON.addresses.create(id, {passphrase: PASS})
+      BYRON.addresses.create(id, { passphrase: PASS })
       addresses = BYRON.addresses.list id
       expect(addresses).to have_http 200
       expect(addresses).to have_headers(EXPECTED_HEADERS)
@@ -105,46 +105,46 @@ RSpec.describe CardanoWallet::Byron do
 
     it "Can list addresses - icarus" do
       id = create_byron_wallet "icarus"
-      addresses_unused = BYRON.addresses.list id, {state: "unused"}
+      addresses_unused = BYRON.addresses.list id, { state: "unused" }
       expect(addresses_unused).to have_http 200
       expect(addresses_unused).to have_headers(EXPECTED_HEADERS)
       expect(addresses_unused.size).to eq 20
-      addresses_unused.each_with_index do |a,i|
+      addresses_unused.each_with_index do |a, i|
         expect(a['derivation_path']).to eq ['44H', '1815H', '0H', '0', i.to_s]
       end
     end
 
     it "Can list addresses - ledger" do
       id = create_byron_wallet "ledger"
-      addresses_unused = BYRON.addresses.list id, {state: "unused"}
+      addresses_unused = BYRON.addresses.list id, { state: "unused" }
       expect(addresses_unused).to have_http 200
       expect(addresses_unused).to have_headers(EXPECTED_HEADERS)
       expect(addresses_unused.size).to eq 20
-      addresses_unused.each_with_index do |a,i|
+      addresses_unused.each_with_index do |a, i|
         expect(a['derivation_path']).to eq ['44H', '1815H', '0H', '0', i.to_s]
       end
     end
 
     it "Can list addresses - trezor" do
       id = create_byron_wallet "trezor"
-      addresses_unused = BYRON.addresses.list id, {state: "unused"}
+      addresses_unused = BYRON.addresses.list id, { state: "unused" }
       expect(addresses_unused).to have_http 200
       expect(addresses_unused).to have_headers(EXPECTED_HEADERS)
       expect(addresses_unused.size).to eq 20
-      addresses_unused.each_with_index do |a,i|
+      addresses_unused.each_with_index do |a, i|
         expect(a['derivation_path']).to eq ['44H', '1815H', '0H', '0', i.to_s]
       end
     end
 
     it "Can create address - random" do
       id = create_byron_wallet
-      addr = BYRON.addresses.create(id, {passphrase: PASS,
-                                         address_index: 2147483648})
+      addr = BYRON.addresses.create(id, { passphrase: PASS,
+                                         address_index: 2147483648 })
       expect(addr).to have_http 201
       expect(addr).to have_headers(EXPECTED_HEADERS)
       expect(addr['derivation_path']).to eq ['0H', '0H']
 
-      addr_r = BYRON.addresses.create(id, {passphrase: PASS})
+      addr_r = BYRON.addresses.create(id, { passphrase: PASS })
       expect(addr_r).to have_http 201
       expect(addr_r).to have_headers(EXPECTED_HEADERS)
       expect(addr_r['derivation_path'][0]).to eq '0H'
@@ -238,11 +238,11 @@ RSpec.describe CardanoWallet::Byron do
 
         expect(txs.list(id)).to have_http 200
         expect(txs.list(id,
-                        {start: "2012-09-25T10:15:00Z",
+                        { start: "2012-09-25T10:15:00Z",
                          end: "2016-11-21T10:15:00Z",
-                         order: "ascending"}).code).
+                         order: "ascending" }).code).
                         to eq 200
-        expect(txs.list(id, {order: "bad_order"})).to have_http 400
+        expect(txs.list(id, { order: "bad_order" })).to have_http 400
       end
 
       it "I could send tx if I had money - #{style}" do
@@ -250,7 +250,7 @@ RSpec.describe CardanoWallet::Byron do
         target_id = create_byron_wallet "icarus"
         target_addr = BYRON.addresses.list(target_id)[0]['id']
 
-        tx_sent = BYRON.transactions.create(id, PASS, [{target_addr => 1000000}])
+        tx_sent = BYRON.transactions.create(id, PASS, [{ target_addr => 1000000 }])
         expect(tx_sent).to have_http 403
         expect(tx_sent).to have_headers(EXPECTED_HEADERS)
         expect(tx_sent.to_s).to include "not_enough_money"
@@ -261,7 +261,7 @@ RSpec.describe CardanoWallet::Byron do
         target_id = create_byron_wallet "icarus"
         target_addr = BYRON.addresses.list(target_id)[0]['id']
 
-        fees = BYRON.transactions.payment_fees(id, [{target_addr => 1000000}])
+        fees = BYRON.transactions.payment_fees(id, [{ target_addr => 1000000 }])
         expect(fees).to have_http 403
         expect(fees).to have_headers(EXPECTED_HEADERS)
         expect(fees.to_s).to include "not_enough_money"
@@ -292,7 +292,7 @@ RSpec.describe CardanoWallet::Byron do
     it "I could migrate all my funds" do
       id = create_byron_wallet "random"
       target_wal_id = create_byron_wallet "icarus"
-      addresses = BYRON.addresses.list(target_wal_id).map{ |a| a['id'] }
+      addresses = BYRON.addresses.list(target_wal_id).map { |a| a['id'] }
       migr = BYRON.migrations.migrate(id, PASS, addresses)
       expect(migr).to have_http 501
       expect(migr).to have_headers(EXPECTED_HEADERS)

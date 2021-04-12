@@ -25,14 +25,14 @@ RSpec.describe CardanoWallet::Misc do
 
     describe "SMASH health" do
       it "SMASH health - unreachable" do
-        r = UTILS.smash_health({url: "http://onet.pl"})
+        r = UTILS.smash_health({ url: "http://onet.pl" })
         expect(r).to have_http 200
         expect(r).to have_headers(EXPECTED_HEADERS)
         expect(r.to_s).to include "unreachable"
       end
 
       it "SMASH health - bad url" do
-        r = UTILS.smash_health({url: "dsds"})
+        r = UTILS.smash_health({ url: "dsds" })
         expect(r).to have_http 400
         expect(r).to have_headers(EXPECTED_HEADERS)
         expect(r.to_s).to include "bad_request"
@@ -284,16 +284,16 @@ RSpec.describe CardanoWallet::Misc do
   describe CardanoWallet::Misc::Settings do
 
     after(:all) do
-      SETTINGS.update({:pool_metadata_source => "none"})
+      SETTINGS.update({ :pool_metadata_source => "none" })
     end
 
-    matrix = {"direct" => "no_smash_configured",
+    matrix = { "direct" => "no_smash_configured",
               "https://smash.pl" => "unreachable",
-              "none" => "no_smash_configured"}
+              "none" => "no_smash_configured" }
 
     matrix.each do |strategy, smash_health_response|
       it "I can read and update settings to #{strategy} and verify SMASH health = #{smash_health_response}" do
-        s = SETTINGS.update({:pool_metadata_source => strategy})
+        s = SETTINGS.update({ :pool_metadata_source => strategy })
         expect(s).to have_http 204
 
         g = SETTINGS.get
@@ -301,7 +301,7 @@ RSpec.describe CardanoWallet::Misc do
         expect(g).to have_http 200
         expect(g).to have_headers(EXPECTED_HEADERS)
 
-        #check smash health
+        # check smash health
         r = UTILS.smash_health
         expect(r).to have_http 200
         expect(r).to have_headers(EXPECTED_HEADERS)

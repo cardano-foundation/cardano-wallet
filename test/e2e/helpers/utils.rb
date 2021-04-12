@@ -4,7 +4,6 @@ require 'fileutils'
 
 module Helpers
   module Utils
-
     def cmd(cmd)
       puts cmd
       puts `#{cmd}`
