@@ -202,7 +202,7 @@ import Cardano.Wallet.DB
     , sparseCheckpoints
     )
 import Cardano.Wallet.Logging
-    ( BracketLog, bracketTracer, traceWithExceptT )
+    ( BracketLog, bracketTracer, traceWithExceptT, unliftIOTracer )
 import Cardano.Wallet.Network
     ( ErrGetAccountBalance (..)
     , ErrPostTx (..)
@@ -365,9 +365,15 @@ import Control.DeepSeq
 import Control.Monad
     ( forM, forM_, replicateM, unless, when )
 import Control.Monad.Class.MonadTime
-    ( DiffTime, MonadMonotonicTime (..), Time, diffTime, getCurrentTime )
+    ( DiffTime
+    , MonadMonotonicTime (..)
+    , MonadTime (..)
+    , Time
+    , diffTime
+    , getCurrentTime
+    )
 import Control.Monad.IO.Unlift
-    ( MonadUnliftIO, liftIO )
+    ( MonadIO (..), MonadUnliftIO )
 import Control.Monad.Trans.Class
     ( lift )
 import Control.Monad.Trans.Except
@@ -541,7 +547,7 @@ data WalletLayer s (k :: Depth -> Type -> Type)
 -- One can build an interface using only a subset of the wallet layer
 -- capabilities and functions, for instance, something to fiddle with wallets
 -- and their metadata does not require any networking layer.
-type HasDBLayer s k = HasType (DBLayer IO s k)
+type HasDBLayer m s k = HasType (DBLayer m s k)
 
 type HasGenesisData = HasType (Block, NetworkParameters, SyncTolerance)
 
@@ -549,15 +555,15 @@ type HasLogger msg = HasType (Tracer IO msg)
 
 -- | This module is only interested in one block-, and tx-type. This constraint
 -- hides that choice, for some ease of use.
-type HasNetworkLayer = HasType (NetworkLayer IO Block)
+type HasNetworkLayer m = HasType (NetworkLayer m Block)
 
 type HasTransactionLayer k = HasType (TransactionLayer k)
 
 dbLayer
-    :: forall s k ctx. HasDBLayer s k ctx
-    => Lens' ctx (DBLayer IO s k)
+    :: forall m s k ctx. HasDBLayer m s k ctx
+    => Lens' ctx (DBLayer m s k)
 dbLayer =
-    typed @(DBLayer IO s k)
+    typed @(DBLayer m s k)
 
 genesisData
     :: forall ctx. HasGenesisData ctx
@@ -572,10 +578,10 @@ logger =
     typed @(Tracer IO msg)
 
 networkLayer
-    :: forall ctx. (HasNetworkLayer ctx)
-    => Lens' ctx (NetworkLayer IO Block)
+    :: forall m ctx. (HasNetworkLayer m ctx)
+    => Lens' ctx (NetworkLayer m Block)
 networkLayer =
-    typed @(NetworkLayer IO Block)
+    typed @(NetworkLayer m Block)
 
 transactionLayer
     :: forall k ctx. (HasTransactionLayer k ctx)
@@ -591,7 +597,7 @@ transactionLayer =
 createWallet
     :: forall ctx s k.
         ( HasGenesisData ctx
-        , HasDBLayer s k ctx
+        , HasDBLayer IO s k ctx
         , IsOurs s Address
         , IsOurs s RewardAccount
         )
@@ -612,7 +618,7 @@ createWallet ctx wid wname s = db & \DBLayer{..} -> do
     mapExceptT atomically $
         initializeWallet (PrimaryKey wid) cp meta hist gp $> wid
   where
-    db = ctx ^. dbLayer @s @k
+    db = ctx ^. dbLayer @_ @s @k
     (block0, NetworkParameters gp _sp _pp, _) = ctx ^. genesisData
 
 -- | Initialise and store a new legacy Icarus wallet. These wallets are
@@ -624,7 +630,7 @@ createWallet ctx wid wname s = db & \DBLayer{..} -> do
 createIcarusWallet
     :: forall ctx s k n.
         ( HasGenesisData ctx
-        , HasDBLayer s k ctx
+        , HasDBLayer IO s k ctx
         , PaymentAddress n k
         , k ~ IcarusKey
         , s ~ SeqState n k
@@ -658,12 +664,12 @@ createIcarusWallet ctx wid wname credentials = db & \DBLayer{..} -> do
     mapExceptT atomically $
         initializeWallet pk (updateState s' cp) meta hist gp $> wid
   where
-    db = ctx ^. dbLayer @s @k
+    db = ctx ^. dbLayer @IO @s @k
     (block0, NetworkParameters gp _sp _pp, _) = ctx ^. genesisData
 
 -- | Check whether a wallet is in good shape when restarting a worker.
 checkWalletIntegrity
-    :: forall ctx s k. HasDBLayer s k ctx
+    :: forall ctx s k. HasDBLayer IO s k ctx
     => ctx
     -> WalletId
     -> GenesisParameters
@@ -677,14 +683,14 @@ checkWalletIntegrity ctx wid gp = db & \DBLayer{..} -> mapExceptT atomically $ d
             (getGenesisBlockHash gp)
             (getGenesisBlockHash gp')
   where
-    db = ctx ^. dbLayer @s @k
+    db = ctx ^. dbLayer @IO @s @k
     whenDifferentGenesis bp1 bp2 = when $
         (bp1 ^. #getGenesisBlockHash /= bp2 ^. #getGenesisBlockHash) ||
         (bp1 ^. #getGenesisBlockDate /= bp2 ^. #getGenesisBlockDate)
 
 -- | Retrieve the wallet state for the wallet with the given ID.
 readWallet
-    :: forall ctx s k. HasDBLayer s k ctx
+    :: forall ctx s k. HasDBLayer IO s k ctx
     => ctx
     -> WalletId
     -> ExceptT ErrNoSuchWallet IO (Wallet s, WalletMetadata, Set Tx)
@@ -695,12 +701,12 @@ readWallet ctx wid = db & \DBLayer{..} -> mapExceptT atomically $ do
     pending <- lift $ readTxHistory pk Nothing Descending wholeRange (Just Pending)
     pure (cp, meta, Set.fromList (fromTransactionInfo <$> pending))
   where
-    db = ctx ^. dbLayer @s @k
+    db = ctx ^. dbLayer @IO @s @k
 
 walletSyncProgress
     :: forall ctx s.
         ( HasGenesisData ctx
-        , HasNetworkLayer ctx
+        , HasNetworkLayer IO ctx
         , HasCallStack
         )
     => ctx
@@ -720,7 +726,7 @@ walletSyncProgress ctx w = do
 -- | Update a wallet's metadata with the given update function.
 updateWallet
     :: forall ctx s k.
-        ( HasDBLayer s k ctx
+        ( HasDBLayer IO s k ctx
         )
     => ctx
     -> WalletId
@@ -730,12 +736,12 @@ updateWallet ctx wid modify = db & \DBLayer{..} -> mapExceptT atomically $ do
     meta <- withNoSuchWallet wid $ readWalletMeta (PrimaryKey wid)
     putWalletMeta (PrimaryKey wid) (modify meta)
   where
-    db = ctx ^. dbLayer @s @k
+    db = ctx ^. dbLayer @IO @s @k
 
 -- | Change a wallet's passphrase to the given passphrase.
 updateWalletPassphrase
     :: forall ctx s k.
-        ( HasDBLayer s k ctx
+        ( HasDBLayer IO s k ctx
         , WalletKey k
         )
     => ctx
@@ -757,7 +763,7 @@ updateWalletPassphrase ctx wid (old, new) =
 
 -- | List the wallet's UTxO statistics.
 listUtxoStatistics
-    :: forall ctx s k. HasDBLayer s k ctx
+    :: forall ctx s k. HasDBLayer IO s k ctx
     => ctx
     -> WalletId
     -> ExceptT ErrListUTxOStatistics IO UTxOStatistics
@@ -775,8 +781,8 @@ listUtxoStatistics ctx wid = do
 restoreWallet
     :: forall ctx s k.
         ( HasLogger WalletLog ctx
-        , HasNetworkLayer ctx
-        , HasDBLayer s k ctx
+        , HasNetworkLayer IO ctx
+        , HasDBLayer IO s k ctx
         , HasGenesisData ctx
         , IsOurs s Address
         , IsOurs s RewardAccount
@@ -798,7 +804,7 @@ restoreWallet ctx wid = db & \DBLayer{..} -> do
             pure ()
 
   where
-    db = ctx ^. dbLayer @s @k
+    db = ctx ^. dbLayer @IO @s @k
     nw = ctx ^. networkLayer
     tr = contramap MsgFollow (ctx ^. logger @WalletLog)
 
@@ -810,7 +816,7 @@ restoreWallet ctx wid = db & \DBLayer{..} -> do
 rollbackBlocks
     :: forall ctx s k.
         ( HasLogger WalletLog ctx
-        , HasDBLayer s k ctx
+        , HasDBLayer IO s k ctx
         )
     => ctx
     -> WalletId
@@ -821,7 +827,7 @@ rollbackBlocks ctx wid point = db & \DBLayer{..} -> do
     point' <- mapExceptT atomically $ rollbackTo (PrimaryKey wid) point
     lift $ traceWith tr $ MsgRolledBack point'
   where
-    db = ctx ^. dbLayer @s @k
+    db = ctx ^. dbLayer @IO @s @k
     tr = ctx ^. logger @WalletLog
 
 -- | Apply the given blocks to the wallet and update the wallet state,
@@ -829,8 +835,8 @@ rollbackBlocks ctx wid point = db & \DBLayer{..} -> do
 restoreBlocks
     :: forall ctx s k.
         ( HasLogger WalletLog ctx
-        , HasDBLayer s k ctx
-        , HasNetworkLayer ctx
+        , HasDBLayer IO s k ctx
+        , HasNetworkLayer IO ctx
         , HasGenesisData ctx
         , IsOurs s Address
         , IsOurs s RewardAccount
@@ -908,7 +914,7 @@ restoreBlocks ctx wid blocks nodeTip = db & \DBLayer{..} -> mapExceptT atomicall
         traceWith tr $ MsgDiscoveredTxsContent txs
   where
     nl = ctx ^. networkLayer
-    db = ctx ^. dbLayer @s @k
+    db = ctx ^. dbLayer @IO @s @k
     tr = ctx ^. logger @WalletLog
 
     logCheckpoint :: Wallet s -> IO ()
@@ -926,7 +932,7 @@ restoreBlocks ctx wid blocks nodeTip = db & \DBLayer{..} -> mapExceptT atomicall
 -- on the next tick when noticing that the corresponding wallet is gone.
 deleteWallet
     :: forall ctx s k.
-        ( HasDBLayer s k ctx
+        ( HasDBLayer IO s k ctx
         )
     => ctx
     -> WalletId
@@ -934,12 +940,12 @@ deleteWallet
 deleteWallet ctx wid = db & \DBLayer{..} -> do
     mapExceptT atomically $ removeWallet (PrimaryKey wid)
   where
-    db = ctx ^. dbLayer @s @k
+    db = ctx ^. dbLayer @IO @s @k
 
 -- | Fetch the cached reward balance of a given wallet from the database.
 fetchRewardBalance
     :: forall ctx s k.
-        ( HasDBLayer s k ctx
+        ( HasDBLayer IO s k ctx
         )
     => ctx
     -> WalletId
@@ -948,7 +954,7 @@ fetchRewardBalance ctx wid = db & \DBLayer{..} ->
     atomically $ readDelegationRewardBalance pk
   where
     pk = PrimaryKey wid
-    db = ctx ^. dbLayer @s @k
+    db = ctx ^. dbLayer @IO @s @k
 
 -- | Read the current withdrawal capacity of a wallet. Note that, this simply
 -- returns 0 if:
@@ -959,7 +965,7 @@ fetchRewardBalance ctx wid = db & \DBLayer{..} ->
 readNextWithdrawal
     :: forall ctx k.
         ( HasTransactionLayer k ctx
-        , HasNetworkLayer ctx
+        , HasNetworkLayer IO ctx
         )
     => ctx
     -> Coin
@@ -993,7 +999,7 @@ readNextWithdrawal ctx (Coin withdrawal) = do
 
 readRewardAccount
     :: forall ctx s k (n :: NetworkDiscriminant) shelley.
-        ( HasDBLayer s k ctx
+        ( HasDBLayer IO s k ctx
         , shelley ~ SeqState n ShelleyKey
         , Typeable n
         , Typeable s
@@ -1015,7 +1021,7 @@ readRewardAccount ctx wid = db & \DBLayer{..} -> do
             let path = stakeDerivationPath $ Seq.derivationPrefix s
             pure (acct, path)
   where
-    db = ctx ^. dbLayer @s @k
+    db = ctx ^. dbLayer @IO @s @k
 
 -- | Query the node for the reward balance of a given wallet.
 --
@@ -1023,7 +1029,7 @@ readRewardAccount ctx wid = db & \DBLayer{..} -> do
 -- account balance (via the 'NetworkLayer'), we expose this function for it.
 queryRewardBalance
     :: forall ctx.
-        ( HasNetworkLayer ctx
+        ( HasNetworkLayer IO ctx
         )
     => ctx
     -> RewardAccount
@@ -1040,8 +1046,8 @@ queryRewardBalance ctx acct = do
 manageRewardBalance
     :: forall ctx s k (n :: NetworkDiscriminant).
         ( HasLogger WalletLog ctx
-        , HasNetworkLayer ctx
-        , HasDBLayer s k ctx
+        , HasNetworkLayer IO ctx
+        , HasDBLayer IO s k ctx
         , Typeable s
         , Typeable n
         )
@@ -1074,7 +1080,7 @@ manageRewardBalance _ ctx wid = db & \DBLayer{..} -> do
 
   where
     pk = PrimaryKey wid
-    db = ctx ^. dbLayer @s @k
+    db = ctx ^. dbLayer @IO @s @k
     NetworkLayer{watchNodeTip} = ctx ^. networkLayer
     tr = ctx ^. logger @WalletLog
 
@@ -1086,7 +1092,7 @@ manageRewardBalance _ ctx wid = db & \DBLayer{..} -> do
 -- are ordered from the most-recently-discovered to the oldest known.
 listAddresses
     :: forall ctx s k.
-        ( HasDBLayer s k ctx
+        ( HasDBLayer IO s k ctx
         , CompareDiscovery s
         , KnownAddresses s
         )
@@ -1111,11 +1117,11 @@ listAddresses ctx wid normalize = db & \DBLayer{..} -> do
         $ mapMaybe (\(addr, st,path) -> (,st,path) <$> normalize s addr)
         $ knownAddresses s
   where
-    db = ctx ^. dbLayer @s @k
+    db = ctx ^. dbLayer @IO @s @k
 
 createChangeAddress
     :: forall ctx s k.
-        ( HasDBLayer s k ctx
+        ( HasDBLayer IO s k ctx
         , GenChange s
         )
     => ctx
@@ -1129,12 +1135,12 @@ createChangeAddress ctx wid argGenChange = db & \DBLayer{..} -> do
         putCheckpoint pk (updateState s' cp)
         pure addr
   where
-    db = ctx ^. dbLayer @s @k
+    db = ctx ^. dbLayer @IO @s @k
     pk = PrimaryKey wid
 
 createRandomAddress
     :: forall ctx s k n.
-        ( HasDBLayer s k ctx
+        ( HasDBLayer IO s k ctx
         , PaymentAddress n k
         , RndStateLike s
         , k ~ ByronKey
@@ -1168,13 +1174,13 @@ createRandomAddress ctx wid pwd mIx = db & \DBLayer{..} ->
                 putCheckpoint (PrimaryKey wid) cp'
             pure (addr, Rnd.toDerivationIndexes path)
   where
-    db = ctx ^. dbLayer @s @k
+    db = ctx ^. dbLayer @IO @s @k
     isKnownIndex accIx addrIx s =
         (liftIndex accIx, liftIndex addrIx) `Set.member` Rnd.unavailablePaths s
 
 importRandomAddresses
     :: forall ctx s k.
-        ( HasDBLayer s k ctx
+        ( HasDBLayer IO s k ctx
         , RndStateLike s
         , k ~ ByronKey
         )
@@ -1194,7 +1200,7 @@ importRandomAddresses ctx wid addrs = db & \DBLayer{..} -> mapExceptT atomically
             withExceptT ErrImportAddrNoSuchWallet $
                 putCheckpoint (PrimaryKey wid) (updateState s' cp)
   where
-    db = ctx ^. dbLayer @s @k
+    db = ctx ^. dbLayer @IO @s @k
 
 -- NOTE
 -- Addresses coming from the transaction history might be payment or
@@ -1292,7 +1298,7 @@ selectionToUnsignedTx wdrl sel s =
 -- | Read a wallet checkpoint and index its UTxO, for 'selectAssets' and
 -- 'selectAssetsNoOutputs'.
 readWalletUTxOIndex
-    :: forall ctx s k. HasDBLayer s k ctx
+    :: forall ctx s k. HasDBLayer IO s k ctx
     => ctx
     -> WalletId
     -> ExceptT ErrNoSuchWallet IO (UTxOIndex, Wallet s, Set Tx)
@@ -1305,8 +1311,8 @@ selectAssetsNoOutputs
     :: forall ctx s k result.
         ( HasTransactionLayer k ctx
         , HasLogger WalletLog ctx
-        , HasDBLayer s k ctx
-        , HasNetworkLayer ctx
+        , HasDBLayer IO s k ctx
+        , HasNetworkLayer IO ctx
         )
     => ctx
     -> WalletId
@@ -1393,7 +1399,7 @@ selectAssetsNoOutputs ctx wid wal tx transform = do
 calcMinimumCoinValues
     :: forall ctx k f.
         ( HasTransactionLayer k ctx
-        , HasNetworkLayer ctx
+        , HasNetworkLayer IO ctx
         , Applicative f
         )
     => ctx
@@ -1414,7 +1420,7 @@ selectAssets
     :: forall ctx s k result.
         ( HasTransactionLayer k ctx
         , HasLogger WalletLog ctx
-        , HasNetworkLayer ctx
+        , HasNetworkLayer IO ctx
         )
     => ctx
     -> (UTxOIndex, Wallet s, Set Tx)
@@ -1465,8 +1471,8 @@ selectAssets ctx (utxo, cp, pending) tx outs transform = do
 signTransaction
     :: forall ctx s k.
         ( HasTransactionLayer k ctx
-        , HasDBLayer s k ctx
-        , HasNetworkLayer ctx
+        , HasDBLayer IO s k ctx
+        , HasNetworkLayer IO ctx
         , IsOwned s k
         , GenChange s
         )
@@ -1500,7 +1506,7 @@ signTransaction ctx wid argChange mkRwdAcct pwd txCtx sel = db & \DBLayer{..} ->
             (time, meta) <- liftIO $ mkTxMeta ti (currentTip cp) s' txCtx sel'
             return (tx, meta, time, sealedTx)
   where
-    db = ctx ^. dbLayer @s @k
+    db = ctx ^. dbLayer @IO @s @k
     tl = ctx ^. transactionLayer @k
     nl = ctx ^. networkLayer
     ti = timeInterpreter nl
@@ -1584,8 +1590,8 @@ mkTxMeta ti' blockHeader wState txCtx sel =
 -- | Broadcast a (signed) transaction to the network.
 submitTx
     :: forall ctx s k.
-        ( HasNetworkLayer ctx
-        , HasDBLayer s k ctx
+        ( HasNetworkLayer IO ctx
+        , HasDBLayer IO s k ctx
         , HasLogger WalletLog ctx
         )
     => ctx
@@ -1602,7 +1608,7 @@ submitTx ctx wid (tx, meta, binary) = db & \DBLayer{..} -> do
             putLocalTxSubmission (PrimaryKey wid)
                 (tx ^. #txId) binary (meta ^. #slotNo)
   where
-    db = ctx ^. dbLayer @s @k
+    db = ctx ^. dbLayer @IO @s @k
     nw = ctx ^. networkLayer
 
     tr = contramap (MsgTxSubmit . MsgPostTxResult (tx ^. #txId)) (ctx ^. logger)
@@ -1617,7 +1623,7 @@ submitTx ctx wid (tx, meta, binary) = db & \DBLayer{..} -> do
 -- so the user must retry submission themselves.
 submitExternalTx
     :: forall ctx k.
-        ( HasNetworkLayer ctx
+        ( HasNetworkLayer IO ctx
         , HasTransactionLayer k ctx
         , HasLogger TxSubmitLog ctx
         )
@@ -1645,7 +1651,7 @@ submitExternalTx ctx bytes = do
 -- be added back to the transaction history.
 forgetTx
     :: forall ctx s k.
-        ( HasDBLayer s k ctx
+        ( HasDBLayer IO s k ctx
         )
     => ctx
     -> WalletId
@@ -1654,7 +1660,7 @@ forgetTx
 forgetTx ctx wid tid = db & \DBLayer{..} -> do
     mapExceptT atomically $ removePendingOrExpiredTx (PrimaryKey wid) tid
   where
-    db = ctx ^. dbLayer @s @k
+    db = ctx ^. dbLayer @IO @s @k
 
 -- | Given a LocalTxSubmission record, calculate the slot when it should be
 -- retried next.
@@ -1674,14 +1680,16 @@ scheduleLocalTxSubmission sp st = (st ^. #latestSubmission) + numSlots
 --
 -- This only exits if the network layer 'watchNodeTip' function exits.
 runLocalTxSubmissionPool
-    :: forall ctx s k.
-        ( HasLogger WalletLog ctx
-        , HasNetworkLayer ctx
-        , HasDBLayer s k ctx
+    :: forall ctx s k m.
+        ( MonadUnliftIO m
+        , MonadMonotonicTime m
+        , HasLogger WalletLog ctx
+        , HasNetworkLayer m ctx
+        , HasDBLayer m s k ctx
         )
     => ctx
     -> WalletId
-    -> IO ()
+    -> m ()
 runLocalTxSubmissionPool ctx wid = db & \DBLayer{..} -> do
     submitPending <- rateLimited $ \bh -> bracketTracer trBracket $ do
         sp <- currentSlottingParameters nw
@@ -1696,19 +1704,18 @@ runLocalTxSubmissionPool ctx wid = db & \DBLayer{..} -> do
                 (st ^. #txId)
                 (st ^. #submittedTx)
                 sl
-    watchNodeTip submitPending
+    watchNodeTip nw submitPending
   where
-    nw = ctx ^. networkLayer
-    db = ctx ^. dbLayer @s @k
-
-    NetworkLayer{watchNodeTip} = ctx ^. networkLayer
-    tr = contramap MsgTxSubmit (ctx ^. logger @WalletLog)
-    trBracket = contramap MsgProcessPendingPool tr
+    nw = ctx ^. networkLayer @m
+    db = ctx ^. dbLayer @m @s @k
 
     isScheduled sp now = (<= now) . scheduleLocalTxSubmission sp
 
     -- Limit pool check frequency to every 1000ms at most.
     rateLimited = throttle 1 . const
+
+    tr = unliftIOTracer $ contramap MsgTxSubmit $ ctx ^. logger @WalletLog
+    trBracket = contramap MsgProcessPendingPool tr
 
 -- | Return a function to run an action at most once every _interval_.
 throttle
@@ -1727,8 +1734,8 @@ throttle interval action = do
 -- | List all transactions and metadata from history for a given wallet.
 listTransactions
     :: forall ctx s k.
-        ( HasDBLayer s k ctx
-        , HasNetworkLayer ctx
+        ( HasDBLayer IO s k ctx
+        , HasNetworkLayer IO ctx
         )
     => ctx
     -> WalletId
@@ -1752,7 +1759,7 @@ listTransactions ctx wid mMinWithdrawal mStart mEnd order = db & \DBLayer{..} ->
     ti :: TimeInterpreter (ExceptT PastHorizonException IO)
     ti = timeInterpreter (ctx ^. networkLayer)
 
-    db = ctx ^. dbLayer @s @k
+    db = ctx ^. dbLayer @IO @s @k
 
     -- Transforms the user-specified time range into a slot range. If the
     -- user-specified range terminates before the start of the blockchain,
@@ -1772,7 +1779,7 @@ listTransactions ctx wid mMinWithdrawal mStart mEnd order = db & \DBLayer{..} ->
 
 -- | Get transaction and metadata from history for a given wallet.
 getTransaction
-    :: forall ctx s k. HasDBLayer s k ctx
+    :: forall ctx s k. HasDBLayer IO s k ctx
     => ctx
     -> WalletId
     -> Hash "Tx"
@@ -1789,7 +1796,7 @@ getTransaction ctx wid tid = db & \DBLayer{..} -> do
         Right (Just tx) ->
             pure tx
   where
-    db = ctx ^. dbLayer @s @k
+    db = ctx ^. dbLayer @IO @s @k
 
 {-------------------------------------------------------------------------------
                                   Delegation
@@ -1797,9 +1804,9 @@ getTransaction ctx wid tid = db & \DBLayer{..} -> do
 
 joinStakePool
     :: forall ctx s k n.
-        ( HasDBLayer s k ctx
+        ( HasDBLayer IO s k ctx
         , HasLogger WalletLog ctx
-        , HasNetworkLayer ctx
+        , HasNetworkLayer IO ctx
         , s ~ SeqState n k
         )
     => ctx
@@ -1836,14 +1843,14 @@ joinStakePool ctx currentEpoch knownPools pid poolStatus wid =
             then (Join pid, Nothing)
             else (RegisterKeyAndJoin pid, Just dep)
   where
-    db = ctx ^. dbLayer @s @k
+    db = ctx ^. dbLayer @IO @s @k
     tr = ctx ^. logger
     nl = ctx ^. networkLayer
 
 -- | Helper function to factor necessary logic for quitting a stake pool.
 quitStakePool
     :: forall ctx s k n.
-        ( HasDBLayer s k ctx
+        ( HasDBLayer IO s k ctx
         , s ~ SeqState n k
         )
     => ctx
@@ -1863,7 +1870,7 @@ quitStakePool ctx wid = db & \DBLayer{..} -> do
 
     pure Quit
   where
-    db = ctx ^. dbLayer @s @k
+    db = ctx ^. dbLayer @IO @s @k
 
 {-------------------------------------------------------------------------------
                                  Fee Estimation
@@ -1885,8 +1892,8 @@ instance NFData FeeEstimation
 -- key.
 calcMinimumDeposit
     :: forall ctx s k.
-        ( HasDBLayer s k ctx
-        , HasNetworkLayer ctx
+        ( HasDBLayer IO s k ctx
+        , HasNetworkLayer IO ctx
         )
     => ctx
     -> WalletId
@@ -1899,7 +1906,7 @@ calcMinimumDeposit ctx wid = db & \DBLayer{..} ->
             False ->
                 liftIO $ stakeKeyDeposit <$> currentProtocolParameters nl
   where
-    db = ctx ^. dbLayer @s @k
+    db = ctx ^. dbLayer @IO @s @k
     nl = ctx ^. networkLayer
 
 -- | Estimate the transaction fee for a given coin selection algorithm by
@@ -1965,7 +1972,7 @@ estimateFee
 -- with the hash algorithm SHA512 which is realized in encryptPassphare
 attachPrivateKeyFromPwd
     :: forall ctx s k.
-        ( HasDBLayer s k ctx
+        ( HasDBLayer IO s k ctx
         )
     => ctx
     -> WalletId
@@ -1990,7 +1997,7 @@ attachPrivateKeyFromPwd ctx wid (xprv, pwd) = db & \_ -> do
             \to this function and make sure that the given Passphrase wasn't not \
             \prepared using 'EncryptWithScrypt'!"
   where
-    db = ctx ^. dbLayer @s @k
+    db = ctx ^. dbLayer @IO @s @k
 
 -- | The hash here is the output of Scrypt function with the following parameters:
 -- - logN = 14
@@ -1999,7 +2006,7 @@ attachPrivateKeyFromPwd ctx wid (xprv, pwd) = db & \_ -> do
 -- - bytesNumber = 64
 attachPrivateKeyFromPwdHash
     :: forall ctx s k.
-        ( HasDBLayer s k ctx
+        ( HasDBLayer IO s k ctx
         )
     => ctx
     -> WalletId
@@ -2010,7 +2017,7 @@ attachPrivateKeyFromPwdHash ctx wid (xprv, hpwd) = db & \_ ->
     -- were encrypted with the legacy scheme (Scrypt).
     attachPrivateKey db wid (xprv, hpwd) EncryptWithScrypt
   where
-    db = ctx ^. dbLayer @s @k
+    db = ctx ^. dbLayer @IO @s @k
 
 attachPrivateKey
     :: DBLayer IO s k
@@ -2048,7 +2055,7 @@ attachPrivateKey db wid (xprv, hpwd) scheme = db & \DBLayer{..} -> do
 --         changePassphrase (preparePassphrase scheme pwd) newPwd xprv
 -- @@@
 withRootKey
-    :: forall ctx s k e a. HasDBLayer s k ctx
+    :: forall ctx s k e a. HasDBLayer IO s k ctx
     => ctx
     -> WalletId
     -> Passphrase "raw"
@@ -2069,7 +2076,7 @@ withRootKey ctx wid pwd embed action = db & \DBLayer{..} -> do
                 throwE $ ErrWithRootKeyNoRootKey wid
     action xprv scheme
   where
-    db = ctx ^. dbLayer @s @k
+    db = ctx ^. dbLayer @IO @s @k
 
 -- | Sign an arbitrary transaction metadata object with a private key belonging
 -- to the wallet's account.
@@ -2078,7 +2085,7 @@ withRootKey ctx wid pwd embed action = db & \DBLayer{..} -> do
 -- arbitrary message signing using COSE, or a subset of it.
 signMetadataWith
     :: forall ctx s k n.
-        ( HasDBLayer s k ctx
+        ( HasDBLayer IO s k ctx
         , HardDerivation k
         , AddressIndexDerivationType k ~ 'Soft
         , WalletKey k
@@ -2110,12 +2117,12 @@ signMetadataWith ctx wid pwd (role_, ix) metadata = db & \DBLayer{..} -> do
                 hash @ByteString @Blake2b_256 $
                 serialiseToCBOR metadata
   where
-    db = ctx ^. dbLayer @s @k
+    db = ctx ^. dbLayer @IO @s @k
 
 -- | Derive public key from a wallet's account key.
 derivePublicKey
     :: forall ctx s k n.
-        ( HasDBLayer s k ctx
+        ( HasDBLayer IO s k ctx
         , SoftDerivation k
         , s ~ SeqState n k
         )
@@ -2140,12 +2147,12 @@ derivePublicKey ctx wid role_ ix = db & \DBLayer{..} -> do
 
     return addrK
   where
-    db = ctx ^. dbLayer @s @k
+    db = ctx ^. dbLayer @IO @s @k
 
 -- | Retrieve public account key of a wallet.
 readPublicAccountKey
     :: forall ctx s k n.
-        ( HasDBLayer s k ctx
+        ( HasDBLayer IO s k ctx
         , HardDerivation k
         , WalletKey k
         , s ~ SeqState n k
@@ -2168,7 +2175,7 @@ readPublicAccountKey ctx wid pwd ix = db & \DBLayer{..} -> do
             let encPwd = preparePassphrase scheme pwd
             pure $ publicKey $ deriveAccountPrivateKey encPwd rootK acctIx
   where
-    db = ctx ^. dbLayer @s @k
+    db = ctx ^. dbLayer @IO @s @k
 
 guardSoftIndex
     :: Monad m

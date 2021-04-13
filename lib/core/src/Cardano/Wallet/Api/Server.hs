@@ -703,7 +703,7 @@ postShelleyWallet
 postShelleyWallet ctx generateKey body = do
     let state = mkSeqStateFromRootXPrv (rootXPrv, pwd) purposeCIP1852 g
     void $ liftHandler $ createWalletWorker @_ @s @k ctx wid
-        (\wrk -> W.createWallet  @(WorkerCtx ctx) @s @k wrk wid wName state)
+        (\wrk -> W.createWallet @(WorkerCtx ctx) @_ @s @k wrk wid wName state)
         (\wrk _ -> W.manageRewardBalance @(WorkerCtx ctx) @s @k (Proxy @n) wrk wid)
     withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk -> liftHandler $
         W.attachPrivateKeyFromPwd @_ @s @k wrk wid (rootXPrv, pwd)
@@ -739,7 +739,7 @@ postAccountWallet
 postAccountWallet ctx mkWallet liftKey coworker body = do
     let state = mkSeqStateFromAccountXPub (liftKey accXPub) purposeCIP1852 g
     void $ liftHandler $ createWalletWorker @_ @s @k ctx wid
-        (\wrk -> W.createWallet  @(WorkerCtx ctx) @s @k wrk wid wName state)
+        (\wrk -> W.createWallet @(WorkerCtx ctx) @_ @s @k wrk wid wName state)
         coworker
     fst <$> getWallet ctx mkWallet (ApiT wid)
   where
@@ -878,7 +878,7 @@ postSharedWalletFromRootXPrv ctx generateKey body = do
         liftHandler $ throwE ErrConstructSharedWalletMissingKey
     let state = mkSharedStateFromRootXPrv (rootXPrv, pwd) accIx g pTemplate dTemplateM
     void $ liftHandler $ createWalletWorker @_ @s @k ctx wid
-        (\wrk -> W.createWallet  @(WorkerCtx ctx) @s @k wrk wid wName state)
+        (\wrk -> W.createWallet @(WorkerCtx ctx) @_ @s @k wrk wid wName state)
         idleWorker
     withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk -> liftHandler $
         W.attachPrivateKeyFromPwd @_ @s @k wrk wid (rootXPrv, pwd)
@@ -917,7 +917,7 @@ postSharedWalletFromAccountXPub ctx liftKey body = do
         liftHandler $ throwE ErrConstructSharedWalletMissingKey
     let state = mkSharedStateFromAccountXPub (liftKey accXPub) accIx g pTemplate dTemplateM
     void $ liftHandler $ createWalletWorker @_ @s @k ctx wid
-        (\wrk -> W.createWallet  @(WorkerCtx ctx) @s @k wrk wid wName state)
+        (\wrk -> W.createWallet @(WorkerCtx ctx) @_ @s @k wrk wid wName state)
         idleWorker
     fst <$> getWallet ctx (mkSharedWallet @_ @s @k) (ApiT wid)
   where
@@ -1019,7 +1019,7 @@ postLegacyWallet
         , KnownDiscovery s
         , IsOurs s RewardAccount
         , IsOurs s Address
-        , HasNetworkLayer ctx
+        , HasNetworkLayer IO ctx
         , WalletKey k
         )
     => ctx
@@ -1046,7 +1046,7 @@ mkLegacyWallet
         ( HasWorkerRegistry s k ctx
         , HasDBFactory s k ctx
         , KnownDiscovery s
-        , HasNetworkLayer ctx
+        , HasNetworkLayer IO ctx
         , IsOurs s Address
         , IsOurs s RewardAccount
         )
@@ -1118,7 +1118,7 @@ postRandomWallet
 postRandomWallet ctx body = do
     s <- liftIO $ mkRndState rootXPrv <$> getStdRandom random
     postLegacyWallet ctx (rootXPrv, pwd) $ \wrk wid ->
-        W.createWallet @(WorkerCtx ctx) @s @k wrk wid wName s
+        W.createWallet @(WorkerCtx ctx) @_ @s @k wrk wid wName s
   where
     wName = getApiT (body ^. #name)
     pwd   = preparePassphrase EncryptWithPBKDF2 $ getApiT (body ^. #passphrase)
@@ -1130,7 +1130,7 @@ postRandomWalletFromXPrv
         ( ctx ~ ApiLayer s k
         , s ~ RndState n
         , k ~ ByronKey
-        , HasNetworkLayer ctx
+        , HasNetworkLayer IO ctx
         )
     => ctx
     -> ByronWalletFromXPrvPostData
@@ -1138,7 +1138,7 @@ postRandomWalletFromXPrv
 postRandomWalletFromXPrv ctx body = do
     s <- liftIO $ mkRndState byronKey <$> getStdRandom random
     void $ liftHandler $ createWalletWorker @_ @s @k ctx wid
-        (\wrk -> W.createWallet @(WorkerCtx ctx) @s @k wrk wid wName s)
+        (\wrk -> W.createWallet @(WorkerCtx ctx) @_ @s @k wrk wid wName s)
         idleWorker
     withWorkerCtx ctx wid liftE liftE $ \wrk -> liftHandler $
         W.attachPrivateKeyFromPwdHash wrk wid (byronKey, pwd)
@@ -1692,7 +1692,7 @@ postTransaction
         , Bounded (Index (AddressIndexDerivationType k) 'AddressK)
         , GenChange s
         , HardDerivation k
-        , HasNetworkLayer ctx
+        , HasNetworkLayer IO ctx
         , IsOwned s k
         , Typeable n
         , Typeable s
@@ -1934,7 +1934,7 @@ quitStakePool
         , AddressIndexDerivationType k ~ 'Soft
         , DelegationAddress n k
         , GenChange s
-        , HasNetworkLayer ctx
+        , HasNetworkLayer IO ctx
         , IsOwned s k
         , SoftDerivation k
         , Typeable n
@@ -2904,6 +2904,7 @@ instance IsServerError ErrSubmitTx where
             { errHTTPCode = 404
             , errReasonPhrase = errReasonPhrase err404
             }
+        ErrSubmitTxImpossible e -> toServerError e
 
 instance IsServerError ErrUpdatePassphrase where
     toServerError = \case

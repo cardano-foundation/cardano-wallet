@@ -912,7 +912,7 @@ data ApiLayer s (k :: Depth -> Type -> Type)
     deriving (Generic)
 
 instance HasWorkerCtx (DBLayer IO s k) (ApiLayer s k) where
-    type WorkerCtx (ApiLayer s k) = WalletLayer s k
+    type WorkerCtx (ApiLayer s k) = WalletLayer IO s k
     type WorkerMsg (ApiLayer s k) = WalletLog
     type WorkerKey (ApiLayer s k) = WalletId
     hoistResource db transform (ApiLayer _ tr gp nw tl _ _ _) =
