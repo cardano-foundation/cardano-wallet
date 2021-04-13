@@ -2,6 +2,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RecordWildCards #-}
@@ -32,6 +33,7 @@ import Cardano.Wallet
     , ErrUpdatePassphrase (..)
     , ErrWithRootKey (..)
     , WalletLayer (..)
+    , throttle
     )
 import Cardano.Wallet.DB
     ( DBLayer (..), ErrNoSuchWallet (..), PrimaryKey (..), putTxHistory )
@@ -118,12 +120,18 @@ import Control.DeepSeq
     ( NFData (..) )
 import Control.Monad
     ( forM, forM_, replicateM, void )
-import Control.Monad.IO.Class
-    ( liftIO )
+import Control.Monad.Class.MonadTime
+    ( DiffTime, MonadMonotonicTime (..), Time (..), addTime, diffTime )
+import Control.Monad.IO.Unlift
+    ( MonadIO (..), MonadUnliftIO (..) )
 import Control.Monad.Trans.Class
     ( lift )
 import Control.Monad.Trans.Except
     ( ExceptT, except, runExceptT )
+import Control.Monad.Trans.Maybe
+    ( MaybeT (..) )
+import Control.Monad.Trans.State
+    ( StateT (..), state )
 import Control.Monad.Trans.State.Strict
     ( State, evalState, get, put )
 import Crypto.Hash
@@ -167,6 +175,8 @@ import Test.QuickCheck
     , Property
     , arbitraryBoundedEnum
     , arbitrarySizedBoundedIntegral
+    , arbitrarySizedFractional
+    , checkCoverage
     , checkCoverage
     , choose
     , conjoin
@@ -175,10 +185,12 @@ import Test.QuickCheck
     , elements
     , label
     , liftArbitrary
+    , listOf1
     , oneof
     , property
     , scale
     , shrinkIntegral
+    , suchThat
     , vector
     , withMaxSuccess
     , (===)
@@ -187,11 +199,11 @@ import Test.QuickCheck
 import Test.QuickCheck.Arbitrary.Generic
     ( genericArbitrary, genericShrink )
 import Test.QuickCheck.Monadic
-    ( monadicIO )
+    ( assert, monadicIO, monitor, run )
 import Test.Utils.Time
     ( UniformTime )
 import UnliftIO.Concurrent
-    ( threadDelay )
+    ( newEmptyMVar, putMVar, takeMVar, threadDelay )
 
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet as W
@@ -209,7 +221,7 @@ import qualified Data.Set as Set
 
 spec :: Spec
 spec = parallel $ do
-    parallel $ describe "Pointless tests to cover 'Show' instances for errors" $ do
+    parallel $ describe "Pointless mockEventSource to cover 'Show' instances for errors" $ do
         let wid = WalletId (hash @ByteString "arbitrary")
         it (show $ ErrSignPaymentNoSuchWallet (ErrNoSuchWallet wid)) True
         it (show $ ErrSubmitTxNoSuchWallet (ErrNoSuchWallet wid)) True
@@ -250,13 +262,17 @@ spec = parallel $ do
         it "Fee estimates are sound"
             (property prop_estimateFee)
 
+    describe "LocalTxSubmission" $ do
+        it "LocalTxSubmission updates are limited in frequency"
+            (property prop_throttle)
+
     parallel $ describe "Join/Quit Stake pool properties" $ do
         it "You can quit if you cannot join"
             (property prop_guardJoinQuit)
         it "You can join if you cannot quit"
             (property prop_guardQuitJoin)
 
-    parallel $ describe "Join/Quit Stake pool unit tests" $ do
+    parallel $ describe "Join/Quit Stake pool unit mockEventSource" $ do
         let noRetirementPlanned = Nothing
         it "Cannot join A, when active = A" $ do
             let dlg = WalletDelegation {active = Delegating pidA, next = []}
@@ -376,10 +392,10 @@ prop_guardQuitJoin (NonEmpty knownPoolsList) dlg rewards =
 walletCreationProp
     :: (WalletId, WalletName, DummyState)
     -> Property
-walletCreationProp newWallet = monadicIO $ liftIO $ do
-    (WalletLayerFixture DBLayer{..} _wl walletIds _) <- setupFixture newWallet
-    resFromDb <- atomically $ readCheckpoint (PrimaryKey $ L.head walletIds)
-    resFromDb `shouldSatisfy` isJust
+walletCreationProp newWallet = monadicIO $ do
+    WalletLayerFixture DBLayer{..} _wl walletIds _ <- run $ setupFixture newWallet
+    resFromDb <- run $ atomically $ readCheckpoint (PrimaryKey $ L.head walletIds)
+    assert (isJust resFromDb)
 
 walletDoubleCreationProp
     :: (WalletId, WalletName, DummyState)
@@ -569,8 +585,9 @@ walletListTransactionsSorted wallet@(wid, _, _) _order (_mstart, _mend) history 
         txs `shouldBe` L.sortOn (Down . slotNo . txInfoMeta) txs
         -- Check transaction time calculation
         let times = Map.fromList [(txInfoId i, txInfoTime i) | i <- txs]
-        let expTimes = Map.fromList $
-                (\(tx, meta) -> (txId tx, slotNoTime (meta ^. #slotNo))) <$> history
+        let expTimes = Map.fromList
+                [ (tx ^. #txId, slotNoTime (meta ^. #slotNo))
+                | (tx, meta) <- history ]
         times `shouldBe` expTimes
 
 {-------------------------------------------------------------------------------
@@ -626,6 +643,139 @@ prop_estimateFee (NonEmpty coins) =
     closeTo a b =
         counterexample (show a <> " & " <> show b <> " are not close enough") $
         property $ abs (a - b) < (1/5)
+
+
+{-------------------------------------------------------------------------------
+                               LocalTxSubmission
+-------------------------------------------------------------------------------}
+
+data ThrottleTest = ThrottleTest
+    { interval :: DiffTime
+        -- ^ Interval parameter provided to 'throttle'
+    , diffTimes :: [DiffTime]
+        -- ^ Times when throttled function is called.
+    } deriving (Generic, Show, Eq)
+
+instance Arbitrary ThrottleTest where
+    arbitrary = ThrottleTest <$> genInterval <*> listOf1 genDiffTime
+      where
+        genInterval = genDiffTime `suchThat` (> 0)
+        genDiffTime = abs <$> arbitrarySizedFractional
+    shrink (ThrottleTest i dts) =
+        [ ThrottleTest (fromRational i') (map fromRational dts')
+        | (i', dts') <- shrink (toRational i, map toRational dts)
+        , i' > 0, not (null dts') ]
+
+data ThrottleTestState = ThrottleTestState
+    { remainingDiffTimes :: [DiffTime]
+    , now :: Time
+    , actions :: [(Time, Int)]
+    } deriving (Generic, Show, Eq)
+
+newtype ThrottleTestT m a = ThrottleTestT
+    { unThrottleTestT :: MaybeT (StateT ThrottleTestState m) a
+    } deriving (Functor, Applicative, Monad, MonadIO)
+
+runThrottleTest
+    :: MonadIO m
+    => ThrottleTestT m a
+    -> ThrottleTestState
+    -> m (Maybe a, ThrottleTestState)
+runThrottleTest action = fmap r . runStateT (runMaybeT (unThrottleTestT action))
+  where
+    r (res, ThrottleTestState d n a) = (res, ThrottleTestState d n (reverse a))
+
+initState :: ThrottleTest -> ThrottleTestState
+initState (ThrottleTest _ dts) = ThrottleTestState dts (Time 0) []
+
+recordTime :: Monad m => (Time, Int) -> ThrottleTestT m ()
+recordTime x = ThrottleTestT $ lift $ state $
+    \(ThrottleTestState ts now xs) -> ((), ThrottleTestState ts now (x:xs))
+
+instance MonadMonotonicTime m => MonadMonotonicTime (ThrottleTestT m) where
+    getMonotonicTime = ThrottleTestT $ MaybeT $ state mockTime
+      where
+        mockTime (ThrottleTestState later now as) = case later of
+            [] -> (Nothing, ThrottleTestState later now as)
+            (t:ts) ->
+                let now' = addTime t now
+                in  (Just now', ThrottleTestState ts now' as)
+
+instance MonadUnliftIO m => MonadUnliftIO (StateT ThrottleTestState m) where
+  withRunInIO inner = StateT $ \tts -> do
+      -- smuggle the test state in an mvar
+      var <- newEmptyMVar
+      withRunInIO $ \io -> do
+          a <- inner $ \action -> do
+              (a, tts') <- io $ runStateT action tts
+              putMVar var tts'
+              pure a
+          tts' <- takeMVar var
+          pure (a, tts')
+
+instance MonadUnliftIO m => MonadUnliftIO (ThrottleTestT m) where
+    withRunInIO inner = ThrottleTestT $ MaybeT $ fmap Just $
+        withRunInIO $ \io -> inner $ \(ThrottleTestT action) ->
+            io (runMaybeT action) >>= maybe (error "bad test") pure
+
+-- | 'throttle' ensures than the action runs when called to, at most once per
+-- interval.
+prop_throttle :: ThrottleTest -> Property
+prop_throttle tc@(ThrottleTest interval diffTimes) = monadicIO $ do
+    (res, st) <- run $ runThrottleTest testAction (initState tc)
+    -- check test case
+    monitor coverageTests
+    -- info for debugging failed mockEventSource
+    monitor $ counterexample $ unlines
+        [ ("res      = " ++ show res)
+        , ("st       = " ++ show st)
+        , ("accTimes = " ++ show accTimes)
+        , ("actuals  = " ++ show (actions st))
+        , ("expected = " ++ show expected)
+        ]
+    -- sanity-check test runner
+    assertNamed "consumed test data" (null $ remainingDiffTimes st)
+    assertNamed "expected final time" (now st == finalTime)
+    assertNamed "runner success" (isJust res)
+    -- properties
+    assertNamed "action runs at most once per interval" $
+        all (> interval) (timeDeltas (map fst (actions st)))
+    assertNamed "action runs whenever interval has passed" $
+        length diffTimes <= 1 || actions st == expected
+  where
+    testAction :: ThrottleTestT IO ()
+    testAction = do
+        rateLimited <- throttle interval (curry recordTime)
+        mockEventSource rateLimited 0
+
+    mockEventSource cb n
+         | n < length diffTimes = cb n >> mockEventSource cb (n + 1)
+         | otherwise = pure ()
+
+    finalTime = addTime (sum diffTimes) (Time 0)
+    accTimes = drop 1 $ L.scanl' (flip addTime) (Time 0) diffTimes
+
+    expected = reverse $ snd $ L.foldl' model (Time (negate interval), []) $
+        zip accTimes [0..]
+
+    model (prev, xs) (now, i)
+        | diffTime now prev >= interval = (now, (now, i):xs)
+        | otherwise = (prev, xs)
+
+    timeDeltas xs = zipWith diffTime (drop 1 xs) xs
+
+    assertNamed lbl prop = do
+        monitor $ counterexample $ lbl ++ ": " ++ show prop
+        assert prop
+
+    coverageTests = checkCoverage
+        . cover 1 (interval < 1) "sub-second interval"
+        . cover 25 (interval >= 1) "super-second interval"
+        . cover 25 (length diffTimes >= 10) "long mockEventSource"
+        . cover 25 (testRatio >= 0.5 && testRatio <= 1.5) "reasonable interval"
+      where
+        avgDiffTime = sum diffTimes / fromIntegral (length diffTimes)
+        testRatio = avgDiffTime / interval
 
 {-------------------------------------------------------------------------------
                       Tests machinery, Arbitrary instances
@@ -698,7 +848,7 @@ dummyTransactionLayer = TransactionLayer
         wit <- forM (inputsSelected cs) $ \(_, TxOut addr _) -> do
             (xprv, Passphrase pwd) <- withEither
                 (ErrKeyNotFoundForAddress addr) $ keystore addr
-            let (Hash sigData) = txId tx
+            let sigData = tx ^. #txId . #getHash
             let sig = CC.unXSignature $ CC.sign pwd (getKey xprv) sigData
             return $ xpubToBytes (getKey $ publicKey xprv) <> sig
 

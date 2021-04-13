@@ -166,6 +166,9 @@ module Cardano.Wallet
     , ErrReadAccountPublicKey(..)
     , ErrInvalidDerivationIndex(..)
 
+    -- * Utilities
+    , throttle
+
     -- * Logging
     , WalletLog (..)
     , TxSubmitLog (..)
@@ -362,7 +365,7 @@ import Control.DeepSeq
 import Control.Monad
     ( forM, forM_, replicateM, unless, when )
 import Control.Monad.Class.MonadTime
-    ( DiffTime, MonadMonotonicTime (..), diffTime, getCurrentTime )
+    ( DiffTime, MonadMonotonicTime (..), Time, diffTime, getCurrentTime )
 import Control.Monad.IO.Unlift
     ( MonadUnliftIO, liftIO )
 import Control.Monad.Trans.Class
@@ -1705,20 +1708,20 @@ runLocalTxSubmissionPool ctx wid = db & \DBLayer{..} -> do
     isScheduled sp now = (<= now) . scheduleLocalTxSubmission sp
 
     -- Limit pool check frequency to every 1000ms at most.
-    rateLimited = throttle 1
+    rateLimited = throttle 1 . const
 
 -- | Return a function to run an action at most once every _interval_.
 throttle
     :: (MonadUnliftIO m, MonadMonotonicTime m)
     => DiffTime
-    -> (a -> m ())
+    -> (Time -> a -> m ())
     -> m (a -> m ())
 throttle interval action = do
     var <- newMVar Nothing
     pure $ \arg -> modifyMVar_ var $ \prev -> do
         now <- getMonotonicTime
         if (maybe interval (diffTime now) prev >= interval)
-           then action arg $> Just now
+           then action now arg $> Just now
            else pure prev
 
 -- | List all transactions and metadata from history for a given wallet.
