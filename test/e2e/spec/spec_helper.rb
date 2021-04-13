@@ -75,8 +75,6 @@ ASSETS = [ { "policy_id" => "789ef8ae89617f34c07f7f6a12e4d65146f958c0bc15a97b4ff
             },
          ]
 
-EXPECTED_HEADERS = { 'content-type' => ['application/json;charset=utf-8'] }
-
 def create_shelley_wallet(name = "Wallet from mnemonic_sentence")
   SHELLEY.wallets.create({ name: name,
                           passphrase: PASS,

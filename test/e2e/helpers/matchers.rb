@@ -28,9 +28,9 @@ RSpec::Matchers.define :have_http do |code|
   end
 end
 
-RSpec::Matchers.define :have_headers do |expected_headers|
+RSpec::Matchers.define :have_expected_headers do
   match do |response|
-    expected_headers <= response.headers
+    { 'content-type' => ['application/json;charset=utf-8'] } <= response.headers
   end
   failure_message do |response|
     method = response.request.http_method.to_s.split('::').last.upcase
