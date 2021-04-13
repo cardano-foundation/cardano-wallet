@@ -23,8 +23,6 @@ import Cardano.Address.Derivation
     ( XPrv, xpubToBytes )
 import Cardano.Api
     ( AnyCardanoEra (..), CardanoEra (..) )
-import Cardano.BM.Trace
-    ( nullTracer )
 import Cardano.Mnemonic
     ( SomeMnemonic (..) )
 import Cardano.Wallet
@@ -33,14 +31,21 @@ import Cardano.Wallet
     , ErrUpdatePassphrase (..)
     , ErrWithRootKey (..)
     , WalletLayer (..)
+    , runLocalTxSubmissionPool'
     , throttle
     )
 import Cardano.Wallet.DB
     ( DBLayer (..), ErrNoSuchWallet (..), PrimaryKey (..), putTxHistory )
 import Cardano.Wallet.DummyTarget.Primitive.Types
-    ( block0, dummyNetworkParameters, dummyTimeInterpreter, mkTxId )
+    ( block0
+    , dummyNetworkLayer
+    , dummyNetworkParameters
+    , dummySlottingParameters
+    , dummyTimeInterpreter
+    , mkTxId
+    )
 import Cardano.Wallet.Gen
-    ( genMnemonic, genSlotNo, genTxMetadata, shrinkTxMetadata )
+    ( genMnemonic, genSlotNo, genTxMetadata, shrinkSlotNo, shrinkTxMetadata )
 import Cardano.Wallet.Network
     ( NetworkLayer (..) )
 import Cardano.Wallet.Primitive.AddressDerivation
@@ -73,14 +78,17 @@ import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
 import Cardano.Wallet.Primitive.SyncProgress
     ( SyncTolerance (..) )
 import Cardano.Wallet.Primitive.Types
-    ( BlockHeader (BlockHeader)
+    ( ActiveSlotCoefficient (..)
+    , Block
+    , BlockHeader (BlockHeader)
     , EpochNo (..)
     , NetworkParameters (..)
     , PoolId (..)
     , SlotNo (..)
+    , SlottingParameters (..)
     , SortOrder (..)
     , WalletDelegation (..)
-    , WalletDelegationNext (..)
+    , WalletDelegationNext (WalletDelegationNext)
     , WalletDelegationStatus (..)
     , WalletId (..)
     , WalletMetadata (..)
@@ -98,6 +106,7 @@ import Cardano.Wallet.Primitive.Types.RewardAccount
     ( RewardAccount (..) )
 import Cardano.Wallet.Primitive.Types.Tx
     ( Direction (..)
+    , LocalTxSubmissionStatus (..)
     , SealedTx (..)
     , TransactionInfo (..)
     , Tx (..)
@@ -106,6 +115,7 @@ import Cardano.Wallet.Primitive.Types.Tx
     , TxMetadata
     , TxOut (..)
     , TxStatus (..)
+    , isPending
     , txOutCoin
     )
 import Cardano.Wallet.Primitive.Types.UTxO
@@ -114,46 +124,58 @@ import Cardano.Wallet.Transaction
     ( ErrMkTx (..), TransactionLayer (..), defaultTransactionCtx )
 import Cardano.Wallet.Unsafe
     ( unsafeRunExceptT )
-import Control.Arrow
-    ( second )
 import Control.DeepSeq
     ( NFData (..) )
 import Control.Monad
     ( forM, forM_, replicateM, void )
 import Control.Monad.Class.MonadTime
-    ( DiffTime, MonadMonotonicTime (..), Time (..), addTime, diffTime )
+    ( DiffTime
+    , MonadMonotonicTime (..)
+    , MonadTime (..)
+    , Time (..)
+    , addTime
+    , diffTime
+    )
 import Control.Monad.IO.Unlift
-    ( MonadIO (..), MonadUnliftIO (..) )
+    ( MonadIO (..), MonadUnliftIO (..), wrappedWithRunInIO )
 import Control.Monad.Trans.Class
     ( lift )
 import Control.Monad.Trans.Except
-    ( ExceptT, except, runExceptT )
+    ( ExceptT (..), except, runExceptT )
 import Control.Monad.Trans.Maybe
     ( MaybeT (..) )
-import Control.Monad.Trans.State
-    ( StateT (..), state )
+import Control.Monad.Trans.Reader
+    ( ReaderT (..), ask )
 import Control.Monad.Trans.State.Strict
-    ( State, evalState, get, put )
+    ( State, StateT (..), evalState, get, put, state )
+import Control.Tracer
+    ( Tracer (..), nullTracer )
 import Crypto.Hash
     ( hash )
+import Data.Bifunctor
+    ( second )
 import Data.ByteString
     ( ByteString )
 import Data.Coerce
     ( coerce )
 import Data.Either
     ( isLeft, isRight )
+import Data.Function
+    ( on )
 import Data.Generics.Internal.VL.Lens
-    ( (^.) )
+    ( set, view, (^.) )
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Map.Strict
     ( Map )
 import Data.Maybe
-    ( catMaybes, fromMaybe, isJust, isNothing )
+    ( catMaybes, fromMaybe, isJust, isNothing, mapMaybe )
 import Data.Ord
     ( Down (..) )
 import Data.Quantity
     ( Quantity (..) )
+import Data.Text.Class
+    ( ToText (..) )
 import Data.Time.Clock
     ( UTCTime )
 import Data.Time.Clock.POSIX
@@ -170,6 +192,7 @@ import Test.Hspec.Extra
     ( parallel )
 import Test.QuickCheck
     ( Arbitrary (..)
+    , InfiniteList (..)
     , NonEmptyList (..)
     , Positive (..)
     , Property
@@ -185,11 +208,15 @@ import Test.QuickCheck
     , elements
     , label
     , liftArbitrary
+    , liftShrink
+    , liftShrink2
     , listOf1
     , oneof
     , property
     , scale
     , shrinkIntegral
+    , shrinkList
+    , sized
     , suchThat
     , vector
     , withMaxSuccess
@@ -202,8 +229,19 @@ import Test.QuickCheck.Monadic
     ( assert, monadicIO, monitor, run )
 import Test.Utils.Time
     ( UniformTime )
+import Test.Utils.Trace
+    ( captureLogging' )
 import UnliftIO.Concurrent
-    ( newEmptyMVar, putMVar, takeMVar, threadDelay )
+    ( MVar
+    , modifyMVar
+    , modifyMVar_
+    , newEmptyMVar
+    , newMVar
+    , putMVar
+    , readMVar
+    , takeMVar
+    , threadDelay
+    )
 
 import qualified Cardano.Crypto.Wallet as CC
 import qualified Cardano.Wallet as W
@@ -218,6 +256,7 @@ import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
+import qualified Data.Text as T
 
 spec :: Spec
 spec = parallel $ do
@@ -263,6 +302,8 @@ spec = parallel $ do
             (property prop_estimateFee)
 
     describe "LocalTxSubmission" $ do
+        it "LocalTxSubmission pool retries pending transactions"
+            (property prop_localTxSubmission)
         it "LocalTxSubmission updates are limited in frequency"
             (property prop_throttle)
 
@@ -327,8 +368,7 @@ spec = parallel $ do
          pidB = PoolId "B"
          pidUnknown = PoolId "unknown"
          knownPools = Set.fromList [pidA, pidB]
-         next epoch dlgStatus =
-             WalletDelegationNext {changesAt = epoch, status = dlgStatus}
+         next = WalletDelegationNext
 
 {-------------------------------------------------------------------------------
                                     Properties
@@ -652,6 +692,190 @@ prop_estimateFee (NonEmpty coins) =
                                LocalTxSubmission
 -------------------------------------------------------------------------------}
 
+data TxRetryTest = TxRetryTest
+    { retryTestPool :: [LocalTxSubmissionStatus SealedTx]
+    , retryTestTxHistory :: GenTxHistory
+    , postTxResults :: [(SealedTx, Bool)]
+    , testSlottingParameters :: SlottingParameters
+    , retryTestWallet :: (WalletId, WalletName, DummyState)
+    } deriving (Generic, Show, Eq)
+
+numSlots :: TxRetryTest -> Word64
+numSlots = const 100
+
+newtype GenTxHistory = GenTxHistory { getTxHistory :: [(Tx, TxMeta)] }
+    deriving (Generic, Show, Eq)
+
+instance Arbitrary GenTxHistory where
+    arbitrary = fmap GenTxHistory (gen `suchThat` hasPending)
+      where
+        gen = uniq <$> listOf1 ((,) <$> genTx <*> genTxMeta)
+        uniq = L.nubBy ((==) `on` (view #txId . fst))
+        genTx = mkTx <$> genTid
+        hasPending = any ((== Pending) . view #status . snd)
+        genTid = Hash . B8.pack <$> listOf1 (elements ['A'..'Z'])
+        mkTx tid = Tx tid Nothing [] [] mempty Nothing
+        genTxMeta = do
+            sl <- genSmallSlot
+            let bh = Quantity $ fromIntegral $ unSlotNo sl
+            st <- elements [Pending, InLedger, Expired]
+            dir <- elements [Incoming, Outgoing]
+            expry <- oneof [fmap (Just . (+ sl)) genSmallSlot, pure Nothing]
+            pure $ TxMeta st dir sl bh (Coin 0) expry
+        genSmallSlot = SlotNo . fromIntegral <$> sized (\n -> choose (0, 4 * n))
+
+    shrink = fmap GenTxHistory
+        . filter (not . null)
+        . shrinkList (liftShrink2 shrinkTx shrinkMeta)
+        . getTxHistory
+      where
+        shrinkTx tx = [set #txId tid' tx | tid' <- shrink (view #txId tx)]
+        shrinkMeta (TxMeta st dir sl bh amt ex) =
+            [ TxMeta st dir sl' bh amt ex'
+            | (sl', ex') <- liftShrink2 shrinkSlotNo (liftShrink shrinkSlotNo)
+                (sl, ex) ]
+
+instance Arbitrary TxRetryTest where
+    arbitrary = do
+        txHistory <- arbitrary
+        let pool = mkLocalTxSubmissionStatus txHistory
+        results <- zip (map (view #submittedTx) pool) . getInfiniteList <$> arbitrary
+        TxRetryTest pool txHistory results <$> arbitrary <*> arbitrary
+
+    shrink (TxRetryTest _ txHistory res sp wal) =
+        [ TxRetryTest (mkLocalTxSubmissionStatus txHistory') txHistory' res sp' wal'
+        | (txHistory', sp', wal') <- shrink (txHistory, sp, wal)
+        ]
+
+mkLocalTxSubmissionStatus
+    :: GenTxHistory
+    -> [LocalTxSubmissionStatus SealedTx]
+mkLocalTxSubmissionStatus = mapMaybe getStatus . getTxHistory
+  where
+    getStatus :: (Tx, TxMeta) -> Maybe (LocalTxSubmissionStatus SealedTx)
+    getStatus (tx, txMeta)
+        | isPending txMeta = Just st
+        | otherwise = Nothing
+      where
+        i = tx ^. #txId
+        sl = txMeta ^. #slotNo
+        st = LocalTxSubmissionStatus i (SealedTx (getHash i)) sl sl
+
+instance Arbitrary SlottingParameters where
+    arbitrary = mk <$> choose (0.5, 1)
+      where
+        mk f = dummySlottingParameters
+            { getActiveSlotCoefficient = ActiveSlotCoefficient f }
+
+-- | 'WalletLayer' context.
+data TxRetryTestCtx = TxRetryTestCtx
+    { ctxDbLayer :: DBLayer TxRetryTestM DummyState ShelleyKey
+    , ctxNetworkLayer :: NetworkLayer TxRetryTestM Block
+    , ctxTracer :: Tracer IO W.WalletLog
+    , ctxWalletId :: WalletId
+    } deriving (Generic)
+
+data TxRetryTestState = TxRetryTestState
+    { testCase :: TxRetryTest
+    , timeVar :: MVar Time
+    , timeStep :: DiffTime
+    } deriving (Generic)
+
+data TxRetryTestResult a = TxRetryTestResult
+    { resLogs :: [W.WalletLog]
+    , resAction :: a
+    , resSubmittedTxs :: [SealedTx]
+    } deriving (Generic, Show, Eq)
+
+newtype TxRetryTestM a = TxRetryTestM
+    { unTxRetryTestM :: ReaderT TxRetryTestState IO a
+    } deriving (Functor, Applicative, Monad, MonadIO, MonadFail)
+
+instance MonadUnliftIO TxRetryTestM where
+    withRunInIO = wrappedWithRunInIO TxRetryTestM unTxRetryTestM
+
+instance MonadMonotonicTime TxRetryTestM where
+    getMonotonicTime = do
+        st <- TxRetryTestM ask
+        modifyMVar (timeVar st) $ \t -> do
+            let t' = addTime (timeStep st) t
+            pure (t', t')
+
+instance MonadTime TxRetryTestM where
+    getCurrentTime = liftIO getCurrentTime
+
+prop_localTxSubmission :: TxRetryTest -> Property
+prop_localTxSubmission tc = monadicIO $ do
+    timeVar <- newMVar (Time 0)
+    let st = TxRetryTestState tc timeVar 2
+    res <- run $ runTest st $ \ctx@(TxRetryTestCtx DBLayer{..} _ _ wid) -> do
+        atomically $ do
+            let txHistory = getTxHistory (retryTestTxHistory tc)
+            unsafeRunExceptT $ putTxHistory (PrimaryKey wid) txHistory
+            forM_ (retryTestPool tc) $ \(LocalTxSubmissionStatus txid tx _ sl) ->
+                unsafeRunExceptT $ putLocalTxSubmission (PrimaryKey wid) txid tx sl
+
+        runLocalTxSubmissionPool' @_ @DummyState @ShelleyKey (timeStep st) 10 ctx wid
+        atomically $ readLocalTxSubmissionPending (PrimaryKey wid)
+
+    monitor $ counterexample $ unlines $
+        [ "posted txs = " ++ show (resSubmittedTxs res)
+        , "final pool state = " ++ show (resAction res)
+        , "logs:"
+        ] ++ map (T.unpack . toText) (resLogs res)
+
+    -- props:
+    --  1. pending transactions in pool are retried
+    assert (all (`elem` (submittedTx <$> retryTestPool tc)) (resSubmittedTxs res))
+
+    --  2. non-pending transactions not retried
+    let mkSealed = SealedTx . getHash . view #txId
+    let nonPending = map (mkSealed . fst)
+            . filter ((/= Pending) . view #status . snd)
+            . getTxHistory $ retryTestTxHistory tc
+    assert (all (`notElem` (resSubmittedTxs res)) nonPending)
+
+    --  3. retries can fail and not break the wallet
+    assert (not $ null $ resAction res)
+
+  where
+    runTest
+        :: TxRetryTestState
+        -> (TxRetryTestCtx -> TxRetryTestM a)
+        -> IO (TxRetryTestResult a)
+    runTest st testAction = do
+        submittedVar <- newMVar []
+        (msgs, res) <- captureLogging' $ \tr -> do
+            flip runReaderT st $ unTxRetryTestM $ do
+                WalletLayerFixture db _wl [wid] _slotNoTime <-
+                    setupFixture $ retryTestWallet tc
+                let ctx = TxRetryTestCtx db (mockNetwork submittedVar) tr wid
+
+                testAction ctx
+        TxRetryTestResult msgs res <$> readMVar submittedVar
+
+    mockNetwork :: MVar [SealedTx] -> NetworkLayer TxRetryTestM Block
+    mockNetwork var = dummyNetworkLayer
+        { currentSlottingParameters = pure (testSlottingParameters tc)
+        , postTx = \tx -> ExceptT $ do
+                stash var tx
+                pure $ case lookup tx (postTxResults tc) of
+                    Just True -> Right ()
+                    Just False -> Left (W.ErrPostTxBadRequest "intended")
+                    Nothing -> Left (W.ErrPostTxProtocolFailure "unexpected")
+        , watchNodeTip = mockNodeTip (numSlots tc) 0
+        }
+
+    mockNodeTip end sl cb
+        | sl < end = do
+            let h = Hash ""
+            void $ cb $ BlockHeader (SlotNo sl) (Quantity (fromIntegral sl)) h h
+            mockNodeTip end (sl + 1) cb
+        | otherwise = pure ()
+
+    stash :: MVar [a] -> a -> TxRetryTestM ()
+    stash var x = modifyMVar_ var (\xs -> pure (x:xs))
+
 data ThrottleTest = ThrottleTest
     { interval :: DiffTime
         -- ^ Interval parameter provided to 'throttle'
@@ -814,18 +1038,19 @@ instance Arbitrary UTxO where
             <*> vector n
         return $ UTxO $ Map.fromList utxo
 
-data WalletLayerFixture = WalletLayerFixture
-    { _fixtureDBLayer :: DBLayer IO DummyState ShelleyKey
-    , _fixtureWalletLayer :: WalletLayer DummyState ShelleyKey
+data WalletLayerFixture m = WalletLayerFixture
+    { _fixtureDBLayer :: DBLayer m DummyState ShelleyKey
+    , _fixtureWalletLayer :: WalletLayer m DummyState ShelleyKey
     , _fixtureWallet :: [WalletId]
     , _fixtureSlotNoTime :: SlotNo -> UTCTime
     }
 
 setupFixture
-    :: (WalletId, WalletName, DummyState)
-    -> IO WalletLayerFixture
+    :: (MonadUnliftIO m, MonadFail m, MonadTime m)
+    => (WalletId, WalletName, DummyState)
+    -> m (WalletLayerFixture m)
 setupFixture (wid, wname, wstate) = do
-    let nl = dummyNetworkLayer
+    let nl = mockNetworkLayer
     let tl = dummyTransactionLayer
     db <- MVar.newDBLayer timeInterpreter
     let wl = WalletLayer nullTracer (block0, np, st) nl tl db
@@ -874,32 +1099,14 @@ dummyTransactionLayer = TransactionLayer
     withEither :: e -> Maybe a -> Either e a
     withEither e = maybe (Left e) Right
 
-dummyNetworkLayer :: Monad m => NetworkLayer m block
-dummyNetworkLayer = NetworkLayer
-    { nextBlocks =
-        error "dummyNetworkLayer: nextBlocks not implemented"
-    , initCursor =
-        error "dummyNetworkLayer: initCursor not implemented"
-    , destroyCursor =
-        error "dummyNetworkLayer: destroyCursor not implemented"
-    , cursorSlotNo =
-        error "dummyNetworkLayer: cursorSlotNo not implemented"
-    , currentNodeTip =
+mockNetworkLayer :: Monad m => NetworkLayer m block
+mockNetworkLayer = dummyNetworkLayer
+    { currentNodeTip =
         pure dummyTip
     , currentNodeEra =
         pure (AnyCardanoEra AllegraEra)
     , currentProtocolParameters =
         pure (protocolParameters dummyNetworkParameters)
-    , currentSlottingParameters =
-        error "dummyNetworkLayer: currentSlottingParameters not implemented"
-    , postTx =
-        error "dummyNetworkLayer: postTx not implemented"
-    , stakeDistribution =
-        error "dummyNetworkLayer: stakeDistribution not implemented"
-    , getAccountBalance =
-        error "dummyNetworkLayer: getAccountBalance not implemented"
-    , watchNodeTip =
-        error "dummyNetworkLayer: watchNodeTip not implemented"
     , timeInterpreter = dummyTimeInterpreter
     }
   where

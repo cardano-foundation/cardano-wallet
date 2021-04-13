@@ -276,6 +276,7 @@ test-suite unit
     , http-media
     , http-types
     , iohk-monitoring
+    , io-sim-classes
     , lattices
     , lens
     , memory

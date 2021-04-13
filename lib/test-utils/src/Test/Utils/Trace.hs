@@ -1,4 +1,6 @@
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
 
 -- |
 -- Copyright: © 2018-2020 IOHK
@@ -9,16 +11,21 @@
 
 module Test.Utils.Trace
      ( withLogging
+     , withLogging'
      , captureLogging
+     , captureLogging'
      , traceSpec
      ) where
 
 import Prelude
 
+
 import Cardano.BM.Trace
     ( traceInTVarIO )
+import Control.Monad.IO.Unlift
+    ( MonadIO (..), MonadUnliftIO (..) )
 import Control.Tracer
-    ( Tracer )
+    ( Tracer, natTracer )
 import Data.Text.Class
     ( ToText (..) )
 import Say
@@ -32,16 +39,24 @@ import UnliftIO.STM
 
 -- | Run an action with a logging 'Trace' object, and a function to get all
 -- messages that have been traced.
-withLogging :: ((Tracer IO msg, IO [msg]) -> IO a) -> IO a
-withLogging action = do
+withLogging :: MonadUnliftIO m => ((Tracer m msg, m [msg]) -> m a) -> m a
+withLogging = withLogging'
+
+-- | Same as 'withLogging', but with a different Tracer monad.
+withLogging' :: forall m mtr msg a. (MonadUnliftIO m, MonadIO mtr) => ((Tracer mtr msg, m [msg]) -> m a) -> m a
+withLogging' action = do
     tvar <- newTVarIO []
     let getMsgs = reverse <$> readTVarIO tvar
-    action (traceInTVarIO tvar, getMsgs)
+    action (natTracer liftIO (traceInTVarIO tvar), getMsgs)
 
 -- | Run an action with a 'Trace', returning captured log messages along with
 -- the result of the action.
-captureLogging :: (Tracer IO msg -> IO a) -> IO ([msg], a)
-captureLogging action = withLogging $ \(tr, getMsgs) -> do
+captureLogging :: MonadUnliftIO m => (Tracer m msg -> m a) -> m ([msg], a)
+captureLogging = captureLogging'
+
+-- | Same as 'captureLogging', but with a different Tracer monad.
+captureLogging' :: forall m mtr msg a. (MonadUnliftIO m, MonadIO mtr) => (Tracer mtr msg -> m a) -> m ([msg], a)
+captureLogging' action = withLogging' @m @mtr $ \(tr, getMsgs) -> do
     res <- action tr
     msgs <- getMsgs
     pure (msgs, res)

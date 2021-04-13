@@ -27,6 +27,8 @@ import Cardano.Wallet.Api.Server
     )
 import Cardano.Wallet.Api.Types
     ( ApiNetworkInformation (..) )
+import Cardano.Wallet.DummyTarget.Primitive.Types
+    ( dummyNetworkLayer )
 import Cardano.Wallet.Network
     ( NetworkLayer (..) )
 import Cardano.Wallet.Primitive.Slotting
@@ -168,7 +170,7 @@ networkInfoSpec = describe "getNetworkInformation" $ do
                 <$> getCurrentTime
         let ti = forkInterpreter st
         let nodeTip' = SlotNo 0
-        let nl = dummyNetworkLayer nodeTip' ti
+        let nl = mockNetworkLayer nodeTip' ti
         let tolerance = mkSyncTolerance 5
         Right info <- run $ runHandler $ getNetworkInformation tolerance nl
 
@@ -194,11 +196,11 @@ networkInfoSpec = describe "getNetworkInformation" $ do
         monitor (counterexample $ lbl <> " " <> flag)
         assert condition
 
-    dummyNetworkLayer
+    mockNetworkLayer
         :: SlotNo
         -> TimeInterpreter (ExceptT PastHorizonException IO)
         -> NetworkLayer IO Block
-    dummyNetworkLayer sl ti = mockNetworkLayer
+    mockNetworkLayer sl ti = dummyNetworkLayer
         { currentNodeEra = return $ AnyCardanoEra MaryEra
         , currentNodeTip = return $
                 BlockHeader
@@ -222,23 +224,6 @@ networkInfoSpec = describe "getNetworkInformation" $ do
                 HF.EraSummary start (HF.EraEnd end) era1Params
             int = HF.mkInterpreter summary
         in mkTimeInterpreter nullTracer startTime (pure int)
-
-mockNetworkLayer :: NetworkLayer IO a
-mockNetworkLayer = NetworkLayer
-    { nextBlocks = error "nextBlocks: not implemented"
-    , initCursor = error "initCursor: not implemented"
-    , destroyCursor = error "destroyCursor: not implemented"
-    , cursorSlotNo = error "cursorSlotNo: not implemented"
-    , currentNodeEra = error "currentNodeEra: not implemented"
-    , currentNodeTip = error "currentNodeTip: not implemented"
-    , watchNodeTip = error "watchNodeTip: not implemented"
-    , currentProtocolParameters = error "currentProtocolParameters: not implemented"
-    , currentSlottingParameters = error "currentSlottingParameters: not implemented"
-    , postTx = error "postTx: not implemented"
-    , stakeDistribution = error "stakeDistribution: not implemented"
-    , getAccountBalance = error "getAccountBalance: not implemented"
-    , timeInterpreter = error "timeInterpreter: not implemented"
-    }
 
 errorHandlingSpec :: Spec
 errorHandlingSpec = describe "liftHandler and toServerError" $ do

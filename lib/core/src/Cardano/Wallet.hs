@@ -143,6 +143,7 @@ module Cardano.Wallet
     , submitExternalTx
     , submitTx
     , runLocalTxSubmissionPool
+    , runLocalTxSubmissionPool'
     , ErrMkTx (..)
     , ErrSubmitTx (..)
     , ErrSubmitExternalTx (..)
@@ -508,13 +509,13 @@ import qualified Data.Vector as V
 --
 -- __Fix__: Add type-applications at the call-site "@myFunction \@ctx \@s \\@k@"
 
-data WalletLayer s (k :: Depth -> Type -> Type)
+data WalletLayer m s (k :: Depth -> Type -> Type)
     = WalletLayer
-        (Tracer IO WalletLog)
+        (Tracer m WalletLog)
         (Block, NetworkParameters, SyncTolerance)
-        (NetworkLayer IO Block)
+        (NetworkLayer m Block)
         (TransactionLayer k)
-        (DBLayer IO s k)
+        (DBLayer m s k)
     deriving (Generic)
 
 {-------------------------------------------------------------------------------
@@ -595,9 +596,11 @@ transactionLayer =
 
 -- | Initialise and store a new wallet, returning its ID.
 createWallet
-    :: forall ctx s k.
-        ( HasGenesisData ctx
-        , HasDBLayer IO s k ctx
+    :: forall ctx m s k.
+        ( MonadUnliftIO m
+        , MonadTime m
+        , HasGenesisData ctx
+        , HasDBLayer m s k ctx
         , IsOurs s Address
         , IsOurs s RewardAccount
         )
@@ -605,7 +608,7 @@ createWallet
     -> WalletId
     -> WalletName
     -> s
-    -> ExceptT ErrWalletAlreadyExists IO WalletId
+    -> ExceptT ErrWalletAlreadyExists m WalletId
 createWallet ctx wid wname s = db & \DBLayer{..} -> do
     let (hist, cp) = initWallet block0 s
     now <- lift getCurrentTime
@@ -618,7 +621,7 @@ createWallet ctx wid wname s = db & \DBLayer{..} -> do
     mapExceptT atomically $
         initializeWallet (PrimaryKey wid) cp meta hist gp $> wid
   where
-    db = ctx ^. dbLayer @_ @s @k
+    db = ctx ^. dbLayer @m @s @k
     (block0, NetworkParameters gp _sp _pp, _) = ctx ^. genesisData
 
 -- | Initialise and store a new legacy Icarus wallet. These wallets are
@@ -1667,16 +1670,24 @@ forgetTx ctx wid tid = db & \DBLayer{..} -> do
 --
 -- The current implementation is really basic. Retry about once 10 blocks.
 scheduleLocalTxSubmission
-    :: SlottingParameters
+    :: Word64
+    -> SlottingParameters
     -> LocalTxSubmissionStatus tx
     -> SlotNo
-scheduleLocalTxSubmission sp st = (st ^. #latestSubmission) + numSlots
+scheduleLocalTxSubmission numBlocks sp st =
+    (st ^. #latestSubmission) + numSlots
   where
-    numBlocks = 10
-    numSlots = SlotNo (ceiling (numBlocks / f))
+    numSlots = SlotNo (ceiling (fromIntegral numBlocks / f))
     ActiveSlotCoefficient f = getActiveSlotCoefficient sp
 
--- | Retry submission of pending transactions.
+-- | Continuous process which monitors the chain tip and retries submission of
+-- pending transactions as the chain lengthens.
+--
+-- The current default is to resubmit any pending transaction about every 10
+-- blocks.
+--
+-- Regardless of the frequency of chain updates, this function won't re-query
+-- the database faster than every 1000ms.
 --
 -- This only exits if the network layer 'watchNodeTip' function exits.
 runLocalTxSubmissionPool
@@ -1690,7 +1701,23 @@ runLocalTxSubmissionPool
     => ctx
     -> WalletId
     -> m ()
-runLocalTxSubmissionPool ctx wid = db & \DBLayer{..} -> do
+runLocalTxSubmissionPool = runLocalTxSubmissionPool' @ctx @s @k @m 1 10
+
+-- | A more configurable (i.e. testable) version of 'runLocalTxSubmissionPool''.
+runLocalTxSubmissionPool'
+    :: forall ctx s k m.
+        ( MonadUnliftIO m
+        , MonadMonotonicTime m
+        , HasLogger WalletLog ctx
+        , HasNetworkLayer m ctx
+        , HasDBLayer m s k ctx
+        )
+    => DiffTime -- ^ Minimum time between updates
+    -> Word64 -- ^ Retry approximately every so many blocks
+    -> ctx
+    -> WalletId
+    -> m ()
+runLocalTxSubmissionPool' rateLimit blockInterval ctx wid = db & \DBLayer{..} -> do
     submitPending <- rateLimited $ \bh -> bracketTracer trBracket $ do
         sp <- currentSlottingParameters nw
         pending <- atomically $ readLocalTxSubmissionPending (PrimaryKey wid)
@@ -1709,10 +1736,9 @@ runLocalTxSubmissionPool ctx wid = db & \DBLayer{..} -> do
     nw = ctx ^. networkLayer @m
     db = ctx ^. dbLayer @m @s @k
 
-    isScheduled sp now = (<= now) . scheduleLocalTxSubmission sp
+    isScheduled sp now = (<= now) . scheduleLocalTxSubmission blockInterval sp
 
-    -- Limit pool check frequency to every 1000ms at most.
-    rateLimited = throttle 1 . const
+    rateLimited = throttle rateLimit . const
 
     tr = unliftIOTracer $ contramap MsgTxSubmit $ ctx ^. logger @WalletLog
     trBracket = contramap MsgProcessPendingPool tr
