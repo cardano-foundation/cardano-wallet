@@ -840,7 +840,6 @@ postSharedWallet
         , WalletKey k
         , HasDBFactory s k ctx
         , HasWorkerRegistry s k ctx
-        , Typeable s
         , Typeable n
         )
     => ctx
@@ -865,7 +864,6 @@ postSharedWalletFromRootXPrv
         , WalletKey k
         , HasDBFactory s k ctx
         , HasWorkerRegistry s k ctx
-        , Typeable s
         , Typeable n
         )
     => ctx
@@ -876,7 +874,7 @@ postSharedWalletFromRootXPrv ctx generateKey body = do
     let state = mkSharedStateFromRootXPrv (rootXPrv, pwd) accIx g pTemplate dTemplateM
     void $ liftHandler $ createWalletWorker @_ @s @k ctx wid
         (\wrk -> W.createWallet  @(WorkerCtx ctx) @s @k wrk wid wName state)
-        (\wrk _ -> W.manageRewardBalance @(WorkerCtx ctx) @s @k (Proxy @n) wrk wid)
+        idleWorker
     withWorkerCtx @_ @s @k ctx wid liftE liftE $ \wrk -> liftHandler $
         W.attachPrivateKeyFromPwd @_ @s @k wrk wid (rootXPrv, pwd)
     fst <$> getWallet ctx (mkSharedWallet @_ @s @k) (ApiT wid)
@@ -3060,28 +3058,27 @@ instance IsServerError ErrAddCosignerKey where
         ErrAddCosignerKeyNoSuchWallet e -> toServerError e
         ErrAddCosignerKeyActiveWallet ->
             apiError err403 SharedWalletNotPending $ mconcat
-                [ "It looks like you've tried to add cosigner key for "
+                [ "It looks like you've tried to add a cosigner key for a "
                 , "shared wallet that is active. This can be done only for "
-                , "pending shared wallets."
+                , "pending shared wallet."
                 ]
         ErrAddCosignerKeyNoDelegationTemplate ->
             apiError err403 SharedWalletNoDelegationTemplate $ mconcat
-                [ "It looks like you've tried to add cosigner key for "
-                , "shared wallet for delegation template. This cannot be done as "
-                , "the shared wallets does not have a delegation template."
+                [ "It looks like you've tried to add a cosigner key to "
+                , "a shared wallet's delegation template. This cannot be done for "
+                , "the wallet that does not define any delegation template."
                 ]
         ErrAddCosignerKeyAlreadyPresentKey cred ->
             apiError err403 SharedWalletKeyAlreadyExists $ mconcat
-                [ "It looks like you've tried to add cosigner key for "
-                , "shared wallet for ", toText cred," template that already exists "
-                , "and is ascribed to another cosigner. Or you are updating with the same key. "
-                , "Make sure each cosigner has unique key withing each script template."
+                [ "It looks like you've tried to add a cosigner key to a shared wallet's "
+                ,  toText cred," template that is already ascribed to another cosigner. "
+                , "Please make sure to assign a different key to each cosigner."
                 ]
         ErrAddCosignerKeyNoSuchCosigner (Cosigner c) cred ->
             apiError err403 SharedWalletNoSuchCosigner $ mconcat
-                [ "It looks like you've tried to add cosigner key for "
-                , "shared wallet for ", toText cred," template that does not contain "
-                , "consigner#",pretty c," inside script template."
+                [ "It looks like you've tried to add a cosigner key to a shared wallet's "
+                , toText cred," template to a non-existing cosigner index: "
+                , pretty c,"."
                 ]
 
 instance IsServerError (ErrInvalidDerivationIndex 'Soft level) where

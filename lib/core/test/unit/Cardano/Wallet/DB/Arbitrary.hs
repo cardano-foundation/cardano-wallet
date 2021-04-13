@@ -74,11 +74,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     , purposeCIP1852
     )
 import Cardano.Wallet.Primitive.AddressDiscovery.SharedState
-    ( SharedState (..)
-    , SharedStateFields (..)
-    , SharedStatePending (..)
-    , purposeCIP1854
-    )
+    ( SharedState (..), SharedStateFields (..), purposeCIP1854 )
 import Cardano.Wallet.Primitive.Model
     ( Wallet, currentTip, getState, unsafeInitWallet, utxo )
 import Cardano.Wallet.Primitive.Types
@@ -204,7 +200,6 @@ import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.List as L
 import qualified Data.Map.Strict as Map
-import qualified Data.Text as T
 
 {-------------------------------------------------------------------------------
                                  Modifiers
@@ -727,26 +722,10 @@ instance Buildable MockChain where
     build (MockChain chain) = blockListF' mempty build chain
 
 instance Buildable (SharedState 'Mainnet ShelleyKey) where
-    build (SharedState prefix (PendingFields (SharedStatePending accXPub pTemplate dTemplateM g))) =
-        build (   printStatePending
-               <> printIndex prefix
-               <> printAccXPub
-               <> printPaymentScript
-               <> printDelegationScript
-               <> printGap
-              )
-      where
-        printIndex (DerivationPrefix (_,_,ix)) = " hardened index: "<> toText (getIndex ix)
-        printStatePending = "shared wallet state: pending"
-        printPaymentScript = " payment script template: "<> T.pack (show pTemplate)
-        printDelegationScript = " delegation script template: " <> case dTemplateM of
-            Nothing -> "absent"
-            Just dTemplate -> T.pack (show dTemplate)
-        printAccXPub = " accXPub: " <> T.pack (show accXPub)
-        printGap = " gap: " <> toText (Seq.getAddressPoolGap g)
+    build (SharedState _ (PendingFields _)) = "not supported here"
     build (SharedState prefix (ReadyFields pool)) =
         build (printStateActive <> printIndex prefix) <> printPool
       where
         printStateActive = "shared wallet state: active"
         printPool = build pool
-        printIndex (DerivationPrefix (_,_,ix)) = " hardened index: "<> toText (getIndex ix)
+        printIndex (DerivationPrefix (_,_,ix)) = " hardened index: "<> toText (getIndex ix) <> " "

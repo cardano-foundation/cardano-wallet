@@ -27,6 +27,7 @@ module Cardano.Wallet.Primitive.AddressDiscovery.SharedState
     , SharedStateFields (..)
     , SharedStatePending (..)
     , SupportsSharedState
+    , ErrAddCosigner (..)
     , mkSharedStateFromAccountXPub
     , mkSharedStateFromRootXPrv
     , addCosignerAccXPub
@@ -83,6 +84,8 @@ import Data.Coerce
     ( coerce )
 import Data.Either
     ( isRight )
+import Data.Maybe
+    ( fromJust, isNothing )
 import Data.Proxy
     ( Proxy (..) )
 import GHC.Generics
@@ -284,22 +287,51 @@ templatesComplete pTemplate dTemplate =
   where
     isValid = isRight . validateScriptTemplate RequiredValidation
 
--- | The cosigner with his account public key is done per template.
+data ErrAddCosigner =
+      NoDelegationTemplate
+    | NoSuchCosigner Cosigner CredentialType
+    | AlreadyPresentKey CredentialType
+    | ActiveWallet
+    deriving (Eq, Show)
+
+-- | The cosigner with his account public key is updated per template.
 -- For every template the script is checked if the cosigner is present.
--- If yes, then the key is inserted. If the key is already present it is going to be
--- updated. If there is no cosigner present is the script then the cosigner -
--- account public key map is not changed. The updating works with pending shared state,
--- and can unpend the shared state if all public keys are present. When already unpended
--- shared state is used it does not change it.
+-- If yes, then the key is inserted. If no `NoSuchCosigner` is emitted.
+-- If the key is already present it is going to be updated.
+-- For a given template all keys must be unique. If already present key is tried to be added,
+-- `AlreadyPresentKey` error is produced. The updating works only with pending shared state,
+-- When an active shared state is used `ActiveWallet` error is triggered.
+-- Updating the key for delegation script can be successful only if delegation script is
+-- present. Otherwise, `NoDelegationTemplate` error is triggered.
 addCosignerAccXPub
     :: (SupportsSharedState n k, WalletKey k)
     => k 'AccountK XPub
     -> Cosigner
     -> CredentialType
     -> SharedState n k
-    -> SharedState n k
-addCosignerAccXPub accXPub cosigner cred =
-    updateSharedState $ addCosignerAccXPubPending accXPub cosigner cred
+    -> Either ErrAddCosigner (SharedState n k)
+addCosignerAccXPub accXPub cosigner cred st = case fields st of
+    ReadyFields _ ->
+        Left ActiveWallet
+    PendingFields (SharedStatePending _ pT dTM _) ->
+        if (cred == Delegation && isNothing dTM) then
+            Left NoDelegationTemplate
+        else if (cred == Payment && isCosignerMissing pT) then
+            Left $ NoSuchCosigner cosigner Payment
+        else if (cred == Delegation && isCosignerMissing (fromJust dTM)) then
+            Left $ NoSuchCosigner cosigner Delegation
+        else if (cred == Payment && isKeyAlreadyPresent pT) then
+            Left $ AlreadyPresentKey Payment
+        else if (cred == Delegation && isKeyAlreadyPresent (fromJust dTM)) then
+            Left $ AlreadyPresentKey Delegation
+        else
+            Right $ updateSharedState
+            (addCosignerAccXPubPending accXPub cosigner cred) st
+  where
+    isKeyAlreadyPresent (ScriptTemplate cosignerKeys _) =
+        getRawKey accXPub `elem` Map.elems cosignerKeys
+    isCosignerMissing (ScriptTemplate _ script') =
+        cosigner `notElem` retrieveAllCosigners script'
 
 addCosignerAccXPubPending
     :: WalletKey k

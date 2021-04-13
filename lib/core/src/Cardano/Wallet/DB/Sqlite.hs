@@ -51,7 +51,7 @@ module Cardano.Wallet.DB.Sqlite
 import Prelude
 
 import Cardano.Address.Derivation
-    ( XPrv, XPub, xpubToBytes )
+    ( XPrv, XPub )
 import Cardano.Address.Script
     ( Cosigner (..), ScriptTemplate (..) )
 import Cardano.BM.Data.Severity
@@ -132,7 +132,6 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , Role (..)
     , SoftDerivation (..)
     , WalletKey (..)
-    , hex
     )
 import Cardano.Wallet.Primitive.AddressDerivation.Icarus
     ( IcarusKey )
@@ -2475,7 +2474,7 @@ instance
              deleteWhere [CosignerKeyWalletId ==. wid]
 
              dbChunked insertMany_
-                 [ CosignerKey wid cred (hex $ xpubToBytes xpub) c
+                 [ CosignerKey wid cred (serializeXPub @(k 'AccountK) $ liftRawKey xpub) c
                  | ((Cosigner c), xpub) <- Map.assocs cs
                  ]
 

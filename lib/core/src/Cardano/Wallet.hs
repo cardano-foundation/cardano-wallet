@@ -175,7 +175,7 @@ import Prelude hiding
 import Cardano.Address.Derivation
     ( XPrv, XPub )
 import Cardano.Address.Script
-    ( Cosigner (..), ScriptTemplate (..) )
+    ( Cosigner (..) )
 import Cardano.Api.Typed
     ( serialiseToCBOR )
 import Cardano.BM.Data.Severity
@@ -255,12 +255,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     , shrinkPool
     )
 import Cardano.Wallet.Primitive.AddressDiscovery.SharedState
-    ( SharedState (SharedState)
-    , SharedStateFields (..)
-    , SharedStatePending (..)
-    , addCosignerAccXPub
-    , retrieveAllCosigners
-    )
+    ( ErrAddCosigner (..), SharedState, addCosignerAccXPub )
 import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     ( SelectionError (..)
     , SelectionResult (..)
@@ -389,6 +384,8 @@ import Data.Coerce
     ( coerce )
 import Data.Either
     ( partitionEithers )
+import Data.Either.Combinators
+    ( mapLeft )
 import Data.Either.Extra
     ( eitherToMaybe )
 import Data.Foldable
@@ -410,7 +407,7 @@ import Data.List
 import Data.List.NonEmpty
     ( NonEmpty (..) )
 import Data.Maybe
-    ( fromJust, fromMaybe, isNothing, mapMaybe )
+    ( fromMaybe, mapMaybe )
 import Data.Proxy
     ( Proxy )
 import Data.Quantity
@@ -450,7 +447,6 @@ import qualified Cardano.Wallet.Primitive.Types.UTxOIndex as UTxOIndex
 import qualified Data.ByteArray as BA
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
-import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Vector as V
@@ -2124,33 +2120,20 @@ updateCosigner ctx wid accXPub cosigner cred = db & \DBLayer{..} -> do
     mapExceptT atomically $ do
         cp <- withExceptT ErrAddCosignerKeyNoSuchWallet $ withNoSuchWallet wid $
               readCheckpoint (PrimaryKey wid)
-        let s@(SharedState _ st) = getState cp
-        case st of
-            PendingFields (SharedStatePending _ pT dTM _) -> do
-                when (cred == Delegation && isNothing dTM)$
-                    throwE ErrAddCosignerKeyNoDelegationTemplate
-
-                when (cred == Payment && isCosignerMissing pT) $
-                    throwE $ ErrAddCosignerKeyNoSuchCosigner cosigner Payment
-                when (cred == Delegation && isCosignerMissing (fromJust dTM)) $
-                    throwE $ ErrAddCosignerKeyNoSuchCosigner cosigner Delegation
-
-                when (cred == Payment && isKeyAlreadyPresent pT) $
-                    throwE $ ErrAddCosignerKeyAlreadyPresentKey Payment
-                when (cred == Delegation && isKeyAlreadyPresent (fromJust dTM)) $
-                    throwE $ ErrAddCosignerKeyAlreadyPresentKey Delegation
-
-                let s' = addCosignerAccXPub accXPub cosigner cred s
+        let s = mapLeft toHandleErr $
+                addCosignerAccXPub accXPub cosigner cred (getState cp)
+        case s of
+            Left err -> throwE err
+            Right s' ->
                 withExceptT ErrAddCosignerKeyNoSuchWallet $
                     putCheckpoint (PrimaryKey wid) (updateState s' cp)
-            ReadyFields _ ->
-                throwE ErrAddCosignerKeyActiveWallet
   where
     db = ctx ^. dbLayer @s @k
-    isKeyAlreadyPresent (ScriptTemplate cosignerKeys _) =
-        getRawKey accXPub `elem` Map.elems cosignerKeys
-    isCosignerMissing (ScriptTemplate _ script') =
-        cosigner `notElem` retrieveAllCosigners script'
+    toHandleErr = \case
+        ActiveWallet -> ErrAddCosignerKeyActiveWallet
+        NoSuchCosigner _ _ -> ErrAddCosignerKeyNoSuchCosigner cosigner cred
+        AlreadyPresentKey _ -> ErrAddCosignerKeyAlreadyPresentKey cred
+        NoDelegationTemplate -> ErrAddCosignerKeyNoDelegationTemplate
 
 {-------------------------------------------------------------------------------
                                    Errors

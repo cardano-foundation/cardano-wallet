@@ -502,29 +502,28 @@ errMsg403OutputTokenQuantityExceedsLimit
 
 errMsg403NotPendingWallet :: String
 errMsg403NotPendingWallet = mconcat
-    [ "It looks like you've tried to add cosigner key for "
+    [ "It looks like you've tried to add a cosigner key for a "
     , "shared wallet that is active. This can be done only for "
-    , "pending shared wallets."
+    , "pending shared wallet."
     ]
 
 errMsg403NoDelegationTemplate :: String
 errMsg403NoDelegationTemplate = mconcat
-    [ "It looks like you've tried to add cosigner key for "
-    , "shared wallet for delegation template. This cannot be done as "
-    , "the shared wallets does not have a delegation template."
+    [ "It looks like you've tried to add a cosigner key to "
+    , "a shared wallet's delegation template. This cannot be done for "
+    , "the wallet that does not define any delegation template."
     ]
 
 errMsg403AlreadyPresentKey :: Text -> String
 errMsg403AlreadyPresentKey cred = mconcat
-    [ "It looks like you've tried to add cosigner key for "
-    , "shared wallet for ", unpack cred," template that already exists "
-    , "and is ascribed to another cosigner. Or you are updating with the same key. "
-    , "Make sure each cosigner has unique key withing each script template."
+    [ "It looks like you've tried to add a cosigner key to a shared wallet's "
+    ,  unpack cred," template that is already ascribed to another cosigner. "
+    , "Please make sure to assign a different key to each cosigner."
     ]
 
 errMsg403NoSuchCosigner :: Text -> Int -> String
 errMsg403NoSuchCosigner cred cosigner = mconcat
-    [ "It looks like you've tried to add cosigner key for "
-    , "shared wallet for ", unpack cred," template that does not contain "
-    , "consigner#",show cosigner," inside script template."
+    [ "It looks like you've tried to add a cosigner key to a shared wallet's "
+    , unpack cred, " template to a non-existing cosigner index: "
+    , show cosigner, "."
     ]
