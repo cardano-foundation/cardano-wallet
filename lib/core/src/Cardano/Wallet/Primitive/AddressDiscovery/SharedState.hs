@@ -6,7 +6,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeApplications #-}
@@ -299,6 +298,9 @@ data ErrAddCosigner
         -- not allowed.
     | WalletAlreadyActive
         -- ^ Adding is possible only to pending shared wallet.
+    | CannotUpdateSharedWalletKey
+        -- ^ Updating key is possible only for other cosigners, not cosigner
+        -- belonging to the shared wallet.
     deriving (Eq, Show)
 
 -- | The cosigner with his account public key is updated per template.
@@ -324,23 +326,29 @@ addCosignerAccXPub
 addCosignerAccXPub accXPub cosigner cred st = case fields st of
     ReadyFields _ ->
         Left WalletAlreadyActive
-    PendingFields (SharedStatePending _ paymentTmpl delegTmpl _) ->
+    PendingFields (SharedStatePending walletKey paymentTmpl delegTmpl _) ->
         case (cred, paymentTmpl, delegTmpl) of
             (Payment, pt, _)
+                | tryingUpdateWalletCosigner walletKey pt -> Left CannotUpdateSharedWalletKey
                 | isCosignerMissing pt -> Left $ NoSuchCosigner cred cosigner
                 | isKeyAlreadyPresent pt -> Left $ KeyAlreadyPresent cred
             (Delegation, _, Just dt)
+                | tryingUpdateWalletCosigner walletKey dt -> Left CannotUpdateSharedWalletKey
                 | isCosignerMissing dt -> Left $ NoSuchCosigner cred cosigner
                 | isKeyAlreadyPresent dt -> Left $ KeyAlreadyPresent cred
             (Delegation, _, Nothing) -> Left NoDelegationTemplate
             _ -> Right $
-                updateSharedState st $
-                addCosignerAccXPubPending accXPub cosigner cred
+                 updateSharedState st $
+                 addCosignerAccXPubPending accXPub cosigner cred
   where
     isKeyAlreadyPresent (ScriptTemplate cosignerKeys _) =
         getRawKey accXPub `F.elem` cosignerKeys
     isCosignerMissing (ScriptTemplate _ script') =
         cosigner `notElem` retrieveAllCosigners script'
+    tryingUpdateWalletCosigner walletKey (ScriptTemplate cosignerKeys _) =
+        case Map.lookup cosigner cosignerKeys of
+            Nothing -> False
+            Just key' -> key' == getRawKey walletKey
 
 addCosignerAccXPubPending
     :: WalletKey k

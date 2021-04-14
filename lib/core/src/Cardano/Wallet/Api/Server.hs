@@ -3082,6 +3082,11 @@ instance IsServerError ErrAddCosignerKey where
                 , "shared wallet's ", toText cred, " template to a "
                 , "non-existing cosigner index: ", pretty c,"."
                 ]
+        ErrAddCosignerKey CannotUpdateSharedWalletKey ->
+            apiError err403 SharedWalletCannotUpdateKey $ mconcat
+                [ "It looks like you've tried to update the key of a cosigner having "
+                , "the shared wallet's account key. Only other cosigner key(s) can be updated."
+                ]
 
 instance IsServerError (ErrInvalidDerivationIndex 'Soft level) where
     toServerError = \case

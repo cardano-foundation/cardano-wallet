@@ -84,7 +84,8 @@ import Test.Integration.Framework.DSL
     , verify
     )
 import Test.Integration.Framework.TestData
-    ( errMsg403KeyAlreadyPresent
+    ( errMsg403CannotUpdateThisCosigner
+    , errMsg403KeyAlreadyPresent
     , errMsg403NoDelegationTemplate
     , errMsg403NoSuchCosigner
     , errMsg403WalletAlreadyActive
@@ -409,7 +410,7 @@ spec = describe "SHARED_WALLETS" $ do
                 "account_index": "30H",
                 "payment_script_template":
                     { "cosigners":
-                        { "cosigner#0": #{accXPubTxt0} },
+                        { "cosigner#0": #{accXPubTxt1} },
                       "template":
                           { "all":
                              [ "cosigner#0",
@@ -424,7 +425,7 @@ spec = describe "SHARED_WALLETS" $ do
         let wal@(ApiSharedWallet (Left _pendingWal)) = getFromResponse id rPost
 
         let payloadPatch = Json [json| {
-                "account_public_key": #{accXPub1},
+                "account_public_key": #{accXPub0},
                 "cosigner": "cosigner#0"
                 } |]
 
@@ -432,7 +433,7 @@ spec = describe "SHARED_WALLETS" $ do
         expectResponseCode HTTP.status200 rPatch
         let (ApiSharedWallet (Left pendingWal)) = getFromResponse id rPatch
         let cosignerKeysPatch = pendingWal ^. #paymentScriptTemplate
-        liftIO $ cosigners cosignerKeysPatch `shouldBe` Map.fromList [(Cosigner 0,accXPub1)]
+        liftIO $ cosigners cosignerKeysPatch `shouldBe` Map.fromList [(Cosigner 0,accXPub0)]
 
     it "SHARED_WALLETS_PATCH_06 - Can add the same cosigner key for delegation script template but not payment one" $ \ctx -> runResourceT $ do
         let payloadCreate = Json [json| {
@@ -441,7 +442,7 @@ spec = describe "SHARED_WALLETS" $ do
                 "account_index": "30H",
                 "payment_script_template":
                     { "cosigners":
-                        { "cosigner#0": #{accXPubTxt0} },
+                        { "cosigner#0": #{accXPubTxt2} },
                       "template":
                           { "all":
                              [ "cosigner#0",
@@ -468,14 +469,14 @@ spec = describe "SHARED_WALLETS" $ do
         let wal@(ApiSharedWallet (Left _pendingWal)) = getFromResponse id rPost
 
         let payloadPatch1 = Json [json| {
-                "account_public_key": #{accXPub0},
+                "account_public_key": #{accXPub2},
                 "cosigner": "cosigner#1"
                 } |]
         rPatch1 <- patchSharedWallet ctx wal Delegation payloadPatch1
         expectResponseCode HTTP.status200 rPatch1
 
         let payloadPatch2 = Json [json| {
-                "account_public_key": #{accXPub0},
+                "account_public_key": #{accXPub2},
                 "cosigner": "cosigner#0"
                 } |]
         rPatch2 <- patchSharedWallet ctx wal Payment payloadPatch2
@@ -483,7 +484,7 @@ spec = describe "SHARED_WALLETS" $ do
         expectErrorMessage (errMsg403KeyAlreadyPresent (toText Payment)) rPatch2
 
         let payloadPatch3 = Json [json| {
-                "account_public_key": #{accXPub0},
+                "account_public_key": #{accXPub2},
                 "cosigner": "cosigner#1"
                 } |]
         rPatch3 <- patchSharedWallet ctx wal Payment payloadPatch3
@@ -505,6 +506,35 @@ spec = describe "SHARED_WALLETS" $ do
         rPatch5 <- patchSharedWallet ctx wal Payment payloadPatch5
         expectResponseCode HTTP.status403 rPatch5
         expectErrorMessage (errMsg403NoSuchCosigner (toText Payment) 7) rPatch5
+
+    it "SHARED_WALLETS_PATCH_07 - Cannot update cosigner key in a pending shared wallet having the shared wallet's account key" $ \ctx -> runResourceT $ do
+        let payloadCreate = Json [json| {
+                "name": "Shared Wallet",
+                "account_public_key": #{accXPubTxt0},
+                "account_index": "30H",
+                "payment_script_template":
+                    { "cosigners":
+                        { "cosigner#0": #{accXPubTxt0} },
+                      "template":
+                          { "all":
+                             [ "cosigner#0",
+                               "cosigner#1",
+                               { "active_from": 120 }
+                             ]
+                          }
+                    }
+                } |]
+        rPost <- postSharedWallet ctx Default payloadCreate
+        expectResponseCode HTTP.status201 rPost
+        let wal@(ApiSharedWallet (Left _pendingWal)) = getFromResponse id rPost
+
+        let payloadPatch = Json [json| {
+                "account_public_key": #{accXPub1},
+                "cosigner": "cosigner#0"
+                } |]
+        rPatch <- patchSharedWallet ctx wal Payment payloadPatch
+        expectResponseCode HTTP.status403 rPatch
+        expectErrorMessage errMsg403CannotUpdateThisCosigner rPatch
   where
       xpubFromText :: Text -> Maybe XPub
       xpubFromText = fmap eitherToMaybe fromHexText >=> xpubFromBytes
@@ -517,6 +547,9 @@ spec = describe "SHARED_WALLETS" $ do
 
       accXPubTxt1 = "1423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db11423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db8"
       (Just accXPub1) = xpubFromText accXPubTxt1
+
+      accXPubTxt2 = "1423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db11423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db7"
+      (Just accXPub2) = xpubFromText accXPubTxt2
 
 instance ToJSON XPub where
     toJSON = toJSON . T.decodeLatin1 . hex . xpubToBytes

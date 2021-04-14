@@ -83,6 +83,7 @@ module Test.Integration.Framework.TestData
     , errMsg403NoDelegationTemplate
     , errMsg403KeyAlreadyPresent
     , errMsg403NoSuchCosigner
+    , errMsg403CannotUpdateThisCosigner
     ) where
 
 import Prelude
@@ -526,4 +527,10 @@ errMsg403NoSuchCosigner cred cosigner = mconcat
     [ "It looks like you've tried to add a cosigner key to a shared wallet's "
     , unpack cred, " template to a non-existing cosigner index: "
     , show cosigner, "."
+    ]
+
+errMsg403CannotUpdateThisCosigner :: String
+errMsg403CannotUpdateThisCosigner = mconcat
+    [ "It looks like you've tried to update the key of a cosigner having "
+    , "the shared wallet's account key. Only other cosigner key(s) can be updated."
     ]
