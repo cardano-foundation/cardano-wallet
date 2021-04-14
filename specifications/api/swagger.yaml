@@ -2982,6 +2982,19 @@ x-errSharedWalletNoSuchCosigner: &errSharedWalletNoSuchCosigner
       type: string
       enum: ['shared_wallet_no_such_cosigner']
 
+x-errSharedWalletCannotUpdateKey: &errSharedWalletCannotUpdateKey
+  <<: *responsesErr
+  title: shared_wallet_cannot_update_key
+  properties:
+    message:
+      type: string
+      description: |
+        Returned when a user tries to update cosigner key that contains a key of a shared wallet.
+        Only other cosigner keys can be updated.
+    code:
+      type: string
+      enum: ['shared_wallet_cannot_update_key']
+
 # TODO: Map this error to the place it belongs.
 x-errNetworkUnreachable: &errNetworkUnreachable
   <<: *responsesErr
@@ -3538,6 +3551,7 @@ x-responsesPatchSharedWallet: &responsesPatchSharedWallet
             - <<: *errSharedWalletNoDelegationTemplate
             - <<: *errSharedWalletNotPending
             - <<: *errSharedWalletNoSuchCosigner
+            - <<: *errSharedWalletCannotUpdateKey
   200:
     description: Ok
     content:

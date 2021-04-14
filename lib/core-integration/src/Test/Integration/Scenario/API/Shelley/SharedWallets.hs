@@ -23,6 +23,8 @@ import Cardano.Address.Derivation
     ( XPub, xpubFromBytes, xpubToBytes )
 import Cardano.Address.Script
     ( Cosigner (..), ScriptTemplate (..) )
+import Cardano.Mnemonic
+    ( MkSomeMnemonic (..), SomeMnemonic (..) )
 import Cardano.Wallet.Api.Types
     ( ApiSharedWallet (..)
     , DecodeAddress
@@ -30,7 +32,17 @@ import Cardano.Wallet.Api.Types
     , EncodeAddress (..)
     )
 import Cardano.Wallet.Primitive.AddressDerivation
-    ( DerivationIndex (..), PaymentAddress, fromHex, hex )
+    ( DerivationIndex (..)
+    , HardDerivation (..)
+    , Index (..)
+    , Passphrase (..)
+    , PaymentAddress
+    , PaymentAddress
+    , PersistPublicKey (..)
+    , WalletKey (..)
+    , fromHex
+    , hex
+    )
 import Cardano.Wallet.Primitive.AddressDerivation.Shelley
     ( ShelleyKey )
 import Cardano.Wallet.Primitive.AddressDiscovery.Script
@@ -49,6 +61,8 @@ import Data.Bifunctor
     ( second )
 import Data.ByteString
     ( ByteString )
+import Data.Either
+    ( isRight )
 import Data.Either.Extra
     ( eitherToMaybe )
 import Data.Generics.Internal.VL.Lens
@@ -59,6 +73,8 @@ import Data.Text
     ( Text )
 import Data.Text.Class
     ( ToText (..) )
+import Data.Word
+    ( Word32 )
 import Test.Hspec
     ( SpecWith, describe, shouldBe, shouldNotBe )
 import Test.Hspec.Extra
@@ -91,6 +107,8 @@ import Test.Integration.Framework.TestData
     , errMsg403WalletAlreadyActive
     )
 
+import qualified Cardano.Wallet.Primitive.AddressDerivation.Shelley as Shelley
+import qualified Data.ByteArray as BA
 import qualified Data.Map.Strict as Map
 import qualified Data.Text.Encoding as T
 import qualified Network.HTTP.Types as HTTP
@@ -103,17 +121,21 @@ spec :: forall n.
     ) => SpecWith Context
 spec = describe "SHARED_WALLETS" $ do
     it "SHARED_WALLETS_CREATE_01 - Create an active shared wallet from root xprv" $ \ctx -> runResourceT $ do
-        m15 <- liftIO $ genMnemonics M15
-        m12 <- liftIO $ genMnemonics M12
+        m15txt <- liftIO $ genMnemonics M15
+        m12txt <- liftIO $ genMnemonics M12
+        let (Right m15) = mkSomeMnemonic @'[ 15 ] m15txt
+        let (Right m12) = mkSomeMnemonic @'[ 12 ] m12txt
+        let passphrase = Passphrase $ BA.convert $ T.encodeUtf8 fixturePassphrase
+        let accXPubDerived = accPubKeyFromMnemonics m15 (Just m12) 30 passphrase
         let payload = Json [json| {
                 "name": "Shared Wallet",
-                "mnemonic_sentence": #{m15},
-                "mnemonic_second_factor": #{m12},
+                "mnemonic_sentence": #{m15txt},
+                "mnemonic_second_factor": #{m12txt},
                 "passphrase": #{fixturePassphrase},
                 "account_index": "30H",
                 "payment_script_template":
                     { "cosigners":
-                        { "cosigner#0": #{accXPubTxt0} },
+                        { "cosigner#0": #{accXPubDerived} },
                       "template":
                           { "all":
                              [ "cosigner#0",
@@ -535,6 +557,36 @@ spec = describe "SHARED_WALLETS" $ do
         rPatch <- patchSharedWallet ctx wal Payment payloadPatch
         expectResponseCode HTTP.status403 rPatch
         expectErrorMessage errMsg403CannotUpdateThisCosigner rPatch
+
+    it "SHARED_WALLETS_PATCH_08 - Active wallet needs shared wallet' account key in template" $ \ctx -> runResourceT $ do
+        let payloadCreate = Json [json| {
+                "name": "Shared Wallet",
+                "account_public_key": #{accXPubTxt0},
+                "account_index": "30H",
+                "payment_script_template":
+                    { "cosigners":
+                        { "cosigner#0": #{accXPubTxt1} },
+                      "template":
+                          { "all":
+                             [ "cosigner#0",
+                               { "active_from": 120 }
+                             ]
+                          }
+                    }
+                } |]
+        rPost <- postSharedWallet ctx Default payloadCreate
+        expectResponseCode HTTP.status201 rPost
+        let wal@(ApiSharedWallet (Left _pendingWal)) = getFromResponse id rPost
+
+        let payloadPatch = Json [json| {
+                "account_public_key": #{accXPub0},
+                "cosigner": "cosigner#0"
+                } |]
+
+        rPatch <- patchSharedWallet ctx wal Payment payloadPatch
+        expectResponseCode HTTP.status201 rPost
+        let (ApiSharedWallet walletConstructor) = getFromResponse id rPatch
+        liftIO $ isRight walletConstructor `shouldBe` True
   where
       xpubFromText :: Text -> Maybe XPub
       xpubFromText = fmap eitherToMaybe fromHexText >=> xpubFromBytes
@@ -553,3 +605,15 @@ spec = describe "SHARED_WALLETS" $ do
 
 instance ToJSON XPub where
     toJSON = toJSON . T.decodeLatin1 . hex . xpubToBytes
+
+accPubKeyFromMnemonics
+    :: SomeMnemonic
+    -> Maybe SomeMnemonic
+    -> Word32
+    -> Passphrase "encryption"
+    -> Text
+accPubKeyFromMnemonics mnemonic1 mnemonic2 ix passphrase =
+    T.decodeUtf8 $ serializeXPub $ publicKey $
+        deriveAccountPrivateKey passphrase rootXPrv (Index $ 2147483648 + ix)
+  where
+    rootXPrv = Shelley.generateKeyFromSeed (mnemonic1, mnemonic2) passphrase

@@ -210,7 +210,7 @@ purposeCIP1854 = toEnum 0x8000073E
 
 -- | Create a new SharedState from public account key.
 mkSharedStateFromAccountXPub
-    :: SupportsSharedState n k
+    :: (SupportsSharedState n k, WalletKey k)
     => k 'AccountK XPub
     -> Index 'Hardened 'AccountK
     -> AddressPoolGap
@@ -222,7 +222,7 @@ mkSharedStateFromAccountXPub accXPub accIx gap pTemplate dTemplateM =
     SharedStatePending accXPub pTemplate dTemplateM gap
 
 mkSharedState
-    :: SupportsSharedState n k
+    :: (SupportsSharedState n k, WalletKey k)
     => Index 'Hardened 'AccountK
     -> SharedStatePending k
     -> SharedState n k
@@ -257,7 +257,7 @@ mkSharedStateFromRootXPrv (rootXPrv, pwd) accIx gap pTemplate dTemplateM =
 
 -- | Turn a "pending" into an "active" state or identity if already "active".
 updateSharedState
-    :: forall n k. SupportsSharedState n k
+    :: forall n k. (SupportsSharedState n k, WalletKey k)
     => SharedState n k
     -> (SharedStatePending k -> SharedStatePending k)
     -> SharedState n k
@@ -268,22 +268,26 @@ updateSharedState st f = case fields st of
         Nothing -> st { fields = PendingFields (f pending) }
 
 sharedStateFromPending
-    :: forall n k. SupportsSharedState n k
+    :: forall n k. (SupportsSharedState n k, WalletKey k)
     => SharedStatePending k
     -> Maybe (AddressPool 'MultisigScript k)
 sharedStateFromPending (SharedStatePending accXPub pT dT g)
-    | templatesComplete pT dT = Just $
+    | templatesComplete accXPub pT dT = Just $
         mkAddressPool @n (ParentContextMultisigScript accXPub pT dT) g []
     | otherwise = Nothing
 
 templatesComplete
-    :: ScriptTemplate
+    :: WalletKey k
+    => k 'AccountK XPub
+    -> ScriptTemplate
     -> Maybe ScriptTemplate
     -> Bool
-templatesComplete pTemplate dTemplate =
+templatesComplete accXPub pTemplate dTemplate =
     isValid pTemplate && maybe True isValid dTemplate
   where
-    isValid = isRight . validateScriptTemplate RequiredValidation
+    isValid template'@(ScriptTemplate cosignerKeys _) =
+        (isRight $ validateScriptTemplate RequiredValidation template')
+        && (getRawKey accXPub `F.elem` cosignerKeys)
 
 -- | Possible errors from adding a co-signer key to the shared wallet state.
 data ErrAddCosigner
