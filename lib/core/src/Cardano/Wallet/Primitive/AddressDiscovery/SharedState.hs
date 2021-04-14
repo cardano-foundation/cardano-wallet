@@ -287,11 +287,19 @@ templatesComplete pTemplate dTemplate =
   where
     isValid = isRight . validateScriptTemplate RequiredValidation
 
-data ErrAddCosigner =
-      NoDelegationTemplate
+-- | Possible errors from adding a co-signer key to the shared wallet state.
+data ErrAddCosigner
+    = NoDelegationTemplate
+        -- ^ Adding key for a cosigner for a non-existant delegation template is
+        -- not allowed.
     | NoSuchCosigner Cosigner CredentialType
+        -- ^ Adding key for a cosigners for a given script is possible for the
+        -- cosigner present in the script template.
     | AlreadyPresentKey CredentialType
-    | ActiveWallet
+        -- ^ Adding the same key for different cosigners for a given script is
+        -- not allowed.
+    | WalletAlreadyActive
+        -- ^ Adding is possible only to pending shared wallet.
     deriving (Eq, Show)
 
 -- | The cosigner with his account public key is updated per template.
@@ -300,7 +308,7 @@ data ErrAddCosigner =
 -- If the key is already present it is going to be updated.
 -- For a given template all keys must be unique. If already present key is tried to be added,
 -- `AlreadyPresentKey` error is produced. The updating works only with pending shared state,
--- When an active shared state is used `ActiveWallet` error is triggered.
+-- When an active shared state is used `WalletAlreadyActive` error is triggered.
 -- Updating the key for delegation script can be successful only if delegation script is
 -- present. Otherwise, `NoDelegationTemplate` error is triggered.
 addCosignerAccXPub
@@ -312,7 +320,7 @@ addCosignerAccXPub
     -> Either ErrAddCosigner (SharedState n k)
 addCosignerAccXPub accXPub cosigner cred st = case fields st of
     ReadyFields _ ->
-        Left ActiveWallet
+        Left WalletAlreadyActive
     PendingFields (SharedStatePending _ pT dTM _) ->
         if (cred == Delegation && isNothing dTM) then
             Left NoDelegationTemplate

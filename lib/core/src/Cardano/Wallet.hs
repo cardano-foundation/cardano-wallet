@@ -384,8 +384,6 @@ import Data.Coerce
     ( coerce )
 import Data.Either
     ( partitionEithers )
-import Data.Either.Combinators
-    ( mapLeft )
 import Data.Either.Extra
     ( eitherToMaybe )
 import Data.Foldable
@@ -2120,20 +2118,12 @@ updateCosigner ctx wid accXPub cosigner cred = db & \DBLayer{..} -> do
     mapExceptT atomically $ do
         cp <- withExceptT ErrAddCosignerKeyNoSuchWallet $ withNoSuchWallet wid $
               readCheckpoint (PrimaryKey wid)
-        let s = mapLeft toHandleErr $
-                addCosignerAccXPub accXPub cosigner cred (getState cp)
-        case s of
-            Left err -> throwE err
-            Right s' ->
-                withExceptT ErrAddCosignerKeyNoSuchWallet $
-                    putCheckpoint (PrimaryKey wid) (updateState s' cp)
+        case addCosignerAccXPub accXPub cosigner cred (getState cp) of
+            Left err -> throwE (ErrAddCosignerKey err)
+            Right st' -> withExceptT ErrAddCosignerKeyNoSuchWallet $
+                putCheckpoint (PrimaryKey wid) (updateState st' cp)
   where
     db = ctx ^. dbLayer @s @k
-    toHandleErr = \case
-        ActiveWallet -> ErrAddCosignerKeyActiveWallet
-        NoSuchCosigner _ _ -> ErrAddCosignerKeyNoSuchCosigner cosigner cred
-        AlreadyPresentKey _ -> ErrAddCosignerKeyAlreadyPresentKey cred
-        NoDelegationTemplate -> ErrAddCosignerKeyNoDelegationTemplate
 
 {-------------------------------------------------------------------------------
                                    Errors
@@ -2158,15 +2148,8 @@ data ErrDerivePublicKey
 data ErrAddCosignerKey
     = ErrAddCosignerKeyNoSuchWallet ErrNoSuchWallet
         -- ^ The shared wallet doesn't exist?
-    | ErrAddCosignerKeyActiveWallet
-        -- ^ Adding is possible only to pending shared wallet
-    | ErrAddCosignerKeyAlreadyPresentKey CredentialType
-        -- ^ Adding the same key for different cosigners for a given script is not allowed.
-    | ErrAddCosignerKeyNoDelegationTemplate
-        -- ^ Adding key for a cosigner for a non-existant delegation template is not allowed.
-    | ErrAddCosignerKeyNoSuchCosigner Cosigner CredentialType
-        -- ^ Adding key for a cosigners for a given script is possible for the
-        -- cosigner present in the script template.
+    | ErrAddCosignerKey ErrAddCosigner
+        -- ^ Error adding this co-signer to the shared wallet.
     deriving (Eq, Show)
 
 data ErrReadAccountPublicKey
