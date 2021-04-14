@@ -286,7 +286,7 @@ templatesComplete accXPub pTemplate dTemplate =
     isValid pTemplate && maybe True isValid dTemplate
   where
     isValid template'@(ScriptTemplate cosignerKeys _) =
-        (isRight $ validateScriptTemplate RequiredValidation template')
+        isRight (validateScriptTemplate RequiredValidation template')
         && (getRawKey accXPub `F.elem` cosignerKeys)
 
 -- | Possible errors from adding a co-signer key to the shared wallet state.

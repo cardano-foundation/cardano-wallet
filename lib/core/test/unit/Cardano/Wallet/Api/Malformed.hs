@@ -1034,10 +1034,10 @@ instance Malformed (BodyParam ApiSharedWalletPatchData) where
     malformed = jsonValid ++ jsonInvalid
      where
          jsonInvalid = first BodyParam <$>
-            [ ("1020344", "Error in $: parsing Cardano.Wallet.Api.Types.ApiSharedWalletPatchData(ApiSharedWalletPatchData) failed, expected Object, but encountered Number")
-            , ("\"1020344\"", "Error in $: parsing Cardano.Wallet.Api.Types.ApiSharedWalletPatchData(ApiSharedWalletPatchData) failed, expected Object, but encountered String")
+            [ ("1020344", "Error in $: parsing ApiSharedWalletPatchData failed, expected Object, but encountered Number")
+            , ("\"1020344\"", "Error in $: parsing ApiSharedWalletPatchData failed, expected Object, but encountered String")
             , ("\"slot_number : \"random\"}", "trailing junk after valid JSON: endOfInput")
-            , ("{\"script_template_update\": \"\"}", "Error in $: parsing Cardano.Wallet.Api.Types.ApiSharedWalletPatchData(ApiSharedWalletPatchData) failed, key 'cosigner' not found")
+            , ("{\"script_template_update\": \"\"}", "Error in $: Cosigner should be of form: cosigner#num")
             , ("{\"name : \"random\"}", msgJsonInvalid)
             ]
          exampleCosignerXPub =
@@ -1045,20 +1045,17 @@ instance Malformed (BodyParam ApiSharedWalletPatchData) where
              \423856bc91c49e928f6f30f4e8d665d53eb4ab6028bd0ac971809d514c92db1" :: Text
          jsonValid =
             first (BodyParam . Aeson.encode) <$>
-            [ ( [aesonQQ| { "cosigner":[], "account_public_key": #{exampleCosignerXPub} }|]
-              , "Error in $.cosigner: parsing Text failed, expected String, but encountered Array"
+            [ ( [aesonQQ| { "cosigner#1":[] }|]
+              , "Error in $: parsing Text failed, expected String, but encountered Array"
               )
-            , ( [aesonQQ| { "cosigner":0, "account_public_key": #{exampleCosignerXPub} }|]
-              , "Error in $.cosigner: parsing Text failed, expected String, but encountered Number"
+            , ( [aesonQQ| { "cosigner#1":0 }|]
+              , "Error in $: parsing Text failed, expected String, but encountered Number"
               )
-            , ( [aesonQQ| { "cosigner":"cosigner#0", "account_public_key": [] }|]
-              , "Error in $['account_public_key']: parsing Text failed, expected String, but encountered Array"
+            , ( [aesonQQ| { "cosigner#0":"something"}|]
+              , "Error in $: Invalid account public key: expecting a hex-encoded value that is 64 bytes in length."
               )
-            , ( [aesonQQ| { "cosigner":"cosigner#0", "account_public_key": 12 }|]
-              , "Error in $['account_public_key']: parsing Text failed, expected String, but encountered Number"
-              )
-            , ( [aesonQQ| { "cosigner":"cosigner#0", "account_public_key": "something" }|]
-              , "Error in $['account_public_key']: Invalid account public key: expecting a hex-encoded value that is 64 bytes in length."
+            , ( [aesonQQ| { "cosigner":#{exampleCosignerXPub} }|]
+              , "Error in $: Cosigner should be of form: cosigner#num"
               )
             ]
 

@@ -2083,13 +2083,7 @@ components:
           <<: *ApiSharedWalletPostDataFromAccountPubX
 
     ApiSharedWalletPatchData: &ApiSharedWalletPatchData
-      type: object
-      required:
-        - cosigner
-        - account_public_key
-      properties:
-        cosigner: *cosigner
-        account_public_key: *walletAccountPubkey
+      <<: *cosigners
 
     ApiAsset: &ApiAsset
       type: object

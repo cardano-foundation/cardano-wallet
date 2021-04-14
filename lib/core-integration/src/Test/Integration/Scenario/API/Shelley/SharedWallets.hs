@@ -309,8 +309,7 @@ spec = describe "SHARED_WALLETS" $ do
         liftIO $ cosigners cosignerKeysPost `shouldBe` Map.fromList [(Cosigner 0,accXPub0)]
 
         let payloadPatch = Json [json| {
-                "account_public_key": #{accXPub1},
-                "cosigner": "cosigner#1"
+                "cosigner#1": #{accXPub1}
                 } |]
 
         rPatch <- patchSharedWallet ctx wal Payment payloadPatch
@@ -356,8 +355,7 @@ spec = describe "SHARED_WALLETS" $ do
         liftIO $ cosigners cosignerKeysPostInDelegation `shouldBe` Map.fromList [(Cosigner 0,accXPub0)]
 
         let payloadPatch = Json [json| {
-                "account_public_key": #{accXPub1},
-                "cosigner": "cosigner#1"
+                "cosigner#1": #{accXPub1}
                 } |]
 
         rPatch <- patchSharedWallet ctx wal Delegation payloadPatch
@@ -387,8 +385,7 @@ spec = describe "SHARED_WALLETS" $ do
         let wal@(ApiSharedWallet (Right _activeWal)) = getFromResponse id rPost
 
         let payloadPatch = Json [json| {
-                "account_public_key": #{accXPub1},
-                "cosigner": "cosigner#1"
+                "cosigner#1": #{accXPub1}
                 } |]
 
         rPatch <- patchSharedWallet ctx wal Payment payloadPatch
@@ -417,8 +414,7 @@ spec = describe "SHARED_WALLETS" $ do
         let wal@(ApiSharedWallet (Left _pendingWal)) = getFromResponse id rPost
 
         let payloadPatch = Json [json| {
-                "account_public_key": #{accXPub1},
-                "cosigner": "cosigner#1"
+                "cosigner#1": #{accXPub1}
                 } |]
 
         rPatch <- patchSharedWallet ctx wal Delegation payloadPatch
@@ -447,8 +443,7 @@ spec = describe "SHARED_WALLETS" $ do
         let wal@(ApiSharedWallet (Left _pendingWal)) = getFromResponse id rPost
 
         let payloadPatch = Json [json| {
-                "account_public_key": #{accXPub0},
-                "cosigner": "cosigner#0"
+                "cosigner#0": #{accXPub0}
                 } |]
 
         rPatch <- patchSharedWallet ctx wal Payment payloadPatch
@@ -491,39 +486,34 @@ spec = describe "SHARED_WALLETS" $ do
         let wal@(ApiSharedWallet (Left _pendingWal)) = getFromResponse id rPost
 
         let payloadPatch1 = Json [json| {
-                "account_public_key": #{accXPub2},
-                "cosigner": "cosigner#1"
+                "cosigner#1": #{accXPub2}
                 } |]
         rPatch1 <- patchSharedWallet ctx wal Delegation payloadPatch1
         expectResponseCode HTTP.status200 rPatch1
 
         let payloadPatch2 = Json [json| {
-                "account_public_key": #{accXPub2},
-                "cosigner": "cosigner#0"
+                "cosigner#0": #{accXPub2}
                 } |]
         rPatch2 <- patchSharedWallet ctx wal Payment payloadPatch2
         expectResponseCode HTTP.status403 rPatch2
         expectErrorMessage (errMsg403KeyAlreadyPresent (toText Payment)) rPatch2
 
         let payloadPatch3 = Json [json| {
-                "account_public_key": #{accXPub2},
-                "cosigner": "cosigner#1"
+                "cosigner#1": #{accXPub2}
                 } |]
         rPatch3 <- patchSharedWallet ctx wal Payment payloadPatch3
         expectResponseCode HTTP.status403 rPatch3
         expectErrorMessage (errMsg403KeyAlreadyPresent (toText Payment)) rPatch3
 
         let payloadPatch4 = Json [json| {
-                "account_public_key": #{accXPub1},
-                "cosigner": "cosigner#1"
+                "cosigner#1": #{accXPub1}
                 } |]
         rPatch4 <- patchSharedWallet ctx wal Delegation payloadPatch4
         expectResponseCode HTTP.status403 rPatch4
         expectErrorMessage (errMsg403KeyAlreadyPresent (toText Delegation)) rPatch4
 
         let payloadPatch5 = Json [json| {
-                "account_public_key": #{accXPub0},
-                "cosigner": "cosigner#7"
+                "cosigner#7": #{accXPub0}
                 } |]
         rPatch5 <- patchSharedWallet ctx wal Payment payloadPatch5
         expectResponseCode HTTP.status403 rPatch5
@@ -551,8 +541,7 @@ spec = describe "SHARED_WALLETS" $ do
         let wal@(ApiSharedWallet (Left _pendingWal)) = getFromResponse id rPost
 
         let payloadPatch = Json [json| {
-                "account_public_key": #{accXPub1},
-                "cosigner": "cosigner#0"
+                "cosigner#0": #{accXPub1}
                 } |]
         rPatch <- patchSharedWallet ctx wal Payment payloadPatch
         expectResponseCode HTTP.status403 rPatch
@@ -579,8 +568,7 @@ spec = describe "SHARED_WALLETS" $ do
         let wal@(ApiSharedWallet (Left _pendingWal)) = getFromResponse id rPost
 
         let payloadPatch = Json [json| {
-                "account_public_key": #{accXPub0},
-                "cosigner": "cosigner#0"
+                "cosigner#0": #{accXPub0}
                 } |]
 
         rPatch <- patchSharedWallet ctx wal Payment payloadPatch

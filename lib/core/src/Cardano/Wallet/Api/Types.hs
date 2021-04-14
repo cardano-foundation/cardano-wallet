@@ -2332,9 +2332,18 @@ instance ToJSON (ApiT Cosigner) where
     toJSON = toJSON . toText
 
 instance FromJSON ApiSharedWalletPatchData where
-    parseJSON = genericParseJSON defaultRecordTypeOptions
+    parseJSON = withObject "ApiSharedWalletPatchData" $ \o ->
+        case HM.toList o of
+                [] -> fail "ApiSharedWalletPatchData should not be empty"
+                [(numTxt, str)] -> do
+                    cosigner' <- parseJSON @(ApiT Cosigner) (String numTxt)
+                    xpub <- parseJSON @ApiAccountPublicKey str
+                    pure $ ApiSharedWalletPatchData cosigner' xpub
+                _ -> fail "ApiSharedWalletPatchData should have one pair"
+
 instance ToJSON ApiSharedWalletPatchData where
-    toJSON = genericToJSON defaultRecordTypeOptions
+    toJSON (ApiSharedWalletPatchData cosigner accXPub) =
+        object [ toText cosigner .= toJSON accXPub ]
 
 instance FromJSON ApiActiveSharedWallet where
     parseJSON = genericParseJSON defaultRecordTypeOptions
