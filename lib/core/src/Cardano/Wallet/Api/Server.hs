@@ -309,7 +309,8 @@ import Cardano.Wallet.Primitive.AddressDiscovery.Sequential
     , purposeCIP1852
     )
 import Cardano.Wallet.Primitive.AddressDiscovery.SharedState
-    ( SharedState (..)
+    ( ErrAddCosigner (..)
+    , SharedState (..)
     , SharedStateFields (..)
     , SharedStatePending (..)
     , mkSharedStateFromAccountXPub
@@ -3056,29 +3057,30 @@ instance IsServerError ErrDerivePublicKey where
 instance IsServerError ErrAddCosignerKey where
     toServerError = \case
         ErrAddCosignerKeyNoSuchWallet e -> toServerError e
-        ErrAddCosignerKeyActiveWallet ->
+        ErrAddCosignerKey WalletAlreadyActive ->
             apiError err403 SharedWalletNotPending $ mconcat
                 [ "It looks like you've tried to add a cosigner key for a "
                 , "shared wallet that is active. This can be done only for "
                 , "pending shared wallet."
                 ]
-        ErrAddCosignerKeyNoDelegationTemplate ->
+        ErrAddCosignerKey NoDelegationTemplate ->
             apiError err403 SharedWalletNoDelegationTemplate $ mconcat
                 [ "It looks like you've tried to add a cosigner key to "
-                , "a shared wallet's delegation template. This cannot be done for "
-                , "the wallet that does not define any delegation template."
+                , "a shared wallet's delegation template. This cannot be done "
+                , "for the wallet that does not define any delegation template."
                 ]
-        ErrAddCosignerKeyAlreadyPresentKey cred ->
+        ErrAddCosignerKey (KeyAlreadyPresent cred) ->
             apiError err403 SharedWalletKeyAlreadyExists $ mconcat
-                [ "It looks like you've tried to add a cosigner key to a shared wallet's "
-                ,  toText cred," template that is already ascribed to another cosigner. "
+                [ "It looks like you've tried to add a cosigner key to a "
+                , "shared wallet's ", toText cred, " template that is already "
+                , "ascribed to another cosigner. "
                 , "Please make sure to assign a different key to each cosigner."
                 ]
-        ErrAddCosignerKeyNoSuchCosigner (Cosigner c) cred ->
+        ErrAddCosignerKey (NoSuchCosigner cred (Cosigner c)) ->
             apiError err403 SharedWalletNoSuchCosigner $ mconcat
-                [ "It looks like you've tried to add a cosigner key to a shared wallet's "
-                , toText cred," template to a non-existing cosigner index: "
-                , pretty c,"."
+                [ "It looks like you've tried to add a cosigner key to a "
+                , "shared wallet's ", toText cred, " template to a "
+                , "non-existing cosigner index: ", pretty c,"."
                 ]
 
 instance IsServerError (ErrInvalidDerivationIndex 'Soft level) where

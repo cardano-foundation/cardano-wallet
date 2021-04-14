@@ -84,10 +84,10 @@ import Test.Integration.Framework.DSL
     , verify
     )
 import Test.Integration.Framework.TestData
-    ( errMsg403AlreadyPresentKey
+    ( errMsg403KeyAlreadyPresent
     , errMsg403NoDelegationTemplate
     , errMsg403NoSuchCosigner
-    , errMsg403NotPendingWallet
+    , errMsg403WalletAlreadyActive
     )
 
 import qualified Data.Map.Strict as Map
@@ -370,7 +370,7 @@ spec = describe "SHARED_WALLETS" $ do
 
         rPatch <- patchSharedWallet ctx wal Payment payloadPatch
         expectResponseCode HTTP.status403 rPatch
-        expectErrorMessage errMsg403NotPendingWallet rPatch
+        expectErrorMessage errMsg403WalletAlreadyActive rPatch
 
     it "SHARED_WALLETS_PATCH_04 - Cannot add cosigner key when delegation script missing and cannot add already existant key to other cosigner" $ \ctx -> runResourceT $ do
         let payloadCreate = Json [json| {
@@ -480,7 +480,7 @@ spec = describe "SHARED_WALLETS" $ do
                 } |]
         rPatch2 <- patchSharedWallet ctx wal Payment payloadPatch2
         expectResponseCode HTTP.status403 rPatch2
-        expectErrorMessage (errMsg403AlreadyPresentKey (toText Payment)) rPatch2
+        expectErrorMessage (errMsg403KeyAlreadyPresent (toText Payment)) rPatch2
 
         let payloadPatch3 = Json [json| {
                 "account_public_key": #{accXPub0},
@@ -488,7 +488,7 @@ spec = describe "SHARED_WALLETS" $ do
                 } |]
         rPatch3 <- patchSharedWallet ctx wal Payment payloadPatch3
         expectResponseCode HTTP.status403 rPatch3
-        expectErrorMessage (errMsg403AlreadyPresentKey (toText Payment)) rPatch3
+        expectErrorMessage (errMsg403KeyAlreadyPresent (toText Payment)) rPatch3
 
         let payloadPatch4 = Json [json| {
                 "account_public_key": #{accXPub1},
@@ -496,7 +496,7 @@ spec = describe "SHARED_WALLETS" $ do
                 } |]
         rPatch4 <- patchSharedWallet ctx wal Delegation payloadPatch4
         expectResponseCode HTTP.status403 rPatch4
-        expectErrorMessage (errMsg403AlreadyPresentKey (toText Delegation)) rPatch4
+        expectErrorMessage (errMsg403KeyAlreadyPresent (toText Delegation)) rPatch4
 
         let payloadPatch5 = Json [json| {
                 "account_public_key": #{accXPub0},

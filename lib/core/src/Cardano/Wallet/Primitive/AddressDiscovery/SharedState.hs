@@ -84,8 +84,6 @@ import Data.Coerce
     ( coerce )
 import Data.Either
     ( isRight )
-import Data.Maybe
-    ( fromJust, isNothing )
 import Data.Proxy
     ( Proxy (..) )
 import GHC.Generics
@@ -93,6 +91,7 @@ import GHC.Generics
 import Type.Reflection
     ( Typeable )
 
+import qualified Data.Foldable as F
 import qualified Data.Map.Strict as Map
 
 {-------------------------------------------------------------------------------
@@ -228,12 +227,12 @@ mkSharedState
     => Index 'Hardened 'AccountK
     -> SharedStatePending k
     -> SharedState n k
-mkSharedState accIx state = updateSharedState id $ SharedState
-    { derivationPrefix
-    , fields = PendingFields state
-    }
+mkSharedState accIx pending = updateSharedState state id
   where
-    derivationPrefix = DerivationPrefix (purposeCIP1854, coinTypeAda, accIx)
+    state = SharedState
+        { derivationPrefix = DerivationPrefix (purposeCIP1854, coinTypeAda, accIx)
+        , fields = PendingFields pending
+        }
 
 type SupportsSharedState (n :: NetworkDiscriminant) k =
     ( MkKeyFingerprint k Address
@@ -257,13 +256,13 @@ mkSharedStateFromRootXPrv (rootXPrv, pwd) accIx gap pTemplate dTemplateM =
   where
     accXPub = publicKey $ deriveAccountPrivateKey pwd rootXPrv accIx
 
--- | Turn a "pending" into an "active" state or identity if already "active"
+-- | Turn a "pending" into an "active" state or identity if already "active".
 updateSharedState
     :: forall n k. SupportsSharedState n k
-    => (SharedStatePending k -> SharedStatePending k)
+    => SharedState n k
+    -> (SharedStatePending k -> SharedStatePending k)
     -> SharedState n k
-    -> SharedState n k
-updateSharedState f st = case fields st of
+updateSharedState st f = case fields st of
     ReadyFields _ -> st
     PendingFields pending -> case sharedStateFromPending @n (f pending) of
         Just ready -> st { fields = ReadyFields ready }
@@ -292,10 +291,10 @@ data ErrAddCosigner
     = NoDelegationTemplate
         -- ^ Adding key for a cosigner for a non-existant delegation template is
         -- not allowed.
-    | NoSuchCosigner Cosigner CredentialType
+    | NoSuchCosigner CredentialType Cosigner
         -- ^ Adding key for a cosigners for a given script is possible for the
         -- cosigner present in the script template.
-    | AlreadyPresentKey CredentialType
+    | KeyAlreadyPresent CredentialType
         -- ^ Adding the same key for different cosigners for a given script is
         -- not allowed.
     | WalletAlreadyActive
@@ -303,12 +302,16 @@ data ErrAddCosigner
     deriving (Eq, Show)
 
 -- | The cosigner with his account public key is updated per template.
--- For every template the script is checked if the cosigner is present.
--- If yes, then the key is inserted. If no `NoSuchCosigner` is emitted.
+--
+-- For each template the script is checked for presence of the cosigner:
+--   * If present, then the key is inserted into the staate.
+--   * Otherwise, fail with 'NoSuchCosigner'.
 -- If the key is already present it is going to be updated.
 -- For a given template all keys must be unique. If already present key is tried to be added,
--- `AlreadyPresentKey` error is produced. The updating works only with pending shared state,
+-- `KeyAlreadyPresent` error is produced. The updating works only with pending shared state,
+--
 -- When an active shared state is used `WalletAlreadyActive` error is triggered.
+--
 -- Updating the key for delegation script can be successful only if delegation script is
 -- present. Otherwise, `NoDelegationTemplate` error is triggered.
 addCosignerAccXPub
@@ -321,23 +324,21 @@ addCosignerAccXPub
 addCosignerAccXPub accXPub cosigner cred st = case fields st of
     ReadyFields _ ->
         Left WalletAlreadyActive
-    PendingFields (SharedStatePending _ pT dTM _) ->
-        if (cred == Delegation && isNothing dTM) then
-            Left NoDelegationTemplate
-        else if (cred == Payment && isCosignerMissing pT) then
-            Left $ NoSuchCosigner cosigner Payment
-        else if (cred == Delegation && isCosignerMissing (fromJust dTM)) then
-            Left $ NoSuchCosigner cosigner Delegation
-        else if (cred == Payment && isKeyAlreadyPresent pT) then
-            Left $ AlreadyPresentKey Payment
-        else if (cred == Delegation && isKeyAlreadyPresent (fromJust dTM)) then
-            Left $ AlreadyPresentKey Delegation
-        else
-            Right $ updateSharedState
-            (addCosignerAccXPubPending accXPub cosigner cred) st
+    PendingFields (SharedStatePending _ paymentTmpl delegTmpl _) ->
+        case (cred, paymentTmpl, delegTmpl) of
+            (Payment, pt, _)
+                | isCosignerMissing pt -> Left $ NoSuchCosigner cred cosigner
+                | isKeyAlreadyPresent pt -> Left $ KeyAlreadyPresent cred
+            (Delegation, _, Just dt)
+                | isCosignerMissing dt -> Left $ NoSuchCosigner cred cosigner
+                | isKeyAlreadyPresent dt -> Left $ KeyAlreadyPresent cred
+            (Delegation, _, Nothing) -> Left NoDelegationTemplate
+            _ -> Right $
+                updateSharedState st $
+                addCosignerAccXPubPending accXPub cosigner cred
   where
     isKeyAlreadyPresent (ScriptTemplate cosignerKeys _) =
-        getRawKey accXPub `elem` Map.elems cosignerKeys
+        getRawKey accXPub `F.elem` cosignerKeys
     isCosignerMissing (ScriptTemplate _ script') =
         cosigner `notElem` retrieveAllCosigners script'
 

@@ -79,9 +79,9 @@ module Test.Integration.Framework.TestData
     , errMsg403WrongIndex
     , errMsg403OutputTokenBundleSizeExceedsLimit
     , errMsg403OutputTokenQuantityExceedsLimit
-    , errMsg403NotPendingWallet
+    , errMsg403WalletAlreadyActive
     , errMsg403NoDelegationTemplate
-    , errMsg403AlreadyPresentKey
+    , errMsg403KeyAlreadyPresent
     , errMsg403NoSuchCosigner
     ) where
 
@@ -500,8 +500,8 @@ errMsg403OutputTokenQuantityExceedsLimit
         , "."
         ]
 
-errMsg403NotPendingWallet :: String
-errMsg403NotPendingWallet = mconcat
+errMsg403WalletAlreadyActive :: String
+errMsg403WalletAlreadyActive = mconcat
     [ "It looks like you've tried to add a cosigner key for a "
     , "shared wallet that is active. This can be done only for "
     , "pending shared wallet."
@@ -514,8 +514,8 @@ errMsg403NoDelegationTemplate = mconcat
     , "the wallet that does not define any delegation template."
     ]
 
-errMsg403AlreadyPresentKey :: Text -> String
-errMsg403AlreadyPresentKey cred = mconcat
+errMsg403KeyAlreadyPresent :: Text -> String
+errMsg403KeyAlreadyPresent cred = mconcat
     [ "It looks like you've tried to add a cosigner key to a shared wallet's "
     ,  unpack cred," template that is already ascribed to another cosigner. "
     , "Please make sure to assign a different key to each cosigner."
