@@ -51,7 +51,7 @@ pkgs: super: let
   } // pkgs.lib.optionalAttrs enableMaterialization {
     checkMaterialization = false;
     materialized = ./materialized + "/${name}";
-  } // args);
+  } // builtins.removeAttrs args ["exe"]);
 
   # A script for updating materialized files
   regenerateMaterialized = pkgs.writeShellScriptBin "regenerate-materialized-nix"
