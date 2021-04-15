@@ -10,7 +10,7 @@
   {
     flags = { development = false; };
     package = {
-      specVersion = "1.10";
+      specVersion = "2.2";
       identifier = { name = "cardano-crypto-wrapper"; version = "1.3.0"; };
       license = "Apache-2.0";
       copyright = "2019 IOHK";
@@ -71,8 +71,8 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/cardano-ledger-specs";
-      rev = "097890495cbb0e8b62106bcd090a5721c3f4b36f";
-      sha256 = "0i3y9n0rsyarvhfqzzzjccqnjgwb9fbmbs6b7vj40afjhimf5hcj";
+      rev = "2e0e7b625492e5e0182464247f4c26d6949ab6f7";
+      sha256 = "14affgsf0yl0y5mf9c5r9d9jvah2crrvcslq5cc2h4wii1agl07z";
       });
     postUnpack = "sourceRoot+=/byron/crypto; echo source root reset to \$sourceRoot";
     }

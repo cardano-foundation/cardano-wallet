@@ -26,7 +26,6 @@
     components = {
       "library" = {
         depends = [
-          (hsPkgs."array" or (errorHandler.buildDepError "array"))
           (hsPkgs."base" or (errorHandler.buildDepError "base"))
           (hsPkgs."bytestring" or (errorHandler.buildDepError "bytestring"))
           (hsPkgs."cardano-binary" or (errorHandler.buildDepError "cardano-binary"))
@@ -35,6 +34,7 @@
           (hsPkgs."cardano-slotting" or (errorHandler.buildDepError "cardano-slotting"))
           (hsPkgs."cborg" or (errorHandler.buildDepError "cborg"))
           (hsPkgs."containers" or (errorHandler.buildDepError "containers"))
+          (hsPkgs."data-default-class" or (errorHandler.buildDepError "data-default-class"))
           (hsPkgs."deepseq" or (errorHandler.buildDepError "deepseq"))
           (hsPkgs."groups" or (errorHandler.buildDepError "groups"))
           (hsPkgs."mtl" or (errorHandler.buildDepError "mtl"))
@@ -52,8 +52,8 @@
     } // {
     src = (pkgs.lib).mkDefault (pkgs.fetchgit {
       url = "https://github.com/input-output-hk/cardano-ledger-specs";
-      rev = "097890495cbb0e8b62106bcd090a5721c3f4b36f";
-      sha256 = "0i3y9n0rsyarvhfqzzzjccqnjgwb9fbmbs6b7vj40afjhimf5hcj";
+      rev = "2e0e7b625492e5e0182464247f4c26d6949ab6f7";
+      sha256 = "14affgsf0yl0y5mf9c5r9d9jvah2crrvcslq5cc2h4wii1agl07z";
       });
     postUnpack = "sourceRoot+=/shelley-ma/impl; echo source root reset to \$sourceRoot";
     }

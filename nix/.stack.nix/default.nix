@@ -2,35 +2,30 @@
   extras = hackage:
     {
       packages = {
-        "Cabal" = (((hackage.Cabal)."3.4.0.0").revisions).default;
         "OddWord" = (((hackage.OddWord)."1.0.2.0").revisions).default;
-        "async-timer" = (((hackage.async-timer)."0.2.0.0").revisions).default;
         "command" = (((hackage.command)."0.1.1").revisions).default;
         "markov-chain-usage-model" = (((hackage.markov-chain-usage-model)."0.0.0").revisions).default;
-        "parsec" = (((hackage.parsec)."3.1.14.0").revisions).default;
         "quickcheck-state-machine" = (((hackage.quickcheck-state-machine)."0.7.0").revisions).default;
         "base16-bytestring" = (((hackage.base16-bytestring)."1.0.1.0").revisions).default;
         "bech32" = (((hackage.bech32)."1.1.0").revisions).default;
         "bech32-th" = (((hackage.bech32-th)."1.0.2").revisions).default;
-        "containers" = (((hackage.containers)."0.5.11.0").revisions).default;
-        "dns" = (((hackage.dns)."3.0.4").revisions).default;
-        "micro-recursion-schemes" = (((hackage.micro-recursion-schemes)."5.0.2.2").revisions).default;
-        "network" = (((hackage.network)."3.1.2.1").revisions).default;
-        "text" = (((hackage.text)."1.2.4.0").revisions).default;
-        "binary" = (((hackage.binary)."0.8.7.0").revisions).default;
-        "moo" = (((hackage.moo)."1.2").revisions).default;
-        "canonical-json" = (((hackage.canonical-json)."0.6.0.0").revisions).default;
-        "partial-order" = (((hackage.partial-order)."0.2.0.0").revisions).default;
-        "nothunks" = (((hackage.nothunks)."0.1.2").revisions).default;
-        "transformers-except" = (((hackage.transformers-except)."0.1.1").revisions).default;
-        "gray-code" = (((hackage.gray-code)."0.3.1").revisions).default;
+        "Cabal" = (((hackage.Cabal)."3.4.0.0").revisions).default;
+        "parsec" = (((hackage.parsec)."3.1.14.0").revisions).default;
+        "async-timer" = (((hackage.async-timer)."0.2.0.0").revisions).default;
         "Unique" = (((hackage.Unique)."0.4.7.6").revisions).default;
-        "libsystemd-journal" = (((hackage.libsystemd-journal)."1.4.4").revisions).default;
         "Win32" = (((hackage.Win32)."2.6.2.0").revisions).default;
+        "canonical-json" = (((hackage.canonical-json)."0.6.0.0").revisions).default;
+        "gray-code" = (((hackage.gray-code)."0.3.1").revisions).default;
+        "ip" = (((hackage.ip)."1.5.1").revisions).default;
+        "libsystemd-journal" = (((hackage.libsystemd-journal)."1.4.4").revisions).default;
+        "micro-recursion-schemes" = (((hackage.micro-recursion-schemes)."5.0.2.2").revisions).default;
+        "moo" = (((hackage.moo)."1.2").revisions).default;
+        "nothunks" = (((hackage.nothunks)."0.1.2").revisions).default;
+        "partial-order" = (((hackage.partial-order)."0.2.0.0").revisions).default;
         "regex-posix-clib" = (((hackage.regex-posix-clib)."2.7").revisions).default;
         "statistics-linreg" = (((hackage.statistics-linreg)."0.3").revisions).default;
         "streaming-binary" = (((hackage.streaming-binary)."0.2.2.0").revisions).default;
-        "ip" = (((hackage.ip)."1.5.1").revisions).default;
+        "transformers-except" = (((hackage.transformers-except)."0.1.1").revisions).default;
         cardano-wallet-core = ./cardano-wallet-core.nix;
         cardano-wallet-core-integration = ./cardano-wallet-core-integration.nix;
         cardano-wallet-cli = ./cardano-wallet-cli.nix;
@@ -42,7 +37,6 @@
         strict-non-empty-containers = ./strict-non-empty-containers.nix;
         cardano-addresses-cli = ./cardano-addresses-cli.nix;
         cardano-addresses = ./cardano-addresses.nix;
-        cardano-transactions = ./cardano-transactions.nix;
         cardano-binary = ./cardano-binary.nix;
         cardano-binary-test = ./cardano-binary-test.nix;
         cardano-crypto-class = ./cardano-crypto-class.nix;
@@ -54,8 +48,8 @@
         cardano-crypto-wrapper = ./cardano-crypto-wrapper.nix;
         cardano-crypto-test = ./cardano-crypto-test.nix;
         byron-spec-ledger = ./byron-spec-ledger.nix;
-        cardano-ledger = ./cardano-ledger.nix;
-        cardano-ledger-test = ./cardano-ledger-test.nix;
+        cardano-ledger-byron = ./cardano-ledger-byron.nix;
+        cardano-ledger-byron-test = ./cardano-ledger-byron-test.nix;
         small-steps = ./small-steps.nix;
         small-steps-test = ./small-steps-test.nix;
         shelley-spec-non-integral = ./shelley-spec-non-integral.nix;
@@ -99,7 +93,7 @@
         http-client = ./http-client.nix;
         };
       };
-  resolver = "lts-17.6";
+  resolver = "lts-17.9";
   modules = [
     ({ lib, ... }:
       {
