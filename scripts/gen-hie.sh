@@ -107,6 +107,9 @@ make_ghci() {
 :set -XNoImplicitPrelude
 :set -XTypeApplications -XDataKinds
 
+:set -package pretty-simple
+:set -interactive-print=Text.Pretty.Simple.pPrint
+
 import Prelude
 import System.Environment (setEnv, getEnv)
 import System.Directory (getCurrentDirectory)
