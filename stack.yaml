@@ -19,12 +19,9 @@ packages:
 allow-newer: true
 
 extra-deps:
-- Cabal-3.4.0.0
 - OddWord-1.0.2.0
-- async-timer-0.2.0.0
 - command-0.1.1
 - markov-chain-usage-model-0.0.0
-- parsec-3.1.14.0
 - quickcheck-state-machine-0.7.0
 
 # cardano-addresses-3.3.0
