@@ -42,9 +42,22 @@ custom-commands:
       {{jira}} sprint_base full | pandoc -f jira -t markdown
 
   - name: sprint
+    help: List issues in active sprint (table format)
+    script: |-
+      {{jira}} sprint_base table
+      echo
+      {{jira}} active-sprint
+
+  - name: sprint-list
     help: List issues in active sprint
     script: |-
       {{jira}} sprint_base list
+
+  - name: active-sprint
+    help: Show name of active sprint
+    script: |-
+      board_id=$({{jira}} req "/rest/agile/1.0/board?projectKeyOrId=$JIRA_PROJECT" --gjq 'values.0.id')
+      {{jira}} req "/rest/agile/1.0/board/$board_id/sprint?state=active" --gjq 'values.#[name%"*Week*"]' | jq -r '"Sprint:  \(.name)", "Start:   \(.startDate|sub("T.*"; ""))", "End:     \(.endDate|sub("T.*";""))"'
 
   - name: release-notes-bugs
     help: Produce unresolved issues list for cardano-wallet release notes
