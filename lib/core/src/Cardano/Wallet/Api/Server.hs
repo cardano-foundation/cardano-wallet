@@ -123,6 +123,7 @@ import Cardano.Wallet
     ( ErrAddCosignerKey (..)
     , ErrCannotJoin (..)
     , ErrCannotQuit (..)
+    , ErrConstructSharedWallet (..)
     , ErrCreateRandomAddress (..)
     , ErrDecodeSignedTx (..)
     , ErrDerivePublicKey (..)
@@ -315,6 +316,7 @@ import Cardano.Wallet.Primitive.AddressDiscovery.SharedState
     , SharedStatePending (..)
     , mkSharedStateFromAccountXPub
     , mkSharedStateFromRootXPrv
+    , walletCreationInvariant
     )
 import Cardano.Wallet.Primitive.CoinSelection.MA.RoundRobin
     ( SelectionError (..)
@@ -405,7 +407,7 @@ import Control.Arrow
 import Control.DeepSeq
     ( NFData )
 import Control.Monad
-    ( forM, forever, join, void, when, (>=>) )
+    ( forM, forever, join, unless, void, when, (>=>) )
 import Control.Monad.IO.Class
     ( MonadIO, liftIO )
 import Control.Monad.Trans.Except
@@ -872,6 +874,8 @@ postSharedWalletFromRootXPrv
     -> ApiSharedWalletPostDataFromMnemonics
     -> Handler ApiSharedWallet
 postSharedWalletFromRootXPrv ctx generateKey body = do
+    unless (walletCreationInvariant accXPub pTemplate dTemplateM) $
+        liftHandler $ throwE ErrConstructSharedWalletMissingKey
     let state = mkSharedStateFromRootXPrv (rootXPrv, pwd) accIx g pTemplate dTemplateM
     void $ liftHandler $ createWalletWorker @_ @s @k ctx wid
         (\wrk -> W.createWallet  @(WorkerCtx ctx) @s @k wrk wid wName state)
@@ -890,6 +894,7 @@ postSharedWalletFromRootXPrv ctx generateKey body = do
     pTemplate = body ^. #paymentScriptTemplate
     dTemplateM = body ^. #delegationScriptTemplate
     wName = getApiT (body ^. #name)
+    accXPub = publicKey $ deriveAccountPrivateKey pwd rootXPrv accIx
 
 postSharedWalletFromAccountXPub
     :: forall ctx s k n.
@@ -908,6 +913,8 @@ postSharedWalletFromAccountXPub
     -> ApiSharedWalletPostDataFromAccountPubX
     -> Handler ApiSharedWallet
 postSharedWalletFromAccountXPub ctx liftKey body = do
+    unless (walletCreationInvariant (liftKey accXPub) pTemplate dTemplateM) $
+        liftHandler $ throwE ErrConstructSharedWalletMissingKey
     let state = mkSharedStateFromAccountXPub (liftKey accXPub) accIx g pTemplate dTemplateM
     void $ liftHandler $ createWalletWorker @_ @s @k ctx wid
         (\wrk -> W.createWallet  @(WorkerCtx ctx) @s @k wrk wid wName state)
@@ -3086,6 +3093,15 @@ instance IsServerError ErrAddCosignerKey where
             apiError err403 SharedWalletCannotUpdateKey $ mconcat
                 [ "It looks like you've tried to update the key of a cosigner having "
                 , "the shared wallet's account key. Only other cosigner key(s) can be updated."
+                ]
+
+instance IsServerError ErrConstructSharedWallet where
+    toServerError = \case
+        ErrConstructSharedWalletMissingKey ->
+            apiError err403 SharedWalletCreateNotAllowed $ mconcat
+                [ "It looks like you've tried to create a shared wallet "
+                , "with a missing account key in the script template(s). This cannot be done "
+                , "as the wallet's account key must be always present for each script template."
                 ]
 
 instance IsServerError (ErrInvalidDerivationIndex 'Soft level) where

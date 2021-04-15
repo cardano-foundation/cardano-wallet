@@ -33,6 +33,7 @@ module Cardano.Wallet.Primitive.AddressDiscovery.SharedState
     , purposeCIP1854
     , isShared
     , retrieveAllCosigners
+    , walletCreationInvariant
     ) where
 
 import Prelude
@@ -276,6 +277,26 @@ sharedStateFromPending (SharedStatePending accXPub pT dT g)
         mkAddressPool @n (ParentContextMultisigScript accXPub pT dT) g []
     | otherwise = Nothing
 
+accountXPubCondition
+    :: WalletKey k
+    => k 'AccountK XPub
+    -> ScriptTemplate
+    -> Bool
+accountXPubCondition accXPub (ScriptTemplate cosignerKeys _) =
+    getRawKey accXPub `F.elem` cosignerKeys
+
+walletCreationInvariant
+    :: WalletKey k
+    => k 'AccountK XPub
+    -> ScriptTemplate
+    -> Maybe ScriptTemplate
+    -> Bool
+walletCreationInvariant accXPub pTemplate dTemplate =
+    isValid pTemplate && maybe True isValid dTemplate
+  where
+    isValid template' =
+        accountXPubCondition accXPub template'
+
 templatesComplete
     :: WalletKey k
     => k 'AccountK XPub
@@ -285,9 +306,9 @@ templatesComplete
 templatesComplete accXPub pTemplate dTemplate =
     isValid pTemplate && maybe True isValid dTemplate
   where
-    isValid template'@(ScriptTemplate cosignerKeys _) =
+    isValid template' =
         isRight (validateScriptTemplate RequiredValidation template')
-        && (getRawKey accXPub `F.elem` cosignerKeys)
+        && (accountXPubCondition accXPub template')
 
 -- | Possible errors from adding a co-signer key to the shared wallet state.
 data ErrAddCosigner

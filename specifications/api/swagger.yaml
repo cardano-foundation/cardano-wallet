@@ -2989,6 +2989,19 @@ x-errSharedWalletCannotUpdateKey: &errSharedWalletCannotUpdateKey
       type: string
       enum: ['shared_wallet_cannot_update_key']
 
+x-errSharedWalletCreateNotAllowed: &errSharedWalletCreateNotAllowed
+  <<: *responsesErr
+  title: shared_wallet_create_not_allowed
+  properties:
+    message:
+      type: string
+      description: |
+        Returned when a user tries to create a shared wallet with missing wallet's
+        account key in all the script templates.
+    code:
+      type: string
+      enum: ['shared_wallet_create_not_allowed']
+
 # TODO: Map this error to the place it belongs.
 x-errNetworkUnreachable: &errNetworkUnreachable
   <<: *responsesErr
@@ -3485,6 +3498,13 @@ x-responsesPostSharedWallet: &responsesPostSharedWallet
   <<: *responsesErr406
   <<: *responsesErr409WalletAlreadyExists
   <<: *responsesErr415UnsupportedMediaType
+  403:
+    description: Forbidden
+    content:
+      application/json:
+        schema:
+          oneOf:
+            - <<: *errSharedWalletCreateNotAllowed
   201:
     description: Created
     content:
@@ -5112,7 +5132,7 @@ paths:
       tags: ["Shared Wallets"]
       summary: Create
       description: |
-        <p align="right">status: <strong>unstable</strong></p>
+        <p align="right">status: <strong>stable</strong></p>
 
         Create a shared wallet from an account public key, its index and script templates.
       requestBody:

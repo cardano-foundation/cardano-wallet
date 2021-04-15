@@ -1163,6 +1163,7 @@ data ApiErrorCode
     | SharedWalletKeyAlreadyExists
     | SharedWalletNoSuchCosigner
     | SharedWalletCannotUpdateKey
+    | SharedWalletCreateNotAllowed
     deriving (Eq, Generic, Show, Data, Typeable)
     deriving anyclass NFData
 

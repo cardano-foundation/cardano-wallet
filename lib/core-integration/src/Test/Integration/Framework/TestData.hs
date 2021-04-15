@@ -84,6 +84,7 @@ module Test.Integration.Framework.TestData
     , errMsg403KeyAlreadyPresent
     , errMsg403NoSuchCosigner
     , errMsg403CannotUpdateThisCosigner
+    , errMsg403CreateIllegal
     ) where
 
 import Prelude
@@ -533,4 +534,11 @@ errMsg403CannotUpdateThisCosigner :: String
 errMsg403CannotUpdateThisCosigner = mconcat
     [ "It looks like you've tried to update the key of a cosigner having "
     , "the shared wallet's account key. Only other cosigner key(s) can be updated."
+    ]
+
+errMsg403CreateIllegal :: String
+errMsg403CreateIllegal = mconcat
+    [ "It looks like you've tried to create a shared wallet "
+    , "with a missing account key in the script template(s). This cannot be done "
+    , "as the wallet's account key must be always present for each script template."
     ]

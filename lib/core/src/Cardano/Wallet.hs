@@ -92,6 +92,7 @@ module Cardano.Wallet
     -- * Shared Wallet
     , updateCosigner
     , ErrAddCosignerKey (..)
+    , ErrConstructSharedWallet (..)
 
     -- ** Address
     , createChangeAddress
@@ -2150,6 +2151,11 @@ data ErrAddCosignerKey
         -- ^ The shared wallet doesn't exist?
     | ErrAddCosignerKey ErrAddCosigner
         -- ^ Error adding this co-signer to the shared wallet.
+    deriving (Eq, Show)
+
+data ErrConstructSharedWallet
+    = ErrConstructSharedWalletMissingKey
+        -- ^ The shared wallet' script template doesn't have the wallet's account public key
     deriving (Eq, Show)
 
 data ErrReadAccountPublicKey
