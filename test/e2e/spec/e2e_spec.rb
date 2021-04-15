@@ -264,7 +264,7 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
 
           join = pools.join(SPID, @wid, PASS)
           expect(join).to have_http 404
-          expect(join).to include "no_such_pool"
+          expect(join.to_s).to include "no_such_pool"
         end
 
         it "I could check delegation fees - if I could cover fee" do
@@ -273,7 +273,7 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
           pools = SHELLEY.stake_pools
           fees = pools.delegation_fees(id)
           expect(fees).to have_http 403
-          expect(fees).to include "not_enough_money"
+          expect(fees.to_s).to include "not_enough_money"
         end
 
         it "I could join Stake Pool - if I had enough to cover fee" do
@@ -283,7 +283,7 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
 
           join = pools.join(pool_id, id, PASS)
           expect(join).to have_http 403
-          expect(join).to include "not_enough_money"
+          expect(join.to_s).to include "not_enough_money"
         end
 
         it "Can list stake pools only when stake is provided" do
@@ -291,7 +291,7 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
           expect(pools.list({stake: 1000})).to have_http 200
 
           expect(pools.list).to have_http 400
-          expect(pools.list).to include "query_param_missing"
+          expect(pools.list.to_s).to include "query_param_missing"
         end
 
         it "Can join and quit Stake Pool" do
@@ -321,7 +321,7 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
           join = pools.join(pool_id, @target_id_pools, PASS)
 
           expect(join).to have_http 202
-          expect(join).to include "status"
+          expect(join.to_s).to include "status"
 
           join_tx_id = join['id']
           eventually "Checking if join tx id (#{join_tx_id}) is in_ledger" do
@@ -334,7 +334,7 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
           quit = pools.quit(@target_id_pools, PASS)
 
           expect(quit).to have_http 202
-          expect(quit).to include "status"
+          expect(quit.to_s).to include "status"
 
           quit_tx_id = quit['id']
           eventually "Checking if quit tx id (#{quit_tx_id}) is in_ledger" do
@@ -397,7 +397,7 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
 
           rnd = SHELLEY.coin_selections.random_deleg wid, action_join
           expect(rnd).to have_http 403
-          expect(rnd).to include "not_enough_money"
+          expect(rnd.to_s).to include "not_enough_money"
         end
 
         it "I could trigger random coin selection delegation action - if I known pool id" do
@@ -408,11 +408,11 @@ RSpec.describe "Cardano Wallet E2E tests", :e2e => true do
 
           rnd = SHELLEY.coin_selections.random_deleg wid, action_join
           expect(rnd).to have_http 404
-          expect(rnd).to include "no_such_pool"
+          expect(rnd.to_s).to include "no_such_pool"
 
           rnd = SHELLEY.coin_selections.random_deleg wid, action_quit
           expect(rnd).to have_http 403
-          expect(rnd).to include "not_delegating_to"
+          expect(rnd.to_s).to include "not_delegating_to"
         end
 
       end

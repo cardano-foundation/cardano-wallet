@@ -1,6 +1,6 @@
 source 'https://rubygems.org'
 
-gem 'cardano_wallet', '~> 0.3.2'
-gem 'bip_mnemonic', '~> 0.0.4'
-gem 'rake', '~> 12.3'
-gem 'rspec'
+gem 'cardano_wallet', '0.3.2'
+gem 'bip_mnemonic', '0.0.4'
+gem 'rake', '12.3'
+gem 'rspec', '3.10.0'

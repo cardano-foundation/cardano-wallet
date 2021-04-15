@@ -13,20 +13,85 @@ project: ADP
 custom-commands:
   - name: bugs
     help: List unresolved bug tickets
+    options:
+      - name: query
+        short: q
+    args:
+      - name: terms
+        required: false
     script: |-
-      {{jira}} list --template table --query "type = Bug and resolution = Unresolved and project=$JIRA_PROJECT and component = cardano-wallet ORDER BY priority DESC, updated DESC, rank ASC, created"
+      set -x
+      {{jira}} list --template table --query "type = Bug and resolution = Unresolved and project=$JIRA_PROJECT and component = cardano-wallet{{ with args.terms }} and text ~ \"{{ args.terms }}\"{{ end }}{{ with options.query }} and {{ options.query }}{{ end }} ORDER BY priority DESC, updated DESC, rank ASC, created"
 
   - name: mine
     help: Display unresolved issues assigned to me
     script: |-
       {{jira}} list --template table --query "resolution = Unresolved and assignee=currentuser() and project = $JIRA_PROJECT ORDER BY priority asc, created"
 
-  - name: sprint
-    help: Display issues for active sprint
+  - name: sprint_base
+    hidden: true
+    args:
+      - name: template
+        required: true
     script: |-
-      {{jira}} list --template table --query "sprint in openSprints() and type != epic and resolution = Unresolved and project=$JIRA_PROJECT ORDER BY rank asc, created"
+      {{jira}} list --template sprint-{{ args.template}} --query "project=$JIRA_PROJECT AND sprint IN openSprints() AND type != epic ORDER BY rank ASC, created" --queryfields=issuetype,summary,status,assignee,priority,customfield_12502,description,customfield_10023,customfield_10021
+
+  - name: sprint-full
+    help: Markdown dump of issues in active sprint
+    script: |-
+      {{jira}} sprint_base full | pandoc -f jira -t markdown
+
+  - name: sprint
+    help: List issues in active sprint (table format)
+    script: |-
+      {{jira}} sprint_base table
+      echo
+      {{jira}} active-sprint
+
+  - name: sprint-list
+    help: List issues in active sprint
+    script: |-
+      {{jira}} sprint_base list
+
+  - name: active-sprint
+    help: Show name of active sprint
+    script: |-
+      board_id=$({{jira}} req "/rest/agile/1.0/board?projectKeyOrId=$JIRA_PROJECT" --gjq 'values.0.id')
+      {{jira}} req "/rest/agile/1.0/board/$board_id/sprint?state=active" --gjq 'values.#[name%"*Week*"]' | jq -r '"Sprint:  \(.name)", "Start:   \(.startDate|sub("T.*"; ""))", "End:     \(.endDate|sub("T.*";""))"'
 
   - name: release-notes-bugs
     help: Produce unresolved issues list for cardano-wallet release notes
+    options:
+      - name: minPriority
+        short: p
+        help: Minimum priority for query
+      - name: showPriority
+        type: bool
+        help: Also show priority and severity in the list
+        default: false
+      - name: minSeverity
+        help: Minimum priority for query
+        default: "(1, 2)"
+        hidden: true
     script: |-
-      {{jira}} list --template release-notes-bugs --query "type = Bug and resolution = Unresolved and project=$JIRA_PROJECT and component = cardano-wallet ORDER BY priority DESC, created"
+      {{ if options.showPriority }}showPriority=1{{ end }} {{jira}} list --template release-notes-bugs --query "project=$JIRA_PROJECT and component = cardano-wallet and type = Bug and resolution = Unresolved{{ if options.minPriority }} and priority >= {{options.minPriority}}{{end}}{{ if options.minSeverity }} and 'Severity / Probability Score' in {{options.minSeverity}}{{end}} ORDER BY priority DESC, created" --queryfields=priority,customfield_12502
+
+  - name: assigned
+    help: What tickets we are assigned to
+    script: |-
+      {{jira}} list --template debug --query "project=$JIRA_PROJECT and statusCategory = 'In Progress' and assignee in ('rodney.lorrimar@iohk.io', 'pawel.jakubas@iohk.io', 'johannes.lund@iohk.io', 'jonathan.knowles@iohk.io', 'matthias.benkort@iohk.io', 'alex.apeldoorn@iohk.io', 'sergiy.savatyeyev@iohk.io', 'samuel.evans-powell@iohk.io') ORDER BY assignee ASC, updated DESC, rank ASC, created" | jq -r '[.issues[]|{key, summary: .fields.summary, type: .fields.issuetype.name, assignee: .fields.assignee.displayName, status: .fields.status.name}]|group_by(.assignee)[]|{assignee: .[0].assignee, issues: del(.[].assignee)}|[.assignee, (.issues[]|"- \(.key) (\(.type)) \(.summary) [\(.status)]"), ""]|join("\n")'
+
+  - name: grab
+    help: Download all attachments of a ticket
+    args:
+      - name: ISSUE
+        required: true
+        help: Jira ticket key
+        type: STRING
+    options:
+      - name: overwrite
+        help: Overwrite existing files
+        type: BOOL
+        default: false
+    script: |-
+      {{jira}} attach list --template debug {{args.ISSUE}} | jq -r '.[]|{{ if not options.overwrite }}"test -s \(.filename|@sh) && echo '"'"'\(.filename) already exists'"'"' || " + {{end}}(["{{jira}}", "attach", "get", .id]|@sh)' | sh
