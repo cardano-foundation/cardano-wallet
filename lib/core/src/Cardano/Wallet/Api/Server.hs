@@ -2607,9 +2607,10 @@ registerWorker ctx before coworker wid =
         , workerMain = \ctx' _ -> race_
             (unsafeRunExceptT $ W.restoreWallet ctx' wid)
             (race_
-                (forever $ W.runLocalTxSubmissionPool ctx' wid)
+                (forever $ W.runLocalTxSubmissionPool txCfg ctx' wid)
                 (coworker ctx' wid))
         }
+    txCfg = W.defaultLocalTxSubmissionConfig
 
 -- | Something to pass as the coworker action to 'newApiLayer', which does
 -- nothing, and never exits.

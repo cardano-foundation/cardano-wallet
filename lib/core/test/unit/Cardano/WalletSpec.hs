@@ -30,8 +30,9 @@ import Cardano.Wallet
     , ErrSubmitTx (..)
     , ErrUpdatePassphrase (..)
     , ErrWithRootKey (..)
+    , LocalTxSubmissionConfig (..)
     , WalletLayer (..)
-    , runLocalTxSubmissionPool'
+    , runLocalTxSubmissionPool
     , throttle
     )
 import Cardano.Wallet.DB
@@ -775,18 +776,21 @@ data TxRetryTestCtx = TxRetryTestCtx
     , ctxWalletId :: WalletId
     } deriving (Generic)
 
+-- | Context of 'TxRetryTestM'.
 data TxRetryTestState = TxRetryTestState
     { testCase :: TxRetryTest
-    , timeVar :: MVar Time
     , timeStep :: DiffTime
+    , timeVar :: MVar Time
     } deriving (Generic)
 
+-- | Collected info from test execution.
 data TxRetryTestResult a = TxRetryTestResult
     { resLogs :: [W.WalletLog]
     , resAction :: a
     , resSubmittedTxs :: [SealedTx]
     } deriving (Generic, Show, Eq)
 
+-- | The test runs in this monad so that time can be mocked out.
 newtype TxRetryTestM a = TxRetryTestM
     { unTxRetryTestM :: ReaderT TxRetryTestState IO a
     } deriving (Functor, Applicative, Monad, MonadIO, MonadFail)
@@ -806,16 +810,20 @@ instance MonadTime TxRetryTestM where
 
 prop_localTxSubmission :: TxRetryTest -> Property
 prop_localTxSubmission tc = monadicIO $ do
-    timeVar <- newMVar (Time 0)
-    let st = TxRetryTestState tc timeVar 2
+    st <- TxRetryTestState tc 2 <$> newMVar (Time 0)
     res <- run $ runTest st $ \ctx@(TxRetryTestCtx DBLayer{..} _ _ wid) -> do
+        -- Test setup
         atomically $ do
             let txHistory = getTxHistory (retryTestTxHistory tc)
             unsafeRunExceptT $ putTxHistory (PrimaryKey wid) txHistory
-            forM_ (retryTestPool tc) $ \(LocalTxSubmissionStatus txid tx _ sl) ->
-                unsafeRunExceptT $ putLocalTxSubmission (PrimaryKey wid) txid tx sl
+            forM_ (retryTestPool tc) $ \(LocalTxSubmissionStatus i tx _ sl) ->
+                unsafeRunExceptT $ putLocalTxSubmission (PrimaryKey wid) i tx sl
 
-        runLocalTxSubmissionPool' @_ @DummyState @ShelleyKey (timeStep st) 10 ctx wid
+        -- Run test
+        let cfg = LocalTxSubmissionConfig (timeStep st) 10
+        runLocalTxSubmissionPool @_ @DummyState @ShelleyKey cfg ctx wid
+
+        -- Gather state
         atomically $ readLocalTxSubmissionPending (PrimaryKey wid)
 
     monitor $ counterexample $ unlines $
@@ -826,7 +834,8 @@ prop_localTxSubmission tc = monadicIO $ do
 
     -- props:
     --  1. pending transactions in pool are retried
-    assert (all (`elem` (submittedTx <$> retryTestPool tc)) (resSubmittedTxs res))
+    let inPool = (`elem` (submittedTx <$> retryTestPool tc))
+    assert (all inPool (resSubmittedTxs res))
 
     --  2. non-pending transactions not retried
     let mkSealed = SealedTx . getHash . view #txId
@@ -875,6 +884,10 @@ prop_localTxSubmission tc = monadicIO $ do
 
     stash :: MVar [a] -> a -> TxRetryTestM ()
     stash var x = modifyMVar_ var (\xs -> pure (x:xs))
+
+{-------------------------------------------------------------------------------
+                            'throttle' Util Function
+-------------------------------------------------------------------------------}
 
 data ThrottleTest = ThrottleTest
     { interval :: DiffTime

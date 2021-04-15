@@ -142,8 +142,9 @@ module Cardano.Wallet
     , getTransaction
     , submitExternalTx
     , submitTx
+    , LocalTxSubmissionConfig (..)
+    , defaultLocalTxSubmissionConfig
     , runLocalTxSubmissionPool
-    , runLocalTxSubmissionPool'
     , ErrMkTx (..)
     , ErrSubmitTx (..)
     , ErrSubmitExternalTx (..)
@@ -1668,26 +1669,37 @@ forgetTx ctx wid tid = db & \DBLayer{..} -> do
 -- | Given a LocalTxSubmission record, calculate the slot when it should be
 -- retried next.
 --
--- The current implementation is really basic. Retry about once 10 blocks.
+-- The current implementation is really basic. Retry about once _n_ blocks.
 scheduleLocalTxSubmission
-    :: Word64
+    :: Word64  -- ^ Resubmission interval in terms of expected blocks.
     -> SlottingParameters
     -> LocalTxSubmissionStatus tx
     -> SlotNo
-scheduleLocalTxSubmission numBlocks sp st =
-    (st ^. #latestSubmission) + numSlots
+scheduleLocalTxSubmission numBlocks sp st = (st ^. #latestSubmission) + numSlots
   where
     numSlots = SlotNo (ceiling (fromIntegral numBlocks / f))
     ActiveSlotCoefficient f = getActiveSlotCoefficient sp
 
+-- | Parameters for 'runLocalTxSubmissionPool'
+data LocalTxSubmissionConfig = LocalTxSubmissionConfig
+    { rateLimit :: DiffTime
+        -- ^ Minimum time between checks of pending transactions
+    , blockInterval :: Word64
+        -- ^ Resubmission interval, in terms of expected blocks.
+    } deriving (Generic, Show, Eq)
+
+-- | The current default is to resubmit any pending transaction about once every
+-- 10 blocks.
+--
+-- The default rate limit for checking the pending list is 1000ms.
+defaultLocalTxSubmissionConfig :: LocalTxSubmissionConfig
+defaultLocalTxSubmissionConfig = LocalTxSubmissionConfig 1 10
+
 -- | Continuous process which monitors the chain tip and retries submission of
 -- pending transactions as the chain lengthens.
 --
--- The current default is to resubmit any pending transaction about every 10
--- blocks.
---
 -- Regardless of the frequency of chain updates, this function won't re-query
--- the database faster than every 1000ms.
+-- the database faster than the configured 'rateLimit'.
 --
 -- This only exits if the network layer 'watchNodeTip' function exits.
 runLocalTxSubmissionPool
@@ -1698,26 +1710,11 @@ runLocalTxSubmissionPool
         , HasNetworkLayer m ctx
         , HasDBLayer m s k ctx
         )
-    => ctx
-    -> WalletId
-    -> m ()
-runLocalTxSubmissionPool = runLocalTxSubmissionPool' @ctx @s @k @m 1 10
-
--- | A more configurable (i.e. testable) version of 'runLocalTxSubmissionPool''.
-runLocalTxSubmissionPool'
-    :: forall ctx s k m.
-        ( MonadUnliftIO m
-        , MonadMonotonicTime m
-        , HasLogger WalletLog ctx
-        , HasNetworkLayer m ctx
-        , HasDBLayer m s k ctx
-        )
-    => DiffTime -- ^ Minimum time between updates
-    -> Word64 -- ^ Retry approximately every so many blocks
+    => LocalTxSubmissionConfig
     -> ctx
     -> WalletId
     -> m ()
-runLocalTxSubmissionPool' rateLimit blockInterval ctx wid = db & \DBLayer{..} -> do
+runLocalTxSubmissionPool cfg ctx wid = db & \DBLayer{..} -> do
     submitPending <- rateLimited $ \bh -> bracketTracer trBracket $ do
         sp <- currentSlottingParameters nw
         pending <- atomically $ readLocalTxSubmissionPending (PrimaryKey wid)
@@ -1736,9 +1733,10 @@ runLocalTxSubmissionPool' rateLimit blockInterval ctx wid = db & \DBLayer{..} ->
     nw = ctx ^. networkLayer @m
     db = ctx ^. dbLayer @m @s @k
 
-    isScheduled sp now = (<= now) . scheduleLocalTxSubmission blockInterval sp
+    isScheduled sp now =
+        (<= now) . scheduleLocalTxSubmission (blockInterval cfg) sp
 
-    rateLimited = throttle rateLimit . const
+    rateLimited = throttle (rateLimit cfg) . const
 
     tr = unliftIOTracer $ contramap MsgTxSubmit $ ctx ^. logger @WalletLog
     trBracket = contramap MsgProcessPendingPool tr
