@@ -194,7 +194,6 @@ let
         packages.cardano-cli.components.exes.cardano-cli.postInstall = optparseCompletionPostInstall + libSodiumPostInstall + setGitRevPostInstall;
         packages.cardano-node.components.exes.cardano-node.postInstall = optparseCompletionPostInstall + libSodiumPostInstall + setGitRevPostInstall;
         packages.cardano-addresses-cli.components.exes.cardano-address.postInstall = optparseCompletionPostInstall;
-        packages.cardano-transactions.components.exes.cardano-tx.postInstall = optparseCompletionPostInstall;
         packages.bech32.components.exes.bech32.postInstall = optparseCompletionPostInstall;
       })
 
@@ -271,7 +270,6 @@ let
       {
         packages.cardano-addresses.cabal-generator = lib.mkForce null;
         packages.cardano-addresses-cli.cabal-generator = lib.mkForce null;
-        packages.cardano-transactions.cabal-generator = lib.mkForce null;
       }
 
       # Allow installation of a newer version of Win32 than what is

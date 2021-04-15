@@ -213,7 +213,6 @@ let
       "cardano-address"
       "cardano-cli"
       "cardano-node"
-      "cardano-tx"
     ];
   };
 

@@ -31,10 +31,6 @@ extra-deps:
     - command-line
     - core
 
-# cardano-transactions master branch
-#- git: https://github.com/input-output-hk/cardano-transactions
-#  commit: efc3914f950438b70ebe20919bf6c0ecf93b3bbc
-
 flags:
   # Avoid a system library which causes difficulty with cross-compilation
   zip:
