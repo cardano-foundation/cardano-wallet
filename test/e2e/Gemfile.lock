@@ -12,7 +12,7 @@ GEM
       mime-types-data (~> 3.2015)
     mime-types-data (3.2021.0225)
     multi_xml (0.6.0)
-    rake (12.3.0)
+    rake (12.3.3)
     rspec (3.10.0)
       rspec-core (~> 3.10.0)
       rspec-expectations (~> 3.10.0)
@@ -33,7 +33,7 @@ PLATFORMS
 DEPENDENCIES
   bip_mnemonic (= 0.0.4)
   cardano_wallet (= 0.3.2)
-  rake (= 12.3)
+  rake (= 12.3.3)
   rspec (= 3.10.0)
 
 BUNDLED WITH
