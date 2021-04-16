@@ -155,6 +155,8 @@ module Test.Integration.Framework.DSL
     , verifyMetadataSource
     , triggerMaintenanceAction
     , verifyMaintenanceAction
+    , genXPubs
+    , accPubKeyFromMnemonics
 
     -- * Delegation helpers
     , notDelegating
@@ -192,6 +194,8 @@ module Test.Integration.Framework.DSL
     , ResourceT
     ) where
 
+import Cardano.Address.Derivation
+    ( XPub, xpubFromBytes )
 import Cardano.CLI
     ( Port (..) )
 import Cardano.Mnemonic
@@ -250,6 +254,7 @@ import Cardano.Wallet.Primitive.AddressDerivation
     , PersistPublicKey (..)
     , Role (..)
     , WalletKey (..)
+    , fromHex
     , hex
     , preparePassphrase
     )
@@ -297,7 +302,7 @@ import Cardano.Wallet.Primitive.Types.UTxO
 import Control.Arrow
     ( second )
 import Control.Monad
-    ( forM_, join, unless, void )
+    ( forM_, join, replicateM, unless, void, (>=>) )
 import Control.Monad.IO.Unlift
     ( MonadIO, MonadUnliftIO (..), liftIO )
 import Control.Monad.Trans.Resource
@@ -310,6 +315,10 @@ import Data.Aeson
     ( FromJSON, ToJSON, Value, (.=) )
 import Data.Aeson.QQ
     ( aesonQQ )
+import Data.ByteString
+    ( ByteString )
+import Data.Either.Extra
+    ( eitherToMaybe )
 import Data.Foldable
     ( toList )
 import Data.Function
@@ -810,6 +819,38 @@ genMnemonics'
    => m [Text]
 genMnemonics' =
     liftIO $ mnemonicToText . entropyToMnemonic @mw <$> genEntropy
+
+accPubKeyFromMnemonics
+    :: SomeMnemonic
+    -> Maybe SomeMnemonic
+    -> Word32
+    -> Passphrase "encryption"
+    -> Text
+accPubKeyFromMnemonics mnemonic1 mnemonic2 ix passphrase =
+    T.decodeUtf8 $ serializeXPub $ publicKey $
+        deriveAccountPrivateKey passphrase rootXPrv (Index $ 2147483648 + ix)
+  where
+    rootXPrv = Shelley.generateKeyFromSeed (mnemonic1, mnemonic2) passphrase
+
+genXPubs :: Int -> IO [(XPub,Text)]
+genXPubs num =
+    replicateM num genXPub
+  where
+    genXPub = do
+        m15txt <- genMnemonics M15
+        m12txt <- genMnemonics M12
+        let (Right m15) = mkSomeMnemonic @'[ 15 ] m15txt
+        let (Right m12) = mkSomeMnemonic @'[ 12 ] m12txt
+        let accXPubTxt = accPubKeyFromMnemonics m15 (Just m12) 10 mempty
+        let (Just accXPub) = xpubFromText accXPubTxt
+        return (accXPub, accXPubTxt)
+
+    xpubFromText :: Text -> Maybe XPub
+    xpubFromText = fmap eitherToMaybe fromHexText >=> xpubFromBytes
+
+    fromHexText :: Text -> Either String ByteString
+    fromHexText = fromHex . T.encodeUtf8
+
 
 getTxId :: (ApiTransaction n) -> String
 getTxId tx = T.unpack $ toUrlPiece $ ApiTxId (tx ^. #id)
