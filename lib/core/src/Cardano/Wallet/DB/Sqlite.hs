@@ -1535,10 +1535,7 @@ newDBLayerWith cacheBehavior tr ti SqliteContext{runQuery} = do
         , updatePendingTxForExpiry = \(PrimaryKey wid) tip -> ExceptT $ do
             selectWallet wid >>= \case
                 Nothing -> pure $ Left $ ErrNoSuchWallet wid
-                Just _ -> do
-                  txIds <- updatePendingTxForExpiryQuery wid tip
-                  deleteLocalTxSubmission wid txIds
-                  pure $ Right ()
+                Just _ -> Right <$> updatePendingTxForExpiryQuery wid tip
 
         , removePendingOrExpiredTx = \(PrimaryKey wid) tid -> ExceptT $ do
             let errNoSuchWallet =
@@ -1553,7 +1550,6 @@ newDBLayerWith cacheBehavior tr ti SqliteContext{runQuery} = do
                     Nothing -> pure errNoSuchTransaction
                     Just _ -> do
                         count <- deletePendingOrExpiredTx wid tid
-                        deleteLocalTxSubmission wid [TxId tid]
                         pure $ if count == 0
                             then errNoMorePending
                             else Right ()
@@ -2316,29 +2312,27 @@ pruneLocalTxSubmission wid (Quantity epochStability) tip =
     stableHeight = getQuantity (tip ^. #blockHeight) - epochStability
 
 -- | Mutates all pending transaction entries which have exceeded their TTL so
--- that their status becomes expired. Transaction expiry is not something which
--- can be rolled back.
+-- that their status becomes expired. Then it removes these transactions from
+-- the local tx submission pool.
+--
+-- Transaction expiry is not something which can be rolled back.
 updatePendingTxForExpiryQuery
     :: W.WalletId
     -> W.SlotNo
-    -> SqlPersistT IO [TxId]
+    -> SqlPersistT IO ()
 updatePendingTxForExpiryQuery wid tip = do
     txIds <- fmap (txMetaTxId . entityVal) <$> selectList isExpired []
     updateWhere isExpired [TxMetaStatus =. W.Expired]
-    pure txIds
+    -- Remove these transactions from the wallet's local submission pool.
+    dbChunkedFor @LocalTxSubmission (\batch -> deleteWhere
+        [ LocalTxSubmissionWalletId ==. wid
+        , LocalTxSubmissionTxId <-. batch
+        ]) txIds
   where
     isExpired =
         [ TxMetaWalletId ==. wid
         , TxMetaStatus ==. W.Pending
         , TxMetaSlotExpires <=. Just tip ]
-
--- | Remove transactions from the wallet's local submission pool.
-deleteLocalTxSubmission :: W.WalletId -> [TxId] -> SqlPersistT IO ()
-deleteLocalTxSubmission wid = dbChunkedFor @LocalTxSubmission $ \txIds ->
-    deleteWhere
-        [ LocalTxSubmissionWalletId ==. wid
-        , LocalTxSubmissionTxId <-. txIds
-        ]
 
 selectPrivateKey
     :: (MonadIO m, PersistPrivateKey (k 'RootK))
