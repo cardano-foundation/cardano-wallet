@@ -51,12 +51,7 @@ import Cardano.DB.Sqlite
 import Cardano.Mnemonic
     ( SomeMnemonic (..) )
 import Cardano.Wallet.DB
-    ( DBFactory (..)
-    , DBLayer (..)
-    , ErrNoSuchWallet (..)
-    , PrimaryKey (..)
-    , cleanDB
-    )
+    ( DBFactory (..), DBLayer (..), ErrNoSuchWallet (..), cleanDB )
 import Cardano.Wallet.DB.Arbitrary
     ( GenState, KeyValPairs (..) )
 import Cardano.Wallet.DB.Properties
@@ -314,13 +309,13 @@ loggingSpec = withLoggingDB @(SeqState 'Mainnet ShelleyKey) $ do
     describe "Sqlite query logging" $ do
         it "should log queries at DEBUG level" $ \(getLogs, DBLayer{..}) -> do
             atomically $ unsafeRunExceptT $
-                initializeWallet testPk testCpSeq testMetadata mempty gp
+                initializeWallet testWid testCpSeq testMetadata mempty gp
             logs <- getLogs
             logs `shouldHaveMsgQuery` "INSERT"
 
         it "should not log query parameters" $ \(getLogs, DBLayer{..}) -> do
             atomically $ unsafeRunExceptT $
-                initializeWallet testPk testCpSeq testMetadata mempty gp
+                initializeWallet testWid testCpSeq testMetadata mempty gp
             let walletName = T.unpack $ coerce $ name testMetadata
             msgs <- T.unlines . mapMaybe getMsgQuery <$> getLogs
             T.unpack msgs `shouldNotContain` walletName
@@ -406,7 +401,7 @@ fileModeSpec =  do
                     handle @IO @SomeException (const (pure ())) $ forever $ do
                         atomically $ do
                             liftIO $ threadDelay 10000
-                            void $ readCheckpoint $ PrimaryKey testWid
+                            void $ readCheckpoint testWid
 
                 killThread pid *> removeDatabase testWid
                 listDirectory dir `shouldReturn` mempty
@@ -443,8 +438,8 @@ fileModeSpec =  do
     describe "Sqlite database file" $ do
         let writeSomething DBLayer{..} = do
                 atomically $ unsafeRunExceptT $
-                    initializeWallet testPk testCpSeq testMetadata mempty gp
-                atomically listWallets `shouldReturn` [testPk]
+                    initializeWallet testWid testCpSeq testMetadata mempty gp
+                atomically listWallets `shouldReturn` [testWid]
             tempFilesAbsent fp = do
                 doesFileExist fp `shouldReturn` True
                 doesFileExist (fp <> "-wal") `shouldReturn` False
@@ -462,8 +457,8 @@ fileModeSpec =  do
         it "create and list wallet works" $ \f -> do
             withShelleyFileDBLayer f $ \DBLayer{..} -> do
                 atomically $ unsafeRunExceptT $
-                    initializeWallet testPk testCp testMetadata mempty gp
-            testOpeningCleaning f listWallets' [testPk] []
+                    initializeWallet testWid testCp testMetadata mempty gp
+            testOpeningCleaning f listWallets' [testWid] []
 
         it "create and get meta works" $ \f -> do
             meta <- withShelleyFileDBLayer f $ \DBLayer{..} -> do
@@ -471,26 +466,26 @@ fileModeSpec =  do
                 let meta = testMetadata
                        { passphraseInfo = Just $ WalletPassphraseInfo now EncryptWithPBKDF2 }
                 atomically $ unsafeRunExceptT $
-                    initializeWallet testPk testCp meta mempty gp
+                    initializeWallet testWid testCp meta mempty gp
                 return meta
-            testOpeningCleaning f (`readWalletMeta'` testPk) (Just meta) Nothing
+            testOpeningCleaning f (`readWalletMeta'` testWid) (Just meta) Nothing
 
         it "create and get private key" $ \f -> do
             (k, h) <- withShelleyFileDBLayer f $ \db@DBLayer{..} -> do
                 atomically $ unsafeRunExceptT $
-                    initializeWallet testPk testCp testMetadata mempty gp
-                unsafeRunExceptT $ attachPrivateKey db testPk
-            testOpeningCleaning f (`readPrivateKey'` testPk) (Just (k, h)) Nothing
+                    initializeWallet testWid testCp testMetadata mempty gp
+                unsafeRunExceptT $ attachPrivateKey db testWid
+            testOpeningCleaning f (`readPrivateKey'` testWid) (Just (k, h)) Nothing
 
         it "put and read tx history (Ascending)" $ \f -> do
             withShelleyFileDBLayer f $ \DBLayer{..} -> do
                 atomically $ do
                     unsafeRunExceptT $
-                        initializeWallet testPk testCp testMetadata mempty gp
-                    unsafeRunExceptT $ putTxHistory testPk testTxs
+                        initializeWallet testWid testCp testMetadata mempty gp
+                    unsafeRunExceptT $ putTxHistory testWid testTxs
             testOpeningCleaning
                 f
-                (\db' -> readTxHistory' db' testPk Ascending wholeRange Nothing)
+                (\db' -> readTxHistory' db' testWid Ascending wholeRange Nothing)
                 testTxs
                 mempty
 
@@ -498,11 +493,11 @@ fileModeSpec =  do
             withShelleyFileDBLayer f $ \DBLayer{..} -> do
                 atomically $ do
                     unsafeRunExceptT $
-                        initializeWallet testPk testCp testMetadata mempty gp
-                    unsafeRunExceptT $ putTxHistory testPk testTxs
+                        initializeWallet testWid testCp testMetadata mempty gp
+                    unsafeRunExceptT $ putTxHistory testWid testTxs
             testOpeningCleaning
                 f
-                (\db' -> readTxHistory' db' testPk Descending wholeRange Nothing)
+                (\db' -> readTxHistory' db' testWid Descending wholeRange Nothing)
                 testTxs
                 mempty
 
@@ -510,9 +505,9 @@ fileModeSpec =  do
             withShelleyFileDBLayer f $ \DBLayer{..} -> do
                 atomically $ do
                     unsafeRunExceptT $
-                        initializeWallet testPk testCp testMetadata mempty gp
-                    unsafeRunExceptT $ putCheckpoint testPk testCp
-            testOpeningCleaning f (`readCheckpoint'` testPk) (Just testCp) Nothing
+                        initializeWallet testWid testCp testMetadata mempty gp
+                    unsafeRunExceptT $ putCheckpoint testWid testCp
+            testOpeningCleaning f (`readCheckpoint'` testWid) (Just testCp) Nothing
 
         describe "Golden rollback scenarios" $ do
             let dummyHash x = Hash $ x <> BS.pack (replicate (32 - (BS.length x)) 0)
@@ -527,10 +522,10 @@ fileModeSpec =  do
                         knownAddresses (getState testCp)
 
                 atomically $ unsafeRunExceptT $ initializeWallet
-                    testPk testCp testMetadata mempty gp
+                    testWid testCp testMetadata mempty gp
 
                 let mockApply h mockTxs = do
-                        Just cpA <- atomically $ readCheckpoint testPk
+                        Just cpA <- atomically $ readCheckpoint testWid
                         let slotA = slotNo $ currentTip cpA
                         let Quantity bhA = blockHeight $ currentTip cpA
                         let hashA = headerHash $ currentTip cpA
@@ -547,9 +542,9 @@ fileModeSpec =  do
                                 mempty
                         let (FilteredBlock _ txs, cpB) = applyBlock fakeBlock cpA
                         atomically $ do
-                            unsafeRunExceptT $ putCheckpoint testPk cpB
-                            unsafeRunExceptT $ putTxHistory testPk txs
-                            unsafeRunExceptT $ prune testPk (Quantity 2160)
+                            unsafeRunExceptT $ putCheckpoint testWid cpB
+                            unsafeRunExceptT $ putTxHistory testWid txs
+                            unsafeRunExceptT $ prune testWid (Quantity 2160)
 
                 let mockApplyBlock1 = mockApply (dummyHash "block1")
                         [ Tx (dummyHash "tx1")
@@ -582,8 +577,8 @@ fileModeSpec =  do
                 getTxsInLedger db `shouldReturn` [(Outgoing, 2), (Incoming, 4)]
 
                 atomically . void . unsafeRunExceptT $
-                    rollbackTo testPk (SlotNo 200)
-                Just cp <- atomically $ readCheckpoint testPk
+                    rollbackTo testWid (SlotNo 200)
+                Just cp <- atomically $ readCheckpoint testWid
                 slotNo (currentTip cp) `shouldBe` (SlotNo 0)
 
                 getTxsInLedger db `shouldReturn` []
@@ -597,7 +592,7 @@ fileModeSpec =  do
 -- multiple sessions.
 prop_randomOpChunks
     :: (Eq s, PersistState s, Show s)
-    => KeyValPairs (PrimaryKey WalletId) (Wallet s, WalletMetadata)
+    => KeyValPairs WalletId (Wallet s, WalletMetadata)
     -> Property
 prop_randomOpChunks (KeyValPairs pairs) =
     not (null pairs) ==> monadicIO (liftIO prop)
@@ -614,7 +609,7 @@ prop_randomOpChunks (KeyValPairs pairs) =
 
     insertPair
         :: DBLayer IO s k
-        -> (PrimaryKey WalletId, (Wallet s, WalletMetadata))
+        -> (WalletId, (Wallet s, WalletMetadata))
         -> IO ()
     insertPair DBLayer{..} (k, (cp, meta)) = do
         keys <- atomically listWallets
@@ -710,27 +705,27 @@ withShelleyFileDBLayer fp = withDBLayer
 
 listWallets'
     :: DBLayer m s k
-    -> m [PrimaryKey WalletId]
+    -> m [WalletId]
 listWallets' DBLayer{..} =
     atomically listWallets
 
 readCheckpoint'
     :: DBLayer m s k
-    -> PrimaryKey WalletId
+    -> WalletId
     -> m (Maybe (Wallet s))
 readCheckpoint' DBLayer{..} =
     atomically . readCheckpoint
 
 readWalletMeta'
     :: DBLayer m s k
-    -> PrimaryKey WalletId
+    -> WalletId
     -> m (Maybe WalletMetadata)
 readWalletMeta' DBLayer{..} =
     atomically . readWalletMeta
 
 readTxHistory'
     :: DBLayer m s k
-    -> PrimaryKey WalletId
+    -> WalletId
     -> SortOrder
     -> Range SlotNo
     -> Maybe TxStatus
@@ -740,7 +735,7 @@ readTxHistory' DBLayer{..} a0 a1 a2 =
 
 readPrivateKey'
     :: DBLayer m s k
-    -> PrimaryKey WalletId
+    -> WalletId
     -> m (Maybe (k 'RootK XPrv, Hash "encryption"))
 readPrivateKey' DBLayer{..} =
     atomically . readPrivateKey
@@ -748,7 +743,7 @@ readPrivateKey' DBLayer{..} =
 -- | Attach an arbitrary private key to a wallet
 attachPrivateKey
     :: DBLayer IO s ShelleyKey
-    -> PrimaryKey WalletId
+    -> WalletId
     -> ExceptT ErrNoSuchWallet IO (ShelleyKey 'RootK XPrv, Hash "encryption")
 attachPrivateKey DBLayer{..} wid = do
     let pwd = Passphrase $ BA.convert $ T.encodeUtf8 "simplevalidphrase"
@@ -1096,10 +1091,10 @@ testMigrationPassphraseScheme = do
             withDBLayer @s @k tr defaultFieldValues path ti
                 $ \DBLayer{..} -> atomically
                 $ do
-                    Just a <- readWalletMeta $ PrimaryKey walNeedMigration
-                    Just b <- readWalletMeta $ PrimaryKey walNewScheme
-                    Just c <- readWalletMeta $ PrimaryKey walOldScheme
-                    Just d <- readWalletMeta $ PrimaryKey walNoPassphrase
+                    Just a <- readWalletMeta walNeedMigration
+                    Just b <- readWalletMeta walNewScheme
+                    Just c <- readWalletMeta walOldScheme
+                    Just d <- readWalletMeta walNoPassphrase
                     pure (a,b,c,d)
 
         -- Migration is visible from the logs
@@ -1170,9 +1165,6 @@ testMetadata = WalletMetadata
 testWid :: WalletId
 testWid = WalletId (hash ("test" :: ByteString))
 
-testPk :: PrimaryKey WalletId
-testPk = PrimaryKey testWid
-
 testTxs :: [(Tx, TxMeta)]
 testTxs =
     [ ( Tx (mockHash @String "tx2")
@@ -1195,17 +1187,18 @@ gp = dummyGenesisParameters
 
 getAvailableBalance :: DBLayer IO s k -> IO Natural
 getAvailableBalance DBLayer{..} = do
-    cp <- fmap (fromMaybe (error "nothing")) <$> atomically $ readCheckpoint testPk
+    cp <- fmap (fromMaybe (error "nothing")) <$>
+        atomically $ readCheckpoint testWid
     pend <- atomically $ fmap toTxHistory
-        <$> readTxHistory testPk Nothing Descending wholeRange (Just Pending)
+        <$> readTxHistory testWid Nothing Descending wholeRange (Just Pending)
     return $ fromIntegral $ unCoin $ TokenBundle.getCoin $
         availableBalance (Set.fromList $ map fst pend) cp
 
 getTxsInLedger :: DBLayer IO s k -> IO ([(Direction, Natural)])
 getTxsInLedger DBLayer {..} = do
     pend <- atomically $ fmap toTxHistory
-        <$> readTxHistory testPk Nothing Descending wholeRange (Just InLedger)
-    return $ map (\(_, m) -> (direction m, fromIntegral $ unCoin $ amount m)) pend
+        <$> readTxHistory testWid Nothing Descending wholeRange (Just InLedger)
+    pure $ map (\(_, m) -> (direction m, fromIntegral $ unCoin $ amount m)) pend
 
 {-------------------------------------------------------------------------------
                            Test data - Sequential AD

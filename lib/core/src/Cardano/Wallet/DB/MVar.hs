@@ -27,7 +27,6 @@ import Cardano.Wallet.DB
     , ErrPutLocalTxSubmission (..)
     , ErrRemoveTx (..)
     , ErrWalletAlreadyExists (..)
-    , PrimaryKey (..)
     )
 import Cardano.Wallet.DB.Model
     ( Database
@@ -93,7 +92,7 @@ newDBLayer
     -> m (DBLayer m s k)
 newDBLayer timeInterpreter = do
     lock <- newMVar ()
-    db <- newMVar (emptyDatabase :: Database (PrimaryKey WalletId) s (k 'RootK XPrv, Hash "encryption"))
+    db <- newMVar (emptyDatabase :: Database WalletId s (k 'RootK XPrv, Hash "encryption"))
     return $ DBLayer
 
         {-----------------------------------------------------------------------
@@ -234,11 +233,11 @@ newDBLayer timeInterpreter = do
 -- | Apply an operation to the model database, then update the mutable variable.
 alterDB
     :: (MonadUnliftIO m, NFData s, NFData xprv)
-    => (Err (PrimaryKey WalletId) -> Maybe err)
+    => (Err WalletId -> Maybe err)
     -- ^ Error type converter
-    -> MVar (Database (PrimaryKey WalletId) s xprv)
+    -> MVar (Database WalletId s xprv)
     -- ^ The database variable
-    -> ModelOp (PrimaryKey WalletId) s xprv a
+    -> ModelOp WalletId s xprv a
     -- ^ Operation to run on the database
     -> m (Either err a)
 alterDB convertErr db op = modifyMVar db (bubble . op)
@@ -252,35 +251,35 @@ alterDB convertErr db op = modifyMVar db (bubble . op)
 -- into a runtime exception.
 readDB
     :: (MonadUnliftIO m, NFData s, NFData xprv)
-    => MVar (Database (PrimaryKey WalletId) s xprv)
+    => MVar (Database WalletId s xprv)
     -- ^ The database variable
-    -> ModelOp (PrimaryKey WalletId) s xprv a
+    -> ModelOp WalletId s xprv a
     -- ^ Operation to run on the database
     -> m a
 readDB db op = alterDB Just db op >>= either (throwIO . MVarDBError) pure
 
-errNoSuchWallet :: Err (PrimaryKey WalletId) -> Maybe ErrNoSuchWallet
-errNoSuchWallet (NoSuchWallet (PrimaryKey wid)) = Just (ErrNoSuchWallet wid)
+errNoSuchWallet :: Err WalletId -> Maybe ErrNoSuchWallet
+errNoSuchWallet (NoSuchWallet wid) = Just (ErrNoSuchWallet wid)
 errNoSuchWallet _ = Nothing
 
-errCannotRemovePendingTx :: Err (PrimaryKey WalletId) -> Maybe ErrRemoveTx
-errCannotRemovePendingTx (NoSuchWallet (PrimaryKey wid)) =
+errCannotRemovePendingTx :: Err WalletId -> Maybe ErrRemoveTx
+errCannotRemovePendingTx (NoSuchWallet wid) =
     Just (ErrRemoveTxNoSuchWallet (ErrNoSuchWallet wid))
-errCannotRemovePendingTx (NoSuchTx (PrimaryKey wid) tid) =
+errCannotRemovePendingTx (NoSuchTx wid tid) =
     Just (ErrRemoveTxNoSuchTransaction (ErrNoSuchTransaction wid tid))
 errCannotRemovePendingTx (CantRemoveTxInLedger _ tid) =
     Just (ErrRemoveTxAlreadyInLedger tid)
 errCannotRemovePendingTx _ = Nothing
 
 errWalletAlreadyExists
-    :: Err (PrimaryKey WalletId)
+    :: Err WalletId
     -> Maybe ErrWalletAlreadyExists
-errWalletAlreadyExists (WalletAlreadyExists (PrimaryKey wid)) =
+errWalletAlreadyExists (WalletAlreadyExists wid) =
     Just (ErrWalletAlreadyExists wid)
 errWalletAlreadyExists _ = Nothing
 
 -- | Error which happens when model returns an unexpected value.
-newtype MVarDBError = MVarDBError (Err (PrimaryKey WalletId))
+newtype MVarDBError = MVarDBError (Err WalletId)
     deriving (Show)
 
 instance Exception MVarDBError

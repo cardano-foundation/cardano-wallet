@@ -63,7 +63,7 @@ import Cardano.Mnemonic
 import Cardano.Startup
     ( withUtf8Encoding )
 import Cardano.Wallet.DB
-    ( DBLayer (..), PrimaryKey (..), cleanDB )
+    ( DBLayer (..), cleanDB )
 import Cardano.Wallet.DB.Sqlite
     ( CacheBehavior (..), PersistState, WalletDBLog (..), newDBLayerWith )
 import Cardano.Wallet.DB.Sqlite.TH
@@ -289,7 +289,7 @@ bgroupReadUTxO db = bgroup "UTxO (Read)"
 benchPutUTxO :: Int -> Int -> Int -> DBLayerBench -> IO ()
 benchPutUTxO numCheckpoints utxoSize numAssets DBLayer{..} = do
     let cps = mkCheckpoints numCheckpoints utxoSize numAssets
-    unsafeRunExceptT $ mapExceptT atomically $ mapM_ (putCheckpoint testPk) cps
+    unsafeRunExceptT $ mapExceptT atomically $ mapM_ (putCheckpoint testWid) cps
 
 mkCheckpoints :: Int -> Int -> Int -> [WalletBench]
 mkCheckpoints numCheckpoints utxoSize numAssets =
@@ -310,7 +310,7 @@ mkCheckpoints numCheckpoints utxoSize numAssets =
         (mkOutputs i utxoSize numAssets)
 
 benchReadUTxO :: DBLayerBench -> IO (Maybe WalletBench)
-benchReadUTxO DBLayer{..} = atomically $ readCheckpoint testPk
+benchReadUTxO DBLayer{..} = atomically $ readCheckpoint testWid
 
 -- Set up a database with some UTxO in checkpoints.
 withUTxO
@@ -327,7 +327,7 @@ utxoFixture :: DBLayerBench -> Int -> Int -> Int -> IO ()
 utxoFixture db@DBLayer{..} numCheckpoints utxoSize numAssets = do
     walletFixture db
     let cps = mkCheckpoints numCheckpoints utxoSize numAssets
-    unsafeRunExceptT $ mapM_ (mapExceptT atomically . putCheckpoint testPk) cps
+    unsafeRunExceptT $ mapM_ (mapExceptT atomically . putCheckpoint testWid) cps
 
 ----------------------------------------------------------------------------
 -- Wallet State (Sequential Scheme) Benchmarks
@@ -364,7 +364,7 @@ bgroupWriteSeqState db = bgroup "SeqState"
 
 benchPutSeqState :: DBLayerBench -> [WalletBench] -> IO ()
 benchPutSeqState DBLayer{..} cps = do
-    unsafeRunExceptT $ mapExceptT atomically $ mapM_ (putCheckpoint testPk) cps
+    unsafeRunExceptT $ mapExceptT atomically $ mapM_ (putCheckpoint testWid) cps
 
 mkExtPool :: Int -> Int -> AddressPool  'UtxoExternal ShelleyKey
 mkExtPool numAddrs i =
@@ -420,7 +420,7 @@ benchPutRndState
     -> [Wallet (RndState 'Mainnet)]
     -> IO ()
 benchPutRndState DBLayer{..} cps =
-    unsafeRunExceptT $ mapExceptT atomically $ mapM_ (putCheckpoint testPk) cps
+    unsafeRunExceptT $ mapExceptT atomically $ mapM_ (putCheckpoint testWid) cps
 
 mkRndAddresses
     :: Int -> Int -> Map DerivationPath Address
@@ -544,7 +544,7 @@ benchPutTxHistory
     -> IO ()
 benchPutTxHistory numTxs numInputs numOutputs numAssets range DBLayer{..} = do
     let txs = mkTxHistory numTxs numInputs numOutputs numAssets range
-    unsafeRunExceptT $ mapExceptT atomically $ putTxHistory testPk txs
+    unsafeRunExceptT $ mapExceptT atomically $ putTxHistory testWid txs
 
 benchReadTxHistory
     :: SortOrder
@@ -553,7 +553,7 @@ benchReadTxHistory
     -> DBLayerBench
     -> IO [TransactionInfo]
 benchReadTxHistory sortOrder (inf, sup) mstatus DBLayer{..} =
-    atomically $ readTxHistory testPk Nothing sortOrder range mstatus
+    atomically $ readTxHistory testWid Nothing sortOrder range mstatus
   where
     range = Range
         (SlotNo . fromIntegral <$> inf)
@@ -643,7 +643,7 @@ txHistoryFixture db@DBLayer{..} bSize nAssets range = do
     walletFixture db
     let (nInps, nOuts) = (20, 20)
     let txs = mkTxHistory bSize nInps nOuts nAssets range
-    atomically $ unsafeRunExceptT $ putTxHistory testPk txs
+    atomically $ unsafeRunExceptT $ putTxHistory testWid txs
 
 ----------------------------------------------------------------------------
 -- Criterion env functions for database setup
@@ -720,7 +720,7 @@ walletFixture :: DBLayerBench -> IO ()
 walletFixture db@DBLayer{..} = do
     cleanDB db
     atomically $ unsafeRunExceptT $ initializeWallet
-        testPk
+        testWid
         testCp
         testMetadata
         mempty
@@ -730,7 +730,7 @@ walletFixtureByron :: DBLayerBenchByron -> IO ()
 walletFixtureByron db@DBLayer{..} = do
     cleanDB db
     atomically $ unsafeRunExceptT $ initializeWallet
-        testPk
+        testWid
         testCpByron
         testMetadata
         mempty
@@ -859,9 +859,6 @@ testMetadata = WalletMetadata
 
 testWid :: WalletId
 testWid = WalletId (hash ("test" :: ByteString))
-
-testPk :: PrimaryKey WalletId
-testPk = PrimaryKey testWid
 
 defaultPrefix :: DerivationPrefix
 defaultPrefix = DerivationPrefix
