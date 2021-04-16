@@ -50,14 +50,12 @@ module Cardano.Wallet.DB.Model
     , mReadCheckpoint
     , mListCheckpoints
     , mRollbackTo
-    , mPrune
     , mPutWalletMeta
     , mReadWalletMeta
     , mPutDelegationCertificate
     , mIsStakeKeyRegistered
     , mPutTxHistory
     , mReadTxHistory
-    , mGetTx
     , mPutLocalTxSubmission
     , mReadLocalTxSubmissionPending
     , mUpdatePendingTxForExpiry
@@ -346,23 +344,6 @@ mRollbackTo wid requested db@(Database wallets txs) = case Map.lookup wid wallet
     safeHead [] = Nothing
     safeHead (h:_) = Just h
 
-mPrune :: Ord wid => wid -> Quantity "block" Word32 -> ModelOp wid s xprv ()
-mPrune wid epochStability = alterModel wid $ ((),) . prune
-  where
-    prune wal = wal
-        { checkpoints = Map.filter ((<= point) . cpHeight) $
-            checkpoints wal
-        , submittedTxs = Map.filterWithKey (const . ((<= point) . txHeight)) $
-            submittedTxs wal
-        }
-      where
-        cp = mostRecentCheckpoint wal
-        tipHeight = maybe 0 (getQuantity . cpHeight) cp
-        point = Quantity (tipHeight - getQuantity epochStability)
-        cpHeight = view (#currentTip . #blockHeight)
-        txHeight txid = maybe (Quantity tipHeight) (view #blockHeight) $
-            Map.lookup txid $ txHistory wal
-
 mPutWalletMeta :: Ord wid => wid -> WalletMetadata -> ModelOp wid s xprv ()
 mPutWalletMeta wid meta = alterModel wid $ \wal ->
     ((), wal { metadata = meta })
@@ -509,18 +490,6 @@ mReadTxHistory ti wid minWithdrawal order range mstatus db@(Database wallets txs
         tipH = getQuantity
              $ (blockHeight :: BlockHeader -> Quantity "block" Word32)
              $ currentTip cp
-
-mGetTx
-    :: Ord wid
-    => wid
-    -> Hash "Tx"
-    -> ModelOp wid s xprv (Maybe TransactionInfo)
-mGetTx wid tid db@(Database wallets txs) =
-    (Right (Map.lookup wid wallets >>= getTxInfo), db)
-  where
-    getTxInfo wal = case (Map.lookup tid (txHistory wal), Map.lookup tid txs) of
-        (Just _md, Just _tx) -> error "TODO: mGetTx"
-        _ -> Nothing
 
 mPutPrivateKey :: Ord wid => wid -> xprv -> ModelOp wid s xprv ()
 mPutPrivateKey wid pk = alterModel wid $ \wal ->

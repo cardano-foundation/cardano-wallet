@@ -37,7 +37,6 @@ import Cardano.Wallet.DB.Model
     , mIsStakeKeyRegistered
     , mListCheckpoints
     , mListWallets
-    , mPrune
     , mPutCheckpoint
     , mPutDelegationCertificate
     , mPutDelegationRewardBalance
@@ -117,9 +116,7 @@ newDBLayer timeInterpreter = do
             alterDB errNoSuchWallet db $
             mRollbackTo pk pt
 
-        , prune = \pk epochStability -> ExceptT $
-                alterDB errNoSuchWallet db $
-                mPrune pk epochStability
+        , prune = \_ _ -> error "MVar.prune: not implemented"
 
         {-----------------------------------------------------------------------
                                    Wallet Metadata
@@ -156,6 +153,7 @@ newDBLayer timeInterpreter = do
                     range
                     mstatus
 
+        -- TODO: shift implementation to mGetTx
         , getTx = \pk tid -> ExceptT $
             alterDB errNoSuchWallet db (mCheckWallet pk) >>= \case
                 Left err -> pure $ Left err

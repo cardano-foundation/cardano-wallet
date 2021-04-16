@@ -73,7 +73,6 @@ import Cardano.Wallet.DB.Model
     , WalletDatabase (..)
     , emptyDatabase
     , mCleanDB
-    , mGetTx
     , mInitializeWallet
     , mIsStakeKeyRegistered
     , mListCheckpoints
@@ -425,8 +424,11 @@ runMock = \case
     ReadTxHistory wid minW order range status ->
         first (Resp . fmap TxHistory)
         . mReadTxHistory timeInterpreter wid minW order range status
-    GetTx wid tid ->
-        first (Resp . fmap (TxHistory . maybe [] pure)) . mGetTx wid tid
+    GetTx _wid _tid ->
+        first (Resp . fmap (TxHistory . maybe [] pure))
+        -- TODO: Implement mGetTx
+        -- . mGetTx wid tid
+        . (Right Nothing,)
     PutLocalTxSubmission wid tid sl ->
         first (Resp . fmap Unit)
         . mPutLocalTxSubmission wid tid (unMockSealedTx tid) sl
@@ -714,6 +716,9 @@ generatorWithWid wids =
         $ ReadPrivateKey <$> genId
     , declareGenerator "RollbackTo" 1
         $ RollbackTo <$> genId <*> arbitrary
+    -- TODO: Implement mPrune
+    -- , declareGenerator "Prune" 1
+    --     $ Prune <$> genId <*> arbitrary
     , declareGenerator "ReadGenesisParameters" 1
         $ ReadGenesisParameters <$> genId
     ]
